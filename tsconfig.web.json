@@ -1,5 +1,5 @@
 {
-  // The console as the app ships it: Cortico's client with console/ laid over it (run pnpm stage first).
+  // The console as the app ships it: Cortico's client with console/ laid over it (run pnpm run build:cortico first).
   // Node types stay on: the client imports provider types whose modules import node: built-ins.
   "extends": "./tsconfig.json",
   "compilerOptions": {

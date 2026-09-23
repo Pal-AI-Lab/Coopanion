@@ -14,13 +14,13 @@
     "node": ">=22"
   },
   "scripts": {
-    "stage": "tsx scripts/stage.ts",
     "dev": "tsx scripts/stage.ts && electron .",
     "start": "electron .",
+    "build:cortico": "tsx scripts/stage.ts",
+    "build:installer": "tsx scripts/stage.ts && tsx scripts/pack.ts",
+    "build:icons": "node scripts/make-icons.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "dist": "tsx scripts/stage.ts && tsx scripts/pack.ts",
-    "icons": "node scripts/make-icons.mjs",
     "typecheck:web": "tsc -p tsconfig.web.json"
   },
   "dependencies": {

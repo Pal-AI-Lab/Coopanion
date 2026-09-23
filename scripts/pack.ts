@@ -6,7 +6,7 @@
  * only the runtime dependencies installed by npm, and the three workspace packages copied into
  * `node_modules/` as real directories.
  *
- * Run: `pnpm dist` (stages first). Output: `dist/CortiCompanion-Setup-<version>.exe`.
+ * Run: `pnpm run build:installer` (builds build/cortico first). Output: `dist/CortiCompanion-Setup-<version>.exe`.
  */
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';

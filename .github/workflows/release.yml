@@ -21,7 +21,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm dist
+      - run: pnpm run build:installer
       - name: Attach installer to the release
         shell: bash
         env:

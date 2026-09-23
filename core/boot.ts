@@ -13,7 +13,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const APP = fileURLToPath(new URL('../', import.meta.url));
 const CORTICO = process.env.CORTICO_COMPANION_ROOT ?? join(APP, 'build', 'cortico');
 if (!existsSync(join(CORTICO, 'src', 'core'))) {
-  console.error(`没有找到 Cortico:${CORTICO}(开发时先运行 pnpm stage)`);
+  console.error(`没有找到 Cortico:${CORTICO}(开发时先运行 pnpm run build:cortico)`);
   process.exit(2);
 }
 process.env.CORTICO_HOME ??= join(APP, 'build', 'home');

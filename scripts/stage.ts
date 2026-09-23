@@ -8,7 +8,7 @@
  * 3. builds the console bundle with Cortico's own `buildWeb` and the stylesheet with Tailwind;
  * 4. builds the desktop pet World's panel bundle.
  *
- * Run: `pnpm stage` (tsx). Idempotent; the previous `build/cortico` is replaced.
+ * Run: `pnpm run build:cortico`. Idempotent; the previous `build/cortico` is replaced.
  */
 import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';

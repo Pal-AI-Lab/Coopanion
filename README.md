@@ -87,9 +87,9 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/CortiCompanion/main/installer/i
 git clone --recursive https://github.com/Pal-AI-Lab/CortiCompanion.git
 cd CortiCompanion
 pnpm install
-pnpm dev          # 准备 build/cortico 并启动应用
-pnpm test         # 单元测试
-pnpm dist         # 打出 dist/CortiCompanion-Setup-<版本>.exe
+pnpm run dev                # 准备 build/cortico 并启动应用
+pnpm run test               # 单元测试
+pnpm run build:installer    # 打出 dist/CortiCompanion-Setup-<版本>.exe
 ```
 
 | 目录 | 内容 |

@@ -18,7 +18,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm stage
-      - run: pnpm typecheck
-      - run: pnpm typecheck:web
-      - run: pnpm test
+      - run: pnpm run build:cortico
+      - run: pnpm run typecheck
+      - run: pnpm run typecheck:web
+      - run: pnpm run test
