@@ -1,4 +1,5 @@
 /** First-run files of the app's deployment. Imports nothing from Cortico, so it runs and tests on its own. */
+import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,11 +11,14 @@ export const CONSOLE_PORT = 17788;
 export const DISPLAY_NAME = 'Coo';
 /** The name version 0.1.0 seeded. */
 const OLD_DISPLAY_NAME = '可缇';
+/** SHA-256 of the self-description versions 0.1.0 (after the rename) and 0.1.1 seeded, line endings as LF. */
+const OLD_CONSTITUTION = 'cfcb7527cbf3518ab9f077ee711c86661a70613b9e5caeb992b30a603490e5cf';
 const SEED_DIR = fileURLToPath(new URL('./seed/', import.meta.url));
 
 /**
  * Writes the first-run files that are missing; existing files are left as the operator made them,
- * except the old seeded name, which becomes Coo in the config and in the self-description.
+ * except the old seeded name, which becomes Coo in the config and in the self-description, and a
+ * self-description still exactly as an older version seeded it, which becomes the current one.
  */
 export function seed(home: string): void {
   const deploy = join(home, DEPLOYMENT);
@@ -44,6 +48,7 @@ export function seed(home: string): void {
   // the console shows it as the bot's avatar
   if (!existsSync(join(deploy, 'avatar.png'))) copyFileSync(join(SEED_DIR, 'avatar.png'), join(deploy, 'avatar.png'));
   renameOldSeed(deploy, workspace);
+  upgradeSeededConstitution(workspace);
 }
 
 function renameOldSeed(deploy: string, workspace: string): void {
@@ -60,3 +65,8 @@ function renameOldSeed(deploy: string, workspace: string): void {
   }
 }
 
+function upgradeSeededConstitution(workspace: string): void {
+  const file = join(workspace, 'CONSTITUTION.md');
+  const text = readFileSync(file, 'utf8').replaceAll('\r\n', '\n');
+  if (createHash('sha256').update(text).digest('hex') === OLD_CONSTITUTION) copyFileSync(join(SEED_DIR, 'CONSTITUTION.md'), file);
+}
