@@ -10,13 +10,17 @@
  * is stepped with it; seeking backwards replays from zero. `window.promo.renderAt(t)` is what the
  * recorder calls frame by frame.
  */
-import { createPet, figure, FACES, STAND, heartD, skinCss, normalizeSkin, wear } from '../../packages/cortico-world-desktop-pet/web/pet-core.js';
+import { createPet, figure, FACES, STAND, heartD, skinCss, skinVars, normalizeSkin, wear } from '../../packages/cortico-world-desktop-pet/web/pet-core.js';
 import { AUDIO_START, BEAT, bar, beat, bump, clamp01, ease, h, lerp, rng, seg, svgEl, f1 } from './util.js';
 import { createArcs } from './arcs.js';
 import { Bubble, Caption, Chip, Cursor } from './widgets.js';
 import { Wordmark } from './wordmark.js';
+import { busInto, createVoices, renderTrack } from './sfx.js';
 
 export const SOUNDTRACK = { file: 'assets/bgm.mp3', title: '花卷Jwyan - 可爱鲈鱼' };
+/** Balance of the music and the sound effects, for the live preview and the recording alike: the main hits (90th
+ * percentile of 50 ms loudness, about -20 dBFS) sit some 4 dB under the music (about -16 dBFS), babble and keys lower. */
+const MIX = { music: .7, sfx: 2 };
 const W = 1920, H = 1080, DURATION = bar(65) + .8, STEP = 1 / 120;
 const params = new URLSearchParams(location.search);
 const RECORD = params.has('record');
@@ -100,8 +104,8 @@ const TASKBAR = '<span class="app on"></span><span class="app cal"></span><span 
 const GRAVITY = 2300, CROUCH = .16; // pet-core's air physics and crouch before takeoff
 const INTRO = { S: .85, ground: 880, box: { l: 560, r: 760, top: 810 }, wall: { l: 1060, w: 110, top: 470 } };
 const DESK = 1008, CARD_TOP = 400;
-// where the cursor sets the pet down under the title
-const PLACE = { x: 960, floor: 900, S: 1.1 };
+// where the cursor sets the pet down under the title: on the taskbar
+const PLACE = { x: 960, floor: DESK, S: 1.1 };
 const PLACE_Y = PLACE.floor - 220 * PLACE.S - 25; // the scruff, with the feet a little above the floor
 const STROLL = { x: 360, to: 620, S: .8 };
 
@@ -134,6 +138,8 @@ const [, , TO_CARD1, TO_CARD2, TO_CARD3] = LEAPS;
 const GRAB = { in: 4.0, grab: bar(4), lift: bar(4) + .2, place: 6.05, release: 6.2 };
 /** The cursor that pokes the dozing pet awake in the stroll scene. */
 const POKE = { in: bar(23) - .1, down: bar(23) + .9, up: bar(23) + 1.03, out: bar(23) + 1.6 };
+/** The stroll scene's evening: dark from `dusk` to `dark` after the walk, the pet dozes off in it, the poke brings the light back. */
+const NIGHT = { dusk: bar(20) + .3, dark: bar(21) + .1, dawn: POKE.down, day: POKE.down + .35 };
 
 const S_KEYS = [
   [0, INTRO.S], [GRAB.lift, INTRO.S], [GRAB.place, PLACE.S],
@@ -149,7 +155,9 @@ function heroS(t) {
   return S_KEYS[S_KEYS.length - 1][1];
 }
 
-const silent = new Proxy({}, { get: (_, k) => (k === 'isOn' ? () => false : () => {}) });
+// the pet's sound calls go into petCues while the cue list is collected (see collectCues), and nowhere otherwise
+let petCues = null;
+const petSfx = new Proxy({}, { get: (_, k) => (k === 'isOn' ? () => false : (...a) => { petCues?.push([simT, k, ...a]); }) });
 const hero = { floor: INTRO.ground, S: INTRO.S, obstacles: true, pendingFloor: null };
 let ctl = null, simT = 0, rand = rng(7), nextEvent = 0, skin = normalizeSkin(null), D = null, optKeys = null;
 Math.random = () => rand();
@@ -195,6 +203,7 @@ function directIntro(c) {
         p.x = front; p.vx = -220; p.vy = Math.max(p.vy, -40); p.sqv += 2.8;
         p.expr = 'surprised'; p.exprUntil = simT + .6;
         D.bonkAt = simT; D.bonkY = p.fy - 150 * hero.S; note('bump');
+        petCues?.push([simT, 'thud']);
       }
       if (D.bonkAt != null && p.mode !== 'air') { c.act('dizzy'); D.stage = 5; note('dizzy'); }
       break;
@@ -264,11 +273,13 @@ function applyCamera(t) {
 }
 
 /* ---------- orders for the hero ---------- */
-const FACE_SEQ = ['happy', 'wink', 'love', 'shy', 'surprised', 'angry', 'sad', 'sleepy', 'thinking', 'happy'];
+const FACE_SEQ = ['happy', 'wink', 'love', 'shy', 'surprised', 'angry', 'sad', 'sleepy'];
 // kaomoji with the face's outline on the right, as in the signature
 const KAO = { happy: '^ ^)', wink: '^ 0)', love: '♡ ♡)', shy: '* o o)', surprised: 'O O)', angry: 'ò ó)', sad: 'ó ò)', sleepy: '- -)', thinking: '· ·)' };
-const FACE_AT = (i) => beat(30 + i);
-const OUTFIT_AT = beat(46), GRID_AT = beat(58);
+// faces and outfits both change every beat and a half
+const EVERY = 1.5 * BEAT;
+const FACE_AT = (i) => beat(30) + i * EVERY;
+const OUTFIT_AT = beat(46);
 const SAY = [['你已经坐了一个小时啦。', bar(33) + 1.15, bar(34) + 1.3], ['要不要站起来伸个懒腰?', bar(34) + 1.45, bar(36) - .15]];
 const HEARD = { text: '帮我记一下,周五下午三点项目评审', start: bar(36) + 1.0, final: bar(37) + 1.35, end: bar(37) + 1.8 };
 const REPLY = ['好,记到日程里。', HEARD.end + .1, bar(40) - .15];
@@ -288,10 +299,11 @@ const CUA = {
 const EVENTS = [
   [GRAB.release + .6, (c) => { c.pet.facing = 1; c.setExpr('happy', 2.2); }],
   ...LEAPS.map((l) => [l.at, (c) => leap(c, l.x1, l.y1, l.h)]),
-  ...FACE_SEQ.map((n, i) => [FACE_AT(i) + .02, (c) => c.setExpr(n, BEAT * .95)]),
+  ...FACE_SEQ.map((n, i) => [FACE_AT(i) + .02, (c) => c.setExpr(n, EVERY * .95)]),
   [bar(17) - .08, (c) => dropIn(c, STROLL.x, DESK)],
   [bar(17) + 1.2, (c) => c.walkTo(STROLL.to, false)],
   [bar(20) + .3, (c) => c.act('look')],
+  [NIGHT.dark, (c) => c.setExpr('sleepy', 1.6)],
   [bar(21) + 1.3, (c) => c.act('sit')],
   [bar(22) + .1, (c) => c.act('sleep')],
   [bar(24) + .9, (c) => c.act('hop')],
@@ -319,21 +331,17 @@ const EVENTS = [
 ].sort((a, b) => a[0] - b[0]);
 
 const PAL_NAMES = { mint: '薄荷绿', mono: '单色', navigator: '领航员', claude: '克劳德', fox: '红狐狸', purple: '虚式茈', lemon: '柠檬黄' };
-/** Outfits for the dressing montage, one per beat; the last one is the default look again. */
+/** Outfits for the dressing montage, one every EVERY; the palette grid then brings back the default look. */
 const OUTFITS = (() => {
   const seq = [
     { head: 'cat' },
     { head: 'bunny', palette: 'claude' },
     { head: 'sailor', palette: 'navigator' },
-    { side: 'feather' },
-    { head: 'none', side: 'headphones', palette: 'claude' },
-    { head: 'party', side: 'none', palette: 'fox' },
-    { head: 'tophat', glasses: 'monocle', palette: 'purple' },
+    { head: 'none', side: 'headphones', palette: 'fox' },
+    { head: 'tophat', side: 'none', glasses: 'monocle', palette: 'purple' },
     { head: 'none', glasses: 'round', neck: 'scarf', palette: 'lemon' },
     { glasses: 'none', side: 'bow', neck: 'bell', palette: 'mono' },
     { head: 'halo', side: 'none', neck: 'bowtie', palette: 'navigator' },
-    { head: 'antenna', neck: 'none', palette: 'fox' },
-    { head: 'none', palette: 'mint' },
   ];
   let cur = normalizeSkin(null);
   const NAMES = { cat: '猫耳', bear: '熊耳', bunny: '兔耳', sailor: '水手帽', feather: '耳羽', headphones: '耳机', party: '派对帽', tophat: '礼帽', monocle: '单片镜', round: '圆框眼镜', square: '方框眼镜', scarf: '围巾', bow: '蝴蝶结', bell: '铃铛', halo: '光环', bowtie: '领结', antenna: '天线', earring: '耳环', clip: '发夹' };
@@ -344,6 +352,7 @@ const OUTFITS = (() => {
   });
 })();
 const PLAIN_SKIN = normalizeSkin(null);
+const GRID_AT = OUTFIT_AT + OUTFITS.length * EVERY;
 
 function reset() {
   rand = rng(7);
@@ -356,7 +365,7 @@ function reset() {
   applySkin(PLAIN_SKIN);
   ctl = null;
   ctl = createPet({ petG, shadowEl, fxG }, {
-    sfx: silent, roam: 'off', startX: 100,
+    sfx: petSfx, roam: 'off', startX: 100,
     bounds: () => ({ W, H, floorY: floorAt(ctl ? ctl.pet.x : 100), S: hero.S }),
   });
   ctl.pet.facing = 1;
@@ -385,7 +394,7 @@ function advance(t) {
     if (simT < T.title[0] + 1) directIntro(ctl);
     if (poking) directPoke(ctl);
     if (simT >= OUTFIT_AT && simT < GRID_AT) {
-      const i = Math.min(OUTFITS.length - 1, Math.floor((simT - OUTFIT_AT) / BEAT));
+      const i = Math.min(OUTFITS.length - 1, Math.floor((simT - OUTFIT_AT) / EVERY));
       if (OUTFITS[i].skin !== skin) { applySkin(OUTFITS[i].skin); ctl.pet.sqv += 1.6; }
     }
     if (simT >= GRID_AT && skin !== PLAIN_SKIN) applySkin(PLAIN_SKIN);
@@ -461,7 +470,15 @@ const titleScene = sceneLayer(T.title);
 const title = new Wordmark(titleScene.el, 'Coopanion', { x: 960, y: 262, scale: 1.5 });
 const tagline = new Caption(titleScene.el, { x: 960, y: 372, size: 50, weight: 400, align: 'center', width: 1300, stagger: .025, color: 'var(--ink-soft)' });
 tagline.set('你的小小万能桌面伴侣');
+// the taskbar rises in as the intro's blocks sink, so the cursor sets the pet down on it; it sinks as the pet jumps off
+const titleDesk = sceneLayer([GRAB.lift + .2, T.title[1]]);
+const titleBar = h('div', 'taskbar', TASKBAR);
+titleDesk.el.appendChild(titleBar);
 function renderTitle(t) {
+  const [a, b] = titleDesk.range;
+  const desk = showScene(titleDesk, t, 0);
+  titleBar.style.transform = `translateY(${f1((1 - ease.outCubic(seg(t, a, a + .5))) * 80 + ease.inCubic(seg(t, b - .28, b + .06)) * 80)}px)`;
+  taskbarShown = Math.max(taskbarShown, desk);
   if (!showScene(titleScene, t, 0)) return;
   title.render(t, T.title[0] - .15, T.title[1] - .3);
   tagline.render(t, T.title[0] + .45, T.title[1] - .3);
@@ -471,14 +488,23 @@ function renderTitle(t) {
 const faces = sceneLayer(T.faces);
 const facesCap = new Caption(faces.el, { x: 960, y: 90, size: 88, align: 'center', width: 1600 });
 facesCap.set('动态小表情');
-const faceChip = new Chip(faces.el, 'chip face');
+const faceChips = [new Chip(faces.el, 'chip label'), new Chip(faces.el, 'chip label')];
+const FACE_LABELS = FACE_SEQ.map((n) => `${FACES[n].label}<em>${KAO[n]}</em>`);
 function renderFaces(t) {
   if (!showScene(faces, t, 0)) return;
   facesCap.render(t, T.faces[0] + .1, T.faces[1] - .3);
-  const i = Math.max(0, Math.min(FACE_SEQ.length - 1, Math.floor((t - FACE_AT(0)) / BEAT)));
-  const n = FACE_SEQ[i];
-  faceChip.render(t, FACE_AT(i), T.faces[1] - .3, FACES[n].label, 960, 960);
-  faceChip.el.innerHTML = `${FACES[n].label}<em>${KAO[n]}</em>`;
+  spitLabels(faceChips, t, FACE_AT(0), FACE_LABELS, T.faces[1] - .3);
+}
+
+/** Labels pushed out from under the pet's feet one per EVERY from `from`, on two chips taking turns so the previous one can drop away while the next comes out; the last leaves at `lastLeave`. */
+function spitLabels(chips, t, from, labels, lastLeave) {
+  const i = Math.max(0, Math.min(labels.length - 1, Math.floor((t - from) / EVERY)));
+  for (const n of [i - 1, i]) {
+    if (n < 0) continue;
+    const at = from + n * EVERY;
+    spitLabel(chips[n % 2], t, at, n === labels.length - 1 ? lastLeave : at + EVERY, labels[n]);
+  }
+  if (i < 1) chips[1].el.style.display = 'none';
 }
 
 /* dress */
@@ -487,14 +513,13 @@ const dressCap = new Caption(dress.el, { x: 960, y: 90, size: 88, align: 'center
 dressCap.set('换装扮');
 const dressSub = new Caption(dress.el, { x: 960, y: 200, size: 40, weight: 400, align: 'center', width: 1600, color: 'var(--ink-soft)', stagger: .02 });
 dressSub.set('7 种配色 · 19 件配饰');
-// outfit labels take turns on two chips, so the previous one can drop away while the next comes out
-const outfitChips = [new Chip(dress.el, 'chip'), new Chip(dress.el, 'chip')];
+const outfitChips = [new Chip(dress.el, 'chip label'), new Chip(dress.el, 'chip label')];
 /** A label pushed out from under the pet's feet at `at`, settling at y = 960; it drops on and fades at `leave`. */
-function spitLabel(chip, t, at, leave, text) {
+function spitLabel(chip, t, at, leave, html) {
   const k = seg(t, at, at + .3), o = seg(t, leave, leave + .18);
   chip.el.style.display = t < at || o >= 1 ? 'none' : '';
   if (chip.el.style.display) return;
-  if (chip.el.textContent !== text) chip.el.textContent = text;
+  if (chip.html !== html) { chip.el.innerHTML = html; chip.html = html; }
   const y = lerp(880, 960, ease.outBack(k, 1.8)) + o * 50;
   const s = lerp(.45, 1, ease.outBack(k, 2.2));
   chip.el.style.transform = `translate(960px, ${f1(y)}px) translate(-50%, -50%) scale(${f1(s * 100) / 100})`;
@@ -524,13 +549,7 @@ function renderDress(t) {
   if (!showScene(dress, t, 0)) { grid.innerHTML = ''; return; }
   dressCap.render(t, T.dress[0] + .1, T.dress[1] - .3);
   dressSub.render(t, T.dress[0] + .5, T.dress[1] - .3);
-  const i = Math.max(0, Math.min(OUTFITS.length - 1, Math.floor((t - OUTFIT_AT) / BEAT)));
-  for (const n of [i - 1, i]) {
-    if (n < 0) continue;
-    const at = OUTFIT_AT + n * BEAT;
-    spitLabel(outfitChips[n % 2], t, at, n === OUTFITS.length - 1 ? GRID_AT - .2 : at + BEAT, OUTFITS[n].label);
-  }
-  if (i < 1) outfitChips[1].el.style.display = 'none';
+  spitLabels(outfitChips, t, OUTFIT_AT, OUTFITS.map((o) => o.label), GRID_AT - .2);
   if (t < GRID_AT) {
     grid.innerHTML = '';
     gridLabels.forEach((c) => c.render(t, 1, 0, '', 0, 0));
@@ -557,9 +576,28 @@ const strollCap = new Caption(stroll.el, { x: 120, y: 110, size: 88 });
 strollCap.set('自己溜达');
 const pokeCursor = new Cursor(top);
 let taskbarShown = 0;
+// night: a dark sheet over the background, and the page and pet colors mixed toward the pet page's dark theme
+const nightEl = h('div', 'night');
+stage.insertBefore(nightEl, world);
+const skinVar = (dark, name) => new RegExp(`${name}:([^;]+)`).exec(skinVars(PLAIN_SKIN, dark))[1];
+const NIGHT_VARS = {
+  '--ink': ['#1B1A1E', '#E9EDF2'], '--ink-soft': ['#5C5C60', '#8C95A3'], '--line': ['#E3E4E3', '#252C37'],
+  '--skin-ink': [skinVar(false, '--skin-ink'), skinVar(true, '--skin-ink')], '--skin-eye': [skinVar(false, '--skin-eye'), skinVar(true, '--skin-eye')],
+  '--shadow': ['rgba(27,22,38,.14)', 'rgba(0,0,0,.5)'], '--dust': ['#A39DB0', '#5B6472'], '--bar': ['rgba(251,251,251,.92)', 'rgba(21,26,34,.92)'],
+};
+let nightShown = 0;
+function setNight(k) {
+  if (k === nightShown) return;
+  nightShown = k;
+  nightEl.style.opacity = String(k);
+  // the ink flips around the middle of the dimming, so text and pet never fade into the grey in between
+  const ink = ease.inOutCubic(seg(k, .45, .55));
+  for (const [name, [a, b]] of Object.entries(NIGHT_VARS)) stage.style.setProperty(name, k ? `color-mix(in srgb, ${a}, ${b} ${f1(ink * 100)}%)` : '');
+}
 function renderStroll(t) {
+  setNight(t > T.stroll[0] && t < T.stroll[1] ? f1(ease.inOutCubic(seg(t, NIGHT.dusk, NIGHT.dark)) * (1 - ease.outCubic(seg(t, NIGHT.dawn, NIGHT.day))) * 100) / 100 : 0);
   const on = showScene(stroll, t, 0);
-  taskbarShown = on;
+  taskbarShown = Math.max(taskbarShown, on);
   pokeCursor.render(t, on && D.pokeKeys ? POKE.in : 1, on && D.pokeKeys ? POKE.out + .3 : 0, D.pokeKeys ?? [[0, 0, 0]], [POKE.down]);
   if (!on) return;
   strollCap.render(t, T.stroll[0] + .3, T.stroll[1] - .3);
@@ -794,6 +832,50 @@ function render(t) {
   renderBubbles(t);
 }
 
+/* ---------- sound effects: what the pet plays in a dry run of the whole timeline, plus the promo's own ---------- */
+function collectCues() {
+  petCues = [];
+  reset();
+  advance(DURATION);
+  const cues = petCues;
+  petCues = null;
+  reset();
+  const add = (t, ...c) => cues.push([t, ...c]);
+  // a bubble pops open and babbles as its characters appear, as on the pet page
+  const speak = (text, start, cps) => {
+    add(start, 'pop');
+    [...text].forEach((ch, i) => { if (!/[\s,。!?、,.!?]/.test(ch)) add(start + (i + 1) / cps, 'babble', ch); });
+  };
+  const type = (parts) => parts.forEach(([text, a, b]) => [...text].forEach((ch, i) => { if (ch !== ' ') add(a + (i + 1) / text.length * (b - a), 'key'); }));
+  add(T.title[0] + .1, 'sparkle');
+  speak('嗨,我是 Coo!', bar(5) + .5, 12);
+  OUTFITS.forEach((_, n) => add(OUTFIT_AT + n * EVERY, 'pop'));
+  add(GRID_AT, 'sparkle');
+  add(NIGHT.dusk, 'dusk');
+  add(NIGHT.dawn + .1, 'dawn');
+  CARD_AT.forEach((at) => add(at, 'pop'));
+  add(bar(30.5), 'tick');
+  speak('我们聊点什么?', bar(31), 14);
+  for (const [text, start] of SAY) speak(text, start, 16);
+  add(LISTEN[0], 'listenStart');
+  add(HEARD.final, 'listenEnd');
+  speak(REPLY[0], REPLY[1], 16);
+  speak(ASK.q, ASK.start, 16);
+  add(ASK.choose, 'click');
+  add(ASK.choose + .02, 'select');
+  add(CUA.win, 'pop');
+  CUA.clicks.forEach((at) => add(at, 'click'));
+  type(CUA.f1); type(CUA.f2);
+  add(CUA.clicks[2] + .2, 'sparkle');
+  speak('填好了,已经保存。', CUA.done + .1, 16);
+  EXT.forEach((_, i) => add(beat(198 + i * 2), 'pop'));
+  add(T.outro[0] + .4, 'sparkle');
+  add(T.outro[0] + 1.9, 'pop');
+  add(T.outro[0] + 2.3, 'pop');
+  return cues.sort((a, b) => a[0] - b[0]);
+}
+const CUES = collectCues();
+
 /* ---------- playback ---------- */
 function fit() {
   const k = Math.min(innerWidth / W, innerHeight / H);
@@ -809,13 +891,25 @@ window.promo = {
   audioStart: AUDIO_START,
   renderAt(t) { render(Math.max(0, Math.min(DURATION, t))); return true; },
   get trace() { return D.trace; },
+  mix: MIX,
+  /** The sound effects in [from, to) as a mono WAV, base64, at the MIX level; the recorder lays it over the music. */
+  async sfxWav(from, to) {
+    const bytes = await renderTrack(CUES, from, to, MIX.sfx);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(bin);
+  },
 };
 
 if (!RECORD) {
   const audio = new Audio(SOUNDTRACK.file);
   audio.preload = 'auto';
+  audio.volume = MIX.music;
   const clock = () => Math.max(0, Math.min(DURATION, audio.currentTime - AUDIO_START));
-  const seekTo = (t) => { audio.currentTime = AUDIO_START + Math.max(0, Math.min(DURATION, t)); };
+  // effects are scheduled a little ahead of the music's clock; nextCue is the first one not yet scheduled
+  let fx = null, nextCue = 0;
+  const resync = () => { const t = clock(); nextCue = CUES.findIndex((c) => c[0] >= t); if (nextCue < 0) nextCue = CUES.length; };
+  const seekTo = (t) => { audio.currentTime = AUDIO_START + Math.max(0, Math.min(DURATION, t)); resync(); };
   const hud = h('div', 'hud', '<button class="play">▶ 播放</button><input type="range" min="0" max="1000" value="0"><span class="time">0:00</span>');
   document.body.appendChild(hud);
   const btn = hud.querySelector('.play'), seek = hud.querySelector('input'), time = hud.querySelector('.time');
@@ -825,6 +919,9 @@ if (!RECORD) {
   const toggle = async () => {
     if (playing) { audio.pause(); playing = false; btn.textContent = '▶ 播放'; return; }
     if (audio.currentTime < AUDIO_START || clock() >= DURATION) seekTo(0);
+    if (!fx) { const ctx = new AudioContext(); fx = { ctx, voices: createVoices(ctx, busInto(ctx, ctx.destination, MIX.sfx)) }; }
+    fx.ctx.resume();
+    resync();
     playing = true; btn.textContent = '❚❚ 暂停'; gate.remove();
     try { await audio.play(); } catch { /* no audio: the clock below still advances */ }
   };
@@ -840,6 +937,9 @@ if (!RECORD) {
   const loop = () => {
     const t = clock();
     render(t);
+    if (playing && fx) {
+      for (; nextCue < CUES.length && CUES[nextCue][0] < t + .1; nextCue++) fx.voices.play(fx.ctx.currentTime + CUES[nextCue][0] - t, CUES[nextCue]);
+    }
     seek.value = String(Math.round(t / DURATION * 1000));
     time.textContent = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
     if (playing && t >= DURATION) { audio.pause(); playing = false; btn.textContent = '↺ 重播'; }

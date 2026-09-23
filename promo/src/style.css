@@ -24,6 +24,8 @@ svg.full{width:1920px; height:1080px; overflow:visible}
 #stage > .now-playing{inset:auto; left:44px; top:36px; display:flex; align-items:center; gap:12px; font-size:30px; font-weight:500; color:var(--ink-soft); z-index:5}
 #stage > .signature{inset:auto; right:36px; bottom:24px; font-size:26px; font-weight:500; color:var(--ink-dim); letter-spacing:.02em; white-space:pre; z-index:5}
 .scene{position:absolute; inset:0}
+/* the stroll scene's night, in the pet page's dark wall and dots */
+#stage > .night{opacity:0; background-color:#0D1117; background-image:radial-gradient(#232B37 2.2px, transparent 2.4px); background-size:44px 44px}
 
 /* figure classes (as in pet.css) */
 .ink{stroke:var(--skin-ink)} .inkf{fill:var(--skin-ink)} .eye{stroke:var(--skin-eye)}
@@ -48,11 +50,12 @@ svg.full{width:1920px; height:1080px; overflow:visible}
 .chip{position:absolute; left:0; top:0; padding:13px 30px; border-radius:999px; background:var(--sheet); border:2.5px solid var(--line-2); color:var(--ink-soft); font-size:32px; line-height:1.2; white-space:nowrap; box-shadow:var(--soft)}
 .chip.on{color:var(--ok); border-color:color-mix(in srgb, var(--ok) 42%, transparent)}
 .chip.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; border-radius:22px; padding:16px 36px}
-.chip.face{font-size:40px; padding:14px 38px; color:var(--ink)}
-.chip.face em{font-style:normal; font-family:var(--mono); color:var(--ink-dim); margin-left:18px}
+/* the face and outfit labels spat out under the pet */
+.chip.label{font-size:40px; padding:14px 38px; color:var(--ink)}
+.chip.label em{font-style:normal; font-family:var(--mono); color:var(--ink-dim); margin-left:18px}
 
 /* desktop */
-.taskbar{position:absolute; left:0; right:0; bottom:0; height:72px; background:rgba(251,251,251,.92); border-top:2px solid var(--line); display:flex; align-items:center; gap:18px; padding:0 28px; font-size:26px; color:var(--ink-soft)}
+.taskbar{position:absolute; left:0; right:0; bottom:0; height:72px; background:var(--bar, rgba(251,251,251,.92)); border-top:2px solid var(--line); display:flex; align-items:center; gap:18px; padding:0 28px; font-size:26px; color:var(--ink-soft)}
 .taskbar .app{width:44px; height:44px; border-radius:12px; background:var(--line)}
 .taskbar .app.on{background:var(--accent)}
 .taskbar .grow{flex:1}

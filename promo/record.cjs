@@ -1,7 +1,8 @@
 /**
  * Records promo/dist/index.html into an MP4, frame by frame: an offscreen Electron window renders
- * `promo.renderAt(i / fps)`, each captured frame goes to ffmpeg as raw BGRA, and the music track
- * is muxed in. Run `node promo/build.mjs` first.
+ * `promo.renderAt(i / fps)`, each captured frame goes to ffmpeg as raw BGRA, and the music and the
+ * page's sound effects (`promo.sfxWav`, written next to the page as sfx.wav) are mixed at the page's
+ * `promo.mix` levels. Run `node promo/build.mjs` first.
  *
  *   electron promo/record.cjs [--out file.mp4] [--from sec] [--to sec] [--fps n] [--size 2560x1440]
  *
@@ -13,6 +14,7 @@
  */
 const { app, BrowserWindow } = require('electron');
 const { spawn } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 
 const W = 1920, H = 1080;
@@ -45,12 +47,17 @@ app.whenReady().then(async () => {
   const from = Number(arg('from', 0)), to = Math.min(info.duration, Number(arg('to', info.duration)));
   const fps = Number(arg('fps', info.fps));
   const first = Math.round(from * fps), last = Math.floor(to * fps);
+  const mix = await page('promo.mix');
+  const SFX = path.join(DIST, 'sfx.wav');
+  fs.writeFileSync(SFX, Buffer.from(await page(`promo.sfxWav(${first / fps}, ${last / fps + 1})`), 'base64'));
 
   const ff = spawn(process.env.FFMPEG || 'ffmpeg', [
     '-y', '-loglevel', 'error',
     ...(HI ? ['-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png', '-i', '-'] : ['-f', 'rawvideo', '-pix_fmt', 'bgra', '-s', `${W}x${H}`, '-r', String(fps), '-i', '-']),
     '-ss', String(info.audioStart + first / fps), '-i', path.join(DIST, 'assets', 'bgm.mp3'),
-    '-map', '0:v', '-map', '1:a',
+    '-i', SFX,
+    '-filter_complex', `[1:a]volume=${mix.music}[m];[2:a]pan=stereo|c0=c0|c1=c0[s];[m][s]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[a]`,
+    '-map', '0:v', '-map', '[a]',
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', OUT,
   ], { stdio: ['pipe', 'inherit', 'inherit'] });
