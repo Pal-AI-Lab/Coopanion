@@ -2,8 +2,8 @@
  * 「开始」: the app's home page. Everything the first minutes need on one page, top to bottom in
  * the order it is needed: the DeepSeek key (saved to the `deepseek` endpoint, tested, then the
  * run resumes), the pet (live preview, show, dress up), voice input (switch and model download,
- * through the desktop-pet World's `voice` panel), computer use (the `worlds.cua.control` switch).
- * Every control calls an endpoint the rest of the console already uses. Styles are in home.css,
+ * through the desktop-pet World's `voice` panel). Computer use is switched on the cua World's own
+ * page and asks each turn in the pet's bubble, so it has no control here. Every control calls an endpoint the rest of the console already uses. Styles are in home.css,
  * which scripts/stage.ts adds to the console stylesheet.
  */
 import { get, post } from '../../core/api.ts';
@@ -13,7 +13,6 @@ import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 const ENDPOINT = 'deepseek';
 const KEY_URL = 'https://platform.deepseek.com/api_keys';
 const PET_PAGE = 'world:desktop-pet';
-const CUA_GROUP = 'world:cua';
 
 const S = pick({
   zh: {
@@ -43,7 +42,7 @@ const S = pick({
     petHidden: '没有显示',
     showPet: '显示桌宠',
     dress: '装扮',
-    petNote: '右键桌宠可以打字、开关麦克风;按住可以拎起来。',
+    petNote: '鼠标停在桌宠身上会出现打字和黑白模式两个按钮;右键打开菜单;按住可以拎起来。',
     voiceTitle: '语音输入',
     voiceOn: '听麦克风',
     voiceReady: '识别服务运行中',
@@ -53,9 +52,6 @@ const S = pick({
     downloading: (p: string) => `下载中 ${p}`,
     voiceError: (why: string) => `识别服务没起来:${why}`,
     micDenied: '麦克风被系统拒绝了,在 Windows 设置 → 隐私 → 麦克风里允许。',
-    cuaTitle: '电脑操作',
-    cuaSwitch: '允许 Coo 操作鼠标和键盘',
-    cuaNote: '你一动鼠标键盘,它会先停下等你;登录、密码、付款这类步骤会交给你。',
     moreTitle: '更多',
     chat: '对话记录',
     extensions: '扩展',
@@ -89,7 +85,7 @@ const S = pick({
     petHidden: 'Not shown',
     showPet: 'Show pet',
     dress: 'Dress up',
-    petNote: 'Right-click the pet to type or switch the microphone; hold it to pick it up.',
+    petNote: 'Hover the pet for the typing and dark/light buttons; right-click for the menu; hold it to pick it up.',
     voiceTitle: 'Voice input',
     voiceOn: 'Listen to the microphone',
     voiceReady: 'Speech recognition is running',
@@ -99,9 +95,6 @@ const S = pick({
     downloading: (p: string) => `Downloading ${p}`,
     voiceError: (why: string) => `Speech recognition did not start: ${why}`,
     micDenied: 'Windows denied the microphone; allow it in Settings → Privacy → Microphone.',
-    cuaTitle: 'Computer use',
-    cuaSwitch: 'Let Coo use the mouse and keyboard',
-    cuaNote: 'It stops and waits whenever you touch the mouse or keyboard; sign-ins, passwords and payments are handed to you.',
     moreTitle: 'More',
     chat: 'Conversation',
     extensions: 'Extensions',
@@ -120,6 +113,7 @@ interface VoiceState {
   runtime: Artifact & { supported: boolean };
   models: Record<string, Artifact & { bytes: number }>;
   mic: { state: string; detail: string | null };
+  input: { hint: string };
 }
 
 const panelPath = (page: string, panel: string, method: string) => `/api/console/providers/${encodeURIComponent(page)}/panels/${panel}/${method}`;
@@ -182,14 +176,9 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const download = ui.button(S.download, { size: 'sm', variant: 'primary' });
   voiceLine.append(voiceSwitch.el, ui.h('span', 'grow'), voicePill, download);
   const voiceMsg = ui.msgline('');
-  voice.body.append(voiceLine, voiceMsg);
+  const voiceHow = ui.h('p', 'home-note');
+  voice.body.append(voiceLine, voiceMsg, voiceHow);
   root.append(voice.el);
-
-  /* ---------- computer use ---------- */
-  const cua = ui.sheet({ title: S.cuaTitle });
-  const cuaSwitch = ui.checkbox(S.cuaSwitch, { onChange: (on) => void setControl(on) });
-  cua.body.append(cuaSwitch.el, ui.h('p', 'home-note', S.cuaNote));
-  root.append(cua.el);
 
   /* ---------- more ---------- */
   const more = ui.sheet({ title: S.moreTitle });
@@ -299,6 +288,8 @@ async function mount(ctx: FeatureContext): Promise<void> {
   };
   const renderVoice = (v: VoiceState) => {
     voiceSwitch.setChecked(v.enabled);
+    voiceHow.textContent = v.input.hint;
+    voiceHow.hidden = !v.enabled;
     const m = v.models[v.model];
     const working = v.runtime.phase === 'working' || m?.phase === 'working';
     const missingBytes = (v.runtime.phase === 'ready' ? 0 : 8_600_000) + (m?.phase === 'ready' ? 0 : m?.bytes ?? 0);
@@ -328,22 +319,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   };
   download.addEventListener('click', () => void voiceCall('install'));
 
-  /* computer use */
-  const refreshCua = async () => {
-    try {
-      const cfg = await get<{ groups?: Array<{ group: { id: string }; values?: Record<string, unknown> }> }>('/api/config', opts);
-      const g = cfg.groups?.find((x) => x.group.id === CUA_GROUP);
-      const v = g?.values?.['worlds.cua.control'];
-      if (typeof v === 'boolean') cuaSwitch.setChecked(v);
-      cua.el.hidden = !g;
-    } catch { cua.el.hidden = true; }
-  };
-  const setControl = async (on: boolean) => {
-    await post('/api/config', { group: CUA_GROUP, values: { 'worlds.cua.control': on } }, opts).catch(() => null);
-    void refreshCua();
-  };
-
-  await Promise.all([refreshModel(), refreshPet(), voiceCall('state'), refreshCua()]);
+  await Promise.all([refreshModel(), refreshPet(), voiceCall('state')]);
   ctx.lifecycle.interval(() => { void refreshModel(); void refreshPet(); void voiceCall('state'); }, 2000);
 }
 
