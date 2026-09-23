@@ -28,7 +28,8 @@ CortiCompanion 是用 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 拼出来
 
 1. 打开 [最新发布](https://github.com/Pal-AI-Lab/Coopanion/releases/latest),下载 `CortiCompanion-Setup-版本号.exe`。
 2. 双击运行。安装包没有数字签名,Windows 可能弹出「Windows 已保护你的电脑」:点 **更多信息** → **仍要运行**。
-3. 不用选任何东西,装好后会自动打开。桌面和开始菜单里都会有 CortiCompanion。
+3. 选安装位置(默认 `C:\Users\你的用户名\CortiCompanion`),点安装。装好后会自动打开,桌面上有它的图标。
+   程序和它写下的所有文件都在这个目录里,AppData 里不放任何东西,所以开始菜单里没有它。
 
 ### 方法二:一行命令
 
@@ -38,7 +39,7 @@ CortiCompanion 是用 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 拼出来
 irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/install.ps1 | iex
 ```
 
-它会下载最新的安装包并运行,效果和方法一相同。
+它会下载最新的安装包并运行,效果和方法一相同,装完删掉下载的安装包。
 
 ## 第一次打开
 
@@ -49,23 +50,29 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
    「API Keys」→「创建 API key」→ 复制那串 `sk-` 开头的字符。
    测试通过后 Coo 就醒了,屏幕右下角的桌宠会开始活动。
 2. **语音输入**(可选):点「下载」,程序会取回 whisper.cpp 识别程序和中文识别模型(约 190 MB,只下一次)。
-   Windows 第一次会问能不能用麦克风,选允许。之后直接对着电脑说话,Coo 会歪头听,并把听到的字显示在虚线气泡里。
-3. **电脑操作**(可选):勾上「允许 Coo 操作鼠标和键盘」后,可以让它帮你点、打字、切窗口。你一动鼠标键盘,它会先停下等你;
-   登录、密码、付款这些步骤它会交给你自己做。
+   Windows 第一次会问能不能用麦克风,选允许。之后**按住右 Ctrl 说话**,松开就算一句;Coo 会歪头听,
+   并把听到的字显示在虚线气泡里。
+
+电脑操作默认开着:Coo 每一轮要看屏幕或动鼠标键盘之前,会先冒气泡问你,点「可以」才动手。你一动鼠标键盘,它会先停下等你;
+登录、密码、付款这些步骤它会交给你自己做。总开关在左栏「电脑操作」页。
 
 ## 平时怎么用
 
-- **说话**:直接对着麦克风说;或者右键桌宠 →「说点什么」,也可以双击桌宠打字。
+- **说话**:按住右 Ctrl 说话;或者把鼠标停在桌宠身上点气泡按钮、右键 →「说点什么」、双击桌宠,都能打字。
+  「桌宠 → 语音输入」页里可以换说话键、换麦克风,或者改成按一下开关、一直收音,电平条显示实时音量。
+- **黑白模式**:鼠标停在桌宠身上,点太阳/月亮按钮切换;默认是黑色(夜间)模式。
+- **右键菜单**:顶上是 Coo 的头像和暂停/继续、设置、退出三个按钮;「行为模式」里选常走动、多待着、不乱动。
 - **互动**:点它一下、在它头上来回划(摸头)、按住拖起来甩出去,它都会有反应,也会知道你做了什么。
 - **提问**:Coo 有时会冒出带选项的问题,点选项或按 1–3;不想选就在最后一格自己写。
 - **装扮**:「开始」页或右键菜单里的「装扮」,换配色、帽子、耳饰、眼镜、颈饰,改动立刻生效。
 - **托盘**:关掉设置窗口后程序仍在后台,任务栏右下角的托盘图标可以重新打开设置、显示桌宠、设为开机自启、退出。
+- **电脑操作**:让 Coo 帮你点、打字、切窗口时,它每一轮会先问一次;不同意它就这一轮不动。
 
 ## 更多能力:装 World
 
 左栏「扩展」页列出 npm 上带 `cortico-world` 关键字的 World,例如 QQ 机器人(`cortico-world-qq-better`)、画室与你画我猜(`cortico-world-canvas`)、
 植物大战僵尸(`cortico-world-pvz`)、杀戮尖塔(`cortico-world-sts-1`)。
-点安装,装好后点「重启进程」,再到「World 总览」里启用。扩展装在 `%APPDATA%\CortiCompanion\extensions`,重装应用不会丢。
+点安装,装好后点「重启进程」,再到「World 总览」里启用。扩展装在安装目录的 `data\extensions`,重装应用不会丢。
 
 ## 换模型
 
@@ -77,20 +84,26 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 
 ## 数据放在哪
 
-| 内容 | 位置 |
-|---|---|
-| Coo 的记忆、对话记录、设置 | `%APPDATA%\CortiCompanion\home` |
-| 安装的扩展 | `%APPDATA%\CortiCompanion\extensions` |
-| 运行日志 | `%APPDATA%\CortiCompanion\logs` |
-| 语音识别程序与模型 | `%APPDATA%\CortiCompanion\home\runtimes`、`models` |
+全部在安装目录的 `data` 文件夹里,AppData 里没有 CortiCompanion 的文件:
 
-卸载在 Windows「设置 → 应用」里找 CortiCompanion;上面这些数据不会被删,不要了可以手动删掉 `%APPDATA%\CortiCompanion`。
+| 内容 | 位置(相对安装目录) |
+|---|---|
+| Coo 的记忆、对话记录、设置 | `data\home` |
+| 安装的扩展 | `data\extensions` |
+| 运行日志 | `data\logs` |
+| 语音识别程序与模型 | `data\home\runtimes`、`models` |
+| 临时文件、装扩展用的 pnpm 缓存、窗口缓存 | `data\tmp`、`data\pnpm`,以及 `data` 下的其余文件夹 |
+
+卸载在 Windows「设置 → 应用」里找 CortiCompanion;`data` 不会被删,不要了可以手动删掉整个安装目录。
+从 0.1.0 升级时,第一次启动会把 `%APPDATA%\CortiCompanion` 里的记忆、设置和日志搬进 `data`,再删掉旧目录;
+旧版装过的扩展要在「扩展」页重新安装一次。
 
 ## 常见问题
 
 - **桌宠不见了**:托盘图标右键 →「显示桌宠」。
 - **没反应**:看「开始」页顶部的状态。「暂停中」点右边的「继续」;「还没连上模型」检查 Key 和余额。
-- **听不到我说话**:确认「听麦克风」勾着、识别服务显示运行中,以及 Windows 设置 → 隐私和安全性 → 麦克风里允许了桌面应用。
+- **听不到我说话**:确认「听麦克风」勾着、识别服务显示运行中、说话时按住了说话键(默认右 Ctrl),以及 Windows 设置 → 隐私和安全性 →
+  麦克风里允许了桌面应用。「桌宠 → 语音输入」页的电平条随声音跳动,说明麦克风选对了。
 - **想看它在想什么**:左栏「对话」页有完整的时间线;「运行诊断」里能导出诊断包。
 
 ## 从源码构建
@@ -101,9 +114,10 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 git clone --recursive https://github.com/Pal-AI-Lab/Coopanion.git
 cd CortiCompanion
 pnpm install
-pnpm run dev                # 准备 build/cortico 并启动应用
+pnpm run dev                # 准备 build/cortico 并启动应用,数据写在 build/data
 pnpm run test               # 单元测试
 pnpm run build:installer    # 打出 dist/CortiCompanion-Setup-<版本>.exe
+pnpm run build:icons        # 用桌宠的造型重画应用图标和默认头像
 ```
 
 | 目录 | 内容 |
@@ -115,7 +129,8 @@ pnpm run build:installer    # 打出 dist/CortiCompanion-Setup-<版本>.exe
 | `console/` | 覆盖在 Cortico 控制台上的入口与「开始」页 |
 | `app/` | Electron 主进程:托盘、设置窗口、Core 子进程托管、桌宠窗口模式 |
 | `scripts/stage.ts` | 从 `vendor/cortico` 生成应用使用的 `build/cortico`:去掉内建的平台 World 与 llamacpp,叠加 `console/`,构建控制台 |
-| `scripts/pack.ts` | 组装扁平的 `build/app` 并调用 electron-builder |
+| `scripts/pack.ts` | 组装扁平的 `build/app` 并调用 electron-builder;`installer/nsis.nsh` 定默认安装位置、卸载时保留 `data` |
+| `scripts/make-icons.cjs` | 用 Electron 把 pet-core 的造型画成 `app/icons` 与 `core/seed/avatar.png` |
 | `promo/` | 宣传片与仓库 banner,网页渲染,说明见 [promo/README.md](promo/README.md) |
 
 推送 `v*` 标签时,GitHub Actions 会构建安装包并附到对应的 Release 上。
