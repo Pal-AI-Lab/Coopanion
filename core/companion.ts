@@ -3,9 +3,9 @@
  * DeepSeek provider next to Cortico's built-in Responses-compatible one, and Worlds or providers
  * installed from npm through the console's extension page.
  *
- * The two bundled Worlds are wired to each other and to the app: the pet's right-click menu opens
- * the settings window from its bottom row and quits the app from the button in its header (pausing
- * stays in the settings window); computer use
+ * The two bundled Worlds are wired to each other and to the app: the header of the pet's right-click
+ * menu pauses and resumes the run, opens the settings window and quits the app, as the console's rail
+ * foot does; computer use
  * asks for permission in the pet's bubble, and falls back to its own system dialog while no
  * pet page is connected.
  *
@@ -112,10 +112,13 @@ async function corminiDefinition(): Promise<BotDefinition<CoreConfig>> {
 
 export async function main(): Promise<void> {
   let pet: DesktopPetWorld | null = null;
+  /** Set once the bot exists; the pet's menu reads it only after the pet page connects. */
+  let bus: WakeBus | null = null;
   const DESKTOP_PET = desktopPetDefinition({
-    // the menu lends settings (a bottom row), dressing (the settings window's dress page) and quit (the
-    // header's only button); pausing lives in the settings window
+    // the menu's header lends pause/resume, settings and quit; its dress tile opens the settings window's dress page
     controls: {
+      isPaused: () => bus?.isPaused() ?? false,
+      setPaused: (paused) => bus?.setPaused(paused),
       openSettings: () => process.send?.({ type: 'companion:open', path: '' }),
       openDress: () => process.send?.({ type: 'companion:open', path: '#/dress' }),
       quit: () => process.send?.({ type: 'companion:quit' }),
@@ -157,6 +160,7 @@ export async function main(): Promise<void> {
   consumeBootFlags(loaded.dataDir);
 
   const bot = createBot(loaded, definition, { extensions });
+  bus = bot.core.bus;
   // without a key every model call fails: hold events until the home page saves one and resumes
   const keyMissing = !hasKey(loaded.config);
   if (keyMissing) bot.core.bus.setPaused(true);
