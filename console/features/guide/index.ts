@@ -7,7 +7,8 @@
  * 2. how lively to be (`roam`): while the choices are up Coo shows each one, standing still,
  *    strolling, or running back and forth;
  * 3. the DeepSeek key, saved and tested through the same calls as the home page (model.ts);
- * 4. how to talk to it (the talk key as the voice input panel reports it) and where its buttons are;
+ * 4. voice input: the speech model is downloaded here with one click when it is missing, then how
+ *    to talk (the talk key as the voice input panel reports it) and where its buttons are;
  * 5. where to find it once the window is closed, then off to the home page or the dressing page.
  *
  * Coo is the pet's real body (pet-core from the desktop-pet package), in the pet's current dress,
@@ -74,6 +75,13 @@ const S = pick({
     keyAlready: (model: string) => `模型已经连好了${model ? `(${model})` : ''},省事,库...`,
     keySkipped: '没关系,等你填好我再开口。「开始」页随时能填。',
 
+    askModel: (mb: number) => `要听懂你说话,我得先下载一个语音识别模型(FunASR,约 ${mb} MB,从 ModelScope 下载)。现在下吗?`,
+    download: '下载',
+    notNow: '先不用',
+    downloading: (pct: number) => `正在下载…${pct}%`,
+    downloaded: '下好了,现在我听得懂你说话啦,库...',
+    downloadFail: (why: string) => `没下载下来:${why}。之后可以在「语音输入」页再试。`,
+    modelLater: '好,之后在「语音输入」页一键就能下。',
     talkHold: (key: string) => `想和我说话,按住 ${key} 说,松开就发给我。`,
     talkToggle: (key: string) => `想和我说话,按一下 ${key} 开始,再按一下结束。`,
     talkAlways: '我一直在听,直接说话就行。',
@@ -123,6 +131,13 @@ const S = pick({
     keyAlready: (model: string) => `The model is connected already${model ? ` (${model})` : ''}, koo...`,
     keySkipped: "No problem, I'll stay quiet until there is a key. The Start page takes it any time.",
 
+    askModel: (mb: number) => `To understand you I need a speech model (FunASR, about ${mb} MB, from ModelScope). Download it now?`,
+    download: 'Download',
+    notNow: 'Not now',
+    downloading: (pct: number) => `Downloading… ${pct}%`,
+    downloaded: 'Done! Now I understand what you say, koo...',
+    downloadFail: (why: string) => `The download failed: ${why}. Try again on the Voice input page.`,
+    modelLater: 'OK, the Voice input page downloads it with one click.',
     talkHold: (key: string) => `To talk to me, hold ${key} and speak; let go to send.`,
     talkToggle: (key: string) => `To talk to me, press ${key} to start and again to stop.`,
     talkAlways: 'I am always listening; just talk.',
@@ -182,7 +197,12 @@ export interface GuideOptions {
   onClose: (how: 'done' | 'skip') => void;
 }
 
-interface VoiceState { enabled?: boolean; input?: { effectiveMode?: 'hold' | 'toggle' | 'always'; hotkeyLabel?: string } }
+interface VoiceState {
+  enabled?: boolean;
+  engine?: 'funasr' | 'system';
+  model?: { phase: 'absent' | 'working' | 'ready' | 'error'; done: number; total: number | null; bytes: number; detail: string | null };
+  input?: { effectiveMode?: 'hold' | 'toggle' | 'always'; hotkeyLabel?: string };
+}
 interface ConfigEntry { group: { id: string }; values?: Record<string, unknown> }
 
 /** The conversation was cut short: the guide closed while Coo talked or waited for an answer. */
@@ -523,7 +543,27 @@ export function openGuide(o: GuideOptions): void {
 
     // 5 how to talk, where the buttons are, where to find Coo later
     progress('talk');
-    const voice = await panel<VoiceState>('voice', 'state');
+    let voice = await panel<VoiceState>('voice', 'state');
+    if (voice?.enabled !== false && voice?.engine === 'funasr' && voice.model && voice.model.phase !== 'ready') {
+      await say(S.askModel(Math.round(voice.model.bytes / 1048576)), 'thinking');
+      const want = await answer<boolean>((done) => [button(S.download, () => done(true), true), button(S.notNow, () => done(false))]);
+      if (!want) await say(S.modelLater);
+      else {
+        void panel('voice', 'install');
+        ctl.setThinking(true);
+        for (;;) {
+          await wait(.5);
+          voice = await panel<VoiceState>('voice', 'state');
+          const m = voice?.model;
+          if (!m || m.phase === 'ready' || m.phase === 'error' || m.phase === 'absent') break;
+          showWait(S.downloading(m.total ? Math.floor(m.done / m.total * 100) : 0));
+        }
+        ctl.setThinking(false);
+        clearReply();
+        if (voice?.model?.phase === 'ready') { ctl.act('hop'); await say(S.downloaded, 'love'); }
+        else await say(S.downloadFail(voice?.model?.detail ?? '?'), 'sad');
+      }
+    }
     const talkKey = voice?.input?.hotkeyLabel || S.talkKeyDefault;
     const mode = voice?.input?.effectiveMode ?? 'hold';
     const on = voice?.enabled !== false;
