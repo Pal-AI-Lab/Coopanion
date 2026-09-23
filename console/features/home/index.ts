@@ -5,17 +5,18 @@
  * switched on the cua World's own page and asks each turn in the pet's bubble, so it has no control
  * here. Dressing up and voice input have their own pages (features/dress, features/voice); the link
  * to other model services shows with or without a key, and in the normal mode asks before it
- * switches to the advanced mode, where the model pages are. Every control calls an endpoint the rest
- * of the console already uses. Styles are in home.css, which scripts/stage.ts adds to the console
- * stylesheet.
+ * switches to the advanced mode, where the model pages are; 「使用引导」 at the top opens the guide
+ * (features/guide) again. Saving and testing the key lives in model.ts, shared with the guide. Every
+ * control calls an endpoint the rest of the console already uses. Styles are in home.css, which
+ * scripts/stage.ts adds to the console stylesheet.
  */
-import { get, post } from '../../core/api.ts';
+import { post } from '../../core/api.ts';
 import { pick } from '../../core/language.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
+import { requestGuide } from '../guide/index.ts';
 import { readMode, requestMode } from '../mode.ts';
+import { KEY_URL, keyConnected, readDetail, readStatus, saveKey, testKey, type Detail, type Status, type TestResult } from './model.ts';
 
-const ENDPOINT = 'deepseek';
-const KEY_URL = 'https://platform.deepseek.com/api_keys';
 const PET_PAGE = 'world:desktop-pet';
 
 const S = pick({
@@ -47,6 +48,7 @@ const S = pick({
     showPet: '显示桌宠',
     dress: '装扮',
     petNote: '鼠标停在桌宠身上会出现打字和黑白模式两个按钮;右键打开菜单;按住可以拎起来。',
+    guide: '使用引导',
   },
   en: {
     nav: 'Start',
@@ -76,11 +78,10 @@ const S = pick({
     showPet: 'Show pet',
     dress: 'Dress up',
     petNote: 'Hover the pet for the typing and dark/light buttons; right-click for the menu; hold it to pick it up.',
+    guide: 'Guide',
   },
 });
 
-interface Status { loop?: { paused?: boolean }; modelConnection?: { ready: boolean; model: string | null; moduleTitle: string } | null }
-interface Detail { name: string; entry: Record<string, unknown>; revision: string; secretConfigured?: 'none' | 'env' | 'file' }
 interface PetState { connected: boolean; url: string | null }
 
 const panelPath = (page: string, panel: string, method: string) => `/api/console/providers/${encodeURIComponent(page)}/panels/${panel}/${method}`;
@@ -95,7 +96,8 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const head = ui.h('div', 'home-head');
   const title = ui.h('h1', 'home-title', S.title);
   const state = ui.pill('—', 'plain');
-  head.append(title, state);
+  const guide = ui.button(S.guide, { size: 'sm', onClick: () => requestGuide() });
+  head.append(title, state, ui.h('span', 'grow'), guide);
   root.append(head);
 
   /* ---------- model ---------- */
@@ -156,33 +158,24 @@ async function mount(ctx: FeatureContext): Promise<void> {
     const mc = st.modelConnection;
     if (!mc?.ready) { state.textContent = S.noModel; state.className = 'pill off'; }
     else { state.textContent = paused ? S.paused : S.running; state.className = `pill ${paused ? 'plain' : 'on'}`; }
-    const ready = !!mc?.ready && !!detail?.secretConfigured && detail.secretConfigured !== 'none';
+    const ready = keyConnected(st, detail);
     connectedLine.hidden = !ready || editingKey;
     keyBox.hidden = ready && !editingKey;
     if (mc?.model) connectedPill.textContent = S.connected(mc.model, mc.moduleTitle);
   };
 
   const refreshModel = async () => {
-    try {
-      detail = await get<Detail>(`/api/providers/${ENDPOINT}`, opts);
-    } catch { detail = null; }
-    renderStatus(await get<Status>('/api/status', opts));
+    detail = await readDetail(signal);
+    renderStatus(await readStatus(signal));
   };
 
-  const runTest = async (): Promise<boolean> => {
+  const showTest = (r: TestResult) => {
+    modelMsg.textContent = r.ok ? S.testOk(r.ms) : S.testFail(r.why ?? '');
+    modelMsg.classList.toggle('bad', !r.ok);
+  };
+  const testing = () => {
     modelMsg.textContent = S.testing;
     modelMsg.classList.remove('bad');
-    try {
-      const r = await post<{ ok?: boolean; elapsedMs?: number; error?: string; status?: number; hint?: string }>(`/api/providers/${ENDPOINT}/test`, {}, opts);
-      const ok = r?.ok !== false && !r?.error;
-      modelMsg.textContent = ok ? S.testOk(typeof r?.elapsedMs === 'number' ? Math.round(r.elapsedMs) : null) : S.testFail(r?.hint ?? r?.error ?? `HTTP ${r?.status ?? '?'}`);
-      modelMsg.classList.toggle('bad', !ok);
-      return ok;
-    } catch (err) {
-      modelMsg.textContent = S.testFail(errText(err));
-      modelMsg.classList.add('bad');
-      return false;
-    }
   };
 
   save.addEventListener('click', async () => {
@@ -190,14 +183,12 @@ async function mount(ctx: FeatureContext): Promise<void> {
     if (!key) { keyInput.focus(); return; }
     save.disabled = true;
     try {
-      const d = detail ?? await get<Detail>(`/api/providers/${ENDPOINT}`, opts);
-      await post(`/api/providers/${ENDPOINT}/save`, { name: d.name, entry: d.entry, expectedRevision: d.revision, secretValue: key }, opts);
+      testing();
+      const r = await saveKey(key, detail, signal);
       keyInput.value = '';
       editingKey = false;
-      if (await runTest()) {
-        await post('/api/run/resume', {}, opts);
-        modelMsg.textContent = S.started;
-      }
+      showTest(r);
+      if (r.ok) modelMsg.textContent = S.started;
       await refreshModel();
     } catch (err) {
       modelMsg.textContent = errText(err);
@@ -206,7 +197,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
       save.disabled = false;
     }
   });
-  test.addEventListener('click', () => void runTest());
+  test.addEventListener('click', async () => { testing(); showTest(await testKey(signal)); });
   change.addEventListener('click', () => { editingKey = true; void refreshModel(); keyInput.focus(); });
 
   /* pet */

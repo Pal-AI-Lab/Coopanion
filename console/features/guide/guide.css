@@ -1,0 +1,192 @@
+/* 新手引导:盖住整个设置窗口。只用控制台已有的颜色变量;Coo 的眼睛用应用图标的绿。 */
+.guide {
+  --coo-eye: #2fd39a;
+  position: fixed; inset: 0; z-index: 200;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+  background:
+    radial-gradient(1200px 520px at 85% -10%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%),
+    var(--background);
+  color: var(--foreground);
+  animation: guide-fade .22s ease-out;
+  transition: opacity .18s ease-in;
+}
+.guide.leaving { opacity: 0; }
+.guide [hidden] { display: none !important; }
+body.guide-open { overflow: hidden; }
+
+/* 顶栏:品牌与右上角的「跳过」 */
+.guide-top { display: flex; align-items: center; justify-content: space-between; padding: 18px 28px 0; }
+.guide-brand { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink-soft); letter-spacing: .02em; }
+.guide-brandmark { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--foreground); color: var(--background); }
+.guide-brandmark .coo { width: 24px; height: 24px; }
+.guide-skip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px 5px 12px;
+  border: 1px solid var(--line); border-radius: 999px; background: transparent;
+  color: var(--ink-soft); font: inherit; font-size: 12.5px; cursor: pointer;
+}
+.guide-skip svg { width: 12px; height: 12px; }
+.guide-skip:hover { color: var(--foreground); background: var(--sheet-2); border-color: var(--line-strong); }
+.guide-skip:focus-visible, .guide-dot:focus-visible, .guide-textbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* 舞台:一次一屏 */
+.guide-stage { overflow: auto; display: grid; place-items: center; padding: 12px 40px 20px; }
+.guide-step { width: min(980px, 100%); display: grid; gap: 52px; align-items: center; }
+.guide-step.from-right { animation: guide-in-right .28s cubic-bezier(.2, .7, .2, 1); }
+.guide-step.from-left { animation: guide-in-left .28s cubic-bezier(.2, .7, .2, 1); }
+.guide-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); }
+
+.guide-title { margin: 0 0 14px; font-size: 30px; line-height: 1.25; font-weight: 700; letter-spacing: .01em; color: var(--foreground); }
+.guide-lead { margin: 0; font-size: 15.5px; line-height: 1.75; color: var(--ink-soft); }
+.guide-note { margin: 12px 0 0; font-size: 12.5px; line-height: 1.65; color: var(--muted-foreground); }
+
+/* 认识一下:称呼与走动 */
+.guide-fields { margin-top: 26px; display: grid; gap: 18px; }
+.guide-field { display: grid; justify-items: start; gap: 8px; }
+.guide-field input { width: 100%; max-width: 320px; font-size: 14px; }
+
+/* 插画区:一块「屏幕」,Coo 站在底边 */
+.guide-art {
+  position: relative; min-height: 320px; overflow: hidden;
+  display: flex; align-items: flex-end; justify-content: center;
+  border: 1px solid var(--line); border-radius: 20px; background: var(--sheet-2);
+}
+.guide-floor { position: absolute; left: 0; right: 0; bottom: 46px; border-top: 2px dashed var(--line-strong); }
+/* Coo 的画布底下留了 80/512 的空:往下挪这么多,脚正好踩在虚线上 */
+.guide-actor { --coo-w: 150px; position: relative; z-index: 1; margin-bottom: calc(47px - var(--coo-w) * .156); }
+.guide-coo { width: var(--coo-w); color: var(--foreground); }
+.guide-coo .coo { display: block; width: 100%; height: auto; }
+.coo-eyes { stroke: var(--coo-eye); }
+.coo-eyes circle { transform-box: fill-box; transform-origin: center; animation: guide-blink 4.2s infinite; }
+.coo-body { transform-box: fill-box; transform-origin: 50% 100%; }
+.guide-coo-bob .coo-body { animation: guide-bob 2.6s ease-in-out infinite; }
+.guide-coo-listen .coo-body { transform: rotate(-9deg); }
+.guide-coo-listen { margin-left: 70px; }
+
+.guide-bubble {
+  position: absolute; z-index: 2; bottom: calc(100% - 6px); left: 58%; width: max-content; max-width: 240px; padding: 9px 15px;
+  border: 1px solid var(--line-strong); border-radius: 16px; background: var(--sheet);
+  box-shadow: 0 8px 24px var(--shadow-soft); font-size: 15px; line-height: 1.5; color: var(--foreground);
+}
+.guide-bubble::after {
+  content: ''; position: absolute; left: 22px; bottom: -7px; width: 12px; height: 12px;
+  background: inherit; border: inherit; border-top: 0; border-left: 0; transform: rotate(45deg);
+}
+.guide-art-hello .guide-bubble { animation: guide-pop .5s .25s both cubic-bezier(.3, 1.5, .5, 1); }
+
+/* 连接模型:左边是拿 Key 的三步 */
+.guide-how { flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; padding: 28px 28px 30px; min-height: 0; transition: opacity .2s; }
+.guide-how.dim { opacity: .5; }
+.guide-howtitle { margin: 0 0 12px; font-size: 14px; font-weight: 600; color: var(--foreground); }
+.guide-howlist { list-style: none; counter-reset: how; margin: 0; padding: 0; display: grid; gap: 16px; }
+.guide-howlist li { counter-increment: how; position: relative; padding-left: 40px; min-height: 28px; font-size: 14px; line-height: 1.6; color: var(--foreground); }
+.guide-howlist li::before {
+  content: counter(how); position: absolute; left: 0; top: -1px; width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 13px; font-weight: 700;
+  background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent);
+}
+.guide-link { margin-left: 8px; font-size: 13px; color: var(--accent); text-decoration: none; white-space: nowrap; }
+.guide-link::after { content: ' ↗'; }
+.guide-link:hover { text-decoration: underline; }
+.guide-keyform { margin-top: 22px; }
+.guide-label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--foreground); }
+.guide-keyrow { display: flex; gap: 8px; }
+.guide-keyrow input { flex: 1; min-width: 0; font-size: 14px; }
+.guide-msg { margin: 8px 0 0; min-height: 1.5em; font-size: 13px; line-height: 1.5; color: var(--muted-foreground); }
+.guide-msg.bad { color: var(--danger); }
+.guide-msg.ok { color: var(--ok); font-weight: 600; }
+.guide-connected {
+  margin-top: 22px; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent); background: color-mix(in srgb, var(--ok) 8%, transparent);
+}
+.guide-connected > div { display: grid; gap: 2px; }
+.guide-connected strong { font-size: 15px; }
+.guide-connected .grow { flex: 1; }
+.guide-connectedmodel { font-size: 12.5px; color: var(--muted-foreground); }
+.guide-check { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 50%; background: var(--ok); color: #fff; }
+.guide-check svg { width: 18px; height: 18px; }
+
+/* 说话:按键、声波、歪头听的 Coo 与虚线气泡 */
+.guide-keycap {
+  position: absolute; z-index: 2; left: 28px; top: 28px; padding: 10px 16px 12px;
+  border: 1px solid var(--line-strong); border-bottom-width: 4px; border-radius: 10px; background: var(--sheet);
+  font: 600 15px var(--sans); color: var(--foreground); animation: guide-press 3.2s ease-in-out infinite;
+}
+.guide-wave { position: absolute; left: 32px; top: 90px; display: flex; align-items: center; gap: 4px; height: 28px; }
+.guide-wave i { width: 4px; height: 100%; border-radius: 2px; background: var(--accent); transform: scaleY(.15); animation: guide-wave 3.2s ease-in-out infinite; }
+.guide-wave i:nth-child(2) { animation-delay: .08s; } .guide-wave i:nth-child(3) { animation-delay: .16s; }
+.guide-wave i:nth-child(4) { animation-delay: .24s; } .guide-wave i:nth-child(5) { animation-delay: .32s; }
+.guide-art-talk .guide-bubble { border-style: dashed; left: 50%; }
+.guide-hearing { color: var(--muted-foreground); }
+.guide-hearing::after { content: ''; display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: -2px; background: var(--muted-foreground); animation: guide-caret 1s steps(1) infinite; }
+
+/* 相处:四条,每条一个图标 */
+.guide-tips { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 16px; }
+.guide-tips li { display: flex; align-items: flex-start; gap: 14px; }
+.guide-tips strong { display: block; margin-bottom: 2px; font-size: 14.5px; color: var(--foreground); }
+.guide-tips span { font-size: 13.5px; line-height: 1.6; color: var(--muted-foreground); }
+.guide-tipicon { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.guide-tipicon svg { width: 20px; height: 20px; }
+
+/* 找到我:任务栏与托盘菜单 */
+.guide-art-tray { align-items: stretch; }
+.guide-taskbar {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 46px; display: flex; align-items: center; gap: 14px; padding: 0 16px;
+  background: var(--sheet-3); border-top: 1px solid var(--line);
+}
+.guide-trayicons { display: flex; align-items: center; gap: 12px; }
+.guide-trayicons i { width: 14px; height: 14px; border-radius: 4px; background: var(--line-strong); opacity: .7; }
+.guide-trayicon { position: relative; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; background: var(--foreground); color: var(--background); }
+.guide-trayicon .coo { width: 20px; height: 20px; }
+.guide-trayicon::after { content: ''; position: absolute; inset: -5px; border-radius: 9px; border: 2px solid var(--accent); animation: guide-ring 2s ease-out infinite; }
+.guide-clock { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.guide-traymenu {
+  position: absolute; right: 30px; bottom: 60px; display: grid; min-width: 150px; padding: 6px;
+  border: 1px solid var(--line-strong); border-radius: 10px; background: var(--sheet); box-shadow: 0 10px 28px var(--shadow-soft);
+  animation: guide-pop .45s .2s both cubic-bezier(.3, 1.4, .5, 1);
+}
+.guide-traymenu span { padding: 6px 12px; border-radius: 6px; font-size: 13px; color: var(--foreground); }
+.guide-traymenu span.on { background: var(--hover); }
+.guide-traymenu span:nth-child(3) { border-top: 1px solid var(--line); border-radius: 0 0 6px 6px; margin-top: 4px; padding-top: 9px; }
+
+.guide-warn {
+  margin-top: 18px; display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 14px; border-radius: 12px;
+  font-size: 13.5px; border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 10%, transparent);
+}
+.guide-warn span { flex: 1; }
+.guide-textbtn { margin-top: 16px; padding: 0; border: 0; background: none; font: inherit; font-size: 13.5px; color: var(--accent); cursor: pointer; }
+.guide-textbtn::after { content: ' →'; }
+.guide-textbtn:hover { text-decoration: underline; }
+
+/* 底栏:进度点与翻页 */
+.guide-foot { display: flex; align-items: center; gap: 10px; padding: 14px 28px 22px; }
+.guide-dots { display: flex; align-items: center; gap: 8px; }
+.guide-dot { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 4px; background: var(--line-strong); cursor: pointer; transition: width .2s, background .2s; }
+.guide-dot.past { background: color-mix(in srgb, var(--accent) 45%, var(--line-strong)); }
+.guide-dot.on { width: 26px; background: var(--accent); }
+.guide-foot .btn { min-height: 36px; padding: 7px 18px; font-size: 14px; }
+.guide-next { min-width: 116px; }
+
+@media (max-width: 860px) {
+  .guide-split { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .guide-art { min-height: 220px; }
+  .guide-how { min-height: 0; }
+  .guide-stage { place-items: start center; padding: 8px 24px 16px; }
+}
+@media (max-height: 700px) {
+  .guide-art { min-height: 260px; }
+  .guide-title { font-size: 26px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide, .guide *, .guide *::before, .guide *::after { animation: none !important; transition: none !important; }
+}
+
+@keyframes guide-fade { from { opacity: 0; } }
+@keyframes guide-in-right { from { opacity: 0; transform: translateX(18px); } }
+@keyframes guide-in-left { from { opacity: 0; transform: translateX(-18px); } }
+@keyframes guide-pop { from { opacity: 0; transform: translateY(8px) scale(.9); } }
+@keyframes guide-bob { 50% { transform: translateY(-7px); } }
+@keyframes guide-blink { 0%, 90%, 100% { transform: scaleY(1); } 94% { transform: scaleY(.12); } }
+@keyframes guide-press { 0%, 12%, 78%, 100% { transform: translateY(0); border-bottom-width: 4px; } 20%, 70% { transform: translateY(3px); border-bottom-width: 1px; } }
+@keyframes guide-wave { 0%, 14%, 76%, 100% { transform: scaleY(.15); } 30% { transform: scaleY(.9); } 42% { transform: scaleY(.4); } 55% { transform: scaleY(1); } 66% { transform: scaleY(.5); } }
+@keyframes guide-caret { 50% { opacity: 0; } }
+@keyframes guide-ring { from { opacity: .9; transform: scale(.85); } to { opacity: 0; transform: scale(1.35); } }
