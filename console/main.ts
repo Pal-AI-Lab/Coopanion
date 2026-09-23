@@ -2,7 +2,7 @@
  * CortiCompanion 的控制台入口:由 scripts/stage.ts 覆盖在 Cortico 的 src/web/client/main.ts 上。
  * 与上游的差别:
  * - 页面表多了关于桌宠的四页「开始」「习惯」「装扮」「语音输入」(features/home、pet、dress、voice),其余页重排、改了几个分组名;
- * - 两种模式(features/mode.ts):普通模式左栏只有那四页,别的路由都回到「开始」,底栏只留暂停键;
+ * - 两种模式(features/mode.ts):普通模式左栏只有那四页和「用量与成本」,别的路由都回到「开始」,底栏只留暂停键;
  *   高级模式再接上 Cortico 的全部页面。左栏底部的开关切换模式,页面也可以经 requestMode 请求换,换模式时重建左栏;
  * - 设置窗口第一次打开时盖上整屏的新手引导(features/guide),右上角可跳过;「开始」页的「使用引导」再打开它;
  * - 空路由打开「开始」;
@@ -61,8 +61,8 @@ const L = pick({
   },
 });
 
-/** 普通模式的全部页面,都关于桌宠。高级模式里它们仍排在最前。 */
-export const BASIC_FEATURES: readonly FrameworkFeature[] = [homeFeature, petFeature, dressFeature, voiceFeature];
+/** 普通模式的全部页面:关于桌宠的四页,加上花了多少钱。高级模式里它们仍排在最前。 */
+export const BASIC_FEATURES: readonly FrameworkFeature[] = [homeFeature, petFeature, dressFeature, voiceFeature, { ...usageFeature, navMode: 'primary' }];
 
 export const FEATURES: readonly FrameworkFeature[] = [
   ...BASIC_FEATURES,
@@ -70,7 +70,6 @@ export const FEATURES: readonly FrameworkFeature[] = [
   { ...providersFeature, label: L.model, navMode: 'group', navGroup: L.settings },
   { ...extensionsFeature, navMode: 'group', navGroup: L.settings },
   { ...coreFeature, navMode: 'group', navGroup: L.advanced },
-  { ...usageFeature, navMode: 'group', navGroup: L.advanced },
   worldsFeature, promptsFeature, appearanceFeature, settingsFeature,
 ];
 
