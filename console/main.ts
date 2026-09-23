@@ -1,7 +1,12 @@
 /**
  * CortiCompanion 的控制台入口:由 scripts/stage.ts 覆盖在 Cortico 的 src/web/client/main.ts 上。
- * 与上游的差别只有三处:页面表多了「开始」(features/home)并重排、改了几个分组名;空路由打开「开始」;
- * 左栏各组按「开始 · 对话 → World → 设置 → Persona & Memory → 高级」重排。其余逐字沿用上游。
+ * 与上游的差别:
+ * - 页面表多了关于桌宠的四页「开始」「习惯」「装扮」「语音输入」(features/home、pet、dress、voice),其余页重排、改了几个分组名;
+ * - 两种模式(features/mode.ts):普通模式左栏只有那四页,别的路由都回到「开始」,底栏只留暂停键;
+ *   高级模式再接上 Cortico 的全部页面。左栏底部的开关切换模式,换模式时重建左栏;
+ * - 空路由打开「开始」;
+ * - 左栏各组按「桌宠四页 · 对话 → World → 设置 → Persona & Memory → 高级」重排。
+ * 其余逐字沿用上游。
  */
 
 import { fetchManifest, get } from './core/api.ts';
@@ -16,7 +21,7 @@ import { ConsolePageLoader } from './console-pages/loader.ts';
 import { createConsoleUi } from './ui/index.ts';
 import { subscribeLamps } from './ui/lamp.ts';
 import { applyStoredTheme } from './theme/studio.ts';
-import { createShell } from './shell/index.ts';
+import { createShell, type ConsoleShell } from './shell/index.ts';
 import { featureAvailable, type FeatureContext, type FrameworkFeature } from './features/feature.ts';
 import { liveFeature } from './features/live/index.ts';
 import { coreFeature } from './features/core/index.ts';
@@ -28,6 +33,11 @@ import { appearanceFeature } from './features/appearance/index.ts';
 import { promptsFeature } from './features/prompts/index.ts';
 import { settingsFeature } from './features/settings/index.ts';
 import { homeFeature } from './features/home/index.ts';
+import { petFeature } from './features/pet/index.ts';
+import { dressFeature } from './features/dress/index.ts';
+import { voiceFeature } from './features/voice/index.ts';
+import { readMode, writeMode, type ConsoleMode } from './features/mode.ts';
+import { icon } from './ui/icons.ts';
 import type { ConsoleMemo } from '../shared/client-panel.ts';
 
 /**
@@ -37,12 +47,23 @@ import type { ConsoleMemo } from '../shared/client-panel.ts';
  * 但仍要在这张表里:路由分派只认这张表,设置页里嵌着它的同时,直达链接也要能开。
  */
 const L = pick({
-  zh: { chat: '对话', model: '模型', settings: '设置', advanced: '高级' },
-  en: { chat: 'Chat', model: 'Model', settings: 'Settings', advanced: 'Advanced' },
+  zh: {
+    chat: '对话', model: '模型', settings: '设置', advanced: '高级',
+    toAdvanced: '高级模式', toAdvancedHint: '显示 Cortico 的全部设置:对话记录、模型、扩展、World、记忆与运行诊断',
+    toNormal: '回到普通模式', toNormalHint: '只显示关于桌宠的页面',
+  },
+  en: {
+    chat: 'Chat', model: 'Model', settings: 'Settings', advanced: 'Advanced',
+    toAdvanced: 'Advanced mode', toAdvancedHint: 'Show all of Cortico: conversation, models, extensions, Worlds, memory and diagnostics',
+    toNormal: 'Back to normal mode', toNormalHint: 'Show only the pages about the pet',
+  },
 });
 
+/** 普通模式的全部页面,都关于桌宠。高级模式里它们仍排在最前。 */
+export const BASIC_FEATURES: readonly FrameworkFeature[] = [homeFeature, petFeature, dressFeature, voiceFeature];
+
 export const FEATURES: readonly FrameworkFeature[] = [
-  homeFeature,
+  ...BASIC_FEATURES,
   { ...liveFeature, label: L.chat },
   { ...providersFeature, label: L.model, navMode: 'group', navGroup: L.settings },
   { ...extensionsFeature, navMode: 'group', navGroup: L.settings },
@@ -158,39 +179,72 @@ export function boot(doc: Document = document): { dispose(): void } {
   const consolePageHost: NonNullable<FeatureContext['consolePageHost']> = (opts) =>
     new ConsolePageHost({ ...hostDeps, root: opts.root, route: opts.route });
 
-  /**
-   * 左栏外壳。它自己不探活、不认识任何具体 World:框架页那段由 FEATURES 按
-   * capability 过滤,贡献方那段完全由 manifest 驱动。
-   */
-  const shellLife = new Lifecycle(onError);
-  const shell = createShell({
-    doc,
-    ui: createConsoleUi({ memo, overlayHost: doc.body, signal: shellLife.signal, doc }),
-    router,
-    features: FEATURES,
-    onError,
-  });
-  doc.body.insertBefore(shell.el, doc.body.firstChild);
-  const nav = shell.el.querySelector('nav.stack');
-  if (nav) {
-    const observer = new MutationObserver(() => orderNav(nav));
-    observer.observe(nav, { childList: true });
-    shellLife.own({ dispose: () => observer.disconnect() });
-  }
-  const offNav = host.onNavChange(() => shell.setPages(host.pages));
-
-  /**
-   * 状态灯的活数据。manifest 只在开页与显式刷新时取，而灯要跟得上"引擎起来了没"，
-   * 所以走那条只回灯的轻端点（节拍与不叠发都归 `subscribeLamps`）。
-   */
-  shellLife.own(subscribeLamps(doc, (lamps) => shell.setLamps(lamps)));
-
   /** 框架能力清单；获取失败时不启用可选能力。 */
   let capabilities: Record<string, boolean> = {};
   /** capabilities 与 manifest 都到齐了吗。到齐之前不渲染任何一页。 */
   let ready = false;
   /** 到齐之前就 dispose 了:那一拍回来什么都不做。 */
   let disposed = false;
+
+  /**
+   * 左栏外壳。它自己不探活、不认识任何具体 World:框架页那段由 FEATURES 按
+   * capability 过滤,贡献方那段完全由 manifest 驱动。普通模式只给它 BASIC_FEATURES、
+   * 不给 manifest 的页;换模式时整个重建。
+   */
+  let mode: ConsoleMode = readMode();
+  /** 普通模式左栏不列 manifest 的页(World、Persona、Memory)。 */
+  const visiblePages = () => (mode === 'advanced' ? host.pages : []);
+  /** 普通模式只认那几页的路由。 */
+  const reachable = (head: string | undefined): boolean =>
+    mode === 'advanced' || BASIC_FEATURES.some((f) => f.route === head);
+
+  const shellLife = new Lifecycle(onError);
+  let shell!: ConsoleShell;
+  let shellBuild: Lifecycle | null = null;
+  const buildShell = (): void => {
+    shellBuild?.dispose();
+    const life = shellLife.own(new Lifecycle(onError));
+    shellBuild = life;
+    const ui = createConsoleUi({ memo, overlayHost: doc.body, signal: life.signal, doc });
+    const advanced = mode === 'advanced';
+    const next = createShell({ doc, ui, router, features: advanced ? FEATURES : BASIC_FEATURES, onError });
+    shell = next;
+    life.own({ dispose: () => { next.dispose(); next.el.remove(); } });
+    doc.body.insertBefore(next.el, doc.body.firstChild);
+    doc.body.classList.toggle('companion-normal', !advanced);
+    const nav = next.el.querySelector('nav.stack');
+    if (nav) {
+      const observer = new MutationObserver(() => orderNav(nav));
+      observer.observe(nav, { childList: true });
+      life.own({ dispose: () => observer.disconnect() });
+    }
+
+    const toggle = ui.h('button', 'companion-mode');
+    toggle.type = 'button';
+    toggle.title = advanced ? L.toNormalHint : L.toAdvancedHint;
+    toggle.append(icon(doc, advanced ? 'eye-off' : 'settings', 'navicon'), ui.h('span', 'lbl', advanced ? L.toNormal : L.toAdvanced));
+    toggle.addEventListener('click', () => {
+      mode = advanced ? 'normal' : 'advanced';
+      writeMode(mode);
+      buildShell();
+      apply(router.route);
+    }, { signal: life.signal });
+    next.el.insertBefore(toggle, next.el.querySelector('.railfoot'));
+
+    if (ready) {
+      next.setCapabilities(capabilities);
+      next.setPages(visiblePages());
+    }
+    next.setRoute(router.route);
+  };
+  buildShell();
+  const offNav = host.onNavChange(() => shell.setPages(visiblePages()));
+
+  /**
+   * 状态灯的活数据。manifest 只在开页与显式刷新时取，而灯要跟得上"引擎起来了没"，
+   * 所以走那条只回灯的轻端点（节拍与不叠发都归 `subscribeLamps`）。
+   */
+  shellLife.own(subscribeLamps(doc, (lamps) => shell.setLamps(lamps)));
 
   /** 当前挂着的 framework feature（贡献方那边由 host 自己管）。 */
   let mounted: { route: string; lifecycle: Lifecycle } | null = null;
@@ -253,6 +307,10 @@ export function boot(doc: Document = document): { dispose(): void } {
     }
     const head = route.segments[0];
 
+    if (!reachable(head)) {
+      router.replace(['home']);
+      return;
+    }
     if (head === PROVIDER_ROUTE && route.segments[1]?.startsWith('llm:')) {
       router.replace(['providers']);
       return;
@@ -291,7 +349,7 @@ export function boot(doc: Document = document): { dispose(): void } {
     if (disposed) return;
     ready = true;
     shell.setCapabilities(capabilities);
-    shell.setPages(host.pages);
+    shell.setPages(visiblePages());
     apply(router.route);
   });
 
@@ -299,7 +357,6 @@ export function boot(doc: Document = document): { dispose(): void } {
     dispose(): void {
       disposed = true;
       offNav.dispose();
-      shell.dispose();
       shellLife.dispose();
       offRoute.dispose();
       stopRouter.dispose();
