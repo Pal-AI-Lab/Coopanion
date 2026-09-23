@@ -7,16 +7,26 @@
  * - `--pet-host --pet-url=… --parent-pid=…`: the desktop pet's transparent window, started by
  *   the desktop-pet World through `CORTICO_DESKTOP_PET_HOST`. It uses its own profile directory.
  *
- * Per-user data lives in `<userData>`: `home/` (deployment, endpoint, Memory), `extensions/`
- * (Worlds and providers installed from npm), `logs/`.
+ * Every file the app writes lives under one data directory, and nothing goes to AppData:
+ * `<install dir>\data` when packaged (the uninstaller leaves it), `build/data` from source,
+ * or `CORTICO_COMPANION_DATA`. It holds `home/` (deployment, endpoint, Memory), `extensions/`
+ * (Worlds and providers installed from npm), `logs/`, `tmp/` (the process temp directory),
+ * `pnpm/` (store and caches for extension installs), and the Chromium profiles.
  */
 const { app, BrowserWindow, Menu, Notification, Tray, dialog, nativeImage, shell } = require('electron');
-const { join } = require('node:path');
+const { cpSync, existsSync, mkdirSync, rmSync } = require('node:fs');
+const { dirname, join } = require('node:path');
 
 const APP_ROOT = app.getAppPath();
 const ICONS = join(__dirname, 'icons');
-// portable installs and tests keep everything in one chosen directory
-if (process.env.CORTICO_COMPANION_DATA) app.setPath('userData', process.env.CORTICO_COMPANION_DATA);
+const DATA = process.env.CORTICO_COMPANION_DATA
+  || (app.isPackaged ? join(dirname(process.execPath), 'data') : join(APP_ROOT, 'build', 'data'));
+// before anything asks Electron for a path: the single-instance lock and the profile live in userData
+const LEGACY_DATA = app.getPath('userData');
+app.setPath('userData', DATA);
+app.setPath('crashDumps', join(DATA, 'Crashpad'));
+process.env.TEMP = process.env.TMP = join(DATA, 'tmp');
+mkdirSync(process.env.TEMP, { recursive: true });
 
 /* ---------- pet window mode ---------- */
 if (process.argv.includes('--pet-host')) {
@@ -31,6 +41,26 @@ if (process.argv.includes('--pet-host')) {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
   return;
+}
+migrateLegacyData();
+
+/**
+ * Version 0.1.0 kept its data in %APPDATA%\CortiCompanion. The deployment and logs move into
+ * the data directory, the npm manifest of installed extensions too (their node_modules link
+ * into the old pnpm store, so the extensions page reinstalls them), then the old directory goes.
+ */
+function migrateLegacyData() {
+  if (!app.isPackaged || LEGACY_DATA === DATA || !existsSync(LEGACY_DATA)) return;
+  if (existsSync(join(LEGACY_DATA, 'home'))) {
+    // both hold a deployment: neither is overwritten or removed
+    if (existsSync(join(DATA, 'home'))) return;
+    cpSync(join(LEGACY_DATA, 'home'), join(DATA, 'home'), { recursive: true });
+    if (existsSync(join(LEGACY_DATA, 'logs'))) cpSync(join(LEGACY_DATA, 'logs'), join(DATA, 'logs'), { recursive: true });
+    const manifest = join(LEGACY_DATA, 'extensions', 'package.json');
+    if (existsSync(manifest)) { mkdirSync(join(DATA, 'extensions'), { recursive: true }); cpSync(manifest, join(DATA, 'extensions', 'package.json')); }
+  }
+  // a file still held open (an old copy running) leaves the directory for the next start
+  try { rmSync(LEGACY_DATA, { recursive: true, force: true, maxRetries: 3 }); } catch { /* removed on a later start */ }
 }
 
 const { CoreHost } = require('./core-host.cjs');
@@ -49,6 +79,10 @@ const core = new CoreHost({
     CORTICO_SUPERVISED: '1',
     CORTICO_START_PAUSED: '0',
     CORTICO_DESKTOP_PET_HOST: JSON.stringify(petHost),
+    // pnpm keeps its store and caches in LOCALAPPDATA unless told otherwise; pnpm 11 reads the pnpm_config_ prefix
+    pnpm_config_store_dir: join(DATA, 'pnpm', 'store'),
+    pnpm_config_cache_dir: join(DATA, 'pnpm', 'cache'),
+    pnpm_config_state_dir: join(DATA, 'pnpm', 'state'),
     // extension installs call `corepack pnpm`; the shim runs the bundled pnpm on this runtime
     PATH: `${shimDir};${process.env.PATH ?? ''}`,
     CORTICO_NODE_EXE: process.execPath,

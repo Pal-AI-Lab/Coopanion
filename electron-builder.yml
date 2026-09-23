@@ -17,11 +17,15 @@ win:
     - target: nsis
       arch: [x64]
   icon: app/icons/icon.ico
+# Asks where to install. Every file the app writes stays under that directory (data in data\),
+# so the start-menu entry, which Windows keeps under AppData, is not created.
 nsis:
-  oneClick: true
+  oneClick: false
   perMachine: false
+  allowToChangeInstallationDirectory: true
+  include: installer/nsis.nsh
   createDesktopShortcut: true
-  createStartMenuShortcut: true
+  createStartMenuShortcut: false
   shortcutName: CortiCompanion
   runAfterFinish: true
   deleteAppDataOnUninstall: false
