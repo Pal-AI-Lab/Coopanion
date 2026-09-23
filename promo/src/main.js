@@ -10,7 +10,7 @@
  * is stepped with it; seeking backwards replays from zero. `window.promo.renderAt(t)` is what the
  * recorder calls frame by frame.
  */
-import { createPet, figure, FACES, STAND, skinCss, normalizeSkin, wear } from '../../packages/cortico-world-desktop-pet/web/pet-core.js';
+import { createPet, figure, FACES, STAND, heartD, skinCss, normalizeSkin, wear } from '../../packages/cortico-world-desktop-pet/web/pet-core.js';
 import { AUDIO_START, BEAT, bar, beat, bump, clamp01, ease, h, lerp, rng, seg, svgEl, f1 } from './util.js';
 import { createArcs } from './arcs.js';
 import { Bubble, Caption, Chip, Cursor } from './widgets.js';
@@ -64,6 +64,7 @@ const petWrap = layer(world); petWrap.appendChild(petSvg);
 const shadowEl = svgEl('ellipse', { class: 'shadow' }); petSvg.appendChild(shadowEl);
 const petG = svgEl('g'); petSvg.appendChild(petG);
 const fxG = svgEl('g'); petSvg.appendChild(fxG);
+const heartG = svgEl('g'); petSvg.appendChild(heartG);
 const bonkG = svgEl('g'); petSvg.appendChild(bonkG);
 const bubbleLayer = layer(world);
 const trail = h('div', 'trail', '<i></i><i></i><i></i>'); trail.hidden = true; bubbleLayer.appendChild(trail);
@@ -349,7 +350,7 @@ function reset() {
   simT = 0;
   nextEvent = 0;
   Object.assign(hero, { floor: INTRO.ground, S: INTRO.S, obstacles: true, pendingFloor: null });
-  D = { stage: 0, bonkAt: null, bonkY: 0, grabKeys: null, down: false, left: false, pokeKeys: null, poked: 0, trace: [], cam: { x: CAM_X0, y: INTRO.ground - 190 * INTRO.S, vx: 0, vy: 0 } };
+  D = { stage: 0, bonkAt: null, bonkY: 0, grabKeys: null, down: false, left: false, pokeKeys: null, poked: 0, hearts: [], nextHeart: 0, trace: [], cam: { x: CAM_X0, y: INTRO.ground - 190 * INTRO.S, vx: 0, vy: 0 } };
   optKeys = null;
   petG.innerHTML = ''; fxG.innerHTML = '';
   applySkin(PLAIN_SKIN);
@@ -389,6 +390,7 @@ function advance(t) {
     }
     if (simT >= GRID_AT && skin !== PLAIN_SKIN) applySkin(PLAIN_SKIN);
     ctl.step(dt);
+    heartStep(ctl);
     if (simT < GRAB.place + 1) camStep(ctl, dt);
   }
 }
@@ -415,6 +417,28 @@ function renderIntro(t) {
   blocks.style.transform = `translateY(${f1(o * 90)}px)`;
   blocks.style.opacity = String(f1((1 - o) * 100) / 100);
 }
+/* hearts while the pet looks in love: drawn here instead of pet-core's particles, one at a time from spread-out spots above the head */
+const HEART = heartD(0, 0, 1), HEART_EVERY = .38, HEART_LIFE = 1.4;
+const HEART_DX = [-46, 42, -10, 56, -32, 22]; // logo units from the head's centre line
+function heartStep(c) {
+  if (c.pet._fname !== 'love') { D.nextHeart = 0; return; }
+  if (simT < D.nextHeart) return;
+  c.render(); // toStage reads the transform of the last render
+  const n = D.hearts.length, p = c.toStage(128 + HEART_DX[n % HEART_DX.length], 26);
+  D.hearts.push({ t: simT, x: p.x, y: p.y, s: hero.S });
+  D.nextHeart = simT + HEART_EVERY;
+}
+function renderHearts(t) {
+  let s = '';
+  D.hearts.forEach((hh, i) => {
+    const age = t - hh.t;
+    if (age < 0 || age > HEART_LIFE) return;
+    const pop = ease.outBack(clamp01(age / .25), 2.2), fade = 1 - clamp01((age - .45) / (HEART_LIFE - .45));
+    const x = hh.x + Math.sin(age * 3 + i * 1.7) * 10 * hh.s, y = hh.y - 95 * hh.s * age;
+    s += `<path class="heart" opacity="${f1(fade * 100) / 100}" transform="translate(${f1(x)} ${f1(y)}) scale(${f1(.95 * hh.s * pop * 100) / 100})" d="${HEART}"/>`;
+  });
+  heartG.innerHTML = s;
+}
 function renderBonk(t) {
   if (D.bonkAt == null || t < D.bonkAt || t > D.bonkAt + .45) { bonkG.innerHTML = ''; return; }
   const k = seg(t, D.bonkAt, D.bonkAt + .45), x = INTRO.wall.l - 4, y = D.bonkY;
@@ -434,8 +458,8 @@ function renderNowPlaying(t) {
 
 /* title card */
 const titleScene = sceneLayer(T.title);
-const title = new Wordmark(titleScene.el, 'CortiCompanion', { x: 960, y: 262, scale: 1.25 });
-const tagline = new Caption(titleScene.el, { x: 960, y: 358, size: 50, weight: 400, align: 'center', width: 1300, stagger: .025, color: 'var(--ink-soft)' });
+const title = new Wordmark(titleScene.el, 'Coopanion', { x: 960, y: 262, scale: 1.5 });
+const tagline = new Caption(titleScene.el, { x: 960, y: 372, size: 50, weight: 400, align: 'center', width: 1300, stagger: .025, color: 'var(--ink-soft)' });
 tagline.set('你的小小万能桌面伴侣');
 function renderTitle(t) {
   if (!showScene(titleScene, t, 0)) return;
@@ -463,12 +487,26 @@ const dressCap = new Caption(dress.el, { x: 960, y: 90, size: 88, align: 'center
 dressCap.set('换装扮');
 const dressSub = new Caption(dress.el, { x: 960, y: 200, size: 40, weight: 400, align: 'center', width: 1600, color: 'var(--ink-soft)', stagger: .02 });
 dressSub.set('7 种配色 · 19 件配饰');
-const outfitChip = new Chip(dress.el, 'chip');
+// outfit labels take turns on two chips, so the previous one can drop away while the next comes out
+const outfitChips = [new Chip(dress.el, 'chip'), new Chip(dress.el, 'chip')];
+/** A label pushed out from under the pet's feet at `at`, settling at y = 960; it drops on and fades at `leave`. */
+function spitLabel(chip, t, at, leave, text) {
+  const k = seg(t, at, at + .3), o = seg(t, leave, leave + .18);
+  chip.el.style.display = t < at || o >= 1 ? 'none' : '';
+  if (chip.el.style.display) return;
+  if (chip.el.textContent !== text) chip.el.textContent = text;
+  const y = lerp(880, 960, ease.outBack(k, 1.8)) + o * 50;
+  const s = lerp(.45, 1, ease.outBack(k, 2.2));
+  chip.el.style.transform = `translate(960px, ${f1(y)}px) translate(-50%, -50%) scale(${f1(s * 100) / 100})`;
+  chip.el.style.opacity = String(f1(Math.min(clamp01(k * 3), (1 - o) ** 2) * 100) / 100);
+  // the outgoing label passes under the incoming one
+  chip.el.style.zIndex = o > 0 ? '1' : '2';
+}
 const grid = svgEl('svg', { class: 'full', viewBox: `0 0 ${W} ${H}` });
 dress.el.appendChild(grid);
 // one figure per palette
 const GRID = [
-  ['mint', { head: 'cat' }, 'happy'], ['mono', { head: 'bear' }, 'wink'], ['navigator', { head: 'sailor' }, 'love'],
+  ['mint', { head: 'cat' }, 'happy'], ['mono', { head: 'bear' }, 'wink'], ['navigator', { head: 'sailor', side: 'feather' }, 'love'],
   ['claude', { side: 'headphones' }, 'happy'], ['fox', { head: 'party' }, 'neutral'], ['purple', { head: 'tophat', glasses: 'monocle' }, 'shy'],
   ['lemon', { glasses: 'round', neck: 'scarf' }, 'happy'],
 ].map(([palette, items, face], j) => {
@@ -486,22 +524,27 @@ function renderDress(t) {
   if (!showScene(dress, t, 0)) { grid.innerHTML = ''; return; }
   dressCap.render(t, T.dress[0] + .1, T.dress[1] - .3);
   dressSub.render(t, T.dress[0] + .5, T.dress[1] - .3);
+  const i = Math.max(0, Math.min(OUTFITS.length - 1, Math.floor((t - OUTFIT_AT) / BEAT)));
+  for (const n of [i - 1, i]) {
+    if (n < 0) continue;
+    const at = OUTFIT_AT + n * BEAT;
+    spitLabel(outfitChips[n % 2], t, at, n === OUTFITS.length - 1 ? GRID_AT - .2 : at + BEAT, OUTFITS[n].label);
+  }
+  if (i < 1) outfitChips[1].el.style.display = 'none';
   if (t < GRID_AT) {
-    const i = Math.max(0, Math.min(OUTFITS.length - 1, Math.floor((t - OUTFIT_AT) / BEAT)));
-    outfitChip.render(t, OUTFIT_AT + i * BEAT, GRID_AT - .2, OUTFITS[i].label, 960, 960);
     grid.innerHTML = '';
     gridLabels.forEach((c) => c.render(t, 1, 0, '', 0, 0));
     return;
   }
-  outfitChip.render(t, 1, 0, '', 0, 0);
   let s = '';
   GRID.forEach((g, j) => {
     const k = ease.outBack(seg(t, GRID_AT + j * .07, GRID_AT + j * .07 + .4), 2);
-    // each mini hops on the beat
+    // each mini hops on the beat; its shadow shrinks while it is up
     const ph = ((t - GRID_AT) / BEAT + j * .25) % 1;
     const hop = Math.max(0, Math.sin(Math.PI * ph * 2)) * 10;
-    const fc = FACES[g.face].f(t + j);
-    s += `<g style="${cssVars(g.skin)}" transform="translate(${g.x} ${f1(700 - hop)}) scale(${f1(.72 * k * 100) / 100}) translate(-128 -256)">${figure(fc, { look: [0, 0], legs: STAND, low: 0, t: t + j, blink: 0, acc: g.skin })}</g>`;
+    const sc = .72 * k, fc = FACES[g.face].f(t + j);
+    s += `<ellipse class="shadow" cx="${g.x}" cy="698" rx="${f1(72 * sc * (1 - hop / 40))}" ry="${f1(10 * sc + 1)}"/>`;
+    s += `<g style="${cssVars(g.skin)}" transform="translate(${g.x} ${f1(700 - hop)}) scale(${f1(sc * 100) / 100}) translate(-128 -256)">${figure(fc, { look: [0, 0], legs: STAND, low: 0, t: t + j, blink: 0, acc: g.skin })}</g>`;
   });
   grid.innerHTML = s;
   GRID.forEach((g, j) => gridLabels[j].render(t, GRID_AT + .2 + j * .07, T.dress[1] - .3, PAL_NAMES[g.skin.palette], g.x, 790));
@@ -675,8 +718,8 @@ function renderExt(t) {
 
 /* outro */
 const outro = sceneLayer(T.outro);
-const outTitle = new Wordmark(outro.el, 'CortiCompanion', { x: 960, y: 610, scale: 1.3 });
-const outTag = new Caption(outro.el, { x: 960, y: 712, size: 50, weight: 400, align: 'center', width: 1600, stagger: .025, color: 'var(--ink-soft)' });
+const outTitle = new Wordmark(outro.el, 'Coopanion', { x: 960, y: 614, scale: 1.5 });
+const outTag = new Caption(outro.el, { x: 960, y: 724, size: 50, weight: 400, align: 'center', width: 1600, stagger: .025, color: 'var(--ink-soft)' });
 outTag.set('你的小小万能桌面伴侣');
 const outUrl = new Chip(outro.el, 'chip primary');
 const outQQ = new Chip(outro.el, 'chip');
@@ -687,8 +730,8 @@ function renderOutro(t) {
   if (!showScene(outro, t, 0)) return;
   outTitle.render(t, T.outro[0] + .4);
   outTag.render(t, T.outro[0] + 1.2);
-  outUrl.render(t, T.outro[0] + 1.9, Infinity, 'github.com/Pal-AI-Lab/CortiCompanion', 960, 832);
-  outQQ.render(t, T.outro[0] + 2.3, Infinity, 'QQ群：1080755910', 960, 914);
+  outUrl.render(t, T.outro[0] + 1.9, Infinity, 'github.com/Pal-AI-Lab/Coopanion', 960, 846);
+  outQQ.render(t, T.outro[0] + 2.3, Infinity, 'QQ群：1080755910', 960, 926);
   credit.style.opacity = String(seg(t, T.outro[0] + 2.9, T.outro[0] + 3.5));
 }
 
@@ -746,6 +789,7 @@ function render(t) {
   renderOutro(t);
   renderSignature(t);
   ctl.render();
+  renderHearts(t);
   renderBonk(t);
   renderBubbles(t);
 }

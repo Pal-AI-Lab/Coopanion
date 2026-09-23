@@ -3,7 +3,11 @@
  * `promo.renderAt(i / fps)`, each captured frame goes to ffmpeg as raw BGRA, and the music track
  * is muxed in. Run `node promo/build.mjs` first.
  *
- *   electron promo/record.cjs [--out file.mp4] [--from sec] [--to sec]
+ *   electron promo/record.cjs [--out file.mp4] [--from sec] [--to sec] [--fps n] [--size 2560x1440]
+ *
+ * The page is laid out at 1920×1080; at another --size the frames come from DevTools screenshots
+ * with an emulated device pixel ratio, so text and shapes are rasterised at the output size
+ * (an offscreen window ignores the scale-factor switch and cannot be larger than the screen).
  *
  * ffmpeg comes from $FFMPEG or PATH.
  */
@@ -18,7 +22,9 @@ const arg = (name, fallback) => {
   return i > 0 ? process.argv[i + 1] : fallback;
 };
 const OUT = path.resolve(arg('out', path.join(DIST, 'CortiCompanion-promo.mp4')));
+const [OW, OH] = arg('size', `${W}x${H}`).split('x').map(Number);
 
+const HI = OW !== W || OH !== H;
 app.commandLine.appendSwitch('force-device-scale-factor', '1');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
@@ -29,15 +35,21 @@ app.whenReady().then(async () => {
   });
   await win.loadFile(path.join(DIST, 'index.html'), { search: 'record' });
   const page = (js) => win.webContents.executeJavaScript(js);
-  const info = await page('document.fonts.ready.then(() => ({ duration: promo.duration, fps: promo.fps, audioStart: promo.audioStart, w: innerWidth, h: innerHeight }))');
-  if (info.w !== W || info.h !== H) throw new Error(`viewport is ${info.w}×${info.h}, expected ${W}×${H}`);
+  const dbg = win.webContents.debugger;
+  if (HI) {
+    dbg.attach('1.3');
+    await dbg.sendCommand('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: OW / W, mobile: false });
+  }
+  const info = await page('document.fonts.ready.then(() => ({ duration: promo.duration, fps: promo.fps, audioStart: promo.audioStart, w: innerWidth * devicePixelRatio, h: innerHeight * devicePixelRatio }))');
+  if (Math.round(info.w) !== OW || Math.round(info.h) !== OH) throw new Error(`viewport renders at ${info.w}×${info.h}, expected ${OW}×${OH}`);
   const from = Number(arg('from', 0)), to = Math.min(info.duration, Number(arg('to', info.duration)));
-  const first = Math.round(from * info.fps), last = Math.floor(to * info.fps);
+  const fps = Number(arg('fps', info.fps));
+  const first = Math.round(from * fps), last = Math.floor(to * fps);
 
   const ff = spawn(process.env.FFMPEG || 'ffmpeg', [
     '-y', '-loglevel', 'error',
-    '-f', 'rawvideo', '-pix_fmt', 'bgra', '-s', `${W}x${H}`, '-r', String(info.fps), '-i', '-',
-    '-ss', String(info.audioStart + first / info.fps), '-i', path.join(DIST, 'assets', 'bgm.mp3'),
+    ...(HI ? ['-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png', '-i', '-'] : ['-f', 'rawvideo', '-pix_fmt', 'bgra', '-s', `${W}x${H}`, '-r', String(fps), '-i', '-']),
+    '-ss', String(info.audioStart + first / fps), '-i', path.join(DIST, 'assets', 'bgm.mp3'),
     '-map', '0:v', '-map', '1:a',
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', OUT,
@@ -47,11 +59,16 @@ app.whenReady().then(async () => {
   const started = Date.now();
   for (let i = first; i <= last; i++) {
     // two animation frames so the new DOM state is painted before the capture
-    await page(`promo.renderAt(${i / info.fps}); new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))`);
-    let img = await win.webContents.capturePage();
-    const size = img.getSize();
-    if (size.width !== W || size.height !== H) img = img.resize({ width: W, height: H, quality: 'best' });
-    if (!ff.stdin.write(img.toBitmap())) await new Promise((r) => ff.stdin.once('drain', r));
+    await page(`promo.renderAt(${i / fps}); new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))`);
+    let frame;
+    if (HI) frame = Buffer.from((await dbg.sendCommand('Page.captureScreenshot', { format: 'png', optimizeForSpeed: true })).data, 'base64');
+    else {
+      let img = await win.webContents.capturePage();
+      const size = img.getSize();
+      if (size.width !== W || size.height !== H) img = img.resize({ width: W, height: H, quality: 'best' });
+      frame = img.toBitmap();
+    }
+    if (!ff.stdin.write(frame)) await new Promise((r) => ff.stdin.once('drain', r));
     if ((i - first) % 150 === 0) process.stdout.write(`frame ${i}/${last}  ${((Date.now() - started) / 1000).toFixed(0)}s\n`);
   }
   ff.stdin.end();

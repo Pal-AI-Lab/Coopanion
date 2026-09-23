@@ -29,6 +29,8 @@ svg.full{width:1920px; height:1080px; overflow:visible}
 .ink{stroke:var(--skin-ink)} .inkf{fill:var(--skin-ink)} .eye{stroke:var(--skin-eye)}
 .blush{fill:var(--blush)} .tearf{fill:var(--tear)} .angry{stroke:var(--anger)}
 .p-heart{stroke:var(--heart)} .p-dust{stroke:var(--dust)} .shadow{fill:var(--shadow)}
+/* the promo draws its own hearts (main.js renderHearts) in place of pet-core's particle hearts */
+.p-heart{display:none} .heart{fill:var(--heart); stroke:var(--heart); stroke-width:3; stroke-linejoin:round}
 .c-head-main{stroke:var(--c-head-main, var(--skin-ink))} .c-head-acc{stroke:var(--c-head-acc, var(--skin-eye))}
 .c-glasses-main{stroke:var(--c-glasses-main, var(--skin-ink))} .c-glasses-acc{stroke:var(--c-glasses-acc, var(--skin-eye))}
 .c-side-main{stroke:var(--c-side-main, var(--skin-eye))} .c-side-acc{stroke:var(--c-side-acc, var(--skin-eye))}
