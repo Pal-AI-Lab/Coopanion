@@ -3,7 +3,7 @@
  * 与上游的差别:
  * - 页面表多了关于桌宠的四页「开始」「习惯」「装扮」「语音输入」(features/home、pet、dress、voice),其余页重排、改了几个分组名;
  * - 两种模式(features/mode.ts):普通模式左栏只有那四页,别的路由都回到「开始」,底栏只留暂停键;
- *   高级模式再接上 Cortico 的全部页面。左栏底部的开关切换模式,换模式时重建左栏;
+ *   高级模式再接上 Cortico 的全部页面。左栏底部的开关切换模式,页面也可以经 requestMode 请求换,换模式时重建左栏;
  * - 空路由打开「开始」;
  * - 左栏各组按「桌宠四页 · 对话 → World → 设置 → Persona & Memory → 高级」重排。
  * 其余逐字沿用上游。
@@ -36,7 +36,7 @@ import { homeFeature } from './features/home/index.ts';
 import { petFeature } from './features/pet/index.ts';
 import { dressFeature } from './features/dress/index.ts';
 import { voiceFeature } from './features/voice/index.ts';
-import { readMode, writeMode, type ConsoleMode } from './features/mode.ts';
+import { onModeRequest, readMode, writeMode, type ConsoleMode } from './features/mode.ts';
 import { icon } from './ui/icons.ts';
 import type { ConsoleMemo } from '../shared/client-panel.ts';
 
@@ -223,12 +223,7 @@ export function boot(doc: Document = document): { dispose(): void } {
     toggle.type = 'button';
     toggle.title = advanced ? L.toNormalHint : L.toAdvancedHint;
     toggle.append(icon(doc, advanced ? 'eye-off' : 'settings', 'navicon'), ui.h('span', 'lbl', advanced ? L.toNormal : L.toAdvanced));
-    toggle.addEventListener('click', () => {
-      mode = advanced ? 'normal' : 'advanced';
-      writeMode(mode);
-      buildShell();
-      apply(router.route);
-    }, { signal: life.signal });
+    toggle.addEventListener('click', () => setMode(advanced ? 'normal' : 'advanced'), { signal: life.signal });
     next.el.insertBefore(toggle, next.el.querySelector('.railfoot'));
 
     if (ready) {
@@ -237,7 +232,15 @@ export function boot(doc: Document = document): { dispose(): void } {
     }
     next.setRoute(router.route);
   };
+  const setMode = (next: ConsoleMode): void => {
+    if (next === mode) return;
+    mode = next;
+    writeMode(mode);
+    buildShell();
+    apply(router.route);
+  };
   buildShell();
+  onModeRequest(setMode, shellLife.signal);
   const offNav = host.onNavChange(() => shell.setPages(visiblePages()));
 
   /**

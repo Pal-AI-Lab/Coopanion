@@ -4,14 +4,15 @@
  * run resumes), then the pet (live preview, show, a button to the dressing page). Computer use is
  * switched on the cua World's own page and asks each turn in the pet's bubble, so it has no control
  * here. Dressing up and voice input have their own pages (features/dress, features/voice); the link
- * to other model services shows in the advanced mode only. Every control calls an endpoint the rest
+ * to other model services shows with or without a key, and in the normal mode asks before it
+ * switches to the advanced mode, where the model pages are. Every control calls an endpoint the rest
  * of the console already uses. Styles are in home.css, which scripts/stage.ts adds to the console
  * stylesheet.
  */
 import { get, post } from '../../core/api.ts';
 import { pick } from '../../core/language.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
-import { readMode } from '../mode.ts';
+import { readMode, requestMode } from '../mode.ts';
 
 const ENDPOINT = 'deepseek';
 const KEY_URL = 'https://platform.deepseek.com/api_keys';
@@ -24,8 +25,6 @@ const S = pick({
     running: '醒着',
     paused: '暂停中',
     noModel: '还没连上模型',
-    pause: '暂停',
-    resume: '继续',
     modelTitle: '连接模型',
     modelNeed: '填入 DeepSeek 的 API Key 就能开始。',
     keyLabel: 'API Key',
@@ -36,6 +35,8 @@ const S = pick({
     test: '测试连接',
     changeKey: '换一个 Key',
     otherProvider: '用别的模型服务',
+    toAdvancedTitle: '是否切换为高级模式?',
+    toAdvancedBody: '别的模型服务在高级模式的「模型」页里设置。之后可在左下角重新切换回普通模式。',
     testing: '正在测试…',
     testOk: (ms: number | null) => `连接正常${ms !== null ? `,耗时 ${ms} ms` : ''}`,
     testFail: (why: string) => `连接失败:${why}`,
@@ -53,8 +54,6 @@ const S = pick({
     running: 'Awake',
     paused: 'Paused',
     noModel: 'No model connected',
-    pause: 'Pause',
-    resume: 'Resume',
     modelTitle: 'Connect a model',
     modelNeed: 'Enter a DeepSeek API key to start.',
     keyLabel: 'API Key',
@@ -65,6 +64,8 @@ const S = pick({
     test: 'Test',
     changeKey: 'Use another key',
     otherProvider: 'Use another model service',
+    toAdvancedTitle: 'Switch to advanced mode?',
+    toAdvancedBody: 'Other model services are set up on the Model page of advanced mode. You can switch back to normal mode at the bottom left.',
     testing: 'Testing…',
     testOk: (ms: number | null) => `Connection works${ms !== null ? `, ${ms} ms` : ''}`,
     testFail: (why: string) => `Connection failed: ${why}`,
@@ -94,8 +95,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const head = ui.h('div', 'home-head');
   const title = ui.h('h1', 'home-title', S.title);
   const state = ui.pill('—', 'plain');
-  const toggle = ui.button(S.pause, { size: 'sm' });
-  head.append(title, state, ui.h('span', 'grow'), toggle);
+  head.append(title, state);
   root.append(head);
 
   /* ---------- model ---------- */
@@ -114,11 +114,24 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const connectedPill = ui.pill('', 'on');
   const test = ui.button(S.test, { size: 'sm' });
   const change = ui.button(S.changeKey, { size: 'sm' });
-  const other = ui.h('a', 'home-link', S.otherProvider);
-  other.href = '#/providers';
-  connectedLine.append(connectedPill, test, change, ui.h('span', 'grow'), other);
+  /** 两处各一个:连上时在状态行末尾,没填 Key 时在申请链接旁。普通模式先问一声再切到高级模式。 */
+  const otherLink = () => {
+    const a = ui.h('a', 'home-link', S.otherProvider);
+    a.href = '#/providers';
+    a.addEventListener('click', async (e) => {
+      if (readMode() === 'advanced') return;
+      e.preventDefault();
+      if (!await ui.confirm({ title: S.toAdvancedTitle, body: S.toAdvancedBody })) return;
+      requestMode('advanced');
+      ctx.router.navigate(['providers']);
+    }, opts);
+    return a;
+  };
+  connectedLine.append(connectedPill, test, change, ui.h('span', 'grow'), otherLink());
+  const links = ui.rowbar();
+  links.append(getKey, ui.h('span', 'grow'), otherLink());
   const keyBox = ui.h('div', 'home-keybox');
-  keyBox.append(need, keyRow, getKey);
+  keyBox.append(need, keyRow, links);
   model.body.append(connectedLine, keyBox, modelMsg);
   root.append(model.el);
 
@@ -137,21 +150,16 @@ async function mount(ctx: FeatureContext): Promise<void> {
   /* ---------- behaviour ---------- */
   let detail: Detail | null = null;
   let editingKey = false;
-  let paused = false;
 
   const renderStatus = (st: Status) => {
-    paused = st.loop?.paused === true;
+    const paused = st.loop?.paused === true;
     const mc = st.modelConnection;
     if (!mc?.ready) { state.textContent = S.noModel; state.className = 'pill off'; }
     else { state.textContent = paused ? S.paused : S.running; state.className = `pill ${paused ? 'plain' : 'on'}`; }
-    toggle.textContent = paused ? S.resume : S.pause;
-    toggle.disabled = !mc?.ready;
     const ready = !!mc?.ready && !!detail?.secretConfigured && detail.secretConfigured !== 'none';
     connectedLine.hidden = !ready || editingKey;
     keyBox.hidden = ready && !editingKey;
     if (mc?.model) connectedPill.textContent = S.connected(mc.model, mc.moduleTitle);
-    // the mode can change while this page stays mounted
-    other.hidden = readMode() !== 'advanced';
   };
 
   const refreshModel = async () => {
@@ -200,10 +208,6 @@ async function mount(ctx: FeatureContext): Promise<void> {
   });
   test.addEventListener('click', () => void runTest());
   change.addEventListener('click', () => { editingKey = true; void refreshModel(); keyInput.focus(); });
-  toggle.addEventListener('click', async () => {
-    await post(paused ? '/api/run/resume' : '/api/run/pause', {}, opts);
-    void refreshModel();
-  });
 
   /* pet */
   let petState: PetState | null = null;

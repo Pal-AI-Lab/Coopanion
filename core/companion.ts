@@ -69,9 +69,11 @@ async function corminiDefinition(): Promise<BotDefinition<CoreConfig>> {
 export async function main(): Promise<void> {
   let pet: DesktopPetWorld | null = null;
   const DESKTOP_PET = desktopPetDefinition({
-    // the menu lends settings (a bottom row) and quit (the header's only button); pausing lives in the settings window
+    // the menu lends settings (a bottom row), dressing (the settings window's dress page) and quit (the
+    // header's only button); pausing lives in the settings window
     controls: {
       openSettings: () => process.send?.({ type: 'companion:open', path: '' }),
+      openDress: () => process.send?.({ type: 'companion:open', path: '#/dress' }),
       quit: () => process.send?.({ type: 'companion:quit' }),
       quitLabel: '退出应用',
     },
