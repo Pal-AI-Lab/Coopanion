@@ -1,14 +1,15 @@
-# 本地中文语音识别方案
+# SenseVoice Small 本地识别验证
 
-2026-09-23 调研记录。Coopanion 当前在 Windows 上默认使用系统识别器；选用 whisper.cpp 时，由桌宠 World 下载运行程序和 ggml 模型。正式安装包 `v0.1.1` 固定了更早的桌宠 World，主分支后来才改成 Windows 默认使用系统识别器。
+2026-09-23 在 Windows x64 上验证并接入了 SenseVoice Small。Coopanion 的桌宠默认使用本地 SenseVoice Small；Windows 系统识别器仍可由使用者明确选择。原来的 whisper.cpp 下载和识别代码已移除。
 
-本次下载问题有可复现的网络原因：在设置了 `HTTPS_PROXY` 的 Windows 环境，同一条 Hugging Face 模型地址由 PowerShell 请求返回 200，普通 Node `fetch` 报 `UND_ERR_CONNECT_TIMEOUT`，启用 Node 的环境代理后返回 200。Coopanion 的 Core 子进程现启用环境代理，并使本地服务地址直连。这个修正解决的是代理环境里的连接方式；下载仍取决于实际网络能否访问模型站点。
+## 选型和实际结果
 
-| 模型 | Windows 本地运行 | 对 Coopanion 的适合程度 |
-|---|---|---|
-| SenseVoice Small | FunASR 官方提供 Windows x64 的可携带 C++ 运行包，CPU 可运行；另有 OpenAI 兼容的 `funasr-server`，能通过 `/v1/audio/transcriptions` 接入。 | 建议先做下一轮集成。没有强制要求 GPU，且每句话结束后识别的交互方式与现有语音输入一致。 |
-| Fun-ASR-Nano | 官方提供本地 C++/GGUF 路径，量化后模型约 1.3 GB；标准服务路径侧重 PyTorch/vLLM 与 GPU。 | 适合中文口音和方言优先的进阶选项，但下载体积及部署成本更高，应先用真实桌面口语录音测准确率与延迟。 |
+FunASR v1.4.16 的 Windows CPU 运行包约 5 MB，sensevoice-small-q8.gguf 为 254,208,320 字节（约 243 MiB）。官方模型卡给出的许可证为 Apache-2.0。本机使用桌宠的运行时下载器完整下载了程序和模型，两个文件均进入“已就绪”状态。直接用官方 6 秒中文样本运行时得到“我想问我在滨海新区有房。”，整次进程调用约 1.5 秒。通过桌宠页面、切句器和事件投递的完整链路运行同一段音频时，得到“我想问。”和“我在滨海新区有房。”两条事件；两次识别分别耗时约 0.5 秒和 0.6 秒。测试音频由页面模拟输入，仍需在真实安装包中用麦克风和不同口音进一步验证。
 
-当前桌宠 World 的 HTTP 客户端虽然使用 OpenAI 兼容的转写路由，却把请求里的 `model` 固定为 Whisper 的 ggml 文件名。FunASR 官方服务会解析 `model`，未知名称返回 400。因此仅修改 `asr.baseUrl` 不能可靠地接入 SenseVoice。下一轮集成需要让远程模型名称成为独立配置，并明确区分本地托管的 Whisper 程序与外部转写服务。之后再决定是否把 SenseVoice 运行包纳入应用管理。具体效果需要在目标 Windows 设备上用中文短句和口音录音检验。
+识别直接启动本地 GGUF 程序处理每个语音片段。这个程序接受 WAV 文件并把文字写到标准输出，省去 Python 服务和 HTTP 适配。桌宠将 16 kHz PCM 写成临时 WAV，在识别完成后删除临时文件。程序、模型都从固定版本下载；下载完成前保留 .partial 文件。使用者可以在配置中指定自己的程序与 GGUF 文件。
 
-资料：[FunASR 的部署矩阵](https://github.com/modelscope/FunASR/blob/main/docs/deployment_matrix.md)、[FunASR 的 Windows C++ 运行说明](https://github.com/modelscope/FunASR/blob/main/runtime/llama.cpp/README.md)、[FunASR 服务端实现](https://github.com/modelscope/FunASR/blob/main/funasr/bin/_server_app.py)、[Node 环境代理说明](https://nodejs.org/api/http.html#built-in-proxy-support)。
+先前的 Whisper 下载故障在本机复现为 Node 对 Hugging Face 的连接超时。Coopanion Core 子进程现启用环境代理；模型下载仍取决于实际网络能否访问 Hugging Face。本次 SenseVoice 模型已在本机完整下载并用于推理。
+
+## 资料
+
+[FunASR 运行说明](https://github.com/modelscope/FunASR/blob/main/runtime/llama.cpp/README.md)、[FunASR v1.4.16 发布包](https://github.com/modelscope/FunASR/releases/tag/v1.4.16)、[SenseVoiceSmall-GGUF 模型卡](https://huggingface.co/FunAudioLLM/SenseVoiceSmall-GGUF)。

@@ -66,6 +66,7 @@ const S = pick({
     talkToggle: (key: string) => `按一下 ${key} 开始说话,再按一下停。`,
     talkAlways: '直接说话,我一直在听。',
     talkOff: '语音输入关着,可在「语音输入」页打开。',
+    talkInstall: '先到「语音输入」页下载并启动 SenseVoice Small。',
     tips: [
       ['说话', ''],
       ['打字', '鼠标停在我身上点气泡按钮,或双击我。'],
@@ -128,6 +129,7 @@ const S = pick({
     talkToggle: (key: string) => `Press ${key} to talk, press again to stop.`,
     talkAlways: 'Just talk, I am always listening.',
     talkOff: 'Voice input is off; turn it on on the Voice input page.',
+    talkInstall: 'Download and start SenseVoice Small on the Voice input page first.',
     tips: [
       ['Talk', ''],
       ['Type', 'Hover me and click the bubble button, or double-click me.'],
@@ -208,7 +210,7 @@ export interface GuideOptions {
   onClose: (how: 'done' | 'skip') => void;
 }
 
-interface VoiceState { enabled?: boolean; input?: { effectiveMode?: 'hold' | 'toggle' | 'always'; hotkeyLabel?: string } }
+interface VoiceState { enabled?: boolean; server?: { phase?: string }; input?: { effectiveMode?: 'hold' | 'toggle' | 'always'; hotkeyLabel?: string } }
 interface ConfigEntry { group: { id: string }; values?: Record<string, unknown> }
 
 interface Step {
@@ -421,10 +423,11 @@ export function openGuide(o: GuideOptions): void {
       const key = voice?.input?.hotkeyLabel || S.talkKeyDefault;
       const mode = voice?.input?.effectiveMode ?? 'hold';
       const on = voice?.enabled !== false;
+      const ready = voice?.server?.phase === 'running';
       keycap.textContent = key;
-      keycap.hidden = !on || mode === 'always';
-      wave.hidden = !on;
-      lines[0]!.textContent = !on ? S.talkOff : mode === 'hold' ? S.talkHold(key) : mode === 'toggle' ? S.talkToggle(key) : S.talkAlways;
+      keycap.hidden = !on || !ready || mode === 'always';
+      wave.hidden = !on || !ready;
+      lines[0]!.textContent = !on ? S.talkOff : !ready ? S.talkInstall : mode === 'hold' ? S.talkHold(key) : mode === 'toggle' ? S.talkToggle(key) : S.talkAlways;
     };
     renderUse = render;
     return { el, enter: render };

@@ -70,7 +70,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
    4. 知道关掉窗口后去哪找它。
 
    右上角的「跳过」随时可以跳过。之后在「开始」页右上角点「使用引导」能再看一遍。
-4. **打个招呼**:按住 **左 Alt** 说「你好」,松开发送。Windows 第一次会问能不能用麦克风,选「允许」。
+4. **打个招呼**:在「语音输入」页点「下载并启动」安装 SenseVoice Small,再按住 **左 Alt** 说「你好」,松开发送。Windows 第一次会问能不能用麦克风,选「允许」。
 
 <details>
 <summary><b>怎么拿到 DeepSeek 的 API Key?</b></summary>
@@ -156,8 +156,8 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 - **费用**:CortiCompanion 本身免费。和 Coo 聊天要调用 DeepSeek 的模型,费用由 DeepSeek 按用量从你的账户扣,在「用量与成本」页能看到。
 - **会发给模型服务的内容**:你说的话和打的字、你和 Coo 的互动,以及电脑操作时的屏幕截图。这些内容只发给你配置的模型服务(默认 DeepSeek)。
 - **留在你电脑上的内容**:API Key、记忆、对话记录、设置、日志,全部存在安装目录的 `data` 文件夹里。
-  语音识别在本机完成,不管用 Windows 自带的引擎还是 whisper.cpp,录音都不会上传,发出去的只有识别出来的文字。
-- **其他联网**:只在你安装扩展(从 npm 下载)或选用 whisper.cpp(下载识别程序和模型)时才会联网。
+  语音识别在本机完成,使用 SenseVoice Small 或 Windows 识别器时录音都不会上传,发出去的只有识别出来的文字。
+- **其他联网**:安装扩展或首次下载 SenseVoice Small 程序和模型时会联网。
 
 ## 数据与卸载
 
@@ -168,7 +168,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 | Coo 的记忆、对话记录、设置、API Key | `data\home` |
 | 安装的扩展 | `data\extensions` |
 | 运行日志 | `data\logs` |
-| whisper.cpp 识别程序与模型(选用时才下载) | `data\home\runtimes`、`models` |
+| SenseVoice Small 识别程序与模型(首次使用时下载) | `data\home\runtimes`、`models` |
 | 临时文件、扩展安装缓存、窗口缓存 | `data\tmp`、`data\pnpm`,以及 `data` 下的其余文件夹 |
 
 **卸载**:在 Windows「设置 → 应用」里找到 CortiCompanion 卸载。`data` 文件夹会保留,重装后记忆和设置还在;彻底不要了,就手动删掉整个安装目录。
@@ -208,15 +208,15 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 - 「语音输入」页的识别服务显示就绪。你说话时电平条会跳,说明麦克风选对了;
 - Windows 设置 → 隐私和安全性 → 麦克风里,允许了桌面应用使用麦克风。
 
-识别服务报「没有语音识别器」时,到 Windows 设置 → 时间和语言 → 语言,给中文装上「语音识别」;或者在「语音输入」页换成 whisper.cpp。
+「语音输入」页提示缺少 SenseVoice 程序或模型时,点「下载并启动」。选用 Windows 识别器后如果报「没有语音识别器」,到 Windows 设置 → 时间和语言 → 语言里安装中文「语音识别」。
 
 </details>
 
 <details>
 <summary><b>语音识别不够准</b></summary>
 
-在「语音输入」页把识别引擎换成 whisper.cpp,点「下载并启动」。它会下载识别程序和中文模型(约 190 MB,只下载一次)。
-通过代理联网的电脑会沿用 `HTTPS_PROXY` / `HTTP_PROXY` 环境变量;本地识别服务始终直接连接。
+在「语音输入」页选择 SenseVoice Small,点「下载并启动」。程序约 5 MB,模型约 243 MiB,只下载一次。
+通过代理联网的电脑会沿用 `HTTPS_PROXY` / `HTTP_PROXY` 环境变量;识别过程在本机执行。
 
 </details>
 
@@ -239,4 +239,4 @@ CortiCompanion 由 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 组装而成
 
 ## 许可
 
-[MIT](LICENSE)。随附或运行时下载的第三方组件:Electron(MIT)、Cortico(MIT)、whisper.cpp 与其 ggml 模型(MIT,选用时下载)、koffi(MIT)、jpeg-js(BSD-3-Clause)、pnpm(MIT)。
+[MIT](LICENSE)。随附或运行时下载的第三方组件:Electron(MIT)、Cortico(MIT)、FunASR 运行程序(MIT)与 SenseVoice Small GGUF 模型(Apache-2.0)、koffi(MIT)、jpeg-js(BSD-3-Clause)、pnpm(MIT)。
