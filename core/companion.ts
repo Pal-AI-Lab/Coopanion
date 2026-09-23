@@ -3,17 +3,19 @@
  * DeepSeek provider next to Cortico's built-in Responses-compatible one, and Worlds or providers
  * installed from npm through the console's extension page.
  *
- * The two bundled Worlds are wired to each other and to the app: the pet's right-click menu
- * pauses and resumes event delivery, opens the settings window and quits the app; computer use
+ * The two bundled Worlds are wired to each other and to the app: the pet's right-click menu opens
+ * the settings window from its bottom row and quits the app from the button in its header (pausing
+ * stays in the settings window); computer use
  * asks for permission in the pet's bubble, and falls back to its own system dialog while no
  * pet page is connected.
  *
  * First start writes the files in `seed.ts`; after that every value is the operator's, edited in
- * the console. While the active endpoint has no key, event delivery starts paused.
+ * the console. While the active endpoint has no key, event delivery starts paused and the pet asks
+ * in its bubble whether to open the settings window for it.
  *
  * The parent (Electron main) gets `{ type: 'companion:ready', port, dataDir, keyMissing }` once the
  * console listens, `{ type: 'companion:open', path }` to show the settings window at a console
- * route and `{ type: 'companion:quit' }` to quit; it asks for a clean stop with
+ * route and `{ type: 'companion:quit' }` to quit the whole app; it asks for a clean stop with
  * `{ type: 'companion:shutdown' }`.
  */
 import { join } from 'node:path';
@@ -43,22 +45,35 @@ function hasKey(config: CoreConfig): boolean {
   return secretReader(join(providersRoot(), config.activeProvider, '.env'))(entry.secret) !== '';
 }
 
+/** How long the pet page gets to show up before the settings window opens without asking. */
+const PET_WAIT_MS = 60_000;
+
+/**
+ * A start shows only the pet, so the pet asks for the missing key in its bubble; "yes" opens the
+ * home page, where the key goes. Without a pet page to ask on, the home page opens anyway, since
+ * nothing else would tell the person why Coo stays silent.
+ */
+async function askForKey(pet: () => DesktopPetWorld | null, keySet: () => boolean): Promise<void> {
+  const deadline = Date.now() + PET_WAIT_MS;
+  while (!pet()?.petState().connected && Date.now() < deadline) await new Promise((r) => setTimeout(r, 1000));
+  if (keySet()) return;
+  const answer = await pet()?.confirm('我还没连上模型,填好 DeepSeek 的 API Key 我才能和你说话。现在去填吗?', ['去填', '等会儿']) ?? 'unavailable';
+  if (answer === 'yes' || answer === 'unavailable') process.send?.({ type: 'companion:open', path: '#/home' });
+}
+
 async function corminiDefinition(): Promise<BotDefinition<CoreConfig>> {
   const file = join(repoRoot(), 'bots', 'cormini', 'index.ts');
   return (await import(pathToFileURL(file).href) as { default: BotDefinition<CoreConfig> }).default;
 }
 
 export async function main(): Promise<void> {
-  // the pet's controls are created before the bot they drive
-  let running: ReturnType<typeof createBot> | null = null;
   let pet: DesktopPetWorld | null = null;
   const DESKTOP_PET = desktopPetDefinition({
+    // the menu lends settings (a bottom row) and quit (the header's only button); pausing lives in the settings window
     controls: {
-      isPaused: () => running?.core.bus.isPaused() ?? false,
-      setPaused: (paused) => running?.core.bus.setPaused(paused),
-      openSettings: () => process.send?.({ type: 'companion:open', path: '#/settings' }),
+      openSettings: () => process.send?.({ type: 'companion:open', path: '' }),
       quit: () => process.send?.({ type: 'companion:quit' }),
-      quitLabel: '退出 CortiCompanion',
+      quitLabel: '退出应用',
     },
     onCreate: (world) => { pet = world; },
   });
@@ -96,12 +111,12 @@ export async function main(): Promise<void> {
   consumeBootFlags(loaded.dataDir);
 
   const bot = createBot(loaded, definition, { extensions });
-  running = bot;
   // without a key every model call fails: hold events until the home page saves one and resumes
   const keyMissing = !hasKey(loaded.config);
   if (keyMissing) bot.core.bus.setPaused(true);
   const { port } = await bot.start();
   process.send?.({ type: 'companion:ready', port, dataDir: loaded.dataDir, keyMissing });
+  if (keyMissing) void askForKey(() => pet, () => hasKey(loaded.config));
 
   let stopping = false;
   const shutdown = async (reason: string) => {

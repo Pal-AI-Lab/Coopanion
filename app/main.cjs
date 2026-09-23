@@ -3,7 +3,9 @@
  *
  * Two modes share this executable:
  * - the app: tray icon, the settings window (the Cortico console served by the Core child on
- *   127.0.0.1), and the Core child process (`core-host.cjs`);
+ *   127.0.0.1), and the Core child process (`core-host.cjs`). A start shows the pet and the tray
+ *   icon only; the settings window opens from the tray, the pet's menu, or when the pet asks for
+ *   a missing model key (`core/companion.ts`). Starting it again while it runs brings the pet back;
  * - `--pet-host --pet-url=… --parent-pid=…`: the desktop pet's transparent window, started by
  *   the desktop-pet World through `CORTICO_DESKTOP_PET_HOST`. It uses its own profile directory.
  *
@@ -149,6 +151,12 @@ async function showPet() {
   await panel('world:desktop-pet', 'pet', 'openWindow');
 }
 
+/** Brings the pet back unless its page is on screen already (reopening it would make it blink). */
+async function ensurePet() {
+  const state = await panel('world:desktop-pet', 'pet', 'state').catch(() => null);
+  if (!state?.connected) await showPet();
+}
+
 function buildTray() {
   const icon = nativeImage.createFromPath(join(ICONS, 'tray.png'));
   icon.addRepresentation({ scaleFactor: 2, buffer: nativeImage.createFromPath(join(ICONS, 'tray@2x.png')).toPNG() });
@@ -170,9 +178,8 @@ function buildTray() {
   tray.on('click', () => openSettings());
 }
 
-core.on('ready', ({ keyMissing }) => {
+core.on('ready', () => {
   if (settings) settings.loadURL(consoleUrl());
-  if (keyMissing) openSettings();
 });
 core.on('state', (state, detail) => {
   if (!detail) return;
@@ -182,7 +189,7 @@ core.on('state', (state, detail) => {
 
 core.on('open', (path) => openSettings(path));
 core.on('quit', () => app.quit());
-app.on('second-instance', () => openSettings());
+app.on('second-instance', () => { if (core.state === 'running') ensurePet().catch(() => { /* Core went away meanwhile */ }); });
 app.on('window-all-closed', () => { /* stays in the tray */ });
 app.on('before-quit', (e) => {
   if (quitting) return;
@@ -195,5 +202,4 @@ app.whenReady().then(() => {
   app.setAppUserModelId('ai.pal.corticompanion');
   buildTray();
   core.start();
-  if (!process.argv.includes('--background')) openSettings();
 });
