@@ -8,8 +8,8 @@
 <p align="center"><b>你的小小万能桌面伴侣</b></p>
 
 <p align="center">
-  <a href="https://github.com/Pal-AI-Lab/CortiCompanion/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Pal-AI-Lab/CortiCompanion?color=00a870"></a>
-  <a href="https://github.com/Pal-AI-Lab/CortiCompanion/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Pal-AI-Lab/CortiCompanion/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/Pal-AI-Lab/Coopanion/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Pal-AI-Lab/Coopanion?color=00a870"></a>
+  <a href="https://github.com/Pal-AI-Lab/Coopanion/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Pal-AI-Lab/Coopanion/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Windows 10 / 11" src="https://img.shields.io/badge/Windows-10%20%2F%2011-1f6feb">
   <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-8b8b8f"></a>
 </p>
@@ -26,7 +26,7 @@ CortiCompanion 是用 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 拼出来
 
 ### 方法一:下载安装包
 
-1. 打开 [最新发布](https://github.com/Pal-AI-Lab/CortiCompanion/releases/latest),下载 `CortiCompanion-Setup-版本号.exe`。
+1. 打开 [最新发布](https://github.com/Pal-AI-Lab/Coopanion/releases/latest),下载 `CortiCompanion-Setup-版本号.exe`。
 2. 双击运行。安装包没有数字签名,Windows 可能弹出「Windows 已保护你的电脑」:点 **更多信息** → **仍要运行**。
 3. 不用选任何东西,装好后会自动打开。桌面和开始菜单里都会有 CortiCompanion。
 
@@ -35,7 +35,7 @@ CortiCompanion 是用 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 拼出来
 在开始菜单搜 **PowerShell**,打开后粘贴这一行,回车:
 
 ```powershell
-irm https://raw.githubusercontent.com/Pal-AI-Lab/CortiCompanion/main/installer/install.ps1 | iex
+irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/install.ps1 | iex
 ```
 
 它会下载最新的安装包并运行,效果和方法一相同。
@@ -98,7 +98,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/CortiCompanion/main/installer/i
 需要 Git、Node.js 22 和 pnpm(`corepack enable`)。
 
 ```bash
-git clone --recursive https://github.com/Pal-AI-Lab/CortiCompanion.git
+git clone --recursive https://github.com/Pal-AI-Lab/Coopanion.git
 cd CortiCompanion
 pnpm install
 pnpm run dev                # 准备 build/cortico 并启动应用

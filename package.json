@@ -6,7 +6,7 @@
   "description": "A desktop companion built on Cortico: a pet on your screen that talks, listens and can operate the computer",
   "license": "MIT",
   "author": "Pal-AI-Lab",
-  "homepage": "https://github.com/Pal-AI-Lab/CortiCompanion",
+  "homepage": "https://github.com/Pal-AI-Lab/Coopanion",
   "type": "module",
   "main": "app/main.cjs",
   "packageManager": "pnpm@11.5.0",
