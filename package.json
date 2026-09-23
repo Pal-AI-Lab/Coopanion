@@ -1,7 +1,7 @@
 {
   "name": "corti-companion",
   "productName": "CortiCompanion",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "A desktop companion built on Cortico: a pet on your screen that talks, listens and can operate the computer",
   "license": "MIT",
