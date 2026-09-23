@@ -1,13 +1,22 @@
 /**
- * The guide: a walkthrough that covers the whole settings window the first time it opens. Four
- * short screens in the order a new person needs them: say hello and set what Coo calls you and how
- * much it walks (written to the desktop-pet World's config, like the 「习惯」 page), connect the
- * model (saved and tested through the same calls as the home page), how to get along with Coo, and
- * where to find it afterwards. The small button at the top right skips it; finishing or skipping is
- * remembered in the window's localStorage, and the home page's 「使用引导」 opens it again through
- * `requestGuide`. main.ts shows it and owns its lifecycle, so it outlives the page under it. Styles
- * are in guide.css.
+ * The guide: the first time the settings window opens, Coo walks onto a stage covering the whole
+ * window and sets things up with the person as a conversation. Coo asks in its bubble, the answer
+ * goes in the reply area under the stage, and Coo acts on it at once:
+ *
+ * 1. hello, and what to call the person (the desktop-pet World's `user`);
+ * 2. how lively to be (`roam`): while the choices are up Coo shows each one, standing still,
+ *    strolling, or running back and forth;
+ * 3. the DeepSeek key, saved and tested through the same calls as the home page (model.ts);
+ * 4. how to talk to it (the talk key as the voice input panel reports it) and where its buttons are;
+ * 5. where to find it once the window is closed, then off to the home page or the dressing page.
+ *
+ * Coo is the pet's real body (pet-core from the desktop-pet package), in the pet's current dress,
+ * so it moves, blinks and reacts to a poke as on the desktop. The small button at the top right
+ * skips; finishing or skipping is remembered in the window's localStorage, and the home page's
+ * 「使用引导」 opens it again through `requestGuide`. main.ts shows it and owns its lifecycle, so it
+ * outlives the page under it. Styles are in guide.css.
  */
+import { createPet, createSfx, normalizeSkin, skinCss, type PetController, type Roam } from 'cortico-world-desktop-pet/web/pet-core.js';
 import { get, post, setConfig } from '../../core/api.ts';
 import { pick } from '../../core/language.ts';
 import type { Router } from '../../core/router.ts';
@@ -19,132 +28,113 @@ const REQUEST = 'companion-guide-request';
 const PET_PAGE = 'world:desktop-pet';
 const USER_KEY = 'worlds.desktop-pet.user';
 const ROAM_KEY = 'worlds.desktop-pet.roam';
+const SOUND_KEY = 'worlds.desktop-pet.sound';
 /** The seed's default name: shown as the placeholder, so the box invites a real one. */
 const DEFAULT_USER = '主人';
+/** Characters Coo types per second, as the pet page does. */
+const TYPE_CPS = 20;
+/** Seconds Coo's line stays after it is typed, before the reply area comes up. */
+const LINE_REST = .35;
+/** Motions `say` passes to `act`; any other name is an expression. */
+const MOTIONS = new Set(['hop', 'nod', 'spin', 'jump', 'shake', 'look']);
 
 const S = pick({
   zh: {
     brand: '认识 Coo',
     skip: '跳过',
     skipHint: '跳过引导;之后可以在「开始」页重新打开',
-    back: '上一步',
-    next: '下一步',
-    later: '稍后再填',
-    finish: '开始使用',
-    dot: (n: number) => `第 ${n} 页`,
+    dot: (n: number) => `第 ${n} 步`,
 
-    helloTitle: '你好,我是 Coo',
-    helloLead: '我住在你屏幕的底边。先认识一下吧。',
-    helloBubble: (name: string) => (name ? `你好,${name}!` : '你好呀!'),
-    user: '我该怎么称呼你?',
-    roam: '我平时',
-    roamFree: '常走动',
-    roamCalm: '多待着',
-    roamOff: '不乱动',
-    changeLater: '这些之后都能在「习惯」页改。',
+    hello: '你好呀!我是 Coo,以后就住在你屏幕的底边啦,库...',
+    helloReply: '你好,Coo!',
+    askName: '我该怎么称呼你?',
+    nameSend: '就这么叫',
+    gotName: (name: string) => `${name},记住啦!`,
+    askRoam: '平时我该安静一点,还是活泼一点?点一下,看看我会怎样。',
+    roam: { off: '不乱动', calm: '多待着', free: '常走动' } as Record<Roam, string>,
+    roamLevel: { off: '低', calm: '中', free: '高' } as Record<Roam, string>,
+    roamSay: {
+      off: '那我就乖乖站着,你叫我我再动。',
+      calm: '我会时不时溜达一圈,大多时候待着。',
+      free: '我可以到处跑来跑去,库...!',
+    } as Record<Roam, string>,
+    roamOk: '就这样',
+    roamDone: '好,就按这个来。',
 
-    modelTitle: '连上模型,我才能说话',
-    modelLead: '填一个 DeepSeek 的 API Key。按用量计费,注意 token 消耗哦。',
-    howTitle: '还没有 Key?',
-    how1: '打开 DeepSeek 开放平台,注册登录',
-    how1Link: '打开',
-    how2: '在「充值」里充值',
-    how3: '「API Keys」→ 创建,复制 sk- 开头的那串',
-    keyLabel: 'API Key',
+    askKey: '要和你聊天,我得先连上大模型。填一个 DeepSeek 的 API Key 吧,按用量计费,注意 token 消耗哦。',
     keyPlaceholder: 'sk-…',
-    connect: '保存并连接',
+    keyLabel: 'API Key',
+    connect: '连接',
     connecting: '正在连接…',
-    connectedTitle: '已经连上了',
-    changeKey: '换一个 Key',
-    connectOk: '连上了!',
-    connectFail: (why: string) => `没连上:${why}。检查 Key 是否完整、账户是否有余额。`,
-    keyEmpty: '先粘贴 Key。',
-    modelLater: '先跳过也行,我会时不时在气泡里提醒你。',
+    getKey: '还没有 Key?去 DeepSeek 开放平台申请',
+    keyLater: '稍后再填',
+    keyEmpty: '先粘贴 Key',
+    keyOk: (model: string) => `连上了${model ? `(${model})` : ''}!现在我能说话啦,库...`,
+    keyFail: (why: string) => `没连上:${why}。看看 Key 是不是完整,账户里还有没有余额?`,
+    keyAlready: (model: string) => `模型已经连好了${model ? `(${model})` : ''},省事,库...`,
+    keySkipped: '没关系,等你填好我再开口。「开始」页随时能填。',
 
-    useTitle: '和我相处',
-    talkHold: (key: string) => `按住 ${key} 说话,松开就发出。`,
-    talkToggle: (key: string) => `按一下 ${key} 开始说话,再按一下停。`,
-    talkAlways: '直接说话,我一直在听。',
-    talkOff: '语音输入关着,可在「语音输入」页打开。',
-    tips: [
-      ['说话', ''],
-      ['打字', '鼠标停在我身上点气泡按钮,或双击我。'],
-      ['互动', '点我、摸头、拎起来甩;右键打开菜单。'],
-      ['操作电脑', '每次动手前我都先问你,点「可以」才动。'],
-    ] as Array<[string, string]>,
-    talkHeard: '明天',
-    talkHearing: '会下雨吗',
+    talkHold: (key: string) => `想和我说话,按住 ${key} 说,松开就发给我。`,
+    talkToggle: (key: string) => `想和我说话,按一下 ${key} 开始,再按一下结束。`,
+    talkAlways: '我一直在听,直接说话就行。',
+    talkOff: '语音输入现在关着,可以在「语音输入」页打开。',
+    talkType: '也可以双击我打字。',
     talkKeyDefault: '右 Ctrl',
-
-    doneTitle: '准备好了',
-    doneLead: '关掉窗口我也还在:任务栏右下角的托盘图标能打开设置,右键可以「显示桌宠」。',
-    doneNoKey: '还没连上模型,我暂时不会说话。',
-    doneNoKeyBtn: '去填 Key',
-    trayMenu: ['打开设置', '显示桌宠', '开机自动启动', '退出'],
-    trayTip: '托盘图标',
-    dress: '给我换身装扮',
+    gotIt: '知道了',
+    buttons: '鼠标停在我身上,旁边会冒出几个按钮;右键我,能打开菜单。',
+    ok: '好',
+    tray: '关掉这个窗口我也还在屏幕底边。想再打开设置,点任务栏右下角托盘里我的图标。',
+    finish: '开始吧',
+    dress: '先给我换身衣服',
     skipped: '引导已跳过。想再看,点「开始」页右上角的「使用引导」。',
   },
   en: {
     brand: 'Meet Coo',
     skip: 'Skip',
     skipHint: 'Skip the guide; the Start page opens it again',
-    back: 'Back',
-    next: 'Next',
-    later: 'Later',
-    finish: 'Start',
-    dot: (n: number) => `Page ${n}`,
+    dot: (n: number) => `Step ${n}`,
 
-    helloTitle: "Hi, I'm Coo",
-    helloLead: 'I live at the bottom of your screen. Let us get to know each other.',
-    helloBubble: (name: string) => (name ? `Hi, ${name}!` : 'Hello!'),
-    user: 'What should I call you?',
-    roam: 'I usually',
-    roamFree: 'Walk a lot',
-    roamCalm: 'Stay around',
-    roamOff: 'Stay put',
-    changeLater: 'Change these any time on the Habits page.',
+    hello: "Hi! I'm Coo. I'll be living at the bottom of your screen, koo...",
+    helloReply: 'Hi, Coo!',
+    askName: 'What should I call you?',
+    nameSend: 'Call me that',
+    gotName: (name: string) => `${name}, got it!`,
+    askRoam: 'Should I keep still or run around? Click one and watch me.',
+    roam: { off: 'Stay put', calm: 'Now and then', free: 'Walk a lot' } as Record<Roam, string>,
+    roamLevel: { off: 'Low', calm: 'Mid', free: 'High' } as Record<Roam, string>,
+    roamSay: {
+      off: "I'll stand still until you call me.",
+      calm: "I'll stroll around now and then, and mostly stay.",
+      free: "I'll run all over the place, koo...!",
+    } as Record<Roam, string>,
+    roamOk: 'That one',
+    roamDone: 'Okay, that it is.',
 
-    modelTitle: 'Connect a model so I can talk',
-    modelLead: 'Enter a DeepSeek API key. It is billed by use; keep an eye on token usage.',
-    howTitle: 'No key yet?',
-    how1: 'Open the DeepSeek platform and sign up',
-    how1Link: 'Open',
-    how2: 'Top up the account',
-    how3: '"API Keys" → create, copy the string starting with sk-',
-    keyLabel: 'API Key',
+    askKey: 'To talk with you I need a language model. Enter a DeepSeek API key; it is billed by use, so keep an eye on token usage.',
     keyPlaceholder: 'sk-…',
-    connect: 'Save and connect',
+    keyLabel: 'API Key',
+    connect: 'Connect',
     connecting: 'Connecting…',
-    connectedTitle: 'Connected',
-    changeKey: 'Use another key',
-    connectOk: 'Connected!',
-    connectFail: (why: string) => `Not connected: ${why}. Check the key and the account balance.`,
-    keyEmpty: 'Paste the key first.',
-    modelLater: 'You can skip this; I will remind you in my bubble now and then.',
+    getKey: 'No key yet? Get one on the DeepSeek platform',
+    keyLater: 'Later',
+    keyEmpty: 'Paste the key first',
+    keyOk: (model: string) => `Connected${model ? ` (${model})` : ''}! Now I can talk, koo...`,
+    keyFail: (why: string) => `Not connected: ${why}. Is the key complete, and is there balance left?`,
+    keyAlready: (model: string) => `The model is connected already${model ? ` (${model})` : ''}, koo...`,
+    keySkipped: "No problem, I'll stay quiet until there is a key. The Start page takes it any time.",
 
-    useTitle: 'Getting along',
-    talkHold: (key: string) => `Hold ${key} and talk; let go to send.`,
-    talkToggle: (key: string) => `Press ${key} to talk, press again to stop.`,
-    talkAlways: 'Just talk, I am always listening.',
+    talkHold: (key: string) => `To talk to me, hold ${key} and speak; let go to send.`,
+    talkToggle: (key: string) => `To talk to me, press ${key} to start and again to stop.`,
+    talkAlways: 'I am always listening; just talk.',
     talkOff: 'Voice input is off; turn it on on the Voice input page.',
-    tips: [
-      ['Talk', ''],
-      ['Type', 'Hover me and click the bubble button, or double-click me.'],
-      ['Play', 'Click me, pet my head, pick me up; right-click for the menu.'],
-      ['Computer', 'I ask before every action and act only after "OK".'],
-    ] as Array<[string, string]>,
-    talkHeard: 'Rain ',
-    talkHearing: 'tomorrow?',
+    talkType: ' You can also double-click me to type.',
     talkKeyDefault: 'Right Ctrl',
-
-    doneTitle: 'All set',
-    doneLead: 'Closing the window does not send me away: the tray icon at the bottom right opens settings, and its menu can show me again.',
-    doneNoKey: 'No model connected yet, so I stay silent for now.',
-    doneNoKeyBtn: 'Enter the key',
-    trayMenu: ['Open settings', 'Show pet', 'Start at login', 'Quit'],
-    trayTip: 'Tray icon',
-    dress: 'Dress me up',
+    gotIt: 'Got it',
+    buttons: 'Rest the pointer on me and buttons pop up beside me; right-click me for the menu.',
+    ok: 'OK',
+    tray: 'Closing this window does not send me away. The tray icon at the bottom right opens settings again.',
+    finish: "Let's go",
+    dress: 'Dress me up first',
     skipped: 'Guide skipped. Open it again with "Guide" at the top right of the Start page.',
   },
 });
@@ -175,29 +165,13 @@ export function onGuideRequest(cb: () => void, signal: AbortSignal): void {
 /** The toast after a skip, so the way back is known. */
 export const guideSkippedText = S.skipped;
 
-/* ---------- Coo, drawn after the app icon: a C for a body, two ring eyes, two legs ---------- */
-
-const COO = `<svg class="coo" viewBox="0 0 512 512" aria-hidden="true">
-  <g class="coo-body">
-    <path d="M347 182 A118 118 0 1 0 347 318" fill="none" stroke="currentColor" stroke-width="62" stroke-linecap="round"/>
-    <rect x="196" y="352" width="42" height="80" rx="21" fill="currentColor"/>
-    <rect x="270" y="352" width="42" height="80" rx="21" fill="currentColor"/>
-    <g class="coo-eyes" fill="none" stroke-width="13">
-      <circle cx="236" cy="220" r="19"/>
-      <circle cx="304" cy="220" r="19"/>
-    </g>
-  </g>
+/** The brand mark at the top left: Coo drawn after the app icon. */
+const COO_MARK = `<svg class="coo" viewBox="0 0 512 512" aria-hidden="true">
+  <path d="M347 182 A118 118 0 1 0 347 318" fill="none" stroke="currentColor" stroke-width="62" stroke-linecap="round"/>
+  <rect x="196" y="352" width="42" height="80" rx="21" fill="currentColor"/>
+  <rect x="270" y="352" width="42" height="80" rx="21" fill="currentColor"/>
+  <g fill="none" stroke="#2fd39a" stroke-width="13"><circle cx="236" cy="220" r="19"/><circle cx="304" cy="220" r="19"/></g>
 </svg>`;
-
-/** Icons of the tips on the third screen: talk, type, play, computer. */
-const TIP_ICONS = [
-  '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
-  '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h1M11 10h1M15 10h2M7 14h10"/>',
-  '<path d="M4 14c2-3 4-3 6 0s4 3 6 0 3-3 4-1"/><path d="M4 9c2-3 4-3 6 0s4 3 6 0 3-3 4-1"/>',
-  '<path d="M5 3l14 8-6 1.6L10 19z"/>',
-];
-
-/* ---------- the guide ---------- */
 
 export interface GuideOptions {
   doc: Document;
@@ -211,16 +185,17 @@ export interface GuideOptions {
 interface VoiceState { enabled?: boolean; input?: { effectiveMode?: 'hold' | 'toggle' | 'always'; hotkeyLabel?: string } }
 interface ConfigEntry { group: { id: string }; values?: Record<string, unknown> }
 
-interface Step {
-  el: HTMLElement;
-  /** Runs each time the step comes on screen. */
-  enter?: () => void;
-  /** Runs when the step is left, forward or back, or the guide closes on it. */
-  leave?: () => void;
-}
+/** The conversation was cut short: the guide closed while Coo talked or waited for an answer. */
+class Closed extends Error {}
+
+/** Steps of the conversation, for the progress dots. */
+const STEPS = ['hello', 'name', 'roam', 'key', 'talk', 'done'] as const;
+type Step = typeof STEPS[number];
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export function openGuide(o: GuideOptions): void {
-  const { ui, signal } = o;
+  const { ui, signal, doc } = o;
   const opts = { signal };
   const h = ui.h;
 
@@ -229,282 +204,358 @@ export function openGuide(o: GuideOptions): void {
   root.setAttribute('aria-modal', 'true');
   root.setAttribute('aria-label', S.brand);
 
-  /* ---------- frame ---------- */
+  /* ---------- frame: brand, progress, skip ---------- */
   const top = h('header', 'guide-top');
   const brand = h('div', 'guide-brand');
   const brandMark = h('span', 'guide-brandmark');
-  brandMark.innerHTML = COO;
+  brandMark.innerHTML = COO_MARK;
   brand.append(brandMark, h('span', null, S.brand));
+  const dots = h('div', 'guide-dots');
+  const dotEls = STEPS.map((_, i) => {
+    const d = h('span', 'guide-dot');
+    d.setAttribute('aria-label', S.dot(i + 1));
+    dots.append(d);
+    return d;
+  });
   const skip = h('button', 'guide-skip');
   skip.type = 'button';
   skip.title = S.skipHint;
   skip.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   skip.prepend(h('span', null, S.skip));
-  top.append(brand, skip);
+  top.append(brand, dots, skip);
 
-  const stage = h('main', 'guide-stage');
-  const foot = h('footer', 'guide-foot');
-  const dots = h('div', 'guide-dots');
-  const back = ui.button(S.back);
-  const next = ui.button(S.next, { variant: 'primary' });
-  next.classList.add('guide-next');
-  foot.append(dots, h('span', 'grow'), back, next);
-  root.append(top, stage, foot);
+  /* ---------- the stage: Coo on the floor, its bubble over its head ---------- */
+  const stage = h('main', 'guide-world');
+  const svg = doc.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 'guide-petsvg');
+  svg.setAttribute('aria-hidden', 'true');
+  const shadowEl = doc.createElementNS(SVG_NS, 'ellipse');
+  shadowEl.setAttribute('class', 'shadow');
+  const petG = doc.createElementNS(SVG_NS, 'g');
+  const fxG = doc.createElementNS(SVG_NS, 'g');
+  svg.append(shadowEl, petG, fxG);
+  const bubble = h('div', 'guide-say');
+  bubble.setAttribute('role', 'status');
+  bubble.setAttribute('aria-live', 'polite');
+  bubble.hidden = true;
+  const bubbleText = h('p', 'guide-saytext');
+  bubble.append(bubbleText);
+  stage.append(h('div', 'guide-floor'), svg, bubble);
 
-  /* ---------- shared state ---------- */
-  let status: Status | null = null;
-  let detail: Detail | null = null;
-  let connected = false;
-  let voice: VoiceState | null = null;
-  let at = 0;
-  let shown = false;
+  /* ---------- the reply area: what the person answers with ---------- */
+  const reply = h('section', 'guide-reply');
+  root.append(top, stage, reply);
 
-  const head = (title: string, lead: string) => {
-    const box = h('div', 'guide-head');
-    box.append(h('h2', 'guide-title', title), h('p', 'guide-lead', lead));
-    return box;
+  /* ---------- the body ---------- */
+  const sfx = createSfx({ storageKey: 'companion.guide.sound' });
+  root.addEventListener('pointerdown', () => sfx.unlock(), { ...opts, once: true });
+  root.addEventListener('keydown', () => sfx.unlock(), { ...opts, once: true });
+  let size = { W: 0, H: 0 };
+  /** Coo's size on the stage: larger than on the desktop, smaller on a short window. */
+  const scaleFor = (H: number) => Math.max(.5, Math.min(.95, H / 420));
+  const ctl: PetController = createPet({ petG, shadowEl, fxG }, {
+    sfx,
+    roam: 'off',
+    enter: 'drop',
+    bounds: () => ({ W: size.W, H: size.H, floorY: size.H - 34, S: scaleFor(size.H) }),
+  });
+  const measure = () => {
+    const r = stage.getBoundingClientRect();
+    size = { W: r.width, H: r.height };
+    ctl.resize();
   };
-  /** Coo standing on the floor line, with a bubble over its head when given. */
-  const actor = (cls: string, bubble?: HTMLElement) => {
-    const box = h('div', `guide-actor ${cls}`);
-    const pet = h('div', 'guide-coo');
-    pet.innerHTML = COO;
-    if (bubble) box.append(bubble);
-    box.append(pet);
-    return box;
-  };
-
-  /* ---------- 1 hello: what to call you, how much to walk ---------- */
-  const userInput = ui.input({ placeholder: DEFAULT_USER });
-  userInput.maxLength = 20;
-  /** The name as the config holds it; an empty box keeps it. */
-  let savedUser = '';
-  const saveUser = () => {
-    const name = userInput.value.trim();
-    if (!name || name === savedUser) return;
-    savedUser = name;
-    void setConfig(PET_PAGE, { [USER_KEY]: name }, opts).catch(() => { savedUser = ''; });
-  };
-  const roam = ui.segmented([
-    { value: 'free', label: S.roamFree }, { value: 'calm', label: S.roamCalm }, { value: 'off', label: S.roamOff },
-  ], { size: 'sm', onSelect: (v) => void setConfig(PET_PAGE, { [ROAM_KEY]: v }, opts).catch(() => {}) });
-  const helloBubble = h('div', 'guide-bubble', S.helloBubble(''));
-  const greet = () => { helloBubble.textContent = S.helloBubble(userInput.value.trim()); };
-  const hello = (): Step => {
-    const el = h('section', 'guide-step guide-split');
-    const art = h('div', 'guide-art guide-art-hello');
-    art.append(h('div', 'guide-floor'), actor('guide-coo-bob', helloBubble));
-    const box = head(S.helloTitle, S.helloLead);
-    const fields = h('div', 'guide-fields');
-    const nameField = h('label', 'guide-field');
-    nameField.append(h('span', 'guide-label', S.user), userInput);
-    const roamField = h('div', 'guide-field');
-    roamField.append(h('span', 'guide-label', S.roam), roam.el);
-    fields.append(nameField, roamField);
-    box.append(fields, h('p', 'guide-note', S.changeLater));
-    el.append(art, box);
-    userInput.addEventListener('input', greet, opts);
-    userInput.addEventListener('change', saveUser, opts);
-    userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); go(at + 1); } }, opts);
-    return { el, leave: saveUser };
+  // Coo's colors follow the console's light or dark mode, as the pet follows its own theme
+  const skinStyle = doc.createElement('style');
+  root.append(skinStyle);
+  const paint = (raw: unknown) => {
+    const skin = normalizeSkin(raw);
+    stage.dataset.theme = doc.documentElement.dataset.colorMode === 'dark' ? 'dark' : 'light';
+    skinStyle.textContent = skinCss(skin, '.guide-world');
+    ctl.setSkin(skin);
   };
 
-  /* ---------- 2 model ---------- */
-  const modelMsg = h('p', 'guide-msg');
-  const keyInput = ui.input({ placeholder: S.keyPlaceholder });
-  const say = (s: string, bad: boolean, ok = false) => {
-    modelMsg.textContent = s;
-    modelMsg.classList.toggle('bad', bad);
-    modelMsg.classList.toggle('ok', ok);
-  };
-  let renderModel = () => {};
-  const model = (): Step => {
-    const el = h('section', 'guide-step guide-split');
-    const how = h('div', 'guide-art guide-how');
-    how.append(h('p', 'guide-howtitle', S.howTitle));
-    const ol = h('ol', 'guide-howlist');
-    const li1 = h('li', null, S.how1);
-    const link = h('a', 'guide-link', S.how1Link);
-    link.href = KEY_URL; link.target = '_blank'; link.rel = 'noopener';
-    li1.append(link);
-    ol.append(li1, h('li', null, S.how2), h('li', null, S.how3));
-    how.append(ol);
-
-    const box = head(S.modelTitle, S.modelLead);
-    /** "Use another key" shows the form again while connected. */
-    let editing = false;
-    const done = h('div', 'guide-connected');
-    const check = h('span', 'guide-check');
-    check.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    const doneText = h('div');
-    const doneModel = h('span', 'guide-connectedmodel');
-    doneText.append(h('strong', null, S.connectedTitle), doneModel);
-    const change = ui.button(S.changeKey, { size: 'sm', onClick: () => { editing = true; render(); keyInput.focus(); } });
-    done.append(check, doneText, h('span', 'grow'), change);
-
-    const form = h('form', 'guide-keyform');
-    keyInput.type = 'password';
-    keyInput.autocomplete = 'off';
-    keyInput.spellcheck = false;
-    keyInput.setAttribute('aria-label', S.keyLabel);
-    const connect = ui.button(S.connect, { variant: 'primary' });
-    connect.type = 'submit';
-    const row = h('div', 'guide-keyrow');
-    row.append(keyInput, connect);
-    form.append(row, modelMsg);
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const key = keyInput.value.trim();
-      if (!key) { say(S.keyEmpty, true); keyInput.focus(); return; }
-      connect.disabled = true;
-      keyInput.disabled = true;
-      say(S.connecting, false);
-      try {
-        const r = await saveKey(key, detail, signal);
-        if (r.ok) { keyInput.value = ''; editing = false; say(S.connectOk, false, true); }
-        else say(S.connectFail(r.why ?? '?'), true);
-        await refresh();
-      } catch (err) {
-        say(S.connectFail(err instanceof Error ? err.message : String(err)), true);
-      } finally {
-        connect.disabled = false;
-        keyInput.disabled = false;
-      }
-    }, opts);
-    const later = h('p', 'guide-note', S.modelLater);
-    box.append(done, form, later);
-    el.append(how, box);
-
-    const render = () => {
-      const showForm = !connected || editing;
-      done.hidden = showForm;
-      form.hidden = !showForm;
-      how.classList.toggle('dim', connected && !editing);
-      later.hidden = connected;
-      const mc = status?.modelConnection;
-      doneModel.textContent = mc?.model ? `${mc.moduleTitle} · ${mc.model}` : '';
-      syncFoot();
-    };
-    renderModel = render;
-    return { el, enter: () => { render(); if (!connected) keyInput.focus(); } };
+  /**
+   * How Coo moves while the guide runs: `still` stands in the middle, `walk` strolls to a new spot
+   * now and then, `run` runs from side to side. Shown live while the person picks how lively to be.
+   */
+  let motion: 'still' | 'walk' | 'run' = 'still';
+  let nextMove = 0;
+  const direct = () => {
+    if (ctl.busy() || ctl.time < nextMove || ctl.pet.mode !== 'idle') return;
+    const { W } = size;
+    if (motion === 'still') {
+      if (Math.abs(ctl.pet.x - W / 2) > 30) ctl.walkTo(W / 2, false);
+      nextMove = ctl.time + 1;
+      return;
+    }
+    const run = motion === 'run';
+    // somewhere on the other side of the stage, so every move is plain to see
+    const side = ctl.pet.x < W / 2 ? .6 + Math.random() * .3 : .1 + Math.random() * .3;
+    if (run && Math.random() < .3) { ctl.act('hop'); nextMove = ctl.time + .5; return; }
+    if (ctl.walkTo(W * side, run)) nextMove = ctl.time + (run ? .1 : 1.4 + Math.random() * 1.4);
   };
 
-  /* ---------- 3 getting along ---------- */
-  let renderUse = () => {};
-  const use = (): Step => {
-    const el = h('section', 'guide-step guide-split');
-    const art = h('div', 'guide-art guide-art-talk');
-    const keycap = h('kbd', 'guide-keycap', S.talkKeyDefault);
-    const bubble = h('div', 'guide-bubble');
-    bubble.append(h('span', null, S.talkHeard), h('span', 'guide-hearing', S.talkHearing));
-    const wave = h('div', 'guide-wave');
-    for (let i = 0; i < 5; i++) wave.append(h('i'));
-    art.append(h('div', 'guide-floor'), keycap, wave, actor('guide-coo-listen', bubble));
+  /* pointer: Coo can be poked, petted and picked up here too */
+  const at = (e: PointerEvent) => { const r = stage.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  stage.addEventListener('pointermove', (e) => { stage.style.cursor = ctl.pointerMove(at(e)); }, opts);
+  stage.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    if (ctl.pointerDown(at(e))) { stage.setPointerCapture(e.pointerId); e.preventDefault(); }
+  }, opts);
+  const up = () => { ctl.pointerUp(); stage.style.cursor = ''; };
+  stage.addEventListener('pointerup', up, opts);
+  stage.addEventListener('pointercancel', up, opts);
+  stage.addEventListener('pointerleave', () => ctl.pointerLeave(), opts);
 
-    const box = h('div', 'guide-head');
-    box.append(h('h2', 'guide-title', S.useTitle));
-    const list = h('ul', 'guide-tips');
-    const lines = S.tips.map(([name, line], i) => {
-      const li = h('li');
-      const icon = h('span', 'guide-tipicon');
-      icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${TIP_ICONS[i] ?? ''}</svg>`;
-      const body = h('div');
-      const desc = h('span', null, line);
-      body.append(h('strong', null, name), desc);
-      li.append(icon, body);
-      list.append(li);
-      return desc;
-    });
-    box.append(list);
-    el.append(art, box);
-    const render = () => {
-      const key = voice?.input?.hotkeyLabel || S.talkKeyDefault;
-      const mode = voice?.input?.effectiveMode ?? 'hold';
-      const on = voice?.enabled !== false;
-      keycap.textContent = key;
-      keycap.hidden = !on || mode === 'always';
-      wave.hidden = !on;
-      lines[0]!.textContent = !on ? S.talkOff : mode === 'hold' ? S.talkHold(key) : mode === 'toggle' ? S.talkToggle(key) : S.talkAlways;
-    };
-    renderUse = render;
-    return { el, enter: render };
+  /* the frame loop: body, then the bubble over its head */
+  let last = performance.now();
+  let raf = 0;
+  const placeBubble = () => {
+    const a = ctl.anchor();
+    const bw = bubble.offsetWidth, bh = bubble.offsetHeight;
+    const left = Math.max(12, Math.min(size.W - bw - 12, a.x - bw / 2 + ctl.pet.facing * 20));
+    bubble.style.left = `${left}px`;
+    bubble.style.top = `${Math.max(10, a.y - bh - 18)}px`;
+    bubble.style.setProperty('--tail', `${Math.max(22, Math.min(bw - 22, a.x - left))}px`);
+  };
+  const frame = (now: number) => {
+    const dt = Math.min(.05, (now - last) / 1000);
+    last = now;
+    direct();
+    ctl.step(dt);
+    ctl.render();
+    if (!bubble.hidden) placeBubble();
+    raf = requestAnimationFrame(frame);
   };
 
-  /* ---------- 4 done ---------- */
-  const noKey = h('div', 'guide-warn');
-  const done = (): Step => {
-    const el = h('section', 'guide-step guide-split');
-    const art = h('div', 'guide-art guide-art-tray');
-    const menu = h('div', 'guide-traymenu');
-    S.trayMenu.forEach((item, i) => menu.append(h('span', i === 1 ? 'on' : null, item)));
-    const bar = h('div', 'guide-taskbar');
-    const icons = h('div', 'guide-trayicons');
-    for (let i = 0; i < 3; i++) icons.append(h('i'));
-    const mine = h('span', 'guide-trayicon');
-    mine.title = S.trayTip;
-    mine.innerHTML = COO;
-    icons.append(mine);
-    bar.append(h('span', 'grow'), icons, h('span', 'guide-clock', '9:41'));
-    art.append(menu, bar);
-
-    const box = head(S.doneTitle, S.doneLead);
-    noKey.append(h('span', null, S.doneNoKey), ui.button(S.doneNoKeyBtn, { size: 'sm', onClick: () => go(1) }));
-    const dress = h('button', 'guide-textbtn', S.dress);
-    dress.type = 'button';
-    dress.addEventListener('click', () => { close('done'); o.router.navigate(['dress']); }, opts);
-    box.append(noKey, dress);
-    el.append(art, box);
-    return { el, enter: () => { noKey.hidden = connected; } };
-  };
-
-  const steps: Step[] = [hello(), model(), use(), done()];
-  const TOTAL = steps.length;
-
-  steps.forEach((_, i) => {
-    const d = h('button', 'guide-dot');
-    d.type = 'button';
-    d.setAttribute('aria-label', S.dot(i + 1));
-    d.addEventListener('click', () => go(i), opts);
-    dots.append(d);
+  /* ---------- talking and answering ---------- */
+  let closed = false;
+  const alive = () => { if (closed || signal.aborted) throw new Closed(); };
+  const wait = (s: number) => new Promise<void>((resolve, reject) => {
+    if (closed || signal.aborted) { reject(new Closed()); return; }
+    const onAbort = () => { clearTimeout(t); reject(new Closed()); };
+    const t = setTimeout(() => { signal.removeEventListener('abort', onAbort); resolve(); }, s * 1000);
+    signal.addEventListener('abort', onAbort, { once: true });
   });
 
-  function syncFoot(): void {
-    back.hidden = at === 0;
-    const keyLater = at === 1 && !connected;
-    next.textContent = at === TOTAL - 1 ? S.finish : keyLater ? S.later : S.next;
-    next.classList.toggle('primary', !keyLater);
-    skip.hidden = at === TOTAL - 1;
-    [...dots.children].forEach((d, i) => {
-      d.classList.toggle('on', i === at);
-      d.classList.toggle('past', i < at);
-      if (i === at) d.setAttribute('aria-current', 'step'); else d.removeAttribute('aria-current');
+  /** A newer line cuts the one being typed (the roam choices speak while clicked). */
+  let saying = 0;
+  /** Coo says one line: a new bubble, typed as the pet types, with an expression or motion first. */
+  const say = async (text: string, act?: string) => {
+    alive();
+    const mine = ++saying;
+    if (act) { if (MOTIONS.has(act)) ctl.act(act); else ctl.setExpr(act); }
+    bubble.hidden = false;
+    bubble.classList.remove('pop');
+    void bubble.offsetWidth;
+    bubble.classList.add('pop');
+    bubbleText.textContent = '';
+    sfx.pop();
+    for (let i = 1; i <= text.length; i++) {
+      if (mine !== saying) return;
+      const ch = text[i - 1]!;
+      bubbleText.textContent = text.slice(0, i);
+      if (!/[\s,。!?…、,.!?「」:()]/.test(ch)) { sfx.babble(ch); ctl.talk(); }
+      await wait(/[,。!?…、,.!?]/.test(ch) ? 5 / TYPE_CPS : 1 / TYPE_CPS);
+    }
+    await wait(LINE_REST);
+  };
+
+  /** Puts the controls `build` makes in the reply area and waits for one of them to call `done`. */
+  const answer = <T>(build: (done: (value: T) => void) => HTMLElement[]): Promise<T> => new Promise<T>((resolve, reject) => {
+    alive();
+    let settled = false;
+    const done = (value: T) => {
+      if (settled) return;
+      settled = true;
+      sfx.select();
+      reply.classList.remove('in');
+      resolve(value);
+    };
+    reply.replaceChildren(...build(done));
+    void reply.offsetWidth;
+    reply.classList.add('in');
+    reply.querySelector<HTMLElement>('input, button')?.focus({ preventScroll: true });
+    signal.addEventListener('abort', () => { if (!settled) reject(new Closed()); }, { once: true });
+  });
+  const showWait = (text: string) => { reply.replaceChildren(h('p', 'guide-wait', text)); reply.classList.add('in'); };
+  const clearReply = () => { reply.replaceChildren(); reply.classList.remove('in'); };
+
+  const button = (label: string, onClick: () => void, primary = false) => {
+    const b = ui.button(label, primary ? { variant: 'primary' } : {});
+    b.addEventListener('click', onClick, opts);
+    return b;
+  };
+
+  const progress = (step: Step) => {
+    const n = STEPS.indexOf(step);
+    dotEls.forEach((d, i) => { d.classList.toggle('on', i === n); d.classList.toggle('past', i < n); });
+  };
+
+  /* ---------- live data ---------- */
+  let values: Record<string, unknown> = {};
+  const loadValues = async () => {
+    try {
+      const d = await get<{ groups?: ConfigEntry[] }>('/api/config', opts);
+      values = d.groups?.find((g) => g.group.id === PET_PAGE)?.values ?? {};
+    } catch { values = {}; }
+  };
+  const panel = <T>(name: string, method: string) =>
+    post<T>(`/api/console/providers/${encodeURIComponent(PET_PAGE)}/panels/${name}/${method}`, { args: [] }, opts).catch(() => null);
+
+  /* ---------- the conversation ---------- */
+  const conversation = async () => {
+    await loadValues();
+    if (values[SOUND_KEY] === false) sfx.set(false);
+    paint((await panel<{ skin?: unknown }>('pet', 'state'))?.skin ?? null);
+    await wait(1.1);
+
+    // 1 hello
+    progress('hello');
+    await say(S.hello, 'happy');
+    await answer<void>((done) => [button(S.helloReply, () => done(), true)]);
+    ctl.act('hop');
+
+    // 2 what to call the person
+    progress('name');
+    await say(S.askName, 'thinking');
+    const saved = typeof values[USER_KEY] === 'string' ? values[USER_KEY] as string : '';
+    const name = await answer<string>((done) => {
+      const form = h('form', 'guide-form');
+      const input = ui.input({ placeholder: DEFAULT_USER });
+      input.maxLength = 20;
+      if (saved && saved !== DEFAULT_USER) input.value = saved;
+      const send = ui.button(S.nameSend, { variant: 'primary' });
+      send.type = 'submit';
+      form.append(input, send);
+      form.addEventListener('submit', (e) => { e.preventDefault(); done(input.value.trim() || saved || DEFAULT_USER); }, opts);
+      return [form];
     });
-  }
+    if (name !== saved) void setConfig(PET_PAGE, { [USER_KEY]: name }, opts).catch(() => {});
+    await say(S.gotName(name), 'love');
 
-  function go(i: number): void {
-    const n = Math.max(0, Math.min(TOTAL - 1, i));
-    if (shown && n === at) return;
-    if (shown) steps[at]!.leave?.();
-    const forward = n >= at;
-    at = n;
-    shown = true;
-    const step = steps[n]!;
-    step.el.classList.remove('from-left', 'from-right');
-    step.el.classList.add(forward ? 'from-right' : 'from-left');
-    stage.replaceChildren(step.el);
-    stage.scrollTop = 0;
-    syncFoot();
-    step.enter?.();
-    if (n === 0) userInput.focus({ preventScroll: true });
-    else if (!(n === 1 && !connected)) next.focus({ preventScroll: true });
-  }
+    // 3 how lively: each choice plays out on the stage while it is picked
+    progress('roam');
+    await say(S.askRoam);
+    const MOTION: Record<Roam, typeof motion> = { off: 'still', calm: 'walk', free: 'run' };
+    let roam: Roam = values[ROAM_KEY] === 'off' || values[ROAM_KEY] === 'free' ? values[ROAM_KEY] as Roam : 'calm';
+    roam = await answer<Roam>((done) => {
+      const row = h('div', 'guide-choices');
+      const choices = (['off', 'calm', 'free'] as Roam[]).map((r) => {
+        const b = h('button', 'guide-choice');
+        b.type = 'button';
+        b.dataset.roam = r;
+        b.append(h('span', 'guide-choicelevel', S.roamLevel[r]), h('span', null, S.roam[r]));
+        b.addEventListener('click', () => {
+          pickRoam(r);
+          sfx.tick();
+          void say(S.roamSay[r], r === 'off' ? 'neutral' : 'happy').catch(() => {});
+        }, opts);
+        row.append(b);
+        return [r, b] as const;
+      });
+      const pickRoam = (r: Roam) => {
+        roam = r;
+        motion = MOTION[r];
+        nextMove = 0;
+        for (const [id, b] of choices) b.classList.toggle('on', id === r);
+      };
+      pickRoam(roam);
+      return [row, button(S.roamOk, () => done(roam), true)];
+    });
+    void setConfig(PET_PAGE, { [ROAM_KEY]: roam }, opts).catch(() => {});
+    await say(S.roamDone, 'nod');
+    motion = 'still';
 
-  const remove = () => { root.remove(); o.doc.body.classList.remove('guide-open'); };
-  let closed = false;
+    // 4 the model key
+    progress('key');
+    let detail: Detail | null = await readDetail(signal);
+    let status: Status | null = await readStatus(signal).catch(() => null);
+    const modelName = () => status?.modelConnection?.model ?? '';
+    if (keyConnected(status, detail)) {
+      await say(S.keyAlready(modelName()), 'happy');
+    } else {
+      await say(S.askKey, 'thinking');
+      for (;;) {
+        const key = await answer<string | null>((done) => {
+          const form = h('form', 'guide-form');
+          const input = ui.input({ placeholder: S.keyPlaceholder });
+          input.type = 'password';
+          input.autocomplete = 'off';
+          input.spellcheck = false;
+          input.setAttribute('aria-label', S.keyLabel);
+          const send = ui.button(S.connect, { variant: 'primary' });
+          send.type = 'submit';
+          form.append(input, send);
+          form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const v = input.value.trim();
+            if (!v) { input.placeholder = S.keyEmpty; input.focus(); return; }
+            done(v);
+          }, opts);
+          const links = h('div', 'guide-links');
+          const link = h('a', 'guide-link', S.getKey);
+          link.href = KEY_URL; link.target = '_blank'; link.rel = 'noopener';
+          const later = h('button', 'guide-textbtn', S.keyLater);
+          later.type = 'button';
+          later.addEventListener('click', () => done(null), opts);
+          links.append(link, later);
+          return [form, links];
+        });
+        if (key === null) { await say(S.keySkipped, 'sad'); break; }
+        ctl.setThinking(true);
+        showWait(S.connecting);
+        let result: { ok: boolean; why: string | null };
+        try {
+          result = await saveKey(key, detail, signal);
+        } catch (err) {
+          if (signal.aborted) throw new Closed();
+          result = { ok: false, why: err instanceof Error ? err.message : String(err) };
+        }
+        detail = await readDetail(signal);
+        status = await readStatus(signal).catch(() => null);
+        ctl.setThinking(false);
+        clearReply();
+        if (result.ok) { await say(S.keyOk(modelName()), 'love'); ctl.act('jump'); break; }
+        await say(S.keyFail(result.why ?? '?'), 'sad');
+      }
+    }
+
+    // 5 how to talk, where the buttons are, where to find Coo later
+    progress('talk');
+    const voice = await panel<VoiceState>('voice', 'state');
+    const talkKey = voice?.input?.hotkeyLabel || S.talkKeyDefault;
+    const mode = voice?.input?.effectiveMode ?? 'hold';
+    const on = voice?.enabled !== false;
+    ctl.setListening(true);
+    await say(`${!on ? S.talkOff : mode === 'hold' ? S.talkHold(talkKey) : mode === 'toggle' ? S.talkToggle(talkKey) : S.talkAlways}${S.talkType}`);
+    await answer<void>((done) => {
+      const out: HTMLElement[] = [];
+      if (on && mode !== 'always') out.push(h('kbd', 'guide-keycap', talkKey));
+      out.push(button(S.gotIt, () => done(), true));
+      return out;
+    });
+    ctl.setListening(false);
+    await say(S.buttons, 'wink');
+    await answer<void>((done) => [button(S.ok, () => done(), true)]);
+
+    progress('done');
+    await say(S.tray, 'happy');
+    const where = await answer<'home' | 'dress'>((done) => [
+      button(S.finish, () => done('home'), true),
+      button(S.dress, () => done('dress')),
+    ]);
+    ctl.act('spin');
+    await wait(.4);
+    close('done');
+    o.router.navigate([where]);
+  };
+
+  /* ---------- open and close ---------- */
+  const remove = () => { cancelAnimationFrame(raf); root.remove(); doc.body.classList.remove('guide-open'); };
   function close(how: 'done' | 'skip'): void {
     if (closed) return;
     closed = true;
-    steps[at]!.leave?.();
     markSeen();
     // fades out on its own; the owner's lifecycle may end right away
     root.classList.add('leaving');
@@ -512,50 +563,14 @@ export function openGuide(o: GuideOptions): void {
     setTimeout(remove, 180);
     o.onClose(how);
   }
-
-  back.addEventListener('click', () => go(at - 1), opts);
-  next.addEventListener('click', () => {
-    if (at === TOTAL - 1) { close('done'); o.router.navigate(['home']); return; }
-    go(at + 1);
-  }, opts);
   skip.addEventListener('click', () => close('skip'), opts);
   signal.addEventListener('abort', () => { if (!closed) remove(); }, { once: true });
+  window.addEventListener('resize', measure, opts);
 
-  /* ---------- live data ---------- */
-  async function refresh(): Promise<void> {
-    detail = await readDetail(signal);
-    try { status = await readStatus(signal); } catch { status = null; }
-    connected = keyConnected(status, detail);
-    renderModel();
-    noKey.hidden = connected;
-    syncFoot();
-  }
-  const refreshVoice = async () => {
-    try {
-      voice = await post<VoiceState>(`/api/console/providers/${encodeURIComponent(PET_PAGE)}/panels/voice/state`, { args: [] }, opts);
-    } catch { voice = null; }
-    renderUse();
-  };
-  const loadHabits = async () => {
-    try {
-      const d = await get<{ groups?: ConfigEntry[] }>('/api/config', opts);
-      const values = d.groups?.find((g) => g.group.id === PET_PAGE)?.values ?? {};
-      const name = values[USER_KEY];
-      if (typeof name === 'string') {
-        savedUser = name;
-        // the default stays a placeholder, so the box asks for a real name
-        if (name !== DEFAULT_USER && !userInput.value) { userInput.value = name; greet(); }
-      }
-      if (typeof values[ROAM_KEY] === 'string') roam.setValue(values[ROAM_KEY] as string);
-    } catch { /* 读不到就留空,照样能填 */ }
-  };
-
-  o.doc.body.classList.add('guide-open');
-  o.doc.body.append(root);
-  go(0);
-  void loadHabits();
-  void refresh();
-  void refreshVoice();
-  const timer = setInterval(() => { void refresh(); void refreshVoice(); }, 3000);
-  signal.addEventListener('abort', () => clearInterval(timer), { once: true });
+  doc.body.classList.add('guide-open');
+  doc.body.append(root);
+  measure();
+  paint(null);
+  raf = requestAnimationFrame(frame);
+  conversation().catch((err) => { if (!(err instanceof Closed)) console.error('[guide]', err); });
 }

@@ -10,6 +10,14 @@ declare module 'cortico-world-desktop-pet/web/pet-core.js' {
   export interface PetController {
     readonly pet: { x: number; facing: number; mode: string };
     readonly time: number;
+    readonly pressing: boolean;
+    /** Where a bubble's tail points: just above the head. */
+    anchor(): { x: number; y: number };
+    setSkin(skin: Record<string, unknown>): void;
+    pointerMove(p: { x: number; y: number }): string;
+    pointerDown(p: { x: number; y: number }): boolean;
+    pointerUp(): void;
+    pointerLeave(): void;
     step(dt: number): void;
     render(): void;
     resize(): void;
@@ -25,8 +33,17 @@ declare module 'cortico-world-desktop-pet/web/pet-core.js' {
   }
   export function createPet(
     els: { petG: SVGGElement; shadowEl: SVGEllipseElement; fxG: SVGGElement },
-    opts: { sfx?: unknown; roam?: Roam; bounds: () => PetBounds; enter?: 'drop' | 'walk'; startX?: number; onEvent?: (kind: string, detail: unknown) => void },
+    opts: { sfx: Sfx; roam?: Roam; bounds: () => PetBounds; enter?: 'drop' | 'walk'; startX?: number; onEvent?: (kind: string, detail: unknown) => void },
   ): PetController;
+  export interface Sfx {
+    unlock(): void;
+    set(on: boolean): void;
+    pop(): void;
+    tick(): void;
+    select(): void;
+    babble(ch: string): void;
+  }
+  export function createSfx(opts?: { storageKey?: string; volume?: number }): Sfx;
   export function normalizeSkin(raw: unknown): Record<string, unknown>;
   export function skinCss(skin: Record<string, unknown>, selector?: string): string;
 }
