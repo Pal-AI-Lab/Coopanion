@@ -67,6 +67,7 @@ const S = pick({
     talkAlways: '直接说话,我一直在听。',
     talkOff: '语音输入关着,可在「语音输入」页打开。',
     talkInstall: '先到「语音输入」页下载并启动 SenseVoice Small。',
+    talkSystem: '请到「语音输入」页检查 Windows 语音识别器。',
     tips: [
       ['说话', ''],
       ['打字', '鼠标停在我身上点气泡按钮,或双击我。'],
@@ -130,6 +131,7 @@ const S = pick({
     talkAlways: 'Just talk, I am always listening.',
     talkOff: 'Voice input is off; turn it on on the Voice input page.',
     talkInstall: 'Download and start SenseVoice Small on the Voice input page first.',
+    talkSystem: 'Check Windows speech recognition on the Voice input page.',
     tips: [
       ['Talk', ''],
       ['Type', 'Hover me and click the bubble button, or double-click me.'],
@@ -210,7 +212,7 @@ export interface GuideOptions {
   onClose: (how: 'done' | 'skip') => void;
 }
 
-interface VoiceState { enabled?: boolean; server?: { phase?: string }; input?: { effectiveMode?: 'hold' | 'toggle' | 'always'; hotkeyLabel?: string } }
+interface VoiceState { enabled?: boolean; engine?: 'system' | 'sensevoice'; server?: { phase?: string }; input?: { effectiveMode?: 'hold' | 'toggle' | 'always'; hotkeyLabel?: string } }
 interface ConfigEntry { group: { id: string }; values?: Record<string, unknown> }
 
 interface Step {
@@ -424,10 +426,11 @@ export function openGuide(o: GuideOptions): void {
       const mode = voice?.input?.effectiveMode ?? 'hold';
       const on = voice?.enabled !== false;
       const ready = voice?.server?.phase === 'running';
+      const offlineHint = voice?.engine === 'sensevoice' ? S.talkInstall : S.talkSystem;
       keycap.textContent = key;
       keycap.hidden = !on || !ready || mode === 'always';
       wave.hidden = !on || !ready;
-      lines[0]!.textContent = !on ? S.talkOff : !ready ? S.talkInstall : mode === 'hold' ? S.talkHold(key) : mode === 'toggle' ? S.talkToggle(key) : S.talkAlways;
+      lines[0]!.textContent = !on ? S.talkOff : !ready ? offlineHint : mode === 'hold' ? S.talkHold(key) : mode === 'toggle' ? S.talkToggle(key) : S.talkAlways;
     };
     renderUse = render;
     return { el, enter: render };

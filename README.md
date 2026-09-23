@@ -70,7 +70,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
    4. 知道关掉窗口后去哪找它。
 
    右上角的「跳过」随时可以跳过。之后在「开始」页右上角点「使用引导」能再看一遍。
-4. **打个招呼**:在「语音输入」页点「下载并启动」安装 SenseVoice Small,再按住 **左 Alt** 说「你好」,松开发送。Windows 第一次会问能不能用麦克风,选「允许」。
+4. **打个招呼**:默认用 Windows 自带的语音识别。按住 **左 Alt** 说「你好」,松开发送。Windows 第一次会问能不能用麦克风,选「允许」。需要更准确的中文识别时,可在「语音输入」页选择 SenseVoice Small 并下载。
 
 <details>
 <summary><b>怎么拿到 DeepSeek 的 API Key?</b></summary>
