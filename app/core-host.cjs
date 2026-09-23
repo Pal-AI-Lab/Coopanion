@@ -39,8 +39,12 @@ class CoreHost extends EventEmitter {
     log.write(`\n===== ${new Date().toISOString()} start =====\n`);
     const child = fork(join(this.opts.appRoot, 'core', 'boot.ts'), [], {
       cwd: this.opts.appRoot,
-      execArgv: ['--import', 'tsx'],
-      env: { ...this.opts.env, ELECTRON_RUN_AS_NODE: '1' },
+      execArgv: ['--use-env-proxy', '--import', 'tsx'],
+      env: {
+        ...this.opts.env,
+        ELECTRON_RUN_AS_NODE: '1',
+        NO_PROXY: [this.opts.env.NO_PROXY, this.opts.env.no_proxy, '127.0.0.1', 'localhost', '::1'].filter(Boolean).join(','),
+      },
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     });
     child.stdout.pipe(log, { end: false });

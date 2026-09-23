@@ -74,7 +74,7 @@ const S = pick({
     ] as Array<[string, string]>,
     talkHeard: '明天',
     talkHearing: '会下雨吗',
-    talkKeyDefault: '右 Ctrl',
+    talkKeyDefault: '左 Alt',
 
     doneTitle: '准备好了',
     doneLead: '关掉窗口我也还在:任务栏右下角的托盘图标能打开设置,右键可以「显示桌宠」。',
@@ -136,7 +136,7 @@ const S = pick({
     ] as Array<[string, string]>,
     talkHeard: 'Rain ',
     talkHearing: 'tomorrow?',
-    talkKeyDefault: 'Right Ctrl',
+    talkKeyDefault: 'Left Alt',
 
     doneTitle: 'All set',
     doneLead: 'Closing the window does not send me away: the tray icon at the bottom right opens settings, and its menu can show me again.',

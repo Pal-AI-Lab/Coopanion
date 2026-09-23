@@ -28,7 +28,7 @@
 
 ## 它能做什么
 
-- **陪你聊天**:按住右 Ctrl 说话,或者直接打字,Coo 在气泡里回你。
+- **陪你聊天**:按住左 Alt 说话,或者直接打字,Coo 在气泡里回你。
 - **记得你**:会记住你们聊过的事,也知道你刚才戳了它、摸了它的头。
 - **帮你动手**:让它帮你点按钮、打字、切窗口。每次动手前它都会先问你。
 - **打扮它**:换配色、帽子、耳饰、眼镜、颈饰,调它的大小和走动习惯。
@@ -70,7 +70,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
    4. 知道关掉窗口后去哪找它。
 
    右上角的「跳过」随时可以跳过。之后在「开始」页右上角点「使用引导」能再看一遍。
-4. **打个招呼**:按住 **右 Ctrl** 说「你好」,松开发送。Windows 第一次会问能不能用麦克风,选「允许」。
+4. **打个招呼**:按住 **左 Alt** 说「你好」,松开发送。Windows 第一次会问能不能用麦克风,选「允许」。
 
 <details>
 <summary><b>怎么拿到 DeepSeek 的 API Key?</b></summary>
@@ -87,7 +87,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 
 | 方式 | 怎么做 |
 |---|---|
-| 语音 | **按住右 Ctrl** 说话,松开就算一句。Coo 会歪头听,在虚线气泡里边听边显示听到的字(灰色部分还可能改)。 |
+| 语音 | **按住左 Alt** 说话,松开就算一句。Coo 会歪头听,在虚线气泡里边听边显示听到的字(灰色部分还可能改)。 |
 | 打字 | 鼠标停在 Coo 身上,点身旁的气泡按钮;或者双击 Coo。 |
 | 麦克风按钮 | 鼠标停在 Coo 身上时,身旁的麦克风按钮能开关语音输入;正在听时**长按**它,这句话马上发出,不用等停顿。 |
 | 回答提问 | Coo 有时会给几个选项:点一下,或者按键盘上的 1–3;都不合适就在最后一格自己写。 |
@@ -204,7 +204,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 <summary><b>它听不到我说话</b></summary>
 
 - 鼠标停在 Coo 身上,确认身旁的麦克风按钮没有被划掉;
-- 说话时按住了说话键(默认右 Ctrl);
+- 说话时按住了说话键(默认左 Alt);
 - 「语音输入」页的识别服务显示就绪。你说话时电平条会跳,说明麦克风选对了;
 - Windows 设置 → 隐私和安全性 → 麦克风里,允许了桌面应用使用麦克风。
 
@@ -216,6 +216,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 <summary><b>语音识别不够准</b></summary>
 
 在「语音输入」页把识别引擎换成 whisper.cpp,点「下载并启动」。它会下载识别程序和中文模型(约 190 MB,只下载一次)。
+通过代理联网的电脑会沿用 `HTTPS_PROXY` / `HTTP_PROXY` 环境变量;本地识别服务始终直接连接。
 
 </details>
 
