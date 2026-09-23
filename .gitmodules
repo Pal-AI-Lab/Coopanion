@@ -1,0 +1,9 @@
+[submodule "vendor/cortico"]
+	path = vendor/cortico
+	url = https://github.com/Pal-AI-Lab/Cortico.git
+[submodule "packages/cortico-world-desktop-pet"]
+	path = packages/cortico-world-desktop-pet
+	url = https://github.com/Phantivia/cortico-world-desktop-pet.git
+[submodule "packages/cortico-world-cua"]
+	path = packages/cortico-world-cua
+	url = https://github.com/Phantivia/cortico-world-cua.git

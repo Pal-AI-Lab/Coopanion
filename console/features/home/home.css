@@ -1,0 +1,13 @@
+/* 「开始」页。只用控制台已有的颜色变量。 */
+.featureslot-home { max-width: 880px; }
+.home-head { display: flex; align-items: center; gap: 12px; margin: 4px 0 16px; }
+.home-title { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: .02em; color: var(--foreground); }
+.home-note { margin: 6px 0 0; font-size: 13px; line-height: 1.6; color: var(--muted-foreground); }
+.home-link { font-size: 13px; color: var(--accent); text-decoration: none; }
+.home-link:hover { text-decoration: underline; }
+.home-keybox { display: flex; flex-direction: column; gap: 8px; }
+.home-keybox .rowbar > label { flex: 1; min-width: 0; }
+.home-keybox input { width: 100%; }
+.home-petframe { display: block; width: 100%; height: 220px; margin-top: 10px; border: 1px solid var(--border); border-radius: 12px; background: transparent; }
+.home-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.featureslot-home .sheet + .sheet { margin-top: 14px; }

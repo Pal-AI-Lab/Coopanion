@@ -1,0 +1,22 @@
+{
+  // Node side of the app: the Core entry, build scripts, the DeepSeek provider and tests.
+  // The browser overlay (console/) is checked in its staged place by tsconfig.web.json.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    // at run time the staged Cortico's module hook resolves the same prefix
+    "paths": { "cortico/*": ["./vendor/cortico/src/*"] }
+  },
+  "include": ["core/**/*.ts", "scripts/**/*.ts", "packages/cortico-provider-deepseek/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", "build", "dist", "vendor"]
+}

@@ -1,0 +1,31 @@
+name: release
+
+# Pushing a tag v<version> builds the Windows installer and attaches it to that tag's release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm dist
+      - name: Attach installer to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "CortiCompanion $GITHUB_REF_NAME" --notes "安装方法见 README。"
+          gh release upload "$GITHUB_REF_NAME" dist/CortiCompanion-Setup-*.exe --clobber

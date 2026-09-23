@@ -1,0 +1,28 @@
+# Packages build/app (assembled by scripts/pack.ts) into a per-user Windows installer.
+appId: ai.pal.corticompanion
+productName: CortiCompanion
+copyright: Copyright © 2026 Pal-AI-Lab
+electronVersion: 44.4.4
+directories:
+  app: build/app
+  output: dist
+# the Core child runs TypeScript sources through tsx and spawns esbuild, koffi and pnpm: keep files unpacked
+asar: false
+npmRebuild: false
+nodeGypRebuild: false
+files:
+  - "**/*"
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: app/icons/icon.ico
+nsis:
+  oneClick: true
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: CortiCompanion
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+  artifactName: CortiCompanion-Setup-${version}.exe

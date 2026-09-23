@@ -1,0 +1,13 @@
+packages:
+  - packages/*
+
+allowBuilds:
+  '@parcel/watcher': false
+  '@tailwindcss/oxide': true
+  electron: true
+  electron-winstaller: false
+  esbuild: true
+  koffi: true
+
+minimumReleaseAgeExclude:
+  - electron@44.4.4

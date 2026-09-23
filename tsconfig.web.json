@@ -1,0 +1,14 @@
+{
+  // The console as the app ships it: Cortico's client with console/ laid over it (run pnpm stage first).
+  // Node types stay on: the client imports provider types whose modules import node: built-ins.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "jsx": "react-jsx",
+    "paths": { "cortico/*": ["./build/cortico/src/*"] }
+  },
+  "files": [],
+  "exclude": [],
+  "include": ["build/cortico/src/web/client/**/*.ts", "build/cortico/src/web/client/**/*.tsx", "build/cortico/src/web/shared/**/*.ts"]
+}
