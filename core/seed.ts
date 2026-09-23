@@ -1,5 +1,5 @@
 /** First-run files of the app's deployment. Imports nothing from Cortico, so it runs and tests on its own. */
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -8,9 +8,14 @@ export const ENDPOINT = 'deepseek';
 export const KEY_NAME = 'DEEPSEEK_API_KEY';
 export const CONSOLE_PORT = 17788;
 export const DISPLAY_NAME = 'Coo';
+/** The name version 0.1.0 seeded. */
+const OLD_DISPLAY_NAME = '可缇';
 const SEED_DIR = fileURLToPath(new URL('./seed/', import.meta.url));
 
-/** Writes the first-run files that are missing; existing files are left as the operator made them. */
+/**
+ * Writes the first-run files that are missing; existing files are left as the operator made them,
+ * except the old seeded name, which becomes Coo in the config and in the self-description.
+ */
 export function seed(home: string): void {
   const deploy = join(home, DEPLOYMENT);
   const endpoint = join(home, 'providers', ENDPOINT);
@@ -36,5 +41,22 @@ export function seed(home: string): void {
     options: {},
   });
   if (!existsSync(join(workspace, 'CONSTITUTION.md'))) copyFileSync(join(SEED_DIR, 'CONSTITUTION.md'), join(workspace, 'CONSTITUTION.md'));
+  // the console shows it as the bot's avatar
+  if (!existsSync(join(deploy, 'avatar.png'))) copyFileSync(join(SEED_DIR, 'avatar.png'), join(deploy, 'avatar.png'));
+  renameOldSeed(deploy, workspace);
+}
+
+function renameOldSeed(deploy: string, workspace: string): void {
+  const configFile = join(deploy, 'config.json');
+  const config = JSON.parse(readFileSync(configFile, 'utf8')) as { displayName?: string };
+  if (config.displayName === OLD_DISPLAY_NAME) {
+    config.displayName = DISPLAY_NAME;
+    writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
+  }
+  const constitution = join(workspace, 'CONSTITUTION.md');
+  const text = readFileSync(constitution, 'utf8');
+  if (text.includes(OLD_DISPLAY_NAME)) {
+    writeFileSync(constitution, text.replaceAll(`我叫${OLD_DISPLAY_NAME}`, `我叫 ${DISPLAY_NAME}`).replaceAll(OLD_DISPLAY_NAME, DISPLAY_NAME));
+  }
 }
 
