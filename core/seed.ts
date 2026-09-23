@@ -7,7 +7,7 @@ export const DEPLOYMENT = 'companion';
 export const ENDPOINT = 'deepseek';
 export const KEY_NAME = 'DEEPSEEK_API_KEY';
 export const CONSOLE_PORT = 17788;
-export const DISPLAY_NAME = '可缇';
+export const DISPLAY_NAME = 'Coo';
 const SEED_DIR = fileURLToPath(new URL('./seed/', import.meta.url));
 
 /** Writes the first-run files that are missing; existing files are left as the operator made them. */

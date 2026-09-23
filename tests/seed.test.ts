@@ -13,7 +13,7 @@ describe('first-run seed', () => {
     expect(read(join(home, DEPLOYMENT, 'deployment.json'))).toEqual({ bot: 'cormini' });
     expect(read(join(home, DEPLOYMENT, 'config.json'))).toMatchObject({ activeProvider: ENDPOINT, language: 'zh' });
     expect(read(join(home, 'providers', ENDPOINT, 'config.json'))).toMatchObject({ kind: 'deepseek', secret: KEY_NAME, multimodal: true });
-    expect(readFileSync(join(home, DEPLOYMENT, 'workspace', 'CONSTITUTION.md'), 'utf8')).toContain('我叫可缇');
+    expect(readFileSync(join(home, DEPLOYMENT, 'workspace', 'CONSTITUTION.md'), 'utf8')).toContain('我叫 Coo');
   });
 
   it('leaves files the operator already has', () => {
