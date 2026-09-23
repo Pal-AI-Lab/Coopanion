@@ -76,7 +76,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 <summary><b>怎么拿到 DeepSeek 的 API Key?</b></summary>
 
 1. 打开 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys),注册并登录;
-2. 在「充值」里充几块钱(按用量计费,能用很久);
+2. 在「充值」里充值(按用量计费,注意 token 消耗);
 3. 进入「API Keys」→「创建 API key」,复制那串 `sk-` 开头的字符,粘贴到引导或「开始」页里。
 
 </details>
