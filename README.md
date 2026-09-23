@@ -1,6 +1,20 @@
-# CortiCompanion
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+    <img src="assets/banner.svg" alt="CortiCompanion" width="806">
+  </picture>
+</p>
 
-住在你屏幕底边的小桌宠「可缇」。它会用气泡和你聊天、听你说话、在任务栏上走来走去,也能在你允许时帮你操作电脑。
+<p align="center"><b>你的小小万能桌面伴侣</b></p>
+
+<p align="center">
+  <a href="https://github.com/Pal-AI-Lab/CortiCompanion/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Pal-AI-Lab/CortiCompanion?color=00a870"></a>
+  <a href="https://github.com/Pal-AI-Lab/CortiCompanion/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Pal-AI-Lab/CortiCompanion/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="Windows 10 / 11" src="https://img.shields.io/badge/Windows-10%20%2F%2011-1f6feb">
+  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-8b8b8f"></a>
+</p>
+
+桌宠 Coo 住在你的屏幕底边。它会用气泡和你聊天、听你说话、在任务栏上走来走去,也能在你允许时帮你操作电脑。
 
 ![设置窗口的「开始」页与桌面上的桌宠](docs/images/home.png)
 
@@ -33,24 +47,24 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/CortiCompanion/main/installer/i
 1. **连接模型**:填入 DeepSeek 的 API Key,点「保存并开始」。
    还没有 Key 的话:打开 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) → 注册并登录 → 充值(按用量计费,几块钱能用很久)→
    「API Keys」→「创建 API key」→ 复制那串 `sk-` 开头的字符。
-   测试通过后可缇就醒了,屏幕右下角的桌宠会开始活动。
+   测试通过后 Coo 就醒了,屏幕右下角的桌宠会开始活动。
 2. **语音输入**(可选):点「下载」,程序会取回 whisper.cpp 识别程序和中文识别模型(约 190 MB,只下一次)。
-   Windows 第一次会问能不能用麦克风,选允许。之后直接对着电脑说话,可缇会歪头听,并把听到的字显示在虚线气泡里。
-3. **电脑操作**(可选):勾上「允许可缇操作鼠标和键盘」后,可以让它帮你点、打字、切窗口。你一动鼠标键盘,它会先停下等你;
+   Windows 第一次会问能不能用麦克风,选允许。之后直接对着电脑说话,Coo 会歪头听,并把听到的字显示在虚线气泡里。
+3. **电脑操作**(可选):勾上「允许 Coo 操作鼠标和键盘」后,可以让它帮你点、打字、切窗口。你一动鼠标键盘,它会先停下等你;
    登录、密码、付款这些步骤它会交给你自己做。
 
 ## 平时怎么用
 
 - **说话**:直接对着麦克风说;或者右键桌宠 →「说点什么」,也可以双击桌宠打字。
 - **互动**:点它一下、在它头上来回划(摸头)、按住拖起来甩出去,它都会有反应,也会知道你做了什么。
-- **提问**:可缇有时会冒出带选项的问题,点选项或按 1–3;不想选就在最后一格自己写。
+- **提问**:Coo 有时会冒出带选项的问题,点选项或按 1–3;不想选就在最后一格自己写。
 - **装扮**:「开始」页或右键菜单里的「装扮」,换配色、帽子、耳饰、眼镜、颈饰,改动立刻生效。
 - **托盘**:关掉设置窗口后程序仍在后台,任务栏右下角的托盘图标可以重新打开设置、显示桌宠、设为开机自启、退出。
 
 ## 更多能力:装 World
 
-左栏「扩展」页列出 npm 上带 `cortico-world` 关键字的 World,例如 QQ 机器人(`cortico-world-qq-better`)、五子棋(`cortico-world-gomoku`)、
-画室与你画我猜(`cortico-world-canvas`)、植物大战僵尸(`cortico-world-pvz`)、杀戮尖塔(`cortico-world-sts-1`)。
+左栏「扩展」页列出 npm 上带 `cortico-world` 关键字的 World,例如 QQ 机器人(`cortico-world-qq-better`)、画室与你画我猜(`cortico-world-canvas`)、
+植物大战僵尸(`cortico-world-pvz`)、杀戮尖塔(`cortico-world-sts-1`)。
 点安装,装好后点「重启进程」,再到「World 总览」里启用。扩展装在 `%APPDATA%\CortiCompanion\extensions`,重装应用不会丢。
 
 ## 换模型
@@ -65,7 +79,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/CortiCompanion/main/installer/i
 
 | 内容 | 位置 |
 |---|---|
-| 可缇的记忆、对话记录、设置 | `%APPDATA%\CortiCompanion\home` |
+| Coo 的记忆、对话记录、设置 | `%APPDATA%\CortiCompanion\home` |
 | 安装的扩展 | `%APPDATA%\CortiCompanion\extensions` |
 | 运行日志 | `%APPDATA%\CortiCompanion\logs` |
 | 语音识别程序与模型 | `%APPDATA%\CortiCompanion\home\runtimes`、`models` |
@@ -102,6 +116,7 @@ pnpm run build:installer    # 打出 dist/CortiCompanion-Setup-<版本>.exe
 | `app/` | Electron 主进程:托盘、设置窗口、Core 子进程托管、桌宠窗口模式 |
 | `scripts/stage.ts` | 从 `vendor/cortico` 生成应用使用的 `build/cortico`:去掉内建的平台 World 与 llamacpp,叠加 `console/`,构建控制台 |
 | `scripts/pack.ts` | 组装扁平的 `build/app` 并调用 electron-builder |
+| `promo/` | 宣传片与仓库 banner,网页渲染,说明见 [promo/README.md](promo/README.md) |
 
 推送 `v*` 标签时,GitHub Actions 会构建安装包并附到对应的 Release 上。
 
