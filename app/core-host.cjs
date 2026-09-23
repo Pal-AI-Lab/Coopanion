@@ -61,6 +61,10 @@ class CoreHost extends EventEmitter {
         this.dataDir = msg.dataDir;
       } else if (msg?.type === 'cortico:restart') {
         this.restartAsked = true;
+      } else if (msg?.type === 'companion:open') {
+        this.emit('open', typeof msg.path === 'string' ? msg.path : '');
+      } else if (msg?.type === 'companion:quit') {
+        this.emit('quit');
       }
     });
     child.on('exit', (code) => {

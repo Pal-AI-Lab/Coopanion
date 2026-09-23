@@ -3,11 +3,18 @@
  * DeepSeek provider next to Cortico's built-in Responses-compatible one, and Worlds or providers
  * installed from npm through the console's extension page.
  *
+ * The two bundled Worlds are wired to each other and to the app: the pet's right-click menu
+ * pauses and resumes event delivery, opens the settings window and quits the app; computer use
+ * asks for permission in the pet's bubble, and falls back to its own system dialog while no
+ * pet page is connected.
+ *
  * First start writes the files in `seed.ts`; after that every value is the operator's, edited in
  * the console. While the active endpoint has no key, event delivery starts paused.
  *
  * The parent (Electron main) gets `{ type: 'companion:ready', port, dataDir, keyMissing }` once the
- * console listens, and asks for a clean stop with `{ type: 'companion:shutdown' }`.
+ * console listens, `{ type: 'companion:open', path }` to show the settings window at a console
+ * route and `{ type: 'companion:quit' }` to quit; it asks for a clean stop with
+ * `{ type: 'companion:shutdown' }`.
  */
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -22,8 +29,8 @@ import { deploymentRoot, providersRoot, repoRoot } from 'cortico/paths.ts';
 import { providerModules, registerProviderModules } from 'cortico/providers/registry.ts';
 import { withWorlds, type WorldDefinition, type WorldSection } from 'cortico/world.ts';
 import { TERMINAL } from 'cortico/worlds/terminal/definition.ts';
-import DESKTOP_PET from 'cortico-world-desktop-pet';
-import CUA from 'cortico-world-cua';
+import { desktopPetDefinition, type DesktopPetWorld } from 'cortico-world-desktop-pet';
+import { cuaDefinition } from 'cortico-world-cua';
 import DEEPSEEK from 'cortico-provider-deepseek';
 import { bundledConsoleAssets } from './bundled-panels.ts';
 import { CONSOLE_PORT, DEPLOYMENT, DISPLAY_NAME, seed } from './seed.ts';
@@ -42,6 +49,25 @@ async function corminiDefinition(): Promise<BotDefinition<CoreConfig>> {
 }
 
 export async function main(): Promise<void> {
+  // the pet's controls are created before the bot they drive
+  let running: ReturnType<typeof createBot> | null = null;
+  let pet: DesktopPetWorld | null = null;
+  const DESKTOP_PET = desktopPetDefinition({
+    controls: {
+      isPaused: () => running?.core.bus.isPaused() ?? false,
+      setPaused: (paused) => running?.core.bus.setPaused(paused),
+      openSettings: () => process.send?.({ type: 'companion:open', path: '#/settings' }),
+      quit: () => process.send?.({ type: 'companion:quit' }),
+      quitLabel: '退出 CortiCompanion',
+    },
+    onCreate: (world) => { pet = world; },
+  });
+  const CUA = cuaDefinition({
+    askPermission: async (question) => {
+      const answer = await pet?.confirm(question, ['可以', '这次不行']) ?? 'unavailable';
+      return answer === 'unavailable' ? null : answer === 'yes' || answer === 'timeout' ? answer : 'no';
+    },
+  });
   const home = deploymentRoot();
   seed(home);
   const cormini = await corminiDefinition();
@@ -70,6 +96,7 @@ export async function main(): Promise<void> {
   consumeBootFlags(loaded.dataDir);
 
   const bot = createBot(loaded, definition, { extensions });
+  running = bot;
   // without a key every model call fails: hold events until the home page saves one and resumes
   const keyMissing = !hasKey(loaded.config);
   if (keyMissing) bot.core.bus.setPaused(true);
