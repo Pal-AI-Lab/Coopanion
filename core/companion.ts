@@ -25,6 +25,7 @@ import { TERMINAL } from 'cortico/worlds/terminal/definition.ts';
 import DESKTOP_PET from 'cortico-world-desktop-pet';
 import CUA from 'cortico-world-cua';
 import DEEPSEEK from 'cortico-provider-deepseek';
+import { bundledConsoleAssets } from './bundled-panels.ts';
 import { CONSOLE_PORT, DEPLOYMENT, DISPLAY_NAME, seed } from './seed.ts';
 
 /** The active endpoint's key is set in the process environment or the endpoint's `.env`. */
@@ -57,6 +58,10 @@ export async function main(): Promise<void> {
     reservedProviders: [...providerModules.map((m) => m.id), DEEPSEEK.id],
   });
   registerProviderModules([DEEPSEEK, ...extensions.providers]);
+  extensions.consoleAssets.push(...bundledConsoleAssets([
+    { id: DESKTOP_PET.id, packageName: 'cortico-world-desktop-pet' },
+    { id: CUA.id, packageName: 'cortico-world-cua' },
+  ]));
   const definition = withWorlds(base, [...bundled, ...extensions.worlds]);
 
   const deployDir = join(home, DEPLOYMENT);
