@@ -12,12 +12,18 @@ import { ease, f1, seg, svgEl } from './util.js';
 
 const R = 24, Y = 110, TOP = 86, BASE = 134, ASC = 56, GAP = 31, SW = 19, RC = 42, WORD = 12;
 const INK = '#1B1626', ACCENT = '#00A870';
-const K = R * Math.SQRT1_2, KC = RC * Math.SQRT1_2;
+const K = R * Math.SQRT1_2;
 const ring = (cx) => `M${cx} ${Y - R}A${R} ${R} 0 1 1 ${cx} ${Y + R}A${R} ${R} 0 1 1 ${cx} ${Y - R}`;
+
+/** A capital C: the lower-case arc at radius r, centred at height cy, optionally with its own stroke width. */
+const capital = (r, cy, width) => {
+  const k = r * Math.SQRT1_2;
+  return { w: r + k, strokes: (x) => [{ d: `M${f1(x + r + k)} ${f1(cy - k)}A${r} ${r} 0 1 0 ${f1(x + r + k)} ${f1(cy + k)}`, width }] };
+};
 
 /** Each glyph: skeleton width and its strokes at left skeleton edge x. */
 const GLYPHS = {
-  C: { w: RC + KC, strokes: (x) => [{ d: `M${f1(x + RC + KC)} ${f1(BASE - RC - KC)}A${RC} ${RC} 0 1 0 ${f1(x + RC + KC)} ${f1(BASE - RC + KC)}` }] },
+  C: capital(RC, BASE - RC),
   c: { w: R + K, strokes: (x) => [{ d: `M${f1(x + R + K)} ${f1(Y - K)}A${R} ${R} 0 1 0 ${f1(x + R + K)} ${f1(Y + K)}` }] },
   o: { w: 2 * R, strokes: (x) => [{ d: ring(x + R), accent: true }] },
   r: { w: R, strokes: (x) => [{ d: `M${x} ${TOP}V${BASE}` }, { d: `M${x} ${Y + 2}A${R} ${R} 0 0 1 ${x + R} ${TOP + 2}` }] },
@@ -38,25 +44,29 @@ const GLYPHS = {
   ' ': { w: 4, strokes: () => [] },
 };
 
-/** Glyph strokes laid out left to right from x = 0, with the total skeleton width. */
-export function lettering(text) {
+/**
+ * Glyph strokes laid out left to right from x = 0, with each glyph's left edge and the total
+ * skeleton width. `cap` ({ r, cy, width }) replaces the capital C, e.g. with a larger, heavier initial.
+ */
+export function lettering(text, { cap } = {}) {
   let cursor = 0;
+  const at = [];
   const glyphs = [...text].map((ch, i) => {
     if (ch === 'C' && i > 0) cursor += WORD;
-    const g = GLYPHS[ch];
+    const g = ch === 'C' && cap ? capital(cap.r, cap.cy, cap.width) : GLYPHS[ch];
     if (!g) throw new Error(`no glyph for "${ch}"`);
-    const at = cursor; cursor += g.w + GAP;
-    return g.strokes(at);
+    at.push(cursor); cursor += g.w + GAP;
+    return g.strokes(at[i]);
   });
-  return { width: cursor - GAP, glyphs };
+  return { width: cursor - GAP, glyphs, at };
 }
 /** Vertical extent of lettering in its own units: ascender and i-dot tops, descender bottom. */
 export const LETTER_BOX = { top: 40, centre: Y, bottom: 166 };
 
 /** A word drawn stroke by stroke; centred on x, its x-height centred on y, in stage pixels. */
 export class Wordmark {
-  constructor(parent, text, { x, y, scale = 1.4, stagger = .045 } = {}) {
-    const { width, glyphs } = lettering(text);
+  constructor(parent, text, { x, y, scale = 1.4, stagger = .045, cap } = {}) {
+    const { width, glyphs } = lettering(text, { cap });
     // viewBox covers the i dots above and the p descender below, plus the stroke radius
     const vx = -SW, vy = LETTER_BOX.top, vw = width + 2 * SW, vh = LETTER_BOX.bottom - vy;
     this.svg = svgEl('svg', { viewBox: `${vx} ${vy} ${vw} ${vh}`, width: f1(vw * scale), height: f1(vh * scale) });
@@ -64,7 +74,7 @@ export class Wordmark {
     this.parts = glyphs.map((strokes) => strokes.map((s) => {
       const el = s.dot
         ? svgEl('circle', { cx: s.dot[0], cy: s.dot[1], r: 9, fill: INK })
-        : svgEl('path', { d: s.d, fill: 'none', stroke: s.accent ? ACCENT : INK, 'stroke-width': SW, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', pathLength: 1, 'stroke-dasharray': 1 });
+        : svgEl('path', { d: s.d, fill: 'none', stroke: s.accent ? ACCENT : INK, 'stroke-width': s.width ?? SW, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', pathLength: 1, 'stroke-dasharray': 1 });
       this.svg.appendChild(el);
       return el;
     }));
