@@ -63,6 +63,8 @@ class CoreHost extends EventEmitter {
         this.restartAsked = true;
       } else if (msg?.type === 'companion:open') {
         this.emit('open', typeof msg.path === 'string' ? msg.path : '');
+      } else if (msg?.type === 'companion:quit') {
+        this.emit('quit');
       }
     });
     child.on('exit', (code) => {

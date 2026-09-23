@@ -188,6 +188,7 @@ core.on('state', (state, detail) => {
 });
 
 core.on('open', (path) => openSettings(path));
+core.on('quit', () => app.quit());
 app.on('second-instance', () => { if (core.state === 'running') ensurePet().catch(() => { /* Core went away meanwhile */ }); });
 app.on('window-all-closed', () => { /* stays in the tray */ });
 app.on('before-quit', (e) => {

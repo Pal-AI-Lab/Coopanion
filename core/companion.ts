@@ -3,9 +3,9 @@
  * DeepSeek provider next to Cortico's built-in Responses-compatible one, and Worlds or providers
  * installed from npm through the console's extension page.
  *
- * The two bundled Worlds are wired to each other and to the app: the settings button in the pet's
- * right-click menu opens the settings window (pausing and quitting stay in that window and the
- * tray); computer use
+ * The two bundled Worlds are wired to each other and to the app: the pet's right-click menu opens
+ * the settings window from its bottom row and quits the app from the button in its header (pausing
+ * stays in the settings window); computer use
  * asks for permission in the pet's bubble, and falls back to its own system dialog while no
  * pet page is connected.
  *
@@ -14,8 +14,9 @@
  * in its bubble whether to open the settings window for it.
  *
  * The parent (Electron main) gets `{ type: 'companion:ready', port, dataDir, keyMissing }` once the
- * console listens and `{ type: 'companion:open', path }` to show the settings window at a console
- * route; it asks for a clean stop with `{ type: 'companion:shutdown' }`.
+ * console listens, `{ type: 'companion:open', path }` to show the settings window at a console
+ * route and `{ type: 'companion:quit' }` to quit the whole app; it asks for a clean stop with
+ * `{ type: 'companion:shutdown' }`.
  */
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -68,8 +69,12 @@ async function corminiDefinition(): Promise<BotDefinition<CoreConfig>> {
 export async function main(): Promise<void> {
   let pet: DesktopPetWorld | null = null;
   const DESKTOP_PET = desktopPetDefinition({
-    // the menu header lends only settings: pausing lives in the settings window, quitting in the tray
-    controls: { openSettings: () => process.send?.({ type: 'companion:open', path: '' }) },
+    // the menu lends settings (a bottom row) and quit (the header's only button); pausing lives in the settings window
+    controls: {
+      openSettings: () => process.send?.({ type: 'companion:open', path: '' }),
+      quit: () => process.send?.({ type: 'companion:quit' }),
+      quitLabel: '退出应用',
+    },
     onCreate: (world) => { pet = world; },
   });
   const CUA = cuaDefinition({
