@@ -47,7 +47,7 @@ const S = pick({
     petHidden: '没有显示',
     showPet: '显示桌宠',
     dress: '装扮',
-    petNote: '鼠标停在桌宠身上会出现打字和黑白模式两个按钮;右键打开菜单;按住可以拎起来。',
+    petNote: '鼠标停在桌宠身上会出现打字和麦克风两个按钮;右键打开菜单;按住可以拎起来。',
     guide: '使用引导',
   },
   en: {
@@ -77,7 +77,7 @@ const S = pick({
     petHidden: 'Not shown',
     showPet: 'Show pet',
     dress: 'Dress up',
-    petNote: 'Hover the pet for the typing and dark/light buttons; right-click for the menu; hold it to pick it up.',
+    petNote: 'Hover the pet for the typing and microphone buttons; right-click for the menu; hold it to pick it up.',
     guide: 'Guide',
   },
 });
