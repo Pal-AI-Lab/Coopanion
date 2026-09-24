@@ -25,7 +25,7 @@ const run = (cmd: string, args: string[], cwd: string) => {
 
 const ARCH = process.env.PACK_ARCH || process.arch;
 const rootPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as Record<string, unknown> & { version: string };
-const WORKSPACE = ['cortico-world-desktop-pet', 'cortico-world-cua', 'cortico-provider-deepseek'];
+const WORKSPACE = ['cortico-world-desktop-pet', 'cortico-world-cua', 'cortico-provider-coo'];
 /** Runtime dependencies: Core (express, ws), the TypeScript loader, pnpm for extension installs, and the workspace packages' own. */
 const DEPS: Record<string, string> = { express: '^4.22.3', ws: '^8.21.3', tsx: '^4.23.15', pnpm: '11.5.0' };
 for (const name of WORKSPACE) {

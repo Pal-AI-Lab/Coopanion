@@ -29,6 +29,7 @@
 
 ## 它能做什么
 
+- **换哪家模型都行**:DeepSeek、通义千问、Kimi、智谱 GLM、豆包、百度千帆、MiniMax、阶跃星辰、OpenRouter,点一下标志、贴上 Key 就能用。
 - **陪你聊天**:快速按一下左 Alt(Mac 是左 Option)、紧接着按住说话,或者直接打字,Coo 在气泡里回你。语音用 FunASR 在你电脑上识别。
 - **记得你**:会记住你们聊过的事,也知道你刚才戳了它、摸了它的头。
 - **帮你动手**:让它帮你点按钮、打字、切窗口。每次动手前它都会先问你。
@@ -37,7 +38,7 @@
 
 ## 安装
 
-需要 **Windows 10 / 11(64 位)** 或 **macOS 13 以上**(Apple 芯片和 Intel 都行),还需要一个 [DeepSeek](https://platform.deepseek.com/) 账号(按用量付费,见[费用与隐私](#费用与隐私))。
+需要 **Windows 10 / 11(64 位)** 或 **macOS 13 以上**(Apple 芯片和 Intel 都行),还需要一家模型服务的 API Key(默认推荐 [DeepSeek](https://platform.deepseek.com/),按用量付费,见[费用与隐私](#费用与隐私))。
 安装不需要管理员权限。
 
 ### Windows:下载安装包
@@ -79,7 +80,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 2. **跟着引导走**:第一次启动时,Coo 就在屏幕底边冒气泡和你对话,答案直接在气泡里点选或填写:
    1. 打个招呼,问你怎么称呼;
    2. 问你希望它安静还是活泼:点「不乱动 / 多待着 / 常走动」三张卡片,它马上站着不动、溜达起来或者跑来跑去给你看;
-   3. 请你把 DeepSeek 的 API Key 贴进气泡里的输入框,当场连一下,连上了它会高兴地跳起来;
+   3. 问你用哪家模型服务:气泡里是一排带标志的卡片,DeepSeek 排第一,拿不准就选它;再把那一家的 API Key 贴进气泡里的输入框,当场连一下,连上了它会高兴地跳起来;
    4. 一键下载语音识别模型(FunASR,约 230 MB,从国内的 ModelScope 下载,气泡里有进度条),再教你怎么和它说话;
    5. 告诉你按钮、菜单和设置在哪。
 
@@ -88,11 +89,29 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 3. **打个招呼**:快速按一下**左 Alt**(Mac 是**左 Option**),紧接着按住它说「你好」,松开发送。第一下按完 Coo 会先抬头看你,按住时它就开始听。第一次系统会问能不能用麦克风,选「允许」。
 
 <details>
-<summary><b>怎么拿到 DeepSeek 的 API Key?</b></summary>
+<summary><b>怎么拿到 API Key?</b></summary>
+
+以 DeepSeek 为例:
 
 1. 打开 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys),注册并登录;
 2. 在「充值」里充值(按用量计费,注意 token 消耗);
 3. 进入「API Keys」→「创建 API key」,复制那串 `sk-` 开头的字符,贴进 Coo 的气泡或「开始」页里。
+
+别家的申请页,在气泡或「开始」页选中那一家后点「去 … 申请」就能打开:
+
+| 服务 | 申请 Key | 默认模型 |
+|---|---|---|
+| DeepSeek | [platform.deepseek.com](https://platform.deepseek.com/api_keys) | `deepseek-flash` |
+| 通义千问(阿里云百炼) | [bailian.console.aliyun.com](https://bailian.console.aliyun.com/cn-beijing/model/settings/api-key) | `qwen3.8-flash` |
+| Kimi(月之暗面) | [platform.kimi.com](https://platform.kimi.com/console/api-keys) | `kimi-k3` |
+| 智谱 GLM | [bigmodel.cn](https://bigmodel.cn/usercenter/proj-mgmt/apikeys) | `glm-5.3` |
+| 豆包(火山方舟) | [ark.volcengine.com](https://ark.volcengine.com/region:cn-beijing/apikey) | `doubao-seed-2-1-lite-260915`(要先在方舟控制台「开通管理」里开通这个模型) |
+| 百度千帆 | [console.bce.baidu.com](https://console.bce.baidu.com/iam/#/iam/apikey/list) | `glm-5.1`(千帆的 Responses 接口没有文心模型) |
+| MiniMax | [platform.minimax.cn](https://platform.minimax.cn/user-center/basic-information/interface-key) | `MiniMax-M3` |
+| 阶跃星辰 | [platform.stepfun.com](https://platform.stepfun.com/interface-key) | `step-3.7-flash` |
+| OpenRouter | [openrouter.ai](https://openrouter.ai/settings/keys) | `deepseek/deepseek-v4.1-flash` |
+
+DeepSeek 以外的几家是按各自文档接入的,还没拿真实的 Key 逐家试过;哪家连不上或回话出错,欢迎开 issue。
 
 </details>
 
@@ -156,11 +175,12 @@ Mac:点屏幕顶部菜单栏里 Coo 的图标,是同一份菜单。
 
 ### 换模型
 
-默认用 DeepSeek 的 `deepseek-flash`。它能看截图,电脑操作需要这个能力。在高级模式的「模型」页里可以:
+「开始」页的「连接模型」一栏列着 Coo 支持的几家服务,点一家、贴上它的 Key,就换过去了。每家各存一份 Key,换回来不用重填。
+默认用 DeepSeek 的 `deepseek-flash`。它能看截图,电脑操作需要这个能力;别家的默认模型里,看不看得了图见上面的表(豆包、千问、Kimi、MiniMax、阶跃星辰、OpenRouter 的默认模型能看图)。在高级模式的「模型」页里可以:
 
-- 调整思考档位:不思考 / 快 / 标准 / 最深;
+- 换模型、调整思考档位:不思考 / 快 / 标准 / 最深(各家接受的档位不同,会自动换成那一家支持的值);
 - 新建连接,选「OpenAI Responses Compatible」,接入其他兼容 Responses API 的服务;
-- 在「用量与成本」页看花了多少钱。DeepSeek 的高峰和错峰价格已经按时段计入。
+- 在「用量与成本」页看花了多少钱。DeepSeek 的高峰和错峰价格已经按时段计入;别家没有内置价目,可以在「模型」页的价目里自己填。
 
 ### 装扩展
 
@@ -175,7 +195,7 @@ Mac:点屏幕顶部菜单栏里 Coo 的图标,是同一份菜单。
 
 ## 费用与隐私
 
-- **费用**:CortiCompanion 本身免费。和 Coo 聊天要调用 DeepSeek 的模型,费用由 DeepSeek 按用量从你的账户扣,在「用量与成本」页能看到。
+- **费用**:CortiCompanion 本身免费。和 Coo 聊天要调用你选的模型服务,费用由那一家按用量从你的账户扣,在「用量与成本」页能看到(内置价目的只有 DeepSeek)。
 - **会发给模型服务的内容**:你说的话和打的字、你和 Coo 的互动,以及电脑操作时的屏幕截图。这些内容只发给你配置的模型服务(默认 DeepSeek)。
 - **留在你电脑上的内容**:API Key、记忆、对话记录、设置、日志,全部存在数据文件夹里(Windows 在安装目录的 `data`,Mac 在 `~/Library/Application Support/CortiCompanion`)。
   语音识别在本机完成,不管用 FunASR 还是 Windows 自带的引擎,录音都不会上传,发出去的只有识别出来的文字。
@@ -221,7 +241,7 @@ Mac 上点菜单栏里 Coo 的图标 →「显示桌宠」,或者在「应用程
 
 打开设置窗口的「开始」页,看标题旁的状态:
 
-- **还没连上模型**:检查 API Key 是否完整、DeepSeek 账户里还有没有余额,再点「测试连接」。
+- **还没连上模型**:检查 API Key 是否完整、那一家账户里还有没有余额,再点「测试连接」。豆包要先在方舟控制台开通默认模型。
 - **暂停中**:点左栏底部的「继续」。
 
 </details>
@@ -265,4 +285,4 @@ CortiCompanion 由 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 组装而成
 
 ## 许可
 
-[MIT](LICENSE)。随附或运行时下载的第三方组件:Electron(MIT)、Cortico(MIT)、sherpa-onnx(Apache-2.0)、FunASR 的 SenseVoiceSmall 模型([FunASR 模型开源协议](https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE),用时下载)、koffi(MIT)、jpeg-js(BSD-3-Clause)、pnpm(MIT)。
+[MIT](LICENSE)。随附或运行时下载的第三方组件:Electron(MIT)、Cortico(MIT)、sherpa-onnx(Apache-2.0)、FunASR 的 SenseVoiceSmall 模型([FunASR 模型开源协议](https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE),用时下载)、koffi(MIT)、jpeg-js(BSD-3-Clause)、pnpm(MIT)、各家模型服务的标志取自 [lobe-icons](https://github.com/lobehub/lobe-icons)(MIT;标志本身归各自的公司所有,只用来标明是哪一家服务)。

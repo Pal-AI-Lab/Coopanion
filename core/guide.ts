@@ -6,7 +6,8 @@
  * 1. hello, and what to call the person (the desktop-pet World's `user`);
  * 2. how lively to be (`roam`): while the cards are up Coo shows each one, standing still,
  *    strolling, or running back and forth;
- * 3. the DeepSeek key, saved and tested through the console's own endpoint routes;
+ * 3. the model service (DeepSeek first, the others Coo Pet Provider offers after it, each card with
+ *    its logo) and its key, saved, tested and made active through the console's own endpoint routes;
  * 4. voice input: the speech model is downloaded with one click when it is missing, then how to
  *    talk, with the talk key as a key cap;
  * 5. where the buttons and the menu are, and where settings live.
@@ -17,9 +18,9 @@
  */
 import { existsSync, writeFileSync } from 'node:fs';
 import type { DesktopPetWorld, PetDialog, PetDialogAnswer } from 'cortico-world-desktop-pet';
+import { VENDOR_ICONS, VENDORS, type Vendor } from 'cortico-provider-coo';
+import { connectVendor, currentConnection, type ConsoleCall } from 'cortico-provider-coo/src/connect.ts';
 
-const ENDPOINT = 'deepseek';
-const KEY_URL = 'https://platform.deepseek.com/api_keys';
 const PET_GROUP = 'world:desktop-pet';
 const USER_KEY = 'worlds.desktop-pet.user';
 const ROAM_KEY = 'worlds.desktop-pet.roam';
@@ -50,14 +51,16 @@ const S = {
   roamOk: '就这样',
   roamDone: '好,就按这个来。',
 
-  askKey: '要和你聊天,我得先连上大模型。把 DeepSeek 的 API Key 贴在这里吧,按用量计费,注意 token 消耗哦。',
+  askVendor: '要和你聊天,我得先连上大模型。用哪一家的?拿不准就选 DeepSeek。',
+  vendorOk: '就用这家',
+  askKey: (v: Vendor) => `把 ${v.name} 的 API Key 贴在这里吧。按用量计费,注意 token 消耗哦。`,
   keySend: '连接',
-  keyLink: '还没有 Key?去申请',
+  keyLink: (v: Vendor) => `还没有 Key?去${v.name}申请`,
   keyLater: '稍后再填',
   connecting: '正在连接…',
-  keyOk: (model: string) => `连上了${model ? `(${model})` : ''}!现在我能说话啦,库...`,
+  keyOk: (v: Vendor, model: string) => `连上 ${v.name} 了${model ? `(${model})` : ''}!现在我能说话啦,库...`,
   keyFail: (why: string) => `没连上:${why}。看看 Key 是不是完整,账户里还有没有余额?再贴一次试试。`,
-  keyAlready: (model: string) => `模型已经连好了${model ? `(${model})` : ''},省事,库...`,
+  keyAlready: (name: string, model: string) => `模型已经连好了(${[name, model].filter(Boolean).join(' · ')}),省事,库...`,
   keySkipped: '没关系,等你填好我再开口。之后我会再来问你。',
 
   askModel: (mb: number) => `要听懂你说话,我得先下载一个语音识别模型(FunASR,约 ${mb} MB,从国内的 ModelScope 下载)。现在下吗?`,
@@ -81,9 +84,9 @@ const S = {
   closed: '好,那先到这儿。想再听我介绍,打开设置,在「开始」页点「使用引导」。',
 
   ask: {
-    first: '我还没连上模型,填好 DeepSeek 的 API Key 我才能和你说话。现在填吗?',
-    talked: '我听到了,可还没连上模型,没法回你。把 DeepSeek 的 API Key 贴给我吧?',
-    again: '还是没连上模型呢,填好 DeepSeek 的 API Key 我才能陪你聊天。',
+    first: '我还没连上模型,填好 API Key 我才能和你说话。用哪一家的?',
+    talked: '我听到了,可还没连上模型,没法回你。选一家,把 API Key 贴给我吧?',
+    again: '还是没连上模型呢,填好 API Key 我才能陪你聊天。用哪一家的?',
   },
   askLater: '等会儿',
 };
@@ -104,7 +107,7 @@ export interface GuideDeps {
 class Closed extends Error {}
 
 /** The console's routes, called as the console calls them. */
-function api(origin: string) {
+function api(origin: string): ConsoleCall {
   const call = async <T>(path: string, body?: unknown): Promise<T> => {
     const res = await fetch(origin + path, {
       method: body === undefined ? 'GET' : 'POST',
@@ -118,37 +121,11 @@ function api(origin: string) {
   return call;
 }
 
-interface Detail { name: string; entry: Record<string, unknown>; revision: string; secretConfigured?: 'none' | 'env' | 'file' }
-interface Status { modelConnection?: { ready: boolean; model: string | null } | null }
 interface VoiceState {
   enabled?: boolean;
   engine?: 'funasr' | 'system';
   model?: { phase: 'absent' | 'working' | 'ready' | 'error'; done: number; total: number | null; bytes: number; detail: string | null };
   input?: { effectiveMode?: 'hold' | 'toggle' | 'always'; hint?: string; keyLabel?: string; taps?: number };
-}
-
-/** The DeepSeek key: whether it is connected, and saving one (tested, and the run resumed once it passes). */
-function keyRoutes(origin: string) {
-  const call = api(origin);
-  const detail = () => call<Detail>(`/api/providers/${ENDPOINT}`);
-  return {
-    async connected(): Promise<{ ok: boolean; model: string }> {
-      const [d, st] = await Promise.all([detail().catch(() => null), call<Status>('/api/status').catch(() => null)]);
-      return { ok: !!st?.modelConnection?.ready && !!d?.secretConfigured && d.secretConfigured !== 'none', model: st?.modelConnection?.model ?? '' };
-    },
-    async save(key: string): Promise<{ ok: boolean; why: string }> {
-      try {
-        const d = await detail();
-        await call(`/api/providers/${ENDPOINT}/save`, { name: d.name, entry: d.entry, expectedRevision: d.revision, secretValue: key });
-        const r = await call<{ ok?: boolean; error?: string; status?: number; hint?: string }>(`/api/providers/${ENDPOINT}/test`, {});
-        if (r?.ok === false || r?.error) return { ok: false, why: r.hint ?? r.error ?? `HTTP ${r.status ?? '?'}` };
-        await call('/api/run/resume', {});
-        return { ok: true, why: '' };
-      } catch (err) {
-        return { ok: false, why: err instanceof Error ? err.message : String(err) };
-      }
-    },
-  };
 }
 
 /** Steps through the pet's bubble; a step the pet page was not there for waits for it and shows again. */
@@ -165,30 +142,47 @@ function talker(pet: () => DesktopPetWorld | null) {
   return { show, connected };
 }
 
-/** Asks for the key in the bubble until it connects or the person puts it off; true once connected. */
-async function keyLoop(show: (d: PetDialog) => Promise<PetDialogAnswer>, keys: ReturnType<typeof keyRoutes>, pet: () => DesktopPetWorld | null,
-  first: PetDialog, later: string): Promise<boolean> {
-  let step = first;
+/** A service's logo as a data URL for a card in the bubble. */
+const logo = (v: Vendor) => `data:image/svg+xml;base64,${Buffer.from(VENDOR_ICONS[v.id] ?? '').toString('base64')}`;
+
+/**
+ * Asks which service to use and then for its key, in the bubble, until it connects or the person
+ * puts it off; true once connected. `ask` is the question over the service cards.
+ */
+async function connectLoop(show: (d: PetDialog) => Promise<PetDialogAnswer>, call: ConsoleCall, pet: () => DesktopPetWorld | null,
+  ask: Omit<PetDialog, 'input'>, later: string): Promise<boolean> {
+  const current = await currentConnection(call);
+  const picked = await show({
+    ...ask,
+    input: {
+      kind: 'choices', confirm: S.vendorOk, value: Math.max(0, VENDORS.indexOf(current.vendor ?? VENDORS[0]!)),
+      options: VENDORS.map((v) => ({ label: v.name, image: logo(v) })),
+    },
+  });
+  if ('closed' in picked) throw new Closed();
+  const vendor = VENDORS['index' in picked ? picked.index : 0] ?? VENDORS[0]!;
+  const keyStep = (text: string, actions: string[]): PetDialog => ({ ...ask, text, actions, input: keyInput(vendor, later) });
+  let step = keyStep(S.askKey(vendor), ['thinking']);
   for (;;) {
     const a = await show(step);
     if ('closed' in a) throw new Closed();
     if (!('text' in a)) return false;
     // the bar stays up while the key is saved and tested; a page gone meanwhile just misses it
-    const wait = pet()?.dialog({ text: S.connecting, actions: ['thinking'], step: first.step, input: { kind: 'progress' } });
-    const r = await keys.save(a.text);
+    const wait = pet()?.dialog({ text: S.connecting, actions: ['thinking'], step: ask.step, input: { kind: 'progress' } });
+    const r = await connectVendor(call, vendor, a.text);
     wait?.close();
     if (r.ok) {
-      const { model } = await keys.connected();
-      await show({ ...first, text: S.keyOk(model), actions: ['love', 'jump'], input: undefined });
+      const { model } = await currentConnection(call);
+      await show({ ...ask, text: S.keyOk(vendor, model), marks: [vendor.name], actions: ['love', 'jump'] });
       return true;
     }
-    step = { ...first, text: S.keyFail(r.why), actions: ['sad'], input: keyInput(later) };
+    step = keyStep(S.keyFail(r.why ?? '?'), ['sad']);
   }
 }
 
-const keyInput = (later: string): PetDialog['input'] => ({
-  kind: 'text', submit: S.keySend, placeholder: 'sk-…', secret: true, maxLength: 200,
-  link: { label: S.keyLink, url: KEY_URL }, alt: later,
+const keyInput = (v: Vendor, later: string): PetDialog['input'] => ({
+  kind: 'text', submit: S.keySend, placeholder: v.keyHint, secret: true, maxLength: 200,
+  link: { label: S.keyLink(v), url: v.keyUrl }, alt: later,
 });
 
 let running = false;
@@ -199,7 +193,6 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
   running = true;
   const t = talker(deps.pet);
   const call = api(deps.console);
-  const keys = keyRoutes(deps.console);
   const step = (n: number, d: PetDialog): Promise<PetDialogAnswer> =>
     t.show({ ...d, step: [n, STEPS], closable: true }).then((a) => { if ('closed' in a) throw new Closed(); return a; });
   try {
@@ -236,9 +229,9 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
     await step(2, { text: S.roamDone, actions: ['nod'] });
 
     // 3 the model key
-    const k = await keys.connected();
-    if (k.ok) await step(3, { text: S.keyAlready(k.model), actions: ['happy'] });
-    else if (!await keyLoop((d) => step(3, d), keys, deps.pet, { text: S.askKey, actions: ['thinking'], step: [3, STEPS], input: keyInput(S.keyLater) }, S.keyLater)) {
+    const k = await currentConnection(call);
+    if (k.ready) await step(3, { text: S.keyAlready(k.vendor?.name ?? '', k.model), actions: ['happy'] });
+    else if (!await connectLoop((d) => step(3, d), call, deps.pet, { text: S.askVendor, actions: ['thinking'], step: [3, STEPS] }, S.keyLater)) {
       await step(3, { text: S.keySkipped, actions: ['sad'] });
     }
 
@@ -309,7 +302,7 @@ const KEY_POLL_MS = 2000;
  */
 export async function askForKey(deps: Pick<GuideDeps, 'pet' | 'console'>, keySet: () => boolean, talked: () => boolean, firstAfterMs: number): Promise<void> {
   const t = talker(deps.pet);
-  const keys = keyRoutes(deps.console);
+  const call = api(deps.console);
   let lastAsk = Date.now() - ASK_AGAIN_MS + firstAfterMs;
   let asked = false;
   while (!keySet()) {
@@ -317,7 +310,7 @@ export async function askForKey(deps: Pick<GuideDeps, 'pet' | 'console'>, keySet
     const spoke = talked();
     if (t.connected() && !running && (since >= ASK_AGAIN_MS || (spoke && since >= ASK_TALKED_MS))) {
       const text = !asked ? S.ask.first : spoke ? S.ask.talked : S.ask.again;
-      await keyLoop(t.show, keys, deps.pet, { text, actions: ['thinking'], closable: true, input: keyInput(S.askLater) }, S.askLater).catch(() => false);
+      await connectLoop(t.show, call, deps.pet, { text, actions: ['thinking'], closable: true }, S.askLater).catch(() => false);
       asked = true;
       lastAsk = Date.now();
       talked(); // what was said while the bubble was up got its answer there

@@ -1,7 +1,8 @@
 /**
  * 「开始」: the app's home page. Everything the first minutes need on one page, top to bottom in
- * the order it is needed: the DeepSeek key (saved to the `deepseek` endpoint, tested, then the
- * run resumes), then the pet (live preview, show, a button to the dressing page). Computer use is
+ * the order it is needed: the model service and its key (a row of services with their logos,
+ * DeepSeek first; the key is saved to that service's own endpoint, tested, the endpoint made active
+ * and the run resumed), then the pet (live preview, show, a button to the dressing page). Computer use is
  * switched on the cua World's own page and asks each turn in the pet's bubble, so it has no control
  * here. Dressing up and voice input have their own pages (features/dress, features/voice); the link
  * to other model services shows with or without a key, and in the normal mode asks before it
@@ -15,7 +16,7 @@ import { post } from '../../core/api.ts';
 import { pick } from '../../core/language.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { readMode, requestMode } from '../mode.ts';
-import { KEY_URL, keyConnected, readDetail, readStatus, saveKey, testKey, type Detail, type Status, type TestResult } from './model.ts';
+import { connectVendor, consoleCall, readStatus, testEndpoint, VENDOR_ICONS, VENDORS, vendorOf, type ConnectResult, type Status, type Vendor } from './model.ts';
 
 const PET_PAGE = 'world:desktop-pet';
 
@@ -27,14 +28,13 @@ const S = pick({
     paused: '暂停中',
     noModel: '还没连上模型',
     modelTitle: '连接模型',
-    modelNeed: '填入 DeepSeek 的 API Key 就能开始。',
-    keyLabel: 'API Key',
-    keyPlaceholder: 'sk-…',
-    getKey: '去 DeepSeek 开放平台申请',
+    modelNeed: '选一家模型服务,填入它的 API Key 就能开始。拿不准就选 DeepSeek。',
+    keyLabel: (name: string) => `${name} 的 API Key`,
+    getKey: (name: string) => `去${name}申请 Key`,
     saveStart: '保存并开始',
     connected: (model: string, title: string) => `已连接 ${title} · ${model}`,
     test: '测试连接',
-    changeKey: '换一个 Key',
+    changeKey: '换一家或换 Key',
     otherProvider: '用别的模型服务',
     toAdvancedTitle: '是否切换为高级模式?',
     toAdvancedBody: '别的模型服务在高级模式的「模型」页里设置。之后可在左下角重新切换回普通模式。',
@@ -58,14 +58,13 @@ const S = pick({
     paused: 'Paused',
     noModel: 'No model connected',
     modelTitle: 'Connect a model',
-    modelNeed: 'Enter a DeepSeek API key to start.',
-    keyLabel: 'API Key',
-    keyPlaceholder: 'sk-…',
-    getKey: 'Get a key on the DeepSeek platform',
+    modelNeed: 'Pick a model service and enter its API key to start. DeepSeek if unsure.',
+    keyLabel: (name: string) => `${name} API key`,
+    getKey: (name: string) => `Get a ${name} key`,
     saveStart: 'Save and start',
     connected: (model: string, title: string) => `Connected to ${title} · ${model}`,
     test: 'Test',
-    changeKey: 'Use another key',
+    changeKey: 'Change service or key',
     otherProvider: 'Use another model service',
     toAdvancedTitle: 'Switch to advanced mode?',
     toAdvancedBody: 'Other model services are set up on the Model page of advanced mode. You can switch back to normal mode at the bottom left.',
@@ -106,14 +105,40 @@ async function mount(ctx: FeatureContext): Promise<void> {
   /* ---------- model ---------- */
   const model = ui.sheet({ title: S.modelTitle });
   const modelMsg = ui.msgline('');
-  const keyInput = ui.input({ placeholder: S.keyPlaceholder });
+  const call = consoleCall(signal);
+  /** The service the key box is for: picked on the row of logos. */
+  let vendor: Vendor = VENDORS[0]!;
+  const vendorRow = ui.h('div', 'home-vendors');
+  const vendorButtons = VENDORS.map((v) => {
+    const b = ui.h('button', 'home-vendor');
+    b.type = 'button';
+    const mark = ui.h('span', 'home-vendormark');
+    // the marks are the provider package's own static SVGs
+    mark.innerHTML = VENDOR_ICONS[v.id] ?? '';
+    b.append(mark, ui.h('span', null, v.name));
+    b.addEventListener('click', () => pickVendor(v), opts);
+    vendorRow.append(b);
+    return b;
+  });
+  const keyInput = ui.input({});
   keyInput.type = 'password';
   keyInput.autocomplete = 'off';
   const keyRow = ui.rowbar();
   const save = ui.button(S.saveStart, { variant: 'primary' });
-  keyRow.append(ui.field(S.keyLabel, keyInput), save);
-  const getKey = ui.h('a', 'home-link', S.getKey);
-  getKey.href = KEY_URL; getKey.target = '_blank'; getKey.rel = 'noopener';
+  const keyField = ui.field(S.keyLabel(vendor.name), keyInput);
+  keyRow.append(keyField, save);
+  const getKey = ui.h('a', 'home-link', '');
+  getKey.target = '_blank'; getKey.rel = 'noopener';
+  const pickVendor = (v: Vendor) => {
+    vendor = v;
+    vendorButtons.forEach((b, i) => b.classList.toggle('on', VENDORS[i] === v));
+    keyInput.placeholder = v.keyHint;
+    const label = keyField.querySelector('.fieldlabel');
+    if (label) label.textContent = S.keyLabel(v.name);
+    getKey.textContent = S.getKey(v.name);
+    getKey.href = v.keyUrl;
+  };
+  pickVendor(vendor);
   const need = ui.h('p', 'home-note', S.modelNeed);
   const connectedLine = ui.rowbar();
   const connectedPill = ui.pill('', 'on');
@@ -136,7 +161,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const links = ui.rowbar();
   links.append(getKey, ui.h('span', 'grow'), otherLink());
   const keyBox = ui.h('div', 'home-keybox');
-  keyBox.append(need, keyRow, links);
+  keyBox.append(need, vendorRow, keyRow, links);
   model.body.append(connectedLine, keyBox, modelMsg);
   root.append(model.el);
 
@@ -153,26 +178,30 @@ async function mount(ctx: FeatureContext): Promise<void> {
   root.append(pet.el);
 
   /* ---------- behaviour ---------- */
-  let detail: Detail | null = null;
   let editingKey = false;
+  let status: Status | null = null;
+  let vendorShown = false;
 
   const renderStatus = (st: Status) => {
+    status = st;
     const paused = st.loop?.paused === true;
     const mc = st.modelConnection;
     if (!mc?.ready) { state.textContent = S.noModel; state.className = 'pill off'; }
     else { state.textContent = paused ? S.paused : S.running; state.className = `pill ${paused ? 'plain' : 'on'}`; }
-    const ready = keyConnected(st, detail);
+    const ready = !!mc?.ready;
     connectedLine.hidden = !ready || editingKey;
     keyBox.hidden = ready && !editingKey;
-    if (mc?.model) connectedPill.textContent = S.connected(mc.model, mc.moduleTitle);
+    const current = vendorOf(mc?.baseUrl);
+    if (mc?.model) connectedPill.textContent = S.connected(mc.model, current?.name ?? mc.moduleTitle);
+    // the key box starts on the service in use, once
+    if (!vendorShown && current) { vendorShown = true; pickVendor(current); }
   };
 
   const refreshModel = async () => {
-    detail = await readDetail(signal);
     renderStatus(await readStatus(signal));
   };
 
-  const showTest = (r: TestResult) => {
+  const showTest = (r: ConnectResult) => {
     modelMsg.textContent = r.ok ? S.testOk(r.ms) : S.testFail(r.why ?? '');
     modelMsg.classList.toggle('bad', !r.ok);
   };
@@ -187,7 +216,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     save.disabled = true;
     try {
       testing();
-      const r = await saveKey(key, detail, signal);
+      const r = await connectVendor(call, vendor, key);
       keyInput.value = '';
       editingKey = false;
       showTest(r);
@@ -200,7 +229,12 @@ async function mount(ctx: FeatureContext): Promise<void> {
       save.disabled = false;
     }
   });
-  test.addEventListener('click', async () => { testing(); showTest(await testKey(signal)); });
+  test.addEventListener('click', async () => {
+    const name = status?.modelConnection?.name;
+    if (!name) return;
+    testing();
+    showTest(await testEndpoint(call, name));
+  });
   change.addEventListener('click', () => { editingKey = true; void refreshModel(); keyInput.focus(); });
 
   /* pet */

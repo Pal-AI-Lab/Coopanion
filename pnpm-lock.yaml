@@ -8,9 +8,9 @@ importers:
 
   .:
     dependencies:
-      cortico-provider-deepseek:
+      cortico-provider-coo:
         specifier: workspace:*
-        version: link:packages/cortico-provider-deepseek
+        version: link:packages/cortico-provider-coo
       cortico-world-cua:
         specifier: workspace:*
         version: link:packages/cortico-world-cua
@@ -85,7 +85,7 @@ importers:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@22.20.4)(jsdom@30.1.0(@noble/hashes@2.4.0))(lightningcss@1.32.0)
 
-  packages/cortico-provider-deepseek: {}
+  packages/cortico-provider-coo: {}
 
   packages/cortico-world-cua:
     dependencies:

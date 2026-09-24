@@ -17,6 +17,6 @@
     // at run time the staged Cortico's module hook resolves the same prefix
     "paths": { "cortico/*": ["./vendor/cortico/src/*"] }
   },
-  "include": ["core/**/*.ts", "scripts/**/*.ts", "packages/cortico-provider-deepseek/**/*.ts", "tests/**/*.ts"],
+  "include": ["core/**/*.ts", "scripts/**/*.ts", "packages/cortico-provider-coo/**/*.ts", "tests/**/*.ts"],
   "exclude": ["node_modules", "build", "dist", "vendor"]
 }

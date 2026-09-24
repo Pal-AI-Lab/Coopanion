@@ -1,6 +1,6 @@
 /** First-run files of the app's deployment. Imports nothing from Cortico, so it runs and tests on its own. */
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -9,6 +9,10 @@ export const ENDPOINT = 'deepseek';
 export const KEY_NAME = 'DEEPSEEK_API_KEY';
 export const CONSOLE_PORT = 17788;
 export const DISPLAY_NAME = 'Coo';
+/** The provider module of the app's endpoints (cortico-provider-coo). */
+export const MODULE = 'coo';
+/** The module the endpoints of versions up to 0.1.2 name; it became `coo`. */
+const OLD_MODULE = 'deepseek';
 /** The name version 0.1.0 seeded. */
 const OLD_DISPLAY_NAME = '可缇';
 /** SHA-256 of the self-description versions 0.1.0 (after the rename) and 0.1.1 seeded, line endings as LF. */
@@ -17,8 +21,9 @@ const SEED_DIR = fileURLToPath(new URL('./seed/', import.meta.url));
 
 /**
  * Writes the first-run files that are missing; existing files are left as the operator made them,
- * except the old seeded name, which becomes Coo in the config and in the self-description, and a
- * self-description still exactly as an older version seeded it, which becomes the current one.
+ * except the old seeded name, which becomes Coo in the config and in the self-description, a
+ * self-description still exactly as an older version seeded it, which becomes the current one, and
+ * endpoints of the old `deepseek` module, which now belong to `coo`.
  */
 export function seed(home: string): void {
   const deploy = join(home, DEPLOYMENT);
@@ -36,7 +41,7 @@ export function seed(home: string): void {
     web: { port: CONSOLE_PORT },
   });
   write(join(endpoint, 'config.json'), {
-    kind: 'deepseek',
+    kind: MODULE,
     baseUrl: 'https://api.deepseek.com',
     secret: KEY_NAME,
     spec: { model: 'deepseek-flash', thinking: true, reasoningEffort: 'high', maxTokens: 8192 },
@@ -49,6 +54,18 @@ export function seed(home: string): void {
   if (!existsSync(join(deploy, 'avatar.png'))) copyFileSync(join(SEED_DIR, 'avatar.png'), join(deploy, 'avatar.png'));
   renameOldSeed(deploy, workspace);
   upgradeSeededConstitution(workspace);
+  moveEndpointsToCoo(join(home, 'providers'));
+}
+
+function moveEndpointsToCoo(providers: string): void {
+  for (const dir of readdirSync(providers, { withFileTypes: true })) {
+    const file = join(providers, dir.name, 'config.json');
+    if (!dir.isDirectory() || !existsSync(file)) continue;
+    const config = JSON.parse(readFileSync(file, 'utf8')) as { kind?: string };
+    if (config.kind !== OLD_MODULE) continue;
+    config.kind = MODULE;
+    writeFileSync(file, JSON.stringify(config, null, 2) + '\n');
+  }
 }
 
 function renameOldSeed(deploy: string, workspace: string): void {

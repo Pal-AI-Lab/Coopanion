@@ -1,7 +1,7 @@
 /**
- * The app's Core process: Cormini as the Persona, the terminal, desktop-pet and cua Worlds, the
- * DeepSeek provider next to Cortico's built-in Responses-compatible one, and Worlds or providers
- * installed from npm through the console's extension page.
+ * The app's Core process: Cormini as the Persona, the terminal, desktop-pet and cua Worlds, Coo Pet
+ * Provider (DeepSeek and the other model services Coo offers) next to Cortico's built-in providers,
+ * and Worlds or providers installed from npm through the console's extension page.
  *
  * The two bundled Worlds are wired to each other and to the app: the header of the pet's right-click
  * menu pauses and resumes the run, opens the settings window and quits the app, as the console's rail
@@ -36,7 +36,7 @@ import { withWorlds, type WorldDefinition, type WorldSection } from 'cortico/wor
 import { TERMINAL } from 'cortico/worlds/terminal/definition.ts';
 import { desktopPetDefinition, type DesktopPetWorld } from 'cortico-world-desktop-pet';
 import { cuaDefinition } from 'cortico-world-cua';
-import DEEPSEEK from 'cortico-provider-deepseek';
+import COO from 'cortico-provider-coo';
 import { bundledConsoleAssets } from './bundled-panels.ts';
 import { askForKey, guideDone, markDone, runGuide, type GuideDeps } from './guide.ts';
 import { CONSOLE_PORT, DEPLOYMENT, DISPLAY_NAME, seed } from './seed.ts';
@@ -138,9 +138,9 @@ export async function main(): Promise<void> {
   // extension providers must be registered before endpoints are resolved
   const extensions = await loadExtensions(repoRoot(), {
     reserved: bundled.map((w) => w.id),
-    reservedProviders: [...providerModules.map((m) => m.id), DEEPSEEK.id],
+    reservedProviders: [...providerModules.map((m) => m.id), COO.id],
   });
-  registerProviderModules([DEEPSEEK, ...extensions.providers]);
+  registerProviderModules([COO, ...extensions.providers]);
   extensions.consoleAssets.push(...bundledConsoleAssets([
     { id: DESKTOP_PET.id, packageName: 'cortico-world-desktop-pet' },
     { id: CUA.id, packageName: 'cortico-world-cua' },

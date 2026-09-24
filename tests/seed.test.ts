@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DEPLOYMENT, DISPLAY_NAME, ENDPOINT, KEY_NAME, seed } from '../core/seed.ts';
@@ -15,7 +15,7 @@ describe('first-run seed', () => {
     seed(home);
     expect(read(join(home, DEPLOYMENT, 'deployment.json'))).toEqual({ bot: 'cormini' });
     expect(read(join(home, DEPLOYMENT, 'config.json'))).toMatchObject({ activeProvider: ENDPOINT, language: 'zh' });
-    expect(read(join(home, 'providers', ENDPOINT, 'config.json'))).toMatchObject({ kind: 'deepseek', secret: KEY_NAME, multimodal: true });
+    expect(read(join(home, 'providers', ENDPOINT, 'config.json'))).toMatchObject({ kind: 'coo', secret: KEY_NAME, multimodal: true });
     expect(readFileSync(join(home, DEPLOYMENT, 'workspace', 'CONSTITUTION.md'), 'utf8')).toContain('我叫 Coo');
     expect(readFileSync(join(home, DEPLOYMENT, 'avatar.png')).subarray(1, 4).toString()).toBe('PNG');
   });
@@ -41,6 +41,20 @@ describe('first-run seed', () => {
       seed(home);
       expect(readFileSync(constitution, 'utf8')).toContain('「库...」');
     }
+  });
+
+  it('moves endpoints of the old deepseek module to coo and leaves other modules alone', () => {
+    const home = mkdtempSync(join(tmpdir(), 'cc-seed-'));
+    seed(home);
+    const endpoint = join(home, 'providers', ENDPOINT, 'config.json');
+    const old = { ...read(endpoint), kind: 'deepseek', spec: { model: 'deepseek-v4-pro' } };
+    writeFileSync(endpoint, JSON.stringify(old));
+    const other = join(home, 'providers', 'mine', 'config.json');
+    mkdirSync(join(home, 'providers', 'mine'));
+    writeFileSync(other, JSON.stringify({ kind: 'openai-compatible', baseUrl: 'http://x' }));
+    seed(home);
+    expect(read(endpoint)).toEqual({ ...old, kind: 'coo' });
+    expect(read(other)).toEqual({ kind: 'openai-compatible', baseUrl: 'http://x' });
   });
 
   it('leaves files the operator already has', () => {

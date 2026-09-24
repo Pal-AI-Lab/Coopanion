@@ -1,18 +1,21 @@
 {
-  "name": "cortico-provider-deepseek",
-  "version": "0.1.0",
+  "name": "cortico-provider-coo",
+  "version": "0.2.0",
   "type": "module",
-  "description": "Cortico provider for the DeepSeek API: Responses endpoint, thinking levels, vision on deepseek-flash, peak and off-peak pricing",
+  "description": "Coo Pet Provider: DeepSeek, Qwen, Kimi, GLM, Doubao, Baidu Qianfan, MiniMax, StepFun and OpenRouter for Cortico through their Responses endpoints",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Pal-AI-Lab/CortiCompanion.git",
-    "directory": "packages/cortico-provider-deepseek"
+    "url": "https://github.com/Pal-AI-Lab/Coopanion.git",
+    "directory": "packages/cortico-provider-coo"
   },
   "keywords": [
     "cortico-provider",
     "cortico",
     "deepseek",
+    "qwen",
+    "kimi",
+    "glm",
     "llm"
   ],
   "engines": {
