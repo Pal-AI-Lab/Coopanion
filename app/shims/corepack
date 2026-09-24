@@ -1,0 +1,5 @@
+#!/bin/sh
+# Cortico installs extensions with `corepack pnpm ...`. The app ships no Node and no corepack:
+# this stands in for corepack and runs the bundled pnpm on the app's own runtime (macOS).
+if [ "$1" = pnpm ]; then shift; fi
+ELECTRON_RUN_AS_NODE=1 exec "$CORTICO_NODE_EXE" "$CORTICO_PNPM_CJS" "$@"

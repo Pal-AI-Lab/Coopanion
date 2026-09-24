@@ -1,7 +1,9 @@
 /**
  * Renders Coo, the pet's own figure from pet-core, into the app's icons and the default avatar:
- * app/icons/icon.png (512), icon.ico (16–256, PNG entries), tray.png (32), tray@2x.png (64), and
- * core/seed/avatar.png (512, square, for the console to crop round).
+ * app/icons/icon.png (512), icon.ico (16–256, PNG entries), tray.png (32), tray@2x.png (64),
+ * trayTemplate.png (18) and trayTemplate@2x.png (36) for the macOS menu bar (the figure alone in
+ * black: the menu bar tints a template image to its own color), and core/seed/avatar.png (512,
+ * square, for the console to crop round).
  *
  * The figure is the dark-theme side of the mint palette (white body, mint eyes) on a dark
  * rounded tile, the way the pet looks on the desktop by default. Chromium rasterizes each size
@@ -39,6 +41,21 @@ app.whenReady().then(async () => {
     return (await win.webContents.capturePage({ x: 0, y: 0, width: size, height: size })).toPNG();
   };
 
+  /** The figure alone, black on transparent, `size` px square. */
+  const template = async (size) => {
+    const html = `<!doctype html><style>html,body{margin:0;background:transparent}.ink{stroke:#000}.inkf{fill:#000}.eye{stroke:#000}</style>`
+      + `<svg viewBox="-12 -12 280 280" style="width:${size}px;height:${size}px;display:block">${markup}</svg>`;
+    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    await new Promise((r) => setTimeout(r, 150));
+    return (await win.webContents.capturePage({ x: 0, y: 0, width: size, height: size })).toPNG();
+  };
+  if (process.argv.includes('--template')) {
+    writeFileSync(join(ICONS, 'trayTemplate.png'), await template(18));
+    writeFileSync(join(ICONS, 'trayTemplate@2x.png'), await template(36));
+    app.quit();
+    return;
+  }
+
   if (PREVIEW) {
     writeFileSync(join(ROOT, 'scratch', 'icon-preview.png'), await shoot(512, 56 / 256));
     writeFileSync(join(ROOT, 'scratch', 'icon-preview-32.png'), await shoot(32, 56 / 256));
@@ -49,6 +66,8 @@ app.whenReady().then(async () => {
   writeFileSync(join(ICONS, 'icon.png'), await shoot(512, 56 / 256));
   writeFileSync(join(ICONS, 'tray.png'), await shoot(32, 56 / 256));
   writeFileSync(join(ICONS, 'tray@2x.png'), await shoot(64, 56 / 256));
+  writeFileSync(join(ICONS, 'trayTemplate.png'), await template(18));
+  writeFileSync(join(ICONS, 'trayTemplate@2x.png'), await template(36));
   const entries = [];
   for (const size of ICO_SIZES) entries.push({ size, png: await shoot(size, 56 / 256) });
   writeFileSync(join(ICONS, 'icon.ico'), ico(entries));

@@ -1,6 +1,7 @@
 name: release
 
-# Pushing a tag v<version> builds the Windows installer and attaches it to that tag's release.
+# Pushing a tag v<version> builds the Windows installer and the macOS downloads (Apple silicon and
+# Intel, both built on the Apple silicon runner) and attaches them to that tag's release.
 on:
   push:
     tags: ['v*']
@@ -9,8 +10,21 @@ permissions:
   contents: write
 
 jobs:
-  installer:
-    runs-on: windows-latest
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            arch: x64
+            files: dist/CortiCompanion-Setup-*.exe
+          - os: macos-latest
+            arch: arm64
+            files: dist/CortiCompanion-*-mac-arm64.dmg dist/CortiCompanion-*-mac-arm64.zip
+          - os: macos-latest
+            arch: x64
+            files: dist/CortiCompanion-*-mac-x64.dmg dist/CortiCompanion-*-mac-x64.zip
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,10 +36,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:installer
-      - name: Attach installer to the release
+        env:
+          PACK_ARCH: ${{ matrix.arch }}
+          # no Developer ID: the macOS build is signed ad hoc (electron-builder.yml)
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Attach to the release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "CortiCompanion $GITHUB_REF_NAME" --notes "安装方法见 README。"
-          gh release upload "$GITHUB_REF_NAME" dist/CortiCompanion-Setup-*.exe --clobber
+          # the jobs race to create the release; whichever loses finds it there
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "CortiCompanion $GITHUB_REF_NAME" --notes "安装方法见 README。" || true
+          gh release upload "$GITHUB_REF_NAME" ${{ matrix.files }} --clobber

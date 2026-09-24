@@ -1,4 +1,5 @@
-# Packages build/app (assembled by scripts/pack.ts) into a per-user Windows installer.
+# Packages build/app (assembled by scripts/pack.ts) into a per-user Windows installer, or a
+# macOS disk image and zip for the architecture of the Mac it is built on.
 appId: ai.pal.corticompanion
 productName: CortiCompanion
 copyright: Copyright © 2026 Pal-AI-Lab
@@ -6,7 +7,7 @@ electronVersion: 44.4.4
 directories:
   app: build/app
   output: dist
-# the Core child runs TypeScript sources through tsx and spawns esbuild, koffi and pnpm: keep files unpacked
+# the Core child runs TypeScript sources through tsx and spawns esbuild, koffi, sherpa-onnx and pnpm: keep files unpacked
 asar: false
 npmRebuild: false
 nodeGypRebuild: false
@@ -30,3 +31,22 @@ nsis:
   runAfterFinish: true
   deleteAppDataOnUninstall: false
   artifactName: CortiCompanion-Setup-${version}.exe
+# No Developer ID: the app is signed ad hoc ("-"), which Apple silicon needs to launch it at all;
+# the first open goes through Privacy & Security → Open Anyway (see the README). It lives in the
+# menu bar (LSUIElement), not the Dock; its data is in ~/Library/Application Support/CortiCompanion.
+mac:
+  target:
+    - target: dmg
+    - target: zip
+  category: public.app-category.lifestyle
+  icon: app/icons/icon.png
+  identity: "-"
+  artifactName: CortiCompanion-${version}-mac-${arch}.${ext}
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  extendInfo:
+    LSUIElement: true
+    NSMicrophoneUsageDescription: Coo 用麦克风听你说话,语音在本机识别,录音不会上传。
+    NSAppleEventsUsageDescription: 操作电脑时,Coo 用它把你指定的应用切到前面。
+dmg:
+  writeUpdateInfo: false

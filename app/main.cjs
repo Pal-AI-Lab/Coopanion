@@ -9,31 +9,38 @@
  * - `--pet-host --pet-url=… --parent-pid=…`: the desktop pet's transparent window, started by
  *   the desktop-pet World through `CORTICO_DESKTOP_PET_HOST`. It uses its own profile directory.
  *
- * Every file the app writes lives under one data directory, and nothing goes to AppData:
- * `<install dir>\data` when packaged (the uninstaller leaves it), `build/data` from source,
- * or `CORTICO_COMPANION_DATA`. It holds `home/` (deployment, endpoint, Memory), `extensions/`
- * (Worlds and providers installed from npm), `logs/`, `tmp/` (the process temp directory),
- * `pnpm/` (store and caches for extension installs), and the Chromium profiles.
+ * Every file the app writes lives under one data directory: on Windows `<install dir>\data` when
+ * packaged (the uninstaller leaves it, and nothing goes to AppData); on macOS
+ * `~/Library/Application Support/CortiCompanion`, since the .app is not a place to write; from
+ * source `build/data`; or `CORTICO_COMPANION_DATA`. It holds `home/` (deployment, endpoint,
+ * Memory), `extensions/` (Worlds and providers installed from npm), `logs/`, `tmp/` (the process
+ * temp directory), `pnpm/` (store and caches for extension installs), and the Chromium profiles.
+ *
+ * On macOS the app lives in the menu bar (the Info.plist sets LSUIElement): no Dock icon, except
+ * while the settings window is open, so it can be reached with Command-Tab.
  */
 const { app, BrowserWindow, Menu, Notification, Tray, dialog, nativeImage, shell } = require('electron');
 const { cpSync, existsSync, mkdirSync, rmSync } = require('node:fs');
-const { dirname, join } = require('node:path');
+const { delimiter, dirname, join } = require('node:path');
 
+const MAC = process.platform === 'darwin';
 const APP_ROOT = app.getAppPath();
 const ICONS = join(__dirname, 'icons');
 const DATA = process.env.CORTICO_COMPANION_DATA
-  || (app.isPackaged ? join(dirname(process.execPath), 'data') : join(APP_ROOT, 'build', 'data'));
+  || (!app.isPackaged ? join(APP_ROOT, 'build', 'data')
+    : MAC ? join(app.getPath('appData'), 'CortiCompanion') : join(dirname(process.execPath), 'data'));
 // before anything asks Electron for a path: the single-instance lock and the profile live in userData
 const LEGACY_DATA = app.getPath('userData');
 app.setPath('userData', DATA);
 app.setPath('crashDumps', join(DATA, 'Crashpad'));
-process.env.TEMP = process.env.TMP = join(DATA, 'tmp');
+process.env.TEMP = process.env.TMP = process.env.TMPDIR = join(DATA, 'tmp');
 mkdirSync(process.env.TEMP, { recursive: true });
 
 /* ---------- pet window mode ---------- */
 if (process.argv.includes('--pet-host')) {
   const arg = (name) => { const hit = process.argv.find((a) => a.startsWith(`--${name}=`)); return hit ? hit.slice(name.length + 3) : ''; };
   app.setPath('userData', join(app.getPath('userData'), 'pet-window'));
+  if (MAC) app.dock?.hide();
   const { runPetHost } = require(require.resolve('cortico-world-desktop-pet/host/electron-main.cjs'));
   runPetHost({ url: arg('pet-url'), parentPid: Number(arg('parent-pid')) || 0, tray: false });
   return;
@@ -52,7 +59,7 @@ migrateLegacyData();
  * into the old pnpm store, so the extensions page reinstalls them), then the old directory goes.
  */
 function migrateLegacyData() {
-  if (!app.isPackaged || LEGACY_DATA === DATA || !existsSync(LEGACY_DATA)) return;
+  if (process.platform !== 'win32' || !app.isPackaged || LEGACY_DATA === DATA || !existsSync(LEGACY_DATA)) return;
   if (existsSync(join(LEGACY_DATA, 'home'))) {
     // both hold a deployment: neither is overwritten or removed
     if (existsSync(join(DATA, 'home'))) return;
@@ -77,7 +84,7 @@ const core = new CoreHost({
   env: {
     ...process.env,
     CORTICO_HOME: join(userData, 'home'),
-    CORTICO_COMPANION_EXTENSIONS: join(userData, 'extensions'),
+    CORTICO_EXTENSIONS_DIR: join(userData, 'extensions'),
     CORTICO_SUPERVISED: '1',
     CORTICO_START_PAUSED: '0',
     CORTICO_DESKTOP_PET_HOST: JSON.stringify(petHost),
@@ -85,8 +92,8 @@ const core = new CoreHost({
     pnpm_config_store_dir: join(DATA, 'pnpm', 'store'),
     pnpm_config_cache_dir: join(DATA, 'pnpm', 'cache'),
     pnpm_config_state_dir: join(DATA, 'pnpm', 'state'),
-    // extension installs call `corepack pnpm`; the shim runs the bundled pnpm on this runtime
-    PATH: `${shimDir};${process.env.PATH ?? ''}`,
+    // extension installs call `corepack pnpm`; the shim (corepack.cmd, or corepack on macOS) runs the bundled pnpm on this runtime
+    PATH: `${shimDir}${delimiter}${process.env.PATH ?? ''}`,
     CORTICO_NODE_EXE: process.execPath,
     CORTICO_PNPM_CJS: join(APP_ROOT, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs'),
   },
@@ -99,11 +106,13 @@ let quitting = false;
 const consoleUrl = (path = '') => (core.port ? `http://127.0.0.1:${core.port}/${path}` : null);
 
 function loadingPage(text) {
-  const html = `<!doctype html><meta charset="utf-8"><style>html,body{height:100%;margin:0;display:grid;place-items:center;background:#f4f5f4;color:#5c5c60;font:15px "Microsoft YaHei UI",system-ui,sans-serif}@media(prefers-color-scheme:dark){html,body{background:#0e1113;color:#9aa0a6}}</style><body>${text}</body>`;
+  const html = `<!doctype html><meta charset="utf-8"><style>html,body{height:100%;margin:0;display:grid;place-items:center;background:#f4f5f4;color:#5c5c60;font:15px -apple-system,"PingFang SC","Microsoft YaHei UI",system-ui,sans-serif}@media(prefers-color-scheme:dark){html,body{background:#0e1113;color:#9aa0a6}}</style><body>${text}</body>`;
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
 function openSettings(path = '') {
+  // a menu-bar app shows in the Dock only while it has a window to switch to
+  if (MAC) void app.dock?.show();
   if (settings) {
     if (settings.isMinimized()) settings.restore();
     settings.show();
@@ -132,6 +141,7 @@ function openSettings(path = '') {
     if (quitting) return;
     e.preventDefault();
     settings.hide();
+    if (MAC) app.dock?.hide();
   });
   settings.on('closed', () => { settings = null; });
   const url = consoleUrl(path);
@@ -158,8 +168,11 @@ async function ensurePet() {
 }
 
 function buildTray() {
-  const icon = nativeImage.createFromPath(join(ICONS, 'tray.png'));
-  icon.addRepresentation({ scaleFactor: 2, buffer: nativeImage.createFromPath(join(ICONS, 'tray@2x.png')).toPNG() });
+  // macOS: a black template image the menu bar tints to its own color
+  const name = MAC ? 'trayTemplate' : 'tray';
+  const icon = nativeImage.createFromPath(join(ICONS, `${name}.png`));
+  icon.addRepresentation({ scaleFactor: 2, buffer: nativeImage.createFromPath(join(ICONS, `${name}@2x.png`)).toPNG() });
+  if (MAC) icon.setTemplateImage(true);
   tray = new Tray(icon);
   tray.setToolTip('CortiCompanion');
   const refresh = () => {
@@ -175,7 +188,8 @@ function buildTray() {
   };
   refresh();
   core.on('state', refresh);
-  tray.on('click', () => openSettings());
+  // on macOS a click opens the menu, as every menu-bar icon does
+  if (!MAC) tray.on('click', () => openSettings());
 }
 
 core.on('ready', () => {
@@ -189,7 +203,10 @@ core.on('state', (state, detail) => {
 
 core.on('open', (path) => openSettings(path));
 core.on('quit', () => app.quit());
-app.on('second-instance', () => { if (core.state === 'running') ensurePet().catch(() => { /* Core went away meanwhile */ }); });
+const bringBack = () => { if (core.state === 'running') ensurePet().catch(() => { /* Core went away meanwhile */ }); };
+app.on('second-instance', bringBack);
+// macOS: opening the app again while it runs
+app.on('activate', bringBack);
 app.on('window-all-closed', () => { /* stays in the tray */ });
 app.on('before-quit', (e) => {
   if (quitting) return;

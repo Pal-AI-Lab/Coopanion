@@ -36,6 +36,8 @@ const DEFAULT_USER = '主人';
 const TYPE_CPS = 20;
 /** Seconds Coo's line stays after it is typed, before the reply area comes up. */
 const LINE_REST = .35;
+/** On a Mac the app's icon is in the menu bar, not in a tray at the bottom right. */
+const MAC = /Macintosh|Mac OS X/.test(navigator.userAgent);
 /** Motions `say` passes to `act`; any other name is an expression. */
 const MOTIONS = new Set(['hop', 'nod', 'spin', 'jump', 'shake', 'look']);
 
@@ -92,6 +94,7 @@ const S = pick({
     buttons: '鼠标停在我身上,旁边会冒出几个按钮;右键我,能打开菜单。',
     ok: '好',
     tray: '关掉这个窗口我也还在屏幕底边。想再打开设置,点任务栏右下角托盘里我的图标。',
+    trayMac: '关掉这个窗口我也还在屏幕底边。想再打开设置,点屏幕顶上菜单栏里我的图标。',
     finish: '开始吧',
     dress: '先给我换身衣服',
     skipped: '引导已跳过。想再看,点「开始」页右上角的「使用引导」。',
@@ -148,6 +151,7 @@ const S = pick({
     buttons: 'Rest the pointer on me and buttons pop up beside me; right-click me for the menu.',
     ok: 'OK',
     tray: 'Closing this window does not send me away. The tray icon at the bottom right opens settings again.',
+    trayMac: 'Closing this window does not send me away. My icon in the menu bar at the top opens settings again.',
     finish: "Let's go",
     dress: 'Dress me up first',
     skipped: 'Guide skipped. Open it again with "Guide" at the top right of the Start page.',
@@ -580,7 +584,7 @@ export function openGuide(o: GuideOptions): void {
     await answer<void>((done) => [button(S.ok, () => done(), true)]);
 
     progress('done');
-    await say(S.tray, 'happy');
+    await say(MAC ? S.trayMac : S.tray, 'happy');
     const where = await answer<'home' | 'dress'>((done) => [
       button(S.finish, () => done('home'), true),
       button(S.dress, () => done('dress')),
