@@ -25,10 +25,10 @@
 
 直接从终端启动相同可执行文件时，TCC 的负责进程身份不同，权限预检会失败；不能据此推断用户没给应用授权。通过 LaunchServices 启动的旧包，输入、录屏、监听权限均为 true。
 
-本轮新版已安装至 `/Applications/Coopanion.app`。本机包采用 ad hoc 签名，新构建的身份未继承原授权（即使系统设置显示同名开关开启，预检仍可能为 false），需要通过系统设置刷新授权。保留 appId/数据目录只保证数据兼容，不保证临时签名的 TCC 权限继承。正式发布应使用稳定的 Developer ID 签名。当前新版安装包的权限待用户刷新后再复测；不要将同一授权身份下的引擎测试等同于新包已经获得权限。
+本轮新版已安装至 `/Applications/Coopanion.app`。本机包采用 ad hoc 签名，新构建的身份未继承原授权（即使系统设置显示同名开关开启，预检仍可能为 false），需要通过系统设置刷新授权。保留 appId/数据目录只保证数据兼容，不保证临时签名的 TCC 权限继承。正式发布应使用稳定的 Developer ID 签名。用户从权限列表删除旧条目，并明确重新添加 `/Applications/Coopanion.app` 后，新版 input/screen/listen 三项预检全部为 true。最终安装包原生引擎再次通过全部四组实际输入测试，截图成功（800×520，56,442 bytes）。仅切换开关未解决本次签名匹配问题，重新添加正确路径后恢复。
 
 1. 在打包应用中验证中文输入法候选窗、模型名原生下拉菜单，分别检查普通桌面及全屏应用所在 Space。
-2. 刷新新版打包应用的辅助功能、屏幕录制和输入监控授权并重启后，复验实际应用中的导航与输入。
+2. 最终安装包已完成原生输入与截图复验；可继续在日常目标应用中检查导航及长对话场景。
 3. 外接显示器和切换主屏、macOS 新旧安装数据，以及 Windows 安装包升级需要对应环境复验。
 
 参考：[Electron 窗口层级](https://www.electronjs.org/docs/latest/api/browser-window#winsetalwaysontopflag-level-relativelevel)、[应用激活](https://www.electronjs.org/docs/latest/api/app#appfocusoptions)、[Chromium macOS 字符事件实现](https://chromium.googlesource.com/chromium/src/+/refs/tags/138.0.7204.236/remoting/host/input_injector_mac.cc)。
