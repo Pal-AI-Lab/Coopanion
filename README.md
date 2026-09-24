@@ -222,16 +222,8 @@ Windows 上所有数据都在安装目录的 `data` 文件夹里:
 
 **卸载**:在 Windows「设置 → 应用」里找到 Coopanion 卸载。`data` 文件夹会保留,重装后记忆和设置还在;彻底不要了,就手动删掉整个安装目录。
 
-Mac 上新安装的数据在 `~/Library/Application Support/Coopanion`,里面的分法同上。旧版本升级会继续使用原有的 `~/Library/Application Support/CortiCompanion`，保留记忆、密钥和设置。卸载时把「应用程序」里的 Coopanion 拖进废纸篓;
+Mac 上数据在 `~/Library/Application Support/Coopanion`,里面的分法同上。卸载时把「应用程序」里的 Coopanion 拖进废纸篓;
 彻底不要了,再删掉这个文件夹。
-
-<details>
-<summary>从 0.1.0 升级</summary>
-
-第一次启动新版时,会把 `%APPDATA%\CortiCompanion` 里的记忆、设置和日志搬进 `data`,再删掉旧目录。
-旧版装过的扩展,要在「扩展」页重新安装一次。
-
-</details>
 
 ## 常见问题
 
