@@ -1,5 +1,5 @@
 /**
- * CortiCompanion 的控制台入口:由 scripts/stage.ts 覆盖在 Cortico 的 src/web/client/main.ts 上。
+ * Coopanion 的控制台入口:由 scripts/stage.ts 覆盖在 Cortico 的 src/web/client/main.ts 上。
  * 与上游的差别:
  * - 页面表多了关于桌宠的四页「开始」「习惯」「装扮」「语音输入」(features/home、pet、dress、voice),其余页重排、改了几个分组名;
  * - 两种模式(features/mode.ts):普通模式左栏只有那四页和「用量与成本」,别的路由都回到「开始」,底栏只留暂停键;

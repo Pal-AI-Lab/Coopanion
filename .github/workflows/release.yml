@@ -17,13 +17,13 @@ jobs:
         include:
           - os: windows-latest
             arch: x64
-            files: dist/CortiCompanion-Setup-*.exe
+            files: dist/Coopanion-Setup-*.exe
           - os: macos-latest
             arch: arm64
-            files: dist/CortiCompanion-*-mac-arm64.dmg dist/CortiCompanion-*-mac-arm64.zip
+            files: dist/Coopanion-*-mac-arm64.dmg dist/Coopanion-*-mac-arm64.zip
           - os: macos-latest
             arch: x64
-            files: dist/CortiCompanion-*-mac-x64.dmg dist/CortiCompanion-*-mac-x64.zip
+            files: dist/Coopanion-*-mac-x64.dmg dist/Coopanion-*-mac-x64.zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -46,5 +46,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # the jobs race to create the release; whichever loses finds it there
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "CortiCompanion $GITHUB_REF_NAME" --notes "安装方法见 README。" || true
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "Coopanion $GITHUB_REF_NAME" --notes "安装方法见 README。" || true
           gh release upload "$GITHUB_REF_NAME" ${{ matrix.files }} --clobber

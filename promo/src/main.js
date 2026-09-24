@@ -1,5 +1,5 @@
 /**
- * CortiCompanion promo, 1920×1080, cut to the soundtrack's bar grid (155 BPM). Sections of the
+ * Coopanion promo, 1920×1080, cut to the soundtrack's bar grid (155 BPM). Sections of the
  * track, in bars: intro 1–17, break 17–25, build-up 25–33, drop 33–49, breakdown 49–65. The
  * decorative features take the intro and the break, setup takes the build-up, the interactive
  * features land on the drop, and extensions and the end card take the breakdown.

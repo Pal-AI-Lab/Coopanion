@@ -16,7 +16,7 @@ const THEMES = {
   dark: { bg: '#0D1117', ink: '#FFFFFF', dim: '#8C95A3', accent: '#2FD59B', blush: '#FF7F9E', shadow: 'rgba(0,0,0,.45)', cursor: '#0D1117' },
 };
 const BANNERS = {
-  companion: { label: 'CortiCompanion', lines: [['CortiCompanion', 1]], max: 1.1, face: 'happy', skin: {} },
+  companion: { label: 'Coopanion', lines: [['Coopanion', 1]], max: 1.1, face: 'happy', skin: {} },
   'desktop-pet': { label: 'cortico-world-desktop-pet', lines: [['cortico world', .52, 'dim'], ['desktop pet', 1]], max: .92, face: 'wink', skin: { head: 'cat' } },
   cua: { label: 'cortico-world-cua', lines: [['cortico world', .52, 'dim'], ['computer use', 1]], max: .92, face: 'neutral', look: [4, 3], skin: {}, cursor: true },
 };

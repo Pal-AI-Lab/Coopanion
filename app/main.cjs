@@ -1,5 +1,5 @@
 /**
- * CortiCompanion main process.
+ * Coopanion main process.
  *
  * Two modes share this executable:
  * - the app: tray icon, the settings window (the Cortico console served by the Core child on
@@ -11,7 +11,7 @@
  *
  * Every file the app writes lives under one data directory: on Windows `<install dir>\data` when
  * packaged (the uninstaller leaves it, and nothing goes to AppData); on macOS
- * `~/Library/Application Support/CortiCompanion`, since the .app is not a place to write; from
+ * `~/Library/Application Support/Coopanion`, since the .app is not a place to write; from
  * source `build/data`; or `CORTICO_COMPANION_DATA`. It holds `home/` (deployment, endpoint,
  * Memory), `extensions/` (Worlds and providers installed from npm), `logs/`, `tmp/` (the process
  * temp directory), `pnpm/` (store and caches for extension installs), and the Chromium profiles.
@@ -23,14 +23,16 @@ const { app, BrowserWindow, Menu, Notification, Tray, dialog, nativeImage, shell
 const { cpSync, existsSync, mkdirSync, rmSync } = require('node:fs');
 const { delimiter, dirname, join } = require('node:path');
 
+const { macDataPath } = require('./data-path.cjs');
+
 const MAC = process.platform === 'darwin';
 const APP_ROOT = app.getAppPath();
 const ICONS = join(__dirname, 'icons');
 const DATA = process.env.CORTICO_COMPANION_DATA
   || (!app.isPackaged ? join(APP_ROOT, 'build', 'data')
-    : MAC ? join(app.getPath('appData'), 'CortiCompanion') : join(dirname(process.execPath), 'data'));
+    : MAC ? macDataPath(app.getPath('appData')) : join(dirname(process.execPath), 'data'));
 // before anything asks Electron for a path: the single-instance lock and the profile live in userData
-const LEGACY_DATA = app.getPath('userData');
+const LEGACY_DATA = join(app.getPath('appData'), 'CortiCompanion');
 app.setPath('userData', DATA);
 app.setPath('crashDumps', join(DATA, 'Crashpad'));
 process.env.TEMP = process.env.TMP = process.env.TMPDIR = join(DATA, 'tmp');
@@ -123,7 +125,7 @@ function openSettings(path = '') {
   }
   settings = new BrowserWindow({
     width: 1180, height: 800, minWidth: 880, minHeight: 600,
-    title: 'CortiCompanion', icon: join(ICONS, 'icon.png'), autoHideMenuBar: true, show: false,
+    title: 'Coopanion', icon: join(ICONS, 'icon.png'), autoHideMenuBar: true, show: false,
     backgroundColor: '#f4f5f4',
     webPreferences: { contextIsolation: true, sandbox: true, spellcheck: false },
   });
@@ -174,7 +176,7 @@ function buildTray() {
   icon.addRepresentation({ scaleFactor: 2, buffer: nativeImage.createFromPath(join(ICONS, `${name}@2x.png`)).toPNG() });
   if (MAC) icon.setTemplateImage(true);
   tray = new Tray(icon);
-  tray.setToolTip('CortiCompanion');
+  tray.setToolTip('Coopanion');
   const refresh = () => {
     const login = app.getLoginItemSettings().openAtLogin;
     tray.setContextMenu(Menu.buildFromTemplate([
@@ -197,8 +199,8 @@ core.on('ready', () => {
 });
 core.on('state', (state, detail) => {
   if (!detail) return;
-  if (Notification.isSupported()) new Notification({ title: 'CortiCompanion', body: detail, icon: join(ICONS, 'icon.png') }).show();
-  if (state === 'failed') dialog.showErrorBox('CortiCompanion', detail);
+  if (Notification.isSupported()) new Notification({ title: 'Coopanion', body: detail, icon: join(ICONS, 'icon.png') }).show();
+  if (state === 'failed') dialog.showErrorBox('Coopanion', detail);
 });
 
 core.on('open', (path) => openSettings(path));

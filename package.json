@@ -1,6 +1,6 @@
 {
-  "name": "corti-companion",
-  "productName": "CortiCompanion",
+  "name": "coopanion",
+  "productName": "Coopanion",
   "version": "0.1.4",
   "private": true,
   "description": "A desktop companion built on Cortico: a pet on your screen that talks, listens and can operate the computer",
