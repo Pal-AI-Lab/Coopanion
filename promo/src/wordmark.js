@@ -48,7 +48,7 @@ const GLYPHS = {
  * Glyph strokes laid out left to right from x = 0, with each glyph's left edge and the total
  * skeleton width. `cap` ({ r, cy, width }) replaces the capital C, e.g. with a larger, heavier initial.
  */
-export function lettering(text, { cap } = {}) {
+export function lettering(text, { cap, accentAt } = {}) {
   let cursor = 0;
   const at = [];
   const glyphs = [...text].map((ch, i) => {
@@ -56,7 +56,7 @@ export function lettering(text, { cap } = {}) {
     const g = ch === 'C' && cap ? capital(cap.r, cap.cy, cap.width) : GLYPHS[ch];
     if (!g) throw new Error(`no glyph for "${ch}"`);
     at.push(cursor); cursor += g.w + GAP;
-    return g.strokes(at[i]);
+    return g.strokes(at[i]).map(s => accentAt ? { ...s, accent: accentAt.includes(i) } : s);
   });
   return { width: cursor - GAP, glyphs, at };
 }
@@ -66,7 +66,7 @@ export const LETTER_BOX = { top: 40, centre: Y, bottom: 166 };
 /** A word drawn stroke by stroke; centred on x, its x-height centred on y, in stage pixels. */
 export class Wordmark {
   constructor(parent, text, { x, y, scale = 1.4, stagger = .045, cap } = {}) {
-    const { width, glyphs } = lettering(text, { cap });
+    const { width, glyphs } = lettering(text, { cap, accentAt: text === 'Coopanion' ? [1, 2] : undefined });
     // viewBox covers the i dots above and the p descender below, plus the stroke radius
     const vx = -SW, vy = LETTER_BOX.top, vw = width + 2 * SW, vh = LETTER_BOX.bottom - vy;
     this.svg = svgEl('svg', { viewBox: `${vx} ${vy} ${vw} ${vh}`, width: f1(vw * scale), height: f1(vh * scale) });

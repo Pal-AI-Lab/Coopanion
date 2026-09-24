@@ -38,6 +38,7 @@ import { dressFeature } from './features/dress/index.ts';
 import { voiceFeature } from './features/voice/index.ts';
 import { onModeRequest, readMode, writeMode, type ConsoleMode } from './features/mode.ts';
 import { icon } from './ui/icons.ts';
+import { coopanionWordmark } from './branding.ts';
 import type { ConsoleMemo } from '../shared/client-panel.ts';
 
 /**
@@ -207,6 +208,9 @@ export function boot(doc: Document = document): { dispose(): void } {
     const ui = createConsoleUi({ memo, overlayHost: doc.body, signal: life.signal, doc });
     const advanced = mode === 'advanced';
     const next = createShell({ doc, ui, router, features: advanced ? FEATURES : BASIC_FEATURES, onError });
+    const brand = next.el.querySelector('.brand');
+    brand?.setAttribute('aria-label', 'Coopanion');
+    brand?.replaceChildren(coopanionWordmark(doc));
     shell = next;
     life.own({ dispose: () => { next.dispose(); next.el.remove(); } });
     doc.body.insertBefore(next.el, doc.body.firstChild);
