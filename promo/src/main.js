@@ -16,6 +16,8 @@ import { createArcs } from './arcs.js';
 import { Bubble, Caption, Chip, Cursor } from './widgets.js';
 import { Wordmark } from './wordmark.js';
 import { busInto, createVoices, renderTrack } from './sfx.js';
+import { VENDORS } from '../../packages/cortico-provider-coo/src/vendors.ts';
+import { VENDOR_ICONS } from '../../packages/cortico-provider-coo/src/icons.ts';
 
 export const SOUNDTRACK = { file: 'assets/bgm.mp3', title: '花卷Jwyan - 可爱鲈鱼' };
 /** Balance of the music and the sound effects, for the live preview and the recording alike: the main hits (90th
@@ -629,7 +631,7 @@ const stepsCap = new Caption(steps.el, { x: 960, y: 80, size: 88, align: 'center
 stepsCap.set('三步开始');
 const CARDS = [
   ['下载安装', 'Windows 安装包 / Mac dmg,<br>双击就能用'],
-  ['填入 API KEY(BYOK)', '支持 OpenAI, DeepSeek,<br>等多种上游！'],
+  ['填入 API KEY(BYOK)', 'DeepSeek、千问、Kimi……<br>九家上游任你选'],
   ['开始聊天', '打字、说话,<br>或者拎起它'],
 ];
 const CARD_AT = [bar(25) + .05, bar(27), bar(29)];
@@ -643,6 +645,15 @@ const cardEls = CARDS.map(([t1, p], i) => {
   return c;
 });
 const freeChip = new Chip(steps.el, 'chip on');
+// the services Coo connects to pop up under the cards, one after another, while the pet stands on the key card
+const LOGO_AT = (i) => TO_CARD2.lands + .15 + i * .12;
+const logoRow = h('div', 'logos');
+steps.el.appendChild(logoRow);
+const logoEls = VENDORS.map((v) => {
+  const e = h('div', 'logo', `<span class="mark">${VENDOR_ICONS[v.id]}</span><b>${v.name}</b>`);
+  logoRow.appendChild(e);
+  return e;
+});
 function renderSteps(t) {
   if (!showScene(steps, t, 0)) return;
   stepsCap.render(t, T.steps[0] + .1, T.steps[1] - .3);
@@ -653,7 +664,12 @@ function renderSteps(t) {
     c.style.transform = `translateY(${f1((1 - k) * 80)}px) scale(${f1((.9 + .1 * k) * 100) / 100})`;
     c.classList.toggle('on', t >= CARD_ON[i][0] && t < CARD_ON[i][1]);
   });
-  freeChip.render(t, bar(30.5), T.steps[1] - .3, 'MIT 开源 · Windows 10 / 11 · macOS', 960, 860);
+  logoEls.forEach((e, i) => {
+    const at = LOGO_AT(i), k = ease.outBack(seg(t, at, at + .35), 2.2);
+    e.style.opacity = String(f1(clamp01(seg(t, at, at + .15)) * 100) / 100);
+    e.style.transform = `translateY(${f1((1 - k) * 46)}px) scale(${f1((.6 + .4 * k) * 100) / 100})`;
+  });
+  freeChip.render(t, bar(30.5), T.steps[1] - .3, 'MIT 开源 · Windows 10 / 11 · macOS', 960, 968);
 }
 
 /* say */
@@ -875,6 +891,7 @@ function collectCues() {
   add(NIGHT.dusk, 'dusk');
   add(NIGHT.dawn + .1, 'dawn');
   CARD_AT.forEach((at) => add(at, 'pop'));
+  VENDORS.forEach((_, i) => add(LOGO_AT(i), 'tick'));
   add(bar(30.5), 'tick');
   speak('我们聊点什么?', bar(31), 14);
   for (const [text, start] of SAY) speak(text, start, 16);
