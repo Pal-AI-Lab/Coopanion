@@ -25,7 +25,7 @@
 
 桌宠 **Coo** 住在你的屏幕底边。它会用气泡和你聊天、听你说话、在屏幕底边走来走去,也能在你允许时帮你操作电脑。Windows 和 macOS 都能用。
 
-![设置窗口的「开始」页与桌面上的桌宠](docs/images/home.png)
+![1790221953106](image/README/1790221953106.png)
 
 ## 它能做什么
 
@@ -78,6 +78,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 
 1. **启动**:Coo 从屏幕顶上掉到底边,任务栏右下角(Mac 是屏幕顶部菜单栏)多一个图标。不会弹出任何窗口。
 2. **跟着引导走**:第一次启动时,Coo 就在屏幕底边冒气泡和你对话,答案直接在气泡里点选或填写:
+
    1. 打个招呼,问你怎么称呼;
    2. 问你希望它安静还是活泼:点「不乱动 / 多待着 / 常走动」三张卡片,它马上站着不动、溜达起来或者跑来跑去给你看;
    3. 问你用哪家模型服务:气泡里是一排带标志的卡片,DeepSeek 排第一,拿不准就选它;再把那一家的 API Key 贴进气泡里的输入框,当场连一下,连上了它会高兴地跳起来;
@@ -99,17 +100,17 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 
 别家的申请页,在气泡或「开始」页选中那一家后点「去 … 申请」就能打开:
 
-| 服务 | 申请 Key | 默认模型 |
-|---|---|---|
-| DeepSeek | [platform.deepseek.com](https://platform.deepseek.com/api_keys) | `deepseek-flash` |
-| 通义千问(阿里云百炼) | [bailian.console.aliyun.com](https://bailian.console.aliyun.com/cn-beijing/model/settings/api-key) | `qwen3.8-flash` |
-| Kimi(月之暗面) | [platform.kimi.com](https://platform.kimi.com/console/api-keys) | `kimi-k3` |
-| 智谱 GLM | [bigmodel.cn](https://bigmodel.cn/usercenter/proj-mgmt/apikeys) | `glm-5.3-flash`(智谱的 Responses 文档只示范了 `glm-5.3`,连不上就换成它) |
-| 豆包(火山方舟) | [ark.volcengine.com](https://ark.volcengine.com/region:cn-beijing/apikey) | `doubao-seed-2-1-lite-260915`(要先在方舟控制台「开通管理」里开通这个模型) |
-| 百度千帆 | [console.bce.baidu.com](https://console.bce.baidu.com/iam/#/iam/apikey/list) | `glm-5.1`(千帆的 Responses 接口没有文心模型,也没有能看图的) |
-| MiniMax | [platform.minimax.cn](https://platform.minimax.cn/user-center/basic-information/interface-key) | `MiniMax-M3` |
-| 阶跃星辰 | [platform.stepfun.com](https://platform.stepfun.com/interface-key) | `step-3.7-flash` |
-| OpenRouter | [openrouter.ai](https://openrouter.ai/settings/keys) | `deepseek/deepseek-v4.1-flash` |
+| 服务                 | 申请 Key                                                                                          | 默认模型                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| DeepSeek             | [platform.deepseek.com](https://platform.deepseek.com/api_keys)                                    | `deepseek-flash`                                                          |
+| 通义千问(阿里云百炼) | [bailian.console.aliyun.com](https://bailian.console.aliyun.com/cn-beijing/model/settings/api-key) | `qwen3.8-flash`                                                           |
+| Kimi(月之暗面)       | [platform.kimi.com](https://platform.kimi.com/console/api-keys)                                    | `kimi-k3`                                                                 |
+| 智谱 GLM             | [bigmodel.cn](https://bigmodel.cn/usercenter/proj-mgmt/apikeys)                                    | `glm-5.3-flash`(智谱的 Responses 文档只示范了 `glm-5.3`,连不上就换成它) |
+| 豆包(火山方舟)       | [ark.volcengine.com](https://ark.volcengine.com/region:cn-beijing/apikey)                          | `doubao-seed-2-1-lite-260915`(要先在方舟控制台「开通管理」里开通这个模型) |
+| 百度千帆             | [console.bce.baidu.com](https://console.bce.baidu.com/iam/#/iam/apikey/list)                       | `glm-5.1`(千帆的 Responses 接口没有文心模型,也没有能看图的)               |
+| MiniMax              | [platform.minimax.cn](https://platform.minimax.cn/user-center/basic-information/interface-key)     | `MiniMax-M3`                                                              |
+| 阶跃星辰             | [platform.stepfun.com](https://platform.stepfun.com/interface-key)                                 | `step-3.7-flash`                                                          |
+| OpenRouter           | [openrouter.ai](https://openrouter.ai/settings/keys)                                               | `deepseek/deepseek-v4.1-flash`                                            |
 
 默认模型是每家最新一代里便宜、能看图的那档(千帆没有这样的模型)。想用别的,在引导里选完服务后把模型名改掉,或者在「开始」页的「模型」框里填,输入时会列出几个推荐的。
 
@@ -121,12 +122,12 @@ DeepSeek 以外的几家是按各自文档接入的,还没拿真实的 Key 逐�
 
 ### 和 Coo 说话
 
-| 方式 | 怎么做 |
-|---|---|
-| 语音 | **快速按一下左 Alt、紧接着按住**(Mac 是左 Option)说话,松开就算一句。Coo 会歪头听,在虚线气泡里边听边显示听到的字(灰色部分还可能改)。 |
-| 打字 | 鼠标停在 Coo 身上,点身旁的气泡按钮;或者双击 Coo。 |
+| 方式       | 怎么做                                                                                                                                              |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 语音       | **快速按一下左 Alt、紧接着按住**(Mac 是左 Option)说话,松开就算一句。Coo 会歪头听,在虚线气泡里边听边显示听到的字(灰色部分还可能改)。           |
+| 打字       | 鼠标停在 Coo 身上,点身旁的气泡按钮;或者双击 Coo。                                                                                                   |
 | 麦克风按钮 | 鼠标停在 Coo 身上时,身旁的麦克风按钮能开关语音输入(角上的 KEY / AUTO 表示按键收音还是一直在听);正在听时**长按**它,这句话马上发出,不用等停顿。 |
-| 回答提问 | Coo 有时会给几个选项:点一下,或者按键盘上的 1–3;都不合适就在最后一格自己写。 |
+| 回答提问   | Coo 有时会给几个选项:点一下,或者按键盘上的 1–3;都不合适就在最后一格自己写。                                                                        |
 
 说话键暂时不可用时会退回自动收音，按钮显示 AUTO，悬停提示会说明原因；按住说话或按一下开关时显示 KEY。
 
@@ -166,12 +167,12 @@ Mac:点屏幕顶部菜单栏里 Coo 的图标,是同一份菜单。
 
 点托盘(菜单栏)图标,或者在 Coo 身上右键点齿轮,都能打开设置窗口。默认是**普通模式**,只有关于桌宠的几页:
 
-| 页面 | 能做什么 |
-|---|---|
-| 开始 | 连接模型、看 Coo 醒着没有、显示桌宠、重看引导。左栏底部是暂停 / 继续。 |
-| 习惯 | 怎么称呼你、走动多少、颜色、大小(拖动时 Coo 跟着变)、音效、悬停按钮 |
-| 装扮 | 配色、帽子、耳饰、眼镜、颈饰,改动立刻生效 |
-| 语音输入 | 开关、识别引擎、识别模型下载、说话键暂时不可用时会退回自动收音，按钮显示 AUTO，悬停提示会说明原因；按住说话或按一下开关时显示 KEY。
+| 页面     | 能做什么                                                                                                                            |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 开始     | 连接模型、看 Coo 醒着没有、显示桌宠、重看引导。左栏底部是暂停 / 继续。                                                              |
+| 习惯     | 怎么称呼你、走动多少、颜色、大小(拖动时 Coo 跟着变)、音效、悬停按钮                                                                 |
+| 装扮     | 配色、帽子、耳饰、眼镜、颈饰,改动立刻生效                                                                                           |
+| 语音输入 | 开关、识别引擎、识别模型下载、说话键暂时不可用时会退回自动收音，按钮显示 AUTO，悬停提示会说明原因；按住说话或按一下开关时显示 KEY。 |
 
 说话键、麦克风、收音方式,还有电平条和听到的内容 |
 | 用量与成本 | 每天用了多少 token、花了多少钱 |
@@ -211,13 +212,13 @@ Mac:点屏幕顶部菜单栏里 Coo 的图标,是同一份菜单。
 
 Windows 上所有数据都在安装目录的 `data` 文件夹里:
 
-| 内容 | 位置(相对安装目录) |
-|---|---|
-| Coo 的记忆、对话记录、设置、API Key | `data\home` |
-| 安装的扩展 | `data\extensions` |
-| 运行日志 | `data\logs` |
-| 语音识别模型(FunASR,下载后才有) | `data\home\models` |
-| 临时文件、扩展安装缓存、窗口缓存 | `data\tmp`、`data\pnpm`,以及 `data` 下的其余文件夹 |
+| 内容                                | 位置(相对安装目录)                                       |
+| ----------------------------------- | -------------------------------------------------------- |
+| Coo 的记忆、对话记录、设置、API Key | `data\home`                                            |
+| 安装的扩展                          | `data\extensions`                                      |
+| 运行日志                            | `data\logs`                                            |
+| 语音识别模型(FunASR,下载后才有)     | `data\home\models`                                     |
+| 临时文件、扩展安装缓存、窗口缓存    | `data\tmp`、`data\pnpm`,以及 `data` 下的其余文件夹 |
 
 **卸载**:在 Windows「设置 → 应用」里找到 Coopanion 卸载。`data` 文件夹会保留,重装后记忆和设置还在;彻底不要了,就手动删掉整个安装目录。
 
