@@ -1,7 +1,7 @@
 {
   "name": "corti-companion",
   "productName": "CortiCompanion",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "A desktop companion built on Cortico: a pet on your screen that talks, listens and can operate the computer",
   "license": "MIT",
@@ -24,7 +24,7 @@
     "typecheck:web": "tsc -p tsconfig.web.json"
   },
   "dependencies": {
-    "cortico-provider-deepseek": "workspace:*",
+    "cortico-provider-coo": "workspace:*",
     "cortico-world-cua": "workspace:*",
     "cortico-world-desktop-pet": "workspace:*",
     "express": "^4.22.3",
