@@ -10,13 +10,14 @@
  * pet page is connected.
  *
  * First start writes the files in `seed.ts`; after that every value is the operator's, edited in
- * the console. While the active endpoint has no key, event delivery starts paused and the pet asks
- * in its bubble whether to open the settings window for it, and asks again later for as long as no
- * key is set.
+ * the console. While the active endpoint has no key, event delivery starts paused. The first start
+ * runs the introduction (`guide.ts`) in the pet's bubble, the key box included; after it, the pet
+ * asks for a missing key in its bubble now and then, for as long as no key is set.
  *
  * The parent (Electron main) gets `{ type: 'companion:ready', port, dataDir, keyMissing }` once the
  * console listens, `{ type: 'companion:open', path }` to show the settings window at a console
- * route and `{ type: 'companion:quit' }` to quit the whole app; it asks for a clean stop with
+ * route, `{ type: 'companion:hide' }` to put it away (the introduction runs again on the desktop)
+ * and `{ type: 'companion:quit' }` to quit the whole app; it asks for a clean stop with
  * `{ type: 'companion:shutdown' }`.
  */
 import { join } from 'node:path';
@@ -37,6 +38,7 @@ import { desktopPetDefinition, type DesktopPetWorld } from 'cortico-world-deskto
 import { cuaDefinition } from 'cortico-world-cua';
 import DEEPSEEK from 'cortico-provider-deepseek';
 import { bundledConsoleAssets } from './bundled-panels.ts';
+import { askForKey, guideDone, markDone, runGuide, type GuideDeps } from './guide.ts';
 import { CONSOLE_PORT, DEPLOYMENT, DISPLAY_NAME, seed } from './seed.ts';
 
 /** The active endpoint's key is set in the process environment or the endpoint's `.env`. */
@@ -47,52 +49,16 @@ function hasKey(config: CoreConfig): boolean {
   return secretReader(join(providersRoot(), config.activeProvider, '.env'))(entry.secret) !== '';
 }
 
-/** How long the pet page gets to show up before the settings window opens without asking. */
+/** How long the pet page gets to show up on a first start before the settings window opens instead. */
 const PET_WAIT_MS = 60_000;
-/** Without a key the pet asks again this long after its last ask (answered, closed or ignored). */
-const ASK_AGAIN_MS = 20 * 60_000;
-/** Talking to Coo without a key asks again sooner, but not within this long of the last ask. */
-const ASK_TALKED_MS = 90_000;
-/** How often the loop looks at the key (it reads the endpoint's `.env`). */
-const POLL_MS = 2000;
 /** Pet events that mean the person is talking to Coo. */
 const TALK_EVENTS = new Set(['desktop-pet.message', 'desktop-pet.speech']);
-
-const ASK = {
-  first: '我还没连上模型,填好 DeepSeek 的 API Key 我才能和你说话。现在去填吗?',
-  talked: '我听到了,可还没连上模型,没法回你。现在去填 DeepSeek 的 API Key 吗?',
-  again: '还是没连上模型呢,填好 DeepSeek 的 API Key 我才能陪你聊天。现在去填吗?',
-};
+/** After an introduction where the key was put off, the first ask waits this long (talking to Coo asks sooner). */
+const ASK_AFTER_GUIDE_MS = 20 * 60_000;
+/** Written in the deployment directory once the introduction has run. */
+const GUIDE_FILE = 'guide.json';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-/**
- * A start shows only the pet, so the pet asks for the missing key in its bubble; "yes" opens the
- * home page, where the key goes. The question comes back for as long as no key is set: a while
- * after each ask, or sooner once the person talks to Coo (what they said waits, undelivered, for
- * the key). Without a pet page on the first ask the home page opens anyway, since nothing else
- * would tell the person why Coo stays silent; later asks wait for the pet page.
- */
-async function askForKey(pet: () => DesktopPetWorld | null, keySet: () => boolean, talked: () => boolean): Promise<void> {
-  const deadline = Date.now() + PET_WAIT_MS;
-  while (!pet()?.petState().connected && Date.now() < deadline) await sleep(1000);
-  let lastAsk = 0;
-  while (!keySet()) {
-    const since = Date.now() - lastAsk;
-    const spoke = talked();
-    const due = lastAsk === 0 || since >= ASK_AGAIN_MS || (spoke && since >= ASK_TALKED_MS);
-    const world = pet();
-    if (due && (lastAsk === 0 || world?.petState().connected)) {
-      const question = lastAsk === 0 ? ASK.first : spoke ? ASK.talked : ASK.again;
-      const answer = await world?.confirm(question, ['去填', '等会儿']) ?? 'unavailable';
-      if (keySet()) return;
-      if (answer === 'yes' || (lastAsk === 0 && answer === 'unavailable')) process.send?.({ type: 'companion:open', path: '#/home' });
-      lastAsk = Date.now();
-      talked(); // what was said while the bubble was up got its answer there
-    }
-    await sleep(POLL_MS);
-  }
-}
 
 /** Notes the person talking to Coo on the bus; the returned check reports it once and resets. */
 function watchTalk(bus: WakeBus): () => boolean {
@@ -105,6 +71,26 @@ function watchTalk(bus: WakeBus): () => boolean {
   return () => { const was = heard; heard = false; return was; };
 }
 
+/**
+ * The introduction on a first start, then the key asks while no key is set. An install that already
+ * has a key (one from before the introduction existed) counts as introduced. When no pet page shows
+ * up on a first start, the settings window opens at the home page instead, since nothing else would
+ * tell the person why Coo stays silent.
+ */
+async function introduce(deps: GuideDeps, keySet: () => boolean, talked: (() => boolean) | null): Promise<void> {
+  const first = !guideDone(deps.doneFile);
+  if (first && keySet()) { markDone(deps.doneFile); return; }
+  if (first) {
+    const deadline = Date.now() + PET_WAIT_MS;
+    while (!deps.pet()?.petState().connected && Date.now() < deadline) await sleep(1000);
+    if (!deps.pet()?.petState().connected) process.send?.({ type: 'companion:open', path: '#/home' });
+    await runGuide(deps);
+  }
+  if (!talked) return;
+  // the introduction just asked for the key and the person put it off: the next ask waits
+  await askForKey(deps, keySet, talked, first ? ASK_AFTER_GUIDE_MS : 0);
+}
+
 async function corminiDefinition(): Promise<BotDefinition<CoreConfig>> {
   const file = join(repoRoot(), 'bots', 'cormini', 'index.ts');
   return (await import(pathToFileURL(file).href) as { default: BotDefinition<CoreConfig> }).default;
@@ -114,6 +100,8 @@ export async function main(): Promise<void> {
   let pet: DesktopPetWorld | null = null;
   /** Set once the bot exists; the pet's menu reads it only after the pet page connects. */
   let bus: WakeBus | null = null;
+  /** Set once the console listens. */
+  let guide: GuideDeps | null = null;
   const DESKTOP_PET = desktopPetDefinition({
     // the menu's header lends pause/resume, settings and quit; its dress tile opens the settings window's dress page
     controls: {
@@ -123,6 +111,11 @@ export async function main(): Promise<void> {
       openDress: () => process.send?.({ type: 'companion:open', path: '#/dress' }),
       quit: () => process.send?.({ type: 'companion:quit' }),
       quitLabel: '退出应用',
+      guide: () => {
+        if (!guide) return;
+        process.send?.({ type: 'companion:hide' });
+        void runGuide(guide);
+      },
     },
     onCreate: (world) => { pet = world; },
   });
@@ -166,7 +159,16 @@ export async function main(): Promise<void> {
   if (keyMissing) bot.core.bus.setPaused(true);
   const { port } = await bot.start();
   process.send?.({ type: 'companion:ready', port, dataDir: loaded.dataDir, keyMissing });
-  if (keyMissing) void askForKey(() => pet, () => hasKey(loaded.config), watchTalk(bot.core.bus));
+  const guideDeps: GuideDeps = {
+    pet: () => pet,
+    console: `http://127.0.0.1:${port}`,
+    doneFile: join(deployDir, GUIDE_FILE),
+    openDress: () => process.send?.({ type: 'companion:open', path: '#/dress' }),
+  };
+  guide = guideDeps;
+  void introduce(guideDeps, () => hasKey(loaded.config), keyMissing ? watchTalk(bot.core.bus) : null).catch((err) => {
+    bot.core.runlog.logger('process').emit('error', '引导出错', { event: 'guide-error', err });
+  });
 
   let stopping = false;
   const shutdown = async (reason: string) => {

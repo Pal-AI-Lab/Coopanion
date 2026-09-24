@@ -202,6 +202,12 @@ core.on('state', (state, detail) => {
 });
 
 core.on('open', (path) => openSettings(path));
+// the introduction runs again on the desktop, where Coo is
+core.on('hide', () => {
+  if (!settings) return;
+  settings.hide();
+  if (MAC) app.dock?.hide();
+});
 core.on('quit', () => app.quit());
 const bringBack = () => { if (core.state === 'running') ensurePet().catch(() => { /* Core went away meanwhile */ }); };
 app.on('second-instance', bringBack);

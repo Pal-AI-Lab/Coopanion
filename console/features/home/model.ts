@@ -1,5 +1,5 @@
 /**
- * The DeepSeek key as the home page and the guide handle it: read whether the `deepseek` endpoint
+ * The DeepSeek key as the home page handles it: read whether the `deepseek` endpoint
  * is connected, save a key to it, test it, and resume the run that started paused without one.
  */
 import { get, post } from '../../core/api.ts';

@@ -5,15 +5,15 @@
  * switched on the cua World's own page and asks each turn in the pet's bubble, so it has no control
  * here. Dressing up and voice input have their own pages (features/dress, features/voice); the link
  * to other model services shows with or without a key, and in the normal mode asks before it
- * switches to the advanced mode, where the model pages are; 「使用引导」 at the top opens the guide
- * (features/guide) again. Saving and testing the key lives in model.ts, shared with the guide. Every
+ * switches to the advanced mode, where the model pages are; 「使用引导」 at the top has Coo run its
+ * introduction again on the desktop (the app's Core holds it; this window steps aside for it).
+ * Saving and testing the key lives in model.ts. Every
  * control calls an endpoint the rest of the console already uses. Styles are in home.css, which
  * scripts/stage.ts adds to the console stylesheet.
  */
 import { post } from '../../core/api.ts';
 import { pick } from '../../core/language.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
-import { requestGuide } from '../guide/index.ts';
 import { readMode, requestMode } from '../mode.ts';
 import { KEY_URL, keyConnected, readDetail, readStatus, saveKey, testKey, type Detail, type Status, type TestResult } from './model.ts';
 
@@ -49,6 +49,7 @@ const S = pick({
     dress: '装扮',
     petNote: '鼠标停在桌宠身上会出现打字和麦克风两个按钮;右键打开菜单;按住可以拎起来。',
     guide: '使用引导',
+    guideHint: '让 Coo 在屏幕底边再带你走一遍',
   },
   en: {
     nav: 'Start',
@@ -79,6 +80,7 @@ const S = pick({
     dress: 'Dress up',
     petNote: 'Hover the pet for the typing and microphone buttons; right-click for the menu; hold it to pick it up.',
     guide: 'Guide',
+    guideHint: 'Coo walks you through it again at the bottom of the screen',
   },
 });
 
@@ -96,7 +98,8 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const head = ui.h('div', 'home-head');
   const title = ui.h('h1', 'home-title', S.title);
   const state = ui.pill('—', 'plain');
-  const guide = ui.button(S.guide, { size: 'sm', onClick: () => requestGuide() });
+  const guide = ui.button(S.guide, { size: 'sm', onClick: () => { void post(panelPath(PET_PAGE, 'pet', 'guide'), { args: [] }, opts).catch((err) => ui.toast(String(err instanceof Error ? err.message : err))); } });
+  guide.title = S.guideHint;
   head.append(title, state, ui.h('span', 'grow'), guide);
   root.append(head);
 

@@ -38,7 +38,7 @@ git submodule update --init --recursive
 $env:CORTICO_COMPANION_DATA = "$env:TEMP\coo-test"; pnpm run start
 ```
 
-设置窗口会记住引导是否看过(存在窗口的 localStorage,键名 `companion.guide`)。换一个数据目录,引导就会重新出现。
+引导跑过(走完或点了 ×)之后,部署目录里会写一个 `guide.json`(`<数据目录>/home/companion/guide.json`),删掉它、并且没有 Key 时,下次启动引导会重新出现。已经有 Key 的旧安装升级上来直接算看过。引导本身在 `core/guide.ts`,一步一步经桌宠 World 的 `dialog` 画在 Coo 的气泡里。
 
 ## 目录结构
 
@@ -48,7 +48,7 @@ $env:CORTICO_COMPANION_DATA = "$env:TEMP\coo-test"; pnpm run start
 | `packages/cortico-world-desktop-pet`、`packages/cortico-world-cua` | 两个 World(子模块) |
 | `packages/cortico-provider-deepseek` | DeepSeek provider |
 | `core/` | Core 子进程的入口:装配 Cormini、World、provider;首次运行的种子文件;没填 Key 时让桌宠提醒 |
-| `console/` | 覆盖在 Cortico 控制台上的入口:普通/高级两种模式,「开始」「习惯」「装扮」「语音输入」四页,首次打开时和 Coo 对话的引导 |
+| `console/` | 覆盖在 Cortico 控制台上的入口:普通/高级两种模式,「开始」「习惯」「装扮」「语音输入」四页 |
 | `app/` | Electron 主进程:托盘(Mac 上是菜单栏图标)、设置窗口(启动时不打开)、Core 子进程托管、桌宠窗口模式;`app/shims/` 是扩展安装用的 corepack 替身 |
 | `scripts/stage.ts` | 从 `vendor/cortico` 生成应用使用的 `build/cortico`:去掉内建的平台 World 与 llamacpp,叠加 `console/`,构建控制台 |
 | `scripts/pack.ts` | 组装扁平的 `build/app` 并调用 electron-builder;`installer/nsis.nsh` 定 Windows 默认安装位置、卸载时保留 `data`;Mac 包是临时签名(ad hoc)的 dmg 与 zip |

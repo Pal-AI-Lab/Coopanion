@@ -4,7 +4,6 @@
  * - 页面表多了关于桌宠的四页「开始」「习惯」「装扮」「语音输入」(features/home、pet、dress、voice),其余页重排、改了几个分组名;
  * - 两种模式(features/mode.ts):普通模式左栏只有那四页和「用量与成本」,别的路由都回到「开始」,底栏只留暂停键;
  *   高级模式再接上 Cortico 的全部页面。左栏底部的开关切换模式,页面也可以经 requestMode 请求换,换模式时重建左栏;
- * - 设置窗口第一次打开时盖上整屏的新手引导(features/guide),右上角可跳过;「开始」页的「使用引导」再打开它;
  * - 空路由打开「开始」;
  * - 左栏各组按「桌宠四页 · 对话 → World → 设置 → Persona & Memory → 高级」重排。
  * 其余逐字沿用上游。
@@ -38,7 +37,6 @@ import { petFeature } from './features/pet/index.ts';
 import { dressFeature } from './features/dress/index.ts';
 import { voiceFeature } from './features/voice/index.ts';
 import { onModeRequest, readMode, writeMode, type ConsoleMode } from './features/mode.ts';
-import { guideSeen, guideSkippedText, onGuideRequest, openGuide } from './features/guide/index.ts';
 import { icon } from './ui/icons.ts';
 import type { ConsoleMemo } from '../shared/client-panel.ts';
 
@@ -341,24 +339,6 @@ export function boot(doc: Document = document): { dispose(): void } {
     unmountFeature();
   };
 
-  /** 新手引导自带生命周期:它盖在页面上面,换页(比如去「装扮」)不该把它带走。 */
-  let guide: Lifecycle | null = null;
-  const showGuide = (): void => {
-    if (guide) return;
-    const life = shellLife.own(new Lifecycle(onError));
-    guide = life;
-    const ui = createConsoleUi({ memo, overlayHost: doc.body, signal: life.signal, doc });
-    openGuide({
-      doc, ui, router, signal: life.signal,
-      onClose: (how) => {
-        guide = null;
-        life.dispose();
-        if (how === 'skip') createConsoleUi({ memo, overlayHost: doc.body, signal: shellLife.signal, doc }).toast(guideSkippedText);
-      },
-    });
-  };
-  onGuideRequest(showGuide, shellLife.signal);
-
   const offRoute = router.onChange(apply);
   const stopRouter = router.start();
 
@@ -373,7 +353,6 @@ export function boot(doc: Document = document): { dispose(): void } {
     shell.setCapabilities(capabilities);
     shell.setPages(visiblePages());
     apply(router.route);
-    if (!guideSeen()) showGuide();
   });
 
   return {
