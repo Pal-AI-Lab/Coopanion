@@ -35,6 +35,16 @@ async function mount(ctx: FeatureContext): Promise<void> {
   sheet.body.append(note, frame);
   root.append(sheet.el);
 
+  const doc = root.ownerDocument;
+  const appearance = () => doc.documentElement.dataset.colorMode === 'dark' ? 'dark' : 'light';
+  const syncAppearance = () => {
+    if (frame.dataset.origin) frame.contentWindow?.postMessage({ type: 'companion:appearance', mode: appearance() }, frame.dataset.origin);
+  };
+  frame.addEventListener('load', syncAppearance, { signal });
+  const observer = new MutationObserver(syncAppearance);
+  observer.observe(doc.documentElement, { attributes: true, attributeFilter: ['data-color-mode'] });
+  ctx.lifecycle.add(() => observer.disconnect());
+
   const refresh = async () => {
     let url: string | null = null;
     try {
@@ -44,7 +54,10 @@ async function mount(ctx: FeatureContext): Promise<void> {
     note.textContent = url ? S.note : S.noPet;
     if (url && frame.dataset.src !== url) {
       frame.dataset.src = url;
-      frame.src = url;
+      const target = new URL(url);
+      frame.dataset.origin = target.origin;
+      target.searchParams.set('appearance', appearance());
+      frame.src = target.href;
     }
   };
 

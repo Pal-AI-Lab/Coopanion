@@ -26,3 +26,5 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm run typecheck:web
       - run: pnpm run test
+      - run: pnpm run typecheck:worlds
+      - run: pnpm run test:worlds

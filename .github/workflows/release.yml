@@ -17,13 +17,13 @@ jobs:
         include:
           - os: windows-latest
             arch: x64
-            files: dist/CortiCompanion-Setup-*.exe
+            files: dist/Coopanion-Setup-*.exe
           - os: macos-latest
             arch: arm64
-            files: dist/CortiCompanion-*-mac-arm64.dmg dist/CortiCompanion-*-mac-arm64.zip
+            files: dist/Coopanion-*-mac-arm64.dmg dist/Coopanion-*-mac-arm64.zip
           - os: macos-latest
             arch: x64
-            files: dist/CortiCompanion-*-mac-x64.dmg dist/CortiCompanion-*-mac-x64.zip
+            files: dist/Coopanion-*-mac-x64.dmg dist/Coopanion-*-mac-x64.zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -40,11 +40,40 @@ jobs:
           PACK_ARCH: ${{ matrix.arch }}
           # no Developer ID: the macOS build is signed ad hoc (electron-builder.yml)
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-      - name: Attach to the release
+      - name: Collect installers
         shell: bash
+        run: |
+          mkdir -p release-artifacts
+          cp ${{ matrix.files }} release-artifacts/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}-${{ matrix.arch }}
+          path: release-artifacts/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          path: release-artifacts
+          merge-multiple: true
+      - name: Publish complete release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # the jobs race to create the release; whichever loses finds it there
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "CortiCompanion $GITHUB_REF_NAME" --notes "安装方法见 README。" || true
-          gh release upload "$GITHUB_REF_NAME" ${{ matrix.files }} --clobber
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          cd release-artifacts
+          files=("Coopanion-Setup-${version}.exe" "Coopanion-${version}-mac-arm64.dmg" "Coopanion-${version}-mac-arm64.zip" "Coopanion-${version}-mac-x64.dmg" "Coopanion-${version}-mac-x64.zip")
+          for file in "${files[@]}"; do test -s "$file"; done
+          sha256sum "${files[@]}" > SHA256SUMS.txt
+          cd ..
+          notes="docs/releases/${GITHUB_REF_NAME}.md"
+          test -f "$notes"
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --verify-tag --draft --title "Coopanion $GITHUB_REF_NAME" --notes-file "$notes"
+          gh release upload "$GITHUB_REF_NAME" release-artifacts/* --clobber
+          gh release edit "$GITHUB_REF_NAME" --draft=false --latest --notes-file "$notes"

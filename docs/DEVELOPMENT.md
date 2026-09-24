@@ -1,6 +1,6 @@
 # 开发文档
 
-CortiCompanion 是用 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 组装的 Electron 桌面应用:Cortico Core + Cormini Persona +
+Coopanion 是用 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 组装的 Electron 桌面应用:Cortico Core + Cormini Persona +
 [桌宠 World](https://github.com/Phantivia/cortico-world-desktop-pet) + [电脑操作 World](https://github.com/Phantivia/cortico-world-cua),
 模型经 Coo Pet Provider(`packages/cortico-provider-coo`)接 DeepSeek、通义千问、Kimi 等几家服务,默认 DeepSeek。每家一个端点,名字就是它在 `src/vendors.ts` 里的 id;0.1.x 的 `deepseek` 模块端点在启动时由 `core/seed.ts` 改成 `coo`。
 
@@ -26,10 +26,12 @@ git submodule update --init --recursive
 | `pnpm run dev` | 生成 `build/cortico` 并启动应用 |
 | `pnpm run start` | 直接启动应用(不重新生成 `build/cortico`) |
 | `pnpm run build:cortico` | 只生成 `build/cortico`(控制台改动后要重跑,并重启应用) |
-| `pnpm run test` | 单元测试 |
+| `pnpm run test` | 主仓库单元测试 |
+| `pnpm run test:worlds` | 桌宠与电脑操作子模块测试（使用本仓库锁定的 Cortico） |
+| `pnpm run typecheck:worlds` | 两个 World 子模块的类型检查 |
 | `pnpm run typecheck` | 检查 Core 与 Electron 部分的类型 |
 | `pnpm run typecheck:web` | 检查控制台的类型(先跑 `build:cortico`) |
-| `pnpm run build:installer` | Windows 上打出 `dist/CortiCompanion-Setup-<版本>.exe`;Mac 上打出 `dist/CortiCompanion-<版本>-mac-<架构>.dmg` 和 `.zip`(`PACK_ARCH=x64` 在 Apple 芯片上打 Intel 版) |
+| `pnpm run build:installer` | Windows 上打出 `dist/Coopanion-Setup-<版本>.exe`;Mac 上打出 `dist/Coopanion-<版本>-mac-<架构>.dmg` 和 `.zip`(`PACK_ARCH=x64` 在 Apple 芯片上打 Intel 版) |
 | `pnpm run build:icons` | 用桌宠的造型重画应用图标和默认头像 |
 
 想用一份干净的数据测试(比如看首次启动、引导、没填 Key 时的提醒),把 `CORTICO_COMPANION_DATA` 指向一个空目录再启动:
@@ -65,5 +67,13 @@ GitHub Actions 会构建 Windows 安装包和两个 Mac 包(Apple 芯片、Intel
 
 ## 提交改动
 
-- 提 PR 前先跑 `pnpm run test`、`pnpm run typecheck` 和 `pnpm run typecheck:web`,CI 也会跑这几项。
+- 提 PR 前先跑 `pnpm run test`、`pnpm run test:worlds`、`pnpm run typecheck`、`pnpm run typecheck:web` 和 `pnpm run typecheck:worlds`，CI 也会跑这些检查。
 - 改到用户能看到的行为时,同步更新 [README](../README.md)。
+
+## 代理、主题与字标
+
+Core 使用内置 Electron 的 Node 环境代理支持，读取 HTTP_PROXY/HTTPS_PROXY 等变量。NO_PROXY 与 no_proxy 合并后补齐 localhost、127.0.0.1 和 IPv6 回环地址，避免本机控制台和桌宠通信被代理。变量必须存在于应用启动环境中；Finder 启动不自动读取 shell 配置。
+
+装扮页通过 URL 初始值和父窗口消息跟随控制台主题，消息校验精确来源与父窗口；桌宠配色独立保存。
+
+执行 `node promo/banner.mjs companion assets` 同步生成 README 明暗 banner 与 `console/branding.ts`。复用现有字母几何，Coopanion 仅开头两个 o 着品牌绿色。生成后重新构建控制台。

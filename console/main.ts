@@ -1,5 +1,5 @@
 /**
- * CortiCompanion 的控制台入口:由 scripts/stage.ts 覆盖在 Cortico 的 src/web/client/main.ts 上。
+ * Coopanion 的控制台入口:由 scripts/stage.ts 覆盖在 Cortico 的 src/web/client/main.ts 上。
  * 与上游的差别:
  * - 页面表多了关于桌宠的四页「开始」「习惯」「装扮」「语音输入」(features/home、pet、dress、voice),其余页重排、改了几个分组名;
  * - 两种模式(features/mode.ts):普通模式左栏只有那四页和「用量与成本」,别的路由都回到「开始」,底栏只留暂停键;
@@ -38,6 +38,7 @@ import { dressFeature } from './features/dress/index.ts';
 import { voiceFeature } from './features/voice/index.ts';
 import { onModeRequest, readMode, writeMode, type ConsoleMode } from './features/mode.ts';
 import { icon } from './ui/icons.ts';
+import { coopanionWordmark } from './branding.ts';
 import type { ConsoleMemo } from '../shared/client-panel.ts';
 
 /**
@@ -207,6 +208,9 @@ export function boot(doc: Document = document): { dispose(): void } {
     const ui = createConsoleUi({ memo, overlayHost: doc.body, signal: life.signal, doc });
     const advanced = mode === 'advanced';
     const next = createShell({ doc, ui, router, features: advanced ? FEATURES : BASIC_FEATURES, onError });
+    const brand = next.el.querySelector('.brand');
+    brand?.setAttribute('aria-label', 'Coopanion');
+    brand?.replaceChildren(coopanionWordmark(doc));
     shell = next;
     life.own({ dispose: () => { next.dispose(); next.el.remove(); } });
     doc.body.insertBefore(next.el, doc.body.firstChild);

@@ -1,7 +1,8 @@
 # Packages build/app (assembled by scripts/pack.ts) into a per-user Windows installer, or a
 # macOS disk image and zip for the architecture of the Mac it is built on.
+# Keep the installed application identity and Windows upgrade registration.
 appId: ai.pal.corticompanion
-productName: CortiCompanion
+productName: Coopanion
 copyright: Copyright © 2026 Pal-AI-Lab
 electronVersion: 44.4.4
 directories:
@@ -27,13 +28,13 @@ nsis:
   include: installer/nsis.nsh
   createDesktopShortcut: true
   createStartMenuShortcut: false
-  shortcutName: CortiCompanion
+  shortcutName: Coopanion
   runAfterFinish: true
   deleteAppDataOnUninstall: false
-  artifactName: CortiCompanion-Setup-${version}.exe
+  artifactName: Coopanion-Setup-${version}.exe
 # No Developer ID: the app is signed ad hoc ("-"), which Apple silicon needs to launch it at all;
 # the first open goes through Privacy & Security → Open Anyway (see the README). It lives in the
-# menu bar (LSUIElement), not the Dock; its data is in ~/Library/Application Support/CortiCompanion.
+# menu bar (LSUIElement), not the Dock; its data is in ~/Library/Application Support/Coopanion.
 mac:
   target:
     - target: dmg
@@ -41,7 +42,7 @@ mac:
   category: public.app-category.lifestyle
   icon: app/icons/icon.png
   identity: "-"
-  artifactName: CortiCompanion-${version}-mac-${arch}.${ext}
+  artifactName: Coopanion-${version}-mac-${arch}.${ext}
   hardenedRuntime: false
   gatekeeperAssess: false
   extendInfo:

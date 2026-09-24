@@ -7,7 +7,7 @@ const CORTICO_SRC = fileURLToPath(new URL('./vendor/cortico/src/', import.meta.u
 export default defineConfig({
   resolve: { alias: [{ find: /^cortico\//, replacement: CORTICO_SRC }] },
   test: {
-    include: ['tests/**/*.test.ts', 'packages/cortico-provider-coo/tests/**/*.test.ts'],
+    include: ['tests/**/*.test.{ts,js}', 'packages/cortico-provider-coo/tests/**/*.test.ts'],
     env: { CORTICO_LANGUAGE: 'zh' },
     testTimeout: 20000,
     pool: 'forks',

@@ -6,8 +6,8 @@
  * only the runtime dependencies installed by npm, and the three workspace packages copied into
  * `node_modules/` as real directories.
  *
- * Run: `pnpm run build:installer` (builds build/cortico first). Output: `dist/CortiCompanion-Setup-<version>.exe` on
- * Windows, `dist/CortiCompanion-<version>-mac-<arch>.dmg` and `.zip` on a Mac. `PACK_ARCH` (x64 or arm64) builds for
+ * Run: `pnpm run build:installer` (builds build/cortico first). Output: `dist/Coopanion-Setup-<version>.exe` on
+ * Windows, `dist/Coopanion-<version>-mac-<arch>.dmg` and `.zip` on a Mac. `PACK_ARCH` (x64 or arm64) builds for
  * another architecture than the machine's: npm installs that architecture's native packages (esbuild, sherpa-onnx) and
  * electron-builder packs that Electron, so one Apple silicon Mac builds both Mac downloads.
  */

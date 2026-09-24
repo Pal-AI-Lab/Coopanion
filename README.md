@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
-    <img src="assets/banner.svg" alt="CortiCompanion" width="806">
+    <img src="assets/banner.svg" alt="Coopanion" width="806">
   </picture>
 </p>
 
@@ -43,9 +43,9 @@
 
 ### Windows:下载安装包
 
-1. 打开[最新发布](https://github.com/Pal-AI-Lab/Coopanion/releases/latest),下载 `CortiCompanion-Setup-版本号.exe`。
+1. 打开[最新发布](https://github.com/Pal-AI-Lab/Coopanion/releases/latest),下载 `Coopanion-Setup-版本号.exe`。
 2. 双击运行。安装包没有数字签名,Windows 可能弹出「Windows 已保护你的电脑」:点 **更多信息** → **仍要运行**。
-3. 选安装位置(默认 `C:\Users\你的用户名\CortiCompanion`),点安装。装好后会自动启动,桌面上会有它的图标。
+3. 选安装位置(默认 `C:\Users\你的用户名\Coopanion`),点安装。装好后会自动启动,桌面上会有它的图标。
 
 > [!NOTE]
 > 程序和它写下的所有文件都在安装目录里,AppData 里不放任何东西,所以开始菜单里没有它,从桌面图标打开。
@@ -62,17 +62,17 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 
 ### macOS
 
-1. 打开[最新发布](https://github.com/Pal-AI-Lab/Coopanion/releases/latest),Apple 芯片的 Mac 下载 `CortiCompanion-版本号-mac-arm64.dmg`,Intel 的下载 `…-mac-x64.dmg`。
+1. 打开[最新发布](https://github.com/Pal-AI-Lab/Coopanion/releases/latest),Apple 芯片的 Mac 下载 `Coopanion-版本号-mac-arm64.dmg`,Intel 的下载 `…-mac-x64.dmg`。
    不确定是哪种:点左上角苹果菜单 →「关于本机」,「芯片」一栏写着 Apple M 系列就是 Apple 芯片。
-2. 双击 dmg,把 CortiCompanion 拖进「应用程序」。
+2. 双击 dmg,把 Coopanion 拖进「应用程序」。
 3. 第一次打开:应用没有 Apple 开发者签名,系统会拦下。先双击打开一次,看到提示后点「完成」;
-   再到「系统设置 → 隐私与安全性」,页面底部有一行说 CortiCompanion 被阻止,点「仍要打开」,输入密码确认。之后就能正常打开。
+   再到「系统设置 → 隐私与安全性」,页面底部有一行说 Coopanion 被阻止,点「仍要打开」,输入密码确认。之后就能正常打开。
 4. 它住在屏幕顶部的**菜单栏**里,程序坞里没有它的图标(打开设置窗口时才出现)。
 
 > [!NOTE]
-> Mac 上的数据在 `~/Library/Application Support/CortiCompanion`。第一次用到时,系统会分别询问:
+> Mac 上的数据在 `~/Library/Application Support/Coopanion`。第一次用到时,系统会分别询问:
 > 麦克风(语音输入)、输入监控(说话键)、录屏与系统录音和辅助功能(让 Coo 操作电脑)。
-> 不想让它碰电脑,后两项不给就行。改了「输入监控」「辅助功能」「录屏」之后要重启 CortiCompanion 才生效。
+> 不想让它碰电脑,后两项不给就行。改了「输入监控」「辅助功能」「录屏」之后要重启 Coopanion 才生效。
 
 ## 快速上手
 
@@ -128,6 +128,8 @@ DeepSeek 以外的几家是按各自文档接入的,还没拿真实的 Key 逐�
 | 麦克风按钮 | 鼠标停在 Coo 身上时,身旁的麦克风按钮能开关语音输入(角上的 KEY / AUTO 表示按键收音还是一直在听);正在听时**长按**它,这句话马上发出,不用等停顿。 |
 | 回答提问 | Coo 有时会给几个选项:点一下,或者按键盘上的 1–3;都不合适就在最后一格自己写。 |
 
+说话键暂时不可用时会退回自动收音，按钮显示 AUTO，悬停提示会说明原因；按住说话或按一下开关时显示 KEY。
+
 说话键、麦克风、收音方式(按住说 / 按一下开关 / 一直听)都在设置窗口的「语音输入」页里改。说话键可以是单个键、组合键(比如 `Ctrl + Space`),也可以是连按:在「说话键」按钮上点一下,再把想要的键连按两下,就设成「快速按一下再按住」。
 
 语音默认用 **FunASR**(阿里巴巴通义实验室的 SenseVoiceSmall 模型)在你自己的电脑上识别,中文准,录音不上传。
@@ -169,7 +171,9 @@ Mac:点屏幕顶部菜单栏里 Coo 的图标,是同一份菜单。
 | 开始 | 连接模型、看 Coo 醒着没有、显示桌宠、重看引导。左栏底部是暂停 / 继续。 |
 | 习惯 | 怎么称呼你、走动多少、颜色、大小(拖动时 Coo 跟着变)、音效、悬停按钮 |
 | 装扮 | 配色、帽子、耳饰、眼镜、颈饰,改动立刻生效 |
-| 语音输入 | 开关、识别引擎、识别模型下载、说话键、麦克风、收音方式,还有电平条和听到的内容 |
+| 语音输入 | 开关、识别引擎、识别模型下载、说话键暂时不可用时会退回自动收音，按钮显示 AUTO，悬停提示会说明原因；按住说话或按一下开关时显示 KEY。
+
+说话键、麦克风、收音方式,还有电平条和听到的内容 |
 | 用量与成本 | 每天用了多少 token、花了多少钱 |
 
 左栏底部的「**高级模式**」会显示全部页面:对话记录、World、模型、扩展、记忆、系统提示词、电脑操作、运行诊断。
@@ -197,9 +201,9 @@ Mac:点屏幕顶部菜单栏里 Coo 的图标,是同一份菜单。
 
 ## 费用与隐私
 
-- **费用**:CortiCompanion 本身免费。和 Coo 聊天要调用你选的模型服务,费用由那一家按用量从你的账户扣,在「用量与成本」页能看到(内置价目的只有 DeepSeek)。
+- **费用**:Coopanion 本身免费。和 Coo 聊天要调用你选的模型服务,费用由那一家按用量从你的账户扣,在「用量与成本」页能看到(内置价目的只有 DeepSeek)。
 - **会发给模型服务的内容**:你说的话和打的字、你和 Coo 的互动,以及电脑操作时的屏幕截图。这些内容只发给你配置的模型服务(默认 DeepSeek)。
-- **留在你电脑上的内容**:API Key、记忆、对话记录、设置、日志,全部存在数据文件夹里(Windows 在安装目录的 `data`,Mac 在 `~/Library/Application Support/CortiCompanion`)。
+- **留在你电脑上的内容**:API Key、记忆、对话记录、设置、日志,全部存在数据文件夹里(Windows 在安装目录的 `data`,Mac 在 `~/Library/Application Support/Coopanion`)。
   语音识别在本机完成,不管用 FunASR 还是 Windows 自带的引擎,录音都不会上传,发出去的只有识别出来的文字。
 - **其他联网**:只在你安装扩展(从 npm 下载)或下载语音识别模型(从 ModelScope,取不到时从 Hugging Face)时才会联网。
 
@@ -215,9 +219,9 @@ Windows 上所有数据都在安装目录的 `data` 文件夹里:
 | 语音识别模型(FunASR,下载后才有) | `data\home\models` |
 | 临时文件、扩展安装缓存、窗口缓存 | `data\tmp`、`data\pnpm`,以及 `data` 下的其余文件夹 |
 
-**卸载**:在 Windows「设置 → 应用」里找到 CortiCompanion 卸载。`data` 文件夹会保留,重装后记忆和设置还在;彻底不要了,就手动删掉整个安装目录。
+**卸载**:在 Windows「设置 → 应用」里找到 Coopanion 卸载。`data` 文件夹会保留,重装后记忆和设置还在;彻底不要了,就手动删掉整个安装目录。
 
-Mac 上数据在 `~/Library/Application Support/CortiCompanion`,里面的分法同上。卸载时把「应用程序」里的 CortiCompanion 拖进废纸篓;
+Mac 上新安装的数据在 `~/Library/Application Support/Coopanion`,里面的分法同上。旧版本升级会继续使用原有的 `~/Library/Application Support/CortiCompanion`，保留记忆、密钥和设置。卸载时把「应用程序」里的 Coopanion 拖进废纸篓;
 彻底不要了,再删掉这个文件夹。
 
 <details>
@@ -255,7 +259,7 @@ Mac 上点菜单栏里 Coo 的图标 →「显示桌宠」,或者在「应用程
 - 说话时先快速按一下左 Alt、再按住它(默认说话键;按一下太慢或两下隔太久都不算);
 - 「语音输入」页的识别服务显示就绪;显示「识别模型还没下载」就点「下载」。你说话时电平条会跳,说明麦克风选对了;
 - Windows 设置 → 隐私和安全性 → 麦克风里,允许了桌面应用使用麦克风;
-- Mac:「系统设置 → 隐私与安全性」里,「麦克风」和「输入监控」都打开了 CortiCompanion(改完重启它)。
+- Mac:「系统设置 → 隐私与安全性」里,「麦克风」和「输入监控」都打开了 Coopanion(改完重启它)。
 
 用 Windows 自带引擎时报「没有语音识别器」,到 Windows 设置 → 时间和语言 → 语言,给中文装上「语音识别」;或者换回 FunASR。
 
@@ -277,14 +281,16 @@ Mac 上点菜单栏里 Coo 的图标 →「显示桌宠」,或者在「应用程
 
 ## 反馈与参与
 
-- 遇到问题或有想法:提一个 [Issue](https://github.com/Pal-AI-Lab/Coopanion/issues),写清楚系统版本(Windows 或 macOS)、CortiCompanion 版本和复现步骤。
+- 遇到问题或有想法:提一个 [Issue](https://github.com/Pal-AI-Lab/Coopanion/issues),写清楚系统版本(Windows 或 macOS)、Coopanion 版本和复现步骤。
 - 想从源码构建或改代码:看 [开发文档](docs/DEVELOPMENT.md)。
 
 ## 致谢
 
-CortiCompanion 由 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 组装而成:Cortico Core + Cormini Persona +
+Coopanion 由 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 组装而成:Cortico Core + Cormini Persona +
 [桌宠 World](https://github.com/Phantivia/cortico-world-desktop-pet) + [电脑操作 World](https://github.com/Phantivia/cortico-world-cua)。
 
 ## 许可
 
 [MIT](LICENSE)。随附或运行时下载的第三方组件:Electron(MIT)、Cortico(MIT)、sherpa-onnx(Apache-2.0)、FunASR 的 SenseVoiceSmall 模型([FunASR 模型开源协议](https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE),用时下载)、koffi(MIT)、jpeg-js(BSD-3-Clause)、pnpm(MIT)、各家模型服务的标志取自 [lobe-icons](https://github.com/lobehub/lobe-icons)(MIT;标志本身归各自的公司所有,只用来标明是哪一家服务)。
+
+装扮编辑器会跟随控制台的明暗主题，桌宠自身配色独立。需要代理时，可在应用启动环境中设置 `HTTP_PROXY` / `HTTPS_PROXY`；本机通信自动绕过代理，详情见[开发文档](docs/DEVELOPMENT.md)。

@@ -3,7 +3,7 @@
 Owner: `src/index.ts`
 
 Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 provider 模块(`kind: "coo"`),
-接 CortiCompanion 列出的几家模型服务,DeepSeek 排第一。每家都走自己的 OpenAI 兼容 Responses 端点
+接 Coopanion 列出的几家模型服务,DeepSeek 排第一。每家都走自己的 OpenAI 兼容 Responses 端点
 (`POST <baseUrl>/responses`),不在服务端存历史,推理按明文回传。
 
 | id | 服务 | baseUrl | 默认模型 |
@@ -29,7 +29,7 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
 - **价目**:只有 DeepSeek 内置(`src/pricing.ts`,错峰价,两个高峰时段按两倍计);别家没有内置价目。
 - **标志**:`src/icons.ts`,取自 [@lobehub/icons-static-svg](https://github.com/lobehub/lobe-icons)(MIT)。标志归各自的公司所有,只用来标明是哪一家。
 - **接入流程**:`src/connect.ts` 的 `connectVendor` 经 Cortico 控制台的 provider 路由给某一家建端点(名字就是它的 id,
-  密钥存在该端点 `.env` 的 `Vendor.secret` 下,模型按传入的名字,留空用默认)、测试,通过后设为当前端点并恢复运行;已有端点留空 Key 时沿用存着的。CortiCompanion 的桌面引导和「开始」页都用它。
+  密钥存在该端点 `.env` 的 `Vendor.secret` 下,模型按传入的名字,留空用默认)、测试,通过后设为当前端点并恢复运行;已有端点留空 Key 时沿用存着的。Coopanion 的桌面引导和「开始」页都用它。
 
 端点配置示例(`<CORTICO_HOME>/providers/qwen/config.json`,密钥在同目录 `.env` 的 `QWEN_API_KEY`):
 
@@ -43,5 +43,5 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
 }
 ```
 
-0.1.x 叫 `cortico-provider-deepseek`(`kind: "deepseek"`);CortiCompanion 启动时把旧端点的 `kind` 改成 `coo`。
-在 CortiCompanion 里它随应用注册;单独使用时按 Cortico 的扩展方式安装(`cortico.kind = provider`,`api = 5`)。
+0.1.x 叫 `cortico-provider-deepseek`(`kind: "deepseek"`);Coopanion 启动时把旧端点的 `kind` 改成 `coo`。
+在 Coopanion 里它随应用注册;单独使用时按 Cortico 的扩展方式安装(`cortico.kind = provider`,`api = 5`)。

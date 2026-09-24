@@ -17,7 +17,7 @@ writeFileSync(`${OUT}index.html`, `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CortiCompanion 宣传片</title>
+<title>Coopanion 宣传片</title>
 <style>${css}</style>
 </head>
 <body>
