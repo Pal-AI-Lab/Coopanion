@@ -7,6 +7,7 @@
  * started again; an unexpected exit is restarted after 3 s, at most 5 times in 5 minutes.
  */
 const { fork } = require('node:child_process');
+const { coreEnvironment } = require('./core-env.cjs');
 const { EventEmitter } = require('node:events');
 const { createWriteStream, existsSync, mkdirSync, renameSync, statSync } = require('node:fs');
 const { join } = require('node:path');
@@ -39,8 +40,8 @@ class CoreHost extends EventEmitter {
     log.write(`\n===== ${new Date().toISOString()} start =====\n`);
     const child = fork(join(this.opts.appRoot, 'core', 'boot.ts'), [], {
       cwd: this.opts.appRoot,
-      execArgv: ['--import', 'tsx'],
-      env: { ...this.opts.env, ELECTRON_RUN_AS_NODE: '1' },
+      execArgv: ['--use-env-proxy', '--import', 'tsx'],
+      env: coreEnvironment(this.opts.env),
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     });
     child.stdout.pipe(log, { end: false });
