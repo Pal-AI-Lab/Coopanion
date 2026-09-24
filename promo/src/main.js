@@ -21,7 +21,8 @@ export const SOUNDTRACK = { file: 'assets/bgm.mp3', title: '花卷Jwyan - 可爱
 /** Balance of the music and the sound effects, for the live preview and the recording alike: the main hits (90th
  * percentile of 50 ms loudness, about -20 dBFS) sit some 4 dB under the music (about -16 dBFS), babble and keys lower. */
 const MIX = { music: .7, sfx: 2 };
-const W = 1920, H = 1080, DURATION = bar(65) + .8, STEP = 1 / 120;
+/** The promo ends at 1:32, a few seconds into the end card, fading out over END_FADE seconds (picture to black, music to silence). */
+const W = 1920, H = 1080, DURATION = 92, END_FADE = 1.5, STEP = 1 / 120;
 const params = new URLSearchParams(location.search);
 const RECORD = params.has('record');
 
@@ -77,6 +78,8 @@ const bubble2 = new Bubble(bubbleLayer, null);
 const top = layer(world);
 const signature = h('div', 'signature', 'by @Pal AI Lab 0 0)');
 stage.appendChild(signature);
+const endFade = h('div', 'layer fill endfade');
+stage.appendChild(endFade);
 const NOTE = '<svg viewBox="0 0 24 24" width="30" height="30"><path d="M9 17.5V5l11-2v12.5" fill="none" stroke="#00A870" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="17.5" r="3" fill="#00A870"/><circle cx="17.5" cy="15.5" r="3" fill="#00A870"/></svg>';
 const nowPlaying = h('div', 'now-playing', `${NOTE}<span>${SOUNDTRACK.title}</span>`);
 stage.appendChild(nowPlaying);
@@ -137,7 +140,9 @@ const [, , TO_CARD1, TO_CARD2, TO_CARD3] = LEAPS;
 /** The cursor that picks the dizzy pet up at the end of the intro and sets it down under the title. */
 const GRAB = { in: 4.0, grab: bar(4), lift: bar(4) + .2, place: 6.05, release: 6.2 };
 /** The cursor that pokes the dozing pet awake in the stroll scene. */
-const POKE = { in: bar(23) - .1, down: bar(23) + .9, up: bar(23) + 1.03, out: bar(23) + 1.6 };
+// about half a bar after it lies down, so the Mac morning after the poke gets time on screen
+const POKE_BAR = bar(22.25);
+const POKE = { in: POKE_BAR - .1, down: POKE_BAR + .9, up: POKE_BAR + 1.03, out: POKE_BAR + 1.6 };
 /** The stroll scene's evening: dark from `dusk` to `dark` after the walk, the pet dozes off in it, the poke brings the light back. */
 const NIGHT = { dusk: bar(20) + .3, dark: bar(21) + .1, dawn: POKE.down, day: POKE.down + .35 };
 
@@ -569,9 +574,17 @@ function renderDress(t) {
   GRID.forEach((g, j) => gridLabels[j].render(t, GRID_AT + .2 + j * .07, T.dress[1] - .3, PAL_NAMES[g.skin.palette], g.x, 790));
 }
 
-/* stroll: the pet on the taskbar by itself; a click wakes it */
+/* stroll: the pet on the taskbar by itself; a click wakes it, and the morning is on a Mac */
 const stroll = sceneLayer(T.stroll);
-stroll.el.appendChild(h('div', 'taskbar', TASKBAR));
+const strollTaskbar = h('div', 'taskbar', TASKBAR);
+stroll.el.appendChild(strollTaskbar);
+// the Mac desktop the light comes back on: a Dock under the pet, and the menu bar with the app's icon in it
+const COO_ICON = '<svg viewBox="0 0 512 512" aria-hidden="true"><path d="M347 182A118 118 0 1 0 347 318" fill="none" stroke="currentColor" stroke-width="62" stroke-linecap="round"/><rect x="196" y="352" width="42" height="80" rx="21" fill="currentColor"/><rect x="270" y="352" width="42" height="80" rx="21" fill="currentColor"/><g fill="none" stroke="currentColor" stroke-width="30"><circle cx="236" cy="220" r="19"/><circle cx="304" cy="220" r="19"/></g></svg>';
+const dock = h('div', 'dock', `${'<span class="app"></span>'.repeat(4)}<span class="app on"></span>${'<span class="app"></span>'.repeat(6)}<span class="sep"></span><span class="app"></span>`);
+const menubar = h('div', 'menubar', `<b>Coopanion</b><span>文件</span><span>编辑</span><span>窗口</span><span class="grow"></span><span class="coo">${COO_ICON}</span><span>中</span><span class="clk">周三 07:30</span>`);
+stroll.el.append(dock, menubar);
+/** The Windows taskbar gives way to the Mac's Dock and menu bar as the light returns. */
+const MAC_AT = [NIGHT.dawn, NIGHT.day + .35];
 const strollCap = new Caption(stroll.el, { x: 120, y: 110, size: 88 });
 strollCap.set('自己溜达');
 const pokeCursor = new Cursor(top);
@@ -601,6 +614,13 @@ function renderStroll(t) {
   pokeCursor.render(t, on && D.pokeKeys ? POKE.in : 1, on && D.pokeKeys ? POKE.out + .3 : 0, D.pokeKeys ?? [[0, 0, 0]], [POKE.down]);
   if (!on) return;
   strollCap.render(t, T.stroll[0] + .3, T.stroll[1] - .3);
+  const m = ease.inOutCubic(seg(t, MAC_AT[0], MAC_AT[1]));
+  strollTaskbar.style.opacity = String(f1((1 - m) * 100) / 100);
+  strollTaskbar.style.transform = `translateY(${f1(m * 40)}px)`;
+  dock.style.opacity = String(f1(m * 100) / 100);
+  dock.style.transform = `translateX(-50%) translateY(${f1((1 - ease.outBack(m, 1.6)) * 60)}px)`;
+  menubar.style.opacity = String(f1(m * 100) / 100);
+  menubar.style.transform = `translateY(${f1(-(1 - ease.outCubic(m)) * 50)}px)`;
 }
 
 /* steps: the pet hops from card to card */
@@ -608,7 +628,7 @@ const steps = sceneLayer(T.steps);
 const stepsCap = new Caption(steps.el, { x: 960, y: 80, size: 88, align: 'center', width: 1600 });
 stepsCap.set('三步开始');
 const CARDS = [
-  ['下载安装', 'Windows 安装包,<br>双击运行'],
+  ['下载安装', 'Windows 安装包 / Mac dmg,<br>双击就能用'],
   ['填入 API KEY(BYOK)', '支持 OpenAI, DeepSeek,<br>等多种上游！'],
   ['开始聊天', '打字、说话,<br>或者拎起它'],
 ];
@@ -633,7 +653,7 @@ function renderSteps(t) {
     c.style.transform = `translateY(${f1((1 - k) * 80)}px) scale(${f1((.9 + .1 * k) * 100) / 100})`;
     c.classList.toggle('on', t >= CARD_ON[i][0] && t < CARD_ON[i][1]);
   });
-  freeChip.render(t, bar(30.5), T.steps[1] - .3, 'MIT 开源 · Windows 10 / 11', 960, 860);
+  freeChip.render(t, bar(30.5), T.steps[1] - .3, 'MIT 开源 · Windows 10 / 11 · macOS', 960, 860);
 }
 
 /* say */
@@ -650,7 +670,7 @@ const voiceScene = sceneLayer(T.voice);
 const voiceCap = new Caption(voiceScene.el, { x: 140, y: 300, size: 88 });
 voiceCap.set('语音输入');
 const voiceSub = new Caption(voiceScene.el, { x: 140, y: 430, size: 40, weight: 400, color: 'var(--ink-soft)', stagger: .02 });
-voiceSub.set('whisper.cpp 在本机识别');
+voiceSub.set('FunASR 在本机识别');
 const waves = svgEl('svg', { class: 'full', viewBox: `0 0 ${W} ${H}` });
 voiceScene.el.appendChild(waves);
 const LISTEN = [bar(36) + .8, HEARD.final];
@@ -807,6 +827,7 @@ function renderBubbles(t) {
 
 /* ---------- frame ---------- */
 function render(t) {
+  endFade.style.opacity = String(f1(seg(t, DURATION - END_FADE, DURATION) * 100) / 100);
   advance(t);
   applyCamera(t);
   arcs.render(TRAVEL(t), surgeAt(t));
@@ -889,6 +910,7 @@ window.promo = {
   duration: DURATION,
   fps: 30,
   audioStart: AUDIO_START,
+  fadeOut: END_FADE,
   renderAt(t) { render(Math.max(0, Math.min(DURATION, t))); return true; },
   get trace() { return D.trace; },
   mix: MIX,
@@ -937,6 +959,7 @@ if (!RECORD) {
   const loop = () => {
     const t = clock();
     render(t);
+    audio.volume = MIX.music * (1 - seg(t, DURATION - END_FADE, DURATION));
     if (playing && fx) {
       for (; nextCue < CUES.length && CUES[nextCue][0] < t + .1; nextCue++) fx.voices.play(fx.ctx.currentTime + CUES[nextCue][0] - t, CUES[nextCue]);
     }

@@ -42,7 +42,7 @@ app.whenReady().then(async () => {
     dbg.attach('1.3');
     await dbg.sendCommand('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: OW / W, mobile: false });
   }
-  const info = await page('document.fonts.ready.then(() => ({ duration: promo.duration, fps: promo.fps, audioStart: promo.audioStart, w: innerWidth * devicePixelRatio, h: innerHeight * devicePixelRatio }))');
+  const info = await page('document.fonts.ready.then(() => ({ duration: promo.duration, fps: promo.fps, audioStart: promo.audioStart, fadeOut: promo.fadeOut, w: innerWidth * devicePixelRatio, h: innerHeight * devicePixelRatio }))');
   if (Math.round(info.w) !== OW || Math.round(info.h) !== OH) throw new Error(`viewport renders at ${info.w}×${info.h}, expected ${OW}×${OH}`);
   const from = Number(arg('from', 0)), to = Math.min(info.duration, Number(arg('to', info.duration)));
   const fps = Number(arg('fps', info.fps));
@@ -56,7 +56,8 @@ app.whenReady().then(async () => {
     ...(HI ? ['-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png', '-i', '-'] : ['-f', 'rawvideo', '-pix_fmt', 'bgra', '-s', `${W}x${H}`, '-r', String(fps), '-i', '-']),
     '-ss', String(info.audioStart + first / fps), '-i', path.join(DIST, 'assets', 'bgm.mp3'),
     '-i', SFX,
-    '-filter_complex', `[1:a]volume=${mix.music}[m];[2:a]pan=stereo|c0=c0|c1=c0[s];[m][s]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[a]`,
+    // the music fades out with the picture over the promo's last seconds; the audio input starts at `from`
+    '-filter_complex', `[1:a]volume=${mix.music},afade=t=out:st=${Math.max(0, info.duration - info.fadeOut - first / fps)}:d=${info.fadeOut}[m];[2:a]pan=stereo|c0=c0|c1=c0[s];[m][s]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[a]`,
     '-map', '0:v', '-map', '[a]',
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', OUT,

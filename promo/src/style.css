@@ -25,6 +25,7 @@ svg.full{width:1920px; height:1080px; overflow:visible}
 #stage > .signature{inset:auto; right:36px; bottom:24px; font-size:26px; font-weight:500; color:var(--ink-dim); letter-spacing:.02em; white-space:pre; z-index:5}
 .scene{position:absolute; inset:0}
 /* the stroll scene's night, in the pet page's dark wall and dots */
+#stage > .endfade{opacity:0; background:#000; z-index:10}
 #stage > .night{opacity:0; background-color:#0D1117; background-image:radial-gradient(#232B37 2.2px, transparent 2.4px); background-size:44px 44px}
 
 /* figure classes (as in pet.css) */
@@ -59,6 +60,15 @@ svg.full{width:1920px; height:1080px; overflow:visible}
 .taskbar .app{width:44px; height:44px; border-radius:12px; background:var(--line)}
 .taskbar .app.on{background:var(--accent)}
 .taskbar .grow{flex:1}
+.dock{position:absolute; left:50%; bottom:8px; height:64px; min-width:760px; display:flex; align-items:center; justify-content:center; gap:14px; padding:0 18px; border-radius:22px; background:var(--bar, rgba(251,251,251,.92)); border:2px solid var(--line); box-shadow:0 12px 30px var(--shadow, rgba(27,22,38,.14)); opacity:0}
+.dock .app{width:44px; height:44px; border-radius:12px; background:var(--line)}
+.dock .app.on{background:var(--accent)}
+.dock .sep{width:2px; height:40px; background:var(--line)}
+.menubar{position:absolute; left:0; right:0; top:0; height:44px; display:flex; align-items:center; gap:26px; padding:0 28px; background:var(--bar, rgba(251,251,251,.92)); border-bottom:2px solid var(--line); font-size:22px; color:var(--ink-soft); opacity:0}
+.menubar b{color:var(--ink)}
+.menubar .grow{flex:1}
+.menubar .coo{display:grid; place-items:center; color:var(--ink)}
+.menubar .coo svg{width:28px; height:28px}
 .win{position:absolute; background:var(--sheet); border-radius:28px; border:2.5px solid var(--line-2); box-shadow:0 30px 70px rgba(27,26,30,.12); overflow:hidden}
 .win .bar{height:68px; display:flex; align-items:center; gap:12px; padding:0 26px; border-bottom:2px solid var(--line); font-size:28px; font-weight:600}
 .win .bar i{width:16px; height:16px; border-radius:50%; background:var(--line-2)}
