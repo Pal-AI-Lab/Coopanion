@@ -42,17 +42,26 @@ export async function testEndpoint(call: ConsoleCall, name: string): Promise<Con
 }
 
 /**
- * Saves `key` for `vendor` (creating its endpoint the first time), tests it, and once the test
- * passes makes it the active endpoint and resumes the run, which starts paused without a key.
+ * Saves `key` and `model` for `vendor` (creating its endpoint the first time), tests it, and once
+ * the test passes makes it the active endpoint and resumes the run, which starts paused without a
+ * key. An empty `key` keeps the one the endpoint has; a new endpoint needs one. An empty `model`
+ * keeps the endpoint's model, or takes the service's default for a new endpoint.
  */
-export async function connectVendor(call: ConsoleCall, vendor: Vendor, key: string): Promise<ConnectResult> {
+export async function connectVendor(call: ConsoleCall, vendor: Vendor, key: string, model = ''): Promise<ConnectResult> {
+  const secretValue = key.trim() || undefined;
+  const name = model.trim();
   try {
     const list = await call<{ providers: Array<{ name: string }> }>('/api/providers');
     if (list.providers.some((p) => p.name === vendor.id)) {
       const d = await call<Detail>(`/api/providers/${encodeURIComponent(vendor.id)}`);
-      await call(`/api/providers/${encodeURIComponent(vendor.id)}/save`, { name: d.name, entry: d.entry, expectedRevision: d.revision, secretValue: key });
+      const entry = { ...d.entry };
+      if (name) {
+        entry.spec = { ...(d.entry.spec as Record<string, unknown> | undefined), model: name };
+        entry.multimodal = (vendor.vision ?? []).includes(name);
+      }
+      await call(`/api/providers/${encodeURIComponent(vendor.id)}/save`, { name: d.name, entry, expectedRevision: d.revision, secretValue });
     } else {
-      await call('/api/providers', { name: vendor.id, entry: vendorEntry(vendor), secretValue: key });
+      await call('/api/providers', { name: vendor.id, entry: vendorEntry(vendor, name || vendor.model), secretValue });
     }
   } catch (err) {
     return { ok: false, ms: null, why: errText(err) };

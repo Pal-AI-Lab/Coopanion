@@ -148,6 +148,17 @@ describe('connecting a service through the console routes', () => {
     expect(calls[2]).toEqual(['/api/providers/qwen/save', { name: 'qwen', entry: { kind: 'coo', spec: { model: 'mine' } }, expectedRevision: 'r1', secretValue: 'sk-2' }]);
   });
 
+  it('sets the model typed in, keeps the saved key when none is typed, and starts a new endpoint on it', async () => {
+    const saved = fakeConsole(['qwen'], true);
+    await connectVendor(saved.call, qwen, '', 'qwen3.8-plus');
+    expect(saved.calls[2]).toEqual(['/api/providers/qwen/save', {
+      name: 'qwen', entry: { kind: 'coo', spec: { model: 'qwen3.8-plus' }, multimodal: false }, expectedRevision: 'r1', secretValue: undefined,
+    }]);
+    const fresh = fakeConsole([], true);
+    await connectVendor(fresh.call, qwen, 'sk-3', 'qwen3.8-flash');
+    expect(fresh.calls[1]![1]).toEqual({ name: 'qwen', entry: vendorEntry(qwen, 'qwen3.8-flash'), secretValue: 'sk-3' });
+  });
+
   it('does not switch to an endpoint whose test fails', async () => {
     const { call, calls } = fakeConsole([], false);
     expect(await connectVendor(call, qwen, 'bad')).toEqual({ ok: false, ms: null, why: '密钥无效' });

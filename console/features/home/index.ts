@@ -30,11 +30,13 @@ const S = pick({
     modelTitle: '连接模型',
     modelNeed: '选一家模型服务,填入它的 API Key 就能开始。拿不准就选 DeepSeek。',
     keyLabel: (name: string) => `${name} 的 API Key`,
+    modelLabel: '模型',
+    keepKey: '留空沿用已保存的 Key',
     getKey: (name: string) => `去${name}申请 Key`,
     saveStart: '保存并开始',
     connected: (model: string, title: string) => `已连接 ${title} · ${model}`,
     test: '测试连接',
-    changeKey: '换一家或换 Key',
+    changeKey: '换一家、换模型或换 Key',
     otherProvider: '用别的模型服务',
     toAdvancedTitle: '是否切换为高级模式?',
     toAdvancedBody: '别的模型服务在高级模式的「模型」页里设置。之后可在左下角重新切换回普通模式。',
@@ -60,11 +62,13 @@ const S = pick({
     modelTitle: 'Connect a model',
     modelNeed: 'Pick a model service and enter its API key to start. DeepSeek if unsure.',
     keyLabel: (name: string) => `${name} API key`,
+    modelLabel: 'Model',
+    keepKey: 'Leave empty to keep the saved key',
     getKey: (name: string) => `Get a ${name} key`,
     saveStart: 'Save and start',
     connected: (model: string, title: string) => `Connected to ${title} · ${model}`,
     test: 'Test',
-    changeKey: 'Change service or key',
+    changeKey: 'Change service, model or key',
     otherProvider: 'Use another model service',
     toAdvancedTitle: 'Switch to advanced mode?',
     toAdvancedBody: 'Other model services are set up on the Model page of advanced mode. You can switch back to normal mode at the bottom left.',
@@ -123,16 +127,29 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const keyInput = ui.input({});
   keyInput.type = 'password';
   keyInput.autocomplete = 'off';
+  // any model name the service takes; the service's own suggestions drop down as it is typed
+  const modelInput = ui.input({});
+  modelInput.autocomplete = 'off';
+  modelInput.spellcheck = false;
+  const modelList = ui.h('datalist');
+  modelList.id = 'home-model-list';
+  modelInput.setAttribute('list', modelList.id);
   const keyRow = ui.rowbar();
   const save = ui.button(S.saveStart, { variant: 'primary' });
   const keyField = ui.field(S.keyLabel(vendor.name), keyInput);
-  keyRow.append(keyField, save);
+  const modelField = ui.field(S.modelLabel, modelInput);
+  modelField.classList.add('home-modelfield');
+  keyRow.append(modelField, keyField, modelList, save);
+  /** The active endpoint's service and model, once the status is read. */
+  let active: { vendor: Vendor | null; model: string } = { vendor: null, model: '' };
   const getKey = ui.h('a', 'home-link', '');
   getKey.target = '_blank'; getKey.rel = 'noopener';
   const pickVendor = (v: Vendor) => {
     vendor = v;
     vendorButtons.forEach((b, i) => b.classList.toggle('on', VENDORS[i] === v));
-    keyInput.placeholder = v.keyHint;
+    keyInput.placeholder = active.vendor === v ? S.keepKey : v.keyHint;
+    modelInput.value = active.vendor === v && active.model ? active.model : v.model;
+    modelList.replaceChildren(...[v.model, ...(v.models ?? [])].map((m) => Object.assign(document.createElement('option'), { value: m })));
     const label = keyField.querySelector('.fieldlabel');
     if (label) label.textContent = S.keyLabel(v.name);
     getKey.textContent = S.getKey(v.name);
@@ -192,6 +209,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     connectedLine.hidden = !ready || editingKey;
     keyBox.hidden = ready && !editingKey;
     const current = vendorOf(mc?.baseUrl);
+    active = { vendor: current, model: mc?.model ?? '' };
     if (mc?.model) connectedPill.textContent = S.connected(mc.model, current?.name ?? mc.moduleTitle);
     // the key box starts on the service in use, once
     if (!vendorShown && current) { vendorShown = true; pickVendor(current); }
@@ -212,11 +230,12 @@ async function mount(ctx: FeatureContext): Promise<void> {
 
   save.addEventListener('click', async () => {
     const key = keyInput.value.trim();
-    if (!key) { keyInput.focus(); return; }
+    // only the service in use has a key saved to keep
+    if (!key && active.vendor !== vendor) { keyInput.focus(); return; }
     save.disabled = true;
     try {
       testing();
-      const r = await connectVendor(call, vendor, key);
+      const r = await connectVendor(call, vendor, key, modelInput.value);
       keyInput.value = '';
       editingKey = false;
       showTest(r);

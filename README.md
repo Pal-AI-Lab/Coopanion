@@ -104,12 +104,14 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 | DeepSeek | [platform.deepseek.com](https://platform.deepseek.com/api_keys) | `deepseek-flash` |
 | 通义千问(阿里云百炼) | [bailian.console.aliyun.com](https://bailian.console.aliyun.com/cn-beijing/model/settings/api-key) | `qwen3.8-flash` |
 | Kimi(月之暗面) | [platform.kimi.com](https://platform.kimi.com/console/api-keys) | `kimi-k3` |
-| 智谱 GLM | [bigmodel.cn](https://bigmodel.cn/usercenter/proj-mgmt/apikeys) | `glm-5.3` |
+| 智谱 GLM | [bigmodel.cn](https://bigmodel.cn/usercenter/proj-mgmt/apikeys) | `glm-5.3-flash`(智谱的 Responses 文档只示范了 `glm-5.3`,连不上就换成它) |
 | 豆包(火山方舟) | [ark.volcengine.com](https://ark.volcengine.com/region:cn-beijing/apikey) | `doubao-seed-2-1-lite-260915`(要先在方舟控制台「开通管理」里开通这个模型) |
-| 百度千帆 | [console.bce.baidu.com](https://console.bce.baidu.com/iam/#/iam/apikey/list) | `glm-5.1`(千帆的 Responses 接口没有文心模型) |
+| 百度千帆 | [console.bce.baidu.com](https://console.bce.baidu.com/iam/#/iam/apikey/list) | `glm-5.1`(千帆的 Responses 接口没有文心模型,也没有能看图的) |
 | MiniMax | [platform.minimax.cn](https://platform.minimax.cn/user-center/basic-information/interface-key) | `MiniMax-M3` |
 | 阶跃星辰 | [platform.stepfun.com](https://platform.stepfun.com/interface-key) | `step-3.7-flash` |
 | OpenRouter | [openrouter.ai](https://openrouter.ai/settings/keys) | `deepseek/deepseek-v4.1-flash` |
+
+默认模型是每家最新一代里便宜、能看图的那档(千帆没有这样的模型)。想用别的,在引导里选完服务后把模型名改掉,或者在「开始」页的「模型」框里填,输入时会列出几个推荐的。
 
 DeepSeek 以外的几家是按各自文档接入的,还没拿真实的 Key 逐家试过;哪家连不上或回话出错,欢迎开 issue。
 
@@ -175,8 +177,8 @@ Mac:点屏幕顶部菜单栏里 Coo 的图标,是同一份菜单。
 
 ### 换模型
 
-「开始」页的「连接模型」一栏列着 Coo 支持的几家服务,点一家、贴上它的 Key,就换过去了。每家各存一份 Key,换回来不用重填。
-默认用 DeepSeek 的 `deepseek-flash`。它能看截图,电脑操作需要这个能力;别家的默认模型里,看不看得了图见上面的表(豆包、千问、Kimi、MiniMax、阶跃星辰、OpenRouter 的默认模型能看图)。在高级模式的「模型」页里可以:
+「开始」页的「连接模型」一栏列着 Coo 支持的几家服务,点一家、填好模型名(默认已填好)、贴上它的 Key,就换过去了。每家各存一份 Key,换回来不用重填;只改正在用的这家的模型时 Key 可以留空。
+默认用 DeepSeek 的 `deepseek-flash`。它能看截图,电脑操作需要这个能力;除百度千帆外,各家的默认模型都能看图。在高级模式的「模型」页里可以:
 
 - 换模型、调整思考档位:不思考 / 快 / 标准 / 最深(各家接受的档位不同,会自动换成那一家支持的值);
 - 新建连接,选「OpenAI Responses Compatible」,接入其他兼容 Responses API 的服务;

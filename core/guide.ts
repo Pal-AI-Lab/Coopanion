@@ -7,7 +7,8 @@
  * 2. how lively to be (`roam`): while the cards are up Coo shows each one, standing still,
  *    strolling, or running back and forth;
  * 3. the model service (DeepSeek first, the others Coo Pet Provider offers after it, each card with
- *    its logo) and its key, saved, tested and made active through the console's own endpoint routes;
+ *    its logo), the model (the service's cheap default that reads images, or any name typed in) and
+ *    the key, saved, tested and made active through the console's own endpoint routes;
  * 4. voice input: the speech model is downloaded with one click when it is missing, then how to
  *    talk, with the talk key as a key cap;
  * 5. where the buttons and the menu are, and where settings live.
@@ -53,13 +54,15 @@ const S = {
 
   askVendor: '要和你聊天,我得先连上大模型。用哪一家的?拿不准就选 DeepSeek。',
   vendorOk: '就用这家',
+  pickModel: (v: Vendor) => `默认用 ${v.model},便宜,还能看图。想用别的模型,改成它的名字就行。`,
+  modelOk: '就用这个',
   askKey: (v: Vendor) => `把 ${v.name} 的 API Key 贴在这里吧。按用量计费,注意 token 消耗哦。`,
   keySend: '连接',
   keyLink: (v: Vendor) => `还没有 Key?去${v.name}申请`,
   keyLater: '稍后再填',
   connecting: '正在连接…',
   keyOk: (v: Vendor, model: string) => `连上 ${v.name} 了${model ? `(${model})` : ''}!现在我能说话啦,库...`,
-  keyFail: (why: string) => `没连上:${why}。看看 Key 是不是完整,账户里还有没有余额?再贴一次试试。`,
+  keyFail: (why: string) => `没连上:${why.replace(/[。.!！]+$/, '')}。看看 Key 是不是完整,账户里还有没有余额?再贴一次试试。`,
   keyAlready: (name: string, model: string) => `模型已经连好了(${[name, model].filter(Boolean).join(' · ')}),省事,库...`,
   keySkipped: '没关系,等你填好我再开口。之后我会再来问你。',
 
@@ -161,6 +164,12 @@ async function connectLoop(show: (d: PetDialog) => Promise<PetDialogAnswer>, cal
   });
   if ('closed' in picked) throw new Closed();
   const vendor = VENDORS['index' in picked ? picked.index : 0] ?? VENDORS[0]!;
+  const m = await show({
+    ...ask, text: S.pickModel(vendor), marks: [vendor.model], actions: ['thinking'],
+    input: { kind: 'text', submit: S.modelOk, value: vendor.model, maxLength: 120, suggestions: [vendor.model, ...(vendor.models ?? [])] },
+  });
+  if ('closed' in m) throw new Closed();
+  const model = 'text' in m ? m.text.trim() : vendor.model;
   const keyStep = (text: string, actions: string[]): PetDialog => ({ ...ask, text, actions, input: keyInput(vendor, later) });
   let step = keyStep(S.askKey(vendor), ['thinking']);
   for (;;) {
@@ -169,7 +178,7 @@ async function connectLoop(show: (d: PetDialog) => Promise<PetDialogAnswer>, cal
     if (!('text' in a)) return false;
     // the bar stays up while the key is saved and tested; a page gone meanwhile just misses it
     const wait = pet()?.dialog({ text: S.connecting, actions: ['thinking'], step: ask.step, input: { kind: 'progress' } });
-    const r = await connectVendor(call, vendor, a.text);
+    const r = await connectVendor(call, vendor, a.text, model);
     wait?.close();
     if (r.ok) {
       const { model } = await currentConnection(call);

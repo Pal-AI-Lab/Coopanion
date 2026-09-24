@@ -7,6 +7,7 @@
 .home-link:hover { text-decoration: underline; }
 .home-keybox { display: flex; flex-direction: column; gap: 8px; }
 .home-keybox .rowbar > label { flex: 1; min-width: 0; }
+.home-keybox .rowbar > label.home-modelfield { flex: 0 1 240px; }
 .home-keybox input { width: 100%; }
 /* 模型服务:一排带标志的按钮,选中的点亮 */
 .home-vendors { display: flex; flex-wrap: wrap; gap: 8px; }
