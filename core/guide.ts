@@ -23,8 +23,10 @@ const KEY_URL = 'https://platform.deepseek.com/api_keys';
 const PET_GROUP = 'world:desktop-pet';
 const USER_KEY = 'worlds.desktop-pet.user';
 const ROAM_KEY = 'worlds.desktop-pet.roam';
-/** The seed's name for the person: the name box offers it as a placeholder, not as a value. */
-const DEFAULT_USER = '主人';
+/** The default name for the person: the name box offers it as a placeholder, not as a value. */
+const DEFAULT_USER = '伙伴';
+/** Names that are only a default (「主人」 was the default before 0.1.2): the name box starts empty for them. */
+const DEFAULT_USERS = [DEFAULT_USER, '主人'];
 /** Numbered steps, for the dots at the top of the bubble. */
 const STEPS = 5;
 /** How often a step waiting for the pet page looks again, and a download for its progress. */
@@ -209,11 +211,11 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
     const setPet = (key: string, value: string) => call('/api/config', { group: PET_GROUP, values: { [key]: value } }).catch(() => {});
 
     // 1 hello, and a name
-    await step(1, { text: S.hello, actions: ['happy', 'hop'], input: { kind: 'buttons', options: [{ label: S.helloReply, primary: true }] } });
+    await step(1, { text: S.hello, marks: ['Coo'], actions: ['happy', 'hop'], input: { kind: 'buttons', options: [{ label: S.helloReply, primary: true }] } });
     const saved = typeof values[USER_KEY] === 'string' ? values[USER_KEY] as string : '';
     const a = await step(1, {
       text: S.askName, actions: ['thinking'],
-      input: { kind: 'text', submit: S.nameSend, placeholder: DEFAULT_USER, value: saved && saved !== DEFAULT_USER ? saved : '', maxLength: 20 },
+      input: { kind: 'text', submit: S.nameSend, placeholder: DEFAULT_USER, value: saved && !DEFAULT_USERS.includes(saved) ? saved : '', maxLength: 20 },
     });
     const name = 'text' in a ? a.text : saved || DEFAULT_USER;
     if (name !== saved) await setPet(USER_KEY, name);

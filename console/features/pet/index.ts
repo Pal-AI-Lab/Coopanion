@@ -87,7 +87,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const habits = ui.sheet({ title: S.settingsTitle });
   const msg = ui.msgline('');
 
-  const user = ui.input({ placeholder: '主人' });
+  const user = ui.input({ placeholder: '伙伴' });
   const roam = ui.segmented([
     { value: 'free', label: S.roamFree }, { value: 'calm', label: S.roamCalm }, { value: 'off', label: S.roamOff },
   ], { size: 'sm', onSelect: (v) => void save(KEYS.roam, v) });
