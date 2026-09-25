@@ -1,7 +1,6 @@
 # Packages build/app (assembled by scripts/pack.ts) into a per-user Windows installer, or a
 # macOS disk image and zip for the architecture of the Mac it is built on.
-# Keep the installed application identity and Windows upgrade registration.
-appId: ai.pal.corticompanion
+appId: ai.pal.coopanion
 productName: Coopanion
 copyright: Copyright © 2026 Pal-AI-Lab
 electronVersion: 44.4.4

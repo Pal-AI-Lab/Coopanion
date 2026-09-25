@@ -20,19 +20,16 @@
  * while the settings window is open, so it can be reached with Command-Tab.
  */
 const { app, BrowserWindow, Menu, Notification, Tray, dialog, nativeImage, shell } = require('electron');
-const { cpSync, existsSync, mkdirSync, rmSync } = require('node:fs');
+const { mkdirSync } = require('node:fs');
 const { delimiter, dirname, join } = require('node:path');
-
-const { macDataPath } = require('./data-path.cjs');
 
 const MAC = process.platform === 'darwin';
 const APP_ROOT = app.getAppPath();
 const ICONS = join(__dirname, 'icons');
 const DATA = process.env.CORTICO_COMPANION_DATA
   || (!app.isPackaged ? join(APP_ROOT, 'build', 'data')
-    : MAC ? macDataPath(app.getPath('appData')) : join(dirname(process.execPath), 'data'));
+    : MAC ? join(app.getPath('appData'), 'Coopanion') : join(dirname(process.execPath), 'data'));
 // before anything asks Electron for a path: the single-instance lock and the profile live in userData
-const LEGACY_DATA = join(app.getPath('appData'), 'CortiCompanion');
 app.setPath('userData', DATA);
 app.setPath('crashDumps', join(DATA, 'Crashpad'));
 process.env.TEMP = process.env.TMP = process.env.TMPDIR = join(DATA, 'tmp');
@@ -52,26 +49,6 @@ if (process.argv.includes('--pet-host')) {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
   return;
-}
-migrateLegacyData();
-
-/**
- * Version 0.1.0 kept its data in %APPDATA%\CortiCompanion. The deployment and logs move into
- * the data directory, the npm manifest of installed extensions too (their node_modules link
- * into the old pnpm store, so the extensions page reinstalls them), then the old directory goes.
- */
-function migrateLegacyData() {
-  if (process.platform !== 'win32' || !app.isPackaged || LEGACY_DATA === DATA || !existsSync(LEGACY_DATA)) return;
-  if (existsSync(join(LEGACY_DATA, 'home'))) {
-    // both hold a deployment: neither is overwritten or removed
-    if (existsSync(join(DATA, 'home'))) return;
-    cpSync(join(LEGACY_DATA, 'home'), join(DATA, 'home'), { recursive: true });
-    if (existsSync(join(LEGACY_DATA, 'logs'))) cpSync(join(LEGACY_DATA, 'logs'), join(DATA, 'logs'), { recursive: true });
-    const manifest = join(LEGACY_DATA, 'extensions', 'package.json');
-    if (existsSync(manifest)) { mkdirSync(join(DATA, 'extensions'), { recursive: true }); cpSync(manifest, join(DATA, 'extensions', 'package.json')); }
-  }
-  // a file still held open (an old copy running) leaves the directory for the next start
-  try { rmSync(LEGACY_DATA, { recursive: true, force: true, maxRetries: 3 }); } catch { /* removed on a later start */ }
 }
 
 const { CoreHost } = require('./core-host.cjs');
@@ -224,7 +201,7 @@ app.on('before-quit', (e) => {
 });
 
 app.whenReady().then(() => {
-  app.setAppUserModelId('ai.pal.corticompanion');
+  app.setAppUserModelId('ai.pal.coopanion');
   buildTray();
   core.start();
 });

@@ -19,9 +19,6 @@
   SetOutPath $TEMP
   RMDir /r "$INSTDIR\resources"
   RMDir /r "$INSTDIR\locales"
-  ; Earlier branded executables may remain after an upgrade.
-  Delete "$INSTDIR\CortiCompanion.exe"
-  Delete "$INSTDIR\Uninstall CortiCompanion.exe"
   Delete "$INSTDIR\Coopanion.exe"
   Delete "$INSTDIR\Uninstall Coopanion.exe"
   Delete "$INSTDIR\*.dll"
@@ -33,8 +30,4 @@
   Delete "$INSTDIR\LICENSES.chromium.html"
   ; removed only when nothing is left, data\ included
   RMDir "$INSTDIR"
-!macroend
-
-!macro customInstall
-  Delete "$DESKTOP\CortiCompanion.lnk"
 !macroend
