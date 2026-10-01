@@ -43,7 +43,11 @@ const ctl = createPet(
     enter: 'drop',
   },
 );
-addEventListener('resize', () => ctl.resize());
+addEventListener('resize', () => {
+  ctl.resize();
+  // the World reads walk targets and drop spots against the stage the pet is on now
+  send({ t: 'hello', screen: { w: innerWidth, h: innerHeight } });
+});
 
 /* ---------- connection ---------- */
 let ws = null, backoff = 500, watching = false;
@@ -932,7 +936,33 @@ stage.addEventListener('pointerdown', (e) => {
   if (ctl.pointerDown({ x: e.clientX, y: e.clientY })) { stage.setPointerCapture(e.pointerId); e.preventDefault(); }
 });
 const up = () => { ctl.pointerUp(); stage.style.cursor = ''; };
-stage.addEventListener('pointerup', up);
+/**
+ * Most milliseconds a drop on another display waits for the page to take the window's new size
+ * (within a pixel: fractional scales round it). The size normally arrives a frame or two after
+ * the move; the cap ends the wait when the window settled at some other size, and the pet then
+ * drops inside whatever size the page has.
+ */
+const RESIZE_WAIT_MS = 1000;
+stage.addEventListener('pointerup', async (e) => {
+  const off = e.clientX < 0 || e.clientY < 0 || e.clientX >= innerWidth || e.clientY >= innerHeight;
+  if (!off || ctl.pet.mode !== 'drag' || !host?.followCursor) { up(); return; }
+  // let go of past the window's edge: over another display the window follows and the pet drops there
+  const to = await host.followCursor().catch(() => null);
+  if (!to) { up(); return; }
+  stage.style.cursor = '';
+  // until the drop the body and bubbles still stand in the old display's coordinates
+  document.body.style.visibility = 'hidden';
+  try {
+    const t0 = performance.now();
+    while ((Math.abs(innerWidth - to.w) > 1 || Math.abs(innerHeight - to.h) > 1) && performance.now() - t0 < RESIZE_WAIT_MS) {
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    ctl.resize();
+    ctl.dropAt({ x: to.x, y: to.y });
+  } finally {
+    document.body.style.visibility = '';
+  }
+});
 stage.addEventListener('pointercancel', up);
 document.addEventListener('pointerleave', () => { cursor.at = null; ctl.pointerLeave(); });
 stage.addEventListener('dblclick', (e) => { if (ctl.hitPet({ x: e.clientX, y: e.clientY })) openInput(); });

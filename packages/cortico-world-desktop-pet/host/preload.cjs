@@ -14,4 +14,6 @@ contextBridge.exposeInMainWorld('petHost', {
   onCursor: (cb) => ipcRenderer.on('pet:cursor', (_e, p) => cb(p)),
   /** Screen pixels behind `rect`, minus `skip` rects (page coordinates), as a flat [r, g, b, …]; null where the screen cannot be read. */
   sampleBackdrop: (rect, skip) => ipcRenderer.invoke('pet:sampleBackdrop', { rect, skip }),
+  /** Moves the window to the display under the cursor: { x, y } the cursor and { w, h } the new size in page pixels, or null when it stays. */
+  followCursor: () => ipcRenderer.invoke('pet:followCursor'),
 });

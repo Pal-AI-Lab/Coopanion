@@ -1,7 +1,7 @@
 /**
  * Starts and stops the process that shows the pet window: an Electron main process running
  * `host/electron-main.cjs`, which opens a transparent, frameless, always-on-top window over
- * the primary display's work area and loads the pet page.
+ * the work area of one display (the primary one at start) and loads the pet page.
  *
  * Which Electron, in order:
  * 1. `CORTICO_DESKTOP_PET_HOST`: a JSON array command set by an embedding app; it gets

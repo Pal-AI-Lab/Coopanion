@@ -3,10 +3,12 @@
  *
  * Run as `electron electron-main.cjs --pet-url=http://127.0.0.1:<port>/pet`, or call
  * `runPetHost({ url, parentPid })` from an app's own main process. With `--parent-pid=<pid>`
- * the window closes once that process exits. The window covers the primary
- * display's work area, is transparent and always on top, and ignores the mouse until the
- * page reports the pointer is over the figure, a bubble or the menu. A tray icon shows,
- * hides and closes it; an embedding app that has its own tray passes `tray: false`.
+ * the window closes once that process exits. The window covers the work area of one display
+ * (the primary one at start), is transparent and always on top, and ignores the mouse until the
+ * page reports the pointer is over the figure, a bubble or the menu. When the pet is let go of
+ * over another display, the window moves to that display; when its display is unplugged, it
+ * moves to the primary one. A tray icon shows, hides and closes it; an embedding app that has its
+ * own tray passes `tray: false`.
  *
  * On macOS the window shows on every Space and over full-screen apps, the process keeps out of
  * the Dock, and the microphone is asked for before the page opens it (the app's Info.plist
@@ -110,19 +112,18 @@ function grabScreen(x, y, w, h, ow, oh) {
 }
 
 /**
- * Pixels of the primary display under `rect`, leaving out those inside any of `skip`; both in
- * page coordinates (DIP, relative to the work area the window covers). The pet window may show
- * in the copy, so the page skips its own figure and bubbles. Returns a flat
- * [r, g, b, r, g, b, …] of at most BACKDROP_SAMPLES pixels, [] when this copy failed, or null
- * where the screen cannot be read cheaply at all.
+ * Screen pixels under `rect`, leaving out those inside any of `skip`; both in page coordinates
+ * (DIP, relative to `win`). The pet window may show in the copy, so the page skips its own figure
+ * and bubbles. Returns a flat [r, g, b, r, g, b, …] of at most BACKDROP_SAMPLES pixels, [] when
+ * this copy failed, or null where the screen cannot be read cheaply at all.
  */
-function sampleBackdrop({ rect, skip = [] }) {
+function sampleBackdrop(win, { rect, skip = [] }) {
   if (!gdi) return null;
   if (!rect || !(rect.width > 0) || !(rect.height > 0)) return [];
-  const d = screen.getPrimaryDisplay(), sf = d.scaleFactor;
-  // the primary display sits at the origin in both DIP and physical pixels
-  const x = Math.round((d.workArea.x + rect.x) * sf), y = Math.round((d.workArea.y + rect.y) * sf);
-  const w = Math.max(1, Math.round(rect.width * sf)), h = Math.max(1, Math.round(rect.height * sf));
+  const b = win.getBounds();
+  // physical pixels at the scale of the display the window is on
+  const { x, y, width, height } = screen.dipToScreenRect(win, { x: b.x + rect.x, y: b.y + rect.y, width: rect.width, height: rect.height });
+  const w = Math.max(1, width), h = Math.max(1, height);
   const step = Math.max(1, Math.sqrt(w * h / BACKDROP_SAMPLES));
   const ow = Math.max(1, Math.round(w / step)), oh = Math.max(1, Math.round(h / step));
   const bits = grabScreen(x, y, w, h, ow, oh);
@@ -166,15 +167,26 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   if (!url) throw new Error('pet host needs --pet-url');
   const origin = new URL(url).origin;
   let win = null, tray = null, dress = null;
+  /** Id of the display whose work area the window covers. */
+  let displayId = null;
 
-  const place = () => {
-    if (!win) return;
-    const wa = screen.getPrimaryDisplay().workArea;
-    win.setBounds({ x: wa.x, y: wa.y, width: wa.width, height: wa.height });
+  /** The display the window belongs on: the one it was moved to, or the primary display once that one is gone. */
+  const display = () => screen.getAllDisplays().find((d) => d.id === displayId) ?? screen.getPrimaryDisplay();
+
+  const cover = (d) => {
+    displayId = d.id;
+    const { x, y, width, height } = d.workArea;
+    win.setBounds({ x, y, width, height });
+    // Windows: a window moved onto a display with another scale factor is resized by the DPI
+    // change to its old size times the ratio of the two scales; once it is on the new display, the
+    // same bounds set again hold.
+    win.setBounds({ x, y, width, height });
   };
 
+  const place = () => { if (win) cover(display()); };
+
   const create = () => {
-    const wa = screen.getPrimaryDisplay().workArea;
+    const d = display(), wa = d.workArea;
     win = new BrowserWindow({
       x: wa.x, y: wa.y, width: wa.width, height: wa.height,
       transparent: true, frame: false, resizable: false, movable: false, minimizable: false, maximizable: false,
@@ -186,6 +198,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
         autoplayPolicy: 'no-user-gesture-required',
       },
     });
+    cover(d);
     // Native candidate windows and Chromium popups must remain above the pet.
     win.setAlwaysOnTop(true, process.platform === 'darwin' ? 'floating' : 'screen-saver');
     // on every Space, and over an app in full screen
@@ -251,7 +264,20 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   ipcMain.on('pet:hide', () => { if (win) win.hide(); });
   ipcMain.on('pet:openDress', () => openDress());
   ipcMain.handle('pet:sampleBackdrop', (_e, query) => {
-    try { return sampleBackdrop(query || {}); } catch { return []; }
+    try { return win ? sampleBackdrop(win, query || {}) : []; } catch { return []; }
+  });
+  /**
+   * A drag let go of outside the window: when the cursor is over another display, the window moves
+   * there and the page gets the cursor's spot in its new coordinates and its new size; null leaves
+   * it where it is.
+   */
+  ipcMain.handle('pet:followCursor', () => {
+    if (!win) return null;
+    const pt = screen.getCursorScreenPoint(), d = screen.getDisplayNearestPoint(pt);
+    if (d.id === display().id) return null;
+    cover(d);
+    const wa = d.workArea;
+    return { x: pt.x - wa.x, y: pt.y - wa.y, w: wa.width, h: wa.height };
   });
 
   // a pet is not an app to switch to

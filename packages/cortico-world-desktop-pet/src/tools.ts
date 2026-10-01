@@ -35,7 +35,7 @@ export const DESKTOP_PET_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
     parameters: {
       type: 'object',
       properties: {
-        to: { description: '目标:0–1 的数字(屏幕宽度比例,0 最左、1 最右),或 left / center / right / cursor(鼠标所在的横向位置)。', anyOf: [{ type: 'number', minimum: 0, maximum: 1 }, { type: 'string', enum: ['left', 'center', 'right', 'cursor'] }] },
+        to: { description: '目标:0–1 的数字(桌宠所在那块屏幕的宽度比例,0 最左、1 最右),或 left / center / right / cursor(鼠标所在的横向位置)。', anyOf: [{ type: 'number', minimum: 0, maximum: 1 }, { type: 'string', enum: ['left', 'center', 'right', 'cursor'] }] },
         run: { type: 'boolean', description: 'true 跑过去,默认走过去。' },
       },
       required: ['to'],

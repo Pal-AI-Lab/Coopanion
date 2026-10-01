@@ -1052,12 +1052,28 @@ export function createPet(els, opts) {
     }
     press = null;
   }
+  /**
+   * Ends a drag with the body dropped from under stage point `p` with no throw: the pointer was let
+   * go of on another display and the stage now covers that one. Call after `resize()` has taken the
+   * new size.
+   */
+  function dropAt(p) {
+    press = null;
+    if (pet.mode !== 'drag') return;
+    Object.assign(pointer, p, { vx: 0, samples: [] });
+    pet.x = clamp(p.x, minX(), maxX());
+    pet.fy = Math.min(floorY, p.y + 220 * S);
+    pet.vx = 0; pet.vy = 0;
+    pet.airKind = 'drop';
+    setMode('air');
+    onEvent('touch', { kind: 'drop', x: Math.round(pet.x) });
+  }
   function pointerLeave() { if (!press) pointer.inside = false; }
 
   resize();
   return {
     pet, step, render, resize, act, setExpr, walkTo, toStage, hitPet, busy,
-    pointerDown, pointerMove, pointerUp, pointerLeave,
+    pointerDown, pointerMove, pointerUp, pointerLeave, dropAt,
     get pressing() { return !!press; },
     get time() { return T; },
     get bounds() { return { W, H, floorY, S, minX: minX(), maxX: maxX() }; },
