@@ -213,6 +213,8 @@ export class DesktopPetWorld implements World {
   private readonly walks = new Map<string, PendingWalk>();
   private ask: PendingAsk | null = null;
   private touch: TouchBatch | null = null;
+  /** A touch has woken the bot and no turn has ended since; touches until then wait for the next wake. */
+  private touchWoke = false;
   private prefsKey = '';
   private prefsTimer: NodeJS.Timeout | null = null;
   private thinking = false;
@@ -285,6 +287,7 @@ export class DesktopPetWorld implements World {
     this.packTimer = null;
     if (this.touch) clearTimeout(this.touch.timer);
     this.touch = null;
+    this.touchWoke = false;
     this.keyWatcher?.stop();
     this.keyWatcher = null;
     for (const c of this.confirms.values()) { clearTimeout(c.timer); c.resolve('unavailable'); }
@@ -303,6 +306,7 @@ export class DesktopPetWorld implements World {
   }
 
   onTurnEnded(): void {
+    this.touchWoke = false;
     this.setThinking(false);
   }
 
@@ -614,7 +618,10 @@ export class DesktopPetWorld implements World {
       case 'crash': text = '你重重落地,摔晕了一会儿'; break;
       default: return;
     }
-    void this.push('desktop-pet.touch', 'desktop-pet.touch', `[互动] ${text}`, this.cfg.touch.trigger);
+    const { wakeOn } = this.cfg.touch;
+    const wakes = !this.touchWoke && (wakeOn === 'all' || (wakeOn === 'poke' && t.kind === 'poke'));
+    if (wakes) this.touchWoke = true;
+    void this.push('desktop-pet.touch', 'desktop-pet.touch', `[互动] ${text}`, wakes ? 'debounce' : 'piggyback');
   }
 
   private async push(type: string, senderKey: string, text: string, trigger: 'flush' | 'debounce' | 'piggyback'): Promise<void> {

@@ -38,7 +38,8 @@ export interface PetSkin {
 export type RoamMode = 'free' | 'calm' | 'off';
 /** Which side of each palette the pet pages draw: dark = light figure for dark surroundings. */
 export type PetTheme = 'dark' | 'light';
-export type TouchTrigger = 'debounce' | 'piggyback';
+/** Which touches wake the bot: poke = clicks only, petting and carrying wait for the next wake; all; none = every touch waits. */
+export type TouchWake = 'poke' | 'all' | 'none';
 /** hold: listen while the talk key is held; toggle: each press starts or stops listening; always: listen all the time. */
 export type MicMode = 'hold' | 'toggle' | 'always';
 /** funasr: FunASR's SenseVoiceSmall in this process (one model download, every platform); system: the recognizer Windows ships (nothing to download, less accurate). */
@@ -66,7 +67,7 @@ export interface DesktopPetConfigSection extends WorldSection {
   touch: {
     /** Clicks, petting and throws become events. */
     enabled: boolean;
-    trigger: TouchTrigger;
+    wakeOn: TouchWake;
   };
   asr: {
     enabled: boolean;
@@ -101,7 +102,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
     figure: 'coo', scheme: 'deepseek', palette: 'mint', head: 'none', side: 'none', glasses: 'none', neck: 'none',
     colors: { head: { main: 'body', acc: 'eye' }, side: { main: 'eye', acc: 'eye' }, glasses: { main: 'body', acc: 'eye' }, neck: { main: 'eye', acc: 'eye' } },
   },
-  touch: { enabled: true, trigger: 'debounce' },
+  touch: { enabled: true, wakeOn: 'poke' },
   asr: {
     enabled: true,
     engine: 'funasr',
@@ -133,7 +134,7 @@ export const DESKTOP_PET_CONFIG_GROUP: ConfigGroup = {
       [`${K}.window.electronFile`]: { type: 'string', title: 'Electron 程序', description: '留空时依次用 CORTICO_DESKTOP_PET_HOST 和面板里安装的运行时。', 'x-path': { kind: 'file' }, 'x-hot': false },
       [`${K}.port`]: { type: 'integer', title: '页面端口', minimum: 1024, maximum: 65535, description: '被占用时向上顺延。', 'x-hot': false },
       [`${K}.touch.enabled`]: { type: 'boolean', title: '互动发成事件', description: '戳、摸、拎起来甩出去。', 'x-hot': true },
-      [`${K}.touch.trigger`]: { type: 'string', title: '互动事件投递', enum: ['debounce', 'piggyback'], description: 'debounce 攒一小批后唤醒;piggyback 只跟着下一次唤醒一起送。', 'x-hot': true },
+      [`${K}.touch.wakeOn`]: { type: 'string', title: '哪些互动单独唤醒', enum: ['poke', 'all', 'none'], description: 'poke 只有点一下唤醒,摸头和拎起来跟着下一次唤醒一起送;all 都唤醒;none 都跟着下一次唤醒送。一次互动唤醒之后、这一轮结束之前的互动,都跟着下一次唤醒送。', 'x-hot': true },
     },
   },
 };

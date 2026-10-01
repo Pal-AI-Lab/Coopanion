@@ -32,9 +32,9 @@ bot 在屏幕底边有一个小身体:C 形的身体,两只 0 形的眼睛,两�
 | `desktop-pet.speech` | `[语音] 伙伴:…` | flush |
 | `desktop-pet.message` | `[打字] 伙伴:…`(双击或悬停按钮) | flush |
 | `desktop-pet.answer` | `[回答] 伙伴回答「问题」:选了第 2 项「…」` / 自己写的 / 关掉没答 | flush,关掉没答为 debounce |
-| `desktop-pet.touch` | `[互动] 伙伴戳了你 3 下` / 摸了摸 / 拎起来甩了出去 / 摔晕 | `worlds.desktop-pet.touch.trigger`,默认 debounce |
+| `desktop-pet.touch` | `[互动] 伙伴戳了你 3 下` / 摸了摸 / 拎起来甩了出去 / 摔晕 | `worlds.desktop-pet.touch.wakeOn` 选中的种类 debounce,其余 piggyback |
 
-同一种互动 2.5 秒内连着来,并成一条带次数的事件。「伙伴」取自 `worlds.desktop-pet.user`。
+同一种互动 2.5 秒内连着来,并成一条带次数的事件。`wakeOn` 默认 `poke`:只有戳唤醒,摸头、放下和甩出跟着下一批送;鼠标划过桌宠也算摸头,拖开挡路的桌宠也算放下。一条互动按 debounce 送出后,到 bot 下一次结束一轮前,其余互动都按 piggyback 送。「伙伴」取自 `worlds.desktop-pet.user`。
 
 ## 桌宠窗口
 

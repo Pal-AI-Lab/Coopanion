@@ -157,7 +157,24 @@ describe('with a pet page', () => {
     for (let i = 0; i < 3; i++) page.send({ t: 'touch', kind: 'poke' });
     await expect.poll(() => host.events.length, { timeout: 6000 }).toBe(1);
     expect(host.events[0]).toMatchObject({ type: 'desktop-pet.touch', text: '[互动] 伙伴戳了你 3 下' });
-    expect(host.pushOpts[0]).toEqual({ trigger: DESKTOP_PET_DEFAULTS.touch.trigger });
+    expect(host.pushOpts[0]).toEqual({ trigger: 'debounce' });
+  });
+
+  it('petting and a drop wait for the next wake; a poke wakes once until a turn ends', async () => {
+    const { world, host } = await mounted();
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    page.send({ t: 'touch', kind: 'pet' });
+    page.send({ t: 'touch', kind: 'grab' });
+    page.send({ t: 'touch', kind: 'drop', x: 300 });
+    page.send({ t: 'touch', kind: 'poke' });
+    await expect.poll(() => host.events.length, { timeout: 6000 }).toBe(3);
+    page.send({ t: 'touch', kind: 'poke' });
+    await expect.poll(() => host.events.length, { timeout: 6000 }).toBe(4);
+    world.onTurnEnded();
+    page.send({ t: 'touch', kind: 'poke' });
+    await expect.poll(() => host.events.length, { timeout: 6000 }).toBe(5);
+    expect(host.pushOpts.map((o) => o?.trigger)).toEqual(['piggyback', 'piggyback', 'debounce', 'piggyback', 'debounce']);
   });
 
   it('reports a throw that ends in a crash as one event', async () => {
