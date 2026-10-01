@@ -4,7 +4,9 @@
  * The child is `core/boot.ts` under the app's own runtime in Node mode, with `--import tsx`.
  * It reports `companion:ready` with the console port. It exits on purpose after asking for a
  * restart (`cortico:restart`, or `<dataDir>/.restart-request` written by the console), and is
- * started again; an unexpected exit is restarted after 3 s, at most 5 times in 5 minutes.
+ * started again; an unexpected exit is restarted after 3 s, at most 5 times in 5 minutes. The next
+ * child started after an unexpected exit gets its exit code or signal in `COOPANION_CORE_EXIT`, for
+ * the usage statistics.
  */
 const { fork } = require('node:child_process');
 const { coreEnvironment } = require('./core-env.cjs');
@@ -28,6 +30,8 @@ class CoreHost extends EventEmitter {
     this.restartAsked = false;
     this.stopping = false;
     this.crashes = [];
+    /** Exit code or signal of the last child that exited unasked, not yet handed to a new one. */
+    this.unexpectedExit = null;
     this.state = 'stopped';
   }
 
@@ -41,9 +45,10 @@ class CoreHost extends EventEmitter {
     const child = fork(join(this.opts.appRoot, 'core', 'boot.ts'), [], {
       cwd: this.opts.appRoot,
       execArgv: ['--use-env-proxy', '--import', 'tsx'],
-      env: coreEnvironment(this.opts.env),
+      env: coreEnvironment(this.unexpectedExit === null ? this.opts.env : { ...this.opts.env, COOPANION_CORE_EXIT: String(this.unexpectedExit) }),
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     });
+    this.unexpectedExit = null;
     child.stdout.pipe(log, { end: false });
     child.stderr.pipe(log, { end: false });
     this.child = child;
@@ -70,7 +75,7 @@ class CoreHost extends EventEmitter {
         this.emit('quit');
       }
     });
-    child.on('exit', (code) => {
+    child.on('exit', (code, signal) => {
       log.end(`===== exit ${code} =====\n`);
       if (this.child !== child) return;
       this.child = null;
@@ -83,6 +88,7 @@ class CoreHost extends EventEmitter {
         this.start();
         return;
       }
+      this.unexpectedExit = code ?? signal;
       const now = Date.now();
       this.crashes = this.crashes.filter((t) => now - t < CRASH_WINDOW_MS);
       this.crashes.push(now);

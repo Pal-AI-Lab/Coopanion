@@ -1,7 +1,8 @@
 /**
  * Anonymous usage statistics, sent to the project's own server (`telemetry-server/`). Every field
  * is listed in docs/TELEMETRY.md; nothing the person says, types, sees or names leaves the machine,
- * and neither do keys, file names, endpoint addresses or the names of models on custom endpoints.
+ * and neither do keys, error messages, the person's file names or paths (a crash names program files,
+ * relative to the program directory), endpoint addresses or the names of models on custom endpoints.
  *
  * An install is a random id made on the first start (`telemetry.json` in the deployment directory),
  * tied to nothing else. The day's counts and a snapshot of the settings go out as one record per
@@ -17,7 +18,8 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { cpus, release, totalmem } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export const TELEMETRY_URL = 'https://survey.palailab.org/v1/report';
 /** How often the day's record goes out while the app runs. */
@@ -43,11 +45,27 @@ export interface ModelUse {
   /** The model name for a built-in service; `custom` on any other endpoint. */
   model: string;
   endpointKind: 'builtin' | 'custom-remote' | 'custom-local';
+  /** HTTP requests, retries included. */
   calls: number;
+  /** Requests that ended without an answer after all their retries. */
   failed: number;
+  /** `failed` by the HTTP status of the last try; `none` when no status came back. */
+  failedStatus: Record<string, number>;
+  /** Tries cut off by newer input or by shutdown; not in `failed`. */
+  aborted: number;
   tokensIn: number;
   tokensOut: number;
   tokensCached: number;
+}
+
+/** How an endpoint is reported (`describeEndpoint`). */
+export type ReportedEndpoint = Pick<ModelUse, 'vendor' | 'model' | 'endpointKind'>;
+
+/** One HTTP try of a model request, as the usage record carries it. */
+export interface ModelTry {
+  generationId: string;
+  outcome: 'completed' | 'incomplete' | 'failed' | 'aborted' | 'discarded';
+  status: number | null;
 }
 
 export interface TelemetryEvent { type: string; ts: string; [field: string]: unknown }
@@ -103,6 +121,8 @@ export class Telemetry {
   private timers: NodeJS.Timeout[] = [];
   private lastTick: number;
   private sending: Promise<void> | null = null;
+  /** The last try seen of each model request not yet judged (`usage`). */
+  private readonly lastTries = new Map<string, { m: ModelUse; try: ModelTry }>();
 
   constructor(private readonly opts: TelemetryOptions) {
     this.url = opts.url ?? TELEMETRY_URL;
@@ -164,24 +184,52 @@ export class Telemetry {
     }
   }
 
-  /** One model call; `model` is already `custom` for an endpoint that is not a built-in service. */
-  usage(use: Omit<ModelUse, 'calls' | 'failed' | 'tokensIn' | 'tokensOut' | 'tokensCached'>, rec: { promptTokens: number; completionTokens: number; cacheHitTokens: number; failed: boolean }): void {
+  /**
+   * One usage record: an HTTP try of a model request (`attempt`), or usage a World reports. A request
+   * counts as failed once, when its last try failed; the tries of one request are recorded together
+   * in one synchronous call, so it is judged in a microtask after that call.
+   */
+  usage(use: ReportedEndpoint, rec: { promptTokens: number; completionTokens: number; cacheHitTokens: number; attempt?: ModelTry }): void {
     if (!this.on()) return;
     this.rollDay();
     const key = `${use.vendor}\u0000${use.model}\u0000${use.endpointKind}`;
-    const m = this.state.day.models[key] ??= { ...use, calls: 0, failed: 0, tokensIn: 0, tokensOut: 0, tokensCached: 0 };
+    const m = this.state.day.models[key] ??= { ...use, calls: 0, failed: 0, failedStatus: {}, aborted: 0, tokensIn: 0, tokensOut: 0, tokensCached: 0 };
+    // a day carried over from 0.1.10 has neither
+    m.failedStatus ??= {};
+    m.aborted ??= 0;
     m.calls += 1;
-    if (rec.failed) { m.failed += 1; this.state.day.counts.providerErrors += 1; }
     m.tokensIn += rec.promptTokens;
     m.tokensOut += rec.completionTokens;
     m.tokensCached += rec.cacheHitTokens;
+    const a = rec.attempt;
+    if (!a) return;
+    if (a.outcome === 'aborted') m.aborted += 1;
+    if (!this.lastTries.has(a.generationId)) queueMicrotask(() => this.settle(a.generationId));
+    this.lastTries.set(a.generationId, { m, try: a });
   }
 
-  /** A one-off event; queued until a send gets through. */
+  private settle(generationId: string): void {
+    const last = this.lastTries.get(generationId);
+    this.lastTries.delete(generationId);
+    if (last?.try.outcome !== 'failed' || !this.on()) return;
+    const status = last.try.status === null ? 'none' : String(last.try.status);
+    last.m.failed += 1;
+    last.m.failedStatus[status] = (last.m.failedStatus[status] ?? 0) + 1;
+    this.state.day.counts.providerErrors += 1;
+  }
+
+  /**
+   * A one-off event; queued until a send gets through. The server keeps one event per type and
+   * time, so a second one of a type in the same millisecond is stamped a millisecond later.
+   */
   event(type: string, fields: Record<string, unknown>): void {
     if (!this.on()) return;
     const queue = this.state.queue;
-    queue.push({ type, ts: this.now().toISOString(), ...fields });
+    let at = this.now().getTime();
+    const same = queue.filter((e) => e.type === type);
+    const last = same.length ? Date.parse(same[same.length - 1]!.ts) : 0;
+    if (last >= at) at = last + 1;
+    queue.push({ type, ts: new Date(at).toISOString(), ...fields });
     if (queue.length > QUEUE_MAX) queue.splice(0, queue.length - QUEUE_MAX);
   }
 
@@ -314,7 +362,7 @@ export class Telemetry {
 const PRIVATE_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?$|0\.0\.0\.0|.*\.local$)/i;
 
 /** How an endpoint is reported: a built-in service by its id and model, anything else without its address or model name. */
-export function describeEndpoint(entry: { kind: string; baseUrl?: string } | undefined, model: string, vendorOf: (baseUrl: string | undefined) => { id: string } | null): Omit<ModelUse, 'calls' | 'failed' | 'tokensIn' | 'tokensOut' | 'tokensCached'> {
+export function describeEndpoint(entry: { kind: string; baseUrl?: string } | undefined, model: string, vendorOf: (baseUrl: string | undefined) => { id: string } | null): ReportedEndpoint {
   const vendor = vendorOf(entry?.baseUrl);
   if (vendor) return { vendor: vendor.id, model, endpointKind: 'builtin' };
   let host = '';
@@ -325,4 +373,51 @@ export function describeEndpoint(entry: { kind: string; baseUrl?: string } | und
 /** An extension's spec as written in extensions/package.json: a registry range keeps its name, a path or URL does not. */
 export function publicExtensionName(name: string, spec: string): string {
   return /^(link:|file:|git|https?:|github:|\.|\/|[a-zA-Z]:\\)/.test(spec) ? 'private' : name;
+}
+
+/** Stack frames sent with a crash. */
+const CRASH_FRAMES = 3;
+/** An error `code` as Node and libraries set it (`ENOENT`, `ERR_INVALID_ARG_TYPE`); any other value is left out. */
+const ERROR_CODE = /^[A-Za-z0-9_.-]{1,60}$/;
+/** The location of a stack line, `at fn (location:line:column)` or `at [async ]location:line:column`. */
+const FRAME = /(?:\(|at (?:async )?)([^()]+):(\d+):\d+\)?$/;
+
+export interface CrashFields {
+  /** The error's class name, or the type of a thrown value that is not an Error. */
+  error: string;
+  code?: string | number;
+  /** `path:line`, the path relative to the program directory. */
+  frames?: string[];
+}
+
+/**
+ * What a crash report says about `err`: its class name, its `code`, and the top `CRASH_FRAMES`
+ * stack frames inside `appRoot`. Frames are read only after the stack's first line(s), which hold
+ * the message; frames outside `appRoot` or under one of `excluded` (installed extensions) are skipped.
+ */
+export function crashFields(err: unknown, appRoot: string, excluded: string[]): CrashFields {
+  if (!(err instanceof Error)) return { error: typeof err };
+  const fields: CrashFields = { error: err.name.slice(0, 60) };
+  const code = (err as { code?: unknown }).code;
+  if (typeof code === 'number' || (typeof code === 'string' && ERROR_CODE.test(code))) fields.code = code;
+  const head = String(err);
+  if (!err.stack?.startsWith(head)) return fields;
+  const inside = (dir: string, file: string) => {
+    const rel = relative(dir, file);
+    return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
+  };
+  const frames: string[] = [];
+  for (const line of err.stack.slice(head.length).split('\n')) {
+    const m = line.trim().startsWith('at ') ? FRAME.exec(line.trim()) : null;
+    if (!m) continue;
+    let file = m[1];
+    if (file.startsWith('file:')) {
+      try { file = fileURLToPath(file); } catch { continue; }
+    }
+    if (!isAbsolute(file) || !inside(appRoot, file) || excluded.some((dir) => inside(dir, file))) continue;
+    frames.push(`${relative(appRoot, file).split(sep).join('/')}:${m[2]}`);
+    if (frames.length === CRASH_FRAMES) break;
+  }
+  if (frames.length) fields.frames = frames;
+  return fields;
 }

@@ -7,7 +7,7 @@
  *   replaces the one stored for that install and date (the app sends the running day again and again).
  * - `POST /v1/uninstall`: the Windows uninstaller's one call.
  * - `GET /v1/stats` with `Authorization: Bearer <STATS_TOKEN>`: installs, active installs, retention
- *   by first date, sources, models, versions.
+ *   by first date, sources, models, model failures by HTTP status, crashes, versions.
  *
  * No address is stored: the client's IP is used only to rate-limit, in memory.
  *
@@ -120,6 +120,10 @@ function uninstall(body) {
 }
 
 const all = (sql, ...args) => db.prepare(sql).all(...args);
+/** A `models` entry's endpoint: a built-in service by its id, any other as `custom-remote via <module>` / `custom-local via <module>`. */
+const VENDOR_LABEL = `CASE WHEN json_extract(m.value, '$.vendor') LIKE 'kind:%'
+  THEN json_extract(m.value, '$.endpointKind') || ' via ' || substr(json_extract(m.value, '$.vendor'), 6)
+  ELSE json_extract(m.value, '$.vendor') END`;
 
 /** Retention by first date: how many of each cohort were active on day N after it (N = 1, 7, 30); a cohort younger than N days has 0 there. */
 function stats() {
@@ -145,19 +149,28 @@ function stats() {
     sources: all(`SELECT COALESCE(source, 'unanswered') AS source, COUNT(*) AS n FROM installs GROUP BY 1 ORDER BY n DESC`),
     versions: all(`SELECT version, COUNT(*) AS n FROM installs WHERE last_seen >= datetime('now', '-14 days') GROUP BY version ORDER BY n DESC`),
     platforms: all(`SELECT os, arch, COUNT(*) AS n FROM installs GROUP BY os, arch ORDER BY n DESC`),
-    // an endpoint outside the built-in services arrives as vendor `kind:<module>`, model `custom`:
-    // it is shown as where it points (custom-remote / custom-local) and which module talks to it
+    // 0.1.10 counts every failed try in `failed`, retries and cut-off tries included, and sends no `aborted` or `failedStatus`
     models: all(`
-      SELECT CASE WHEN json_extract(m.value, '$.vendor') LIKE 'kind:%'
-          THEN json_extract(m.value, '$.endpointKind') || ' via ' || substr(json_extract(m.value, '$.vendor'), 6)
-          ELSE json_extract(m.value, '$.vendor') END AS vendor,
+      SELECT ${VENDOR_LABEL} AS vendor,
         json_extract(m.value, '$.model') AS model,
         COUNT(DISTINCT d.install_id) AS installs, SUM(json_extract(m.value, '$.calls')) AS calls,
-        SUM(json_extract(m.value, '$.failed')) AS failed,
+        SUM(json_extract(m.value, '$.failed')) AS failed, SUM(json_extract(m.value, '$.aborted')) AS aborted,
         SUM(json_extract(m.value, '$.tokensIn')) AS tokensIn, SUM(json_extract(m.value, '$.tokensCached')) AS tokensCached,
         SUM(json_extract(m.value, '$.tokensOut')) AS tokensOut
       FROM days d, json_each(d.data, '$.models') m WHERE d.date >= date('now', '-30 days')
       GROUP BY 1, model ORDER BY installs DESC LIMIT 50`),
+    failures: all(`
+      SELECT ${VENDOR_LABEL} AS vendor, json_extract(m.value, '$.model') AS model, s.key AS status,
+        COUNT(DISTINCT d.install_id) AS installs, SUM(s.value) AS failed
+      FROM days d, json_each(d.data, '$.models') m, json_each(m.value, '$.failedStatus') s
+      WHERE d.date >= date('now', '-30 days')
+      GROUP BY 1, model, status ORDER BY failed DESC LIMIT 50`),
+    crashes: all(`
+      SELECT json_extract(data, '$.where') AS "where", json_extract(data, '$.error') AS error, json_extract(data, '$.code') AS code,
+        json_extract(data, '$.frames[0]') AS frame, json_extract(data, '$.exitCode') AS exitCode,
+        COUNT(DISTINCT install_id) AS installs, COUNT(*) AS n, MAX(ts) AS last
+      FROM events WHERE type = 'crash' AND ts >= date('now', '-30 days')
+      GROUP BY 1, 2, 3, 4, 5 ORDER BY n DESC LIMIT 50`),
     extensions: all(`
       SELECT json_extract(e.value, '$.name') AS name, COUNT(DISTINCT d.install_id) AS installs
       FROM days d, json_each(d.data, '$.extensions') e WHERE d.date >= date('now', '-30 days')

@@ -12,7 +12,8 @@
  * First start writes the files in `seed.ts`; after that every value is the operator's, edited in
  * the console. While the active endpoint has no key, event delivery starts paused. The first start
  * runs the introduction (`guide.ts`) in the pet's bubble, the key box included; after it, the pet
- * asks for a missing key in its bubble now and then, for as long as no key is set. An introduction
+ * asks for a missing key in its bubble now and then, for as long as no key is set; with a key, a
+ * run of failed model requests is told in the bubble with the upstream's reason. An introduction
  * walked through to the end tells Coo so in an internal event (`guideFinished`): the persona, the
  * names and the rest are now its to settle with the person, and the prompt page is where both of
  * them edit it.
@@ -26,12 +27,14 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { BotDefinition } from 'cortico/bot.ts';
 import { createBot } from 'cortico/bot.ts';
 import { announceDataDir, consumeBootFlags } from 'cortico/boot.ts';
 import type { WakeBus } from 'cortico/core/bus.ts';
 import { getByPath, type ConfigGroup } from 'cortico/core/config-schema.ts';
+import { GenerationError } from 'cortico/core/generation.ts';
+import { pick } from 'cortico/core/language.ts';
 import { secretReader } from 'cortico/core/secrets.ts';
 import type { Core } from 'cortico/core/core.ts';
 import type { CoreConfig, UsageRecord } from 'cortico/core/types.ts';
@@ -47,7 +50,7 @@ import COO, { vendorOf } from 'cortico-provider-coo';
 import { bundledConsoleAssets } from './bundled-panels.ts';
 import { askForKey, guideDone, markDone, runGuide, type GuideDeps } from './guide.ts';
 import { CONSOLE_PORT, DEPLOYMENT, DISPLAY_NAME, SEED_DIR, seed } from './seed.ts';
-import { describeEndpoint, publicExtensionName, Telemetry, type Counter } from './telemetry.ts';
+import { crashFields, describeEndpoint, publicExtensionName, Telemetry, type Counter } from './telemetry.ts';
 
 /** The active endpoint's key is set in the process environment or the endpoint's `.env`. */
 function hasKey(config: CoreConfig): boolean {
@@ -57,6 +60,8 @@ function hasKey(config: CoreConfig): boolean {
   return secretReader(join(providersRoot(), config.activeProvider, '.env'))(entry.secret) !== '';
 }
 
+/** The program directory; crash reports name files relative to it. */
+const APP_ROOT = fileURLToPath(new URL('../', import.meta.url));
 /** How long the pet page gets to show up on a first start before the settings window opens instead. */
 const PET_WAIT_MS = 60_000;
 /** Pet events that mean the person is talking to Coo. */
@@ -136,10 +141,86 @@ function countUse(core: Core<CoreConfig>, config: CoreConfig, telemetry: Telemet
   };
   const append = usageLog.append.bind(usageLog);
   usageLog.append = (rec: UsageRecord) => {
-    telemetry.usage(describeEndpoint(config.providers[config.activeProvider], rec.model, vendorOf), {
-      promptTokens: rec.promptTokens, completionTokens: rec.completionTokens, cacheHitTokens: rec.cacheHitTokens, failed: rec.outcome === 'failed',
+    // the endpoint the try went to; usage a World reports has no try and goes under the active one
+    const endpoint = config.providers[rec.attempt?.origin.instance ?? config.activeProvider];
+    telemetry.usage(describeEndpoint(endpoint, rec.model, vendorOf), {
+      promptTokens: rec.promptTokens, completionTokens: rec.completionTokens, cacheHitTokens: rec.cacheHitTokens, attempt: rec.attempt,
     });
     append(rec);
+  };
+}
+
+/** Model requests failed in a row before the pet says so: Cortico's own alert threshold (`STALL_ALERT_THRESHOLD` in src/core/loop.ts), where the run of failures only reaches the log. */
+const FAILURES_BEFORE_HINT = 5;
+/** The upstream's reason is cut to this many characters: a gateway's error page is a whole HTML document. */
+const REASON_MAX = 200;
+
+const FAILURE_HINT = {
+  zh: {
+    text: (n: number, status: number, reason: string) => `我连着 ${n} 次没能从模型那里拿到回复。错误${status ? ` ${status}` : ''}:${reason}。请在设置的「开始」页检查模型名和 API Key,那里可以测试连接。`,
+    open: '打开设置',
+    ok: '知道了',
+  },
+  en: {
+    text: (n: number, status: number, reason: string) => `My last ${n} requests to the model failed. Error${status ? ` ${status}` : ''}: ${reason}. Check the model name and API key on the Start page in settings, where you can test the connection.`,
+    open: 'Open settings',
+    ok: 'OK',
+  },
+};
+
+/**
+ * The upstream's own words: `error.message` of a JSON body, else the body; without a body (no
+ * connection, a timeout), the message of the innermost cause, such as `getaddrinfo ENOTFOUND <host>`.
+ */
+function failureOf(err: unknown): { status: number; reason: string } {
+  let root = err;
+  while (root instanceof Error && root.cause instanceof Error) root = root.cause;
+  let said = err instanceof GenerationError ? err.body.trim() : '';
+  try {
+    const body = JSON.parse(said) as { error?: { message?: unknown }; message?: unknown };
+    const message = body.error?.message ?? body.message;
+    if (typeof message === 'string') said = message;
+  } catch { /* not JSON: the body as it came */ }
+  const reason = said || (root instanceof Error ? root.message : String(root));
+  return { status: err instanceof GenerationError ? err.status : 0, reason: reason.slice(0, REASON_MAX).replace(/[。.!！\s]+$/, '') };
+}
+
+/**
+ * After `FAILURES_BEFORE_HINT` model requests in a row fail, the pet says why in its bubble, once
+ * per run of failures, with a button to the settings window's home page, where the model and key
+ * are set and tested. Any answered request ends the run; a request cut off by newer input or by
+ * shutdown neither counts nor ends it.
+ */
+function hintFailures(core: Core<CoreConfig>, config: CoreConfig, pet: () => DesktopPetWorld | null): void {
+  const { llm } = core;
+  const respond = llm.respond.bind(llm);
+  let failures = 0;
+  let shown = false;
+  llm.respond = async (request, options) => {
+    try {
+      const answered = await respond(request, options);
+      failures = 0;
+      shown = false;
+      return answered;
+    } catch (err) {
+      if (!options?.signal?.aborted && ++failures >= FAILURES_BEFORE_HINT && !shown) {
+        const p = pet();
+        if (p?.petState().connected) {
+          const S = pick(config.language ?? 'zh', FAILURE_HINT);
+          const { status, reason } = failureOf(err);
+          shown = true;
+          void p.dialog({
+            text: S.text(failures, status, reason), actions: ['sad'], closable: true,
+            input: { kind: 'buttons', options: [{ label: S.open, primary: true }, { label: S.ok }] },
+          }).answer.then((a) => {
+            if ('index' in a && a.index === 0) process.send?.({ type: 'companion:open', path: '#/home' });
+            // the page went away before it showed: the next failure tries again
+            if ('unavailable' in a) shown = false;
+          });
+        }
+      }
+      throw err;
+    }
   };
 }
 
@@ -294,6 +375,14 @@ export async function main(): Promise<void> {
   });
   telemetry = stats;
   countUse(bot.core, loaded.config, stats);
+  hintFailures(bot.core, loaded.config, () => pet);
+  // set by app/core-host.cjs when this Core replaces one that exited unasked
+  const exited = process.env.COOPANION_CORE_EXIT;
+  delete process.env.COOPANION_CORE_EXIT;
+  if (exited) {
+    const code = Number(exited);
+    stats.event('crash', { where: 'core-exit', exitCode: Number.isInteger(code) ? code : null, signal: Number.isInteger(code) ? null : exited.slice(0, 20) });
+  }
   // without a key every model call fails: hold events until the home page saves one and resumes
   const keyMissing = !hasKey(loaded.config);
   if (keyMissing) bot.core.bus.setPaused(true);
@@ -328,12 +417,22 @@ export async function main(): Promise<void> {
   process.on('SIGINT', () => void shutdown('SIGINT'));
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
   const log = bot.core.runlog.logger('process');
+  // a rejection that repeats on a timer would fill the event queue and push the other events out: each distinct one is reported once a run
+  const reported = new Set<string>();
+  const crash = (where: string, err: unknown) => {
+    const fields = { where, ...crashFields(err, APP_ROOT, [extensions.dir]) };
+    const key = JSON.stringify(fields);
+    if (reported.has(key)) return;
+    reported.add(key);
+    stats.event('crash', fields);
+  };
   process.on('uncaughtException', (err) => {
     log.emit('error', '未捕获异常,正在关机', { event: 'uncaught-exception', err });
-    stats.event('crash', { where: 'core', error: err instanceof Error ? err.name : typeof err });
+    crash('core', err);
     void shutdown('uncaughtException');
   });
   process.on('unhandledRejection', (reason) => {
     log.emit('error', '未处理的 promise 拒绝', { event: 'unhandled-rejection', err: reason });
+    crash('core-rejection', reason);
   });
 }

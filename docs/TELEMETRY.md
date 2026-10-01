@@ -7,7 +7,7 @@
 ## 不发送的内容
 
 - 你说的话、打的字、Coo 的回答、屏幕截图、记忆和提示词的内容；
-- API Key、文件名、路径；
+- API Key、错误消息、你的文件名和路径（崩溃报告里只有程序自身文件相对程序目录的路径）；
 - 自定义模型端点的地址和模型名（只报 `custom`），以及从本地路径或网址装的扩展的包名（只报 `private`）；
 - 你的名字、账号，或任何能认出你这台电脑的硬件编号。
 
@@ -43,8 +43,8 @@
 | `petReplies` | Coo 在气泡里说话的次数 |
 | `cuaActions` | Coo 操作电脑的动作数（截屏、点击、打字等） |
 | `cuaAsked` / `cuaGranted` | 电脑操作前问你的次数和你同意的次数 |
-| `providerErrors` | 模型调用失败次数 |
-| `models` | 按模型分的调用次数、失败次数、输入/输出/缓存命中 token 数；每项带 `vendor`（内置服务的 id，或 `kind:<模块>`）、`model`（内置服务的模型名，其他为 `custom`）、`endpointKind`（`builtin` / `custom-remote` / `custom-local`） |
+| `providerErrors` | 失败的模型请求数：一次请求连同它的自动重试都没拿到回复才算一次；被新输入打断或因退出中止的不算 |
+| `models` | 按请求实际发往的模型分：`calls`（HTTP 请求数，每次重试各算一次）、`failed`（失败的请求数，算法同 `providerErrors`）、`failedStatus`（`failed` 按最后一次尝试的 HTTP 状态码分开计数，如 `{"400": 3}`；`200` 表示回复到一半出错，`none` 表示没拿到状态码，比如连不上或超时）、`aborted`（被新输入打断或因退出中止的尝试数）、输入/输出/缓存命中 token 数；每项带 `vendor`（内置服务的 id，或 `kind:<模块>`）、`model`（内置服务的模型名，其他为 `custom`）、`endpointKind`（`builtin` / `custom-remote` / `custom-local`） |
 | `vendor` / `model` / `endpointKind` | 当前使用的模型服务，规则同上 |
 | `language` | 界面语言 |
 | `autostart` | 是否开机自动启动 |
@@ -69,6 +69,15 @@
 | `guide_finished` | | 引导走完 |
 | `guide_closed` | `step` | 引导在第几步被关掉 |
 | `extension_installed` / `extension_removed` | `name`、`version`、`kind` | 启动时发现扩展比上次多了或少了 |
-| `crash` | `where`、`error` | Core 进程未捕获的异常，只有错误类名（如 `TypeError`） |
+| `crash` | `where`，其余见下表 | Core 出错。`where` 是来源：`core`（未捕获的异常，Core 随后退出）、`core-rejection`（未处理的 promise 拒绝，Core 继续运行；同样的一条在一次运行里只报一次）、`core-exit`（Core 进程意外退出后被重启，由重启后的 Core 报告） |
 | `telemetry_disabled` / `telemetry_enabled` | | 关掉或重新打开统计 |
 | `uninstalled` | | Windows 上卸载（升级时不算）；由卸载程序发出，统计关着时不发 |
+
+`crash` 的其余字段。错误消息不发送：消息里可能有文件路径、Key 的片段或你说过的话。
+
+| 字段 | 例子 | 说明 |
+|---|---|---|
+| `error` | `TypeError` | 错误类名；抛出的不是错误对象时是它的类型（如 `string`）。`core` 和 `core-rejection` 才有 |
+| `code` | `ENOENT` | 错误自带的错误码，没有就不发 |
+| `frames` | `["core/guide.ts:212", "build/cortico/src/core/loop.ts:1043"]` | 调用栈最上面 3 处在程序目录里的位置：相对程序目录的文件路径和行号。程序目录以外的位置（你的文件、装的扩展、Node 自身）跳过 |
+| `exitCode` / `signal` | `1` / `null` | 只在 `core-exit`：上一个 Core 进程的退出码，或结束它的信号名 |
