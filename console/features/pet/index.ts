@@ -22,6 +22,7 @@ const KEYS = {
   theme: `${K}.theme`,
   scale: `${K}.window.scale`,
   sound: `${K}.sound`,
+  remember: `${K}.rememberPosition`,
   hover: `${K}.hoverButtons`,
 } as const;
 
@@ -47,6 +48,8 @@ const S = pick({
     themeLight: '白天(深色身体)',
     scale: '大小',
     sound: '音效',
+    remember: '记住位置',
+    rememberHint: '退出时记下 Coo 在屏幕上的位置,下次启动回到那里。',
     hover: '悬停按钮',
     hoverHint: (n: number) => `鼠标停在 Coo 身上时旁边出现的按钮,最多 ${n} 个。`,
     actions: { chat: '打字', voice: '语音输入', roam: '行为模式', theme: '夜间模式', sound: '音效', dress: '装扮', hide: '隐藏桌宠' } as Record<string, string>,
@@ -70,6 +73,8 @@ const S = pick({
     themeLight: 'Day (dark body)',
     scale: 'Size',
     sound: 'Sounds',
+    remember: 'Remember where Coo stands',
+    rememberHint: 'Saved when the app quits; the next start puts Coo back there.',
     hover: 'Hover buttons',
     hoverHint: (n: number) => `Buttons beside Coo while the pointer rests on it, up to ${n}.`,
     actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', dress: 'Dress up', hide: 'Hide pet' } as Record<string, string>,
@@ -111,6 +116,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const scaleBox = ui.h('div', 'companion-rangebox');
   scaleBox.append(scale, scaleText);
   const sound = ui.checkbox(S.sound, { onChange: (on) => void save(KEYS.sound, on) });
+  const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on) });
   const stats = ui.checkbox(S.stats, { onChange: (on) => void save(STATS_KEY, on, STATS_GROUP) });
   const statsDoc = ui.h('a', 'home-link', S.statsDoc);
   statsDoc.href = STATS_DOC;
@@ -163,6 +169,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     row(S.theme, theme.el),
     row(S.scale, scaleBox),
     row('', sound.el),
+    row('', remember.el, S.rememberHint),
     row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
     row('', statsBox, S.statsHint),
     msg,
@@ -219,6 +226,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     if (typeof values[KEYS.theme] === 'string') theme.setValue(values[KEYS.theme] as string);
     if (typeof values[KEYS.scale] === 'number' && active !== scale) { scale.value = String(values[KEYS.scale]); showScale(); }
     if (typeof values[KEYS.sound] === 'boolean') sound.setChecked(values[KEYS.sound] as boolean);
+    if (typeof values[KEYS.remember] === 'boolean') remember.setChecked(values[KEYS.remember] as boolean);
     if (typeof values[KEYS.hover] === 'string') {
       picked = (values[KEYS.hover] as string).split(',').map((x) => x.trim()).filter((x) => ACTIONS.some(([a]) => a === x));
       renderHover();

@@ -5,6 +5,8 @@ export class FakePage {
   readonly messages: Array<Record<string, unknown>> = [];
   private waiters: Array<{ match: (m: Record<string, unknown>) => boolean; done: (m: Record<string, unknown>) => void }> = [];
   closeCode: number | null = null;
+  /** The `init` message the World sent on connect. */
+  init: Record<string, unknown> = {};
 
   private constructor(private readonly ws: WebSocket) {
     ws.on('message', (data, isBinary) => {
@@ -24,7 +26,7 @@ export class FakePage {
     const ws = new WebSocket(`${origin.replace('http', 'ws')}/socket?${query}`);
     const page = new FakePage(ws);
     await new Promise<void>((done, fail) => { ws.once('open', () => done()); ws.once('error', fail); });
-    await page.next((m) => m.t === 'init');
+    page.init = await page.next((m) => m.t === 'init');
     return page;
   }
 
