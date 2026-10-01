@@ -2,7 +2,7 @@
  * Coopanion 的控制台入口:由 scripts/stage.ts 覆盖在 Cortico 的 src/web/client/main.ts 上。
  * 与上游的差别:
  * - 页面表多了关于桌宠的四页「开始」「习惯」「装扮」「语音输入」(features/home、pet、dress、voice),其余页重排、改了几个分组名;
- * - 两种模式(features/mode.ts):普通模式左栏只有那四页、「系统提示词」和「用量与成本」,别的路由都回到「开始」,底栏只留暂停键;
+ * - 两种模式(features/mode.ts):普通模式左栏只有那四页、「系统提示词」「用量与成本」和「对话」,别的路由都回到「开始」,底栏只留暂停键;
  *   高级模式再接上 Cortico 的全部页面。左栏底部的开关切换模式,页面也可以经 requestMode 请求换,换模式时重建左栏;
  * - 空路由打开「开始」;
  * - 左上角是 Coopanion 字标,下面是版本与项目地址,有新 Release 时再加一行下载链接(features/release.ts);
@@ -52,25 +52,28 @@ import type { ConsoleMemo } from '../shared/client-panel.ts';
 const L = pick({
   zh: {
     chat: '对话', model: '模型', settings: '设置', advanced: '高级',
-    toAdvanced: '高级模式', toAdvancedHint: '显示 Cortico 的全部设置:对话记录、模型、扩展、World、记忆与运行诊断',
+    toAdvanced: '高级模式', toAdvancedHint: '显示 Cortico 的全部设置:模型、扩展、World、记忆与运行诊断',
     toNormal: '回到普通模式', toNormalHint: '只显示关于桌宠的页面',
   },
   en: {
     chat: 'Chat', model: 'Model', settings: 'Settings', advanced: 'Advanced',
-    toAdvanced: 'Advanced mode', toAdvancedHint: 'Show all of Cortico: conversation, models, extensions, Worlds, memory and diagnostics',
+    toAdvanced: 'Advanced mode', toAdvancedHint: 'Show all of Cortico: models, extensions, Worlds, memory and diagnostics',
     toNormal: 'Back to normal mode', toNormalHint: 'Show only the pages about the pet',
   },
 });
 
-/** 普通模式的全部页面:关于桌宠的四页、系统提示词(人设在里面),加上花了多少钱。高级模式里它们仍排在最前。 */
+/**
+ * 普通模式的全部页面:关于桌宠的四页、系统提示词(人设在里面)、花了多少钱,和对话页(当前 session 的
+ * 上下文,也能打字说话)。高级模式里它们仍排在最前。
+ */
 export const BASIC_FEATURES: readonly FrameworkFeature[] = [
   homeFeature, petFeature, dressFeature, voiceFeature,
   { ...promptsFeature, navMode: 'primary' }, { ...usageFeature, navMode: 'primary' },
+  { ...liveFeature, label: L.chat },
 ];
 
 export const FEATURES: readonly FrameworkFeature[] = [
   ...BASIC_FEATURES,
-  { ...liveFeature, label: L.chat },
   { ...providersFeature, label: L.model, navMode: 'group', navGroup: L.settings },
   { ...extensionsFeature, navMode: 'group', navGroup: L.settings },
   { ...coreFeature, navMode: 'group', navGroup: L.advanced },
