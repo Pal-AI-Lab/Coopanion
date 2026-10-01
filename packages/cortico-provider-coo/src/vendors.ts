@@ -112,11 +112,14 @@ export const VENDORS: readonly Vendor[] = [
   {
     // a local Ollama serves OpenAI's Responses API (non-stateful, which is all this provider asks:
     // it sends store:false and no previous_response_id); no key, nothing leaves the machine.
+    // Reasoning never goes out: Ollama 400s on a `reasoning` field for models whose thinking was
+    // ablated (community tags), and thinking-capable ones default it on by themselves.
     // The models below are the tags `ollama pull` takes; any tag works, vision ones see screenshots.
     id: 'ollama', name: 'Ollama(本地)', nameEn: 'Ollama',
     baseUrl: 'http://localhost:11434/v1', keyUrl: '', keyHint: '本地运行,不需要 Key',
-    secret: 'OLLAMA_API_KEY', model: 'qwen3:8b', models: ['gemma3:4b', 'qwen3:14b', 'llama3.1:8b'],
+    secret: '', model: 'qwen3:8b', models: ['gemma3:4b', 'qwen3:14b', 'llama3.1:8b'],
     vision: ['gemma3:4b'],
+    effort: { none: null, low: null, high: null, max: null },
   },
 ];
 
