@@ -210,6 +210,32 @@ describe('with a pet page', () => {
     expect((await page.next((m) => m.t === 'prefs')).skin).toEqual(skin);
   });
 
+  it('where the pet stood is persisted on stop and reaches the next run\'s page', async () => {
+    const made = await mounted();
+    const page = await FakePage.open(origin(made.world));
+    page.send({ t: 'pet-x', x: 0.3 });
+    page.send({ t: 'pet-x', x: 7 }); // clamped to 1, and replaces the pending 0.3
+    await new Promise((r) => setTimeout(r, 100));
+    await page.close();
+    await made.world.stop();
+    expect(made.persisted).toContainEqual({ petX: 1 });
+    const again = await mounted((c) => { c.petX = 1; });
+    const next = await FakePage.open(origin(again.world));
+    next.send({ t: 'prefs', sound: false }); // any change makes the world broadcast the whole prefs
+    expect((await next.next((m) => m.t === 'prefs')).petX).toBe(1);
+  });
+
+  it('a pet-x report that says nothing new writes nothing', async () => {
+    const made = await mounted((c) => { c.petX = 0.5; });
+    const page = await FakePage.open(origin(made.world));
+    page.send({ t: 'pet-x', x: 0.5 });
+    page.send({ t: 'pet-x', x: 'left' });
+    await new Promise((r) => setTimeout(r, 100));
+    await page.close();
+    await made.world.stop();
+    expect(made.persisted).toEqual([]);
+  });
+
   it('a browser tab only watches while the pet window is connected', async () => {
     const { world } = await mounted();
     const win = await FakePage.open(origin(world), 'role=pet&host=window');

@@ -61,6 +61,8 @@ export interface DesktopPetConfigSection extends WorldSection {
   roam: RoamMode;
   sound: boolean;
   theme: PetTheme;
+  /** Where the pet last stood, as a share of the screen's width (0..1); null until it first reports. */
+  petX: number | null;
   /** Actions shown as buttons beside the pet on hover, ids from PET_ACTIONS joined by commas. */
   hoverButtons: string;
   skin: PetSkin;
@@ -97,6 +99,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   roam: 'calm',
   sound: true,
   theme: 'dark',
+  petX: null,
   hoverButtons: 'chat,voice',
   skin: {
     figure: 'coo', scheme: 'deepseek', palette: 'mint', head: 'none', side: 'none', glasses: 'none', neck: 'none',

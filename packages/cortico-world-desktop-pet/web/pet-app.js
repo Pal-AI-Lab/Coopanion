@@ -82,12 +82,20 @@ async function applyFigure(s) {
   ctl.setFigure(fig);
 }
 
+/** Where the pet last stood, once restored from the World's config; then what we last reported back. */
+let placedX = false, sentX = -1;
 function applyPrefs(p) {
   if (p.skin) { const s = normalizeSkin(p.skin); ctl.setSkin(s); skinStyle.textContent = skinCss(s); applyFigure(s).catch((err) => console.error(err)); }
   if (p.roam) { prefs.roam = p.roam; ctl.setRoam(p.roam); }
   if (typeof p.sound === 'boolean') { prefs.sound = p.sound; sfx.set(p.sound); }
   if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); }
   if (typeof p.scale === 'number') { prefs.scale = p.scale; ctl.resize(); }
+  // the first report after start puts the pet back where it last stood; later ones only carry other settings
+  if (!placedX && typeof p.petX === 'number' && ctl.pet.placed && ctl.pet.mode !== 'drag') {
+    placedX = true;
+    const x = clamp(p.petX, 0, 1) * innerWidth;
+    ctl.pet.x = x; ctl.pet.target = x; sentX = x / innerWidth;
+  }
   if (typeof p.user === 'string') prefs.user = p.user;
   if (typeof p.micDevice === 'string' && p.micDevice !== prefs.micDevice) { prefs.micDevice = p.micDevice; stopMic(); }
   if (typeof p.mic === 'boolean') { prefs.mic = p.mic; p.mic && !watching ? startMic() : stopMic(); }
@@ -1179,6 +1187,11 @@ function stepBackdrop(dt) {
 
 /* ---------- loop ---------- */
 let last = performance.now();
+/** Tells the World where the pet stands often enough that a restart returns to about there. */
+function stepPlace() {
+  const rel = ctl.pet.x / innerWidth;
+  if (Math.abs(rel - sentX) > .02) { sentX = rel; send({ t: 'pet-x', x: rel }); }
+}
 function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   stepActs();
@@ -1188,10 +1201,12 @@ function frame(now) {
   stepListen();
   ctl.step(dt);
   ctl.render();
+  stepPlace();
   stepBackdrop(dt);
   stepTools();
   layout();
   requestAnimationFrame(frame);
 }
 ctl.render();
+addEventListener('pagehide', stepPlace);
 requestAnimationFrame(frame);
