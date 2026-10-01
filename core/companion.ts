@@ -107,6 +107,23 @@ const COMPANION_GROUP: ConfigGroup = {
         title: '匿名使用统计',
         description: '发送不含对话内容的使用次数与设置,帮助改进 Coopanion。字段见 docs/TELEMETRY.md。',
       },
+      // Cormini copies `rounds` when the bot is built, so a change applies from the next start
+      'rounds.soft': {
+        type: 'integer',
+        title: '收尾提醒',
+        minimum: 1,
+        'x-suffix': '次',
+        'x-hot': false,
+        description: '一次唤醒里请求模型到这么多次,提醒 Coo 做完手上的事就结束这一轮。',
+      },
+      'rounds.hard': {
+        type: 'integer',
+        title: '单次唤醒上限',
+        minimum: 1,
+        'x-suffix': '次',
+        'x-hot': false,
+        description: '一次唤醒里最多请求模型这么多次,到了就结束这一轮。',
+      },
     },
   },
 };
@@ -256,7 +273,15 @@ export async function main(): Promise<void> {
   const base: BotDefinition<CoreConfig> = {
     ...cormini,
     declares: [TERMINAL.id, DESKTOP_PET.id, CUA.id],
-    defaults: () => ({ ...cormini.defaults(), displayName: DISPLAY_NAME, web: { port: CONSOLE_PORT, theme: 'mint' }, companion: { telemetry: true } }),
+    defaults: () => ({
+      ...cormini.defaults(),
+      displayName: DISPLAY_NAME,
+      web: { port: CONSOLE_PORT, theme: 'mint' },
+      // Cormini's 6/12 end a computer-use task partway through; 20/40 are the caps the cua and
+      // desktop-pet e2e harnesses give their persona
+      rounds: { soft: 20, hard: 40 },
+      companion: { telemetry: true },
+    }),
     build: (loaded, worlds) => {
       const parts = cormini.build(loaded, worlds);
       return { ...parts, console: { ...parts.console, configGroups: [...parts.console?.configGroups ?? [], COMPANION_GROUP] } };
