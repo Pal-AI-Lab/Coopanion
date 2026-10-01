@@ -422,7 +422,8 @@ function showDialogInput(it) {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const v = field.value.trim();
-      if (!v) { form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake'); field.focus(); return; }
+      // an optional input (a local service needs no key) sends an empty answer through
+      if (!v && !input.optional) { form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake'); field.focus(); return; }
       settleDialog(it, { text: v });
     });
     body.appendChild(form);

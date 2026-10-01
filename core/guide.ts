@@ -63,15 +63,21 @@ const S = {
 
   askVendor: '要和你聊天,我得先连上大模型。用哪一家的?拿不准就选 DeepSeek。',
   vendorOk: '就用这家',
-  pickModel: (v: Vendor) => `默认用 ${v.model},便宜,还能看图。想用别的模型,改成它的名字就行。`,
+  pickModel: (v: Vendor) => v.local
+    ? `模型跑在你自己电脑上,默认用 ${v.model},改成你 ollama pull 过的名字就行。`
+    : `默认用 ${v.model},便宜,还能看图。想用别的模型,改成它的名字就行。`,
   modelOk: '就用这个',
-  askKey: (v: Vendor) => `把 ${v.name} 的 API Key 贴在这里吧。按用量计费,注意 token 消耗哦。`,
+  askKey: (v: Vendor) => v.local
+    ? `本地 ${v.name} 不用 Key,直接点「连接」就行。没连上多半是它还没开,或者模型还没拉下来。`
+    : `把 ${v.name} 的 API Key 贴在这里吧。按用量计费,注意 token 消耗哦。`,
   keySend: '连接',
   keyLink: (v: Vendor) => `还没有 Key?去${v.name}申请`,
   keyLater: '稍后再填',
   connecting: '正在连接…',
   keyOk: (v: Vendor, model: string) => `连上 ${v.name} 了${model ? `(${model})` : ''}!现在我能说话啦,库...`,
-  keyFail: (why: string) => `没连上:${why.replace(/[。.!！]+$/, '')}。看看 Key 是不是完整,账户里还有没有余额?再贴一次试试。`,
+  keyFail: (v: Vendor, why: string) => v.local
+    ? `没连上:${why.replace(/[。.!！]+$/, '')}。看看 Ollama 开了没有、模型拉下来没有(ollama pull 模型名)?再试一次。`
+    : `没连上:${why.replace(/[。.!！]+$/, '')}。看看 Key 是不是完整,账户里还有没有余额?再贴一次试试。`,
   keyAlready: (name: string, model: string) => `模型已经连好了(${[name, model].filter(Boolean).join(' · ')}),省事,库...`,
   keySkipped: '没关系,等你填好我再开口。之后我会再来问你。',
 
@@ -202,13 +208,13 @@ async function connectLoop(show: (d: PetDialog) => Promise<PetDialogAnswer>, cal
       await show({ ...ask, text: S.keyOk(vendor, model), marks: [vendor.name], actions: ['love', 'jump'] });
       return true;
     }
-    step = keyStep(S.keyFail(r.why ?? '?'), ['sad']);
+    step = keyStep(S.keyFail(vendor, r.why ?? '?'), ['sad']);
   }
 }
 
 const keyInput = (v: Vendor, later: string): PetDialog['input'] => ({
-  kind: 'text', submit: S.keySend, placeholder: v.keyHint, secret: true, maxLength: 200,
-  link: { label: S.keyLink(v), url: v.keyUrl }, alt: later,
+  kind: 'text', submit: S.keySend, placeholder: v.keyHint, secret: true, maxLength: 200, optional: v.local || undefined,
+  link: v.local || !v.keyUrl ? undefined : { label: S.keyLink(v), url: v.keyUrl }, alt: later,
 });
 
 let running = false;

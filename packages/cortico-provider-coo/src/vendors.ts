@@ -16,6 +16,11 @@ export interface Vendor {
   nameEn: string;
   /** The path before `/responses`. */
   baseUrl: string;
+  /**
+   * A service that runs on this machine (Ollama): it needs no key, so the key box is skipped
+   * and a connection is tried right away.
+   */
+  local?: boolean;
   /** Where a key is created. */
   keyUrl: string;
   /** Placeholder of the key box: how the service's keys start. */
@@ -103,6 +108,15 @@ export const VENDORS: readonly Vendor[] = [
     secret: 'OPENROUTER_API_KEY', model: 'deepseek/deepseek-v4.1-flash',
     models: ['qwen/qwen3.7-flash', 'qwen/qwen3.8-flash', 'google/gemini-3.1-flash-lite', 'z-ai/glm-5.3-flash'],
     vision: ['deepseek/deepseek-v4.1-flash', 'qwen/qwen3.7-flash', 'qwen/qwen3.8-flash', 'google/gemini-3.1-flash-lite', 'z-ai/glm-5.3-flash'], contextWindows: { 'deepseek/deepseek-v4.1-flash': 1_048_576 },
+  },
+  {
+    // a local Ollama serves OpenAI's Responses API (non-stateful, which is all this provider asks:
+    // it sends store:false and no previous_response_id); no key, nothing leaves the machine.
+    // The models below are the tags `ollama pull` takes; any tag works, vision ones see screenshots.
+    id: 'ollama', name: 'Ollama(本地)', nameEn: 'Ollama',
+    baseUrl: 'http://localhost:11434/v1', keyUrl: '', keyHint: '本地运行,不需要 Key',
+    secret: 'OLLAMA_API_KEY', model: 'qwen3:8b', models: ['gemma3:4b', 'qwen3:14b', 'llama3.1:8b'],
+    vision: ['gemma3:4b'],
   },
 ];
 

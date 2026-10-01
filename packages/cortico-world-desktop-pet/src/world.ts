@@ -103,7 +103,7 @@ export interface PetDialog {
 export type PetDialogInput =
   | { kind: 'buttons'; options: Array<{ label: string; primary?: boolean }>; keys?: string; taps?: number }
   | { kind: 'choices'; options: Array<{ label: string; level?: string; icon?: string; image?: string; line?: string; motion?: 'still' | 'walk' | 'run' }>; value?: number; confirm: string }
-  | { kind: 'text'; submit: string; placeholder?: string; value?: string; secret?: boolean; maxLength?: number; suggestions?: string[]; link?: { label: string; url: string }; alt?: string }
+  | { kind: 'text'; submit: string; placeholder?: string; value?: string; secret?: boolean; maxLength?: number; suggestions?: string[]; link?: { label: string; url: string }; alt?: string; optional?: boolean }
   | { kind: 'progress'; label?: string };
 
 /**

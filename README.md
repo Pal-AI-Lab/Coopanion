@@ -71,7 +71,7 @@
 
 ## 安装
 
-需要 **Windows 10 / 11(64 位)**、**macOS 13 以上**(Apple 芯片和 Intel 都行)或 **64 位 Linux 桌面**(X11,或 Wayland 下的 XWayland),还需要一家模型服务的 API Key(默认推荐 [DeepSeek](https://platform.deepseek.com/),按用量付费,见[费用与隐私](#费用与隐私))。
+需要 **Windows 10 / 11(64 位)**、**macOS 13 以上**(Apple 芯片和 Intel 都行)或 **64 位 Linux 桌面**(X11,或 Wayland 下的 XWayland),还需要一家模型服务的 API Key(默认推荐 [DeepSeek](https://platform.deepseek.com/),按用量付费,见[费用与隐私](#费用与隐私))。不想用云服务,本机跑着 [Ollama](https://ollama.com) 也行,不用 Key(见下表)。
 安装不需要管理员权限。
 
 ### Windows:下载安装包
@@ -157,8 +157,11 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 | MiniMax              | [platform.minimax.cn](https://platform.minimax.cn/user-center/basic-information/interface-key)     | `MiniMax-M3`                                                              |
 | 阶跃星辰             | [platform.stepfun.com](https://platform.stepfun.com/interface-key)                                 | `step-3.7-flash`                                                          |
 | OpenRouter           | [openrouter.ai](https://openrouter.ai/settings/keys)                                               | `deepseek/deepseek-v4.1-flash`                                            |
+| Ollama(本地)        | [ollama.com](https://ollama.com)(装好后不用 Key)                                                   | `qwen3:8b`(改成你 `ollama pull` 过的名字)                                 |
 
 默认模型是每家最新一代里便宜、能看图的那档(千帆没有这样的模型)。想用别的,在引导里选完服务后把模型名改掉,或者在「开始」页的「模型」框里填,输入时会列出几个推荐的。
+
+Ollama 是在本机跑模型的运行时:装好后 `ollama pull qwen3:8b` 拉一个模型,在「开始」页选「Ollama(本地)」点「保存并开始」就能连上,不需要 Key,对话不出你的电脑。它对 OpenAI 的 Responses 接口是非状态式的,刚好够 Coo 用;`gemma3:4b` 这类能看图的模型也能看截图。
 
 DeepSeek 以外的几家是按各自文档接入的,还没拿真实的 Key 逐家试过;哪家连不上或回话出错,欢迎开 issue。
 

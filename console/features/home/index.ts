@@ -28,7 +28,7 @@ const S = pick({
     paused: '暂停中',
     noModel: '还没连上模型',
     modelTitle: '连接模型',
-    modelNeed: '选一家模型服务,填入它的 API Key 就能开始。拿不准就选 DeepSeek。',
+    modelNeed: '选一家模型服务,填入它的 API Key 就能开始。拿不准就选 DeepSeek。装了 Ollama 就选它,不用 Key。',
     keyLabel: (name: string) => `${name} 的 API Key`,
     modelLabel: '模型',
     keepKey: '留空沿用已保存的 Key',
@@ -60,7 +60,7 @@ const S = pick({
     paused: 'Paused',
     noModel: 'No model connected',
     modelTitle: 'Connect a model',
-    modelNeed: 'Pick a model service and enter its API key to start. DeepSeek if unsure.',
+    modelNeed: 'Pick a model service and enter its API key to start. DeepSeek if unsure. Running Ollama? Pick it: no key.',
     keyLabel: (name: string) => `${name} API key`,
     modelLabel: 'Model',
     keepKey: 'Leave empty to keep the saved key',
@@ -152,8 +152,11 @@ async function mount(ctx: FeatureContext): Promise<void> {
     modelList.replaceChildren(...[v.model, ...(v.models ?? [])].map((m) => Object.assign(document.createElement('option'), { value: m })));
     const label = keyField.querySelector('.fieldlabel');
     if (label) label.textContent = S.keyLabel(v.name);
-    getKey.textContent = S.getKey(v.name);
-    getKey.href = v.keyUrl;
+    // a local service has nothing to paste: the key box and its link step aside
+    keyField.hidden = !!v.local;
+    if (v.local) keyInput.value = '';
+    getKey.hidden = !!v.local || !v.keyUrl;
+    if (!v.local) { getKey.textContent = S.getKey(v.name); getKey.href = v.keyUrl; }
   };
   pickVendor(vendor);
   const need = ui.h('p', 'home-note', S.modelNeed);
@@ -230,8 +233,8 @@ async function mount(ctx: FeatureContext): Promise<void> {
 
   save.addEventListener('click', async () => {
     const key = keyInput.value.trim();
-    // only the service in use has a key saved to keep
-    if (!key && active.vendor !== vendor) { keyInput.focus(); return; }
+    // only the service in use has a key saved to keep; a local service needs none at all
+    if (!key && active.vendor !== vendor && !vendor.local) { keyInput.focus(); return; }
     save.disabled = true;
     try {
       testing();
