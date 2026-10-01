@@ -900,11 +900,56 @@ function stepTools() {
 let pointerSeen = false;
 const lastPointer = { x: 0, y: 0 };
 let interactive = null;
-function setInteractive(on) {
+/** `by`: which check decided, 'move' (the page's pointermove) or 'poll' (the window's cursor report). */
+function setInteractive(on, by) {
   if (!host || interactive === on) return;
   interactive = on;
   host.setInteractive(on);
+  logPointer('flip', by);
 }
+
+/**
+ * Pointer diagnostics, one console line `[pointer] {json}` that reaches the run log: each time the
+ * window switches between taking the mouse and passing it through, with what both checks last saw
+ * (position, hit on the body or the UI, how long ago, and the pointerType of the move), and each
+ * time the pointerType of the moves changes.
+ */
+const diag = { move: null, poll: null, type: '', types: new Set(), skipped: 0, lastAt: -Infinity, timer: 0, held: null };
+/**
+ * Fewest milliseconds between two lines; the lines in between are counted into the next one, and
+ * the last of them is written once the gap has passed. A flickering pointer flips the window at
+ * the cursor report rate (10 a second) or faster; one line a second still names the check that
+ * flipped it, and an hour of flicker stays under 3600 lines.
+ */
+const POINTER_LOG_EVERY_MS = 1000;
+function logPointer(event, by) {
+  const now = performance.now(), wait = POINTER_LOG_EVERY_MS - (now - diag.lastAt);
+  diag.held = { event, by };
+  if (wait <= 0) { writePointer(now); return; }
+  diag.skipped++;
+  diag.timer ||= setTimeout(() => { diag.skipped--; writePointer(performance.now()); }, wait);
+}
+/** What a check last saw, with how many milliseconds ago in place of when. */
+function seen(s, now) {
+  if (!s) return null;
+  const { at, ...rest } = s;
+  return { ...rest, ageMs: Math.round(now - at) };
+}
+function writePointer(now) {
+  clearTimeout(diag.timer);
+  diag.timer = 0;
+  const c = ctl.toStage(128, 128);
+  console.log('[pointer] ' + JSON.stringify({
+    ...diag.held, interactive, pressing: ctl.pressing,
+    move: seen(diag.move, now), poll: seen(diag.poll, now),
+    pet: { x: Math.round(c.x), y: Math.round(c.y) },
+    types: [...diag.types], skipped: diag.skipped,
+  }));
+  diag.lastAt = now;
+  diag.skipped = 0;
+  diag.types.clear();
+}
+
 const UI_SELECTOR = '.bubble:not([hidden]), .menu:not([hidden]), .tools:not([hidden])';
 const overUi = (e) => e.target.closest && e.target.closest(UI_SELECTOR);
 document.addEventListener('pointermove', (e) => {
@@ -913,7 +958,15 @@ document.addEventListener('pointermove', (e) => {
   const p = { x: e.clientX, y: e.clientY };
   cursor.at = p;
   stage.style.cursor = ctl.pointerMove(p);
-  setInteractive(ctl.pressing || ctl.hitPet(p) || !!overUi(e));
+  const hit = ctl.hitPet(p), ui = !!overUi(e);
+  diag.move = { at: performance.now(), type: e.pointerType, x: Math.round(p.x), y: Math.round(p.y), hit, ui };
+  diag.types.add(e.pointerType);
+  if (e.pointerType !== diag.type) {
+    const first = !diag.type;
+    diag.type = e.pointerType;
+    if (!first) logPointer('type', 'move');
+  }
+  setInteractive(ctl.pressing || hit || ui, 'move');
 });
 /**
  * The pet window also reports where the cursor is on its own, a few times a second: a click-through
@@ -922,9 +975,15 @@ document.addEventListener('pointermove', (e) => {
  */
 host?.onCursor?.((p) => {
   cursor.at = p;
-  if (!p) { if (!ctl.pressing) setInteractive(false); return; }
+  if (!p) {
+    diag.poll = { at: performance.now(), off: true };
+    if (!ctl.pressing) setInteractive(false, 'poll');
+    return;
+  }
   const el = document.elementFromPoint(p.x, p.y);
-  setInteractive(ctl.pressing || ctl.hitPet(p) || !!el?.closest?.(UI_SELECTOR));
+  const hit = ctl.hitPet(p), ui = !!el?.closest?.(UI_SELECTOR);
+  diag.poll = { at: performance.now(), x: p.x, y: p.y, hit, ui };
+  setInteractive(ctl.pressing || hit || ui, 'poll');
 });
 stage.addEventListener('pointerdown', (e) => {
   if (e.button !== 0) return;
