@@ -145,12 +145,19 @@ function stats() {
     sources: all(`SELECT COALESCE(source, 'unanswered') AS source, COUNT(*) AS n FROM installs GROUP BY 1 ORDER BY n DESC`),
     versions: all(`SELECT version, COUNT(*) AS n FROM installs WHERE last_seen >= datetime('now', '-14 days') GROUP BY version ORDER BY n DESC`),
     platforms: all(`SELECT os, arch, COUNT(*) AS n FROM installs GROUP BY os, arch ORDER BY n DESC`),
+    // an endpoint outside the built-in services arrives as vendor `kind:<module>`, model `custom`:
+    // it is shown as where it points (custom-remote / custom-local) and which module talks to it
     models: all(`
-      SELECT json_extract(m.value, '$.vendor') AS vendor, json_extract(m.value, '$.model') AS model,
+      SELECT CASE WHEN json_extract(m.value, '$.vendor') LIKE 'kind:%'
+          THEN json_extract(m.value, '$.endpointKind') || ' via ' || substr(json_extract(m.value, '$.vendor'), 6)
+          ELSE json_extract(m.value, '$.vendor') END AS vendor,
+        json_extract(m.value, '$.model') AS model,
         COUNT(DISTINCT d.install_id) AS installs, SUM(json_extract(m.value, '$.calls')) AS calls,
-        SUM(json_extract(m.value, '$.tokensIn')) AS tokensIn, SUM(json_extract(m.value, '$.tokensOut')) AS tokensOut
+        SUM(json_extract(m.value, '$.failed')) AS failed,
+        SUM(json_extract(m.value, '$.tokensIn')) AS tokensIn, SUM(json_extract(m.value, '$.tokensCached')) AS tokensCached,
+        SUM(json_extract(m.value, '$.tokensOut')) AS tokensOut
       FROM days d, json_each(d.data, '$.models') m WHERE d.date >= date('now', '-30 days')
-      GROUP BY vendor, model ORDER BY installs DESC LIMIT 50`),
+      GROUP BY 1, model ORDER BY installs DESC LIMIT 50`),
     extensions: all(`
       SELECT json_extract(e.value, '$.name') AS name, COUNT(DISTINCT d.install_id) AS installs
       FROM days d, json_each(d.data, '$.extensions') e WHERE d.date >= date('now', '-30 days')
