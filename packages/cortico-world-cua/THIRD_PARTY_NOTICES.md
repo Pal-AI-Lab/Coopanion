@@ -7,4 +7,5 @@
 
 ## 本包的许可
 
-MIT,见 [`LICENSE`](LICENSE)。
+AGPL-3.0-or-later,见 [`LICENSE`](LICENSE)。
+并入 Coopanion 之前的版本(独立仓库 `Pal-AI-Lab/cortico-world-cua` 里的历史)是 MIT。

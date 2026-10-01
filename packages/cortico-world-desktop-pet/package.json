@@ -3,7 +3,7 @@
   "version": "0.1.4",
   "type": "module",
   "description": "Cortico World: a desktop pet that talks in bubbles, asks with options, walks, emotes, and hears you through FunASR (SenseVoice on sherpa-onnx)",
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "repository": {
     "type": "git",
     "url": "https://github.com/Pal-AI-Lab/Coopanion.git",

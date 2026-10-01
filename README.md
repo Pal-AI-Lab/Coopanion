@@ -13,7 +13,7 @@
   <img alt="Windows 10 / 11" src="https://img.shields.io/badge/Windows-10%20%2F%2011-1f6feb">
   <img alt="macOS 13+" src="https://img.shields.io/badge/macOS-13%2B-1f6feb">
   <img alt="Linux x64" src="https://img.shields.io/badge/Linux-x64-1f6feb">
-  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-8b8b8f"></a>
+  <a href="LICENSE"><img alt="AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-8b8b8f"></a>
 </p>
 
 <p align="center">
@@ -338,6 +338,8 @@ Coopanion 由 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 组装而成:Cort
 
 ## 许可
 
-[MIT](LICENSE)。DeepSeek 大肥鱼形象的来源与各家标志的说明见[桌宠 World 的第三方声明](packages/cortico-world-desktop-pet/THIRD_PARTY_NOTICES.md)。随附或运行时下载的第三方组件:Electron(MIT)、Cortico(MIT)、sherpa-onnx(Apache-2.0)、FunASR 的 SenseVoiceSmall 模型([FunASR 模型开源协议](https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE),用时下载)、koffi(MIT)、jpeg-js(BSD-3-Clause)、pnpm(MIT)、各家模型服务的标志取自 [lobe-icons](https://github.com/lobehub/lobe-icons)(MIT;标志本身归各自的公司所有,只用来标明是哪一家服务)。
+[AGPL-3.0-or-later](LICENSE)。0.1.10 及之前发布的版本是 MIT,已经发出的仍按 MIT。框架 Cortico 是 MIT,以子模块随附,许可各归各。想提 PR 见 [CONTRIBUTING.md](CONTRIBUTING.md),第一次提交要签一份[贡献者许可协议](CLA.md)。
+
+DeepSeek 大肥鱼形象(`packages/cortico-world-desktop-pet/web/whale/` 的贴图)不在 AGPL 授权范围内,来源与各家标志的说明见[桌宠 World 的第三方声明](packages/cortico-world-desktop-pet/THIRD_PARTY_NOTICES.md)。随附或运行时下载的第三方组件:Electron(MIT)、Cortico(MIT)、sherpa-onnx(Apache-2.0)、FunASR 的 SenseVoiceSmall 模型([FunASR 模型开源协议](https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE),用时下载)、koffi(MIT)、jpeg-js(BSD-3-Clause)、pnpm(MIT)、各家模型服务的标志取自 [lobe-icons](https://github.com/lobehub/lobe-icons)(MIT;标志本身归各自的公司所有,只用来标明是哪一家服务)。
 
 装扮编辑器会跟随控制台的明暗主题，桌宠自身配色独立。需要代理时，可在应用启动环境中设置 `HTTP_PROXY` / `HTTPS_PROXY`；本机通信自动绕过代理，详情见[开发文档](docs/DEVELOPMENT.md)。

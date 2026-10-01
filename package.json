@@ -4,7 +4,7 @@
   "version": "0.1.10",
   "private": true,
   "description": "A desktop companion built on Cortico: a pet on your screen that talks, listens and can operate the computer",
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "author": "Pal-AI-Lab",
   "homepage": "https://github.com/Pal-AI-Lab/Coopanion",
   "type": "module",
