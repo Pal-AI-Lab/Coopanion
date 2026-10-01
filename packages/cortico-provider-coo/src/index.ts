@@ -9,7 +9,8 @@
  * Thinking is a four-step choice: off sends `reasoning.effort = none`, the others low / high /
  * max, each rewritten to the value a service documents where it takes other ones (`Vendor.effort`).
  * Images are sent only when the endpoint is marked multimodal and the service lists the model as
- * reading them; tool results may carry images too. Prices are built in for DeepSeek only.
+ * reading them; tool results may carry images too. Images go out only from the newest delivered batch
+ * of events on (`sinceLastDelivery`). Prices are built in for DeepSeek only.
  */
 import type { ProviderModule, ProviderInstance } from 'cortico/providers/base.ts';
 import type { LLMProviderEntry, ReasoningTier } from 'cortico/core/types.ts';
@@ -17,6 +18,8 @@ import { isContextOverflow } from 'cortico/providers/transport/errors.ts';
 import { ModelCatalog, ResponsesProvider, type ResponsesProviderOptions } from 'cortico/providers/openai-responses-compat/native.ts';
 import type { GenerateOptions } from 'cortico/core/generation.ts';
 import type { Request } from 'cortico/protocol/open-responses/index.ts';
+import type { ContextRecord } from 'cortico/protocol/open-responses/context.ts';
+import { RESERVED_FRAME_NAMES } from 'cortico/core/loop.ts';
 import { deepseekPrices } from './pricing.ts';
 import { VENDORS, vendorOf, type Effort, type Vendor } from './vendors.ts';
 
@@ -37,14 +40,35 @@ const TIERS = {
 
 const readsImages = (entry: LLMProviderEntry, model: string | undefined) => !!model && (vendorOf(entry.baseUrl)?.vision ?? []).includes(model);
 
-/** The Responses client with the thinking level rewritten to the value the service takes (`Vendor.effort`). */
+/**
+ * The context with image attachments removed from every item before the newest delivered batch (a user
+ * message, or the frame call Core writes for external events). Kept, each past image would be re-sent
+ * on every request until handoff. The text line Core writes for each attachment stays.
+ */
+function sinceLastDelivery(context: readonly ContextRecord[]): readonly ContextRecord[] {
+  let from = context.length - 1;
+  for (; from >= 0; from--) {
+    const { item } = context[from];
+    if ((item.type === 'message' && item.role === 'user') || (item.type === 'function_call' && RESERVED_FRAME_NAMES.has(item.name))) break;
+  }
+  return context.map((entry, index) => {
+    const blobs = entry.context.blobs;
+    if (index >= from || !blobs?.some((b) => b.mime.startsWith('image/'))) return entry;
+    return { ...entry, context: { ...entry.context, blobs: blobs.filter((b) => !b.mime.startsWith('image/')) } };
+  });
+}
+
+/**
+ * The Responses client with the thinking level rewritten to the value the service takes (`Vendor.effort`)
+ * and images limited to the newest batch (`sinceLastDelivery`).
+ */
 class VendorResponses extends ResponsesProvider {
   constructor(opts: ResponsesProviderOptions, private readonly effort: Vendor['effort']) {
     super(opts);
   }
 
   protected override buildResponseBody(request: Request, options: GenerateOptions): Record<string, unknown> {
-    const body = super.buildResponseBody(request, options);
+    const body = super.buildResponseBody(request, options.context ? { ...options, context: sinceLastDelivery(options.context) } : options);
     const reasoning = body.reasoning as { effort?: string } | undefined;
     const level = reasoning?.effort as Effort | undefined;
     if (!this.effort || !level || !(level in this.effort)) return body;

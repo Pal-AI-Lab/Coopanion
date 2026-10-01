@@ -26,6 +26,8 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
   某家文档写明只收别的值时按 `Vendor.effort` 换算(千问 `high→medium`、`max→xhigh`;Kimi 没有 `none`,换成 `low`;
   MiniMax、阶跃星辰没有 `max`,换成 `high`;千帆没写 effort,不发 `reasoning`)。
 - **图片**:端点勾了「多模态」且那一家列明所用模型能看图(`Vendor.vision`)时才发;选模型时按它自动勾上或去掉「多模态」。
+  只发最近一批送达的事件(user 消息或事件帧)及其后的图片,更早的只留 Core 给每份附件写的 `[blob …]` 那行文字。
+  每次送达新的一批,请求里从上一批的第一张图起前缀缓存失效。
 - **价目**:只有 DeepSeek 内置(`src/pricing.ts`,错峰价,两个高峰时段按两倍计);别家没有内置价目。
 - **标志**:`src/icons.ts`,取自 [@lobehub/icons-static-svg](https://github.com/lobehub/lobe-icons)(MIT)。标志归各自的公司所有,只用来标明是哪一家。
 - **接入流程**:`src/connect.ts` 的 `connectVendor` 经 Cortico 控制台的 provider 路由给某一家建端点(名字就是它的 id,

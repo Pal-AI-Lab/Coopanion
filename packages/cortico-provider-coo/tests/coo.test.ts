@@ -9,6 +9,9 @@ import { snapshotPrice } from 'cortico/providers/pricebook.ts';
 import { nullLogger } from 'cortico/core/util.ts';
 import type { LLMProviderEntry } from 'cortico/core/types.ts';
 import type { Request } from 'cortico/protocol/open-responses/index.ts';
+import { functionCall, functionResult, message } from 'cortico/protocol/open-responses/context.ts';
+import { RESERVED_FRAME_NAMES } from 'cortico/core/loop.ts';
+import { blobLine } from 'cortico/core/blobs.ts';
 import COO, { OFF_PEAK, VENDORS, VENDOR_ICONS, vendorEntry, vendorOf } from '../src/index.ts';
 import { connectVendor, type ConsoleCall } from '../src/connect.ts';
 
@@ -98,6 +101,35 @@ describe('Coo Pet Provider', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it('sends images only from the newest delivered batch on; earlier ones keep their text line', async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const reply = { id: 'r', object: 'response', model: 'm', status: 'completed', created_at: 1, output: [], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } };
+    vi.stubGlobal('fetch', async (_url: string, init: { body: string }) => {
+      bodies.push(JSON.parse(init.body) as Record<string, unknown>);
+      return new Response(JSON.stringify(reply), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    const instance = COO.create('deepseek', entry(), { ...host(), readBlob: () => Buffer.from('jpeg') } as never);
+    const [frame] = RESERVED_FRAME_NAMES;
+    const shot = (handle: string) => ({ handle, mime: 'image/jpeg', name: 'screen.jpg', fallbackText: '屏幕截图' });
+    const shotResult = (callId: string, handle: string) => functionResult(callId, blobLine(shot(handle)), { blobs: [shot(handle)] });
+    const context = [
+      message('user', '开始'),
+      functionCall('f1', frame!, '{}'), functionResult('f1', '[打字] 看看屏幕'),
+      functionCall('c1', 'look', '{}'), shotResult('c1', 'blob:a.jpg'),
+      functionCall('f2', frame!, '{}'), functionResult('f2', '[打字] 再看看'),
+      functionCall('c2', 'look', '{}'), shotResult('c2', 'blob:b.jpg'),
+    ];
+    try {
+      await instance.client.respond({ model: 'deepseek-flash', input: context.map((r) => r.item) } as unknown as Request, { context });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    const outputs = (bodies[0].input as Array<{ type: string; call_id?: string; output?: unknown }>)
+      .filter((i) => i.type === 'function_call_output' && (i.call_id === 'c1' || i.call_id === 'c2'));
+    expect(outputs[0].output).toBe(blobLine(shot('blob:a.jpg')));
+    expect(outputs[1].output).toContainEqual(expect.objectContaining({ type: 'input_image' }));
   });
 
   it('prices DeepSeek only', () => {
