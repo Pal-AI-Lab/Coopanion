@@ -49,20 +49,14 @@ export function createRig(canvas, model) {
   // drawing buffer, or a repaint between our frames shows an empty canvas (flicker, worst in screen recordings)
   const gl = canvas.getContext('webgl2', { premultipliedAlpha: true, alpha: true, antialias: true, preserveDrawingBuffer: true });
   if (!gl) throw new Error('webgl2 unavailable');
-  const prog = gl.createProgram();
-  gl.attachShader(prog, shader(gl, gl.VERTEX_SHADER, VS));
-  gl.attachShader(prog, shader(gl, gl.FRAGMENT_SHADER, FS));
-  gl.linkProgram(prog);
-  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
-  const loc = {
-    aPos: gl.getAttribLocation(prog, 'aPos'), aUv: gl.getAttribLocation(prog, 'aUv'),
-    uView: gl.getUniformLocation(prog, 'uView'), uTex: gl.getUniformLocation(prog, 'uTex'),
-    uAlpha: gl.getUniformLocation(prog, 'uAlpha'), uTint: gl.getUniformLocation(prog, 'uTint'),
-    uTex2: gl.getUniformLocation(prog, 'uTex2'), uMix: gl.getUniformLocation(prog, 'uMix'),
-  };
+  const defs = model.deformers;
+  let view = model.view; // [x0, y0, x1, y1]
 
-  const textures = new Map();
+  // the source each texture was uploaded from: a lost context takes the GL textures with it,
+  // so restoring means uploading them all again from what they came from
+  const textures = new Map(), sources = new Map();
   function upload(key, src) {
+    sources.set(key, src);
     let t = textures.get(key);
     if (!t) { t = gl.createTexture(); textures.set(key, t); }
     gl.bindTexture(gl.TEXTURE_2D, t);
@@ -76,46 +70,73 @@ export function createRig(canvas, model) {
     return t;
   }
 
-  const defs = model.deformers;
-  // parts: rest grid, uv, index buffer; `uvBox` picks a sub-rect of the texture (atlas), default whole
-  const meshes = model.parts.map(p => {
-    const [nx, ny] = p.grid || [6, 6];
-    const [x, y, w, h] = p.box;
-    const [u0, v0, u1, v1] = p.uvBox || [0, 0, 1, 1];
-    const rest = new Float32Array((nx + 1) * (ny + 1) * 2), uv = new Float32Array(rest.length);
-    let k = 0;
-    for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) {
-      rest[k] = x + w * i / nx; rest[k + 1] = y + h * j / ny;
-      uv[k] = u0 + (u1 - u0) * i / nx; uv[k + 1] = v0 + (v1 - v0) * j / ny;
-      k += 2;
-    }
-    const idx = [];
-    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-      const a = j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1;
-      idx.push(a, b, c, b, d, c);
-    }
-    const vao = gl.createVertexArray();
-    gl.bindVertexArray(vao);
-    const pos = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, pos);
-    gl.bufferData(gl.ARRAY_BUFFER, rest.byteLength, gl.DYNAMIC_DRAW);
-    gl.enableVertexAttribArray(loc.aPos);
-    gl.vertexAttribPointer(loc.aPos, 2, gl.FLOAT, false, 0, 0);
-    const uvb = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, uvb);
-    gl.bufferData(gl.ARRAY_BUFFER, uv, gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(loc.aUv);
-    gl.vertexAttribPointer(loc.aUv, 2, gl.FLOAT, false, 0, 0);
-    const ib = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
-    gl.bindVertexArray(null);
-    return { part: p, rest, out: new Float32Array(rest.length), vao, pos, count: idx.length };
-  });
-
   // deformer chain per part, innermost first
   const chainOf = id => { const c = []; for (let d = id; d; d = defs[d].parent) c.push(d); return c; };
-  meshes.forEach(m => { m.chain = chainOf(m.part.parent); });
+
+  let prog, loc, meshes = [];
+  /** Builds every GL resource; called again on `webglcontextrestored`, where the old ones died with the context. */
+  function buildGL() {
+    prog = gl.createProgram();
+    gl.attachShader(prog, shader(gl, gl.VERTEX_SHADER, VS));
+    gl.attachShader(prog, shader(gl, gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    loc = {
+      aPos: gl.getAttribLocation(prog, 'aPos'), aUv: gl.getAttribLocation(prog, 'aUv'),
+      uView: gl.getUniformLocation(prog, 'uView'), uTex: gl.getUniformLocation(prog, 'uTex'),
+      uAlpha: gl.getUniformLocation(prog, 'uAlpha'), uTint: gl.getUniformLocation(prog, 'uTint'),
+      uTex2: gl.getUniformLocation(prog, 'uTex2'), uMix: gl.getUniformLocation(prog, 'uMix'),
+    };
+    // parts: rest grid, uv, index buffer; `uvBox` picks a sub-rect of the texture (atlas), default whole
+    meshes = model.parts.map(p => {
+      const [nx, ny] = p.grid || [6, 6];
+      const [x, y, w, h] = p.box;
+      const [u0, v0, u1, v1] = p.uvBox || [0, 0, 1, 1];
+      const rest = new Float32Array((nx + 1) * (ny + 1) * 2), uv = new Float32Array(rest.length);
+      let k = 0;
+      for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) {
+        rest[k] = x + w * i / nx; rest[k + 1] = y + h * j / ny;
+        uv[k] = u0 + (u1 - u0) * i / nx; uv[k + 1] = v0 + (v1 - v0) * j / ny;
+        k += 2;
+      }
+      const idx = [];
+      for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+        const a = j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1;
+        idx.push(a, b, c, b, d, c);
+      }
+      const vao = gl.createVertexArray();
+      gl.bindVertexArray(vao);
+      const pos = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, pos);
+      gl.bufferData(gl.ARRAY_BUFFER, rest.byteLength, gl.DYNAMIC_DRAW);
+      gl.enableVertexAttribArray(loc.aPos);
+      gl.vertexAttribPointer(loc.aPos, 2, gl.FLOAT, false, 0, 0);
+      const uvb = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, uvb);
+      gl.bufferData(gl.ARRAY_BUFFER, uv, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(loc.aUv);
+      gl.vertexAttribPointer(loc.aUv, 2, gl.FLOAT, false, 0, 0);
+      const ib = gl.createBuffer();
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
+      gl.bindVertexArray(null);
+      return { part: p, rest, out: new Float32Array(rest.length), vao, pos, count: idx.length };
+    });
+    meshes.forEach(m => { m.chain = chainOf(m.part.parent); });
+  }
+
+  // a lost context blanks the canvas; unless the loss is preventDefault-ed the browser never
+  // restores it, and it stays blank for good. On restoration every GL resource must be rebuilt
+  // and the textures uploaded again from their sources.
+  let lost = false;
+  canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); lost = true; });
+  canvas.addEventListener('webglcontextrestored', () => {
+    lost = false;
+    textures.clear();
+    buildGL();
+    for (const [key, src] of sources) upload(key, src);
+  });
+  buildGL();
 
   /** Moves a rest point through deformer `id` and its ancestors, with this frame's states. */
   function applyChain(chain, st, x, y) {
@@ -138,8 +159,8 @@ export function createRig(canvas, model) {
     return [x, y];
   }
 
-  let view = model.view; // [x0, y0, x1, y1]
   function render(st, opts = {}) {
+    if (lost || gl.isContextLost()) return;
     const W = canvas.width, H = canvas.height;
     gl.viewport(0, 0, W, H);
     gl.clearColor(0, 0, 0, 0);
