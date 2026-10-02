@@ -56,6 +56,7 @@ export function createRig(canvas, model) {
   // so restoring means uploading them all again from what they came from
   const textures = new Map(), sources = new Map();
   function upload(key, src) {
+    if (disposed) return null;
     sources.set(key, src);
     let t = textures.get(key);
     if (!t) { t = gl.createTexture(); textures.set(key, t); }
@@ -74,11 +75,12 @@ export function createRig(canvas, model) {
   const chainOf = id => { const c = []; for (let d = id; d; d = defs[d].parent) c.push(d); return c; };
 
   let prog, loc, meshes = [];
-  /** Builds every GL resource; called again on `webglcontextrestored`, where the old ones died with the context. */
+  let shaders = [];
+  /** Builds every GL resources; called again on `webglcontextrestored`, where the old ones died with the context. */
   function buildGL() {
+    shaders = [shader(gl, gl.VERTEX_SHADER, VS), shader(gl, gl.FRAGMENT_SHADER, FS)];
     prog = gl.createProgram();
-    gl.attachShader(prog, shader(gl, gl.VERTEX_SHADER, VS));
-    gl.attachShader(prog, shader(gl, gl.FRAGMENT_SHADER, FS));
+    for (const s of shaders) gl.attachShader(prog, s);
     gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
     loc = {
@@ -120,7 +122,7 @@ export function createRig(canvas, model) {
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib);
       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
       gl.bindVertexArray(null);
-      return { part: p, rest, out: new Float32Array(rest.length), vao, pos, count: idx.length };
+      return { part: p, rest, out: new Float32Array(rest.length), vao, pos, uvb, ib, count: idx.length };
     });
     meshes.forEach(m => { m.chain = chainOf(m.part.parent); });
   }
@@ -137,6 +139,26 @@ export function createRig(canvas, model) {
     for (const [key, src] of sources) upload(key, src);
   });
   buildGL();
+
+  /**
+   * Frees every GL resource and kills the context. Without this the browser keeps the context
+   * alive until GC collects the canvas, and Chromium caps live contexts per page (~16): swapping
+   * figures back and forth could exhaust them and leave later mounts rendering nothing.
+   */
+  let disposed = false;
+  function dispose() {
+    if (disposed) return;
+    disposed = true;
+    lost = true;
+    try {
+      for (const t of textures.values()) gl.deleteTexture(t);
+      for (const m of meshes) { gl.deleteBuffer(m.pos); gl.deleteBuffer(m.uvb); gl.deleteBuffer(m.ib); gl.deleteVertexArray(m.vao); }
+      if (prog) gl.deleteProgram(prog);
+      for (const s of shaders) gl.deleteShader(s);
+    } finally {
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+    }
+  }
 
   /** Moves a rest point through deformer `id` and its ancestors, with this frame's states. */
   function applyChain(chain, st, x, y) {
@@ -200,7 +222,7 @@ export function createRig(canvas, model) {
   }
 
   return {
-    gl, upload, render,
+    gl, upload, render, dispose,
     /** Where a rest point lands this frame (for overlays and hit tests). */
     point(deformer, st, x, y) { return applyChain(chainOf(deformer), st, x, y); },
     setView(v) { view = v; },

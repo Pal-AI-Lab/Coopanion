@@ -268,6 +268,10 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
   let fo = null, canvas = null, fxG = null, rig = null, mountedIn = null, pxScale = 0, frameN = 0;
   function mount(petG) {
     petG.textContent = '';
+    // the previous rig's GL context outlives its canvas until GC: release it or repeated
+    // figure switches pile up live contexts (Chromium caps them per page)
+    rig?.dispose();
+    rig = null;
     const box = (el) => { el.setAttribute('x', VIEW[0]); el.setAttribute('y', VIEW[1]); el.setAttribute('width', VIEW[2] - VIEW[0]); el.setAttribute('height', VIEW[3] - VIEW[1]); return el; };
     canvas = document.createElementNS('http://www.w3.org/1999/xhtml', 'canvas');
     if (opts.raster) {
@@ -566,9 +570,17 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
       const g = document.createElementNS(SVGNS, 'g');
       for (let i = 0; i < frames; i++) draw(g, fc, { ...o, t: (o.t || 0) + i / 60 });
       const href = canvas.toDataURL('image/png');
-      rig.gl.getExtension('WEBGL_lose_context')?.loseContext();
+      rig.dispose();
       rig = null; mountedIn = null; fixedRes = 0;
       return `<image href="${href}" x="${VIEW[0]}" y="${VIEW[1]}" width="${VIEW[2] - VIEW[0]}" height="${VIEW[3] - VIEW[1]}"/>`;
+    },
+    /**
+     * Releases the WebGL context and drops the mounted DOM (what `setFigure` switching away from
+     * this figure calls). The figure object stays usable: the next `draw` re-mounts from scratch.
+     */
+    dispose() {
+      rig?.dispose();
+      rig = null; canvas = null; fo = null; fxG = null; mountedIn = null;
     },
     reset() {
       endFade();

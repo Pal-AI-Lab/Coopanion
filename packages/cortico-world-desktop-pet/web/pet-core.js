@@ -1081,6 +1081,8 @@ export function createPet(els, opts) {
     /** Swaps the body's drawing: a custom figure (see `opts.figure`) or null for the built-in Coo. */
     setFigure(fig) {
       if (fig === custom) return;
+      // a swapped-out figure may hold a WebGL context; release it now instead of waiting for GC
+      custom?.dispose?.();
       custom = fig || null;
       A = { ...COO_ANCHORS, ...custom?.anchors };
       petG.textContent = '';
