@@ -628,11 +628,13 @@ let mic = null;
 async function startMic() {
   if (mic) return;
   mic = { starting: true };
+  // 拿到一半就失败时也要停麦关声卡,否则录音指示灯常亮到页面刷新
+  let stream = null, ctx = null;
   try {
     const audio = { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true };
     if (prefs.micDevice) audio.deviceId = { exact: prefs.micDevice };
-    const stream = await navigator.mediaDevices.getUserMedia({ audio });
-    const ctx = new AudioContext({ sampleRate: 16000 });
+    stream = await navigator.mediaDevices.getUserMedia({ audio });
+    ctx = new AudioContext({ sampleRate: 16000 });
     await ctx.audioWorklet.addModule('/web/mic-worklet.js');
     const src = ctx.createMediaStreamSource(stream);
     const node = new AudioWorkletNode(ctx, 'pet-mic');
@@ -643,6 +645,8 @@ async function startMic() {
     send({ t: 'mic', state: 'on', detail: stream.getAudioTracks()[0]?.label || null });
     void reportDevices();
   } catch (err) {
+    if (stream) stream.getTracks().forEach((t) => t.stop());
+    if (ctx) ctx.close();
     mic = null;
     send({ t: 'mic', state: err && err.name === 'NotAllowedError' ? 'denied' : 'error', detail: String(err && err.message || err) });
   }
