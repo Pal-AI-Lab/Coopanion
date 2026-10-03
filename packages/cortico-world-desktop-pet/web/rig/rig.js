@@ -76,7 +76,7 @@ export function createRig(canvas, model) {
 
   let prog, loc, meshes = [];
   let shaders = [];
-  /** Builds every GL resources; called again on `webglcontextrestored`, where the old ones died with the context. */
+  /** Builds every GL resource; called again on `webglcontextrestored`, where the old ones died with the context. */
   function buildGL() {
     shaders = [shader(gl, gl.VERTEX_SHADER, VS), shader(gl, gl.FRAGMENT_SHADER, FS)];
     prog = gl.createProgram();
@@ -133,6 +133,8 @@ export function createRig(canvas, model) {
   let lost = false;
   canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); lost = true; });
   canvas.addEventListener('webglcontextrestored', () => {
+    // dispose() during a loss cannot reach WEBGL_lose_context, so the browser may still restore a disposed rig
+    if (disposed) return;
     lost = false;
     textures.clear();
     buildGL();

@@ -25,9 +25,10 @@ const MODEL = {
 
 function makeRig() {
   const { gl, of } = stubGL();
-  const canvas = { addEventListener() {}, getContext: () => gl };
+  const listeners = {};
+  const canvas = { addEventListener(type, fn) { listeners[type] = fn; }, getContext: () => gl };
   const rig = createRig(canvas, MODEL);
-  return { rig, of };
+  return { rig, of, fire: (type) => listeners[type]({ preventDefault() {} }) };
 }
 
 describe('rig dispose', () => {
@@ -53,5 +54,15 @@ describe('rig dispose', () => {
     rig.render({});
     expect(of('createTexture') + of('createBuffer') + of('createVertexArray') + of('createProgram')).toBe(created);
     expect(of('loseContext')).toBe(1);
+  });
+
+  it('上下文丢失期间 dispose,之后浏览器恢复上下文也不重建 GL 资源', () => {
+    const { rig, of, fire } = makeRig();
+    rig.upload('body', {});
+    fire('webglcontextlost');
+    rig.dispose();
+    const created = of('createTexture') + of('createBuffer') + of('createVertexArray') + of('createProgram');
+    fire('webglcontextrestored');
+    expect(of('createTexture') + of('createBuffer') + of('createVertexArray') + of('createProgram')).toBe(created);
   });
 });
