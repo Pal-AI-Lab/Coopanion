@@ -9,7 +9,6 @@ permissions:
 
 jobs:
   patch-build:
-    if: github.event.head_commit.message == 'chore: run 0.1.15 build'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,5 +55,3 @@ jobs:
           git add -A
           git commit -m "feat: visual platforms and stronger pointer reactions"
           git push origin HEAD:main
-
-# second push intentionally triggers this newly registered workflow
