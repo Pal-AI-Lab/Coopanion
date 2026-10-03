@@ -17,6 +17,7 @@
  */
 const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen, session, shell, systemPreferences } = require('electron');
 const { join } = require('node:path');
+const { scanWindowSurfaces } = require('./windows-platforms.cjs');
 
 /** Milliseconds between the cursor reports the page gets. */
 const CURSOR_EVERY_MS = 100;
@@ -90,6 +91,29 @@ const foreground = (() => {
 function hwndOf(win) {
   const b = win.getNativeWindowHandle();
   return b.length === 8 ? b.readBigInt64LE(0) : BigInt(b.readInt32LE(0));
+}
+
+/**
+ * Native top-level windows as standable horizontal surfaces in this pet window's page coordinates.
+ * The scanner returns physical pixels; Electron's BrowserWindow bounds are DIP, so convert each
+ * corner before clipping it to the display-sized transparent pet window.
+ */
+function desktopPlatforms(win, extraExcluded = []) {
+  if (process.platform !== 'win32' || !win) return [];
+  const excluded = [hwndOf(win), ...extraExcluded.filter(Boolean).map((w) => hwndOf(w))];
+  const wb = win.getBounds();
+  const toDip = (p) => screen.screenToDipPoint ? screen.screenToDipPoint(p) : p;
+  const out = [];
+
+  for (const p of scanWindowSurfaces(excluded)) {
+    const a = toDip({ x: p.left, y: p.top });
+    const z = toDip({ x: p.right, y: p.bottom });
+    const top = a.y - wb.y, bottom = z.y - wb.y;
+    const left = Math.max(0, a.x - wb.x), right = Math.min(wb.width, z.x - wb.x);
+    if (right - left < 16 || top < 0 || top >= wb.height || bottom <= 0) continue;
+    out.push({ ...p, left, right, top, bottom });
+  }
+  return out;
 }
 
 /** `w`×`h` screen pixels from (x, y) in physical pixels, shrunk to `ow`×`oh`, as top-down BGRA. */
@@ -267,6 +291,9 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   ipcMain.on('pet:openDress', () => openDress());
   ipcMain.handle('pet:sampleBackdrop', (_e, query) => {
     try { return win ? sampleBackdrop(win, query || {}) : []; } catch { return []; }
+  });
+  ipcMain.handle('pet:getPlatforms', () => {
+    try { return win ? desktopPlatforms(win, dress ? [dress] : []) : []; } catch { return []; }
   });
   /**
    * A drag let go of outside the window: when the cursor is over another display, the window moves
