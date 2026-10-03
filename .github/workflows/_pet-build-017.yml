@@ -1,0 +1,35 @@
+name: pet-build-0.1.17
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check
+        shell: bash
+        run: |
+          node --check packages/cortico-world-desktop-pet/host/windows-platforms.cjs
+          node --check packages/cortico-world-desktop-pet/host/electron-main.cjs
+          node --check packages/cortico-world-desktop-pet/web/pet-core.js
+          node --check packages/cortico-world-desktop-pet/web/pet-core-platforms.js
+          node --check packages/cortico-world-desktop-pet/web/pet-app.js
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build Windows installer
+        run: pnpm run build:installer
+        env:
+          PACK_ARCH: x64
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Coopanion-Windows-Test-0.1.17
+          path: dist/Coopanion-Setup-0.1.17.exe
+          if-no-files-found: error
