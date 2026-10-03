@@ -9,6 +9,9 @@
  * asks for permission in the pet's bubble, and falls back to its own system dialog while no
  * pet page is connected.
  *
+ * The settings window's colours follow the pet's look (`console-theme.ts`): at start and whenever the
+ * dressing page saves one.
+ *
  * First start writes the files in `seed.ts`; after that every value is the operator's, edited in
  * the console. While the active endpoint has no key, event delivery starts paused. The first start
  * runs the introduction (`guide.ts`) in the pet's bubble, the key box included; after it, the pet
@@ -48,6 +51,7 @@ import { desktopPetDefinition, type DesktopPetWorld } from 'cortico-world-deskto
 import { cuaDefinition } from 'cortico-world-cua';
 import COO, { vendorOf } from 'cortico-provider-coo';
 import { bundledConsoleAssets } from './bundled-panels.ts';
+import { followPetLook } from './console-theme.ts';
 import { askForKey, guideDone, markDone, runGuide, type GuideDeps } from './guide.ts';
 import { CONSOLE_PORT, DEPLOYMENT, DISPLAY_NAME, SEED_DIR, seed } from './seed.ts';
 import { crashFields, describeEndpoint, publicExtensionName, Telemetry, type Counter } from './telemetry.ts';
@@ -339,6 +343,7 @@ export async function main(): Promise<void> {
       },
     },
     onCreate: (world) => { pet = world; },
+    onSkin: (skin) => followPetLook(join(deploymentRoot(), DEPLOYMENT), skin),
   });
   const CUA = cuaDefinition({
     askPermission: async (question) => {
@@ -385,6 +390,7 @@ export async function main(): Promise<void> {
   const deployDir = join(home, DEPLOYMENT);
   const loaded = loadDeployment(definition, deployDir, repoRoot(), join(repoRoot(), 'bots', 'cormini'), providersRoot());
   announceDataDir(loaded.dataDir);
+  followPetLook(deployDir, getByPath(loaded.config as unknown as Record<string, unknown>, 'worlds.desktop-pet.skin') as { figure?: string; scheme?: string } | undefined);
   consumeBootFlags(loaded.dataDir);
 
   const bot = createBot(loaded, definition, { extensions });

@@ -6,7 +6,7 @@ function fixture(referrer = 'http://127.0.0.1:17788/') {
   const dom = new JSDOM('<html data-theme="dark"></html>', { url: 'http://127.0.0.1:7797/dress?appearance=light', ...(referrer ? { referrer } : {}) });
   const { window: win } = dom;
   const dispose = bindAppearance(win.document, win);
-  const send = (origin, mode, source = win.parent) => win.dispatchEvent(new win.MessageEvent('message', { origin, source, data: { type: 'companion:appearance', mode } }));
+  const send = (origin, mode, source = win.parent, accent) => win.dispatchEvent(new win.MessageEvent('message', { origin, source, data: { type: 'companion:appearance', mode, accent } }));
   return { dom, win, dispose, send };
 }
 
@@ -18,6 +18,9 @@ describe('embedded dressing appearance', () => {
     expect(win.document.documentElement.dataset.uiTheme).toBe('dark');
     send('http://127.0.0.1:17788', 'light');
     expect(win.document.documentElement.dataset.theme).toBe('dark');
+    send('http://127.0.0.1:17788', 'light', win.parent, '#d97757');
+    send('http://127.0.0.1:17788', 'light', win.parent, 'red;background:url(x)');
+    expect(win.document.documentElement.style.getPropertyValue('--host-accent')).toBe('#d97757');
     dispose(); send('http://127.0.0.1:17788', 'dark');
     expect(win.document.documentElement.dataset.uiTheme).toBe('light');
     dom.window.close();

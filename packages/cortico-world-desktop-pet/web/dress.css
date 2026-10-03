@@ -3,14 +3,14 @@ body.dress-page{
   overflow:visible; height:auto; min-height:100%; background:var(--bg); color:var(--text);
   user-select:auto; -webkit-user-select:auto; padding:16px;
 }
-/* The host console chooses the editor surface; the pet's own dark/light setting still chooses its colors. */
+/* The host console chooses the editor surface and lends its accent (--host-accent); the pet's own dark/light setting still chooses its colors. */
 :root[data-ui-theme="light"] body.dress-page{
   color-scheme:light;
-  --bg:#F3F2F6; --surface:#FFFFFF; --text:#1B1626; --muted:#6A6577; --line:#E2DFE8; --accent:#00A870;
+  --bg:#F3F2F6; --surface:#FFFFFF; --text:#1B1626; --muted:#6A6577; --line:#E2DFE8; --accent:var(--host-accent, #00A870);
 }
 :root[data-ui-theme="dark"] body.dress-page{
   color-scheme:dark;
-  --bg:#0D1117; --surface:#151A22; --text:#E9EDF2; --muted:#8C95A3; --line:#252C37; --accent:#2FD59B;
+  --bg:#0D1117; --surface:#151A22; --text:#E9EDF2; --muted:#8C95A3; --line:#252C37; --accent:var(--host-accent, #2FD59B);
 }
 .dress-page main{--swatch-bg:#E8E6EE}
 :root[data-theme="dark"] .dress-page main{--swatch-bg:#10151C}

@@ -1,13 +1,19 @@
 /**
  * 「装扮」: the desktop-pet World's dressing page (colors, hats, earrings, glasses, neckwear) in a
  * frame. Its address comes from the World's `pet` panel; until the pet's server is up the page says
- * so and asks again every few seconds.
+ * so and asks again every few seconds. Saving a look recolours the settings window (core/console-theme.ts
+ * writes the deployment's theme.json); while this page is open it reads that record every
+ * `THEME_POLL_MS` and applies it when the scheme or mode differs from what the window shows.
  */
-import { post } from '../../core/api.ts';
+import { get, post } from '../../core/api.ts';
 import { pick } from '../../core/language.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
+import { applyStoredTheme, disposeThemeStudio, getThemeStudio } from '../../theme/studio.ts';
+import type { InjectedTheme } from '../../../shared/theme.ts';
 
 const PET_PAGE = 'world:desktop-pet';
+/** How often the open page reads the theme record, one local request each time. */
+const THEME_POLL_MS = 1000;
 
 const S = pick({
   zh: {
@@ -37,12 +43,13 @@ async function mount(ctx: FeatureContext): Promise<void> {
 
   const doc = root.ownerDocument;
   const appearance = () => doc.documentElement.dataset.colorMode === 'dark' ? 'dark' : 'light';
+  const accent = () => getComputedStyle(doc.documentElement).getPropertyValue('--accent').trim();
   const syncAppearance = () => {
-    if (frame.dataset.origin) frame.contentWindow?.postMessage({ type: 'companion:appearance', mode: appearance() }, frame.dataset.origin);
+    if (frame.dataset.origin) frame.contentWindow?.postMessage({ type: 'companion:appearance', mode: appearance(), accent: accent() }, frame.dataset.origin);
   };
   frame.addEventListener('load', syncAppearance, { signal });
   const observer = new MutationObserver(syncAppearance);
-  observer.observe(doc.documentElement, { attributes: true, attributeFilter: ['data-color-mode'] });
+  observer.observe(doc.documentElement, { attributes: true, attributeFilter: ['data-color-mode', 'data-theme-scheme'] });
   ctx.lifecycle.add(() => observer.disconnect());
 
   const refresh = async () => {
@@ -61,8 +68,20 @@ async function mount(ctx: FeatureContext): Promise<void> {
     }
   };
 
+  const followTheme = async () => {
+    const injected = await get<InjectedTheme>('/api/theme', { signal }).catch(() => null);
+    const theme = injected?.theme;
+    if (!injected || !theme || signal.aborted) return;
+    const shown = getThemeStudio().snapshot();
+    if (theme.selectedId === shown.selectedId && theme.mode === shown.mode) return;
+    // the studio holds the record it started with: a fresh one reads the new schemes and selection
+    disposeThemeStudio();
+    applyStoredTheme(doc, { injected });
+  };
+
   await refresh();
   ctx.lifecycle.interval(() => { if (frame.hidden) void refresh(); }, 3000);
+  ctx.lifecycle.interval(() => void followTheme(), THEME_POLL_MS);
 }
 
 export const dressFeature: FrameworkFeature = {
