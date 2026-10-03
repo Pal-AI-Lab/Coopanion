@@ -1068,12 +1068,23 @@ export function createPet(els, opts) {
     setMode('air');
     onEvent('touch', { kind: 'drop', x: Math.round(pet.x) });
   }
+  /**
+   * Keeps a held body under the pointer when the stage moved to another display mid-drag: every
+   * point on screen now sits (dx, dy) stage pixels from where it was.
+   */
+  function shiftDrag(dx, dy) {
+    if (pet.mode !== 'drag') return;
+    pet.dx += dx; pet.dy += dy; pet.x += dx;
+    pointer.x += dx; pointer.y += dy;
+    for (const s of pointer.samples) { s.x += dx; s.y += dy; }
+    if (press) { press.x += dx; press.y += dy; }
+  }
   function pointerLeave() { if (!press) pointer.inside = false; }
 
   resize();
   return {
     pet, step, render, resize, act, setExpr, walkTo, toStage, hitPet, busy,
-    pointerDown, pointerMove, pointerUp, pointerLeave, dropAt,
+    pointerDown, pointerMove, pointerUp, pointerLeave, dropAt, shiftDrag,
     get pressing() { return !!press; },
     get time() { return T; },
     get bounds() { return { W, H, floorY, S, minX: minX(), maxX: maxX() }; },

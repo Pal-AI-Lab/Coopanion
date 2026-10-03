@@ -992,7 +992,8 @@ document.addEventListener('pointermove', (e) => {
   lastPointer.x = e.clientX; lastPointer.y = e.clientY;
   const p = { x: e.clientX, y: e.clientY };
   cursor.at = p;
-  stage.style.cursor = ctl.pointerMove(p);
+  // while the window moves to another display, moves may come in either display's coordinates; the drag shifts over once it has moved
+  if (!shifting) stage.style.cursor = ctl.pointerMove(p);
   const hit = ctl.hitPet(p), ui = !!overUi(e);
   diag.move = { at: performance.now(), type: e.pointerType, x: Math.round(p.x), y: Math.round(p.y), hit, ui };
   diag.types.add(e.pointerType);
@@ -1002,6 +1003,7 @@ document.addEventListener('pointermove', (e) => {
     if (!first) logPointer('type', 'move');
   }
   setInteractive(ctl.pressing || hit || ui, 'move');
+  followDrag(p);
 });
 /**
  * The pet window also reports where the cursor is on its own, a few times a second: a click-through
@@ -1033,21 +1035,46 @@ const up = () => { ctl.pointerUp(); stage.style.cursor = ''; };
  * drops inside whatever size the page has.
  */
 const RESIZE_WAIT_MS = 1000;
+/** Waits until the page has the window size `to` gives, or RESIZE_WAIT_MS has passed, then lays the stage out again. */
+async function settleSize(to) {
+  const t0 = performance.now();
+  while ((Math.abs(innerWidth - to.w) > 1 || Math.abs(innerHeight - to.h) > 1) && performance.now() - t0 < RESIZE_WAIT_MS) {
+    await new Promise((r) => requestAnimationFrame(r));
+  }
+  ctl.resize();
+}
+const outside = (p) => p.x < 0 || p.y < 0 || p.x >= innerWidth || p.y >= innerHeight;
+/** A move of the window onto the display under the cursor, while one is under way. */
+let following = null;
+/** True from asking for that move until the drag has shifted into the new coordinates. */
+let shifting = false;
+/**
+ * A drag carried past the window's edge: over another display the window moves there at once, so
+ * the held pet stays in sight instead of being cut off at the edge until it is let go of.
+ */
+function followDrag(p) {
+  if (following || ctl.pet.mode !== 'drag' || !host?.followCursor || !outside(p)) return;
+  shifting = true;
+  following = (async () => {
+    const to = await host.followCursor().catch(() => null);
+    shifting = false;
+    if (!to) return;
+    ctl.shiftDrag(to.dx, to.dy);
+    await settleSize(to);
+  })().finally(() => { following = null; shifting = false; });
+}
 stage.addEventListener('pointerup', async (e) => {
-  const off = e.clientX < 0 || e.clientY < 0 || e.clientX >= innerWidth || e.clientY >= innerHeight;
-  if (!off || ctl.pet.mode !== 'drag' || !host?.followCursor) { up(); return; }
-  // let go of past the window's edge: over another display the window follows and the pet drops there
+  // the window was moving under the cursor: the release point is in the coordinates it left behind
+  if (following) { await following; up(); return; }
+  if (!outside({ x: e.clientX, y: e.clientY }) || ctl.pet.mode !== 'drag' || !host?.followCursor) { up(); return; }
+  // let go of past the window's edge in one move: over another display the window follows and the pet drops there
   const to = await host.followCursor().catch(() => null);
   if (!to) { up(); return; }
   stage.style.cursor = '';
   // until the drop the body and bubbles still stand in the old display's coordinates
   document.body.style.visibility = 'hidden';
   try {
-    const t0 = performance.now();
-    while ((Math.abs(innerWidth - to.w) > 1 || Math.abs(innerHeight - to.h) > 1) && performance.now() - t0 < RESIZE_WAIT_MS) {
-      await new Promise((r) => requestAnimationFrame(r));
-    }
-    ctl.resize();
+    await settleSize(to);
     ctl.dropAt({ x: to.x, y: to.y });
   } finally {
     document.body.style.visibility = '';

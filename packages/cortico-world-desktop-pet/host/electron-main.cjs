@@ -5,8 +5,8 @@
  * `runPetHost({ url, parentPid })` from an app's own main process. With `--parent-pid=<pid>`
  * the window closes once that process exits. The window covers the work area of one display
  * (the primary one at start), is transparent and always on top, and ignores the mouse until the
- * page reports the pointer is over the figure, a bubble or the menu. When the pet is let go of
- * over another display, the window moves to that display; when its display is unplugged, it
+ * page reports the pointer is over the figure, a bubble or the menu. When the pet is carried onto
+ * another display, the window moves to that display mid-drag; when its display is unplugged, it
  * moves to the primary one. A tray icon shows, hides and closes it; an embedding app that has its
  * own tray passes `tray: false`.
  *
@@ -269,17 +269,18 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     try { return win ? sampleBackdrop(win, query || {}) : []; } catch { return []; }
   });
   /**
-   * A drag let go of outside the window: when the cursor is over another display, the window moves
-   * there and the page gets the cursor's spot in its new coordinates and its new size; null leaves
-   * it where it is.
+   * A drag carried or let go of outside the window: when the cursor is over another display, the
+   * window moves there and the page gets the cursor's spot in its new coordinates, its new size, and
+   * how far a point on screen moved in page coordinates (`dx`, `dy`); null leaves it where it is.
    */
   ipcMain.handle('pet:followCursor', () => {
     if (!win) return null;
     const pt = screen.getCursorScreenPoint(), d = screen.getDisplayNearestPoint(pt);
-    if (d.id === display().id) return null;
+    const from = display();
+    if (d.id === from.id) return null;
     cover(d);
     const wa = d.workArea;
-    return { x: pt.x - wa.x, y: pt.y - wa.y, w: wa.width, h: wa.height };
+    return { x: pt.x - wa.x, y: pt.y - wa.y, w: wa.width, h: wa.height, dx: from.workArea.x - wa.x, dy: from.workArea.y - wa.y };
   });
 
   // a pet is not an app to switch to
