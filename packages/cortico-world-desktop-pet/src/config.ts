@@ -64,8 +64,9 @@ export interface DesktopPetConfigSection extends WorldSection {
   /** Start each run where the pet stood when the World last stopped. */
   rememberPosition: boolean;
   /**
-   * Where the pet stood when the World last stopped, as a share of the pet window's width (0..1); the window
-   * covers the primary display's work area. Written only on stop; null when nothing is saved.
+   * Where the pet stood when the World last stopped, as a share of the pet window's width (0..1), whichever
+   * display the window was on; each start opens the window on the primary display. Written only on stop;
+   * null when nothing is saved.
    */
   petX: number | null;
   /** Actions shown as buttons beside the pet on hover, ids from PET_ACTIONS joined by commas. */
@@ -137,7 +138,7 @@ export const DESKTOP_PET_CONFIG_GROUP: ConfigGroup = {
       [`${K}.roam`]: { type: 'string', title: '行为模式', enum: ['free', 'calm', 'off'], description: 'free 常走动;calm 多待着;off 只做被要求的动作。', 'x-hot': true },
       [`${K}.sound`]: { type: 'boolean', title: '音效', 'x-hot': true },
       [`${K}.theme`]: { type: 'string', title: '黑白模式', enum: ['dark', 'light'], description: 'dark 夜间:浅色身体、深色气泡;light 白天:深色身体、浅色气泡。', 'x-hot': true },
-      [`${K}.rememberPosition`]: { type: 'boolean', title: '记住位置', description: '退出时记下桌宠在屏幕上的横向位置,下次启动落回那里。', 'x-hot': true },
+      [`${K}.rememberPosition`]: { type: 'boolean', title: '记住位置', description: '退出时记下桌宠的横向位置,下次启动落回那里;有多块屏幕时总在主屏上启动。', 'x-hot': true },
       [`${K}.hoverButtons`]: { type: 'string', title: '悬停按钮', description: `鼠标停在桌宠身上时旁边出现的按钮,最多 ${MAX_HOVER_BUTTONS} 个,逗号分隔:${PET_ACTIONS.join(', ')}。`, 'x-hot': true },
       [`${K}.window.enabled`]: { type: 'boolean', title: '启动时打开桌宠窗口', 'x-hot': false },
       [`${K}.window.scale`]: { type: 'number', title: '大小', minimum: .5, maximum: 2, multipleOf: .05, 'x-hot': true },
