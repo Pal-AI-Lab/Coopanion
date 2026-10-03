@@ -40,6 +40,7 @@ const native = (() => {
       GetWindowRect: user32.func('int __stdcall GetWindowRect(intptr_t hwnd, void *rect)'),
       GetClassNameW: user32.func('int __stdcall GetClassNameW(intptr_t hwnd, void *text, int maxCount)'),
       GetWindowTextW: user32.func('int __stdcall GetWindowTextW(intptr_t hwnd, void *text, int maxCount)'),
+      GetWindowLongW: user32.func('int32_t __stdcall GetWindowLongW(intptr_t hwnd, int index)'),
       DwmGetWindowAttribute,
     };
   } catch {
@@ -106,6 +107,9 @@ function scanWindowSurfaces(excludedHwnds = []) {
           if (rect && width >= 24 && height >= 12) {
             const title = wideText(native.GetWindowTextW, hwnd, 512);
             const rainmeter = /rainmeter/i.test(className) || /rainmeter/i.test(title);
+            const exStyle = native.GetWindowLongW(hwnd, -20) >>> 0; // GWL_EXSTYLE
+            const layered = !!(exStyle & 0x00080000); // WS_EX_LAYERED
+            const transparent = !!(exStyle & 0x00000020); // WS_EX_TRANSPARENT
             out.push({
               id: `hwnd:${id}`,
               left: rect.left,
@@ -115,6 +119,8 @@ function scanWindowSurfaces(excludedHwnds = []) {
               kind: rainmeter ? 'rainmeter' : 'window',
               className,
               title,
+              layered,
+              transparent,
             });
           }
         }

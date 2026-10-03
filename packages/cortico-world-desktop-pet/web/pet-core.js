@@ -528,7 +528,7 @@ export function createPet(els, opts) {
     eyeSig: '', eyeCur: null, eyePrev: null, eyeDims: [[16, 16, 0, 0], [16, 16, 0, 0]], swapAge: 9,
     glance: [0, 0], glanceAt: 0, swing: 0, swingV: 0, prevA: null, velX: 0, talkK: 0, sfxAt: 0, skid: false, cue: 0,
     pulse: null, walkId: 0, listening: false, thinking: false, placed: false,
-    mouseNext: 0, mouseAngle: null, mouseOrbit: 0, mouseDizzyUntil: 0, bonkDizzy: false,
+    mouseNext: 0, mouseAngle: null, mouseOrbit: 0, mouseDizzyUntil: 0, mouseChaseUntil: 0, bonkDizzy: false,
   };
   const pointer = { x: -1e4, y: -1e4, inside: false, vx: 0, vy: 0, samples: [] };
   let press = null, strokeAcc = 0, petCool = 0;
@@ -639,6 +639,7 @@ export function createPet(els, opts) {
     const m = pet.mode;
     if (m === 'drag') return 'dragged';
     if (m === 'air' && pet.airKind === 'throw') return pet.vy < 0 ? 'dragged' : 'surprised';
+    if (m === 'air' && pet.airKind === 'bonk' && pet.bonkDizzy) return 'dizzy';
     if (m === 'air' && ['drop', 'ledge', 'bonk'].includes(pet.airKind)) return 'surprised';
     if (m === 'dizzy') return pet.modeT < 2.4 ? 'dizzy' : 'squeeze';
     if (m === 'wake') return pet.startle ? 'surprised' : 'waking';
@@ -693,14 +694,14 @@ export function createPet(els, opts) {
         return pet.glance;
       }
       const k = Math.min(1, pm / 120);
-      return [pdx * pet.facing / pm * 9 * k, pdy / pm * 7 * k];
+      return [pdx * pet.facing / pm * 14 * k, pdy / pm * 11 * k];
     };
 
     // Fast repeated circles around the body build angular motion. Roughly one and a half quick
     // turns makes Coo dizzy; slow circles and direction changes bleed the score away.
     const pSpeed = Math.hypot(pointer.vx, pointer.vy);
     if (pointer.inside && !press && !opts.dialogOpen?.() && !['air', 'drag', 'crouch', 'dizzy'].includes(pet.mode)
-        && pm >= 55 && pm <= 270 && pSpeed >= 300) {
+        && pm >= 45 && pm <= 320 && pSpeed >= 250) {
       const a = Math.atan2(pdy, pdx);
       if (pet.mouseAngle != null) {
         const da = Math.atan2(Math.sin(a - pet.mouseAngle), Math.cos(a - pet.mouseAngle));
@@ -723,31 +724,34 @@ export function createPet(els, opts) {
     switch (m) {
       case 'idle': {
         lookT = track();
-        if (pointer.inside && !press && pdx * pet.facing < -35 && pm < 750) {
+        if (pointer.inside && !press && pdx * pet.facing < -24 && pm < 1000) {
           pet.turnAcc += dt;
-          if (pet.turnAcc > .35) { pet.facing *= -1; pet.turnAcc = 0; }
+          if (pet.turnAcc > .12) { pet.facing *= -1; pet.turnAcc = 0; }
         } else pet.turnAcc = 0;
         if (pet.listening) { lookT = [3, -4]; tiltT = -7; leanT = -2; }
 
         let mouseReacted = false;
         if (free && !pet.listening && pointer.inside && !press && T >= pet.mouseNext && !(pet.expr && T < pet.exprUntil)) {
           const ax = Math.abs(pdx);
-          if (pdy < -45 && pdy > -280 && ax < 170 && pm < 300) {
+          // Cursor over/near the head: jump toward it. This is intentionally frequent enough to
+          // be obvious rather than a rare easter egg.
+          if (pdy < -25 && pdy > -360 && ax < 220 && pm < 390) {
             setMode('crouch', {
-              jumpV: clamp(610 + (-pdy) * 1.05, 650, 900),
-              jumpVx: clamp(pdx * 1.6, -260, 260),
+              jumpV: clamp(650 + (-pdy) * 1.15, 700, 980),
+              jumpVx: clamp(pdx * 1.9, -320, 320),
             });
-            pet.mouseNext = T + rnd(3, 5);
+            pet.mouseNext = T + rnd(1.4, 2.2);
             mouseReacted = true;
-          } else if (pm < 220 && pSpeed > 1000) {
+          } else if (pm < 260 && pSpeed > 750) {
             setExpr('surprised', .8);
-            pet.mouseNext = T + rnd(2, 3.5);
+            pet.mouseNext = T + rnd(1.0, 1.8);
             mouseReacted = true;
-          } else if (pm < 600 && ax > 150 && Math.abs(pdy) < 280 && Math.random() < .7) {
-            const run = ax > 320 && Math.random() < .45;
+          } else if (pm < 800 && ax > 90 && Math.abs(pdy) < 340) {
+            const run = ax > 300 || pSpeed > 700;
             const side = pdx >= 0 ? 1 : -1;
-            setMode(run ? 'run' : 'walk', { target: clamp(pointer.x - side * 55, minX(), maxX()) });
-            pet.mouseNext = T + rnd(2.5, 4.8);
+            setMode(run ? 'run' : 'walk', { target: clamp(pointer.x - side * 36, minX(), maxX()) });
+            pet.mouseChaseUntil = T + rnd(1.8, 2.8);
+            pet.mouseNext = T + rnd(1.0, 1.7);
             mouseReacted = true;
           }
         }
@@ -755,6 +759,10 @@ export function createPet(els, opts) {
         break;
       }
       case 'walk': case 'run': {
+        if (!pet.walkId && pointer.inside && free && T < pet.mouseChaseUntil && Math.abs(pdy) < 380) {
+          const side = pdx >= 0 ? 1 : -1;
+          pet.target = clamp(pointer.x - side * 30, minX(), maxX());
+        }
         const run = m === 'run', d = pet.target - pet.x, dist = Math.abs(d), dir = Math.sign(d) || pet.facing;
         pet.facing = dir;
         const vMax = run ? 250 : 78;
@@ -784,6 +792,7 @@ export function createPet(els, opts) {
         break;
       }
       case 'look': {
+        if (free && pointer.inside && pm < 520 && pSpeed > 120) { setMode('idle'); pet.nextAt = T; break; }
         if (!pet.cue) { pet.cue = 1; sfx.hmm(); }
         if (mt < .9) lookT = [4, -4];
         else if (mt < 1.8) { if (!pet.turned) { pet.turned = true; pet.facing *= -1; } lookT = [5, 0]; }
@@ -792,6 +801,7 @@ export function createPet(els, opts) {
         break;
       }
       case 'sit': {
+        if (free && pointer.inside && pm < 420 && pSpeed > 180) { setMode('idle'); pet.nextAt = T; break; }
         sitT = 1;
         lookT = track().map(v => v * (1 - pet.drowse));
         if (pet.listening) { lookT = [3, -4]; tiltT = -7; }

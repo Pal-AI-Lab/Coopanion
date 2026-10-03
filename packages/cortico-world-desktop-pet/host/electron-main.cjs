@@ -20,7 +20,7 @@ const { join } = require('node:path');
 const { scanWindowSurfaces } = require('./windows-platforms.cjs');
 
 /** Milliseconds between the cursor reports the page gets. */
-const CURSOR_EVERY_MS = 100;
+const CURSOR_EVERY_MS = 50;
 /** Most pixels one backdrop sample returns. */
 const BACKDROP_SAMPLES = 1500;
 
@@ -111,18 +111,21 @@ function desktopPlatforms(win, extraExcluded = []) {
     const top = a.y - wb.y, bottom = z.y - wb.y;
     const left = Math.max(0, a.x - wb.x), right = Math.min(wb.width, z.x - wb.x);
     if (right - left < 16 || top < 0 || top >= wb.height || bottom <= 0) continue;
-    out.push({ ...p, left, right, top, bottom });
+    if (!p.layered && !p.transparent && p.kind !== 'rainmeter') out.push({ ...p, left, right, top, bottom });
   }
+  out.push(...scanVisualSurfaces(win));
   return out;
 }
 
 /** `w`×`h` screen pixels from (x, y) in physical pixels, shrunk to `ow`×`oh`, as top-down BGRA. */
-function grabScreen(x, y, w, h, ow, oh) {
+function grabScreen(x, y, w, h, ow, oh, captureLayered = false) {
   const screenDc = gdi.GetDC(null), memDc = gdi.CreateCompatibleDC(screenDc), bmp = gdi.CreateCompatibleBitmap(screenDc, ow, oh);
   try {
     const old = gdi.SelectObject(memDc, bmp);
     const SRCCOPY = 0x00CC0020;
-    const ok = gdi.StretchBlt(memDc, 0, 0, ow, oh, screenDc, x, y, w, h, SRCCOPY);
+    const CAPTUREBLT = 0x40000000;
+    const rop = captureLayered ? (SRCCOPY | CAPTUREBLT) : SRCCOPY;
+    const ok = gdi.StretchBlt(memDc, 0, 0, ow, oh, screenDc, x, y, w, h, rop);
     gdi.SelectObject(memDc, old);
     if (!ok) return null;
     // BITMAPINFOHEADER: 32-bit, uncompressed, negative height for top-down rows
@@ -133,6 +136,84 @@ function grabScreen(x, y, w, h, ow, oh) {
   } finally {
     gdi.DeleteObject(bmp); gdi.DeleteDC(memDc); gdi.ReleaseDC(null, screenDc);
   }
+}
+
+
+/**
+ * Finds long, actually visible horizontal edges in the composed desktop image. This catches
+ * controls and layered surfaces (Rainmeter, docks, wallpaper widgets, browser controls) that do
+ * not have a useful top-level HWND rectangle. Short/text-like edges are rejected.
+ */
+function scanVisualSurfaces(win) {
+  if (!gdi || !win) return [];
+  const wb = win.getBounds();
+  const phys = screen.dipToScreenRect(win, { x: wb.x, y: wb.y, width: wb.width, height: wb.height });
+  const step = 4;
+  const ow = Math.max(1, Math.ceil(phys.width / step));
+  const oh = Math.max(1, Math.ceil(phys.height / step));
+  if (ow < 8 || oh < 8) return [];
+  const bits = grabScreen(phys.x, phys.y, phys.width, phys.height, ow, oh, true);
+  if (!bits) return [];
+
+  const sx = wb.width / ow, sy = wb.height / oh;
+  const minWidth = 112;
+  const edgeThreshold = 30;
+  const densityMin = .72;
+  const raw = [];
+  const edge = (x, y) => {
+    const a = ((y - 2) * ow + x) * 4, b = ((y + 2) * ow + x) * 4;
+    const db = Math.abs(bits[a] - bits[b]);
+    const dg = Math.abs(bits[a + 1] - bits[b + 1]);
+    const dr = Math.abs(bits[a + 2] - bits[b + 2]);
+    return Math.max(dr, dg, db);
+  };
+  const finish = (y, start, end, hits) => {
+    if (start < 0 || end < start) return;
+    const span = end - start + 1;
+    const width = span * sx;
+    if (width < minWidth || hits / span < densityMin) return;
+    raw.push({
+      id: `visual:${y}:${start}:${end}`,
+      left: start * sx,
+      right: Math.min(wb.width, (end + 1) * sx),
+      top: y * sy,
+      bottom: y * sy + Math.max(2, sy),
+      kind: 'visual',
+      className: '',
+      title: '',
+      layered: false,
+      transparent: false,
+    });
+  };
+
+  for (let y = 2; y < oh - 2; y++) {
+    let start = -1, lastHit = -1, hits = 0;
+    for (let x = 1; x < ow - 1; x++) {
+      if (edge(x, y) >= edgeThreshold) {
+        if (start < 0) start = x;
+        lastHit = x;
+        hits++;
+      } else if (start >= 0 && x - lastHit > 1) {
+        finish(y, start, lastHit, hits);
+        start = -1; lastHit = -1; hits = 0;
+      }
+    }
+    if (start >= 0) finish(y, start, lastHit, hits);
+  }
+
+  // Join neighbouring fragments of the same horizontal edge and cap the result to keep the
+  // renderer-side collision loop cheap.
+  raw.sort((a, b) => a.top - b.top || a.left - b.left);
+  const merged = [];
+  for (const p of raw) {
+    const q = merged[merged.length - 1];
+    if (q && Math.abs(q.top - p.top) <= Math.max(3, sy) && p.left <= q.right + 12) {
+      q.right = Math.max(q.right, p.right);
+      q.bottom = Math.max(q.bottom, p.bottom);
+    } else merged.push({ ...p });
+    if (merged.length >= 180) break;
+  }
+  return merged;
 }
 
 /**

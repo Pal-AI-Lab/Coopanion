@@ -66,12 +66,16 @@ export function createPet(els, opts) {
     return { top, surface: found };
   }
 
-  function ceilingCrossing(x, fromY, toY) {
+  function ceilingCrossing(x, fromY, toY, halfWidth) {
     if (toY >= fromY) return null;
     let hit = null;
+    const sweepTop = Math.min(fromY, toY), sweepBottom = Math.max(fromY, toY);
     for (const p of surfaces) {
-      if (x < p.left || x > p.right || p.bottom <= p.top) continue;
-      if (fromY >= p.bottom - 2 && toY <= p.bottom + 2 && (!hit || p.bottom > hit.bottom)) hit = p;
+      if (x + halfWidth < p.left || x - halfWidth > p.right || p.bottom <= p.top) continue;
+      const y = p.bottom;
+      // A few pixels of tolerance account for 4 px visual sampling, DPI rounding and one-frame
+      // motion. The old exact crossing test commonly stepped past this line without matching.
+      if (sweepTop <= y + 10 && sweepBottom >= y - 14 && (!hit || y > hit.bottom)) hit = p;
     }
     return hit;
   }
@@ -174,21 +178,21 @@ export function createPet(els, opts) {
     rawResize();
 
     const beforeMode = ctl.pet.mode, beforeVy = ctl.pet.vy;
-    const headH = 250 * rawBounds().S;
+    const headH = 262 * rawBounds().S;
     const beforeHead = ctl.pet.fy - headH;
     rawStep(dt);
 
     // Upward head collision against the underside of another native window.
     if (beforeMode === 'air' && beforeVy < 0 && ctl.pet.mode === 'air') {
       const afterHead = ctl.pet.fy - headH;
-      const ceiling = ceilingCrossing(ctl.pet.x, beforeHead, afterHead);
+      const ceiling = ceilingCrossing(ctl.pet.x, beforeHead, afterHead, 42 * rawBounds().S);
       if (ceiling) {
         const impact = -beforeVy;
         ctl.pet.fy = ceiling.bottom + headH + 1;
         ctl.pet.vy = Math.max(140, impact * .25);
         ctl.pet.vx *= .7;
         ctl.pet.airKind = 'bonk';
-        ctl.pet.bonkDizzy ||= impact >= 620;
+        ctl.pet.bonkDizzy ||= impact >= 380;
         ctl.pet.sqv += 1.2;
       }
     }
