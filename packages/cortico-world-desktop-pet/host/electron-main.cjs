@@ -192,6 +192,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       transparent: true, frame: false, resizable: false, movable: false, minimizable: false, maximizable: false,
       fullscreenable: false, skipTaskbar: true, hasShadow: false, alwaysOnTop: true, show: false,
       backgroundColor: '#00000000', title: 'Cortico 桌宠',
+      // Windows: Chromium-based apps treat a topmost window without WS_EX_TOOLWINDOW as covering them and stop painting while the pet takes the mouse
+      ...(process.platform === 'win32' ? { type: 'toolbar' } : {}),
       webPreferences: {
         preload: join(__dirname, 'preload.cjs'),
         contextIsolation: true, sandbox: true, backgroundThrottling: false,
