@@ -1,12 +1,13 @@
 /**
  * Coopanion 的控制台入口:由 scripts/stage.ts 覆盖在 Cortico 的 src/web/client/main.ts 上。
  * 与上游的差别:
- * - 页面表多了关于桌宠的四页「开始」「习惯」「装扮」「语音输入」(features/home、pet、dress、voice),其余页重排、改了几个分组名;
- * - 两种模式(features/mode.ts):普通模式左栏只有那四页、「系统提示词」「用量与成本」和「对话」,别的路由都回到「开始」,底栏只留暂停键;
+ * - 页面表多了关于桌宠的五页「开始」「习惯」「装扮」「语音输入」「电脑操作」(features/home、pet、dress、voice、cua),其余页重排、改了几个分组名;
+ * - 「系统提示词」页的工具栏多一个「清空重开」(features/clear-session.ts);
+ * - 两种模式(features/mode.ts):普通模式左栏只有那五页、「系统提示词」「用量与成本」和「对话」,别的路由都回到「开始」,底栏只留暂停键;
  *   高级模式再接上 Cortico 的全部页面。左栏底部的开关切换模式,页面也可以经 requestMode 请求换,换模式时重建左栏;
  * - 空路由打开「开始」;
  * - 左上角是 Coopanion 字标,下面是版本与项目地址,有新 Release 时再加一行下载链接(features/release.ts);
- * - 左栏各组按「桌宠四页 · 对话 → World → 设置 → Persona & Memory → 高级」重排。
+ * - 左栏各组按「桌宠五页 · 对话 → World → 设置 → Persona & Memory → 高级」重排。
  * 其余逐字沿用上游。
  */
 
@@ -31,12 +32,13 @@ import { providersFeature } from './features/providers/index.ts';
 import { worldsFeature } from './features/worlds/index.ts';
 import { extensionsFeature } from './features/extensions/index.ts';
 import { appearanceFeature } from './features/appearance/index.ts';
-import { promptsFeature } from './features/prompts/index.ts';
 import { settingsFeature } from './features/settings/index.ts';
 import { homeFeature } from './features/home/index.ts';
 import { petFeature } from './features/pet/index.ts';
 import { dressFeature } from './features/dress/index.ts';
 import { voiceFeature } from './features/voice/index.ts';
+import { cuaFeature } from './features/cua/index.ts';
+import { promptsWithClearFeature } from './features/clear-session.ts';
 import { mountRelease } from './features/release.ts';
 import { onModeRequest, readMode, writeMode, type ConsoleMode } from './features/mode.ts';
 import { icon } from './ui/icons.ts';
@@ -63,12 +65,12 @@ const L = pick({
 });
 
 /**
- * 普通模式的全部页面:关于桌宠的四页、系统提示词(人设在里面)、花了多少钱,和对话页(当前 session 的
+ * 普通模式的全部页面:关于桌宠的五页、系统提示词(人设在里面,带清空重开)、花了多少钱,和对话页(当前 session 的
  * 上下文,也能打字说话)。高级模式里它们仍排在最前。
  */
 export const BASIC_FEATURES: readonly FrameworkFeature[] = [
-  homeFeature, petFeature, dressFeature, voiceFeature,
-  { ...promptsFeature, navMode: 'primary' }, { ...usageFeature, navMode: 'primary' },
+  homeFeature, petFeature, dressFeature, voiceFeature, cuaFeature,
+  promptsWithClearFeature, { ...usageFeature, navMode: 'primary' },
   { ...liveFeature, label: L.chat },
 ];
 
