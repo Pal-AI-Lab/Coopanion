@@ -1,0 +1,276 @@
+from pathlib import Path
+import re
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def text(path):
+    return (ROOT / path).read_text(encoding='utf-8')
+
+
+def write(path, s):
+    (ROOT / path).write_text(s, encoding='utf-8', newline='\n')
+
+
+def rep(path, old, new, count=1):
+    s = text(path)
+    if s.count(old) < count:
+        raise SystemExit(f'{path}: missing replacement:\n{old[:160]}')
+    s = s.replace(old, new, count)
+    write(path, s)
+
+
+def sub(path, pattern, replacement, flags=re.S):
+    s = text(path)
+    s2, n = re.subn(pattern, replacement, s, count=1, flags=flags)
+    if n != 1:
+        raise SystemExit(f'{path}: regex matched {n}: {pattern[:120]}')
+    write(path, s2)
+
+
+core = 'packages/cortico-world-desktop-pet/web/pet-core.js'
+wrap = 'packages/cortico-world-desktop-pet/web/pet-core-platforms.js'
+app = 'packages/cortico-world-desktop-pet/web/pet-app.js'
+html = 'packages/cortico-world-desktop-pet/web/pet.html'
+
+# Direct platform-aware import.
+rep(app,
+    "import { applyTheme, createPet, createSfx, clamp, f, mini, normalizeSkin, skinCss, EXPRESSIONS, HEAD_TOP, ICONS } from './pet-core.js';",
+    "import { applyTheme, createPet, createSfx, clamp, f, mini, normalizeSkin, skinCss, EXPRESSIONS, HEAD_TOP, ICONS } from './pet-core-platforms.js';")
+rep(wrap,
+    "import { createPet as createBasePet } from './pet-core.js?base=1';\nexport * from './pet-core.js?base=1';",
+    "import { createPet as createBasePet } from './pet-core.js';\nexport * from './pet-core.js';")
+sub(html, r'\n<script type="importmap">.*?</script>', '')
+
+# Feed the global cursor poll into the body's pointer state even while the pet window is click-through.
+rep(app,
+    "host?.onCursor?.((p) => {\n  cursor.at = p;\n  if (!p) {",
+    "host?.onCursor?.((p) => {\n  cursor.at = p;\n  if (p) {\n    pointerSeen = true;\n    lastPointer.x = p.x; lastPointer.y = p.y;\n    ctl.pointerMove(p);\n  } else {\n    ctl.pointerLeave();\n  }\n  if (!p) {")
+
+# Core state for pointer reactions, circular-motion dizziness, and ceiling bonks.
+rep(core,
+    "    pulse: null, walkId: 0, listening: false, thinking: false, placed: false,\n",
+    "    pulse: null, walkId: 0, listening: false, thinking: false, placed: false,\n    mouseNext: 0, mouseAngle: null, mouseOrbit: 0, mouseDizzyUntil: 0, bonkDizzy: false,\n")
+rep(core,
+    "  const pointer = { x: -1e4, y: -1e4, inside: false, vx: 0, samples: [] };",
+    "  const pointer = { x: -1e4, y: -1e4, inside: false, vx: 0, vy: 0, samples: [] };")
+rep(core,
+    "    if (m === 'air' && pet.airKind === 'drop') return 'surprised';",
+    "    if (m === 'air' && ['drop', 'ledge', 'bonk'].includes(pet.airKind)) return 'surprised';")
+rep(core,
+    "    const m = pet.mode, mt = pet.modeT;",
+    "    let m = pet.mode, mt = pet.modeT;")
+
+old_track = """    const track = () => {
+      if (!pointer.inside) {
+        if (T > pet.glanceAt) { pet.glance = Math.random() < .45 ? [0, 0] : [rnd(-3, 5), rnd(-3, 3)]; pet.glanceAt = T + rnd(1.2, 3); }
+        return pet.glance;
+      }
+      const k = Math.min(1, pm / 120);
+      return [pdx * pet.facing / pm * 5 * k, pdy / pm * 4 * k];
+    };
+
+    switch (m) {"""
+new_track = """    const track = () => {
+      if (!pointer.inside) {
+        if (T > pet.glanceAt) { pet.glance = Math.random() < .45 ? [0, 0] : [rnd(-3, 5), rnd(-3, 3)]; pet.glanceAt = T + rnd(1.2, 3); }
+        return pet.glance;
+      }
+      const k = Math.min(1, pm / 120);
+      return [pdx * pet.facing / pm * 9 * k, pdy / pm * 7 * k];
+    };
+
+    // Fast repeated circles around the body build angular motion. Roughly one and a half quick
+    // turns makes Coo dizzy; slow circles and direction changes bleed the score away.
+    const pSpeed = Math.hypot(pointer.vx, pointer.vy);
+    if (pointer.inside && !press && !opts.dialogOpen?.() && !['air', 'drag', 'crouch', 'dizzy'].includes(pet.mode)
+        && pm >= 55 && pm <= 270 && pSpeed >= 300) {
+      const a = Math.atan2(pdy, pdx);
+      if (pet.mouseAngle != null) {
+        const da = Math.atan2(Math.sin(a - pet.mouseAngle), Math.cos(a - pet.mouseAngle));
+        if (Math.abs(da) < 1.35) {
+          if (!pet.mouseOrbit || Math.sign(da) === Math.sign(pet.mouseOrbit)) pet.mouseOrbit += da;
+          else pet.mouseOrbit *= .2;
+        }
+      }
+      pet.mouseAngle = a;
+      pet.mouseOrbit *= Math.exp(-dt * .45);
+      if (Math.abs(pet.mouseOrbit) >= Math.PI * 3 && T >= pet.mouseDizzyUntil) {
+        pet.mouseOrbit = 0; pet.mouseDizzyUntil = T + 6; pet.expr = null;
+        setMode('dizzy'); m = pet.mode; mt = pet.modeT;
+      }
+    } else {
+      pet.mouseAngle = pointer.inside ? Math.atan2(pdy, pdx) : null;
+      pet.mouseOrbit *= Math.exp(-dt * 4);
+    }
+
+    switch (m) {"""
+rep(core, old_track, new_track)
+
+idle_pattern = r"      case 'idle': \{.*?        break;\n      \}\n      case 'walk': case 'run': \{"
+idle_new = """      case 'idle': {
+        lookT = track();
+        if (pointer.inside && !press && pdx * pet.facing < -35 && pm < 750) {
+          pet.turnAcc += dt;
+          if (pet.turnAcc > .35) { pet.facing *= -1; pet.turnAcc = 0; }
+        } else pet.turnAcc = 0;
+        if (pet.listening) { lookT = [3, -4]; tiltT = -7; leanT = -2; }
+
+        let mouseReacted = false;
+        if (free && !pet.listening && pointer.inside && !press && T >= pet.mouseNext && !(pet.expr && T < pet.exprUntil)) {
+          const ax = Math.abs(pdx);
+          if (pdy < -45 && pdy > -280 && ax < 170 && pm < 300) {
+            setMode('crouch', {
+              jumpV: clamp(610 + (-pdy) * 1.05, 650, 900),
+              jumpVx: clamp(pdx * 1.6, -260, 260),
+            });
+            pet.mouseNext = T + rnd(3, 5);
+            mouseReacted = true;
+          } else if (pm < 220 && pSpeed > 1000) {
+            setExpr('surprised', .8);
+            pet.mouseNext = T + rnd(2, 3.5);
+            mouseReacted = true;
+          } else if (pm < 600 && ax > 150 && Math.abs(pdy) < 280 && Math.random() < .7) {
+            const run = ax > 320 && Math.random() < .45;
+            const side = pdx >= 0 ? 1 : -1;
+            setMode(run ? 'run' : 'walk', { target: clamp(pointer.x - side * 55, minX(), maxX()) });
+            pet.mouseNext = T + rnd(2.5, 4.8);
+            mouseReacted = true;
+          }
+        }
+        if (!mouseReacted && free && !pet.listening && T > pet.nextAt && !(pet.expr && T < pet.exprUntil)) decide();
+        break;
+      }
+      case 'walk': case 'run': {"""
+sub(core, idle_pattern, idle_new)
+
+rep(core,
+    "        lookT = [run ? 4 : 3, run ? 1 : 0];",
+    "        lookT = pointer.inside ? track() : [run ? 4 : 3, run ? 1 : 0];")
+rep(core,
+    "    pointer.vx *= Math.exp(-dt * 6);",
+    "    pointer.vx *= Math.exp(-dt * 6);\n    pointer.vy *= Math.exp(-dt * 6);")
+rep(core,
+    "    const ddx = p.x - pointer.x, ddy = p.y - pointer.y;\n    Object.assign(pointer, p, { inside: true });",
+    "    const wasInside = pointer.inside;\n    const ddx = wasInside ? p.x - pointer.x : 0, ddy = wasInside ? p.y - pointer.y : 0;\n    Object.assign(pointer, p, { inside: true });")
+rep(core,
+    "    pointer.vx = lerp(pointer.vx, velocity().x, .35);",
+    "    const pv = velocity();\n    pointer.vx = lerp(pointer.vx, pv.x, .35);\n    pointer.vy = lerp(pointer.vy, pv.y, .35);")
+rep(core,
+    "    Object.assign(pointer, p, { vx: 0, samples: [] });",
+    "    Object.assign(pointer, p, { vx: 0, vy: 0, samples: [] });")
+
+land_new = """  function land() {
+    const impact = pet.vy, kind = pet.airKind;
+    const hard = impact > 1000 || pet.bonkDizzy;
+    pet.fy = floorY; pet.vy = 0; pet.vx = 0;
+    pet.sqv += clamp(impact * .0024, .8, 4.5);
+    sfx.land(hard);
+    dustAt(128, impact > 900 ? 7 : 3, 70);
+    if (hard) {
+      pet.bonkDizzy = false;
+      setMode('dizzy');
+      if (kind === 'throw') onEvent('touch', { kind: 'crash' });
+      return;
+    }
+    pet.bonkDizzy = false;
+    setMode('land');
+    if (kind === 'throw') { pet.expr = 'surprised'; pet.exprUntil = T + .9; pet.nextAt = T + 2; }
+    else if (kind === 'drop') { pet.expr = 'happy'; pet.exprUntil = T + 1.6; pet.nextAt = T + 2.6; }
+    else if (kind === 'ledge') { pet.expr = null; pet.nextAt = T + rnd(.15, .8); }
+    else if (kind === 'bonk') { pet.expr = 'surprised'; pet.exprUntil = T + .6; pet.nextAt = T + rnd(.7, 1.3); }
+    else pet.nextAt = T + rnd(.8, 2);
+  }
+
+  function render()"""
+sub(core, r"  function land\(\) \{.*?\n  \}\n\n  function render\(\)", land_new)
+
+# Platform wrapper: ledge falls get their own kind and window undersides become ceilings.
+rep(wrap,
+    "      && finite(p.left) && finite(p.right) && finite(p.top)\n",
+    "      && finite(p.left) && finite(p.right) && finite(p.top) && finite(p.bottom)\n")
+rep(wrap,
+    "    p.airKind = 'drop';",
+    "    p.airKind = 'ledge';")
+
+insert_after = """  function nextSurfaceBelow(x, y) {
+    let top = screenFloor(), found = null;
+    for (const p of surfaces) {
+      if (x < p.left || x > p.right) continue;
+      // Keep the platform a jumping pet just left eligible, but never pull the pet upward through it.
+      if (p.top < y - 2 || p.top >= top) continue;
+      top = p.top; found = p;
+    }
+    return { top, surface: found };
+  }
+"""
+with_ceiling = insert_after + """
+  function ceilingCrossing(x, fromY, toY) {
+    if (toY >= fromY) return null;
+    let hit = null;
+    for (const p of surfaces) {
+      if (x < p.left || x > p.right || p.bottom <= p.top) continue;
+      if (fromY >= p.bottom - 2 && toY <= p.bottom + 2 && (!hit || p.bottom > hit.bottom)) hit = p;
+    }
+    return hit;
+  }
+"""
+rep(wrap, insert_after, with_ceiling)
+
+old_step = """  ctl.step = (dt) => {
+    pollPlatforms();
+    dynamicFloor = chooseFloor();
+    // pet-core caches floorY internally only when resize() runs. Updating it before the stock step
+    // lets its existing gravity/land code collide with the nearest platform below the feet.
+    rawResize();
+    rawStep(dt);
+    if (initialDrop && ctl.pet.mode !== 'air') initialDrop = false;
+    startFalling();
+
+    if (!airborne()) {
+      const s = surfaceAt(ctl.pet.x, ctl.pet.fy, FOLLOW_EPS);
+      supportId = s?.id ?? null;
+    }
+  };"""
+new_step = """  ctl.step = (dt) => {
+    pollPlatforms();
+    dynamicFloor = chooseFloor();
+    // pet-core caches floorY internally only when resize() runs. Updating it before the stock step
+    // lets its existing gravity/land code collide with the nearest platform below the feet.
+    rawResize();
+
+    const beforeMode = ctl.pet.mode, beforeVy = ctl.pet.vy;
+    const headH = 250 * rawBounds().S;
+    const beforeHead = ctl.pet.fy - headH;
+    rawStep(dt);
+
+    // Upward head collision against the underside of another native window.
+    if (beforeMode === 'air' && beforeVy < 0 && ctl.pet.mode === 'air') {
+      const afterHead = ctl.pet.fy - headH;
+      const ceiling = ceilingCrossing(ctl.pet.x, beforeHead, afterHead);
+      if (ceiling) {
+        const impact = -beforeVy;
+        ctl.pet.fy = ceiling.bottom + headH + 1;
+        ctl.pet.vy = Math.max(140, impact * .25);
+        ctl.pet.vx *= .7;
+        ctl.pet.airKind = 'bonk';
+        ctl.pet.bonkDizzy ||= impact >= 620;
+        ctl.pet.sqv += 1.2;
+      }
+    }
+
+    if (initialDrop && ctl.pet.mode !== 'air') initialDrop = false;
+    startFalling();
+
+    if (!airborne()) {
+      const s = surfaceAt(ctl.pet.x, ctl.pet.fy, FOLLOW_EPS);
+      supportId = s?.id ?? null;
+    }
+  };"""
+rep(wrap, old_step, new_step)
+
+rep('package.json', '"version": "0.1.13"', '"version": "0.1.14"')
+
+# Remove temporary delivery files from the final commit.
+(ROOT / '.github/workflows/_pet-interaction-patch.yml').unlink()
+Path(__file__).unlink()
