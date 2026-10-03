@@ -56,3 +56,5 @@ jobs:
           git add -A
           git commit -m "feat: visual platforms and stronger pointer reactions"
           git push origin HEAD:main
+
+# second push intentionally triggers this newly registered workflow
