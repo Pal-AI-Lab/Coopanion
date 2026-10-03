@@ -339,10 +339,18 @@ export class CuaWorld implements World {
     return this.after('cua_focus', res, done, args);
   }
 
+  /** Waiting asks nobody; the screenshot after it is taken only when looking needs no new question. */
   private async wait(args: Args): Promise<ToolOutcome> {
     const seconds = typeof args.seconds === 'number' && Number.isFinite(args.seconds) ? Math.max(0, Math.min(30, args.seconds)) : 1;
     await new Promise((r) => setTimeout(r, seconds * 1000));
+    if (!await this.mayLook()) return { text: `等了 ${seconds} 秒。这一轮使用者还没允许看屏幕,所以没有截图;要看就用 cua_screenshot,会先问使用者。` };
     return this.screenshot(`等了 ${seconds} 秒。\n`);
+  }
+
+  /** Looking at the screen now would not ask the person: the level lets it, or this turn's answer was yes. */
+  private async mayLook(): Promise<boolean> {
+    if (this.level !== 'ask-each-turn') return true;
+    return this.permission !== null && await this.permission === 'yes';
   }
 
   /* ---------- prompt & console ---------- */

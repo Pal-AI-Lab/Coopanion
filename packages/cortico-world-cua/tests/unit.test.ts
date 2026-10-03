@@ -169,6 +169,16 @@ describe('CuaWorld without the engine', () => {
       }
     });
 
+    it('cua_wait never asks, and under ask-each-turn adds a screenshot only after this turn\'s yes', async () => {
+      const { w, asked } = levelWorld('ask-each-turn', ['yes']);
+      const wait = () => call(w, 'cua_wait', { seconds: 0 });
+      const before = await wait();
+      expect([before.failed, 'blobs' in before, asked]).toEqual([undefined, false, []]);
+      await see(w);
+      expect('blobs' in await wait()).toBe(true);
+      expect(asked).toHaveLength(1);
+    });
+
     it('never-ask never asks', async () => {
       const { w, asked } = levelWorld('never-ask', []);
       expect([(await see(w)).failed, (await act(w)).failed]).toEqual([undefined, undefined]);

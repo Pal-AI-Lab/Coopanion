@@ -91,7 +91,7 @@ export const CUA_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'cua_wait',
     tags: ['read'],
-    description: '等待若干秒(最多 30)让界面加载,然后截图。',
+    description: '等待若干秒(最多 30)让界面加载,然后截图。等待不用使用者同意;这一轮还没允许看屏幕时只等不截图。',
     parameters: { type: 'object', properties: { seconds: { type: 'number', minimum: 0, maximum: 30 } }, required: ['seconds'] },
   },
 ];

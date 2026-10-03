@@ -43,6 +43,7 @@
 
 没同意(拒绝、关掉或 60 秒没回应)时,这一轮剩下要问的调用都不执行,回执写明原因,下一轮再用时重新问。
 参数不合法的调用在问之前就被拒掉。档位改了立即生效,环境提示词里的说明跟着换。
+`cua_wait` 的等待从不问;`ask-each-turn` 下这一轮还没同意看屏幕时,它只等不截图。
 
 怎么问由内嵌应用决定:`cuaDefinition({ askPermission })` 传入一个函数(比如用桌宠的气泡问),返回 `yes` / `no` / `timeout`,
 返回 `null` 表示此刻问不了。没传或返回 `null` 时,弹一个置顶的系统对话框(Windows 上是 `MessageBoxTimeoutW`,macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)。
