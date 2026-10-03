@@ -2,9 +2,8 @@
  * 「开始」: the app's home page. Everything the first minutes need on one page, top to bottom in
  * the order it is needed: the model service and its key (a row of services with their logos,
  * DeepSeek first; the key is saved to that service's own endpoint, tested, the endpoint made active
- * and the run resumed), then the pet (live preview, show, a button to the dressing page). Computer use is
- * switched on the cua World's own page and asks in the pet's bubble as that page sets, so it has no control
- * here. Dressing up and voice input have their own pages (features/dress, features/voice); the link
+ * and the run resumed), then the pet (live preview, show, a button to the dressing page). Dressing up,
+ * voice input and computer use have their own pages (features/dress, features/voice, features/cua); the link
  * to other model services shows with or without a key, and in the normal mode asks before it
  * switches to the advanced mode, where the model pages are; 「使用引导」 at the top has Coo run its
  * introduction again on the desktop (the app's Core holds it; this window steps aside for it).
