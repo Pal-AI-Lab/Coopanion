@@ -528,8 +528,9 @@ export function createPet(els, opts) {
     eyeSig: '', eyeCur: null, eyePrev: null, eyeDims: [[16, 16, 0, 0], [16, 16, 0, 0]], swapAge: 9,
     glance: [0, 0], glanceAt: 0, swing: 0, swingV: 0, prevA: null, velX: 0, talkK: 0, sfxAt: 0, skid: false, cue: 0,
     pulse: null, walkId: 0, listening: false, thinking: false, placed: false,
+    mouseNext: 0, mouseAngle: null, mouseOrbit: 0, mouseDizzyUntil: 0, bonkDizzy: false,
   };
-  const pointer = { x: -1e4, y: -1e4, inside: false, vx: 0, samples: [] };
+  const pointer = { x: -1e4, y: -1e4, inside: false, vx: 0, vy: 0, samples: [] };
   let press = null, strokeAcc = 0, petCool = 0;
   const P = [];
 
@@ -638,7 +639,7 @@ export function createPet(els, opts) {
     const m = pet.mode;
     if (m === 'drag') return 'dragged';
     if (m === 'air' && pet.airKind === 'throw') return pet.vy < 0 ? 'dragged' : 'surprised';
-    if (m === 'air' && pet.airKind === 'drop') return 'surprised';
+    if (m === 'air' && ['drop', 'ledge', 'bonk'].includes(pet.airKind)) return 'surprised';
     if (m === 'dizzy') return pet.modeT < 2.4 ? 'dizzy' : 'squeeze';
     if (m === 'wake') return pet.startle ? 'surprised' : 'waking';
     if (pet.listening && m !== 'sleep') return 'listening';
@@ -676,7 +677,7 @@ export function createPet(els, opts) {
 
   function step(dt) {
     T += dt; pet.modeT += dt;
-    const m = pet.mode, mt = pet.modeT;
+    let m = pet.mode, mt = pet.modeT;
     let sqT = 0, strideT = 0, liftT = 0, leanT = 0, sitT = 0, bobT = 0, rate = 0, lookT = [0, 0], tiltT = 0;
     let tk = 160, tc = 12, drowseT = 0;
     const free = roam !== 'off' && T > hold && !opts.dialogOpen?.();
@@ -692,18 +693,65 @@ export function createPet(els, opts) {
         return pet.glance;
       }
       const k = Math.min(1, pm / 120);
-      return [pdx * pet.facing / pm * 5 * k, pdy / pm * 4 * k];
+      return [pdx * pet.facing / pm * 9 * k, pdy / pm * 7 * k];
     };
+
+    // Fast repeated circles around the body build angular motion. Roughly one and a half quick
+    // turns makes Coo dizzy; slow circles and direction changes bleed the score away.
+    const pSpeed = Math.hypot(pointer.vx, pointer.vy);
+    if (pointer.inside && !press && !opts.dialogOpen?.() && !['air', 'drag', 'crouch', 'dizzy'].includes(pet.mode)
+        && pm >= 55 && pm <= 270 && pSpeed >= 300) {
+      const a = Math.atan2(pdy, pdx);
+      if (pet.mouseAngle != null) {
+        const da = Math.atan2(Math.sin(a - pet.mouseAngle), Math.cos(a - pet.mouseAngle));
+        if (Math.abs(da) < 1.35) {
+          if (!pet.mouseOrbit || Math.sign(da) === Math.sign(pet.mouseOrbit)) pet.mouseOrbit += da;
+          else pet.mouseOrbit *= .2;
+        }
+      }
+      pet.mouseAngle = a;
+      pet.mouseOrbit *= Math.exp(-dt * .45);
+      if (Math.abs(pet.mouseOrbit) >= Math.PI * 3 && T >= pet.mouseDizzyUntil) {
+        pet.mouseOrbit = 0; pet.mouseDizzyUntil = T + 6; pet.expr = null;
+        setMode('dizzy'); m = pet.mode; mt = pet.modeT;
+      }
+    } else {
+      pet.mouseAngle = pointer.inside ? Math.atan2(pdy, pdx) : null;
+      pet.mouseOrbit *= Math.exp(-dt * 4);
+    }
 
     switch (m) {
       case 'idle': {
         lookT = track();
-        if (pointer.inside && !press && pdx * pet.facing < -50 && pm < 600) {
+        if (pointer.inside && !press && pdx * pet.facing < -35 && pm < 750) {
           pet.turnAcc += dt;
-          if (pet.turnAcc > .9) { pet.facing *= -1; pet.turnAcc = 0; }
+          if (pet.turnAcc > .35) { pet.facing *= -1; pet.turnAcc = 0; }
         } else pet.turnAcc = 0;
         if (pet.listening) { lookT = [3, -4]; tiltT = -7; leanT = -2; }
-        if (free && !pet.listening && T > pet.nextAt && !(pet.expr && T < pet.exprUntil)) decide();
+
+        let mouseReacted = false;
+        if (free && !pet.listening && pointer.inside && !press && T >= pet.mouseNext && !(pet.expr && T < pet.exprUntil)) {
+          const ax = Math.abs(pdx);
+          if (pdy < -45 && pdy > -280 && ax < 170 && pm < 300) {
+            setMode('crouch', {
+              jumpV: clamp(610 + (-pdy) * 1.05, 650, 900),
+              jumpVx: clamp(pdx * 1.6, -260, 260),
+            });
+            pet.mouseNext = T + rnd(3, 5);
+            mouseReacted = true;
+          } else if (pm < 220 && pSpeed > 1000) {
+            setExpr('surprised', .8);
+            pet.mouseNext = T + rnd(2, 3.5);
+            mouseReacted = true;
+          } else if (pm < 600 && ax > 150 && Math.abs(pdy) < 280 && Math.random() < .7) {
+            const run = ax > 320 && Math.random() < .45;
+            const side = pdx >= 0 ? 1 : -1;
+            setMode(run ? 'run' : 'walk', { target: clamp(pointer.x - side * 55, minX(), maxX()) });
+            pet.mouseNext = T + rnd(2.5, 4.8);
+            mouseReacted = true;
+          }
+        }
+        if (!mouseReacted && free && !pet.listening && T > pet.nextAt && !(pet.expr && T < pet.exprUntil)) decide();
         break;
       }
       case 'walk': case 'run': {
@@ -720,7 +768,7 @@ export function createPet(els, opts) {
         const k = clamp(pet.speed / vMax, 0, 1);
         strideT *= .4 + .6 * k; liftT *= .4 + .6 * k;
         pet.phase += Math.PI * 2 * rate * dt * Math.max(.35, k);
-        lookT = [run ? 4 : 3, run ? 1 : 0];
+        lookT = pointer.inside ? track() : [run ? 4 : 3, run ? 1 : 0];
         const half = Math.floor(pet.phase / Math.PI);
         if (half !== pet.lastHalf) {
           sfx.step(run, half & 1);
@@ -869,6 +917,7 @@ export function createPet(els, opts) {
     pet.faceVis = lerp(pet.faceVis, pet.facing, ease(15, dt));
     if (m !== 'walk' && m !== 'run') pet.phase = lerp(pet.phase, Math.round(pet.phase / Math.PI) * Math.PI, ease(6, dt));
     pointer.vx *= Math.exp(-dt * 6);
+    pointer.vy *= Math.exp(-dt * 6);
 
     // secondary motion for ears/antenna/scarf: lags behind horizontal movement
     const AX = pet.mode === 'drag' ? pet.dx : pet.x;
@@ -914,14 +963,23 @@ export function createPet(els, opts) {
 
   function land() {
     const impact = pet.vy, kind = pet.airKind;
+    const hard = impact > 1000 || pet.bonkDizzy;
     pet.fy = floorY; pet.vy = 0; pet.vx = 0;
     pet.sqv += clamp(impact * .0024, .8, 4.5);
-    sfx.land(kind !== 'jump' && impact > 1000);
+    sfx.land(hard);
     dustAt(128, impact > 900 ? 7 : 3, 70);
-    if (kind === 'throw' && impact > 1000) { setMode('dizzy'); onEvent('touch', { kind: 'crash' }); return; }
+    if (hard) {
+      pet.bonkDizzy = false;
+      setMode('dizzy');
+      if (kind === 'throw') onEvent('touch', { kind: 'crash' });
+      return;
+    }
+    pet.bonkDizzy = false;
     setMode('land');
     if (kind === 'throw') { pet.expr = 'surprised'; pet.exprUntil = T + .9; pet.nextAt = T + 2; }
     else if (kind === 'drop') { pet.expr = 'happy'; pet.exprUntil = T + 1.6; pet.nextAt = T + 2.6; }
+    else if (kind === 'ledge') { pet.expr = null; pet.nextAt = T + rnd(.15, .8); }
+    else if (kind === 'bonk') { pet.expr = 'surprised'; pet.exprUntil = T + .6; pet.nextAt = T + rnd(.7, 1.3); }
     else pet.nextAt = T + rnd(.8, 2);
   }
 
@@ -994,11 +1052,14 @@ export function createPet(els, opts) {
   /** Returns the cursor the stage should show. */
   function pointerMove(p) {
     const now = performance.now();
-    const ddx = p.x - pointer.x, ddy = p.y - pointer.y;
+    const wasInside = pointer.inside;
+    const ddx = wasInside ? p.x - pointer.x : 0, ddy = wasInside ? p.y - pointer.y : 0;
     Object.assign(pointer, p, { inside: true });
     pointer.samples.push({ t: now, x: p.x, y: p.y });
     while (pointer.samples.length > 2 && now - pointer.samples[0].t > 110) pointer.samples.shift();
-    pointer.vx = lerp(pointer.vx, velocity().x, .35);
+    const pv = velocity();
+    pointer.vx = lerp(pointer.vx, pv.x, .35);
+    pointer.vy = lerp(pointer.vy, pv.y, .35);
 
     if (press && pet.mode !== 'drag' && Math.hypot(p.x - press.x, p.y - press.y) > 6) {
       const scruff = toStage(128, 36);
@@ -1060,7 +1121,7 @@ export function createPet(els, opts) {
   function dropAt(p) {
     press = null;
     if (pet.mode !== 'drag') return;
-    Object.assign(pointer, p, { vx: 0, samples: [] });
+    Object.assign(pointer, p, { vx: 0, vy: 0, samples: [] });
     pet.x = clamp(p.x, minX(), maxX());
     pet.fy = Math.min(floorY, p.y + 220 * S);
     pet.vx = 0; pet.vy = 0;

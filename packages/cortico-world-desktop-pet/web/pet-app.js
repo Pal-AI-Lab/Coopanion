@@ -8,7 +8,7 @@
  * window ignores the mouse except over the figure, a bubble, the menu or the hover buttons.
  * Colors follow the World's `theme` through `data-theme` on the root element.
  */
-import { applyTheme, createPet, createSfx, clamp, f, mini, normalizeSkin, skinCss, EXPRESSIONS, HEAD_TOP, ICONS } from './pet-core.js';
+import { applyTheme, createPet, createSfx, clamp, f, mini, normalizeSkin, skinCss, EXPRESSIONS, HEAD_TOP, ICONS } from './pet-core-platforms.js';
 
 const $ = (s) => document.querySelector(s);
 const host = window.petHost || null;
@@ -1010,6 +1010,13 @@ document.addEventListener('pointermove', (e) => {
  */
 host?.onCursor?.((p) => {
   cursor.at = p;
+  if (p) {
+    pointerSeen = true;
+    lastPointer.x = p.x; lastPointer.y = p.y;
+    ctl.pointerMove(p);
+  } else {
+    ctl.pointerLeave();
+  }
   if (!p) {
     diag.poll = { at: performance.now(), off: true };
     if (!ctl.pressing) setInteractive(false, 'poll');

@@ -1,5 +1,5 @@
-import { createPet as createBasePet } from './pet-core.js?base=1';
-export * from './pet-core.js?base=1';
+import { createPet as createBasePet } from './pet-core.js';
+export * from './pet-core.js';
 
 const POLL_MS = 250;
 const SUPPORT_EPS = 7;
@@ -40,7 +40,7 @@ export function createPet(els, opts) {
   function normalize(list) {
     const floor = screenFloor();
     return Array.isArray(list) ? list.filter((p) => p && typeof p.id === 'string'
-      && finite(p.left) && finite(p.right) && finite(p.top)
+      && finite(p.left) && finite(p.right) && finite(p.top) && finite(p.bottom)
       && p.right - p.left >= 16
       && p.top > -64 && p.top < floor - 1) : [];
   }
@@ -64,6 +64,16 @@ export function createPet(els, opts) {
       top = p.top; found = p;
     }
     return { top, surface: found };
+  }
+
+  function ceilingCrossing(x, fromY, toY) {
+    if (toY >= fromY) return null;
+    let hit = null;
+    for (const p of surfaces) {
+      if (x < p.left || x > p.right || p.bottom <= p.top) continue;
+      if (fromY >= p.bottom - 2 && toY <= p.bottom + 2 && (!hit || p.bottom > hit.bottom)) hit = p;
+    }
+    return hit;
   }
 
   function moveWithPlatform(next) {
@@ -145,7 +155,7 @@ export function createPet(els, opts) {
       ? p.facing * Math.max(p.speed, previous === 'run' ? 120 : 55)
       : 0;
     p.vy = 0;
-    p.airKind = 'drop';
+    p.airKind = 'ledge';
     p.mode = 'air';
     p.modeT = 0;
     p.turned = false;
@@ -162,7 +172,27 @@ export function createPet(els, opts) {
     // pet-core caches floorY internally only when resize() runs. Updating it before the stock step
     // lets its existing gravity/land code collide with the nearest platform below the feet.
     rawResize();
+
+    const beforeMode = ctl.pet.mode, beforeVy = ctl.pet.vy;
+    const headH = 250 * rawBounds().S;
+    const beforeHead = ctl.pet.fy - headH;
     rawStep(dt);
+
+    // Upward head collision against the underside of another native window.
+    if (beforeMode === 'air' && beforeVy < 0 && ctl.pet.mode === 'air') {
+      const afterHead = ctl.pet.fy - headH;
+      const ceiling = ceilingCrossing(ctl.pet.x, beforeHead, afterHead);
+      if (ceiling) {
+        const impact = -beforeVy;
+        ctl.pet.fy = ceiling.bottom + headH + 1;
+        ctl.pet.vy = Math.max(140, impact * .25);
+        ctl.pet.vx *= .7;
+        ctl.pet.airKind = 'bonk';
+        ctl.pet.bonkDizzy ||= impact >= 620;
+        ctl.pet.sqv += 1.2;
+      }
+    }
+
     if (initialDrop && ctl.pet.mode !== 'air') initialDrop = false;
     startFalling();
 
