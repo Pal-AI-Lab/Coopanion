@@ -682,6 +682,7 @@ export function createPet(els, opts) {
     let sqT = 0, strideT = 0, liftT = 0, leanT = 0, sitT = 0, bobT = 0, rate = 0, lookT = [0, 0], tiltT = 0;
     let tk = 160, tc = 12, drowseT = 0;
     const free = roam !== 'off' && T > hold && !opts.dialogOpen?.();
+    const mouseLevel = roam === 'free' ? 2 : roam === 'calm' ? 1 : 0;
 
     pet.blinkT -= dt; pet.blinkAge += dt;
     if (pet.blinkT <= 0) { pet.blinkAge = 0; pet.blinkT = Math.random() < .2 ? .28 : rnd(2.2, 5.2); }
@@ -712,7 +713,8 @@ export function createPet(els, opts) {
       }
       pet.mouseAngle = a;
       pet.mouseOrbit *= Math.exp(-dt * .45);
-      if (Math.abs(pet.mouseOrbit) >= Math.PI * 3 && T >= pet.mouseDizzyUntil) {
+      const orbitNeed = mouseLevel === 2 ? Math.PI * 2.5 : mouseLevel === 1 ? Math.PI * 3 : Math.PI * 3.5;
+      if (Math.abs(pet.mouseOrbit) >= orbitNeed && T >= pet.mouseDizzyUntil) {
         pet.mouseOrbit = 0; pet.mouseDizzyUntil = T + 6; pet.expr = null;
         setMode('dizzy'); m = pet.mode; mt = pet.modeT;
       }
@@ -726,32 +728,31 @@ export function createPet(els, opts) {
         lookT = track();
         if (pointer.inside && !press && pdx * pet.facing < -24 && pm < 1000) {
           pet.turnAcc += dt;
-          if (pet.turnAcc > .12) { pet.facing *= -1; pet.turnAcc = 0; }
+          const turnDelay = mouseLevel === 2 ? .12 : mouseLevel === 1 ? .24 : .45;
+          if (pet.turnAcc > turnDelay) { pet.facing *= -1; pet.turnAcc = 0; }
         } else pet.turnAcc = 0;
         if (pet.listening) { lookT = [3, -4]; tiltT = -7; leanT = -2; }
 
         let mouseReacted = false;
-        if (free && !pet.listening && pointer.inside && !press && T >= pet.mouseNext && !(pet.expr && T < pet.exprUntil)) {
-          const ax = Math.abs(pdx);
-          // Cursor over/near the head: jump toward it. This is intentionally frequent enough to
-          // be obvious rather than a rare easter egg.
+        if (mouseLevel > 0 && free && !pet.listening && pointer.inside && !press && T >= pet.mouseNext && !(pet.expr && T < pet.exprUntil)) {
+          const ax = Math.abs(pdx), eager = mouseLevel === 2;
           if (pdy < -25 && pdy > -360 && ax < 220 && pm < 390) {
             setMode('crouch', {
               jumpV: clamp(650 + (-pdy) * 1.15, 700, 980),
               jumpVx: clamp(pdx * 1.9, -320, 320),
             });
-            pet.mouseNext = T + rnd(1.4, 2.2);
+            pet.mouseNext = T + (eager ? rnd(1.2, 2.0) : rnd(4.5, 6.5));
             mouseReacted = true;
           } else if (pm < 260 && pSpeed > 750) {
             setExpr('surprised', .8);
-            pet.mouseNext = T + rnd(1.0, 1.8);
+            pet.mouseNext = T + (eager ? rnd(.9, 1.5) : rnd(3.5, 5.5));
             mouseReacted = true;
           } else if (pm < 800 && ax > 90 && Math.abs(pdy) < 340) {
-            const run = ax > 300 || pSpeed > 700;
+            const run = eager && (ax > 300 || pSpeed > 700);
             const side = pdx >= 0 ? 1 : -1;
             setMode(run ? 'run' : 'walk', { target: clamp(pointer.x - side * 36, minX(), maxX()) });
-            pet.mouseChaseUntil = T + rnd(1.8, 2.8);
-            pet.mouseNext = T + rnd(1.0, 1.7);
+            pet.mouseChaseUntil = T + (eager ? rnd(2.8, 4.0) : rnd(1.2, 1.9));
+            pet.mouseNext = T + (eager ? rnd(1.4, 2.4) : rnd(5.0, 7.5));
             mouseReacted = true;
           }
         }
@@ -759,7 +760,7 @@ export function createPet(els, opts) {
         break;
       }
       case 'walk': case 'run': {
-        if (!pet.walkId && pointer.inside && free && T < pet.mouseChaseUntil && Math.abs(pdy) < 380) {
+        if (mouseLevel > 0 && !pet.walkId && pointer.inside && free && T < pet.mouseChaseUntil && Math.abs(pdy) < 380) {
           const side = pdx >= 0 ? 1 : -1;
           pet.target = clamp(pointer.x - side * 30, minX(), maxX());
         }
@@ -1161,7 +1162,16 @@ export function createPet(els, opts) {
     },
     get figure() { return custom; },
     get skin() { return skin; },
-    setRoam(r) { roam = r; if (r !== 'off') pet.nextAt = T + 1; },
+    setRoam(r) {
+      roam = r;
+      if (r === 'off') {
+        pet.mouseChaseUntil = 0; pet.mouseNext = T + 1;
+        if (!pet.walkId && (pet.mode === 'walk' || pet.mode === 'run')) setMode('idle');
+      } else {
+        pet.nextAt = T + 1;
+        pet.mouseNext = T + (r === 'free' ? .4 : 2.2);
+      }
+    },
     get roam() { return roam; },
     /** Outside orders keep free roaming quiet for `seconds`. */
     holdRoam(seconds) { hold = Math.max(hold, T + seconds); },

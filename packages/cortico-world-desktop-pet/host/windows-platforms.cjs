@@ -23,7 +23,7 @@ const native = (() => {
   if (process.platform !== 'win32') return null;
   try {
     const koffi = require('koffi');
-    const user32 = koffi.load('user32.dll');
+    const user32 = koffi.load('user32.dll'), kernel32 = koffi.load('kernel32.dll');
     let DwmGetWindowAttribute = null;
     try {
       const dwmapi = koffi.load('dwmapi.dll');
@@ -41,6 +41,10 @@ const native = (() => {
       GetClassNameW: user32.func('int __stdcall GetClassNameW(intptr_t hwnd, void *text, int maxCount)'),
       GetWindowTextW: user32.func('int __stdcall GetWindowTextW(intptr_t hwnd, void *text, int maxCount)'),
       GetWindowLongW: user32.func('int32_t __stdcall GetWindowLongW(intptr_t hwnd, int index)'),
+      GetWindowThreadProcessId: user32.func('uint32_t __stdcall GetWindowThreadProcessId(intptr_t hwnd, void *pid)'),
+      OpenProcess: kernel32.func('void * __stdcall OpenProcess(uint32_t access, int inherit, uint32_t pid)'),
+      QueryFullProcessImageNameW: kernel32.func('int __stdcall QueryFullProcessImageNameW(void *process, uint32_t flags, void *name, void *size)'),
+      CloseHandle: kernel32.func('int __stdcall CloseHandle(void *handle)'),
       DwmGetWindowAttribute,
     };
   } catch {
@@ -77,6 +81,27 @@ function isCloaked(hwnd) {
   return native.DwmGetWindowAttribute(hwnd, 14, value, value.length) === 0 && value.readUInt32LE(0) !== 0;
 }
 
+function processName(hwnd) {
+  const pidBuf = Buffer.alloc(4);
+  native.GetWindowThreadProcessId(hwnd, pidBuf);
+  const pid = pidBuf.readUInt32LE(0);
+  if (!pid) return '';
+  const process = native.OpenProcess(0x1000, 0, pid); // PROCESS_QUERY_LIMITED_INFORMATION
+  if (!process) return '';
+  try {
+    const max = 1024, buf = Buffer.alloc(max * 2), size = Buffer.alloc(4);
+    size.writeUInt32LE(max, 0);
+    if (!native.QueryFullProcessImageNameW(process, 0, buf, size)) return '';
+    const chars = Math.min(max, size.readUInt32LE(0));
+    const full = buf.toString('utf16le', 0, chars * 2);
+    return (full.split(/[\\/]/).pop() || '').toLowerCase();
+  } catch {
+    return '';
+  } finally {
+    native.CloseHandle(process);
+  }
+}
+
 /**
  * @param {(bigint|string|number)[]} excludedHwnds windows belonging to the pet itself or companion UI
  * @returns {{id:string,left:number,top:number,right:number,bottom:number,kind:string,className:string,title:string}[]}
@@ -106,19 +131,34 @@ function scanWindowSurfaces(excludedHwnds = []) {
           // comfortably above these thresholds even when visually sparse/transparent.
           if (rect && width >= 24 && height >= 12) {
             const title = wideText(native.GetWindowTextW, hwnd, 512);
-            const rainmeter = /rainmeter/i.test(className) || /rainmeter/i.test(title);
+            const process = processName(hwnd);
+            const signature = `${process} ${className} ${title}`;
+            // Wallpaper Engine is rendered desktop background, never a physical platform.
+            const wallpaper = /^(?:wallpaper|webwallpaper)(?:32|64)?\.exe$/i.test(process)
+              || /wallpaper engine/i.test(signature);
+            if (wallpaper) { hwnd = native.GetWindow(hwnd, GW_HWNDNEXT); continue; }
+
+            const rainmeter = process === 'rainmeter.exe' || /rainmeter/i.test(`${className} ${title}`);
+            const mydockfinder = /^(?:dock(?:_64)?|mydockfinder)\.exe$/i.test(process)
+              || /mydockfinder|dock_64/i.test(`${className} ${title}`);
             const exStyle = native.GetWindowLongW(hwnd, -20) >>> 0; // GWL_EXSTYLE
             const layered = !!(exStyle & 0x00080000); // WS_EX_LAYERED
             const transparent = !!(exStyle & 0x00000020); // WS_EX_TRANSPARENT
+            // Unknown transparent/layered render surfaces are far too likely to be wallpaper,
+            // overlays or invisible hit-test windows. Only known desktop widgets are solid.
+            if ((layered || transparent) && !rainmeter && !mydockfinder) {
+              hwnd = native.GetWindow(hwnd, GW_HWNDNEXT); continue;
+            }
             out.push({
               id: `hwnd:${id}`,
               left: rect.left,
               top: rect.top,
               right: rect.right,
               bottom: rect.bottom,
-              kind: rainmeter ? 'rainmeter' : 'window',
+              kind: rainmeter ? 'rainmeter' : mydockfinder ? 'mydockfinder' : 'window',
               className,
               title,
+              processName: process,
               layered,
               transparent,
             });

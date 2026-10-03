@@ -107,10 +107,10 @@ function reportPosition() {
 
 function applyPrefs(p) {
   if (p.skin) { const s = normalizeSkin(p.skin); ctl.setSkin(s); skinStyle.textContent = skinCss(s); applyFigure(s).catch((err) => console.error(err)); }
-  if (p.roam) { prefs.roam = p.roam; ctl.setRoam(p.roam); }
+  if (p.roam && p.roam !== prefs.roam) { prefs.roam = p.roam; ctl.setRoam(p.roam); }
   if (typeof p.sound === 'boolean') { prefs.sound = p.sound; sfx.set(p.sound); }
   if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); }
-  if (typeof p.scale === 'number') { prefs.scale = p.scale; ctl.resize(); }
+  if (typeof p.scale === 'number' && p.scale !== prefs.scale) { prefs.scale = p.scale; ctl.resize(); }
   if (typeof p.rememberPosition === 'boolean') { prefs.rememberPosition = p.rememberPosition; reportPosition(); }
   if (typeof p.user === 'string') prefs.user = p.user;
   if (typeof p.micDevice === 'string' && p.micDevice !== prefs.micDevice) { prefs.micDevice = p.micDevice; stopMic(); }

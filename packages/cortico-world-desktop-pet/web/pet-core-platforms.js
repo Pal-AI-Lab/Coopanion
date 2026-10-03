@@ -85,9 +85,12 @@ export function createPet(els, opts) {
     const before = surfaces.find((p) => p.id === supportId);
     const after = next.find((p) => p.id === supportId);
     if (!before || !after) return;
-    const oldCenter = (before.left + before.right) / 2;
-    const newCenter = (after.left + after.right) / 2;
-    const dx = newCenter - oldCenter, dy = after.top - before.top;
+    const bw = before.right - before.left, bh = before.bottom - before.top;
+    const aw = after.right - after.left, ah = after.bottom - after.top;
+    // MyDockFinder magnifies and reshapes itself on hover. Treat size changes as geometry changes,
+    // not as a translation that should carry/teleport the pet.
+    if (Math.abs(aw - bw) > 4 || Math.abs(ah - bh) > 4) return;
+    const dx = after.left - before.left, dy = after.top - before.top;
     if (!dx && !dy) return;
     ctl.pet.x += dx;
     ctl.pet.target += dx;
@@ -207,7 +210,27 @@ export function createPet(els, opts) {
   };
 
   ctl.resize = () => {
-    dynamicFloor = null;
+    const p = ctl.pet;
+    const floor = screenFloor();
+    if (p.mode === 'drag') {
+      dynamicFloor = floor;
+      supportId = null;
+    } else if (p.mode === 'air' || p.mode === 'crouch') {
+      dynamicFloor = nextSurfaceBelow(p.x, p.fy).top;
+    } else {
+      const support = surfaceAt(p.x, p.fy, FOLLOW_EPS);
+      if (support) {
+        supportId = support.id;
+        dynamicFloor = support.top;
+      } else if (Math.abs(p.fy - floor) <= FOLLOW_EPS) {
+        supportId = null;
+        dynamicFloor = floor;
+      } else {
+        // Preserve the exact elevated height until the next platform snapshot. Never snap a
+        // grounded pet to the desktop floor just because a preference/scale resize happened.
+        dynamicFloor = p.fy;
+      }
+    }
     rawResize();
   };
 
