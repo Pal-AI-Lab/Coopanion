@@ -84,7 +84,10 @@ async function applyFigure(s) {
   if (wanted !== 'whale') return;
   // a scheme picked while she is on screen fades in
   await fig.setScheme(s.scheme, { fade: ctl.figure === fig ? .45 : 0, at: ctl.time });
-  ctl.setFigure(fig);
+  // mounting her takes a WebGL context, which a machine without usable GL (a blocklisted GPU and no
+  // software fallback) refuses: fall back to the built-in Coo instead of leaving a body that throws
+  // every frame it is drawn
+  try { ctl.setFigure(fig); } catch (err) { console.error(err); ctl.setFigure(null); }
 }
 
 /**
@@ -1251,20 +1254,29 @@ function stepBackdrop(dt) {
 const MOVING_FPS = 60, RESTING_FPS = 30;
 /** When the next frame is due (a rAF timestamp), and the gap between frames at the current rate. */
 let last = performance.now(), dueAt = 0, gap = 1000 / MOVING_FPS;
+/** The last error the frame loop logged, so one that keeps recurring is reported once, not per frame. */
+let frameErr = null;
 function frame(now) {
   // a display refresh up to a quarter gap early counts as on time, so the rate averages out over refresh rates it does not divide
   if (now < dueAt - gap / 4) { requestAnimationFrame(frame); return; }
   const dt = Math.min(.05, (now - last) / 1000); last = now;
-  stepActs();
-  stepDialog(dt);
-  stepTalkRead();
-  stepTalkMotion();
-  stepListen();
-  ctl.step(dt);
-  ctl.render();
-  stepBackdrop(dt);
-  stepTools();
-  layout();
+  try {
+    stepActs();
+    stepDialog(dt);
+    stepTalkRead();
+    stepTalkMotion();
+    stepListen();
+    ctl.step(dt);
+    ctl.render();
+    stepBackdrop(dt);
+    stepTools();
+    layout();
+  } catch (err) {
+    // a throwing step must not take the loop with it: the next frame is only asked for below, and
+    // without it the pet freezes for good (a broken figure throws again on every frame it draws)
+    const msg = err?.message ?? String(err);
+    if (msg !== frameErr) { frameErr = msg; console.error(err); }
+  }
   const full = prefs.lockFrameRate || ctl.moving;
   gap = 1000 / (full ? MOVING_FPS : RESTING_FPS);
   // a frame more than a gap late starts the count again instead of drawing the missed ones back to back
