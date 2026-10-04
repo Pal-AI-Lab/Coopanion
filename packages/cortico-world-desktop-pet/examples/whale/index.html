@@ -68,7 +68,7 @@ const ctl = createPet({ petG: $('#pet'), shadowEl: $('#shadow'), fxG: $('#fx') }
 new ResizeObserver(() => ctl.resize()).observe(stage);
 $('#scale').oninput = e => { scale = +e.target.value; ctl.resize(); };
 
-const labels = { stand: '站立', jump: '跳', hop: '小跳', look: '张望', turn: '转身', nod: '点头', shake: '摇头', spin: '转圈', sit: '坐下', sleep: '睡觉', dizzy: '晕', walk: '走', run: '跑' };
+const labels = { stand: '站立', jump: '跳', hop: '小跳', look: '张望', turn: '转身', nod: '点头', shake: '摇头', spin: '转圈', sit: '坐下', sleep: '睡觉', dizzy: '晕', walk: '走', run: '跑', wave: '招手', bow: '鞠躬', shiver: '发抖', flap: '扑腾', dance: '跳舞' };
 for (const e of [...EXPRESSIONS, 'love', 'dragged']) {
   if (e === 'dragged' ) continue;
   const b = document.createElement('button'); b.textContent = FACES[e]?.label || e;

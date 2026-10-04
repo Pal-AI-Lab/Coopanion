@@ -174,7 +174,10 @@ function walk(m) {
 }
 
 /* ---------- actions ---------- */
-const DUR = { stand: 1.2, jump: 1.2, hop: .9, look: 2.7, turn: .4, nod: .8, shake: .8, spin: .8, sit: .8, sleep: .8, dizzy: 3.2 };
+const DUR = {
+  stand: 1.2, jump: 1.2, hop: .9, look: 2.7, turn: .4, nod: .8, shake: .8, spin: .8, sit: .8, sleep: .8, dizzy: 3.2,
+  wave: 1.7, bow: 1.7, shiver: 1.9, flap: 1.5, dance: 3.4,
+};
 const acts = [];
 let actUntil = 0, actWait = null;
 function runAction(a) {
