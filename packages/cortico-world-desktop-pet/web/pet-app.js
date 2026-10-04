@@ -97,9 +97,13 @@ function restorePosition(startX) {
   sentX = null;
   if (restored) return;
   restored = true;
-  if (!host || typeof startX !== 'number' || ctl.pet.mode === 'drag') return;
-  const { minX, maxX } = ctl.bounds;
-  ctl.pet.x = ctl.pet.target = clamp(startX * innerWidth, minX, maxX);
+  if (host && typeof startX === 'number' && ctl.pet.mode !== 'drag') {
+    const { minX, maxX } = ctl.bounds;
+    ctl.pet.x = ctl.pet.target = clamp(startX * innerWidth, minX, maxX);
+  }
+  // She starts facing the middle of the screen rather than always right (#59), so a pet
+  // resting on the right half is not turned away from the likely interaction area.
+  ctl.pet.facing = ctl.pet.x < innerWidth / 2 ? 1 : -1;
 }
 function reportPosition() {
   if (!host || !prefs.rememberPosition) return;
