@@ -32,6 +32,8 @@ const prefs = {
   doubleClickChat: false,
   /** Draw at the moving frame rate while the body rests too. */
   lockFrameRate: false,
+  /** The window process hides the window while a fullscreen window covers its display. */
+  hideWhenFullscreen: false,
 };
 const sfx = createSfx();
 if (host) sfx.unlock();
@@ -150,6 +152,10 @@ function applyPrefs(p) {
   if (p.voice && typeof p.voice === 'object') prefs.voice = { ...prefs.voice, ...p.voice };
   if (typeof p.doubleClickChat === 'boolean') prefs.doubleClickChat = p.doubleClickChat;
   if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
+  if (typeof p.hideWhenFullscreen === 'boolean' && p.hideWhenFullscreen !== prefs.hideWhenFullscreen) {
+    prefs.hideWhenFullscreen = p.hideWhenFullscreen;
+    host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
+  }
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
   if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead(); }
   if (typeof p.thinking === 'boolean') ctl.setThinking(p.thinking);

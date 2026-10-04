@@ -444,6 +444,7 @@ export class DesktopPetWorld implements World {
       doubleClickChat: this.cfg.doubleClickChat,
       scale: this.cfg.window.scale,
       lockFrameRate: this.cfg.window.lockFrameRate,
+      hideWhenFullscreen: this.cfg.window.hideWhenFullscreen,
       user: this.cfg.user,
       mic: this.micWanted(),
       voice: this.voiceBrief(),

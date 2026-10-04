@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('petHost', {
   grabFocus: () => ipcRenderer.send('pet:grabFocus'),
   releaseFocus: () => ipcRenderer.send('pet:releaseFocus'),
   hide: () => ipcRenderer.send('pet:hide'),
+  /** Whether the window hides itself while a fullscreen window covers its display. */
+  hideWhenFullscreen: (on) => ipcRenderer.send('pet:hideWhenFullscreen', !!on),
   openDress: () => ipcRenderer.send('pet:openDress'),
   /** Where the cursor is, in page pixels, or null off the window: called a few times a second. */
   onCursor: (cb) => ipcRenderer.on('pet:cursor', (_e, p) => cb(p)),

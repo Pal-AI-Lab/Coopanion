@@ -20,6 +20,8 @@ const { join } = require('node:path');
 
 /** Milliseconds between the cursor reports the page gets. */
 const CURSOR_EVERY_MS = 100;
+/** Milliseconds between the checks for a fullscreen window covering the pet's display. */
+const FULLSCREEN_EVERY_MS = 200;
 /** Most pixels one backdrop sample returns. */
 const BACKDROP_SAMPLES = 1500;
 
@@ -91,6 +93,57 @@ function hwndOf(win) {
   const b = win.getNativeWindowHandle();
   return b.length === 8 ? b.readBigInt64LE(0) : BigInt(b.readInt32LE(0));
 }
+
+/** Whether two `{ x, y, width, height }` rects share a pixel. */
+function overlaps(a, b) {
+  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+}
+
+/**
+ * Bounds in physical pixels of the monitor the foreground window covers, or null when it covers
+ * none. `own` is the pet window's handle; it and the desktop shell both count as covering none.
+ * Null off Windows or when koffi does not load.
+ */
+const fullscreen = (() => {
+  if (process.platform !== 'win32') return null;
+  try {
+    const koffi = require('koffi');
+    const user32 = koffi.load('user32.dll');
+    const GetForegroundWindow = user32.func('intptr_t __stdcall GetForegroundWindow()');
+    const GetShellWindow = user32.func('intptr_t __stdcall GetShellWindow()');
+    const GetClassNameW = user32.func('int __stdcall GetClassNameW(intptr_t hwnd, void *buf, int max)');
+    const GetWindowRect = user32.func('int __stdcall GetWindowRect(intptr_t hwnd, void *rect)');
+    const MonitorFromWindow = user32.func('intptr_t __stdcall MonitorFromWindow(intptr_t hwnd, uint32_t flags)');
+    const GetMonitorInfoW = user32.func('int __stdcall GetMonitorInfoW(intptr_t monitor, void *info)');
+    // RECT is four ints; MONITORINFO is its own size, the monitor RECT, the work RECT and flags
+    const RECT_BYTES = 16, MONITORINFO_BYTES = 40, MONITOR_DEFAULTTONEAREST = 2;
+    // the desktop's own windows: they cover the monitor but are not an application
+    const DESKTOP_CLASSES = new Set(['Progman', 'WorkerW']);
+    /** Whether the window is the desktop or the shell's own. */
+    const isShell = (hwnd) => {
+      if (hwnd === BigInt(GetShellWindow())) return true;
+      const name = Buffer.alloc(128);
+      return GetClassNameW(hwnd, name, 64) > 0 && DESKTOP_CLASSES.has(name.toString('utf16le').split('\0')[0]);
+    };
+    return {
+      /** Bounds in physical pixels, or null. */
+      covered(own) {
+        const hwnd = BigInt(GetForegroundWindow());
+        if (hwnd === 0n || hwnd === own || isShell(hwnd)) return null;
+        const rect = Buffer.alloc(RECT_BYTES);
+        if (!GetWindowRect(hwnd, rect)) return null;
+        const info = Buffer.alloc(MONITORINFO_BYTES);
+        info.writeUInt32LE(MONITORINFO_BYTES, 0);
+        if (!GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), info)) return null;
+        const left = info.readInt32LE(4), top = info.readInt32LE(8), right = info.readInt32LE(12), bottom = info.readInt32LE(16);
+        const covers = rect.readInt32LE(0) <= left && rect.readInt32LE(4) <= top && rect.readInt32LE(8) >= right && rect.readInt32LE(12) >= bottom;
+        return covers ? { x: left, y: top, width: right - left, height: bottom - top } : null;
+      },
+    };
+  } catch {
+    return null;
+  }
+})();
 
 /** `w`×`h` screen pixels from (x, y) in physical pixels, shrunk to `ow`×`oh`, as top-down BGRA. */
 function grabScreen(x, y, w, h, ow, oh) {
@@ -169,6 +222,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   let win = null, tray = null, dress = null;
   /** Id of the display whose work area the window covers. */
   let displayId = null;
+  /** The setting, whether the fullscreen rule is what hid the window, and the check itself. */
+  let hideWhenFullscreen = false, autoHidden = false, fullscreenTimer = null;
 
   /** The display the window belongs on: the one it was moved to, or the primary display once that one is gone. */
   const display = () => screen.getAllDisplays().find((d) => d.id === displayId) ?? screen.getPrimaryDisplay();
@@ -184,6 +239,27 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   };
 
   const place = () => { if (win) cover(display()); };
+
+  /** Puts the window back if the fullscreen rule is what hid it. */
+  const releaseAutoHidden = () => {
+    if (!autoHidden) return;
+    autoHidden = false;
+    if (win) win.showInactive();
+  };
+
+  /** Hides the window while a fullscreen window covers its display, and shows it again after. */
+  const checkFullscreen = () => {
+    if (!win || !fullscreen) return;
+    const monitor = fullscreen.covered(hwndOf(win));
+    const covered = !!monitor && overlaps(monitor, screen.dipToScreenRect(win, win.getBounds()));
+    if (covered && !autoHidden && win.isVisible()) { autoHidden = true; win.hide(); } else if (!covered) releaseAutoHidden();
+  };
+
+  /** Runs the check while the setting is on. */
+  const armFullscreen = () => {
+    if (fullscreenTimer) clearInterval(fullscreenTimer);
+    fullscreenTimer = hideWhenFullscreen ? setInterval(checkFullscreen, FULLSCREEN_EVERY_MS) : null;
+  };
 
   const create = () => {
     const d = display(), wa = d.workArea;
@@ -224,7 +300,12 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       last = key;
       win.webContents.send('pet:cursor', at);
     }, CURSOR_EVERY_MS);
-    win.on('closed', () => { clearInterval(cursorTimer); win = null; });
+    win.on('closed', () => {
+      clearInterval(cursorTimer);
+      if (fullscreenTimer) { clearInterval(fullscreenTimer); fullscreenTimer = null; }
+      win = null;
+    });
+    armFullscreen();
     // page console lines reach the World's log through stdout
     win.webContents.on('console-message', (e) => { if (e.level !== 'debug') console.log(`[page:${e.level}] ${e.message}`); });
     win.webContents.on('did-fail-load', (_e, code, desc, failedUrl) => console.log(`[page:error] 加载失败 ${code} ${desc} ${failedUrl}`));
@@ -264,6 +345,11 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     else if (win.isFocused()) win.blur();
   });
   ipcMain.on('pet:hide', () => { if (win) win.hide(); });
+  ipcMain.on('pet:hideWhenFullscreen', (_e, on) => {
+    hideWhenFullscreen = !!on;
+    if (!hideWhenFullscreen) releaseAutoHidden();
+    armFullscreen();
+  });
   ipcMain.on('pet:openDress', () => openDress());
   ipcMain.handle('pet:sampleBackdrop', (_e, query) => {
     try { return win ? sampleBackdrop(win, query || {}) : []; } catch { return []; }
