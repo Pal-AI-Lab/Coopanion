@@ -23,6 +23,7 @@ const KEYS = {
   roam: `${K}.roam`,
   theme: `${K}.theme`,
   scale: `${K}.window.scale`,
+  lockFps: `${K}.window.lockFrameRate`,
   sound: `${K}.sound`,
   snoreSeconds: `${K}.sounds.snoreSeconds`,
   remember: `${K}.rememberPosition`,
@@ -53,6 +54,8 @@ const S = pick({
     themeDark: '夜间(浅色身体)',
     themeLight: '白天(深色身体)',
     scale: '大小',
+    lockFps: '锁定 60 帧',
+    lockFpsHint: '关着时 Coo 站着、坐着、睡着每秒画 30 帧,走动、被拎着、跳起时 60 帧,占用的 CPU 更少;打开后一直 60 帧。',
     soundTitle: '音效',
     sound: '播放音效',
     soundHint: 'Coo 菜单里的音效按钮切的也是这个。',
@@ -94,6 +97,8 @@ const S = pick({
     themeDark: 'Night (light body)',
     themeLight: 'Day (dark body)',
     scale: 'Size',
+    lockFps: 'Lock to 60 fps',
+    lockFpsHint: 'Off: Coo draws 30 frames a second while standing, sitting or asleep and 60 while walking, carried or jumping, which uses less CPU. On: always 60.',
     soundTitle: 'Sounds',
     sound: 'Play sounds',
     soundHint: "The sound button in Coo's menu flips this too.",
@@ -153,6 +158,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const scaleText = ui.h('span', 'companion-rangeval');
   const scaleBox = ui.h('div', 'companion-rangebox');
   scaleBox.append(scale, scaleText);
+  const lockFps = ui.checkbox(S.lockFps, { onChange: (on) => void save(KEYS.lockFps, on) });
   const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on) });
   const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on) });
   const stats = ui.checkbox(S.stats, { onChange: (on) => void save(STATS_KEY, on, STATS_GROUP) });
@@ -206,6 +212,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     row(S.roam, roam.el),
     row(S.theme, theme.el),
     row(S.scale, scaleBox),
+    row('', lockFps.el, S.lockFpsHint),
     row('', remember.el, S.rememberHint),
     row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
     row('', dblclick.el),
@@ -307,6 +314,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
       snore.value = String(soundValues[KEYS.snoreSeconds]);
       snore.dataset.saved = snore.value;
     }
+    if (typeof values[KEYS.lockFps] === 'boolean') lockFps.setChecked(values[KEYS.lockFps] as boolean);
     if (typeof values[KEYS.remember] === 'boolean') remember.setChecked(values[KEYS.remember] as boolean);
     if (typeof values[KEYS.dblclick] === 'boolean') dblclick.setChecked(values[KEYS.dblclick] as boolean);
     if (typeof values[KEYS.hover] === 'string') {

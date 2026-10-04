@@ -29,6 +29,8 @@ const prefs = {
   rememberPosition: false,
   /** Double-clicking the pet opens the typing box. */
   doubleClickChat: false,
+  /** Draw at the moving frame rate while the body rests too. */
+  lockFrameRate: false,
 };
 const sfx = createSfx();
 if (host) sfx.unlock();
@@ -120,6 +122,7 @@ function applyPrefs(p) {
   if (typeof p.mic === 'boolean') { prefs.mic = p.mic; p.mic && !watching ? startMic() : stopMic(); }
   if (p.voice && typeof p.voice === 'object') prefs.voice = { ...prefs.voice, ...p.voice };
   if (typeof p.doubleClickChat === 'boolean') prefs.doubleClickChat = p.doubleClickChat;
+  if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
   if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead(); }
   if (typeof p.thinking === 'boolean') ctl.setThinking(p.thinking);
@@ -1240,8 +1243,17 @@ function stepBackdrop(dt) {
 }
 
 /* ---------- loop ---------- */
-let last = performance.now();
+/**
+ * Frames per second: MOVING_FPS while the body moves (`ctl.moving`) and always while `lockFrameRate` is on,
+ * RESTING_FPS otherwise. Each frame redraws the whole figure, so the window's CPU and GPU time grows with
+ * this rate; frames do not follow the display's refresh rate.
+ */
+const MOVING_FPS = 60, RESTING_FPS = 30;
+/** When the next frame is due (a rAF timestamp), and the gap between frames at the current rate. */
+let last = performance.now(), dueAt = 0, gap = 1000 / MOVING_FPS;
 function frame(now) {
+  // a display refresh up to a quarter gap early counts as on time, so the rate averages out over refresh rates it does not divide
+  if (now < dueAt - gap / 4) { requestAnimationFrame(frame); return; }
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   stepActs();
   stepDialog(dt);
@@ -1253,7 +1265,13 @@ function frame(now) {
   stepBackdrop(dt);
   stepTools();
   layout();
-  requestAnimationFrame(frame);
+  const full = prefs.lockFrameRate || ctl.moving;
+  gap = 1000 / (full ? MOVING_FPS : RESTING_FPS);
+  // a frame more than a gap late starts the count again instead of drawing the missed ones back to back
+  dueAt = now - dueAt > gap ? now + gap : dueAt + gap;
+  // moving frames wait on display refreshes: a timer can wake late, which a body at rest hides and a moving one shows as stutter
+  if (full) requestAnimationFrame(frame);
+  else setTimeout(() => requestAnimationFrame(frame), Math.max(0, dueAt - gap / 4 - performance.now()));
 }
 ctl.render();
 addEventListener('pagehide', reportPosition);

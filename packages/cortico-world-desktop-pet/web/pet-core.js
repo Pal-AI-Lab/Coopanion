@@ -521,6 +521,8 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
 export const EXPRESSIONS = ['neutral', 'happy', 'wink', 'love', 'shy', 'surprised', 'angry', 'sad', 'sleepy', 'thinking'];
 /** Motions: things the body does. `sit` and `sleep` last until something else happens. */
 export const MOTIONS = ['stand', 'jump', 'hop', 'look', 'turn', 'nod', 'shake', 'spin', 'sit', 'sleep', 'dizzy', 'walk', 'run'];
+/** Body modes in which the figure travels across the stage or squashes fast. */
+const MOVING_MODES = new Set(['drag', 'air', 'crouch', 'land', 'walk', 'run']);
 
 /* ---------- the live pet: simulation, rendering, pointer ---------- */
 /**
@@ -1112,6 +1114,10 @@ export function createPet(els, opts) {
     pet, step, render, resize, act, setExpr, walkTo, toStage, hitPet, busy,
     pointerDown, pointerMove, pointerUp, pointerLeave, dropAt, shiftDrag,
     get pressing() { return !!press; },
+    /** Pressed, carried, airborne, walking, running, turning round, or in a nod, shake or spin: motion that frames far apart show as jumps. */
+    get moving() {
+      return !!press || MOVING_MODES.has(pet.mode) || !!pet.pulse || Math.abs(pet.faceVis - pet.facing) > .05;
+    },
     get time() { return T; },
     get bounds() { return { W, H, floorY, S, minX: minX(), maxX: maxX() }; },
     setSkin(s) { skin = s; },
