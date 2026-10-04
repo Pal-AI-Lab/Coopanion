@@ -382,8 +382,19 @@ export function applyTheme(theme, button) {
 }
 
 /* ---------- sound: synthesized with Web Audio, no files ---------- */
+/** Which kind each sound belongs to; a kind can be silenced on its own (`sfx.configure`). */
+export const SOUND_KINDS = {
+  move: ['step', 'skid', 'jump', 'land', 'whoosh', 'chirps', 'shake', 'nod', 'spin'],
+  touch: ['grab', 'squeak', 'purr', 'poke'],
+  face: ['happy', 'wink', 'love', 'surprised', 'angry', 'sad', 'shy', 'yawn'],
+  snore: ['snore'],
+  talk: ['babble', 'blub'],
+  ui: ['tick', 'pop', 'sparkle', 'select', 'listenStart', 'listenEnd'],
+};
 export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } = {}) {
   let ctx = null, master = null, unlocked = false, on = true, noiseBuf = null, gainValue = volume;
+  // kinds turned off, and seconds of snoring per sleep (0 = the whole sleep)
+  let muted = new Set(), snoreSeconds = 0;
   try { on = localStorage.getItem(storageKey) !== 'off'; } catch (e) { /* default on */ }
   const R = (a, b) => a + Math.random() * (b - a);
   function ready() {
@@ -440,6 +451,11 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     isOn: () => on,
     set(v) { on = v; try { localStorage.setItem(storageKey, v ? 'on' : 'off'); } catch (e) { /* not persisted */ } },
     volume(v) { gainValue = v; if (master) master.gain.value = v; },
+    /** `kinds`: kind → on (SOUND_KINDS); `snoreSeconds`: snoring stops this long into a sleep, 0 = never. */
+    configure({ kinds, snoreSeconds: s } = {}) {
+      if (kinds) muted = new Set(Object.keys(SOUND_KINDS).filter((k) => kinds[k] === false));
+      if (typeof s === 'number' && s >= 0) snoreSeconds = s;
+    },
     step(run, i) {
       const k = run ? 1.25 : 1;
       tone({ f0: (i ? 520 : 440) * k, f1: (i ? 380 : 330) * k, dur: .06, vol: run ? .07 : .05 });
@@ -459,7 +475,11 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     shake() { for (let i = 0; i < 5; i++) tone({ type: 'square', f0: 180, f1: 160, dur: .05, vol: .05, at: i * .06, filter: 900 }); },
     hmm() { tone({ type: 'triangle', f0: 330, f1: 360, dur: .12, vol: .08 }); tone({ type: 'triangle', f0: 392, f1: 470, dur: .16, vol: .08, at: .14 }); },
     yawn() { tone({ type: 'triangle', f0: 520, f1: 240, dur: 1, vol: .1, vib: 12, vibRate: 5, filter: 1500, attack: .15 }); },
-    snore() { noise({ type: 'lowpass', f0: 250, f1: 700, dur: .7, vol: .09, attack: .35 }); },
+    /** `asleepFor`: seconds since this sleep began. */
+    snore(asleepFor = 0) {
+      if (snoreSeconds > 0 && asleepFor > snoreSeconds) return;
+      noise({ type: 'lowpass', f0: 250, f1: 700, dur: .7, vol: .09, attack: .35 });
+    },
     purr() { tone({ type: 'sawtooth', f0: 62, f1: 58, dur: .9, vol: .08, vib: 6, vibRate: 24, filter: 320, attack: .1 }); },
     poke() { tone({ f0: 320, f1: 200, dur: .09, vol: .16 }); },
     nod() { tone({ type: 'triangle', f0: 520, f1: 440, dur: .07, vol: .08 }); tone({ type: 'triangle', f0: 520, f1: 440, dur: .07, vol: .08, at: .2 }); },
@@ -487,6 +507,12 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     listenStart() { tone({ f0: 880, dur: .12, vol: .1 }); tone({ f0: 1320, dur: .16, vol: .1, at: .1 }); },
     listenEnd() { tone({ f0: 1320, dur: .1, vol: .09 }); tone({ f0: 990, dur: .16, vol: .09, at: .09 }); },
   };
+  for (const [kind, names] of Object.entries(SOUND_KINDS)) {
+    for (const name of names) {
+      const play = api[name];
+      api[name] = (...args) => { if (!muted.has(kind)) play(...args); };
+    }
+  }
   return api;
 }
 
@@ -895,7 +921,7 @@ export function createPet(els, opts) {
 
     if (fc.emit && T > pet.emitAt) {
       if (fc.emit === 'heart') { emitHeart(); pet.emitAt = T + .45; }
-      if (fc.emit === 'z') { emit('z', toStage(A.z[0], A.z[1] + pet.low), { vx: pet.facing * 16, vy: -26, life: 2.4 }); pet.emitAt = T + 1.3; sfx.snore(); }
+      if (fc.emit === 'z') { emit('z', toStage(A.z[0], A.z[1] + pet.low), { vx: pet.facing * 16, vy: -26, life: 2.4 }); pet.emitAt = T + 1.3; sfx.snore(pet.modeT); }
       if (fc.emit === 'tear') { emit('drop', toStage(A.tear[0] + pet.look[0], A.tear[1] + pet.low), { vx: pet.facing * rnd(10, 30), vy: -20, life: 3 }); pet.emitAt = T + .8; }
     }
     strokeAcc *= Math.exp(-dt * 1.5);

@@ -35,6 +35,14 @@ export interface PetSkin {
   colors: Record<string, { main: string; acc: string }>;
 }
 
+/** Kinds of the pet's sounds, the keys of `SOUND_KINDS` in web/pet-core.js. */
+export const SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk', 'ui'] as const;
+export type SoundKind = typeof SOUND_KINDS[number];
+export type SoundSettings = Record<SoundKind, boolean> & {
+  /** Snoring stops this many seconds into each sleep; the z's keep floating. 0 = snore the whole sleep. */
+  snoreSeconds: number;
+};
+
 export type RoamMode = 'free' | 'calm' | 'off';
 /** Which side of each palette the pet pages draw: dark = light figure for dark surroundings. */
 export type PetTheme = 'dark' | 'light';
@@ -59,7 +67,9 @@ export interface DesktopPetConfigSection extends WorldSection {
     scale: number;
   };
   roam: RoamMode;
+  /** All of the pet's sounds; `sounds` picks among them while this is on. */
   sound: boolean;
+  sounds: SoundSettings;
   theme: PetTheme;
   /** Start each run where the pet stood when the World last stopped. */
   rememberPosition: boolean;
@@ -104,6 +114,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   window: { enabled: true, electronFile: '', scale: 1 },
   roam: 'calm',
   sound: true,
+  sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, snoreSeconds: 0 },
   theme: 'dark',
   rememberPosition: false,
   petX: null,
@@ -136,7 +147,6 @@ export const DESKTOP_PET_CONFIG_GROUP: ConfigGroup = {
     properties: {
       [`${K}.user`]: { type: 'string', title: '怎么称呼你', description: '语音、打字和互动事件里用这个名字指代你。', 'x-hot': true },
       [`${K}.roam`]: { type: 'string', title: '行为模式', enum: ['free', 'calm', 'off'], description: 'free 常走动;calm 多待着;off 只做被要求的动作。', 'x-hot': true },
-      [`${K}.sound`]: { type: 'boolean', title: '音效', 'x-hot': true },
       [`${K}.theme`]: { type: 'string', title: '黑白模式', enum: ['dark', 'light'], description: 'dark 夜间:浅色身体、深色气泡;light 白天:深色身体、浅色气泡。', 'x-hot': true },
       [`${K}.rememberPosition`]: { type: 'boolean', title: '记住位置', description: '退出时记下桌宠的横向位置,下次启动落回那里;有多块屏幕时总在主屏上启动。', 'x-hot': true },
       [`${K}.hoverButtons`]: { type: 'string', title: '悬停按钮', description: `鼠标停在桌宠身上时旁边出现的按钮,最多 ${MAX_HOVER_BUTTONS} 个,逗号分隔:${PET_ACTIONS.join(', ')}。`, 'x-hot': true },
@@ -146,6 +156,25 @@ export const DESKTOP_PET_CONFIG_GROUP: ConfigGroup = {
       [`${K}.port`]: { type: 'integer', title: '页面端口', minimum: 1024, maximum: 65535, description: '被占用时向上顺延。', 'x-hot': false },
       [`${K}.touch.enabled`]: { type: 'boolean', title: '互动发成事件', description: '戳、摸、拎起来甩出去。', 'x-hot': true },
       [`${K}.touch.wakeOn`]: { type: 'string', title: '哪些互动单独唤醒', enum: ['poke', 'all', 'none'], description: 'poke 只有点一下唤醒,摸头和拎起来跟着下一次唤醒一起送;all 都唤醒;none 都跟着下一次唤醒送。一次互动唤醒之后、这一轮结束之前的互动,都跟着下一次唤醒送。', 'x-hot': true },
+    },
+  },
+};
+
+export const DESKTOP_PET_SOUND_CONFIG_GROUP: ConfigGroup = {
+  id: `world:${DESKTOP_PET_ID}:sound`,
+  owner: `world:${DESKTOP_PET_ID}`,
+  schema: {
+    type: 'object',
+    title: '音效',
+    properties: {
+      [`${K}.sound`]: { type: 'boolean', title: '音效总开关', description: '桌宠菜单里的音效按钮切的就是这个。', 'x-hot': true },
+      [`${K}.sounds.move`]: { type: 'boolean', title: '动作', description: '走路、跑、跳、落地、被甩出去、点头、摇头、转圈、晕。', 'x-hot': true },
+      [`${K}.sounds.touch`]: { type: 'boolean', title: '互动', description: '被拎起来、拎着晃、被摸、被戳。', 'x-hot': true },
+      [`${K}.sounds.face`]: { type: 'boolean', title: '表情', description: '开心、眨眼、喜欢、惊讶、生气、难过、害羞、打哈欠。', 'x-hot': true },
+      [`${K}.sounds.snore`]: { type: 'boolean', title: '打呼噜', 'x-hot': true },
+      [`${K}.sounds.snoreSeconds`]: { type: 'integer', title: '呼噜打多久', minimum: 0, maximum: 3600, 'x-suffix': '秒', description: '每次睡着后打这么久呼噜就安静下来,Z 照样飘;0 = 一直打到醒。', 'x-hot': true },
+      [`${K}.sounds.talk`]: { type: 'boolean', title: '说话', description: '气泡里逐字冒出的叽咕声、选项卡片弹出的声音。', 'x-hot': true },
+      [`${K}.sounds.ui`]: { type: 'boolean', title: '按钮与提示', description: '点按钮、气泡弹出、选中、开始和结束听你说话。', 'x-hot': true },
     },
   },
 };

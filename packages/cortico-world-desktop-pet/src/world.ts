@@ -22,7 +22,7 @@ import { nowIso } from 'cortico/core/util.ts';
 import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
 import {
-  DESKTOP_PET_ASR_CONFIG_GROUP, DESKTOP_PET_CONFIG_GROUP, DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, hoverButtonList,
+  DESKTOP_PET_ASR_CONFIG_GROUP, DESKTOP_PET_CONFIG_GROUP, DESKTOP_PET_ID, DESKTOP_PET_SOUND_CONFIG_GROUP, MAX_HOVER_BUTTONS, PET_ACTIONS, hoverButtonList,
   type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type RoamMode,
 } from './config.ts';
 import { PetServer, type PageMessage } from './server.ts';
@@ -347,6 +347,7 @@ export class DesktopPetWorld implements World {
       skin: this.cfg.skin,
       roam: this.cfg.roam,
       sound: this.cfg.sound,
+      sounds: this.cfg.sounds,
       theme: this.cfg.theme,
       rememberPosition: this.cfg.rememberPosition,
       // read by the page from `init` only
@@ -1069,7 +1070,7 @@ export class DesktopPetWorld implements World {
         socket.onClose(() => this.voiceSockets.delete(socket));
       },
       links: this.server.port ? [{ label: '在浏览器里看桌宠', href: this.petUrl }, { label: '装扮', href: `${this.server.origin}/dress` }] : [],
-      config: [DESKTOP_PET_CONFIG_GROUP, DESKTOP_PET_ASR_CONFIG_GROUP],
+      config: [DESKTOP_PET_CONFIG_GROUP, DESKTOP_PET_SOUND_CONFIG_GROUP, DESKTOP_PET_ASR_CONFIG_GROUP],
       promptDocs: [{
         key: `worlds.${DESKTOP_PET_ID}.envPrompt`,
         title: '桌宠环境',

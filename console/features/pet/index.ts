@@ -4,7 +4,8 @@
  * of the same values, so they are read again every few seconds. Dressing up has its own page
  * (features/dress). The hover buttons are picked from the pet menu's own actions, drawn with the
  * pet page's icons. The last row switches the app's anonymous usage statistics (the `companion`
- * group, core/telemetry.ts).
+ * group, core/telemetry.ts). The 「音效」 card below writes the World's sound group: the master switch
+ * (the same one the pet menu flips), each kind of sound, and how long Coo snores in each sleep.
  */
 import { ICONS } from 'cortico-world-desktop-pet/web/pet-core.js';
 import { get, setConfig } from '../../core/api.ts';
@@ -12,6 +13,7 @@ import { pick } from '../../core/language.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 
 const GROUP = 'world:desktop-pet';
+const SOUND_GROUP = 'world:desktop-pet:sound';
 const STATS_GROUP = 'companion';
 const STATS_KEY = 'companion.telemetry';
 const STATS_DOC = 'https://github.com/Pal-AI-Lab/Coopanion/blob/main/docs/TELEMETRY.md';
@@ -22,6 +24,7 @@ const KEYS = {
   theme: `${K}.theme`,
   scale: `${K}.window.scale`,
   sound: `${K}.sound`,
+  snoreSeconds: `${K}.sounds.snoreSeconds`,
   remember: `${K}.rememberPosition`,
   hover: `${K}.hoverButtons`,
 } as const;
@@ -30,6 +33,8 @@ const KEYS = {
 const ACTIONS: ReadonlyArray<[id: string, icon: string]> = [
   ['chat', 'chat'], ['voice', 'mic'], ['roam', 'roam_calm'], ['theme', 'moon'], ['sound', 'sound'], ['dress', 'shirt'], ['hide', 'eyeOff'],
 ];
+/** Kinds of sound (the World's SOUND_KINDS), each under `worlds.desktop-pet.sounds.<kind>`. */
+const SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk', 'ui'] as const;
 /** Most hover buttons (the World's MAX_HOVER_BUTTONS). */
 const MAX_HOVER = 6;
 
@@ -47,7 +52,22 @@ const S = pick({
     themeDark: '夜间(浅色身体)',
     themeLight: '白天(深色身体)',
     scale: '大小',
-    sound: '音效',
+    soundTitle: '音效',
+    sound: '播放音效',
+    soundHint: 'Coo 菜单里的音效按钮切的也是这个。',
+    soundKinds: '分别开关',
+    soundKindsHint: '关掉的那类不再出声,其余照常。鼠标停在一项上能看到它包括哪些声音。',
+    kinds: {
+      move: ['动作', '走路、跑、跳、落地、被甩出去、点头、摇头、转圈、晕'],
+      touch: ['互动', '被拎起来、拎着晃、被摸、被戳'],
+      face: ['表情', '开心、眨眼、喜欢、惊讶、生气、难过、害羞、打哈欠'],
+      snore: ['打呼噜', '睡着时的呼噜声'],
+      talk: ['说话', '气泡里逐字冒出的叽咕声、选项卡片弹出'],
+      ui: ['按钮与提示', '点按钮、气泡弹出、选中、开始和结束听你说话'],
+    } as Record<string, [string, string]>,
+    snore: '呼噜打多久',
+    snoreUnit: '秒',
+    snoreHint: '每次睡着后打这么久呼噜就安静下来,Z 照样飘。0 = 一直打到醒。',
     remember: '记住位置',
     rememberHint: '退出时记下 Coo 的横向位置,下次启动回到那里;有多块屏幕时总在主屏上启动。',
     hover: '悬停按钮',
@@ -72,7 +92,22 @@ const S = pick({
     themeDark: 'Night (light body)',
     themeLight: 'Day (dark body)',
     scale: 'Size',
-    sound: 'Sounds',
+    soundTitle: 'Sounds',
+    sound: 'Play sounds',
+    soundHint: "The sound button in Coo's menu flips this too.",
+    soundKinds: 'By kind',
+    soundKindsHint: 'A kind switched off stays silent; the rest play as usual. Rest the pointer on one to see which sounds it covers.',
+    kinds: {
+      move: ['Moving', 'Walking, running, jumping, landing, being thrown, nodding, shaking, spinning, dizziness'],
+      touch: ['Touch', 'Being picked up, swung, petted, poked'],
+      face: ['Faces', 'Happy, wink, love, surprised, angry, sad, shy, yawning'],
+      snore: ['Snoring', 'Snores while asleep'],
+      talk: ['Talking', 'The babble as bubble text appears, choice cards popping up'],
+      ui: ['Buttons and cues', 'Button clicks, bubbles opening, picks, listening starting and ending'],
+    } as Record<string, [string, string]>,
+    snore: 'Snore for',
+    snoreUnit: 's',
+    snoreHint: "In each sleep Coo goes quiet after snoring this long; the z's keep floating. 0 = snore until waking.",
     remember: 'Remember where Coo stands',
     rememberHint: 'Saves how far across the screen Coo stands when the app quits; with several screens Coo always starts on the main one.',
     hover: 'Hover buttons',
@@ -115,7 +150,6 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const scaleText = ui.h('span', 'companion-rangeval');
   const scaleBox = ui.h('div', 'companion-rangebox');
   scaleBox.append(scale, scaleText);
-  const sound = ui.checkbox(S.sound, { onChange: (on) => void save(KEYS.sound, on) });
   const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on) });
   const stats = ui.checkbox(S.stats, { onChange: (on) => void save(STATS_KEY, on, STATS_GROUP) });
   const statsDoc = ui.h('a', 'home-link', S.statsDoc);
@@ -168,7 +202,6 @@ async function mount(ctx: FeatureContext): Promise<void> {
     row(S.roam, roam.el),
     row(S.theme, theme.el),
     row(S.scale, scaleBox),
-    row('', sound.el),
     row('', remember.el, S.rememberHint),
     row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
     row('', statsBox, S.statsHint),
@@ -176,16 +209,41 @@ async function mount(ctx: FeatureContext): Promise<void> {
   );
   root.append(habits.el);
 
+  /* ---------- sounds ---------- */
+  const sounds = ui.sheet({ title: S.soundTitle });
+  const soundMsg = ui.msgline('');
+  const sound = ui.checkbox(S.sound, { onChange: (on) => { void save(KEYS.sound, on, SOUND_GROUP, soundMsg); renderKinds(); } });
+  const kindBox = ui.h('div', 'companion-checks');
+  const kinds = SOUND_KINDS.map((kind) => {
+    const [label, what] = S.kinds[kind] ?? [kind, ''];
+    const c = ui.checkbox(label, { title: what, onChange: (on) => void save(`${K}.sounds.${kind}`, on, SOUND_GROUP, soundMsg) });
+    kindBox.append(c.el);
+    return [kind, c] as const;
+  });
+  // the kinds only matter while sounds play at all
+  const renderKinds = () => { for (const [, c] of kinds) c.input.disabled = !sound.checked; };
+  const snore = ui.input({ type: 'number' });
+  snore.min = '0'; snore.max = '3600'; snore.step = '1';
+  const snoreBox = ui.h('div', 'companion-rangebox');
+  snoreBox.append(snore, ui.h('span', 'companion-rangeval', S.snoreUnit));
+  sounds.body.append(
+    row('', sound.el, S.soundHint),
+    row(S.soundKinds, kindBox, S.soundKindsHint),
+    row(S.snore, snoreBox, S.snoreHint),
+    soundMsg,
+  );
+  root.append(sounds.el);
+
   /* ---------- behaviour ---------- */
-  const save = async (key: string, value: string | number | boolean, group = GROUP) => {
+  const save = async (key: string, value: string | number | boolean, group = GROUP, line = msg) => {
     try {
       await setConfig(group, { [key]: value }, opts);
-      msg.textContent = S.saved;
-      msg.classList.remove('bad');
+      line.textContent = S.saved;
+      line.classList.remove('bad');
     } catch (err) {
       if (signal.aborted) return;
-      msg.textContent = S.saveFailed(errText(err));
-      msg.classList.add('bad');
+      line.textContent = S.saveFailed(errText(err));
+      line.classList.add('bad');
     }
   };
   const showScale = () => { scaleText.textContent = `${Math.round(Number(scale.value) * 100)}%`; };
@@ -207,13 +265,22 @@ async function mount(ctx: FeatureContext): Promise<void> {
   };
   user.addEventListener('change', saveUser);
   user.addEventListener('keydown', (e) => { if (e.key === 'Enter') user.blur(); });
+  snore.addEventListener('change', () => {
+    const n = Math.round(Number(snore.value));
+    if (snore.value === '' || !Number.isFinite(n) || n < 0 || n > 3600) { snore.value = snore.dataset.saved ?? '0'; return; }
+    snore.value = String(n);
+    if (snore.value !== snore.dataset.saved) { snore.dataset.saved = snore.value; void save(KEYS.snoreSeconds, n, SOUND_GROUP, soundMsg); }
+  });
+  snore.addEventListener('keydown', (e) => { if (e.key === 'Enter') snore.blur(); });
 
   const refreshValues = async () => {
     let values: Record<string, unknown> = {};
+    let soundValues: Record<string, unknown> = {};
     let statsValues: Record<string, unknown> = {};
     try {
       const d = await get<{ groups?: ConfigEntry[] }>('/api/config', opts);
       values = d.groups?.find((g) => g.group.id === GROUP)?.values ?? {};
+      soundValues = d.groups?.find((g) => g.group.id === SOUND_GROUP)?.values ?? {};
       statsValues = d.groups?.find((g) => g.group.id === STATS_GROUP)?.values ?? {};
     } catch { return; }
     if (typeof statsValues[STATS_KEY] === 'boolean') stats.setChecked(statsValues[STATS_KEY] as boolean);
@@ -225,7 +292,16 @@ async function mount(ctx: FeatureContext): Promise<void> {
     if (typeof values[KEYS.roam] === 'string') roam.setValue(values[KEYS.roam] as string);
     if (typeof values[KEYS.theme] === 'string') theme.setValue(values[KEYS.theme] as string);
     if (typeof values[KEYS.scale] === 'number' && active !== scale) { scale.value = String(values[KEYS.scale]); showScale(); }
-    if (typeof values[KEYS.sound] === 'boolean') sound.setChecked(values[KEYS.sound] as boolean);
+    if (typeof soundValues[KEYS.sound] === 'boolean') sound.setChecked(soundValues[KEYS.sound] as boolean);
+    for (const [kind, c] of kinds) {
+      const v = soundValues[`${K}.sounds.${kind}`];
+      if (typeof v === 'boolean') c.setChecked(v);
+    }
+    renderKinds();
+    if (typeof soundValues[KEYS.snoreSeconds] === 'number' && active !== snore) {
+      snore.value = String(soundValues[KEYS.snoreSeconds]);
+      snore.dataset.saved = snore.value;
+    }
     if (typeof values[KEYS.remember] === 'boolean') remember.setChecked(values[KEYS.remember] as boolean);
     if (typeof values[KEYS.hover] === 'string') {
       picked = (values[KEYS.hover] as string).split(',').map((x) => x.trim()).filter((x) => ACTIONS.some(([a]) => a === x));
