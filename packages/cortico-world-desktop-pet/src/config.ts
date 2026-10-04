@@ -81,6 +81,8 @@ export interface DesktopPetConfigSection extends WorldSection {
   petX: number | null;
   /** Actions shown as buttons beside the pet on hover, ids from PET_ACTIONS joined by commas. */
   hoverButtons: string;
+  /** Double-clicking the pet opens the typing box. */
+  doubleClickChat: boolean;
   skin: PetSkin;
   touch: {
     /** Clicks, petting and throws become events. */
@@ -119,6 +121,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   rememberPosition: false,
   petX: null,
   hoverButtons: 'chat,voice',
+  doubleClickChat: false,
   skin: {
     figure: 'coo', scheme: 'deepseek', palette: 'mint', head: 'none', side: 'none', glasses: 'none', neck: 'none',
     colors: { head: { main: 'body', acc: 'eye' }, side: { main: 'eye', acc: 'eye' }, glasses: { main: 'body', acc: 'eye' }, neck: { main: 'eye', acc: 'eye' } },
@@ -150,6 +153,7 @@ export const DESKTOP_PET_CONFIG_GROUP: ConfigGroup = {
       [`${K}.theme`]: { type: 'string', title: '黑白模式', enum: ['dark', 'light'], description: 'dark 夜间:浅色身体、深色气泡;light 白天:深色身体、浅色气泡。', 'x-hot': true },
       [`${K}.rememberPosition`]: { type: 'boolean', title: '记住位置', description: '退出时记下桌宠的横向位置,下次启动落回那里;有多块屏幕时总在主屏上启动。', 'x-hot': true },
       [`${K}.hoverButtons`]: { type: 'string', title: '悬停按钮', description: `鼠标停在桌宠身上时旁边出现的按钮,最多 ${MAX_HOVER_BUTTONS} 个,逗号分隔:${PET_ACTIONS.join(', ')}。`, 'x-hot': true },
+      [`${K}.doubleClickChat`]: { type: 'boolean', title: '双击打字', description: '双击桌宠打开打字框。', 'x-hot': true },
       [`${K}.window.enabled`]: { type: 'boolean', title: '启动时打开桌宠窗口', 'x-hot': false },
       [`${K}.window.scale`]: { type: 'number', title: '大小', minimum: .5, maximum: 2, multipleOf: .05, 'x-hot': true },
       [`${K}.window.electronFile`]: { type: 'string', title: 'Electron 程序', description: '留空时依次用 CORTICO_DESKTOP_PET_HOST 和面板里安装的运行时。', 'x-path': { kind: 'file' }, 'x-hot': false },

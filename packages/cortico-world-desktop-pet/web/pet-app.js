@@ -27,6 +27,8 @@ const prefs = {
   /** The actions shown as buttons beside the pet on hover. */
   hoverButtons: ['chat', 'voice'],
   rememberPosition: false,
+  /** Double-clicking the pet opens the typing box. */
+  doubleClickChat: false,
 };
 const sfx = createSfx();
 if (host) sfx.unlock();
@@ -117,6 +119,7 @@ function applyPrefs(p) {
   if (typeof p.micDevice === 'string' && p.micDevice !== prefs.micDevice) { prefs.micDevice = p.micDevice; stopMic(); }
   if (typeof p.mic === 'boolean') { prefs.mic = p.mic; p.mic && !watching ? startMic() : stopMic(); }
   if (p.voice && typeof p.voice === 'object') prefs.voice = { ...prefs.voice, ...p.voice };
+  if (typeof p.doubleClickChat === 'boolean') prefs.doubleClickChat = p.doubleClickChat;
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
   if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead(); }
   if (typeof p.thinking === 'boolean') ctl.setThinking(p.thinking);
@@ -548,7 +551,7 @@ function stepTalkMotion() {
   if (ctl.walkTo(clamp(x, 40, innerWidth - 40), run)) talk.next = ctl.time + (run ? .1 : 1.2 + Math.random() * 1.2);
 }
 
-/* ---------- typed input: the hover button, or double-click ---------- */
+/* ---------- typed input: the hover button, or double-click when switched on ---------- */
 function openInput() {
   closeMenu();
   if (item && item.kind === 'ask' && !item.answered) return;
@@ -685,7 +688,7 @@ const MAX_HOVER = 6;
 const ACTIONS = {
   chat: {
     icon: () => ICONS.chat,
-    state: () => '打字和我说话(也可以双击我)',
+    state: () => (prefs.doubleClickChat ? '打字和我说话(也可以双击我)' : '打字和我说话'),
     run: () => openInput(),
   },
   voice: {
@@ -1083,7 +1086,7 @@ stage.addEventListener('pointerup', async (e) => {
 });
 stage.addEventListener('pointercancel', up);
 document.addEventListener('pointerleave', () => { cursor.at = null; ctl.pointerLeave(); });
-stage.addEventListener('dblclick', (e) => { if (ctl.hitPet({ x: e.clientX, y: e.clientY })) openInput(); });
+stage.addEventListener('dblclick', (e) => { if (prefs.doubleClickChat && ctl.hitPet({ x: e.clientX, y: e.clientY })) openInput(); });
 document.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   if (ctl.hitPet({ x: e.clientX, y: e.clientY })) openMenu(e.clientX, e.clientY);

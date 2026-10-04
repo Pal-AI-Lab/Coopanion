@@ -30,7 +30,7 @@ bot 在屏幕底边有一个小身体:C 形的身体,两只 0 形的眼睛,两�
 | `type` | 正文 | 投递 |
 |---|---|---|
 | `desktop-pet.speech` | `[语音] 伙伴:…` | flush |
-| `desktop-pet.message` | `[打字] 伙伴:…`(双击或悬停按钮) | flush |
+| `desktop-pet.message` | `[打字] 伙伴:…`(悬停按钮;`worlds.desktop-pet.doubleClickChat` 打开时也可双击) | flush |
 | `desktop-pet.answer` | `[回答] 伙伴回答「问题」:选了第 2 项「…」` / 自己写的 / 关掉没答 | flush,关掉没答为 debounce |
 | `desktop-pet.touch` | `[互动] 伙伴戳了你 3 下` / 摸了摸 / 拎起来甩了出去 / 摔晕 | `worlds.desktop-pet.touch.wakeOn` 选中的种类 debounce,其余 piggyback |
 

@@ -353,6 +353,7 @@ export class DesktopPetWorld implements World {
       // read by the page from `init` only
       startX: this.cfg.rememberPosition ? this.cfg.petX : null,
       hoverButtons: hoverButtonList(this.cfg.hoverButtons),
+      doubleClickChat: this.cfg.doubleClickChat,
       scale: this.cfg.window.scale,
       user: this.cfg.user,
       mic: this.micWanted(),

@@ -27,6 +27,7 @@ const KEYS = {
   snoreSeconds: `${K}.sounds.snoreSeconds`,
   remember: `${K}.rememberPosition`,
   hover: `${K}.hoverButtons`,
+  dblclick: `${K}.doubleClickChat`,
 } as const;
 
 /** The pet menu's actions in its order (the World's PET_ACTIONS), with the icon each shows. */
@@ -72,6 +73,7 @@ const S = pick({
     rememberHint: '退出时记下 Coo 的横向位置,下次启动回到那里;有多块屏幕时总在主屏上启动。',
     hover: '悬停按钮',
     hoverHint: (n: number) => `鼠标停在 Coo 身上时旁边出现的按钮,最多 ${n} 个。`,
+    dblclick: '双击 Coo 打开打字框',
     actions: { chat: '打字', voice: '语音输入', roam: '行为模式', theme: '夜间模式', sound: '音效', dress: '装扮', hide: '隐藏桌宠' } as Record<string, string>,
     saved: '已保存',
     saveFailed: (why: string) => `没保存上:${why}`,
@@ -112,6 +114,7 @@ const S = pick({
     rememberHint: 'Saves how far across the screen Coo stands when the app quits; with several screens Coo always starts on the main one.',
     hover: 'Hover buttons',
     hoverHint: (n: number) => `Buttons beside Coo while the pointer rests on it, up to ${n}.`,
+    dblclick: 'Double-click Coo to open the typing box',
     actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', dress: 'Dress up', hide: 'Hide pet' } as Record<string, string>,
     saved: 'Saved',
     saveFailed: (why: string) => `Not saved: ${why}`,
@@ -151,6 +154,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const scaleBox = ui.h('div', 'companion-rangebox');
   scaleBox.append(scale, scaleText);
   const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on) });
+  const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on) });
   const stats = ui.checkbox(S.stats, { onChange: (on) => void save(STATS_KEY, on, STATS_GROUP) });
   const statsDoc = ui.h('a', 'home-link', S.statsDoc);
   statsDoc.href = STATS_DOC;
@@ -204,6 +208,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     row(S.scale, scaleBox),
     row('', remember.el, S.rememberHint),
     row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
+    row('', dblclick.el),
     row('', statsBox, S.statsHint),
     msg,
   );
@@ -303,6 +308,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
       snore.dataset.saved = snore.value;
     }
     if (typeof values[KEYS.remember] === 'boolean') remember.setChecked(values[KEYS.remember] as boolean);
+    if (typeof values[KEYS.dblclick] === 'boolean') dblclick.setChecked(values[KEYS.dblclick] as boolean);
     if (typeof values[KEYS.hover] === 'string') {
       picked = (values[KEYS.hover] as string).split(',').map((x) => x.trim()).filter((x) => ACTIONS.some(([a]) => a === x));
       renderHover();
