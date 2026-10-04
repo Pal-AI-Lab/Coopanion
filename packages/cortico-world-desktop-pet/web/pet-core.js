@@ -204,10 +204,18 @@ export const FACES = {
   happy:     { label: '开心', kao: '(^ ^',  f: () => ({ gap: [58, 58], eyes: [{ shape: 'up' }, { shape: 'up' }], blush: .45 }) },
   wink:      { label: '眨眼', kao: '(0 ^',  f: () => ({ gap: [56, 52], eyes: [ring(), { shape: 'up' }] }) },
   love:      { label: '喜欢', kao: '(♡ ♡',  f: t => { const s = .8 + .08 * Math.sin(t * 9); return { gap: [56, 56], eyes: [{ shape: 'heart', s, sw: 8 }, { shape: 'heart', s, sw: 8 }], blush: .7, emit: 'heart' }; } },
-  shy:       { label: '害羞', kao: '(o o *', f: () => ({ gap: [40, 40], eyes: [ring({ rx: 13, ry: 12, dx: -3, dy: 5 }), ring({ rx: 13, ry: 12, dx: -3, dy: 5 })], blush: 1, lookLock: true }) },
+  // ducks her head and looks away, then about .6 s in peeks back at you for a moment, and again every 2.6 s
+  // ("away" is +x for a drawn figure's head, which turns toward profile; Coo's eyes stay averted through dx)
+  shy:       { label: '害羞', kao: '(o o *', f: (t, p) => {
+    const a = p ? (t - p.exprAt) % 2.6 : 0, peek = a > .6 && a < 1.3;
+    return peek
+      ? { gap: [42, 42], eyes: [ring({ rx: 15, ry: 15, dy: -2 }), ring({ rx: 15, ry: 15, dy: -2 })], blush: 1, lookAt: [-1.5, -1], lean: 4 }
+      : { gap: [40, 40], eyes: [ring({ rx: 13, ry: 12, dx: -6, dy: 5 }), ring({ rx: 13, ry: 12, dx: -6, dy: 5 })], blush: 1, lookAt: [3, 2], lean: 6 };
+  } },
   surprised: { label: '惊讶', kao: '(O O',  f: () => ({ gap: [62, 62], eyes: [ring({ rx: 20, ry: 21 }), ring({ rx: 20, ry: 21 })], bang: true }) },
   angry:     { label: '生气', kao: '(ò ó',  f: () => ({ gap: [36, 36], eyes: [ring({ ry: 11, dy: 4 }), ring({ ry: 11, dy: 4 })], brows: 'angry', anger: true, shake: true }) },
-  sad:       { label: '难过', kao: '(ó ò',  f: () => ({ gap: [34, 40], eyes: [ring({ ry: 14, dy: 4 }), ring({ ry: 14, dy: 4 })], brows: 'sad', emit: 'tear' }) },
+  // `sag` sinks Coo's round body a little (+) or holds it stiff (-); a drawn figure keeps its art unsquashed
+  sad:       { label: '难过', kao: '(ó ò',  f: () => ({ gap: [34, 40], eyes: [ring({ ry: 14, dy: 4 }), ring({ ry: 14, dy: 4 })], brows: 'sad', emit: 'tear', lookAt: [1, 3], lean: 4, sag: .04 }) },
   sleepy:    { label: '犯困', kao: '(- -',  f: t => { const y = yawn(t); return { gap: [50 + 14 * y, 50 + 14 * y], eyes: [{ shape: 'lid', ry: 9 - 7 * y }, { shape: 'lid', ry: 9 - 7 * y }] }; } },
   sleep:     { label: '睡着', kao: '(u u',  f: t => { const b = 40 + 6 * Math.sin(t * 1.7); return { gap: [b, b], eyes: [{ shape: 'down' }, { shape: 'down' }], emit: 'z' }; } },
   dizzy:     { label: '晕乎', kao: '(@ @',  f: t => ({ gap: [54 + 5 * Math.sin(t * 5), 48], eyes: [{ shape: 'spiral', rot: t * 7 }, { shape: 'spiral', rot: t * 7 + 1.4 }], orbit: true }) },
@@ -233,8 +241,21 @@ export const FACES = {
   scared:    { label: '害怕', kao: '(O O;', f: () => ({ gap: [38, 38], eyes: [ring({ rx: 18, ry: 19 }), ring({ rx: 18, ry: 19 })], brows: 'sad', wide: true, shake: true, sweat: true }) },
   excited:   { label: '期待', kao: '(☆ ☆', f: () => ({ gap: [60, 60], eyes: [ring({ rx: 18, ry: 19, dy: -1 }), ring({ rx: 18, ry: 19, dy: -1 })], sparkle: true, blush: .4 }) },
   cry:       { label: '大哭', kao: '(T T', f: t => { const g = 36 + 6 * Math.abs(Math.sin(t * 9)); return { gap: [g, g], eyes: [{ shape: 'lid', ry: 0 }, { shape: 'lid', ry: 0 }], brows: 'sad', emit: 'tears', streams: true }; } },
-  // a motion's own face (not one to ask for): eyes shut through a bow
+  // `lean` tips the body back (-) or forward while standing or sitting; `gloom` draws the three lines of 无语
+  disgusted: { label: '嫌弃', kao: '(- -|||', f: () => ({ gap: [32, 30], eyes: [{ shape: 'lid', ry: 6.5, dx: 4 }, { shape: 'lid', ry: 6.5, dx: 4 }], lookAt: [-4, 0], lean: -5, gloom: true }) },
+  // eyes darting off and back about twice a second, a short tremor every 1.7 s, the body held stiff;
+  // timed from when the face began (p.exprAt), so the first glance and tremor come at once
+  nervous:   { label: '紧张', kao: '(o o;', f: (t, p) => {
+    const s = t - (p ? p.exprAt : 0), n = Math.floor(s * 1.9), away = n % 2 === 0;
+    return {
+      gap: [36, 36], eyes: [ring({ rx: 13, ry: 14 }), ring({ rx: 13, ry: 14 })], sweat: true, sag: -.04,
+      lookAt: away ? [Math.sin(n * 78.233) > 0 ? 5.5 : -5.5, 1.5 * Math.sin(n * 2.1)] : [0, 0],
+      shake: s % 1.7 < .3 ? .9 : 0,
+    };
+  } },
+  // motions' own faces (not ones to ask for): eyes shut through a bow; wide, alert eyes held ahead for a peek
   bowing:    { label: '鞠躬', f: () => ({ gap: [48, 48], eyes: [{ shape: 'lid', ry: 0 }, { shape: 'lid', ry: 0 }] }) },
+  peeking:   { label: '探头', f: () => ({ gap: [44, 44], eyes: [ring({ rx: 17, ry: 18 }), ring({ rx: 17, ry: 18 })], lookAt: [5, -1] }) },
   confused:  { label: '疑惑', kao: '(0 o ?', f: () => ({ gap: [44, 40], eyes: [ring(), ring({ rx: 14, ry: 11 })], question: true }) },
 };
 export const GALLERY = ['neutral', 'happy', 'wink', 'love', 'shy', 'surprised', 'angry', 'sad', 'sleepy', 'sleep', 'dizzy', 'dragged'];
@@ -297,6 +318,10 @@ export function figure(fc, o) {
     s += `<g class="angry" transform="translate(210 44) scale(${f(k * 10) / 10})" fill="none" stroke-width="7" stroke-linecap="round"><path d="M-13 -4Q-4 -4 -4 -13M4 -13Q4 -4 13 -4M13 4Q4 4 4 13M-4 13Q-4 4 -13 4"/></g>`;
   }
   if (fc.bang) s += `<g transform="translate(222 30)"><path class="ink" fill="none" stroke-width="11" stroke-linecap="round" d="M0 -18V4"/><circle class="inkf" cx="0" cy="18" r="5.5"/></g>`;
+  if (fc.gloom) {
+    // three short downward strokes under the top of the ring: 无语
+    s += `<g class="ink" fill="none" stroke-width="5" stroke-linecap="round" opacity=".55">${[[118, 84], [134, 90], [150, 84]].map(([x, y1]) => `<path d="M${f(x + lx * .5)} 70V${y1}"/>`).join('')}</g>`;
+  }
   if (fc.question) s += `<g transform="translate(222 30)"><path class="ink" fill="none" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" d="M-10 -12Q-10 -24 0 -24Q11 -24 11 -13Q11 -5 0 -1V5"/><circle class="inkf" cx="0" cy="18" r="5.5"/></g>`;
   if (fc.sparkle) {
     // a twinkling four-point glint inside each eye ring
@@ -418,7 +443,7 @@ export function applyTheme(theme, button) {
 /* ---------- sound: synthesized with Web Audio, no files ---------- */
 /** Which kind each sound belongs to; a kind can be silenced on its own (`sfx.configure`). */
 export const SOUND_KINDS = {
-  move: ['step', 'skid', 'jump', 'land', 'whoosh', 'chirps', 'shake', 'nod', 'spin', 'shiver', 'dance'],
+  move: ['step', 'skid', 'jump', 'land', 'whoosh', 'chirps', 'shake', 'nod', 'spin', 'shiver', 'dance', 'flinch', 'look', 'peek'],
   touch: ['grab', 'squeak', 'purr', 'poke'],
   face: ['happy', 'wink', 'love', 'surprised', 'angry', 'sad', 'shy', 'yawn'],
   snore: ['snore'],
@@ -517,6 +542,10 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     purr() { tone({ type: 'sawtooth', f0: 62, f1: 58, dur: .9, vol: .08, vib: 6, vibRate: 24, filter: 320, attack: .1 }); },
     poke() { tone({ f0: 320, f1: 200, dur: .09, vol: .16 }); },
     shiver() { for (let i = 0; i < 8; i++) tone({ type: 'square', f0: 900, f1: 820, dur: .03, vol: .035, at: i * .07, filter: 2400 }); },
+    // looking about and peeking hum like the thinking 'hmm', but count as motion sounds
+    look() { api.hmm(); },
+    peek() { api.hmm(); },
+    flinch() { tone({ type: 'triangle', f0: 900, f1: 1400, dur: .09, vol: .12 }); noise({ type: 'highpass', f0: 2400, f1: 1200, dur: .12, vol: .05 }); },
     dance() { [523, 659, 784, 659, 880].forEach((fr, i) => tone({ type: 'triangle', f0: fr, dur: .13, vol: .09, at: i * .15 })); },
     nod() { tone({ type: 'triangle', f0: 520, f1: 440, dur: .07, vol: .08 }); tone({ type: 'triangle', f0: 520, f1: 440, dur: .07, vol: .08, at: .2 }); },
     spin() { tone({ type: 'triangle', f0: 300, f1: 1200, dur: .3, vol: .12, vib: 30, vibRate: 18 }); },
@@ -531,6 +560,7 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
       const m = {
         happy: 'happy', wink: 'wink', love: 'love', surprised: 'surprised', angry: 'angry', sad: 'sad', shy: 'shy', sleepy: 'yawn',
         smug: 'wink', worried: 'hmm', determined: 'pop', flustered: 'shy', scared: 'surprised', excited: 'sparkle', cry: 'sad', confused: 'hmm',
+        disgusted: 'hmm', nervous: 'hmm',
       };
       // an expression's sound is a face sound, whichever tone it borrows
       if (m[n] && !muted.has('face')) api[m[n]]();
@@ -559,10 +589,10 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
 /* ---------- actions the pet can be asked to do ---------- */
 /** Expressions: a face held for a few seconds. */
 export const EXPRESSIONS = ['neutral', 'happy', 'wink', 'love', 'shy', 'surprised', 'angry', 'sad', 'sleepy', 'thinking',
-  'smug', 'pout', 'worried', 'determined', 'flustered', 'scared', 'excited', 'cry', 'confused'];
+  'smug', 'pout', 'worried', 'determined', 'flustered', 'scared', 'excited', 'cry', 'confused', 'disgusted', 'nervous'];
 /** Motions: things the body does. `sit` and `sleep` last until something else happens. */
 export const MOTIONS = ['stand', 'jump', 'hop', 'look', 'turn', 'nod', 'shake', 'spin', 'sit', 'sleep', 'dizzy', 'walk', 'run',
-  'wave', 'bow', 'shiver', 'flap', 'dance'];
+  'wave', 'bow', 'shiver', 'flap', 'dance', 'flinch', 'peek'];
 /** Body modes in which the figure travels across the stage or squashes fast (dancing steps and sways on the spot). */
 const MOVING_MODES = new Set(['drag', 'air', 'crouch', 'land', 'walk', 'run', 'dance']);
 
@@ -599,15 +629,15 @@ export function createPet(els, opts) {
     turnAcc: 0, dx: 0, dy: 0, jumpV: 700, jumpVx: 0, xf: null, blushK: 0,
     eyeSig: '', eyeCur: null, eyePrev: null, eyeDims: [[16, 16, 0, 0], [16, 16, 0, 0]], swapAge: 9,
     glance: [0, 0], glanceAt: 0, swing: 0, swingV: 0, prevA: null, velX: 0, talkK: 0, sfxAt: 0, skid: false, cue: 0,
-    pulse: null, walkId: 0, listening: false, thinking: false, placed: false, noteAt: 0, tearN: 0,
+    pulse: null, walkId: 0, listening: false, thinking: false, placed: false, noteAt: 0, tearN: 0, exprAt: 0,
   };
   const pointer = { x: -1e4, y: -1e4, inside: false, vx: 0, samples: [] };
   let press = null, strokeAcc = 0, petCool = 0;
   const P = [];
 
   // points on the body in logo units: where the eyes look from, where a tear starts (and under each eye, for crying),
-  // where z's and hearts start, the bubble's spot
-  const COO_ANCHORS = { gaze: [140, 117], tear: [166, 136], tears: [[116, 136], [166, 136]], z: [196, 40], hearts: [90, 175, 34], bubble: [146, 0] };
+  // where z's and hearts start, the bubble's spot, where a glint flashes
+  const COO_ANCHORS = { gaze: [140, 117], tear: [166, 136], tears: [[116, 136], [166, 136]], z: [196, 40], hearts: [90, 175, 34], bubble: [146, 0], glints: [[50, 30], [210, 30]] };
   let A = { ...COO_ANCHORS, ...custom?.anchors };
   const minX = () => 104 * S + 8, maxX = () => W - 104 * S - 8;
 
@@ -641,6 +671,8 @@ export function createPet(els, opts) {
       onEvent('interrupted', { walkId: pet.walkId, x: Math.round(pet.x), by: m });
       pet.walkId = 0;
     }
+    // a flinch's step back is over once anything but standing takes over (a walk, a drag, a fall)
+    if (pet.pulse?.kind === 'flinch' && m !== 'idle') pet.pulse.dx = 0;
     pet.mode = m; pet.modeT = 0; pet.turned = false; pet.startle = false; pet.skid = false; pet.cue = 0;
     Object.assign(pet, o);
     if (prev !== m) onEvent('mode', { mode: m });
@@ -678,13 +710,26 @@ export function createPet(els, opts) {
       case 'shiver': pulse('shiver', 1.8); sfx.shiver(); break;
       case 'flap': setMode('crouch', { jumpV: 540, jumpVx: 0 }); pulse('flap', 1.4); holdFace('happy', 1.6); sfx.chirps(); break;
       case 'dance': setMode('dance', { dur: 3.2 }); holdFace('happy', 3.4); sfx.dance(); break;
+      case 'flinch': {
+        // a startled step back (less near the screen edge, none while seated) and back to normal
+        if (!seated) setMode('idle');
+        const room = pet.facing > 0 ? pet.x - minX() : maxX() - pet.x;
+        pulse('flinch', .9);
+        Object.assign(pet.pulse, { x0: pet.x, dx: seated || room < 4 ? 0 : -pet.facing * Math.min(room, 30 * S) });
+        holdFace('surprised', 1.1); sfx.flinch(); break;
+      }
+      case 'peek':
+        // lean in and look ahead; first turn to the pointer if it is behind
+        if (!seated) setMode('idle');
+        if (pointer.inside && (pointer.x - pet.x) * pet.facing < -40) pet.facing *= -1;
+        pulse('peek', 2.4); holdFace('peeking', 2.4); sfx.peek(); break;
       default: return false;
     }
     return true;
   }
   function pulse(kind, dur) { pet.pulse = { kind, t0: T, dur }; }
   /** A motion's own face, without the expression's sound and bounce (act() has just cleared any held face). */
-  function holdFace(n, seconds) { pet.expr = n; pet.exprUntil = T + seconds; pet.nextAt = Math.max(pet.nextAt, pet.exprUntil + .6); }
+  function holdFace(n, seconds) { pet.expr = n; pet.exprAt = T; pet.exprUntil = T + seconds; pet.nextAt = Math.max(pet.nextAt, pet.exprUntil + .6); }
 
   function setExpr(n, seconds) {
     if (n === 'sleep') { act('sleep'); return; }
@@ -697,11 +742,12 @@ export function createPet(els, opts) {
     }
     if (n === 'dizzy') { pet.expr = null; setMode('dizzy'); return; }
     if (pet.mode === 'look' || pet.mode === 'land') setMode('idle');
-    pet.expr = n; pet.exprUntil = T + (seconds ?? (n === 'sleepy' ? 4.4 : 3.2));
+    pet.expr = n; pet.exprAt = T; pet.exprUntil = T + (seconds ?? (n === 'sleepy' ? 4.4 : 3.2));
     pet.nextAt = Math.max(pet.nextAt, pet.exprUntil + .6);
     pet.sqv += n === 'surprised' ? -2.2 : .8;
     sfx.expr(n);
     if (n === 'love') for (let i = 0; i < 4; i++) emitHeart();
+    if (n === 'happy' || n === 'smug') emitGlint(n === 'happy' ? 2 : 1);
   }
 
   /** Walks (or runs) to stage x. Resolves the walk through onEvent('arrived' | 'interrupted'). */
@@ -748,6 +794,16 @@ export function createPet(els, opts) {
   function emit(type, p, o = {}) { P.push({ type, x: p.x, y: p.y, vx: 0, vy: 0, age: 0, life: 1, ...o }); }
   function emitHeart() {
     emit('heart', toStage(rnd(A.hearts[0], A.hearts[1]), A.hearts[2] + pet.low), { vx: rnd(-20, 20), vy: rnd(-70, -45), life: 1.6 });
+  }
+  /** A glint or two popping by the head (a happy or smug face); never more than three at once. */
+  function emitGlint(n) {
+    const live = P.filter(p => p.type === 'glint').length;
+    // a figure that names no glint spots gets them either side of its own bubble spot, not at Coo's head
+    const [bx, by] = A.bubble, pts = custom && !custom.anchors?.glints ? [[bx - 50, by + 25], [bx + 50, by + 25]] : A.glints;
+    for (let i = 0; i < Math.min(n, 3 - live); i++) {
+      const [x, y] = pts[Math.floor(Math.random() * pts.length)];
+      emit('glint', toStage(x + rnd(-8, 8), y + rnd(-8, 8) + pet.low), { vx: rnd(-8, 8), vy: rnd(-18, -8), life: rnd(.5, .7) });
+    }
   }
   function dustAt(lx, n, spread) {
     for (let i = 0; i < n; i++) {
@@ -817,7 +873,7 @@ export function createPet(els, opts) {
         break;
       }
       case 'look': {
-        if (!pet.cue) { pet.cue = 1; sfx.hmm(); }
+        if (!pet.cue) { pet.cue = 1; sfx.look(); }
         if (mt < .9) lookT = [4, -4];
         else if (mt < 1.8) { if (!pet.turned) { pet.turned = true; pet.facing *= -1; } lookT = [5, 0]; }
         else if (mt < 2.6) lookT = [1, 4];
@@ -915,6 +971,10 @@ export function createPet(els, opts) {
     }
 
     // short gestures layered over whatever the body is doing
+    // a flinch's step back moves the body whatever figure draws it (setMode cancels it when another mode takes over)
+    if (pet.pulse?.kind === 'flinch' && pet.pulse.dx && m === 'idle') {
+      pet.x = clamp(pet.pulse.x0 + pet.pulse.dx * smooth(clamp((T - pet.pulse.t0) / (pet.pulse.dur * .22), 0, 1)), minX(), maxX());
+    }
     // (a custom figure that lists a gesture in `figure.gestures` draws it itself, from the frame's `gesture`)
     if (pet.pulse) {
       const k = (T - pet.pulse.t0) / pet.pulse.dur;
@@ -924,6 +984,8 @@ export function createPet(els, opts) {
       else if (pet.pulse.kind === 'shake') tiltT += 10 * Math.sin(k * Math.PI * 6) * (1 - k);
       else if (pet.pulse.kind === 'wave') tiltT += 6 * Math.sin(k * Math.PI * 6) * Math.sin(k * Math.PI);
       else if (pet.pulse.kind === 'bow') leanT += 16 * envelope(k, .25, .7);
+      else if (pet.pulse.kind === 'flinch') { const e = envelope(k, .04, .45); leanT -= 12 * e; sqT += .1 * e; }
+      else if (pet.pulse.kind === 'peek') { const e = envelope(k, .2, .8); leanT += (10 + 1.5 * Math.sin(k * Math.PI * 6)) * e; sqT -= .07 * e; }
       else if (pet.pulse.kind === 'flap') { tiltT += 7 * Math.sin(k * Math.PI * 8) * (1 - k); sqT -= .06 * Math.abs(Math.sin(k * Math.PI * 8)) * (1 - k); }
       else if (pet.pulse.kind === 'spin' && k > .5 && !pet.pulse.flipped) { pet.pulse.flipped = true; pet.facing *= -1; }
       else if (pet.pulse.kind === 'spin' && k < .5 && !pet.pulse.first) { pet.pulse.first = true; pet.facing *= -1; pet.sqv -= 1; }
@@ -932,6 +994,8 @@ export function createPet(els, opts) {
     const fname = faceName(), fc = FACES[fname].f(T, pet);
     if (fc.lookLock || pet.mode === 'sleep' || pet.mode === 'drag') lookT = [0, 0];
     else if (fc.lookAt) lookT = fc.lookAt;
+    if (fc.lean && (m === 'idle' || m === 'sit')) leanT += fc.lean;
+    if (fc.sag && !custom) sqT += fc.sag;
 
     // eye shape changes hide under a quick blink; same-shape changes (ring size) ease
     const sig = fc.eyes.map(e => e.shape).join();
@@ -974,7 +1038,8 @@ export function createPet(els, opts) {
     const AX = pet.mode === 'drag' ? pet.dx : pet.x;
     if (pet.prevA != null) pet.velX = lerp(pet.velX, (AX - pet.prevA) / dt, .25);
     pet.prevA = AX;
-    const swingT = clamp(-pet.velX * .06 * Math.sign(pet.faceVis || 1), -28, 28);
+    // dancing stays put but rocks: the rock swings what hangs off the body (ears, hair, skirt), as moving does
+    const swingT = clamp(-(pet.velX * .06 + (m === 'dance' ? pet.tiltV * .22 : 0)) * Math.sign(pet.faceVis || 1), -28, 28);
     pet.swingV += ((swingT - pet.swing) * 110 - pet.swingV * 7) * dt;
     pet.swing = clamp(pet.swing + pet.swingV * dt, -40, 40);
 
@@ -1038,7 +1103,7 @@ export function createPet(els, opts) {
     const sy = (1 - pet.sq) * (1 + .09 * pet.stretch) * (1 + .016 * br);
     const ax = 128, ay = drag ? 36 : 256;
     let AX = drag ? pet.dx : pet.x, AY = drag ? pet.dy : pet.fy;
-    if (fc.shake) AX += Math.sin(T * 60) * 1.4;
+    if (fc.shake) AX += Math.sin(T * 60) * (fc.shake === true ? 1.4 : fc.shake);
     else if (pet.pulse?.kind === 'shiver') AX += Math.sin(T * 75) * 1.1 * envelope((T - pet.pulse.t0) / pet.pulse.dur, .08, .85);
     // a custom figure may keep tilt and lean off the whole group and bend its own parts instead
     const kx = S * pet.faceVis * sx, ky = S * sy, lean = pet.lean * pet.faceVis;
@@ -1076,6 +1141,10 @@ export function createPet(els, opts) {
         s += `<path class="p-heart" fill="none" stroke-width="5" stroke-linejoin="round" opacity="${f(1 - a * a)}" transform="translate(${f(p.x + Math.sin(p.age * 4) * 5)} ${f(p.y)}) scale(${f((.45 + .35 * a) * sc)})" d="${heartD(0, 0, 1)}"/>`;
       } else if (p.type === 'dust') {
         s += `<circle class="p-dust" fill="none" stroke-width="2" cx="${f(p.x)}" cy="${f(p.y)}" r="${f((3 + 8 * a) * sc)}" opacity="${f(.7 * (1 - a))}"/>`;
+      } else if (p.type === 'glint') {
+        // a four-point star that pops in and out, warm white with a gold edge so it shows on any desktop
+        const k = Math.sin(Math.PI * a) * sc * 1.1;
+        if (k > .01) s += `<path fill="#fffbe0" stroke="#e0a100" stroke-width="${f(1.4 / k)}" stroke-linejoin="round" opacity=".9" transform="translate(${f(p.x)} ${f(p.y)}) scale(${f(k)}) rotate(${f(p.age * 60)})" d="M0 -9Q1.6 -1.6 9 0Q1.6 1.6 0 9Q-1.6 1.6 -9 0Q-1.6 -1.6 0 -9Z"/>`;
       } else if (p.type === 'note') {
         const op = a < .15 ? a / .15 : 1 - (a - .15) / .85, z = (.8 + .4 * a) * sc;
         s += `<g opacity="${f(op)}" transform="translate(${f(p.x + Math.sin(p.age * 3) * 8)} ${f(p.y)}) scale(${f(z)})"><path ${zPaint} fill="none" stroke-width="2.4" stroke-linecap="round" d="M3 4V-9L9 -6"/><circle ${zPaint} fill="none" stroke-width="3.6" cx="0" cy="4.5" r="1.8"/></g>`;

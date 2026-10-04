@@ -20,10 +20,10 @@ export const VOCAB: readonly VocabEntry[] = [
   { id: 'happy', kind: 'expression', zh: ['开心', '高兴'], note: '眼睛弯成 ^ ^' },
   { id: 'wink', kind: 'expression', zh: ['眨眼'], note: '一只眼 ^' },
   { id: 'love', kind: 'expression', zh: ['喜欢', '爱心'], note: '眼睛变心形,冒小心心' },
-  { id: 'shy', kind: 'expression', zh: ['害羞'], note: '脸红,眼神躲开' },
+  { id: 'shy', kind: 'expression', zh: ['害羞', '偷看'], note: '脸红低头躲开,过一会儿偷偷抬眼看你' },
   { id: 'surprised', kind: 'expression', zh: ['惊讶', '吃惊'], note: '眼睛放大,头顶感叹号' },
   { id: 'angry', kind: 'expression', zh: ['生气'], note: '皱眉,头顶怒气符号,身体发抖' },
-  { id: 'sad', kind: 'expression', zh: ['难过', '伤心'], note: '八字眉,掉眼泪' },
+  { id: 'sad', kind: 'expression', zh: ['难过', '伤心', '委屈', '失落'], note: '八字眉,低头看地,垂头丧气,掉眼泪' },
   { id: 'sleepy', kind: 'expression', zh: ['犯困', '困'], note: '眯眼打哈欠' },
   { id: 'thinking', kind: 'expression', zh: ['思考', '想想'], note: '眼睛往上看,头顶冒圈' },
   { id: 'smug', kind: 'expression', zh: ['得意', '嘚瑟'], note: '眯眼斜看,嘴角带笑' },
@@ -35,6 +35,8 @@ export const VOCAB: readonly VocabEntry[] = [
   { id: 'excited', kind: 'expression', zh: ['期待', '星星眼'], note: '眼睛里闪着星星' },
   { id: 'cry', kind: 'expression', zh: ['大哭', '哭'], note: '闭眼大哭,眼泪直流' },
   { id: 'confused', kind: 'expression', zh: ['疑惑', '问号'], note: '一脸不解,头顶问号' },
+  { id: 'disgusted', kind: 'expression', zh: ['嫌弃', '无语'], note: '半眯眼斜看,身子往后仰,额头三道黑线' },
+  { id: 'nervous', kind: 'expression', zh: ['紧张', '忐忑'], note: '眼神乱瞟,冒汗,身子绷紧,时不时抖一下' },
   { id: 'stand', kind: 'motion', zh: ['站起', '站'], note: '站起来(坐着、睡着时)' },
   { id: 'jump', kind: 'motion', zh: ['跳', '跳起来'], note: '原地起跳' },
   { id: 'hop', kind: 'motion', zh: ['小跳', '蹦'], note: '小小蹦一下' },
@@ -53,6 +55,8 @@ export const VOCAB: readonly VocabEntry[] = [
   { id: 'shiver', kind: 'motion', zh: ['发抖', '哆嗦'], note: '缩着身子抖一会儿' },
   { id: 'flap', kind: 'motion', zh: ['扑腾', '激动'], note: '开心地蹦起来扑腾' },
   { id: 'dance', kind: 'motion', zh: ['跳舞', '摇摆'], note: '原地踩着节拍摇摆三秒,冒音符' },
+  { id: 'flinch', kind: 'motion', zh: ['后缩', '吓一跳'], note: '吓得往后一缩,马上恢复' },
+  { id: 'peek', kind: 'motion', zh: ['探头', '瞅瞅'], note: '身子往前探,盯着前方看两秒' },
 ];
 
 const BY_WORD = new Map<string, VocabEntry>();

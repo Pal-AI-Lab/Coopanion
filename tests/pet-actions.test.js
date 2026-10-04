@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createPet, EXPRESSIONS, FACES, figure, MOTIONS, STAND, defaultSkin } from '../packages/cortico-world-desktop-pet/web/pet-core.js';
+import { createPet, createSfx, EXPRESSIONS, FACES, figure, MOTIONS, SOUND_KINDS, STAND, defaultSkin } from '../packages/cortico-world-desktop-pet/web/pet-core.js';
 import { VOCAB } from '../packages/cortico-world-desktop-pet/src/script.ts';
 
 /** A pet with no page under it: the elements and the sound only take calls. */
@@ -39,7 +39,7 @@ describe('the words the model can use', () => {
   });
 
   it('a motion that stops an ordered walk reports the walk as interrupted', () => {
-    for (const m of ['bow', 'turn', 'spin']) {
+    for (const m of ['bow', 'turn', 'spin', 'flinch', 'peek']) {
       const events = [];
       const pet = barePet((kind, d) => events.push([kind, d.walkId]));
       run(pet, 1);
@@ -48,6 +48,33 @@ describe('the words the model can use', () => {
       pet.act(m);
       expect(events, m).toContainEqual(['interrupted', 'w1']);
     }
+  });
+
+  it('a walk that starts during a flinch is not pulled back to where the flinch stopped', () => {
+    const events = [];
+    const pet = barePet((kind, d) => events.push([kind, d.x]));
+    run(pet, 1);
+    pet.act('flinch');
+    run(pet, .1);
+    pet.walkTo(pet.pet.x + 30, false, 'w1');
+    run(pet, 1.5);
+    const arrived = events.find(e => e[0] === 'arrived');
+    expect(arrived).toBeTruthy();
+    expect(Math.abs(pet.pet.x - arrived[1])).toBeLessThan(1);
+  });
+
+  it('each motion sound can be silenced with the motion kind', () => {
+    for (const n of ['look', 'peek', 'flinch', 'shiver', 'dance']) expect(SOUND_KINDS.move, n).toContain(n);
+    // look and peek borrow the 'hmm' tone, which belongs to no kind: watch it to see whether they played
+    const played = [];
+    const sfx = createSfx({ storageKey: 'test.sfx' });
+    sfx.hmm = () => played.push('hmm');
+    sfx.configure({ kinds: { move: false } });
+    sfx.look(); sfx.peek();
+    expect(played).toEqual([]);
+    sfx.configure({ kinds: { move: true } });
+    sfx.look(); sfx.peek();
+    expect(played).toEqual(['hmm', 'hmm']);
   });
 
   it('a figure that draws a gesture itself takes it whole from the frame, and the body leaves it out', () => {
@@ -62,5 +89,22 @@ describe('the words the model can use', () => {
     expect(Math.abs(o.lean)).toBeLessThan(.01);
     run(pet, 1);
     expect(frames.at(-1).gesture).toBeNull();
+  });
+
+  it("a figure that names no glint spots gets its glints by its own bubble, not at Coo's head", () => {
+    const glintY = anchors => {
+      const fxG = { setAttribute() {}, innerHTML: '' }, el = () => ({ setAttribute() {}, innerHTML: '' });
+      const pet = createPet({ petG: el(), shadowEl: el(), fxG }, { sfx: new Proxy({}, { get: () => () => {} }), roam: 'off', bounds: () => ({ W: 1200, H: 400, floorY: 380, S: .42 }) });
+      pet.resize();
+      pet.setFigure({ anchors, draw() {} });
+      run(pet, 1);
+      pet.setExpr('happy');
+      run(pet, .2);
+      const ys = [...fxG.innerHTML.matchAll(/stroke="#e0a100"[^>]*translate\([-\d.]+ ([-\d.]+)\)/g)].map(m => +m[1]);
+      expect(ys.length).toBeGreaterThan(0);
+      return Math.min(...ys);
+    };
+    // a short body whose head (and bubble) sits far below Coo's ring top
+    expect(glintY({ bubble: [128, 170] })).toBeGreaterThan(glintY({ bubble: [128, 170], glints: [[50, 30], [210, 30]] }) + 40);
   });
 });
