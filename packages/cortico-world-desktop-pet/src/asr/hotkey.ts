@@ -82,6 +82,20 @@ export function hotkeyLabel(hotkey: string, platform: NodeJS.Platform = process.
   return taps > 1 ? `${TAP_WORDS[taps]} ${keys}` : keys;
 }
 
+const SHORT: Record<string, string> = {
+  Space: 'Spc', CapsLock: 'Caps', Backquote: '`', Insert: 'Ins', Delete: 'Del', PageUp: 'PgUp', PageDown: 'PgDn', ScrollLock: 'ScrLk',
+  Mouse3: 'M3', Mouse4: 'M4', Mouse5: 'M5',
+};
+const MAC_SHORT: Record<string, string> = { ...SHORT, Alt: 'Opt', Win: 'Cmd' };
+
+/** `hotkey` in a few letters for the pet's microphone button: `Alt×2` for `LeftAlt*2`, sides dropped. */
+export function hotkeyBadge(hotkey: string, platform: NodeJS.Platform = process.platform): string {
+  const short = platform === 'darwin' ? MAC_SHORT : SHORT;
+  const { combo, taps } = splitTaps(hotkey);
+  const keys = combo.split('+').map((k) => { const n = k.trim().replace(/^(Left|Right)/, ''); return short[n] ?? n; }).join('+');
+  return taps > 1 ? `${keys}×${taps}` : keys;
+}
+
 /**
  * macOS key codes (kVK_*) for the Windows virtual-key codes `parseHotkey` gives; a code listed
  * with several keys is down when any of them is. Mouse buttons are CGMouseButton numbers, apart.

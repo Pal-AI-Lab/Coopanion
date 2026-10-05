@@ -31,7 +31,8 @@ interface VoiceState {
     deviceId: string;
     /** `always` while the talk key cannot be read */
     effectiveMode: MicMode;
-    hotkeyLabel: string;
+    /** The keys alone; how they are pressed is the press choice beside them */
+    keyLabel: string;
     hint: string;
     hotkeyProblem: string | null;
     open: boolean;
@@ -45,7 +46,7 @@ interface VoiceState {
 
 type MicMode = 'hold' | 'toggle' | 'always';
 type Engine = 'funasr' | 'system';
-const MODES: Record<MicMode, string> = { hold: '按住说话键时收音', toggle: '按一下说话键开始,再按一下停', always: '一直收音' };
+const MODES: Record<MicMode, string> = { hold: '按住说话键时收音', toggle: '用说话键开关收音', always: '一直收音' };
 
 /** `KeyboardEvent.code` → the key names `src/asr/hotkey.ts` reads. */
 const CODE_KEYS: Record<string, string> = {
@@ -57,10 +58,18 @@ const CODE_KEYS: Record<string, string> = {
 const keyOfCode = (code: string): string | null =>
   CODE_KEYS[code] ?? (/^Key[A-Z]$/.test(code) ? code.slice(3) : /^Digit\d$/.test(code) ? code.slice(5) : /^F\d{1,2}$/.test(code) ? code : null);
 
-/** Longest pause between two presses of one key that still makes them one talk key (`TAP_GAP_MS` in src/asr/hotkey.ts). */
-const TAP_GAP_MS = 400;
-/** Most presses a talk key takes (`*3`). */
-const MAX_TAPS = 3;
+/** How the talk key is pressed, by presses (`*2` in src/asr/hotkey.ts), worded for hold and for toggle; the default first. */
+const PRESSES: Record<number, Record<'hold' | 'toggle', string>> = {
+  2: { hold: '双击再按住', toggle: '双击开始,再双击停' },
+  1: { hold: '直接按住', toggle: '按一下开始,再按一下停' },
+  3: { hold: '三击再按住', toggle: '三击开始,再三击停' },
+};
+/** The keys and the press count of a hotkey, as `splitTaps` in src/asr/hotkey.ts reads it. */
+const splitTaps = (hotkey: string): { combo: string; taps: number } => {
+  const m = /^(.*?)\s*\*\s*([1-3])$/.exec(hotkey.trim());
+  return m ? { combo: m[1]!, taps: Number(m[2]) } : { combo: hotkey.trim(), taps: 1 };
+};
+const withTaps = (combo: string, taps: number) => (taps > 1 ? `${combo}*${taps}` : combo);
 
 const MB = (n: number) => `${Math.round(n / 1048576)} MB`;
 const progress = (a: Artifact) => (a.total ? `${Math.round((a.done / a.total) * 100)}%` : MB(a.done));
@@ -192,8 +201,9 @@ const voicePanel: ConsolePanel = {
     const modeRow = statusRow(ctx, '收音方式');
     const modeSel = ui.select();
     modeSel.replaceChildren(...(Object.keys(MODES) as MicMode[]).map((m) => { const o = ui.h('option', null, MODES[m]); o.value = m; return o; }));
+    const pressSel = ui.select();
     const keyBtn = ui.button('', { size: 'sm' });
-    modeRow.acts.append(modeSel, keyBtn);
+    modeRow.acts.append(modeSel, pressSel, keyBtn);
 
     const meter = ui.h('div', 'pet-meter');
     const fill = ui.h('div', 'pet-meterfill');
@@ -255,8 +265,17 @@ const voicePanel: ConsolePanel = {
       }
       if (document.activeElement !== deviceSel) deviceSel.value = input.deviceId;
       if (document.activeElement !== modeSel) modeSel.value = input.mode;
-      if (!capturing) keyBtn.textContent = `说话键:${input.hotkeyLabel}`;
-      keyBtn.hidden = input.mode === 'always';
+      // a talk key set to three presses in config.json keeps its choice; the panel offers two or one
+      const { taps } = splitTaps(input.hotkey);
+      const press = input.mode === 'toggle' ? 'toggle' : 'hold';
+      const presses = Object.keys(PRESSES).map(Number).filter((n) => n < 3 || n === taps).map((n) => [n, PRESSES[n]![press]] as const);
+      if (pressSel.dataset.list !== JSON.stringify(presses)) {
+        pressSel.dataset.list = JSON.stringify(presses);
+        pressSel.replaceChildren(...presses.map(([n, label]) => { const o = ui.h('option', null, label); o.value = String(n); return o; }));
+      }
+      if (document.activeElement !== pressSel) pressSel.value = String(taps);
+      if (!capturing) keyBtn.textContent = `说话键:${input.keyLabel}`;
+      keyBtn.hidden = pressSel.hidden = input.mode === 'always';
       modeRow.set(input.open ? '正在收音' : '等说话键', input.open ? 'on' : 'off', input.hotkeyProblem ? `${input.hotkeyProblem},改为一直收音` : input.hint);
       // the loudness threshold only decides where speech starts when the key is not held down
       mark.hidden = input.effectiveMode === 'hold';
@@ -278,44 +297,31 @@ const voicePanel: ConsolePanel = {
     btnInstall.addEventListener('click', call('install'));
     modeSel.addEventListener('change', () => void call('setMic', [{ mode: modeSel.value }])());
     deviceSel.addEventListener('change', () => void call('setMic', [{ deviceId: deviceSel.value }])());
+    pressSel.addEventListener('change', () => {
+      if (st) void call('setMic', [{ hotkey: withTaps(splitTaps(st.input.hotkey).combo, Number(pressSel.value)) }])();
+    });
 
-    // The talk key is every key down until the first release. Pressed again within TAP_GAP_MS it
-    // becomes a key tapped first and then held (`LeftAlt*2`); the capture ends once the pause passes.
+    // The talk key is every key down until the first release; how it is pressed (`*2`) stays as chosen beside it.
     let capturing = false;
     const held: string[] = [];
-    let combo = '', taps = 0, gapTimer: ReturnType<typeof setTimeout> | undefined;
-    const finishCapture = (hotkey: string | null) => {
-      clearTimeout(gapTimer);
+    const finishCapture = (combo: string | null) => {
       capturing = false;
       held.length = 0;
-      combo = ''; taps = 0;
       window.removeEventListener('keydown', onKeyDown, true);
       window.removeEventListener('keyup', onKeyUp, true);
       window.removeEventListener('pointerdown', onPointer, true);
-      if (hotkey) void call('setMic', [{ hotkey }])();
+      if (combo && st) void call('setMic', [{ hotkey: withTaps(combo, splitTaps(st.input.hotkey).taps) }])();
       else void refresh();
     };
     const onKeyDown = (e: KeyboardEvent) => {
       e.preventDefault(); e.stopPropagation();
       if (e.code === 'Escape') { finishCapture(null); return; }
       const k = keyOfCode(e.code);
-      if (!k) return;
-      clearTimeout(gapTimer);
-      // another key after a pause for a second press: the capture starts over with it
-      if (combo && !held.length && !combo.split('+').includes(k)) { combo = ''; taps = 0; }
-      if (!held.includes(k)) held.push(k);
+      if (k && !held.includes(k)) held.push(k);
     };
     const onKeyUp = (e: KeyboardEvent) => {
       e.preventDefault(); e.stopPropagation();
-      if (!held.length) return;
-      const pressed = held.join('+');
-      held.length = 0;
-      taps = pressed === combo ? taps + 1 : 1;
-      combo = pressed;
-      const hotkey = taps > 1 ? `${combo}*${taps}` : combo;
-      if (taps >= MAX_TAPS) { finishCapture(hotkey); return; }
-      keyBtn.textContent = `${hotkey}…(再按一下就是连按)`;
-      gapTimer = setTimeout(() => finishCapture(hotkey), TAP_GAP_MS);
+      if (held.length) finishCapture(held.join('+'));
     };
     const onPointer = (e: PointerEvent) => {
       const k = ({ 1: 'Mouse3', 3: 'Mouse4', 4: 'Mouse5' } as Record<number, string>)[e.button];
@@ -326,7 +332,7 @@ const voicePanel: ConsolePanel = {
     keyBtn.addEventListener('click', () => {
       if (capturing) { finishCapture(null); return; }
       capturing = true;
-      keyBtn.textContent = '按下新的说话键,可以是组合键或连按两下…(Esc 取消)';
+      keyBtn.textContent = '按下新的说话键,可以是组合键或鼠标侧键…(Esc 取消)';
       window.addEventListener('keydown', onKeyDown, true);
       window.addEventListener('keyup', onKeyUp, true);
       window.addEventListener('pointerdown', onPointer, true);

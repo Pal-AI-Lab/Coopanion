@@ -62,7 +62,10 @@ async function showFigure(s) {
   const fig = await whale;
   if (wanted !== 'whale') return;
   await fig.setScheme(s.scheme, { fade: ctl.figure === fig ? .4 : 0, at: ctl.time });
-  ctl.setFigure(fig);
+  // mounting her takes a WebGL context, which a machine without usable GL (a blocklisted GPU and no
+  // software fallback) refuses: preview the built-in Coo instead of leaving a body that throws every
+  // frame it is drawn
+  try { ctl.setFigure(fig); } catch (err) { console.error(err); ctl.setFigure(null); }
 }
 
 function apply(next, persist) {
@@ -179,9 +182,18 @@ connect();
 apply(skin, false);
 
 let last = performance.now();
+/** The last error the frame loop logged, so one that keeps recurring is reported once, not per frame. */
+let frameErr = null;
 function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now;
-  ctl.step(dt); ctl.render();
+  try {
+    ctl.step(dt); ctl.render();
+  } catch (err) {
+    // a throwing step must not take the loop with it: the next frame is only asked for below, and
+    // without it the preview freezes for good (a broken figure throws again on every frame it draws)
+    const msg = err?.message ?? String(err);
+    if (msg !== frameErr) { frameErr = msg; console.error(err); }
+  }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

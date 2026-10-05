@@ -31,7 +31,7 @@ import { RuntimeStore, type ModelSpec } from './runtime/store.ts';
 import { FunAsrRecognizer, type FunAsrState, type SherpaModule } from './asr/funasr.ts';
 import { SystemRecognizer, systemRecognizerSupported, type SystemRecognizerState, type SystemSentence } from './asr/system-recognizer.ts';
 import { Packer, Segmenter, rmsDb, type SegmentConfig, type SegmentSink, type Utterance } from './asr/segmenter.ts';
-import { comboLabel, hotkeyLabel, parseHotkey, splitTaps, watchHotkey, type KeyWatcher } from './asr/hotkey.ts';
+import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, watchHotkey, type KeyWatcher } from './asr/hotkey.ts';
 import { joinSpeech, looksHallucinated } from './asr/result.ts';
 import { toSimplified } from './asr/simplify.ts';
 import { estimateSeconds, parseActions, parseScript, vocabTable } from './script.ts';
@@ -418,6 +418,7 @@ export class DesktopPetWorld implements World {
       detail: ready ? null : b?.phase === 'starting' ? '识别服务启动中' : b?.detail ?? '识别服务没有运行',
       hint: this.talkHint(),
       mode: this.micMode(),
+      key: hotkeyBadge(this.cfg.asr.mic.hotkey),
     };
   }
 

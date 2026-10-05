@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_HOTKEY, TAP_GAP_MS, TAP_MAX_MS, hotkeyLabel, macReadable, parseHotkey, tapTracker } from '../src/asr/hotkey.ts';
+import { DEFAULT_HOTKEY, TAP_GAP_MS, TAP_MAX_MS, hotkeyBadge, hotkeyLabel, macReadable, parseHotkey, tapTracker } from '../src/asr/hotkey.ts';
 
 describe('parseHotkey', () => {
   it('reads modifiers, letters, digits, function keys and mouse side buttons', () => {
@@ -33,6 +33,13 @@ describe('hotkeyLabel', () => {
     expect(hotkeyLabel('Win+Space', 'darwin')).toBe('Command + Space');
     expect(hotkeyLabel('LeftAlt*2', 'win32')).toBe('双击 左 Alt');
     expect(hotkeyLabel('LeftAlt*2', 'darwin')).toBe('双击 左 Option');
+  });
+
+  it('shortens the key for the microphone badge, sides dropped', () => {
+    expect(hotkeyBadge('LeftAlt*2', 'win32')).toBe('Alt×2');
+    expect(hotkeyBadge('LeftAlt*2', 'darwin')).toBe('Opt×2');
+    expect(hotkeyBadge('RightCtrl+Space', 'win32')).toBe('Ctrl+Spc');
+    expect(hotkeyBadge('Mouse4', 'win32')).toBe('M4');
   });
 });
 
