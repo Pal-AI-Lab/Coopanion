@@ -4,8 +4,9 @@
  * Run as `electron electron-main.cjs --pet-url=http://127.0.0.1:<port>/pet`, or call
  * `runPetHost({ url, parentPid })` from an app's own main process. With `--parent-pid=<pid>`
  * the window closes once that process exits. The window covers the work area of one display
- * (the primary one at start), is transparent and always on top, and ignores the mouse until the
- * page reports the pointer is over the figure, a bubble or the menu. When the pet is carried onto
+ * (the primary one at start), short of the edge an auto-hidden taskbar waits on, is transparent
+ * and always on top, and ignores the mouse until the page reports the pointer is over the figure,
+ * a bubble or the menu. When the pet is carried onto
  * another display, the window moves to that display mid-drag; when its display is unplugged, it
  * moves to the primary one. A tray icon shows, hides and closes it; an embedding app that has its
  * own tray passes `tray: false`.
@@ -85,6 +86,54 @@ const foreground = (() => {
     return null;
   }
 })();
+
+/**
+ * The screen edge the taskbar waits on while it hides itself ('left', 'top', 'right' or
+ * 'bottom'), or null when it does not hide. Every display's taskbar shares the primary one's edge
+ * and auto-hide setting. Always null off Windows or when koffi does not load.
+ */
+const autoHideTaskbarEdge = (() => {
+  if (process.platform !== 'win32') return () => null;
+  try {
+    const koffi = require('koffi');
+    const shell32 = koffi.load('shell32.dll');
+    const RECT = koffi.struct('RECT', { left: 'int32_t', top: 'int32_t', right: 'int32_t', bottom: 'int32_t' });
+    const APPBARDATA = koffi.struct('APPBARDATA', { cbSize: 'uint32_t', hWnd: 'void *', uCallbackMessage: 'uint32_t', uEdge: 'uint32_t', rc: RECT, lParam: 'intptr_t' });
+    const SHAppBarMessage = shell32.func('uintptr_t __stdcall SHAppBarMessage(uint32_t msg, _Inout_ APPBARDATA *data)');
+    const ABM_GETSTATE = 4, ABM_GETTASKBARPOS = 5, ABS_AUTOHIDE = 1;
+    const data = () => ({ cbSize: koffi.sizeof(APPBARDATA), hWnd: null, uCallbackMessage: 0, uEdge: 0, rc: { left: 0, top: 0, right: 0, bottom: 0 }, lParam: 0 });
+    return () => {
+      if (!(Number(SHAppBarMessage(ABM_GETSTATE, data())) & ABS_AUTOHIDE)) return null;
+      const pos = data();
+      if (!SHAppBarMessage(ABM_GETTASKBARPOS, pos)) return null;
+      return ['left', 'top', 'right', 'bottom'][pos.uEdge] ?? null;
+    };
+  } catch {
+    return () => null;
+  }
+})();
+
+/**
+ * DIP the window keeps off the display edge an auto-hidden taskbar waits on. Windows treats a
+ * window covering a whole display as a full-screen app and keeps the taskbar from showing over it;
+ * Chromium leaves 2 physical pixels on that edge of a maximized window for this. The display's
+ * size in DIP is rounded and Electron rounds a window's far edge outward to whole pixels, so a gap
+ * of g DIP comes out as at least (g − ½) × scale pixels rounded down: 3 DIP leaves 2 pixels from
+ * 100% up, 2 DIP can leave 1 at 125%.
+ */
+const AUTOHIDE_TASKBAR_GAP = 3;
+
+/** The part of display `d` the window covers: its work area, off the edge an auto-hidden taskbar waits on. */
+function coverArea(d) {
+  let { x, y, width, height } = d.workArea;
+  const b = d.bounds, edge = autoHideTaskbarEdge(), gap = AUTOHIDE_TASKBAR_GAP;
+  // only where the work area reaches that edge of the display
+  if (edge === 'left' && x === b.x) { x += gap; width -= gap; }
+  if (edge === 'top' && y === b.y) { y += gap; height -= gap; }
+  if (edge === 'right' && x + width === b.x + b.width) width -= gap;
+  if (edge === 'bottom' && y + height === b.y + b.height) height -= gap;
+  return { x, y, width, height };
+}
 
 /** A window's HWND as a BigInt. */
 function hwndOf(win) {
@@ -173,20 +222,22 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   /** The display the window belongs on: the one it was moved to, or the primary display once that one is gone. */
   const display = () => screen.getAllDisplays().find((d) => d.id === displayId) ?? screen.getPrimaryDisplay();
 
+  /** Moves the window over display `d`; returns the area it now covers. */
   const cover = (d) => {
     displayId = d.id;
-    const { x, y, width, height } = d.workArea;
-    win.setBounds({ x, y, width, height });
+    const area = coverArea(d);
+    win.setBounds(area);
     // Windows: a window moved onto a display with another scale factor is resized by the DPI
     // change to its old size times the ratio of the two scales; once it is on the new display, the
     // same bounds set again hold.
-    win.setBounds({ x, y, width, height });
+    win.setBounds(area);
+    return area;
   };
 
   const place = () => { if (win) cover(display()); };
 
   const create = () => {
-    const d = display(), wa = d.workArea;
+    const d = display(), wa = coverArea(d);
     win = new BrowserWindow({
       x: wa.x, y: wa.y, width: wa.width, height: wa.height,
       transparent: true, frame: false, resizable: false, movable: false, minimizable: false, maximizable: false,
@@ -276,11 +327,10 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   ipcMain.handle('pet:followCursor', () => {
     if (!win) return null;
     const pt = screen.getCursorScreenPoint(), d = screen.getDisplayNearestPoint(pt);
-    const from = display();
-    if (d.id === from.id) return null;
-    cover(d);
-    const wa = d.workArea;
-    return { x: pt.x - wa.x, y: pt.y - wa.y, w: wa.width, h: wa.height, dx: from.workArea.x - wa.x, dy: from.workArea.y - wa.y };
+    const fromDisplay = display();
+    if (d.id === fromDisplay.id) return null;
+    const from = coverArea(fromDisplay), wa = cover(d);
+    return { x: pt.x - wa.x, y: pt.y - wa.y, w: wa.width, h: wa.height, dx: from.x - wa.x, dy: from.y - wa.y };
   });
 
   // a pet is not an app to switch to
