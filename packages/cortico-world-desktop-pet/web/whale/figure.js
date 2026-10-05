@@ -679,9 +679,9 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     get painted() { return decoded || Promise.resolve(); },
     get colors() { return { z: accent() }; },
     schemes: SCHEMES,
-    // points pet-core uses: eye tracking, tears, sleep z's, hearts [x from, x to, y], bubble
+    // points pet-core uses: eye tracking, a tear and one under each eye (where the streams run), sleep z's, hearts [x from, x to, y], bubble
     anchors: {
-      gaze: [U(745), V(690)], tear: [U(640), V(752)], z: [196, 44],
+      gaze: [U(745), V(690)], tear: [U(640), V(752)], tears: [[U(654), V(752)], [U(852), V(750)]], z: [196, 44],
       hearts: [96, 176, 62], bubble: [128, 18],
     },
     model,

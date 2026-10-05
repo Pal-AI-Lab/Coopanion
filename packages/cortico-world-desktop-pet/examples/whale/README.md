@@ -53,7 +53,7 @@ pet-core 为 Coo 设计的整组倾斜（倾听、点头、打瞌睡、晕乎乎
 
 `createPet` 的 `opts.figure` 接一个 `{ draw(petG, face, frame), anchors }`：给了它就不再往 `petG` 写内置的 Coo，
 `frame` 在原有字段之外多带表情名、模式、模式时长、说话幅度、困意、坐下程度和朝向。
-`anchors` 可覆盖视线原点、泪滴、睡眠 z、爱心和气泡的位置。`figure.groupTilt(mode, tilt, lean)` 决定整组转多少度，
+`anchors` 可覆盖视线原点、泪滴（`tears` 是大哭时两只眼睛下各自的起点，没给就只从 `tear` 一处冒）、睡眠 z、爱心和气泡的位置。`figure.groupTilt(mode, tilt, lean)` 决定整组转多少度，
 `frame` 带上 `tilt`、`lean`、`groupRot` 让模型自己处理剩下的部分；`figure.colors.z` 给睡眠 z 和跳舞的音符上色（否则用 Coo 的眼睛色）。
 `frame.gesture` 是正在做的短手势 `{ kind, k }`（`k` 从 0 到 1，没有时为 `null`）；`figure.gestures` 列出模型自己画的手势，
 列在里面的手势 pet-core 不再给整组加倾斜。

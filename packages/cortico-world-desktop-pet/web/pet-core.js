@@ -595,14 +595,15 @@ export function createPet(els, opts) {
     turnAcc: 0, dx: 0, dy: 0, jumpV: 700, jumpVx: 0, xf: null, blushK: 0,
     eyeSig: '', eyeCur: null, eyePrev: null, eyeDims: [[16, 16, 0, 0], [16, 16, 0, 0]], swapAge: 9,
     glance: [0, 0], glanceAt: 0, swing: 0, swingV: 0, prevA: null, velX: 0, talkK: 0, sfxAt: 0, skid: false, cue: 0,
-    pulse: null, walkId: 0, listening: false, thinking: false, placed: false, noteAt: 0,
+    pulse: null, walkId: 0, listening: false, thinking: false, placed: false, noteAt: 0, tearN: 0,
   };
   const pointer = { x: -1e4, y: -1e4, inside: false, vx: 0, samples: [] };
   let press = null, strokeAcc = 0, petCool = 0;
   const P = [];
 
-  // points on the body in logo units: where the eyes look from, where tears, z's and hearts start, the bubble's spot
-  const COO_ANCHORS = { gaze: [140, 117], tear: [166, 136], z: [196, 40], hearts: [90, 175, 34], bubble: [146, 0] };
+  // points on the body in logo units: where the eyes look from, where a tear starts (and under each eye, for crying),
+  // where z's and hearts start, the bubble's spot
+  const COO_ANCHORS = { gaze: [140, 117], tear: [166, 136], tears: [[116, 136], [166, 136]], z: [196, 40], hearts: [90, 175, 34], bubble: [146, 0] };
   let A = { ...COO_ANCHORS, ...custom?.anchors };
   const minX = () => 104 * S + 8, maxX = () => W - 104 * S - 8;
 
@@ -992,7 +993,11 @@ export function createPet(els, opts) {
       if (fc.emit === 'heart') { emitHeart(); pet.emitAt = T + .45; }
       if (fc.emit === 'z') { emit('z', toStage(A.z[0], A.z[1] + pet.low), { vx: pet.facing * 16, vy: -26, life: 2.4 }); pet.emitAt = T + 1.3; sfx.snore(pet.modeT); }
       if (fc.emit === 'tear') { emit('drop', toStage(A.tear[0] + pet.look[0], A.tear[1] + pet.low), { vx: pet.facing * rnd(10, 30), vy: -20, life: 3 }); pet.emitAt = T + .8; }
-      if (fc.emit === 'tears') { emit('drop', toStage(A.tear[0] + pet.look[0] + rnd(-6, 6), A.tear[1] + pet.low), { vx: pet.facing * rnd(-20, 50), vy: rnd(-60, -20), life: 3 }); pet.emitAt = T + .22; }
+      if (fc.emit === 'tears') {
+        // both eyes cry, taking turns; a figure that names only its one tear spot cries from there
+        const eyes = custom && !custom.anchors?.tears ? [A.tear] : A.tears, [ex, ey] = eyes[pet.tearN++ % eyes.length];
+        emit('drop', toStage(ex + pet.look[0] + rnd(-6, 6), ey + pet.low), { vx: pet.facing * rnd(-20, 50), vy: rnd(-60, -20), life: 3 }); pet.emitAt = T + .22;
+      }
     }
     strokeAcc *= Math.exp(-dt * 1.5);
     petCool -= dt;
