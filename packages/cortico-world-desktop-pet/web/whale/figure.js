@@ -484,7 +484,7 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     wagAmp = lerp(wagAmp, wg, ease(3, dt));
     tailMood = lerp(tailMood, mode === 'sleep' || face === 'sad' || face === 'cry' || face === 'scared' ? -1 : 0, ease(3, dt));
     // fast flutters go on after the springs, which would smooth them away
-    const fins = sp.fins.step(finMood * 14 + sway * 10 + (face === 'angry' ? 3 * Math.sin(t * 40) : 0), dt) + flap * 13 * Math.sin(t * 26);
+    const fins = sp.fins.step(finMood * 14 + sway * 10, dt) + (face === 'angry' ? 2.5 * Math.sin(t * 40) : 0) + flap * 13 * Math.sin(t * 26);
     const ahoge = sp.ahoge.step(-tiltVel * .12 - yawVel * .5 + sway * 18 + (face === 'surprised' ? -16 : 0) + (face === 'confused' ? 20 : 0) + (mode === 'sleep' ? 22 : 0) - hairY * 12, dt)
       + flap * 12 * Math.sin(t * 19);
     const tail = sp.tail.step(sway * 14 + tailMood * 12, dt) + wagAmp * 13 * Math.sin(t * (4 + 5 * wagAmp)) + Math.sin(t * 1.3) * 3
