@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createPet, EXPRESSIONS, FACES, figure, MOTIONS, STAND, defaultSkin } from '../packages/cortico-world-desktop-pet/web/pet-core.js';
+import { createPet, createSfx, EXPRESSIONS, FACES, figure, MOTIONS, STAND, defaultSkin } from '../packages/cortico-world-desktop-pet/web/pet-core.js';
 import { VOCAB } from '../packages/cortico-world-desktop-pet/src/script.ts';
 
 /** A pet with no page under it: the elements and the sound only take calls. */
@@ -48,6 +48,19 @@ describe('the words the model can use', () => {
       pet.act(m);
       expect(events, m).toContainEqual(['interrupted', 'w1']);
     }
+  });
+
+  it('looking about is silenced with the motion sounds', () => {
+    // look borrows the 'hmm' tone, which belongs to no kind: watch it to see whether look played
+    const played = [];
+    const sfx = createSfx({ storageKey: 'test.sfx' });
+    sfx.hmm = () => played.push('hmm');
+    sfx.configure({ kinds: { move: false } });
+    sfx.look();
+    expect(played).toEqual([]);
+    sfx.configure({ kinds: { move: true } });
+    sfx.look();
+    expect(played).toEqual(['hmm']);
   });
 
   it('a figure that draws a gesture itself takes it whole from the frame, and the body leaves it out', () => {

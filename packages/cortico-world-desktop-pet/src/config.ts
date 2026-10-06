@@ -179,7 +179,7 @@ export const DESKTOP_PET_SOUND_CONFIG_GROUP: ConfigGroup = {
     title: '音效',
     properties: {
       [`${K}.sound`]: { type: 'boolean', title: '音效总开关', description: '桌宠菜单里的音效按钮切的就是这个。', 'x-hot': true },
-      [`${K}.sounds.move`]: { type: 'boolean', title: '动作', description: '走路、跑、跳、落地、被甩出去、点头、摇头、转圈、晕。', 'x-hot': true },
+      [`${K}.sounds.move`]: { type: 'boolean', title: '动作', description: '走路、跑、跳、落地、被甩出去、点头、摇头、转圈、晕、发抖、跳舞、张望。', 'x-hot': true },
       [`${K}.sounds.touch`]: { type: 'boolean', title: '互动', description: '被拎起来、拎着晃、被摸、被戳。', 'x-hot': true },
       [`${K}.sounds.face`]: { type: 'boolean', title: '表情', description: '开心、眨眼、喜欢、惊讶、生气、难过、害羞、打哈欠。', 'x-hot': true },
       [`${K}.sounds.snore`]: { type: 'boolean', title: '打呼噜', 'x-hot': true },

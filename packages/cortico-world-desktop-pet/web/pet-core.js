@@ -418,7 +418,7 @@ export function applyTheme(theme, button) {
 /* ---------- sound: synthesized with Web Audio, no files ---------- */
 /** Which kind each sound belongs to; a kind can be silenced on its own (`sfx.configure`). */
 export const SOUND_KINDS = {
-  move: ['step', 'skid', 'jump', 'land', 'whoosh', 'chirps', 'shake', 'nod', 'spin', 'shiver', 'dance'],
+  move: ['step', 'skid', 'jump', 'land', 'whoosh', 'chirps', 'shake', 'nod', 'spin', 'shiver', 'dance', 'look'],
   touch: ['grab', 'squeak', 'purr', 'poke'],
   face: ['happy', 'wink', 'love', 'surprised', 'angry', 'sad', 'shy', 'yawn'],
   snore: ['snore'],
@@ -517,6 +517,8 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     purr() { tone({ type: 'sawtooth', f0: 62, f1: 58, dur: .9, vol: .08, vib: 6, vibRate: 24, filter: 320, attack: .1 }); },
     poke() { tone({ f0: 320, f1: 200, dur: .09, vol: .16 }); },
     shiver() { for (let i = 0; i < 8; i++) tone({ type: 'square', f0: 900, f1: 820, dur: .03, vol: .035, at: i * .07, filter: 2400 }); },
+    // looking about hums like the thinking 'hmm', but counts as a motion sound
+    look() { api.hmm(); },
     dance() { [523, 659, 784, 659, 880].forEach((fr, i) => tone({ type: 'triangle', f0: fr, dur: .13, vol: .09, at: i * .15 })); },
     nod() { tone({ type: 'triangle', f0: 520, f1: 440, dur: .07, vol: .08 }); tone({ type: 'triangle', f0: 520, f1: 440, dur: .07, vol: .08, at: .2 }); },
     spin() { tone({ type: 'triangle', f0: 300, f1: 1200, dur: .3, vol: .12, vib: 30, vibRate: 18 }); },
@@ -817,7 +819,7 @@ export function createPet(els, opts) {
         break;
       }
       case 'look': {
-        if (!pet.cue) { pet.cue = 1; sfx.hmm(); }
+        if (!pet.cue) { pet.cue = 1; sfx.look(); }
         if (mt < .9) lookT = [4, -4];
         else if (mt < 1.8) { if (!pet.turned) { pet.turned = true; pet.facing *= -1; } lookT = [5, 0]; }
         else if (mt < 2.6) lookT = [1, 4];
@@ -974,7 +976,8 @@ export function createPet(els, opts) {
     const AX = pet.mode === 'drag' ? pet.dx : pet.x;
     if (pet.prevA != null) pet.velX = lerp(pet.velX, (AX - pet.prevA) / dt, .25);
     pet.prevA = AX;
-    const swingT = clamp(-pet.velX * .06 * Math.sign(pet.faceVis || 1), -28, 28);
+    // dancing stays put but rocks: the rock swings what hangs off the body (ears, hair, skirt), as moving does
+    const swingT = clamp(-(pet.velX * .06 + (m === 'dance' ? pet.tiltV * .22 : 0)) * Math.sign(pet.faceVis || 1), -28, 28);
     pet.swingV += ((swingT - pet.swing) * 110 - pet.swingV * 7) * dt;
     pet.swing = clamp(pet.swing + pet.swingV * dt, -40, 40);
 

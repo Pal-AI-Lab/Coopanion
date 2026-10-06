@@ -96,9 +96,11 @@ svg.full{width:1920px; height:1080px; overflow:visible}
 
 /* bubbles (pet.css ×2.6) */
 .bubble{position:absolute; left:0; top:0; z-index:3; width:max-content; max-width:780px; padding:24px 36px; border-radius:46px; background:var(--surface); color:var(--text); border:6px solid var(--skin-ink); box-shadow:0 18px 44px var(--shadow); font-size:38px; line-height:1.55; transform-origin:var(--tail, 50%) calc(100% + 22px)}
-.bubble::after{content:""; position:absolute; left:calc(var(--tail, 50%) - 16px); bottom:-20px; width:28px; height:28px; background:var(--surface); border-right:6px solid var(--skin-ink); border-bottom:6px solid var(--skin-ink); border-bottom-right-radius:10px; transform:rotate(45deg)}
+.bubble::before, .bubble::after{content:""; position:absolute; left:calc(var(--tail, 50%) - 27.8px); bottom:-25.8px; width:51.6px; height:26.3px}
+.bubble::before{background:var(--skin-ink); clip-path:path('M0 0.5 L20.8 21.3 Q25.8 26.3 30.8 21.3 L51.6 0.5 Z')}
+.bubble::after{background:var(--surface); clip-path:path('M7.99 0 L22.4 14.42 Q25.8 17.82 29.2 14.42 L43.62 0 Z')}
 .bubble.heard{border-style:dashed; box-shadow:none}
-.bubble.heard::after{display:none}
+.bubble.heard::before, .bubble.heard::after{display:none}
 .bubble.ask{min-width:600px; padding-right:80px}
 .b-text{margin:0; min-height:1.55em; white-space:pre-wrap}
 .b-text .interim{color:var(--muted)}

@@ -65,13 +65,16 @@ body.desk .floor{display:none}
   font-size:14.5px; line-height:1.55; user-select:text; -webkit-user-select:text;
   transform-origin:var(--tail, 50%) calc(100% + 10px);
 }
-.bubble::after{
-  content:""; position:absolute; left:calc(var(--tail, 50%) - 7px); bottom:-8.5px; width:12px; height:12px;
-  background:var(--surface); border-right:2.5px solid var(--skin-ink); border-bottom:2.5px solid var(--skin-ink);
-  border-bottom-right-radius:4px; transform:rotate(45deg);
+/* tail: an outline triangle whose base reaches the border's inner edge, so its sides join the border,
+   and a surface triangle one line width inside it that opens the border between the sides. Neither
+   is rotated. y=0 is the padding edge, the border spans 0..2.5, the tip sits 8.5px past the border. */
+.bubble::before, .bubble::after{
+  content:""; position:absolute; left:calc(var(--tail, 50%) - 12px); bottom:-11px; width:22px; height:11.5px;
 }
+.bubble::before{background:var(--skin-ink); clip-path:path('M0 0.5 L8.9 9.4 Q11 11.5 13.1 9.4 L22 0.5 Z')}
+.bubble::after{background:var(--surface); clip-path:path('M3.04 0 L9.6 6.56 Q11 7.96 12.4 6.56 L18.96 0 Z')}
 .bubble.heard{border-style:dashed; box-shadow:none; max-width:min(260px, calc(100vw - 20px))}
-.bubble.heard::after{display:none}
+.bubble.heard::before, .bubble.heard::after{display:none}
 .bubble.ask{min-width:min(236px, calc(100vw - 20px)); padding-right:32px}
 .bubble.pop{animation:bubble-in .26s cubic-bezier(.3,1.5,.5,1)}
 @keyframes bubble-in{from{transform:scale(.5); opacity:0}}
