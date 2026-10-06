@@ -88,7 +88,10 @@ body.desk .floor{display:none}
 .b-own{display:flex; align-items:center; gap:6px; padding:3px 3px 3px 10px; border-radius:11px; border:1.5px dashed var(--line); background:var(--bg)}
 .b-own:focus-within, .b-own.chosen{border-style:solid; border-color:var(--skin-eye)}
 .b-own input{flex:1; min-width:0; border:0; background:transparent; font:inherit; font-size:14px; color:var(--text); outline:none; padding:4px 0}
-.b-own button{flex:none; font:inherit; font-size:12.5px; padding:4px 10px; border-radius:8px; border:0; background:var(--text); color:var(--surface); cursor:pointer}
+.b-own button[type="submit"]{flex:none; font:inherit; font-size:12.5px; padding:4px 10px; border-radius:8px; border:0; background:var(--text); color:var(--surface); cursor:pointer}
+.b-expand{flex:none; display:grid; place-items:center; width:26px; height:26px; padding:0; border:0; border-radius:50%; background:none; color:var(--muted); cursor:pointer}
+.b-expand:hover{color:var(--text)}
+.b-expand svg{width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
 .b-opt.dim, .b-own.dim{opacity:.35}
 /* an app's conversation: one step per bubble, with the answer's controls under Coo's line */
 .d-mark{color:var(--skin-eye); font-weight:700}

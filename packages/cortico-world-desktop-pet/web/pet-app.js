@@ -197,6 +197,8 @@ function onOrder(m) {
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
     case 'confirm': dropAsks(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
     case 'walk': walk(m); break;
+    case 'walk-stop': body?.stopWalk(m.id); break;
+    case 'ask-close': closeAsk(m.id); break;
     case 'act': acts.push(...m.actions); holdRoam(20); break;
     case 'listen': onListen(m); break;
     case 'thinking': setBody({ thinking: !!m.on }); break;
@@ -411,6 +413,11 @@ function answer(node, a) {
   body?.cue('cheer');
   setTimeout(() => { if (item === it) closeBubble(); }, 700);
 }
+/** The question was answered elsewhere (the chat page): it leaves the queue or the bubble without an answer from here. */
+function closeAsk(id) {
+  for (let i = queue.length - 1; i >= 0; i--) if (queue[i].kind === 'ask' && queue[i].id === id) queue.splice(i, 1);
+  if (item && item.kind === 'ask' && item.id === id && !item.answered) { item.answered = true; closeBubble(); }
+}
 function dismissAsk() {
   const it = item;
   if (!it || it.kind !== 'ask' || it.answered) return;
@@ -616,9 +623,17 @@ function openInput() {
   if (item && item.kind === 'ask' && !item.answered) return;
   if (item) closeBubble();
   item = { kind: 'input' };
-  openBubble('ask', '<button class="b-close" type="button" aria-label="关闭">×</button><form class="b-own"><input type="text" maxlength="500" autocomplete="off" placeholder="想说什么…" aria-label="打字说话"><button type="submit">发送</button></form>');
+  const expand = prefs.bot?.buttons?.chat
+    ? '<button class="b-expand" type="button" aria-label="在对话页继续写" title="在对话页继续写"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg></button>'
+    : '';
+  openBubble('ask', `<button class="b-close" type="button" aria-label="关闭">×</button><form class="b-own"><input type="text" maxlength="500" autocomplete="off" placeholder="想说什么…" aria-label="打字说话">${expand}<button type="submit">发送</button></form>`);
   const form = bubble.querySelector('form'), input = form.querySelector('input');
   bubble.querySelector('.b-close').addEventListener('click', () => closeBubble());
+  // the chat page takes longer text and images; the draft goes with it
+  bubble.querySelector('.b-expand')?.addEventListener('click', () => {
+    send({ t: 'expand', text: input.value });
+    closeBubble();
+  });
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const v = input.value.trim();

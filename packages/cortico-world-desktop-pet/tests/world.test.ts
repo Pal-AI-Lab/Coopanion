@@ -424,3 +424,63 @@ describe('with a pet page', () => {
     expect(res).toBe(421);
   });
 });
+
+/** A chat page connected to the World's `chat` stream: frames it got, and a way to send one. */
+function chatSocket(world: DesktopPetWorld) {
+  const frames: Array<Record<string, unknown>> = [];
+  let receive: (text: string) => void = () => {};
+  const socket = {
+    open: true,
+    send: (d: string) => { frames.push(JSON.parse(d) as Record<string, unknown>); },
+    close: () => {},
+    onMessage: (cb: (text: string) => void) => { receive = cb; },
+    onClose: () => {},
+  };
+  world.console().stream!('chat', socket);
+  return { frames, send: (m: Record<string, unknown>) => receive(JSON.stringify(m)), last: (t: string) => frames.filter((f) => f.t === t).at(-1) };
+}
+
+describe('chat page', () => {
+  it('a typed message waits on the page until delivered; a withdrawn one leaves the history, the pet\'s lines stay', async () => {
+    const { world, host } = await mounted(undefined, { botName: 'Coo' });
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const chat = chatSocket(world);
+
+    chat.send({ t: 'send', id: 1, text: '帮我看看这个报错' });
+    await expect.poll(() => chat.last('sent')).toMatchObject({ id: 1 });
+    const sent = host.events.at(-1)!;
+    expect(sent).toMatchObject({ type: 'desktop-pet.message', text: '[打字] 伙伴:帮我看看这个报错', meta: { via: 'chat' } });
+    expect(host.pushOpts.at(-1)).toEqual({ trigger: 'preempt' });
+    expect(chat.last('item')).toMatchObject({ pending: true, item: { kind: 'user', cursor: sent.cursor } });
+    world.onEventsSettled([sent], 'delivered');
+    await expect.poll(() => chat.last('settled')).toEqual({ t: 'settled', cursors: [sent.cursor], outcome: 'delivered' });
+
+    await tool(world, 'pet_say').handler({ script: '【开心】看到了' }, ctx);
+    chat.send({ t: 'send', id: 2, text: '算了不用了' });
+    await expect.poll(() => chat.last('sent')).toMatchObject({ id: 2 });
+    const second = chat.last('sent')!.cursor as number;
+    chat.send({ t: 'withdraw', cursor: second });
+    await expect.poll(() => chat.last('withdrawn')).toEqual({ t: 'withdrawn', cursor: second });
+    expect(host.withdrawn).toEqual([second]);
+
+    chat.send({ t: 'hello' });
+    await expect.poll(() => chat.last('init')).toBeDefined();
+    expect((chat.last('init')!.items as Array<Record<string, unknown>>).map((i) => i.kind === 'say' ? i.beats : i.text))
+      .toEqual(['帮我看看这个报错', [{ text: '看到了', mood: { id: 'happy', zh: '开心' } }]]);
+  });
+
+  it('an interrupt stops pet_walk_to where the pet stands', async () => {
+    const { world } = await mounted();
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    expect(tool(world, 'pet_walk_to').interruptible).toBe(true);
+    const stop = new AbortController();
+    const walking = tool(world, 'pet_walk_to').handler({ to: 'left' }, { ...ctx, signal: stop.signal });
+    const walk = await page.next((m) => m.t === 'walk');
+    stop.abort();
+    expect(await page.next((m) => m.t === 'walk-stop')).toMatchObject({ id: walk.id });
+    page.send({ t: 'interrupted', walkId: walk.id, x: .4, by: 'idle' });
+    expect(await walking).toEqual({ text: '走到屏幕横向 40% 处停下了。' });
+  });
+});

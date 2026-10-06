@@ -295,6 +295,11 @@ export function createPet(els, opts) {
     return true;
   }
 
+  /** Stops the walk `walkId` where the pet stands; it reports the walk 'interrupted'. A finished walk is left alone. */
+  function stopWalk(walkId) {
+    if ((pet.mode === 'walk' || pet.mode === 'run') && pet.walkId === walkId) setMode('idle');
+  }
+
   function faceName() {
     const m = pet.mode;
     if (m === 'drag') return 'dragged';
@@ -800,7 +805,7 @@ export function createPet(els, opts) {
   resize();
   custom?.setSkin?.(skin);
   return {
-    pet, step, render, resize, act, setExpr, doWord, walkTo, toStage, hitPet, busy, layout,
+    pet, step, render, resize, act, setExpr, doWord, walkTo, stopWalk, toStage, hitPet, busy, layout,
     pointerDown, pointerMove, pointerUp, pointerLeave, dropAt, shiftDrag,
     get pressing() { return !!press; },
     /** Pressed, carried, airborne, walking, running, dancing, turning round, or in a short gesture (nod, wave, bow…): motion that frames far apart show as jumps. */
@@ -854,7 +859,7 @@ const SVGNS = 'http://www.w3.org/2000/svg';
  * createPet's, with `figure` required; `opts.css` is more style for the frame's document (a figure's own
  * classes) and `opts.skinCss(skin)` the style that follows the skin.
  *
- * The body takes these calls from the page: step(dt), layout(), do(word), walk(x, run, id), pointer(type, p),
+ * The body takes these calls from the page: step(dt), layout(), do(word), walk(x, run, id), stopWalk(id), pointer(type, p),
  * drop(p), shift(dx, dy), place(x, facing), set({ roam, hold, dialogOpen, listening, thinking, skin, theme }),
  * cue(kind), talk(), setScheme(id, o), dispose().
  */
@@ -889,6 +894,7 @@ export function createBody(host, opts) {
     resize: ctl.resize,
     do: ctl.doWord,
     walk: (x, run, id) => ctl.walkTo(x, run, id),
+    stopWalk: (id) => ctl.stopWalk(id),
     pointer(type, p) {
       if (type === 'down') ctl.pointerDown(p);
       else if (type === 'move') ctl.pointerMove(p);

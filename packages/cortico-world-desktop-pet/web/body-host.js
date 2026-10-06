@@ -120,6 +120,7 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
       tick(dt) { if (ready) post({ t: 'tick', dt }); },
       do: (word) => post({ t: 'do', word }),
       walk: (x, run, id) => post({ t: 'walk', x, run, id }),
+      stopWalk: (id) => post({ t: 'stop-walk', id }),
       /** `type`: down, move, up, cancel, leave; `p` in stage pixels with `t` (ms). */
       pointer(type, p) { if (type !== 'leave') touches.input(performance.now()); post({ t: 'pointer', type, p }); },
       drop(p) { touches.input(performance.now()); post({ t: 'drop', p }); },
