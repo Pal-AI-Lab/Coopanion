@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -148,6 +148,24 @@ describe('with a pet page', () => {
     expect((await page.next((m) => m.t === 'act')).actions).toEqual(['jump', 'happy', 'sit']);
     expect(out.text).toContain('sit 会一直保持到下一个动作');
     expect(out.text).toContain('fly');
+  });
+
+  it('takes the words of the body on screen: a pack\'s own, and Coo\'s once the page says the pack would not run', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'packs-'));
+    mkdirSync(join(root, 'robot'));
+    writeFileSync(join(root, 'robot', 'figure.json'), JSON.stringify({
+      manifest: 2, api: 2, id: 'robot', name: { zh: '机器人' }, about: { zh: '一个机器人' }, entry: 'figure.js', export: 'createBody', axes: [], presets: [],
+      vocab: [{ id: 'beep', kind: 'motion', names: { zh: ['哔哔'] }, about: { zh: '哔一声' }, seconds: 1 }],
+    }));
+    const { world } = await mounted((c) => { c.skin.figure = 'robot'; }, { packRoots: () => [root] });
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const act = tool(world, 'pet_act').handler;
+    await act({ actions: ['哔哔', '坐下'] }, ctx);
+    expect((await page.next((m) => m.t === 'act')).actions).toEqual(['beep']);
+    page.send({ t: 'figure', id: 'robot', ok: false, reason: 'broken' });
+    await expect.poll(async () => (await act({ actions: ['坐下'] }, ctx) as { failed?: boolean }).failed).toBeUndefined();
+    expect((await page.next((m) => m.t === 'act')).actions).toEqual(['sit']);
   });
 
   it('merges repeated pokes into one touch event', async () => {

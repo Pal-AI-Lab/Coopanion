@@ -109,7 +109,7 @@ async function loadLabels(): Promise<Labels> {
   const labels: Labels = { palettes: {}, accessories: {} };
   const require = createRequire(import.meta.url);
   try {
-    const core = await import(pathToFileURL(require.resolve('cortico-world-desktop-pet/web/pet-core.js')).href) as {
+    const core = await import(pathToFileURL(require.resolve('cortico-world-desktop-pet/web/coo/coo.js')).href) as {
       PALETTES: Array<{ id: string; label: string }>;
       SLOT_LISTS: Record<string, Array<[string, string]>>;
     };

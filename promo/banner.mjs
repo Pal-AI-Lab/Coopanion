@@ -1,5 +1,5 @@
 /**
- * Draws a repository banner: the pet from pet-core beside a title in the promo's lettering, in a
+ * Draws a repository banner: Coo (web/coo/coo.js) beside a title in the promo's lettering, in a
  * light and a dark version for GitHub's <picture> switch.
  *
  *   node promo/banner.mjs <companion|desktop-pet|cua> <out-dir>   → <out-dir>/banner.svg, banner-dark.svg
@@ -7,7 +7,8 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { figure, FACES, STAND, normalizeSkin, wear } from '../packages/cortico-world-desktop-pet/web/pet-core.js';
+import { FACES, STAND } from '../packages/cortico-world-desktop-pet/web/kit/body.js';
+import { figure, normalizeSkin, wear } from '../packages/cortico-world-desktop-pet/web/coo/coo.js';
 import { lettering, LETTER_BOX } from './src/wordmark.js';
 
 // strokes at the Cortico banner's weight

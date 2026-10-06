@@ -1,23 +1,28 @@
 /**
- * Dressing page: the body (Coo or a figure pack, src/packs.ts); for Coo the palette, four accessory slots
- * and their color channels, for a pack a row per dress-up axis of its manifest; with a live preview.
+ * Dressing page: the body (a figure pack, src/packs.ts; Coo is one); for Coo the palette, four accessory slots
+ * and their color channels, for another pack a row per dress-up axis of its manifest; with a live preview
+ * of the body run as on the desktop (body-host.js).
  * Every change is saved through `POST /api/skin` (the dark/light switch through `POST /api/prefs`);
  * the World persists it and pushes it to the pet window. Changes made elsewhere arrive over
  * `/socket?role=dress`.
  */
+import { applyTheme } from './ui.js';
+import { createSfx } from './sound.js';
 import {
-  applyTheme, createPet, createSfx, mini, normalizeSkin, skinCss, wear,
+  COO_CSS, mini, normalizeSkin, skinCss, wear,
   PALETTES, HEADS, SIDES, GLASSES, NECKS, ACC_COLORS, LINKED, NO_BODY, ROLES,
-} from './pet-core.js';
-import { loadPackFigure } from './figure-sandbox.js';
+} from './coo/coo.js';
+import { loadBody } from './body-host.js';
 
 import { bindAppearance } from './appearance.js';
 bindAppearance(document, window);
 
 const $ = (s) => document.querySelector(s);
 
-const skinStyle = document.createElement('style');
-document.head.appendChild(skinStyle);
+// Coo's drawing classes for the tiles; the page's own colours follow Coo's palette
+const cooStyle = document.createElement('style'), skinStyle = document.createElement('style');
+cooStyle.textContent = COO_CSS;
+document.head.append(cooStyle, skinStyle);
 const sfx = createSfx({ storageKey: 'cortico-pet.dress-sound.v1', volume: .35 });
 ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => sfx.unlock(), { capture: true }));
 
@@ -26,23 +31,20 @@ let theme = document.documentElement.dataset.theme;
 const modeBtn = $('#mode');
 applyTheme(theme, modeBtn);
 const preview = $('#preview');
-const ctl = createPet(
-  { petG: $('#pet'), shadowEl: $('#shadow'), fxG: $('#fx') },
-  {
-    sfx, roam: 'calm', startX: preview.clientWidth / 2,
-    bounds: () => ({ W: preview.clientWidth, H: preview.clientHeight, floorY: preview.clientHeight - 30, S: .5 }),
-  },
-);
-new ResizeObserver(() => ctl.resize()).observe(preview);
-const local = (e) => { const r = preview.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
-preview.addEventListener('pointerdown', (e) => { if (ctl.pointerDown(local(e))) preview.setPointerCapture(e.pointerId); });
-preview.addEventListener('pointermove', (e) => { preview.style.cursor = ctl.pointerMove(local(e)); });
-preview.addEventListener('pointerup', () => ctl.pointerUp());
-preview.addEventListener('pointerleave', () => ctl.pointerLeave());
+const bounds = () => ({ W: preview.clientWidth, H: preview.clientHeight, floorY: preview.clientHeight - 30, S: .5 });
+/** The body in the preview (body-host.js), and the page's clock. */
+let body = null, T = 0;
+new ResizeObserver(() => body?.set({ bounds: bounds() })).observe(preview);
+const local = (e) => { const r = preview.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, t: e.timeStamp }; };
+preview.addEventListener('pointerdown', (e) => { const p = local(e); body?.pointer('down', p); if (body?.hit(p)) preview.setPointerCapture(e.pointerId); });
+preview.addEventListener('pointermove', (e) => body?.pointer('move', local(e)));
+preview.addEventListener('pointerup', (e) => body?.pointer('up', local(e)));
+preview.addEventListener('pointerleave', () => body?.pointer('leave', {}));
 
 modeBtn.addEventListener('click', () => {
   theme = theme === 'dark' ? 'light' : 'dark';
   applyTheme(theme, modeBtn);
+  body?.set({ theme });
   sfx.tick();
   save('/api/prefs', { theme });
 });
@@ -57,33 +59,50 @@ function save(path, body) {
 let packs = [];
 const loadPacks = () => fetch('/api/figures').then((r) => r.json()).then((list) => { packs = list; render(); }).catch(() => {});
 loadPacks();
-let wanted = 'coo', packBody = null;
+let wanted = null, loading = null;
 // a pack that will not load or breaks previews as Coo, as on the desktop
 function previewFailed(id, err) {
   console.error(err);
-  if (packBody?.id === id) packBody = null;
-  if (ctl.figure?.pack === id) ctl.setFigure(null);
+  if (id !== 'coo' && wanted === id) void showFigure({ ...skin, figure: 'coo' });
 }
 async function showFigure(s) {
   wanted = s.figure;
-  if (s.figure === 'coo') { packBody = null; ctl.setFigure(null); return; }
+  if (loading === s.figure) return;
   try {
-    if (packBody?.id === s.figure) { await packBody.fig.setScheme(s.scheme, { fade: .4, at: ctl.time }); return; }
+    if (body?.pack === s.figure) {
+      body.set({ skin: s });
+      if (s.figure !== 'coo') await body.setScheme(s.scheme, { fade: .4, at: T });
+      return;
+    }
+    loading = s.figure;
     const pack = packs.find((p) => p.id === s.figure) ?? (await (await fetch('/api/figures')).json()).find((p) => p.id === s.figure);
     if (!pack) throw new Error('没有装这个形象');
-    const fig = await loadPackFigure({ layer: $('#figureLayer'), pack, scheme: s.scheme, onError: (err) => previewFailed(s.figure, err) });
-    if (wanted !== s.figure) { fig.dispose(); return; }
-    await fig.setScheme(s.scheme, { fade: 0, at: ctl.time });
-    packBody = { id: s.figure, fig };
-    ctl.setFigure(fig);
+    const was = body?.layout;
+    const holder = {};
+    const next = await loadBody({
+      layer: $('#figureLayer'), pack, theme, bounds: bounds(),
+      start: { x: was?.x ?? preview.clientWidth / 2, facing: was?.facing, skin: s, scheme: s.scheme },
+      onEvent: () => {},
+      onSound: (name, kind, ...args) => { if (body === holder.body) sfx.play(name, kind, ...args); },
+      onError: (err) => { if (body === holder.body) previewFailed(pack.id, err); },
+    });
+    if (wanted !== s.figure) { next.dispose(); return; }
+    holder.body = next;
+    next.set({ roam: 'calm' });
+    body?.dispose();
+    body = next;
+    sfx.usePack(pack.base, pack.sounds);
   } catch (err) {
     previewFailed(s.figure, err);
+  } finally {
+    if (loading === s.figure) loading = null;
   }
+  // a pick that came while the body was loading
+  if (body?.pack === skin.figure && skin !== s) await showFigure(skin);
 }
 
 function apply(next, persist) {
   skin = next;
-  ctl.setSkin(skin);
   skinStyle.textContent = skinCss(skin);
   showFigure(skin).catch((err) => console.error(err));
   render();
@@ -147,7 +166,7 @@ function renderFigure() {
   box.textContent = '';
   const opts = el('div', 'opts');
   const choices = [{ id: 'coo', label: 'Coo', pic: `<svg viewBox="${CROP.palette}" aria-hidden="true">${mini('neutral', skin)}</svg>` },
-    ...packs.map((p) => {
+    ...packs.filter((p) => p.id !== 'coo').map((p) => {
       const src = thumbOf(p, picksOf(p, skin.figure === p.id ? skin.scheme : ''));
       return { id: p.id, label: nameOf(p.name), pic: src ? `<img src="${src}" alt="">` : '' };
     })];
@@ -159,15 +178,15 @@ function renderFigure() {
     b.addEventListener('click', () => {
       if (skin.figure === c.id) return;
       const pack = packs.find((p) => p.id === c.id);
-      apply({ ...skin, figure: c.id, ...(pack ? { scheme: schemeOf(pack, picksOf(pack, '')) } : {}) }, true);
-      sfx.sparkle(); ctl.setExpr('happy');
+      apply({ ...skin, figure: c.id, ...(pack && c.id !== 'coo' ? { scheme: schemeOf(pack, picksOf(pack, '')) } : {}) }, true);
+      sfx.sparkle(); body?.cue('cheer');
     });
     opts.appendChild(b);
   }
   box.appendChild(opts);
-  // a row per axis of the pack on, after the figure row
+  // a row per axis of the pack on, after the figure row; Coo's own rows are below
   for (const old of document.querySelectorAll('.pack-axis')) old.remove();
-  const pack = packs.find((p) => p.id === skin.figure);
+  const pack = skin.figure === 'coo' ? null : packs.find((p) => p.id === skin.figure);
   if (!pack) return;
   const picks = picksOf(pack, skin.scheme);
   let after = box;
@@ -186,7 +205,7 @@ function renderFigure() {
       b.querySelector('span').textContent = nameOf(o.name);
       b.addEventListener('click', () => {
         apply({ ...skin, scheme: schemeOf(pack, { ...picks, [axis.id]: o.id }) }, true);
-        sfx.sparkle(); ctl.setExpr('happy'); ctl.pet.sqv += 1.2;
+        sfx.sparkle(); body?.cue('cheer'); body?.cue('bounce');
       });
       list.appendChild(b);
     }
@@ -205,7 +224,7 @@ function render() {
     const b = el('button', 'opt swatch');
     b.setAttribute('aria-pressed', String(skin.palette === p.id));
     b.innerHTML = `<svg viewBox="${CROP.palette}" aria-hidden="true" style="--sl-ink:${p.l[0]};--sl-eye:${p.l[1]};--sd-ink:${p.d[0]};--sd-eye:${p.d[1]}">${mini('neutral', { ...skin, head: 'none', side: 'none', glasses: 'none', neck: 'none' })}</svg><span>${p.label}</span>`;
-    b.addEventListener('click', () => { apply({ ...skin, palette: p.id }, true); sfx.sparkle(); ctl.setExpr('happy'); });
+    b.addEventListener('click', () => { apply({ ...skin, palette: p.id }, true); sfx.sparkle(); body?.cue('cheer'); });
     palOpts.appendChild(b);
   }
   pal.appendChild(palOpts);
@@ -219,8 +238,8 @@ function render() {
       b.innerHTML = `<svg viewBox="${CROP[slot]}" aria-hidden="true">${mini('neutral', { ...skin, [slot]: id })}</svg><span>${label}</span>`;
       b.addEventListener('click', () => {
         apply(wear(skin, slot, id), true);
-        sfx.pop(); if (id !== 'none') { sfx.sparkle(); ctl.setExpr('happy'); }
-        ctl.pet.sqv += 1.2;
+        sfx.pop(); if (id !== 'none') { sfx.sparkle(); body?.cue('cheer'); }
+        body?.cue('bounce');
       });
       opts.appendChild(b);
     }
@@ -233,7 +252,7 @@ function connect() {
   const ws = new WebSocket(`ws://${location.host}/socket?role=dress`);
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
-    if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; applyTheme(theme, modeBtn); }
+    if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; applyTheme(theme, modeBtn); body?.set({ theme }); }
     if (m.t === 'init') loadPacks();
     if ((m.t === 'init' || m.t === 'prefs') && m.skin && JSON.stringify(normalizeSkin(m.skin)) !== JSON.stringify(skin)) apply(normalizeSkin(m.skin), false);
   };
@@ -248,7 +267,9 @@ let frameErr = null;
 function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   try {
-    ctl.step(dt); ctl.render();
+    T += dt;
+    body?.tick(dt);
+    preview.style.cursor = body?.layout?.cursor ?? '';
   } catch (err) {
     // a throwing step must not take the loop with it: the next frame is only asked for below, and
     // without it the preview freezes for good (a broken figure throws again on every frame it draws)

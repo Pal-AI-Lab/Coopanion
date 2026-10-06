@@ -13,7 +13,7 @@
  */
 import type { spawn } from 'node:child_process';
 import { statSync } from 'node:fs';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type {
   Logger, OutputTap, ToolDef, ToolOutcome, World, WorldConsoleDecl, WorldHost, WorldLamp, WorldPanelDecl, WorldStreamSocket,
@@ -36,8 +36,8 @@ import { joinSpeech, looksHallucinated } from './asr/result.ts';
 import { toSimplified } from './asr/simplify.ts';
 import { estimateSeconds, parseActions, parseScript, vocabTable } from './script.ts';
 import { DESKTOP_PET_TOOL_DECLS } from './tools.ts';
-import { adaptWords, figurePacks, nameIn, unsupportedLine, type FigurePack } from './packs.ts';
-import { dressTable, planSettings, type CooLooks, type SettingChange } from './self.ts';
+import { COO, figurePacks, lookOf, nameIn, packFor, type FigurePack } from './packs.ts';
+import { dressTable, planSettings, type SettingChange } from './self.ts';
 
 export const DESKTOP_PET_PANEL_DECLS: readonly WorldPanelDecl[] = [
   { id: 'pet', title: '桌宠', description: '窗口、装扮与窗口运行时。', getMethods: ['state'] },
@@ -46,19 +46,9 @@ export const DESKTOP_PET_PANEL_DECLS: readonly WorldPanelDecl[] = [
 
 const WEB_DIR = fileURLToPath(new URL('../web/', import.meta.url));
 const ENV_PROMPT_FILE = fileURLToPath(new URL('./ENV_PROMPT.md', import.meta.url));
-/** Coo's palettes and accessories with their names, as the dressing page lists them (web/pet-core.js). */
-async function loadCooLooks(): Promise<CooLooks> {
-  const core = await import(pathToFileURL(join(WEB_DIR, 'pet-core.js')).href) as {
-    PALETTES: Array<{ id: string; label: string }>;
-    SLOT_LISTS: Record<string, Array<[string, string]>>;
-  };
-  return { palettes: core.PALETTES.map((p) => [p.id, p.label]), accessories: core.SLOT_LISTS };
-}
 
 /** Longest `pet_quiet`: a quiet that outlasts a day is a setting, which `pet_set` changes. */
 const QUIET_MAX_MIN = 24 * 60;
-/** The built-in body, as the bot is told about it. */
-const COO_ABOUT = '一个小桌宠,C 形的身体,开口是嘴,两只 0 形的眼睛,底下两条短腿';
 const FRAME_MS = 20;
 const SAMPLE_RATE = 16_000;
 const WALK_TIMEOUT_MS = 30_000;
@@ -108,7 +98,7 @@ export interface PetDialog {
 /**
  * - `buttons`: a row of buttons, answered with the index; `keys` shows a key cap above them, pressed
  *   `taps` times over and over, the last press held (a talk key tapped, then held).
- * - `choices`: cards to try out before `confirm`, each with an optional level tag and icon (a pet-core
+ * - `choices`: cards to try out before `confirm`, each with an optional level tag and icon (a web/ui.js
  *   `ICONS` name, or `image`, a `data:image/…` URL such as a service's logo); a card's `line` is typed when it is picked and
  *   its `motion` played (standing still, strolling, running about) until another is picked.
  * - `text`: a text box answered with the text; `secret` hides what is typed, `suggestions` are offered
@@ -283,10 +273,10 @@ export class DesktopPetWorld implements World {
   private readonly packProblems = new Set<string>();
   /** The figure (and a pack's pick, `id:scheme`) the pet page last said it shows, null before it said. */
   private figureShown: string | null = null;
+  /** The figure the page said would not run, while the skin still names it: the page shows Coo meanwhile. */
+  private figureFailed: string | null = null;
   /** A look the bot put on itself: the pet page's report of it is not told back (the receipt said it). */
   private botLook: string | null = null;
-  /** Coo's palettes and accessories by name, from web/pet-core.js, loaded on start. */
-  private coo: CooLooks = { palettes: [], accessories: {} };
   /** `pet_quiet` in force: what it overrides, until when, and the settings it found (a change to them ends it). */
   private quiet: { sound: boolean; roam: RoamMode; until: number; base: { sound: boolean; roam: RoamMode }; timer: NodeJS.Timeout } | null = null;
 
@@ -297,24 +287,28 @@ export class DesktopPetWorld implements World {
     return packs;
   }
 
-  /** The pack of the figure the skin asks for; null for Coo or a pack that is not installed. */
+  /** The pack of the figure the skin asks for (Coo for one that is not installed); null only when even Coo's would not load. */
   private currentPack(): FigurePack | null {
-    const id = this.cfg.skin.figure ?? 'coo';
-    return id === 'coo' ? null : this.packs().find((p) => p.id === id) ?? null;
+    const figure = this.cfg.skin.figure ?? COO;
+    return packFor(this.packs(), figure === this.figureFailed ? COO : figure);
+  }
+  /** The words the body on screen does. */
+  private vocab() {
+    return this.currentPack()?.manifest.vocab ?? [];
   }
 
   /** What the body looks like now, with its picked options and the words it does not do. */
   private bodyText(pack: FigurePack | null): string {
-    if (!pack) return COO_ABOUT;
+    if (!pack) return '';
     const m = pack.manifest;
-    const picks = (this.cfg.skin.scheme ?? '').split('-');
-    const preset = m.presets.find((p) => p.id === this.cfg.skin.scheme);
+    const scheme = lookOf(pack, this.cfg.skin);
+    const picks = scheme.split('-');
+    const preset = m.presets.find((p) => p.id === scheme);
     const chosen = m.axes.map((a, i) => {
       const o = a.options.find((x) => x.id === (preset?.pick[a.id] ?? picks[i])) ?? a.options[0]!;
       return `${nameIn(a.name)}:${nameIn(o.name)}`;
     });
-    const missing = unsupportedLine(pack);
-    return `${nameIn(m.name)},${nameIn(m.about)}${chosen.length ? `(${chosen.join(',')})` : ''}${missing ? `。表情和动作里,${missing}` : ''}`;
+    return `${nameIn(m.name)},${nameIn(m.about)}${chosen.length ? `(${chosen.join(',')})` : ''}`;
   }
 
   /**
@@ -323,20 +317,25 @@ export class DesktopPetWorld implements World {
    * shows Coo) is told at once.
    */
   private onFigure(msg: PageMessage): void {
-    const id = typeof msg.id === 'string' ? msg.id : 'coo';
+    const id = typeof msg.id === 'string' ? msg.id : COO;
     const before = this.figureShown;
+    const packs = this.packs();
     if (msg.ok !== true) {
-      this.figureShown = 'coo';
-      const pack = this.packs().find((p) => p.id === id);
+      this.figureShown = COO;
+      this.figureFailed = id;
+      const pack = packs.find((p) => p.id === id);
       const reason = typeof msg.reason === 'string' ? msg.reason.slice(0, 200) : '原因不明';
-      void this.push('desktop-pet.figure', 'desktop-pet.figure', `[形象] ${pack ? nameIn(pack.manifest.name) : id}没能显示出来(${reason}),你现在是 Coo 的样子:${COO_ABOUT}。`, 'flush');
+      // the page shows Coo instead, whose words then hold too
+      const coo = packs.find((p) => p.id === COO) ?? null;
+      void this.push('desktop-pet.figure', 'desktop-pet.figure', `[形象] ${pack ? nameIn(pack.manifest.name) : id}没能显示出来(${reason}),你现在是${this.bodyText(coo)}。表情和动作按 Coo 的词表。`, 'flush');
       return;
     }
-    const shown = id === 'coo' ? 'coo' : `${id}:${typeof msg.scheme === 'string' ? msg.scheme : ''}`;
+    if (id === this.cfg.skin.figure) this.figureFailed = null;
+    const shown = id === COO ? COO : `${id}:${typeof msg.scheme === 'string' ? msg.scheme : ''}`;
     this.figureShown = shown;
     if (before === null || before === shown) return;
     if (shown === this.botLook) { this.botLook = null; return; }
-    const pack = id === 'coo' ? null : this.packs().find((p) => p.id === id) ?? null;
+    const pack = packs.find((p) => p.id === id) ?? null;
     void this.push('desktop-pet.figure', 'desktop-pet.figure', `[形象] 你现在的样子:${this.bodyText(pack)}。`, 'debounce');
   }
 
@@ -345,7 +344,6 @@ export class DesktopPetWorld implements World {
   async start(host: WorldHost): Promise<void> {
     this.host = host;
     this.log = host.log;
-    this.coo = await loadCooLooks();
     await this.server.start();
     this.windowHost = new WindowHost(host.log);
     if (this.cfg.window.enabled) this.openWindow();
@@ -654,7 +652,7 @@ export class DesktopPetWorld implements World {
    */
   dialog(d: PetDialog): PetDialogHandle {
     const id = nextId('d');
-    const { actions } = parseActions(d.actions ?? []);
+    const { actions } = parseActions(d.actions ?? [], this.vocab());
     let settle: (a: PetDialogAnswer) => void = () => {};
     const answer = new Promise<PetDialogAnswer>((resolve) => { settle = resolve; });
     if (!this.server.sendPet({ t: 'dialog', id, ...d, actions })) settle({ unavailable: true });
@@ -1079,12 +1077,7 @@ export class DesktopPetWorld implements World {
 
   private async say(args: Record<string, unknown>): Promise<ToolOutcome> {
     const script = typeof args.script === 'string' ? args.script : '';
-    const parsed = parseScript(script);
-    const { dropped } = parsed;
-    const pack = this.currentPack();
-    const told: string[] = [];
-    const adapt = (words: string[]) => { const r = adaptWords(words, pack); told.push(...r.told); return r.words; };
-    const beats = parsed.beats.map((b) => ({ ...b, actions: adapt(b.actions), anchors: b.anchors.map((a) => ({ ...a, actions: adapt(a.actions) })).filter((a) => a.actions.length) }));
+    const { beats, dropped } = parseScript(script, this.vocab());
     if (!beats.some((b) => b.text || b.actions.length || b.anchors.length)) {
       return { text: '[pet_say 没执行] 脚本是空的。不想说话就不调用。', failed: true };
     }
@@ -1096,9 +1089,7 @@ export class DesktopPetWorld implements World {
     this.busyUntil = Math.max(now, this.busyUntil) + selfSec * 1000;
     const replaced = this.ask ? `替换了还没回答的提问「${this.ask.question}」。` : '';
     if (this.ask) this.ask = null;
-    const missing = [...new Set(told)];
-    const note = (dropped.length ? `\n[执行参数] 不认识的标记已略过:${dropped.join('、')}。` : '')
-      + (missing.length ? `\n[执行参数] ${missing.join(';')}。` : '');
+    const note = dropped.length ? `\n[执行参数] 当前形象的词表里没有这些标记,已略过:${dropped.join('、')}。` : '';
     return { text: `${waitSec > .5 ? `已排队,前面还有约 ${Math.round(waitSec)} 秒` : '已开始显示'},这段约 ${Math.round(selfSec)} 秒。${replaced}${note}` };
   }
 
@@ -1129,6 +1120,7 @@ export class DesktopPetWorld implements World {
       else if (to.trim() !== '' && Number.isFinite(n)) target = Math.max(0, Math.min(1, n));
       else return { text: `[pet_walk_to 没执行] to 应为 0–1 的数字或 left / center / right / cursor,收到 ${JSON.stringify(to)}。`, failed: true };
     } else return { text: '[pet_walk_to 没执行] 缺少 to。', failed: true };
+    if (this.currentPack()?.manifest.can.walk === false) return { text: `[pet_walk_to 没执行] 现在的形象(${nameIn(this.currentPack()!.manifest.name)})不会走动。`, failed: true };
     const walkId = nextId('w');
     if (!this.server.sendPet({ t: 'walk', id: walkId, to: target, run })) return this.notConnected('pet_walk_to');
     const text = await new Promise<string>((resolve) => {
@@ -1144,14 +1136,14 @@ export class DesktopPetWorld implements World {
   private async setSettings(args: Record<string, unknown>): Promise<ToolOutcome> {
     if (!this.cfg.selfAdjust) return { text: `[pet_set 没执行] ${this.cfg.user}在「习惯」页关掉了「允许自己调整」。`, failed: true };
     const packs = this.packs();
-    const { changes, errors } = planSettings(args, this.cfg, packs, this.coo);
+    const { changes, errors } = planSettings(args, this.cfg, packs);
     if (errors.length) return { text: `[pet_set 没执行] ${errors.join(';')}。`, failed: true };
     if (!changes.length) return { text: '要改的都和现在一样,没有改动。' };
     const lines: string[] = [];
     const apply = (list: SettingChange[]) => {
       for (const c of list) this.opts.persist(c.patch);
       const skin = this.cfg.skin;
-      if (list.some((c) => c.key === 'figure' || c.key === 'scheme')) this.botLook = skin.figure === 'coo' ? 'coo' : `${skin.figure}:${skin.scheme ?? ''}`;
+      if (list.some((c) => c.key === 'figure' || c.key === 'scheme')) this.botLook = (skin.figure ?? COO) === COO ? COO : `${skin.figure}:${skin.scheme ?? ''}`;
       this.syncPrefs();
       this.opts.onBotChange?.();
     };
@@ -1195,14 +1187,12 @@ export class DesktopPetWorld implements World {
 
   private async act(args: Record<string, unknown>): Promise<ToolOutcome> {
     const list = Array.isArray(args.actions) ? args.actions : typeof args.actions === 'string' ? [args.actions] : [];
-    const parsed = parseActions(list);
-    const { dropped } = parsed;
-    const { words: actions, told } = adaptWords(parsed.actions, this.currentPack());
-    const why = told.length ? `${told.join(';')}。` : '';
-    if (!actions.length) return { text: `[pet_act 没执行] 没有${told.length ? '当前形象做得了的' : '认得的'}动作${dropped.length ? `(${dropped.join('、')})` : ''}。${why}`, failed: true };
+    const vocab = this.vocab();
+    const { actions, dropped } = parseActions(list, vocab);
+    if (!actions.length) return { text: `[pet_act 没执行] 当前形象的词表里没有这些动作${dropped.length ? `(${dropped.join('、')})` : ''}。`, failed: true };
     if (!this.server.sendPet({ t: 'act', id: nextId('c'), actions })) return this.notConnected('pet_act');
-    const lasting = actions.filter((a) => a === 'sit' || a === 'sleep');
-    const note = (dropped.length ? `\n[执行参数] 不认识的动作已略过:${dropped.join('、')}。` : '') + (why ? `\n[执行参数] ${why}` : '');
+    const lasting = actions.filter((a) => vocab.find((v) => v.id === a)?.lasting);
+    const note = dropped.length ? `\n[执行参数] 当前形象的词表里没有这些,已略过:${dropped.join('、')}。` : '';
     return { text: `开始依次做:${actions.join(' → ')}。${lasting.length ? `${lasting.join('、')} 会一直保持到下一个动作。` : ''}${note}` };
   }
 
@@ -1211,10 +1201,10 @@ export class DesktopPetWorld implements World {
   envPromptVars(): Record<string, string> {
     return {
       'pet.user': this.cfg.user,
-      'pet.vocab': vocabTable(),
+      'pet.vocab': vocabTable(this.vocab()),
       'pet.voice': this.cfg.asr.enabled ? '开着' : '关着',
       'pet.body': this.bodyText(this.currentPack()),
-      'pet.dress': dressTable(this.packs(), this.coo),
+      'pet.dress': dressTable(this.packs()),
       'pet.self': this.cfg.selfAdjust ? '开着' : '关着',
     };
   }
@@ -1256,10 +1246,10 @@ export class DesktopPetWorld implements World {
         role: 'envPrompt',
         vars: [
           { name: 'pet.user', description: '对使用者的称呼' },
-          { name: 'pet.vocab', description: '表情与动作词表', multiline: true },
+          { name: 'pet.vocab', description: '当前形象的表情与动作词表', multiline: true },
           { name: 'pet.voice', description: '语音输入开着还是关着' },
-          { name: 'pet.body', description: '当前形象的样子,以及它做不了的表情和动作' },
-          { name: 'pet.dress', description: 'pet_set 能选的形象、打扮与 Coo 的配件', multiline: true },
+          { name: 'pet.body', description: '当前形象的样子' },
+          { name: 'pet.dress', description: 'pet_set 能选的形象与打扮', multiline: true },
           { name: 'pet.self', description: '「允许自己调整」开着还是关着' },
         ],
       }],

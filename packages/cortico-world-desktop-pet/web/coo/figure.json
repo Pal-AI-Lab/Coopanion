@@ -1,340 +1,247 @@
 {
   "manifest": 2,
   "api": 2,
-  "id": "whale",
+  "id": "coo",
   "version": "1.0.0",
   "name": {
-    "zh": "DeepSeek 大肥鱼",
-    "en": "DeepSeek Whale"
+    "zh": "Coo",
+    "en": "Coo"
   },
   "about": {
-    "zh": "一个 Q 版鲸鱼女仆,二头身,侧身朝右站;蓝色长发、头顶一根呆毛,头两侧各一只鲸鱼鳍,穿女仆裙和围裙,围裙上印着配色对应厂商的标志,身后一条鲸鱼尾巴",
-    "en": "a chibi whale maid, two heads tall, standing three-quarters on facing right; long blue hair with an ahoge, a whale fin on each side of the head, a maid dress and an apron printed with the logo of the colour scheme's vendor, and a whale tail behind her"
+    "zh": "一个小桌宠,C 形的身体,开口是嘴,两只 0 形的眼睛,底下两条短腿",
+    "en": "a little desktop pet: a C-shaped body whose opening is its mouth, two 0-shaped eyes and two short legs underneath"
   },
   "author": "Pal-AI-Lab",
-  "credits": [
-    {
-      "role": "角色原设",
-      "name": "溟月(上善无形)"
-    },
-    {
-      "role": "DeepSeek 女仆二创",
-      "name": "ZipZipPipe"
-    }
-  ],
   "entry": "figure.js",
-  "export": "createWhaleBody",
-  "model": "model.json",
-  "thumb": "thumbs/deepseek.png",
+  "export": "createCooBody",
   "axes": [
     {
-      "id": "scheme",
+      "id": "palette",
       "name": {
         "zh": "配色",
         "en": "Colours"
       },
       "options": [
         {
-          "id": "deepseek",
+          "id": "mint",
           "name": {
-            "zh": "DeepSeek"
-          },
-          "thumb": "thumbs/deepseek.png",
-          "accent": "#4D6BFE"
+            "zh": "薄荷绿"
+          }
         },
         {
-          "id": "harness",
+          "id": "mono",
           "name": {
-            "zh": "DeepSeek Harness"
-          },
-          "thumb": "thumbs/harness.png",
-          "accent": "#555555"
+            "zh": "单色"
+          }
         },
         {
-          "id": "chatgpt",
+          "id": "navigator",
           "name": {
-            "zh": "ChatGPT"
-          },
-          "thumb": "thumbs/chatgpt.png",
-          "accent": "#303030"
+            "zh": "领航员"
+          }
         },
         {
           "id": "claude",
           "name": {
-            "zh": "Claude"
-          },
-          "thumb": "thumbs/claude.png",
-          "accent": "#D97757"
+            "zh": "克劳德"
+          }
         },
         {
-          "id": "gemini",
+          "id": "fox",
           "name": {
-            "zh": "Gemini"
-          },
-          "thumb": "thumbs/gemini.png",
-          "accent": "#4285F4"
+            "zh": "红狐狸"
+          }
         },
         {
-          "id": "qwen",
+          "id": "purple",
           "name": {
-            "zh": "千问"
-          },
-          "thumb": "thumbs/qwen.png",
-          "accent": "#7F69F0"
+            "zh": "虚式茈"
+          }
         },
         {
-          "id": "kimi",
+          "id": "lemon",
           "name": {
-            "zh": "Kimi"
-          },
-          "thumb": "thumbs/kimi.png",
-          "accent": "#007CFF"
+            "zh": "柠檬黄"
+          }
+        }
+      ]
+    },
+    {
+      "id": "head",
+      "name": {
+        "zh": "头顶",
+        "en": "Head"
+      },
+      "options": [
+        {
+          "id": "none",
+          "name": {
+            "zh": "无"
+          }
         },
         {
-          "id": "minimax",
+          "id": "cat",
           "name": {
-            "zh": "MiniMax"
-          },
-          "thumb": "thumbs/minimax.png",
-          "accent": "#D92D7A"
+            "zh": "猫耳"
+          }
+        },
+        {
+          "id": "bear",
+          "name": {
+            "zh": "熊耳"
+          }
+        },
+        {
+          "id": "bunny",
+          "name": {
+            "zh": "兔耳"
+          }
+        },
+        {
+          "id": "antenna",
+          "name": {
+            "zh": "天线"
+          }
+        },
+        {
+          "id": "halo",
+          "name": {
+            "zh": "光环"
+          }
+        },
+        {
+          "id": "tophat",
+          "name": {
+            "zh": "礼帽"
+          }
+        },
+        {
+          "id": "party",
+          "name": {
+            "zh": "派对帽"
+          }
+        },
+        {
+          "id": "sailor",
+          "name": {
+            "zh": "水手帽"
+          }
+        }
+      ]
+    },
+    {
+      "id": "side",
+      "name": {
+        "zh": "耳侧配件",
+        "en": "Side"
+      },
+      "options": [
+        {
+          "id": "none",
+          "name": {
+            "zh": "无"
+          }
+        },
+        {
+          "id": "headphones",
+          "name": {
+            "zh": "耳机"
+          }
+        },
+        {
+          "id": "feather",
+          "name": {
+            "zh": "耳羽"
+          }
+        },
+        {
+          "id": "earring",
+          "name": {
+            "zh": "耳环"
+          }
+        },
+        {
+          "id": "clip",
+          "name": {
+            "zh": "发夹"
+          }
+        },
+        {
+          "id": "bow",
+          "name": {
+            "zh": "蝴蝶结"
+          }
+        }
+      ]
+    },
+    {
+      "id": "glasses",
+      "name": {
+        "zh": "眼镜",
+        "en": "Glasses"
+      },
+      "options": [
+        {
+          "id": "none",
+          "name": {
+            "zh": "无"
+          }
+        },
+        {
+          "id": "round",
+          "name": {
+            "zh": "圆框"
+          }
+        },
+        {
+          "id": "square",
+          "name": {
+            "zh": "方框"
+          }
+        },
+        {
+          "id": "monocle",
+          "name": {
+            "zh": "单片镜"
+          }
+        }
+      ]
+    },
+    {
+      "id": "neck",
+      "name": {
+        "zh": "颈饰",
+        "en": "Neck"
+      },
+      "options": [
+        {
+          "id": "none",
+          "name": {
+            "zh": "无"
+          }
+        },
+        {
+          "id": "bowtie",
+          "name": {
+            "zh": "领结"
+          }
+        },
+        {
+          "id": "bell",
+          "name": {
+            "zh": "铃铛"
+          }
+        },
+        {
+          "id": "scarf",
+          "name": {
+            "zh": "围巾"
+          }
         }
       ]
     }
   ],
-  "presets": [
-    {
-      "id": "deepseek",
-      "pick": {
-        "scheme": "deepseek"
-      },
-      "name": {
-        "zh": "DeepSeek"
-      },
-      "thumb": "thumbs/deepseek.png",
-      "accent": "#4D6BFE",
-      "console": {
-        "light": {
-          "a": "#4562f5",
-          "a2": "#7b90fe",
-          "on": "#ffffff",
-          "t": "#3550d6",
-          "c3": "#8ea0c8",
-          "c4": "#8a8a90"
-        },
-        "dark": {
-          "a": "#7b93ff",
-          "a2": "#a3b3ff",
-          "on": "#0d1640",
-          "t": "#9aabff",
-          "c3": "#8ea0c8",
-          "c4": "#9a9aa0"
-        }
-      }
-    },
-    {
-      "id": "harness",
-      "pick": {
-        "scheme": "harness"
-      },
-      "name": {
-        "zh": "DeepSeek Harness"
-      },
-      "thumb": "thumbs/harness.png",
-      "accent": "#555555",
-      "console": {
-        "light": {
-          "a": "#3f3f44",
-          "a2": "#4d6bfe",
-          "on": "#ffffff",
-          "t": "#2e2e33",
-          "c3": "#7b7b82",
-          "c4": "#a6a6ac"
-        },
-        "dark": {
-          "a": "#d2d2d7",
-          "a2": "#7b93ff",
-          "on": "#151518",
-          "t": "#c8c8cd",
-          "c3": "#8c8c93",
-          "c4": "#64646a"
-        }
-      }
-    },
-    {
-      "id": "chatgpt",
-      "pick": {
-        "scheme": "chatgpt"
-      },
-      "name": {
-        "zh": "ChatGPT"
-      },
-      "thumb": "thumbs/chatgpt.png",
-      "accent": "#303030",
-      "console": {
-        "light": {
-          "a": "#2f2f2f",
-          "a2": "#8e8ea0",
-          "on": "#ffffff",
-          "t": "#202123",
-          "c3": "#10a37f",
-          "c4": "#b4b4c0"
-        },
-        "dark": {
-          "a": "#ececf1",
-          "a2": "#a9a9b8",
-          "on": "#202123",
-          "t": "#d9d9e3",
-          "c3": "#19c37d",
-          "c4": "#6e6e80"
-        }
-      }
-    },
-    {
-      "id": "claude",
-      "pick": {
-        "scheme": "claude"
-      },
-      "name": {
-        "zh": "Claude"
-      },
-      "thumb": "thumbs/claude.png",
-      "accent": "#D97757",
-      "console": {
-        "light": {
-          "a": "#d97757",
-          "a2": "#c2928a",
-          "on": "#1f0f08",
-          "t": "#a84e2f",
-          "c3": "#7b7974",
-          "c4": "#c6a58c"
-        },
-        "dark": {
-          "a": "#e08a6c",
-          "a2": "#d9a497",
-          "on": "#1f0f08",
-          "t": "#eba287",
-          "c3": "#97958d",
-          "c4": "#c6a58c"
-        }
-      }
-    },
-    {
-      "id": "gemini",
-      "pick": {
-        "scheme": "gemini"
-      },
-      "name": {
-        "zh": "Gemini"
-      },
-      "thumb": "thumbs/gemini.png",
-      "accent": "#4285F4",
-      "console": {
-        "light": {
-          "a": "#1a73e8",
-          "a2": "#34a853",
-          "on": "#ffffff",
-          "t": "#1a5fd0",
-          "c3": "#ea4335",
-          "c4": "#f9ab00"
-        },
-        "dark": {
-          "a": "#8ab4f8",
-          "a2": "#81c995",
-          "on": "#0b1a33",
-          "t": "#8ab4f8",
-          "c3": "#f28b82",
-          "c4": "#fdd663"
-        }
-      }
-    },
-    {
-      "id": "qwen",
-      "pick": {
-        "scheme": "qwen"
-      },
-      "name": {
-        "zh": "千问"
-      },
-      "thumb": "thumbs/qwen.png",
-      "accent": "#7F69F0",
-      "console": {
-        "light": {
-          "a": "#7560ea",
-          "a2": "#a294f5",
-          "on": "#ffffff",
-          "t": "#5b45d0",
-          "c3": "#b8a9e8",
-          "c4": "#8a8a90"
-        },
-        "dark": {
-          "a": "#a596ff",
-          "a2": "#c2b8ff",
-          "on": "#1a1240",
-          "t": "#b3a6ff",
-          "c3": "#8f82c9",
-          "c4": "#9a9aa0"
-        }
-      }
-    },
-    {
-      "id": "kimi",
-      "pick": {
-        "scheme": "kimi"
-      },
-      "name": {
-        "zh": "Kimi"
-      },
-      "thumb": "thumbs/kimi.png",
-      "accent": "#007CFF",
-      "console": {
-        "light": {
-          "a": "#0072ea",
-          "a2": "#1b1b1f",
-          "on": "#ffffff",
-          "t": "#0062cc",
-          "c3": "#6fa8e8",
-          "c4": "#8a8a90"
-        },
-        "dark": {
-          "a": "#4da3ff",
-          "a2": "#9ccaff",
-          "on": "#001a38",
-          "t": "#6fb3ff",
-          "c3": "#d0d0d4",
-          "c4": "#6a8fb8"
-        }
-      }
-    },
-    {
-      "id": "minimax",
-      "pick": {
-        "scheme": "minimax"
-      },
-      "name": {
-        "zh": "MiniMax"
-      },
-      "thumb": "thumbs/minimax.png",
-      "accent": "#D92D7A",
-      "console": {
-        "light": {
-          "a": "#d92d7a",
-          "a2": "#f2762e",
-          "on": "#ffffff",
-          "t": "#b51f62",
-          "c3": "#e8a0c0",
-          "c4": "#8a8a90"
-        },
-        "dark": {
-          "a": "#f0619e",
-          "a2": "#ff9a5c",
-          "on": "#2a0617",
-          "t": "#f58ab6",
-          "c3": "#c97aa0",
-          "c4": "#9a9aa0"
-        }
-      }
-    }
-  ],
+  "presets": [],
   "vocab": [
     {
       "id": "neutral",
@@ -359,7 +266,7 @@
         ]
       },
       "about": {
-        "zh": "眯眼笑,鲸鳍竖起来,尾巴摇"
+        "zh": "眼睛弯成 ^ ^"
       },
       "seconds": 0.9
     },
@@ -386,7 +293,7 @@
         ]
       },
       "about": {
-        "zh": "眼睛变心形,冒小心心,尾巴摇"
+        "zh": "眼睛变心形,冒小心心"
       },
       "seconds": 0.9
     },
@@ -440,7 +347,7 @@
         ]
       },
       "about": {
-        "zh": "八字眉,低头,掉眼泪,尾巴垂下"
+        "zh": "八字眉,掉眼泪"
       },
       "seconds": 0.9
     },
@@ -676,7 +583,7 @@
         ]
       },
       "about": {
-        "zh": "低头两下"
+        "zh": "点两下头"
       },
       "seconds": 0.8
     },
@@ -689,7 +596,7 @@
         ]
       },
       "about": {
-        "zh": "脸左右转"
+        "zh": "摇头"
       },
       "seconds": 0.8
     },
@@ -788,7 +695,7 @@
         ]
       },
       "about": {
-        "zh": "举起靠近你的那只手挥一挥"
+        "zh": "笑着打招呼"
       },
       "seconds": 1.7
     },
@@ -801,7 +708,7 @@
         ]
       },
       "about": {
-        "zh": "闭眼,上身往前倾鞠一躬"
+        "zh": "闭眼鞠一躬"
       },
       "seconds": 1.7
     },
@@ -829,7 +736,7 @@
         ]
       },
       "about": {
-        "zh": "开心地蹦起来,鲸鳍、尾巴、呆毛一起扑腾"
+        "zh": "开心地蹦起来扑腾"
       },
       "seconds": 1.5
     },

@@ -52,7 +52,8 @@
   </div>
 </div>
 <script type="module">
-import { createPet, createSfx, EXPRESSIONS, MOTIONS, FACES } from '../../web/pet-core.js';
+import { createPet } from '../../web/kit/body.js';
+import { createSfx } from '../../web/sound.js';
 import { createWhaleFigure } from '../../web/whale/figure.js';
 
 const $ = s => document.querySelector(s);
@@ -68,12 +69,12 @@ const ctl = createPet({ petG: $('#pet'), shadowEl: $('#shadow'), fxG: $('#fx') }
 new ResizeObserver(() => ctl.resize()).observe(stage);
 $('#scale').oninput = e => { scale = +e.target.value; ctl.resize(); };
 
-const labels = { stand: '站立', jump: '跳', hop: '小跳', look: '张望', turn: '转身', nod: '点头', shake: '摇头', spin: '转圈', sit: '坐下', sleep: '睡觉', dizzy: '晕', walk: '走', run: '跑', wave: '招手', bow: '鞠躬', shiver: '发抖', flap: '扑腾', dance: '跳舞' };
-for (const e of [...EXPRESSIONS, 'love', 'dragged']) {
-  if (e === 'dragged' ) continue;
-  const b = document.createElement('button'); b.textContent = FACES[e]?.label || e;
-  b.onclick = () => { ctl.holdRoam(4); ctl.setExpr(e); };
-  $('#exprs').append(b);
+// a button for each word of her vocabulary (figure.json), by its first Chinese name
+const { vocab } = await (await fetch('../../web/whale/figure.json')).json();
+for (const w of vocab) {
+  const b = document.createElement('button'); b.textContent = w.names.zh?.[0] ?? w.id;
+  b.onclick = () => { ctl.holdRoam(5); ctl.doWord(w.id); };
+  $(w.kind === 'expression' ? '#exprs' : '#motions').append(b);
 }
 { const b = document.createElement('button'); b.textContent = '抛起来'; b.onclick = () => ctl.setExpr('dragged'); $('#exprs').append(b); }
 const schemeBtns = figure.schemes.map(sc => {
@@ -83,11 +84,6 @@ const schemeBtns = figure.schemes.map(sc => {
   $('#schemes').append(b);
   return b;
 });
-for (const m of MOTIONS) {
-  const b = document.createElement('button'); b.textContent = labels[m] || m;
-  b.onclick = () => { ctl.holdRoam(5); ctl.act(m); };
-  $('#motions').append(b);
-}
 
 // talking: a line of text into the bubble, one character at a time, the mouth moving with it
 let line = '', shown = 0, nextAt = 0;

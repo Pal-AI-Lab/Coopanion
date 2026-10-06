@@ -44,17 +44,12 @@ export const DESKTOP_PET_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'pet_set',
     tags: ['act'],
-    description: '改你自己的外观和习惯。figure、scheme、palette、head、side、glasses、neck、roam、snoreSeconds 直接生效;sound、scale、theme、hoverButtons、user 会先在气泡里问对方,对方同意才改,回执等对方回答后才返回。可选的值见环境说明。只给要改的项。',
+    description: '改你自己的外观和习惯。figure、scheme、roam、snoreSeconds 直接生效;sound、scale、theme、hoverButtons、user 会先在气泡里问对方,对方同意才改,回执等对方回答后才返回。可选的值见环境说明。只给要改的项。',
     parameters: {
       type: 'object',
       properties: {
-        figure: { type: 'string', description: '形象:coo,或已装形象的 id。换形象时不给 scheme 就用它的第一套。' },
-        scheme: { type: 'string', description: '当前(或这次换上的)形象的打扮:预设 id,或各项选项按顺序用 - 连起来。' },
-        palette: { type: 'string', description: 'Coo 的配色。' },
-        head: { type: 'string', description: 'Coo 的头顶配件,none 是不戴。' },
-        side: { type: 'string', description: 'Coo 的耳侧配件。' },
-        glasses: { type: 'string', description: 'Coo 的眼镜。' },
-        neck: { type: 'string', description: 'Coo 的颈饰。' },
+        figure: { type: 'string', description: '形象:coo,或已装形象的 id。换成形象包时不给 scheme 就用它的第一套。' },
+        scheme: { type: 'string', description: '当前(或这次换上的)形象的打扮:预设 id,或各项选项按顺序用 - 连起来(Coo 是配色-头顶-耳侧-眼镜-颈饰)。' },
         roam: { type: 'string', enum: ['free', 'calm', 'off'], description: '平时走动:free 常走动,calm 多待着,off 不乱动。' },
         snoreSeconds: { type: 'integer', minimum: 0, maximum: 3600, description: '每次睡着打多少秒呼噜,0 一直打到醒。' },
         sound: { type: 'boolean', description: '音效开关(先问对方)。' },
@@ -82,7 +77,7 @@ export const DESKTOP_PET_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'pet_act',
     tags: ['act'],
-    description: '不说话,依次做一串表情或动作(词表见环境说明)。立即返回;sit 和 sleep 会一直保持到下一个动作。',
+    description: '不说话,依次做一串表情或动作(当前形象的词表见环境说明)。立即返回;标着「保持到下一个动作」的会一直保持。',
     parameters: {
       type: 'object',
       properties: {

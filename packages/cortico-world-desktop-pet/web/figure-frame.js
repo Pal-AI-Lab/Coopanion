@@ -1,27 +1,37 @@
 /**
- * Inside the sandboxed figure frame: loads a figure pack's module and draws its body.
+ * Inside the sandboxed figure frame: loads a figure pack's module and runs its body.
  *
  * The frame is an opaque origin with no network access (the server's CSP for `/figure-frame`);
  * it gets scripts and images from the pet server and everything else from the page that holds
- * it (`figure-sandbox.js`), by postMessage:
+ * it (`body-host.js`), by postMessage. The body is the pack's own: it walks, falls, is carried,
+ * makes faces and draws itself; the page only hears what it reports and asks it to do things.
  *
- * - `init { entry, export, base, model, scheme }`: imports `entry` and calls its `export` as
- *   `factory(base, { model, scheme, createRig, loadImage, asset })`, the contract a pack implements
- *   (api 1): it resolves to `{ draw(petG, face, frame), anchors?, gestures?, colors?, groupTilt?,
- *   setScheme?(id, { fade, at }) }`, as pet-core's `opts.figure`. `createRig` is web/rig/rig.js;
- *   `loadImage` loads a pack image so WebGL may read it.
- * - `frame { transform, face, frame }`: one frame, the stage transform for the group and the
- *   arguments of `draw`.
- * - `scheme { id, fade, at, seq }`: switches the dress-up pick.
+ * The contract a pack implements (api 2): its module exports a factory, called as
+ * `factory(base, { model, scheme, kit, loadImage, asset, host })`, that resolves to a body:
  *
- * It answers `loaded`, `ready { anchors, gestures, z, tilt }`, `drawn { rot, z }` after each frame
- * (the group rotation the figure asks for, used by the next frame), `scheme { seq, z }`, and
- * `error { message }` once, after which it stops.
+ * - `host`: `root` (the element to draw in, filling the stage), `bounds()` ({ W, H, floorY, S } in stage
+ *   pixels: the floor's height and the size the body is drawn at, 1 logo unit = S pixels, the body
+ *   inside a 256-unit square), `emit(kind, detail)`, `sound(name, kind, ...args)` and `start`
+ *   ({ x, facing, enter, skin }).
+ * - `kit`: web/kit/body.js (createBody builds a whole body around a figure that only draws; createRig).
+ * - the body: `step(dt)` advances and draws one frame; `layout()` says where it is ({ x, facing, mode,
+ *   busy, moving, pressing, cursor, box, hit, bubble, side }, see the kit's `layout`); `resize()` takes new
+ *   bounds (`set({ bounds })` from the page changes what `host.bounds()` returns, then calls it); `do(word)`, `walk(x, run, id)`, `pointer(type, p)`, `drop(p)`, `shift(dx, dy)`, `place(x, facing)`,
+ *   `set(state)`, `cue(kind)`, `talk()`, `setScheme(id, { fade, at })`, `z` (the colour of its sleep z's)
+ *   and `dispose()`. Only `step`, `layout` and `do` are required.
+ * - events (`emit`): `arrived` and `interrupted` ({ walkId, x, by }) for `walk`, `done` ({ word }) for a word
+ *   that ends on its own, `touch` ({ kind: poke | pet | grab | drop | throw | crash, ... }), `mode` ({ mode }).
+ *
+ * Messages in: `init { entry, export, base, model, scheme, start, theme, bounds }`, then `tick { dt }`
+ * once a frame and the calls above by name. Out: `loaded`, `ready { z }`, `frame { layout, events: [{ kind,
+ * detail }], sounds: [{ name, kind, args }], z }` after each tick, `scheme { seq, z }`, and `error { message }`
+ * once, after which it stops.
  */
-import { createRig } from './rig/rig.js';
+import * as kit from './kit/body.js';
 
-const petG = document.getElementById('pet');
-let fig = null, dead = false;
+const root = document.getElementById('root');
+let body = null, dead = false, bounds = { W: 0, H: 0, floorY: 0, S: .42 };
+let events = [], sounds = [];
 const post = (m) => parent.postMessage(m, '*');
 function fail(err) {
   if (dead) return;
@@ -41,27 +51,48 @@ function loadImage(url) {
   });
 }
 
+const host = {
+  root,
+  bounds: () => bounds,
+  emit: (kind, detail) => events.push({ kind, detail }),
+  sound: (name, kind, ...args) => sounds.push({ name, kind, args }),
+};
+
 addEventListener('message', async (e) => {
   if (e.source !== parent || dead) return;
   const m = e.data || {};
   try {
     if (m.t === 'init') {
+      bounds = m.bounds;
+      document.documentElement.dataset.theme = m.theme;
       const mod = await import(m.entry);
       const make = mod[m.export];
       if (typeof make !== 'function') throw new Error(`${m.export} 不是函数`);
       const base = new URL(m.base);
-      fig = await make(base, { model: m.model ?? undefined, scheme: m.scheme, createRig, loadImage, asset: (p) => new URL(p, base) });
-      if (typeof fig?.draw !== 'function') throw new Error('形象没有 draw');
-      post({ t: 'ready', anchors: fig.anchors ?? null, gestures: Array.isArray(fig.gestures) ? fig.gestures : [], z: fig.colors?.z ?? null, tilt: typeof fig.groupTilt === 'function' });
-    } else if (m.t === 'frame' && fig) {
-      petG.setAttribute('transform', m.transform);
-      fig.draw(petG, m.face, m.frame);
-      const f = m.frame;
-      post({ t: 'drawn', rot: fig.groupTilt ? fig.groupTilt(f.mode, f.tilt, f.lean) : null, z: fig.colors?.z ?? null });
-    } else if (m.t === 'scheme' && fig) {
-      await fig.setScheme?.(m.id, { fade: m.fade, at: m.at });
-      post({ t: 'scheme', seq: m.seq, z: fig.colors?.z ?? null });
+      body = await make(base, { model: m.model ?? undefined, scheme: m.scheme, kit, loadImage, asset: (p) => new URL(p, base), host: { ...host, start: m.start } });
+      for (const fn of ['step', 'layout', 'do']) if (typeof body?.[fn] !== 'function') throw new Error(`形象没有 ${fn}`);
+      post({ t: 'ready', z: body.z ?? null });
+    } else if (!body) {
+      // calls that come before the body is ready have nothing to act on
+    } else if (m.t === 'tick') {
+      body.step(m.dt);
+      post({ t: 'frame', layout: body.layout(), events, sounds, z: body.z ?? null });
+      events = []; sounds = [];
+    } else if (m.t === 'scheme') {
+      await body.setScheme?.(m.id, { fade: m.fade, at: m.at });
+      post({ t: 'scheme', seq: m.seq, z: body.z ?? null });
+    } else if (m.t === 'do') body.do(m.word);
+    else if (m.t === 'walk') { if (!body.walk?.(m.x, m.run, m.id)) events.push({ kind: 'interrupted', detail: { walkId: m.id, by: 'busy' } }); }
+    else if (m.t === 'pointer') body.pointer?.(m.type, m.p);
+    else if (m.t === 'drop') body.drop?.(m.p);
+    else if (m.t === 'shift') body.shift?.(m.dx, m.dy);
+    else if (m.t === 'place') body.place?.(m.x, m.facing);
+    else if (m.t === 'set') {
+      if (m.state?.bounds) { bounds = m.state.bounds; body.resize?.(); }
+      body.set?.(m.state);
     }
+    else if (m.t === 'cue') body.cue?.(m.kind);
+    else if (m.t === 'talk') body.talk?.();
   } catch (err) {
     fail(err);
   }

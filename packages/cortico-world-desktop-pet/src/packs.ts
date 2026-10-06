@@ -1,27 +1,36 @@
 /**
- * Figure packs: a body other than the built-in Coo, as a directory with a `figure.json` manifest.
+ * Figure packs: the pet's body, as a directory with a `figure.json` manifest. Coo is one, built in
+ * (`web/coo/`), and so is the whale maid (`web/whale/`).
  *
  * A pack's code runs only inside the sandboxed figure frame (`web/figure-frame.html`): an opaque
- * origin with no network access, talking to the pet page by `postMessage` alone. What the World and
- * the pages need without running it (names, the dress-up axes, presets, what the bot is told the
- * body looks like, which words of the vocabulary the body does not do) is in the manifest.
+ * origin with no network access, talking to the pet page by `postMessage` alone. The body there is
+ * the pack's own (walking, falling, faces, drawing; most packs build it on the kit, `web/kit/body.js`).
+ * What the World and the pages need without running it is in the manifest: names, the dress-up axes
+ * and presets, what the bot is told the body looks like, the words it does (`vocab`, the whole of the
+ * bot's vocabulary while it is on), its own sound files, and whether it walks.
  *
- * Built-in packs live in the package's `web/` (the whale maid, `web/whale/`); the embedding app
- * names directories whose subdirectories are more packs (`packRoots`). A built-in id wins over an
- * installed pack with the same id; `coo` is the built-in body and never a pack.
+ * The embedding app names directories whose subdirectories are more packs (`packRoots`). A built-in
+ * id wins over an installed pack with the same id, and `coo` is only ever the built-in one.
  *
  * `skin.figure` is the pack id, `skin.scheme` the picked option of each axis joined by `-` in the
- * manifest's axis order (one axis: the option id), or a preset id.
+ * manifest's axis order (one axis: the option id), or a preset id. Coo keeps its picks in the skin's
+ * own fields, one per axis (`lookOf`, `lookPatch`).
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, normalize, sep } from 'node:path';
+import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { VOCAB } from './script.ts';
+import { INLINE_TAG_MAX, type VocabWord } from './script.ts';
 
 export const MANIFEST_FILE = 'figure.json';
 /** The manifest version this World reads, and the figure frame's contract (`web/figure-frame.js`). */
-export const MANIFEST_VERSION = 1;
-export const FIGURE_API = 1;
+export const MANIFEST_VERSION = 2;
+export const FIGURE_API = 2;
+/** The built-in body, and the one shown when the skin names a pack that is not there. */
+export const COO = 'coo';
+/** Kinds a pack's own sounds are filed under, as web/sound.js mutes them (BODY_SOUND_KINDS). */
+export const PACK_SOUND_KINDS = ['move', 'touch', 'face', 'snore'] as const;
+/** Audio files every platform's Chromium decodes. */
+const AUDIO = new Set(['.ogg', '.mp3', '.wav']);
 
 const ID = /^[a-z0-9][a-z0-9-]{0,31}$/;
 /** Option ids are joined with `-` into `skin.scheme`, so they cannot hold one. */
@@ -49,6 +58,14 @@ export interface FigurePreset {
   console?: { light: ConsoleHues; dark: ConsoleHues };
 }
 
+export interface PackSound {
+  /** Relative to the pack. */
+  file: string;
+  kind: typeof PACK_SOUND_KINDS[number];
+  /** 0–1, times the page's volume. */
+  volume: number;
+}
+
 export interface FigureManifest {
   manifest: number;
   api: number;
@@ -68,8 +85,12 @@ export interface FigureManifest {
   thumb?: string;
   axes: FigureAxis[];
   presets: FigurePreset[];
-  /** Vocabulary words (script.ts) the body does not do: replaced by another word, or left out (null). */
-  unsupported: Record<string, string | null>;
+  /** The words the bot may use while this body is on: every expression and motion it does. */
+  vocab: VocabWord[];
+  /** Its own sound files by name; the body asks for them, the page plays them. */
+  sounds: Record<string, PackSound>;
+  /** `walk`: whether it goes where it is told (`pet_walk_to`). */
+  can: { walk: boolean };
 }
 
 export interface FigurePack {
@@ -81,7 +102,7 @@ export interface FigurePack {
   manifest: FigureManifest;
 }
 
-const names = (v: unknown): Names | null => {
+const namesOf = (v: unknown): Names | null => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
   const out: Names = {};
   for (const [k, s] of Object.entries(v)) if (typeof s === 'string' && s.trim()) out[k] = s.trim();
@@ -89,18 +110,70 @@ const names = (v: unknown): Names | null => {
 };
 /** A path inside the pack: relative, no `..`. */
 const inside = (p: unknown): p is string => typeof p === 'string' && p !== '' && !p.startsWith('/') && !p.split(/[\\/]/).includes('..') && !/^[a-z]+:/i.test(p);
-const VOCAB_IDS = new Set(VOCAB.map((v) => v.id));
+/** Characters that end a word in a script's markers (script.ts): a name holding one could never be written. */
+const NAME_BREAK = /[,，、\s【】<>＜＞]/;
+const WORD_KINDS = new Set(['expression', 'motion']);
+const SOUND_NAME = /^[a-z][a-zA-Z0-9-]{0,31}$/;
 
-/** The manifest at `dir`, checked; a string says what is wrong with it. */
-export function readManifest(dir: string): FigureManifest | string {
+/** The vocabulary in `raw`, checked; a string says what is wrong with it. */
+function readVocab(raw: unknown): VocabWord[] | string {
+  if (!Array.isArray(raw)) return 'vocab 应为数组';
+  const out: VocabWord[] = [];
+  const taken = new Set<string>();
+  for (const w of raw as Array<Record<string, unknown>>) {
+    const id = w?.id;
+    if (typeof id !== 'string' || !ID.test(id)) return `vocab 里有不合法的 id:${JSON.stringify(id)}`;
+    if (!WORD_KINDS.has(w.kind as string)) return `vocab.${id}.kind 应为 expression 或 motion`;
+    const names: Record<string, string[]> = {};
+    for (const [lang, list] of Object.entries((w.names ?? {}) as Record<string, unknown>)) {
+      if (!Array.isArray(list)) return `vocab.${id}.names.${lang} 应为数组`;
+      for (const n of list) {
+        // longer than an inline marker holds, a name would be read as text there
+        if (typeof n !== 'string' || !n.trim() || n.length > INLINE_TAG_MAX || NAME_BREAK.test(n)) return `vocab.${id} 的名字不合法:${JSON.stringify(n)}`;
+      }
+      names[lang] = list as string[];
+    }
+    for (const n of [id, ...Object.values(names).flat()]) {
+      if (taken.has(n)) return `vocab 里 ${n} 指了不止一个词`;
+      taken.add(n);
+    }
+    const about = namesOf(w.about);
+    if (!about) return `vocab.${id}.about 缺失`;
+    if (typeof w.seconds !== 'number' || !(w.seconds > 0) || !Number.isFinite(w.seconds)) return `vocab.${id}.seconds 应为正数`;
+    out.push({ id, kind: w.kind as VocabWord['kind'], names, about, seconds: w.seconds, ...(w.lasting === true ? { lasting: true } : {}) });
+  }
+  return out;
+}
+
+/** The sounds in `raw`, checked; a string says what is wrong with them. Files that are not there are left out and named in `missing`. */
+function readSounds(raw: unknown, dir: string, missing: string[]): Record<string, PackSound> | string {
+  if (raw === undefined) return {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return 'sounds 应为对象';
+  const out: Record<string, PackSound> = {};
+  for (const [name, d] of Object.entries(raw as Record<string, Record<string, unknown>>)) {
+    if (!SOUND_NAME.test(name)) return `sounds 里的名字不合法:${JSON.stringify(name)}`;
+    if (!inside(d?.file) || !AUDIO.has(extname(d.file).toLowerCase())) return `sounds.${name}.file 应为形象包里的 .ogg、.mp3 或 .wav`;
+    if (!PACK_SOUND_KINDS.includes(d.kind as PackSound['kind'])) return `sounds.${name}.kind 应为 ${PACK_SOUND_KINDS.join('、')} 之一`;
+    if (d.volume !== undefined && (typeof d.volume !== 'number' || !(d.volume >= 0 && d.volume <= 1))) return `sounds.${name}.volume 应为 0–1`;
+    if (!existsSync(join(dir, d.file))) { missing.push(`sounds.${name} 的 ${d.file} 不存在,这个声音不会响`); continue; }
+    out[name] = { file: d.file, kind: d.kind as PackSound['kind'], volume: (d.volume as number | undefined) ?? 1 };
+  }
+  return out;
+}
+
+/**
+ * The manifest at `dir`, checked; a string says what is wrong with it. `builtin`: one of the package's own
+ * (only those may be `coo`). Sound files that are not there are left out and named in `missing`.
+ */
+export function readManifest(dir: string, builtin = false, missing: string[] = []): FigureManifest | string {
   const file = join(dir, MANIFEST_FILE);
   if (!existsSync(file)) return `没有 ${MANIFEST_FILE}`;
   let raw: Record<string, unknown>;
   try { raw = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>; } catch (err) { return `${MANIFEST_FILE} 不是合法的 JSON:${(err as Error).message}`; }
   if (raw.manifest !== MANIFEST_VERSION) return `manifest 应为 ${MANIFEST_VERSION},是 ${JSON.stringify(raw.manifest)}`;
   if (raw.api !== FIGURE_API) return `api 应为 ${FIGURE_API},是 ${JSON.stringify(raw.api)}`;
-  if (typeof raw.id !== 'string' || !ID.test(raw.id) || raw.id === 'coo') return `id 不合法:${JSON.stringify(raw.id)}`;
-  const name = names(raw.name), about = names(raw.about);
+  if (typeof raw.id !== 'string' || !ID.test(raw.id) || (raw.id === COO && !builtin)) return `id 不合法:${JSON.stringify(raw.id)}`;
+  const name = namesOf(raw.name), about = namesOf(raw.about);
   if (!name) return 'name 缺失';
   if (!about) return 'about 缺失';
   if (!inside(raw.entry) || typeof raw.export !== 'string' || !raw.export) return 'entry 或 export 不合法';
@@ -108,11 +181,11 @@ export function readManifest(dir: string): FigureManifest | string {
   if (raw.thumb !== undefined && !inside(raw.thumb)) return 'thumb 路径不合法';
   const axes: FigureAxis[] = [];
   for (const a of Array.isArray(raw.axes) ? raw.axes as Array<Record<string, unknown>> : []) {
-    const an = names(a?.name);
+    const an = namesOf(a?.name);
     if (typeof a?.id !== 'string' || !ID.test(a.id) || !an || !Array.isArray(a.options) || !a.options.length) return `axes 里有不合法的一项:${JSON.stringify(a?.id)}`;
     const options: FigureAxis['options'] = [];
     for (const o of a.options as Array<Record<string, unknown>>) {
-      const on = names(o?.name);
+      const on = namesOf(o?.name);
       if (typeof o?.id !== 'string' || !OPTION_ID.test(o.id) || !on || (o.thumb !== undefined && !inside(o.thumb))) return `axes.${a.id} 里有不合法的选项:${JSON.stringify(o?.id)}`;
       options.push({ id: o.id, name: on, ...(o.thumb ? { thumb: o.thumb as string } : {}), ...(typeof o.accent === 'string' ? { accent: o.accent } : {}) });
     }
@@ -126,20 +199,20 @@ export function readManifest(dir: string): FigureManifest | string {
     if (p.thumb !== undefined && !inside(p.thumb)) return `presets.${p.id}.thumb 路径不合法`;
     presets.push({
       id: p.id, pick: Object.fromEntries(axes.map((a) => [a.id, pick[a.id] as string])),
-      ...(names(p.name) ? { name: names(p.name)! } : {}), ...(p.thumb ? { thumb: p.thumb as string } : {}),
+      ...(namesOf(p.name) ? { name: namesOf(p.name)! } : {}), ...(p.thumb ? { thumb: p.thumb as string } : {}),
       ...(typeof p.accent === 'string' ? { accent: p.accent } : {}),
       ...(p.console && typeof p.console === 'object' ? { console: p.console as FigurePreset['console'] } : {}),
     });
   }
-  const unsupported: Record<string, string | null> = {};
-  for (const [word, to] of Object.entries((raw.unsupported ?? {}) as Record<string, unknown>)) {
-    if (!VOCAB_IDS.has(word)) return `unsupported 里的 ${word} 不在词表里`;
-    if (to !== null && (typeof to !== 'string' || !VOCAB_IDS.has(to) || to in (raw.unsupported as object))) return `unsupported.${word} 要么是 null,要么是这个形象做得了的词`;
-    unsupported[word] = to as string | null;
-  }
+  const vocab = readVocab(raw.vocab);
+  if (typeof vocab === 'string') return vocab;
+  const sounds = readSounds(raw.sounds, dir, missing);
+  if (typeof sounds === 'string') return sounds;
+  const can = (raw.can ?? {}) as Record<string, unknown>;
+  if (can.walk !== undefined && typeof can.walk !== 'boolean') return 'can.walk 应为 true 或 false';
   return {
     manifest: MANIFEST_VERSION, api: FIGURE_API, id: raw.id, version: typeof raw.version === 'string' ? raw.version : '0.0.0',
-    name, about, entry: raw.entry, export: raw.export, axes, presets, unsupported,
+    name, about, entry: raw.entry, export: raw.export, axes, presets, vocab, sounds, can: { walk: can.walk !== false },
     ...(typeof raw.author === 'string' ? { author: raw.author } : {}),
     ...(typeof raw.license === 'string' ? { license: raw.license } : {}),
     ...(Array.isArray(raw.credits) ? { credits: raw.credits as FigureManifest['credits'] } : {}),
@@ -152,6 +225,7 @@ export interface PackScan { packs: FigurePack[]; problems: string[] }
 
 /** The packs that ship with the World: directory and the URL path the pages load it from. */
 export const BUILTIN_PACKS: ReadonlyArray<{ dir: string; base: string }> = [
+  { dir: fileURLToPath(new URL('../web/coo/', import.meta.url)), base: '/web/coo/' },
   { dir: fileURLToPath(new URL('../web/whale/', import.meta.url)), base: '/web/whale/' },
 ];
 
@@ -165,8 +239,10 @@ export function scanPacks(builtin: ReadonlyArray<{ dir: string; base: string }>,
   const packs: FigurePack[] = [];
   const problems: string[] = [];
   const add = (dir: string, base: (id: string) => string, isBuiltin: boolean) => {
-    const m = readManifest(dir);
+    const missing: string[] = [];
+    const m = readManifest(dir, isBuiltin, missing);
     if (typeof m === 'string') { problems.push(`${dir}:${m}`); return; }
+    for (const x of missing) problems.push(`${dir}:${x}`);
     if (packs.some((p) => p.id === m.id)) { problems.push(`${dir}:id ${m.id} 已被${packs.find((p) => p.id === m.id)!.builtin ? '内置形象' : '另一个形象包'}占用`); return; }
     packs.push({ id: m.id, dir, base: base(m.id), builtin: isBuiltin, manifest: m });
   };
@@ -192,32 +268,25 @@ export function nameIn(n: Names, language = 'zh'): string {
   return n[language] ?? n.zh ?? Object.values(n)[0] ?? '';
 }
 
-/**
- * Vocabulary words as the body does them: kept, replaced by the pack's stand-in, or left out.
- * `told` lists one line per word that was not done as asked, for the tool's receipt.
- */
-export function adaptWords(words: readonly string[], pack: FigurePack | null): { words: string[]; told: string[] } {
-  if (!pack) return { words: [...words], told: [] };
-  const out: string[] = [];
-  const told: string[] = [];
-  const figure = nameIn(pack.manifest.name);
-  for (const w of words) {
-    if (!(w in pack.manifest.unsupported)) { out.push(w); continue; }
-    const to = pack.manifest.unsupported[w];
-    if (to) { out.push(to); told.push(`${w} 当前形象(${figure})做不了,换成了 ${to}`); }
-    else told.push(`${w} 当前形象(${figure})做不了,没有做`);
-  }
-  return { words: out, told: [...new Set(told)] };
+/** The pack the skin asks for: the one with `figure`'s id, else Coo (a pack that went away shows as Coo). */
+export function packFor(packs: readonly FigurePack[], figure: string | undefined): FigurePack | null {
+  return packs.find((p) => p.id === (figure ?? COO)) ?? packs.find((p) => p.id === COO) ?? null;
 }
 
-/** One line on what the body does not do, for the bot; empty when it does everything. */
-export function unsupportedLine(pack: FigurePack): string {
-  const u = Object.entries(pack.manifest.unsupported);
-  if (!u.length) return '';
-  const replaced = u.filter(([, to]) => to).map(([w, to]) => `${w}→${to}`);
-  const left = u.filter(([, to]) => !to).map(([w]) => w);
-  return [
-    replaced.length ? `这些词会换成别的:${replaced.join('、')}` : '',
-    left.length ? `这些词做不了,会被略过:${left.join('、')}` : '',
-  ].filter(Boolean).join(';');
+/** Coo's picks are the skin's own fields named by its axes; another pack's are `skin.scheme`. */
+type SkinLook = { scheme?: string } & object;
+
+/** The scheme the skin picks for `pack` (see the top of this file). */
+export function lookOf(pack: FigurePack, skin: SkinLook): string {
+  if (pack.id !== COO) return skin.scheme ?? '';
+  const fields = skin as Record<string, unknown>;
+  return pack.manifest.axes.map((a) => String(fields[a.id] ?? a.options[0]!.id)).join('-');
+}
+
+/** The skin fields that pick `scheme` for `pack` (a scheme `pickWords` accepted). */
+export function lookPatch(pack: FigurePack, scheme: string): Record<string, string> {
+  if (pack.id !== COO) return { scheme };
+  const preset = pack.manifest.presets.find((p) => p.id === scheme);
+  const parts = scheme.split('-');
+  return Object.fromEntries(pack.manifest.axes.map((a, i) => [a.id, preset ? preset.pick[a.id]! : parts[i]!]));
 }

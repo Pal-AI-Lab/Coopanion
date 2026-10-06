@@ -21,11 +21,15 @@ export function hoverButtonList(value: string): PetAction[] {
   return out.slice(0, MAX_HOVER_BUTTONS);
 }
 
-/** Accessory choice as the page's `normalizeSkin` reads it; unknown values fall back to defaults there. */
+/**
+ * The body and how it is dressed, as the pages' `normalizeSkin` (web/coo/coo.js) reads it; unknown values fall back
+ * to defaults there. Coo's picks are its own fields (palette and the four slots, with their colour channels);
+ * a figure pack's are `scheme` (src/packs.ts).
+ */
 export interface PetSkin {
-  /** coo: the built-in figure; whale: the DeepSeek whale maid (web/whale). */
+  /** The figure pack on screen: coo (built in), whale (built in, web/whale) or an installed pack's id. */
   figure?: string;
-  /** The whale's colour scheme id (web/whale/model.json). */
+  /** The pack's pick: a preset id, or its axes' options joined by `-`. */
   scheme?: string;
   palette: string;
   head: string;
@@ -35,7 +39,7 @@ export interface PetSkin {
   colors: Record<string, { main: string; acc: string }>;
 }
 
-/** Kinds of the pet's sounds, the keys of `SOUND_KINDS` in web/pet-core.js. */
+/** Kinds of the pet's sounds, the keys of `SOUND_KINDS` in web/sound.js; a pack's own sounds are filed under these too. */
 export const SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk', 'ui'] as const;
 export type SoundKind = typeof SOUND_KINDS[number];
 export type SoundSettings = Record<SoundKind, boolean> & {

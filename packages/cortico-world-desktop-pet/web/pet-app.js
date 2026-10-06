@@ -1,15 +1,18 @@
 /**
- * The pet page. Connects to the World over `/socket?role=pet`, runs the body from pet-core,
- * and turns World orders (say, ask, walk, act, listen, and the steps of an app's conversation)
- * into bubbles and motion. It reports back only what happened on screen: arrivals, answers,
- * touches, typed text, and 16 kHz microphone audio while voice input is on.
+ * The pet page. Connects to the World over `/socket?role=pet`, runs the body of the figure pack the
+ * skin names (Coo's or another, in a sandboxed frame, body-host.js), and turns World orders (say,
+ * ask, walk, act, listen, and the steps of an app's conversation) into bubbles and motion. It
+ * reports back only what happened on screen: arrivals, answers, touches, typed text, and 16 kHz
+ * microphone audio while voice input is on.
  *
  * In the pet window (`window.petHost` from the preload) the page is transparent and the
  * window ignores the mouse except over the figure, a bubble, the menu or the hover buttons.
  * Colors follow the World's `theme` through `data-theme` on the root element.
  */
-import { applyTheme, createPet, createSfx, clamp, f, mini, normalizeSkin, skinCss, EXPRESSIONS, HEAD_TOP, ICONS } from './pet-core.js';
-import { loadPackFigure } from './figure-sandbox.js';
+import { applyTheme, clamp, f, ICONS } from './ui.js';
+import { createSfx } from './sound.js';
+import { COO_CSS, mini, normalizeSkin, skinCss } from './coo/coo.js';
+import { loadBody } from './body-host.js';
 
 const $ = (s) => document.querySelector(s);
 const host = window.petHost || null;
@@ -18,8 +21,10 @@ document.body.classList.add(host ? 'desk' : 'tab');
 const stage = $('#stage');
 const bubble = $('#bubble'), heardEl = $('#heard'), trail = $('#trail'), menu = $('#menu');
 const tools = $('#tools');
-const skinStyle = document.createElement('style');
-document.head.appendChild(skinStyle);
+// Coo's drawing classes for the menu's avatar; the bubbles and buttons take their colours from Coo's palette
+const cooStyle = document.createElement('style'), skinStyle = document.createElement('style');
+cooStyle.textContent = COO_CSS;
+document.head.append(cooStyle, skinStyle);
 
 const prefs = {
   roam: 'calm', sound: true, theme: document.documentElement.dataset.theme, scale: 1, user: '伙伴', mic: false, micDevice: '', bot: null,
@@ -38,19 +43,19 @@ if (host) sfx.unlock();
 else ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => sfx.unlock(), { capture: true }));
 
 const floorGap = () => (host ? 2 : 48);
-const ctl = createPet(
-  { petG: $('#pet'), shadowEl: $('#shadow'), fxG: $('#fx') },
-  {
-    sfx,
-    roam: prefs.roam,
-    bounds: () => ({ W: innerWidth, H: innerHeight, floorY: innerHeight - floorGap(), S: .42 * prefs.scale }),
-    onEvent: (kind, d) => onBody(kind, d),
-    dialogOpen: () => !!item || !!listen.phase,
-    enter: 'drop',
-  },
-);
+const bounds = () => ({ W: innerWidth, H: innerHeight, floorY: innerHeight - floorGap(), S: .42 * prefs.scale });
+/**
+ * The body on screen (body-host.js), null until the first one is ready, and the words it does (its pack's
+ * vocab, by id). `T` is the page's clock, in seconds of frames drawn.
+ */
+let body = null, words = new Map(), T = 0;
+/** Where the body last said it is (body-host.js `layout`), or null. */
+const at = () => body?.layout ?? null;
+/** What the body is told of the page: talking orders hold its roaming off, and these states. */
+const bodyState = { listening: false, thinking: false, dialogOpen: false };
+const holdRoam = (seconds) => body?.set({ hold: seconds });
 addEventListener('resize', () => {
-  ctl.resize();
+  body?.set({ bounds: bounds() });
   // the World reads walk targets and drop spots against the stage the pet is on now
   send({ t: 'hello', screen: { w: innerWidth, h: innerHeight } });
 });
@@ -76,38 +81,63 @@ function connect() {
 connect();
 
 /*
- * ---------- the body: Coo, or a figure pack (src/packs.ts) drawn in a sandboxed frame ----------
+ * ---------- the body: a figure pack (src/packs.ts; Coo is one) run in a sandboxed frame ----------
  * The World hears which body is on screen (`figure`), so the bot is told of a switch, and of a pack that
- * would not load or broke while drawing (no usable WebGL, a missing texture, a bug in its code): the page
- * then shows Coo instead of a body that throws on every frame.
+ * would not load or broke while running (no usable WebGL, a missing texture, a bug in its code): the page
+ * then shows Coo instead.
  */
-let wanted = 'coo';
-/** The pack's body on screen, or null for Coo. */
-let packBody = null;
+let skin = normalizeSkin(null), wanted = null;
 function reportFigure(id, ok, reason, scheme) { send({ t: 'figure', id, ok, ...(scheme ? { scheme } : {}), ...(reason ? { reason } : {}) }); }
 function bodyFailed(id, err) {
   console.error(err);
-  if (packBody?.id === id) packBody = null;
-  if (ctl.figure?.pack === id) ctl.setFigure(null);
   reportFigure(id, false, String(err?.message ?? err));
+  // Coo stands in; when Coo itself will not run there is nothing left to show
+  if (id !== 'coo' && wanted === id) showFigure({ ...skin, figure: 'coo' }).catch((e) => console.error(e));
+}
+/** Where the first body stands: the spot the World remembered (`restorePosition`), facing the middle of the screen. */
+let firstX = null;
+/** The pack whose body is being loaded: skins that come meanwhile wait for it (`skin` holds the latest). */
+let loading = null;
+async function showFigure(s) {
+  wanted = s.figure;
+  if (loading === s.figure) return;
+  // a pick changed while the same pack is on screen fades in; Coo's picks are its skin
+  if (body?.pack === s.figure) {
+    body.set({ skin: s });
+    if (s.figure !== 'coo') await body.setScheme(s.scheme, { fade: .45, at: T });
+    reportFigure(s.figure, true, null, s.figure === 'coo' ? null : s.scheme);
+    return;
+  }
+  loading = s.figure;
+  try { await swapBody(s); } finally { if (loading === s.figure) loading = null; }
+  // a pick that came while the body was loading
+  if (body?.pack === skin.figure && skin !== s) await showFigure(skin);
+}
+async function swapBody(s) {
+  const pack = (await (await fetch('/api/figures')).json()).find((p) => p.id === s.figure);
+  if (!pack) throw new Error('没有装这个形象');
+  const was = at();
+  const x = was?.x ?? firstX ?? innerWidth * .7;
+  const holder = {};
+  const next = await loadBody({
+    layer: $('#figureLayer'), pack, theme: prefs.theme, bounds: bounds(),
+    // the new body stands where the old one stood; the first one drops in
+    start: { x, facing: was?.facing ?? (x < innerWidth / 2 ? 1 : -1), enter: body ? undefined : 'drop', skin: s, scheme: s.scheme },
+    onEvent: (kind, d) => { if (body === holder.body) onBody(kind, d); },
+    onSound: (name, kind, ...args) => { if (body === holder.body) sfx.play(name, kind, ...args); },
+    onError: (err) => { if (body === holder.body) bodyFailed(pack.id, err); },
+  });
+  if (wanted !== s.figure) { next.dispose(); return; }
+  holder.body = next;
+  next.set({ roam: prefs.roam, ...bodyState });
+  body?.dispose();
+  body = next;
+  words = new Map(pack.vocab.map((w) => [w.id, w]));
+  sfx.usePack(pack.base, pack.sounds);
+  reportFigure(s.figure, true, null, s.figure === 'coo' ? null : s.scheme);
 }
 async function applyFigure(s) {
-  wanted = s.figure;
-  if (s.figure === 'coo') { packBody = null; ctl.setFigure(null); reportFigure('coo', true); return; }
-  try {
-    // a pick changed while the same pack is on screen fades in
-    if (packBody?.id === s.figure) { await packBody.fig.setScheme(s.scheme, { fade: .45, at: ctl.time }); reportFigure(s.figure, true, null, s.scheme); return; }
-    const pack = (await (await fetch('/api/figures')).json()).find((p) => p.id === s.figure);
-    if (!pack) throw new Error('没有装这个形象');
-    const fig = await loadPackFigure({ layer: $('#figureLayer'), pack, scheme: s.scheme, onError: (err) => bodyFailed(s.figure, err) });
-    if (wanted !== s.figure) { fig.dispose(); return; }
-    await fig.setScheme(s.scheme, { fade: 0, at: ctl.time });
-    packBody = { id: s.figure, fig };
-    ctl.setFigure(fig);
-    reportFigure(s.figure, true, null, s.scheme);
-  } catch (err) {
-    bodyFailed(s.figure, err);
-  }
+  try { await showFigure(s); } catch (err) { bodyFailed(s.figure, err); }
 }
 
 /**
@@ -120,29 +150,29 @@ function restorePosition(startX) {
   sentX = null;
   if (restored) return;
   restored = true;
-  if (host && typeof startX === 'number' && ctl.pet.mode !== 'drag') {
-    const { minX, maxX } = ctl.bounds;
-    ctl.pet.x = ctl.pet.target = clamp(startX * innerWidth, minX, maxX);
-  }
   // She starts facing the middle of the screen rather than always right (#59), so a pet
   // resting on the right half is not turned away from the likely interaction area.
-  ctl.pet.facing = ctl.pet.x < innerWidth / 2 ? 1 : -1;
+  if (host && typeof startX === 'number') {
+    firstX = startX * innerWidth;
+    body?.place(firstX, firstX < innerWidth / 2 ? 1 : -1);
+  }
 }
 function reportPosition() {
-  if (!host || !prefs.rememberPosition) return;
-  const x = ctl.pet.x / innerWidth;
+  const l = at();
+  if (!host || !prefs.rememberPosition || !l) return;
+  const x = l.x / innerWidth;
   if (sentX !== null && Math.abs(x - sentX) * innerWidth < 1) return;
   sentX = x;
   send({ t: 'position', x });
 }
 
 function applyPrefs(p) {
-  if (p.skin) { const s = normalizeSkin(p.skin); ctl.setSkin(s); skinStyle.textContent = skinCss(s); applyFigure(s).catch((err) => console.error(err)); }
-  if (p.roam) { prefs.roam = p.roam; ctl.setRoam(p.roam); }
+  if (p.skin) { skin = normalizeSkin(p.skin); skinStyle.textContent = skinCss(skin); void applyFigure(skin); }
+  if (p.roam) { prefs.roam = p.roam; body?.set({ roam: p.roam }); }
   if (typeof p.sound === 'boolean') { prefs.sound = p.sound; sfx.set(p.sound); }
   if (p.sounds && typeof p.sounds === 'object') sfx.configure({ kinds: p.sounds, snoreSeconds: p.sounds.snoreSeconds });
-  if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); }
-  if (typeof p.scale === 'number') { prefs.scale = p.scale; ctl.resize(); }
+  if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); body?.set({ theme: p.theme }); }
+  if (typeof p.scale === 'number') { prefs.scale = p.scale; body?.set({ bounds: bounds() }); }
   if (typeof p.rememberPosition === 'boolean') { prefs.rememberPosition = p.rememberPosition; reportPosition(); }
   if (typeof p.user === 'string') prefs.user = p.user;
   if (typeof p.micDevice === 'string' && p.micDevice !== prefs.micDevice) { prefs.micDevice = p.micDevice; stopMic(); }
@@ -152,7 +182,7 @@ function applyPrefs(p) {
   if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
   if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead(); }
-  if (typeof p.thinking === 'boolean') ctl.setThinking(p.thinking);
+  if (typeof p.thinking === 'boolean') setBody({ thinking: p.thinking });
   refreshButtons();
 }
 
@@ -161,17 +191,24 @@ function onOrder(m) {
     case 'init': restorePosition(m.startX); applyPrefs(m); break;
     case 'prefs': applyPrefs(m); break;
     case 'watching': watching = true; stopMic(); break;
-    case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); ctl.holdRoam(20); break;
-    case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); ctl.holdRoam(20); break;
-    case 'confirm': dropAsks(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); ctl.holdRoam(20); break;
+    case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); holdRoam(20); break;
+    case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
+    case 'confirm': dropAsks(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
     case 'walk': walk(m); break;
-    case 'act': acts.push(...m.actions); ctl.holdRoam(20); break;
+    case 'act': acts.push(...m.actions); holdRoam(20); break;
     case 'listen': onListen(m); break;
-    case 'thinking': ctl.setThinking(!!m.on); break;
-    case 'dialog': queue.push({ kind: 'dialog', id: m.id, d: m }); ctl.holdRoam(20); break;
+    case 'thinking': setBody({ thinking: !!m.on }); break;
+    case 'dialog': queue.push({ kind: 'dialog', id: m.id, d: m }); holdRoam(20); break;
     case 'dialog-update': updateDialog(m); break;
     case 'dialog-close': endDialog(m.id); break;
   }
+}
+
+/** Tells the body of a change in the page's states (listening, thinking, a bubble that wants it to stay put). */
+function setBody(change) {
+  if (Object.entries(change).every(([k, v]) => bodyState[k] === v)) return;
+  Object.assign(bodyState, change);
+  body?.set(change);
 }
 
 /* ---------- body events → World ---------- */
@@ -180,54 +217,39 @@ function onBody(kind, d) {
   if (kind === 'arrived' || kind === 'interrupted') {
     if (!d.walkId || !walkTargets.has(d.walkId)) return;
     walkTargets.delete(d.walkId);
-    send({ t: kind, walkId: d.walkId, x: d.x / innerWidth, by: d.by });
-    if (actWait && actWait.walkId === d.walkId) actWait = null;
+    send({ t: kind, walkId: d.walkId, x: (typeof d.x === 'number' ? d.x : at()?.x ?? 0) / innerWidth, by: d.by });
   } else if (kind === 'touch') {
     send({ t: 'touch', ...d });
     if (d.kind === 'grab') closeMenu();
   } else if (kind === 'mode') {
     reportPosition();
+  } else if (kind === 'done') {
+    // a word that ends on its own (a walk across the screen) lets the next one start at once
+    if (d.word === actWord) actUntil = T;
   }
 }
 
 function walk(m) {
   const x = m.to === 'cursor' ? (pointerSeen ? lastPointer.x : innerWidth / 2) : clamp(Number(m.to), 0, 1) * innerWidth;
+  holdRoam(20);
+  if (!body) { send({ t: 'interrupted', walkId: m.id, x: .5, by: 'none' }); return; }
   walkTargets.set(m.id, true);
-  ctl.holdRoam(20);
-  if (!ctl.walkTo(x, !!m.run, m.id)) {
-    walkTargets.delete(m.id);
-    send({ t: 'interrupted', walkId: m.id, x: ctl.pet.x / innerWidth, by: ctl.pet.mode === 'drag' ? 'drag' : ctl.pet.mode });
-  }
+  body.walk(x, !!m.run, m.id);
 }
 
-/* ---------- actions ---------- */
-const DUR = {
-  stand: 1.2, jump: 1.2, hop: .9, look: 2.7, turn: .4, nod: .8, shake: .8, spin: .8, sit: .8, sleep: .8, dizzy: 3.2,
-  wave: 1.7, bow: 1.7, shiver: 1.9, flap: 1.5, dance: 3.4,
-};
+/* ---------- actions: words of the body's vocabulary, one after another ---------- */
 const acts = [];
-let actUntil = 0, actWait = null;
-function runAction(a) {
-  if (EXPRESSIONS.includes(a)) {
-    if (a === 'neutral') ctl.setExpr('neutral', .1);
-    else ctl.setExpr(a);
-    return .9;
-  }
-  if (a === 'walk' || a === 'run') {
-    const id = 'act' + Math.random().toString(36).slice(2);
-    const x = ctl.pet.x < innerWidth / 2 ? innerWidth * (.55 + Math.random() * .35) : innerWidth * (.1 + Math.random() * .35);
-    if (ctl.walkTo(x, a === 'run', id)) { actWait = { walkId: id }; walkTargets.set(id, true); }
-    return 12;
-  }
-  ctl.act(a);
-  return DUR[a] ?? 1;
-}
+/** When the word playing lets the next one start (its `seconds`, or its `done`), and which word it is. */
+let actUntil = 0, actWord = null;
 function stepActs() {
-  const now = ctl.time;
-  if (actWait || now < actUntil || !acts.length) return;
-  if (ctl.busy()) return;
-  actUntil = now + runAction(acts.shift());
-  ctl.holdRoam(15);
+  if (T < actUntil || !acts.length) return;
+  const l = at();
+  if (!l || l.busy) return;
+  const a = acts.shift();
+  body.do(a);
+  actWord = a;
+  actUntil = T + (words.get(a)?.seconds ?? 1);
+  holdRoam(15);
 }
 
 /* ---------- say / ask ---------- */
@@ -282,30 +304,30 @@ function startItem(it) {
 }
 
 function stepDialog(dt) {
-  if (!item && queue.length && !ctl.busy()) startItem(queue.shift());
+  if (!item && queue.length && at() && !at().busy) startItem(queue.shift());
   const it = item;
   if (!it) return;
   if (it.kind === 'say') {
     if (it.i < 0 || it.beatDone) {
-      if (it.beatDone && ctl.time < it.holdUntil) return;
+      if (it.beatDone && T < it.holdUntil) return;
       it.i++;
       it.beatDone = false;
       if (it.i >= it.beats.length) { closeBubble(); return; }
       const b = it.beats[it.i];
       let lead = 0;
       for (const a of b.actions || []) { acts.push(a); lead = .45; }
-      it.shown = 0; it.acc = 0; it.fired = 0; it.startAt = ctl.time + lead;
+      it.shown = 0; it.acc = 0; it.fired = 0; it.startAt = T + lead;
       if (b.text) { openBubble('say', '<p class="b-text"></p>'); sfx.pop(); } else { bubble.hidden = true; }
       return;
     }
     const b = it.beats[it.i];
-    if (ctl.time < it.startAt) return;
-    if (!b.text) { it.beatDone = true; it.holdUntil = ctl.time + .8; return; }
+    if (T < it.startAt) return;
+    if (!b.text) { it.beatDone = true; it.holdUntil = T + .8; return; }
     typeText(it, b.text, dt, b.anchors || []);
     if (it.shown >= b.text.length && !it.beatDone) {
       it.beatDone = true;
       const last = it.i === it.beats.length - 1;
-      it.holdUntil = ctl.time + (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03);
+      it.holdUntil = T + (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03);
     }
     return;
   }
@@ -323,7 +345,7 @@ function typeText(it, text, dt, anchors) {
   while (it.acc >= 1 && it.shown < text.length) {
     const ch = text[it.shown++];
     it.acc -= PAUSE.test(ch) ? 5 : 1;
-    if (!SILENT.test(ch)) { sfx.babble(ch); ctl.talk(); }
+    if (!SILENT.test(ch)) { sfx.babble(ch); body?.talk(); }
     while (it.fired < anchors.length && anchors[it.fired].at <= it.shown) acts.push(...anchors[it.fired++].actions);
   }
   if (it.marks?.length) p.innerHTML = marked(text, it.shown, it.marks);
@@ -384,7 +406,7 @@ function answer(node, a) {
   send(it.confirm ? { t: 'confirmed', id: it.id, index: a.index } : { t: 'answer', askId: it.id, ...a });
   // the bubble stays a moment longer; the keyboard goes back now
   releaseKeys(it);
-  ctl.setExpr('happy');
+  body?.cue('cheer');
   setTimeout(() => { if (item === it) closeBubble(); }, 700);
 }
 function dismissAsk() {
@@ -422,14 +444,14 @@ function stepTalk(it, dt) {
   if (it.shown < it.text.length) { typeText(it, it.text, dt, []); return; }
   if (it.bodyShown) return;
   it.bodyShown = true;
-  if (!it.d.input) { it.readUntil = ctl.time + 1.4 + it.text.length * .05; return; }
+  if (!it.d.input) { it.readUntil = T + 1.4 + it.text.length * .05; return; }
   showDialogInput(it);
 }
 
 /** A step with nothing to answer ends once its line has been read. */
 function stepTalkRead() {
   const it = item;
-  if (it?.kind === 'dialog' && it.readUntil && ctl.time > it.readUntil) settleDialog(it, { done: true });
+  if (it?.kind === 'dialog' && it.readUntil && T > it.readUntil) settleDialog(it, { done: true });
 }
 
 function showDialogInput(it) {
@@ -447,7 +469,7 @@ function showDialogInput(it) {
       cards.querySelectorAll('.d-card').forEach((c, k) => c.classList.toggle('on', k === i));
       const o = input.options[i];
       // the bubble stays put from here on, so the cards do not run off while Coo shows how it moves
-      if (it.pinX === undefined) { const a = ctl.anchor(); it.pinX = a.x; it.pinY = a.y; }
+      if (it.pinX === undefined) { const a = at()?.bubble ?? { x: innerWidth / 2, y: innerHeight }; it.pinX = a.x; it.pinY = a.y; }
       talk.motion = o?.motion ?? null; talk.next = 0;
       if (speak && o?.line) { it.text = o.line; it.shown = 0; it.acc = 0; }
     };
@@ -569,19 +591,21 @@ function settleDialog(it, answer) {
 function stepTalkMotion() {
   const it = item;
   if (it?.kind !== 'dialog') return;
-  ctl.holdRoam(20);
-  if (!talk.motion || it.pinX === undefined || ctl.busy() || ctl.time < talk.next || ctl.pet.mode !== 'idle') return;
+  holdRoam(20);
+  const l = at();
+  if (!talk.motion || it.pinX === undefined || !l || l.busy || T < talk.next || l.mode !== 'idle') return;
   const home = it.pinX, R = Math.min(TALK_RANGE, innerWidth * .25);
   if (talk.motion === 'still') {
-    if (Math.abs(ctl.pet.x - home) > 30) ctl.walkTo(home, false);
-    talk.next = ctl.time + 1;
+    if (Math.abs(l.x - home) > 30) body.walk(home, false, 0);
+    talk.next = T + 1;
     return;
   }
   const run = talk.motion === 'run';
-  if (run && Math.random() < .3) { ctl.act('hop'); talk.next = ctl.time + .5; return; }
+  if (run && Math.random() < .3 && words.has('hop')) { body.do('hop'); talk.next = T + .5; return; }
   // to the other side of the bubble each time, so every move is plain to see
-  const x = ctl.pet.x < home ? home + R * (.4 + Math.random() * .6) : home - R * (.4 + Math.random() * .6);
-  if (ctl.walkTo(clamp(x, 40, innerWidth - 40), run)) talk.next = ctl.time + (run ? .1 : 1.2 + Math.random() * 1.2);
+  const x = l.x < home ? home + R * (.4 + Math.random() * .6) : home - R * (.4 + Math.random() * .6);
+  body.walk(clamp(x, 40, innerWidth - 40), run, 0);
+  talk.next = T + (run ? .1 : 1.2 + Math.random() * 1.2);
 }
 
 /* ---------- typed input: the hover button, or double-click when switched on ---------- */
@@ -598,7 +622,7 @@ function openInput() {
     const v = input.value.trim();
     if (!v) return;
     send({ t: 'text', text: v });
-    sfx.select(); ctl.setExpr('happy');
+    sfx.select(); body?.cue('cheer');
     closeBubble();
   });
   host?.focus?.();
@@ -613,14 +637,13 @@ function onListen(m) {
   if (m.phase === 'ready') {
     if (listen.phase) return;
     sfx.tick();
-    ctl.pet.sqv += .6;
-    ctl.setExpr('surprised', .5);
+    body?.cue('perk');
     return;
   }
   if (m.phase === 'start') {
     if (!listen.phase) sfx.listenStart();
     listen.phase = 'hearing'; listen.closeAt = 0;
-    ctl.setListening(true);
+    setBody({ listening: true });
     showHeard(listen.text, true, undefined, listen.interim);
   } else if (m.phase === 'transcribing') {
     listen.phase = listen.phase || 'hearing';
@@ -634,14 +657,14 @@ function onListen(m) {
     listen.phase = 'done';
     showHeard(listen.text, false, '听到了');
     sfx.listenEnd();
-    ctl.setListening(false);
-    ctl.pet.sqv += .9;
-    listen.closeAt = ctl.time + 2.2;
+    setBody({ listening: false });
+    body?.cue('heard');
+    listen.closeAt = T + 2.2;
   } else if (m.phase === 'none') {
     if (listen.phase === 'done') return;
     listen.phase = null; listen.text = ''; listen.interim = '';
     heardEl.hidden = true; trail.hidden = true;
-    ctl.setListening(false);
+    setBody({ listening: false });
   }
 }
 /** `text` is settled; `interim` is the sentence still being heard, greyed, and may still change. */
@@ -654,7 +677,7 @@ function showHeard(text, live, hint, interim = '') {
   heardEl.querySelector('.b-hint').textContent = hint || (text || interim ? '还在听…' : '正在听…');
 }
 function stepListen() {
-  if (listen.phase === 'done' && ctl.time > listen.closeAt) {
+  if (listen.phase === 'done' && T > listen.closeAt) {
     listen.phase = null; listen.text = ''; listen.interim = '';
     heardEl.hidden = true; trail.hidden = true;
   }
@@ -854,7 +877,7 @@ function renderMenuHead(confirmQuit = false) {
   head.innerHTML = '<span class="m-avatar"></span><span class="m-name"></span><span class="m-acts"></span>';
   head.querySelector('.m-avatar').innerHTML = bot.avatar
     ? `<img alt="" src="/api/avatar?v=${encodeURIComponent(bot.avatar)}">`
-    : `<svg viewBox="18 18 220 220" aria-hidden="true">${mini('neutral', ctl.skin)}</svg>`;
+    : `<svg viewBox="18 18 220 220" aria-hidden="true">${mini('neutral', skin)}</svg>`;
   const name = head.querySelector('.m-name');
   name.textContent = name.title = confirmQuit ? bot.quitPrompt : (bot.name || 'Coo');
   const acts = head.querySelector('.m-acts');
@@ -962,8 +985,9 @@ function stepTools() {
   // shown while the cursor is on the pet or on the buttons, and a moment after it leaves; decided
   // from where the cursor is now, not from the last move event, which may be stale
   const p = cursor.at;
-  if (p && (ctl.hitPet(p) || overTools(p))) toolsUntil = ctl.time + TOOLS_LINGER;
-  tools.hidden = !(ctl.time < toolsUntil && !ctl.pressing && !ctl.busy() && menu.hidden && toolIds !== '');
+  const l = at();
+  if (p && (body?.hit(p) || overTools(p))) toolsUntil = T + TOOLS_LINGER;
+  tools.hidden = !(T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && toolIds !== '');
   if (tools.hidden) endHold();
   tools.querySelector('[data-action="voice"]')?.classList.toggle('live', listen.phase === 'hearing');
 }
@@ -1010,9 +1034,9 @@ function seen(s, now) {
 function writePointer(now) {
   clearTimeout(diag.timer);
   diag.timer = 0;
-  const c = ctl.toStage(128, 128);
+  const c = at()?.side ?? { x: 0, y: 0 };
   console.log('[pointer] ' + JSON.stringify({
-    ...diag.held, interactive, pressing: ctl.pressing,
+    ...diag.held, interactive, pressing: !!at()?.pressing,
     move: seen(diag.move, now), poll: seen(diag.poll, now),
     pet: { x: Math.round(c.x), y: Math.round(c.y) },
     types: [...diag.types], skipped: diag.skipped,
@@ -1030,8 +1054,8 @@ document.addEventListener('pointermove', (e) => {
   const p = { x: e.clientX, y: e.clientY };
   cursor.at = p;
   // while the window moves to another display, moves may come in either display's coordinates; the drag shifts over once it has moved
-  if (!shifting) stage.style.cursor = ctl.pointerMove(p);
-  const hit = ctl.hitPet(p), ui = !!overUi(e);
+  if (!shifting) body?.pointer('move', { ...p, t: e.timeStamp });
+  const hit = !!body?.hit(p), ui = !!overUi(e);
   diag.move = { at: performance.now(), type: e.pointerType, x: Math.round(p.x), y: Math.round(p.y), hit, ui };
   diag.types.add(e.pointerType);
   if (e.pointerType !== diag.type) {
@@ -1039,7 +1063,7 @@ document.addEventListener('pointermove', (e) => {
     diag.type = e.pointerType;
     if (!first) logPointer('type', 'move');
   }
-  setInteractive(ctl.pressing || hit || ui, 'move');
+  setInteractive(pressing || hit || ui, 'move');
   followDrag(p);
 });
 /**
@@ -1051,20 +1075,24 @@ host?.onCursor?.((p) => {
   cursor.at = p;
   if (!p) {
     diag.poll = { at: performance.now(), off: true };
-    if (!ctl.pressing) setInteractive(false, 'poll');
+    if (!pressing) setInteractive(false, 'poll');
     return;
   }
   const el = document.elementFromPoint(p.x, p.y);
-  const hit = ctl.hitPet(p), ui = !!el?.closest?.(UI_SELECTOR);
+  const hit = !!body?.hit(p), ui = !!el?.closest?.(UI_SELECTOR);
   diag.poll = { at: performance.now(), x: p.x, y: p.y, hit, ui };
-  setInteractive(ctl.pressing || hit || ui, 'poll');
+  setInteractive(pressing || hit || ui, 'poll');
 });
+/** A press that began on the body and has not been let go of: the window keeps the mouse meanwhile. */
+let pressing = false;
 stage.addEventListener('pointerdown', (e) => {
   if (e.button !== 0) return;
   closeMenu();
-  if (ctl.pointerDown({ x: e.clientX, y: e.clientY })) { stage.setPointerCapture(e.pointerId); e.preventDefault(); }
+  const p = { x: e.clientX, y: e.clientY, t: e.timeStamp };
+  body?.pointer('down', p);
+  if (body?.hit(p)) { pressing = true; stage.setPointerCapture(e.pointerId); e.preventDefault(); }
 });
-const up = () => { ctl.pointerUp(); stage.style.cursor = ''; };
+const up = (e) => { pressing = false; body?.pointer('up', { x: e?.clientX ?? lastPointer.x, y: e?.clientY ?? lastPointer.y, t: e?.timeStamp ?? performance.now() }); stage.style.cursor = ''; };
 /**
  * Most milliseconds a drop on another display waits for the page to take the window's new size
  * (within a pixel: fractional scales round it). The size normally arrives a frame or two after
@@ -1078,7 +1106,7 @@ async function settleSize(to) {
   while ((Math.abs(innerWidth - to.w) > 1 || Math.abs(innerHeight - to.h) > 1) && performance.now() - t0 < RESIZE_WAIT_MS) {
     await new Promise((r) => requestAnimationFrame(r));
   }
-  ctl.resize();
+  body?.set({ bounds: bounds() });
 }
 const outside = (p) => p.x < 0 || p.y < 0 || p.x >= innerWidth || p.y >= innerHeight;
 /** A move of the window onto the display under the cursor, while one is under way. */
@@ -1090,39 +1118,40 @@ let shifting = false;
  * the held pet stays in sight instead of being cut off at the edge until it is let go of.
  */
 function followDrag(p) {
-  if (following || ctl.pet.mode !== 'drag' || !host?.followCursor || !outside(p)) return;
+  if (following || at()?.mode !== 'drag' || !host?.followCursor || !outside(p)) return;
   shifting = true;
   following = (async () => {
     const to = await host.followCursor().catch(() => null);
     shifting = false;
     if (!to) return;
-    ctl.shiftDrag(to.dx, to.dy);
+    body?.shift(to.dx, to.dy);
     await settleSize(to);
   })().finally(() => { following = null; shifting = false; });
 }
 stage.addEventListener('pointerup', async (e) => {
   // the window was moving under the cursor: the release point is in the coordinates it left behind
   if (following) { await following; up(); return; }
-  if (!outside({ x: e.clientX, y: e.clientY }) || ctl.pet.mode !== 'drag' || !host?.followCursor) { up(); return; }
+  if (!outside({ x: e.clientX, y: e.clientY }) || at()?.mode !== 'drag' || !host?.followCursor) { up(e); return; }
   // let go of past the window's edge in one move: over another display the window follows and the pet drops there
   const to = await host.followCursor().catch(() => null);
-  if (!to) { up(); return; }
+  if (!to) { up(e); return; }
+  pressing = false;
   stage.style.cursor = '';
   // until the drop the body and bubbles still stand in the old display's coordinates
   document.body.style.visibility = 'hidden';
   try {
     await settleSize(to);
-    ctl.dropAt({ x: to.x, y: to.y });
+    body?.drop({ x: to.x, y: to.y });
   } finally {
     document.body.style.visibility = '';
   }
 });
 stage.addEventListener('pointercancel', up);
-document.addEventListener('pointerleave', () => { cursor.at = null; ctl.pointerLeave(); });
-stage.addEventListener('dblclick', (e) => { if (prefs.doubleClickChat && ctl.hitPet({ x: e.clientX, y: e.clientY })) openInput(); });
+document.addEventListener('pointerleave', () => { cursor.at = null; body?.pointer('leave', {}); });
+stage.addEventListener('dblclick', (e) => { if (prefs.doubleClickChat && body?.hit({ x: e.clientX, y: e.clientY })) openInput(); });
 document.addEventListener('contextmenu', (e) => {
   e.preventDefault();
-  if (ctl.hitPet({ x: e.clientX, y: e.clientY })) openMenu(e.clientX, e.clientY);
+  if (body?.hit({ x: e.clientX, y: e.clientY })) openMenu(e.clientX, e.clientY);
 });
 document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.menu')) closeMenu(); }, { capture: true });
 // clicks off the figure pass through the window to what is underneath; the window losing focus is how they show here
@@ -1153,7 +1182,7 @@ document.addEventListener('keydown', (e) => {
 function place(el, a, extraUp, side) {
   const bw = el.offsetWidth, bh = el.offsetHeight;
   const cx = a.x + side * (bw / 2 + 10);
-  const left = clamp(cx - bw / 2 + (side ? 0 : ctl.pet.facing * 26), 10, Math.max(10, innerWidth - bw - 10));
+  const left = clamp(cx - bw / 2 + (side ? 0 : (at()?.facing ?? 1) * 26), 10, Math.max(10, innerWidth - bw - 10));
   const top = Math.max(8, a.y - bh - extraUp);
   el.style.left = f(left) + 'px';
   el.style.top = f(top) + 'px';
@@ -1171,22 +1200,25 @@ function placeTalk(it, a) {
 }
 
 /** Beside the body, on the right unless that runs off the screen. */
-function placeTools() {
-  const c = ctl.toStage(128, 128 + ctl.pet.low), reach = 104 * ctl.bounds.S + 10;
+function placeTools(l) {
+  const c = l.side, reach = l.side.reach + 10;
   const w = tools.offsetWidth, h = tools.offsetHeight;
   const left = c.x + reach + w <= innerWidth - 8 ? c.x + reach : c.x - reach - w;
   tools.style.left = f(clamp(left, 8, innerWidth - w - 8)) + 'px';
   tools.style.top = f(clamp(c.y - h / 2, 8, innerHeight - h - 8)) + 'px';
 }
 function layout() {
-  if (!tools.hidden) placeTools();
-  const a = ctl.anchor();
+  const l = at();
+  if (!l) return;
+  stage.style.cursor = l.cursor;
+  if (!tools.hidden) placeTools(l);
+  const a = l.bubble;
   let sayBox = null;
   // choice cards keep their bubble where it was; its tail follows Coo along the bottom edge
   if (!bubble.hidden && item?.kind === 'dialog' && item.pinX !== undefined) sayBox = placeTalk(item, a);
   else if (!bubble.hidden) sayBox = place(bubble, a, 18, 0);
   if (!heardEl.hidden) {
-    const side = sayBox ? -ctl.pet.facing : 0;
+    const side = sayBox ? -l.facing : 0;
     const r = place(heardEl, a, 46, side);
     const bx = r.left + r.bw / 2, by = r.top + r.bh;
     [...trail.children].forEach((d, i) => {
@@ -1207,7 +1239,6 @@ const SAME_COLOR = .15;
 const HALO_ON = .6, HALO_OFF = .45;
 /** The halo's opacity when fully on. */
 const HALO_STRENGTH = .5;
-const petG = $('#pet'), haloFlood = $('#haloFlood');
 // a window host too old to sample the screen keeps the halo on; a browser tab draws its own wall
 const backdrop = { on: !!host && !host.sampleBackdrop, fixed: !!host && !host.sampleBackdrop, k: 0, busy: false, next: 0 };
 
@@ -1226,23 +1257,15 @@ function inkRgb() {
   const n = parseInt(h, 16);
   return /^[0-9a-f]{6}$/i.test(h) ? [n >> 16, (n >> 8) & 255, n & 255] : null;
 }
-/** The figure's box in page pixels, from its geometry: the halo filter would widen its client rect. */
-function bodyRect() {
-  const top = Math.min(20, HEAD_TOP[ctl.skin.head] ?? 12);
-  const pts = [[20, top], [236, top], [20, 256], [236, 256]].map(([x, y]) => ctl.toStage(x, y));
-  const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
-  const x = Math.min(...xs), y = Math.min(...ys);
-  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
-}
 const inflate = (r, d) => ({ x: r.x - d, y: r.y - d, width: r.width + 2 * d, height: r.height + 2 * d });
 const rectOf = (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; };
 
 /** Samples a ring around the body (past the halo's reach, minus the page's own bubbles) and flips the halo. */
 async function probeBackdrop() {
-  const ink = inkRgb();
-  if (!ink) return;
-  const body = bodyRect(), S = ctl.bounds.S;
-  const near = inflate(body, 4 + 34 * S), far = inflate(near, 8 + 40 * S);
+  const ink = inkRgb(), b = at()?.box;
+  if (!ink || !b) return;
+  const S = bounds().S;
+  const near = inflate({ x: b.x, y: b.y, width: b.w, height: b.h }, 4 + 34 * S), far = inflate(near, 8 + 40 * S);
   const x = Math.max(0, far.x), y = Math.max(0, far.y);
   const rect = { x, y, width: Math.min(innerWidth, far.x + far.width) - x, height: Math.min(innerHeight, far.y + far.height) - y };
   const skip = [near, ...[bubble, heardEl, menu, tools].filter((el) => !el.hidden).map(rectOf)];
@@ -1268,16 +1291,13 @@ function stepBackdrop(dt) {
   }
   const k = backdrop.k + ((backdrop.on ? 1 : 0) - backdrop.k) * Math.min(1, dt * 6);
   backdrop.k = k < .005 ? 0 : k;
-  // a pack's body is in its own frame, outside the SVG filter's reach: it takes the halo as a CSS filter
-  const pack = ctl.figure?.setHalo ? ctl.figure : null;
-  pack?.setHalo(backdrop.k * HALO_STRENGTH);
-  if (backdrop.k && !pack) { haloFlood.setAttribute('flood-opacity', (backdrop.k * HALO_STRENGTH).toFixed(2)); petG.setAttribute('filter', 'url(#halo)'); }
-  else petG.removeAttribute('filter');
+  // the body is in its own frame: it takes the halo as a CSS filter
+  body?.setHalo(backdrop.k * HALO_STRENGTH);
 }
 
 /* ---------- loop ---------- */
 /**
- * Frames per second: MOVING_FPS while the body moves (`ctl.moving`) and always while `lockFrameRate` is on,
+ * Frames per second: MOVING_FPS while the body moves (its layout's `moving`) and always while `lockFrameRate` is on,
  * RESTING_FPS otherwise. Each frame redraws the whole figure, so the window's CPU and GPU time grows with
  * this rate; frames do not follow the display's refresh rate.
  */
@@ -1291,13 +1311,14 @@ function frame(now) {
   if (now < dueAt - gap / 4) { requestAnimationFrame(frame); return; }
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   try {
+    T += dt;
     stepActs();
     stepDialog(dt);
     stepTalkRead();
     stepTalkMotion();
     stepListen();
-    ctl.step(dt);
-    ctl.render();
+    setBody({ dialogOpen: !!item || !!listen.phase });
+    body?.tick(dt);
     stepBackdrop(dt);
     stepTools();
     layout();
@@ -1307,7 +1328,7 @@ function frame(now) {
     const msg = err?.message ?? String(err);
     if (msg !== frameErr) { frameErr = msg; console.error(err); }
   }
-  const full = prefs.lockFrameRate || ctl.moving;
+  const full = prefs.lockFrameRate || !!at()?.moving;
   gap = 1000 / (full ? MOVING_FPS : RESTING_FPS);
   // a frame more than a gap late starts the count again instead of drawing the missed ones back to back
   dueAt = now - dueAt > gap ? now + gap : dueAt + gap;
@@ -1315,6 +1336,5 @@ function frame(now) {
   if (full) requestAnimationFrame(frame);
   else setTimeout(() => requestAnimationFrame(frame), Math.max(0, dueAt - gap / 4 - performance.now()));
 }
-ctl.render();
 addEventListener('pagehide', reportPosition);
 requestAnimationFrame(frame);

@@ -5,12 +5,13 @@
  * features land on the drop, and extensions and the end card take the breakdown.
  *
  * Everything on screen is a function of the timeline position `t`. The hero pet is the real pet
- * from pet-core, stepped at a fixed 1/120 s with a seeded Math.random and a virtual
+ * from the pet kit (web/kit/body.js), stepped at a fixed 1/120 s with a seeded Math.random and a virtual
  * performance.now. Timed orders and position triggers drive it, and the intro's follow camera
  * is stepped with it; seeking backwards replays from zero. `window.promo.renderAt(t)` is what the
  * recorder calls frame by frame.
  */
-import { createPet, figure, FACES, STAND, heartD, skinCss, skinVars, normalizeSkin, wear } from '../../packages/cortico-world-desktop-pet/web/pet-core.js';
+import { createPet, FACES, STAND, heartD } from '../../packages/cortico-world-desktop-pet/web/kit/body.js';
+import { cooFigure, figure, skinCss, skinVars, normalizeSkin, wear } from '../../packages/cortico-world-desktop-pet/web/coo/coo.js';
 import { AUDIO_START, BEAT, bar, beat, bump, clamp01, ease, h, lerp, rng, seg, svgEl, f1 } from './util.js';
 import { createArcs } from './arcs.js';
 import { Bubble, Caption, Chip, Cursor } from './widgets.js';
@@ -106,7 +107,7 @@ function showScene(s, t, slide = 70) {
 const TASKBAR = '<span class="app on"></span><span class="app cal"></span><span class="app"></span><span class="app"></span><span class="grow"></span><span>中</span><span class="clk">20:26</span>';
 
 /* ---------- hero pet: floors, size, jumps ---------- */
-const GRAVITY = 2300, CROUCH = .16; // pet-core's air physics and crouch before takeoff
+const GRAVITY = 2300, CROUCH = .16; // the kit's air physics and crouch before takeoff
 const INTRO = { S: .85, ground: 880, box: { l: 560, r: 760, top: 810 }, wall: { l: 1060, w: 110, top: 470 } };
 const DESK = 1008, CARD_TOP = 400;
 // where the cursor sets the pet down under the title: on the taskbar
@@ -164,7 +165,7 @@ function heroS(t) {
 
 // the pet's sound calls go into petCues while the cue list is collected (see collectCues), and nowhere otherwise
 let petCues = null;
-const petSfx = new Proxy({}, { get: (_, k) => (k === 'isOn' ? () => false : (...a) => { petCues?.push([simT, k, ...a]); }) });
+const petSfx = { play: (name, kind, ...a) => { petCues?.push([simT, name, ...a]); } };
 const hero = { floor: INTRO.ground, S: INTRO.S, obstacles: true, pendingFloor: null };
 let ctl = null, simT = 0, rand = rng(7), nextEvent = 0, skin = normalizeSkin(null), D = null, optKeys = null;
 Math.random = () => rand();
@@ -372,7 +373,7 @@ function reset() {
   applySkin(PLAIN_SKIN);
   ctl = null;
   ctl = createPet({ petG, shadowEl, fxG }, {
-    sfx: petSfx, roam: 'off', startX: 100,
+    sfx: petSfx, figure: cooFigure(), roam: 'off', startX: 100,
     bounds: () => ({ W, H, floorY: floorAt(ctl ? ctl.pet.x : 100), S: hero.S }),
   });
   ctl.pet.facing = 1;
@@ -395,7 +396,7 @@ function advance(t) {
     if (hero.pendingFloor != null && ctl.pet.mode === 'air') { hero.floor = hero.pendingFloor; hero.pendingFloor = null; }
     hero.S = heroS(simT);
     ctl.resize();
-    // pet-core maps logo points to the stage through the transform of its last render; the cursors need it current
+    // the kit maps logo points to the stage through the transform of its last render; the cursors need it current
     const grabbing = simT >= GRAB.in - .2 && simT <= GRAB.release + .8, poking = simT >= POKE.in - .2 && simT <= POKE.out + .1;
     if (grabbing || poking) ctl.render();
     if (simT < T.title[0] + 1) directIntro(ctl);
@@ -433,7 +434,7 @@ function renderIntro(t) {
   blocks.style.transform = `translateY(${f1(o * 90)}px)`;
   blocks.style.opacity = String(f1((1 - o) * 100) / 100);
 }
-/* hearts while the pet looks in love: drawn here instead of pet-core's particles, one at a time from spread-out spots above the head */
+/* hearts while the pet looks in love: drawn here instead of the kit's particles, one at a time from spread-out spots above the head */
 const HEART = heartD(0, 0, 1), HEART_EVERY = .38, HEART_LIFE = 1.4;
 const HEART_DX = [-46, 42, -10, 56, -32, 22]; // logo units from the head's centre line
 function heartStep(c) {

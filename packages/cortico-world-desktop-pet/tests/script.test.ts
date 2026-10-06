@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { estimateSeconds, parseActions, parseScript, vocabId, VOCAB, INLINE_TAG_MAX } from '../src/script.ts';
+import { figurePacks } from '../src/packs.ts';
+import { estimateSeconds, parseActions as actionsIn, parseScript as scriptIn, vocabId, INLINE_TAG_MAX } from '../src/script.ts';
+
+// Coo's words, as the body on screen gives them
+const VOCAB = figurePacks([]).packs.find((p) => p.id === 'coo')!.manifest.vocab;
+const parseScript = (s: string) => scriptIn(s, VOCAB);
+const parseActions = (list: unknown[]) => actionsIn(list, VOCAB);
 
 describe('parseScript', () => {
   it('splits bubbles at blocking markers and keeps inline markers at their character offset', () => {
@@ -33,10 +39,10 @@ describe('parseScript', () => {
 });
 
 describe('vocabulary', () => {
-  it('resolves every English id and every Chinese name to the same id', () => {
+  it('resolves every id and every name to the same id', () => {
     for (const v of VOCAB) {
-      expect(vocabId(v.id)).toBe(v.id);
-      for (const z of v.zh) expect(vocabId(z)).toBe(v.id);
+      expect(vocabId(v.id, VOCAB)).toBe(v.id);
+      for (const z of Object.values(v.names).flat()) expect(vocabId(z, VOCAB)).toBe(v.id);
     }
   });
 

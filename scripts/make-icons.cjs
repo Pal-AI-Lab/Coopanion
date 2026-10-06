@@ -1,5 +1,5 @@
 /**
- * Renders Coo, the pet's own figure from pet-core, into the app's icons and the default avatar:
+ * Renders Coo, the pet's own figure (web/coo/coo.js), into the app's icons and the default avatar:
  * app/icons/icon.png (512), icon.ico (16–256, PNG entries), tray.png (32), tray@2x.png (64),
  * trayTemplate.png (18) and trayTemplate@2x.png (36) for the macOS menu bar (the figure alone in
  * black: the menu bar tints a template image to its own color), and core/seed/avatar.png (512,
@@ -18,7 +18,7 @@ const { pathToFileURL } = require('node:url');
 
 const ROOT = join(__dirname, '..');
 const ICONS = join(ROOT, 'app', 'icons');
-const PET_CORE = pathToFileURL(join(ROOT, 'packages', 'cortico-world-desktop-pet', 'web', 'pet-core.js')).href;
+const COO = pathToFileURL(join(ROOT, 'packages', 'cortico-world-desktop-pet', 'web', 'coo', 'coo.js')).href;
 const TILE = '#0D1117', INK = '#FFFFFF', EYE = '#2FD59B';
 const ICO_SIZES = [16, 20, 24, 32, 40, 48, 64, 128, 256];
 const PREVIEW = process.argv.includes('--preview');
@@ -31,7 +31,7 @@ function tileHtml(markup, size, round) {
 }
 
 app.whenReady().then(async () => {
-  const { mini, defaultSkin } = await import(PET_CORE);
+  const { mini, defaultSkin } = await import(COO);
   const markup = mini('neutral', defaultSkin());
   const win = new BrowserWindow({ width: 600, height: 600, show: false, transparent: true, backgroundColor: '#00000000', webPreferences: { offscreen: true } });
   const css = `html,body{margin:0;background:transparent}.ink{stroke:${INK}}.inkf{fill:${INK}}.eye{stroke:${EYE}}`;

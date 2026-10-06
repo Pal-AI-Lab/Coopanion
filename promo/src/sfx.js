@@ -1,5 +1,5 @@
 /**
- * The promo's sound effects: the pet's own synthesized voices (pet-core `createSfx`), rebuilt so a
+ * The promo's sound effects: the pet's own synthesized voices (`createSfx` in web/sound.js), rebuilt so a
  * voice can be scheduled at an absolute time on any AudioContext, live or offline, with a seeded
  * random of its own (the timeline owns Math.random while the pet is simulated).
  *
@@ -45,7 +45,7 @@ export function createVoices(ctx, out, seed = 11) {
     s.connect(bq); bq.connect(g); g.connect(out);
     s.start(t0, R() * .5); s.stop(t0 + dur + .03);
   }
-  // pet-core createSfx, voice for voice, plus the promo's own `key`, `click`, `thud` and `dusk`/`dawn`
+  // web/sound.js createSfx, voice for voice, plus the promo's own `key`, `click`, `thud` and `dusk`/`dawn`
   const V = {
     step(run, i) {
       const k = run ? 1.25 : 1;
@@ -79,10 +79,6 @@ export function createVoices(ctx, out, seed = 11) {
     angry() { tone({ type: 'sawtooth', f0: 120, f1: 95, dur: .5, vol: .12, vib: 12, vibRate: 14, filter: 700 }); },
     sad() { tone({ type: 'triangle', f0: 440, f1: 392, dur: .3, vol: .13, vib: 8, vibRate: 6 }); tone({ type: 'triangle', f0: 392, f1: 262, dur: .55, vol: .13, at: .3, vib: 10, vibRate: 5 }); },
     shy() { tone({ f0: 1300, f1: 1600, dur: .07, vol: .07 }); tone({ f0: 1450, f1: 1750, dur: .07, vol: .06, at: .1 }); },
-    expr(n) {
-      const m = { happy: 'happy', wink: 'wink', love: 'love', surprised: 'surprised', angry: 'angry', sad: 'sad', shy: 'shy', sleepy: 'yawn' };
-      if (m[n]) V[m[n]]();
-    },
     tick() { tone({ f0: 1200, f1: 1000, dur: .03, vol: .05 }); },
     pop() { tone({ f0: 240, f1: 720, dur: .07, vol: .14 }); },
     sparkle() { [1568, 2093, 2637].forEach((fr, i) => tone({ f0: fr, dur: .25, vol: .06, at: i * .06 })); },
@@ -129,7 +125,7 @@ export async function renderTrack(cues, from, to, gain, rate = 48000) {
   return new Uint8Array(buf);
 }
 
-/** The effects bus as in pet-core: a gain into a compressor, then `gain` for the balance with the music. */
+/** The effects bus as in web/sound.js: a gain into a compressor, then `gain` for the balance with the music. */
 export function busInto(ctx, dest, gain) {
   const master = ctx.createGain(), comp = ctx.createDynamicsCompressor(), out = ctx.createGain();
   master.gain.value = .55; out.gain.value = gain;

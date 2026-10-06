@@ -1,7 +1,7 @@
 # 宣传片与 banner
 
 Coopanion 的宣传片(1920×1080,约 1:40)和各仓库的 banner,都由网页渲染。桌宠用的是
-`packages/cortico-world-desktop-pet/web/pet-core.js` 里的真身体;画面每一帧都只由时间 `t` 决定,所以边播边看和逐帧录制得到的画面相同。
+`packages/cortico-world-desktop-pet/web/kit/body.js` 与 `web/coo/coo.js` 里的真身体;画面每一帧都只由时间 `t` 决定,所以边播边看和逐帧录制得到的画面相同。
 
 | 命令 | 作用 |
 |---|---|

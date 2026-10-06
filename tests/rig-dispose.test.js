@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRig } from '../packages/cortico-world-desktop-pet/web/rig/rig.js';
+import { createRig } from '../packages/cortico-world-desktop-pet/web/kit/rig.js';
 
 /** 环境无 WebGL:createRig 只碰传入的 canvas,用一个记录调用的桩 GL 驱动它。 */
 function stubGL() {

@@ -1,9 +1,9 @@
-<!-- Owner: web/whale/figure.js; web/rig/rig.js; web/pet-core.js#createPet -->
+<!-- Owner: web/whale/figure.js; web/kit/rig.js; web/kit/body.js; web/figure-frame.js -->
 
 # 鲸鱼娘桌宠
 
 B 站 DeepSeek 二创里的蓝发鲸鱼女仆，做成 Coo 的另一个身体。二头身（头顶到下巴 = 下巴到鞋底），和 Coo 一样侧身朝右站，转身时整组水平镜像。
-动作仍由 `pet-core.js` 的 `createPet` 驱动：走、跑、跳、坐、睡、被拎起、甩出去、全部表情、倾听、思考、说话口型都照原样触发。
+她是一个形象包（`web/whale/figure.json`），身体用 kit（`web/kit/body.js`）：走、跑、跳、坐、睡、被拎起、甩出去、全部表情、倾听、思考、说话口型都由 kit 触发，她只负责画。
 
 在本包目录运行 `node examples/whale/serve.mjs`，打开终端输出的地址（默认端口 4318）。
 真实桌宠里在装扮页（`/dress`）最上面一行「形象」选「DeepSeek 大肥鱼」，配色在下面一行；选择存在配置的 `skin.figure` 和 `skin.scheme`。
@@ -27,9 +27,9 @@ B 站 DeepSeek 二创里的蓝发鲸鱼女仆，做成 Coo 的另一个身体。
 
 ## 构成
 
-- `web/rig/rig.js`：一个小型的 Live2D 式渲染器。每个部件是一张贴图铺在一个网格上，网格点逐帧经过变形器链：
+- `web/kit/rig.js`：一个小型的 Live2D 式渲染器。每个部件是一张贴图铺在一个网格上，网格点逐帧经过变形器链：
   `rot` 绕枢轴转动、缩放、平移，`warp` 在一个矩形上加位移场。WebGL2 绘制，拿不到时用 WebGL1。
-- `web/whale/figure.js`：模型本身。把 `createPet` 每帧给的数据（腿的角度、坐下程度、视线、眨眼、表情、说话幅度、横向惯性）
+- `web/whale/figure.js`：模型本身。把 kit 每帧给的数据（腿的角度、坐下程度、视线、眨眼、表情、说话幅度、横向惯性）
   换成变形器参数；后发、刘海、裙摆、尾巴、两只鲸鳍、呆毛、两只手臂各有一个弹簧；眼睛、嘴、腮红每帧画进一张脸部贴图，
   挂在头部的变形器上。画布放在宠物自己的 SVG 组里，舞台的位置、挤压、倾斜、转身照常作用。
 - `web/whale/model.json`、`tex/`、`feat/`、`schemes/`：部件的位置（桌宠坐标，x=128 在身体下方，鞋底 y=256）、枢轴、贴图和五官贴图。
@@ -44,20 +44,50 @@ B 站 DeepSeek 二创里的蓝发鲸鱼女仆，做成 Coo 的另一个身体。
 其余表情复用这些贴图再加程序绘制：慌张用被拎时的 > < 眼，害怕用惊讶的眼睛，嘟嘴是缩小的 O 形嘴，
 期待在虹膜上画白色星形高光，大哭在脸颊上画两道泪痕，疑惑把远侧眉毛单独抬高、头顶加问号。
 `HEAD_PITCH` 的正值是低头（五官下移、头顶露出更多），往下看、睡觉、难过、大哭都是正值。
-pet-core 为 Coo 设计的整组倾斜（倾听、点头、打瞌睡、晕乎乎时整个圆身体歪过去）在她身上换成低头、歪头，脚不离地；
+kit 为 Coo 设计的整组倾斜（倾听、点头、打瞌睡、晕乎乎时整个圆身体歪过去）在她身上换成低头、歪头，脚不离地；
 只有腾空、被拎着、起跳下蹲和落地时整组倾斜，跑步保留一半前倾，跳舞的摇摆六成给整组。
 点头、摇头、招手、鞠躬由她自己画：点头是低头两下，摇头是脸左右转，招手把近侧手臂举到肩高挥动（远侧手臂举起来会被身体和头发挡住），
-鞠躬时上身（衣身、两只手臂和头）绕腰部枢轴 `waist` 前倾，裙子和腿不动。发抖、扑腾在 pet-core 的动作之外加上收紧手臂、垂下鲸鳍，或鲸鳍、尾巴、呆毛一起扑动。
+鞠躬时上身（衣身、两只手臂和头）绕腰部枢轴 `waist` 前倾，裙子和腿不动。发抖、扑腾在 kit 的动作之外加上收紧手臂、垂下鲸鳍，或鲸鳍、尾巴、呆毛一起扑动。
 
-## pet-core 的改动
+## 写一个形象包
 
-`createPet` 的 `opts.figure` 接一个 `{ draw(petG, face, frame), anchors }`：给了它就不再往 `petG` 写内置的 Coo，
-`frame` 在原有字段之外多带表情名、模式、模式时长、说话幅度、困意、坐下程度和朝向。
-`anchors` 可覆盖视线原点、泪滴（`tears` 是大哭时两只眼睛下各自的起点，没给就只从 `tear` 一处冒）、睡眠 z、爱心和气泡的位置。`figure.groupTilt(mode, tilt, lean)` 决定整组转多少度，
-`frame` 带上 `tilt`、`lean`、`groupRot` 让模型自己处理剩下的部分；`figure.colors.z` 给睡眠 z 和跳舞的音符上色（否则用 Coo 的眼睛色）。
-`frame.gesture` 是正在做的短手势 `{ kind, k }`（`k` 从 0 到 1，没有时为 `null`）；`figure.gestures` 列出模型自己画的手势，
-列在里面的手势 pet-core 不再给整组加倾斜。
-不给 `opts.figure` 时行为与之前完全相同。
+大肥鱼也是照这份说明做的，可以直接拿她当模板。
+
+**目录**：根上一个 `figure.json`，加上它引用的脚本、贴图和音频。放进数据目录的 `figures/<目录>/`（或应用给的 `packRoots`）就会被扫到；
+字段的完整说明和校验规则在包的 README「形象包」一节和 `src/packs.ts`。
+
+**词表**（`vocab`）：这个身体在场时 bot 能用的全部表情和动作，没列的词 bot 用不了。每个词写清 `names`（bot 可以用哪些名字写它）、
+`about`（在这个身体上是什么样子，原样进 bot 的提示词），`seconds`（连着做时等多久再做下一个）。
+用 kit 的包可以直接列 kit 会做的词（`KIT_EXPRESSIONS`、`KIT_MOTIONS`，大肥鱼列的就是这些），也可以只列一部分。
+
+**入口**：`figure.json` 的 `entry` 和 `export` 指向一个工厂，按 `factory(base, { model, scheme, kit, loadImage, asset, host })` 调用，
+在沙箱里返回一个身体。契约在 `web/figure-frame.js` 开头。最省事的写法是交给 kit：
+
+```js
+export async function createMyBody(base, opts) {
+  const figure = await createMyFigure(base, opts);   // 只管画
+  return opts.kit.createBody(opts.host, { figure, words: {
+    facepalm: { expression: { like: 'worried', sound: 'sigh' } },   // kit 没有的表情：眼神、汗滴借 worried 的
+    salute: { motion: { seconds: 1.5, face: 'happy', sound: 'clack' } },   // kit 没有的动作：由 figure 按 frame.gesture 画
+  } });
+}
+```
+
+**figure**：`draw(petG, face, frame)` 每帧调用一次，把这一帧画进 `petG`（逻辑坐标，身体在 256×256 的方格里，x=128 在身体下方，脚底 y=256）。
+`face` 是 kit 的表情参数（眼睛形状、腮红、头顶符号等，见 `FACES`），`frame` 带表情名（`frame.face`，包自己的词就是词的 id）、模式、模式时长、
+说话幅度、困意、坐下程度、朝向、视线、腿和正在做的短手势 `frame.gesture`（`{ kind, k }`，`k` 从 0 到 1，没有时为 `null`）。
+可选的字段：`anchors`（视线原点、泪滴，`tears` 是大哭时两只眼睛下各自的起点、睡眠 z、爱心、气泡的位置）、
+`extent`（身体的框）、`hits`（接收鼠标的圆）、`gestures`（自己画、kit 不再整组倾斜的手势）、`groupTilt(mode, tilt, lean)`（整组转多少度）、
+`colors.z`（睡眠 z 和音符的颜色）、`setScheme(id, { fade, at })`（换打扮）、`setSkin(skin)`、`dispose()`。坐标都是逻辑单位，每帧都会重新读，可以写成 getter。
+
+**音效**：`figure.json` 的 `sounds` 声明包里的音频文件和它的类别（`move` `touch` `face` `snore`）。身体按名字要声音，
+桌宠页播放，设置里按类别关掉的那一类连包的声音一起静音。和桌宠内置音色同名的声音会替换掉内置的那个，比如包里的 `jump`。
+
+**沙箱**：包的脚本跑在不透明源的 iframe 里，连不了网络，图片要用 `opts.loadImage` 载入（WebGL 才读得了），
+别的文件用 `opts.asset(路径)` 拿地址。身体报告的框会被限制在 kit 能拉伸到的大小以内，互动事件只在真实的鼠标输入之后才算数。
+
+**不用 kit**：工厂也可以自己实现 `step`、`layout`、`do` 等方法，身体怎么动全由包决定；会飞的、不走路的、3D 的都可以这样做。
+`layout()` 要报告的字段见 kit 的 `layout`。
 
 ## 贴图来源
 

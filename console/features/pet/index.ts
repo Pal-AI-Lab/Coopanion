@@ -7,7 +7,7 @@
  * group, core/telemetry.ts). The 「音效」 card below writes the World's sound group: the master switch
  * (the same one the pet menu flips), each kind of sound, and how long Coo snores in each sleep.
  */
-import { ICONS } from 'cortico-world-desktop-pet/web/pet-core.js';
+import { ICONS } from 'cortico-world-desktop-pet/web/ui.js';
 import { get, setConfig } from '../../core/api.ts';
 import { pick } from '../../core/language.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
@@ -61,7 +61,7 @@ const S = pick({
     sound: '播放音效',
     soundHint: 'Coo 菜单里的音效按钮切的也是这个。',
     soundKinds: '分别开关',
-    soundKindsHint: '关掉的那类不再出声,其余照常。鼠标停在一项上能看到它包括哪些声音。',
+    soundKindsHint: '关掉的那类不再出声,其余照常。鼠标停在一项上能看到它包括哪些声音。形象包自带的声音也归在这几类里。',
     kinds: {
       move: ['动作', '走路、跑、跳、落地、被甩出去、点头、摇头、转圈、晕、发抖、跳舞、张望'],
       touch: ['互动', '被拎起来、拎着晃、被摸、被戳'],
@@ -106,7 +106,7 @@ const S = pick({
     sound: 'Play sounds',
     soundHint: "The sound button in Coo's menu flips this too.",
     soundKinds: 'By kind',
-    soundKindsHint: 'A kind switched off stays silent; the rest play as usual. Rest the pointer on one to see which sounds it covers.',
+    soundKindsHint: "A kind switched off stays silent; the rest play as usual. Rest the pointer on one to see which sounds it covers. A figure pack's own sounds fall under these kinds too.",
     kinds: {
       move: ['Moving', 'Walking, running, jumping, landing, being thrown, nodding, shaking, spinning, dizziness, shivering, dancing, looking about'],
       touch: ['Touch', 'Being picked up, swung, petted, poked'],

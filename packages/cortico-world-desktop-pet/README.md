@@ -10,7 +10,7 @@
 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 的桌宠 World,一个独立的扩展包。
 [Coopanion](https://github.com/Pal-AI-Lab/Coopanion) 桌面上的 Coo 就是它。
 
-bot 在屏幕底边有一个小身体:内置的 Coo(C 形的身体,两只 0 形的眼睛,两条短腿),或者一个形象包(见下文)。它用气泡说话、用选项提问、
+bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置的 Coo(C 形的身体,两只 0 形的眼睛,两条短腿)、内置的大肥鱼,或者装上的其他包。它用气泡说话、用选项提问、
 沿屏幕底边走动、做表情和动作;人可以对它说话(FunASR 在本机识别,Windows 上也可用系统自带的识别)、打字、点选项、戳它、摸它、
 把它拎起来甩出去,这些都作为事件送回 bot。
 
@@ -21,12 +21,12 @@ bot 在屏幕底边有一个小身体:内置的 Coo(C 形的身体,两只 0 形�
 | `pet_say(script)` | 冒气泡说话;`【词】` 先做动作再换新气泡,`<词>` 打字到那里时做 | 立即返回,报约显示多久、前面排了多久 |
 | `pet_ask(question, options, allowOwnAnswer)` | 提问气泡,最多 3 个选项,默认再加一格自己写 | 立即返回;回答以 `[回答]` 事件送达 |
 | `pet_walk_to(to, run)` | 走(跑)到桌宠所在屏幕横向 0–1 处,或 `left` `center` `right` `cursor` | 走到或被打断才返回,最多 30 秒 |
-| `pet_act(actions)` | 不说话,依次做一串表情或动作 | 立即返回;`sit` `sleep` 保持到下个动作 |
+| `pet_act(actions)` | 不说话,依次做一串表情或动作 | 立即返回;词表里标着保持的词(Coo 的 `sit` `sleep`)保持到下个动作 |
 | `pet_set(…)` | 改自己的外观和习惯,见「自己调整」 | 自己能改的立即返回;要问的等对方回答 |
 | `pet_quiet(minutes, sound, roam)` | 临时安静:默认关音效、站着不动,到点恢复,设置不变 | 立即返回 |
 
-表情和动作的词表在 `src/script.ts`,英文词与中文名都认;环境提示词 `src/ENV_PROMPT.md` 把它渲染成表格。
-当前形象做不了的词,`pet_say` 和 `pet_act` 的回执会写明换成了哪个词,或者没有做。
+表情和动作的词表是当前形象包的 `vocab`(解析在 `src/script.ts`),词的 id 与各语言的名字都认;环境提示词 `src/ENV_PROMPT.md` 把它渲染成表格,换了形象就跟着换。
+词表里没有的词,`pet_say` 和 `pet_act` 的回执会写明略过了哪些。
 
 ## 事件
 
@@ -129,37 +129,45 @@ Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 Core
 
 ## 形象包
 
-除了内置的 Coo,桌宠可以穿上一个形象包。形象包是一个目录,根上有 `figure.json`;内置的大肥鱼在 `web/whale/`,
-其余的从数据目录的 `figures/<目录>/` 和应用给的 `packRoots` 里找。`skin.figure` 是包的 id,`skin.scheme` 是它的打扮。
+桌宠的身体都来自形象包,Coo 也是一个。形象包是一个目录,根上有 `figure.json`;内置的 Coo 在 `web/coo/`、大肥鱼在 `web/whale/`,
+其余的从数据目录的 `figures/<目录>/` 和应用给的 `packRoots` 里找。`skin.figure` 是包的 id,`skin.scheme` 是它的打扮(Coo 的打扮存在 skin 自己的配色和配件字段里)。
 
 包里的代码只在沙箱里跑:桌宠页把它放进 `/figure-frame`,这个页面的 CSP 把它设成不透明源、禁止一切网络连接,
-脚本和图片只能从桌宠服务读,和桌宠页之间只有 postMessage(`web/figure-frame.js`、`web/figure-sandbox.js`)。
-它连不到桌宠的 socket,也没法替对方说话或改设置。
+脚本和图片只能从桌宠服务读,和桌宠页之间只有 postMessage(`web/figure-frame.js`、`web/body-host.js`)。
+它连不到桌宠的 socket,也没法替对方说话或改设置。身体整个归包管:走、跳、被拎、表情、动作、画法都是包的代码,
+桌宠页只转发指针、下指令,读回它报告的位置和发生的事。多数包用 `web/kit/body.js` 这套现成的身体,只自己画。
 
-`figure.json`(`manifest: 1`,`api: 1`,读取与校验在 `src/packs.ts`):
+桌宠页替对方把着几条线(`web/body-host.js`):身体报告的框不超出舞台,也不超过 kit 自己能把身体拉伸到的大小,
+只有框里的命中圆接收鼠标;摸、戳、拎这类互动只在页面刚转给它真实指针输入之后才算数,摔晕只在甩出去之后才算;
+声音由页面播放,按设置里的类别和总开关静音。
+
+`figure.json`(`manifest: 2`,`api: 2`,读取与校验在 `src/packs.ts`):
 
 | 字段 | 含义 |
 |---|---|
-| `id` | 小写字母、数字和 `-`,不能是 `coo`,不能和内置包重名 |
+| `id` | 小写字母、数字和 `-`,不能和内置包(`coo`、`whale`)重名 |
 | `name`、`about` | 按语言的名字;`about` 写这个身体长什么样,原样放进 bot 的环境提示词 |
 | `entry`、`export` | 模块路径和它导出的工厂函数 |
 | `model` | 交给工厂的 JSON(`opts.model`),可省 |
 | `axes` | 打扮的维度,每维一组选项(`id`、`name`、`thumb`);装扮页每维一行 |
 | `presets` | 维度组合的命名,可带 `accent` 和设置窗口配色 `console` |
-| `unsupported` | 做不了的词:换成哪个词,或 `null` 表示不做 |
+| `vocab` | 这个身体做的全部表情和动作,也就是它在场时 bot 的整张词表:每个词 `id`、`kind`(`expression` / `motion`)、`names`(按语言的名字列表)、`about`(它做这个词的样子)、`seconds`(连着做时等多久再做下一个),`lasting: true` 表示保持到下一个动作 |
+| `sounds` | 包自带的音频:名字 → `{ file, kind, volume }`,文件是包里的 `.ogg` `.mp3` `.wav`,`kind` 是 `move` `touch` `face` `snore` 之一;不存在的文件在扫描时记一条问题,那个声音不响 |
+| `can` | `{ walk: false }` 表示不会走,`pet_walk_to` 会拒绝 |
 | `author`、`license`、`credits`、`thumb`、`version` | 署名与展示 |
 
-`skin.scheme` 是一个预设的 id,或者各维的选项 id 按维度顺序用 `-` 连起来(所以选项 id 里不能有 `-`)。
+`skin.scheme` 是一个预设的 id,或者各维的选项 id 按维度顺序用 `-` 连起来(所以选项 id 里不能有 `-`)。词的名字不能带
+`【】<>`、逗号、顿号或空白,也不能长过行内标记能装下的长度,不然脚本里写不出来。
 
-工厂按 `factory(base, { model, scheme, createRig, loadImage, asset })` 调用,返回 `{ draw(petG, face, frame), anchors?, gestures?, colors?, groupTilt?, setScheme? }`,
-和 `createPet` 的 `opts.figure` 相同;`createRig` 是 `web/rig/rig.js`,`loadImage` 载入能交给 WebGL 的图片(沙箱里直接 `new Image()` 的图 WebGL 读不了)。
-20 秒内没准备好、或者画的时候抛错,桌宠换回 Coo,并告诉 bot。
+工厂按 `factory(base, { model, scheme, kit, loadImage, asset, host })` 调用,返回一个身体;契约写在 `web/figure-frame.js` 开头。
+用 kit 的包只要 `kit.createBody(host, { figure, words })`:`figure` 每帧画一次,`words` 是 kit 本身没有的词怎么做。
+`examples/whale/README.md` 是写形象包的完整说明。20 秒内没准备好、或者跑的时候抛错,桌宠换回 Coo,并告诉 bot 现在按 Coo 的词表。
 
 ## 自己调整
 
 `pet_set` 让 bot 改自己的外观和习惯,分两档(`src/self.ts`):
 
-- 直接改:形象和打扮、Coo 的配色和配件、走动多少、呼噜多久;
+- 直接改:形象和打扮(Coo 的配色和配件也是打扮)、走动多少、呼噜多久;
 - 先在气泡里问对方,同意了才改:音效、大小、黑白模式、悬停按钮、对对方的称呼。
 
 其余设置(语音输入、麦克风、记住位置等)不是 bot 能改的。`worlds.desktop-pet.selfAdjust` 关掉后两档都不能改,`pet_quiet` 也不行。
@@ -196,5 +204,6 @@ npx tsx scripts/check-voice.ts <模型根> <语音.wav>   # 连真 FunASR 手动
 ```
 
 `tsconfig.json` 与 `vitest.config.ts` 把 `cortico/*` 指到主仓库的 `vendor/cortico/src/`;
-装进 Cortico 运行时由框架的模块钩子解析。`web/pet-core.js` 是身体本身(造型、表情、配件、合成音效、
-动作模拟),桌宠页、装扮页都从它构建,不依赖 World。
+装进 Cortico 运行时由框架的模块钩子解析。网页部分不依赖 World:`web/kit/` 是现成的身体(动作模拟、表情、粒子,
+和画大肥鱼用的 rig),`web/coo/` 是 Coo 的造型、配件与形象包入口,`web/sound.js` 是合成音效与包自带音频的播放,
+`web/body-host.js` 是桌宠页、装扮页这一侧的身体代理。

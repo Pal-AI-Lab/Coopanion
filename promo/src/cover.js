@@ -4,7 +4,8 @@
  * space it looks into, and the product name runs along the bottom; rings centred on the pet open
  * toward the "Coo" at the start of that name. `cover.cjs` screenshots it at any size.
  */
-import { figure, FACES, STAND, heartD, skinCss, normalizeSkin } from '../../packages/cortico-world-desktop-pet/web/pet-core.js';
+import { FACES, STAND, heartD } from '../../packages/cortico-world-desktop-pet/web/kit/body.js';
+import { figure, skinCss, normalizeSkin } from '../../packages/cortico-world-desktop-pet/web/coo/coo.js';
 import { h, svgEl, f1 } from './util.js';
 import { Wordmark, lettering } from './wordmark.js';
 
