@@ -40,7 +40,7 @@ The app is in Chinese and English. The first-run guide is currently Chinese only
 - **Chat**: hold the talk key and speak, or type; Coo answers in a bubble. Speech is recognized on your machine with FunASR.
 - **Memory**: Coo remembers what you talked about, and knows when you poke it or pat its head.
 - **Computer use**: clicking buttons, typing, switching windows. Coo asks before it acts.
-- **Activity bubbles**: see when Coo is thinking and what it is working on, with a different animated icon for reading, searching, writing and using the computer. File names appear; the bubble lets clicks through. Off by default; enable it in Habits.
+- **Activity bubbles**: see when Coo is thinking and what it is working on, with a different animated icon for reading, searching, writing and using the computer. File names appear; the bubble lets clicks through. On by default; turn it off in Habits.
 - **Two figures**: Coo, or the **DeepSeek Whale**, a fully animated whale maid with eight vendor color schemes.
 - **Dress up**: Coo's colors, hats, earrings, glasses and neckwear, plus its size and how often it walks.
 - **Extensions**: install Worlds such as a QQ bot, a drawing room and small games from the Extensions page.

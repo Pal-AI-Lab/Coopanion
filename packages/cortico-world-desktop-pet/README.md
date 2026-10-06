@@ -109,7 +109,7 @@ Windows 上每 0.8 秒用 GDI 取一小块身体周围的屏幕像素来比,其�
 `onRoundEnd` 不收起(工具可能仍在执行),下一轮首个事件切回思考;`onAbort`、`onTurnEnded` 或 120 秒无流事件时清空。
 路径只显示最后一段,细节最多 20 字加省略号;打字内容、闹钟备注、窗口名和坐标不显示,未知工具也不显示名字和参数。
 
-`worlds.desktop-pet.statusBubble` 默认关闭,可在「习惯」页开启「显示 Coo 在忙什么」。关闭时不画状态气泡,
+`worlds.desktop-pet.statusBubble` 默认开启,可在「习惯」页关闭「显示 Coo 在忙什么」。关闭时不画状态气泡,
 身体的思考表情照常。这个开关不在 `pet_set` 的可改项中,也不进入统计。
 页面协议新增 `{ t: 'status', status: { kind, text, detail?, count? } | null }`;`init` 和 `prefs` 同样带
 `status`、`statusBubble`,供重连时恢复。`status` 变化只发状态消息,不会触发整份偏好广播;原来的 `thinking` 消息由它替代,

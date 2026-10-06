@@ -134,7 +134,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   petX: null,
   hoverButtons: 'chat,voice',
   doubleClickChat: false,
-  statusBubble: false,
+  statusBubble: true,
   selfAdjust: true,
   skin: {
     figure: 'coo', scheme: 'deepseek', palette: 'mint', head: 'none', side: 'none', glasses: 'none', neck: 'none',

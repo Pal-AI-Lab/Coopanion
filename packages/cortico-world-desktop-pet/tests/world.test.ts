@@ -73,7 +73,7 @@ describe('with a pet page', () => {
     const { world, cfg } = await mounted();
     const page = await FakePage.open(origin(world));
     cleanup.push(() => page.close());
-    expect(page.init).toMatchObject({ status: null, statusBubble: false });
+    expect(page.init).toMatchObject({ status: null, statusBubble: true });
     world.outputTap()!.onEvent({
       type: 'response.output_item.added', sequence_number: 1, output_index: 0,
       item: { type: 'function_call', id: 'a', call_id: 'a', name: 'read_file', arguments: '', status: 'in_progress' },
@@ -81,11 +81,11 @@ describe('with a pet page', () => {
     expect(await page.next((m) => m.t === 'status' && (m.status as { kind: string })?.kind === 'read')).toEqual({ t: 'status', status: { kind: 'read', text: '在看' } });
     await new Promise((r) => setTimeout(r, 350));
     expect(page.messages.some((m) => m.t === 'prefs')).toBe(false);
-    cfg.statusBubble = true;
-    expect(await page.next((m) => m.t === 'prefs')).toMatchObject({ statusBubble: true, status: { kind: 'read', text: '在看' } });
+    cfg.statusBubble = false;
+    expect(await page.next((m) => m.t === 'prefs')).toMatchObject({ statusBubble: false, status: { kind: 'read', text: '在看' } });
     const next = await FakePage.open(origin(world));
     cleanup.push(() => next.close());
-    expect(next.init).toMatchObject({ statusBubble: true, status: { kind: 'read', text: '在看' } });
+    expect(next.init).toMatchObject({ statusBubble: false, status: { kind: 'read', text: '在看' } });
     world.onTurnEnded();
     expect(await next.next((m) => m.t === 'status')).toEqual({ t: 'status', status: null });
   });

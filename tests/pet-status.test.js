@@ -11,7 +11,7 @@ const pages = [];
 afterEach(() => { for (const p of pages.splice(0)) p.close(); });
 
 /** Run the actual page with a quiet socket and body; the test advances the page's frame clock. */
-function page(enable = true) {
+function page() {
   const dom = new JSDOM(html, { url: 'http://127.0.0.1/pet', runScripts: 'outside-only' });
   const win = dom.window;
   pages.push(win);
@@ -29,7 +29,6 @@ function page(enable = true) {
     loadBody: async () => body, body,
   };
   win.eval(`const { applyTheme, clamp, f, ICONS, COO_CSS, mini, normalizeSkin, skinCss, createSfx, loadBody } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, step: (dt) => { T += dt; stepDialog(dt); stepListen(); stepStatus(); layout(); }, interactive: () => bubble.matches(UI_SELECTOR) };`);
-  if (enable) win.page.onOrder({ t: 'init', statusBubble: true });
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document };
 }
 const read = { kind: 'read', text: '在看', detail: '日记.md' };
@@ -37,16 +36,17 @@ const think = { kind: 'think', text: '' };
 const show = (p, status) => p.onOrder({ t: 'status', status });
 
 describe('activity in the shared speech bubble', () => {
-  it('starts with activity hidden and applies the switch without changing the thinking face', () => {
-    const p = page(false);
+  it('shows activity by default and applies the switch without changing the thinking face', () => {
+    const p = page();
     show(p, think); p.step(1);
-    expect(p.bubble.hidden).toBe(true);
+    expect(p.bubble.getAttribute('aria-label')).toBe('在想');
+    expect(p.bubble.hidden).toBe(false);
     expect(p.bodyChanges).toContainEqual({ thinking: true });
+    p.onOrder({ t: 'prefs', statusBubble: false }); p.step(.01);
+    expect(p.bubble.hidden).toBe(true);
     p.onOrder({ t: 'prefs', statusBubble: true }); p.step(.01);
     expect(p.bubble.getAttribute('aria-label')).toBe('在想');
     expect(p.bubble.hidden).toBe(false);
-    p.onOrder({ t: 'prefs', statusBubble: false }); p.step(.01);
-    expect(p.bubble.hidden).toBe(true);
     expect(p.bodyChanges.filter(c => 'thinking' in c)).toEqual([{ thinking: true }]);
   });
 

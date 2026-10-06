@@ -35,7 +35,7 @@ const prefs = {
   rememberPosition: false,
   /** Double-clicking the pet opens the typing box. */
   doubleClickChat: false,
-  statusBubble: false,
+  statusBubble: true,
   /** Draw at the moving frame rate while the body rests too. */
   lockFrameRate: false,
 };
