@@ -1,7 +1,8 @@
 /**
  * Coopanion 的控制台入口:由 scripts/stage.ts 覆盖在 Cortico 的 src/web/client/main.ts 上。
  * 与上游的差别:
- * - 页面表多了关于桌宠的五页「开始」「习惯」「装扮」「语音输入」「电脑操作」(features/home、pet、dress、voice、cua),其余页重排、改了几个分组名;
+ * - 页面表多了关于桌宠的五页「开始」「习惯」「装扮」「语音输入」「电脑操作」(features/home、pet、dress、voice、cua)和「对话」(features/chat),
+ *   上游的终端页改名「运行轨迹」放进「高级」组,其余页重排、改了几个分组名;
  * - 「系统提示词」页的工具栏多一个「清空重开」(features/clear-session.ts);
  * - 两种模式(features/mode.ts):普通模式左栏只有那五页、「系统提示词」「用量与成本」和「对话」,别的路由都回到「开始」,底栏只留暂停键;
  *   高级模式再接上 Cortico 的全部页面。左栏底部的开关切换模式,页面也可以经 requestMode 请求换,换模式时重建左栏;
@@ -38,6 +39,7 @@ import { petFeature } from './features/pet/index.ts';
 import { dressFeature } from './features/dress/index.ts';
 import { voiceFeature } from './features/voice/index.ts';
 import { cuaFeature } from './features/cua/index.ts';
+import { chatFeature } from './features/chat/index.ts';
 import { promptsWithClearFeature } from './features/clear-session.ts';
 import { mountRelease } from './features/release.ts';
 import { onModeRequest, readMode, writeMode, type ConsoleMode } from './features/mode.ts';
@@ -53,31 +55,32 @@ import type { ConsoleMemo } from '../shared/client-panel.ts';
  */
 const L = pick({
   zh: {
-    chat: '对话', model: '模型', settings: '设置', advanced: '高级',
+    trace: '运行轨迹', model: '模型', settings: '设置', advanced: '高级',
     toAdvanced: '高级模式', toAdvancedHint: '显示 Cortico 的全部设置:模型、扩展、World、记忆与运行诊断',
     toNormal: '回到普通模式', toNormalHint: '只显示关于桌宠的页面',
   },
   en: {
-    chat: 'Chat', model: 'Model', settings: 'Settings', advanced: 'Advanced',
+    trace: 'Run trace', model: 'Model', settings: 'Settings', advanced: 'Advanced',
     toAdvanced: 'Advanced mode', toAdvancedHint: 'Show all of Cortico: models, extensions, Worlds, memory and diagnostics',
     toNormal: 'Back to normal mode', toNormalHint: 'Show only the pages about the pet',
   },
 });
 
 /**
- * 普通模式的全部页面:关于桌宠的五页、系统提示词(人设在里面,带清空重开)、花了多少钱,和对话页(当前 session 的
- * 上下文,也能打字说话)。高级模式里它们仍排在最前。
+ * 普通模式的全部页面:关于桌宠的五页、系统提示词(人设在里面,带清空重开)、花了多少钱,和对话页(以使用者身份
+ * 打字发图,看桌宠说过的话与做过的事)。高级模式里它们仍排在最前。
  */
 export const BASIC_FEATURES: readonly FrameworkFeature[] = [
   homeFeature, petFeature, dressFeature, voiceFeature, cuaFeature,
   promptsWithClearFeature, { ...usageFeature, navMode: 'primary' },
-  { ...liveFeature, label: L.chat },
+  chatFeature,
 ];
 
 export const FEATURES: readonly FrameworkFeature[] = [
   ...BASIC_FEATURES,
   { ...providersFeature, label: L.model, navMode: 'group', navGroup: L.settings },
   { ...extensionsFeature, navMode: 'group', navGroup: L.settings },
+  { ...liveFeature, label: L.trace, navMode: 'group', navGroup: L.advanced },
   { ...coreFeature, navMode: 'group', navGroup: L.advanced },
   worldsFeature, appearanceFeature, settingsFeature,
 ];

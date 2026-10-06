@@ -64,6 +64,7 @@ const entry = join(OUT, 'tailwind.entry.css');
 writeFileSync(entry, [
   '@import "./src/web/public/styles.css";',
   '@import "./src/web/client/features/home/home.css";',
+  '@import "./src/web/client/features/chat/chat.css";',
   '@source "./src";',
   '@source "./bots";',
   '',
