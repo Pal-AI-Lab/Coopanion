@@ -27,6 +27,19 @@ describe('the words the model can use', () => {
     }
   });
 
+  it('automatic thinking keeps its face without a second thought trail, and explicit thinking keeps the rings', () => {
+    const pet = barePet(), frames = [];
+    pet.setFigure({ draw: (g, face, o) => frames.push({ face, name: o.face }) });
+    run(pet, 1);
+    pet.setThinking(true);
+    run(pet, .2);
+    expect(frames.at(-1)).toMatchObject({ name: 'thinking', face: { think: false } });
+    pet.setThinking(false);
+    pet.doWord('thinking');
+    run(pet, .2);
+    expect(frames.at(-1)).toMatchObject({ name: 'thinking', face: { think: true } });
+  });
+
   it('every expression has a face Coo can draw', () => {
     for (const n of KIT_EXPRESSIONS) {
       const fc = FACES[n].f(.5);

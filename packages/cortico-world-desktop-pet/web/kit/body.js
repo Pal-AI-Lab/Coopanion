@@ -511,6 +511,8 @@ export function createPet(els, opts) {
     }
 
     const fname = faceName(), fc = faceDef(fname).f(T, pet);
+    // Automatic thinking has a status above the head; keep the eyes without a second thought trail.
+    if (pet.thinking && fname === 'thinking') fc.think = false;
     if (fc.lookLock || pet.mode === 'sleep' || pet.mode === 'drag') lookT = [0, 0];
     else if (fc.lookAt) lookT = fc.lookAt;
 

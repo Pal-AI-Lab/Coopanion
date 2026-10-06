@@ -30,6 +30,7 @@ const KEYS = {
   remember: `${K}.rememberPosition`,
   hover: `${K}.hoverButtons`,
   dblclick: `${K}.doubleClickChat`,
+  statusBubble: `${K}.statusBubble`,
   selfAdjust: `${K}.selfAdjust`,
 } as const;
 
@@ -81,6 +82,8 @@ const S = pick({
     hover: '悬停按钮',
     hoverHint: (n: number) => `鼠标停在 Coo 身上时旁边出现的按钮,最多 ${n} 个。`,
     dblclick: '双击 Coo 打开打字框',
+    statusBubble: '显示 Coo 在忙什么',
+    statusBubbleHint: 'Coo 想事情、翻记忆里的文件、操作电脑时,头顶冒个小泡写着在做什么,会显示文件名。',
     selfAdjust: '允许 Coo 自己调整',
     selfAdjustHint: 'Coo 可以自己换形象和装扮、改走动多少;改音效、大小、黑白模式、悬停按钮和对你的称呼前会先问你。关掉后这些它都改不了。',
     actions: { chat: '打字', voice: '语音输入', roam: '行为模式', theme: '夜间模式', sound: '音效', dress: '装扮', hide: '隐藏桌宠' } as Record<string, string>,
@@ -128,6 +131,8 @@ const S = pick({
     hover: 'Hover buttons',
     hoverHint: (n: number) => `Buttons beside Coo while the pointer rests on it, up to ${n}.`,
     dblclick: 'Double-click Coo to open the typing box',
+    statusBubble: 'Show what Coo is doing',
+    statusBubbleHint: 'A small bubble above Coo shows when it is thinking, looking through files in its memory or using the computer. File names are shown.',
     selfAdjust: 'Let Coo adjust itself',
     selfAdjustHint: 'Coo may change its own figure, dress and how much it walks; it asks you before changing sounds, size, night or day look, hover buttons or what it calls you. When off, it can change none of these.',
     actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', dress: 'Dress up', hide: 'Hide pet' } as Record<string, string>,
@@ -172,6 +177,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const hideFullscreen = ui.checkbox(S.hideFullscreen, { onChange: (on) => void save(KEYS.hideFullscreen, on) });
   const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on) });
   const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on) });
+  const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on) });
   const selfAdjust = ui.checkbox(S.selfAdjust, { onChange: (on) => void save(KEYS.selfAdjust, on) });
   const stats = ui.checkbox(S.stats, { onChange: (on) => void save(STATS_KEY, on, STATS_GROUP) });
   const statsDoc = ui.h('a', 'home-link', S.statsDoc);
@@ -232,6 +238,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     row('', remember.el, S.rememberHint),
     row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
     row('', dblclick.el),
+    row('', statusBubble.el, S.statusBubbleHint),
     row('', selfAdjust.el, S.selfAdjustHint),
     row('', statsBox, S.statsHint),
     msg,
@@ -335,6 +342,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     if (typeof values[KEYS.hideFullscreen] === 'boolean') { hideFullscreen.setChecked(values[KEYS.hideFullscreen] as boolean); hideFullscreenRow.hidden = false; }
     if (typeof values[KEYS.remember] === 'boolean') remember.setChecked(values[KEYS.remember] as boolean);
     if (typeof values[KEYS.dblclick] === 'boolean') dblclick.setChecked(values[KEYS.dblclick] as boolean);
+    if (typeof values[KEYS.statusBubble] === 'boolean') statusBubble.setChecked(values[KEYS.statusBubble] as boolean);
     if (typeof values[KEYS.selfAdjust] === 'boolean') selfAdjust.setChecked(values[KEYS.selfAdjust] as boolean);
     if (typeof values[KEYS.hover] === 'string') {
       picked = (values[KEYS.hover] as string).split(',').map((x) => x.trim()).filter((x) => ACTIONS.some(([a]) => a === x));

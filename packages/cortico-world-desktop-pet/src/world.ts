@@ -26,6 +26,7 @@ import {
   type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type RoamMode,
 } from './config.ts';
 import { PetServer, type PageMessage } from './server.ts';
+import { ActivityTracker } from './activity.ts';
 import { WindowHost, resolveHostCommand } from './window-host.ts';
 import { RuntimeStore, type ModelSpec } from './runtime/store.ts';
 import { FunAsrRecognizer, type FunAsrState, type SherpaModule } from './asr/funasr.ts';
@@ -230,7 +231,7 @@ export class DesktopPetWorld implements World {
   private prefsTimer: NodeJS.Timeout | null = null;
   /** Where the pet window last said the pet stands, measured as `petX` is; written by `savePosition` on stop. */
   private standX: number | null = null;
-  private thinking = false;
+  private readonly activity = new ActivityTracker((status) => this.server.sendPet({ t: 'status', status }));
   private readonly voiceSockets = new Set<WorldStreamSocket>();
   private lastLevelAt = 0;
   private readonly heard: HeardLine[] = [];
@@ -367,6 +368,7 @@ export class DesktopPetWorld implements World {
   }
 
   async stop(): Promise<void> {
+    this.activity.onTurnEnded();
     if (this.quiet) clearTimeout(this.quiet.timer);
     this.quiet = null;
     if (this.prefsTimer) clearInterval(this.prefsTimer);
@@ -396,22 +398,16 @@ export class DesktopPetWorld implements World {
 
   onTurnEnded(): void {
     this.touchWoke = false;
-    this.setThinking(false);
+    this.activity.onTurnEnded();
   }
 
   outputTap(): OutputTap | undefined {
     if (!this.server.petConnected) return undefined;
     return {
-      onEvent: () => this.setThinking(true),
-      onRoundEnd: () => this.setThinking(false),
-      onAbort: () => this.setThinking(false),
+      onEvent: (event) => this.activity.onEvent(event),
+      onRoundEnd: () => this.activity.onRoundEnd(),
+      onAbort: () => this.activity.onAbort(),
     };
-  }
-
-  private setThinking(on: boolean): void {
-    if (this.thinking === on) return;
-    this.thinking = on;
-    this.server.sendPet({ t: 'thinking', on });
   }
 
   /* ---------- window ---------- */
@@ -447,7 +443,8 @@ export class DesktopPetWorld implements World {
       mic: this.micWanted(),
       voice: this.voiceBrief(),
       micDevice: this.cfg.asr.mic.deviceId,
-      thinking: this.thinking,
+      status: this.activity.status,
+      statusBubble: this.cfg.statusBubble,
       bot: this.botInfo(),
     };
   }
@@ -471,7 +468,7 @@ export class DesktopPetWorld implements World {
 
   private prefsSignature(): string {
     const s = this.snapshot();
-    delete s.thinking;
+    delete s.status;
     return JSON.stringify(s);
   }
 

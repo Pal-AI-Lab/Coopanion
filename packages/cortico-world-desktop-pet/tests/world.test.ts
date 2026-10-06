@@ -56,6 +56,10 @@ describe('definition', () => {
 });
 
 describe('tools without a page', () => {
+  it('does not install an output tap without a connected pet page', async () => {
+    const { world } = await mounted();
+    expect(world.outputTap()).toBeUndefined();
+  });
   it('fail and say the window is not connected', async () => {
     const { world } = await mounted();
     const out = await tool(world, 'pet_say').handler({ script: '你好' }, ctx);
@@ -65,6 +69,27 @@ describe('tools without a page', () => {
 });
 
 describe('with a pet page', () => {
+  it('sends activity through status, restores it in init and keeps it out of prefs changes', async () => {
+    const { world, cfg } = await mounted();
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    expect(page.init).toMatchObject({ status: null, statusBubble: false });
+    world.outputTap()!.onEvent({
+      type: 'response.output_item.added', sequence_number: 1, output_index: 0,
+      item: { type: 'function_call', id: 'a', call_id: 'a', name: 'read_file', arguments: '', status: 'in_progress' },
+    });
+    expect(await page.next((m) => m.t === 'status' && (m.status as { kind: string })?.kind === 'read')).toEqual({ t: 'status', status: { kind: 'read', text: '在看' } });
+    await new Promise((r) => setTimeout(r, 350));
+    expect(page.messages.some((m) => m.t === 'prefs')).toBe(false);
+    cfg.statusBubble = true;
+    expect(await page.next((m) => m.t === 'prefs')).toMatchObject({ statusBubble: true, status: { kind: 'read', text: '在看' } });
+    const next = await FakePage.open(origin(world));
+    cleanup.push(() => next.close());
+    expect(next.init).toMatchObject({ statusBubble: true, status: { kind: 'read', text: '在看' } });
+    world.onTurnEnded();
+    expect(await next.next((m) => m.t === 'status')).toEqual({ t: 'status', status: null });
+  });
+
   it('pet_say sends parsed beats and reports dropped markers', async () => {
     const { world } = await mounted();
     const page = await FakePage.open(origin(world));
