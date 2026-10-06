@@ -21,6 +21,7 @@
 
 /* 「习惯」「装扮」页 */
 .companion-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: start; padding: 8px 0; }
+.companion-row[hidden] { display: none; }
 .companion-label { padding-top: 6px; font-size: 14px; color: var(--ink-soft); }
 .companion-control > input { width: 100%; max-width: 320px; }
 .companion-rangebox { display: flex; align-items: center; gap: 12px; padding-top: 4px; }
