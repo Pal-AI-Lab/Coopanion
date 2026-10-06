@@ -150,6 +150,9 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const sentById = new Map<number, { text: string; images: readonly ConsoleImageAttachment[] }>();
   const sentByCursor = new Map<number, { text: string; images: readonly ConsoleImageAttachment[] }>();
   let nextSend = 1;
+  /** Kept across re-renders: what is typed into an open question's own-answer box, and which step lists are expanded. */
+  const ownDrafts = new Map<string, string>();
+  const expanded = new Set<string>();
 
   // ---- layout
   const top = ui.h('div', 'chat-top');
@@ -260,6 +263,11 @@ async function mount(ctx: FeatureContext): Promise<void> {
       input.placeholder = S.ownAnswer;
       if (answer?.text) { input.value = answer.text; form.classList.add('chosen'); }
       else if (answer) form.classList.add('dim');
+      else if (open) {
+        input.dataset.ask = it.askId;
+        input.value = ownDrafts.get(it.askId) ?? '';
+        input.addEventListener('input', () => ownDrafts.set(it.askId, input.value), { signal: ctx.signal });
+      }
       input.disabled = !open;
       const submit = ui.h('button', null, S.send);
       submit.type = 'submit';
@@ -276,9 +284,11 @@ async function mount(ctx: FeatureContext): Promise<void> {
     return box;
   };
 
-  const activityNode = (steps: readonly string[], meta: string, running: boolean): HTMLElement => {
+  const activityNode = (key: string, steps: readonly string[], meta: string, running: boolean): HTMLElement => {
     const d = doc.createElement('details');
     d.className = running ? 'chat-activity live' : 'chat-activity';
+    d.open = expanded.has(key);
+    d.addEventListener('toggle', () => { if (d.open) expanded.add(key); else expanded.delete(key); }, { signal: ctx.signal });
     const sum = doc.createElement('summary');
     sum.append(running ? ui.h('span', 'spinner') : ui.h('span', 'chev'), ui.h('span', null, activityTitle(steps)), ui.h('span', 'meta', meta));
     const ol = doc.createElement('ol');
@@ -290,6 +300,8 @@ async function mount(ctx: FeatureContext): Promise<void> {
   /** Rebuilds the thread: the bot's consecutive lines and steps share one avatar. */
   const render = (): void => {
     const stick = nearBottom();
+    const focused = doc.activeElement instanceof HTMLInputElement && thread.contains(doc.activeElement) ? doc.activeElement : null;
+    const caret = focused?.dataset.ask ? { askId: focused.dataset.ask, start: focused.selectionStart, end: focused.selectionEnd } : null;
     thread.replaceChildren();
     if (more) {
       const b = ui.button(S.older, { size: 'sm', onClick: () => { if (before !== null) stream.send(JSON.stringify({ t: 'more', before })); } });
@@ -320,17 +332,21 @@ async function mount(ctx: FeatureContext): Promise<void> {
           body.append(row);
         }
       } else if (it.kind === 'ask') body.append(askNode(it, it.askId === ask));
-      else if (it.kind === 'activity' && shownSteps(it.steps).length) body.append(activityNode(shownSteps(it.steps), S.seconds(Math.max(1, Math.round(it.ms / 1000))), false));
+      else if (it.kind === 'activity' && shownSteps(it.steps).length) body.append(activityNode(String(it.cursor), shownSteps(it.steps), S.seconds(Math.max(1, Math.round(it.ms / 1000))), false));
     }
     const liveSteps = live ? shownSteps(live.steps) : [];
     // more than one step: the title counts them, the meta names the one running now
     const current = phase?.state === 'tools' ? shownSteps(phase.running).at(-1) : undefined;
-    if (!paused && liveSteps.length) cooBody().append(activityNode(liveSteps, liveSteps.length > 1 && current ? stepLabel(current) : '', true));
+    if (!paused && liveSteps.length) cooBody().append(activityNode('live', liveSteps, liveSteps.length > 1 && current ? stepLabel(current) : '', true));
     else if (!paused && busy()) {
       const dots = ui.h('div', 'pet-bubble say thinking');
       dots.append(ui.h('i'), ui.h('i'), ui.h('i'));
       dots.setAttribute('aria-label', S.thinking(bot));
       cooBody().append(dots);
+    }
+    if (caret) {
+      const input = [...thread.querySelectorAll<HTMLInputElement>('input[data-ask]')].find((x) => x.dataset.ask === caret.askId);
+      if (input && !input.disabled) { input.focus(); input.setSelectionRange(caret.start, caret.end); }
     }
     if (stick) toBottom();
   };

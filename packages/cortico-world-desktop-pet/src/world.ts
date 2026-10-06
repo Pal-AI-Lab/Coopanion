@@ -1337,17 +1337,22 @@ export class DesktopPetWorld implements World {
     const walkId = nextId('w');
     if (!this.server.sendPet({ t: 'walk', id: walkId, to: target, run })) return this.notConnected('pet_walk_to');
     const text = await new Promise<string>((resolve) => {
-      const timer = setTimeout(() => {
-        this.walks.delete(walkId);
-        resolve(`${WALK_TIMEOUT_MS / 1000} 秒内没有走到。`);
-      }, WALK_TIMEOUT_MS);
-      const walk: PendingWalk = { resolve, timer };
-      this.walks.set(walkId, walk);
-      ctx?.signal?.addEventListener('abort', () => {
+      const onAbort = (): void => {
         if (!this.walks.has(walkId)) return;
         walk.stopping = true;
         this.server.sendPet({ t: 'walk-stop', id: walkId });
-      }, { once: true });
+      };
+      const done = (s: string): void => {
+        ctx?.signal?.removeEventListener('abort', onAbort);
+        resolve(s);
+      };
+      const timer = setTimeout(() => {
+        this.walks.delete(walkId);
+        done(`${WALK_TIMEOUT_MS / 1000} 秒内没有走到。`);
+      }, WALK_TIMEOUT_MS);
+      const walk: PendingWalk = { resolve: done, timer };
+      this.walks.set(walkId, walk);
+      ctx?.signal?.addEventListener('abort', onAbort, { once: true });
     });
     return { text };
   }
