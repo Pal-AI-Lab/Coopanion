@@ -17,7 +17,7 @@
  * - the body: `step(dt)` advances and draws one frame; `layout()` says where it is ({ x, facing, mode,
  *   busy, moving, pressing, cursor, box, hit, bubble, side }, see the kit's `layout`); `resize()` takes new
  *   bounds (`set({ bounds })` from the page changes what `host.bounds()` returns, then calls it); `do(word)`, `walk(x, run, id)`, `stopWalk(id)`, `pointer(type, p)`, `drop(p)`, `shift(dx, dy)`, `place(x, facing)`,
- *   `set(state)`, `cue(kind)`, `talk()`, `setScheme(id, { fade, at })`, `z` (the colour of its sleep z's)
+ *   `set(state)`, `cue(kind)`, `talk()`, `setScheme(id, { fade })`, `z` (the colour of its sleep z's)
  *   and `dispose()`. Only `step`, `layout` and `do` are required.
  * - events (`emit`): `arrived` and `interrupted` ({ walkId, x, by }) for `walk`, `done` ({ word }) for a word
  *   that ends on its own, `touch` ({ kind: poke | pet | grab | drop | throw | crash, ... }), `mode` ({ mode }).
@@ -79,7 +79,8 @@ addEventListener('message', async (e) => {
       post({ t: 'frame', layout: body.layout(), events, sounds, z: body.z ?? null });
       events = []; sounds = [];
     } else if (m.t === 'scheme') {
-      await body.setScheme?.(m.id, { fade: m.fade, at: m.at });
+      // the fade starts at the body's next frame: the page's clock is not the body's
+      await body.setScheme?.(m.id, { fade: m.fade });
       post({ t: 'scheme', seq: m.seq, z: body.z ?? null });
     } else if (m.t === 'do') body.do(m.word);
     else if (m.t === 'walk') { if (!body.walk?.(m.x, m.run, m.id)) events.push({ kind: 'interrupted', detail: { walkId: m.id, by: 'busy' } }); }

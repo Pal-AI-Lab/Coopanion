@@ -133,7 +133,7 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
       setScheme(id, o = {}) {
         if (gone) return Promise.resolve();
         const s = ++seq;
-        post({ t: 'scheme', id, fade: o.fade ?? 0, at: o.at ?? 0, seq: s });
+        post({ t: 'scheme', id, fade: o.fade ?? 0, seq: s });
         return new Promise((done) => waits.set(s, done));
       },
       /** The light halo behind the body (pet-app's backdrop), as a CSS filter on the frame: 0 removes it. */

@@ -104,7 +104,7 @@ async function showFigure(s) {
   // a pick changed while the same pack is on screen fades in; Coo's picks are its skin
   if (body?.pack === s.figure) {
     body.set({ skin: s });
-    if (s.figure !== 'coo') await body.setScheme(s.scheme, { fade: .45, at: T });
+    if (s.figure !== 'coo') await body.setScheme(s.scheme, { fade: .45 });
     reportFigure(s.figure, true, null, s.figure === 'coo' ? null : s.scheme);
     return;
   }
