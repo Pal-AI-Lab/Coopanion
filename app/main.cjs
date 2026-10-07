@@ -21,7 +21,7 @@
  * while the settings window is open, so it can be reached with Command-Tab.
  */
 const { app, BrowserWindow, Menu, Notification, Tray, dialog, nativeImage, shell } = require('electron');
-const { existsSync, mkdirSync, rmSync, writeFileSync } = require('node:fs');
+const { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, rmSync, writeFileSync } = require('node:fs');
 const { delimiter, dirname, join } = require('node:path');
 
 const MAC = process.platform === 'darwin';
@@ -38,6 +38,47 @@ const ICONS = join(__dirname, 'icons');
 const DATA = process.env.CORTICO_COMPANION_DATA
   || (!app.isPackaged ? join(APP_ROOT, 'build', 'data')
     : MAC || LINUX ? join(app.getPath('appData'), 'Coopanion') : join(dirname(process.execPath), 'data'));
+
+/**
+ * An install made through the installer's pages sits in %LOCALAPPDATA%\Programs\Coopanion: the "only for me"
+ * page sets that after installer/nsis.nsh's customInit ran. From 0.1.14 to 0.1.16 an update, which installs
+ * silently and so keeps customInit's choice, moved the program to %USERPROFILE%\Coopanion and left data\ behind
+ * (#84). The first start in the new place takes that data\ back. When the app has run here since, this data\ may
+ * be the one in use, so a dialog asks first (askRestoreStranded); taking the old one back then happens on the
+ * next start, before anything here is open, and keeps this one beside it as data-replaced-<time>.
+ */
+const STRANDED_DIR = process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'Programs', 'Coopanion') : null;
+const STRANDED_DATA = STRANDED_DIR && join(STRANDED_DIR, 'data');
+/** The answer to that dialog: `restore` or `keep`. */
+const STRANDED_CHOICE = join(DATA, 'stranded-data-choice');
+
+/** Returns true when the dialog has to ask. */
+function restoreStrandedData() {
+  if (!STRANDED_DATA || STRANDED_DATA.toLowerCase() === DATA.toLowerCase()) return false;
+  // an install still living there is its own install, not a leftover
+  if (!existsSync(join(STRANDED_DATA, 'home')) || existsSync(join(STRANDED_DIR, 'Coopanion.exe'))) return false;
+  const choice = existsSync(STRANDED_CHOICE) ? readFileSync(STRANDED_CHOICE, 'utf8') : '';
+  if (choice === 'keep') return false;
+  if (choice !== 'restore' && existsSync(join(DATA, 'home'))) return true;
+  rmSync(STRANDED_CHOICE, { force: true });
+  const aside = `${DATA}-replaced-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+  let line;
+  try {
+    if (existsSync(DATA)) renameSync(DATA, aside);
+    renameSync(STRANDED_DATA, DATA);
+    line = `restored ${STRANDED_DATA}${existsSync(aside) ? `, the data here kept as ${aside}` : ''}`;
+    try { rmdirSync(STRANDED_DIR); } catch { /* not empty: something else was put there */ }
+  } catch (err) {
+    if (existsSync(aside) && !existsSync(DATA)) renameSync(aside, DATA);
+    line = `could not restore ${STRANDED_DATA}: ${err?.message ?? err}`;
+  }
+  mkdirSync(join(DATA, 'logs'), { recursive: true });
+  appendFileSync(join(DATA, 'logs', 'data-restore.log'), `${new Date().toISOString()} ${line}\n`);
+  return false;
+}
+const askStranded = app.isPackaged && process.platform === 'win32' && !process.env.CORTICO_COMPANION_DATA
+  && !process.argv.includes('--pet-host') && restoreStrandedData();
+
 // before anything asks Electron for a path: the single-instance lock and the profile live in userData
 app.setPath('userData', DATA);
 app.setPath('crashDumps', join(DATA, 'Crashpad'));
@@ -243,8 +284,29 @@ app.on('before-quit', (e) => {
   });
 });
 
+/** Asks whether to take back the data\ an update left behind; true when the app restarts to do it. */
+function askRestoreStranded() {
+  const response = dialog.showMessageBoxSync({
+    type: 'question',
+    title: 'Coopanion',
+    message: '找到更新前的设置',
+    detail: `之前的一次自动更新把 Coopanion 装到了现在的位置,更新前的设置、API Key、提示词和记忆还留在:\n${STRANDED_DATA}\n\n`
+      + `换回后,现在这份改名为 data-replaced-<时间>,留在 ${dirname(DATA)} 里,不会删除。选「继续用现在的」以后不再询问。`,
+    buttons: ['换回更新前的设置', '继续用现在的'],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true,
+  });
+  writeFileSync(STRANDED_CHOICE, response === 0 ? 'restore' : 'keep');
+  if (response !== 0) return false;
+  app.relaunch();
+  app.exit(0);
+  return true;
+}
+
 app.whenReady().then(() => {
   app.setAppUserModelId('ai.pal.coopanion');
+  if (askStranded && askRestoreStranded()) return;
   buildTray();
   noteAutostart();
   core.start();

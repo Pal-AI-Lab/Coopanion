@@ -2,14 +2,17 @@
 ; $INSTDIR\data, so the default location stays out of AppData and uninstalling keeps data\.
 
 !macro customInit
-  ; the per-user default is %LOCALAPPDATA%\Programs; an earlier install there moves too
+  ; the per-user default is %LOCALAPPDATA%\Programs. An update stays where the install is: moving it left
+  ; data\ behind (#84; app/main.cjs takes it back after such a move)
   StrLen $0 "$LOCALAPPDATA"
   StrCpy $1 "$INSTDIR" $0
   StrLen $2 "$APPDATA"
   StrCpy $3 "$INSTDIR" $2
-  ${If} $1 == "$LOCALAPPDATA"
-  ${OrIf} $3 == "$APPDATA"
-    StrCpy $INSTDIR "$PROFILE\Coopanion"
+  ${IfNot} ${isUpdated}
+    ${If} $1 == "$LOCALAPPDATA"
+    ${OrIf} $3 == "$APPDATA"
+      StrCpy $INSTDIR "$PROFILE\Coopanion"
+    ${EndIf}
   ${EndIf}
 !macroend
 
