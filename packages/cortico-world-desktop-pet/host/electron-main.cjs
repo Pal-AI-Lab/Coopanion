@@ -146,8 +146,9 @@ function hwndOf(win) {
 /**
  * Whether the foreground window fills the whole monitor the window `own` is on, as a game, a video
  * or a browser in full screen does. A window still carrying a title bar never counts: a maximized
- * window reaches past the monitor's edges once an auto-hidden taskbar stops reserving its strip,
- * and what tells it apart from a full screen window is that going full screen clears that bar
+ * window reaches past the monitor's edges where no taskbar reserves a strip (an auto-hidden one, or
+ * none on that monitor), and what tells it apart from a full screen window is that going full screen
+ * clears that bar
  * (Chromium keeps the maximized state behind, so the state alone cannot separate the two). Nor do
  * the pet window and the desktop. Null off Windows or when koffi does not load.
  */
@@ -164,16 +165,15 @@ const fullscreen = (() => {
     const GetMonitorInfoW = user32.func('int __stdcall GetMonitorInfoW(intptr_t monitor, void *info)');
     // MONITORINFO is its own size, the monitor RECT, the work RECT and flags
     const MONITORINFO_BYTES = 40, MONITOR_DEFAULTTONEAREST = 2;
-    // GWL_STYLE and GWL_EXSTYLE, and the two bits that tell a full screen window from a filled one
-    const GWL_STYLE = -16, GWL_EXSTYLE = -20, WS_CAPTION = 0x00c00000, WS_EX_TOPMOST = 0x00000008;
+    // going full screen clears the title bar a maximized window keeps
+    const GWL_STYLE = -16, WS_CAPTION = 0x00c00000;
     // the desktop's own windows: they cover the monitor but are not an application
     const DESKTOP_CLASSES = new Set(['Progman', 'WorkerW']);
     return (own) => {
       const hwnd = BigInt(GetForegroundWindow());
       if (hwnd === 0n || hwnd === own) return false;
-      // a title bar means an ordinary window that happens to reach the monitor's edges, unless it is
-      // one of the always-on-top layers a player draws its full screen picture in
-      if ((GetWindowLongW(hwnd, GWL_STYLE) & WS_CAPTION) !== 0 && (GetWindowLongW(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) === 0) return false;
+      // a title bar means an ordinary window that happens to reach the monitor's edges, always on top or not
+      if ((GetWindowLongW(hwnd, GWL_STYLE) & WS_CAPTION) !== 0) return false;
       const monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
       if (monitor !== MonitorFromWindow(own, MONITOR_DEFAULTTONEAREST)) return false;
       const name = Buffer.alloc(128);
