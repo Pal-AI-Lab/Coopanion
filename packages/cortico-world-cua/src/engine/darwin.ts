@@ -100,12 +100,12 @@ export function screenSize(): Size {
 
 function needScreen(): void {
   if (CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess()) return;
-  throw new Error('没有「屏幕录制」权限:在「系统设置 → 隐私与安全性 → 录屏与系统录音」里打开 Coopanion,再重启它');
+  throw new Error('没有「屏幕录制」权限:在「系统设置 → 隐私与安全性 → 录屏与系统录音」里打开 Coopanion,再重启它;已经开着的话,先用「−」把 Coopanion 移出列表再加回来:更新后的新版本不认旧授权');
 }
 
 function needInput(): void {
   if (CGPreflightPostEventAccess() || CGRequestPostEventAccess()) return;
-  throw new Error('没有「辅助功能」权限:在「系统设置 → 隐私与安全性 → 辅助功能」里打开 Coopanion,再重启它');
+  throw new Error('没有「辅助功能」权限:在「系统设置 → 隐私与安全性 → 辅助功能」里打开 Coopanion,再重启它;已经开着的话,先用「−」把 Coopanion 移出列表再加回来:更新后的新版本不认旧授权');
 }
 
 /** The main display as top-down BGRA at its pixel size. */

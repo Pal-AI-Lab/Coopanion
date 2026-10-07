@@ -3,6 +3,7 @@ import { runtimesRoot, modelsRoot } from 'cortico/paths.ts';
 import type { WorldDefinition } from 'cortico/world.ts';
 import { DESKTOP_PET_DEFAULTS, DESKTOP_PET_ID, type DesktopPetConfigSection, type PetSkin } from './config.ts';
 import { DesktopPetWorld, modelsDirFor, type PetBotControls } from './world.ts';
+import type { DescribeTool } from './status.ts';
 
 /** The console keeps the bot's avatar here, in the deployment directory. */
 const AVATAR_FILE = 'avatar.png';
@@ -18,6 +19,8 @@ export interface DesktopPetAssembly {
   packRoots?(): string[];
   /** Called after the bot changed its own settings (`pet_set`). */
   onBotChange?(): void;
+  /** What the status bubble shows for a tool call; see `DescribeTool`. */
+  describeTool?: DescribeTool;
 }
 
 /** The definition, with what an embedding app lends the World. */
@@ -43,6 +46,7 @@ export function desktopPetDefinition(assembly: DesktopPetAssembly = {}): WorldDe
         controls: assembly.controls,
         packRoots: () => [join(ctx.dataDir, 'figures'), ...assembly.packRoots?.() ?? []],
         onBotChange: () => assembly.onBotChange?.(),
+        describeTool: assembly.describeTool,
       });
       assembly.onCreate?.(world);
       return world;

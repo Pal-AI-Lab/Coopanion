@@ -142,11 +142,13 @@ export function createPet(els, opts) {
     turnAcc: 0, dx: 0, dy: 0, jumpV: 700, jumpVx: 0, xf: null, blushK: 0,
     eyeSig: '', eyeCur: null, eyePrev: null, eyeDims: [[16, 16, 0, 0], [16, 16, 0, 0]], swapAge: 9,
     glance: [0, 0], glanceAt: 0, swing: 0, swingV: 0, prevA: null, velX: 0, talkK: 0, sfxAt: 0, skid: false, cue: 0,
-    pulse: null, walkId: 0, walkWord: null, listening: false, thinking: false, placed: false, noteAt: 0, tearN: 0,
+    pulse: null, walkId: 0, walkWord: null, listening: false, thinking: false, thoughtShown: false, placed: false, noteAt: 0, tearN: 0,
     cursor: '',
   };
   const pointer = { x: -1e4, y: -1e4, inside: false, vx: 0, samples: [] };
   let press = null, strokeAcc = 0, petCool = 0;
+  /** Whether the last frame found the horizontal speed not finite: a run of such frames is logged once. */
+  let velXBad = false;
   const P = [];
   const anchors = () => ({ ...ANCHORS, ...custom?.anchors });
   let A = anchors();
@@ -295,6 +297,11 @@ export function createPet(els, opts) {
     return true;
   }
 
+  /** Stops the walk `walkId` where the pet stands; it reports the walk 'interrupted'. A finished walk is left alone. */
+  function stopWalk(walkId) {
+    if ((pet.mode === 'walk' || pet.mode === 'run') && pet.walkId === walkId) setMode('idle');
+  }
+
   function faceName() {
     const m = pet.mode;
     if (m === 'drag') return 'dragged';
@@ -336,6 +343,8 @@ export function createPet(els, opts) {
   }
 
   function step(dt) {
+    // a frame that took no time has nothing to advance, and the horizontal speed below divides by its length
+    if (!(dt > 0 && dt < Infinity)) return;
     T += dt; pet.modeT += dt;
     A = anchors();
     const m = pet.mode, mt = pet.modeT;
@@ -511,8 +520,8 @@ export function createPet(els, opts) {
     }
 
     const fname = faceName(), fc = faceDef(fname).f(T, pet);
-    // Automatic thinking has a status above the head; keep the eyes without a second thought trail.
-    if (pet.thinking && fname === 'thinking') fc.think = false;
+    // while the page shows the thought in its status bubble, the face keeps the eyes without a second thought trail
+    if (pet.thinking && pet.thoughtShown && fname === 'thinking') fc.think = false;
     if (fc.lookLock || pet.mode === 'sleep' || pet.mode === 'drag') lookT = [0, 0];
     else if (fc.lookAt) lookT = fc.lookAt;
 
@@ -556,6 +565,13 @@ export function createPet(els, opts) {
     // secondary motion for ears/antenna/scarf: lags behind horizontal movement
     const AX = pet.mode === 'drag' ? pet.dx : pet.x;
     if (pet.prevA != null) pet.velX = lerp(pet.velX, (AX - pet.prevA) / dt, .25);
+    // lerp keeps a NaN or an infinity for good, and the swing with it: a figure's warps that read the swing then
+    // draw nothing (the whale's hair, tail and skirt went missing, #87). Start the speed over and say what it came from.
+    if (!Number.isFinite(pet.velX)) {
+      if (!velXBad) console.warn(`[pet] 横向速度不是有限数,已归零:velX=${pet.velX} x=${AX} 上一帧x=${pet.prevA} dt=${dt} 模式=${m}`);
+      velXBad = true;
+      pet.velX = 0;
+    } else velXBad = false;
     pet.prevA = AX;
     // dancing stays put but rocks: the rock swings what hangs off the body (ears, hair, skirt), as moving does
     const swingT = clamp(-(pet.velX * .06 + (m === 'dance' ? pet.tiltV * .22 : 0)) * Math.sign(pet.faceVis || 1), -28, 28);
@@ -802,7 +818,7 @@ export function createPet(els, opts) {
   resize();
   custom?.setSkin?.(skin);
   return {
-    pet, step, render, resize, act, setExpr, doWord, walkTo, toStage, hitPet, busy, layout,
+    pet, step, render, resize, act, setExpr, doWord, walkTo, stopWalk, toStage, hitPet, busy, layout,
     pointerDown, pointerMove, pointerUp, pointerLeave, dropAt, shiftDrag,
     get pressing() { return !!press; },
     /** Pressed, carried, airborne, walking, running, dancing, turning round, or in a short gesture (nod, wave, bow…): motion that frames far apart show as jumps. */
@@ -832,6 +848,8 @@ export function createPet(els, opts) {
     talk() { pet.talkK = 1; },
     setListening(on) { pet.listening = on; if (on && (pet.mode === 'walk' || pet.mode === 'run')) setMode('idle'); },
     setThinking(on) { pet.thinking = on; },
+    /** The page shows the bot's thinking in a bubble of its own. */
+    setThoughtShown(on) { pet.thoughtShown = on; },
     anchor,
     emitHeart,
   };
@@ -856,8 +874,8 @@ const SVGNS = 'http://www.w3.org/2000/svg';
  * createPet's, with `figure` required; `opts.css` is more style for the frame's document (a figure's own
  * classes) and `opts.skinCss(skin)` the style that follows the skin.
  *
- * The body takes these calls from the page: step(dt), layout(), do(word), walk(x, run, id), pointer(type, p),
- * drop(p), shift(dx, dy), place(x, facing), set({ roam, hold, dialogOpen, listening, thinking, skin, theme }),
+ * The body takes these calls from the page: step(dt), layout(), do(word), walk(x, run, id), stopWalk(id), pointer(type, p),
+ * drop(p), shift(dx, dy), place(x, facing), set({ roam, hold, dialogOpen, listening, thinking, thoughtShown, skin, theme }),
  * cue(kind), talk(), setScheme(id, o), dispose().
  */
 export function createBody(host, opts) {
@@ -891,6 +909,7 @@ export function createBody(host, opts) {
     resize: ctl.resize,
     do: ctl.doWord,
     walk: (x, run, id) => ctl.walkTo(x, run, id),
+    stopWalk: (id) => ctl.stopWalk(id),
     pointer(type, p) {
       if (type === 'down') ctl.pointerDown(p);
       else if (type === 'move') ctl.pointerMove(p);
@@ -912,6 +931,7 @@ export function createBody(host, opts) {
       if (typeof s.dialogOpen === 'boolean') dialogOpen = s.dialogOpen;
       if (typeof s.listening === 'boolean') ctl.setListening(s.listening);
       if (typeof s.thinking === 'boolean') ctl.setThinking(s.thinking);
+      if (typeof s.thoughtShown === 'boolean') ctl.setThoughtShown(s.thoughtShown);
       if (s.skin) { ctl.setSkin(s.skin); if (opts.skinCss) skinStyle.textContent = opts.skinCss(s.skin); }
       if (s.theme) doc.documentElement.dataset.theme = s.theme;
     },

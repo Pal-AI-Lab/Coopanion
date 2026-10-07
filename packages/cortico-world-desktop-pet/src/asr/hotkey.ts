@@ -148,7 +148,7 @@ async function macReader(keys: number[]): Promise<KeyReader | string> {
     const preflight = cg.func('bool CGPreflightListenEventAccess()') as () => boolean;
     const request = cg.func('bool CGRequestListenEventAccess()') as () => boolean;
     // asks once; the answer takes effect after the app restarts
-    if (!preflight() && !request()) return '没有「输入监控」权限:在「系统设置 → 隐私与安全性 → 输入监控」里打开 Coopanion,再重启它';
+    if (!preflight() && !request()) return '没有「输入监控」权限:在「系统设置 → 隐私与安全性 → 输入监控」里打开 Coopanion,再重启它;已经开着的话,先用「−」把 Coopanion 移出列表再加回来:更新后的新版本不认旧授权';
     const keyState = cg.func('bool CGEventSourceKeyState(int32_t state, uint16_t key)') as (state: number, key: number) => boolean;
     const buttonState = cg.func('bool CGEventSourceButtonState(int32_t state, uint32_t button)') as (state: number, button: number) => boolean;
     // kCGEventSourceStateHIDSystemState: the hardware, whichever app has the keyboard

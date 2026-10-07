@@ -27,11 +27,14 @@ describe('the words the model can use', () => {
     }
   });
 
-  it('automatic thinking keeps its face without a second thought trail, and explicit thinking keeps the rings', () => {
+  it('automatic thinking drops the thought trail only while the page shows the thought, and explicit thinking keeps the rings', () => {
     const pet = barePet(), frames = [];
     pet.setFigure({ draw: (g, face, o) => frames.push({ face, name: o.face }) });
     run(pet, 1);
     pet.setThinking(true);
+    run(pet, .2);
+    expect(frames.at(-1)).toMatchObject({ name: 'thinking', face: { think: true } });
+    pet.setThoughtShown(true);
     run(pet, .2);
     expect(frames.at(-1)).toMatchObject({ name: 'thinking', face: { think: false } });
     pet.setThinking(false);
@@ -57,6 +60,16 @@ describe('the words the model can use', () => {
       // everything but sitting and sleeping ends back on its feet
       if (m !== 'sit' && m !== 'sleep' && m !== 'walk' && m !== 'run') expect(pet.pet.mode, m).toBe('idle');
     }
+  });
+
+  it('a frame that took no time leaves the swing a number (#87: the whale lost her hair, tail and skirt for good)', () => {
+    const pet = barePet();
+    run(pet, 1);
+    pet.doWord('sleep');
+    run(pet, 1);
+    pet.step(0);
+    run(pet, 1);
+    expect(Number.isFinite(pet.pet.swing)).toBe(true);
   });
 
   it('a walk asked for as a word reports done once it stops, so the next word need not wait out its seconds', () => {

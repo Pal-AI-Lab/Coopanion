@@ -53,7 +53,7 @@ let body = null, words = new Map(), T = 0;
 /** Where the body last said it is (body-host.js `layout`), or null. */
 const at = () => body?.layout ?? null;
 /** What the body is told of the page: talking orders hold its roaming off, and these states. */
-const bodyState = { listening: false, thinking: false, dialogOpen: false };
+const bodyState = { listening: false, thinking: false, thoughtShown: true, dialogOpen: false };
 const holdRoam = (seconds) => body?.set({ hold: seconds });
 addEventListener('resize', () => {
   body?.set({ bounds: bounds() });
@@ -106,7 +106,7 @@ async function showFigure(s) {
   // a pick changed while the same pack is on screen fades in; Coo's picks are its skin
   if (body?.pack === s.figure) {
     body.set({ skin: s });
-    if (s.figure !== 'coo') await body.setScheme(s.scheme, { fade: .45, at: T });
+    if (s.figure !== 'coo') await body.setScheme(s.scheme, { fade: .45 });
     reportFigure(s.figure, true, null, s.figure === 'coo' ? null : s.scheme);
     return;
   }
@@ -181,7 +181,7 @@ function applyPrefs(p) {
   if (typeof p.mic === 'boolean') { prefs.mic = p.mic; p.mic && !watching ? startMic() : stopMic(); }
   if (p.voice && typeof p.voice === 'object') prefs.voice = { ...prefs.voice, ...p.voice };
   if (typeof p.doubleClickChat === 'boolean') prefs.doubleClickChat = p.doubleClickChat;
-  if (typeof p.statusBubble === 'boolean') prefs.statusBubble = p.statusBubble;
+  if (typeof p.statusBubble === 'boolean') { prefs.statusBubble = p.statusBubble; setBody({ thoughtShown: p.statusBubble }); }
   if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
   // the window process does the hiding; the page only passes the setting on
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
@@ -200,6 +200,8 @@ function onOrder(m) {
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
     case 'confirm': dropAsks(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
     case 'walk': walk(m); break;
+    case 'walk-stop': body?.stopWalk(m.id); break;
+    case 'ask-close': closeAsk(m.id); break;
     case 'act': acts.push(...m.actions); holdRoam(20); break;
     case 'listen': onListen(m); break;
     case 'status': setStatus(m.status); break;
@@ -416,6 +418,11 @@ function answer(node, a) {
   body?.cue('cheer');
   setTimeout(() => { if (item === it) closeBubble(); }, 700);
 }
+/** The question was answered elsewhere (the chat page): it leaves the queue or the bubble without an answer from here. */
+function closeAsk(id) {
+  for (let i = queue.length - 1; i >= 0; i--) if (queue[i].kind === 'ask' && queue[i].id === id) queue.splice(i, 1);
+  if (item && item.kind === 'ask' && item.id === id && !item.answered) { item.answered = true; closeBubble(); }
+}
 function dismissAsk() {
   const it = item;
   if (!it || it.kind !== 'ask' || it.answered) return;
@@ -621,9 +628,17 @@ function openInput() {
   if (item && item.kind === 'ask' && !item.answered) return;
   if (item) closeBubble();
   item = { kind: 'input' };
-  openBubble('ask', '<button class="b-close" type="button" aria-label="关闭">×</button><form class="b-own"><input type="text" maxlength="500" autocomplete="off" placeholder="想说什么…" aria-label="打字说话"><button type="submit">发送</button></form>');
+  const expand = prefs.bot?.buttons?.chat
+    ? '<button class="b-expand" type="button" aria-label="在对话页继续写" title="在对话页继续写"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg></button>'
+    : '';
+  openBubble('ask', `<button class="b-close" type="button" aria-label="关闭">×</button><form class="b-own"><input type="text" maxlength="500" autocomplete="off" placeholder="想说什么…" aria-label="打字说话">${expand}<button type="submit">发送</button></form>`);
   const form = bubble.querySelector('form'), input = form.querySelector('input');
   bubble.querySelector('.b-close').addEventListener('click', () => closeBubble());
+  // the chat page takes longer text and images; the draft goes with it
+  bubble.querySelector('.b-expand')?.addEventListener('click', () => {
+    send({ t: 'expand', text: input.value });
+    closeBubble();
+  });
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const v = input.value.trim();
@@ -1364,9 +1379,24 @@ const MOVING_FPS = 60, RESTING_FPS = 30;
 let last = performance.now(), dueAt = 0, gap = 1000 / MOVING_FPS;
 /** The last error the frame loop logged, so one that keeps recurring is reported once, not per frame. */
 let frameErr = null;
+/**
+ * Frames whose timestamp was not past the one before (a zero or negative dt), and when that was last logged (ms):
+ * one such frame used to leave the whale without hair, tail and skirt until restart (#87), and where these
+ * timestamps come from is not known yet. Logged at most once a minute, with the count so far. The first frame is
+ * left out: `last` starts at the page's clock, which may be ahead of the first frame's timestamp.
+ */
+let stalls = 0, stallLoggedAt = -Infinity, framed = false;
 function frame(now) {
   // a display refresh up to a quarter gap early counts as on time, so the rate averages out over refresh rates it does not divide
   if (now < dueAt - gap / 4) { requestAnimationFrame(frame); return; }
+  if (framed && now <= last) {
+    stalls++;
+    if (performance.now() - stallLoggedAt > 60_000) {
+      stallLoggedAt = performance.now();
+      console.warn(`[pet] 帧时间戳没有前进(累计 ${stalls} 次):now=${now} 上一帧=${last} 页面=${document.visibilityState} 焦点=${document.hasFocus()} 模式=${at()?.mode ?? '-'}`);
+    }
+  }
+  framed = true;
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   try {
     T += dt;

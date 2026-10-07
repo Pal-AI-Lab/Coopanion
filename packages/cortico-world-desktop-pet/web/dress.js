@@ -71,7 +71,7 @@ async function showFigure(s) {
   try {
     if (body?.pack === s.figure) {
       body.set({ skin: s });
-      if (s.figure !== 'coo') await body.setScheme(s.scheme, { fade: .4, at: T });
+      if (s.figure !== 'coo') await body.setScheme(s.scheme, { fade: .4 });
       return;
     }
     loading = s.figure;

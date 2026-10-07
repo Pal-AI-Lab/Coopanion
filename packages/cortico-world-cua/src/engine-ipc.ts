@@ -45,7 +45,15 @@ export interface ScreenshotResult extends ScreenInfo {
 export interface InputResult extends ScreenInfo {
   /** The user was not idle within `maxWaitMs`; nothing was sent. */
   yielded: boolean;
+  /** A cancel arrived while waiting for the user; nothing was sent. */
+  cancelled: boolean;
   waitedMs: number;
+}
+
+/** `typed` counts code points sent; `stoppedBy` is null when the whole text went out. */
+export interface TypeResult extends InputResult {
+  typed: number;
+  stoppedBy: 'user' | 'cancel' | null;
 }
 
 export interface WindowEntry {
@@ -57,5 +65,9 @@ export interface WindowEntry {
   foreground: boolean;
 }
 
-export type MainToChild = { id: number; req: EngineRequest };
+/**
+ * `cancel` stops request `id` at its next safe point: during the wait for the user, or between
+ * typed chunks. Every other step of an op runs to its end; a cancel for a finished request is dropped.
+ */
+export type MainToChild = { id: number; req: EngineRequest } | { cancel: number };
 export type ChildToMain = { id: number; ok: true; value: unknown } | { id: number; ok: false; error: string };

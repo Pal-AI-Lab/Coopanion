@@ -20,7 +20,7 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 |---|---|---|
 | `pet_say(script)` | 冒气泡说话;`【词】` 先做动作再换新气泡,`<词>` 打字到那里时做 | 立即返回,报约显示多久、前面排了多久 |
 | `pet_ask(question, options, allowOwnAnswer)` | 提问气泡,最多 3 个选项,默认再加一格自己写 | 立即返回;回答以 `[回答]` 事件送达 |
-| `pet_walk_to(to, run)` | 走(跑)到桌宠所在屏幕横向 0–1 处,或 `left` `center` `right` `cursor` | 走到或被打断才返回,最多 30 秒 |
+| `pet_walk_to(to, run)` | 走(跑)到桌宠所在屏幕横向 0–1 处,或 `left` `center` `right` `cursor` | 走到或被打断才返回,最多 30 秒;`interruptible`,收到 interrupt 时停在原地并写明位置 |
 | `pet_act(actions)` | 不说话,依次做一串表情或动作 | 立即返回;词表里标着保持的词(Coo 的 `sit` `sleep`)保持到下个动作 |
 | `pet_set(…)` | 改自己的外观和习惯,见「自己调整」 | 自己能改的立即返回;要问的等对方回答 |
 | `pet_quiet(minutes, sound, roam)` | 临时安静:默认关音效、站着不动,到点恢复,设置不变 | 立即返回 |
@@ -33,7 +33,7 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 | `type` | 正文 | 投递 |
 |---|---|---|
 | `desktop-pet.speech` | `[语音] 伙伴:…` | flush |
-| `desktop-pet.message` | `[打字] 伙伴:…`(悬停按钮;`worlds.desktop-pet.doubleClickChat` 打开时也可双击) | flush |
+| `desktop-pet.message` | `[打字] 伙伴:…`(悬停按钮;`worlds.desktop-pet.doubleClickChat` 打开时也可双击;或对话页,可附图片) | preempt |
 | `desktop-pet.answer` | `[回答] 伙伴回答「问题」:选了第 2 项「…」` / 自己写的 / 关掉没答 | flush,关掉没答为 debounce |
 | `desktop-pet.touch` | `[互动] 伙伴戳了你 3 下` / 摸了摸 / 拎起来甩了出去 / 摔晕 | `worlds.desktop-pet.touch.wakeOn` 选中的种类 debounce,其余 piggyback |
 | `desktop-pet.figure` | `[形象] 你现在的样子:…`(对方换了形象或打扮;bot 用 `pet_set` 自己换的不报) / `[形象] …没能显示出来(原因),你现在是 Coo 的样子` | 换装 debounce,显示失败 flush |
@@ -81,10 +81,12 @@ Windows 上每 0.8 秒用 GDI 取一小块身体周围的屏幕像素来比,其�
 黑白模式存在 `worlds.desktop-pet.theme`,默认 `dark`(浅色身体、深色气泡)。桌宠窗口、`/pet`、`/dress` 和控制台面板里的
 预览都按这一项画,与系统和控制台的深浅色设置无关。
 
-开启状态气泡后,干活时头顶会冒一个小泡(`src/activity.ts`、`web/pet-app.js`):只读主 session 的 `outputTap` 流事件,
-从工具调用的名字和参数推断在做什么,包括其他 World 和 Persona 的工具。参数里的文件名一闭合就显示,
-不等整份正文流完。调用按 item id 和到达顺序记录,连续同类工作合并成「第一个文件 等 N 个」,
-中间的 `pet_*`、`terminal_send`、`end_turn` 不算工作。
+开启状态气泡后,干活时头顶会冒一个小泡(`src/status.ts`、`web/pet-app.js`)。什么时候显示由 Core 的运行阶段(`onRunPhase`)决定:
+请求模型、等待重试和上下文交接时是想事情,新一轮请求从想事情开始,一批结束(`idle`)时收起。显示什么来自主 session 的
+`outputTap` 流事件里的工具调用,包括其他 World 和 Persona 的工具;参数里的文件名一闭合就显示,不等整份正文流完。
+调用按 item id 和到达顺序记录,连续同类工作合并成「第一个文件 等 N 个」。哪个工具显示成什么由嵌入的应用给出
+(`desktopPetDefinition({ describeTool })`,Coopanion 的在 `core/pet-status.ts`);没给出的工具显示「在忙」,`pet_*` 不显示。
+下表是 Coopanion 给出的样子。
 
 | 类别 | 气泡里的样子与文案 |
 |---|---|
@@ -104,16 +106,15 @@ Windows 上每 0.8 秒用 GDI 取一小块身体周围的屏幕像素来比,其�
 
 状态与对话共用原来的说话气泡,保留实线边框和尖角;显示状态时整块点击穿透,不会挡住电脑操作的点击。
 对话优先:说话、提问、确认、引导对话、打字框和聆听气泡出现时立即让位,对话结束后恢复仍在进行的状态,
-不会同时显示两种气泡。自动思考保留身体的眼神,不再另外画一组思考小圆泡。工作状态直接显示,
+不会同时显示两种气泡。状态气泡开着时,自动思考保留身体的眼神,不再另外画一组思考小圆泡。工作状态直接显示,
 思考持续 0.6 秒才显示;每条至少停留 1.2 秒,只改文件名或数量时原地更新,换类时轻弹,结束用 0.2 秒淡出。
-`onRoundEnd` 不收起(工具可能仍在执行),下一轮首个事件切回思考;`onAbort`、`onTurnEnded` 或 120 秒无流事件时清空。
 路径只显示最后一段,细节最多 20 字加省略号;打字内容、闹钟备注、窗口名和坐标不显示,未知工具也不显示名字和参数。
 
 `worlds.desktop-pet.statusBubble` 默认开启,可在「习惯」页关闭「显示 Coo 在忙什么」。关闭时不画状态气泡,
-身体的思考表情照常。这个开关不在 `pet_set` 的可改项中,也不进入统计。
+身体的思考表情和思考小圆泡照常。这个开关不在 `pet_set` 的可改项中,也不进入统计。
 页面协议新增 `{ t: 'status', status: { kind, text, detail?, count? } | null }`;`init` 和 `prefs` 同样带
 `status`、`statusBubble`,供重连时恢复。`status` 变化只发状态消息,不会触发整份偏好广播;原来的 `thinking` 消息由它替代,
-形象包仍然只接收已有的 `set({ thinking })`。
+kit 的身体(`web/kit/body.js`)另收 `set({ thoughtShown })`,表示页面正在气泡里显示思考。
 
 ## 语音输入
 
@@ -219,6 +220,17 @@ Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 Core
 文本框(可以是密钥框,带一个外链和一个「以后再说」)、进度条(调用方用 `update({ progress })` 推进,`close()` 收起)。
 `step` 在气泡顶上画步骤点,`closable` 画一个关闭钮;页面不在时结果是 `{ unavailable: true }`,页面回来后调用方重发即可。
 `controls.guide` 借出后,控制台的 `pet.guide` 面板方法会调它,应用借此重放引导。
+
+### 对话页
+
+控制台页 `world:desktop-pet` 的 `chat` 面板是一条推送连接(`src/chat.ts`),应用拿它做对话页:
+
+- 页面发 `send` 的文字和图片作为 `desktop-pet.message` 投递;送达前在页面上排队,`now` 让它以 interrupt 立即送达,`withdraw` 撤回(需要宿主提供 `promotePending` / `withdrawPending`);World 的 `onEventsSettled` 告诉页面何时送达。
+- `pet_say` 的每一拍、`pet_ask` 的问题、两句话之间调用过的工具名记为 `desktop-pet.self` 事件,只落库不投递;`hello` 时 World 从事件库还原历史,排过队的消息放在送达的位置。`blob`(GET)取消息里的图片。
+- `pet_ask` 在页面上也能回答,回答后桌宠上的气泡关掉。页面还收到 Core 的运行阶段(`phase`)与暂停状态。
+- `controls.openChat` 借出后,打字气泡多一个展开钮,带着草稿打开对话页;环境提示词的 `{{pet.chat}}` 也只在这时说明对话页。
+
+形象的身体可以实现 `stopWalk(id)`:interrupt 停下 `pet_walk_to` 时页面经 `figure-frame` 调它;没实现时这次走路照常走完。
 
 ## 安装
 

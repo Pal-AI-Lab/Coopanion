@@ -186,6 +186,48 @@ describe('CuaWorld without the engine', () => {
     });
   });
 
+  describe('interrupt', () => {
+    /** A never-ask world whose engine answers a screenshot at once and holds `type` until a cancel for it arrives. */
+    const interruptWorld = () => {
+      const cfg = { ...structuredClone(CUA_DEFAULTS), permission: 'never-ask' as const };
+      const w = new CuaWorld({ cfg, timezone: 'Asia/Shanghai' });
+      const inner = w as unknown as { spawn: () => unknown; pending: Map<number, { done: (v: unknown) => void; timer: NodeJS.Timeout }> };
+      const answer = (id: number, value: unknown) => {
+        const p = inner.pending.get(id)!;
+        inner.pending.delete(id);
+        clearTimeout(p.timer);
+        p.done(value);
+      };
+      const at = { cursor: { x: 0, y: 0 }, foreground: null, screen: { width: 1920, height: 1080 } };
+      inner.spawn = () => ({
+        exitCode: null,
+        connected: true,
+        send(msg: { id: number; req: { op: string } } | { cancel: number }) {
+          if ('cancel' in msg) answer(msg.cancel, { ...at, yielded: false, cancelled: false, waitedMs: 0, typed: 16, stoppedBy: 'cancel' });
+          else if (msg.req.op === 'screenshot') answer(msg.id, { ...at, jpeg: new Uint8Array(1), width: 10, height: 10 });
+        },
+      });
+      return w;
+    };
+    const callAborted = (w: CuaWorld, name: string, args: Record<string, unknown>) => {
+      const ac = new AbortController();
+      setTimeout(() => ac.abort(), 50);
+      return w.tools().find((t) => t.name === name)!.handler(args, { role: 'main', log: new FakeHost().log, signal: ac.signal }) as Promise<{ text: string; blobs?: unknown[] }>;
+    };
+
+    it('cua_wait ends at the abort, reports the time waited and takes no screenshot', async () => {
+      const out = await callAborted(interruptWorld(), 'cua_wait', { seconds: 30 });
+      expect(out.text).toMatch(/^等了 0\.\d\/30 秒时收到打断/);
+      expect(out.blobs).toBeUndefined();
+    });
+
+    it('cua_type sends the engine a cancel on abort and reports how much of the text went out', async () => {
+      const out = await callAborted(interruptWorld(), 'cua_type', { text: 'x'.repeat(40) });
+      expect(out.text).toContain('只输入了 16/40 个字符:收到打断');
+      expect(out.blobs).toBeUndefined();
+    });
+  });
+
   it('passes the extension dry mount', async () => {
     const report = await dryMountWorld(CUA as never, { scratchDir: mkdtempSync(join(tmpdir(), 'cua-dry-')) });
     expect(report.failures).toEqual([]);

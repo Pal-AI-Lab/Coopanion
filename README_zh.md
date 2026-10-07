@@ -83,7 +83,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 4. 图标在屏幕顶部的菜单栏里。程序坞里没有，打开设置窗口时才出现。
 
 > [!NOTE]
-> 数据在 `~/Library/Application Support/Coopanion`。第一次用到时系统会分别询问麦克风（语音输入）、输入监控（说话键）、录屏与系统录音和辅助功能（操作电脑）。不想让 Coo 操作电脑，后两项不给即可。改了「输入监控」「辅助功能」「录屏」后要重启 Coopanion。
+> 数据在 `~/Library/Application Support/Coopanion`。第一次用到时系统会分别询问麦克风（语音输入）、输入监控（说话键）、录屏与系统录音和辅助功能（操作电脑）。不想让 Coo 操作电脑，后两项不给即可。改了「输入监控」「辅助功能」「录屏」后要重启 Coopanion。应用没有 Apple 开发者签名,更新后 macOS 不把这几项授权算给新版本:开关开着却提示没有权限时,用「−」把 Coopanion 移出那个列表,再把 `/Applications/Coopanion.app` 加回来并重启。
 
 ### Linux
 
