@@ -29,6 +29,20 @@ const FACE = { x: 520, y: 578, w: 390, h: 252 };
 // the head's parallax warps act over this rect (rig units); the long hair below it stays put
 const HEAD = [30, 12, 215, 168];
 
+/**
+ * A leg's warp: from 14 units below the hip pivot down it turns about the pivot by `a` degrees as a rigid
+ * rotation would; above that the turn fades out over 20 units, so the top of the bloomer, which a rotation
+ * would swing out past the narrow top of the skirt at the waist, stays where it was drawn. `ty` lifts the leg
+ * the same way: all of it below the hinge, none of the bloomer's top, which would rise above the skirt.
+ */
+function hinge([px, py], a, ty) {
+  const c = Math.cos(a * Math.PI / 180), s = Math.sin(a * Math.PI / 180);
+  return (u, v, x, y) => {
+    const w = smooth(py - 6, py + 14, y), lx = x - px, ly = y - py;
+    return [(lx * c - ly * s - lx) * w, ((lx * s + ly * c - ly) + ty) * w];
+  };
+}
+
 /* ---------- springs ---------- */
 // `lim` bounds the output: a hard throw may overshoot, the hair must not fold over itself
 function spring(k, c, lim = Infinity) {
@@ -94,8 +108,9 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     waist: { kind: 'rot', parent: 'body', pivot: PV.waist },
     armNear: { kind: 'rot', parent: 'waist', pivot: PV.armNear },
     armFar: { kind: 'rot', parent: 'waist', pivot: PV.armFar },
-    legBack: { kind: 'rot', parent: 'body', pivot: PV.legBack },
-    legFront: { kind: 'rot', parent: 'body', pivot: PV.legFront },
+    // the legs swing about the hip (see `hinge`), as warps so the bloomer above it stays under the skirt
+    legBack: { kind: 'warp', parent: 'body', rect: rectOf('leg_back') },
+    legFront: { kind: 'warp', parent: 'body', rect: rectOf('leg_front') },
     tail: { kind: 'rot', parent: 'body', pivot: PV.tail },
     tailBend: { kind: 'warp', parent: 'tail', rect: rectOf('tail') },
     neck: { kind: 'rot', parent: 'waist', pivot: PV.neck },
@@ -390,9 +405,11 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
   // running keeps half its lean. The shares ease between modes so the group never snaps.
   // dancing sways her mostly as a whole, the rest of the sway goes to the neck
   const GROUP = { air: [1, 1], drag: [1, 1], crouch: [1, 1], land: [1, 1], walk: [1, .5], run: [1, .5], dance: [.6, 0] };
-  let wTilt = 0, wLean = 0;
-  const groupTilt = (mode, tilt, lean) => tilt * wTilt + lean * wLean;
-  let finMood = 0, tailMood = 0, wagAmp = 0, sitK = 0;
+  // the ninja run leans her whole body forward from the soles, in a straight line: bent at the waist instead,
+  // the bodice comes away from the skirt and its bow and the tops of the legs show at the waist
+  let wTilt = 0, wLean = 0, facing = 1;
+  let finMood = 0, tailMood = 0, wagAmp = 0, sitK = 0, walkK = 0, runK = 0;
+  const groupTilt = (mode, tilt, lean) => tilt * wTilt + lean * wLean + runK * 14 * facing;
   const st = { z: {}, alpha: {} };
 
   // fins and tail by face: fins up (+) or drooping (-), tail wag size
@@ -433,6 +450,7 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     const t = o.t, dt = lastT == null ? 1 / 60 : clamp(t - lastT, 0, .05);
     lastT = t;
     const mode = o.mode || 'idle', face = o.face || 'neutral';
+    facing = Math.sign(o.facing || 1);
     const walking = mode === 'walk' || mode === 'run', held = mode === 'drag', airborne = mode === 'air';
 
     /* body: the kit's `low` is how far the hips sink (sitting, the walk's bob), in these units */
@@ -474,7 +492,7 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     /* springs */
     const sway = clamp(o.swing / 26, -1.6, 1.6);
     const up = airborne || held ? 1 : 0;
-    const hair = sp.hair.step(sway * 1.1 - tiltVel * .004 - yawVel * .02 + (walking ? -.25 : 0), dt);
+    const hair = sp.hair.step(sway * 1.1 - tiltVel * .004 - yawVel * .02 + (walking ? -.25 : 0) - runK * .5, dt);
     const hairY = sp.hairY.step(up * -1 + lowV * .006, dt);
     const bangs = sp.bangs.step(sway * .7 - tiltVel * .004 - yawVel * .03, dt);
     const skirt = sp.skirt.step(sway * .8 + (walking ? -.2 : 0), dt);
@@ -498,6 +516,9 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     const sitIn = smooth(.44, .54, sitK), plop = Math.sin(Math.PI * smooth(.3, .8, sitK));
 
     /* arms: swing against the legs when walking, out in the air, flailing when held */
+    // running is a ninja run: both arms swept straight back, the whole body leaning forward (groupTilt)
+    walkK = lerp(walkK, walking ? 1 : 0, ease(8, dt));
+    runK = lerp(runK, mode === 'run' ? 1 : 0, ease(7, dt));
     let aN = 4, aF = -2;
     if (walking) { aN = -legA[0] * 1.3 + 4; aF = -legA[1] * 1.3 - 2; }
     if (airborne) { aN = 40; aF = -30; }
@@ -508,6 +529,7 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     if (face === 'determined') { aN = 14; aF = -10; }
     if (face === 'excited') { aN += 18; aF -= 12; }
     if (mode === 'dance') { const b = Math.sin((o.modeT || 0) * Math.PI * 2 * 1.1); aN = 16 + 24 * Math.max(0, b); aF = -8 - 22 * Math.max(0, -b); }
+    if (runK > .001) { aN = lerp(aN, 38, runK); aF = lerp(aF, 32, runK); }
     if (wave) aN = lerp(aN, 108, wave);
     if (shiver) { aN = lerp(aN, -10, shiver); aF = lerp(aF, 8, shiver); }
     const armN = sp.armN.step(aN, dt) + wave * 13 * Math.sin(t * 15) + shiver * 1.4 * Math.sin(t * 47) + flap * 9 * Math.sin(t * 24);
@@ -531,11 +553,17 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     st.alpha.skirt_sit = st.alpha.waist_bow_sit_front = sitIn;
     st.armNear = { a: armN };
     st.armFar = { a: armF };
-    st.legBack = { a: lerp(legA[0], -55, sitK), ty: -lift[0] * .9 * (1 - sitK) };
-    st.legFront = { a: lerp(legA[1], -60, sitK), ty: -lift[1] * .9 * (1 - sitK) };
+    // the far arm's cuff layer sits over the bodice; swept back, the arm is behind her and so is the cuff
+    st.alpha.arm_far_end_front = 1 - smooth(12, 30, armF);
+    // she is turned toward us, so a foot behind its hip is also farther away: it rides a little higher,
+    // which reads as the heel coming up at the push-off
+    const behind = o.legs.map(l => Math.max(0, l[0] - l[2]) * .3 * walkK);
+    st.legBack = { fn: hinge(PV.legBack, lerp(legA[0], -55, sitK), (-lift[0] * .9 - behind[0]) * (1 - sitK)) };
+    st.legFront = { fn: hinge(PV.legFront, lerp(legA[1], -60, sitK), (-lift[1] * .9 - behind[1]) * (1 - sitK)) };
     st.tail = { a: tail - 10 * sitK };
     st.tailBend = { fn: u => [0, -tail * .5 * u * u] };
-    st.neck = { a: headA + clamp(bend * .8, -10, 12), ty: (mode === 'sleep' ? 2.5 : 0) + breath * .35 };
+    // the head stays up while she leans forward for the ninja run
+    st.neck = { a: headA + clamp(bend * .8, -10, 12) - runK * 12, ty: (mode === 'sleep' ? 2.5 : 0) + breath * .35 };
     const parallax = (k, ky) => (u, v) => [angleX * k * bump(u) * (.4 + .6 * bump(v)), angleY * ky * bump(v) * (.4 + .6 * bump(u))];
     st.headFront = { fn: parallax(4.2, 2.8) };
     // the eyes and mouth move with the face: the eyes' outline is shared between the two layers
@@ -672,7 +700,7 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     reset() {
       endFade();
       for (const k in sp) { sp[k].x = 0; sp[k].v = 0; }
-      lastT = null; prevTilt = 0; prevYaw = 0; prevLow = 0; headTilt = 0; wTilt = 0; wLean = 0; finMood = 0; tailMood = 0; wagAmp = 0; sitK = 0;
+      lastT = null; prevTilt = 0; prevYaw = 0; prevLow = 0; headTilt = 0; wTilt = 0; wLean = 0; finMood = 0; tailMood = 0; wagAmp = 0; sitK = 0; walkK = 0; runK = 0;
     },
     /** Loads every scheme's textures, so later switches are immediate. */
     preload: () => Promise.all(SCHEMES.map(sc => loadScheme(sc.id))),
