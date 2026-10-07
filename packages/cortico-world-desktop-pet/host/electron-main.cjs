@@ -145,9 +145,12 @@ function hwndOf(win) {
 
 /**
  * Whether the foreground window fills the whole monitor the window `own` is on, as a game, a video
- * or a browser in full screen does. A maximized window never counts: it reaches past the monitor's
- * edges when the taskbar hides itself. Nor do the pet window and the desktop. Null off Windows or
- * when koffi does not load.
+ * or a browser in full screen does. A window still carrying a title bar never counts: a maximized
+ * window reaches past the monitor's edges where no taskbar reserves a strip (an auto-hidden one, or
+ * none on that monitor), and what tells it apart from a full screen window is that going full screen
+ * clears that bar
+ * (Chromium keeps the maximized state behind, so the state alone cannot separate the two). Nor do
+ * the pet window and the desktop. Null off Windows or when koffi does not load.
  */
 const fullscreen = (() => {
   if (process.platform !== 'win32') return null;
@@ -155,18 +158,22 @@ const fullscreen = (() => {
     const koffi = require('koffi');
     const user32 = koffi.load('user32.dll');
     const GetForegroundWindow = user32.func('intptr_t __stdcall GetForegroundWindow()');
-    const IsZoomed = user32.func('int __stdcall IsZoomed(intptr_t hwnd)');
+    const GetWindowLongW = user32.func('int32_t __stdcall GetWindowLongW(intptr_t hwnd, int index)');
     const GetClassNameW = user32.func('int __stdcall GetClassNameW(intptr_t hwnd, void *buf, int max)');
     const GetWindowRect = user32.func('int __stdcall GetWindowRect(intptr_t hwnd, void *rect)');
     const MonitorFromWindow = user32.func('intptr_t __stdcall MonitorFromWindow(intptr_t hwnd, uint32_t flags)');
     const GetMonitorInfoW = user32.func('int __stdcall GetMonitorInfoW(intptr_t monitor, void *info)');
     // MONITORINFO is its own size, the monitor RECT, the work RECT and flags
     const MONITORINFO_BYTES = 40, MONITOR_DEFAULTTONEAREST = 2;
+    // going full screen clears the title bar a maximized window keeps
+    const GWL_STYLE = -16, WS_CAPTION = 0x00c00000;
     // the desktop's own windows: they cover the monitor but are not an application
     const DESKTOP_CLASSES = new Set(['Progman', 'WorkerW']);
     return (own) => {
       const hwnd = BigInt(GetForegroundWindow());
-      if (hwnd === 0n || hwnd === own || IsZoomed(hwnd)) return false;
+      if (hwnd === 0n || hwnd === own) return false;
+      // a title bar means an ordinary window that happens to reach the monitor's edges, always on top or not
+      if ((GetWindowLongW(hwnd, GWL_STYLE) & WS_CAPTION) !== 0) return false;
       const monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
       if (monitor !== MonitorFromWindow(own, MONITOR_DEFAULTTONEAREST)) return false;
       const name = Buffer.alloc(128);
@@ -279,6 +286,12 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
 
   const place = () => { if (win) cover(display()); };
 
+  /**
+   * A hand showed or hid the window, so the fullscreen rule no longer owns it: a manual show while
+   * the rule still believed it had hidden the window would keep the rule from hiding it again.
+   */
+  const releaseAutoHidden = () => { autoHidden = false; };
+
   const create = () => {
     const d = display(), wa = coverArea(d);
     win = new BrowserWindow({
@@ -364,7 +377,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     if (foreground) { if (back && foreground.current() === hwndOf(win)) foreground.give(back); }
     else if (win.isFocused()) win.blur();
   });
-  ipcMain.on('pet:hide', () => { if (win) win.hide(); });
+  ipcMain.on('pet:hide', () => { releaseAutoHidden(); if (win) win.hide(); });
   ipcMain.on('pet:hideWhenFullscreen', (_e, on) => { hideWhenFullscreen = !!on; });
   ipcMain.on('pet:openDress', () => openDress());
   ipcMain.handle('pet:sampleBackdrop', (_e, query) => {
@@ -403,13 +416,13 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     tray = new Tray(trayIcon());
     tray.setToolTip('Cortico 桌宠');
     tray.setContextMenu(Menu.buildFromTemplate([
-      { label: '显示桌宠', click: () => { if (!win) create(); else win.showInactive(); } },
-      { label: '隐藏桌宠', click: () => win && win.hide() },
+      { label: '显示桌宠', click: () => { releaseAutoHidden(); if (!win) create(); else win.showInactive(); } },
+      { label: '隐藏桌宠', click: () => { releaseAutoHidden(); if (win) win.hide(); } },
       { label: '装扮…', click: () => openDress() },
       { type: 'separator' },
       { label: '关闭桌宠窗口', click: () => app.quit() },
     ]));
-    tray.on('click', () => { if (win) (win.isVisible() ? win.hide() : win.showInactive()); });
+    tray.on('click', () => { if (win) { releaseAutoHidden(); (win.isVisible() ? win.hide() : win.showInactive()); } });
   });
   app.on('window-all-closed', () => { if (!tray) app.quit(); });
   // with --parent-pid the window closes once that process is gone
