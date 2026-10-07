@@ -20,10 +20,12 @@ const PET_PAGE = 'world:desktop-pet';
 
 interface WireImage { ref: string; mime: string; name?: string }
 interface SayBeat { text: string; mood?: Record<string, string> }
+interface Touch { kind: string; count: number; woke: boolean; crashed: boolean }
+interface Refs { withdrawn?: number[]; delivered?: Array<[number, number]> }
 type ChatItem =
   | { kind: 'user'; cursor: number; ts: string; via: 'chat' | 'bubble' | 'voice'; text: string; images?: WireImage[]; at?: number }
   | { kind: 'answer'; cursor: number; ts: string; askId: string; index?: number; text?: string; dismissed?: true }
-  | { kind: 'touch'; cursor: number; ts: string; text: string }
+  | { kind: 'touch'; cursor: number; ts: string; touch?: Touch; text?: string }
   | { kind: 'say'; cursor: number; ts: string; beats: SayBeat[] }
   | { kind: 'ask'; cursor: number; ts: string; askId: string; question: string; options: string[]; own: boolean }
   | { kind: 'activity'; cursor: number; ts: string; steps: string[]; ms: number };
@@ -62,6 +64,16 @@ const S = pick({
     things: (n: number) => `做了 ${n} 件事`,
     seconds: (s: number) => `${s} 秒`,
     imagesUnseen: (bot: string) => `现在的模型看不到图片,${bot} 只会知道你发了几张图。`,
+    touch: (t: Touch, b: string): string => {
+      const out = t.crashed ? `,${b} 摔晕了一会儿` : '';
+      switch (t.kind) {
+        case 'poke': return t.woke ? `你把睡着的 ${b} 戳醒了` : t.count > 1 ? `你戳了 ${b} ${t.count} 下` : `你戳了 ${b} 一下`;
+        case 'pet': return t.count > 1 ? `你摸了 ${b} 好几下` : `你摸了摸 ${b}`;
+        case 'throw': return `你把 ${b} 拎起来甩了出去${out}`;
+        case 'drop': return `你把 ${b} 拎起来换了个地方${out}`;
+        default: return `${b} 重重落地,摔晕了一会儿`;
+      }
+    },
   },
   en: {
     nav: 'Chat',
@@ -94,6 +106,16 @@ const S = pick({
     things: (n: number) => `${n} thing${n === 1 ? '' : 's'} done`,
     seconds: (s: number) => `${s} s`,
     imagesUnseen: (bot: string) => `The current model cannot see images; ${bot} only learns how many you sent.`,
+    touch: (t: Touch, b: string): string => {
+      const out = t.crashed ? `, and ${b} was knocked out for a bit` : '';
+      switch (t.kind) {
+        case 'poke': return t.woke ? `You poked ${b} awake` : t.count > 1 ? `You poked ${b} ${t.count} times` : `You poked ${b}`;
+        case 'pet': return t.count > 1 ? `You patted ${b} a few times` : `You patted ${b}`;
+        case 'throw': return `You picked up and tossed ${b}${out}`;
+        case 'drop': return `You carried ${b} somewhere else${out}`;
+        default: return `${b} hit the ground hard and was knocked out for a bit`;
+      }
+    },
   },
 });
 
@@ -140,12 +162,21 @@ async function mount(ctx: FeatureContext): Promise<void> {
   let more = false;
   let before: number | null = null;
   let imagesSeen = true;
+  /** The question the pet still waits on an answer to, as the World says; null when none. */
+  let openAsk: string | null = null;
   /** Shown items by cursor, in the order the bot met them (`at` for a message that waited, else the cursor). */
   const items = new Map<number, ChatItem>();
   /** The person's messages the bot has not taken in yet. */
   const pending = new Map<number, UserItem>();
   /** Messages that never reached the bot. */
   const discarded = new Set<number>();
+  /** Withdrawn messages and where waiting messages were delivered, from the history loaded so far; applied to earlier pages. */
+  const withdrawnRefs = new Set<number>();
+  const deliveredRefs = new Map<number, number>();
+  const takeRefs = (refs: Refs | undefined): void => {
+    for (const c of refs?.withdrawn ?? []) withdrawnRefs.add(c);
+    for (const [c, at] of refs?.delivered ?? []) deliveredRefs.set(c, at);
+  };
   /** What this page sent, by the id it gave, then by cursor: a withdrawn message comes back as typed. */
   const sentById = new Map<number, { text: string; images: readonly ConsoleImageAttachment[] }>();
   const sentByCursor = new Map<number, { text: string; images: readonly ConsoleImageAttachment[] }>();
@@ -213,17 +244,6 @@ async function mount(ctx: FeatureContext): Promise<void> {
 
   const nearBottom = (): boolean => scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 80;
   const toBottom = (): void => { scroll.scrollTop = scroll.scrollHeight; };
-
-  /** A question can still be answered here while it is the bot's last line and nobody answered it. */
-  const openAsk = (): string | null => {
-    const list = [...items.values()];
-    for (let i = list.length - 1; i >= 0; i--) {
-      const it = list[i];
-      if (it.kind === 'say') return null;
-      if (it.kind === 'ask') return list.some((x) => x.kind === 'answer' && x.askId === it.askId) ? null : it.askId;
-    }
-    return null;
-  };
 
   const userNode = (it: UserItem): HTMLElement => {
     const el = ui.h('div', 'msg-user');
@@ -310,7 +330,6 @@ async function mount(ctx: FeatureContext): Promise<void> {
     }
     const shown = [...items.values()].filter((it) => !(it.kind === 'user' && pending.has(it.cursor)) && it.kind !== 'answer');
     if (shown.length === 0 && !live && !busy()) thread.append(ui.h('div', 'chat-empty', S.empty(bot)));
-    const ask = openAsk();
     let group: HTMLElement | null = null;
     const cooBody = (): HTMLElement => {
       if (group) return group;
@@ -322,7 +341,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     };
     for (const it of shown) {
       if (it.kind === 'user') { group = null; thread.append(userNode(it)); continue; }
-      if (it.kind === 'touch') { group = null; thread.append(ui.h('div', 'chat-note', it.text)); continue; }
+      if (it.kind === 'touch') { group = null; thread.append(ui.h('div', 'chat-note', it.touch ? S.touch(it.touch, bot) : it.text ?? '')); continue; }
       const body = cooBody();
       if (it.kind === 'say') {
         for (const beat of it.beats) {
@@ -331,7 +350,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
           if (beat.mood) row.append(ui.h('span', 'mood', moodName(beat.mood)));
           body.append(row);
         }
-      } else if (it.kind === 'ask') body.append(askNode(it, it.askId === ask));
+      } else if (it.kind === 'ask') body.append(askNode(it, it.askId === openAsk));
       else if (it.kind === 'activity' && shownSteps(it.steps).length) body.append(activityNode(String(it.cursor), shownSteps(it.steps), S.seconds(Math.max(1, Math.round(it.ms / 1000))), false));
     }
     const liveSteps = live ? shownSteps(live.steps) : [];
@@ -414,6 +433,8 @@ async function mount(ctx: FeatureContext): Promise<void> {
             more = f.more === true;
             before = typeof f.before === 'number' ? f.before : null;
             imagesSeen = f.imagesSeen !== false;
+            openAsk = typeof f.askId === 'string' ? f.askId : null;
+            takeRefs(f.refs as Refs | undefined);
             const waiting = new Set(Array.isArray(f.pending) ? f.pending as number[] : []);
             for (const it of (f.items as ChatItem[]) ?? []) addItem(it, waiting.has(it.cursor));
             composer.setPlaceholder(S.placeholder(bot));
@@ -423,7 +444,12 @@ async function mount(ctx: FeatureContext): Promise<void> {
           }
           case 'older': {
             const height = scroll.scrollHeight;
-            for (const it of (f.items as ChatItem[]) ?? []) addItem(it);
+            for (const it of (f.items as ChatItem[]) ?? []) {
+              if (withdrawnRefs.has(it.cursor)) continue;
+              const at = deliveredRefs.get(it.cursor);
+              addItem(it.kind === 'user' && at !== undefined ? { ...it, at } : it);
+            }
+            takeRefs(f.refs as Refs | undefined);
             sortItems();
             more = f.more === true;
             before = typeof f.before === 'number' ? f.before : null;
@@ -448,7 +474,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
           case 'settled': {
             for (const c of (f.cursors as number[]) ?? []) {
               const it = items.get(c);
-              if (it?.kind === 'user' && typeof f.at === 'number') it.at = f.at;
+              if (typeof f.at === 'number') { deliveredRefs.set(c, f.at); if (it?.kind === 'user') it.at = f.at; }
               pending.delete(c);
               sentByCursor.delete(c);
               if (f.outcome === 'discarded') discarded.add(c);
@@ -459,6 +485,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
           }
           case 'withdrawn': {
             const c = f.cursor as number;
+            withdrawnRefs.add(c);
             const it = pending.get(c);
             pending.delete(c);
             items.delete(c);
@@ -470,6 +497,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
             return;
           }
           case 'notice': ui.toast(String(f.text ?? '')); renderQueue(); return;
+          case 'ask': openAsk = typeof f.askId === 'string' ? f.askId : null; render(); return;
           case 'phase': phase = f.phase as RunPhase; refresh(); return;
           case 'activity': live = Array.isArray(f.steps) ? { steps: f.steps as string[], startedAt: f.startedAt as number } : null; render(); return;
           case 'paused': paused = f.paused === true; refresh(); return;

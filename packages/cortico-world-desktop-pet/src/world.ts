@@ -36,7 +36,7 @@ import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, watchHotk
 import { joinSpeech, looksHallucinated } from './asr/result.ts';
 import { toSimplified } from './asr/simplify.ts';
 import { estimateSeconds, parseActions, parseScript, vocabTable, type VocabWord } from './script.ts';
-import { ActivityGroup, ChatSockets, SELF_TYPE, chatHistory, chatItem } from './chat.ts';
+import { ActivityGroup, ChatSockets, SELF_TYPE, chatHistory, chatItem, chatRefs } from './chat.ts';
 import { DESKTOP_PET_TOOL_DECLS } from './tools.ts';
 import { COO, figurePacks, lookOf, nameIn, packFor, type FigurePack } from './packs.ts';
 import { dressTable, planSettings, type SettingChange } from './self.ts';
@@ -218,18 +218,43 @@ function moodOf(actions: readonly string[], vocab: readonly VocabWord[]): { mood
   return { mood: { id: v.id, ...Object.fromEntries(Object.entries(v.names).flatMap(([lang, names]) => (names[0] ? [[lang, names[0]]] : []))) } };
 }
 
+/** What the chat page reads from this World, in the page's language. */
+const CHAT_TEXT = {
+  zh: {
+    badImages: '图片格式不对',
+    tooManyImages: `一次最多 ${IMAGES_MAX} 张图`,
+    badMime: (mime: string) => `不支持的图片格式 ${mime}`,
+    emptyImage: '有一张图是空的',
+    bigImage: `单张图不能超过 ${IMAGE_MAX_BYTES / 1048576} MB`,
+    offline: '还没连上',
+    notSent: '没能送出',
+    tooLate: '这条已经送到了,撤不回来。',
+  },
+  en: {
+    badImages: 'The images are not in a form this page sends',
+    tooManyImages: `At most ${IMAGES_MAX} images at a time`,
+    badMime: (mime: string) => `Unsupported image type ${mime}`,
+    emptyImage: 'One of the images is empty',
+    bigImage: `Each image must be under ${IMAGE_MAX_BYTES / 1048576} MB`,
+    offline: 'Not connected yet',
+    notSent: 'Could not send it',
+    tooLate: 'That one has already been delivered and cannot be taken back.',
+  },
+} satisfies Record<Language, unknown>;
+type ChatText = (typeof CHAT_TEXT)['zh'];
+
 /** Images of a chat page message: the whole batch is taken, or the reason it is not. */
-function parseChatImages(raw: unknown, user: string): { ok: true; blobs: BlobInput[] } | { ok: false; reason: string } {
+function parseChatImages(raw: unknown, user: string, s: ChatText): { ok: true; blobs: BlobInput[] } | { ok: false; reason: string } {
   if (raw === undefined) return { ok: true, blobs: [] };
-  if (!Array.isArray(raw)) return { ok: false, reason: '图片格式不对' };
-  if (raw.length > IMAGES_MAX) return { ok: false, reason: `一次最多 ${IMAGES_MAX} 张图` };
+  if (!Array.isArray(raw)) return { ok: false, reason: s.badImages };
+  if (raw.length > IMAGES_MAX) return { ok: false, reason: s.tooManyImages };
   const blobs: BlobInput[] = [];
   for (const [i, item] of raw.entries()) {
     const img = (item ?? {}) as { mime?: unknown; base64?: unknown; name?: unknown };
-    if (typeof img.mime !== 'string' || !IMAGE_MIMES.has(img.mime)) return { ok: false, reason: `不支持的图片格式 ${String(img.mime)}` };
+    if (typeof img.mime !== 'string' || !IMAGE_MIMES.has(img.mime)) return { ok: false, reason: s.badMime(String(img.mime)) };
     const bytes = typeof img.base64 === 'string' ? Buffer.from(img.base64, 'base64') : Buffer.alloc(0);
-    if (bytes.length === 0) return { ok: false, reason: '有一张图是空的' };
-    if (bytes.length > IMAGE_MAX_BYTES) return { ok: false, reason: `单张图不能超过 ${IMAGE_MAX_BYTES / 1048576} MB` };
+    if (bytes.length === 0) return { ok: false, reason: s.emptyImage };
+    if (bytes.length > IMAGE_MAX_BYTES) return { ok: false, reason: s.bigImage };
     const name = typeof img.name === 'string' && img.name.trim() ? img.name.trim().slice(0, 120) : undefined;
     blobs.push({ bytes, mime: img.mime, ...(name ? { name } : {}), fallbackText: `[${user}发来的图片 ${i + 1}/${raw.length}]` });
   }
@@ -290,6 +315,8 @@ export class DesktopPetWorld implements World {
   private phase: RunPhase | null = null;
   /** The person's messages (typed, spoken) not yet delivered to the bot, by cursor. */
   private readonly pendingChat = new Set<number>();
+  /** The first cursor of this run: Core queues this World's undelivered events from before it again at start. */
+  private startCursor = 0;
   /** Text the bubble's expand button carried, until a chat page takes it. */
   private draft: string | null = null;
   private pausedShown: boolean | null = null;
@@ -390,6 +417,7 @@ export class DesktopPetWorld implements World {
 
   async start(host: WorldHost): Promise<void> {
     this.host = host;
+    this.startCursor = host.store.latestCursor() + 1;
     this.log = host.log;
     await this.server.start();
     this.windowHost = new WindowHost(host.log);
@@ -470,7 +498,9 @@ export class DesktopPetWorld implements World {
    * first, then a `delivered` record the history places the message at.
    */
   onEventsSettled(events: readonly EventEnvelope[], outcome: 'delivered' | 'discarded'): void {
-    const cursors = events.map((e) => e.cursor).filter((c) => this.pendingChat.delete(c));
+    const cursors = events
+      .filter((e) => this.pendingChat.delete(e.cursor) || (e.cursor < this.startCursor && chatItem(e)?.kind === 'user'))
+      .map((e) => e.cursor);
     if (!cursors.length) return;
     void (async () => {
       await this.closeActivity();
@@ -498,14 +528,19 @@ export class DesktopPetWorld implements World {
    * - `now { cursor }`: a pending message delivered at once, stopping what the bot is doing (`interrupt`)
    * - `withdraw { cursor }`: a pending message taken back; answered with `withdrawn { cursor }` to every page, or `notice` when it was already delivered
    * - `answer { askId, index | text }`: the open `pet_ask` answered on the page
+   *
+   * `init` and `ask` frames carry the id of the question that can still be answered (`askId`, null
+   * when none). `init` and `older` carry `refs`: the `withdrawn` and `delivered` records in that
+   * stretch of history about messages before it, which the page applies to the pages it loads later.
    */
-  private async onChat(msg: Record<string, unknown>, socket: WorldStreamSocket): Promise<void> {
+  private async onChat(msg: Record<string, unknown>, socket: WorldStreamSocket, language: Language): Promise<void> {
     const host = this.host;
+    const s = CHAT_TEXT[language] ?? CHAT_TEXT.zh;
     switch (msg.t) {
       case 'hello': {
         const page = host ? this.chatPage() : { items: [], more: false };
         this.chat.send(socket, {
-          t: 'init', ...page, pending: [...this.pendingChat], phase: this.phase,
+          t: 'init', ...page, pending: [...this.pendingChat], askId: this.ask?.id ?? null, phase: this.phase,
           activity: this.activity.steps.length ? { steps: this.activity.steps, startedAt: this.activity.startedAt } : null,
           paused: this.opts.controls?.isPaused?.() ?? false, user: this.cfg.user, bot: this.opts.botName ?? '',
           imagesSeen: host?.modelFacts.accepts('image/jpeg') ?? false,
@@ -521,13 +556,13 @@ export class DesktopPetWorld implements World {
       case 'send': {
         const id = msg.id;
         const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, CHAT_TEXT_MAX) : '';
-        const images = parseChatImages(msg.images, this.cfg.user);
+        const images = parseChatImages(msg.images, this.cfg.user, s);
         if (!images.ok) { this.chat.send(socket, { t: 'rejected', id, reason: images.reason }); return; }
         if (!text && images.blobs.length === 0) return;
-        if (!host) { this.chat.send(socket, { t: 'rejected', id, reason: '还没连上' }); return; }
+        if (!host) { this.chat.send(socket, { t: 'rejected', id, reason: s.offline }); return; }
         const e = await this.push('desktop-pet.message', 'desktop-pet.chat', `[打字] ${this.cfg.user}:${text}`, 'preempt',
           { meta: { via: 'chat', text }, ...(images.blobs.length ? { blobs: images.blobs } : {}) });
-        this.chat.send(socket, e ? { t: 'sent', id, cursor: e.cursor } : { t: 'rejected', id, reason: '没能送出' });
+        this.chat.send(socket, e ? { t: 'sent', id, cursor: e.cursor } : { t: 'rejected', id, reason: s.notSent });
         return;
       }
       case 'now': {
@@ -539,7 +574,7 @@ export class DesktopPetWorld implements World {
         const cursor = msg.cursor;
         if (!host?.withdrawPending || typeof cursor !== 'number') return;
         if (!await host.withdrawPending(cursor)) {
-          this.chat.send(socket, { t: 'notice', text: '这条已经送到了,撤不回来。' });
+          this.chat.send(socket, { t: 'notice', text: s.tooLate });
           return;
         }
         this.pendingChat.delete(cursor);
@@ -551,11 +586,26 @@ export class DesktopPetWorld implements World {
     }
   }
 
-  /** The chat items of the last CHAT_PAGE_EVENTS events of this World, or of those before `before`. */
-  private chatPage(before?: number): { items: ReturnType<typeof chatHistory>; more: boolean; before: number | null } {
+  /**
+   * The chat items of the last CHAT_PAGE_EVENTS events of this World, or of those before `before`,
+   * and the records among them about messages further back.
+   */
+  private chatPage(before?: number): { items: ReturnType<typeof chatHistory>; refs: ReturnType<typeof chatRefs>; more: boolean; before: number | null } {
     const events = this.host!.store.range({ source: this.id, limit: CHAT_PAGE_EVENTS, ...(before !== undefined ? { toCursor: before - 1 } : {}) });
     const more = events.length === CHAT_PAGE_EVENTS;
-    return { items: chatHistory(events), more, before: more ? events[0].cursor : null };
+    const first = events[0]?.cursor ?? 0;
+    const refs = chatRefs(events);
+    return {
+      items: chatHistory(events),
+      refs: { withdrawn: refs.withdrawn.filter((c) => c < first), delivered: refs.delivered.filter(([c]) => c < first) },
+      more, before: more ? first : null,
+    };
+  }
+
+  /** The open question changed: pages let only the one still open be answered. */
+  private setAsk(ask: PendingAsk | null): void {
+    this.ask = ask;
+    this.chat.broadcast({ t: 'ask', askId: ask?.id ?? null });
   }
 
   private setThinking(on: boolean): void {
@@ -850,14 +900,14 @@ export class DesktopPetWorld implements World {
     if (!ask || ask.id !== msg.askId) return;
     const q = `「${ask.question}」`;
     if (msg.dismissed) {
-      this.ask = null;
+      this.setAsk(null);
       void this.push('desktop-pet.answer', 'desktop-pet.answer', `[回答] ${this.cfg.user}关掉了提问${q},没有作答。`, 'debounce', { meta: { askId: ask.id, dismissed: true } });
       return;
     }
     const index = typeof msg.index === 'number' && ask.options[msg.index] !== undefined ? msg.index : null;
     const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 500) : '';
     if (index === null && !text) return;
-    this.ask = null;
+    this.setAsk(null);
     if (from === 'chat') this.server.sendPet({ t: 'ask-close', id: ask.id });
     const body = index !== null ? `选了第 ${index + 1} 项「${ask.options[index]}」` : `自己写了:「${text}」`;
     void this.push('desktop-pet.answer', 'desktop-pet.answer', `[回答] ${this.cfg.user}回答${q}:${body}`, 'flush',
@@ -905,19 +955,8 @@ export class DesktopPetWorld implements World {
     const { wakeOn } = this.cfg.touch;
     const wakes = !this.touchWoke && (wakeOn === 'all' || (wakeOn === 'poke' && t.kind === 'poke'));
     if (wakes) this.touchWoke = true;
-    void this.push('desktop-pet.touch', 'desktop-pet.touch', `[互动] ${text}`, wakes ? 'debounce' : 'piggyback', { meta: { chat: this.touchLine(t) } });
-  }
-
-  /** The touch as the chat page tells it to the person. */
-  private touchLine(t: TouchBatch): string {
-    const b = this.opts.botName || 'Coo';
-    switch (t.kind) {
-      case 'poke': return t.woke ? `你把睡着的 ${b} 戳醒了` : t.count > 1 ? `你戳了 ${b} ${t.count} 下` : `你戳了 ${b} 一下`;
-      case 'pet': return t.count > 1 ? `你摸了 ${b} 好几下` : `你摸了摸 ${b}`;
-      case 'throw': return `你把 ${b} 拎起来甩了出去${t.crashed ? `,${b} 摔晕了一会儿` : ''}`;
-      case 'drop': return `你把 ${b} 拎起来换了个地方${t.crashed ? `,${b} 摔晕了一会儿` : ''}`;
-      default: return `${b} 重重落地,摔晕了一会儿`;
-    }
+    void this.push('desktop-pet.touch', 'desktop-pet.touch', `[互动] ${text}`, wakes ? 'debounce' : 'piggyback',
+      { meta: { touch: { kind: t.kind, count: t.count, woke: t.woke, crashed: t.crashed } } });
   }
 
   /**
@@ -1295,7 +1334,7 @@ export class DesktopPetWorld implements World {
     const waitSec = Math.max(0, (this.busyUntil - now) / 1000);
     this.busyUntil = Math.max(now, this.busyUntil) + selfSec * 1000;
     const replaced = this.ask ? `替换了还没回答的提问「${this.ask.question}」。` : '';
-    if (this.ask) this.ask = null;
+    if (this.ask) this.setAsk(null);
     const note = dropped.length ? `
 [执行参数] 当前形象的词表里没有这些标记,已略过:${dropped.join('、')}。` : '';
     const shown = this.chat.size ? '对话页开着,这段也显示在那里。' : '';
@@ -1312,7 +1351,7 @@ export class DesktopPetWorld implements World {
     const id = nextId('a');
     if (!this.server.sendPet({ t: 'ask', id, question, options, own: allowOwn })) return this.notConnected('pet_ask');
     const replaced = this.ask ? `替换了还没回答的上一个提问「${this.ask.question}」。` : '';
-    this.ask = { id, question, options };
+    this.setAsk({ id, question, options });
     void this.closeActivity();
     void this.record({ kind: 'ask', askId: id, question, options, own: allowOwn }, question);
     const cut = raw.length > 3 ? '只显示了前 3 个选项。' : '';
@@ -1459,7 +1498,7 @@ export class DesktopPetWorld implements World {
       panels: [...DESKTOP_PET_PANEL_DECLS],
       invoke: (panel, method, args) => this.invoke(panel, method, args),
       stream: (panel, socket) => {
-        if (panel === 'chat') { this.chat.add(socket, (msg, s) => void this.onChat(msg, s)); return; }
+        if (panel === 'chat') { this.chat.add(socket, (msg, s) => void this.onChat(msg, s, language)); return; }
         if (panel !== 'voice') { socket.close('no stream'); return; }
         this.voiceSockets.add(socket);
         socket.onClose(() => this.voiceSockets.delete(socket));
