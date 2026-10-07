@@ -35,6 +35,7 @@ const prefs = {
   rememberPosition: false,
   /** Double-clicking the pet opens the typing box. */
   doubleClickChat: false,
+  statusBubble: true,
   /** Draw at the moving frame rate while the body rests too. */
   lockFrameRate: false,
 };
@@ -52,7 +53,7 @@ let body = null, words = new Map(), T = 0;
 /** Where the body last said it is (body-host.js `layout`), or null. */
 const at = () => body?.layout ?? null;
 /** What the body is told of the page: talking orders hold its roaming off, and these states. */
-const bodyState = { listening: false, thinking: false, dialogOpen: false };
+const bodyState = { listening: false, thinking: false, thoughtShown: true, dialogOpen: false };
 const holdRoam = (seconds) => body?.set({ hold: seconds });
 addEventListener('resize', () => {
   body?.set({ bounds: bounds() });
@@ -73,6 +74,7 @@ function connect() {
     stopMic();
     // the World gave up on these steps when the page went; it asks again once the page is back
     dropDialogs();
+    setStatus(null);
     if (e.code === 4000) return; // replaced by a newer pet page
     setTimeout(connect, backoff);
     backoff = Math.min(8000, backoff * 2);
@@ -179,12 +181,13 @@ function applyPrefs(p) {
   if (typeof p.mic === 'boolean') { prefs.mic = p.mic; p.mic && !watching ? startMic() : stopMic(); }
   if (p.voice && typeof p.voice === 'object') prefs.voice = { ...prefs.voice, ...p.voice };
   if (typeof p.doubleClickChat === 'boolean') prefs.doubleClickChat = p.doubleClickChat;
+  if (typeof p.statusBubble === 'boolean') { prefs.statusBubble = p.statusBubble; setBody({ thoughtShown: p.statusBubble }); }
   if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
   // the window process does the hiding; the page only passes the setting on
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
   if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead(); }
-  if (typeof p.thinking === 'boolean') setBody({ thinking: p.thinking });
+  if ('status' in p) setStatus(p.status);
   refreshButtons();
 }
 
@@ -201,7 +204,7 @@ function onOrder(m) {
     case 'ask-close': closeAsk(m.id); break;
     case 'act': acts.push(...m.actions); holdRoam(20); break;
     case 'listen': onListen(m); break;
-    case 'thinking': setBody({ thinking: !!m.on }); break;
+    case 'status': setStatus(m.status); break;
     case 'dialog': queue.push({ kind: 'dialog', id: m.id, d: m }); holdRoam(20); break;
     case 'dialog-update': updateDialog(m); break;
     case 'dialog-close': endDialog(m.id); break;
@@ -269,6 +272,8 @@ function dropAsks() {
 
 function openBubble(kind, html) {
   bubble.className = 'bubble ' + kind;
+  bubble.removeAttribute('aria-label');
+  delete bubble.dataset.kind; delete bubble.dataset.icon;
   bubble.innerHTML = html;
   bubble.hidden = false;
   void bubble.offsetWidth;
@@ -700,6 +705,57 @@ function stepListen() {
   }
 }
 
+/* ---------- activity: the same bubble, with conversation always taking priority ---------- */
+const status = { wanted: null, since: 0, shown: null, shownAt: 0, fadeAt: null };
+function setStatus(next) {
+  setBody({ thinking: next?.kind === 'think' });
+  const prev = status.wanted;
+  if (prev?.kind === next?.kind && prev?.text === next?.text && prev?.detail === next?.detail && prev?.count === next?.count) return;
+  if (prev?.kind !== next?.kind) status.since = T;
+  status.wanted = next;
+}
+function drawStatus(next, pop) {
+  const icon = next.kind === 'click' && next.text === '在滚动' ? 'scroll' : next.kind;
+  if (!bubble.classList.contains('status') || bubble.dataset.icon !== icon) {
+    bubble.className = 'bubble status';
+    bubble.dataset.icon = icon;
+    bubble.innerHTML = `<span class="status-icon">${ICONS[`status_${icon}`] || ICONS.status_work}</span><span class="status-text"></span>`;
+  }
+  bubble.dataset.kind = next.kind;
+  const label = next.text + (next.detail ? ` · ${next.detail}` : '') + (next.count > 1 ? ` 等 ${next.count} 个` : '');
+  bubble.querySelector('.status-text').textContent = label;
+  bubble.setAttribute('aria-label', next.kind === 'think' ? '在想' : label);
+  bubble.classList.remove('fading');
+  bubble.hidden = false;
+  if (pop) { bubble.classList.remove('pop'); void bubble.offsetWidth; bubble.classList.add('pop'); }
+}
+function stepStatus() {
+  // Never replace dialogue with activity, including while a queued line waits for the body.
+  if (!prefs.statusBubble || !heardEl.hidden || item || queue.length) {
+    if (bubble.classList.contains('status')) bubble.hidden = true;
+    status.shown = null; status.fadeAt = null;
+    return;
+  }
+  if (status.fadeAt !== null && T - status.fadeAt >= .2) {
+    bubble.hidden = true;
+    status.shown = null; status.fadeAt = null;
+  }
+  const next = status.wanted, shown = status.shown;
+  if (next?.kind === 'think' && T - status.since < .6) return;
+  if (shown && next && shown.kind === next.kind && shown.text === next.text) {
+    if (shown !== next || status.fadeAt !== null) drawStatus(next, false);
+    status.shown = next; status.fadeAt = null;
+  } else if (!shown || T - status.shownAt >= 1.2) {
+    if (next) {
+      drawStatus(next, shown?.kind !== next.kind);
+      status.shown = next; status.shownAt = T; status.fadeAt = null;
+    } else if (shown && status.fadeAt === null) {
+      status.fadeAt = T;
+      bubble.classList.add('fading');
+    }
+  }
+}
+
 /* ---------- microphone ---------- */
 let mic = null;
 async function startMic() {
@@ -1063,7 +1119,7 @@ function writePointer(now) {
   diag.types.clear();
 }
 
-const UI_SELECTOR = '.bubble:not([hidden]), .menu:not([hidden]), .tools:not([hidden])';
+const UI_SELECTOR = '.bubble:not(.status):not([hidden]), .menu:not([hidden]), .tools:not([hidden])';
 const overUi = (e) => e.target.closest && e.target.closest(UI_SELECTOR);
 document.addEventListener('pointermove', (e) => {
   pointerSeen = true;
@@ -1349,6 +1405,7 @@ function frame(now) {
     stepTalkRead();
     stepTalkMotion();
     stepListen();
+    stepStatus();
     setBody({ dialogOpen: !!item || !!listen.phase });
     body?.tick(dt);
     stepBackdrop(dt);

@@ -27,6 +27,7 @@ import {
   type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type RoamMode,
 } from './config.ts';
 import { PetServer, type PageMessage } from './server.ts';
+import { StatusTracker, type DescribeTool } from './status.ts';
 import { WindowHost, resolveHostCommand } from './window-host.ts';
 import { RuntimeStore, type ModelSpec } from './runtime/store.ts';
 import { FunAsrRecognizer, type FunAsrState, type SherpaModule } from './asr/funasr.ts';
@@ -172,6 +173,8 @@ export interface DesktopPetWorldOptions {
   packRoots?: () => string[];
   /** Called after the bot changed settings itself (`pet_set`), so an app watching the config knows it was not the person. */
   onBotChange?: () => void;
+  /** What the status bubble shows for a tool call. */
+  describeTool?: DescribeTool;
 }
 
 interface PendingWalk {
@@ -294,7 +297,6 @@ export class DesktopPetWorld implements World {
   private prefsTimer: NodeJS.Timeout | null = null;
   /** Where the pet window last said the pet stands, measured as `petX` is; written by `savePosition` on stop. */
   private standX: number | null = null;
-  private thinking = false;
   private readonly voiceSockets = new Set<WorldStreamSocket>();
   private lastLevelAt = 0;
   private readonly heard: HeardLine[] = [];
@@ -312,6 +314,8 @@ export class DesktopPetWorld implements World {
   private level = -100;
   private readonly chat = new ChatSockets();
   private readonly activity = new ActivityGroup();
+  /** What the status bubble shows. */
+  private readonly status: StatusTracker;
   private phase: RunPhase | null = null;
   /** The person's messages (typed, spoken) not yet delivered to the bot, by cursor. */
   private readonly pendingChat = new Set<number>();
@@ -323,6 +327,7 @@ export class DesktopPetWorld implements World {
 
   constructor(private readonly opts: DesktopPetWorldOptions) {
     this.cfg = opts.cfg;
+    this.status = new StatusTracker((status) => this.server.sendPet({ t: 'status', status }), opts.describeTool);
     this.segmenter = new Segmenter(this.segmentConfig(), FRAME_MS);
     this.segmenter.setSink(this.sink);
     this.store = new RuntimeStore({ runtimesRoot: opts.runtimesRoot, modelsDir: opts.modelsDir, fetchImpl: opts.fetchImpl, funasrModel: opts.funasrModel });
@@ -442,6 +447,7 @@ export class DesktopPetWorld implements World {
   }
 
   async stop(): Promise<void> {
+    this.status.clear();
     if (this.quiet) clearTimeout(this.quiet.timer);
     this.quiet = null;
     if (this.prefsTimer) clearInterval(this.prefsTimer);
@@ -472,7 +478,6 @@ export class DesktopPetWorld implements World {
 
   onTurnEnded(): void {
     this.touchWoke = false;
-    this.setThinking(false);
   }
 
   outputTap(): OutputTap | undefined {
@@ -480,14 +485,13 @@ export class DesktopPetWorld implements World {
     return {
       // the pet shows nothing of the stream itself; its tools act when they run
       externalizes: () => false,
-      onEvent: () => this.setThinking(true),
-      onRoundEnd: () => this.setThinking(false),
-      onAbort: () => this.setThinking(false),
+      onEvent: (event) => this.status.onEvent(event),
     };
   }
 
   onRunPhase(phase: RunPhase): void {
     this.phase = phase;
+    this.status.onPhase(phase);
     if (this.activity.observe(phase, Date.now())) this.chat.broadcast({ t: 'activity', steps: this.activity.steps, startedAt: this.activity.startedAt });
     if (phase.state === 'idle') void this.closeActivity();
     this.chat.broadcast({ t: 'phase', phase });
@@ -608,12 +612,6 @@ export class DesktopPetWorld implements World {
     this.chat.broadcast({ t: 'ask', askId: ask?.id ?? null });
   }
 
-  private setThinking(on: boolean): void {
-    if (this.thinking === on) return;
-    this.thinking = on;
-    this.server.sendPet({ t: 'thinking', on });
-  }
-
   /* ---------- window ---------- */
 
   get petUrl(): string {
@@ -647,7 +645,8 @@ export class DesktopPetWorld implements World {
       mic: this.micWanted(),
       voice: this.voiceBrief(),
       micDevice: this.cfg.asr.mic.deviceId,
-      thinking: this.thinking,
+      status: this.status.status,
+      statusBubble: this.cfg.statusBubble,
       bot: this.botInfo(),
     };
   }
@@ -671,7 +670,7 @@ export class DesktopPetWorld implements World {
 
   private prefsSignature(): string {
     const s = this.snapshot();
-    delete s.thinking;
+    delete s.status;
     return JSON.stringify(s);
   }
 

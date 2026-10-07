@@ -45,6 +45,54 @@ body.desk .floor{display:none}
 .figure-layer iframe{position:absolute; inset:0; width:100%; height:100%; border:0; background:transparent; color-scheme:normal; pointer-events:none}
 
 
+/* activity borrows the speech bubble, but never takes the pointer or competes with dialogue */
+.bubble.status{
+  display:flex; align-items:center; gap:6px; min-width:46px;
+  max-width:min(220px, calc(100vw - 20px)); padding:6px 10px;
+  font-size:12.5px; line-height:1.4; pointer-events:none; user-select:none; transition:opacity .2s;
+}
+.status[hidden]{display:none}
+.status.fading{opacity:0}
+.bubble.status.pop{animation:status-in .24s cubic-bezier(.3,1.4,.5,1)}
+.status-text{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.status-icon{display:flex; flex:none; color:color-mix(in srgb, var(--skin-eye) 78%, var(--skin-ink))}
+.status-icon svg{width:14px; height:14px; overflow:visible}
+.status[data-kind="think"]{justify-content:center}
+.status[data-kind="think"] .status-text{display:none}
+.status[data-kind="think"] .status-icon svg{width:24px}
+.status-icon svg, .status-icon svg *{transform-box:fill-box; transform-origin:center}
+.status[data-kind="think"] circle{animation:status-think 1.3s ease-in-out infinite}
+.status[data-kind="think"] circle:nth-child(2){animation-delay:.16s}
+.status[data-kind="think"] circle:nth-child(3){animation-delay:.32s}
+.status .scan{animation:status-read 1.8s ease-in-out infinite}
+.status .flap{transform-origin:center bottom; animation:status-browse 1.6s ease-in-out infinite}
+.status[data-kind="search"] svg{animation:status-search 2s linear infinite}
+.status[data-kind="write"] svg{animation:status-write 1.2s ease-in-out infinite}
+.status .lid{transform-origin:left bottom; animation:status-delete 1.5s ease-in-out infinite}
+.status .arrow{animation:status-save 1.5s ease-in-out infinite}
+.status .pupil{animation:status-look 2.2s ease-in-out infinite}
+.status .ripple{animation:status-click 1.2s ease-out infinite}
+.status .wheel{animation:status-scroll 1.1s ease-in-out infinite}
+.status .keycap{animation:status-type .9s ease-in-out infinite}
+.status[data-kind="wait"] svg{animation:status-wait 2.8s ease-in-out infinite}
+.status[data-kind="alarm"] svg{animation:status-alarm 1.8s ease-in-out infinite}
+.status[data-kind="work"] svg{animation:status-work 4s linear infinite}
+@keyframes status-in{from{transform:translateY(3px) scale(.92); opacity:0}}
+@keyframes status-think{0%,60%,100%{transform:none; opacity:.45} 30%{transform:translateY(-3px); opacity:1}}
+@keyframes status-read{0%,100%{transform:translateY(0); opacity:.5} 70%{transform:translateY(6px); opacity:1}}
+@keyframes status-browse{50%{transform:scaleY(.72) skewX(-8deg)}}
+@keyframes status-search{0%,100%{transform:translate(-1px,0)} 25%{transform:translate(0,-1px)} 50%{transform:translate(1px,0)} 75%{transform:translate(0,1px)}}
+@keyframes status-write{0%,100%{transform:translate(-1px,1px) rotate(-5deg)} 50%{transform:translate(1px,-1px) rotate(5deg)}}
+@keyframes status-delete{20%,60%{transform:rotate(-12deg)} 40%,80%{transform:none}}
+@keyframes status-save{0%{transform:translateY(-3px); opacity:.3} 70%,100%{transform:translateY(2px); opacity:1}}
+@keyframes status-look{25%{transform:translateX(-2px)} 75%{transform:translateX(2px)}}
+@keyframes status-click{0%{transform:scale(.7); opacity:0} 35%{opacity:1} 100%{transform:scale(1.4); opacity:0}}
+@keyframes status-scroll{0%{transform:translateY(-1px) scaleY(1); opacity:.4} 50%{transform:translateY(2px) scaleY(.5); opacity:1} 100%{transform:translateY(-1px) scaleY(1); opacity:.4}}
+@keyframes status-type{40%,65%{transform:translateY(3px)}}
+@keyframes status-wait{0%,30%{transform:rotate(0)} 60%,100%{transform:rotate(180deg)}}
+@keyframes status-alarm{10%,30%{transform:rotate(-10deg)} 20%,40%{transform:rotate(10deg)} 50%,100%{transform:none}}
+@keyframes status-work{to{transform:rotate(360deg)}}
+
 /* bubbles */
 .bubble{
   position:fixed; left:0; top:0; z-index:3; width:max-content; max-width:min(300px, calc(100vw - 20px));
@@ -262,4 +310,4 @@ body.desk .floor{display:none}
 @keyframes hold-ring{from{transform:scale(.72); opacity:0} to{transform:scale(1); opacity:1}}
 .tool.sent{animation:tool-sent .36s cubic-bezier(.3,1.5,.5,1)}
 @keyframes tool-sent{45%{transform:scale(1.2)}}
-@media (prefers-reduced-motion: reduce){.bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .d-pill.chosen, .trail i, .caret, .menu, .tools, .tool.holding::after, .tool.sent, .m-tile, .m-tile::before, .m-tile::after, .m-tile .ic, .m-tile .ic::before{animation:none}}
+@media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .d-pill.chosen, .trail i, .caret, .menu, .tools, .tool.holding::after, .tool.sent, .m-tile, .m-tile::before, .m-tile::after, .m-tile .ic, .m-tile .ic::before{animation:none}}

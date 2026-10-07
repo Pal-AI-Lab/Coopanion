@@ -142,7 +142,7 @@ export function createPet(els, opts) {
     turnAcc: 0, dx: 0, dy: 0, jumpV: 700, jumpVx: 0, xf: null, blushK: 0,
     eyeSig: '', eyeCur: null, eyePrev: null, eyeDims: [[16, 16, 0, 0], [16, 16, 0, 0]], swapAge: 9,
     glance: [0, 0], glanceAt: 0, swing: 0, swingV: 0, prevA: null, velX: 0, talkK: 0, sfxAt: 0, skid: false, cue: 0,
-    pulse: null, walkId: 0, walkWord: null, listening: false, thinking: false, placed: false, noteAt: 0, tearN: 0,
+    pulse: null, walkId: 0, walkWord: null, listening: false, thinking: false, thoughtShown: false, placed: false, noteAt: 0, tearN: 0,
     cursor: '',
   };
   const pointer = { x: -1e4, y: -1e4, inside: false, vx: 0, samples: [] };
@@ -520,6 +520,8 @@ export function createPet(els, opts) {
     }
 
     const fname = faceName(), fc = faceDef(fname).f(T, pet);
+    // while the page shows the thought in its status bubble, the face keeps the eyes without a second thought trail
+    if (pet.thinking && pet.thoughtShown && fname === 'thinking') fc.think = false;
     if (fc.lookLock || pet.mode === 'sleep' || pet.mode === 'drag') lookT = [0, 0];
     else if (fc.lookAt) lookT = fc.lookAt;
 
@@ -846,6 +848,8 @@ export function createPet(els, opts) {
     talk() { pet.talkK = 1; },
     setListening(on) { pet.listening = on; if (on && (pet.mode === 'walk' || pet.mode === 'run')) setMode('idle'); },
     setThinking(on) { pet.thinking = on; },
+    /** The page shows the bot's thinking in a bubble of its own. */
+    setThoughtShown(on) { pet.thoughtShown = on; },
     anchor,
     emitHeart,
   };
@@ -871,7 +875,7 @@ const SVGNS = 'http://www.w3.org/2000/svg';
  * classes) and `opts.skinCss(skin)` the style that follows the skin.
  *
  * The body takes these calls from the page: step(dt), layout(), do(word), walk(x, run, id), stopWalk(id), pointer(type, p),
- * drop(p), shift(dx, dy), place(x, facing), set({ roam, hold, dialogOpen, listening, thinking, skin, theme }),
+ * drop(p), shift(dx, dy), place(x, facing), set({ roam, hold, dialogOpen, listening, thinking, thoughtShown, skin, theme }),
  * cue(kind), talk(), setScheme(id, o), dispose().
  */
 export function createBody(host, opts) {
@@ -927,6 +931,7 @@ export function createBody(host, opts) {
       if (typeof s.dialogOpen === 'boolean') dialogOpen = s.dialogOpen;
       if (typeof s.listening === 'boolean') ctl.setListening(s.listening);
       if (typeof s.thinking === 'boolean') ctl.setThinking(s.thinking);
+      if (typeof s.thoughtShown === 'boolean') ctl.setThoughtShown(s.thoughtShown);
       if (s.skin) { ctl.setSkin(s.skin); if (opts.skinCss) skinStyle.textContent = opts.skinCss(s.skin); }
       if (s.theme) doc.documentElement.dataset.theme = s.theme;
     },
