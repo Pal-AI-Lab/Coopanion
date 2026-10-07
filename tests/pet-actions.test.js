@@ -46,6 +46,16 @@ describe('the words the model can use', () => {
     }
   });
 
+  it('a frame that took no time leaves the swing a number (#87: the whale lost her hair, tail and skirt for good)', () => {
+    const pet = barePet();
+    run(pet, 1);
+    pet.doWord('sleep');
+    run(pet, 1);
+    pet.step(0);
+    run(pet, 1);
+    expect(Number.isFinite(pet.pet.swing)).toBe(true);
+  });
+
   it('a walk asked for as a word reports done once it stops, so the next word need not wait out its seconds', () => {
     const events = [];
     const pet = barePet((kind, d) => events.push([kind, d.word]));

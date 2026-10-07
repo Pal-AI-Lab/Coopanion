@@ -147,6 +147,8 @@ export function createPet(els, opts) {
   };
   const pointer = { x: -1e4, y: -1e4, inside: false, vx: 0, samples: [] };
   let press = null, strokeAcc = 0, petCool = 0;
+  /** Whether the last frame found the horizontal speed not finite: a run of such frames is logged once. */
+  let velXBad = false;
   const P = [];
   const anchors = () => ({ ...ANCHORS, ...custom?.anchors });
   let A = anchors();
@@ -341,6 +343,8 @@ export function createPet(els, opts) {
   }
 
   function step(dt) {
+    // a frame that took no time has nothing to advance, and the horizontal speed below divides by its length
+    if (!(dt > 0 && dt < Infinity)) return;
     T += dt; pet.modeT += dt;
     A = anchors();
     const m = pet.mode, mt = pet.modeT;
@@ -559,6 +563,13 @@ export function createPet(els, opts) {
     // secondary motion for ears/antenna/scarf: lags behind horizontal movement
     const AX = pet.mode === 'drag' ? pet.dx : pet.x;
     if (pet.prevA != null) pet.velX = lerp(pet.velX, (AX - pet.prevA) / dt, .25);
+    // lerp keeps a NaN or an infinity for good, and the swing with it: a figure's warps that read the swing then
+    // draw nothing (the whale's hair, tail and skirt went missing, #87). Start the speed over and say what it came from.
+    if (!Number.isFinite(pet.velX)) {
+      if (!velXBad) console.warn(`[pet] 横向速度不是有限数,已归零:velX=${pet.velX} x=${AX} 上一帧x=${pet.prevA} dt=${dt} 模式=${m}`);
+      velXBad = true;
+      pet.velX = 0;
+    } else velXBad = false;
     pet.prevA = AX;
     // dancing stays put but rocks: the rock swings what hangs off the body (ears, hair, skirt), as moving does
     const swingT = clamp(-(pet.velX * .06 + (m === 'dance' ? pet.tiltV * .22 : 0)) * Math.sign(pet.faceVis || 1), -28, 28);

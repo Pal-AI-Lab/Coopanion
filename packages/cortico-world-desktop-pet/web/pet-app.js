@@ -1323,9 +1323,24 @@ const MOVING_FPS = 60, RESTING_FPS = 30;
 let last = performance.now(), dueAt = 0, gap = 1000 / MOVING_FPS;
 /** The last error the frame loop logged, so one that keeps recurring is reported once, not per frame. */
 let frameErr = null;
+/**
+ * Frames whose timestamp was not past the one before (a zero or negative dt), and when that was last logged (ms):
+ * one such frame used to leave the whale without hair, tail and skirt until restart (#87), and where these
+ * timestamps come from is not known yet. Logged at most once a minute, with the count so far. The first frame is
+ * left out: `last` starts at the page's clock, which may be ahead of the first frame's timestamp.
+ */
+let stalls = 0, stallLoggedAt = -Infinity, framed = false;
 function frame(now) {
   // a display refresh up to a quarter gap early counts as on time, so the rate averages out over refresh rates it does not divide
   if (now < dueAt - gap / 4) { requestAnimationFrame(frame); return; }
+  if (framed && now <= last) {
+    stalls++;
+    if (performance.now() - stallLoggedAt > 60_000) {
+      stallLoggedAt = performance.now();
+      console.warn(`[pet] 帧时间戳没有前进(累计 ${stalls} 次):now=${now} 上一帧=${last} 页面=${document.visibilityState} 焦点=${document.hasFocus()} 模式=${at()?.mode ?? '-'}`);
+    }
+  }
+  framed = true;
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   try {
     T += dt;
