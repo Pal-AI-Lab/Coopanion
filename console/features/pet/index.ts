@@ -11,6 +11,7 @@ import { ICONS } from 'cortico-world-desktop-pet/web/ui.js';
 import { get, setConfig } from '../../core/api.ts';
 import { pick } from '../../core/language.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
+import { scaleSlider } from './scale-slider.ts';
 
 const GROUP = 'world:desktop-pet';
 const SOUND_GROUP = 'world:desktop-pet:sound';
@@ -24,6 +25,7 @@ const KEYS = {
   theme: `${K}.theme`,
   scale: `${K}.window.scale`,
   lockFps: `${K}.window.lockFrameRate`,
+  frameRate: `${K}.window.frameRate`,
   hideFullscreen: `${K}.window.hideWhenFullscreen`,
   sound: `${K}.sound`,
   snoreSeconds: `${K}.sounds.snoreSeconds`,
@@ -57,8 +59,11 @@ const S = pick({
     themeDark: '夜间(浅色身体)',
     themeLight: '白天(深色身体)',
     scale: '大小',
-    lockFps: '锁定 60 帧',
-    lockFpsHint: '关着时 Coo 站着、坐着、睡着每秒画 30 帧,走动、被拎着、跳起时 60 帧,占用的 CPU 更少;打开后一直 60 帧。',
+    frameRate: '帧率',
+    frameRateHint: '走动、被拎着、跳起时每秒画多少帧。超过显示器刷新率时按显示器的;「不限」就是跟随显示器刷新率。帧率越高越费 CPU 和显卡。',
+    frameUnlimited: '不限',
+    lockFps: '一直按这个帧率画',
+    lockFpsHint: '关着时 Coo 站着、坐着、睡着每秒画 30 帧,占用更少;打开后静止时也按上面的帧率画。',
     hideFullscreen: '全屏时自动隐藏',
     hideFullscreenHint: '玩游戏、看全屏视频、浏览器全屏时 Coo 先躲起来,退出全屏再出来。最大化的窗口不算全屏。',
     soundTitle: '音效',
@@ -106,8 +111,11 @@ const S = pick({
     themeDark: 'Night (light body)',
     themeLight: 'Day (dark body)',
     scale: 'Size',
-    lockFps: 'Lock to 60 fps',
-    lockFpsHint: 'Off: Coo draws 30 frames a second while standing, sitting or asleep and 60 while walking, carried or jumping, which uses less CPU. On: always 60.',
+    frameRate: 'Frame rate',
+    frameRateHint: 'Frames a second while Coo walks, is carried or jumps. Above the display\'s refresh rate the display\'s rate applies; Unlimited follows the display. Higher rates use more CPU and GPU.',
+    frameUnlimited: 'Unlimited',
+    lockFps: 'Always draw at this rate',
+    lockFpsHint: 'Off: Coo draws 30 frames a second while standing, sitting or asleep, which uses less. On: the rate above at rest too.',
     hideFullscreen: 'Hide during full screen',
     hideFullscreenHint: 'Coo steps away while a game, a video or a browser fills its screen, and comes back when full screen ends. A maximized window does not count.',
     soundTitle: 'Sounds',
@@ -146,6 +154,10 @@ const S = pick({
 
 interface ConfigEntry { group: { id: string }; values?: Record<string, unknown> }
 
+/** The size range (as SCALE_MIN, SCALE_MAX in the World's config.ts) and where the slider's short stretch starts; the frame-rate choices, 0 following the display. */
+const SCALE_MIN = .5, SCALE_SOFT_MAX = 2, SCALE_MAX = 10;
+const FRAME_RATES = [60, 120, 144, 0];
+
 /** While the size slider moves, at most one save per this many milliseconds. */
 const SCALE_SEND_MS = 80;
 
@@ -167,12 +179,18 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const theme = ui.segmented([
     { value: 'dark', label: S.themeDark }, { value: 'light', label: S.themeLight },
   ], { size: 'sm', onSelect: (v) => void save(KEYS.theme, v) });
-  const scale = ui.h('input', 'companion-range');
-  scale.type = 'range';
-  scale.min = '0.5'; scale.max = '2'; scale.step = '0.05';
   const scaleText = ui.h('span', 'companion-rangeval');
   const scaleBox = ui.h('div', 'companion-rangebox');
-  scaleBox.append(scale, scaleText);
+  const scale = scaleSlider(root.ownerDocument, {
+    min: SCALE_MIN, soft: SCALE_SOFT_MAX, max: SCALE_MAX, label: S.scale,
+    room: () => scaleBox.clientWidth - scaleText.offsetWidth - 12,
+    onInput: () => { showScale(); scaleTimer ??= setTimeout(sendScale, SCALE_SEND_MS); },
+    onChange: () => { if (scaleTimer) clearTimeout(scaleTimer); sendScale(); },
+  });
+  scaleBox.append(scale.el, scaleText);
+  new ResizeObserver(() => scale.relayout()).observe(scaleBox);
+  const frameRate = ui.segmented(FRAME_RATES.map((n) => ({ value: String(n), label: n ? String(n) : S.frameUnlimited })),
+    { size: 'sm', onSelect: (v) => void save(KEYS.frameRate, Number(v)) });
   const lockFps = ui.checkbox(S.lockFps, { onChange: (on) => void save(KEYS.lockFps, on) });
   const hideFullscreen = ui.checkbox(S.hideFullscreen, { onChange: (on) => void save(KEYS.hideFullscreen, on) });
   const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on) });
@@ -233,6 +251,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     row(S.roam, roam.el),
     row(S.theme, theme.el),
     row(S.scale, scaleBox),
+    row(S.frameRate, frameRate.el, S.frameRateHint),
     row('', lockFps.el, S.lockFpsHint),
     hideFullscreenRow,
     row('', remember.el, S.rememberHint),
@@ -282,18 +301,16 @@ async function mount(ctx: FeatureContext): Promise<void> {
       line.classList.add('bad');
     }
   };
-  const showScale = () => { scaleText.textContent = `${Math.round(Number(scale.value) * 100)}%`; };
+  function showScale(): void { scaleText.textContent = `${Math.round(scale.value * 100)}%`; }
   // saved while the slider moves, so the pet on the desktop grows and shrinks with it
   let scaleTimer: ReturnType<typeof setTimeout> | null = null;
-  let scaleSent = '';
-  const sendScale = () => {
+  let scaleSent = NaN;
+  function sendScale(): void {
     scaleTimer = null;
     if (scale.value === scaleSent) return;
     scaleSent = scale.value;
-    void save(KEYS.scale, Number(scale.value));
-  };
-  scale.addEventListener('input', () => { showScale(); scaleTimer ??= setTimeout(sendScale, SCALE_SEND_MS); });
-  scale.addEventListener('change', () => { if (scaleTimer) clearTimeout(scaleTimer); sendScale(); });
+    void save(KEYS.scale, scale.value);
+  }
   signal.addEventListener('abort', () => { if (scaleTimer) clearTimeout(scaleTimer); });
   const saveUser = () => {
     const name = user.value.trim();
@@ -327,7 +344,8 @@ async function mount(ctx: FeatureContext): Promise<void> {
     }
     if (typeof values[KEYS.roam] === 'string') roam.setValue(values[KEYS.roam] as string);
     if (typeof values[KEYS.theme] === 'string') theme.setValue(values[KEYS.theme] as string);
-    if (typeof values[KEYS.scale] === 'number' && active !== scale) { scale.value = String(values[KEYS.scale]); showScale(); }
+    if (typeof values[KEYS.scale] === 'number' && !scale.active && active !== scale.el) { scale.set(values[KEYS.scale] as number); showScale(); }
+    if (typeof values[KEYS.frameRate] === 'number') frameRate.setValue(String(values[KEYS.frameRate]));
     if (typeof soundValues[KEYS.sound] === 'boolean') sound.setChecked(soundValues[KEYS.sound] as boolean);
     for (const [kind, c] of kinds) {
       const v = soundValues[`${K}.sounds.${kind}`];

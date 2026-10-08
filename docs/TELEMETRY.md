@@ -52,7 +52,7 @@
 | `voiceInput` | 语音输入是否打开 |
 | `asrEngine` / `micMode` / `talkKey` | 识别引擎（`funasr` / `system`）、收音方式（按住说 / 按一下开关 / 一直听）、说话键（键名，`*2` 表示先按一下再按住） |
 | `sound` / `sounds` | 音效总开关；按类的开关（动作、互动、表情、打呼噜、说话、按钮与提示）和呼噜时长 |
-| `theme` / `scale` / `lockFrameRate` | 黑白模式、桌宠大小、是否锁定 60 帧 |
+| `theme` / `scale` / `lockFrameRate` | 黑白模式、桌宠大小、静止时是否也按设定的帧率画 |
 | `hoverButtons` / `doubleClickChat` / `rememberPosition` | 悬停按钮、双击打字是否打开、是否记住位置 |
 | `userNamed` | 「怎么称呼你」是否改过默认值，只报是或否，不报名字 |
 | `cuaEnabled` / `cuaLevel` | 电脑操作是否启用、询问档位 |

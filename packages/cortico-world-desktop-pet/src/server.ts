@@ -206,7 +206,9 @@ export class PetServer {
     if (req.method === 'GET' && path === '/figure-frame') {
       const self = `http://${req.headers.host}`;
       return this.sendFile(res, join(this.opts.webDir, 'figure-frame.html'), [
-        'sandbox allow-scripts', "default-src 'none'", `script-src ${self}`, `img-src ${self} data: blob:`, "style-src 'unsafe-inline'", "connect-src 'none'", `frame-ancestors ${self}`,
+        'sandbox allow-scripts', "default-src 'none'", `script-src ${self}`, `img-src ${self} data: blob:`, "style-src 'unsafe-inline'", "connect-src 'none'",
+        // the pet page holds it, and the console that shows the pet page in its own frames (another local port) is an ancestor too
+        `frame-ancestors ${self} http://127.0.0.1:* http://localhost:*`,
       ].join('; '));
     }
     if (req.method === 'GET' && path.startsWith('/packs/')) {

@@ -37,6 +37,8 @@ const prefs = {
   doubleClickChat: false,
   statusBubble: true,
   /** Draw at the moving frame rate while the body rests too. */
+  /** Frames a second while the body moves; 0 follows the display. */
+  frameRate: 60,
   lockFrameRate: false,
 };
 const sfx = createSfx();
@@ -183,6 +185,7 @@ function applyPrefs(p) {
   if (typeof p.doubleClickChat === 'boolean') prefs.doubleClickChat = p.doubleClickChat;
   if (typeof p.statusBubble === 'boolean') { prefs.statusBubble = p.statusBubble; setBody({ thoughtShown: p.statusBubble }); }
   if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
+  if (typeof p.frameRate === 'number' && p.frameRate >= 0) prefs.frameRate = p.frameRate;
   // the window process does the hiding; the page only passes the setting on
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
@@ -1370,13 +1373,13 @@ function stepBackdrop(dt) {
 
 /* ---------- loop ---------- */
 /**
- * Frames per second: MOVING_FPS while the body moves (its layout's `moving`) and always while `lockFrameRate` is on,
- * RESTING_FPS otherwise. Each frame redraws the whole figure, so the window's CPU and GPU time grows with
- * this rate; frames do not follow the display's refresh rate.
+ * Frames per second: `prefs.frameRate` while the body moves (its layout's `moving`) and always while `lockFrameRate` is on,
+ * RESTING_FPS otherwise; a frame rate of 0, or one above the display's, draws on every display refresh. Each frame
+ * redraws the whole figure, so the window's CPU and GPU time grows with this rate.
  */
-const MOVING_FPS = 60, RESTING_FPS = 30;
+const RESTING_FPS = 30;
 /** When the next frame is due (a rAF timestamp), and the gap between frames at the current rate. */
-let last = performance.now(), dueAt = 0, gap = 1000 / MOVING_FPS;
+let last = performance.now(), dueAt = 0, gap = 0;
 /** The last error the frame loop logged, so one that keeps recurring is reported once, not per frame. */
 let frameErr = null;
 /**
@@ -1418,7 +1421,8 @@ function frame(now) {
     if (msg !== frameErr) { frameErr = msg; console.error(err); }
   }
   const full = prefs.lockFrameRate || !!at()?.moving;
-  gap = 1000 / (full ? MOVING_FPS : RESTING_FPS);
+  // a moving rate of 0 draws on every display refresh
+  gap = full ? (prefs.frameRate > 0 ? 1000 / prefs.frameRate : 0) : 1000 / RESTING_FPS;
   // a frame more than a gap late starts the count again instead of drawing the missed ones back to back
   dueAt = now - dueAt > gap ? now + gap : dueAt + gap;
   // moving frames wait on display refreshes: a timer can wake late, which a body at rest hides and a moving one shows as stutter
