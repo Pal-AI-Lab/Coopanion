@@ -28,6 +28,16 @@
 .companion-range { flex: 1; max-width: 280px; accent-color: var(--accent); }
 .companion-rangeval { min-width: 44px; font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .companion-rangebox > input[type=number] { width: 96px; }
+/* 大小:200% 以内是主段,分界线右边一小段到 1000%,越过分界线时这段拉长(scale-slider.ts) */
+.companion-scale { position: relative; flex: none; height: 22px; cursor: pointer; touch-action: none; outline: none; }
+.companion-scale > .cs-main, .companion-scale > .cs-tail, .companion-scale > .cs-fill { position: absolute; top: 9px; height: 4px; border-radius: 2px; }
+.companion-scale > .cs-main { left: 0; background: var(--line-2); }
+.companion-scale > .cs-tail { background: repeating-linear-gradient(90deg, var(--line-2) 0 4px, transparent 4px 7px); }
+.companion-scale > .cs-fill { left: 0; background: var(--accent); }
+.companion-scale > .cs-divider { position: absolute; top: 4px; width: 2px; height: 14px; margin-left: -1px; border-radius: 1px; background: var(--ink-dim); }
+.companion-scale > .cs-thumb { position: absolute; top: 3px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--accent); }
+.companion-scale:focus-visible > .cs-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
+.companion-scale.past > .cs-divider { background: var(--accent); }
 /* 音效:每类一个勾选框,一行放不下就折行 */
 .companion-checks { display: flex; flex-wrap: wrap; gap: 6px 18px; padding-top: 6px; }
 .companion-dressframe { display: block; width: 100%; height: 620px; margin-top: 10px; border: 1px solid var(--border); border-radius: 12px; background: transparent; }

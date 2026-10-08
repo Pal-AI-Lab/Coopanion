@@ -1,5 +1,6 @@
 /** Tool declarations; `DesktopPetWorld.tools()` binds the handlers. */
 import type { ToolDef } from 'cortico/core/types.ts';
+import { SCALE_MAX, SCALE_MIN } from './config.ts';
 
 export const DESKTOP_PET_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
@@ -53,7 +54,7 @@ export const DESKTOP_PET_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
         roam: { type: 'string', enum: ['free', 'calm', 'off'], description: '平时走动:free 常走动,calm 多待着,off 不乱动。' },
         snoreSeconds: { type: 'integer', minimum: 0, maximum: 3600, description: '每次睡着打多少秒呼噜,0 一直打到醒。' },
         sound: { type: 'boolean', description: '音效开关(先问对方)。' },
-        scale: { type: 'number', minimum: 0.5, maximum: 2, description: '在屏幕上的大小,1 是默认(先问对方)。' },
+        scale: { type: 'number', minimum: SCALE_MIN, maximum: SCALE_MAX, description: '在屏幕上的大小,1 是默认(先问对方)。' },
         theme: { type: 'string', enum: ['dark', 'light'], description: 'dark 夜间(浅色身体),light 白天(深色身体)(先问对方)。' },
         hoverButtons: { type: 'array', items: { type: 'string', enum: ['chat', 'voice', 'roam', 'theme', 'sound', 'dress', 'hide'] }, maxItems: 6, description: '鼠标停在你身上时旁边的按钮(先问对方)。' },
         user: { type: 'string', maxLength: 20, description: '你对对方的称呼(先问对方)。' },

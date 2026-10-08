@@ -70,6 +70,8 @@ export interface DesktopPetConfigSection extends WorldSection {
     /** Figure size on screen, 1 = 256 logo units drawn at 107 px. */
     scale: number;
     /** The pet page draws 60 frames a second at rest too; off, it drops to 30 while the body stands, sits or sleeps. */
+    /** Frames a second while the body moves (and at rest with `lockFrameRate`); 0 follows the display. */
+    frameRate: number;
     lockFrameRate: boolean;
     /** Hide the pet window while a fullscreen window covers the display it is on. */
     hideWhenFullscreen: boolean;
@@ -121,11 +123,14 @@ export interface DesktopPetConfigSection extends WorldSection {
   };
 }
 
+/** The pet's size range on screen. */
+export const SCALE_MIN = .5, SCALE_MAX = 10;
+
 export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   enabled: false,
   port: 7797,
   user: '伙伴',
-  window: { enabled: true, electronFile: '', scale: 1, lockFrameRate: false, hideWhenFullscreen: false },
+  window: { enabled: true, electronFile: '', scale: 1, frameRate: 60, lockFrameRate: false, hideWhenFullscreen: false },
   roam: 'calm',
   sound: true,
   sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, snoreSeconds: 0 },
@@ -171,8 +176,9 @@ export const DESKTOP_PET_CONFIG_GROUP: ConfigGroup = {
       [`${K}.statusBubble`]: { type: 'boolean', title: '状态气泡', description: '想事情、翻记忆、操作电脑时显示在做什么,会显示文件名。', 'x-hot': true },
       [`${K}.selfAdjust`]: { type: 'boolean', title: '允许自己调整', description: '桌宠可以自己换形象和装扮、改走动和呼噜;改音效、大小、黑白模式、悬停按钮和对你的称呼前先问你。关掉后这些它都改不了。', 'x-hot': true },
       [`${K}.window.enabled`]: { type: 'boolean', title: '启动时打开桌宠窗口', 'x-hot': false },
-      [`${K}.window.scale`]: { type: 'number', title: '大小', minimum: .5, maximum: 2, multipleOf: .05, 'x-hot': true },
-      [`${K}.window.lockFrameRate`]: { type: 'boolean', title: '锁定 60 帧', description: '一直按每秒 60 帧画桌宠。关着时站着、坐着、睡着降到每秒 30 帧,走动、被拎着、跳起时仍是 60 帧。', 'x-hot': true },
+      [`${K}.window.scale`]: { type: 'number', title: '大小', minimum: SCALE_MIN, maximum: SCALE_MAX, multipleOf: .05, 'x-hot': true },
+      [`${K}.window.frameRate`]: { type: 'integer', title: '帧率', minimum: 0, description: '走动、被拎着、跳起时每秒画多少帧;0 跟随显示器刷新率。超过显示器刷新率时按显示器的。「习惯」页可选 60、120、144 和不限。', 'x-hot': true },
+      [`${K}.window.lockFrameRate`]: { type: 'boolean', title: '一直按帧率画', description: '静止时也按「帧率」画桌宠。关着时站着、坐着、睡着降到每秒 30 帧。', 'x-hot': true },
       // 只有 Windows 的窗口进程判得出别的程序全屏(host/electron-main.cjs 的 fullscreen);不注册时「习惯」页也不显示
       ...(process.platform === 'win32' ? {
         [`${K}.window.hideWhenFullscreen`]: { type: 'boolean', title: '全屏时自动隐藏', description: '开着时,前台窗口全屏铺满桌宠所在的那块屏(游戏、全屏视频、浏览器全屏)就把它藏起来,退出全屏放回来;最大化的窗口不算。关着时一直浮在上面。', 'x-hot': true },

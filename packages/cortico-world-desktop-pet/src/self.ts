@@ -10,7 +10,7 @@
  * bot's to change. The person can take the whole of it back with `selfAdjust` on the Habits page.
  */
 import type { DeepPartial } from 'cortico/world.ts';
-import { MAX_HOVER_BUTTONS, PET_ACTIONS, hoverButtonList, type DesktopPetConfigSection } from './config.ts';
+import { MAX_HOVER_BUTTONS, PET_ACTIONS, SCALE_MAX, SCALE_MIN, hoverButtonList, type DesktopPetConfigSection } from './config.ts';
 import { COO, lookOf, lookPatch, nameIn, type FigurePack } from './packs.ts';
 
 export type Tier = 'self' | 'ask';
@@ -97,7 +97,7 @@ export function planSettings(args: Record<string, unknown>, cfg: DesktopPetConfi
   }
   if ('scale' in args) {
     const v = args.scale;
-    if (typeof v !== 'number' || !(v >= .5 && v <= 2)) errors.push('scale 应为 0.5–2 的数');
+    if (typeof v !== 'number' || !(v >= SCALE_MIN && v <= SCALE_MAX)) errors.push(`scale 应为 ${SCALE_MIN}–${SCALE_MAX} 的数`);
     else {
       const s = Math.round(v * 20) / 20;
       if (s !== cfg.window.scale) changes.push({ key: 'scale', tier: 'ask', say: `在屏幕上的大小 ${cfg.window.scale} 倍 → ${s} 倍`, patch: { window: { scale: s } } });
