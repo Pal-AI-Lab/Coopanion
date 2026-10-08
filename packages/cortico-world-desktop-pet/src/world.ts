@@ -36,7 +36,7 @@ import { Packer, Segmenter, rmsDb, type SegmentConfig, type SegmentSink, type Ut
 import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, watchHotkey, type KeyWatcher } from './asr/hotkey.ts';
 import { joinSpeech, looksHallucinated } from './asr/result.ts';
 import { toSimplified } from './asr/simplify.ts';
-import { estimateSeconds, parseActions, parseScript, vocabTable, type VocabWord } from './script.ts';
+import { estimateSeconds, parseActions, parseScript, vocabChange, vocabTable, type VocabWord } from './script.ts';
 import { ActivityGroup, ChatSockets, SELF_TYPE, chatHistory, chatItem, chatRefs } from './chat.ts';
 import { DESKTOP_PET_TOOL_DECLS } from './tools.ts';
 import { COO, figurePacks, lookOf, nameIn, packFor, type FigurePack } from './packs.ts';
@@ -354,6 +354,10 @@ export class DesktopPetWorld implements World {
   private figureShown: string | null = null;
   /** The figure the page said would not run, while the skin still names it: the page shows Coo meanwhile. */
   private figureFailed: string | null = null;
+  /** The words each pack's body said it knows when the page last loaded it; a body that did not say is taken at its manifest's word. */
+  private readonly bodyWords = new Map<string, ReadonlySet<string>>();
+  /** The words the bot was last told it may use: its prompt's at start, then a `[形象]` event's or a `pet_set` receipt's. */
+  private toldVocab: readonly VocabWord[] = [];
   /** A look the bot put on itself: the pet page's report of it is not told back (the receipt said it). */
   private botLook: string | null = null;
   /** `pet_quiet` in force: what it overrides, until when, and the settings it found (a change to them ends it). */
@@ -371,12 +375,23 @@ export class DesktopPetWorld implements World {
     const figure = this.cfg.skin.figure ?? COO;
     return packFor(this.packs(), figure === this.figureFailed ? COO : figure);
   }
-  /** The words the body on screen does. */
-  private vocab() {
-    return this.currentPack()?.manifest.vocab ?? [];
+  /** The words the body on screen does: its pack's vocabulary, less the words its body said it does not know. */
+  private vocab(): VocabWord[] {
+    const pack = this.currentPack();
+    if (!pack) return [];
+    const known = this.bodyWords.get(pack.id);
+    return known ? pack.manifest.vocab.filter((w) => known.has(w.id)) : pack.manifest.vocab;
   }
 
-  /** What the body looks like now, with its picked options and the words it does not do. */
+  /** How the words the bot may use changed since it was last told, or ''. From here the bot counts as told the words of now. */
+  private vocabNote(): string {
+    const now = this.vocab();
+    const note = vocabChange(this.toldVocab, now);
+    this.toldVocab = now;
+    return note;
+  }
+
+  /** What the body looks like now, with its picked options. */
   private bodyText(pack: FigurePack | null): string {
     if (!pack) return '';
     const m = pack.manifest;
@@ -393,29 +408,43 @@ export class DesktopPetWorld implements World {
   /**
    * The pet page's report of the figure it shows: a switch the bot did not see in its prompt is told
    * after the debounce (changes in a row come as one batch); a pack that would not load (the page then
-   * shows Coo) is told at once.
+   * shows Coo) is told at once. Either way the bot hears how the words it may use changed, the words
+   * a newly loaded body says it does not know among them (`words`, the kit's bodies send it).
    */
   private onFigure(msg: PageMessage): void {
     const id = typeof msg.id === 'string' ? msg.id : COO;
     const before = this.figureShown;
     const packs = this.packs();
+    const pack = packs.find((p) => p.id === id) ?? null;
     if (msg.ok !== true) {
       this.figureShown = COO;
       this.figureFailed = id;
-      const pack = packs.find((p) => p.id === id);
       const reason = typeof msg.reason === 'string' ? msg.reason.slice(0, 200) : '原因不明';
       // the page shows Coo instead, whose words then hold too
       const coo = packs.find((p) => p.id === COO) ?? null;
-      void this.push('desktop-pet.figure', 'desktop-pet.figure', `[形象] ${pack ? nameIn(pack.manifest.name) : id}没能显示出来(${reason}),你现在是${this.bodyText(coo)}。表情和动作按 Coo 的词表。`, 'flush');
+      const note = this.vocabNote();
+      void this.push('desktop-pet.figure', 'desktop-pet.figure', `[形象] ${pack ? nameIn(pack.manifest.name) : id}没能显示出来(${reason}),你现在是${this.bodyText(coo)}。${note ? `\n${note}` : ''}`, 'flush');
       return;
     }
+    if ('words' in msg) {
+      if (Array.isArray(msg.words)) this.bodyWords.set(id, new Set(msg.words.filter((w): w is string => typeof w === 'string')));
+      else this.bodyWords.delete(id);
+    }
+    const known = this.bodyWords.get(id);
+    const unknown = pack && known ? pack.manifest.vocab.filter((w) => !known.has(w.id)).map((w) => w.id) : [];
+    const problem = `形象包 ${id} 的词表里有身体不认得的词,没给 bot 用:${unknown.join('、')}`;
+    if (unknown.length && !this.packProblems.has(problem)) { this.packProblems.add(problem); this.log?.warn(problem); }
     if (id === this.cfg.skin.figure) this.figureFailed = null;
     const shown = id === COO ? COO : `${id}:${typeof msg.scheme === 'string' ? msg.scheme : ''}`;
     this.figureShown = shown;
-    if (before === null || before === shown) return;
-    if (shown === this.botLook) { this.botLook = null; return; }
-    const pack = packs.find((p) => p.id === id) ?? null;
-    void this.push('desktop-pet.figure', 'desktop-pet.figure', `[形象] 你现在的样子:${this.bodyText(pack)}。`, 'debounce');
+    let look: string | null = null;
+    if (before !== null && before !== shown) {
+      if (shown === this.botLook) this.botLook = null;
+      else look = `[形象] 你现在的样子:${this.bodyText(pack)}。`;
+    }
+    const note = this.vocabNote();
+    const text = look && note ? `${look}\n${note}` : look ?? (note ? `[形象] ${note}` : null);
+    if (text) void this.push('desktop-pet.figure', 'desktop-pet.figure', text, 'debounce');
   }
 
   /* ---------- lifecycle ---------- */
@@ -424,6 +453,8 @@ export class DesktopPetWorld implements World {
     this.host = host;
     this.startCursor = host.store.latestCursor() + 1;
     this.log = host.log;
+    // the words the prompt is rendered with, until the bot is told otherwise
+    this.toldVocab = this.vocab();
     await this.server.start();
     this.windowHost = new WindowHost(host.log);
     if (this.cfg.window.enabled) this.openWindow();
@@ -1418,7 +1449,11 @@ export class DesktopPetWorld implements World {
       if (answer === 'yes') { apply(asked); lines.push(`${this.cfg.user}同意了,已改:${asked.map((c) => c.say).join(';')}。`); }
       else lines.push(`${answer === 'unavailable' ? '桌宠窗口没有连接,没法问' : answer === 'timeout' ? `${this.cfg.user}没有回答` : `${this.cfg.user}没同意`},这些没改:${asked.map((c) => c.say).join(';')}。`);
     }
-    if (mine.some((c) => c.key === 'figure' || c.key === 'scheme')) lines.push(`你现在的样子:${this.bodyText(this.currentPack())}。`);
+    if (mine.some((c) => c.key === 'figure' || c.key === 'scheme')) {
+      lines.push(`你现在的样子:${this.bodyText(this.currentPack())}。`);
+      const note = this.vocabNote();
+      if (note) lines.push(note);
+    }
     return { text: lines.join('\n') };
   }
 

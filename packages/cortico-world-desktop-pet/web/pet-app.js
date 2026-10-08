@@ -88,10 +88,13 @@ connect();
  * ---------- the body: a figure pack (src/packs.ts; Coo is one) run in a sandboxed frame ----------
  * The World hears which body is on screen (`figure`), so the bot is told of a switch, and of a pack that
  * would not load or broke while running (no usable WebGL, a missing texture, a bug in its code): the page
- * then shows Coo instead.
+ * then shows Coo instead. A body just loaded also says which words of its vocabulary it knows (`words`,
+ * null when it does not say).
  */
 let skin = normalizeSkin(null), wanted = null;
-function reportFigure(id, ok, reason, scheme) { send({ t: 'figure', id, ok, ...(scheme ? { scheme } : {}), ...(reason ? { reason } : {}) }); }
+function reportFigure(id, ok, reason, scheme, known) {
+  send({ t: 'figure', id, ok, ...(scheme ? { scheme } : {}), ...(reason ? { reason } : {}), ...(known !== undefined ? { words: known } : {}) });
+}
 function bodyFailed(id, err) {
   console.error(err);
   reportFigure(id, false, String(err?.message ?? err));
@@ -138,7 +141,7 @@ async function swapBody(s) {
   body = next;
   words = new Map(pack.vocab.map((w) => [w.id, w]));
   sfx.usePack(pack.base, pack.sounds);
-  reportFigure(s.figure, true, null, s.figure === 'coo' ? null : s.scheme);
+  reportFigure(s.figure, true, null, s.figure === 'coo' ? null : s.scheme, next.words);
 }
 async function applyFigure(s) {
   try { await showFigure(s); } catch (err) { bodyFailed(s.figure, err); }

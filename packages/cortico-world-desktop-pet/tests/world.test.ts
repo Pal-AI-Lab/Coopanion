@@ -194,6 +194,29 @@ describe('with a pet page', () => {
     expect((await page.next((m) => m.t === 'act')).actions).toEqual(['sit']);
   });
 
+  it('tells the bot how its words changed on a switch, without the words the new body says it does not know', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'packs-'));
+    mkdirSync(join(root, 'robot'));
+    writeFileSync(join(root, 'robot', 'figure.json'), JSON.stringify({
+      manifest: 2, api: 2, id: 'robot', name: { zh: '机器人' }, about: { zh: '一个机器人' }, entry: 'figure.js', export: 'createBody', axes: [], presets: [],
+      vocab: [
+        { id: 'sit', kind: 'motion', names: { zh: ['坐下'] }, about: { zh: '折起腿' }, seconds: 1 },
+        { id: 'beep', kind: 'motion', names: { zh: ['哔哔'] }, about: { zh: '哔一声' }, seconds: 1 },
+      ],
+    }));
+    const { world, host } = await mounted(undefined, { packRoots: () => [root] });
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const receipt = (await tool(world, 'pet_set').handler({ figure: 'robot' }, ctx) as { text: string }).text;
+    expect(receipt).toContain('happy(开心)');
+    expect(receipt).toContain('| sit | 坐下 | 折起腿 |');
+    expect(receipt).toContain('| beep | 哔哔 | 哔一声 |');
+    page.send({ t: 'figure', id: 'robot', ok: true, words: ['sit'] });
+    await expect.poll(() => host.events.length).toBe(1);
+    expect(host.events[0].text).toMatch(/\[形象\] 词表变了。这些词用不了了:beep\(哔哔\)。$/);
+    expect(await tool(world, 'pet_act').handler({ actions: ['哔哔'] }, ctx)).toMatchObject({ failed: true });
+  });
+
   it('merges repeated pokes into one touch event', async () => {
     const { world, host } = await mounted();
     const page = await FakePage.open(origin(world));

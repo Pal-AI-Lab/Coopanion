@@ -62,6 +62,7 @@ kit 为 Coo 设计的整组倾斜（倾听、点头、打瞌睡、晕乎乎时�
 **词表**（`vocab`）：这个身体在场时 bot 能用的全部表情和动作，没列的词 bot 用不了。每个词写清 `names`（bot 可以用哪些名字写它）、
 `about`（在这个身体上是什么样子，原样进 bot 的提示词），`seconds`（连着做时等多久再做下一个）。
 用 kit 的包可以直接列 kit 会做的词（`KIT_EXPRESSIONS`、`KIT_MOTIONS`，大肥鱼列的就是这些），也可以只列一部分。
+身体加载好时会报出它认得的词（kit 的身体自动报；自己写身体的包可以给身体加一个 `words` 数组），词表里身体不认得的词不给 bot 用，日志里记一条。
 
 **入口**：`figure.json` 的 `entry` 和 `export` 指向一个工厂，按 `factory(base, { model, scheme, kit, loadImage, asset, host })` 调用，
 在沙箱里返回一个身体。契约在 `web/figure-frame.js` 开头。最省事的写法是交给 kit：

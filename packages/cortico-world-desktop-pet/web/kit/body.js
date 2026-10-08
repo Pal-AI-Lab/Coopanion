@@ -876,7 +876,7 @@ const SVGNS = 'http://www.w3.org/2000/svg';
  *
  * The body takes these calls from the page: step(dt), layout(), do(word), walk(x, run, id), stopWalk(id), pointer(type, p),
  * drop(p), shift(dx, dy), place(x, facing), set({ roam, hold, dialogOpen, listening, thinking, thoughtShown, skin, theme }),
- * cue(kind), talk(), setScheme(id, o), dispose().
+ * cue(kind), talk(), setScheme(id, o), dispose(); `words` lists every word its do() knows.
  */
 export function createBody(host, opts) {
   const doc = host.root.ownerDocument;
@@ -908,6 +908,7 @@ export function createBody(host, opts) {
     layout: ctl.layout,
     resize: ctl.resize,
     do: ctl.doWord,
+    words: [...KIT_EXPRESSIONS, ...KIT_MOTIONS, ...Object.keys(opts.words ?? {}).filter((w) => opts.words[w]?.expression || opts.words[w]?.motion)],
     walk: (x, run, id) => ctl.walkTo(x, run, id),
     stopWalk: (id) => ctl.stopWalk(id),
     pointer(type, p) {

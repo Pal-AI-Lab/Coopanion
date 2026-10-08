@@ -134,11 +134,36 @@ export function parseActions(list: readonly unknown[], vocab: readonly VocabWord
   return { actions, dropped };
 }
 
+const pickIn = <T>(by: Record<string, T>, language: string): T | undefined => by[language] ?? by.zh ?? Object.values(by)[0];
+/** A word's row in the bot's table: what it is called and what it looks like. */
+const rowOf = (v: VocabWord, language: string) =>
+  `| ${v.id} | ${(pickIn(v.names, language) ?? []).join(' / ')} | ${pickIn(v.about, language) ?? ''}${v.lasting ? ',保持到下一个动作' : ''} |`;
+const TABLE_HEAD = '| 词 | 中文 | 样子 |\n|---|---|---|\n';
+
 /** The vocabulary as the bot's prompt shows it: expressions, then motions, with names and looks in `language`. */
 export function vocabTable(vocab: readonly VocabWord[], language = 'zh'): string {
-  const pick = <T>(by: Record<string, T>): T | undefined => by[language] ?? by.zh ?? Object.values(by)[0];
-  const rows = (kind: VocabWord['kind']) => vocab.filter((v) => v.kind === kind)
-    .map((v) => `| ${v.id} | ${(pick(v.names) ?? []).join(' / ')} | ${pick(v.about) ?? ''}${v.lasting ? ',保持到下一个动作' : ''} |`).join('\n');
-  return `表情(持续几秒后回到平常的脸):\n\n| 词 | 中文 | 样子 |\n|---|---|---|\n${rows('expression')}\n\n`
-    + `动作:\n\n| 词 | 中文 | 样子 |\n|---|---|---|\n${rows('motion')}`;
+  const rows = (kind: VocabWord['kind']) => vocab.filter((v) => v.kind === kind).map((v) => rowOf(v, language)).join('\n');
+  return `表情(持续几秒后回到平常的脸):\n\n${TABLE_HEAD}${rows('expression')}\n\n`
+    + `动作:\n\n${TABLE_HEAD}${rows('motion')}`;
+}
+
+/**
+ * How the vocabulary went from `before` to `after`, for the bot: the words gone, then the rows of the words
+ * new or told differently (kind, names, look). Empty when the bot would see the same table.
+ */
+export function vocabChange(before: readonly VocabWord[], after: readonly VocabWord[], language = 'zh'): string {
+  const told = new Map(before.map((v) => [v.id, `${v.kind}${rowOf(v, language)}`]));
+  const gone = before.filter((v) => !after.some((w) => w.id === v.id));
+  const fresh = after.filter((v) => told.get(v.id) !== `${v.kind}${rowOf(v, language)}`);
+  if (!gone.length && !fresh.length) return '';
+  const lines = ['词表变了。'];
+  if (gone.length) lines[0] += `这些词用不了了:${gone.map((v) => `${v.id}(${pickIn(v.names, language)?.[0] ?? v.id})`).join('、')}。`;
+  if (fresh.length) {
+    lines[0] += '新增或样子变了的:';
+    for (const [kind, title] of [['expression', '表情'], ['motion', '动作']] as const) {
+      const rows = fresh.filter((v) => v.kind === kind);
+      if (rows.length) lines.push(`${title}:\n\n${TABLE_HEAD}${rows.map((v) => rowOf(v, language)).join('\n')}`);
+    }
+  }
+  return lines.join('\n\n');
 }

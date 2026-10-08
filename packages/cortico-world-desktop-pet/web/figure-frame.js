@@ -17,13 +17,14 @@
  * - the body: `step(dt)` advances and draws one frame; `layout()` says where it is ({ x, facing, mode,
  *   busy, moving, pressing, cursor, box, hit, bubble, side }, see the kit's `layout`); `resize()` takes new
  *   bounds (`set({ bounds })` from the page changes what `host.bounds()` returns, then calls it); `do(word)`, `walk(x, run, id)`, `stopWalk(id)`, `pointer(type, p)`, `drop(p)`, `shift(dx, dy)`, `place(x, facing)`,
- *   `set(state)`, `cue(kind)`, `talk()`, `setScheme(id, { fade })`, `z` (the colour of its sleep z's)
- *   and `dispose()`. Only `step`, `layout` and `do` are required.
+ *   `set(state)`, `cue(kind)`, `talk()`, `setScheme(id, { fade })`, `z` (the colour of its sleep z's),
+ *   `words` (every word `do` knows; the kit's bodies list theirs, and the manifest's words not in it are
+ *   kept from the bot) and `dispose()`. Only `step`, `layout` and `do` are required.
  * - events (`emit`): `arrived` and `interrupted` ({ walkId, x, by }) for `walk`, `done` ({ word }) for a word
  *   that ends on its own, `touch` ({ kind: poke | pet | grab | drop | throw | crash, ... }), `mode` ({ mode }).
  *
  * Messages in: `init { entry, export, base, model, scheme, start, theme, bounds }`, then `tick { dt }`
- * once a frame and the calls above by name. Out: `loaded`, `ready { z }`, `frame { layout, events: [{ kind,
+ * once a frame and the calls above by name. Out: `loaded`, `ready { z, words }`, `frame { layout, events: [{ kind,
  * detail }], sounds: [{ name, kind, args }], z }` after each tick, `scheme { seq, z }`, and `error { message }`
  * once, after which it stops.
  */
@@ -71,7 +72,7 @@ addEventListener('message', async (e) => {
       const base = new URL(m.base);
       body = await make(base, { model: m.model ?? undefined, scheme: m.scheme, kit, loadImage, asset: (p) => new URL(p, base), host: { ...host, start: m.start } });
       for (const fn of ['step', 'layout', 'do']) if (typeof body?.[fn] !== 'function') throw new Error(`形象没有 ${fn}`);
-      post({ t: 'ready', z: body.z ?? null });
+      post({ t: 'ready', z: body.z ?? null, words: Array.isArray(body.words) ? body.words.filter((w) => typeof w === 'string') : null });
     } else if (!body) {
       // calls that come before the body is ready have nothing to act on
     } else if (m.t === 'tick') {

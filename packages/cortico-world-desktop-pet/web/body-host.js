@@ -90,7 +90,7 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
     frame.className = 'figure-frame';
     frame.src = '/figure-frame';
     let ready = false, gone = false, seq = 0, size = bounds;
-    let layout = null, z = null;
+    let layout = null, z = null, words = null;
     const touches = touchGate();
     const waits = new Map();
     const post = (m) => { if (!gone) frame.contentWindow?.postMessage(m, '*'); };
@@ -115,6 +115,8 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
       pack: pack.id,
       get layout() { return layout; },
       get z() { return z; },
+      /** The words of the pack's vocabulary its body said it knows, or null when it did not say. */
+      get words() { return words; },
       /** Whether stage point `p` is on the body. */
       hit: (p) => onBody(layout, p),
       tick(dt) { if (ready) post({ t: 'tick', dt }); },
@@ -159,6 +161,8 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
         ready = true;
         clearTimeout(timer);
         z = typeof m.z === 'string' ? m.z : null;
+        // only the manifest's words matter, and the list goes on to the World
+        if (Array.isArray(m.words)) words = pack.vocab.map((w) => w.id).filter((id) => m.words.includes(id));
         resolve(body);
       } else if (m.t === 'frame' && ready) {
         layout = readLayout(m.layout, size);
