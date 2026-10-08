@@ -39,7 +39,8 @@ import { toSimplified } from './asr/simplify.ts';
 import { estimateSeconds, parseActions, parseScript, vocabChange, vocabTable, type VocabWord } from './script.ts';
 import { ActivityGroup, ChatSockets, SELF_TYPE, chatHistory, chatItem, chatRefs } from './chat.ts';
 import { DESKTOP_PET_TOOL_DECLS } from './tools.ts';
-import { COO, figurePacks, lookOf, nameIn, packFor, type FigurePack } from './packs.ts';
+import { COO, figurePacks, lookOf, nameIn, packFor, type FigurePack, type PackScan } from './packs.ts';
+import { PackImporter } from './pack-import.ts';
 import { dressTable, planSettings, type SettingChange } from './self.ts';
 
 export const DESKTOP_PET_PANEL_DECLS: readonly WorldPanelDecl[] = [
@@ -171,6 +172,8 @@ export interface DesktopPetWorldOptions {
   spawnSystemRecognizer?: typeof spawn;
   /** Directories whose subdirectories are installed figure packs (src/packs.ts). */
   packRoots?: () => string[];
+  /** The one of them the dressing page installs packs into (src/pack-import.ts); without it the page offers no import. */
+  packDir?: () => string;
   /** Called after the bot changed settings itself (`pet_set`), so an app watching the config knows it was not the person. */
   onBotChange?: () => void;
   /** What the status bubble shows for a tool call. */
@@ -325,8 +328,12 @@ export class DesktopPetWorld implements World {
   private draft: string | null = null;
   private pausedShown: boolean | null = null;
 
+  /** Installs packs the dressing page sends, when the app named a directory for them. */
+  private readonly importer: PackImporter | null;
+
   constructor(private readonly opts: DesktopPetWorldOptions) {
     this.cfg = opts.cfg;
+    this.importer = opts.packDir ? new PackImporter({ packDir: opts.packDir, packs: () => this.packs() }) : null;
     this.status = new StatusTracker((status) => this.server.sendPet({ t: 'status', status }), opts.describeTool);
     this.segmenter = new Segmenter(this.segmentConfig(), FRAME_MS);
     this.segmenter.setSink(this.sink);
@@ -343,6 +350,8 @@ export class DesktopPetWorld implements World {
       onPrefs: (prefs) => this.savePrefs(prefs),
       avatarFile: opts.avatarFile,
       packs: () => this.packs(),
+      packProblems: () => this.packScan().problems,
+      importer: this.importer ?? undefined,
     });
   }
 
@@ -365,9 +374,17 @@ export class DesktopPetWorld implements World {
 
   /** The built-in packs, then the installed ones; scanned on each call (a few small files). */
   packs(): FigurePack[] {
-    const { packs, problems } = figurePacks(this.opts.packRoots?.() ?? []);
-    for (const p of problems) if (!this.packProblems.has(p)) { this.packProblems.add(p); this.log?.warn(`形象包没加载:${p}`); }
-    return packs;
+    return this.packScan().packs;
+  }
+
+  /** `packs()` with what was wrong in the pack directories, each problem logged once. */
+  private packScan(): PackScan {
+    const scan = figurePacks(this.opts.packRoots?.() ?? []);
+    for (const { dir, reason, loaded } of scan.problems) {
+      const line = `${loaded ? '形象包有一部分没用上' : '形象包没加载'}:${dir}:${reason}`;
+      if (!this.packProblems.has(line)) { this.packProblems.add(line); this.log?.warn(line); }
+    }
+    return scan;
   }
 
   /** The pack of the figure the skin asks for (Coo for one that is not installed); null only when even Coo's would not load. */
@@ -484,6 +501,7 @@ export class DesktopPetWorld implements World {
     if (this.prefsTimer) clearInterval(this.prefsTimer);
     this.prefsTimer = null;
     this.savePosition();
+    await this.importer?.cancel();
     if (this.packTimer) clearTimeout(this.packTimer);
     this.packTimer = null;
     if (this.touch) clearTimeout(this.touch.timer);

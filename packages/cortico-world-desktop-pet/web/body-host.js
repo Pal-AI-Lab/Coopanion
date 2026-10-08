@@ -78,6 +78,16 @@ export function touchGate() {
 }
 
 /**
+ * `scheme` as `pack` knows it: one of its presets, else each axis's option in it, the axis's first where it names
+ * one the pack does not have (an update of the pack took it away). The pack's own code only ever gets these.
+ */
+export function knownScheme(pack, scheme) {
+  if (pack.presets.some((p) => p.id === scheme)) return scheme;
+  const parts = String(scheme ?? '').split('-');
+  return pack.axes.map((a, i) => (a.options.some((o) => o.id === parts[i]) ? parts[i] : a.options[0].id)).join('-');
+}
+
+/**
  * `pack`: the entry of `/api/figures`; `start`: { x, facing, enter, skin }; `bounds`: { W, H, floorY, S };
  * `theme`: 'dark' | 'light'. Resolves to the body once it is ready.
  */
@@ -135,7 +145,7 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
       setScheme(id, o = {}) {
         if (gone) return Promise.resolve();
         const s = ++seq;
-        post({ t: 'scheme', id, fade: o.fade ?? 0, seq: s });
+        post({ t: 'scheme', id: knownScheme(pack, id), fade: o.fade ?? 0, seq: s });
         return new Promise((done) => waits.set(s, done));
       },
       /** The light halo behind the body (pet-app's backdrop), as a CSS filter on the frame: 0 removes it. */
@@ -154,7 +164,7 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
           const model = pack.model ? await (await fetch(new URL(pack.base + pack.model, location.href))).json() : null;
           post({
             t: 'init', entry: new URL(pack.base + pack.entry, location.href).href, export: pack.export,
-            base: new URL(pack.base, location.href).href, model, scheme: start.scheme, start: { x: start.x, facing: start.facing, enter: start.enter, skin: start.skin }, theme, bounds: size,
+            base: new URL(pack.base, location.href).href, model, scheme: knownScheme(pack, start.scheme), start: { x: start.x, facing: start.facing, enter: start.enter, skin: start.skin }, theme, bounds: size,
           });
         } catch (err) { fail(err); }
       } else if (m.t === 'ready' && !ready) {

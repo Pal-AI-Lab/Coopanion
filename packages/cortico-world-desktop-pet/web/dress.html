@@ -23,6 +23,10 @@
     <div class="row-label coo-only" id="lbNeck">颈饰</div><div class="slot coo-only" id="optNeck" role="group" aria-labelledby="lbNeck"></div>
   </div>
 </main>
+<input type="file" id="importZip" accept=".zip,application/zip" hidden>
+<input type="file" id="importDir" webkitdirectory hidden>
+<div class="drop-hint" id="dropHint" hidden><p>松开就导入形象包</p></div>
+<dialog class="import" id="importDialog" aria-labelledby="importTitle"></dialog>
 <script type="module" src="/web/dress.js"></script>
 </body>
 </html>

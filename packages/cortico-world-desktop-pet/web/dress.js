@@ -5,6 +5,10 @@
  * Every change is saved through `POST /api/skin` (the dark/light switch through `POST /api/prefs`);
  * the World persists it and pushes it to the pet window. Changes made elsewhere arrive over
  * `/socket?role=dress`.
+ *
+ * Packs are imported here too (src/pack-import.ts): a zip as it is, or the folders a picked or dropped folder
+ * holds a pack in (a folder with figure.json, up to `depth` levels down, not looking inside a pack), framed
+ * as the server reads them (`bundle`). The server says what it found; the person picks what to install.
  */
 import { applyTheme } from './ui.js';
 import { createSfx } from './sound.js';
@@ -55,9 +59,11 @@ function save(path, body) {
     .catch(() => { $('#saved').textContent = '没保存上:连不上桌宠服务'; });
 }
 
-// the installed figure packs, asked for again whenever the page hears of a look
+// the installed figure packs, asked for again whenever the page hears of a look, and the ones that did not load
 let packs = [];
-const loadPacks = () => fetch('/api/figures').then((r) => r.json()).then((list) => { packs = list; render(); }).catch(() => {});
+let packStatus = { importable: false, max: 0, depth: 3, problems: [] };
+const loadPacks = () => Promise.all([fetch('/api/figures').then((r) => r.json()), fetch('/api/figures/status').then((r) => r.json())])
+  .then(([list, status]) => { packs = list; packStatus = status; render(); }).catch(() => {});
 loadPacks();
 let wanted = null, loading = null;
 // a pack that will not load or breaks previews as Coo, as on the desktop
@@ -183,7 +189,24 @@ function renderFigure() {
     });
     opts.appendChild(b);
   }
+  if (packStatus.importable) {
+    const b = el('button', 'opt wide figure import', '<svg viewBox="0 0 52 52" aria-hidden="true"><path d="M26 15v22M15 26h22"/></svg><span>导入</span>');
+    b.title = '导入形象包';
+    b.addEventListener('click', () => { sfx.tick(); importDialog.choose(); });
+    opts.appendChild(b);
+  }
   box.appendChild(opts);
+  if (packStatus.problems.length) {
+    const d = el('details', 'pack-problems');
+    d.appendChild(el('summary')).textContent = `有 ${packStatus.problems.length} 个形象包没加载`;
+    const ul = d.appendChild(el('ul'));
+    for (const p of packStatus.problems) {
+      const li = ul.appendChild(el('li'));
+      li.appendChild(el('b')).textContent = p.dir;
+      li.append(`:${p.reason}`);
+    }
+    box.appendChild(d);
+  }
   // a row per axis of the pack on, after the figure row; Coo's own rows are below
   for (const old of document.querySelectorAll('.pack-axis')) old.remove();
   const pack = skin.figure === 'coo' ? null : packs.find((p) => p.id === skin.figure);
@@ -214,6 +237,182 @@ function renderFigure() {
     after = slot;
   }
 }
+
+/* ---------- importing packs ---------- */
+
+const MB = (n) => `${Math.round(n / 1048576)} MB`;
+
+/** The page's framing of files for `POST /api/figures/import` (src/pack-import.ts `filesFromBundle`). */
+function bundle(files) {
+  const enc = new TextEncoder();
+  const u32 = (n) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n, true); return b; };
+  return new Blob(files.flatMap(({ path, file }) => { const name = enc.encode(path); return [u32(name.length), name, u32(file.size), file]; }));
+}
+
+/**
+ * The files of the packs among `files` ({ path, file }, each path starting with the folder picked): the folders
+ * with a figure.json at most `depth` levels below the picked one, and not inside another of them.
+ */
+function packFiles(files, depth) {
+  const dirs = files.map((f) => f.path.split('/')).filter((p) => p[p.length - 1] === 'figure.json' && p.length - 2 <= depth)
+    .map((p) => p.slice(0, -1).join('/')).sort((a, b) => a.length - b.length);
+  const roots = dirs.filter((d, i) => !dirs.slice(0, i).some((r) => d.startsWith(r + '/')));
+  return files.filter((f) => roots.some((r) => f.path.startsWith(r + '/')));
+}
+
+/** The files under a dropped folder (a FileSystemDirectoryEntry), as `packFiles` takes them: only what could be in a pack is read. */
+async function droppedFiles(entry, path, depth) {
+  const list = [];
+  const reader = entry.createReader();
+  for (let batch; (batch = await new Promise((ok, bad) => reader.readEntries(ok, bad))).length;) list.push(...batch);
+  const inPack = depth === Infinity || list.some((e) => e.isFile && e.name === 'figure.json');
+  const out = [];
+  for (const e of list) {
+    if (e.isFile && inPack) out.push({ path: `${path}/${e.name}`, file: await new Promise((ok, bad) => e.file(ok, bad)) });
+    // inside a pack every folder is read; above one, only as deep as a pack is looked for
+    else if (e.isDirectory && (inPack || depth > 0)) out.push(...await droppedFiles(e, `${path}/${e.name}`, inPack ? Infinity : depth - 1));
+  }
+  return out;
+}
+
+const importDialog = (() => {
+  const dlg = $('#importDialog');
+  let token = '';
+  const show = (html) => { dlg.innerHTML = html; if (!dlg.open) dlg.showModal(); };
+  const close = () => { if (token) fetch('/api/figures/import/cancel', { method: 'POST' }).catch(() => {}); token = ''; dlg.close(); };
+  dlg.addEventListener('cancel', (e) => { e.preventDefault(); close(); });
+  dlg.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) close(); });
+  const note = (title, text) => {
+    show('<h2 id="importTitle"></h2><p class="lead"></p><div class="actions"><button class="btn primary" type="button" data-close>好</button></div>');
+    dlg.querySelector('h2').textContent = title;
+    dlg.querySelector('.lead').textContent = text;
+  };
+  const none = () => note('没有找到形象包', `形象包是带 figure.json 的那个文件夹,它要在你选的位置往下 ${packStatus.depth} 层以内。`);
+
+  async function send(body, type) {
+    if (body.size > packStatus.max) return note('太大了', `一次最多导入 ${MB(packStatus.max)},这次有 ${MB(body.size)}。`);
+    show('<h2 id="importTitle">正在读取…</h2>');
+    let res;
+    try {
+      res = await (await fetch('/api/figures/import', { method: 'POST', headers: { 'content-type': type }, body })).json();
+    } catch {
+      return note('没能导入', '连不上桌宠服务。');
+    }
+    if (res.error) return note('没能导入', res.error);
+    if (!res.packs.length && !res.problems.length) return none();
+    token = res.token;
+    confirm(res);
+  }
+
+  function confirm({ packs: found, problems }) {
+    show(`<h2 id="importTitle"></h2><ul class="found"></ul><div class="cant"></div>
+      <div class="actions"><button class="btn" type="button" data-close>取消</button><button class="btn primary" type="button" data-go>导入</button></div>`);
+    dlg.querySelector('h2').textContent = found.length ? `找到 ${found.length} 个形象包` : '这些形象包导入不了';
+    const ul = dlg.querySelector('.found');
+    for (const p of found) {
+      const label = ul.appendChild(el('li')).appendChild(el('label'));
+      const box = label.appendChild(el('input'));
+      box.type = 'checkbox'; box.checked = true; box.value = p.dir;
+      const pic = label.appendChild(p.thumb ? el('img') : el('span', 'nopic'));
+      if (p.thumb) { pic.src = p.thumb; pic.alt = ''; }
+      const info = label.appendChild(el('div', 'info'));
+      info.appendChild(el('b')).textContent = nameOf(p.name);
+      info.appendChild(el('span', 'meta')).textContent = [`版本 ${p.version}`, p.author].filter(Boolean).join(' · ');
+      info.appendChild(el('span', 'meta')).textContent = `${p.axes} 组打扮、${p.words} 个表情和动作、${p.sounds} 个音效`;
+      if (p.credits.length) info.appendChild(el('span', 'meta')).textContent = p.credits.map((c) => `${c.role}:${c.name}`).join(';');
+      if (p.installed) info.appendChild(el('span', 'again')).textContent = p.installed === p.version ? `已经装了 ${p.installed},会重新装一遍` : `已经装了 ${p.installed},会换成 ${p.version}`;
+      if (p.skipped.length) {
+        const d = info.appendChild(el('details'));
+        d.appendChild(el('summary')).textContent = `有 ${p.skipped.length} 处这一版用不上`;
+        for (const s of p.skipped) d.appendChild(el('p')).textContent = s;
+      }
+    }
+    const cant = dlg.querySelector('.cant');
+    if (problems.length && found.length) cant.appendChild(el('p', 'meta')).textContent = '这些导入不了:';
+    for (const p of problems) {
+      const line = cant.appendChild(el('p', 'warn'));
+      line.appendChild(el('b')).textContent = p.dir || '所选的那一层';
+      line.append(`:${p.reason}`);
+    }
+    const go = dlg.querySelector('[data-go]');
+    if (!found.length) { go.remove(); return; }
+    const boxes = [...ul.querySelectorAll('input')];
+    const sync = () => { go.disabled = !boxes.some((b) => b.checked); };
+    for (const b of boxes) b.addEventListener('change', sync);
+    go.addEventListener('click', async () => {
+      const chosen = found.filter((p) => boxes.some((b) => b.checked && b.value === p.dir));
+      // the pack on screen gets its new files the next time it loads
+      const replacing = chosen.some((p) => p.id === skin.figure);
+      go.disabled = true;
+      let res;
+      try {
+        res = await (await fetch('/api/figures/import/install', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token, dirs: chosen.map((p) => p.dir) }) })).json();
+      } catch {
+        res = { error: '连不上桌宠服务。' };
+      }
+      token = '';
+      if (res.error) return note('没能导入', res.error);
+      dlg.close();
+      $('#saved').textContent = `已导入:${chosen.map((p) => nameOf(p.name)).join('、')}${replacing ? '。桌面上正用着的这个形象,下次载入时换成新版本' : ''}`;
+      sfx.sparkle();
+      if (replacing) { body?.dispose(); body = null; }
+      await loadPacks();
+      if (replacing) void showFigure(skin);
+    });
+  }
+
+  $('#importZip').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) void send(f, 'application/zip'); });
+  $('#importDir').addEventListener('change', (e) => {
+    const files = [...e.target.files].map((file) => ({ path: file.webkitRelativePath, file }));
+    e.target.value = '';
+    const found = packFiles(files, packStatus.depth);
+    if (!found.length) return none();
+    void send(bundle(found), 'application/x-figure-files');
+  });
+
+  return {
+    /** Asks what to import. */
+    choose() {
+      show(`<h2 id="importTitle">导入形象包</h2>
+        <p class="lead">形象包是带 figure.json 的那个文件夹。可以选它本身,也可以选装着它的文件夹(往下 ${packStatus.depth} 层以内都找得到),或者选它的 zip。</p>
+        <div class="choices"><button class="btn primary" type="button" data-pick="zip">选 zip 文件</button><button class="btn" type="button" data-pick="dir">选文件夹</button></div>
+        <p class="meta">也可以把 zip 或文件夹直接拖到这一页上。</p>
+        <div class="actions"><button class="btn" type="button" data-close>取消</button></div>`);
+      for (const b of dlg.querySelectorAll('[data-pick]')) b.addEventListener('click', () => $(b.dataset.pick === 'zip' ? '#importZip' : '#importDir').click());
+    },
+    /** A drop on the page: one zip, or folders. */
+    async drop(items) {
+      const entries = [...items].map((i) => i.webkitGetAsEntry?.()).filter(Boolean);
+      const zips = entries.filter((e) => e.isFile && /\.zip$/i.test(e.name)), dirs = entries.filter((e) => e.isDirectory);
+      if (zips.length === 1 && !dirs.length) return send(await new Promise((ok, bad) => zips[0].file(ok, bad)), 'application/zip');
+      if (!dirs.length) return note('导入不了', '一次拖一个 zip,或者拖文件夹进来。');
+      show('<h2 id="importTitle">正在读取…</h2>');
+      const files = [];
+      try {
+        for (const d of dirs) files.push(...await droppedFiles(d, d.name, packStatus.depth));
+      } catch (err) {
+        return note('没能读取', String(err?.message ?? err));
+      }
+      const found = packFiles(files, packStatus.depth);
+      if (!found.length) return none();
+      return send(bundle(found), 'application/x-figure-files');
+    },
+  };
+})();
+
+// a zip or folders dragged onto the page
+const dropHint = $('#dropHint');
+const dragging = (e) => packStatus.importable && e.dataTransfer?.types.includes('Files');
+let dragDepth = 0;
+document.addEventListener('dragenter', (e) => { if (!dragging(e)) return; e.preventDefault(); dragDepth++; dropHint.hidden = false; });
+document.addEventListener('dragover', (e) => { if (dragging(e)) e.preventDefault(); });
+document.addEventListener('dragleave', () => { if (dragDepth && !--dragDepth) dropHint.hidden = true; });
+document.addEventListener('drop', (e) => {
+  if (!dragging(e)) return;
+  e.preventDefault();
+  dragDepth = 0; dropHint.hidden = true;
+  void importDialog.drop(e.dataTransfer.items);
+});
 
 function render() {
   renderFigure();

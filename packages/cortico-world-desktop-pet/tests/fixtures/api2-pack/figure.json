@@ -1,0 +1,117 @@
+{
+  "manifest": 2,
+  "api": 2,
+  "id": "fixture-api2",
+  "version": "1.0.0",
+  "name": {
+    "zh": "契约夹具",
+    "en": "Contract fixture"
+  },
+  "about": {
+    "zh": "一个圆",
+    "en": "A circle"
+  },
+  "author": "Pal-AI-Lab",
+  "license": "AGPL-3.0-or-later",
+  "credits": [
+    {
+      "role": "测试",
+      "name": "Coopanion"
+    }
+  ],
+  "entry": "figure.js",
+  "export": "createFixtureBody",
+  "model": "model.json",
+  "thumb": "thumb.png",
+  "axes": [
+    {
+      "id": "tone",
+      "name": {
+        "zh": "色调"
+      },
+      "options": [
+        {
+          "id": "day",
+          "name": {
+            "zh": "白天"
+          },
+          "thumb": "thumb.png"
+        },
+        {
+          "id": "night",
+          "name": {
+            "zh": "夜里"
+          },
+          "accent": "#336699"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "id": "dusk",
+      "pick": {
+        "tone": "night"
+      },
+      "name": {
+        "zh": "黄昏"
+      },
+      "accent": "#996633"
+    }
+  ],
+  "vocab": [
+    {
+      "id": "happy",
+      "kind": "expression",
+      "names": {
+        "zh": [
+          "开心"
+        ],
+        "en": [
+          "glad"
+        ]
+      },
+      "about": {
+        "zh": "圆亮一下"
+      },
+      "seconds": 0.9
+    },
+    {
+      "id": "sit",
+      "kind": "motion",
+      "names": {
+        "zh": [
+          "坐下"
+        ]
+      },
+      "about": {
+        "zh": "压扁"
+      },
+      "seconds": 1,
+      "lasting": true
+    },
+    {
+      "id": "salute",
+      "kind": "motion",
+      "names": {
+        "zh": [
+          "敬礼"
+        ]
+      },
+      "about": {
+        "zh": "歪一下"
+      },
+      "seconds": 1
+    }
+  ],
+  "sounds": {
+    "beep": {
+      "file": "beep.wav",
+      "kind": "touch",
+      "volume": 0.5
+    }
+  },
+  "can": {
+    "walk": true
+  }
+}

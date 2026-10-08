@@ -188,8 +188,8 @@ Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 Core
 | `model` | 交给工厂的 JSON(`opts.model`),可省 |
 | `axes` | 打扮的维度,每维一组选项(`id`、`name`、`thumb`);装扮页每维一行 |
 | `presets` | 维度组合的命名,可带 `accent` 和设置窗口配色 `console` |
-| `vocab` | 这个身体做的全部表情和动作,也就是它在场时 bot 的整张词表:每个词 `id`、`kind`(`expression` / `motion`)、`names`(按语言的名字列表)、`about`(它做这个词的样子)、`seconds`(连着做时等多久再做下一个),`lasting: true` 表示保持到下一个动作 |
-| `sounds` | 包自带的音频:名字 → `{ file, kind, volume }`,文件是包里的 `.ogg` `.mp3` `.wav`,`kind` 是 `move` `touch` `face` `snore` 之一;不存在的文件在扫描时记一条问题,那个声音不响 |
+| `vocab` | 这个身体做的全部表情和动作,也就是它在场时 bot 的整张词表:每个词 `id`、`kind`(`expression` / `motion`)、`names`(按语言的名字列表)、`about`(它做这个词的样子)、`seconds`(连着做时等多久再做下一个),`lasting: true` 表示保持到下一个动作;`kind` 是这一版不认识的值时跳过那个词 |
+| `sounds` | 包自带的音频:名字 → `{ file, kind, volume }`,文件是包里的 `.ogg` `.mp3` `.wav`,`kind` 是 `move` `touch` `face` `snore` 之一;不存在的文件、这一版不认识的 `kind` 或文件类型,在扫描时记一条问题,那个声音不响 |
 | `can` | `{ walk: false }` 表示不会走,`pet_walk_to` 会拒绝 |
 | `author`、`license`、`credits`、`thumb`、`version` | 署名与展示 |
 
@@ -199,6 +199,33 @@ Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 Core
 工厂按 `factory(base, { model, scheme, kit, loadImage, asset, host })` 调用,返回一个身体;契约写在 `web/figure-frame.js` 开头。
 用 kit 的包只要 `kit.createBody(host, { figure, words })`:`figure` 每帧画一次,`words` 是 kit 本身没有的词怎么做。
 `examples/whale/README.md` 是写形象包的完整说明。20 秒内没准备好、或者跑的时候抛错,桌宠换回 Coo,并告诉 bot 词表的变化。
+
+### 导入
+
+装扮页形象那一行的最后一格是「导入」:选一个 zip 或一个文件夹,也可以直接把 zip 或文件夹拖到装扮页上(`src/pack-import.ts`)。
+形象包是带 `figure.json` 的那个文件夹,从所选的位置往下最多找 3 层(GitHub 下载的 zip 外面会多套一层),找到一个包就不再往它里面找。
+找到的包先列出来:缩略图、名字、版本、作者、署名、打扮和词的数量、这一版用不上的部分;已经装了同 id 的包时,写明会换成哪一版。
+勾选的包装到数据目录的 `figures/<id>/`,替换同 id 的旧包,旧包所在的文件夹叫别的名字也一样;和内置形象同 id 的包导入不了。
+一次最多 128 MB。装了但没加载成功的包列在形象那一行下面,写明原因。直接构造 `DesktopPetWorld` 时不给 `packDir`,装扮页就不显示导入。
+
+### 形象包兼容承诺
+
+形象包对外的部分有四块:`figure.json`、沙箱里的契约(`web/figure-frame.js` 开头)、作为 `kit` 交给包的 `web/kit/body.js`,
+以及用户存下的打扮(`skin.scheme`)。对它们的承诺:
+
+1. **manifest 只升不拒。** 从 `manifest: 2`、`api: 2` 起,应用一直读得了更早的版本(`MANIFEST_OLDEST`、`FIGURE_API_OLDEST` 不再往上调)。
+   哪个版本替换了它们,就在 `readManifest` 里把旧 manifest 升成新格式,并在沙箱里继续按旧契约运行旧包。
+   只有包的版本比应用新时才拒绝,并说明要先更新应用。
+2. **同一个 api 里只做加法。** 新字段、新的可选方法和消息、kit 新的导出和词,都不升 api,旧写法照常工作。比如 api 2 里后加的身体 `words`。
+3. **kit 跟着 api 冻结。** api 2 期间,kit 的导出名、函数签名和交给 `figure.draw` 的 `frame` 字段只增不改;修 bug 照常对所有包生效。
+   哪天必须不兼容地改,就升 api,把当时的 kit 原样留一份,旧 api 的包继续拿到它。
+4. **旧应用碰到不认识的东西,跳过那一项。** 不认识的字段不读;不认识的词 `kind`、音效 `kind` 或文件类型、`can` 的值,跳过那一项并记一条问题,
+   包照常加载。只有缺了必需字段、字段的类型不对、路径出了包,才拒绝整个包。
+5. **用户存的打扮不失效。** 包更新后 `skin.scheme` 指的选项没了,就退回那一维的第一个选项(`web/body-host.js` 的 `knownScheme`:包的代码只拿到它认得的打扮)。
+   给作者的规矩:发布过的选项 id 和词 id 不删、不改名。
+6. **CI 守着。** `tests/fixtures/api2-pack/` 是照 api 2 写好后冻结的包:`tests/packs.test.ts` 读它的 manifest,
+   主仓库的 `tests/figure-frame-contract.test.js` 在 `figure-frame.js` 里跑它的身体(就绪、报词、出帧、包自己的手势、换打扮、走路)。
+   改坏契约,这两个测试就会红;不要为了让测试通过去改这个包。升 api 时再冻结一个新版本的夹具包,旧的留着。
 
 ## 自己调整
 
