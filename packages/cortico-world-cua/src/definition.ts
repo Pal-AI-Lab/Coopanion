@@ -2,8 +2,8 @@ import type { WorldDefinition } from 'cortico/world.ts';
 import { CUA_DEFAULTS, CUA_ID, type CuaConfigSection } from './config.ts';
 import { CuaWorld, type CuaWorldOptions } from './world.ts';
 
-/** The definition, with how an embedding app asks the person for permission (see `CuaWorldOptions`). */
-export function cuaDefinition(assembly: Pick<CuaWorldOptions, 'askPermission'> = {}): WorldDefinition<CuaConfigSection> {
+/** The definition, with how an embedding app asks the person for permission and which language the bot reads (see `CuaWorldOptions`). */
+export function cuaDefinition(assembly: Pick<CuaWorldOptions, 'askPermission' | 'modelLanguage'> = {}): WorldDefinition<CuaConfigSection> {
   return {
     id: CUA_ID,
     label: '电脑操作',
@@ -13,7 +13,7 @@ export function cuaDefinition(assembly: Pick<CuaWorldOptions, 'askPermission'> =
       if (!['win32', 'darwin', 'linux'].includes(process.platform)) throw new Error('电脑操作 World 只支持 Windows、macOS 和 Linux。');
     },
     // ctx.cfg is the live `worlds.cua` section: every key is read at use
-    create: (ctx) => new CuaWorld({ cfg: ctx.cfg, timezone: ctx.timezone, botName: ctx.botName, askPermission: assembly.askPermission }),
+    create: (ctx) => new CuaWorld({ cfg: ctx.cfg, timezone: ctx.timezone, botName: ctx.botName, askPermission: assembly.askPermission, modelLanguage: assembly.modelLanguage }),
   };
 }
 

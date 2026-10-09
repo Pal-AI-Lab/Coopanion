@@ -48,6 +48,8 @@
 怎么问由内嵌应用决定:`cuaDefinition({ askPermission })` 传入一个函数(比如用桌宠的气泡问),返回 `yes` / `no` / `timeout`,
 返回 `null` 表示此刻问不了。没传或返回 `null` 时,弹一个置顶的系统对话框(Windows 上是 `MessageBoxTimeoutW`,macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)。
 
+回执和环境提示词有中文、英文两版(`src/model-text.ts`,`src/ENV_PROMPT.md` 与 `src/ENV_PROMPT.en.md`),由 `cuaDefinition({ modelLanguage })` 每次用到时选,缺省中文;窗口标题和引擎的报错原样放进回执。工具说明只有英文一版。
+
 ## 让位给使用者
 
 发出任何输入前,引擎先确认使用者已经静止 `userIdleMs`(默认 2 秒)。「使用者动过」的依据是两条可以核实的事实:
