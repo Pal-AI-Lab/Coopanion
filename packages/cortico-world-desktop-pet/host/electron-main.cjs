@@ -332,6 +332,13 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       return { action: 'deny' };
     });
     win.once('ready-to-show', () => win.showInactive());
+    // Zoom stays at 1: the cursor below is sent in DIPs and the page hit-tests with them as CSS pixels,
+    // so any zoom flips the window between click-through and interactive. A drawing tablet's shortcut
+    // keys are a keyboard and can send Ctrl+- to the focused pet, and the zoom is saved per host.
+    win.webContents.on('before-input-event', (event, input) => {
+      if ((input.control || input.meta) && (['-', '_', '=', '+', '0'].includes(input.key) || ['NumpadAdd', 'NumpadSubtract', 'Numpad0'].includes(input.code))) event.preventDefault();
+    });
+    win.webContents.on('did-finish-load', () => win.webContents.setZoomLevel(0));
     // the page learns where the cursor is even when the click-through window misses its moves
     let last = '';
     const cursorTimer = setInterval(() => {
