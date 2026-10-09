@@ -3,15 +3,10 @@
  * meter, what it heard), mounted on its own without the World page around it, so the normal mode
  * reaches it without the World tree.
  */
-import { pick } from '../../core/language.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
+import { S } from './strings.ts';
 
 const PET_PAGE = 'world:desktop-pet';
-
-const S = pick({
-  zh: { nav: '语音输入', unavailable: '这个窗口打不开语音输入面板,请重新打开设置窗口。' },
-  en: { nav: 'Voice input', unavailable: 'The voice input panel cannot open here; reopen the settings window.' },
-});
 
 async function mount(ctx: FeatureContext): Promise<void> {
   const { ui, root } = ctx;

@@ -9,13 +9,13 @@
  *
  * The first row is the app language (`language` in the `companion` group), listed by the names the
  * Core gives (`/api/config/options/coopanion.language`). A change applies at once: the Core tells the
- * app, which reloads this window when the console's language changes with it.
+ * app, which reloads this window in the new language.
  */
 import { ICONS } from 'cortico-world-desktop-pet/web/ui.js';
 import { get, post, setConfig } from '../../core/api.ts';
-import { pick } from '../../core/language.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { scaleSlider } from './scale-slider.ts';
+import { S } from './strings.ts';
 
 const GROUP = 'world:desktop-pet';
 const SOUND_GROUP = 'world:desktop-pet:sound';
@@ -53,117 +53,6 @@ const ACTIONS: ReadonlyArray<[id: string, icon: string]> = [
 const SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk', 'ui'] as const;
 /** Most hover buttons (the World's MAX_HOVER_BUTTONS). */
 const MAX_HOVER = 6;
-
-const S = pick({
-  zh: {
-    nav: '习惯',
-    settingsTitle: '习惯',
-    language: '语言',
-    languageHint: '设置窗口、桌宠的气泡和菜单都用这种语言,Coo 也用它和你说话。还没有译文的地方显示英文(繁体中文显示简体)。',
-    user: '怎么称呼你',
-    userHint: 'Coo 会用这个名字叫你。',
-    roam: '走动',
-    roamFree: '常走动',
-    roamCalm: '多待着',
-    roamOff: '不乱动',
-    theme: '颜色',
-    themeDark: '夜间(浅色身体)',
-    themeLight: '白天(深色身体)',
-    scale: '大小',
-    frameRate: '帧率',
-    frameRateHint: '走动、被拎着、跳起时每秒画多少帧。超过显示器刷新率时按显示器的;「不限」就是跟随显示器刷新率。帧率越高越费 CPU 和显卡。',
-    frameUnlimited: '不限',
-    lockFps: '一直按这个帧率画',
-    lockFpsHint: '关着时 Coo 站着、坐着、睡着每秒画 30 帧,占用更少;打开后静止时也按上面的帧率画。',
-    hideFullscreen: '全屏时自动隐藏',
-    hideFullscreenHint: '玩游戏、看全屏视频、浏览器全屏时 Coo 先躲起来,退出全屏再出来。最大化的窗口不算全屏。',
-    soundTitle: '音效',
-    sound: '播放音效',
-    soundHint: 'Coo 菜单里的音效按钮切的也是这个。',
-    soundKinds: '分别开关',
-    soundKindsHint: '关掉的那类不再出声,其余照常。鼠标停在一项上能看到它包括哪些声音。形象包自带的声音也归在这几类里。',
-    kinds: {
-      move: ['动作', '走路、跑、跳、落地、被甩出去、点头、摇头、转圈、晕、发抖、跳舞、张望'],
-      touch: ['互动', '被拎起来、拎着晃、被摸、被戳'],
-      face: ['表情', '开心、眨眼、喜欢、惊讶、生气、难过、害羞、打哈欠'],
-      snore: ['打呼噜', '睡着时的呼噜声'],
-      talk: ['说话', '气泡里逐字冒出的叽咕声、选项卡片弹出'],
-      ui: ['按钮与提示', '点按钮、气泡弹出、选中、开始和结束听你说话'],
-    } as Record<string, [string, string]>,
-    snore: '呼噜打多久',
-    snoreUnit: '秒',
-    snoreHint: '每次睡着后打这么久呼噜就安静下来,Z 照样飘。0 = 一直打到醒。',
-    remember: '记住位置',
-    rememberHint: '退出时记下 Coo 的横向位置,下次启动回到那里;有多块屏幕时总在主屏上启动。',
-    hover: '悬停按钮',
-    hoverHint: (n: number) => `鼠标停在 Coo 身上时旁边出现的按钮,最多 ${n} 个。`,
-    dblclick: '双击 Coo 打开打字框',
-    statusBubble: '显示 Coo 在忙什么',
-    statusBubbleHint: 'Coo 想事情、翻记忆里的文件、操作电脑时,头顶冒个小泡写着在做什么,会显示文件名。',
-    selfAdjust: '允许 Coo 自己调整',
-    selfAdjustHint: 'Coo 可以自己换形象和装扮、改走动多少;改音效、大小、黑白模式、悬停按钮和对你的称呼前会先问你。关掉后这些它都改不了。',
-    actions: { chat: '打字', voice: '语音输入', roam: '行为模式', theme: '夜间模式', sound: '音效', dress: '装扮', hide: '隐藏桌宠' } as Record<string, string>,
-    saved: '已保存',
-    saveFailed: (why: string) => `没保存上:${why}`,
-    stats: '匿名使用统计',
-    statsHint: '发送使用次数、时长和设置,不含对话内容、Key 和文件。',
-    statsDoc: '具体发送哪些字段',
-  },
-  en: {
-    nav: 'Habits',
-    settingsTitle: 'Habits',
-    language: 'Language',
-    languageHint: 'The settings window and the pet\'s bubbles and menu use this language, and Coo talks to you in it. Text not yet translated shows in English (Traditional Chinese shows Simplified).',
-    user: 'What to call you',
-    userHint: 'Coo calls you by this name.',
-    roam: 'Walking',
-    roamFree: 'Often',
-    roamCalm: 'Now and then',
-    roamOff: 'Stay put',
-    theme: 'Colors',
-    themeDark: 'Night (light body)',
-    themeLight: 'Day (dark body)',
-    scale: 'Size',
-    frameRate: 'Frame rate',
-    frameRateHint: 'Frames a second while Coo walks, is carried or jumps. Above the display\'s refresh rate the display\'s rate applies; Unlimited follows the display. Higher rates use more CPU and GPU.',
-    frameUnlimited: 'Unlimited',
-    lockFps: 'Always draw at this rate',
-    lockFpsHint: 'Off: Coo draws 30 frames a second while standing, sitting or asleep, which uses less. On: the rate above at rest too.',
-    hideFullscreen: 'Hide during full screen',
-    hideFullscreenHint: 'Coo steps away while a game, a video or a browser fills its screen, and comes back when full screen ends. A maximized window does not count.',
-    soundTitle: 'Sounds',
-    sound: 'Play sounds',
-    soundHint: "The sound button in Coo's menu flips this too.",
-    soundKinds: 'By kind',
-    soundKindsHint: "A kind switched off stays silent; the rest play as usual. Rest the pointer on one to see which sounds it covers. A figure pack's own sounds fall under these kinds too.",
-    kinds: {
-      move: ['Moving', 'Walking, running, jumping, landing, being thrown, nodding, shaking, spinning, dizziness, shivering, dancing, looking about'],
-      touch: ['Touch', 'Being picked up, swung, petted, poked'],
-      face: ['Faces', 'Happy, wink, love, surprised, angry, sad, shy, yawning'],
-      snore: ['Snoring', 'Snores while asleep'],
-      talk: ['Talking', 'The babble as bubble text appears, choice cards popping up'],
-      ui: ['Buttons and cues', 'Button clicks, bubbles opening, picks, listening starting and ending'],
-    } as Record<string, [string, string]>,
-    snore: 'Snore for',
-    snoreUnit: 's',
-    snoreHint: "In each sleep Coo goes quiet after snoring this long; the z's keep floating. 0 = snore until waking.",
-    remember: 'Remember where Coo stands',
-    rememberHint: 'Saves how far across the screen Coo stands when the app quits; with several screens Coo always starts on the main one.',
-    hover: 'Hover buttons',
-    hoverHint: (n: number) => `Buttons beside Coo while the pointer rests on it, up to ${n}.`,
-    dblclick: 'Double-click Coo to open the typing box',
-    statusBubble: 'Show what Coo is doing',
-    statusBubbleHint: 'A small bubble above Coo shows when it is thinking, looking through files in its memory or using the computer. File names are shown.',
-    selfAdjust: 'Let Coo adjust itself',
-    selfAdjustHint: 'Coo may change its own figure, dress and how much it walks; it asks you before changing sounds, size, night or day look, hover buttons or what it calls you. When off, it can change none of these.',
-    actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', dress: 'Dress up', hide: 'Hide pet' } as Record<string, string>,
-    saved: 'Saved',
-    saveFailed: (why: string) => `Not saved: ${why}`,
-    stats: 'Anonymous usage statistics',
-    statsHint: 'Sends counts, time used and settings; never conversations, keys or files.',
-    statsDoc: 'Every field it sends',
-  },
-});
 
 interface ConfigEntry { group: { id: string }; values?: Record<string, unknown> }
 

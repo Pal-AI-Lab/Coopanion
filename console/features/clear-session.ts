@@ -5,28 +5,9 @@
  * the advanced mode's Core page lists under data; the workspace, Coo's memory and persona, stays.
  */
 import { post } from '../core/api.ts';
-import { pick } from '../core/language.ts';
 import { promptsFeature } from './prompts/index.ts';
+import { S } from './strings.ts';
 import type { FeatureContext, FrameworkFeature } from './feature.ts';
-
-const S = pick({
-  zh: {
-    button: '清空重开',
-    title: '清空当前对话,让 Coo 从头开始?',
-    body: 'Coo 会忘掉这段对话的上下文,按现在的系统提示词重新开始,不能撤销。工作区里的记忆和人设都保留。',
-    clearing: '正在清空…',
-    cleared: '已清空重开',
-    failed: (why: string) => `没清空:${why}`,
-  },
-  en: {
-    button: 'Clear and restart',
-    title: 'Clear this conversation and start Coo afresh?',
-    body: 'Coo forgets the context of this conversation and starts again from the current system prompt. This cannot be undone. Memory and persona in the workspace stay.',
-    clearing: 'Clearing…',
-    cleared: 'Cleared and restarted',
-    failed: (why: string) => `Not cleared: ${why}`,
-  },
-});
 
 async function mount(ctx: FeatureContext): Promise<void> {
   await promptsFeature.mount(ctx);

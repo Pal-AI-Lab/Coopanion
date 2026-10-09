@@ -13,7 +13,7 @@
  */
 
 import { fetchManifest, get } from './core/api.ts';
-import { pick, withLanguage } from './core/language.ts';
+import { withLanguage } from './core/language.ts';
 import { Lifecycle } from './core/lifecycle.ts';
 import { Router, type Route } from './core/router.ts';
 import type { SocketLike } from './core/stream.ts';
@@ -45,26 +45,8 @@ import { mountRelease } from './features/release.ts';
 import { onModeRequest, readMode, writeMode, type ConsoleMode } from './features/mode.ts';
 import { icon } from './ui/icons.ts';
 import { coopanionWordmark } from './branding.ts';
+import { L } from './strings.ts';
 import type { ConsoleMemo } from '../shared/client-panel.ts';
-
-/**
- * 控制台自己的页面。与贡献方的页无关——那一路完全由 manifest 驱动。
- *
- * 顺序即左栏顺序。`hidden` 的页面(外观)不进左栏,
- * 但仍要在这张表里:路由分派只认这张表,设置页里嵌着它的同时,直达链接也要能开。
- */
-const L = pick({
-  zh: {
-    trace: '运行轨迹', model: '模型', settings: '设置', advanced: '高级',
-    toAdvanced: '高级模式', toAdvancedHint: '显示 Cortico 的全部设置:模型、扩展、World、记忆与运行诊断',
-    toNormal: '回到普通模式', toNormalHint: '只显示关于桌宠的页面',
-  },
-  en: {
-    trace: 'Run trace', model: 'Model', settings: 'Settings', advanced: 'Advanced',
-    toAdvanced: 'Advanced mode', toAdvancedHint: 'Show all of Cortico: models, extensions, Worlds, memory and diagnostics',
-    toNormal: 'Back to normal mode', toNormalHint: 'Show only the pages about the pet',
-  },
-});
 
 /**
  * 普通模式的全部页面:关于桌宠的五页、系统提示词(人设在里面,带清空重开)、花了多少钱,和对话页(以使用者身份
@@ -76,6 +58,12 @@ export const BASIC_FEATURES: readonly FrameworkFeature[] = [
   chatFeature,
 ];
 
+/**
+ * 控制台自己的页面。与贡献方的页无关——那一路完全由 manifest 驱动。
+ *
+ * 顺序即左栏顺序。`hidden` 的页面(外观)不进左栏,
+ * 但仍要在这张表里:路由分派只认这张表,设置页里嵌着它的同时,直达链接也要能开。
+ */
 export const FEATURES: readonly FrameworkFeature[] = [
   ...BASIC_FEATURES,
   { ...providersFeature, label: L.model, navMode: 'group', navGroup: L.settings },
@@ -102,12 +90,6 @@ function orderNav(nav: Element): void {
   if (sorted.every((g, i) => g === groups[i])) return;
   for (const g of sorted) nav.appendChild(g);
 }
-
-/** feature 挂载抛错时那张错误卡的标题。 */
-const featureLoadFailed = pick({
-  zh: (label: string) => `「${label}」没能加载`,
-  en: (label: string) => `"${label}" failed to load`,
-});
 
 /** localStorage 后端；无痕模式下静默降级成内存，不抛。 */
 export function createMemo(prefix: string): ConsoleMemo {
@@ -314,7 +296,7 @@ export function boot(doc: Document = document): { dispose(): void } {
         onError(err);
         lifecycle.dispose();
         slot.replaceChildren();
-        const card = ui.sheet({ title: featureLoadFailed(feature.label), en: 'feature error' });
+        const card = ui.sheet({ title: L.featureLoadFailed(feature.label), en: 'feature error' });
         card.body.appendChild(ui.msgline(err instanceof Error ? err.message : String(err), true));
         slot.appendChild(card.el);
       }
