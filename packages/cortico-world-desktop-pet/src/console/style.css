@@ -17,3 +17,6 @@
 .pet-switch:focus-visible{outline:2px solid var(--accent, #00a870); outline-offset:2px}
 .pet-voicebody{transition:opacity .15s}
 .pet-voicebody.off{opacity:.5}
+.pet-voicebody .mountrow .mname{width:min-content; min-width:6.2em}
+.pet-voicebody .mountrow .mdetail{min-width:8em}
+.pet-voicebody .mountrow .macts{flex:0 1 auto; min-width:0; flex-wrap:wrap; justify-content:flex-end}

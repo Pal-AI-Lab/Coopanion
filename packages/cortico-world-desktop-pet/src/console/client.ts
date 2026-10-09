@@ -85,6 +85,8 @@ function statusRow(ctx: ConsolePanelContext, name: string) {
     set(text: string, tone: 'on' | 'off' | 'busy' | 'bad', more = '') {
       state.textContent = text;
       detail.textContent = more;
+      // cut with an ellipsis where the row is short of room: the whole line on hover
+      detail.title = more;
       dot.className = `navdot ${tone === 'on' ? 'ok' : tone === 'bad' ? 'bad' : tone === 'busy' ? 'warn' : ''}`;
     },
   };
