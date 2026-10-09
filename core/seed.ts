@@ -1,10 +1,11 @@
-/** First-run files of the app's deployment. Imports nothing from Cortico (nor does vendors.ts), so it runs and tests on its own. */
+/** First-run files of the app's deployment. */
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defaultRegion, endpointName, firstVendor, vendorEntry } from 'cortico-provider-coo/src/vendors.ts';
-import { modelLanguage, type AppLanguage, type ModelLanguage } from './language.ts';
+import type { Language } from 'cortico/core/language.ts';
+import { modelLanguage, type ModelLanguage } from './language.ts';
 
 export const DEPLOYMENT = 'companion';
 export const CONSOLE_PORT = 17788;
@@ -31,7 +32,7 @@ export const CONSTITUTION_SEEDS: Record<ModelLanguage, string> = { zh: 'CONSTITU
  * to `coo`, and a config without `worlds.cua.permission`, which keeps the `ask-each-turn` it had
  * before new installs got `ask-once`.
  */
-export function seed(home: string, language: AppLanguage): void {
+export function seed(home: string, language: Language): void {
   const deploy = join(home, DEPLOYMENT);
   const workspace = join(deploy, 'workspace');
   mkdirSync(workspace, { recursive: true });
