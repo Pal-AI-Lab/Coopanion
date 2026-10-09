@@ -252,7 +252,7 @@ describe('with a pet page', () => {
     page.send({ t: 'touch', kind: 'throw', x: 300 });
     page.send({ t: 'touch', kind: 'crash' });
     await expect.poll(() => host.events.length, { timeout: 6000 }).toBe(1);
-    expect(host.events[0].text).toBe('[互动] 伙伴把你拎起来甩了出去,你重重落地,摔晕了一会儿');
+    expect(host.events[0].text).toBe('[互动] 伙伴把你拎起来甩了出去,你重重落地,身体当场自己晕了几秒(自动反射,已经做了)');
   });
 
   it('sends no touch events when touch reporting is off', async () => {

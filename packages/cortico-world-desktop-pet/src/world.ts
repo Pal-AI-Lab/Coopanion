@@ -996,9 +996,9 @@ export class DesktopPetWorld implements World {
     switch (t.kind) {
       case 'poke': text = t.woke ? `${u}把睡着的你戳醒了` : t.count > 1 ? `${u}戳了你 ${t.count} 下` : `${u}戳了你一下`; break;
       case 'pet': text = t.asleep ? `${u}摸了摸睡着的你` : t.count > 1 ? `${u}摸了你好几下` : `${u}摸了摸你的头`; break;
-      case 'throw': text = `${u}把你拎起来甩了出去${t.crashed ? ',你重重落地,摔晕了一会儿' : ''}`; break;
-      case 'drop': text = `${u}把你拎起来,放到了屏幕横向 ${t.x !== null && this.screen ? pct(t.x / this.screen.w) : '某'} 处${t.crashed ? ',你摔晕了一会儿' : ''}`; break;
-      case 'crash': text = '你重重落地,摔晕了一会儿'; break;
+      case 'throw': text = `${u}把你拎起来甩了出去${t.crashed ? ',你重重落地,身体当场自己晕了几秒(自动反射,已经做了)' : ''}`; break;
+      case 'drop': text = `${u}把你拎起来,放到了屏幕横向 ${t.x !== null && this.screen ? pct(t.x / this.screen.w) : '某'} 处${t.crashed ? ',你落地太重,身体当场自己晕了几秒(自动反射,已经做了)' : ''}`; break;
+      case 'crash': text = '你重重落地,身体当场自己晕了几秒(自动反射,已经做了)'; break;
       default: return;
     }
     const { wakeOn } = this.cfg.touch;
