@@ -132,6 +132,60 @@ describe('Coo Pet Provider', () => {
     expect(outputs[1].output).toContainEqual(expect.objectContaining({ type: 'input_image' }));
   });
 
+  it('reads the reasoning streams of StepFun and Qwen, which the standard parser rejects (#94)', async () => {
+    const at = { output_index: 0, item_id: 'rs_1', content_index: 0 };
+    const message = { id: 'msg_1', type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: '好', annotations: [] }] };
+    const tail = [
+      { type: 'response.output_item.added', output_index: 1, item: { ...message, status: 'in_progress', content: [] } },
+      { type: 'response.content_part.added', output_index: 1, item_id: 'msg_1', content_index: 0, part: { type: 'output_text', text: '', annotations: [] } },
+      { type: 'response.output_text.delta', output_index: 1, item_id: 'msg_1', content_index: 0, delta: '好' },
+      { type: 'response.output_text.done', output_index: 1, item_id: 'msg_1', content_index: 0, text: '好' },
+      { type: 'response.content_part.done', output_index: 1, item_id: 'msg_1', content_index: 0, part: message.content[0] },
+      { type: 'response.output_item.done', output_index: 1, item: message },
+      { type: 'response.completed', response: { id: 'resp_1', object: 'response', model: 'm', status: 'completed', output: [message], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } } },
+    ];
+    const reasoning = { id: 'rs_1', type: 'reasoning', summary: [], content: null, encrypted_content: null };
+    const streams: Record<string, object[]> = {
+      // StepFun's documented stream: vLLM's reasoning_part events; the item closes with null content and
+      // is left out of the terminal response
+      stepfun: [
+        { type: 'response.output_item.added', output_index: 0, item: { ...reasoning, status: 'in_progress' } },
+        { type: 'response.reasoning_part.added', ...at, part: { type: 'reasoning_text', text: '' } },
+        { type: 'response.reasoning_text.delta', ...at, delta: '想' },
+        { type: 'response.reasoning_text.done', ...at, text: '想' },
+        { type: 'response.reasoning_part.done', ...at, part: { type: 'reasoning_text', text: '想' } },
+        { type: 'response.output_item.done', output_index: 0, item: { ...reasoning, status: 'completed' } },
+        ...tail,
+      ],
+      // Qwen as reported: reasoning deltas with no part added first
+      qwen: [
+        { type: 'response.output_item.added', output_index: 0, item: { ...reasoning, status: 'in_progress' } },
+        { type: 'response.reasoning_text.delta', ...at, delta: '想' },
+        { type: 'response.reasoning_text.done', ...at, text: '想' },
+        { type: 'response.output_item.done', output_index: 0, item: { ...reasoning, status: 'completed' } },
+        ...tail,
+      ],
+    };
+    let events: object[] = [];
+    vi.stubGlobal('fetch', async () => {
+      const all = [{ type: 'response.created', response: { id: 'resp_1', object: 'response', model: 'm', status: 'in_progress', output: [] } }, ...events];
+      const sse = all.map((e, i) => `data: ${JSON.stringify({ ...e, sequence_number: i })}\n\n`).join('');
+      return new Response(sse, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+    });
+    try {
+      for (const [id, stream] of Object.entries(streams)) {
+        events = stream;
+        const v = VENDORS.find((x) => x.id === id)!;
+        const instance = COO.create(id, entry({ baseUrl: v.baseUrl, spec: { model: v.model, thinking: true } }), host() as never);
+        const out = await instance.client.respond({ model: v.model, input: [] } as unknown as Request, { onEvent: () => {} });
+        expect(out.response.output.map((item) => item.type), id).toEqual(['reasoning', 'message']);
+        expect(out.response.output[0], id).toMatchObject({ content: [{ type: 'reasoning_text', text: '想' }] });
+      }
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('prices DeepSeek only', () => {
     expect(COO.prices(entry()).length).toBeGreaterThan(0);
     expect(COO.prices(entry({ baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1' }))).toEqual([]);

@@ -10,17 +10,20 @@
  * max, each rewritten to the value a service documents where it takes other ones (`Vendor.effort`).
  * Images are sent only when the endpoint is marked multimodal and the service lists the model as
  * reading them; tool results may carry images too. Images go out only from the newest delivered batch
- * of events on (`sinceLastDelivery`). Prices are built in for DeepSeek only.
+ * of events on (`sinceLastDelivery`). Prices are built in for DeepSeek only. Streamed reasoning from
+ * services marked `lenientReasoning` is rewritten into standard events (`LenientReasoningAssembly`).
  */
 import type { ProviderModule, ProviderInstance } from 'cortico/providers/base.ts';
 import type { LLMProviderEntry, ReasoningTier } from 'cortico/core/types.ts';
 import { isContextOverflow } from 'cortico/providers/transport/errors.ts';
 import { ModelCatalog, ResponsesProvider, type ResponsesProviderOptions } from 'cortico/providers/openai-responses-compat/native.ts';
+import type { ResponseAssembly } from 'cortico/providers/transport/response-assembly.ts';
 import type { GenerateOptions } from 'cortico/core/generation.ts';
 import type { Request } from 'cortico/protocol/open-responses/index.ts';
 import type { ContextRecord } from 'cortico/protocol/open-responses/context.ts';
 import { RESERVED_FRAME_NAMES } from 'cortico/core/loop.ts';
 import { deepseekPrices } from './pricing.ts';
+import { LenientReasoningAssembly } from './stream.ts';
 import { VENDORS, vendorOf, type Effort, type Vendor } from './vendors.ts';
 
 const TIERS = {
@@ -60,10 +63,11 @@ function sinceLastDelivery(context: readonly ContextRecord[]): readonly ContextR
 
 /**
  * The Responses client with the thinking level rewritten to the value the service takes (`Vendor.effort`)
- * and images limited to the newest batch (`sinceLastDelivery`).
+ * and images limited to the newest batch (`sinceLastDelivery`); a `lenientReasoning` service's stream
+ * goes through `LenientReasoningAssembly`.
  */
 class VendorResponses extends ResponsesProvider {
-  constructor(opts: ResponsesProviderOptions, private readonly effort: Vendor['effort']) {
+  constructor(opts: ResponsesProviderOptions, private readonly vendor: Vendor | null) {
     super(opts);
   }
 
@@ -71,11 +75,16 @@ class VendorResponses extends ResponsesProvider {
     const body = super.buildResponseBody(request, options.context ? { ...options, context: sinceLastDelivery(options.context) } : options);
     const reasoning = body.reasoning as { effort?: string } | undefined;
     const level = reasoning?.effort as Effort | undefined;
-    if (!this.effort || !level || !(level in this.effort)) return body;
-    const to = this.effort[level];
+    const effort = this.vendor?.effort;
+    if (!effort || !level || !(level in effort)) return body;
+    const to = effort[level];
     if (to === null || to === undefined) delete body.reasoning;
     else body.reasoning = { ...reasoning, effort: to };
     return body;
+  }
+
+  protected override responseAssembly(): ResponseAssembly {
+    return this.vendor?.lenientReasoning ? new LenientReasoningAssembly() : super.responseAssembly();
   }
 }
 
@@ -113,7 +122,7 @@ export const COO = {
         media: { enabled: () => current().multimodal === true && readsImages(current(), current().spec?.model), read: host.readBlob },
         keepThinking: host.keepThinking,
         reasoningReplay: 'plaintext',
-      }, vendor?.effort),
+      }, vendor),
     };
   },
 } satisfies ProviderModule;
