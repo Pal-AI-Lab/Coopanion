@@ -22,12 +22,20 @@ const HALLUCINATION_PATTERNS: readonly RegExp[] = [
   /^\s*[[(（【*♪]/,
 ];
 
-/** Sentences heard one after another: a space before one that starts in Latin letters or digits after Latin text or ASCII punctuation, nothing between Chinese ones. */
+/** Written without spaces between words. */
+const UNSPACED_END = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]$/u;
+const UNSPACED_START = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
+
+/**
+ * Sentences heard one after another: a space before one that starts with a letter or digit after
+ * a letter, digit or ASCII punctuation, unless either side is Chinese or Japanese.
+ */
 export function joinSpeech(pieces: readonly string[]): string {
   let out = '';
   for (const p of pieces) {
     if (!p) continue;
-    out += out && /[A-Za-z0-9.,!?;:]$/.test(out) && /^[A-Za-z0-9]/.test(p) ? ` ${p}` : p;
+    const spaced = /[\p{L}\p{N}.,!?;:]$/u.test(out) && !UNSPACED_END.test(out) && /^[\p{L}\p{N}]/u.test(p) && !UNSPACED_START.test(p);
+    out += spaced ? ` ${p}` : p;
   }
   return out;
 }
