@@ -1,5 +1,5 @@
-// English: text of the pet page and the dressing page. {name} marks a value filled in. A new language is
-// a file named for its code (`ja.js`, `pt-BR.js`) in this folder, with these keys.
+// English: text of the pet page and the dressing page. {name} marks a value filled in. Every key is here;
+// the other languages' files beside it hold the keys translated so far.
 export default {
   // the pet page
   'pet.title': 'Cortico Pet',

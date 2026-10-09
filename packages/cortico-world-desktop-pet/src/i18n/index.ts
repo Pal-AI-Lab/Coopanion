@@ -1,16 +1,25 @@
 /**
- * The text this World shows people, one table per language (`zh.ts`, `en.ts`). A new language is
- * a file with en.ts's keys, added to `PET_TEXT`; until then `zh-Hant` reads `zh` and every other
- * language reads `en`. Imports nothing from Cortico at run time, so the console panels
- * (src/console/client.ts) use it too.
+ * The text this World shows people, one file per language named for its code. `zh.ts` and `en.ts`
+ * have every key; another language's file has the top-level keys translated so far, each group in it
+ * whole, and the keys it leaves out read `zh.ts` for `zh-Hant` and `en.ts` for the rest. Imports
+ * nothing from Cortico at run time, so the console panels (src/console/client.ts) use it too.
  */
 import type { Language, LanguageTable } from 'cortico/core/language.ts';
 import zh from './zh.ts';
 import en from './en.ts';
+import zhHant from './zh-Hant.ts';
+import ja from './ja.ts';
+import ko from './ko.ts';
+import fr from './fr.ts';
+import de from './de.ts';
+import es419 from './es-419.ts';
+import ptBR from './pt-BR.ts';
+import it from './it.ts';
+import ru from './ru.ts';
 
 export type PetText = typeof zh;
 
-export const PET_TEXT: LanguageTable<PetText> = { zh, en };
+export const PET_TEXT: LanguageTable<PetText> = { zh, en, 'zh-Hant': zhHant, ja, ko, fr, de, 'es-419': es419, 'pt-BR': ptBR, it, ru };
 
 /**
  * The table of `language`, the app's or the console request's; `zh` when absent. This is Cortico's

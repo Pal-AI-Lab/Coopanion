@@ -26,7 +26,7 @@ import type {
   WorldHost, WorldLamp, WorldPanelDecl, WorldStreamSocket,
 } from 'cortico/core/types.ts';
 import { nowIso, shortTime } from 'cortico/core/util.ts';
-import { pick, type Language } from 'cortico/core/language.ts';
+import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
 import {
   DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, SENSEVOICE_LANGUAGES, USER_MAX, desktopPetConfigGroups, hoverButtonList,
@@ -255,43 +255,18 @@ function moodOf(actions: readonly string[], vocab: readonly VocabWord[]): { mood
   return { mood: { id: v.id, ...Object.fromEntries(Object.entries(v.names).flatMap(([lang, names]) => (names[0] ? [[lang, names[0]]] : []))) } };
 }
 
-/** What the chat page reads from this World, in the page's language. */
-const CHAT_TEXT = {
-  zh: {
-    badImages: '图片格式不对',
-    tooManyImages: `一次最多 ${IMAGES_MAX} 张图`,
-    badMime: (mime: string) => `不支持的图片格式 ${mime}`,
-    emptyImage: '有一张图是空的',
-    bigImage: `单张图不能超过 ${IMAGE_MAX_BYTES / 1048576} MB`,
-    offline: '还没连上',
-    notSent: '没能送出',
-    tooLate: '这条已经送到了,撤不回来。',
-  },
-  en: {
-    badImages: 'The images are not in a form this page sends',
-    tooManyImages: `At most ${IMAGES_MAX} images at a time`,
-    badMime: (mime: string) => `Unsupported image type ${mime}`,
-    emptyImage: 'One of the images is empty',
-    bigImage: `Each image must be under ${IMAGE_MAX_BYTES / 1048576} MB`,
-    offline: 'Not connected yet',
-    notSent: 'Could not send it',
-    tooLate: 'That one has already been delivered and cannot be taken back.',
-  },
-};
-type ChatText = (typeof CHAT_TEXT)['zh'];
-
 /** Images of a chat page message: the whole batch is taken, or the reason it is not. */
-function parseChatImages(raw: unknown, user: string, s: ChatText, m: ModelText): { ok: true; blobs: BlobInput[] } | { ok: false; reason: string } {
+function parseChatImages(raw: unknown, user: string, s: PetText['chat'], m: ModelText): { ok: true; blobs: BlobInput[] } | { ok: false; reason: string } {
   if (raw === undefined) return { ok: true, blobs: [] };
   if (!Array.isArray(raw)) return { ok: false, reason: s.badImages };
-  if (raw.length > IMAGES_MAX) return { ok: false, reason: s.tooManyImages };
+  if (raw.length > IMAGES_MAX) return { ok: false, reason: s.tooManyImages(IMAGES_MAX) };
   const blobs: BlobInput[] = [];
   for (const [i, item] of raw.entries()) {
     const img = (item ?? {}) as { mime?: unknown; base64?: unknown; name?: unknown };
     if (typeof img.mime !== 'string' || !IMAGE_MIMES.has(img.mime)) return { ok: false, reason: s.badMime(String(img.mime)) };
     const bytes = typeof img.base64 === 'string' ? Buffer.from(img.base64, 'base64') : Buffer.alloc(0);
     if (bytes.length === 0) return { ok: false, reason: s.emptyImage };
-    if (bytes.length > IMAGE_MAX_BYTES) return { ok: false, reason: s.bigImage };
+    if (bytes.length > IMAGE_MAX_BYTES) return { ok: false, reason: s.bigImage(IMAGE_MAX_BYTES / 1048576) };
     const name = typeof img.name === 'string' && img.name.trim() ? img.name.trim().slice(0, 120) : undefined;
     blobs.push({ bytes, mime: img.mime, ...(name ? { name } : {}), fallbackText: m.image(user, i + 1, raw.length) });
   }
@@ -661,7 +636,7 @@ export class DesktopPetWorld implements World {
    */
   private async onChat(msg: Record<string, unknown>, socket: WorldStreamSocket, language: Language): Promise<void> {
     const host = this.host;
-    const s = pick(language, CHAT_TEXT);
+    const s = petText(language).chat;
     switch (msg.t) {
       case 'hello': {
         const page = host ? this.chatPage() : { items: [], more: false };
