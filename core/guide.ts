@@ -7,9 +7,12 @@
  *    Coopanion (for the usage statistics; one of the buttons skips it);
  * 2. how lively to be (`roam`): while the cards are up Coo shows each one, standing still,
  *    strolling, or running back and forth;
- * 3. the model service (DeepSeek first, the others Coo Pet Provider offers after it, each card with
- *    its logo), the model (the service's cheap default that reads images, or any name typed in) and
- *    the key, saved, tested and made active through the console's own endpoint routes;
+ * 3. the model service (the services Coo Pet Provider offers, in the order for the app's language,
+ *    each card with its logo; the services that take mainland China accounts only behind a "more"
+ *    card outside Chinese), the model (the service's cheap default that reads images, or any name
+ *    typed in) and the key, saved, tested and made active through the console's own endpoint routes,
+ *    on the platform for the language (`defaultRegion`) unless the service is already connected on
+ *    the other one;
  * 4. voice input: the speech model is downloaded with one click when it is missing, then how to
  *    talk, with the talk key as a key cap;
  * 5. where the buttons and the menu are, that Coo's persona is in the settings window's
@@ -24,7 +27,7 @@
  */
 import { existsSync, writeFileSync } from 'node:fs';
 import type { DesktopPetWorld, PetDialog, PetDialogAnswer } from 'cortico-world-desktop-pet';
-import { VENDOR_ICONS, VENDORS, localized, siteOf, vendorName, type Vendor } from 'cortico-provider-coo';
+import { VENDOR_ICONS, defaultRegion, localized, siteOf, vendorName, vendorsFor, type Language, type Region, type Vendor } from 'cortico-provider-coo';
 import { connectVendor, currentConnection, type ConsoleCall } from 'cortico-provider-coo/src/connect.ts';
 
 const PET_GROUP = 'world:desktop-pet';
@@ -46,8 +49,6 @@ const MAC = process.platform === 'darwin';
 
 type Roam = 'off' | 'calm' | 'free';
 
-const nameOf = (v: Vendor) => vendorName(v, 'zh');
-
 const S = {
   hello: '你好呀!我是 Coo,以后就住在你屏幕的底边啦,库...',
   helloReply: '你好,Coo!',
@@ -65,16 +66,17 @@ const S = {
   roamOk: '就这样',
   roamDone: '好,就按这个来。',
 
-  askVendor: '要和你聊天,我得先连上大模型。用哪一家的?拿不准就选 DeepSeek。',
+  askVendor: (first: string) => `要和你聊天,我得先连上大模型。用哪一家的?拿不准就选 ${first}。`,
   vendorOk: '就用这家',
-  pickModel: (v: Vendor) => `默认用 ${v.model},便宜,还能看图。想用别的模型,改成它的名字就行。`,
+  moreVendors: '更多…',
+  pickModel: (model: string) => `默认用 ${model},便宜,还能看图。想用别的模型,改成它的名字就行。`,
   modelOk: '就用这个',
-  askKey: (v: Vendor) => `把 ${nameOf(v)} 的 API Key 贴在这里吧。按用量计费,注意 token 消耗哦。`,
+  askKey: (name: string) => `把 ${name} 的 API Key 贴在这里吧。按用量计费,注意 token 消耗哦。`,
   keySend: '连接',
-  keyLink: (v: Vendor) => `还没有 Key?去${nameOf(v)}申请`,
+  keyLink: (name: string) => `还没有 Key?去${name}申请`,
   keyLater: '稍后再填',
   connecting: '正在连接…',
-  keyOk: (v: Vendor, model: string) => `连上 ${nameOf(v)} 了${model ? `(${model})` : ''}!现在我能说话啦,库...`,
+  keyOk: (name: string, model: string) => `连上 ${name} 了${model ? `(${model})` : ''}!现在我能说话啦,库...`,
   keyFail: (why: string) => `没连上:${why.replace(/[。.!！]+$/, '')}。看看 Key 是不是完整,账户里还有没有余额?再贴一次试试。`,
   keyAlready: (name: string, model: string) => `模型已经连好了(${[name, model].filter(Boolean).join(' · ')}),省事,库...`,
   keySkipped: '没关系,等你填好我再开口。之后我会再来问你。',
@@ -127,6 +129,8 @@ export interface GuideDeps {
   onEnd?: (end: GuideEnd) => void;
   /** Usage statistics: each step reached, the source answer, a model connected, the voice model download, and how the introduction ended. */
   track?: (type: string, fields: Record<string, unknown>) => void;
+  /** The app's language: the order and names of the model services, and which of a service's platforms a new endpoint is on. */
+  language: () => Language;
 }
 
 export interface GuideEnd {
@@ -194,50 +198,69 @@ function talker(pet: () => DesktopPetWorld | null) {
 const logo = (v: Vendor) => `data:image/svg+xml;base64,${Buffer.from(VENDOR_ICONS[v.id] ?? '').toString('base64')}`;
 
 /**
+ * The service picked on the cards: the services for `language`, and a last card that shows the
+ * `more` ones too, which are shown from the start when the service in use is one of them.
+ */
+async function pickVendor(show: (d: PetDialog, at: string) => Promise<PetDialogAnswer>, ask: Omit<PetDialog, 'input'>, language: Language, current: Vendor | null): Promise<Vendor> {
+  const { shown, more } = vendorsFor(language);
+  let list = current && more.includes(current) ? [...shown, ...more] : shown;
+  for (;;) {
+    const folded = list.length < shown.length + more.length;
+    const picked = await show({
+      ...ask,
+      input: {
+        kind: 'choices', confirm: S.vendorOk, value: Math.max(0, list.indexOf(current ?? list[0]!)),
+        options: [...list.map((v) => ({ label: vendorName(v, language), image: logo(v) })), ...(folded ? [{ label: S.moreVendors }] : [])],
+      },
+    }, 'vendor');
+    if ('closed' in picked) throw new Closed();
+    const index = 'index' in picked ? picked.index : 0;
+    if (index < list.length) return list[index]!;
+    list = [...shown, ...more];
+    current = more[0] ?? null;
+  }
+}
+
+/**
  * Asks which service to use and then for its key, in the bubble, until it connects or the person
  * puts it off; the service once connected, null when put off. `ask` is the question over the
  * service cards; `show` gets each line with its name for the usage statistics (`guide_closed.at`).
+ * The service in use stays on its platform; another one goes on the platform for `language`.
  */
 async function connectLoop(show: (d: PetDialog, at: string) => Promise<PetDialogAnswer>, call: ConsoleCall, pet: () => DesktopPetWorld | null,
-  ask: Omit<PetDialog, 'input'>, later: string): Promise<Vendor | null> {
+  ask: Omit<PetDialog, 'input'>, later: string, language: Language): Promise<Vendor | null> {
   const current = await currentConnection(call);
-  const picked = await show({
-    ...ask,
-    input: {
-      kind: 'choices', confirm: S.vendorOk, value: Math.max(0, VENDORS.indexOf(current.vendor ?? VENDORS[0]!)),
-      options: VENDORS.map((v) => ({ label: nameOf(v), image: logo(v) })),
-    },
-  }, 'vendor');
-  if ('closed' in picked) throw new Closed();
-  const vendor = VENDORS['index' in picked ? picked.index : 0] ?? VENDORS[0]!;
+  const vendor = await pickVendor(show, ask, language, current.vendor);
+  const region = (current.vendor === vendor ? current.region : null) ?? defaultRegion(language);
+  const name = vendorName(vendor, language);
   const m = await show({
-    ...ask, text: S.pickModel(vendor), marks: [vendor.model], actions: ['thinking'],
+    ...ask, text: S.pickModel(vendor.model), marks: [vendor.model], actions: ['thinking'],
     input: { kind: 'text', submit: S.modelOk, value: vendor.model, maxLength: 120, suggestions: [vendor.model, ...(vendor.models ?? [])] },
   }, 'model');
   if ('closed' in m) throw new Closed();
   const model = 'text' in m ? m.text.trim() : vendor.model;
-  const keyStep = (text: string, actions: string[]): PetDialog => ({ ...ask, text, actions, input: keyInput(vendor, later) });
-  let step = keyStep(S.askKey(vendor), ['thinking']);
+  const keyStep = (text: string, actions: string[]): PetDialog => ({ ...ask, text, actions, input: keyInput(vendor, region, language, later) });
+  let step = keyStep(S.askKey(name), ['thinking']);
   for (;;) {
     const a = await show(step, 'key');
     if ('closed' in a) throw new Closed();
     if (!('text' in a)) return null;
     // the bar stays up while the key is saved and tested; a page gone meanwhile just misses it
     const wait = pet()?.dialog({ text: S.connecting, actions: ['thinking'], step: ask.step, input: { kind: 'progress' } });
-    const r = await connectVendor(call, vendor, a.text, model);
+    const r = await connectVendor(call, vendor, a.text, model, region);
     wait?.close();
     if (r.ok) {
       const { model } = await currentConnection(call);
-      await show({ ...ask, text: S.keyOk(vendor, model), marks: [nameOf(vendor)], actions: ['love', 'jump'] }, 'key-ok');
+      await show({ ...ask, text: S.keyOk(name, model), marks: [name], actions: ['love', 'jump'] }, 'key-ok');
       return vendor;
     }
     step = keyStep(S.keyFail(r.why ?? '?'), ['sad']);
   }
 }
 
-const keyInput = (v: Vendor, later: string): PetDialog['input'] => ({
-  kind: 'text', submit: S.keySend, placeholder: localized(v.keyHint, 'zh'), secret: true, maxLength: 200,
-  link: { label: S.keyLink(v), url: siteOf(v, 'cn').keyUrl }, alt: later,
+const keyInput = (v: Vendor, region: Region, language: Language, later: string): PetDialog['input'] => ({
+  kind: 'text', submit: S.keySend, placeholder: localized(v.keyHint, language), secret: true, maxLength: 200,
+  link: { label: S.keyLink(vendorName(v, language)), url: siteOf(v, region).keyUrl }, alt: later,
 });
 
 let running = false;
@@ -305,9 +328,11 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
 
     // 3 the model key
     const k = await currentConnection(call);
-    if (k.ready) await step(3, 'key-ready', { text: S.keyAlready(k.vendor ? nameOf(k.vendor) : '', k.model), actions: ['happy'] });
+    const language = deps.language();
+    if (k.ready) await step(3, 'key-ready', { text: S.keyAlready(k.vendor ? vendorName(k.vendor, language) : '', k.model), actions: ['happy'] });
     else {
-      const vendor = await connectLoop((d, line) => step(3, line, d), call, deps.pet, { text: S.askVendor, actions: ['thinking'], step: [3, STEPS] }, S.keyLater);
+      const ask: Omit<PetDialog, 'input'> = { text: S.askVendor(vendorName(vendorsFor(language).shown[0]!, language)), actions: ['thinking'], step: [3, STEPS] };
+      const vendor = await connectLoop((d, line) => step(3, line, d), call, deps.pet, ask, S.keyLater, language);
       if (vendor) deps.track?.('model_connected', { via: 'guide', vendor: vendor.id });
       else await step(3, 'key-later', { text: S.keySkipped, actions: ['sad'] });
     }
@@ -385,13 +410,13 @@ const KEY_POLL_MS = 2000;
  * Coo (what they said waits, undelivered, for the key), Coo first says no model is connected and
  * asks whether to connect one now.
  */
-export async function askForKey(deps: Pick<GuideDeps, 'pet' | 'console' | 'track'>, keySet: () => boolean, talked: () => boolean, firstAfterMs: number): Promise<void> {
+export async function askForKey(deps: Pick<GuideDeps, 'pet' | 'console' | 'track' | 'language'>, keySet: () => boolean, talked: () => boolean, firstAfterMs: number): Promise<void> {
   const t = talker(deps.pet);
   const call = api(deps.console);
   let lastAsk = Date.now() - ASK_AGAIN_MS + firstAfterMs;
   let asked = false;
   const connect = async (text: string, via: string) => {
-    const vendor = await connectLoop(t.show, call, deps.pet, { text, actions: ['thinking'], closable: true }, S.askLater).catch(() => null);
+    const vendor = await connectLoop(t.show, call, deps.pet, { text, actions: ['thinking'], closable: true }, S.askLater, deps.language()).catch(() => null);
     if (vendor) deps.track?.('model_connected', { via, vendor: vendor.id });
   };
   while (!keySet()) {
@@ -403,7 +428,7 @@ export async function askForKey(deps: Pick<GuideDeps, 'pet' | 'console' | 'track
       });
       const go = 'index' in a && a.index === 0;
       deps.track?.('key_prompt', { answer: go ? 'connect' : 'later' });
-      if (go) await connect(S.askVendor, 'prompt');
+      if (go) await connect(S.askVendor(vendorName(vendorsFor(deps.language()).shown[0]!, deps.language())), 'prompt');
     } else if (ready && Date.now() - lastAsk >= ASK_AGAIN_MS) {
       await connect(asked ? S.ask.again : S.ask.first, 'ask');
     } else {
