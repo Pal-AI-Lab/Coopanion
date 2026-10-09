@@ -12,6 +12,7 @@
 /* 模型服务:一排带标志的按钮,选中的点亮 */
 .home-vendors { display: flex; flex-wrap: wrap; gap: 8px; }
 .home-vendor { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px 6px 8px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--ink-soft); font: inherit; font-size: 13px; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+.home-vendor[hidden] { display: none; }
 .home-vendor:hover { border-color: var(--ink-dim); color: var(--foreground); }
 .home-vendor.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--foreground); }
 .home-vendormark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #fff; }

@@ -1,30 +1,31 @@
 /**
- * Coo Pet Provider: one Cortico provider module for the model services Coo can talk through,
- * DeepSeek first. Every service here is reached through its OpenAI-compatible Responses endpoint
- * (`POST <baseUrl>/responses`), stateless, with past reasoning replayed as plain text, the way
- * DeepSeek wants it; the other services are assumed to take the same requests, which only DeepSeek's
- * have been tried with. Which service an endpoint is comes from its base URL (`vendorOf`), so an
- * endpoint is plain Cortico config and nothing else is stored.
+ * Coo Pet Provider: one Cortico provider module for the model services Coo can talk through. Which
+ * service and platform an endpoint is comes from its base URL (`locate`), and the platform decides
+ * the protocol (`Site.protocol`): OpenAI-compatible Responses (stateless, past reasoning replayed as
+ * plain text, or as the signed blocks for `encryptedReasoning` services) or Chat Completions,
+ * Anthropic's Messages API, or the Gemini API. `options.protocol` overrides it; an endpoint on any
+ * other URL uses Responses without it. An endpoint is plain Cortico config and nothing else is stored.
  *
  * Thinking is a four-step choice: off sends `reasoning.effort = none`, the others low / high /
- * max, each rewritten to the value a service documents where it takes other ones (`Vendor.effort`).
- * Images are sent only when the endpoint is marked multimodal and the service lists the model as
- * reading them; tool results may carry images too. Images go out only from the newest delivered batch
- * of events on (`sinceLastDelivery`). Prices are built in for DeepSeek only. Streamed reasoning from
- * services marked `lenientReasoning` is rewritten into standard events (`LenientReasoningAssembly`).
+ * max, each rewritten to the value a service documents where it takes other ones (`effortOf`); the
+ * Messages and Gemini APIs get the levels in their own form. Images are sent only when the endpoint
+ * is marked multimodal and, for a listed service, the service lists the model as reading them; tool
+ * results may carry images too. Images go out only from the newest delivered batch of events on
+ * (`sinceLastDelivery`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
+ * Streamed reasoning from services marked `lenientReasoning` is rewritten into standard events
+ * (`LenientReasoningAssembly`).
  */
 import type { ProviderModule, ProviderInstance } from 'cortico/providers/base.ts';
 import type { LLMProviderEntry, ReasoningTier } from 'cortico/core/types.ts';
+import type { ConfigGroup } from 'cortico/core/config-schema.ts';
 import { isContextOverflow } from 'cortico/providers/transport/errors.ts';
-import { ModelCatalog, ResponsesProvider, type ResponsesProviderOptions } from 'cortico/providers/openai-responses-compat/native.ts';
-import type { ResponseAssembly } from 'cortico/providers/transport/response-assembly.ts';
-import type { GenerateOptions } from 'cortico/core/generation.ts';
-import type { Request } from 'cortico/protocol/open-responses/index.ts';
-import type { ContextRecord } from 'cortico/protocol/open-responses/context.ts';
-import { RESERVED_FRAME_NAMES } from 'cortico/core/loop.ts';
-import { deepseekPrices } from './pricing.ts';
-import { LenientReasoningAssembly } from './stream.ts';
-import { VENDORS, vendorOf, type Effort, type Vendor } from './vendors.ts';
+import { ModelCatalog } from 'cortico/providers/openai-responses-compat/native.ts';
+import { ClaudeProvider } from './anthropic/client.ts';
+import { VendorChat } from './chat.ts';
+import { GeminiProvider, listGeminiModels } from './gemini/client.ts';
+import { vendorPrices } from './pricing.ts';
+import { VendorResponses } from './responses.ts';
+import { PROTOCOLS, VENDORS, effortOf, locate, siteOf, vendorOf, vendorName, type Protocol } from './vendors.ts';
 
 const TIERS = {
   zh: [
@@ -41,93 +42,143 @@ const TIERS = {
   ],
 } satisfies Record<string, ReasoningTier[]>;
 
-const readsImages = (entry: LLMProviderEntry, model: string | undefined) => !!model && (vendorOf(entry.baseUrl)?.vision ?? []).includes(model);
-
-/**
- * The context with image attachments removed from every item before the newest delivered batch (a user
- * message, or the frame call Core writes for external events). Kept, each past image would be re-sent
- * on every request until handoff. The text line Core writes for each attachment stays.
- */
-function sinceLastDelivery(context: readonly ContextRecord[]): readonly ContextRecord[] {
-  let from = context.length - 1;
-  for (; from >= 0; from--) {
-    const { item } = context[from];
-    if ((item.type === 'message' && item.role === 'user') || (item.type === 'function_call' && RESERVED_FRAME_NAMES.has(item.name))) break;
-  }
-  return context.map((entry, index) => {
-    const blobs = entry.context.blobs;
-    if (index >= from || !blobs?.some((b) => b.mime.startsWith('image/'))) return entry;
-    return { ...entry, context: { ...entry.context, blobs: blobs.filter((b) => !b.mime.startsWith('image/')) } };
-  });
+export interface CooOptions {
+  /** Unset: the listed service's own protocol, Responses for any other URL. */
+  protocol?: Protocol;
 }
 
-/**
- * The Responses client with the thinking level rewritten to the value the service takes (`Vendor.effort`)
- * and images limited to the newest batch (`sinceLastDelivery`); a `lenientReasoning` service's stream
- * goes through `LenientReasoningAssembly`.
- */
-class VendorResponses extends ResponsesProvider {
-  constructor(opts: ResponsesProviderOptions, private readonly vendor: Vendor | null) {
-    super(opts);
-  }
+const cooOptions = (entry: LLMProviderEntry): CooOptions => (entry.options ?? {}) as CooOptions;
 
-  protected override buildResponseBody(request: Request, options: GenerateOptions): Record<string, unknown> {
-    const body = super.buildResponseBody(request, options.context ? { ...options, context: sinceLastDelivery(options.context) } : options);
-    const reasoning = body.reasoning as { effort?: string } | undefined;
-    const level = reasoning?.effort as Effort | undefined;
-    const effort = this.vendor?.effort;
-    if (!effort || !level || !(level in effort)) return body;
-    const to = effort[level];
-    if (to === null || to === undefined) delete body.reasoning;
-    else body.reasoning = { ...reasoning, effort: to };
-    return body;
-  }
+export const protocolOf = (entry: LLMProviderEntry): Protocol =>
+  cooOptions(entry).protocol ?? locate(entry.baseUrl)?.site.protocol ?? 'responses';
 
-  protected override responseAssembly(): ResponseAssembly {
-    return this.vendor?.lenientReasoning ? new LenientReasoningAssembly() : super.responseAssembly();
-  }
+/** A listed service reads images on the models it lists; any other URL on every model. */
+function readsImages(entry: LLMProviderEntry, model: string | undefined): boolean {
+  if (!model) return false;
+  const vendor = vendorOf(entry.baseUrl);
+  return vendor ? (vendor.vision ?? []).includes(model) : true;
+}
+
+/** The Messages API states an oversized prompt as `prompt is too long`, the Gemini API as a token count over the maximum. */
+function contextOverflow(error: { status: number; body: string }): boolean {
+  return isContextOverflow(error)
+    || (error.status === 400 && /prompt is too long|exceeds? the (model's )?context|input token count.*exceeds the maximum/i.test(error.body));
+}
+
+function optionsGroup(name: string, zh: boolean): ConfigGroup {
+  return {
+    id: `llm.coo.${name}`,
+    owner: 'provider:coo',
+    schema: {
+      type: 'object', title: name,
+      properties: {
+        [`providers.${name}.options.protocol`]: {
+          type: 'string', enum: [...PROTOCOLS], title: zh ? '协议' : 'Protocol',
+          description: zh
+            ? '留空时,列出的服务用它自己的协议,其他地址用 responses。responses:POST <地址>/responses;chat:POST <地址>/chat/completions;anthropic:Messages API,地址填 /v1 之前的部分;gemini:Gemini API,地址填 /models 之前的部分。'
+            : 'Unset: a listed service uses its own protocol, any other URL uses responses. responses: POST <URL>/responses; chat: POST <URL>/chat/completions; anthropic: the Messages API, with the URL before /v1; gemini: the Gemini API, with the URL before /models.',
+        },
+      },
+    },
+  };
+}
+
+function normalize(entry: LLMProviderEntry): LLMProviderEntry {
+  const options: Record<string, unknown> = { ...entry.options };
+  if (options.protocol === '') delete options.protocol;
+  return { ...entry, options };
 }
 
 export const COO = {
   id: 'coo',
   title: 'Coo Pet Provider',
-  description: 'DeepSeek, Qwen, Kimi, GLM, Doubao, Baidu Qianfan, MiniMax, StepFun and OpenRouter through their Responses endpoints.',
+  description: 'DeepSeek, Qwen, Kimi, GLM, Doubao, MiniMax, StepFun, Baidu Qianfan, OpenRouter, OpenAI, Anthropic, Gemini and xAI.',
   localize: (language) => ({
     description: language === 'zh'
-      ? `一个模块接 ${VENDORS.map((v) => v.name).join('、')};按接口地址认是哪一家。思考可调四档。`
-      : `One module for ${VENDORS.map((v) => v.nameEn).join(', ')}; the base URL tells which service it is. Thinking has four levels.`,
+      ? `一个模块接 ${VENDORS.map((v) => vendorName(v, 'zh')).join('、')};按接口地址认是哪一家、走哪种协议。思考可调四档。`
+      : `One module for ${VENDORS.map((v) => vendorName(v, 'en')).join(', ')}; the base URL tells which service it is and which protocol it takes. Thinking has four levels.`,
     reasoningTiers: TIERS[language],
   }),
-  defaultBaseUrl: VENDORS[0]!.baseUrl,
-  baseUrlSuggestions: VENDORS.map((v) => v.baseUrl),
+  defaultBaseUrl: siteOf(VENDORS[0]!, 'cn').baseUrl,
+  baseUrlSuggestions: VENDORS.flatMap((v) => Object.values(v.sites).map((s) => s.baseUrl)),
   reasoningTiers: TIERS.en,
   serviceTiers: [],
+  normalize,
+  config: (name, _entry, language) => [optionsGroup(name, language === 'zh')],
+  validateEntry: (entry, language) => {
+    const { protocol } = cooOptions(entry);
+    if (protocol !== undefined && !PROTOCOLS.includes(protocol))
+      throw new Error(language === 'zh' ? `协议只能是 ${PROTOCOLS.join(' / ')}` : `The protocol must be one of ${PROTOCOLS.join(' / ')}`);
+  },
   accepts: (entry, spec, mime) => entry.multimodal === true && mime.startsWith('image/') && readsImages(entry, spec.model),
-  prices: (entry) => (vendorOf(entry.baseUrl)?.id === 'deepseek' ? deepseekPrices() : []),
-  contextOverflow: isContextOverflow,
+  prices: (entry, _request, at) => vendorPrices(vendorOf(entry.baseUrl)?.id, at.startedAt),
+  contextOverflow,
   create(name: string, entry: LLMProviderEntry, host): ProviderInstance {
     const apiKey = entry.secret ? host.secret(entry.secret) : undefined;
     const current = () => host.currentEntry?.() ?? entry;
+    const located = locate(entry.baseUrl);
+    const vendor = located?.vendor ?? null;
+    const protocol = protocolOf(entry);
+    const media = { enabled: () => current().multimodal === true && readsImages(current(), current().spec?.model), read: host.readBlob };
+    const compatibilityKey = () => [vendor?.id ?? 'coo', name, ...(protocol === 'responses' ? [] : [protocol])];
+    const stated = (model: string) => vendor?.contextWindows?.[model];
+
+    if (protocol === 'anthropic') {
+      const client = new ClaudeProvider({ baseUrl: entry.baseUrl, apiKey, keepThinking: host.keepThinking, log: host.log, media });
+      const windows = new Map<string, number | undefined>();
+      return {
+        client, compatibilityKey,
+        contextWindow: (model) => stated(model) ?? windows.get(model),
+        listModels: async () => {
+          const models = [];
+          for await (const model of client.client().models.list()) {
+            const row = model as typeof model & { max_input_tokens?: number; max_tokens?: number };
+            windows.set(model.id, row.max_input_tokens);
+            models.push({ id: model.id, displayName: model.display_name,
+              ...(row.max_input_tokens ? { contextWindow: row.max_input_tokens } : {}), ...(row.max_tokens ? { maxOutputTokens: row.max_tokens } : {}) });
+          }
+          return models;
+        },
+      };
+    }
+    if (protocol === 'gemini') {
+      const windows = new Map<string, number | undefined>();
+      return {
+        client: new GeminiProvider({ baseUrl: entry.baseUrl, apiKey, media, keepThinking: host.keepThinking, log: host.log }),
+        compatibilityKey,
+        contextWindow: (model) => stated(model) ?? windows.get(model),
+        listModels: async () => {
+          const models = await listGeminiModels(entry.baseUrl, apiKey ?? '');
+          for (const model of models) windows.set(model.id, model.contextWindow);
+          return models;
+        },
+      };
+    }
+    const effort = (model: string) => (located ? effortOf(located.vendor, located.site, model) : undefined);
     const headers: Record<string, string> = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
     const catalog = new ModelCatalog(() => ({ baseUrl: entry.baseUrl, headers }));
-    const vendor = vendorOf(entry.baseUrl);
     return {
       listModels: () => catalog.list(),
-      contextWindow: (model) => vendor?.contextWindows?.[model] ?? catalog.contextWindow(model),
-      compatibilityKey: () => [vendor?.id ?? 'coo', name],
-      client: new VendorResponses({
-        baseUrl: entry.baseUrl,
-        apiKey,
-        log: host.log,
-        media: { enabled: () => current().multimodal === true && readsImages(current(), current().spec?.model), read: host.readBlob },
-        keepThinking: host.keepThinking,
-        reasoningReplay: 'plaintext',
-      }, vendor),
+      contextWindow: (model) => stated(model) ?? catalog.contextWindow(model),
+      compatibilityKey,
+      client: protocol === 'chat'
+        ? new VendorChat({ baseUrl: entry.baseUrl, apiKey, media, keepThinking: host.keepThinking, log: host.log, effort })
+        : new VendorResponses({
+          baseUrl: entry.baseUrl,
+          apiKey,
+          log: host.log,
+          media,
+          keepThinking: host.keepThinking,
+          reasoningReplay: vendor?.encryptedReasoning ? 'encrypted' : 'plaintext',
+        }, { effort, lenientReasoning: vendor?.lenientReasoning }),
     };
   },
 } satisfies ProviderModule;
 
 export default COO;
-export { deepseekPrices, OFF_PEAK } from './pricing.ts';
-export { VENDORS, vendorById, vendorEntry, vendorOf, type Vendor } from './vendors.ts';
+export { anthropicPrices, deepseekPrices, vendorPrices, OFF_PEAK } from './pricing.ts';
+export {
+  VENDORS, defaultRegion, endpointName, firstVendor, localized, locate, regionsOf, siteOf, vendorById, vendorEntry, vendorName, vendorOf, vendorsFor,
+  type Language, type Localized, type Protocol, type Region, type Site, type Vendor,
+} from './vendors.ts';
 export { VENDOR_ICONS } from './icons.ts';

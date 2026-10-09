@@ -510,6 +510,7 @@ export async function main(): Promise<void> {
     openDress: () => process.send?.({ type: 'companion:open', path: '#/dress' }),
     onEnd: (end) => (notice as NoticeWorld | null)?.guideEnded(end),
     track: (type, fields) => stats.event(type, fields),
+    language: () => loaded.config.language ?? 'zh',
   };
   guide = guideDeps;
   void introduce(guideDeps, guideRun, () => hasKey(loaded.config), keyMissing ? watchTalk(bot.core.bus) : null).catch((err) => {
