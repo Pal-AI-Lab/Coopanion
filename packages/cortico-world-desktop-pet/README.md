@@ -48,7 +48,7 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 ## 桌宠窗口
 
 World 在 `127.0.0.1:7797`(被占向上顺延)起一个页面服务:`/pet` 是桌宠本身,`/dress` 是装扮页。
-桌宠有两个形象,在装扮页最上面一行选,存在配置 `skin.figure` 里:`coo` 是 Coo,`whale` 是 DeepSeek 大肥鱼
+桌宠内置两个形象,和导入的形象包(见「形象包」)一起在装扮页最上面一行选,存在配置 `skin.figure` 里:`coo` 是 Coo,`whale` 是 DeepSeek 大肥鱼
 (鲸鱼女仆,`web/whale`,用 `web/rig` 画的 Live2D 式分件模型,八套配色存在 `skin.scheme`,见 [examples/whale](examples/whale/README.md))。
 选大肥鱼时装扮页的配色和配件换成她的八套配色;桌宠页第一次用到她时才加载她的贴图,只加载选中的那套。
 桌宠窗口是一个 Electron 进程(`host/electron-main.cjs`):透明、无边框、置顶,盖住一块显示器的工作区
