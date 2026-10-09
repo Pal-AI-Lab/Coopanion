@@ -50,11 +50,13 @@ export const FACES = {
   surprised: { label: '惊讶', kao: '(O O',  f: () => ({ gap: [62, 62], eyes: [ring({ rx: 20, ry: 21 }), ring({ rx: 20, ry: 21 })], bang: true }) },
   angry:     { label: '生气', kao: '(ò ó',  f: () => ({ gap: [36, 36], eyes: [ring({ ry: 11, dy: 4 }), ring({ ry: 11, dy: 4 })], brows: 'angry', anger: true, shake: true }) },
   sad:       { label: '难过', kao: '(ó ò',  f: () => ({ gap: [34, 40], eyes: [ring({ ry: 14, dy: 4 }), ring({ ry: 14, dy: 4 })], brows: 'sad', emit: 'tear' }) },
-  sleepy:    { label: '犯困', kao: '(- -',  f: t => { const y = yawn(t); return { gap: [50 + 14 * y, 50 + 14 * y], eyes: [{ shape: 'lid', ry: 9 - 7 * y }, { shape: 'lid', ry: 9 - 7 * y }] }; } },
+  // a yawn narrows the eyes without squeezing them to a slit
+  sleepy:    { label: '犯困', kao: '(- -',  f: t => { const y = yawn(t); return { gap: [50 + 14 * y, 50 + 14 * y], eyes: [{ shape: 'lid', ry: 10 - 5 * y }, { shape: 'lid', ry: 10 - 5 * y }] }; } },
   sleep:     { label: '睡着', kao: '(u u',  f: t => { const b = 40 + 6 * Math.sin(t * 1.7); return { gap: [b, b], eyes: [{ shape: 'down' }, { shape: 'down' }], emit: 'z' }; } },
   dizzy:     { label: '晕乎', kao: '(@ @',  f: t => ({ gap: [54 + 5 * Math.sin(t * 5), 48], eyes: [{ shape: 'spiral', rot: t * 7 }, { shape: 'spiral', rot: t * 7 + 1.4 }], orbit: true }) },
   dragged:   { label: '被拎起', kao: '(> <', f: t => { const g = 55 + 3 * Math.sin(t * 22); return { gap: [g, g], eyes: [{ shape: 'gt' }, { shape: 'lt' }], sweat: true }; } },
-  content:   { label: '惬意', f: (t, p) => { const r = 11 - 9 * (p ? p.drowse : 0); return { gap: [46, 46], eyes: [{ shape: 'lid', ry: r }, { shape: 'lid', ry: r }] }; } },
+  // seated eyes rest open; once drowse passes .7 they are the closed sleep sprite (the shape swap hides under a blink)
+  content:   { label: '惬意', f: (t, p) => { const d = p ? p.drowse : 0; const e = d > .7 ? { shape: 'down' } : { shape: 'lid', ry: 13.5 - 10 * d }; return { gap: [46, 46], eyes: [e, { ...e }] }; } },
   waking:    { label: '醒来', f: (t, p) => {
     const mt = p ? p.modeT : 1;
     const k = clamp(mt / .5, 0, 1), y = mt > .5 ? Math.sin(clamp((mt - .5) / .9, 0, 1) * Math.PI) : 0;
@@ -219,7 +221,7 @@ export function createPet(els, opts) {
       case 'nod': pulse('nod', .7); play('nod', 'move'); break;
       case 'shake': pulse('shake', .7); play('shake', 'move'); break;
       case 'spin': if (!seated) setMode('idle'); pulse('spin', .6); play('spin', 'move'); break;
-      case 'sit': setMode('sit', { dur: 1e9 }); break;
+      case 'sit': setMode('sit', { dur: 1e9, willSleep: false }); break;
       case 'sleep': setMode('sleep', { dur: 1e9 }); break;
       case 'dizzy': setMode('dizzy'); break;
       case 'wave': pulse('wave', 1.6); holdFace('happy', 1.8); break;
@@ -326,7 +328,8 @@ export function createPet(els, opts) {
     for (const o of opts2) { if ((r -= o[1]) < 0) { pick = o[0]; break; } }
     if (pick === 'look') { setMode('look'); pet.lastAct = 'look'; }
     else if (pick === 'expr') { setExpr(['happy', 'wink', 'love', 'sleepy', 'surprised', 'shy'][Math.floor(Math.random() * 6)]); pet.lastAct = 'expr'; }
-    else if (pick === 'sit') { setMode('sit', { dur: rnd(6, 9) }); pet.lastAct = 'sit'; }
+    // a sit she chose decides up front whether it ends in sleep, so she only gets drowsy when she will fall asleep
+    else if (pick === 'sit') { setMode('sit', { dur: rnd(6, 9), willSleep: Math.random() < .6 }); pet.lastAct = 'sit'; }
     else if (pick !== 'wait') act(pick);
     if (pet.mode === 'idle' && T >= pet.nextAt) pet.nextAt = T + rnd(2, 4);
   }
@@ -418,10 +421,11 @@ export function createPet(els, opts) {
         sitT = 1;
         lookT = track().map(v => v * (1 - pet.drowse));
         if (pet.listening) { lookT = [3, -4]; tiltT = -7; }
-        drowseT = clamp((mt - 1.5) / Math.max(1, Math.min(pet.dur, 60) - 1.5), 0, free ? 1 : .45);
+        // awake while sitting; a sit that ends in sleep closes over its last ~1.6s; a held sit (the word) never dozes off
+        drowseT = pet.willSleep && free ? clamp((mt - (pet.dur - 1.6)) / 1.2, 0, 1) : .15;
         if (pet.drowse > .5) leanT = 7 * pet.drowse * Math.pow(Math.max(0, Math.sin(T * 1.3)), 6);
         if (free && mt > pet.dur) {
-          if (Math.random() < .6) setMode('sleep', { dur: rnd(8, 12) });
+          if (pet.willSleep) setMode('sleep', { dur: rnd(8, 12) });
           else { setMode('idle'); pet.sqv -= 1.2; pet.nextAt = T + rnd(1.5, 3); }
         }
         break;
@@ -548,7 +552,7 @@ export function createPet(els, opts) {
     pet.tilt += pet.tiltV * dt;
     pet.lean = lerp(pet.lean, leanT, ease(7, dt));
     pet.sitK = lerp(pet.sitK, sitT, ease(m === 'land' ? 18 : 6, dt));
-    pet.drowse = lerp(pet.drowse, drowseT, ease(m === 'sit' || m === 'sleep' ? 1.5 : 6, dt));
+    pet.drowse = lerp(pet.drowse, drowseT, ease(m === 'sleep' ? 1.5 : m === 'sit' ? 4 : 6, dt));
     pet.stretch = lerp(pet.stretch, m === 'drag' ? 1 : 0, ease(8, dt));
     pet.stride = lerp(pet.stride, strideT, ease(10, dt));
     pet.lift = lerp(pet.lift, liftT, ease(10, dt));
@@ -647,7 +651,8 @@ export function createPet(els, opts) {
     petG.setAttribute('transform', `translate(${f(AX)} ${f(AY)}) rotate(${f(rot)}) scale(${kx.toFixed(4)} ${ky.toFixed(4)}) translate(${-ax} ${-ay})`);
 
     const legs = pet.feet.map((ft, i) => [HIPS[i][0], HIPS[i][1] + pet.low, ft[0], ft[1]]);
-    const blink = pet.blinkAge < .16 ? Math.sin(Math.PI * pet.blinkAge / .16) : 0;
+    // drowsy blinks are slower
+    const bd = .16 + .3 * pet.drowse, blink = pet.blinkAge < bd ? Math.sin(Math.PI * pet.blinkAge / bd) : 0;
     let eyes = pet.eyeCur || fc.eyes, eyeClose = 0;
     if (pet.swapAge < .07 && pet.eyePrev) { eyes = pet.eyePrev; eyeClose = pet.swapAge / .07; }
     else if (pet.swapAge < .16) eyeClose = 1 - (pet.swapAge - .07) / .09;
