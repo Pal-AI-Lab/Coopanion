@@ -6,7 +6,7 @@
 import { get, post } from '../../core/api.ts';
 import { connectVendor, testEndpoint, type ConnectResult, type ConsoleCall } from 'cortico-provider-coo/src/connect.ts';
 
-export { VENDORS, vendorOf, type Vendor } from 'cortico-provider-coo/src/vendors.ts';
+export { VENDORS, localized, siteOf, vendorName, vendorOf, type Vendor } from 'cortico-provider-coo/src/vendors.ts';
 export { VENDOR_ICONS } from 'cortico-provider-coo/src/icons.ts';
 export { connectVendor, testEndpoint, type ConnectResult };
 

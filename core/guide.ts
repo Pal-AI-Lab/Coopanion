@@ -24,7 +24,7 @@
  */
 import { existsSync, writeFileSync } from 'node:fs';
 import type { DesktopPetWorld, PetDialog, PetDialogAnswer } from 'cortico-world-desktop-pet';
-import { VENDOR_ICONS, VENDORS, type Vendor } from 'cortico-provider-coo';
+import { VENDOR_ICONS, VENDORS, localized, siteOf, vendorName, type Vendor } from 'cortico-provider-coo';
 import { connectVendor, currentConnection, type ConsoleCall } from 'cortico-provider-coo/src/connect.ts';
 
 const PET_GROUP = 'world:desktop-pet';
@@ -45,6 +45,8 @@ const POLL_MS = 500;
 const MAC = process.platform === 'darwin';
 
 type Roam = 'off' | 'calm' | 'free';
+
+const nameOf = (v: Vendor) => vendorName(v, 'zh');
 
 const S = {
   hello: '你好呀!我是 Coo,以后就住在你屏幕的底边啦,库...',
@@ -67,12 +69,12 @@ const S = {
   vendorOk: '就用这家',
   pickModel: (v: Vendor) => `默认用 ${v.model},便宜,还能看图。想用别的模型,改成它的名字就行。`,
   modelOk: '就用这个',
-  askKey: (v: Vendor) => `把 ${v.name} 的 API Key 贴在这里吧。按用量计费,注意 token 消耗哦。`,
+  askKey: (v: Vendor) => `把 ${nameOf(v)} 的 API Key 贴在这里吧。按用量计费,注意 token 消耗哦。`,
   keySend: '连接',
-  keyLink: (v: Vendor) => `还没有 Key?去${v.name}申请`,
+  keyLink: (v: Vendor) => `还没有 Key?去${nameOf(v)}申请`,
   keyLater: '稍后再填',
   connecting: '正在连接…',
-  keyOk: (v: Vendor, model: string) => `连上 ${v.name} 了${model ? `(${model})` : ''}!现在我能说话啦,库...`,
+  keyOk: (v: Vendor, model: string) => `连上 ${nameOf(v)} 了${model ? `(${model})` : ''}!现在我能说话啦,库...`,
   keyFail: (why: string) => `没连上:${why.replace(/[。.!！]+$/, '')}。看看 Key 是不是完整,账户里还有没有余额?再贴一次试试。`,
   keyAlready: (name: string, model: string) => `模型已经连好了(${[name, model].filter(Boolean).join(' · ')}),省事,库...`,
   keySkipped: '没关系,等你填好我再开口。之后我会再来问你。',
@@ -203,7 +205,7 @@ async function connectLoop(show: (d: PetDialog, at: string) => Promise<PetDialog
     ...ask,
     input: {
       kind: 'choices', confirm: S.vendorOk, value: Math.max(0, VENDORS.indexOf(current.vendor ?? VENDORS[0]!)),
-      options: VENDORS.map((v) => ({ label: v.name, image: logo(v) })),
+      options: VENDORS.map((v) => ({ label: nameOf(v), image: logo(v) })),
     },
   }, 'vendor');
   if ('closed' in picked) throw new Closed();
@@ -226,7 +228,7 @@ async function connectLoop(show: (d: PetDialog, at: string) => Promise<PetDialog
     wait?.close();
     if (r.ok) {
       const { model } = await currentConnection(call);
-      await show({ ...ask, text: S.keyOk(vendor, model), marks: [vendor.name], actions: ['love', 'jump'] }, 'key-ok');
+      await show({ ...ask, text: S.keyOk(vendor, model), marks: [nameOf(vendor)], actions: ['love', 'jump'] }, 'key-ok');
       return vendor;
     }
     step = keyStep(S.keyFail(r.why ?? '?'), ['sad']);
@@ -234,8 +236,8 @@ async function connectLoop(show: (d: PetDialog, at: string) => Promise<PetDialog
 }
 
 const keyInput = (v: Vendor, later: string): PetDialog['input'] => ({
-  kind: 'text', submit: S.keySend, placeholder: v.keyHint, secret: true, maxLength: 200,
-  link: { label: S.keyLink(v), url: v.keyUrl }, alt: later,
+  kind: 'text', submit: S.keySend, placeholder: localized(v.keyHint, 'zh'), secret: true, maxLength: 200,
+  link: { label: S.keyLink(v), url: siteOf(v, 'cn').keyUrl }, alt: later,
 });
 
 let running = false;
@@ -303,7 +305,7 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
 
     // 3 the model key
     const k = await currentConnection(call);
-    if (k.ready) await step(3, 'key-ready', { text: S.keyAlready(k.vendor?.name ?? '', k.model), actions: ['happy'] });
+    if (k.ready) await step(3, 'key-ready', { text: S.keyAlready(k.vendor ? nameOf(k.vendor) : '', k.model), actions: ['happy'] });
     else {
       const vendor = await connectLoop((d, line) => step(3, line, d), call, deps.pet, { text: S.askVendor, actions: ['thinking'], step: [3, STEPS] }, S.keyLater);
       if (vendor) deps.track?.('model_connected', { via: 'guide', vendor: vendor.id });

@@ -15,7 +15,7 @@ import { post } from '../../core/api.ts';
 import { pick } from '../../core/language.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { readMode, requestMode } from '../mode.ts';
-import { connectVendor, consoleCall, readStatus, testEndpoint, VENDOR_ICONS, VENDORS, vendorOf, type ConnectResult, type Status, type Vendor } from './model.ts';
+import { connectVendor, consoleCall, localized, readStatus, siteOf, testEndpoint, VENDOR_ICONS, VENDORS, vendorName, vendorOf, type ConnectResult, type Status, type Vendor } from './model.ts';
 
 const PET_PAGE = 'world:desktop-pet';
 
@@ -118,7 +118,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     const mark = ui.h('span', 'home-vendormark');
     // the marks are the provider package's own static SVGs
     mark.innerHTML = VENDOR_ICONS[v.id] ?? '';
-    b.append(mark, ui.h('span', null, v.name));
+    b.append(mark, ui.h('span', null, vendorName(v, 'zh')));
     b.addEventListener('click', () => pickVendor(v), opts);
     vendorRow.append(b);
     return b;
@@ -135,7 +135,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   modelInput.setAttribute('list', modelList.id);
   const keyRow = ui.rowbar();
   const save = ui.button(S.saveStart, { variant: 'primary' });
-  const keyField = ui.field(S.keyLabel(vendor.name), keyInput);
+  const keyField = ui.field(S.keyLabel(vendorName(vendor, 'zh')), keyInput);
   const modelField = ui.field(S.modelLabel, modelInput);
   modelField.classList.add('home-modelfield');
   keyRow.append(modelField, keyField, modelList, save);
@@ -146,13 +146,13 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const pickVendor = (v: Vendor) => {
     vendor = v;
     vendorButtons.forEach((b, i) => b.classList.toggle('on', VENDORS[i] === v));
-    keyInput.placeholder = active.vendor === v ? S.keepKey : v.keyHint;
+    keyInput.placeholder = active.vendor === v ? S.keepKey : localized(v.keyHint, 'zh');
     modelInput.value = active.vendor === v && active.model ? active.model : v.model;
     modelList.replaceChildren(...[v.model, ...(v.models ?? [])].map((m) => Object.assign(document.createElement('option'), { value: m })));
     const label = keyField.querySelector('.fieldlabel');
-    if (label) label.textContent = S.keyLabel(v.name);
-    getKey.textContent = S.getKey(v.name);
-    getKey.href = v.keyUrl;
+    if (label) label.textContent = S.keyLabel(vendorName(v, 'zh'));
+    getKey.textContent = S.getKey(vendorName(v, 'zh'));
+    getKey.href = siteOf(v, 'cn').keyUrl;
   };
   pickVendor(vendor);
   const need = ui.h('p', 'home-note', S.modelNeed);
@@ -209,7 +209,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     keyBox.hidden = ready && !editingKey;
     const current = vendorOf(mc?.baseUrl);
     active = { vendor: current, model: mc?.model ?? '' };
-    if (mc?.model) connectedPill.textContent = S.connected(mc.model, current?.name ?? mc.moduleTitle);
+    if (mc?.model) connectedPill.textContent = S.connected(mc.model, current ? vendorName(current, 'zh') : mc.moduleTitle);
     // the key box starts on the service in use, once
     if (!vendorShown && current) { vendorShown = true; pickVendor(current); }
   };
