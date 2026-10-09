@@ -19,7 +19,7 @@
 import type { ProviderModule, ProviderInstance } from 'cortico/providers/base.ts';
 import type { LLMProviderEntry, ReasoningTier } from 'cortico/core/types.ts';
 import type { ConfigGroup } from 'cortico/core/config-schema.ts';
-import { baseLanguage, pick, type Language } from 'cortico/core/language.ts';
+import type { Language } from 'cortico/core/language.ts';
 import { isContextOverflow } from 'cortico/providers/transport/errors.ts';
 import { ModelCatalog } from 'cortico/providers/openai-responses-compat/native.ts';
 import { ClaudeProvider } from './anthropic/client.ts';
@@ -27,25 +27,21 @@ import { VendorChat } from './chat.ts';
 import { GeminiProvider, listGeminiModels } from './gemini/client.ts';
 import { vendorPrices } from './pricing.ts';
 import { VendorResponses } from './responses.ts';
+import { cooText } from './strings.ts';
 import { PROTOCOLS, VENDORS, effortOf, locate, siteOf, vendorOf, vendorName, type Language as VendorLanguage, type Protocol } from './vendors.ts';
 
 /** vendors.ts spells out Cortico's `Language`; this stops compiling when the two differ. */
 const SAME_LANGUAGES: [Language, VendorLanguage] extends [VendorLanguage, Language] ? true : never = true;
 
-const TIERS = {
-  zh: [
-    { id: 'off', label: '不思考', thinking: false },
-    { id: 'low', label: '思考 · 快', thinking: true, effort: 'low' },
-    { id: 'high', label: '思考 · 标准', thinking: true, effort: 'high' },
-    { id: 'max', label: '思考 · 最深', thinking: true, effort: 'max' },
-  ],
-  en: [
-    { id: 'off', label: 'No thinking', thinking: false },
-    { id: 'low', label: 'Thinking · fast', thinking: true, effort: 'low' },
-    { id: 'high', label: 'Thinking · standard', thinking: true, effort: 'high' },
-    { id: 'max', label: 'Thinking · deepest', thinking: true, effort: 'max' },
-  ],
-} satisfies Record<string, ReasoningTier[]>;
+type CooText = ReturnType<typeof cooText>;
+
+/** The four thinking levels, labelled from `t`. */
+const tiers = (t: CooText['tiers']): ReasoningTier[] => [
+  { id: 'off', label: t.off, thinking: false },
+  { id: 'low', label: t.low, thinking: true, effort: 'low' },
+  { id: 'high', label: t.high, thinking: true, effort: 'high' },
+  { id: 'max', label: t.max, thinking: true, effort: 'max' },
+];
 
 export interface CooOptions {
   /** Unset: the listed service's own protocol, Responses for any other URL. */
@@ -70,7 +66,7 @@ function contextOverflow(error: { status: number; body: string }): boolean {
     || (error.status === 400 && /prompt is too long|exceeds? the (model's )?context|input token count.*exceeds the maximum/i.test(error.body));
 }
 
-function optionsGroup(name: string, zh: boolean): ConfigGroup {
+function optionsGroup(name: string, t: CooText): ConfigGroup {
   return {
     id: `llm.coo.${name}`,
     owner: 'provider:coo',
@@ -78,10 +74,7 @@ function optionsGroup(name: string, zh: boolean): ConfigGroup {
       type: 'object', title: name,
       properties: {
         [`providers.${name}.options.protocol`]: {
-          type: 'string', enum: [...PROTOCOLS], title: zh ? '协议' : 'Protocol',
-          description: zh
-            ? '留空时,列出的服务用它自己的协议,其他地址用 responses。responses:POST <地址>/responses;chat:POST <地址>/chat/completions;anthropic:Messages API,地址填 /v1 之前的部分;gemini:Gemini API,地址填 /models 之前的部分。'
-            : 'Unset: a listed service uses its own protocol, any other URL uses responses. responses: POST <URL>/responses; chat: POST <URL>/chat/completions; anthropic: the Messages API, with the URL before /v1; gemini: the Gemini API, with the URL before /models.',
+          type: 'string', enum: [...PROTOCOLS], title: t.protocol, description: t.protocolHint,
         },
       },
     },
@@ -98,22 +91,20 @@ export const COO = {
   id: 'coo',
   title: 'Coo Pet Provider',
   description: 'DeepSeek, Qwen, Kimi, GLM, Doubao, MiniMax, StepFun, Baidu Qianfan, OpenRouter, OpenAI, Anthropic, Gemini and xAI.',
-  localize: (language) => ({
-    description: baseLanguage(language) === 'zh'
-      ? `一个模块接 ${VENDORS.map((v) => vendorName(v, 'zh')).join('、')};按接口地址认是哪一家、走哪种协议。思考可调四档。`
-      : `One module for ${VENDORS.map((v) => vendorName(v, 'en')).join(', ')}; the base URL tells which service it is and which protocol it takes. Thinking has four levels.`,
-    reasoningTiers: pick(language, TIERS),
-  }),
+  localize: (language) => {
+    const t = cooText(language);
+    return { description: t.description(VENDORS.map((v) => vendorName(v, language))), reasoningTiers: tiers(t.tiers) };
+  },
   defaultBaseUrl: siteOf(VENDORS[0]!, 'cn').baseUrl,
   baseUrlSuggestions: VENDORS.flatMap((v) => Object.values(v.sites).map((s) => s.baseUrl)),
-  reasoningTiers: TIERS.en,
+  reasoningTiers: tiers(cooText('en').tiers),
   serviceTiers: [],
   normalize,
-  config: (name, _entry, language) => [optionsGroup(name, baseLanguage(language) === 'zh')],
+  config: (name, _entry, language) => [optionsGroup(name, cooText(language))],
   validateEntry: (entry, language) => {
     const { protocol } = cooOptions(entry);
     if (protocol !== undefined && !PROTOCOLS.includes(protocol))
-      throw new Error(baseLanguage(language) === 'zh' ? `协议只能是 ${PROTOCOLS.join(' / ')}` : `The protocol must be one of ${PROTOCOLS.join(' / ')}`);
+      throw new Error(cooText(language).badProtocol(PROTOCOLS.join(' / ')));
   },
   accepts: (entry, spec, mime) => entry.multimodal === true && mime.startsWith('image/') && readsImages(entry, spec.model),
   prices: (entry, _request, at) => vendorPrices(vendorOf(entry.baseUrl)?.id, at.startedAt),
