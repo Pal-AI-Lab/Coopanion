@@ -43,7 +43,7 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 每条事件的正文前是对方那边的本地时间 `[HH:MM]`;一次运行的第一条、换了日期后的第一条带日期和星期 `[MM-DD 周X HH:MM]`。
 表里是中文版;模型文本是英文时,标签是 `[voice]` `[typed]` `[answer]` `[touch]` `[figure]`,星期写 `Sun` 这样的英文缩写。
 
-同一种互动 2.5 秒内连着来,并成一条带次数的事件。`wakeOn` 默认 `poke`:只有戳唤醒,摸头、放下和甩出跟着下一批送;鼠标划过桌宠也算摸头,拖开挡路的桌宠也算放下。一条互动按 debounce 送出后,到 bot 下一次结束一轮前,其余互动都按 piggyback 送。「伙伴」取自 `worlds.desktop-pet.user`。
+同一种互动 2.5 秒内连着来,并成一条带次数的事件。`wakeOn` 默认 `poke`:只有戳唤醒,摸头、放下和甩出跟着下一批送;鼠标划过桌宠也算摸头,拖开挡路的桌宠也算放下。一条互动按 debounce 送出后,到 bot 下一次结束一轮前,其余互动都按 piggyback 送。「伙伴」取自 `worlds.desktop-pet.user`,空着时是应用语言的默认称呼(`src/i18n`)。
 
 ## 桌宠窗口
 
@@ -122,14 +122,15 @@ kit 的身体(`web/kit/body.js`)另收 `set({ thoughtShown })`,表示页面正�
 ## 语音输入
 
 桌宠窗口里的页面用麦克风收音,16 kHz 单声道 PCM 经 WebSocket 送到 World,按能量门限切句
-(`src/asr/segmenter.ts`),交给识别引擎,繁体转简体、挡掉已知幻觉后作为 `desktop-pet.speech` 投递。
+(`src/asr/segmenter.ts`),交给识别引擎,挡掉已知幻觉后作为 `desktop-pet.speech` 投递;应用语言是简体中文且 `asr.simplified` 开着时先把繁体转成简体。
 说话时桌宠歪头倾听,虚线气泡里边说边显示听到的字,还没定下来的部分是灰色的。
 
 识别引擎存在 `asr.engine`:
 
 | `asr.engine` | 引擎 |
 |---|---|
-| `funasr`(默认) | FunASR 的 SenseVoiceSmall(int8),经 sherpa-onnx 的 Node 插件在 World 进程里识别;Windows x64、macOS arm64 / x64、Linux x64 都有预编译包 |
+| 空(默认) | 按应用语言选:SenseVoice 认的语言(中、英、日、韩)用 `funasr`,其余用 `system` |
+| `funasr` | FunASR 的 SenseVoiceSmall(int8),经 sherpa-onnx 的 Node 插件在 World 进程里识别;Windows x64、macOS arm64 / x64、Linux x64 都有预编译包 |
 | `system` | Windows 自带的语音识别(SAPI 听写,System.Speech),不用下载,准确度低一些;其他系统上按 `funasr` 处理 |
 
 旧版本写下的 `auto`、`whisper` 都按 `funasr` 处理。
@@ -139,13 +140,13 @@ kit 的身体(`web/kit/body.js`)另收 `set({ thoughtShown })`,表示页面正�
 `model.int8.onnx`(228 MB)和 `tokens.txt` 依次从 ModelScope 取(国内可直接访问),取不到再从 Hugging Face 取,
 逐个按固定的 SHA-256 校验,放到 `<模型根>/desktop-pet/sensevoice-small-int8-2024-07-17/`。
 SenseVoice 一次识别整句;说话过程中每 0.5 秒把这句到目前为止的音频重新识别一遍,拿来边说边显示,
-一句收尾后再识别一次定稿(3 秒的一句在两个线程上约 0.1 秒)。`asr.language` 取 zh、en、ja、ko、yue 或 auto,
+一句收尾后再识别一次定稿(3 秒的一句在两个线程上约 0.1 秒)。`asr.language` 取 zh、en、ja、ko、yue 或 auto,空着时跟随应用语言(SenseVoice 不认的语言为 auto),
 `asr.threads` 是一次识别用的线程数,0 表示 2。
 
 `system` 起一个常驻的 PowerShell 进程(`src/asr/system-sapi.ps1`,经 `-EncodedCommand` 传入,不受执行策略影响),
 一句话边说边送:切句器判定开口后(连同门限之前那几帧)每帧一行 base64 PCM 送进去,
 进程约每 0.4 秒回报一次这句到目前为止的文字(`listen` 的 `partial` 带上 `interim`),一句收尾后几十毫秒内定稿,不必再整句识别一遍。
-按 `asr.language` 挑系统里装着的识别器。中文 Windows 自带 zh-CN 识别器;
+按 `asr.language`(空着时取应用语言的语种)挑系统里装着的识别器,同一语种有几个时优先应用语言的地区(繁体中文 zh-TW,拉美西语 es-MX 等),再看 Windows 显示语言。中文 Windows 自带 zh-CN 识别器;
 没有时面板写明去 Windows 设置 → 时间和语言 → 语言里装「语音识别」。
 
 下载都先写 `.partial`,完整后才改名到位。
@@ -240,8 +241,8 @@ Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 Core
 
 ## 给内嵌应用
 
-`desktopPetDefinition({ controls, onCreate, onSkin, packRoots, onBotChange })` 生成定义(`packRoots` 是更多形象包目录,`onBotChange` 在 bot 用 `pet_set` 改了设置之后调用):`controls`(`PetBotControls`)给右键菜单借出暂停、设置、退出,
-借了哪个就只画哪个按钮或菜单行(暂停要 `isPaused` 和 `setPaused`,设置要 `openSettings`,退出要 `quit` 与可选的 `quitLabel`);
+`desktopPetDefinition({ controls, onCreate, onSkin, packRoots, onBotChange, language })` 生成定义(`packRoots` 是更多形象包目录,`onBotChange` 在 bot 用 `pet_set` 改了设置之后调用,`language` 见下面「文字」一节):`controls`(`PetBotControls`)给右键菜单借出暂停、设置、退出,
+借了哪个就只画哪个按钮或菜单行(暂停要 `isPaused` 和 `setPaused`,设置要 `openSettings`,退出要 `quit` 与可选的 `quitLabel`,可以是每次开菜单时调用的函数);
 `onCreate` 拿到 World 实例,应用可以调 `world.confirm(问题, [同意, 不同意])` 弹一个两选项气泡,
 结果是 `yes` / `no` / `dismissed` / `timeout`(60 秒没人答) / `unavailable`(没有桌宠页),不会作为事件送给 bot。
 
@@ -261,6 +262,8 @@ Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 Core
 - `controls.openChat` 借出后,打字气泡多一个展开钮,带着草稿打开对话页;环境提示词的 `{{pet.chat}}` 也只在这时说明对话页。
 
 ### 模型文本的语言
+
+给人看的文字(桌宠页、装扮页、菜单、语音提示、报错、控制台的配置项与面板)每种语言一张表:World 与控制台面板在 `src/i18n/<语言>.ts`(新语言加一个文件并在 `src/i18n/index.ts` 登记),页面在 `web/i18n/<语言>.js`(加一个文件即可);缺表时繁体读简体,其余读英文。气泡与页面按 `desktopPetDefinition({ language })` 给的应用语言(缺省 `zh`),页面从 snapshot 里拿到并随时切换;控制台按请求的语言。称呼与 `pet_ask` 选项按字形计数,中日韩 20 / 40 字,其他语言加倍,上限写在工具说明里。
 
 bot 从这个 World 读到的文字(事件、回执、环境提示词和词表)有中文、英文两版(`src/model-text.ts`),由 `desktopPetDefinition({ modelLanguage })` 每次用到时选,缺省中文;用户打的字、说的话和回答原样放进去。工具说明只有英文一版。
 `replyLanguage` 返回要 bot 对使用者说的语言的名字(按模型文本的语言写,比如 `Japanese`、`繁体中文`),渲染成环境提示词里的 `{{pet.reply}}` 一句;返回 null 时这句为空。语言变了,环境提示词在下一次前缀重建时换。
