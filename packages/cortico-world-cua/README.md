@@ -48,7 +48,8 @@
 怎么问由内嵌应用决定:`cuaDefinition({ askPermission })` 传入一个函数(比如用桌宠的气泡问),返回 `yes` / `no` / `timeout`,
 返回 `null` 表示此刻问不了。没传或返回 `null` 时,弹一个置顶的系统对话框(Windows 上是 `MessageBoxTimeoutW`,macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)。
 
-回执和环境提示词有中文、英文两版(`src/model-text.ts`,`src/ENV_PROMPT.md` 与 `src/ENV_PROMPT.en.md`),由 `cuaDefinition({ modelLanguage })` 每次用到时选,缺省中文;窗口标题和引擎的报错原样放进回执。工具说明只有英文一版。
+回执和环境提示词有中文、英文两版(`src/model-text.ts`,`src/ENV_PROMPT.md` 与 `src/ENV_PROMPT.en.md`),由 `cuaDefinition({ modelLanguage })` 每次用到时选,缺省中文;窗口标题原样放进回执,引擎的报错按代码(`src/engine/fail.ts`)写成这两版之一。工具说明只有英文一版。
+征求同意的问句、系统对话框的标题与按钮按 `cuaDefinition({ language })` 给的应用语言,控制台的配置项与状态按请求的语言,文字在 `src/i18n/<语言>.ts`(新语言加一个文件并在 `src/i18n/index.ts` 登记;缺表时繁体读简体,其余读英文)。
 
 ## 让位给使用者
 
