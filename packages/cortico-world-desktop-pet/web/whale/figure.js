@@ -468,7 +468,7 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
   const BROW_OVER = new Set(['sad', 'cry', 'worried', 'scared', 'flustered', 'dragged']);
   // how fast each face's brows get there (per second): a startle snaps them, sorrow sinks them slowly
   const BROW_RATE = { surprised: 18, scared: 18, excited: 14, angry: 16, dragged: 16, squeeze: 16, sad: 4, cry: 4, worried: 6, sleepy: 3, sleep: 3, content: 4 };
-  // faces whose brows hold still while she talks
+  // faces whose brows hold still during talk
   const BROW_STILL = new Set(['angry', 'sad', 'cry', 'sleepy', 'sleep', 'squeeze', 'dizzy']);
   // the head by face: tilt (degrees, forward +) and pitch (angleY, down +)
   const HEAD_TILT = { shy: 7, thinking: -8, smug: -6, pout: -4, confused: -7, worried: 3, cry: 4 };
@@ -476,7 +476,7 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
   const BROW_SPLIT = U(765);  // the near brow is left of this, the far brow right of it
   const browNow = [[0, 0, 0, 0], [0, 0, 0, 0]];
   let browOver = 0;  // 0 the brows as drawn, 1 turned over
-  // a quick raise of both brows now and then while she talks: when the last one started, and when she last talked
+  // a quick raise of both brows now and then during talk: when the last one started, and when talk was last seen
   let browFlashAt = -Infinity, talkedAt = -Infinity;
   // how far an eye's upper lid sits below its rest line (master pixels), and whether it is an open eye at all
   // (the same openness paintFace gives the eye, over the lid's full travel; the crease keeps a little above the lid)
@@ -613,7 +613,7 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     // the eyes and mouth move with the face: the eyes' outline is shared between the two layers
     st.headFeat = { fn: parallax(2, 1.4) };
     if (brows) {
-      // a line she starts raises them once, and now and then a while into it
+      // the start of a line raises them once, and now and then a while into it
       if ((o.talk || 0) > .2) {
         if (t - talkedAt > .8 || (t - browFlashAt > 2.5 && Math.random() < dt * .4)) browFlashAt = t;
         talkedAt = t;
