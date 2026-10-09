@@ -115,7 +115,7 @@ const en: CoreText = {
         : 'All set! My icon is in the tray at the bottom right of the taskbar too; click it to change settings.',
     go: 'Let\'s go',
     dress: 'Dress me up first',
-    closed: 'OK, let\'s stop here. To hear my introduction again, open settings and click "Introduction" on the Start page.',
+    closed: 'OK, let\'s stop here. To hear my introduction again, open settings and click "Guide" on the Start page.',
 
     askFirst: 'I\'m not connected to a model yet; I can talk once you add an API key. Which service should I use?',
     askAgain: 'Still no model connected; add an API key and I can keep you company. Which service should I use?',
