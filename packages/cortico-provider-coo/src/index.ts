@@ -19,6 +19,7 @@
 import type { ProviderModule, ProviderInstance } from 'cortico/providers/base.ts';
 import type { LLMProviderEntry, ReasoningTier } from 'cortico/core/types.ts';
 import type { ConfigGroup } from 'cortico/core/config-schema.ts';
+import { baseLanguage, pick } from 'cortico/core/language.ts';
 import { isContextOverflow } from 'cortico/providers/transport/errors.ts';
 import { ModelCatalog } from 'cortico/providers/openai-responses-compat/native.ts';
 import { ClaudeProvider } from './anthropic/client.ts';
@@ -95,21 +96,21 @@ export const COO = {
   title: 'Coo Pet Provider',
   description: 'DeepSeek, Qwen, Kimi, GLM, Doubao, MiniMax, StepFun, Baidu Qianfan, OpenRouter, OpenAI, Anthropic, Gemini and xAI.',
   localize: (language) => ({
-    description: language === 'zh'
+    description: baseLanguage(language) === 'zh'
       ? `一个模块接 ${VENDORS.map((v) => vendorName(v, 'zh')).join('、')};按接口地址认是哪一家、走哪种协议。思考可调四档。`
       : `One module for ${VENDORS.map((v) => vendorName(v, 'en')).join(', ')}; the base URL tells which service it is and which protocol it takes. Thinking has four levels.`,
-    reasoningTiers: TIERS[language],
+    reasoningTiers: pick(language, TIERS),
   }),
   defaultBaseUrl: siteOf(VENDORS[0]!, 'cn').baseUrl,
   baseUrlSuggestions: VENDORS.flatMap((v) => Object.values(v.sites).map((s) => s.baseUrl)),
   reasoningTiers: TIERS.en,
   serviceTiers: [],
   normalize,
-  config: (name, _entry, language) => [optionsGroup(name, language === 'zh')],
+  config: (name, _entry, language) => [optionsGroup(name, baseLanguage(language) === 'zh')],
   validateEntry: (entry, language) => {
     const { protocol } = cooOptions(entry);
     if (protocol !== undefined && !PROTOCOLS.includes(protocol))
-      throw new Error(language === 'zh' ? `协议只能是 ${PROTOCOLS.join(' / ')}` : `The protocol must be one of ${PROTOCOLS.join(' / ')}`);
+      throw new Error(baseLanguage(language) === 'zh' ? `协议只能是 ${PROTOCOLS.join(' / ')}` : `The protocol must be one of ${PROTOCOLS.join(' / ')}`);
   },
   accepts: (entry, spec, mime) => entry.multimodal === true && mime.startsWith('image/') && readsImages(entry, spec.model),
   prices: (entry, _request, at) => vendorPrices(vendorOf(entry.baseUrl)?.id, at.startedAt),

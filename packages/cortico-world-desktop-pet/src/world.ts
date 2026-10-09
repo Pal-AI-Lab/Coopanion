@@ -26,7 +26,7 @@ import type {
   WorldHost, WorldLamp, WorldPanelDecl, WorldStreamSocket,
 } from 'cortico/core/types.ts';
 import { nowIso, shortTime } from 'cortico/core/util.ts';
-import type { Language } from 'cortico/core/language.ts';
+import { pick, type Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
 import {
   DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, SENSEVOICE_LANGUAGES, USER_MAX, desktopPetConfigGroups, hoverButtonList,
@@ -277,7 +277,7 @@ const CHAT_TEXT = {
     notSent: 'Could not send it',
     tooLate: 'That one has already been delivered and cannot be taken back.',
   },
-} satisfies Record<Language, unknown>;
+};
 type ChatText = (typeof CHAT_TEXT)['zh'];
 
 /** Images of a chat page message: the whole batch is taken, or the reason it is not. */
@@ -661,7 +661,7 @@ export class DesktopPetWorld implements World {
    */
   private async onChat(msg: Record<string, unknown>, socket: WorldStreamSocket, language: Language): Promise<void> {
     const host = this.host;
-    const s = CHAT_TEXT[language] ?? CHAT_TEXT.zh;
+    const s = pick(language, CHAT_TEXT);
     switch (msg.t) {
       case 'hello': {
         const page = host ? this.chatPage() : { items: [], more: false };
