@@ -1725,6 +1725,8 @@ export class DesktopPetWorld implements World {
       url: this.server.port ? this.petUrl : null,
       dressUrl: this.server.port ? `${this.server.origin}/dress` : null,
       skin: this.cfg.skin,
+      /** What the person is called while `user` is empty, in the app language. */
+      defaultUser: this.ui.defaultUser,
       window: this.windowHost?.state() ?? null,
       electron: { ...this.store.electron.state(), supported: this.store.electron.supported },
       screen: this.screen,
