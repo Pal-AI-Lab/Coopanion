@@ -77,7 +77,10 @@ export interface Vendor {
   encryptedReasoning?: true;
 }
 
-const PASTE_KEY: Localized = { zh: '粘贴 API Key', 'zh-Hant': '貼上 API Key', en: 'Paste the API key', ja: 'API キーを貼り付け', ko: 'API 키 붙여넣기' };
+const PASTE_KEY: Localized = {
+  zh: '粘贴 API Key', 'zh-Hant': '貼上 API Key', en: 'Paste the API Key', ja: 'API Key を貼り付け', ko: 'API Key 붙여넣기',
+  fr: 'Collez votre API Key', de: 'API Key einfügen', 'es-419': 'Pega la API Key', 'pt-BR': 'Cole a API Key', it: 'Incolla la API Key', ru: 'Вставьте API Key',
+};
 const brand = (name: string): Localized => ({ zh: name, en: name });
 const hint = (prefix: string): Localized => brand(`${prefix}…`);
 
