@@ -28,7 +28,7 @@ export const PROTOCOLS: readonly Protocol[] = ['responses', 'chat', 'anthropic',
 export type Region = 'cn' | 'intl';
 export const REGIONS: readonly Region[] = ['cn', 'intl'];
 
-/** The languages the app's text comes in. */
+/** Cortico's `Language` (cortico/core/language.ts), written out because this file imports nothing; index.ts checks that the two match. */
 export type Language = 'zh' | 'zh-Hant' | 'en' | 'ja' | 'ko' | 'fr' | 'de' | 'es-419' | 'pt-BR' | 'it' | 'ru';
 
 /** Text in Chinese and English, and in other languages where it differs; see `localized`. */

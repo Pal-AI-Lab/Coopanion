@@ -19,7 +19,7 @@
 import type { ProviderModule, ProviderInstance } from 'cortico/providers/base.ts';
 import type { LLMProviderEntry, ReasoningTier } from 'cortico/core/types.ts';
 import type { ConfigGroup } from 'cortico/core/config-schema.ts';
-import { baseLanguage, pick } from 'cortico/core/language.ts';
+import { baseLanguage, pick, type Language } from 'cortico/core/language.ts';
 import { isContextOverflow } from 'cortico/providers/transport/errors.ts';
 import { ModelCatalog } from 'cortico/providers/openai-responses-compat/native.ts';
 import { ClaudeProvider } from './anthropic/client.ts';
@@ -27,7 +27,10 @@ import { VendorChat } from './chat.ts';
 import { GeminiProvider, listGeminiModels } from './gemini/client.ts';
 import { vendorPrices } from './pricing.ts';
 import { VendorResponses } from './responses.ts';
-import { PROTOCOLS, VENDORS, effortOf, locate, siteOf, vendorOf, vendorName, type Protocol } from './vendors.ts';
+import { PROTOCOLS, VENDORS, effortOf, locate, siteOf, vendorOf, vendorName, type Language as VendorLanguage, type Protocol } from './vendors.ts';
+
+/** vendors.ts spells out Cortico's `Language`; this stops compiling when the two differ. */
+const SAME_LANGUAGES: [Language, VendorLanguage] extends [VendorLanguage, Language] ? true : never = true;
 
 const TIERS = {
   zh: [
