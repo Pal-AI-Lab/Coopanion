@@ -172,6 +172,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     const ready = !!mc?.ready;
     connectedLine.hidden = !ready || editingKey;
     keyBox.hidden = ready && !editingKey;
+    preview.classList.toggle('nokey', !ready);
     const at = locate(mc?.baseUrl);
     const current = at?.vendor ?? null;
     active = { vendor: current, region: at?.region ?? null, model: mc?.model ?? '' };

@@ -18,6 +18,8 @@
 .home-vendormark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #fff; }
 .home-vendormark svg { width: 17px; height: 17px; display: block; color: #1b1a1e; }
 .home-petframe { display: block; width: 100%; height: 220px; margin-top: 10px; border: 1px solid var(--border); border-radius: 12px; background: transparent; }
+/* 没接模型时桌宠问用哪家服务,气泡里的服务卡片最多五行(简体中文),连同桌宠和地面约 705px */
+.home-petframe.nokey { height: 720px; }
 .home .sheet + .sheet { margin-top: 14px; }
 
 /* 「习惯」「装扮」页 */
