@@ -69,7 +69,7 @@ export default {
   'dress.figure': 'Персонаж',
   'dress.palette': 'Цвета',
   'dress.head': 'Голова',
-  'dress.side': 'Сбоку',
+  'dress.side': 'Аксессуар',
   'dress.glasses': 'Очки',
   'dress.neck': 'Шея',
   'dress.saved': 'Сохранено',

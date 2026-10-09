@@ -74,7 +74,7 @@ export default {
   'dress.figure': 'Figure',
   'dress.palette': 'Colours',
   'dress.head': 'Head',
-  'dress.side': 'Side',
+  'dress.side': 'Accessory',
   'dress.glasses': 'Glasses',
   'dress.neck': 'Neck',
   'dress.saved': 'Saved',

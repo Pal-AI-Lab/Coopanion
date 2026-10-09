@@ -69,7 +69,7 @@ export default {
   'dress.figure': 'アバター',
   'dress.palette': '配色',
   'dress.head': '頭',
-  'dress.side': 'サイド',
+  'dress.side': 'アクセサリー',
   'dress.glasses': 'メガネ',
   'dress.neck': '首元',
   'dress.saved': '保存しました',

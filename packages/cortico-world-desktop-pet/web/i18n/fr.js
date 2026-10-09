@@ -69,7 +69,7 @@ export default {
   'dress.figure': 'Personnage',
   'dress.palette': 'Couleurs',
   'dress.head': 'Tête',
-  'dress.side': 'Côté',
+  'dress.side': 'Accessoire',
   'dress.glasses': 'Lunettes',
   'dress.neck': 'Cou',
   'dress.saved': 'Enregistré',
