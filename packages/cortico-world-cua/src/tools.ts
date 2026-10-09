@@ -1,29 +1,32 @@
-/** Tool declarations; `CuaWorld.tools()` binds the handlers. Coordinates are screenshot pixels. */
+/**
+ * Tool declarations; `CuaWorld.tools()` binds the handlers. Coordinates are screenshot pixels.
+ * Descriptions are English whatever the model-text language.
+ */
 import type { ToolDef } from 'cortico/core/types.ts';
 
-const shot = { type: 'boolean', description: '做完后是否附一张截图;缺省按配置(默认附)。连着做几步时可以只在最后一步要截图。' };
+const shot = { type: 'boolean', description: 'Attach a screenshot afterwards; defaults to the configuration (attach). When doing several steps in a row, ask for one on the last step only.' };
 const xy = {
-  x: { type: 'integer', minimum: 0, description: '横坐标,最近一张截图的像素' },
-  y: { type: 'integer', minimum: 0, description: '纵坐标,最近一张截图的像素' },
+  x: { type: 'integer', minimum: 0, description: 'Horizontal position, in pixels of the latest screenshot' },
+  y: { type: 'integer', minimum: 0, description: 'Vertical position, in pixels of the latest screenshot' },
 };
 
 export const CUA_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'cua_screenshot',
     tags: ['read', 'snapshot'],
-    description: '截取主屏幕,返回缩放后的图片(画上了鼠标指针)、屏幕与截图尺寸、指针位置和前台窗口标题。',
+    description: 'Capture the main screen. Returns the scaled image (with the mouse pointer drawn on it), the screen and screenshot sizes, the pointer position and the title of the foreground window.',
     parameters: { type: 'object', properties: {}, required: [] },
   },
   {
     name: 'cua_click',
     tags: ['act'],
-    description: '把鼠标移到 (x, y) 并点击。',
+    description: 'Move the mouse to (x, y) and click.',
     parameters: {
       type: 'object',
       properties: {
         ...xy,
-        button: { type: 'string', enum: ['left', 'right', 'middle'], description: '默认 left' },
-        clicks: { type: 'integer', minimum: 1, maximum: 3, description: '1 单击(默认),2 双击,3 三击' },
+        button: { type: 'string', enum: ['left', 'right', 'middle'], description: 'Default left' },
+        clicks: { type: 'integer', minimum: 1, maximum: 3, description: '1 single click (default), 2 double click, 3 triple click' },
         screenshot: shot,
       },
       required: ['x', 'y'],
@@ -32,18 +35,18 @@ export const CUA_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'cua_move',
     tags: ['act'],
-    description: '只移动鼠标到 (x, y),不点击;用于悬停出提示或菜单。',
+    description: 'Only move the mouse to (x, y), without clicking; for hovering to bring up a tooltip or a menu.',
     parameters: { type: 'object', properties: { ...xy, screenshot: shot }, required: ['x', 'y'] },
   },
   {
     name: 'cua_drag',
     tags: ['act'],
-    description: '按住左键从 from 拖到 to 再松开。',
+    description: 'Hold the left button down, drag from `from` to `to`, and release.',
     parameters: {
       type: 'object',
       properties: {
-        from: { type: 'array', items: { type: 'integer' }, minItems: 2, maxItems: 2, description: '[x, y] 起点' },
-        to: { type: 'array', items: { type: 'integer' }, minItems: 2, maxItems: 2, description: '[x, y] 终点' },
+        from: { type: 'array', items: { type: 'integer' }, minItems: 2, maxItems: 2, description: '[x, y] start' },
+        to: { type: 'array', items: { type: 'integer' }, minItems: 2, maxItems: 2, description: '[x, y] end' },
         screenshot: shot,
       },
       required: ['from', 'to'],
@@ -52,7 +55,7 @@ export const CUA_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'cua_scroll',
     tags: ['act'],
-    description: '把鼠标移到 (x, y) 转动滚轮。down 为正向下、为负向上;right 为正向右。单位是滚轮格。',
+    description: 'Move the mouse to (x, y) and turn the wheel. Positive down scrolls down, negative up; positive right scrolls right. Units are wheel notches.',
     parameters: {
       type: 'object',
       properties: {
@@ -67,31 +70,31 @@ export const CUA_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'cua_type',
     tags: ['act'],
-    description: '在当前输入焦点处打字(任何语言,与输入法状态无关);\\n 会按一次回车。先点击要输入的地方。',
+    description: 'Type text at the current input focus (any language, whatever state the input method is in); \\n presses Enter once. Click where the text goes first.',
     parameters: { type: 'object', properties: { text: { type: 'string', maxLength: 2000 }, screenshot: shot }, required: ['text'] },
   },
   {
     name: 'cua_key',
     tags: ['act'],
-    description: '按键或组合键。用 + 连接同时按的键,用空格分隔先后:"ctrl+s"、"alt+f4"、"ctrl+a delete"、"enter"、"win"。',
+    description: 'Press a key or a key combination. Join keys pressed together with +, and separate keys pressed one after another with spaces: "ctrl+s", "alt+f4", "ctrl+a delete", "enter", "win".',
     parameters: { type: 'object', properties: { keys: { type: 'string' }, screenshot: shot }, required: ['keys'] },
   },
   {
     name: 'cua_windows',
     tags: ['read'],
-    description: '列出可见的顶层窗口:标题、位置(截图坐标)、是否最小化、哪个在前台。',
+    description: 'List the visible top-level windows: title, position (screenshot coordinates), whether minimized, and which one is in the foreground.',
     parameters: { type: 'object', properties: {}, required: [] },
   },
   {
     name: 'cua_focus',
     tags: ['act'],
-    description: '把一个窗口切到前台(最小化的先还原)。window 是 cua_windows 给的句柄,或标题里的一段文字。',
+    description: 'Bring a window to the foreground (restoring it first if minimized). window is a handle from cua_windows, or part of its title.',
     parameters: { type: 'object', properties: { window: { type: 'string' }, screenshot: shot }, required: ['window'] },
   },
   {
     name: 'cua_wait',
     tags: ['read'],
-    description: '等待若干秒(最多 30)让界面加载,然后截图。等待不用使用者同意;这一轮还没允许看屏幕时只等不截图。',
+    description: 'Wait a number of seconds (30 at most) for the screen to load, then take a screenshot. Waiting needs no permission from the person; while looking at the screen is not yet allowed this turn, it waits without a screenshot.',
     parameters: { type: 'object', properties: { seconds: { type: 'number', minimum: 0, maximum: 30 } }, required: ['seconds'] },
   },
 ];
