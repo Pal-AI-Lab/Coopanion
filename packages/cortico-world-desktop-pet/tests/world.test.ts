@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dryMountWorld } from 'cortico/extensions/dry-mount.ts';
+import { renderTemplate } from 'cortico/core/template.ts';
 import { DESKTOP_PET } from '../src/definition.ts';
 import { DESKTOP_PET_DEFAULTS, type DesktopPetConfigSection } from '../src/config.ts';
 import { DesktopPetWorld, type DesktopPetWorldOptions, type PetBotControls } from '../src/world.ts';
@@ -52,6 +53,28 @@ describe('definition', () => {
     const report = await dryMountWorld(DESKTOP_PET as never, { scratchDir: mkdtempSync(join(tmpdir(), 'pet-dry-')), packageDir: fileURLToPath(new URL('../', import.meta.url)), hasConsoleClient: true });
     expect(report.failures).toEqual([]);
     expect(report.warnings).toEqual([]);
+  });
+});
+
+describe('English model text', () => {
+  const HAN = /\p{Script=Han}/u;
+
+  it('gives the bot no Chinese of its own: environment prompt, tool declarations, events', async () => {
+    const { world, host } = await mounted((c) => { c.user = 'Sam'; }, { modelLanguage: () => 'en', replyLanguage: () => 'Japanese', controls: { openChat: () => {} } });
+    const doc = world.console().promptDocs![0]!;
+    const prompt = renderTemplate(readFileSync(doc.path, 'utf8'), world.envPromptVars());
+    expect(prompt).not.toMatch(HAN);
+    // every placeholder of the English template is one the World fills
+    expect(prompt).not.toMatch(/\{\{/);
+    expect(prompt).toContain('Japanese');
+    expect(JSON.stringify(world.tools().map(({ handler: _, ...decl }) => decl))).not.toMatch(HAN);
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    await tool(world, 'pet_ask').handler({ question: 'Tea?', options: ['yes'] }, ctx);
+    page.send({ t: 'answer', askId: (await page.next((m) => m.t === 'ask')).id, index: 0 });
+    page.send({ t: 'touch', kind: 'poke' });
+    await expect.poll(() => host.events.length, { timeout: 5000 }).toBe(2);
+    for (const [i, e] of host.events.entries()) expect(host.stamps[i] + e.text).not.toMatch(HAN);
   });
 });
 

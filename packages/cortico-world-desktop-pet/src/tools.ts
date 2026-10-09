@@ -1,4 +1,4 @@
-/** Tool declarations; `DesktopPetWorld.tools()` binds the handlers. */
+/** Tool declarations; `DesktopPetWorld.tools()` binds the handlers. Descriptions are English whatever the model-text language. */
 import type { ToolDef } from 'cortico/core/types.ts';
 import { SCALE_MAX, SCALE_MIN } from './config.ts';
 
@@ -6,11 +6,11 @@ export const DESKTOP_PET_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'pet_say',
     tags: ['speak'],
-    description: '在桌宠头顶冒出对话气泡说话。表情和动作写成标记放进 script:【】先做动作再换一个新气泡,<> 打字到那里时做。回执报告大约显示多久;窗口没连接时失败。',
+    description: 'Say something in a speech bubble above the pet. Expressions and motions go into the script as markers: 【…】 plays them first and then starts a new bubble; <…> plays them when the typing reaches that point. The receipt says roughly how long it stays on screen; fails when the pet window is not connected.',
     parameters: {
       type: 'object',
       properties: {
-        script: { type: 'string', description: '要说的话,可夹带【表情,动作】与 <表情> 标记。一个气泡一两句。不想说话就不要调用。' },
+        script: { type: 'string', description: 'What to say, with optional 【expression, motion】 and <expression> markers. One or two sentences per bubble. Do not call this when you have nothing to say.' },
       },
       required: ['script'],
     },
@@ -18,13 +18,13 @@ export const DESKTOP_PET_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'pet_ask',
     tags: ['speak'],
-    description: '冒出一个提问气泡,下面列出最多 3 个选项,默认再加一格让对方自己写。立即返回;对方的回答以 [回答] 事件送达,关掉不答也会送达。新的 pet_say 或 pet_ask 会替换还没回答的提问。',
+    description: 'Show a question bubble with up to 3 options under it, plus by default a box for the person to write their own answer. Returns at once; the answer arrives later as an event, and so does closing the question unanswered. A new pet_say or pet_ask replaces a question not yet answered.',
     parameters: {
       type: 'object',
       properties: {
-        question: { type: 'string', description: '问题,一句话。' },
-        options: { type: 'array', items: { type: 'string' }, maxItems: 3, description: '1–3 个简短选项,每个不超过 40 字。' },
-        allowOwnAnswer: { type: 'boolean', description: '是否提供自己写回答的输入格,默认 true。' },
+        question: { type: 'string', description: 'The question, one sentence.' },
+        options: { type: 'array', items: { type: 'string' }, maxItems: 3, description: '1–3 short options, at most 40 characters each.' },
+        allowOwnAnswer: { type: 'boolean', description: 'Offer a box for writing an own answer; default true.' },
       },
       required: ['question', 'options'],
     },
@@ -32,12 +32,12 @@ export const DESKTOP_PET_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'pet_walk_to',
     tags: ['act'],
-    description: '沿屏幕底边走(或跑)到某个位置,走到或被打断后返回,最多等 30 秒。',
+    description: 'Walk (or run) along the bottom edge of the screen to a position. Returns on arrival or interruption, after 30 seconds at most.',
     parameters: {
       type: 'object',
       properties: {
-        to: { description: '目标:0–1 的数字(桌宠所在那块屏幕的宽度比例,0 最左、1 最右),或 left / center / right / cursor(鼠标所在的横向位置)。', anyOf: [{ type: 'number', minimum: 0, maximum: 1 }, { type: 'string', enum: ['left', 'center', 'right', 'cursor'] }] },
-        run: { type: 'boolean', description: 'true 跑过去,默认走过去。' },
+        to: { description: 'Target: a number from 0 to 1 (a fraction of the width of the screen the pet is on, 0 leftmost, 1 rightmost), or left / center / right / cursor (the horizontal position of the mouse pointer).', anyOf: [{ type: 'number', minimum: 0, maximum: 1 }, { type: 'string', enum: ['left', 'center', 'right', 'cursor'] }] },
+        run: { type: 'boolean', description: 'true to run; walks by default.' },
       },
       required: ['to'],
     },
@@ -45,32 +45,32 @@ export const DESKTOP_PET_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'pet_set',
     tags: ['act'],
-    description: '改你自己的外观和习惯。figure、scheme、roam、snoreSeconds 直接生效;sound、scale、theme、hoverButtons、user 会先在气泡里问对方,对方同意才改,回执等对方回答后才返回。可选的值见环境说明。只给要改的项。',
+    description: 'Change your own looks and habits. figure, scheme, roam and snoreSeconds take effect at once; sound, scale, theme, hoverButtons and user are first asked of the person in a bubble and change only if they agree, and the receipt comes after their answer. The values to choose from are in the environment section. Give only the items to change.',
     parameters: {
       type: 'object',
       properties: {
-        figure: { type: 'string', description: '形象:coo,或已装形象的 id。换成形象包时不给 scheme 就用它的第一套。' },
-        scheme: { type: 'string', description: '当前(或这次换上的)形象的打扮:预设 id,或各项选项按顺序用 - 连起来(Coo 是配色-头顶-耳侧-眼镜-颈饰)。' },
-        roam: { type: 'string', enum: ['free', 'calm', 'off'], description: '平时走动:free 常走动,calm 多待着,off 不乱动。' },
-        snoreSeconds: { type: 'integer', minimum: 0, maximum: 3600, description: '每次睡着打多少秒呼噜,0 一直打到醒。' },
-        sound: { type: 'boolean', description: '音效开关(先问对方)。' },
-        scale: { type: 'number', minimum: SCALE_MIN, maximum: SCALE_MAX, description: '在屏幕上的大小,1 是默认(先问对方)。' },
-        theme: { type: 'string', enum: ['dark', 'light'], description: 'dark 夜间(浅色身体),light 白天(深色身体)(先问对方)。' },
-        hoverButtons: { type: 'array', items: { type: 'string', enum: ['chat', 'voice', 'roam', 'theme', 'sound', 'dress', 'hide'] }, maxItems: 6, description: '鼠标停在你身上时旁边的按钮(先问对方)。' },
-        user: { type: 'string', maxLength: 20, description: '你对对方的称呼(先问对方)。' },
+        figure: { type: 'string', description: 'Figure: coo, or the id of an installed figure. Switching to a figure pack without a scheme puts on its first one.' },
+        scheme: { type: 'string', description: 'The dress of the current figure (or of the one being switched to): a preset id, or one option per axis joined with - in axis order (for Coo: palette-head-side-glasses-neck).' },
+        roam: { type: 'string', enum: ['free', 'calm', 'off'], description: 'Walking about: free walks often, calm mostly stays put, off does not wander.' },
+        snoreSeconds: { type: 'integer', minimum: 0, maximum: 3600, description: 'Seconds of snoring each time you fall asleep; 0 snores until you wake.' },
+        sound: { type: 'boolean', description: 'Sound effects on or off (asks the person first).' },
+        scale: { type: 'number', minimum: SCALE_MIN, maximum: SCALE_MAX, description: 'Size on screen, 1 being the default (asks the person first).' },
+        theme: { type: 'string', enum: ['dark', 'light'], description: 'dark is night (light body), light is day (dark body) (asks the person first).' },
+        hoverButtons: { type: 'array', items: { type: 'string', enum: ['chat', 'voice', 'roam', 'theme', 'sound', 'dress', 'hide'] }, maxItems: 6, description: 'The buttons beside you while the mouse pointer rests on you (asks the person first).' },
+        user: { type: 'string', maxLength: 20, description: 'What you call the person (asks the person first).' },
       },
     },
   },
   {
     name: 'pet_quiet',
     tags: ['act'],
-    description: '临时安静一会儿:默认关掉音效、站着不乱走,到时间自动恢复,设置不变。对方这期间自己改了音效或走动,就按对方的来并提前结束。minutes 给 0 立即结束。',
+    description: 'Keep quiet for a while: by default sound effects off and standing still, restored when the time is up; the settings stay as they are. If the person changes sound or walking themselves meanwhile, their choice holds and the quiet ends early. minutes 0 ends it now.',
     parameters: {
       type: 'object',
       properties: {
-        minutes: { type: 'number', minimum: 0, maximum: 1440, description: '安静多少分钟。' },
-        sound: { type: 'boolean', description: '这期间要不要音效,默认 false。' },
-        roam: { type: 'string', enum: ['off', 'calm'], description: '这期间的走动,默认 off。' },
+        minutes: { type: 'number', minimum: 0, maximum: 1440, description: 'Minutes of quiet.' },
+        sound: { type: 'boolean', description: 'Sound effects during the quiet; default false.' },
+        roam: { type: 'string', enum: ['off', 'calm'], description: 'Walking during the quiet; default off.' },
       },
       required: ['minutes'],
     },
@@ -78,11 +78,11 @@ export const DESKTOP_PET_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'pet_act',
     tags: ['act'],
-    description: '不说话,依次做一串表情或动作(当前形象的词表见环境说明)。立即返回;标着「保持到下一个动作」的会一直保持。',
+    description: 'Play a sequence of expressions or motions without speaking (the current figure\'s vocabulary is in the environment section). Returns at once; words marked as held until the next action stay on.',
     parameters: {
       type: 'object',
       properties: {
-        actions: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 6, description: '表情或动作的词,按顺序执行。' },
+        actions: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 6, description: 'Expression or motion words, played in order.' },
       },
       required: ['actions'],
     },

@@ -4,6 +4,7 @@ import type { WorldDefinition } from 'cortico/world.ts';
 import { DESKTOP_PET_DEFAULTS, DESKTOP_PET_ID, type DesktopPetConfigSection, type PetSkin } from './config.ts';
 import { DesktopPetWorld, modelsDirFor, type PetBotControls } from './world.ts';
 import type { DescribeTool } from './status.ts';
+import type { ModelLanguage } from './model-text.ts';
 
 /** The console keeps the bot's avatar here, in the deployment directory. */
 const AVATAR_FILE = 'avatar.png';
@@ -21,6 +22,10 @@ export interface DesktopPetAssembly {
   onBotChange?(): void;
   /** What the status bubble shows for a tool call; see `DescribeTool`. */
   describeTool?: DescribeTool;
+  /** The language of what the bot reads from this World, read at each use; Chinese when absent. */
+  modelLanguage?(): ModelLanguage;
+  /** The language the bot is to talk to the person in; see `DesktopPetWorldOptions.replyLanguage`. */
+  replyLanguage?(): string | null;
 }
 
 /** The definition, with what an embedding app lends the World. */
@@ -48,6 +53,8 @@ export function desktopPetDefinition(assembly: DesktopPetAssembly = {}): WorldDe
         packDir: () => join(ctx.dataDir, 'figures'),
         onBotChange: () => assembly.onBotChange?.(),
         describeTool: assembly.describeTool,
+        modelLanguage: () => assembly.modelLanguage?.() ?? 'zh',
+        replyLanguage: () => assembly.replyLanguage?.() ?? null,
       });
       assembly.onCreate?.(world);
       return world;

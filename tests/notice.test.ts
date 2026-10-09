@@ -23,6 +23,16 @@ describe('releaseNotes', () => {
     expect(releaseNotes(dir, null, '0.1.13').map((n) => n.version)).toEqual(['0.1.13']);
   });
 
+  it('reads a version\'s English notes for English model text, its Chinese ones where there are none, each without its download list', () => {
+    const dir = releases(['0.1.12', '0.1.13']);
+    writeFileSync(join(dir, 'v0.1.13.en.md'), '# Coopanion v0.1.13\n\nThis release 0.1.13\n\n## Download\n\n- installer 0.1.13\n');
+    const notes = releaseNotes(dir, '0.1.11', '0.1.13', 'en');
+    expect(notes.map((n) => n.version)).toEqual(['0.1.12', '0.1.13']);
+    expect(notes[0]!.text).toContain('本版 0.1.12');
+    expect(notes[1]!.text).toContain('This release 0.1.13');
+    expect(notes[1]!.text).not.toContain('installer');
+  });
+
   it('leaves the download list out', () => {
     const [note] = releaseNotes(releases(['0.1.13']), null, '0.1.13');
     expect(note!.text).toContain('本版 0.1.13');
