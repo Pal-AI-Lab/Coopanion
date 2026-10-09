@@ -76,7 +76,7 @@ const zhHant: Translation<CoreText> = {
     keyAlready: (connection: string) => `模型已經連好了（${connection}），省事，庫...`,
     keySkipped: '沒關係，等你填好我再開口。之後我會再來問你。',
 
-    askModel: (mb: number) => `要聽懂你說話，我得先下載一個語音辨識模型（FunASR，約 ${mb} MB）。現在下載嗎？`,
+    askModel: (name: string, mb: number) => `要聽懂你說話，我得先下載一個語音辨識模型（${name}，約 ${mb} MB）。現在下載嗎？`,
     download: '下載',
     notNow: '先不用',
     downloading: '正在下載語音模型，庫...',

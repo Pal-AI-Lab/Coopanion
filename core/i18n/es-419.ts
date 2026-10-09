@@ -76,7 +76,7 @@ const es419: Translation<CoreText> = {
     keyAlready: (connection: string) => `Ya hay un modelo conectado (${connection}). Fácil. Coo...`,
     keySkipped: 'No pasa nada; hablaré cuando la agregues. Te lo vuelvo a preguntar más tarde.',
 
-    askModel: (mb: number) => `Para entender lo que dices, necesito descargar un modelo de reconocimiento de voz (FunASR, unos ${mb} MB). ¿Lo descargo ahora?`,
+    askModel: (name: string, mb: number) => `Para entender lo que dices, necesito descargar un modelo de reconocimiento de voz (${name}, unos ${mb} MB). ¿Lo descargo ahora?`,
     download: 'Descargar',
     notNow: 'Ahora no',
     downloading: 'Descargando el modelo de voz. Coo...',

@@ -76,7 +76,7 @@ const ptBR: Translation<CoreText> = {
     keyAlready: (connection: string) => `Já tem um modelo conectado (${connection}). Moleza. Coo...`,
     keySkipped: 'Tudo bem; eu falo assim que você adicionar. Pergunto de novo mais tarde.',
 
-    askModel: (mb: number) => `Para entender o que você diz, preciso baixar um modelo de reconhecimento de voz (FunASR, cerca de ${mb} MB). Baixar agora?`,
+    askModel: (name: string, mb: number) => `Para entender o que você diz, preciso baixar um modelo de reconhecimento de voz (${name}, cerca de ${mb} MB). Baixar agora?`,
     download: 'Baixar',
     notNow: 'Agora não',
     downloading: 'Baixando o modelo de voz. Coo...',

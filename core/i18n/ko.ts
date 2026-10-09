@@ -76,7 +76,7 @@ const ko: Translation<CoreText> = {
     keyAlready: (connection: string) => `모델이 이미 연결되어 있습니다(${connection}). 간단하네요. Coo...`,
     keySkipped: '괜찮습니다. 추가하시면 그때부터 말하겠습니다. 나중에 다시 여쭙겠습니다.',
 
-    askModel: (mb: number) => `말씀을 알아들으려면 음성 인식 모델(FunASR, 약 ${mb} MB)을 다운로드해야 합니다. 지금 다운로드할까요?`,
+    askModel: (name: string, mb: number) => `말씀을 알아들으려면 음성 인식 모델(${name}, 약 ${mb} MB)을 다운로드해야 합니다. 지금 다운로드할까요?`,
     download: '다운로드',
     notNow: '지금은 안 함',
     downloading: '음성 모델을 다운로드하는 중입니다. Coo...',
