@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { DESKTOP_PET_DEFAULTS } from '../src/config.ts';
 import { DesktopPetWorld } from '../src/world.ts';
 import type { MicMode } from '../src/config.ts';
-import type { SherpaModule } from '../src/asr/funasr.ts';
+import type { SherpaModule } from '../src/asr/sherpa.ts';
 import type { ModelSpec } from '../src/runtime/store.ts';
 import { parseHotkey, type Hotkey } from '../src/asr/hotkey.ts';
 import { FakeHost } from './helpers/fake-host.ts';
@@ -51,7 +51,7 @@ const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
 /** A small stand-in for the FunASR model, fetched from `url` when not placed beforehand. */
 const modelSpec = (url = 'http://127.0.0.1:9'): ModelSpec => ({
   id: 'test-model',
-  files: [{ name: 'model.int8.onnx', bytes: MODEL.length, sha256: sha(MODEL) }, { name: 'tokens.txt', bytes: TOKENS.length, sha256: sha(TOKENS) }],
+  files: [{ role: 'model', name: 'model.int8.onnx', bytes: MODEL.length, sha256: sha(MODEL) }, { role: 'tokens', name: 'tokens.txt', bytes: TOKENS.length, sha256: sha(TOKENS) }],
   sources: [(f) => `${url}/${f}`],
 });
 function placeModel(modelsDir: string): void {

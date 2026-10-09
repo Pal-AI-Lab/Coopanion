@@ -74,8 +74,8 @@ export default {
     stopped: '系统语音识别已停止',
   },
 
-  /** FunASR 识别模型 */
-  funasr: {
+  /** sherpa-onnx 跑的识别模型 */
+  sherpa: {
     incomplete: '识别模型文件不全,重新下载一次',
     noRuntime: (platform: string) => `这个平台(${platform})没有 FunASR 的运行库`,
     loadFailed: (why: string) => `识别模型载入失败:${why}`,

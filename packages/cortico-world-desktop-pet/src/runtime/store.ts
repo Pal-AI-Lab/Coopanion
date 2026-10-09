@@ -37,7 +37,8 @@ const platformKey = (): string => `${process.platform}-${process.arch}`;
 /** A model: its files with their sizes and SHA-256, and where to fetch them from, in order. */
 export interface ModelSpec {
   id: string;
-  files: ReadonlyArray<{ name: string; bytes: number; sha256: string }>;
+  /** `role` is what the recognizer loads the file as (`src/asr/sherpa.ts`). */
+  files: ReadonlyArray<{ role: string; name: string; bytes: number; sha256: string }>;
   sources: ReadonlyArray<(file: string) => string>;
 }
 
@@ -45,8 +46,8 @@ export interface ModelSpec {
 export const FUNASR_MODEL: ModelSpec = {
   id: 'sensevoice-small-int8-2024-07-17',
   files: [
-    { name: 'model.int8.onnx', bytes: 239_233_841, sha256: 'c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51' },
-    { name: 'tokens.txt', bytes: 315_894, sha256: 'f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc' },
+    { role: 'model', name: 'model.int8.onnx', bytes: 239_233_841, sha256: 'c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51' },
+    { role: 'tokens', name: 'tokens.txt', bytes: 315_894, sha256: 'f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc' },
   ],
   /** Tried in order for each file. */
   sources: [
@@ -181,7 +182,7 @@ class RuntimeSlot {
   }
 }
 
-/** The FunASR model: present when every file is there at its full size. */
+/** A speech model: present when every file is there at its full size. */
 class ModelSlot {
   private job: Job;
   readonly bytes: number;
@@ -196,6 +197,11 @@ class ModelSlot {
 
   file(name: string): string {
     return join(this.dir, name);
+  }
+
+  /** Where each file lives, by role. */
+  paths(): Record<string, string> {
+    return Object.fromEntries(this.spec.files.map((f) => [f.role, this.file(f.name)]));
   }
 
   private has(f: { name: string; bytes: number }): boolean {

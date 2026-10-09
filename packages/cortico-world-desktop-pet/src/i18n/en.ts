@@ -77,8 +77,8 @@ const en: PetText = {
     stopped: 'Windows Speech Recognition has stopped',
   },
 
-  /** The FunASR speech model. */
-  funasr: {
+  /** The speech models sherpa-onnx runs. */
+  sherpa: {
     incomplete: 'Some speech model files are missing: download it again',
     noRuntime: (platform: string) => `FunASR has no runtime for this platform (${platform})`,
     loadFailed: (why: string) => `The speech model failed to load: ${why}`,

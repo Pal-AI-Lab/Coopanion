@@ -1,12 +1,12 @@
 /**
- * FunASR's SenseVoiceSmall (int8) run in this process through sherpa-onnx's Node addon
- * (`sherpa-onnx-node`, N-API, one prebuilt package per platform: Windows x64, macOS arm64 and x64).
- * The model files come from the runtime store (`src/runtime/store.ts`); nothing else is downloaded.
+ * Speech models run in this process through sherpa-onnx's Node addon (`sherpa-onnx-node`, N-API,
+ * one prebuilt package per platform: Windows x64, macOS arm64 and x64). Which model and how it is
+ * configured is a `SherpaModelKind`; the model files come from the runtime store
+ * (`src/runtime/store.ts`); nothing else is downloaded.
  *
- * SenseVoice recognizes a whole utterance at a time. While a sentence is being spoken the audio
- * so far is decoded again every PARTIAL_EVERY_MS, one decode at a time, so the pet shows what it
- * hears before the sentence ends; the decode after the sentence ends is the result. A 3 s sentence
- * decodes in about 0.1 s on two threads, so the repeated decodes stay well inside real time.
+ * The models recognize a whole utterance at a time. While a sentence is being spoken the audio so
+ * far is decoded again every `partialEveryMs` of the kind, one decode at a time, so the pet shows
+ * what it hears before the sentence ends; the decode after the sentence ends is the result.
  *
  * Under Electron's Node the addon refuses external buffers; only Float32Array samples go in and
  * JSON comes back, which does not touch them.
@@ -18,10 +18,10 @@ import type { TranscribeResult } from './result.ts';
 import type { SystemSentence } from './system-recognizer.ts';
 import { petText, type PetText } from '../i18n/index.ts';
 
-export type FunAsrPhase = 'stopped' | 'starting' | 'running' | 'error';
+export type SherpaPhase = 'stopped' | 'starting' | 'running' | 'error';
 
-export interface FunAsrState {
-  phase: FunAsrPhase;
+export interface SherpaState {
+  phase: SherpaPhase;
   /** What the panel shows where a server shows its address: the model in use. */
   url: string;
   pid: null;
@@ -39,10 +39,34 @@ export interface SherpaRecognizer {
   decodeAsync(stream: unknown): Promise<{ text?: string }>;
 }
 
-export interface FunAsrOptions {
-  /** The model files, or why they are not there. */
-  model: () => { model: string; tokens: string } | { missing: string };
-  /** ISO 639-1 or 'auto'; SenseVoice takes zh, en, ja, ko, yue or auto. */
+/** What differs between the models run here. */
+export interface SherpaModelKind {
+  /** What the panel shows for the model. */
+  label: string;
+  /** The language handed to the model for a recognition language (ISO 639-1 or `auto`). */
+  language(language: string): string;
+  /** sherpa-onnx's model entry (`modelConfig` without `tokens`) for the files, by their role in the runtime store, and that language. */
+  config(paths: Readonly<Record<string, string>>, language: string): Record<string, unknown>;
+  /** How often the sentence being spoken is decoded again for the bubble. */
+  partialEveryMs: number;
+}
+
+/** Languages SenseVoice names; anything else is left to its own detection. */
+const SENSEVOICE_CODES = new Set(['zh', 'en', 'ja', 'ko', 'yue']);
+
+/** FunASR's SenseVoiceSmall. A 3 s sentence decodes in about 0.1 s on two threads, so the repeated decodes stay well inside real time. */
+export const SENSEVOICE: SherpaModelKind = {
+  label: 'SenseVoiceSmall (FunASR)',
+  language: (language) => (SENSEVOICE_CODES.has(language) ? language : 'auto'),
+  config: (paths, language) => ({ senseVoice: { model: paths.model, language, useInverseTextNormalization: 1 } }),
+  partialEveryMs: 500,
+};
+
+export interface SherpaAsrOptions {
+  kind: SherpaModelKind;
+  /** The model files by role (one of them `tokens`), or why they are not there. */
+  model: () => { paths: Readonly<Record<string, string>> } | { missing: string };
+  /** ISO 639-1 or 'auto'; the kind maps it to what its model takes. */
   language: () => string;
   /** CPU threads for one decode; 0 picks two. */
   threads: () => number;
@@ -53,10 +77,6 @@ export interface FunAsrOptions {
 }
 
 const SAMPLE_RATE = 16_000;
-/** How often the sentence being spoken is decoded again for the bubble. */
-const PARTIAL_EVERY_MS = 500;
-/** Languages SenseVoice names; anything else is left to its own detection. */
-const LANGUAGES = new Set(['zh', 'en', 'ja', 'ko', 'yue']);
 const DEFAULT_THREADS = 2;
 
 export function loadSherpa(): SherpaModule {
@@ -69,21 +89,21 @@ const toFloat = (pcm: Int16Array): Float32Array => {
   return out;
 };
 
-export class FunAsrRecognizer {
+export class SherpaAsr {
   private rec: SherpaRecognizer | null = null;
-  private phase: FunAsrPhase = 'stopped';
+  private phase: SherpaPhase = 'stopped';
   private detail: string | null = null;
   private loaded = '';
   private starting: Promise<void> | null = null;
 
-  constructor(private readonly opts: FunAsrOptions) {}
+  constructor(private readonly opts: SherpaAsrOptions) {}
 
-  private get t(): PetText['funasr'] {
-    return (this.opts.text?.() ?? petText()).funasr;
+  private get t(): PetText['sherpa'] {
+    return (this.opts.text?.() ?? petText()).sherpa;
   }
 
-  state(): FunAsrState {
-    return { phase: this.phase, url: 'SenseVoiceSmall (FunASR)', pid: null, detail: this.detail };
+  state(): SherpaState {
+    return { phase: this.phase, url: this.opts.kind.label, pid: null, detail: this.detail };
   }
 
   /** The language or thread count changed since the model was loaded. */
@@ -96,8 +116,7 @@ export class FunAsrRecognizer {
   }
 
   private language(): string {
-    const l = this.opts.language();
-    return LANGUAGES.has(l) ? l : 'auto';
+    return this.opts.kind.language(this.opts.language());
   }
 
   private threads(): number {
@@ -114,7 +133,7 @@ export class FunAsrRecognizer {
     const files = this.opts.model();
     // no model yet is not a failure: voice input waits for the download
     if ('missing' in files) { this.rec = null; this.phase = 'stopped'; this.detail = files.missing; return; }
-    if (!existsSync(files.model) || !existsSync(files.tokens)) { this.phase = 'error'; this.detail = this.t.incomplete; return; }
+    if (!Object.values(files.paths).every((p) => existsSync(p))) { this.phase = 'error'; this.detail = this.t.incomplete; return; }
     this.phase = 'starting';
     this.detail = null;
     const started = Date.now();
@@ -123,8 +142,8 @@ export class FunAsrRecognizer {
       this.rec = await sherpa.OfflineRecognizer.createAsync({
         featConfig: { sampleRate: SAMPLE_RATE, featureDim: 80 },
         modelConfig: {
-          senseVoice: { model: files.model, language: this.language(), useInverseTextNormalization: 1 },
-          tokens: files.tokens,
+          ...this.opts.kind.config(files.paths, this.language()),
+          tokens: files.paths.tokens,
           numThreads: this.threads(),
           provider: 'cpu',
           debug: 0,
@@ -132,7 +151,7 @@ export class FunAsrRecognizer {
       });
       this.loaded = this.signature();
       this.phase = 'running';
-      this.opts.log.info(`FunASR 模型已载入(${Date.now() - started} ms)`);
+      this.opts.log.info(`${this.opts.kind.label} 模型已载入(${Date.now() - started} ms)`);
     } catch (err) {
       this.rec = null;
       this.phase = 'error';
@@ -173,6 +192,7 @@ export class FunAsrRecognizer {
    */
   sentence(onPartial: (text: string) => void): SystemSentence | null {
     if (!this.rec) return null;
+    const every = this.opts.kind.partialEveryMs;
     const frames: Int16Array[] = [];
     let samples = 0, decodedAt = 0, busy = false, ended = false, endedAt = 0;
     const joined = () => {
@@ -182,7 +202,7 @@ export class FunAsrRecognizer {
       return all;
     };
     const partial = () => {
-      if (busy || ended || (samples - decodedAt) * 1000 / SAMPLE_RATE < PARTIAL_EVERY_MS) return;
+      if (busy || ended || (samples - decodedAt) * 1000 / SAMPLE_RATE < every) return;
       busy = true;
       decodedAt = samples;
       void this.decode(joined()).then((r) => { busy = false; if (!ended && !r.error && r.text) onPartial(r.text); });

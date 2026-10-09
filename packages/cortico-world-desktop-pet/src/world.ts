@@ -37,7 +37,7 @@ import { PetServer, type PageMessage } from './server.ts';
 import { StatusTracker, type DescribeTool } from './status.ts';
 import { WindowHost, resolveHostCommand } from './window-host.ts';
 import { RuntimeStore, type ModelSpec } from './runtime/store.ts';
-import { FunAsrRecognizer, type FunAsrState, type SherpaModule } from './asr/funasr.ts';
+import { SENSEVOICE, SherpaAsr, type SherpaModule, type SherpaState } from './asr/sherpa.ts';
 import { SystemRecognizer, systemRecognizerSupported, type SystemRecognizerState, type SystemSentence } from './asr/system-recognizer.ts';
 import { Packer, Segmenter, rmsDb, type SegmentConfig, type SegmentSink, type Utterance } from './asr/segmenter.ts';
 import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, watchHotkey, type KeyWatcher } from './asr/hotkey.ts';
@@ -306,7 +306,7 @@ export class DesktopPetWorld implements World {
   private readonly server: PetServer;
   private windowHost: WindowHost | null = null;
   private readonly store: RuntimeStore;
-  private funasr: FunAsrRecognizer | null = null;
+  private funasr: SherpaAsr | null = null;
   private system: SystemRecognizer | null = null;
   /** The engine the running backend belongs to; a config change starts the other one. */
   private runningEngine: AsrEngine | null = null;
@@ -545,7 +545,8 @@ export class DesktopPetWorld implements World {
     await this.server.start();
     this.windowHost = new WindowHost(host.log, () => this.t.window);
     if (this.cfg.window.enabled) this.openWindow();
-    this.funasr = new FunAsrRecognizer({
+    this.funasr = new SherpaAsr({
+      kind: SENSEVOICE,
       model: () => this.funasrModel(),
       language: () => this.asrLanguage(),
       text: () => this.ui,
@@ -1142,9 +1143,9 @@ export class DesktopPetWorld implements World {
 
   /* ---------- voice ---------- */
 
-  private funasrModel(): { model: string; tokens: string } | { missing: string } {
+  private funasrModel(): { paths: Record<string, string> } | { missing: string } {
     if (this.store.funasr.state().phase !== 'ready') return { missing: this.ui.voice.modelMissing(Math.round(this.store.funasr.bytes / 1048576)) };
-    return { model: this.store.funasr.file('model.int8.onnx'), tokens: this.store.funasr.file('tokens.txt') };
+    return { paths: this.store.funasr.paths() };
   }
 
   /**
@@ -1163,12 +1164,12 @@ export class DesktopPetWorld implements World {
     return SENSEVOICE_LANGUAGES[app] ?? (this.engine() === 'system' ? app.split('-')[0]! : 'auto');
   }
 
-  private backendState(): FunAsrState | SystemRecognizerState | null {
+  private backendState(): SherpaState | SystemRecognizerState | null {
     return (this.engine() === 'system' ? this.system?.state() : this.funasr?.state()) ?? null;
   }
 
   /** Starts the engine in force and stops the other one. */
-  async startVoiceBackend(): Promise<FunAsrState | SystemRecognizerState | null> {
+  async startVoiceBackend(): Promise<SherpaState | SystemRecognizerState | null> {
     if (!this.funasr || !this.system) return null;
     const engine = this.engine();
     if (this.runningEngine !== engine) {
