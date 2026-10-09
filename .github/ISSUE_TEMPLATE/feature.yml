@@ -1,0 +1,20 @@
+name: Feature request / 功能建议
+description: Something Coopanion cannot do yet. / Coopanion 目前做不到的事。
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you want to do / 想做什么
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: How you do it today and where it gets stuck / 现在怎么做,卡在哪
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change / 建议的做法

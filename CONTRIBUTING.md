@@ -3,6 +3,15 @@
 Coopanion 用 AGPL-3.0-or-later 发布。0.1.10 及之前的版本是 MIT,已经发出的仍按 MIT。
 框架 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 是 MIT,以子模块随附,许可各归各。
 
+## 提 issue 之前
+
+- 一个 issue 只报一个问题:实际发生了什么、期望怎样、怎么复现
+- 写明 Coopanion 版本(设置窗口左上角字标下面)和操作系统,Mac 写明 Apple 芯片还是 Intel
+- Coo 行为不对或报错时附诊断包:设置窗口切到高级模式,「运行诊断」页点「导出诊断」。
+  密钥已抹掉,对话和提示词原样在里面,上传前自己看一遍
+- 功能建议写清想做什么、现在怎么做、卡在哪
+- 安全问题走 [SECURITY.md](SECURITY.md),不开公开 issue
+
 ## 提 PR 之前
 
 **一条规则**:提交的代码你要能解释清楚,包括用编码代理写的部分。做不到的 PR 会被关掉。

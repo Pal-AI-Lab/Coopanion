@@ -1,0 +1,54 @@
+name: Bug report / 问题报告
+description: Something behaves wrong. One problem per issue. / 行为不对。一个 issue 只报一个问题。
+labels: [bug]
+body:
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened / 实际发生了什么
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected / 期望的行为
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce / 复现步骤
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Coopanion version / Coopanion 版本
+      description: Shown under the Coopanion wordmark at the top left of the settings window. / 设置窗口左上角 Coopanion 字标下面。
+      placeholder: v0.1.19
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system / 操作系统
+      placeholder: Windows 11 / macOS 15, Apple Silicon / macOS 14, Intel
+    validations:
+      required: true
+  - type: input
+    id: figure
+    attributes:
+      label: Figure in use / 当前形象
+      placeholder: Coo / 大肥鱼
+  - type: input
+    id: provider
+    attributes:
+      label: Model provider and model / 模型服务与模型
+      placeholder: DeepSeek, deepseek-chat
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics / 诊断包
+      description: |
+        If Coo misbehaves or reports an error, switch the settings window to advanced mode, open Diagnostics, click Export diagnostics and drop the file here. Keys are masked; conversations and prompts are included as is, so check the file before uploading.
+        Coo 行为不对或报错时,在设置窗口切到高级模式,打开「运行诊断」,点「导出诊断」,把文件拖进这里。密钥已抹掉,对话和提示词原样在里面,上传前自己看一遍。

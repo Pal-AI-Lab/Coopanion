@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability / 安全漏洞
+    url: https://github.com/Pal-AI-Lab/Coopanion/security/advisories/new
+    about: Report privately, not as a public issue. / 私下报告,不要开公开 issue。
