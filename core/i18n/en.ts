@@ -58,7 +58,7 @@ const en: CoreText = {
   /** The introduction: what Coo says in its bubble, step by step, on the first start. */
   guide: {
     /** Answers to "Where did you hear about me?" and the ids the statistics report (docs/TELEMETRY.md); the last one skips. */
-    sources: [['GitHub', 'github'], ['A friend', 'friend'], ['Somewhere else', 'other'], ['I\'d rather not say', 'skip']],
+    sources: [['Steam', 'steam'], ['YouTube', 'youtube'], ['Reddit', 'reddit'], ['X', 'x'], ['Instagram', 'instagram'], ['TikTok', 'tiktok'], ['GitHub', 'github'], ['A friend', 'friend'], ['Somewhere else', 'other'], ['I\'d rather not say', 'skip']],
     hello: 'Hi! I\'m Coo, and I live along the bottom of your screen now. Coo...',
     helloReply: 'Hi, Coo!',
     askName: 'What should I call you?',
