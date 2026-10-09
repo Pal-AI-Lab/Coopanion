@@ -1,5 +1,6 @@
 /** Config section `worlds.desktop-pet`, its defaults and the console config groups. */
 import type { ConfigGroup } from 'cortico/core/config-schema.ts';
+import type { Language } from 'cortico/core/language.ts';
 import type { WorldSection } from 'cortico/world.ts';
 import type { SegmentConfig } from './asr/segmenter.ts';
 import { DEFAULT_HOTKEY } from './asr/hotkey.ts';
@@ -173,7 +174,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
 const K = `worlds.${DESKTOP_PET_ID}`;
 
 /** The console's config groups: the pet's own, its sounds and voice input, titled in `language` (the console's). */
-export function desktopPetConfigGroups(language = 'zh'): ConfigGroup[] {
+export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[] {
   const c = petText(language).config;
   const userMax = capFor(USER_MAX, language);
   const pet: ConfigGroup = {

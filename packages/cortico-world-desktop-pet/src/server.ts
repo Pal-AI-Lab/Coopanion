@@ -25,6 +25,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFile } from 'node:fs/promises';
 import { basename, extname, join, normalize, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
+import { languageTag, type Language } from 'cortico/core/language.ts';
 import { packFile, type FigurePack, type PackProblem } from './packs.ts';
 import { BUNDLE_TYPE, IMPORT_MAX, PACK_DEPTH, filesFromBundle, filesFromZip, type PackImporter } from './pack-import.ts';
 import { petText, type PetText } from './i18n/index.ts';
@@ -71,7 +72,7 @@ export interface PetServerOptions {
   /** Installs packs the dressing page sends; without it the page offers no import. */
   importer?: PackImporter;
   /** The app language, stamped on each page's `<html lang>` as it is served; the page loads its text in it. `zh` when absent. */
-  language?(): string;
+  language?(): Language;
   /** The text table of the app language, for errors; Chinese when absent. */
   text?(): PetText;
 }
@@ -272,8 +273,7 @@ export class PetServer {
 
   /** A page, its `<html lang>` set to the app language (`zh` as `zh-CN`). */
   private async sendPage(res: ServerResponse, full: string): Promise<void> {
-    const language = this.opts.language?.() ?? 'zh';
-    const lang = language === 'zh' ? 'zh-CN' : language.replace(/[^A-Za-z0-9-]/g, '');
+    const lang = languageTag(this.opts.language?.() ?? 'zh');
     try {
       const html = (await readFile(full, 'utf8')).replace(/<html lang="[^"]*"/, `<html lang="${lang}"`);
       res.writeHead(200, { 'content-type': MIME['.html'], 'cache-control': 'no-cache', 'content-security-policy': PAGE_CSP });

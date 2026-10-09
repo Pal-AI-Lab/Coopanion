@@ -19,6 +19,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { Language } from 'cortico/core/language.ts';
 import type { ModelLanguage } from './model-text.ts';
 import { INLINE_TAG_MAX, type VocabWord } from './script.ts';
 import { petText, type PetText } from './i18n/index.ts';
@@ -253,7 +254,7 @@ export const BUILTIN_PACKS: ReadonlyArray<{ dir: string; base: string }> = [
 ];
 
 /** The built-in packs and those installed under `roots` (each subdirectory one pack); problems are worded in `language`. */
-export function figurePacks(roots: readonly string[], language = 'zh'): PackScan {
+export function figurePacks(roots: readonly string[], language: Language = 'zh'): PackScan {
   return scanPacks(BUILTIN_PACKS, roots, petText(language).packs);
 }
 

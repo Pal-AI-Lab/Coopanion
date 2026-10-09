@@ -52,7 +52,7 @@ import { dressTable, planSettings, type SettingChange } from './self.ts';
 import { MODEL_TEXT, type ModelLanguage, type ModelText } from './model-text.ts';
 
 /** The console panels, titled in `language`. */
-export function desktopPetPanelDecls(language = 'zh'): WorldPanelDecl[] {
+export function desktopPetPanelDecls(language: Language = 'zh'): WorldPanelDecl[] {
   const p = petText(language).console.panels;
   return [
     { id: 'pet', ...p.pet, getMethods: ['state'] },
@@ -201,8 +201,8 @@ export interface DesktopPetWorldOptions {
   describeTool?: DescribeTool;
   /** The language of what the bot reads from this World (`model-text.ts`), read at each use; Chinese when absent. */
   modelLanguage?: () => ModelLanguage;
-  /** The app language, an IETF code such as `zh`, `zh-Hant`, `en`: what the person reads (see the module header). Read at each use; `zh` when absent. */
-  language?: () => string;
+  /** The app language: what the person reads (see the module header). Read at each use; `zh` when absent. */
+  language?: () => Language;
   /**
    * The language the bot is to talk to the person in, named in the model-text language, when it is
    * not that language itself; it becomes one line of the environment prompt (`{{pet.reply}}`). Null
@@ -444,7 +444,7 @@ export class DesktopPetWorld implements World {
   }
 
   /** The app language: what the person reads. */
-  private get appLanguage(): string {
+  private get appLanguage(): Language {
     return this.opts.language?.() ?? 'zh';
   }
 
