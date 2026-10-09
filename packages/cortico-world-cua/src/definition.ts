@@ -7,7 +7,8 @@ import { cuaText } from './i18n/index.ts';
 export function cuaDefinition(assembly: Pick<CuaWorldOptions, 'askPermission' | 'modelLanguage' | 'language'> = {}): WorldDefinition<CuaConfigSection> {
   return {
     id: CUA_ID,
-    label: '电脑操作',
+    // read when Core assembles the Worlds, in the app language of that moment
+    get label() { return cuaText(assembly.language?.()).console.label; },
     defaults: () => structuredClone(CUA_DEFAULTS),
     preflight: () => {
       const t = cuaText(assembly.language?.()).preflight;
