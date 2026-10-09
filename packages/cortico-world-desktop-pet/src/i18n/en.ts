@@ -77,10 +77,10 @@ const en: PetText = {
     stopped: 'Windows Speech Recognition has stopped',
   },
 
-  /** The FunASR speech model. */
-  funasr: {
+  /** The speech models sherpa-onnx runs. */
+  sherpa: {
     incomplete: 'Some speech model files are missing: download it again',
-    noRuntime: (platform: string) => `FunASR has no runtime for this platform (${platform})`,
+    noRuntime: (platform: string) => `sherpa-onnx has no runtime for this platform (${platform})`,
     loadFailed: (why: string) => `The speech model failed to load: ${why}`,
     notLoaded: 'The speech model is not loaded',
   },
@@ -90,7 +90,7 @@ const en: PetText = {
     noBuild: (platform: string) => `No prebuilt package for ${platform}`,
     downloading: (file: string) => `Downloading ${file}`,
     unpacking: 'Unpacking',
-    downloadingModel: 'Downloading the FunASR speech model',
+    downloadingModel: 'Downloading the speech model',
     downloadingFrom: (file: string, host: string) => `Downloading ${file} (${host})`,
     verifying: (file: string) => `Verifying ${file}`,
     mismatch: (sum: string) => `Checksum mismatch: ${sum}…`,
@@ -217,9 +217,9 @@ const en: PetText = {
     },
     snoreSeconds: { title: 'Snore for', suffix: 's', description: "In each sleep the pet goes quiet after snoring this long; the z's keep floating. 0 = snore until waking." },
     asrEnabled: { title: 'Voice input' },
-    asrEngine: { title: 'Recognition engine', description: "funasr runs FunASR's SenseVoiceSmall on this computer, for Chinese, English, Japanese, Korean and Cantonese, after a one-time download of about 240 MB; system uses Windows' own speech recognition, with nothing to download and lower accuracy (Windows only). Empty picks by the app language: FunASR for the languages it hears, system on Windows for the rest." },
-    asrLanguage: { title: 'Language', description: 'zh, en, ja, ko, yue, or auto to let the model tell; empty follows the app language.' },
-    asrThreads: { title: 'CPU threads', description: 'Threads FunASR uses for one recognition; 0 = 2.' },
+    asrEngine: { title: 'Recognition engine', description: "funasr runs FunASR's SenseVoiceSmall, for Chinese, English, Japanese, Korean and Cantonese, after a one-time download of about 240 MB; whisper runs OpenAI's Whisper small, for French, German, Spanish, Portuguese, Italian, Russian and about 90 more languages, after a one-time download of about 360 MB, and shows the text once a sentence ends; both recognize on this computer. system uses Windows' own speech recognition, with nothing to download and lower accuracy (Windows only). Empty picks by the app language: funasr for Chinese, English, Japanese and Korean, whisper for the rest." },
+    asrLanguage: { title: 'Language', description: 'An ISO 639-1 code, or auto to let the model tell; empty follows the app language. FunASR takes zh, en, ja, ko and yue, Whisper about a hundred codes such as fr, de, es, pt, it and ru; a code the model does not take reads as auto.' },
+    asrThreads: { title: 'CPU threads', description: 'Threads FunASR and Whisper use for one recognition; 0 = 2.' },
     asrSimplified: { title: 'Convert to Simplified', description: 'Turns Traditional characters in what was heard into Simplified while the app language is Simplified Chinese.' },
     thresholdDb: { title: 'Speech threshold' },
     silenceMs: { title: 'Silence that ends a sentence' },
@@ -256,8 +256,10 @@ const en: PetText = {
     engine: 'Recognition engine',
     funasr: 'FunASR (on this computer)',
     system: 'Windows built-in',
-    systemHint: 'Nothing to download, fair accuracy; switch to FunASR for better results',
+    whisper: 'Whisper (on this computer)',
+    systemHint: 'Nothing to download, fair accuracy; switch to FunASR or Whisper for better results',
     funasrHint: 'SenseVoiceSmall on this computer, for Chinese, English, Japanese, Korean and Cantonese; download the model once and keep it',
+    whisperHint: 'Whisper small on this computer, for French, German, Spanish, Portuguese, Italian, Russian and more; the text appears once a sentence ends; download the model once and keep it',
     server: 'Recognition service',
     start: 'Start',
     stop: 'Stop',

@@ -35,7 +35,7 @@ Coopanion 是一个桌宠。桌宠 **Coo** 待在屏幕底边，可以用气泡�
 ## 功能
 
 - **多家模型**：DeepSeek、通义千问、Kimi、智谱 GLM、豆包、百度千帆、MiniMax、阶跃星辰、OpenRouter。选一家，贴上 API Key 就能用。
-- **聊天**：按说话键说话，或者打字，Coo 在气泡里回复。语音在本机用 FunASR 识别。
+- **聊天**：按说话键说话，或者打字，Coo 在气泡里回复。语音在本机用 FunASR 或 Whisper 识别。
 - **记忆**：记得聊过的内容，也知道你戳了它、摸了它的头。
 - **操作电脑**：点按钮、打字、切窗口。动手前先问你。
 - **状态气泡**：想事情、看文件、搜索、写入、操作电脑时，头顶用各不相同的小图标和动画显示在做什么，也会显示文件名；气泡点击穿透。默认开启，可在「习惯」关闭。
@@ -103,7 +103,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
    1. 你希望它怎么称呼你；
    2. 走动频率：不乱动 / 多待着 / 常走动；
    3. 选模型服务（拿不准就选排第一的 DeepSeek），贴上 API Key，当场测试连接；
-   4. 下载语音识别模型（FunASR，约 230 MB，从 ModelScope 下载），然后教你怎么说话；
+   4. 下载语音识别模型（FunASR 约 230 MB；应用语言是法、德、西、葡、意、俄语时是 Whisper，约 360 MB；从 ModelScope 下载），然后教你怎么说话；
    5. 按钮、菜单和设置在哪，以及人设在设置窗口的「系统提示词」页。
 
    引导结束后，可以直接和 Coo 商量它的性格、说话方式和称呼，它能自己把人设写进提示词。
@@ -153,7 +153,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 
 说话键、麦克风和收音方式（按住说 / 按一下开关 / 一直听）在「语音输入」页修改。点「说话键」按钮后按下单键、组合键（如 `Ctrl + Space`）或鼠标侧键；旁边选「双击再按住」（默认）或「直接按住」。说话键不可用时会退回一直听，按钮显示 AUTO。
 
-语音默认用 **FunASR**（SenseVoiceSmall 模型）在本机识别，录音不上传。模型约 230 MB，在引导或「语音输入」页下载一次即可。Windows 上也可以用系统自带的识别，不用下载，准确率低一些。
+语音在本机识别，录音不上传：应用语言是中、英、日、韩文时用 **FunASR**（SenseVoiceSmall 模型，约 230 MB），法、德、西、葡、意、俄语时用 **Whisper**（small 模型，约 360 MB，一句说完才出字）。模型在引导或「语音输入」页下载一次即可。Windows 上也可以用系统自带的识别，不用下载，准确率低一些。
 
 ### 和 Coo 互动
 
@@ -275,7 +275,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 - Windows：设置 → 隐私和安全性 → 麦克风，允许桌面应用使用麦克风；
 - Mac：「系统设置 → 隐私与安全性」里给 Coopanion 打开「麦克风」和「输入监控」，改完重启。
 
-用 Windows 自带引擎时提示「没有语音识别器」，到设置 → 时间和语言 → 语言，给中文装上「语音识别」，或者换回 FunASR。
+用 Windows 自带引擎时提示「没有语音识别器」，到设置 → 时间和语言 → 语言，给中文装上「语音识别」，或者换回 FunASR 或 Whisper。
 
 </details>
 
@@ -306,4 +306,4 @@ Coopanion 用 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 组装：Cortico 
 
 [AGPL-3.0-or-later](LICENSE)。0.1.10 及之前发布的版本是 MIT。框架 Cortico 是 MIT，以子模块随附。提 PR 见 [CONTRIBUTING.md](CONTRIBUTING.md)，首次提交需要签[贡献者许可协议](CLA.md)。
 
-DeepSeek 大肥鱼形象（`packages/cortico-world-desktop-pet/web/whale/` 的贴图）不在 AGPL 授权范围内，来源与各家标志的说明见[桌宠 World 的第三方声明](packages/cortico-world-desktop-pet/THIRD_PARTY_NOTICES.md)。随附或运行时下载的第三方组件：Electron（MIT）、Cortico（MIT）、sherpa-onnx（Apache-2.0）、FunASR 的 SenseVoiceSmall 模型（[FunASR 模型开源协议](https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE)，用时下载）、koffi（MIT）、jpeg-js（BSD-3-Clause）、pnpm（MIT）；各家模型服务的标志取自 [lobe-icons](https://github.com/lobehub/lobe-icons)（MIT，标志归各自公司所有，只用于标明服务）。
+DeepSeek 大肥鱼形象（`packages/cortico-world-desktop-pet/web/whale/` 的贴图）不在 AGPL 授权范围内，来源与各家标志的说明见[桌宠 World 的第三方声明](packages/cortico-world-desktop-pet/THIRD_PARTY_NOTICES.md)。随附或运行时下载的第三方组件：Electron（MIT）、Cortico（MIT）、sherpa-onnx（Apache-2.0）、FunASR 的 SenseVoiceSmall 模型（[FunASR 模型开源协议](https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE)，用时下载）、OpenAI 的 Whisper small 模型（MIT，用时下载）、koffi（MIT）、jpeg-js（BSD-3-Clause）、pnpm（MIT）；各家模型服务的标志取自 [lobe-icons](https://github.com/lobehub/lobe-icons)（MIT，标志归各自公司所有，只用于标明服务）。

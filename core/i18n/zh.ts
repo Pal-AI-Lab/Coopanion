@@ -88,7 +88,7 @@ export default {
     keyAlready: (connection: string) => `模型已经连好了(${connection}),省事,库...`,
     keySkipped: '没关系,等你填好我再开口。之后我会再来问你。',
 
-    askModel: (mb: number) => `要听懂你说话,我得先下载一个语音识别模型(FunASR,约 ${mb} MB,从国内的 ModelScope 下载)。现在下吗?`,
+    askModel: (name: string, mb: number) => `要听懂你说话,我得先下载一个语音识别模型(${name},约 ${mb} MB,从国内的 ModelScope 下载)。现在下吗?`,
     download: '下载',
     notNow: '先不用',
     downloading: '正在下载语音模型,库...',

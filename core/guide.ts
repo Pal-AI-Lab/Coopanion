@@ -13,8 +13,8 @@
  *    typed in) and the key, saved, tested and made active through the console's own endpoint routes,
  *    on the platform for the language (`defaultRegion`) unless the service is already connected on
  *    the other one;
- * 4. voice input: the speech model is downloaded with one click when it is missing, then how to
- *    talk, with the talk key as a key cap;
+ * 4. voice input: the speech model of the engine in force (FunASR or Whisper, by the app language)
+ *    is downloaded with one click when it is missing, then how to talk, with the talk key as a key cap;
  * 5. where the buttons and the menu are, that Coo's persona is in the settings window's
  *    「系统提示词」 page, and where settings live.
  *
@@ -125,7 +125,7 @@ function api(origin: string, language: () => Language): ConsoleCall {
 
 interface VoiceState {
   enabled?: boolean;
-  engine?: 'funasr' | 'system';
+  engine?: 'funasr' | 'whisper' | 'system';
   model?: { phase: 'absent' | 'working' | 'ready' | 'error'; done: number; total: number | null; bytes: number; detail: string | null };
   input?: { effectiveMode?: 'hold' | 'toggle' | 'always'; hint?: string; keyLabel?: string; taps?: number };
 }
@@ -294,10 +294,10 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
 
     // 4 voice input
     let voice = deps.pet()?.voiceState() as VoiceState | undefined;
-    if (voice?.enabled !== false && voice?.engine === 'funasr' && voice.model && voice.model.phase !== 'ready') {
+    if (voice?.enabled !== false && (voice?.engine === 'funasr' || voice?.engine === 'whisper') && voice.model && voice.model.phase !== 'ready') {
       const mb = Math.round(voice.model.bytes / 1048576);
       const d = await step(4, 'voice-download', {
-        text: S.askModel(mb), actions: ['thinking'],
+        text: S.askModel(voice.engine === 'whisper' ? 'Whisper' : 'FunASR', mb), actions: ['thinking'],
         input: { kind: 'buttons', options: [{ label: S.download, primary: true }, { label: S.notNow }] },
       });
       if ('index' in d && d.index === 0) {

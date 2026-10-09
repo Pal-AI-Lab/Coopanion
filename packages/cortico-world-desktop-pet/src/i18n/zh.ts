@@ -74,10 +74,10 @@ export default {
     stopped: '系统语音识别已停止',
   },
 
-  /** FunASR 识别模型 */
-  funasr: {
+  /** sherpa-onnx 跑的识别模型 */
+  sherpa: {
     incomplete: '识别模型文件不全,重新下载一次',
-    noRuntime: (platform: string) => `这个平台(${platform})没有 FunASR 的运行库`,
+    noRuntime: (platform: string) => `这个平台(${platform})没有 sherpa-onnx 的运行库`,
     loadFailed: (why: string) => `识别模型载入失败:${why}`,
     notLoaded: '识别模型没有载入',
   },
@@ -87,7 +87,7 @@ export default {
     noBuild: (platform: string) => `没有 ${platform} 的预编译包`,
     downloading: (file: string) => `下载 ${file}`,
     unpacking: '解压',
-    downloadingModel: '下载 FunASR 识别模型',
+    downloadingModel: '下载识别模型',
     downloadingFrom: (file: string, host: string) => `下载 ${file}(${host})`,
     verifying: (file: string) => `校验 ${file}`,
     mismatch: (sum: string) => `校验不符:${sum}…`,
@@ -214,9 +214,9 @@ export default {
     } as Record<'move' | 'touch' | 'face' | 'snore' | 'talk' | 'ui', { title: string; description: string }>,
     snoreSeconds: { title: '呼噜打多久', suffix: '秒', description: '每次睡着后打这么久呼噜就安静下来,Z 照样飘;0 = 一直打到醒。' },
     asrEnabled: { title: '语音输入总开关' },
-    asrEngine: { title: '识别引擎', description: 'funasr 用 FunASR 的 SenseVoiceSmall,在本机识别,支持中文、英文、日文、韩文和粤语,首次要下载约 240 MB 的模型;system 用 Windows 自带的语音识别,不用下载,准确度低一些(只在 Windows 上有)。留空时按应用语言选:FunASR 能识别的语言用它,其余在 Windows 上用 system。' },
-    asrLanguage: { title: '语言', description: 'zh、en、ja、ko、yue,或 auto 让模型自己判断;留空时跟随应用语言。' },
-    asrThreads: { title: 'CPU 线程', description: 'FunASR 一次识别用几个线程,0 = 2。' },
+    asrEngine: { title: '识别引擎', description: 'funasr 用 FunASR 的 SenseVoiceSmall,支持中文、英文、日文、韩文和粤语,首次要下载约 240 MB 的模型;whisper 用 OpenAI 的 Whisper small,支持法语、德语、西班牙语、葡萄牙语、意大利语、俄语等近百种语言,首次要下载约 360 MB 的模型,一句说完才出字;这两个都在本机识别。system 用 Windows 自带的语音识别,不用下载,准确度低一些(只在 Windows 上有)。留空时按应用语言选:中文、英文、日文、韩文用 funasr,其余用 whisper。' },
+    asrLanguage: { title: '语言', description: 'ISO 639-1 语言代码,或 auto 让模型自己判断;留空时跟随应用语言。FunASR 认 zh、en、ja、ko、yue,Whisper 认 fr、de、es、pt、it、ru 等近百种,不认的代码按 auto。' },
+    asrThreads: { title: 'CPU 线程', description: 'FunASR 和 Whisper 一次识别用几个线程,0 = 2。' },
     asrSimplified: { title: '转成简体', description: '应用语言是简体中文时把识别出的繁体字转成简体。' },
     thresholdDb: { title: '说话门槛' },
     silenceMs: { title: '一句结束的静音' },
@@ -253,8 +253,10 @@ export default {
     engine: '识别引擎',
     funasr: 'FunASR(本机识别)',
     system: 'Windows 自带',
-    systemHint: '不用下载,准确度一般;想要更准换成 FunASR',
+    whisper: 'Whisper(本机识别)',
+    systemHint: '不用下载,准确度一般;想要更准换成 FunASR 或 Whisper',
     funasrHint: 'SenseVoiceSmall,在本机识别,支持中文、英文、日文、韩文和粤语;模型下载一次就能一直用',
+    whisperHint: 'Whisper small,在本机识别,支持法语、德语、西班牙语、葡萄牙语、意大利语、俄语等;一句说完才出字;模型下载一次就能一直用',
     server: '识别服务',
     start: '启动',
     stop: '停止',

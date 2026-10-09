@@ -59,11 +59,25 @@ export type PetTheme = 'dark' | 'light';
 export type TouchWake = 'poke' | 'all' | 'none';
 /** hold: listen while the talk key is held; toggle: each press starts or stops listening; always: listen all the time. */
 export type MicMode = 'hold' | 'toggle' | 'always';
-/** funasr: FunASR's SenseVoiceSmall in this process (one model download, every platform); system: the recognizer Windows ships (nothing to download, less accurate). */
-export type AsrEngine = 'funasr' | 'system';
+/**
+ * funasr: FunASR's SenseVoiceSmall; whisper: OpenAI's Whisper small (both in this process, one model
+ * download each, every platform); system: the recognizer Windows ships (nothing to download, less accurate).
+ */
+export type AsrEngine = 'funasr' | 'whisper' | 'system';
 
 /** Languages SenseVoiceSmall hears, by the app language that speaks them; it also takes `yue` and `auto`. */
 export const SENSEVOICE_LANGUAGES: Readonly<Record<string, string>> = { zh: 'zh', 'zh-Hant': 'zh', en: 'en', ja: 'ja', ko: 'ko' };
+
+/**
+ * The engine for an `asr.engine` setting and an app language. Empty, or a value this version does
+ * not take, the app language picks: FunASR for a language SenseVoice hears, Whisper for the rest.
+ * `system` holds only where Windows' recognizer exists (`systemSupported`).
+ */
+export function asrEngineFor(setting: string, language: string, systemSupported: boolean): AsrEngine {
+  const byLanguage: AsrEngine = language in SENSEVOICE_LANGUAGES ? 'funasr' : 'whisper';
+  if (setting === 'funasr' || setting === 'whisper') return setting;
+  return setting === 'system' && systemSupported ? 'system' : byLanguage;
+}
 
 export interface DesktopPetConfigSection extends WorldSection {
   /** Local server for the pet page, the dressing page and the pet window's socket. */
@@ -113,14 +127,11 @@ export interface DesktopPetConfigSection extends WorldSection {
   };
   asr: {
     enabled: boolean;
-    /**
-     * Empty: by the app language, FunASR for a language SenseVoice hears and the system recognizer
-     * (where there is one) for the rest. Earlier versions wrote `auto` or `whisper` here; both now mean funasr.
-     */
+    /** Empty: by the app language (`asrEngineFor`). Earlier versions wrote `auto` here, which reads as empty. */
     engine: AsrEngine | '';
-    /** A SenseVoice language code or `auto`; empty follows the app language. */
+    /** An ISO 639-1 code or `auto`; empty follows the app language. FunASR and Whisper read a code they do not take as `auto`. */
     language: string;
-    /** CPU threads for one FunASR decode; 0 = two. */
+    /** CPU threads for one FunASR or Whisper decode; 0 = two. */
     threads: number;
     /** Traditional characters heard become Simplified, while the app language is `zh`. */
     simplified: boolean;
@@ -230,7 +241,7 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
       title: c.asrGroup,
       properties: {
         [`${K}.asr.enabled`]: { type: 'boolean', title: c.asrEnabled.title, 'x-hot': true },
-        [`${K}.asr.engine`]: { type: 'string', title: c.asrEngine.title, enum: ['', 'funasr', 'system'], description: c.asrEngine.description, 'x-hot': true },
+        [`${K}.asr.engine`]: { type: 'string', title: c.asrEngine.title, enum: ['', 'funasr', 'whisper', 'system'], description: c.asrEngine.description, 'x-hot': true },
         [`${K}.asr.language`]: { type: 'string', title: c.asrLanguage.title, description: c.asrLanguage.description, 'x-hot': true },
         [`${K}.asr.threads`]: { type: 'integer', title: c.asrThreads.title, minimum: 0, maximum: 16, description: c.asrThreads.description, 'x-hot': true },
         [`${K}.asr.simplified`]: { type: 'boolean', title: c.asrSimplified.title, description: c.asrSimplified.description, 'x-hot': true },

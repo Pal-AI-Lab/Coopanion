@@ -91,7 +91,7 @@ const en: CoreText = {
     keyAlready: (connection: string) => `A model is connected already (${connection}). Easy. Coo...`,
     keySkipped: 'That\'s fine; I\'ll talk once you\'ve added it. I\'ll ask you again later.',
 
-    askModel: (mb: number) => `To understand what you say, I need to download a speech recognition model (FunASR, about ${mb} MB). Download it now?`,
+    askModel: (name: string, mb: number) => `To understand what you say, I need to download a speech recognition model (${name}, about ${mb} MB). Download it now?`,
     download: 'Download',
     notNow: 'Not now',
     downloading: 'Downloading the speech model. Coo...',

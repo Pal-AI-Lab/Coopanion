@@ -11,7 +11,7 @@
 [Coopanion](https://github.com/Pal-AI-Lab/Coopanion) 桌面上的 Coo 就是它。
 
 bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置的 Coo(C 形的身体,两只 0 形的眼睛,两条短腿)、内置的大肥鱼,或者装上的其他包。它用气泡说话、用选项提问、
-沿屏幕底边走动、做表情和动作;人可以对它说话(FunASR 在本机识别,Windows 上也可用系统自带的识别)、打字、点选项、戳它、摸它、
+沿屏幕底边走动、做表情和动作;人可以对它说话(FunASR 或 Whisper 在本机识别,Windows 上也可用系统自带的识别)、打字、点选项、戳它、摸它、
 把它拎起来甩出去,这些都作为事件送回 bot。
 
 ## 工具
@@ -123,24 +123,36 @@ kit 的身体(`web/kit/body.js`)另收 `set({ thoughtShown })`,表示页面正�
 
 桌宠窗口里的页面用麦克风收音,16 kHz 单声道 PCM 经 WebSocket 送到 World,按能量门限切句
 (`src/asr/segmenter.ts`),交给识别引擎,挡掉已知幻觉后作为 `desktop-pet.speech` 投递;应用语言是简体中文且 `asr.simplified` 开着时先把繁体转成简体。
-说话时桌宠歪头倾听,虚线气泡里边说边显示听到的字,还没定下来的部分是灰色的。
+说话时桌宠歪头倾听,虚线气泡里边说边显示听到的字,还没定下来的部分是灰色的;用 Whisper 时一句说完才出字。
 
 识别引擎存在 `asr.engine`:
 
 | `asr.engine` | 引擎 |
 |---|---|
-| 空(默认) | 按应用语言选:SenseVoice 认的语言(中、英、日、韩)用 `funasr`,其余用 `system` |
-| `funasr` | FunASR 的 SenseVoiceSmall(int8),经 sherpa-onnx 的 Node 插件在 World 进程里识别;Windows x64、macOS arm64 / x64、Linux x64 都有预编译包 |
-| `system` | Windows 自带的语音识别(SAPI 听写,System.Speech),不用下载,准确度低一些;其他系统上按 `funasr` 处理 |
+| 空(默认) | 按应用语言选:SenseVoice 认的语言(中、英、日、韩)用 `funasr`,其余(法、德、西、葡、意、俄)用 `whisper` |
+| `funasr` | FunASR 的 SenseVoiceSmall(int8),经 sherpa-onnx 的 Node 插件在 World 进程里识别 |
+| `whisper` | OpenAI 的 Whisper small(int8),同样经 sherpa-onnx 在 World 进程里识别 |
+| `system` | Windows 自带的语音识别(SAPI 听写,System.Speech),不用下载,准确度低一些;其他系统上按空处理 |
 
-旧版本写下的 `auto`、`whisper` 都按 `funasr` 处理。
+旧版本写下的 `auto` 按空处理。
 
-`funasr`:`sherpa-onnx-node` 是本包的依赖,随包安装(Windows 约 24 MB,macOS 约 35 MB),不在运行时下载。
-只有模型要下载:「语音输入」面板(或应用的新手引导)点一下「下载」,
-`model.int8.onnx`(228 MB)和 `tokens.txt` 依次从 ModelScope 取(国内可直接访问),取不到再从 Hugging Face 取,
-逐个按固定的 SHA-256 校验,放到 `<模型根>/desktop-pet/sensevoice-small-int8-2024-07-17/`。
-SenseVoice 一次识别整句;说话过程中每 0.5 秒把这句到目前为止的音频重新识别一遍,拿来边说边显示,
-一句收尾后再识别一次定稿(3 秒的一句在两个线程上约 0.1 秒)。`asr.language` 取 zh、en、ja、ko、yue 或 auto,空着时跟随应用语言(SenseVoice 不认的语言为 auto),
+`sherpa-onnx-node` 是本包的依赖,随包安装(Windows 约 24 MB,macOS 约 35 MB,Linux x64 约 33 MB),不在运行时下载;
+Windows x64、macOS arm64 / x64、Linux x64 / arm64 都有预编译包,Linux 上要 glibc 2.32 与 GCC 11 的 libstdc++ 以上(Ubuntu 22.04、Debian 12 起)。
+只有模型要下载:「语音输入」面板(或应用的新手引导)点一下「下载」,下的是当前引擎的模型;当前是 `system` 时下应用语言对应的那个,下完就换过去。
+文件依次从 ModelScope 取(国内可直接访问),取不到再从 Hugging Face 取,逐个按固定的 SHA-256 校验:
+
+| 引擎 | 文件 | 放在 `<模型根>/desktop-pet/` 下 |
+|---|---|---|
+| `funasr` | `model.int8.onnx`(228 MB)、`tokens.txt` | `sensevoice-small-int8-2024-07-17/` |
+| `whisper` | `small-encoder.int8.onnx`(107 MB)、`small-decoder.int8.onnx`(250 MB)、`small-tokens.txt` | `whisper-small-int8-2024-07-13/` |
+
+两个模型都一次识别整句。SenseVoice 在说话过程中每 0.5 秒把这句到目前为止的音频重新识别一遍,拿来边说边显示,
+一句收尾后再识别一次定稿(3 秒的一句在两个线程上约 0.1 秒)。
+Whisper 每输出一个词元约 70 ms,3 秒的一句约 1 秒、8 秒的一句约 3 秒(4 核笔记本 CPU 上两个线程;4 核上开 4 个线程更慢),
+所以只在一句收尾后识别一次:边说边重识别会让 CPU 在人说话时一直满着,定稿也要排在正在跑的那次后面。
+Whisper 对静音和底噪也会写出字(字幕署名、`[Musik]` 这类声音标注),兜底有两层:最响的 20 ms 不到 -50 dBFS 的一句不送去识别,
+识别出来的声音标注(以 `[`、`(`、`*`、`♪` 开头)和字幕署名按幻觉挡掉。
+`asr.language` 取 ISO 639-1 代码或 auto,空着时跟随应用语言;SenseVoice 认 zh、en、ja、ko、yue,Whisper 认近百种,不认的代码两者都按 auto(模型自己判断语言)。
 `asr.threads` 是一次识别用的线程数,0 表示 2。
 
 `system` 起一个常驻的 PowerShell 进程(`src/asr/system-sapi.ps1`,经 `-EncodedCommand` 传入,不受执行策略影响),
@@ -285,7 +297,7 @@ corepack pnpm build        # 面板产物 dist/,不进版本库
 ```bash
 corepack pnpm test
 corepack pnpm typecheck
-npx tsx scripts/check-voice.ts <模型根> <语音.wav>   # 连真 FunASR 手动检查,模型不在就先下载
+npx tsx scripts/check-voice.ts <模型根> <语音.wav> [应用语言]   # 连真模型手动检查(fr 等走 Whisper),模型不在就先下载
 ```
 
 `tsconfig.json` 与 `vitest.config.ts` 把 `cortico/*` 指到主仓库的 `vendor/cortico/src/`;
