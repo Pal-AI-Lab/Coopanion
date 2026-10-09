@@ -1,6 +1,6 @@
 /**
- * Chat Completions client (`POST <baseUrl>/chat/completions`) for the platforms that serve no
- * Responses endpoint, and for other URLs set to `chat`. The thinking level goes out as
+ * Chat Completions client (`POST <baseUrl>/chat/completions`) for the platforms whose Responses
+ * endpoint is missing or takes no images, and for other URLs set to `chat`. The thinking level goes out as
  * `reasoning_effort`, rewritten where the platform takes other values; past reasoning goes back as
  * `reasoning_content` while thinking is on, past turns' only while `keepThinking` holds. Images are
  * limited to the newest delivered batch (`sinceLastDelivery`), and images in tool results move to a
@@ -26,26 +26,40 @@ export interface VendorChatOptions {
   effort?: (model: string) => EffortMap | undefined;
 }
 
-/** Content of a tool result that held images only, once they move to the next user message. */
+/** Text of a tool result that held images only, once they move to the next user message. */
 export const IMAGE_RESULT = '[image]';
 
-type Message = Record<string, unknown>;
+export type Message = Record<string, unknown>;
+
+/** How a protocol writes tool results, their text and image parts, and a user message. */
+export interface ResultFormat {
+  isResult: (m: Message) => boolean;
+  /** The field of a tool result that holds its parts. */
+  field: string;
+  text: string;
+  image: string;
+  /** A user message's fields besides `content`. */
+  user: Message;
+}
+
+const CHAT_RESULTS: ResultFormat = { isResult: (m) => m.role === 'tool', field: 'content', text: 'text', image: 'image_url', user: { role: 'user' } };
 
 /** Image parts of tool results moved into one user message after each run of tool results. */
-export function imagesAfterResults(messages: readonly Message[]): Message[] {
+export function imagesAfterResults(messages: readonly Message[], format: ResultFormat = CHAT_RESULTS): Message[] {
   const out: Message[] = [];
   let images: Message[] = [];
   const flush = () => {
-    if (images.length) out.push({ role: 'user', content: images });
+    if (images.length) out.push({ ...format.user, content: images });
     images = [];
   };
   for (const m of messages) {
-    if (m.role !== 'tool') flush();
-    const parts = m.role === 'tool' && Array.isArray(m.content) ? m.content as Message[] : null;
-    if (!parts?.some((p) => p.type === 'image_url')) { out.push(m); continue; }
-    const text = parts.filter((p) => p.type === 'text').map((p) => String(p.text ?? '')).join('\n');
-    out.push({ ...m, content: text || IMAGE_RESULT });
-    images.push(...parts.filter((p) => p.type === 'image_url'));
+    const result = format.isResult(m);
+    if (!result) flush();
+    const parts = result && Array.isArray(m[format.field]) ? m[format.field] as Message[] : null;
+    if (!parts?.some((p) => p.type === format.image)) { out.push(m); continue; }
+    const text = parts.filter((p) => p.type === format.text).map((p) => String(p.text ?? '')).join('\n');
+    out.push({ ...m, [format.field]: text || IMAGE_RESULT });
+    images.push(...parts.filter((p) => p.type === format.image));
   }
   flush();
   return out;
