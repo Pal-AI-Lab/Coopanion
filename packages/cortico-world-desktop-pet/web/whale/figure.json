@@ -5,7 +5,16 @@
   "version": "1.0.0",
   "name": {
     "zh": "DeepSeek 大肥鱼",
-    "en": "DeepSeek Whale"
+    "zh-Hant": "DeepSeek 大肥魚",
+    "en": "DeepSeek Whale",
+    "ja": "DeepSeek クジラ",
+    "ko": "DeepSeek 고래",
+    "fr": "Baleine DeepSeek",
+    "de": "DeepSeek-Wal",
+    "es-419": "Ballena DeepSeek",
+    "pt-BR": "Baleia DeepSeek",
+    "it": "Balena DeepSeek",
+    "ru": "Кит DeepSeek"
   },
   "about": {
     "zh": "一个 Q 版鲸鱼女仆,二头身,侧身朝右站;蓝色长发、头顶一根呆毛,头两侧各一只鲸鱼鳍,穿女仆裙和围裙,围裙上印着配色对应厂商的标志,身后一条鲸鱼尾巴",
@@ -31,13 +40,23 @@
       "id": "scheme",
       "name": {
         "zh": "配色",
-        "en": "Colours"
+        "zh-Hant": "配色",
+        "en": "Colours",
+        "ja": "カラー",
+        "ko": "색상",
+        "fr": "Couleurs",
+        "de": "Farben",
+        "es-419": "Colores",
+        "pt-BR": "Cores",
+        "it": "Colori",
+        "ru": "Цвета"
       },
       "options": [
         {
           "id": "deepseek",
           "name": {
-            "zh": "DeepSeek"
+            "zh": "DeepSeek",
+            "en": "DeepSeek"
           },
           "thumb": "thumbs/deepseek.png",
           "accent": "#4D6BFE"
@@ -45,7 +64,8 @@
         {
           "id": "harness",
           "name": {
-            "zh": "DeepSeek Harness"
+            "zh": "DeepSeek Harness",
+            "en": "DeepSeek Harness"
           },
           "thumb": "thumbs/harness.png",
           "accent": "#555555"
@@ -53,7 +73,8 @@
         {
           "id": "chatgpt",
           "name": {
-            "zh": "ChatGPT"
+            "zh": "ChatGPT",
+            "en": "ChatGPT"
           },
           "thumb": "thumbs/chatgpt.png",
           "accent": "#303030"
@@ -61,7 +82,8 @@
         {
           "id": "claude",
           "name": {
-            "zh": "Claude"
+            "zh": "Claude",
+            "en": "Claude"
           },
           "thumb": "thumbs/claude.png",
           "accent": "#D97757"
@@ -69,7 +91,8 @@
         {
           "id": "gemini",
           "name": {
-            "zh": "Gemini"
+            "zh": "Gemini",
+            "en": "Gemini"
           },
           "thumb": "thumbs/gemini.png",
           "accent": "#4285F4"
@@ -78,6 +101,7 @@
           "id": "qwen",
           "name": {
             "zh": "千问",
+            "zh-Hant": "千問",
             "en": "Qwen"
           },
           "thumb": "thumbs/qwen.png",
@@ -86,7 +110,8 @@
         {
           "id": "kimi",
           "name": {
-            "zh": "Kimi"
+            "zh": "Kimi",
+            "en": "Kimi"
           },
           "thumb": "thumbs/kimi.png",
           "accent": "#007CFF"
@@ -94,7 +119,8 @@
         {
           "id": "minimax",
           "name": {
-            "zh": "MiniMax"
+            "zh": "MiniMax",
+            "en": "MiniMax"
           },
           "thumb": "thumbs/minimax.png",
           "accent": "#D92D7A"
@@ -109,7 +135,8 @@
         "scheme": "deepseek"
       },
       "name": {
-        "zh": "DeepSeek"
+        "zh": "DeepSeek",
+        "en": "DeepSeek"
       },
       "thumb": "thumbs/deepseek.png",
       "accent": "#4D6BFE",
@@ -138,7 +165,8 @@
         "scheme": "harness"
       },
       "name": {
-        "zh": "DeepSeek Harness"
+        "zh": "DeepSeek Harness",
+        "en": "DeepSeek Harness"
       },
       "thumb": "thumbs/harness.png",
       "accent": "#555555",
@@ -167,7 +195,8 @@
         "scheme": "chatgpt"
       },
       "name": {
-        "zh": "ChatGPT"
+        "zh": "ChatGPT",
+        "en": "ChatGPT"
       },
       "thumb": "thumbs/chatgpt.png",
       "accent": "#303030",
@@ -196,7 +225,8 @@
         "scheme": "claude"
       },
       "name": {
-        "zh": "Claude"
+        "zh": "Claude",
+        "en": "Claude"
       },
       "thumb": "thumbs/claude.png",
       "accent": "#D97757",
@@ -225,7 +255,8 @@
         "scheme": "gemini"
       },
       "name": {
-        "zh": "Gemini"
+        "zh": "Gemini",
+        "en": "Gemini"
       },
       "thumb": "thumbs/gemini.png",
       "accent": "#4285F4",
@@ -255,6 +286,7 @@
       },
       "name": {
         "zh": "千问",
+        "zh-Hant": "千問",
         "en": "Qwen"
       },
       "thumb": "thumbs/qwen.png",
@@ -284,7 +316,8 @@
         "scheme": "kimi"
       },
       "name": {
-        "zh": "Kimi"
+        "zh": "Kimi",
+        "en": "Kimi"
       },
       "thumb": "thumbs/kimi.png",
       "accent": "#007CFF",
@@ -313,7 +346,8 @@
         "scheme": "minimax"
       },
       "name": {
-        "zh": "MiniMax"
+        "zh": "MiniMax",
+        "en": "MiniMax"
       },
       "thumb": "thumbs/minimax.png",
       "accent": "#D92D7A",
