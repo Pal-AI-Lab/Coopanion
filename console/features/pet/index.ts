@@ -6,9 +6,13 @@
  * pet page's icons. The last row switches the app's anonymous usage statistics (the `companion`
  * group, core/telemetry.ts). The 「音效」 card below writes the World's sound group: the master switch
  * (the same one the pet menu flips), each kind of sound, and how long Coo snores in each sleep.
+ *
+ * The first row is the app language (`language` in the `companion` group), listed by the names the
+ * Core gives (`/api/config/options/coopanion.language`). A change applies at once: the Core tells the
+ * app, which reloads this window when the console's language changes with it.
  */
 import { ICONS } from 'cortico-world-desktop-pet/web/ui.js';
-import { get, setConfig } from '../../core/api.ts';
+import { get, post, setConfig } from '../../core/api.ts';
 import { pick } from '../../core/language.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { scaleSlider } from './scale-slider.ts';
@@ -18,6 +22,11 @@ const SOUND_GROUP = 'world:desktop-pet:sound';
 const STATS_GROUP = 'companion';
 const STATS_KEY = 'companion.telemetry';
 const STATS_DOC = 'https://github.com/Pal-AI-Lab/Coopanion/blob/main/docs/TELEMETRY.md';
+/** The app language: a key of the `companion` group, its choices from the Core. */
+const LANGUAGE_KEY = 'language';
+const LANGUAGE_OPTIONS = '/api/config/options/coopanion.language';
+/** The pet panel's state, for the default name the World gives the person in the app language. */
+const PET_STATE = '/api/console/providers/world%3Adesktop-pet/panels/pet/state';
 const K = 'worlds.desktop-pet';
 const KEYS = {
   user: `${K}.user`,
@@ -49,6 +58,8 @@ const S = pick({
   zh: {
     nav: '习惯',
     settingsTitle: '习惯',
+    language: '语言',
+    languageHint: '设置窗口、桌宠的气泡和菜单都用这种语言,Coo 也用它和你说话。还没有译文的地方显示英文(繁体中文显示简体)。',
     user: '怎么称呼你',
     userHint: 'Coo 会用这个名字叫你。',
     roam: '走动',
@@ -101,6 +112,8 @@ const S = pick({
   en: {
     nav: 'Habits',
     settingsTitle: 'Habits',
+    language: 'Language',
+    languageHint: 'The settings window and the pet\'s bubbles and menu use this language, and Coo talks to you in it. Text not yet translated shows in English (Traditional Chinese shows Simplified).',
     user: 'What to call you',
     userHint: 'Coo calls you by this name.',
     roam: 'Walking',
@@ -172,7 +185,14 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const habits = ui.sheet({ title: S.settingsTitle });
   const msg = ui.msgline('');
 
-  const user = ui.input({ placeholder: '伙伴' });
+  const language = ui.select({ onChange: (v) => void save(LANGUAGE_KEY, v, STATS_GROUP) });
+  void get<{ options?: Array<{ value: string; label: string }> }>(LANGUAGE_OPTIONS, opts).then((d) => {
+    const current = language.value;
+    language.replaceChildren(...(d.options ?? []).map((o) => { const el = ui.h('option', null, o.label); el.value = o.value; return el; }));
+    if (current) language.value = current;
+  }).catch(() => {});
+  const user = ui.input();
+  void post<{ defaultUser?: string }>(PET_STATE, { args: [] }, opts).then((s) => { if (s?.defaultUser) user.placeholder = s.defaultUser; }).catch(() => {});
   const roam = ui.segmented([
     { value: 'free', label: S.roamFree }, { value: 'calm', label: S.roamCalm }, { value: 'off', label: S.roamOff },
   ], { size: 'sm', onSelect: (v) => void save(KEYS.roam, v) });
@@ -247,6 +267,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const hideFullscreenRow = row('', hideFullscreen.el, S.hideFullscreenHint);
   hideFullscreenRow.hidden = true;
   habits.body.append(
+    row(S.language, language, S.languageHint),
     row(S.user, user, S.userHint),
     row(S.roam, roam.el),
     row(S.theme, theme.el),
@@ -337,6 +358,11 @@ async function mount(ctx: FeatureContext): Promise<void> {
       statsValues = d.groups?.find((g) => g.group.id === STATS_GROUP)?.values ?? {};
     } catch { return; }
     if (typeof statsValues[STATS_KEY] === 'boolean') stats.setChecked(statsValues[STATS_KEY] as boolean);
+    if (typeof statsValues[LANGUAGE_KEY] === 'string' && document.activeElement !== language) {
+      // before the choices arrive the select keeps the value as a lone option
+      if (![...language.options].some((o) => o.value === statsValues[LANGUAGE_KEY])) language.append(Object.assign(ui.h('option', null, statsValues[LANGUAGE_KEY] as string), { value: statsValues[LANGUAGE_KEY] as string }));
+      language.value = statsValues[LANGUAGE_KEY] as string;
+    }
     const active = document.activeElement;
     if (typeof values[KEYS.user] === 'string' && active !== user) {
       user.value = values[KEYS.user] as string;
