@@ -1,6 +1,6 @@
 /**
- * Chat Completions client (`POST <baseUrl>/chat/completions`) for the platforms that serve no
- * Responses endpoint, and for other URLs set to `chat`. The thinking level goes out as
+ * Chat Completions client (`POST <baseUrl>/chat/completions`) for the platforms whose Responses
+ * endpoint is missing or takes no images, and for other URLs set to `chat`. The thinking level goes out as
  * `reasoning_effort`, rewritten where the platform takes other values; past reasoning goes back as
  * `reasoning_content` while thinking is on, past turns' only while `keepThinking` holds. Images are
  * limited to the newest delivered batch (`sinceLastDelivery`), and images in tool results move to a

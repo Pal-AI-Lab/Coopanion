@@ -100,7 +100,7 @@ describe('Coo Pet Provider', () => {
       expect(await send('qwen', 'none')).toEqual({ effort: 'none' });
       expect(await send('kimi', 'none')).toEqual({ effort: 'low' });
       expect(await send('stepfun', 'max')).toEqual({ effort: 'high' });
-      expect(await send('qianfan', 'high')).toBeUndefined();
+      expect(await send('glm', 'high')).toBeUndefined();
       expect(await send('openai', 'none')).toEqual({ effort: 'none' });
       expect(await send('openai', 'none', 'gpt-6-astra')).toEqual({ effort: 'low' });
     } finally {
