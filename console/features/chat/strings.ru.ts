@@ -39,13 +39,13 @@ export const S: Partial<typeof en> = {
   seconds: (s: number) => `${s} с`,
   imagesUnseen: (bot: string) => `Текущая модель не видит изображения; ${bot} узнает только, сколько вы их отправили.`,
   touch: (t: Touch, b: string): string => {
-    const out = t.crashed ? `, и ${b} ненадолго отключился` : '';
+    const out = t.crashed ? `, и ${b} ненадолго в отключке` : '';
     switch (t.kind) {
       case 'poke': return t.woke ? `Вы разбудили ${b} тычком` : t.count > 1 ? `Вы ткнули ${b} ${t.count} ${plural(t.count, 'раз', 'раза', 'раз')}` : `Вы ткнули ${b}`;
       case 'pet': return t.count > 1 ? `Вы погладили ${b} несколько раз` : `Вы погладили ${b}`;
       case 'throw': return `Вы подняли ${b} и бросили${out}`;
       case 'drop': return `Вы перенесли ${b} в другое место${out}`;
-      default: return `${b} сильно ударился о землю и ненадолго отключился`;
+      default: return `Сильный удар о землю, ${b} ненадолго в отключке`;
     }
   },
 };

@@ -171,7 +171,7 @@ const de: Translation<PetText> = {
       'pet.dress': 'Die Figuren und Outfits, die pet_set wählen kann',
       'pet.self': 'Selbsteinstellung: welche Einstellungen sich direkt ändern, welche auf Zustimmung warten, oder dass sich keine ändern lässt',
       'pet.chat': 'Ein Hinweis zur Chat-Seite, wenn die App eine hat; sonst leer',
-      'pet.reply': 'Eine Zeile, die dem Bot sagt, in welcher Sprache er reden soll, wenn die App-Sprache weder vereinfachtes Chinesisch noch Englisch ist; sonst leer',
+      'pet.reply': 'Eine Zeile, die dem Bot die Sprache zum Reden vorgibt, wenn die App-Sprache weder vereinfachtes Chinesisch noch Englisch ist; sonst leer',
     },
     noImage: 'Dieses Bild gibt es nicht',
     noGuide: 'Diese App hat keine Einführung',

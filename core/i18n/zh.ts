@@ -76,7 +76,7 @@ export default {
     wakeTitle: '回应模式',
     askWake: '回应模式:你戳我、摸我、把我拎起来的时候,我什么时候回应你?',
     wake: {
-      none: { label: '安静', note: '互动先记着，和她说话时一起回应' },
+      none: { label: '安静', note: '互动先记着，等你说话时一起回应' },
       poke: { label: '默认', note: '只有被戳的时候才回应' },
       all: { label: '积极', note: '所有互动都会回应' },
     },

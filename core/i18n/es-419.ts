@@ -63,8 +63,8 @@ const es419: Translation<CoreText> = {
     wakeTitle: 'Modo de respuesta',
     askWake: 'Modo de respuesta: cuando me das un toque, me acaricias o me levantas, ¿cuándo debo responder?',
     wake: {
-      none: { label: 'Tranquilo', note: 'Los toques se guardan y responde a todos cuando le hablas' },
-      poke: { label: 'Predeterminado', note: 'Solo responde cuando le das un toque' },
+      none: { label: 'Tranquilo', note: 'Los toques quedan anotados y reciben respuesta juntos la próxima vez que hables' },
+      poke: { label: 'Predeterminado', note: 'Solo responde cuando das un toque' },
       all: { label: 'Activo', note: 'Responde a todos los toques' },
     },
 

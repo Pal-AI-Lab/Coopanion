@@ -31,7 +31,7 @@ export const S: Partial<typeof en> = {
   petHidden: 'Non visibile',
   showPet: "Mostra l'animaletto",
   dress: 'Guardaroba',
-  petNote: "Passa il mouse sull'animaletto per i pulsanti di scrittura e microfono; clic destro per il menu; tienilo premuto per sollevarlo.",
+  petNote: "Passa il mouse sull'animaletto per i pulsanti di scrittura e microfono; clic destro per il menu; tieni premuto per sollevare l'animaletto.",
   guide: 'Guida',
   guideHint: 'Coo ti rifà il giro in fondo allo schermo',
 };

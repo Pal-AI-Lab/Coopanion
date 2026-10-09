@@ -58,7 +58,7 @@ export default {
 
   // why a figure pack did not load (the bot is told)
   'figure.notInstalled': "Ce personnage n'est pas installé",
-  'figure.notReady': "Le personnage n'était pas prêt au bout de {seconds} secondes",
+  'figure.notReady': "Le personnage n'a pas pu se préparer en {seconds} secondes",
   'figure.imageFailed': "Une image ne s'est pas chargée : {url}",
   'figure.notFunction': "{name} n'est pas une fonction",
   'figure.missingMethod': "Le personnage n'a pas de {name}",

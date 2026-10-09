@@ -78,7 +78,7 @@ const en: CoreText = {
     wakeTitle: 'Response mode',
     askWake: 'Response mode: when you poke me, pat me or pick me up, when should I respond?',
     wake: {
-      none: { label: 'Quiet', note: 'Touches wait and are answered when you next talk to Coo' },
+      none: { label: 'Quiet', note: 'Touches are noted and answered together when you next speak' },
       poke: { label: 'Default', note: 'Responds only when poked' },
       all: { label: 'Eager', note: 'Responds to every touch' },
     },

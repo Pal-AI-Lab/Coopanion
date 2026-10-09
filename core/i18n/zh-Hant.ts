@@ -63,7 +63,7 @@ const zhHant: Translation<CoreText> = {
     wakeTitle: '回應模式',
     askWake: '回應模式：你戳我、摸我、把我拎起來的時候，我什麼時候回應你？',
     wake: {
-      none: { label: '安靜', note: '互動先記著，和她說話時一起回應' },
+      none: { label: '安靜', note: '互動先記著，等你說話時一起回應' },
       poke: { label: '預設', note: '只有被戳的時候才回應' },
       all: { label: '積極', note: '所有互動都會回應' },
     },

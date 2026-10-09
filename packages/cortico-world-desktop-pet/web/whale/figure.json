@@ -18,7 +18,7 @@
   },
   "about": {
     "zh": "一个 Q 版鲸鱼女仆,二头身,侧身朝右站;蓝色长发、头顶一根呆毛,头两侧各一只鲸鱼鳍,穿女仆裙和围裙,围裙上印着配色对应厂商的标志,身后一条鲸鱼尾巴",
-    "en": "a chibi whale maid, two heads tall, standing three-quarters on facing right; long blue hair with an ahoge, a whale fin on each side of the head, a maid dress and an apron printed with the logo of the colour scheme's vendor, and a whale tail behind her"
+    "en": "a chibi whale maid, two heads tall, standing three-quarters on facing right; long blue hair with an ahoge, a whale fin on each side of the head, a maid dress and an apron printed with the logo of the colour scheme's vendor, and a whale tail behind"
   },
   "author": "Pal-AI-Lab",
   "credits": [
@@ -737,7 +737,7 @@
       },
       "about": {
         "zh": "低头两下",
-        "en": "dips her head twice"
+        "en": "dips the head twice"
       },
       "seconds": 0.8
     },
@@ -751,7 +751,7 @@
       },
       "about": {
         "zh": "脸左右转",
-        "en": "turns her face left and right"
+        "en": "turns the face left and right"
       },
       "seconds": 0.8
     },
@@ -871,7 +871,7 @@
       },
       "about": {
         "zh": "闭眼,上身往前倾鞠一躬",
-        "en": "closes her eyes and bows from the waist"
+        "en": "closes the eyes and bows from the waist"
       },
       "seconds": 1.7
     },

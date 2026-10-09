@@ -7,7 +7,7 @@ const fr: Translation<CoreText> = {
   settings: {
     language: { title: 'Langue', description: 'La fenêtre des paramètres, les bulles et le menu du compagnon utilisent cette langue, et Coo vous parle dans cette langue. Prend effet immédiatement.' },
     telemetry: { title: "Statistiques d'utilisation anonymes", description: "Envoie des comptages d'utilisation et les réglages, jamais les conversations, pour aider à améliorer Coopanion. Les champs sont listés dans docs/TELEMETRY.md." },
-    roundsSoft: { title: 'Rappel de conclusion', suffix: 'requêtes', description: "Après ce nombre de requêtes au modèle dans un même réveil, Coo est invité à finir ce qu'il fait et à terminer le tour." },
+    roundsSoft: { title: 'Rappel de conclusion', suffix: 'requêtes', description: "Après ce nombre de requêtes au modèle dans un même réveil, un rappel demande à Coo de conclure ce qui est en cours et de terminer le tour." },
     roundsHard: { title: 'Requêtes par réveil', suffix: 'requêtes', description: 'Le maximum de requêtes au modèle dans un même réveil ; le tour se termine quand il est atteint.' },
   },
 
@@ -63,8 +63,8 @@ const fr: Translation<CoreText> = {
     wakeTitle: 'Mode de réponse',
     askWake: 'Mode de réponse : quand vous me donnez un petit coup, me caressez ou me soulevez, quand dois-je répondre ?',
     wake: {
-      none: { label: 'Calme', note: 'Les contacts attendent et reçoivent une réponse quand vous lui parlez' },
-      poke: { label: 'Par défaut', note: 'Ne répond que quand on lui donne un petit coup' },
+      none: { label: 'Calme', note: 'Les contacts sont notés et reçoivent une réponse groupée la prochaine fois que vous parlez' },
+      poke: { label: 'Par défaut', note: "Ne répond qu'aux petits coups" },
       all: { label: 'Réactif', note: 'Répond à tous les contacts' },
     },
 

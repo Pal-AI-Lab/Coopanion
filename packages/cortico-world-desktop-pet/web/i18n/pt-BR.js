@@ -44,7 +44,7 @@ export default {
   'action.dress': 'Trocar cores, chapéus, brincos, óculos e acessórios de pescoço',
   'action.hide': 'Me esconda por enquanto (o ícone da bandeja me traz de volta)',
   'menu.cancel': 'Cancelar',
-  'menu.resume': 'Retomar (pausado agora)',
+  'menu.resume': 'Retomar (em pausa agora)',
   'menu.pause': 'Pausar',
   'menu.settings': 'Abrir configurações',
   'theme.toLight': 'Mudar para o modo dia',
