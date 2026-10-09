@@ -19,6 +19,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { ModelLanguage } from './model-text.ts';
 import { INLINE_TAG_MAX, type VocabWord } from './script.ts';
 
 export const MANIFEST_FILE = 'figure.json';
@@ -286,6 +287,15 @@ export function packFile(pack: FigurePack, path: string): string | null {
 /** The name in `language`, else Chinese, else the first one given. */
 export function nameIn(n: Names, language = 'zh'): string {
   return n[language] ?? n.zh ?? Object.values(n)[0] ?? '';
+}
+
+/**
+ * A name of a figure, axis, option or preset as the bot reads it: in Chinese as `nameIn` gives it,
+ * in English the English name, else `id` (what the tools take).
+ */
+export function modelName(n: Names | undefined, id: string, language: ModelLanguage): string {
+  if (language === 'en') return n?.en ?? id;
+  return n ? nameIn(n) : id;
 }
 
 /** The pack the skin asks for: the one with `figure`'s id, else Coo (a pack that went away shows as Coo). */

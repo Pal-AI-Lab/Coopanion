@@ -252,7 +252,8 @@
         ]
       },
       "about": {
-        "zh": "默认的脸"
+        "zh": "默认的脸",
+        "en": "the default face"
       },
       "seconds": 0.9
     },
@@ -266,7 +267,8 @@
         ]
       },
       "about": {
-        "zh": "眼睛弯成 ^ ^"
+        "zh": "眼睛弯成 ^ ^",
+        "en": "eyes curve into ^ ^"
       },
       "seconds": 0.9
     },
@@ -279,7 +281,8 @@
         ]
       },
       "about": {
-        "zh": "一只眼 ^"
+        "zh": "一只眼 ^",
+        "en": "one eye turns into ^"
       },
       "seconds": 0.9
     },
@@ -293,7 +296,8 @@
         ]
       },
       "about": {
-        "zh": "眼睛变心形,冒小心心"
+        "zh": "眼睛变心形,冒小心心",
+        "en": "heart-shaped eyes, little hearts float up"
       },
       "seconds": 0.9
     },
@@ -306,7 +310,8 @@
         ]
       },
       "about": {
-        "zh": "脸红,眼神躲开"
+        "zh": "脸红,眼神躲开",
+        "en": "blushes and looks away"
       },
       "seconds": 0.9
     },
@@ -320,7 +325,8 @@
         ]
       },
       "about": {
-        "zh": "眼睛放大,头顶感叹号"
+        "zh": "眼睛放大,头顶感叹号",
+        "en": "eyes go wide, an exclamation mark overhead"
       },
       "seconds": 0.9
     },
@@ -333,7 +339,8 @@
         ]
       },
       "about": {
-        "zh": "皱眉,头顶怒气符号,身体发抖"
+        "zh": "皱眉,头顶怒气符号,身体发抖",
+        "en": "frowns, an anger mark overhead, body shaking"
       },
       "seconds": 0.9
     },
@@ -347,7 +354,8 @@
         ]
       },
       "about": {
-        "zh": "八字眉,掉眼泪"
+        "zh": "八字眉,掉眼泪",
+        "en": "brows slant down, tears fall"
       },
       "seconds": 0.9
     },
@@ -361,7 +369,8 @@
         ]
       },
       "about": {
-        "zh": "眯眼打哈欠"
+        "zh": "眯眼打哈欠",
+        "en": "squints and yawns"
       },
       "seconds": 0.9
     },
@@ -375,7 +384,8 @@
         ]
       },
       "about": {
-        "zh": "眼睛往上看,头顶冒圈"
+        "zh": "眼睛往上看,头顶冒圈",
+        "en": "looks up, rings rise overhead"
       },
       "seconds": 0.9
     },
@@ -389,7 +399,8 @@
         ]
       },
       "about": {
-        "zh": "眯眼斜看,嘴角带笑"
+        "zh": "眯眼斜看,嘴角带笑",
+        "en": "a narrowed sidelong look and a smirk"
       },
       "seconds": 0.9
     },
@@ -403,7 +414,8 @@
         ]
       },
       "about": {
-        "zh": "嘴嘟起来,脸红,扭头不看你"
+        "zh": "嘴嘟起来,脸红,扭头不看你",
+        "en": "pouts, blushes and turns away from you"
       },
       "seconds": 0.9
     },
@@ -417,7 +429,8 @@
         ]
       },
       "about": {
-        "zh": "八字眉,冒冷汗"
+        "zh": "八字眉,冒冷汗",
+        "en": "brows slant down, a cold sweat"
       },
       "seconds": 0.9
     },
@@ -431,7 +444,8 @@
         ]
       },
       "about": {
-        "zh": "眼神压低,一脸认真"
+        "zh": "眼神压低,一脸认真",
+        "en": "a lowered gaze, a serious face"
       },
       "seconds": 0.9
     },
@@ -445,7 +459,8 @@
         ]
       },
       "about": {
-        "zh": "眼睛变成 > <,满脸通红冒汗"
+        "zh": "眼睛变成 > <,满脸通红冒汗",
+        "en": "eyes turn into > <, red all over and sweating"
       },
       "seconds": 0.9
     },
@@ -459,7 +474,8 @@
         ]
       },
       "about": {
-        "zh": "眼睛瞪大,冒汗,身体发抖"
+        "zh": "眼睛瞪大,冒汗,身体发抖",
+        "en": "eyes wide, sweating, body shaking"
       },
       "seconds": 0.9
     },
@@ -473,7 +489,8 @@
         ]
       },
       "about": {
-        "zh": "眼睛里闪着星星"
+        "zh": "眼睛里闪着星星",
+        "en": "stars sparkle in the eyes"
       },
       "seconds": 0.9
     },
@@ -487,7 +504,8 @@
         ]
       },
       "about": {
-        "zh": "闭眼大哭,眼泪直流"
+        "zh": "闭眼大哭,眼泪直流",
+        "en": "eyes shut, wailing, tears streaming"
       },
       "seconds": 0.9
     },
@@ -501,7 +519,8 @@
         ]
       },
       "about": {
-        "zh": "一脸不解,头顶问号"
+        "zh": "一脸不解,头顶问号",
+        "en": "a puzzled face, a question mark overhead"
       },
       "seconds": 0.9
     },
@@ -515,7 +534,8 @@
         ]
       },
       "about": {
-        "zh": "站起来(坐着、睡着时)"
+        "zh": "站起来(坐着、睡着时)",
+        "en": "stands up (when sitting or asleep)"
       },
       "seconds": 1.2
     },
@@ -529,7 +549,8 @@
         ]
       },
       "about": {
-        "zh": "原地起跳"
+        "zh": "原地起跳",
+        "en": "jumps on the spot"
       },
       "seconds": 1.2
     },
@@ -543,7 +564,8 @@
         ]
       },
       "about": {
-        "zh": "小小蹦一下"
+        "zh": "小小蹦一下",
+        "en": "a small hop"
       },
       "seconds": 0.9
     },
@@ -557,7 +579,8 @@
         ]
       },
       "about": {
-        "zh": "左右张望"
+        "zh": "左右张望",
+        "en": "looks left and right"
       },
       "seconds": 2.7
     },
@@ -570,7 +593,8 @@
         ]
       },
       "about": {
-        "zh": "转向另一边"
+        "zh": "转向另一边",
+        "en": "turns to face the other way"
       },
       "seconds": 0.4
     },
@@ -583,7 +607,8 @@
         ]
       },
       "about": {
-        "zh": "点两下头"
+        "zh": "点两下头",
+        "en": "nods twice"
       },
       "seconds": 0.8
     },
@@ -596,7 +621,8 @@
         ]
       },
       "about": {
-        "zh": "摇头"
+        "zh": "摇头",
+        "en": "shakes its head"
       },
       "seconds": 0.8
     },
@@ -609,7 +635,8 @@
         ]
       },
       "about": {
-        "zh": "原地转一圈"
+        "zh": "原地转一圈",
+        "en": "spins around once on the spot"
       },
       "seconds": 0.8
     },
@@ -623,7 +650,8 @@
         ]
       },
       "about": {
-        "zh": "坐下"
+        "zh": "坐下",
+        "en": "sits down"
       },
       "seconds": 0.8,
       "lasting": true
@@ -638,7 +666,8 @@
         ]
       },
       "about": {
-        "zh": "坐着打盹"
+        "zh": "坐着打盹",
+        "en": "dozes sitting down"
       },
       "seconds": 0.8,
       "lasting": true
@@ -653,7 +682,8 @@
         ]
       },
       "about": {
-        "zh": "头晕眼花几秒"
+        "zh": "头晕眼花几秒",
+        "en": "dizzy for a few seconds"
       },
       "seconds": 3.2
     },
@@ -667,7 +697,8 @@
         ]
       },
       "about": {
-        "zh": "随便走一段"
+        "zh": "随便走一段",
+        "en": "wanders a little way"
       },
       "seconds": 12
     },
@@ -681,7 +712,8 @@
         ]
       },
       "about": {
-        "zh": "跑到屏幕另一头"
+        "zh": "跑到屏幕另一头",
+        "en": "runs to the other end of the screen"
       },
       "seconds": 12
     },
@@ -695,7 +727,8 @@
         ]
       },
       "about": {
-        "zh": "笑着打招呼"
+        "zh": "笑着打招呼",
+        "en": "waves hello with a smile"
       },
       "seconds": 1.7
     },
@@ -708,7 +741,8 @@
         ]
       },
       "about": {
-        "zh": "闭眼鞠一躬"
+        "zh": "闭眼鞠一躬",
+        "en": "bows with eyes closed"
       },
       "seconds": 1.7
     },
@@ -722,7 +756,8 @@
         ]
       },
       "about": {
-        "zh": "缩着身子抖一会儿"
+        "zh": "缩着身子抖一会儿",
+        "en": "huddles up and shivers for a while"
       },
       "seconds": 1.9
     },
@@ -736,7 +771,8 @@
         ]
       },
       "about": {
-        "zh": "开心地蹦起来扑腾"
+        "zh": "开心地蹦起来扑腾",
+        "en": "bounces and flaps about happily"
       },
       "seconds": 1.5
     },
@@ -750,7 +786,8 @@
         ]
       },
       "about": {
-        "zh": "原地踩着节拍摇摆三秒,冒音符"
+        "zh": "原地踩着节拍摇摆三秒,冒音符",
+        "en": "sways to a beat on the spot for three seconds, music notes floating up"
       },
       "seconds": 3.4
     }
