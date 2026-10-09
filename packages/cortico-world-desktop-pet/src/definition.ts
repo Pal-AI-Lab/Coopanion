@@ -5,6 +5,7 @@ import { DESKTOP_PET_DEFAULTS, DESKTOP_PET_ID, type DesktopPetConfigSection, typ
 import { DesktopPetWorld, modelsDirFor, type PetBotControls } from './world.ts';
 import type { DescribeTool } from './status.ts';
 import type { ModelLanguage } from './model-text.ts';
+import { petText } from './i18n/index.ts';
 
 /** The console keeps the bot's avatar here, in the deployment directory. */
 const AVATAR_FILE = 'avatar.png';
@@ -34,7 +35,8 @@ export interface DesktopPetAssembly {
 export function desktopPetDefinition(assembly: DesktopPetAssembly = {}): WorldDefinition<DesktopPetConfigSection> {
   return {
     id: DESKTOP_PET_ID,
-    label: '桌宠',
+    // read when Core assembles the Worlds, in the app language of that moment
+    get label() { return petText(assembly.language?.()).console.label; },
     defaults: () => structuredClone(DESKTOP_PET_DEFAULTS),
     // ctx.cfg is the live `worlds.desktop-pet` section: hot keys are read at use
     create: (ctx) => {
