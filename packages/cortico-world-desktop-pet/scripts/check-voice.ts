@@ -11,13 +11,14 @@
 import { readFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { isLanguage } from 'cortico/core/language.ts';
 import { DESKTOP_PET_DEFAULTS } from '../src/config.ts';
 import { DesktopPetWorld } from '../src/world.ts';
 import { FakeHost } from '../tests/helpers/fake-host.ts';
 import { FakePage } from '../tests/helpers/page.ts';
 
 const [modelsDir, wavFile, language = 'zh'] = process.argv.slice(2);
-if (!modelsDir || !wavFile) throw new Error('usage: check-voice.ts <models dir> <wav> [app language]');
+if (!modelsDir || !wavFile || !isLanguage(language)) throw new Error('usage: check-voice.ts <models dir> <wav> [app language]');
 
 function readWav(file: string): Int16Array {
   const b = readFileSync(file);

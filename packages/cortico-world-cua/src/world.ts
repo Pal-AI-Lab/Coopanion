@@ -59,8 +59,8 @@ export interface CuaWorldOptions {
   askPermission?: (question: string) => Promise<Answer | null>;
   /** The language of what the bot reads from this World, read at each use; Chinese when absent. */
   modelLanguage?: () => ModelLanguage;
-  /** The app language, an IETF code such as `zh` or `en`: the permission question and the system dialog's words. Read at each use; `zh` when absent. */
-  language?: () => string;
+  /** The app language: the permission question and the system dialog's words. Read at each use; `zh` when absent. */
+  language?: () => Language;
 }
 
 /** The person did not allow this turn's computer use. */

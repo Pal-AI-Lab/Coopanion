@@ -1,6 +1,6 @@
 /**
- * 简体中文:这个 World 给人看的文字。键与 en.ts 相同;新语言照 en.ts 写一份,再在 index.ts 里登记。
- * 气泡、菜单、语音提示按应用语言;控制台的配置项、面板与提示词说明按控制台请求的语言。
+ * 简体中文:这个 World 给人看的文字。键与 en.ts 相同;繁体中文缺的顶层键读这里。
+ * 气泡、菜单、语音提示按应用语言;控制台的配置项、面板、对话页与提示词说明按控制台请求的语言。
  * 给 bot 读的文字不在这里(model-text.ts)。
  */
 export default {
@@ -290,5 +290,17 @@ export default {
     keyProblem: (problem: string) => `${problem},改为一直收音`,
     results: '识别结果',
     resultsHint: '划掉的是太短或疑似幻觉、没有发出去的',
+  },
+
+  /** 对话页发消息被退回的原因与提示 */
+  chat: {
+    badImages: '图片格式不对',
+    tooManyImages: (max: number) => `一次最多 ${max} 张图`,
+    badMime: (mime: string) => `不支持的图片格式 ${mime}`,
+    emptyImage: '有一张图是空的',
+    bigImage: (mb: number) => `单张图不能超过 ${mb} MB`,
+    offline: '还没连上',
+    notSent: '没能送出',
+    tooLate: '这条已经送到了,撤不回来。',
   },
 };

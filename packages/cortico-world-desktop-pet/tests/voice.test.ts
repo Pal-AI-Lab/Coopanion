@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import { DESKTOP_PET_DEFAULTS } from '../src/config.ts';
 import { DesktopPetWorld } from '../src/world.ts';
 import type { MicMode } from '../src/config.ts';
+import type { Language } from 'cortico/core/language.ts';
 import type { SherpaModule } from '../src/asr/sherpa.ts';
 import type { ModelSpec } from '../src/runtime/store.ts';
 import { parseHotkey, type Hotkey } from '../src/asr/hotkey.ts';
@@ -98,7 +99,7 @@ function scriptedKey(problem?: string) {
   return { key, watch };
 }
 
-async function setup(text: string | ((samples: number) => string), mode: MicMode = 'always', watch?: ReturnType<typeof scriptedKey>['watch'], language = 'zh') {
+async function setup(text: string | ((samples: number) => string), mode: MicMode = 'always', watch?: ReturnType<typeof scriptedKey>['watch'], language: Language = 'zh') {
   const asr = fakeFunAsr(text);
   const cfg = structuredClone(DESKTOP_PET_DEFAULTS);
   Object.assign(cfg, { enabled: true, port: 0 });

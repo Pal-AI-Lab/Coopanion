@@ -2,24 +2,13 @@
  * 字标下面那一行:当前版本与项目地址;GitHub 上最新的正式 Release 比当前版本新时,再多一行去下载的链接。
  * 版本号由 scripts/stage.ts 从 package.json 写进 app-version.ts。查询失败就只显示当前版本。
  */
-import { pick } from '../core/language.ts';
 import { APP_VERSION } from '../app-version.ts';
+import { S } from './strings.ts';
 
 export const REPO_URL = 'https://github.com/Pal-AI-Lab/Coopanion';
 const RELEASE_API = 'https://api.github.com/repos/Pal-AI-Lab/Coopanion/releases/latest';
 /** 与 Cortico 控制台查框架 Release 同一时限。 */
 const RELEASE_TIMEOUT_MS = 15_000;
-
-const S = pick({
-  zh: {
-    repoHint: '在 GitHub 上打开 Coopanion 项目',
-    update: (latest: string) => `Coopanion ${latest} 已发布,点这里下载更新`,
-  },
-  en: {
-    repoHint: 'Open the Coopanion project on GitHub',
-    update: (latest: string) => `Coopanion ${latest} is out: download the update`,
-  },
-});
 
 export interface ReleaseUpdate { version: string; url: string }
 

@@ -129,12 +129,12 @@ For the others, select the service in the bubble or on the Start page and use it
 | DeepSeek                 | [platform.deepseek.com](https://platform.deepseek.com/api_keys)                                    | `deepseek-flash`                                                           |
 | Qwen (Alibaba Bailian)   | [bailian.console.aliyun.com](https://bailian.console.aliyun.com/cn-beijing/model/settings/api-key) | `qwen3.8-flash`                                                            |
 | Kimi (Moonshot)          | [platform.kimi.com](https://platform.kimi.com/console/api-keys)                                    | `kimi-k3`                                                                  |
-| Zhipu GLM                | [bigmodel.cn](https://bigmodel.cn/usercenter/proj-mgmt/apikeys)                                    | `glm-4.6v-flashx` (switch to `glm-5.3` if it fails to connect)             |
+| Zhipu GLM                | [bigmodel.cn](https://bigmodel.cn/usercenter/proj-mgmt/apikeys)                                    | `glm-5.3-flash` (switch to `glm-5.3` if it fails to connect)               |
 | Doubao (Volcengine Ark)  | [ark.volcengine.com](https://ark.volcengine.com/region:cn-beijing/apikey)                          | `doubao-seed-2-1-lite-260915` (enable it in the Ark console first)         |
 | Baidu Qianfan            | [console.bce.baidu.com](https://console.bce.baidu.com/iam/#/iam/apikey/list)                       | `glm-5.3-flash` (via Chat Completions; Responses takes text only)          |
 | MiniMax                  | [platform.minimax.cn](https://platform.minimax.cn/user-center/basic-information/interface-key)     | `MiniMax-M3`                                                               |
 | StepFun                  | [platform.stepfun.com](https://platform.stepfun.com/interface-key)                                 | `step-3.7-flash`                                                           |
-| OpenRouter               | [openrouter.ai](https://openrouter.ai/settings/keys)                                               | `qwen/qwen3.8-flash`                                                       |
+| OpenRouter               | [openrouter.ai](https://openrouter.ai/settings/keys)                                               | `deepseek/deepseek-v4.1-flash`                                             |
 
 Each default is the fast, cheap, vision-capable tier of that vendor. To use another model, change the name in the guide or in the Model field on the Start page.
 

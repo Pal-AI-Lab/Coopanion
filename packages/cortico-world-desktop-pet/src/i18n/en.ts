@@ -1,14 +1,14 @@
 /**
- * English: the text this World shows people. The keys are zh.ts's; a new language is a copy of this
- * file in that language, registered in index.ts. Bubbles, the menu and voice hints follow the app
- * language; the console's settings, panels and prompt notes follow the console request's language.
- * Text the bot reads is not here (model-text.ts).
+ * English: the text this World shows people. The keys are zh.ts's; a language other than zh-Hant
+ * reads the top-level keys its file leaves out from here. Bubbles, the menu and voice hints follow the
+ * app language; the console's settings, panels, chat page and prompt notes follow the console
+ * request's language. Text the bot reads is not here (model-text.ts).
  */
 import type { PetText } from './index.ts';
 
 const en: PetText = {
   /** What events and bubbles call the person while no name is set. */
-  defaultUser: 'Friend',
+  defaultUser: 'Pal',
 
   /** The pet's menu and bubbles. */
   menu: {
@@ -293,6 +293,18 @@ const en: PetText = {
     keyProblem: (problem: string) => `${problem}; listening all the time instead`,
     results: 'What was heard',
     resultsHint: 'Struck-through lines were too short or likely hallucinated, and were not sent',
+  },
+
+  /** Why the chat page's message was turned back, and its notices. */
+  chat: {
+    badImages: 'The images are not in a form this page sends',
+    tooManyImages: (max: number) => `At most ${max} images at a time`,
+    badMime: (mime: string) => `Unsupported image type ${mime}`,
+    emptyImage: 'One of the images is empty',
+    bigImage: (mb: number) => `Each image must be under ${mb} MB`,
+    offline: 'Not connected yet',
+    notSent: 'Could not send it',
+    tooLate: 'That one has already been delivered and cannot be taken back.',
   },
 };
 

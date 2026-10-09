@@ -1,8 +1,8 @@
 /**
- * The pages' text. Each language is a module in `i18n/`, named for its app language code (`zh.js`,
- * `en.js`, `zh-Hant.js`), whose default export maps keys to strings; `{name}` marks a value filled in.
- * A language without its module, and a key its module leaves out, read zh.js for `zh-Hant` and en.js
- * for every other language.
+ * The pages' text. Each app language is a module in `i18n/` named for its code (`zh.js`, `en.js`,
+ * `zh-Hant.js`), whose default export maps keys to strings; `{name}` marks a value filled in. zh.js and
+ * en.js have every key; a key another language's module leaves out reads zh.js for `zh-Hant` and en.js
+ * for the rest.
  *
  * The server stamps the app language on `<html lang>` (`zh` as `zh-CN`) when it serves a page; the
  * page awaits `useLanguage()` before drawing, and calls it again when the World's prefs bring

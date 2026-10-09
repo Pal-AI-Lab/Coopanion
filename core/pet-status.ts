@@ -7,7 +7,7 @@
  */
 import { capFor, charCount, cutChars, numberArg, stringArg, type DescribeTool, type PetStatus, type ToolArgs } from 'cortico-world-desktop-pet';
 import { coreText, type CoreText } from './i18n/index.ts';
-import type { AppLanguage } from './language.ts';
+import type { Language } from 'cortico/core/language.ts';
 
 /** The longest detail, for Chinese, Japanese and Korean. */
 const DETAIL_MAX = 20;
@@ -22,7 +22,7 @@ function clickText(s: CoreText['status'], args: ToolArgs, done: boolean): string
 }
 
 /** The status bubble's words for a tool call, in `language()` at the time of the call. */
-export function petToolDescriber(language: () => AppLanguage): DescribeTool {
+export function petToolDescriber(language: () => Language): DescribeTool {
   return (name, args, done) => {
     const app = language();
     const s = coreText(app).status;

@@ -2,6 +2,7 @@
  * Tool declarations; `DesktopPetWorld.tools()` binds the handlers. Descriptions are English whatever the
  * model-text language; the character caps on what the person reads follow the app language (`capFor`).
  */
+import type { Language } from 'cortico/core/language.ts';
 import type { ToolDef } from 'cortico/core/types.ts';
 import { SCALE_MAX, SCALE_MIN, USER_MAX } from './config.ts';
 import { capFor } from './i18n/index.ts';
@@ -10,7 +11,7 @@ import { capFor } from './i18n/index.ts';
 export const ASK_OPTION_MAX = 40;
 
 /** The declarations with the caps of the app language `language`. */
-export const petToolDecls = (language = 'zh'): Array<Omit<ToolDef, 'handler'>> => [
+export const petToolDecls = (language: Language = 'zh'): Array<Omit<ToolDef, 'handler'>> => [
   {
     name: 'pet_say',
     tags: ['speak'],

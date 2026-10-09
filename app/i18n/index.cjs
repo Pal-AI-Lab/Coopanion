@@ -1,14 +1,13 @@
 /**
  * The main process's text, and the language a new install starts in.
  *
- * Each language's text is a file beside this one named for its code (`zh.cjs`, `en.cjs`; a new
- * language is a new `<code>.cjs` with the keys of `en.cjs`). A language without its file, and a key its
- * file leaves out, read `zh.cjs` for `zh-Hant` and `en.cjs` for every other language.
+ * Each language's text is a file beside this one named for its code. `zh.cjs` and `en.cjs` have every
+ * key; a key another language's file leaves out reads `zh.cjs` for `zh-Hant` and `en.cjs` for the rest.
  */
 const { existsSync, readFileSync } = require('node:fs');
 const { join } = require('node:path');
 
-/** The app's languages, as `core/language.ts` lists them. */
+/** The app's languages: Cortico's console languages, as `LANGUAGES` in `cortico/core/language.ts` lists them. */
 const LANGUAGES = ['zh', 'zh-Hant', 'en', 'ja', 'ko', 'fr', 'de', 'es-419', 'pt-BR', 'it', 'ru'];
 /** Plain language subtags that map onto an app language of their own name. */
 const PLAIN = new Set(['en', 'ja', 'ko', 'fr', 'de', 'it', 'ru']);
@@ -47,23 +46,24 @@ function configuredLanguage(home) {
   }
 }
 
-const tables = new Map();
-function table(language) {
-  if (!tables.has(language)) {
-    let t = null;
-    try { t = require(`./${language}.cjs`); } catch { /* no file for it */ }
-    tables.set(language, t);
-  }
-  return tables.get(language);
-}
+const TABLES = {
+  zh: require('./zh.cjs'),
+  'zh-Hant': require('./zh-Hant.cjs'),
+  en: require('./en.cjs'),
+  ja: require('./ja.cjs'),
+  ko: require('./ko.cjs'),
+  fr: require('./fr.cjs'),
+  de: require('./de.cjs'),
+  'es-419': require('./es-419.cjs'),
+  'pt-BR': require('./pt-BR.cjs'),
+  it: require('./it.cjs'),
+  ru: require('./ru.cjs'),
+};
 
 /** The text table of `language`. */
 function textOf(language) {
   const fallback = language === 'zh' || language === 'zh-Hant' ? 'zh' : 'en';
-  return { ...table('en'), ...table(fallback), ...(LANGUAGES.includes(language) ? table(language) : null) };
+  return { ...TABLES.en, ...TABLES[fallback], ...(LANGUAGES.includes(language) ? TABLES[language] : null) };
 }
 
-/** The language Cortico's console shows for an app language (`consoleLanguage` in core/language.ts). */
-const consoleLanguage = (language) => (language === 'zh' || language === 'zh-Hant' ? 'zh' : 'en');
-
-module.exports = { LANGUAGES, languageOfLocale, systemLanguage, configuredLanguage, textOf, consoleLanguage };
+module.exports = { LANGUAGES, languageOfLocale, systemLanguage, configuredLanguage, textOf };

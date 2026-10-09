@@ -1,6 +1,6 @@
 /**
  * 简体中文:Core 进程给人看的文字,包括桌宠气泡里的启动引导、请求失败与更新提示、Coopanion 的设置项、
- * 状态气泡的说法。键与 en.ts 相同;新语言照 en.ts 写一份,再在 index.ts 里登记。
+ * 状态气泡的说法。键与 en.ts 相同;繁体中文缺的顶层键读这里。
  */
 const MAC = process.platform === 'darwin';
 
@@ -55,7 +55,7 @@ export default {
   /** 启动引导:第一次启动时 Coo 在气泡里一步步说的话 */
   guide: {
     /** 「你是从哪里认识我的?」的回答与统计里的 id;最后一项是跳过。id 见 docs/TELEMETRY.md */
-    sources: [['B站', 'bilibili'], ['小红书', 'xiaohongshu'], ['抖音', 'douyin'], ['GitHub', 'github'], ['朋友推荐', 'friend'], ['其他', 'other'], ['不告诉你', 'skip']] as ReadonlyArray<readonly [label: string, id: string]>,
+    sources: [['B站', 'bilibili'], ['小红书', 'xiaohongshu'], ['抖音', 'douyin'], ['Steam', 'steam'], ['GitHub', 'github'], ['朋友推荐', 'friend'], ['其他', 'other'], ['不告诉你', 'skip']] as ReadonlyArray<readonly [label: string, id: string]>,
     hello: '你好呀!我是 Coo,以后就住在你屏幕的底边啦,库...',
     helloReply: '你好,Coo!',
     askName: '我该怎么称呼你?',

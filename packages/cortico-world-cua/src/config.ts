@@ -1,5 +1,6 @@
 /** Config section `worlds.cua`, defaults and the console config group. */
 import type { ConfigGroup } from 'cortico/core/config-schema.ts';
+import type { Language } from 'cortico/core/language.ts';
 import type { WorldSection } from 'cortico/world.ts';
 import { cuaText } from './i18n/index.ts';
 
@@ -54,7 +55,7 @@ export const CUA_DEFAULTS: CuaConfigSection = {
 const K = `worlds.${CUA_ID}`;
 
 /** The console's config group, titled in `language` (the console's). */
-export function cuaConfigGroup(language = 'zh'): ConfigGroup {
+export function cuaConfigGroup(language: Language = 'zh'): ConfigGroup {
   const c = cuaText(language).config;
   return {
     id: `world:${CUA_ID}`,

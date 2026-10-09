@@ -1,7 +1,7 @@
 /**
  * English: text of the Core process that people read: the introduction in the pet's bubble, the notes
  * on failed requests and updates, Coopanion's own settings, and what the status bubble says. The keys
- * are zh.ts's; a new language is a copy of this file in that language, registered in index.ts.
+ * are zh.ts's; a language other than zh-Hant reads the top-level keys its file leaves out from here.
  */
 import type { CoreText } from './index.ts';
 
@@ -58,7 +58,7 @@ const en: CoreText = {
   /** The introduction: what Coo says in its bubble, step by step, on the first start. */
   guide: {
     /** Answers to "Where did you hear about me?" and the ids the statistics report (docs/TELEMETRY.md); the last one skips. */
-    sources: [['GitHub', 'github'], ['A friend', 'friend'], ['Somewhere else', 'other'], ['I\'d rather not say', 'skip']],
+    sources: [['Steam', 'steam'], ['YouTube', 'youtube'], ['Reddit', 'reddit'], ['X', 'x'], ['Instagram', 'instagram'], ['TikTok', 'tiktok'], ['GitHub', 'github'], ['A friend', 'friend'], ['Somewhere else', 'other'], ['I\'d rather not say', 'skip']],
     hello: 'Hi! I\'m Coo, and I live along the bottom of your screen now. Coo...',
     helloReply: 'Hi, Coo!',
     askName: 'What should I call you?',

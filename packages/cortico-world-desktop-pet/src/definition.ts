@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import type { Language } from 'cortico/core/language.ts';
 import { runtimesRoot, modelsRoot } from 'cortico/paths.ts';
 import type { WorldDefinition } from 'cortico/world.ts';
 import { DESKTOP_PET_DEFAULTS, DESKTOP_PET_ID, type DesktopPetConfigSection, type PetSkin } from './config.ts';
@@ -28,7 +29,7 @@ export interface DesktopPetAssembly {
   /** The language the bot is to talk to the person in; see `DesktopPetWorldOptions.replyLanguage`. */
   replyLanguage?(): string | null;
   /** The app language, what the person reads; see `DesktopPetWorldOptions.language`. */
-  language?(): string;
+  language?(): Language;
 }
 
 /** The definition, with what an embedding app lends the World. */

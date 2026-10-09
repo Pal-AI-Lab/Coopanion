@@ -46,6 +46,7 @@ import { createBot } from 'cortico/bot.ts';
 import { announceDataDir, consumeBootFlags } from 'cortico/boot.ts';
 import type { WakeBus } from 'cortico/core/bus.ts';
 import { getByPath, type ConfigGroup } from 'cortico/core/config-schema.ts';
+import { LANGUAGES, LANGUAGE_NAMES, isLanguage, type Language } from 'cortico/core/language.ts';
 import { GenerationError } from 'cortico/core/generation.ts';
 import { secretReader } from 'cortico/core/secrets.ts';
 import type { Core } from 'cortico/core/core.ts';
@@ -65,7 +66,7 @@ import { askForKey, guideDone, markDone, runGuide, type GuideDeps } from './guid
 import { noticeDefinition, type NoticeWorld } from './notice.ts';
 import { coreText } from './i18n/index.ts';
 import { petToolDescriber } from './pet-status.ts';
-import { APP_LANGUAGES, ENDONYMS, appLanguage, isAppLanguage, modelLanguage, replyLanguage, type AppLanguage } from './language.ts';
+import { appLanguage, modelLanguage, replyLanguage } from './language.ts';
 import { CONSOLE_PORT, DEPLOYMENT, DISPLAY_NAME, followLanguage as followPersonaLanguage, isSeededConstitution, seed } from './seed.ts';
 import { crashFields, describeEndpoint, publicExtensionName, Telemetry, type Counter } from './telemetry.ts';
 
@@ -113,7 +114,7 @@ const LANGUAGE_OPTIONS = 'coopanion.language';
  * group is not asked for per request, so it is titled in the app language, which the settings window
  * follows; `main` retitles the object in place when the language changes.
  */
-function companionGroup(language: AppLanguage): ConfigGroup {
+function companionGroup(language: Language): ConfigGroup {
   const s = coreText(language).settings;
   return {
     id: 'companion',
@@ -122,7 +123,7 @@ function companionGroup(language: AppLanguage): ConfigGroup {
       type: 'object',
       title: 'Coopanion',
       properties: {
-        language: { type: 'string', title: s.language.title, description: s.language.description, enum: [...APP_LANGUAGES], 'x-options': LANGUAGE_OPTIONS, 'x-hot': true },
+        language: { type: 'string', title: s.language.title, description: s.language.description, enum: [...LANGUAGES], 'x-options': LANGUAGE_OPTIONS, 'x-hot': true },
         [TELEMETRY_KEY]: { type: 'boolean', title: s.telemetry.title, description: s.telemetry.description },
         // Cormini copies `rounds` when the bot is built, so a change applies from the next start
         'rounds.soft': { type: 'integer', title: s.roundsSoft.title, minimum: 1, 'x-suffix': s.roundsSoft.suffix, 'x-hot': false, description: s.roundsSoft.description },
@@ -137,7 +138,7 @@ function companionGroup(language: AppLanguage): ConfigGroup {
  * that changes the app language: the console's config API and a World's persist both set it there.
  * `config.json` is written by those paths from their own values, so the accessor only watches.
  */
-function watchLanguage(config: CoreConfig, onChange: (language: AppLanguage) => void): void {
+function watchLanguage(config: CoreConfig, onChange: (language: Language) => void): void {
   let value: unknown = config.language;
   Object.defineProperty(config, 'language', {
     enumerable: true,
@@ -427,7 +428,7 @@ export async function main(): Promise<void> {
   const home = deploymentRoot();
   // the system's language, as the Electron main process read it; Chinese when the Core runs without it
   const system = process.env.COOPANION_SYSTEM_LANGUAGE;
-  seed(home, isAppLanguage(system) ? system : 'zh');
+  seed(home, isLanguage(system) ? system : 'zh');
   const deployDir = join(home, DEPLOYMENT);
   const NOTICE = noticeDefinition({
     version: process.env.COOPANION_VERSION ?? 'dev',
@@ -463,7 +464,7 @@ export async function main(): Promise<void> {
           ...parts.console,
           configGroups: [...parts.console?.configGroups ?? [], settingsGroup],
           configOptions: (kind, consoleLanguage) => (kind === LANGUAGE_OPTIONS
-            ? APP_LANGUAGES.map((value) => ({ value, label: ENDONYMS[value] }))
+            ? LANGUAGES.map((value) => ({ value, label: LANGUAGE_NAMES[value] }))
             : parts.console?.configOptions?.(kind, consoleLanguage) ?? []),
         },
       };

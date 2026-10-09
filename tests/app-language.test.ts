@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
-import { APP_LANGUAGES } from '../core/language.ts';
+import { LANGUAGES as CORTICO_LANGUAGES } from 'cortico/core/language.ts';
 
 const require = createRequire(import.meta.url);
 const { LANGUAGES, systemLanguage } = require('../app/i18n/index.cjs') as {
@@ -10,8 +10,8 @@ const { LANGUAGES, systemLanguage } = require('../app/i18n/index.cjs') as {
 const system = (preferred: string[], locale = '') => systemLanguage({ getPreferredSystemLanguages: () => preferred, getLocale: () => locale });
 
 describe('the language a new install starts in', () => {
-  it('lists the languages core/language.ts lists', () => {
-    expect(LANGUAGES).toEqual([...APP_LANGUAGES]);
+  it('lists the languages Cortico lists', () => {
+    expect(LANGUAGES).toEqual([...CORTICO_LANGUAGES]);
   });
 
   it('reads Traditional Chinese from the script, else the region, and Simplified otherwise', () => {

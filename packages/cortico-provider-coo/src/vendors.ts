@@ -28,7 +28,7 @@ export const PROTOCOLS: readonly Protocol[] = ['responses', 'chat', 'anthropic',
 export type Region = 'cn' | 'intl';
 export const REGIONS: readonly Region[] = ['cn', 'intl'];
 
-/** The languages the app's text comes in. */
+/** Cortico's `Language` (cortico/core/language.ts), written out because this file imports nothing; index.ts checks that the two match. */
 export type Language = 'zh' | 'zh-Hant' | 'en' | 'ja' | 'ko' | 'fr' | 'de' | 'es-419' | 'pt-BR' | 'it' | 'ru';
 
 /** Text in Chinese and English, and in other languages where it differs; see `localized`. */
@@ -77,7 +77,10 @@ export interface Vendor {
   encryptedReasoning?: true;
 }
 
-const PASTE_KEY: Localized = { zh: '粘贴 API Key', 'zh-Hant': '貼上 API Key', en: 'Paste the API key', ja: 'API キーを貼り付け', ko: 'API 키 붙여넣기' };
+const PASTE_KEY: Localized = {
+  zh: '粘贴 API Key', 'zh-Hant': '貼上 API Key', en: 'Paste the API Key', ja: 'API Key を貼り付け', ko: 'API Key 붙여넣기',
+  fr: 'Collez votre API Key', de: 'API Key einfügen', 'es-419': 'Pega la API Key', 'pt-BR': 'Cole a API Key', it: 'Incolla la API Key', ru: 'Вставьте API Key',
+};
 const brand = (name: string): Localized => ({ zh: name, en: name });
 const hint = (prefix: string): Localized => brand(`${prefix}…`);
 
@@ -124,8 +127,8 @@ export const VENDORS: readonly Vendor[] = [
       cn: { baseUrl: 'https://open.bigmodel.cn/api/v1', protocol: 'responses', keyUrl: 'https://bigmodel.cn/usercenter/proj-mgmt/apikeys' },
       intl: { baseUrl: 'https://api.z.ai/api/paas/v4', protocol: 'chat', keyUrl: 'https://z.ai/manage-apikey/apikey-list' },
     },
-    model: 'glm-4.6v-flashx', models: ['glm-5.3-flash', 'glm-5.3', 'glm-4.6v-flash'],
-    vision: ['glm-4.6v-flashx', 'glm-5.3-flash', 'glm-4.6v-flash'], contextWindows: { 'glm-5.3': 1_000_000, 'glm-4.6v-flashx': 128_000 },
+    model: 'glm-5.3-flash', models: ['glm-5.3', 'glm-4.6v-flashx', 'glm-4.6v-flash'],
+    vision: ['glm-5.3-flash', 'glm-4.6v-flashx', 'glm-4.6v-flash'], contextWindows: { 'glm-5.3': 1_000_000, 'glm-4.6v-flashx': 128_000 },
     modelEffort: {
       'glm-5.3': { none: 'low' },
       'glm-5.3-flash': { none: 'low' },
@@ -178,10 +181,10 @@ export const VENDORS: readonly Vendor[] = [
     // nearest one it has; a model whose reasoning is mandatory (z-ai/glm-5.3-flash) rejects none
     id: 'openrouter', names: brand('OpenRouter'), keyHint: hint('sk-or-'), secret: 'OPENROUTER_API_KEY',
     sites: { global: { baseUrl: 'https://openrouter.ai/api/v1', protocol: 'responses', keyUrl: 'https://openrouter.ai/settings/keys' } },
-    model: 'qwen/qwen3.8-flash',
-    models: ['deepseek/deepseek-v4.1-flash', 'qwen/qwen3.7-flash', 'google/gemini-3.1-flash-lite', 'z-ai/glm-5.3-flash'],
-    vision: ['qwen/qwen3.8-flash', 'deepseek/deepseek-v4.1-flash', 'qwen/qwen3.7-flash', 'google/gemini-3.1-flash-lite', 'z-ai/glm-5.3-flash'],
-    contextWindows: { 'qwen/qwen3.8-flash': 1_000_000, 'deepseek/deepseek-v4.1-flash': 1_048_576 },
+    model: 'deepseek/deepseek-v4.1-flash',
+    models: ['qwen/qwen3.8-flash', 'qwen/qwen3.7-flash', 'google/gemini-3.1-flash-lite', 'z-ai/glm-5.3-flash'],
+    vision: ['deepseek/deepseek-v4.1-flash', 'qwen/qwen3.8-flash', 'qwen/qwen3.7-flash', 'google/gemini-3.1-flash-lite', 'z-ai/glm-5.3-flash'],
+    contextWindows: { 'deepseek/deepseek-v4.1-flash': 1_048_576, 'qwen/qwen3.8-flash': 1_000_000 },
     modelEffort: { 'z-ai/glm-5.3-flash': { none: 'low' } },
   },
   {

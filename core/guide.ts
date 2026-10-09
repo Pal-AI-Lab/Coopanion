@@ -26,12 +26,13 @@
  * talks to Coo without one, Coo asks whether to connect a model now.
  */
 import { existsSync, writeFileSync } from 'node:fs';
+import type { Language } from 'cortico/core/language.ts';
 import type { DesktopPetWorld, PetDialog, PetDialogAnswer } from 'cortico-world-desktop-pet';
 import { USER_MAX, capFor, petText } from 'cortico-world-desktop-pet';
 import { VENDOR_ICONS, defaultRegion, localized, siteOf, vendorName, vendorsFor, type Region, type Vendor } from 'cortico-provider-coo';
 import { connectVendor, currentConnection, type ConsoleCall } from 'cortico-provider-coo/src/connect.ts';
 import { coreText } from './i18n/index.ts';
-import { consoleLanguage, type AppLanguage, type ModelLanguage } from './language.ts';
+import type { ModelLanguage } from './language.ts';
 
 const PET_GROUP = 'world:desktop-pet';
 const USER_KEY = 'worlds.desktop-pet.user';
@@ -53,7 +54,7 @@ const POLL_MS = 500;
 type Roam = 'off' | 'calm' | 'free';
 
 /** The introduction's lines in the app language. */
-const lines = (language: AppLanguage) => coreText(language).guide;
+const lines = (language: Language) => coreText(language).guide;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -70,7 +71,7 @@ export interface GuideDeps {
   /** Usage statistics: each step reached, the source answer, a model connected, the voice model download, and how the introduction ended. */
   track?: (type: string, fields: Record<string, unknown>) => void;
   /** The app's language: the lines, the order and names of the model services, and which of a service's platforms a new endpoint is on. Read at each step. */
-  language: () => AppLanguage;
+  language: () => Language;
   /** The language of the record's own words (who said a line, a close, a key typed in); Chinese when absent. */
   modelLanguage?: () => ModelLanguage;
 }
@@ -107,12 +108,12 @@ export function noteStep(d: PetDialog, a: PetDialogAnswer, language: ModelLangua
   return lines;
 }
 
-/** The console's routes, called as the console calls them; receipts and errors come back in the console language for `language`. */
-function api(origin: string, language: () => AppLanguage): ConsoleCall {
+/** The console's routes, called as the console calls them; receipts and errors come back in `language`. */
+function api(origin: string, language: () => Language): ConsoleCall {
   const call = async <T>(path: string, body?: unknown): Promise<T> => {
     const res = await fetch(origin + path, {
       method: body === undefined ? 'GET' : 'POST',
-      headers: { 'content-type': 'application/json', 'x-cortico-language': consoleLanguage(language()) },
+      headers: { 'content-type': 'application/json', 'x-cortico-language': language() },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const data = await res.json().catch(() => null) as T & { error?: string } | null;
@@ -150,7 +151,7 @@ const logo = (v: Vendor) => `data:image/svg+xml;base64,${Buffer.from(VENDOR_ICON
  * The service picked on the cards: the services for `language`, and a last card that shows the
  * `more` ones too, which are shown from the start when the service in use is one of them.
  */
-async function pickVendor(show: (d: PetDialog, at: string) => Promise<PetDialogAnswer>, ask: Omit<PetDialog, 'input'>, language: AppLanguage, current: Vendor | null): Promise<Vendor> {
+async function pickVendor(show: (d: PetDialog, at: string) => Promise<PetDialogAnswer>, ask: Omit<PetDialog, 'input'>, language: Language, current: Vendor | null): Promise<Vendor> {
   const S = lines(language);
   const { shown, more } = vendorsFor(language);
   let list = current && more.includes(current) ? [...shown, ...more] : shown;
@@ -178,7 +179,7 @@ async function pickVendor(show: (d: PetDialog, at: string) => Promise<PetDialogA
  * The service in use stays on its platform; another one goes on the platform for `language`.
  */
 async function connectLoop(show: (d: PetDialog, at: string) => Promise<PetDialogAnswer>, call: ConsoleCall, pet: () => DesktopPetWorld | null,
-  ask: Omit<PetDialog, 'input'>, later: string, language: AppLanguage): Promise<Vendor | null> {
+  ask: Omit<PetDialog, 'input'>, later: string, language: Language): Promise<Vendor | null> {
   const S = lines(language);
   const current = await currentConnection(call);
   const vendor = await pickVendor(show, ask, language, current.vendor);
@@ -209,7 +210,7 @@ async function connectLoop(show: (d: PetDialog, at: string) => Promise<PetDialog
   }
 }
 
-const keyInput = (v: Vendor, region: Region, language: AppLanguage, later: string): PetDialog['input'] => ({
+const keyInput = (v: Vendor, region: Region, language: Language, later: string): PetDialog['input'] => ({
   kind: 'text', submit: lines(language).keySend, placeholder: localized(v.keyHint, language), secret: true, maxLength: 200,
   link: { label: lines(language).keyLink(vendorName(v, language)), url: siteOf(v, region).keyUrl }, alt: later,
 });

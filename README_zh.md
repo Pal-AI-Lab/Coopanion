@@ -127,12 +127,12 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 | DeepSeek               | [platform.deepseek.com](https://platform.deepseek.com/api_keys)                                    | `deepseek-flash`                                                           |
 | 通义千问（阿里云百炼） | [bailian.console.aliyun.com](https://bailian.console.aliyun.com/cn-beijing/model/settings/api-key) | `qwen3.8-flash`                                                            |
 | Kimi（月之暗面）       | [platform.kimi.com](https://platform.kimi.com/console/api-keys)                                    | `kimi-k3`                                                                  |
-| 智谱 GLM               | [bigmodel.cn](https://bigmodel.cn/usercenter/proj-mgmt/apikeys)                                    | `glm-4.6v-flashx`（连不上就换成 `glm-5.3`）                                |
+| 智谱 GLM               | [bigmodel.cn](https://bigmodel.cn/usercenter/proj-mgmt/apikeys)                                    | `glm-5.3-flash`（连不上就换成 `glm-5.3`）                                  |
 | 豆包（火山方舟）       | [ark.volcengine.com](https://ark.volcengine.com/region:cn-beijing/apikey)                          | `doubao-seed-2-1-lite-260915`（要先在方舟控制台「开通管理」里开通）        |
 | 百度千帆               | [console.bce.baidu.com](https://console.bce.baidu.com/iam/#/iam/apikey/list)                       | `glm-5.3-flash`（走 Chat Completions；千帆的 Responses 接口只收文字）      |
 | MiniMax                | [platform.minimax.cn](https://platform.minimax.cn/user-center/basic-information/interface-key)     | `MiniMax-M3`                                                               |
 | 阶跃星辰               | [platform.stepfun.com](https://platform.stepfun.com/interface-key)                                 | `step-3.7-flash`                                                           |
-| OpenRouter             | [openrouter.ai](https://openrouter.ai/settings/keys)                                               | `qwen/qwen3.8-flash`                                                       |
+| OpenRouter             | [openrouter.ai](https://openrouter.ai/settings/keys)                                               | `deepseek/deepseek-v4.1-flash`                                             |
 
 默认模型是每家快、便宜且能看图的一档。要换，在引导里改模型名，或在「开始」页的「模型」框里填。
 
