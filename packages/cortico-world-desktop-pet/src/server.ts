@@ -27,6 +27,7 @@ import { basename, extname, join, normalize, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { packFile, type FigurePack, type PackProblem } from './packs.ts';
 import { BUNDLE_TYPE, IMPORT_MAX, PACK_DEPTH, filesFromBundle, filesFromZip, type PackImporter } from './pack-import.ts';
+import { petText, type PetText } from './i18n/index.ts';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -42,6 +43,8 @@ const MIME: Record<string, string> = {
 const PAGES: Record<string, string> = { '/pet': 'pet.html', '/dress': 'dress.html' };
 const LOOPBACK = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/i;
 const PORT_ATTEMPTS = 10;
+/** The pages' own CSP. */
+const PAGE_CSP = "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:* ws://localhost:*; img-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; frame-ancestors 'self' http://127.0.0.1:* http://localhost:*";
 /** What a watching pet page may still send: input that is the person's whichever page it came from. */
 const WATCHER_MESSAGES = new Set(['text', 'prefs', 'control']);
 
@@ -67,6 +70,10 @@ export interface PetServerOptions {
   packProblems?(): PackProblem[];
   /** Installs packs the dressing page sends; without it the page offers no import. */
   importer?: PackImporter;
+  /** The app language, stamped on each page's `<html lang>` as it is served; the page loads its text in it. `zh` when absent. */
+  language?(): string;
+  /** The text table of the app language, for errors; Chinese when absent. */
+  text?(): PetText;
 }
 
 export class PetServer {
@@ -82,6 +89,10 @@ export class PetServer {
 
   get port(): number {
     return this.boundPort;
+  }
+
+  private get t(): PetText {
+    return this.opts.text?.() ?? petText();
   }
 
   get origin(): string {
@@ -118,7 +129,7 @@ export class PetServer {
       });
       return this.boundPort;
     }
-    throw new Error(`端口 ${base}–${base + PORT_ATTEMPTS - 1} 都被占用:${lastErr?.message ?? ''}`);
+    throw new Error(this.t.portsTaken(base, base + PORT_ATTEMPTS - 1, lastErr?.message ?? ''));
   }
 
   async stop(): Promise<void> {
@@ -255,16 +266,30 @@ export class PetServer {
     const root = normalize(this.opts.webDir).replace(/[\\/]+$/, '') + sep;
     const full = normalize(join(root, file));
     if (!full.startsWith(root)) { res.writeHead(403).end(); return; }
+    if (PAGES[path]) return this.sendPage(res, full);
     return this.sendFile(res, full, null, path.startsWith('/web/') && req.headers.origin === 'null');
+  }
+
+  /** A page, its `<html lang>` set to the app language (`zh` as `zh-CN`). */
+  private async sendPage(res: ServerResponse, full: string): Promise<void> {
+    const language = this.opts.language?.() ?? 'zh';
+    const lang = language === 'zh' ? 'zh-CN' : language.replace(/[^A-Za-z0-9-]/g, '');
+    try {
+      const html = (await readFile(full, 'utf8')).replace(/<html lang="[^"]*"/, `<html lang="${lang}"`);
+      res.writeHead(200, { 'content-type': MIME['.html'], 'cache-control': 'no-cache', 'content-security-policy': PAGE_CSP });
+      res.end(html);
+    } catch {
+      res.writeHead(404).end();
+    }
   }
 
   private async importRequest(req: IncomingMessage, res: ServerResponse, path: string, importer: PackImporter): Promise<void> {
     if (path === '/api/figures/import') {
       const type = (req.headers['content-type'] ?? '').split(';')[0]!.trim();
-      if (type !== 'application/zip' && type !== BUNDLE_TYPE) return json(res, 415, { error: '只收 zip 或文件夹' });
+      if (type !== 'application/zip' && type !== BUNDLE_TYPE) return json(res, 415, { error: this.t.importing.zipOrFolder });
       const bytes = await readBytes(req, IMPORT_MAX);
-      if (!bytes) return json(res, 413, { error: `超过 ${IMPORT_MAX / 1048576} MB` });
-      const files = type === BUNDLE_TYPE ? filesFromBundle(bytes) : filesFromZip(bytes);
+      if (!bytes) return json(res, 413, { error: this.t.importing.overLimit(IMPORT_MAX / 1048576) });
+      const files = type === BUNDLE_TYPE ? filesFromBundle(bytes, this.t.importing) : filesFromZip(bytes, this.t.importing);
       if (typeof files === 'string') return json(res, 400, { error: files });
       const out = await importer.stage(files, type === BUNDLE_TYPE);
       return json(res, 'error' in out ? 400 : 200, out);
@@ -286,7 +311,7 @@ export class PetServer {
       res.writeHead(200, {
         'content-type': MIME[extname(full)] ?? 'application/octet-stream',
         'cache-control': 'no-cache',
-        'content-security-policy': csp ?? "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:* ws://localhost:*; img-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; frame-ancestors 'self' http://127.0.0.1:* http://localhost:*",
+        'content-security-policy': csp ?? PAGE_CSP,
         ...(frame ? { 'access-control-allow-origin': 'null' } : {}),
       });
       res.end(bytes);

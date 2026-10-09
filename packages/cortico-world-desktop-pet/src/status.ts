@@ -7,9 +7,11 @@
  */
 import type { RunPhase } from 'cortico/core/types.ts';
 import type { StreamEvent } from 'cortico/protocol/open-responses/index.ts';
+import { petText } from './i18n/index.ts';
 
 export interface PetStatus {
-  kind: 'think' | 'read' | 'browse' | 'search' | 'write' | 'delete' | 'save' | 'look' | 'click' | 'type' | 'wait' | 'alarm' | 'work';
+  /** Also the icon the bubble shows (`status_<kind>` in web/ui.js). */
+  kind: 'think' | 'read' | 'browse' | 'search' | 'write' | 'delete' | 'save' | 'look' | 'click' | 'scroll' | 'type' | 'wait' | 'alarm' | 'work';
   text: string;
   detail?: string;
   count?: number;
@@ -42,7 +44,7 @@ export function numberArg(args: ToolArgs, key: string): number | undefined {
   return value !== undefined && Number.isFinite(Number(value)) && (typeof value === 'number' || typeof value === 'string') ? Number(value) : undefined;
 }
 
-const defaultStatus = (name: string): PetStatus | null => (name.startsWith('pet_') ? null : { kind: 'work', text: '在忙' });
+const defaultStatus = (name: string, busy: string): PetStatus | null => (name.startsWith('pet_') ? null : { kind: 'work', text: busy });
 
 interface Call { name: string; args: string; done: boolean; status: PetStatus | null }
 
@@ -52,7 +54,8 @@ export class StatusTracker {
   private round: number | undefined;
   private current: PetStatus | null = null;
 
-  constructor(private readonly changed: (status: PetStatus | null) => void, private readonly describe?: DescribeTool) {}
+  /** `busy`: what a call without a description shows, in the app language at the time. */
+  constructor(private readonly changed: (status: PetStatus | null) => void, private readonly describe?: DescribeTool, private readonly busy: () => string = () => petText().busy) {}
 
   get status(): PetStatus | null { return this.current; }
 
@@ -104,7 +107,7 @@ export class StatusTracker {
 
   private describeCall(call: Call): PetStatus | null {
     const described = this.describe?.(call.name, call.args, call.done);
-    return described === undefined ? defaultStatus(call.name) : described;
+    return described === undefined ? defaultStatus(call.name, this.busy()) : described;
   }
 
   /** The latest run of calls of one kind: its last wording, its first detail and how many. */

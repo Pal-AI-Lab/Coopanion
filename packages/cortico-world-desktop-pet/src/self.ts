@@ -12,7 +12,8 @@
  * The change lines and errors are in the model-text language (`model-text.ts`).
  */
 import type { DeepPartial } from 'cortico/world.ts';
-import { MAX_HOVER_BUTTONS, PET_ACTIONS, SCALE_MAX, SCALE_MIN, hoverButtonList, type DesktopPetConfigSection } from './config.ts';
+import { MAX_HOVER_BUTTONS, PET_ACTIONS, SCALE_MAX, SCALE_MIN, USER_MAX, hoverButtonList, type DesktopPetConfigSection } from './config.ts';
+import { charCount } from './i18n/index.ts';
 import type { ModelLanguage } from './model-text.ts';
 import { COO, lookOf, lookPatch, modelName, type FigurePack } from './packs.ts';
 
@@ -48,7 +49,7 @@ const zh = {
   themeTo: (to: string) => `换成${to}`,
   badHover: `hoverButtons 应为 1–${MAX_HOVER_BUTTONS} 个不重复的 ${PET_ACTIONS.join('、')}`,
   hover: (list: string[]) => `悬停按钮换成 ${list.join('、')}`,
-  badUser: 'user 应为 1–20 个字',
+  badUser: (max: number) => `user 应为 1–${max} 个字`,
   user: (from: string, to: string) => `对你的称呼「${from}」→「${to}」`,
   unknown: (key: string) => `${key} 不是你能改的设置`,
   /** An id with its name, for the dress list. */
@@ -81,7 +82,7 @@ const en: typeof zh = {
   themeTo: (to) => `theme → ${to}`,
   badHover: `hoverButtons must be 1–${MAX_HOVER_BUTTONS} distinct items of ${PET_ACTIONS.join(', ')}`,
   hover: (list) => `hover buttons → ${list.join(', ')}`,
-  badUser: 'user must be 1–20 characters',
+  badUser: (max) => `user must be 1–${max} characters`,
   user: (from, to) => `what I call you "${from}" → "${to}"`,
   unknown: (key) => `${key} is not a setting you can change`,
   named: (id, name) => (name === id ? id : `${id} (${name})`),
@@ -114,9 +115,10 @@ const figureName = (id: string, packs: readonly FigurePack[], language: ModelLan
 
 /**
  * Checks what `pet_set` asks for against the current config; returns the changes, or why one
- * cannot be made. A value equal to the current one is left out.
+ * cannot be made. A value equal to the current one is left out. `userMax`: the longest name for the person,
+ * in characters as seen.
  */
-export function planSettings(args: Record<string, unknown>, cfg: DesktopPetConfigSection, packs: readonly FigurePack[], language: ModelLanguage = 'zh'):
+export function planSettings(args: Record<string, unknown>, cfg: DesktopPetConfigSection, packs: readonly FigurePack[], language: ModelLanguage = 'zh', userMax = USER_MAX):
   { changes: SettingChange[]; errors: string[] } {
   const t = SELF_TEXT[language];
   const changes: SettingChange[] = [];
@@ -186,7 +188,7 @@ export function planSettings(args: Record<string, unknown>, cfg: DesktopPetConfi
   }
   if ('user' in args) {
     const v = typeof args.user === 'string' ? args.user.trim() : '';
-    if (!v || v.length > 20) errors.push(t.badUser);
+    if (!v || charCount(v) > userMax) errors.push(t.badUser(userMax));
     else if (v !== cfg.user) changes.push({ key: 'user', tier: 'ask', say: t.user(cfg.user, v), patch: { user: v } });
   }
   const known = new Set(['figure', 'scheme', 'roam', 'snoreSeconds', 'sound', 'scale', 'theme', 'hoverButtons', 'user']);

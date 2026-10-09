@@ -26,6 +26,8 @@ export interface DesktopPetAssembly {
   modelLanguage?(): ModelLanguage;
   /** The language the bot is to talk to the person in; see `DesktopPetWorldOptions.replyLanguage`. */
   replyLanguage?(): string | null;
+  /** The app language, what the person reads; see `DesktopPetWorldOptions.language`. */
+  language?(): string;
 }
 
 /** The definition, with what an embedding app lends the World. */
@@ -55,6 +57,7 @@ export function desktopPetDefinition(assembly: DesktopPetAssembly = {}): WorldDe
         describeTool: assembly.describeTool,
         modelLanguage: () => assembly.modelLanguage?.() ?? 'zh',
         replyLanguage: () => assembly.replyLanguage?.() ?? null,
+        language: () => assembly.language?.() ?? 'zh',
       });
       assembly.onCreate?.(world);
       return world;

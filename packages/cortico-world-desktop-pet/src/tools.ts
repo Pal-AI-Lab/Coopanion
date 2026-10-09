@@ -1,8 +1,16 @@
-/** Tool declarations; `DesktopPetWorld.tools()` binds the handlers. Descriptions are English whatever the model-text language. */
+/**
+ * Tool declarations; `DesktopPetWorld.tools()` binds the handlers. Descriptions are English whatever the
+ * model-text language; the character caps on what the person reads follow the app language (`capFor`).
+ */
 import type { ToolDef } from 'cortico/core/types.ts';
-import { SCALE_MAX, SCALE_MIN } from './config.ts';
+import { SCALE_MAX, SCALE_MIN, USER_MAX } from './config.ts';
+import { capFor } from './i18n/index.ts';
 
-export const DESKTOP_PET_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
+/** Longest `pet_ask` option, in characters as seen, for Chinese, Japanese and Korean. */
+export const ASK_OPTION_MAX = 40;
+
+/** The declarations with the caps of the app language `language`. */
+export const petToolDecls = (language = 'zh'): Array<Omit<ToolDef, 'handler'>> => [
   {
     name: 'pet_say',
     tags: ['speak'],
@@ -23,7 +31,7 @@ export const DESKTOP_PET_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
       type: 'object',
       properties: {
         question: { type: 'string', description: 'The question, one sentence.' },
-        options: { type: 'array', items: { type: 'string' }, maxItems: 3, description: '1–3 short options, at most 40 characters each.' },
+        options: { type: 'array', items: { type: 'string' }, maxItems: 3, description: `1–3 short options, at most ${capFor(ASK_OPTION_MAX, language)} characters each; longer ones are cut.` },
         allowOwnAnswer: { type: 'boolean', description: 'Offer a box for writing an own answer; default true.' },
       },
       required: ['question', 'options'],
@@ -57,7 +65,7 @@ export const DESKTOP_PET_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
         scale: { type: 'number', minimum: SCALE_MIN, maximum: SCALE_MAX, description: 'Size on screen, 1 being the default (asks the person first).' },
         theme: { type: 'string', enum: ['dark', 'light'], description: 'dark is night (light body), light is day (dark body) (asks the person first).' },
         hoverButtons: { type: 'array', items: { type: 'string', enum: ['chat', 'voice', 'roam', 'theme', 'sound', 'dress', 'hide'] }, maxItems: 6, description: 'The buttons beside you while the mouse pointer rests on you (asks the person first).' },
-        user: { type: 'string', maxLength: 20, description: 'What you call the person (asks the person first).' },
+        user: { type: 'string', maxLength: capFor(USER_MAX, language), description: `What you call the person, at most ${capFor(USER_MAX, language)} characters (asks the person first).` },
       },
     },
   },

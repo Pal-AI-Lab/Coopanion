@@ -16,6 +16,7 @@ import { existsSync } from 'node:fs';
 import type { Logger } from 'cortico/core/types.ts';
 import type { TranscribeResult } from './result.ts';
 import type { SystemSentence } from './system-recognizer.ts';
+import { petText, type PetText } from '../i18n/index.ts';
 
 export type FunAsrPhase = 'stopped' | 'starting' | 'running' | 'error';
 
@@ -47,6 +48,8 @@ export interface FunAsrOptions {
   threads: () => number;
   log: Logger;
   load?: () => SherpaModule;
+  /** The text table of the app language, for why recognition is not ready; Chinese when absent. */
+  text?: () => PetText;
 }
 
 const SAMPLE_RATE = 16_000;
@@ -74,6 +77,10 @@ export class FunAsrRecognizer {
   private starting: Promise<void> | null = null;
 
   constructor(private readonly opts: FunAsrOptions) {}
+
+  private get t(): PetText['funasr'] {
+    return (this.opts.text?.() ?? petText()).funasr;
+  }
 
   state(): FunAsrState {
     return { phase: this.phase, url: 'SenseVoiceSmall (FunASR)', pid: null, detail: this.detail };
@@ -107,7 +114,7 @@ export class FunAsrRecognizer {
     const files = this.opts.model();
     // no model yet is not a failure: voice input waits for the download
     if ('missing' in files) { this.rec = null; this.phase = 'stopped'; this.detail = files.missing; return; }
-    if (!existsSync(files.model) || !existsSync(files.tokens)) { this.phase = 'error'; this.detail = '识别模型文件不全,重新下载一次'; return; }
+    if (!existsSync(files.model) || !existsSync(files.tokens)) { this.phase = 'error'; this.detail = this.t.incomplete; return; }
     this.phase = 'starting';
     this.detail = null;
     const started = Date.now();
@@ -130,7 +137,7 @@ export class FunAsrRecognizer {
       this.rec = null;
       this.phase = 'error';
       const msg = (err as Error).message;
-      this.detail = /Cannot find module|MODULE_NOT_FOUND/.test(msg) ? `这个平台(${process.platform}-${process.arch})没有 FunASR 的运行库` : `识别模型载入失败:${msg}`;
+      this.detail = /Cannot find module|MODULE_NOT_FOUND/.test(msg) ? this.t.noRuntime(`${process.platform}-${process.arch}`) : this.t.loadFailed(msg);
     }
   }
 
@@ -143,13 +150,13 @@ export class FunAsrRecognizer {
   /** One finished utterance to text. */
   async transcribe(pcm: Int16Array): Promise<TranscribeResult> {
     const started = Date.now();
-    if (!this.rec) return { text: '', ms: 0, error: this.detail ?? '识别模型没有载入' };
+    if (!this.rec) return { text: '', ms: 0, error: this.detail ?? this.t.notLoaded };
     return { ...(await this.decode(pcm)), ms: Date.now() - started };
   }
 
   private async decode(pcm: Int16Array): Promise<TranscribeResult> {
     const rec = this.rec;
-    if (!rec) return { text: '', ms: 0, error: this.detail ?? '识别模型没有载入' };
+    if (!rec) return { text: '', ms: 0, error: this.detail ?? this.t.notLoaded };
     try {
       const stream = rec.createStream();
       stream.acceptWaveform({ sampleRate: SAMPLE_RATE, samples: toFloat(pcm) });

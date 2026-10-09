@@ -75,6 +75,15 @@ const zh = {
 
   /** `detail`: the window host's own words on why, when it has them. */
   notConnected: (tool: string, detail: string | null, user: string) => `[${tool} 没执行] 桌宠窗口没有连接${detail ? `(${detail})` : ''},${user}看不到。`,
+  /** Why the pet window is not there (window-host.ts), as `notConnected` passes it on. */
+  window: {
+    badHostEnv: (env: string) => `${env} 不是 JSON 字符串数组`,
+    noElectronFile: (file: string) => `Electron 程序不存在:${file}`,
+    noElectron: '没有可用的 Electron:在桌宠面板安装窗口运行时,或在配置里指定 Electron 程序',
+    startFailed: (why: string) => `启动失败:${why}`,
+    closed: '窗口已关闭',
+    exited: (code: number | null) => `窗口进程退出(退出码 ${code})`,
+  },
 
   sayEmpty: '[pet_say 没执行] 脚本是空的。不想说话就不调用。',
   sayReceipt: (r: SayReceipt) => `${r.waitSec > .5 ? `已排队,前面还有约 ${Math.round(r.waitSec)} 秒` : '已开始显示'},这段约 ${Math.round(r.selfSec)} 秒。`
@@ -157,6 +166,14 @@ const en: typeof zh = {
   walkCannot: (name) => `[pet_walk_to not run] The current figure (${name}) does not walk.`,
 
   notConnected: (tool, detail, user) => `[${tool} not run] The pet window is not connected${detail ? ` (${detail})` : ''}; ${user} cannot see it.`,
+  window: {
+    badHostEnv: (env) => `${env} is not a JSON array of strings`,
+    noElectronFile: (file) => `The Electron executable does not exist: ${file}`,
+    noElectron: 'No Electron to run: install the window runtime on the pet panel, or set the Electron executable in the config',
+    startFailed: (why) => `Failed to start: ${why}`,
+    closed: 'The window was closed',
+    exited: (code) => `The window process exited (exit code ${code})`,
+  },
 
   sayEmpty: '[pet_say not run] The script is empty. Do not call it when you have nothing to say.',
   sayReceipt: (r) => [

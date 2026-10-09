@@ -10,6 +10,12 @@
  * Processes owned here: the page server (always, while mounted), the pet window (when
  * `window.enabled`) and the system recognizer's helper (voice input on, engine `system`). FunASR runs
  * in this process once its model is downloaded.
+ *
+ * Two languages are read at each use: the model-text language for what the bot reads, and the app
+ * language (`DesktopPetWorldOptions.language`) for what the person reads: the pages' text (the
+ * snapshot carries it, so the pages follow a change within PREFS_SYNC_MS), status lines, voice
+ * hints, the default name for the person, and which recognizer and recognition language voice
+ * input uses by default. The console's text follows the console request's language.
  */
 import type { spawn } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
@@ -23,9 +29,10 @@ import { nowIso, shortTime } from 'cortico/core/util.ts';
 import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
 import {
-  DESKTOP_PET_ASR_CONFIG_GROUP, DESKTOP_PET_CONFIG_GROUP, DESKTOP_PET_ID, DESKTOP_PET_SOUND_CONFIG_GROUP, MAX_HOVER_BUTTONS, PET_ACTIONS, hoverButtonList,
+  DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, SENSEVOICE_LANGUAGES, USER_MAX, desktopPetConfigGroups, hoverButtonList,
   type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type RoamMode,
 } from './config.ts';
+import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
 import { PetServer, type PageMessage } from './server.ts';
 import { StatusTracker, type DescribeTool } from './status.ts';
 import { WindowHost, resolveHostCommand } from './window-host.ts';
@@ -38,17 +45,26 @@ import { joinSpeech, looksHallucinated } from './asr/result.ts';
 import { toSimplified } from './asr/simplify.ts';
 import { estimateSeconds, parseActions, parseScript, vocabChange, vocabTable, type VocabWord } from './script.ts';
 import { ActivityGroup, ChatSockets, SELF_TYPE, chatHistory, chatItem, chatRefs } from './chat.ts';
-import { DESKTOP_PET_TOOL_DECLS } from './tools.ts';
+import { ASK_OPTION_MAX, petToolDecls } from './tools.ts';
 import { COO, figurePacks, lookOf, modelName, nameIn, packFor, type FigurePack, type PackScan } from './packs.ts';
 import { PackImporter } from './pack-import.ts';
 import { dressTable, planSettings, type SettingChange } from './self.ts';
 import { MODEL_TEXT, type ModelLanguage, type ModelText } from './model-text.ts';
 
-export const DESKTOP_PET_PANEL_DECLS: readonly WorldPanelDecl[] = [
-  { id: 'pet', title: '桌宠', description: '窗口、装扮与窗口运行时。', getMethods: ['state'] },
-  { id: 'voice', title: '语音输入', description: '识别引擎、电平与识别结果。', getMethods: ['state'] },
-  { id: 'chat', title: '对话', description: '对话页:打字和发图给它,看它说过的话与做过的事。', getMethods: ['blob'] },
-];
+/** The console panels, titled in `language`. */
+export function desktopPetPanelDecls(language = 'zh'): WorldPanelDecl[] {
+  const p = petText(language).console.panels;
+  return [
+    { id: 'pet', ...p.pet, getMethods: ['state'] },
+    { id: 'voice', ...p.voice, getMethods: ['state'] },
+    { id: 'chat', ...p.chat, getMethods: ['blob'] },
+  ];
+}
+
+/** The culture of Windows' speech recognizer preferred for each app language, where its language has more than one. */
+const SYSTEM_CULTURES: Readonly<Record<string, string>> = {
+  zh: 'zh-CN', 'zh-Hant': 'zh-TW', en: 'en-US', fr: 'fr-FR', de: 'de-DE', 'es-419': 'es-MX', 'pt-BR': 'pt-BR', it: 'it-IT', ru: 'ru-RU', ja: 'ja-JP', ko: 'ko-KR',
+};
 
 const WEB_DIR = fileURLToPath(new URL('../web/', import.meta.url));
 /** The environment prompt template of each model-text language; English falls back to Chinese while its file is missing. */
@@ -92,8 +108,8 @@ export interface PetBotControls {
   /** Shows the embedding app's own dress page; the menu's 「装扮」 then opens it instead of the pet's dress window. */
   openDress?(): void;
   quit?(): void;
-  /** The power button's label, e.g. "退出 Coopanion". */
-  quitLabel?: string;
+  /** The power button's label, e.g. "Quit Coopanion", read when the menu opens. */
+  quitLabel?: string | (() => string);
   /** Runs the embedding app's introduction again (the console's `pet.guide` panel method). */
   guide?(): void;
 }
@@ -185,6 +201,8 @@ export interface DesktopPetWorldOptions {
   describeTool?: DescribeTool;
   /** The language of what the bot reads from this World (`model-text.ts`), read at each use; Chinese when absent. */
   modelLanguage?: () => ModelLanguage;
+  /** The app language, an IETF code such as `zh`, `zh-Hant`, `en`: what the person reads (see the module header). Read at each use; `zh` when absent. */
+  language?: () => string;
   /**
    * The language the bot is to talk to the person in, named in the model-text language, when it is
    * not that language itself; it becomes one line of the environment prompt (`{{pet.reply}}`). Null
@@ -346,11 +364,11 @@ export class DesktopPetWorld implements World {
 
   constructor(private readonly opts: DesktopPetWorldOptions) {
     this.cfg = opts.cfg;
-    this.importer = opts.packDir ? new PackImporter({ packDir: opts.packDir, packs: () => this.packs() }) : null;
-    this.status = new StatusTracker((status) => this.server.sendPet({ t: 'status', status }), opts.describeTool);
+    this.importer = opts.packDir ? new PackImporter({ packDir: opts.packDir, packs: () => this.packs(), text: () => this.ui }) : null;
+    this.status = new StatusTracker((status) => this.server.sendPet({ t: 'status', status }), opts.describeTool, () => this.ui.busy);
     this.segmenter = new Segmenter(this.segmentConfig(), FRAME_MS);
     this.segmenter.setSink(this.sink);
-    this.store = new RuntimeStore({ runtimesRoot: opts.runtimesRoot, modelsDir: opts.modelsDir, fetchImpl: opts.fetchImpl, funasrModel: opts.funasrModel });
+    this.store = new RuntimeStore({ runtimesRoot: opts.runtimesRoot, modelsDir: opts.modelsDir, fetchImpl: opts.fetchImpl, funasrModel: opts.funasrModel, text: () => this.ui });
     this.server = new PetServer({
       port: () => this.cfg.port,
       webDir: WEB_DIR,
@@ -365,6 +383,8 @@ export class DesktopPetWorld implements World {
       packs: () => this.packs(),
       packProblems: () => this.packScan().problems,
       importer: this.importer ?? undefined,
+      language: () => this.appLanguage,
+      text: () => this.ui,
     });
   }
 
@@ -392,7 +412,7 @@ export class DesktopPetWorld implements World {
 
   /** `packs()` with what was wrong in the pack directories, each problem logged once. */
   private packScan(): PackScan {
-    const scan = figurePacks(this.opts.packRoots?.() ?? []);
+    const scan = figurePacks(this.opts.packRoots?.() ?? [], this.appLanguage);
     for (const { dir, reason, loaded } of scan.problems) {
       const line = `${loaded ? '形象包有一部分没用上' : '形象包没加载'}:${dir}:${reason}`;
       if (!this.packProblems.has(line)) { this.packProblems.add(line); this.log?.warn(line); }
@@ -421,6 +441,31 @@ export class DesktopPetWorld implements World {
   /** The text table of that language. */
   private get t(): ModelText {
     return MODEL_TEXT[this.language];
+  }
+
+  /** The app language: what the person reads. */
+  private get appLanguage(): string {
+    return this.opts.language?.() ?? 'zh';
+  }
+
+  /** The text table of the app language. */
+  private get ui(): PetText {
+    return petText(this.appLanguage);
+  }
+
+  /** What events and bubbles call the person: the set name, else the app language's default. */
+  get userName(): string {
+    return this.cfg.user || this.ui.defaultUser;
+  }
+
+  /** Traditional characters heard become Simplified: the setting is on and the app language is Simplified Chinese. */
+  private get simplifies(): boolean {
+    return this.cfg.asr.simplified && this.appLanguage === 'zh';
+  }
+
+  /** Sends the pages what changed in the config now, without waiting for the next look; an app calls it after it changes the app language. */
+  refresh(): void {
+    this.syncPrefs();
   }
 
   /** How the words the bot may use changed since it was last told, or ''. From here the bot counts as told the words of now. */
@@ -498,17 +543,20 @@ export class DesktopPetWorld implements World {
     // the words the prompt is rendered with, until the bot is told otherwise
     this.toldVocab = this.vocab();
     await this.server.start();
-    this.windowHost = new WindowHost(host.log);
+    this.windowHost = new WindowHost(host.log, () => this.t.window);
     if (this.cfg.window.enabled) this.openWindow();
     this.funasr = new FunAsrRecognizer({
       model: () => this.funasrModel(),
-      language: () => this.cfg.asr.language,
+      language: () => this.asrLanguage(),
+      text: () => this.ui,
       threads: () => this.cfg.asr.threads,
       log: host.log,
       load: this.opts.loadSherpa,
     });
     this.system = new SystemRecognizer({
-      language: () => this.cfg.asr.language,
+      language: () => this.asrLanguage(),
+      culture: () => SYSTEM_CULTURES[this.appLanguage] ?? '',
+      text: () => this.ui,
       timeoutMs: () => this.cfg.asr.timeoutMs,
       log: host.log,
       spawnImpl: this.opts.spawnSystemRecognizer,
@@ -620,7 +668,7 @@ export class DesktopPetWorld implements World {
         this.chat.send(socket, {
           t: 'init', ...page, pending: [...this.pendingChat], askId: this.ask?.id ?? null, phase: this.phase,
           activity: this.activity.steps.length ? { steps: this.activity.steps, startedAt: this.activity.startedAt } : null,
-          paused: this.opts.controls?.isPaused?.() ?? false, user: this.cfg.user, bot: this.opts.botName ?? '',
+          paused: this.opts.controls?.isPaused?.() ?? false, user: this.userName, bot: this.opts.botName ?? '',
           imagesSeen: host?.modelFacts.accepts('image/jpeg') ?? false,
         });
         if (this.draft !== null) { this.chat.send(socket, { t: 'draft', text: this.draft }); this.draft = null; }
@@ -634,11 +682,11 @@ export class DesktopPetWorld implements World {
       case 'send': {
         const id = msg.id;
         const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, CHAT_TEXT_MAX) : '';
-        const images = parseChatImages(msg.images, this.cfg.user, s, this.t);
+        const images = parseChatImages(msg.images, this.userName, s, this.t);
         if (!images.ok) { this.chat.send(socket, { t: 'rejected', id, reason: images.reason }); return; }
         if (!text && images.blobs.length === 0) return;
         if (!host) { this.chat.send(socket, { t: 'rejected', id, reason: s.offline }); return; }
-        const e = await this.push('desktop-pet.message', 'desktop-pet.chat', this.t.typed(this.cfg.user, text), 'preempt',
+        const e = await this.push('desktop-pet.message', 'desktop-pet.chat', this.t.typed(this.userName, text), 'preempt',
           { meta: { via: 'chat', text }, ...(images.blobs.length ? { blobs: images.blobs } : {}) });
         this.chat.send(socket, e ? { t: 'sent', id, cursor: e.cursor } : { t: 'rejected', id, reason: s.notSent });
         return;
@@ -695,7 +743,7 @@ export class DesktopPetWorld implements World {
   openWindow(): void {
     if (!this.windowHost || !this.server.port) return;
     const managed = this.store.electron.executable();
-    this.windowHost.start(resolveHostCommand(this.petUrl, this.cfg.window.electronFile, managed));
+    this.windowHost.start(resolveHostCommand(this.petUrl, this.cfg.window.electronFile, managed, this.t.window));
   }
 
   /* ---------- page protocol ---------- */
@@ -716,7 +764,8 @@ export class DesktopPetWorld implements World {
       frameRate: this.cfg.window.frameRate,
       lockFrameRate: this.cfg.window.lockFrameRate,
       hideWhenFullscreen: this.cfg.window.hideWhenFullscreen,
-      user: this.cfg.user,
+      language: this.appLanguage,
+      user: this.userName,
       mic: this.micWanted(),
       voice: this.voiceBrief(),
       micDevice: this.cfg.asr.mic.deviceId,
@@ -731,7 +780,8 @@ export class DesktopPetWorld implements World {
     let avatar: string | null = null;
     try { if (this.opts.avatarFile) avatar = String(statSync(this.opts.avatarFile).mtimeMs); } catch { /* no avatar yet */ }
     const pause = !!(c?.isPaused && c.setPaused);
-    const quitLabel = c?.quit ? c.quitLabel || '退出' : '';
+    const label = typeof c?.quitLabel === 'function' ? c.quitLabel() : c?.quitLabel;
+    const quitLabel = c?.quit ? label || this.ui.menu.quit : '';
     return {
       name: this.opts.botName ?? '',
       avatar,
@@ -739,7 +789,7 @@ export class DesktopPetWorld implements World {
       buttons: { pause, settings: !!c?.openSettings, dress: !!c?.openDress, quit: !!c?.quit, chat: !!c?.openChat },
       paused: pause && c?.isPaused ? c.isPaused() : null,
       quitLabel,
-      quitPrompt: quitLabel ? `${quitLabel}?` : '',
+      quitPrompt: quitLabel ? this.ui.menu.quitPrompt(quitLabel) : '',
     };
   }
 
@@ -780,7 +830,7 @@ export class DesktopPetWorld implements World {
     return {
       enabled: this.cfg.asr.enabled,
       ready,
-      detail: ready ? null : b?.phase === 'starting' ? '识别服务启动中' : b?.detail ?? '识别服务没有运行',
+      detail: ready ? null : b?.phase === 'starting' ? this.ui.voice.starting : b?.detail ?? this.ui.voice.notRunning,
       hint: this.talkHint(),
       mode: this.micMode(),
       key: hotkeyBadge(this.cfg.asr.mic.hotkey),
@@ -852,13 +902,13 @@ export class DesktopPetWorld implements World {
         const t = this.t;
         w.resolve(msg.t === 'arrived' ? t.walkArrived(at)
           : w.stopping ? t.walkStopped(at)
-          : msg.by === 'drag' ? t.walkGrabbed(at, this.cfg.user) : t.walkReplaced(at, String(msg.by)));
+          : msg.by === 'drag' ? t.walkGrabbed(at, this.userName) : t.walkReplaced(at, String(msg.by)));
         return;
       }
       case 'answer': return this.onAnswer(msg, 'pet');
       case 'text': {
         const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 500) : '';
-        if (text) void this.push('desktop-pet.message', `desktop-pet.text`, this.t.typed(this.cfg.user, text), 'preempt', { meta: { via: 'bubble', text } });
+        if (text) void this.push('desktop-pet.message', `desktop-pet.text`, this.t.typed(this.userName, text), 'preempt', { meta: { via: 'bubble', text } });
         return;
       }
       case 'expand': {
@@ -975,7 +1025,7 @@ export class DesktopPetWorld implements World {
     const t = this.t;
     if (msg.dismissed) {
       this.setAsk(null);
-      void this.push('desktop-pet.answer', 'desktop-pet.answer', t.answerClosed(this.cfg.user, ask.question), 'debounce', { meta: { askId: ask.id, dismissed: true } });
+      void this.push('desktop-pet.answer', 'desktop-pet.answer', t.answerClosed(this.userName, ask.question), 'debounce', { meta: { askId: ask.id, dismissed: true } });
       return;
     }
     const index = typeof msg.index === 'number' && ask.options[msg.index] !== undefined ? msg.index : null;
@@ -984,8 +1034,8 @@ export class DesktopPetWorld implements World {
     this.setAsk(null);
     if (from === 'chat') this.server.sendPet({ t: 'ask-close', id: ask.id });
     const line = index !== null
-      ? t.answerPicked(this.cfg.user, ask.question, index + 1, ask.options[index]!)
-      : t.answerWrote(this.cfg.user, ask.question, text);
+      ? t.answerPicked(this.userName, ask.question, index + 1, ask.options[index]!)
+      : t.answerWrote(this.userName, ask.question, text);
     void this.push('desktop-pet.answer', 'desktop-pet.answer', line, 'flush',
       { meta: { askId: ask.id, ...(index !== null ? { index } : { text }) } });
   }
@@ -1018,7 +1068,7 @@ export class DesktopPetWorld implements World {
     this.touch = null;
     if (!t) return;
     clearTimeout(t.timer);
-    const u = this.cfg.user;
+    const u = this.userName;
     const m = this.t;
     let text: string;
     switch (t.kind) {
@@ -1093,13 +1143,24 @@ export class DesktopPetWorld implements World {
   /* ---------- voice ---------- */
 
   private funasrModel(): { model: string; tokens: string } | { missing: string } {
-    if (this.store.funasr.state().phase !== 'ready') return { missing: `识别模型还没下载(约 ${Math.round(this.store.funasr.bytes / 1048576)} MB):在「语音输入」页下载` };
+    if (this.store.funasr.state().phase !== 'ready') return { missing: this.ui.voice.modelMissing(Math.round(this.store.funasr.bytes / 1048576)) };
     return { model: this.store.funasr.file('model.int8.onnx'), tokens: this.store.funasr.file('tokens.txt') };
   }
 
-  /** The engine in force: Windows' own recognizer only where it exists, FunASR otherwise (and for older settings). */
+  /**
+   * The engine in force: Windows' own recognizer only where it exists, FunASR otherwise (and for older
+   * settings). Unset, the app language picks: FunASR for a language SenseVoice hears, else the system one.
+   */
   engine(): AsrEngine {
-    return this.cfg.asr.engine === 'system' && systemRecognizerSupported() ? 'system' : 'funasr';
+    const set = this.cfg.asr.engine || (this.appLanguage in SENSEVOICE_LANGUAGES ? 'funasr' : 'system');
+    return set === 'system' && systemRecognizerSupported() ? 'system' : 'funasr';
+  }
+
+  /** The recognition language: the set one, else the app language's (its ISO 639-1 code for the system recognizer, `auto` for FunASR where SenseVoice does not hear it). */
+  private asrLanguage(): string {
+    if (this.cfg.asr.language) return this.cfg.asr.language;
+    const app = this.appLanguage;
+    return SENSEVOICE_LANGUAGES[app] ?? (this.engine() === 'system' ? app.split('-')[0]! : 'auto');
   }
 
   private backendState(): FunAsrState | SystemRecognizerState | null {
@@ -1161,7 +1222,7 @@ export class DesktopPetWorld implements World {
     if (!key) return;
     const parsed = parseHotkey(hotkey);
     const watch = this.opts.watchHotkey ?? watchHotkey;
-    const watcher = parsed ? await watch(parsed, (down) => this.onTalkKey(down), HOTKEY_POLL_MS, () => this.onTalkTap()) : `认不出按键「${hotkey}」`;
+    const watcher = parsed ? await watch(parsed, (down) => this.onTalkKey(down), HOTKEY_POLL_MS, () => this.onTalkTap(), this.ui.hotkey) : this.ui.voice.badKey(hotkey);
     if (key !== this.hotkeyKey) { if (typeof watcher !== 'string') watcher.stop(); return; }
     if (typeof watcher === 'string') {
       this.hotkeyProblem = watcher;
@@ -1173,13 +1234,12 @@ export class DesktopPetWorld implements World {
   /** One line telling the person how to be heard. */
   private talkHint(): string {
     const { hotkey } = this.cfg.asr.mic;
-    const key = comboLabel(hotkey), { taps } = splitTaps(hotkey);
+    const ui = this.ui, v = ui.voice;
+    const key = comboLabel(hotkey, process.platform, ui), { taps } = splitTaps(hotkey);
     const mode = this.micMode();
-    if (mode === 'always') return this.hotkeyProblem
-      ? `说话键不可用，暂时自动收音：${this.hotkeyProblem}`
-      : '一直在听,直接说话';
-    if (mode === 'toggle') return taps > 1 ? `${hotkeyLabel(hotkey)} 开始听,再${taps === 2 ? '双击' : '三击'}停` : `按一下 ${key} 开始听,再按一下停`;
-    return taps > 1 ? `快速按${taps === 2 ? '一' : '两'}下 ${key},紧接着按住说话,松开就发出去` : `按住 ${key} 说话,松开就发出去`;
+    if (mode === 'always') return this.hotkeyProblem ? v.fallback(this.hotkeyProblem) : v.always;
+    if (mode === 'toggle') return taps > 1 ? v.toggleTaps(hotkeyLabel(hotkey, process.platform, ui), taps) : v.toggle(key);
+    return taps > 1 ? v.holdTaps(key, taps) : v.hold(key);
   }
 
   /** A quick tap before the held press: the pet perks up, so the hold that follows feels answered at once. */
@@ -1261,12 +1321,12 @@ export class DesktopPetWorld implements World {
             ? await this.system.transcribe(u.pcm)
             : this.funasr
               ? await this.funasr.transcribe(u.pcm)
-              : { text: '', ms: 0, error: '识别没有启动' };
+              : { text: '', ms: 0, error: this.ui.voice.notRunning };
         let text = res.text;
-        if (this.cfg.asr.simplified) text = toSimplified(text);
+        if (this.simplifies) text = toSimplified(text);
         if (res.error || looksHallucinated(text)) {
           this.counts.dropped++;
-          this.remember({ text: res.error ? `[失败] ${res.error}` : text, at: Date.now(), ms: res.ms, dropped: true });
+          this.remember({ text: res.error ? this.ui.voice.failedLine(res.error) : text, at: Date.now(), ms: res.ms, dropped: true });
           this.voiceFrame({ type: 'dropped', text: res.error ?? text, ms: res.ms });
           // the page was showing this sentence as it was heard: take it back
           if (u.result) this.showHeard();
@@ -1305,7 +1365,7 @@ export class DesktopPetWorld implements World {
       if (!recognizer) return;
       const s: SystemSentence | null = recognizer.sentence((text) => {
         if (this.sentence !== s) return;
-        this.interim = this.cfg.asr.simplified ? toSimplified(text) : text;
+        this.interim = this.simplifies ? toSimplified(text) : text;
         this.showHeard();
       });
       this.sentence = s;
@@ -1349,7 +1409,7 @@ export class DesktopPetWorld implements World {
       this.listenOpen = false;
       this.counts.delivered++;
       this.server.sendPet({ t: 'listen', phase: 'heard', text });
-      void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.cfg.user, text), 'flush', { meta: { text } });
+      void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.userName, text), 'flush', { meta: { text } });
       return;
     }
     if (this.segmenter.active || this.transcribing || this.queue.length > 0) this.listenOpen = true;
@@ -1388,13 +1448,13 @@ export class DesktopPetWorld implements World {
       pet_set: (args) => this.setSettings(args),
       pet_quiet: (args) => this.setQuiet(args),
     };
-    return DESKTOP_PET_TOOL_DECLS.map((decl) => ({ ...decl, handler: handlers[decl.name], ...(decl.name === 'pet_walk_to' ? { interruptible: true } : {}) }));
+    return petToolDecls(this.appLanguage).map((decl) => ({ ...decl, handler: handlers[decl.name], ...(decl.name === 'pet_walk_to' ? { interruptible: true } : {}) }));
   }
 
   private notConnected(tool: string): ToolOutcome {
     const w = this.windowHost?.state();
     const detail = w && w.phase !== 'running' && w.detail ? w.detail : null;
-    return { text: this.t.notConnected(tool, detail, this.cfg.user), failed: true };
+    return { text: this.t.notConnected(tool, detail, this.userName), failed: true };
   }
 
   private async say(args: Record<string, unknown>): Promise<ToolOutcome> {
@@ -1419,7 +1479,8 @@ export class DesktopPetWorld implements World {
   private async askUser(args: Record<string, unknown>): Promise<ToolOutcome> {
     const question = typeof args.question === 'string' ? args.question.trim() : '';
     const raw = Array.isArray(args.options) ? args.options : [];
-    const options = raw.filter((o): o is string => typeof o === 'string' && o.trim() !== '').map((o) => o.trim().slice(0, 40)).slice(0, 3);
+    const optionMax = capFor(ASK_OPTION_MAX, this.appLanguage);
+    const options = raw.filter((o): o is string => typeof o === 'string' && o.trim() !== '').map((o) => cutChars(o.trim(), optionMax)).slice(0, 3);
     const allowOwn = args.allowOwnAnswer !== false;
     if (!question) return { text: this.t.askEmpty, failed: true };
     if (options.length === 0 && !allowOwn) return { text: this.t.askNoWay, failed: true };
@@ -1472,9 +1533,9 @@ export class DesktopPetWorld implements World {
 
   private async setSettings(args: Record<string, unknown>): Promise<ToolOutcome> {
     const t = this.t;
-    if (!this.cfg.selfAdjust) return { text: t.selfAdjustOff('pet_set', this.cfg.user), failed: true };
+    if (!this.cfg.selfAdjust) return { text: t.selfAdjustOff('pet_set', this.userName), failed: true };
     const packs = this.packs();
-    const { changes, errors } = planSettings(args, this.cfg, packs, this.language);
+    const { changes, errors } = planSettings(args, { ...this.cfg, user: this.userName }, packs, this.language, capFor(USER_MAX, this.appLanguage));
     if (errors.length) return { text: t.setErrors(errors), failed: true };
     if (!changes.length) return { text: t.setNothing };
     const lines: string[] = [];
@@ -1491,8 +1552,8 @@ export class DesktopPetWorld implements World {
     const asked = changes.filter((c) => c.tier === 'ask');
     if (asked.length) {
       const answer = await this.confirm(t.setQuestion(says(asked)), t.setChoices);
-      if (answer === 'yes') { apply(asked); lines.push(t.setAgreed(this.cfg.user, says(asked))); }
-      else lines.push(t.setNotChanged(answer === 'unavailable' || answer === 'timeout' ? answer : 'no', this.cfg.user, says(asked)));
+      if (answer === 'yes') { apply(asked); lines.push(t.setAgreed(this.userName, says(asked))); }
+      else lines.push(t.setNotChanged(answer === 'unavailable' || answer === 'timeout' ? answer : 'no', this.userName, says(asked)));
     }
     if (mine.some((c) => c.key === 'figure' || c.key === 'scheme')) {
       lines.push(t.lookNow(this.bodyText(this.currentPack())));
@@ -1511,7 +1572,7 @@ export class DesktopPetWorld implements World {
       this.endQuiet();
       return { text: t.quietEnded };
     }
-    if (!this.cfg.selfAdjust) return { text: t.selfAdjustOff('pet_quiet', this.cfg.user), failed: true };
+    if (!this.cfg.selfAdjust) return { text: t.selfAdjustOff('pet_quiet', this.userName), failed: true };
     const sound = args.sound === true;
     const roam = args.roam === 'calm' ? 'calm' : 'off';
     const base = this.quiet?.base ?? { sound: this.cfg.sound, roam: this.cfg.roam };
@@ -1543,7 +1604,7 @@ export class DesktopPetWorld implements World {
 
   envPromptVars(): Record<string, string> {
     const { language, t } = this;
-    const user = this.cfg.user;
+    const user = this.userName;
     const reply = this.opts.replyLanguage?.() ?? null;
     return {
       'pet.user': user,
@@ -1568,22 +1629,23 @@ export class DesktopPetWorld implements World {
   console(language: Language = 'zh'): WorldConsoleDecl {
     const w = this.windowHost?.state();
     const v = this.backendState();
+    const c = petText(language).console;
     const lamps: WorldLamp[] = [
       {
-        label: '桌宠窗口',
+        label: c.window,
         state: this.server.petConnected ? 'online' : w?.phase === 'running' ? 'loading' : w?.phase === 'missing' || w?.phase === 'error' ? 'error' : 'offline',
-        hint: this.server.petConnected ? '页面已连接' : w?.detail ?? '未打开',
+        hint: this.server.petConnected ? c.connected : w?.detail ?? c.notOpen,
       },
       {
-        label: '语音识别',
+        label: c.voice,
         state: !this.cfg.asr.enabled ? 'offline' : v?.phase === 'running' ? 'online' : v?.phase === 'starting' ? 'loading' : v?.phase === 'error' ? 'error' : 'offline',
-        hint: v?.detail ?? v?.phase ?? '未启动',
+        hint: v?.detail ?? v?.phase ?? c.notStarted,
       },
     ];
     return {
-      label: language === 'en' ? 'Desktop pet' : '桌宠',
+      label: c.label,
       lamps,
-      panels: [...DESKTOP_PET_PANEL_DECLS],
+      panels: desktopPetPanelDecls(language),
       invoke: (panel, method, args) => this.invoke(panel, method, args),
       stream: (panel, socket) => {
         if (panel === 'chat') { this.chat.add(socket, (msg, s) => void this.onChat(msg, s, language)); return; }
@@ -1591,24 +1653,15 @@ export class DesktopPetWorld implements World {
         this.voiceSockets.add(socket);
         socket.onClose(() => this.voiceSockets.delete(socket));
       },
-      links: this.server.port ? [{ label: '在浏览器里看桌宠', href: this.petUrl }, { label: '装扮', href: `${this.server.origin}/dress` }] : [],
-      config: [DESKTOP_PET_CONFIG_GROUP, DESKTOP_PET_SOUND_CONFIG_GROUP, DESKTOP_PET_ASR_CONFIG_GROUP],
+      links: this.server.port ? [{ label: c.viewInBrowser, href: this.petUrl }, { label: c.dress, href: `${this.server.origin}/dress` }] : [],
+      config: desktopPetConfigGroups(language),
       promptDocs: [{
         key: `worlds.${DESKTOP_PET_ID}.envPrompt`,
-        title: '桌宠环境',
-        description: '描述桌宠的身体、四个工具与输入事件。',
+        ...c.envPrompt,
         path: this.envPromptFile(),
         role: 'envPrompt',
-        vars: [
-          { name: 'pet.user', description: '对使用者的称呼' },
-          { name: 'pet.vocab', description: '当前形象的表情与动作词表', multiline: true },
-          { name: 'pet.voice', description: '语音输入开着还是关着' },
-          { name: 'pet.body', description: '当前形象的样子' },
-          { name: 'pet.dress', description: 'pet_set 能选的形象与打扮', multiline: true },
-          { name: 'pet.self', description: '「允许自己调整」开着还是关着' },
-          { name: 'pet.chat', description: '应用提供对话页时,对它的说明;没有时为空' },
-          { name: 'pet.reply', description: '应用语言既不是简体中文也不是英文时,让 bot 用那种语言说话的一句;否则为空' },
-        ],
+        vars: ['pet.user', 'pet.vocab', 'pet.voice', 'pet.body', 'pet.dress', 'pet.self', 'pet.chat', 'pet.reply']
+          .map((name) => ({ name, description: c.vars[name] ?? name, ...(name === 'pet.vocab' || name === 'pet.dress' ? { multiline: true } : {}) })),
       }],
     };
   }
@@ -1617,7 +1670,7 @@ export class DesktopPetWorld implements World {
     if (panel === 'chat' && method === 'blob') {
       const handle = typeof args[0] === 'string' && args[0].startsWith('log:') ? args[0] : null;
       const blob = handle ? this.host?.blob(handle) : null;
-      if (!blob) throw new Error('没有这张图');
+      if (!blob) throw new Error(this.ui.console.noImage);
       return { $binary: { mime: blob.mime, base64: Buffer.from(blob.bytes).toString('base64') } };
     }
     if (panel === 'pet') {
@@ -1627,7 +1680,7 @@ export class DesktopPetWorld implements World {
         case 'closeWindow': await this.windowHost?.stop(); return this.petState();
         case 'installElectron': void this.store.electron.install(); return this.petState();
         case 'guide': {
-          if (!this.opts.controls?.guide) throw new Error('这个应用没有引导');
+          if (!this.opts.controls?.guide) throw new Error(this.ui.console.noGuide);
           this.opts.controls.guide();
           return this.petState();
         }
@@ -1653,7 +1706,7 @@ export class DesktopPetWorld implements World {
         }
       }
     }
-    throw new Error(`未知方法 ${panel}.${method}`);
+    throw new Error(this.ui.console.unknownMethod(`${panel}.${method}`));
   }
 
   /** Downloads the FunASR model, chooses FunASR, and starts it when voice input is on. */
@@ -1690,9 +1743,9 @@ export class DesktopPetWorld implements World {
       input: {
         ...this.cfg.asr.mic,
         effectiveMode: this.micMode(),
-        hotkeyLabel: hotkeyLabel(this.cfg.asr.mic.hotkey),
+        hotkeyLabel: hotkeyLabel(this.cfg.asr.mic.hotkey, process.platform, this.ui),
         /** The keys alone, and how many presses (the last one held): for a key cap that shows the taps. */
-        keyLabel: comboLabel(this.cfg.asr.mic.hotkey),
+        keyLabel: comboLabel(this.cfg.asr.mic.hotkey, process.platform, this.ui),
         taps: splitTaps(this.cfg.asr.mic.hotkey).taps,
         hint: this.talkHint(),
         hotkeyProblem: this.hotkeyProblem,
