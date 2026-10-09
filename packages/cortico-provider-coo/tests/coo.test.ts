@@ -137,6 +137,36 @@ describe('Coo Pet Provider', () => {
     expect(outputs[1].output).toContainEqual(expect.objectContaining({ type: 'input_image' }));
   });
 
+  it('moves tool result images into a user message after them for a service whose tool output takes text only', async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const reply = { id: 'r', object: 'response', model: 'm', status: 'completed', created_at: 1, output: [], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } };
+    vi.stubGlobal('fetch', async (_url: string, init: { body: string }) => {
+      bodies.push(JSON.parse(init.body) as Record<string, unknown>);
+      return new Response(JSON.stringify(reply), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    const shot = { handle: 'blob:a.jpg', mime: 'image/jpeg', name: 'screen.jpg', fallbackText: '屏幕截图' };
+    const image = { type: 'input_image', image_url: `data:image/jpeg;base64,${Buffer.from('jpeg').toString('base64')}` };
+    const context = [message('user', '看看屏幕'), functionCall('c1', 'look', '{}'), functionResult('c1', blobLine(shot), { blobs: [shot] })];
+    const send = async (id: string) => {
+      const v = VENDORS.find((x) => x.id === id)!;
+      const instance = COO.create(id, entry({ baseUrl: siteOf(v, 'cn').baseUrl, spec: { model: v.model, thinking: true } }), { ...host(), readBlob: () => Buffer.from('jpeg') } as never);
+      await instance.client.respond({ model: v.model, input: context.map((r) => r.item) } as unknown as Request, { context });
+      const input = bodies.at(-1)!.input as Array<Record<string, unknown>>;
+      return input.slice(input.findIndex((i) => i.type === 'function_call_output'));
+    };
+    try {
+      expect(await send('qwen')).toMatchObject([
+        { type: 'function_call_output', call_id: 'c1', output: blobLine(shot) },
+        { type: 'message', role: 'user', content: [image] },
+      ]);
+      expect(await send('deepseek')).toMatchObject([
+        { type: 'function_call_output', call_id: 'c1', output: [{ type: 'input_text', text: blobLine(shot) }, image] },
+      ]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('reads the reasoning streams of StepFun and Qwen, which the standard parser rejects (#94)', async () => {
     const at = { output_index: 0, item_id: 'rs_1', content_index: 0 };
     const message = { id: 'msg_1', type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: '好', annotations: [] }] };

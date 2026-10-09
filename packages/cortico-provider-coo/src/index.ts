@@ -10,7 +10,8 @@
  * max, each rewritten to the value a service documents where it takes other ones (`effortOf`); the
  * Messages and Gemini APIs get the levels in their own form. Images are sent only when the endpoint
  * is marked multimodal and, for a listed service, the service lists the model as reading them; tool
- * results may carry images too. Images go out only from the newest delivered batch of events on
+ * results may carry images too, which move to a user message after the results on Chat and for
+ * `toolOutputText` services on Responses. Images go out only from the newest delivered batch of events on
  * (`sinceLastDelivery`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
  * Streamed reasoning from services marked `lenientReasoning` is rewritten into standard events
  * (`LenientReasoningAssembly`).
@@ -170,7 +171,7 @@ export const COO = {
           media,
           keepThinking: host.keepThinking,
           reasoningReplay: vendor?.encryptedReasoning ? 'encrypted' : 'plaintext',
-        }, { effort, lenientReasoning: vendor?.lenientReasoning }),
+        }, { effort, lenientReasoning: vendor?.lenientReasoning, toolOutputText: vendor?.toolOutputText }),
     };
   },
 } satisfies ProviderModule;

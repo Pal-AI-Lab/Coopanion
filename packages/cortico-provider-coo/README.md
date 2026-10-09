@@ -44,7 +44,8 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
   Anthropic 回传 thinking 块和签名,Gemini 回传 `thoughtSignature`,都只回给写出它的端点和模型。
 - **图片**:端点勾了「多模态」且那一家列明所用模型能看图(`Vendor.vision`)时才发;别的地址只看「多模态」。选模型时按它自动勾上或去掉「多模态」。
   只发最近一批送达的事件(user 消息或事件帧)及其后的图片,更早的只留 Core 给每份附件写的 `[blob …]` 那行文字。
-  每次送达新的一批,请求里从上一批的第一张图起前缀缓存失效。Chat 的工具结果不带图片,图片挪到紧跟其后的一条 user 消息里。
+  每次送达新的一批,请求里从上一批的第一张图起前缀缓存失效。Chat 的工具结果不带图片,图片挪到紧跟其后的一条 user 消息里;
+  千问、智谱国内、阶跃星辰、千帆的 Responses 文档写明 `function_call_output.output` 只收字符串(`toolOutputText`),也这样挪。
 - **价目**:`src/pricing.ts` 内置 DeepSeek(错峰价,两个高峰时段按两倍计)、OpenAI、Anthropic、Gemini(付费档)、xAI;别家没有内置价目。
   长提示的第二档价格按 `inputBands` 计;`gemini-3.8-flash` 的现价到 2026-12-31,之后开始的请求按页面列的新价。
 - **标志**:`src/icons.ts`,取自 [@lobehub/icons-static-svg](https://github.com/lobehub/lobe-icons)(MIT)。标志归各自的公司所有,只用来标明是哪一家。

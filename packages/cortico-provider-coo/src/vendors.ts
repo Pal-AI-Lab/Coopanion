@@ -71,6 +71,8 @@ export interface Vendor {
   modelEffort?: Readonly<Record<string, EffortMap>>;
   /** The service streams reasoning in Responses events the standard parser rejects; see `LenientReasoningAssembly`. */
   lenientReasoning?: true;
+  /** Responses: `function_call_output.output` takes a string only, so images in tool results go in a user message after them. */
+  toolOutputText?: true;
   /** Responses: past reasoning goes back as the signed blocks the service returned, not as text. */
   encryptedReasoning?: true;
 }
@@ -99,6 +101,7 @@ export const VENDORS: readonly Vendor[] = [
     vision: ['qwen3.8-flash', 'qwen3.7-flash', 'qwen3.8-max'], contextWindows: { 'qwen3.8-flash': 1_000_000 },
     effort: { high: 'medium', max: 'xhigh' },
     lenientReasoning: true,
+    toolOutputText: true,
   },
   {
     // the Responses endpoints serve kimi-k3 only, which takes low / high / max
@@ -122,6 +125,7 @@ export const VENDORS: readonly Vendor[] = [
     },
     model: 'glm-5.3-flash', models: ['glm-5.3', 'glm-4.6v-flash'],
     vision: ['glm-5.3-flash', 'glm-4.6v-flash', 'glm-4.6v-flashx'], contextWindows: { 'glm-5.3': 1_000_000 },
+    toolOutputText: true,
   },
   {
     // the model is used by its id, after it is switched on under 开通管理 in the Ark console
@@ -149,6 +153,7 @@ export const VENDORS: readonly Vendor[] = [
     vision: ['step-3.7-flash', 'step-5-preview'],
     effort: { none: 'low', max: 'high' },
     lenientReasoning: true,
+    toolOutputText: true,
   },
   {
     // Qianfan's Responses endpoint lists no ERNIE model, none documented as reading images, and no effort
@@ -156,6 +161,7 @@ export const VENDORS: readonly Vendor[] = [
     sites: { global: { baseUrl: 'https://qianfan.baidubce.com/v2', protocol: 'responses', keyUrl: 'https://console.bce.baidu.com/iam/#/iam/apikey/list' } },
     model: 'glm-5.1', models: ['glm-5', 'qwen3-235b-a22b-instruct-2507', 'deepseek-v4-pro'],
     effort: { none: null, low: null, high: null, max: null },
+    toolOutputText: true,
   },
   {
     id: 'openrouter', names: brand('OpenRouter'), keyHint: hint('sk-or-'), secret: 'OPENROUTER_API_KEY',
