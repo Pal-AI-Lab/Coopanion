@@ -12,6 +12,10 @@
  * The `coopanion` World (`notice.ts`) tells Coo what the app has to say: the release notes after
  * an update, and the settings the person changes.
  *
+ * The app language (`config.language`) picks the language of what Coo reads (`language.ts`): the
+ * bundled Worlds' events, receipts and environment prompts. Each read takes the language as it is
+ * then; the prompt follows at the next prefix rebuild.
+ *
  * The settings window's colours follow the pet's look (`console-theme.ts`): at start and whenever the
  * dressing page saves one.
  *
@@ -58,6 +62,7 @@ import { followPetLook } from './console-theme.ts';
 import { askForKey, guideDone, markDone, runGuide, type GuideDeps } from './guide.ts';
 import { noticeDefinition, type NoticeWorld } from './notice.ts';
 import { describePetTool } from './pet-status.ts';
+import { modelLanguage, replyLanguage } from './language.ts';
 import { CONSOLE_PORT, DEPLOYMENT, DISPLAY_NAME, SEED_DIR, seed } from './seed.ts';
 import { crashFields, describeEndpoint, publicExtensionName, Telemetry, type Counter } from './telemetry.ts';
 
@@ -411,6 +416,8 @@ export async function main(): Promise<void> {
         void guideRun(guide);
       },
     },
+    modelLanguage: () => modelLanguage(config?.language),
+    replyLanguage: () => replyLanguage(config?.language),
     onCreate: (world) => { pet = world; },
     onBotChange: () => (notice as NoticeWorld | null)?.acceptCurrent(),
     onSkin: (skin) => followPetLook(join(deploymentRoot(), DEPLOYMENT), skin, (pet as DesktopPetWorld | null)?.packs() ?? []),
@@ -422,6 +429,7 @@ export async function main(): Promise<void> {
       if (answer === 'yes') telemetry?.count('cuaGranted');
       return answer === 'unavailable' ? null : answer === 'yes' || answer === 'timeout' ? answer : 'no';
     },
+    modelLanguage: () => modelLanguage(config?.language),
   });
   const home = deploymentRoot();
   seed(home);
@@ -510,6 +518,7 @@ export async function main(): Promise<void> {
     openDress: () => process.send?.({ type: 'companion:open', path: '#/dress' }),
     onEnd: (end) => (notice as NoticeWorld | null)?.guideEnded(end),
     track: (type, fields) => stats.event(type, fields),
+    modelLanguage: () => modelLanguage(loaded.config.language),
   };
   guide = guideDeps;
   void introduce(guideDeps, guideRun, () => hasKey(loaded.config), keyMissing ? watchTalk(bot.core.bus) : null).catch((err) => {

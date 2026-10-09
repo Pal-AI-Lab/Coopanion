@@ -4,7 +4,8 @@
  * - After an update, the release notes of every version since the last one this install ran
  *   (`docs/releases/v<version>.md`, which the installer ships), once the pet page is connected. A
  *   new install starts silent; an install from before this World (no state file) hears the
- *   current version's notes only. Development runs (`dev`) say nothing.
+ *   current version's notes only. Development runs (`dev`) say nothing. With English model text a
+ *   version's `v<version>.en.md` is read instead, when it exists.
  * - When the person changes a setting Coo shows or works by (what it calls them, Coo's dress, size,
  *   colours, walking, voice input, computer use), what changed, from what to what. A switch of
  *   figure or of a figure pack's pick is the desktop-pet World's to tell: it knows the body.
@@ -15,6 +16,8 @@
  *   person's answers (`guide.ts`), with what is Coo's to settle with the person after it.
  *
  * - Wake-ups Coo sets for itself (`alarms.ts`): its tools, and the event when one is due.
+ *
+ * Every event is in the model-text language of the app language (`language.ts`), read when it is rendered.
  *
  * The last version told is kept in `notice.json` in the deployment directory, written when the
  * event is delivered, so an update told while events are held (no key yet) is told on a later start.
@@ -27,12 +30,13 @@ import type { ToolDef, World, WorldHost } from 'cortico/core/types.ts';
 import type { WorldDefinition, WorldSection } from 'cortico/world.ts';
 import { Alarms } from './alarms.ts';
 import type { GuideEnd } from './guide.ts';
+import { modelLanguage, type ModelLanguage } from './language.ts';
 
 export const NOTICE_ID = 'coopanion';
 /** How often the watched settings are compared with the last look. */
 const LOOK_EVERY_MS = 1000;
-/** Where the release notes stop being about the app: the download list that ends each file. */
-const NOTES_END = /^## 下载/m;
+/** Where the release notes stop being about the app: the download list that ends each file, by the file's language. */
+const NOTES_END: Record<ModelLanguage, RegExp> = { zh: /^## 下载/m, en: /^## Download/m };
 
 export interface NoticeAssembly {
   /** The running version (`COOPANION_VERSION`), `dev` outside a packaged app. */
@@ -45,7 +49,7 @@ export interface NoticeAssembly {
   alarmsFile: string;
   /** A new install, introduction not run and no key: its first version is not news. */
   newInstall: () => boolean;
-  /** A value of the live config by dotted path. */
+  /** A value of the live config by dotted path; `language` gives the model-text language. */
   read: (path: string) => unknown;
   /** The pet page is connected, so Coo can answer in its bubble. */
   petConnected: () => boolean;
@@ -69,9 +73,10 @@ function compare(a: Version, b: Version): number {
 
 /**
  * The notes of the versions after `from` up to `to`, oldest first, each cut before its download
- * list; with `from` null, the notes of `to` only. Versions without a file are left out.
+ * list; with `from` null, the notes of `to` only. Versions without a file are left out. In English a
+ * version's `.en.md` file is taken when there is one, its Chinese file otherwise.
  */
-export function releaseNotes(dir: string, from: string | null, to: string): Array<{ version: string; text: string }> {
+export function releaseNotes(dir: string, from: string | null, to: string, language: ModelLanguage = 'zh'): Array<{ version: string; text: string }> {
   const upper = parseVersion(to);
   if (!upper) return [];
   const lower = from === null ? null : parseVersion(from);
@@ -82,20 +87,12 @@ export function releaseNotes(dir: string, from: string | null, to: string): Arra
     .filter(({ v }) => compare(v, upper) <= 0 && (lower ? compare(v, lower) > 0 : compare(v, upper) === 0))
     .sort((a, b) => compare(a.v, b.v))
     .map(({ name, v }) => {
-      const text = readFileSync(join(dir, name), 'utf8').replaceAll('\r\n', '\n');
-      const end = text.search(NOTES_END);
+      const english = name.replace(/\.md$/, '.en.md');
+      const [file, written]: [string, ModelLanguage] = language === 'en' && existsSync(join(dir, english)) ? [english, 'en'] : [name, 'zh'];
+      const text = readFileSync(join(dir, file), 'utf8').replaceAll('\r\n', '\n');
+      const end = text.search(NOTES_END[written]);
       return { version: v.join('.'), text: (end < 0 ? text : text.slice(0, end)).trim() };
     });
-}
-
-export function updatedText(from: string | null, to: string, notes: Array<{ version: string; text: string }>): string {
-  const head = from ? `[应用更新] Coopanion 刚从 ${from} 更新到 ${to}。` : `[应用更新] Coopanion 刚更新到 ${to}。`;
-  if (!notes.length) return `${head}这个版本没有附带更新说明。`;
-  return [
-    `${head}下面是${notes.length > 1 ? '这之间各版本' : '这个版本'}的更新说明,原文是写给对方看的:`,
-    ...notes.map((n) => `\n<release version="${n.version}">\n${n.text}\n</release>`),
-    '\n挑对方用得上的新功能和修复,用你自己的话告诉对方,不用照念,也不用一次说完。',
-  ].join('\n');
 }
 
 interface Labels {
@@ -119,40 +116,144 @@ async function loadLabels(): Promise<Labels> {
   return labels;
 }
 
-interface Watched {
-  path: string;
-  name: string;
-  /** How a value is told; absent: as it is. */
-  say?: (value: unknown, labels: Labels) => string;
-  /** Told as changed, without the values. */
-  changedOnly?: true;
-}
-
-const onOff = (v: unknown) => (v ? '开' : '关');
-const named = (table: Record<string, string>) => (v: unknown) => table[String(v)] ?? String(v);
 const PET = 'worlds.desktop-pet';
 const CUA = 'worlds.cua';
 
-const WATCHED: Watched[] = [
-  { path: `${PET}.user`, name: '你对对方的称呼' },
-  { path: `${PET}.skin.palette`, name: 'Coo 的配色', say: (v, l) => l.palettes[String(v)] ?? String(v) },
-  { path: `${PET}.skin.head`, name: 'Coo 的头饰', say: (v, l) => l.accessories[String(v)] ?? String(v) },
-  { path: `${PET}.skin.side`, name: 'Coo 的耳饰', say: (v, l) => l.accessories[String(v)] ?? String(v) },
-  { path: `${PET}.skin.glasses`, name: 'Coo 的眼镜', say: (v, l) => l.accessories[String(v)] ?? String(v) },
-  { path: `${PET}.skin.neck`, name: 'Coo 的颈饰', say: (v, l) => l.accessories[String(v)] ?? String(v) },
-  { path: `${PET}.skin.colors`, name: 'Coo 配件的颜色', changedOnly: true },
-  { path: `${PET}.window.scale`, name: '你在屏幕上的大小', say: (v) => `${v} 倍` },
-  { path: `${PET}.theme`, name: '黑白模式', say: named({ dark: '夜间(浅色身体)', light: '白天(深色身体)' }) },
-  { path: `${PET}.roam`, name: '你平时走动多少', say: named({ free: '常走动', calm: '多待着', off: '不乱动' }) },
-  { path: `${PET}.sound`, name: '音效', say: onOff },
-  { path: `${PET}.asr.enabled`, name: '语音输入', say: onOff },
-  { path: `${CUA}.enabled`, name: '让你操作这台电脑', say: onOff },
-  { path: `${CUA}.control`, name: '允许你动鼠标键盘', say: onOff },
-  {
-    path: `${CUA}.permission`, name: '你操作电脑前什么时候先问对方',
-    say: named({ 'ask-each-turn': '每轮都问', 'ask-before-acting': '看屏幕不问,动鼠标键盘前每轮问', 'ask-once': '动手前问一次,同意后一段时间内不再问', 'never-ask': '都不问' }),
+/** The settings told when they change, in this order; `key` names the setting in the text tables. */
+const WATCHED = [
+  { path: `${PET}.user`, key: 'user' },
+  { path: `${PET}.skin.palette`, key: 'palette' },
+  { path: `${PET}.skin.head`, key: 'head' },
+  { path: `${PET}.skin.side`, key: 'side' },
+  { path: `${PET}.skin.glasses`, key: 'glasses' },
+  { path: `${PET}.skin.neck`, key: 'neck' },
+  { path: `${PET}.skin.colors`, key: 'colors' },
+  { path: `${PET}.window.scale`, key: 'scale' },
+  { path: `${PET}.theme`, key: 'theme' },
+  { path: `${PET}.roam`, key: 'roam' },
+  { path: `${PET}.sound`, key: 'sound' },
+  { path: `${PET}.asr.enabled`, key: 'voice' },
+  { path: `${CUA}.enabled`, key: 'cua' },
+  { path: `${CUA}.control`, key: 'control' },
+  { path: `${CUA}.permission`, key: 'permission' },
+] as const;
+
+type WatchedKey = typeof WATCHED[number]['key'];
+
+/**
+ * How a watched setting is told: its name, and how a value is said (absent: as it is). `changedOnly`
+ * settings are told as changed, without the values.
+ */
+interface SettingText {
+  name: string;
+  say?: (value: unknown, labels: Labels) => string;
+  changedOnly?: true;
+}
+
+const named = (table: Record<string, string>) => (v: unknown) => table[String(v)] ?? String(v);
+const label = (pick: (l: Labels) => Record<string, string>) => (v: unknown, l: Labels) => pick(l)[String(v)] ?? String(v);
+
+const zh = {
+  settings: {
+    user: { name: '你对对方的称呼' },
+    palette: { name: 'Coo 的配色', say: label((l) => l.palettes) },
+    head: { name: 'Coo 的头饰', say: label((l) => l.accessories) },
+    side: { name: 'Coo 的耳饰', say: label((l) => l.accessories) },
+    glasses: { name: 'Coo 的眼镜', say: label((l) => l.accessories) },
+    neck: { name: 'Coo 的颈饰', say: label((l) => l.accessories) },
+    colors: { name: 'Coo 配件的颜色', changedOnly: true },
+    scale: { name: '你在屏幕上的大小', say: (v) => `${v} 倍` },
+    theme: { name: '黑白模式', say: named({ dark: '夜间(浅色身体)', light: '白天(深色身体)' }) },
+    roam: { name: '你平时走动多少', say: named({ free: '常走动', calm: '多待着', off: '不乱动' }) },
+    sound: { name: '音效', say: (v) => (v ? '开' : '关') },
+    voice: { name: '语音输入', say: (v) => (v ? '开' : '关') },
+    cua: { name: '让你操作这台电脑', say: (v) => (v ? '开' : '关') },
+    control: { name: '允许你动鼠标键盘', say: (v) => (v ? '开' : '关') },
+    permission: {
+      name: '你操作电脑前什么时候先问对方',
+      say: named({ 'ask-each-turn': '每轮都问', 'ask-before-acting': '看屏幕不问,动鼠标键盘前每轮问', 'ask-once': '动手前问一次,同意后一段时间内不再问', 'never-ask': '都不问' }),
+    },
+  } as Record<WatchedKey, SettingText>,
+  changedLine: (name: string) => `- ${name}:换了`,
+  settingLine: (name: string, from: string, to: string) => `- ${name}:${from} → ${to}`,
+  changed: '[设置变化] 对方刚改了这些设置,已经生效:',
+
+  updatedFrom: (from: string, to: string) => `[应用更新] Coopanion 刚从 ${from} 更新到 ${to}。`,
+  updatedTo: (to: string) => `[应用更新] Coopanion 刚更新到 ${to}。`,
+  noNotes: '这个版本没有附带更新说明。',
+  notesIntro: (several: boolean) => `下面是${several ? '这之间各版本' : '这个版本'}的更新说明,原文是写给对方看的:`,
+  notesOutro: '\n挑对方用得上的新功能和修复,用你自己的话告诉对方,不用照念,也不用一次说完。',
+
+  someone: '对方',
+  guideFinished: (name: string) => `[启动引导] ${name}刚在你的气泡里走完了启动引导:定了你怎么称呼对方(「${name}」)、你平时活泼到什么程度、用哪家模型服务,也看过了怎么语音输入、按钮和菜单在哪。`,
+  guideClosed: (name: string, step: number) => `[启动引导] ${name}在第 ${step} 步关掉了启动引导,后面的步骤没有走。`,
+  guideRecord: '下面是引导里的对话。引导按程序写好的台词走,「Coo:」那几行是程序替你说的:',
+  guideAfter: (name: string) => [
+    `接下来可以和${name}商量你们之间的设定:你的性格和说话方式、你怎么称呼对方、对方想怎么叫你、希望你平时做什么不做什么。`,
+    '- 你的人设是工作区里的 CONSTITUTION.md,每次开新 session 都放进你的系统前缀。商量出结果后你可以自己改它,下一次 session 生效。',
+    '- 对方的称呼是设置窗口「习惯」页的「怎么称呼你」,由对方自己改;商量好的称呼和其他偏好可以记进你的工作区。',
+    '- 设置窗口的「系统提示词」页能看到并编辑你的整份系统提示词,CONSTITUTION 也在里面。可以引导对方去那里按自己的喜好改;对方想改什么,你也可以替对方改。',
+    '不用一次说完,看对方的兴致。',
+  ],
+};
+
+const en: typeof zh = {
+  settings: {
+    user: { name: 'what you call the person' },
+    // the dressing page's names are Chinese only: English says the ids
+    palette: { name: 'Coo\'s colours' },
+    head: { name: 'Coo\'s headwear' },
+    side: { name: 'Coo\'s ear accessory' },
+    glasses: { name: 'Coo\'s glasses' },
+    neck: { name: 'Coo\'s neckwear' },
+    colors: { name: 'the colours of Coo\'s accessories', changedOnly: true },
+    scale: { name: 'your size on screen', say: (v) => `${v}×` },
+    theme: { name: 'night or day look', say: named({ dark: 'night (light body)', light: 'day (dark body)' }) },
+    roam: { name: 'how much you walk about', say: named({ free: 'free (walks often)', calm: 'calm (mostly stays put)', off: 'off (does not wander)' }) },
+    sound: { name: 'sound effects', say: (v) => (v ? 'on' : 'off') },
+    voice: { name: 'voice input', say: (v) => (v ? 'on' : 'off') },
+    cua: { name: 'letting you operate this computer', say: (v) => (v ? 'on' : 'off') },
+    control: { name: 'letting you use the mouse and keyboard', say: (v) => (v ? 'on' : 'off') },
+    permission: {
+      name: 'when you ask the person before using the computer',
+      say: named({ 'ask-each-turn': 'every turn', 'ask-before-acting': 'not before looking at the screen; every turn before mouse or keyboard input', 'ask-once': 'once before acting, then not again for a while after a yes', 'never-ask': 'never' }),
+    },
   },
-];
+  changedLine: (name) => `- ${name}: changed`,
+  settingLine: (name, from, to) => `- ${name}: ${from} → ${to}`,
+  changed: '[settings changed] The person just changed these settings, now in effect:',
+
+  updatedFrom: (from, to) => `[app update] Coopanion was just updated from ${from} to ${to}.`,
+  updatedTo: (to) => `[app update] Coopanion was just updated to ${to}.`,
+  noNotes: ' This version came without release notes.',
+  notesIntro: (several) => ` Below are the release notes of ${several ? 'each version in between' : 'this version'}, written for the person to read:`,
+  notesOutro: '\nPick the new features and fixes the person can use and tell them in your own words; no need to read them out or to say it all at once.',
+
+  someone: 'the person',
+  guideFinished: (name) => `[introduction] ${name} just walked through the introduction in your bubble: settled what you call them ("${name}"), how lively you are day to day and which model service to use, and saw how voice input works and where the buttons and the menu are.`,
+  guideClosed: (name, step) => `[introduction] ${name} closed the introduction at step ${step}; the steps after it were not walked through.`,
+  guideRecord: 'Below is the conversation from the introduction. It follows lines the app wrote; the "Coo:" lines were said by the app on your behalf:',
+  guideAfter: (name) => [
+    `Next you can work out with ${name} how things are between you: your personality and way of talking, what you call them, what they want to call you, what they would like you to do or not do day to day.`,
+    '- Your persona is CONSTITUTION.md in your workspace, which goes into your system prefix at the start of every new session. Once you have agreed on something you can edit it yourself; it takes effect from the next session.',
+    '- What you call them is "What to call you" on the Habits page of the settings window, which they change themselves; a name you agreed on and other preferences can go into your workspace.',
+    '- The System prompt page of the settings window shows your whole system prompt, CONSTITUTION included, and lets them edit it. You can point them there to change it to their liking; you can also make the changes they want for them.',
+    'No need to cover it all at once; follow their interest.',
+  ],
+};
+
+const NOTICE_TEXT: Record<ModelLanguage, typeof zh> = { zh, en };
+
+export function updatedText(from: string | null, to: string, notes: Array<{ version: string; text: string }>, language: ModelLanguage = 'zh'): string {
+  const t = NOTICE_TEXT[language];
+  const head = from ? t.updatedFrom(from, to) : t.updatedTo(to);
+  if (!notes.length) return `${head}${t.noNotes}`;
+  return [
+    `${head}${t.notesIntro(notes.length > 1)}`,
+    ...notes.map((n) => `\n<release version="${n.version}">\n${n.text}\n</release>`),
+    t.notesOutro,
+  ].join('\n');
+}
 
 type Look = Record<string, string>;
 
@@ -161,39 +262,31 @@ function look(read: (path: string) => unknown): Look {
 }
 
 /** One line per watched setting that differs between the two looks, in `WATCHED` order. */
-export function settingChanges(before: Look, after: Look, labels: Labels): string[] {
+export function settingChanges(before: Look, after: Look, labels: Labels, language: ModelLanguage = 'zh'): string[] {
+  const t = NOTICE_TEXT[language];
   return WATCHED.filter((w) => before[w.path] !== after[w.path]).map((w) => {
+    const s = t.settings[w.key];
     const say = (raw: string | undefined) => {
       const v = raw === undefined ? null : JSON.parse(raw) as unknown;
-      return w.say ? w.say(v, labels) : String(v);
+      return s.say ? s.say(v, labels) : String(v);
     };
-    return w.changedOnly ? `- ${w.name}:换了` : `- ${w.name}:${say(before[w.path])} → ${say(after[w.path])}`;
+    return s.changedOnly ? t.changedLine(s.name) : t.settingLine(s.name, say(before[w.path]), say(after[w.path]));
   });
 }
 
-const GUIDE_AFTER = (name: string) => [
-  `接下来可以和${name}商量你们之间的设定:你的性格和说话方式、你怎么称呼对方、对方想怎么叫你、希望你平时做什么不做什么。`,
-  '- 你的人设是工作区里的 CONSTITUTION.md,每次开新 session 都放进你的系统前缀。商量出结果后你可以自己改它,下一次 session 生效。',
-  '- 对方的称呼是设置窗口「习惯」页的「怎么称呼你」,由对方自己改;商量好的称呼和其他偏好可以记进你的工作区。',
-  '- 设置窗口的「系统提示词」页能看到并编辑你的整份系统提示词,CONSTITUTION 也在里面。可以引导对方去那里按自己的喜好改;对方想改什么,你也可以替对方改。',
-  '不用一次说完,看对方的兴致。',
-];
-
-export function guideText(end: GuideEnd): string {
-  const name = end.name ?? '对方';
-  const head = end.finished
-    ? `[启动引导] ${name}刚在你的气泡里走完了启动引导:定了你怎么称呼对方(「${name}」)、你平时活泼到什么程度、用哪家模型服务,也看过了怎么语音输入、按钮和菜单在哪。`
-    : `[启动引导] ${name}在第 ${end.step} 步关掉了启动引导,后面的步骤没有走。`;
+export function guideText(end: GuideEnd, language: ModelLanguage = 'zh'): string {
+  const t = NOTICE_TEXT[language];
+  const name = end.name ?? t.someone;
   return [
-    head,
-    '下面是引导里的对话。引导按程序写好的台词走,「Coo:」那几行是程序替你说的:',
+    end.finished ? t.guideFinished(name) : t.guideClosed(name, end.step),
+    t.guideRecord,
     '<guide>', ...end.transcript, '</guide>',
-    ...(end.finished ? GUIDE_AFTER(name) : []),
+    ...(end.finished ? t.guideAfter(name) : []),
   ].join('\n');
 }
 
-export function changedText(lines: string[]): string {
-  return ['[设置变化] 对方刚改了这些设置,已经生效:', ...lines].join('\n');
+export function changedText(lines: string[], language: ModelLanguage = 'zh'): string {
+  return [NOTICE_TEXT[language].changed, ...lines].join('\n');
 }
 
 export class NoticeWorld implements World {
@@ -211,7 +304,12 @@ export class NoticeWorld implements World {
   private readonly alarms: Alarms;
 
   constructor(private readonly a: NoticeAssembly, timezone: string) {
-    this.alarms = new Alarms(a.alarmsFile, timezone);
+    this.alarms = new Alarms(a.alarmsFile, timezone, () => this.language);
+  }
+
+  /** The model-text language of the app language as it is now. */
+  private get language(): ModelLanguage {
+    return modelLanguage(this.a.read('language'));
   }
 
   envPromptVars(): null { return null; }
@@ -253,7 +351,7 @@ export class NoticeWorld implements World {
 
   /** Hands Coo the introduction's record, delivered at once (held, like everything, while there is no key). */
   guideEnded(end: GuideEnd): void {
-    this.host?.pushDeferred({ type: 'coopanion.guide', origin: 'internal', render: () => guideText(end) }, { trigger: 'flush' });
+    this.host?.pushDeferred({ type: 'coopanion.guide', origin: 'internal', render: () => guideText(end, this.language) }, { trigger: 'flush' });
   }
 
   private record(version: string): void {
@@ -279,7 +377,11 @@ export class NoticeWorld implements World {
       this.update = null;
       host.pushDeferred({
         type: 'coopanion.updated', origin: 'internal',
-        render: () => { this.record(to); return updatedText(from, to, releaseNotes(this.a.notesDir, from, to)); },
+        render: () => {
+          this.record(to);
+          const language = this.language;
+          return updatedText(from, to, releaseNotes(this.a.notesDir, from, to, language), language);
+        },
       }, { trigger: 'flush' });
     }
     if (JSON.stringify(now) === JSON.stringify(this.seen)) return;
@@ -289,9 +391,9 @@ export class NoticeWorld implements World {
       type: 'coopanion.settings-changed', origin: 'internal',
       render: () => {
         const current = look(this.a.read);
-        const lines = settingChanges(this.told, current, this.labels);
+        const lines = settingChanges(this.told, current, this.labels, this.language);
         this.told = current;
-        return lines.length ? changedText(lines) : null;
+        return lines.length ? changedText(lines, this.language) : null;
       },
     }, { trigger: 'debounce' });
   }

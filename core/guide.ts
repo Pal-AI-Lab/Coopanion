@@ -26,6 +26,7 @@ import { existsSync, writeFileSync } from 'node:fs';
 import type { DesktopPetWorld, PetDialog, PetDialogAnswer } from 'cortico-world-desktop-pet';
 import { VENDOR_ICONS, VENDORS, type Vendor } from 'cortico-provider-coo';
 import { connectVendor, currentConnection, type ConsoleCall } from 'cortico-provider-coo/src/connect.ts';
+import type { ModelLanguage } from './language.ts';
 
 const PET_GROUP = 'world:desktop-pet';
 const USER_KEY = 'worlds.desktop-pet.user';
@@ -125,6 +126,8 @@ export interface GuideDeps {
   onEnd?: (end: GuideEnd) => void;
   /** Usage statistics: each step reached, the source answer, a model connected, the voice model download, and how the introduction ended. */
   track?: (type: string, fields: Record<string, unknown>) => void;
+  /** The language of the record's own words (who said a line, a close, a key typed in); Chinese when absent. */
+  modelLanguage?: () => ModelLanguage;
 }
 
 export interface GuideEnd {
@@ -134,21 +137,28 @@ export interface GuideEnd {
   name: string | null;
   /** The last numbered step reached. */
   step: number;
-  /** Coo's lines and the person's answers, in order. */
+  /** Coo's lines and the person's answers, in order, as they were shown. */
   transcript: string[];
 }
 
 /** Ended with the close button: the rest is skipped. */
 class Closed extends Error {}
 
+/** The record's own words, in the model-text language; the lines and answers in it are as the bubble showed them. */
+const RECORD_TEXT = {
+  zh: { coo: (text: string) => `Coo:${text}`, person: (text: string) => `对方:${text}`, closed: '(对方点了关闭,引导到这里结束)', key: '(填了 API Key)' },
+  en: { coo: (text: string) => `Coo: ${text}`, person: (text: string) => `Person: ${text}`, closed: '(the person closed it here, which ended the introduction)', key: '(an API key was entered)' },
+} satisfies Record<ModelLanguage, unknown>;
+
 /** One step for the record: Coo's line and, when the step asked something, the answer. */
-export function noteStep(d: PetDialog, a: PetDialogAnswer): string[] {
-  const lines = [`Coo:${d.text}`];
+export function noteStep(d: PetDialog, a: PetDialogAnswer, language: ModelLanguage = 'zh'): string[] {
+  const r = RECORD_TEXT[language];
+  const lines = [r.coo(d.text)];
   const input = d.input;
-  if ('closed' in a) lines.push('(对方点了关闭,引导到这里结束)');
-  else if ('index' in a && (input?.kind === 'buttons' || input?.kind === 'choices')) lines.push(`对方:${input.options[a.index]?.label ?? a.index}`);
-  else if ('text' in a) lines.push(`对方:${input?.kind === 'text' && input.secret ? '(填了 API Key)' : a.text}`);
-  else if ('alt' in a && input?.kind === 'text' && input.alt) lines.push(`对方:${input.alt}`);
+  if ('closed' in a) lines.push(r.closed);
+  else if ('index' in a && (input?.kind === 'buttons' || input?.kind === 'choices')) lines.push(r.person(String(input.options[a.index]?.label ?? a.index)));
+  else if ('text' in a) lines.push(r.person(input?.kind === 'text' && input.secret ? r.key : a.text));
+  else if ('alt' in a && input?.kind === 'text' && input.alt) lines.push(r.person(input.alt));
   return lines;
 }
 
@@ -255,7 +265,7 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
     if (n > reached) { reached = n; deps.track?.('guide_step', { step: n }); }
     at = line;
     return t.show({ ...d, step: [n, STEPS], closable: true }).then((a) => {
-      transcript.push(...noteStep(d, a));
+      transcript.push(...noteStep(d, a, deps.modelLanguage?.() ?? 'zh'));
       if ('closed' in a) throw new Closed();
       return a;
     });
@@ -359,7 +369,7 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
     deps.track?.('guide_closed', { step: reached, at });
     markDone(deps.doneFile);
     await t.show({ text: S.closed, actions: ['nod'] });
-    transcript.push(`Coo:${S.closed}`);
+    transcript.push(RECORD_TEXT[deps.modelLanguage?.() ?? 'zh'].coo(S.closed));
     deps.onEnd?.({ finished: false, name, step: reached, transcript });
   } finally {
     running = false;
