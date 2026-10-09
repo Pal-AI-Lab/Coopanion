@@ -1,7 +1,7 @@
 /**
  * English: text of the Core process that people read: the introduction in the pet's bubble, the notes
  * on failed requests and updates, Coopanion's own settings, and what the status bubble says. The keys
- * are zh.ts's; a new language is a copy of this file in that language, registered in index.ts.
+ * are zh.ts's; a language other than zh-Hant reads the top-level keys its file leaves out from here.
  */
 import type { CoreText } from './index.ts';
 

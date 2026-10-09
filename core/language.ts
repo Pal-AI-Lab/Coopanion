@@ -8,9 +8,9 @@
  * `Language` (absent, or edited by hand) reads as Chinese, the language Coopanion seeded before it
  * had a choice.
  *
- * Text the person reads comes from a table per language (`core/i18n/`, `app/i18n/`, and the bundled
- * Worlds' own); a language without its table reads `zh`'s for `zh-Hant` and `en`'s for the rest
- * (Cortico's `baseLanguage`).
+ * Text the person reads comes from a file per language (`core/i18n/`, `app/i18n/`, the console pages'
+ * `strings.<code>.ts`, the provider's and the bundled Worlds' own). The `zh` and `en` files are
+ * complete; a key another language's file leaves out reads `zh`'s for `zh-Hant` and `en`'s for the rest.
  *
  * Model text comes in two versions: Chinese for `zh` and `zh-Hant`, English for every other app
  * language. For an app language that is neither `zh` nor `en`, the desktop-pet World tells the bot

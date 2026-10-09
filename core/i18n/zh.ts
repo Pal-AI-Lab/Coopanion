@@ -1,6 +1,6 @@
 /**
  * 简体中文:Core 进程给人看的文字,包括桌宠气泡里的启动引导、请求失败与更新提示、Coopanion 的设置项、
- * 状态气泡的说法。键与 en.ts 相同;新语言照 en.ts 写一份,再在 index.ts 里登记。
+ * 状态气泡的说法。键与 en.ts 相同;繁体中文缺的顶层键读这里。
  */
 const MAC = process.platform === 'darwin';
 
