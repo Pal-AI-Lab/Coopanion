@@ -8,6 +8,7 @@
  * by any of their names; unknown words are dropped and reported back. An inline marker longer than
  * `INLINE_TAG_MAX` or spanning a line is text.
  */
+import type { ModelLanguage } from './model-text.ts';
 
 /** One word of a body's vocabulary. */
 export interface VocabWord {
@@ -135,34 +136,61 @@ export function parseActions(list: readonly unknown[], vocab: readonly VocabWord
 }
 
 const pickIn = <T>(by: Record<string, T>, language: string): T | undefined => by[language] ?? by.zh ?? Object.values(by)[0];
-/** A word's row in the bot's table: what it is called and what it looks like. */
-const rowOf = (v: VocabWord, language: string) =>
-  `| ${v.id} | ${(pickIn(v.names, language) ?? []).join(' / ')} | ${pickIn(v.about, language) ?? ''}${v.lasting ? ',保持到下一个动作' : ''} |`;
-const TABLE_HEAD = '| 词 | 中文 | 样子 |\n|---|---|---|\n';
 
-/** The vocabulary as the bot's prompt shows it: expressions, then motions, with names and looks in `language`. */
-export function vocabTable(vocab: readonly VocabWord[], language = 'zh'): string {
-  const rows = (kind: VocabWord['kind']) => vocab.filter((v) => v.kind === kind).map((v) => rowOf(v, language)).join('\n');
-  return `表情(持续几秒后回到平常的脸):\n\n${TABLE_HEAD}${rows('expression')}\n\n`
-    + `动作:\n\n${TABLE_HEAD}${rows('motion')}`;
+/**
+ * The vocabulary as the bot reads it, by model-text language. A row gives what a word is called and
+ * what it looks like. The Chinese table lists every word's Chinese names; the English one only the
+ * English names a pack gives, so the bot writes ids or English words in English bubbles. A look
+ * without English text is given in the pack's own language.
+ */
+const VOCAB_TEXT = {
+  zh: {
+    row: (v: VocabWord) => `| ${v.id} | ${(pickIn(v.names, 'zh') ?? []).join(' / ')} | ${pickIn(v.about, 'zh') ?? ''}${v.lasting ? ',保持到下一个动作' : ''} |`,
+    head: '| 词 | 中文 | 样子 |\n|---|---|---|\n',
+    expressions: '表情(持续几秒后回到平常的脸):',
+    motions: '动作:',
+    changed: '词表变了。',
+    gone: (words: readonly VocabWord[]) => `这些词用不了了:${words.map((v) => `${v.id}(${pickIn(v.names, 'zh')?.[0] ?? v.id})`).join('、')}。`,
+    fresh: '新增或样子变了的:',
+    kinds: { expression: '表情', motion: '动作' } as Record<VocabWord['kind'], string>,
+  },
+  en: {
+    row: (v: VocabWord) => `| ${[v.id, ...v.names.en ?? []].join(' / ')} | ${pickIn(v.about, 'en') ?? ''}${v.lasting ? '; held until the next action' : ''} |`,
+    head: '| word | looks like |\n|---|---|\n',
+    expressions: 'Expressions (they last a few seconds, then the face goes back to normal):',
+    motions: 'Motions:',
+    changed: 'The vocabulary changed.',
+    gone: (words: readonly VocabWord[]) => ` These words no longer work: ${words.map((v) => v.id).join(', ')}.`,
+    fresh: ' New or changed:',
+    kinds: { expression: 'Expressions', motion: 'Motions' } as Record<VocabWord['kind'], string>,
+  },
+} satisfies Record<ModelLanguage, unknown>;
+
+/** The vocabulary as the bot's prompt shows it: expressions, then motions. */
+export function vocabTable(vocab: readonly VocabWord[], language: ModelLanguage = 'zh'): string {
+  const t = VOCAB_TEXT[language];
+  const rows = (kind: VocabWord['kind']) => vocab.filter((v) => v.kind === kind).map(t.row).join('\n');
+  return `${t.expressions}\n\n${t.head}${rows('expression')}\n\n`
+    + `${t.motions}\n\n${t.head}${rows('motion')}`;
 }
 
 /**
  * How the vocabulary went from `before` to `after`, for the bot: the words gone, then the rows of the words
  * new or told differently (kind, names, look). Empty when the bot would see the same table.
  */
-export function vocabChange(before: readonly VocabWord[], after: readonly VocabWord[], language = 'zh'): string {
-  const told = new Map(before.map((v) => [v.id, `${v.kind}${rowOf(v, language)}`]));
+export function vocabChange(before: readonly VocabWord[], after: readonly VocabWord[], language: ModelLanguage = 'zh'): string {
+  const t = VOCAB_TEXT[language];
+  const told = new Map(before.map((v) => [v.id, `${v.kind}${t.row(v)}`]));
   const gone = before.filter((v) => !after.some((w) => w.id === v.id));
-  const fresh = after.filter((v) => told.get(v.id) !== `${v.kind}${rowOf(v, language)}`);
+  const fresh = after.filter((v) => told.get(v.id) !== `${v.kind}${t.row(v)}`);
   if (!gone.length && !fresh.length) return '';
-  const lines = ['词表变了。'];
-  if (gone.length) lines[0] += `这些词用不了了:${gone.map((v) => `${v.id}(${pickIn(v.names, language)?.[0] ?? v.id})`).join('、')}。`;
+  const lines = [t.changed];
+  if (gone.length) lines[0] += t.gone(gone);
   if (fresh.length) {
-    lines[0] += '新增或样子变了的:';
-    for (const [kind, title] of [['expression', '表情'], ['motion', '动作']] as const) {
+    lines[0] += t.fresh;
+    for (const kind of ['expression', 'motion'] as const) {
       const rows = fresh.filter((v) => v.kind === kind);
-      if (rows.length) lines.push(`${title}:\n\n${TABLE_HEAD}${rows.map((v) => rowOf(v, language)).join('\n')}`);
+      if (rows.length) lines.push(`${t.kinds[kind]}:\n\n${t.head}${rows.map(t.row).join('\n')}`);
     }
   }
   return lines.join('\n\n');

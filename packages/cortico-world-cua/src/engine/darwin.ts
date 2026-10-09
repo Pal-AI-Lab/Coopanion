@@ -17,6 +17,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { appleString, dialogAnswer, macKey, unicodeChunks } from './mac-keys.ts';
+import { EngineFailure } from './fail.ts';
 
 const cg = koffi.load('/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics');
 const cf = koffi.load('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation');
@@ -100,12 +101,12 @@ export function screenSize(): Size {
 
 function needScreen(): void {
   if (CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess()) return;
-  throw new Error('没有「屏幕录制」权限:在「系统设置 → 隐私与安全性 → 录屏与系统录音」里打开 Coopanion,再重启它;已经开着的话,先用「−」把 Coopanion 移出列表再加回来:更新后的新版本不认旧授权');
+  throw new EngineFailure('macScreenPermission');
 }
 
 function needInput(): void {
   if (CGPreflightPostEventAccess() || CGRequestPostEventAccess()) return;
-  throw new Error('没有「辅助功能」权限:在「系统设置 → 隐私与安全性 → 辅助功能」里打开 Coopanion,再重启它;已经开着的话,先用「−」把 Coopanion 移出列表再加回来:更新后的新版本不认旧授权');
+  throw new EngineFailure('macInputPermission');
 }
 
 /** The main display as top-down BGRA at its pixel size. */
@@ -214,7 +215,7 @@ export function chord(vks: Array<{ vk: number; extended: boolean }>): void {
   needInput();
   const keys = vks.map((k) => {
     const m = macKey(k.vk);
-    if (!m) throw new Error(`Mac 键盘上没有这个键(虚拟键码 0x${k.vk.toString(16)})`);
+    if (!m) throw new EngineFailure('macNoKey', [`0x${k.vk.toString(16)}`]);
     return m;
   });
   let flags = 0;
@@ -323,8 +324,7 @@ export function focus(handle: string): boolean {
 }
 
 /** A yes/no dialog in front of every window, answered or given up after `timeoutMs`. */
-export function askYesNo(text: string, caption: string, timeoutMs: number): Promise<'yes' | 'no' | 'timeout'> {
-  const yes = '可以', no = '不行';
+export function askYesNo(text: string, caption: string, { yes, no }: { yes: string; no: string }, timeoutMs: number): Promise<'yes' | 'no' | 'timeout'> {
   const script = `display dialog ${appleString(text)} with title ${appleString(caption)} buttons {${appleString(no)}, ${appleString(yes)}} default button ${appleString(yes)} giving up after ${Math.max(1, Math.round(timeoutMs / 1000))}`;
   return new Promise((resolve) => {
     execFile('/usr/bin/osascript', ['-e', script], { timeout: timeoutMs + 5000 }, (err, stdout) => {

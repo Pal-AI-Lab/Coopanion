@@ -16,6 +16,7 @@
  * `onError(err)` is called when the pack's code fails after it was ready; before that the returned
  * promise rejects. Either way the frame is gone.
  */
+import { language, t } from './i18n.js';
 
 /** A pack that has not drawn its first frame by then is taken as broken: its scripts or textures did not load. */
 const READY_MS = 20_000;
@@ -104,7 +105,7 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
     const touches = touchGate();
     const waits = new Map();
     const post = (m) => { if (!gone) frame.contentWindow?.postMessage(m, '*'); };
-    const timer = setTimeout(() => fail(new Error(`形象 ${READY_MS / 1000} 秒内没有准备好`)), READY_MS);
+    const timer = setTimeout(() => fail(new Error(t('figure.notReady', { seconds: READY_MS / 1000 }))), READY_MS);
 
     function close() {
       if (gone) return;
@@ -165,6 +166,7 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
           post({
             t: 'init', entry: new URL(pack.base + pack.entry, location.href).href, export: pack.export,
             base: new URL(pack.base, location.href).href, model, scheme: knownScheme(pack, start.scheme), start: { x: start.x, facing: start.facing, enter: start.enter, skin: start.skin }, theme, bounds: size,
+            language: language(),
           });
         } catch (err) { fail(err); }
       } else if (m.t === 'ready' && !ready) {

@@ -1,12 +1,13 @@
-/** First-run files of the app's deployment. Imports nothing from Cortico, so it runs and tests on its own. */
+/** First-run files of the app's deployment. */
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { defaultRegion, endpointName, firstVendor, vendorEntry } from 'cortico-provider-coo/src/vendors.ts';
+import type { Language } from 'cortico/core/language.ts';
+import { modelLanguage, type ModelLanguage } from './language.ts';
 
 export const DEPLOYMENT = 'companion';
-export const ENDPOINT = 'deepseek';
-export const KEY_NAME = 'DEEPSEEK_API_KEY';
 export const CONSOLE_PORT = 17788;
 export const DISPLAY_NAME = 'Coo';
 /** The provider module of the app's endpoints (cortico-provider-coo). */
@@ -19,44 +20,45 @@ const OLD_CONSTITUTION = 'cfcb7527cbf3518ab9f077ee711c86661a70613b9e5caeb992b30a
 const CUA_ASK = 'ask-once';
 const OLD_CUA_ASK = 'ask-each-turn';
 export const SEED_DIR = fileURLToPath(new URL('./seed/', import.meta.url));
+/** The self-description seeded for each model-text language, in `SEED_DIR`. */
+export const CONSTITUTION_SEEDS: Record<ModelLanguage, string> = { zh: 'CONSTITUTION.md', en: 'CONSTITUTION.en.md' };
 
 /**
- * Writes the first-run files that are missing; existing files are left as the operator made them,
- * except a self-description still exactly as an older version seeded it, which becomes the current
- * one, endpoints of the old `deepseek` module, which now belong to `coo`, and a config without
- * `worlds.cua.permission`, which keeps the `ask-each-turn` it had before new installs got `ask-once`.
+ * Writes the first-run files that are missing. A new deployment config gets `language` and an
+ * endpoint without a key: the first model service listed for that language, on its platform for that
+ * language (vendors.ts). Existing files are left as the operator made them, except a self-description
+ * still exactly as a version seeded it, which becomes the current one in the model-text language of
+ * the config's `language` (`followLanguage`), endpoints of the old `deepseek` module, which now belong
+ * to `coo`, and a config without `worlds.cua.permission`, which keeps the `ask-each-turn` it had
+ * before new installs got `ask-once`.
  */
-export function seed(home: string): void {
+export function seed(home: string, language: Language): void {
   const deploy = join(home, DEPLOYMENT);
-  const endpoint = join(home, 'providers', ENDPOINT);
   const workspace = join(deploy, 'workspace');
   mkdirSync(workspace, { recursive: true });
-  mkdirSync(endpoint, { recursive: true });
+  mkdirSync(join(home, 'providers'), { recursive: true });
   const write = (file: string, value: unknown) => { if (!existsSync(file)) writeFileSync(file, JSON.stringify(value, null, 2) + '\n'); };
   write(join(deploy, 'deployment.json'), { bot: 'cormini' });
   const config = join(deploy, 'config.json');
   const upgrading = existsSync(config);
-  write(config, {
-    displayName: DISPLAY_NAME,
-    language: 'zh',
-    activeProvider: ENDPOINT,
-    providerSchemaVersion: 3,
-    web: { port: CONSOLE_PORT },
-    worlds: { cua: { permission: CUA_ASK } },
-  });
-  write(join(endpoint, 'config.json'), {
-    kind: MODULE,
-    baseUrl: 'https://api.deepseek.com',
-    secret: KEY_NAME,
-    spec: { model: 'deepseek-flash', thinking: true, reasoningEffort: 'high', maxTokens: 8192 },
-    multimodal: true,
-    pricing: [],
-    options: {},
-  });
-  if (!existsSync(join(workspace, 'CONSTITUTION.md'))) copyFileSync(join(SEED_DIR, 'CONSTITUTION.md'), join(workspace, 'CONSTITUTION.md'));
+  if (!upgrading) {
+    const vendor = firstVendor(language), region = defaultRegion(language), endpoint = join(home, 'providers', endpointName(vendor, region));
+    mkdirSync(endpoint, { recursive: true });
+    write(join(endpoint, 'config.json'), vendorEntry(vendor, vendor.model, region));
+    write(config, {
+      displayName: DISPLAY_NAME,
+      language,
+      activeProvider: endpointName(vendor, region),
+      providerSchemaVersion: 3,
+      web: { port: CONSOLE_PORT },
+      worlds: { cua: { permission: CUA_ASK } },
+    });
+  }
+  const textLanguage = modelLanguage((JSON.parse(readFileSync(config, 'utf8')) as { language?: unknown }).language);
+  if (!existsSync(join(workspace, 'CONSTITUTION.md'))) copyFileSync(join(SEED_DIR, CONSTITUTION_SEEDS[textLanguage]), join(workspace, 'CONSTITUTION.md'));
   // the console shows it as the bot's avatar
   if (!existsSync(join(deploy, 'avatar.png'))) copyFileSync(join(SEED_DIR, 'avatar.png'), join(deploy, 'avatar.png'));
-  upgradeSeededConstitution(workspace);
+  followLanguage(workspace, textLanguage);
   moveEndpointsToCoo(join(home, 'providers'));
   if (upgrading) keepCuaAsking(config);
 }
@@ -79,8 +81,24 @@ function moveEndpointsToCoo(providers: string): void {
   }
 }
 
-function upgradeSeededConstitution(workspace: string): void {
+/** SHA-256 of a file's text with line endings as LF; null when it is missing. */
+const hashOf = (file: string) => (existsSync(file) ? createHash('sha256').update(readFileSync(file, 'utf8').replaceAll('\r\n', '\n')).digest('hex') : null);
+
+/** The workspace's self-description is one this version seeds, in either language, as it was seeded. */
+export function isSeededConstitution(workspace: string): boolean {
+  const hash = hashOf(join(workspace, 'CONSTITUTION.md'));
+  return hash !== null && Object.values(CONSTITUTION_SEEDS).some((name) => hashOf(join(SEED_DIR, name)) === hash);
+}
+
+/**
+ * Puts the seed of `language` in place of a self-description still exactly as a version seeded it
+ * (this version's in the other language, or an older one); one the person or Coo changed stays.
+ * The bot reads the new one from its next session on.
+ */
+export function followLanguage(workspace: string, language: ModelLanguage): void {
   const file = join(workspace, 'CONSTITUTION.md');
-  const text = readFileSync(file, 'utf8').replaceAll('\r\n', '\n');
-  if (createHash('sha256').update(text).digest('hex') === OLD_CONSTITUTION) copyFileSync(join(SEED_DIR, 'CONSTITUTION.md'), file);
+  const seed = join(SEED_DIR, CONSTITUTION_SEEDS[language]);
+  const hash = hashOf(file);
+  if (hash === null || hash === hashOf(seed)) return;
+  if (hash === OLD_CONSTITUTION || isSeededConstitution(workspace)) copyFileSync(seed, file);
 }

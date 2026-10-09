@@ -9,8 +9,12 @@
  * Packs are imported here too (src/pack-import.ts): a zip as it is, or the folders a picked or dropped folder
  * holds a pack in (a folder with figure.json, up to `depth` levels down, not looking inside a pack), framed
  * as the server reads them (`bundle`). The server says what it found; the person picks what to install.
+ *
+ * Text follows the app language (i18n.js): the page's own from its tables, the names of figures, Coo's
+ * palettes and accessories, and other packs' picks from the packs' manifests.
  */
 import { applyTheme } from './ui.js';
+import { applyText, language, nameIn, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import {
   COO_CSS, mini, normalizeSkin, skinCss, wear,
@@ -33,6 +37,9 @@ const sfx = createSfx({ storageKey: 'cortico-pet.dress-sound.v1', volume: .35 })
 let skin = normalizeSkin(null);
 let theme = document.documentElement.dataset.theme;
 const modeBtn = $('#mode');
+/** The page's own text in the app language; the theme button's title is part of it. */
+const showText = () => { applyText(); document.title = t('dress.title'); applyTheme(theme, modeBtn); };
+const ready = useLanguage().then(showText);
 applyTheme(theme, modeBtn);
 const preview = $('#preview');
 const bounds = () => ({ W: preview.clientWidth, H: preview.clientHeight, floorY: preview.clientHeight - 30, S: .5 });
@@ -55,8 +62,8 @@ modeBtn.addEventListener('click', () => {
 
 function save(path, body) {
   fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-    .then((r) => { $('#saved').textContent = r.ok ? '已保存' : '没保存上'; })
-    .catch(() => { $('#saved').textContent = '没保存上:连不上桌宠服务'; });
+    .then((r) => { $('#saved').textContent = t(r.ok ? 'dress.saved' : 'dress.notSaved'); })
+    .catch(() => { $('#saved').textContent = t('dress.offline'); });
 }
 
 // the installed figure packs, asked for again whenever the page hears of a look, and the ones that did not load
@@ -82,7 +89,7 @@ async function showFigure(s) {
     }
     loading = s.figure;
     const pack = packs.find((p) => p.id === s.figure) ?? (await (await fetch('/api/figures')).json()).find((p) => p.id === s.figure);
-    if (!pack) throw new Error('没有装这个形象');
+    if (!pack) throw new Error(t('figure.notInstalled'));
     const was = body?.layout;
     const holder = {};
     const next = await loadBody({
@@ -121,7 +128,7 @@ const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls)
 function colorRow(slot, item) {
   const row = el('div', 'cmap');
   for (const ch of ROLES[item]) {
-    const name = ch === 'main' ? '主色' : '点缀';
+    const name = t(ch === 'main' ? 'dress.main' : 'dress.accent');
     const grp = el('div', 'cm-group');
     grp.setAttribute('role', 'group'); grp.setAttribute('aria-label', name);
     grp.appendChild(el('span', 'cm-label', name));
@@ -129,8 +136,8 @@ function colorRow(slot, item) {
       const linked = src.id === 'body' || src.id === 'eye';
       const b = el('button', 'dot' + (linked ? ' linked ' + src.id : ''));
       if (!linked) b.style.cssText = `--dl:${src.l};--dd:${src.d}`;
-      b.title = src.label;
-      b.setAttribute('aria-label', `${name}:${src.label}`);
+      b.title = t(`color.${src.id}`);
+      b.setAttribute('aria-label', t('dress.colorOf', { channel: name, color: b.title }));
       b.setAttribute('aria-pressed', String(skin.colors[slot][ch] === src.id));
       b.addEventListener('click', () => {
         const next = { ...skin, colors: JSON.parse(JSON.stringify(skin.colors)) };
@@ -144,7 +151,9 @@ function colorRow(slot, item) {
   return row;
 }
 
-const nameOf = (n) => (n && (n.zh ?? Object.values(n)[0])) || '';
+const nameOf = nameIn;
+/** The name Coo's manifest gives an option of `axis` (palette or an accessory slot), its id until the packs have loaded. */
+const cooName = (axis, id) => nameIn(packs.find((p) => p.id === 'coo')?.axes.find((a) => a.id === axis)?.options.find((o) => o.id === id)?.name) || id;
 /** The option of each axis that `scheme` picks: a preset id, or the options joined by `-` in axis order. */
 function picksOf(pack, scheme) {
   const preset = pack.presets.find((p) => p.id === scheme);
@@ -190,20 +199,21 @@ function renderFigure() {
     opts.appendChild(b);
   }
   if (packStatus.importable) {
-    const b = el('button', 'opt wide figure import', '<svg viewBox="0 0 52 52" aria-hidden="true"><path d="M26 15v22M15 26h22"/></svg><span>导入</span>');
-    b.title = '导入形象包';
+    const b = el('button', 'opt wide figure import', '<svg viewBox="0 0 52 52" aria-hidden="true"><path d="M26 15v22M15 26h22"/></svg><span></span>');
+    b.querySelector('span').textContent = t('import.button');
+    b.title = t('import.title');
     b.addEventListener('click', () => { sfx.tick(); importDialog.choose(); });
     opts.appendChild(b);
   }
   box.appendChild(opts);
   if (packStatus.problems.length) {
     const d = el('details', 'pack-problems');
-    d.appendChild(el('summary')).textContent = `有 ${packStatus.problems.length} 个形象包没加载`;
+    d.appendChild(el('summary')).textContent = t('import.unloaded', { n: packStatus.problems.length });
     const ul = d.appendChild(el('ul'));
     for (const p of packStatus.problems) {
       const li = ul.appendChild(el('li'));
       li.appendChild(el('b')).textContent = p.dir;
-      li.append(`:${p.reason}`);
+      li.append(t('import.reason', { reason: p.reason }));
     }
     box.appendChild(d);
   }
@@ -278,27 +288,27 @@ async function droppedFiles(entry, path, depth) {
 const importDialog = (() => {
   const dlg = $('#importDialog');
   let token = '';
-  const show = (html) => { dlg.innerHTML = html; if (!dlg.open) dlg.showModal(); };
+  const show = (html) => { dlg.innerHTML = html; applyText(dlg); if (!dlg.open) dlg.showModal(); };
   const close = () => { if (token) fetch('/api/figures/import/cancel', { method: 'POST' }).catch(() => {}); token = ''; dlg.close(); };
   dlg.addEventListener('cancel', (e) => { e.preventDefault(); close(); });
   dlg.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) close(); });
   const note = (title, text) => {
-    show('<h2 id="importTitle"></h2><p class="lead"></p><div class="actions"><button class="btn primary" type="button" data-close>好</button></div>');
+    show('<h2 id="importTitle"></h2><p class="lead"></p><div class="actions"><button class="btn primary" type="button" data-close data-i18n="import.ok"></button></div>');
     dlg.querySelector('h2').textContent = title;
     dlg.querySelector('.lead').textContent = text;
   };
-  const none = () => note('没有找到形象包', `形象包是带 figure.json 的那个文件夹,它要在你选的位置往下 ${packStatus.depth} 层以内。`);
+  const none = () => note(t('import.noneTitle'), t('import.noneText', { depth: packStatus.depth }));
 
   async function send(body, type) {
-    if (body.size > packStatus.max) return note('太大了', `一次最多导入 ${MB(packStatus.max)},这次有 ${MB(body.size)}。`);
-    show('<h2 id="importTitle">正在读取…</h2>');
+    if (body.size > packStatus.max) return note(t('import.tooBigTitle'), t('import.tooBigText', { max: MB(packStatus.max), size: MB(body.size) }));
+    show('<h2 id="importTitle" data-i18n="import.reading"></h2>');
     let res;
     try {
       res = await (await fetch('/api/figures/import', { method: 'POST', headers: { 'content-type': type }, body })).json();
     } catch {
-      return note('没能导入', '连不上桌宠服务。');
+      return note(t('import.failed'), t('import.offline'));
     }
-    if (res.error) return note('没能导入', res.error);
+    if (res.error) return note(t('import.failed'), res.error);
     if (!res.packs.length && !res.problems.length) return none();
     token = res.token;
     confirm(res);
@@ -306,8 +316,8 @@ const importDialog = (() => {
 
   function confirm({ packs: found, problems }) {
     show(`<h2 id="importTitle"></h2><ul class="found"></ul><div class="cant"></div>
-      <div class="actions"><button class="btn" type="button" data-close>取消</button><button class="btn primary" type="button" data-go>导入</button></div>`);
-    dlg.querySelector('h2').textContent = found.length ? `找到 ${found.length} 个形象包` : '这些形象包导入不了';
+      <div class="actions"><button class="btn" type="button" data-close data-i18n="import.cancel"></button><button class="btn primary" type="button" data-go data-i18n="import.button"></button></div>`);
+    dlg.querySelector('h2').textContent = found.length ? t('import.found', { n: found.length }) : t('import.allBad');
     const ul = dlg.querySelector('.found');
     for (const p of found) {
       const label = ul.appendChild(el('li')).appendChild(el('label'));
@@ -317,22 +327,22 @@ const importDialog = (() => {
       if (p.thumb) { pic.src = p.thumb; pic.alt = ''; }
       const info = label.appendChild(el('div', 'info'));
       info.appendChild(el('b')).textContent = nameOf(p.name);
-      info.appendChild(el('span', 'meta')).textContent = [`版本 ${p.version}`, p.author].filter(Boolean).join(' · ');
-      info.appendChild(el('span', 'meta')).textContent = `${p.axes} 组打扮、${p.words} 个表情和动作、${p.sounds} 个音效`;
-      if (p.credits.length) info.appendChild(el('span', 'meta')).textContent = p.credits.map((c) => `${c.role}:${c.name}`).join(';');
-      if (p.installed) info.appendChild(el('span', 'again')).textContent = p.installed === p.version ? `已经装了 ${p.installed},会重新装一遍` : `已经装了 ${p.installed},会换成 ${p.version}`;
+      info.appendChild(el('span', 'meta')).textContent = [t('import.version', { version: p.version }), p.author].filter(Boolean).join(' · ');
+      info.appendChild(el('span', 'meta')).textContent = t('import.contents', { axes: p.axes, words: p.words, sounds: p.sounds });
+      if (p.credits.length) info.appendChild(el('span', 'meta')).textContent = p.credits.map((c) => t('import.credit', c)).join(t('import.creditSep'));
+      if (p.installed) info.appendChild(el('span', 'again')).textContent = p.installed === p.version ? t('import.reinstall', { version: p.version }) : t('import.upgrade', { installed: p.installed, version: p.version });
       if (p.skipped.length) {
         const d = info.appendChild(el('details'));
-        d.appendChild(el('summary')).textContent = `有 ${p.skipped.length} 处这一版用不上`;
+        d.appendChild(el('summary')).textContent = t('import.skipped', { n: p.skipped.length });
         for (const s of p.skipped) d.appendChild(el('p')).textContent = s;
       }
     }
     const cant = dlg.querySelector('.cant');
-    if (problems.length && found.length) cant.appendChild(el('p', 'meta')).textContent = '这些导入不了:';
+    if (problems.length && found.length) cant.appendChild(el('p', 'meta')).textContent = t('import.someBad');
     for (const p of problems) {
       const line = cant.appendChild(el('p', 'warn'));
-      line.appendChild(el('b')).textContent = p.dir || '所选的那一层';
-      line.append(`:${p.reason}`);
+      line.appendChild(el('b')).textContent = p.dir || t('import.pickedLevel');
+      line.append(t('import.reason', { reason: p.reason }));
     }
     const go = dlg.querySelector('[data-go]');
     if (!found.length) { go.remove(); return; }
@@ -348,12 +358,12 @@ const importDialog = (() => {
       try {
         res = await (await fetch('/api/figures/import/install', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token, dirs: chosen.map((p) => p.dir) }) })).json();
       } catch {
-        res = { error: '连不上桌宠服务。' };
+        res = { error: t('import.offline') };
       }
       token = '';
-      if (res.error) return note('没能导入', res.error);
+      if (res.error) return note(t('import.failed'), res.error);
       dlg.close();
-      $('#saved').textContent = `已导入:${chosen.map((p) => nameOf(p.name)).join('、')}${replacing ? '。桌面上正用着的这个形象,下次载入时换成新版本' : ''}`;
+      $('#saved').textContent = t('import.done', { names: chosen.map((p) => nameOf(p.name)).join(t('import.nameSep')) }) + (replacing ? t('import.replacing') : '');
       sfx.sparkle();
       if (replacing) { body?.dispose(); body = null; }
       await loadPacks();
@@ -373,11 +383,12 @@ const importDialog = (() => {
   return {
     /** Asks what to import. */
     choose() {
-      show(`<h2 id="importTitle">导入形象包</h2>
-        <p class="lead">形象包是带 figure.json 的那个文件夹。可以选它本身,也可以选装着它的文件夹(往下 ${packStatus.depth} 层以内都找得到),或者选它的 zip。</p>
-        <div class="choices"><button class="btn primary" type="button" data-pick="zip">选 zip 文件</button><button class="btn" type="button" data-pick="dir">选文件夹</button></div>
-        <p class="meta">也可以把 zip 或文件夹直接拖到这一页上。</p>
-        <div class="actions"><button class="btn" type="button" data-close>取消</button></div>`);
+      show(`<h2 id="importTitle" data-i18n="import.title"></h2>
+        <p class="lead"></p>
+        <div class="choices"><button class="btn primary" type="button" data-pick="zip" data-i18n="import.pickZip"></button><button class="btn" type="button" data-pick="dir" data-i18n="import.pickDir"></button></div>
+        <p class="meta" data-i18n="import.dropNote"></p>
+        <div class="actions"><button class="btn" type="button" data-close data-i18n="import.cancel"></button></div>`);
+      dlg.querySelector('.lead').textContent = t('import.lead', { depth: packStatus.depth });
       for (const b of dlg.querySelectorAll('[data-pick]')) b.addEventListener('click', () => $(b.dataset.pick === 'zip' ? '#importZip' : '#importDir').click());
     },
     /** A drop on the page: one zip, or folders. */
@@ -385,13 +396,13 @@ const importDialog = (() => {
       const entries = [...items].map((i) => i.webkitGetAsEntry?.()).filter(Boolean);
       const zips = entries.filter((e) => e.isFile && /\.zip$/i.test(e.name)), dirs = entries.filter((e) => e.isDirectory);
       if (zips.length === 1 && !dirs.length) return send(await new Promise((ok, bad) => zips[0].file(ok, bad)), 'application/zip');
-      if (!dirs.length) return note('导入不了', '一次拖一个 zip,或者拖文件夹进来。');
-      show('<h2 id="importTitle">正在读取…</h2>');
+      if (!dirs.length) return note(t('import.cannot'), t('import.dropOne'));
+      show('<h2 id="importTitle" data-i18n="import.reading"></h2>');
       const files = [];
       try {
         for (const d of dirs) files.push(...await droppedFiles(d, d.name, packStatus.depth));
       } catch (err) {
-        return note('没能读取', String(err?.message ?? err));
+        return note(t('import.readFailed'), String(err?.message ?? err));
       }
       const found = packFiles(files, packStatus.depth);
       if (!found.length) return none();
@@ -422,7 +433,8 @@ function render() {
   for (const p of PALETTES) {
     const b = el('button', 'opt swatch');
     b.setAttribute('aria-pressed', String(skin.palette === p.id));
-    b.innerHTML = `<svg viewBox="${CROP.palette}" aria-hidden="true" style="--sl-ink:${p.l[0]};--sl-eye:${p.l[1]};--sd-ink:${p.d[0]};--sd-eye:${p.d[1]}">${mini('neutral', { ...skin, head: 'none', side: 'none', glasses: 'none', neck: 'none' })}</svg><span>${p.label}</span>`;
+    b.innerHTML = `<svg viewBox="${CROP.palette}" aria-hidden="true" style="--sl-ink:${p.l[0]};--sl-eye:${p.l[1]};--sd-ink:${p.d[0]};--sd-eye:${p.d[1]}">${mini('neutral', { ...skin, head: 'none', side: 'none', glasses: 'none', neck: 'none' })}</svg><span></span>`;
+    b.querySelector('span').textContent = cooName('palette', p.id);
     b.addEventListener('click', () => { apply({ ...skin, palette: p.id }, true); sfx.sparkle(); body?.cue('cheer'); });
     palOpts.appendChild(b);
   }
@@ -431,10 +443,11 @@ function render() {
     const box = $(sel);
     box.textContent = '';
     const opts = el('div', 'opts');
-    for (const [id, label] of list) {
+    for (const id of list) {
       const b = el('button', 'opt');
       b.setAttribute('aria-pressed', String(skin[slot] === id));
-      b.innerHTML = `<svg viewBox="${CROP[slot]}" aria-hidden="true">${mini('neutral', { ...skin, [slot]: id })}</svg><span>${label}</span>`;
+      b.innerHTML = `<svg viewBox="${CROP[slot]}" aria-hidden="true">${mini('neutral', { ...skin, [slot]: id })}</svg><span></span>`;
+      b.querySelector('span').textContent = cooName(slot, id);
       b.addEventListener('click', () => {
         apply(wear(skin, slot, id), true);
         sfx.pop(); if (id !== 'none') { sfx.sparkle(); body?.cue('cheer'); }
@@ -454,11 +467,11 @@ function connect() {
     if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; applyTheme(theme, modeBtn); body?.set({ theme }); }
     if (m.t === 'init') loadPacks();
     if ((m.t === 'init' || m.t === 'prefs') && m.skin && JSON.stringify(normalizeSkin(m.skin)) !== JSON.stringify(skin)) apply(normalizeSkin(m.skin), false);
+    if ((m.t === 'init' || m.t === 'prefs') && typeof m.language === 'string' && m.language !== language()) void useLanguage(m.language).then(() => { showText(); render(); });
   };
   ws.onclose = () => setTimeout(connect, 2000);
 }
-connect();
-apply(skin, false);
+void ready.then(() => { connect(); apply(skin, false); });
 
 let last = performance.now();
 /** The last error the frame loop logged, so one that keeps recurring is reported once, not per frame. */

@@ -5,7 +5,7 @@
  * shows what it hears before the sentence ends.
  *
  * Nothing to download: every Windows has System.Speech, and a Chinese Windows has the zh-CN
- * recognizer. It is less accurate than FunASR's SenseVoice, which is the default.
+ * recognizer. It is less accurate than SenseVoice and Whisper (src/asr/sherpa.ts), one of which is the default.
  *
  * The script goes in through `-EncodedCommand`, so neither the execution policy nor the
  * console code page touches it; its output escapes everything outside ASCII for the same reason.
@@ -17,6 +17,7 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import type { Logger } from 'cortico/core/types.ts';
 import type { TranscribeResult } from './result.ts';
+import { petText, type PetText } from '../i18n/index.ts';
 
 export type SystemPhase = 'stopped' | 'starting' | 'running' | 'error';
 
@@ -31,10 +32,17 @@ export interface SystemRecognizerState {
 export interface SystemRecognizerOptions {
   /** ISO 639-1 or 'auto'; a change restarts the process before the next sentence. */
   language: () => string;
+  /**
+   * The recognizer preferred among those for the language, as a culture name (`zh-TW`, `es-MX`), when
+   * more than one is installed; else the one matching the Windows display language. A change restarts too.
+   */
+  culture?: () => string;
   timeoutMs: () => number;
   log: Logger;
   /** Starts the helper; tests pass a fake. */
   spawnImpl?: typeof spawn;
+  /** The text table of the app language, for the state and errors; Chinese when absent. */
+  text?: () => PetText;
 }
 
 /** One sentence being heard: frames go in while it is spoken, the text comes back after `end`. */
@@ -52,9 +60,10 @@ const CHUNK = 1600;
 /** Available at all: Windows only. */
 export const systemRecognizerSupported = (): boolean => process.platform === 'win32';
 
-const FATAL: Record<string, (lang: string) => string> = {
-  'system-speech': () => '系统语音组件 System.Speech 加载不了',
-  'no-recognizer': (lang) => `系统里没有${lang === 'auto' ? '' : `「${lang}」的`}语音识别器:在 Windows 设置 → 时间和语言 → 语言里给该语言装上「语音识别」`,
+/** What the helper's `fatal` codes say. */
+const FATAL: Record<string, (t: PetText['system'], lang: string) => string> = {
+  'system-speech': (t) => t.noSpeech,
+  'no-recognizer': (t, lang) => t.noRecognizer(lang),
 };
 
 function powershellExe(): string {
@@ -82,19 +91,27 @@ export class SystemRecognizer {
 
   constructor(private readonly opts: SystemRecognizerOptions) {}
 
+  private get t(): PetText['system'] {
+    return (this.opts.text?.() ?? petText()).system;
+  }
+
+  /** The language and the preferred culture configured now, as the helper is started with them. */
+  private wanted(): string {
+    return `${this.opts.language() || 'auto'} ${this.opts.culture?.() ?? ''}`;
+  }
+
   state(): SystemRecognizerState {
-    const url = this.culture ? `Windows 语音识别(${this.culture})` : 'Windows 语音识别';
-    return { phase: this.phase, url, pid: this.child?.pid ?? null, detail: this.detail };
+    return { phase: this.phase, url: this.t.name(this.culture), pid: this.child?.pid ?? null, detail: this.detail };
   }
 
   /** Running, in the configured language, and able to take a sentence now. */
   get ready(): boolean {
-    return this.phase === 'running' && this.language === (this.opts.language() || 'auto') && !!this.child?.stdin?.writable;
+    return this.phase === 'running' && this.language === this.wanted() && !!this.child?.stdin?.writable;
   }
 
-  /** Started (or failed) for another language than the configured one. */
+  /** Started (or failed) for another language or culture than the configured one. */
   get languageChanged(): boolean {
-    return this.language !== '' && this.phase !== 'starting' && this.language !== (this.opts.language() || 'auto');
+    return this.language !== '' && this.phase !== 'starting' && this.language !== this.wanted();
   }
 
   /** Worth starting now: not ready, and not failed for the language still configured. */
@@ -112,11 +129,11 @@ export class SystemRecognizer {
     if (this.child) await this.stop();
     if (!systemRecognizerSupported()) {
       this.phase = 'error';
-      this.detail = '系统语音识别只在 Windows 上可用';
+      this.detail = this.t.windowsOnly;
       return;
     }
     const language = this.opts.language() || 'auto';
-    this.language = language;
+    this.language = this.wanted();
     this.phase = 'starting';
     this.detail = null;
     const encoded = Buffer.from(readFileSync(SCRIPT_FILE, 'utf8'), 'utf16le').toString('base64');
@@ -125,11 +142,11 @@ export class SystemRecognizer {
       child = (this.opts.spawnImpl ?? spawn)(powershellExe(), ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded], {
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe'],
-        env: { ...process.env, PET_ASR_LANGUAGE: language, PET_ASR_TIMEOUT_MS: String(this.opts.timeoutMs()) },
+        env: { ...process.env, PET_ASR_LANGUAGE: language, PET_ASR_CULTURE: this.opts.culture?.() ?? '', PET_ASR_TIMEOUT_MS: String(this.opts.timeoutMs()) },
       });
     } catch (err) {
       this.phase = 'error';
-      this.detail = `启动失败:${(err as Error).message}`;
+      this.detail = this.t.startFailed((err as Error).message);
       return;
     }
     this.child = child;
@@ -149,7 +166,7 @@ export class SystemRecognizer {
         ready(true);
       } else if (typeof msg.fatal === 'string') {
         this.phase = 'error';
-        this.detail = FATAL[msg.fatal]?.(language) ?? msg.fatal;
+        this.detail = FATAL[msg.fatal]?.(this.t, language) ?? msg.fatal;
         ready(false);
       } else this.answer(msg);
     });
@@ -158,14 +175,14 @@ export class SystemRecognizer {
       ready(false);
       if (this.child !== child) return;
       this.child = null;
-      this.failAll('系统语音识别进程退出了');
-      if (this.phase !== 'stopped' && this.phase !== 'error') { this.phase = 'error'; this.detail = `系统语音识别进程退出(退出码 ${code})`; }
+      this.failAll(this.t.exited);
+      if (this.phase !== 'stopped' && this.phase !== 'error') { this.phase = 'error'; this.detail = this.t.exitedCode(code); }
     });
     const timer = setTimeout(() => ready(false), READY_TIMEOUT_MS);
     const ok = await readyP;
     clearTimeout(timer);
     if (!ok && this.child === child) {
-      const detail = (this.phase as SystemPhase) === 'error' ? this.detail : '系统语音识别在期限内没有就绪';
+      const detail = (this.phase as SystemPhase) === 'error' ? this.detail : this.t.notReady;
       await this.stop();
       this.phase = 'error';
       this.detail = detail;
@@ -213,7 +230,7 @@ export class SystemRecognizer {
     const started = Date.now();
     if (this.restartable) await this.start();
     const s = this.sentence();
-    if (!s) return { text: '', ms: Date.now() - started, error: this.detail ?? '系统语音识别没有运行' };
+    if (!s) return { text: '', ms: Date.now() - started, error: this.detail ?? this.t.notRunning };
     for (let at = 0; at < pcm.length; at += CHUNK) s.write(pcm.subarray(at, at + CHUNK));
     return s.end();
   }
@@ -226,7 +243,7 @@ export class SystemRecognizer {
     this.open.delete(id);
     if (o.timer) clearTimeout(o.timer);
     const ms = o.endedAt ? Date.now() - o.endedAt : 0;
-    if (typeof msg.error === 'string') o.resolve({ text: '', ms, error: msg.error === 'timeout' ? `识别超时(${this.opts.timeoutMs()}ms)` : msg.error });
+    if (typeof msg.error === 'string') o.resolve({ text: '', ms, error: msg.error === 'timeout' ? this.t.timeout(this.opts.timeoutMs()) : msg.error });
     else o.resolve({ text: typeof msg.text === 'string' ? msg.text.trim() : '', ms, error: null });
   }
 
@@ -242,7 +259,7 @@ export class SystemRecognizer {
     const child = this.child;
     this.child = null;
     if (this.phase !== 'error') this.phase = 'stopped';
-    this.failAll('系统语音识别已停止');
+    this.failAll(this.t.stopped);
     if (!child || child.exitCode !== null) return;
     const exited = new Promise<void>((r) => child.once('exit', () => r()));
     // closing stdin ends the helper's read loop; a stuck one is killed

@@ -42,8 +42,8 @@ function spec(primary: string, backup: string): ModelSpec {
   return {
     id: 'test-model',
     files: [
-      { name: 'model.int8.onnx', bytes: MODEL.length, sha256: sha(MODEL) },
-      { name: 'tokens.txt', bytes: TOKENS.length, sha256: sha(TOKENS) },
+      { role: 'model', name: 'model.int8.onnx', bytes: MODEL.length, sha256: sha(MODEL) },
+      { role: 'tokens', name: 'tokens.txt', bytes: TOKENS.length, sha256: sha(TOKENS) },
     ],
     sources: [(f) => `${primary}/models/${f}`, (f) => `${backup}/mirror/${f}`],
   };

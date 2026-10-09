@@ -19,21 +19,30 @@
  * person's answer returns without acting (the question stays open for the turn), the engine ends
  * its wait for the user with nothing sent or stops typing between chunks, `cua_wait` ends its
  * wait, and an action already sent skips the settle and the screenshot after it.
+ *
+ * Receipts and environment prompt values are in the model-text language (`model-text.ts`).
  */
 import { fork, type ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import type { Logger, ToolCallContext, ToolDef, ToolOutcome, World, WorldConsoleDecl, WorldHost } from 'cortico/core/types.ts';
 import type { Language } from 'cortico/core/language.ts';
 import { childExecArgv } from 'cortico/extensions/runtime.ts';
-import { CUA_CONFIG_GROUP, CUA_ID, type CuaConfigSection, type PermissionLevel } from './config.ts';
+import { CUA_ID, cuaConfigGroup, type CuaConfigSection, type PermissionLevel } from './config.ts';
+import { cuaText, type CuaText } from './i18n/index.ts';
 import { CUA_TOOL_DECLS } from './tools.ts';
 import { fit } from './engine/image.ts';
 import { parseKeys } from './engine/keys.ts';
+import { MODEL_TEXT, type ModelLanguage, type ModelText } from './model-text.ts';
 import type { Answer, Button, ChildToMain, EngineRequest, InputResult, MainToChild, ScreenInfo, ScreenshotResult, TypeResult, WindowEntry, Yield } from './engine-ipc.ts';
 
 const ENGINE_FILE = fileURLToPath(new URL('./engine-child.ts', import.meta.url));
-const ENV_PROMPT_FILE = fileURLToPath(new URL('./ENV_PROMPT.md', import.meta.url));
+/** The environment prompt template of each model-text language; English falls back to Chinese while its file is missing. */
+const ENV_PROMPT_FILES: Record<ModelLanguage, string> = {
+  zh: fileURLToPath(new URL('./ENV_PROMPT.md', import.meta.url)),
+  en: fileURLToPath(new URL('./ENV_PROMPT.en.md', import.meta.url)),
+};
 const ENGINE_TIMEOUT_MS = 30_000;
 /** How long a permission question waits for the person. */
 const PERMISSION_TIMEOUT_MS = 60_000;
@@ -48,6 +57,10 @@ export interface CuaWorldOptions {
    * is not available right now, and the system dialog asks instead.
    */
   askPermission?: (question: string) => Promise<Answer | null>;
+  /** The language of what the bot reads from this World, read at each use; Chinese when absent. */
+  modelLanguage?: () => ModelLanguage;
+  /** The app language: the permission question and the system dialog's words. Read at each use; `zh` when absent. */
+  language?: () => Language;
 }
 
 /** The person did not allow this turn's computer use. */
@@ -85,7 +98,8 @@ export class CuaWorld implements World {
   private seq = 0;
   private readonly pending = new Map<number, { done: (v: unknown) => void; fail: (e: Error) => void; timer: NodeJS.Timeout }>();
   private screen: { width: number; height: number } | null = null;
-  private engineError: string | null = null;
+  /** The exit code of an engine that exited with an error, until the next one starts. */
+  private engineExit: number | null = null;
   /** This turn's answer, asked on first use; cleared when the turn ends. */
   private permission: Promise<Answer> | null = null;
   /** ask-once: a yes holds until then (ms since epoch). */
@@ -93,6 +107,21 @@ export class CuaWorld implements World {
 
   constructor(private readonly opts: CuaWorldOptions) {
     this.cfg = opts.cfg;
+  }
+
+  /** The language of what the bot reads from this World. */
+  private get language(): ModelLanguage {
+    return this.opts.modelLanguage?.() ?? 'zh';
+  }
+
+  /** The text table of that language. */
+  private get t(): ModelText {
+    return MODEL_TEXT[this.language];
+  }
+
+  /** The text table of the app language. */
+  private get ui(): CuaText {
+    return cuaText(this.opts.language?.());
   }
 
   onTurnEnded(): void {
@@ -109,7 +138,7 @@ export class CuaWorld implements World {
   async stop(): Promise<void> {
     const engine = this.engine;
     this.engine = null;
-    for (const p of this.pending.values()) { clearTimeout(p.timer); p.fail(new Error('World 已停止')); }
+    for (const p of this.pending.values()) { clearTimeout(p.timer); p.fail(new Error(this.t.worldStopped)); }
     this.pending.clear();
     if (engine && engine.exitCode === null) {
       const exited = new Promise<void>((r) => engine.once('exit', () => r()));
@@ -134,12 +163,13 @@ export class CuaWorld implements World {
       this.pending.delete(msg.id);
       clearTimeout(p.timer);
       if (msg.ok) p.done(msg.value);
-      else p.fail(new Error(msg.error));
+      else p.fail(new Error(msg.code ? this.t.engineErrors[msg.code](...msg.args ?? []) : msg.error));
     });
     child.on('exit', (code) => {
       if (this.engine === child) this.engine = null;
-      this.engineError = code === 0 ? null : `引擎进程退出(退出码 ${code})`;
-      for (const [id, p] of this.pending) { clearTimeout(p.timer); p.fail(new Error(this.engineError ?? '引擎进程已退出')); this.pending.delete(id); }
+      this.engineExit = code === 0 ? null : code;
+      const why = this.t.engineExited(code === 0 ? undefined : code);
+      for (const [id, p] of this.pending) { clearTimeout(p.timer); p.fail(new Error(why)); this.pending.delete(id); }
     });
     return child;
   }
@@ -150,15 +180,15 @@ export class CuaWorld implements World {
    */
   private async call<T>(req: EngineRequest, signal?: AbortSignal): Promise<T> {
     if (req.op !== 'info' && req.op !== 'confirm') await this.permit(req.op === 'screenshot' || req.op === 'windows' ? 'see' : 'act', signal);
-    if (signal?.aborted) throw new Interrupted('收到打断时还没开始操作。');
-    if (!this.engine) { this.engine = this.spawn(); this.engineError = null; }
+    if (signal?.aborted) throw new Interrupted(this.t.interruptedBeforeAct);
+    if (!this.engine) { this.engine = this.spawn(); this.engineExit = null; }
     const id = ++this.seq;
     const engine = this.engine;
     return new Promise<T>((done, fail) => {
       const wait = 'yield' in req ? req.yield.maxWaitMs : req.op === 'confirm' ? req.timeoutMs : 0;
       const cancel = () => { if (engine.connected) engine.send({ cancel: id } satisfies MainToChild); };
       const unlisten = () => signal?.removeEventListener('abort', cancel);
-      const timer = setTimeout(() => { this.pending.delete(id); unlisten(); fail(new Error('引擎没有在期限内应答')); }, ENGINE_TIMEOUT_MS + wait);
+      const timer = setTimeout(() => { this.pending.delete(id); unlisten(); fail(new Error(this.t.engineTimeout)); }, ENGINE_TIMEOUT_MS + wait);
       this.pending.set(id, { done: (v) => { unlisten(); done(v as T); }, fail: (e) => { unlisten(); fail(e); }, timer });
       signal?.addEventListener('abort', cancel, { once: true });
       engine.send({ id, req } satisfies MainToChild);
@@ -180,25 +210,22 @@ export class CuaWorld implements World {
     if (level === 'ask-once' && Date.now() < this.grantedUntil) return;
     this.permission ??= this.askPermission(level);
     const answer = await untilAborted(this.permission, signal);
-    if (answer === null) throw new Interrupted('收到打断时还在等使用者回答能不能用电脑。');
+    if (answer === null) throw new Interrupted(this.t.interruptedAsking);
     if (answer === 'yes') {
       // ask-once: the yes holds for grantMinutes from now, and is asked for again once that runs out
       if (level === 'ask-once') { this.grantedUntil = Date.now() + this.cfg.grantMinutes * 60_000; this.permission = null; }
       return;
     }
-    throw new NotPermitted(answer === 'timeout'
-      ? `问了使用者能不能用电脑,${PERMISSION_TIMEOUT_MS / 1000} 秒没有回应,这一轮不能用。`
-      : `使用者这一轮没有允许${level === 'ask-each-turn' ? '用电脑' : '动鼠标键盘'}。`);
+    throw new NotPermitted(answer === 'timeout' ? this.t.askTimedOut(PERMISSION_TIMEOUT_MS / 1000) : this.t.refused(level));
   }
 
   private async askPermission(level: PermissionLevel): Promise<Answer> {
     const who = this.opts.botName || 'bot';
-    const question = level === 'ask-each-turn' ? `${who} 想用你的电脑:看屏幕、动鼠标和键盘。这一次可以吗?`
-      : level === 'ask-once' ? `${who} 想动你的鼠标和键盘。接下来 ${this.cfg.grantMinutes} 分钟里都可以吗?`
-        : `${who} 想动你的鼠标和键盘。这一次可以吗?`;
+    const a = this.ui.ask;
+    const question = level === 'ask-each-turn' ? a.eachTurn(who) : level === 'ask-once' ? a.once(who, this.cfg.grantMinutes) : a.acting(who);
     const viaApp = await this.opts.askPermission?.(question) ?? null;
     if (viaApp) return viaApp;
-    return this.call<Answer>({ op: 'confirm', text: question, caption: '电脑操作', timeoutMs: PERMISSION_TIMEOUT_MS });
+    return this.call<Answer>({ op: 'confirm', text: question, caption: a.caption, yes: a.yes, no: a.no, timeoutMs: PERMISSION_TIMEOUT_MS });
   }
 
   /* ---------- coordinates ---------- */
@@ -211,8 +238,8 @@ export class CuaWorld implements World {
   /** Screenshot pixel → physical pixel, or a reason the point is off the screenshot. */
   private toScreen(x: unknown, y: unknown): { x: number; y: number } | string {
     const size = this.shotSize();
-    if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) return 'x、y 要是数字';
-    if (x < 0 || y < 0 || x >= size.width || y >= size.height) return `(${x}, ${y}) 不在截图范围内(0–${size.width - 1}, 0–${size.height - 1})`;
+    if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) return this.t.notNumbers;
+    if (x < 0 || y < 0 || x >= size.width || y >= size.height) return this.t.offShot(x, y, size.width - 1, size.height - 1);
     return { x: Math.round(x / size.scale), y: Math.round(y / size.scale) };
   }
 
@@ -243,9 +270,10 @@ export class CuaWorld implements World {
         try {
           return await handlers[decl.name](args, ctx.signal);
         } catch (err) {
-          if (err instanceof Interrupted) return { text: `[${decl.name} 没执行] ${err.message}` };
-          if (err instanceof NotPermitted) return { text: `[${decl.name} 没执行] ${err.message}下一轮再用会重新询问。`, failed: true };
-          return { text: `[${decl.name} 失败] ${(err as Error).message}`, failed: true };
+          const t = this.t;
+          if (err instanceof Interrupted) return { text: t.notRun(decl.name, err.message) };
+          if (err instanceof NotPermitted) return { text: t.notRun(decl.name, err.message + t.askAgain), failed: true };
+          return { text: t.failed(decl.name, (err as Error).message), failed: true };
         }
       },
     }));
@@ -260,29 +288,27 @@ export class CuaWorld implements World {
     const shot = await this.call<ScreenshotResult>({ op: 'screenshot', maxWidth: this.cfg.screenshot.maxWidth, maxHeight: this.cfg.screenshot.maxHeight, quality: this.cfg.screenshot.quality }, signal);
     this.screen = shot.screen;
     const seen = this.host?.modelFacts.accepts('image/jpeg') ?? true;
-    const text = `${lead}截图 ${shot.width}×${shot.height}(屏幕 ${shot.screen.width}×${shot.screen.height});鼠标在 ${this.toShot(shot.cursor)};前台窗口「${shot.foreground ?? '无'}」。`
-      + (seen ? '' : '\n当前模型不接收图片,只能读到这段文字。');
-    return { text, blobs: [{ bytes: shot.jpeg, mime: 'image/jpeg', name: 'screen.jpg', fallbackText: `屏幕截图 ${shot.width}×${shot.height}` }] };
+    const t = this.t;
+    const text = t.screenshot(lead, shot.width, shot.height, shot.screen.width, shot.screen.height, this.toShot(shot.cursor), shot.foreground, seen);
+    return { text, blobs: [{ bytes: shot.jpeg, mime: 'image/jpeg', name: 'screen.jpg', fallbackText: t.screenshotFallback(shot.width, shot.height) }] };
   }
 
   private refuseControl(tool: string): ToolOutcome | null {
     if (this.cfg.control) return null;
-    return { text: `[${tool} 没执行] 这台电脑的设置只允许看,不允许操作鼠标键盘(worlds.cua.control 关着)。`, failed: true };
+    return { text: this.t.notRun(tool, this.t.viewOnly), failed: true };
   }
 
   /** Shared tail of every input tool: yield report, optional settle + screenshot; an abort skips the screenshot. */
   private async after(tool: string, res: InputResult, signal: AbortSignal | undefined, done: string, args: Args): Promise<ToolOutcome> {
-    if (res.yielded) {
-      return { text: `[${tool} 没执行] 等了 ${Math.round(res.waitedMs / 1000)} 秒,用户一直在用鼠标或键盘,没有和用户抢着操作。`, failed: true };
-    }
-    if (res.cancelled) return { text: `[${tool} 没执行] 等用户停手 ${(res.waitedMs / 1000).toFixed(1)} 秒时收到打断,没有发出输入。` };
-    const waited = res.waitedMs >= 300 ? `(先等用户停手 ${(res.waitedMs / 1000).toFixed(1)} 秒)` : '';
-    const line = `${done}${waited}`;
-    const plain = `${line} 鼠标在 ${this.toShot(res.cursor)};前台窗口「${res.foreground ?? '无'}」。`;
+    const t = this.t;
+    if (res.yielded) return { text: t.notRun(tool, t.yielded(Math.round(res.waitedMs / 1000))), failed: true };
+    if (res.cancelled) return { text: t.notRun(tool, t.cancelledWaiting((res.waitedMs / 1000).toFixed(1))) };
+    const line = `${done}${res.waitedMs >= 300 ? t.waitedFirst((res.waitedMs / 1000).toFixed(1)) : ''}`;
+    const plain = t.after(line, this.toShot(res.cursor), res.foreground);
     const want = typeof args.screenshot === 'boolean' ? args.screenshot : this.cfg.screenshot.afterAction;
     if (!want) return { text: plain };
     await pause(this.cfg.screenshot.settleMs, signal);
-    if (signal?.aborted) return { text: `${plain}收到打断,没有截图。` };
+    if (signal?.aborted) return { text: `${plain}${t.noShotInterrupted}` };
     return this.screenshot(`${line}\n`);
   }
 
@@ -290,21 +316,20 @@ export class CuaWorld implements World {
     const refused = this.refuseControl('cua_click');
     if (refused) return refused;
     const p = this.toScreen(args.x, args.y);
-    if (typeof p === 'string') return { text: `[cua_click 没执行] ${p}`, failed: true };
+    if (typeof p === 'string') return { text: this.t.notRun('cua_click', p), failed: true };
     const button = (args.button === 'right' || args.button === 'middle' ? args.button : 'left') as Button;
     const count = args.clicks === 2 || args.clicks === 3 ? args.clicks : 1;
     const res = await this.call<InputResult>({ op: 'click', ...p, button, count, yield: this.yieldCfg }, signal);
-    const how = `${{ left: '左键', right: '右键', middle: '中键' }[button]}${{ 1: '单击', 2: '双击', 3: '三击' }[count]}`;
-    return this.after('cua_click', res, signal, `已在 (${args.x}, ${args.y}) ${how}。`, args);
+    return this.after('cua_click', res, signal, this.t.clicked(args.x, args.y, button, count), args);
   }
 
   private async move(args: Args, signal?: AbortSignal): Promise<ToolOutcome> {
     const refused = this.refuseControl('cua_move');
     if (refused) return refused;
     const p = this.toScreen(args.x, args.y);
-    if (typeof p === 'string') return { text: `[cua_move 没执行] ${p}`, failed: true };
+    if (typeof p === 'string') return { text: this.t.notRun('cua_move', p), failed: true };
     const res = await this.call<InputResult>({ op: 'move', ...p, yield: this.yieldCfg }, signal);
-    return this.after('cua_move', res, signal, `鼠标已移到 (${args.x}, ${args.y})。`, args);
+    return this.after('cua_move', res, signal, this.t.moved(args.x, args.y), args);
   }
 
   private async drag(args: Args, signal?: AbortSignal): Promise<ToolOutcome> {
@@ -314,34 +339,31 @@ export class CuaWorld implements World {
     const to = Array.isArray(args.to) ? args.to : [];
     const a = this.toScreen(from[0], from[1]);
     const b = this.toScreen(to[0], to[1]);
-    if (typeof a === 'string' || typeof b === 'string') return { text: `[cua_drag 没执行] ${typeof a === 'string' ? `起点${a}` : `终点${b}`}`, failed: true };
+    if (typeof a === 'string' || typeof b === 'string') return { text: this.t.notRun('cua_drag', typeof a === 'string' ? this.t.dragStart(a) : this.t.dragEnd(b as string)), failed: true };
     const res = await this.call<InputResult>({ op: 'drag', x1: a.x, y1: a.y, x2: b.x, y2: b.y, yield: this.yieldCfg }, signal);
-    return this.after('cua_drag', res, signal, `已从 (${from[0]}, ${from[1]}) 拖到 (${to[0]}, ${to[1]})。`, args);
+    return this.after('cua_drag', res, signal, this.t.dragged(from, to), args);
   }
 
   private async scroll(args: Args, signal?: AbortSignal): Promise<ToolOutcome> {
     const refused = this.refuseControl('cua_scroll');
     if (refused) return refused;
     const p = this.toScreen(args.x, args.y);
-    if (typeof p === 'string') return { text: `[cua_scroll 没执行] ${p}`, failed: true };
+    if (typeof p === 'string') return { text: this.t.notRun('cua_scroll', p), failed: true };
     const clampN = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(-30, Math.min(30, Math.round(v))) : 0);
     const down = clampN(args.down), right = clampN(args.right);
-    if (!down && !right) return { text: '[cua_scroll 没执行] down 和 right 都是 0。', failed: true };
+    if (!down && !right) return { text: this.t.notRun('cua_scroll', this.t.scrollNone), failed: true };
     const res = await this.call<InputResult>({ op: 'scroll', ...p, down, right, yield: this.yieldCfg }, signal);
-    const parts = [down ? `${down > 0 ? '向下' : '向上'} ${Math.abs(down)} 格` : '', right ? `${right > 0 ? '向右' : '向左'} ${Math.abs(right)} 格` : ''].filter(Boolean);
-    return this.after('cua_scroll', res, signal, `已在 (${args.x}, ${args.y}) 滚动${parts.join('、')}。`, args);
+    return this.after('cua_scroll', res, signal, this.t.scrolled(args.x, args.y, down, right), args);
   }
 
   private async type(args: Args, signal?: AbortSignal): Promise<ToolOutcome> {
     const refused = this.refuseControl('cua_type');
     if (refused) return refused;
     const text = typeof args.text === 'string' ? args.text : '';
-    if (!text) return { text: '[cua_type 没执行] text 是空的。', failed: true };
+    if (!text) return { text: this.t.notRun('cua_type', this.t.typeEmpty), failed: true };
     const res = await this.call<TypeResult>({ op: 'type', text, chunkDelayMs: this.cfg.typeChunkDelayMs, yield: this.yieldCfg }, signal);
     const total = [...text].length;
-    const done = res.stoppedBy === 'cancel' ? `只输入了 ${res.typed}/${total} 个字符:收到打断,停了下来。`
-      : res.stoppedBy === 'user' ? `只输入了 ${res.typed}/${total} 个字符:用户开始操作,停了下来。`
-        : `已输入 ${total} 个字符。`;
+    const done = res.stoppedBy === 'cancel' || res.stoppedBy === 'user' ? this.t.typedPart(res.typed, total, res.stoppedBy) : this.t.typed(total);
     return this.after('cua_type', res, signal, done, args);
   }
 
@@ -349,10 +371,10 @@ export class CuaWorld implements World {
     const refused = this.refuseControl('cua_key');
     if (refused) return refused;
     const spec = typeof args.keys === 'string' ? args.keys : '';
-    const parsed = parseKeys(spec);
-    if ('error' in parsed) return { text: `[cua_key 没执行] ${parsed.error}。`, failed: true };
+    const parsed = parseKeys(spec, this.language);
+    if ('error' in parsed) return { text: this.t.notRun('cua_key', this.t.keyBad(parsed.error)), failed: true };
     const res = await this.call<InputResult>({ op: 'key', chords: parsed.chords, yield: this.yieldCfg }, signal);
-    return this.after('cua_key', res, signal, `已按 ${spec.trim()}。`, args);
+    return this.after('cua_key', res, signal, this.t.pressed(spec.trim()), args);
   }
 
   private async listWindows(signal: AbortSignal | undefined): Promise<WindowEntry[]> {
@@ -361,27 +383,28 @@ export class CuaWorld implements World {
 
   private async windows(signal?: AbortSignal): Promise<ToolOutcome> {
     const list = await this.listWindows(signal);
+    const t = this.t;
     const s = this.shotSize();
     const screen = this.screen ?? { width: 0, height: 0 };
     const lines = list.map((w) => {
       const r = w.rect;
       const off = r.x + r.width <= 0 || r.y + r.height <= 0 || r.x >= screen.width || r.y >= screen.height;
-      const where = w.minimized ? '最小化' : off ? '不在主屏幕' : `(${Math.round(r.x * s.scale)}, ${Math.round(r.y * s.scale)}) ${Math.round(r.width * s.scale)}×${Math.round(r.height * s.scale)}`;
-      return `- ${w.handle}${w.foreground ? ' [前台]' : ''} 「${w.title}」 ${where}`;
+      const where = w.minimized ? t.minimized : off ? t.offScreen : `(${Math.round(r.x * s.scale)}, ${Math.round(r.y * s.scale)}) ${Math.round(r.width * s.scale)}×${Math.round(r.height * s.scale)}`;
+      return t.windowLine(w.handle, w.foreground, w.title, where);
     });
-    return { text: `可见窗口 ${list.length} 个(位置用截图坐标,前面的在上层):\n${lines.join('\n')}` };
+    return { text: t.windows(list.length, lines) };
   }
 
   private async focus(args: Args, signal?: AbortSignal): Promise<ToolOutcome> {
     const refused = this.refuseControl('cua_focus');
     if (refused) return refused;
     const key = typeof args.window === 'string' ? args.window.trim() : '';
-    if (!key) return { text: '[cua_focus 没执行] window 是空的。', failed: true };
+    if (!key) return { text: this.t.notRun('cua_focus', this.t.focusEmpty), failed: true };
     const list = await this.listWindows(signal);
     const hit = list.find((w) => w.handle === key.toLowerCase()) ?? list.find((w) => w.title.includes(key)) ?? list.find((w) => w.title.toLowerCase().includes(key.toLowerCase()));
-    if (!hit) return { text: `[cua_focus 没执行] 没有标题包含「${key}」的可见窗口。`, failed: true };
+    if (!hit) return { text: this.t.notRun('cua_focus', this.t.focusMissing(key)), failed: true };
     const res = await this.call<InputResult & { focused: boolean }>({ op: 'focus', handle: hit.handle, yield: this.yieldCfg }, signal);
-    const done = res.focused || res.foreground === hit.title ? `已把「${hit.title}」切到前台。` : `尝试切换到「${hit.title}」,系统没有让它到前台;现在前台是「${res.foreground ?? '无'}」。`;
+    const done = res.focused || res.foreground === hit.title ? this.t.focused(hit.title) : this.t.focusRefused(hit.title, res.foreground);
     return this.after('cua_focus', res, signal, done, args);
   }
 
@@ -389,11 +412,12 @@ export class CuaWorld implements World {
   private async wait(args: Args, signal?: AbortSignal): Promise<ToolOutcome> {
     const seconds = typeof args.seconds === 'number' && Number.isFinite(args.seconds) ? Math.max(0, Math.min(30, args.seconds)) : 1;
     const waitedMs = await pause(seconds * 1000, signal);
-    if (signal?.aborted) return { text: `等了 ${(waitedMs / 1000).toFixed(1)}/${seconds} 秒时收到打断,没有截图。` };
+    const t = this.t;
+    if (signal?.aborted) return { text: t.waitInterrupted((waitedMs / 1000).toFixed(1), seconds) };
     const look = await this.mayLook(signal);
-    if (signal?.aborted) return { text: `等了 ${seconds} 秒。收到打断,没有截图。` };
-    if (!look) return { text: `等了 ${seconds} 秒。这一轮使用者还没允许看屏幕,所以没有截图;要看就用 cua_screenshot,会先问使用者。` };
-    return this.screenshot(`等了 ${seconds} 秒。\n`);
+    if (signal?.aborted) return { text: `${t.waited(seconds)}${t.noShotInterrupted}` };
+    if (!look) return { text: t.waitNoLook(seconds) };
+    return this.screenshot(`${t.waited(seconds)}\n`);
   }
 
   /** Looking at the screen now would not ask the person: the level lets it, or this turn's answer was yes. */
@@ -406,48 +430,44 @@ export class CuaWorld implements World {
 
   envPromptVars(): Record<string, string> {
     const s = this.shotSize();
+    const t = this.t;
     return {
       'cua.os': process.platform === 'darwin' ? 'Mac' : process.platform === 'linux' ? 'Linux' : 'Windows',
-      'cua.keys': process.platform === 'darwin' ? '这是 Mac:复制粘贴、全选、保存用 cmd(cmd+c、cmd+v、cmd+a、cmd+s),切换应用用 cmd+tab。' : '复制粘贴、全选、保存用 ctrl(ctrl+c、ctrl+v、ctrl+a、ctrl+s),切换窗口用 alt+tab。',
+      'cua.keys': process.platform === 'darwin' ? t.keysMac : t.keysOther,
       'cua.shot': `${s.width}×${s.height}`,
-      'cua.control': this.cfg.control ? '允许操作鼠标和键盘' : '只允许截图和列窗口,不能操作鼠标键盘',
+      'cua.control': t.control(this.cfg.control),
       'cua.idle': String(Math.round(this.cfg.userIdleMs / 100) / 10),
-      'cua.permission': {
-        'ask-each-turn': '每一轮第一次截图或操作之前,使用者会被问一次能不能用电脑。使用者没同意,这一轮的电脑操作工具都不执行;不要换别的工具绕过去,等使用者开口。',
-        'ask-before-acting': '截图和列窗口不用先问。每一轮第一次动鼠标或键盘之前,使用者会被问一次;使用者没同意,这一轮的输入工具都不执行,截图照常;不要换别的工具绕过去,等使用者开口。',
-        'ask-once': `截图和列窗口不用先问。动鼠标或键盘之前会问使用者一次,同意后 ${this.cfg.grantMinutes} 分钟内不再问;使用者没同意,这一轮的输入工具都不执行,截图照常;不要换别的工具绕过去,等使用者开口。`,
-        'never-ask': '看屏幕和动鼠标键盘都不用先问使用者,工具直接执行。',
-      }[this.level],
+      'cua.permission': t.permission(this.level, this.cfg.grantMinutes),
     };
   }
 
+  /** The environment prompt template of the model-text language. */
+  private envPromptFile(): string {
+    const file = ENV_PROMPT_FILES[this.language];
+    return existsSync(file) ? file : ENV_PROMPT_FILES.zh;
+  }
+
   console(language: Language = 'zh'): WorldConsoleDecl {
+    const c = cuaText(language).console;
+    const level = this.level;
     return {
-      label: language === 'en' ? 'Computer use' : '电脑操作',
+      label: c.label,
       lamps: [{
-        label: '操作引擎',
-        state: this.engine ? 'online' : this.engineError ? 'error' : 'offline',
-        hint: this.engineError ?? (this.engine ? `屏幕 ${this.screen?.width}×${this.screen?.height}` : '按需启动'),
+        label: c.engine,
+        state: this.engine ? 'online' : this.engineExit !== null ? 'error' : 'offline',
+        hint: this.engineExit !== null ? c.exited(this.engineExit) : this.engine ? c.screen(this.screen?.width ?? 0, this.screen?.height ?? 0) : c.onDemand,
       }],
       badges: [
-        { label: '操作', value: this.cfg.control ? '允许' : '只看', tone: this.cfg.control ? 'on' : 'off' },
-        { label: '询问', value: { 'ask-each-turn': '每轮', 'ask-before-acting': '动手前', 'ask-once': `${this.cfg.grantMinutes} 分钟一次`, 'never-ask': '不问' }[this.level], tone: 'plain' },
+        { label: c.control, value: this.cfg.control ? c.allowed : c.viewOnly, tone: this.cfg.control ? 'on' : 'off' },
+        { label: c.asking, value: level === 'ask-once' ? c.levels['ask-once'](this.cfg.grantMinutes) : c.levels[level], tone: 'plain' },
       ],
-      config: [CUA_CONFIG_GROUP],
+      config: [cuaConfigGroup(language)],
       promptDocs: [{
         key: `worlds.${CUA_ID}.envPrompt`,
-        title: '电脑操作环境',
-        description: '截图坐标、让位规则与操作边界。',
-        path: ENV_PROMPT_FILE,
+        ...c.envPrompt,
+        path: this.envPromptFile(),
         role: 'envPrompt',
-        vars: [
-          { name: 'cua.os', description: '这台电脑的系统:Windows 或 Mac' },
-          { name: 'cua.keys', description: '这个系统常用的快捷键' },
-          { name: 'cua.shot', description: '截图尺寸' },
-          { name: 'cua.control', description: '是否允许操作鼠标键盘' },
-          { name: 'cua.idle', description: '让位时长(秒)' },
-          { name: 'cua.permission', description: '什么时候先问使用者(按 permission 设置)' },
-        ],
+        vars: ['cua.os', 'cua.keys', 'cua.shot', 'cua.control', 'cua.idle', 'cua.permission'].map((name) => ({ name, description: c.vars[name] ?? name })),
       }],
     };
   }

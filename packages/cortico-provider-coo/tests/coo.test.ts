@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createServer, type Server } from 'node:http';
+import { createServer, type IncomingHttpHeaders, type Server } from 'node:http';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,7 +12,8 @@ import type { Request } from 'cortico/protocol/open-responses/index.ts';
 import { functionCall, functionResult, message } from 'cortico/protocol/open-responses/context.ts';
 import { RESERVED_FRAME_NAMES } from 'cortico/core/loop.ts';
 import { blobLine } from 'cortico/core/blobs.ts';
-import COO, { OFF_PEAK, VENDORS, VENDOR_ICONS, vendorEntry, vendorOf } from '../src/index.ts';
+import COO, { OFF_PEAK, VENDORS, VENDOR_ICONS, protocolOf, vendorEntry, vendorOf } from '../src/index.ts';
+import { PROTOCOLS, endpointName, locate, regionsOf, siteOf } from '../src/vendors.ts';
 import { connectVendor, type ConsoleCall } from '../src/connect.ts';
 
 const entry = (patch: Partial<LLMProviderEntry> = {}): LLMProviderEntry => ({
@@ -23,6 +24,8 @@ const host = (secret = 'sk-test') => ({
   stateDir: mkdtempSync(join(tmpdir(), 'ds-')), secret: () => secret, readBlob: () => null,
   keepThinking: () => true, log: nullLogger(),
 });
+
+const AT = { startedAt: '2026-10-08T00:00:00.000Z', requestedServiceTier: null };
 
 let server: Server | null = null;
 afterEach(() => { server?.close(); server = null; });
@@ -63,7 +66,7 @@ describe('Coo Pet Provider', () => {
   });
 
   it('charges double inside the peak windows (UTC 01–04 and 06–10 on workdays)', () => {
-    const [flash] = COO.prices(entry());
+    const [flash] = COO.prices(entry(), { model: 'deepseek-flash' }, AT);
     const meters = { ...unknownMeters(), input: 1_000_000, uncachedInput: 1_000_000, cachedInput: 0, output: 0, total: 1_000_000, reasoning: 0 };
     const cost = (at: string) => priceUsage(meters, [snapshotPrice(flash, { startedAt: at, requestedServiceTier: null })])[0].amount;
     expect(cost('2026-09-22T02:30:00.000Z')).toBeCloseTo(OFF_PEAK['deepseek-flash'].uncachedInput * 2, 6); // Tuesday, peak
@@ -86,10 +89,10 @@ describe('Coo Pet Provider', () => {
       return new Response(JSON.stringify(reply), { status: 200, headers: { 'content-type': 'application/json' } });
     });
     try {
-      const send = async (id: string, effort: string) => {
+      const send = async (id: string, effort: string, model?: string) => {
         const v = VENDORS.find((x) => x.id === id)!;
-        const instance = COO.create(id, entry({ baseUrl: v.baseUrl, spec: { model: v.model, thinking: true } }), host() as never);
-        await instance.client.respond({ model: v.model, input: [], reasoning: { effort } } as unknown as Request, {});
+        const instance = COO.create(id, entry({ baseUrl: siteOf(v, 'cn').baseUrl, spec: { model: model ?? v.model, thinking: true } }), host() as never);
+        await instance.client.respond({ model: model ?? v.model, input: [], reasoning: { effort } } as unknown as Request, {});
         return bodies.at(-1)!.reasoning;
       };
       expect(await send('deepseek', 'max')).toEqual({ effort: 'max' });
@@ -97,7 +100,9 @@ describe('Coo Pet Provider', () => {
       expect(await send('qwen', 'none')).toEqual({ effort: 'none' });
       expect(await send('kimi', 'none')).toEqual({ effort: 'low' });
       expect(await send('stepfun', 'max')).toEqual({ effort: 'high' });
-      expect(await send('qianfan', 'high')).toBeUndefined();
+      expect(await send('glm', 'high', 'glm-4.6v-flashx')).toBeUndefined();
+      expect(await send('openai', 'none')).toEqual({ effort: 'none' });
+      expect(await send('openai', 'none', 'gpt-6-astra')).toEqual({ effort: 'low' });
     } finally {
       vi.unstubAllGlobals();
     }
@@ -130,6 +135,36 @@ describe('Coo Pet Provider', () => {
       .filter((i) => i.type === 'function_call_output' && (i.call_id === 'c1' || i.call_id === 'c2'));
     expect(outputs[0].output).toBe(blobLine(shot('blob:a.jpg')));
     expect(outputs[1].output).toContainEqual(expect.objectContaining({ type: 'input_image' }));
+  });
+
+  it('moves tool result images into a user message after them for a service whose tool output takes text only', async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const reply = { id: 'r', object: 'response', model: 'm', status: 'completed', created_at: 1, output: [], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } };
+    vi.stubGlobal('fetch', async (_url: string, init: { body: string }) => {
+      bodies.push(JSON.parse(init.body) as Record<string, unknown>);
+      return new Response(JSON.stringify(reply), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    const shot = { handle: 'blob:a.jpg', mime: 'image/jpeg', name: 'screen.jpg', fallbackText: '屏幕截图' };
+    const image = { type: 'input_image', image_url: `data:image/jpeg;base64,${Buffer.from('jpeg').toString('base64')}` };
+    const context = [message('user', '看看屏幕'), functionCall('c1', 'look', '{}'), functionResult('c1', blobLine(shot), { blobs: [shot] })];
+    const send = async (id: string) => {
+      const v = VENDORS.find((x) => x.id === id)!;
+      const instance = COO.create(id, entry({ baseUrl: siteOf(v, 'cn').baseUrl, spec: { model: v.model, thinking: true } }), { ...host(), readBlob: () => Buffer.from('jpeg') } as never);
+      await instance.client.respond({ model: v.model, input: context.map((r) => r.item) } as unknown as Request, { context });
+      const input = bodies.at(-1)!.input as Array<Record<string, unknown>>;
+      return input.slice(input.findIndex((i) => i.type === 'function_call_output'));
+    };
+    try {
+      expect(await send('qwen')).toMatchObject([
+        { type: 'function_call_output', call_id: 'c1', output: blobLine(shot) },
+        { type: 'message', role: 'user', content: [image] },
+      ]);
+      expect(await send('deepseek')).toMatchObject([
+        { type: 'function_call_output', call_id: 'c1', output: [{ type: 'input_text', text: blobLine(shot) }, image] },
+      ]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('reads the reasoning streams of StepFun and Qwen, which the standard parser rejects (#94)', async () => {
@@ -176,7 +211,7 @@ describe('Coo Pet Provider', () => {
       for (const [id, stream] of Object.entries(streams)) {
         events = stream;
         const v = VENDORS.find((x) => x.id === id)!;
-        const instance = COO.create(id, entry({ baseUrl: v.baseUrl, spec: { model: v.model, thinking: true } }), host() as never);
+        const instance = COO.create(id, entry({ baseUrl: siteOf(v, 'cn').baseUrl, spec: { model: v.model, thinking: true } }), host() as never);
         const out = await instance.client.respond({ model: v.model, input: [] } as unknown as Request, { onEvent: () => {} });
         expect(out.response.output.map((item) => item.type), id).toEqual(['reasoning', 'message']);
         expect(out.response.output[0], id).toMatchObject({ content: [{ type: 'reasoning_text', text: '想' }] });
@@ -186,23 +221,63 @@ describe('Coo Pet Provider', () => {
     }
   });
 
-  it('prices DeepSeek only', () => {
-    expect(COO.prices(entry()).length).toBeGreaterThan(0);
-    expect(COO.prices(entry({ baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1' }))).toEqual([]);
+  it('prices the default model of each service whose price page states per-model prices, and no other service', () => {
+    for (const v of VENDORS) {
+      const quotes = COO.prices(entry({ baseUrl: siteOf(v, 'cn').baseUrl }), { model: v.model }, AT);
+      expect(quotes.some((q) => q.models.includes(v.model)), v.id).toBe(['deepseek', 'openai', 'anthropic', 'gemini', 'xai'].includes(v.id));
+    }
   });
 
-  it('tells the service from the base URL, trailing slash or not, and nothing else', () => {
+  it('tells the service and its platform from the base URL, trailing slash or not, and nothing else', () => {
     for (const v of VENDORS) {
-      expect(vendorOf(v.baseUrl)?.id).toBe(v.id);
-      expect(vendorOf(`${v.baseUrl}/`)?.id).toBe(v.id);
+      const sites = regionsOf(v).length ? regionsOf(v).map((r) => [r, siteOf(v, r)] as const) : [[null, siteOf(v, 'cn')] as const];
+      for (const [region, site] of sites) {
+        expect(locate(site.baseUrl), `${v.id} ${region}`).toMatchObject({ vendor: { id: v.id }, region });
+        expect(locate(`${site.baseUrl}/`)?.region).toBe(region);
+        expect(vendorEntry(v, v.model, region ?? 'cn')).toMatchObject({ kind: 'coo', baseUrl: site.baseUrl, secret: v.secret, spec: { model: v.model } });
+      }
       expect(VENDOR_ICONS[v.id], v.id).toMatch(/^<svg /);
-      expect(vendorEntry(v)).toMatchObject({ kind: 'coo', baseUrl: v.baseUrl, secret: v.secret, spec: { model: v.model } });
     }
-    expect(new Set(VENDORS.map((v) => v.id)).size).toBe(VENDORS.length);
+    // every platform of every service has its own endpoint, so each keeps its own key
+    const names = VENDORS.flatMap((v) => [endpointName(v, 'cn'), endpointName(v, 'intl')]);
+    expect(new Set(names).size).toBe(VENDORS.length + VENDORS.filter((v) => regionsOf(v).length).length);
     expect(VENDORS[0]!.id).toBe('deepseek');
-    // Zhipu's Responses endpoint is not under its chat path
+    // Zhipu's mainland Responses endpoint is not under its chat path; Z.ai's chat path is the international platform
     expect(vendorOf('https://open.bigmodel.cn/api/paas/v4')).toBeNull();
+    expect(locate('https://api.z.ai/api/paas/v4')).toMatchObject({ vendor: { id: 'glm' }, region: 'intl', site: { protocol: 'chat' } });
     expect(vendorOf('http://127.0.0.1:1234/v1')).toBeNull();
+  });
+
+  it("sends each protocol to its own path with its own key header; a listed URL takes its platform's protocol", async () => {
+    const seen: Array<{ path: string; headers: IncomingHttpHeaders }> = [];
+    const replies: Record<string, object> = {
+      '/responses': { id: 'r1', object: 'response', model: 'm', status: 'completed', created_at: 1, usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+        output: [{ type: 'message', id: 'm1', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: 'ok', annotations: [] }] }] },
+      '/chat/completions': { id: 'c1', model: 'm', choices: [{ index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } },
+      '/v1/messages': { id: 'msg_1', type: 'message', role: 'assistant', model: 'm', content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn',
+        stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+      '/models/m:generateContent': { candidates: [{ content: { role: 'model', parts: [{ text: 'ok' }] }, finishReason: 'STOP' }],
+        usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1, totalTokenCount: 2 } },
+    };
+    server = createServer(async (req, res) => {
+      for await (const _ of req) { /* drain the body */ }
+      const path = (req.url ?? '').split('?')[0]!;
+      seen.push({ path, headers: req.headers });
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(replies[path] ?? {}));
+    });
+    await new Promise<void>((r) => server!.listen(0, '127.0.0.1', () => r()));
+    const url = `http://127.0.0.1:${(server!.address() as { port: number }).port}`;
+    for (const protocol of PROTOCOLS) {
+      const instance = COO.create('x', entry({ baseUrl: url, options: { protocol }, spec: { model: 'm', thinking: false } }), host() as never);
+      const out = await instance.client.respond({ model: 'm', input: [] } as unknown as Request, { context: [message('user', '在吗')] });
+      expect(out.response.output.find((item) => item.type === 'message'), protocol).toMatchObject({ content: [{ text: 'ok' }] });
+    }
+    expect(seen.map((s) => s.path)).toEqual(['/responses', '/chat/completions', '/v1/messages', '/models/m:generateContent']);
+    expect(seen.map((s) => s.headers.authorization ?? s.headers['x-api-key'] ?? s.headers['x-goog-api-key']))
+      .toEqual(['Bearer sk-test', 'Bearer sk-test', 'sk-test', 'sk-test']);
+    expect(protocolOf(entry({ baseUrl: url }))).toBe('responses');
+    for (const v of VENDORS) for (const r of ['cn', 'intl'] as const) expect(protocolOf(entry({ baseUrl: siteOf(v, r).baseUrl }))).toBe(siteOf(v, r).protocol);
   });
 });
 

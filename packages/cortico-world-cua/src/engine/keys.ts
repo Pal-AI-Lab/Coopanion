@@ -3,6 +3,7 @@
  * by `+` ("ctrl+s", "alt+f4", "ctrl+a delete"). Names are case-insensitive; letters, digits
  * and the US-layout punctuation keys stand for themselves. Virtual-key codes are Windows'.
  */
+import { MODEL_TEXT, type ModelLanguage } from '../model-text.ts';
 
 export interface KeyCode { vk: number; extended: boolean }
 
@@ -48,8 +49,9 @@ export function keyCode(name: string): KeyCode | null {
   return null;
 }
 
-/** Parses "ctrl+a delete" into chords; the error names the first unknown key. */
-export function parseKeys(spec: string): { chords: KeyCode[][] } | { error: string } {
+/** Parses "ctrl+a delete" into chords; the error, in the model-text language, names the first unknown key. */
+export function parseKeys(spec: string, language: ModelLanguage = 'zh'): { chords: KeyCode[][] } | { error: string } {
+  const t = MODEL_TEXT[language];
   const chords: KeyCode[][] = [];
   for (const part of spec.trim().split(/\s+/)) {
     if (!part) continue;
@@ -58,11 +60,11 @@ export function parseKeys(spec: string): { chords: KeyCode[][] } | { error: stri
     const chord: KeyCode[] = [];
     for (const name of names) {
       const code = keyCode(name);
-      if (!code) return { error: `不认识的键「${name}」` };
+      if (!code) return { error: t.keyUnknown(name) };
       chord.push(code);
     }
     if (chord.length) chords.push(chord);
   }
-  if (!chords.length) return { error: '没有给出按键' };
+  if (!chords.length) return { error: t.keyNone };
   return { chords };
 }

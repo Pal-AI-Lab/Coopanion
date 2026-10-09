@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { clamp, f, ICONS } from '../packages/cortico-world-desktop-pet/web/ui.js';
 import { COO_CSS, mini, normalizeSkin, skinCss } from '../packages/cortico-world-desktop-pet/web/coo/coo.js';
+import { t } from '../packages/cortico-world-desktop-pet/web/i18n.js';
 
 const WEB = new URL('../packages/cortico-world-desktop-pet/web/', import.meta.url);
 const source = readFileSync(new URL('pet-app.js', WEB), 'utf8').replace(/^import .*;$/gm, '');
@@ -27,8 +28,9 @@ function page() {
     COO_CSS, mini, normalizeSkin, skinCss,
     createSfx: () => ({ pop() {}, babble() {}, blub() {}, configure() {}, set() {}, listenStart() {}, listenEnd() {}, select() {}, tick() {} }),
     loadBody: async () => body, body,
+    t, language: () => 'zh', useLanguage: async () => {},
   };
-  win.eval(`const { applyTheme, clamp, f, ICONS, COO_CSS, mini, normalizeSkin, skinCss, createSfx, loadBody } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, step: (dt) => { T += dt; stepDialog(dt); stepListen(); stepStatus(); layout(); }, interactive: () => bubble.matches(UI_SELECTOR) };`);
+  win.eval(`const { applyTheme, clamp, f, ICONS, COO_CSS, mini, normalizeSkin, skinCss, createSfx, loadBody, t, language, useLanguage } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, step: (dt) => { T += dt; stepDialog(dt); stepListen(); stepStatus(); layout(); }, interactive: () => bubble.matches(UI_SELECTOR) };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document };
 }
 const read = { kind: 'read', text: '在看', detail: '日记.md' };
@@ -93,7 +95,7 @@ describe('activity in the shared speech bubble', () => {
     const icon = p.bubble.querySelector('svg');
     show(p, { ...read, detail: '<记忆>.md', count: 3 }); p.step(.01);
     expect(p.bubble.querySelector('svg')).toBe(icon);
-    expect(p.bubble.textContent).toBe('在看 · <记忆>.md 等 3 个');
+    expect(p.bubble.textContent).toBe('在看 · <记忆>.md 和另外 2 个');
     expect(p.bubble.querySelector('记忆')).toBeNull();
   });
 

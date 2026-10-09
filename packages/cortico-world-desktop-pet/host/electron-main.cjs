@@ -15,9 +15,22 @@
  * the Dock, and the microphone is asked for before the page opens it (the app's Info.plist
  * carries the reason macOS shows). The keyboard is not taken for a question's number keys there:
  * macOS gives no way to hand it back to the app that had it.
+ *
+ * The tray's words follow the app language the page reports (`petHost.setLanguage`), from the pages'
+ * tables (web/i18n); the windows' titles are the pages' own.
  */
 const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen, session, shell, systemPreferences } = require('electron');
 const { join } = require('node:path');
+const { pathToFileURL } = require('node:url');
+
+/** The pages' text table of `code`, falling back as web/i18n.js does. */
+async function pageText(code) {
+  const load = async (c) => {
+    if (!/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(c)) return null;
+    try { return (await import(pathToFileURL(join(__dirname, '..', 'web', 'i18n', `${c}.js`)).href)).default; } catch { return null; }
+  };
+  return { ...await load('en'), ...await load(code === 'zh' || code === 'zh-Hant' ? 'zh' : 'en'), ...await load(code) };
+}
 
 /** Milliseconds between the cursor reports the page gets. */
 const CURSOR_EVERY_MS = 100;
@@ -298,7 +311,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       x: wa.x, y: wa.y, width: wa.width, height: wa.height,
       transparent: true, frame: false, resizable: false, movable: false, minimizable: false, maximizable: false,
       fullscreenable: false, skipTaskbar: true, hasShadow: false, alwaysOnTop: true, show: false,
-      backgroundColor: '#00000000', title: 'Cortico 桌宠',
+      backgroundColor: '#00000000', title: 'Cortico',
       // Windows: Chromium-based apps treat a topmost window without WS_EX_TOOLWINDOW as covering them and stop painting while the pet takes the mouse
       ...(process.platform === 'win32' ? { type: 'toolbar' } : {}),
       webPreferences: {
@@ -347,7 +360,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
 
   const openDress = (target = `${origin}/dress`) => {
     if (dress) { dress.show(); dress.focus(); return; }
-    dress = new BrowserWindow({ width: 980, height: 720, title: '桌宠装扮', autoHideMenuBar: true, webPreferences: { contextIsolation: true, sandbox: true } });
+    dress = new BrowserWindow({ width: 980, height: 720, title: 'Cortico', autoHideMenuBar: true, webPreferences: { contextIsolation: true, sandbox: true } });
     dress.on('closed', () => { dress = null; });
     dress.loadURL(target);
   };
@@ -380,6 +393,12 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   ipcMain.on('pet:hide', () => { releaseAutoHidden(); if (win) win.hide(); });
   ipcMain.on('pet:hideWhenFullscreen', (_e, on) => { hideWhenFullscreen = !!on; });
   ipcMain.on('pet:openDress', () => openDress());
+  let language = 'zh';
+  ipcMain.on('pet:language', (_e, code) => {
+    if (typeof code !== 'string' || code === language) return;
+    language = code;
+    void buildTrayMenu();
+  });
   ipcMain.handle('pet:sampleBackdrop', (_e, query) => {
     try { return win ? sampleBackdrop(win, query || {}) : []; } catch { return []; }
   });
@@ -414,16 +433,24 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     screen.on('display-removed', place);
     if (!withTray) return;
     tray = new Tray(trayIcon());
-    tray.setToolTip('Cortico 桌宠');
-    tray.setContextMenu(Menu.buildFromTemplate([
-      { label: '显示桌宠', click: () => { releaseAutoHidden(); if (!win) create(); else win.showInactive(); } },
-      { label: '隐藏桌宠', click: () => { releaseAutoHidden(); if (win) win.hide(); } },
-      { label: '装扮…', click: () => openDress() },
-      { type: 'separator' },
-      { label: '关闭桌宠窗口', click: () => app.quit() },
-    ]));
+    await buildTrayMenu();
     tray.on('click', () => { if (win) { releaseAutoHidden(); (win.isVisible() ? win.hide() : win.showInactive()); } });
   });
+  /** The tray's tooltip and menu in the language the page last reported. */
+  async function buildTrayMenu() {
+    if (!tray) return;
+    const want = language, t = await pageText(want);
+    if (want !== language || !tray) return;
+    tray.setToolTip(t['pet.title']);
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: t['host.show'], click: () => { releaseAutoHidden(); if (!win) create(); else win.showInactive(); } },
+      { label: t['host.hide'], click: () => { releaseAutoHidden(); if (win) win.hide(); } },
+      { label: t['host.dress'], click: () => openDress() },
+      { type: 'separator' },
+      { label: t['host.close'], click: () => app.quit() },
+    ]));
+  }
+
   app.on('window-all-closed', () => { if (!tray) app.quit(); });
   // with --parent-pid the window closes once that process is gone
   if (parentPid) {

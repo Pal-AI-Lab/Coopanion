@@ -4,9 +4,12 @@
  * had remembered on its own. They are kept in `alarms.json` in the deployment directory, so they
  * outlive a restart; one that fell due while the app was closed is delivered at the next start,
  * saying when it was meant for. A daily one is then set for its next day.
+ *
+ * Tool descriptions are English; receipts and the due event are in the model-text language.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import type { ToolDef } from 'cortico/core/types.ts';
+import type { ModelLanguage } from './language.ts';
 
 export interface Alarm {
   id: string;
@@ -23,6 +26,40 @@ interface Saved { next: number; alarms: Alarm[] }
 const DAY_MS = 86_400_000;
 /** A due alarm this much past its time was missed while the app was closed (the World looks every second). */
 const MISSED_AFTER_MS = 60_000;
+
+const zh = {
+  minutesTooFew: 'in_minutes 至少是 1',
+  noTime: '要给 at 或 in_minutes',
+  past: (at: string) => `${at} 已经过去了`,
+  badAt: (got: string) => `at 应为 HH:MM 或 YYYY-MM-DD HH:MM,收到 ${got}`,
+  due: (setAt: string, id: string, daily: boolean, note: string) => `[唤醒器] 你在 ${setAt} 设的唤醒到了(${id}${daily ? ',每天' : ''}):${note}`,
+  missed: (when: string) => `原定 ${when},那时应用没开着,现在才送到。`,
+  listLine: (id: string, when: string, daily: boolean, note: string) => `- ${id}:${when}${daily ? '(每天)' : ''} ${note}`,
+  noteEmpty: '[alarm_set 没执行] note 不能为空。',
+  setFailed: (why: string) => `[alarm_set 没执行] ${why}。`,
+  set: (id: string, when: string, daily: boolean) => `已设 ${id}:${when}${daily ? ',之后每天这个时间' : ''}。`,
+  none: '没有设着的唤醒器。',
+  missing: (id: string) => `[alarm_cancel 没执行] 没有 ${id} 这个唤醒器。`,
+  cancelled: (id: string) => `已取消 ${id}。`,
+};
+
+const en: typeof zh = {
+  minutesTooFew: 'in_minutes must be at least 1',
+  noTime: 'give at or in_minutes',
+  past: (at) => `${at} has already passed`,
+  badAt: (got) => `at must be HH:MM or YYYY-MM-DD HH:MM; got ${got}`,
+  due: (setAt, id, daily, note) => `[alarm] The alarm you set at ${setAt} is due (${id}${daily ? ', daily' : ''}): ${note}`,
+  missed: (when) => `It was due at ${when}; the app was not running then, so it arrives only now.`,
+  listLine: (id, when, daily, note) => `- ${id}: ${when}${daily ? ' (daily)' : ''} ${note}`,
+  noteEmpty: '[alarm_set not run] note must not be empty.',
+  setFailed: (why) => `[alarm_set not run] ${why}.`,
+  set: (id, when, daily) => `Set ${id}: ${when}${daily ? ', then at this time every day' : ''}.`,
+  none: 'No alarms set.',
+  missing: (id) => `[alarm_cancel not run] There is no alarm ${id}.`,
+  cancelled: (id) => `Cancelled ${id}.`,
+};
+
+const ALARM_TEXT: Record<ModelLanguage, typeof zh> = { zh, en };
 
 /** UTC minus local, in minutes, for `timezone` at `d`. */
 function offsetMinutes(timezone: string, d: Date): number {
@@ -51,21 +88,22 @@ export function localLabel(timezone: string, ms: number): string {
 
 /**
  * When an alarm asked for as `at` (`HH:MM`, the next such time; or `YYYY-MM-DD HH:MM`) or
- * `inMinutes` is due, or why it cannot be set.
+ * `inMinutes` is due, or why it cannot be set (in `language`).
  */
-export function dueTime(timezone: string, now: number, at: unknown, inMinutes: unknown): number | string {
+export function dueTime(timezone: string, now: number, at: unknown, inMinutes: unknown, language: ModelLanguage = 'zh'): number | string {
+  const t = ALARM_TEXT[language];
   if (typeof inMinutes === 'number') {
-    if (!(inMinutes >= 1)) return 'in_minutes 至少是 1';
+    if (!(inMinutes >= 1)) return t.minutesTooFew;
     return now + Math.round(inMinutes * 60_000);
   }
-  if (typeof at !== 'string') return '要给 at 或 in_minutes';
+  if (typeof at !== 'string') return t.noTime;
   const full = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})$/.exec(at.trim());
   if (full) {
     const ms = localToEpoch(timezone, +full[1]!, +full[2]!, +full[3]!, +full[4]!, +full[5]!);
-    return ms > now ? ms : `${at} 已经过去了`;
+    return ms > now ? ms : t.past(at);
   }
   const clock = /^(\d{1,2}):(\d{2})$/.exec(at.trim());
-  if (!clock || +clock[1]! > 23 || +clock[2]! > 59) return `at 应为 HH:MM 或 YYYY-MM-DD HH:MM,收到 ${JSON.stringify(at)}`;
+  if (!clock || +clock[1]! > 23 || +clock[2]! > 59) return t.badAt(JSON.stringify(at));
   const today = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' })
     .formatToParts(new Date(now)).map((x) => [x.type, x.value]));
   const ms = localToEpoch(timezone, +today.year!, +today.month!, +today.day!, +clock[1]!, +clock[2]!);
@@ -75,8 +113,13 @@ export function dueTime(timezone: string, now: number, at: unknown, inMinutes: u
 export class Alarms {
   private saved: Saved;
 
-  constructor(private readonly file: string, private readonly timezone: string) {
+  /** `language`: the model-text language, read at each use. */
+  constructor(private readonly file: string, private readonly timezone: string, private readonly language: () => ModelLanguage = () => 'zh') {
     this.saved = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as Saved : { next: 1, alarms: [] };
+  }
+
+  private get t(): typeof zh {
+    return ALARM_TEXT[this.language()];
   }
 
   private save(): void {
@@ -99,62 +142,63 @@ export class Alarms {
   }
 
   dueText(alarm: Alarm, missed: boolean): string {
-    const when = localLabel(this.timezone, alarm.at);
+    const t = this.t;
     return [
-      `[唤醒器] 你在 ${localLabel(this.timezone, alarm.setAt)} 设的唤醒到了(${alarm.id}${alarm.daily ? ',每天' : ''}):${alarm.note}`,
-      ...(missed ? [`原定 ${when},那时应用没开着,现在才送到。`] : []),
+      t.due(localLabel(this.timezone, alarm.setAt), alarm.id, alarm.daily, alarm.note),
+      ...(missed ? [t.missed(localLabel(this.timezone, alarm.at))] : []),
     ].join('\n');
   }
 
   tools(now: () => number = Date.now): ToolDef[] {
     const tz = this.timezone;
     const list = () => this.saved.alarms.slice().sort((a, b) => a.at - b.at)
-      .map((a) => `- ${a.id}:${localLabel(tz, a.at)}${a.daily ? '(每天)' : ''} ${a.note}`).join('\n');
+      .map((a) => this.t.listLine(a.id, localLabel(tz, a.at), a.daily, a.note)).join('\n');
     return [
       {
         name: 'alarm_set',
         tags: ['write'],
-        description: '给自己设一个唤醒器:到点时你会被叫醒,收到一条 [唤醒器] 事件,里面原样带着 note。对方看不到唤醒器。用来按时提醒对方、到点做某件事,或者过一阵回来看看。应用关着时到点的,下次启动时送到并注明原定时间。',
+        description: 'Set an alarm for yourself: when it is due you are woken by an event carrying the note as you wrote it. The person does not see alarms. Use one to remind the person on time, to do something at a set time, or to come back and check after a while. One that falls due while the app is closed arrives at the next start, with the time it was meant for.',
         parameters: {
           type: 'object',
           properties: {
-            at: { type: 'string', description: '对方的本地时间:HH:MM(今天已过就是明天),或 YYYY-MM-DD HH:MM。和 in_minutes 二选一。' },
-            in_minutes: { type: 'number', minimum: 1, description: '从现在起多少分钟后。' },
-            note: { type: 'string', description: '到点时要做什么、为什么设它,写给到时候的你看。' },
-            daily: { type: 'boolean', description: 'true 每天这个时间都叫醒你,直到 alarm_cancel。' },
+            at: { type: 'string', description: 'The person\'s local time: HH:MM (tomorrow if today\'s has passed), or YYYY-MM-DD HH:MM. Give this or in_minutes.' },
+            in_minutes: { type: 'number', minimum: 1, description: 'Minutes from now.' },
+            note: { type: 'string', description: 'What to do when it is due and why you set it, written for yourself at that time.' },
+            daily: { type: 'boolean', description: 'true wakes you at this time every day until alarm_cancel.' },
           },
           required: ['note'],
         },
         handler: async (args) => {
+          const t = this.t;
           const note = typeof args.note === 'string' ? args.note.trim() : '';
-          if (!note) return { text: '[alarm_set 没执行] note 不能为空。', failed: true };
-          const t = now();
-          const at = dueTime(tz, t, args.at, args.in_minutes);
-          if (typeof at === 'string') return { text: `[alarm_set 没执行] ${at}。`, failed: true };
-          const alarm: Alarm = { id: `a${this.saved.next++}`, at, note, daily: args.daily === true, setAt: t };
+          if (!note) return { text: t.noteEmpty, failed: true };
+          const time = now();
+          const at = dueTime(tz, time, args.at, args.in_minutes, this.language());
+          if (typeof at === 'string') return { text: t.setFailed(at), failed: true };
+          const alarm: Alarm = { id: `a${this.saved.next++}`, at, note, daily: args.daily === true, setAt: time };
           this.saved.alarms.push(alarm);
           this.save();
-          return { text: `已设 ${alarm.id}:${localLabel(tz, at)}${alarm.daily ? ',之后每天这个时间' : ''}。` };
+          return { text: t.set(alarm.id, localLabel(tz, at), alarm.daily) };
         },
       },
       {
         name: 'alarm_list',
         tags: ['read'],
-        description: '列出你设着的唤醒器:编号、时间(对方的本地时间)、note。',
+        description: 'List the alarms you have set: id, time (the person\'s local time) and note.',
         parameters: { type: 'object', properties: {} },
-        handler: async () => ({ text: this.saved.alarms.length ? list() : '没有设着的唤醒器。' }),
+        handler: async () => ({ text: this.saved.alarms.length ? list() : this.t.none }),
       },
       {
         name: 'alarm_cancel',
         tags: ['write'],
-        description: '取消一个唤醒器,每天的也一并停掉。',
-        parameters: { type: 'object', properties: { id: { type: 'string', description: 'alarm_set 回执或 alarm_list 里的编号,如 a3。' } }, required: ['id'] },
+        description: 'Cancel an alarm; a daily one stops altogether.',
+        parameters: { type: 'object', properties: { id: { type: 'string', description: 'The id from the alarm_set receipt or alarm_list, such as a3.' } }, required: ['id'] },
         handler: async (args) => {
           const before = this.saved.alarms.length;
           this.saved.alarms = this.saved.alarms.filter((a) => a.id !== args.id);
-          if (this.saved.alarms.length === before) return { text: `[alarm_cancel 没执行] 没有 ${JSON.stringify(args.id)} 这个唤醒器。`, failed: true };
+          if (this.saved.alarms.length === before) return { text: this.t.missing(JSON.stringify(args.id)), failed: true };
           this.save();
-          return { text: `已取消 ${args.id}。` };
+          return { text: this.t.cancelled(String(args.id)) };
         },
       },
     ];

@@ -1,4 +1,5 @@
 /** Messages between CuaWorld and the engine child process (fork IPC, advanced serialization). */
+import type { EngineErrorCode } from './engine/fail.ts';
 import type { KeyCode } from './engine/keys.ts';
 
 export type Button = 'left' | 'right' | 'middle';
@@ -22,7 +23,8 @@ export type EngineRequest =
   | { op: 'key'; chords: KeyCode[][]; yield: Yield }
   | { op: 'windows' }
   | { op: 'focus'; handle: string; yield: Yield }
-  | { op: 'confirm'; text: string; caption: string; timeoutMs: number };
+  /** `yes` and `no` label the dialog's buttons where the system lets them be named. */
+  | { op: 'confirm'; text: string; caption: string; yes: string; no: string; timeoutMs: number };
 
 /** How a yes/no question to the person ended. */
 export type Answer = 'yes' | 'no' | 'timeout';
@@ -70,4 +72,5 @@ export interface WindowEntry {
  * typed chunks. Every other step of an op runs to its end; a cancel for a finished request is dropped.
  */
 export type MainToChild = { id: number; req: EngineRequest } | { cancel: number };
-export type ChildToMain = { id: number; ok: true; value: unknown } | { id: number; ok: false; error: string };
+/** A failure the World words itself carries `code` and `args` (engine/fail.ts); `error` is the message as thrown. */
+export type ChildToMain = { id: number; ok: true; value: unknown } | { id: number; ok: false; error: string; code?: EngineErrorCode; args?: Array<string | number> };

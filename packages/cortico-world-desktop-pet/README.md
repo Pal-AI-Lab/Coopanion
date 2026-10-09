@@ -11,7 +11,7 @@
 [Coopanion](https://github.com/Pal-AI-Lab/Coopanion) 桌面上的 Coo 就是它。
 
 bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置的 Coo(C 形的身体,两只 0 形的眼睛,两条短腿)、内置的大肥鱼,或者装上的其他包。它用气泡说话、用选项提问、
-沿屏幕底边走动、做表情和动作;人可以对它说话(FunASR 在本机识别,Windows 上也可用系统自带的识别)、打字、点选项、戳它、摸它、
+沿屏幕底边走动、做表情和动作;人可以对它说话(FunASR 或 Whisper 在本机识别,Windows 上也可用系统自带的识别)、打字、点选项、戳它、摸它、
 把它拎起来甩出去,这些都作为事件送回 bot。
 
 ## 工具
@@ -25,7 +25,7 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 | `pet_set(…)` | 改自己的外观和习惯,见「自己调整」 | 自己能改的立即返回;要问的等对方回答 |
 | `pet_quiet(minutes, sound, roam)` | 临时安静:默认关音效、站着不动,到点恢复,设置不变 | 立即返回 |
 
-表情和动作的词表是当前形象包的 `vocab`(解析在 `src/script.ts`),词的 id 与各语言的名字都认;环境提示词 `src/ENV_PROMPT.md` 把它渲染成表格,前缀重建时更新。
+表情和动作的词表是当前形象包的 `vocab`(解析在 `src/script.ts`),词的 id 与各语言的名字都认;环境提示词 `src/ENV_PROMPT.md`(英文版 `src/ENV_PROMPT.en.md`)把它渲染成表格,前缀重建时更新。
 运行中换了形象,`[形象]` 事件或 `pet_set` 的回执写明词表相对 bot 上次得知的变化:用不了的词,以及新增或样子变了的词的表格行。
 身体加载好时报出它认得的词(kit 的身体都报),`vocab` 里身体不认得的词不给 bot 用,并在日志里记一条。
 词表里没有的词,`pet_say` 和 `pet_act` 的回执会写明略过了哪些。
@@ -41,13 +41,14 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 | `desktop-pet.figure` | `[形象] 你现在的样子:…`(对方换了形象或打扮;bot 用 `pet_set` 自己换的不报) / `[形象] …没能显示出来(原因),你现在是 Coo 的样子` / `[形象] 词表变了。…`;词表有变化时都附上 | 换装 debounce,显示失败 flush |
 
 每条事件的正文前是对方那边的本地时间 `[HH:MM]`;一次运行的第一条、换了日期后的第一条带日期和星期 `[MM-DD 周X HH:MM]`。
+表里是中文版;模型文本是英文时,标签是 `[voice]` `[typed]` `[answer]` `[touch]` `[figure]`,星期写 `Sun` 这样的英文缩写。
 
-同一种互动 2.5 秒内连着来,并成一条带次数的事件。`wakeOn` 默认 `poke`:只有戳唤醒,摸头、放下和甩出跟着下一批送;鼠标划过桌宠也算摸头,拖开挡路的桌宠也算放下。一条互动按 debounce 送出后,到 bot 下一次结束一轮前,其余互动都按 piggyback 送。「伙伴」取自 `worlds.desktop-pet.user`。
+同一种互动 2.5 秒内连着来,并成一条带次数的事件。`wakeOn` 默认 `poke`:只有戳唤醒,摸头、放下和甩出跟着下一批送;鼠标划过桌宠也算摸头,拖开挡路的桌宠也算放下。一条互动按 debounce 送出后,到 bot 下一次结束一轮前,其余互动都按 piggyback 送。「伙伴」取自 `worlds.desktop-pet.user`,空着时是应用语言的默认称呼(`src/i18n`)。
 
 ## 桌宠窗口
 
 World 在 `127.0.0.1:7797`(被占向上顺延)起一个页面服务:`/pet` 是桌宠本身,`/dress` 是装扮页。
-桌宠有两个形象,在装扮页最上面一行选,存在配置 `skin.figure` 里:`coo` 是 Coo,`whale` 是 DeepSeek 大肥鱼
+桌宠内置两个形象,和导入的形象包(见「形象包」)一起在装扮页最上面一行选,存在配置 `skin.figure` 里:`coo` 是 Coo,`whale` 是 DeepSeek 大肥鱼
 (鲸鱼女仆,`web/whale`,用 `web/rig` 画的 Live2D 式分件模型,八套配色存在 `skin.scheme`,见 [examples/whale](examples/whale/README.md))。
 选大肥鱼时装扮页的配色和配件换成她的八套配色;桌宠页第一次用到她时才加载她的贴图,只加载选中的那套。
 桌宠窗口是一个 Electron 进程(`host/electron-main.cjs`):透明、无边框、置顶,盖住一块显示器的工作区
@@ -121,30 +122,43 @@ kit 的身体(`web/kit/body.js`)另收 `set({ thoughtShown })`,表示页面正�
 ## 语音输入
 
 桌宠窗口里的页面用麦克风收音,16 kHz 单声道 PCM 经 WebSocket 送到 World,按能量门限切句
-(`src/asr/segmenter.ts`),交给识别引擎,繁体转简体、挡掉已知幻觉后作为 `desktop-pet.speech` 投递。
-说话时桌宠歪头倾听,虚线气泡里边说边显示听到的字,还没定下来的部分是灰色的。
+(`src/asr/segmenter.ts`),交给识别引擎,挡掉已知幻觉后作为 `desktop-pet.speech` 投递;应用语言是简体中文且 `asr.simplified` 开着时先把繁体转成简体。
+说话时桌宠歪头倾听,虚线气泡里边说边显示听到的字,还没定下来的部分是灰色的;用 Whisper 时一句说完才出字。
 
 识别引擎存在 `asr.engine`:
 
 | `asr.engine` | 引擎 |
 |---|---|
-| `funasr`(默认) | FunASR 的 SenseVoiceSmall(int8),经 sherpa-onnx 的 Node 插件在 World 进程里识别;Windows x64、macOS arm64 / x64、Linux x64 都有预编译包 |
-| `system` | Windows 自带的语音识别(SAPI 听写,System.Speech),不用下载,准确度低一些;其他系统上按 `funasr` 处理 |
+| 空(默认) | 按应用语言选:SenseVoice 认的语言(中、英、日、韩)用 `funasr`,其余(法、德、西、葡、意、俄)用 `whisper` |
+| `funasr` | FunASR 的 SenseVoiceSmall(int8),经 sherpa-onnx 的 Node 插件在 World 进程里识别 |
+| `whisper` | OpenAI 的 Whisper small(int8),同样经 sherpa-onnx 在 World 进程里识别 |
+| `system` | Windows 自带的语音识别(SAPI 听写,System.Speech),不用下载,准确度低一些;其他系统上按空处理 |
 
-旧版本写下的 `auto`、`whisper` 都按 `funasr` 处理。
+旧版本写下的 `auto` 按空处理。
 
-`funasr`:`sherpa-onnx-node` 是本包的依赖,随包安装(Windows 约 24 MB,macOS 约 35 MB),不在运行时下载。
-只有模型要下载:「语音输入」面板(或应用的新手引导)点一下「下载」,
-`model.int8.onnx`(228 MB)和 `tokens.txt` 依次从 ModelScope 取(国内可直接访问),取不到再从 Hugging Face 取,
-逐个按固定的 SHA-256 校验,放到 `<模型根>/desktop-pet/sensevoice-small-int8-2024-07-17/`。
-SenseVoice 一次识别整句;说话过程中每 0.5 秒把这句到目前为止的音频重新识别一遍,拿来边说边显示,
-一句收尾后再识别一次定稿(3 秒的一句在两个线程上约 0.1 秒)。`asr.language` 取 zh、en、ja、ko、yue 或 auto,
+`sherpa-onnx-node` 是本包的依赖,随包安装(Windows 约 24 MB,macOS 约 35 MB,Linux x64 约 33 MB),不在运行时下载;
+Windows x64、macOS arm64 / x64、Linux x64 / arm64 都有预编译包,Linux 上要 glibc 2.32 与 GCC 11 的 libstdc++ 以上(Ubuntu 22.04、Debian 12 起)。
+只有模型要下载:「语音输入」面板(或应用的新手引导)点一下「下载」,下的是当前引擎的模型;当前是 `system` 时下应用语言对应的那个,下完就换过去。
+文件依次从 ModelScope 取(国内可直接访问),取不到再从 Hugging Face 取,逐个按固定的 SHA-256 校验:
+
+| 引擎 | 文件 | 放在 `<模型根>/desktop-pet/` 下 |
+|---|---|---|
+| `funasr` | `model.int8.onnx`(228 MB)、`tokens.txt` | `sensevoice-small-int8-2024-07-17/` |
+| `whisper` | `small-encoder.int8.onnx`(107 MB)、`small-decoder.int8.onnx`(250 MB)、`small-tokens.txt` | `whisper-small-int8-2024-07-13/` |
+
+两个模型都一次识别整句。SenseVoice 在说话过程中每 0.5 秒把这句到目前为止的音频重新识别一遍,拿来边说边显示,
+一句收尾后再识别一次定稿(3 秒的一句在两个线程上约 0.1 秒)。
+Whisper 每输出一个词元约 70 ms,3 秒的一句约 1 秒、8 秒的一句约 3 秒(4 核笔记本 CPU 上两个线程;4 核上开 4 个线程更慢),
+所以只在一句收尾后识别一次:边说边重识别会让 CPU 在人说话时一直满着,定稿也要排在正在跑的那次后面。
+Whisper 对静音和底噪也会写出字(字幕署名、`[Musik]` 这类声音标注),兜底有两层:最响的 20 ms 不到 -50 dBFS 的一句不送去识别,
+识别出来的声音标注(以 `[`、`(`、`*`、`♪` 开头)和字幕署名按幻觉挡掉。
+`asr.language` 取 ISO 639-1 代码或 auto,空着时跟随应用语言;SenseVoice 认 zh、en、ja、ko、yue,Whisper 认近百种,不认的代码两者都按 auto(模型自己判断语言)。
 `asr.threads` 是一次识别用的线程数,0 表示 2。
 
 `system` 起一个常驻的 PowerShell 进程(`src/asr/system-sapi.ps1`,经 `-EncodedCommand` 传入,不受执行策略影响),
 一句话边说边送:切句器判定开口后(连同门限之前那几帧)每帧一行 base64 PCM 送进去,
 进程约每 0.4 秒回报一次这句到目前为止的文字(`listen` 的 `partial` 带上 `interim`),一句收尾后几十毫秒内定稿,不必再整句识别一遍。
-按 `asr.language` 挑系统里装着的识别器。中文 Windows 自带 zh-CN 识别器;
+按 `asr.language`(空着时取应用语言的语种)挑系统里装着的识别器,同一语种有几个时优先应用语言的地区(繁体中文 zh-TW,拉美西语 es-MX 等),再看 Windows 显示语言。中文 Windows 自带 zh-CN 识别器;
 没有时面板写明去 Windows 设置 → 时间和语言 → 语言里装「语音识别」。
 
 下载都先写 `.partial`,完整后才改名到位。
@@ -239,8 +253,8 @@ Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 Core
 
 ## 给内嵌应用
 
-`desktopPetDefinition({ controls, onCreate, onSkin, packRoots, onBotChange })` 生成定义(`packRoots` 是更多形象包目录,`onBotChange` 在 bot 用 `pet_set` 改了设置之后调用):`controls`(`PetBotControls`)给右键菜单借出暂停、设置、退出,
-借了哪个就只画哪个按钮或菜单行(暂停要 `isPaused` 和 `setPaused`,设置要 `openSettings`,退出要 `quit` 与可选的 `quitLabel`);
+`desktopPetDefinition({ controls, onCreate, onSkin, packRoots, onBotChange, language })` 生成定义(`packRoots` 是更多形象包目录,`onBotChange` 在 bot 用 `pet_set` 改了设置之后调用,`language` 见下面「文字」一节):`controls`(`PetBotControls`)给右键菜单借出暂停、设置、退出,
+借了哪个就只画哪个按钮或菜单行(暂停要 `isPaused` 和 `setPaused`,设置要 `openSettings`,退出要 `quit` 与可选的 `quitLabel`,可以是每次开菜单时调用的函数);
 `onCreate` 拿到 World 实例,应用可以调 `world.confirm(问题, [同意, 不同意])` 弹一个两选项气泡,
 结果是 `yes` / `no` / `dismissed` / `timeout`(60 秒没人答) / `unavailable`(没有桌宠页),不会作为事件送给 bot。
 
@@ -259,6 +273,14 @@ Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 Core
 - `pet_ask` 在页面上也能回答,回答后桌宠上的气泡关掉。页面还收到 Core 的运行阶段(`phase`)与暂停状态。
 - `controls.openChat` 借出后,打字气泡多一个展开钮,带着草稿打开对话页;环境提示词的 `{{pet.chat}}` 也只在这时说明对话页。
 
+### 模型文本的语言
+
+给人看的文字(桌宠页、装扮页、菜单、语音提示、报错、控制台的配置项、面板与对话页)每种语言一个文件:World 与控制台面板在 `src/i18n/<语言>.ts`,页面在 `web/i18n/<语言>.js`。`zh`、`en` 是全的;其余语言只写译好的键(`src/i18n` 按顶层键,一组键要整组给),缺的键繁体读简体,其余读英文。气泡与页面按 `desktopPetDefinition({ language })` 给的应用语言(缺省 `zh`),页面从 snapshot 里拿到并随时切换;控制台按请求的语言。称呼与 `pet_ask` 选项按字形计数,中日韩 20 / 40 字,其他语言加倍,上限写在工具说明里。
+
+bot 从这个 World 读到的文字(事件、回执、环境提示词和词表)有中文、英文两版(`src/model-text.ts`),由 `desktopPetDefinition({ modelLanguage })` 每次用到时选,缺省中文;用户打的字、说的话和回答原样放进去。工具说明只有英文一版。
+`replyLanguage` 返回要 bot 对使用者说的语言的名字(按模型文本的语言写,比如 `Japanese`、`繁体中文`),渲染成环境提示词里的 `{{pet.reply}}` 一句;返回 null 时这句为空。语言变了,环境提示词在下一次前缀重建时换。
+形象包 `about` 和 `vocab` 的 `about` 没有 `en` 时,英文版用中文的;英文词表只列 id 和 `names.en`,名字没有 `en` 的维度、选项和预设在英文版里用 id。
+
 形象的身体可以实现 `stopWalk(id)`:interrupt 停下 `pet_walk_to` 时页面经 `figure-frame` 调它;没实现时这次走路照常走完。
 
 ## 安装
@@ -275,7 +297,7 @@ corepack pnpm build        # 面板产物 dist/,不进版本库
 ```bash
 corepack pnpm test
 corepack pnpm typecheck
-npx tsx scripts/check-voice.ts <模型根> <语音.wav>   # 连真 FunASR 手动检查,模型不在就先下载
+npx tsx scripts/check-voice.ts <模型根> <语音.wav> [应用语言]   # 连真模型手动检查(fr 等走 Whisper),模型不在就先下载
 ```
 
 `tsconfig.json` 与 `vitest.config.ts` 把 `cortico/*` 指到主仓库的 `vendor/cortico/src/`;

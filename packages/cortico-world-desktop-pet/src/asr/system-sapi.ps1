@@ -1,6 +1,7 @@
 # Windows' own speech recognizer (SAPI dictation through System.Speech) as a line protocol,
 # started by src/asr/system-recognizer.ts. Arguments come in environment variables:
-# PET_ASR_LANGUAGE (ISO 639-1 or 'auto') and PET_ASR_TIMEOUT_MS.
+# PET_ASR_LANGUAGE (ISO 639-1 or 'auto'), PET_ASR_CULTURE (the recognizer to prefer, such as zh-TW;
+# empty prefers the Windows display language's) and PET_ASR_TIMEOUT_MS.
 #
 # Sentences are streamed: audio goes in while the person speaks and the text so far comes
 # back as it grows, so the pet can show it before the sentence ends.
@@ -91,14 +92,14 @@ public static class PetSapi {
 
   static void Emit(string line) { lock (outLock) { Console.Out.WriteLine(line); Console.Out.Flush(); } }
 
-  /** The installed recognizer for `language`, preferring the one matching the Windows display language. */
-  public static string Open(string language) {
+  /** The installed recognizer for `language`, preferring the one of `culture`, else the one matching the Windows display language. */
+  public static string Open(string language, string culture) {
     RecognizerInfo pick = null;
-    var ui = CultureInfo.CurrentUICulture;
+    var prefer = string.IsNullOrEmpty(culture) ? CultureInfo.CurrentUICulture.Name : culture;
     foreach (var r in SpeechRecognitionEngine.InstalledRecognizers()) {
       bool fits = language == "auto" || string.Equals(r.Culture.TwoLetterISOLanguageName, language, StringComparison.OrdinalIgnoreCase);
       if (!fits) continue;
-      if (pick == null || r.Culture.Name == ui.Name) pick = r;
+      if (pick == null || string.Equals(r.Culture.Name, prefer, StringComparison.OrdinalIgnoreCase)) pick = r;
     }
     if (pick == null) return null;
     engine = new SpeechRecognitionEngine(pick);
@@ -161,9 +162,10 @@ public static class PetSapi {
 }
 
 $language = if ($env:PET_ASR_LANGUAGE) { $env:PET_ASR_LANGUAGE } else { 'auto' }
+$culture = if ($env:PET_ASR_CULTURE) { $env:PET_ASR_CULTURE } else { '' }
 $timeout = if ($env:PET_ASR_TIMEOUT_MS) { [int]$env:PET_ASR_TIMEOUT_MS } else { 20000 }
 $ready = $null
-try { $ready = [PetSapi]::Open($language) } catch { $ready = '{' + [PetSapi]::Json('fatal', $_.Exception.Message) + '}' }
+try { $ready = [PetSapi]::Open($language, $culture) } catch { $ready = '{' + [PetSapi]::Json('fatal', $_.Exception.Message) + '}' }
 if (-not $ready) { $ready = '{"fatal":"no-recognizer"}' }
 [Console]::Out.WriteLine($ready)
 [Console]::Out.Flush()

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { dueTime, localLabel } from '../core/alarms.ts';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { Alarms, dueTime, localLabel } from '../core/alarms.ts';
 
 describe('dueTime', () => {
   // 2026-10-05 14:00 in Shanghai (UTC+8)
@@ -14,5 +17,25 @@ describe('dueTime', () => {
     // New York leaves daylight saving on 2026-11-01
     const at = dueTime('America/New_York', now, '2026-11-02 08:00', undefined) as number;
     expect(localLabel('America/New_York', at)).toBe('11-02 08:00');
+  });
+});
+
+describe('Alarms', () => {
+  it('gives an English bot no Chinese: tool declarations, receipts, the due event', async () => {
+    const HAN = /\p{Script=Han}/u;
+    const now = Date.UTC(2026, 9, 5, 6, 0);
+    const alarms = new Alarms(join(mkdtempSync(join(tmpdir(), 'coo-alarms-')), 'alarms.json'), 'Asia/Shanghai', () => 'en');
+    const tools = alarms.tools(() => now);
+    const run = (name: string, args: Record<string, unknown>) => tools.find((t) => t.name === name)!.handler(args, {} as never) as Promise<{ text: string }>;
+    expect(JSON.stringify(tools.map(({ handler: _, ...decl }) => decl))).not.toMatch(HAN);
+    const texts = [
+      (await run('alarm_set', { note: 'stretch', in_minutes: 30, daily: true })).text,
+      (await run('alarm_set', { note: 'tea', at: '25:00' })).text,
+      (await run('alarm_list', {})).text,
+      (await run('alarm_cancel', { id: 'a9' })).text,
+      ...alarms.takeDue(now + 2 * 3_600_000).map(({ alarm, missed }) => alarms.dueText(alarm, missed)),
+    ];
+    expect(texts).toHaveLength(5);
+    for (const text of texts) expect(text).not.toMatch(HAN);
   });
 });

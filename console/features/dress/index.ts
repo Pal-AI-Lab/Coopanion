@@ -6,27 +6,14 @@
  * `THEME_POLL_MS` and applies it when the scheme or mode differs from what the window shows.
  */
 import { get, post } from '../../core/api.ts';
-import { pick } from '../../core/language.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { applyStoredTheme, disposeThemeStudio, getThemeStudio } from '../../theme/studio.ts';
 import type { InjectedTheme } from '../../../shared/theme.ts';
+import { S } from './strings.ts';
 
 const PET_PAGE = 'world:desktop-pet';
 /** How often the open page reads the theme record, one local request each time. */
 const THEME_POLL_MS = 1000;
-
-const S = pick({
-  zh: {
-    nav: '装扮',
-    note: '换配色、帽子、耳饰、眼镜、颈饰,改动立刻生效。',
-    noPet: '桌宠还没准备好,稍后再来。',
-  },
-  en: {
-    nav: 'Dress up',
-    note: 'Colors, hats, earrings, glasses and neckwear; changes apply at once.',
-    noPet: 'The pet is not ready yet; come back in a moment.',
-  },
-});
 
 const panelPath = (method: string) => `/api/console/providers/${encodeURIComponent(PET_PAGE)}/panels/pet/${method}`;
 

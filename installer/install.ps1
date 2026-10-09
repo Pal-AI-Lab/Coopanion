@@ -8,16 +8,16 @@ $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $repo = 'Pal-AI-Lab/Coopanion'
-Write-Host '正在查找最新版本…'
+Write-Host 'Looking for the latest version...'
 $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" -Headers @{ 'User-Agent' = 'Coopanion-installer' }
 $asset = $release.assets | Where-Object { $_.name -like 'Coopanion-Setup-*.exe' } | Select-Object -First 1
-if (-not $asset) { throw "最新版本 $($release.tag_name) 里没有安装程序。" }
+if (-not $asset) { throw "The latest release $($release.tag_name) has no installer." }
 
 $target = Join-Path $env:TEMP $asset.name
-Write-Host "正在下载 $($asset.name)($([math]::Round($asset.size / 1MB)) MB)…"
+Write-Host "Downloading $($asset.name) ($([math]::Round($asset.size / 1MB)) MB)..."
 Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $target -UseBasicParsing
 
-Write-Host '正在安装…'
+Write-Host 'Installing...'
 Start-Process -FilePath $target -Wait
 Remove-Item $target -ErrorAction SilentlyContinue
-Write-Host 'Coopanion 装好了:桌面上有它的图标。第一次打开时填入 DeepSeek 的 API Key 就能用。'
+Write-Host 'Coopanion is installed; its icon is on the desktop. On first start, Coo asks which model service to use and for its API key.'

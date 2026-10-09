@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import jpeg from 'jpeg-js';
 import { dryMountWorld } from 'cortico/extensions/dry-mount.ts';
+import { renderTemplate } from 'cortico/core/template.ts';
 import { parseKeys } from '../src/engine/keys.ts';
 import { appleString, dialogAnswer, macKey, unicodeChunks } from '../src/engine/mac-keys.ts';
 import { linuxKeysym, zenityAnswer } from '../src/engine/linux-keys.ts';
@@ -226,6 +227,41 @@ describe('CuaWorld without the engine', () => {
       expect(out.text).toContain('只输入了 16/40 个字符:收到打断');
       expect(out.blobs).toBeUndefined();
     });
+  });
+
+  it('gives the bot no Chinese of its own when the model text is English: environment prompt, tool declarations, receipts', async () => {
+    const cfg = { ...structuredClone(CUA_DEFAULTS), permission: 'never-ask' as const };
+    const w = new CuaWorld({ cfg, timezone: 'Asia/Shanghai', modelLanguage: () => 'en' });
+    // stands in for the engine child: a screenshot, an empty window list, input sent after a short wait
+    const inner = w as unknown as { spawn: () => unknown; pending: Map<number, { done: (v: unknown) => void; timer: NodeJS.Timeout }> };
+    inner.spawn = () => ({
+      exitCode: null,
+      send({ id, req }: { id: number; req: { op: string } }) {
+        const at = { cursor: { x: 0, y: 0 }, foreground: 'Notes' };
+        const value = req.op === 'screenshot' ? { ...at, jpeg: new Uint8Array(1), width: 10, height: 10, screen: { width: 1920, height: 1080 } }
+          : req.op === 'windows' ? [] : { ...at, yielded: false, waitedMs: 500 };
+        const p = inner.pending.get(id)!;
+        inner.pending.delete(id);
+        clearTimeout(p.timer);
+        p.done(value);
+      },
+    });
+    const HAN = /\p{Script=Han}/u;
+    const doc = w.console().promptDocs![0]!;
+    const prompt = renderTemplate(readFileSync(doc.path, 'utf8'), w.envPromptVars());
+    expect(prompt).not.toMatch(HAN);
+    expect(prompt).not.toMatch(/\{\{/);
+    expect(JSON.stringify(w.tools().map(({ handler: _, ...decl }) => decl))).not.toMatch(HAN);
+    const receipts = [
+      await call(w, 'cua_screenshot', {}),
+      await call(w, 'cua_click', { x: 1, y: 1, screenshot: false }),
+      await call(w, 'cua_click', { x: 5000, y: 1 }),
+      await call(w, 'cua_key', { keys: 'ctrl+nope' }),
+      await call(w, 'cua_windows', {}),
+    ];
+    cfg.control = false;
+    receipts.push(await call(w, 'cua_type', { text: '你好' }));
+    for (const r of receipts) expect(r.text).not.toMatch(HAN);
   });
 
   it('passes the extension dry mount', async () => {

@@ -5,7 +5,8 @@ export default CUA;
 
 export { CUA };
 export { cuaDefinition } from './definition.ts';
-export { CUA_DEFAULTS, CUA_CONFIG_GROUP } from './config.ts';
+export { CUA_DEFAULTS, cuaConfigGroup } from './config.ts';
 export type { CuaConfigSection } from './config.ts';
 export { CuaWorld, type CuaWorldOptions } from './world.ts';
 export type { Answer } from './engine-ipc.ts';
+export type { ModelLanguage } from './model-text.ts';

@@ -16,6 +16,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { linuxKeysym, zenityAnswer } from './linux-keys.ts';
+import { EngineFailure } from './fail.ts';
 
 const x11 = koffi.load('libX11.so.6');
 const xtst = koffi.load('libXtst.so.6');
@@ -59,7 +60,7 @@ const ZPIXMAP = 2, ALL_PLANES = 0xffffffff;
 const BUTTON: Record<Button, number> = { left: 1, middle: 2, right: 3 };
 
 const dpy = XOpenDisplay(null);
-if (!dpy) throw new Error('连不上 X11 显示(DISPLAY 没有设置?):电脑操作在 Linux 上需要 X11 或 XWayland');
+if (!dpy) throw new EngineFailure('x11Display');
 // a window closing between listing it and reading it raises BadWindow; Xlib's default handler would exit the process
 XSetErrorHandler(koffi.register(() => 0, koffi.pointer(XErrorHandler)));
 const root = XDefaultRootWindow(dpy);
@@ -96,7 +97,7 @@ function captureWithTool(): { width: number; height: number; bgra: Buffer } {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-  throw new Error('截屏失败:X 服务器给不出屏幕画面(Wayland 下的 XWayland 常见),也没有找到截屏工具。请安装 grim、spectacle、scrot 或 ImageMagick 之一,或者改用 X11 会话');
+  throw new EngineFailure('linuxNoScreenshot');
 }
 
 /** The whole screen as top-down BGRA. */
@@ -106,7 +107,7 @@ export function capture(): { width: number; height: number; bgra: Buffer } {
   if (!ptr) return captureWithTool();
   try {
     const img = koffi.decode(ptr, XImage) as { data: unknown; bytes_per_line: number; bits_per_pixel: number; byte_order: number };
-    if (img.bits_per_pixel !== 32 || img.byte_order !== 0) throw new Error(`截屏失败:不支持的像素格式(${img.bits_per_pixel} 位)`);
+    if (img.bits_per_pixel !== 32 || img.byte_order !== 0) throw new EngineFailure('linuxPixelFormat', [img.bits_per_pixel]);
     // a copy: Electron's V8 sandbox does not allow an ArrayBuffer over outside memory (koffi.view)
     const src = koffi.decode(img.data, koffi.array('uint8_t', img.bytes_per_line * height, 'Typed')) as Uint8Array;
     const bgra = Buffer.alloc(width * height * 4);
@@ -165,7 +166,7 @@ export function chord(vks: Array<{ vk: number; extended: boolean }>): void {
   const codes = vks.map((k) => {
     const sym = linuxKeysym(k.vk);
     const code = sym === null ? 0 : XKeysymToKeycode(dpy, sym);
-    if (!code) throw new Error(`这个键盘布局里没有这个键(虚拟键码 0x${k.vk.toString(16)})`);
+    if (!code) throw new EngineFailure('linuxNoKey', [`0x${k.vk.toString(16)}`]);
     return code;
   });
   for (const c of codes) XTestFakeKeyEvent(dpy, c, 1, 0);
@@ -180,7 +181,7 @@ export function typeUnicode(text: string): void {
   try {
     execFileSync('xdotool', ['type', '--clearmodifiers', '--delay', '8', '--', clean], { stdio: 'ignore', timeout: 60_000 });
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw new Error('打字需要 xdotool:请先安装(Debian/Ubuntu: sudo apt install xdotool)');
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw new EngineFailure('linuxNoXdotool');
     throw e;
   }
 }
@@ -264,10 +265,10 @@ export function focus(handle: string): boolean {
 }
 
 /** A yes/no dialog answered or given up after `timeoutMs`; without zenity the answer is no. */
-export function askYesNo(text: string, caption: string, timeoutMs: number): Promise<'yes' | 'no' | 'timeout'> {
+export function askYesNo(text: string, caption: string, { yes, no }: { yes: string; no: string }, timeoutMs: number): Promise<'yes' | 'no' | 'timeout'> {
   const secs = String(Math.max(1, Math.round(timeoutMs / 1000)));
   return new Promise((resolve) => {
-    const p = execFile('zenity', ['--question', `--title=${caption}`, `--text=${text}`, '--ok-label=可以', '--cancel-label=不行', `--timeout=${secs}`, '--no-markup'],
+    const p = execFile('zenity', ['--question', `--title=${caption}`, `--text=${text}`, `--ok-label=${yes}`, `--cancel-label=${no}`, `--timeout=${secs}`, '--no-markup'],
       { timeout: timeoutMs + 5000 }, () => { /* the exit code is read below */ });
     p.on('error', () => resolve('no'));
     p.on('exit', (code) => resolve(zenityAnswer(code)));

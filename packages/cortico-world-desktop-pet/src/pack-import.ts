@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { extname, join, normalize, sep } from 'node:path';
 import { unzipSync } from 'fflate';
 import { MANIFEST_FILE, readManifest, type FigurePack, type Names } from './packs.ts';
+import { petText, type PetText } from './i18n/index.ts';
 
 export const PACK_DEPTH = 3;
 /**
@@ -64,7 +65,7 @@ function segments(path: string): string[] | null {
 }
 
 /** The files of a zip, its directories left out; a string says why it cannot be read. */
-export function filesFromZip(bytes: Uint8Array): ImportFile[] | string {
+export function filesFromZip(bytes: Uint8Array, t: PetText['importing'] = petText().importing): ImportFile[] | string {
   let total = 0;
   let entries: Record<string, Uint8Array>;
   try {
@@ -73,11 +74,11 @@ export function filesFromZip(bytes: Uint8Array): ImportFile[] | string {
       filter: (f) => { total += f.originalSize; return !f.name.endsWith('/') && total <= IMPORT_MAX; },
     });
   } catch (err) {
-    return `这不是能读的 zip:${(err as Error).message}`;
+    return t.badZip((err as Error).message);
   }
-  if (total > IMPORT_MAX) return `解开后超过 ${IMPORT_MAX / 1048576} MB`;
+  if (total > IMPORT_MAX) return t.tooBig(IMPORT_MAX / 1048576);
   const files = Object.entries(entries).map(([path, data]) => ({ path, bytes: data }));
-  if (files.reduce((n, f) => n + f.bytes.length, 0) > IMPORT_MAX) return `解开后超过 ${IMPORT_MAX / 1048576} MB`;
+  if (files.reduce((n, f) => n + f.bytes.length, 0) > IMPORT_MAX) return t.tooBig(IMPORT_MAX / 1048576);
   return files;
 }
 
@@ -85,18 +86,18 @@ export function filesFromZip(bytes: Uint8Array): ImportFile[] | string {
  * The files the page framed (`BUNDLE_TYPE`): for each, the byte length of its path as uint32 little-endian, the
  * path in UTF-8, the byte length of its contents as uint32, the contents.
  */
-export function filesFromBundle(bytes: Uint8Array): ImportFile[] | string {
+export function filesFromBundle(bytes: Uint8Array, t: PetText['importing'] = petText().importing): ImportFile[] | string {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const text = new TextDecoder();
   const files: ImportFile[] = [];
   let at = 0;
   while (at < bytes.length) {
-    if (at + 4 > bytes.length) return '上传的内容不完整';
+    if (at + 4 > bytes.length) return t.truncated;
     const pathLen = view.getUint32(at, true); at += 4;
-    if (at + pathLen + 4 > bytes.length) return '上传的内容不完整';
+    if (at + pathLen + 4 > bytes.length) return t.truncated;
     const path = text.decode(bytes.subarray(at, at + pathLen)); at += pathLen;
     const size = view.getUint32(at, true); at += 4;
-    if (at + size > bytes.length) return '上传的内容不完整';
+    if (at + size > bytes.length) return t.truncated;
     files.push({ path, bytes: bytes.subarray(at, at + size) });
     at += size;
   }
@@ -136,7 +137,12 @@ const within = (root: string, dir: string) => normalize(dir).startsWith(normaliz
 export class PackImporter {
   private staged: { token: string; root: string; packs: StagedPack[] } | null = null;
 
-  constructor(private readonly opts: { packDir: () => string; packs: () => FigurePack[] }) {}
+  /** `text`: the text table of the app language, for what goes wrong; Chinese when absent. */
+  constructor(private readonly opts: { packDir: () => string; packs: () => FigurePack[]; text?: () => PetText }) {}
+
+  private get t(): PetText {
+    return this.opts.text?.() ?? petText();
+  }
 
   /** Unpacks `files` into a staging directory and reads the packs in it; `fromFolders`: each file's path starts with the folder picked. */
   async stage(files: ImportFile[], fromFolders: boolean): Promise<StageResult | { error: string }> {
@@ -145,7 +151,7 @@ export class PackImporter {
     try {
       for (const f of files) {
         const parts = segments(f.path);
-        if (!parts) { await rm(root, { recursive: true, force: true }); return { error: `有一个路径不能用:${f.path}` }; }
+        if (!parts) { await rm(root, { recursive: true, force: true }); return { error: this.t.importing.badPath(f.path) }; }
         await mkdir(join(root, ...parts.slice(0, -1)), { recursive: true });
         await writeFile(join(root, ...parts), f.bytes);
       }
@@ -156,11 +162,11 @@ export class PackImporter {
       for (const dir of dirs) {
         const full = join(root, ...dir.split('/').filter(Boolean));
         const skipped: string[] = [];
-        const m = readManifest(full, false, skipped);
+        const m = readManifest(full, false, skipped, this.t.packs);
         if (typeof m === 'string') { problems.push({ dir, reason: m }); continue; }
         const same = installed.find((p) => p.id === m.id);
-        if (same?.builtin) { problems.push({ dir, reason: `id ${m.id} 是内置形象的,换个 id 才能导入` }); continue; }
-        if (packs.some((p) => p.id === m.id)) { problems.push({ dir, reason: `id ${m.id} 和这次导入的另一个形象包重复` }); continue; }
+        if (same?.builtin) { problems.push({ dir, reason: this.t.importing.builtinId(m.id) }); continue; }
+        if (packs.some((p) => p.id === m.id)) { problems.push({ dir, reason: this.t.importing.duplicateId(m.id) }); continue; }
         packs.push({
           dir, id: m.id, name: m.name, version: m.version, author: m.author ?? null,
           credits: (m.credits ?? []).filter((c) => typeof c?.role === 'string' && typeof c?.name === 'string').map(({ role, name }) => ({ role, name })),
@@ -173,16 +179,16 @@ export class PackImporter {
       return { token: this.staged?.token ?? '', packs, problems };
     } catch (err) {
       await rm(root, { recursive: true, force: true });
-      return { error: `没能解开:${(err as Error).message}` };
+      return { error: this.t.importing.unpackFailed((err as Error).message) };
     }
   }
 
   /** Installs the staged packs found at `dirs`; resolves to their ids. */
   async install(token: string, dirs: readonly string[]): Promise<{ installed: string[] } | { error: string }> {
     const staged = this.staged;
-    if (!staged || staged.token !== token) return { error: '这次导入已经过期,请重新选择' };
+    if (!staged || staged.token !== token) return { error: this.t.importing.expired };
     const chosen = staged.packs.filter((p) => dirs.includes(p.dir));
-    if (!chosen.length) return { error: '没有选要导入的形象包' };
+    if (!chosen.length) return { error: this.t.importing.noneChosen };
     const packDir = this.opts.packDir();
     await mkdir(packDir, { recursive: true });
     const installed = this.opts.packs();

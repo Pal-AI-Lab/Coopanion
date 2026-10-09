@@ -50,13 +50,13 @@
 | `autostart` | 是否开机自动启动 |
 | `figure` / `scheme` / `roam` | 形象（Coo 或大肥鱼）、配色、走动程度 |
 | `voiceInput` | 语音输入是否打开 |
-| `asrEngine` / `micMode` / `talkKey` | 识别引擎（`funasr` / `system`）、收音方式（按住说 / 按一下开关 / 一直听）、说话键（键名，`*2` 表示先按一下再按住） |
+| `asrEngine` / `micMode` / `talkKey` | 识别引擎（`funasr` / `whisper` / `system`）、收音方式（按住说 / 按一下开关 / 一直听）、说话键（键名，`*2` 表示先按一下再按住） |
 | `sound` / `sounds` | 音效总开关；按类的开关（动作、互动、表情、打呼噜、说话、按钮与提示）和呼噜时长 |
 | `theme` / `scale` / `lockFrameRate` | 黑白模式、桌宠大小、静止时是否也按设定的帧率画 |
 | `hoverButtons` / `doubleClickChat` / `rememberPosition` | 悬停按钮、双击打字是否打开、是否记住位置 |
 | `userNamed` | 「怎么称呼你」是否改过默认值，只报是或否，不报名字 |
 | `cuaEnabled` / `cuaLevel` | 电脑操作是否启用、询问档位 |
-| `personaChanged` | Coo 的人设（CONSTITUTION.md）是否和初始版本不同，只报是或否 |
+| `personaChanged` | Coo 的人设（CONSTITUTION.md）是否和应用带的初始版本(中文版、英文版)都不同，只报是或否 |
 | `memoryFiles` | Coo 工作区（记忆）里的文件个数 |
 | `chatDays` | 安装以来和 Coo 说过话的天数 |
 | `extensions` | 装了的扩展：包名（本地或网址安装的报 `private`）、版本、类别 |
@@ -71,7 +71,7 @@
 | `first_launch` | | 第一次启动 |
 | `pet_shown` / `pet_missing` | `ms`（只有 `pet_shown` 带） | 引导还没走过的那次启动里，桌宠窗口连上了（`ms` 是 Core 启动后多少毫秒连上的），或 60 秒内没连上 |
 | `guide_step` | `step` | 启动引导走到第几步（1–5） |
-| `source` | `answer` | 引导里「你是从哪里认识我的？」的回答：`bilibili` / `xiaohongshu` / `douyin` / `github` / `friend` / `other` / `skip` |
+| `source` | `answer` | 引导里「你是从哪里认识我的？」的回答：`bilibili` / `xiaohongshu` / `douyin`(仅中文)、`youtube` / `reddit` / `x` / `instagram` / `tiktok`(中文以外)、`steam` / `github` / `friend` / `other` / `skip` |
 | `guide_finished` | | 引导走完 |
 | `guide_closed` | `step`、`at` | 引导在第几步被关掉；`at` 是关掉时气泡里那一句的名字，如 `hello`、`name`、`source`、`roam`、`vendor`、`model`、`key`、`voice-download`、`talk`、`persona`、`finish` |
 | `model_connected` | `via`、`vendor` | 在气泡里连上了模型。`via`：`guide`（引导里）、`prompt`（没连模型时说话后弹的询问里）、`ask`（定时来问 Key 时）；`vendor` 是选的内置服务的 id |

@@ -11,7 +11,11 @@
  * is down from the second press of a quick tap and a press (tap once, then hold). The names are
  * Windows' (`Alt` is Option and `Win` is Command on a Mac); `parseHotkey` gives Windows
  * virtual-key codes, which the macOS reader maps to its own.
+ *
+ * Key names shown to a person, and the reasons a key cannot be read, come from the text table passed in
+ * (src/i18n), Chinese when none is.
  */
+import { petText, type PetText } from '../i18n/index.ts';
 
 const NAMED: Record<string, number> = {
   Ctrl: 0x11, LeftCtrl: 0xa2, RightCtrl: 0xa3,
@@ -57,29 +61,17 @@ export function parseHotkey(hotkey: string): Hotkey | null {
   return { keys: codes, taps };
 }
 
-const LABELS: Record<string, string> = {
-  LeftCtrl: '左 Ctrl', RightCtrl: '右 Ctrl', LeftAlt: '左 Alt', RightAlt: '右 Alt', LeftShift: '左 Shift', RightShift: '右 Shift',
-  RightWin: '右 Win', Backquote: '`', Mouse3: '鼠标中键', Mouse4: '鼠标侧键 4', Mouse5: '鼠标侧键 5',
-};
-const MAC_LABELS: Record<string, string> = {
-  ...LABELS,
-  Ctrl: 'Control', LeftCtrl: '左 Control', RightCtrl: '右 Control',
-  Alt: 'Option', LeftAlt: '左 Option', RightAlt: '右 Option', Win: 'Command', RightWin: '右 Command',
-};
-
 /** How the console names the keys of `hotkey` to a person, in the words of the platform's keyboard, without the taps. */
-export function comboLabel(hotkey: string, platform: NodeJS.Platform = process.platform): string {
-  const labels = platform === 'darwin' ? MAC_LABELS : LABELS;
+export function comboLabel(hotkey: string, platform: NodeJS.Platform = process.platform, t: PetText = petText()): string {
+  const labels = platform === 'darwin' ? { ...t.keys, ...t.macKeys } : t.keys;
   return splitTaps(hotkey).combo.split('+').map((k) => labels[k] ?? k).join(' + ');
 }
 
-const TAP_WORDS: Record<number, string> = { 2: '双击', 3: '三击' };
-
-/** `hotkey` named in full: `双击 左 Alt` for `LeftAlt*2`. */
-export function hotkeyLabel(hotkey: string, platform: NodeJS.Platform = process.platform): string {
+/** `hotkey` named in full: `双击 左 Alt` for `LeftAlt*2` in Chinese. */
+export function hotkeyLabel(hotkey: string, platform: NodeJS.Platform = process.platform, t: PetText = petText()): string {
   const { taps } = splitTaps(hotkey);
-  const keys = comboLabel(hotkey, platform);
-  return taps > 1 ? `${TAP_WORDS[taps]} ${keys}` : keys;
+  const keys = comboLabel(hotkey, platform, t);
+  return taps > 1 ? t.taps(taps, keys) : keys;
 }
 
 const SHORT: Record<string, string> = {
@@ -129,33 +121,33 @@ export interface KeyWatcher {
 /** Whether one Windows virtual-key code is down right now. */
 type KeyReader = (vk: number) => boolean;
 
-async function windowsReader(): Promise<KeyReader | string> {
+async function windowsReader(t: PetText['hotkey']): Promise<KeyReader | string> {
   try {
     const koffi = (await import('koffi')).default;
     const getKey = koffi.load('user32.dll').func('short __stdcall GetAsyncKeyState(int vKey)') as (vk: number) => number;
     // the high bit is set while the key is down
     return (vk) => (getKey(vk) & 0x8000) !== 0;
   } catch (err) {
-    return `读不了键盘状态:${(err as Error).message}`;
+    return t.cannotRead((err as Error).message);
   }
 }
 
-async function macReader(keys: number[]): Promise<KeyReader | string> {
-  if (!keys.every(macReadable)) return 'Mac 上没有这个按键,换一个说话键';
+async function macReader(keys: number[], t: PetText['hotkey']): Promise<KeyReader | string> {
+  if (!keys.every(macReadable)) return t.macNoKey;
   try {
     const koffi = (await import('koffi')).default;
     const cg = koffi.load('/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics');
     const preflight = cg.func('bool CGPreflightListenEventAccess()') as () => boolean;
     const request = cg.func('bool CGRequestListenEventAccess()') as () => boolean;
     // asks once; the answer takes effect after the app restarts
-    if (!preflight() && !request()) return '没有「输入监控」权限:在「系统设置 → 隐私与安全性 → 输入监控」里打开 Coopanion,再重启它;已经开着的话,先用「−」把 Coopanion 移出列表再加回来:更新后的新版本不认旧授权';
+    if (!preflight() && !request()) return t.macPermission;
     const keyState = cg.func('bool CGEventSourceKeyState(int32_t state, uint16_t key)') as (state: number, key: number) => boolean;
     const buttonState = cg.func('bool CGEventSourceButtonState(int32_t state, uint32_t button)') as (state: number, button: number) => boolean;
     // kCGEventSourceStateHIDSystemState: the hardware, whichever app has the keyboard
     const HID = 1;
     return (vk) => (MAC_BUTTONS[vk] !== undefined ? buttonState(HID, MAC_BUTTONS[vk]!) : (MAC_KEYS[vk] ?? []).some((k) => keyState(HID, k)));
   } catch (err) {
-    return `读不了键盘状态:${(err as Error).message}`;
+    return t.cannotRead((err as Error).message);
   }
 }
 
@@ -181,15 +173,15 @@ const LINUX_BUTTONS: Record<number, number> = { 0x04: 1 << 9 };
 /** The Windows virtual-key codes X11 can read here. */
 export const linuxReadable = (vk: number): boolean => linuxKeysyms(vk).length > 0 || LINUX_BUTTONS[vk] !== undefined;
 
-async function linuxReader(keys: number[]): Promise<KeyReader | string> {
-  if (!keys.every(linuxReadable)) return 'Linux 上读不到这个按键(鼠标侧键不行),换一个说话键';
-  if (!process.env.DISPLAY) return '按键收音在 Linux 上需要 X11(或 XWayland):没有找到 DISPLAY';
+async function linuxReader(keys: number[], t: PetText['hotkey']): Promise<KeyReader | string> {
+  if (!keys.every(linuxReadable)) return t.linuxNoKey;
+  if (!process.env.DISPLAY) return t.linuxNoDisplay;
   try {
     const koffi = (await import('koffi')).default;
     const x11 = koffi.load('libX11.so.6');
     const open = x11.func('void *XOpenDisplay(const char *name)') as (name: null) => unknown;
     const dpy = open(null);
-    if (!dpy) return '按键收音连不上 X11 显示';
+    if (!dpy) return t.linuxNoX11;
     const keymap = x11.func('int XQueryKeymap(void *dpy, _Out_ uint8_t *keys)') as (d: unknown, out: Uint8Array) => number;
     const toCode = x11.func('uint8_t XKeysymToKeycode(void *dpy, unsigned long keysym)') as (d: unknown, sym: number) => number;
     const root = (x11.func('unsigned long XDefaultRootWindow(void *dpy)') as (d: unknown) => number)(dpy);
@@ -207,7 +199,7 @@ async function linuxReader(keys: number[]): Promise<KeyReader | string> {
       return (codes.get(vk) ?? []).some((c) => (bits[c >> 3]! & (1 << (c & 7))) !== 0);
     };
   } catch (err) {
-    return `读不了键盘状态:${(err as Error).message}`;
+    return t.cannotRead((err as Error).message);
   }
 }
 
@@ -238,13 +230,16 @@ export function tapTracker(taps: number, onChange: (down: boolean) => void, onTa
   };
 }
 
-/** Calls `onChange` on every press and release of `hotkey`, and `onTap` on each quick tap before its held press. */
-export async function watchHotkey(hotkey: Hotkey, onChange: (down: boolean) => void, pollMs: number, onTap?: (count: number) => void): Promise<KeyWatcher | string> {
+/**
+ * Calls `onChange` on every press and release of `hotkey`, and `onTap` on each quick tap before its held press;
+ * returns why the key cannot be read instead, in the words of `t`.
+ */
+export async function watchHotkey(hotkey: Hotkey, onChange: (down: boolean) => void, pollMs: number, onTap?: (count: number) => void, t: PetText['hotkey'] = petText().hotkey): Promise<KeyWatcher | string> {
   const { keys, taps } = hotkey;
-  const reader = process.platform === 'win32' ? await windowsReader()
-    : process.platform === 'darwin' ? await macReader(keys)
-    : process.platform === 'linux' ? await linuxReader(keys)
-    : '按键收音只在 Windows、macOS 和 Linux 上可用';
+  const reader = process.platform === 'win32' ? await windowsReader(t)
+    : process.platform === 'darwin' ? await macReader(keys, t)
+    : process.platform === 'linux' ? await linuxReader(keys, t)
+    : t.unsupported;
   if (typeof reader === 'string') return reader;
   const step = tapTracker(taps, onChange, onTap);
   let down = false;
