@@ -432,21 +432,22 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
   // brows by face, per brow [near, far], in master pixels: [Y lift of the whole brow, A how much higher its
   // inner end (by the nose) sits than its outer end (a negative A is the frown), F how much its middle arches
   // over its ends, X its shift toward the nose]. Sized from the master redrawn with each expression; the far
-  // brow is shorter, and `both` gives it the same angle and curve.
+  // brow is shorter, and `both` gives it the same angle and curve. The sorry faces turn the arch over: the
+  // inner end hooks up, pulled in, over a dip (see the brows' warp).
   const both = (y, a = 0, f = 0, x = 0) => [[y, a, f, x], [y, a * .6, f * .6, x * .6]];
   const BROW = {
-    surprised: both(22, 2, 8), excited: both(14, 2, 6), scared: both(16, 20, 2, 3),
-    happy: both(6, 0, 4), love: both(6, 3, 4), listening: both(6, 0, 3), waking: both(4, 4),
-    wink: [[6, 0, 4, 0], [-3, 0, 2, 0]],
-    angry: both(-8, -28, -4, 5), determined: both(-4, -18, -2, 3), pout: both(-3, -14, -3, 3), run: both(1, -8, -2),
-    squeeze: both(-8, -8, -4, 4),
-    sad: both(-6, 22, -4, 3), cry: both(-4, 28, -6, 4), worried: both(0, 18, -3, 3), shy: both(1, 12, -2),
-    flustered: both(5, 16, -2), dragged: both(0, 14, -3, 4),
-    sleepy: both(-6, 0, -2), sleep: both(-6, 2), content: both(-2, 0, 2), bowing: both(-2, 2),
-    dizzy: [[8, 8, 0, 0], [-3, -6, 0, 0]],
-    thinking: [[-3, -8, -2, 3], [8, 3, 3, 0]],
-    smug: [[-4, -10, 0, 0], [8, -4, 2, 0]],
-    confused: [[-5, -6, -2, 2], [14, 4, 4, 0]],
+    surprised: both(32, 4, 12), excited: both(20, 2, 9), scared: both(10, 30, -12, 6),
+    happy: both(9, 0, 6), love: both(9, 4, 6), listening: both(9, 0, 4), waking: both(6, 6),
+    wink: [[9, 0, 6, 0], [-5, 0, 3, 0]],
+    angry: both(-14, -44, -6, 8), determined: both(-6, -28, -3, 5), pout: both(-6, -22, -6, 5), run: both(2, -12, -3),
+    squeeze: both(-12, -14, -8, 6),
+    sad: both(-8, 34, -26, 7), cry: both(-8, 40, -30, 9), worried: both(-4, 26, -18, 6), shy: both(0, 18, -10, 4),
+    flustered: both(6, 24, -10, 5), dragged: both(0, 26, -14, 7),
+    sleepy: both(-10, 2, -4), sleep: both(-10, 4, -2), content: both(-3, 0, 3), bowing: both(-3, 3),
+    dizzy: [[12, 14, 0, 0], [-6, -10, 0, 0]],
+    thinking: [[-6, -14, -4, 4], [14, 4, 6, 0]],
+    smug: [[-8, -18, 0, 0], [14, -6, 4, 0]],
+    confused: [[-10, -12, -4, 3], [22, 6, 8, 0]],
   };
   // how fast each face's brows get there (per second): a startle snaps them, sorrow sinks them slowly
   const BROW_RATE = { surprised: 18, scared: 18, excited: 14, angry: 16, dragged: 16, squeeze: 16, sad: 4, cry: 4, worried: 6, sleepy: 3, sleep: 3, content: 4 };
@@ -601,7 +602,7 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
         if (t - talkedAt > .8 || (t - browFlashAt > 2.5 && Math.random() < dt * .4)) browFlashAt = t;
         talkedAt = t;
       }
-      const ft = (t - browFlashAt) / .5, flash = ft >= 0 && ft < 1 && !BROW_STILL.has(face) ? 5 * Math.sin(Math.PI * ft) ** 2 : 0;
+      const ft = (t - browFlashAt) / .5, flash = ft >= 0 && ft < 1 && !BROW_STILL.has(face) ? 7 * Math.sin(Math.PI * ft) ** 2 : 0;
       const pose = BROW[face] || both(0), rate = BROW_RATE[face] || 9;
       browNow.forEach((b, i) => {
         // the whole brow leads and its tilt and curve follow, so the ends travel on a slight arc
@@ -612,7 +613,9 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
         fn: (u, v, x) => {
           const i = x < BROW_SPLIT ? 0 : 1, [outer, inner] = BROW_ENDS[i].map(U), [Y, A, F, X] = browNow[i];
           // -1 at the brow's outer end, 1 at its inner end, a little past either end for the texture's margin
-          const k = clamp((2 * x - outer - inner) / (inner - outer), -1.3, 1.3), arc = 1 - Math.min(1, k * k);
+          const k = clamp((2 * x - outer - inner) / (inner - outer), -1.3, 1.3);
+          // an arch peaks in the middle; a dip sits nearer the outer end, so the inner end hooks up out of it
+          const c = F < 0 ? -.25 : 0, arc = Math.max(0, 1 - ((k - c) / (k < c ? 1 + c : 1 - c)) ** 2);
           return [X * Math.sign(inner - outer) * S, -(Y + A / 2 * k + F * arc) * S];
         },
       };
