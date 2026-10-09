@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { dryMountWorld } from 'cortico/extensions/dry-mount.ts';
 import { renderTemplate } from 'cortico/core/template.ts';
 import { DESKTOP_PET } from '../src/definition.ts';
-import { DESKTOP_PET_DEFAULTS, type DesktopPetConfigSection } from '../src/config.ts';
+import { DESKTOP_PET_DEFAULTS, SELF_DEFAULT, type DesktopPetConfigSection } from '../src/config.ts';
 import { DesktopPetWorld, type DesktopPetWorldOptions, type PetBotControls } from '../src/world.ts';
 import { FakeHost } from './helpers/fake-host.ts';
 import { FakePage } from './helpers/page.ts';
@@ -382,6 +382,10 @@ describe('with a pet page', () => {
     expect(c1).toMatchObject({ question: '可以吗?', options: ['可以', '不行'] });
     page.send({ t: 'confirmed', id: c1.id, index: 0 });
     expect(await yes).toBe('yes');
+    // two choices (computer use's): the second is no
+    const no = world.confirm('可以吗?', ['可以', '不行']);
+    page.send({ t: 'confirmed', id: (await page.next((m) => m.t === 'confirm')).id, index: 1 });
+    expect(await no).toBe('no');
     const closed = world.confirm('再问一次?', ['可以', '不行']);
     page.send({ t: 'confirmed', id: (await page.next((m) => m.t === 'confirm')).id, index: null });
     expect(await closed).toBe('dismissed');
@@ -390,6 +394,21 @@ describe('with a pet page', () => {
     await page.close();
     expect(await gone).toBe('unavailable');
     expect(host.events).toHaveLength(0);
+  });
+
+  it('pet_set: 「以后都可以」 applies the change and stops asking about it, as the bot\'s own change', async () => {
+    let botChanges = 0;
+    const { world, persisted } = await mounted(undefined, { onBotChange: () => { botChanges++; } });
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const set = tool(world, 'pet_set').handler({ sound: false }, ctx) as Promise<{ text: string }>;
+    const c = await page.next((m) => m.t === 'confirm');
+    expect(c.options).toEqual(['可以', '以后都可以', '不用了']);
+    page.send({ t: 'confirmed', id: c.id, index: 1 });
+    expect((await set).text).toContain('音效(sound)以后不用再问');
+    expect(persisted).toContainEqual({ sound: false });
+    expect(persisted).toContainEqual({ selfAdjust: 'custom', selfAdjustCustom: { ...SELF_DEFAULT, sound: true } });
+    expect(botChanges).toBe(1);
   });
 
   it('dialog steps resolve from the bubble without an event to the bot', async () => {

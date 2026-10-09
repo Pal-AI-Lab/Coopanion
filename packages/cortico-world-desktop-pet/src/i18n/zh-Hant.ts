@@ -128,6 +128,24 @@ const zhHant: Translation<PetText> = {
     overLimit: (mb: number) => `超過 ${mb} MB`,
   },
 
+  consent: {
+    question: (items: string[]) => `我想${items.join('、')}，可以嗎？`,
+    choices: ['可以', '以後都可以', '不用了'] as [yes: string, always: string, no: string],
+    list: (items: string[]) => items.join('、'),
+    pick: (axis: string, option: string) => `${axis}：${option}`,
+    figure: (to: string) => `換成${to}的樣子`,
+    scheme: (figure: string, look: string) => `換一身${figure}的裝扮（${look}）`,
+    roam: { free: '常走動', calm: '多待著', off: '不亂動' },
+    roamTo: (to: string) => `走動改成「${to}」`,
+    snore: (seconds: number) => (seconds === 0 ? '睡著時一直打呼到醒' : `每次睡著打 ${seconds} 秒呼`),
+    sound: (on: boolean) => (on ? '打開音效' : '關掉音效'),
+    scale: (from: number, to: number) => `把大小從 ${from} 倍改成 ${to} 倍`,
+    theme: { dark: '換成夜間模式', light: '換成白天模式' },
+    hover: (list: string) => `把懸停按鈕換成${list}`,
+    actions: { chat: '打字', voice: '語音輸入', roam: '行為模式', theme: '夜間模式', sound: '音效', dress: '裝扮', hide: '隱藏桌寵' },
+    user: (to: string) => `改叫你「${to}」`,
+  },
+
   portsTaken: (from: number, to: number, why: string) => `連接埠 ${from}–${to} 都被佔用：${why}`,
 
   console: {
@@ -151,7 +169,7 @@ const zhHant: Translation<PetText> = {
       'pet.voice': '語音輸入開著還是關著',
       'pet.body': '目前形象的樣子',
       'pet.dress': 'pet_set 能選的形象與裝扮',
-      'pet.self': '「允許自己調整」開著還是關著',
+      'pet.self': '「自主設定權限」：哪些設定直接改、哪些先徵得同意，或都不能改',
       'pet.chat': '應用程式提供對話頁時，對它的說明；沒有時為空',
       'pet.reply': '應用程式語言既不是簡體中文也不是英文時，讓 bot 用那種語言說話的一句；否則為空',
     },
@@ -171,7 +189,7 @@ const zhHant: Translation<PetText> = {
     hoverButtons: { title: '懸停按鈕', description: (max: number, ids: string) => `滑鼠停在桌寵身上時旁邊出現的按鈕，最多 ${max} 個，以逗號分隔：${ids}。` },
     doubleClickChat: { title: '點兩下打字', description: '在桌寵上點兩下開啟打字框。' },
     statusBubble: { title: '狀態氣泡', description: '想事情、翻記憶、操作電腦時顯示在做什麼，會顯示檔名。' },
-    selfAdjust: { title: '允許自己調整', description: '桌寵可以自己換形象和裝扮、改走動和打呼；改音效、大小、黑白模式、懸停按鈕和對你的稱呼前會先問你。關閉後這些它都改不了。' },
+    selfAdjust: { title: '自主設定權限', description: 'off 禁止：不能自己改設定，也不能臨時安靜；default 預設：形象、配色、走動和打呼直接改，大小、音效、主題、懸停按鈕和稱呼先徵得你同意；any 任意：都直接改；custom 自訂：照「習慣」頁裡的勾選，勾上的直接改，其餘先徵得你同意。' },
     windowEnabled: { title: '啟動時開啟桌寵視窗' },
     scale: { title: '大小' },
     frameRate: { title: '幀率', description: '走動、被拎著、跳起時每秒畫幾幀；0 跟隨顯示器更新率。超過顯示器更新率時以顯示器的為準。「習慣」頁可選 60、120、144 和不限。' },
@@ -180,7 +198,7 @@ const zhHant: Translation<PetText> = {
     electronFile: { title: 'Electron 程式', description: '留空時依序使用 CORTICO_DESKTOP_PET_HOST 和面板裡安裝的執行環境。' },
     port: { title: '頁面連接埠', description: '被佔用時往上順延到下一個空的連接埠。' },
     touchEnabled: { title: '互動送成事件', description: '戳、摸、拎起來甩出去。' },
-    touchWakeOn: { title: '哪些互動單獨喚醒', description: 'poke：只有點一下會喚醒，摸頭和拎起來跟著下一次喚醒一起送；all：全部喚醒；none：全部跟著下一次喚醒送。一次互動喚醒之後、這一輪結束之前的互動，都跟著下一次喚醒送。' },
+    touchWakeOn: { title: '回應模式', description: 'poke：只有點一下會喚醒，摸頭和拎起來跟著下一次喚醒一起送；all：全部喚醒；none：全部跟著下一次喚醒送。一次互動喚醒之後、這一輪結束之前的互動，都跟著下一次喚醒送。custom：照「習慣」頁裡勾選的互動喚醒。' },
     sound: { title: '音效總開關', description: '桌寵選單裡的音效按鈕切換的就是這個。' },
     sounds: {
       move: { title: '動作', description: '走路、跑、跳、落地、被甩出去、點頭、搖頭、轉圈、頭暈、發抖、跳舞、張望。' },

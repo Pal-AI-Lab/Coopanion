@@ -60,6 +60,13 @@ const de: Translation<CoreText> = {
     },
     roamOk: 'So',
     roamDone: 'Okay, so mache ich es.',
+    wakeTitle: 'Reaktionsmodus',
+    askWake: 'Reaktionsmodus: Wenn du mich anstupst, streichelst oder hochhebst, wann soll ich reagieren?',
+    wake: {
+      none: { label: 'Ruhig', note: 'Berührungen werden gemerkt und gesammelt beantwortet, wenn du das nächste Mal etwas sagst' },
+      poke: { label: 'Standard', note: 'Reagiert nur, wenn du Coo anstupst' },
+      all: { label: 'Aktiv', note: 'Reagiert auf jede Berührung' },
+    },
 
     askVendor: (first: string) => `Um mit dir zu chatten, muss ich mich mit einem Modell verbinden. Welchen Dienst soll ich nutzen? Wenn du unsicher bist, nimm ${first}.`,
     vendorOk: 'Diesen nehmen',

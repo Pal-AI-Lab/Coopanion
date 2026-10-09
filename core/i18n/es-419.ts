@@ -60,6 +60,13 @@ const es419: Translation<CoreText> = {
     },
     roamOk: 'Así',
     roamDone: 'Listo, así lo haré.',
+    wakeTitle: 'Modo de respuesta',
+    askWake: 'Modo de respuesta: cuando me das un toque, me acaricias o me levantas, ¿cuándo debo responder?',
+    wake: {
+      none: { label: 'Tranquilo', note: 'Los toques quedan anotados y reciben respuesta juntos la próxima vez que hables' },
+      poke: { label: 'Predeterminado', note: 'Solo responde cuando das un toque' },
+      all: { label: 'Activo', note: 'Responde a todos los toques' },
+    },
 
     askVendor: (first: string) => `Para conversar contigo necesito conectarme a un modelo. ¿Qué servicio uso? Si tienes dudas, elige ${first}.`,
     vendorOk: 'Usar este',

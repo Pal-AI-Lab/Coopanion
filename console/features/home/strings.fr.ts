@@ -31,7 +31,7 @@ export const S: Partial<typeof en> = {
   petHidden: 'Masqué',
   showPet: 'Afficher le compagnon',
   dress: 'Habiller',
-  petNote: 'Survolez le compagnon pour les boutons de saisie et de micro ; clic droit pour le menu ; maintenez le clic pour le soulever.',
+  petNote: 'Survolez le compagnon pour les boutons de saisie et de micro ; clic droit pour le menu ; maintenez le clic pour soulever Coo.',
   guide: 'Guide',
   guideHint: "Coo vous refait la visite en bas de l'écran",
 };

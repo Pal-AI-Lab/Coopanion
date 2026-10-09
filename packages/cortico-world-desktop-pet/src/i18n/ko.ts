@@ -128,6 +128,24 @@ const ko: Translation<PetText> = {
     overLimit: (mb: number) => `${mb} MB 초과`,
   },
 
+  consent: {
+    question: (items: string[]) => `이렇게 바꿔도 될까요? ${items.join(', ')}`,
+    choices: ['좋아요', '앞으로는 안 물어봐도 돼요', '바꾸지 마세요'] as [yes: string, always: string, no: string],
+    list: (items: string[]) => items.join(', '),
+    pick: (axis: string, option: string) => `${axis}: ${option}`,
+    figure: (to: string) => `${to} 모습으로 바꾸기`,
+    scheme: (figure: string, look: string) => `${figure} 꾸미기 바꾸기(${look})`,
+    roam: { free: '자주', calm: '가끔', off: '제자리' },
+    roamTo: (to: string) => `걷기를 '${to}'(으)로 바꾸기`,
+    snore: (seconds: number) => (seconds === 0 ? '깰 때까지 코골기' : `잘 때마다 ${seconds}초 코골기`),
+    sound: (on: boolean) => (on ? '효과음 켜기' : '효과음 끄기'),
+    scale: (from: number, to: number) => `크기를 ${from}배에서 ${to}배로 바꾸기`,
+    theme: { dark: '야간 모습으로 바꾸기', light: '주간 모습으로 바꾸기' },
+    hover: (list: string) => `호버 버튼을 ${list}(으)로 바꾸기`,
+    actions: { chat: '입력', voice: '음성 입력', roam: '걷기', theme: '야간 모드', sound: '효과음', dress: '꾸미기', hide: '펫 숨기기' },
+    user: (to: string) => `'${to}'(이)라고 부르기`,
+  },
+
   portsTaken: (from: number, to: number, why: string) => `포트 ${from}–${to}가 모두 사용 중입니다: ${why}`,
 
   console: {
@@ -151,7 +169,7 @@ const ko: Translation<PetText> = {
       'pet.voice': '음성 입력이 켜져 있는지 여부',
       'pet.body': '현재 외형의 모습',
       'pet.dress': 'pet_set으로 고를 수 있는 외형과 꾸미기',
-      'pet.self': '"Coo 스스로 조정 허용"이 켜져 있는지 여부',
+      'pet.self': '"스스로 설정 권한": 직접 바꾸는 설정, 동의를 구하는 설정, 또는 아무것도 바꿀 수 없음',
       'pet.chat': '앱에 대화 페이지가 있으면 그에 대한 설명, 없으면 빈 값',
       'pet.reply': '앱 언어가 중국어 간체도 영어도 아닐 때 봇에게 그 언어로 말하라고 알리는 한 줄, 그 외에는 빈 값',
     },
@@ -171,7 +189,7 @@ const ko: Translation<PetText> = {
     hoverButtons: { title: '호버 버튼', description: (max: number, ids: string) => `포인터를 펫 위에 올려 두면 옆에 나타나는 버튼으로, 최대 ${max}개를 쉼표로 구분합니다: ${ids}.` },
     doubleClickChat: { title: '더블클릭으로 입력', description: '펫을 더블클릭하면 입력 상자가 열립니다.' },
     statusBubble: { title: '상태 말풍선', description: '펫이 생각하거나, 기억을 살펴보거나, 컴퓨터를 사용하는 동안 무엇을 하는지 파일 이름까지 보여 줍니다.' },
-    selfAdjust: { title: '스스로 조정 허용', description: '펫이 자신의 외형, 꾸미기, 걷기, 코골이를 직접 바꿀 수 있습니다. 효과음, 크기, 야간/주간 모습, 호버 버튼, 사용자를 부르는 이름은 바꾸기 전에 먼저 묻습니다. 끄면 이 중 어느 것도 바꿀 수 없습니다.' },
+    selfAdjust: { title: '스스로 설정 권한', description: 'off 금지: 설정을 스스로 바꿀 수 없고 잠시 조용히 하기도 쓸 수 없습니다. default 기본: 외형, 꾸미기, 걷기, 코골이는 직접 바꾸고, 크기, 효과음, 테마, 호버 버튼, 부를 이름은 먼저 동의를 구합니다. any 모두: 전부 직접 바꿉니다. custom 사용자 지정: 「습관」 페이지에서 체크한 항목은 직접 바꾸고, 나머지는 먼저 동의를 구합니다.' },
     windowEnabled: { title: '시작할 때 펫 창 열기' },
     scale: { title: '크기' },
     frameRate: { title: '프레임 레이트', description: '펫이 걷거나, 들려 있거나, 점프할 때 초당 그리는 프레임 수입니다. 0이면 디스플레이를 따릅니다. 디스플레이 주사율보다 높으면 디스플레이 주사율이 적용됩니다. 습관 페이지에서는 60, 120, 144, 무제한 중에서 고를 수 있습니다.' },
@@ -180,7 +198,7 @@ const ko: Translation<PetText> = {
     electronFile: { title: 'Electron 실행 파일', description: '비워 두면 CORTICO_DESKTOP_PET_HOST를 쓰고, 없으면 패널에서 설치한 런타임을 씁니다.' },
     port: { title: '페이지 포트', description: '사용 중이면 다음 빈 포트로 올라갑니다.' },
     touchEnabled: { title: '터치를 이벤트로 전달', description: '찌르기, 쓰다듬기, 들어 올려 던지기.' },
-    touchWakeOn: { title: '단독으로 깨우는 터치', description: 'poke: 클릭만 깨우고, 쓰다듬기와 들기는 다음에 깨울 때 함께 전달됩니다. all: 모든 터치가 깨웁니다. none: 모든 터치가 다음에 깨울 때 함께 전달됩니다. 터치로 봇이 깨어난 뒤 그 턴이 끝날 때까지의 터치는 다음에 깨울 때 함께 전달됩니다.' },
+    touchWakeOn: { title: '반응 모드', description: 'poke: 클릭만 깨우고, 쓰다듬기와 들기는 다음에 깨울 때 함께 전달됩니다. all: 모든 터치가 깨웁니다. none: 모든 터치가 다음에 깨울 때 함께 전달됩니다. 터치로 봇이 깨어난 뒤 그 턴이 끝날 때까지의 터치는 다음에 깨울 때 함께 전달됩니다. custom: 「습관」 페이지에서 체크한 터치가 깨웁니다.' },
     sound: { title: '모든 효과음', description: '펫 메뉴의 효과음 버튼이 이 설정을 켜고 끕니다.' },
     sounds: {
       move: { title: '움직임', description: '걷기, 달리기, 점프, 착지, 던져지기, 끄덕이기, 고개 젓기, 회전, 어지러움, 떨기, 춤, 두리번거리기.' },

@@ -150,6 +150,26 @@ const en: PetText = {
     overLimit: (mb: number) => `Over ${mb} MB`,
   },
 
+  /** The bubble in which the pet asks the person's consent to a change of settings: the question, its three buttons, and how each change is said */
+  consent: {
+    question: (items: string[]) => `Can I ${items.join(', ')}?`,
+    /** OK / Always OK (these items are not asked about again) / No thanks */
+    choices: ['OK', 'Always OK', 'No thanks'] as [yes: string, always: string, no: string],
+    list: (items: string[]) => items.join(', '),
+    pick: (axis: string, option: string) => `${axis}: ${option}`,
+    figure: (to: string) => `switch to ${to}`,
+    scheme: (figure: string, look: string) => `put on a different ${figure} look (${look})`,
+    roam: { free: 'Often', calm: 'Now and then', off: 'Stay put' } as Record<'free' | 'calm' | 'off', string>,
+    roamTo: (to: string) => `set my walking to "${to}"`,
+    snore: (seconds: number) => (seconds === 0 ? 'snore until I wake' : `snore for ${seconds} s each time I sleep`),
+    sound: (on: boolean) => (on ? 'turn sounds on' : 'turn sounds off'),
+    scale: (from: number, to: number) => `change my size from ${from}× to ${to}×`,
+    theme: { dark: 'switch to the night look', light: 'switch to the day look' } as Record<'dark' | 'light', string>,
+    hover: (list: string) => `change the hover buttons to ${list}`,
+    actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', dress: 'Dress up', hide: 'Hide pet' } as Record<string, string>,
+    user: (to: string) => `call you "${to}"`,
+  },
+
   /** Why the World fails to start when every page port is taken. */
   portsTaken: (from: number, to: number, why: string) => `Ports ${from}–${to} are all taken: ${why}`,
 
@@ -175,7 +195,7 @@ const en: PetText = {
       'pet.voice': 'Whether voice input is on or off',
       'pet.body': 'What the current figure looks like',
       'pet.dress': 'The figures and dress pet_set can pick',
-      'pet.self': 'Whether "Let Coo adjust itself" is on',
+      'pet.self': 'Self-adjustment: which settings change directly, which wait for consent, or that none can change',
       'pet.chat': 'A note on the chat page when the app has one; empty otherwise',
       'pet.reply': 'A line telling the bot which language to talk in when the app language is neither Simplified Chinese nor English; empty otherwise',
     },
@@ -196,7 +216,7 @@ const en: PetText = {
     hoverButtons: { title: 'Hover buttons', description: (max: number, ids: string) => `Buttons beside the pet while the pointer rests on it, up to ${max}, separated by commas: ${ids}.` },
     doubleClickChat: { title: 'Double-click to type', description: 'Double-clicking the pet opens the typing box.' },
     statusBubble: { title: 'Status bubble', description: 'Shows what the pet is doing while it thinks, looks through its memory or uses the computer, file names included.' },
-    selfAdjust: { title: 'Let it adjust itself', description: 'The pet may change its own figure, dress, walking and snoring; it asks you before changing sounds, size, night or day look, hover buttons or what it calls you. When off, it can change none of these.' },
+    selfAdjust: { title: 'Self-adjustment', description: 'off: it cannot change its settings or keep quiet for a while. default: figure, dress, walking and snoring change directly; size, sounds, theme, hover buttons and what it calls you wait for your consent. any: everything changes directly. custom: as ticked on the Habits page; ticked items change directly, the rest wait for your consent.' },
     windowEnabled: { title: 'Open the pet window at start' },
     scale: { title: 'Size' },
     frameRate: { title: 'Frame rate', description: 'Frames a second while the pet walks, is carried or jumps; 0 follows the display. Above the display\'s refresh rate the display\'s rate applies. The Habits page offers 60, 120, 144 and Unlimited.' },
@@ -205,7 +225,7 @@ const en: PetText = {
     electronFile: { title: 'Electron executable', description: 'Empty uses CORTICO_DESKTOP_PET_HOST, then the runtime installed from the panel.' },
     port: { title: 'Page port', description: 'Moves up to the next free port when taken.' },
     touchEnabled: { title: 'Touches become events', description: 'Pokes, petting, and being picked up and thrown.' },
-    touchWakeOn: { title: 'Touches that wake on their own', description: 'poke: only a click wakes; petting and carrying go with the next wake. all: every touch wakes. none: every touch goes with the next wake. Touches after a touch woke the bot, until that turn ends, go with the next wake.' },
+    touchWakeOn: { title: 'Response mode', description: 'poke: only a click wakes; petting and carrying go with the next wake. all: every touch wakes. none: every touch goes with the next wake. Touches after a touch woke the bot, until that turn ends, go with the next wake. custom: the touches ticked on the Habits page wake.' },
     sound: { title: 'All sounds', description: "The sound button in the pet's menu flips this." },
     sounds: {
       move: { title: 'Moving', description: 'Walking, running, jumping, landing, being thrown, nodding, shaking, spinning, dizziness, shivering, dancing, looking about.' },

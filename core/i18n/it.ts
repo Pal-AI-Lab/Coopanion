@@ -7,7 +7,7 @@ const it: Translation<CoreText> = {
   settings: {
     language: { title: 'Lingua', description: "La finestra delle impostazioni, i fumetti e il menu dell'animaletto usano questa lingua, e Coo ti parla in questa lingua. Ha effetto subito." },
     telemetry: { title: "Statistiche d'uso anonime", description: "Invia conteggi d'uso e impostazioni, mai le conversazioni, per aiutare a migliorare Coopanion. I campi sono elencati in docs/TELEMETRY.md." },
-    roundsSoft: { title: 'Promemoria di chiusura', suffix: 'richieste', description: 'Dopo questo numero di richieste al modello in un risveglio, Coo viene invitato a finire ciò che sta facendo e chiudere il turno.' },
+    roundsSoft: { title: 'Promemoria di chiusura', suffix: 'richieste', description: 'Dopo questo numero di richieste al modello in un risveglio, Coo riceve un invito a finire ciò che sta facendo e chiudere il turno.' },
     roundsHard: { title: 'Richieste per risveglio', suffix: 'richieste', description: 'Il massimo di richieste al modello in un risveglio; raggiunto il limite, il turno finisce.' },
   },
 
@@ -60,6 +60,13 @@ const it: Translation<CoreText> = {
     },
     roamOk: 'Così',
     roamDone: 'Va bene, farò così.',
+    wakeTitle: 'Modalità di risposta',
+    askWake: 'Modalità di risposta: quando mi punzecchi, mi accarezzi o mi sollevi, quando devo risponderti?',
+    wake: {
+      none: { label: 'Tranquillo', note: 'I tocchi vengono annotati e ricevono risposta tutti insieme quando parli tu' },
+      poke: { label: 'Predefinito', note: 'Risponde solo ai colpetti' },
+      all: { label: 'Attivo', note: 'Risponde a tutti i tocchi' },
+    },
 
     askVendor: (first: string) => `Per chiacchierare con te devo collegarmi a un modello. Quale servizio uso? Nel dubbio, scegli ${first}.`,
     vendorOk: 'Usa questo',

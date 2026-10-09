@@ -8,6 +8,8 @@
  * The question `pet_set` asks the person in the bubble follows the same choice: it is made of the
  * same change lines as the receipt.
  */
+import type { SelfKey } from './config.ts';
+
 export type ModelLanguage = 'zh' | 'en';
 
 interface SayReceipt {
@@ -99,13 +101,13 @@ const zh = {
     + (r.chatOpen ? '对话页开着,问题也显示在那里,两边都能回答。' : '')
     + '回答到了会以 [回答] 事件送达。',
 
-  selfAdjustOff: (tool: string, user: string) => `[${tool} 没执行] ${user}在「习惯」页关掉了「允许自己调整」。`,
+  selfAdjustOff: (tool: string, user: string) => `[${tool} 没执行] ${user}在「习惯」页把「自主配置权限」设成了「禁止」。`,
   setErrors: (errors: string[]) => `[pet_set 没执行] ${errors.join(';')}。`,
   setNothing: '要改的都和现在一样,没有改动。',
   setDone: (says: string[]) => `已改:${says.join(';')}。`,
-  setQuestion: (says: string[]) => `我想${says.join('、')},可以吗?`,
-  setChoices: ['可以', '不用了'] as [yes: string, no: string],
   setAgreed: (user: string, says: string[]) => `${user}同意了,已改:${says.join(';')}。`,
+  /** The person answered 「以后都可以」: `items` are changed at once from now on. */
+  setAlways: (user: string, says: string[], items: string[]) => `${user}同意了,已改:${says.join(';')}。${user}还说${items.join('、')}以后不用再问,直接改就行。`,
   setNotChanged: (why: NotAsked, user: string, says: string[]) =>
     `${why === 'unavailable' ? '桌宠窗口没有连接,没法问' : why === 'timeout' ? `${user}没有回答` : `${user}没同意`},这些没改:${says.join(';')}。`,
 
@@ -121,6 +123,17 @@ const zh = {
 
   on: '开着',
   off: '关着',
+  /** `pet_set`'s items, named for the bot with the parameter each is. */
+  settingNames: {
+    figure: '形象(figure)', scheme: '打扮(scheme)', roam: '走动(roam)', snoreSeconds: '呼噜时长(snoreSeconds)', sound: '音效(sound)',
+    scale: '大小(scale)', theme: '黑白模式(theme)', hoverButtons: '悬停按钮(hoverButtons)', user: '对对方的称呼(user)',
+  } as Record<SelfKey, string>,
+  /** `{{pet.self}}`: the items that change at once and the ones asked first. */
+  selfTiers: (user: string, direct: string[], asked: string[]) => (!asked.length ? '现在这些都直接生效。'
+    : !direct.length ? `现在这些都要先在气泡里征得${user}同意。`
+    : `现在直接生效的:${direct.join('、')};先在气泡里征得${user}同意的:${asked.join('、')}。`),
+  /** `{{pet.self}}` while the person allows no change. */
+  selfNone: (user: string) => `${user}在「习惯」页把「自主配置权限」设成了「禁止」,现在这些你都改不了,\`pet_quiet\` 也用不了。`,
   /** `{{pet.chat}}`, when the app has a chat page. */
   chatPage: (_user: string) => '应用的「对话」页按时间列出这些气泡、对方的话,以及你两句话之间调用过的工具名;对方也能在那里打字、发图片(同样是 `[打字]` 事件,图片接在正文后),回答 `pet_ask`。',
   /** `{{pet.reply}}`: the language to talk to the person in, named by the app. */
@@ -195,13 +208,12 @@ const en: typeof zh = {
     'The answer will arrive as an [answer] event.',
   ].filter(Boolean).join(' '),
 
-  selfAdjustOff: (tool, user) => `[${tool} not run] ${user} turned off "Let Coo adjust itself" on the Habits page.`,
+  selfAdjustOff: (tool, user) => `[${tool} not run] ${user} set "Self-adjustment" to "Off" on the Habits page.`,
   setErrors: (errors) => `[pet_set not run] ${errors.join('; ')}.`,
   setNothing: 'Everything asked for is already so; nothing changed.',
   setDone: (says) => `Changed: ${says.join('; ')}.`,
-  setQuestion: (says) => `I'd like to make these changes: ${says.join('; ')}. Is that OK?`,
-  setChoices: ['OK', 'No thanks'],
   setAgreed: (user, says) => `${user} agreed; changed: ${says.join('; ')}.`,
+  setAlways: (user, says, items) => `${user} agreed; changed: ${says.join('; ')}. ${user} also said there is no need to ask about ${items.join(', ')} again: change ${items.length > 1 ? 'them' : 'it'} directly from now on.`,
   setNotChanged: (why, user, says) =>
     `${why === 'unavailable' ? 'The pet window is not connected, so there was no way to ask' : why === 'timeout' ? `${user} did not answer` : `${user} said no`}; not changed: ${says.join('; ')}.`,
 
@@ -217,6 +229,14 @@ const en: typeof zh = {
 
   on: 'on',
   off: 'off',
+  settingNames: {
+    figure: 'figure', scheme: 'dress (scheme)', roam: 'walking (roam)', snoreSeconds: 'snoring time (snoreSeconds)', sound: 'sound effects (sound)',
+    scale: 'size (scale)', theme: 'night or day look (theme)', hoverButtons: 'hover buttons (hoverButtons)', user: 'what you call them (user)',
+  },
+  selfTiers: (user, direct, asked) => (!asked.length ? 'Right now all of these take effect at once.'
+    : !direct.length ? `Right now all of these are first asked of ${user} in a bubble.`
+    : `Right now these take effect at once: ${direct.join(', ')}; these are first asked of ${user} in a bubble: ${asked.join(', ')}.`),
+  selfNone: (user) => `${user} set "Self-adjustment" to "Off" on the Habits page, so right now you can change none of these, and \`pet_quiet\` does not work either.`,
   // the English template puts these right after a sentence, so they start with a space
   chatPage: (user) => ` The app's Chat page lists these bubbles in time order, with what ${user} said and the names of the tools you called between two lines; ${user} can also type and send images there (they arrive as \`[typed]\` events too, images after the text) and answer \`pet_ask\`.`,
   reply: (user, language) => ` Talk to ${user} in ${language}: bubbles, questions and options alike.`,

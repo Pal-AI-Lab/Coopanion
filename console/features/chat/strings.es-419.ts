@@ -11,9 +11,9 @@ export const S: Partial<typeof en> = {
   empty: (bot: string) => `Todavía no le has dicho nada a ${bot}.`,
   older: 'Anteriores',
   voice: 'Voz',
-  idle: 'Inactivo',
+  idle: 'En reposo',
   thinking: (bot: string) => `${bot} está pensando…`,
-  doing: (what: string) => `Ocupado: ${what}`,
+  doing: (what: string) => `En curso: ${what}`,
   retry: (at: string) => `El modelo no respondió; se reintentará a las ${at}`,
   handoff: 'Ordenando la conversación anterior',
   paused: 'En pausa · los mensajes llegan al reanudar',
@@ -33,13 +33,13 @@ export const S: Partial<typeof en> = {
   seconds: (s: number) => `${s} s`,
   imagesUnseen: (bot: string) => `El modelo actual no puede ver imágenes; ${bot} solo sabe cuántas enviaste.`,
   touch: (t: Touch, b: string): string => {
-    const out = t.crashed ? `, y ${b} quedó aturdido un rato` : '';
+    const out = t.crashed ? `, y ${b} quedó viendo estrellas un rato` : '';
     switch (t.kind) {
       case 'poke': return t.woke ? `Despertaste a ${b} con un toquecito` : t.count > 1 ? `Le diste ${t.count} toquecitos a ${b}` : `Le diste un toquecito a ${b}`;
       case 'pet': return t.count > 1 ? `Acariciaste a ${b} varias veces` : `Acariciaste a ${b}`;
-      case 'throw': return `Levantaste a ${b} y lo lanzaste${out}`;
+      case 'throw': return `Levantaste y lanzaste a ${b}${out}`;
       case 'drop': return `Llevaste a ${b} a otro lugar${out}`;
-      default: return `${b} cayó fuerte al suelo y quedó aturdido un rato`;
+      default: return `${b} cayó fuerte al suelo y quedó viendo estrellas un rato`;
     }
   },
 };

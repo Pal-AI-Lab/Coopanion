@@ -54,7 +54,7 @@ export const petToolDecls = (language: Language = 'zh'): Array<Omit<ToolDef, 'ha
   {
     name: 'pet_set',
     tags: ['act'],
-    description: 'Change your own looks and habits. figure, scheme, roam and snoreSeconds take effect at once; sound, scale, theme, hoverButtons and user are first asked of the person in a bubble and change only if they agree, and the receipt comes after their answer. The values to choose from are in the environment section. Give only the items to change.',
+    description: "Change your own looks and habits. Depending on the person's settings, some items take effect at once and others are first asked of the person in a bubble, changing only if they agree, with the receipt coming after their answer; the environment section says which items are which, and the values to choose from. Give only the items to change.",
     parameters: {
       type: 'object',
       properties: {
@@ -62,11 +62,11 @@ export const petToolDecls = (language: Language = 'zh'): Array<Omit<ToolDef, 'ha
         scheme: { type: 'string', description: 'The dress of the current figure (or of the one being switched to): a preset id, or one option per axis joined with - in axis order (for Coo: palette-head-side-glasses-neck).' },
         roam: { type: 'string', enum: ['free', 'calm', 'off'], description: 'Walking about: free walks often, calm mostly stays put, off does not wander.' },
         snoreSeconds: { type: 'integer', minimum: 0, maximum: 3600, description: 'Seconds of snoring each time you fall asleep; 0 snores until you wake.' },
-        sound: { type: 'boolean', description: 'Sound effects on or off (asks the person first).' },
-        scale: { type: 'number', minimum: SCALE_MIN, maximum: SCALE_MAX, description: 'Size on screen, 1 being the default (asks the person first).' },
-        theme: { type: 'string', enum: ['dark', 'light'], description: 'dark is night (light body), light is day (dark body) (asks the person first).' },
-        hoverButtons: { type: 'array', items: { type: 'string', enum: ['chat', 'voice', 'roam', 'theme', 'sound', 'dress', 'hide'] }, maxItems: 6, description: 'The buttons beside you while the mouse pointer rests on you (asks the person first).' },
-        user: { type: 'string', maxLength: capFor(USER_MAX, language), description: `What you call the person, at most ${capFor(USER_MAX, language)} characters (asks the person first).` },
+        sound: { type: 'boolean', description: 'Sound effects on or off.' },
+        scale: { type: 'number', minimum: SCALE_MIN, maximum: SCALE_MAX, description: 'Size on screen, 1 being the default.' },
+        theme: { type: 'string', enum: ['dark', 'light'], description: 'dark is night (light body), light is day (dark body).' },
+        hoverButtons: { type: 'array', items: { type: 'string', enum: ['chat', 'voice', 'roam', 'theme', 'sound', 'dress', 'hide'] }, maxItems: 6, description: 'The buttons beside you while the mouse pointer rests on you.' },
+        user: { type: 'string', maxLength: capFor(USER_MAX, language), description: `What you call the person, at most ${capFor(USER_MAX, language)} characters.` },
       },
     },
   },

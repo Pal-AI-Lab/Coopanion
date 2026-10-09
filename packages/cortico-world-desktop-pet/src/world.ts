@@ -29,8 +29,9 @@ import { nowIso, shortTime } from 'cortico/core/util.ts';
 import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
 import {
-  DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, USER_MAX, asrEngineFor, desktopPetConfigGroups, hoverButtonList,
-  type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type RoamMode,
+  DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, SELF_KEYS, TOUCH_KINDS, USER_MAX, asrEngineFor, desktopPetConfigGroups, directSettings,
+  hoverButtonList, selfAdjustMode, touchWakes,
+  type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type RoamMode, type SelfKey,
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
 import { PetServer, type PageMessage } from './server.ts';
@@ -133,7 +134,7 @@ export interface PetDialog {
 /**
  * - `buttons`: a row of buttons, answered with the index; `keys` shows a key cap above them, pressed
  *   `taps` times over and over, the last press held (a talk key tapped, then held).
- * - `choices`: cards to try out before `confirm`, each with an optional level tag and icon (a web/ui.js
+ * - `choices`: cards to try out before `confirm`, each with an optional level tag, a small `note` under its label, and icon (a web/ui.js
  *   `ICONS` name, or `image`, a `data:image/…` URL such as a service's logo); a card's `line` is typed when it is picked and
  *   its `motion` played (standing still, strolling, running about) until another is picked.
  * - `text`: a text box answered with the text; `secret` hides what is typed, `suggestions` are offered
@@ -142,7 +143,7 @@ export interface PetDialog {
  */
 export type PetDialogInput =
   | { kind: 'buttons'; options: Array<{ label: string; primary?: boolean }>; keys?: string; taps?: number }
-  | { kind: 'choices'; options: Array<{ label: string; level?: string; icon?: string; image?: string; line?: string; motion?: 'still' | 'walk' | 'run' }>; value?: number; confirm: string }
+  | { kind: 'choices'; options: Array<{ label: string; level?: string; note?: string; icon?: string; image?: string; line?: string; motion?: 'still' | 'walk' | 'run' }>; value?: number; confirm: string }
   | { kind: 'text'; submit: string; placeholder?: string; value?: string; secret?: boolean; maxLength?: number; suggestions?: string[]; link?: { label: string; url: string }; alt?: string }
   | { kind: 'progress'; label?: string };
 
@@ -167,8 +168,11 @@ export interface PetDialogHandle {
   close(): void;
 }
 
-/** How a confirmation ended: one of the two choices, closed, no answer in time, or no pet page to ask on. */
-export type ConfirmResult = 'yes' | 'no' | 'dismissed' | 'timeout' | 'unavailable';
+/**
+ * How a confirmation ended: one of the choices (`always` only when three were offered), closed, no answer in time,
+ * or no pet page to ask on.
+ */
+export type ConfirmResult = 'yes' | 'always' | 'no' | 'dismissed' | 'timeout' | 'unavailable';
 
 export interface DesktopPetWorldOptions {
   cfg: DesktopPetConfigSection;
@@ -241,6 +245,8 @@ interface HeardLine { text: string; at: number; ms: number; dropped?: boolean }
 
 interface PendingConfirm {
   resolve: (result: ConfirmResult) => void;
+  /** How many choices the bubble shows: the last one is no. */
+  choices: number;
   timer: NodeJS.Timeout;
 }
 
@@ -923,7 +929,7 @@ export class DesktopPetWorld implements World {
         if (!c) return;
         this.confirms.delete(String(msg.id));
         clearTimeout(c.timer);
-        c.resolve(msg.index === 0 ? 'yes' : msg.index === 1 ? 'no' : 'dismissed');
+        c.resolve(msg.index === 0 ? 'yes' : msg.index === c.choices - 1 ? 'no' : msg.index === 1 ? 'always' : 'dismissed');
         return;
       }
       case 'control': return this.onControl(String(msg.action));
@@ -951,15 +957,15 @@ export class DesktopPetWorld implements World {
   }
 
   /**
-   * Asks the person in a bubble with two choices, the first one meaning yes. Answers never
-   * reach the bot as events; the caller gets them.
+   * Asks the person in a bubble with two choices, the first one meaning yes, or three, the middle one
+   * meaning yes and from now on. Answers never reach the bot as events; the caller gets them.
    */
-  confirm(question: string, choices: [yes: string, no: string]): Promise<ConfirmResult> {
+  confirm(question: string, choices: [yes: string, no: string] | [yes: string, always: string, no: string]): Promise<ConfirmResult> {
     const id = nextId('k');
     if (!this.server.sendPet({ t: 'confirm', id, question, options: choices })) return Promise.resolve('unavailable');
     return new Promise((resolve) => {
       const timer = setTimeout(() => { this.confirms.delete(id); resolve('timeout'); }, CONFIRM_TIMEOUT_MS);
-      this.confirms.set(id, { resolve, timer });
+      this.confirms.set(id, { resolve, timer, choices: choices.length });
     });
   }
 
@@ -1062,8 +1068,7 @@ export class DesktopPetWorld implements World {
       case 'crash': text = m.crashed; break;
       default: return;
     }
-    const { wakeOn } = this.cfg.touch;
-    const wakes = !this.touchWoke && (wakeOn === 'all' || (wakeOn === 'poke' && t.kind === 'poke'));
+    const wakes = !this.touchWoke && touchWakes(this.cfg.touch, t.kind);
     if (wakes) this.touchWoke = true;
     void this.push('desktop-pet.touch', 'desktop-pet.touch', m.touch(text), wakes ? 'debounce' : 'piggyback',
       { meta: { touch: { kind: t.kind, count: t.count, woke: t.woke, crashed: t.crashed } } });
@@ -1523,9 +1528,9 @@ export class DesktopPetWorld implements World {
 
   private async setSettings(args: Record<string, unknown>): Promise<ToolOutcome> {
     const t = this.t;
-    if (!this.cfg.selfAdjust) return { text: t.selfAdjustOff('pet_set', this.userName), failed: true };
+    if (selfAdjustMode(this.cfg.selfAdjust) === 'off') return { text: t.selfAdjustOff('pet_set', this.userName), failed: true };
     const packs = this.packs();
-    const { changes, errors } = planSettings(args, { ...this.cfg, user: this.userName }, packs, this.language, capFor(USER_MAX, this.appLanguage));
+    const { changes, errors } = planSettings(args, { ...this.cfg, user: this.userName }, packs, this.language, capFor(USER_MAX, this.appLanguage), this.appLanguage);
     if (errors.length) return { text: t.setErrors(errors), failed: true };
     if (!changes.length) return { text: t.setNothing };
     const lines: string[] = [];
@@ -1541,8 +1546,15 @@ export class DesktopPetWorld implements World {
     if (mine.length) { apply(mine); lines.push(t.setDone(says(mine))); }
     const asked = changes.filter((c) => c.tier === 'ask');
     if (asked.length) {
-      const answer = await this.confirm(t.setQuestion(says(asked)), t.setChoices);
-      if (answer === 'yes') { apply(asked); lines.push(t.setAgreed(this.userName, says(asked))); }
+      const c = this.ui.consent;
+      const answer = await this.confirm(c.question(asked.map((x) => x.show)), c.choices);
+      if (answer === 'always') {
+        // these items stop being asked: the rest stay as they were, under `custom`; told to the app with the changes as the bot's own
+        const keys = [...new Set(asked.map((x) => x.key))];
+        this.opts.persist({ selfAdjust: 'custom', selfAdjustCustom: { ...directSettings(this.cfg), ...Object.fromEntries(keys.map((k) => [k, true])) } });
+        apply(asked);
+        lines.push(t.setAlways(this.userName, says(asked), keys.map((k) => t.settingNames[k])));
+      } else if (answer === 'yes') { apply(asked); lines.push(t.setAgreed(this.userName, says(asked))); }
       else lines.push(t.setNotChanged(answer === 'unavailable' || answer === 'timeout' ? answer : 'no', this.userName, says(asked)));
     }
     if (mine.some((c) => c.key === 'figure' || c.key === 'scheme')) {
@@ -1562,7 +1574,7 @@ export class DesktopPetWorld implements World {
       this.endQuiet();
       return { text: t.quietEnded };
     }
-    if (!this.cfg.selfAdjust) return { text: t.selfAdjustOff('pet_quiet', this.userName), failed: true };
+    if (selfAdjustMode(this.cfg.selfAdjust) === 'off') return { text: t.selfAdjustOff('pet_quiet', this.userName), failed: true };
     const sound = args.sound === true;
     const roam = args.roam === 'calm' ? 'calm' : 'off';
     const base = this.quiet?.base ?? { sound: this.cfg.sound, roam: this.cfg.roam };
@@ -1602,10 +1614,18 @@ export class DesktopPetWorld implements World {
       'pet.voice': this.cfg.asr.enabled ? t.on : t.off,
       'pet.body': this.bodyText(this.currentPack()),
       'pet.dress': dressTable(this.packs(), language),
-      'pet.self': this.cfg.selfAdjust ? t.on : t.off,
+      'pet.self': this.selfText(),
       'pet.chat': this.opts.controls?.openChat ? t.chatPage(user) : '',
       'pet.reply': reply ? t.reply(user, reply) : '',
     };
+  }
+
+  /** `{{pet.self}}`: which `pet_set` items change at once and which are asked first, or that none can change. */
+  private selfText(): string {
+    const t = this.t;
+    if (selfAdjustMode(this.cfg.selfAdjust) === 'off') return t.selfNone(this.userName);
+    const direct = directSettings(this.cfg);
+    return t.selfTiers(this.userName, SELF_KEYS.filter((k) => direct[k]).map((k) => t.settingNames[k]), SELF_KEYS.filter((k) => !direct[k]).map((k) => t.settingNames[k]));
   }
 
   /** The environment prompt template of the model-text language. */
@@ -1669,6 +1689,19 @@ export class DesktopPetWorld implements World {
         case 'openWindow': this.openWindow(); return this.petState();
         case 'closeWindow': await this.windowHost?.stop(); return this.petState();
         case 'installElectron': void this.store.electron.install(); return this.petState();
+        // the Habits page's custom picks (/api/config writes no list or map): `custom` and its picks in one write, as the person's change
+        case 'setWakeKinds': {
+          const picked = Array.isArray(args[0]) ? args[0] as unknown[] : [];
+          this.opts.persist({ touch: { wakeOn: 'custom', wakeKinds: TOUCH_KINDS.filter((k) => picked.includes(k)) } });
+          return this.petState();
+        }
+        case 'setSelfAdjustCustom': {
+          const raw = args[0] && typeof args[0] === 'object' ? args[0] as Record<string, unknown> : {};
+          const custom = this.selfCustom();
+          for (const k of SELF_KEYS) if (typeof raw[k] === 'boolean') custom[k] = raw[k] as boolean;
+          this.opts.persist({ selfAdjust: 'custom', selfAdjustCustom: custom });
+          return this.petState();
+        }
         case 'guide': {
           if (!this.opts.controls?.guide) throw new Error(this.ui.console.noGuide);
           this.opts.controls.guide();
@@ -1722,7 +1755,15 @@ export class DesktopPetWorld implements World {
       window: this.windowHost?.state() ?? null,
       electron: { ...this.store.electron.state(), supported: this.store.electron.supported },
       screen: this.screen,
+      /** The Habits page's two rows, legacy values read as they now mean. */
+      wake: { wakeOn: this.cfg.touch.wakeOn, wakeKinds: this.cfg.touch.wakeKinds },
+      selfAdjust: { mode: selfAdjustMode(this.cfg.selfAdjust), custom: this.selfCustom() },
     };
+  }
+
+  /** `selfAdjustCustom` with every item, the default's for one missing. */
+  private selfCustom(): Record<SelfKey, boolean> {
+    return directSettings({ selfAdjust: 'custom', selfAdjustCustom: this.cfg.selfAdjustCustom });
   }
 
   voiceState(): Record<string, unknown> {

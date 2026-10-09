@@ -60,6 +60,13 @@ const ko: Translation<CoreText> = {
     },
     roamOk: '이걸로',
     roamDone: '좋습니다, 그렇게 하겠습니다.',
+    wakeTitle: '반응 모드',
+    askWake: '반응 모드: 저를 찌르거나 쓰다듬거나 들어 올릴 때, 언제 반응할까요?',
+    wake: {
+      none: { label: '조용히', note: '상호작용은 기억해 두었다가 말을 걸 때 함께 반응해요' },
+      poke: { label: '기본', note: '찌를 때만 반응해요' },
+      all: { label: '적극적', note: '모든 상호작용에 반응해요' },
+    },
 
     askVendor: (first: string) => `대화하려면 모델에 연결해야 합니다. 어느 서비스를 쓸까요? 잘 모르겠으면 ${first}을(를) 고르세요.`,
     vendorOk: '이 서비스 사용',

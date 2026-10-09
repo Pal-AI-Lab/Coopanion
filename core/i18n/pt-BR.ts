@@ -5,9 +5,9 @@ const MAC = process.platform === 'darwin';
 
 const ptBR: Translation<CoreText> = {
   settings: {
-    language: { title: 'Idioma', description: 'A janela de configurações e os balões e o menu do pet usam este idioma, e o Coo fala com você nele. Vale na hora.' },
+    language: { title: 'Idioma', description: 'A janela de configurações e os balões e o menu do pet usam este idioma, e Coo fala com você nele. Vale na hora.' },
     telemetry: { title: 'Estatísticas de uso anônimas', description: 'Envia contagens de uso e configurações, nunca conversas, para ajudar a melhorar o Coopanion. Os campos estão listados em docs/TELEMETRY.md.' },
-    roundsSoft: { title: 'Lembrete para encerrar', suffix: 'solicitações', description: 'Depois dessa quantidade de solicitações ao modelo em um mesmo despertar, o Coo é lembrado de terminar o que está fazendo e encerrar o turno.' },
+    roundsSoft: { title: 'Lembrete para encerrar', suffix: 'solicitações', description: 'Depois dessa quantidade de solicitações ao modelo em um mesmo despertar, Coo recebe um lembrete para terminar o que está fazendo e encerrar o turno.' },
     roundsHard: { title: 'Solicitações por despertar', suffix: 'solicitações', description: 'O máximo de solicitações ao modelo em um despertar; ao chegar nele, o turno termina.' },
   },
 
@@ -45,21 +45,28 @@ const ptBR: Translation<CoreText> = {
 
   guide: {
     sources: [['Steam', 'steam'], ['YouTube', 'youtube'], ['Reddit', 'reddit'], ['X', 'x'], ['Instagram', 'instagram'], ['TikTok', 'tiktok'], ['GitHub', 'github'], ['Um amigo', 'friend'], ['Outro lugar', 'other'], ['Prefiro não dizer', 'skip']],
-    hello: 'Oi! Eu sou o Coo, e agora moro na parte de baixo da sua tela. Coo...',
+    hello: 'Oi! Eu sou Coo, e agora moro na parte de baixo da sua tela. Coo...',
     helloReply: 'Oi, Coo!',
     askName: 'Como devo chamar você?',
     nameSend: 'Pode me chamar assim',
     gotName: (name: string) => `${name}, anotado!`,
     askSource: 'Onde você ouviu falar de mim?',
     sourceThanks: 'Ah, entendi. Coo...',
-    askRoam: 'Na maior parte do tempo eu fico quietinho ou bem animado? Clique em uma opção para ver o que eu faria.',
+    askRoam: 'Na maior parte do tempo eu fico na minha ou corro pra todo lado? Clique em uma opção para ver o que eu faria.',
     roam: {
-      off: { label: 'Sem se mexer', level: 'Baixo', line: 'Então eu fico parado e me mexo quando você me chamar.' },
-      calm: { label: 'De vez em quando', level: 'Médio', line: 'Vou dar uma volta de vez em quando e ficar parado na maior parte do tempo.' },
+      off: { label: 'Sem se mexer', level: 'Baixo', line: 'Então eu fico no meu canto e me mexo quando você me chamar.' },
+      calm: { label: 'De vez em quando', level: 'Médio', line: 'Vou dar uma volta de vez em quando e ficar no meu canto na maior parte do tempo.' },
       free: { label: 'Com frequência', level: 'Alto', line: 'Posso correr pra todo lado. Coo...!' },
     },
     roamOk: 'Assim',
     roamDone: 'Certo, vou ser assim.',
+    wakeTitle: 'Modo de resposta',
+    askWake: 'Modo de resposta: quando você me cutuca, faz carinho ou me levanta, quando devo responder?',
+    wake: {
+      none: { label: 'Quieto', note: 'Os toques ficam anotados e são respondidos juntos quando você falar' },
+      poke: { label: 'Padrão', note: 'Só responde quando você cutuca' },
+      all: { label: 'Ativo', note: 'Responde a todos os toques' },
+    },
 
     askVendor: (first: string) => `Para conversar com você, preciso me conectar a um modelo. Qual serviço eu uso? Se estiver em dúvida, escolha ${first}.`,
     vendorOk: 'Usar este',
@@ -89,7 +96,7 @@ const ptBR: Translation<CoreText> = {
     gotIt: 'Entendi',
     buttons: 'Deixe o ponteiro sobre mim e alguns botões aparecem ao meu lado; clique com o botão direito em mim para abrir o menu, com pausar, configurações e sair.',
     ok: 'OK',
-    persona: 'Como eu sou e como eu falo está escrito na página Prompt de sistema da janela de configurações. Para me mudar, edite lá, ou é só me dizer que eu mesmo mudo.',
+    persona: 'Como eu sou e como eu falo está escrito na página Prompt de sistema da janela de configurações. Para me mudar, edite lá, ou é só me dizer e eu mudo por conta própria.',
     personaMark: 'Prompt de sistema',
     personaOk: 'Entendido',
     finish: MAC
@@ -101,7 +108,7 @@ const ptBR: Translation<CoreText> = {
     dress: 'Me vista primeiro',
     closed: 'Certo, vamos parar por aqui. Para ouvir minha apresentação de novo, abra as configurações e clique em “Guia” na página Início.',
 
-    askFirst: 'Ainda não estou conectado a um modelo; consigo falar quando você adicionar uma API Key. Qual serviço eu uso?',
+    askFirst: 'Ainda não tenho um modelo conectado; consigo falar quando você adicionar uma API Key. Qual serviço eu uso?',
     askAgain: 'Ainda sem modelo conectado; adicione uma API Key e eu posso fazer companhia para você. Qual serviço eu uso?',
     askLater: 'Depois',
     noModel: 'Nenhum modelo conectado. Conectar um agora?',

@@ -7,7 +7,8 @@
  *   current version's notes only. Development runs (`dev`) say nothing. With English model text a
  *   version's `v<version>.en.md` is read instead, when it exists.
  * - When the person changes a setting Coo shows or works by (what it calls them, Coo's dress, size,
- *   colours, walking, voice input, computer use), what changed, from what to what. A switch of
+ *   colours, walking, sounds, which touches wake it, what it may change itself, voice input, computer
+ *   use), what changed, from what to what. A switch of
  *   figure or of a figure pack's pick is the desktop-pet World's to tell: it knows the body.
  *   Both write paths (the settings window's forms and a World's own `persist`) change the live
  *   config object, which is read every second; changes in a row reach Coo as one event, after the
@@ -27,6 +28,7 @@ import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import type { ToolDef, World, WorldHost } from 'cortico/core/types.ts';
 import type { WorldDefinition, WorldSection } from 'cortico/world.ts';
+import { SELF_KEYS, selfAdjustMode } from 'cortico-world-desktop-pet';
 import { Alarms } from './alarms.ts';
 import type { GuideEnd } from './guide.ts';
 import { modelLanguage, type ModelLanguage } from './language.ts';
@@ -132,6 +134,10 @@ const WATCHED = [
   { path: `${PET}.theme`, key: 'theme' },
   { path: `${PET}.roam`, key: 'roam' },
   { path: `${PET}.sound`, key: 'sound' },
+  { path: `${PET}.touch.wakeOn`, key: 'wakeOn' },
+  { path: `${PET}.touch.wakeKinds`, key: 'wakeKinds' },
+  { path: `${PET}.selfAdjust`, key: 'selfAdjust' },
+  { path: `${PET}.selfAdjustCustom`, key: 'selfAdjustCustom' },
   { path: `${PET}.asr.enabled`, key: 'voice' },
   { path: `${CUA}.enabled`, key: 'cua' },
   { path: `${CUA}.control`, key: 'control' },
@@ -151,6 +157,17 @@ interface SettingText {
 }
 
 const named = (table: Record<string, string>) => (v: unknown) => table[String(v)] ?? String(v);
+/** A list of ids by their names, or `none` when it is empty. */
+const listed = (table: Record<string, string>, none: string, join: string) => (v: unknown) => {
+  const ids = Array.isArray(v) ? v.map(String) : [];
+  return ids.length ? ids.map((id) => table[id] ?? id).join(join) : none;
+};
+/** The items `selfAdjustCustom` lets Coo change at once, by the names `pet_set` takes them under, or `none`. */
+const directItems = (none: string, join: string) => (v: unknown) => {
+  const map = v && typeof v === 'object' ? v as Record<string, unknown> : {};
+  const on = SELF_KEYS.filter((k) => map[k] === true);
+  return on.length ? on.join(join) : none;
+};
 const label = (pick: (l: Labels) => Record<string, string>) => (v: unknown, l: Labels) => pick(l)[String(v)] ?? String(v);
 
 const zh = {
@@ -166,6 +183,19 @@ const zh = {
     theme: { name: '黑白模式', say: named({ dark: '夜间(浅色身体)', light: '白天(深色身体)' }) },
     roam: { name: '你平时走动多少', say: named({ free: '常走动', calm: '多待着', off: '不乱动' }) },
     sound: { name: '音效', say: (v) => (v ? '开' : '关') },
+    wakeOn: {
+      name: '互动时你什么时候回应(回应模式)',
+      say: named({ none: '安静(互动都跟着下一批事件送到)', poke: '默认(只有戳会马上叫你)', all: '积极(每种互动都马上叫你)', custom: '自定义(下一项里的互动马上叫你)' }),
+    },
+    wakeKinds: { name: '自定义回应模式下马上叫你的互动', say: listed({ poke: '戳', pet: '摸头', throw: '甩出去', drop: '拎起来放下' }, '无', '、') },
+    selfAdjust: {
+      name: '你能不能自己改设置(自主配置权限)',
+      say: (v) => ({ off: '禁止(pet_set、pet_quiet 都用不了)', default: '默认', any: '任意(都直接改)', custom: '自定义(下一项里的直接改,其余先征得同意)' })[selfAdjustMode(v)],
+    },
+    selfAdjustCustom: {
+      name: '自定义权限下你能直接改的设置',
+      say: directItems('无', '、'),
+    },
     voice: { name: '语音输入', say: (v) => (v ? '开' : '关') },
     cua: { name: '让你操作这台电脑', say: (v) => (v ? '开' : '关') },
     control: { name: '允许你动鼠标键盘', say: (v) => (v ? '开' : '关') },
@@ -185,7 +215,7 @@ const zh = {
   notesOutro: '\n挑对方用得上的新功能和修复,用你自己的话告诉对方,不用照念,也不用一次说完。',
 
   someone: '对方',
-  guideFinished: (name: string) => `[启动引导] ${name}刚在你的气泡里走完了启动引导:定了你怎么称呼对方(「${name}」)、你平时活泼到什么程度、用哪家模型服务,也看过了怎么语音输入、按钮和菜单在哪。`,
+  guideFinished: (name: string) => `[启动引导] ${name}刚在你的气泡里走完了启动引导:定了你怎么称呼对方(「${name}」)、你平时活泼到什么程度、互动时你什么时候回应、用哪家模型服务,也看过了怎么语音输入、按钮和菜单在哪。`,
   guideClosed: (name: string, step: number) => `[启动引导] ${name}在第 ${step} 步关掉了启动引导,后面的步骤没有走。`,
   guideRecord: '下面是引导里的对话。引导按程序写好的台词走,「Coo:」那几行是程序替你说的:',
   guideAfter: (name: string) => [
@@ -211,6 +241,19 @@ const en: typeof zh = {
     theme: { name: 'night or day look', say: named({ dark: 'night (light body)', light: 'day (dark body)' }) },
     roam: { name: 'how much you walk about', say: named({ free: 'free (walks often)', calm: 'calm (mostly stays put)', off: 'off (does not wander)' }) },
     sound: { name: 'sound effects', say: (v) => (v ? 'on' : 'off') },
+    wakeOn: {
+      name: 'when you respond to touches (response mode)',
+      say: named({ none: 'quiet (every touch comes with the next batch of events)', poke: 'default (only a poke wakes you)', all: 'eager (every touch wakes you)', custom: 'custom (the touches in the next item wake you)' }),
+    },
+    wakeKinds: { name: 'the touches that wake you in the custom response mode', say: listed({ poke: 'poke', pet: 'pat on the head', throw: 'throw', drop: 'pick up and put down' }, 'none', ', ') },
+    selfAdjust: {
+      name: 'whether you may change settings yourself (self-adjustment)',
+      say: (v) => ({ off: 'off (neither pet_set nor pet_quiet works)', default: 'default', any: 'anything (all change at once)', custom: 'custom (the items in the next one change at once, the rest are asked first)' })[selfAdjustMode(v)],
+    },
+    selfAdjustCustom: {
+      name: 'the settings you may change at once under custom self-adjustment',
+      say: directItems('none', ', '),
+    },
     voice: { name: 'voice input', say: (v) => (v ? 'on' : 'off') },
     cua: { name: 'letting you operate this computer', say: (v) => (v ? 'on' : 'off') },
     control: { name: 'letting you use the mouse and keyboard', say: (v) => (v ? 'on' : 'off') },
@@ -230,7 +273,7 @@ const en: typeof zh = {
   notesOutro: '\nPick the new features and fixes the person can use and tell them in your own words; no need to read them out or to say it all at once.',
 
   someone: 'the person',
-  guideFinished: (name) => `[introduction] ${name} just walked through the introduction in your bubble: settled what you call them ("${name}"), how lively you are day to day and which model service to use, and saw how voice input works and where the buttons and the menu are.`,
+  guideFinished: (name) => `[introduction] ${name} just walked through the introduction in your bubble: settled what you call them ("${name}"), how lively you are day to day, when you respond to touches, and which model service to use, and saw how voice input works and where the buttons and the menu are.`,
   guideClosed: (name, step) => `[introduction] ${name} closed the introduction at step ${step}; the steps after it were not walked through.`,
   guideRecord: 'Below is the conversation from the introduction. It follows lines the app wrote; the "Coo:" lines were said by the app on your behalf:',
   guideAfter: (name) => [

@@ -147,6 +147,26 @@ export default {
     overLimit: (mb: number) => `超过 ${mb} MB`,
   },
 
+  /** 桌宠想改设置、要先征得同意时的气泡:问句、三个按钮,以及每项改动的说法 */
+  consent: {
+    question: (items: string[]) => `我想${items.join('、')},可以吗?`,
+    /** 可以 / 以后都可以(这几项以后不再问) / 不用了 */
+    choices: ['可以', '以后都可以', '不用了'] as [yes: string, always: string, no: string],
+    list: (items: string[]) => items.join('、'),
+    pick: (axis: string, option: string) => `${axis}:${option}`,
+    figure: (to: string) => `换成${to}的样子`,
+    scheme: (figure: string, look: string) => `换一身${figure}的打扮(${look})`,
+    roam: { free: '常走动', calm: '多待着', off: '不乱动' } as Record<'free' | 'calm' | 'off', string>,
+    roamTo: (to: string) => `走动改成「${to}」`,
+    snore: (seconds: number): string => (seconds === 0 ? '睡着时一直打呼噜到醒' : `每次睡着打 ${seconds} 秒呼噜`),
+    sound: (on: boolean): string => (on ? '打开音效' : '关掉音效'),
+    scale: (from: number, to: number) => `把大小从 ${from} 倍改成 ${to} 倍`,
+    theme: { dark: '换成夜间模式', light: '换成白天模式' } as Record<'dark' | 'light', string>,
+    hover: (list: string) => `把悬停按钮换成${list}`,
+    actions: { chat: '打字', voice: '语音输入', roam: '行为模式', theme: '夜间模式', sound: '音效', dress: '装扮', hide: '隐藏桌宠' } as Record<string, string>,
+    user: (to: string) => `改叫你「${to}」`,
+  },
+
   /** 页面端口都被占用时 World 启动失败的原因 */
   portsTaken: (from: number, to: number, why: string) => `端口 ${from}–${to} 都被占用:${why}`,
 
@@ -172,7 +192,7 @@ export default {
       'pet.voice': '语音输入开着还是关着',
       'pet.body': '当前形象的样子',
       'pet.dress': 'pet_set 能选的形象与打扮',
-      'pet.self': '「允许自己调整」开着还是关着',
+      'pet.self': '「自主配置权限」:哪些设置直接改、哪些先征得同意,或都不能改',
       'pet.chat': '应用提供对话页时,对它的说明;没有时为空',
       'pet.reply': '应用语言既不是简体中文也不是英文时,让 bot 用那种语言说话的一句;否则为空',
     } as Record<string, string>,
@@ -193,7 +213,7 @@ export default {
     hoverButtons: { title: '悬停按钮', description: (max: number, ids: string) => `鼠标停在桌宠身上时旁边出现的按钮,最多 ${max} 个,逗号分隔:${ids}。` },
     doubleClickChat: { title: '双击打字', description: '双击桌宠打开打字框。' },
     statusBubble: { title: '状态气泡', description: '想事情、翻记忆、操作电脑时显示在做什么,会显示文件名。' },
-    selfAdjust: { title: '允许自己调整', description: '桌宠可以自己换形象和装扮、改走动和呼噜;改音效、大小、黑白模式、悬停按钮和对你的称呼前先问你。关掉后这些它都改不了。' },
+    selfAdjust: { title: '自主配置权限', description: 'off 禁止:不能自己改设置,也不能临时安静;default 默认:形象、配色、走动和打呼直接改,大小、音效、主题、悬停按钮和称呼先征得你同意;any 任意:都直接改;custom 自定义:按「习惯」页里的勾选,勾上的直接改,其余先征得你同意。' },
     windowEnabled: { title: '启动时打开桌宠窗口' },
     scale: { title: '大小' },
     frameRate: { title: '帧率', description: '走动、被拎着、跳起时每秒画多少帧;0 跟随显示器刷新率。超过显示器刷新率时按显示器的。「习惯」页可选 60、120、144 和不限。' },
@@ -202,7 +222,7 @@ export default {
     electronFile: { title: 'Electron 程序', description: '留空时依次用 CORTICO_DESKTOP_PET_HOST 和面板里安装的运行时。' },
     port: { title: '页面端口', description: '被占用时向上顺延。' },
     touchEnabled: { title: '互动发成事件', description: '戳、摸、拎起来甩出去。' },
-    touchWakeOn: { title: '哪些互动单独唤醒', description: 'poke 只有点一下唤醒,摸头和拎起来跟着下一次唤醒一起送;all 都唤醒;none 都跟着下一次唤醒送。一次互动唤醒之后、这一轮结束之前的互动,都跟着下一次唤醒送。' },
+    touchWakeOn: { title: '回应模式', description: 'poke 只有点一下唤醒,摸头和拎起来跟着下一次唤醒一起送;all 都唤醒;none 都跟着下一次唤醒送。一次互动唤醒之后、这一轮结束之前的互动,都跟着下一次唤醒送。custom 按「习惯」页里勾选的互动唤醒。' },
     sound: { title: '音效总开关', description: '桌宠菜单里的音效按钮切的就是这个。' },
     sounds: {
       move: { title: '动作', description: '走路、跑、跳、落地、被甩出去、点头、摇头、转圈、晕、发抖、跳舞、张望。' },

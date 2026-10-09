@@ -201,6 +201,7 @@ body.desk .floor{display:none}
 .d-cardimg{width:28px; height:28px; display:block; padding:3px; border-radius:7px; background:#fff; box-sizing:border-box}
 .d-card.on .d-cardimg{animation:card-bob .5s cubic-bezier(.3,1.5,.5,1)}
 .d-cardlbl{font-size:13px; color:var(--text)}
+.d-cardnote{font-size:11px; line-height:1.35; color:var(--muted); text-align:center}
 .d-level{
   position:absolute; top:-7px; right:-5px; min-width:18px; padding:0 4px; border-radius:7px; border:1.5px solid var(--surface);
   background:var(--muted); color:var(--surface); font:700 10px/15px system-ui,sans-serif;

@@ -55,8 +55,49 @@ export type SoundSettings = Record<SoundKind, boolean> & {
 export type RoamMode = 'free' | 'calm' | 'off';
 /** Which side of each palette the pet pages draw: dark = light figure for dark surroundings. */
 export type PetTheme = 'dark' | 'light';
-/** Which touches wake the bot: poke = clicks only, petting and carrying wait for the next wake; all; none = every touch waits. */
-export type TouchWake = 'poke' | 'all' | 'none';
+/**
+ * Which touches wake the bot: poke = clicks only, petting and carrying wait for the next wake; all; none = every touch
+ * waits; custom = the kinds in `touch.wakeKinds`.
+ */
+export type TouchWake = 'poke' | 'all' | 'none' | 'custom';
+/** Touches `touch.wakeKinds` can pick, as the pet page names them; a crash counts as the throw or drop it ended. */
+export const TOUCH_KINDS = ['poke', 'pet', 'throw', 'drop'] as const;
+export type TouchKind = typeof TOUCH_KINDS[number];
+
+/** Whether a touch of `kind` wakes the bot by itself under these settings. */
+export function touchWakes(touch: { wakeOn: TouchWake; wakeKinds?: readonly string[] }, kind: string): boolean {
+  if (touch.wakeOn === 'all') return true;
+  if (touch.wakeOn === 'poke') return kind === 'poke';
+  return touch.wakeOn === 'custom' && Array.isArray(touch.wakeKinds) && touch.wakeKinds.includes(kind);
+}
+
+/**
+ * What `pet_set` and `pet_quiet` may do: off = nothing; default = the items of SELF_DEFAULT that are true at once, the
+ * rest once the person agrees; any = every item at once; custom = per item, as `selfAdjustCustom` says.
+ */
+export type SelfAdjust = 'off' | 'default' | 'any' | 'custom';
+export const SELF_ADJUST: readonly SelfAdjust[] = ['off', 'default', 'any', 'custom'];
+/** The settings `pet_set` takes, in its order. */
+export const SELF_KEYS = ['figure', 'scheme', 'roam', 'snoreSeconds', 'sound', 'scale', 'theme', 'hoverButtons', 'user'] as const;
+export type SelfKey = typeof SELF_KEYS[number];
+/** Per item, whether the bot changes it at once (true) or asks first (false), under `default`. */
+export const SELF_DEFAULT: Readonly<Record<SelfKey, boolean>> = {
+  figure: true, scheme: true, roam: true, snoreSeconds: true, sound: false, scale: false, theme: false, hoverButtons: false, user: false,
+};
+
+/** `selfAdjust` as it reads: versions up to 0.1.20 wrote true (now `default`) or false (now `off`). */
+export function selfAdjustMode(value: unknown): SelfAdjust {
+  if (value === false) return 'off';
+  return SELF_ADJUST.includes(value as SelfAdjust) ? value as SelfAdjust : 'default';
+}
+
+/** Per item, whether the bot may change it at once under these settings; all false when it may change nothing. */
+export function directSettings(cfg: { selfAdjust: unknown; selfAdjustCustom?: Partial<Record<SelfKey, unknown>> }): Record<SelfKey, boolean> {
+  const mode = selfAdjustMode(cfg.selfAdjust);
+  return Object.fromEntries(SELF_KEYS.map((k) => [k,
+    mode === 'any' || (mode === 'default' && SELF_DEFAULT[k])
+    || (mode === 'custom' && (typeof cfg.selfAdjustCustom?.[k] === 'boolean' ? cfg.selfAdjustCustom[k] === true : SELF_DEFAULT[k]))])) as Record<SelfKey, boolean>;
+}
 /** hold: listen while the talk key is held; toggle: each press starts or stops listening; always: listen all the time. */
 export type MicMode = 'hold' | 'toggle' | 'always';
 /**
@@ -117,13 +158,17 @@ export interface DesktopPetConfigSection extends WorldSection {
   doubleClickChat: boolean;
   /** Show the current activity above the pet, including file names. */
   statusBubble: boolean;
-  /** The bot may change its own looks and habits (src/self.ts), and asks before the rest. */
-  selfAdjust: boolean;
+  /** How far the bot may change its own looks and habits (src/self.ts); read through `selfAdjustMode`. */
+  selfAdjust: SelfAdjust;
+  /** Under `custom`: per item, true = changed at once, false = asked first. */
+  selfAdjustCustom: Record<SelfKey, boolean>;
   skin: PetSkin;
   touch: {
     /** Clicks, petting and throws become events. */
     enabled: boolean;
     wakeOn: TouchWake;
+    /** Under `custom`: the touches that wake the bot. */
+    wakeKinds: TouchKind[];
   };
   asr: {
     enabled: boolean;
@@ -164,12 +209,13 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   hoverButtons: 'chat,voice',
   doubleClickChat: false,
   statusBubble: true,
-  selfAdjust: true,
+  selfAdjust: 'default',
+  selfAdjustCustom: { ...SELF_DEFAULT },
   skin: {
     figure: 'coo', scheme: 'deepseek', palette: 'mint', head: 'none', side: 'none', glasses: 'none', neck: 'none',
     colors: { head: { main: 'body', acc: 'eye' }, side: { main: 'eye', acc: 'eye' }, glasses: { main: 'body', acc: 'eye' }, neck: { main: 'eye', acc: 'eye' } },
   },
-  touch: { enabled: true, wakeOn: 'poke' },
+  touch: { enabled: true, wakeOn: 'poke', wakeKinds: ['poke'] },
   asr: {
     enabled: true,
     engine: '',
@@ -202,7 +248,7 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
         [`${K}.hoverButtons`]: { type: 'string', title: c.hoverButtons.title, description: c.hoverButtons.description(MAX_HOVER_BUTTONS, PET_ACTIONS.join(', ')), 'x-hot': true },
         [`${K}.doubleClickChat`]: { type: 'boolean', title: c.doubleClickChat.title, description: c.doubleClickChat.description, 'x-hot': true },
         [`${K}.statusBubble`]: { type: 'boolean', title: c.statusBubble.title, description: c.statusBubble.description, 'x-hot': true },
-        [`${K}.selfAdjust`]: { type: 'boolean', title: c.selfAdjust.title, description: c.selfAdjust.description, 'x-hot': true },
+        [`${K}.selfAdjust`]: { type: 'string', title: c.selfAdjust.title, enum: [...SELF_ADJUST], description: c.selfAdjust.description, 'x-hot': true },
         [`${K}.window.enabled`]: { type: 'boolean', title: c.windowEnabled.title, 'x-hot': false },
         [`${K}.window.scale`]: { type: 'number', title: c.scale.title, minimum: SCALE_MIN, maximum: SCALE_MAX, multipleOf: .05, 'x-hot': true },
         [`${K}.window.frameRate`]: { type: 'integer', title: c.frameRate.title, minimum: 0, description: c.frameRate.description, 'x-hot': true },
@@ -214,7 +260,7 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
         [`${K}.window.electronFile`]: { type: 'string', title: c.electronFile.title, description: c.electronFile.description, 'x-path': { kind: 'file' }, 'x-hot': false },
         [`${K}.port`]: { type: 'integer', title: c.port.title, minimum: 1024, maximum: 65535, description: c.port.description, 'x-hot': false },
         [`${K}.touch.enabled`]: { type: 'boolean', title: c.touchEnabled.title, description: c.touchEnabled.description, 'x-hot': true },
-        [`${K}.touch.wakeOn`]: { type: 'string', title: c.touchWakeOn.title, enum: ['poke', 'all', 'none'], description: c.touchWakeOn.description, 'x-hot': true },
+        [`${K}.touch.wakeOn`]: { type: 'string', title: c.touchWakeOn.title, enum: ['none', 'poke', 'all', 'custom'], description: c.touchWakeOn.description, 'x-hot': true },
       },
     },
   };
