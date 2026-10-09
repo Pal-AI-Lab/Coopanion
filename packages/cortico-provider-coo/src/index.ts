@@ -118,6 +118,9 @@ export const COO = {
     const media = { enabled: () => current().multimodal === true && readsImages(current(), current().spec?.model), read: host.readBlob };
     const compatibilityKey = () => [vendor?.id ?? 'coo', name, ...(protocol === 'responses' ? [] : [protocol])];
     const stated = (model: string) => vendor?.contextWindows?.[model];
+    // the listing carries the windows the vendor table states, so the console fills them in instead of asking
+    const withStated = <M extends { id: string; contextWindow?: number }>(models: M[]) =>
+      models.map((model) => (stated(model.id) ? { ...model, contextWindow: stated(model.id) } : model));
 
     if (protocol === 'anthropic') {
       const client = new ClaudeProvider({ baseUrl: entry.baseUrl, apiKey, keepThinking: host.keepThinking, log: host.log, media });
@@ -133,7 +136,7 @@ export const COO = {
             models.push({ id: model.id, displayName: model.display_name,
               ...(row.max_input_tokens ? { contextWindow: row.max_input_tokens } : {}), ...(row.max_tokens ? { maxOutputTokens: row.max_tokens } : {}) });
           }
-          return models;
+          return withStated(models);
         },
       };
     }
@@ -146,7 +149,7 @@ export const COO = {
         listModels: async () => {
           const models = await listGeminiModels(entry.baseUrl, apiKey ?? '');
           for (const model of models) windows.set(model.id, model.contextWindow);
-          return models;
+          return withStated(models);
         },
       };
     }
@@ -154,7 +157,7 @@ export const COO = {
     const headers: Record<string, string> = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
     const catalog = new ModelCatalog(() => ({ baseUrl: entry.baseUrl, headers }));
     return {
-      listModels: () => catalog.list(),
+      listModels: async () => withStated(await catalog.list()),
       contextWindow: (model) => stated(model) ?? catalog.contextWindow(model),
       compatibilityKey,
       client: protocol === 'chat'
