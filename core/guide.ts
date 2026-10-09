@@ -7,15 +7,16 @@
  *    Coopanion (for the usage statistics; one of the buttons skips it);
  * 2. how lively to be (`roam`): while the cards are up Coo shows each one, standing still,
  *    strolling, or running back and forth;
- * 3. the model service (the services Coo Pet Provider offers, in the order for the app's language,
+ * 3. the response mode (`touch.wakeOn`): quiet, default or eager, each card with a line on what it does;
+ * 4. the model service (the services Coo Pet Provider offers, in the order for the app's language,
  *    each card with its logo; the services that take mainland China accounts only behind a "more"
  *    card outside Chinese), the model (the service's cheap default that reads images, or any name
  *    typed in) and the key, saved, tested and made active through the console's own endpoint routes,
  *    on the platform for the language (`defaultRegion`) unless the service is already connected on
  *    the other one;
- * 4. voice input: the speech model of the engine in force (FunASR or Whisper, by the app language)
+ * 5. voice input: the speech model of the engine in force (FunASR or Whisper, by the app language)
  *    is downloaded with one click when it is missing, then how to talk, with the talk key as a key cap;
- * 5. where the buttons and the menu are, that Coo's persona is in the settings window's
+ * 6. where the buttons and the menu are, that Coo's persona is in the settings window's
  *    「系统提示词」 page, and where settings live.
  *
  * However it ends, walked through or closed, it calls `onEnd` with the record of what was said in
@@ -37,6 +38,7 @@ import type { ModelLanguage } from './language.ts';
 const PET_GROUP = 'world:desktop-pet';
 const USER_KEY = 'worlds.desktop-pet.user';
 const ROAM_KEY = 'worlds.desktop-pet.roam';
+const WAKE_KEY = 'worlds.desktop-pet.touch.wakeOn';
 /**
  * The default names of earlier versions (「主人」 up to 0.1.1, 「伙伴」 up to 0.1.19): the name box starts empty
  * for them, with the app language's default name (the desktop-pet World's) as its placeholder.
@@ -47,11 +49,13 @@ const MOTIONS = { off: 'still', calm: 'walk', free: 'run' } as const;
 /** Sentence-ending marks a reason comes with, taken off before it goes into a line of the introduction. */
 const trimEnd = (text: string) => text.replace(/[\s.!?。．！？]+$/, '');
 /** Numbered steps, for the dots at the top of the bubble. */
-const STEPS = 5;
+const STEPS = 6;
 /** How often a step waiting for the pet page looks again, and a download for its progress. */
 const POLL_MS = 500;
 
 type Roam = 'off' | 'calm' | 'free';
+/** The response modes the introduction offers, in their order; `custom` is the Habits page's. */
+type Wake = 'none' | 'poke' | 'all';
 
 /** The introduction's lines in the app language. */
 const lines = (language: Language) => coreText(language).guide;
@@ -282,26 +286,37 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
     await setPet(ROAM_KEY, roam);
     await step(2, 'roam-ok', { text: S.roamDone, actions: ['nod'] });
 
-    // 3 the model key
+    // 3 the response mode
+    const WAKES: Wake[] = ['none', 'poke', 'all'];
+    const wakeNow = WAKES.indexOf(values[WAKE_KEY] as Wake);
+    const w = await step(3, 'wake', {
+      text: S.askWake, marks: [S.wakeTitle], actions: ['thinking'],
+      input: { kind: 'choices', confirm: S.roamOk, value: wakeNow < 0 ? 1 : wakeNow, options: WAKES.map((id) => S.wake[id]) },
+    });
+    const wake = WAKES['index' in w ? w.index : 1] ?? 'poke';
+    if (wake !== values[WAKE_KEY]) await setPet(WAKE_KEY, wake);
+    await step(3, 'wake-ok', { text: S.roamDone, actions: ['nod'] });
+
+    // 4 the model key
     const k = await currentConnection(call);
-    if (k.ready) await step(3, 'key-ready', { text: S.keyAlready([k.vendor ? vendorName(k.vendor, language) : '', k.model].filter(Boolean).join(' · ')), actions: ['happy'] });
+    if (k.ready) await step(4, 'key-ready', { text: S.keyAlready([k.vendor ? vendorName(k.vendor, language) : '', k.model].filter(Boolean).join(' · ')), actions: ['happy'] });
     else {
-      const ask: Omit<PetDialog, 'input'> = { text: S.askVendor(vendorName(vendorsFor(language).shown[0]!, language)), actions: ['thinking'], step: [3, STEPS] };
-      const vendor = await connectLoop((d, line) => step(3, line, d), call, deps.pet, ask, S.keyLater, language);
+      const ask: Omit<PetDialog, 'input'> = { text: S.askVendor(vendorName(vendorsFor(language).shown[0]!, language)), actions: ['thinking'], step: [4, STEPS] };
+      const vendor = await connectLoop((d, line) => step(4, line, d), call, deps.pet, ask, S.keyLater, language);
       if (vendor) deps.track?.('model_connected', { via: 'guide', vendor: vendor.id });
-      else await step(3, 'key-later', { text: S.keySkipped, actions: ['sad'] });
+      else await step(4, 'key-later', { text: S.keySkipped, actions: ['sad'] });
     }
 
-    // 4 voice input
+    // 5 voice input
     let voice = deps.pet()?.voiceState() as VoiceState | undefined;
     if (voice?.enabled !== false && (voice?.engine === 'funasr' || voice?.engine === 'whisper') && voice.model && voice.model.phase !== 'ready') {
       const mb = Math.round(voice.model.bytes / 1048576);
-      const d = await step(4, 'voice-download', {
+      const d = await step(5, 'voice-download', {
         text: S.askModel(voice.engine === 'whisper' ? 'Whisper' : 'FunASR', mb), actions: ['thinking'],
         input: { kind: 'buttons', options: [{ label: S.download, primary: true }, { label: S.notNow }] },
       });
       if ('index' in d && d.index === 0) {
-        const bar = deps.pet()?.dialog({ text: S.downloading, step: [4, STEPS], input: { kind: 'progress', label: `${mb} MB` } });
+        const bar = deps.pet()?.dialog({ text: S.downloading, step: [5, STEPS], input: { kind: 'progress', label: `${mb} MB` } });
         void deps.pet()?.installVoice();
         for (;;) {
           await sleep(POLL_MS);
@@ -313,25 +328,25 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
         bar?.close();
         const ready = voice?.model?.phase === 'ready';
         deps.track?.('voice_model', { result: ready ? 'ready' : 'failed' });
-        if (ready) await step(4, 'voice-ready', { text: S.downloaded, actions: ['love', 'hop'] });
-        else await step(4, 'voice-failed', { text: S.downloadFail(voice?.model?.detail ?? '?'), actions: ['sad'] });
+        if (ready) await step(5, 'voice-ready', { text: S.downloaded, actions: ['love', 'hop'] });
+        else await step(5, 'voice-failed', { text: S.downloadFail(voice?.model?.detail ?? '?'), actions: ['sad'] });
       } else {
         deps.track?.('voice_model', { result: 'later' });
-        await step(4, 'voice-later', { text: S.modelLater });
+        await step(5, 'voice-later', { text: S.modelLater });
       }
     }
     // the World words the hint for the key and mode in force; the key cap acts out the taps and the hold
     const on = voice?.enabled !== false && !!voice?.input?.hint;
     const keyed = on && voice?.input?.effectiveMode !== 'always';
-    await step(4, 'talk', {
+    await step(5, 'talk', {
       text: `${on ? S.talk(voice!.input!.hint!) : S.talkOff}${S.talkType}`,
       input: { kind: 'buttons', keys: keyed ? voice?.input?.keyLabel : undefined, taps: voice?.input?.taps, options: [{ label: S.gotIt, primary: true }] },
     });
 
-    // 5 the buttons, the menu, and where settings live
-    await step(5, 'buttons', { text: S.buttons, actions: ['wink'], input: { kind: 'buttons', options: [{ label: S.ok, primary: true }] } });
-    await step(5, 'persona', { text: S.persona, marks: [S.personaMark], actions: ['happy'], input: { kind: 'buttons', options: [{ label: S.personaOk, primary: true }] } });
-    const end = await step(5, 'finish', { text: S.finish, actions: ['happy'], input: { kind: 'buttons', options: [{ label: S.go, primary: true }, { label: S.dress }] } });
+    // 6 the buttons, the menu, and where settings live
+    await step(6, 'buttons', { text: S.buttons, actions: ['wink'], input: { kind: 'buttons', options: [{ label: S.ok, primary: true }] } });
+    await step(6, 'persona', { text: S.persona, marks: [S.personaMark], actions: ['happy'], input: { kind: 'buttons', options: [{ label: S.personaOk, primary: true }] } });
+    const end = await step(6, 'finish', { text: S.finish, actions: ['happy'], input: { kind: 'buttons', options: [{ label: S.go, primary: true }, { label: S.dress }] } });
     markDone(deps.doneFile);
     deps.track?.('guide_finished', {});
     deps.onEnd?.({ finished: true, name, step: reached, transcript });

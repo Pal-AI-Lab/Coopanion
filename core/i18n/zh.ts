@@ -72,6 +72,14 @@ export default {
     },
     roamOk: '就这样',
     roamDone: '好,就按这个来。',
+    /** 回应模式这一步:名字(问句里标色)、问句、三张卡片的名字和下面一行小字 */
+    wakeTitle: '回应模式',
+    askWake: '回应模式:你戳我、摸我、把我拎起来的时候,我什么时候回应你?',
+    wake: {
+      none: { label: '安静', note: '互动先记着，和她说话时一起回应' },
+      poke: { label: '默认', note: '只有被戳的时候才回应' },
+      all: { label: '积极', note: '所有互动都会回应' },
+    },
 
     askVendor: (first: string) => `要和你聊天,我得先连上大模型。用哪一家的?拿不准就选 ${first}。`,
     vendorOk: '就用这家',

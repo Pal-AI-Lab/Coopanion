@@ -60,6 +60,13 @@ const it: Translation<CoreText> = {
     },
     roamOk: 'Così',
     roamDone: 'Va bene, farò così.',
+    wakeTitle: 'Modalità di risposta',
+    askWake: 'Modalità di risposta: quando mi punzecchi, mi accarezzi o mi sollevi, quando devo risponderti?',
+    wake: {
+      none: { label: 'Tranquillo', note: 'I tocchi vengono ricordati e riceve risposta quando gli parli' },
+      poke: { label: 'Predefinito', note: 'Risponde solo quando lo punzecchi' },
+      all: { label: 'Attivo', note: 'Risponde a tutti i tocchi' },
+    },
 
     askVendor: (first: string) => `Per chiacchierare con te devo collegarmi a un modello. Quale servizio uso? Nel dubbio, scegli ${first}.`,
     vendorOk: 'Usa questo',

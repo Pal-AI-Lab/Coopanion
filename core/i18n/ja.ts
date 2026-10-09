@@ -60,6 +60,13 @@ const ja: Translation<CoreText> = {
     },
     roamOk: 'これにする',
     roamDone: 'わかりました、こうしますね。',
+    wakeTitle: '反応モード',
+    askWake: '反応モード：つついたり、なでたり、持ち上げたりしたとき、いつ反応しましょうか？',
+    wake: {
+      none: { label: '静か', note: 'ふれあいは覚えておき、話しかけたときにまとめて反応します' },
+      poke: { label: '標準', note: 'つつかれたときだけ反応します' },
+      all: { label: '積極的', note: 'すべてのふれあいに反応します' },
+    },
 
     askVendor: (first: string) => `お話しするには、モデルにつなぐ必要があります。どのサービスを使いますか？迷ったら ${first} を選んでください。`,
     vendorOk: 'これを使う',

@@ -60,6 +60,13 @@ const ptBR: Translation<CoreText> = {
     },
     roamOk: 'Assim',
     roamDone: 'Certo, vou ser assim.',
+    wakeTitle: 'Modo de resposta',
+    askWake: 'Modo de resposta: quando você me cutuca, faz carinho ou me levanta, quando devo responder?',
+    wake: {
+      none: { label: 'Quieto', note: 'Os toques ficam guardados e ele responde a todos quando você falar com ele' },
+      poke: { label: 'Padrão', note: 'Só responde quando você cutuca' },
+      all: { label: 'Ativo', note: 'Responde a todos os toques' },
+    },
 
     askVendor: (first: string) => `Para conversar com você, preciso me conectar a um modelo. Qual serviço eu uso? Se estiver em dúvida, escolha ${first}.`,
     vendorOk: 'Usar este',

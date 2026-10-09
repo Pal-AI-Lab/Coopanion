@@ -75,6 +75,13 @@ const en: CoreText = {
     },
     roamOk: 'Like that',
     roamDone: 'OK, that\'s how I\'ll be.',
+    wakeTitle: 'Response mode',
+    askWake: 'Response mode: when you poke me, pat me or pick me up, when should I respond?',
+    wake: {
+      none: { label: 'Quiet', note: 'Touches wait and are answered when you next talk to Coo' },
+      poke: { label: 'Default', note: 'Responds only when poked' },
+      all: { label: 'Eager', note: 'Responds to every touch' },
+    },
 
     askVendor: (first: string) => `To chat with you I need to connect to a model. Which service should I use? If you're not sure, pick ${first}.`,
     vendorOk: 'Use this one',

@@ -60,6 +60,13 @@ const fr: Translation<CoreText> = {
     },
     roamOk: 'Comme ça',
     roamDone: "D'accord, je ferai comme ça.",
+    wakeTitle: 'Mode de réponse',
+    askWake: 'Mode de réponse : quand vous me donnez un petit coup, me caressez ou me soulevez, quand dois-je répondre ?',
+    wake: {
+      none: { label: 'Calme', note: 'Les contacts attendent et reçoivent une réponse quand vous lui parlez' },
+      poke: { label: 'Par défaut', note: 'Ne répond que quand on lui donne un petit coup' },
+      all: { label: 'Réactif', note: 'Répond à tous les contacts' },
+    },
 
     askVendor: (first: string) => `Pour discuter avec vous, je dois me connecter à un modèle. Quel service dois-je utiliser ? Dans le doute, choisissez ${first}.`,
     vendorOk: 'Utiliser celui-ci',
