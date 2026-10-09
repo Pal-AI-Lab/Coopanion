@@ -34,6 +34,8 @@ export interface Vendor {
    * `reasoning` out, for a service that documents no effort.
    */
   effort?: Partial<Record<Effort, string | null>>;
+  /** The service streams reasoning in events the standard parser rejects; see `LenientReasoningAssembly`. */
+  lenientReasoning?: true;
 }
 
 export const VENDORS: readonly Vendor[] = [
@@ -50,6 +52,7 @@ export const VENDORS: readonly Vendor[] = [
     secret: 'QWEN_API_KEY', model: 'qwen3.8-flash', models: ['qwen3.7-flash', 'qwen3.8-max'],
     vision: ['qwen3.8-flash', 'qwen3.7-flash'], contextWindows: { 'qwen3.8-flash': 1_000_000 },
     effort: { high: 'medium', max: 'xhigh' },
+    lenientReasoning: true,
   },
   {
     // the Responses endpoint serves kimi-k3 only, which takes low / high / max
@@ -96,6 +99,7 @@ export const VENDORS: readonly Vendor[] = [
     secret: 'STEPFUN_API_KEY', model: 'step-3.7-flash', models: ['step-5-preview'],
     vision: ['step-3.7-flash', 'step-5-preview'],
     effort: { none: 'low', max: 'high' },
+    lenientReasoning: true,
   },
   {
     id: 'openrouter', name: 'OpenRouter', nameEn: 'OpenRouter',
