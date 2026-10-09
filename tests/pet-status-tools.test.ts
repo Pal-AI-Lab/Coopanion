@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { describePetTool } from '../core/pet-status.ts';
+import { petToolDescriber } from '../core/pet-status.ts';
 
-describe('describePetTool', () => {
+const describePetTool = petToolDescriber(() => 'zh');
+
+describe('the status bubble for each tool', () => {
   it.each([
     ['read_file', { path: 'notes/today.md' }, { kind: 'read', text: '在看', detail: 'today.md' }],
     ['list_files', {}, { kind: 'browse', text: '在翻', detail: '记忆' }],
@@ -20,7 +22,7 @@ describe('describePetTool', () => {
     ['cua_click', { button: 'right' }, { kind: 'click', text: '在右键' }],
     ['cua_move', { x: 123, y: 456 }, { kind: 'click', text: '在挪鼠标' }],
     ['cua_drag', { from: [1, 2], to: [3, 4] }, { kind: 'click', text: '在拖' }],
-    ['cua_scroll', { x: 123, y: 456, down: 3 }, { kind: 'click', text: '在滚动' }],
+    ['cua_scroll', { x: 123, y: 456, down: 3 }, { kind: 'scroll', text: '在滚动' }],
     ['cua_focus', { window: 'private' }, { kind: 'click', text: '在切窗口' }],
     ['cua_type', { text: 'private' }, { kind: 'type', text: '在打字' }],
     ['cua_key', { keys: 'ctrl+s' }, { kind: 'type', text: '在按', detail: 'ctrl+s' }],

@@ -1,62 +1,74 @@
 /**
  * What the pet's status bubble says for the tools this app's bot has: the Persona's memory tools, cua, the alarms
- * (alarms.ts) and the terminal. Only the arguments named here reach the page; typed text, notes, window titles and
- * coordinates never do. Wording that depends on an argument waits for the call to be written out, so the bubble does
- * not say something the call turns out not to do.
+ * (alarms.ts) and the terminal, in the app language (`core/i18n`). Only the arguments named here reach the page;
+ * typed text, notes, window titles and coordinates never do. Wording that depends on an argument waits for the call
+ * to be written out, so the bubble does not say something the call turns out not to do. A detail (a file name, a
+ * pattern) is cut to 20 characters as seen for Chinese, Japanese and Korean, twice that for other languages.
  */
-import { numberArg, stringArg, type DescribeTool, type PetStatus, type ToolArgs } from 'cortico-world-desktop-pet';
+import { capFor, charCount, cutChars, numberArg, stringArg, type DescribeTool, type PetStatus, type ToolArgs } from 'cortico-world-desktop-pet';
+import { coreText, type CoreText } from './i18n/index.ts';
+import type { AppLanguage } from './language.ts';
+
+/** The longest detail, for Chinese, Japanese and Korean. */
+const DETAIL_MAX = 20;
 
 const leaf = (path: string | undefined) => path?.replace(/[\\/]+$/, '').split(/[\\/]/).pop();
-const shorten = (text: string) => { const chars = [...text]; return chars.length > 20 ? chars.slice(0, 20).join('') + '…' : text; };
-const show = (kind: PetStatus['kind'], text: string, detail?: string): PetStatus => ({ kind, text, ...(detail ? { detail: shorten(detail) } : {}) });
 
 /** Which click, once the arguments say so; a plain click only once they are complete. */
-function clickText(args: ToolArgs, done: boolean): string | null {
-  if (stringArg(args, 'button') === 'right') return '在右键';
-  if (numberArg(args, 'clicks') === 2) return '在双击';
-  return done ? '在点' : null;
+function clickText(s: CoreText['status'], args: ToolArgs, done: boolean): string | null {
+  if (stringArg(args, 'button') === 'right') return s.rightClick;
+  if (numberArg(args, 'clicks') === 2) return s.doubleClick;
+  return done ? s.click : null;
 }
 
-export const describePetTool: DescribeTool = (name, args, done) => {
-  switch (name) {
-    case 'read_file': return show('read', '在看', leaf(stringArg(args, 'path')));
-    case 'list_files': {
-      const dir = leaf(stringArg(args, 'dir'));
-      return show('browse', '在翻', dir ? `${dir}/` : done ? '记忆' : undefined);
+/** The status bubble's words for a tool call, in `language()` at the time of the call. */
+export function petToolDescriber(language: () => AppLanguage): DescribeTool {
+  return (name, args, done) => {
+    const app = language();
+    const s = coreText(app).status;
+    const max = capFor(DETAIL_MAX, app);
+    const shorten = (text: string) => (charCount(text) > max ? cutChars(text, max) + '…' : text);
+    const show = (kind: PetStatus['kind'], text: string, detail?: string): PetStatus => ({ kind, text, ...(detail ? { detail: shorten(detail) } : {}) });
+    switch (name) {
+      case 'read_file': return show('read', s.read, leaf(stringArg(args, 'path')));
+      case 'list_files': {
+        const dir = leaf(stringArg(args, 'dir'));
+        return show('browse', s.browse, dir ? `${dir}/` : done ? s.memory : undefined);
+      }
+      case 'glob_files': return show('browse', s.find, stringArg(args, 'glob_pattern'));
+      case 'grep_files': {
+        const pattern = stringArg(args, 'pattern');
+        return show('search', s.search, pattern ? s.quoted(pattern) : undefined);
+      }
+      case 'write_file': return show('write', s.write, leaf(stringArg(args, 'path')));
+      case 'edit_file': return show('write', s.edit, leaf(stringArg(args, 'path')));
+      case 'append_file': return show('write', s.append, leaf(stringArg(args, 'path')));
+      case 'delete_file': return show('delete', s.delete, leaf(stringArg(args, 'path')));
+      case 'save_blob': return show('save', s.save, leaf(stringArg(args, 'path')));
+      case 'cua_screenshot': return show('look', s.screen);
+      case 'cua_windows': return show('look', s.windows);
+      case 'cua_click': {
+        const text = clickText(s, args, done);
+        return text ? show('click', text) : null;
+      }
+      case 'cua_move': return show('click', s.move);
+      case 'cua_drag': return show('click', s.drag);
+      case 'cua_scroll': return show('scroll', s.scroll);
+      case 'cua_focus': return show('click', s.focus);
+      case 'cua_type': return show('type', s.type);
+      case 'cua_key': return show('type', s.key, stringArg(args, 'keys'));
+      case 'cua_wait': {
+        const seconds = numberArg(args, 'seconds');
+        return show('wait', s.wait, seconds === undefined ? undefined : s.seconds(seconds));
+      }
+      case 'alarm_set': {
+        const minutes = numberArg(args, 'in_minutes');
+        return show('alarm', s.alarmSet, stringArg(args, 'at') || (minutes === undefined ? undefined : s.minutesLater(minutes)));
+      }
+      case 'alarm_list': return show('alarm', s.alarmList);
+      case 'alarm_cancel': return show('alarm', s.alarmCancel);
+      case 'terminal_send': case 'end_turn': return null;
+      default: return undefined;
     }
-    case 'glob_files': return show('browse', '在找', stringArg(args, 'glob_pattern'));
-    case 'grep_files': {
-      const pattern = stringArg(args, 'pattern');
-      return show('search', '在搜', pattern ? `「${pattern}」` : undefined);
-    }
-    case 'write_file': return show('write', '在写', leaf(stringArg(args, 'path')));
-    case 'edit_file': return show('write', '在改', leaf(stringArg(args, 'path')));
-    case 'append_file': return show('write', '在补记', leaf(stringArg(args, 'path')));
-    case 'delete_file': return show('delete', '在删', leaf(stringArg(args, 'path')));
-    case 'save_blob': return show('save', '在存', leaf(stringArg(args, 'path')));
-    case 'cua_screenshot': return show('look', '在看屏幕');
-    case 'cua_windows': return show('look', '在看开着的窗口');
-    case 'cua_click': {
-      const text = clickText(args, done);
-      return text ? show('click', text) : null;
-    }
-    case 'cua_move': return show('click', '在挪鼠标');
-    case 'cua_drag': return show('click', '在拖');
-    case 'cua_scroll': return show('click', '在滚动');
-    case 'cua_focus': return show('click', '在切窗口');
-    case 'cua_type': return show('type', '在打字');
-    case 'cua_key': return show('type', '在按', stringArg(args, 'keys'));
-    case 'cua_wait': {
-      const seconds = numberArg(args, 'seconds');
-      return show('wait', '等', seconds === undefined ? undefined : `${seconds} 秒`);
-    }
-    case 'alarm_set': {
-      const minutes = numberArg(args, 'in_minutes');
-      return show('alarm', '在定闹钟', stringArg(args, 'at') || (minutes === undefined ? undefined : `${minutes} 分钟后`));
-    }
-    case 'alarm_list': return show('alarm', '在看闹钟');
-    case 'alarm_cancel': return show('alarm', '在取消闹钟');
-    case 'terminal_send': case 'end_turn': return null;
-    default: return undefined;
-  }
-};
+  };
+}

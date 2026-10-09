@@ -25,7 +25,6 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import type { ToolDef, World, WorldHost } from 'cortico/core/types.ts';
 import type { WorldDefinition, WorldSection } from 'cortico/world.ts';
 import { Alarms } from './alarms.ts';
@@ -96,22 +95,23 @@ export function releaseNotes(dir: string, from: string | null, to: string, langu
 }
 
 interface Labels {
-  /** id → name of Coo's palettes and its accessories (all slots). */
+  /** id → Chinese name of Coo's palettes and its accessories (all slots). */
   palettes: Record<string, string>;
   accessories: Record<string, string>;
 }
 
-/** Names as the dressing page shows them, from the pet package; ids stand in for any that fail to load. */
+/** Names as the dressing page shows them in Chinese, from Coo's manifest in the pet package; ids stand in for any that fail to load. */
 async function loadLabels(): Promise<Labels> {
   const labels: Labels = { palettes: {}, accessories: {} };
   const require = createRequire(import.meta.url);
   try {
-    const core = await import(pathToFileURL(require.resolve('cortico-world-desktop-pet/web/coo/coo.js')).href) as {
-      PALETTES: Array<{ id: string; label: string }>;
-      SLOT_LISTS: Record<string, Array<[string, string]>>;
+    const manifest = JSON.parse(readFileSync(require.resolve('cortico-world-desktop-pet/web/coo/figure.json'), 'utf8')) as {
+      axes: Array<{ id: string; options: Array<{ id: string; name: Record<string, string> }> }>;
     };
-    for (const p of core.PALETTES) labels.palettes[p.id] = p.label;
-    for (const list of Object.values(core.SLOT_LISTS)) for (const [id, label] of list) labels.accessories[id] = label;
+    for (const axis of manifest.axes) {
+      const into = axis.id === 'palette' ? labels.palettes : labels.accessories;
+      for (const o of axis.options) into[o.id] = o.name.zh ?? o.id;
+    }
   } catch { /* ids */ }
   return labels;
 }
@@ -200,7 +200,7 @@ const zh = {
 const en: typeof zh = {
   settings: {
     user: { name: 'what you call the person' },
-    // the dressing page's names are Chinese only: English says the ids
+    // English says the ids, which pet_set takes
     palette: { name: 'Coo\'s colours' },
     head: { name: 'Coo\'s headwear' },
     side: { name: 'Coo\'s ear accessory' },

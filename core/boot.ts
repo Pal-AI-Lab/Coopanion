@@ -13,7 +13,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const APP = fileURLToPath(new URL('../', import.meta.url));
 const CORTICO = process.env.CORTICO_COMPANION_ROOT ?? join(APP, 'build', 'cortico');
 if (!existsSync(join(CORTICO, 'src', 'core'))) {
-  console.error(`没有找到 Cortico:${CORTICO}(开发时先运行 pnpm run build:cortico)`);
+  // a source checkout before staging; the message goes to the Core's log, read by whoever runs it from source
+  console.error(`Cortico not found: ${CORTICO} (from source, run pnpm run build:cortico first)`);
   process.exit(2);
 }
 process.env.CORTICO_HOME ??= join(APP, 'build', 'home');
