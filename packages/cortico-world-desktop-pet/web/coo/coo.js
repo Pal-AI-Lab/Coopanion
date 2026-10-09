@@ -45,35 +45,36 @@ function eyePath(e, cx, cy) {
 
 /* ---------- accessories ----------
    Solid shapes first; lines only where a piece is a line (band, stalk, frame), never thinner than 10.
-   Every part is painted through a color channel: c-<slot>-main / c-<slot>-acc. */
+   Every part is painted through a color channel: c-<slot>-main / c-<slot>-acc. The names people see
+   are in figure.json (palettes and accessories) and the pages' tables (`color.<id>`). */
 export const PALETTES = [
-  { id: 'mint',      label: '薄荷绿', l: ['#1B1626', '#00A870'], d: ['#FFFFFF', '#2FD59B'] },
-  { id: 'mono',      label: '单色',   l: ['#1B1626', '#1B1626'], d: ['#FFFFFF', '#FFFFFF'] },
-  { id: 'navigator', label: '领航员', l: ['#14213A', '#1F6FE0'], d: ['#FFFFFF', '#5EA3FF'] },
-  { id: 'claude',    label: '克劳德', l: ['#2A1C16', '#C9623F'], d: ['#FFFFFF', '#E58B69'] },
-  { id: 'fox',       label: '红狐狸', l: ['#26140F', '#DD3526'], d: ['#FFFFFF', '#FF6655'] },
-  { id: 'purple',    label: '虚式茈', l: ['#1D1430', '#8B3DF0'], d: ['#FFFFFF', '#B98AFF'] },
-  { id: 'lemon',     label: '柠檬黄', l: ['#252010', '#D9B300'], d: ['#FFFFFF', '#FFE14F'] },
+  { id: 'mint',      l: ['#1B1626', '#00A870'], d: ['#FFFFFF', '#2FD59B'] },
+  { id: 'mono',      l: ['#1B1626', '#1B1626'], d: ['#FFFFFF', '#FFFFFF'] },
+  { id: 'navigator', l: ['#14213A', '#1F6FE0'], d: ['#FFFFFF', '#5EA3FF'] },
+  { id: 'claude',    l: ['#2A1C16', '#C9623F'], d: ['#FFFFFF', '#E58B69'] },
+  { id: 'fox',       l: ['#26140F', '#DD3526'], d: ['#FFFFFF', '#FF6655'] },
+  { id: 'purple',    l: ['#1D1430', '#8B3DF0'], d: ['#FFFFFF', '#B98AFF'] },
+  { id: 'lemon',     l: ['#252010', '#D9B300'], d: ['#FFFFFF', '#FFE14F'] },
 ];
-export const HEADS = [['none', '无'], ['cat', '猫耳'], ['bear', '熊耳'], ['bunny', '兔耳'], ['antenna', '天线'], ['halo', '光环'], ['tophat', '礼帽'], ['party', '派对帽'], ['sailor', '水手帽']];
-export const SIDES = [['none', '无'], ['headphones', '耳机'], ['feather', '耳羽'], ['earring', '耳环'], ['clip', '发夹'], ['bow', '蝴蝶结']];
-export const GLASSES = [['none', '无'], ['round', '圆框'], ['square', '方框'], ['monocle', '单片镜']];
-export const NECKS = [['none', '无'], ['bowtie', '领结'], ['bell', '铃铛'], ['scarf', '围巾']];
+export const HEADS = ['none', 'cat', 'bear', 'bunny', 'antenna', 'halo', 'tophat', 'party', 'sailor'];
+export const SIDES = ['none', 'headphones', 'feather', 'earring', 'clip', 'bow'];
+export const GLASSES = ['none', 'round', 'square', 'monocle'];
+export const NECKS = ['none', 'bowtie', 'bell', 'scarf'];
 export const HEAD_TOP = { none: 12, cat: -14, bear: -4, bunny: -34, antenna: -34, halo: -8, tophat: -28, party: -34, sailor: -20 };
 
 /* color mapping: channel -> source. 'body' / 'eye' follow the palette; the rest are fixed accessory colors with a dark twin */
 export const ACC_COLORS = [
-  { id: 'mint',      label: '薄荷绿', l: '#00A870', d: '#2FD59B' },
-  { id: 'leaf',      label: '叶绿',   l: '#3C9A2C', d: '#80D46B' },
-  { id: 'lemon',     label: '柠檬黄', l: '#D9B300', d: '#FFE14F' },
-  { id: 'fox',       label: '红狐狸', l: '#DD3526', d: '#FF6655' },
-  { id: 'claude',    label: '克劳德', l: '#C9623F', d: '#E58B69' },
-  { id: 'rose',      label: '樱粉',   l: '#DB3F76', d: '#FF85AE' },
-  { id: 'purple',    label: '虚式茈', l: '#8B3DF0', d: '#B98AFF' },
-  { id: 'navigator', label: '领航员', l: '#1F6FE0', d: '#5EA3FF' },
-  { id: 'holo',      label: '全息蓝', l: '#1AA3D9', d: '#6FD3FF' },
+  { id: 'mint',      l: '#00A870', d: '#2FD59B' },
+  { id: 'leaf',      l: '#3C9A2C', d: '#80D46B' },
+  { id: 'lemon',     l: '#D9B300', d: '#FFE14F' },
+  { id: 'fox',       l: '#DD3526', d: '#FF6655' },
+  { id: 'claude',    l: '#C9623F', d: '#E58B69' },
+  { id: 'rose',      l: '#DB3F76', d: '#FF85AE' },
+  { id: 'purple',    l: '#8B3DF0', d: '#B98AFF' },
+  { id: 'navigator', l: '#1F6FE0', d: '#5EA3FF' },
+  { id: 'holo',      l: '#1AA3D9', d: '#6FD3FF' },
 ];
-export const LINKED = [{ id: 'body', label: '跟随身体' }, { id: 'eye', label: '跟随眼睛' }];
+export const LINKED = [{ id: 'body' }, { id: 'eye' }];
 export const SLOTS = ['head', 'side', 'glasses', 'neck'];
 export const SLOT_LISTS = { head: HEADS, side: SIDES, glasses: GLASSES, neck: NECKS };
 export const CHANNEL_DEFAULT = { head: { main: 'body', acc: 'eye' }, side: { main: 'eye', acc: 'eye' }, glasses: { main: 'body', acc: 'eye' }, neck: { main: 'eye', acc: 'eye' } };
@@ -278,7 +279,7 @@ export function normalizeSkin(raw) {
   // a pack with no picks has the empty one; the World checks a scheme against the pack's manifest
   if (typeof raw.scheme === 'string' && /^[a-z0-9-]*$/.test(raw.scheme)) skin.scheme = raw.scheme;
   if (PALETTES.some(p => p.id === raw.palette)) skin.palette = raw.palette;
-  for (const slot of SLOTS) if (SLOT_LISTS[slot].some(h => h[0] === raw[slot])) skin[slot] = raw[slot];
+  for (const slot of SLOTS) if (SLOT_LISTS[slot].includes(raw[slot])) skin[slot] = raw[slot];
   for (const slot of SLOTS) for (const ch of ['main', 'acc']) {
     const v = raw.colors?.[slot]?.[ch];
     if (validColor(slot, v)) skin.colors[slot][ch] = v;

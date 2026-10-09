@@ -23,12 +23,14 @@
  * - events (`emit`): `arrived` and `interrupted` ({ walkId, x, by }) for `walk`, `done` ({ word }) for a word
  *   that ends on its own, `touch` ({ kind: poke | pet | grab | drop | throw | crash, ... }), `mode` ({ mode }).
  *
- * Messages in: `init { entry, export, base, model, scheme, start, theme, bounds }`, then `tick { dt }`
+ * Messages in: `init { entry, export, base, model, scheme, start, theme, bounds, language }` (the app language,
+ * for the frame's own error messages), then `tick { dt }`
  * once a frame and the calls above by name. Out: `loaded`, `ready { z, words }`, `frame { layout, events: [{ kind,
  * detail }], sounds: [{ name, kind, args }], z }` after each tick, `scheme { seq, z }`, and `error { message }`
  * once, after which it stops.
  */
 import * as kit from './kit/body.js';
+import { t, useLanguage } from './i18n.js';
 
 const root = document.getElementById('root');
 let body = null, dead = false, bounds = { W: 0, H: 0, floorY: 0, S: .42 };
@@ -47,7 +49,7 @@ function loadImage(url) {
     const im = new Image();
     im.crossOrigin = 'anonymous';
     im.onload = () => ok(im);
-    im.onerror = () => bad(new Error(`图片没加载出来:${url}`));
+    im.onerror = () => bad(new Error(t('figure.imageFailed', { url })));
     im.src = String(url);
   });
 }
@@ -66,12 +68,13 @@ addEventListener('message', async (e) => {
     if (m.t === 'init') {
       bounds = m.bounds;
       document.documentElement.dataset.theme = m.theme;
+      if (typeof m.language === 'string') await useLanguage(m.language);
       const mod = await import(m.entry);
       const make = mod[m.export];
-      if (typeof make !== 'function') throw new Error(`${m.export} 不是函数`);
+      if (typeof make !== 'function') throw new Error(t('figure.notFunction', { name: m.export }));
       const base = new URL(m.base);
       body = await make(base, { model: m.model ?? undefined, scheme: m.scheme, kit, loadImage, asset: (p) => new URL(p, base), host: { ...host, start: m.start } });
-      for (const fn of ['step', 'layout', 'do']) if (typeof body?.[fn] !== 'function') throw new Error(`形象没有 ${fn}`);
+      for (const fn of ['step', 'layout', 'do']) if (typeof body?.[fn] !== 'function') throw new Error(t('figure.missingMethod', { name: fn }));
       post({ t: 'ready', z: body.z ?? null, words: Array.isArray(body.words) ? body.words.filter((w) => typeof w === 'string') : null });
     } else if (!body) {
       // calls that come before the body is ready have nothing to act on

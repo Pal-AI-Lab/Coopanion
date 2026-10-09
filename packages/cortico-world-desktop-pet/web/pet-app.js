@@ -7,9 +7,11 @@
  *
  * In the pet window (`window.petHost` from the preload) the page is transparent and the
  * window ignores the mouse except over the figure, a bubble, the menu or the hover buttons.
- * Colors follow the World's `theme` through `data-theme` on the root element.
+ * Colors follow the World's `theme` through `data-theme` on the root element, and text the app
+ * language (i18n.js): the one stamped on the page, then the one the World's prefs carry.
  */
 import { applyTheme, clamp, f, ICONS } from './ui.js';
+import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { COO_CSS, mini, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
@@ -27,7 +29,7 @@ cooStyle.textContent = COO_CSS;
 document.head.append(cooStyle, skinStyle);
 
 const prefs = {
-  roam: 'calm', sound: true, theme: document.documentElement.dataset.theme, scale: 1, user: '伙伴', mic: false, micDevice: '', bot: null,
+  roam: 'calm', sound: true, theme: document.documentElement.dataset.theme, scale: 1, user: '', mic: false, micDevice: '', bot: null,
   /** Voice input: switched on, recognizer ready, why not, how to talk, and the mode in force. */
   voice: { enabled: false, ready: false, detail: null, hint: '', mode: 'hold' },
   /** The actions shown as buttons beside the pet on hover. */
@@ -82,7 +84,8 @@ function connect() {
     backoff = Math.min(8000, backoff * 2);
   };
 }
-connect();
+// the text is in before anything is shown
+void useLanguage().then(() => { document.title = t('pet.title'); host?.setLanguage?.(language()); connect(); });
 
 /*
  * ---------- the body: a figure pack (src/packs.ts; Coo is one) run in a sandboxed frame ----------
@@ -122,7 +125,7 @@ async function showFigure(s) {
 }
 async function swapBody(s) {
   const pack = (await (await fetch('/api/figures')).json()).find((p) => p.id === s.figure);
-  if (!pack) throw new Error('没有装这个形象');
+  if (!pack) throw new Error(t('figure.notInstalled'));
   const was = at();
   const x = was?.x ?? firstX ?? innerWidth * .7;
   const holder = {};
@@ -193,7 +196,17 @@ function applyPrefs(p) {
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
   if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead(); }
+  if (typeof p.language === 'string' && p.language !== language()) void switchLanguage(p.language);
   if ('status' in p) setStatus(p.status);
+  refreshButtons();
+}
+
+/** A new app language: what is drawn from the page's own text is drawn again; bubbles already up keep theirs. */
+async function switchLanguage(code) {
+  await useLanguage(code);
+  document.title = t('pet.title');
+  host?.setLanguage?.(code);
+  if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead();
   refreshButtons();
 }
 
@@ -268,7 +281,8 @@ function stepActs() {
 /* ---------- say / ask ---------- */
 const queue = [];
 let item = null;
-const PAUSE = /[,。!?…、,.!?]/, SILENT = /[\s,。!?…、,.!?「」:()]/;
+/** Where typing pauses: sentence and clause marks, Latin and full-width (Chinese and Japanese share 。、). */
+const PAUSE = /[,.!?;:…，。！？；：、]/, SILENT = /[\s,.!?;:…，。！？；：、「」『』()（）]/;
 
 /** A newer question replaces the bot's open one; a World's confirmation stays until answered. */
 function dropAsks() {
@@ -311,7 +325,7 @@ function startItem(it) {
   item = it;
   if (it.kind === 'dialog') { openDialog(it); return; }
   if (it.kind === 'ask') {
-    openBubble('ask', '<button class="b-close" type="button" aria-label="关闭">×</button><p class="b-text"></p><div class="b-opts" hidden></div>');
+    openBubble('ask', `<button class="b-close" type="button" aria-label="${esc(t('bubble.close'))}">×</button><p class="b-text"></p><div class="b-opts" hidden></div>`);
     bubble.querySelector('.b-close').addEventListener('click', () => dismissAsk());
     it.text = it.question; it.shown = 0; it.acc = 0; it.optsShown = false;
     sfx.pop();
@@ -397,7 +411,7 @@ function showOptions(it) {
   if (it.own) {
     const form = document.createElement('form');
     form.className = 'b-own';
-    form.innerHTML = '<input type="text" maxlength="200" autocomplete="off" placeholder="自己说点什么…" aria-label="自己写回答"><button type="submit">发送</button>';
+    form.innerHTML = `<input type="text" maxlength="200" autocomplete="off" placeholder="${esc(t('bubble.ownPlaceholder'))}" aria-label="${esc(t('bubble.ownLabel'))}"><button type="submit">${esc(t('bubble.send'))}</button>`;
     form.style.animationDelay = (it.options.length * .07) + 's';
     form.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -452,7 +466,7 @@ function dropDialogs() {
 function openDialog(it) {
   const d = it.d;
   const dots = Array.isArray(d.step) ? Array.from({ length: d.step[1] }, (_, i) => `<i class="${i + 1 < d.step[0] ? 'past' : i + 1 === d.step[0] ? 'on' : ''}"></i>`).join('') : '';
-  openBubble('talk', `${dots || d.closable ? `<div class="d-top"><span class="d-dots">${dots}</span>${d.closable ? '<button class="b-close" type="button" aria-label="跳过" title="跳过">×</button>' : ''}</div>` : ''}<p class="b-text"></p><div class="d-body" hidden></div>`);
+  openBubble('talk', `${dots || d.closable ? `<div class="d-top"><span class="d-dots">${dots}</span>${d.closable ? `<button class="b-close" type="button" aria-label="${esc(t('bubble.skip'))}" title="${esc(t('bubble.skip'))}">×</button>` : ''}</div>` : ''}<p class="b-text"></p><div class="d-body" hidden></div>`);
   bubble.querySelector('.b-close')?.addEventListener('click', () => settleDialog(it, { closed: true }));
   for (const a of d.actions || []) acts.push(a);
   it.text = d.text || ''; it.shown = 0; it.acc = 0; it.bodyShown = false; it.readUntil = 0;
@@ -510,7 +524,7 @@ function showDialogInput(it) {
     pick(typeof input.value === 'number' ? input.value : 0, false);
   } else if (input.kind === 'text') {
     const form = Object.assign(document.createElement('form'), { className: 'd-field' });
-    form.innerHTML = `<input type="${input.secret ? 'password' : 'text'}" autocomplete="off" spellcheck="false" maxlength="${Number(input.maxLength) || 200}">${input.secret ? `<button class="d-peek" type="button" aria-label="显示" title="显示">${ICONS.eye}</button>` : ''}<button class="d-send" type="submit"></button>`;
+    form.innerHTML = `<input type="${input.secret ? 'password' : 'text'}" autocomplete="off" spellcheck="false" maxlength="${Number(input.maxLength) || 200}">${input.secret ? `<button class="d-peek" type="button" aria-label="${esc(t('bubble.peek'))}" title="${esc(t('bubble.peek'))}">${ICONS.eye}</button>` : ''}<button class="d-send" type="submit"></button>`;
     const field = form.querySelector('input');
     field.placeholder = input.placeholder || '';
     field.value = input.value || '';
@@ -635,9 +649,9 @@ function openInput() {
   if (item) closeBubble();
   item = { kind: 'input' };
   const expand = prefs.bot?.buttons?.chat
-    ? '<button class="b-expand" type="button" aria-label="在对话页继续写" title="在对话页继续写"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg></button>'
+    ? `<button class="b-expand" type="button" aria-label="${esc(t('bubble.expand'))}" title="${esc(t('bubble.expand'))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg></button>`
     : '';
-  openBubble('ask', `<button class="b-close" type="button" aria-label="关闭">×</button><form class="b-own"><input type="text" maxlength="500" autocomplete="off" placeholder="想说什么…" aria-label="打字说话">${expand}<button type="submit">发送</button></form>`);
+  openBubble('ask', `<button class="b-close" type="button" aria-label="${esc(t('bubble.close'))}">×</button><form class="b-own"><input type="text" maxlength="500" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}">${expand}<button type="submit">${esc(t('bubble.send'))}</button></form>`);
   const form = bubble.querySelector('form'), input = form.querySelector('input');
   bubble.querySelector('.b-close').addEventListener('click', () => closeBubble());
   // the chat page takes longer text and images; the draft goes with it
@@ -683,7 +697,7 @@ function onListen(m) {
   } else if (m.phase === 'heard') {
     listen.text = m.text || ''; listen.interim = '';
     listen.phase = 'done';
-    showHeard(listen.text, false, '听到了');
+    showHeard(listen.text, false, t('heard.done'));
     sfx.listenEnd();
     setBody({ listening: false });
     body?.cue('heard');
@@ -702,7 +716,7 @@ function showHeard(text, live, hint, interim = '') {
   heardEl.querySelector('.fin').textContent = text;
   // a space only before Latin text that follows Latin text or ASCII punctuation; Chinese sentences run on
   heardEl.querySelector('.interim').textContent = text && interim && /[A-Za-z0-9.,!?;:]$/.test(text) && /^[A-Za-z0-9]/.test(interim) ? ' ' + interim : interim;
-  heardEl.querySelector('.b-hint').textContent = hint || (text || interim ? '还在听…' : '正在听…');
+  heardEl.querySelector('.b-hint').textContent = hint || t(text || interim ? 'heard.more' : 'heard.listening');
 }
 function stepListen() {
   if (listen.phase === 'done' && T > listen.closeAt) {
@@ -721,16 +735,16 @@ function setStatus(next) {
   status.wanted = next;
 }
 function drawStatus(next, pop) {
-  const icon = next.kind === 'click' && next.text === '在滚动' ? 'scroll' : next.kind;
+  const icon = next.kind;
   if (!bubble.classList.contains('status') || bubble.dataset.icon !== icon) {
     bubble.className = 'bubble status';
     bubble.dataset.icon = icon;
     bubble.innerHTML = `<span class="status-icon">${ICONS[`status_${icon}`] || ICONS.status_work}</span><span class="status-text"></span>`;
   }
   bubble.dataset.kind = next.kind;
-  const label = next.text + (next.detail ? ` · ${next.detail}` : '') + (next.count > 1 ? ` 等 ${next.count} 个` : '');
+  const label = next.text + (next.detail ? ` · ${next.detail}` : '') + (next.count > 1 ? t('status.more', { n: next.count, others: next.count - 1 }) : '');
   bubble.querySelector('.status-text').textContent = label;
-  bubble.setAttribute('aria-label', next.kind === 'think' ? '在想' : label);
+  bubble.setAttribute('aria-label', next.kind === 'think' ? t('status.thinking') : label);
   bubble.classList.remove('fading');
   bubble.hidden = false;
   if (pop) { bubble.classList.remove('pop'); void bubble.offsetWidth; bubble.classList.add('pop'); }
@@ -807,8 +821,8 @@ function stopMic() {
 
 /* ---------- actions: the menu's lower zone and the hover buttons draw from one list ---------- */
 const ROAM_ORDER = ['off', 'calm', 'free'];
-const ROAM = { off: '不乱动', calm: '多待着', free: '常走动' };
-const ROAM_LEVEL = { off: '低', calm: '中', free: '高' };
+const roamName = (id) => (ROAM_ORDER.includes(id) ? t(`roam.${id}`) : '');
+const roamLevel = (id) => (ROAM_ORDER.includes(id) ? t(`roam.level.${id}`) : '');
 /** The voice button's badge: `auto` when listening all the time, else the talk key (`Alt×2`). */
 const micBadge = () => (prefs.voice.mode === 'always' ? 'auto' : prefs.voice.key || 'key');
 /** Most hover buttons shown beside the pet. */
@@ -823,7 +837,7 @@ const MAX_HOVER = 6;
 const ACTIONS = {
   chat: {
     icon: () => ICONS.chat,
-    state: () => (prefs.doubleClickChat ? '打字和我说话(也可以双击我)' : '打字和我说话'),
+    state: () => t(prefs.doubleClickChat ? 'action.chatDoubleClick' : 'action.chat'),
     run: () => openInput(),
   },
   voice: {
@@ -831,9 +845,9 @@ const ACTIONS = {
     icon: () => (prefs.voice.enabled ? ICONS.mic : ICONS.micOff),
     badge: () => (prefs.voice.enabled ? micBadge() : ''),
     on: () => prefs.voice.enabled,
-    state: () => (!prefs.voice.enabled ? '语音输入:关 · 点一下打开'
-      : !prefs.voice.ready ? `语音输入:开,但${prefs.voice.detail || '识别服务没有就绪'} · 点一下关掉`
-      : `语音输入:开(${prefs.voice.mode === 'always' ? '自动收音' : '按键收音'})· ${prefs.voice.hint || ''}`),
+    state: () => (!prefs.voice.enabled ? t('action.voiceOff')
+      : !prefs.voice.ready ? t('action.voiceNotReady', { detail: prefs.voice.detail || t('action.voiceNoService') })
+      : t('action.voiceOn', { mode: t(prefs.voice.mode === 'always' ? 'action.voiceAlways' : 'action.voiceKey'), hint: prefs.voice.hint || '' })),
     run: () => toggleVoice(),
   },
   roam: {
@@ -841,7 +855,7 @@ const ACTIONS = {
     icon: () => ICONS[`roam_${prefs.roam}`] ?? ICONS.roam_calm,
     state: () => {
       const next = ROAM_ORDER[(ROAM_ORDER.indexOf(prefs.roam) + 1) % ROAM_ORDER.length];
-      return `行为模式:${ROAM_LEVEL[prefs.roam] ?? ''} · ${ROAM[prefs.roam] ?? ''} · 点一下换成「${ROAM[next]}」`;
+      return t('action.roam', { level: roamLevel(prefs.roam), name: roamName(prefs.roam), next: roamName(next) });
     },
     run: () => cycleRoam(),
   },
@@ -849,19 +863,19 @@ const ACTIONS = {
     keep: true,
     icon: () => (prefs.theme === 'dark' ? ICONS.moon : ICONS.sun),
     on: () => prefs.theme === 'dark',
-    state: () => (prefs.theme === 'dark' ? '夜间模式:开(浅色身体)· 点一下换白天' : '夜间模式:关(白天,深色身体)· 点一下换夜间'),
+    state: () => t(prefs.theme === 'dark' ? 'action.themeDark' : 'action.themeLight'),
     run: () => toggleTheme(),
   },
   sound: {
     keep: true,
     icon: () => (prefs.sound ? ICONS.sound : ICONS.soundOff),
     on: () => prefs.sound,
-    state: () => (prefs.sound ? '音效:开 · 点一下静音' : '音效:关 · 点一下打开'),
+    state: () => t(prefs.sound ? 'action.soundOn' : 'action.soundOff'),
     run: () => send({ t: 'prefs', sound: !prefs.sound }),
   },
   dress: {
     icon: () => ICONS.shirt, cls: 'dress',
-    state: () => '换配色、帽子、耳饰、眼镜、颈饰',
+    state: () => t('action.dress'),
     // an embedding app that lends dressing shows its own dress page; otherwise the pet's dress window
     run: () => {
       if (prefs.bot?.buttons?.dress) send({ t: 'control', action: 'dress' });
@@ -871,7 +885,7 @@ const ACTIONS = {
   },
   hide: {
     icon: () => ICONS.eyeOff, available: () => !!host?.hide,
-    state: () => '先把我藏起来(托盘里可以叫我回来)',
+    state: () => t('action.hide'),
     run: () => host.hide(),
   },
 };
@@ -970,13 +984,13 @@ function renderMenuHead(confirmQuit = false) {
   if (!bot.controls) return;
   if (confirmQuit) {
     act(ICONS.power, bot.quitLabel, () => { closeMenu(); send({ t: 'control', action: 'quit' }); }, 'm-act danger');
-    act('<span>取消</span>', '取消', () => renderMenuHead(), 'm-act text');
+    act(`<span>${esc(t('menu.cancel'))}</span>`, t('menu.cancel'), () => renderMenuHead(), 'm-act text');
     return;
   }
   // only the controls the embedding app lent; a server without `buttons` lends all three
   const has = bot.buttons ?? { pause: true, settings: true, quit: true };
-  if (has.pause) act(bot.paused ? ICONS.play : ICONS.pause, bot.paused ? '继续(现在暂停着)' : '暂停', () => send({ t: 'control', action: bot.paused ? 'resume' : 'pause' }), `m-act run${bot.paused ? ' paused' : ''}`);
-  if (has.settings) act(ICONS.settings, '打开设置', () => { closeMenu(); send({ t: 'control', action: 'settings' }); });
+  if (has.pause) act(bot.paused ? ICONS.play : ICONS.pause, t(bot.paused ? 'menu.resume' : 'menu.pause'), () => send({ t: 'control', action: bot.paused ? 'resume' : 'pause' }), `m-act run${bot.paused ? ' paused' : ''}`);
+  if (has.settings) act(ICONS.settings, t('menu.settings'), () => { closeMenu(); send({ t: 'control', action: 'settings' }); });
   if (has.quit) act(ICONS.power, bot.quitLabel, () => renderMenuHead(true), 'm-act power');
 }
 function closeMenu() { menu.hidden = true; }

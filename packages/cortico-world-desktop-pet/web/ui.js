@@ -1,4 +1,6 @@
 /** The pages' round buttons: icons (24 units, currentColor) and the theme switch. */
+import { t } from './i18n.js';
+
 export const f = n => Math.round(n * 10) / 10;
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -53,6 +55,6 @@ export function applyTheme(theme, button) {
   if (!button) return;
   const toLight = theme === 'dark';
   button.innerHTML = toLight ? ICONS.sun : ICONS.moon;
-  button.title = toLight ? '切到白天模式' : '切到夜间模式';
+  button.title = t(toLight ? 'theme.toLight' : 'theme.toDark');
   button.setAttribute('aria-label', button.title);
 }

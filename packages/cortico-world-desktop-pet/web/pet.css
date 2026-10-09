@@ -26,10 +26,15 @@
 *{box-sizing:border-box}
 html,body{margin:0; height:100%; overflow:hidden}
 body{
-  font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-family:system-ui,-apple-system,"Segoe UI","Noto Sans",sans-serif;
   font-size:15px; line-height:1.55; color:var(--text);
   user-select:none; -webkit-user-select:none;
 }
+/* the app language is on <html lang> (web/i18n.js): each CJK script gets its own fonts, Latin and Cyrillic the system's */
+:lang(zh) body{font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+:lang(zh-Hant) body{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
+:lang(ja) body{font-family:"Noto Sans JP","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,system-ui,sans-serif}
+:lang(ko) body{font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif}
 /* in a browser tab the page draws its own wall and floor; in the pet window it is transparent */
 body.tab{
   background-color:var(--wall);
@@ -168,7 +173,7 @@ body.desk .floor{display:none}
 .d-keys{display:flex; justify-content:center; padding:4px 0 2px}
 .d-key{
   display:inline-block; padding:5px 16px 4px; border-radius:10px; border:2px solid var(--skin-ink); border-bottom-width:5px;
-  background:var(--surface); color:var(--text); font:600 14px/1.3 ui-monospace,Consolas,"Microsoft YaHei",monospace;
+  background:var(--surface); color:var(--text); font:600 14px/1.3 ui-monospace,Consolas,monospace;
   animation:key-press 1.8s ease-in-out infinite;
 }
 @keyframes key-press{0%,35%,100%{transform:none; border-bottom-width:5px} 45%,80%{transform:translateY(3px); border-bottom-width:2px; border-color:var(--skin-eye); color:var(--skin-eye)}}

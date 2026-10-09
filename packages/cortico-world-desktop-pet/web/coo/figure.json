@@ -25,43 +25,50 @@
         {
           "id": "mint",
           "name": {
-            "zh": "薄荷绿"
+            "zh": "薄荷绿",
+            "en": "Mint"
           }
         },
         {
           "id": "mono",
           "name": {
-            "zh": "单色"
+            "zh": "单色",
+            "en": "Mono"
           }
         },
         {
           "id": "navigator",
           "name": {
-            "zh": "领航员"
+            "zh": "领航员",
+            "en": "Navigator"
           }
         },
         {
           "id": "claude",
           "name": {
-            "zh": "克劳德"
+            "zh": "克劳德",
+            "en": "Claude"
           }
         },
         {
           "id": "fox",
           "name": {
-            "zh": "红狐狸"
+            "zh": "红狐狸",
+            "en": "Red Fox"
           }
         },
         {
           "id": "purple",
           "name": {
-            "zh": "虚式茈"
+            "zh": "虚式茈",
+            "en": "Hollow Purple"
           }
         },
         {
           "id": "lemon",
           "name": {
-            "zh": "柠檬黄"
+            "zh": "柠檬黄",
+            "en": "Lemon"
           }
         }
       ]
@@ -76,55 +83,64 @@
         {
           "id": "none",
           "name": {
-            "zh": "无"
+            "zh": "无",
+            "en": "None"
           }
         },
         {
           "id": "cat",
           "name": {
-            "zh": "猫耳"
+            "zh": "猫耳",
+            "en": "Cat ears"
           }
         },
         {
           "id": "bear",
           "name": {
-            "zh": "熊耳"
+            "zh": "熊耳",
+            "en": "Bear ears"
           }
         },
         {
           "id": "bunny",
           "name": {
-            "zh": "兔耳"
+            "zh": "兔耳",
+            "en": "Bunny ears"
           }
         },
         {
           "id": "antenna",
           "name": {
-            "zh": "天线"
+            "zh": "天线",
+            "en": "Antenna"
           }
         },
         {
           "id": "halo",
           "name": {
-            "zh": "光环"
+            "zh": "光环",
+            "en": "Halo"
           }
         },
         {
           "id": "tophat",
           "name": {
-            "zh": "礼帽"
+            "zh": "礼帽",
+            "en": "Top hat"
           }
         },
         {
           "id": "party",
           "name": {
-            "zh": "派对帽"
+            "zh": "派对帽",
+            "en": "Party hat"
           }
         },
         {
           "id": "sailor",
           "name": {
-            "zh": "水手帽"
+            "zh": "水手帽",
+            "en": "Sailor cap"
           }
         }
       ]
@@ -139,37 +155,43 @@
         {
           "id": "none",
           "name": {
-            "zh": "无"
+            "zh": "无",
+            "en": "None"
           }
         },
         {
           "id": "headphones",
           "name": {
-            "zh": "耳机"
+            "zh": "耳机",
+            "en": "Headphones"
           }
         },
         {
           "id": "feather",
           "name": {
-            "zh": "耳羽"
+            "zh": "耳羽",
+            "en": "Feather"
           }
         },
         {
           "id": "earring",
           "name": {
-            "zh": "耳环"
+            "zh": "耳环",
+            "en": "Earring"
           }
         },
         {
           "id": "clip",
           "name": {
-            "zh": "发夹"
+            "zh": "发夹",
+            "en": "Hair clip"
           }
         },
         {
           "id": "bow",
           "name": {
-            "zh": "蝴蝶结"
+            "zh": "蝴蝶结",
+            "en": "Bow"
           }
         }
       ]
@@ -184,25 +206,29 @@
         {
           "id": "none",
           "name": {
-            "zh": "无"
+            "zh": "无",
+            "en": "None"
           }
         },
         {
           "id": "round",
           "name": {
-            "zh": "圆框"
+            "zh": "圆框",
+            "en": "Round"
           }
         },
         {
           "id": "square",
           "name": {
-            "zh": "方框"
+            "zh": "方框",
+            "en": "Square"
           }
         },
         {
           "id": "monocle",
           "name": {
-            "zh": "单片镜"
+            "zh": "单片镜",
+            "en": "Monocle"
           }
         }
       ]
@@ -217,25 +243,29 @@
         {
           "id": "none",
           "name": {
-            "zh": "无"
+            "zh": "无",
+            "en": "None"
           }
         },
         {
           "id": "bowtie",
           "name": {
-            "zh": "领结"
+            "zh": "领结",
+            "en": "Bow tie"
           }
         },
         {
           "id": "bell",
           "name": {
-            "zh": "铃铛"
+            "zh": "铃铛",
+            "en": "Bell"
           }
         },
         {
           "id": "scarf",
           "name": {
-            "zh": "围巾"
+            "zh": "围巾",
+            "en": "Scarf"
           }
         }
       ]
