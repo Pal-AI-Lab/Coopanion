@@ -107,7 +107,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on) });
   const selfAdjust = ui.checkbox(S.selfAdjust, { onChange: (on) => void save(KEYS.selfAdjust, on) });
   const stats = ui.checkbox(S.stats, { onChange: (on) => void save(STATS_KEY, on, STATS_GROUP) });
-  const statsDoc = ui.h('a', 'home-link', S.statsDoc);
+  const statsDoc = ui.h('a', 'home-link companion-statsdoc', S.statsDoc);
   statsDoc.href = STATS_DOC;
   statsDoc.target = '_blank';
   statsDoc.rel = 'noreferrer';

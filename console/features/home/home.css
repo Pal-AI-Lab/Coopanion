@@ -51,6 +51,8 @@
 .companion-hoverbtn.on .companion-hoverlbl { color: var(--foreground); }
 .companion-hoverbtn:disabled { opacity: .4; cursor: default; }
 .companion-hoverlbl { font-size: 12px; line-height: 1.3; }
+/* 统计开关后面的说明链接,与开关文字隔开 */
+.companion-statsdoc { margin-left: 10px; }
 @media (max-width: 640px) { .companion-row { grid-template-columns: 1fr; gap: 4px; } }
 
 /* 字标下的版本与项目地址;新版本提示沿用上游的 .release-hint */
