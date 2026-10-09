@@ -10,7 +10,8 @@
  */
 import { panelRoute, panelStreamRoute } from '../../../shared/console-protocol.ts';
 import type { ConsoleImageAttachment } from '../../../shared/client-panel.ts';
-import { pick } from '../../core/language.ts';
+import { baseLanguage } from '../../../../core/language.ts';
+import { LANGUAGE } from '../../core/language.ts';
 import { openStream } from '../../core/stream.ts';
 import { browserSocketEnv } from '../../core/websocket.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
@@ -42,9 +43,8 @@ function activityTitle(steps: readonly string[]): string {
   return steps.length === 1 ? stepLabel(steps[0]) : S.things(steps.length);
 }
 
-const LANG = pick({ zh: 'zh', en: 'en' });
-/** An expression by its name in the console's language; without one, English shows the word's id and Chinese any name. */
-const moodName = (mood: Record<string, string>): string => mood[LANG] ?? (LANG === 'en' ? mood.id : mood.zh) ?? mood.id ?? '';
+/** An expression by its name in the console's language, else its base language's (zh for zh-Hant, en for the rest), else the word's id. */
+const moodName = (mood: Record<string, string>): string => mood[LANGUAGE] ?? mood[baseLanguage(LANGUAGE)] ?? mood.id ?? '';
 
 const AVATAR_URL = '/api/avatar';
 const blobUrl = (ref: string): string => `${panelRoute(PET_PAGE, 'chat', 'blob')}?args=${encodeURIComponent(JSON.stringify([ref]))}`;
