@@ -17,12 +17,12 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
 | `deepseek` | DeepSeek | `https://api.deepseek.com` | responses | `deepseek-flash` |
 | `qwen` | 通义千问 | 国内 `dashscope.aliyuncs.com`,国际 `dashscope-intl.aliyuncs.com`(新加坡) | responses | `qwen3.8-flash` |
 | `kimi` | Kimi | 国内 `api.moonshot.cn/v1`,国际 `api.moonshot.ai/v1` | responses | `kimi-k3` |
-| `glm` | 智谱 GLM | 国内 `open.bigmodel.cn/api/v1`,国际 Z.ai `api.z.ai/api/paas/v4` | 国内 responses,国际 chat | `glm-4.6v-flashx` |
+| `glm` | 智谱 GLM | 国内 `open.bigmodel.cn/api/v1`,国际 Z.ai `api.z.ai/api/paas/v4` | 国内 responses,国际 chat | `glm-5.3-flash` |
 | `doubao` | 豆包(火山方舟) | `https://ark.cn-beijing.volces.com/api/v3` | responses | `doubao-seed-2-1-lite-260915` |
 | `minimax` | MiniMax | 国内 `api.minimax.cn/v1`,国际 `api.minimax.io/v1` | responses | `MiniMax-M3` |
 | `stepfun` | 阶跃星辰 | `https://api.stepfun.com/v1` | responses | `step-3.7-flash` |
 | `qianfan` | 百度千帆 | `https://qianfan.baidubce.com/v2` | chat | `glm-5.3-flash` |
-| `openrouter` | OpenRouter | `https://openrouter.ai/api/v1` | responses | `qwen/qwen3.8-flash` |
+| `openrouter` | OpenRouter | `https://openrouter.ai/api/v1` | responses | `deepseek/deepseek-v4.1-flash` |
 | `openai` | OpenAI | `https://api.openai.com/v1` | responses | `gpt-6-luna` |
 | `anthropic` | Anthropic | `https://api.anthropic.com` | anthropic | `claude-haiku-5-5` |
 | `gemini` | Gemini | `https://generativelanguage.googleapis.com/v1beta` | gemini | `gemini-3.5-flash-lite` |
