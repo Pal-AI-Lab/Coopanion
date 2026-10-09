@@ -10,6 +10,11 @@
  * The first row is the app language (`language` in the `companion` group), listed by the names the
  * Core gives (`/api/config/options/coopanion.language`). A change applies at once: the Core tells the
  * app, which reloads this window in the new language.
+ *
+ * 「回应模式」 (`touch.wakeOn`) and 「自主配置权限」 (`selfAdjust`) are read from the pet panel's state,
+ * which gives values written by earlier versions as they now read. Their 「自定义…」 opens a popup whose
+ * picks (a list, a map) `/api/config` cannot write; they are saved through the pet panel's
+ * `setWakeKinds` and `setSelfAdjustCustom`, which set the mode to `custom` in the same write.
  */
 import { ICONS } from 'cortico-world-desktop-pet/web/ui.js';
 import { get, post, setConfig } from '../../core/api.ts';
@@ -25,8 +30,9 @@ const STATS_DOC = 'https://github.com/Pal-AI-Lab/Coopanion/blob/main/docs/TELEME
 /** The app language: a key of the `companion` group, its choices from the Core. */
 const LANGUAGE_KEY = 'language';
 const LANGUAGE_OPTIONS = '/api/config/options/coopanion.language';
-/** The pet panel's state, for the default name the World gives the person in the app language. */
-const PET_STATE = '/api/console/providers/world%3Adesktop-pet/panels/pet/state';
+/** The pet panel's methods: `state` gives the default name for the person in the app language and the two rows below. */
+const PET_PANEL = '/api/console/providers/world%3Adesktop-pet/panels/pet/';
+const PET_STATE = `${PET_PANEL}state`;
 const K = 'worlds.desktop-pet';
 const KEYS = {
   user: `${K}.user`,
@@ -42,8 +48,23 @@ const KEYS = {
   hover: `${K}.hoverButtons`,
   dblclick: `${K}.doubleClickChat`,
   statusBubble: `${K}.statusBubble`,
+  wakeOn: `${K}.touch.wakeOn`,
   selfAdjust: `${K}.selfAdjust`,
 } as const;
+
+/** `touch.wakeOn` in the row's order, and the touches 「自定义…」 picks from (the World's TOUCH_KINDS). */
+const WAKE_MODES = ['none', 'poke', 'all', 'custom'] as const;
+const TOUCH_KINDS = ['poke', 'pet', 'throw', 'drop'] as const;
+/** `selfAdjust` in the row's order, and `pet_set`'s items in the World's order (SELF_KEYS), the first four direct by default. */
+const SELF_MODES = ['off', 'default', 'any', 'custom'] as const;
+const SELF_KEYS = ['figure', 'scheme', 'roam', 'snoreSeconds', 'sound', 'scale', 'theme', 'hoverButtons', 'user'] as const;
+const SELF_DEFAULT: readonly string[] = ['figure', 'scheme', 'roam', 'snoreSeconds'];
+
+/** What the pet panel's state says of the two rows. */
+interface HabitState {
+  wake?: { wakeOn: string; wakeKinds: string[] };
+  selfAdjust?: { mode: string; custom: Record<string, boolean> };
+}
 
 /** The pet menu's actions in its order (the World's PET_ACTIONS), with the icon each shows. */
 const ACTIONS: ReadonlyArray<[id: string, icon: string]> = [
@@ -105,7 +126,88 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on) });
   const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on) });
   const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on) });
-  const selfAdjust = ui.checkbox(S.selfAdjust, { onChange: (on) => void save(KEYS.selfAdjust, on) });
+  // the two rows below follow the pet panel's state; 「自定义…」 is picked by saving its popup
+  let habit: Required<HabitState> = { wake: { wakeOn: 'poke', wakeKinds: ['poke'] }, selfAdjust: { mode: 'default', custom: {} } };
+  const wakeHint = ui.h('p', 'home-note');
+  const wake = ui.segmented(WAKE_MODES.map((v) => ({ value: v, label: S.wakeModes[v] ?? v })), {
+    size: 'sm',
+    onSelect: (v) => {
+      if (v === 'custom') return;
+      habit.wake.wakeOn = v;
+      renderHabits();
+      void save(KEYS.wakeOn, v);
+    },
+  });
+  const selfHint = ui.h('p', 'home-note');
+  const selfMode = ui.segmented(SELF_MODES.map((v) => ({ value: v, label: S.selfModes[v] ?? v })), {
+    size: 'sm',
+    onSelect: (v) => {
+      if (v === 'custom') return;
+      habit.selfAdjust.mode = v;
+      renderHabits();
+      void save(KEYS.selfAdjust, v);
+    },
+  });
+  // 「自定义…」 opens its popup each time, picked or not; the row shows it picked once the popup is saved
+  wake.el.lastElementChild?.addEventListener('click', () => { renderHabits(); openWakePopup(); }, { signal });
+  selfMode.el.lastElementChild?.addEventListener('click', () => { renderHabits(); openSelfPopup(); }, { signal });
+  const directOf = (h: Required<HabitState>) => (h.selfAdjust.mode === 'any' ? [...SELF_KEYS]
+    : h.selfAdjust.mode === 'default' ? SELF_KEYS.filter((k) => SELF_DEFAULT.includes(k))
+    : SELF_KEYS.filter((k) => h.selfAdjust.custom[k] ?? SELF_DEFAULT.includes(k)));
+  function renderHabits(): void {
+    const { wakeOn, wakeKinds } = habit.wake;
+    wake.setValue(wakeOn);
+    const kinds = TOUCH_KINDS.filter((k) => wakeKinds.includes(k)).map((k) => S.wakeKinds[k] ?? k);
+    wakeHint.textContent = wakeOn !== 'custom' ? S.wakeHints[wakeOn] ?? '' : kinds.length ? S.wakeCustomHint(kinds) : S.wakeHints.none ?? '';
+    const mode = habit.selfAdjust.mode;
+    selfMode.setValue(mode);
+    const direct = directOf(habit);
+    const name = (k: string) => S.selfItems[k] ?? k;
+    selfHint.textContent = mode !== 'custom' ? S.selfHints[mode] ?? ''
+      : direct.length === SELF_KEYS.length ? S.selfHints.any ?? ''
+      : S.selfCustomHint(direct.map(name), SELF_KEYS.filter((k) => !direct.includes(k)).map(name));
+  }
+  /** A popup of checkboxes; `onSave` gets the keys left checked. */
+  function popup(title: string, note: string | null, items: ReadonlyArray<[key: string, label: string, on: boolean]>, onSave: (keys: string[]) => void): void {
+    const body = ui.h('div', 'companion-popup');
+    if (note) body.append(ui.h('p', 'home-note', note));
+    const list = ui.h('div', 'companion-checks');
+    const boxes = items.map(([key, label, on]) => {
+      const c = ui.checkbox(label, { checked: on });
+      list.append(c.el);
+      return [key, c] as const;
+    });
+    const bar = ui.actions();
+    const cancel = ui.button(S.popupCancel);
+    const ok = ui.button(S.popupSave, { variant: 'primary' });
+    bar.append(ui.h('span', 'grow'), cancel, ok);
+    body.append(list, bar);
+    const drawer = ui.drawer(title, body);
+    cancel.addEventListener('click', () => drawer.dispose(), { signal });
+    ok.addEventListener('click', () => {
+      drawer.dispose();
+      onSave(boxes.filter(([, c]) => c.checked).map(([key]) => key));
+    }, { signal });
+    boxes[0]?.[1].input.focus();
+  }
+  function openWakePopup(): void {
+    const { wakeKinds } = habit.wake;
+    popup(S.wakeTitle, null, TOUCH_KINDS.map((k) => [k, S.wakeKinds[k] ?? k, wakeKinds.includes(k)]), (kinds) => {
+      habit.wake = { wakeOn: 'custom', wakeKinds: kinds };
+      renderHabits();
+      void callPet('setWakeKinds', [kinds]);
+    });
+  }
+  function openSelfPopup(): void {
+    // starts from what the mode in force lets Coo change directly; from `off`, from the custom picks
+    const direct = habit.selfAdjust.mode === 'off' ? directOf({ ...habit, selfAdjust: { ...habit.selfAdjust, mode: 'custom' } }) : directOf(habit);
+    popup(S.selfTitle, S.selfNote, SELF_KEYS.map((k) => [k, S.selfItems[k] ?? k, direct.includes(k)]), (keys) => {
+      const custom = Object.fromEntries(SELF_KEYS.map((k) => [k, keys.includes(k)]));
+      habit.selfAdjust = { mode: 'custom', custom };
+      renderHabits();
+      void callPet('setSelfAdjustCustom', [custom]);
+    });
+  }
   const stats = ui.checkbox(S.stats, { onChange: (on) => void save(STATS_KEY, on, STATS_GROUP) });
   const statsDoc = ui.h('a', 'home-link companion-statsdoc', S.statsDoc);
   statsDoc.href = STATS_DOC;
@@ -143,12 +245,12 @@ async function mount(ctx: FeatureContext): Promise<void> {
     }
   };
 
-  const row = (label: string, control: HTMLElement, hint?: string) => {
+  const row = (label: string, control: HTMLElement, hint?: string | HTMLElement) => {
     const r = ui.h('div', 'companion-row');
     const l = ui.h('div', 'companion-label', label);
     const c = ui.h('div', 'companion-control');
     c.append(control);
-    if (hint) c.append(ui.h('p', 'home-note', hint));
+    if (hint) c.append(typeof hint === 'string' ? ui.h('p', 'home-note', hint) : hint);
     r.append(l, c);
     return r;
   };
@@ -159,6 +261,8 @@ async function mount(ctx: FeatureContext): Promise<void> {
     row(S.language, language, S.languageHint),
     row(S.user, user, S.userHint),
     row(S.roam, roam.el),
+    row(S.wake, wake.el, wakeHint),
+    row(S.self, selfMode.el, selfHint),
     row(S.theme, theme.el),
     row(S.scale, scaleBox),
     row(S.frameRate, frameRate.el, S.frameRateHint),
@@ -168,7 +272,6 @@ async function mount(ctx: FeatureContext): Promise<void> {
     row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
     row('', dblclick.el),
     row('', statusBubble.el, S.statusBubbleHint),
-    row('', selfAdjust.el, S.selfAdjustHint),
     row('', statsBox, S.statsHint),
     msg,
   );
@@ -211,6 +314,24 @@ async function mount(ctx: FeatureContext): Promise<void> {
       line.classList.add('bad');
     }
   };
+  /** Calls a pet panel method; a failure shows on the habits line, and the rows follow the state it returns. */
+  const callPet = async (method: string, args: unknown[]) => {
+    try {
+      const state = await post<HabitState>(PET_PANEL + method, { args }, opts);
+      takeHabits(state);
+      msg.textContent = S.saved;
+      msg.classList.remove('bad');
+    } catch (err) {
+      if (signal.aborted) return;
+      msg.textContent = S.saveFailed(errText(err));
+      msg.classList.add('bad');
+    }
+  };
+  function takeHabits(state: HabitState | null | undefined): void {
+    if (!state?.wake || !state.selfAdjust) return;
+    habit = { wake: state.wake, selfAdjust: state.selfAdjust };
+    renderHabits();
+  }
   function showScale(): void { scaleText.textContent = `${Math.round(scale.value * 100)}%`; }
   // saved while the slider moves, so the pet on the desktop grows and shrinks with it
   let scaleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -237,6 +358,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   snore.addEventListener('keydown', (e) => { if (e.key === 'Enter') snore.blur(); });
 
   const refreshValues = async () => {
+    const habitState = post<HabitState>(PET_STATE, { args: [] }, opts).catch(() => null);
     let values: Record<string, unknown> = {};
     let soundValues: Record<string, unknown> = {};
     let statsValues: Record<string, unknown> = {};
@@ -276,7 +398,9 @@ async function mount(ctx: FeatureContext): Promise<void> {
     if (typeof values[KEYS.remember] === 'boolean') remember.setChecked(values[KEYS.remember] as boolean);
     if (typeof values[KEYS.dblclick] === 'boolean') dblclick.setChecked(values[KEYS.dblclick] as boolean);
     if (typeof values[KEYS.statusBubble] === 'boolean') statusBubble.setChecked(values[KEYS.statusBubble] as boolean);
-    if (typeof values[KEYS.selfAdjust] === 'boolean') selfAdjust.setChecked(values[KEYS.selfAdjust] as boolean);
+    // a popup open over the page keeps the rows as they are until it is saved or closed
+    const state = await habitState;
+    if (!root.ownerDocument.querySelector('.companion-popup')) takeHabits(state);
     if (typeof values[KEYS.hover] === 'string') {
       picked = (values[KEYS.hover] as string).split(',').map((x) => x.trim()).filter((x) => ACTIONS.some(([a]) => a === x));
       renderHover();

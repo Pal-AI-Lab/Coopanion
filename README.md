@@ -169,7 +169,7 @@ Speech is recognized on your machine and audio is never uploaded: by **FunASR** 
 
 ### Playing with Coo
 
-- **Click** to poke it, **move back and forth over its head** to pat it, **press and drag** to pick it up; let go mid-swing to throw it. A poke makes Coo respond. Pats and pick-ups are passed on the next time it wakes. To have every touch wake it, set the desktop pet World's touch wake option to `all` in advanced mode.
+- **Click** to poke it, **move back and forth over its head** to pat it, **press and drag** to pick it up; let go mid-swing to throw it. By default a poke makes Coo respond, and pats and pick-ups are passed on the next time it wakes. **Response mode** in Habits changes this: Quiet keeps every touch until you next talk to Coo, Eager responds to every touch, Custom… picks the touches that get a response right away.
 - **Expressions and motions**: Coo pairs what it says with a face and a motion. Faces: happy, wink, love, shy, surprised, angry, sad, sleepy, thinking, smug, pout, worried, determined, flustered, scared, excited (starry eyes), crying, confused. Motions include nod, shake, look around, turn, spin, jump, sit, sleep, wave, bow, shiver, flap, dance. As the DeepSeek Whale, a nod really dips the head and a shake turns the face, a wave raises the arm nearer you, and a bow tips the upper body forward.
 - **Right-click** for the menu: pause / resume, settings, quit, plus typing, voice input, walking, night mode, sounds, dress up and hide.
 - **Hover buttons**: the buttons beside Coo while the pointer rests on it. Typing and voice by default; pick up to six in Habits.
@@ -204,7 +204,7 @@ Click the tray icon, or right-click Coo and click the gear. The window opens in 
 | Page          | What is there                                                                                                    |
 | ------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Start         | Connect a model, see whether Coo is awake, show the pet, rerun the guide. Pause / resume is at the bottom left.   |
-| Habits        | App language, what to call you, walking, colors, size, remembering the position, hover buttons, double-click typing, activity bubbles, sounds (each kind can be muted), frame rate (60/120/144/unlimited), hiding during full screen (Windows), letting Coo adjust itself, anonymous usage statistics |
+| Habits        | App language, what to call you, walking, colors, size, remembering the position, hover buttons, double-click typing, activity bubbles, sounds (each kind can be muted), frame rate (60/120/144/unlimited), hiding during full screen (Windows), response mode, self-adjustment (what Coo may change about itself directly and what it asks for your consent on first), anonymous usage statistics |
 | Dress up      | Figure (Coo, the DeepSeek Whale or an installed figure pack), colors and accessories; changes apply at once. **Import** at the end of the figure row installs packs from a zip or a folder (up to 128 MB at a time); dropping one on the page works too |
 | Voice input   | On/off, recognizer, model download, talk key, microphone, listening mode                                          |
 | Computer use  | On/off, mouse and keyboard permission, when to ask you, how long a yes lasts                                      |
