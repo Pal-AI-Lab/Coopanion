@@ -18,7 +18,7 @@ const en: CoreText = {
 
   /** What the pet's bubble says after several model requests in a row failed. */
   failure: {
-    text: (n: number, status: number, reason: string) => `My last ${n} requests to the model failed. Error${status ? ` ${status}` : ''}: ${reason}. Check the model name and API key on the Start page in settings, where you can test the connection.`,
+    text: (n: number, status: number, reason: string) => `My last ${n} requests to the model failed. Error${status ? ` ${status}` : ''}: ${reason}. Check the model name and API Key on the Start page in settings, where you can test the connection.`,
     open: 'Open settings',
     ok: 'OK',
   },
@@ -81,7 +81,7 @@ const en: CoreText = {
     moreVendors: 'More…',
     pickModel: (model: string) => `By default I'll use ${model}: it's cheap and can read images. To use another model, type its name instead.`,
     modelOk: 'Use this one',
-    askKey: (name: string) => `Paste your ${name} API key here. It's billed by usage, so keep an eye on the tokens.`,
+    askKey: (name: string) => `Paste your ${name} API Key here. It's billed by usage, so keep an eye on the tokens.`,
     keySend: 'Connect',
     keyLink: (name: string) => `No key yet? Get one from ${name}`,
     keyLater: 'Later',
@@ -117,8 +117,8 @@ const en: CoreText = {
     dress: 'Dress me up first',
     closed: 'OK, let\'s stop here. To hear my introduction again, open settings and click "Guide" on the Start page.',
 
-    askFirst: 'I\'m not connected to a model yet; I can talk once you add an API key. Which service should I use?',
-    askAgain: 'Still no model connected; add an API key and I can keep you company. Which service should I use?',
+    askFirst: 'I\'m not connected to a model yet; I can talk once you add an API Key. Which service should I use?',
+    askAgain: 'Still no model connected; add an API Key and I can keep you company. Which service should I use?',
     askLater: 'Later',
     noModel: 'No model is connected. Connect one now?',
     noModelGo: 'Connect',

@@ -93,7 +93,7 @@ class Closed extends Error {}
 /** The record's own words, in the model-text language; the lines and answers in it are as the bubble showed them. */
 const RECORD_TEXT = {
   zh: { coo: (text: string) => `Coo:${text}`, person: (text: string) => `对方:${text}`, closed: '(对方点了关闭,引导到这里结束)', key: '(填了 API Key)' },
-  en: { coo: (text: string) => `Coo: ${text}`, person: (text: string) => `Person: ${text}`, closed: '(the person closed it here, which ended the introduction)', key: '(an API key was entered)' },
+  en: { coo: (text: string) => `Coo: ${text}`, person: (text: string) => `Person: ${text}`, closed: '(the person closed it here, which ended the introduction)', key: '(an API Key was entered)' },
 } satisfies Record<ModelLanguage, unknown>;
 
 /** One step for the record: Coo's line and, when the step asked something, the answer. */
