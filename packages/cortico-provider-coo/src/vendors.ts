@@ -4,8 +4,8 @@
  * one platform for everyone, or a mainland China platform and an international one (`Region`), each
  * with its own accounts, keys and base URL. Base URLs, protocols, starting models, key pages, image
  * input, context windows and thinking levels are from each service's own documentation (Chinese
- * services' mainland platforms read 2026-09-24, everything else 2026-10-08, starting models checked
- * again 2026-10-09); only DeepSeek and Anthropic have been tried with a key.
+ * services' mainland platforms read 2026-09-24, everything else 2026-10-08, starting models and GLM's
+ * and OpenRouter's thinking levels checked again 2026-10-09); only DeepSeek and Anthropic have been tried with a key.
  *
  * This file imports nothing, so the browser console and the app's first-run seed can use it.
  */
@@ -116,17 +116,20 @@ export const VENDORS: readonly Vendor[] = [
   },
   {
     // The mainland Responses endpoint is under /api/v1, not the chat path /api/paas/v4; its docs show
-    // glm-5.3 only (text), so the other models there are not confirmed. Z.ai documents Chat only, where
-    // glm-5.3 and glm-5.3-flash cannot turn thinking off and take low / high / max. Effort is taken from
-    // GLM-5.2 on; GLM-4.6V decides itself whether to think and is sent no effort.
+    // glm-5.3 only (text), so the other models there are not confirmed. Z.ai documents Chat only. On
+    // both platforms the glm-5.3 series always thinks and takes low / high / max only, so no thinking
+    // sends low. Effort is taken from GLM-5.2 on; GLM-4.6V decides itself whether to think and is sent no effort.
     id: 'glm', names: { zh: '智谱 GLM', 'zh-Hant': '智譜 GLM', en: 'Zhipu GLM', ja: 'Zhipu GLM', ko: 'Zhipu GLM' }, keyHint: PASTE_KEY, secret: 'GLM_API_KEY',
     sites: {
       cn: { baseUrl: 'https://open.bigmodel.cn/api/v1', protocol: 'responses', keyUrl: 'https://bigmodel.cn/usercenter/proj-mgmt/apikeys' },
-      intl: { baseUrl: 'https://api.z.ai/api/paas/v4', protocol: 'chat', keyUrl: 'https://z.ai/manage-apikey/apikey-list', effort: { none: 'low' } },
+      intl: { baseUrl: 'https://api.z.ai/api/paas/v4', protocol: 'chat', keyUrl: 'https://z.ai/manage-apikey/apikey-list' },
     },
     model: 'glm-4.6v-flashx', models: ['glm-5.3-flash', 'glm-5.3', 'glm-4.6v-flash'],
     vision: ['glm-4.6v-flashx', 'glm-5.3-flash', 'glm-4.6v-flash'], contextWindows: { 'glm-5.3': 1_000_000, 'glm-4.6v-flashx': 128_000 },
     modelEffort: {
+      'glm-5.3': { none: 'low' },
+      'glm-5.3-flash': { none: 'low' },
+      'glm-5.3-flashx': { none: 'low' },
       'glm-4.6v-flashx': { none: null, low: null, high: null, max: null },
       'glm-4.6v-flash': { none: null, low: null, high: null, max: null },
     },
@@ -171,12 +174,15 @@ export const VENDORS: readonly Vendor[] = [
     toolOutputText: true,
   },
   {
+    // takes max / xhigh / high / medium / low / minimal / none and moves a level a model lacks to the
+    // nearest one it has; a model whose reasoning is mandatory (z-ai/glm-5.3-flash) rejects none
     id: 'openrouter', names: brand('OpenRouter'), keyHint: hint('sk-or-'), secret: 'OPENROUTER_API_KEY',
     sites: { global: { baseUrl: 'https://openrouter.ai/api/v1', protocol: 'responses', keyUrl: 'https://openrouter.ai/settings/keys' } },
     model: 'qwen/qwen3.8-flash',
     models: ['deepseek/deepseek-v4.1-flash', 'qwen/qwen3.7-flash', 'google/gemini-3.1-flash-lite', 'z-ai/glm-5.3-flash'],
     vision: ['qwen/qwen3.8-flash', 'deepseek/deepseek-v4.1-flash', 'qwen/qwen3.7-flash', 'google/gemini-3.1-flash-lite', 'z-ai/glm-5.3-flash'],
     contextWindows: { 'qwen/qwen3.8-flash': 1_000_000, 'deepseek/deepseek-v4.1-flash': 1_048_576 },
+    modelEffort: { 'z-ai/glm-5.3-flash': { none: 'low' } },
   },
   {
     // gpt-6-luna takes none / low / medium / high / xhigh / max; the larger two have no none

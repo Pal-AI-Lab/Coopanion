@@ -28,7 +28,7 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
 | `gemini` | Gemini | `https://generativelanguage.googleapis.com/v1beta` | gemini | `gemini-3.5-flash-lite` |
 | `xai` | xAI | `https://api.x.ai/v1` | responses | `grok-4.3` |
 
-表在 `src/vendors.ts`,数据取自各家文档(国内平台 2026-09-24,其余 2026-10-08,默认模型 2026-10-09 复核)。默认模型取每家快、便宜、能看图的那档;
+表在 `src/vendors.ts`,数据取自各家文档(国内平台 2026-09-24,其余 2026-10-08,默认模型和智谱、OpenRouter 的思考档位 2026-10-09 复核)。默认模型取每家快、便宜、能看图的那档;
 `Vendor.models` 是另外几个推荐的模型名,任何那一家接受的模型名都能填。**拿真实 Key 跑过的只有 DeepSeek 和 Anthropic**。
 
 - **哪一家、哪个平台**:按 `baseUrl` 认(`locate` / `vendorOf`),端点里不另存字段。有国内、国际两个平台的服务账号和 Key 不通用,
@@ -36,7 +36,7 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
 - **协议**:列出的服务按平台走(`Site.protocol`);`options.protocol` 可改;别的地址不填时走 `responses`。
 - **思考档位**:不思考 / 快 / 标准 / 最深,Responses 发 `reasoning.effort`、Chat 发 `reasoning_effort` = `none` / `low` / `high` / `max`;
   某家文档写明只收别的值时按 `effortOf` 换算(`Vendor.effort`、平台的 `Site.effort`、个别模型的 `Vendor.modelEffort`):千问 `high→medium`、`max→xhigh`;
-  Kimi、Z.ai 没有 `none`,换成 `low`;MiniMax、阶跃星辰没有 `max`,换成 `high`;千帆、智谱的 GLM-4.6V 没写 effort,不发;
+  Kimi、智谱两个平台的 GLM-5.3 系列、OpenRouter 的 `z-ai/glm-5.3-flash` 没有 `none`,换成 `low`;MiniMax、阶跃星辰没有 `max`,换成 `high`;千帆、智谱的 GLM-4.6V 没写 effort,不发;
   OpenAI 的 `gpt-6.1-sol`、`gpt-6-astra` 没有 `none`;xAI 没有 `max`,换成 `xhigh`,`grok-4.7` 也没有 `none`。
   Anthropic 按 `src/anthropic/wire.ts` 的 `thinkingParams`(Haiku 5.5 关思考发 `disabled`,Sonnet 5.5 发 `between_tools`,Opus 5.5 关不掉,改发 low);
   Gemini 按 `src/gemini/wire.ts` 的 `thinkingConfig`(Gemini 3 关不掉,不思考时 Flash-Lite 发 `minimal`、其余发 `low`)。
