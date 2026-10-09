@@ -21,7 +21,7 @@ export default {
   'heard.listening': '正在听…',
 
   // 状态气泡:同一类事做了好几次时接在后面
-  'status.more': ' 等 {n} 个',
+  'status.more': ' 和另外 {others} 个',
   'status.thinking': '在想',
 
   // 菜单与悬停按钮的说明

@@ -742,7 +742,7 @@ function drawStatus(next, pop) {
     bubble.innerHTML = `<span class="status-icon">${ICONS[`status_${icon}`] || ICONS.status_work}</span><span class="status-text"></span>`;
   }
   bubble.dataset.kind = next.kind;
-  const label = next.text + (next.detail ? ` · ${next.detail}` : '') + (next.count > 1 ? t('status.more', { n: next.count, others: next.count - 1 }) : '');
+  const label = next.text + (next.detail ? ` · ${next.detail}` : '') + (next.count > 1 ? t('status.more', { others: next.count - 1 }) : '');
   bubble.querySelector('.status-text').textContent = label;
   bubble.setAttribute('aria-label', next.kind === 'think' ? t('status.thinking') : label);
   bubble.classList.remove('fading');

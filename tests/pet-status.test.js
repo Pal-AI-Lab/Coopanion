@@ -95,7 +95,7 @@ describe('activity in the shared speech bubble', () => {
     const icon = p.bubble.querySelector('svg');
     show(p, { ...read, detail: '<记忆>.md', count: 3 }); p.step(.01);
     expect(p.bubble.querySelector('svg')).toBe(icon);
-    expect(p.bubble.textContent).toBe('在看 · <记忆>.md 等 3 个');
+    expect(p.bubble.textContent).toBe('在看 · <记忆>.md 和另外 2 个');
     expect(p.bubble.querySelector('记忆')).toBeNull();
   });
 

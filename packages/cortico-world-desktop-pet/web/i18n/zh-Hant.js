@@ -18,7 +18,7 @@ export default {
   'heard.listening': '正在聽…',
 
   // the status bubble
-  'status.more': ' 等 {n} 個',
+  'status.more': ' 和另外 {others} 個',
   'status.thinking': '在想',
 
   // the menu and the hover buttons
