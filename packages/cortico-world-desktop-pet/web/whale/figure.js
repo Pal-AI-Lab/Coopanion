@@ -131,16 +131,34 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     finFar: { kind: 'rot', parent: 'headBack', pivot: PV.finFar },
     ahoge: { kind: 'rot', parent: 'headFront', pivot: PV.ahoge },
   };
+  // each brow on the master: where its stroke ends, and the stretch of the brows texture it owns (x)
+  const BROWS = [
+    { outer: [610, 559.5], inner: [703, 548.7], x0: 596, x1: 765 },  // near
+    { outer: [890, 560.8], inner: [837, 555.6], x0: 765, x1: 904 },  // far
+  ];
   const parts = model.parts.map(p => ({ ...p, parent: p.id === 'torso_up' ? 'waist' : p.parent }));
   // the face features ride a little ahead of the face for the turn
   parts.push({ id: 'faceFx', tex: 'faceFx', box: [U(FACE.x), V(FACE.y), FACE.w * S, FACE.h * S], z: 9, parent: 'headFeat', grid: [4, 4] });
-  // the brows lie on the skin under the fringe, and show through the hair: the same texture is drawn
-  // again over the fringe, faint. Each brow lifts and tilts by the face (the warp below splits them).
+  // the brows lie on the skin under the fringe, and show through the hair: each is drawn again over the
+  // fringe, faint. As in a Live2D model each brow moves and turns as a whole about the middle of the line
+  // between its ends, and bends a little; the sorry faces swap in the same drawing turned over that line,
+  // so the arch becomes a dip with the stroke as drawn, crossfading.
   const brows = parts.find(p => p.id === 'brows');
   if (brows) {
-    deformers.brows = { kind: 'warp', parent: 'headFeat', rect: rectOf('brows') };
-    brows.parent = 'brows';
-    parts.push({ ...brows, id: 'brows_through', z: 13.2, alpha: .4 });
+    parts.splice(parts.indexOf(brows), 1);
+    const [bx, by, bw, bh] = brows.box;
+    BROWS.forEach((b, i) => {
+      const x0 = Math.max(bx, U(b.x0)), x1 = Math.min(bx + bw, U(b.x1)), u0 = (x0 - bx) / bw, u1 = (x1 - bx) / bw;
+      const mid = [U((b.outer[0] + b.inner[0]) / 2), V((b.outer[1] + b.inner[1]) / 2)];
+      deformers[`brow${i}`] = { kind: 'rot', parent: 'headFeat', pivot: mid };
+      deformers[`browBend${i}`] = { kind: 'warp', parent: `brow${i}`, rect: [x0, by, x1, by + bh] };
+      deformers[`browOver${i}`] = { kind: 'rot', parent: `browBend${i}`, pivot: mid };
+      for (const [layer, z, alpha] of [['', brows.z, 1], ['_through', 13.2, .55]]) {
+        parts.push({ ...brows, id: `brow${i}${layer}`, box: [x0, by, x1 - x0, bh], uvBox: [u0, 0, u1, 1], parent: `browBend${i}`, z, alpha, grid: [12, 2] });
+        // mirrored about the middle's height (the texture upside down in the mirrored box); `browOver` turns it back onto the line
+        parts.push({ ...brows, id: `browOver${i}${layer}`, box: [x0, 2 * mid[1] - by - bh, x1 - x0, bh], uvBox: [u0, 1, u1, 0], parent: `browOver${i}`, z, alpha, grid: [12, 2] });
+      }
+    });
   }
   // the lid creases follow each eye's upper lid down when the eye narrows, and go when it closes
   const creases = parts.find(p => p.id === 'eye_creases');
@@ -427,20 +445,39 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     smug: [.5, .6], pout: [.3, 0], worried: [-.3, .1], determined: [.9, .3], flustered: [.4, .8], scared: [-1, 0],
     excited: [1, 1], cry: [-1, 0], confused: [.2, .1], bowing: [-.2, .2],
   };
-  // brows by face, in master pixels: [lift of the whole brow, lift of its inner end (by the nose), extra lift of
-  // the far brow]; a negative inner lift is the frown
+  // brows by face, per brow [near, far], in master pixels: [Y lift of the whole brow, A how much higher its
+  // inner end (by the nose) sits than its outer end (a negative A is the frown), F how much more its middle
+  // arches over its ends, X its shift toward the nose]. Sized from the master redrawn with each expression;
+  // the far brow is shorter, and `both` gives it the same angle and curve.
+  const both = (y, a = 0, f = 0, x = 0) => [[y, a, f, x], [y, a * .6, f * .6, x * .6]];
   const BROW = {
-    surprised: [6, 0], angry: [-1, -5], sad: [1, 5], shy: [1, 2.5], happy: [2, 0], love: [2, 0], wink: [1, 0],
-    sleepy: [-1.5, 0], sleep: [-1.5, 0], dizzy: [1, 3], dragged: [2, 3.5], thinking: [0, 2], waking: [2, 1],
-    listening: [1, 0], content: [-1, 0], squeeze: [-1, -2], run: [1, 0],
-    smug: [1, -1], pout: [-1, -3], worried: [2, 4.5], determined: [0, -3], flustered: [2, 3.5], scared: [3, 4],
-    excited: [3, 0], cry: [1, 5], confused: [1, 0, 5],
+    surprised: both(32, 4, 12), excited: both(20, 2, 9),
+    happy: both(9, 0, 6), love: both(9, 4, 6), listening: both(9, 0, 4), waking: both(6, 6),
+    wink: [[9, 0, 6, 0], [-5, 0, 3, 0]],
+    angry: both(-14, -44, -6, 8), determined: both(-6, -28, -3, 5), pout: both(-6, -22, -6, 5), run: both(2, -12, -3),
+    squeeze: both(-12, -14, -8, 6), shy: both(0, 16, -4, 4),
+    sad: both(-10, 30, -2, 6), cry: both(-10, 38, -4, 8), worried: both(-6, 24, 0, 5), scared: both(6, 26, 0, 5),
+    flustered: both(2, 22, 0, 4), dragged: both(-4, 24, 0, 6),
+    sleepy: both(-10, 2, -4), sleep: both(-10, 4, -2), content: both(-3, 0, 3), bowing: both(-3, 3),
+    dizzy: [[12, 14, 0, 0], [-6, -10, 0, 0]],
+    thinking: [[-6, -14, -4, 4], [14, 4, 6, 0]],
+    smug: [[-8, -18, 0, 0], [14, -6, 4, 0]],
+    confused: [[-10, -12, -4, 3], [22, 6, 8, 0]],
   };
+  // faces whose brows are turned over, the arch a dip: the inner ends hook up out of it, pulled in
+  const BROW_OVER = new Set(['sad', 'cry', 'worried', 'scared', 'flustered', 'dragged']);
+  // how fast each face's brows get there (per second): a startle snaps them, sorrow sinks them slowly
+  const BROW_RATE = { surprised: 18, scared: 18, excited: 14, angry: 16, dragged: 16, squeeze: 16, sad: 4, cry: 4, worried: 6, sleepy: 3, sleep: 3, content: 4 };
+  // faces whose brows hold still during talk
+  const BROW_STILL = new Set(['angry', 'sad', 'cry', 'sleepy', 'sleep', 'squeeze', 'dizzy']);
   // the head by face: tilt (degrees, forward +) and pitch (angleY, down +)
   const HEAD_TILT = { shy: 7, thinking: -8, smug: -6, pout: -4, confused: -7, worried: 3, cry: 4 };
   const HEAD_PITCH = { sad: .35, cry: .45, worried: .15 };
   const BROW_SPLIT = U(765);  // the near brow is left of this, the far brow right of it
-  let browLift = 0, browInner = 0, browSide = 0;
+  const browNow = [[0, 0, 0, 0], [0, 0, 0, 0]];
+  let browOver = 0;  // 0 the brows as drawn, 1 turned over
+  // a quick raise of both brows now and then during talk: when the last one started, and when talk was last seen
+  let browFlashAt = -Infinity, talkedAt = -Infinity;
   // how far an eye's upper lid sits below its rest line (master pixels), and whether it is an open eye at all
   // (the same openness paintFace gives the eye, over the lid's full travel; the crease keeps a little above the lid)
   const lidDrop = (e, k, tilt) => {
@@ -576,18 +613,30 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     // the eyes and mouth move with the face: the eyes' outline is shared between the two layers
     st.headFeat = { fn: parallax(2, 1.4) };
     if (brows) {
-      const [lift, inner, side = 0] = BROW[face] || [0, 0];
-      browLift = lerp(browLift, lift - 1.5 * (o.blink || 0), ease(14, dt));
-      browInner = lerp(browInner, inner, ease(10, dt));
-      browSide = lerp(browSide, side, ease(10, dt));
-      const [bx0, , bx1] = deformers.brows.rect;
-      st.brows = {
-        fn: (u, v, x) => {
-          // 0 at a brow's outer end, 1 at its inner end
-          const k = x < BROW_SPLIT ? clamp((x - bx0) / (BROW_SPLIT - bx0), 0, 1) : clamp((bx1 - x) / (bx1 - BROW_SPLIT), 0, 1);
-          return [0, -(browLift + browInner * k * k + (x < BROW_SPLIT ? 0 : browSide)) * S];
-        },
-      };
+      // the start of a line raises them once, and now and then a while into it
+      if ((o.talk || 0) > .2) {
+        if (t - talkedAt > .8 || (t - browFlashAt > 2.5 && Math.random() < dt * .4)) browFlashAt = t;
+        talkedAt = t;
+      }
+      const ft = (t - browFlashAt) / .5, flash = ft >= 0 && ft < 1 && !BROW_STILL.has(face) ? 7 * Math.sin(Math.PI * ft) ** 2 : 0;
+      const pose = BROW[face] || both(0), rate = BROW_RATE[face] || 9;
+      browNow.forEach((b, i) => {
+        // the whole brow leads and its tilt and curve follow, so the ends travel on a slight arc
+        b[0] = lerp(b[0], pose[i][0] + flash - 2 * (o.blink || 0), ease(rate, dt));
+        for (let j = 1; j < 4; j++) b[j] = lerp(b[j], pose[i][j], ease(rate * .75, dt));
+      });
+      browOver = lerp(browOver, BROW_OVER.has(face) ? 1 : 0, ease(14, dt));
+      BROWS.forEach((b, i) => {
+        const [Y, A, F, X] = browNow[i], outer = U(b.outer[0]), inner = U(b.inner[0]), toNose = Math.sign(inner - outer);
+        // raising the inner end turns the brow toward its outer side
+        st[`brow${i}`] = { a: -toNose * Math.atan2(A, Math.abs(b.inner[0] - b.outer[0])) * 180 / Math.PI, tx: X * toNose * S, ty: -Y * S };
+        // a bend along the line between the ends: 0 at either end, F at the middle
+        st[`browBend${i}`] = { fn: (u, v, x) => { const k = clamp((2 * x - outer - inner) / (inner - outer), -1, 1); return [0, -F * (1 - k * k) * S]; } };
+        // the mirrored copy turned back so its ends sit where the drawing's do (a reflection over that line)
+        st[`browOver${i}`] = { a: 2 * Math.atan((b.outer[1] - b.inner[1]) / (b.outer[0] - b.inner[0])) * 180 / Math.PI };
+        st.alpha[`brow${i}`] = 1 - browOver; st.alpha[`browOver${i}`] = browOver;
+        st.alpha[`brow${i}_through`] = .55 * (1 - browOver); st.alpha[`browOver${i}_through`] = .55 * browOver;
+      });
     }
     if (creases) {
       // an eye drawn with the wide (surprised) sprite has no lowered lid, whatever the brows do
