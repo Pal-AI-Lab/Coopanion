@@ -29,7 +29,7 @@ import { existsSync, writeFileSync } from 'node:fs';
 import type { DesktopPetWorld, PetDialog, PetDialogAnswer } from 'cortico-world-desktop-pet';
 import { VENDOR_ICONS, defaultRegion, localized, siteOf, vendorName, vendorsFor, type Language, type Region, type Vendor } from 'cortico-provider-coo';
 import { connectVendor, currentConnection, type ConsoleCall } from 'cortico-provider-coo/src/connect.ts';
-import type { ModelLanguage } from './language.ts';
+import { consoleLanguage, type ModelLanguage } from './language.ts';
 
 const PET_GROUP = 'world:desktop-pet';
 const USER_KEY = 'worlds.desktop-pet.user';
@@ -168,12 +168,12 @@ export function noteStep(d: PetDialog, a: PetDialogAnswer, language: ModelLangua
   return lines;
 }
 
-/** The console's routes, called as the console calls them. */
-function api(origin: string): ConsoleCall {
+/** The console's routes, called as the console calls them; receipts and errors come back in the console language for `language`. */
+function api(origin: string, language: () => Language): ConsoleCall {
   const call = async <T>(path: string, body?: unknown): Promise<T> => {
     const res = await fetch(origin + path, {
       method: body === undefined ? 'GET' : 'POST',
-      headers: { 'content-type': 'application/json', 'x-cortico-language': 'zh' },
+      headers: { 'content-type': 'application/json', 'x-cortico-language': consoleLanguage(language()) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const data = await res.json().catch(() => null) as T & { error?: string } | null;
@@ -280,7 +280,7 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
   if (running) return;
   running = true;
   const t = talker(deps.pet);
-  const call = api(deps.console);
+  const call = api(deps.console, deps.language);
   let reached = 0;
   /** The line on screen, by name: where a close happened. */
   let at = '';
@@ -422,7 +422,7 @@ const KEY_POLL_MS = 2000;
  */
 export async function askForKey(deps: Pick<GuideDeps, 'pet' | 'console' | 'track' | 'language'>, keySet: () => boolean, talked: () => boolean, firstAfterMs: number): Promise<void> {
   const t = talker(deps.pet);
-  const call = api(deps.console);
+  const call = api(deps.console, deps.language);
   let lastAsk = Date.now() - ASK_AGAIN_MS + firstAfterMs;
   let asked = false;
   const connect = async (text: string, via: string) => {

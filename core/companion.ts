@@ -62,7 +62,7 @@ import { followPetLook } from './console-theme.ts';
 import { askForKey, guideDone, markDone, runGuide, type GuideDeps } from './guide.ts';
 import { noticeDefinition, type NoticeWorld } from './notice.ts';
 import { describePetTool } from './pet-status.ts';
-import { modelLanguage, replyLanguage } from './language.ts';
+import { isAppLanguage, modelLanguage, replyLanguage } from './language.ts';
 import { CONSOLE_PORT, DEPLOYMENT, DISPLAY_NAME, followLanguage, isSeededConstitution, seed } from './seed.ts';
 import { crashFields, describeEndpoint, publicExtensionName, Telemetry, type Counter } from './telemetry.ts';
 
@@ -432,7 +432,9 @@ export async function main(): Promise<void> {
     modelLanguage: () => modelLanguage(config?.language),
   });
   const home = deploymentRoot();
-  seed(home);
+  // the system's language, as the Electron main process read it; Chinese when the Core runs without it
+  const system = process.env.COOPANION_SYSTEM_LANGUAGE;
+  seed(home, isAppLanguage(system) ? system : 'zh');
   const deployDir = join(home, DEPLOYMENT);
   const NOTICE = noticeDefinition({
     version: process.env.COOPANION_VERSION ?? 'dev',
