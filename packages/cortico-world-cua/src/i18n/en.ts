@@ -1,6 +1,6 @@
 /**
- * English: the text this World shows people. The keys are zh.ts's; a new language is a copy of this
- * file in that language, registered in index.ts. The permission question and the system dialog follow
+ * English: the text this World shows people. The keys are zh.ts's; a language other than zh-Hant
+ * reads the top-level keys its file leaves out from here. The permission question and the system dialog follow
  * the app language; the console's settings, status and prompt notes follow the console request's
  * language. Text the bot reads, the engine's errors included, is not here (model-text.ts).
  */
