@@ -128,6 +128,24 @@ const ja: Translation<PetText> = {
     overLimit: (mb: number) => `${mb} MB を超えています`,
   },
 
+  consent: {
+    question: (items: string[]) => `こう変えてもいいですか？${items.join('、')}`,
+    choices: ['いいよ', 'これからは聞かなくていいよ', 'やめておく'] as [yes: string, always: string, no: string],
+    list: (items: string[]) => items.join('、'),
+    pick: (axis: string, option: string) => `${axis}：${option}`,
+    figure: (to: string) => `${to}の姿にする`,
+    scheme: (figure: string, look: string) => `${figure}の着せ替えを変える（${look}）`,
+    roam: { free: 'よく歩く', calm: 'ときどき歩く', off: 'じっとする' },
+    roamTo: (to: string) => `歩き回りを「${to}」にする`,
+    snore: (seconds: number) => (seconds === 0 ? '起きるまでいびきをかく' : `眠るたびに ${seconds} 秒いびきをかく`),
+    sound: (on: boolean) => (on ? 'サウンドをオンにする' : 'サウンドをオフにする'),
+    scale: (from: number, to: number) => `サイズを ${from} 倍から ${to} 倍にする`,
+    theme: { dark: '夜の見た目にする', light: '昼の見た目にする' },
+    hover: (list: string) => `ホバーボタンを${list}にする`,
+    actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', dress: '着せ替え', hide: 'ペットを隠す' },
+    user: (to: string) => `あなたを「${to}」と呼ぶ`,
+  },
+
   portsTaken: (from: number, to: number, why: string) => `ポート ${from}–${to} はすべて使用中です：${why}`,
 
   console: {
@@ -151,7 +169,7 @@ const ja: Translation<PetText> = {
       'pet.voice': '音声入力のオン／オフ',
       'pet.body': '現在のアバターの見た目',
       'pet.dress': 'pet_set で選べるアバターと着せ替え',
-      'pet.self': '「Coo に自分で調整させる」のオン／オフ',
+      'pet.self': '「自分で設定する権限」：直接変える設定、同意を得る設定、または何も変えられないこと',
       'pet.chat': 'アプリにチャットページがある場合はその説明、ない場合は空',
       'pet.reply': 'アプリの言語が簡体字中国語でも英語でもないとき、その言語で話すようボットに伝える一文。それ以外は空',
     },
@@ -171,7 +189,7 @@ const ja: Translation<PetText> = {
     hoverButtons: { title: 'ホバーボタン', description: (max: number, ids: string) => `ポインターを乗せたときにペットの横に出るボタン。最大 ${max} 個、カンマ区切り：${ids}。` },
     doubleClickChat: { title: 'ダブルクリックで入力', description: 'ペットをダブルクリックすると入力欄が開きます。' },
     statusBubble: { title: 'ステータス吹き出し', description: '考えているとき、記憶を見ているとき、コンピューターを操作しているときに、ペットが何をしているかを表示します。ファイル名も表示されます。' },
-    selfAdjust: { title: '自分で調整させる', description: 'ペットは自分のアバター、着せ替え、歩き回り、いびきを変えられます。サウンド、サイズ、昼夜の見た目、ホバーボタン、あなたの呼び名を変える前には確認します。オフにすると、どれも変えられません。' },
+    selfAdjust: { title: '自分で設定する権限', description: 'off 禁止：設定を自分で変えられず、一時的に静かにすることもできません。default 標準：アバター、着せ替え、歩き回り、いびきは直接変え、サイズ、サウンド、テーマ、ホバーボタン、呼び名は先にあなたの同意を得ます。any すべて：どれも直接変えます。custom カスタム：「ふるまい」ページのチェックどおりで、チェックした項目は直接変え、ほかは先に同意を得ます。' },
     windowEnabled: { title: '起動時にペットのウィンドウを開く' },
     scale: { title: 'サイズ' },
     frameRate: { title: 'フレームレート', description: 'ペットが歩く、運ばれる、ジャンプするときの 1 秒あたりのフレーム数。0 はディスプレイに合わせます。ディスプレイのリフレッシュレートを超える分はディスプレイのレートになります。「ふるまい」ページでは 60、120、144、無制限を選べます。' },
@@ -180,7 +198,7 @@ const ja: Translation<PetText> = {
     electronFile: { title: 'Electron 実行ファイル', description: '空欄なら CORTICO_DESKTOP_PET_HOST、次にパネルからインストールしたランタイムを使います。' },
     port: { title: 'ページのポート', description: '使用中のときは次の空きポートに繰り上げます。' },
     touchEnabled: { title: 'ふれあいをイベントにする', description: 'つつく、なでる、持ち上げて投げる。' },
-    touchWakeOn: { title: '単独でウェイクするふれあい', description: 'poke：クリックだけがウェイクし、なでる・運ぶは次のウェイクと一緒に届きます。all：すべてのふれあいがウェイクします。none：すべてのふれあいが次のウェイクと一緒に届きます。ふれあいでボットがウェイクしたあと、そのターンが終わるまでのふれあいは次のウェイクと一緒に届きます。' },
+    touchWakeOn: { title: '反応モード', description: 'poke：クリックだけがウェイクし、なでる・運ぶは次のウェイクと一緒に届きます。all：すべてのふれあいがウェイクします。none：すべてのふれあいが次のウェイクと一緒に届きます。ふれあいでボットがウェイクしたあと、そのターンが終わるまでのふれあいは次のウェイクと一緒に届きます。custom：「ふるまい」ページでチェックしたふれあいがウェイクします。' },
     sound: { title: 'すべてのサウンド', description: 'ペットのメニューのサウンドボタンでこれを切り替えます。' },
     sounds: {
       move: { title: '動き', description: '歩く、走る、跳ぶ、着地、投げられる、うなずく、首を振る、回る、目を回す、震える、踊る、見回す。' },

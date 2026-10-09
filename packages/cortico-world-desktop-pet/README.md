@@ -37,13 +37,13 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 | `desktop-pet.speech` | `[语音] 伙伴:…` | flush |
 | `desktop-pet.message` | `[打字] 伙伴:…`(悬停按钮;`worlds.desktop-pet.doubleClickChat` 打开时也可双击;或对话页,可附图片) | preempt |
 | `desktop-pet.answer` | `[回答] 伙伴回答「问题」:选了第 2 项「…」` / 自己写的 / 关掉没答 | flush,关掉没答为 debounce |
-| `desktop-pet.touch` | `[互动] 伙伴戳了你 3 下` / 摸了摸 / 拎起来甩了出去 / 摔晕 | `worlds.desktop-pet.touch.wakeOn` 选中的种类 debounce,其余 piggyback |
+| `desktop-pet.touch` | `[互动] 伙伴戳了你 3 下` / 摸了摸 / 拎起来甩了出去 / 摔晕 | `worlds.desktop-pet.touch.wakeOn` 让它唤醒的种类 debounce,其余 piggyback |
 | `desktop-pet.figure` | `[形象] 你现在的样子:…`(对方换了形象或打扮;bot 用 `pet_set` 自己换的不报) / `[形象] …没能显示出来(原因),你现在是 Coo 的样子` / `[形象] 词表变了。…`;词表有变化时都附上 | 换装 debounce,显示失败 flush |
 
 每条事件的正文前是对方那边的本地时间 `[HH:MM]`;一次运行的第一条、换了日期后的第一条带日期和星期 `[MM-DD 周X HH:MM]`。
 表里是中文版;模型文本是英文时,标签是 `[voice]` `[typed]` `[answer]` `[touch]` `[figure]`,星期写 `Sun` 这样的英文缩写。
 
-同一种互动 2.5 秒内连着来,并成一条带次数的事件。`wakeOn` 默认 `poke`:只有戳唤醒,摸头、放下和甩出跟着下一批送;鼠标划过桌宠也算摸头,拖开挡路的桌宠也算放下。一条互动按 debounce 送出后,到 bot 下一次结束一轮前,其余互动都按 piggyback 送。「伙伴」取自 `worlds.desktop-pet.user`,空着时是应用语言的默认称呼(`src/i18n`)。
+同一种互动 2.5 秒内连着来,并成一条带次数的事件。`wakeOn`(「习惯」页的「回应模式」)默认 `poke`:只有戳唤醒,摸头、放下和甩出跟着下一批送;`all` 都唤醒;`none` 都跟着下一批送;`custom` 只有 `touch.wakeKinds` 里的种类(`poke` `pet` `throw` `drop`,摔晕算在它结束的那次甩出或放下里)唤醒。鼠标划过桌宠也算摸头,拖开挡路的桌宠也算放下。一条互动按 debounce 送出后,到 bot 下一次结束一轮前,其余互动都按 piggyback 送。「伙伴」取自 `worlds.desktop-pet.user`,空着时是应用语言的默认称呼(`src/i18n`)。
 
 ## 桌宠窗口
 
@@ -243,26 +243,35 @@ Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 Core
 
 ## 自己调整
 
-`pet_set` 让 bot 改自己的外观和习惯,分两档(`src/self.ts`):
+`pet_set` 让 bot 改自己的外观和习惯,每项要么直接改,要么先在气泡里征得对方同意、同意了才改(`src/self.ts`)。
+哪项归哪档由 `worlds.desktop-pet.selfAdjust`(「习惯」页的「自主配置权限」)定:
 
-- 直接改:形象和打扮(Coo 的配色和配件也是打扮)、走动多少、呼噜多久;
-- 先在气泡里问对方,同意了才改:音效、大小、黑白模式、悬停按钮、对对方的称呼。
+- `default`(默认):形象和打扮(Coo 的配色和配件也是打扮)、走动多少、呼噜多久直接改;音效、大小、黑白模式、悬停按钮、对对方的称呼先征得同意;
+- `any`:都直接改;
+- `custom`:按 `selfAdjustCustom` 逐项定,`true` 直接改,`false` 先征得同意;
+- `off`:都不能改,`pet_quiet` 也不行。
 
-其余设置(语音输入、麦克风、记住位置等)不是 bot 能改的。`worlds.desktop-pet.selfAdjust` 关掉后两档都不能改,`pet_quiet` 也不行。
+0.1.20 及之前写下的 `true` 读作 `default`,`false` 读作 `off`。征得同意的气泡有三个按钮:可以、以后都可以、不用了(按应用语言);
+选「以后都可以」时照改,并把 `selfAdjust` 设成 `custom`,`selfAdjustCustom` 取当时的直接改项加上这次问的几项,回执里写明。
+这次写入和改动一样算 bot 自己改的(`onBotChange`)。环境提示词的 `{{pet.self}}` 列出当前直接改的和先征得同意的项。
+
+其余设置(语音输入、麦克风、记住位置等)不是 bot 能改的。
 `pet_quiet` 只在内存里覆盖音效和走动,不写配置;对方在这期间自己改了音效或走动,就按对方的来。
 
 ## 给内嵌应用
 
 `desktopPetDefinition({ controls, onCreate, onSkin, packRoots, onBotChange, language })` 生成定义(`packRoots` 是更多形象包目录,`onBotChange` 在 bot 用 `pet_set` 改了设置之后调用,`language` 见下面「文字」一节):`controls`(`PetBotControls`)给右键菜单借出暂停、设置、退出,
 借了哪个就只画哪个按钮或菜单行(暂停要 `isPaused` 和 `setPaused`,设置要 `openSettings`,退出要 `quit` 与可选的 `quitLabel`,可以是每次开菜单时调用的函数);
-`onCreate` 拿到 World 实例,应用可以调 `world.confirm(问题, [同意, 不同意])` 弹一个两选项气泡,
+`onCreate` 拿到 World 实例,应用可以调 `world.confirm(问题, [同意, 不同意])` 弹一个两选项气泡(或 `[同意, 以后都同意, 不同意]` 三选项,中间那项答 `always`),
 结果是 `yes` / `no` / `dismissed` / `timeout`(60 秒没人答) / `unavailable`(没有桌宠页),不会作为事件送给 bot。
 
 应用自己的一问一答(比如首次启动的引导)用 `world.dialog(步骤)`:Coo 在气泡里说一句,下面接一个输入组件,
-回答同样只交给调用方。组件有按钮行(可带一个反复演示按法的按键帽)、可试选的卡片(可带图标或一张 `data:image/…` 图,比如服务的标志;选中时 Coo 当场演示对应动作:站着、溜达、跑来跑去)、
+回答同样只交给调用方。组件有按钮行(可带一个反复演示按法的按键帽)、可试选的卡片(可带图标或一张 `data:image/…` 图,比如服务的标志,名字下可带一行小字 `note`;选中时 Coo 当场演示对应动作:站着、溜达、跑来跑去)、
 文本框(可以是密钥框,带一个外链和一个「以后再说」)、进度条(调用方用 `update({ progress })` 推进,`close()` 收起)。
 `step` 在气泡顶上画步骤点,`closable` 画一个关闭钮;页面不在时结果是 `{ unavailable: true }`,页面回来后调用方重发即可。
 `controls.guide` 借出后,控制台的 `pet.guide` 面板方法会调它,应用借此重放引导。
+`/api/config` 写不了列表和对象,所以「习惯」页的两个自定义弹窗经 `pet` 面板方法保存:`setWakeKinds(种类数组)` 把 `touch.wakeOn` 设成 `custom` 并写 `touch.wakeKinds`,
+`setSelfAdjustCustom({ 项: true/false })` 把 `selfAdjust` 设成 `custom` 并写 `selfAdjustCustom`;`pet.state` 的 `wake`、`selfAdjust` 给出当前值(旧的布尔值已按新含义读出)。
 
 ### 对话页
 

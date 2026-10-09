@@ -128,6 +128,24 @@ const fr: Translation<PetText> = {
     overLimit: (mb: number) => `Plus de ${mb} Mo`,
   },
 
+  consent: {
+    question: (items: string[]) => `Je peux ${items.join(', ')} ?`,
+    choices: ['Oui', 'Oui, toujours', 'Non merci'] as [yes: string, always: string, no: string],
+    list: (items: string[]) => items.join(', '),
+    pick: (axis: string, option: string) => `${axis} : ${option}`,
+    figure: (to: string) => `prendre l'apparence de ${to}`,
+    scheme: (figure: string, look: string) => `changer de tenue ${figure} (${look})`,
+    roam: { free: 'Souvent', calm: 'De temps en temps', off: 'Reste sur place' },
+    roamTo: (to: string) => `régler mes déplacements sur « ${to} »`,
+    snore: (seconds: number) => (seconds === 0 ? "ronfler jusqu'au réveil" : `ronfler ${seconds} s à chaque sieste`),
+    sound: (on: boolean) => (on ? 'activer les sons' : 'couper les sons'),
+    scale: (from: number, to: number) => `passer de la taille ${from}× à ${to}×`,
+    theme: { dark: "passer à l'aspect nuit", light: "passer à l'aspect jour" },
+    hover: (list: string) => `mettre comme boutons au survol : ${list}`,
+    actions: { chat: 'Écrire', voice: 'Saisie vocale', roam: 'Déplacements', theme: 'Mode nuit', sound: 'Sons', dress: 'Habiller', hide: 'Masquer le compagnon' },
+    user: (to: string) => `vous appeler « ${to} »`,
+  },
+
   portsTaken: (from: number, to: number, why: string) => `Les ports ${from}–${to} sont tous occupés : ${why}`,
 
   console: {
@@ -151,7 +169,7 @@ const fr: Translation<PetText> = {
       'pet.voice': 'Si la saisie vocale est activée ou non',
       'pet.body': "L'apparence du personnage actuel",
       'pet.dress': 'Les personnages et tenues que pet_set peut choisir',
-      'pet.self': "Si « Laisser Coo s'ajuster » est activé",
+      'pet.self': "Autoréglage : quels réglages changent directement, lesquels attendent votre accord, ou qu'aucun ne peut changer",
       'pet.chat': "Une note sur la page de discussion quand l'application en a une ; vide sinon",
       'pet.reply': "Une ligne qui indique au bot dans quelle langue parler quand la langue de l'application n'est ni le chinois simplifié ni l'anglais ; vide sinon",
     },
@@ -171,7 +189,7 @@ const fr: Translation<PetText> = {
     hoverButtons: { title: 'Boutons au survol', description: (max: number, ids: string) => `Boutons à côté du compagnon quand le pointeur est posé dessus, jusqu'à ${max}, séparés par des virgules : ${ids}.` },
     doubleClickChat: { title: 'Double-clic pour écrire', description: 'Double-cliquer sur le compagnon ouvre la zone de saisie.' },
     statusBubble: { title: "Bulle d'état", description: "Montre ce que fait le compagnon quand il réfléchit, parcourt sa mémoire ou utilise l'ordinateur, noms de fichiers compris." },
-    selfAdjust: { title: "Le laisser s'ajuster", description: "Le compagnon peut changer lui-même de personnage, de tenue, de déplacements et de ronflements ; il vous demande avant de changer les sons, la taille, l'aspect nuit ou jour, les boutons au survol ou la façon de vous appeler. Désactivé, il ne peut rien changer de tout cela." },
+    selfAdjust: { title: 'Autoréglage', description: "off : il ne peut ni changer ses réglages ni se mettre au calme un moment. default : personnage, tenue, déplacements et ronflements changent directement ; taille, sons, thème, boutons au survol et la façon de vous appeler attendent votre accord. any : tout change directement. custom : selon les cases cochées sur la page Habitudes ; ce qui est coché change directement, le reste attend votre accord." },
     windowEnabled: { title: 'Ouvrir la fenêtre du compagnon au démarrage' },
     scale: { title: 'Taille' },
     frameRate: { title: "Fréquence d'images", description: "Images par seconde quand le compagnon marche, est porté ou saute ; 0 suit l'écran. Au-delà de la fréquence de rafraîchissement de l'écran, celle de l'écran s'applique. La page Habitudes propose 60, 120, 144 et Illimitée." },
@@ -180,7 +198,7 @@ const fr: Translation<PetText> = {
     electronFile: { title: 'Exécutable Electron', description: "Vide : CORTICO_DESKTOP_PET_HOST, puis l'environnement d'exécution installé depuis le panneau." },
     port: { title: 'Port de la page', description: "Passe au port libre suivant s'il est occupé." },
     touchEnabled: { title: 'Les contacts deviennent des événements', description: 'Petits coups, caresses, être soulevé et lancé.' },
-    touchWakeOn: { title: 'Contacts qui réveillent seuls', description: "poke : seul un clic réveille ; caresses et portage partent avec le prochain réveil. all : chaque contact réveille. none : chaque contact part avec le prochain réveil. Les contacts qui suivent un contact ayant réveillé le bot, jusqu'à la fin de ce tour, partent avec le prochain réveil." },
+    touchWakeOn: { title: 'Mode de réponse', description: "poke : seul un clic réveille ; caresses et portage partent avec le prochain réveil. all : chaque contact réveille. none : chaque contact part avec le prochain réveil. Les contacts qui suivent un contact ayant réveillé le bot, jusqu'à la fin de ce tour, partent avec le prochain réveil. custom : les contacts cochés sur la page Habitudes réveillent." },
     sound: { title: 'Tous les sons', description: 'Le bouton son du menu du compagnon bascule ce réglage.' },
     sounds: {
       move: { title: 'Mouvements', description: 'Marcher, courir, sauter, atterrir, être lancé, hocher la tête, la secouer, tourner, vertige, frissons, danser, regarder autour.' },
