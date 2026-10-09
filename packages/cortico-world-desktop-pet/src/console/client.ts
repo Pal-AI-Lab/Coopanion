@@ -1,6 +1,6 @@
 /**
  * Console panels for the desktop pet: `pet` (window, dressing, window runtime) and `voice`
- * (recognition engine, the FunASR model download, microphone level, recognized lines). Data goes
+ * (recognition engine, the FunASR or Whisper model download, microphone level, recognized lines). Data goes
  * through `ctx.invoke`, the level meter through `ctx.stream('voice')`. Text is the World's table
  * (src/i18n) for the console's language.
  */
@@ -24,8 +24,8 @@ interface VoiceState {
   engineSetting: Engine;
   systemSupported: boolean;
   server: { phase: string; url: string; pid: number | null; detail: string | null } | null;
-  /** The FunASR model download. */
-  model: Artifact & { bytes: number };
+  /** The download of the FunASR or Whisper model: the engine in force's, else the app language's. */
+  model: Artifact & { bytes: number; engine: Exclude<Engine, 'system'> };
   mic: { state: string; detail: string | null };
   input: {
     mode: MicMode;
@@ -47,7 +47,7 @@ interface VoiceState {
 }
 
 type MicMode = 'hold' | 'toggle' | 'always';
-type Engine = 'funasr' | 'system';
+type Engine = 'funasr' | 'whisper' | 'system';
 
 /** `KeyboardEvent.code` → the key names `src/asr/hotkey.ts` reads. */
 const CODE_KEYS: Record<string, string> = {
@@ -155,6 +155,9 @@ const petPanel: ConsolePanel = {
   },
 };
 
+/** The engines with a name of their own; the system recognizer's is in the text table. */
+const ENGINE_NAMES: Partial<Record<Engine, string>> = { funasr: 'FunASR', whisper: 'Whisper' };
+
 const FLOOR_DB = -60;
 const meterPct = (db: number) => Math.max(0, Math.min(100, ((db - FLOOR_DB) / -FLOOR_DB) * 100));
 
@@ -221,7 +224,7 @@ const voicePanel: ConsolePanel = {
       master.classList.toggle('on', next.enabled);
       masterHint.textContent = next.enabled ? t.enabledHint : t.disabledHint;
       settings.classList.toggle('off', !next.enabled);
-      const engines: Partial<Record<Engine, string>> = { funasr: t.funasr };
+      const engines: Partial<Record<Engine, string>> = { funasr: t.funasr, whisper: t.whisper };
       // Windows' own recognizer exists only there
       if (next.systemSupported) engines.system = t.system;
       if (engineSel.dataset.list !== JSON.stringify(engines)) {
@@ -229,7 +232,7 @@ const voicePanel: ConsolePanel = {
         engineSel.replaceChildren(...(Object.keys(engines) as Engine[]).map((k) => { const o = ui.h('option', null, engines[k] ?? k); o.value = k; return o; }));
       }
       if (document.activeElement !== engineSel) engineSel.value = next.engine;
-      eng.set(next.engine === 'system' ? t.system : 'FunASR', 'on', next.engine === 'system' ? t.systemHint : t.funasrHint);
+      eng.set(ENGINE_NAMES[next.engine] ?? t.system, 'on', next.engine === 'system' ? t.systemHint : next.engine === 'whisper' ? t.whisperHint : t.funasrHint);
       const sv = next.server;
       if (!sv) srv.set('—', 'off');
       else if (sv.phase === 'running') srv.set(t.ready, 'on', sv.url);
@@ -247,8 +250,8 @@ const voicePanel: ConsolePanel = {
       btnInstall.disabled = m.phase === 'working';
       btnInstall.hidden = m.phase === 'ready';
       btnInstall.textContent = m.phase === 'error' ? t.retry : t.download;
-      // the model only matters to FunASR
-      rt.row.style.display = next.engine === 'funasr' ? '' : 'none';
+      // the system recognizer has no model
+      rt.row.style.display = next.engine === 'system' ? 'none' : '';
 
       const mic = next.mic;
       micRow.set(t.micStates[mic.state] ?? mic.state, mic.state === 'on' ? 'on' : mic.state === 'off' ? 'off' : 'bad', mic.detail ?? '');

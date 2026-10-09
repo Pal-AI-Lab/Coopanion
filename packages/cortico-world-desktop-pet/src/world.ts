@@ -3,13 +3,13 @@
  *
  * Output goes through four tools that drive the pet page (bubble, options, walking,
  * expressions and motions). Input arrives as events: speech heard through the pet window's
- * microphone (transcribed by FunASR's SenseVoice in this process, or Windows' own recognizer), typed text, answers to `pet_ask`, and touches
+ * microphone (transcribed in this process by FunASR's SenseVoice or by Whisper, or by Windows' own recognizer), typed text, answers to `pet_ask`, and touches
  * (poke, petting, being thrown). The page reports what actually happened; receipts and
  * events state only that.
  *
  * Processes owned here: the page server (always, while mounted), the pet window (when
- * `window.enabled`) and the system recognizer's helper (voice input on, engine `system`). FunASR runs
- * in this process once its model is downloaded.
+ * `window.enabled`) and the system recognizer's helper (voice input on, engine `system`). FunASR and
+ * Whisper run in this process once their model is downloaded.
  *
  * Two languages are read at each use: the model-text language for what the bot reads, and the app
  * language (`DesktopPetWorldOptions.language`) for what the person reads: the pages' text (the
@@ -29,7 +29,7 @@ import { nowIso, shortTime } from 'cortico/core/util.ts';
 import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
 import {
-  DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, SENSEVOICE_LANGUAGES, USER_MAX, desktopPetConfigGroups, hoverButtonList,
+  DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, USER_MAX, asrEngineFor, desktopPetConfigGroups, hoverButtonList,
   type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type RoamMode,
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
@@ -37,7 +37,7 @@ import { PetServer, type PageMessage } from './server.ts';
 import { StatusTracker, type DescribeTool } from './status.ts';
 import { WindowHost, resolveHostCommand } from './window-host.ts';
 import { RuntimeStore, type ModelSpec } from './runtime/store.ts';
-import { SENSEVOICE, SherpaAsr, type SherpaModule, type SherpaState } from './asr/sherpa.ts';
+import { SENSEVOICE, SherpaAsr, WHISPER, type SherpaModelKind, type SherpaModule, type SherpaState } from './asr/sherpa.ts';
 import { SystemRecognizer, systemRecognizerSupported, type SystemRecognizerState, type SystemSentence } from './asr/system-recognizer.ts';
 import { Packer, Segmenter, rmsDb, type SegmentConfig, type SegmentSink, type Utterance } from './asr/segmenter.ts';
 import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, watchHotkey, type KeyWatcher } from './asr/hotkey.ts';
@@ -180,8 +180,9 @@ export interface DesktopPetWorldOptions {
   fetchImpl?: typeof fetch;
   /** Loads sherpa-onnx; tests pass a fake recognizer. */
   loadSherpa?: () => SherpaModule;
-  /** The speech model to download; tests pass a small one. */
+  /** The speech models to download; tests pass small ones. */
   funasrModel?: ModelSpec;
+  whisperModel?: ModelSpec;
   /** Shown in the menu header. */
   botName?: string;
   /** PNG shown as the avatar in the menu header, when it exists. */
@@ -210,6 +211,8 @@ export interface DesktopPetWorldOptions {
    */
   replyLanguage?: () => string | null;
 }
+
+type SherpaEngine = Exclude<AsrEngine, 'system'>;
 
 interface PendingWalk {
   resolve: (text: string) => void;
@@ -307,6 +310,7 @@ export class DesktopPetWorld implements World {
   private windowHost: WindowHost | null = null;
   private readonly store: RuntimeStore;
   private funasr: SherpaAsr | null = null;
+  private whisper: SherpaAsr | null = null;
   private system: SystemRecognizer | null = null;
   /** The engine the running backend belongs to; a config change starts the other one. */
   private runningEngine: AsrEngine | null = null;
@@ -368,7 +372,7 @@ export class DesktopPetWorld implements World {
     this.status = new StatusTracker((status) => this.server.sendPet({ t: 'status', status }), opts.describeTool, () => this.ui.busy);
     this.segmenter = new Segmenter(this.segmentConfig(), FRAME_MS);
     this.segmenter.setSink(this.sink);
-    this.store = new RuntimeStore({ runtimesRoot: opts.runtimesRoot, modelsDir: opts.modelsDir, fetchImpl: opts.fetchImpl, funasrModel: opts.funasrModel, text: () => this.ui });
+    this.store = new RuntimeStore({ runtimesRoot: opts.runtimesRoot, modelsDir: opts.modelsDir, fetchImpl: opts.fetchImpl, funasrModel: opts.funasrModel, whisperModel: opts.whisperModel, text: () => this.ui });
     this.server = new PetServer({
       port: () => this.cfg.port,
       webDir: WEB_DIR,
@@ -545,15 +549,17 @@ export class DesktopPetWorld implements World {
     await this.server.start();
     this.windowHost = new WindowHost(host.log, () => this.t.window);
     if (this.cfg.window.enabled) this.openWindow();
-    this.funasr = new SherpaAsr({
-      kind: SENSEVOICE,
-      model: () => this.funasrModel(),
+    const sherpa = (engine: SherpaEngine, kind: SherpaModelKind) => new SherpaAsr({
+      kind,
+      model: () => this.sherpaModel(engine),
       language: () => this.asrLanguage(),
       text: () => this.ui,
       threads: () => this.cfg.asr.threads,
       log: host.log,
       load: this.opts.loadSherpa,
     });
+    this.funasr = sherpa('funasr', SENSEVOICE);
+    this.whisper = sherpa('whisper', WHISPER);
     this.system = new SystemRecognizer({
       language: () => this.asrLanguage(),
       culture: () => SYSTEM_CULTURES[this.appLanguage] ?? '',
@@ -594,6 +600,7 @@ export class DesktopPetWorld implements World {
     this.chat.closeAll('stopped');
     await this.windowHost?.stop();
     await this.funasr?.stop();
+    await this.whisper?.stop();
     await this.system?.stop();
     await this.server.stop();
     this.host = null;
@@ -806,8 +813,8 @@ export class DesktopPetWorld implements World {
     if (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== this.engine()) void this.startVoiceBackend();
     // the system recognizer serves one language; a new one needs a new helper
     else if (this.cfg.asr.enabled && this.runningEngine === 'system' && this.system?.languageChanged) void this.startVoiceBackend();
-    // FunASR loads the model for one language and thread count
-    else if (this.cfg.asr.enabled && this.runningEngine === 'funasr' && this.funasr?.configChanged) void this.startVoiceBackend();
+    // FunASR and Whisper load the model for one language and thread count
+    else if (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== 'system' && this.sherpa(this.runningEngine)?.configChanged) void this.startVoiceBackend();
     void this.syncHotkey();
     // the person changed what a quiet holds back: theirs wins
     if (this.quiet && (this.cfg.sound !== this.quiet.base.sound || this.cfg.roam !== this.quiet.base.roam)) this.endQuiet();
@@ -1143,49 +1150,57 @@ export class DesktopPetWorld implements World {
 
   /* ---------- voice ---------- */
 
-  private funasrModel(): { paths: Record<string, string> } | { missing: string } {
-    if (this.store.funasr.state().phase !== 'ready') return { missing: this.ui.voice.modelMissing(Math.round(this.store.funasr.bytes / 1048576)) };
-    return { paths: this.store.funasr.paths() };
+  /** The model files of a sherpa-onnx engine, or why they are not there. */
+  private sherpaModel(engine: SherpaEngine): { paths: Record<string, string> } | { missing: string } {
+    const slot = this.store[engine];
+    if (slot.state().phase !== 'ready') return { missing: this.ui.voice.modelMissing(Math.round(slot.bytes / 1048576)) };
+    return { paths: slot.paths() };
   }
 
-  /**
-   * The engine in force: Windows' own recognizer only where it exists, FunASR otherwise (and for older
-   * settings). Unset, the app language picks: FunASR for a language SenseVoice hears, else the system one.
-   */
+  /** The engine in force (`asrEngineFor`). */
   engine(): AsrEngine {
-    const set = this.cfg.asr.engine || (this.appLanguage in SENSEVOICE_LANGUAGES ? 'funasr' : 'system');
-    return set === 'system' && systemRecognizerSupported() ? 'system' : 'funasr';
+    return asrEngineFor(this.cfg.asr.engine, this.appLanguage, systemRecognizerSupported());
   }
 
-  /** The recognition language: the set one, else the app language's (its ISO 639-1 code for the system recognizer, `auto` for FunASR where SenseVoice does not hear it). */
+  /** The sherpa-onnx engine whose model voice input downloads: the one in force, else the app language's. */
+  private modelEngine(): SherpaEngine {
+    const engine = this.engine();
+    return engine === 'system' ? asrEngineFor('', this.appLanguage, false) as SherpaEngine : engine;
+  }
+
+  private sherpa(engine: SherpaEngine): SherpaAsr | null {
+    return engine === 'whisper' ? this.whisper : this.funasr;
+  }
+
+  private recognizer(engine = this.engine()): SherpaAsr | SystemRecognizer | null {
+    return engine === 'system' ? this.system : this.sherpa(engine);
+  }
+
+  /** The recognition language: the set one, else the app language's ISO 639-1 code; FunASR and Whisper read a code they do not take as `auto`. */
   private asrLanguage(): string {
-    if (this.cfg.asr.language) return this.cfg.asr.language;
-    const app = this.appLanguage;
-    return SENSEVOICE_LANGUAGES[app] ?? (this.engine() === 'system' ? app.split('-')[0]! : 'auto');
+    return this.cfg.asr.language || this.appLanguage.split('-')[0]!;
   }
 
   private backendState(): SherpaState | SystemRecognizerState | null {
-    return (this.engine() === 'system' ? this.system?.state() : this.funasr?.state()) ?? null;
+    return this.recognizer()?.state() ?? null;
   }
 
-  /** Starts the engine in force and stops the other one. */
+  /** Starts the engine in force and stops the one that ran before. */
   async startVoiceBackend(): Promise<SherpaState | SystemRecognizerState | null> {
-    if (!this.funasr || !this.system) return null;
     const engine = this.engine();
+    const recognizer = this.recognizer(engine);
+    if (!recognizer) return null;
     if (this.runningEngine !== engine) {
-      if (this.runningEngine === 'system') await this.system.stop();
-      else if (this.runningEngine === 'funasr') await this.funasr.stop();
+      if (this.runningEngine) await this.recognizer(this.runningEngine)?.stop();
       this.runningEngine = engine;
     }
-    if (engine === 'system') await this.system.start();
-    else await this.funasr.start();
+    await recognizer.start();
     this.syncPrefs();
     return this.backendState();
   }
 
   private async stopVoiceBackend(): Promise<void> {
-    if (this.engine() === 'system') await this.system?.stop();
-    else await this.funasr?.stop();
+    await this.recognizer()?.stop();
     this.syncPrefs();
   }
 
@@ -1316,13 +1331,12 @@ export class DesktopPetWorld implements World {
     try {
       while (this.queue.length) {
         const u = this.queue.shift()!;
+        const recognizer = this.recognizer();
         const res = u.result
           ? await u.result
-          : this.engine() === 'system' && this.system
-            ? await this.system.transcribe(u.pcm)
-            : this.funasr
-              ? await this.funasr.transcribe(u.pcm)
-              : { text: '', ms: 0, error: this.ui.voice.notRunning };
+          : recognizer
+            ? await recognizer.transcribe(u.pcm)
+            : { text: '', ms: 0, error: this.ui.voice.notRunning };
         let text = res.text;
         if (this.simplifies) text = toSimplified(text);
         if (res.error || looksHallucinated(text)) {
@@ -1362,7 +1376,7 @@ export class DesktopPetWorld implements World {
     begin: (frames) => {
       this.sentence = null;
       this.interim = '';
-      const recognizer = this.engine() === 'system' ? this.system : this.funasr;
+      const recognizer = this.recognizer();
       if (!recognizer) return;
       const s: SystemSentence | null = recognizer.sentence((text) => {
         if (this.sentence !== s) return;
@@ -1695,7 +1709,7 @@ export class DesktopPetWorld implements World {
         case 'stop': await this.stopVoiceBackend(); return this.voiceState();
         case 'setEngine': {
           const engine = args[0];
-          if (engine === 'funasr' || engine === 'system') this.opts.persist({ asr: { engine } });
+          if (engine === 'funasr' || engine === 'whisper' || engine === 'system') this.opts.persist({ asr: { engine } });
           if (this.cfg.asr.enabled) await this.startVoiceBackend();
           return this.voiceState();
         }
@@ -1710,12 +1724,14 @@ export class DesktopPetWorld implements World {
     throw new Error(this.ui.console.unknownMethod(`${panel}.${method}`));
   }
 
-  /** Downloads the FunASR model, chooses FunASR, and starts it when voice input is on. */
+  /** Downloads the model of `modelEngine()`, chooses that engine, and starts it when voice input is on. */
   async installVoice(): Promise<void> {
-    if (this.store.funasr.state().phase !== 'ready') await this.store.funasr.install();
-    if (this.store.funasr.state().phase !== 'ready') { this.syncPrefs(); return; }
+    const engine = this.modelEngine();
+    const slot = this.store[engine];
+    if (slot.state().phase !== 'ready') await slot.install();
+    if (slot.state().phase !== 'ready') { this.syncPrefs(); return; }
     // downloading the model is choosing it
-    if (this.cfg.asr.engine !== 'funasr') this.opts.persist({ asr: { engine: 'funasr' } });
+    if (this.engine() !== engine) this.opts.persist({ asr: { engine } });
     if (this.cfg.asr.enabled) await this.startVoiceBackend();
     else this.syncPrefs();
   }
@@ -1735,13 +1751,15 @@ export class DesktopPetWorld implements World {
   }
 
   voiceState(): Record<string, unknown> {
+    const modelEngine = this.modelEngine();
+    const model = this.store[modelEngine];
     return {
       enabled: this.cfg.asr.enabled,
       engine: this.engine(),
       engineSetting: this.cfg.asr.engine,
       systemSupported: systemRecognizerSupported(),
       server: this.backendState(),
-      model: { ...this.store.funasr.state(), bytes: this.store.funasr.bytes },
+      model: { ...model.state(), bytes: model.bytes, engine: modelEngine },
       mic: this.micState,
       input: {
         ...this.cfg.asr.mic,

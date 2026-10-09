@@ -1,6 +1,6 @@
 /**
  * Voice input end to end inside the World: PCM frames over the pet socket → segmenter →
- * FunASR (a stand-in for sherpa-onnx's recognizer that answers with a set line) →
+ * FunASR or Whisper (a stand-in for sherpa-onnx's recognizer that answers with a set line) →
  * `desktop-pet.speech` event, with the listen phases the page shows along the way.
  */
 import { afterEach, describe, expect, it } from 'vitest';
@@ -59,6 +59,13 @@ function placeModel(modelsDir: string): void {
   writeFileSync(join(modelsDir, 'test-model', 'model.int8.onnx'), MODEL);
   writeFileSync(join(modelsDir, 'test-model', 'tokens.txt'), TOKENS);
 }
+/** A small stand-in for the Whisper model, placed in `modelsDir`. */
+function placeWhisper(modelsDir: string): ModelSpec {
+  const files = ['encoder', 'decoder', 'tokens'].map((role) => ({ role, name: `${role}.bin`, body: Buffer.from(role) }));
+  mkdirSync(join(modelsDir, 'test-whisper'), { recursive: true });
+  for (const file of files) writeFileSync(join(modelsDir, 'test-whisper', file.name), file.body);
+  return { id: 'test-whisper', files: files.map(({ role, name, body }) => ({ role, name, bytes: body.length, sha256: sha(body) })), sources: [] };
+}
 
 const tone = (ms: number, amp: number) => {
   const frames: Int16Array[] = [];
@@ -91,7 +98,7 @@ function scriptedKey(problem?: string) {
   return { key, watch };
 }
 
-async function setup(text: string | ((samples: number) => string), mode: MicMode = 'always', watch?: ReturnType<typeof scriptedKey>['watch']) {
+async function setup(text: string | ((samples: number) => string), mode: MicMode = 'always', watch?: ReturnType<typeof scriptedKey>['watch'], language = 'zh') {
   const asr = fakeFunAsr(text);
   const cfg = structuredClone(DESKTOP_PET_DEFAULTS);
   Object.assign(cfg, { enabled: true, port: 0 });
@@ -101,7 +108,7 @@ async function setup(text: string | ((samples: number) => string), mode: MicMode
   placeModel(join(dir, 'm'));
   const world = new DesktopPetWorld({
     cfg, timezone: 'Asia/Shanghai', persist: () => {}, runtimesRoot: () => join(dir, 'rt'), modelsDir: () => join(dir, 'm'),
-    watchHotkey: watch, loadSherpa: () => asr.sherpa, funasrModel: modelSpec(),
+    watchHotkey: watch, loadSherpa: () => asr.sherpa, funasrModel: modelSpec(), whisperModel: placeWhisper(join(dir, 'm')), language: () => language,
   });
   const host = new FakeHost();
   await world.start(host);
@@ -238,6 +245,32 @@ describe('voice input', () => {
     for (const fr of tone(900, 0)) page.audio(fr);
     await expect.poll(() => host.events.length, { timeout: 5000 }).toBe(1);
     expect(host.events[0].text.length).toBeGreaterThan('[语音] 伙伴:'.length + 13);
+  });
+
+  it('whisper: an app language SenseVoice does not hear goes to Whisper in that language, decoded once when the sentence ends', async () => {
+    const { asr, host, page } = await setup('Quelle heure est-il ?', 'always', undefined, 'fr');
+    for (const fr of tone(1400, .3)) page.audio(fr);
+    await page.next((m) => m.t === 'listen' && m.phase === 'start');
+    await new Promise((r) => setTimeout(r, 300));
+    expect(asr.decodes).toHaveLength(0);
+    for (const fr of tone(900, 0)) page.audio(fr);
+    await expect.poll(() => host.events.length, { timeout: 5000 }).toBe(1);
+    expect(host.events[0].text).toContain('Quelle heure est-il ?');
+    expect(asr.decodes).toHaveLength(1);
+    expect(asr.configs[0]).toMatchObject({ modelConfig: { whisper: { language: 'fr', task: 'transcribe' } } });
+  });
+
+  it('whisper: a talk key held over silence is not decoded and sends nothing', async () => {
+    const { key, watch } = scriptedKey();
+    const { asr, host, page } = await setup('Повтори', 'hold', watch, 'ru');
+    key.press(true);
+    await page.next((m) => m.t === 'listen' && m.phase === 'start');
+    for (const fr of tone(800, 0)) page.audio(fr);
+    await new Promise((r) => setTimeout(r, 200));
+    key.press(false);
+    await page.next((m) => m.t === 'listen' && m.phase === 'none');
+    expect(asr.decodes).toHaveLength(0);
+    expect(host.events).toHaveLength(0);
   });
 
   it('funasr without its model says so, and the download starts it', async () => {

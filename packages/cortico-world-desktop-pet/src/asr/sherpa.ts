@@ -1,12 +1,14 @@
 /**
  * Speech models run in this process through sherpa-onnx's Node addon (`sherpa-onnx-node`, N-API,
- * one prebuilt package per platform: Windows x64, macOS arm64 and x64). Which model and how it is
- * configured is a `SherpaModelKind`; the model files come from the runtime store
+ * one prebuilt package per platform: Windows x64, macOS arm64 and x64, Linux x64 and arm64 with
+ * glibc 2.32 or later). Which model and how it is configured is a `SherpaModelKind`: FunASR's
+ * SenseVoiceSmall or OpenAI's Whisper. The model files come from the runtime store
  * (`src/runtime/store.ts`); nothing else is downloaded.
  *
  * The models recognize a whole utterance at a time. While a sentence is being spoken the audio so
  * far is decoded again every `partialEveryMs` of the kind, one decode at a time, so the pet shows
- * what it hears before the sentence ends; the decode after the sentence ends is the result.
+ * what it hears before the sentence ends; the decode after the sentence ends is the result. A kind
+ * whose `partialEveryMs` is 0 decodes only the finished sentence.
  *
  * Under Electron's Node the addon refuses external buffers; only Float32Array samples go in and
  * JSON comes back, which does not touch them.
@@ -15,6 +17,7 @@ import { createRequire } from 'node:module';
 import { existsSync } from 'node:fs';
 import type { Logger } from 'cortico/core/types.ts';
 import type { TranscribeResult } from './result.ts';
+import { rmsDb } from './segmenter.ts';
 import type { SystemSentence } from './system-recognizer.ts';
 import { petText, type PetText } from '../i18n/index.ts';
 
@@ -47,8 +50,13 @@ export interface SherpaModelKind {
   language(language: string): string;
   /** sherpa-onnx's model entry (`modelConfig` without `tokens`) for the files, by their role in the runtime store, and that language. */
   config(paths: Readonly<Record<string, string>>, language: string): Record<string, unknown>;
-  /** How often the sentence being spoken is decoded again for the bubble. */
+  /** How often the sentence being spoken is decoded again for the bubble; 0: only once it ends. */
   partialEveryMs: number;
+  /**
+   * Fallback for a model that writes text for audio without speech: an utterance whose loudest
+   * 20 ms frame stays below this level (dBFS) is not decoded and comes back empty.
+   */
+  silentBelowDb?: number;
 }
 
 /** Languages SenseVoice names; anything else is left to its own detection. */
@@ -61,6 +69,42 @@ export const SENSEVOICE: SherpaModelKind = {
   config: (paths, language) => ({ senseVoice: { model: paths.model, language, useInverseTextNormalization: 1 } }),
   partialEveryMs: 500,
 };
+
+/**
+ * The languages Whisper's multilingual models up to medium take. sherpa-onnx ends the process when
+ * a decode is given any other code, so anything else goes in empty: Whisper then detects it.
+ */
+const WHISPER_CODES = new Set((
+  'en zh de es ru ko fr ja pt tr pl ca nl ar sv it id hi fi vi he uk el ms cs ro da hu ta no th ur hr bg lt la mi ml cy sk te '
+  + 'fa lv bn sr az sl kn et mk br eu is hy ne mn bs kk sq sw gl mr pa si km sn yo so af oc ka be tg sd gu am yi lo uz fo ht ps '
+  + 'tk nn mt sa lb my bo tl mg as tt haw ln ha ba jw su'
+).split(' '));
+
+/**
+ * OpenAI's Whisper small. A decode costs about 70 ms per output token, so a 3 s sentence takes
+ * about 1 s and an 8 s one about 3 s (two threads on four cores of a current laptop CPU; four
+ * threads on four cores are slower). It decodes only the finished sentence: re-decoding every
+ * 500 ms would keep the CPU busy while the person speaks and hold the final decode up behind a
+ * partial one.
+ *
+ * Its silence floor is a fallback: Whisper answers silence and room noise with subtitle credits
+ * and sound labels (`[Musik]`, `Субтитры …`); `looksHallucinated` (result.ts) drops the labels
+ * that do get decoded.
+ */
+export const WHISPER: SherpaModelKind = {
+  label: 'Whisper small',
+  language: (language) => (WHISPER_CODES.has(language) ? language : ''),
+  config: (paths, language) => ({ whisper: { encoder: paths.encoder, decoder: paths.decoder, language, task: 'transcribe' } }),
+  partialEveryMs: 0,
+  silentBelowDb: -50,
+};
+
+/** The loudest 20 ms frame of an utterance, in dBFS. */
+function peakDb(pcm: Int16Array): number {
+  let peak = -100;
+  for (let at = 0; at < pcm.length; at += 320) peak = Math.max(peak, rmsDb(pcm.subarray(at, at + 320)));
+  return peak;
+}
 
 export interface SherpaAsrOptions {
   kind: SherpaModelKind;
@@ -176,6 +220,8 @@ export class SherpaAsr {
   private async decode(pcm: Int16Array): Promise<TranscribeResult> {
     const rec = this.rec;
     if (!rec) return { text: '', ms: 0, error: this.detail ?? this.t.notLoaded };
+    const floor = this.opts.kind.silentBelowDb;
+    if (floor !== undefined && peakDb(pcm) < floor) return { text: '', ms: 0, error: null };
     try {
       const stream = rec.createStream();
       stream.acceptWaveform({ sampleRate: SAMPLE_RATE, samples: toFloat(pcm) });
@@ -188,11 +234,12 @@ export class SherpaAsr {
 
   /**
    * A sentence being spoken: frames go in as they arrive, `onPartial` gets what has been heard so
-   * far, `end` gives the whole sentence. Null while the model is not loaded.
+   * far, `end` gives the whole sentence. Null while the model is not loaded, and for a kind that
+   * decodes only finished sentences.
    */
   sentence(onPartial: (text: string) => void): SystemSentence | null {
-    if (!this.rec) return null;
     const every = this.opts.kind.partialEveryMs;
+    if (!this.rec || every <= 0) return null;
     const frames: Int16Array[] = [];
     let samples = 0, decodedAt = 0, busy = false, ended = false, endedAt = 0;
     const joined = () => {

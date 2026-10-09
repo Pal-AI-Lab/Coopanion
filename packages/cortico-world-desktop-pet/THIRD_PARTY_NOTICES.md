@@ -5,17 +5,18 @@
 ## 识别运行库
 
 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 的 Node 插件 `sherpa-onnx-node` 1.13.8 与各平台的
-预编译包(`sherpa-onnx-win-x64`、`sherpa-onnx-darwin-arm64`、`sherpa-onnx-darwin-x64` 等),随 npm 依赖安装。
+预编译包(`sherpa-onnx-win-x64`、`sherpa-onnx-darwin-arm64`、`sherpa-onnx-darwin-x64`、`sherpa-onnx-linux-x64` 等),随 npm 依赖安装。
 Apache-2.0;其中的 onnxruntime 为 MIT。
 
 ## 模型
 
-FunASR 的 SenseVoiceSmall(FunAudioLLM,通义实验室)经 k2-fsa 转成 sherpa-onnx 用的 int8 ONNX,
-放在 `<模型根>/desktop-pet/sensevoice-small-int8-2024-07-17/`,按固定的 SHA-256 校验。
+FunASR 的 SenseVoiceSmall(FunAudioLLM,通义实验室)与 OpenAI 的 Whisper small,都经 k2-fsa 转成 sherpa-onnx 用的 int8 ONNX,
+分别放在 `<模型根>/desktop-pet/sensevoice-small-int8-2024-07-17/` 与 `<模型根>/desktop-pet/whisper-small-int8-2024-07-13/`,按固定的 SHA-256 校验。
 
 | 文件 | 来源(按顺序尝试) | 许可 |
 |---|---|---|
 | `model.int8.onnx`、`tokens.txt` | [ModelScope pengzhendong/sherpa-onnx-sense-voice-zh-en-ja-ko-yue](https://modelscope.cn/models/pengzhendong/sherpa-onnx-sense-voice-zh-en-ja-ko-yue),再 [Hugging Face csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17](https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17) | [FunASR 模型开源协议](https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE) |
+| `small-encoder.int8.onnx`、`small-decoder.int8.onnx`、`small-tokens.txt` | [ModelScope pengzhendong/sherpa-onnx-whisper-small](https://modelscope.cn/models/pengzhendong/sherpa-onnx-whisper-small),再 [Hugging Face csukuangfj/sherpa-onnx-whisper-small](https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small) | [MIT](https://github.com/openai/whisper/blob/main/LICENSE) |
 
 ## 桌宠窗口
 

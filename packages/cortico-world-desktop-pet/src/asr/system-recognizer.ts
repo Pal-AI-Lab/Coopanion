@@ -5,7 +5,7 @@
  * shows what it hears before the sentence ends.
  *
  * Nothing to download: every Windows has System.Speech, and a Chinese Windows has the zh-CN
- * recognizer. It is less accurate than FunASR's SenseVoice, which is the default.
+ * recognizer. It is less accurate than SenseVoice and Whisper (src/asr/sherpa.ts), one of which is the default.
  *
  * The script goes in through `-EncodedCommand`, so neither the execution policy nor the
  * console code page touches it; its output escapes everything outside ASCII for the same reason.

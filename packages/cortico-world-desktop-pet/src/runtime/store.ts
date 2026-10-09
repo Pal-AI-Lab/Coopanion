@@ -1,11 +1,11 @@
 /**
- * Managed downloads: the FunASR speech model (SenseVoiceSmall int8 in sherpa-onnx's format) and
- * the Electron runtime that hosts the pet window when it runs outside an app. Every artifact is
- * pinned. Files land at `<CORTICO_HOME>/runtimes/<id>/<version>/` and
+ * Managed downloads: the speech models (FunASR's SenseVoiceSmall and Whisper small, int8 in
+ * sherpa-onnx's format) and the Electron runtime that hosts the pet window when it runs outside an
+ * app. Every artifact is pinned. Files land at `<CORTICO_HOME>/runtimes/<id>/<version>/` and
  * `<CORTICO_HOME>/models/desktop-pet/<model id>/`, are written to `.partial` first and renamed
  * into place when complete; model files are checked against their published SHA-256.
  *
- * The model is fetched from ModelScope first, which answers from mainland China, and from Hugging
+ * A model is fetched from ModelScope first, which answers from mainland China, and from Hugging
  * Face when ModelScope does not; the files are the same (their SHA-256 match).
  *
  * Archives are unpacked with the system `tar` (bsdtar on Windows and macOS reads zip too);
@@ -53,6 +53,20 @@ export const FUNASR_MODEL: ModelSpec = {
   sources: [
     (file: string) => `https://modelscope.cn/models/pengzhendong/sherpa-onnx-sense-voice-zh-en-ja-ko-yue/resolve/master/${file}`,
     (file: string) => `https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main/${file}`,
+  ],
+};
+
+/** OpenAI's Whisper small, int8, as sherpa-onnx loads it (MIT; export by k2-fsa, uploaded 2024-07-13). */
+export const WHISPER_MODEL: ModelSpec = {
+  id: 'whisper-small-int8-2024-07-13',
+  files: [
+    { role: 'encoder', name: 'small-encoder.int8.onnx', bytes: 112_442_483, sha256: '4cbe7b22fa9026b843b60a68640c747de05bafb1a11b57edc0e66c232d9f33a9' },
+    { role: 'decoder', name: 'small-decoder.int8.onnx', bytes: 262_226_114, sha256: 'acad50b5c782696e91b55914cc5ab4f756f1532f76e22aa6fc615f39fb69a8ee' },
+    { role: 'tokens', name: 'small-tokens.txt', bytes: 816_730, sha256: 'b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126' },
+  ],
+  sources: [
+    (file: string) => `https://modelscope.cn/models/pengzhendong/sherpa-onnx-whisper-small/resolve/master/${file}`,
+    (file: string) => `https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/main/${file}`,
   ],
 };
 
@@ -257,8 +271,9 @@ export interface RuntimeStoreOptions {
   runtimesRoot: () => string;
   modelsDir: () => string;
   fetchImpl?: typeof fetch;
-  /** The speech model; tests pass a small one. */
+  /** The speech models; tests pass small ones. */
   funasrModel?: ModelSpec;
+  whisperModel?: ModelSpec;
   /** The text table of the app language, read at each step; Chinese when absent. */
   text?: () => PetText;
 }
@@ -266,10 +281,12 @@ export interface RuntimeStoreOptions {
 export class RuntimeStore {
   readonly electron: RuntimeSlot;
   readonly funasr: ModelSlot;
+  readonly whisper: ModelSlot;
 
   constructor(opts: RuntimeStoreOptions) {
     const text = () => (opts.text?.() ?? petText()).store;
     this.electron = new RuntimeSlot(opts.runtimesRoot, ELECTRON_RUNTIME, text, opts.fetchImpl);
     this.funasr = new ModelSlot(opts.modelsDir, opts.funasrModel ?? FUNASR_MODEL, text, opts.fetchImpl);
+    this.whisper = new ModelSlot(opts.modelsDir, opts.whisperModel ?? WHISPER_MODEL, text, opts.fetchImpl);
   }
 }
