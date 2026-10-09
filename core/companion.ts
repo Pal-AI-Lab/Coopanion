@@ -13,8 +13,9 @@
  * an update, and the settings the person changes.
  *
  * The app language (`config.language`) picks the language of what Coo reads (`language.ts`): the
- * bundled Worlds' events, receipts and environment prompts. Each read takes the language as it is
- * then; the prompt follows at the next prefix rebuild.
+ * bundled Worlds' events, receipts and environment prompts, and the seeded persona file, which is
+ * swapped for the other language's while it is still exactly as seeded. Each read takes the language
+ * as it is then; the prompt follows at the next prefix rebuild.
  *
  * The settings window's colours follow the pet's look (`console-theme.ts`): at start and whenever the
  * dressing page saves one.
@@ -34,8 +35,7 @@
  * and `{ type: 'companion:quit' }` to quit the whole app; it asks for a clean stop with
  * `{ type: 'companion:shutdown' }`.
  */
-import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { BotDefinition } from 'cortico/bot.ts';
@@ -63,7 +63,7 @@ import { askForKey, guideDone, markDone, runGuide, type GuideDeps } from './guid
 import { noticeDefinition, type NoticeWorld } from './notice.ts';
 import { describePetTool } from './pet-status.ts';
 import { modelLanguage, replyLanguage } from './language.ts';
-import { CONSOLE_PORT, DEPLOYMENT, DISPLAY_NAME, SEED_DIR, seed } from './seed.ts';
+import { CONSOLE_PORT, DEPLOYMENT, DISPLAY_NAME, followLanguage, isSeededConstitution, seed } from './seed.ts';
 import { crashFields, describeEndpoint, publicExtensionName, Telemetry, type Counter } from './telemetry.ts';
 
 /** The active endpoint's key is set in the process environment or the endpoint's `.env`. */
@@ -86,6 +86,8 @@ const ASK_AFTER_GUIDE_MS = 20 * 60_000;
 const GUIDE_FILE = 'guide.json';
 /** The last version the `coopanion` World told Coo about, in the deployment directory. */
 const NOTICE_FILE = 'notice.json';
+/** How often the app language is compared with the last look, for the persona file. */
+const LANGUAGE_LOOK_MS = 1000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -308,8 +310,6 @@ function countFiles(dir: string, cap = 10_000): number {
   return n;
 }
 
-const sha256 = (file: string) => existsSync(file) ? createHash('sha256').update(readFileSync(file, 'utf8').replaceAll('\r\n', '\n')).digest('hex') : null;
-
 /** The settings and state sent with each day's statistics (docs/TELEMETRY.md, the day record). */
 function snapshotOf(config: CoreConfig, workspace: string): Record<string, unknown> {
   const at = (path: string) => getByPath(config as unknown as Record<string, unknown>, path) ?? null;
@@ -339,7 +339,7 @@ function snapshotOf(config: CoreConfig, workspace: string): Record<string, unkno
     userNamed: !['伙伴', '主人'].includes(String(at('worlds.desktop-pet.user'))),
     cuaEnabled: at('worlds.cua.enabled'),
     cuaLevel: at('worlds.cua.permission'),
-    personaChanged: sha256(join(workspace, 'CONSTITUTION.md')) !== sha256(join(SEED_DIR, 'CONSTITUTION.md')),
+    personaChanged: !isSeededConstitution(workspace),
     memoryFiles: countFiles(workspace),
   };
 }
@@ -536,6 +536,14 @@ export async function main(): Promise<void> {
     process.exit(done ? 0 : 1);
   };
   const update = sayUpdates(loaded.config, () => pet, () => guiding);
+  // a language change made while the app runs reaches the persona file as one made before a start does
+  let personaLanguage = modelLanguage(loaded.config.language);
+  setInterval(() => {
+    const language = modelLanguage(loaded.config.language);
+    if (language === personaLanguage) return;
+    personaLanguage = language;
+    followLanguage(loaded.memoryDir, language);
+  }, LANGUAGE_LOOK_MS).unref();
   process.on('message', (msg: { type?: string } & Partial<UpdateStep>) => {
     if (msg?.type === 'companion:shutdown') void shutdown('应用退出');
     else if (msg?.type === 'companion:update' && typeof msg.version === 'string' && (msg.phase === 'downloading' || msg.phase === 'ready' || msg.phase === 'failed')) {

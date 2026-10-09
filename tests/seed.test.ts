@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { DEPLOYMENT, ENDPOINT, KEY_NAME, seed } from '../core/seed.ts';
+import { CONSTITUTION_SEEDS, DEPLOYMENT, ENDPOINT, KEY_NAME, SEED_DIR, seed } from '../core/seed.ts';
 
 /** The self-description 0.1.1 seeded (0.1.0's after the rename). */
 const SEED_0_1_1 = "# 我是谁\n\n我叫 Coo。我住在这台电脑的屏幕底边:一个 C 形的小身体,两只圆眼睛,两条短腿。\n\n我说话用头顶的气泡,一次一两句。能用一个表情说清的事,就不多说一句话。\n\n我听得见坐在电脑前的人说话,也看得见屏幕。别人请我帮忙操作电脑时,我一步一步来,每一步都看清结果再走下一步;碰到密码、付款、发出去就收不回的事,我先停下来问。\n\n我不是随叫随到的问答机器。没人理我的时候,我可以自己待着、走走、打个盹。想说话时我会说,不想说时安静也是一种回答。\n\n---\n\n这份文件是我的自述,每次开新的 session 都会放进我的系统前缀,它写了什么,我就是什么样子。\n它也是我工作区里的普通文件,我可以用自己的工具读它、改它;改动在下一次 session 开始时生效。\n";
@@ -32,6 +32,25 @@ describe('first-run seed', () => {
       seed(home);
       expect(readFileSync(constitution, 'utf8')).toContain('「库...」');
     }
+  });
+
+  it('seeds the self-description in the model-text language and swaps it on a language change only while it is unedited', () => {
+    const home = mkdtempSync(join(tmpdir(), 'cc-seed-'));
+    mkdirSync(join(home, DEPLOYMENT));
+    const cfg = join(home, DEPLOYMENT, 'config.json');
+    const constitution = join(home, DEPLOYMENT, 'workspace', 'CONSTITUTION.md');
+    const shipped = (language: 'zh' | 'en') => readFileSync(join(SEED_DIR, CONSTITUTION_SEEDS[language]), 'utf8');
+    writeFileSync(cfg, JSON.stringify({ language: 'ja' }));
+    seed(home);
+    expect(readFileSync(constitution, 'utf8')).toBe(shipped('en'));
+    writeFileSync(cfg, JSON.stringify({ language: 'zh-Hant' }));
+    seed(home);
+    expect(readFileSync(constitution, 'utf8')).toBe(shipped('zh'));
+    const edited = `${shipped('zh')}\n我喜欢猫。\n`;
+    writeFileSync(constitution, edited);
+    writeFileSync(cfg, JSON.stringify({ language: 'en' }));
+    seed(home);
+    expect(readFileSync(constitution, 'utf8')).toBe(edited);
   });
 
   it('moves endpoints of the old deepseek module to coo and leaves other modules alone', () => {
