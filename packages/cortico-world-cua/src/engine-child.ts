@@ -16,6 +16,7 @@ import type { ChildToMain, EngineRequest, InputResult, MainToChild, ScreenInfo, 
 const os: typeof import('./engine/win32.ts') = process.platform === 'darwin' ? await import('./engine/darwin.ts')
   : process.platform === 'linux' ? await import('./engine/linux.ts') : await import('./engine/win32.ts');
 import { downscale, drawCursor, encodeJpeg, fit } from './engine/image.ts';
+import { EngineFailure } from './engine/fail.ts';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const since = (now: number, then: number) => (now - then) >>> 0;
@@ -142,7 +143,7 @@ async function handle(req: EngineRequest, cancelled: Cancelled): Promise<unknown
       }
     });
     case 'windows': return os.windows();
-    case 'confirm': return os.askYesNo(req.text, req.caption, req.timeoutMs);
+    case 'confirm': return os.askYesNo(req.text, req.caption, { yes: req.yes, no: req.no }, req.timeoutMs);
     case 'focus': {
       const w = await waitIdle(req.yield, cancelled);
       if (w.yielded || w.cancelled) return { ...info(), ...w, focused: false };
@@ -166,7 +167,7 @@ process.on('message', (msg: MainToChild) => {
   inFlight.set(id, false);
   void handle(msg.req, () => inFlight.get(id) === true).then(
     (value) => process.send?.({ id, ok: true, value } satisfies ChildToMain),
-    (err: Error) => process.send?.({ id, ok: false, error: err.message } satisfies ChildToMain),
+    (err: Error) => process.send?.({ id, ok: false, error: err.message, ...(err instanceof EngineFailure ? { code: err.code, args: err.args } : {}) } satisfies ChildToMain),
   ).finally(() => inFlight.delete(id));
 });
 process.on('disconnect', () => process.exit(0));

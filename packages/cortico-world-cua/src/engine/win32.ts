@@ -8,6 +8,7 @@
  * This module runs only inside the engine child process.
  */
 import koffi from 'koffi';
+import { EngineFailure } from './fail.ts';
 
 const user32 = koffi.load('user32.dll');
 const gdi32 = koffi.load('gdi32.dll');
@@ -89,12 +90,12 @@ export function capture(): { width: number; height: number; bgra: Buffer } {
   const bmp = CreateCompatibleBitmap(screen, width, height);
   const old = SelectObject(mem, bmp);
   try {
-    if (!BitBlt(mem, 0, 0, width, height, screen, 0, 0, SRCCOPY | CAPTUREBLT)) throw new Error('BitBlt 失败');
+    if (!BitBlt(mem, 0, 0, width, height, screen, 0, 0, SRCCOPY | CAPTUREBLT)) throw new EngineFailure('winBitBlt');
     const bgra = Buffer.alloc(width * height * 4);
     const header = { biSize: koffi.sizeof(BITMAPINFOHEADER), biWidth: width, biHeight: -height, biPlanes: 1, biBitCount: 32, biCompression: 0, biSizeImage: 0, biXPelsPerMeter: 0, biYPelsPerMeter: 0, biClrUsed: 0, biClrImportant: 0 };
     // the full BITMAPINFO carries a color table after the header; 32 bpp BI_RGB uses none
     const lines = GetDIBits(mem, bmp, 0, height, bgra, header, 0);
-    if (lines !== height) throw new Error(`GetDIBits 只取到 ${lines}/${height} 行`);
+    if (lines !== height) throw new EngineFailure('winGetDIBits', [lines, height]);
     return { width, height, bgra };
   } finally {
     SelectObject(mem, old);
@@ -123,7 +124,7 @@ export function tick(): number {
 
 function send(inputs: unknown[]): void {
   const sent = SendInput(inputs.length, inputs, koffi.sizeof(INPUT));
-  if (sent !== inputs.length) throw new Error(`SendInput 只送出 ${sent}/${inputs.length} 个事件(可能被更高权限的窗口挡住)`);
+  if (sent !== inputs.length) throw new EngineFailure('winSendInput', [sent, inputs.length]);
 }
 
 const mouse = (dwFlags: number, dx = 0, dy = 0, mouseData = 0) => ({ type: INPUT_MOUSE, u: { mi: { dx, dy, mouseData, dwFlags, time: 0, dwExtraInfo: 0 } } });
@@ -232,7 +233,8 @@ export function focus(handle: string): boolean {
 }
 
 /** A yes/no system dialog above every window. Runs on a koffi worker thread, so the engine keeps serving other requests. */
-export function askYesNo(text: string, caption: string, timeoutMs: number): Promise<'yes' | 'no' | 'timeout'> {
+/** Windows names the two buttons itself, in its own language. */
+export function askYesNo(text: string, caption: string, _labels: { yes: string; no: string }, timeoutMs: number): Promise<'yes' | 'no' | 'timeout'> {
   return new Promise((resolve, reject) => {
     MessageBoxTimeoutW.async(null, text, caption, MB_YESNO | MB_ICONQUESTION | MB_SETFOREGROUND | MB_TOPMOST, 0, timeoutMs, (err: unknown, r: number) => {
       if (err) reject(err as Error);

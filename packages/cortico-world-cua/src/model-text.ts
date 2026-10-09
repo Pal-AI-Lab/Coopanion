@@ -1,10 +1,11 @@
 /**
  * What the bot reads from this World (receipts and environment prompt values), in Chinese and in
  * English; `en: typeof zh` keeps the two tables' keys and signatures the same. The embedding app
- * picks the language (`CuaWorldOptions.modelLanguage`), Chinese when it does not. Window titles and
- * the engine's own error messages go into these lines as they came.
+ * picks the language (`CuaWorldOptions.modelLanguage`), Chinese when it does not. Window titles go into
+ * these lines as they came; the engine's errors are worded here from their codes (`engineErrors`).
  */
 import type { PermissionLevel } from './config.ts';
+import type { EngineErrorCode } from './engine/fail.ts';
 
 export type ModelLanguage = 'zh' | 'en';
 
@@ -22,6 +23,20 @@ const zh = {
   /** `code` absent: a clean exit. */
   engineExited: (code?: number | null) => (code === undefined ? '引擎进程已退出' : `引擎进程退出(退出码 ${code})`),
   engineTimeout: '引擎没有在期限内应答',
+  /** What the engine's error codes say; `args` as the engine sent them. */
+  engineErrors: {
+    macScreenPermission: () => '没有「屏幕录制」权限:在「系统设置 → 隐私与安全性 → 录屏与系统录音」里打开 Coopanion,再重启它;已经开着的话,先用「−」把 Coopanion 移出列表再加回来:更新后的新版本不认旧授权',
+    macInputPermission: () => '没有「辅助功能」权限:在「系统设置 → 隐私与安全性 → 辅助功能」里打开 Coopanion,再重启它;已经开着的话,先用「−」把 Coopanion 移出列表再加回来:更新后的新版本不认旧授权',
+    macNoKey: (vk) => `Mac 键盘上没有这个键(虚拟键码 ${vk})`,
+    x11Display: () => '连不上 X11 显示(DISPLAY 没有设置?):电脑操作在 Linux 上需要 X11 或 XWayland',
+    linuxNoScreenshot: () => '截屏失败:X 服务器给不出屏幕画面(Wayland 下的 XWayland 常见),也没有找到截屏工具。请安装 grim、spectacle、scrot 或 ImageMagick 之一,或者改用 X11 会话',
+    linuxPixelFormat: (bits) => `截屏失败:不支持的像素格式(${bits} 位)`,
+    linuxNoKey: (vk) => `这个键盘布局里没有这个键(虚拟键码 ${vk})`,
+    linuxNoXdotool: () => '打字需要 xdotool:请先安装(Debian/Ubuntu: sudo apt install xdotool)',
+    winBitBlt: () => 'BitBlt 失败',
+    winGetDIBits: (lines, height) => `GetDIBits 只取到 ${lines}/${height} 行`,
+    winSendInput: (sent, total) => `SendInput 只送出 ${sent}/${total} 个事件(可能被更高权限的窗口挡住)`,
+  } as Record<EngineErrorCode, (...args: Array<string | number | undefined>) => string>,
 
   screenshot: (lead: string, w: number, h: number, sw: number, sh: number, cursor: string, foreground: string | null, seen: boolean) =>
     `${lead}截图 ${w}×${h}(屏幕 ${sw}×${sh});鼠标在 ${cursor};前台窗口「${foreground ?? '无'}」。` + (seen ? '' : '\n当前模型不接收图片,只能读到这段文字。'),
@@ -87,6 +102,19 @@ const en: typeof zh = {
   worldStopped: 'The World stopped',
   engineExited: (code) => (code === undefined ? 'The engine process exited' : `The engine process exited (exit code ${code})`),
   engineTimeout: 'The engine did not answer in time',
+  engineErrors: {
+    macScreenPermission: () => 'No Screen Recording permission: turn Coopanion on under System Settings → Privacy & Security → Screen & System Audio Recording, then restart it. If it is on already, remove Coopanion from the list with "−" and add it back: an updated version does not inherit the old permission',
+    macInputPermission: () => 'No Accessibility permission: turn Coopanion on under System Settings → Privacy & Security → Accessibility, then restart it. If it is on already, remove Coopanion from the list with "−" and add it back: an updated version does not inherit the old permission',
+    macNoKey: (vk) => `A Mac keyboard has no such key (virtual-key code ${vk})`,
+    x11Display: () => 'Cannot connect to the X11 display (is DISPLAY set?): computer use on Linux needs X11 or XWayland',
+    linuxNoScreenshot: () => 'Screenshot failed: the X server gives no screen image (common with XWayland under Wayland) and no screenshot tool was found. Install one of grim, spectacle, scrot or ImageMagick, or switch to an X11 session',
+    linuxPixelFormat: (bits) => `Screenshot failed: unsupported pixel format (${bits} bits)`,
+    linuxNoKey: (vk) => `The keyboard layout has no such key (virtual-key code ${vk})`,
+    linuxNoXdotool: () => 'Typing needs xdotool: install it first (Debian/Ubuntu: sudo apt install xdotool)',
+    winBitBlt: () => 'BitBlt failed',
+    winGetDIBits: (lines, height) => `GetDIBits returned only ${lines}/${height} lines`,
+    winSendInput: (sent, total) => `SendInput sent only ${sent}/${total} events (a window with higher privileges may be in the way)`,
+  },
 
   screenshot: (lead, w, h, sw, sh, cursor, foreground, seen) =>
     `${lead}Screenshot ${w}×${h} (screen ${sw}×${sh}); mouse at ${cursor}; foreground window "${foreground ?? 'none'}".` + (seen ? '' : '\nThe current model does not take images; this text is all it gets.'),
