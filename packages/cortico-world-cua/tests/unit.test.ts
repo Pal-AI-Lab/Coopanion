@@ -88,7 +88,7 @@ describe('CuaWorld without the engine', () => {
   it('asks once per turn before touching the screen; a refusal fails every call of that turn', async () => {
     const asked: string[] = [];
     let answer: 'no' | 'timeout' = 'no';
-    const w = new CuaWorld({ cfg: structuredClone(CUA_DEFAULTS), timezone: 'Asia/Shanghai', botName: 'Bot', askPermission: async (q) => { asked.push(q); return answer; } });
+    const w = new CuaWorld({ cfg: { ...structuredClone(CUA_DEFAULTS), permission: 'ask-each-turn' }, timezone: 'Asia/Shanghai', botName: 'Bot', askPermission: async (q) => { asked.push(q); return answer; } });
     const shot = await call(w, 'cua_screenshot', {});
     const click = await call(w, 'cua_click', { x: 1, y: 1 });
     expect([shot.failed, click.failed]).toEqual([true, true]);

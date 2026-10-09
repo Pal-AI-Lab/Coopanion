@@ -168,12 +168,12 @@ Speech is recognized on your machine by **FunASR** (the SenseVoiceSmall model) a
 
 ### Letting Coo use your computer
 
-Computer use is on by default, but each turn Coo asks before it first looks at the screen or uses the mouse and keyboard. It acts only after you say yes.
+Computer use is on by default. Coo looks at the screen without asking, and asks before it first uses the mouse and keyboard; after you say yes it does not ask again for 30 minutes. Installs from before this default keep asking every turn.
 
-- Loosen this under **When to ask you** on the Computer use page, from strictest to loosest:
-  - `ask-each-turn`: ask every turn (default);
+- Change this under **When to ask you** on the Computer use page, from strictest to loosest:
+  - `ask-each-turn`: ask every turn;
   - `ask-before-acting`: looking is not asked; ask every turn before using the mouse and keyboard;
-  - `ask-once`: looking is not asked; ask once before acting, then not again for the time set in **A yes lasts** (30 minutes by default);
+  - `ask-once` (default): looking is not asked; ask once before acting, then not again for the time set in **A yes lasts** (30 minutes by default);
   - `never-ask`: never ask.
 - When you touch the mouse or keyboard, Coo stops and waits for you.
 - Logins, passwords and payments are left to you.

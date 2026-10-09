@@ -163,7 +163,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   enabled.setChecked(worlds?.worlds?.find((w) => w.id === WORLD)?.status === 'active');
   const values = config?.groups?.find((g) => g.group.id === GROUP)?.values ?? {};
   if (typeof values[KEYS.control] === 'boolean') control.setChecked(values[KEYS.control] as boolean);
-  const current = LEVELS.find((l) => l === values[KEYS.permission]) ?? 'ask-each-turn';
+  const current = LEVELS.find((l) => l === values[KEYS.permission]) ?? 'ask-once';
   level.setValue(current);
   showLevel(current);
   if (typeof values[KEYS.grantMinutes] === 'number') grant.value = String(values[KEYS.grantMinutes]);

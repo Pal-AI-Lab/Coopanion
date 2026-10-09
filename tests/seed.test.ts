@@ -15,6 +15,9 @@ describe('first-run seed', () => {
     seed(home);
     expect(read(join(home, DEPLOYMENT, 'deployment.json'))).toEqual({ bot: 'cormini' });
     expect(read(join(home, DEPLOYMENT, 'config.json'))).toMatchObject({ activeProvider: ENDPOINT, language: 'zh' });
+    // the next start leaves a new install's computer-use asking as seeded
+    seed(home);
+    expect(read(join(home, DEPLOYMENT, 'config.json'))).toMatchObject({ worlds: { cua: { permission: 'ask-once' } } });
     expect(read(join(home, 'providers', ENDPOINT, 'config.json'))).toMatchObject({ kind: 'coo', secret: KEY_NAME, multimodal: true });
     expect(readFileSync(join(home, DEPLOYMENT, 'workspace', 'CONSTITUTION.md'), 'utf8')).toContain('我叫 Coo');
     expect(readFileSync(join(home, DEPLOYMENT, 'avatar.png')).subarray(1, 4).toString()).toBe('PNG');
@@ -53,7 +56,8 @@ describe('first-run seed', () => {
     const constitution = join(home, DEPLOYMENT, 'workspace', 'CONSTITUTION.md');
     writeFileSync(constitution, '# 我自己写的');
     seed(home);
-    expect(read(cfg)).toEqual({ displayName: 'mine' });
+    // a config from before new installs got `worlds.cua.permission` keeps the default it had
+    expect(read(cfg)).toEqual({ displayName: 'mine', worlds: { cua: { permission: 'ask-each-turn' } } });
     expect(readFileSync(constitution, 'utf8')).toBe('# 我自己写的');
   });
 });

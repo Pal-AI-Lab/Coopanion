@@ -15,12 +15,16 @@ export const MODULE = 'coo';
 const OLD_MODULE = 'deepseek';
 /** SHA-256 of the self-description versions 0.1.0 (after the rename) and 0.1.1 seeded, line endings as LF. */
 const OLD_CONSTITUTION = 'cfcb7527cbf3518ab9f077ee711c86661a70613b9e5caeb992b30a603490e5cf';
+/** When computer use asks first (`worlds.cua.permission`): new installs get it written out, so a config without it is from before and keeps the default it had. */
+const CUA_ASK = 'ask-once';
+const OLD_CUA_ASK = 'ask-each-turn';
 export const SEED_DIR = fileURLToPath(new URL('./seed/', import.meta.url));
 
 /**
  * Writes the first-run files that are missing; existing files are left as the operator made them,
  * except a self-description still exactly as an older version seeded it, which becomes the current
- * one, and endpoints of the old `deepseek` module, which now belong to `coo`.
+ * one, endpoints of the old `deepseek` module, which now belong to `coo`, and a config without
+ * `worlds.cua.permission`, which keeps the `ask-each-turn` it had before new installs got `ask-once`.
  */
 export function seed(home: string): void {
   const deploy = join(home, DEPLOYMENT);
@@ -30,12 +34,15 @@ export function seed(home: string): void {
   mkdirSync(endpoint, { recursive: true });
   const write = (file: string, value: unknown) => { if (!existsSync(file)) writeFileSync(file, JSON.stringify(value, null, 2) + '\n'); };
   write(join(deploy, 'deployment.json'), { bot: 'cormini' });
-  write(join(deploy, 'config.json'), {
+  const config = join(deploy, 'config.json');
+  const upgrading = existsSync(config);
+  write(config, {
     displayName: DISPLAY_NAME,
     language: 'zh',
     activeProvider: ENDPOINT,
     providerSchemaVersion: 3,
     web: { port: CONSOLE_PORT },
+    worlds: { cua: { permission: CUA_ASK } },
   });
   write(join(endpoint, 'config.json'), {
     kind: MODULE,
@@ -51,6 +58,14 @@ export function seed(home: string): void {
   if (!existsSync(join(deploy, 'avatar.png'))) copyFileSync(join(SEED_DIR, 'avatar.png'), join(deploy, 'avatar.png'));
   upgradeSeededConstitution(workspace);
   moveEndpointsToCoo(join(home, 'providers'));
+  if (upgrading) keepCuaAsking(config);
+}
+
+function keepCuaAsking(file: string): void {
+  const config = JSON.parse(readFileSync(file, 'utf8')) as { worlds?: { cua?: { permission?: string } } };
+  if (config.worlds?.cua?.permission !== undefined) return;
+  config.worlds = { ...config.worlds, cua: { ...config.worlds?.cua, permission: OLD_CUA_ASK } };
+  writeFileSync(file, JSON.stringify(config, null, 2) + '\n');
 }
 
 function moveEndpointsToCoo(providers: string): void {

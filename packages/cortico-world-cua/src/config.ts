@@ -42,7 +42,7 @@ export interface CuaConfigSection extends WorldSection {
 export const CUA_DEFAULTS: CuaConfigSection = {
   enabled: false,
   control: true,
-  permission: 'ask-each-turn',
+  permission: 'ask-once',
   grantMinutes: 30,
   screenshot: { maxWidth: 1280, maxHeight: 800, quality: 75, afterAction: true, settleMs: 500 },
   userIdleMs: 2000,
