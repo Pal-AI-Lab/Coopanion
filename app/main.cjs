@@ -108,7 +108,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 const { CoreHost } = require('./core-host.cjs');
-const { configuredLanguage, consoleLanguage, systemLanguage, textOf } = require('./i18n/index.cjs');
+const { LANGUAGES, configuredLanguage, systemLanguage, textOf } = require('./i18n/index.cjs');
 const { RELEASES_URL, startUpdater } = require('./updater.cjs');
 
 const userData = app.getPath('userData');
@@ -248,13 +248,12 @@ function refreshTray() {
   ]));
 }
 
-/** A language the Core reports: the tray menu is rebuilt, and the settings window reloads when the console's language changes with it. */
+/** A language the Core reports: the tray menu is rebuilt, and the settings window reloads to show the console in it. */
 function followLanguage(next) {
   if (typeof next !== 'string' || next === language) return;
-  const reload = consoleLanguage(next) !== consoleLanguage(language);
   language = next;
   refreshTray();
-  if (reload && settings && consoleUrl()) settings.webContents.reload();
+  if (settings && consoleUrl()) settings.webContents.reload();
 }
 
 /**
@@ -263,7 +262,7 @@ function followLanguage(next) {
  */
 async function adoptConsoleLanguage(picked) {
   const url = consoleUrl('api/config');
-  if (!url || (picked !== 'zh' && picked !== 'en')) return;
+  if (!url || !LANGUAGES.includes(picked)) return;
   await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ group: 'companion', values: { language: picked } }) });
 }
 
@@ -339,7 +338,7 @@ function askRestoreStranded() {
   return true;
 }
 
-ipcMain.on('settings:language', (e) => { e.returnValue = consoleLanguage(language); });
+ipcMain.on('settings:language', (e) => { e.returnValue = language; });
 ipcMain.on('settings:language-picked', (_e, picked) => { adoptConsoleLanguage(picked).catch(() => { /* the Core went away: the pick is dropped */ }); });
 
 app.whenReady().then(() => {

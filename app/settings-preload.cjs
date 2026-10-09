@@ -1,9 +1,9 @@
 /**
  * Preload of the settings window. Cortico's console reads its language from localStorage
- * (`cortico.console.language`) before any of its scripts run; here that is the app language
- * (main.cjs `consoleLanguage`), written before each page load. A different value found there was
- * picked on Cortico's own settings page, which saves it and reloads: that page loads in it, and the
- * main process makes it the app language.
+ * (`cortico.console.language`) before any of its scripts run; here that is the app language,
+ * written before each page load. A different value found there was picked on Cortico's own
+ * settings page, which saves it and reloads: that page loads in it, and the main process makes it
+ * the app language.
  */
 const { ipcRenderer } = require('electron');
 

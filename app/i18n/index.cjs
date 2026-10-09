@@ -8,7 +8,7 @@
 const { existsSync, readFileSync } = require('node:fs');
 const { join } = require('node:path');
 
-/** The app's languages, as `core/language.ts` lists them. */
+/** The app's languages: Cortico's console languages, as `LANGUAGES` in `cortico/core/language.ts` lists them. */
 const LANGUAGES = ['zh', 'zh-Hant', 'en', 'ja', 'ko', 'fr', 'de', 'es-419', 'pt-BR', 'it', 'ru'];
 /** Plain language subtags that map onto an app language of their own name. */
 const PLAIN = new Set(['en', 'ja', 'ko', 'fr', 'de', 'it', 'ru']);
@@ -63,7 +63,4 @@ function textOf(language) {
   return { ...table('en'), ...table(fallback), ...(LANGUAGES.includes(language) ? table(language) : null) };
 }
 
-/** The language Cortico's console shows for an app language (`consoleLanguage` in core/language.ts). */
-const consoleLanguage = (language) => (language === 'zh' || language === 'zh-Hant' ? 'zh' : 'en');
-
-module.exports = { LANGUAGES, languageOfLocale, systemLanguage, configuredLanguage, textOf, consoleLanguage };
+module.exports = { LANGUAGES, languageOfLocale, systemLanguage, configuredLanguage, textOf };
