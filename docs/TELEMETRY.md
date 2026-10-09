@@ -44,7 +44,7 @@
 | `cuaActions` | Coo 操作电脑的动作数（截屏、点击、打字等） |
 | `cuaAsked` / `cuaGranted` | 电脑操作前问你的次数和你同意的次数 |
 | `providerErrors` | 失败的模型请求数：一次请求连同它的自动重试都没拿到回复才算一次；被新输入打断或因退出中止的不算 |
-| `models` | 按请求实际发往的模型分：`calls`（HTTP 请求数，每次重试各算一次）、`failed`（失败的请求数，算法同 `providerErrors`）、`failedStatus`（`failed` 按最后一次尝试的 HTTP 状态码分开计数，如 `{"400": 3}`；`200` 表示回复到一半出错，`none` 表示没拿到状态码，比如连不上或超时）、`aborted`（被新输入打断或因退出中止的尝试数）、输入/输出/缓存命中 token 数；每项带 `vendor`（内置服务的 id，或 `kind:<模块>`）、`model`（内置服务的模型名，其他为 `custom`）、`endpointKind`（`builtin` / `custom-remote` / `custom-local`） |
+| `models` | 按请求实际发往的模型分：`calls`（HTTP 请求数，每次重试各算一次）、`failed`（失败的请求数，算法同 `providerErrors`）、`failedStatus`（`failed` 按最后一次尝试的 HTTP 状态码分开计数，如 `{"400": 3}`；`200` 表示回复到一半出错，`none` 表示没拿到状态码，比如连不上或超时）、`aborted`（被新输入打断或因退出中止的尝试数）、输入/输出/缓存命中 token 数、`durations`（成功的尝试按从发出到收完用了多久分档计数：`<=2`、`<=5`、`<=10`、`<=20`、`<=40` 秒和 `more`）；每项带 `vendor`（内置服务的 id，或 `kind:<模块>`）、`model`（内置服务的模型名，其他为 `custom`）、`endpointKind`（`builtin` / `custom-remote` / `custom-local`） |
 | `vendor` / `model` / `endpointKind` | 当前使用的模型服务，规则同上 |
 | `language` | 界面语言 |
 | `autostart` | 是否开机自动启动 |
@@ -64,15 +64,19 @@
 
 ## 一次性事件（`events`）
 
-先存在本地，发出去之后删掉。没网的时候不会丢。
+先存在本地，发出去之后删掉。没网的时候不会丢。第一次启动的那一次运行里，事件发生几秒后就发出去，不等 30 分钟一次的定时发送。
 
 | 事件 | 附带字段 | 什么时候发 |
 |---|---|---|
 | `first_launch` | | 第一次启动 |
+| `pet_shown` / `pet_missing` | `ms`（只有 `pet_shown` 带） | 引导还没走过的那次启动里，桌宠窗口连上了（`ms` 是 Core 启动后多少毫秒连上的），或 60 秒内没连上 |
 | `guide_step` | `step` | 启动引导走到第几步（1–5） |
 | `source` | `answer` | 引导里「你是从哪里认识我的？」的回答：`bilibili` / `xiaohongshu` / `douyin` / `github` / `friend` / `other` / `skip` |
 | `guide_finished` | | 引导走完 |
-| `guide_closed` | `step` | 引导在第几步被关掉 |
+| `guide_closed` | `step`、`at` | 引导在第几步被关掉；`at` 是关掉时气泡里那一句的名字，如 `hello`、`name`、`source`、`roam`、`vendor`、`model`、`key`、`voice-download`、`talk`、`persona`、`finish` |
+| `model_connected` | `via`、`vendor` | 在气泡里连上了模型。`via`：`guide`（引导里）、`prompt`（没连模型时说话后弹的询问里）、`ask`（定时来问 Key 时）；`vendor` 是选的内置服务的 id |
+| `key_prompt` | `answer` | 没连模型时跟 Coo 说话，它问「要去接通模型吗？」的回答：`connect` / `later` |
+| `voice_model` | `result` | 引导里语音识别模型的下载：`ready`（下好了）、`failed`（没下下来）、`later`（选了先不用） |
 | `extension_installed` / `extension_removed` | `name`、`version`、`kind` | 启动时发现扩展比上次多了或少了 |
 | `crash` | `where`，其余见下表 | Core 出错。`where` 是来源：`core`（未捕获的异常，Core 随后退出）、`core-rejection`（未处理的 promise 拒绝，Core 继续运行；同样的一条在一次运行里只报一次）、`core-exit`（Core 进程意外退出后被重启，由重启后的 Core 报告） |
 | `telemetry_disabled` / `telemetry_enabled` | | 关掉或重新打开统计 |

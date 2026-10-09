@@ -9,7 +9,9 @@
  * local date, sent again every `SEND_MS` while the app runs (the server keeps the latest);
  * one-off events (first start, onboarding steps, the source answer, extensions added or removed, a
  * crash) queue in the same file until a send gets through, so a start without network loses
- * nothing. Switched off in the 「习惯」 page (`companion.telemetry`): one last `telemetry_disabled`
+ * nothing. During the run that made the install, each event goes out a few seconds after it
+ * happens (`FIRST_RUN_SEND_MS`): a first start that ends without a clean exit would otherwise take
+ * its onboarding steps with it. Switched off in the 「习惯」 page (`companion.telemetry`): one last `telemetry_disabled`
  * is sent, the queue is dropped, and nothing is counted until it is switched on again.
  *
  * `telemetry-id` next to the state file holds the id while statistics are on: the Windows
@@ -31,6 +33,10 @@ const TICK_GAP_MS = 3 * TICK_MS;
 /** One-off events kept while sends fail; the oldest go first past it. */
 const QUEUE_MAX = 300;
 const SEND_TIMEOUT_MS = 15_000;
+/** During the first run, how long after an event the send goes out; later events in that wait share it. */
+const FIRST_RUN_SEND_MS = 5000;
+/** Upper edges, in seconds, of the buckets a completed try's duration is counted in (`ModelUse.durations`); longer goes under `more`. */
+const DURATION_EDGES = [2, 5, 10, 20, 40] as const;
 const STATE_FILE = 'telemetry.json';
 const ID_FILE = 'telemetry-id';
 
@@ -56,6 +62,8 @@ export interface ModelUse {
   tokensIn: number;
   tokensOut: number;
   tokensCached: number;
+  /** Completed tries by how long they took, start to last byte: `<=2`, `<=5`, … seconds (`DURATION_EDGES`), then `more`. */
+  durations: Record<string, number>;
 }
 
 /** How an endpoint is reported (`describeEndpoint`). */
@@ -66,6 +74,8 @@ export interface ModelTry {
   generationId: string;
   outcome: 'completed' | 'incomplete' | 'failed' | 'aborted' | 'discarded';
   status: number | null;
+  /** From the start of the try to its end. */
+  elapsedMs?: number;
 }
 
 export interface TelemetryEvent { type: string; ts: string; [field: string]: unknown }
@@ -121,6 +131,9 @@ export class Telemetry {
   private timers: NodeJS.Timeout[] = [];
   private lastTick: number;
   private sending: Promise<void> | null = null;
+  /** This run made the install: events are sent soon after they happen. */
+  private readonly firstRun: boolean;
+  private firstRunSend: NodeJS.Timeout | null = null;
   /** The last try seen of each model request not yet judged (`usage`). */
   private readonly lastTries = new Map<string, { m: ModelUse; try: ModelTry }>();
 
@@ -131,7 +144,8 @@ export class Telemetry {
     this.lastTick = this.now().getTime();
     const file = join(opts.dir, STATE_FILE);
     const today = localDate(this.now());
-    if (existsSync(file)) {
+    this.firstRun = !existsSync(file);
+    if (!this.firstRun) {
       this.state = JSON.parse(readFileSync(file, 'utf8')) as State;
     } else {
       this.state = {
@@ -161,6 +175,8 @@ export class Telemetry {
   async stop(): Promise<void> {
     for (const t of this.timers) clearInterval(t);
     this.timers = [];
+    if (this.firstRunSend) clearTimeout(this.firstRunSend);
+    this.firstRunSend = null;
     this.tick();
     await this.send();
   }
@@ -193,10 +209,11 @@ export class Telemetry {
     if (!this.on()) return;
     this.rollDay();
     const key = `${use.vendor}\u0000${use.model}\u0000${use.endpointKind}`;
-    const m = this.state.day.models[key] ??= { ...use, calls: 0, failed: 0, failedStatus: {}, aborted: 0, tokensIn: 0, tokensOut: 0, tokensCached: 0 };
-    // a day carried over from 0.1.10 has neither
+    const m = this.state.day.models[key] ??= { ...use, calls: 0, failed: 0, failedStatus: {}, aborted: 0, tokensIn: 0, tokensOut: 0, tokensCached: 0, durations: {} };
+    // a day carried over from an older version may lack these
     m.failedStatus ??= {};
     m.aborted ??= 0;
+    m.durations ??= {};
     m.calls += 1;
     m.tokensIn += rec.promptTokens;
     m.tokensOut += rec.completionTokens;
@@ -204,6 +221,11 @@ export class Telemetry {
     const a = rec.attempt;
     if (!a) return;
     if (a.outcome === 'aborted') m.aborted += 1;
+    if (a.outcome === 'completed' && a.elapsedMs !== undefined) {
+      const edge = DURATION_EDGES.find((e) => a.elapsedMs! <= e * 1000);
+      const bucket = edge === undefined ? 'more' : `<=${edge}`;
+      m.durations[bucket] = (m.durations[bucket] ?? 0) + 1;
+    }
     if (!this.lastTries.has(a.generationId)) queueMicrotask(() => this.settle(a.generationId));
     this.lastTries.set(a.generationId, { m, try: a });
   }
@@ -231,6 +253,10 @@ export class Telemetry {
     if (last >= at) at = last + 1;
     queue.push({ type, ts: new Date(at).toISOString(), ...fields });
     if (queue.length > QUEUE_MAX) queue.splice(0, queue.length - QUEUE_MAX);
+    if (this.firstRun && !this.firstRunSend) {
+      this.firstRunSend = setTimeout(() => { this.firstRunSend = null; this.save(); void this.send(); }, FIRST_RUN_SEND_MS);
+      this.firstRunSend.unref();
+    }
   }
 
   private on(): boolean {

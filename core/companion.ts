@@ -361,7 +361,11 @@ async function introduce(deps: GuideDeps, run: (deps: GuideDeps) => Promise<void
   if (first) {
     const deadline = Date.now() + PET_WAIT_MS;
     while (!deps.pet()?.petState().connected && Date.now() < deadline) await sleep(1000);
-    if (!deps.pet()?.petState().connected) process.send?.({ type: 'companion:open', path: '#/home' });
+    if (deps.pet()?.petState().connected) deps.track?.('pet_shown', { ms: Math.round(process.uptime() * 1000) });
+    else {
+      deps.track?.('pet_missing', {});
+      process.send?.({ type: 'companion:open', path: '#/home' });
+    }
     await run(deps);
   }
   if (!talked) return;

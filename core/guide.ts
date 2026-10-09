@@ -19,7 +19,8 @@
  * the bubble (an API key shows as typed in, never as itself). Every step has a close button that
  * ends the introduction. The console's 「使用引导」 runs it
  * again (the World's `pet.guide` panel method). Once it has run, a missing key is asked for in the
- * bubble from time to time (`askForKey`), with the key box right there.
+ * bubble from time to time (`askForKey`), with the key box right there, and each time the person
+ * talks to Coo without one, Coo asks whether to connect a model now.
  */
 import { existsSync, writeFileSync } from 'node:fs';
 import type { DesktopPetWorld, PetDialog, PetDialogAnswer } from 'cortico-world-desktop-pet';
@@ -102,10 +103,12 @@ const S = {
 
   ask: {
     first: '我还没连上模型,填好 API Key 我才能和你说话。用哪一家的?',
-    talked: '我听到了,可还没连上模型,没法回你。选一家,把 API Key 贴给我吧?',
     again: '还是没连上模型呢,填好 API Key 我才能陪你聊天。用哪一家的?',
   },
   askLater: '等会儿',
+  noModel: '当前未接通模型,要去接通模型吗?',
+  noModelGo: '去接通',
+  noModelLater: '等会儿',
 };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -120,7 +123,7 @@ export interface GuideDeps {
   openDress: () => void;
   /** The introduction ended, walked through or closed. */
   onEnd?: (end: GuideEnd) => void;
-  /** Usage statistics: each step reached, the source answer, and how the introduction ended. */
+  /** Usage statistics: each step reached, the source answer, a model connected, the voice model download, and how the introduction ended. */
   track?: (type: string, fields: Record<string, unknown>) => void;
 }
 
@@ -190,10 +193,11 @@ const logo = (v: Vendor) => `data:image/svg+xml;base64,${Buffer.from(VENDOR_ICON
 
 /**
  * Asks which service to use and then for its key, in the bubble, until it connects or the person
- * puts it off; true once connected. `ask` is the question over the service cards.
+ * puts it off; the service once connected, null when put off. `ask` is the question over the
+ * service cards; `show` gets each line with its name for the usage statistics (`guide_closed.at`).
  */
-async function connectLoop(show: (d: PetDialog) => Promise<PetDialogAnswer>, call: ConsoleCall, pet: () => DesktopPetWorld | null,
-  ask: Omit<PetDialog, 'input'>, later: string): Promise<boolean> {
+async function connectLoop(show: (d: PetDialog, at: string) => Promise<PetDialogAnswer>, call: ConsoleCall, pet: () => DesktopPetWorld | null,
+  ask: Omit<PetDialog, 'input'>, later: string): Promise<Vendor | null> {
   const current = await currentConnection(call);
   const picked = await show({
     ...ask,
@@ -201,29 +205,29 @@ async function connectLoop(show: (d: PetDialog) => Promise<PetDialogAnswer>, cal
       kind: 'choices', confirm: S.vendorOk, value: Math.max(0, VENDORS.indexOf(current.vendor ?? VENDORS[0]!)),
       options: VENDORS.map((v) => ({ label: v.name, image: logo(v) })),
     },
-  });
+  }, 'vendor');
   if ('closed' in picked) throw new Closed();
   const vendor = VENDORS['index' in picked ? picked.index : 0] ?? VENDORS[0]!;
   const m = await show({
     ...ask, text: S.pickModel(vendor), marks: [vendor.model], actions: ['thinking'],
     input: { kind: 'text', submit: S.modelOk, value: vendor.model, maxLength: 120, suggestions: [vendor.model, ...(vendor.models ?? [])] },
-  });
+  }, 'model');
   if ('closed' in m) throw new Closed();
   const model = 'text' in m ? m.text.trim() : vendor.model;
   const keyStep = (text: string, actions: string[]): PetDialog => ({ ...ask, text, actions, input: keyInput(vendor, later) });
   let step = keyStep(S.askKey(vendor), ['thinking']);
   for (;;) {
-    const a = await show(step);
+    const a = await show(step, 'key');
     if ('closed' in a) throw new Closed();
-    if (!('text' in a)) return false;
+    if (!('text' in a)) return null;
     // the bar stays up while the key is saved and tested; a page gone meanwhile just misses it
     const wait = pet()?.dialog({ text: S.connecting, actions: ['thinking'], step: ask.step, input: { kind: 'progress' } });
     const r = await connectVendor(call, vendor, a.text, model);
     wait?.close();
     if (r.ok) {
       const { model } = await currentConnection(call);
-      await show({ ...ask, text: S.keyOk(vendor, model), marks: [vendor.name], actions: ['love', 'jump'] });
-      return true;
+      await show({ ...ask, text: S.keyOk(vendor, model), marks: [vendor.name], actions: ['love', 'jump'] }, 'key-ok');
+      return vendor;
     }
     step = keyStep(S.keyFail(r.why ?? '?'), ['sad']);
   }
@@ -243,10 +247,13 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
   const t = talker(deps.pet);
   const call = api(deps.console);
   let reached = 0;
+  /** The line on screen, by name: where a close happened. */
+  let at = '';
   let name: string | null = null;
   const transcript: string[] = [];
-  const step = (n: number, d: PetDialog): Promise<PetDialogAnswer> => {
+  const step = (n: number, line: string, d: PetDialog): Promise<PetDialogAnswer> => {
     if (n > reached) { reached = n; deps.track?.('guide_step', { step: n }); }
+    at = line;
     return t.show({ ...d, step: [n, STEPS], closable: true }).then((a) => {
       transcript.push(...noteStep(d, a));
       if ('closed' in a) throw new Closed();
@@ -262,28 +269,28 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
     const setPet = (key: string, value: string) => call('/api/config', { group: PET_GROUP, values: { [key]: value } }).catch(() => {});
 
     // 1 hello, and a name
-    await step(1, { text: S.hello, marks: ['Coo'], actions: ['happy', 'hop'], input: { kind: 'buttons', options: [{ label: S.helloReply, primary: true }] } });
+    await step(1, 'hello', { text: S.hello, marks: ['Coo'], actions: ['happy', 'hop'], input: { kind: 'buttons', options: [{ label: S.helloReply, primary: true }] } });
     const saved = typeof values[USER_KEY] === 'string' ? values[USER_KEY] as string : '';
-    const a = await step(1, {
+    const a = await step(1, 'name', {
       text: S.askName, actions: ['thinking'],
       input: { kind: 'text', submit: S.nameSend, placeholder: DEFAULT_USER, value: saved && !DEFAULT_USERS.includes(saved) ? saved : '', maxLength: 20 },
     });
     const named = 'text' in a ? a.text : saved || DEFAULT_USER;
     name = named;
     if (named !== saved) await setPet(USER_KEY, named);
-    await step(1, { text: S.gotName(named), actions: ['love'] });
-    const src = await step(1, {
+    await step(1, 'name-ok', { text: S.gotName(named), actions: ['love'] });
+    const src = await step(1, 'source', {
       text: S.askSource, actions: ['thinking'],
       input: { kind: 'buttons', options: SOURCES.map(([label]) => ({ label })) },
     });
     const source = SOURCES['index' in src ? src.index : SOURCES.length - 1]?.[1] ?? 'skip';
     deps.track?.('source', { answer: source });
-    if (source !== 'skip') await step(1, { text: S.sourceThanks, actions: ['nod'] });
+    if (source !== 'skip') await step(1, 'source-ok', { text: S.sourceThanks, actions: ['nod'] });
 
     // 2 how lively: each card plays out while it is picked
     const ORDER: Roam[] = ['off', 'calm', 'free'];
     const cur = ORDER.indexOf(values[ROAM_KEY] as Roam);
-    const r = await step(2, {
+    const r = await step(2, 'roam', {
       text: S.askRoam,
       input: {
         kind: 'choices', confirm: S.roamOk, value: cur < 0 ? 1 : cur,
@@ -292,20 +299,22 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
     });
     const roam = ORDER['index' in r ? r.index : 1] ?? 'calm';
     await setPet(ROAM_KEY, roam);
-    await step(2, { text: S.roamDone, actions: ['nod'] });
+    await step(2, 'roam-ok', { text: S.roamDone, actions: ['nod'] });
 
     // 3 the model key
     const k = await currentConnection(call);
-    if (k.ready) await step(3, { text: S.keyAlready(k.vendor?.name ?? '', k.model), actions: ['happy'] });
-    else if (!await connectLoop((d) => step(3, d), call, deps.pet, { text: S.askVendor, actions: ['thinking'], step: [3, STEPS] }, S.keyLater)) {
-      await step(3, { text: S.keySkipped, actions: ['sad'] });
+    if (k.ready) await step(3, 'key-ready', { text: S.keyAlready(k.vendor?.name ?? '', k.model), actions: ['happy'] });
+    else {
+      const vendor = await connectLoop((d, line) => step(3, line, d), call, deps.pet, { text: S.askVendor, actions: ['thinking'], step: [3, STEPS] }, S.keyLater);
+      if (vendor) deps.track?.('model_connected', { via: 'guide', vendor: vendor.id });
+      else await step(3, 'key-later', { text: S.keySkipped, actions: ['sad'] });
     }
 
     // 4 voice input
     let voice = deps.pet()?.voiceState() as VoiceState | undefined;
     if (voice?.enabled !== false && voice?.engine === 'funasr' && voice.model && voice.model.phase !== 'ready') {
       const mb = Math.round(voice.model.bytes / 1048576);
-      const d = await step(4, {
+      const d = await step(4, 'voice-download', {
         text: S.askModel(mb), actions: ['thinking'],
         input: { kind: 'buttons', options: [{ label: S.download, primary: true }, { label: S.notNow }] },
       });
@@ -320,31 +329,34 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
           bar?.update({ progress: m.total ? m.done / m.total : null });
         }
         bar?.close();
-        if (voice?.model?.phase === 'ready') await step(4, { text: S.downloaded, actions: ['love', 'hop'] });
-        else await step(4, { text: S.downloadFail(voice?.model?.detail ?? '?'), actions: ['sad'] });
+        const ready = voice?.model?.phase === 'ready';
+        deps.track?.('voice_model', { result: ready ? 'ready' : 'failed' });
+        if (ready) await step(4, 'voice-ready', { text: S.downloaded, actions: ['love', 'hop'] });
+        else await step(4, 'voice-failed', { text: S.downloadFail(voice?.model?.detail ?? '?'), actions: ['sad'] });
       } else {
-        await step(4, { text: S.modelLater });
+        deps.track?.('voice_model', { result: 'later' });
+        await step(4, 'voice-later', { text: S.modelLater });
       }
     }
     // the World words the hint for the key and mode in force; the key cap acts out the taps and the hold
     const on = voice?.enabled !== false && !!voice?.input?.hint;
     const keyed = on && voice?.input?.effectiveMode !== 'always';
-    await step(4, {
+    await step(4, 'talk', {
       text: `${on ? S.talk(voice!.input!.hint!) : S.talkOff}${S.talkType}`,
       input: { kind: 'buttons', keys: keyed ? voice?.input?.keyLabel : undefined, taps: voice?.input?.taps, options: [{ label: S.gotIt, primary: true }] },
     });
 
     // 5 the buttons, the menu, and where settings live
-    await step(5, { text: S.buttons, actions: ['wink'], input: { kind: 'buttons', options: [{ label: S.ok, primary: true }] } });
-    await step(5, { text: S.persona, marks: ['系统提示词'], actions: ['happy'], input: { kind: 'buttons', options: [{ label: S.personaOk, primary: true }] } });
-    const end = await step(5, { text: S.finish, actions: ['happy'], input: { kind: 'buttons', options: [{ label: S.go, primary: true }, { label: S.dress }] } });
+    await step(5, 'buttons', { text: S.buttons, actions: ['wink'], input: { kind: 'buttons', options: [{ label: S.ok, primary: true }] } });
+    await step(5, 'persona', { text: S.persona, marks: ['系统提示词'], actions: ['happy'], input: { kind: 'buttons', options: [{ label: S.personaOk, primary: true }] } });
+    const end = await step(5, 'finish', { text: S.finish, actions: ['happy'], input: { kind: 'buttons', options: [{ label: S.go, primary: true }, { label: S.dress }] } });
     markDone(deps.doneFile);
     deps.track?.('guide_finished', {});
     deps.onEnd?.({ finished: true, name, step: reached, transcript });
     if ('index' in end && end.index === 1) deps.openDress();
   } catch (err) {
     if (!(err instanceof Closed)) throw err;
-    deps.track?.('guide_closed', { step: reached });
+    deps.track?.('guide_closed', { step: reached, at });
     markDone(deps.doneFile);
     await t.show({ text: S.closed, actions: ['nod'] });
     transcript.push(`Coo:${S.closed}`);
@@ -362,31 +374,42 @@ export function markDone(file: string): void {
 
 /** Without a key, how long after an ask the pet asks again. */
 const ASK_AGAIN_MS = 20 * 60_000;
-/** Talking to Coo without a key asks again sooner, but not within this long of the last ask. */
-const ASK_TALKED_MS = 90_000;
 /** How often the loop looks at the key (it reads the endpoint's `.env`). */
 const KEY_POLL_MS = 2000;
 
 /**
- * While no key is set, the pet asks for it in its bubble, with the key box right there: a while
- * after each ask, or sooner once the person talks to Coo (what they said waits, undelivered, for
- * the key). The first ask comes `firstAfterMs` after the call.
+ * While no key is set, the pet asks for it in its bubble, with the key box right there, a while
+ * after each ask; the first ask comes `firstAfterMs` after the call. Each time the person talks to
+ * Coo (what they said waits, undelivered, for the key), Coo first says no model is connected and
+ * asks whether to connect one now.
  */
-export async function askForKey(deps: Pick<GuideDeps, 'pet' | 'console'>, keySet: () => boolean, talked: () => boolean, firstAfterMs: number): Promise<void> {
+export async function askForKey(deps: Pick<GuideDeps, 'pet' | 'console' | 'track'>, keySet: () => boolean, talked: () => boolean, firstAfterMs: number): Promise<void> {
   const t = talker(deps.pet);
   const call = api(deps.console);
   let lastAsk = Date.now() - ASK_AGAIN_MS + firstAfterMs;
   let asked = false;
+  const connect = async (text: string, via: string) => {
+    const vendor = await connectLoop(t.show, call, deps.pet, { text, actions: ['thinking'], closable: true }, S.askLater).catch(() => null);
+    if (vendor) deps.track?.('model_connected', { via, vendor: vendor.id });
+  };
   while (!keySet()) {
-    const since = Date.now() - lastAsk;
-    const spoke = talked();
-    if (t.connected() && !running && (since >= ASK_AGAIN_MS || (spoke && since >= ASK_TALKED_MS))) {
-      const text = !asked ? S.ask.first : spoke ? S.ask.talked : S.ask.again;
-      await connectLoop(t.show, call, deps.pet, { text, actions: ['thinking'], closable: true }, S.askLater).catch(() => false);
-      asked = true;
-      lastAsk = Date.now();
-      talked(); // what was said while the bubble was up got its answer there
+    const ready = t.connected() && !running;
+    if (ready && talked()) {
+      const a = await t.show({
+        text: S.noModel, actions: ['thinking'], closable: true,
+        input: { kind: 'buttons', options: [{ label: S.noModelGo, primary: true }, { label: S.noModelLater }] },
+      });
+      const go = 'index' in a && a.index === 0;
+      deps.track?.('key_prompt', { answer: go ? 'connect' : 'later' });
+      if (go) await connect(S.askVendor, 'prompt');
+    } else if (ready && Date.now() - lastAsk >= ASK_AGAIN_MS) {
+      await connect(asked ? S.ask.again : S.ask.first, 'ask');
+    } else {
+      await sleep(KEY_POLL_MS);
+      continue;
     }
-    await sleep(KEY_POLL_MS);
+    asked = true;
+    lastAsk = Date.now();
+    talked(); // what was said while the bubble was up got its answer there
   }
 }
