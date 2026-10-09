@@ -37,7 +37,7 @@ The app is in Chinese and English. The first-run guide is currently Chinese only
 ## Features
 
 - **Many model services**: DeepSeek, Qwen, Kimi, Zhipu GLM, Doubao, Baidu Qianfan, MiniMax, StepFun and OpenRouter. Pick one and paste an API key.
-- **Chat**: hold the talk key and speak, or type; Coo answers in a bubble. Speech is recognized on your machine with FunASR.
+- **Chat**: hold the talk key and speak, or type; Coo answers in a bubble. Speech is recognized on your machine with FunASR or Whisper.
 - **Memory**: Coo remembers what you talked about, and knows when you poke it or pat its head.
 - **Computer use**: clicking buttons, typing, switching windows. Coo asks before it acts.
 - **Activity bubbles**: see when Coo is thinking and what it is working on, with a different animated icon for reading, searching, writing and using the computer. File names appear; the bubble lets clicks through. On by default; turn it off in Habits.
@@ -105,7 +105,7 @@ It downloads the latest installer, runs it, and deletes the download afterwards.
    1. what Coo should call you;
    2. how much it walks around: stay put / now and then / often;
    3. which model service to use (DeepSeek, listed first, if unsure), then paste the API key and test the connection;
-   4. download the speech model (FunASR, about 230 MB, from ModelScope), then how to talk to Coo;
+   4. download the speech model (FunASR, about 230 MB; Whisper, about 360 MB, when the app language is French, German, Spanish, Portuguese, Italian or Russian; from ModelScope), then how to talk to Coo;
    5. where the buttons, menu and settings are, and that the persona is on the System prompt page of the settings window.
 
    After the guide you can talk Coo through its personality, way of speaking and what you call each other; it can write the persona into its prompt itself.
@@ -155,7 +155,7 @@ Services other than DeepSeek follow their documentation and have not each been t
 
 Talk key, microphone and listening mode (hold to talk / press to toggle / always listen) are on the Voice input page. Click the talk key button and press a single key, a combination such as `Ctrl + Space`, or a mouse side button; beside it, choose **Double-tap, then hold** (the default) or **Just hold**. When the talk key is unavailable, Coo falls back to always listening and the button shows AUTO.
 
-Speech is recognized on your machine by **FunASR** (the SenseVoiceSmall model) and audio is never uploaded. The model is about 230 MB and is downloaded once, from the guide or the Voice input page. On Windows you can use the built-in recognizer instead, which needs no download but is less accurate.
+Speech is recognized on your machine and audio is never uploaded: by **FunASR** (the SenseVoiceSmall model, about 230 MB) when the app language is Chinese, English, Japanese or Korean, and by **Whisper** (the small model, about 360 MB; the text appears once a sentence ends) for French, German, Spanish, Portuguese, Italian and Russian. The model is downloaded once, from the guide or the Voice input page. On Windows you can use the built-in recognizer instead, which needs no download but is less accurate.
 
 ### Playing with Coo
 
@@ -277,7 +277,7 @@ After 5 failed model requests in a row, Coo says the error in a bubble (unknown 
 - Windows: Settings → Privacy & security → Microphone, allow desktop apps to use the microphone;
 - Mac: in System Settings → Privacy & Security, turn on Microphone and Input Monitoring for Coopanion, then restart it.
 
-If the Windows recognizer reports no speech recognizer, install speech recognition for Chinese under Settings → Time & language → Language, or switch back to FunASR.
+If the Windows recognizer reports no speech recognizer, install speech recognition for Chinese under Settings → Time & language → Language, or switch back to FunASR or Whisper.
 
 </details>
 
@@ -308,4 +308,4 @@ Coopanion is assembled from [Cortico](https://github.com/Pal-AI-Lab/Cortico): Co
 
 [AGPL-3.0-or-later](LICENSE). Releases up to and including 0.1.10 are MIT. The Cortico framework is MIT and ships as a submodule. To open a PR see [CONTRIBUTING.md](CONTRIBUTING.md); your first contribution needs a signed [Contributor License Agreement](CLA.md).
 
-The DeepSeek Whale artwork (the textures under `packages/cortico-world-desktop-pet/web/whale/`) is not covered by the AGPL; its origin and the vendor logos are described in the [desktop pet World's third-party notices](packages/cortico-world-desktop-pet/THIRD_PARTY_NOTICES.md). Third-party components shipped or downloaded at runtime: Electron (MIT), Cortico (MIT), sherpa-onnx (Apache-2.0), FunASR's SenseVoiceSmall model ([FunASR model license](https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE), downloaded on use), koffi (MIT), jpeg-js (BSD-3-Clause), pnpm (MIT); model service logos come from [lobe-icons](https://github.com/lobehub/lobe-icons) (MIT; each logo belongs to its company and only identifies the service).
+The DeepSeek Whale artwork (the textures under `packages/cortico-world-desktop-pet/web/whale/`) is not covered by the AGPL; its origin and the vendor logos are described in the [desktop pet World's third-party notices](packages/cortico-world-desktop-pet/THIRD_PARTY_NOTICES.md). Third-party components shipped or downloaded at runtime: Electron (MIT), Cortico (MIT), sherpa-onnx (Apache-2.0), FunASR's SenseVoiceSmall model ([FunASR model license](https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE), downloaded on use), OpenAI's Whisper small model (MIT, downloaded on use), koffi (MIT), jpeg-js (BSD-3-Clause), pnpm (MIT); model service logos come from [lobe-icons](https://github.com/lobehub/lobe-icons) (MIT; each logo belongs to its company and only identifies the service).
