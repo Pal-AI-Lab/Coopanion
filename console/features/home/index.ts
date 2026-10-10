@@ -84,8 +84,11 @@ async function mount(ctx: FeatureContext): Promise<void> {
   let unfolded = !more.length;
   moreButton.addEventListener('click', () => { unfolded = true; placeVendors(); }, opts);
   /** The first row: the service in use (a button that picks it) or a line saying none is, and the test. */
-  const currentBox = ui.h('div', 'home-vendors');
+  const currentBox = ui.h('div', 'home-vendors home-current');
   const test = ui.button(S.test, { size: 'sm' });
+  // the test's result right of its button; a long one wraps under its own first line
+  const testMsg = ui.msgline('');
+  testMsg.classList.add('home-testmsg');
   /** The second row: every other service, the ones behind 「更多」 once unfolded. */
   const otherBox = ui.h('div', 'home-vendors');
   const picker = ui.h('div', 'home-picker');
@@ -131,12 +134,12 @@ async function mount(ctx: FeatureContext): Promise<void> {
       if (name) name.textContent = label(v);
       b.classList.toggle('on', v === vendor);
     });
-    if (current) currentBox.replaceChildren(vendorButtons[listed.indexOf(current)]!, test);
+    if (current) currentBox.replaceChildren(vendorButtons[listed.indexOf(current)]!, test, testMsg);
     else if (elsewhere) {
       const b = vendorButton('', elsewhere.model ? `${elsewhere.title} · ${elsewhere.model}` : elsewhere.title);
       b.classList.add('on');
       b.disabled = true;
-      currentBox.replaceChildren(b, test);
+      currentBox.replaceChildren(b, test, testMsg);
     } else currentBox.replaceChildren(ui.h('span', 'home-none', S.notConnected));
     const rest = listed.filter((v) => v !== current && (unfolded || !more.includes(v) || v === vendor));
     otherBox.replaceChildren(...rest.map((v) => vendorButtons[listed.indexOf(v)]!), ...(unfolded ? [] : [moreButton]));
@@ -234,13 +237,14 @@ async function mount(ctx: FeatureContext): Promise<void> {
     renderStatus(await readStatus(signal));
   };
 
-  const showTest = (r: ConnectResult) => {
-    modelMsg.textContent = r.ok ? S.testOk(r.ms) : S.testFail(r.why ?? '');
-    modelMsg.classList.toggle('bad', !r.ok);
+  /** 「测试连接」 answers beside its button; saving answers under the boxes. */
+  const showTest = (r: ConnectResult, line = modelMsg) => {
+    line.textContent = r.ok ? S.testOk(r.ms) : S.testFail(r.why ?? '');
+    line.classList.toggle('bad', !r.ok);
   };
-  const testing = () => {
-    modelMsg.textContent = S.testing;
-    modelMsg.classList.remove('bad');
+  const testing = (line = modelMsg) => {
+    line.textContent = S.testing;
+    line.classList.remove('bad');
   };
 
   save.addEventListener('click', async () => {
@@ -265,8 +269,8 @@ async function mount(ctx: FeatureContext): Promise<void> {
   test.addEventListener('click', async () => {
     const name = status?.modelConnection?.name;
     if (!name) return;
-    testing();
-    showTest(await testEndpoint(call, name));
+    testing(testMsg);
+    showTest(await testEndpoint(call, name), testMsg);
   });
 
   /* pet */
