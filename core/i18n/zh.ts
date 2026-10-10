@@ -46,7 +46,7 @@ export default {
     minutesLater: (n: number) => `${n} 分钟后`,
   },
 
-  /** 设置窗口「外观」页里跟着桌宠形象的配色方案 */
+  /** 设置窗口「开始」页「配色方案」里跟着桌宠形象的配色方案 */
   scheme: {
     name: (figure: string, preset: string) => `${figure} · ${preset}`,
     note: (figure: string, preset: string) => `桌宠换成${figure}的「${preset}」时自动换上`,
@@ -56,19 +56,19 @@ export default {
   guide: {
     /** 「你是从哪里认识我的?」的回答与统计里的 id;最后一项是跳过。id 见 docs/TELEMETRY.md */
     sources: [['B站', 'bilibili'], ['小红书', 'xiaohongshu'], ['抖音', 'douyin'], ['Steam', 'steam'], ['GitHub', 'github'], ['朋友推荐', 'friend'], ['其他', 'other'], ['不告诉你', 'skip']] as ReadonlyArray<readonly [label: string, id: string]>,
-    hello: '你好呀！我是 Coo，以后就住在你屏幕的底边啦，库……',
+    hello: '你好呀！我是 Coo，以后就住在你屏幕的底边啦，库...',
     helloReply: '你好，Coo！',
     askName: '我该怎么称呼你？',
     nameSend: '就这么叫',
     gotName: (name: string) => `${name}，记住啦！`,
     askSource: '你是从哪里认识我的？',
-    sourceThanks: '原来是这样，库……',
+    sourceThanks: '原来是这样，库...',
     askRoam: '平时我该安静一点，还是活泼一点？点一下，看看我会怎样。',
     /** 三张卡片:名字、活跃程度、点到时 Coo 说的话 */
     roam: {
       off: { label: '不乱动', level: '低', line: '那我就乖乖站着，你叫我我再动。' },
       calm: { label: '多待着', level: '中', line: '我会时不时溜达一圈，大多时候待着。' },
-      free: { label: '常走动', level: '高', line: '我可以到处跑来跑去，库……！' },
+      free: { label: '常走动', level: '高', line: '我可以到处跑来跑去，库...！' },
     },
     roamOk: '就这样',
     roamDone: '好，就按这个来。',
@@ -91,15 +91,15 @@ export default {
     keyLink: (name: string) => `还没有 Key？去 ${name} 申请`,
     keyLater: '稍后再填',
     connecting: '正在连接…',
-    keyOk: (name: string, model: string) => `连上 ${name} 了${model ? `（${model}）` : ''}！现在我能说话啦，库……`,
+    keyOk: (name: string, model: string) => `连上 ${name} 了${model ? `（${model}）` : ''}！现在我能说话啦，库...`,
     keyFail: (why: string) => `没连上：${why}。看看 Key 是不是完整，账户里还有没有余额？再贴一次试试。`,
-    keyAlready: (connection: string) => `模型已经连好了（${connection}），省事，库……`,
+    keyAlready: (connection: string) => `模型已经连好了（${connection}），省事，库...`,
     keySkipped: '没关系，等你填好我再开口。之后我会再来问你。',
 
     askModel: (name: string, mb: number) => `要听懂你说话，我得先下载一个语音识别模型（${name}，约 ${mb} MB，从国内的 ModelScope 下载）。现在下吗？`,
     download: '下载',
     notNow: '先不用',
-    downloading: '正在下载语音模型，库……',
+    downloading: '正在下载语音模型，库...',
     downloaded: '下好了，现在我听得懂你说话啦！',
     downloadFail: (why: string) => `没下载下来：${why}。之后在设置的「语音输入」页可以再试。`,
     modelLater: '好，之后在设置的「语音输入」页一键就能下。',

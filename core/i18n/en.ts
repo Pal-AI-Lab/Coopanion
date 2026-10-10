@@ -49,7 +49,7 @@ const en: CoreText = {
     minutesLater: (n: number) => `in ${n} min`,
   },
 
-  /** The settings window's colour schemes that follow the pet's figure, on the Appearance page. */
+  /** The settings window's colour schemes that follow the pet's figure, under 「配色方案」 on the Start page. */
   scheme: {
     name: (figure: string, preset: string) => `${figure} · ${preset}`,
     note: (figure: string, preset: string) => `Put on when the pet changes to ${figure}'s "${preset}"`,

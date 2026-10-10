@@ -42,7 +42,7 @@ const zh = {
   seconds: (s: number) => `${s} 秒`,
   imagesUnseen: (bot: string) => `现在的模型看不到图片，${bot} 只会知道你发了几张图。`,
   touch: (t: Touch, b: string): string => {
-    const out = t.crashed ? `,${b} 摔晕了一会儿` : '';
+    const out = t.crashed ? `，${b} 摔晕了一会儿` : '';
     switch (t.kind) {
       case 'poke': return t.woke ? `你把睡着的 ${b} 戳醒了` : t.count > 1 ? `你戳了 ${b} ${t.count} 下` : `你戳了 ${b} 一下`;
       case 'pet': return t.count > 1 ? `你摸了 ${b} 好几下` : `你摸了摸 ${b}`;
