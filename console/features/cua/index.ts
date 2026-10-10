@@ -30,7 +30,7 @@ interface WorldEntry { id: string; status: 'active' | 'inactive' | 'missing' }
 const errText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 /** One row of the 「习惯」 page: the label column, the setting, an optional note under it. */
-export type Row = (label: string, control: HTMLElement, hint?: HTMLElement | string) => HTMLElement;
+type Row = (label: string, control: HTMLElement, hint?: HTMLElement | string) => HTMLElement;
 /** The section, its values read in the background; `row` is the page's. */
 export function cuaSection(ctx: FeatureContext, row: Row): HTMLElement {
   const { ui, signal } = ctx;

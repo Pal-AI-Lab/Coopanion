@@ -26,8 +26,6 @@
 .featureintro:has(> .companion-introacts) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; align-items: center; }
 .featureintro:has(> .companion-introacts) > :not(.companion-introacts) { grid-column: 1; }
 .featureintro > .companion-introacts { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 8px; }
-/* a card right under the heading that does not repeat the page's title */
-.featureslot > .featureintro + .sheet.untitled { padding-top: 0; }
 
 /* 对话: the same heading and width as the other pages; the thread scrolls under it, the scrollbar at the window's edge */
 .featureslot-chat { padding: 0; overflow: hidden; scrollbar-gutter: auto; }

@@ -97,6 +97,8 @@ async function mount(ctx: FeatureContext): Promise<void> {
   /* ---------- habits ---------- */
   const habits = ui.sheet({ title: S.groupGeneral });
   const msg = ui.msgline('');
+  // a failure shows at the bottom of its own section
+  const behaviorMsg = ui.msgline(''), displayMsg = ui.msgline('');
 
   const language = ui.select({ onChange: (v) => void save(LANGUAGE_KEY, v, STATS_GROUP) });
   void get<{ options?: Array<{ value: string; label: string }> }>(LANGUAGE_OPTIONS, opts).then((d) => {
@@ -108,7 +110,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   void post<{ defaultUser?: string }>(PET_STATE, { args: [] }, opts).then((s) => { if (s?.defaultUser) user.placeholder = s.defaultUser; }).catch(() => {});
   const roam = ui.segmented([
     { value: 'free', label: S.roamFree }, { value: 'calm', label: S.roamCalm }, { value: 'off', label: S.roamOff },
-  ], { size: 'sm', onSelect: (v) => void save(KEYS.roam, v) });
+  ], { size: 'sm', onSelect: (v) => void save(KEYS.roam, v, GROUP, behaviorMsg) });
   const scaleText = ui.h('span', 'companion-rangeval');
   const scaleBox = ui.h('div', 'companion-rangebox');
   const scale = scaleSlider(root.ownerDocument, {
@@ -120,12 +122,12 @@ async function mount(ctx: FeatureContext): Promise<void> {
   scaleBox.append(scale.el, scaleText);
   new ResizeObserver(() => scale.relayout()).observe(scaleBox);
   const frameRate = ui.segmented(FRAME_RATES.map((n) => ({ value: String(n), label: n ? String(n) : S.frameUnlimited })),
-    { size: 'sm', onSelect: (v) => void save(KEYS.frameRate, Number(v)) });
-  const lockFps = ui.checkbox(S.lockFps, { onChange: (on) => void save(KEYS.lockFps, on) });
-  const hideFullscreen = ui.checkbox(S.hideFullscreen, { onChange: (on) => void save(KEYS.hideFullscreen, on) });
-  const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on) });
-  const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on) });
-  const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on) });
+    { size: 'sm', onSelect: (v) => void save(KEYS.frameRate, Number(v), GROUP, displayMsg) });
+  const lockFps = ui.checkbox(S.lockFps, { onChange: (on) => void save(KEYS.lockFps, on, GROUP, displayMsg) });
+  const hideFullscreen = ui.checkbox(S.hideFullscreen, { onChange: (on) => void save(KEYS.hideFullscreen, on, GROUP, displayMsg) });
+  const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on, GROUP, displayMsg) });
+  const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on, GROUP, behaviorMsg) });
+  const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on, GROUP, behaviorMsg) });
   // the two rows below follow the pet panel's state; 「自定义…」 is picked by saving its popup
   let habit: Required<HabitState> = { wake: { wakeOn: 'poke', wakeKinds: ['poke'] }, selfAdjust: { mode: 'default', custom: {} } };
   const wakeHint = ui.h('p', 'home-note');
@@ -135,7 +137,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
       if (v === 'custom') return;
       habit.wake.wakeOn = v;
       renderHabits();
-      void save(KEYS.wakeOn, v);
+      void save(KEYS.wakeOn, v, GROUP, behaviorMsg);
     },
   });
   const selfHint = ui.h('p', 'home-note');
@@ -145,7 +147,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
       if (v === 'custom') return;
       habit.selfAdjust.mode = v;
       renderHabits();
-      void save(KEYS.selfAdjust, v);
+      void save(KEYS.selfAdjust, v, GROUP, behaviorMsg);
     },
   });
   // 「自定义…」 opens its popup each time, picked or not; the row shows it picked once the popup is saved
@@ -231,7 +233,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
       // kept in the menu's order, whatever order they were picked in
       picked = ACTIONS.map(([a]) => a).filter((a) => (a === id ? !on : picked.includes(a)));
       renderHover();
-      void save(KEYS.hover, picked.join(','));
+      void save(KEYS.hover, picked.join(','), GROUP, behaviorMsg);
     });
     hoverBox.append(b);
     return [id, b] as const;
@@ -275,6 +277,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
     row(S.dblclickLabel, dblclick.el),
     row(S.statusBubbleLabel, statusBubble.el, S.statusBubbleHint),
+    behaviorMsg,
   );
   const display = ui.sheet({ title: S.groupDisplay });
   display.body.append(
@@ -283,6 +286,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     row('', lockFps.el, S.lockFpsHint),
     hideFullscreenRow,
     row(S.rememberLabel, remember.el, S.rememberHint),
+    displayMsg,
   );
   root.append(intro(ui, S.nav), habits.el, behavior.el, display.el);
 
@@ -324,17 +328,17 @@ async function mount(ctx: FeatureContext): Promise<void> {
       line.classList.add('bad');
     }
   };
-  /** Calls a pet panel method; a failure shows on the habits line, and the rows follow the state it returns. */
+  /** Calls a pet panel method (回应模式, 自主配置权限); a failure shows under 行为与互动, and the rows follow the state it returns. */
   const callPet = async (method: string, args: unknown[]) => {
     try {
       const state = await post<HabitState>(PET_PANEL + method, { args }, opts);
       takeHabits(state);
-      msg.textContent = '';
-      msg.classList.remove('bad');
+      behaviorMsg.textContent = '';
+      behaviorMsg.classList.remove('bad');
     } catch (err) {
       if (signal.aborted) return;
-      msg.textContent = S.saveFailed(errText(err));
-      msg.classList.add('bad');
+      behaviorMsg.textContent = S.saveFailed(errText(err));
+      behaviorMsg.classList.add('bad');
     }
   };
   function takeHabits(state: HabitState | null | undefined): void {
@@ -350,7 +354,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     scaleTimer = null;
     if (scale.value === scaleSent) return;
     scaleSent = scale.value;
-    void save(KEYS.scale, scale.value);
+    void save(KEYS.scale, scale.value, GROUP, displayMsg);
   }
   signal.addEventListener('abort', () => { if (scaleTimer) clearTimeout(scaleTimer); });
   const saveUser = () => {

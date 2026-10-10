@@ -135,7 +135,7 @@ export const en: typeof zh = {
   selfCustomHint: (direct: string[], asked: string[]) => (direct.length ? `Changes directly: ${direct.join(', ')}. Needs your consent first: ${asked.join(', ')}` : 'Every setting needs your consent before it changes'),
   selfTitle: 'Settings that can change directly',
   selfNote: 'Anything unchecked needs your consent before it changes.',
-  selfItems: { figure: 'Figure', scheme: 'Dress', roam: 'Walking', snoreSeconds: 'Snore length', sound: 'Sounds', scale: 'Size', theme: 'Theme', hoverButtons: 'Hover buttons', user: 'What to call you' },
+  selfItems: { figure: 'Figure', scheme: 'Dress', roam: 'Walking', snoreSeconds: 'Snore length', sound: 'Sounds', scale: 'Size', theme: 'Theme', hoverButtons: 'Hover buttons', user: 'Your name' },
   popupSave: 'Save',
   popupCancel: 'Cancel',
   actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', dress: 'Dress up', hide: 'Hide pet' } as Record<string, string>,

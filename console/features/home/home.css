@@ -1,4 +1,4 @@
-/* 桌宠几页(开始、习惯、装扮、语音输入、电脑操作)与模式开关。页面标题与内容宽度同「系统提示词」,在 companion.css。只用控制台已有的颜色变量。 */
+/* 桌宠几页(开始、习惯(含电脑操作)、装扮、语音输入)与模式开关。页面标题与内容宽度同「系统提示词」,在 companion.css。只用控制台已有的颜色变量。 */
 .home-note { margin: 6px 0 0; font-size: 13px; line-height: 1.6; color: var(--muted-foreground); }
 .home-link { font-size: 13px; color: var(--accent); text-decoration: none; }
 .home-link:hover { text-decoration: underline; }
