@@ -31,9 +31,14 @@ const PET_PAGE = 'world:desktop-pet';
 
 interface PetState { connected: boolean; onDesktop?: boolean; url: string | null }
 
-/** The preview's least height, and the room left under it down to the window's bottom edge. */
-const PREVIEW_MIN = 260;
-const PREVIEW_GAP = 24;
+/**
+ * The preview's height: what is left down to the window's bottom edge (less a small margin) as the page
+ * first opens, so the model card and the preview fill the window; it follows the window's height between
+ * these bounds.
+ */
+const PREVIEW_MIN = 220;
+const PREVIEW_MAX = 560;
+const PREVIEW_GAP = 20;
 
 const panelPath = (page: string, panel: string, method: string) => `/api/console/providers/${encodeURIComponent(page)}/panels/${panel}/${method}`;
 const errText = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -164,6 +169,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     ctx.router.navigate(['providers']);
   }, opts);
   const links = ui.rowbar();
+  links.classList.add('home-links');
   links.append(getKey, regionLink, ui.h('span', 'grow'), otherLink);
   model.body.append(need, picker, keyRow, links, modelMsg);
   root.append(model.el);
@@ -186,7 +192,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   root.append(pet.el);
   const fitPreview = () => {
     const top = preview.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop;
-    preview.style.setProperty('--fit', `${Math.max(PREVIEW_MIN, root.clientHeight - top - PREVIEW_GAP)}px`);
+    preview.style.setProperty('--fit', `${Math.min(PREVIEW_MAX, Math.max(PREVIEW_MIN, root.clientHeight - top - PREVIEW_GAP))}px`);
   };
   const fit = new ResizeObserver(fitPreview);
   fit.observe(root);
@@ -203,7 +209,6 @@ async function mount(ctx: FeatureContext): Promise<void> {
     const ready = !!mc?.ready;
     need.hidden = ready;
     test.disabled = !ready;
-    preview.classList.toggle('nokey', !ready);
     const at = ready ? locate(mc?.baseUrl) : null;
     const current = at?.vendor ?? null;
     active = { vendor: current, region: at?.region ?? null, model: mc?.model ?? '' };

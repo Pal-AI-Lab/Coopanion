@@ -13,6 +13,14 @@
 .companion-lockup .accent { stroke: var(--accent); }
 .brand .companion-version { margin-top: 12px; }
 
+/* ---------- the rail narrows smoothly ---------- */
+/* Cortico's stylesheet drops the rail from 280px to 210px (and the page gutters to 16px) at 900px,
+   which makes everything jump as the window narrows; here it narrows with the window instead */
+@media (min-width: 721px) {
+  #rail { width: clamp(210px, calc(28.3vw - 54px), var(--sidebar-width)); }
+  .scroll, .pagehead, .subtabs { padding-left: var(--page-gutter); padding-right: var(--page-gutter); }
+}
+
 /* ---------- one heading and one content width on every page ---------- */
 /* the page's controls sit at the right of the title row */
 .featureintro:has(> .companion-introacts) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; align-items: center; }
@@ -75,3 +83,6 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
 .companion-runstate[hidden] { display: none; }
 .rail-run.paused { color: var(--warn); }
 .rail-run.paused:hover { color: var(--warn); }
+
+/* 换模式时只藏起普通模式不列的项(main.ts),导航项自带 display,要显式让 hidden 生效 */
+nav.stack .navitem[hidden], nav.stack .navgroup[hidden] { display: none; }
