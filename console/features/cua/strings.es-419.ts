@@ -1,7 +1,6 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  nav: 'Uso de la computadora',
   title: 'Uso de la computadora',
   enabled: 'Dejar que Coo use esta computadora',
   enabledHint: 'Si está desactivado, Coo no puede ver la pantalla ni tocar el mouse y el teclado.',
@@ -23,4 +22,6 @@ export const S: Partial<typeof en> = {
   turnedOn: 'El uso de la computadora está activado',
   turnedOff: 'El uso de la computadora está desactivado',
   saveFailed: (why: string) => `No se guardó: ${why}`,
+  enabledLabel: 'Usar la computadora',
+  controlLabel: 'Mouse y teclado',
 };

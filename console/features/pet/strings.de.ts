@@ -2,7 +2,6 @@ import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
   nav: 'Gewohnheiten',
-  settingsTitle: 'Gewohnheiten',
   language: 'Sprache',
   languageHint: 'Das Einstellungsfenster sowie die Sprechblasen und das Menü des Haustiers verwenden diese Sprache, und Coo spricht in ihr mit dir. Noch nicht übersetzter Text erscheint auf Englisch (traditionelles Chinesisch erscheint vereinfacht).',
   user: 'Wie du genannt wirst',
@@ -66,4 +65,13 @@ export const S: Partial<typeof en> = {
   stats: 'Anonyme Nutzungsstatistik',
   statsHint: 'Sendet Zähler, Nutzungsdauer und Einstellungen; nie Unterhaltungen, Schlüssel oder Dateien.',
   statsDoc: 'Alle gesendeten Felder',
+  groupGeneral: 'Allgemein',
+  groupBehavior: 'Verhalten',
+  groupDisplay: 'Anzeige',
+  statsLabel: 'Nutzungsstatistik',
+  dblclickLabel: 'Doppelklick',
+  statusBubbleLabel: 'Statusblase',
+  hideFullscreenLabel: 'Vollbild',
+  rememberLabel: 'Position',
+  soundLabel: 'Töne',
 };

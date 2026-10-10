@@ -1,15 +1,16 @@
 /**
  * Coopanion 的控制台入口:由 scripts/stage.ts 覆盖在 Cortico 的 src/web/client/main.ts 上。
  * 与上游的差别:
- * - 页面表多了关于桌宠的五页「开始」「习惯」「装扮」「语音输入」「电脑操作」(features/home、pet、dress、voice、cua)和「对话」(features/chat),
+ * - 页面表多了关于桌宠的四页「开始」「习惯」「装扮」「语音输入」(features/home、pet、dress、voice;「电脑操作」是「习惯」页的一节,
+ *   features/cua)和「对话」(features/chat),
  *   上游的终端页改名「运行轨迹」放进「高级」组,其余页重排、改了几个分组名;
  * - 「系统提示词」页的工具栏多一个「清空重开」(features/clear-session.ts);
- * - 两种模式(features/mode.ts):普通模式左栏只有那五页、「系统提示词」「用量与成本」和「对话」,别的路由都回到「开始」;
+ * - 两种模式(features/mode.ts):普通模式左栏只有那四页、「系统提示词」「用量与成本」和「对话」,别的路由都回到「开始」;
  *   底栏两种模式都只有运行状态、暂停/继续与关机;高级模式再接上 Cortico 除「设置」页以外的全部页面。左栏底部的开关
  *   切换模式,页面也可以经 requestMode 请求换;左栏只建一次,换模式时只藏起或露出普通模式不列的项;
  * - 空路由打开「开始」;
  * - 左上角是 Coopanion 的标志与字母(两块,居中对齐,左栏窄时字母跟着缩),下面是版本与项目地址,有新 Release 时再加一行下载链接(features/release.ts);
- * - 左栏各组按「桌宠五页 · 对话 → World → 设置 → Persona & Memory → 高级」重排。
+ * - 左栏各组按「桌宠四页 · 对话 → World → 设置 → Persona & Memory → 高级」重排。
  * 其余逐字沿用上游。
  */
 
@@ -36,7 +37,6 @@ import { homeFeature } from './features/home/index.ts';
 import { petFeature } from './features/pet/index.ts';
 import { dressFeature } from './features/dress/index.ts';
 import { voiceFeature } from './features/voice/index.ts';
-import { cuaFeature } from './features/cua/index.ts';
 import { chatFeature } from './features/chat/index.ts';
 import { traceFeature } from './features/trace.ts';
 import { promptsWithClearFeature } from './features/clear-session.ts';
@@ -48,11 +48,11 @@ import { L } from './strings.ts';
 import type { ConsoleMemo } from '../shared/client-panel.ts';
 
 /**
- * 普通模式的全部页面:关于桌宠的五页、系统提示词(人设在里面,带清空重开)、花了多少钱,和对话页(以使用者身份
+ * 普通模式的全部页面:关于桌宠的四页、系统提示词(人设在里面,带清空重开)、花了多少钱,和对话页(以使用者身份
  * 打字发图,看桌宠说过的话与做过的事)。高级模式里它们仍排在最前。
  */
 export const BASIC_FEATURES: readonly FrameworkFeature[] = [
-  homeFeature, petFeature, dressFeature, voiceFeature, cuaFeature,
+  homeFeature, petFeature, dressFeature, voiceFeature,
   promptsWithClearFeature, { ...usageFeature, navMode: 'primary' },
   chatFeature,
 ];

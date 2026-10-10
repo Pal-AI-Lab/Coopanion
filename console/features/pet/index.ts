@@ -1,11 +1,13 @@
 /**
- * 「习惯」: the everyday settings of the desktop pet, written to the desktop-pet World's config
- * group through `/api/config` (only the keys shown here are sent). The pet's own menu changes some
- * of the same values, so they are read again every few seconds. Dressing up has its own page
- * (features/dress). The hover buttons are picked from the pet menu's own actions, drawn with the
- * pet page's icons. The last row switches the app's anonymous usage statistics (the `companion`
- * group, core/telemetry.ts). The 「音效」 card below writes the World's sound group: the master switch
- * (the same one the pet menu flips), each kind of sound, and how long Coo snores in each sleep.
+ * 「习惯」: the everyday settings of the desktop pet, in sections: 通用 (language, what Coo calls you,
+ * the app's anonymous usage statistics in the `companion` group, core/telemetry.ts), 行为与互动, 显示,
+ * 音效 and 电脑操作 (features/cua). Every row names its setting in the label column, except one that
+ * only refines the row above it; on/off settings are checkboxes. Most are written to the desktop-pet
+ * World's config group through `/api/config` (only the keys shown here are sent). The pet's own menu
+ * changes some of the same values, so they are read again every few seconds. Dressing up has its own
+ * page (features/dress). The hover buttons are picked from the pet menu's own actions, drawn with the
+ * pet page's icons. The 「音效」 section writes the World's sound group: the master switch (the same
+ * one the pet menu flips), each kind of sound, and how long Coo snores in each sleep.
  *
  * The first row is the app language (`language` in the `companion` group), listed by the names the
  * Core gives (`/api/config/options/coopanion.language`). A change applies at once: the Core tells the
@@ -19,7 +21,8 @@
 import { ICONS } from 'cortico-world-desktop-pet/web/ui.js';
 import { get, post, setConfig } from '../../core/api.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
-import { intro, untitled } from '../intro.ts';
+import { intro } from '../intro.ts';
+import { cuaSection } from '../cua/index.ts';
 import { scaleSlider } from './scale-slider.ts';
 import { S } from './strings.ts';
 
@@ -93,7 +96,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   root.classList.add('home');
 
   /* ---------- habits ---------- */
-  const habits = ui.sheet({ title: S.settingsTitle });
+  const habits = ui.sheet({ title: S.groupGeneral });
   const msg = ui.msgline('');
 
   const language = ui.select({ onChange: (v) => void save(LANGUAGE_KEY, v, STATS_GROUP) });
@@ -256,28 +259,36 @@ async function mount(ctx: FeatureContext): Promise<void> {
     return r;
   };
   // the World declares this setting on Windows only; elsewhere its value never arrives and the row stays hidden
-  const hideFullscreenRow = row('', hideFullscreen.el, S.hideFullscreenHint);
+  const hideFullscreenRow = row(S.hideFullscreenLabel, hideFullscreen.el, S.hideFullscreenHint);
   hideFullscreenRow.hidden = true;
+
+  // sections: general, how Coo behaves and is reached, how it shows on the screen, sounds, computer use;
+  // every row names its setting on the left, except one that only refines the row above it
   habits.body.append(
     row(S.language, language, S.languageHint),
     row(S.user, user, S.userHint),
+    row(S.statsLabel, statsBox, S.statsHint),
+    msg,
+  );
+  const behavior = ui.sheet({ title: S.groupBehavior });
+  behavior.body.append(
     row(S.roam, roam.el),
     row(S.wake, wake.el, wakeHint),
     row(S.self, selfMode.el, selfHint),
+    row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
+    row(S.dblclickLabel, dblclick.el),
+    row(S.statusBubbleLabel, statusBubble.el, S.statusBubbleHint),
+  );
+  const display = ui.sheet({ title: S.groupDisplay });
+  display.body.append(
     row(S.theme, theme.el),
     row(S.scale, scaleBox),
     row(S.frameRate, frameRate.el, S.frameRateHint),
     row('', lockFps.el, S.lockFpsHint),
     hideFullscreenRow,
-    row('', remember.el, S.rememberHint),
-    row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
-    row('', dblclick.el),
-    row('', statusBubble.el, S.statusBubbleHint),
-    row('', statsBox, S.statsHint),
-    msg,
+    row(S.rememberLabel, remember.el, S.rememberHint),
   );
-  untitled(habits);
-  root.append(intro(ui, S.nav), habits.el);
+  root.append(intro(ui, S.nav), habits.el, behavior.el, display.el);
 
   /* ---------- sounds ---------- */
   const sounds = ui.sheet({ title: S.soundTitle });
@@ -297,12 +308,12 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const snoreBox = ui.h('div', 'companion-rangebox');
   snoreBox.append(snore, ui.h('span', 'companion-rangeval', S.snoreUnit));
   sounds.body.append(
-    row('', sound.el, S.soundHint),
+    row(S.soundLabel, sound.el, S.soundHint),
     row(S.soundKinds, kindBox, S.soundKindsHint),
     row(S.snore, snoreBox, S.snoreHint),
     soundMsg,
   );
-  root.append(sounds.el);
+  root.append(sounds.el, cuaSection(ctx, row));
 
   /* ---------- behaviour ---------- */
   const save = async (key: string, value: string | number | boolean, group = GROUP, line = msg) => {

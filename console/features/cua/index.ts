@@ -1,12 +1,12 @@
 /**
- * 「电脑操作」: the cua World in the normal mode. The switch turns the World on and off through
+ * 「电脑操作」, a section of the 「习惯」 page (features/pet): the cua World in the normal mode, in the
+ * page's rows (its label column, then the setting). The first checkbox turns the World on and off through
  * `/api/worlds/activation`, as the advanced mode's World list does; the other rows write the cua
  * World's config group through `/api/config` (only the keys shown here are sent). Yielding to the
  * person and screenshot sizes stay on the World's own page in the advanced mode.
  */
 import { get, post, setConfig } from '../../core/api.ts';
-import type { FeatureContext, FrameworkFeature } from '../feature.ts';
-import { intro, untitled } from '../intro.ts';
+import type { FeatureContext } from '../feature.ts';
 import { S } from './strings.ts';
 
 const WORLD = 'cua';
@@ -29,10 +29,12 @@ interface WorldEntry { id: string; status: 'active' | 'inactive' | 'missing' }
 
 const errText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-async function mount(ctx: FeatureContext): Promise<void> {
-  const { ui, root, signal } = ctx;
+/** One row of the 「习惯」 page: the label column, the setting, an optional note under it. */
+export type Row = (label: string, control: HTMLElement, hint?: HTMLElement | string) => HTMLElement;
+/** The section, its values read in the background; `row` is the page's. */
+export function cuaSection(ctx: FeatureContext, row: Row): HTMLElement {
+  const { ui, signal } = ctx;
   const opts = { signal };
-  root.classList.add('home');
 
   const sheet = ui.sheet({ title: S.title });
   const msg = ui.msgline('');
@@ -55,32 +57,15 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const grantBox = ui.h('div', 'companion-rangebox');
   grantBox.append(grant, ui.h('span', 'companion-rangeval', S.grantSuffix));
 
-  const row = (label: string, control: HTMLElement, hint?: HTMLElement | string) => {
-    const r = ui.h('div', 'companion-row');
-    const c = ui.h('div', 'companion-control');
-    c.append(control);
-    if (hint) c.append(typeof hint === 'string' ? ui.h('p', 'home-note', hint) : hint);
-    r.append(ui.h('div', 'companion-label', label), c);
-    return r;
-  };
   const grantRow = row(S.grant, grantBox);
-  // the two switches start at the page's left edge, not in the rows' value column
-  const switchRow = (box: { el: HTMLElement }, hint: string) => {
-    const r = ui.h('div', 'companion-switchrow');
-    box.el.classList.add('companion-switch');
-    r.append(box.el, ui.h('p', 'home-note', hint));
-    return r;
-  };
   sheet.body.append(
-    switchRow(enabled, S.enabledHint),
-    switchRow(control, S.controlHint),
+    row(S.enabledLabel, enabled.el, S.enabledHint),
+    row(S.controlLabel, control.el, S.controlHint),
     row(S.permission, level.el, levelHint),
     grantRow,
     ui.h('p', 'home-note', S.more),
     msg,
   );
-  untitled(sheet);
-  root.append(intro(ui, S.title), sheet.el);
 
   const showLevel = (v: Level) => {
     levelHint.textContent = S.levelHints[v];
@@ -114,23 +99,18 @@ async function mount(ctx: FeatureContext): Promise<void> {
     void save(KEYS.grantMinutes, n);
   }, { signal });
 
-  const [worlds, config] = await Promise.all([
+  void Promise.all([
     get<{ worlds?: WorldEntry[] }>('/api/worlds', opts).catch(() => null),
     get<{ groups?: ConfigEntry[] }>('/api/config', opts).catch(() => null),
-  ]);
-  enabled.setChecked(worlds?.worlds?.find((w) => w.id === WORLD)?.status === 'active');
-  const values = config?.groups?.find((g) => g.group.id === GROUP)?.values ?? {};
-  if (typeof values[KEYS.control] === 'boolean') control.setChecked(values[KEYS.control] as boolean);
-  const current = LEVELS.find((l) => l === values[KEYS.permission]) ?? 'ask-once';
-  level.setValue(current);
-  showLevel(current);
-  if (typeof values[KEYS.grantMinutes] === 'number') grant.value = String(values[KEYS.grantMinutes]);
+  ]).then(([worlds, config]) => {
+    if (signal.aborted) return;
+    enabled.setChecked(worlds?.worlds?.find((w) => w.id === WORLD)?.status === 'active');
+    const values = config?.groups?.find((g) => g.group.id === GROUP)?.values ?? {};
+    if (typeof values[KEYS.control] === 'boolean') control.setChecked(values[KEYS.control] as boolean);
+    const current = LEVELS.find((l) => l === values[KEYS.permission]) ?? 'ask-once';
+    level.setValue(current);
+    showLevel(current);
+    if (typeof values[KEYS.grantMinutes] === 'number') grant.value = String(values[KEYS.grantMinutes]);
+  });
+  return sheet.el;
 }
-
-export const cuaFeature: FrameworkFeature = {
-  route: 'cua',
-  label: S.nav,
-  icon: 'eye',
-  navMode: 'primary',
-  mount,
-};

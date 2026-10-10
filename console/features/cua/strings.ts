@@ -10,21 +10,20 @@ import { S as it } from './strings.it.ts';
 import { S as ru } from './strings.ru.ts';
 
 const zh = {
-  nav: '电脑操作',
   title: '电脑操作',
   enabled: '让 Coo 操作这台电脑',
   enabledHint: '关掉后 Coo 看不到屏幕，也碰不到鼠标和键盘。',
   control: '允许动鼠标和键盘',
   controlHint: '关掉后只能截图和查看有哪些窗口。',
-  permission: '什么时候先问你',
+  permission: '询问时机',
   levels: { 'ask-each-turn': '每轮都问', 'ask-before-acting': '动手前问', 'ask-once': '问一次', 'never-ask': '不问' },
   levelHints: {
     'ask-each-turn': '每一轮 Coo 第一次看屏幕或动鼠标键盘之前，先在气泡里问你。',
     'ask-before-acting': '看屏幕不问；每一轮第一次动鼠标键盘之前问你。',
-    'ask-once': '看屏幕不问；动鼠标键盘之前问一次，同意后在「同意管多久」之内不再问。',
+    'ask-once': '看屏幕不问；动鼠标键盘之前问一次，同意后在「同意有效期」之内不再问。',
     'never-ask': '看屏幕和动鼠标键盘都不问。',
   },
-  grant: '同意管多久',
+  grant: '同意有效期',
   grantSuffix: '分钟',
   grantBad: (min: number, max: number) => `要填 ${min} 到 ${max} 之间的整数`,
   more: '让位时长、截图尺寸等其余参数在高级模式的「电脑操作」World 页。',
@@ -32,10 +31,11 @@ const zh = {
   turnedOn: '已打开电脑操作',
   turnedOff: '已关闭电脑操作',
   saveFailed: (why: string) => `保存失败：${why}`,
+  enabledLabel: '使用电脑',
+  controlLabel: '鼠标与键盘',
 };
 
 export const en: typeof zh = {
-  nav: 'Computer use',
   title: 'Computer use',
   enabled: 'Let Coo use this computer',
   enabledHint: 'When off, Coo can neither see the screen nor touch the mouse and keyboard.',
@@ -57,6 +57,8 @@ export const en: typeof zh = {
   turnedOn: 'Computer use is on',
   turnedOff: 'Computer use is off',
   saveFailed: (why: string) => `Not saved: ${why}`,
+  enabledLabel: 'Use the computer',
+  controlLabel: 'Mouse and keyboard',
 };
 
 export const S = pick({

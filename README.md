@@ -180,7 +180,7 @@ Speech is recognized on your machine and audio is never uploaded: by **FunASR** 
 
 Computer use is on by default. Coo looks at the screen without asking, and asks before it first uses the mouse and keyboard; after you say yes it does not ask again for 30 minutes. Installs from before this default keep asking every turn.
 
-- Change this under **When to ask you** on the Computer use page, from strictest to loosest:
+- Change this under **When to ask you** in the Computer use section of the Habits page, from strictest to loosest:
   - `ask-each-turn`: ask every turn;
   - `ask-before-acting`: looking is not asked; ask every turn before using the mouse and keyboard;
   - `ask-once` (default): looking is not asked; ask once before acting, then not again for the time set in **A yes lasts** (30 minutes by default);
@@ -189,7 +189,7 @@ Computer use is on by default. Coo looks at the screen without asking, and asks 
 - Logins, passwords and payments are left to you.
 - One wake makes at most 40 model requests; at the limit the turn ends and you can tell Coo to continue. The limit is on the Cormini page in advanced mode and applies after a restart.
 
-To keep Coo off your computer, untick **Let Coo use this computer** on the Computer use page.
+To keep Coo off your computer, untick **Let Coo use this computer** in the Computer use section of the Habits page.
 
 ### Tray / menu bar
 
@@ -204,10 +204,9 @@ Click the tray icon, or right-click Coo and click the gear. The window opens in 
 | Page          | What is there                                                                                                    |
 | ------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Start         | Connect a model (the connected one and the other providers in one place), show or hide the pet on the desktop, preview the pet, pick a color scheme or edit its palette, rerun the guide. The bottom left says Running / Paused, beside pause / resume and shut down. |
-| Habits        | App language, what to call you, walking, colors, size, remembering the position, hover buttons, double-click typing, activity bubbles, sounds (each kind can be muted), frame rate (60/120/144/unlimited), hiding during full screen (Windows), response mode, self-adjustment (what Coo may change about itself directly and what it asks for your consent on first), anonymous usage statistics |
+| Habits        | In sections: General (app language, your name, anonymous usage statistics), Behavior (walking, how Coo responds, what Coo may change by itself, hover buttons, double-click to type, status bubble), Display (colors, size, frame rate, hide in full screen on Windows, remember position), Sounds (each kind can be turned off), Computer use (on/off, mouse and keyboard, when to ask you, how long a yes lasts) |
 | Dress up      | Figure (Coo, the DeepSeek Whale or an installed figure pack), colors and accessories; changes apply at once. **Import** at the end of the figure row installs packs from a zip or a folder (up to 128 MB at a time); dropping one on the page works too |
 | Voice input   | On/off, recognizer, model download, talk key, microphone, listening mode                                          |
-| Computer use  | On/off, mouse and keyboard permission, when to ask you, how long a yes lasts                                      |
 | System prompt | Coo's system prompt; the persona is the CONSTITUTION section. Save with Ctrl+S and apply with **Reload current session**; **Clear and restart** drops the current conversation |
 | Usage & cost  | Tokens used and money spent per day                                                                               |
 | Chat          | The current conversation; you can also talk to Coo from here                                                      |

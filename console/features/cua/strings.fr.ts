@@ -1,7 +1,6 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  nav: "Contrôle de l'ordinateur",
   title: "Contrôle de l'ordinateur",
   enabled: 'Laisser Coo utiliser cet ordinateur',
   enabledHint: "Désactivé, Coo ne peut ni voir l'écran ni toucher la souris et le clavier.",
@@ -23,4 +22,6 @@ export const S: Partial<typeof en> = {
   turnedOn: "Contrôle de l'ordinateur activé",
   turnedOff: "Contrôle de l'ordinateur désactivé",
   saveFailed: (why: string) => `Non enregistré : ${why}`,
+  enabledLabel: "Utiliser l'ordinateur",
+  controlLabel: 'Souris et clavier',
 };

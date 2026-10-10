@@ -1,7 +1,6 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  nav: 'コンピューター操作',
   title: 'コンピューター操作',
   enabled: 'Coo にこのコンピューターを使わせる',
   enabledHint: 'オフのときは、Coo は画面を見ることも、マウスやキーボードに触れることもできません。',
@@ -23,4 +22,6 @@ export const S: Partial<typeof en> = {
   turnedOn: 'コンピューター操作をオンにしました',
   turnedOff: 'コンピューター操作をオフにしました',
   saveFailed: (why: string) => `保存できませんでした：${why}`,
+  enabledLabel: 'コンピューターの使用',
+  controlLabel: 'マウスとキーボード',
 };

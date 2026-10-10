@@ -2,7 +2,6 @@ import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
   nav: '습관',
-  settingsTitle: '습관',
   language: '언어',
   languageHint: '설정 창과 펫의 말풍선, 메뉴에 이 언어를 쓰며, Coo도 이 언어로 말합니다. 아직 번역되지 않은 부분은 영어로 표시됩니다(중국어 번체는 간체로 표시).',
   user: '부를 이름',
@@ -66,4 +65,13 @@ export const S: Partial<typeof en> = {
   stats: '익명 사용 통계',
   statsHint: '사용 횟수, 사용 시간, 설정을 보내며 대화, Key, 파일은 보내지 않습니다.',
   statsDoc: '보내는 항목 전체',
+  groupGeneral: '일반',
+  groupBehavior: '행동과 상호작용',
+  groupDisplay: '표시',
+  statsLabel: '사용 통계',
+  dblclickLabel: '더블클릭',
+  statusBubbleLabel: '상태 말풍선',
+  hideFullscreenLabel: '전체 화면',
+  rememberLabel: '위치',
+  soundLabel: '효과음',
 };

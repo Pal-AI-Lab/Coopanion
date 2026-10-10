@@ -2,7 +2,6 @@ import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
   nav: 'Привычки',
-  settingsTitle: 'Привычки',
   language: 'Язык',
   languageHint: 'На этом языке работают окно настроек, облачка и меню питомца, и на нём Coo говорит с вами. Ещё не переведённый текст показывается на английском (традиционный китайский показывает упрощённый).',
   user: 'Как к вам обращаться',
@@ -66,4 +65,13 @@ export const S: Partial<typeof en> = {
   stats: 'Анонимная статистика использования',
   statsHint: 'Отправляет счётчики, время использования и настройки; никогда не отправляет разговоры, API Key и файлы.',
   statsDoc: 'Какие поля отправляются',
+  groupGeneral: 'Общие',
+  groupBehavior: 'Поведение',
+  groupDisplay: 'Отображение',
+  statsLabel: 'Статистика использования',
+  dblclickLabel: 'Двойной щелчок',
+  statusBubbleLabel: 'Пузырь состояния',
+  hideFullscreenLabel: 'Полный экран',
+  rememberLabel: 'Положение',
+  soundLabel: 'Звуки',
 };
