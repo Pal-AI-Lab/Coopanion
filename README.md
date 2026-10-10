@@ -78,6 +78,10 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 
 It downloads the latest installer, runs it, and deletes the download afterwards.
 
+If the graphical installer fails (antivirus software can stop it halfway), the downloaded installer
+is kept and its path printed — retry it silently with `Coopanion-Setup-<version>.exe /S`, or add
+Coopanion to your antivirus's allowed list first.
+
 ### macOS
 
 1. Open the [latest release](https://github.com/Pal-AI-Lab/Coopanion/releases/latest). On Apple silicon download `Coopanion-<version>-mac-arm64.dmg`; on Intel download `…-mac-x64.dmg`.

@@ -1,6 +1,19 @@
 ; electron-builder NSIS hooks. The app keeps every file under its install directory, its data in
 ; $INSTDIR\data, so the default location stays out of AppData and uninstalling keeps data\.
 
+!macro customFiles_x64
+  ; the installer template never checks whether Nsis7z::Extract succeeded: an extraction that
+  ; antivirus software or a full disk emptied read as success, and the wizard registers, shortcuts to
+  ; and "runs" an install that wrote no files. Coopanion.exe missing is that case: stop here, before
+  ; the uninstaller, the registry entry and the shortcuts are written, so a failed install leaves
+  ; nothing behind. customFiles_x64 is undocumented but the first hook after the files land
+  ; (customInstall runs only after the install is already registered).
+  ${IfNot} ${FileExists} "$INSTDIR\Coopanion.exe"
+    MessageBox MB_OK|MB_ICONSTOP "Coopanion's files did not reach the install directory: the installer could not extract its package. This is usually antivirus software or low disk space. Nothing was installed; please check and run the installer again."
+    Abort
+  ${EndIf}
+!macroend
+
 !macro customInit
   ; the per-user default is %LOCALAPPDATA%\Programs. An update stays where the install is: moving it left
   ; data\ behind (#84; app/main.cjs takes it back after such a move)
