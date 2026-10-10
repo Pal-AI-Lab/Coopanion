@@ -12,14 +12,14 @@ import { S as ru } from './strings.ru.ts';
 const zh = {
   // clear-session.ts
   button: '清空重开',
-  title: '清空当前对话,让 Coo 从头开始?',
-  body: 'Coo 会忘掉这段对话的上下文,按现在的系统提示词重新开始,不能撤销。工作区里的记忆和人设都保留。',
+  title: '清空当前对话，让 Coo 从头开始？',
+  body: 'Coo 会忘掉这段对话的上下文，按现在的系统提示词重新开始，不能撤销。工作区里的记忆和人设都保留。',
   clearing: '正在清空…',
   cleared: '已清空重开',
-  failed: (why: string) => `没清空:${why}`,
+  failed: (why: string) => `清空失败：${why}`,
   // release.ts
   repoHint: '在 GitHub 上打开 Coopanion 项目',
-  update: (latest: string) => `Coopanion ${latest} 已发布,点这里下载更新`,
+  update: (latest: string) => `Coopanion ${latest} 已发布，点击下载更新`,
 };
 
 export const en: typeof zh = {

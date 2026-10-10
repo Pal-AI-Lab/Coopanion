@@ -13,15 +13,15 @@ const zh = {
   nav: '电脑操作',
   title: '电脑操作',
   enabled: '让 Coo 操作这台电脑',
-  enabledHint: '关掉后 Coo 看不到屏幕,也碰不到鼠标和键盘。',
+  enabledHint: '关掉后 Coo 看不到屏幕，也碰不到鼠标和键盘。',
   control: '允许动鼠标和键盘',
   controlHint: '关掉后只能截图和查看有哪些窗口。',
   permission: '什么时候先问你',
   levels: { 'ask-each-turn': '每轮都问', 'ask-before-acting': '动手前问', 'ask-once': '问一次', 'never-ask': '不问' },
   levelHints: {
-    'ask-each-turn': '每一轮 Coo 第一次看屏幕或动鼠标键盘之前,先在气泡里问你。',
-    'ask-before-acting': '看屏幕不问;每一轮第一次动鼠标键盘之前问你。',
-    'ask-once': '看屏幕不问;动鼠标键盘之前问一次,同意后在「同意管多久」之内不再问。',
+    'ask-each-turn': '每一轮 Coo 第一次看屏幕或动鼠标键盘之前，先在气泡里问你。',
+    'ask-before-acting': '看屏幕不问；每一轮第一次动鼠标键盘之前问你。',
+    'ask-once': '看屏幕不问；动鼠标键盘之前问一次，同意后在「同意管多久」之内不再问。',
     'never-ask': '看屏幕和动鼠标键盘都不问。',
   },
   grant: '同意管多久',
@@ -31,7 +31,7 @@ const zh = {
   saved: '已保存',
   turnedOn: '已打开电脑操作',
   turnedOff: '已关闭电脑操作',
-  saveFailed: (why: string) => `没保存上:${why}`,
+  saveFailed: (why: string) => `保存失败：${why}`,
 };
 
 export const en: typeof zh = {

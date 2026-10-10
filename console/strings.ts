@@ -11,10 +11,10 @@ import { L as ru } from './strings.ru.ts';
 
 const zh = {
   trace: '运行轨迹', model: '模型', settings: '设置', advanced: '高级',
-  toAdvanced: '高级模式', toAdvancedHint: '显示 Cortico 的全部设置:模型、扩展、World、记忆与运行诊断',
+  toAdvanced: '高级模式', toAdvancedHint: '显示 Cortico 的全部设置：模型、扩展、World、记忆与运行诊断',
   toNormal: '回到普通模式', toNormalHint: '只显示关于桌宠的页面',
   /** feature 挂载抛错时那张错误卡的标题 */
-  featureLoadFailed: (label: string) => `「${label}」没能加载`,
+  featureLoadFailed: (label: string) => `「${label}」加载失败`,
   /** 左下角暂停/继续键左边的运行状态 */
   running: '运行中', paused: '已暂停',
 };

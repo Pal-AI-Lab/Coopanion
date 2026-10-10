@@ -9,7 +9,7 @@ import { S as ptBR } from './strings.pt-BR.ts';
 import { S as it } from './strings.it.ts';
 import { S as ru } from './strings.ru.ts';
 
-const zh = { nav: '语音输入', unavailable: '这个窗口打不开语音输入面板,请重新打开设置窗口。' };
+const zh = { nav: '语音输入', unavailable: '这个窗口打不开语音输入面板，请重新打开设置窗口。' };
 
 export const en: typeof zh = { nav: 'Voice input', unavailable: 'The voice input panel cannot open here; reopen the settings window.' };
 

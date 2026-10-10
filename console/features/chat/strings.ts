@@ -14,7 +14,7 @@ const zh = {
   nav: '对话',
   title: '对话',
   trace: '运行轨迹',
-  traceHint: '高级模式里的完整运行轨迹:上下文、工具调用与原始事件',
+  traceHint: '高级模式里的完整运行轨迹：上下文、工具调用与原始事件',
   placeholder: (bot: string) => `和 ${bot} 说点什么…`,
   connecting: '正在连接…',
   empty: (bot: string) => `还没有和 ${bot} 说过话。`,
@@ -23,16 +23,16 @@ const zh = {
   idle: '空闲',
   thinking: (bot: string) => `${bot} 在想…`,
   doing: (what: string) => `正在${what}`,
-  retry: (at: string) => `模型没有应答,${at} 重试`,
+  retry: (at: string) => `模型没有应答，${at} 重试`,
   handoff: '在整理之前的对话',
   paused: '已暂停 · 消息在继续后送达',
-  queued: (bot: string) => `排队中,${bot} 做完这一步就看`,
-  queuedPaused: '已暂停,继续后送达',
+  queued: (bot: string) => `排队中，${bot} 做完这一步就看`,
+  queuedPaused: '已暂停，继续后送达',
   sendNow: '立即发送',
-  sendNowHint: (bot: string) => `打断 ${bot} 正在做的这一步,马上送达`,
+  sendNowHint: (bot: string) => `中断 ${bot} 当前的操作，立即送达`,
   withdraw: '撤回',
-  withdrawHint: '退回输入框',
-  discarded: '没送达:排队的消息被清空了',
+  withdrawHint: '撤回到输入框',
+  discarded: '未送达：排队的消息已被清空',
   imageCount: (n: number) => `[${n} 张图]`,
   ownAnswer: '自己回答…',
   send: '发送',
@@ -40,15 +40,15 @@ const zh = {
   steps: (n: number) => `${n} 步`,
   things: (n: number) => `做了 ${n} 件事`,
   seconds: (s: number) => `${s} 秒`,
-  imagesUnseen: (bot: string) => `现在的模型看不到图片,${bot} 只会知道你发了几张图。`,
+  imagesUnseen: (bot: string) => `现在的模型看不到图片，${bot} 只会知道你发了几张图。`,
   touch: (t: Touch, b: string): string => {
-    const out = t.crashed ? `,${b} 摔晕了一会儿` : '';
+    const out = t.crashed ? `，${b} 摔晕了一会儿` : '';
     switch (t.kind) {
       case 'poke': return t.woke ? `你把睡着的 ${b} 戳醒了` : t.count > 1 ? `你戳了 ${b} ${t.count} 下` : `你戳了 ${b} 一下`;
       case 'pet': return t.count > 1 ? `你摸了 ${b} 好几下` : `你摸了摸 ${b}`;
       case 'throw': return `你把 ${b} 拎起来甩了出去${out}`;
       case 'drop': return `你把 ${b} 拎起来换了个地方${out}`;
-      default: return `${b} 重重落地,摔晕了一会儿`;
+      default: return `${b} 重重落地，摔晕了一会儿`;
     }
   },
 };
@@ -74,7 +74,7 @@ export const en: typeof zh = {
   sendNow: 'Send now',
   sendNowHint: (bot: string) => `Stop what ${bot} is doing and deliver it now`,
   withdraw: 'Take back',
-  withdrawHint: 'Back into the composer',
+  withdrawHint: 'Move back to the input box',
   discarded: 'Not delivered: the queue was cleared',
   imageCount: (n: number) => `[${n} image${n === 1 ? '' : 's'}]`,
   ownAnswer: 'Your own answer…',
