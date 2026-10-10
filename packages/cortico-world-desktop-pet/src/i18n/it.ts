@@ -277,13 +277,17 @@ const it: Translation<PetText> = {
       1: { hold: 'Tieni premuto', toggle: 'Premi per iniziare, premi di nuovo per smettere' },
       3: { hold: 'Tripla pressione e tieni premuto', toggle: 'Tripla pressione per iniziare, di nuovo per smettere' },
     },
-    talkKey: (label: string) => `Tasto per parlare: ${label}`,
     capture: 'Premi il nuovo tasto per parlare: una combinazione di tasti o un tasto laterale del mouse… (Esc annulla)',
     listening: 'In ascolto',
     waitingKey: 'In attesa del tasto per parlare',
     keyProblem: (problem: string) => `${problem}; al suo posto ascolto continuo`,
     results: 'Cosa è stato sentito',
     resultsHint: 'Le righe barrate erano troppo brevi o probabilmente allucinate, e non sono state inviate',
+    talkKeyName: 'Tasto per parlare',
+    changeKey: 'Cambia',
+    cancelKey: 'Annulla',
+    level: 'Livello di ingresso',
+    noResults: 'Ancora nessun risultato',
   },
 
   chat: {

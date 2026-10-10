@@ -303,13 +303,18 @@ export default {
       1: { hold: '直接按住', toggle: '按一下开始，再按一下停' },
       3: { hold: '三击再按住', toggle: '三击开始，再三击停' },
     } as Record<number, Record<'hold' | 'toggle', string>>,
-    talkKey: (label: string) => `说话键：${label}`,
     capture: '按下新的说话键，可以是组合键或鼠标侧键…（Esc 取消）',
     listening: '正在收音',
     waitingKey: '等说话键',
     keyProblem: (problem: string) => `${problem}，改为一直收音`,
     results: '识别结果',
     resultsHint: '划掉的是太短或疑似幻觉、没有发出去的',
+    /** 语音输入页:说话键单独一行、识别结果为空时的那一行、音量条左边的字 */
+    talkKeyName: '说话键',
+    changeKey: '更改',
+    cancelKey: '取消',
+    level: '输入音量',
+    noResults: '暂无识别结果',
   },
 
   /** 对话页发消息被退回的原因与提示 */

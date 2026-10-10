@@ -306,13 +306,17 @@ const en: PetText = {
       1: { hold: 'Just hold', toggle: 'Press to start, press again to stop' },
       3: { hold: 'Triple-press and hold', toggle: 'Triple-press to start and again to stop' },
     },
-    talkKey: (label: string) => `Talk key: ${label}`,
     capture: 'Press the new talk key: a key combination or a mouse side button… (Esc cancels)',
     listening: 'Listening',
     waitingKey: 'Waiting for the talk key',
     keyProblem: (problem: string) => `${problem}; listening all the time instead`,
     results: 'What was heard',
     resultsHint: 'Struck-through lines were too short or likely hallucinated, and were not sent',
+    talkKeyName: 'Talk key',
+    changeKey: 'Change',
+    cancelKey: 'Cancel',
+    level: 'Input level',
+    noResults: 'Nothing heard yet',
   },
 
   /** Why the chat page's message was turned back, and its notices. */

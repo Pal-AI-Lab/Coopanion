@@ -277,13 +277,17 @@ const ja: Translation<PetText> = {
       1: { hold: 'そのまま長押し', toggle: '押して開始、もう一度押して停止' },
       3: { hold: '3 回押してから長押し', toggle: '3 回押して開始、もう一度 3 回押して停止' },
     },
-    talkKey: (label: string) => `発話キー：${label}`,
     capture: '新しい発話キーを押してください：キーの組み合わせ、またはマウスのサイドボタン…（Esc でキャンセル）',
     listening: '聞き取り中',
     waitingKey: '発話キー待ち',
     keyProblem: (problem: string) => `${problem}。代わりに常に聞き取ります`,
     results: '聞き取った内容',
     resultsHint: '取り消し線の行は短すぎるか幻覚の可能性が高いため、送信されませんでした',
+    talkKeyName: '話すキー',
+    changeKey: '変更',
+    cancelKey: 'キャンセル',
+    level: '入力音量',
+    noResults: 'まだ認識結果はありません',
   },
 
   chat: {
