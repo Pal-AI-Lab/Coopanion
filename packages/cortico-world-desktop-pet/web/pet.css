@@ -30,6 +30,9 @@ body{
   font-size:15px; line-height:1.55; color:var(--text);
   user-select:none; -webkit-user-select:none;
 }
+/* line icons (ui.js): one line weight at every size, the same as the settings window's */
+svg[viewBox="0 0 24 24"][stroke="currentColor"]{stroke-width:1.5px}
+svg[viewBox="0 0 24 24"][stroke="currentColor"] *{vector-effect:non-scaling-stroke}
 /* the app language is on <html lang> (web/i18n.js): each CJK script gets its own fonts, Latin and Cyrillic the system's */
 :lang(zh) body{font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
 :lang(zh-Hant) body{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
@@ -105,7 +108,7 @@ body.desk .floor{display:none}
   position:fixed; left:0; top:0; z-index:3; width:max-content; max-width:min(300px, calc(100vw - 20px));
   padding:10px 14px; border-radius:18px; background:var(--surface); color:var(--text);
   border:2.5px solid var(--skin-ink); box-shadow:0 8px 22px var(--shadow);
-  font-size:14.5px; line-height:1.55; user-select:text; -webkit-user-select:text;
+  font-size:14.5px; line-height:1.55;
   transform-origin:var(--tail, 50%) calc(100% + 10px);
 }
 /* tail: an outline triangle whose base reaches the border's inner edge, so its sides join the border,

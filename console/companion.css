@@ -1,6 +1,6 @@
 /*
  * Coopanion's rules over the whole console (scripts/stage.ts adds this file after Cortico's stylesheet):
- * the logo, and one heading and one content width for every page.
+ * the logo, one heading and one content width for every page, icon lines, and what text can be selected.
  * Only the console's own color variables are used.
  */
 
@@ -37,6 +37,17 @@
 .chat-dock { padding-left: calc(var(--page-gutter) + 10px); padding-right: calc(var(--page-gutter) + 10px); }
 .chat-dock > * { max-width: var(--content-width); }
 .chat-queue { max-width: calc(var(--content-width) - 28px); }
+
+/* ---------- icons: one line weight at every size ---------- */
+/* the console's line icons, the composer's, and the pet's that pages borrow are all drawn on 24 units */
+svg[viewBox="0 0 24 24"][stroke="currentColor"] { stroke-width: 1.5px; }
+svg[viewBox="0 0 24 24"][stroke="currentColor"] * { vector-effect: non-scaling-stroke; }
+
+/* ---------- only what can be edited can be selected ---------- */
+body { -webkit-user-select: none; user-select: none; }
+input, textarea, [contenteditable]:not([contenteditable="false"]), [contenteditable]:not([contenteditable="false"]) * {
+  -webkit-user-select: text; user-select: text;
+}
 
 /* 语音输入: the pet World's panel; its first card is titled like the page */
 .companion-voicebox .sheet:first-of-type > h3 { display: none; }
