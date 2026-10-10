@@ -22,10 +22,9 @@
 .home-vendor.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--foreground); }
 .home-vendormark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #fff; }
 .home-vendormark svg { width: 17px; height: 17px; display: block; color: #1b1a1e; }
-.home-petframe { display: block; width: 100%; height: var(--fit, 420px); border: 1px solid var(--border); border-radius: 12px; background: transparent; }
-.home-petactions { margin: 12px 0 0; gap: 8px; }
 /* 「我的桌宠」标题与预览之间留出距离 */
-.home-petframe { margin-top: 12px; }
+.home-petframe { display: block; width: 100%; height: var(--fit, 420px); margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; background: transparent; }
+.home-petactions { margin: 12px 0 0; gap: 8px; }
 /* 「我的桌宠」标题右边:在桌面上 / 已隐藏 */
 .sheet h3 > .pill { margin-left: 10px; vertical-align: 2px; font-weight: 400; }
 
@@ -101,12 +100,15 @@
 .companion-switch input[type=checkbox]:disabled { opacity: .5; cursor: default; }
 .companion-switchrow > .home-note { margin-left: 52px; }
 
-/* 「没找到?」那一行是连接模型卡片的最后一行:下面不再多留一截空白,到分隔线的距离与分隔线到「我的桌宠」相同 */
+/* 「没找到?」那一行是连接模型卡片的最后一行:到分隔线的距离与分隔线到「我的桌宠」相同 */
 .home-links { margin-bottom: 0; }
 .featureslot-home > .sheet:has(.home-links) { padding-bottom: 0; }
 .featureslot-home > .sheet:has(.home-links) + .sheet { margin-top: 22px; }
 
 /* 第一行:在用的供应商、「测试连接」和测试结果排在一行,结果太长时在它自己的起点下换行 */
 .home-vendors.home-current { flex-wrap: nowrap; }
-.home-current > .home-vendor, .home-current > .btn { flex: none; }
+.home-current > .btn { flex: none; }
+/* a long name (a service set up in the advanced mode, a long model id) is cut short, not 「测试连接」 */
+.home-current > .home-vendor { flex: 0 1 auto; min-width: 0; }
+.home-current > .home-vendor > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home-current > .home-testmsg { flex: 1 1 auto; min-width: 0; margin: 0; overflow-wrap: anywhere; }

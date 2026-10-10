@@ -65,12 +65,13 @@ export function lightWall(wall, area = wall) {
 export function glowColor(pack, skin) {
   if (!pack || pack.id === 'coo') return 'var(--skin-eye)';
   const scheme = skin?.scheme || pack.presets?.[0]?.id || '';
-  const hex = (c) => (typeof c === 'string' && /^#[0-9a-f]{3,8}$/i.test(c) ? c : null);
+  const hex = (c) => (typeof c === 'string' && /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(c) ? c : null);
   const preset = (pack.presets ?? []).find((p) => p.id === scheme);
   if (hex(preset?.accent)) return preset.accent;
+  // the scheme names one option per axis, in the axes' order
   const parts = scheme.split('-');
-  for (const axis of pack.axes ?? []) {
-    const option = (axis.options ?? []).find((o) => parts.includes(o.id));
+  for (const [i, axis] of (pack.axes ?? []).entries()) {
+    const option = (axis.options ?? []).find((o) => o.id === parts[i]);
     if (hex(option?.accent)) return option.accent;
   }
   return null;

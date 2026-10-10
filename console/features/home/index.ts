@@ -9,7 +9,7 @@
  * normal mode, before it switches to the advanced mode, where the model pages are. 「我的桌宠」 says
  * whether the pet is on the desktop, shows it live (the pet page in a tab, which draws its own wall,
  * floor and night/day button), and under it hides it, shows it and opens the dressing page. Voice
- * input and computer use have their own pages (features/voice, features/cua); 「使用引导」 at the top
+ * input and computer use have their own pages (features/voice, features/cua); 「使用向导」 at the top
  * has Coo run its introduction again on the desktop (the app's Core holds it; this window steps aside
  * for it). Saving and testing the key lives in model.ts. Every control calls an endpoint the rest of
  * the console already uses. Styles are in home.css, which scripts/stage.ts adds to the console stylesheet.
@@ -30,8 +30,8 @@ const PET_PAGE = 'world:desktop-pet';
 interface PetState { connected: boolean; onDesktop?: boolean; url: string | null }
 
 /**
- * The preview's height: what is left down to the window's bottom edge as the page first opens, less the
- * row of buttons under it and a small margin, so the model card, the preview and its buttons fill the
+ * The preview's height: what is left down to the window's bottom edge, less the row of buttons under
+ * it and a small margin, so the model card, the preview and its buttons fill the
  * window; it follows the window's height between these bounds.
  */
 const PREVIEW_MIN = 180;
@@ -77,7 +77,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     b.addEventListener('click', () => pickVendor(v), opts);
     return b;
   });
-  const moreButton = ui.h('button', 'home-vendor home-more', S.more);
+  const moreButton = ui.h('button', 'home-vendor', S.more);
   moreButton.type = 'button';
   let unfolded = !more.length;
   moreButton.addEventListener('click', () => { unfolded = true; placeVendors(); }, opts);
@@ -176,8 +176,8 @@ async function mount(ctx: FeatureContext): Promise<void> {
   root.append(model.el);
 
   /* ---------- pet ---------- */
-  // whether the pet is on the desktop beside the title; the preview reaches the window's bottom edge as the
-  // page first opens and shrinks with a shorter window; the buttons under it
+  // whether the pet is on the desktop beside the title; the preview, sized so its buttons end just above
+  // the window's bottom edge; the buttons under it
   const pet = ui.sheet({ title: S.petTitle });
   const petPill = ui.pill('—', 'off');
   pet.el.querySelector(':scope > h3')?.append(petPill);
@@ -221,7 +221,6 @@ async function mount(ctx: FeatureContext): Promise<void> {
     const mc = st.modelConnection;
     const ready = !!mc?.ready;
     need.hidden = ready;
-    test.disabled = !ready;
     const at = ready ? locate(mc?.baseUrl) : null;
     const current = at?.vendor ?? null;
     active = { vendor: current, region: at?.region ?? null, model: mc?.model ?? '' };
