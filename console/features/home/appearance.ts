@@ -3,7 +3,7 @@
  * which keeps the theme studio, the drafts and saving) laid out as one card. The schemes and the
  * light/dark switch show at once; 「调色盘」 is a fold at the card's bottom, closed by default, styled
  * as the Model page's folds, with the colors on the left and the component specimen (no longer a
- * card of its own) on the right.
+ * card of its own) on the right, and the save row across both.
  */
 import { mountAppearance } from '../appearance/index.ts';
 import { S as AS } from '../appearance/strings.ts';
@@ -33,6 +33,9 @@ export function mountSchemes(ctx: FeatureContext): HTMLElement {
   sample.append(ui.h('h4', null, AS.specimenTitle), ...(specimen?.querySelector(':scope > .sheetbody')?.children ?? []));
   bench.append(colors, sample);
   fold.body.append(bench);
+  // the save row (its rule, the note and the buttons) spans both columns, under the colors and the specimen
+  const saveRow = colors.querySelector(':scope > .theme-actions');
+  if (saveRow) fold.body.append(saveRow);
   schemes.querySelector(':scope > .sheetbody')?.append(fold.el);
   return schemes;
 }

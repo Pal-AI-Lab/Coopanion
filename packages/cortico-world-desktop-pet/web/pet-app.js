@@ -90,8 +90,10 @@ function connect() {
   };
 }
 /** The pet window says whether it is shown: hidden from its menu or the tray, it stays connected. */
-function reportVisibility() { if (host) send({ t: 'visibility', hidden: document.hidden }); }
-document.addEventListener('visibilitychange', reportVisibility);
+let windowShown = true;
+function reportVisibility() { if (host) send({ t: 'visibility', hidden: !windowShown }); }
+// the page itself always reads as visible (its window does not throttle it): the window process says when it is hidden
+host?.onShown?.((shown) => { windowShown = shown; reportVisibility(); });
 // the text is in before anything is shown
 void useLanguage().then(() => { document.title = t('pet.title'); host?.setLanguage?.(language()); connect(); });
 
