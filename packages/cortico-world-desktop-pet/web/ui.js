@@ -52,7 +52,10 @@ export const ICONS = {
 /** Sets `theme` ('dark' | 'light') on the page; `button`, when given, shows the mode a click switches to. */
 export function applyTheme(theme, button) {
   document.documentElement.dataset.theme = theme;
-  if (!button) return;
+  if (button) themeButton(theme, button);
+}
+/** Draws `button` as the switch away from `theme`, without changing the page's theme. */
+export function themeButton(theme, button) {
   const toLight = theme === 'dark';
   button.innerHTML = toLight ? ICONS.sun : ICONS.moon;
   button.title = t(toLight ? 'theme.toLight' : 'theme.toDark');

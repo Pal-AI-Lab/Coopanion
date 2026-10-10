@@ -23,8 +23,6 @@
 .home-vendormark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #fff; }
 .home-vendormark svg { width: 17px; height: 17px; display: block; color: #1b1a1e; }
 .home-petframe { display: block; width: 100%; height: var(--fit, 420px); border: 1px solid var(--border); border-radius: 12px; background: transparent; }
-/* 没接模型时桌宠问用哪家服务,气泡里的服务卡片最多五行(简体中文),连同桌宠和地面约 705px */
-.home-petframe.nokey { height: max(720px, var(--fit, 0px)); }
 .home-petactions { margin: 12px 0 0; gap: 8px; }
 /* 「我的桌宠」标题右边:在桌面上 / 已隐藏 */
 .sheet h3 > .pill { margin-left: 10px; vertical-align: 2px; font-weight: 400; }
@@ -97,3 +95,24 @@ details.sheet.fold.home-palette > .foldbody { padding: 0; margin-top: 10px; }
 .home-palettesample { position: sticky; top: 110px; display: flex; flex-direction: column; gap: 10px; }
 .home-palettesample > h4 { margin: 0; color: var(--ink-soft); font: 600 11px var(--sans); letter-spacing: .08em; }
 @media (max-width: 900px) { .home-palettebench { grid-template-columns: 1fr; } .home-palettesample { position: static; } }
+
+/* 开关:电脑操作页最上面两项。复选框画成开关,文字在右,说明与文字对齐 */
+.companion-switchrow { padding: 8px 0; }
+.companion-switchrow > label.companion-switch { gap: 12px; font-size: 14px; color: var(--ink); }
+.companion-switch input[type=checkbox] {
+  appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 40px; height: 22px; margin: 0;
+  border-radius: 999px; background: var(--line-strong); cursor: pointer; transition: background .15s;
+}
+.companion-switch input[type=checkbox]::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s;
+}
+.companion-switch input[type=checkbox]:checked { background: var(--accent); }
+.companion-switch input[type=checkbox]:checked::after { transform: translateX(18px); }
+.companion-switch input[type=checkbox]:disabled { opacity: .5; cursor: default; }
+.companion-switchrow > .home-note { margin-left: 52px; }
+
+/* 「没找到?」那一行是连接模型卡片的最后一行:下面不再多留一截空白,到分隔线的距离与分隔线到「我的桌宠」相同 */
+.home-links { margin-bottom: 0; }
+.featureslot-home > .sheet:has(.home-links) { padding-bottom: 0; }
+.featureslot-home > .sheet:has(.home-links) + .sheet { margin-top: 22px; }

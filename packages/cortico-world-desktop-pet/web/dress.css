@@ -26,10 +26,9 @@ body.dress-page{
   background-color:var(--wall); background-image:radial-gradient(var(--dot) 1.2px, transparent 1.3px); background-size:22px 22px;
 }
 .preview .floor{position:absolute; left:0; right:0; bottom:0; height:48px; background:var(--surface); border-top:1px solid var(--line)}
-:root[data-theme="light"] .preview{--wall:#E8E6EE; --dot:#CFCBD9}
-:root[data-theme="dark"] .preview{--wall:#10151C; --dot:#232B37}
-:root[data-theme="light"] .preview .saved{color:#6A6577}
-:root[data-theme="dark"] .preview .saved{color:#8C95A3}
+/* only the preview takes the pet's night/day (dress.js puts it on #preview); the page around it follows the settings window */
+.preview{--wall:#E8E6EE; --dot:#CFCBD9; --surface:#FFFFFF; --text:#1B1626; --muted:#6A6577; --line:#E2DFE8; --shadow:rgba(27,22,38,.12)}
+.preview[data-theme="dark"]{--wall:#10151C; --dot:#232B37; --surface:#151A22; --text:#E9EDF2; --muted:#8C95A3; --line:#252C37; --shadow:rgba(0,0,0,.32)}
 .preview .figure-layer svg{position:absolute; inset:0; width:100%; height:100%}
 .preview .saved{position:absolute; top:16px; right:14px; margin:0; font-size:12.5px; color:var(--muted)}
 .dress{display:grid; grid-template-columns:minmax(4.5em, max-content) 1fr; gap:12px 14px; align-items:start}
