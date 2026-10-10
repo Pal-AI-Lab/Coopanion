@@ -6,9 +6,8 @@ body.dress-page{
   padding:16px;
 }
 :root[data-embedded] body.dress-page{min-height:0; padding:0 0 2px; background:transparent}
-:root[data-embedded]:has(body.dress-page){overflow:hidden; scrollbar-width:none}
-:root[data-embedded]:has(body.dress-page)::-webkit-scrollbar{display:none}
-/* The host console chooses the editor surface and lends its accent (--host-accent); the pet's own dark/light setting still chooses its colors. */
+:root[data-embedded]:has(body.dress-page){overflow:hidden}
+/* The host console chooses the editor surface's light/dark and lends its accent (--host-accent). */
 :root[data-ui-theme="light"] body.dress-page{
   color-scheme:light;
   --bg:#F3F2F6; --surface:#FFFFFF; --text:#1B1626; --muted:#6A6577; --line:#E2DFE8; --accent:var(--host-accent, #00A870);
@@ -29,7 +28,6 @@ body.dress-page{
 /* only the preview takes the pet's night/day (dress.js puts it on #preview); the page around it follows the settings window */
 .preview{--wall:#E8E6EE; --dot:#CFCBD9; --surface:#FFFFFF; --text:#1B1626; --muted:#6A6577; --line:#E2DFE8; --shadow:rgba(27,22,38,.12)}
 .preview[data-theme="dark"]{--wall:#10151C; --dot:#232B37; --surface:#151A22; --text:#E9EDF2; --muted:#8C95A3; --line:#252C37; --shadow:rgba(0,0,0,.32)}
-.preview .figure-layer svg{position:absolute; inset:0; width:100%; height:100%}
 .preview .saved{position:absolute; top:16px; right:14px; margin:0; font-size:12.5px; color:var(--muted)}
 .dress{display:grid; grid-template-columns:minmax(4.5em, max-content) 1fr; gap:12px 14px; align-items:start}
 .dress .row-label{font-size:14px; color:var(--muted); padding-top:18px}
