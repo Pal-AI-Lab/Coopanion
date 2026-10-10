@@ -31,4 +31,6 @@ export const S: Partial<typeof en> = {
   connectedLabel: '연결된 모델:',
   choicesLabel: '선택할 수 있는 모델:',
   notConnected: '연결되지 않음',
+  schemeTitle: '콘솔 색 구성표',
+  schemeDesc: '선택하면 바로 적용되고 콘솔에 저장됩니다.',
 };

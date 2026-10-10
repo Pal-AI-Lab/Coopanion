@@ -31,4 +31,6 @@ export const S: Partial<typeof en> = {
   connectedLabel: '接続中のモデル：',
   choicesLabel: '選べるモデル：',
   notConnected: '未接続',
+  schemeTitle: 'コンソールの配色',
+  schemeDesc: '選ぶとすぐに適用され、コンソールに保存されます。',
 };

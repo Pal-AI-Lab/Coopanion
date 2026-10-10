@@ -31,4 +31,6 @@ export const S: Partial<typeof en> = {
   connectedLabel: '已連線的模型：',
   choicesLabel: '可選擇的模型：',
   notConnected: '尚未連線',
+  schemeTitle: '控制台配色方案',
+  schemeDesc: '選擇後立即套用，並儲存在控制台。',
 };
