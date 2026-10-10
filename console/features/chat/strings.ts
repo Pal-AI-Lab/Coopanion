@@ -51,6 +51,8 @@ const zh = {
       default: return `${b} 重重落地，摔晕了一会儿`;
     }
   },
+  /** A figure switch (`figure`), a dress switch (`dress`), or a figure that did not load. */
+  figure: (change: string, name: string, b: string): string => (change === 'figure' ? `你把 ${b} 换成了「${name}」` : change === 'dress' ? `你给 ${b} 换了一身打扮` : `「${name}」没能显示出来，换成了 Coo`),
 };
 
 export const en: typeof zh = {
@@ -94,6 +96,7 @@ export const en: typeof zh = {
       default: return `${b} hit the ground hard and was knocked out for a bit`;
     }
   },
+  figure: (change: string, name: string, b: string): string => (change === 'figure' ? `You turned ${b} into ${name}` : change === 'dress' ? `You gave ${b} a new outfit` : `${name} could not be shown; Coo shows instead`),
 };
 
 export const S = pick({

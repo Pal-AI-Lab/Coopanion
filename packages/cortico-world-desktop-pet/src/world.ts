@@ -45,7 +45,7 @@ import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, watchHotk
 import { joinSpeech, looksHallucinated } from './asr/result.ts';
 import { toSimplified } from './asr/simplify.ts';
 import { estimateSeconds, parseActions, parseScript, vocabChange, vocabTable, type VocabWord } from './script.ts';
-import { ActivityGroup, ChatSockets, SELF_TYPE, chatHistory, chatItem, chatRefs } from './chat.ts';
+import { ActivityGroup, ChatSockets, SELF_TYPE, chatHistory, chatItem, chatRefs, type ChatFigure } from './chat.ts';
 import { ASK_OPTION_MAX, petToolDecls } from './tools.ts';
 import { COO, figurePacks, lookOf, modelName, nameIn, packFor, type FigurePack, type PackScan } from './packs.ts';
 import { PackImporter } from './pack-import.ts';
@@ -497,7 +497,8 @@ export class DesktopPetWorld implements World {
       const coo = packs.find((p) => p.id === COO) ?? null;
       const note = this.vocabNote();
       const name = modelName(pack?.manifest.name, id, this.language);
-      void this.push('desktop-pet.figure', 'desktop-pet.figure', this.t.figureFailed(name, reason, this.bodyText(coo), note), 'flush');
+      void this.push('desktop-pet.figure', 'desktop-pet.figure', this.t.figureFailed(name, reason, this.bodyText(coo), note), 'flush',
+        { meta: { figure: { change: 'failed', name: { ...pack?.manifest.name, id } } } });
       return;
     }
     if ('words' in msg) {
@@ -512,13 +513,18 @@ export class DesktopPetWorld implements World {
     const shown = id === COO ? COO : `${id}:${typeof msg.scheme === 'string' ? msg.scheme : ''}`;
     this.figureShown = shown;
     let look: string | null = null;
+    // what the chat page says of a switch the person made: another figure, or another dress of the same one
+    let change: ChatFigure | null = null;
     if (before !== null && before !== shown) {
       if (shown === this.botLook) this.botLook = null;
-      else look = this.t.figureNow(this.bodyText(pack));
+      else {
+        look = this.t.figureNow(this.bodyText(pack));
+        change = { change: before.split(':')[0] === id ? 'dress' : 'figure', name: { ...pack?.manifest.name, id } };
+      }
     }
     const note = this.vocabNote();
     const text = look && note ? `${look}\n${note}` : look ?? (note ? this.t.figureNote(note) : null);
-    if (text) void this.push('desktop-pet.figure', 'desktop-pet.figure', text, 'debounce');
+    if (text) void this.push('desktop-pet.figure', 'desktop-pet.figure', text, 'debounce', change ? { meta: { figure: change } } : {});
   }
 
   /* ---------- lifecycle ---------- */

@@ -42,6 +42,7 @@ export const S: Partial<typeof en> = {
       default: return `${b} 重重落地，摔暈了一會兒`;
     }
   },
+  figure: (change: string, name: string, b: string): string => (change === 'figure' ? `你把 ${b} 換成了「${name}」` : change === 'dress' ? `你幫 ${b} 換了一身打扮` : `「${name}」沒能顯示出來，換成了 Coo`),
 };
 
 export const STEP: Partial<typeof stepEn> = {
