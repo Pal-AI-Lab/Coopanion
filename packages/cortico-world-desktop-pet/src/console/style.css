@@ -3,7 +3,7 @@
 /* the meter belongs to how it listens: no rule between them, and only a little room before the results */
 .pet-voicebody .mountrow.pet-meterrow{border-top:0; padding:4px 0 6px}
 .pet-voicebody .pet-meterrow + .sectionhead{margin-top:10px}
-/* 1px lower: centred on the box, the bar still sat a little above the name's characters */
+/* the name's characters sit 1px low in their line box; the bar follows them */
 .pet-meter{position:relative; top:1px; flex:1; min-width:0; height:10px; border-radius:999px; background:var(--line, #e2dfe8); overflow:hidden}
 .pet-meterfill{position:absolute; left:0; top:0; bottom:0; width:0; background:var(--muted, #6a6577); transition:width .08s linear}
 .pet-meterfill.on{background:var(--accent, #00a870)}

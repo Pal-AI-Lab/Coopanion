@@ -88,17 +88,17 @@ export default {
     downloading: (file: string) => `下载 ${file}`,
     unpacking: '解压',
     downloadingModel: '下载识别模型',
-    downloadingFrom: (file: string, host: string) => `下载 ${file}(${host})`,
+    downloadingFrom: (file: string, host: string) => `下载 ${file}（${host}）`,
     verifying: (file: string) => `校验 ${file}`,
     mismatch: (sum: string) => `校验不符：${sum}…`,
     failed: (file: string, why: string) => `${file} 下载失败（${why}）`,
-    exitCode: (cmd: string, code: number | null, out: string) => `${cmd} 退出码 ${code}: ${out}`,
+    exitCode: (cmd: string, code: number | null, out: string) => `${cmd} 退出码 ${code}：${out}`,
   },
 
   /** 形象包 figure.json 读不了的原因;字段名照写 */
   packs: {
     noManifest: (file: string) => `没有 ${file}`,
-    badJson: (file: string, why: string) => `${file} 不是合法的 JSON:${why}`,
+    badJson: (file: string, why: string) => `${file} 不是合法的 JSON：${why}`,
     notInteger: (key: string, got: string) => `${key} 应为整数，是 ${got}`,
     tooNew: (key: string, v: number, now: number) => `${key} 是 ${v}，这一版只认到 ${now}：要先更新应用`,
     tooOld: (key: string, v: number, oldest: number) => `${key} ${v} 是 ${oldest} 之前的测试格式，读不了`,
@@ -114,7 +114,7 @@ export default {
     presetMissing: (preset: string, axis: string) => `presets.${preset} 没有选 ${axis} 的选项`,
     badPresetThumb: (preset: string) => `presets.${preset}.thumb 路径不合法`,
     vocabNotArray: 'vocab 应为数组',
-    badWordId: (got: string) => `vocab 里有不合法的 id:${got}`,
+    badWordId: (got: string) => `vocab 里有不合法的 id：${got}`,
     unknownKind: (id: string, kind: string) => `vocab.${id}.kind 是 ${kind}，这一版不认识，这个词不给 bot 用`,
     namesNotArray: (id: string, lang: string) => `vocab.${id}.names.${lang} 应为数组`,
     badWordName: (id: string, got: string) => `vocab.${id} 的名字不合法：${got}`,
@@ -134,7 +134,7 @@ export default {
 
   /** 在装扮页导入形象包 */
   importing: {
-    badZip: (why: string) => `这不是能读的 zip:${why}`,
+    badZip: (why: string) => `这不是能读的 zip：${why}`,
     tooBig: (mb: number) => `解开后超过 ${mb} MB`,
     truncated: '上传的内容不完整',
     badPath: (path: string) => `有一个路径不能用：${path}`,
@@ -153,7 +153,7 @@ export default {
     /** 可以 / 以后都可以(这几项以后不再问) / 不用了 */
     choices: ['可以', '以后都可以', '不用了'] as [yes: string, always: string, no: string],
     list: (items: string[]) => items.join('、'),
-    pick: (axis: string, option: string) => `${axis}:${option}`,
+    pick: (axis: string, option: string) => `${axis}：${option}`,
     figure: (to: string) => `换成${to}的样子`,
     scheme: (figure: string, look: string) => `换一身${figure}的打扮（${look}）`,
     roam: { free: '常走动', calm: '多待着', off: '不乱动' } as Record<'free' | 'calm' | 'off', string>,

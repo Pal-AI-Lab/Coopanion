@@ -283,7 +283,7 @@ const ptBR: Translation<PetText> = {
     keyProblem: (problem: string) => `${problem}; ouvindo o tempo todo`,
     results: 'O que foi ouvido',
     resultsHint: 'As linhas riscadas eram curtas demais ou provavelmente alucinadas, e não foram enviadas',
-    talkKeyName: 'Tecla de fala',
+    talkKeyName: 'Tecla para falar',
     changeKey: 'Alterar',
     cancelKey: 'Cancelar',
     level: 'Nível de entrada',

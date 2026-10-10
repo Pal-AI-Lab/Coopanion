@@ -22,10 +22,9 @@
 .home-vendor.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--foreground); }
 .home-vendormark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #fff; }
 .home-vendormark svg { width: 17px; height: 17px; display: block; color: #1b1a1e; }
-.home-petframe { display: block; width: 100%; height: var(--fit, 420px); border: 1px solid var(--border); border-radius: 12px; background: transparent; }
-.home-petactions { margin: 12px 0 0; gap: 8px; }
 /* 「我的桌宠」标题与预览之间留出距离 */
-.home-petframe { margin-top: 12px; }
+.home-petframe { display: block; width: 100%; height: var(--fit, 420px); margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; background: transparent; }
+.home-petactions { margin: 12px 0 0; gap: 8px; }
 /* 「我的桌宠」标题右边:在桌面上 / 已隐藏 */
 .sheet h3 > .pill { margin-left: 10px; vertical-align: 2px; font-weight: 400; }
 
@@ -55,7 +54,7 @@
 .companion-scale.past > .cs-divider { background: var(--accent); }
 /* 音效:每类一个勾选框,一行放不下就折行 */
 .companion-checks { display: flex; flex-wrap: wrap; gap: 6px 18px; padding-top: 6px; }
-.companion-dressframe { display: block; width: 100%; height: 900px; border: 0; background: transparent; overflow: hidden; }
+.companion-dressframe { display: block; width: 100%; height: 900px; border: 0; background: transparent; }
 /* 悬停按钮:每个动作一个圆形开关,选中的点亮 */
 .companion-hoverpick { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 2px; }
 .companion-hoverbtn { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 64px; max-width: 96px; padding: 0; border: 0; background: none; color: var(--ink-soft); font: inherit; cursor: pointer; }
@@ -84,8 +83,6 @@
   color: var(--ink-dim); font: inherit; font-size: 13.5px; cursor: pointer; text-align: left;
 }
 .companion-mode:hover { color: var(--ink); background: var(--sheet-2); border-style: solid; }
-/* 底栏只留暂停/继续与关机:设置页已拆散(语言在「习惯」,配色方案在「开始」),齿轮键不再显示 */
-.rail-actions .rail-action:not(.rail-run, .rail-shutdown) { display: none; }
 /* 「回应模式」「自主配置权限」的自定义弹窗:一项一行 */
 .companion-popup { min-width: min(320px, 80vw); }
 .companion-popup .companion-checks { flex-direction: column; gap: 8px; padding: 4px 0 14px; }
@@ -94,7 +91,6 @@
    展开后左边调颜色、右边试色 */
 .home-schemes .theme-schemes { margin-top: 4px; }
 details.sheet.fold.home-palette { margin: 22px 0 0; padding: 16px 0 0; background: transparent; border: 0; border-top: 1px solid var(--border); border-radius: 0; }
-details.sheet.fold.home-palette > summary { padding: 0; align-items: baseline; }
 details.sheet.fold.home-palette > .foldbody { padding: 0; margin-top: 10px; }
 .home-palettebench { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 24px; align-items: start; }
 .home-palettecolors > .fieldrow:first-child { margin-top: 0; }
@@ -104,12 +100,15 @@ details.sheet.fold.home-palette > .foldbody { padding: 0; margin-top: 10px; }
 @media (max-width: 900px) { .home-palettebench { grid-template-columns: 1fr; } .home-palettesample { position: static; } }
 
 
-/* 「没找到?」那一行是连接模型卡片的最后一行:下面不再多留一截空白,到分隔线的距离与分隔线到「我的桌宠」相同 */
+/* 「没找到?」那一行是连接模型卡片的最后一行:到分隔线的距离与分隔线到「我的桌宠」相同 */
 .home-links { margin-bottom: 0; }
 .featureslot-home > .sheet:has(.home-links) { padding-bottom: 0; }
 .featureslot-home > .sheet:has(.home-links) + .sheet { margin-top: 22px; }
 
 /* 第一行:在用的供应商、「测试连接」和测试结果排在一行,结果太长时在它自己的起点下换行 */
 .home-vendors.home-current { flex-wrap: nowrap; }
-.home-current > .home-vendor, .home-current > .btn { flex: none; }
+.home-current > .btn { flex: none; }
+/* a long name (a service set up in the advanced mode, a long model id) is cut short, not 「测试连接」 */
+.home-current > .home-vendor { flex: 0 1 auto; min-width: 0; }
+.home-current > .home-vendor > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home-current > .home-testmsg { flex: 1 1 auto; min-width: 0; margin: 0; overflow-wrap: anywhere; }

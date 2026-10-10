@@ -182,8 +182,7 @@ export function boot(doc: Document = document): { dispose(): void } {
 
   /**
    * 左栏外壳。它自己不探活、不认识任何具体 World:框架页那段由 FEATURES 按
-   * capability 过滤,贡献方那段完全由 manifest 驱动。外壳只建一次:换模式时不重建
-   * (重建会让头像、名字和运行状态重新载入、闪一下),只把普通模式不列的项藏起来。
+   * capability 过滤,贡献方那段完全由 manifest 驱动。外壳只建一次:换模式时只把普通模式不列的项藏起来。
    */
   let mode: ConsoleMode = readMode();
   /** 普通模式只认那几页的路由。 */

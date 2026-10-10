@@ -36,7 +36,7 @@
 }
 .chatview > .featureintro > * { width: 100%; max-width: var(--content-width); margin-inline: auto; }
 .chatview > .featureintro > .pagedesc:last-child { padding-bottom: 16px; border-bottom: 1px solid var(--border); }
-.chat-note-line { display: flex !important; align-items: center; gap: 12px; }
+.chat-note-line { display: flex; align-items: center; gap: 12px; }
 .chat-note-line .chat-trace { margin-left: auto; padding: 0 6px; font-size: inherit; line-height: inherit; }
 .chat-scroll { scrollbar-gutter: stable both-edges; padding-left: var(--page-gutter); padding-right: var(--page-gutter); }
 .chat-thread { max-width: var(--content-width); }
@@ -49,9 +49,10 @@
 svg[viewBox="0 0 24 24"][stroke="currentColor"] { stroke-width: 1.6px; }
 svg[viewBox="0 0 24 24"][stroke="currentColor"] * { vector-effect: non-scaling-stroke; }
 
-/* ---------- only what can be edited can be selected ---------- */
+/* ---------- only what can be edited, and what was said or ran (the conversation, the run trace, code), can be selected ---------- */
 body { -webkit-user-select: none; user-select: none; }
-input, textarea, [contenteditable]:not([contenteditable="false"]), [contenteditable]:not([contenteditable="false"]) * {
+input, textarea, [contenteditable]:not([contenteditable="false"]), [contenteditable]:not([contenteditable="false"]) *,
+.chat-thread .bubble, .pet-bubble.say, .pet-bubble .b-text, .tlscroll, pre, code {
   -webkit-user-select: text; user-select: text;
 }
 
@@ -76,6 +77,8 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
 
 /* ---------- the rail's foot: the run state in words, both states in color ---------- */
 .rail-actions { align-items: center; }
+/* only pause/resume and shut down: the language is on 习惯, the color scheme on 开始 */
+.rail-actions .rail-action:not(.rail-run, .rail-shutdown) { display: none; }
 .companion-runstate { margin-right: 2px; font: 600 12.5px/1 var(--sans); color: var(--accent); white-space: nowrap; cursor: pointer; }
 .companion-runstate.paused { color: var(--warn); }
 .companion-runstate[hidden] { display: none; }

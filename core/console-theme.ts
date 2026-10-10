@@ -2,11 +2,11 @@
  * The settings window's colours follow the pet's look. Coo wears Cortico's `mint`; each preset of a
  * figure pack that gives settings-window colours (`presets[].console` in its figure.json, the whale's
  * eight schemes among them) has a console scheme here, written into the deployment's `theme.json` as
- * custom schemes so the appearance page lists them too. The large surfaces stay neutral grey for every scheme; the brand colour goes to the
+ * custom schemes so 「配色方案」 on the 开始 page lists them too. The large surfaces stay neutral grey for every scheme; the brand colour goes to the
  * accent, the timeline's text colours and the charts.
  *
  * The window follows the pet while its scheme is `mint` or one of these. A scheme the person picked
- * on the appearance page, another built-in one or one of their own, stays until they pick one of
+ * under 「配色方案」, another built-in one or one of their own, stays until they pick one of
  * these again. The schemes are named in the app language when written; an app language change
  * writes them again.
  */

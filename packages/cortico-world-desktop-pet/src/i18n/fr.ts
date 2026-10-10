@@ -283,7 +283,7 @@ const fr: Translation<PetText> = {
     keyProblem: (problem: string) => `${problem} ; écoute continue à la place`,
     results: 'Ce qui a été entendu',
     resultsHint: "Les lignes barrées étaient trop courtes ou probablement hallucinées, et n'ont pas été envoyées",
-    talkKeyName: 'Touche pour parler',
+    talkKeyName: 'Touche de parole',
     changeKey: 'Modifier',
     cancelKey: 'Annuler',
     level: "Niveau d'entrée",

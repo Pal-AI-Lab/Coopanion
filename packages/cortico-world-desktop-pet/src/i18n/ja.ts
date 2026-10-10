@@ -283,7 +283,7 @@ const ja: Translation<PetText> = {
     keyProblem: (problem: string) => `${problem}。代わりに常に聞き取ります`,
     results: '聞き取った内容',
     resultsHint: '取り消し線の行は短すぎるか幻覚の可能性が高いため、送信されませんでした',
-    talkKeyName: '話すキー',
+    talkKeyName: '発話キー',
     changeKey: '変更',
     cancelKey: 'キャンセル',
     level: '入力音量',

@@ -66,7 +66,6 @@ preview.addEventListener('pointermove', (e) => body?.pointer('move', local(e)));
 preview.addEventListener('pointerup', (e) => body?.pointer('up', local(e)));
 preview.addEventListener('pointerleave', () => body?.pointer('leave', {}));
 
-
 function save(path, body) {
   fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
     .then((r) => { $('#saved').textContent = t(r.ok ? 'dress.saved' : 'dress.notSaved'); })

@@ -63,7 +63,7 @@ export default {
   // 形象包加载失败的原因(会告诉 bot)
   'figure.notInstalled': '没有装这个形象',
   'figure.notReady': '形象 {seconds} 秒内没有准备好',
-  'figure.imageFailed': '图片没加载出来：{url}',
+  'figure.imageFailed': '图片没加载出来:{url}',
   'figure.notFunction': '{name} 不是函数',
   'figure.missingMethod': '形象没有 {name}',
 
