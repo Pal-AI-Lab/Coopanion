@@ -856,7 +856,8 @@ const MAX_HOVER = 6;
  * Every button the menu and the hover buttons can show, in the menu's order. `icon`, `state` and
  * `on` read the current prefs: `state` is the line that says what the button does and where it
  * stands, `on` lights a switch that is on (undefined for plain actions). `keep` leaves the menu
- * open after a click, so a switch shows its new state there.
+ * open after a click, so a switch shows its new state there. `hoverOnly` keeps a button out of the
+ * menu: walking is set on the 「习惯」 page, and the menu's six fill a grid of three by two.
  */
 const ACTIONS = {
   chat: {
@@ -875,7 +876,7 @@ const ACTIONS = {
     run: () => toggleVoice(),
   },
   roam: {
-    keep: true,
+    keep: true, hoverOnly: true,
     icon: () => ICONS[`roam_${prefs.roam}`] ?? ICONS.roam_calm,
     state: () => {
       const next = ROAM_ORDER[(ROAM_ORDER.indexOf(prefs.roam) + 1) % ROAM_ORDER.length];
@@ -897,6 +898,11 @@ const ACTIONS = {
     state: () => t(prefs.sound ? 'action.soundOn' : 'action.soundOff'),
     run: () => send({ t: 'prefs', sound: !prefs.sound }),
   },
+  hide: {
+    icon: () => ICONS.eyeOff, available: () => !!host?.hide,
+    state: () => t('action.hide'),
+    run: () => host.hide(),
+  },
   dress: {
     icon: () => ICONS.shirt, cls: 'dress',
     state: () => t('action.dress'),
@@ -906,11 +912,6 @@ const ACTIONS = {
       else if (host?.openDress) host.openDress();
       else window.open('/dress', '_blank');
     },
-  },
-  hide: {
-    icon: () => ICONS.eyeOff, available: () => !!host?.hide,
-    state: () => t('action.hide'),
-    run: () => host.hide(),
   },
 };
 const available = (id) => ACTIONS[id] && (ACTIONS[id].available?.() ?? true);
@@ -954,8 +955,8 @@ function openMenu(x, y) {
   renderMenuHead();
   const grid = Object.assign(document.createElement('div'), { className: 'm-grid' });
   for (const id of Object.keys(ACTIONS)) {
-    if (!available(id)) continue;
     const a = ACTIONS[id];
+    if (!available(id) || a.hoverOnly) continue;
     const b = document.createElement('button');
     b.type = 'button'; b.setAttribute('role', 'menuitem');
     b.className = `m-tile${a.cls ? ' ' + a.cls : ''}`;

@@ -126,7 +126,7 @@ export default {
   'import.done': 'Imported: {names}',
   'import.nameSep': ', ',
   'import.replacing': '. The figure on the desktop changes to the new version the next time it loads',
-  'import.lead': 'A figure pack is the folder with figure.json in it. Pick that folder, a folder holding it (up to {depth} levels down), or its zip.',
+  'import.lead': 'Pick the folder with figure.json in it, or a zip that contains it.',
   'import.pickZip': 'Choose a zip file',
   'import.pickDir': 'Choose a folder',
   'import.dropNote': 'You can also drag a zip or folders onto this page.',

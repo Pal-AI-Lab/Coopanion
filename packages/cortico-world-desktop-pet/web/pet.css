@@ -294,15 +294,16 @@ body.desk .floor{display:none}
 .menu .m-act.run:not(.paused){color:var(--skin-eye)}
 .menu .m-act.power:hover, .menu .m-act.danger{color:var(--anger)}
 .menu .m-act.text{width:auto; padding:0 10px; border-radius:15px; font-size:12.5px}
-.m-grid{display:grid; grid-template-columns:repeat(4, 40px); gap:6px; padding:2px}
+/* six actions in three columns spread over the header's width */
+.m-grid{display:grid; grid-template-columns:repeat(3, 1fr); justify-items:center; gap:8px 10px; padding:4px 2px 2px}
 /* every entry is a round icon button; a switch that is on is lit in the eye color, one that is off keeps its crossed-out icon on a dashed ring */
 .m-tile{
-  position:relative; display:grid; place-items:center; width:40px; height:40px; padding:0; border-radius:50%;
+  position:relative; display:grid; place-items:center; width:46px; height:46px; padding:0; border-radius:50%;
   border:1.5px solid var(--line); background:none; color:var(--text); transition:background .15s, border-color .15s, color .15s;
 }
 .m-tile:hover, .m-tile:focus-visible{background:var(--bg); border-color:var(--skin-ink); outline:none}
 .m-tile .ic{position:relative; display:grid; place-items:center}
-.m-tile .ic svg{width:19px; height:19px; display:block}
+.m-tile .ic svg{width:22px; height:22px; display:block}
 .m-tile.on{background:color-mix(in srgb, var(--skin-eye) 16%, transparent); border-color:var(--skin-eye); color:var(--skin-eye)}
 .m-tile.off{color:var(--muted); border-style:dashed}
 .badge{
@@ -317,7 +318,7 @@ body.desk .floor{display:none}
 }
 .m-tile.dress::before{left:-2px; top:4px; background:#FF6B8B}
 .m-tile.dress::after{right:-3px; top:0; background:#FFC43D}
-.m-tile.dress .ic::before{left:6px; top:-17px; background:#4CC9F0}
+.m-tile.dress .ic::before{left:7px; top:-19px; background:#4CC9F0}
 .m-tile.dress:hover::before{animation:dress-pop .7s ease-out infinite}
 .m-tile.dress:hover::after{animation:dress-pop .7s .23s ease-out infinite}
 .m-tile.dress:hover .ic::before{animation:dress-pop .7s .46s ease-out infinite}

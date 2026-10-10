@@ -29,14 +29,30 @@
 .sheet h3 > .pill { margin-left: 10px; vertical-align: 2px; font-weight: 400; }
 
 /* 「习惯」「装扮」页 */
-/* 「习惯」页的行:左栏名称与右栏的第一行文字(说明,或没有说明时的设置本身)对齐在同一条基线上 */
-.companion-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 8px 0; }
+/* 「习惯」页的行:左栏名称与右栏的设置对齐在同一条基线上,说明以小字贴在设置下面;行与行之间留得比设置与说明之间宽 */
+.companion-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 12px 0; }
 .companion-row[hidden] { display: none; }
 .companion-label { font-size: 14px; line-height: 1.6; color: var(--ink-soft); }
-/* 说明在设置上方 */
-.companion-control > .home-note:first-child { margin: 0 0 8px; }
+.companion-control > .home-note { margin: 6px 0 0; font-size: 12.5px; line-height: 1.55; }
+/* 开关:一项设置的开与关(左栏写着是哪一项);勾选框只用于多选 */
+.companion-control > .check, .companion-stats > .check { gap: 10px; font-size: 14px; }
+.companion-control > .check > input, .companion-stats > .check > input {
+  appearance: none; flex: none; position: relative; width: 34px; height: 20px; margin: 0; border-radius: 10px;
+  background: var(--line-2); cursor: pointer; transition: background .15s;
+}
+.companion-control > .check > input::after, .companion-stats > .check > input::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .3); transition: transform .15s;
+}
+.companion-control > .check > input:checked, .companion-stats > .check > input:checked { background: var(--accent); }
+.companion-control > .check > input:checked::after, .companion-stats > .check > input:checked::after { transform: translateX(14px); }
+.companion-control > .check > input:focus-visible, .companion-stats > .check > input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.companion-checks .check > input, .companion-popup .check > input { width: 18px; height: 18px; margin: 0; }
 /* 大小的滑杆没有文字基线:这一行按垂直居中对齐 */
 .companion-row:has(.companion-scale) { align-items: center; }
+/* 悬停按钮的第一行是图标:左栏名称对着图标的中线 */
+.companion-row:has(.companion-hoverpick) { align-items: start; }
+.companion-row:has(.companion-hoverpick) > .companion-label { padding-top: 10px; }
 .companion-control > input { width: 100%; max-width: 320px; }
 .companion-rangebox { display: flex; align-items: center; gap: 12px; padding-top: 4px; }
 .companion-range { flex: 1; max-width: 280px; accent-color: var(--accent); }
@@ -53,7 +69,8 @@
 .companion-scale:focus-visible > .cs-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
 .companion-scale.past > .cs-divider { background: var(--accent); }
 /* 音效:每类一个勾选框,一行放不下就折行 */
-.companion-checks { display: flex; flex-wrap: wrap; gap: 6px 18px; padding-top: 6px; }
+.companion-checks { display: flex; flex-wrap: wrap; gap: 10px 20px; }
+.companion-checks .check { gap: 8px; font-size: 14px; }
 .companion-dressframe { display: block; width: 100%; height: 900px; border: 0; background: transparent; }
 /* 悬停按钮:每个动作一个圆形开关,选中的点亮 */
 .companion-hoverpick { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 2px; }

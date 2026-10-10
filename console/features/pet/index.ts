@@ -2,7 +2,8 @@
  * 「习惯」: the everyday settings of the desktop pet, in sections: 通用 (language, what Coo calls you,
  * the app's anonymous usage statistics in the `companion` group, core/telemetry.ts), 行为与互动, 显示,
  * 音效 and 电脑操作 (features/cua). Every row names its setting in the label column, except one that
- * only refines the row above it; on/off settings are checkboxes. Most are written to the desktop-pet
+ * only refines the row above it. Each row reads top to bottom: the setting, then what it means in small
+ * type under it. An on/off setting is a switch; picks among several (sound kinds, the popups) are checkboxes. Most are written to the desktop-pet
  * World's config group through `/api/config` (only the keys shown here are sent). The pet's own menu
  * changes some of the same values, so they are read again every few seconds. Dressing up has its own
  * page (features/dress). The hover buttons are picked from the pet menu's own actions, drawn with the
@@ -71,7 +72,7 @@ interface HabitState {
 
 /** The pet menu's actions in its order (the World's PET_ACTIONS), with the icon each shows. */
 const ACTIONS: ReadonlyArray<[id: string, icon: string]> = [
-  ['chat', 'chat'], ['voice', 'mic'], ['roam', 'roam_calm'], ['theme', 'moon'], ['sound', 'sound'], ['dress', 'shirt'], ['hide', 'eyeOff'],
+  ['chat', 'chat'], ['voice', 'mic'], ['roam', 'roam_calm'], ['theme', 'moon'], ['sound', 'sound'], ['hide', 'eyeOff'], ['dress', 'shirt'],
 ];
 /** Kinds of sound (the World's SOUND_KINDS), each under `worlds.desktop-pet.sounds.<kind>`. */
 const SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk', 'ui'] as const;
@@ -215,7 +216,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   statsDoc.href = STATS_DOC;
   statsDoc.target = '_blank';
   statsDoc.rel = 'noreferrer';
-  const statsBox = ui.h('div');
+  const statsBox = ui.h('div', 'companion-stats');
   statsBox.append(stats.el, statsDoc);
   // hover buttons: one round toggle per action, in the menu's order; picked ones are lit
   let picked: string[] = [];
@@ -251,9 +252,9 @@ async function mount(ctx: FeatureContext): Promise<void> {
     const r = ui.h('div', 'companion-row');
     const l = ui.h('div', 'companion-label', label);
     const c = ui.h('div', 'companion-control');
-    // what the setting means first, the setting under it
-    if (hint) c.append(typeof hint === 'string' ? ui.h('p', 'home-note', hint) : hint);
+    // the setting first, what it means under it
     c.append(control);
+    if (hint) c.append(typeof hint === 'string' ? ui.h('p', 'home-note', hint) : hint);
     r.append(l, c);
     return r;
   };

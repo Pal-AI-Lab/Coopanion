@@ -82,7 +82,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
 export const dressFeature: FrameworkFeature = {
   route: 'dress',
   label: S.nav,
-  icon: 'image',
+  icon: 'shirt',
   navMode: 'primary',
   mount,
 };
