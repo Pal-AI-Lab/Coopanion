@@ -71,6 +71,8 @@ export interface Vendor {
   modelEffort?: Readonly<Record<string, EffortMap>>;
   /** The service streams reasoning in Responses events the standard parser rejects; see `LenientReasoningAssembly`. */
   lenientReasoning?: true;
+  /** Responses fallback: read the full resource before exposing tools when streamed item completion is unreliable. */
+  nonStreamingResponses?: true;
   /** Responses: `function_call_output.output` takes a string only, so images in tool results go in a user message after them. */
   toolOutputText?: true;
   /** Responses: past reasoning goes back as the signed blocks the service returned, not as text. */
@@ -155,6 +157,7 @@ export const VENDORS: readonly Vendor[] = [
     model: 'MiniMax-M3', models: ['MiniMax-M2.7'],
     vision: ['MiniMax-M3'], contextWindows: { 'MiniMax-M3': 1_000_000 },
     effort: { max: 'high' },
+    nonStreamingResponses: true,
   },
   {
     // takes low / medium / high
