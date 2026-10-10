@@ -7,14 +7,15 @@
  * `desktop-pet.self` events that are stored and never delivered: `say`, `ask`, `activity` (the tool
  * steps between two lines), `delivered` (where messages that waited reached the bot) and `withdrawn`
  * (a message taken back before delivery, left out of the history). A touch is stored as its kind and
- * counts; the page tells it in its own language.
+ * counts, a figure the person switched to (`desktop-pet.figure`) as the change and the figure's names;
+ * the page tells both in its own language.
  */
 import type { EventEnvelope, RunPhase, WorldStreamSocket } from 'cortico/core/types.ts';
 
 export const SELF_TYPE = 'desktop-pet.self';
 
 /** Event types the chat shows. */
-const CHAT_TYPES = new Set(['desktop-pet.message', 'desktop-pet.speech', 'desktop-pet.answer', 'desktop-pet.touch', SELF_TYPE]);
+const CHAT_TYPES = new Set(['desktop-pet.message', 'desktop-pet.speech', 'desktop-pet.answer', 'desktop-pet.touch', 'desktop-pet.figure', SELF_TYPE]);
 
 /** Tools whose work shows as the pet's own lines, not as steps. */
 export const SPOKEN_TOOLS = new Set(['pet_say', 'pet_ask']);
@@ -25,6 +26,9 @@ export interface WireImage { ref: string; mime: string; name?: string }
 /** A touch as the chat page tells it: `poke`, `pet`, `throw`, `drop` or `crash`, how many times, and whether it woke the pet or the pet crashed. */
 export interface ChatTouch { kind: string; count: number; woke: boolean; crashed: boolean }
 
+/** A figure switch: to another figure, to another dress of the same one, or a figure that did not load (Coo shows instead); `name` by language, with its `id`. */
+export interface ChatFigure { change: 'figure' | 'dress' | 'failed'; name: Record<string, string> }
+
 /** One beat of a `pet_say`: its text and the first expression played in it, by its id and its name in each language. */
 export interface SayBeat { text: string; mood?: Record<string, string> }
 
@@ -33,6 +37,7 @@ export type ChatItem =
   | { kind: 'answer'; cursor: number; ts: string; askId: string; index?: number; text?: string; dismissed?: true }
   /** `text` for touches stored before they were stored as `touch`. */
   | { kind: 'touch'; cursor: number; ts: string; touch?: ChatTouch; text?: string }
+  | { kind: 'figure'; cursor: number; ts: string; figure: ChatFigure }
   | { kind: 'say'; cursor: number; ts: string; beats: SayBeat[] }
   | { kind: 'ask'; cursor: number; ts: string; askId: string; question: string; options: string[]; own: boolean }
   | { kind: 'activity'; cursor: number; ts: string; steps: string[]; ms: number };
@@ -72,6 +77,11 @@ export function chatItem(e: EventEnvelope): ChatItem | null {
       }
       const text = str(m.chat);
       return text ? { kind: 'touch', ...base, text } : null;
+    }
+    case 'desktop-pet.figure': {
+      const f = (m.figure ?? null) as Meta | null;
+      if (!f || !['figure', 'dress', 'failed'].includes(f.change as string) || !f.name || typeof f.name !== 'object') return null;
+      return { kind: 'figure', ...base, figure: { change: f.change as ChatFigure['change'], name: f.name as Record<string, string> } };
     }
     default: {
       if (m.kind === 'say' && Array.isArray(m.beats)) {

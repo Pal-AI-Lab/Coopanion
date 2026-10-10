@@ -42,6 +42,7 @@ export const S: Partial<typeof en> = {
       default: return `${b} ist hart aufgeschlagen und war kurz k. o.`;
     }
   },
+  figure: (change: string, name: string, b: string): string => (change === 'figure' ? `Du hast ${b} in ${name} verwandelt` : change === 'dress' ? `Du hast ${b} umgezogen` : `${name} ließ sich nicht anzeigen; stattdessen ist Coo zu sehen`),
 };
 
 export const STEP: Partial<typeof stepEn> = {

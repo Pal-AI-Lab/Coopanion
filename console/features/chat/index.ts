@@ -29,6 +29,7 @@ type ChatItem =
   | { kind: 'user'; cursor: number; ts: string; via: 'chat' | 'bubble' | 'voice'; text: string; images?: WireImage[]; at?: number }
   | { kind: 'answer'; cursor: number; ts: string; askId: string; index?: number; text?: string; dismissed?: true }
   | { kind: 'touch'; cursor: number; ts: string; touch?: Touch; text?: string }
+  | { kind: 'figure'; cursor: number; ts: string; figure: { change: string; name: Record<string, string> } }
   | { kind: 'say'; cursor: number; ts: string; beats: SayBeat[] }
   | { kind: 'ask'; cursor: number; ts: string; askId: string; question: string; options: string[]; own: boolean }
   | { kind: 'activity'; cursor: number; ts: string; steps: string[]; ms: number };
@@ -44,8 +45,8 @@ function activityTitle(steps: readonly string[]): string {
   return steps.length === 1 ? stepLabel(steps[0]) : S.things(steps.length);
 }
 
-/** An expression by its name in the console's language, else its base language's (zh for zh-Hant, en for the rest), else the word's id. */
-const moodName = (mood: Record<string, string>): string => mood[LANGUAGE] ?? mood[baseLanguage(LANGUAGE)] ?? mood.id ?? '';
+/** An expression or a figure by its name in the console's language, else its base language's (zh for zh-Hant, en for the rest), else its id. */
+const localName = (names: Record<string, string>): string => names[LANGUAGE] ?? names[baseLanguage(LANGUAGE)] ?? names.id ?? '';
 
 const AVATAR_URL = '/api/avatar';
 const blobUrl = (ref: string): string => `${panelRoute(PET_PAGE, 'chat', 'blob')}?args=${encodeURIComponent(JSON.stringify([ref]))}`;
@@ -245,12 +246,13 @@ async function mount(ctx: FeatureContext): Promise<void> {
     for (const it of shown) {
       if (it.kind === 'user') { group = null; thread.append(userNode(it)); continue; }
       if (it.kind === 'touch') { group = null; thread.append(ui.h('div', 'chat-note', it.touch ? S.touch(it.touch, bot) : it.text ?? '')); continue; }
+      if (it.kind === 'figure') { group = null; thread.append(ui.h('div', 'chat-note', S.figure(it.figure.change, localName(it.figure.name), bot))); continue; }
       const body = cooBody();
       if (it.kind === 'say') {
         for (const beat of it.beats) {
           const row = ui.h('div', 'sayrow');
           row.append(ui.h('div', 'pet-bubble say', beat.text));
-          if (beat.mood) row.append(ui.h('span', 'mood', moodName(beat.mood)));
+          if (beat.mood) row.append(ui.h('span', 'mood', localName(beat.mood)));
           body.append(row);
         }
       } else if (it.kind === 'ask') body.append(askNode(it, it.askId === openAsk));

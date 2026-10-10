@@ -125,7 +125,7 @@ export default {
   'import.done': '已导入：{names}',
   'import.nameSep': '、',
   'import.replacing': '。桌面上正用着的这个形象，下次载入时换成新版本',
-  'import.lead': '形象包是带 figure.json 的那个文件夹。可以选它本身，也可以选装着它的文件夹（往下 {depth} 层以内都找得到），或者选它的 zip。',
+  'import.lead': '选择 figure.json 所在的文件夹，或包含它的 zip 压缩文件。',
   'import.pickZip': '选 zip 文件',
   'import.pickDir': '选文件夹',
   'import.dropNote': '也可以把 zip 或文件夹直接拖到这一页上。',
