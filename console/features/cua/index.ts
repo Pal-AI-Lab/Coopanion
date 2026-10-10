@@ -64,9 +64,16 @@ async function mount(ctx: FeatureContext): Promise<void> {
     return r;
   };
   const grantRow = row(S.grant, grantBox);
+  // the two switches start at the page's left edge, not in the rows' value column
+  const switchRow = (box: { el: HTMLElement }, hint: string) => {
+    const r = ui.h('div', 'companion-switchrow');
+    box.el.classList.add('companion-switch');
+    r.append(box.el, ui.h('p', 'home-note', hint));
+    return r;
+  };
   sheet.body.append(
-    row('', enabled.el, S.enabledHint),
-    row('', control.el, S.controlHint),
+    switchRow(enabled, S.enabledHint),
+    switchRow(control, S.controlHint),
     row(S.permission, level.el, levelHint),
     grantRow,
     ui.h('p', 'home-note', S.more),

@@ -13,7 +13,7 @@
  * Text follows the app language (i18n.js): the page's own from its tables, the names of figures, Coo's
  * palettes and accessories, and other packs' picks from the packs' manifests.
  */
-import { applyTheme } from './ui.js';
+import { themeButton } from './ui.js';
 import { applyText, language, nameIn, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import {
@@ -36,16 +36,24 @@ const sfx = createSfx({ storageKey: 'cortico-pet.dress-sound.v1', volume: .35 })
 ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => sfx.unlock(), { capture: true }));
 
 let skin = normalizeSkin(null);
-let theme = document.documentElement.dataset.theme;
+const root = document.documentElement;
+/** The pet's night/day setting. */
+let theme = root.dataset.theme;
 const preview = $('#preview');
+/**
+ * The pet's night/day shows on the preview only (dress.css themes `#preview` by its own data-theme); the rest of
+ * the page follows the settings window when embedded (appearance.js sets data-ui-theme), else the pet's setting.
+ */
+const showTheme = () => { preview.dataset.theme = theme; root.dataset.theme = root.dataset.uiTheme ?? theme; };
+new MutationObserver(showTheme).observe(root, { attributes: true, attributeFilter: ['data-ui-theme'] });
 // the stage as on the 开始 page's preview (stage.js): a wall that answers the pointer, a floor with icons, the night/day button
-const modeBtn = modeButton(preview, () => theme, (next) => { theme = next; body?.set({ theme }); sfx.tick(); }, (next) => save('/api/prefs', { theme: next }));
+const modeBtn = modeButton(preview, () => theme, (next) => { theme = next; showTheme(); body?.set({ theme }); sfx.tick(); }, (next) => save('/api/prefs', { theme: next }), themeButton);
 lightWall(preview);
 dressFloor($('#floor'));
 /** The page's own text in the app language; the theme button's title is part of it. */
 const showText = () => { applyText(); document.title = t('dress.title'); modeBtn.show(theme); };
 const ready = useLanguage().then(showText);
-applyTheme(theme);
+showTheme();
 /** The floor is the stage's bottom 48 pixels, as in a tab (pet.css .floor). */
 const FLOOR = 48;
 const bounds = () => ({ W: preview.clientWidth, H: preview.clientHeight, floorY: preview.clientHeight - FLOOR, S: .5 });
@@ -116,7 +124,8 @@ async function showFigure(s) {
 
 function apply(next, persist) {
   skin = next;
-  skinStyle.textContent = skinCss(skin);
+  // the page's tiles follow the page's light/dark, the preview the pet's
+  skinStyle.textContent = skinCss(skin) + skinCss(skin, '#preview');
   showFigure(skin).catch((err) => console.error(err));
   render();
   if (persist) save('/api/skin', { skin });
@@ -464,7 +473,7 @@ function connect() {
   const ws = new WebSocket(`ws://${location.host}/socket?role=dress`);
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
-    if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; applyTheme(theme); modeBtn.show(theme); body?.set({ theme }); }
+    if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; showTheme(); modeBtn.show(theme); body?.set({ theme }); }
     if (m.t === 'init') loadPacks();
     if ((m.t === 'init' || m.t === 'prefs') && m.skin && JSON.stringify(normalizeSkin(m.skin)) !== JSON.stringify(skin)) apply(normalizeSkin(m.skin), false);
     if ((m.t === 'init' || m.t === 'prefs') && typeof m.language === 'string' && m.language !== language()) void useLanguage(m.language).then(() => { showText(); render(); });
