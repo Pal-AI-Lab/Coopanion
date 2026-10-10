@@ -78,6 +78,8 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 
 它会下载最新的安装包并运行，装完删掉下载的文件。
 
+图形界面安装失败时（杀毒软件可能拦下安装的一半），下载的安装包会保留并打印路径——可以用它静默重装：`Coopanion-Setup-版本号.exe /S`，或先把 Coopanion 加进杀毒软件的白名单。
+
 ### macOS
 
 1. 打开[最新发布](https://github.com/Pal-AI-Lab/Coopanion/releases/latest)。Apple 芯片下载 `Coopanion-版本号-mac-arm64.dmg`，Intel 下载 `…-mac-x64.dmg`。
