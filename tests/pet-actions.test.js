@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createPet, FACES, KIT_EXPRESSIONS, KIT_MOTIONS, STAND } from '../packages/cortico-world-desktop-pet/web/kit/body.js';
 import { cooFigure, defaultSkin, figure } from '../packages/cortico-world-desktop-pet/web/coo/coo.js';
 import { createSfx } from '../packages/cortico-world-desktop-pet/web/sound.js';
-import { readLayout, touchGate } from '../packages/cortico-world-desktop-pet/web/body-host.js';
+import { haloRect, readLayout, touchGate } from '../packages/cortico-world-desktop-pet/web/body-host.js';
 
 const PKG = new URL('../packages/cortico-world-desktop-pet/', import.meta.url);
 const vocabOf = (pack) => JSON.parse(readFileSync(new URL(`web/${pack}/figure.json`, PKG), 'utf8')).vocab;
@@ -167,6 +167,17 @@ describe('what the page holds a pack to', () => {
     expect(l.box.w).toBeLessThanOrEqual(128 * 1.5 * Math.SQRT2);
     expect(l.box.h).toBeLessThanOrEqual(128 * 1.5 * Math.SQRT2);
     expect(l.bubble).toEqual({ x: 0, y: 600 });
+  });
+
+  it("the halo blurs only the body's surroundings, not the whole stage (#86: the whale kept a Mac's GPU busy)", () => {
+    const size = { W: 1470, H: 859, S: .42 };
+    const l = readLayout({ box: { x: 970, y: 745, w: 120, h: 114 } }, size);
+    // 40% of the box each side, cut off at the floor
+    expect(haloRect(l, size)).toEqual({ x: 922, y: 699, w: 216, h: 160 });
+    // a small body still gets the drop shadows' full reach, and the rect never leaves the stage
+    expect(haloRect(readLayout({ box: { x: 2, y: 10, w: 20, h: 20 } }, size), size)).toEqual({ x: 0, y: 0, w: 46, h: 54 });
+    expect(haloRect(readLayout({ box: { x: 10, y: 10, w: 0, h: 0 } }, size), size)).toBe(null);
+    expect(haloRect(null, size)).toBe(null);
   });
 
   it('a touch counts only right after pointer input, a crash only after a throw', () => {

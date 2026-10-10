@@ -31,6 +31,13 @@ const BOX_MAX = 1.5 * Math.SQRT2;
  */
 const TOUCH_MS = 1000;
 const TOUCHES = new Set(['poke', 'pet', 'grab', 'drop', 'throw', 'crash']);
+/**
+ * How far around the body's box the halo reaches, as a share of the box's width and height each side (the SVG filter
+ * region the halo had before bodies moved into their frame), and at least HALO_REACH pixels, the drop shadows' spread.
+ * Drawn with a CSS filter over the whole stage, the halo blurs the full window on every frame the body redraws: on a
+ * Mac, where it is always on, that kept the GPU busy at 60 to 90 percent behind the whale.
+ */
+const HALO_PAD = .4, HALO_REACH = 24;
 
 const num = (v, fallback = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
 const clampTo = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -59,6 +66,19 @@ export function onBody(layout, p) {
   const b = layout?.box;
   if (!b || p.x < b.x || p.y < b.y || p.x > b.x + b.w || p.y > b.y + b.h) return false;
   return layout.hit.some((c) => Math.hypot(p.x - c.x, p.y - c.y) < c.r);
+}
+
+/**
+ * The window the halo is drawn in for a body with `layout` (readLayout's) on a `size` stage: its box with HALO_PAD
+ * and HALO_REACH around it, in whole pixels inside the stage; null when there is no box to draw around.
+ */
+export function haloRect(layout, size) {
+  const b = layout?.box;
+  if (!b || !(b.w > 0) || !(b.h > 0)) return null;
+  const px = Math.max(HALO_REACH, b.w * HALO_PAD), py = Math.max(HALO_REACH, b.h * HALO_PAD);
+  const x = Math.max(0, Math.floor(b.x - px)), y = Math.max(0, Math.floor(b.y - py));
+  const w = Math.min(Math.ceil(size.W), Math.ceil(b.x + b.w + px)) - x, h = Math.min(Math.ceil(size.H), Math.ceil(b.y + b.h + py)) - y;
+  return w > 0 && h > 0 ? { x, y, w, h } : null;
 }
 
 /**
@@ -100,6 +120,11 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
     frame.tabIndex = -1;
     frame.className = 'figure-frame';
     frame.src = '/figure-frame';
+    // the frame's window onto the stage: all of it, or with the halo on, the halo's rect around the body (haloRect)
+    const clip = document.createElement('div');
+    clip.className = 'figure-clip';
+    clip.appendChild(frame);
+    let haloAt = '';
     let ready = false, gone = false, seq = 0, size = bounds;
     let layout = null, z = null, words = null;
     const touches = touchGate();
@@ -112,7 +137,7 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
       gone = true;
       clearTimeout(timer);
       removeEventListener('message', onMessage);
-      frame.remove();
+      clip.remove();
       for (const done of waits.values()) done();
       waits.clear();
     }
@@ -149,10 +174,20 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
         post({ t: 'scheme', id: knownScheme(pack, id), fade: o.fade ?? 0, seq: s });
         return new Promise((done) => waits.set(s, done));
       },
-      /** The light halo behind the body (pet-app's backdrop), as a CSS filter on the frame: 0 removes it. */
+      /**
+       * The light halo behind the body (pet-app's backdrop), as a CSS filter on the frame's window cut down to
+       * the body's surroundings (haloRect), so it blurs only those; 0 removes it. Called once a frame: it follows the body.
+       */
       setHalo(k) {
-        const c = `rgba(184,184,184,${k.toFixed(2)})`;
-        frame.style.filter = k ? `drop-shadow(0 0 3px ${c}) drop-shadow(0 0 7px ${c})` : '';
+        const r = k ? haloRect(layout, size) : null;
+        const c = r ? `rgba(184,184,184,${k.toFixed(2)})` : '';
+        const at = r ? `${r.x},${r.y},${r.w},${r.h},${c}` : '';
+        if (at === haloAt) return;
+        haloAt = at;
+        if (!r) { clip.removeAttribute('style'); frame.removeAttribute('style'); return; }
+        Object.assign(clip.style, { inset: 'auto', left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px`, overflow: 'hidden', filter: `drop-shadow(0 0 3px ${c}) drop-shadow(0 0 7px ${c})` });
+        // the frame keeps the stage's size and place, so the body inside it neither moves nor resizes
+        Object.assign(frame.style, { inset: 'auto', left: `${-r.x}px`, top: `${-r.y}px`, width: `${size.W}px`, height: `${size.H}px` });
       },
       dispose: close,
     };
@@ -198,6 +233,6 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
       }
     }
     addEventListener('message', onMessage);
-    layer.appendChild(frame);
+    layer.appendChild(clip);
   });
 }
