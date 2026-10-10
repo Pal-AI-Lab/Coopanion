@@ -32,11 +32,11 @@ const PET_PAGE = 'world:desktop-pet';
 interface PetState { connected: boolean; onDesktop?: boolean; url: string | null }
 
 /**
- * The preview's height: what is left down to the window's bottom edge (less a small margin) as the page
- * first opens, so the model card and the preview fill the window; it follows the window's height between
- * these bounds.
+ * The preview's height: what is left down to the window's bottom edge as the page first opens, less the
+ * row of buttons under it and a small margin, so the model card, the preview and its buttons fill the
+ * window; it follows the window's height between these bounds.
  */
-const PREVIEW_MIN = 220;
+const PREVIEW_MIN = 180;
 const PREVIEW_MAX = 560;
 const PREVIEW_GAP = 20;
 
@@ -192,8 +192,20 @@ async function mount(ctx: FeatureContext): Promise<void> {
   root.append(pet.el);
   const fitPreview = () => {
     const top = preview.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop;
-    preview.style.setProperty('--fit', `${Math.min(PREVIEW_MAX, Math.max(PREVIEW_MIN, root.clientHeight - top - PREVIEW_GAP))}px`);
+    const below = petLine.getBoundingClientRect().bottom - preview.getBoundingClientRect().bottom;
+    preview.style.setProperty('--fit', `${Math.min(PREVIEW_MAX, Math.max(PREVIEW_MIN, root.clientHeight - top - below - PREVIEW_GAP))}px`);
   };
+  // the preview lends the settings window's theme color to its light, as the dressing page does
+  const lendAccent = () => {
+    const origin = preview.dataset.src ? new URL(preview.dataset.src).origin : null;
+    const accent = getComputedStyle(root.ownerDocument.documentElement).getPropertyValue('--accent').trim();
+    const mode = root.ownerDocument.documentElement.dataset.colorMode === 'dark' ? 'dark' : 'light';
+    if (origin) preview.contentWindow?.postMessage({ type: 'companion:appearance', mode, accent }, origin);
+  };
+  preview.addEventListener('load', lendAccent, opts);
+  const themeWatch = new MutationObserver(lendAccent);
+  themeWatch.observe(root.ownerDocument.documentElement, { attributes: true, attributeFilter: ['data-color-mode', 'data-theme-scheme', 'style'] });
+  ctx.lifecycle.add(() => themeWatch.disconnect());
   const fit = new ResizeObserver(fitPreview);
   fit.observe(root);
   fit.observe(model.el);
