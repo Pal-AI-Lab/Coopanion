@@ -60,7 +60,6 @@ export const S: Partial<typeof en> = {
   popupSave: 'Сохранить',
   popupCancel: 'Отмена',
   actions: { chat: 'Написать', voice: 'Голосовой ввод', roam: 'Активность', theme: 'Ночной режим', sound: 'Звуки', dress: 'Гардероб', hide: 'Скрыть питомца' },
-  saved: 'Сохранено',
   saveFailed: (why: string) => `Не сохранено: ${why}`,
   stats: 'Анонимная статистика использования',
   statsHint: 'Отправляет счётчики, время использования и настройки; никогда не отправляет разговоры, API Key и файлы.',

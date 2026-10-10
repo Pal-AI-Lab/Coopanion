@@ -60,7 +60,6 @@ export const S: Partial<typeof en> = {
   popupSave: 'Enregistrer',
   popupCancel: 'Annuler',
   actions: { chat: 'Écrire', voice: 'Saisie vocale', roam: 'Déplacements', theme: 'Mode nuit', sound: 'Sons', dress: 'Habiller', hide: 'Masquer le compagnon' },
-  saved: 'Enregistré',
   saveFailed: (why: string) => `Non enregistré : ${why}`,
   stats: "Statistiques d'utilisation anonymes",
   statsHint: "Envoie des comptages, le temps d'utilisation et les réglages ; jamais les conversations, les clés ni les fichiers.",

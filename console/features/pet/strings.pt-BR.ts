@@ -60,7 +60,6 @@ export const S: Partial<typeof en> = {
   popupSave: 'Salvar',
   popupCancel: 'Cancelar',
   actions: { chat: 'Digitar', voice: 'Entrada de voz', roam: 'Passeios', theme: 'Modo noturno', sound: 'Sons', dress: 'Guarda-roupa', hide: 'Ocultar o pet' },
-  saved: 'Salvo',
   saveFailed: (why: string) => `Não foi salvo: ${why}`,
   stats: 'Estatísticas de uso anônimas',
   statsHint: 'Envia contagens, tempo de uso e configurações; nunca conversas, API Keys ou arquivos.',

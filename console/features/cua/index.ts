@@ -75,7 +75,7 @@ export function cuaSection(ctx: FeatureContext, row: Row): HTMLElement {
   const save = async (key: string, value: string | number | boolean) => {
     try {
       await setConfig(GROUP, { [key]: value }, opts);
-      say(S.saved);
+      say('');
     } catch (err) {
       if (!signal.aborted) say(S.saveFailed(errText(err)), true);
     }
@@ -84,7 +84,7 @@ export function cuaSection(ctx: FeatureContext, row: Row): HTMLElement {
     const lock = ui.disable(enabled.input);
     try {
       await post('/api/worlds/activation', { id: WORLD, enabled: on }, opts);
-      say(on ? S.turnedOn : S.turnedOff);
+      say('');
     } catch (err) {
       if (signal.aborted) return;
       enabled.setChecked(!on);

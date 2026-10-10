@@ -253,8 +253,9 @@ async function mount(ctx: FeatureContext): Promise<void> {
     const r = ui.h('div', 'companion-row');
     const l = ui.h('div', 'companion-label', label);
     const c = ui.h('div', 'companion-control');
-    c.append(control);
+    // what the setting means first, the setting under it
     if (hint) c.append(typeof hint === 'string' ? ui.h('p', 'home-note', hint) : hint);
+    c.append(control);
     r.append(l, c);
     return r;
   };
@@ -319,7 +320,8 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const save = async (key: string, value: string | number | boolean, group = GROUP, line = msg) => {
     try {
       await setConfig(group, { [key]: value }, opts);
-      line.textContent = S.saved;
+      // everything saves as it changes: only a failure is worth a line
+      line.textContent = '';
       line.classList.remove('bad');
     } catch (err) {
       if (signal.aborted) return;
@@ -332,7 +334,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     try {
       const state = await post<HabitState>(PET_PANEL + method, { args }, opts);
       takeHabits(state);
-      msg.textContent = S.saved;
+      msg.textContent = '';
       msg.classList.remove('bad');
     } catch (err) {
       if (signal.aborted) return;

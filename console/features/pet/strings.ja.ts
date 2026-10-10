@@ -60,7 +60,6 @@ export const S: Partial<typeof en> = {
   popupSave: '保存',
   popupCancel: 'キャンセル',
   actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', dress: '着せ替え', hide: 'ペットを隠す' },
-  saved: '保存しました',
   saveFailed: (why: string) => `保存できませんでした：${why}`,
   stats: '匿名の利用統計を送信',
   statsHint: '回数、利用時間、設定を送信します。会話、Key、ファイルは送信しません。',

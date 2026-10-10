@@ -60,7 +60,6 @@ export const S: Partial<typeof en> = {
   popupSave: '儲存',
   popupCancel: '取消',
   actions: { chat: '打字', voice: '語音輸入', roam: '行為模式', theme: '夜間模式', sound: '音效', dress: '裝扮', hide: '隱藏桌寵' },
-  saved: '已儲存',
   saveFailed: (why: string) => `沒有儲存：${why}`,
   stats: '傳送匿名使用統計',
   statsHint: '傳送使用次數、時長和設定，不含對話內容、Key 和檔案。',

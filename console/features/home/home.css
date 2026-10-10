@@ -30,9 +30,14 @@
 .sheet h3 > .pill { margin-left: 10px; vertical-align: 2px; font-weight: 400; }
 
 /* 「习惯」「装扮」页 */
-.companion-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: start; padding: 8px 0; }
+/* 「习惯」页的行:左栏名称与右栏的第一行文字(说明,或没有说明时的设置本身)对齐在同一条基线上 */
+.companion-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 8px 0; }
 .companion-row[hidden] { display: none; }
-.companion-label { padding-top: 6px; font-size: 14px; color: var(--ink-soft); }
+.companion-label { font-size: 14px; line-height: 1.6; color: var(--ink-soft); }
+/* 说明在设置上方 */
+.companion-control > .home-note:first-child { margin: 0 0 8px; }
+/* 大小的滑杆没有文字基线:这一行按垂直居中对齐 */
+.companion-row:has(.companion-scale) { align-items: center; }
 .companion-control > input { width: 100%; max-width: 320px; }
 .companion-rangebox { display: flex; align-items: center; gap: 12px; padding-top: 4px; }
 .companion-range { flex: 1; max-width: 280px; accent-color: var(--accent); }
