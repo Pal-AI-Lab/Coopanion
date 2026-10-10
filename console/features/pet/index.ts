@@ -19,6 +19,7 @@
 import { ICONS } from 'cortico-world-desktop-pet/web/ui.js';
 import { get, post, setConfig } from '../../core/api.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
+import { intro, untitled } from '../intro.ts';
 import { scaleSlider } from './scale-slider.ts';
 import { S } from './strings.ts';
 
@@ -275,7 +276,8 @@ async function mount(ctx: FeatureContext): Promise<void> {
     row('', statsBox, S.statsHint),
     msg,
   );
-  root.append(habits.el);
+  untitled(habits);
+  root.append(intro(ui, S.nav), habits.el);
 
   /* ---------- sounds ---------- */
   const sounds = ui.sheet({ title: S.soundTitle });

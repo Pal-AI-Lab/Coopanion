@@ -15,6 +15,7 @@
 import { post } from '../../core/api.ts';
 import { LANGUAGE } from '../../core/language.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
+import { intro } from '../intro.ts';
 import { readMode, requestMode } from '../mode.ts';
 import {
   connectVendor, consoleCall, defaultRegion, localized, locate, readStatus, regionsOf, siteOf, testEndpoint, VENDOR_ICONS, vendorName, vendorsFor,
@@ -34,14 +35,10 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const opts = { signal };
   root.classList.add('home');
 
-  /* ---------- status ---------- */
-  const head = ui.h('div', 'home-head');
-  const title = ui.h('h1', 'home-title', S.title);
-  const state = ui.pill('—', 'plain');
+  /* ---------- heading ---------- */
   const guide = ui.button(S.guide, { size: 'sm', onClick: () => { void post(panelPath(PET_PAGE, 'pet', 'guide'), { args: [] }, opts).catch((err) => ui.toast(String(err instanceof Error ? err.message : err))); } });
   guide.title = S.guideHint;
-  head.append(title, state, ui.h('span', 'grow'), guide);
-  root.append(head);
+  root.append(intro(ui, S.nav, { actions: [guide] }));
 
   /* ---------- model ---------- */
   const model = ui.sheet({ title: S.modelTitle });
@@ -165,10 +162,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
 
   const renderStatus = (st: Status) => {
     status = st;
-    const paused = st.loop?.paused === true;
     const mc = st.modelConnection;
-    if (!mc?.ready) { state.textContent = S.noModel; state.className = 'pill off'; }
-    else { state.textContent = paused ? S.paused : S.running; state.className = `pill ${paused ? 'plain' : 'on'}`; }
     const ready = !!mc?.ready;
     connectedLine.hidden = !ready || editingKey;
     keyBox.hidden = ready && !editingKey;

@@ -2,10 +2,6 @@ import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
   nav: 'スタート',
-  title: 'Coo',
-  running: '活動中',
-  paused: '一時停止中',
-  noModel: 'モデル未接続',
   modelTitle: 'モデルを接続',
   modelNeed: (first: string) => `モデルサービスを選んで API Key を入力すると始められます。迷ったら ${first} を選んでください。`,
   more: 'その他',

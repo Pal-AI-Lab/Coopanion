@@ -6,6 +6,7 @@
  */
 import { get, post, setConfig } from '../../core/api.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
+import { intro, untitled } from '../intro.ts';
 import { S } from './strings.ts';
 
 const WORLD = 'cua';
@@ -71,7 +72,8 @@ async function mount(ctx: FeatureContext): Promise<void> {
     ui.h('p', 'home-note', S.more),
     msg,
   );
-  root.append(sheet.el);
+  untitled(sheet);
+  root.append(intro(ui, S.title), sheet.el);
 
   const showLevel = (v: Level) => {
     levelHint.textContent = S.levelHints[v];

@@ -2,10 +2,6 @@ import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
   nav: '開始',
-  title: 'Coo',
-  running: '醒著',
-  paused: '暫停中',
-  noModel: '還沒連上模型',
   modelTitle: '連線模型',
   modelNeed: (first: string) => `選一家模型服務，填入它的 API Key 就能開始。拿不定主意就選 ${first}。`,
   more: '更多',

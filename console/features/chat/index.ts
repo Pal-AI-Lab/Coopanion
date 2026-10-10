@@ -15,6 +15,7 @@ import { LANGUAGE } from '../../core/language.ts';
 import { openStream } from '../../core/stream.ts';
 import { browserSocketEnv } from '../../core/websocket.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
+import { intro } from '../intro.ts';
 import { requestMode } from '../mode.ts';
 import { S, STEP } from './strings.ts';
 
@@ -87,8 +88,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const expanded = new Set<string>();
 
   // ---- layout
-  const top = ui.h('div', 'chat-top');
-  const title = ui.h('h1', null, S.title);
+  // the page's heading as on every page; the run phase and the way to the run trace take the note's line
   const phaseEl = ui.h('span', 'chat-phase');
   const phaseDot = ui.h('span', 'dot');
   const phaseText = ui.h('span');
@@ -97,7 +97,9 @@ async function mount(ctx: FeatureContext): Promise<void> {
   trace.type = 'button';
   trace.title = S.traceHint;
   trace.addEventListener('click', () => { requestMode('advanced'); ctx.router.navigate(['live']); }, { signal: ctx.signal });
-  top.append(title, phaseEl, ui.h('span', 'grow'), trace);
+  const note = ui.h('div', 'chat-note-line');
+  note.append(phaseEl, trace);
+  const top = intro(ui, S.title, { desc: note });
 
   const scroll = ui.h('div', 'chat-scroll');
   const thread = ui.h('div', 'chat-thread');

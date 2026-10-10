@@ -11,10 +11,6 @@ import { S as ru } from './strings.ru.ts';
 
 const zh = {
   nav: '开始',
-  title: 'Coo',
-  running: '醒着',
-  paused: '暂停中',
-  noModel: '还没连上模型',
   modelTitle: '连接模型',
   modelNeed: (first: string) => `选一家模型服务,填入它的 API Key 就能开始。拿不准就选 ${first}。`,
   more: '更多',
@@ -47,10 +43,6 @@ const zh = {
 
 export const en: typeof zh = {
   nav: 'Start',
-  title: 'Coo',
-  running: 'Awake',
-  paused: 'Paused',
-  noModel: 'No model connected',
   modelTitle: 'Connect a model',
   modelNeed: (first: string) => `Pick a model service and enter its API Key to start. ${first} if unsure.`,
   more: 'More',

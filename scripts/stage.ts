@@ -65,6 +65,7 @@ writeFileSync(entry, [
   '@import "./src/web/public/styles.css";',
   '@import "./src/web/client/features/home/home.css";',
   '@import "./src/web/client/features/chat/chat.css";',
+  '@import "./src/web/client/companion.css";',
   '@source "./src";',
   '@source "./bots";',
   '',
