@@ -21,7 +21,7 @@ import {
   PALETTES, HEADS, SIDES, GLASSES, NECKS, ACC_COLORS, LINKED, NO_BODY, ROLES,
 } from './coo/coo.js';
 import { loadBody } from './body-host.js';
-import { dressFloor, lightWall, modeButton } from './stage.js';
+import { dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 
 import { bindAppearance } from './appearance.js';
 bindAppearance(document, window);
@@ -77,7 +77,9 @@ function save(path, body) {
 let packs = [];
 let packStatus = { importable: false, max: 0, depth: 3, problems: [] };
 const loadPacks = () => Promise.all([fetch('/api/figures').then((r) => r.json()), fetch('/api/figures/status').then((r) => r.json())])
-  .then(([list, status]) => { packs = list; packStatus = status; render(); }).catch(() => {});
+  .then(([list, status]) => { packs = list; packStatus = status; lightFor(skin); render(); }).catch(() => {});
+/** The preview's light in the picked body's colors (stage.js glowColor), the settings window's theme color when its pack names none. */
+const lightFor = (s) => setGlow(preview, glowColor(packs.find((p) => p.id === s.figure), s));
 loadPacks();
 let wanted = null, loading = null;
 // a pack that will not load or breaks previews as Coo, as on the desktop
@@ -126,6 +128,7 @@ function apply(next, persist) {
   skin = next;
   // the page's tiles follow the page's light/dark, the preview the pet's
   skinStyle.textContent = skinCss(skin) + skinCss(skin, '#preview');
+  lightFor(skin);
   showFigure(skin).catch((err) => console.error(err));
   render();
   if (persist) save('/api/skin', { skin });

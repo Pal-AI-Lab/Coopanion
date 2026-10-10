@@ -24,7 +24,7 @@ const GLOW = 280, LENS = 150;
 const EASE = .18;
 
 /**
- * Lights the wall `wall` under the pointer: a soft light and a round lens of bigger, eye-colored dots follow it
+ * Lights the wall `wall` under the pointer: a soft light and a round lens of bigger dots in the body's color (setGlow) follow it
  * (pet.css `.wall-glow`, `.wall-lens`). Both are layers of their own moved by `transform` only, eased frame by
  * frame, so the browser composites them instead of repainting the wall (and the pet on it) as the pointer moves.
  * The lens holds a dot grid moved the other way, so its dots stay on the wall's own dots. `area` takes the pointer
@@ -55,6 +55,31 @@ export function lightWall(wall, area = wall) {
     if (!frame) frame = requestAnimationFrame(step);
   });
   area.addEventListener('pointerleave', () => { lit = false; wall.classList.remove('wall-lit'); });
+}
+
+/**
+ * The light's color for the body on the stage (`pack` as /api/figures lists it, `skin` the pet's skin): Coo's eye
+ * color; another pack's accent for the picked colors (its preset's, else the first picked option's that names one);
+ * null when the pack names none, and the light takes the settings window's theme color (pet.css `--glow`).
+ */
+export function glowColor(pack, skin) {
+  if (!pack || pack.id === 'coo') return 'var(--skin-eye)';
+  const scheme = skin?.scheme || pack.presets?.[0]?.id || '';
+  const hex = (c) => (typeof c === 'string' && /^#[0-9a-f]{3,8}$/i.test(c) ? c : null);
+  const preset = (pack.presets ?? []).find((p) => p.id === scheme);
+  if (hex(preset?.accent)) return preset.accent;
+  const parts = scheme.split('-');
+  for (const axis of pack.axes ?? []) {
+    const option = (axis.options ?? []).find((o) => parts.includes(o.id));
+    if (hex(option?.accent)) return option.accent;
+  }
+  return null;
+}
+
+/** Colors the light on `wall` (glowColor's answer). */
+export function setGlow(wall, color) {
+  if (color) wall.style.setProperty('--glow', color);
+  else wall.style.removeProperty('--glow');
 }
 
 /** Fills `floor` with the row of icons, centred. */
