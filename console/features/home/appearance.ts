@@ -21,6 +21,9 @@ export function mountSchemes(ctx: FeatureContext): HTMLElement {
   // the card: its own title, the color-scheme note, the schemes
   const head = schemes.querySelector(':scope > h3');
   if (head) head.replaceChildren(S.schemeTitle);
+  // the choice is kept with the console's settings, not in a browser
+  const note = schemes.querySelector(':scope > .sheetbody > .sh-desc');
+  if (note) note.textContent = S.schemeDesc;
   schemes.classList.add('home-schemes');
 
   // 调色盘: the palette card's body on the left, the specimen's on the right

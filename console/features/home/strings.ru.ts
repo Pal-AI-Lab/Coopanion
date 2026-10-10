@@ -31,5 +31,6 @@ export const S: Partial<typeof en> = {
   connectedLabel: 'Подключённая модель:',
   choicesLabel: 'Доступные модели:',
   notConnected: 'Не подключено',
-  schemeTitle: 'Цветовая схема',
+  schemeTitle: 'Цветовая схема консоли',
+  schemeDesc: 'Применяется сразу и сохраняется в консоли.',
 };
