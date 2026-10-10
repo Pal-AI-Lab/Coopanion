@@ -289,7 +289,7 @@ const ru: Translation<PetText> = {
     keyProblem: (problem: string) => `${problem}; включено постоянное прослушивание`,
     results: 'Распознанное',
     resultsHint: 'Зачёркнутые строки были слишком короткими или похожими на галлюцинации и не были отправлены',
-    talkKeyName: 'Клавиша речи',
+    talkKeyName: 'Клавиша разговора',
     changeKey: 'Изменить',
     cancelKey: 'Отмена',
     level: 'Уровень входа',

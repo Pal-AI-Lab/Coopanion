@@ -283,6 +283,8 @@ const voicePanel: ConsolePanel = {
         pressSel.replaceChildren(...presses.map(([n, label]) => { const o = ui.h('option', null, label); o.value = String(n); return o; }));
       }
       if (document.activeElement !== pressSel) pressSel.value = String(taps);
+      // 「一直收音」 hides the key's row, its 「取消」 with it: a capture still listening there ends
+      if (capturing && input.mode === 'always') finishCapture(null);
       if (!capturing) keyRow.set(input.keyLabel, input.hotkeyProblem ? 'bad' : 'on');
       pressSel.hidden = input.mode === 'always';
       keyRow.row.style.display = input.mode === 'always' ? 'none' : '';
