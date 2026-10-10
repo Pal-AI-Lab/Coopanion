@@ -50,7 +50,8 @@ body.tab .floor{position:fixed; left:0; right:0; bottom:0; height:48px; backgrou
 .wall{isolation:isolate}
 .wall-glow, .wall-lens{position:absolute; left:0; top:0; z-index:-1; pointer-events:none; opacity:0; transition:opacity .45s ease; will-change:transform, opacity}
 .wall-lit > .wall-glow, .wall-lit > .wall-lens{opacity:1}
-.wall-glow{width:560px; height:560px; border-radius:50%; background:radial-gradient(circle closest-side, color-mix(in srgb, var(--skin-eye) 16%, transparent), transparent)}
+/* --glow: the body's color (stage.js setGlow); without one, the settings window's theme color, else the page's */
+.wall-glow{width:560px; height:560px; border-radius:50%; background:radial-gradient(circle closest-side, color-mix(in srgb, var(--glow, var(--host-accent, var(--accent))) 16%, transparent), transparent)}
 .wall-lens{
   width:300px; height:300px; overflow:hidden; border-radius:50%;
   -webkit-mask-image:radial-gradient(circle closest-side, #000 0, rgba(0,0,0,.4) 50%, transparent 100%);
@@ -58,7 +59,7 @@ body.tab .floor{position:fixed; left:0; right:0; bottom:0; height:48px; backgrou
 }
 .wall-lens-grid{
   position:absolute; left:0; top:0; width:4000px; height:3000px; will-change:transform;
-  background-image:radial-gradient(color-mix(in srgb, var(--skin-eye) 70%, var(--dot)) 2.3px, transparent 2.6px); background-size:22px 22px;
+  background-image:radial-gradient(color-mix(in srgb, var(--glow, var(--host-accent, var(--accent))) 70%, var(--dot)) 2.3px, transparent 2.6px); background-size:22px 22px;
 }
 /* the floor's row of taskbar icons, decoration only */
 .floor-icons{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:26px; color:var(--muted); opacity:.75; pointer-events:none}
