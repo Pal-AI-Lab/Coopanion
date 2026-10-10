@@ -45,6 +45,34 @@ body.tab{
   background-size:22px 22px;
 }
 body.tab .floor{position:fixed; left:0; right:0; bottom:0; height:48px; background:var(--surface); border-top:1px solid var(--line)}
+/* the wall (stage.js lightWall): a soft light and a lens of bigger, eye-colored dots follow the pointer; both are
+   composited layers moved by transform, under everything else on the wall */
+.wall{isolation:isolate}
+.wall-glow, .wall-lens{position:absolute; left:0; top:0; z-index:-1; pointer-events:none; opacity:0; transition:opacity .45s ease; will-change:transform, opacity}
+.wall-lit > .wall-glow, .wall-lit > .wall-lens{opacity:1}
+/* --glow: the body's color (stage.js setGlow); without one, the settings window's theme color, else the page's */
+.wall-glow{width:560px; height:560px; border-radius:50%; background:radial-gradient(circle closest-side, color-mix(in srgb, var(--glow, var(--host-accent, var(--accent))) 16%, transparent), transparent)}
+.wall-lens{
+  width:300px; height:300px; overflow:hidden; border-radius:50%;
+  -webkit-mask-image:radial-gradient(circle closest-side, #000 0, rgba(0,0,0,.4) 50%, transparent 100%);
+  mask-image:radial-gradient(circle closest-side, #000 0, rgba(0,0,0,.4) 50%, transparent 100%);
+}
+.wall-lens-grid{
+  position:absolute; left:0; top:0; width:4000px; height:3000px; will-change:transform;
+  background-image:radial-gradient(color-mix(in srgb, var(--glow, var(--host-accent, var(--accent))) 70%, var(--dot)) 2.3px, transparent 2.6px); background-size:22px 22px;
+}
+/* the floor's row of taskbar icons, decoration only */
+.floor-icons{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:26px; color:var(--muted); opacity:.75; pointer-events:none}
+.floor-icons svg{width:18px; height:18px; display:block}
+/* the night/day button at the stage's top left */
+.stage-mode{
+  position:absolute; top:12px; left:12px; z-index:2; display:grid; place-items:center; width:32px; height:32px; padding:0;
+  border-radius:50%; border:1px solid var(--line); background:var(--surface); color:var(--text); cursor:pointer;
+  box-shadow:0 4px 12px var(--shadow); transition:color .15s, border-color .15s, transform .15s;
+}
+body.tab .stage-mode{position:fixed}
+.stage-mode:hover{color:var(--skin-eye); border-color:var(--skin-eye); transform:scale(1.06)}
+.stage-mode svg{width:17px; height:17px; display:block}
 body.desk{background:transparent}
 body.desk .floor{display:none}
 .stage{position:fixed; inset:0; touch-action:none}
@@ -324,4 +352,5 @@ body.desk .floor{display:none}
 @keyframes hold-ring{from{transform:scale(.72); opacity:0} to{transform:scale(1); opacity:1}}
 .tool.sent{animation:tool-sent .36s cubic-bezier(.3,1.5,.5,1)}
 @keyframes tool-sent{45%{transform:scale(1.2)}}
+@media (prefers-reduced-motion: reduce){.wall-glow, .wall-lens{transition:none}}
 @media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .d-pill.chosen, .trail i, .caret, .menu, .tools, .tool.holding::after, .tool.sent, .m-tile, .m-tile::before, .m-tile::after, .m-tile .ic, .m-tile .ic::before{animation:none}}

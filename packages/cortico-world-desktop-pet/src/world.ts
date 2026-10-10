@@ -304,6 +304,8 @@ export class DesktopPetWorld implements World {
   private packTimer: NodeJS.Timeout | null = null;
   private wasSpeaking = false;
   private screen: { w: number; h: number } | null = null;
+  /** The pet window said it is hidden (its menu's or the tray's 「隐藏」); reset when a page connects. */
+  private petHidden = false;
   private busyUntil = 0;
   private readonly walks = new Map<string, PendingWalk>();
   private ask: PendingAsk | null = null;
@@ -360,7 +362,7 @@ export class DesktopPetWorld implements World {
       snapshot: () => this.snapshot(),
       onPetMessage: (msg) => this.onPage(msg),
       onAudio: (frame) => this.onAudio(frame),
-      onPetConnect: () => { this.log?.info('桌宠页面已连接'); },
+      onPetConnect: () => { this.petHidden = false; this.log?.info('桌宠页面已连接'); },
       onPetDisconnect: () => this.onPageGone(),
       onSkin: (skin) => this.saveSkin(skin),
       onPrefs: (prefs) => this.savePrefs(prefs),
@@ -895,6 +897,7 @@ export class DesktopPetWorld implements World {
         return;
       }
       case 'answer': return this.onAnswer(msg, 'pet');
+      case 'visibility': this.petHidden = msg.hidden === true; return;
       case 'text': {
         const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 500) : '';
         if (text) void this.push('desktop-pet.message', `desktop-pet.text`, this.t.typed(this.userName, text), 'preempt', { meta: { via: 'bubble', text } });
@@ -1688,6 +1691,8 @@ export class DesktopPetWorld implements World {
         case 'state': return this.petState();
         case 'openWindow': this.openWindow(); return this.petState();
         case 'closeWindow': await this.windowHost?.stop(); return this.petState();
+        // hides the window as the pet's menu does; it stays connected and comes back with openWindow
+        case 'hideWindow': this.server.sendPet({ t: 'hide' }); return this.petState();
         case 'installElectron': void this.store.electron.install(); return this.petState();
         // the Habits page's custom picks (/api/config writes no list or map): `custom` and its picks in one write, as the person's change
         case 'setWakeKinds': {
@@ -1747,6 +1752,8 @@ export class DesktopPetWorld implements World {
   petState(): Record<string, unknown> {
     return {
       connected: this.server.petConnected,
+      /** The pet window is connected and shown (hidden from its menu or the tray, it stays connected). */
+      onDesktop: this.server.petInWindow && !this.petHidden,
       url: this.server.port ? this.petUrl : null,
       dressUrl: this.server.port ? `${this.server.origin}/dress` : null,
       skin: this.cfg.skin,

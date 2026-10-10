@@ -15,6 +15,8 @@ const zh = {
   toNormal: '回到普通模式', toNormalHint: '只显示关于桌宠的页面',
   /** feature 挂载抛错时那张错误卡的标题 */
   featureLoadFailed: (label: string) => `「${label}」没能加载`,
+  /** 左下角暂停/继续键左边的运行状态 */
+  running: '运行中', paused: '已暂停',
 };
 
 export const en: typeof zh = {
@@ -22,6 +24,7 @@ export const en: typeof zh = {
   toAdvanced: 'Advanced mode', toAdvancedHint: 'Show all of Cortico: models, extensions, Worlds, memory and diagnostics',
   toNormal: 'Back to normal mode', toNormalHint: 'Show only the pages about the pet',
   featureLoadFailed: (label: string) => `"${label}" failed to load`,
+  running: 'Running', paused: 'Paused',
 };
 
 export const L = pick({

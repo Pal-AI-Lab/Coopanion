@@ -1,16 +1,18 @@
 /**
  * 「开始」: the app's home page. Everything the first minutes need on one page, top to bottom in
- * the order it is needed: the model service and its key (a row of services with their logos in the
- * order for the console's language, outside Chinese the services that take mainland China accounts
- * only behind a More button; the key is saved to that service's own endpoint on the platform for
- * the language unless switched, tested, the endpoint made active and the run resumed), then the pet
- * (live preview, show, a button to the dressing page). Dressing up, voice input and computer use
- * have their own pages (features/dress, features/voice, features/cua); the link to other model
- * services shows with or without a key, and in the normal mode asks before it switches to the
- * advanced mode, where the model pages are; 「使用引导」 at the top has Coo run its introduction
- * again on the desktop (the app's Core holds it; this window steps aside for it). Saving and
- * testing the key lives in model.ts. Every control calls an endpoint the rest of the console already uses. Styles are in home.css, which
- * scripts/stage.ts adds to the console stylesheet.
+ * the order it is needed: the model service and its key, then the pet. The model card is one view:
+ * the service in use on the first row (with 「测试连接」), every other one on the second (in the order
+ * for the console's language; outside Chinese the services that take mainland China accounts only
+ * behind a More button); the picked one's model and key boxes are below, and 「保存并开始」 saves the
+ * key to that service's own endpoint on the platform for the language unless switched, tests it,
+ * makes the endpoint active and resumes the run. The link to other model services asks, in the
+ * normal mode, before it switches to the advanced mode, where the model pages are. 「我的桌宠」 says
+ * whether the pet is on the desktop, shows it live (the pet page in a tab, which draws its own wall,
+ * floor and night/day button), and under it hides it, shows it and opens the dressing page. Voice
+ * input and computer use have their own pages (features/voice, features/cua); 「使用向导」 at the top
+ * has Coo run its introduction again on the desktop (the app's Core holds it; this window steps aside
+ * for it). Saving and testing the key lives in model.ts. Every control calls an endpoint the rest of
+ * the console already uses. Styles are in home.css, which scripts/stage.ts adds to the console stylesheet.
  */
 import { post } from '../../core/api.ts';
 import { LANGUAGE } from '../../core/language.ts';
@@ -25,7 +27,16 @@ import { S } from './strings.ts';
 
 const PET_PAGE = 'world:desktop-pet';
 
-interface PetState { connected: boolean; url: string | null }
+interface PetState { connected: boolean; onDesktop?: boolean; url: string | null }
+
+/**
+ * The preview's height: what is left down to the window's bottom edge, less the row of buttons under
+ * it and a small margin, so the model card, the preview and its buttons fill the
+ * window; it follows the window's height between these bounds.
+ */
+const PREVIEW_MIN = 180;
+const PREVIEW_MAX = 560;
+const PREVIEW_GAP = 20;
 
 const panelPath = (page: string, panel: string, method: string) => `/api/console/providers/${encodeURIComponent(page)}/panels/${panel}/${method}`;
 const errText = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -41,37 +52,45 @@ async function mount(ctx: FeatureContext): Promise<void> {
   root.append(intro(ui, S.nav, { actions: [guide] }));
 
   /* ---------- model ---------- */
+  // one view: the service in use on the first row with its test button, the others below it; a pick fills
+  // the model and key boxes under them, saved with 「保存并开始」
   const model = ui.sheet({ title: S.modelTitle });
   const modelMsg = ui.msgline('');
   const call = consoleCall(signal);
   const { shown, more } = vendorsFor(LANGUAGE);
   const listed = [...shown, ...more];
-  /** The service the key box is for: picked on the row of logos. */
+  /** The service the key box is for: picked on the rows of logos. */
   let vendor: Vendor = shown[0]!;
   /** Which of the service's platforms, for a service with one per region. */
   let region: Region = defaultRegion(LANGUAGE);
-  const vendorRow = ui.h('div', 'home-vendors');
-  const vendorButtons = listed.map((v) => {
+  const vendorButton = (mark: string, name: string) => {
     const b = ui.h('button', 'home-vendor');
     b.type = 'button';
-    b.hidden = more.includes(v);
-    const mark = ui.h('span', 'home-vendormark');
+    const m = ui.h('span', 'home-vendormark');
     // the marks are the provider package's own static SVGs
-    mark.innerHTML = VENDOR_ICONS[v.id] ?? '';
-    b.append(mark, ui.h('span', null, vendorName(v, LANGUAGE)));
+    m.innerHTML = mark;
+    b.append(m, ui.h('span', null, name));
+    return b;
+  };
+  const vendorButtons = listed.map((v) => {
+    const b = vendorButton(VENDOR_ICONS[v.id] ?? '', vendorName(v, LANGUAGE));
     b.addEventListener('click', () => pickVendor(v), opts);
-    vendorRow.append(b);
     return b;
   });
   const moreButton = ui.h('button', 'home-vendor', S.more);
   moreButton.type = 'button';
-  moreButton.hidden = !more.length;
-  const unfold = () => {
-    vendorButtons.forEach((b) => { b.hidden = false; });
-    moreButton.hidden = true;
-  };
-  moreButton.addEventListener('click', unfold, opts);
-  vendorRow.append(moreButton);
+  let unfolded = !more.length;
+  moreButton.addEventListener('click', () => { unfolded = true; placeVendors(); }, opts);
+  /** The first row: the service in use (a button that picks it) or a line saying none is, and the test. */
+  const currentBox = ui.h('div', 'home-vendors home-current');
+  const test = ui.button(S.test, { size: 'sm' });
+  // the test's result right of its button; a long one wraps under its own first line
+  const testMsg = ui.msgline('');
+  testMsg.classList.add('home-testmsg');
+  /** The second row: every other service, the ones behind 「更多」 once unfolded. */
+  const otherBox = ui.h('div', 'home-vendors');
+  const picker = ui.h('div', 'home-picker');
+  picker.append(ui.h('span', 'home-pickerlabel', S.connectedLabel), currentBox, ui.h('span', 'home-pickerlabel', S.choicesLabel), otherBox);
   const keyInput = ui.input({});
   keyInput.type = 'password';
   keyInput.autocomplete = 'off';
@@ -83,6 +102,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   modelList.id = 'home-model-list';
   modelInput.setAttribute('list', modelList.id);
   const keyRow = ui.rowbar();
+  keyRow.classList.add('home-keyrow');
   const save = ui.button(S.saveStart, { variant: 'primary' });
   const keyField = ui.field(S.keyLabel(vendorName(vendor, LANGUAGE)), keyInput);
   const modelField = ui.field(S.modelLabel, modelInput);
@@ -90,6 +110,8 @@ async function mount(ctx: FeatureContext): Promise<void> {
   keyRow.append(modelField, keyField, modelList, save);
   /** The active endpoint's service, platform and model, once the status is read. */
   let active: { vendor: Vendor | null; region: Region | null; model: string } = { vendor: null, region: null, model: '' };
+  /** The active endpoint when it is none of the listed services (set up by hand on the Model page). */
+  let elsewhere: { title: string; model: string } | null = null;
   /** The key box is for the endpoint in use, whose saved key an empty box keeps. */
   const inUse = () => active.vendor === vendor && (active.region ?? region) === region;
   const getKey = ui.h('a', 'home-link', '');
@@ -100,12 +122,31 @@ async function mount(ctx: FeatureContext): Promise<void> {
     e.preventDefault();
     pickVendor(vendor, region === 'cn' ? 'intl' : 'cn');
   }, opts);
+  /** Puts the service in use on the first row and the rest on the second; the picked one is lit. */
+  const placeVendors = () => {
+    const current = active.vendor;
+    const label = (v: Vendor) => (v === current && active.model ? `${vendorName(v, LANGUAGE)} · ${active.model}` : vendorName(v, LANGUAGE));
+    vendorButtons.forEach((b, i) => {
+      const v = listed[i]!;
+      const name = b.lastElementChild;
+      if (name) name.textContent = label(v);
+      b.classList.toggle('on', v === vendor);
+    });
+    if (current) currentBox.replaceChildren(vendorButtons[listed.indexOf(current)]!, test, testMsg);
+    else if (elsewhere) {
+      const b = vendorButton('', elsewhere.model ? `${elsewhere.title} · ${elsewhere.model}` : elsewhere.title);
+      b.classList.add('on');
+      b.disabled = true;
+      currentBox.replaceChildren(b, test, testMsg);
+    } else currentBox.replaceChildren(ui.h('span', 'home-none', S.notConnected));
+    const rest = listed.filter((v) => v !== current && (unfolded || !more.includes(v) || v === vendor));
+    otherBox.replaceChildren(...rest.map((v) => vendorButtons[listed.indexOf(v)]!), ...(unfolded ? [] : [moreButton]));
+  };
   /** The service in use starts on its own platform, another one on the platform for the language. */
   const pickVendor = (v: Vendor, r?: Region) => {
     vendor = v;
     region = r ?? (active.vendor === v ? active.region : null) ?? defaultRegion(LANGUAGE);
-    if (more.includes(v)) unfold();
-    vendorButtons.forEach((b, i) => b.classList.toggle('on', listed[i] === v));
+    placeVendors();
     keyInput.placeholder = inUse() ? S.keepKey : localized(v.keyHint, LANGUAGE);
     modelInput.value = inUse() && active.model ? active.model : v.model;
     modelList.replaceChildren(...[v.model, ...(v.models ?? [])].map((m) => Object.assign(document.createElement('option'), { value: m })));
@@ -118,45 +159,60 @@ async function mount(ctx: FeatureContext): Promise<void> {
   };
   pickVendor(vendor);
   const need = ui.h('p', 'home-note', S.modelNeed(vendorName(shown[0]!, LANGUAGE)));
-  const connectedLine = ui.rowbar();
-  const connectedPill = ui.pill('', 'on');
-  const test = ui.button(S.test, { size: 'sm' });
-  const change = ui.button(S.changeKey, { size: 'sm' });
-  /** 两处各一个:连上时在状态行末尾,没填 Key 时在申请链接旁。普通模式先问一声再切到高级模式。 */
-  const otherLink = () => {
-    const a = ui.h('a', 'home-link', S.otherProvider);
-    a.href = '#/providers';
-    a.addEventListener('click', async (e) => {
-      if (readMode() === 'advanced') return;
-      e.preventDefault();
-      if (!await ui.confirm({ title: S.toAdvancedTitle, body: S.toAdvancedBody })) return;
-      requestMode('advanced');
-      ctx.router.navigate(['providers']);
-    }, opts);
-    return a;
-  };
-  connectedLine.append(connectedPill, test, change, ui.h('span', 'grow'), otherLink());
+  // in the normal mode it asks before switching to the advanced mode, where the Model page is
+  const otherLink = ui.h('a', 'home-link', S.otherProvider);
+  otherLink.href = '#/providers';
+  otherLink.addEventListener('click', async (e) => {
+    if (readMode() === 'advanced') return;
+    e.preventDefault();
+    if (!await ui.confirm({ title: S.toAdvancedTitle, body: S.toAdvancedBody })) return;
+    requestMode('advanced');
+    ctx.router.navigate(['providers']);
+  }, opts);
   const links = ui.rowbar();
-  links.append(getKey, regionLink, ui.h('span', 'grow'), otherLink());
-  const keyBox = ui.h('div', 'home-keybox');
-  keyBox.append(need, vendorRow, keyRow, links);
-  model.body.append(connectedLine, keyBox, modelMsg);
+  links.classList.add('home-links');
+  links.append(getKey, regionLink, ui.h('span', 'grow'), otherLink);
+  model.body.append(need, picker, keyRow, links, modelMsg);
   root.append(model.el);
 
   /* ---------- pet ---------- */
+  // whether the pet is on the desktop beside the title; the preview, sized so its buttons end just above
+  // the window's bottom edge; the buttons under it
   const pet = ui.sheet({ title: S.petTitle });
-  const petLine = ui.rowbar();
-  const petPill = ui.pill('—', 'plain');
-  const showPet = ui.button(S.showPet, { size: 'sm' });
-  const dress = ui.button(S.dress, { size: 'sm', variant: 'primary' });
-  petLine.append(petPill, ui.h('span', 'grow'), showPet, dress);
+  const petPill = ui.pill('—', 'off');
+  pet.el.querySelector(':scope > h3')?.append(petPill);
   const preview = ui.h('iframe', 'home-petframe');
   preview.title = S.petTitle;
-  pet.body.append(petLine, preview, ui.h('p', 'home-note', S.petNote));
+  const petLine = ui.rowbar();
+  petLine.classList.add('home-petactions');
+  const hidePet = ui.button(S.hidePet, { size: 'sm' });
+  const showPet = ui.button(S.showPet, { size: 'sm' });
+  const dress = ui.button(S.dress, { size: 'sm', variant: 'primary' });
+  petLine.append(ui.h('span', 'grow'), hidePet, showPet, dress);
+  pet.body.append(preview, petLine);
   root.append(pet.el);
+  const fitPreview = () => {
+    const top = preview.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop;
+    const below = petLine.getBoundingClientRect().bottom - preview.getBoundingClientRect().bottom;
+    preview.style.setProperty('--fit', `${Math.min(PREVIEW_MAX, Math.max(PREVIEW_MIN, root.clientHeight - top - below - PREVIEW_GAP))}px`);
+  };
+  // the preview lends the settings window's theme color to its light, as the dressing page does
+  const lendAccent = () => {
+    const origin = preview.dataset.src ? new URL(preview.dataset.src).origin : null;
+    const accent = getComputedStyle(root.ownerDocument.documentElement).getPropertyValue('--accent').trim();
+    const mode = root.ownerDocument.documentElement.dataset.colorMode === 'dark' ? 'dark' : 'light';
+    if (origin) preview.contentWindow?.postMessage({ type: 'companion:appearance', mode, accent }, origin);
+  };
+  preview.addEventListener('load', lendAccent, opts);
+  const themeWatch = new MutationObserver(lendAccent);
+  themeWatch.observe(root.ownerDocument.documentElement, { attributes: true, attributeFilter: ['data-color-mode', 'data-theme-scheme', 'style'] });
+  ctx.lifecycle.add(() => themeWatch.disconnect());
+  const fit = new ResizeObserver(fitPreview);
+  fit.observe(root);
+  fit.observe(model.el);
+  ctx.lifecycle.add(() => fit.disconnect());
 
   /* ---------- behaviour ---------- */
-  let editingKey = false;
   let status: Status | null = null;
   let vendorShown = false;
 
@@ -164,28 +220,28 @@ async function mount(ctx: FeatureContext): Promise<void> {
     status = st;
     const mc = st.modelConnection;
     const ready = !!mc?.ready;
-    connectedLine.hidden = !ready || editingKey;
-    keyBox.hidden = ready && !editingKey;
-    preview.classList.toggle('nokey', !ready);
-    const at = locate(mc?.baseUrl);
+    need.hidden = ready;
+    const at = ready ? locate(mc?.baseUrl) : null;
     const current = at?.vendor ?? null;
     active = { vendor: current, region: at?.region ?? null, model: mc?.model ?? '' };
-    if (mc?.model) connectedPill.textContent = S.connected(mc.model, current ? vendorName(current, LANGUAGE) : mc.moduleTitle);
-    // the key box starts on the service in use, once
+    elsewhere = ready && !current && mc ? { title: mc.moduleTitle, model: mc.model ?? '' } : null;
+    // the boxes start on the service in use, once
     if (!vendorShown && current) { vendorShown = true; pickVendor(current); }
+    else placeVendors();
   };
 
   const refreshModel = async () => {
     renderStatus(await readStatus(signal));
   };
 
-  const showTest = (r: ConnectResult) => {
-    modelMsg.textContent = r.ok ? S.testOk(r.ms) : S.testFail(r.why ?? '');
-    modelMsg.classList.toggle('bad', !r.ok);
+  /** 「测试连接」 answers beside its button; saving answers under the boxes. */
+  const showTest = (r: ConnectResult, line = modelMsg) => {
+    line.textContent = r.ok ? S.testOk(r.ms) : S.testFail(r.why ?? '');
+    line.classList.toggle('bad', !r.ok);
   };
-  const testing = () => {
-    modelMsg.textContent = S.testing;
-    modelMsg.classList.remove('bad');
+  const testing = (line = modelMsg) => {
+    line.textContent = S.testing;
+    line.classList.remove('bad');
   };
 
   save.addEventListener('click', async () => {
@@ -197,7 +253,6 @@ async function mount(ctx: FeatureContext): Promise<void> {
       testing();
       const r = await connectVendor(call, vendor, key, modelInput.value, region);
       keyInput.value = '';
-      editingKey = false;
       showTest(r);
       if (r.ok) modelMsg.textContent = S.started;
       await refreshModel();
@@ -211,10 +266,9 @@ async function mount(ctx: FeatureContext): Promise<void> {
   test.addEventListener('click', async () => {
     const name = status?.modelConnection?.name;
     if (!name) return;
-    testing();
-    showTest(await testEndpoint(call, name));
+    testing(testMsg);
+    showTest(await testEndpoint(call, name), testMsg);
   });
-  change.addEventListener('click', () => { editingKey = true; void refreshModel(); keyInput.focus(); });
 
   /* pet */
   let petState: PetState | null = null;
@@ -222,17 +276,25 @@ async function mount(ctx: FeatureContext): Promise<void> {
     try {
       petState = await post<PetState>(panelPath(PET_PAGE, 'pet', 'state'), { args: [] }, opts);
     } catch { petState = null; }
-    petPill.textContent = petState?.connected ? S.petShown : S.petHidden;
-    petPill.className = `pill ${petState?.connected ? 'on' : 'plain'}`;
+    const onDesktop = petState?.onDesktop === true;
+    petPill.textContent = onDesktop ? S.petShown : S.petHidden;
+    petPill.className = `pill ${onDesktop ? 'on' : 'off'}`;
+    hidePet.disabled = !onDesktop;
     if (petState?.url && preview.dataset.src !== petState.url) {
       preview.dataset.src = petState.url;
       preview.src = petState.url;
     }
   };
+  const petCall = (method: string) => post(panelPath(PET_PAGE, 'pet', method), { args: [] }, opts).catch(() => null);
   showPet.addEventListener('click', async () => {
-    await post(panelPath(PET_PAGE, 'pet', 'closeWindow'), { args: [] }, opts).catch(() => null);
-    await post(panelPath(PET_PAGE, 'pet', 'openWindow'), { args: [] }, opts).catch(() => null);
+    // a hidden window comes back by opening it again
+    await petCall('closeWindow');
+    await petCall('openWindow');
     setTimeout(() => void refreshPet(), 1500);
+  });
+  hidePet.addEventListener('click', async () => {
+    await petCall('hideWindow');
+    setTimeout(() => void refreshPet(), 400);
   });
   dress.addEventListener('click', () => ctx.router.navigate(['dress']));
 

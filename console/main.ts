@@ -4,8 +4,9 @@
  * - 页面表多了关于桌宠的五页「开始」「习惯」「装扮」「语音输入」「电脑操作」(features/home、pet、dress、voice、cua)和「对话」(features/chat),
  *   上游的终端页改名「运行轨迹」放进「高级」组,其余页重排、改了几个分组名;
  * - 「系统提示词」页的工具栏多一个「清空重开」(features/clear-session.ts);
- * - 两种模式(features/mode.ts):普通模式左栏只有那五页、「系统提示词」「用量与成本」和「对话」,别的路由都回到「开始」,底栏只留暂停键;
- *   高级模式再接上 Cortico 的全部页面。左栏底部的开关切换模式,页面也可以经 requestMode 请求换,换模式时重建左栏;
+ * - 两种模式(features/mode.ts):普通模式左栏只有那五页、「系统提示词」「用量与成本」和「对话」,别的路由都回到「开始」;
+ *   底栏有运行状态、暂停/继续与关机;高级模式再接上 Cortico 的全部页面。左栏底部的开关切换模式,页面也可以经
+ *   requestMode 请求换;左栏只建一次,换模式时只藏起或露出普通模式不列的项;
  * - 空路由打开「开始」;
  * - 左上角是 Coopanion 的标志与字母(两块,居中对齐,左栏窄时字母跟着缩),下面是版本与项目地址,有新 Release 时再加一行下载链接(features/release.ts);
  * - 左栏各组按「桌宠五页 · 对话 → World → 设置 → Persona & Memory → 高级」重排。
@@ -183,70 +184,93 @@ export function boot(doc: Document = document): { dispose(): void } {
 
   /**
    * 左栏外壳。它自己不探活、不认识任何具体 World:框架页那段由 FEATURES 按
-   * capability 过滤,贡献方那段完全由 manifest 驱动。普通模式只给它 BASIC_FEATURES、
-   * 不给 manifest 的页;换模式时整个重建。
+   * capability 过滤,贡献方那段完全由 manifest 驱动。外壳只建一次:换模式时只把普通模式不列的项藏起来。
    */
   let mode: ConsoleMode = readMode();
-  /** 普通模式左栏不列 manifest 的页(World、Persona、Memory)。 */
-  const visiblePages = () => (mode === 'advanced' ? host.pages : []);
   /** 普通模式只认那几页的路由。 */
   const reachable = (head: string | undefined): boolean =>
     mode === 'advanced' || BASIC_FEATURES.some((f) => f.route === head);
 
   const shellLife = new Lifecycle(onError);
-  let shell!: ConsoleShell;
-  let shellBuild: Lifecycle | null = null;
-  const buildShell = (): void => {
-    shellBuild?.dispose();
-    const life = shellLife.own(new Lifecycle(onError));
-    shellBuild = life;
-    const ui = createConsoleUi({ memo, overlayHost: doc.body, signal: life.signal, doc });
-    const advanced = mode === 'advanced';
-    const next = createShell({ doc, ui, router, features: advanced ? FEATURES : BASIC_FEATURES, onError });
-    const brand = next.el.querySelector('.brand');
-    if (brand) {
-      // the mark and the letters side by side, centred on each other; the letters shrink with a narrow rail
-      const lockup = ui.h('div', 'companion-lockup');
-      lockup.setAttribute('role', 'img');
-      lockup.setAttribute('aria-label', 'Coopanion');
-      lockup.append(brandMark(doc, 'brandmark companion-mark'), coopanionLettering(doc));
-      brand.replaceChildren(lockup);
-      mountRelease(doc, brand, life.signal);
-    }
-    shell = next;
-    life.own({ dispose: () => { next.dispose(); next.el.remove(); } });
-    doc.body.insertBefore(next.el, doc.body.firstChild);
-    doc.body.classList.toggle('companion-normal', !advanced);
-    const nav = next.el.querySelector('nav.stack');
-    if (nav) {
-      const observer = new MutationObserver(() => orderNav(nav));
-      observer.observe(nav, { childList: true });
-      life.own({ dispose: () => observer.disconnect() });
-    }
+  const ui = createConsoleUi({ memo, overlayHost: doc.body, signal: shellLife.signal, doc });
+  const shell: ConsoleShell = createShell({ doc, ui, router, features: FEATURES, onError });
+  shellLife.own({ dispose: () => { shell.dispose(); shell.el.remove(); } });
+  doc.body.insertBefore(shell.el, doc.body.firstChild);
 
-    const toggle = ui.h('button', 'companion-mode');
-    toggle.type = 'button';
-    toggle.title = advanced ? L.toNormalHint : L.toAdvancedHint;
-    toggle.append(icon(doc, advanced ? 'eye-off' : 'settings', 'navicon'), ui.h('span', 'lbl', advanced ? L.toNormal : L.toAdvanced));
-    toggle.addEventListener('click', () => setMode(advanced ? 'normal' : 'advanced'), { signal: life.signal });
-    next.el.insertBefore(toggle, next.el.querySelector('.railfoot'));
+  const brand = shell.el.querySelector('.brand');
+  if (brand) {
+    // the mark and the letters side by side, centred on each other; the letters shrink with a narrow rail
+    const lockup = ui.h('div', 'companion-lockup');
+    lockup.setAttribute('role', 'img');
+    lockup.setAttribute('aria-label', 'Coopanion');
+    lockup.append(brandMark(doc, 'brandmark companion-mark'), coopanionLettering(doc));
+    brand.replaceChildren(lockup);
+    mountRelease(doc, brand, shellLife.signal);
+  }
 
-    if (ready) {
-      next.setCapabilities(capabilities);
-      next.setPages(visiblePages());
+  /** 普通模式下藏起不在 BASIC_FEATURES 里的项(含 manifest 的页),项都藏起来的组也藏起来;每次导航重画后再排一遍。 */
+  const basicRoutes = new Set(BASIC_FEATURES.map((f) => f.route));
+  const nav = shell.el.querySelector('nav.stack');
+  const filterNav = (): void => {
+    if (!nav) return;
+    orderNav(nav);
+    const normal = mode === 'normal';
+    for (const item of nav.querySelectorAll<HTMLAnchorElement>('a.navitem')) {
+      const head = (item.getAttribute('href') ?? '').replace(/^#\/?/, '').split('/')[0];
+      item.hidden = normal && !basicRoutes.has(head ?? '');
     }
-    next.setRoute(router.route);
+    for (const group of nav.querySelectorAll<HTMLElement>('.navgroup')) {
+      group.hidden = normal && !group.querySelector('a.navitem:not([hidden])');
+    }
   };
+  if (nav) {
+    const observer = new MutationObserver(filterNav);
+    observer.observe(nav, { childList: true, subtree: true });
+    shellLife.own({ dispose: () => observer.disconnect() });
+  }
+
+  const toggle = ui.h('button', 'companion-mode');
+  toggle.type = 'button';
+  toggle.addEventListener('click', () => setMode(mode === 'advanced' ? 'normal' : 'advanced'), { signal: shellLife.signal });
+  shell.el.insertBefore(toggle, shell.el.querySelector('.railfoot'));
+  const renderMode = (): void => {
+    const advanced = mode === 'advanced';
+    toggle.title = advanced ? L.toNormalHint : L.toAdvancedHint;
+    toggle.replaceChildren(icon(doc, advanced ? 'eye-off' : 'settings', 'navicon'), ui.h('span', 'lbl', advanced ? L.toNormal : L.toAdvanced));
+    doc.body.classList.toggle('companion-normal', !advanced);
+    filterNav();
+  };
+
+  // the run state in words left of the pause/resume key, in the key's color; a click on it is a click on the key
+  const run = shell.el.querySelector<HTMLButtonElement>('.rail-run');
+  if (run) {
+    const state = ui.h('span', 'companion-runstate');
+    state.setAttribute('aria-hidden', 'true');
+    const show = (): void => {
+      const paused = run.classList.contains('paused');
+      state.textContent = paused ? L.paused : L.running;
+      state.classList.toggle('paused', paused);
+      state.hidden = capabilities.run !== true;
+    };
+    state.addEventListener('click', () => run.click(), { signal: shellLife.signal });
+    run.before(state);
+    const observer = new MutationObserver(show);
+    observer.observe(run, { attributes: true, attributeFilter: ['class', 'disabled'] });
+    shellLife.own({ dispose: () => observer.disconnect() });
+    show();
+  }
+
   const setMode = (next: ConsoleMode): void => {
     if (next === mode) return;
     mode = next;
     writeMode(mode);
-    buildShell();
+    renderMode();
     apply(router.route);
   };
-  buildShell();
+  renderMode();
+  shell.setRoute(router.route);
   onModeRequest(setMode, shellLife.signal);
-  const offNav = host.onNavChange(() => shell.setPages(visiblePages()));
+  const offNav = host.onNavChange(() => shell.setPages(host.pages));
 
   /**
    * 状态灯的活数据。manifest 只在开页与显式刷新时取，而灯要跟得上"引擎起来了没"，
@@ -357,7 +381,7 @@ export function boot(doc: Document = document): { dispose(): void } {
     if (disposed) return;
     ready = true;
     shell.setCapabilities(capabilities);
-    shell.setPages(visiblePages());
+    shell.setPages(host.pages);
     apply(router.route);
   });
 

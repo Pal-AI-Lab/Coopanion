@@ -5,4 +5,5 @@ export const L: Partial<typeof en> = {
   toAdvanced: 'Mode avancé', toAdvancedHint: 'Afficher tout Cortico : modèles, extensions, World, mémoire et diagnostic',
   toNormal: 'Revenir au mode normal', toNormalHint: 'Afficher seulement les pages du compagnon',
   featureLoadFailed: (label: string) => `Échec du chargement de « ${label} »`,
+  running: 'En marche', paused: 'En pause',
 };
