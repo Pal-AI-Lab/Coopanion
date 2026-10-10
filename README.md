@@ -96,8 +96,6 @@ It downloads the latest installer, runs it, and deletes the download afterwards.
    AppImage: `chmod +x Coopanion-*.AppImage` and run it. Ubuntu 22.04 and later need `libfuse2` first (`sudo apt install libfuse2t64`).
 3. The pet is a transparent always-on-top window, so the desktop needs compositing (on by default in GNOME and KDE). Under Wayland it runs through XWayland.
 
-Coo, dialogue bubbles and hover buttons accept clicks; the rest of the transparent window lets clicks through to your desktop, including on scaled X11 displays.
-
 > [!NOTE]
 > Data is in `~/.config/Coopanion`. The tray icon needs status icon support (GNOME needs the AppIndicator extension); without a tray, right-click Coo to reach the settings.
 > Computer use needs `xdotool` and `zenity`, which the deb installs. Screenshots under Wayland also need one of `grim`, `spectacle`, `scrot` or ImageMagick.

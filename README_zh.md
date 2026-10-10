@@ -96,8 +96,6 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
    AppImage：`chmod +x Coopanion-*.AppImage` 后运行。Ubuntu 22.04 及以后要先装 `libfuse2`（`sudo apt install libfuse2t64`）。
 3. 桌宠是透明置顶窗口，需要桌面开启窗口合成（GNOME、KDE 默认开启）。Wayland 下通过 XWayland 运行。
 
-Coo、对话气泡和悬停按钮可以点击，透明窗口的其余位置让点击穿透到桌面；X11 下开启显示缩放时也保持这一行为。
-
 > [!NOTE]
 > 数据在 `~/.config/Coopanion`。托盘图标需要桌面支持状态栏图标（GNOME 要装 AppIndicator 扩展）；没有托盘时右键 Coo 也能进设置。
 > 操作电脑要用 `xdotool` 和 `zenity`，deb 会自动安装；Wayland 下截屏还需要 `grim`、`spectacle`、`scrot` 或 ImageMagick 之一。
