@@ -36,9 +36,8 @@ export function cuaSection(ctx: FeatureContext, row: Row): HTMLElement {
   const { ui, signal } = ctx;
   const opts = { signal };
 
-  const sheet = ui.sheet({ title: S.title });
-  // where the rest of its settings are, as a note right of the section's title
-  sheet.el.querySelector(':scope > h3')?.append(ui.h('span', 'companion-titlenote', S.more));
+  // where the rest of its settings are: the section's note, under its title
+  const sheet = ui.sheet({ title: S.title, desc: S.more });
   const msg = ui.msgline('');
   const say = (text: string, bad = false) => {
     msg.textContent = text;
