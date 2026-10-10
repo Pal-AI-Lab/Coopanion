@@ -277,13 +277,17 @@ const de: Translation<PetText> = {
       1: { hold: 'Einfach halten', toggle: 'Drücken zum Starten, erneut drücken zum Beenden' },
       3: { hold: 'Dreimal drücken und halten', toggle: 'Dreimal drücken zum Starten, wieder zum Beenden' },
     },
-    talkKey: (label: string) => `Sprechtaste: ${label}`,
     capture: 'Drück die neue Sprechtaste: eine Tastenkombination oder eine Maus-Seitentaste… (Esc bricht ab)',
     listening: 'Hört zu',
     waitingKey: 'Wartet auf die Sprechtaste',
     keyProblem: (problem: string) => `${problem}; hört stattdessen die ganze Zeit zu`,
     results: 'Was gehört wurde',
     resultsHint: 'Durchgestrichene Zeilen waren zu kurz oder vermutlich halluziniert und wurden nicht gesendet',
+    talkKeyName: 'Sprechtaste',
+    changeKey: 'Ändern',
+    cancelKey: 'Abbrechen',
+    level: 'Eingangspegel',
+    noResults: 'Noch nichts erkannt',
   },
 
   chat: {

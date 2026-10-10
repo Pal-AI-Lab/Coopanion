@@ -277,13 +277,17 @@ const fr: Translation<PetText> = {
       1: { hold: 'Simple maintien', toggle: 'Appui pour commencer, nouvel appui pour arrêter' },
       3: { hold: 'Triple appui puis maintien', toggle: 'Triple appui pour commencer, encore pour arrêter' },
     },
-    talkKey: (label: string) => `Touche de parole : ${label}`,
     capture: 'Appuyez sur la nouvelle touche de parole : une combinaison de touches ou un bouton latéral de la souris… (Échap pour annuler)',
     listening: 'Écoute',
     waitingKey: 'En attente de la touche de parole',
     keyProblem: (problem: string) => `${problem} ; écoute continue à la place`,
     results: 'Ce qui a été entendu',
     resultsHint: "Les lignes barrées étaient trop courtes ou probablement hallucinées, et n'ont pas été envoyées",
+    talkKeyName: 'Touche de parole',
+    changeKey: 'Modifier',
+    cancelKey: 'Annuler',
+    level: "Niveau d'entrée",
+    noResults: 'Rien de reconnu pour le moment',
   },
 
   chat: {

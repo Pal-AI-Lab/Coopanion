@@ -277,13 +277,17 @@ const es419: Translation<PetText> = {
       1: { hold: 'Solo mantener', toggle: 'Presionar para empezar y otra vez para parar' },
       3: { hold: 'Presionar tres veces y mantener', toggle: 'Presionar tres veces para empezar y otra vez para parar' },
     },
-    talkKey: (label: string) => `Tecla para hablar: ${label}`,
     capture: 'Presiona la nueva tecla para hablar: una combinación de teclas o un botón lateral del mouse… (Esc cancela)',
     listening: 'Escuchando',
     waitingKey: 'Esperando la tecla para hablar',
     keyProblem: (problem: string) => `${problem}; se escucha todo el tiempo`,
     results: 'Lo que se escuchó',
     resultsHint: 'Las líneas tachadas eran demasiado cortas o probables alucinaciones, y no se enviaron',
+    talkKeyName: 'Tecla para hablar',
+    changeKey: 'Cambiar',
+    cancelKey: 'Cancelar',
+    level: 'Nivel de entrada',
+    noResults: 'Todavía no hay resultados',
   },
 
   chat: {

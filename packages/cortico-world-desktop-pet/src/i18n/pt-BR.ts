@@ -277,13 +277,17 @@ const ptBR: Translation<PetText> = {
       1: { hold: 'Só segurar', toggle: 'Pressionar para começar e de novo para parar' },
       3: { hold: 'Pressionar três vezes e segurar', toggle: 'Pressionar três vezes para começar e de novo para parar' },
     },
-    talkKey: (label: string) => `Tecla para falar: ${label}`,
     capture: 'Pressione a nova tecla para falar: uma combinação de teclas ou um botão lateral do mouse… (Esc cancela)',
     listening: 'Ouvindo',
     waitingKey: 'Aguardando a tecla para falar',
     keyProblem: (problem: string) => `${problem}; ouvindo o tempo todo`,
     results: 'O que foi ouvido',
     resultsHint: 'As linhas riscadas eram curtas demais ou provavelmente alucinadas, e não foram enviadas',
+    talkKeyName: 'Tecla para falar',
+    changeKey: 'Alterar',
+    cancelKey: 'Cancelar',
+    level: 'Nível de entrada',
+    noResults: 'Nenhum resultado ainda',
   },
 
   chat: {

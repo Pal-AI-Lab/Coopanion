@@ -206,16 +206,24 @@ const voicePanel: ConsolePanel = {
     const modeSel = ui.select();
     modeSel.replaceChildren(...(Object.keys(t.modes) as MicMode[]).map((m) => { const o = ui.h('option', null, t.modes[m]); o.value = m; return o; }));
     const pressSel = ui.select();
-    const keyBtn = ui.button('', { size: 'sm' });
-    modeRow.acts.append(modeSel, pressSel, keyBtn);
+    modeRow.acts.append(modeSel, pressSel);
+    // the talk key has a row of its own above how it listens: the key, and a button to set another
+    const keyRow = statusRow(ctx, t.talkKeyName);
+    const keyBtn = ui.button(t.changeKey, { size: 'sm' });
+    keyRow.acts.append(keyBtn);
 
+    // the level meter as one more row: its name in the names' column, the bar where the others' values start
+    const meterRow = ui.h('div', 'mountrow pet-meterrow');
+    const meterDot = ui.h('span', 'navdot');
+    meterDot.style.visibility = 'hidden';
     const meter = ui.h('div', 'pet-meter');
     const fill = ui.h('div', 'pet-meterfill');
     const mark = ui.h('div', 'pet-metermark');
     meter.append(fill, mark);
+    meterRow.append(meterDot, ui.h('span', 'mname', t.level), meter);
 
-    const log = ui.log({ max: 100 });
-    settings.append(eng.row, srv.row, rt.row, micRow.row, modeRow.row, meter, ui.section(t.results, t.resultsHint), log.el);
+    const log = ui.log({ max: 100, empty: t.noResults });
+    settings.append(eng.row, srv.row, rt.row, micRow.row, keyRow.row, modeRow.row, meterRow, ui.section(t.results, t.resultsHint), log.el);
     s.append(master, msg, settings);
 
     let st: VoiceState | null = null;
@@ -275,8 +283,11 @@ const voicePanel: ConsolePanel = {
         pressSel.replaceChildren(...presses.map(([n, label]) => { const o = ui.h('option', null, label); o.value = String(n); return o; }));
       }
       if (document.activeElement !== pressSel) pressSel.value = String(taps);
-      if (!capturing) keyBtn.textContent = t.talkKey(input.keyLabel);
-      keyBtn.hidden = pressSel.hidden = input.mode === 'always';
+      // 「一直收音」 hides the key's row, its 「取消」 with it: a capture still listening there ends
+      if (capturing && input.mode === 'always') finishCapture(null);
+      if (!capturing) keyRow.set(input.keyLabel, input.hotkeyProblem ? 'bad' : 'on');
+      pressSel.hidden = input.mode === 'always';
+      keyRow.row.style.display = input.mode === 'always' ? 'none' : '';
       modeRow.set(input.open ? t.listening : t.waitingKey, input.open ? 'on' : 'off', input.hotkeyProblem ? t.keyProblem(input.hotkeyProblem) : input.hint);
       // the loudness threshold only decides where speech starts when the key is not held down
       mark.hidden = input.effectiveMode === 'hold';
@@ -307,6 +318,7 @@ const voicePanel: ConsolePanel = {
     const held: string[] = [];
     const finishCapture = (combo: string | null) => {
       capturing = false;
+      keyBtn.textContent = t.changeKey;
       held.length = 0;
       window.removeEventListener('keydown', onKeyDown, true);
       window.removeEventListener('keyup', onKeyUp, true);
@@ -333,7 +345,8 @@ const voicePanel: ConsolePanel = {
     keyBtn.addEventListener('click', () => {
       if (capturing) { finishCapture(null); return; }
       capturing = true;
-      keyBtn.textContent = t.capture;
+      keyRow.set('…', 'busy', t.capture);
+      keyBtn.textContent = t.cancelKey;
       window.addEventListener('keydown', onKeyDown, true);
       window.addEventListener('keyup', onKeyUp, true);
       window.addEventListener('pointerdown', onPointer, true);

@@ -277,13 +277,17 @@ const zhHant: Translation<PetText> = {
       1: { hold: '直接按住', toggle: '按一下開始，再按一下停止' },
       3: { hold: '按三下再按住', toggle: '按三下開始，再按三下停止' },
     },
-    talkKey: (label: string) => `說話鍵：${label}`,
     capture: '按下新的說話鍵，可以是組合鍵或滑鼠側鍵…（Esc 取消）',
     listening: '正在收音',
     waitingKey: '等待說話鍵',
     keyProblem: (problem: string) => `${problem}，改為一直收音`,
     results: '辨識結果',
     resultsHint: '劃掉的是太短或疑似幻覺、沒有送出的',
+    talkKeyName: '說話鍵',
+    changeKey: '變更',
+    cancelKey: '取消',
+    level: '輸入音量',
+    noResults: '尚無辨識結果',
   },
 
   chat: {
