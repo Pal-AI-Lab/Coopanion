@@ -17,7 +17,7 @@ describe('SystemRecognizer', () => {
     const { spawnImpl, spawned } = fakeSapi({ partial: (n) => `听到 ${n}`, final: (n) => `一共 ${n}` });
     const r = new SystemRecognizer({ language: () => 'zh', timeoutMs: () => 1000, log, spawnImpl });
     await r.start();
-    expect(r.state()).toMatchObject({ phase: 'running', url: 'Windows 语音识别(zh-CN)' });
+    expect(r.state()).toMatchObject({ phase: 'running', url: 'Windows 语音识别（zh-CN）' });
     expect(spawned[0].env?.PET_ASR_LANGUAGE).toBe('zh');
     const partials: string[] = [];
     const s = r.sentence((t) => partials.push(t))!;

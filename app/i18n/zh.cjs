@@ -10,13 +10,13 @@ module.exports = {
   trayQuit: '退出',
 
   /** Core 在 5 分钟内退出太多次,不再重启;系统通知和错误框里显示 */
-  coreFailed: (times, code, logFile) => `Core 在 5 分钟内退出了 ${times} 次(退出码 ${code}),已停止重试。日志:${logFile}`,
-  coreRestarting: (code) => `Core 意外退出(退出码 ${code}),3 秒后重启`,
+  coreFailed: (times, code, logFile) => `Core 在 5 分钟内退出了 ${times} 次（退出码 ${code}），已停止重试。日志：${logFile}`,
+  coreRestarting: (code) => `Core 意外退出（退出码 ${code}），3 秒后重启`,
 
   /** 一次自动更新把程序挪了位置,旧的数据目录还留在原处时问一次 */
   strandedMessage: '找到更新前的设置',
-  strandedDetail: (stranded, parent) => `之前的一次自动更新把 Coopanion 装到了现在的位置,更新前的设置、API Key、提示词和记忆还留在:\n${stranded}\n\n`
-    + `换回后,现在这份改名为 data-replaced-<时间>,留在 ${parent} 里,不会删除。选「继续用现在的」以后不再询问。`,
+  strandedDetail: (stranded, parent) => `之前的一次自动更新把 Coopanion 装到了现在的位置，更新前的设置、API Key、提示词和记忆还留在：\n${stranded}\n\n`
+    + `换回后，现在这份改名为 data-replaced-<时间>，留在 ${parent} 里，不会删除。选「继续用现在的」以后不再询问。`,
   strandedRestore: '换回更新前的设置',
   strandedKeep: '继续用现在的',
 };

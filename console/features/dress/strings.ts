@@ -11,14 +11,14 @@ import { S as ru } from './strings.ru.ts';
 
 const zh = {
   nav: '装扮',
-  note: '换配色、帽子、耳饰、眼镜、颈饰,改动立刻生效。',
-  noPet: '桌宠还没准备好,稍后再来。',
+  note: '换配色、帽子、耳饰、眼镜、颈饰，改动立刻生效。',
+  noPet: '桌宠尚未就绪，请稍后再试。',
 };
 
 export const en: typeof zh = {
   nav: 'Dress up',
   note: 'Colors, hats, earrings, glasses and neckwear; changes apply at once.',
-  noPet: 'The pet is not ready yet; come back in a moment.',
+  noPet: 'The pet is not ready yet. Try again in a moment.',
 };
 
 export const S = pick({
