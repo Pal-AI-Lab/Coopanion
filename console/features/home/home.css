@@ -24,6 +24,8 @@
 .home-vendormark svg { width: 17px; height: 17px; display: block; color: #1b1a1e; }
 .home-petframe { display: block; width: 100%; height: var(--fit, 420px); border: 1px solid var(--border); border-radius: 12px; background: transparent; }
 .home-petactions { margin: 12px 0 0; gap: 8px; }
+/* 「我的桌宠」标题与预览之间留出距离 */
+.home-petframe { margin-top: 12px; }
 /* 「我的桌宠」标题右边:在桌面上 / 已隐藏 */
 .sheet h3 > .pill { margin-left: 10px; vertical-align: 2px; font-weight: 400; }
 

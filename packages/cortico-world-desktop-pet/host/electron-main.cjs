@@ -332,6 +332,10 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       return { action: 'deny' };
     });
     win.once('ready-to-show', () => win.showInactive());
+    // The page cannot tell for itself that it is hidden (background throttling is off, so it always reads as
+    // visible): the window tells it, for the settings window's 「在桌面上 / 已隐藏」.
+    win.on('show', () => win?.webContents.send('pet:shown', true));
+    win.on('hide', () => win?.webContents.send('pet:shown', false));
     // Zoom stays at 1: the cursor below is sent in DIPs and the page hit-tests with them as CSS pixels,
     // so any zoom flips the window between click-through and interactive. A drawing tablet's shortcut
     // keys are a keyboard and can send Ctrl+- to the focused pet, and the zoom is saved per host.
