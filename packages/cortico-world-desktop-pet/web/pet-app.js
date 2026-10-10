@@ -15,7 +15,8 @@ import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { COO_CSS, mini, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
-import { dressFloor, lightWall, modeButton } from './stage.js';
+import { dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
+import { bindAppearance } from './appearance.js';
 
 const $ = (s) => document.querySelector(s);
 const host = window.petHost || null;
@@ -46,7 +47,15 @@ const prefs = {
 };
 // in a tab (the settings window's preview) the page is its own stage: a wall that answers the pointer, a floor with icons, a night/day button
 const modeBtn = host ? null : modeButton(document.body, () => prefs.theme ?? document.documentElement.dataset.theme, (theme) => body?.set({ theme }));
-if (!host) { lightWall(document.body, document.documentElement); dressFloor($('.floor')); }
+if (!host) {
+  lightWall(document.body, document.documentElement);
+  dressFloor($('.floor'));
+  // the settings window lends its theme color (--host-accent): the light's color when the body's pack names none
+  bindAppearance(document, window);
+}
+/** The pack on screen, as /api/figures lists it: its colors light the wall in a tab. */
+let shownPack = null;
+const lightFor = (s) => { if (!host) setGlow(document.body, glowColor(shownPack, s)); };
 
 const sfx = createSfx();
 if (host) sfx.unlock();
@@ -125,6 +134,7 @@ async function showFigure(s) {
   if (body?.pack === s.figure) {
     body.set({ skin: s });
     if (s.figure !== 'coo') await body.setScheme(s.scheme, { fade: .45 });
+    lightFor(s);
     reportFigure(s.figure, true, null, s.figure === 'coo' ? null : s.scheme);
     return;
   }
@@ -153,6 +163,8 @@ async function swapBody(s) {
   body?.dispose();
   body = next;
   words = new Map(pack.vocab.map((w) => [w.id, w]));
+  shownPack = pack;
+  lightFor(s);
   sfx.usePack(pack.base, pack.sounds);
   reportFigure(s.figure, true, null, s.figure === 'coo' ? null : s.scheme, next.words);
 }
