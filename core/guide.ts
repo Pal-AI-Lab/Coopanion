@@ -21,7 +21,7 @@
  *
  * However it ends, walked through or closed, it calls `onEnd` with the record of what was said in
  * the bubble (an API key shows as typed in, never as itself). Every step has a close button that
- * ends the introduction. The console's 「使用引导」 runs it
+ * ends the introduction. The console's 「使用向导」 runs it
  * again (the World's `pet.guide` panel method). Once it has run, a missing key is asked for in the
  * bubble from time to time (`askForKey`), with the key box right there, and each time the person
  * talks to Coo without one, Coo asks whether to connect a model now.

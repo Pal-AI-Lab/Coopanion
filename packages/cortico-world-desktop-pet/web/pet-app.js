@@ -46,7 +46,7 @@ const prefs = {
   lockFrameRate: false,
 };
 // in a tab (the settings window's preview) the page is its own stage: a wall that answers the pointer, a floor with icons, a night/day button
-const modeBtn = host ? null : modeButton(document.body, () => prefs.theme ?? document.documentElement.dataset.theme, (theme) => body?.set({ theme }));
+const modeBtn = host ? null : modeButton(document.body, () => prefs.theme, (theme) => applyPrefs({ theme }));
 if (!host) {
   lightWall(document.body, document.documentElement);
   dressFloor($('.floor'));
