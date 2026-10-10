@@ -9,7 +9,7 @@
 .companion-lockup { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--foreground); }
 .companion-lockup .companion-mark { flex: none; width: 30px; height: 30px; }
 /* the letters keep their proportions and shrink with a narrow rail instead of running past it */
-.companion-lockup .wordmark-lettering { display: block; flex: 0 1 auto; min-width: 0; width: 112px; max-width: 100%; height: auto; }
+.companion-lockup .wordmark-lettering { display: block; flex: 0 1 auto; min-width: 0; width: 124px; max-width: 100%; height: auto; }
 .companion-lockup .accent { stroke: var(--accent); }
 .brand .companion-version { margin-top: 12px; }
 
