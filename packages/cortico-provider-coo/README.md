@@ -34,6 +34,8 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
 - **哪一家、哪个平台**:按 `baseUrl` 认(`locate` / `vendorOf`),端点里不另存字段。有国内、国际两个平台的服务账号和 Key 不通用,
   各自一个端点:国内用服务 id 作端点名,国际加 `-intl`(`endpointName`)。智谱国内的 Responses 端点在 `/api/v1` 下,不是对话接口的 `/api/paas/v4`。
 - **协议**:列出的服务按平台走(`Site.protocol`);`options.protocol` 可改;别的地址不填时走 `responses`。
+  MiniMax 的 Responses 使用非流式兼容回退(`nonStreamingResponses`):流中可能提前结束工具项,最终响应也可能修订已结束项;
+  等完整响应校验成功后再执行工具,避免空参数调用和已回复后的协议错误重试。工具开始执行前需等待整条响应返回。
 - **思考档位**:不思考 / 快 / 标准 / 最深,Responses 发 `reasoning.effort`、Chat 发 `reasoning_effort` = `none` / `low` / `high` / `max`;
   某家文档写明只收别的值时按 `effortOf` 换算(`Vendor.effort`、平台的 `Site.effort`、个别模型的 `Vendor.modelEffort`):千问 `high→medium`、`max→xhigh`;
   Kimi、智谱两个平台的 GLM-5.3 系列、OpenRouter 的 `z-ai/glm-5.3-flash` 没有 `none`,换成 `low`;MiniMax、阶跃星辰没有 `max`,换成 `high`;千帆、智谱的 GLM-4.6V 没写 effort,不发;
