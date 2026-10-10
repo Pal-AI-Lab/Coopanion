@@ -104,6 +104,11 @@ export class PetServer {
     return this.pet !== null && this.pet.readyState === this.pet.OPEN;
   }
 
+  /** The connected pet page is the pet window, not a browser tab. */
+  get petInWindow(): boolean {
+    return this.petConnected && this.petIsWindow;
+  }
+
   async start(): Promise<number> {
     const base = this.opts.port();
     let lastErr: Error | null = null;

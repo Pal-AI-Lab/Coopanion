@@ -2,21 +2,32 @@
 .home-note { margin: 6px 0 0; font-size: 13px; line-height: 1.6; color: var(--muted-foreground); }
 .home-link { font-size: 13px; color: var(--accent); text-decoration: none; }
 .home-link:hover { text-decoration: underline; }
-.home-keybox { display: flex; flex-direction: column; gap: 8px; }
-.home-keybox .rowbar > label { flex: 1; min-width: 0; }
-.home-keybox .rowbar > label.home-modelfield { flex: 0 1 240px; }
-.home-keybox input { width: 100%; }
-/* 模型服务:一排带标志的按钮,选中的点亮 */
-.home-vendors { display: flex; flex-wrap: wrap; gap: 8px; }
+/* 供应商:两行带标志的按钮。左列是行名,第二行折行后与冒号右边第一个按钮的左端对齐;选中的点亮 */
+.home-picker { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 12px 12px; align-items: start; margin: 4px 0 18px; }
+.home-pickerlabel { padding-top: 7px; font-size: 13px; color: var(--ink-soft); white-space: nowrap; }
+.home-vendors { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.home-none { padding-top: 7px; font-size: 13px; color: var(--ink-dim); }
+.home-vendor:disabled { cursor: default; }
+.home-vendor:disabled .home-vendormark:empty { display: none; }
+/* 模型、Key 与「保存并开始」:按钮与两个输入框底边对齐、同高 */
+.home-keyrow { align-items: flex-end; flex-wrap: nowrap; gap: 12px; margin-bottom: 8px; }
+.home-keyrow > label { flex: 1; min-width: 0; }
+.home-keyrow > label.home-modelfield { flex: 0 1 240px; }
+.home-keyrow input { width: 100%; }
+.home-keyrow > .btn { flex: none; height: 40px; }
+@media (max-width: 640px) { .home-picker { grid-template-columns: 1fr; } .home-pickerlabel { padding-top: 0; } .home-keyrow { flex-wrap: wrap; } }
 .home-vendor { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px 6px 8px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--ink-soft); font: inherit; font-size: 13px; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
 .home-vendor[hidden] { display: none; }
 .home-vendor:hover { border-color: var(--ink-dim); color: var(--foreground); }
 .home-vendor.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--foreground); }
 .home-vendormark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #fff; }
 .home-vendormark svg { width: 17px; height: 17px; display: block; color: #1b1a1e; }
-.home-petframe { display: block; width: 100%; height: 220px; margin-top: 10px; border: 1px solid var(--border); border-radius: 12px; background: transparent; }
+.home-petframe { display: block; width: 100%; height: var(--fit, 420px); border: 1px solid var(--border); border-radius: 12px; background: transparent; }
 /* 没接模型时桌宠问用哪家服务,气泡里的服务卡片最多五行(简体中文),连同桌宠和地面约 705px */
-.home-petframe.nokey { height: 720px; }
+.home-petframe.nokey { height: max(720px, var(--fit, 0px)); }
+.home-petactions { margin: 12px 0 0; gap: 8px; }
+/* 「我的桌宠」标题右边:在桌面上 / 已隐藏 */
+.sheet h3 > .pill { margin-left: 10px; vertical-align: 2px; font-weight: 400; }
 
 /* 「习惯」「装扮」页 */
 .companion-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: start; padding: 8px 0; }

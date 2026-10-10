@@ -15,6 +15,7 @@ import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { COO_CSS, mini, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
+import { dressFloor, lightWall, modeButton } from './stage.js';
 
 const $ = (s) => document.querySelector(s);
 const host = window.petHost || null;
@@ -43,6 +44,10 @@ const prefs = {
   frameRate: 60,
   lockFrameRate: false,
 };
+// in a tab (the settings window's preview) the page is its own stage: a wall that answers the pointer, a floor with icons, a night/day button
+const modeBtn = host ? null : modeButton(document.body, () => prefs.theme ?? document.documentElement.dataset.theme, (theme) => body?.set({ theme }));
+if (!host) { lightWall(document.body, document.documentElement); dressFloor($('.floor')); }
+
 const sfx = createSfx();
 if (host) sfx.unlock();
 else ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => sfx.unlock(), { capture: true }));
@@ -71,7 +76,7 @@ function send(msg) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg))
 function connect() {
   ws = new WebSocket(`ws://${location.host}/socket?role=pet&host=${host ? 'window' : 'tab'}`);
   ws.binaryType = 'arraybuffer';
-  ws.onopen = () => { backoff = 500; send({ t: 'hello', screen: { w: innerWidth, h: innerHeight }, host: host ? 'window' : 'tab' }); };
+  ws.onopen = () => { backoff = 500; send({ t: 'hello', screen: { w: innerWidth, h: innerHeight }, host: host ? 'window' : 'tab' }); reportVisibility(); };
   ws.onmessage = (e) => { try { onOrder(JSON.parse(e.data)); } catch (err) { console.error(err); } };
   ws.onclose = (e) => {
     ws = null;
@@ -84,6 +89,9 @@ function connect() {
     backoff = Math.min(8000, backoff * 2);
   };
 }
+/** The pet window says whether it is shown: hidden from its menu or the tray, it stays connected. */
+function reportVisibility() { if (host) send({ t: 'visibility', hidden: document.hidden }); }
+document.addEventListener('visibilitychange', reportVisibility);
 // the text is in before anything is shown
 void useLanguage().then(() => { document.title = t('pet.title'); host?.setLanguage?.(language()); connect(); });
 
@@ -181,7 +189,7 @@ function applyPrefs(p) {
   if (p.roam) { prefs.roam = p.roam; body?.set({ roam: p.roam }); }
   if (typeof p.sound === 'boolean') { prefs.sound = p.sound; sfx.set(p.sound); }
   if (p.sounds && typeof p.sounds === 'object') sfx.configure({ kinds: p.sounds, snoreSeconds: p.sounds.snoreSeconds });
-  if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); body?.set({ theme: p.theme }); }
+  if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); modeBtn?.show(p.theme); body?.set({ theme: p.theme }); }
   if (typeof p.scale === 'number') { prefs.scale = p.scale; body?.set({ bounds: bounds() }); }
   if (typeof p.rememberPosition === 'boolean') { prefs.rememberPosition = p.rememberPosition; reportPosition(); }
   if (typeof p.user === 'string') prefs.user = p.user;
@@ -215,6 +223,8 @@ function onOrder(m) {
     case 'init': restorePosition(m.startX); applyPrefs(m); break;
     case 'prefs': applyPrefs(m); break;
     case 'watching': watching = true; stopMic(); break;
+    // the settings window's 「在桌面上隐藏」: the same as the menu's 「隐藏」
+    case 'hide': host?.hide?.(); break;
     case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); holdRoam(20); break;
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
     case 'confirm': dropAsks(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
