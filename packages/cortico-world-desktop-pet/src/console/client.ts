@@ -212,13 +212,15 @@ const voicePanel: ConsolePanel = {
     const keyBtn = ui.button(t.changeKey, { size: 'sm' });
     keyRow.acts.append(keyBtn);
 
-    // the level meter, named on its left
-    const meterRow = ui.h('div', 'pet-meterrow');
+    // the level meter as one more row: its name in the names' column, the bar where the others' values start
+    const meterRow = ui.h('div', 'mountrow pet-meterrow');
+    const meterDot = ui.h('span', 'navdot');
+    meterDot.style.visibility = 'hidden';
     const meter = ui.h('div', 'pet-meter');
     const fill = ui.h('div', 'pet-meterfill');
     const mark = ui.h('div', 'pet-metermark');
     meter.append(fill, mark);
-    meterRow.append(ui.h('span', 'pet-meterlabel', t.level), meter);
+    meterRow.append(meterDot, ui.h('span', 'mname', t.level), meter);
 
     const log = ui.log({ max: 100, empty: t.noResults });
     settings.append(eng.row, srv.row, rt.row, micRow.row, keyRow.row, modeRow.row, meterRow, ui.section(t.results, t.resultsHint), log.el);
