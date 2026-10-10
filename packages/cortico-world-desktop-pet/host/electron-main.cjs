@@ -22,6 +22,7 @@
 const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen, session, shell, systemPreferences } = require('electron');
 const { join } = require('node:path');
 const { pathToFileURL } = require('node:url');
+const { createCursorSource } = require('./cursor.cjs');
 
 /** The pages' text table of `code`, falling back as web/i18n.js does. */
 async function pageText(code) {
@@ -276,7 +277,7 @@ function trayIcon() {
 function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   if (!url) throw new Error('pet host needs --pet-url');
   const origin = new URL(url).origin;
-  let win = null, tray = null, dress = null;
+  let win = null, tray = null, dress = null, cursor;
   /** Id of the display whose work area the window covers. */
   let displayId = null;
   /** The setting, and whether it is what hid the window. */
@@ -347,7 +348,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     let last = '';
     const cursorTimer = setInterval(() => {
       if (!win || !win.isVisible()) return;
-      const pt = screen.getCursorScreenPoint(), b = win.getBounds();
+      const pt = cursor.read(), b = win.getBounds();
       const inside = pt.x >= b.x && pt.x < b.x + b.width && pt.y >= b.y && pt.y < b.y + b.height;
       const at = inside ? { x: pt.x - b.x, y: pt.y - b.y } : null;
       const key = at ? `${at.x},${at.y}` : '';
@@ -420,7 +421,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
    */
   ipcMain.handle('pet:followCursor', () => {
     if (!win) return null;
-    const pt = screen.getCursorScreenPoint(), d = screen.getDisplayNearestPoint(pt);
+    const pt = cursor.read(), d = screen.getDisplayNearestPoint(pt);
     const fromDisplay = display();
     if (d.id === fromDisplay.id) return null;
     const from = coverArea(fromDisplay), wa = cover(d);
@@ -430,6 +431,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   // a pet is not an app to switch to
   if (process.platform === 'darwin') app.dock?.hide();
   app.whenReady().then(async () => {
+    cursor = createCursorSource({ screen });
+    app.once('will-quit', () => cursor.close());
     // macOS asks once, before the page first opens the microphone
     if (process.platform === 'darwin' && systemPreferences.getMediaAccessStatus('microphone') === 'not-determined') {
       await systemPreferences.askForMediaAccess('microphone').catch(() => false);
