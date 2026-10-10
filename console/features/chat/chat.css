@@ -1,4 +1,4 @@
-/* 「对话」页(features/chat):桌宠的说话与提问气泡沿用 pet.css 的形状,颜色取控制台方案。 */
+/* 「对话」页(features/chat):桌宠的说话与提问气泡与使用者的气泡镜像,颜色取控制台方案。 */
 .chatview { position: relative; flex: 1; min-height: 0; height: 100%; display: flex; flex-direction: column; }
 
 .chat-top { height: 52px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 24px; border-bottom: 1px solid var(--line); }
@@ -18,39 +18,28 @@
 .chat-older { align-self: center; }
 .chat-note { align-self: center; font-size: 12.5px; color: var(--ink-dim); }
 
-/* 使用者:右侧浅色气泡,与终端页 .world 同形 */
+/* 使用者:右侧浅色气泡,右上角尖;Coo 的气泡与它镜像。所有气泡都带一圈很淡的外阴影 */
 .chatview .msg-user { align-self: flex-end; max-width: 78%; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.chatview .msg-user .bubble { background: var(--bubble-bg); color: var(--bubble-ink); border-radius: 15px 4px 15px 15px; padding: 10px 14px; white-space: pre-wrap; word-break: break-word; font-size: 14.5px; line-height: 1.6; }
+.chatview .msg-user .bubble { background: var(--bubble-bg); color: var(--bubble-ink); border-radius: 15px 4px 15px 15px; padding: 10px 14px; white-space: pre-wrap; word-break: break-word; font-size: 14.5px; line-height: 1.6; box-shadow: var(--chat-bubble-shadow); }
+.chatview { --chat-bubble-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent), 0 3px 10px -4px color-mix(in srgb, var(--ink) 14%, transparent); --chat-coo-bg: #fff; }
+:root[data-color-mode="dark"] .chatview { --chat-coo-bg: var(--sheet-2); }
 .chatview .msg-user .via { font-size: 11.5px; color: var(--ink-dim); }
 .chatview .msg-user .via.bad { color: var(--danger); }
 .chat-thumb { max-width: 220px; max-height: 160px; border-radius: 10px; border: 1px solid var(--line); object-fit: cover; }
 
-/* 桌宠:头像 + 一拍一个描边气泡 */
+/* 桌宠:头像 + 一拍一个气泡,左上角尖,其余圆角,白底无描边 */
 .chatview .msg-coo { display: flex; gap: 14px; align-items: flex-start; }
 .chat-avatar { width: 30px; height: 30px; flex: none; border-radius: 50%; overflow: hidden; background: var(--sheet-3); margin-top: 1px; }
 .chat-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .chatview .coo-body { min-width: 0; flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .chatview .sayrow { display: flex; align-items: flex-end; gap: 8px; min-width: 0; max-width: 100%; }
-.pet-bubble { position: relative; max-width: min(520px, 100%); padding: 10px 14px; border-radius: 18px; background: var(--sheet); color: var(--ink); border: 2.5px solid var(--ink); font-size: 14.5px; line-height: 1.55; }
+.pet-bubble { position: relative; max-width: min(520px, 100%); padding: 10px 14px; border-radius: 4px 15px 15px 15px; background: var(--chat-coo-bg); color: var(--ink); font-size: 14.5px; line-height: 1.6; box-shadow: var(--chat-bubble-shadow); }
 .pet-bubble.say { width: max-content; white-space: pre-wrap; word-break: break-word; }
 .chatview .sayrow .mood { flex: none; font-size: 11.5px; color: var(--ink-dim); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; margin-bottom: 4px; }
 
-/* 尖角:与 pet.css 同一画法转向左。x=0 是内边距框左沿,边框占 x∈[-2.5,0],尖端在 x=-11。
-   描边色三角的底边落在边框内沿,斜边与边框相连;底色三角缩进一个线宽,只盖住两条斜边之间的边框。 */
-.coo-body > :first-child .pet-bubble::before, .coo-body > :first-child .pet-bubble::after,
-.coo-body > .pet-bubble:first-child::before, .coo-body > .pet-bubble:first-child::after {
-  content: ''; position: absolute; left: -11px; top: 6px; width: 11.5px; height: 22px;
-}
-.coo-body > :first-child .pet-bubble::before, .coo-body > .pet-bubble:first-child::before {
-  background: var(--ink); clip-path: path('M11 0 L2.1 8.9 Q0 11 2.1 13.1 L11 22 Z');
-}
-.coo-body > :first-child .pet-bubble::after, .coo-body > .pet-bubble:first-child::after {
-  background: var(--sheet); clip-path: path('M11.5 3.04 L4.94 9.6 Q3.54 11 4.94 12.4 L11.5 18.96 Z');
-}
-
 /* 在想:pet.css .trail 的描边圆点 */
 .pet-bubble.thinking { display: flex; gap: 6px; align-items: center; padding: 13px 16px; }
-.pet-bubble.thinking i { width: 9px; height: 9px; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--sheet); animation: chat-bob 1.2s ease-in-out infinite; }
+.pet-bubble.thinking i { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-dim); animation: chat-bob 1.2s ease-in-out infinite; }
 .pet-bubble.thinking i:nth-child(2) { animation-delay: .15s; }
 .pet-bubble.thinking i:nth-child(3) { animation-delay: .3s; }
 @keyframes chat-bob { 50% { transform: translateY(-3px); } }
