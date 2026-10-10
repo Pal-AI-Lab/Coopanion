@@ -1,7 +1,4 @@
-/* 桌宠四页(开始、习惯、装扮、语音输入)与模式开关。只用控制台已有的颜色变量。 */
-.featureslot-home, .featureslot-pet, .featureslot-dress, .featureslot-voice { max-width: 880px; }
-.home-head { display: flex; align-items: center; gap: 12px; margin: 4px 0 16px; }
-.home-title { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: .02em; color: var(--foreground); }
+/* 桌宠几页(开始、习惯、装扮、语音输入、电脑操作)与模式开关。页面标题与内容宽度同「系统提示词」,在 companion.css。只用控制台已有的颜色变量。 */
 .home-note { margin: 6px 0 0; font-size: 13px; line-height: 1.6; color: var(--muted-foreground); }
 .home-link { font-size: 13px; color: var(--accent); text-decoration: none; }
 .home-link:hover { text-decoration: underline; }
@@ -20,7 +17,6 @@
 .home-petframe { display: block; width: 100%; height: 220px; margin-top: 10px; border: 1px solid var(--border); border-radius: 12px; background: transparent; }
 /* 没接模型时桌宠问用哪家服务,气泡里的服务卡片最多五行(简体中文),连同桌宠和地面约 705px */
 .home-petframe.nokey { height: 720px; }
-.home .sheet + .sheet { margin-top: 14px; }
 
 /* 「习惯」「装扮」页 */
 .companion-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: start; padding: 8px 0; }
@@ -77,3 +73,19 @@
 /* 「回应模式」「自主配置权限」的自定义弹窗:一项一行 */
 .companion-popup { min-width: min(320px, 80vw); }
 .companion-popup .companion-checks { flex-direction: column; gap: 8px; padding: 4px 0 14px; }
+
+/* 开关:电脑操作页最上面两项。复选框画成开关,文字在右,说明与文字对齐 */
+.companion-switchrow { padding: 8px 0; }
+.companion-switchrow > label.companion-switch { gap: 12px; font-size: 14px; color: var(--ink); }
+.companion-switch input[type=checkbox] {
+  appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 40px; height: 22px; margin: 0;
+  border-radius: 999px; background: var(--line-strong); cursor: pointer; transition: background .15s;
+}
+.companion-switch input[type=checkbox]::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s;
+}
+.companion-switch input[type=checkbox]:checked { background: var(--accent); }
+.companion-switch input[type=checkbox]:checked::after { transform: translateX(18px); }
+.companion-switch input[type=checkbox]:disabled { opacity: .5; cursor: default; }
+.companion-switchrow > .home-note { margin-left: 52px; }

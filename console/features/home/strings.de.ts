@@ -2,10 +2,6 @@ import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
   nav: 'Start',
-  title: 'Coo',
-  running: 'Wach',
-  paused: 'Pausiert',
-  noModel: 'Kein Modell verbunden',
   modelTitle: 'Modell verbinden',
   modelNeed: (first: string) => `Wähle einen Modelldienst und gib seinen API Key ein, um loszulegen. Im Zweifel ${first}.`,
   more: 'Mehr',

@@ -9,6 +9,7 @@ import { get, post } from '../../core/api.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { applyStoredTheme, disposeThemeStudio, getThemeStudio } from '../../theme/studio.ts';
 import type { InjectedTheme } from '../../../shared/theme.ts';
+import { intro } from '../intro.ts';
 import { S } from './strings.ts';
 
 const PET_PAGE = 'world:desktop-pet';
@@ -21,12 +22,10 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const { ui, root, signal } = ctx;
   root.classList.add('home');
 
-  const sheet = ui.sheet({ title: S.nav });
-  const note = ui.h('p', 'home-note', S.note);
+  const note = ui.h('p', null, S.note);
   const frame = ui.h('iframe', 'companion-dressframe');
   frame.title = S.nav;
-  sheet.body.append(note, frame);
-  root.append(sheet.el);
+  root.append(intro(ui, S.nav, { desc: note }), frame);
 
   const doc = root.ownerDocument;
   const appearance = () => doc.documentElement.dataset.colorMode === 'dark' ? 'dark' : 'light';

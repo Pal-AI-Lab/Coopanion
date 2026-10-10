@@ -7,7 +7,7 @@
  * - 两种模式(features/mode.ts):普通模式左栏只有那五页、「系统提示词」「用量与成本」和「对话」,别的路由都回到「开始」,底栏只留暂停键;
  *   高级模式再接上 Cortico 的全部页面。左栏底部的开关切换模式,页面也可以经 requestMode 请求换,换模式时重建左栏;
  * - 空路由打开「开始」;
- * - 左上角是 Coopanion 字标,下面是版本与项目地址,有新 Release 时再加一行下载链接(features/release.ts);
+ * - 左上角是 Coopanion 的标志与字母(两块,居中对齐,左栏窄时字母跟着缩),下面是版本与项目地址,有新 Release 时再加一行下载链接(features/release.ts);
  * - 左栏各组按「桌宠五页 · 对话 → World → 设置 → Persona & Memory → 高级」重排。
  * 其余逐字沿用上游。
  */
@@ -26,7 +26,6 @@ import { subscribeLamps } from './ui/lamp.ts';
 import { applyStoredTheme } from './theme/studio.ts';
 import { createShell, type ConsoleShell } from './shell/index.ts';
 import { featureAvailable, type FeatureContext, type FrameworkFeature } from './features/feature.ts';
-import { liveFeature } from './features/live/index.ts';
 import { coreFeature } from './features/core/index.ts';
 import { usageFeature } from './features/usage/index.ts';
 import { providersFeature } from './features/providers/index.ts';
@@ -40,11 +39,12 @@ import { dressFeature } from './features/dress/index.ts';
 import { voiceFeature } from './features/voice/index.ts';
 import { cuaFeature } from './features/cua/index.ts';
 import { chatFeature } from './features/chat/index.ts';
+import { traceFeature } from './features/trace.ts';
 import { promptsWithClearFeature } from './features/clear-session.ts';
 import { mountRelease } from './features/release.ts';
 import { onModeRequest, readMode, writeMode, type ConsoleMode } from './features/mode.ts';
-import { icon } from './ui/icons.ts';
-import { coopanionWordmark } from './branding.ts';
+import { brandMark, icon } from './ui/icons.ts';
+import { coopanionLettering } from './branding.ts';
 import { L } from './strings.ts';
 import type { ConsoleMemo } from '../shared/client-panel.ts';
 
@@ -68,7 +68,7 @@ export const FEATURES: readonly FrameworkFeature[] = [
   ...BASIC_FEATURES,
   { ...providersFeature, label: L.model, navMode: 'group', navGroup: L.settings },
   { ...extensionsFeature, navMode: 'group', navGroup: L.settings },
-  { ...liveFeature, label: L.trace, navMode: 'group', navGroup: L.advanced },
+  { ...traceFeature, navMode: 'group', navGroup: L.advanced },
   { ...coreFeature, navMode: 'group', navGroup: L.advanced },
   worldsFeature, appearanceFeature, settingsFeature,
 ];
@@ -205,11 +205,12 @@ export function boot(doc: Document = document): { dispose(): void } {
     const next = createShell({ doc, ui, router, features: advanced ? FEATURES : BASIC_FEATURES, onError });
     const brand = next.el.querySelector('.brand');
     if (brand) {
-      const mark = coopanionWordmark(doc);
-      mark.removeAttribute('aria-hidden');
-      mark.setAttribute('role', 'img');
-      mark.setAttribute('aria-label', 'Coopanion');
-      brand.replaceChildren(mark);
+      // the mark and the letters side by side, centred on each other; the letters shrink with a narrow rail
+      const lockup = ui.h('div', 'companion-lockup');
+      lockup.setAttribute('role', 'img');
+      lockup.setAttribute('aria-label', 'Coopanion');
+      lockup.append(brandMark(doc, 'brandmark companion-mark'), coopanionLettering(doc));
+      brand.replaceChildren(lockup);
       mountRelease(doc, brand, life.signal);
     }
     shell = next;

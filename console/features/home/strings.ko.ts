@@ -2,10 +2,6 @@ import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
   nav: '시작',
-  title: 'Coo',
-  running: '깨어 있음',
-  paused: '일시 중지됨',
-  noModel: '연결된 모델 없음',
   modelTitle: '모델 연결',
   modelNeed: (first: string) => `모델 서비스를 고르고 API Key를 입력하면 시작할 수 있습니다. 잘 모르겠으면 ${first}을(를) 고르세요.`,
   more: '더 보기',
