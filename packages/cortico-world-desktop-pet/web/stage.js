@@ -18,26 +18,43 @@ const DOCK = [
   '<rect x="3.5" y="4.5" width="17" height="12" rx="2"/><path d="M8.5 20h7M12 16.5V20"/>',
 ];
 
+/** Radii of the light and of the lens that shows the grown dots, in pixels (pet.css sizes them the same). */
+const GLOW = 280, LENS = 150;
+/** How much of the way to the pointer the light moves each frame. */
+const EASE = .18;
+
 /**
- * Lights the wall `wall` under the pointer: `--mx`, `--my` (where, in the wall's own pixels) and `--lit`
- * (0 to 1) on the element, which pet.css turns into the light and the grown dots. `area` takes the
- * pointer (the stage, which lies over the wall); `fixed` when the wall is the whole page.
+ * Lights the wall `wall` under the pointer: a soft light and a round lens of bigger, eye-colored dots follow it
+ * (pet.css `.wall-glow`, `.wall-lens`). Both are layers of their own moved by `transform` only, eased frame by
+ * frame, so the browser composites them instead of repainting the wall (and the pet on it) as the pointer moves.
+ * The lens holds a dot grid moved the other way, so its dots stay on the wall's own dots. `area` takes the pointer
+ * (the stage, which lies over the wall).
  */
 export function lightWall(wall, area = wall) {
-  let shown = false;
-  const at = (e) => {
-    const r = wall.getBoundingClientRect();
-    wall.style.setProperty('--mx', `${Math.round(e.clientX - r.left)}px`);
-    wall.style.setProperty('--my', `${Math.round(e.clientY - r.top)}px`);
+  wall.classList.add('wall');
+  const layer = (cls) => { const e = document.createElement('div'); e.className = cls; e.setAttribute('aria-hidden', 'true'); return e; };
+  const glow = layer('wall-glow'), lens = layer('wall-lens'), grid = layer('wall-lens-grid');
+  lens.append(grid);
+  wall.prepend(glow, lens);
+  let x = 0, y = 0, tx = 0, ty = 0, lit = false, frame = 0;
+  const place = () => {
+    glow.style.transform = `translate3d(${x - GLOW}px, ${y - GLOW}px, 0)`;
+    lens.style.transform = `translate3d(${x - LENS}px, ${y - LENS}px, 0)`;
+    grid.style.transform = `translate3d(${LENS - x}px, ${LENS - y}px, 0)`;
+  };
+  const step = () => {
+    x += (tx - x) * EASE; y += (ty - y) * EASE;
+    if (Math.abs(tx - x) + Math.abs(ty - y) < .3) { x = tx; y = ty; frame = 0; } else frame = requestAnimationFrame(step);
+    place();
   };
   area.addEventListener('pointermove', (e) => {
+    const r = wall.getBoundingClientRect();
+    tx = e.clientX - r.left; ty = e.clientY - r.top;
     // coming in, the light starts where the pointer is instead of sliding over from where it left
-    if (!shown) { wall.classList.add('wall-jump'); at(e); void wall.offsetWidth; wall.classList.remove('wall-jump'); shown = true; }
-    else at(e);
-    wall.style.setProperty('--lit', '1');
+    if (!lit) { x = tx; y = ty; place(); lit = true; wall.classList.add('wall-lit'); }
+    if (!frame) frame = requestAnimationFrame(step);
   });
-  area.addEventListener('pointerleave', () => { shown = false; wall.style.setProperty('--lit', '0'); });
-  wall.classList.add('wall');
+  area.addEventListener('pointerleave', () => { lit = false; wall.classList.remove('wall-lit'); });
 }
 
 /** Fills `floor` with the row of icons, centred. */

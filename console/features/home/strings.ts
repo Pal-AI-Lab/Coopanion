@@ -34,7 +34,7 @@ const zh = {
   petHidden: '已隐藏',
   showPet: '在桌面上显示',
   dress: '装扮',
-  guide: '使用引导',
+  guide: '使用向导',
   guideHint: '让 Coo 在屏幕底边再带你走一遍',
   hidePet: '在桌面上隐藏',
   connectedLabel: '已连接的模型：',
