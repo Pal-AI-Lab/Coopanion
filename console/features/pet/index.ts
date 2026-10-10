@@ -41,7 +41,6 @@ const K = 'worlds.desktop-pet';
 const KEYS = {
   user: `${K}.user`,
   roam: `${K}.roam`,
-  theme: `${K}.theme`,
   scale: `${K}.window.scale`,
   lockFps: `${K}.window.lockFrameRate`,
   frameRate: `${K}.window.frameRate`,
@@ -110,9 +109,6 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const roam = ui.segmented([
     { value: 'free', label: S.roamFree }, { value: 'calm', label: S.roamCalm }, { value: 'off', label: S.roamOff },
   ], { size: 'sm', onSelect: (v) => void save(KEYS.roam, v) });
-  const theme = ui.segmented([
-    { value: 'dark', label: S.themeDark }, { value: 'light', label: S.themeLight },
-  ], { size: 'sm', onSelect: (v) => void save(KEYS.theme, v) });
   const scaleText = ui.h('span', 'companion-rangeval');
   const scaleBox = ui.h('div', 'companion-rangebox');
   const scale = scaleSlider(root.ownerDocument, {
@@ -282,7 +278,6 @@ async function mount(ctx: FeatureContext): Promise<void> {
   );
   const display = ui.sheet({ title: S.groupDisplay });
   display.body.append(
-    row(S.theme, theme.el),
     row(S.scale, scaleBox),
     row(S.frameRate, frameRate.el, S.frameRateHint),
     row('', lockFps.el, S.lockFpsHint),
@@ -395,7 +390,6 @@ async function mount(ctx: FeatureContext): Promise<void> {
       user.dataset.saved = user.value;
     }
     if (typeof values[KEYS.roam] === 'string') roam.setValue(values[KEYS.roam] as string);
-    if (typeof values[KEYS.theme] === 'string') theme.setValue(values[KEYS.theme] as string);
     if (typeof values[KEYS.scale] === 'number' && !scale.active && active !== scale.el) { scale.set(values[KEYS.scale] as number); showScale(); }
     if (typeof values[KEYS.frameRate] === 'number') frameRate.setValue(String(values[KEYS.frameRate]));
     if (typeof soundValues[KEYS.sound] === 'boolean') sound.setChecked(soundValues[KEYS.sound] as boolean);
