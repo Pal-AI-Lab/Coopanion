@@ -1,7 +1,9 @@
 /**
  * 「装扮」: the desktop-pet World's dressing page (colors, hats, earrings, glasses, neckwear) in a
- * frame. Its address comes from the World's `pet` panel; until the pet's server is up the page says
- * so and asks again every few seconds. Saving a look recolours the settings window (core/console-theme.ts
+ * frame: the preview across the top, the choices below. The frame is as tall as the page (the page
+ * reports its height), so the window scrolls it with the scrollbar every page has. Its address comes
+ * from the World's `pet` panel; until the pet's server is up the page says so and asks again every
+ * few seconds. Saving a look recolours the settings window (core/console-theme.ts
  * writes the deployment's theme.json); while this page is open it reads that record every
  * `THEME_POLL_MS` and applies it when the scheme or mode differs from what the window shows.
  */
@@ -34,6 +36,12 @@ async function mount(ctx: FeatureContext): Promise<void> {
     if (frame.dataset.origin) frame.contentWindow?.postMessage({ type: 'companion:appearance', mode: appearance(), accent: accent() }, frame.dataset.origin);
   };
   frame.addEventListener('load', syncAppearance, { signal });
+  // the page says how tall it is: the frame takes that height, so the window scrolls it and the frame shows no scrollbar
+  window.addEventListener('message', (e) => {
+    if (e.source !== frame.contentWindow || e.origin !== frame.dataset.origin || e.data?.type !== 'companion:height') return;
+    const height = Number(e.data.height);
+    if (Number.isFinite(height) && height > 0) frame.style.height = `${Math.ceil(height)}px`;
+  }, { signal });
   const observer = new MutationObserver(syncAppearance);
   observer.observe(doc.documentElement, { attributes: true, attributeFilter: ['data-color-mode', 'data-theme-scheme'] });
   ctx.lifecycle.add(() => observer.disconnect());

@@ -49,9 +49,10 @@ body.tab .floor{position:fixed; left:0; right:0; bottom:0; height:48px; backgrou
 @property --mx{syntax:'<length>'; inherits:true; initial-value:-400px}
 @property --my{syntax:'<length>'; inherits:true; initial-value:-400px}
 @property --lit{syntax:'<number>'; inherits:true; initial-value:0}
-.wall{transition:--mx .45s cubic-bezier(.2,.7,.3,1), --my .45s cubic-bezier(.2,.7,.3,1), --lit .5s ease}
+.wall{isolation:isolate; transition:--mx .45s cubic-bezier(.2,.7,.3,1), --my .45s cubic-bezier(.2,.7,.3,1), --lit .5s ease}
 .wall.wall-jump{transition:none}
-.wall::before, .wall::after{content:""; position:absolute; inset:0; pointer-events:none; opacity:var(--lit)}
+/* on the wall's own background, under the floor, the pet and everything else on it */
+.wall::before, .wall::after{content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:var(--lit)}
 body.wall::before, body.wall::after{position:fixed}
 .wall::before{background:radial-gradient(circle 280px at var(--mx) var(--my), color-mix(in srgb, var(--skin-eye) 16%, transparent), transparent 70%)}
 .wall::after{

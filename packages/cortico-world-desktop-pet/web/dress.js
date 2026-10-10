@@ -21,6 +21,7 @@ import {
   PALETTES, HEADS, SIDES, GLASSES, NECKS, ACC_COLORS, LINKED, NO_BODY, ROLES,
 } from './coo/coo.js';
 import { loadBody } from './body-host.js';
+import { dressFloor, lightWall, modeButton } from './stage.js';
 
 import { bindAppearance } from './appearance.js';
 bindAppearance(document, window);
@@ -36,13 +37,18 @@ const sfx = createSfx({ storageKey: 'cortico-pet.dress-sound.v1', volume: .35 })
 
 let skin = normalizeSkin(null);
 let theme = document.documentElement.dataset.theme;
-const modeBtn = $('#mode');
-/** The page's own text in the app language; the theme button's title is part of it. */
-const showText = () => { applyText(); document.title = t('dress.title'); applyTheme(theme, modeBtn); };
-const ready = useLanguage().then(showText);
-applyTheme(theme, modeBtn);
 const preview = $('#preview');
-const bounds = () => ({ W: preview.clientWidth, H: preview.clientHeight, floorY: preview.clientHeight - 30, S: .5 });
+// the stage as on the 开始 page's preview (stage.js): a wall that answers the pointer, a floor with icons, the night/day button
+const modeBtn = modeButton(preview, () => theme, (next) => { theme = next; body?.set({ theme }); sfx.tick(); }, (next) => save('/api/prefs', { theme: next }));
+lightWall(preview);
+dressFloor($('#floor'));
+/** The page's own text in the app language; the theme button's title is part of it. */
+const showText = () => { applyText(); document.title = t('dress.title'); modeBtn.show(theme); };
+const ready = useLanguage().then(showText);
+applyTheme(theme);
+/** The floor is the stage's bottom 48 pixels, as in a tab (pet.css .floor). */
+const FLOOR = 48;
+const bounds = () => ({ W: preview.clientWidth, H: preview.clientHeight, floorY: preview.clientHeight - FLOOR, S: .5 });
 /** The body in the preview (body-host.js), and the page's clock. */
 let body = null, T = 0;
 new ResizeObserver(() => body?.set({ bounds: bounds() })).observe(preview);
@@ -52,13 +58,6 @@ preview.addEventListener('pointermove', (e) => body?.pointer('move', local(e)));
 preview.addEventListener('pointerup', (e) => body?.pointer('up', local(e)));
 preview.addEventListener('pointerleave', () => body?.pointer('leave', {}));
 
-modeBtn.addEventListener('click', () => {
-  theme = theme === 'dark' ? 'light' : 'dark';
-  applyTheme(theme, modeBtn);
-  body?.set({ theme });
-  sfx.tick();
-  save('/api/prefs', { theme });
-});
 
 function save(path, body) {
   fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
@@ -101,7 +100,8 @@ async function showFigure(s) {
     });
     if (wanted !== s.figure) { next.dispose(); return; }
     holder.body = next;
-    next.set({ roam: 'calm' });
+    // the theme may have arrived while the body was loading
+    next.set({ roam: 'calm', theme });
     body?.dispose();
     body = next;
     sfx.usePack(pack.base, pack.sounds);
@@ -464,7 +464,7 @@ function connect() {
   const ws = new WebSocket(`ws://${location.host}/socket?role=dress`);
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
-    if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; applyTheme(theme, modeBtn); body?.set({ theme }); }
+    if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; applyTheme(theme); modeBtn.show(theme); body?.set({ theme }); }
     if (m.t === 'init') loadPacks();
     if ((m.t === 'init' || m.t === 'prefs') && m.skin && JSON.stringify(normalizeSkin(m.skin)) !== JSON.stringify(skin)) apply(normalizeSkin(m.skin), false);
     if ((m.t === 'init' || m.t === 'prefs') && typeof m.language === 'string' && m.language !== language()) void useLanguage(m.language).then(() => { showText(); render(); });

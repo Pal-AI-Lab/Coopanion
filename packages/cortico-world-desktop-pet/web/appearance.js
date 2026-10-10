@@ -1,4 +1,8 @@
-/** Editor chrome follows the embedding console, its light/dark and its accent; pet palette remains a separate setting. */
+/**
+ * Editor chrome follows the embedding console, its light/dark and its accent; pet palette remains a separate setting.
+ * Embedded, the page also tells the console how tall it is (`companion:height`), so the console sizes the frame to it
+ * and scrolls it with the window instead of a scrollbar of the frame's own (dress.css `[data-embedded]`).
+ */
 export function bindAppearance(doc, win) {
   const initial = new URLSearchParams(win.location.search).get('appearance');
   const apply = (mode) => {
@@ -20,5 +24,12 @@ export function bindAppearance(doc, win) {
     applyAccent(event.data.accent);
   };
   win.addEventListener('message', onMessage);
-  return () => win.removeEventListener('message', onMessage);
+  let sizes = null;
+  if (parentOrigin && win.parent !== win && doc.body && typeof win.ResizeObserver === 'function') {
+    doc.documentElement.dataset.embedded = '';
+    const report = () => win.parent.postMessage({ type: 'companion:height', height: Math.ceil(doc.body.getBoundingClientRect().height) }, parentOrigin);
+    sizes = new win.ResizeObserver(report);
+    sizes.observe(doc.body);
+  }
+  return () => { win.removeEventListener('message', onMessage); sizes?.disconnect(); };
 }
