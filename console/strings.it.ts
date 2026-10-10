@@ -5,4 +5,5 @@ export const L: Partial<typeof en> = {
   toAdvanced: 'Modalità avanzata', toAdvancedHint: 'Mostra tutto Cortico: modelli, estensioni, World, memoria e diagnostica',
   toNormal: 'Torna alla modalità normale', toNormalHint: "Mostra solo le pagine sull'animaletto",
   featureLoadFailed: (label: string) => `Impossibile caricare «${label}»`,
+  running: 'In esecuzione', paused: 'In pausa',
 };

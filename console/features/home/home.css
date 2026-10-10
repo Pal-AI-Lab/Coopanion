@@ -68,8 +68,8 @@
   color: var(--ink-dim); font: inherit; font-size: 13.5px; cursor: pointer; text-align: left;
 }
 .companion-mode:hover { color: var(--ink); background: var(--sheet-2); border-style: solid; }
-/* 普通模式:底栏的设置与关机两个键通往高级页面,只留暂停/继续 */
-.companion-normal .rail-actions .rail-action:not(.rail-run) { display: none; }
+/* 普通模式:底栏的设置键通往高级页面,只留暂停/继续与关机 */
+.companion-normal .rail-actions .rail-action:not(.rail-run, .rail-shutdown) { display: none; }
 /* 「回应模式」「自主配置权限」的自定义弹窗:一项一行 */
 .companion-popup { min-width: min(320px, 80vw); }
 .companion-popup .companion-checks { flex-direction: column; gap: 8px; padding: 4px 0 14px; }

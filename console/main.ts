@@ -231,6 +231,25 @@ export function boot(doc: Document = document): { dispose(): void } {
     toggle.addEventListener('click', () => setMode(advanced ? 'normal' : 'advanced'), { signal: life.signal });
     next.el.insertBefore(toggle, next.el.querySelector('.railfoot'));
 
+    // the run state in words left of the pause/resume key, in the key's color; a click on it is a click on the key
+    const run = next.el.querySelector<HTMLButtonElement>('.rail-run');
+    if (run) {
+      const state = ui.h('span', 'companion-runstate');
+      state.setAttribute('aria-hidden', 'true');
+      const show = (): void => {
+        const paused = run.classList.contains('paused');
+        state.textContent = paused ? L.paused : L.running;
+        state.classList.toggle('paused', paused);
+        state.hidden = capabilities.run !== true;
+      };
+      state.addEventListener('click', () => run.click(), { signal: life.signal });
+      run.before(state);
+      const observer = new MutationObserver(show);
+      observer.observe(run, { attributes: true, attributeFilter: ['class', 'disabled'] });
+      life.own({ dispose: () => observer.disconnect() });
+      show();
+    }
+
     if (ready) {
       next.setCapabilities(capabilities);
       next.setPages(visiblePages());

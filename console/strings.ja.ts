@@ -5,4 +5,5 @@ export const L: Partial<typeof en> = {
   toAdvanced: '詳細モード', toAdvancedHint: 'Cortico のすべての設定を表示：モデル、拡張機能、World、記憶、実行診断',
   toNormal: '通常モードに戻る', toNormalHint: 'ペットに関するページだけを表示',
   featureLoadFailed: (label: string) => `「${label}」を読み込めませんでした`,
+  running: '実行中', paused: '一時停止中',
 };

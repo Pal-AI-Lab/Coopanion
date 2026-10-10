@@ -5,4 +5,5 @@ export const L: Partial<typeof en> = {
   toAdvanced: 'Расширенный режим', toAdvancedHint: 'Показать всё в Cortico: модели, расширения, World, память и диагностику',
   toNormal: 'Вернуться в обычный режим', toNormalHint: 'Показывать только страницы о питомце',
   featureLoadFailed: (label: string) => `Не удалось загрузить «${label}»`,
+  running: 'Работает', paused: 'На паузе',
 };
