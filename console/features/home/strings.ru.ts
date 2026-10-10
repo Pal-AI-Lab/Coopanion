@@ -31,4 +31,5 @@ export const S: Partial<typeof en> = {
   connectedLabel: 'Подключённая модель:',
   choicesLabel: 'Доступные модели:',
   notConnected: 'Не подключено',
+  schemeTitle: 'Цветовая схема',
 };

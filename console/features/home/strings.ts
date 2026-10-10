@@ -40,6 +40,7 @@ const zh = {
   connectedLabel: '已连接的模型：',
   choicesLabel: '可选择的模型：',
   notConnected: '暂未连接',
+  schemeTitle: '配色方案',
 };
 
 export const en: typeof zh = {
@@ -73,6 +74,7 @@ export const en: typeof zh = {
   connectedLabel: 'Connected model:',
   choicesLabel: 'Available models:',
   notConnected: 'Not connected',
+  schemeTitle: 'Color scheme',
 };
 
 export const S = pick({

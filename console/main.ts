@@ -4,8 +4,9 @@
  * - 页面表多了关于桌宠的五页「开始」「习惯」「装扮」「语音输入」「电脑操作」(features/home、pet、dress、voice、cua)和「对话」(features/chat),
  *   上游的终端页改名「运行轨迹」放进「高级」组,其余页重排、改了几个分组名;
  * - 「系统提示词」页的工具栏多一个「清空重开」(features/clear-session.ts);
- * - 两种模式(features/mode.ts):普通模式左栏只有那五页、「系统提示词」「用量与成本」和「对话」,别的路由都回到「开始」,底栏只留暂停键;
- *   高级模式再接上 Cortico 的全部页面。左栏底部的开关切换模式,页面也可以经 requestMode 请求换,换模式时重建左栏;
+ * - 两种模式(features/mode.ts):普通模式左栏只有那五页、「系统提示词」「用量与成本」和「对话」,别的路由都回到「开始」;
+ *   底栏两种模式都只有运行状态、暂停/继续与关机;
+ *   高级模式再接上 Cortico 除「设置」页以外的全部页面。左栏底部的开关切换模式,页面也可以经 requestMode 请求换,换模式时重建左栏;
  * - 空路由打开「开始」;
  * - 左上角是 Coopanion 的标志与字母(两块,居中对齐,左栏窄时字母跟着缩),下面是版本与项目地址,有新 Release 时再加一行下载链接(features/release.ts);
  * - 左栏各组按「桌宠五页 · 对话 → World → 设置 → Persona & Memory → 高级」重排。
@@ -31,8 +32,6 @@ import { usageFeature } from './features/usage/index.ts';
 import { providersFeature } from './features/providers/index.ts';
 import { worldsFeature } from './features/worlds/index.ts';
 import { extensionsFeature } from './features/extensions/index.ts';
-import { appearanceFeature } from './features/appearance/index.ts';
-import { settingsFeature } from './features/settings/index.ts';
 import { homeFeature } from './features/home/index.ts';
 import { petFeature } from './features/pet/index.ts';
 import { dressFeature } from './features/dress/index.ts';
@@ -61,8 +60,8 @@ export const BASIC_FEATURES: readonly FrameworkFeature[] = [
 /**
  * 控制台自己的页面。与贡献方的页无关——那一路完全由 manifest 驱动。
  *
- * 顺序即左栏顺序。`hidden` 的页面(外观)不进左栏,
- * 但仍要在这张表里:路由分派只认这张表,设置页里嵌着它的同时,直达链接也要能开。
+ * 顺序即左栏顺序。上游的「设置」页(通用、外观)不在表里:语言在「习惯」,配色方案在「开始」,
+ * 底栏的齿轮键也不显示。
  */
 export const FEATURES: readonly FrameworkFeature[] = [
   ...BASIC_FEATURES,
@@ -70,7 +69,7 @@ export const FEATURES: readonly FrameworkFeature[] = [
   { ...extensionsFeature, navMode: 'group', navGroup: L.settings },
   { ...traceFeature, navMode: 'group', navGroup: L.advanced },
   { ...coreFeature, navMode: 'group', navGroup: L.advanced },
-  worldsFeature, appearanceFeature, settingsFeature,
+  worldsFeature,
 ];
 
 /** 左栏分组的显示顺序;上游 shell 按类型固定追加,这里在它画完之后挪位置。 */
