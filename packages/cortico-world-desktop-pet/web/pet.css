@@ -31,7 +31,7 @@ body{
   user-select:none; -webkit-user-select:none;
 }
 /* line icons (ui.js): one line weight at every size, the same as the settings window's */
-svg[viewBox="0 0 24 24"][stroke="currentColor"]{stroke-width:1.5px}
+svg[viewBox="0 0 24 24"][stroke="currentColor"]{stroke-width:1.6px}
 svg[viewBox="0 0 24 24"][stroke="currentColor"] *{vector-effect:non-scaling-stroke}
 /* the app language is on <html lang> (web/i18n.js): each CJK script gets its own fonts, Latin and Cyrillic the system's */
 :lang(zh) body{font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
@@ -175,7 +175,8 @@ body.desk .floor{display:none}
 .b-own button[type="submit"]{flex:none; font:inherit; font-size:12.5px; padding:4px 10px; border-radius:8px; border:0; background:var(--text); color:var(--surface); cursor:pointer}
 .b-expand{flex:none; display:grid; place-items:center; width:26px; height:26px; padding:0; border:0; border-radius:50%; background:none; color:var(--muted); cursor:pointer}
 .b-expand:hover{color:var(--text)}
-.b-expand svg{width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
+.b-expand svg{width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.6px; stroke-linecap:round; stroke-linejoin:round}
+.b-expand svg *{vector-effect:non-scaling-stroke}
 .b-opt.dim, .b-own.dim{opacity:.35}
 /* an app's conversation: one step per bubble, with the answer's controls under Coo's line */
 .d-mark{color:var(--skin-eye); font-weight:700}
@@ -333,11 +334,13 @@ body.desk .floor{display:none}
 }
 .tool .ic{position:relative; display:grid; place-items:center}
 .tool:hover{color:var(--skin-eye); border-color:var(--skin-eye)}
-.tool svg{width:18px; height:18px; display:block}
-.tool .badge{right:-12px; bottom:-10px}
+.tool svg{width:20px; height:20px; display:block}
+/* the key badge sits off the button's lower right, clear of the icon */
+.tool .badge{right:-14px; bottom:-9px}
 /* the voice switch: struck through when off, faded while the recognizer is not ready, lit while hearing */
 .tool.off{color:var(--muted)}
-.tool.waiting svg{opacity:.45}
+/* not ready yet: muted, at the same line weight (a faded icon reads as a thinner one) */
+.tool.waiting{color:var(--muted)}
 .tool.live{color:var(--skin-eye); border-color:var(--skin-eye)}
 /* held down: a ring closes in; when it is full the sentence is sent */
 .tool.holding::after{
