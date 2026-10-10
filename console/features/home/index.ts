@@ -1,7 +1,7 @@
 /**
  * 「开始」: the app's home page. Everything the first minutes need on one page, top to bottom in
  * the order it is needed: the model service and its key, then the pet, then the console's color
- * scheme (appearance.ts, what Cortico's settings page held). The model card is one view:
+ * scheme (appearance.ts). The model card is one view:
  * the service in use on the first row (with 「测试连接」), every other one on the second (in the order
  * for the console's language; outside Chinese the services that take mainland China accounts only
  * behind a More button); the picked one's model and key boxes are below, and 「保存并开始」 saves the

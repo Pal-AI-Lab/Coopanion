@@ -78,6 +78,8 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
 
 /* ---------- the rail's foot: the run state in words, both states in color ---------- */
 .rail-actions { align-items: center; }
+/* only pause/resume and shut down: the language is on 习惯, the color scheme on 开始 */
+.rail-actions .rail-action:not(.rail-run, .rail-shutdown) { display: none; }
 .companion-runstate { margin-right: 2px; font: 600 12.5px/1 var(--sans); color: var(--accent); white-space: nowrap; cursor: pointer; }
 .companion-runstate.paused { color: var(--warn); }
 .companion-runstate[hidden] { display: none; }
