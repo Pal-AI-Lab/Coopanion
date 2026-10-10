@@ -1,6 +1,6 @@
 import { ResponsesProvider, type ResponsesProviderOptions } from 'cortico/providers/openai-responses-compat/native.ts';
 import type { ResponseAssembly } from 'cortico/providers/transport/response-assembly.ts';
-import type { GenerateOptions } from 'cortico/core/generation.ts';
+import type { GenerateOptions, Generation } from 'cortico/core/generation.ts';
 import type { Request } from 'cortico/protocol/open-responses/index.ts';
 import { imagesAfterResults, type Message, type ResultFormat } from './chat.ts';
 import { sinceLastDelivery } from './context.ts';
@@ -11,6 +11,7 @@ export interface VendorQuirks {
   /** The effort values the service takes for a model, where they differ from the levels. */
   effort?: (model: string) => EffortMap | undefined;
   lenientReasoning?: true;
+  nonStreamingResponses?: true;
   toolOutputText?: true;
 }
 
@@ -27,6 +28,11 @@ const RESPONSES_RESULTS: ResultFormat = {
 export class VendorResponses extends ResponsesProvider {
   constructor(opts: ResponsesProviderOptions, private readonly quirks: VendorQuirks) {
     super(opts);
+  }
+
+  /** Fallback for premature item.done events and terminal item revisions: Core executes only the full response's tools. */
+  override respond(request: Request, options: GenerateOptions = {}): Promise<Generation> {
+    return super.respond(request, this.quirks.nonStreamingResponses ? { ...options, onEvent: undefined } : options);
   }
 
   protected override buildResponseBody(request: Request, options: GenerateOptions): Record<string, unknown> {

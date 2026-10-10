@@ -14,7 +14,8 @@
  * `toolOutputText` services on Responses. Images go out only from the newest delivered batch of events on
  * (`sinceLastDelivery`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
  * Streamed reasoning from services marked `lenientReasoning` is rewritten into standard events
- * (`LenientReasoningAssembly`).
+ * (`LenientReasoningAssembly`). `nonStreamingResponses` services use a non-streaming fallback so
+ * tools execute only after the complete response has been read and validated.
  */
 import type { ProviderModule, ProviderInstance } from 'cortico/providers/base.ts';
 import type { LLMProviderEntry, ReasoningTier } from 'cortico/core/types.ts';
@@ -169,7 +170,7 @@ export const COO = {
           media,
           keepThinking: host.keepThinking,
           reasoningReplay: vendor?.encryptedReasoning ? 'encrypted' : 'plaintext',
-        }, { effort, lenientReasoning: vendor?.lenientReasoning, toolOutputText: vendor?.toolOutputText }),
+        }, { effort, lenientReasoning: vendor?.lenientReasoning, nonStreamingResponses: vendor?.nonStreamingResponses, toolOutputText: vendor?.toolOutputText }),
     };
   },
 } satisfies ProviderModule;
