@@ -1,11 +1,13 @@
 /**
- * 「习惯」: the everyday settings of the desktop pet, written to the desktop-pet World's config
- * group through `/api/config` (only the keys shown here are sent). The pet's own menu changes some
- * of the same values, so they are read again every few seconds. Dressing up has its own page
- * (features/dress). The hover buttons are picked from the pet menu's own actions, drawn with the
- * pet page's icons. The last row switches the app's anonymous usage statistics (the `companion`
- * group, core/telemetry.ts). The 「音效」 card below writes the World's sound group: the master switch
- * (the same one the pet menu flips), each kind of sound, and how long Coo snores in each sleep.
+ * 「习惯」: the everyday settings of the desktop pet, in sections: 通用 (language, what Coo calls you,
+ * the app's anonymous usage statistics in the `companion` group, core/telemetry.ts), 行为与互动, 显示,
+ * 音效 and 电脑操作 (features/cua). Every row names its setting in the label column, except one that
+ * only refines the row above it; on/off settings are checkboxes. Most are written to the desktop-pet
+ * World's config group through `/api/config` (only the keys shown here are sent). The pet's own menu
+ * changes some of the same values, so they are read again every few seconds. Dressing up has its own
+ * page (features/dress). The hover buttons are picked from the pet menu's own actions, drawn with the
+ * pet page's icons. The 「音效」 section writes the World's sound group: the master switch (the same
+ * one the pet menu flips), each kind of sound, and how long Coo snores in each sleep.
  *
  * The first row is the app language (`language` in the `companion` group), listed by the names the
  * Core gives (`/api/config/options/coopanion.language`). A change applies at once: the Core tells the
@@ -19,7 +21,8 @@
 import { ICONS } from 'cortico-world-desktop-pet/web/ui.js';
 import { get, post, setConfig } from '../../core/api.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
-import { intro, untitled } from '../intro.ts';
+import { intro } from '../intro.ts';
+import { cuaSection } from '../cua/index.ts';
 import { scaleSlider } from './scale-slider.ts';
 import { S } from './strings.ts';
 
@@ -38,7 +41,6 @@ const K = 'worlds.desktop-pet';
 const KEYS = {
   user: `${K}.user`,
   roam: `${K}.roam`,
-  theme: `${K}.theme`,
   scale: `${K}.window.scale`,
   lockFps: `${K}.window.lockFrameRate`,
   frameRate: `${K}.window.frameRate`,
@@ -93,8 +95,10 @@ async function mount(ctx: FeatureContext): Promise<void> {
   root.classList.add('home');
 
   /* ---------- habits ---------- */
-  const habits = ui.sheet({ title: S.settingsTitle });
+  const habits = ui.sheet({ title: S.groupGeneral });
   const msg = ui.msgline('');
+  // a failure shows at the bottom of its own section
+  const behaviorMsg = ui.msgline(''), displayMsg = ui.msgline('');
 
   const language = ui.select({ onChange: (v) => void save(LANGUAGE_KEY, v, STATS_GROUP) });
   void get<{ options?: Array<{ value: string; label: string }> }>(LANGUAGE_OPTIONS, opts).then((d) => {
@@ -106,10 +110,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   void post<{ defaultUser?: string }>(PET_STATE, { args: [] }, opts).then((s) => { if (s?.defaultUser) user.placeholder = s.defaultUser; }).catch(() => {});
   const roam = ui.segmented([
     { value: 'free', label: S.roamFree }, { value: 'calm', label: S.roamCalm }, { value: 'off', label: S.roamOff },
-  ], { size: 'sm', onSelect: (v) => void save(KEYS.roam, v) });
-  const theme = ui.segmented([
-    { value: 'dark', label: S.themeDark }, { value: 'light', label: S.themeLight },
-  ], { size: 'sm', onSelect: (v) => void save(KEYS.theme, v) });
+  ], { size: 'sm', onSelect: (v) => void save(KEYS.roam, v, GROUP, behaviorMsg) });
   const scaleText = ui.h('span', 'companion-rangeval');
   const scaleBox = ui.h('div', 'companion-rangebox');
   const scale = scaleSlider(root.ownerDocument, {
@@ -121,12 +122,12 @@ async function mount(ctx: FeatureContext): Promise<void> {
   scaleBox.append(scale.el, scaleText);
   new ResizeObserver(() => scale.relayout()).observe(scaleBox);
   const frameRate = ui.segmented(FRAME_RATES.map((n) => ({ value: String(n), label: n ? String(n) : S.frameUnlimited })),
-    { size: 'sm', onSelect: (v) => void save(KEYS.frameRate, Number(v)) });
-  const lockFps = ui.checkbox(S.lockFps, { onChange: (on) => void save(KEYS.lockFps, on) });
-  const hideFullscreen = ui.checkbox(S.hideFullscreen, { onChange: (on) => void save(KEYS.hideFullscreen, on) });
-  const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on) });
-  const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on) });
-  const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on) });
+    { size: 'sm', onSelect: (v) => void save(KEYS.frameRate, Number(v), GROUP, displayMsg) });
+  const lockFps = ui.checkbox(S.lockFps, { onChange: (on) => void save(KEYS.lockFps, on, GROUP, displayMsg) });
+  const hideFullscreen = ui.checkbox(S.hideFullscreen, { onChange: (on) => void save(KEYS.hideFullscreen, on, GROUP, displayMsg) });
+  const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on, GROUP, displayMsg) });
+  const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on, GROUP, behaviorMsg) });
+  const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on, GROUP, behaviorMsg) });
   // the two rows below follow the pet panel's state; 「自定义…」 is picked by saving its popup
   let habit: Required<HabitState> = { wake: { wakeOn: 'poke', wakeKinds: ['poke'] }, selfAdjust: { mode: 'default', custom: {} } };
   const wakeHint = ui.h('p', 'home-note');
@@ -136,7 +137,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
       if (v === 'custom') return;
       habit.wake.wakeOn = v;
       renderHabits();
-      void save(KEYS.wakeOn, v);
+      void save(KEYS.wakeOn, v, GROUP, behaviorMsg);
     },
   });
   const selfHint = ui.h('p', 'home-note');
@@ -146,7 +147,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
       if (v === 'custom') return;
       habit.selfAdjust.mode = v;
       renderHabits();
-      void save(KEYS.selfAdjust, v);
+      void save(KEYS.selfAdjust, v, GROUP, behaviorMsg);
     },
   });
   // 「自定义…」 opens its popup each time, picked or not; the row shows it picked once the popup is saved
@@ -232,7 +233,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
       // kept in the menu's order, whatever order they were picked in
       picked = ACTIONS.map(([a]) => a).filter((a) => (a === id ? !on : picked.includes(a)));
       renderHover();
-      void save(KEYS.hover, picked.join(','));
+      void save(KEYS.hover, picked.join(','), GROUP, behaviorMsg);
     });
     hoverBox.append(b);
     return [id, b] as const;
@@ -250,34 +251,44 @@ async function mount(ctx: FeatureContext): Promise<void> {
     const r = ui.h('div', 'companion-row');
     const l = ui.h('div', 'companion-label', label);
     const c = ui.h('div', 'companion-control');
-    c.append(control);
+    // what the setting means first, the setting under it
     if (hint) c.append(typeof hint === 'string' ? ui.h('p', 'home-note', hint) : hint);
+    c.append(control);
     r.append(l, c);
     return r;
   };
   // the World declares this setting on Windows only; elsewhere its value never arrives and the row stays hidden
-  const hideFullscreenRow = row('', hideFullscreen.el, S.hideFullscreenHint);
+  const hideFullscreenRow = row(S.hideFullscreenLabel, hideFullscreen.el, S.hideFullscreenHint);
   hideFullscreenRow.hidden = true;
+
+  // sections: general, how Coo behaves and is reached, how it shows on the screen, sounds, computer use;
+  // every row names its setting on the left, except one that only refines the row above it
   habits.body.append(
     row(S.language, language, S.languageHint),
     row(S.user, user, S.userHint),
+    row(S.statsLabel, statsBox, S.statsHint),
+    msg,
+  );
+  const behavior = ui.sheet({ title: S.groupBehavior });
+  behavior.body.append(
     row(S.roam, roam.el),
     row(S.wake, wake.el, wakeHint),
     row(S.self, selfMode.el, selfHint),
-    row(S.theme, theme.el),
+    row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
+    row(S.dblclickLabel, dblclick.el),
+    row(S.statusBubbleLabel, statusBubble.el, S.statusBubbleHint),
+    behaviorMsg,
+  );
+  const display = ui.sheet({ title: S.groupDisplay });
+  display.body.append(
     row(S.scale, scaleBox),
     row(S.frameRate, frameRate.el, S.frameRateHint),
     row('', lockFps.el, S.lockFpsHint),
     hideFullscreenRow,
-    row('', remember.el, S.rememberHint),
-    row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
-    row('', dblclick.el),
-    row('', statusBubble.el, S.statusBubbleHint),
-    row('', statsBox, S.statsHint),
-    msg,
+    row(S.rememberLabel, remember.el, S.rememberHint),
+    displayMsg,
   );
-  untitled(habits);
-  root.append(intro(ui, S.nav), habits.el);
+  root.append(intro(ui, S.nav), habits.el, behavior.el, display.el);
 
   /* ---------- sounds ---------- */
   const sounds = ui.sheet({ title: S.soundTitle });
@@ -297,18 +308,19 @@ async function mount(ctx: FeatureContext): Promise<void> {
   const snoreBox = ui.h('div', 'companion-rangebox');
   snoreBox.append(snore, ui.h('span', 'companion-rangeval', S.snoreUnit));
   sounds.body.append(
-    row('', sound.el, S.soundHint),
+    row(S.soundLabel, sound.el, S.soundHint),
     row(S.soundKinds, kindBox, S.soundKindsHint),
     row(S.snore, snoreBox, S.snoreHint),
     soundMsg,
   );
-  root.append(sounds.el);
+  root.append(sounds.el, cuaSection(ctx, row));
 
   /* ---------- behaviour ---------- */
   const save = async (key: string, value: string | number | boolean, group = GROUP, line = msg) => {
     try {
       await setConfig(group, { [key]: value }, opts);
-      line.textContent = S.saved;
+      // everything saves as it changes: only a failure is worth a line
+      line.textContent = '';
       line.classList.remove('bad');
     } catch (err) {
       if (signal.aborted) return;
@@ -316,17 +328,17 @@ async function mount(ctx: FeatureContext): Promise<void> {
       line.classList.add('bad');
     }
   };
-  /** Calls a pet panel method; a failure shows on the habits line, and the rows follow the state it returns. */
+  /** Calls a pet panel method (回应模式, 自主配置权限); a failure shows under 行为与互动, and the rows follow the state it returns. */
   const callPet = async (method: string, args: unknown[]) => {
     try {
       const state = await post<HabitState>(PET_PANEL + method, { args }, opts);
       takeHabits(state);
-      msg.textContent = S.saved;
-      msg.classList.remove('bad');
+      behaviorMsg.textContent = '';
+      behaviorMsg.classList.remove('bad');
     } catch (err) {
       if (signal.aborted) return;
-      msg.textContent = S.saveFailed(errText(err));
-      msg.classList.add('bad');
+      behaviorMsg.textContent = S.saveFailed(errText(err));
+      behaviorMsg.classList.add('bad');
     }
   };
   function takeHabits(state: HabitState | null | undefined): void {
@@ -342,7 +354,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
     scaleTimer = null;
     if (scale.value === scaleSent) return;
     scaleSent = scale.value;
-    void save(KEYS.scale, scale.value);
+    void save(KEYS.scale, scale.value, GROUP, displayMsg);
   }
   signal.addEventListener('abort', () => { if (scaleTimer) clearTimeout(scaleTimer); });
   const saveUser = () => {
@@ -382,7 +394,6 @@ async function mount(ctx: FeatureContext): Promise<void> {
       user.dataset.saved = user.value;
     }
     if (typeof values[KEYS.roam] === 'string') roam.setValue(values[KEYS.roam] as string);
-    if (typeof values[KEYS.theme] === 'string') theme.setValue(values[KEYS.theme] as string);
     if (typeof values[KEYS.scale] === 'number' && !scale.active && active !== scale.el) { scale.set(values[KEYS.scale] as number); showScale(); }
     if (typeof values[KEYS.frameRate] === 'number') frameRate.setValue(String(values[KEYS.frameRate]));
     if (typeof soundValues[KEYS.sound] === 'boolean') sound.setChecked(soundValues[KEYS.sound] as boolean);

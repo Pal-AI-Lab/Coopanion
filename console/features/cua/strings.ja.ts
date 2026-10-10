@@ -1,7 +1,6 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  nav: 'コンピューター操作',
   title: 'コンピューター操作',
   enabled: 'Coo にこのコンピューターを使わせる',
   enabledHint: 'オフのときは、Coo は画面を見ることも、マウスやキーボードに触れることもできません。',
@@ -19,8 +18,7 @@ export const S: Partial<typeof en> = {
   grantSuffix: '分',
   grantBad: (min: number, max: number) => `${min} から ${max} までの整数を入力してください`,
   more: 'あなたに譲る時間、スクリーンショットのサイズなどの設定は、詳細モードの「コンピューター操作」World ページにあります。',
-  saved: '保存しました',
-  turnedOn: 'コンピューター操作をオンにしました',
-  turnedOff: 'コンピューター操作をオフにしました',
   saveFailed: (why: string) => `保存できませんでした：${why}`,
+  enabledLabel: 'コンピューターの使用',
+  controlLabel: 'マウスとキーボード',
 };

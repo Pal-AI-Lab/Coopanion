@@ -1,7 +1,6 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  nav: '컴퓨터 사용',
   title: '컴퓨터 사용',
   enabled: 'Coo가 이 컴퓨터를 사용하도록 허용',
   enabledHint: '끄면 Coo는 화면을 볼 수도, 마우스와 키보드를 만질 수도 없습니다.',
@@ -19,8 +18,7 @@ export const S: Partial<typeof en> = {
   grantSuffix: '분',
   grantBad: (min: number, max: number) => `${min}부터 ${max}까지의 정수를 입력하세요`,
   more: '비켜 주는 시간, 스크린샷 크기 등 나머지 설정은 고급 모드의 컴퓨터 사용 World 페이지에 있습니다.',
-  saved: '저장됨',
-  turnedOn: '컴퓨터 사용을 켰습니다',
-  turnedOff: '컴퓨터 사용을 껐습니다',
   saveFailed: (why: string) => `저장하지 못했습니다: ${why}`,
+  enabledLabel: '컴퓨터 사용',
+  controlLabel: '마우스와 키보드',
 };

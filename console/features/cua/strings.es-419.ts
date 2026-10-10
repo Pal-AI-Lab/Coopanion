@@ -1,7 +1,6 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  nav: 'Uso de la computadora',
   title: 'Uso de la computadora',
   enabled: 'Dejar que Coo use esta computadora',
   enabledHint: 'Si está desactivado, Coo no puede ver la pantalla ni tocar el mouse y el teclado.',
@@ -19,8 +18,7 @@ export const S: Partial<typeof en> = {
   grantSuffix: 'minutos',
   grantBad: (min: number, max: number) => `Ingresa un número entero de ${min} a ${max}`,
   more: 'Cuánto tiempo te cede el paso, el tamaño de las capturas y el resto de la configuración están en la página del World Uso de la computadora, en el modo avanzado.',
-  saved: 'Guardado',
-  turnedOn: 'El uso de la computadora está activado',
-  turnedOff: 'El uso de la computadora está desactivado',
   saveFailed: (why: string) => `No se guardó: ${why}`,
+  enabledLabel: 'Usar la computadora',
+  controlLabel: 'Mouse y teclado',
 };

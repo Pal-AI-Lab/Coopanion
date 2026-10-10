@@ -1,7 +1,6 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  nav: 'Computersteuerung',
   title: 'Computersteuerung',
   enabled: 'Coo diesen Computer benutzen lassen',
   enabledHint: 'Wenn aus, kann Coo weder den Bildschirm sehen noch Maus und Tastatur anfassen.',
@@ -19,8 +18,7 @@ export const S: Partial<typeof en> = {
   grantSuffix: 'Minuten',
   grantBad: (min: number, max: number) => `Gib eine ganze Zahl von ${min} bis ${max} ein`,
   more: 'Vortrittszeit, Screenshot-Größen und die übrigen Einstellungen sind im erweiterten Modus auf der World-Seite Computersteuerung.',
-  saved: 'Gespeichert',
-  turnedOn: 'Computersteuerung ist an',
-  turnedOff: 'Computersteuerung ist aus',
   saveFailed: (why: string) => `Nicht gespeichert: ${why}`,
+  enabledLabel: 'Computer verwenden',
+  controlLabel: 'Maus und Tastatur',
 };

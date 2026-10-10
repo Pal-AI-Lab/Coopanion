@@ -26,8 +26,6 @@
 .featureintro:has(> .companion-introacts) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; align-items: center; }
 .featureintro:has(> .companion-introacts) > :not(.companion-introacts) { grid-column: 1; }
 .featureintro > .companion-introacts { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 8px; }
-/* a card right under the heading that does not repeat the page's title */
-.featureslot > .featureintro + .sheet.untitled { padding-top: 0; }
 
 /* 对话: the same heading and width as the other pages; the thread scrolls under it, the scrollbar at the window's edge */
 .featureslot-chat { padding: 0; overflow: hidden; scrollbar-gutter: auto; }
@@ -89,3 +87,6 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
 
 /* 换模式时只藏起普通模式不列的项(main.ts),导航项自带 display,要显式让 hidden 生效 */
 nav.stack .navitem[hidden], nav.stack .navgroup[hidden] { display: none; }
+
+/* ---------- checkboxes and radio buttons in the theme's color, a shade darker ---------- */
+input[type="checkbox"], input[type="radio"] { accent-color: color-mix(in srgb, var(--accent) 78%, #000); }

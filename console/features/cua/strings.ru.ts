@@ -1,7 +1,6 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  nav: 'Управление компьютером',
   title: 'Управление компьютером',
   enabled: 'Разрешить Coo управлять этим компьютером',
   enabledHint: 'Если выключено, Coo не видит экран и не может трогать мышь и клавиатуру.',
@@ -19,8 +18,7 @@ export const S: Partial<typeof en> = {
   grantSuffix: 'мин',
   grantBad: (min: number, max: number) => `Введите целое число от ${min} до ${max}`,
   more: 'Сколько уступать вам, размеры скриншотов и остальные настройки находятся на странице World «Управление компьютером» в расширенном режиме.',
-  saved: 'Сохранено',
-  turnedOn: 'Управление компьютером включено',
-  turnedOff: 'Управление компьютером выключено',
   saveFailed: (why: string) => `Не сохранено: ${why}`,
+  enabledLabel: 'Работа с компьютером',
+  controlLabel: 'Мышь и клавиатура',
 };

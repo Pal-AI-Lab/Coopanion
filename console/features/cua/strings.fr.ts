@@ -1,7 +1,6 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  nav: "Contrôle de l'ordinateur",
   title: "Contrôle de l'ordinateur",
   enabled: 'Laisser Coo utiliser cet ordinateur',
   enabledHint: "Désactivé, Coo ne peut ni voir l'écran ni toucher la souris et le clavier.",
@@ -19,8 +18,7 @@ export const S: Partial<typeof en> = {
   grantSuffix: 'minutes',
   grantBad: (min: number, max: number) => `Saisissez un nombre entier de ${min} à ${max}`,
   more: "Le délai pour vous laisser la main, la taille des captures et les autres réglages se trouvent sur la page World Contrôle de l'ordinateur, en mode avancé.",
-  saved: 'Enregistré',
-  turnedOn: "Contrôle de l'ordinateur activé",
-  turnedOff: "Contrôle de l'ordinateur désactivé",
   saveFailed: (why: string) => `Non enregistré : ${why}`,
+  enabledLabel: "Utiliser l'ordinateur",
+  controlLabel: 'Souris et clavier',
 };

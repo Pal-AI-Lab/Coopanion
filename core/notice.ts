@@ -221,7 +221,7 @@ const zh = {
   guideAfter: (name: string) => [
     `接下来可以和${name}商量你们之间的设定:你的性格和说话方式、你怎么称呼对方、对方想怎么叫你、希望你平时做什么不做什么。`,
     '- 你的人设是工作区里的 CONSTITUTION.md,每次开新 session 都放进你的系统前缀。商量出结果后你可以自己改它,下一次 session 生效。',
-    '- 对方的称呼是设置窗口「习惯」页的「怎么称呼你」,由对方自己改;商量好的称呼和其他偏好可以记进你的工作区。',
+    '- 对方的称呼是设置窗口「习惯」页的「称呼」,由对方自己改;商量好的称呼和其他偏好可以记进你的工作区。',
     '- 设置窗口的「系统提示词」页能看到并编辑你的整份系统提示词,CONSTITUTION 也在里面。可以引导对方去那里按自己的喜好改;对方想改什么,你也可以替对方改。',
     '不用一次说完,看对方的兴致。',
   ],
@@ -279,7 +279,7 @@ const en: typeof zh = {
   guideAfter: (name) => [
     `Next you can work out with ${name} how things are between you: your personality and way of talking, what you call them, what they want to call you, what they would like you to do or not do day to day.`,
     '- Your persona is CONSTITUTION.md in your workspace, which goes into your system prefix at the start of every new session. Once you have agreed on something you can edit it yourself; it takes effect from the next session.',
-    '- What you call them is "What to call you" on the Habits page of the settings window, which they change themselves; a name you agreed on and other preferences can go into your workspace.',
+    '- What you call them is "Your name" on the Habits page of the settings window, which they change themselves; a name you agreed on and other preferences can go into your workspace.',
     '- The System prompt page of the settings window shows your whole system prompt, CONSTITUTION included, and lets them edit it. You can point them there to change it to their liking; you can also make the changes they want for them.',
     'No need to cover it all at once; follow their interest.',
   ],
