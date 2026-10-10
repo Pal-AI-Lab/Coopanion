@@ -113,3 +113,6 @@ details.sheet.fold.home-palette > .foldbody { padding: 0; margin-top: 10px; }
 .home-vendors.home-current { flex-wrap: nowrap; }
 .home-current > .home-vendor, .home-current > .btn { flex: none; }
 .home-current > .home-testmsg { flex: 1 1 auto; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+
+/* 节标题右边的注释(习惯页「电脑操作」):与说明文字同样式 */
+.sheet h3 > .companion-titlenote { margin-left: 12px; font: 400 var(--text-detail)/1.55 var(--sans); color: var(--muted-foreground); letter-spacing: 0; }
