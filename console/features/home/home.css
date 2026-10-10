@@ -49,7 +49,7 @@
 .companion-scale.past > .cs-divider { background: var(--accent); }
 /* 音效:每类一个勾选框,一行放不下就折行 */
 .companion-checks { display: flex; flex-wrap: wrap; gap: 6px 18px; padding-top: 6px; }
-.companion-dressframe { display: block; width: 100%; height: 620px; margin-top: 10px; border: 1px solid var(--border); border-radius: 12px; background: transparent; }
+.companion-dressframe { display: block; width: 100%; height: 900px; border: 0; background: transparent; }
 /* 悬停按钮:每个动作一个圆形开关,选中的点亮 */
 .companion-hoverpick { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 2px; }
 .companion-hoverbtn { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 64px; max-width: 96px; padding: 0; border: 0; background: none; color: var(--ink-soft); font: inherit; cursor: pointer; }

@@ -13,7 +13,7 @@
  * Text follows the app language (i18n.js): the page's own from its tables, the names of figures, Coo's
  * palettes and accessories, and other packs' picks from the packs' manifests.
  */
-import { applyTheme } from './ui.js';
+import { themeButton } from './ui.js';
 import { applyText, language, nameIn, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import {
@@ -21,6 +21,7 @@ import {
   PALETTES, HEADS, SIDES, GLASSES, NECKS, ACC_COLORS, LINKED, NO_BODY, ROLES,
 } from './coo/coo.js';
 import { loadBody } from './body-host.js';
+import { dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 
 import { bindAppearance } from './appearance.js';
 bindAppearance(document, window);
@@ -35,14 +36,27 @@ const sfx = createSfx({ storageKey: 'cortico-pet.dress-sound.v1', volume: .35 })
 ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => sfx.unlock(), { capture: true }));
 
 let skin = normalizeSkin(null);
-let theme = document.documentElement.dataset.theme;
-const modeBtn = $('#mode');
-/** The page's own text in the app language; the theme button's title is part of it. */
-const showText = () => { applyText(); document.title = t('dress.title'); applyTheme(theme, modeBtn); };
-const ready = useLanguage().then(showText);
-applyTheme(theme, modeBtn);
+const root = document.documentElement;
+/** The pet's night/day setting. */
+let theme = root.dataset.theme;
 const preview = $('#preview');
-const bounds = () => ({ W: preview.clientWidth, H: preview.clientHeight, floorY: preview.clientHeight - 30, S: .5 });
+/**
+ * The pet's night/day shows on the preview only (dress.css themes `#preview` by its own data-theme); the rest of
+ * the page follows the settings window when embedded (appearance.js sets data-ui-theme), else the pet's setting.
+ */
+const showTheme = () => { preview.dataset.theme = theme; root.dataset.theme = root.dataset.uiTheme ?? theme; };
+new MutationObserver(showTheme).observe(root, { attributes: true, attributeFilter: ['data-ui-theme'] });
+// the stage as on the 开始 page's preview (stage.js): a wall that answers the pointer, a floor with icons, the night/day button
+const modeBtn = modeButton(preview, () => theme, (next) => { theme = next; showTheme(); body?.set({ theme }); sfx.tick(); }, (next) => save('/api/prefs', { theme: next }), themeButton);
+lightWall(preview);
+dressFloor($('#floor'));
+/** The page's own text in the app language; the theme button's title is part of it. */
+const showText = () => { applyText(); document.title = t('dress.title'); modeBtn.show(theme); };
+const ready = useLanguage().then(showText);
+showTheme();
+/** The floor is the stage's bottom 48 pixels, as in a tab (pet.css .floor). */
+const FLOOR = 48;
+const bounds = () => ({ W: preview.clientWidth, H: preview.clientHeight, floorY: preview.clientHeight - FLOOR, S: .5 });
 /** The body in the preview (body-host.js), and the page's clock. */
 let body = null, T = 0;
 new ResizeObserver(() => body?.set({ bounds: bounds() })).observe(preview);
@@ -51,14 +65,6 @@ preview.addEventListener('pointerdown', (e) => { const p = local(e); body?.point
 preview.addEventListener('pointermove', (e) => body?.pointer('move', local(e)));
 preview.addEventListener('pointerup', (e) => body?.pointer('up', local(e)));
 preview.addEventListener('pointerleave', () => body?.pointer('leave', {}));
-
-modeBtn.addEventListener('click', () => {
-  theme = theme === 'dark' ? 'light' : 'dark';
-  applyTheme(theme, modeBtn);
-  body?.set({ theme });
-  sfx.tick();
-  save('/api/prefs', { theme });
-});
 
 function save(path, body) {
   fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
@@ -70,7 +76,9 @@ function save(path, body) {
 let packs = [];
 let packStatus = { importable: false, max: 0, depth: 3, problems: [] };
 const loadPacks = () => Promise.all([fetch('/api/figures').then((r) => r.json()), fetch('/api/figures/status').then((r) => r.json())])
-  .then(([list, status]) => { packs = list; packStatus = status; render(); }).catch(() => {});
+  .then(([list, status]) => { packs = list; packStatus = status; lightFor(skin); render(); }).catch(() => {});
+/** The preview's light in the picked body's colors (stage.js glowColor), the settings window's theme color when its pack names none. */
+const lightFor = (s) => setGlow(preview, glowColor(packs.find((p) => p.id === s.figure), s));
 loadPacks();
 let wanted = null, loading = null;
 // a pack that will not load or breaks previews as Coo, as on the desktop
@@ -101,7 +109,8 @@ async function showFigure(s) {
     });
     if (wanted !== s.figure) { next.dispose(); return; }
     holder.body = next;
-    next.set({ roam: 'calm' });
+    // the theme may have arrived while the body was loading
+    next.set({ roam: 'calm', theme });
     body?.dispose();
     body = next;
     sfx.usePack(pack.base, pack.sounds);
@@ -116,7 +125,9 @@ async function showFigure(s) {
 
 function apply(next, persist) {
   skin = next;
-  skinStyle.textContent = skinCss(skin);
+  // the page's tiles follow the page's light/dark, the preview the pet's
+  skinStyle.textContent = skinCss(skin) + skinCss(skin, '#preview');
+  lightFor(skin);
   showFigure(skin).catch((err) => console.error(err));
   render();
   if (persist) save('/api/skin', { skin });
@@ -464,7 +475,7 @@ function connect() {
   const ws = new WebSocket(`ws://${location.host}/socket?role=dress`);
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
-    if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; applyTheme(theme, modeBtn); body?.set({ theme }); }
+    if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; showTheme(); modeBtn.show(theme); body?.set({ theme }); }
     if (m.t === 'init') loadPacks();
     if ((m.t === 'init' || m.t === 'prefs') && m.skin && JSON.stringify(normalizeSkin(m.skin)) !== JSON.stringify(skin)) apply(normalizeSkin(m.skin), false);
     if ((m.t === 'init' || m.t === 'prefs') && typeof m.language === 'string' && m.language !== language()) void useLanguage(m.language).then(() => { showText(); render(); });

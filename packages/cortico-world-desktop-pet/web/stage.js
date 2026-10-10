@@ -93,10 +93,12 @@ export function dressFloor(floor) {
 }
 
 /**
- * The night/day button, top left of `parent`. `getTheme` gives the pet's theme now; the switch is saved
- * through the pet's server, whose answer comes back as prefs: `show(theme)` redraws the button then.
+ * The night/day button, top left of `parent`. `getTheme` gives the pet's theme now; `onSwitch` hears the
+ * new one at once. The switch is saved through the pet's server (or by `save`, when given), whose answer
+ * comes back as prefs: `show(theme)` redraws the button then. `draw` puts the theme on the button (by
+ * default on the whole page too, ui.js applyTheme; the dressing page passes themeButton and themes only its preview).
  */
-export function modeButton(parent, getTheme, onClick) {
+export function modeButton(parent, getTheme, onSwitch, save = (theme) => fetch('/api/prefs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ theme }) }).catch(() => {}), draw = applyTheme) {
   const b = document.createElement('button');
   b.type = 'button';
   b.className = 'stage-mode';
@@ -105,10 +107,10 @@ export function modeButton(parent, getTheme, onClick) {
     e.stopPropagation();
     const theme = getTheme() === 'dark' ? 'light' : 'dark';
     show(theme);
-    onClick?.(theme);
-    fetch('/api/prefs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ theme }) }).catch(() => {});
+    onSwitch?.(theme);
+    save(theme);
   });
-  const show = (theme) => applyTheme(theme, b);
+  const show = (theme) => draw(theme, b);
   show(getTheme());
   parent.append(b);
   return { el: b, show };
