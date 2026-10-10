@@ -83,3 +83,6 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
 .companion-runstate[hidden] { display: none; }
 .rail-run.paused { color: var(--warn); }
 .rail-run.paused:hover { color: var(--warn); }
+
+/* 换模式时只藏起普通模式不列的项(main.ts),导航项自带 display,要显式让 hidden 生效 */
+nav.stack .navitem[hidden], nav.stack .navgroup[hidden] { display: none; }

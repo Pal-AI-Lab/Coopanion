@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
   petHidden: '已隱藏',
   showPet: '在桌面上顯示',
   dress: '裝扮',
-  guide: '使用引導',
+  guide: '使用嚮導',
   guideHint: '讓 Coo 在螢幕底邊再帶你走一遍',
   hidePet: '在桌面上隱藏',
   connectedLabel: '已連線的模型：',

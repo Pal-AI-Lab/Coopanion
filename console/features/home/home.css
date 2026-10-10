@@ -23,8 +23,6 @@
 .home-vendormark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #fff; }
 .home-vendormark svg { width: 17px; height: 17px; display: block; color: #1b1a1e; }
 .home-petframe { display: block; width: 100%; height: var(--fit, 420px); border: 1px solid var(--border); border-radius: 12px; background: transparent; }
-/* 没接模型时桌宠问用哪家服务,气泡里的服务卡片最多五行(简体中文),连同桌宠和地面约 705px */
-.home-petframe.nokey { height: max(720px, var(--fit, 0px)); }
 .home-petactions { margin: 12px 0 0; gap: 8px; }
 /* 「我的桌宠」标题右边:在桌面上 / 已隐藏 */
 .sheet h3 > .pill { margin-left: 10px; vertical-align: 2px; font-weight: 400; }
@@ -100,3 +98,8 @@
 .companion-switch input[type=checkbox]:checked::after { transform: translateX(18px); }
 .companion-switch input[type=checkbox]:disabled { opacity: .5; cursor: default; }
 .companion-switchrow > .home-note { margin-left: 52px; }
+
+/* 「没找到?」那一行是连接模型卡片的最后一行:下面不再多留一截空白,到分隔线的距离与分隔线到「我的桌宠」相同 */
+.home-links { margin-bottom: 0; }
+.featureslot-home > .sheet:has(.home-links) { padding-bottom: 0; }
+.featureslot-home > .sheet:has(.home-links) + .sheet { margin-top: 22px; }
