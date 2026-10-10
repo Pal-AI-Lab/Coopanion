@@ -311,7 +311,7 @@ body.desk .floor{display:none}
 .tool svg{width:20px; height:20px; display:block}
 /* the key badge sits off the button's lower right, clear of the icon */
 .tool .badge{right:-14px; bottom:-9px}
-/* the voice switch: struck through when off, faded while the recognizer is not ready, lit while hearing */
+/* the voice switch: struck through when off, muted while the recognizer is not ready, lit while hearing */
 .tool.off{color:var(--muted)}
 /* not ready yet: muted, at the same line weight (a faded icon reads as a thinner one) */
 .tool.waiting{color:var(--muted)}
