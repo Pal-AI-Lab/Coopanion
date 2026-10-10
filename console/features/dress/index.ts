@@ -40,7 +40,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
   window.addEventListener('message', (e) => {
     if (e.source !== frame.contentWindow || e.origin !== frame.dataset.origin || e.data?.type !== 'companion:height') return;
     const height = Number(e.data.height);
-    if (Number.isFinite(height) && height > 0) frame.style.height = `${Math.ceil(height)}px`;
+    if (Number.isFinite(height) && height > 0) frame.style.height = `${height}px`;
   }, { signal });
   const observer = new MutationObserver(syncAppearance);
   observer.observe(doc.documentElement, { attributes: true, attributeFilter: ['data-color-mode', 'data-theme-scheme'] });
@@ -58,6 +58,7 @@ async function mount(ctx: FeatureContext): Promise<void> {
       const target = new URL(url);
       frame.dataset.origin = target.origin;
       target.searchParams.set('appearance', appearance());
+      target.searchParams.set('fit', '1');
       frame.src = target.href;
     }
   };
