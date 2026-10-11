@@ -2,8 +2,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('petHost', {
-  /** true: the window takes the mouse; false: clicks pass through to what is underneath. */
-  setInteractive: (on) => ipcRenderer.send('pet:interactive', !!on),
+  /**
+   * true: the window takes the mouse; false: clicks pass through to what is underneath.
+   * `areas` (page pixels, `[[x, y, w, h], …]`) is where it may be taken; the wish is a lease the
+   * window process keeps for itself (`host/mouse-lease.cjs`).
+   */
+  setInteractive: (on, areas) => ipcRenderer.send('pet:interactive', !!on, areas),
   focus: () => ipcRenderer.send('pet:focus'),
   /** Takes the keyboard from whatever window has it (a question's number keys), and gives it back. */
   grabFocus: () => ipcRenderer.send('pet:grabFocus'),

@@ -23,6 +23,7 @@ const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen, session, s
 const { join } = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { createCursorSource } = require('./cursor.cjs');
+const { createMouseLease } = require('./mouse-lease.cjs');
 const { createOverlaySource } = require('./overlay.cjs');
 
 /** The pages' text table of `code`, falling back as web/i18n.js does. */
@@ -292,6 +293,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   if (!url) throw new Error('pet host needs --pet-url');
   const origin = new URL(url).origin;
   let win = null, tray = null, dress = null, cursor;
+  // who holds the mouse, and when it is given back
+  const mouse = createMouseLease({ getWindow: () => win });
   // the window as an OBS layer, while the World asks for it
   const overlay = createOverlaySource({ origin, getWindow: () => win });
   app.once('will-quit', () => overlay.stop());
@@ -355,7 +358,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     // The page cannot tell for itself that it is hidden (background throttling is off, so it always reads as
     // visible): the window tells it, for the settings window's 「在桌面上 / 已隐藏」.
     win.on('show', () => win?.webContents.send('pet:shown', true));
-    win.on('hide', () => win?.webContents.send('pet:shown', false));
+    win.on('hide', () => { win?.webContents.send('pet:shown', false); mouse.release(); });
     // Zoom stays at 1: the cursor below is sent in DIPs and the page hit-tests with them as CSS pixels,
     // so any zoom flips the window between click-through and interactive. A drawing tablet's shortcut
     // keys are a keyboard and can send Ctrl+- to the focused pet, and the zoom is saved per host.
@@ -363,17 +366,21 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       if ((input.control || input.meta) && (['-', '_', '=', '+', '0'].includes(input.key) || ['NumpadAdd', 'NumpadSubtract', 'Numpad0'].includes(input.code))) event.preventDefault();
     });
     win.webContents.on('did-finish-load', () => { win.webContents.setZoomLevel(0); overlay.pageLoaded(); win.webContents.send('pet:floor', coverArea(display()).below); });
-    // the page learns where the cursor is even when the click-through window misses its moves
-    let last = '';
+    // The page learns where the cursor is even when the click-through window misses its moves, and
+    // it renews the mouse lease in its answer to every report: the report goes out on every tick,
+    // not only when the pointer moved, so a cursor that rests still still gets a verdict.
+    let lastVisible = null;
     const cursorTimer = setInterval(() => {
-      if (!win || !win.isVisible()) return;
+      if (!win) return;
+      const visible = win.isVisible();
+      // the input shape does not survive the window being mapped: apply the verdict again
+      if (visible !== lastVisible) { lastVisible = visible; mouse.forget(); }
+      if (!visible) { mouse.tick(null); return; }
       const pt = cursor.read(), b = win.getBounds();
       const inside = pt.x >= b.x && pt.x < b.x + b.width && pt.y >= b.y && pt.y < b.y + b.height;
       const at = inside ? { x: pt.x - b.x, y: pt.y - b.y } : null;
-      const key = at ? `${at.x},${at.y}` : '';
-      if (key === last) return;
-      last = key;
       win.webContents.send('pet:cursor', at);
+      mouse.tick(at);
     }, CURSOR_EVERY_MS);
     // hidden while the setting is on and a window fills the pet's monitor; shown again once neither holds
     const fullscreenTimer = fullscreen && setInterval(() => {
@@ -396,7 +403,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     dress.loadURL(target);
   };
 
-  ipcMain.on('pet:interactive', (_e, on) => { if (win) win.setIgnoreMouseEvents(!on, { forward: true }); });
+  ipcMain.on('pet:interactive', (_e, on, areas) => mouse.ask(on, areas));
   ipcMain.on('pet:focus', () => {
     if (!win) return;
     // Explicit text input activates this menu-bar process as well as its window.
