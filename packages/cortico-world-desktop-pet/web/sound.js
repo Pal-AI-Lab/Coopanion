@@ -20,10 +20,12 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
   let ctx = null, master = null, unlocked = false, on = true, noiseBuf = null, gainValue = volume;
   // kinds turned off, and seconds of snoring per sleep (0 = the whole sleep)
   let muted = new Set(), snoreSeconds = 0;
+  // whether the window is shown: a window that does not throttle its page keeps document.hidden false while hidden
+  let shown = true;
   try { on = localStorage.getItem(storageKey) !== 'off'; } catch (e) { /* default on */ }
   const R = (a, b) => a + Math.random() * (b - a);
   function ready() {
-    if (!on || !unlocked || document.hidden) return null;
+    if (!on || !unlocked || !shown || document.hidden) return null;
     if (!ctx) {
       const C = window.AudioContext || window.webkitAudioContext;
       if (!C) return null;
@@ -142,6 +144,8 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     isOn: () => on,
     set(v) { on = v; try { localStorage.setItem(storageKey, v ? 'on' : 'off'); } catch (e) { /* not persisted */ } },
     volume(v) { gainValue = v; if (master) master.gain.value = v; },
+    /** The window was shown or hidden (by hand or while something is full screen); hidden, nothing plays. */
+    setShown(v) { shown = v; },
     /** `kinds`: kind → on (SOUND_KINDS); `snoreSeconds`: snoring stops this long into a sleep, 0 = never. */
     configure({ kinds, snoreSeconds: s } = {}) {
       if (kinds) muted = new Set(Object.keys(SOUND_KINDS).filter((k) => kinds[k] === false));

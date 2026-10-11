@@ -155,6 +155,11 @@ describe('what the page holds a pack to', () => {
       sfx.play('boing', 'face'); sfx.play('look', 'move');
       expect(made.clips).toBe(1);
       expect(made.tones).toBeGreaterThan(0);
+      // a hidden window plays nothing, though its page still reads as visible (#136)
+      const before = { ...made };
+      sfx.setShown(false);
+      sfx.play('boing', 'move'); sfx.play('look', 'move'); sfx.pop();
+      expect(made).toEqual(before);
     } finally {
       Object.assign(globalThis, saved);
     }

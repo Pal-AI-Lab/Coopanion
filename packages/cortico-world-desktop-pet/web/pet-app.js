@@ -105,7 +105,7 @@ function connect() {
 let windowShown = true;
 function reportVisibility() { if (host) send({ t: 'visibility', hidden: !windowShown }); }
 // the page itself always reads as visible (its window does not throttle it): the window process says when it is hidden
-host?.onShown?.((shown) => { windowShown = shown; reportVisibility(); });
+host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVisibility(); });
 
 /* ---------- OBS overlay: while the window streams, the part it sends is the pet and its bubbles ---------- */
 const OVERLAY_EVERY_MS = 33;
