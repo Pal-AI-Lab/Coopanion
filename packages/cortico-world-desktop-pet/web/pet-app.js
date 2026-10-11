@@ -1148,42 +1148,21 @@ const lastPointer = { x: 0, y: 0 };
 const FRAME_STALL_MS = 1000;
 let lastFrameAt = performance.now();
 const rendering = () => document.visibilityState === 'visible' && performance.now() - lastFrameAt < FRAME_STALL_MS;
-/** How often the areas are read from the DOM: a walking pet moves its box every frame. */
-const MOUSE_AREAS_MS = 100;
-/** How often the wish for the mouse is renewed; the window process's lease is shorter. */
+/** How often the wish for the mouse is renewed; the window process's lease is longer. */
 const MOUSE_RENEW_MS = 500;
-let areasAt = -Infinity, areasJSON = '[]';
-/** The areas the mouse may be taken in, as JSON: the pet's box and the UI that is on screen. */
-function areasKey() {
-  const now = performance.now();
-  if (now - areasAt >= MOUSE_AREAS_MS) {
-    areasAt = now;
-    const out = [];
-    const box = rendering() ? at()?.box : null;
-    if (box && box.w > 0 && box.h > 0) out.push([box.x, box.y, box.w, box.h]);
-    if (rendering()) for (const el of document.querySelectorAll(UI_SELECTOR)) {
-      const r = el.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) out.push([r.left, r.top, r.width, r.height]);
-    }
-    areasJSON = JSON.stringify(out);
-  }
-  return areasJSON;
-}
-let interactive = null, areasSent = '', renewedAt = -Infinity;
+let interactive = null, renewedAt = -Infinity;
 /**
  * `by`: which check decided, 'move' (the page's pointermove) or 'poll' (the window's cursor report).
- * `on` is a wish renewed as a lease, honoured only inside the areas above; see host/mouse-lease.cjs.
+ * `on` is a wish renewed as a lease; see host/mouse-lease.cjs.
  */
 function setInteractive(on, by) {
   if (!host) return;
-  const key = on ? areasKey() : '[]';
   const now = performance.now();
   const changed = interactive !== on;
-  if (!changed && key === areasSent && !(on && now - renewedAt >= MOUSE_RENEW_MS)) return;
+  if (!changed && !(on && now - renewedAt >= MOUSE_RENEW_MS)) return;
   interactive = on;
-  areasSent = key;
   renewedAt = now;
-  host.setInteractive(on, on ? JSON.parse(key) : []);
+  host.setInteractive(on);
   if (changed) logPointer('flip', by);
 }
 

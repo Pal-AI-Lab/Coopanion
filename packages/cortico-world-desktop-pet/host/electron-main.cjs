@@ -375,12 +375,12 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       const visible = win.isVisible();
       // the input shape does not survive the window being mapped: apply the verdict again
       if (visible !== lastVisible) { lastVisible = visible; mouse.forget(); }
-      if (!visible) { mouse.tick(null); return; }
+      if (!visible) { mouse.tick(); return; }
       const pt = cursor.read(), b = win.getBounds();
       const inside = pt.x >= b.x && pt.x < b.x + b.width && pt.y >= b.y && pt.y < b.y + b.height;
       const at = inside ? { x: pt.x - b.x, y: pt.y - b.y } : null;
       win.webContents.send('pet:cursor', at);
-      mouse.tick(at);
+      mouse.tick();
     }, CURSOR_EVERY_MS);
     // hidden while the setting is on and a window fills the pet's monitor; shown again once neither holds
     const fullscreenTimer = fullscreen && setInterval(() => {
@@ -403,7 +403,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     dress.loadURL(target);
   };
 
-  ipcMain.on('pet:interactive', (_e, on, areas) => mouse.ask(on, areas));
+  ipcMain.on('pet:interactive', (_e, on) => mouse.ask(on));
   ipcMain.on('pet:focus', () => {
     if (!win) return;
     // Explicit text input activates this menu-bar process as well as its window.

@@ -6,13 +6,12 @@ import { describe, expect, it } from 'vitest';
  * project: the lease is reached through this facade.
  */
 const require_ = createRequire(import.meta.url);
-type Rect = [number, number, number, number];
 interface Lease {
-  ask(on: boolean, areas?: Rect[]): void;
-  tick(at: { x: number; y: number } | null): void;
+  ask(on: boolean): void;
+  tick(): void;
   release(): void;
   forget(): void;
-  state: () => { wanted: boolean; held: boolean; areas: number };
+  state: () => { wanted: boolean; held: boolean };
 }
 const { createMouseLease } = require_('../host/mouse-lease.cjs') as {
   createMouseLease: (options: {
@@ -45,11 +44,8 @@ function leaseOn(win: ReturnType<typeof fakeWindow>, options: { leaseMs?: number
     reassertMs: options.reassertMs ?? 2000,
     now: () => clock,
   });
-  return { lease, at: (x: number, y: number) => ({ x, y }), advance: (ms: number) => { clock += ms; } };
+  return { lease, advance: (ms: number) => { clock += ms; } };
 }
-
-const PET: Rect = [900, 700, 120, 140];
-const BUBBLE: Rect = [600, 400, 300, 200];
 
 describe('createMouseLease', () => {
   it('passes the clicks through when the first verdict is that the page does not want the mouse', () => {
@@ -61,71 +57,40 @@ describe('createMouseLease', () => {
     expect(win.told).toEqual([false]);
   });
 
-  it('takes the mouse while the cursor is inside the areas the page named', () => {
-    const win = fakeWindow();
-    const { lease, at } = leaseOn(win);
-
-    lease.ask(true, [PET, BUBBLE]);
-    lease.tick(at(920, 720));
-
-    expect(win.holding()).toBe(true);
-    expect(lease.state().areas).toBe(2);
-  });
-
-  it('passes the clicks through while the cursor is outside every area', () => {
-    const win = fakeWindow();
-    const { lease, at } = leaseOn(win);
-
-    lease.ask(true, [PET, BUBBLE]);
-    lease.tick(at(100, 100));
-
-    expect(win.holding()).toBe(false);
-  });
-
-  it('takes the mouse anywhere while the page names no areas, as an older page does', () => {
-    const win = fakeWindow();
-    const { lease, at } = leaseOn(win);
-
-    lease.ask(true);
-    lease.tick(at(100, 100));
-
-    expect(win.holding()).toBe(true);
-  });
-
   it('gives the mouse back once the wish is not renewed within the lease', () => {
     const win = fakeWindow();
-    const { lease, at, advance } = leaseOn(win, { leaseMs: 1500 });
+    const { lease, advance } = leaseOn(win, { leaseMs: 1500 });
 
-    lease.ask(true, [PET]);
-    lease.tick(at(920, 720));
+    lease.ask(true);
+    lease.tick();
     expect(win.holding()).toBe(true);
 
     advance(1500);
-    lease.tick(at(920, 720));
+    lease.tick();
 
     expect(win.holding()).toBe(false);
   });
 
   it('gives the mouse back while the window is hidden', () => {
     const win = fakeWindow();
-    const { lease, at } = leaseOn(win);
+    const { lease } = leaseOn(win);
 
-    lease.ask(true, [PET]);
-    lease.tick(at(920, 720));
+    lease.ask(true);
+    lease.tick();
     expect(win.holding()).toBe(true);
 
     win.visible = false;
-    lease.tick(at(920, 720));
+    lease.tick();
 
     expect(win.holding()).toBe(false);
   });
 
   it('gives the mouse back when the window is released, whatever the page last asked', () => {
     const win = fakeWindow();
-    const { lease, at } = leaseOn(win);
+    const { lease } = leaseOn(win);
 
-    lease.ask(true, [PET]);
-    lease.tick(at(920, 720));
+    lease.ask(true);
+    lease.tick();
     lease.release();
 
     expect(win.holding()).toBe(false);
@@ -133,14 +98,14 @@ describe('createMouseLease', () => {
 
   it('applies the verdict again after forgetting it, without waiting for the interval', () => {
     const win = fakeWindow();
-    const { lease, at } = leaseOn(win);
+    const { lease } = leaseOn(win);
 
-    lease.ask(true, [PET]);
-    lease.tick(at(920, 720));
+    lease.ask(true);
+    lease.tick();
     const told = win.told.length;
 
     lease.forget();
-    lease.tick(at(920, 720));
+    lease.tick();
 
     expect(win.told.length).toBe(told + 1);
     expect(win.holding()).toBe(true);
@@ -148,27 +113,19 @@ describe('createMouseLease', () => {
 
   it('leaves a standing verdict alone until its interval has passed', () => {
     const win = fakeWindow();
-    const { lease, at, advance } = leaseOn(win, { reassertMs: 2000 });
+    const { lease, advance } = leaseOn(win, { reassertMs: 2000 });
 
-    lease.ask(true, [PET]);
-    lease.tick(at(920, 720));
+    lease.ask(true);
+    lease.tick();
     const told = win.told.length;
 
-    lease.tick(at(921, 721));
+    lease.tick();
     expect(win.told.length).toBe(told);
 
     advance(2000);
-    lease.tick(at(921, 721));
+    lease.tick();
 
     expect(win.told.length).toBe(told + 1);
   });
 
-  it('drops areas that are not four finite numbers', () => {
-    const win = fakeWindow();
-    const { lease } = leaseOn(win);
-
-    lease.ask(true, [PET, [1, 2, 3] as unknown as Rect, [Number.NaN, 0, 10, 10], ['a', 0, 10, 10] as unknown as Rect]);
-
-    expect(lease.state().areas).toBe(1);
-  });
 });
