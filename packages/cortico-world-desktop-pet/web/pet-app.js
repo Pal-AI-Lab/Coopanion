@@ -542,30 +542,52 @@ function showDialogInput(it) {
     body.appendChild(row);
   } else if (input.kind === 'choices') {
     const cards = Object.assign(document.createElement('div'), { className: 'd-cards' });
+    const extra = Array.isArray(input.more?.options) ? input.more.options : [];
+    const all = [...input.options, ...extra];
     const pick = (i, speak) => {
       it.value = i;
-      cards.querySelectorAll('.d-card').forEach((c, k) => c.classList.toggle('on', k === i));
-      const o = input.options[i];
+      cards.querySelectorAll('.d-card').forEach((c) => c.classList.toggle('on', Number(c.dataset.i) === i));
+      const o = all[i];
       // the bubble stays put from here on, so the cards do not run off while Coo shows how it moves
       if (it.pinX === undefined) { const a = at()?.bubble ?? { x: innerWidth / 2, y: innerHeight }; it.pinX = a.x; it.pinY = a.y; }
       talk.motion = o?.motion ?? null; talk.next = 0;
       if (speak && o?.line) { it.text = o.line; it.shown = 0; it.acc = 0; }
     };
-    input.options.forEach((o, i) => {
+    const card = (o, k, onClick) => {
       const c = document.createElement('button');
       c.type = 'button'; c.className = 'd-card';
-      c.style.animationDelay = (i * .07) + 's';
+      c.style.animationDelay = (k * .07) + 's';
       const image = typeof o.image === 'string' && o.image.startsWith('data:image/') ? `<img class="d-cardimg" alt="" src="${esc(o.image)}">` : '';
       c.innerHTML = `${image || (o.icon && ICONS[o.icon] ? `<span class="d-cardic">${ICONS[o.icon]}</span>` : '')}<span class="d-cardlbl">${esc(o.label)}</span>${o.note ? `<span class="d-cardnote">${esc(o.note)}</span>` : ''}${o.level ? `<b class="d-level">${esc(o.level)}</b>` : ''}`;
-      c.addEventListener('click', () => { sfx.tick(); pick(i, true); });
+      c.addEventListener('click', () => { sfx.tick(); onClick(); });
       cards.appendChild(c);
-      setTimeout(() => sfx.blub(), i * 70);
-    });
+      setTimeout(() => sfx.blub(), k * 70);
+      return c;
+    };
+    const add = (from, to, k0) => { for (let i = from; i < to; i++) card(all[i], k0 + i - from, () => pick(i, true)).dataset.i = String(i); };
+    const start = typeof input.value === 'number' ? input.value : 0;
+    const folded = extra.length > 0 && start < input.options.length;
+    add(0, folded ? input.options.length : all.length, 0);
+    if (folded) {
+      const more = card(input.more, input.options.length, () => {
+        // the "more" card gives its place to the first of the rest, and the cards grow to the new rows instead of jumping there
+        const from = cards.offsetHeight;
+        more.remove();
+        add(input.options.length, all.length, 0);
+        pick(input.options.length, false);
+        const to = cards.offsetHeight;
+        if (to !== from && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          cards.classList.add('unfolding');
+          cards.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: 320, easing: 'cubic-bezier(.3,1.1,.5,1)' })
+            .finished.finally(() => cards.classList.remove('unfolding'));
+        }
+      });
+    }
     body.appendChild(cards);
     const row = Object.assign(document.createElement('div'), { className: 'd-row' });
     row.appendChild(pill(input.confirm, true, () => settleDialog(it, { index: it.value ?? 0 })));
     body.appendChild(row);
-    pick(typeof input.value === 'number' ? input.value : 0, false);
+    pick(start, false);
   } else if (input.kind === 'text') {
     const form = Object.assign(document.createElement('form'), { className: 'd-field' });
     form.innerHTML = `<input type="${input.secret ? 'password' : 'text'}" autocomplete="off" spellcheck="false" maxlength="${Number(input.maxLength) || 200}">${input.secret ? `<button class="d-peek" type="button" aria-label="${esc(t('bubble.peek'))}" title="${esc(t('bubble.peek'))}">${ICONS.eye}</button>` : ''}<button class="d-send" type="submit"></button>`;

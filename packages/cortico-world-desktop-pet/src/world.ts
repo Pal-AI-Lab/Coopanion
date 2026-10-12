@@ -135,16 +135,19 @@ export interface PetDialog {
  *   `taps` times over and over, the last press held (a talk key tapped, then held).
  * - `choices`: cards to try out before `confirm`, each with an optional level tag, a small `note` under its label, and icon (a web/ui.js
  *   `ICONS` name, or `image`, a `data:image/…` URL such as a service's logo); a card's `line` is typed when it is picked and
- *   its `motion` played (standing still, strolling, running about) until another is picked.
+ *   its `motion` played (standing still, strolling, running about) until another is picked. `more` is a last card that,
+ *   clicked, unfolds its `options` after the others in place; the answer's index counts on through them, and a `value`
+ *   among them shows them from the start.
  * - `text`: a text box answered with the text; `secret` hides what is typed, `suggestions` are offered
  *   as the person types, `link` opens a page in the browser, `alt` is a second way out, answered as `{ alt: true }`.
  * - `progress`: a bar the app moves with `update({ progress })`; it ends when the app closes it.
  */
 export type PetDialogInput =
   | { kind: 'buttons'; options: Array<{ label: string; primary?: boolean }>; keys?: string; taps?: number }
-  | { kind: 'choices'; options: Array<{ label: string; level?: string; note?: string; icon?: string; image?: string; line?: string; motion?: 'still' | 'walk' | 'run' }>; value?: number; confirm: string }
+  | { kind: 'choices'; options: PetDialogChoice[]; more?: { label: string; icon?: string; image?: string; options: PetDialogChoice[] }; value?: number; confirm: string }
   | { kind: 'text'; submit: string; placeholder?: string; value?: string; secret?: boolean; maxLength?: number; suggestions?: string[]; link?: { label: string; url: string }; alt?: string }
   | { kind: 'progress'; label?: string };
+export type PetDialogChoice = { label: string; level?: string; note?: string; icon?: string; image?: string; line?: string; motion?: 'still' | 'walk' | 'run' };
 
 /**
  * How a step ended: a button or card (`index`), typed text, the text box's `alt`, the close

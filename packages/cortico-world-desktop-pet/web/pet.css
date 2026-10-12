@@ -225,6 +225,8 @@ body.desk .floor{display:none}
 .d-taps{font:700 12px/1 ui-monospace,Consolas,monospace; color:var(--muted)}
 /* choice cards: the picked one lit in the eye color */
 .d-cards{display:grid; grid-template-columns:repeat(auto-fit, minmax(80px, 1fr)); gap:6px}
+/* while the cards grow to the rows the 「more」 card unfolded, the new rows stay inside them; the margin keeps level tags whole */
+.d-cards.unfolding{overflow:clip; overflow-clip-margin:8px}
 .d-card{
   position:relative; display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 4px 8px; border-radius:14px;
   border:1.5px solid var(--line); background:var(--bg); color:var(--text); cursor:pointer;
