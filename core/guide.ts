@@ -3,8 +3,8 @@
  * at the bottom of the screen, one step at a time in its bubble (the desktop-pet World's
  * `dialog`); no window opens:
  *
- * 0. the app language, asked in English with each language under its own name and the language in force
- *    picked (the system's on a first start); the rest speaks the one picked;
+ * 0. the app language: Coo calls out in no language, each card says hello in a language over its name, and the
+ *    language in force is picked (the system's on a first start); the rest speaks the one picked;
  * 1. hello, what to call the person (the desktop-pet World's `user`), and where they heard of
  *    Coopanion (for the usage statistics; one of the buttons skips it);
  * 2. how lively to be (`roam`): while the cards are up Coo shows each one, standing still,
@@ -55,12 +55,17 @@ const trimEnd = (text: string) => text.replace(/[\s.!?。．！？]+$/, '');
 /** Steps, for the dots at the top of the bubble: the language page (step 0) and the six numbered ones. */
 const STEPS = 7;
 /**
- * The language page's words: English, the language the most people who start Coopanion read, before any
- * line in the language they pick. Not in core/i18n, since they never follow the app language.
+ * The language page's words: Coo's call in no language, before any line in the language picked, and a check
+ * button. Not in core/i18n, since they never follow the app language.
  */
-const LANGUAGE_PAGE = { ask: 'First things first: which language would you like?', ok: 'Continue' };
-/** A language's card: its name without the region in it (「Español (Latinoamérica)」), as the only Spanish and the only Portuguese offered. */
-const languageCard = (code: Language) => ({ label: LANGUAGE_NAMES[code].replace(/\s*\(.+\)$/, '') });
+const LANGUAGE_PAGE = { ask: 'Coo! Coo...?', ok: '✓' };
+/** Each language's card says hello in it. */
+const GREETINGS: Readonly<Record<Language, string>> = {
+  zh: '你好！', 'zh-Hant': '哈囉！', en: 'Hello!', ja: 'こんにちは！', ko: '안녕하세요!', fr: 'Bonjour !',
+  de: 'Hallo!', 'es-419': '¡Hola!', 'pt-BR': 'Olá!', it: 'Ciao!', ru: 'Привет!',
+};
+/** A language's card: hello in it, and its name, without the region (「Español (Latinoamérica)」), as the only Spanish and the only Portuguese offered, below. */
+const languageCard = (code: Language) => ({ label: GREETINGS[code], note: LANGUAGE_NAMES[code].replace(/\s*\(.+\)$/, '') });
 /** How often a step waiting for the pet page looks again, and a download for its progress. */
 const POLL_MS = 500;
 
@@ -265,7 +270,7 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
     // 0 the language
     const current = deps.language();
     const l = await step(0, 'language', {
-      text: LANGUAGE_PAGE.ask, actions: ['happy'],
+      text: LANGUAGE_PAGE.ask, marks: [LANGUAGE_PAGE.ask], actions: ['happy'],
       input: { kind: 'choices', confirm: LANGUAGE_PAGE.ok, value: LANGUAGES.indexOf(current), options: LANGUAGES.map(languageCard) },
     });
     const picked = 'index' in l ? LANGUAGES[l.index]! : current;

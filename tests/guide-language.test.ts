@@ -37,19 +37,18 @@ function setup(start: Language, answers: PetDialogAnswer[], done = false) {
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('the introduction asks for the language first', () => {
-  it('asks in English with the language in force picked, then speaks the language picked', async () => {
+  it('asks with the language in force picked, then speaks the language picked', async () => {
     const { run, shown, saved } = setup('ja', [{ index: LANGUAGES.indexOf('zh') }]);
     await run;
     const first = shown[0]!;
     expect(first.step).toEqual([1, 7]);
     expect(first.input?.kind).toBe('choices');
     expect(first.input?.kind === 'choices' && first.input.value).toBe(LANGUAGES.indexOf('ja'));
-    expect(first.text).toMatch(/language/);
-    // a region in the name is left off the card
+    // each card says hello over its language's name, without a region in it
     const options = first.input?.kind === 'choices' ? first.input.options : [];
-    expect(options[LANGUAGES.indexOf('es-419')]).toEqual({ label: 'Español' });
-    expect(options[LANGUAGES.indexOf('pt-BR')]).toEqual({ label: 'Português' });
-    expect(options[LANGUAGES.indexOf('en')]).toEqual({ label: 'English' });
+    expect(options[LANGUAGES.indexOf('es-419')]).toEqual({ label: '¡Hola!', note: 'Español' });
+    expect(options[LANGUAGES.indexOf('pt-BR')]).toEqual({ label: 'Olá!', note: 'Português' });
+    expect(options[LANGUAGES.indexOf('en')]).toEqual({ label: 'Hello!', note: 'English' });
     expect(saved).toContainEqual({ group: 'companion', values: { language: 'zh' } });
     // the next line, the hello, is in the language picked, and the dots moved on by one
     expect(shown[1]!.text).toBe(coreText('zh').guide.hello);
