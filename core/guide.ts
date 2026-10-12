@@ -170,28 +170,23 @@ const logo = (v: Vendor) => `data:image/svg+xml;base64,${Buffer.from(VENDOR_ICON
 const MORE_ICON = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5f6368" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>').toString('base64')}`;
 
 /**
- * The service picked on the cards: the services for `language`, and a last card that shows the
- * `more` ones too, which are shown from the start when the service in use is one of them.
+ * The service picked on the cards: the services for `language`, and a last card that unfolds the
+ * `more` ones in the bubble, which are shown from the start when the service in use is one of them.
  */
 async function pickVendor(show: (d: PetDialog, at: string) => Promise<PetDialogAnswer>, ask: Omit<PetDialog, 'input'>, language: Language, current: Vendor | null): Promise<Vendor> {
   const S = lines(language);
   const { shown, more } = vendorsFor(language);
-  let list = current && more.includes(current) ? [...shown, ...more] : shown;
-  for (;;) {
-    const folded = list.length < shown.length + more.length;
-    const picked = await show({
-      ...ask,
-      input: {
-        kind: 'choices', confirm: S.vendorOk, value: Math.max(0, list.indexOf(current ?? list[0]!)),
-        options: [...list.map((v) => ({ label: vendorName(v, language), image: logo(v) })), ...(folded ? [{ label: S.moreVendors, image: MORE_ICON }] : [])],
-      },
-    }, 'vendor');
-    if ('closed' in picked) throw new Closed();
-    const index = 'index' in picked ? picked.index : 0;
-    if (index < list.length) return list[index]!;
-    list = [...shown, ...more];
-    current = more[0] ?? null;
-  }
+  const list = [...shown, ...more];
+  const card = (v: Vendor) => ({ label: vendorName(v, language), image: logo(v) });
+  const picked = await show({
+    ...ask,
+    input: {
+      kind: 'choices', confirm: S.vendorOk, value: Math.max(0, list.indexOf(current ?? list[0]!)),
+      options: shown.map(card), ...(more.length ? { more: { label: S.moreVendors, image: MORE_ICON, options: more.map(card) } } : {}),
+    },
+  }, 'vendor');
+  if ('closed' in picked) throw new Closed();
+  return list['index' in picked ? picked.index : 0]!;
 }
 
 /**
