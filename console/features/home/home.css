@@ -109,19 +109,6 @@
 .companion-popup { min-width: min(320px, 80vw); }
 .companion-popup .companion-checks { flex-direction: column; gap: 8px; padding: 4px 0 14px; }
 
-/* 配色方案(appearance.ts):方案卡片照旧;调色盘是卡片底部的折叠区,样式同「模型供应商」页的折叠段,
-   展开后左边调颜色、右边试色 */
-.home-schemes .theme-schemes { margin-top: 4px; }
-details.sheet.fold.home-palette { margin: 22px 0 0; padding: 16px 0 0; background: transparent; border: 0; border-top: 1px solid var(--border); border-radius: 0; }
-details.sheet.fold.home-palette > .foldbody { padding: 0; margin-top: 10px; }
-.home-palettebench { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 24px; align-items: start; }
-.home-palettecolors > .fieldrow:first-child { margin-top: 0; }
-.home-palettecolors > .theme-palette { margin-top: 14px; }
-.home-palettesample { position: sticky; top: 110px; display: flex; flex-direction: column; gap: 10px; }
-.home-palettesample > h4 { margin: 0; color: var(--ink-soft); font: 600 11px var(--sans); letter-spacing: .08em; }
-@media (max-width: 900px) { .home-palettebench { grid-template-columns: 1fr; } .home-palettesample { position: static; } }
-
-
 /* 「没找到?」那一行是连接模型卡片的最后一行:到分隔线的距离与分隔线到「我的桌宠」相同 */
 .home-links { margin-bottom: 0; }
 .featureslot-home > .sheet:has(.home-links) { padding-bottom: 0; }
