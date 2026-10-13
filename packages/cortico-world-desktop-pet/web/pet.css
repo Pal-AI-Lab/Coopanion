@@ -139,14 +139,16 @@ body.desk .floor{display:none}
   font-size:14.5px; line-height:1.55;
   transform-origin:var(--tail, 50%) calc(100% + 10px);
 }
-/* tail: an outline triangle whose base reaches the border's inner edge, so its sides join the border,
-   and a surface triangle one line width inside it that opens the border between the sides. Neither
-   is rotated. y=0 is the padding edge, the border spans 0..2.5, the tip sits 8.5px past the border,
-   at --tail from the outer left edge (the same point transform-origin scales from). */
+/* tail: an outline triangle whose base lies inside the border, so its sides join the border, and a
+   surface triangle one line width inside it that opens the border between the sides. Neither is
+   rotated. y=0 is the padding edge, the border spans 0..2.5, the tip sits 8.5px past the border, at
+   --tail from the outer left edge (the same point transform-origin scales from). The outline's base
+   sits .75px into the border: the border is drawn on whole device pixels and the triangle is not, so a
+   base on the border's inner edge showed as a nub above the line at each corner of the tail. */
 .bubble::before, .bubble::after{
   content:""; position:absolute; left:calc(var(--tail, 50%) - 13.5px); bottom:-11px; width:22px; height:11.5px;
 }
-.bubble::before{background:var(--skin-ink); clip-path:path('M0 0.5 L8.9 9.4 Q11 11.5 13.1 9.4 L22 0.5 Z')}
+.bubble::before{background:var(--skin-ink); clip-path:path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z')}
 .bubble::after{background:var(--surface); clip-path:path('M3.04 0 L10.53 7.49 Q11 7.96 11.47 7.49 L18.96 0 Z')}
 .bubble.heard{border-style:dashed; box-shadow:none; max-width:min(260px, calc(100vw - 20px))}
 .bubble.heard::before, .bubble.heard::after{display:none}
