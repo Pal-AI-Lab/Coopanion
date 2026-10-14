@@ -50,7 +50,10 @@ describe('continuous prompt document', () => {
     editor.view.dispatch({ changes: { from: 8, to: 10 } });
     editor.view.dispatch({ changes: { from: 11, insert: 'no' } });
     expect(editor.view.state.doc.toString()).toBe(before);
-    editor.updateGenerated(1, 'new.md');
+    editor.setBlocks([
+      { title: 'CONSTITUTION', sourceKey: 'constitution', tone: 'persona', text: 'Persona!', description: '' },
+      { title: 'WORKSPACE', tone: 'derived', text: 'new.md', description: '' },
+    ]);
     expect(editor.text('constitution')).toBe('Persona!');
     expect(editor.view.state.doc.toString()).toBe('Persona!\nnew.md');
   });
@@ -61,7 +64,10 @@ describe('continuous prompt document', () => {
       { title: 'CONSTITUTION', sourceKey: 'constitution', tone: 'persona', text: 'Identity' },
     ]);
     editor.view.dispatch({ changes: { from: editor.view.state.doc.length, insert: '!' }, userEvent: 'input.type' });
-    editor.updateGenerated(0, 'files.md\nnotes.md');
+    editor.setBlocks([
+      { title: 'WORKSPACE', tone: 'derived', text: 'files.md\nnotes.md', description: '' },
+      { title: 'CONSTITUTION', sourceKey: 'constitution', tone: 'persona', text: 'Identity!', description: '' },
+    ]);
     editor.undo();
     expect(editor.view.state.doc.toString()).toBe('files.md\nnotes.md\nIdentity');
     expect(editor.canUndo()).toBe(false);

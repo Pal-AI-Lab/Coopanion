@@ -37,6 +37,10 @@ export const S: Partial<typeof en> = {
   saveToFile: "Enregistrer",
   // index.ts
   title: 'Prompt système',
+  introDesc: "Ctrl+S enregistre les modèles ; « Appliquer maintenant » met à jour le prompt de la conversation actuelle. Les sections générées sont en lecture seule.",
+  showFull: "Afficher le prompt complet",
+  hideFull: "Masquer le prompt complet",
+  sourceMissing: (key: string) => `Source « ${key} » introuvable`,
   leaveUnsaved: 'Les modifications non enregistrées seront perdues. Quitter ?',
   saving: 'Enregistrement…',
   saved: 'Enregistré',

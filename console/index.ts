@@ -4,7 +4,7 @@
  * under `/coopanion/` on Core's own origin (app/main.cjs), so requests and WebSockets are same-origin.
  *
  * Two modes (features/mode.ts). The normal mode lists the pages about the pet, 系统提示词 (the whole
- * system prompt with 「清空重开」, the page of advanced/ that uses public routes only), 用量与成本 and 对话;
+ * system prompt with 「清空对话并重开」, the page of advanced/ that uses public routes only), 用量与成本 and 对话;
  * every other route opens 开始. The advanced mode adds the pages copied from Cortico's console
  * (advanced/): the World tree with the World pages, 接入 (模型供应商, 扩展), 人格与记忆 (the Persona and
  * Memory pages), 诊断 (终端, Core). Pages from the manifest (`/api/console/manifest`: Worlds, the
@@ -212,8 +212,6 @@ export function boot(doc: Document = document): Disposable {
   };
 
   const apply = (route: Route): void => {
-    // Shortcut mode changes follow the router's leave confirmation.
-    if (route.query.mode === 'advanced') setMode('advanced');
     rail.setRoute(route);
     if (!ready) return;
     const head = route.segments[0];

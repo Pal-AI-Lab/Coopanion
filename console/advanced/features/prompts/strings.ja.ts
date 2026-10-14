@@ -37,6 +37,10 @@ export const S: Partial<typeof en> = {
   saveToFile: "保存",
   // index.ts
   title: 'システムプロンプト',
+  introDesc: "Ctrl+S でテンプレートを保存し、「今すぐ適用」で現在の会話のプロンプトを更新します。自動生成のセクションは読み取り専用です。",
+  showFull: "完全なプロンプトを表示",
+  hideFull: "完全なプロンプトを閉じる",
+  sourceMissing: (key: string) => `ソース「${key}」が見つかりません`,
   leaveUnsaved: '保存していない変更は失われます。移動しますか？',
   saving: '保存中…',
   saved: '保存しました',

@@ -1,7 +1,7 @@
 /** Templates remain ranges in one document; folds and variable values only affect presentation. */
 import { EditorState, StateEffect, StateField, Transaction, type Range } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType, keymap, lineNumbers, dropCursor, type DecorationSet } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap, isolateHistory, undo, redo, undoDepth } from '@codemirror/commands';
+import { history, historyKeymap, isolateHistory, undo, redo, undoDepth } from '@codemirror/commands';
 import type { PromptVar } from './view.ts';
 import { S } from './strings.ts';
 
@@ -19,7 +19,6 @@ const setBlocks = StateEffect.define<BlockRange[]>();
 const setCollapsed = StateEffect.define<{ index: number; collapsed: boolean }>();
 const setVariables = StateEffect.define<{ key: string; values: readonly PromptVar[] }>();
 const setSpacing = StateEffect.define<Array<{ minHeight: number; padding: number }>>();
-const refreshGenerated = StateEffect.define<null>();
 const setPreview = StateEffect.define<{ key: string; preview: boolean }>();
 const restoreSources = StateEffect.define<null>();
 const setHover = StateEffect.define<number>();
@@ -34,8 +33,7 @@ const saveField = StateField.define<{ state: SaveState; at: number }>({
   update(value, tr) {
     for (const e of tr.effects) {
       if (e.is(setSaveState)) return { state: e.value, at: tr.state.selection.main.head };
-      if (e.is(setBlocks)) return { state: 'idle', at: 0 };
-      if (e.is(refreshGenerated)) return value;
+      if (e.is(setBlocks)) return value;
     }
     return tr.docChanged ? { state: 'dirty', at: tr.state.selection.main.head } : value;
   },
@@ -107,11 +105,11 @@ class VariableWidget extends WidgetType {
     });
     button.addEventListener('dragstart', (event) => {
       const r = range();
-      if (!r || !event.dataTransfer) return;
-      event.dataTransfer.setData(VARIABLE_DRAG_TYPE, JSON.stringify({
+      if (!r) return;
+      event.dataTransfer!.setData(VARIABLE_DRAG_TYPE, JSON.stringify({
         key: view.state.field(blockField).find((b) => r.from >= b.from && r.to <= b.to)?.block.sourceKey, name: r.name, from: r.from, to: r.to, token: r.token,
       }));
-      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer!.effectAllowed = 'move';
     });
     root.append(button, remove);
     return root;
@@ -205,7 +203,7 @@ const interactionDecorations = EditorView.decorations.compute(
 );
 
 const sourceGuard = EditorState.changeFilter.of((tr) => {
-  if (tr.effects.some((e) => e.is(setBlocks) || e.is(refreshGenerated) || e.is(restoreSources))) return true;
+  if (tr.effects.some((e) => e.is(setBlocks) || e.is(restoreSources))) return true;
   const blocks = tr.startState.field(blockField);
   let allowed = true;
   tr.changes.iterChangedRanges((from, to) => {
@@ -231,7 +229,7 @@ export function createPrefixEditor(options: {
       keymap.of([
         { key: 'Mod-s', preventDefault: true, run: () => { options.onSave(); return true; } },
         { key: 'Mod-Shift-z', preventDefault: true, run: redo },
-        ...defaultKeymap, ...historyKeymap,
+        ...historyKeymap,
       ]),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
@@ -270,8 +268,7 @@ export function createPrefixEditor(options: {
           const raw = event.dataTransfer?.getData(VARIABLE_DRAG_TYPE);
           if (!raw) return false;
           event.preventDefault();
-          let data: { key?: string; name?: string; from?: number; to?: number; token?: string };
-          try { data = JSON.parse(raw); } catch { return true; }
+          const data: { key: string; name: string; from?: number; to?: number; token?: string } = JSON.parse(raw);
           const at = view.posAtCoords({ x: event.clientX, y: event.clientY });
           const range = view.state.field(blockField).find((r) => r.block.sourceKey === data.key && !r.collapsed && at != null && at >= r.from && at <= r.to);
           if (!range || !range.block.vars?.some((v) => v.name === data.name)) return true;
@@ -283,7 +280,7 @@ export function createPrefixEditor(options: {
             view.dispatch({ selection: { anchor: moving.from }, annotations: Transaction.addToHistory.of(false) });
             view.dispatch({ changes: [{ from: moving.from, to: moving.to }, { from: pos, insert: moving.token }], selection: { anchor }, userEvent: 'move.drop', annotations: isolateHistory.of('full') });
             view.focus();
-          } else insert(data.key!, data.name!, pos);
+          } else insert(data.key, data.name, pos);
           return true;
         },
       }),
@@ -323,18 +320,43 @@ export function createPrefixEditor(options: {
     },
     setPreview(key: string, preview: boolean) { view.dispatch({ effects: setPreview.of({ key, preview }) }); },
     setSaveState(state: SaveState) { view.dispatch({ effects: setSaveState.of(state) }); },
+    /**
+     * Replaces the block list outside undo history. A block whose identity and text are unchanged keeps
+     * its place in the document, so undo still reaches the edits made in it; fold and preview states
+     * carry over by identity.
+     */
     setBlocks(blocks: PrefixBlock[]) {
+      const old = view.state.field(blockField);
+      const id = (block: PrefixBlock) => block.sourceKey ? `source:${block.sourceKey}` : `title:${block.title}`;
+      const before = new Map(old.map((range, index) => [id(range.block), index]));
       let doc = '';
       const ranges = blocks.map((block) => {
         block = { ...block, text: view.state.toText(block.text).toString() };
+        const prev = old[before.get(id(block)) ?? -1];
         const from = doc.length;
-        doc += block.text;
-        const range = { block, from, to: doc.length, collapsed: block.collapsed ?? block.sourceKey !== 'constitution', preview: false, minHeight: 50, padding: 0 };
-        doc += '\n';
-        return range;
+        doc += `${block.text}\n`;
+        return {
+          block, from, to: from + block.text.length, collapsed: block.collapsed ?? prev?.collapsed ?? block.sourceKey !== 'constitution',
+          preview: prev?.preview ?? false, minHeight: prev?.minHeight ?? 50, padding: prev?.padding ?? 0,
+        };
       });
+      doc = doc.slice(0, -1);
+      const changes: Array<{ from: number; to: number; insert: string }> = [];
+      let oldPos = 0, newPos = 0, lastKept = -1;
+      for (const range of ranges) {
+        const index = before.get(id(range.block)) ?? -1;
+        if (index <= lastKept || view.state.doc.sliceString(old[index].from, old[index].to) !== range.block.text) continue;
+        changes.push({ from: oldPos, to: old[index].from, insert: doc.slice(newPos, range.from) });
+        lastKept = index;
+        oldPos = old[index].to;
+        newPos = range.to;
+      }
+      changes.push({ from: oldPos, to: view.state.doc.length, insert: doc.slice(newPos) });
       last = new Map(ranges.filter((r) => r.block.sourceKey).map((r) => [r.block.sourceKey!, r.block.text]));
-      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: doc.slice(0, -1) }, effects: setBlocks.of(ranges), annotations: Transaction.addToHistory.of(false) });
+      view.dispatch({
+        changes: changes.filter((c) => view.state.doc.sliceString(c.from, c.to) !== c.insert),
+        effects: setBlocks.of(ranges), annotations: Transaction.addToHistory.of(false),
+      });
     },
     setCollapsed(index: number, collapsed: boolean) { view.dispatch({ effects: setCollapsed.of({ index, collapsed }) }); },
     text(key: string): string {
@@ -342,12 +364,6 @@ export function createPrefixEditor(options: {
       return view.state.doc.sliceString(range.from, range.to);
     },
     updateVariables(key: string, values: readonly PromptVar[]) { view.dispatch({ effects: setVariables.of({ key, values }) }); },
-    updateGenerated(index: number, text: string) {
-      const range = view.state.field(blockField)[index];
-      const normalized = view.state.toText(text).toString();
-      if (range.block.sourceKey || view.state.doc.sliceString(range.from, range.to) === normalized) return;
-      view.dispatch({ changes: { from: range.from, to: range.to, insert: normalized }, effects: refreshGenerated.of(null), annotations: Transaction.addToHistory.of(false) });
-    },
     setSpacing(spacing: Array<{ minHeight: number; padding: number }>) {
       if (view.state.field(blockField).some((r, i) => Math.abs(r.minHeight - spacing[i].minHeight) > 1 || Math.abs(r.padding - spacing[i].padding) > 1)) {
         view.dispatch({ effects: setSpacing.of(spacing) });

@@ -37,6 +37,10 @@ export const S: Partial<typeof en> = {
   saveToFile: "儲存",
   // index.ts
   title: '系統提示詞',
+  introDesc: "Ctrl+S 儲存範本，「立即套用」後目前對話改用新的提示詞。自動生成的段落唯讀。",
+  showFull: "查看完整提示詞",
+  hideFull: "收起完整提示詞",
+  sourceMissing: (key: string) => `來源「${key}」找不到`,
   leaveUnsaved: '未儲存的修改將遺失。離開？',
   saving: '儲存中…',
   saved: '已儲存',

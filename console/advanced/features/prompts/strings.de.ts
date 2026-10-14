@@ -37,6 +37,10 @@ export const S: Partial<typeof en> = {
   saveToFile: "Speichern",
   // index.ts
   title: 'System-Prompt',
+  introDesc: "Strg+S speichert Vorlagen; „Jetzt anwenden“ aktualisiert den Prompt des aktuellen Gesprächs. Generierte Abschnitte sind schreibgeschützt.",
+  showFull: "Vollständigen Prompt anzeigen",
+  hideFull: "Vollständigen Prompt ausblenden",
+  sourceMissing: (key: string) => `Quelle „${key}“ nicht gefunden`,
   leaveUnsaved: 'Ungespeicherte Änderungen gehen verloren. Verlassen?',
   saving: 'Speichert…',
   saved: 'Gespeichert',

@@ -5,6 +5,7 @@
 .prompt-toolbar .btn.danger { background:var(--danger); color:#fff; }
 .prompt-toolbar .btn.danger:hover { background:color-mix(in srgb,var(--danger) 88%,#000); }
 .prompt-help { margin:0; color:var(--ink-dim); font-size:11px; line-height:1.6; }
+.prefix-full { margin:24px 0 0; padding:12px 14px; border:1px solid var(--border); background:var(--sheet); color:var(--ink); font:13px/1.7 var(--mono); white-space:pre-wrap; overflow-wrap:anywhere; }
   .prefix-stage { position: relative; display: flex; align-items: flex-start; gap: 0; margin-top: 24px; }
   .prefix-host { flex: 1; min-width: 0; }
 
@@ -122,7 +123,7 @@
 .prefix-label.tone-world .prefix-flag { background:color-mix(in srgb,var(--ok) 26%,var(--sheet)); color:var(--ok); }
 .prefix-flag-title { font-size:11px; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .prefix-flag-meta { display:flex; align-items:center; column-gap:5px; row-gap:0; flex-wrap:wrap; font-size:9px; line-height:1.4; }
-.prefix-flag-key { font-size:9px; }
+.prefix-flag-key { font-size:9px; overflow-wrap:anywhere; }
 .prompt-section-badge { font-size:9px; opacity:.8; }
 .prompt-section-badge.is-dirty { font-weight:600; opacity:1; }
 .prefix-railcontent .prompt-settings-link { align-self:flex-start; margin-top:4px; white-space:normal; word-break:keep-all; text-align:left; }

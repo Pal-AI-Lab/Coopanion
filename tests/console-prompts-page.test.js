@@ -147,6 +147,17 @@ it('refreshes variables and generated text after applying, preserving undo and r
   await vi.waitFor(() => expect(root.querySelector('.prompt-railwarn').textContent).toContain('fixture.name'));
 });
 
+it('reloads templates changed outside the page when applying, so the next save uses their revision', async () => {
+  const { root, view, button, edit } = await mount();
+  sources[0].content = 'Rewritten {{fixture.name}}'; sources[0].revision = '2';
+  button(S.reloadSession).click();
+  await vi.waitFor(() => expect(view.state.doc.toString()).toContain('Rewritten'));
+  edit('New ');
+  button(S.saveToFile).click();
+  await vi.waitFor(() => expect(root.querySelector('[role=status]').textContent).toBe(S.pendingApply));
+  expect(writes).toEqual([expect.objectContaining({ key: 'constitution', content: 'New Rewritten {{fixture.name}}', baseRevision: '2' })]);
+});
+
 it('retains empty editable templates omitted from the prefix and applies their restored content', async () => {
   sources[1].content = '';
   const { root, view, button } = await mount();
@@ -160,6 +171,7 @@ it('retains empty editable templates omitted from the prefix and applies their r
 });
 
 it('keeps the accepted route unchanged when leaving for World configuration is cancelled', async () => {
+  localStorage.setItem('companion.mode', 'advanced');
   const { root, router, edit } = await mount();
   let mode = 'normal';
   const request = (event) => { mode = event.detail; };
@@ -176,12 +188,13 @@ it('keeps the accepted route unchanged when leaving for World configuration is c
     await vi.waitFor(() => expect(document.querySelector('.confirm-card')).not.toBeNull());
     document.querySelector('.confirm-card .btn.primary').click();
     await vi.waitFor(() => expect(router.route.segments).toEqual(['provider', 'world:fixture', '~config']));
-    expect(router.route.query.mode).toBe('advanced');
+    expect(router.route.query).toEqual({});
   } finally { window.removeEventListener('companion-mode-request', request); }
 });
 
-it('mounts World configuration in advanced mode only after the app accepts leaving the prompt editor', async () => {
+it('opens World configuration from the advanced mode only after the app accepts leaving the prompt editor', async () => {
   const { boot } = await import('../console/index.ts');
+  localStorage.setItem('companion.mode', 'advanced');
   let allowLeave = false;
   vi.stubGlobal('confirm', () => allowLeave);
   mounted.push(boot());
@@ -190,17 +203,20 @@ it('mounts World configuration in advanced mode only after the app accepts leavi
   view.dispatch({ changes: { from: 0, insert: 'Unsaved ' } });
   document.querySelector('.prompt-settings-link').click();
   await vi.waitFor(() => expect(location.hash).toBe('#/prompts'));
-  expect(localStorage.getItem('companion.mode')).not.toBe('advanced');
   expect(view.state.doc.toString()).toContain('Unsaved ');
   allowLeave = true;
   document.querySelector('.prompt-settings-link').click();
   await vi.waitFor(() => expect(document.querySelector('.pagetitle')?.textContent).toBe('Fixture World'));
-  expect(localStorage.getItem('companion.mode')).toBe('advanced');
+  expect(location.hash).not.toContain('mode=');
   expect(document.querySelector('.cm-editor')).toBeNull();
   await vi.waitFor(() => expect(document.querySelector('input[type="text"]')?.value).toBe('Friend'));
 });
 
-it('omits the World configuration shortcut when the manifest disables configuration', async () => {
+it('omits the World configuration shortcut in the normal mode and when the manifest disables configuration', async () => {
+  const normal = await mount();
+  expect(normal.root.querySelector('.prompt-settings-link')).toBeNull();
+  normal.life.dispose(); normal.root.remove();
+  localStorage.setItem('companion.mode', 'advanced');
   configAvailable = false;
   const { root } = await mount();
   await vi.waitFor(() => expect(root.querySelector(`[data-source="${worldKey}"]`).textContent).toContain('Fixture World'));
