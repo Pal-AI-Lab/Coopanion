@@ -252,8 +252,8 @@ async function mount(ctx: PageContext): Promise<void> {
       if (it.kind === 'user') { group = null; thread.append(userNode(it)); continue; }
       if (it.kind === 'touch') { group = null; thread.append(ui.h('div', 'chat-note', it.touch ? S.touch(it.touch, bot) : it.text ?? '')); continue; }
       if (it.kind === 'figure') { group = null; thread.append(ui.h('div', 'chat-note', S.figure(it.figure.kind, localName(it.figure.name), bot))); continue; }
-      const body = cooBody();
       if (it.kind === 'say') {
+        const body = cooBody();
         for (const beat of it.beats) {
           const row = ui.h('div', 'sayrow');
           row.append(ui.h('div', 'pet-bubble say', beat.text));
@@ -261,8 +261,8 @@ async function mount(ctx: PageContext): Promise<void> {
           body.append(row);
         }
         for (const img of it.images ?? []) body.append(thumb(img));
-      } else if (it.kind === 'ask') body.append(askNode(it, it.askId === openAsk));
-      else if (it.kind === 'activity' && shownSteps(it.steps).length) body.append(activityNode(String(it.cursor), shownSteps(it.steps), S.seconds(Math.max(1, Math.round(it.ms / 1000))), false));
+      } else if (it.kind === 'ask') cooBody().append(askNode(it, it.askId === openAsk));
+      else if (it.kind === 'activity' && shownSteps(it.steps).length) cooBody().append(activityNode(String(it.cursor), shownSteps(it.steps), S.seconds(Math.max(1, Math.round(it.ms / 1000))), false));
     }
     const liveSteps = live ? shownSteps(live.steps) : [];
     // more than one step: the title counts them, the meta names the one running now
