@@ -6,4 +6,38 @@ function coreEnvironment(env) {
   ].map(s => s.trim()).filter(Boolean))].join(',');
   return { ...env, ELECTRON_RUN_AS_NODE: '1', NODE_USE_ENV_PROXY: '1', NO_PROXY: bypass, no_proxy: bypass };
 }
-module.exports = { coreEnvironment };
+
+const PROXY_VARS = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy'];
+/**
+ * The one URL the system proxy is looked up for. Under a PAC script other hosts may get a different
+ * answer; a model service is the request that fails by region without a proxy, so its answer is the
+ * one the Core uses for every host.
+ */
+const PROBE_URL = 'https://api.openai.com/';
+
+/**
+ * Proxy variables for the Core from the system proxy, and the line that says where they came from.
+ * Proxy variables already in `env` win and the system is not asked. `resolveProxy` answers in
+ * Chromium's form (`PROXY host:port; DIRECT`); its first entry decides. Node's environment proxy
+ * speaks HTTP and HTTPS proxies only, so a SOCKS entry leaves the Core direct.
+ * @param {NodeJS.ProcessEnv} env
+ * @param {(url: string) => Promise<string>} resolveProxy
+ * @returns {Promise<{ vars: Record<string, string>, note: string }>}
+ */
+async function systemProxyEnvironment(env, resolveProxy) {
+  if (PROXY_VARS.some(k => env[k])) return { vars: {}, note: 'proxy: environment variables' };
+  let rule;
+  try { rule = await resolveProxy(PROBE_URL); } catch (e) {
+    return { vars: {}, note: `proxy: none (system proxy lookup failed: ${e instanceof Error ? e.message : e})` };
+  }
+  const first = rule.split(';')[0].trim();
+  const [scheme, host] = first.split(/\s+/);
+  if ((scheme === 'PROXY' || scheme === 'HTTPS') && host) {
+    const url = `${scheme === 'HTTPS' ? 'https' : 'http'}://${host}`;
+    return { vars: Object.fromEntries(PROXY_VARS.map(k => [k, url])), note: `proxy: system ${first}` };
+  }
+  if (scheme?.startsWith('SOCKS')) return { vars: {}, note: `proxy: none (system proxy ${first} is SOCKS, which Node cannot use)` };
+  return { vars: {}, note: 'proxy: none' };
+}
+
+module.exports = { coreEnvironment, systemProxyEnvironment };

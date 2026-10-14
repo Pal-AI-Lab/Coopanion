@@ -7,7 +7,8 @@
  * started again; an unexpected exit is restarted after 3 s, at most 5 times in 5 minutes, except one that
  * said another process holds the data directory's lock (`companion:locked`), which is not restarted. The next
  * child started after an unexpected exit gets its exit code or signal in `COOPANION_CORE_EXIT`, for
- * the usage statistics.
+ * the usage statistics. Every start looks up the system proxy again (systemProxyEnvironment) and hands
+ * it to the child as proxy variables unless the environment already has its own.
  *
  * Events: `ready` ({ port, keyMissing, language }), `language` (the app language after a change),
  * `state` (the state, and for an unexpected exit `{ kind: 'restarting', code }` or, once it stops
@@ -15,7 +16,7 @@
  * `quit`, `update-install` and `releases`.
  */
 const { fork } = require('node:child_process');
-const { coreEnvironment } = require('./core-env.cjs');
+const { coreEnvironment, systemProxyEnvironment } = require('./core-env.cjs');
 const { EventEmitter } = require('node:events');
 const { createWriteStream, existsSync, mkdirSync, renameSync, statSync } = require('node:fs');
 const { join } = require('node:path');
@@ -25,7 +26,7 @@ const MAX_CRASHES = 5;
 const LOG_ROTATE_BYTES = 5 * 1024 * 1024;
 
 class CoreHost extends EventEmitter {
-  /** @param {{ appRoot: string, env: NodeJS.ProcessEnv, logDir: string }} opts */
+  /** @param {{ appRoot: string, env: NodeJS.ProcessEnv, logDir: string, resolveProxy: (url: string) => Promise<string> }} opts */
   constructor(opts) {
     super();
     this.opts = opts;
@@ -35,6 +36,8 @@ class CoreHost extends EventEmitter {
     this.keyMissing = false;
     this.restartAsked = false;
     this.stopping = false;
+    /** The system proxy lookup before a start is running. */
+    this.launching = false;
     this.crashes = [];
     /** The child said another process holds the data directory's lock (`companion:locked`): its PID and the lock file. */
     this.locked = null;
@@ -43,17 +46,21 @@ class CoreHost extends EventEmitter {
     this.state = 'stopped';
   }
 
-  start() {
-    if (this.child) return;
+  async start() {
+    if (this.child || this.launching) return;
+    this.launching = true;
+    const proxy = await systemProxyEnvironment(this.opts.env, this.opts.resolveProxy);
+    this.launching = false;
+    if (this.stopping) return;
     mkdirSync(this.opts.logDir, { recursive: true });
     const logFile = join(this.opts.logDir, 'core.log');
     if (existsSync(logFile) && statSync(logFile).size > LOG_ROTATE_BYTES) renameSync(logFile, join(this.opts.logDir, 'core.old.log'));
     const log = createWriteStream(logFile, { flags: 'a' });
-    log.write(`\n===== ${new Date().toISOString()} start =====\n`);
+    log.write(`\n===== ${new Date().toISOString()} start =====\n${proxy.note}\n`);
     const child = fork(join(this.opts.appRoot, 'core', 'boot.ts'), [], {
       cwd: this.opts.appRoot,
       execArgv: ['--use-env-proxy', '--import', 'tsx'],
-      env: coreEnvironment(this.unexpectedExit === null ? this.opts.env : { ...this.opts.env, COOPANION_CORE_EXIT: String(this.unexpectedExit) }),
+      env: coreEnvironment({ ...this.opts.env, ...proxy.vars, ...(this.unexpectedExit === null ? {} : { COOPANION_CORE_EXIT: String(this.unexpectedExit) }) }),
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     });
     this.unexpectedExit = null;
@@ -103,7 +110,7 @@ class CoreHost extends EventEmitter {
       if (this.restartAsked || flagged) {
         this.state = 'restarting';
         this.emit('state', this.state);
-        this.start();
+        void this.start();
         return;
       }
       if (this.locked) {
@@ -125,7 +132,7 @@ class CoreHost extends EventEmitter {
       }
       this.state = 'restarting';
       this.emit('state', this.state, { kind: 'restarting', code });
-      setTimeout(() => { if (!this.stopping) this.start(); }, 3000);
+      setTimeout(() => { if (!this.stopping) void this.start(); }, 3000);
     });
   }
 
@@ -149,7 +156,7 @@ class CoreHost extends EventEmitter {
   async restart() {
     await this.stop();
     this.stopping = false;
-    this.start();
+    await this.start();
   }
 }
 

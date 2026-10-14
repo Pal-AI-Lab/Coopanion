@@ -128,6 +128,8 @@ const petHost = app.isPackaged ? [process.execPath, '--pet-host'] : [process.exe
 const core = new CoreHost({
   appRoot: APP_ROOT,
   logDir: join(userData, 'logs'),
+  // the default session follows the operating system's proxy settings, PAC scripts included
+  resolveProxy: (url) => session.defaultSession.resolveProxy(url),
   env: {
     ...process.env,
     CORTICO_HOME: join(userData, 'home'),
@@ -475,7 +477,7 @@ app.whenReady().then(() => {
   if (STEAM) core.opts.env.COOPANION_PACK_ROOTS = require('./steam.cjs').workshopPackRoots(BUILD.steamAppId, join(userData, 'logs')).join(delimiter);
   buildTray();
   noteAutostart();
-  core.start();
+  void core.start();
   if (!STEAM) updater = startUpdater({
     logDir: join(userData, 'logs'),
     tell: (step) => { updateStep = { type: 'companion:update', ...step }; core.send(updateStep); },

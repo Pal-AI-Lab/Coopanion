@@ -305,7 +305,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 <details>
 <summary><b>需要走代理</b></summary>
 
-在启动 Coopanion 的环境里设置 `HTTP_PROXY` / `HTTPS_PROXY`，本机通信会自动绕过代理。详见[开发文档](docs/DEVELOPMENT.md)。
+Coopanion 使用系统代理（HTTP 或 HTTPS 代理；SOCKS 代理不生效），每次 Core 启动时重新读取。启动 Coopanion 的环境里设置了 `HTTP_PROXY` / `HTTPS_PROXY` 时以环境变量为准。本机通信会自动绕过代理。详见[开发文档](docs/DEVELOPMENT.md)。
 
 </details>
 

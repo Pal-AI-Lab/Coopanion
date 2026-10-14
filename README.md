@@ -307,7 +307,7 @@ If the Windows recognizer reports no speech recognizer, install speech recogniti
 <details>
 <summary><b>I need a proxy</b></summary>
 
-Set `HTTP_PROXY` / `HTTPS_PROXY` in the environment Coopanion starts from. Local traffic bypasses the proxy. See the [development guide](docs/DEVELOPMENT.md).
+Coopanion uses the system proxy (an HTTP or HTTPS proxy; a SOCKS proxy is not used), read again each time Core starts. `HTTP_PROXY` / `HTTPS_PROXY` set in the environment Coopanion starts from take its place. Local traffic bypasses the proxy. See the [development guide](docs/DEVELOPMENT.md).
 
 </details>
 
