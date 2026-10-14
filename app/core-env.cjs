@@ -14,12 +14,15 @@ const PROXY_VARS = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy'];
  * one the Core uses for every host.
  */
 const PROBE_URL = 'https://api.openai.com/';
+/** A lookup still unanswered after this long (an unreachable PAC script) counts as failed, so the Core starts direct. */
+const PROXY_LOOKUP_MS = 5000;
 
 /**
  * Proxy variables for the Core from the system proxy, and the line that says where they came from.
  * Proxy variables already in `env` win and the system is not asked. `resolveProxy` answers in
  * Chromium's form (`PROXY host:port; DIRECT`); its first entry decides. Node's environment proxy
  * speaks HTTP and HTTPS proxies only, so a SOCKS entry leaves the Core direct.
+ * A lookup that fails or outlasts PROXY_LOOKUP_MS also leaves it direct.
  * @param {NodeJS.ProcessEnv} env
  * @param {(url: string) => Promise<string>} resolveProxy
  * @returns {Promise<{ vars: Record<string, string>, note: string }>}
@@ -27,9 +30,15 @@ const PROBE_URL = 'https://api.openai.com/';
 async function systemProxyEnvironment(env, resolveProxy) {
   if (PROXY_VARS.some(k => env[k])) return { vars: {}, note: 'proxy: environment variables' };
   let rule;
-  try { rule = await resolveProxy(PROBE_URL); } catch (e) {
+  let timer;
+  try {
+    rule = await Promise.race([
+      resolveProxy(PROBE_URL),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`timed out after ${PROXY_LOOKUP_MS} ms`)), PROXY_LOOKUP_MS); }),
+    ]);
+  } catch (e) {
     return { vars: {}, note: `proxy: none (system proxy lookup failed: ${e instanceof Error ? e.message : e})` };
-  }
+  } finally { clearTimeout(timer); }
   const first = rule.split(';')[0].trim();
   const [scheme, host] = first.split(/\s+/);
   if ((scheme === 'PROXY' || scheme === 'HTTPS') && host) {
@@ -40,4 +49,4 @@ async function systemProxyEnvironment(env, resolveProxy) {
   return { vars: {}, note: 'proxy: none' };
 }
 
-module.exports = { coreEnvironment, systemProxyEnvironment };
+module.exports = { coreEnvironment, systemProxyEnvironment, PROXY_LOOKUP_MS };
