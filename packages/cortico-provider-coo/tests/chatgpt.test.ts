@@ -324,6 +324,19 @@ describe('requests billed to a ChatGPT plan', () => {
     expect(seen[0]).toMatchObject({ stream: true });
   });
 
+  it('a terminal response with an empty output takes the done items, in the result and in the forwarded event', async () => {
+    const { create } = await signedInEndpoint((_req, res) => stream(res, sse([
+      { type: 'response.created', response: { ...RESPONSE, status: 'in_progress' } },
+      { type: 'response.output_item.added', output_index: 0, item: { ...REPLY, status: 'in_progress', content: [] } },
+      { type: 'response.output_item.done', output_index: 0, item: REPLY },
+      { type: 'response.completed', response: { ...RESPONSE, status: 'completed', output: [] } },
+    ])));
+    const events: Array<{ type: string; response?: { output: unknown[] } }> = [];
+    const out = await create().client.respond({ model: 'm' } as unknown as Request, { context: [message('user', 'hi')], onEvent: (e) => events.push(e) });
+    expect(out.response.output).toEqual([REPLY]);
+    expect(events.at(-1)).toMatchObject({ type: 'response.completed', response: { output: [REPLY] } });
+  });
+
   it('a usage limit inside the stream is logged and waited out inside the client: no request goes out until the pause ends, then it is sent again', async () => {
     let requests = 0;
     let limited = true;

@@ -105,14 +105,31 @@ export class ChatGPTResponses extends VendorResponses {
     this.logger.warn(`ChatGPT 套餐用量已达上限(${USAGE_LIMIT}),${USAGE_PAUSE_MS / 60_000} 分钟内不再发请求`, { code: USAGE_LIMIT, requestId });
   }
 
-  /** The standard assembly, which also starts the pause at a failure event of the usage limit. */
+  /**
+   * The standard assembly, which also starts the pause at a failure event of the usage limit. The route's
+   * terminal response carries an empty `output`; it is filled from the `output_item.done` items, by output
+   * index, before the event goes on. A completed or incomplete response is filled only when every announced
+   * item is done; a failed one takes the unfinished items as streamed so far. Indices with a gap, or a
+   * terminal `output` that is not empty, go on unchanged.
+   */
   protected override responseAssembly(): ResponseAssembly {
     const inner = super.responseAssembly();
+    const announced = new Set<number>();
+    const done = new Map<number, unknown>();
     return {
       feed: (payload, emit) => {
-        const type = (payload as { type?: unknown } | null)?.type;
+        const event = payload as { type?: unknown; output_index?: number; item?: unknown; response?: { output?: unknown } } | null;
+        const type = event?.type;
         if ((type === 'response.failed' || type === 'error') && JSON.stringify(payload).includes(USAGE_LIMIT)) this.pause(null);
+        if ((type === 'response.completed' || type === 'response.incomplete' || type === 'response.failed')
+          && Array.isArray(event!.response?.output) && !event!.response.output.length && announced.size) {
+          const streamed = type === 'response.failed' ? inner.snapshot()?.output : undefined;
+          const output = Array.from({ length: announced.size }, (_, i) => done.get(i) ?? (announced.has(i) ? streamed?.[i] : undefined));
+          if (!output.includes(undefined)) payload = { ...event, response: { ...event!.response, output } };
+        }
         inner.feed(payload, emit);
+        if (type === 'response.output_item.added') announced.add(event!.output_index!);
+        if (type === 'response.output_item.done') done.set(event!.output_index!, event!.item);
       },
       finish: (emit) => inner.finish(emit),
       snapshot: () => inner.snapshot(),
