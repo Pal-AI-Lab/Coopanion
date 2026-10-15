@@ -35,7 +35,6 @@ const DROP = new Set([
   'runtime', 'templates', 'patches', 'scripts', 'bin', 'CortiV-DataAnalysis', 'assets',
   'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'tsconfig.json', 'tsconfig.web.json', 'vitest.config.ts', 'start.bat', 'start.sh',
   'AGENTS.md', 'CLAUDE.md', 'CODE_OF_CONDUCT.md', 'CONTRIBUTING.md', 'SECURITY.md', '.env', '.gitignore', '.gitattributes',
-  'src/launcher.ts', 'src/worlds/index.ts',
   'src/worlds/minecraft', 'src/worlds/qq', 'src/worlds/bilibili', 'src/worlds/websearch', 'src/worlds/console-fixture',
   'src/providers/llamacpp',
   'bots/corti-soulmate', 'bots/cortiv',
