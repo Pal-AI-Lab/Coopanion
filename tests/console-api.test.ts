@@ -154,8 +154,9 @@ describe('routes the advanced mode uses beyond the public table', () => {
     expect((await json(await post('/api/providers/spare/delete', { expectedRevision: spare.body.revision }))).status).toBe(200);
   });
 
-  it('extensions: the installed list, an icon that is not there, a check that finds nothing', async () => {
+  it('extensions: the installed list, the npm registry, an icon that is not there, a check that finds nothing', async () => {
     expect((await json(await get('/api/extensions'))).status).toBe(200);
+    expect((await json(await get('/api/extensions/registry'))).body).toMatchObject({ configured: null });
     expect((await get('/api/extensions/icon?name=cortico-world-none')).status).toBe(404);
     const check = await json(await post('/api/extensions/check', { target: { path: join(dir, 'no-such-package') }, kind: 'world' }));
     expect(check.body.ok === false || typeof check.body.error === 'string').toBe(true);
