@@ -41,6 +41,7 @@ const K = 'worlds.desktop-pet';
 const KEYS = {
   user: `${K}.user`,
   roam: `${K}.roam`,
+  idleTalkRate: `${K}.idleTalk.rate`,
   scale: `${K}.window.scale`,
   glow: `${K}.window.glow`,
   lockFps: `${K}.window.lockFrameRate`,
@@ -115,6 +116,10 @@ async function mount(ctx: PageContext): Promise<void> {
   const roam = ui.segmented([
     { value: 'free', label: S.roamFree }, { value: 'calm', label: S.roamCalm }, { value: 'off', label: S.roamOff },
   ], { size: 'sm', onSelect: (v) => void save(KEYS.roam, v, GROUP, behaviorMsg) });
+  const idleRate = ui.segmented([
+    { value: 'never', label: S.idleRates.never }, { value: 'low', label: S.idleRates.low },
+    { value: 'medium', label: S.idleRates.medium }, { value: 'high', label: S.idleRates.high },
+  ], { size: 'sm', onSelect: (v) => void save(KEYS.idleTalkRate, v, GROUP, behaviorMsg) });
   const scaleText = ui.h('span', 'companion-rangeval');
   const scaleBox = ui.h('div', 'companion-rangebox');
   const scale = scaleSlider(root.ownerDocument, {
@@ -289,6 +294,7 @@ async function mount(ctx: PageContext): Promise<void> {
   const behavior = ui.sheet({ title: S.groupBehavior });
   behavior.body.append(
     row(S.roam, roam.el),
+    row(S.idleRate, idleRate.el, S.idleRateHint),
     row(S.wake, wake.el, wakeHint),
     row(S.self, selfMode.el, selfHint),
     row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
@@ -428,6 +434,7 @@ async function mount(ctx: PageContext): Promise<void> {
       user.dataset.saved = user.value;
     }
     if (typeof values[KEYS.roam] === 'string') roam.setValue(values[KEYS.roam] as string);
+    if (typeof values[KEYS.idleTalkRate] === 'string') idleRate.setValue(values[KEYS.idleTalkRate] as string);
     if (typeof values[KEYS.scale] === 'number' && !scale.active && active !== scale.el) { scale.set(values[KEYS.scale] as number); showScale(); }
     if (!glow.active && active !== glow.el) { glow.set(typeof values[KEYS.glow] === 'number' ? values[KEYS.glow] as number : GLOW_DEFAULT); showGlow(); }
     if (typeof values[KEYS.frameRate] === 'number') frameRate.setValue(String(values[KEYS.frameRate]));

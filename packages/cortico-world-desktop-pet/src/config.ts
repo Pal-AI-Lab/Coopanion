@@ -177,6 +177,8 @@ export interface DesktopPetConfigSection extends WorldSection {
     /** Under `custom`: the touches that wake the bot. */
     wakeKinds: TouchKind[];
   };
+  /** The bot's own idle nudge (src/idle.ts). */
+  idleTalk: { rate: 'never' | 'low' | 'medium' | 'high'; quietFrom: number; quietTo: number };
   asr: {
     enabled: boolean;
     /** Empty: by the app language (`asrEngineFor`). Earlier versions wrote `auto` here, which reads as empty. */
@@ -226,6 +228,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   },
   cua: CUA_DEFAULTS,
   touch: { enabled: true, wakeOn: 'poke', wakeKinds: ['poke'] },
+  idleTalk: { rate: 'medium', quietFrom: 23, quietTo: 8 },
   asr: {
     enabled: true,
     engine: '',
@@ -273,6 +276,9 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
         [`${K}.port`]: { type: 'integer', title: c.port.title, minimum: 1024, maximum: 65535, description: c.port.description, 'x-hot': false },
         [`${K}.touch.enabled`]: { type: 'boolean', title: c.touchEnabled.title, description: c.touchEnabled.description, 'x-hot': true },
         [`${K}.touch.wakeOn`]: { type: 'string', title: c.touchWakeOn.title, enum: ['none', 'poke', 'all', 'custom'], description: c.touchWakeOn.description, 'x-hot': true },
+        [`${K}.idleTalk.rate`]: { type: 'string', title: '主动搭话频率', enum: ['never', 'low', 'medium', 'high'], description: '闲下来多久主动找你说句话；永不就是完全不主动', 'x-hot': true },
+        [`${K}.idleTalk.quietFrom`]: { type: 'integer', title: '搭话免打扰开始（时）', minimum: 0, maximum: 23, 'x-hot': true },
+        [`${K}.idleTalk.quietTo`]: { type: 'integer', title: '搭话免打扰结束（时）', minimum: 0, maximum: 23, 'x-hot': true },
       },
     },
   };

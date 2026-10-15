@@ -53,6 +53,7 @@ import type { Answer } from './cua/engine-ipc.ts';
 import { PackImporter } from './pack-import.ts';
 import { dressTable, planSettings, type SettingChange } from './self.ts';
 import { MODEL_TEXT, type ModelLanguage, type ModelText } from './model-text.ts';
+import { IDLE_DEFAULTS, IdleTalk } from './idle.ts';
 
 /** The console panels, titled in `language`. */
 export function desktopPetPanelDecls(language: Language = 'zh'): WorldPanelDecl[] {
@@ -289,6 +290,7 @@ function parseChatImages(raw: unknown, user: string, s: PetText['chat'], m: Mode
 }
 
 export class DesktopPetWorld implements World {
+  private idleTalk: IdleTalk | null = null;
   readonly id = DESKTOP_PET_ID;
   private host: WorldHost | null = null;
   private log: Logger | null = null;
@@ -584,6 +586,13 @@ export class DesktopPetWorld implements World {
     await this.syncHotkey();
     this.prefsKey = this.prefsSignature();
     this.prefsTimer = setInterval(() => this.syncPrefs(), PREFS_SYNC_MS);
+    // 主动搭话：闲一阵就自己开口（说什么是 persona 的事，这里只叫醒）
+    this.idleTalk = new IdleTalk({
+      settings: () => ({ ...IDLE_DEFAULTS, ...this.cfg.idleTalk }),
+      language: () => this.language,
+      push: (text) => host.pushDeferred({ type: 'desktop-pet.idle', origin: 'internal', render: () => text }, { trigger: 'flush' }),
+    });
+    this.idleTalk.start();
   }
 
   async stop(): Promise<void> {
@@ -592,6 +601,8 @@ export class DesktopPetWorld implements World {
     this.quiet = null;
     if (this.prefsTimer) clearInterval(this.prefsTimer);
     this.prefsTimer = null;
+    if (this.idleTalk) this.idleTalk.stop();
+    this.idleTalk = null;
     this.savePosition();
     await this.importer?.cancel();
     if (this.packTimer) clearTimeout(this.packTimer);
