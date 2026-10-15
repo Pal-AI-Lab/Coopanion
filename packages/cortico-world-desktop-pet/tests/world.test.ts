@@ -247,7 +247,7 @@ describe('with a pet page', () => {
     cleanup.push(() => page.close());
     for (let i = 0; i < 3; i++) page.send({ t: 'touch', kind: 'poke' });
     await expect.poll(() => host.events.length, { timeout: 6000 }).toBe(1);
-    expect(host.events[0]).toMatchObject({ type: 'desktop-pet.touch', text: '[互动] 伙伴戳了你 3 下' });
+    expect(host.events[0]).toMatchObject({ type: 'desktop-pet.touch', text: '[互动] 伙伴戳了你 3 下（说句话回应它，想配个动作随意）' });
     expect(host.pushOpts[0]).toEqual({ trigger: 'debounce' });
   });
 
@@ -276,7 +276,7 @@ describe('with a pet page', () => {
     page.send({ t: 'touch', kind: 'throw', x: 300 });
     page.send({ t: 'touch', kind: 'crash' });
     await expect.poll(() => host.events.length, { timeout: 6000 }).toBe(1);
-    expect(host.events[0].text).toBe('[互动] 伙伴把你拎起来甩了出去,你重重落地,摔晕了一会儿');
+    expect(host.events[0].text).toBe('[互动] 伙伴把你拎起来甩了出去,你重重落地,摔晕了一会儿（说句话回应它，想配个动作随意）');
   });
 
   it('sends no touch events when touch reporting is off', async () => {

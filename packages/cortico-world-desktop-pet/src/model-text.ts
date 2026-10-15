@@ -47,7 +47,7 @@ const zh = {
   answerPicked: (user: string, question: string, n: number, option: string) => `[回答] ${user}回答「${question}」:选了第 ${n} 项「${option}」`,
   answerWrote: (user: string, question: string, text: string) => `[回答] ${user}回答「${question}」:自己写了:「${text}」`,
 
-  touch: (text: string) => `[互动] ${text}`,
+  touch: (text: string) => `[互动] ${text}（说句话回应它，想配个动作随意）`,
   pokedAwake: (user: string) => `${user}把睡着的你戳醒了`,
   poked: (user: string, n: number) => (n > 1 ? `${user}戳了你 ${n} 下` : `${user}戳了你一下`),
   pettedAsleep: (user: string) => `${user}摸了摸睡着的你`,
@@ -162,7 +162,7 @@ const en: typeof zh = {
   answerPicked: (user, question, n, option) => `[answer] ${user} answered "${question}": picked option ${n}, "${option}"`,
   answerWrote: (user, question, text) => `[answer] ${user} answered "${question}" in their own words: "${text}"`,
 
-  touch: (text) => `[touch] ${text}`,
+  touch: (text) => `[touch] ${text} (say a word or two back; an action alongside is fine)`,
   pokedAwake: (user) => `${user} poked you awake`,
   poked: (user, n) => (n > 1 ? `${user} poked you ${n} times` : `${user} poked you`),
   pettedAsleep: (user) => `${user} patted you while you were asleep`,

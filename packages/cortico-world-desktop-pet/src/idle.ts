@@ -31,11 +31,11 @@ export const RATE_MINUTES: Record<IdleRate, [number, number] | null> = {
 };
 
 const zh = {
-  nudge: '[闲暇] 你这会儿闲下来了，主动和主人说句话吧：一两句就好，用你自己的性格和口吻，可以关心、提醒、好奇提问或分享一个念头。不要报幕，不要提闲下来这件事，不要重复最近说过的内容；若感觉主人正忙，就简短些或不说。',
+  nudge: '[闲暇] 你闲下来了。用 pet_say 主动和主人说一两句话：关心、提醒、提问或分享个念头，用你自己的性格和口吻。（规则：先 pet_say 说话，然后才能 end_turn；不许不说话就结束。）',
 };
 
 const en = {
-  nudge: '[idle] You have a quiet moment. Say something to your person of your own accord: a line or two, in your own voice — care, a reminder, a curious question or a thought. No announcements, no mention of being idle, nothing you said recently; if they seem busy, keep it short or skip it.',
+  nudge: '[idle] You are free for a moment. Use pet_say to say a line or two to your person: care, a reminder, a question or a thought, in your own voice. (Rule: pet_say first, end_turn after; never end the turn without speaking.)',
 };
 
 /** The nudge handed to the model, in the model-text language. */
@@ -60,6 +60,8 @@ export class IdleTalk {
     language: () => ModelLanguage;
     /** Delivers the nudge as an internal event and wakes the model. */
     push: (text: string) => void;
+    /** Whether the bot is up to talking (not asleep); a false skips with a short retry. */
+    awake?: () => boolean;
     now?: () => number;
     /** The local hour, by the app's clock; tests pass their own. */
     hourOf?: (now: number) => number;
@@ -90,12 +92,19 @@ export class IdleTalk {
     this.timer = setTimeout(() => this.fire(), (min + Math.random() * (max - min)) * 60_000);
   }
 
+  /** A suppressed beat retries soon, so a nap never swallows a whole cycle. */
+  private retry(): void {
+    this.timer = setTimeout(() => this.fire(), 60_000);
+  }
+
   private fire(): void {
     this.timer = null;
     const s = this.a.settings();
     const now = this.now();
     const hour = this.a.hourOf ? this.a.hourOf(now) : new Date(now).getHours();
-    if (!quietAt(s, hour) && now >= this.heldUntil) this.a.push(nudgeText(this.a.language()));
+    // 睡着、hold 中、免打扰时段都不说话，但只等一分钟再试，不吞掉整个周期
+    if ((this.a.awake && !this.a.awake()) || now < this.heldUntil || quietAt(s, hour)) return this.retry();
+    this.a.push(nudgeText(this.a.language()));
     this.schedule();
   }
 }

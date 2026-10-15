@@ -592,11 +592,9 @@ export class DesktopPetWorld implements World {
     this.idleTalk = new IdleTalk({
       settings: () => ({ ...IDLE_DEFAULTS, ...this.cfg.idleTalk }),
       language: () => this.language,
-      push: (text) => {
-        // 睡着时不开口（作息两档通用）；被叫醒后自然有对话，不需要搭话
-        if (this.asleepNow) return;
-        host.pushDeferred({ type: 'desktop-pet.idle', origin: 'internal', render: () => text }, { trigger: 'flush' });
-      },
+      // 睡着时这一拍不说话，1 分钟后重试（作息两档通用）
+      awake: () => !this.asleepNow,
+      push: (text) => host.pushDeferred({ type: 'desktop-pet.idle', origin: 'internal', render: () => text }, { trigger: 'flush' }),
     });
     this.idleTalk.start();
   }
@@ -1128,7 +1126,9 @@ export class DesktopPetWorld implements World {
       case 'crash': text = m.crashed; break;
       default: return;
     }
-    const wakes = !this.touchWoke && touchWakes(this.cfg.touch, t.kind);
+    // 积极（all）承诺每次互动都被回应：不再给一次性门闩挡掉；其余模式照旧只唤醒一次，
+    // 回合进行中的互动随下一批投递
+    const wakes = touchWakes(this.cfg.touch, t.kind) && (this.cfg.touch.wakeOn === 'all' || !this.touchWoke);
     if (wakes) this.touchWoke = true;
     void this.push('desktop-pet.touch', 'desktop-pet.touch', m.touch(text), wakes ? 'debounce' : 'piggyback',
       { meta: { touch: { kind: t.kind, count: t.count, woke: t.woke, crashed: t.crashed } } });
