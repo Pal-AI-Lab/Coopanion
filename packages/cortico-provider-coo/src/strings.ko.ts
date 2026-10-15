@@ -11,6 +11,6 @@ export const cooText: Partial<typeof en> = {
     description: 'ChatGPT 계정으로 로그인하며, 요청은 해당 계정의 ChatGPT 요금제 사용량에 포함됩니다.',
     signedOut: 'ChatGPT에 로그인하지 않았습니다',
     returnToApp: '로그인 결과는 앱에 표시됩니다. 이 탭은 닫아도 됩니다.',
-    reasons: { access_denied: '접근이 허용되지 않았습니다', plan_not_granted: '이 계정에서 ChatGPT 요금제 사용이 허용되지 않았습니다', timeout: '브라우저 로그인 시간이 초과되었습니다' },
+    reasons: { access_denied: '접근이 허용되지 않았습니다', plan_not_granted: '이 계정에서 ChatGPT 요금제 사용이 허용되지 않았습니다', invalid_token_response: '서비스가 응답했지만 응답 형식이 호환되지 않습니다', unsupported_country_region_territory: '현재 지역은 이 서비스를 지원하지 않습니다. 지원 지역: https://developers.openai.com/api/docs/supported-countries', timeout: '브라우저 로그인 시간이 초과되었습니다' },
   },
 };

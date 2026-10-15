@@ -11,6 +11,6 @@ export const cooText: Partial<typeof en> = {
     description: 'Anmeldung mit einem ChatGPT-Konto; Anfragen zählen zum ChatGPT-Tarif dieses Kontos.',
     signedOut: 'Nicht bei ChatGPT angemeldet',
     returnToApp: 'Das Ergebnis der Anmeldung steht in der App. Dieser Tab kann geschlossen werden.',
-    reasons: { access_denied: 'der Zugriff wurde nicht erlaubt', plan_not_granted: 'das Konto hat die Nutzung seines ChatGPT-Tarifs nicht erlaubt', timeout: 'die Anmeldung im Browser ist abgelaufen' },
+    reasons: { access_denied: 'der Zugriff wurde nicht erlaubt', plan_not_granted: 'das Konto hat die Nutzung seines ChatGPT-Tarifs nicht erlaubt', invalid_token_response: 'der Dienst hat geantwortet, aber das Antwortformat ist nicht kompatibel', unsupported_country_region_territory: 'deine Region wird von diesem Dienst nicht unterstützt; unterstützte Regionen: https://developers.openai.com/api/docs/supported-countries', timeout: 'die Anmeldung im Browser ist abgelaufen' },
   },
 };

@@ -307,6 +307,7 @@ export class ChatGPTAccount {
       throw new ChatGPTAuthError('network_error', `The ChatGPT token endpoint could not be reached: ${errText(err)}`);
     }
     const body = await res.json().catch(() => null) as TokenReply | null;
+    if (res.ok && !body) throw new ChatGPTAuthError('invalid_token_response', 'The ChatGPT token endpoint answered with a body that is not JSON', res.status);
     if (!res.ok || !body) {
       const { code, message } = errorCode(body);
       throw new ChatGPTAuthError(code ?? `http_${res.status}`, message ?? code ?? `HTTP ${res.status}`, res.status);

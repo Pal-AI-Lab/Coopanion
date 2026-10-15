@@ -26,7 +26,7 @@ const zh = {
     /** The browser's page after the sign-in comes back. */
     returnToApp: '登录结果在应用里显示，可以关闭这个页面。',
     /** What the sign-in's failure codes mean; any other code is shown as it is. */
-    reasons: { access_denied: '没有同意授权', plan_not_granted: '这个账号没有授权使用 ChatGPT 套餐', timeout: '浏览器里的登录超时了' } as Record<string, string>,
+    reasons: { access_denied: '没有同意授权', plan_not_granted: '这个账号没有授权使用 ChatGPT 套餐', invalid_token_response: '服务已应答，但响应格式不兼容', unsupported_country_region_territory: '所在地区不受该服务支持；支持的地区见 https://developers.openai.com/api/docs/supported-countries', timeout: '浏览器里的登录超时了' } as Record<string, string>,
   },
 };
 
@@ -41,7 +41,7 @@ export const en: typeof zh = {
     description: "Signs in with a ChatGPT account; requests count toward that account's ChatGPT plan.",
     signedOut: 'Not signed in to ChatGPT',
     returnToApp: 'The app shows how the sign-in went. You can close this tab.',
-    reasons: { access_denied: 'access was not granted', plan_not_granted: 'the account did not allow use of its ChatGPT plan', timeout: 'the browser sign-in timed out' },
+    reasons: { access_denied: 'access was not granted', plan_not_granted: 'the account did not allow use of its ChatGPT plan', invalid_token_response: 'the service answered, but the response format is incompatible', unsupported_country_region_territory: 'your region is not supported by this service; supported regions: https://developers.openai.com/api/docs/supported-countries', timeout: 'the browser sign-in timed out' },
   },
 };
 

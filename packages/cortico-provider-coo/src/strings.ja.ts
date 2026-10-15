@@ -11,6 +11,6 @@ export const cooText: Partial<typeof en> = {
     description: 'ChatGPT アカウントでサインインし、リクエストはそのアカウントの ChatGPT プランの利用量に含まれます。',
     signedOut: 'ChatGPT にサインインしていません',
     returnToApp: 'サインインの結果はアプリに表示されます。このタブは閉じてかまいません。',
-    reasons: { access_denied: 'アクセスが許可されませんでした', plan_not_granted: 'このアカウントで ChatGPT プランの利用が許可されませんでした', timeout: 'ブラウザでのサインインがタイムアウトしました' },
+    reasons: { access_denied: 'アクセスが許可されませんでした', plan_not_granted: 'このアカウントで ChatGPT プランの利用が許可されませんでした', invalid_token_response: 'サービスは応答しましたが、応答の形式に互換性がありません', unsupported_country_region_territory: 'お住まいの地域はこのサービスに対応していません。対応地域：https://developers.openai.com/api/docs/supported-countries', timeout: 'ブラウザでのサインインがタイムアウトしました' },
   },
 };

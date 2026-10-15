@@ -11,6 +11,6 @@ export const cooText: Partial<typeof en> = {
     description: "Accesso con un account ChatGPT; le richieste rientrano nel piano ChatGPT di quell'account.",
     signedOut: 'Accesso a ChatGPT non effettuato',
     returnToApp: "L'app mostra l'esito dell'accesso. Puoi chiudere questa scheda.",
-    reasons: { access_denied: "l'accesso non è stato concesso", plan_not_granted: "l'account non ha consentito l'uso del piano ChatGPT", timeout: "l'accesso nel browser è scaduto" },
+    reasons: { access_denied: "l'accesso non è stato concesso", plan_not_granted: "l'account non ha consentito l'uso del piano ChatGPT", invalid_token_response: 'il servizio ha risposto, ma il formato della risposta non è compatibile', unsupported_country_region_territory: 'la tua regione non è supportata da questo servizio; regioni supportate: https://developers.openai.com/api/docs/supported-countries', timeout: "l'accesso nel browser è scaduto" },
   },
 };

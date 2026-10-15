@@ -11,6 +11,6 @@ export const cooText: Partial<typeof en> = {
     description: "Connexion avec un compte ChatGPT ; les requêtes sont décomptées de l'offre ChatGPT de ce compte.",
     signedOut: 'Non connecté à ChatGPT',
     returnToApp: "L'application affiche le résultat de la connexion. Vous pouvez fermer cet onglet.",
-    reasons: { access_denied: "l'accès n'a pas été accordé", plan_not_granted: "le compte n'a pas autorisé l'usage de son offre ChatGPT", timeout: 'la connexion dans le navigateur a expiré' },
+    reasons: { access_denied: "l'accès n'a pas été accordé", plan_not_granted: "le compte n'a pas autorisé l'usage de son offre ChatGPT", invalid_token_response: 'le service a répondu, mais le format de la réponse est incompatible', unsupported_country_region_territory: "votre région n'est pas prise en charge par ce service ; régions prises en charge : https://developers.openai.com/api/docs/supported-countries", timeout: 'la connexion dans le navigateur a expiré' },
   },
 };

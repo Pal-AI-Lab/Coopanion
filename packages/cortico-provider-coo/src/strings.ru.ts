@@ -11,6 +11,6 @@ export const cooText: Partial<typeof en> = {
     description: 'Вход через аккаунт ChatGPT; запросы учитываются в тарифе ChatGPT этого аккаунта.',
     signedOut: 'Вход в ChatGPT не выполнен',
     returnToApp: 'Результат входа показан в приложении. Эту вкладку можно закрыть.',
-    reasons: { access_denied: 'доступ не предоставлен', plan_not_granted: 'аккаунт не разрешил использовать тариф ChatGPT', timeout: 'время входа в браузере истекло' },
+    reasons: { access_denied: 'доступ не предоставлен', plan_not_granted: 'аккаунт не разрешил использовать тариф ChatGPT', invalid_token_response: 'сервис ответил, но формат ответа несовместим', unsupported_country_region_territory: 'ваш регион не поддерживается этим сервисом; поддерживаемые регионы: https://developers.openai.com/api/docs/supported-countries', timeout: 'время входа в браузере истекло' },
   },
 };
