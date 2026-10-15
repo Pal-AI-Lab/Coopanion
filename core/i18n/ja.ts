@@ -13,6 +13,7 @@ const ja: Translation<CoreText> = {
 
   failure: {
     text: (n: number, status: number, reason: string) => `モデルへのリクエストが ${n} 回続けて失敗しました。エラー${status ? ` ${status}` : ''}：${reason}。設定の「スタート」ページでモデル名と API Key を確認してください。接続のテストもそこでできます。`,
+    reasoningReplay: (n: number) => `モデルへのリクエストが ${n} 回続けて失敗しました。このサービスはツールを呼び出すたびに思考内容を送り返すよう求めていますが、Coopanion ではこのサービスに対してそれがオフになっています。開発者に報告してください：https://github.com/Pal-AI-Lab/Coopanion/issues`,
     open: '設定を開く',
     ok: 'OK',
   },

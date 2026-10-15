@@ -13,6 +13,7 @@ const it: Translation<CoreText> = {
 
   failure: {
     text: (n: number, status: number, reason: string) => `Le mie ultime ${n} richieste al modello non sono riuscite. Errore${status ? ` ${status}` : ''}: ${reason}. Controlla il nome del modello e l'API Key nella pagina Inizio delle impostazioni, dove puoi testare la connessione.`,
+    reasoningReplay: (n: number) => `Le mie ultime ${n} richieste al modello sono fallite: questo servizio richiede che il ragionamento venga rinviato prima di ogni chiamata a uno strumento, e Coopanion lo ha disattivato per lui. Segnalalo agli sviluppatori: https://github.com/Pal-AI-Lab/Coopanion/issues`,
     open: 'Apri impostazioni',
     ok: 'OK',
   },

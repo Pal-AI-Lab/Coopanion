@@ -13,6 +13,7 @@ const ko: Translation<CoreText> = {
 
   failure: {
     text: (n: number, status: number, reason: string) => `최근 모델 요청 ${n}번이 실패했습니다. 오류${status ? ` ${status}` : ''}: ${reason}. 설정의 시작 페이지에서 모델 이름과 API Key를 확인하세요. 거기서 연결을 테스트할 수 있습니다.`,
+    reasoningReplay: (n: number) => `모델 요청이 ${n}번 연속 실패했어요. 이 서비스는 도구를 호출할 때마다 사고 내용을 다시 보내야 하는데, Coopanion에서 이 서비스에는 그 설정이 꺼져 있어요. 개발자에게 알려 주세요: https://github.com/Pal-AI-Lab/Coopanion/issues`,
     open: '설정 열기',
     ok: '확인',
   },

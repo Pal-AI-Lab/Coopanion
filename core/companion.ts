@@ -193,6 +193,8 @@ const endpointVendor = (entry: { kind: string } | undefined) => (url: string | u
 const FAILURES_BEFORE_HINT = 5;
 /** The upstream's reason is cut to this many characters: a gateway's error page is a whole HTML document. */
 const REASON_MAX = 200;
+/** What Cortico's Responses provider appends to a 400 that asks for reasoning while `sendSyntheticReasoning` is off. */
+const SYNTHETIC_REASONING_OFF = 'sendSyntheticReasoning is off';
 
 /**
  * The upstream's own words: `error.message` of a JSON body, else the body; without a body (no
@@ -217,7 +219,8 @@ function failureOf(err: unknown): { status: number; reason: string } {
  * per run of failures, with a button to the settings window's home page, where the model and key
  * are set and tested. Any answered request ends the run; a request cut off by newer input or by
  * shutdown neither counts nor ends it, and neither does one refused for a ChatGPT plan's usage limit,
- * which only reaches the log.
+ * which only reaches the log. A 400 the vendor preset caused by turning `sendSyntheticReasoning` off
+ * is said as that, with no settings button: nothing the person can set fixes it.
  */
 function hintFailures(core: Core<CoreConfig>, config: CoreConfig, pet: () => DesktopPetWorld | null): void {
   const { llm } = core;
@@ -236,12 +239,13 @@ function hintFailures(core: Core<CoreConfig>, config: CoreConfig, pet: () => Des
         if (p?.petState().connected) {
           const S = coreText(appLanguage(config.language)).failure;
           const { status, reason } = failureOf(err);
+          const replay = err instanceof Error && err.message.includes(SYNTHETIC_REASONING_OFF);
           shown = true;
           void p.dialog({
-            text: S.text(failures, status, reason), actions: ['sad'], closable: true,
-            input: { kind: 'buttons', options: [{ label: S.open, primary: true }, { label: S.ok }] },
+            text: replay ? S.reasoningReplay(failures) : S.text(failures, status, reason), actions: ['sad'], closable: true,
+            input: { kind: 'buttons', options: replay ? [{ label: S.ok, primary: true }] : [{ label: S.open, primary: true }, { label: S.ok }] },
           }).answer.then((a) => {
-            if ('index' in a && a.index === 0) process.send?.({ type: 'companion:open', path: '#/home' });
+            if (!replay && 'index' in a && a.index === 0) process.send?.({ type: 'companion:open', path: '#/home' });
             // the page went away before it showed: the next failure tries again
             if ('unavailable' in a) shown = false;
           });

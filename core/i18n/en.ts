@@ -19,6 +19,7 @@ const en: CoreText = {
   /** What the pet's bubble says after several model requests in a row failed. */
   failure: {
     text: (n: number, status: number, reason: string) => `My last ${n} requests to the model failed. Error${status ? ` ${status}` : ''}: ${reason}. Check the model name and API Key on the Start page in settings, where you can test the connection.`,
+    reasoningReplay: (n: number) => `My last ${n} requests to the model failed: this service requires the thinking to be sent back before every tool call, and Coopanion has that turned off for it. Please report this to the developers: https://github.com/Pal-AI-Lab/Coopanion/issues`,
     open: 'Open settings',
     ok: 'OK',
   },

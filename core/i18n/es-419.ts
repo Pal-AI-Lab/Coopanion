@@ -13,6 +13,7 @@ const es419: Translation<CoreText> = {
 
   failure: {
     text: (n: number, status: number, reason: string) => `Mis últimas ${n} solicitudes al modelo fallaron. Error${status ? ` ${status}` : ''}: ${reason}. Revisa el nombre del modelo y la API Key en la página Inicio de la configuración, donde puedes probar la conexión.`,
+    reasoningReplay: (n: number) => `Mis últimas ${n} solicitudes al modelo fallaron: este servicio exige que el razonamiento se reenvíe antes de cada llamada a una herramienta, y Coopanion lo tiene desactivado para él. Por favor, repórtalo a los desarrolladores: https://github.com/Pal-AI-Lab/Coopanion/issues`,
     open: 'Abrir configuración',
     ok: 'De acuerdo',
   },
