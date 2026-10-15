@@ -90,13 +90,14 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
   }
   function state(): void {
     controls();
-    say(dirty.size ? S.dirtyCount(dirty.size) : pendingApply ? S.pendingApply : S.prefixStats(segments.length, estTok(full.textContent ?? '').toLocaleString()));
-    for (const { doc, badge, origin } of sections) {
+    say(dirty.size ? S.dirtyCount(dirty.size) : pendingApply ? S.pendingApply : S.prefixStats(segments.length, estTok(segments.map((s) => s.text).join('')).toLocaleString()));
+    for (const { doc, toggle, badge, origin } of sections) {
       const changed = !!doc && dirty.has(doc.key);
       badge.textContent = changed ? S.unsaved : doc ? S.editableTemplate : S.generated;
       if (doc && !segments.some((s) => s.sourceKey === doc.key)) badge.textContent += ` · ${S.outsidePrefix}`;
       badge.classList.toggle('is-dirty', changed);
-      if (doc && origin) origin.textContent = originText(doc);
+      if (doc) toggle.title = originText(doc);
+      if (doc && origin) origin.textContent = doc.origin === 'deployment' ? S.originDeployment : doc.origin === 'package' ? S.originPackage : S.originWorld;
     }
   }
   function open(section: Section, expanded: boolean): void {
@@ -372,13 +373,16 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     const divider = ui.h('div', `prefix-divider tone-${tone}`);
     observer.observe(note);
     const section: Section = { segment, doc, tone, label, toggle, cell, note, badge, divider, collapsed, updateVariables() {} };
-    if (doc || segment.sourceKey) {
-      section.origin = ui.h('p', 'prompt-help prefix-origin', doc ? originText(doc) : S.sourceMissing(segment.sourceKey!));
+    if (!doc) {
+      if (segment.sourceKey) note.append(ui.h('p', 'prompt-help', S.sourceMissing(segment.sourceKey)));
+      return section;
+    }
+    if (doc.origin) {
+      section.origin = ui.h('p', 'prompt-help prefix-origin');
       section.origin.hidden = collapsed;
       label.append(section.origin);
       observer.observe(section.origin);
     }
-    if (!doc) return section;
     const chips = new Map<string, HTMLButtonElement>();
     const warning = ui.h('div', 'prompt-railwarn');
     if (doc.vars?.length) {
@@ -481,7 +485,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
       title: segment.title, description: description(segment, doc).detail, sourceKey: doc?.key, tone,
       text: doc ? dirty.get(doc.key) ?? doc.content : segment.text, vars: doc?.vars, collapsed,
     })));
-    full.textContent = segments.map((s) => s.text).join('');
+    full.textContent = segments.length ? segments.map((s) => s.text).join('') : S.prefixEmpty;
     expand.textContent = sections.every((s) => !s.collapsed) ? S.collapseAll : S.expandAll;
     for (const section of sections) section.updateVariables();
     if (created.length) void addSettings(created);
