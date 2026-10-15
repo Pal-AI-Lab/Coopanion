@@ -44,6 +44,8 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
   Gemini 按 `src/gemini/wire.ts` 的 `thinkingConfig`(Gemini 3 关不掉,不思考时 Flash-Lite 发 `minimal`、其余发 `low`)。
 - **过往推理**:Responses 默认按明文回传;OpenAI、xAI(`encryptedReasoning`)回传服务给的签名块;Chat 按 `reasoning_content` 回传;
   Anthropic 回传 thinking 块和签名,Gemini 回传 `thoughtSignature`,都只回给写出它的端点和模型。
+  明文回传时，没记下推理的工具调用前默认补一条占位推理(`syntheticReasoning`,即 Cortico 的 `sendSyntheticReasoning`):
+  DeepSeek 不补会回 400;OpenRouter 不补。端点因此回 400 时，桌宠的失败气泡请使用者反馈给开发者。
 - **图片**:端点勾了「多模态」且那一家列明所用模型能看图(`Vendor.vision`)时才发;别的地址只看「多模态」。选模型时按它自动勾上或去掉「多模态」。
   只发最近一批送达的事件(user 消息或事件帧)及其后的图片,更早的只留 Core 给每份附件写的 `[blob …]` 那行文字。
   每次送达新的一批,请求里从上一批的第一张图起前缀缓存失效。Chat 的工具结果不带图片,图片挪到紧跟其后的一条 user 消息里;

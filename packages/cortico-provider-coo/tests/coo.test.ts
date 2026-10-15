@@ -167,6 +167,28 @@ describe('Coo Pet Provider', () => {
     }
   });
 
+  it('sends DeepSeek placeholder reasoning before a tool call with none recorded, and OpenRouter none', async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const reply = { id: 'r', object: 'response', model: 'm', status: 'completed', created_at: 1, output: [], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } };
+    vi.stubGlobal('fetch', async (_url: string, init: { body: string }) => {
+      bodies.push(JSON.parse(init.body) as Record<string, unknown>);
+      return new Response(JSON.stringify(reply), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    const context = [message('user', '几点了'), functionCall('c1', 'clock', '{}'), functionResult('c1', '12:00')];
+    const types = async (id: string) => {
+      const v = VENDORS.find((x) => x.id === id)!;
+      const instance = COO.create(id, entry({ baseUrl: siteOf(v, 'cn').baseUrl, spec: { model: v.model, thinking: true } }), host() as never);
+      await instance.client.respond({ model: v.model, input: context.map((r) => r.item) } as unknown as Request, { context });
+      return (bodies.at(-1)!.input as Array<{ type: string }>).map((i) => i.type);
+    };
+    try {
+      expect(await types('deepseek')).toEqual(['message', 'reasoning', 'function_call', 'function_call_output']);
+      expect(await types('openrouter')).toEqual(['message', 'function_call', 'function_call_output']);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('reads the reasoning streams of StepFun and Qwen, which the standard parser rejects (#94)', async () => {
     const at = { output_index: 0, item_id: 'rs_1', content_index: 0 };
     const message = { id: 'msg_1', type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: '好', annotations: [] }] };

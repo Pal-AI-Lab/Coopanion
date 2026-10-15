@@ -170,6 +170,7 @@ export const COO = {
           media,
           keepThinking: host.keepThinking,
           reasoningReplay: vendor?.encryptedReasoning ? 'encrypted' : 'plaintext',
+          sendSyntheticReasoning: vendor?.syntheticReasoning,
         }, { effort, lenientReasoning: vendor?.lenientReasoning, nonStreamingResponses: vendor?.nonStreamingResponses, toolOutputText: vendor?.toolOutputText }),
     };
   },
