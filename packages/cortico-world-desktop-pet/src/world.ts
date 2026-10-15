@@ -291,6 +291,8 @@ function parseChatImages(raw: unknown, user: string, s: PetText['chat'], m: Mode
 
 export class DesktopPetWorld implements World {
   private idleTalk: IdleTalk | null = null;
+  /** The page reports sleep/wake; the idle nudge stays quiet while asleep. */
+  private asleepNow = false;
   readonly id = DESKTOP_PET_ID;
   private host: WorldHost | null = null;
   private log: Logger | null = null;
@@ -590,7 +592,11 @@ export class DesktopPetWorld implements World {
     this.idleTalk = new IdleTalk({
       settings: () => ({ ...IDLE_DEFAULTS, ...this.cfg.idleTalk }),
       language: () => this.language,
-      push: (text) => host.pushDeferred({ type: 'desktop-pet.idle', origin: 'internal', render: () => text }, { trigger: 'flush' }),
+      push: (text) => {
+        // 睡着时不开口（作息两档通用）；被叫醒后自然有对话，不需要搭话
+        if (this.asleepNow) return;
+        host.pushDeferred({ type: 'desktop-pet.idle', origin: 'internal', render: () => text }, { trigger: 'flush' });
+      },
     });
     this.idleTalk.start();
   }
@@ -789,6 +795,7 @@ export class DesktopPetWorld implements World {
   private snapshot(): Record<string, unknown> {
     return {
       skin: this.cfg.skin,
+      sleepMode: this.cfg.sleepMode,
       roam: this.quiet?.roam ?? this.cfg.roam,
       sound: this.quiet?.sound ?? this.cfg.sound,
       sounds: this.cfg.sounds,
@@ -947,6 +954,7 @@ export class DesktopPetWorld implements World {
       }
       case 'answer': return this.onAnswer(msg, 'pet');
       case 'visibility': this.petHidden = msg.hidden === true; return;
+      case 'sleep': this.asleepNow = msg.on === true; return;
       case 'text': {
         const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 500) : '';
         if (text) void this.push('desktop-pet.message', `desktop-pet.text`, this.t.typed(this.userName, text), 'preempt', { meta: { via: 'bubble', text } });

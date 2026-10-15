@@ -138,7 +138,7 @@ export function createPet(els, opts) {
   const pet = {
     x: 260, fy: 0, vx: 0, vy: 0, facing: 1, faceVis: 1, mode: 'idle', modeT: 0, dur: 0, target: 0,
     speed: 0, stride: 0, lift: 0, bob: 0, phase: 0, lastHalf: 0, lean: 0, tilt: 0, tiltV: 0,
-    sq: 0, sqv: 0, sitK: 0, stretch: 0, low: 0, gap: [50, 50], look: [0, 0], drowse: 0,
+    sq: 0, sqv: 0, sitK: 0, stretch: 0, low: 0, gap: [50, 50], look: [0, 0], drowse: 0, schedule: 'standard', noSleepUntil: 0,
     feet: STAND.map(l => [l[2], l[3]]), blinkT: 1.5, blinkAge: 9, expr: null, exprUntil: 0,
     nextAt: 1.2, emitAt: 0, airKind: 'jump', turned: false, startle: false, lastAct: '',
     turnAcc: 0, dx: 0, dy: 0, jumpV: 700, jumpVx: 0, xf: null, blushK: 0,
@@ -195,6 +195,8 @@ export function createPet(els, opts) {
     pet.mode = m; pet.modeT = 0; pet.turned = false; pet.startle = false; pet.skid = false; pet.cue = 0;
     Object.assign(pet, o);
     if (prev !== m) onEvent('mode', { mode: m });
+    // 标准作息的唤醒冷却：被叫醒后 5 分钟内不给再睡（decide 里的 cooled 查这个）
+    if (m === 'wake') pet.noSleepUntil = T + 300;
   }
   const busy = () => pet.mode === 'drag' || pet.mode === 'air' || pet.mode === 'crouch';
   function pickTarget(minDist) {
@@ -320,16 +322,25 @@ export function createPet(els, opts) {
     return 'neutral';
   }
 
+  /** 标准作息：中午（12–14）和夜里（21–6）犯困；精力充沛全天如一。 */
+  function drowsyHour(h) { return pet.schedule === 'standard' && (h >= 21 || h < 6 || (h >= 12 && h < 14)); }
+
   function decide() {
     const calm = roam === 'calm';
-    const opts2 = [['walk', calm ? 10 : 28], ['run', calm ? 0 : 12], ['look', 14], ['jump', calm ? 2 : 8], ['sit', 16], ['expr', 12], ['wait', calm ? 30 : 10]]
+    const drowsy = drowsyHour(new Date().getHours());
+    const opts2 = [['walk', calm ? 10 : 28], ['run', calm ? 0 : 12], ['look', 14], ['jump', calm ? 2 : 8], ['sit', drowsy ? 40 : 16], ['expr', 12], ['wait', calm ? 30 : 10]]
       .filter(o => o[1] > 0 && (o[0] !== pet.lastAct || o[0] === 'wait'));
     let r = Math.random() * opts2.reduce((a, o) => a + o[1], 0), pick = 'wait';
     for (const o of opts2) { if ((r -= o[1]) < 0) { pick = o[0]; break; } }
     if (pick === 'look') { setMode('look'); pet.lastAct = 'look'; }
     else if (pick === 'expr') { setExpr(['happy', 'wink', 'love', 'sleepy', 'surprised', 'shy'][Math.floor(Math.random() * 6)]); pet.lastAct = 'expr'; }
     // a sit she chose decides up front whether it ends in sleep, so she only gets drowsy when she will fall asleep
-    else if (pick === 'sit') { setMode('sit', { dur: rnd(6, 9), willSleep: Math.random() < .6 }); pet.lastAct = 'sit'; }
+    else if (pick === 'sit') {
+      // 标准作息被叫醒后 5 分钟内不再睡；犯困时段入睡概率 0.9，其余 0.35
+      const cooled = pet.schedule === 'standard' && T < pet.noSleepUntil;
+      setMode('sit', { dur: rnd(6, 9), willSleep: !cooled && Math.random() < (drowsy ? .9 : .35) });
+      pet.lastAct = 'sit';
+    }
     else if (pick !== 'wait') act(pick);
     if (pet.mode === 'idle' && T >= pet.nextAt) pet.nextAt = T + rnd(2, 4);
   }
@@ -937,6 +948,7 @@ export function createBody(host, opts) {
     },
     set(s) {
       if (s.roam) ctl.setRoam(s.roam);
+      if (s.schedule) ctl.pet.schedule = s.schedule;
       if (typeof s.hold === 'number') ctl.holdRoam(s.hold);
       if (typeof s.dialogOpen === 'boolean') dialogOpen = s.dialogOpen;
       if (typeof s.listening === 'boolean') ctl.setListening(s.listening);

@@ -42,6 +42,7 @@ const KEYS = {
   user: `${K}.user`,
   roam: `${K}.roam`,
   idleTalkRate: `${K}.idleTalk.rate`,
+  sleepMode: `${K}.sleepMode`,
   scale: `${K}.window.scale`,
   glow: `${K}.window.glow`,
   lockFps: `${K}.window.lockFrameRate`,
@@ -120,6 +121,9 @@ async function mount(ctx: PageContext): Promise<void> {
     { value: 'never', label: S.idleRates.never }, { value: 'low', label: S.idleRates.low },
     { value: 'medium', label: S.idleRates.medium }, { value: 'high', label: S.idleRates.high },
   ], { size: 'sm', onSelect: (v) => void save(KEYS.idleTalkRate, v, GROUP, behaviorMsg) });
+  const sleepMode = ui.segmented([
+    { value: 'standard', label: S.sleepModes.standard }, { value: 'energetic', label: S.sleepModes.energetic },
+  ], { size: 'sm', onSelect: (v) => void save(KEYS.sleepMode, v, GROUP, behaviorMsg) });
   const scaleText = ui.h('span', 'companion-rangeval');
   const scaleBox = ui.h('div', 'companion-rangebox');
   const scale = scaleSlider(root.ownerDocument, {
@@ -295,6 +299,7 @@ async function mount(ctx: PageContext): Promise<void> {
   behavior.body.append(
     row(S.roam, roam.el),
     row(S.idleRate, idleRate.el, S.idleRateHint),
+    row(S.sleepModeLabel, sleepMode.el, S.sleepModeHint),
     row(S.wake, wake.el, wakeHint),
     row(S.self, selfMode.el, selfHint),
     row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
@@ -435,6 +440,7 @@ async function mount(ctx: PageContext): Promise<void> {
     }
     if (typeof values[KEYS.roam] === 'string') roam.setValue(values[KEYS.roam] as string);
     if (typeof values[KEYS.idleTalkRate] === 'string') idleRate.setValue(values[KEYS.idleTalkRate] as string);
+    if (typeof values[KEYS.sleepMode] === 'string') sleepMode.setValue(values[KEYS.sleepMode] as string);
     if (typeof values[KEYS.scale] === 'number' && !scale.active && active !== scale.el) { scale.set(values[KEYS.scale] as number); showScale(); }
     if (!glow.active && active !== glow.el) { glow.set(typeof values[KEYS.glow] === 'number' ? values[KEYS.glow] as number : GLOW_DEFAULT); showGlow(); }
     if (typeof values[KEYS.frameRate] === 'number') frameRate.setValue(String(values[KEYS.frameRate]));

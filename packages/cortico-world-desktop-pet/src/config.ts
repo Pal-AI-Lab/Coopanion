@@ -179,6 +179,8 @@ export interface DesktopPetConfigSection extends WorldSection {
   };
   /** The bot's own idle nudge (src/idle.ts). */
   idleTalk: { rate: 'never' | 'low' | 'medium' | 'high'; quietFrom: number; quietTo: number };
+  /** 作息：standard 中午和夜里犯困；energetic 全天如一。睡着都不主动说话。 */
+  sleepMode: 'standard' | 'energetic';
   asr: {
     enabled: boolean;
     /** Empty: by the app language (`asrEngineFor`). Earlier versions wrote `auto` here, which reads as empty. */
@@ -229,6 +231,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   cua: CUA_DEFAULTS,
   touch: { enabled: true, wakeOn: 'poke', wakeKinds: ['poke'] },
   idleTalk: { rate: 'medium', quietFrom: 23, quietTo: 8 },
+  sleepMode: 'standard',
   asr: {
     enabled: true,
     engine: '',
@@ -277,6 +280,7 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
         [`${K}.touch.enabled`]: { type: 'boolean', title: c.touchEnabled.title, description: c.touchEnabled.description, 'x-hot': true },
         [`${K}.touch.wakeOn`]: { type: 'string', title: c.touchWakeOn.title, enum: ['none', 'poke', 'all', 'custom'], description: c.touchWakeOn.description, 'x-hot': true },
         [`${K}.idleTalk.rate`]: { type: 'string', title: '主动搭话频率', enum: ['never', 'low', 'medium', 'high'], description: '闲下来多久主动找你说句话；永不就是完全不主动', 'x-hot': true },
+        [`${K}.sleepMode`]: { type: 'string', title: '作息', enum: ['standard', 'energetic'], description: '标准作息：中午和夜里犯困概率变高，被叫醒后 5 分钟不再睡；精力充沛：全天一样。睡着都不主动说话', 'x-hot': true },
         [`${K}.idleTalk.quietFrom`]: { type: 'integer', title: '搭话免打扰开始（时）', minimum: 0, maximum: 23, 'x-hot': true },
         [`${K}.idleTalk.quietTo`]: { type: 'integer', title: '搭话免打扰结束（时）', minimum: 0, maximum: 23, 'x-hot': true },
       },

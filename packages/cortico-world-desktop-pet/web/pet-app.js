@@ -220,6 +220,7 @@ function reportPosition() {
 function applyPrefs(p) {
   if (p.skin) { skin = normalizeSkin(p.skin); skinStyle.textContent = skinCss(skin); void applyFigure(skin); }
   if (p.roam) { prefs.roam = p.roam; body?.set({ roam: p.roam }); }
+  if (p.sleepMode) body?.set({ schedule: p.sleepMode });
   if (typeof p.sound === 'boolean') { prefs.sound = p.sound; sfx.set(p.sound); }
   if (p.sounds && typeof p.sounds === 'object') sfx.configure({ kinds: p.sounds, snoreSeconds: p.sounds.snoreSeconds });
   if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); modeBtn?.show(p.theme); body?.set({ theme: p.theme }); }
@@ -292,6 +293,8 @@ function onBody(kind, d) {
     send({ t: 'touch', ...d });
     if (d.kind === 'grab') closeMenu();
   } else if (kind === 'mode') {
+    // 睡着/醒来上报给世界：主动搭话只在醒着的时候开口
+    if (d.mode === 'sleep' || d.mode === 'wake') send({ t: 'sleep', on: d.mode === 'sleep' });
     reportPosition();
   } else if (kind === 'done') {
     // a word that ends on its own (a walk across the screen) lets the next one start at once
