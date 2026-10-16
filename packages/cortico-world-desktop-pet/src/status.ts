@@ -7,11 +7,16 @@
  */
 import type { RunPhase } from 'cortico/core/types.ts';
 import type { StreamEvent } from 'cortico/protocol/open-responses/index.ts';
-import { petText } from './i18n/index.ts';
+import { cutChars, petText } from './i18n/index.ts';
+
+/** The kinds the bubble has an icon for (`status_<kind>` in web/ui.js); a posted one outside this list is refused. */
+export const PET_STATUS_KINDS = ['think', 'read', 'browse', 'search', 'write', 'delete', 'save', 'look', 'click', 'scroll', 'type', 'wait', 'alarm', 'work'] as const;
+
+export type PetStatusKind = (typeof PET_STATUS_KINDS)[number];
 
 export interface PetStatus {
   /** Also the icon the bubble shows (`status_<kind>` in web/ui.js). */
-  kind: 'think' | 'read' | 'browse' | 'search' | 'write' | 'delete' | 'save' | 'look' | 'click' | 'scroll' | 'type' | 'wait' | 'alarm' | 'work';
+  kind: PetStatusKind;
   text: string;
   detail?: string;
   count?: number;
@@ -131,5 +136,95 @@ export class StatusTracker {
     if (c?.kind === status?.kind && c?.text === status?.text && c?.detail === status?.detail && c?.count === status?.count) return;
     this.current = status;
     this.changed(status);
+  }
+}
+
+/** Longest `text` and `detail` a posted status may show, in code points; the bubble shows one line. */
+const POSTED_TEXT_MAX = 40;
+const POSTED_DETAIL_MAX = 80;
+/** How long a posted status stays without a refresh, and the longest a caller may ask for. */
+export const POSTED_STATUS_SECONDS = 20;
+const POSTED_SECONDS_MAX = 3600;
+
+export interface PostedStatus {
+  status: PetStatus | null;
+  ttlSeconds: number;
+  /** Vocabulary words to play; the World keeps the ones the current figure knows. */
+  actions: string[];
+}
+
+/** What `POST /api/status` answers: the words the figure knew and played, and the ones it did not. */
+export type PostedStatusResult = { ok: true; played?: string[]; skipped?: string[] } | { ok: false; error: string };
+
+/** Words one post may play; `pet_act` lets the bot ask for the same number. */
+const POSTED_ACTIONS_MAX = 6;
+
+/** The words a caller asked to play, cut to what one post carries; the World checks them against the figure. */
+function postedActionsOf(raw: unknown): string[] | { error: string } {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw)) return { error: 'actions must be an array of strings' };
+  const actions: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'string' || !item.trim()) return { error: 'actions must be an array of strings' };
+    if (actions.length < POSTED_ACTIONS_MAX) actions.push(item.trim());
+  }
+  return actions;
+}
+
+/** Reads and checks a `POST /api/status` body. The message goes back to the caller that posted it, never to the person. */
+export function postedStatusOf(body: Record<string, unknown>): PostedStatus | { error: string } {
+  const actions = postedActionsOf(body.actions);
+  if (!Array.isArray(actions)) return actions;
+  let ttlSeconds = POSTED_STATUS_SECONDS;
+  if (body.ttlSeconds !== undefined) {
+    if (typeof body.ttlSeconds !== 'number' || !Number.isFinite(body.ttlSeconds) || body.ttlSeconds <= 0) return { error: 'ttlSeconds must be a positive number' };
+    ttlSeconds = Math.min(body.ttlSeconds, POSTED_SECONDS_MAX);
+  }
+  const raw = body.status;
+  if (raw === null) return { status: null, ttlSeconds, actions };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { error: 'status must be an object or null' };
+  const s = raw as Record<string, unknown>;
+  if (typeof s.kind !== 'string' || !(PET_STATUS_KINDS as readonly string[]).includes(s.kind)) return { error: `unknown kind: ${String(s.kind)}` };
+  if (typeof s.text !== 'string') return { error: 'text must be a string' };
+  if (s.detail !== undefined && typeof s.detail !== 'string') return { error: 'detail must be a string' };
+  if (s.count !== undefined && (!Number.isInteger(s.count) || (s.count as number) < 1)) return { error: 'count must be a positive integer' };
+  return {
+    status: {
+      kind: s.kind as PetStatusKind,
+      text: cutChars(s.text, POSTED_TEXT_MAX),
+      ...(s.detail === undefined ? {} : { detail: cutChars(s.detail, POSTED_DETAIL_MAX) }),
+      ...(s.count === undefined ? {} : { count: s.count as number }),
+    },
+    ttlSeconds,
+    actions,
+  };
+}
+
+/**
+ * A status another process on this machine posted, which wins over the tracker's while it is fresh:
+ * an agent working here shows the person what it is doing, in the pet's own bubble. Every post
+ * restarts the lifetime, so a caller that stops or dies leaves the bubble to the tracker.
+ */
+export class PostedStatusSource {
+  private status: PetStatus | null = null;
+  private timer: NodeJS.Timeout | null = null;
+
+  constructor(private readonly changed: () => void) {}
+
+  get current(): PetStatus | null {
+    return this.status;
+  }
+
+  /** Sets it, or clears it with `null`. */
+  set(status: PetStatus | null, ttlSeconds: number): void {
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    this.status = status;
+    if (status) this.timer = setTimeout(() => { this.timer = null; this.status = null; this.changed(); }, ttlSeconds * 1000);
+    this.changed();
+  }
+
+  stop(): void {
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    this.status = null;
   }
 }

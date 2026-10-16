@@ -1,16 +1,17 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
-import { PetServer } from '../src/server.ts';
+import { PetServer, type PageMessage } from '../src/server.ts';
 
 const WEB_DIR = fileURLToPath(new URL('../web/', import.meta.url));
 const servers: PetServer[] = [];
 afterEach(async () => { await Promise.all(servers.splice(0).map((s) => s.stop())); });
 
-async function serve(overlay: { on: boolean }) {
+async function serve(overlay: { on: boolean }, onStatus?: (msg: PageMessage) => { ok: true } | { ok: false; error: string }) {
   const server = new PetServer({
     port: () => 0, webDir: WEB_DIR, snapshot: () => ({}),
     onPetMessage: () => {}, onAudio: () => {}, onPetConnect: () => {}, onPetDisconnect: () => {}, onSkin: () => {}, onPrefs: () => {},
+    ...(onStatus ? { onStatus } : {}),
     overlay: () => overlay.on,
   });
   servers.push(server);
@@ -80,5 +81,31 @@ describe('OBS overlay', () => {
     server.syncOverlay();
     await expect.poll(viewer.closed).toBe(4003);
     await expect.poll(() => source.texts.at(-1)).toEqual({ t: 'overlay', on: false });
+  });
+});
+
+describe('posted status', () => {
+  it('hands a posted body to the World and answers what it decided', async () => {
+    const seen: PageMessage[] = [];
+    const server = await serve({ on: false }, (msg) => {
+      seen.push(msg);
+      return msg.status === null ? { ok: true } : { ok: false, error: 'too busy' };
+    });
+    const refused = await fetch(`${server.origin}/api/status`, { method: 'POST', body: JSON.stringify({ status: { kind: 'work', text: '在跑' } }) });
+    expect(refused.status).toBe(400);
+    expect(await refused.json()).toEqual({ ok: false, error: 'too busy' });
+    expect(seen).toEqual([{ status: { kind: 'work', text: '在跑' } }]);
+
+    const cleared = await fetch(`${server.origin}/api/status`, { method: 'POST', body: JSON.stringify({ status: null }) });
+    expect(cleared.status).toBe(200);
+    expect(await cleared.json()).toEqual({ ok: true });
+  });
+
+  it('answers 400 for a body that is not JSON, and 405 where no World takes a status', async () => {
+    const handled = await serve({ on: false }, () => ({ ok: true }));
+    expect((await fetch(`${handled.origin}/api/status`, { method: 'POST', body: 'not json' })).status).toBe(400);
+
+    const bare = await serve({ on: false });
+    expect((await fetch(`${bare.origin}/api/status`, { method: 'POST', body: JSON.stringify({ status: null }) })).status).toBe(405);
   });
 });

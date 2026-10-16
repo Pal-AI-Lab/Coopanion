@@ -5,6 +5,7 @@
  * - `/pet`: the pet itself. In the pet window it is transparent and click-through outside
  *   the figure; in a browser tab it draws a floor.
  * - `/dress`: the dressing page; changes go through `POST /api/skin` and `POST /api/prefs`.
+ * - `POST /api/status`: another process on this machine sets what the bubble shows (`src/status.ts`); `null` clears it.
  * - `/api/avatar`: the bot's avatar for the menu header, 404 until one exists.
  * - `/api/figures`: the figure packs (src/packs.ts) the pages may load, Coo's first; `/packs/<id>/…`:
  *   an installed pack's files (a built-in one is under `/web/`). `/api/figures/status`: the installed
@@ -33,6 +34,7 @@ import { languageTag, type Language } from 'cortico/core/language.ts';
 import { packFile, type FigurePack, type PackProblem } from './packs.ts';
 import { BUNDLE_TYPE, IMPORT_MAX, PACK_DEPTH, filesFromBundle, filesFromZip, type PackImporter } from './pack-import.ts';
 import { petText, type PetText } from './i18n/index.ts';
+import type { PostedStatusResult } from './status.ts';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -67,6 +69,8 @@ export interface PetServerOptions {
   /** A dressing page saved a skin. */
   onSkin(skin: unknown): void;
   onPrefs(prefs: Record<string, unknown>): void;
+  /** Another process on this machine posted a status; without this the route answers 405. */
+  onStatus?(msg: PageMessage): PostedStatusResult;
   /** PNG served at `/api/avatar`. */
   avatarFile?: string;
   /** The figure packs, looked up again for each request. */
@@ -319,6 +323,13 @@ export class PetServer {
       if (path === '/api/skin') this.opts.onSkin(msg.skin);
       else this.opts.onPrefs(msg);
       return json(res, 200, { ok: true });
+    }
+    if (req.method === 'POST' && path === '/api/status' && this.opts.onStatus) {
+      const body = await readBody(req);
+      const msg = body ? parse(body) : null;
+      if (!msg) return json(res, 400, { error: 'bad json' });
+      const out = this.opts.onStatus(msg);
+      return json(res, out.ok ? 200 : 400, out);
     }
     if (req.method !== 'GET') { res.writeHead(405).end(); return; }
     if (path === '/') { res.writeHead(302, { location: '/pet' }).end(); return; }

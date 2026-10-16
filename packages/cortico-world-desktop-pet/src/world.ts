@@ -35,7 +35,7 @@ import {
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
 import { PetServer, type PageMessage } from './server.ts';
-import { StatusTracker, type DescribeTool } from './status.ts';
+import { PostedStatusSource, StatusTracker, postedStatusOf, type DescribeTool, type PostedStatusResult } from './status.ts';
 import { WindowHost, resolveHostCommand } from './window-host.ts';
 import { RuntimeStore, type ModelSpec } from './runtime/store.ts';
 import { SENSEVOICE, SherpaAsr, WHISPER, type SherpaModelKind, type SherpaModule, type SherpaState } from './asr/sherpa.ts';
@@ -362,6 +362,10 @@ export class DesktopPetWorld implements World {
   private readonly activity = new ActivityGroup();
   /** What the status bubble shows. */
   private readonly status: StatusTracker;
+  /** A status another process on this machine posted; it wins over the tracker's while it is fresh. */
+  private readonly posted: PostedStatusSource;
+  /** The status last sent to the page, so a repeat of it sends nothing. */
+  private shownStatus = '';
   /** Computer use; its tools and its part of the environment prompt are there while `cua.enabled` is on. */
   private readonly cua: Cua;
   private phase: RunPhase | null = null;
@@ -392,7 +396,8 @@ export class DesktopPetWorld implements World {
       },
     });
     this.importer = opts.packDir ? new PackImporter({ packDir: opts.packDir, packs: () => this.packs(), text: () => this.ui }) : null;
-    this.status = new StatusTracker((status) => this.server.sendPet({ t: 'status', status }), opts.describeTool, () => this.ui.busy);
+    this.posted = new PostedStatusSource(() => this.pushStatus());
+    this.status = new StatusTracker(() => this.pushStatus(), opts.describeTool, () => this.ui.busy);
     this.segmenter = new Segmenter(this.segmentConfig(), FRAME_MS);
     this.segmenter.setSink(this.sink);
     this.store = new RuntimeStore({ runtimesRoot: opts.runtimesRoot, modelsDir: opts.modelsDir, fetchImpl: opts.fetchImpl, funasrModel: opts.funasrModel, whisperModel: opts.whisperModel, text: () => this.ui });
@@ -406,6 +411,7 @@ export class DesktopPetWorld implements World {
       onPetDisconnect: () => this.onPageGone(),
       onSkin: (skin) => this.saveSkin(skin),
       onPrefs: (prefs) => this.savePrefs(prefs),
+      onStatus: (msg) => this.setPostedStatus(msg),
       avatarFile: opts.avatarFile,
       packs: () => this.packs(),
       packProblems: () => this.packScan().problems,
@@ -607,6 +613,7 @@ export class DesktopPetWorld implements World {
 
   async stop(): Promise<void> {
     this.status.clear();
+    this.posted.stop();
     if (this.quiet) clearTimeout(this.quiet.timer);
     this.quiet = null;
     if (this.prefsTimer) clearInterval(this.prefsTimer);
@@ -794,6 +801,29 @@ export class DesktopPetWorld implements World {
     this.windowHost.start(resolveHostCommand(this.petUrl, this.cfg.window.electronFile, managed, this.t.window));
   }
 
+  /* ---------- status bubble ---------- */
+
+  /** Pushes what the bubble shows now: a posted status while it is fresh, else the run's own. */
+  private pushStatus(): void {
+    const status = this.posted.current ?? this.status.status;
+    const shown = JSON.stringify(status);
+    if (shown === this.shownStatus) return;
+    this.shownStatus = shown;
+    this.server.sendPet({ t: 'status', status });
+  }
+
+  /** `POST /api/status`: another process on this machine set or cleared the status the bubble shows, and may act. */
+  private setPostedStatus(msg: PageMessage): PostedStatusResult {
+    const posted = postedStatusOf(msg);
+    if ('error' in posted) return { ok: false, error: posted.error };
+    this.posted.set(posted.status, posted.ttlSeconds);
+    if (!posted.actions.length) return { ok: true };
+    // the same path `pet_act` takes: words the current figure does not know are dropped and reported
+    const { actions, dropped } = parseActions(posted.actions, this.vocab());
+    const played = actions.length > 0 && this.server.sendPet({ t: 'act', id: nextId('c'), actions });
+    return { ok: true, ...(played ? { played: actions } : {}), ...(dropped.length ? { skipped: dropped } : {}) };
+  }
+
   /* ---------- page protocol ---------- */
 
   private snapshot(): Record<string, unknown> {
@@ -818,7 +848,7 @@ export class DesktopPetWorld implements World {
       mic: this.micOpen(),
       voice: this.voiceBrief(),
       micDevice: this.cfg.asr.mic.deviceId,
-      status: this.status.status,
+      status: this.posted.current ?? this.status.status,
       statusBubble: this.cfg.statusBubble,
       bot: this.botInfo(),
     };
