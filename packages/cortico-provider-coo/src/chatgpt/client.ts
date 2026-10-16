@@ -120,6 +120,8 @@ export class ChatGPTResponses extends VendorResponses {
       feed: (payload, emit) => {
         const event = payload as { type?: unknown; output_index?: number; item?: unknown; response?: { output?: unknown } } | null;
         const type = event?.type;
+        // The plan route adds moderation metadata outside the Open Responses event schema.
+        if (type === 'response.metadata') return;
         if ((type === 'response.failed' || type === 'error') && JSON.stringify(payload).includes(USAGE_LIMIT)) this.pause(null);
         if ((type === 'response.completed' || type === 'response.incomplete' || type === 'response.failed')
           && Array.isArray(event!.response?.output) && !event!.response.output.length && announced.size) {

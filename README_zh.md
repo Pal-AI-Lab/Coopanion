@@ -153,7 +153,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 
 拿真实 Key 测过的只有 DeepSeek 和 Anthropic，其他几家是照文档接入的。连不上请开 issue。
 
-**ChatGPT** 不用 Key：选它，点「使用 ChatGPT 继续」，在打开的浏览器里登录（Sign in with ChatGPT）。Coo 的请求计入这个账号的 ChatGPT 套餐用量，受套餐的用量上限约束，请在 ChatGPT 的设置里留意额度。到了上限，Coo 不再说话，每隔几分钟再试，直到套餐恢复额度。连接先用套餐列出的第一个模型；登录状态存在这个连接的目录里，到期自动续。高级模式「模型」页这个连接的「ChatGPT 账号」一节可以重新登录或退出登录；删除这个连接会先退出登录，这个连接不能复制。还没有用真实账号试过登录。
+**ChatGPT** 不用 Key：选它，点「使用 ChatGPT 继续」，在打开的浏览器里登录（Sign in with ChatGPT）。Coo 的请求计入这个账号的 ChatGPT 套餐用量，受套餐的用量上限约束，请在 ChatGPT 的设置里留意额度。到了上限，Coo 不再说话，每隔几分钟再试，直到套餐恢复额度。连接先用套餐列出的第一个模型；登录状态存在这个连接的目录里，到期自动续。高级模式「模型」页这个连接的「ChatGPT 账号」一节可以重新登录或退出登录；删除这个连接会先退出登录，这个连接不能复制。
 
 </details>
 

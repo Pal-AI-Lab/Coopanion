@@ -155,7 +155,7 @@ Kimi, Qwen, MiniMax and Zhipu GLM have separate mainland China and international
 
 Only DeepSeek and Anthropic have been tested with real keys; the others follow their documentation. Open an issue if one fails.
 
-**ChatGPT** takes no key: pick it and press **Continue with ChatGPT**, then sign in in the browser that opens (Sign in with ChatGPT). Coo's requests count toward that account's ChatGPT plan, and its usage limits apply; keep an eye on them in ChatGPT's settings. When the limit is reached, Coo goes quiet and tries again every few minutes until the plan allows requests again. The connection starts on the first model the plan lists; the sign-in is kept in the connection's folder and renewed by itself. The ChatGPT section of the connection on the Model page in advanced mode signs in again or out; deleting the connection signs it out, and it cannot be duplicated. Signing in has not been tried with a real account yet.
+**ChatGPT** takes no key: pick it and press **Continue with ChatGPT**, then sign in in the browser that opens (Sign in with ChatGPT). Coo's requests count toward that account's ChatGPT plan, and its usage limits apply; keep an eye on them in ChatGPT's settings. When the limit is reached, Coo goes quiet and tries again every few minutes until the plan allows requests again. The connection starts on the first model the plan lists; the sign-in is kept in the connection's folder and renewed by itself. The ChatGPT section of the connection on the Model page in advanced mode signs in again or out; deleting the connection signs it out, and it cannot be duplicated.
 
 </details>
 

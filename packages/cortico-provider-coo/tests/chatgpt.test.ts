@@ -317,6 +317,33 @@ describe('requests billed to a ChatGPT plan', () => {
     expect(input.find((item) => item.type === 'function_call')).toMatchObject({ name: 'say', namespace: TOOL_NAMESPACE.name });
   });
 
+  it('completes text and usage when plan metadata arrives between text deltas and done events', async () => {
+    const events = COMPLETED.split('\n\n').filter(Boolean).map((frame) => JSON.parse(frame.slice('data: '.length)) as Record<string, unknown>);
+    events.splice(4, 0, { type: 'response.metadata', response_id: RESPONSE.id, metadata: { openai_chatgpt_moderation_metadata: {} } });
+    const terminal = events.at(-1)!;
+    terminal.response = { ...(terminal.response as Record<string, unknown>), output: [] };
+    const { create } = await signedInEndpoint((_req, res) => stream(res, sse(events)));
+    const forwarded: string[] = [];
+    const out = await create().client.respond({ model: 'm' } as unknown as Request, {
+      context: [message('user', 'hi')], diagnostic: true, onEvent: (event) => { forwarded.push(event.type); },
+    });
+    expect(out.response.output).toEqual([REPLY]);
+    expect(out.attempts.at(-1)?.meters).toMatchObject({ input: 5, output: 1, total: 6 });
+    expect(forwarded).toContain('response.output_text.delta');
+    expect(forwarded.at(-1)).toBe('response.completed');
+    expect(forwarded).not.toContain('response.metadata');
+  });
+
+  it('rejects unknown stream events even when plan metadata is supported', async () => {
+    const { create } = await signedInEndpoint((_req, res) => stream(res, sse([
+      { type: 'response.created', response: { ...RESPONSE, status: 'in_progress' } },
+      { type: 'response.unknown', response_id: RESPONSE.id },
+      { type: 'response.completed', response: { ...RESPONSE, status: 'completed' } },
+    ])));
+    await expect(create().client.respond({ model: 'm' } as unknown as Request, { context: [message('user', 'hi')], diagnostic: true }))
+      .rejects.toThrow('Unknown Open Responses event type');
+  });
+
   it('streams a request whose caller asked for no events: the route answers streams only', async () => {
     const seen: Array<Record<string, unknown>> = [];
     const { create } = await signedInEndpoint((_req, res, body) => { seen.push(body!); stream(res, COMPLETED); });

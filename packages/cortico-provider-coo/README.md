@@ -76,13 +76,12 @@ ChatGPT 套餐。表里的 `CHATGPT`(`vendors.ts`)给界面列出它,模型、�
   每次刷新换新的 refresh token,写盘后才交出新的 access token。refresh token 不再被接受时删掉令牌,client id 与 host id 保留。
 - **请求**(`client.ts`):令牌只发往 `https://api.openai.com/v1`,端点配置里的地址也被固定成它。`POST <该地址>/responses`,始终 `stream: true`、`store: false`、整段上下文重放;system 文本进 `instructions`;
   去掉该路由不收的参数(`max_output_tokens`、`temperature`、`top_p`、`service_tier`、`metadata`、`truncation`、`user` 等);
-  function / custom 工具放进一个 namespace(`app`),重放的调用带上它的名字。模型表是 `GET <baseUrl>/models` 里 `visibility: "list"` 的那些,按服务给的顺序。
+  function / custom 工具放进一个 namespace(`app`),重放的调用带上它的名字。模型表是 `GET <baseUrl>/models` 里 `visibility: "list"` 的那些,按服务给的顺序。套餐流额外的 `response.metadata` 不进入标准事件解析器。
 - **用量上限**:`subscription_sharing_usage_limit_exceeded`(HTTP 429 或流里的 `response.failed`)留在客户端里处理:日志单独记一条,
   5 分钟不发请求，之后重发，上限持续多久就这样等多久;对 Core 来说只是一个慢请求，不算失败，不进连续失败的计数。新事件抢占时等待结束。
   已经流出输出的请求和诊断请求(控制台的测试连接)仍以这个 429 失败;Coopanion 的失败气泡不算它。
 - **WebUI 面板方法**:页 `llm:chatgpt` 的面板 `chatgpt`,参数是端点名:`signIn` 回授权 URL,由调用方送到系统浏览器;`state` 报登录进度,
   登录完成后带上套餐的模型名;`signOut` 等进行中的刷新写完，删掉令牌并撤销 refresh token。回调每次登录只接受一次。`connect.ts` 的 `connectChatGPT` 建端点、登录、选模型、测试并设为当前端点。
-- **没用真实账号验证过**:以上都只对着本地假的授权服务器和 Responses 流测过。
 
 端点配置示例(`<CORTICO_HOME>/providers/qwen/config.json`,密钥在同目录 `.env` 的 `QWEN_API_KEY`):
 
