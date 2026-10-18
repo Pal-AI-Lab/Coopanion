@@ -15,6 +15,8 @@ export const S: Partial<typeof en> = {
   bubbleSizeHint: 'Cambia larghezza, margini e punta dei fumetti di Coo e dei tuoi; il testo mantiene la sua dimensione.',
   fontSize: 'Dimensione del testo',
   fontSizeHint: 'Cambia la dimensione del testo nei fumetti; i fumetti mantengono la loro larghezza.',
+  bubbleSpeed: 'Velocità dei fumetti',
+  bubbleSpeedHint: 'Cambia la velocità con cui i fumetti di Coo vengono scritti e quanto restano; 100% è il valore predefinito.',
   frameRate: 'Frequenza fotogrammi',
   frameRateHint: 'Frequenze più alte sono più fluide e usano più CPU e GPU.',
   frameUnlimited: 'Illimitata',

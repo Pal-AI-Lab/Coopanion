@@ -15,6 +15,8 @@ export const S: Partial<typeof en> = {
   bubbleSizeHint: 'Coo와 당신의 말풍선 너비, 여백, 꼬리를 바꿔요. 글자 크기는 그대로예요.',
   fontSize: '글자 크기',
   fontSizeHint: '말풍선 안 글자 크기를 바꿔요. 말풍선 너비는 그대로예요.',
+  bubbleSpeed: '말풍선 속도',
+  bubbleSpeedHint: 'Coo 말풍선의 글자가 나오는 속도와 머무는 시간을 바꿔요. 100%가 기본이에요.',
   frameRate: '프레임 레이트',
   frameRateHint: '높을수록 부드럽지만 CPU와 GPU를 더 씁니다.',
   frameUnlimited: '무제한',

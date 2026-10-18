@@ -15,6 +15,8 @@ export const S: Partial<typeof en> = {
   bubbleSizeHint: 'Muda a largura, as margens e a ponta dos balões do Coo e dos seus; o texto mantém o tamanho.',
   fontSize: 'Tamanho do texto',
   fontSizeHint: 'Muda o tamanho do texto nos balões; os balões mantêm a largura.',
+  bubbleSpeed: 'Velocidade dos balões',
+  bubbleSpeedHint: 'Muda a velocidade com que os balões do Coo são escritos e quanto tempo ficam; 100% é o padrão.',
   frameRate: 'Taxa de quadros',
   frameRateHint: 'Taxas mais altas ficam mais fluidas e usam mais CPU e GPU.',
   frameUnlimited: 'Sem limite',

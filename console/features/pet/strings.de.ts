@@ -15,6 +15,8 @@ export const S: Partial<typeof en> = {
   bubbleSizeHint: 'Ändert Breite, Innenabstand und Spitze der Blasen von Coo und deiner; die Schrift behält ihre Größe.',
   fontSize: 'Schriftgröße',
   fontSizeHint: 'Ändert die Größe der Schrift in den Blasen; die Blasen behalten ihre Breite.',
+  bubbleSpeed: 'Blasentempo',
+  bubbleSpeedHint: 'Ändert, wie schnell die Blasen von Coo getippt werden und wie lange sie stehen bleiben; 100% ist der Standard.',
   frameRate: 'Bildrate',
   frameRateHint: 'Höhere Raten laufen flüssiger und brauchen mehr CPU und GPU.',
   frameUnlimited: 'Unbegrenzt',

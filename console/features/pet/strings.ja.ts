@@ -15,6 +15,8 @@ export const S: Partial<typeof en> = {
   bubbleSizeHint: 'Coo とあなたの吹き出しの幅、余白、しっぽを変えます。文字の大きさは変わりません。',
   fontSize: '文字サイズ',
   fontSizeHint: '吹き出しの文字の大きさを変えます。吹き出しの幅は変わりません。',
+  bubbleSpeed: '吹き出しの速さ',
+  bubbleSpeedHint: 'Coo の吹き出しの文字が出る速さと表示時間を変えます。100% が標準です。',
   frameRate: 'フレームレート',
   frameRateHint: '高いほど滑らかになり、CPU と GPU の使用量も増えます。',
   frameUnlimited: '無制限',

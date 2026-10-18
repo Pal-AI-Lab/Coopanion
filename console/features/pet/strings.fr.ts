@@ -15,6 +15,8 @@ export const S: Partial<typeof en> = {
   bubbleSizeHint: 'Change la largeur, les marges et la pointe des bulles de Coo et des vôtres ; le texte garde sa taille.',
   fontSize: 'Taille du texte',
   fontSizeHint: 'Change la taille du texte dans les bulles ; les bulles gardent leur largeur.',
+  bubbleSpeed: 'Vitesse des bulles',
+  bubbleSpeedHint: "Change la vitesse d'écriture des bulles de Coo et leur durée d'affichage ; 100% par défaut.",
   frameRate: "Fréquence d'images",
   frameRateHint: 'Une fréquence plus élevée est plus fluide et sollicite davantage le CPU et le GPU.',
   frameUnlimited: 'Illimitée',

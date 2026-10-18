@@ -15,6 +15,8 @@ export const S: Partial<typeof en> = {
   bubbleSizeHint: 'Cambia el ancho, los márgenes y la punta de las burbujas de Coo y las tuyas; el texto mantiene su tamaño.',
   fontSize: 'Tamaño del texto',
   fontSizeHint: 'Cambia el tamaño del texto en las burbujas; las burbujas mantienen su ancho.',
+  bubbleSpeed: 'Velocidad de las burbujas',
+  bubbleSpeedHint: 'Cambia qué tan rápido se escriben las burbujas de Coo y cuánto duran; 100% es el valor predeterminado.',
   frameRate: 'Velocidad de fotogramas',
   frameRateHint: 'Más fotogramas se ven más fluidos y usan más CPU y GPU.',
   frameUnlimited: 'Sin límite',

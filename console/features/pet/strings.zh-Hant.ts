@@ -15,6 +15,8 @@ export const S: Partial<typeof en> = {
   bubbleSizeHint: '調整 Coo 和你的氣泡的寬度、留白和尾巴，文字大小不變。',
   fontSize: '字體尺寸',
   fontSizeHint: '調整氣泡裡文字的大小，氣泡寬度不變。',
+  bubbleSpeed: '氣泡速度',
+  bubbleSpeedHint: '調整 Coo 的氣泡逐字出現和停留的快慢，100% 為預設。',
   frameRate: '幀率',
   frameRateHint: '幀率越高越流暢，佔用的 CPU 和顯示卡也越多。',
   frameUnlimited: '不限',
