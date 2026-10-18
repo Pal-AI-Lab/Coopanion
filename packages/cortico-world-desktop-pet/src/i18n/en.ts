@@ -220,6 +220,7 @@ const en: PetText = {
     scale: { title: 'Size' },
     bubbleSize: { title: 'Bubble size', description: "Width, padding, corners and tail of the pet's bubbles and yours, 1 being the default; the text keeps its size." },
     fontSize: { title: 'Text size', description: 'Size of the text in the bubbles, 1 being the default; the bubbles keep their width.' },
+    bubbleSpeed: { title: 'Bubble speed', description: "How fast the pet's bubbles type out and how long they stay, 1 being the default; higher is faster." },
     glow: { title: 'Outer glow', description: 'How many pixels the light glow around the pet reaches when its colors match what is behind it; 0 turns it off.' },
     frameRate: { title: 'Frame rate', description: 'Frames a second while the pet walks, is carried or jumps; 0 follows the display. Above the display\'s refresh rate the display\'s rate applies. The Habits page offers 60, 120, 144 and Unlimited.' },
     lockFrameRate: { title: 'Lock frame rate', description: 'Draws the pet at the frame rate at rest too. When off, it drops to 30 frames a second while standing, sitting or asleep.' },

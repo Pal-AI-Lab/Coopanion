@@ -194,6 +194,7 @@ const it: Translation<PetText> = {
     scale: { title: 'Dimensione' },
     bubbleSize: { title: 'Dimensione dei fumetti', description: "Larghezza, margini, angoli e punta dei fumetti dell'animaletto e dei tuoi, 1 è il valore predefinito; il testo mantiene la sua dimensione." },
     fontSize: { title: 'Dimensione del testo', description: 'Dimensione del testo nei fumetti, 1 è il valore predefinito; i fumetti mantengono la loro larghezza.' },
+    bubbleSpeed: { title: 'Velocità dei fumetti', description: "Velocità con cui i fumetti dell'animaletto vengono scritti e quanto restano, 1 è il valore predefinito; valori più alti sono più veloci." },
     glow: { title: 'Bagliore esterno', description: "Quanti pixel si estende il bagliore chiaro attorno all'animaletto quando i suoi colori somigliano allo sfondo; 0 lo spegne." },
     frameRate: { title: 'Frequenza fotogrammi', description: "Fotogrammi al secondo mentre l'animaletto cammina, si fa portare o salta; 0 segue lo schermo. Oltre la frequenza di aggiornamento dello schermo vale quella dello schermo. La pagina Abitudini offre 60, 120, 144 e Illimitata." },
     lockFrameRate: { title: 'Blocca la frequenza', description: "Disegna l'animaletto a questa frequenza anche quando non si muove. Se disattivato, scende a 30 fotogrammi al secondo quando sta in piedi, sta a sedere o dorme." },

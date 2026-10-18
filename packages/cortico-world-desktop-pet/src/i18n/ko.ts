@@ -194,6 +194,7 @@ const ko: Translation<PetText> = {
     scale: { title: '크기' },
     bubbleSize: { title: '말풍선 크기', description: '펫과 당신의 말풍선 너비, 여백, 모서리, 꼬리. 1이 기본이며 글자 크기는 그대로입니다.' },
     fontSize: { title: '글자 크기', description: '말풍선 안 글자 크기. 1이 기본이며 말풍선 너비는 그대로입니다.' },
+    bubbleSpeed: { title: '말풍선 속도', description: '펫 말풍선의 글자가 나오는 속도와 머무는 시간. 1이 기본이며 클수록 빨라집니다.' },
     glow: { title: '외곽 빛', description: '펫과 뒤 배경의 색이 비슷할 때 몸 주위에 생기는 옅은 빛이 몇 픽셀 퍼지는지. 0이면 꺼짐.' },
     frameRate: { title: '프레임 레이트', description: '펫이 걷거나, 들려 있거나, 점프할 때 초당 그리는 프레임 수입니다. 0이면 디스플레이를 따릅니다. 디스플레이 주사율보다 높으면 디스플레이 주사율이 적용됩니다. 습관 페이지에서는 60, 120, 144, 무제한 중에서 고를 수 있습니다.' },
     lockFrameRate: { title: '프레임 레이트 고정', description: '가만히 있을 때도 프레임 레이트대로 펫을 그립니다. 끄면 서 있거나, 앉아 있거나, 잠든 동안 초당 30프레임으로 낮춥니다.' },

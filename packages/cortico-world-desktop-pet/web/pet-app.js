@@ -32,7 +32,7 @@ cooStyle.textContent = COO_CSS;
 document.head.append(cooStyle, skinStyle, accentStyle);
 
 const prefs = {
-  roam: 'calm', sound: true, theme: document.documentElement.dataset.theme, scale: 1, bubbleSize: 1, fontSize: 1, glow: 7, user: '', mic: false, micDevice: '', bot: null,
+  roam: 'calm', sound: true, theme: document.documentElement.dataset.theme, scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, glow: 7, user: '', mic: false, micDevice: '', bot: null,
   /** Voice input: switched on, recognizer ready, why not, how to talk, and the mode in force. */
   voice: { enabled: false, ready: false, detail: null, hint: '', mode: 'hold' },
   /** The actions shown as buttons beside the pet on hover. */
@@ -249,6 +249,7 @@ function applyPrefs(p) {
   if (typeof p.scale === 'number') { prefs.scale = p.scale; body?.set({ bounds: bounds() }); }
   if (typeof p.bubbleSize === 'number') { prefs.bubbleSize = p.bubbleSize; sizeVar('--bubble-size', p.bubbleSize); }
   if (typeof p.fontSize === 'number') { prefs.fontSize = p.fontSize; sizeVar('--bubble-font', p.fontSize); }
+  if (typeof p.bubbleSpeed === 'number') prefs.bubbleSpeed = p.bubbleSpeed;
   if (typeof p.rememberPosition === 'boolean') { prefs.rememberPosition = p.rememberPosition; reportPosition(); }
   if (typeof p.user === 'string') prefs.user = p.user;
   if (typeof p.micDevice === 'string' && p.micDevice !== prefs.micDevice) { prefs.micDevice = p.micDevice; stopMic(); }
@@ -432,12 +433,12 @@ function stepDialog(dt) {
     }
     const b = it.beats[it.i];
     if (T < it.startAt) return;
-    if (!b.text) { it.beatDone = true; it.holdUntil = T + .8; return; }
+    if (!b.text) { it.beatDone = true; it.holdUntil = T + .8 / prefs.bubbleSpeed; return; }
     typeText(it, b.text, dt, b.anchors || []);
     if (it.shown >= b.text.length && !it.beatDone) {
       it.beatDone = true;
       const last = it.i === it.beats.length - 1;
-      it.holdUntil = T + (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03);
+      it.holdUntil = T + (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03) / prefs.bubbleSpeed;
     }
     return;
   }
@@ -451,7 +452,8 @@ function stepDialog(dt) {
 function typeText(it, text, dt, anchors) {
   const p = bubble.querySelector('.b-text');
   if (!p || it.shown >= text.length) return;
-  it.acc += dt * 20;
+  // estimateSeconds in src/script.ts mirrors this rate and the holds in stepDialog
+  it.acc += dt * 20 * prefs.bubbleSpeed;
   while (it.acc >= 1 && it.shown < text.length) {
     const ch = text[it.shown++];
     it.acc -= PAUSE.test(ch) ? 5 : 1;
@@ -559,7 +561,7 @@ function stepTalk(it, dt) {
   if (it.shown < it.text.length) { typeText(it, it.text, dt, []); return; }
   if (it.bodyShown) return;
   it.bodyShown = true;
-  if (!it.d.input) { it.readUntil = T + 1.4 + it.text.length * .05; return; }
+  if (!it.d.input) { it.readUntil = T + (1.4 + it.text.length * .05) / prefs.bubbleSpeed; return; }
   showDialogInput(it);
 }
 

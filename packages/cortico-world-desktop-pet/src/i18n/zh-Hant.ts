@@ -194,6 +194,7 @@ const zhHant: Translation<PetText> = {
     scale: { title: '大小' },
     bubbleSize: { title: '氣泡尺寸', description: '桌寵和你的氣泡的寬度、留白、圓角和尾巴，1 為預設；字級不變。' },
     fontSize: { title: '字體尺寸', description: '氣泡裡文字的大小，1 為預設；氣泡寬度不變。' },
+    bubbleSpeed: { title: '氣泡速度', description: '桌寵的氣泡逐字出現和停留的速度，1 為預設，越大越快。' },
     glow: { title: '外發光', description: '桌寵和身後的顏色相近時，身體周圍出現的淺色外發光向外延伸多少像素；0 為關閉。' },
     frameRate: { title: '幀率', description: '走動、被拎著、跳起時每秒畫幾幀；0 跟隨螢幕更新率。超過螢幕更新率時以螢幕的為準。「習慣」頁可選 60、120、144 和不限。' },
     lockFrameRate: { title: '幀率鎖定', description: '靜止時也依「幀率」繪製桌寵。關閉時站著、坐著、睡著會降到每秒 30 幀。' },

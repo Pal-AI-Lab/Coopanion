@@ -194,6 +194,7 @@ const de: Translation<PetText> = {
     scale: { title: 'Größe' },
     bubbleSize: { title: 'Blasengröße', description: 'Breite, Innenabstand, Ecken und Spitze der Blasen des Haustiers und deiner, 1 ist der Standard; die Schrift behält ihre Größe.' },
     fontSize: { title: 'Schriftgröße', description: 'Größe der Schrift in den Blasen, 1 ist der Standard; die Blasen behalten ihre Breite.' },
+    bubbleSpeed: { title: 'Blasentempo', description: 'Wie schnell die Blasen des Haustiers getippt werden und wie lange sie stehen bleiben, 1 ist der Standard; höhere Werte sind schneller.' },
     glow: { title: 'Leuchtrand', description: 'Wie viele Pixel der helle Schein um das Haustier reicht, wenn seine Farben dem Hintergrund ähneln; 0 schaltet ihn aus.' },
     frameRate: { title: 'Bildrate', description: 'Bilder pro Sekunde, während das Haustier läuft, getragen wird oder springt; 0 folgt dem Bildschirm. Über der Bildwiederholrate des Bildschirms gilt die des Bildschirms. Die Seite Gewohnheiten bietet 60, 120, 144 und Unbegrenzt.' },
     lockFrameRate: { title: 'Bildrate fixieren', description: 'Zeichnet das Haustier auch im Ruhezustand mit der Bildrate. Wenn aus, sinkt sie im Stehen, Sitzen oder Schlafen auf 30 Bilder pro Sekunde.' },

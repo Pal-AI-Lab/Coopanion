@@ -137,6 +137,8 @@ export interface DesktopPetConfigSection extends WorldSection {
     bubbleSize: number;
     /** The text in the bubbles and the icons on its line, 1 = as drawn by pet.css; the bubbles keep their widths. */
     fontSize: number;
+    /** How fast the bot's bubbles type and how long they stay, as a multiplier: typing runs at 20 × this characters a second and every hold is divided by it. */
+    bubbleSpeed: number;
     /** How far the light halo reaches out from the body, in pixels (its outer blur); 0 turns it off. */
     glow: number;
     /** The pet page draws 60 frames a second at rest too; off, it drops to 30 while the body stands, sits or sleeps. */
@@ -209,6 +211,8 @@ export interface DesktopPetConfigSection extends WorldSection {
 export const SCALE_MIN = .5, SCALE_MAX = 10;
 /** The range of `window.bubbleSize` and `window.fontSize`. */
 export const BUBBLE_SIZE_MIN = .8, BUBBLE_SIZE_MAX = 1.6;
+/** The range of `window.bubbleSpeed`. */
+export const BUBBLE_SPEED_MIN = .5, BUBBLE_SPEED_MAX = 2;
 /** The halo's reach in pixels: 0 is off; past GLOW_MAX it reads as a gray cloud rather than an outline. */
 export const GLOW_MAX = 16, GLOW_DEFAULT = 7;
 
@@ -216,7 +220,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   enabled: false,
   port: 7797,
   user: '',
-  window: { enabled: true, electronFile: '', scale: 1, bubbleSize: 1, fontSize: 1, glow: GLOW_DEFAULT, frameRate: 60, lockFrameRate: false, hideWhenFullscreen: false, exportOverlay: false },
+  window: { enabled: true, electronFile: '', scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, glow: GLOW_DEFAULT, frameRate: 60, lockFrameRate: false, hideWhenFullscreen: false, exportOverlay: false },
   roam: 'calm',
   sound: true,
   sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, snoreSeconds: 0 },
@@ -271,6 +275,7 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
         [`${K}.window.scale`]: { type: 'number', title: c.scale.title, minimum: SCALE_MIN, maximum: SCALE_MAX, multipleOf: .05, 'x-hot': true },
         [`${K}.window.bubbleSize`]: { type: 'number', title: c.bubbleSize.title, description: c.bubbleSize.description, minimum: BUBBLE_SIZE_MIN, maximum: BUBBLE_SIZE_MAX, multipleOf: .05, 'x-hot': true },
         [`${K}.window.fontSize`]: { type: 'number', title: c.fontSize.title, description: c.fontSize.description, minimum: BUBBLE_SIZE_MIN, maximum: BUBBLE_SIZE_MAX, multipleOf: .05, 'x-hot': true },
+        [`${K}.window.bubbleSpeed`]: { type: 'number', title: c.bubbleSpeed.title, description: c.bubbleSpeed.description, minimum: BUBBLE_SPEED_MIN, maximum: BUBBLE_SPEED_MAX, multipleOf: .05, 'x-hot': true },
         [`${K}.window.glow`]: { type: 'number', title: c.glow.title, description: c.glow.description, minimum: 0, maximum: GLOW_MAX, multipleOf: 1, 'x-hot': true },
         [`${K}.window.frameRate`]: { type: 'integer', title: c.frameRate.title, minimum: 0, description: c.frameRate.description, 'x-hot': true },
         [`${K}.window.lockFrameRate`]: { type: 'boolean', title: c.lockFrameRate.title, description: c.lockFrameRate.description, 'x-hot': true },

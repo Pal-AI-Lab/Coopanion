@@ -194,6 +194,7 @@ const es419: Translation<PetText> = {
     scale: { title: 'Tamaño' },
     bubbleSize: { title: 'Tamaño de las burbujas', description: 'Ancho, márgenes, esquinas y punta de las burbujas de la mascota y las tuyas, 1 es el valor predeterminado; el texto mantiene su tamaño.' },
     fontSize: { title: 'Tamaño del texto', description: 'Tamaño del texto en las burbujas, 1 es el valor predeterminado; las burbujas mantienen su ancho.' },
+    bubbleSpeed: { title: 'Velocidad de las burbujas', description: 'Qué tan rápido se escriben las burbujas de la mascota y cuánto duran, 1 es el valor predeterminado; un valor mayor es más rápido.' },
     glow: { title: 'Brillo exterior', description: 'Cuántos píxeles se extiende el brillo claro alrededor de la mascota cuando sus colores se parecen al fondo; 0 lo apaga.' },
     frameRate: { title: 'Velocidad de fotogramas', description: 'Fotogramas por segundo mientras la mascota camina, cuelga del puntero o salta; 0 sigue a la pantalla. Por encima de la frecuencia de actualización de la pantalla, se usa la de la pantalla. La página Hábitos ofrece 60, 120, 144 y Sin límite.' },
     lockFrameRate: { title: 'Fijar velocidad de fotogramas', description: 'También dibuja la mascota a esa velocidad en reposo. Si está desactivado, baja a 30 fotogramas por segundo mientras está de pie, se sienta o duerme.' },

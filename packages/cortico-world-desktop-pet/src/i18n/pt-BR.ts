@@ -194,6 +194,7 @@ const ptBR: Translation<PetText> = {
     scale: { title: 'Tamanho' },
     bubbleSize: { title: 'Tamanho dos balões', description: 'Largura, margens, cantos e ponta dos balões do pet e dos seus, 1 é o padrão; o texto mantém o tamanho.' },
     fontSize: { title: 'Tamanho do texto', description: 'Tamanho do texto nos balões, 1 é o padrão; os balões mantêm a largura.' },
+    bubbleSpeed: { title: 'Velocidade dos balões', description: 'Velocidade com que os balões do pet são escritos e quanto tempo ficam, 1 é o padrão; valores maiores são mais rápidos.' },
     glow: { title: 'Brilho externo', description: 'Quantos pixels o brilho claro em volta do pet alcança quando as cores dele se parecem com o fundo; 0 desliga.' },
     frameRate: { title: 'Taxa de quadros', description: 'Quadros por segundo enquanto o pet anda ou pula, ou enquanto você carrega o pet; 0 segue a tela. Acima da taxa de atualização da tela, vale a da tela. A página Hábitos oferece 60, 120, 144 e Sem limite.' },
     lockFrameRate: { title: 'Travar taxa de quadros', description: 'Desenha o pet nessa taxa também em repouso. Desligado, cai para 30 quadros por segundo quando está em pé, na posição sentada ou dormindo.' },

@@ -217,6 +217,7 @@ export default {
     scale: { title: '大小' },
     bubbleSize: { title: '气泡尺寸', description: '桌宠和你的气泡的宽度、留白、圆角和尾巴，1 为默认；字号不变。' },
     fontSize: { title: '字体尺寸', description: '气泡里文字的大小，1 为默认；气泡宽度不变。' },
+    bubbleSpeed: { title: '气泡速度', description: '桌宠的气泡逐字出现和停留的速度，1 为默认，越大越快。' },
     glow: { title: '外发光', description: '桌宠和身后的颜色相近时，身体周围出现的浅色外发光向外延伸多少像素；0 为关闭。' },
     frameRate: { title: '帧率', description: '走动、被拎着、跳起时每秒画多少帧；0 跟随显示器刷新率。超过显示器刷新率时按显示器的。「习惯」页可选 60、120、144 和不限。' },
     lockFrameRate: { title: '帧率锁定', description: '静止时也按「帧率」画桌宠。关着时站着、坐着、睡着降到每秒 30 帧。' },

@@ -194,6 +194,7 @@ const fr: Translation<PetText> = {
     scale: { title: 'Taille' },
     bubbleSize: { title: 'Taille des bulles', description: 'Largeur, marges, coins et pointe des bulles du compagnon et des vôtres, 1 par défaut ; le texte garde sa taille.' },
     fontSize: { title: 'Taille du texte', description: 'Taille du texte dans les bulles, 1 par défaut ; les bulles gardent leur largeur.' },
+    bubbleSpeed: { title: 'Vitesse des bulles', description: "Vitesse d'écriture des bulles du compagnon et durée d'affichage, 1 par défaut ; plus la valeur est grande, plus c'est rapide." },
     glow: { title: 'Halo', description: "Portée en pixels du halo clair autour du compagnon quand ses couleurs se confondent avec l'arrière-plan ; 0 le désactive." },
     frameRate: { title: "Fréquence d'images", description: "Images par seconde quand le compagnon marche, saute ou se fait porter ; 0 suit l'écran. Au-delà de la fréquence de rafraîchissement de l'écran, celle de l'écran s'applique. La page Habitudes propose 60, 120, 144 et Illimitée." },
     lockFrameRate: { title: 'Verrouiller la fréquence', description: "Dessine aussi le compagnon à cette fréquence au repos. Désactivé, elle descend à 30 images par seconde quand le compagnon se tient debout, s'assoit ou dort." },

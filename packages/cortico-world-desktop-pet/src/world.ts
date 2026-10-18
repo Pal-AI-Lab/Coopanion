@@ -828,6 +828,7 @@ export class DesktopPetWorld implements World {
       scale: this.cfg.window.scale,
       bubbleSize: this.cfg.window.bubbleSize,
       fontSize: this.cfg.window.fontSize,
+      bubbleSpeed: this.cfg.window.bubbleSpeed,
       glow: this.cfg.window.glow,
       frameRate: this.cfg.window.frameRate,
       lockFrameRate: this.cfg.window.lockFrameRate,
@@ -1616,7 +1617,7 @@ export class DesktopPetWorld implements World {
     void this.record({ kind: 'say', beats: beats.map((b) => ({ text: b.text, ...moodOf(b.actions, this.vocab()) })) }, beats.map((b) => b.text).join(''), shown.blobs);
     if (!spoken) return { text: this.t.imagesShown(shown.blobs.length, this.chat.size > 0) };
     const now = Date.now();
-    const selfSec = estimateSeconds(beats);
+    const selfSec = estimateSeconds(beats, this.cfg.window.bubbleSpeed);
     const waitSec = Math.max(0, (this.busyUntil - now) / 1000);
     this.busyUntil = Math.max(now, this.busyUntil) + selfSec * 1000;
     const replaced = this.ask?.question ?? null;

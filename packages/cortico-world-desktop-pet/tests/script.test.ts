@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { BUBBLE_SPEED_MAX, DESKTOP_PET_DEFAULTS } from '../src/config.ts';
 import { figurePacks } from '../src/packs.ts';
 import { estimateSeconds, parseActions as actionsIn, parseScript as scriptIn, vocabId, INLINE_TAG_MAX } from '../src/script.ts';
 
@@ -51,6 +52,12 @@ describe('vocabulary', () => {
   });
 
   it('estimates longer display for longer text', () => {
-    expect(estimateSeconds(parseScript('短').beats)).toBeLessThan(estimateSeconds(parseScript('这是一段明显更长的话,要多打一会儿字才能说完。').beats));
+    const speed = DESKTOP_PET_DEFAULTS.window.bubbleSpeed;
+    expect(estimateSeconds(parseScript('短').beats, speed)).toBeLessThan(estimateSeconds(parseScript('这是一段明显更长的话,要多打一会儿字才能说完。').beats, speed));
+  });
+
+  it('divides the typing and reading time of text by the bubble speed, as the page does', () => {
+    const { beats } = parseScript('这是一段明显更长的话,要多打一会儿字才能说完,再多说几句让它停得久一些。');
+    expect(estimateSeconds(beats, DESKTOP_PET_DEFAULTS.window.bubbleSpeed) / estimateSeconds(beats, BUBBLE_SPEED_MAX)).toBeCloseTo(BUBBLE_SPEED_MAX / DESKTOP_PET_DEFAULTS.window.bubbleSpeed, 1);
   });
 });
