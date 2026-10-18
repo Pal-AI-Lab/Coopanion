@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('petHost', {
   onFloor: (cb) => ipcRenderer.on('pet:floor', (_e, below) => cb(Number(below) || 0)),
   /** Where the cursor is, in page pixels, or null off the window: called a few times a second. */
   onCursor: (cb) => ipcRenderer.on('pet:cursor', (_e, p) => cb(p)),
+  /** The visible tops of the windows under the pet, in page pixels (`{ x0, x1, y }` each), whenever they change: what it stands on. */
+  onWindows: (cb) => ipcRenderer.on('pet:windows', (_e, list) => cb(Array.isArray(list) ? list : [])),
   /** Screen pixels behind `rect`, minus `skip` rects (page coordinates), as a flat [r, g, b, …]; null where the screen cannot be read. */
   sampleBackdrop: (rect, skip) => ipcRenderer.invoke('pet:sampleBackdrop', { rect, skip }),
   /** Moves the window to the display under the cursor: { x, y } the cursor and { w, h } the new size in page pixels, or null when it stays. */

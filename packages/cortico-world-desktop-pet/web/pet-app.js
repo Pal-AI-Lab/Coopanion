@@ -68,8 +68,10 @@ else ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, ()
 
 /** Page pixels the window reaches below the floor, over a taskbar (the window process says how many); a figure may draw there. */
 let below = 0;
+/** The visible tops of the windows under the pet, in page pixels: the ledges it stands and climbs on. */
+let ledges = [];
 const floorGap = () => (host ? 2 + below : 48);
-const bounds = () => ({ W: innerWidth, H: innerHeight, floorY: innerHeight - floorGap(), S: .42 * prefs.scale });
+const bounds = () => ({ W: innerWidth, H: innerHeight, floorY: innerHeight - floorGap(), S: .42 * prefs.scale, ledges });
 /**
  * The body on screen (body-host.js), null until the first one is ready, and the words it does (its pack's
  * vocab, by id). `T` is the page's clock, in seconds of frames drawn.
@@ -81,6 +83,7 @@ const at = () => body?.layout ?? null;
 const bodyState = { listening: false, thinking: false, thoughtShown: true, dialogOpen: false };
 const holdRoam = (seconds) => body?.set({ hold: seconds });
 host?.onFloor?.((px) => { below = px; body?.set({ bounds: bounds() }); });
+host?.onWindows?.((list) => { ledges = list; body?.set({ bounds: bounds() }); });
 addEventListener('resize', () => {
   body?.set({ bounds: bounds() });
   // the World reads walk targets and drop spots against the stage the pet is on now

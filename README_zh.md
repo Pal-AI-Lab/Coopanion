@@ -28,7 +28,7 @@
   <a href="docs/DEVELOPMENT.md">参与开发</a>
 </p>
 
-Coopanion 是一个桌宠。桌宠 **Coo** 待在屏幕底边，可以用气泡和你聊天、听你说话、在底边走动，经你同意后还能操作电脑。支持 Windows、macOS 和 Linux。
+Coopanion 是一个桌宠。桌宠 **Coo** 待在屏幕底边，可以用气泡和你聊天、听你说话、在底边走动，也会爬到打开的窗口顶边上站着，经你同意后还能操作电脑。支持 Windows、macOS 和 Linux。
 
 **语言**：应用和新手引导有简体中文、繁體中文、English、日本語、한국어、Français、Deutsch、Español (Latinoamérica)、Português (Brasil)、Italiano、Русский 11 种语言。新装时跟随系统语言，系统语言不在其中时用英文；从旧版本升级的保留原来的语言。在「习惯」页的「语言」里修改。Coo 用应用语言和你说话。
 

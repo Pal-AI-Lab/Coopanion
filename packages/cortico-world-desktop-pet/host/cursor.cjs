@@ -64,4 +64,4 @@ function toDip(point, displays) {
   return { x: Math.floor(b.x + (point.x - o.x) / s), y: Math.floor(b.y + (point.y - o.y) / s) };
 }
 
-module.exports = { createCursorSource };
+module.exports = { createCursorSource, toDip };

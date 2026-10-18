@@ -25,6 +25,7 @@ const { pathToFileURL } = require('node:url');
 const { createCursorSource } = require('./cursor.cjs');
 const { createMouseLease } = require('./mouse-lease.cjs');
 const { createOverlaySource } = require('./overlay.cjs');
+const { createWindowSource, ledgesFrom } = require('./windows.cjs');
 
 /** The pages' text table of `code`, falling back as web/i18n.js does. */
 async function pageText(code) {
@@ -37,6 +38,8 @@ async function pageText(code) {
 
 /** Milliseconds between the cursor reports the page gets. */
 const CURSOR_EVERY_MS = 100;
+/** Milliseconds between the reads of what the pet can stand on. */
+const WINDOWS_EVERY_MS = 700;
 /** Milliseconds between the checks for a fullscreen window covering the pet's display. */
 const FULLSCREEN_EVERY_MS = 200;
 /** Most pixels one backdrop sample returns. */
@@ -293,6 +296,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   if (!url) throw new Error('pet host needs --pet-url');
   const origin = new URL(url).origin;
   let win = null, tray = null, dress = null, cursor;
+  /** The ledges last sent to the page, as JSON, so unchanged ones are not sent again. */
+  let lastLedges = '';
   // who holds the mouse, and when it is given back
   const mouse = createMouseLease({ getWindow: () => win });
   // the window as an OBS layer, while the World asks for it
@@ -365,11 +370,23 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     win.webContents.on('before-input-event', (event, input) => {
       if ((input.control || input.meta) && (['-', '_', '=', '+', '0'].includes(input.key) || ['NumpadAdd', 'NumpadSubtract', 'Numpad0'].includes(input.code))) event.preventDefault();
     });
-    win.webContents.on('did-finish-load', () => { win.webContents.setZoomLevel(0); overlay.pageLoaded(); win.webContents.send('pet:floor', coverArea(display()).below); });
+    win.webContents.on('did-finish-load', () => { win.webContents.setZoomLevel(0); overlay.pageLoaded(); win.webContents.send('pet:floor', coverArea(display()).below); lastLedges = ''; });
     // The page learns where the cursor is even when the click-through window misses its moves, and
     // it renews the mouse lease in its answer to every report: the report goes out on every tick,
     // not only when the pointer moved, so a cursor that rests still still gets a verdict.
     let lastVisible = null;
+    // What the pet can stand on changes without an event (a window moves, opens or closes), so the
+    // desktop is read a few times a second; the page hears only when the ledges differ.
+    const windows = createWindowSource({ screen });
+    const ledgeTimer = setInterval(() => {
+      if (!win || !win.isVisible()) return;
+      const b = win.getBounds();
+      const ledges = ledgesFrom(windows.list(), { x: b.x, y: b.y }, { width: b.width, floor: b.height - 2 - coverArea(display()).below });
+      const json = JSON.stringify(ledges);
+      if (json === lastLedges) return;
+      lastLedges = json;
+      win.webContents.send('pet:windows', ledges);
+    }, WINDOWS_EVERY_MS);
     const cursorTimer = setInterval(() => {
       if (!win) return;
       const visible = win.isVisible();
@@ -389,7 +406,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       if (covered && !autoHidden && win.isVisible()) { autoHidden = true; win.hide(); }
       else if (!covered && autoHidden) { autoHidden = false; win.showInactive(); }
     }, FULLSCREEN_EVERY_MS);
-    win.on('closed', () => { clearInterval(cursorTimer); clearInterval(fullscreenTimer); win = null; });
+    win.on('closed', () => { clearInterval(cursorTimer); clearInterval(fullscreenTimer); clearInterval(ledgeTimer); win = null; });
     // page console lines reach the World's log through stdout
     win.webContents.on('console-message', (e) => { if (e.level !== 'debug') console.log(`[page:${e.level}] ${e.message}`); });
     win.webContents.on('did-fail-load', (_e, code, desc, failedUrl) => console.log(`[page:error] 加载失败 ${code} ${desc} ${failedUrl}`));

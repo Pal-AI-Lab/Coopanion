@@ -12,6 +12,8 @@
  * Nothing here plays sound or talks to the World: sounds are asked for through `opts.sfx` and what
  * happens to the body is told through `opts.onEvent`; the page around the frame does the rest.
  */
+import { climbTarget, groundAt, mountX } from './perch.js';
+
 export { createRig } from './rig.js';
 
 export const f = n => Math.round(n * 10) / 10;
@@ -93,7 +95,7 @@ const FACE_TONES = {
   smug: 'wink', worried: 'hmm', determined: 'pop', flustered: 'shy', scared: 'surprised', excited: 'sparkle', cry: 'sad', confused: 'hmm',
 };
 /** Body modes in which the figure travels across the stage or squashes fast (dancing steps and sways on the spot). */
-const MOVING_MODES = new Set(['drag', 'air', 'crouch', 'land', 'walk', 'run', 'dance']);
+const MOVING_MODES = new Set(['drag', 'air', 'crouch', 'land', 'walk', 'run', 'dance', 'climb']);
 /** Points on the body in logo units, for a figure that names none: where the eyes look from, where a tear starts,
  *  where z's and hearts start ([x from, x to, y]), the bubble's spot. `tears` (one start under each eye) has no default. */
 const ANCHORS = { gaze: [140, 117], tear: [166, 136], z: [196, 40], hearts: [90, 175, 34], bubble: [128, 0] };
@@ -132,6 +134,8 @@ export function createPet(els, opts) {
   const onEvent = opts.onEvent || (() => {});
   const words = opts.words || {};
   let W = 0, H = 0, floorY = 0, S = .42, T = 0;
+  /** The window tops under this stage, from `bounds()`: what the body stands and climbs on (perch.js). */
+  let ledges = [];
   let roam = opts.roam ?? 'free';
   let skin = opts.skin || null;
   let hold = 0; // until T: an order from outside is in progress, free roaming waits
@@ -160,13 +164,26 @@ export function createPet(els, opts) {
   function resize() {
     const b = opts.bounds();
     W = b.W; H = b.H; floorY = b.floorY; S = b.S;
+    ledges = Array.isArray(b.ledges) ? b.ledges : [];
     if (!pet.placed && W > 0) {
       pet.x = opts.startX != null ? opts.startX : W * .7; pet.placed = true;
+      pet.fy = floorY;
       if (opts.enter === 'drop') { pet.fy = -8; pet.vy = 0; pet.vx = 0; pet.airKind = 'drop'; setMode('air'); }
     }
     pet.x = clamp(pet.x, minX(), maxX());
     pet.target = clamp(pet.target, minX(), maxX());
-    if (pet.mode !== 'air' && pet.mode !== 'drag') pet.fy = floorY;
+    // a body on a wall keeps its height; the climb ends it if the window goes away
+    if (pet.mode !== 'air' && pet.mode !== 'drag' && pet.mode !== 'climb') settle();
+  }
+
+  /**
+   * Puts the feet on the surface under them, a window top or the floor. A surface that went away (its
+   * window closed or moved) leaves the body falling from where it stood.
+   */
+  function settle() {
+    const g = groundAt(ledges, pet.x, pet.fy, floorY);
+    if (g > pet.fy + 2) { pet.vy = 0; pet.vx = 0; pet.airKind = 'drop'; setMode('air'); }
+    else pet.fy = g;
   }
 
   function toStage(lx, ly) {
@@ -193,16 +210,27 @@ export function createPet(els, opts) {
     // a walk or run asked for as a word is done once the body stops going, whatever stopped it
     if ((prev === 'walk' || prev === 'run') && pet.walkWord && m !== prev) { onEvent('done', { word: pet.walkWord }); pet.walkWord = null; }
     pet.mode = m; pet.modeT = 0; pet.turned = false; pet.startle = false; pet.skid = false; pet.cue = 0;
+    // a climb queued behind a walk is dropped with the walk
+    if (m !== 'walk' && m !== 'climb') pet.pendingClimb = null;
     Object.assign(pet, o);
     if (prev !== m) onEvent('mode', { mode: m });
   }
-  const busy = () => pet.mode === 'drag' || pet.mode === 'air' || pet.mode === 'crouch';
+  const busy = () => pet.mode === 'drag' || pet.mode === 'air' || pet.mode === 'crouch' || pet.mode === 'climb';
+  /** The window top it is standing on, or null on the floor. */
+  function ledgeUnder() {
+    const g = groundAt(ledges, pet.x, pet.fy, floorY);
+    return g < floorY ? ledges.find((l) => l.y === g && pet.x >= l.x0 && pet.x <= l.x1) ?? null : null;
+  }
   function pickTarget(minDist) {
+    // on a window it paces along that window instead of walking off it
+    const l = ledgeUnder();
+    const lo = l ? Math.max(minX(), l.x0 + 20) : minX(), hi = l ? Math.min(maxX(), l.x1 - 20) : maxX();
+    if (hi - lo < 30) return pet.x;
     for (let i = 0; i < 12; i++) {
-      const x = rnd(minX(), maxX());
+      const x = rnd(lo, hi);
       if (Math.abs(x - pet.x) > minDist) return x;
     }
-    return pet.x - minX() > maxX() - pet.x ? minX() : maxX();
+    return pet.x - lo > hi - pet.x ? lo : hi;
   }
 
   /** Runs a motion. Returns false when the body cannot take it now (in the air, being dragged). */
@@ -213,7 +241,7 @@ export function createPet(els, opts) {
     switch (a) {
       case 'stand': setMode(seated ? 'wake' : 'idle', seated ? { startle: false } : {}); pet.nextAt = T + 3; break;
       case 'walk': setMode('walk', { target: pickTarget(160) }); break;
-      case 'run': setMode('run', { target: pet.x < W / 2 ? maxX() - rnd(0, 30) : minX() + rnd(0, 30) }); break;
+      case 'run': setMode('run', { target: pickTarget(W * .4) }); break;
       case 'jump': setMode('crouch', { jumpV: 720, jumpVx: pet.facing * 40 }); break;
       case 'hop': setMode('crouch', { jumpV: 480, jumpVx: 0 }); break;
       case 'look': setMode('look'); break;
@@ -316,13 +344,17 @@ export function createPet(els, opts) {
     if (pet.expr && T < pet.exprUntil) return pet.expr;
     if (pet.thinking) return 'thinking';
     if (m === 'sit') return 'content';
-    if (m === 'run') return 'run';
+    if (m === 'run' || m === 'climb') return 'run';
     return 'neutral';
   }
 
   function decide() {
     const calm = roam === 'calm';
-    const opts2 = [['walk', calm ? 10 : 28], ['run', calm ? 0 : 12], ['look', 14], ['jump', calm ? 2 : 8], ['sit', 16], ['expr', 12], ['wait', calm ? 30 : 10]]
+    // a window top within a short walk's reach is worth a climb now and then
+    // a window top within a walk is worth climbing: it walks to the side of it, then up
+    const up = climbTarget(ledges, pet.x, pet.fy, { rise: 70, reach: 900 });
+    const perched = ledgeUnder();
+    const opts2 = [['walk', calm ? 10 : 28], ['run', calm ? 0 : 12], ['look', 14], ['jump', calm ? 2 : 8], ['sit', 16], ['expr', 12], ['wait', calm ? 30 : 10], ...(up && pet.fy >= floorY - 1 ? [['climb', 30]] : []), ...(perched ? [['down', 10]] : [])]
       .filter(o => o[1] > 0 && (o[0] !== pet.lastAct || o[0] === 'wait'));
     let r = Math.random() * opts2.reduce((a, o) => a + o[1], 0), pick = 'wait';
     for (const o of opts2) { if ((r -= o[1]) < 0) { pick = o[0]; break; } }
@@ -330,8 +362,19 @@ export function createPet(els, opts) {
     else if (pick === 'expr') { setExpr(['happy', 'wink', 'love', 'sleepy', 'surprised', 'shy'][Math.floor(Math.random() * 6)]); pet.lastAct = 'expr'; }
     // a sit she chose decides up front whether it ends in sleep, so she only gets drowsy when she will fall asleep
     else if (pick === 'sit') { setMode('sit', { dur: rnd(6, 9), willSleep: Math.random() < .6 }); pet.lastAct = 'sit'; }
+    else if (pick === 'climb') { startClimb(up); pet.lastAct = 'climb'; }
+    // off the end of the window top it is standing on: it walks out and drops
+    else if (pick === 'down') { const l = ledgeUnder(); if (l) setMode('walk', { target: l.x0 - 120 }); pet.lastAct = 'down'; }
     else if (pick !== 'wait') act(pick);
     if (pet.mode === 'idle' && T >= pet.nextAt) pet.nextAt = T + rnd(2, 4);
+  }
+
+  /** Walks to the side of the window `climbTarget` picked and climbs to its top edge. */
+  function startClimb(t) {
+    setMode('walk', {
+      target: t.edgeX,
+      pendingClimb: { climbTop: t.ledge.y, climbX: t.edgeX, climbSide: t.side, mountX: mountX(t.ledge, t.side), facing: -t.side },
+    });
   }
 
   /* particles */
@@ -391,6 +434,12 @@ export function createPet(els, opts) {
         const ramp = Math.min(1, mt / (run ? .35 : .25));
         pet.speed = lerp(pet.speed, vT * smooth(ramp), ease(run ? 6 : 9, dt));
         pet.x += dir * Math.min(dist, pet.speed * dt);
+        // the window top it was walking on ended: it drops off the edge
+        if (pet.fy < floorY - 1 && groundAt(ledges, pet.x, pet.fy, floorY) > pet.fy + 2) {
+          pet.speed = 0; pet.vy = 0; pet.vx = dir * 40; pet.airKind = 'drop';
+          setMode('air');
+          break;
+        }
         const k = clamp(pet.speed / vMax, 0, 1);
         strideT *= .4 + .6 * k; liftT *= .4 + .6 * k;
         pet.phase += Math.PI * 2 * rate * dt * Math.max(.35, k);
@@ -404,8 +453,11 @@ export function createPet(els, opts) {
         if (dist < 1.5) {
           pet.speed = 0;
           const id = pet.walkId; pet.walkId = 0;
-          setMode('idle'); pet.nextAt = T + rnd(1.2, 3.2);
           if (id) onEvent('arrived', { walkId: id, x: Math.round(pet.x) });
+          // a self-chosen climb starts at the wall it walked to: it takes hold and pushes off
+          const c = pet.pendingClimb;
+          if (c) { pet.pendingClimb = null; pet.sqv -= 1.2; play('jump', 'move'); setMode('climb', c); }
+          else { setMode('idle'); pet.nextAt = T + rnd(1.2, 3.2); }
         }
         break;
       }
@@ -461,6 +513,7 @@ export function createPet(els, opts) {
       case 'air': {
         pet.vy += 2300 * dt;
         pet.vx *= Math.exp(-dt * .4);
+        const from = pet.fy;
         pet.x += pet.vx * dt; pet.fy += pet.vy * dt;
         if (pet.x < minX()) { pet.x = minX(); pet.vx = Math.abs(pet.vx) * .55; pet.sqv += .6; }
         if (pet.x > maxX()) { pet.x = maxX(); pet.vx = -Math.abs(pet.vx) * .55; pet.sqv += .6; }
@@ -468,7 +521,36 @@ export function createPet(els, opts) {
         sqT = -Math.min(.12, Math.abs(pet.vy) / 6000);
         tiltT = clamp(pet.vx * .025, -30, 30);
         tk = 70; tc = 8;
-        if (pet.fy >= floorY && pet.vy > 0) land();
+        // it lands on the first surface below where it was: a window top, else the floor
+        const g = groundAt(ledges, pet.x, from, floorY);
+        if (pet.fy >= g && pet.vy > 0) land(g);
+        break;
+      }
+      case 'climb': {
+        // hand over hand up the side of a window: a reach, then a pull, the feet pushing off the wall
+        strideT = 8; liftT = 15; bobT = 6; rate = 3.2;
+        leanT = -7; lookT = [3, -5];
+        pet.phase += Math.PI * 2 * 2.2 * dt;
+        // the body hangs from one hand and then pulls: the rise comes in surges, and it leans into the wall
+        const pull = .4 + .6 * Math.max(0, Math.sin(pet.phase));
+        pet.x = clamp(pet.climbX, minX(), maxX()) - pet.climbSide * Math.sin(pet.phase) * 2;
+        pet.fy = Math.max(pet.climbTop, pet.fy - 190 * pull * dt);
+        const half = Math.floor(pet.phase / Math.PI);
+        if (half !== pet.lastHalf) {
+          pet.lastHalf = half;
+          play('step', 'move', false, half & 1);
+          dustAt(pet.climbSide < 0 ? 252 : 4, 1, 8);
+        }
+        // the window it had hold of moved or closed under its hands
+        if (!ledges.some((l) => Math.abs(l.y - pet.climbTop) < 1 && pet.climbX >= l.x0 - 40 && pet.climbX <= l.x1 + 40)) {
+          pet.vy = 0; pet.vx = 0; pet.airKind = 'drop'; setMode('air'); break;
+        }
+        if (pet.fy <= pet.climbTop) {
+          const dir = Math.sign(pet.mountX - pet.climbX) || 1;
+          pet.x = pet.mountX; pet.fy = pet.climbTop; pet.facing = dir;
+          dustAt(128, 3, 26);
+          setMode('land');
+        }
         break;
       }
       case 'land': {
@@ -621,9 +703,9 @@ export function createPet(els, opts) {
     pet._fc = fc; pet._fname = fname;
   }
 
-  function land() {
+  function land(g = floorY) {
     const impact = pet.vy, kind = pet.airKind;
-    pet.fy = floorY; pet.vy = 0; pet.vx = 0;
+    pet.fy = g; pet.vy = 0; pet.vx = 0;
     pet.sqv += clamp(impact * .0024, .8, 4.5);
     play('land', 'move', kind !== 'jump' && impact > 1000);
     dustAt(128, impact > 900 ? 7 : 3, 70);
@@ -664,8 +746,11 @@ export function createPet(els, opts) {
     });
 
     const footY = drag ? pet.dy + 220 * S * 1.09 : pet.fy;
-    const k = clamp(1 - (floorY - footY) / 420, .3, 1);
-    shadowEl.setAttribute('cx', f(AX)); shadowEl.setAttribute('cy', f(floorY - 2));
+    // the shadow falls on whatever is under the body: a window top or the floor
+    const groundY = groundAt(ledges, AX, pet.fy, floorY);
+    const k = clamp(1 - (groundY - footY) / 420, .3, 1);
+    shadowEl.setAttribute('cx', f(AX));
+    shadowEl.setAttribute('cy', f(groundY - 2));
     shadowEl.setAttribute('rx', f(72 * S * k * (1 + pet.sq * .5))); shadowEl.setAttribute('ry', f(10 * S * k + 1));
     shadowEl.setAttribute('opacity', f(k));
 
@@ -747,17 +832,27 @@ export function createPet(els, opts) {
     pet.cursor = '';
     if (!press) return;
     if (pet.mode === 'drag') {
+      // let go of where the pointer is, not of where the last frame had caught up to
+      Object.assign(pointer, { x: p.x, y: p.y, inside: true });
+      pet.dx = pointer.x;
+      pet.dy = Math.min(pointer.y, floorY - 245 * S);
+      render();
       // hand over from the scruff anchor to the feet anchor without a visual jump
       const foot = toStage(128, 256);
       const v = velocity();
+      const speed = Math.hypot(v.x, v.y);
       pet.x = clamp(foot.x, minX(), maxX());
       pet.fy = Math.min(floorY, foot.y);
-      pet.vx = clamp(v.x, -1800, 1800); pet.vy = clamp(v.y, -1800, 1400);
-      pet.airKind = 'throw';
-      const speed = Math.hypot(v.x, v.y);
-      if (speed > 700) play('whoosh', 'move');
+      // over a window top it is set down; throwing needs open air below it
+      const setDown = ledges.some((l) => pet.x >= l.x0 && pet.x <= l.x1 && l.y >= pet.fy && l.y - pet.fy < 300);
+      if (setDown) { pet.vx = 0; pet.vy = 0; pet.airKind = 'drop'; }
+      else {
+        pet.vx = clamp(v.x, -1800, 1800); pet.vy = clamp(v.y, -1800, 1400);
+        pet.airKind = 'throw';
+        if (speed > 700) play('whoosh', 'move');
+      }
       setMode('air');
-      onEvent('touch', { kind: speed > 700 ? 'throw' : 'drop', x: Math.round(pet.x) });
+      onEvent('touch', { kind: setDown || speed <= 700 ? 'drop' : 'throw', x: Math.round(pet.x) });
     } else if (now(p) - press.t < 400) {
       if (pet.mode === 'sleep' || pet.mode === 'sit') {
         const wasAsleep = pet.mode === 'sleep';
