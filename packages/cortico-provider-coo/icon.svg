@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Coo">
+  <title>Coo</title>
+  <rect width="256" height="256" rx="56" fill="#F4F5F4"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g transform="translate(128 128) scale(0.74) translate(-116 -128)">
+      <path stroke="#1B1626" stroke-width="36" d="M172.5 56.8A84 84 0 1 0 172.5 199.2"/>
+      <path stroke="#00A870" stroke-width="13" d="M98 123Q113 100 128 123"/>
+      <path stroke="#00A870" stroke-width="13" d="M148 123Q163 100 178 123"/>
+    </g>
+  </g>
+</svg>

@@ -31,10 +31,12 @@
   "cortico": {
     "kind": "provider",
     "api": 6,
+    "icon": "icon.svg",
     "describe": "describe.json"
   },
   "files": [
     "src",
+    "icon.svg",
     "README.md",
     "CHANGELOG.md",
     "describe.json"
