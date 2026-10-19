@@ -303,7 +303,7 @@ describe('the WebUI API the settings window reads', () => {
   }, 30000);
 
   it('storage: clearing the session part answers with a result line', async () => {
-    const { status, body } = await json(await post('/api/storage/clear?key=session'));
+    const { status, body } = await json(await post('/api/storage/clear?owner=core&key=session'));
     expect(status).toBe(200);
     expect(body.result).toEqual(expect.any(String));
   });

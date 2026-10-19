@@ -55,7 +55,7 @@ beforeEach(() => {
       doc.content = body.content; doc.revision = String(Number(doc.revision) + 1);
       return json({ revision: doc.revision });
     }
-    if (path === '/api/session/reload-prefix' || path === '/api/storage/clear?key=session') {
+    if (path === '/api/session/reload-prefix' || path === '/api/storage/clear?owner=core&key=session') {
       sessionWrites.push(path);
       if (sessionGate) await sessionGate.promise;
       if (options.signal.aborted) throw new DOMException('Aborted', 'AbortError');

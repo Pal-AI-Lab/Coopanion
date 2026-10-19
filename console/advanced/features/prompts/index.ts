@@ -212,7 +212,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
       if (restart && !await ui.confirm({ title: sessionText.title, body: sessionText.body, danger: true })) return;
       if (signal.aborted || !await saveAll()) return;
       say(restart ? sessionText.clearing : S.reloading);
-      await post(restart ? '/api/storage/clear?key=session' : '/api/session/reload-prefix', undefined, { signal });
+      await post(restart ? '/api/storage/clear?owner=core&key=session' : '/api/session/reload-prefix', undefined, { signal });
       if (signal.aborted) return;
       pendingApply = false;
       if (await refreshPreview() && !dirty.size) say(restart ? sessionText.cleared : S.prefixReloaded);
