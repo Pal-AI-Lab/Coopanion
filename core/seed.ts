@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { defaultRegion, endpointName, firstVendor, vendorEntry } from 'cortico-provider-coo/src/vendors.ts';
 import { LANGUAGES, type Language } from 'cortico/core/language.ts';
 import { appLanguage } from './language.ts';
+import { EARLIER_PERSONAS } from './seed-history.ts';
 
 export const DEPLOYMENT = 'companion';
 export const CONSOLE_PORT = 17788;
@@ -14,8 +15,6 @@ export const DISPLAY_NAME = 'Coo';
 export const MODULE = 'coo';
 /** The module the endpoints of versions up to 0.1.2 name; it became `coo`. */
 const OLD_MODULE = 'deepseek';
-/** SHA-256 of the self-description versions 0.1.0 (after the rename) and 0.1.1 seeded, line endings as LF. */
-const OLD_CONSTITUTION = 'cfcb7527cbf3518ab9f077ee711c86661a70613b9e5caeb992b30a603490e5cf';
 /** When computer use asks first (`worlds.desktop-pet.cua.permission`): new installs get it written out, so a config without it is from before and keeps the default it had. */
 const CUA_ASK = 'ask-once';
 const OLD_CUA_ASK = 'ask-each-turn';
@@ -144,13 +143,12 @@ let shipped: Map<string, PersonaId> | null = null;
 
 /**
  * The persona whose shipped self-description the workspace's is, in any language, exactly; null for one
- * the person or Coo changed. The self-description 0.1.0 and 0.1.1 seeded counts as Coo's.
+ * the person or Coo changed. Self-descriptions earlier versions shipped (seed-history.ts) count as theirs.
  */
 export function personaOf(workspace: string): PersonaId | null {
   const hash = hashOf(join(workspace, CONSTITUTION));
-  if (hash === OLD_CONSTITUTION) return 'coo';
   shipped ??= new Map(PERSONAS.flatMap((id) => LANGUAGES.map((l) => [hashOf(personaFile(id, l))!, id] as const)));
-  return hash === null ? null : shipped.get(hash) ?? null;
+  return hash === null ? null : shipped.get(hash) ?? EARLIER_PERSONAS[hash] ?? null;
 }
 
 /** Puts persona `id` in `language` in place of the workspace's self-description; the bot reads it from its next prefix on. */

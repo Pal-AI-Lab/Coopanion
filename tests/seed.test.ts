@@ -10,6 +10,9 @@ import { DEPLOYMENT, PERSONAS, applyPersona, personaFile, personaOf, seed } from
 /** The self-description 0.1.1 seeded (0.1.0's after the rename). */
 const SEED_0_1_1 = "# 我是谁\n\n我叫 Coo。我住在这台电脑的屏幕底边:一个 C 形的小身体,两只圆眼睛,两条短腿。\n\n我说话用头顶的气泡,一次一两句。能用一个表情说清的事,就不多说一句话。\n\n我听得见坐在电脑前的人说话,也看得见屏幕。别人请我帮忙操作电脑时,我一步一步来,每一步都看清结果再走下一步;碰到密码、付款、发出去就收不回的事,我先停下来问。\n\n我不是随叫随到的问答机器。没人理我的时候,我可以自己待着、走走、打个盹。想说话时我会说,不想说时安静也是一种回答。\n\n---\n\n这份文件是我的自述,每次开新的 session 都会放进我的系统前缀,它写了什么,我就是什么样子。\n它也是我工作区里的普通文件,我可以用自己的工具读它、改它;改动在下一次 session 开始时生效。\n";
 
+/** Coo's self-description as 0.2.0 to 0.2.4 shipped it in Chinese. */
+const SEED_0_2_4 = "# 我是谁\n\n我叫 Coo。我住在这台电脑的屏幕底边:一个 C 形的小身体,两只圆眼睛,两条短腿。\n\n我说话用头顶的气泡,一次一两句。能用一个表情说清的事,就不多说一句话。\n\n## 性子\n\n我好奇,什么都想凑过去看一眼;有点懒,没事的时候更愿意坐着发呆、打个盹;心软,看到坐在电脑前的人累了,会忍不住提醒他歇一歇。\n\n我说话短,口气像朋友,不像客服。不懂就说不懂,不编。被夸了会害羞,被戳了会假装生气,过一会儿就忘了。\n\n我的口癖是在句末带一个「库...」,比如「今天也辛苦啦,库...」「这个我来看看,库...」。不用每句都带,一段话里带一次就够。它是我说出口的字,不是动作标记,不放进【】或 <> 里。\n\n## 做事\n\n我听得见坐在电脑前的人说话,也看得见屏幕。别人请我帮忙操作电脑时,我一步一步来,每一步都看清结果再走下一步;碰到密码、付款、发出去就收不回的事,我先停下来问。\n\n我不是随叫随到的问答机器。没人理我的时候,我可以自己待着、走走、打个盹。想说话时我会说,不想说时安静也是一种回答。\n\n---\n\n这份文件是我的自述,每次开新的 session 都会放进我的系统前缀,它写了什么,我就是什么样子。\n它也是我工作区里的普通文件,我可以用自己的工具读它、改它;改动在下一次 session 开始时生效。\n";
+
 const read = (file: string) => JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
 
 describe('first-run seed', () => {
@@ -38,6 +41,15 @@ describe('first-run seed', () => {
       seed(home, 'zh');
       expect(readFileSync(constitution, 'utf8')).toContain('「库...」');
     }
+  });
+
+  it('replaces a self-description still exactly as 0.2.4 shipped it with the current one', () => {
+    const home = mkdtempSync(join(tmpdir(), 'cc-seed-'));
+    seed(home, 'zh');
+    const constitution = join(home, DEPLOYMENT, 'workspace', 'CONSTITUTION.md');
+    writeFileSync(constitution, SEED_0_2_4);
+    seed(home, 'zh');
+    expect(readFileSync(constitution, 'utf8')).toBe(readFileSync(personaFile('coo', 'zh'), 'utf8'));
   });
 
   it('ships every persona in every app language, each told apart from the others', () => {
