@@ -258,10 +258,18 @@ bot 用 `pet_move_to({ to: 目标 id, params: [数值…] })` 去,`to` 也认目
 
 ### 窗口顶边
 
-`needs: ["windows"]` 的包在场时,Windows 上的窗口进程每 0.7 秒读一次桌面上的顶层窗口(`host/windows.cjs`,koffi 调 `GetWindow` 与 `DwmGetWindowAttribute`),
-跳过最小化的、在别的虚拟桌面上的、工具窗口、点击穿透的窗口,以及桌面和任务栏;按 z 序裁掉被前面窗口挡住的部分,只留桌宠所在显示器上、地面以上的顶边,
-换成舞台坐标 `[{ x0, x1, y }]`,变了才发。身体从 `host.bounds().ledges` 读到它们,只有几何,没有标题和程序名。
-别的包在场时窗口进程一次都不读,桌宠页也不转。macOS、Linux 和浏览器标签里没有 `ledges`,包要能在没有它时照常运行。
+`needs: ["windows"]` 的包在场时,窗口进程每 0.7 秒读一次桌面上的顶层窗口(`host/windows.cjs`,读法和电脑操作的引擎相同,但在窗口进程里读,
+不开电脑操作的进程,也不看 `cua.enabled`),按 z 序裁掉被前面窗口挡住的部分,只留桌宠所在显示器上、地面以上的顶边,换成舞台坐标 `[{ x0, x1, y }]`,
+变了才发。身体从 `host.bounds().ledges` 读到它们,只有几何,没有标题和程序名。别的包在场时窗口进程一次都不读,桌宠页也不转。
+
+| 平台 | 怎么读 | 坐标 |
+|---|---|---|
+| Windows | `GetTopWindow`/`GetWindow` 的 z 序,`DwmGetWindowAttribute` 的可见边框;跳过最小化的、在别的虚拟桌面上的、工具窗口、点击穿透的窗口,以及桌面和任务栏 | 物理像素,按每个角所在显示器的缩放换成 DIP |
+| macOS(未实测) | `CGWindowListCopyWindowInfo`,从前到后,只取 `kCGWindowLayer` 为 0 的普通窗口,只读 `kCGWindowBounds`,不读窗口名;读名字才要「录屏」权限,所以预计不需要它,也不会去申请 | 点,即 macOS 上的 DIP,不用换算 |
+| Linux X11(未实测) | 窗口管理器的 `_NET_CLIENT_LIST_STACKING`;补回管理器画的边框(`_NET_FRAME_EXTENTS`),去掉自绘边框的阴影(`_GTK_FRAME_EXTENTS`);跳过隐藏的、在别的工作区的、停靠栏和桌面 | 整个 X 屏幕的物理像素,所有显示器同一个缩放,换成 DIP |
+
+Coopanion 在 Linux 上固定跑在 X11 上;Wayland 会话里经 XWayland 只看得到 X11 程序的窗口,原生 Wayland 程序的窗口不在里面。
+读不了的地方(没有 X 服务器、原生调用加载不了)和浏览器标签里没有 `ledges`,包要能在没有它时照常运行。
 
 ### 导入
 

@@ -13,7 +13,7 @@
  *   pixels: the floor's height and the size the body is drawn at, 1 logo unit = S pixels, the body
  *   inside a 256-unit square), `emit(kind, detail)`, `sound(name, kind, ...args)` and `start`
  *   ({ x, facing, enter, skin }). For a pack whose manifest `needs` `windows`, `bounds()` also has `ledges`
- *   while the window can read them (Windows only): the visible top edges of the other windows on the
+ *   while the window can read them (Windows, macOS, Linux on X11): the visible top edges of the other windows on the
  *   pet's display, `[{ x0, x1, y }]` in stage pixels, the parts hidden by a window in front left out,
  *   updated a few times a second; absent elsewhere.
  * - `kit`: web/kit/body.js (createBody builds a whole body around a figure that only draws; createRig).
