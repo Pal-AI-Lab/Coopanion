@@ -25,11 +25,11 @@ function canUpdate() {
 
 /**
  * Starts checking. `tell({ phase: 'downloading' | 'ready' | 'failed', version, reason? })` reports each
- * step. Returns `installOnQuit()`, true when a downloaded update was started for installing as the app
- * quits, and `installNow()`.
+ * step. Returns `hasUpdate()`, whether one is downloaded, and `installOnQuit(runAfter)`, true when a downloaded
+ * update was started for installing as the app quits; `runAfter` starts the updated app once installed.
  */
 function startUpdater({ logDir, tell }) {
-  if (!canUpdate()) return { installOnQuit: () => false, installNow: () => {} };
+  if (!canUpdate()) return { hasUpdate: () => false, installOnQuit: () => false };
   const { autoUpdater } = require('electron-updater');
   mkdirSync(logDir, { recursive: true });
   const log = createWriteStream(join(logDir, 'updater.log'), { flags: 'a' });
@@ -66,17 +66,12 @@ function startUpdater({ logDir, tell }) {
   setInterval(check, CHECK_EVERY_MS).unref();
 
   return {
-    installOnQuit() {
+    hasUpdate: () => !!ready,
+    installOnQuit(runAfter = false) {
       if (!ready) return false;
       ready = null;
-      autoUpdater.quitAndInstall(true, false);
+      autoUpdater.quitAndInstall(true, runAfter);
       return true;
-    },
-    // the quit this starts comes back through installOnQuit, which then has nothing left to install
-    installNow() {
-      if (!ready) return;
-      ready = null;
-      autoUpdater.quitAndInstall(true, true);
     },
   };
 }

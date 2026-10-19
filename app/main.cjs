@@ -54,6 +54,9 @@ if (LINUX) app.commandLine.appendSwitch('ozone-platform', 'x11');
 app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 const APP_ROOT = app.getAppPath();
 const ICONS = join(__dirname, 'icons');
+/** Window icon: on Windows the .ico, so the taskbar picks the size it draws instead of scaling a 512 px PNG. */
+const WINDOW_ICON = join(ICONS, process.platform === 'win32' ? 'icon.ico' : 'icon.png');
+const APP_ID = 'ai.pal.coopanion';
 /** The build's channel and, for `steam`, its Steam app id (see the module header). */
 const BUILD = JSON.parse(readFileSync(join(APP_ROOT, 'package.json'), 'utf8')).coopanion ?? {};
 const STEAM = BUILD.channel === 'steam';
@@ -255,6 +258,8 @@ const core = new CoreHost({
 let settings = null;
 let tray = null;
 let quitting = false;
+/** The quit was asked for from the pet's update bubble: the updated app starts once installed. */
+let restartAfterUpdate = false;
 let updater = null;
 /** The updater's last step, told again to a Core that starts after it (`core/companion.ts` says it in the bubble). */
 let updateStep = null;
@@ -375,7 +380,7 @@ function keepRemoteOut(ses) {
 function keepOnConsole(contents) {
   const ours = (url) => !!core.port && url.startsWith(`${coreOrigin()}/`);
   contents.setWindowOpenHandler(({ url }) => {
-    if (ours(url)) return { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true, icon: join(ICONS, 'icon.png') } };
+    if (ours(url)) return { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true, icon: WINDOW_ICON } };
     if (/^https?:/.test(url)) void shell.openExternal(url);
     return { action: 'deny' };
   });
@@ -425,10 +430,15 @@ function openSettings(path = '') {
   const area = screen.getPrimaryDisplay().workAreaSize;
   settings = new BrowserWindow({
     width: Math.min(1200, area.width), height: Math.min(800, area.height), minWidth: 880, minHeight: 600,
-    title: 'Coopanion', icon: join(ICONS, 'icon.png'), autoHideMenuBar: true, show: false,
+    title: 'Coopanion', icon: WINDOW_ICON, autoHideMenuBar: true, show: false,
     backgroundColor: '#f4f5f4',
     webPreferences: { partition: SETTINGS_PARTITION, preload: join(__dirname, 'settings-preload.cjs'), contextIsolation: true, sandbox: true, spellcheck: false },
   });
+  // the taskbar button takes its icon and relaunch target from the running program, not from a pinned
+  // shortcut to the same app id whose program has moved (a reinstall elsewhere, a new portable folder)
+  if (process.platform === 'win32' && app.isPackaged) {
+    settings.setAppDetails({ appId: APP_ID, appIconPath: process.execPath, appIconIndex: 0, relaunchCommand: `"${process.execPath}"`, relaunchDisplayName: 'Coopanion' });
+  }
   settings.once('ready-to-show', () => bringForward(settings));
   settings.on('page-title-updated', (e) => e.preventDefault());
   keepOnConsole(settings.webContents);
@@ -530,7 +540,13 @@ core.on('ready', ({ language: next }) => {
   if (updateStep) core.send(updateStep);
 });
 core.on('language', followLanguage);
-core.on('update-install', () => updater?.installNow());
+// the quit stops the Core and takes the tray icon down before the installer runs; the installer kills a
+// Coopanion still running, which would leave its icon in the notification area
+core.on('update-install', () => {
+  if (!updater?.hasUpdate()) return;
+  restartAfterUpdate = true;
+  app.quit();
+});
 core.on('releases', () => void shell.openExternal(RELEASES_URL));
 // the ChatGPT sign-in page the introduction sends to the system browser; no other address is opened
 core.on('browse', (url) => { if (url.startsWith('https://auth.openai.com/')) void shell.openExternal(url); });
@@ -539,7 +555,7 @@ core.on('state', (state, exit) => {
   const detail = exit.kind === 'locked' ? T().coreLocked(exit.pid, exit.file)
     : exit.kind === 'ports-busy' ? T().corePortsBusy(exit.from, exit.to)
       : exit.kind === 'failed' ? T().coreFailed(exit.times, exit.code, exit.logFile) : T().coreRestarting(exit.code);
-  if (Notification.isSupported()) new Notification({ title: 'Coopanion', body: detail, icon: join(ICONS, 'icon.png') }).show();
+  if (Notification.isSupported()) new Notification({ title: 'Coopanion', body: detail, icon: WINDOW_ICON }).show();
   if (state === 'failed') dialog.showErrorBox('Coopanion', detail);
 });
 
@@ -563,9 +579,11 @@ app.on('before-quit', (e) => {
   if (quitting) return;
   quitting = true;
   e.preventDefault();
+  tray?.destroy();
+  tray = null;
   void core.stop().finally(() => {
     // a downloaded update installs now; its quit comes back here with quitting set and goes through
-    if (updater?.installOnQuit()) setTimeout(() => app.exit(0), 10_000);
+    if (updater?.installOnQuit(restartAfterUpdate)) setTimeout(() => app.exit(0), 10_000);
     else app.exit(0);
   });
 });
@@ -596,7 +614,7 @@ app.whenReady().then(() => {
   const settingsSession = session.fromPartition(SETTINGS_PARTITION);
   settingsSession.protocol.handle('http', serveWindow);
   keepRemoteOut(settingsSession);
-  app.setAppUserModelId('ai.pal.coopanion');
+  app.setAppUserModelId(APP_ID);
   const system = systemLanguage(app);
   core.opts.env.COOPANION_SYSTEM_LANGUAGE = system;
   language = configuredLanguage(join(userData, 'home')) ?? system;
