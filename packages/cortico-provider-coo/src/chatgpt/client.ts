@@ -44,6 +44,12 @@ export function usageLimited(err: unknown): boolean {
   return err instanceof GenerationError && (err.body.includes(USAGE_LIMIT) || err.message.includes(USAGE_LIMIT));
 }
 
+/**
+ * A function tool without `strict` sent as `strict: false`: on an omitted `strict` the Responses API tries to
+ * normalize the schema into strict mode, which turns optional parameters into required ones.
+ */
+const nonStrict = (tool: Item): Item => (tool.type === 'function' && tool.strict === undefined ? { ...tool, strict: false } : tool);
+
 /** `body` with its function and custom tools in `TOOL_NAMESPACE`, and the replayed calls of them naming it. */
 export function namespaced(body: Item): Item {
   const tools = Array.isArray(body.tools) ? (body.tools as Item[]) : [];
@@ -52,7 +58,7 @@ export function namespaced(body: Item): Item {
   const names = new Set(grouped.map((tool) => tool.name));
   return {
     ...body,
-    tools: [...tools.filter((tool) => !grouped.includes(tool)), { type: 'namespace', ...TOOL_NAMESPACE, tools: grouped }],
+    tools: [...tools.filter((tool) => !grouped.includes(tool)), { type: 'namespace', ...TOOL_NAMESPACE, tools: grouped.map(nonStrict) }],
     input: (body.input as Item[]).map((item) =>
       (item.type === 'function_call' || item.type === 'custom_tool_call') && names.has(item.name) ? { ...item, namespace: TOOL_NAMESPACE.name } : item),
   };
