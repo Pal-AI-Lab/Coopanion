@@ -25,6 +25,7 @@ const { pathToFileURL } = require('node:url');
 const { createCursorSource } = require('./cursor.cjs');
 const { createMouseLease } = require('./mouse-lease.cjs');
 const { createOverlaySource } = require('./overlay.cjs');
+const { createWindowSource, ledgesFrom } = require('./windows.cjs');
 
 /** The pages' text table of `code`, falling back as web/i18n.js does. */
 async function pageText(code) {
@@ -37,6 +38,8 @@ async function pageText(code) {
 
 /** Milliseconds between the cursor reports the page gets. */
 const CURSOR_EVERY_MS = 100;
+/** Milliseconds between the reads of the other windows' tops, while the page asks for them. */
+const WINDOWS_EVERY_MS = 700;
 /** Milliseconds between the checks for a fullscreen window covering the pet's display. */
 const FULLSCREEN_EVERY_MS = 200;
 /** Most pixels one backdrop sample returns. */
@@ -302,6 +305,26 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   let displayId = null;
   /** The setting, and whether it is what hid the window. */
   let hideWhenFullscreen = false, autoHidden = false;
+  // the other windows' tops, read only while the page asks (its body's pack needs them) and sent when they change
+  const windows = createWindowSource({ screen });
+  let ledgeTimer = null, sentLedges = '';
+  const readLedges = () => {
+    if (!win || !win.isVisible()) return;
+    const rects = windows.list(hwndOf(win));
+    const b = win.getBounds();
+    // the page's floor: 2 DIP above the bottom of the work area (web/pet-app.js floorGap)
+    const ledges = rects && ledgesFrom(rects, { x: b.x, y: b.y }, { width: b.width, floor: b.height - 2 - coverArea(display()).below });
+    const json = JSON.stringify(ledges);
+    if (json === sentLedges) return;
+    sentLedges = json;
+    win.webContents.send('pet:windows', ledges);
+  };
+  const watchWindows = (on) => {
+    clearInterval(ledgeTimer);
+    ledgeTimer = null;
+    sentLedges = '';
+    if (on && windows.available) { ledgeTimer = setInterval(readLedges, WINDOWS_EVERY_MS); readLedges(); }
+  };
 
   /** The display the window belongs on: the one it was moved to, or the primary display once that one is gone. */
   const display = () => screen.getAllDisplays().find((d) => d.id === displayId) ?? screen.getPrimaryDisplay();
@@ -365,7 +388,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     win.webContents.on('before-input-event', (event, input) => {
       if ((input.control || input.meta) && (['-', '_', '=', '+', '0'].includes(input.key) || ['NumpadAdd', 'NumpadSubtract', 'Numpad0'].includes(input.code))) event.preventDefault();
     });
-    win.webContents.on('did-finish-load', () => { win.webContents.setZoomLevel(0); overlay.pageLoaded(); win.webContents.send('pet:floor', coverArea(display()).below); });
+    // a page loaded afresh asks for the windows' tops again once its body is on
+    win.webContents.on('did-finish-load', () => { win.webContents.setZoomLevel(0); overlay.pageLoaded(); watchWindows(false); win.webContents.send('pet:floor', coverArea(display()).below); });
     // The page learns where the cursor is even when the click-through window misses its moves, and
     // it renews the mouse lease in its answer to every report: the report goes out on every tick,
     // not only when the pointer moved, so a cursor that rests still still gets a verdict.
@@ -389,7 +413,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       if (covered && !autoHidden && win.isVisible()) { autoHidden = true; win.hide(); }
       else if (!covered && autoHidden) { autoHidden = false; win.showInactive(); }
     }, FULLSCREEN_EVERY_MS);
-    win.on('closed', () => { clearInterval(cursorTimer); clearInterval(fullscreenTimer); win = null; });
+    win.on('closed', () => { clearInterval(cursorTimer); clearInterval(fullscreenTimer); watchWindows(false); win = null; });
     // page console lines reach the World's log through stdout
     win.webContents.on('console-message', (e) => { if (e.level !== 'debug') console.log(`[page:${e.level}] ${e.message}`); });
     win.webContents.on('did-fail-load', (_e, code, desc, failedUrl) => console.log(`[page:error] 加载失败 ${code} ${desc} ${failedUrl}`));
@@ -431,6 +455,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   ipcMain.on('pet:hide', () => { releaseAutoHidden(); if (win) win.hide(); });
   ipcMain.on('pet:overlayFrame', (_e, rect, at) => overlay.frame(rect, at));
   ipcMain.on('pet:hideWhenFullscreen', (_e, on) => { hideWhenFullscreen = !!on; });
+  ipcMain.on('pet:watchWindows', (_e, on) => watchWindows(!!on));
   ipcMain.on('pet:openDress', () => openDress());
   let language = 'zh';
   ipcMain.on('pet:language', (_e, code) => {

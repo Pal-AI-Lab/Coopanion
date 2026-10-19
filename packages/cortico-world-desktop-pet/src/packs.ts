@@ -7,7 +7,8 @@
  * the pack's own (walking, falling, faces, drawing; most packs build it on the kit, `web/kit/body.js`).
  * What the World and the pages need without running it is in the manifest: names, the dress-up axes
  * and presets, what the bot is told the body looks like, the words it does (`vocab`, the whole of the
- * bot's vocabulary while it is on), its own sound files, and whether it walks.
+ * bot's vocabulary while it is on), its own sound files, whether it walks, the targets of its own
+ * `pet_move_to` takes (`moves`), and the data about the desktop it asks the window for (`needs`).
  *
  * The embedding app names directories whose subdirectories are more packs (`packRoots`). A built-in
  * id wins over an installed pack with the same id, and `coo` is only ever the built-in one.
@@ -41,6 +42,13 @@ export const FIGURE_API_OLDEST = 2;
 export const COO = 'coo';
 /** Kinds a pack's own sounds are filed under, as web/sound.js mutes them (BODY_SOUND_KINDS). */
 export const PACK_SOUND_KINDS = ['move', 'touch', 'face', 'snore'] as const;
+/** Data about the desktop a pack may ask for: `windows`, the visible top edges of the windows on the pet's display. */
+export const PACK_NEEDS = ['windows'] as const;
+/** Most targets a pack declares, and most numbers one of them takes. */
+export const MOVES_MAX = 8;
+export const MOVE_PARAMS_MAX = 2;
+/** What `pet_move_to` takes as a target of its own; a pack's target cannot be one of these or a number. */
+export const DEFAULT_TARGETS = ['left', 'center', 'right', 'cursor'] as const;
 /** Audio files every platform's Chromium decodes. */
 const AUDIO = new Set(['.ogg', '.mp3', '.wav']);
 
@@ -77,6 +85,24 @@ export interface PackSound {
   volume: number;
 }
 
+/** A number a pack's target takes: `pet_move_to` refuses one outside min–max. */
+export interface MoveParam {
+  id: string;
+  /** What it sets, for the bot, by language. */
+  about: Names;
+  min: number;
+  max: number;
+}
+
+/** A target of the pack's own for `pet_move_to`; the World checks the call against it and the body does the rest. */
+export interface MoveTarget {
+  id: string;
+  name: Names;
+  /** Where it goes and how, for the bot, by language. */
+  about: Names;
+  params: MoveParam[];
+}
+
 export interface FigureManifest {
   manifest: number;
   api: number;
@@ -100,8 +126,11 @@ export interface FigureManifest {
   vocab: VocabWord[];
   /** Its own sound files by name; the body asks for them, the page plays them. */
   sounds: Record<string, PackSound>;
-  /** `walk`: whether it goes where it is told (`pet_walk_to`). */
+  /** `walk`: whether it walks to the default targets of `pet_move_to`. */
   can: { walk: boolean };
+  moves: MoveTarget[];
+  /** What the page passes its body beyond the stage's size (`host.bounds()`); the window reads none of it for a pack that does not ask. */
+  needs: Array<typeof PACK_NEEDS[number]>;
 }
 
 export interface FigurePack {
@@ -126,6 +155,7 @@ const inside = (p: unknown): p is string => typeof p === 'string' && p !== '' &&
 const NAME_BREAK = /[,，、\s【】<>＜＞]/;
 const WORD_KINDS = new Set(['expression', 'motion']);
 const SOUND_NAME = /^[a-z][a-zA-Z0-9-]{0,31}$/;
+const PARAM_ID = /^[a-z][a-zA-Z0-9]{0,23}$/;
 
 /** The vocabulary in `raw`, checked; a string says what is wrong with it. A word of a kind this version does not know is left out and named in `skipped`. */
 function readVocab(raw: unknown, skipped: string[], t: PackText): VocabWord[] | string {
@@ -177,10 +207,47 @@ function readSounds(raw: unknown, dir: string, skipped: string[], t: PackText): 
   return out;
 }
 
+/** The targets in `raw`, checked; a string says what is wrong with them. */
+function readMoves(raw: unknown, t: PackText): MoveTarget[] | string {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw)) return t.movesNotArray;
+  if (raw.length > MOVES_MAX) return t.tooManyMoves(MOVES_MAX);
+  const out: MoveTarget[] = [];
+  for (const m of raw as Array<Record<string, unknown>>) {
+    const id = m?.id;
+    if (typeof id !== 'string' || !ID.test(id) || (DEFAULT_TARGETS as readonly string[]).includes(id) || Number.isFinite(Number(id))) return t.badMoveId(JSON.stringify(id));
+    if (out.some((o) => o.id === id)) return t.moveTaken(id);
+    const name = namesOf(m.name), about = namesOf(m.about);
+    if (!name || !about) return t.noMoveText(id);
+    const params: MoveParam[] = [];
+    const list = m.params ?? [];
+    if (!Array.isArray(list) || list.length > MOVE_PARAMS_MAX) return t.badMoveParams(id, MOVE_PARAMS_MAX);
+    for (const p of list as Array<Record<string, unknown>>) {
+      const pa = namesOf(p?.about);
+      if (typeof p?.id !== 'string' || !PARAM_ID.test(p.id) || params.some((q) => q.id === p.id) || !pa
+        || typeof p.min !== 'number' || typeof p.max !== 'number' || !Number.isFinite(p.min) || !Number.isFinite(p.max) || !(p.min < p.max)) return t.badMoveParams(id, MOVE_PARAMS_MAX);
+      params.push({ id: p.id, about: pa, min: p.min, max: p.max });
+    }
+    out.push({ id, name, about, params });
+  }
+  return out;
+}
+
+/** The data asked for in `raw`, checked; what this version does not provide is left out and named in `skipped`. */
+function readNeeds(raw: unknown, skipped: string[], t: PackText): FigureManifest['needs'] | string {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw)) return t.needsNotArray;
+  const out: FigureManifest['needs'] = [];
+  for (const n of raw) {
+    if ((PACK_NEEDS as readonly unknown[]).includes(n)) { if (!out.includes(n)) out.push(n); } else skipped.push(t.unknownNeed(JSON.stringify(n)));
+  }
+  return out;
+}
+
 /**
  * The manifest at `dir`, checked; a string says what is wrong with it. `builtin`: one of the package's own
  * (only those may be `coo`). What a newer version may add, and this one does not know (a word's kind, a sound's
- * kind or file type, a value of `can`), is left out and named in `skipped` with the sound files that are not
+ * kind or file type, a value of `can` or `needs`), is left out and named in `skipped` with the sound files that are not
  * there; the pack loads without it. Unknown fields are not read at all. What is wrong is said in the words of `t`.
  */
 export function readManifest(dir: string, builtin = false, skipped: string[] = [], t: PackText = petText().packs): FigureManifest | string {
@@ -231,9 +298,13 @@ export function readManifest(dir: string, builtin = false, skipped: string[] = [
   if (typeof sounds === 'string') return sounds;
   const can = (raw.can ?? {}) as Record<string, unknown>;
   if (can.walk !== undefined && typeof can.walk !== 'boolean') skipped.push(t.badWalk(JSON.stringify(can.walk)));
+  const moves = readMoves(raw.moves, t);
+  if (typeof moves === 'string') return moves;
+  const needs = readNeeds(raw.needs, skipped, t);
+  if (typeof needs === 'string') return needs;
   return {
     manifest: MANIFEST_VERSION, api: raw.api as number, id: raw.id, version: typeof raw.version === 'string' ? raw.version : '0.0.0',
-    name, about, entry: raw.entry, export: raw.export, axes, presets, vocab, sounds, can: { walk: can.walk !== false },
+    name, about, entry: raw.entry, export: raw.export, axes, presets, vocab, sounds, can: { walk: can.walk !== false }, moves, needs,
     ...(typeof raw.author === 'string' ? { author: raw.author } : {}),
     ...(typeof raw.license === 'string' ? { license: raw.license } : {}),
     ...(Array.isArray(raw.credits) ? { credits: raw.credits as FigureManifest['credits'] } : {}),

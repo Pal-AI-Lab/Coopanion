@@ -130,6 +130,14 @@ const en: PetText = {
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind is ${kind}; this version knows ${kinds.join(', ')} only, so the sound stays silent`,
     soundMissing: (name: string, file: string) => `${file} of sounds.${name} does not exist; the sound stays silent`,
     badWalk: (got: string) => `can.walk is ${got}, which this version does not know; taken as able to walk`,
+    movesNotArray: 'moves must be an array',
+    tooManyMoves: (max: number) => `moves holds at most ${max} targets`,
+    badMoveId: (got: string) => `Invalid id in moves: ${got} (left, center, right, cursor and numbers are the default targets)`,
+    moveTaken: (id: string) => `${id} appears more than once in moves`,
+    noMoveText: (id: string) => `moves.${id} has no name or about`,
+    badMoveParams: (id: string, max: number) => `moves.${id}.params must be an array of at most ${max}, each with an id, an about, and numbers min below max`,
+    needsNotArray: 'needs must be an array',
+    unknownNeed: (got: string) => `${got} in needs is not provided by this version and is left out`,
     idTaken: (id: string, builtin: boolean) => `id ${id} is taken by ${builtin ? 'a built-in figure' : 'another pack'}`,
   },
 
@@ -191,6 +199,7 @@ const en: PetText = {
     vars: {
       'pet.user': 'What the bot calls the person',
       'pet.vocab': "The current figure's expressions and motions",
+      'pet.moves': "The current figure's own pet_move_to targets; empty when it has none",
       'pet.voice': 'Whether voice input is on or off',
       'pet.body': 'What the current figure looks like',
       'pet.dress': 'The figures and dress pet_set can pick',

@@ -9,7 +9,7 @@ const PKG = new URL('../packages/cortico-world-desktop-pet/', import.meta.url);
 const PACK = new URL('tests/fixtures/api2-pack/', PKG);
 
 describe('figure frame, api 2', () => {
-  it('runs a pack made for it: ready with its words, frames, its own gesture, a scheme, a walk', async () => {
+  it('runs a pack made for it: ready with its words, frames, its own gesture, a scheme, a walk, a move it does not make', async () => {
     const frame = new JSDOM('<!doctype html><div id="root"></div>', { url: 'http://127.0.0.1/figure-frame' }).window;
     const page = new JSDOM('<!doctype html>', { url: 'http://127.0.0.1/pet' }).window;
     const out = [];
@@ -52,5 +52,9 @@ describe('figure frame, api 2', () => {
     send({ t: 'walk', x: 500, run: false, id: 'w1' });
     const events = ticks(60 * 15).flatMap((f) => f.events);
     expect(events).toContainEqual({ kind: 'arrived', detail: expect.objectContaining({ walkId: 'w1' }) });
+
+    // a body without move() still answers one, so the World's call does not wait out its time
+    send({ t: 'move', args: { to: 'shelf', run: false, params: {} }, id: 'm1' });
+    expect(ticks(1).flatMap((f) => f.events)).toContainEqual({ kind: 'interrupted', detail: { walkId: 'm1', by: 'busy' } });
   });
 });

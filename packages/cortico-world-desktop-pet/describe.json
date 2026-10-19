@@ -67,13 +67,13 @@
       }
     },
     {
-      "name": "pet_walk_to",
-      "description": "Walk (or run) along the bottom edge of the screen to a position. Returns on arrival or interruption, after 30 seconds at most.",
+      "name": "pet_move_to",
+      "description": "Go somewhere on the screen the pet is on: walk (or run) along its bottom edge to a position, or go to one of the targets the current figure has of its own, which the environment section lists when it has any. Returns on arrival or interruption, after 30 seconds at most.",
       "parameters": {
         "type": "object",
         "properties": {
           "to": {
-            "description": "Target: a number from 0 to 1 (a fraction of the width of the screen the pet is on, 0 leftmost, 1 rightmost), or left / center / right / cursor (the horizontal position of the mouse pointer).",
+            "description": "Target: a number from 0 to 1 (a fraction of the width of the screen the pet is on, 0 leftmost, 1 rightmost), left / center / right / cursor (the horizontal position of the mouse pointer), or the id of one of the current figure's own targets.",
             "anyOf": [
               {
                 "type": "number",
@@ -81,19 +81,21 @@
                 "maximum": 1
               },
               {
-                "type": "string",
-                "enum": [
-                  "left",
-                  "center",
-                  "right",
-                  "cursor"
-                ]
+                "type": "string"
               }
             ]
           },
           "run": {
             "type": "boolean",
             "description": "true to run; walks by default."
+          },
+          "params": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "description": "Only for a figure's own target that takes numbers: them, in the order the environment section lists them."
           }
         },
         "required": [
@@ -104,8 +106,8 @@
         "act"
       ],
       "summary": {
-        "zh": "沿屏幕底边走到或跑到某个位置。",
-        "en": "Walks or runs along the bottom edge of the screen to a position."
+        "zh": "沿屏幕底边走到或跑到某个位置,或去形象包自带的目标。",
+        "en": "Walks or runs along the bottom edge of the screen to a position, or goes to one of the figure pack's own targets."
       }
     },
     {
@@ -686,7 +688,7 @@
       "key": "worlds.desktop-pet.envPrompt",
       "title": "桌宠环境",
       "role": "envPrompt",
-      "content": "## 桌宠\n\n你在{{pet.user}}的电脑屏幕上有一个身体:{{pet.body}}。它站在屏幕底边(任务栏或程序坞上沿)。{{pet.user}}看得见它,看不见你的消息正文;想让对方看到的话只能经 `pet_say` 和 `pet_ask` 冒出气泡。{{pet.reply}}{{pet.chat}}\n\n没收到指令时身体会自己活动(眨眼、张望、走走、坐下打盹之类);你的指令会先执行。{{pet.user}}可以戳它、摸它、把它拎起来甩出去,身体对这些有自动的反射,当场就做:戳一下换个表情或蹦一下,摸着露出喜欢或害羞,睡着被戳会吓醒,甩出去落地太重会摔晕几秒。\n\n### 说话:`pet_say`\n\n一个气泡放一两句,打字速度约每秒 20 字,说完停留两三秒后消失。几段话接连调用会排队依次显示。\n\n脚本里可以夹带表情和动作标记,用的是现在这个形象的词表。换了形象时,`[figure]` 事件或 `pet_set` 的回执会写明哪些词用不了了、新增了哪些,以它们为准:\n\n| 标记 | 作用 |\n|---|---|\n| 【词, 词】 | 先做这些,然后换一个新气泡继续说 |\n| <词> | 打字打到这里时做,不换气泡 |\n\n{{pet.vocab}}\n\n例:`【开心】今天也辛苦啦!<眨眼>要不要歇一会儿?`\n\n### 提问:`pet_ask`\n\n一个问题配 1–3 个选项,默认再加一格让对方自己写。对方的选择以 `[answer]` 事件送回来;关掉不答也会告诉你。\n\n### 移动与动作\n\n- `pet_walk_to`:走到所在这块屏幕的某处,0 最左、1 最右,`cursor` 是鼠标所在的横向位置。走到或被打断才返回。\n- `pet_act`:不说话,只做一串表情或动作。词表里标着「保持到下一个动作」的会一直保持。\n\n### 调整自己:`pet_set`、`pet_quiet`\n\n`pet_set` 改你自己的样子和习惯:形象和打扮(Coo 的配色和配件也是打扮)、走动多少、呼噜多久、音效、大小、气泡尺寸、字体尺寸、黑白模式、悬停按钮,以及你对{{pet.user}}的称呼。按{{pet.user}}在「习惯」页的设置,有的直接生效,有的先在气泡里征得对方同意,同意了才改,回执等对方回答后才到。{{pet.self}}能选的值:\n\n{{pet.dress}}\n\n`pet_quiet` 是临时的:安静一段时间(默认关音效、站着不动),到时自动恢复,不改设置。对方在忙、在开会、夜深了,用它而不是改设置。\n\n### 收到的事件\n\n每条事件开头是它发生时{{pet.user}}那边的本地时间,如 `[14:32]`;一次运行的第一条和换了日期后的第一条还带日期和星期,如 `[10-05 周日 23:40]`。\n\n- `[voice] {{pet.user}}:…`:麦克风听到并转写的话(语音输入{{pet.voice}})。转写可能有错字或同音字。\n- `[typed] {{pet.user}}:…`:在桌宠上双击或点悬停按钮打的字。\n- `[answer] …`:对 `pet_ask` 的回答。\n- `[touch] …`:戳、摸、拎起来甩出去这类动作,以及落地摔晕。事件里写到的「戳醒」「摔晕」就是身体当场做过的反射,事件送到你这里时已经做完了,不需要再演一遍。有的互动不单独叫醒你,跟着下一批事件到,可能已经过去一会儿。\n- `[figure] …`:{{pet.user}}给你换了形象或打扮,或者形象没能显示出来、换回了 Coo;词表有变化时一并写明。\n\n{{pet.cua}}\n"
+      "content": "## 桌宠\n\n你在{{pet.user}}的电脑屏幕上有一个身体:{{pet.body}}。它站在屏幕底边(任务栏或程序坞上沿)。{{pet.user}}看得见它,看不见你的消息正文;想让对方看到的话只能经 `pet_say` 和 `pet_ask` 冒出气泡。{{pet.reply}}{{pet.chat}}\n\n没收到指令时身体会自己活动(眨眼、张望、走走、坐下打盹之类);你的指令会先执行。{{pet.user}}可以戳它、摸它、把它拎起来甩出去,身体对这些有自动的反射,当场就做:戳一下换个表情或蹦一下,摸着露出喜欢或害羞,睡着被戳会吓醒,甩出去落地太重会摔晕几秒。\n\n### 说话:`pet_say`\n\n一个气泡放一两句,打字速度约每秒 20 字,说完停留两三秒后消失。几段话接连调用会排队依次显示。\n\n脚本里可以夹带表情和动作标记,用的是现在这个形象的词表。换了形象时,`[figure]` 事件或 `pet_set` 的回执会写明哪些词用不了了、新增了哪些,以它们为准:\n\n| 标记 | 作用 |\n|---|---|\n| 【词, 词】 | 先做这些,然后换一个新气泡继续说 |\n| <词> | 打字打到这里时做,不换气泡 |\n\n{{pet.vocab}}\n\n例:`【开心】今天也辛苦啦!<眨眼>要不要歇一会儿?`\n\n### 提问:`pet_ask`\n\n一个问题配 1–3 个选项,默认再加一格让对方自己写。对方的选择以 `[answer]` 事件送回来;关掉不答也会告诉你。\n\n### 移动与动作\n\n- `pet_move_to`:走到所在这块屏幕的某处,0 最左、1 最右,`cursor` 是鼠标所在的横向位置。走到或被打断才返回。\n- `pet_act`:不说话,只做一串表情或动作。词表里标着「保持到下一个动作」的会一直保持。\n\n{{pet.moves}}\n\n### 调整自己:`pet_set`、`pet_quiet`\n\n`pet_set` 改你自己的样子和习惯:形象和打扮(Coo 的配色和配件也是打扮)、走动多少、呼噜多久、音效、大小、气泡尺寸、字体尺寸、黑白模式、悬停按钮,以及你对{{pet.user}}的称呼。按{{pet.user}}在「习惯」页的设置,有的直接生效,有的先在气泡里征得对方同意,同意了才改,回执等对方回答后才到。{{pet.self}}能选的值:\n\n{{pet.dress}}\n\n`pet_quiet` 是临时的:安静一段时间(默认关音效、站着不动),到时自动恢复,不改设置。对方在忙、在开会、夜深了,用它而不是改设置。\n\n### 收到的事件\n\n每条事件开头是它发生时{{pet.user}}那边的本地时间,如 `[14:32]`;一次运行的第一条和换了日期后的第一条还带日期和星期,如 `[10-05 周日 23:40]`。\n\n- `[voice] {{pet.user}}:…`:麦克风听到并转写的话(语音输入{{pet.voice}})。转写可能有错字或同音字。\n- `[typed] {{pet.user}}:…`:在桌宠上双击或点悬停按钮打的字。\n- `[answer] …`:对 `pet_ask` 的回答。\n- `[touch] …`:戳、摸、拎起来甩出去这类动作,以及落地摔晕。事件里写到的「戳醒」「摔晕」就是身体当场做过的反射,事件送到你这里时已经做完了,不需要再演一遍。有的互动不单独叫醒你,跟着下一批事件到,可能已经过去一会儿。\n- `[figure] …`:{{pet.user}}给你换了形象或打扮,或者形象没能显示出来、换回了 Coo;词表或形象自带的目标有变化时一并写明。\n\n{{pet.cua}}\n"
     }
   ]
 }

@@ -110,6 +110,14 @@ const ja: Translation<PetText> = {
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind は ${kind} ですが、このバージョンが扱えるのは ${kinds.join('、')} だけなので、この音は鳴りません`,
     soundMissing: (name: string, file: string) => `sounds.${name} の ${file} が存在しないため、この音は鳴りません`,
     badWalk: (got: string) => `can.walk の ${got} はこのバージョンでは不明なため、歩けるものとして扱います`,
+    movesNotArray: 'moves は配列でなければなりません',
+    tooManyMoves: (max: number) => `moves は最大 ${max} 件です`,
+    badMoveId: (got: string) => `moves に不正な id があります：${got}（left、center、right、cursor と数値は既定の行き先です）`,
+    moveTaken: (id: string) => `moves に ${id} が複数あります`,
+    noMoveText: (id: string) => `moves.${id} に name か about がありません`,
+    badMoveParams: (id: string, max: number) => `moves.${id}.params は最大 ${max} 件の配列で、各項目に id、about、min が max より小さい数値が必要です`,
+    needsNotArray: 'needs は配列でなければなりません',
+    unknownNeed: (got: string) => `needs の ${got} はこのバージョンでは提供されないため、省きます`,
     idTaken: (id: string, builtin: boolean) => `id ${id} は${builtin ? '内蔵アバター' : 'ほかのパック'}で使われています`,
   },
 
@@ -166,6 +174,7 @@ const ja: Translation<PetText> = {
     vars: {
       'pet.user': 'ボットがユーザーを呼ぶ名前',
       'pet.vocab': '現在のアバターの表情と動作',
+      'pet.moves': '現在のアバター独自の pet_move_to の行き先。ない場合は空',
       'pet.voice': '音声入力のオン／オフ',
       'pet.body': '現在のアバターの見た目',
       'pet.dress': 'pet_set で選べるアバターと着せ替え',

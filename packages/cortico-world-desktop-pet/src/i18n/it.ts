@@ -110,6 +110,14 @@ const it: Translation<PetText> = {
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind vale ${kind}; questa versione conosce solo ${kinds.join(', ')}, quindi il suono resta muto`,
     soundMissing: (name: string, file: string) => `${file} di sounds.${name} non esiste; il suono resta muto`,
     badWalk: (got: string) => `can.walk vale ${got}, che questa versione non conosce; considerato in grado di camminare`,
+    movesNotArray: 'moves deve essere un array',
+    tooManyMoves: (max: number) => `moves contiene al massimo ${max} destinazioni`,
+    badMoveId: (got: string) => `id non valido in moves: ${got} (left, center, right, cursor e i numeri sono le destinazioni predefinite)`,
+    moveTaken: (id: string) => `${id} compare più di una volta in moves`,
+    noMoveText: (id: string) => `moves.${id} non ha name o about`,
+    badMoveParams: (id: string, max: number) => `moves.${id}.params deve essere un array di al massimo ${max} elementi, ciascuno con id, about e numeri min minore di max`,
+    needsNotArray: 'needs deve essere un array',
+    unknownNeed: (got: string) => `${got} in needs non è fornito da questa versione e viene escluso`,
     idTaken: (id: string, builtin: boolean) => `l'id ${id} è già usato da ${builtin ? 'un personaggio integrato' : 'un altro pacchetto'}`,
   },
 
@@ -166,6 +174,7 @@ const it: Translation<PetText> = {
     vars: {
       'pet.user': 'Come il bot chiama la persona',
       'pet.vocab': 'Le espressioni e i movimenti del personaggio attuale',
+      'pet.moves': 'Le destinazioni proprie del personaggio attuale (pet_move_to); vuoto se non ne ha',
       'pet.voice': "Se l'input vocale è acceso o spento",
       'pet.body': "L'aspetto del personaggio attuale",
       'pet.dress': 'I personaggi e gli abiti che pet_set può scegliere',

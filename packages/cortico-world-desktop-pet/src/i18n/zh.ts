@@ -127,6 +127,14 @@ export default {
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind 是 ${kind}，这一版只认 ${kinds.join('、')}，这个声音不会响`,
     soundMissing: (name: string, file: string) => `sounds.${name} 的 ${file} 不存在，这个声音不会响`,
     badWalk: (got: string) => `can.walk 是 ${got}，这一版不认识，按会走处理`,
+    movesNotArray: 'moves 应为数组',
+    tooManyMoves: (max: number) => `moves 最多 ${max} 项`,
+    badMoveId: (got: string) => `moves 里有不合法的 id：${got}（left、center、right、cursor 和数字是默认目标）`,
+    moveTaken: (id: string) => `moves 里有不止一个 ${id}`,
+    noMoveText: (id: string) => `moves.${id} 缺少 name 或 about`,
+    badMoveParams: (id: string, max: number) => `moves.${id}.params 应为最多 ${max} 项的数组，每项有 id、about 和 min 小于 max 的数值`,
+    needsNotArray: 'needs 应为数组',
+    unknownNeed: (got: string) => `needs 里的 ${got} 这一版不认识，不提供`,
     idTaken: (id: string, builtin: boolean) => `id ${id} 已被${builtin ? '内置形象' : '另一个形象包'}占用`,
   },
 
@@ -188,6 +196,7 @@ export default {
     vars: {
       'pet.user': '对使用者的称呼',
       'pet.vocab': '当前形象的表情与动作词表',
+      'pet.moves': '当前形象自带的 pet_move_to 目标；没有时为空',
       'pet.voice': '语音输入开着还是关着',
       'pet.body': '当前形象的样子',
       'pet.dress': 'pet_set 能选的形象与打扮',

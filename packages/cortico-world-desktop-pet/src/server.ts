@@ -280,7 +280,7 @@ export class PetServer {
     if (req.method === 'GET' && path === '/api/figures') {
       return json(res, 200, (this.opts.packs?.() ?? []).map(({ id, base, manifest: m }) => ({
         id, base, name: m.name, thumb: m.thumb ?? null, entry: m.entry, export: m.export, model: m.model ?? null, axes: m.axes, presets: m.presets,
-        vocab: m.vocab.map(({ id: w, kind, seconds, lasting }) => ({ id: w, kind, seconds, ...(lasting ? { lasting } : {}) })), sounds: m.sounds, can: m.can,
+        vocab: m.vocab.map(({ id: w, kind, seconds, lasting }) => ({ id: w, kind, seconds, ...(lasting ? { lasting } : {}) })), sounds: m.sounds, can: m.can, needs: m.needs,
       })));
     }
     if (req.method === 'GET' && path === '/api/figures/status') {

@@ -110,6 +110,14 @@ const de: Translation<PetText> = {
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind ist ${kind}; diese Version kennt nur ${kinds.join(', ')}, daher bleibt der Ton stumm`,
     soundMissing: (name: string, file: string) => `${file} von sounds.${name} existiert nicht; der Ton bleibt stumm`,
     badWalk: (got: string) => `can.walk ist ${got}, das diese Version nicht kennt; wird als gehfähig behandelt`,
+    movesNotArray: 'moves muss ein Array sein',
+    tooManyMoves: (max: number) => `moves enthält höchstens ${max} Ziele`,
+    badMoveId: (got: string) => `Ungültige id in moves: ${got} (left, center, right, cursor und Zahlen sind die Standardziele)`,
+    moveTaken: (id: string) => `${id} kommt in moves mehrfach vor`,
+    noMoveText: (id: string) => `moves.${id} hat kein name oder about`,
+    badMoveParams: (id: string, max: number) => `moves.${id}.params muss ein Array mit höchstens ${max} Einträgen sein, jeder mit id, about und Zahlen min kleiner als max`,
+    needsNotArray: 'needs muss ein Array sein',
+    unknownNeed: (got: string) => `${got} in needs stellt diese Version nicht bereit; ausgelassen`,
     idTaken: (id: string, builtin: boolean) => `id ${id} ist schon von ${builtin ? 'einer eingebauten Figur' : 'einem anderen Paket'} belegt`,
   },
 
@@ -166,6 +174,7 @@ const de: Translation<PetText> = {
     vars: {
       'pet.user': 'Wie der Bot die Person nennt',
       'pet.vocab': 'Die Ausdrücke und Bewegungen der aktuellen Figur',
+      'pet.moves': 'Die eigenen Ziele der aktuellen Figur für pet_move_to; leer, wenn sie keine hat',
       'pet.voice': 'Ob die Spracheingabe an oder aus ist',
       'pet.body': 'Wie die aktuelle Figur aussieht',
       'pet.dress': 'Die Figuren und Outfits, die pet_set wählen kann',

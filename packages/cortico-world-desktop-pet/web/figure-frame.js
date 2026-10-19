@@ -12,20 +12,26 @@
  * - `host`: `root` (the element to draw in, filling the stage), `bounds()` ({ W, H, floorY, S } in stage
  *   pixels: the floor's height and the size the body is drawn at, 1 logo unit = S pixels, the body
  *   inside a 256-unit square), `emit(kind, detail)`, `sound(name, kind, ...args)` and `start`
- *   ({ x, facing, enter, skin }).
+ *   ({ x, facing, enter, skin }). For a pack whose manifest `needs` `windows`, `bounds()` also has `ledges`
+ *   while the window can read them (Windows only): the visible top edges of the other windows on the
+ *   pet's display, `[{ x0, x1, y }]` in stage pixels, the parts hidden by a window in front left out,
+ *   updated a few times a second; absent elsewhere.
  * - `kit`: web/kit/body.js (createBody builds a whole body around a figure that only draws; createRig).
  * - the body: `step(dt)` advances and draws one frame; `layout()` says where it is ({ x, facing, mode,
  *   busy, moving, pressing, cursor, box, hit, bubble, side }, see the kit's `layout`); `resize()` takes new
- *   bounds (`set({ bounds })` from the page changes what `host.bounds()` returns, then calls it); `do(word)`, `walk(x, run, id)`, `stopWalk(id)`, `pointer(type, p)`, `drop(p)`, `shift(dx, dy)`, `place(x, facing)`,
+ *   bounds (`set({ bounds })` from the page changes what `host.bounds()` returns, then calls it); `do(word)`, `walk(x, run, id)`,
+ *   `move({ to, run, params }, id)` (one of the manifest's `moves`, its `params` by id as the World checked them),
+ *   `stopWalk(id)` (a walk's or a move's), `pointer(type, p)`, `drop(p)`, `shift(dx, dy)`, `place(x, facing)`,
  *   `set(state)`, `cue(kind)`, `talk()`, `setScheme(id, { fade })`, `z` (the colour of its sleep z's),
  *   `words` (every word `do` knows; the kit's bodies list theirs, and the manifest's words not in it are
  *   kept from the bot) and `dispose()`. Only `step`, `layout` and `do` are required.
- * - events (`emit`): `arrived` and `interrupted` ({ walkId, x, by }) for `walk`, `done` ({ word }) for a word
+ * - events (`emit`): `arrived` and `interrupted` ({ walkId, x, by }) for `walk` and `move` (`by`: a short word on what
+ *   stopped it, which the bot reads; `drag` when it was picked up), `done` ({ word }) for a word
  *   that ends on its own, `touch` ({ kind: poke | pet | grab | drop | throw | crash, ... }), `mode` ({ mode }).
  *
  * Messages in: `init { entry, export, base, model, scheme, start, theme, bounds, language }` (the app language,
  * for the frame's own error messages), then `tick { dt }`
- * once a frame and the calls above by name. Out: `loaded`, `ready { z, words }`, `frame { layout, events: [{ kind,
+ * once a frame, `ledges { ledges }` (null when there are none to read) and the calls above by name. Out: `loaded`, `ready { z, words }`, `frame { layout, events: [{ kind,
  * detail }], sounds: [{ name, kind, args }], z }` after each tick, `scheme { seq, z }`, and `error { message }`
  * once, after which it stops.
  */
@@ -33,7 +39,9 @@ import * as kit from './kit/body.js';
 import { t, useLanguage } from './i18n.js';
 
 const root = document.getElementById('root');
-let body = null, dead = false, bounds = { W: 0, H: 0, floorY: 0, S: .42 };
+let body = null, dead = false, bounds = { W: 0, H: 0, floorY: 0, S: .42 }, ledges = null;
+/** The stage's size from the page, with the window tops when there are any. */
+const setBounds = (b) => { bounds = ledges ? { ...b, ledges } : { ...b }; };
 let events = [], sounds = [];
 const post = (m) => parent.postMessage(m, '*');
 function fail(err) {
@@ -65,8 +73,12 @@ addEventListener('message', async (e) => {
   if (e.source !== parent || dead) return;
   const m = e.data || {};
   try {
-    if (m.t === 'init') {
-      bounds = m.bounds;
+    if (m.t === 'ledges') {
+      ledges = Array.isArray(m.ledges) ? m.ledges : null;
+      const { ledges: _, ...b } = bounds;
+      setBounds(b);
+    } else if (m.t === 'init') {
+      setBounds(m.bounds);
       document.documentElement.dataset.theme = m.theme;
       if (typeof m.language === 'string') await useLanguage(m.language);
       const mod = await import(m.entry);
@@ -88,13 +100,14 @@ addEventListener('message', async (e) => {
       post({ t: 'scheme', seq: m.seq, z: body.z ?? null });
     } else if (m.t === 'do') body.do(m.word);
     else if (m.t === 'walk') { if (!body.walk?.(m.x, m.run, m.id)) events.push({ kind: 'interrupted', detail: { walkId: m.id, by: 'busy' } }); }
+    else if (m.t === 'move') { if (!body.move?.(m.args, m.id)) events.push({ kind: 'interrupted', detail: { walkId: m.id, by: 'busy' } }); }
     else if (m.t === 'stop-walk') body.stopWalk?.(m.id);
     else if (m.t === 'pointer') body.pointer?.(m.type, m.p);
     else if (m.t === 'drop') body.drop?.(m.p);
     else if (m.t === 'shift') body.shift?.(m.dx, m.dy);
     else if (m.t === 'place') body.place?.(m.x, m.facing);
     else if (m.t === 'set') {
-      if (m.state?.bounds) { bounds = m.state.bounds; body.resize?.(); }
+      if (m.state?.bounds) { setBounds(m.state.bounds); body.resize?.(); }
       body.set?.(m.state);
     }
     else if (m.t === 'cue') body.cue?.(m.kind);

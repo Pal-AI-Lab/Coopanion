@@ -167,27 +167,51 @@ describe('with a pet page', () => {
     expect(host.events[0].type).toBe('desktop-pet.message');
   });
 
-  it('pet_walk_to waits for the page to report arrival or interruption', async () => {
+  it('pet_move_to waits for the page to report arrival or interruption', async () => {
     const { world } = await mounted();
     const page = await FakePage.open(origin(world));
     cleanup.push(() => page.close());
-    const arriving = tool(world, 'pet_walk_to').handler({ to: 'right', run: true }, ctx);
+    const arriving = tool(world, 'pet_move_to').handler({ to: 'right', run: true }, ctx);
     const walk = await page.next((m) => m.t === 'walk');
     expect(walk).toMatchObject({ to: .95, run: true });
     page.send({ t: 'arrived', walkId: walk.id, x: .95 });
     expect(await arriving).toEqual({ text: '走到了屏幕横向 95% 处。' });
 
-    const interrupted = tool(world, 'pet_walk_to').handler({ to: .1 }, ctx);
+    const interrupted = tool(world, 'pet_move_to').handler({ to: .1 }, ctx);
     const w2 = await page.next((m) => m.t === 'walk');
     page.send({ t: 'interrupted', walkId: w2.id, x: .4, by: 'drag' });
     expect(await interrupted).toEqual({ text: '没走到:走到 40% 处时被伙伴拎起来了。' });
   });
 
-  it('pet_walk_to rejects a target it cannot read', async () => {
+  it('pet_move_to rejects a target it cannot read', async () => {
     const { world } = await mounted();
     const page = await FakePage.open(origin(world));
     cleanup.push(() => page.close());
-    expect(await tool(world, 'pet_walk_to').handler({ to: 'moon' }, ctx)).toMatchObject({ failed: true });
+    expect(await tool(world, 'pet_move_to').handler({ to: 'moon' }, ctx)).toMatchObject({ failed: true });
+  });
+
+  it("a figure's own target goes to its body with the params checked against the pack, and the bot hears of it from the prompt and on a switch", async () => {
+    const root = mkdtempSync(join(tmpdir(), 'packs-'));
+    mkdirSync(join(root, 'robot'));
+    writeFileSync(join(root, 'robot', 'figure.json'), JSON.stringify({
+      manifest: 2, api: 2, id: 'robot', name: { zh: '机器人' }, about: { zh: '一个机器人' }, entry: 'figure.js', export: 'createBody', axes: [], presets: [],
+      vocab: [{ id: 'sit', kind: 'motion', names: { zh: ['坐下'] }, about: { zh: '折起腿' }, seconds: 1 }],
+      moves: [{ id: 'shelf', name: { zh: '书架顶' }, about: { zh: '跳上书架' }, params: [{ id: 'height', about: { zh: '跳多高' }, min: 0, max: 1 }] }],
+    }));
+    const { world } = await mounted((c) => { c.skin.figure = 'robot'; }, { packRoots: () => [root] });
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    expect((await world.envPromptVars())['pet.moves']).toContain('| shelf(书架顶) | 跳上书架 | height:0–1,跳多高 |');
+    const move = tool(world, 'pet_move_to').handler;
+    expect(await move({ to: 'shelf', params: [2] }, ctx)).toMatchObject({ failed: true });
+    expect(await move({ to: 'left', params: [1] }, ctx)).toMatchObject({ failed: true });
+    const going = move({ to: '书架顶', params: [.5], run: true }, ctx);
+    const sent = await page.next((m) => m.t === 'move');
+    expect(sent.move).toEqual({ to: 'shelf', run: true, params: { height: .5 } });
+    page.send({ t: 'interrupted', walkId: sent.id, x: .3, by: 'no-shelf' });
+    expect(await going).toEqual({ text: '没到「书架顶」(no-shelf),现在在屏幕横向 30% 处。' });
+    const receipt = (await tool(world, 'pet_set').handler({ figure: 'coo' }, ctx) as { text: string }).text;
+    expect(receipt).toContain('能去的地方变了。这些去不了了:shelf(书架顶)。');
   });
 
   it('pet_act forwards known actions', async () => {
@@ -636,13 +660,13 @@ describe('chat page', () => {
     expect(figures()).toEqual([{ kind: 'dress', name: robot }, { kind: 'figure', name: expect.objectContaining({ id: 'coo' }) }, { kind: 'failed', name: robot }]);
   });
 
-  it('an interrupt stops pet_walk_to where the pet stands', async () => {
+  it('an interrupt stops pet_move_to where the pet stands', async () => {
     const { world } = await mounted();
     const page = await FakePage.open(origin(world));
     cleanup.push(() => page.close());
-    expect(tool(world, 'pet_walk_to').interruptible).toBe(true);
+    expect(tool(world, 'pet_move_to').interruptible).toBe(true);
     const stop = new AbortController();
-    const walking = tool(world, 'pet_walk_to').handler({ to: 'left' }, { ...ctx, signal: stop.signal });
+    const walking = tool(world, 'pet_move_to').handler({ to: 'left' }, { ...ctx, signal: stop.signal });
     const walk = await page.next((m) => m.t === 'walk');
     stop.abort();
     expect(await page.next((m) => m.t === 'walk-stop')).toMatchObject({ id: walk.id });

@@ -82,11 +82,25 @@ describe('figure packs', () => {
     const m = readManifest(fileURLToPath(new URL('./fixtures/api2-pack/', import.meta.url)), false, skipped);
     if (typeof m === 'string') throw new Error(m);
     expect(skipped).toEqual([]);
-    expect(m).toMatchObject({ id: 'fixture-api2', api: 2, entry: 'figure.js', export: 'createFixtureBody', model: 'model.json', thumb: 'thumb.png', can: { walk: true } });
+    expect(m).toMatchObject({ id: 'fixture-api2', api: 2, entry: 'figure.js', export: 'createFixtureBody', model: 'model.json', thumb: 'thumb.png', can: { walk: true }, moves: [], needs: [] });
     expect(m.vocab.map((w) => [w.id, w.kind, w.lasting ?? false])).toEqual([['happy', 'expression', false], ['sit', 'motion', true], ['salute', 'motion', false]]);
     expect(m.sounds).toEqual({ beep: { file: 'beep.wav', kind: 'touch', volume: .5 } });
     expect(m.axes.map((a) => [a.id, a.options.map((o) => o.id)])).toEqual([['tone', ['day', 'night']]]);
     expect(m.presets).toMatchObject([{ id: 'dusk', pick: { tone: 'night' }, accent: '#996633' }]);
+  });
+
+  it("reads a pack's own move targets and the desktop data it asks for, leaving out data this version does not provide", () => {
+    const skipped: string[] = [];
+    const shelf = { id: 'shelf', name: { zh: '书架顶' }, about: { zh: '跳上书架' }, params: [{ id: 'height', about: { zh: '跳多高' }, min: 0, max: 1 }] };
+    const m = readManifest(pack({ ...base, needs: ['windows', 'weather'], moves: [shelf] }), false, skipped);
+    if (typeof m === 'string') throw new Error(m);
+    expect(m.needs).toEqual(['windows']);
+    expect(m.moves).toEqual([shelf]);
+    expect(skipped).toHaveLength(1);
+    // a default target's name or a number would never reach the pack; a number without bounds is not a parameter
+    for (const id of ['left', 'cursor', '0.5']) expect(readManifest(pack({ ...base, moves: [{ ...shelf, id }] }))).toMatch(/moves/);
+    expect(readManifest(pack({ ...base, moves: [{ ...shelf, params: [{ id: 'height', about: { zh: '跳多高' }, min: 1, max: 1 }] }] }))).toMatch(/params/);
+    expect(readManifest(pack({ ...base, moves: [{ ...shelf, params: [1, 2, 3].map((i) => ({ id: `p${i}`, about: { zh: '量' }, min: 0, max: 1 })) }] }))).toMatch(/params/);
   });
 
   it('says a pack made for a newer manifest or contract needs the app updated', () => {

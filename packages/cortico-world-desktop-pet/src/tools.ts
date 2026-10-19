@@ -6,6 +6,7 @@ import type { Language } from 'cortico/core/language.ts';
 import type { ToolDef } from 'cortico/core/types.ts';
 import { BUBBLE_SIZE_MAX, BUBBLE_SIZE_MIN, SCALE_MAX, SCALE_MIN, USER_MAX } from './config.ts';
 import { capFor } from './i18n/index.ts';
+import { MOVE_PARAMS_MAX } from './packs.ts';
 
 /** Longest `pet_ask` option, in characters as seen, for Chinese, Japanese and Korean. */
 export const ASK_OPTION_MAX = 40;
@@ -40,14 +41,15 @@ export const petToolDecls = (language: Language = 'zh'): Array<Omit<ToolDef, 'ha
     },
   },
   {
-    name: 'pet_walk_to',
+    name: 'pet_move_to',
     tags: ['act'],
-    description: 'Walk (or run) along the bottom edge of the screen to a position. Returns on arrival or interruption, after 30 seconds at most.',
+    description: 'Go somewhere on the screen the pet is on: walk (or run) along its bottom edge to a position, or go to one of the targets the current figure has of its own, which the environment section lists when it has any. Returns on arrival or interruption, after 30 seconds at most.',
     parameters: {
       type: 'object',
       properties: {
-        to: { description: 'Target: a number from 0 to 1 (a fraction of the width of the screen the pet is on, 0 leftmost, 1 rightmost), or left / center / right / cursor (the horizontal position of the mouse pointer).', anyOf: [{ type: 'number', minimum: 0, maximum: 1 }, { type: 'string', enum: ['left', 'center', 'right', 'cursor'] }] },
+        to: { description: 'Target: a number from 0 to 1 (a fraction of the width of the screen the pet is on, 0 leftmost, 1 rightmost), left / center / right / cursor (the horizontal position of the mouse pointer), or the id of one of the current figure\'s own targets.', anyOf: [{ type: 'number', minimum: 0, maximum: 1 }, { type: 'string' }] },
         run: { type: 'boolean', description: 'true to run; walks by default.' },
+        params: { type: 'array', items: { type: 'number' }, maxItems: MOVE_PARAMS_MAX, description: 'Only for a figure\'s own target that takes numbers: them, in the order the environment section lists them.' },
       },
       required: ['to'],
     },

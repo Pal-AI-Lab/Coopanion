@@ -73,9 +73,18 @@ const zh = {
   walkTimeout: (seconds: number) => `${seconds} 秒内没有走到。`,
   walkWindowGone: '没走到:桌宠窗口断开了。',
   walkWorldStopped: 'World 已停止,没走到。',
-  walkBadTarget: (got: string) => `[pet_walk_to 没执行] to 应为 0–1 的数字或 left / center / right / cursor,收到 ${got}。`,
-  walkNoTarget: '[pet_walk_to 没执行] 缺少 to。',
-  walkCannot: (name: string) => `[pet_walk_to 没执行] 现在的形象(${name})不会走动。`,
+  /** A target of the figure's own, by `name`; `by` is what its body said stopped it. */
+  moveArrived: (name: string, at: string) => `到了「${name}」,在屏幕横向 ${at} 处。`,
+  moveStopped: (name: string, at: string) => `去「${name}」的途中,在屏幕横向 ${at} 处停下了。`,
+  moveGrabbed: (name: string, at: string, user: string) => `没到「${name}」:在屏幕横向 ${at} 处被${user}拎起来了。`,
+  moveFailed: (name: string, at: string, by: string) => `没到「${name}」(${by}),现在在屏幕横向 ${at} 处。`,
+  moveTimeout: (name: string, seconds: number) => `${seconds} 秒内没到「${name}」。`,
+  /** `targets`: the ids of the current figure's own targets. */
+  moveBadTarget: (got: string, targets: string[]) => `[pet_move_to 没执行] to 应为 0–1 的数字、left / center / right / cursor${targets.length ? `,或现在的形象的目标 ${targets.join(' / ')}` : ''},收到 ${got}。`,
+  moveNoTarget: '[pet_move_to 没执行] 缺少 to。',
+  /** `target`: the figure's target the params were given for, null for a default one; `spec`: its params as `id min–max`. */
+  moveBadParams: (target: string | null, spec: string[], got: string) => `[pet_move_to 没执行] ${target === null ? '默认目标不带 params' : spec.length ? `${target} 的 params 依次是 ${spec.join('、')},可以少给,不能超出范围` : `${target} 不带 params`},收到 ${got}。`,
+  walkCannot: (name: string) => `[pet_move_to 没执行] 现在的形象(${name})不会走到默认目标。`,
 
   /** `detail`: the window host's own words on why, when it has them. */
   notConnected: (tool: string, detail: string | null, user: string) => `[${tool} 没执行] 桌宠窗口没有连接${detail ? `(${detail})` : ''},${user}看不到。`,
@@ -191,9 +200,15 @@ const en: typeof zh = {
   walkTimeout: (seconds) => `Did not get there within ${seconds} seconds.`,
   walkWindowGone: 'Did not get there: the pet window disconnected.',
   walkWorldStopped: 'The World stopped; did not get there.',
-  walkBadTarget: (got) => `[pet_walk_to not run] to must be a number from 0 to 1 or left / center / right / cursor; got ${got}.`,
-  walkNoTarget: '[pet_walk_to not run] to is missing.',
-  walkCannot: (name) => `[pet_walk_to not run] The current figure (${name}) does not walk.`,
+  moveArrived: (name, at) => `Reached "${name}", at ${at} across the screen.`,
+  moveStopped: (name, at) => `Stopped on the way to "${name}", at ${at} across the screen.`,
+  moveGrabbed: (name, at, user) => `Did not reach "${name}": ${user} picked you up at ${at} across the screen.`,
+  moveFailed: (name, at, by) => `Did not reach "${name}" (${by}); now at ${at} across the screen.`,
+  moveTimeout: (name, seconds) => `Did not reach "${name}" within ${seconds} seconds.`,
+  moveBadTarget: (got, targets) => `[pet_move_to not run] to must be a number from 0 to 1, left / center / right / cursor${targets.length ? `, or one of the current figure's targets ${targets.join(' / ')}` : ''}; got ${got}.`,
+  moveNoTarget: '[pet_move_to not run] to is missing.',
+  moveBadParams: (target, spec, got) => `[pet_move_to not run] ${target === null ? 'The default targets take no params' : spec.length ? `The params of ${target} are, in order, ${spec.join(', ')}; fewer may be given, none out of range` : `${target} takes no params`}; got ${got}.`,
+  walkCannot: (name) => `[pet_move_to not run] The current figure (${name}) does not walk to the default targets.`,
 
   notConnected: (tool, detail, user) => `[${tool} not run] The pet window is not connected${detail ? ` (${detail})` : ''}; ${user} cannot see it.`,
   window: {

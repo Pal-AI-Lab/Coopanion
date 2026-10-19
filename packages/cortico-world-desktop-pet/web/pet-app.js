@@ -81,6 +81,8 @@ const at = () => body?.layout ?? null;
 const bodyState = { listening: false, thinking: false, thoughtShown: true, dialogOpen: false };
 const holdRoam = (seconds) => body?.set({ hold: seconds });
 host?.onFloor?.((px) => { below = px; body?.set({ bounds: bounds() }); });
+// the window reads the tops of the windows on its display only while the body on screen asks for them (`watchWindows`)
+host?.onWindows?.((list) => body?.setLedges(list));
 addEventListener('resize', () => {
   body?.set({ bounds: bounds() });
   // the World reads walk targets and drop spots against the stage the pet is on now
@@ -186,6 +188,7 @@ async function swapBody(s) {
   next.set({ roam: prefs.roam, ...bodyState });
   body?.dispose();
   body = next;
+  host?.watchWindows?.(next.needsWindows);
   words = new Map(pack.vocab.map((w) => [w.id, w]));
   shownPack = pack;
   lightFor(s);
@@ -294,6 +297,7 @@ function onOrder(m) {
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
     case 'confirm': dropAsks(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
     case 'walk': walk(m); break;
+    case 'move': walk(m); break;
     case 'walk-stop': body?.stopWalk(m.id); break;
     case 'ask-close': closeAsk(m.id); break;
     case 'act': acts.push(...m.actions); holdRoam(20); break;
@@ -333,11 +337,13 @@ function onBody(kind, d) {
   }
 }
 
+/** A walk to a default target, or a `move` to one of the pack's own, which the body is handed as the World sent it. */
 function walk(m) {
-  const x = m.to === 'cursor' ? (pointerSeen ? lastPointer.x : innerWidth / 2) : clamp(Number(m.to), 0, 1) * innerWidth;
   holdRoam(20);
   if (!body) { send({ t: 'interrupted', walkId: m.id, x: .5, by: 'none' }); return; }
   walkTargets.set(m.id, true);
+  if (m.t === 'move') { body.move(m.move, m.id); return; }
+  const x = m.to === 'cursor' ? (pointerSeen ? lastPointer.x : innerWidth / 2) : clamp(Number(m.to), 0, 1) * innerWidth;
   body.walk(x, !!m.run, m.id);
 }
 

@@ -20,7 +20,7 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 |---|---|---|
 | `pet_say(script, images?)` | 冒气泡说话;`【词】` 先做动作再换新气泡,`<词>` 打字到那里时做。`images` 是附件句柄,图片只显示在对话页;只有图片时不要求桌宠窗口在线 | 立即返回,报约显示多久、前面排了多久 |
 | `pet_ask(question, options, allowOwnAnswer)` | 提问气泡,最多 3 个选项,默认再加一格自己写 | 立即返回;回答以 `[answer]` 事件送达 |
-| `pet_walk_to(to, run)` | 走(跑)到桌宠所在屏幕横向 0–1 处,或 `left` `center` `right` `cursor` | 走到或被打断才返回,最多 30 秒;`interruptible`,收到 interrupt 时停在原地并写明位置 |
+| `pet_move_to(to, run, params?)` | 走(跑)到桌宠所在屏幕横向 0–1 处,或 `left` `center` `right` `cursor`;或去当前形象包自己的目标(见「形象包」的 `moves`),`params` 是那个目标的数值 | 走到或被打断才返回,最多 30 秒;`interruptible`,收到 interrupt 时停在原地并写明位置 |
 | `pet_act(actions)` | 不说话,依次做一串表情或动作 | 立即返回;词表里标着保持的词(Coo 的 `sit` `sleep`)保持到下个动作 |
 | `pet_set(…)` | 改自己的外观和习惯,见「自己调整」 | 自己能改的立即返回;要问的等对方回答 |
 | `pet_quiet(minutes, sound, roam)` | 临时安静:默认关音效、站着不动,到点恢复,设置不变 | 立即返回 |
@@ -28,6 +28,8 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 表情和动作的词表是当前形象包的 `vocab`(解析在 `src/script.ts`),词的 id 与各语言的名字都认;环境提示词 `src/ENV_PROMPT.md`(英文版 `src/ENV_PROMPT.en.md`)把它渲染成表格,前缀重建时更新。
 运行中换了形象,`[figure]` 事件或 `pet_set` 的回执写明词表相对 bot 上次得知的变化:用不了的词,以及新增或样子变了的词的表格行。
 身体加载好时报出它认得的词(kit 的身体都报),`vocab` 里身体不认得的词不给 bot 用,并在日志里记一条。
+形象包自己的移动目标同样渲染进环境提示词(`{{pet.moves}}`,没有时为空),换了形象时同样写明增删了哪些目标。
+`pet_move_to` 的参数不随形象变,换装不改工具表。
 词表里没有的词,`pet_say` 和 `pet_act` 的回执会写明略过了哪些。
 
 ## 事件
@@ -38,7 +40,7 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 | `desktop-pet.message` | `[typed] 伙伴:…`(悬停按钮;`worlds.desktop-pet.doubleClickChat` 打开时也可双击;或对话页,可附图片) | preempt |
 | `desktop-pet.answer` | `[answer] 伙伴回答「问题」:选了第 2 项「…」` / 自己写的 / 关掉没答 | flush,关掉没答为 debounce |
 | `desktop-pet.touch` | `[touch] 伙伴戳了你 3 下` / 摸了摸 / 拎起来甩了出去 / 摔晕 | `worlds.desktop-pet.touch.wakeOn` 让它唤醒的种类 debounce,其余 piggyback |
-| `desktop-pet.figure` | `[figure] 你现在的样子:…`(对方换了形象或打扮;bot 用 `pet_set` 自己换的不报) / `[figure] …没能显示出来(原因),你现在是 Coo 的样子` / `[figure] 词表变了。…`;词表有变化时都附上 | 换装 debounce,显示失败 flush |
+| `desktop-pet.figure` | `[figure] 你现在的样子:…`(对方换了形象或打扮;bot 用 `pet_set` 自己换的不报) / `[figure] …没能显示出来(原因),你现在是 Coo 的样子` / `[figure] 词表变了。…`;词表或形象自己的目标有变化时都附上 | 换装 debounce,显示失败 flush |
 
 每条事件的正文前是对方那边的本地时间 `[HH:MM]`;一次运行的第一条、换了日期后的第一条带日期和星期 `[MM-DD 周X HH:MM]`。
 表里是中文版;模型文本是英文时,标签是 `[voice]` `[typed]` `[answer]` `[touch]` `[figure]`,星期写 `Sun` 这样的英文缩写。
@@ -54,7 +56,7 @@ World 在 `127.0.0.1:7797`(被占向上顺延)起一个页面服务:`/pet` 是�
 桌宠窗口是一个 Electron 进程(`host/electron-main.cjs`):透明、无边框、置顶,盖住一块显示器的工作区
 (启动时是主显示器)。Windows 上任务栏在底边时,窗口再往下盖住任务栏,离显示器底边留 3 DIP;地面仍在工作区底边,
 形象画在地面以下的部分(比如坐在边沿时垂下的腿)显示在任务栏上。桌宠被拎着拖到另一块显示器上时,窗口当场挪到那块显示器,拖动中桌宠一直跟着光标,松手就在那块显示器上落下;
-走路只在当前这块显示器上。窗口所在的显示器被拔掉时回到主显示器。`pet_walk_to` 的 0–1 和事件里的横向位置都按当前这块显示器算。
+走路只在当前这块显示器上。窗口所在的显示器被拔掉时回到主显示器。`pet_move_to` 的 0–1 和事件里的横向位置都按当前这块显示器算。
 鼠标只在身体、气泡、右键菜单和悬停按钮上时才接收点击,其余位置点击穿透。托盘图标可以显示、隐藏、关闭它。
 鼠标停在桌宠身上时,身旁出现两个按钮:打字说话;语音输入开关(点一下开关 `asr.enabled`,
 正在听时长按半秒把听到的这句话立刻送出,不等停顿;按 toggle 方式开着的说话键同时关上)。夜间模式在右键菜单里切换。窗口打开时桌宠从屏幕顶上掉到底边。
@@ -229,7 +231,9 @@ Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 Core
 | `presets` | 维度组合的命名,可带 `accent` 和设置窗口配色 `console` |
 | `vocab` | 这个身体做的全部表情和动作,也就是它在场时 bot 的整张词表:每个词 `id`、`kind`(`expression` / `motion`)、`names`(按语言的名字列表)、`about`(它做这个词的样子)、`seconds`(连着做时等多久再做下一个),`lasting: true` 表示保持到下一个动作;`kind` 是这一版不认识的值时跳过那个词 |
 | `sounds` | 包自带的音频:名字 → `{ file, kind, volume }`,文件是包里的 `.ogg` `.mp3` `.wav`,`kind` 是 `move` `touch` `face` `snore` 之一;不存在的文件、这一版不认识的 `kind` 或文件类型,在扫描时记一条问题,那个声音不响 |
-| `can` | `{ walk: false }` 表示不会走,`pet_walk_to` 会拒绝 |
+| `can` | `{ walk: false }` 表示不会走,`pet_move_to` 拒绝默认目标 |
+| `moves` | 这个包给 `pet_move_to` 加的目标,见下文;可省 |
+| `needs` | 包要桌宠页额外交给身体的桌面数据,这一版只有 `windows`,见下文;不认识的值跳过并记一条问题;可省 |
 | `thumb` | 这个包的图:装扮页「形象」一行和导入列表都显示它,不随各维的选择变化 |
 | `author`、`license`、`credits`、`version` | 署名与展示 |
 
@@ -239,6 +243,25 @@ Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 Core
 工厂按 `factory(base, { model, scheme, kit, loadImage, asset, host })` 调用,返回一个身体;契约写在 `web/figure-frame.js` 开头。
 用 kit 的包只要 `kit.createBody(host, { figure, words })`:`figure` 每帧画一次,`words` 是 kit 本身没有的词怎么做。
 `examples/whale/README.md` 是写形象包的完整说明。20 秒内没准备好、或者跑的时候抛错,桌宠换回 Coo,并告诉 bot 词表的变化。
+
+### 自己的移动目标
+
+`moves` 最多 8 个目标,每个有 `id`(不能是 `left` `center` `right` `cursor` 或数字)、`name`、`about`(去哪、怎么去,原样放进 bot 的环境提示词),
+可选 `params`:最多 2 个数值参数,每个 `{ id, about, min, max }`。目标写成相对的(「最近的窗口顶」「地面」),bot 不需要知道窗口是什么。
+
+bot 用 `pet_move_to({ to: 目标 id, params: [数值…] })` 去,`to` 也认目标的各语言名字。World 按当前形象的声明核对参数:多给、超出 min–max 的都拒绝,
+少给的不带。核对通过后,桌宠页把 `{ to, run, params }`(`params` 按参数 id 命名)原样交给身体的 `move(args, id)`,怎么去是包自己的事:
+到了报 `arrived`,没到报 `interrupted`,`by` 写一个短词说明原因,bot 在回执里读到它(最多 40 字符)。身体没有 `move` 或返回 false 时当场按 `busy` 报没到。
+30 秒上限和 interrupt(页面调 `stopWalk(id)`)照旧由 World 兜底,桌宠页对框、命中圆和互动的限制也照旧。
+
+没声明 `moves` 的包只有默认目标。
+
+### 窗口顶边
+
+`needs: ["windows"]` 的包在场时,Windows 上的窗口进程每 0.7 秒读一次桌面上的顶层窗口(`host/windows.cjs`,koffi 调 `GetWindow` 与 `DwmGetWindowAttribute`),
+跳过最小化的、在别的虚拟桌面上的、工具窗口、点击穿透的窗口,以及桌面和任务栏;按 z 序裁掉被前面窗口挡住的部分,只留桌宠所在显示器上、地面以上的顶边,
+换成舞台坐标 `[{ x0, x1, y }]`,变了才发。身体从 `host.bounds().ledges` 读到它们,只有几何,没有标题和程序名。
+别的包在场时窗口进程一次都不读,桌宠页也不转。macOS、Linux 和浏览器标签里没有 `ledges`,包要能在没有它时照常运行。
 
 ### 导入
 
@@ -259,7 +282,7 @@ Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 Core
 2. **同一个 api 里只做加法。** 新字段、新的可选方法和消息、kit 新的导出和词,都不升 api,旧写法照常工作。比如 api 2 里后加的身体 `words`。
 3. **kit 跟着 api 冻结。** api 2 期间,kit 的导出名、函数签名和交给 `figure.draw` 的 `frame` 字段只增不改;修 bug 照常对所有包生效。
    哪天必须不兼容地改,就升 api,把当时的 kit 原样留一份,旧 api 的包继续拿到它。
-4. **旧应用碰到不认识的东西,跳过那一项。** 不认识的字段不读;不认识的词 `kind`、音效 `kind` 或文件类型、`can` 的值,跳过那一项并记一条问题,
+4. **旧应用碰到不认识的东西,跳过那一项。** 不认识的字段不读;不认识的词 `kind`、音效 `kind` 或文件类型、`can` 或 `needs` 的值,跳过那一项并记一条问题,
    包照常加载。只有缺了必需字段、字段的类型不对、路径出了包,才拒绝整个包。
 5. **用户存的打扮不失效。** 包更新后 `skin.scheme` 指的选项没了,就退回那一维的第一个选项(`web/body-host.js` 的 `knownScheme`:包的代码只拿到它认得的打扮)。
    给作者的规矩:发布过的选项 id 和词 id 不删、不改名。
@@ -422,7 +445,7 @@ bot 从这个 World 读到的文字(事件、回执、环境提示词和词表)�
 `replyLanguage` 返回要 bot 对使用者说的语言的名字(按模型文本的语言写,比如 `Japanese`、`繁体中文`),渲染成环境提示词里的 `{{pet.reply}}` 一句;返回 null 时这句为空。语言变了,环境提示词在下一次前缀重建时换。
 形象包 `about` 和 `vocab` 的 `about` 没有 `en` 时,英文版用中文的;英文词表只列 id 和 `names.en`,名字没有 `en` 的维度、选项和预设在英文版里用 id。
 
-形象的身体可以实现 `stopWalk(id)`:interrupt 停下 `pet_walk_to` 时页面经 `figure-frame` 调它;没实现时这次走路照常走完。
+形象的身体可以实现 `stopWalk(id)`:interrupt 停下 `pet_move_to` 时页面经 `figure-frame` 调它,走路和包自己的目标都是;没实现时这一趟照常走完。
 
 ## 安装
 

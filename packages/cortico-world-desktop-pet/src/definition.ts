@@ -20,7 +20,7 @@ const DESCRIBE: WorldDescribe = {
   tools: describeTools([...petToolDecls(), ...CUA_OFF_TOOL_DECLS, ...CUA_TOOL_DECLS], {
     pet_say: { zh: '在桌宠头顶的气泡里说话,可在话里穿插表情与动作。', en: 'Speaks in a bubble above the pet, with expressions and motions in between.' },
     pet_ask: { zh: '弹出带至多 3 个选项的提问气泡,回答之后作为事件送回。', en: 'Asks a question in a bubble with up to 3 options; the answer comes back later as an event.' },
-    pet_walk_to: { zh: '沿屏幕底边走到或跑到某个位置。', en: 'Walks or runs along the bottom edge of the screen to a position.' },
+    pet_move_to: { zh: '沿屏幕底边走到或跑到某个位置,或去形象包自带的目标。', en: "Walks or runs along the bottom edge of the screen to a position, or goes to one of the figure pack's own targets." },
     pet_set: { zh: '修改桌宠自己的外观与习惯;按使用者的设置直接生效,或先在气泡里询问。', en: "Changes the pet's own looks and habits, at once or after asking in a bubble, as the person's settings say." },
     pet_quiet: { zh: '安静一段时间:关掉音效、停止走动,到时恢复。', en: 'Keeps quiet for a while: sound effects off and standing still until the time is up.' },
     pet_act: { zh: '不说话,播放一串表情或动作。', en: 'Plays a sequence of expressions or motions without speaking.' },

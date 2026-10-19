@@ -110,6 +110,14 @@ const ko: Translation<PetText> = {
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind가 ${kind}입니다. 이 버전은 ${kinds.join(', ')}만 알기 때문에 소리가 나지 않습니다`,
     soundMissing: (name: string, file: string) => `sounds.${name}의 ${file}이(가) 없으므로 소리가 나지 않습니다`,
     badWalk: (got: string) => `can.walk가 ${got}인데 이 버전은 알지 못하므로 걸을 수 있는 것으로 처리합니다`,
+    movesNotArray: 'moves는 배열이어야 합니다',
+    tooManyMoves: (max: number) => `moves는 최대 ${max}개입니다`,
+    badMoveId: (got: string) => `moves에 잘못된 id가 있습니다: ${got} (left, center, right, cursor와 숫자는 기본 목적지입니다)`,
+    moveTaken: (id: string) => `moves에 ${id}이(가) 두 번 이상 있습니다`,
+    noMoveText: (id: string) => `moves.${id}에 name 또는 about이 없습니다`,
+    badMoveParams: (id: string, max: number) => `moves.${id}.params는 최대 ${max}개 항목의 배열이어야 하며, 각 항목에 id, about, 그리고 min이 max보다 작은 숫자가 있어야 합니다`,
+    needsNotArray: 'needs는 배열이어야 합니다',
+    unknownNeed: (got: string) => `needs의 ${got}은(는) 이 버전에서 제공하지 않아 제외합니다`,
     idTaken: (id: string, builtin: boolean) => `id ${id}은(는) 이미 ${builtin ? '내장 외형' : '다른 팩'}에서 쓰고 있습니다`,
   },
 
@@ -166,6 +174,7 @@ const ko: Translation<PetText> = {
     vars: {
       'pet.user': '봇이 사용자를 부르는 이름',
       'pet.vocab': '현재 외형의 표정과 동작',
+      'pet.moves': '현재 외형이 가진 pet_move_to 목적지. 없으면 비어 있음',
       'pet.voice': '음성 입력이 켜져 있는지 여부',
       'pet.body': '현재 외형의 모습',
       'pet.dress': 'pet_set으로 고를 수 있는 외형과 꾸미기',

@@ -116,6 +116,14 @@ const ru: Translation<PetText> = {
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind равно ${kind}; эта версия знает только ${kinds.join(', ')}, поэтому звук воспроизводиться не будет`,
     soundMissing: (name: string, file: string) => `${file} в sounds.${name} не существует; звук воспроизводиться не будет`,
     badWalk: (got: string) => `can.walk равно ${got}; эта версия такого не знает и считает, что персонаж умеет ходить`,
+    movesNotArray: 'moves должен быть массивом',
+    tooManyMoves: (max: number) => `в moves не больше ${max} целей`,
+    badMoveId: (got: string) => `Недопустимый id в moves: ${got} (left, center, right, cursor и числа — цели по умолчанию)`,
+    moveTaken: (id: string) => `${id} встречается в moves больше одного раза`,
+    noMoveText: (id: string) => `у moves.${id} нет name или about`,
+    badMoveParams: (id: string, max: number) => `moves.${id}.params должен быть массивом не больше чем из ${max} элементов, у каждого id, about и числа min меньше max`,
+    needsNotArray: 'needs должен быть массивом',
+    unknownNeed: (got: string) => `${got} в needs эта версия не предоставляет; пропущено`,
     idTaken: (id: string, builtin: boolean) => `id ${id} уже занят ${builtin ? 'встроенным персонажем' : 'другим пакетом'}`,
   },
 
@@ -172,6 +180,7 @@ const ru: Translation<PetText> = {
     vars: {
       'pet.user': 'Как бот называет человека',
       'pet.vocab': 'Выражения и движения текущего персонажа',
+      'pet.moves': 'Собственные цели текущего персонажа для pet_move_to; пусто, если их нет',
       'pet.voice': 'Включён ли голосовой ввод',
       'pet.body': 'Как выглядит текущий персонаж',
       'pet.dress': 'Персонажи и наряды, доступные для pet_set',

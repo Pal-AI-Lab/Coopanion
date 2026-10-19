@@ -110,6 +110,14 @@ const zhHant: Translation<PetText> = {
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind 是 ${kind}，這一版只認得 ${kinds.join('、')}，這個聲音不會響`,
     soundMissing: (name: string, file: string) => `sounds.${name} 的 ${file} 不存在，這個聲音不會響`,
     badWalk: (got: string) => `can.walk 是 ${got}，這一版不認得，當作會走路處理`,
+    movesNotArray: 'moves 應為陣列',
+    tooManyMoves: (max: number) => `moves 最多 ${max} 項`,
+    badMoveId: (got: string) => `moves 裡有不合法的 id：${got}（left、center、right、cursor 和數字是預設目標）`,
+    moveTaken: (id: string) => `moves 裡有不只一個 ${id}`,
+    noMoveText: (id: string) => `moves.${id} 缺少 name 或 about`,
+    badMoveParams: (id: string, max: number) => `moves.${id}.params 應為最多 ${max} 項的陣列，每項有 id、about 和 min 小於 max 的數值`,
+    needsNotArray: 'needs 應為陣列',
+    unknownNeed: (got: string) => `needs 裡的 ${got} 這一版不認識，不提供`,
     idTaken: (id: string, builtin: boolean) => `id ${id} 已被${builtin ? '內建形象' : '另一個形象包'}佔用`,
   },
 
@@ -166,6 +174,7 @@ const zhHant: Translation<PetText> = {
     vars: {
       'pet.user': '對使用者的稱呼',
       'pet.vocab': '目前形象的表情與動作詞表',
+      'pet.moves': '目前形象自帶的 pet_move_to 目標；沒有時為空',
       'pet.voice': '語音輸入開著還是關著',
       'pet.body': '目前形象的樣子',
       'pet.dress': 'pet_set 能選的形象與裝扮',

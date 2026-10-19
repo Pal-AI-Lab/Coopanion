@@ -21,6 +21,10 @@ contextBridge.exposeInMainWorld('petHost', {
   setLanguage: (code) => ipcRenderer.send('pet:language', String(code)),
   /** How far the window reaches below the floor (over a taskbar), in page pixels, each time it is placed. */
   onFloor: (cb) => ipcRenderer.on('pet:floor', (_e, below) => cb(Number(below) || 0)),
+  /** Whether the window reads the tops of the other windows on its display: on only while the body on screen's pack asks for them. */
+  watchWindows: (on) => ipcRenderer.send('pet:watchWindows', !!on),
+  /** Those tops (`[{ x0, x1, y }]` in page pixels) while they are read, each time they change. */
+  onWindows: (cb) => ipcRenderer.on('pet:windows', (_e, list) => cb(Array.isArray(list) ? list : null)),
   /** Where the cursor is, in page pixels, or null off the window: called a few times a second. */
   onCursor: (cb) => ipcRenderer.on('pet:cursor', (_e, p) => cb(p)),
   /** Screen pixels behind `rect`, minus `skip` rects (page coordinates), as a flat [r, g, b, …]; null where the screen cannot be read. */

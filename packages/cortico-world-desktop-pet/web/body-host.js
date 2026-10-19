@@ -11,7 +11,8 @@
  *   its clickable area over the screen and swallow clicks meant for the windows underneath;
  * - a touch (poke, pat, pick-up, throw) counts only right after the page passed it pointer input
  *   (TOUCH_MS), and a crash only after a throw: a pack cannot make up touches that wake the bot;
- * - the bubble's spot and the hover buttons' point stay on the stage.
+ * - the bubble's spot and the hover buttons' point stay on the stage;
+ * - the tops of the windows on the desktop go only to a pack whose manifest `needs` them.
  *
  * `onError(err)` is called when the pack's code fails after it was ready; before that the returned
  * promise rejects. Either way the frame is gone.
@@ -161,6 +162,12 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
       tick(dt) { if (ready) post({ t: 'tick', dt }); },
       do: (word) => post({ t: 'do', word }),
       walk: (x, run, id) => post({ t: 'walk', x, run, id }),
+      /** One of the pack's own targets, `{ to, run, params }` as the World checked it. */
+      move: (args, id) => post({ t: 'move', args, id }),
+      /** Whether the pack asked for the window tops (`setLedges`). */
+      needsWindows: Array.isArray(pack.needs) && pack.needs.includes('windows'),
+      /** The window tops (`[{ x0, x1, y }]` in stage pixels, or null), passed on only when the pack asked for them. */
+      setLedges(list) { if (body.needsWindows) post({ t: 'ledges', ledges: list }); },
       stopWalk: (id) => post({ t: 'stop-walk', id }),
       /** `type`: down, move, up, cancel, leave; `p` in stage pixels with `t` (ms). */
       pointer(type, p) { if (type !== 'leave') touches.input(performance.now()); post({ t: 'pointer', type, p }); },

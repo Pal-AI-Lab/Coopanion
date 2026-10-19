@@ -1,7 +1,7 @@
 /**
  * DesktopPetWorld: the pet on the desktop as a World.
  *
- * Output goes through four tools that drive the pet page (bubble, options, walking,
+ * Output goes through four tools that drive the pet page (bubble, options, going somewhere,
  * expressions and motions). Input arrives as events: speech heard through the pet window's
  * microphone (transcribed in this process by FunASR's SenseVoice or by Whisper, or by Windows' own recognizer), typed text, answers to `pet_ask`, and touches
  * (poke, petting, being thrown). The page reports what actually happened; receipts and
@@ -47,7 +47,8 @@ import { toSimplified } from './asr/simplify.ts';
 import { estimateSeconds, parseActions, parseScript, vocabChange, vocabTable, type VocabWord } from './script.ts';
 import { ActivityGroup, ChatSockets, SELF_TYPE, chatHistory, chatItem, chatRefs, type ChatFigure } from './chat.ts';
 import { ASK_OPTION_MAX, petToolDecls } from './tools.ts';
-import { COO, figurePacks, lookOf, modelName, nameIn, packFor, type FigurePack, type PackScan } from './packs.ts';
+import { COO, figurePacks, lookOf, modelName, nameIn, packFor, type FigurePack, type MoveTarget, type PackScan } from './packs.ts';
+import { moveChange, moveTable, readMove } from './moves.ts';
 import { Cua } from './cua/cua.ts';
 import { CUA_OFF_TOOL_DECLS } from './cua/tools.ts';
 import type { Answer } from './cua/engine-ipc.ts';
@@ -245,6 +246,8 @@ type SherpaEngine = Exclude<AsrEngine, 'system'>;
 interface PendingWalk {
   resolve: (text: string) => void;
   timer: NodeJS.Timeout;
+  /** The figure's target it goes to, as the bot reads its name; absent for a default target. */
+  target?: string;
   /** The call's interrupt asked the page to stop the walk. */
   stopping?: boolean;
 }
@@ -432,6 +435,8 @@ export class DesktopPetWorld implements World {
   private readonly bodyWords = new Map<string, ReadonlySet<string>>();
   /** The words the bot was last told it may use: its prompt's at start, then a `[figure]` event's or a `pet_set` receipt's. */
   private toldVocab: readonly VocabWord[] = [];
+  /** The figure's own `pet_move_to` targets the bot was last told of, as `toldVocab` the words. */
+  private toldMoves: readonly MoveTarget[] = [];
   /** A look the bot put on itself: the pet page's report of it is not told back (the receipt said it). */
   private botLook: string | null = null;
   /** `pet_quiet` in force: what it overrides, until when, and the settings it found (a change to them ends it). */
@@ -463,6 +468,10 @@ export class DesktopPetWorld implements World {
     if (!pack) return [];
     const known = this.bodyWords.get(pack.id);
     return known ? pack.manifest.vocab.filter((w) => known.has(w.id)) : pack.manifest.vocab;
+  }
+  /** The `pet_move_to` targets of the body on screen's pack, beyond the default ones. */
+  private moves(): MoveTarget[] {
+    return this.currentPack()?.manifest.moves ?? [];
   }
 
   /** The language of what the bot reads from this World. */
@@ -500,12 +509,16 @@ export class DesktopPetWorld implements World {
     this.syncPrefs();
   }
 
-  /** How the words the bot may use changed since it was last told, or ''. From here the bot counts as told the words of now. */
+  /**
+   * How the words the bot may use and the places it may go changed since it was last told, or ''. From here the
+   * bot counts as told those of now.
+   */
   private vocabNote(): string {
-    const now = this.vocab();
-    const note = vocabChange(this.toldVocab, now, this.language);
+    const now = this.vocab(), moves = this.moves();
+    const notes = [vocabChange(this.toldVocab, now, this.language), moveChange(this.toldMoves, moves, this.language)];
     this.toldVocab = now;
-    return note;
+    this.toldMoves = moves;
+    return notes.filter(Boolean).join('\n\n');
   }
 
   /** What the body looks like now, with its picked options. */
@@ -579,8 +592,9 @@ export class DesktopPetWorld implements World {
     this.startCursor = host.store.latestCursor() + 1;
     this.log = host.log;
     this.cua.start(host);
-    // the words the prompt is rendered with, until the bot is told otherwise
+    // the words and targets the prompt is rendered with, until the bot is told otherwise
     this.toldVocab = this.vocab();
+    this.toldMoves = this.moves();
     await this.server.start();
     this.windowHost = new WindowHost(host.log, () => this.t.window);
     if (this.cfg.window.enabled) this.openWindow();
@@ -996,9 +1010,13 @@ export class DesktopPetWorld implements World {
         clearTimeout(w.timer);
         const at = typeof msg.x === 'number' ? pct(msg.x) : '?';
         const t = this.t;
-        w.resolve(msg.t === 'arrived' ? t.walkArrived(at)
-          : w.stopping ? t.walkStopped(at)
-          : msg.by === 'drag' ? t.walkGrabbed(at, this.userName) : t.walkReplaced(at, String(msg.by)));
+        // what stopped a figure's own move is its body's word, kept short
+        const by = String(msg.by).slice(0, 40);
+        const name = w.target;
+        w.resolve(msg.t === 'arrived' ? (name === undefined ? t.walkArrived(at) : t.moveArrived(name, at))
+          : w.stopping ? (name === undefined ? t.walkStopped(at) : t.moveStopped(name, at))
+          : msg.by === 'drag' ? (name === undefined ? t.walkGrabbed(at, this.userName) : t.moveGrabbed(name, at, this.userName))
+          : name === undefined ? t.walkReplaced(at, by) : t.moveFailed(name, at, by));
         return;
       }
       case 'answer': return this.onAnswer(msg, 'pet');
@@ -1588,13 +1606,13 @@ export class DesktopPetWorld implements World {
     const handlers: Record<string, ToolDef['handler']> = {
       pet_say: (args) => this.say(args),
       pet_ask: (args) => this.askUser(args),
-      pet_walk_to: (args, ctx) => this.walkTo(args, ctx),
+      pet_move_to: (args, ctx) => this.moveTo(args, ctx),
       pet_act: (args) => this.act(args),
       pet_set: (args) => this.setSettings(args),
       pet_quiet: (args) => this.setQuiet(args),
       pet_cua_open_settings: async () => this.openCuaSettings(),
     };
-    const own = petToolDecls(this.appLanguage).map((decl) => ({ ...decl, handler: handlers[decl.name], ...(decl.name === 'pet_walk_to' ? { interruptible: true } : {}) }));
+    const own = petToolDecls(this.appLanguage).map((decl) => ({ ...decl, handler: handlers[decl.name], ...(decl.name === 'pet_move_to' ? { interruptible: true } : {}) }));
     if (this.cuaOn) return [...own, ...this.cua.tools()];
     return this.cuaCanOpen ? [...own, ...CUA_OFF_TOOL_DECLS.map((decl) => ({ ...decl, handler: handlers[decl.name] }))] : own;
   }
@@ -1660,23 +1678,24 @@ export class DesktopPetWorld implements World {
     return { text: this.t.askReceipt({ replaced, cut: raw.length > 3, chatOpen: this.chat.size > 0 }) };
   }
 
-  /** Interruptible: an interrupt stops the walk where the pet stands, and the receipt says where. */
-  private async walkTo(args: Record<string, unknown>, ctx?: ToolCallContext): Promise<ToolOutcome> {
-    const run = args.run === true;
-    const to = args.to;
-    let target: number | 'cursor';
-    if (typeof to === 'number' && Number.isFinite(to)) target = Math.max(0, Math.min(1, to));
-    else if (typeof to === 'string') {
-      const named: Record<string, number | 'cursor'> = { left: .05, center: .5, right: .95, cursor: 'cursor' };
-      const n = Number(to);
-      if (to in named) target = named[to];
-      else if (to.trim() !== '' && Number.isFinite(n)) target = Math.max(0, Math.min(1, n));
-      else return { text: this.t.walkBadTarget(JSON.stringify(to)), failed: true };
-    } else return { text: this.t.walkNoTarget, failed: true };
+  /**
+   * Interruptible: an interrupt stops the walk or the move where the pet stands, and the receipt says where.
+   * A default target is walked to by the page; a target of the figure's own goes to its body as the call gave it
+   * once its params check out against the pack's declaration (moves.ts). The body reports either way.
+   */
+  private async moveTo(args: Record<string, unknown>, ctx?: ToolCallContext): Promise<ToolOutcome> {
+    const { language, t } = this;
     const pack = this.currentPack();
-    if (pack?.manifest.can.walk === false) return { text: this.t.walkCannot(modelName(pack.manifest.name, pack.id, this.language)), failed: true };
+    const order = readMove(args, this.moves());
+    if (order.kind === 'noTarget') return { text: t.moveNoTarget, failed: true };
+    if (order.kind === 'badTarget') return { text: t.moveBadTarget(order.got, this.moves().map((m) => m.id)), failed: true };
+    if (order.kind === 'badParams') return { text: t.moveBadParams(order.target?.id ?? null, order.target?.params.map((p) => `${p.id} ${p.min}–${p.max}`) ?? [], order.got), failed: true };
+    if (order.kind === 'walk' && pack?.manifest.can.walk === false) return { text: t.walkCannot(modelName(pack.manifest.name, pack.id, language)), failed: true };
     const walkId = nextId('w');
-    if (!this.server.sendPet({ t: 'walk', id: walkId, to: target, run })) return this.notConnected('pet_walk_to');
+    const sent = order.kind === 'walk' ? this.server.sendPet({ t: 'walk', id: walkId, to: order.to, run: order.run })
+      : this.server.sendPet({ t: 'move', id: walkId, move: { to: order.to, run: order.run, params: order.params } });
+    if (!sent) return this.notConnected('pet_move_to');
+    const target = order.kind === 'move' ? modelName(order.target.name, order.target.id, language) : undefined;
     const text = await new Promise<string>((resolve) => {
       const onAbort = (): void => {
         if (!this.walks.has(walkId)) return;
@@ -1689,9 +1708,9 @@ export class DesktopPetWorld implements World {
       };
       const timer = setTimeout(() => {
         this.walks.delete(walkId);
-        done(this.t.walkTimeout(WALK_TIMEOUT_MS / 1000));
+        done(target === undefined ? t.walkTimeout(WALK_TIMEOUT_MS / 1000) : t.moveTimeout(target, WALK_TIMEOUT_MS / 1000));
       }, WALK_TIMEOUT_MS);
-      const walk: PendingWalk = { resolve: done, timer };
+      const walk: PendingWalk = { resolve: done, timer, ...(target === undefined ? {} : { target }) };
       this.walks.set(walkId, walk);
       ctx?.signal?.addEventListener('abort', onAbort, { once: true });
     });
@@ -1784,6 +1803,7 @@ export class DesktopPetWorld implements World {
       'pet.cua': this.cuaOn ? await this.cua.envPrompt() : this.cua.unsupported() === null ? t.cuaOff(user, this.cuaCanOpen) : '',
       'pet.user': user,
       'pet.vocab': vocabTable(this.vocab(), language),
+      'pet.moves': moveTable(this.moves(), language),
       'pet.voice': this.cfg.asr.enabled ? t.on : t.off,
       'pet.body': this.bodyText(this.currentPack()),
       'pet.dress': dressTable(this.packs(), language),
@@ -1845,8 +1865,8 @@ export class DesktopPetWorld implements World {
         ...c.envPrompt,
         path: this.envPromptFile(),
         role: 'envPrompt',
-        vars: ['pet.user', 'pet.vocab', 'pet.voice', 'pet.body', 'pet.dress', 'pet.self', 'pet.chat', 'pet.reply', 'pet.cua']
-          .map((name) => ({ name, description: c.vars[name] ?? name, ...(name === 'pet.vocab' || name === 'pet.dress' || name === 'pet.cua' ? { multiline: true } : {}) })),
+        vars: ['pet.user', 'pet.vocab', 'pet.moves', 'pet.voice', 'pet.body', 'pet.dress', 'pet.self', 'pet.chat', 'pet.reply', 'pet.cua']
+          .map((name) => ({ name, description: c.vars[name] ?? name, ...(name === 'pet.vocab' || name === 'pet.moves' || name === 'pet.dress' || name === 'pet.cua' ? { multiline: true } : {}) })),
       }],
     };
   }
