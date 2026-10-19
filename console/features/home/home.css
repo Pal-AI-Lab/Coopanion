@@ -51,6 +51,9 @@
 /* 开关下面跟着的一行(OBS 画面的地址) */
 .companion-switchbox > .companion-rangebox { margin-top: 8px; }
 .companion-switchbox > .companion-rangebox > input { flex: 1; max-width: 320px; }
+/* 说话声的音高、语速:档位下面是自定义的数值,只在选中「自定义」时出现 */
+.companion-steps > .companion-rangebox[hidden] { display: none; }
+.companion-steps > .companion-rangebox > input[type=number] { flex: none; width: 96px; }
 /* 大小、外发光的滑杆没有文字基线:顶端对齐,左栏名称下移 4px(滑杆框上方的内边距),两者中线对齐;下面的说明不影响它 */
 .companion-row:has(.companion-scale) { align-items: start; }
 .companion-row:has(.companion-scale) > .companion-label { padding-top: 4px; }
