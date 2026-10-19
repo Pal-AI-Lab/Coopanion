@@ -146,6 +146,12 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     volume(v) { gainValue = v; if (master) master.gain.value = v; },
     /** The window was shown or hidden (by hand or while something is full screen); hidden, nothing plays. */
     setShown(v) { shown = v; },
+    /** The audio context and the gain a sound of `kind` plays into, or null while it would not be heard. */
+    output(kind) {
+      if (muted.has(kind)) return null;
+      const c = ready();
+      return c ? { ctx: c, master } : null;
+    },
     /** `kinds`: kind → on (SOUND_KINDS); `snoreSeconds`: snoring stops this long into a sleep, 0 = never. */
     configure({ kinds, snoreSeconds: s } = {}) {
       if (kinds) muted = new Set(Object.keys(SOUND_KINDS).filter((k) => kinds[k] === false));

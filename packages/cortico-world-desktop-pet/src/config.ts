@@ -53,6 +53,35 @@ export type SoundSettings = Record<SoundKind, boolean> & {
   snoreSeconds: number;
 };
 
+/** A step of the speech's pitch or speed; `custom` takes the number saved beside it. */
+export const SPEECH_LEVELS = ['low', 'mid', 'high', 'custom'] as const;
+export type SpeechLevel = typeof SPEECH_LEVELS[number];
+/** The pitch of each step in Hz, and the range of a custom one: the bank is recorded near the middle step. */
+export const SPEECH_PITCH_HZ = { low: 300, mid: 400, high: 500 } as const;
+export const SPEECH_PITCH_MIN = 200, SPEECH_PITCH_MAX = 700;
+/** Most syllables a second at each step, and the range of a custom speed. */
+export const SPEECH_RATE = { low: 10, mid: 13, high: 16 } as const;
+export const SPEECH_RATE_MIN = 6, SPEECH_RATE_MAX = 20;
+export interface SpeechSettings {
+  /** Bubbles are read out syllable by syllable in place of the babble. */
+  enabled: boolean;
+  pitch: SpeechLevel;
+  pitchHz: number;
+  speed: SpeechLevel;
+  unitsPerSecond: number;
+}
+
+/** What the pet page plays: a step's own number, or the saved one (within range) for `custom`. */
+export function speechFor(s: SpeechSettings): { enabled: boolean; pitchHz: number; unitsPerSecond: number } {
+  const step = <T extends Record<'low' | 'mid' | 'high', number>>(table: T, level: SpeechLevel, own: number, min: number, max: number) =>
+    level === 'custom' ? (Number.isFinite(own) ? Math.min(max, Math.max(min, own)) : table.mid) : table[level] ?? table.mid;
+  return {
+    enabled: s.enabled === true,
+    pitchHz: step(SPEECH_PITCH_HZ, s.pitch, s.pitchHz, SPEECH_PITCH_MIN, SPEECH_PITCH_MAX),
+    unitsPerSecond: step(SPEECH_RATE, s.speed, s.unitsPerSecond, SPEECH_RATE_MIN, SPEECH_RATE_MAX),
+  };
+}
+
 export type RoamMode = 'free' | 'calm' | 'off';
 /** Which side of each palette the pet pages draw: dark = light figure for dark surroundings. */
 export type PetTheme = 'dark' | 'light';
@@ -154,6 +183,7 @@ export interface DesktopPetConfigSection extends WorldSection {
   /** All of the pet's sounds; `sounds` picks among them while this is on. */
   sound: boolean;
   sounds: SoundSettings;
+  speech: SpeechSettings;
   theme: PetTheme;
   /** Start each run where the pet stood when the World last stopped. */
   rememberPosition: boolean;
@@ -224,6 +254,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   roam: 'calm',
   sound: true,
   sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, snoreSeconds: 0 },
+  speech: { enabled: false, pitch: 'mid', pitchHz: SPEECH_PITCH_HZ.mid, speed: 'mid', unitsPerSecond: SPEECH_RATE.mid },
   theme: 'dark',
   rememberPosition: false,
   petX: null,
@@ -303,6 +334,11 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
           type: 'boolean' as const, title: c.sounds[kind].title, ...(c.sounds[kind].description ? { description: c.sounds[kind].description } : {}), 'x-hot': true,
         }])),
         [`${K}.sounds.snoreSeconds`]: { type: 'integer', title: c.snoreSeconds.title, minimum: 0, maximum: 3600, 'x-suffix': c.snoreSeconds.suffix, description: c.snoreSeconds.description, 'x-hot': true },
+        [`${K}.speech.enabled`]: { type: 'boolean', title: c.speech.title, description: c.speech.description, 'x-hot': true },
+        [`${K}.speech.pitch`]: { type: 'string', title: c.speechPitch.title, enum: [...SPEECH_LEVELS], description: c.speechPitch.description(SPEECH_PITCH_HZ.low, SPEECH_PITCH_HZ.mid, SPEECH_PITCH_HZ.high), 'x-hot': true },
+        [`${K}.speech.pitchHz`]: { type: 'integer', title: c.speechPitchHz.title, minimum: SPEECH_PITCH_MIN, maximum: SPEECH_PITCH_MAX, 'x-suffix': 'Hz', 'x-hot': true },
+        [`${K}.speech.speed`]: { type: 'string', title: c.speechSpeed.title, enum: [...SPEECH_LEVELS], description: c.speechSpeed.description(SPEECH_RATE.low, SPEECH_RATE.mid, SPEECH_RATE.high), 'x-hot': true },
+        [`${K}.speech.unitsPerSecond`]: { type: 'integer', title: c.speechRate.title, minimum: SPEECH_RATE_MIN, maximum: SPEECH_RATE_MAX, 'x-suffix': c.speechRate.suffix, 'x-hot': true },
       },
     },
   };

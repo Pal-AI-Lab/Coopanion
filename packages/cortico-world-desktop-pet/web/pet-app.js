@@ -13,6 +13,7 @@
 import { applyTheme, clamp, f, ICONS } from './ui.js';
 import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
+import { createSpeech, textSteps } from './speech.js';
 import { COO_CSS, PALETTES, mini, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
 import { accentColors, announcePainted, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
@@ -63,6 +64,8 @@ const lightFor = (s) => {
 };
 
 const sfx = createSfx();
+// Coo's speech stands in for the babble while it is on; its units move the mouth
+const speech = createSpeech(sfx, { onUnit: () => body?.talk() });
 if (host) sfx.unlock();
 else ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => sfx.unlock(), { capture: true }));
 
@@ -247,6 +250,7 @@ function applyPrefs(p) {
   if (p.roam) { prefs.roam = p.roam; body?.set({ roam: p.roam }); }
   if (typeof p.sound === 'boolean') { prefs.sound = p.sound; sfx.set(p.sound); }
   if (p.sounds && typeof p.sounds === 'object') sfx.configure({ kinds: p.sounds, snoreSeconds: p.sounds.snoreSeconds });
+  if (p.speech && typeof p.speech === 'object') speech.configure(p.speech);
   if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); modeBtn?.show(p.theme); body?.set({ theme: p.theme }); }
   if (typeof p.glow === 'number') prefs.glow = p.glow;
   if (typeof p.scale === 'number') { prefs.scale = p.scale; body?.set({ bounds: bounds() }); }
@@ -391,6 +395,7 @@ function closeBubble() {
   // the lines it answered fade a moment after (stepLines)
   if (item) item.endedAt = T;
   item = null;
+  speech.stop();
 }
 
 /**
@@ -458,12 +463,16 @@ function stepDialog(dt) {
 function typeText(it, text, dt, anchors) {
   const p = bubble.querySelector('.b-text');
   if (!p || it.shown >= text.length) return;
-  // estimateSeconds in src/script.ts mirrors this rate and the holds in stepDialog
+  if (it.spoken !== text) { it.spoken = text; speech.begin(text); }
+  // with speech, each pause mark waits its own time, letters type faster, and the voice makes the sound;
+  // estimateSeconds in src/script.ts mirrors these steps, this rate and the holds in stepDialog
+  const spoken = speech.active;
   it.acc += dt * 20 * prefs.bubbleSpeed;
   while (it.acc >= 1 && it.shown < text.length) {
     const ch = text[it.shown++];
-    it.acc -= PAUSE.test(ch) ? 5 : 1;
-    if (!SILENT.test(ch)) { sfx.babble(ch); body?.talk(); }
+    it.acc -= spoken ? textSteps(ch) : PAUSE.test(ch) ? 5 : 1;
+    if (spoken) speech.reveal(it.shown - 1);
+    else if (!SILENT.test(ch)) { sfx.babble(ch); body?.talk(); }
     while (it.fired < anchors.length && anchors[it.fired].at <= it.shown) acts.push(...anchors[it.fired++].actions);
   }
   if (it.marks?.length) p.innerHTML = marked(text, it.shown, it.marks);

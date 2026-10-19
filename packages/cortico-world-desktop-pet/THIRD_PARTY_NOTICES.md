@@ -32,6 +32,21 @@ DeepSeek 女仆装二创参考 ZipZipPipe。围裙上的标志是 DeepSeek、Ope
 
 这些贴图不在本包的 AGPL 授权范围内。它们随 Coopanion 分发,想在别处使用请自行确认原设与各家标志的权利。
 
+## 说话声
+
+`web/speech/zh.ogg` 与 `zh.json` 的音节由 Microsoft Edge 的朗读服务以 `zh-CN-XiaoyiNeural` 声音逐个念出,
+再由 `scripts/speech-bank/build.py` 切短、定调、均衡后拼成。
+
+`src/speech/data/en.tsv.gz` 取自 [CMU Pronouncing Dictionary](https://github.com/cmusphinx/cmudict)(经 Python 包 cmudict 1.1.3),
+Copyright (C) 1993-2015 Carnegie Mellon University,BSD 式许可，全文见 [`src/speech/data/CMUDICT-LICENSE`](src/speech/data/CMUDICT-LICENSE)。
+
+`src/speech/data/ja.tsv.gz` 取自 [pykakasi](https://codeberg.org/miurahr/pykakasi) 2.3.0 的 `kanwadict4`,GPL-3.0-or-later。它由 KAKASI 的汉字读音词典 `kakasidict`
+(Copyright (C) 1992-1994 Hironobu Takahashi、Masahiko Sato 等，源自 SKK 大词典第 7 版，GPL-2.0-or-later)与 pykakasi 按 GPL-3.0-or-later 再许可的 UniDic 词条合成;
+本包按 GPL-3.0 取用，依 GPL-3.0 与 AGPL-3.0 第 13 条组合分发，这份数据本身仍受 [GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.html) 约束。
+
+`src/speech/data/zh.json` 由 `scripts/speech-bank/build.py` 用 [pypinyin](https://github.com/mozillazg/python-pinyin) 0.55.0 生成
+(MIT),读音数据来自 [pinyin-data](https://github.com/mozillazg/pinyin-data)(MIT),源自 Unicode 的 Unihan 数据库([Unicode 许可](https://www.unicode.org/license.txt))。
+
 ## 其他运行时依赖
 
 - `ws`:MIT

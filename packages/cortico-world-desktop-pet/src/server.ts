@@ -6,6 +6,7 @@
  *   the figure; in a browser tab it draws a floor.
  * - `/dress`: the dressing page; changes go through `POST /api/skin` and `POST /api/prefs`.
  * - `/api/avatar`: the bot's avatar for the menu header, 404 until one exists.
+ * - `POST /api/speech` (`{ text }`): the syllables the pet page's speech plays for a bubble's text (src/speech).
  * - `/api/figures`: the figure packs (src/packs.ts) the pages may load, Coo's first; `/packs/<id>/…`:
  *   an installed pack's files (a built-in one is under `/web/`). `/api/figures/status`: the installed
  *   packs that did not load and why, and whether packs can be imported here; `POST /api/figures/import`
@@ -33,6 +34,7 @@ import { languageTag, type Language } from 'cortico/core/language.ts';
 import { packFile, type FigurePack, type PackProblem } from './packs.ts';
 import { BUNDLE_TYPE, IMPORT_MAX, PACK_DEPTH, filesFromBundle, filesFromZip, type PackImporter } from './pack-import.ts';
 import { petText, type PetText } from './i18n/index.ts';
+import type { SpeechUnit } from './speech/index.ts';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -81,6 +83,8 @@ export interface PetServerOptions {
   text?(): PetText;
   /** Whether the OBS overlay is served; off when absent. */
   overlay?(): boolean;
+  /** The syllables `text` is spoken as; `POST /api/speech` answers 404 without it. */
+  speech?(text: string): SpeechUnit[];
 }
 
 export class PetServer {
@@ -311,6 +315,12 @@ export class PetServer {
       if (!bytes) { res.writeHead(404).end(); return; }
       res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-cache' }).end(bytes);
       return;
+    }
+    if (req.method === 'POST' && path === '/api/speech') {
+      const msg = parse(await readBody(req) ?? '');
+      if (!this.opts.speech) { res.writeHead(404).end(); return; }
+      if (typeof msg?.text !== 'string') return json(res, 400, { error: 'bad json' });
+      return json(res, 200, { units: this.opts.speech(msg.text) });
     }
     if (req.method === 'POST' && (path === '/api/skin' || path === '/api/prefs')) {
       const body = await readBody(req);

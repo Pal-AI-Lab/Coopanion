@@ -30,10 +30,11 @@ import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
 import {
   DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, SELF_KEYS, TOUCH_KINDS, USER_MAX, asrEngineFor, desktopPetConfigGroups, directSettings,
-  hoverButtonList, selfAdjustMode, touchWakes,
+  hoverButtonList, selfAdjustMode, speechFor, touchWakes,
   type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type RoamMode, type SelfKey,
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
+import { SpeechText, speechTextSteps } from './speech/index.ts';
 import { PetServer, type PageMessage } from './server.ts';
 import { StatusTracker, type DescribeTool } from './status.ts';
 import { WindowHost, resolveHostCommand } from './window-host.ts';
@@ -71,6 +72,7 @@ const SYSTEM_CULTURES: Readonly<Record<string, string>> = {
 };
 
 const WEB_DIR = fileURLToPath(new URL('../web/', import.meta.url));
+const SPEECH_DATA = fileURLToPath(new URL('./speech/data/', import.meta.url));
 /** The environment prompt template of each model-text language; English falls back to Chinese while its file is missing. */
 const ENV_PROMPT_FILES: Record<ModelLanguage, string> = {
   zh: fileURLToPath(new URL('./ENV_PROMPT.md', import.meta.url)),
@@ -315,6 +317,8 @@ export class DesktopPetWorld implements World {
   private log: Logger | null = null;
   private readonly cfg: DesktopPetConfigSection;
   private readonly server: PetServer;
+  /** The syllables of the pet page's speech; its dictionaries load the first time a text needs them. */
+  private readonly speechText = new SpeechText(SPEECH_DATA, join(WEB_DIR, 'speech', 'zh.json'));
   private windowHost: WindowHost | null = null;
   private readonly store: RuntimeStore;
   private funasr: SherpaAsr | null = null;
@@ -420,6 +424,7 @@ export class DesktopPetWorld implements World {
       language: () => this.appLanguage,
       text: () => this.ui,
       overlay: () => this.cfg.window.exportOverlay,
+      speech: (text) => this.speechText.units(text, this.appLanguage),
     });
   }
 
@@ -833,6 +838,7 @@ export class DesktopPetWorld implements World {
       roam: this.quiet?.roam ?? this.cfg.roam,
       sound: this.quiet?.sound ?? this.cfg.sound,
       sounds: this.cfg.sounds,
+      speech: speechFor(this.cfg.speech),
       theme: this.cfg.theme,
       rememberPosition: this.cfg.rememberPosition,
       // read by the page from `init` only
@@ -1635,7 +1641,7 @@ export class DesktopPetWorld implements World {
     void this.record({ kind: 'say', beats: beats.map((b) => ({ text: b.text, ...moodOf(b.actions, this.vocab()) })) }, beats.map((b) => b.text).join(''), shown.blobs);
     if (!spoken) return { text: this.t.imagesShown(shown.blobs.length, this.chat.size > 0) };
     const now = Date.now();
-    const selfSec = estimateSeconds(beats, this.cfg.window.bubbleSpeed);
+    const selfSec = estimateSeconds(beats, this.cfg.window.bubbleSpeed, this.cfg.speech.enabled ? speechTextSteps : undefined);
     const waitSec = Math.max(0, (this.busyUntil - now) / 1000);
     this.busyUntil = Math.max(now, this.busyUntil) + selfSec * 1000;
     const replaced = this.ask?.question ?? null;

@@ -112,12 +112,17 @@ export function parseScript(script: string, vocab: readonly VocabWord[]): Parsed
   return { beats, dropped };
 }
 
-/** Seconds a script stays on screen: typing at ~20 × `speed` chars/s, plus reading time per bubble divided by `speed` (`window.bubbleSpeed`). */
-export function estimateSeconds(beats: readonly Beat[], speed: number): number {
+/**
+ * Seconds a script stays on screen: typing at ~20 × `speed` chars/s, plus reading time per bubble divided by `speed`
+ * (`window.bubbleSpeed`). `steps` gives each character's typing steps (1/20 s) when they are not one each (the pet's
+ * speech, src/speech).
+ */
+export function estimateSeconds(beats: readonly Beat[], speed: number, steps?: (ch: string) => number): number {
   let s = 0;
   for (const b of beats) {
     if (b.actions.length) s += .5;
-    if (b.text) s += (b.text.length / 20 + 1.6 + b.text.length * .07) / speed;
+    const typed = steps ? [...b.text].reduce((n, ch) => n + steps(ch), 0) : b.text.length;
+    if (b.text) s += (typed / 20 + 1.6 + b.text.length * .07) / speed;
   }
   return Math.round(s * 10) / 10;
 }
