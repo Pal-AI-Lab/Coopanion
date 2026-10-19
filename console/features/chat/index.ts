@@ -13,6 +13,7 @@ import { baseLanguage, LANGUAGE } from '../../base/language.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { panelStreamRoute } from '../../base/protocol.ts';
 import { openStream } from '../../base/stream.ts';
+import { promptInput } from '../../base/ui/prompt-input.tsx';
 import { browserSocketEnv } from '../../base/websocket.ts';
 import { intro } from '../intro.ts';
 import { requestMode } from '../mode.ts';
@@ -107,8 +108,9 @@ async function mount(ctx: PageContext): Promise<void> {
 
   const dock = ui.h('div', 'chat-dock');
   const queueBox = ui.h('div', 'chat-queue');
-  const composer = ui.promptInput({
+  const composer = promptInput(doc, ctx.signal, {
     label: S.title,
+    draftKey: 'cortico.console.draft.chat',
     placeholder: S.connecting,
     images: { max: 8 },
     onSubmit: (text, images) => {

@@ -26,6 +26,7 @@ import {
   type ToolSchemaDoc,
 } from './protocol.ts';
 import { icon } from '../../../base/ui/icons.ts';
+import { promptInput } from '../../../base/ui/prompt-input.tsx';
 import { createOnboarding, type OnboardingView } from './onboarding.ts';
 import { createSessionBand } from './sessions.ts';
 import { applyDisplayName, createStatusBand, phaseLabel } from './status.ts';
@@ -183,8 +184,9 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   exportButton.className += ' btn-ico';
   exportButton.append(icon(doc, 'download'), ui.h('span', null, S.exportDiagnostics));
 
-  const composer = ui.promptInput({
+  const composer = promptInput(doc, ctx.signal, {
     label: S.composerLabel,
+    draftKey: 'cortico.console.draft.live',
     placeholder: S.composerPlaceholder,
     leading: exportButton,
     tools: ctxAnchor,
