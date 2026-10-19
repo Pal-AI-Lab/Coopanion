@@ -106,13 +106,13 @@ export const S = pick({
 const stepZh = {
   pet_cua_screenshot: '截屏', pet_cua_click: '点击', pet_cua_move: '移动鼠标', pet_cua_drag: '拖动', pet_cua_scroll: '滚动', pet_cua_type: '打字',
   pet_cua_key: '按键', pet_cua_windows: '查看窗口', pet_cua_focus: '切换窗口', pet_cua_wait: '等待',
-  pet_walk_to: '走动', pet_act: '做动作', pet_set: '调整自己', pet_quiet: '安静一会儿',
+  pet_move_to: '走动', pet_act: '做动作', pet_set: '调整自己', pet_quiet: '安静一会儿',
 };
 
 export const stepEn: typeof stepZh = {
   pet_cua_screenshot: 'Screenshot', pet_cua_click: 'Click', pet_cua_move: 'Move the mouse', pet_cua_drag: 'Drag', pet_cua_scroll: 'Scroll', pet_cua_type: 'Type',
   pet_cua_key: 'Press keys', pet_cua_windows: 'List windows', pet_cua_focus: 'Switch window', pet_cua_wait: 'Wait',
-  pet_walk_to: 'Walk', pet_act: 'Move about', pet_set: 'Adjust itself', pet_quiet: 'Keep quiet',
+  pet_move_to: 'Walk', pet_act: 'Move about', pet_set: 'Adjust itself', pet_quiet: 'Keep quiet',
 };
 
 /** What the person reads for a tool's name. Tools not named here (the Persona's notes and turn control, other Worlds') stay on the Console page of the advanced mode. */

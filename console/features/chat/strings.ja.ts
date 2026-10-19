@@ -48,5 +48,5 @@ export const S: Partial<typeof en> = {
 export const STEP: Partial<typeof stepEn> = {
   pet_cua_screenshot: 'スクリーンショット', pet_cua_click: 'クリック', pet_cua_move: 'マウス移動', pet_cua_drag: 'ドラッグ', pet_cua_scroll: 'スクロール', pet_cua_type: '入力',
   pet_cua_key: 'キー入力', pet_cua_windows: 'ウィンドウ一覧', pet_cua_focus: 'ウィンドウ切り替え', pet_cua_wait: '待機',
-  pet_walk_to: '歩く', pet_act: '動作', pet_set: '自分を調整', pet_quiet: 'しばらく静かにする',
+  pet_move_to: '歩く', pet_act: '動作', pet_set: '自分を調整', pet_quiet: 'しばらく静かにする',
 };

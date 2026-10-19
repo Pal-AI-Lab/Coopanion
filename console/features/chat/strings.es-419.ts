@@ -48,5 +48,5 @@ export const S: Partial<typeof en> = {
 export const STEP: Partial<typeof stepEn> = {
   pet_cua_screenshot: 'Captura de pantalla', pet_cua_click: 'Clic', pet_cua_move: 'Mover el mouse', pet_cua_drag: 'Arrastrar', pet_cua_scroll: 'Desplazar', pet_cua_type: 'Escribir',
   pet_cua_key: 'Presionar teclas', pet_cua_windows: 'Ver ventanas', pet_cua_focus: 'Cambiar de ventana', pet_cua_wait: 'Esperar',
-  pet_walk_to: 'Caminar', pet_act: 'Moverse', pet_set: 'Ajustarse', pet_quiet: 'Quedarse en silencio',
+  pet_move_to: 'Caminar', pet_act: 'Moverse', pet_set: 'Ajustarse', pet_quiet: 'Quedarse en silencio',
 };
