@@ -40,9 +40,14 @@ DeepSeek 女仆装二创参考 ZipZipPipe。围裙上的标志是 DeepSeek、Ope
 `src/speech/data/en.tsv.gz` 取自 [CMU Pronouncing Dictionary](https://github.com/cmusphinx/cmudict)(经 Python 包 cmudict 1.1.3),
 Copyright (C) 1993-2015 Carnegie Mellon University,BSD 式许可，全文见 [`src/speech/data/CMUDICT-LICENSE`](src/speech/data/CMUDICT-LICENSE)。
 
-`src/speech/data/ja.tsv.gz` 取自 [pykakasi](https://codeberg.org/miurahr/pykakasi) 2.3.0 的 `kanwadict4`,GPL-3.0-or-later。它由 KAKASI 的汉字读音词典 `kakasidict`
-(Copyright (C) 1992-1994 Hironobu Takahashi、Masahiko Sato 等，源自 SKK 大词典第 7 版，GPL-2.0-or-later)与 pykakasi 按 GPL-3.0-or-later 再许可的 UniDic 词条合成;
-本包按 GPL-3.0 取用，依 GPL-3.0 与 AGPL-3.0 第 13 条组合分发，这份数据本身仍受 [GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.html) 约束。
+`src/speech/data/ja-ipadic.tsv.gz` 由 `scripts/speech-bank/dicts.py` 从 [mecab-ipadic](https://taku910.github.io/mecab/) 2.7.0-20070801 导出(含汉字的词条及其发音)。
+Copyright 2000, 2001, 2002, 2003 Nara Institute of Science and Technology,许可允许使用、复制、修改和分发，条件是附上版权声明与许可条款(含 ICOT 的条款与免责声明),
+全文见 [`src/speech/data/IPADIC-COPYING`](src/speech/data/IPADIC-COPYING)。
+
+`src/speech/data/ja-unihan.tsv.gz` 由同一脚本从 Unicode 18.0.0 Unihan 数据库的 `kJapanese` 字段导出。Copyright © 1991-2026 Unicode, Inc.,
+UNICODE LICENSE V3,全文见 [`src/speech/data/UNICODE-LICENSE`](src/speech/data/UNICODE-LICENSE)。
+
+`src/speech/jukujikun.ts` 是常用漢字表(平成 22 年内阁告示第 2 号)付表里的熟字训与读音;告示不受日本著作权法保护(第 13 条)。
 
 `src/speech/data/zh.json` 由 `scripts/speech-bank/build.py` 用 [pypinyin](https://github.com/mozillazg/python-pinyin) 0.55.0 生成
 (MIT),读音数据来自 [pinyin-data](https://github.com/mozillazg/pinyin-data)(MIT),源自 Unicode 的 Unihan 数据库([Unicode 许可](https://www.unicode.org/license.txt))。

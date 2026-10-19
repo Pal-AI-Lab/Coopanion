@@ -27,6 +27,8 @@ describe('speech syllables', () => {
 
   it('reads kanji by the Japanese dictionary in a sentence with kana, and Hangul with its finals carried over', () => {
     expect(keys('元気です', 'zh')).toEqual(['gen', 'qi', 'de', 'su']);
+    // the Jōyō appendix comes before IPADIC: 明日 is あす there, あした in IPADIC
+    expect(keys('明日です', 'ja')).toEqual(['a', 'su', 'de', 'su']);
     expect(keys('元气', 'zh')).toEqual(['yuan', 'qi']);
     // 한국어: the final ㄱ of 국 starts 어
     expect(keys('한국어', 'ko')).toEqual(['han', 'ku', 'ge']);

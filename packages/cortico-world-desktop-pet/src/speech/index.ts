@@ -16,7 +16,8 @@ import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import { ipaSyllables } from './ipa.ts';
-import { japanesePhonemes, isKana, isKanji } from './japanese.ts';
+import { japanesePhonemes, isKana, isKanji, type JapaneseReadings } from './japanese.ts';
+import { JUKUJIKUN } from './jukujikun.ts';
 import { hangulPhonemes } from './korean.ts';
 import { spell } from './lang.ts';
 import type { Ph } from './rules.ts';
@@ -62,7 +63,7 @@ export class SpeechText {
   private bank: Set<string> | null = null;
   private zh: Map<string, [string, number]> | null = null;
   private en: Map<string, string> | null = null;
-  private ja: Map<string, string> | null = null;
+  private ja: JapaneseReadings | null = null;
 
   /** `dataDir`: src/speech/data; `bankFile`: the bank's manifest (web/speech/zh.json). */
   constructor(private readonly dataDir: string, private readonly bankFile: string) {}
@@ -86,6 +87,24 @@ export class SpeechText {
       for (const [k, chars] of Object.entries(table)) for (const c of chars) this.zh.set(c, [k.slice(0, -1), Number(k.slice(-1))]);
     }
     return this.zh.get(ch);
+  }
+
+  /** Japanese readings: the Jōyō appendix's words, then IPADIC's (data/ja-ipadic.tsv.gz), then Unihan's per kanji (data/ja-unihan.tsv.gz). */
+  private japanese(): JapaneseReadings {
+    if (!this.ja) {
+      const words = this.tsv('ja-ipadic.tsv.gz'), kanji = this.tsv('ja-unihan.tsv.gz');
+      this.ja = {
+        word: (w) => JUKUJIKUN[w] ?? words.get(w),
+        longest: JA_LONGEST,
+        kanji: (k) => {
+          const v = kanji.get(k);
+          if (v === undefined) return undefined;
+          const [on = '', kun = ''] = v.split('|');
+          return { on: on ? on.split(',') : [], kun: kun ? kun.split(',') : [] };
+        },
+      };
+    }
+    return this.ja;
   }
 
   private keyed(syllables: Syllable[], out: Item[]): void {
@@ -131,9 +150,7 @@ export class SpeechText {
       const runOf = (test: (c: string) => boolean) => { let j = i; while (j < text.length && test(text[j]!)) j++; return j; };
       if (isKana(ch) || (isKanji(ch) && japaneseAt.has(i))) {
         const j = runOf((c) => isKana(c) || isKanji(c));
-        this.ja ??= this.tsv('ja.tsv.gz');
-        const ja = this.ja;
-        this.keyed(ipaSyllables(japanesePhonemes(text.slice(i, j), i, (w) => ja.get(w), JA_LONGEST)), items);
+        this.keyed(ipaSyllables(japanesePhonemes(text.slice(i, j), i, this.japanese())), items);
         i = j; continue;
       }
       if (isKanji(ch)) {
