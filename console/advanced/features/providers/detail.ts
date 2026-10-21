@@ -25,7 +25,7 @@ type Spec = NonNullable<Detail['entry']['spec']>;
 /** What a save would write; `raw` only carries field text and never reaches the server. */
 const snapshot = (editing: Editing) => JSON.stringify({ name: editing.name, entry: editing.entry, secretValue: editing.secretValue });
 /** Protocol knobs the editor keeps under the protocol block; the rest of a module's scalars belong to its own sections. */
-const PROTOCOL_FIELDS = ['endpointPath', 'extraHeaders', 'extraBody'];
+const PROTOCOL_FIELDS = ['protocol', 'endpointPath', 'extraHeaders', 'extraBody'];
 /**
  * One connection's editor. Sections come from `module.sections` in declared order: a `builtin`
  * names a block drawn here, the rest are the module's own panels, mounted with their edits staged
