@@ -42,6 +42,8 @@ const prefs = {
   /** Double-clicking the pet opens the typing box. */
   doubleClickChat: false,
   statusBubble: true,
+  /** What the person typed, said or sent from the chat page stays above Coo (see lines); off, speech shows only while it is heard. */
+  saidBubbles: true,
   /** Draw at the moving frame rate while the body rests too. */
   /** Frames a second while the body moves; 0 follows the display. */
   frameRate: 60,
@@ -264,6 +266,7 @@ function applyPrefs(p) {
   if (p.voice && typeof p.voice === 'object') prefs.voice = { ...prefs.voice, ...p.voice };
   if (typeof p.doubleClickChat === 'boolean') prefs.doubleClickChat = p.doubleClickChat;
   if (typeof p.statusBubble === 'boolean') { prefs.statusBubble = p.statusBubble; setBody({ thoughtShown: p.statusBubble }); }
+  if (typeof p.saidBubbles === 'boolean') { prefs.saidBubbles = p.saidBubbles; if (!p.saidBubbles) for (const line of lines) if (!line.live) fadeLine(line); }
   if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
   if (typeof p.frameRate === 'number' && p.frameRate >= 0) prefs.frameRate = p.frameRate;
   // the window process does the hiding; the page only passes the setting on
@@ -307,7 +310,7 @@ function onOrder(m) {
     case 'act': acts.push(...m.actions); holdRoam(20); break;
     case 'listen': onListen(m); break;
     // a message sent from the chat page, once the bot has it, and one taken back before delivery
-    case 'said': addLine('chat', typeof m.text === 'string' ? m.text : '', false, { images: Number(m.images) || 0, cursor: m.cursor ?? null }); break;
+    case 'said': if (prefs.saidBubbles) addLine('chat', typeof m.text === 'string' ? m.text : '', false, { images: Number(m.images) || 0, cursor: m.cursor ?? null }); break;
     case 'said-withdrawn': withdrawLine(m.cursor); break;
     case 'status': setStatus(m.status); break;
     case 'dialog': queue.push({ kind: 'dialog', id: m.id, d: m }); holdRoam(20); break;
@@ -808,7 +811,7 @@ function openInput() {
     send({ t: 'text', text: v });
     sfx.select(); body?.cue('cheer');
     closeBubble();
-    addLine('type', v);
+    if (prefs.saidBubbles) addLine('type', v);
   });
   host?.focus?.();
   setTimeout(() => input.focus(), 30);
@@ -841,6 +844,7 @@ function onListen(m) {
     const line = listen.line ?? addLine('voice', '', true);
     endListen();
     settleLine(line, m.text || '');
+    if (!prefs.saidBubbles) fadeLine(line);
     sfx.listenEnd();
     body?.cue('heard');
   } else if (m.phase === 'none') {

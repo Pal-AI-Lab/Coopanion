@@ -199,6 +199,8 @@ export interface DesktopPetConfigSection extends WorldSection {
   doubleClickChat: boolean;
   /** Show the current activity above the pet, including file names. */
   statusBubble: boolean;
+  /** Keep what the person typed, said or sent from the chat page above the pet until it replies. */
+  saidBubbles: boolean;
   /** How far the bot may change its own looks and habits (src/self.ts); read through `selfAdjustMode`. */
   selfAdjust: SelfAdjust;
   /** Under `custom`: per item, true = changed at once, false = asked first. */
@@ -261,6 +263,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   hoverButtons: 'chat,voice',
   doubleClickChat: false,
   statusBubble: true,
+  saidBubbles: true,
   selfAdjust: 'default',
   selfAdjustCustom: { ...SELF_DEFAULT },
   skin: {
@@ -301,6 +304,7 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
         [`${K}.hoverButtons`]: { type: 'string', title: c.hoverButtons.title, description: c.hoverButtons.description(MAX_HOVER_BUTTONS, PET_ACTIONS.join(', ')), 'x-hot': true },
         [`${K}.doubleClickChat`]: { type: 'boolean', title: c.doubleClickChat.title, description: c.doubleClickChat.description, 'x-hot': true },
         [`${K}.statusBubble`]: { type: 'boolean', title: c.statusBubble.title, description: c.statusBubble.description, 'x-hot': true },
+        [`${K}.saidBubbles`]: { type: 'boolean', title: c.saidBubbles.title, description: c.saidBubbles.description, 'x-hot': true },
         [`${K}.selfAdjust`]: { type: 'string', title: c.selfAdjust.title, enum: [...SELF_ADJUST], description: c.selfAdjust.description, 'x-hot': true },
         [`${K}.window.enabled`]: { type: 'boolean', title: c.windowEnabled.title, 'x-hot': false },
         [`${K}.window.scale`]: { type: 'number', title: c.scale.title, minimum: SCALE_MIN, maximum: SCALE_MAX, multipleOf: .05, 'x-hot': true },

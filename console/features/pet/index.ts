@@ -63,6 +63,7 @@ const KEYS = {
   hover: `${K}.hoverButtons`,
   dblclick: `${K}.doubleClickChat`,
   statusBubble: `${K}.statusBubble`,
+  saidBubbles: `${K}.saidBubbles`,
   wakeOn: `${K}.touch.wakeOn`,
   selfAdjust: `${K}.selfAdjust`,
 } as const;
@@ -181,6 +182,7 @@ async function mount(ctx: PageContext): Promise<void> {
   const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on, GROUP, displayMsg) });
   const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on, GROUP, behaviorMsg) });
   const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on, GROUP, behaviorMsg) });
+  const saidBubbles = ui.checkbox(S.saidBubble, { onChange: (on) => void save(KEYS.saidBubbles, on, GROUP, behaviorMsg) });
   // the two rows below follow the pet panel's state; 「自定义…」 is picked by saving its popup
   let habit: Required<HabitState> = { wake: { wakeOn: 'poke', wakeKinds: ['poke'] }, selfAdjust: { mode: 'default', custom: {} } };
   const wakeHint = ui.h('p', 'home-note');
@@ -330,6 +332,7 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
     row(S.dblclickLabel, dblclick.el),
     row(S.statusBubbleLabel, statusBubble.el, S.statusBubbleHint),
+    row(S.saidBubbleLabel, saidBubbles.el, S.saidBubbleHint),
     behaviorMsg,
   );
   const display = ui.sheet({ title: S.groupDisplay });
@@ -539,6 +542,7 @@ async function mount(ctx: PageContext): Promise<void> {
     if (typeof values[KEYS.remember] === 'boolean') remember.setChecked(values[KEYS.remember] as boolean);
     if (typeof values[KEYS.dblclick] === 'boolean') dblclick.setChecked(values[KEYS.dblclick] as boolean);
     if (typeof values[KEYS.statusBubble] === 'boolean') statusBubble.setChecked(values[KEYS.statusBubble] as boolean);
+    if (typeof values[KEYS.saidBubbles] === 'boolean') saidBubbles.setChecked(values[KEYS.saidBubbles] as boolean);
     if (typeof values[KEYS.overlay] === 'boolean') overlay.setChecked(values[KEYS.overlay] as boolean);
     // a popup open over the page keeps the rows as they are until it is saved or closed
     const state = await habitState;

@@ -198,6 +198,7 @@ const de: Translation<PetText> = {
     hoverButtons: { title: 'Hover-Schaltflächen', description: (max: number, ids: string) => `Schaltflächen neben dem Haustier, solange der Mauszeiger darauf ruht, bis zu ${max}, durch Kommas getrennt: ${ids}.` },
     doubleClickChat: { title: 'Doppelklick zum Tippen', description: 'Ein Doppelklick auf das Haustier öffnet das Eingabefeld.' },
     statusBubble: { title: 'Statusblase', description: 'Zeigt, was das Haustier tut, während es nachdenkt, sein Gedächtnis durchsieht oder den Computer bedient, Dateinamen eingeschlossen.' },
+    saidBubbles: { title: 'Eingabeblasen', description: 'Getipptes, Gesprochenes und von der Chatseite Gesendetes erscheint über dem Haustier, bis es antwortet. Ausgeschaltet erscheint Gesprochenes nur während der Erkennung.' },
     selfAdjust: { title: 'Selbsteinstellung', description: 'off: Es kann seine Einstellungen nicht ändern und sich auch nicht zeitweise ruhig stellen. default: Figur, Outfit, Herumlaufen und Schnarchen ändert es direkt; Größe, Blasengröße, Schriftgröße, Töne, Nachtmodus, Hover-Schaltflächen und dein Name warten auf deine Zustimmung. any: Alles ändert es direkt. custom: wie auf der Seite „Gewohnheiten“ angehakt; Angehaktes ändert es direkt, der Rest wartet auf deine Zustimmung.' },
     windowEnabled: { title: 'Haustier-Fenster beim Start öffnen' },
     scale: { title: 'Größe' },

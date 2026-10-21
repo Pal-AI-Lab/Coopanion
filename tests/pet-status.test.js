@@ -136,7 +136,7 @@ describe('activity in the shared speech bubble', () => {
   });
 });
 
-describe("the person's lines beside Coo", () => {
+describe("the person's lines above Coo", () => {
   const up = (p) => p.lines().filter((l) => l.fadeAt === null);
   const said = (p, text, cursor) => p.onOrder({ t: 'said', via: 'chat', text, images: 0, cursor });
 
@@ -179,5 +179,30 @@ describe("the person's lines beside Coo", () => {
     sent.el.click();
     expect(sent.fadeAt).not.toBeNull();
     expect(p.overUi(sent.el)).toBe(false);
+  });
+
+  it('stacks the lines above Coo, the newest lowest, with no side picked from where Coo faces', () => {
+    const p = page();
+    show(p, think);
+    for (let i = 1; i <= 3; i++) { said(p, `第 ${i} 句`, i); p.step(.01); }
+    const tops = p.lines().map((l) => parseFloat(l.el.style.top));
+    expect(tops.every((top) => top < 400)).toBe(true);
+    expect(tops).toEqual([...tops].sort((a, b) => a - b));
+    // centred over Coo's head (the body's layout.bubble.x; jsdom lays everything out zero wide)
+    expect(p.lines().map((l) => l.el.style.left)).toEqual(['500px', '500px', '500px']);
+    expect(p.doc.querySelector('#trail')).toBeNull();
+  });
+
+  it('with the switch off nothing typed or sent stays, and a heard line fades once it is settled', () => {
+    const p = page();
+    said(p, '留着', 1); p.step(.01);
+    p.onOrder({ t: 'prefs', saidBubbles: false });
+    expect(up(p)).toHaveLength(0);
+    said(p, '在吗', 2);
+    expect(p.lines().filter((l) => l.cursor === 2)).toHaveLength(0);
+    p.onOrder({ t: 'listen', phase: 'start' });
+    expect(up(p)).toHaveLength(1);
+    p.onOrder({ t: 'listen', phase: 'heard', text: '今天天气怎么样' });
+    expect(up(p)).toHaveLength(0);
   });
 });

@@ -198,6 +198,7 @@ const zhHant: Translation<PetText> = {
     hoverButtons: { title: '懸停按鈕', description: (max: number, ids: string) => `滑鼠停在桌寵身上時旁邊出現的按鈕，最多 ${max} 個，以逗號分隔：${ids}。` },
     doubleClickChat: { title: '點兩下開啟打字框', description: '在桌寵上點兩下開啟打字框。' },
     statusBubble: { title: '狀態氣泡', description: '想事情、翻記憶、操作電腦時顯示在做什麼，會顯示檔名。' },
+    saidBubbles: { title: '輸入氣泡', description: '打字、語音和對話頁送出的訊息顯示在桌寵頭頂，回覆後淡出。關閉時語音只在辨識中顯示。' },
     selfAdjust: { title: '自主設定權限', description: 'off 禁止：不能自己改設定，也不能臨時安靜；default 預設：形象、配色、走動和打呼直接改，大小、氣泡尺寸、字體尺寸、音效、夜間模式、懸停按鈕和稱呼先徵得你同意；any 任意：都直接改；custom 自訂：照「習慣」頁裡的勾選，勾上的直接改，其餘先徵得你同意。' },
     windowEnabled: { title: '啟動時開啟桌寵視窗' },
     scale: { title: '大小' },

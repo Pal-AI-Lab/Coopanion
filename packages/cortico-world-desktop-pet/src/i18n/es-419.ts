@@ -198,6 +198,7 @@ const es419: Translation<PetText> = {
     hoverButtons: { title: 'Botones al pasar el cursor', description: (max: number, ids: string) => `Botones junto a la mascota mientras el puntero está encima, hasta ${max}, separados por comas: ${ids}.` },
     doubleClickChat: { title: 'Doble clic para escribir', description: 'Hacer doble clic en la mascota abre el cuadro de texto.' },
     statusBubble: { title: 'Burbuja de estado', description: 'Muestra lo que hace la mascota mientras piensa, revisa su memoria o usa la computadora, incluidos los nombres de archivo.' },
+    saidBubbles: { title: 'Burbujas de entrada', description: 'Lo que se escribe, se dice o se envía desde la página de chat aparece sobre la mascota hasta que responde. Desactivado, la voz solo aparece mientras se reconoce.' },
     selfAdjust: { title: 'Autoajuste', description: 'off: no puede cambiar sus ajustes ni quedarse en silencio un rato. default: personaje, atuendo, paseos y ronquidos cambian directamente; tamaño, tamaño de las burbujas, tamaño del texto, sonidos, modo nocturno, botones al pasar el cursor y cómo te llama esperan tu consentimiento. any: todo cambia directamente. custom: según lo marcado en la página Hábitos; lo marcado cambia directamente y lo demás espera tu consentimiento.' },
     windowEnabled: { title: 'Abrir la ventana de la mascota al iniciar' },
     scale: { title: 'Tamaño' },

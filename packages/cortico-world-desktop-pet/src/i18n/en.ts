@@ -224,6 +224,7 @@ const en: PetText = {
     hoverButtons: { title: 'Hover buttons', description: (max: number, ids: string) => `Buttons beside the pet while the pointer rests on it, up to ${max}, separated by commas: ${ids}.` },
     doubleClickChat: { title: 'Double-click to type', description: 'Double-clicking the pet opens the typing box.' },
     statusBubble: { title: 'Status bubble', description: 'Shows what the pet is doing while it thinks, looks through its memory or uses the computer, file names included.' },
+    saidBubbles: { title: 'Input bubbles', description: 'What the person types, says or sends from the chat page shows above the pet until it replies. When off, speech shows only while it is recognized.' },
     selfAdjust: { title: 'Self-adjustment', description: 'off: it cannot change its settings or keep quiet for a while. default: figure, dress, walking and snoring change directly; size, bubble size, text size, sounds, night mode, hover buttons and what it calls you wait for your consent. any: everything changes directly. custom: as ticked on the Habits page; ticked items change directly, the rest wait for your consent.' },
     windowEnabled: { title: 'Open the pet window at start' },
     scale: { title: 'Size' },

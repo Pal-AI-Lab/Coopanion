@@ -860,6 +860,7 @@ export class DesktopPetWorld implements World {
       micDevice: this.cfg.asr.mic.deviceId,
       status: this.status.status,
       statusBubble: this.cfg.statusBubble,
+      saidBubbles: this.cfg.saidBubbles,
       bot: this.botInfo(),
     };
   }

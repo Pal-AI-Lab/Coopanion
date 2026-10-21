@@ -198,6 +198,7 @@ const ptBR: Translation<PetText> = {
     hoverButtons: { title: 'Botões ao passar o mouse', description: (max: number, ids: string) => `Botões ao lado do pet enquanto o ponteiro está em cima, até ${max}, separados por vírgulas: ${ids}.` },
     doubleClickChat: { title: 'Clique duplo para digitar', description: 'Clicar duas vezes no pet abre a caixa de texto.' },
     statusBubble: { title: 'Balão de status', description: 'Mostra o que o pet está fazendo enquanto pensa, consulta a memória ou usa o computador, incluindo nomes de arquivos.' },
+    saidBubbles: { title: 'Balões de entrada', description: 'O que é digitado, falado ou enviado pela página de chat aparece acima do pet até ele responder. Desligado, a fala só aparece enquanto é reconhecida.' },
     selfAdjust: { title: 'Autoajuste', description: 'off: não pode mudar as próprias configurações nem fazer silêncio por um tempo. default: personagem, visual, passeios e ronco mudam direto; tamanho, tamanho dos balões, tamanho do texto, sons, modo noturno, botões ao passar o mouse e como chama você esperam seu consentimento. any: tudo muda direto. custom: conforme marcado na página Hábitos; o que estiver marcado muda direto e o resto espera seu consentimento.' },
     windowEnabled: { title: 'Abrir a janela do pet ao iniciar' },
     scale: { title: 'Tamanho' },

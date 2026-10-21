@@ -198,6 +198,7 @@ const it: Translation<PetText> = {
     hoverButtons: { title: 'Pulsanti al passaggio', description: (max: number, ids: string) => `Pulsanti accanto all'animaletto mentre il puntatore ci resta sopra, fino a ${max}, separati da virgole: ${ids}.` },
     doubleClickChat: { title: 'Doppio clic per scrivere', description: "Un doppio clic sull'animaletto apre la casella di testo." },
     statusBubble: { title: 'Fumetto di stato', description: "Mostra cosa sta facendo l'animaletto mentre pensa, sfoglia la sua memoria o usa il computer, nomi dei file compresi." },
+    saidBubbles: { title: 'Fumetti di input', description: "Ciò che viene scritto, detto o inviato dalla pagina chat appare sopra l'animaletto finché non risponde. Se disattivato, il parlato appare solo durante il riconoscimento." },
     selfAdjust: { title: 'Autoregolazione', description: 'off: non può cambiare le proprie impostazioni né mettersi in silenzio per un po\'. default: personaggio, abiti, movimento e russare cambiano direttamente; dimensione, dimensione dei fumetti, dimensione del testo, suoni, modalità notte, pulsanti al passaggio e come ti chiama aspettano il tuo consenso. any: tutto cambia direttamente. custom: come spuntato nella pagina Abitudini; ciò che è spuntato cambia direttamente, il resto aspetta il tuo consenso.' },
     windowEnabled: { title: "Apri la finestra dell'animaletto all'avvio" },
     scale: { title: 'Dimensione' },

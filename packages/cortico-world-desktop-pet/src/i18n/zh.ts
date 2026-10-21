@@ -221,6 +221,7 @@ export default {
     hoverButtons: { title: '悬停按钮', description: (max: number, ids: string) => `鼠标停在桌宠身上时旁边出现的按钮，最多 ${max} 个，逗号分隔：${ids}。` },
     doubleClickChat: { title: '双击打开打字框', description: '双击桌宠打开打字框。' },
     statusBubble: { title: '状态气泡', description: '想事情、翻记忆、操作电脑时显示在做什么，会显示文件名。' },
+    saidBubbles: { title: '输入气泡', description: '打字、语音和对话页发出的消息显示在桌宠头顶，回复后淡出。关闭时语音只在识别中显示。' },
     selfAdjust: { title: '自主配置权限', description: 'off 禁止：不能自己改设置，也不能临时安静；default 默认：形象、配色、走动和打呼直接改，大小、气泡尺寸、字体尺寸、音效、夜间模式、悬停按钮和称呼先征得你同意；any 任意：都直接改；custom 自定义：按「习惯」页里的勾选，勾上的直接改，其余先征得你同意。' },
     windowEnabled: { title: '启动时打开桌宠窗口' },
     scale: { title: '大小' },
