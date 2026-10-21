@@ -266,7 +266,7 @@ body.desk .floor{display:none}
 .d-cardic svg{width:24px; height:24px; display:block}
 .d-cardimg{width:28px; height:28px; display:block; padding:3px; border-radius:7px; background:#fff; box-sizing:border-box}
 .d-card.on .d-cardimg{animation:card-bob .5s cubic-bezier(.3,1.5,.5,1)}
-.d-cardlbl{font-size:calc(13px * var(--bubble-font, 1)); color:var(--text)}
+.d-cardlbl{font-size:calc(13px * var(--bubble-font, 1)); line-height:1.25; overflow-wrap:anywhere; color:var(--text)}
 .d-cardnote{font-size:calc(11px * var(--bubble-font, 1)); line-height:1.35; color:var(--muted); text-align:center}
 .d-level{
   position:absolute; top:-7px; right:-5px; min-width:18px; padding:0 4px; border-radius:7px; border:1.5px solid var(--surface);
