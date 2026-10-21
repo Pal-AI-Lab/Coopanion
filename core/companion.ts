@@ -491,6 +491,7 @@ export async function main(): Promise<void> {
       // Cormini's 6/12 end a computer-use task partway through; 20/40 are the caps the desktop-pet
       // e2e harnesses give their persona
       rounds: { soft: 20, hard: 40 },
+      context: { ...base.definition.defaults().context, maxTokens: 128_000, keepRatio: 0.25 },
       companion: { telemetry: true },
     }),
     // Cormini's own build with Coo's Persona class; the workspace is snapshotted before Coo can write to it
