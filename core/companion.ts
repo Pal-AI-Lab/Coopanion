@@ -641,4 +641,10 @@ export async function main(): Promise<void> {
     log.emit('error', '未处理的 promise 拒绝', { event: 'unhandled-rejection', err: reason });
     crash('core-rejection', reason);
   });
+  // an exited main loop delivers nothing more; the app restarts a Core process that exits on its own
+  bot.core.runlog.onWrite((entry) => {
+    if (entry.event !== 'loop-exit') return;
+    crash('core-loop', entry.err && Object.assign(new Error(entry.err.message), entry.err));
+    void shutdown('主循环异常退出');
+  });
 }
