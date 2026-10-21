@@ -24,7 +24,7 @@ const host = window.petHost || null;
 document.body.classList.add(host ? 'desk' : 'tab');
 
 const stage = $('#stage');
-const bubble = $('#bubble'), trail = $('#trail'), menu = $('#menu');
+const bubble = $('#bubble'), menu = $('#menu');
 const tools = $('#tools');
 // Coo's drawing classes for the menu's avatar; the bubbles and buttons take their colours from Coo's palette
 // another pack's body sets the theme color instead (accentStyle, after skinStyle so it wins)
@@ -126,7 +126,7 @@ function overlayRect() {
   // the halo reaches about 40% of the body's width out; emotes and z's float up to its height above
   const side = Math.max(24, .4 * b.w), top = Math.max(48, b.h);
   const parts = [{ x: b.x - side, y: b.y - top, width: b.w + 2 * side, height: b.h + top + side }];
-  for (const el of [bubble, trail, ...lines.map((l) => l.el)]) if (!el.hidden) parts.push(rectOf(el));
+  for (const el of [bubble, ...lines.map((l) => l.el)]) if (!el.hidden) parts.push(rectOf(el));
   const x = Math.max(0, Math.min(...parts.map((r) => r.x))), y = Math.max(0, Math.min(...parts.map((r) => r.y)));
   const right = Math.min(innerWidth, Math.max(...parts.map((r) => r.x + r.width))), bottom = Math.min(innerHeight, Math.max(...parts.map((r) => r.y + r.height)));
   return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : null;
@@ -869,7 +869,7 @@ function showHeard() {
 
 /*
  * ---------- what the person said: typed in the box, heard, or sent from the chat page ----------
- * Each line stays beside Coo as a bubble of the heard kind (dashed, no tail), the newest at the bottom. A line is
+ * Each line stays above Coo as a bubble of the heard kind (grey, no tail), the newest at the bottom. A line is
  * answered by the first speech or question Coo starts after it settled; until that reply's bubble has closed (and,
  * for a line not answered yet, while Coo works or has speech queued) the line and those before it stay, and they
  * fade REPLIED_FADE seconds after it closes. A line Coo does not answer fades UNANSWERED_FADE seconds after it was
@@ -887,8 +887,6 @@ const MARKS = { voice: ICONS.mic, chat: ICONS.expand };
  * answers it; `fadeAt` once it fades; `ox`, `oy`, its eased offset from Coo's head; `images` and `cursor`, a chat line's.
  */
 const lines = [];
-/** The side of Coo the stack sits on (-1 left, 1 right), picked when the first line comes and kept until the last goes. */
-let linesSide = 0;
 
 function addLine(src, text, live = false, extra = {}) {
   const el = document.createElement('div');
@@ -964,7 +962,6 @@ function stepLines() {
     fadeLine(line);
   }
   for (const line of [...lines]) if (line.fadeAt !== null && T - line.fadeAt >= LINE_FADE) dropLine(line);
-  if (!lines.length) linesSide = 0;
 }
 
 /* ---------- activity: the same bubble, with conversation always taking priority ---------- */
@@ -1584,36 +1581,28 @@ function layout(dt = 0) {
   // choice cards keep their bubble where it was; its tail follows Coo along the bottom edge
   if (!bubble.hidden && item?.kind === 'dialog' && item.pinX !== undefined) sayBox = placeTalk(item, a);
   else if (!bubble.hidden) sayBox = place(bubble, a, 18 * prefs.bubbleSize);
-  placeLines(l, a, sayBox, dt);
+  placeLines(a, sayBox, dt);
 }
 
-/** From Coo's head to the newest line's bottom edge, between lines, and from Coo's bubble beside them, in pixels at bubble size 1. */
-const LINES_UP = 46, LINES_GAP = 8, LINES_BESIDE = 12;
+/** From Coo's head to the newest line's bottom edge, and between lines, in pixels at bubble size 1. */
+const LINES_UP = 46, LINES_GAP = 8;
 /**
- * The person's lines beside Coo: newest at the bottom, nearest the head, older ones above it, on the side Coo
- * faces away from and clear of Coo's own bubble (`box`). Where that side has no room the stack moves to the
- * other, and where neither has it goes above Coo's bubble. Each line eases to its place over `dt`, so a new
- * line pushes the others up and a closed one is closed over; a fading line stays where it was.
+ * The person's lines above Coo: newest at the bottom, older ones above it, centred over Coo's own bubble (`box`)
+ * while it is up and over Coo's head otherwise. Each line eases to its place over `dt`, so a new line pushes the
+ * others up and a closed one is closed over; a fading line stays where it was.
  */
-function placeLines(l, a, box, dt) {
-  if (!lines.length) { trail.hidden = true; return; }
-  const W = innerWidth, size = prefs.bubbleSize;
-  const rise = LINES_UP * size, gap = LINES_GAP * size, beside = LINES_BESIDE * size;
-  const widest = Math.max(...lines.map((line) => line.el.offsetWidth));
-  if (!linesSide) linesSide = -l.facing;
-  // where the stack starts on each side: past Coo's bubble, or beside Coo's head
-  const inner = (s) => (box ? (s < 0 ? box.left - beside : box.left + box.bw + beside) : a.x + s * 10);
-  const fits = (s) => (s < 0 ? inner(s) - widest >= 10 : inner(s) + widest <= W - 10);
-  if (!fits(linesSide) && fits(-linesSide)) linesSide = -linesSide;
-  const above = !fits(linesSide);
-  let bottom = above && box ? box.top - gap : a.y - rise;
+function placeLines(a, box, dt) {
+  if (!lines.length) return;
+  const W = innerWidth, size = prefs.bubbleSize, gap = LINES_GAP * size;
+  const cx = box ? box.left + box.bw / 2 : a.x;
+  let bottom = box ? box.top - gap : a.y - LINES_UP * size;
   const k = dt > 0 ? Math.min(1, dt * 12) : 1;
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i], el = line.el;
     el.classList.toggle('older', i !== lines.length - 1);
     if (line.fadeAt === null || line.ox === null) {
       const bw = el.offsetWidth, bh = el.offsetHeight;
-      const left = clamp(above ? a.x - bw / 2 : linesSide < 0 ? inner(linesSide) - bw : inner(linesSide), 10, Math.max(10, W - bw - 10));
+      const left = clamp(cx - bw / 2, 10, Math.max(10, W - bw - 10));
       const top = Math.max(8, bottom - bh);
       if (line.ox === null) { line.ox = left - a.x; line.oy = top - a.y; }
       else { line.ox += (left - a.x - line.ox) * k; line.oy += (top - a.y - line.oy) * k; }
@@ -1622,16 +1611,6 @@ function placeLines(l, a, box, dt) {
     el.style.left = f(a.x + line.ox) + 'px';
     el.style.top = f(a.y + line.oy) + 'px';
   }
-  // three dots from Coo's head to the newest line
-  const last = lines[lines.length - 1];
-  trail.hidden = last.fadeAt !== null;
-  const bx = a.x + last.ox + last.el.offsetWidth / 2, by = a.y + last.oy + last.el.offsetHeight;
-  [...trail.children].forEach((d, i) => {
-    const kk = [.22, .5, .78][i], sz = [7, 10, 13][i] * size;
-    d.style.width = d.style.height = sz + 'px';
-    d.style.left = f(a.x + (bx - a.x) * kk - sz / 2) + 'px';
-    d.style.top = f(a.y - 4 + (by + 4 - a.y + 4) * kk - sz / 2) + 'px';
-  });
 }
 
 /* ---------- backdrop: a light gray halo when the body melts into what is behind it ---------- */

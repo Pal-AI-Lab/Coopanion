@@ -178,12 +178,12 @@ Only DeepSeek, Anthropic and StepFun Step Plan have been tested with real keys; 
 
 | How           | What to do                                                                                                                            |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Voice         | **Tap Left Alt, then press and hold it** (Left Option on Mac) and speak; releasing ends the sentence. Recognized text shows in a dashed bubble; click Cancel in it to drop the sentence. |
+| Voice         | **Tap Left Alt, then press and hold it** (Left Option on Mac) and speak; releasing ends the sentence. Recognized text shows in a grey bubble above Coo; click Cancel in it to drop the sentence. |
 | Typing        | Rest the pointer on Coo and click the bubble button beside it. With "Double-click Coo to open the typing box" on in Habits, double-clicking works too. |
 | Mic button    | Appears when the pointer rests on Coo and turns voice input on or off. Its corner shows the talk key (`ALT×2` by default) while listening on the key, AUTO while always listening. Long-press it while listening to send the sentence at once. |
 | Answering     | When Coo offers choices, click one or press 1–3; if none fits, write your own in the last box.                                         |
 
-What you type, say or send from the Chat page stays beside Coo in a dashed bubble: a microphone marks speech, two arrows a message from the Chat page. The bubbles fade a second after Coo's reply closes, or after 8 seconds when Coo does not reply; at most 3 stay, 6 lines in all, and past that the oldest fades first. Click a bubble to close it.
+What you type, say or send from the Chat page stacks above Coo in grey bubbles, the newest at the bottom: a microphone marks speech, two arrows a message from the Chat page. The bubbles fade a second after Coo's reply closes, or after 8 seconds when Coo does not reply; at most 3 stay, 6 lines in all, and past that the oldest fades first. Click a bubble to close it.
 
 Talk key, microphone and listening mode (hold to talk / press to toggle / always listen) are on the Voice input page. Click the talk key button and press a single key, a combination such as `Ctrl + Space`, or a mouse side button; beside it, choose **Double-tap, then hold** (the default) or **Just hold**. When the talk key is unavailable, speech is not recognized; the Voice input page says why. If a headset, such as a Bluetooth one, switches to call mode and plays no sound while the microphone is open, turn on **Open the microphone only while held** on the Voice input page.
 
