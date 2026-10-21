@@ -10,7 +10,7 @@
  * Colors follow the World's `theme` through `data-theme` on the root element, and text the app
  * language (i18n.js): the one stamped on the page, then the one the World's prefs carry.
  */
-import { applyTheme, clamp, f, ICONS } from './ui.js';
+import { applyTheme, clamp, f, ICONS, linked } from './ui.js';
 import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
@@ -434,7 +434,8 @@ function stepDialog(dt) {
   if (!it) return;
   if (it.kind === 'say') {
     if (it.i < 0 || it.beatDone) {
-      if (it.beatDone && T < it.holdUntil) return;
+      // a bubble with a link stays while the pointer is on it, so the link can be clicked
+      if (it.beatDone && (T < it.holdUntil || (bubble.matches(':hover') && bubble.querySelector('a')))) return;
       it.i++;
       it.beatDone = false;
       if (it.i >= it.beats.length) { closeBubble(); return; }
@@ -479,7 +480,7 @@ function typeText(it, text, dt, anchors) {
     while (it.fired < anchors.length && anchors[it.fired].at <= it.shown) acts.push(...anchors[it.fired++].actions);
   }
   if (it.marks?.length) p.innerHTML = marked(text, it.shown, it.marks);
-  else p.textContent = text.slice(0, it.shown);
+  else p.replaceChildren(linked(text, it.shown));
 }
 
 /** The first `n` characters of `text`, escaped, with every one of `words` in it wrapped for the theme color. */

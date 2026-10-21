@@ -176,6 +176,7 @@ body.desk .floor{display:none}
 @keyframes bubble-in{from{transform:scale(.5); opacity:0}}
 .b-text{margin:0; min-height:1.55em; white-space:pre-wrap; text-wrap:pretty; overflow-wrap:break-word}
 .b-text .interim{color:var(--muted)}
+.b-text a{color:var(--skin-eye); text-decoration:underline; text-underline-offset:2px; overflow-wrap:anywhere}
 .caret{display:inline-block; width:2px; height:1.05em; margin-left:2px; vertical-align:-2px; background:var(--skin-eye); animation:caret 1s steps(1) infinite}
 @keyframes caret{50%{opacity:0}}
 .b-hint{display:block; margin-top:2px; font-size:calc(12px * var(--bubble-font, 1)); color:var(--muted)}

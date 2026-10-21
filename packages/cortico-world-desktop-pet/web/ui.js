@@ -4,6 +4,41 @@ import { t } from './i18n.js';
 export const f = n => Math.round(n * 10) / 10;
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
+/**
+ * The http(s) addresses written out in `text`, as [start, end) pairs. An address runs to the first
+ * space or non-ASCII character, so one written straight into Chinese prose ends there; a sentence's
+ * closing punctuation is left out. Only written-out addresses become links: the text of a link is
+ * where it goes.
+ */
+export function urlRanges(text) {
+  const out = [];
+  for (const m of text.matchAll(/https?:\/\/[!-~]+/g)) {
+    let url = m[0];
+    // a closing bracket stays when the address opened it, as in a wiki title
+    while (/[.,;:!?'"]$/.test(url) || (/[)\]}>]$/.test(url) && count(url, OPENERS[url.at(-1)]) < count(url, url.at(-1)))) url = url.slice(0, -1);
+    try { new URL(url); } catch { continue; }
+    out.push([m.index, m.index + url.length]);
+  }
+  return out;
+}
+const OPENERS = { ')': '(', ']': '[', '}': '{', '>': '<' };
+const count = (s, c) => s.split(c).length - 1;
+
+/** The first `n` characters of `text` as nodes of `doc`; an address typed out in full is a link that opens outside the window. */
+export function linked(text, n = text.length, doc = document) {
+  const frag = doc.createDocumentFragment();
+  let at = 0;
+  for (const [start, end] of urlRanges(text)) {
+    if (end > n) break;
+    const a = Object.assign(doc.createElement('a'), { href: text.slice(start, end), target: '_blank', rel: 'noopener noreferrer' });
+    a.textContent = text.slice(start, end);
+    frag.append(text.slice(at, start), a);
+    at = end;
+  }
+  frag.append(text.slice(at, n));
+  return frag;
+}
+
 const icon = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 // eight flat teeth around a hub
 const gear = icon(`<path d="${Array.from({ length: 32 }, (_, i) => {

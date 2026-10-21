@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { clamp, f, ICONS } from '../packages/cortico-world-desktop-pet/web/ui.js';
+import { clamp, f, ICONS, linked } from '../packages/cortico-world-desktop-pet/web/ui.js';
 import { COO_CSS, mini, normalizeSkin, skinCss } from '../packages/cortico-world-desktop-pet/web/coo/coo.js';
 import { t } from '../packages/cortico-world-desktop-pet/web/i18n.js';
 
@@ -24,7 +24,7 @@ function page() {
   win.requestAnimationFrame = () => 0;
   win.WebSocket = class { readyState = 1; send() {} };
   win.deps = {
-    applyTheme: (theme) => { win.document.documentElement.dataset.theme = theme; }, clamp, f, ICONS,
+    applyTheme: (theme) => { win.document.documentElement.dataset.theme = theme; }, clamp, f, ICONS, linked: (text, n) => linked(text, n, win.document),
     COO_CSS, mini, normalizeSkin, skinCss,
     createSfx: () => ({ pop() {}, babble() {}, blub() {}, configure() {}, set() {}, listenStart() {}, listenEnd() {}, select() {}, tick() {} }),
     createSpeech: () => ({ configure() {}, begin() {}, reveal() { return false; }, stop() {}, active: false }),
@@ -34,7 +34,7 @@ function page() {
     // the tab's stage (stage.js) is decoration the activity bubble does not depend on
     lightWall() {}, dressFloor() {}, modeButton: () => ({ show() {} }), glowColor: () => null, setGlow() {}, bindAppearance() {}, announcePainted() {},
   };
-  win.eval(`const { applyTheme, clamp, f, ICONS, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
+  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document };
 }
 const read = { kind: 'read', text: '在看', detail: '日记.md' };
@@ -119,6 +119,15 @@ describe('activity in the shared speech bubble', () => {
     p.closeBubble(); p.step(.01);
     expect(p.bubble.dataset.kind).toBe('search');
     expect(p.interactive()).toBe(false);
+  });
+
+  it('turns an address in speech into a link once it has typed out', () => {
+    const p = page();
+    p.onOrder({ t: 'say', id: 's', beats: [{ text: '来 https://github.com/Pal-AI-Lab/Coopanion 点星', actions: [], anchors: [] }] });
+    p.step(.01); p.step(.5);
+    expect(p.bubble.querySelector('a')).toBeNull();
+    p.step(3);
+    expect(p.bubble.querySelector('a')?.getAttribute('href')).toBe('https://github.com/Pal-AI-Lab/Coopanion');
   });
 
   it.each(['ask', 'confirm', 'dialog', 'input', 'listen'])('%s takes priority over activity', (kind) => {
