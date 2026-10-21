@@ -333,6 +333,13 @@ Coopanion 使用系统代理（HTTP 或 HTTPS 代理；SOCKS 代理不生效）�
 </details>
 
 <details>
+<summary><b>Linux 上 Coo 走过的地方留下方块残影</b></summary>
+
+Intel 核显（Mesa 的 iris 驱动）开着快速清屏时，透明窗口里会留下旧画面。启动时设置环境变量 `INTEL_DEBUG=nofc` 关掉它，例如 deb 版运行 `INTEL_DEBUG=nofc coopanion`；有独立显卡时改用独显渲染也可以。
+
+</details>
+
+<details>
 <summary><b>想看它在想什么</b></summary>
 
 「对话」页有完整的记录。遇到问题时在这一页点「导出诊断」，把诊断包附在 [Issue](https://github.com/Pal-AI-Lab/Coopanion/issues) 里。

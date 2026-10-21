@@ -335,6 +335,13 @@ Coopanion uses the system proxy (an HTTP or HTTPS proxy; a SOCKS proxy is not us
 </details>
 
 <details>
+<summary><b>On Linux, Coo leaves square traces where it has been</b></summary>
+
+With Intel graphics (Mesa's iris driver), fast clear leaves old frames in the transparent window. Start Coopanion with `INTEL_DEBUG=nofc` set to turn it off, for example `INTEL_DEBUG=nofc coopanion` for the deb; rendering on a discrete GPU also avoids it.
+
+</details>
+
+<details>
 <summary><b>What is it thinking?</b></summary>
 
 The Chat page has the full record. If something goes wrong, click **Export diagnostics** there and attach the file to an [issue](https://github.com/Pal-AI-Lab/Coopanion/issues).
