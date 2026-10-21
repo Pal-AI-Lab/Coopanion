@@ -9,6 +9,7 @@
  * the phase line is Core's RunPhase as the World passes it on.
  */
 import type { WebUiImageAttachment } from 'cortico/web/shared/client-panel.ts';
+import { linked } from 'cortico-world-desktop-pet/web/ui.js';
 import { baseLanguage, LANGUAGE } from '../../base/language.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { panelStreamRoute } from '../../base/protocol.ts';
@@ -173,7 +174,9 @@ async function mount(ctx: PageContext): Promise<void> {
 
   const askNode = (it: Extract<ChatItem, { kind: 'ask' }>, open: boolean): HTMLElement => {
     const box = ui.h('div', 'pet-bubble ask');
-    box.append(ui.h('p', 'b-text', it.question));
+    const question = ui.h('p', 'b-text');
+    question.append(linked(it.question));
+    box.append(question);
     const answer = [...items.values()].find((x): x is Extract<ChatItem, { kind: 'answer' }> => x.kind === 'answer' && x.askId === it.askId);
     if (answer) box.classList.add('answered');
     const opts = ui.h('div', 'b-opts');
@@ -258,7 +261,9 @@ async function mount(ctx: PageContext): Promise<void> {
         const body = cooBody();
         for (const beat of it.beats) {
           const row = ui.h('div', 'sayrow');
-          row.append(ui.h('div', 'pet-bubble say', beat.text));
+          const said = ui.h('div', 'pet-bubble say');
+          said.append(linked(beat.text));
+          row.append(said);
           if (beat.mood) row.append(ui.h('span', 'mood', localName(beat.mood)));
           body.append(row);
         }

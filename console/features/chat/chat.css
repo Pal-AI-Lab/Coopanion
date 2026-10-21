@@ -44,6 +44,7 @@
 /* 提问:pet.css 的 .b-opt / .b-own */
 .pet-bubble.ask { width: min(340px, 100%); padding-bottom: 12px; }
 .pet-bubble .b-text { margin: 0; white-space: pre-wrap; }
+.pet-bubble a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
 .pet-bubble .b-opts { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .pet-bubble .b-opt { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; font: inherit; font-size: 14px; padding: 6px 10px; border-radius: 11px; border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer; transition: border-color .15s, opacity .2s; }
 .pet-bubble .b-opt:hover:not(:disabled), .pet-bubble .b-opt.chosen { border-color: var(--accent); }
