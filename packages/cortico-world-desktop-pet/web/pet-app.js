@@ -789,8 +789,12 @@ function openInput() {
   const expand = prefs.bot?.buttons?.chat
     ? `<button class="b-expand" type="button" aria-label="${esc(t('bubble.expand'))}" title="${esc(t('bubble.expand'))}">${ICONS.expand}</button>`
     : '';
-  openBubble('ask', `<button class="b-close" type="button" aria-label="${esc(t('bubble.close'))}">×</button><form class="b-own"><input type="text" maxlength="500" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}">${expand}<button type="submit">${esc(t('bubble.send'))}</button></form>`);
-  const form = bubble.querySelector('form'), input = form.querySelector('input');
+  openBubble('ask', `<button class="b-close" type="button" aria-label="${esc(t('bubble.close'))}">×</button><form class="b-own"><textarea rows="1" maxlength="500" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}"></textarea>${expand}<button type="submit">${esc(t('bubble.send'))}</button></form>`);
+  const form = bubble.querySelector('form'), input = form.querySelector('textarea');
+  // Enter sends, Shift+Enter starts a new line; Enter that confirms an input method's text does neither
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
+  });
   bubble.querySelector('.b-close').addEventListener('click', () => closeBubble());
   // the chat page takes longer text and images; the draft goes with it
   bubble.querySelector('.b-expand')?.addEventListener('click', () => {
@@ -1515,7 +1519,7 @@ document.addEventListener('keydown', (e) => {
     else if (item && item.kind === 'input') closeBubble();
     return;
   }
-  const typing = e.target.closest && e.target.closest('input');
+  const typing = e.target.closest && e.target.closest('input, textarea');
   // the digit row or the number pad, whether or not Num Lock is on
   const digit = /^(?:Digit|Numpad)([1-9])$/.exec(e.code) || /^([1-9])$/.exec(e.key);
   if (item && item.kind === 'ask' && item.optsShown && !item.answered && !typing && digit && !e.ctrlKey && !e.altKey && !e.metaKey) {

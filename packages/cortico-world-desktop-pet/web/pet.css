@@ -171,7 +171,7 @@ body.desk .floor{display:none}
 .bubble.ask{min-width:min(calc(236px * var(--bubble-size, 1)), calc(100vw - 20px)); padding-right:calc(32px * var(--bubble-size, 1))}
 .bubble.pop{animation:bubble-in .26s cubic-bezier(.3,1.5,.5,1)}
 @keyframes bubble-in{from{transform:scale(.5); opacity:0}}
-.b-text{margin:0; min-height:1.55em; white-space:pre-wrap; text-wrap:pretty}
+.b-text{margin:0; min-height:1.55em; white-space:pre-wrap; text-wrap:pretty; overflow-wrap:break-word}
 .b-text .interim{color:var(--muted)}
 .caret{display:inline-block; width:2px; height:1.05em; margin-left:2px; vertical-align:-2px; background:var(--skin-eye); animation:caret 1s steps(1) infinite}
 @keyframes caret{50%{opacity:0}}
@@ -195,9 +195,11 @@ body.desk .floor{display:none}
   flex:none; display:grid; place-items:center; width:calc(20px * var(--bubble-font, 1)); height:calc(20px * var(--bubble-font, 1)); border-radius:50%;
   border:2px solid var(--skin-eye); font:500 calc(11px * var(--bubble-font, 1))/1 ui-monospace,Consolas,monospace; color:var(--text);
 }
-.b-own{display:flex; align-items:center; gap:6px; padding:3px 3px 3px 10px; border-radius:11px; border:1.5px dashed var(--line); background:var(--bg)}
+.b-own{display:flex; align-items:flex-end; gap:6px; padding:3px 3px 3px 10px; border-radius:11px; border:1.5px dashed var(--line); background:var(--bg)}
 .b-own:focus-within, .b-own.chosen{border-style:solid; border-color:var(--skin-eye)}
-.b-own input{flex:1; min-width:0; border:0; background:transparent; font:inherit; font-size:calc(14px * var(--bubble-font, 1)); color:var(--text); outline:none; padding:4px 0}
+.b-own input, .b-own textarea{flex:1; min-width:0; border:0; background:transparent; font:inherit; font-size:calc(14px * var(--bubble-font, 1)); color:var(--text); outline:none; padding:4px 0}
+/* the typed line grows with its text up to six rows, then scrolls */
+.b-own textarea{resize:none; field-sizing:content; line-height:1.4; max-height:calc(6 * 1.4em + 8px); overflow-y:auto; overflow-wrap:anywhere}
 .b-own button[type="submit"]{flex:none; font:inherit; font-size:calc(12.5px * var(--bubble-font, 1)); padding:4px 10px; border-radius:8px; border:0; background:var(--text); color:var(--surface); cursor:pointer}
 .b-expand{flex:none; display:grid; place-items:center; width:26px; height:26px; padding:0; border:0; border-radius:50%; background:none; color:var(--muted); cursor:pointer}
 .b-expand:hover{color:var(--text)}
