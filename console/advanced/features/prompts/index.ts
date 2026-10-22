@@ -7,7 +7,7 @@ import { fetchManifest, get, post } from '../../../base/api.ts';
 import { icon, type ConsoleIconName } from '../../../base/ui/icons.ts';
 import { pageIntro } from '../../../base/ui/page.ts';
 import { estTok } from '../live/context.ts';
-import { readMode } from '../../../features/mode.ts';
+import { readMode, requestMode } from '../../../features/mode.ts';
 import { S as sessionText } from '../../../features/strings.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { createPrefixEditor, references, VARIABLE_DRAG_TYPE, type PrefixBlock } from './editor.ts';
@@ -218,7 +218,9 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
       button.focus({ preventScroll: true });
     }
   }
-  ctx.lifecycle.own(ctx.router.addLeaveGuard(() => dirty.size || savePromise ? S.leaveUnsaved : null));
+  /** Set once the person has already accepted losing unsaved edits for the navigation under way. */
+  let leaveAccepted = false;
+  ctx.lifecycle.own(ctx.router.addLeaveGuard(() => !leaveAccepted && (dirty.size || savePromise) ? S.leaveUnsaved : null));
   root.addEventListener('keydown', (event) => {
     if (!(event.ctrlKey || event.metaKey) || event.defaultPrevented) return;
     const key = event.key.toLowerCase();
@@ -480,6 +482,21 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     if (created.length) void addSettings(created);
   }
 
+  /**
+   * World configuration is an advanced-mode page, so the normal mode switches to the advanced mode on
+   * the way. With unsaved edits the person agrees to losing them before the switch, so declining keeps
+   * the mode and the page as they are.
+   */
+  function openWorldConfig(pageId: string): void {
+    const route = ['provider', pageId, '~config'];
+    if (readMode() === 'advanced') { ctx.router.navigate(route); return; }
+    // the same question the router's leave guard asks (console/index.ts)
+    if ((dirty.size || savePromise) && !window.confirm(S.leaveUnsaved)) return;
+    leaveAccepted = true;
+    requestMode('advanced');
+    ctx.router.navigate(route);
+  }
+
   async function addSettings(targets: Section[]): Promise<void> {
     try {
       const manifest = await fetchManifest();
@@ -488,9 +505,8 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
         const page = manifest.providers.find((p) => p.kind === 'world' && p.prompts?.some((p) => p.key === section.segment.sourceKey));
         if (!page) continue;
         section.toggle.querySelector('.prefix-flag-title')!.textContent = page.label;
-        // World configuration is an advanced-mode page.
-        if (readMode() !== 'advanced' || manifest.framework?.capabilities?.config === false || !page.configGroups?.length) continue;
-        const settings = toolButton('settings', S.worldSettings, () => ctx.router.navigate(['provider', page.id, '~config']));
+        if (manifest.framework?.capabilities?.config === false || !page.configGroups?.length) continue;
+        const settings = toolButton('settings', S.worldSettings, () => openWorldConfig(page.id));
         settings.classList.add('prompt-settings-link');
         section.tools.append(settings);
         if (!section.heading.isConnected) section.vars.prepend(section.heading);
