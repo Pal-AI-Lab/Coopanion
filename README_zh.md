@@ -208,6 +208,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
   - `ask-before-acting`：看屏幕不问，动鼠标键盘前每轮问；
   - `ask-once`（默认）：看屏幕不问，动手前问一次，之后在「同意有效期」（默认 30 分钟）内不再问；
   - `never-ask`：都不问。
+- 不管选哪一档，按能启动程序的快捷键(带 Win 或 Super 键的组合键、macOS 上的 Command+空格、打开终端或运行框的快捷键)之前，以及在命令行窗口里打字或按回车之前，它都会单独问你，问句里写着要按的键或要输入的全文。
 - 接了几块显示器时，它一次看一块，需要时自己换到别的显示器。
 - 你一动鼠标或键盘，它就停下来等你。
 - 登录、密码、付款这类步骤交给你自己做。
