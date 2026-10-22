@@ -291,6 +291,8 @@ Uninstalling keeps the data, so memory and settings are still there after a rein
 
 On Windows, when the program is in a new folder (a reinstall elsewhere, for example) with no data beside it, Coopanion asks at start whether to inherit the data used before or start a new one. Where that data is, is noted in `%LOCALAPPDATA%\Coopanion\data-location.json`.
 
+If `home/companion/telemetry.json`, `notice.json` or `alarms.json` is damaged, the app preserves it with a `.bad` suffix and rebuilds that state. A due alarm is still delivered if saving fails; after a restart it may be delivered again.
+
 Inside the data folder, `home` holds memory, conversations, settings and API keys, `extensions` the extensions, `logs` the logs, and `home/models` the speech model.
 
 ## FAQ

@@ -8,9 +8,9 @@
  *
  * Tool descriptions are English; receipts and the due event are in the model-text language.
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import type { ToolDef } from 'cortico/core/types.ts';
 import type { ModelLanguage } from './language.ts';
+import { isRecord, readState, writeState } from './state-file.ts';
 
 export interface Alarm {
   id: string;
@@ -23,6 +23,13 @@ export interface Alarm {
 }
 
 interface Saved { next: number; alarms: Alarm[] }
+
+function validSaved(value: unknown): value is Saved {
+  return isRecord(value) && Number.isSafeInteger(value.next) && Number(value.next) >= 1
+    && Array.isArray(value.alarms) && value.alarms.every((a: unknown) => isRecord(a)
+      && typeof a.id === 'string' && typeof a.note === 'string' && typeof a.daily === 'boolean'
+      && typeof a.at === 'number' && Number.isFinite(a.at) && typeof a.setAt === 'number' && Number.isFinite(a.setAt));
+}
 
 const DAY_MS = 86_400_000;
 /** A due alarm this much past its time was missed while the app was closed (the World looks every second). */
@@ -149,7 +156,7 @@ export class Alarms {
 
   /** `language`: the model-text language, read at each use. */
   constructor(private readonly file: string, private readonly timezone: string, private readonly language: () => ModelLanguage = () => 'zh') {
-    this.saved = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as Saved : { next: 1, alarms: [] };
+    this.saved = readState(file, validSaved) ?? { next: 1, alarms: [] };
   }
 
   private get t(): typeof zh {
@@ -157,7 +164,7 @@ export class Alarms {
   }
 
   private save(): void {
-    writeFileSync(this.file, `${JSON.stringify(this.saved, null, 2)}\n`);
+    writeState(this.file, `${JSON.stringify(this.saved, null, 2)}\n`);
   }
 
   /** Takes the alarms due at `now` off the list (a daily one is set again for its next day), each with whether it was missed. */
@@ -171,7 +178,8 @@ export class Alarms {
       while (at <= now) at += DAY_MS;
       this.saved.alarms.push({ ...a, at });
     }
-    this.save();
+    try { this.save(); }
+    catch (error) { console.warn('[alarms] could not save due alarms', error); }
     return due.map((alarm) => ({ alarm, missed: now - alarm.at > MISSED_AFTER_MS }));
   }
 

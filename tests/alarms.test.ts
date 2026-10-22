@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Alarms, dueTime, localLabel } from '../core/alarms.ts';
@@ -38,5 +38,29 @@ describe('Alarms', () => {
     ];
     expect(texts).toHaveLength(6);
     for (const text of texts) expect(text).not.toMatch(HAN);
+  });
+});
+
+
+describe('alarm state recovery', () => {
+  it.each(['', '{"next":', 'null', '{"next":1,"alarms":[null]}'])('recovers invalid state %j', async (content) => {
+    const file = join(mkdtempSync(join(tmpdir(), 'coo-alarms-state-')), 'alarms.json');
+    writeFileSync(file, content);
+    const alarms = new Alarms(file, 'UTC');
+    expect(alarms.list()).toEqual([]);
+    expect(readFileSync(`${file}.bad`, 'utf8')).toBe(content);
+    await alarms.tools(() => 0).find((tool) => tool.name === 'alarm_set')!.handler({ note: 'tea', in_minutes: 1 }, {} as never);
+    expect(new Alarms(file, 'UTC').list()).toEqual(alarms.list());
+  });
+
+  it('delivers a due alarm once in the running process when its next save fails', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'coo-alarms-state-')), 'alarms.json');
+    const alarms = new Alarms(file, 'UTC');
+    await alarms.tools(() => 0).find((tool) => tool.name === 'alarm_set')!.handler({ note: 'tea', in_minutes: 1 }, {} as never);
+    const previous = readFileSync(file, 'utf8');
+    mkdirSync(`${file}.tmp`);
+    expect(alarms.takeDue(60_000).map(({ alarm }) => alarm.note)).toEqual(['tea']);
+    expect(alarms.takeDue(60_001)).toEqual([]);
+    expect(readFileSync(file, 'utf8')).toBe(previous);
   });
 });

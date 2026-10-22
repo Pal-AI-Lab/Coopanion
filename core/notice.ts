@@ -24,7 +24,8 @@
  * The last version told is kept in `notice.json` in the deployment directory, written when the
  * event is delivered, so an update told while events are held (no key yet) is told on a later start.
  */
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { isRecord, readState, writeState } from './state-file.ts';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import type { ToolDef, World, WorldWebUiDecl, WorldHost } from 'cortico/core/types.ts';
@@ -408,9 +409,8 @@ export class NoticeWorld implements World {
   private pendingUpdate(): { from: string | null; to: string } | null {
     const to = this.a.version;
     if (!parseVersion(to)) return null;
-    const last = existsSync(this.a.stateFile)
-      ? (JSON.parse(readFileSync(this.a.stateFile, 'utf8')) as { version?: unknown }).version
-      : undefined;
+    const last = readState(this.a.stateFile, (value): value is { version: string } =>
+      isRecord(value) && typeof value.version === 'string')?.version;
     if (last === undefined && this.a.newInstall()) { this.record(to); return null; }
     if (typeof last !== 'string') return { from: null, to };
     const from = parseVersion(last);
@@ -430,7 +430,7 @@ export class NoticeWorld implements World {
   }
 
   private record(version: string): void {
-    writeFileSync(this.a.stateFile, `${JSON.stringify({ version }, null, 2)}\n`);
+    writeState(this.a.stateFile, `${JSON.stringify({ version }, null, 2)}\n`);
   }
 
   private tick(): void {

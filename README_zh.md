@@ -289,6 +289,8 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 
 Windows 上，程序换了目录（比如重装到别处）、旁边没有数据时，Coopanion 启动时会询问：继承之前使用的数据，还是新建一只。之前使用的数据在哪，记在 `%LOCALAPPDATA%\Coopanion\data-location.json`。
 
+如果 `home/companion/telemetry.json`、`notice.json` 或 `alarms.json` 损坏，应用会将原文件保留为 `.bad` 文件并重建该项状态。闹钟到期时即使保存失败仍会送达，重启后可能再次送达。
+
 数据目录里，`home` 是记忆、对话记录、设置和 API Key，`extensions` 是扩展，`logs` 是日志，`home/models` 是语音模型。
 
 ## 常见问题
