@@ -87,8 +87,9 @@ class CoreHost extends EventEmitter {
     log.write(`\n===== ${new Date().toISOString()} start =====\n${proxy.note}\n`);
     const child = fork(join(this.opts.appRoot, 'core', 'boot.ts'), [], {
       cwd: this.opts.appRoot,
-      // --use-system-ca: TLS trusts the operating system's certificate store as well as Node's bundled one
-      execArgv: ['--use-env-proxy', '--use-system-ca', '--import', 'tsx'],
+      // --use-system-ca: TLS trusts the operating system's certificate store as well as Node's bundled one;
+      // --expose-gc: the desktop-pet World frees a speech model as soon as it stops it (its src/asr/sherpa.ts)
+      execArgv: ['--use-env-proxy', '--use-system-ca', '--expose-gc', '--import', 'tsx'],
       env: coreEnvironment({ ...this.opts.env, ...proxy.vars, ...(this.unexpectedExit === null ? {} : { COOPANION_CORE_EXIT: String(this.unexpectedExit) }) }),
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     });
