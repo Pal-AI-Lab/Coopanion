@@ -4,6 +4,7 @@
 .uresults > .sheet:first-child { padding-top: 0; }
 .usec-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 14px; }
 .usec-head > h3 { margin: 0; }
+.uresults > .sheet > h3 { margin-bottom: 14px; }
 .ulabel, .uhint { font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); white-space: nowrap; }
 .urate[hidden], .unotice[hidden], .ucomp[hidden] { display: none; }
 
