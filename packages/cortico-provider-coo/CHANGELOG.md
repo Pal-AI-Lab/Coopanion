@@ -1,3 +1,7 @@
+## Unreleased
+
+- Package-root exports no longer include `anthropicPrices`, `deepseekPrices`, `vendorPrices`, `CHATGPT_MODULE`, `chatgptEntry`, `connectionVendor`, `endpointName`, `firstVendor`, `locate`, `regionsOf`, `vendorById` or `SignInStatus`. Use `vendorPrices` from `src/pricing.ts` for price tables and `VENDORS` for id lookup. The remaining helpers live in `src/vendors.ts`, and `SignInStatus` in `src/chatgpt/auth.ts`.
+
 ## 0.3.1
 
 - StepFun Step Plan: a new service `stepfun-plan` on the plan's endpoint `/step_plan/v1`, over Chat, starting on `step-5-preview`; its key is kept apart from the pay-as-you-go StepFun endpoint.

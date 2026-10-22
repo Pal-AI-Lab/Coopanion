@@ -30,7 +30,7 @@ const rules = (p: ModelPrice, k = 1): PriceRule[] => [
   { meter: 'output', perMillion: +(p.output * k).toFixed(6) },
 ];
 
-export function deepseekPrices(): PriceDefinition[] {
+function deepseekPrices(): PriceDefinition[] {
   return Object.entries(OFF_PEAK).map(([model, p]) => ({
     models: [model],
     currency: 'USD',
@@ -53,7 +53,7 @@ const OPENAI_LONG_FROM = 272_001;
 const openai = (model: string, p: ModelPrice) =>
   banded([model], OPENAI_SOURCE, p, OPENAI_LONG_FROM, { cachedInput: p.cachedInput * 2, uncachedInput: p.uncachedInput * 2, output: p.output * 1.5 });
 
-export function openaiPrices(): PriceDefinition[] {
+function openaiPrices(): PriceDefinition[] {
   return [
     openai('gpt-6-luna', { cachedInput: 0.01, uncachedInput: 0.10, output: 0.50 }),
     openai('gpt-6.1-sol', { cachedInput: 0.10, uncachedInput: 2, output: 10 }),
@@ -65,7 +65,7 @@ export function openaiPrices(): PriceDefinition[] {
 const XAI_SOURCE = 'https://docs.x.ai/developers/models (2026-10-08)';
 const XAI_LONG_FROM = 200_000;
 
-export function xaiPrices(): PriceDefinition[] {
+function xaiPrices(): PriceDefinition[] {
   return [
     banded(['grok-4.3'], XAI_SOURCE, { cachedInput: 0.20, uncachedInput: 1.25, output: 2.50 }, XAI_LONG_FROM, { cachedInput: 0.40, uncachedInput: 2.50, output: 5 }),
     banded(['grok-4.7'], XAI_SOURCE, { cachedInput: 0.50, uncachedInput: 2, output: 6 }, XAI_LONG_FROM, { cachedInput: 1, uncachedInput: 4, output: 12 }),
@@ -80,7 +80,7 @@ const GEMINI_SOURCE = 'https://ai.google.dev/gemini-api/docs/pricing (2026-10-08
 const GEMINI_FLASH_RAISE = '2027-01-01T00:00:00.000Z';
 const GEMINI_PRO_LONG_FROM = 200_001;
 
-export function geminiPrices(startedAt: string): PriceDefinition[] {
+function geminiPrices(startedAt: string): PriceDefinition[] {
   const flash = startedAt < GEMINI_FLASH_RAISE ? { cachedInput: 0.075, uncachedInput: 0.75, output: 3.75 } : { cachedInput: 0.15, uncachedInput: 1.50, output: 7.50 };
   return [
     banded(['gemini-3.8-flash'], GEMINI_SOURCE, flash),
@@ -104,7 +104,7 @@ const anthropicRules = ([input, write, read, output]: readonly [number, number, 
 /** Claude Haiku 5.5 bills a request whose prompt, cache reads and writes included, is over 100,000 tokens at its second rate card. */
 const HAIKU_LONG_PROMPT_FROM = 100_001;
 
-export function anthropicPrices(): PriceDefinition[] {
+function anthropicPrices(): PriceDefinition[] {
   const row = (models: string[], card: readonly [number, number, number, number]): PriceDefinition =>
     ({ models, currency: 'USD', basis: 'marginal', rules: anthropicRules(card), source: ANTHROPIC_SOURCE });
   return [

@@ -27,7 +27,7 @@ export const PROTOCOLS: readonly Protocol[] = ['responses', 'chat', 'anthropic',
 
 /** A service's mainland China platform or its international one. */
 export type Region = 'cn' | 'intl';
-export const REGIONS: readonly Region[] = ['cn', 'intl'];
+const REGIONS: readonly Region[] = ['cn', 'intl'];
 
 /** Cortico's `Language` (cortico/core/language.ts), written out because this file imports nothing; index.ts checks that the two match. */
 export type Language = 'zh' | 'zh-Hant' | 'en' | 'ja' | 'ko' | 'fr' | 'de' | 'es-419' | 'pt-BR' | 'it' | 'ru';
@@ -268,7 +268,7 @@ export const CHATGPT: Vendor = {
   sites: { global: { ...(OPENAI.sites as { global: Site }).global, keyUrl: 'https://chatgpt.com/' } },
 };
 
-export const vendorById = (id: string): Vendor | null => (id === CHATGPT.id ? CHATGPT : VENDORS.find((v) => v.id === id) ?? null);
+const vendorById = (id: string): Vendor | null => (id === CHATGPT.id ? CHATGPT : VENDORS.find((v) => v.id === id) ?? null);
 
 /** The regions a service has separate platforms for; none for a service with one platform. */
 export const regionsOf = (v: Vendor): Region[] => ('global' in v.sites ? [] : [...REGIONS]);
