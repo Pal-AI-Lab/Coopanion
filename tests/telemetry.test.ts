@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -59,5 +59,33 @@ describe('crash fields', () => {
     Object.assign(err, { code: 'ERR_TEST' });
     const fields = crashFields(err, app, [extensions]);
     expect(fields).toEqual({ error: 'TypeError', code: 'ERR_TEST', frames: ['core/guide.ts:212', 'build/cortico/src/core/loop.ts:1043', 'packages/pet/world.ts:5'] });
+  });
+});
+
+
+describe('telemetry state recovery', () => {
+  it.each(['', '{"installId":', 'null', '{"installId":"old","day":null,"days":[],"queue":[]}'])('recovers invalid state %j and retains the uninstall id', async (content) => {
+    const dir = mkdtempSync(join(tmpdir(), 'coo-telemetry-state-'));
+    const file = join(dir, 'telemetry.json');
+    writeFileSync(file, content);
+    writeFileSync(join(dir, 'telemetry-id'), 'existing-install');
+    const t = new Telemetry({ dir, version: 'test', enabled: () => false, snapshot: () => ({}), extensions: () => [],
+      fetchImpl: (async () => { throw new Error('disabled telemetry must not send'); }) as typeof fetch });
+    t.start();
+    await t.stop();
+    expect(readFileSync(`${file}.bad`, 'utf8')).toBe(content);
+    const saved = JSON.parse(readFileSync(file, 'utf8'));
+    expect(saved.installId).toBe('existing-install');
+    expect(saved.day.counts.sessions).toBe(0);
+    expect(saved.queue).toEqual([]);
+  });
+
+  it('generates a new id when the state file was deleted', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'coo-telemetry-state-'));
+    writeFileSync(join(dir, 'telemetry-id'), 'previous-install');
+    const t = new Telemetry({ dir, version: 'test', enabled: () => false, snapshot: () => ({}), extensions: () => [] });
+    t.start();
+    await t.stop();
+    expect(JSON.parse(readFileSync(join(dir, 'telemetry.json'), 'utf8')).installId).not.toBe('previous-install');
   });
 });

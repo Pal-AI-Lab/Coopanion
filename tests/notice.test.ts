@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -66,5 +66,24 @@ describe('alarms panel', () => {
     } finally {
       await world.stop();
     }
+  });
+});
+
+
+describe('notice state recovery', () => {
+  it.each(['', '{"version":', 'null', '{"version":7}'])('starts with invalid state %j', async (content) => {
+    const dir = mkdtempSync(join(tmpdir(), 'coo-notice-state-'));
+    const stateFile = join(dir, 'notice.json');
+    writeFileSync(stateFile, content);
+    const world = noticeDefinition({
+      version: '0.2.6', notesDir: dir, stateFile, alarmsFile: join(dir, 'alarms.json'),
+      newInstall: () => true, read: () => undefined, petConnected: () => false, guiding: () => false,
+      refreshTools: async () => {}, label: () => 'notice',
+    }).create({ timezone: 'UTC' } as never);
+    await world.start({ pushDeferred: () => {} } as unknown as WorldHost);
+    try {
+      expect(readFileSync(`${stateFile}.bad`, 'utf8')).toBe(content);
+      expect(JSON.parse(readFileSync(stateFile, 'utf8'))).toEqual({ version: '0.2.6' });
+    } finally { await world.stop(); }
   });
 });

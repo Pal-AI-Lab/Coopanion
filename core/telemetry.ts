@@ -22,6 +22,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { cpus, release, totalmem } from 'node:os';
 import { isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isRecord, readState, writeState } from './state-file.ts';
 
 export const TELEMETRY_URL = 'https://survey.palailab.org/v1/report';
 /** How often the day's record goes out while the app runs. */
@@ -105,6 +106,25 @@ interface State {
   queue: TelemetryEvent[];
 }
 
+const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+function validDay(value: unknown): value is Day {
+  return isRecord(value) && typeof value.date === 'string' && finite(value.runningMinutes)
+    && Array.isArray(value.minutes) && value.minutes.every(finite)
+    && isRecord(value.counts) && COUNTERS.every((key) => finite((value.counts as Record<string, unknown>)[key]))
+    && isRecord(value.models) && Object.values(value.models).every((m) => isRecord(m)
+      && typeof m.vendor === 'string' && typeof m.model === 'string'
+      && ['builtin', 'custom-remote', 'custom-local'].includes(String(m.endpointKind))
+      && ['calls', 'failed', 'tokensIn', 'tokensOut', 'tokensCached'].every((key) => finite(m[key])));
+}
+
+function validState(value: unknown): value is State {
+  return isRecord(value) && typeof value.installId === 'string' && typeof value.firstDate === 'string'
+    && finite(value.chatDays) && (value.lastChatDate === null || typeof value.lastChatDate === 'string')
+    && typeof value.enabled === 'boolean' && Array.isArray(value.extensions) && value.extensions.every((e) => typeof e === 'string')
+    && validDay(value.day) && Array.isArray(value.days) && value.days.every(validDay)
+    && Array.isArray(value.queue) && value.queue.every((e) => isRecord(e) && typeof e.type === 'string' && typeof e.ts === 'string');
+}
+
 export interface TelemetryOptions {
   /** The deployment directory. */
   dir: string;
@@ -145,14 +165,20 @@ export class Telemetry {
     const file = join(opts.dir, STATE_FILE);
     const today = localDate(this.now());
     this.firstRun = !existsSync(file);
-    if (!this.firstRun) {
-      this.state = JSON.parse(readFileSync(file, 'utf8')) as State;
+    const saved = readState(file, validState);
+    if (saved) {
+      this.state = saved;
     } else {
+      let installId = randomUUID() as string;
+      if (!this.firstRun) {
+        try { installId = readFileSync(join(opts.dir, ID_FILE), 'utf8').trim() || installId; }
+        catch { /* the id is absent when statistics are disabled */ }
+      }
       this.state = {
-        installId: randomUUID(), firstDate: today, chatDays: 0, lastChatDate: null, enabled: opts.enabled(),
+        installId, firstDate: today, chatDays: 0, lastChatDate: null, enabled: opts.enabled(),
         extensions: [], day: newDay(today), days: [], queue: [],
       };
-      this.event('first_launch', {});
+      if (this.firstRun) this.event('first_launch', {});
     }
   }
 
@@ -335,7 +361,7 @@ export class Telemetry {
 
   private save(): void {
     try {
-      writeFileSync(join(this.opts.dir, STATE_FILE), JSON.stringify(this.state) + '\n');
+      writeState(join(this.opts.dir, STATE_FILE), JSON.stringify(this.state) + '\n');
       const idFile = join(this.opts.dir, ID_FILE);
       if (this.state.enabled) writeFileSync(idFile, this.state.installId);
       else rmSync(idFile, { force: true });
