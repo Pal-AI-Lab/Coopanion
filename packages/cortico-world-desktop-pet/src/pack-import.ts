@@ -3,7 +3,8 @@
  * folders it found a pack in; they are unpacked into a staging directory, every pack there is read as an
  * installed one would be (src/packs.ts), and the person picks which to install. Installing copies a pack to
  * `<packDir>/<id>/`. Replacing existing packs or directories requires explicit approval of their ids;
- * a built-in id is refused.
+ * a built-in id is refused. Replacing or uninstalling deletes a pack's directory only when it is inside `packDir`
+ * (`removable`): built-in packs and those of the app's other pack roots stay.
  *
  * A pack is a directory holding `figure.json`, found at most `PACK_DEPTH` levels below what was picked (the
  * zip's root, a picked or dropped folder: a zip from GitHub wraps its files in `<repo>-<branch>/`, and a
@@ -205,7 +206,7 @@ export class PackImporter {
         const target = join(packDir, p.id);
         if (replace.includes(p.id)) {
           // the pack it replaces may sit in a folder named otherwise; one in another pack root is left alone
-          const old = installed.find((x) => x.id === p.id && !x.builtin && within(packDir, x.dir));
+          const old = installed.find((x) => x.id === p.id && this.removable(x));
           if (old) await rm(old.dir, { recursive: true, force: true });
           await rm(target, { recursive: true, force: true });
         }
@@ -215,6 +216,25 @@ export class PackImporter {
     } finally {
       await rm(staged.root, { recursive: true, force: true });
     }
+  }
+
+  /** Whether `pack` is an installed pack inside `packDir`, the only kind replacing or uninstalling deletes. */
+  removable(pack: FigurePack): boolean {
+    return !pack.builtin && within(this.opts.packDir(), pack.dir);
+  }
+
+  /** Deletes the directory of the installed pack `id`; the next scan no longer lists it. */
+  async remove(id: string): Promise<{ removed: string } | { error: string }> {
+    const pack = this.opts.packs().find((p) => p.id === id);
+    if (!pack) return { error: this.t.removing.notInstalled(id) };
+    if (pack.builtin) return { error: this.t.removing.builtin(id) };
+    if (!this.removable(pack)) return { error: this.t.removing.elsewhere(id) };
+    try {
+      await rm(pack.dir, { recursive: true, force: true });
+    } catch (err) {
+      return { error: this.t.removing.failed((err as Error).message) };
+    }
+    return { removed: id };
   }
 
   /** Drops the staged import, if any. */

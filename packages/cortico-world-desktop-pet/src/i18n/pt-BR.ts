@@ -135,6 +135,13 @@ const ptBR: Translation<PetText> = {
     overLimit: (mb: number) => `Mais de ${mb} MB`,
   },
 
+  removing: {
+    notInstalled: (id: string) => `Nenhum pacote de personagem tem o id ${id}`,
+    builtin: (id: string) => `${id} é um personagem integrado e não pode ser desinstalado`,
+    elsewhere: (id: string) => `${id} não está na pasta de instalação de pacotes de personagem; não é possível desinstalá-lo aqui`,
+    failed: (why: string) => `Não foi possível excluir: ${why}`,
+  },
+
   consent: {
     question: (items: string[]) => `Posso ${items.join(', ')}?`,
     choices: ['Pode', 'Pode sempre', 'Não, obrigado'] as [yes: string, always: string, no: string],

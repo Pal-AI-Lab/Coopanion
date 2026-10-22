@@ -135,6 +135,13 @@ const es419: Translation<PetText> = {
     overLimit: (mb: number) => `Más de ${mb} MB`,
   },
 
+  removing: {
+    notInstalled: (id: string) => `Ningún paquete de personaje tiene el id ${id}`,
+    builtin: (id: string) => `${id} es un personaje integrado y no se puede desinstalar`,
+    elsewhere: (id: string) => `${id} no está en la carpeta de instalación de paquetes de personaje; no se puede desinstalar aquí`,
+    failed: (why: string) => `No se pudo eliminar: ${why}`,
+  },
+
   consent: {
     question: (items: string[]) => `¿Puedo ${items.join(', ')}?`,
     choices: ['Sí', 'Sí, siempre', 'No, gracias'] as [yes: string, always: string, no: string],

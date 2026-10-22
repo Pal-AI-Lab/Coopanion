@@ -141,6 +141,13 @@ const ru: Translation<PetText> = {
     overLimit: (mb: number) => `Больше ${mb} МБ`,
   },
 
+  removing: {
+    notInstalled: (id: string) => `Нет пакета персонажа с id ${id}`,
+    builtin: (id: string) => `${id} — встроенный персонаж, удалить нельзя`,
+    elsewhere: (id: string) => `${id} не находится в папке установки пакетов персонажей, отсюда его удалить нельзя`,
+    failed: (why: string) => `Не удалось удалить: ${why}`,
+  },
+
   consent: {
     question: (items: string[]) => `Можно мне ${items.join(', ')}?`,
     choices: ['Можно', 'Можно всегда', 'Не надо'] as [yes: string, always: string, no: string],

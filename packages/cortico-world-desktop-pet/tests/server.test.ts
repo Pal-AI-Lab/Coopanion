@@ -55,7 +55,7 @@ describe('local access', () => {
       `https://127.0.0.1:${server.port}`, `ws://127.0.0.1:${server.port}`, `${server.origin}/path`,
       'http://example.test', 'null', 'invalid'];
     for (const origin of origins) {
-      for (const path of ['/api/prefs', '/api/skin', '/api/speech', '/api/figures/import', '/api/figures/import/install', '/api/figures/import/cancel']) {
+      for (const path of ['/api/prefs', '/api/skin', '/api/speech', '/api/figures/import', '/api/figures/import/install', '/api/figures/import/cancel', '/api/figures/remove']) {
         expect((await fetch(`${server.origin}${path}`, { method: 'POST', headers: { origin }, body: '{}' })).status, `${origin} ${path}`).toBe(421);
       }
       expect(await refused(server, { role: 'pet' }, origin), origin).toBe(421);
