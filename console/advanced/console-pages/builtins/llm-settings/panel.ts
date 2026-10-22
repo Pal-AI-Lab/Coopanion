@@ -12,7 +12,7 @@ import type {
   Disposable,
 } from 'cortico/web/shared/client-panel.ts';
 import { pricingEditor, type ModelQuote } from './pricing-panel.ts';
-import { pick } from '../../../lib/core/language.ts';
+import { pick } from '../../../../base/language.ts';
 import { panel } from './strings.ts';
 import { configField, type ConfigGroupEntry } from '../../../features/config/view.ts';
 
@@ -62,7 +62,7 @@ interface ModelEntry {
   id: string;
   contextWindow?: number;
 }
-export interface ProbeResult {
+interface ProbeResult {
   ok: boolean;
   status: number | null;
   elapsedMs: number;
@@ -108,7 +108,7 @@ function datalist(ui: WebUi, id: string, values: readonly string[]): HTMLDataLis
 }
 
 /** 探活结果的呈现,模块页与连接卡片共用。 */
-export function probeCard(ui: WebUi, S: typeof panel.zh, result: ProbeResult): HTMLElement {
+function probeCard(ui: WebUi, S: typeof panel.zh, result: ProbeResult): HTMLElement {
   const fmt: WebUiFormat = ui.fmt;
   const usage = result.usage;
   const rows = [
@@ -155,7 +155,7 @@ export function probeCard(ui: WebUi, S: typeof panel.zh, result: ProbeResult): H
 export const llmSettingsPanel: WebUiPanel = {
   mount: async (ctx: WebUiPanelContext) => {
     const { ui, root } = ctx;
-    const S = pick(ctx.language, panel);
+    const S = pick(panel);
     // `<datalist>` 靠全局 id 绑定;每次挂载一个前缀,同页两份面板互不串。
     const uid = `llm-${Math.random().toString(36).slice(2, 8)}`;
     let selected = '';
@@ -561,7 +561,6 @@ export const llmSettingsPanel: WebUiPanel = {
         entry.pricing ?? [],
         current.quotes,
         (pricing) => void patch({ pricing }),
-        ctx.language,
       );
       body.append(prices.el);
 

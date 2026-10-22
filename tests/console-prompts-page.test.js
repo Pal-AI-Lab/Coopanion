@@ -6,7 +6,7 @@ import { S } from '../console/advanced/features/prompts/strings.ts';
 import { createConsoleUi } from '../console/base/ui/index.ts';
 import { Lifecycle } from '../console/base/lifecycle.ts';
 import { Router } from '../console/base/router.ts';
-import { CONSOLE_PROTOCOL_VERSION } from '../console/advanced/lib/web/shared/console-protocol.ts';
+import { CONSOLE_PROTOCOL_VERSION } from '../console/base/protocol.ts';
 
 const worldKey = 'worlds.fixture.envPrompt';
 let sources, generated, session, writes, sessionWrites, saveGate, sessionGate, configAvailable, failures, mounted;

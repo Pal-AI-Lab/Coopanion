@@ -87,4 +87,4 @@ export function createConsoleUi(deps: ConsoleUiDeps): WebUi {
   };
 }
 
-export { LOG_STICK_PX, shouldStick } from './log.ts';
+export { shouldStick } from './log.ts';

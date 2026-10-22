@@ -17,3 +17,5 @@ These pages call routes of the WebUI HTTP API that Cortico does not make public.
 for this directory only. 系统提示词 (`features/prompts/`) is listed in the
 normal mode too and calls public routes only; `tests/console-api.test.ts` locks the shape of each such route, so a submodule
 bump that changes one fails the tests.
+
+Manifest and context-record types come from Cortico through type-only imports. The browser helpers for page ids, asset paths and panel streams live in `console/base/protocol.ts`; text uses the window language from `console/base/language.ts`.

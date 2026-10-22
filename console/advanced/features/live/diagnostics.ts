@@ -3,7 +3,7 @@ import { get } from '../../../base/api.ts';
 import { S } from './strings.ts';
 
 /** `cortico-diagnostics-r-20260917-104402-c2ab-20260917-142530.json`;没有 run id 时写 norun。 */
-export function diagnosticsFileName(runId: string | null, at: Date): string {
+function diagnosticsFileName(runId: string | null, at: Date): string {
   const p = (n: number): string => String(n).padStart(2, '0');
   const stamp = `${at.getFullYear()}${p(at.getMonth() + 1)}${p(at.getDate())}`
     + `-${p(at.getHours())}${p(at.getMinutes())}${p(at.getSeconds())}`;
@@ -12,7 +12,7 @@ export function diagnosticsFileName(runId: string | null, at: Date): string {
 }
 
 /** 交给浏览器下载。对象 URL 在同一轮事件循环之后撤掉。 */
-export function downloadJson(doc: Document, name: string, data: unknown): void {
+function downloadJson(doc: Document, name: string, data: unknown): void {
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
   const link = doc.createElement('a');
   link.href = url;

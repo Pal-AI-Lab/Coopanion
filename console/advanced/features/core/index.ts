@@ -48,24 +48,16 @@ const CORE_SUBS: readonly SubDef[] = [
   { id: 'config', label: S.subConfig, need: 'config' },
 ];
 
-export interface CoreFeatureOptions {
-  env?: SocketEnv;
-}
-
-export function createCoreFeature(opts: CoreFeatureOptions = {}): FrameworkFeature {
-  return {
-    route: CORE_ROUTE,
-    label: S.navLabel,
-    icon: 'activity',
-    navGroup: S.navGroup,
-    // 事件流与运行日志不依赖任何可选表面,所以这一页永远有意义。
-    mount(ctx) {
-      return mountHarness(ctx, opts.env ?? browserSocketEnv(window));
-    },
-  };
-}
-
-export const coreFeature: FrameworkFeature = createCoreFeature();
+export const coreFeature: FrameworkFeature = {
+  route: CORE_ROUTE,
+  label: S.navLabel,
+  icon: 'activity',
+  navGroup: S.navGroup,
+  // 事件流与运行日志不依赖任何可选表面,所以这一页永远有意义。
+  mount(ctx) {
+    return mountHarness(ctx, browserSocketEnv(window));
+  },
+};
 
 function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   const { ui } = ctx;
