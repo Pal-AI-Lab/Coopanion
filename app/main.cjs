@@ -114,6 +114,9 @@ if (located?.ask && !PET_HOST) {
   app.whenReady().then(() => {
     if (askDataLocation(located)) app.relaunch();
     app.exit(0);
+  }).catch((err) => {
+    dialog.showErrorBox('Coopanion', String(err?.message ?? err));
+    app.exit(1);
   });
   return;
 }
@@ -457,7 +460,7 @@ function openSettings(path = '') {
 async function panel(pageId, panelId, method) {
   const url = consoleUrl(`api/webui/providers/${encodeURIComponent(pageId)}/panels/${panelId}/${method}`);
   if (!url) return null;
-  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args: [] }) });
+  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args: [] }), signal: AbortSignal.timeout(5000) });
   return res.ok ? res.json() : null;
 }
 
@@ -504,7 +507,7 @@ function refreshTray() {
   const t = T(), login = loginItem.get();
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: t.trayOpenSettings, click: () => openSettings() },
-    { label: t.trayShowPet, enabled: core.state === 'running', click: () => void showPet() },
+    { label: t.trayShowPet, enabled: core.state === 'running', click: () => void showPet().catch(() => { /* Core went away meanwhile */ }) },
     { type: 'separator' },
     { label: t.trayLaunchAtLogin, type: 'checkbox', checked: login, enabled: app.isPackaged, click: (item) => { loginItem.set(item.checked); noteAutostart(); refreshTray(); } },
     { label: t.trayRestart, click: () => void core.restart() },
