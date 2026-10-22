@@ -480,6 +480,7 @@ export function mountUsage(ctx: PageContext): void {
         `/api/usage?${usageQuery(state.bucket, state.days, { from: state.from, to: state.to })}${ledgerQuery}`,
         { signal: ctx.signal },
       );
+      if (ctx.signal.aborted || mine !== generation) return;
       const daily = d.from && d.to
         ? await get<UsageAggregate>(
           `/api/usage?${usageQuery('day', 0, { from: activityFrom({ from: d.from, to: d.to }), to: d.to })}${ledgerQuery}`,
