@@ -212,8 +212,8 @@ export interface DesktopPetWorldOptions {
   /** The speech models to download; tests pass small ones. */
   funasrModel?: ModelSpec;
   whisperModel?: ModelSpec;
-  /** Shown in the menu header. */
-  botName?: string;
+  /** The bot's name for the menu header, the chat page and computer use's question; read at each use. */
+  botName?: () => string;
   /** PNG shown as the avatar in the menu header, when it exists. */
   avatarFile?: string;
   controls?: PetBotControls;
@@ -383,6 +383,7 @@ export class DesktopPetWorld implements World {
   /** Text the bubble's expand button carried, until a chat page takes it. */
   private draft: string | null = null;
   private pausedShown: boolean | null = null;
+  private botShown: string | null = null;
 
   /** Installs packs the dressing page sends, when the app named a directory for them. */
   private readonly importer: PackImporter | null;
@@ -749,7 +750,7 @@ export class DesktopPetWorld implements World {
         this.chat.send(socket, {
           t: 'init', ...page, pending: [...this.pendingChat], askId: this.ask?.id ?? null, phase: this.phase,
           activity: this.activity.steps.length ? { steps: this.activity.steps, startedAt: this.activity.startedAt } : null,
-          paused: this.opts.controls?.isPaused?.() ?? false, user: this.userName, bot: this.opts.botName ?? '',
+          paused: this.opts.controls?.isPaused?.() ?? false, user: this.userName, bot: this.botName(),
           imagesSeen: host?.modelFacts.accepts('image/jpeg') ?? false,
         });
         if (this.draft !== null) { this.chat.send(socket, { t: 'draft', text: this.draft }); this.draft = null; }
@@ -865,6 +866,10 @@ export class DesktopPetWorld implements World {
     };
   }
 
+  private botName(): string {
+    return this.opts.botName?.() ?? '';
+  }
+
   private botInfo(): Record<string, unknown> {
     const c = this.opts.controls;
     let avatar: string | null = null;
@@ -873,7 +878,7 @@ export class DesktopPetWorld implements World {
     const label = typeof c?.quitLabel === 'function' ? c.quitLabel() : c?.quitLabel;
     const quitLabel = c?.quit ? label || this.ui.menu.quit : '';
     return {
-      name: this.opts.botName ?? '',
+      name: this.botName(),
       avatar,
       controls: !!c,
       buttons: { pause, settings: !!c?.openSettings, dress: !!c?.openDress, quit: !!c?.quit, chat: !!c?.openChat },
@@ -905,6 +910,8 @@ export class DesktopPetWorld implements World {
     this.server.syncOverlay();
     const paused = this.opts.controls?.isPaused?.() ?? false;
     if (paused !== this.pausedShown) { this.pausedShown = paused; this.chat.broadcast({ t: 'paused', paused }); }
+    const bot = this.botName();
+    if (bot !== this.botShown) { this.botShown = bot; this.chat.broadcast({ t: 'bot', bot }); }
     const key = this.prefsSignature();
     if (key === this.prefsKey) return;
     this.prefsKey = key;

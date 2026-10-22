@@ -52,8 +52,8 @@ const PERMISSION_TIMEOUT_MS = 60_000;
 export interface CuaOptions {
   /** The live `worlds.desktop-pet.cua` section, read at each use. */
   cfg: () => CuaConfig;
-  /** Names the bot in the permission question. */
-  botName?: string;
+  /** Names the bot in the permission question; read at each question. */
+  botName?: () => string;
   /**
    * Asks the person whether the bot may use the computer this turn, with the two buttons' words.
    * null: this way of asking is not available right now, and the system dialog asks instead.
@@ -254,7 +254,7 @@ export class Cua {
   }
 
   private async askPermission(level: PermissionLevel): Promise<Answer> {
-    const who = this.opts.botName || 'bot';
+    const who = this.opts.botName?.() || 'bot';
     const a = this.ui.ask;
     const question = level === 'ask-each-turn' ? a.eachTurn(who) : level === 'ask-once' ? a.once(who, this.cfg.grantMinutes) : a.acting(who);
     const viaApp = await this.opts.askPermission?.(question, [a.yes, a.no]) ?? null;

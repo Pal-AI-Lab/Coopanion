@@ -86,10 +86,11 @@ describe('computer use without the engine', () => {
     expect(await call(w, 'pet_cua_key', { keys: 'ctrl+nope' })).toEqual({ text: '[pet_cua_key 没执行] 不认识的键「nope」。', failed: true });
   });
 
-  it('asks once per turn before touching the screen; a refusal fails every call of that turn', async () => {
+  it('asks once per turn before touching the screen, by the name the bot has then; a refusal fails every call of that turn', async () => {
     const asked: string[] = [];
     let answer: 'no' | 'timeout' = 'no';
-    const w = new Cua({ cfg: () => ({ ...structuredClone(CUA_DEFAULTS), permission: 'ask-each-turn' }), botName: 'Bot', askPermission: async (q) => { asked.push(q); return answer; } });
+    let name = 'Bot';
+    const w = new Cua({ cfg: () => ({ ...structuredClone(CUA_DEFAULTS), permission: 'ask-each-turn' }), botName: () => name, askPermission: async (q) => { asked.push(q); return answer; } });
     const shot = await call(w, 'pet_cua_screenshot', {});
     const click = await call(w, 'pet_cua_click', { x: 1, y: 1 });
     expect([shot.failed, click.failed]).toEqual([true, true]);
@@ -98,8 +99,10 @@ describe('computer use without the engine', () => {
     expect(asked[0]).toContain('Bot');
     w.onTurnEnded();
     answer = 'timeout';
+    name = 'Mochi';
     expect((await call(w, 'pet_cua_windows', {})).text).toContain('没有回应');
     expect(asked).toHaveLength(2);
+    expect(asked[1]).toContain('Mochi');
   });
 
   it('checks arguments before asking', async () => {
