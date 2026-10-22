@@ -375,7 +375,9 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     observer.observe(vars);
     const tools = ui.h('span', 'prompt-vars-tools');
     const heading = ui.h('div', 'prompt-vars-heading');
-    heading.append(ui.h('span', 'prompt-vars-title', S.variablesTitle), tools);
+    const title = ui.h('span', 'prompt-vars-title', S.variablesTitle);
+    title.title = S.variablesTitle;
+    heading.append(title, tools);
     const section: Section = { segment, doc, tone, label, toggle, badge, cell, vars, heading, tools, divider, collapsed, updateVariables() {}, fitVariables() {} };
     if (!doc) return section;
     const chips = new Map<string, HTMLButtonElement>();
