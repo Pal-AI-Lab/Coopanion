@@ -91,6 +91,9 @@ export default {
 
   // the dressing page: importing figure packs
   'import.button': '가져오기',
+  'import.replaceTitle': '기존 외형 팩을 교체할까요?',
+  'import.replaceText': '교체하면 설치 폴더에 있는 해당 팩의 기존 파일이 삭제됩니다.',
+  'import.replace': '교체',
   'import.title': '외형 팩 가져오기',
   'import.unloaded': '불러오지 못한 외형 팩: {n}개',
   'import.reason': ': {reason}',

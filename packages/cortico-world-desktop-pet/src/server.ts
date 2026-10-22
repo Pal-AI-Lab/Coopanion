@@ -17,8 +17,9 @@
  *   under `/web/` and `/packs/` answer that opaque origin's CORS requests; nothing else does,
  *   and a write (`POST`, the socket) from it is refused.
  * - `/socket?role=pet|dress&host=window|tab`: one live pet connection plus any number of
- *   pages that only receive skin and preference updates. A newer pet connection replaces the
- *   live one, except that a browser tab only watches while the pet window is connected. A
+ *   pages that only receive skin and preference updates. The window and overlay source authenticate
+ *   with the key carried by `windowUrl`. A newer pet connection replaces the live one, except
+ *   that a browser tab only watches while the pet window is connected. A
  *   watching tab still sends typed text, preference changes and run-control clicks.
  *   Binary frames from the pet connection are 16 kHz mono PCM16 microphone audio.
  * - `/overlay` and `/socket?role=overlay`: the OBS overlay page and its feed, while `overlay()` is on
@@ -27,6 +28,7 @@
  *   (host/overlay.cjs) go to every overlay page as they are; when it goes, the pages are sent a frame that clears them.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { basename, extname, join, normalize, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -105,6 +107,7 @@ export class PetServer {
   /** What the source was last told. */
   private overlayTold: boolean | null = null;
   private boundPort = 0;
+  private readonly windowKey = randomUUID();
 
   constructor(private readonly opts: PetServerOptions) {}
 
@@ -118,6 +121,11 @@ export class PetServer {
 
   get origin(): string {
     return this.boundPort ? `http://127.0.0.1:${this.boundPort}` : '';
+  }
+
+  /** Only the window host receives this URL; its fragment stays out of HTTP requests and referrers. */
+  get windowUrl(): string {
+    return `${this.origin}/pet#key=${this.windowKey}`;
   }
 
   get petConnected(): boolean {
@@ -150,7 +158,13 @@ export class PetServer {
       this.boundPort = typeof addr === 'object' && addr ? addr.port : 0;
       this.wss = new WebSocketServer({ noServer: true });
       server.on('upgrade', (req, socket, head) => {
-        if (!this.allowed(req, true) || !(req.url ?? '').startsWith('/socket')) { socket.destroy(); return; }
+        if (!this.allowed(req, true)) { socket.end('HTTP/1.1 421 Misdirected Request\r\nConnection: close\r\n\r\n'); return; }
+        const url = new URL(req.url ?? '/', this.origin);
+        if (url.pathname !== '/socket') { socket.destroy(); return; }
+        const params = url.searchParams;
+        if ((params.get('host') === 'window' || params.get('role') === 'overlay-source') && params.get('key') !== this.windowKey) {
+          socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return;
+        }
         this.wss!.handleUpgrade(req, socket, head, (ws) => this.accept(ws, req));
       });
       return this.boundPort;
@@ -203,12 +217,13 @@ export class PetServer {
     return this.opts.overlay?.() ?? false;
   }
 
-  /** A loopback Host, and a loopback or absent Origin; an opaque origin (the figure frame) only reads. */
+  /** Browser writes require this service's HTTP origin; local clients may omit Origin. Reads also allow loopback and opaque origins. */
   private allowed(req: IncomingMessage, write: boolean): boolean {
     if (!LOOPBACK.test(req.headers.host ?? '')) return false;
     const origin = req.headers.origin;
     if (origin === 'null') return !write;
     if (!origin) return true;
+    if (write) return origin === this.origin || origin === `http://localhost:${this.boundPort}`;
     try {
       return LOOPBACK.test(new URL(origin).host);
     } catch {
@@ -231,6 +246,7 @@ export class PetServer {
       if (old) old.close(4000, 'replaced');
       this.opts.onPetConnect();
       ws.on('message', (data, isBinary) => {
+        if (this.pet !== ws) return;
         if (isBinary) {
           const buf = data as Buffer;
           if (buf.length % 2 === 0) this.opts.onAudio(new Int16Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length)));
@@ -262,7 +278,7 @@ export class PetServer {
     this.overlaySource = ws;
     this.overlayTold = null;
     ws.on('message', (data, isBinary) => {
-      if (!isBinary || !this.overlayEnabled) return;
+      if (this.overlaySource !== ws || !isBinary || !this.overlayEnabled) return;
       for (const viewer of this.overlayViewers) if (viewer.readyState === viewer.OPEN) viewer.send(data, { binary: true });
     });
     ws.on('close', () => {
@@ -376,8 +392,9 @@ export class PetServer {
     const body = await readBody(req);
     const msg = body ? parse(body) : null;
     if (path === '/api/figures/import/install' && msg && typeof msg.token === 'string' && Array.isArray(msg.dirs)) {
-      const out = await importer.install(msg.token, msg.dirs.filter((d): d is string => typeof d === 'string'));
-      return json(res, 'error' in out ? 400 : 200, out);
+      const replace = Array.isArray(msg.replace) ? msg.replace.filter((id): id is string => typeof id === 'string') : [];
+      const out = await importer.install(msg.token, msg.dirs.filter((d): d is string => typeof d === 'string'), replace);
+      return json(res, 'error' in out ? 400 : 'conflicts' in out ? 409 : 200, out);
     }
     if (path === '/api/figures/import/cancel') { await importer.cancel(); return json(res, 200, { ok: true }); }
     return json(res, 400, { error: 'bad request' });

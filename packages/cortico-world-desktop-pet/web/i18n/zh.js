@@ -95,6 +95,9 @@ export default {
 
   // 装扮页:导入形象包
   'import.button': '导入',
+  'import.replaceTitle': '替换已有的形象包？',
+  'import.replaceText': '替换会删除安装目录中这些形象包的原有文件。',
+  'import.replace': '替换',
   'import.title': '导入形象包',
   'import.unloaded': '有 {n} 个形象包没加载',
   /** 文件夹名与原因之间 */

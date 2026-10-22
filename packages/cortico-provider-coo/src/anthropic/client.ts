@@ -59,7 +59,8 @@ export class ClaudeProvider extends BaseProvider {
   /** The SDK client; the key is checked when the first request needs it. */
   client(): Anthropic {
     if (!this.opts.apiKey) throw new LLMError('Claude 缺密钥(端点的密钥变量未设置)', 401, '');
-    this.sdk ??= new Anthropic({ apiKey: this.opts.apiKey, baseURL: this.opts.baseUrl || DEFAULT_BASE_URL, maxRetries: 0 });
+    // a redirect fails the request: the x-api-key header would follow it to the new address
+    this.sdk ??= new Anthropic({ apiKey: this.opts.apiKey, baseURL: this.opts.baseUrl || DEFAULT_BASE_URL, maxRetries: 0, fetch: (url, init) => fetch(url, { ...init, redirect: 'error' }) });
     return this.sdk;
   }
 
