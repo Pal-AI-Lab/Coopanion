@@ -161,10 +161,13 @@ it('reloads templates changed outside the page when applying, so the next save u
 it('retains empty editable templates omitted from the prefix and applies their restored content', async () => {
   sources[1].content = '';
   const { root, view, button } = await mount();
-  root.querySelector(`[data-source="${worldKey}"] button`).click();
+  const flag = root.querySelector(`[data-source="${worldKey}"]`);
+  expect(flag.textContent).toContain(S.outsidePrefix);
+  flag.querySelector('button').click();
   view.dispatch({ changes: { from: view.state.doc.length, insert: 'Restored environment' } });
   button(S.reloadSession).click();
   await vi.waitFor(() => expect(session.find((segment) => segment.sourceKey === worldKey)?.text).toBe('Restored environment'));
+  await vi.waitFor(() => expect(flag.textContent).not.toContain(S.outsidePrefix));
 });
 
 it('keeps the accepted route unchanged when leaving for World configuration is cancelled', async () => {
@@ -241,6 +244,8 @@ it('keeps a failed source dirty after a partial save and retries only that sourc
   failures.add(worldKey); button(S.reloadSession).click();
   await vi.waitFor(() => expect(root.querySelector('[role=status]').textContent).toContain('Revision conflict'));
   expect(sessionWrites).toHaveLength(0);
+  expect(root.querySelector('[data-source="constitution"] .is-dirty')).toBeNull();
+  expect(root.querySelector(`[data-source="${worldKey}"] .is-dirty`)).not.toBeNull();
   failures.clear(); button(S.reloadSession).click();
   await vi.waitFor(() => expect(session).toHaveLength(3));
   expect(writes.filter((write) => write.key === 'constitution')).toHaveLength(1);
@@ -281,9 +286,11 @@ it('remembers folds across page mounts and resets them in a new window session',
   expect(flag(restarted.root, worldKey).getAttribute('aria-expanded')).toBe('false');
 });
 
-it('lists a section’s template variables under its label', async () => {
+it('labels each section with its key and whether it is editable, and lists its template variables under the label', async () => {
   const { root } = await mount();
   const label = root.querySelector('[data-source="constitution"]');
+  expect(label.querySelector('.prefix-flag-meta').textContent).toBe(`constitution${S.editable}`);
+  expect(root.querySelector('[data-source="WORKSPACE"] .prefix-flag-meta').textContent).toBe(`WORKSPACE${S.readOnly}`);
   expect([...label.querySelectorAll('.varchip')].map((chip) => chip.textContent)).toEqual(['fixture.name']);
   expect(label.querySelector('.prompt-preview-toggle')).not.toBeNull();
 });

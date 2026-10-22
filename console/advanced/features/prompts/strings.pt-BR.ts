@@ -1,6 +1,9 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  outsidePrefix: "Fora do prefixo atual",
+  editable: "Editável",
+  readOnly: "Somente leitura",
   constitutionTitle: "Identidade e comportamento",
   constitutionDesc: "Define a identidade, personalidade, fala e princípios de Coo. Coo também pode editá-los.",
   orientationTitle: "Regras de funcionamento",

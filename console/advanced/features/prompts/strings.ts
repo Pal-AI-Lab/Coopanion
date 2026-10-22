@@ -10,6 +10,9 @@ import { S as it } from './strings.it.ts';
 import { S as ru } from './strings.ru.ts';
 
 const zh = {
+  outsidePrefix: "未纳入当前前缀",
+  editable: "可编辑",
+  readOnly: "只读",
   constitutionTitle: "人设与行为原则",
   constitutionDesc: "定义 Coo 的身份、性格、说话方式和做事原则。Coo 也可以修改这份内容。",
   orientationTitle: "基础运行约定",
@@ -94,6 +97,9 @@ const zh = {
 };
 
 export const en: typeof zh = {
+  outsidePrefix: "Outside the current prefix",
+  editable: "Editable",
+  readOnly: "Read-only",
   constitutionTitle: "Identity & behavior",
   constitutionDesc: "Defines Coo’s identity, personality, voice and principles. Coo can also edit this content.",
   orientationTitle: "Operating rules",

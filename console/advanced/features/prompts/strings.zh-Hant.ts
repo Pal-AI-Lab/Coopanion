@@ -1,6 +1,9 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  outsidePrefix: "未納入目前前綴",
+  editable: "可編輯",
+  readOnly: "唯讀",
   constitutionTitle: "人設與行為原則",
   constitutionDesc: "定義 Coo 的身分、性格、說話方式和做事原則。Coo 也可以修改這份內容。",
   orientationTitle: "基礎運作約定",

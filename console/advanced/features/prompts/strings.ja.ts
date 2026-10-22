@@ -1,6 +1,9 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  outsidePrefix: "現在のプレフィックスに未使用",
+  editable: "編集可能",
+  readOnly: "読み取り専用",
   constitutionTitle: "人物像と行動原則",
   constitutionDesc: "Coo の個性、話し方、行動原則を定義します。Coo 自身も編集できます。",
   orientationTitle: "基本動作の規則",

@@ -21,6 +21,7 @@ interface Section {
   tone: PrefixBlock['tone'];
   label: HTMLElement;
   toggle: HTMLButtonElement;
+  badge: HTMLElement;
   /** Spans the section's height in the label column so the variable list stays in view while it scrolls. */
   cell: HTMLElement;
   vars: HTMLElement;
@@ -81,6 +82,12 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
   function state(): void {
     controls();
     say(dirty.size ? S.dirtyCount(dirty.size) : pendingApply ? S.pendingApply : S.prefixStats(segments.length, estTok(segments.map((s) => s.text).join('')).toLocaleString()));
+    for (const { doc, badge } of sections) {
+      const changed = !!doc && dirty.has(doc.key);
+      badge.textContent = changed ? S.unsaved : doc ? S.editable : S.readOnly;
+      if (doc && !segments.some((s) => s.sourceKey === doc.key)) badge.textContent += ` · ${S.outsidePrefix}`;
+      badge.classList.toggle('is-dirty', changed);
+    }
   }
   function open(section: Section, expanded: boolean): void {
     if (section.collapsed === !expanded) return;
@@ -333,7 +340,11 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     const toggle = ui.button('', { onClick: () => open(section, section.collapsed) });
     toggle.className = 'prefix-flag';
     toggle.setAttribute('aria-expanded', String(!collapsed));
-    toggle.append(ui.h('span', 'prefix-flag-title', info.title));
+    const key = segment.sourceKey?.startsWith('worlds.') ? segment.sourceKey : segment.title;
+    const meta = ui.h('span', 'prefix-flag-meta');
+    const badge = ui.h('span', 'prompt-section-badge');
+    meta.append(ui.h('span', 'prefix-flag-key mono', key), badge);
+    toggle.append(ui.h('span', 'prefix-flag-title', info.title), meta);
     const cell = ui.h('div', 'prefix-varcell');
     const vars = ui.h('div', 'prefix-vars');
     cell.append(vars);
@@ -341,7 +352,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     label.append(toggle, cell);
     const divider = ui.h('div', `prefix-divider tone-${tone}`);
     observer.observe(vars);
-    const section: Section = { segment, doc, tone, label, toggle, cell, vars, divider, collapsed, updateVariables() {} };
+    const section: Section = { segment, doc, tone, label, toggle, badge, cell, vars, divider, collapsed, updateVariables() {} };
     if (!doc) return section;
     const chips = new Map<string, HTMLButtonElement>();
     const warning = ui.h('div', 'prompt-varwarn');
