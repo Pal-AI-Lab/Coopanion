@@ -257,7 +257,7 @@ export function mountUsage(ctx: PageContext): void {
   chartCtrls.append(group(ui, S.granularity, bucketSeg.el), group(ui, S.split, splitWrap, sortBox.el));
   trend.body.append(chartCtrls, mainLegend, mainBox, mainNote);
 
-  // ---- 分组明细：三张表叠在同一格里，节高取最长的一张，切换时页面不跳 ---------
+  // ---- 分组明细：同一时刻显示一张 -------------------------------------------
   const breakdown = ui.sheet({ title: S.sectionBreakdown });
   const GROUP_HEAD = [S.headCalls, S.headInput, S.headOutput, S.headCache, S.headCost, S.headAvg];
   const groupTables = {
@@ -266,11 +266,23 @@ export function mountUsage(ctx: PageContext): void {
     instance: ui.table({ head: [S.dimInstance, ...GROUP_HEAD] }),
   };
   type GroupKey = keyof typeof groupTables;
+  const tableBox = ui.h('div');
+  /**
+   * 换成较短的表时，先按旧表高度撑住，免得页面贴底时被浏览器上拉；多出的空白滚出视口下方后再放开，
+   * 那时收回它看不见。
+   */
+  const releaseHold = (): void => {
+    const held = parseFloat(tableBox.style.minHeight);
+    if (!held) return;
+    const extra = held - (tableBox.firstElementChild as HTMLElement).offsetHeight;
+    if (extra <= 0 || root.scrollTop + root.clientHeight <= root.scrollHeight - extra) tableBox.style.minHeight = '';
+  };
+  root.addEventListener('scroll', releaseHold, { passive: true, signal: ctx.signal });
   const showGroup = (key: GroupKey): void => {
-    for (const k of Object.keys(groupTables) as GroupKey[]) {
-      groupTables[k].el.classList.toggle('is-off', k !== key);
-      groupTables[k].el.inert = k !== key;
-    }
+    const before = tableBox.offsetHeight;
+    tableBox.replaceChildren(groupTables[key].el);
+    tableBox.style.minHeight = before ? `${before}px` : '';
+    releaseHold();
   };
   const groupSeg = ui.segmented([
     { value: 'role', label: S.byRole },
@@ -279,10 +291,8 @@ export function mountUsage(ctx: PageContext): void {
   ], { size: 'sm', value: 'role', onSelect: (v) => showGroup(v as GroupKey) });
   slidingSwitch(groupSeg.el, ctx.signal);
   headActions(ui, breakdown, groupSeg.el);
+  breakdown.body.appendChild(tableBox);
   showGroup('role');
-  const stack = ui.h('div', 'ustack');
-  stack.append(...Object.values(groupTables).map((t) => t.el));
-  breakdown.body.appendChild(stack);
 
   const results = ui.h('div', 'uresults');
   results.append(overview.el, activity.el, trend.el, breakdown.el);

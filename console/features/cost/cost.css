@@ -93,9 +93,6 @@
 .chart-legend + .uchart { margin-top: 8px; }
 .unote { margin: 6px 0 0; }
 .unote:empty { display: none; }
-.ustack { display: grid; }
-.ustack > .tablewrap { grid-area: 1 / 1; align-self: start; }
-.ustack > .tablewrap.is-off { visibility: hidden; }
 
 @container console-content (max-width: 720px) {
   .ukpis { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 14px; }
