@@ -144,7 +144,7 @@ it('refreshes variables and generated text after applying, preserving undo and r
   delete sources[0].vars[0].value;
   root.querySelector('.prompt-preview-toggle').click();
   root.querySelector('.prompt-preview-toggle').click();
-  await vi.waitFor(() => expect(root.querySelector('.prompt-railwarn').textContent).toContain('fixture.name'));
+  await vi.waitFor(() => expect(root.querySelector('.prompt-varwarn').textContent).toContain('fixture.name'));
 });
 
 it('reloads templates changed outside the page when applying, so the next save uses their revision', async () => {
@@ -161,13 +161,10 @@ it('reloads templates changed outside the page when applying, so the next save u
 it('retains empty editable templates omitted from the prefix and applies their restored content', async () => {
   sources[1].content = '';
   const { root, view, button } = await mount();
-  const flag = root.querySelector(`[data-source="${worldKey}"]`);
-  expect(flag.textContent).toContain(S.outsidePrefix);
-  flag.querySelector('button').click();
+  root.querySelector(`[data-source="${worldKey}"] button`).click();
   view.dispatch({ changes: { from: view.state.doc.length, insert: 'Restored environment' } });
   button(S.reloadSession).click();
   await vi.waitFor(() => expect(session.find((segment) => segment.sourceKey === worldKey)?.text).toBe('Restored environment'));
-  await vi.waitFor(() => expect(flag.textContent).not.toContain(S.outsidePrefix));
 });
 
 it('keeps the accepted route unchanged when leaving for World configuration is cancelled', async () => {
@@ -244,8 +241,6 @@ it('keeps a failed source dirty after a partial save and retries only that sourc
   failures.add(worldKey); button(S.reloadSession).click();
   await vi.waitFor(() => expect(root.querySelector('[role=status]').textContent).toContain('Revision conflict'));
   expect(sessionWrites).toHaveLength(0);
-  expect(root.querySelector('[data-source="constitution"] .is-dirty')).toBeNull();
-  expect(root.querySelector(`[data-source="${worldKey}"] .is-dirty`)).not.toBeNull();
   failures.clear(); button(S.reloadSession).click();
   await vi.waitFor(() => expect(session).toHaveLength(3));
   expect(writes.filter((write) => write.key === 'constitution')).toHaveLength(1);
@@ -284,4 +279,11 @@ it('remembers folds across page mounts and resets them in a new window session',
   const restarted = await mount();
   expect(flag(restarted.root, 'constitution').getAttribute('aria-expanded')).toBe('true');
   expect(flag(restarted.root, worldKey).getAttribute('aria-expanded')).toBe('false');
+});
+
+it('lists a section’s template variables under its label', async () => {
+  const { root } = await mount();
+  const label = root.querySelector('[data-source="constitution"]');
+  expect([...label.querySelectorAll('.varchip')].map((chip) => chip.textContent)).toEqual(['fixture.name']);
+  expect(label.querySelector('.prompt-preview-toggle')).not.toBeNull();
 });

@@ -1,7 +1,6 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  outsidePrefix: "Nicht im aktuellen Präfix",
   constitutionTitle: "Identität und Verhalten",
   constitutionDesc: "Legt Coos Identität, Persönlichkeit, Sprechweise und Grundsätze fest. Coo kann sie ebenfalls bearbeiten.",
   orientationTitle: "Grundlegende Regeln",
@@ -13,7 +12,6 @@ export const S: Partial<typeof en> = {
   partnerTitle: "Nutzerprofil",
   partnerDesc: "Enthält langfristige Informationen über die Person.",
   generatedDesc: "Aus dem aktuellen Zustand erzeugt und im System-Prompt enthalten.",
-  generated: "Generiert · schreibgeschützt",
   prefixStats: (n: number, tok: string) => `${n} ${n === 1 ? 'Block' : 'Blöcke'} · gerendert etwa ${tok} Tokens`,
   pendingApply: "Gespeichert, noch nicht auf dieses Gespräch angewendet.",
   applyHint: "Speichert Änderungen und aktualisiert Coos Systemprompt sofort. Das aktuelle Gespräch bleibt erhalten.",
@@ -39,7 +37,6 @@ export const S: Partial<typeof en> = {
   title: 'System-Prompt',
   introDesc: "Strg+S speichert Vorlagen; „Jetzt anwenden“ aktualisiert den Prompt des aktuellen Gesprächs. Generierte Abschnitte sind schreibgeschützt.",
   fullPreview: "Vorschau des vollständigen Prompts",
-  sourceMissing: (key: string) => `Quelle „${key}“ nicht gefunden`,
   leaveUnsaved: 'Ungespeicherte Änderungen gehen verloren. Verlassen?',
   saving: 'Speichert…',
   saved: 'Gespeichert',
@@ -68,9 +65,6 @@ export const S: Partial<typeof en> = {
   loadedFromPackage: 'Überschreibung des Bot-Pakets geladen; Speichern schreibt die Deployment-Überschreibung.',
   loadedFromWorld: 'World-Standard geladen; Speichern schreibt die Deployment-Überschreibung.',
   loadedFromSource: 'Aus der Quelldatei geladen',
-  originDeployment: 'Überschreibung dieses Deployments',
-  originPackage: 'Überschreibung des Bot-Pakets',
-  originWorld: 'World-Standard',
   unsaved: '● Ungespeichert',
   resetToWorld: 'Deployment-Überschreibung entfernen',
   savedResult: (result: string) => `✓ ${result}; gilt nach einem Neuladen des Präfixes`,

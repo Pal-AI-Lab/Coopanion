@@ -21,15 +21,14 @@ interface Section {
   tone: PrefixBlock['tone'];
   label: HTMLElement;
   toggle: HTMLButtonElement;
+  /** Spans the section's height in the label column so the variable list stays in view while it scrolls. */
   cell: HTMLElement;
-  note: HTMLElement;
-  badge: HTMLElement;
-  origin?: HTMLElement;
+  vars: HTMLElement;
   divider: HTMLElement;
   collapsed: boolean;
   updateVariables(): void;
 }
-const colWidth = { flags: 158, rail: 190 };
+let labelWidth = 190;
 const FOLDS_KEY = 'coopanion.prompt-folds';
 let folds = new Map<string, boolean>();
 
@@ -43,13 +42,6 @@ function description(segment: PrefixSegment, doc?: PromptDoc): { title: string; 
     case 'PARTNER': return { title: S.partnerTitle, detail: doc?.description || S.partnerDesc };
     default: return { title: doc?.title || segment.title, detail: doc?.description ?? (segment.sourceKey ? '' : S.generatedDesc) };
   }
-}
-
-function originText(doc: PromptDoc): string {
-  return doc.origin === 'deployment' ? S.loadedFromDeployment
-    : doc.origin === 'package' ? S.loadedFromPackage
-      : doc.origin === 'module' ? S.loadedFromWorld
-        : S.loadedFromSource;
 }
 
 export async function mountPrompts(ctx: FeatureContext): Promise<void> {
@@ -69,11 +61,9 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
   const stage = ui.h('div', 'prefix-stage');
   const flags = ui.h('div', 'prefix-flags');
   const host = ui.h('div', 'prefix-host');
-  const rail = ui.h('div', 'prefix-rail');
-  const gripL = ui.h('div', 'prefix-grip');
-  const gripR = ui.h('div', 'prefix-grip');
+  const grip = ui.h('div', 'prefix-grip');
   const dividers = ui.h('div', 'prefix-dividers');
-  stage.append(flags, gripL, host, gripR, rail, dividers);
+  stage.append(flags, grip, host, dividers);
   const full = ui.h('pre', 'mono prefix-full');
   const preview = ui.foldSheet('full-prompt', { title: S.fullPreview });
   preview.body.append(full);
@@ -91,14 +81,6 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
   function state(): void {
     controls();
     say(dirty.size ? S.dirtyCount(dirty.size) : pendingApply ? S.pendingApply : S.prefixStats(segments.length, estTok(segments.map((s) => s.text).join('')).toLocaleString()));
-    for (const { doc, toggle, badge, origin } of sections) {
-      const changed = !!doc && dirty.has(doc.key);
-      badge.textContent = changed ? S.unsaved : doc ? S.editableTemplate : S.generated;
-      if (doc && !segments.some((s) => s.sourceKey === doc.key)) badge.textContent += ` · ${S.outsidePrefix}`;
-      badge.classList.toggle('is-dirty', changed);
-      if (doc) toggle.title = originText(doc);
-      if (doc && origin) origin.textContent = doc.origin === 'deployment' ? S.originDeployment : doc.origin === 'package' ? S.originPackage : S.originWorld;
-    }
   }
   function open(section: Section, expanded: boolean): void {
     if (section.collapsed === !expanded) return;
@@ -108,7 +90,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
   function animateSection(section: Section, index: number): void {
     if (section.collapsed || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const targets = host.querySelectorAll(`[data-prompt-section="${index}"]`);
-    for (const target of [...targets, section.note]) {
+    for (const target of [...targets, section.vars]) {
       target.getAnimations().forEach((animation) => animation.cancel());
       target.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 180, easing: 'ease-out' });
     }
@@ -259,7 +241,6 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
       try { sessionStorage.setItem(FOLDS_KEY, JSON.stringify([...folds])); } catch { /* Kept in memory. */ }
       section.toggle.setAttribute('aria-expanded', String(!collapsed));
       section.cell.hidden = collapsed;
-      if (section.origin) section.origin.hidden = collapsed;
       closePopup();
       expand.textContent = sections.every((s) => !s.collapsed) ? S.collapseAll : S.expandAll;
       queueMicrotask(() => { if (!signal.aborted) animateSection(section, index); });
@@ -268,59 +249,52 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
   });
   ctx.lifecycle.own(editor);
   function scheduleGeometry(): void {
-    if (!geometryFrame) geometryFrame = requestAnimationFrame(() => { geometryFrame = 0; positionSides(); });
+    if (!geometryFrame) geometryFrame = requestAnimationFrame(() => { geometryFrame = 0; positionLabels(); });
   }
-  function positionSides(): void {
-    root.style.setProperty('--prompt-rail-top', `${toolbar.offsetHeight + 12}px`);
+  function positionLabels(): void {
+    root.style.setProperty('--prompt-sticky-top', `${toolbar.offsetHeight + 12}px`);
     const geometry = editor.blockGeometry();
     const offset = editor.contentTop() - stage.getBoundingClientRect().top;
     const spacing = geometry.map((g, index) => {
       const section = sections[index];
-      const top = `${g.top + offset}px`;
-      section.label.style.top = top;
-      section.cell.style.top = top;
-      section.cell.style.height = `${g.height}px`;
-      section.divider.style.top = top;
+      const top = g.top + offset;
+      // Flags are centred on section edges; the variables keep clear of this flag and the next one.
+      const clearance = section.toggle.offsetHeight / 2 + 8;
+      section.label.style.top = section.divider.style.top = `${top}px`;
+      section.cell.style.top = `${clearance}px`;
+      section.cell.style.height = `${Math.max(0, g.height - 2 * clearance)}px`;
       section.divider.style.left = `${flags.offsetWidth}px`;
-      const flagHeight = section.toggle.offsetHeight;
-      section.label.style.setProperty('--prompt-flag-height', `${flagHeight}px`);
-      const minHeight = Math.ceil(Math.max(50, section.note.offsetHeight + 12, section.origin && !g.collapsed ? flagHeight / 2 + section.origin.offsetHeight + 32 : 0));
+      const minHeight = Math.ceil(Math.max(50, g.collapsed ? 0 : 2 * clearance + section.vars.offsetHeight));
       return { minHeight, padding: g.collapsed ? 0 : Math.max(0, Math.ceil(minHeight - (g.height - g.padding))) };
     });
-    flags.style.height = rail.style.height = `${host.offsetHeight}px`;
+    flags.style.height = `${host.offsetHeight}px`;
     editor.setSpacing(spacing);
   }
-  function applyWidths(): void {
-    flags.style.flexBasis = `${colWidth.flags}px`;
-    rail.style.flexBasis = `${colWidth.rail}px`;
+  function applyWidth(): void {
+    flags.style.flexBasis = `${labelWidth}px`;
     scheduleGeometry();
   }
-  function bindGrip(grip: HTMLElement, side: 'flags' | 'rail'): void {
-    grip.addEventListener('pointerdown', (event) => {
-      event.preventDefault();
-      grip.setPointerCapture(event.pointerId);
-      const startX = event.clientX;
-      const start = colWidth[side];
-      const move = (e: PointerEvent) => {
-        colWidth[side] = Math.max(100, Math.min(300, start + (e.clientX - startX) * (side === 'flags' ? 1 : -1)));
-        applyWidths();
-      };
-      const end = () => {
-        grip.removeEventListener('pointermove', move);
-        grip.removeEventListener('lostpointercapture', end);
-      };
-      grip.addEventListener('pointermove', move, { signal });
-      grip.addEventListener('lostpointercapture', end, { signal });
-    }, { signal });
-  }
-  bindGrip(gripL, 'flags');
-  bindGrip(gripR, 'rail');
-  applyWidths();
+  grip.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    grip.setPointerCapture(event.pointerId);
+    const startX = event.clientX;
+    const start = labelWidth;
+    const move = (e: PointerEvent) => {
+      labelWidth = Math.max(120, Math.min(320, start + e.clientX - startX));
+      applyWidth();
+    };
+    const end = () => {
+      grip.removeEventListener('pointermove', move);
+      grip.removeEventListener('lostpointercapture', end);
+    };
+    grip.addEventListener('pointermove', move, { signal });
+    grip.addEventListener('lostpointercapture', end, { signal });
+  }, { signal });
+  applyWidth();
   const observer = new ResizeObserver(scheduleGeometry);
   observer.observe(stage);
   observer.observe(toolbar);
   observer.observe(flags);
-  observer.observe(rail);
   ctx.lifecycle.own({ dispose() { observer.disconnect(); cancelAnimationFrame(geometryFrame); } });
 
   let popup: HTMLElement | null = null;
@@ -359,34 +333,20 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     const toggle = ui.button('', { onClick: () => open(section, section.collapsed) });
     toggle.className = 'prefix-flag';
     toggle.setAttribute('aria-expanded', String(!collapsed));
-    const title = ui.h('span', 'prefix-flag-title', info.title);
-    const key = segment.sourceKey?.startsWith('worlds.') ? segment.sourceKey : segment.title;
-    const meta = ui.h('span', 'prefix-flag-meta');
-    const badge = ui.h('span', 'prompt-section-badge');
-    meta.append(ui.h('span', 'prefix-flag-key mono', key), badge);
-    toggle.append(title, meta);
-    label.append(toggle);
-    const cell = ui.h('div', `prefix-railcell tone-${tone}`);
-    const note = ui.h('div', 'prefix-railcontent');
-    cell.append(note);
+    toggle.append(ui.h('span', 'prefix-flag-title', info.title));
+    const cell = ui.h('div', 'prefix-varcell');
+    const vars = ui.h('div', 'prefix-vars');
+    cell.append(vars);
     cell.hidden = collapsed;
+    label.append(toggle, cell);
     const divider = ui.h('div', `prefix-divider tone-${tone}`);
-    observer.observe(note);
-    const section: Section = { segment, doc, tone, label, toggle, cell, note, badge, divider, collapsed, updateVariables() {} };
-    if (!doc) {
-      if (segment.sourceKey) note.append(ui.h('p', 'prompt-help', S.sourceMissing(segment.sourceKey)));
-      return section;
-    }
-    if (doc.origin) {
-      section.origin = ui.h('p', 'prompt-help prefix-origin');
-      section.origin.hidden = collapsed;
-      label.append(section.origin);
-      observer.observe(section.origin);
-    }
+    observer.observe(vars);
+    const section: Section = { segment, doc, tone, label, toggle, cell, vars, divider, collapsed, updateVariables() {} };
+    if (!doc) return section;
     const chips = new Map<string, HTMLButtonElement>();
-    const warning = ui.h('div', 'prompt-railwarn');
+    const warning = ui.h('div', 'prompt-varwarn');
     if (doc.vars?.length) {
-      note.append(ui.h('div', 'prompt-rail-heading', S.variablesTitle), ui.h('p', 'prompt-help', S.insertHint));
+      vars.append(ui.h('div', 'prompt-vars-heading', S.variablesTitle), ui.h('p', 'prompt-help', S.insertHint));
       let previewing = false;
       const preview = ui.button(S.previewVariables, { size: 'sm', onClick: () => {
         closePopup();
@@ -399,7 +359,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
       preview.classList.add('prompt-preview-toggle');
       preview.setAttribute('aria-pressed', 'false');
       const list = ui.h('div', 'prompt-variable-list');
-      note.append(list, preview);
+      vars.append(list, preview);
       for (const variable of doc.vars) {
         let insertPosition = 0;
         const chip = ui.button(variable.name, { size: 'sm', onClick: () => {
@@ -410,7 +370,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
           popupChip = chip;
           chip.setAttribute('aria-expanded', 'true');
           const rect = chip.getBoundingClientRect();
-          popup.style.left = `${Math.max(8, rect.left - popup.offsetWidth - 10)}px`;
+          popup.style.left = `${Math.max(8, Math.min(rect.right + 10, window.innerWidth - popup.offsetWidth - 8))}px`;
           popup.style.top = `${Math.max(8, Math.min(rect.top, window.innerHeight - popup.offsetHeight - 8))}px`;
         } });
         chip.className += ' varchip mono';
@@ -439,7 +399,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
         list.append(chip);
       }
     }
-    note.append(warning);
+    vars.append(warning);
     section.updateVariables = () => {
       const used = new Set(references(editor.text(doc.key)).map((r) => r.name));
       for (const [name, chip] of chips) chip.classList.toggle('varchip-unused', !used.has(name));
@@ -451,7 +411,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
 
   /**
    * Matches the sections to the current prefix plus the templates it omits. A section whose source and
-   * template presence are unchanged is reused with its fold, preview and rail state.
+   * template presence are unchanged is reused with its fold, preview and variable list.
    */
   function layout(): void {
     closePopup();
@@ -472,13 +432,11 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
       return section;
     }));
     for (const gone of previous) {
-      gone.label.remove(); gone.cell.remove(); gone.divider.remove();
-      observer.unobserve(gone.note);
-      if (gone.origin) observer.unobserve(gone.origin);
+      gone.label.remove(); gone.divider.remove();
+      observer.unobserve(gone.vars);
     }
     for (const section of sections) {
       flags.append(section.label);
-      rail.append(section.cell);
       dividers.append(section.divider);
     }
     editor.setBlocks(sections.map(({ segment, doc, tone, collapsed }): PrefixBlock => ({
@@ -505,7 +463,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
           ctx.router.navigate(['provider', page.id, '~config']);
         } });
         settings.classList.add('prompt-settings-link');
-        section.note.insertBefore(settings, section.note.querySelector('.prompt-railwarn'));
+        section.vars.insertBefore(settings, section.vars.querySelector('.prompt-varwarn'));
         scheduleGeometry();
       }
     } catch (error) { if (!signal.aborted) ctx.onError(error); }

@@ -1,7 +1,6 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  outsidePrefix: "未納入目前前綴",
   constitutionTitle: "人設與行為原則",
   constitutionDesc: "定義 Coo 的身分、性格、說話方式和做事原則。Coo 也可以修改這份內容。",
   orientationTitle: "基礎運作約定",
@@ -13,7 +12,6 @@ export const S: Partial<typeof en> = {
   partnerTitle: "使用者檔案",
   partnerDesc: "提供與使用者有關的長期資訊。",
   generatedDesc: "由運行狀態生成，作為系統提示詞的一部分傳送。",
-  generated: "自動生成 · 唯讀",
   prefixStats: (n: number, tok: string) => `${n} 塊 · 算繪後約 ${tok} tokens`,
   pendingApply: "已儲存，尚未套用至目前對話。",
   applyHint: "儲存修改並立即更新 Coo 的系統提示詞，保留目前對話內容。",
@@ -39,7 +37,6 @@ export const S: Partial<typeof en> = {
   title: '系統提示詞',
   introDesc: "Ctrl+S 儲存範本，「立即套用」後目前對話改用新的提示詞。自動生成的段落唯讀。",
   fullPreview: "完整提示詞預覽",
-  sourceMissing: (key: string) => `來源「${key}」找不到`,
   leaveUnsaved: '未儲存的修改將遺失。離開？',
   saving: '儲存中…',
   saved: '已儲存',
@@ -68,9 +65,6 @@ export const S: Partial<typeof en> = {
   loadedFromPackage: '已載入 bot 套件覆蓋；儲存寫入本部署覆蓋檔案。',
   loadedFromWorld: '已載入 World 預設範本；儲存寫入本部署覆蓋檔案。',
   loadedFromSource: '已從來源檔案載入',
-  originDeployment: '本部署的覆蓋',
-  originPackage: 'bot 套件覆蓋',
-  originWorld: 'World 預設',
   unsaved: '● 未儲存',
   resetToWorld: '移除部署覆蓋',
   savedResult: (result: string) => `✓ ${result}；重新載入前綴後生效`,

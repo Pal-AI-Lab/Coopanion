@@ -1,7 +1,6 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  outsidePrefix: "Fuori dal prefisso attuale",
   constitutionTitle: "Identità e comportamento",
   constitutionDesc: "Definisce identità, personalità, modo di parlare e principi di Coo. Anche Coo può modificarli.",
   orientationTitle: "Regole di funzionamento",
@@ -13,7 +12,6 @@ export const S: Partial<typeof en> = {
   partnerTitle: "Profilo della persona",
   partnerDesc: "Fornisce informazioni durature sulla persona.",
   generatedDesc: "Generato dallo stato corrente e incluso nel prompt di sistema.",
-  generated: "Generato · sola lettura",
   prefixStats: (n: number, tok: string) => `${n} ${n === 1 ? 'blocco' : 'blocchi'} · circa ${tok} token dopo il rendering`,
   pendingApply: "Salvato; non ancora applicato a questa conversazione.",
   applyHint: "Salva le modifiche e aggiorna subito il prompt di sistema di Coo, mantenendo la conversazione attuale.",
@@ -39,7 +37,6 @@ export const S: Partial<typeof en> = {
   title: 'Prompt di sistema',
   introDesc: "Ctrl+S salva i template; «Applica ora» aggiorna il prompt della conversazione attuale. Le sezioni generate sono in sola lettura.",
   fullPreview: "Anteprima del prompt completo",
-  sourceMissing: (key: string) => `Fonte «${key}» non trovata`,
   leaveUnsaved: 'Le modifiche non salvate andranno perse. Uscire?',
   saving: 'Salvataggio…',
   saved: 'Salvato',
@@ -68,9 +65,6 @@ export const S: Partial<typeof en> = {
   loadedFromPackage: "Caricato l'override del pacchetto bot; il salvataggio scrive l'override del deployment.",
   loadedFromWorld: "Caricato il predefinito del World; il salvataggio scrive l'override del deployment.",
   loadedFromSource: 'Caricato dal file sorgente',
-  originDeployment: 'Override di questo deployment',
-  originPackage: 'Override del pacchetto bot',
-  originWorld: 'Predefinito del World',
   unsaved: '● Non salvato',
   resetToWorld: "Rimuovi l'override del deployment",
   savedResult: (result: string) => `✓ ${result}; ha effetto dopo il ricaricamento del prefisso`,
