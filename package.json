@@ -17,6 +17,7 @@
     "dev": "tsx scripts/stage.ts && electron .",
     "start": "electron .",
     "build:cortico": "tsx scripts/stage.ts",
+    "console:test": "tsx scripts/console-test.ts",
     "build:installer": "tsx scripts/stage.ts && tsx scripts/pack.ts",
     "build:icons": "electron scripts/make-icons.cjs",
     "test": "vitest run",
