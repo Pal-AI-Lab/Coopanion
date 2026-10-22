@@ -300,6 +300,11 @@ const SETTINGS_PARTITION = 'persist:coopanion-settings';
 const WINDOW_DIR = join(APP_ROOT, 'build', 'console');
 const WINDOW_PREFIX = '/coopanion/';
 const WINDOW_TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.map': 'application/json' };
+/**
+ * The window's own files run only scripts from the Core's origin, which serves the extensions' page bundles too; where its
+ * other requests may go is kept by keepRemoteOut.
+ */
+const WINDOW_CSP = "script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 const refused = () => new Response(null, { status: 403 });
 const coreOrigin = () => (core.port ? `http://127.0.0.1:${core.port}` : null);
 /** The desktop-pet World's server, as its panel reports it; asked again when a request names another origin. */
@@ -329,7 +334,7 @@ function windowFile(url) {
   try {
     const file = resolve(WINDOW_DIR, decodeURIComponent(url.pathname.slice(WINDOW_PREFIX.length)) || 'index.html');
     if (!file.startsWith(WINDOW_DIR + sep)) return new Response(null, { status: 404 });
-    return new Response(readFileSync(file), { headers: { 'content-type': WINDOW_TYPES[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store' } });
+    return new Response(readFileSync(file), { headers: { 'content-type': WINDOW_TYPES[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store', 'content-security-policy': WINDOW_CSP } });
   } catch {
     // a malformed escape, a directory, a file that is not there
     return new Response(null, { status: 404 });
