@@ -16,6 +16,11 @@ const en: CuaText = {
     caption: 'Computer use',
     yes: 'Yes',
     no: 'Not this time',
+    risky: {
+      keys: (who: string, keys: string) => `${who} wants to press ${keys}. This shortcut can open system menus or start programs. OK?`,
+      typeInTerminal: (who: string, window: string, text: string) => `${who} wants to type into the terminal window "${window}":\n${text}\nWhat is typed may run as a command. OK?`,
+      enterInTerminal: (who: string, window: string, keys: string) => `${who} wants to press ${keys} in the terminal window "${window}", which runs the command typed there. OK?`,
+    },
   },
 
   /** Whether this system runs computer use. */
@@ -41,7 +46,7 @@ const en: CuaText = {
     group: 'Computer use',
     enabled: { title: 'Turn on computer use' },
     control: { title: 'Allow the mouse and keyboard', description: 'When off, only screenshots and the window list.' },
-    permission: { title: 'When to ask you', description: 'ask-each-turn: before looking at the screen or acting, every turn; ask-before-acting: looking is free, asks before using the mouse and keyboard every turn; ask-once: looking is free, asks once before using the mouse and keyboard, and a yes holds for "A yes lasts"; never-ask: never asks.' },
+    permission: { title: 'When to ask you', description: 'ask-each-turn: before looking at the screen or acting, every turn; ask-before-acting: looking is free, asks before using the mouse and keyboard every turn; ask-once: looking is free, asks once before using the mouse and keyboard, and a yes holds for "A yes lasts"; never-ask: never asks. Whatever the setting, a shortcut that can start a program, and typing or pressing Enter in a terminal window, are each asked about first.' },
     grantMinutes: { title: 'A yes lasts', suffix: 'min', description: 'For ask-once only.' },
     userIdleMs: { title: 'Stay out of the way for', description: 'After you use the mouse or keyboard, it waits until they have been still this long.' },
     maxYieldWaitMs: { title: 'Longest wait for you' },

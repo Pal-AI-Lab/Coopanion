@@ -9,6 +9,11 @@ const de: Translation<CuaText> = {
     caption: 'Computersteuerung',
     yes: 'Ja',
     no: 'Diesmal nicht',
+    risky: {
+      keys: (who: string, keys: string) => `${who} möchte ${keys} drücken. Diese Tastenkombination kann Systemmenüs öffnen oder Programme starten. Ist das okay?`,
+      typeInTerminal: (who: string, window: string, text: string) => `${who} möchte im Terminalfenster „${window}“ eingeben:\n${text}\nDie Eingabe kann als Befehl ausgeführt werden. Ist das okay?`,
+      enterInTerminal: (who: string, window: string, keys: string) => `${who} möchte im Terminalfenster „${window}“ ${keys} drücken; der dort eingegebene Befehl wird ausgeführt. Ist das okay?`,
+    },
   },
 
   preflight: {
@@ -31,7 +36,7 @@ const de: Translation<CuaText> = {
     group: 'Computersteuerung',
     enabled: { title: 'Computersteuerung einschalten' },
     control: { title: 'Maus und Tastatur erlauben', description: 'Wenn aus, nur Screenshots und die Fensterliste.' },
-    permission: { title: 'Wann du gefragt wirst', description: 'ask-each-turn: fragt jede Runde, bevor es auf den Bildschirm schaut oder handelt; ask-before-acting: Schauen ist frei, fragt jede Runde, bevor es Maus und Tastatur benutzt; ask-once: Schauen ist frei, fragt einmal, bevor es Maus und Tastatur benutzt, und ein Ja gilt so lange wie bei „Ein Ja gilt“ eingestellt; never-ask: fragt nie.' },
+    permission: { title: 'Wann du gefragt wirst', description: 'ask-each-turn: fragt jede Runde, bevor es auf den Bildschirm schaut oder handelt; ask-before-acting: Schauen ist frei, fragt jede Runde, bevor es Maus und Tastatur benutzt; ask-once: Schauen ist frei, fragt einmal, bevor es Maus und Tastatur benutzt, und ein Ja gilt so lange wie bei „Ein Ja gilt“ eingestellt; never-ask: fragt nie. Unabhängig von der Einstellung wird vor Tastenkombinationen, die Programme starten können, und vor Eingaben oder Enter in einem Terminalfenster jedes Mal einzeln gefragt.' },
     grantMinutes: { title: 'Ein Ja gilt', suffix: 'Min.', description: 'Nur für ask-once.' },
     userIdleMs: { title: 'Dir den Vortritt lassen für', description: 'Nachdem du Maus oder Tastatur benutzt hast, wartet es, bis sie so lange unberührt waren.' },
     maxYieldWaitMs: { title: 'Längste Wartezeit auf dich' },

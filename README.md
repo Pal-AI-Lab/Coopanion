@@ -210,6 +210,7 @@ Once it is on, Coo looks at the screen without asking, and asks before it first 
   - `ask-before-acting`: looking is not asked; ask every turn before using the mouse and keyboard;
   - `ask-once` (default): looking is not asked; ask once before acting, then not again for the time set in **A yes lasts** (30 minutes by default);
   - `never-ask`: never ask.
+- Whatever the setting, Coo asks before each shortcut that can start a program (one with the Windows or Super key, Command+Space on macOS, a terminal or run-box shortcut) and before it types or presses Enter in a terminal window. The question shows the keys or the full text.
 - With several displays, Coo looks at one at a time and moves to another when it needs to.
 - When you touch the mouse or keyboard, Coo stops and waits for you.
 - Logins, passwords and payments are left to you.
