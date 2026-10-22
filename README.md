@@ -191,11 +191,9 @@ Speech is recognized on your machine and audio is never uploaded: by **FunASR** 
 
 Turning voice input off also unloads its recognition model or stops the Windows recognition helper. Turning it on loads the engine again.
 
-### Reminders
+### Alarms
 
-Ask Coo to remind you at a local time or after a number of minutes. Daily reminders keep that local clock time across daylight-saving changes. If the clock skips the requested time, that occurrence moves forward by the gap; the next day uses the requested time again. Reminders missed while the app is closed arrive when it next starts.
-
-Existing daily reminders use their currently saved time as the daily clock. If an earlier daylight-saving change already shifted one, cancel it and ask Coo to set it again at the intended time.
+Ask Coo to set an alarm at a local time or after a number of minutes. Daily alarms keep that local clock time across daylight-saving changes. If the clock skips the requested time, that occurrence moves forward by the gap; the next day uses the requested time again. Alarms missed while the app is closed arrive when it next starts.
 
 ### Playing with Coo
 
@@ -221,13 +219,12 @@ Once it is on, Coo looks at the screen without asking, and asks before it first 
 - Whatever the setting, Coo asks before each shortcut that can start a program (one with the Windows or Super key, Command+Space on macOS, a terminal or run-box shortcut) and before it types or presses Enter in a terminal window. The question shows the keys or the full text.
 - With several displays, Coo looks at one at a time and moves to another when it needs to.
 - When you touch the mouse or keyboard, Coo stops and waits for you.
-- If a computer-use request times out, its engine is stopped; the next request starts a new one.
 - Logins, passwords and payments are left to you.
 - One wake makes at most 40 model requests; at the limit the turn ends and you can tell Coo to continue. The limit is on the Cormini page in advanced mode and applies after a restart.
 
 To keep Coo off your computer, untick **Let Coo use this computer** in the Computer use section of the Habits page.
 
-If saving a computer-use change fails, the switches and permission choice return to their last saved values. The page rereads Core's configuration every 3 seconds when it is reachable.
+If saving a computer-use change fails, the switches and permission choice return to their last saved values.
 
 ### Tray / menu bar
 
