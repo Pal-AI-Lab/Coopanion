@@ -89,11 +89,13 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
   function state(): void {
     controls();
     say(dirty.size ? S.dirtyCount(dirty.size) : pendingApply ? S.pendingApply : S.prefixStats(segments.length, estTok(segments.map((s) => s.text).join('')).toLocaleString()));
-    for (const { doc, badge } of sections) {
+    for (const { doc, toggle, badge } of sections) {
       const changed = !!doc && dirty.has(doc.key);
       badge.textContent = changed ? S.unsaved : doc ? S.editable : S.readOnly;
       if (doc && !segments.some((s) => s.sourceKey === doc.key)) badge.textContent += ` · ${S.outsidePrefix}`;
       badge.classList.toggle('is-dirty', changed);
+      // a narrow label column cuts the title, key and badge short; the tooltip carries them whole
+      toggle.title = [...toggle.querySelectorAll('.prefix-flag-title, .prefix-flag-key, .prompt-section-badge')].map((part) => part.textContent).join('\n');
     }
   }
   function open(section: Section, expanded: boolean): void {
@@ -373,7 +375,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     observer.observe(vars);
     const tools = ui.h('span', 'prompt-vars-tools');
     const heading = ui.h('div', 'prompt-vars-heading');
-    heading.append(ui.h('span', '', S.variablesTitle), tools);
+    heading.append(ui.h('span', 'prompt-vars-title', S.variablesTitle), tools);
     const section: Section = { segment, doc, tone, label, toggle, badge, cell, vars, heading, tools, divider, collapsed, updateVariables() {}, fitVariables() {} };
     if (!doc) return section;
     const chips = new Map<string, HTMLButtonElement>();
@@ -535,6 +537,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
         if (!section.heading.isConnected) section.vars.prepend(section.heading);
         scheduleGeometry();
       }
+      state();
     } catch (error) { if (!signal.aborted) ctx.onError(error); }
   }
   async function refreshVariables(key: string): Promise<void> {

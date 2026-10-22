@@ -127,9 +127,9 @@
 .prefix-label.tone-persona .prefix-flag { background:color-mix(in srgb,var(--accent) 26%,var(--sheet)); }
 .prefix-label.tone-world .prefix-flag { background:color-mix(in srgb,var(--accent-2) 26%,var(--sheet)); }
 .prefix-flag-title { color:var(--ink); font-size:11px; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.prefix-flag-meta { display:flex; align-items:center; column-gap:5px; row-gap:0; flex-wrap:wrap; font-size:9px; line-height:1.4; }
-.prefix-flag-key { font-size:9px; overflow-wrap:anywhere; }
-.prompt-section-badge { font-size:9px; }
+.prefix-flag-meta { display:flex; align-items:center; column-gap:5px; min-width:0; font-size:9px; line-height:1.4; }
+.prefix-flag-key { flex:0 100 auto; min-width:0; font-size:9px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.prompt-section-badge { flex:0 1 auto; min-width:0; font-size:9px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .prompt-section-badge.is-dirty { color:var(--ink); font-weight:600; }
 .tone-persona,.cm-block-persona { --section-color:var(--accent); }
 .tone-world,.cm-block-world { --section-color:var(--accent-2); }
@@ -138,7 +138,8 @@
 .prefix-comment::before { content:'//'; margin-right:7px; opacity:.6; }
 .prefix-comment-text { min-width:0; flex:1; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .prefix-flag:focus-visible,.varchip:focus-visible,.prompt-reference button:focus-visible,.prompt-vars-tool:focus-visible { outline:2px solid var(--section-color); outline-offset:2px; }
-.prompt-vars-heading { display:flex; align-items:center; gap:4px; color:var(--ink-soft); font-size:12px; font-weight:600; }
+.prompt-vars-heading { display:flex; flex-wrap:wrap; align-items:center; gap:2px 4px; color:var(--ink-soft); font-size:12px; font-weight:600; }
+.prompt-vars-title { white-space:nowrap; }
 .prompt-vars-tools { display:flex; gap:2px; margin-left:auto; }
 .prefix-vars .prompt-vars-tool { padding:3px; border-color:transparent; background:none; color:var(--ink-soft); }
 .prefix-vars .prompt-vars-tool:hover { border-color:var(--border); color:var(--section-color); }
