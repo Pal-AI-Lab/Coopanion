@@ -218,6 +218,8 @@ Once it is on, Coo looks at the screen without asking, and asks before it first 
 
 To keep Coo off your computer, untick **Let Coo use this computer** in the Computer use section of the Habits page.
 
+If saving a computer-use change fails, the switches and permission choice return to their last saved values. The page rereads Core's configuration every 3 seconds when it is reachable.
+
 ### Tray / menu bar
 
 Coopanion keeps running in the background. Closing the settings window does not quit it, and opening the program again only brings Coo back.

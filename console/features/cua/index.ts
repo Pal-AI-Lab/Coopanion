@@ -15,7 +15,7 @@ import { buildHash, parseHash } from '../../base/router.ts';
 import { confirm } from '../../base/ui/overlay.ts';
 import { S } from './strings.ts';
 
-const GROUP = 'world:desktop-pet:cua';
+export const CUA_GROUP = 'world:desktop-pet:cua';
 const K = 'worlds.desktop-pet.cua';
 const KEYS = {
   enabled: `${K}.enabled`,
@@ -64,8 +64,8 @@ const errText = (err: unknown) => (err instanceof Error ? err.message : String(e
 
 /** One row of the 「习惯」 page: the label column, the setting, an optional note under it. */
 type Row = (label: string, control: HTMLElement, hint?: HTMLElement | string) => HTMLElement;
-/** The section, its values read in the background; `row` is the page's. */
-export function cuaSection(ctx: PageContext, row: Row): HTMLElement {
+/** The section follows saved values from the page's config polling; `row` is the page's. */
+export function cuaSection(ctx: PageContext, row: Row): { el: HTMLElement; sync(values: Record<string, unknown>): void } {
   const { ui, signal } = ctx;
   const opts = { signal };
 
@@ -78,10 +78,17 @@ export function cuaSection(ctx: PageContext, row: Row): HTMLElement {
   };
 
   const doc = sheet.el.ownerDocument;
+  const saved: Record<string, unknown> = {};
+  let confirming = false;
   /** Asks with the dialog; a yes turns computer use on and is remembered. */
   const turnOn = async () => {
-    if (!await confirm({ doc, host: doc.body, signal }, { title: S.riskTitle, body: riskBody(doc), ok: S.riskOk })) {
-      enabled.setChecked(false);
+    if (confirming) return;
+    confirming = true;
+    let allowed: boolean;
+    try { allowed = await confirm({ doc, host: doc.body, signal }, { title: S.riskTitle, body: riskBody(doc), ok: S.riskOk }); }
+    finally { confirming = false; }
+    if (!allowed) {
+      enabled.setChecked(saved[KEYS.enabled] === true);
       return;
     }
     memo.set(RISKS_SEEN, true);
@@ -120,10 +127,11 @@ export function cuaSection(ctx: PageContext, row: Row): HTMLElement {
 
   const save = async (key: string, value: string | number | boolean) => {
     try {
-      await setConfig(GROUP, { [key]: value }, opts);
+      await setConfig(CUA_GROUP, { [key]: value }, opts);
+      saved[key] = value;
       say('');
     } catch (err) {
-      if (!signal.aborted) say(S.saveFailed(errText(err)), true);
+      if (!signal.aborted) { sync(saved); say(S.saveFailed(errText(err)), true); }
     }
   };
   grant.addEventListener('change', () => {
@@ -132,10 +140,20 @@ export function cuaSection(ctx: PageContext, row: Row): HTMLElement {
     void save(KEYS.grantMinutes, n);
   }, { signal });
 
+  const sync = (values: Record<string, unknown>): void => {
+    if (signal.aborted) return;
+    Object.assign(saved, values);
+    if (!confirming && typeof values[KEYS.enabled] === 'boolean') enabled.setChecked(values[KEYS.enabled] as boolean);
+    if (typeof values[KEYS.control] === 'boolean') control.setChecked(values[KEYS.control] as boolean);
+    const current = LEVELS.find((l) => l === values[KEYS.permission]);
+    if (current) { level.setValue(current); showLevel(current); }
+    if (typeof values[KEYS.grantMinutes] === 'number' && doc.activeElement !== grant) grant.value = String(values[KEYS.grantMinutes]);
+  };
+
   void get<{ groups?: ConfigEntry[] }>('/api/config', opts).catch(() => null).then((config) => {
     if (signal.aborted) return;
-    const values = config?.groups?.find((g) => g.group.id === GROUP)?.values ?? {};
-    enabled.setChecked(values[KEYS.enabled] === true);
+    const values = config?.groups?.find((g) => g.group.id === CUA_GROUP)?.values ?? {};
+    sync(values);
     const view = doc.defaultView;
     const route = view ? parseHash(view.location.hash) : null;
     if (view && route?.query.cua === ENABLE) {
@@ -144,11 +162,6 @@ export function cuaSection(ctx: PageContext, row: Row): HTMLElement {
       sheet.el.scrollIntoView({ block: 'start' });
       if (values[KEYS.enabled] !== true) void turnOn();
     }
-    if (typeof values[KEYS.control] === 'boolean') control.setChecked(values[KEYS.control] as boolean);
-    const current = LEVELS.find((l) => l === values[KEYS.permission]) ?? 'ask-once';
-    level.setValue(current);
-    showLevel(current);
-    if (typeof values[KEYS.grantMinutes] === 'number') grant.value = String(values[KEYS.grantMinutes]);
   });
-  return sheet.el;
+  return { el: sheet.el, sync };
 }

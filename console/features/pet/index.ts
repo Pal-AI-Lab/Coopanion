@@ -25,7 +25,7 @@ import { ICONS } from 'cortico-world-desktop-pet/web/ui.js';
 import { get, invokePanel, setConfig } from '../../base/api.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { intro } from '../intro.ts';
-import { cuaSection } from '../cua/index.ts';
+import { CUA_GROUP, cuaSection } from '../cua/index.ts';
 import { scaleSlider } from './scale-slider.ts';
 import { S } from './strings.ts';
 
@@ -420,7 +420,8 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.speechSpeed, speed.box),
     speechMsg,
   );
-  root.append(sounds.el, speechSheet.el, cuaSection(ctx, row));
+  const cua = cuaSection(ctx, row);
+  root.append(sounds.el, speechSheet.el, cua.el);
 
   /* ---------- other: the OBS overlay ---------- */
   const other = ui.sheet({ title: S.groupOther });
@@ -505,6 +506,7 @@ async function mount(ctx: PageContext): Promise<void> {
       values = d.groups?.find((g) => g.group.id === GROUP)?.values ?? {};
       soundValues = d.groups?.find((g) => g.group.id === SOUND_GROUP)?.values ?? {};
       statsValues = d.groups?.find((g) => g.group.id === STATS_GROUP)?.values ?? {};
+      cua.sync(d.groups?.find((g) => g.group.id === CUA_GROUP)?.values ?? {});
     } catch { return; }
     if (typeof statsValues[STATS_KEY] === 'boolean') stats.setChecked(statsValues[STATS_KEY] as boolean);
     if (typeof statsValues[LANGUAGE_KEY] === 'string' && document.activeElement !== language) {

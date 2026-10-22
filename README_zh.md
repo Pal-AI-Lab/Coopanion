@@ -216,6 +216,8 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 
 不想让它操作电脑：在「习惯」页「电脑操作」一节取消勾选「让 Coo 操作这台电脑」。
 
+电脑操作配置保存失败时，开关和询问时机会恢复到最近一次保存的值。Core 可连接时，页面每 3 秒回读一次实际配置。
+
 ### 托盘 / 菜单栏
 
 程序常驻后台。关掉设置窗口不会退出；再次打开程序只会把 Coo 叫回来。
