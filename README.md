@@ -189,6 +189,8 @@ Talk key, microphone and listening mode (hold to talk / press to toggle / always
 
 Speech is recognized on your machine and audio is never uploaded: by **FunASR** (the SenseVoiceSmall model, about 230 MB) when the app language is Chinese, English, Japanese or Korean, and by **Whisper** (the small model, about 360 MB; the text appears once a sentence ends) for French, German, Spanish, Portuguese, Italian and Russian. The model is downloaded once, from the guide or the Voice input page. On Windows you can use the built-in recognizer instead, which needs no download but is less accurate.
 
+Turning voice input off also unloads its recognition model or stops the Windows recognition helper. Turning it on loads the engine again.
+
 ### Reminders
 
 Ask Coo to remind you at a local time or after a number of minutes. Daily reminders keep that local clock time across daylight-saving changes. If the clock skips the requested time, that occurrence moves forward by the gap; the next day uses the requested time again. Reminders missed while the app is closed arrive when it next starts.

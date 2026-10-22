@@ -326,6 +326,9 @@ export class DesktopPetWorld implements World {
   private system: SystemRecognizer | null = null;
   /** The engine the running backend belongs to; a config change starts the other one. */
   private runningEngine: AsrEngine | null = null;
+  private voiceGeneration = 0;
+  private voiceStopping: Promise<void> | null = null;
+  private voiceEnabled = false;
   /** The person asked to send what was heard now, without waiting for the pause that ends a sentence. */
   private committing = false;
   private readonly segmenter: Segmenter;
@@ -629,6 +632,8 @@ export class DesktopPetWorld implements World {
   }
 
   async stop(): Promise<void> {
+    this.voiceGeneration++;
+    this.runningEngine = null;
     this.status.clear();
     if (this.quiet) clearTimeout(this.quiet.timer);
     this.quiet = null;
@@ -894,7 +899,10 @@ export class DesktopPetWorld implements World {
   /** Config is a live object edited by the console; changes reach the pages within PREFS_SYNC_MS. */
   private syncPrefs(): void {
     this.segmenter.configure(this.segmentConfig());
-    if (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== this.engine()) void this.startVoiceBackend();
+    const turnedOn = this.cfg.asr.enabled && !this.voiceEnabled;
+    this.voiceEnabled = this.cfg.asr.enabled;
+    if (!this.cfg.asr.enabled && this.runningEngine) void this.stopVoiceBackend();
+    else if (turnedOn || (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== this.engine())) void this.startVoiceBackend();
     // the system recognizer serves one language; a new one needs a new helper
     else if (this.cfg.asr.enabled && this.runningEngine === 'system' && this.system?.languageChanged) void this.startVoiceBackend();
     // FunASR and Whisper load the model for one language and thread count
@@ -1316,21 +1324,33 @@ export class DesktopPetWorld implements World {
 
   /** Starts the engine in force and stops the one that ran before. */
   async startVoiceBackend(): Promise<SherpaState | SystemRecognizerState | null> {
+    const generation = this.voiceGeneration;
+    await this.voiceStopping;
+    if (generation !== this.voiceGeneration || !this.cfg.asr.enabled) return this.backendState();
     const engine = this.engine();
     const recognizer = this.recognizer(engine);
     if (!recognizer) return null;
     if (this.runningEngine !== engine) {
       if (this.runningEngine) await this.recognizer(this.runningEngine)?.stop();
+      if (generation !== this.voiceGeneration || !this.cfg.asr.enabled || engine !== this.engine()) return this.backendState();
       this.runningEngine = engine;
     }
     await recognizer.start();
-    this.syncPrefs();
+    if (generation === this.voiceGeneration) this.syncPrefs();
     return this.backendState();
   }
 
-  private async stopVoiceBackend(): Promise<void> {
-    await this.recognizer()?.stop();
-    this.syncPrefs();
+  private stopVoiceBackend(): Promise<void> {
+    this.voiceGeneration++;
+    if (this.voiceStopping) return this.voiceStopping;
+    const engine = this.runningEngine;
+    this.runningEngine = null;
+    const stopped = ((engine ? this.recognizer(engine)?.stop() : undefined) ?? Promise.resolve()).finally(() => {
+      this.voiceStopping = null;
+      this.syncPrefs();
+    });
+    this.voiceStopping = stopped;
+    return stopped;
   }
 
   /* ---------- talk key ---------- */
