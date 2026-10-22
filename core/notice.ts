@@ -25,7 +25,7 @@
  * event is delivered, so an update told while events are held (no key yet) is told on a later start.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { isRecord, readState, writeState } from './state-file.ts';
+import { asRecord, field, readState, writeState } from './state-file.ts';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import type { ToolDef, World, WorldWebUiDecl, WorldHost } from 'cortico/core/types.ts';
@@ -409,10 +409,9 @@ export class NoticeWorld implements World {
   private pendingUpdate(): { from: string | null; to: string } | null {
     const to = this.a.version;
     if (!parseVersion(to)) return null;
-    const last = readState(this.a.stateFile, (value): value is { version: string } =>
-      isRecord(value) && typeof value.version === 'string')?.version;
-    if (last === undefined && this.a.newInstall()) { this.record(to); return null; }
-    if (typeof last !== 'string') return { from: null, to };
+    const last = readState(this.a.stateFile, (value) => field(asRecord(value), 'version', (v): v is string => typeof v === 'string'));
+    if (last === null && this.a.newInstall()) { this.record(to); return null; }
+    if (last === null) return { from: null, to };
     const from = parseVersion(last);
     if (from && compare(parseVersion(to)!, from) > 0) return { from: last, to };
     if (last !== to) this.record(to);

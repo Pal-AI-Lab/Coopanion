@@ -10,7 +10,7 @@
  */
 import type { ToolDef } from 'cortico/core/types.ts';
 import type { ModelLanguage } from './language.ts';
-import { isRecord, readState, writeState } from './state-file.ts';
+import { asRecord, field, isRecord, readState, writeState } from './state-file.ts';
 
 export interface Alarm {
   id: string;
@@ -24,11 +24,18 @@ export interface Alarm {
 
 interface Saved { next: number; alarms: Alarm[] }
 
-function validSaved(value: unknown): value is Saved {
-  return isRecord(value) && Number.isSafeInteger(value.next) && Number(value.next) >= 1
-    && Array.isArray(value.alarms) && value.alarms.every((a: unknown) => isRecord(a)
-      && typeof a.id === 'string' && typeof a.note === 'string' && typeof a.daily === 'boolean'
-      && typeof a.at === 'number' && Number.isFinite(a.at) && typeof a.setAt === 'number' && Number.isFinite(a.setAt));
+function validAlarm(a: unknown): a is Alarm {
+  return isRecord(a) && typeof a.id === 'string' && typeof a.note === 'string' && typeof a.daily === 'boolean'
+    && typeof a.at === 'number' && Number.isFinite(a.at) && typeof a.setAt === 'number' && Number.isFinite(a.setAt);
+}
+
+/** The saved alarms; a record that is not an alarm is dropped and the others are kept. */
+function restoreSaved(value: unknown): Saved {
+  const saved = asRecord(value);
+  const records = field(saved, 'alarms', Array.isArray, []);
+  const alarms = records.filter(validAlarm);
+  if (alarms.length < records.length) console.warn('[alarms] dropped invalid records', records.length - alarms.length);
+  return { next: field(saved, 'next', (n): n is number => Number.isSafeInteger(n) && (n as number) >= 1), alarms };
 }
 
 const DAY_MS = 86_400_000;
@@ -156,7 +163,7 @@ export class Alarms {
 
   /** `language`: the model-text language, read at each use. */
   constructor(private readonly file: string, private readonly timezone: string, private readonly language: () => ModelLanguage = () => 'zh') {
-    this.saved = readState(file, validSaved) ?? { next: 1, alarms: [] };
+    this.saved = readState(file, restoreSaved) ?? { next: 1, alarms: [] };
   }
 
   private get t(): typeof zh {

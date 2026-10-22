@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { crashFields, Telemetry, type ModelTry, type ModelUse } from '../core/telemetry.ts';
+import { COUNTERS, crashFields, Telemetry, type ModelTry, type ModelUse } from '../core/telemetry.ts';
 
 const ENDPOINT = { vendor: 'vendor-a', model: 'model-a', endpointKind: 'builtin' } as const;
 
@@ -95,5 +95,28 @@ describe('telemetry state recovery', () => {
     t.start();
     await t.stop();
     expect(JSON.parse(readFileSync(join(dir, 'telemetry.json'), 'utf8')).installId).not.toBe('previous-install');
+  });
+
+  it('keeps a state file that lacks a counter and model fields added later, those starting at 0', async () => {
+    const dir = stateDir();
+    const file = join(dir, 'telemetry.json');
+    const missing = COUNTERS[COUNTERS.length - 1]!;
+    const counts = Object.fromEntries(COUNTERS.filter((c) => c !== missing).map((c) => [c, 3]));
+    const model = { vendor: 'vendor', model: 'model', endpointKind: 'builtin', calls: 2, failed: 0, tokensIn: 10, tokensOut: 5 };
+    const event = { type: 'onboarding', ts: '2026-10-21T00:00:00.000Z' };
+    writeFileSync(file, JSON.stringify({
+      installId: 'kept', firstDate: '2026-01-01', chatDays: 5, lastChatDate: '2026-10-21', enabled: true, extensions: [],
+      day: { date: '2026-10-22', runningMinutes: 30, minutes: [600], counts, models: { key: model } }, days: [], queue: [event],
+    }));
+    const t = new Telemetry({ dir, version: 'test', enabled: () => true, snapshot: () => ({}), extensions: () => [],
+      now: () => new Date(2026, 9, 22, 12), fetchImpl: (async () => { throw new Error('offline'); }) as typeof fetch });
+    t.start();
+    await t.stop();
+    expect(existsSync(`${file}.bad`)).toBe(false);
+    const saved = JSON.parse(readFileSync(file, 'utf8'));
+    expect(saved).toMatchObject({ installId: 'kept', firstDate: '2026-01-01', chatDays: 5, queue: [event] });
+    expect(saved.day.counts[missing]).toBe(0);
+    expect(saved.day.counts.messagesText).toBe(3);
+    expect(saved.day.models.key).toMatchObject({ calls: 2, tokensIn: 10, tokensCached: 0, aborted: 0 });
   });
 });

@@ -51,7 +51,7 @@ describe('alarm state recovery', () => {
     return join(dir, 'alarms.json');
   };
 
-  it.each(['', '{"next":', 'null', '{"next":1,"alarms":[null]}'])('recovers invalid state %j', async (content) => {
+  it.each(['', '{"next":', 'null', '{"alarms":[]}'])('recovers invalid state %j', async (content) => {
     const file = stateFile();
     writeFileSync(file, content);
     const alarms = new Alarms(file, 'UTC');
@@ -59,6 +59,14 @@ describe('alarm state recovery', () => {
     expect(readFileSync(`${file}.bad`, 'utf8')).toBe(content);
     await alarms.tools(() => 0).find((tool) => tool.name === 'alarm_set')!.handler({ note: 'tea', in_minutes: 1 }, {} as never);
     expect(new Alarms(file, 'UTC').list()).toEqual(alarms.list());
+  });
+
+  it('drops only the records that are not alarms', () => {
+    const file = stateFile();
+    const tea = { id: 'a2', at: 60_000, note: 'tea', daily: false, setAt: 0 };
+    writeFileSync(file, JSON.stringify({ next: 3, alarms: [null, { id: 'a1', note: 'no time' }, tea] }));
+    expect(new Alarms(file, 'UTC').list().map((a) => a.note)).toEqual(['tea']);
+    expect(existsSync(`${file}.bad`)).toBe(false);
   });
 
   it('delivers a due alarm once in the running process when its next save fails', async () => {
