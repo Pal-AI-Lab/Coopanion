@@ -17,8 +17,8 @@
     "ru": "DeepSeek-тян"
   },
   "about": {
-    "zh": "一个 Q 版鲸鱼娘,二头身,侧身朝右站;蓝色长发、头顶一根呆毛,头两侧各一只鲸鱼鳍,身后一条鲸鱼尾巴;服装是括号里选的那套:女仆装是女仆裙和印着配色对应厂商标志的围裙,冬装是戴鲸鱼兜帽、围条纹围巾的斗篷",
-    "en": "a chibi whale girl, two heads tall, standing three-quarters on facing right; long blue hair with an ahoge, a whale fin on each side of the head, and a whale tail behind; she wears the outfit picked in brackets: the maid dress is a maid dress with an apron printed with the logo of the colour scheme's vendor, and the winter outfit a cape with a whale hood and a striped scarf"
+    "zh": "一个 Q 版鲸鱼娘,二头身,侧身朝右站;蓝色长发、头顶一根呆毛,头两侧各一只鲸鱼鳍,身后一条鲸鱼尾巴;服装是括号里选的那套:女仆装是女仆裙和印着配色对应厂商标志的围裙,冬装是戴鲸鱼兜帽、围条纹围巾的斗篷,店员装是扎单马尾、戴红色遮阳帽和耳麦、穿条纹衬衫和红裙的快餐店员制服",
+    "en": "a chibi whale girl, two heads tall, standing three-quarters on facing right; long blue hair with an ahoge, a whale fin on each side of the head, and a whale tail behind; she wears the outfit picked in brackets: the maid dress is a maid dress with an apron printed with the logo of the colour scheme's vendor, the winter outfit a cape with a whale hood and a striped scarf, and the crew uniform a fast-food crew uniform with a single ponytail, a red visor and headset, a striped shirt and a red skirt"
   },
   "author": "Pal-AI-Lab",
   "credits": [
@@ -175,6 +175,23 @@
             "pt-BR": "Roupa de inverno",
             "it": "Abito invernale",
             "ru": "Зимний наряд"
+          }
+        },
+        {
+          "id": "crew",
+          "thumb": "thumbs/crew.png",
+          "name": {
+            "zh": "店员装",
+            "zh-Hant": "店員裝",
+            "en": "Crew uniform",
+            "ja": "店員の制服",
+            "ko": "점원 유니폼",
+            "fr": "Uniforme d'équipière",
+            "de": "Crew-Uniform",
+            "es-419": "Uniforme de empleada",
+            "pt-BR": "Uniforme de atendente",
+            "it": "Divisa da commessa",
+            "ru": "Форма сотрудницы"
           }
         }
       ]
