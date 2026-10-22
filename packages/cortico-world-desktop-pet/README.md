@@ -166,7 +166,7 @@ overlay 页按画出的时刻显示各帧，帧与帧隔开的时间和桌宠页
 
 旧版本写下的 `auto` 按空处理。
 
-关闭 `asr.enabled` 会停止当前识别引擎：释放已加载的模型，或结束系统识别的 PowerShell 进程。模型仍在加载时，等待加载结束后释放；再次开启会等待这次停止完成，再加载引擎。系统识别启动期间收到停止请求会取消启动，旧进程迟到的输出不会改变当前状态。
+关闭 `asr.enabled` 会停止当前识别引擎：释放已加载的模型，或结束系统识别的 PowerShell 进程；再次开启时重新加载。
 
 `sherpa-onnx-node` 是本包的依赖,随包安装(Windows 约 24 MB,macOS 约 35 MB,Linux x64 约 33 MB),不在运行时下载;
 Windows x64、macOS arm64 / x64、Linux x64 / arm64 都有预编译包,Linux 上要 glibc 2.32 与 GCC 11 的 libstdc++ 以上(Ubuntu 22.04、Debian 12 起)。
@@ -401,7 +401,7 @@ macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)�
 
 操作系统调用都在引擎子进程(`src/cua/engine-child.ts`)里,经 [koffi](https://koffi.dev/) 直接调系统接口。请求和结果里的坐标是某块显示器的物理像素,
 各系统自己的全局坐标只在子进程里换算(`src/cua/engine/display.ts`)。
-引擎在第一次要用时启动，请求的期限为 30 秒，加上该请求等待使用者让位或确认的时间。超过期限后强制结束引擎；崩溃或超时让该引擎的在途请求失败，下次请求启动新引擎。旧引擎的退出不会影响新引擎的请求。World 页的「操作引擎」灯显示它的状态。
+引擎在第一次要用时拉起;子进程崩溃或请求超时让这个引擎的在途请求失败,超时的引擎被强制结束,下次调用重新拉起。World 页多一盏「操作引擎」灯。
 
 - Windows(`src/cua/engine/win32.ts`):`EnumDisplayMonitors` 列显示器,GDI `BitBlt` 按显示器矩形截图(带 `CAPTUREBLT`,透明与分层窗口也截得到)、
   `SetCursorPos` 定位指针(`SendInput` 的绝对坐标要折算到 0–65535,在显示器接缝处会差一个像素)、`SendInput` 发按键和滚轮、`EnumWindows`、
