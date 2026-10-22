@@ -4,6 +4,7 @@
  * from the current files.
  */
 import { fetchManifest, get, post } from '../../../base/api.ts';
+import { icon, type ConsoleIconName } from '../../../base/ui/icons.ts';
 import { pageIntro } from '../../../base/ui/page.ts';
 import { estTok } from '../live/context.ts';
 import { readMode } from '../../../features/mode.ts';
@@ -25,6 +26,10 @@ interface Section {
   /** Spans the section's height in the label column so the variable list stays in view while it scrolls. */
   cell: HTMLElement;
   vars: HTMLElement;
+  /** The variables heading; in `vars` once it has variables or a button to show. */
+  heading: HTMLElement;
+  /** The heading's buttons: the preview toggle and the World configuration shortcut. */
+  tools: HTMLElement;
   divider: HTMLElement;
   collapsed: boolean;
   updateVariables(): void;
@@ -330,6 +335,15 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     return pop;
   }
 
+  function toolButton(name: ConsoleIconName, text: string, onClick: () => void): HTMLButtonElement {
+    const button = ui.button('', { size: 'sm', onClick });
+    button.classList.add('btn-ico', 'prompt-vars-tool');
+    button.title = text;
+    button.setAttribute('aria-label', text);
+    button.append(icon(root.ownerDocument, name));
+    return button;
+  }
+
   function createSection(segment: PrefixSegment): Section {
     const doc = segment.sourceKey ? docs.get(segment.sourceKey) : undefined;
     const info = description(segment, doc);
@@ -352,25 +366,30 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     label.append(toggle, cell);
     const divider = ui.h('div', `prefix-divider tone-${tone}`);
     observer.observe(vars);
-    const section: Section = { segment, doc, tone, label, toggle, badge, cell, vars, divider, collapsed, updateVariables() {} };
+    const tools = ui.h('span', 'prompt-vars-tools');
+    const heading = ui.h('div', 'prompt-vars-heading');
+    heading.append(ui.h('span', '', S.variablesTitle), tools);
+    const section: Section = { segment, doc, tone, label, toggle, badge, cell, vars, heading, tools, divider, collapsed, updateVariables() {} };
     if (!doc) return section;
     const chips = new Map<string, HTMLButtonElement>();
     const warning = ui.h('div', 'prompt-varwarn');
     if (doc.vars?.length) {
-      vars.append(ui.h('div', 'prompt-vars-heading', S.variablesTitle), ui.h('p', 'prompt-help', S.insertHint));
       let previewing = false;
-      const preview = ui.button(S.previewVariables, { size: 'sm', onClick: () => {
+      const preview = toolButton('eye', S.previewVariables, () => {
         closePopup();
         previewing = !previewing;
         editor.setPreview(doc.key, previewing);
-        preview.textContent = previewing ? S.showVariableNames : S.previewVariables;
+        const text = previewing ? S.showVariableNames : S.previewVariables;
+        preview.title = text;
+        preview.setAttribute('aria-label', text);
         preview.setAttribute('aria-pressed', String(previewing));
         if (previewing) void refreshVariables(doc.key);
-      } });
+      });
       preview.classList.add('prompt-preview-toggle');
       preview.setAttribute('aria-pressed', 'false');
+      tools.append(preview);
       const list = ui.h('div', 'prompt-variable-list');
-      vars.append(list, preview);
+      vars.append(heading, ui.h('p', 'prompt-help', S.insertHint), list);
       for (const variable of doc.vars) {
         let insertPosition = 0;
         const chip = ui.button(variable.name, { size: 'sm', onClick: () => {
@@ -470,11 +489,10 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
         section.toggle.querySelector('.prefix-flag-title')!.textContent = page.label;
         // World configuration is an advanced-mode page.
         if (readMode() !== 'advanced' || manifest.framework?.capabilities?.config === false || !page.configGroups?.length) continue;
-        const settings = ui.button(S.worldSettings, { size: 'sm', variant: 'primary', onClick: () => {
-          ctx.router.navigate(['provider', page.id, '~config']);
-        } });
+        const settings = toolButton('settings', S.worldSettings, () => ctx.router.navigate(['provider', page.id, '~config']));
         settings.classList.add('prompt-settings-link');
-        section.vars.insertBefore(settings, section.vars.querySelector('.prompt-varwarn'));
+        section.tools.append(settings);
+        if (!section.heading.isConnected) section.vars.prepend(section.heading);
         scheduleGeometry();
       }
     } catch (error) { if (!signal.aborted) ctx.onError(error); }

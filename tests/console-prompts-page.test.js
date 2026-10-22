@@ -292,5 +292,5 @@ it('labels each section with its key and whether it is editable, and lists its t
   expect(label.querySelector('.prefix-flag-meta').textContent).toBe(`constitution${S.editable}`);
   expect(root.querySelector('[data-source="WORKSPACE"] .prefix-flag-meta').textContent).toBe(`WORKSPACE${S.readOnly}`);
   expect([...label.querySelectorAll('.varchip')].map((chip) => chip.textContent)).toEqual(['fixture.name']);
-  expect(label.querySelector('.prompt-preview-toggle')).not.toBeNull();
+  expect(label.querySelector('.prompt-vars-heading .prompt-preview-toggle').getAttribute('aria-label')).toBe(S.previewVariables);
 });
