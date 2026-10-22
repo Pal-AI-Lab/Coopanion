@@ -420,16 +420,16 @@ describe('inputs that can start a program', () => {
   const call = (w: Cua, name: string, args: Record<string, unknown>) =>
     w.tools().find((t) => t.name === name)!.handler(args, { role: 'main', log: new FakeHost().log }) as Promise<{ text: string; failed?: true }>;
 
-  it('a Windows-key chord is asked about even under never-ask, and a no sends nothing', async () => {
+  it('a launcher shortcut is asked about even under never-ask, and a no sends nothing', async () => {
     const { w, asked, sent } = riskWorld(['no', 'yes']);
-    const refused = await call(w, 'pet_cua_key', { keys: 'win+r' });
+    const refused = await call(w, 'pet_cua_key', { keys: 'ctrl+shift+esc' });
     expect(refused.failed).toBe(true);
     expect(refused.text).toContain('没有允许这一步');
     expect(sent).toEqual([]);
-    expect((await call(w, 'pet_cua_key', { keys: 'win+r' })).failed).toBeUndefined();
+    expect((await call(w, 'pet_cua_key', { keys: 'ctrl+shift+esc' })).failed).toBeUndefined();
     expect(sent).toEqual(['key']);
     expect(asked).toHaveLength(2);
-    expect(asked[0]).toContain('win+r');
+    expect(asked[0]).toContain('ctrl+shift+esc');
   });
 
   it('typing and Enter are asked about while a terminal is in front, and pass without asking elsewhere', async () => {
