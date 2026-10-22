@@ -146,8 +146,9 @@ export function field(doc: Document, label: string, control: HTMLElement): HTMLL
 
 /**
  * 分段选择器保留全部重复 value 选项，并统一更新它们的选中态。
- * 选中底色是一块滑块（`.segthumb`，颜色取 `--seg-thumb`），换选中项时从旧位置滑到新位置；
- * 没有选中项或还没布局时滑块隐藏，第一次落位不播动画。
+ * 选中底色是外框的 `::before` 滑块，换选中项时从旧位置滑到新位置：外框带 `data-thumb` 时显示，
+ * 位置与尺寸写在 `--seg-x/--seg-y/--seg-w/--seg-h`，颜色取 `--seg-thumb`。结构仍是
+ * `.segwrap > button.seg`。没有选中项或还没布局时不显示，第一次落位不播动画。
  */
 export function segmented(
   doc: Document,
@@ -156,19 +157,25 @@ export function segmented(
   opts?: WebUiSegmentedOptions,
 ): WebUiSegmented {
   const o = opts ?? {};
-  const el = h(doc, 'div', o.size === 'sm' ? 'segwrap sm is-sliding' : 'segwrap is-sliding');
-  const thumb = h(doc, 'span', 'segthumb');
-  el.appendChild(thumb);
+  const el = h(doc, 'div', o.size === 'sm' ? 'segwrap sm' : 'segwrap');
   const keys: { value: string; btn: HTMLButtonElement }[] = [];
   let current = o.value ?? '';
   const place = (): void => {
     const active = keys.find((k) => k.value === current)?.btn;
-    thumb.hidden = !active?.offsetWidth;
-    if (!active?.offsetWidth) return;
-    thumb.style.width = `${active.offsetWidth}px`;
-    thumb.style.height = `${active.offsetHeight}px`;
-    thumb.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
-    if (!el.classList.contains('is-ready')) doc.defaultView?.requestAnimationFrame(() => el.classList.add('is-ready'));
+    if (!active?.offsetWidth) {
+      if (el.getAttribute('data-thumb') !== null) el.removeAttribute('data-thumb');
+      return;
+    }
+    el.style.setProperty('--seg-x', `${active.offsetLeft}px`);
+    el.style.setProperty('--seg-y', `${active.offsetTop}px`);
+    el.style.setProperty('--seg-w', `${active.offsetWidth}px`);
+    el.style.setProperty('--seg-h', `${active.offsetHeight}px`);
+    if (el.getAttribute('data-thumb') === null) {
+      el.setAttribute('data-thumb', '');
+      doc.defaultView?.requestAnimationFrame(() => {
+        if (el.getAttribute('data-thumb') !== null) el.setAttribute('data-thumb', 'ready');
+      });
+    }
   };
   const paint = (): void => {
     for (const k of keys) k.btn.className = k.value === current ? 'seg active' : 'seg';
