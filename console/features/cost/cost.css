@@ -72,7 +72,7 @@
 .ulegend > span:last-child { margin-left: 4px; }
 
 /* 用量时间序列与分组明细：标题右侧的切换选中项用主题色底 */
-.uswitch .seg.active { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.uswitch .seg.active { background: var(--accent); color: #fff; font-weight: 600; }
 .uswitch .seg:hover:not(.active) { color: var(--ink); }
 .umulti .seg.active { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); font-weight: 600; }
 .umulti .seg:disabled { opacity: .4; cursor: not-allowed; }
