@@ -66,7 +66,7 @@ const it: Translation<CoreText> = {
     dressHint: { text: 'I colori si cambiano in Guardaroba', dress: 'Guardaroba' },
     askRoam: 'Di solito devo starmene in pace o muovermi tanto? Clicca una scheda per vedere cosa farei.',
     roam: {
-      off: { label: 'Resta fermo', level: 'Basso', line: 'Allora resto al mio posto e mi muovo quando mi chiami.' },
+      off: { label: 'Resta sul posto', level: 'Basso', line: 'Allora resto al mio posto e mi muovo quando mi chiami.' },
       calm: { label: 'Ogni tanto', level: 'Medio', line: 'Ogni tanto faccio un giretto, ma quasi sempre resto dove sono.' },
       free: { label: 'Spesso', level: 'Alto', line: 'Posso correre dappertutto. Coo...!' },
     },
