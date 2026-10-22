@@ -6,6 +6,8 @@ export const S: Partial<typeof en> = {
   languageHint: "L'interface et Coo utilisent cette langue.",
   user: 'Comment vous appeler',
   userHint: 'Coo vous appelle par ce nom.',
+  botName: 'Nom de Coo',
+  botNameHint: 'Le menu du compagnon, la page Discussion et les questions dans la bulle appellent Coo par ce nom.',
   roam: 'Déplacements',
   roamFree: 'Souvent',
   roamCalm: 'De temps en temps',

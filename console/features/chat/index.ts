@@ -420,6 +420,7 @@ async function mount(ctx: PageContext): Promise<void> {
           case 'phase': phase = f.phase as RunPhase; refresh(); return;
           case 'activity': live = Array.isArray(f.steps) ? { steps: f.steps as string[], startedAt: f.startedAt as number } : null; render(); return;
           case 'paused': paused = f.paused === true; refresh(); return;
+          case 'bot': bot = typeof f.bot === 'string' && f.bot ? f.bot : bot; composer.setPlaceholder(S.placeholder(bot)); refresh(); return;
           case 'draft': if (typeof f.text === 'string' && f.text) composer.restore(f.text); composer.focus(); return;
         }
       },

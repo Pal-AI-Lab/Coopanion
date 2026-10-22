@@ -6,6 +6,8 @@ export const S: Partial<typeof en> = {
   languageHint: 'Die Oberfläche und Coo verwenden diese Sprache.',
   user: 'Wie du genannt wirst',
   userHint: 'Coo nennt dich bei diesem Namen.',
+  botName: 'Coos Name',
+  botNameHint: 'Das Menü des Haustiers, der Chat und Fragen in der Blase nennen Coo bei diesem Namen.',
   roam: 'Herumlaufen',
   roamFree: 'Oft',
   roamCalm: 'Ab und zu',

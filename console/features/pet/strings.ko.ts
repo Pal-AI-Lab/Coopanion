@@ -6,6 +6,8 @@ export const S: Partial<typeof en> = {
   languageHint: '인터페이스와 Coo가 이 언어를 사용합니다.',
   user: '부를 이름',
   userHint: 'Coo가 이 이름으로 부릅니다.',
+  botName: 'Coo의 이름',
+  botNameHint: '펫 메뉴, 대화 페이지, 말풍선 속 질문에서 Coo를 이 이름으로 부릅니다.',
   roam: '걷기',
   roamFree: '자주',
   roamCalm: '가끔',
