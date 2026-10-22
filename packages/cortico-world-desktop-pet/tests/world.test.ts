@@ -3,9 +3,9 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dryMountWorld } from 'cortico/extensions/dry-mount.ts';
+import { dryMountWorld, fakeWorldContext } from 'cortico/extensions/dry-mount.ts';
 import { renderTemplate } from 'cortico/core/template.ts';
-import { DESKTOP_PET } from '../src/definition.ts';
+import { DESKTOP_PET, desktopPetDefinition } from '../src/definition.ts';
 import { DESKTOP_PET_DEFAULTS, SELF_DEFAULT, type DesktopPetConfigSection } from '../src/config.ts';
 import { DesktopPetWorld, type DesktopPetWorldOptions, type PetBotControls } from '../src/world.ts';
 import { chatItem } from '../src/chat.ts';
@@ -495,7 +495,7 @@ describe('with a pet page', () => {
     const dir = mkdtempSync(join(tmpdir(), 'pet-avatar-'));
     const avatarFile = join(dir, 'avatar.png');
     writeFileSync(avatarFile, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
-    const { world } = await mounted(undefined, { botName: 'Bot', avatarFile, controls });
+    const { world } = await mounted(undefined, { botName: () => 'Bot', avatarFile, controls });
     const res = await fetch(`${origin(world)}/api/avatar`);
     expect(res.headers.get('content-type')).toBe('image/png');
     expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([0x89, 0x50, 0x4e, 0x47]);
@@ -516,7 +516,7 @@ describe('with a pet page', () => {
 
   it('the menu header shows only the controls the app lends', async () => {
     const calls: string[] = [];
-    const { world } = await mounted(undefined, { botName: 'Bot', controls: { openSettings: () => calls.push('settings') } });
+    const { world } = await mounted(undefined, { botName: () => 'Bot', controls: { openSettings: () => calls.push('settings') } });
     const win = await FakePage.open(origin(world), 'role=pet&host=window');
     cleanup.push(() => win.close());
     const state = await (await fetch(`${origin(world)}/api/state`)).json() as { bot: Record<string, unknown> };
@@ -558,7 +558,7 @@ function chatSocket(world: DesktopPetWorld) {
 
 describe('chat page', () => {
   it('a typed message waits on the page until delivered; a withdrawn one leaves the history, the pet\'s lines stay', async () => {
-    const { world, host } = await mounted(undefined, { botName: 'Coo' });
+    const { world, host } = await mounted(undefined, { botName: () => 'Coo' });
     const page = await FakePage.open(origin(world));
     cleanup.push(() => page.close());
     const chat = chatSocket(world);
@@ -672,5 +672,32 @@ describe('chat page', () => {
     expect(await page.next((m) => m.t === 'walk-stop')).toMatchObject({ id: walk.id });
     page.send({ t: 'interrupted', walkId: walk.id, x: .4, by: 'idle' });
     expect(await walking).toEqual({ text: '走到屏幕横向 40% 处停下了。' });
+  });
+});
+
+describe("the bot's name", () => {
+  it('is read at each use: a rename reaches the menu header and an open chat page without a restart', async () => {
+    let name = 'Coo';
+    const def = desktopPetDefinition({ botName: () => name });
+    const wctx = fakeWorldContext(def, { scratchDir: mkdtempSync(join(tmpdir(), 'pet-name-')) });
+    Object.assign(wctx.cfg, { enabled: true, port: 0 });
+    wctx.cfg.window.enabled = false;
+    wctx.cfg.asr.enabled = false;
+    const world = def.create(wctx) as DesktopPetWorld;
+    await world.start(new FakeHost());
+    cleanup.push(() => world.stop());
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    expect(page.init.bot).toMatchObject({ name: 'Coo' });
+    const chat = chatSocket(world);
+    chat.send({ t: 'hello' });
+    await expect.poll(() => chat.last('init')?.bot).toBe('Coo');
+
+    name = 'Mochi';
+    // throws when no prefs frame with the new name arrives
+    await page.next((m) => m.t === 'prefs' && (m.bot as { name?: unknown }).name === 'Mochi');
+    await expect.poll(() => chat.last('bot')).toEqual({ t: 'bot', bot: 'Mochi' });
+    chat.send({ t: 'hello' });
+    await expect.poll(() => chat.last('init')?.bot).toBe('Mochi');
   });
 });

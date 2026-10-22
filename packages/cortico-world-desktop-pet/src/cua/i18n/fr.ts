@@ -9,6 +9,11 @@ const fr: Translation<CuaText> = {
     caption: "Contrôle de l'ordinateur",
     yes: 'Oui',
     no: 'Pas cette fois',
+    risky: {
+      keys: (who: string, keys: string) => `${who} veut appuyer sur ${keys}. Ce raccourci peut ouvrir des menus système ou lancer des programmes. D'accord ?`,
+      typeInTerminal: (who: string, window: string, text: string) => `${who} veut saisir dans la fenêtre de terminal « ${window} » :\n${text}\nCe texte peut être exécuté comme une commande. D'accord ?`,
+      enterInTerminal: (who: string, window: string, keys: string) => `${who} veut appuyer sur ${keys} dans la fenêtre de terminal « ${window} », ce qui exécute la commande saisie. D'accord ?`,
+    },
   },
 
   preflight: {
@@ -31,7 +36,7 @@ const fr: Translation<CuaText> = {
     group: "Contrôle de l'ordinateur",
     enabled: { title: "Activer le contrôle de l'ordinateur" },
     control: { title: 'Autoriser la souris et le clavier', description: "Désactivé : seulement les captures d'écran et la liste des fenêtres." },
-    permission: { title: 'Quand vous demander', description: "ask-each-turn : demande avant de regarder l'écran ou d'agir, à chaque tour ; ask-before-acting : regarder est libre, demande avant d'utiliser la souris et le clavier à chaque tour ; ask-once : regarder est libre, demande une fois avant d'utiliser la souris et le clavier, et un oui vaut pendant « Un oui vaut » ; never-ask : ne demande jamais." },
+    permission: { title: 'Quand vous demander', description: "ask-each-turn : demande avant de regarder l'écran ou d'agir, à chaque tour ; ask-before-acting : regarder est libre, demande avant d'utiliser la souris et le clavier à chaque tour ; ask-once : regarder est libre, demande une fois avant d'utiliser la souris et le clavier, et un oui vaut pendant « Un oui vaut » ; never-ask : ne demande jamais. Quel que soit le réglage, un raccourci pouvant lancer un programme, ainsi qu'une saisie ou Entrée dans un terminal, sont demandés à chaque fois." },
     grantMinutes: { title: 'Un oui vaut', suffix: 'min', description: 'Pour ask-once uniquement.' },
     userIdleMs: { title: 'Vous laisser la main pendant', description: "Après que vous avez utilisé la souris ou le clavier, attend qu'ils soient restés immobiles aussi longtemps." },
     maxYieldWaitMs: { title: 'Attente maximale pour vous' },

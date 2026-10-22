@@ -13,6 +13,7 @@
  *
  * Environment: `PORT` (8790), `DB_FILE` (/data/telemetry.sqlite), `STATS_TOKEN`.
  */
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 
@@ -23,9 +24,14 @@ const STATS_TOKEN = process.env.STATS_TOKEN ?? '';
 const MAX_BODY = 512 * 1024;
 const MAX_EVENTS = 400;
 const MAX_DAYS = 120;
+/** A stored event or day record larger than this is dropped; the client's are a few hundred bytes. */
+const MAX_EVENT_BYTES = 16 * 1024;
+const MAX_DAY_BYTES = 64 * 1024;
 /** Per address: a running app reports every 30 minutes; a burst of restarts stays well under this. */
 const RATE_WINDOW_MS = 10 * 60_000;
 const RATE_MAX = 60;
+/** Addresses tracked at once; a new address is refused while the table is full, until the window ends. */
+const RATE_TRACKED_MAX = 100_000;
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -73,6 +79,8 @@ const setUninstalled = db.prepare(`UPDATE installs SET uninstalled_at = ? WHERE 
 const setTelemetryOff = db.prepare(`UPDATE installs SET telemetry_off_at = ? WHERE install_id = ?`);
 const clearTelemetryOff = db.prepare(`UPDATE installs SET telemetry_off_at = NULL WHERE install_id = ?`);
 
+const sha256 = (s) => createHash('sha256').update(s).digest();
+const sameSecret = (a, b) => timingSafeEqual(sha256(a), sha256(b));
 const str = (v, max = 100) => (typeof v === 'string' ? v.slice(0, max) : null);
 const int = (v) => (Number.isFinite(v) && v >= 0 ? Math.min(Math.floor(v), 1e12) : 0);
 
@@ -93,15 +101,17 @@ function report(body) {
     for (const e of events) {
       const type = str(e?.type, 40);
       const ts = str(e?.ts, 40);
-      if (!type || !ts) continue;
-      insertEvent.run(id, type, ts, now, JSON.stringify(e));
+      const data = JSON.stringify(e);
+      if (!type || !ts || Buffer.byteLength(data) > MAX_EVENT_BYTES) continue;
+      insertEvent.run(id, type, ts, now, data);
       if (type === 'source') setSource.run(str(e.answer, 40), id);
       if (type === 'telemetry_disabled') setTelemetryOff.run(ts, id);
       if (type === 'telemetry_enabled') clearTelemetryOff.run(id);
     }
     for (const d of days) {
-      if (!DATE.test(d?.date ?? '')) continue;
-      upsertDay.run(id, d.date, now, int(d.runningMinutes), int(d.interactedMinutes), int(d.messagesText) + int(d.messagesVoice), JSON.stringify(d));
+      const data = JSON.stringify(d);
+      if (!DATE.test(d?.date ?? '') || Buffer.byteLength(data) > MAX_DAY_BYTES) continue;
+      upsertDay.run(id, d.date, now, int(d.runningMinutes), int(d.interactedMinutes), int(d.messagesText) + int(d.messagesVoice), data);
     }
     db.exec('COMMIT');
   } catch (err) {
@@ -178,11 +188,35 @@ function stats() {
   };
 }
 
+/**
+ * The address the reverse proxy saw: the last X-Forwarded-For entry, which the proxy writes; entries
+ * before it come from the client. The socket's own address is the container gateway.
+ */
+function clientIp(req) {
+  const forwarded = String(req.headers['x-forwarded-for'] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  return forwarded.at(-1) ?? req.socket.remoteAddress ?? '';
+}
+
+/** The rate-limit key: an IPv4 address, or an IPv6 address's /64, the block one subscriber gets. */
+function rateKey(ip) {
+  if (ip.startsWith('::ffff:')) return ip.slice(7);
+  if (!ip.includes(':')) return ip;
+  const [head, tail = ''] = ip.split('%')[0].toLowerCase().split('::');
+  const h = head ? head.split(':') : [];
+  const t = tail ? tail.split(':') : [];
+  const groups = ip.includes('::') ? [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill('0'), ...t] : h;
+  return groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, '')).join(':') + '::/64';
+}
+
 const hits = new Map();
-function limited(ip) {
+function limited(key) {
   const now = Date.now();
-  const h = hits.get(ip);
-  if (!h || now - h.start > RATE_WINDOW_MS) { hits.set(ip, { start: now, n: 1 }); return false; }
+  const h = hits.get(key);
+  if (!h || now - h.start > RATE_WINDOW_MS) {
+    if (!h && hits.size >= RATE_TRACKED_MAX) return true;
+    hits.set(key, { start: now, n: 1 });
+    return false;
+  }
   h.n += 1;
   return h.n > RATE_MAX;
 }
@@ -216,12 +250,13 @@ createServer(async (req, res) => {
     const path = new URL(req.url ?? '/', 'http://x').pathname;
     if (req.method === 'GET' && path === '/healthz') return send(200, { ok: true });
     if (req.method === 'GET' && path === '/v1/stats') {
-      if (!STATS_TOKEN || req.headers.authorization !== `Bearer ${STATS_TOKEN}`) return send(401, { error: 'unauthorized' });
+      if (!STATS_TOKEN || !sameSecret(String(req.headers.authorization ?? ''), `Bearer ${STATS_TOKEN}`)) return send(401, { error: 'unauthorized' });
       return send(200, stats());
     }
     if (req.method === 'POST' && (path === '/v1/report' || path === '/v1/uninstall')) {
-      const ip = String(req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? '').split(',')[0].trim();
-      if (limited(ip)) return send(429, { error: 'too many requests' });
+      if (limited(rateKey(clientIp(req)))) return send(429, { error: 'too many requests' });
+      // a page can send text/plain across sites without asking; application/json needs a CORS preflight this server never answers
+      if (String(req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase() !== 'application/json') return send(415, { error: 'expected application/json' });
       const body = await readBody(req);
       return send(path === '/v1/report' ? report(body) : uninstall(body));
     }

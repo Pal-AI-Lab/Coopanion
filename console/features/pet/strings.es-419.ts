@@ -6,6 +6,8 @@ export const S: Partial<typeof en> = {
   languageHint: 'La interfaz y Coo usan este idioma.',
   user: 'Cómo llamarte',
   userHint: 'Coo te llama por este nombre.',
+  botName: 'Nombre de Coo',
+  botNameHint: 'El menú de la mascota, el chat y las preguntas en la burbuja llaman a Coo con este nombre.',
   roam: 'Paseos',
   roamFree: 'A menudo',
   roamCalm: 'De vez en cuando',
@@ -93,5 +95,5 @@ export const S: Partial<typeof en> = {
   glow: 'Brillo exterior',
   glowOff: 'Apagado',
   glowPx: (n: number) => `${n} px`,
-  glowHint: 'Hasta dónde llega el brillo claro alrededor de la mascota cuando sus colores se parecen al fondo; todo a la izquierda lo apaga.',
+  glowHint: 'Hasta dónde llega el brillo claro alrededor de la mascota cuando los colores de Coo se parecen al fondo; todo a la izquierda lo apaga.',
 };

@@ -13,7 +13,8 @@
  * `permission` sets when the person is asked first (config.ts, PERMISSION_LEVELS): at most once
  * a turn, before the first call that reads the screen or before the first input, or once for
  * `grantMinutes`, or never. The question goes through `askPermission` (the pet's bubble), or through a
- * system dialog while the pet page cannot ask. A refusal stands until the turn ends.
+ * system dialog while the pet page cannot ask. A refusal stands until the turn ends. An input that can
+ * start a program or run a command (risk.ts) is asked about on its own, at every level, after that.
  *
  * Every tool is interruptible. When the call's signal aborts, the tool stops at the next point
  * where no input is left half-done and its receipt says what it did: a call waiting for the
@@ -33,7 +34,8 @@ import { renderTemplate } from 'cortico/core/template.ts';
 import { childExecArgv } from 'cortico/extensions/runtime.ts';
 import type { CuaConfig, PermissionLevel } from './config.ts';
 import { cuaText, type CuaText } from './i18n/index.ts';
-import { CUA_TOOL_DECLS } from './tools.ts';
+import { CUA_TOOL_DECLS, TYPE_MAX } from './tools.ts';
+import { isTerminal, launches, pressesEnter } from './risk.ts';
 import { fit } from './engine/image.ts';
 import { parseKeys } from './engine/keys.ts';
 import { MODEL_TEXT, type ModelLanguage, type ModelText } from './model-text.ts';
@@ -52,10 +54,10 @@ const PERMISSION_TIMEOUT_MS = 60_000;
 export interface CuaOptions {
   /** The live `worlds.desktop-pet.cua` section, read at each use. */
   cfg: () => CuaConfig;
-  /** Names the bot in the permission question. */
-  botName?: string;
+  /** Names the bot in the permission question; read at each question. */
+  botName?: () => string;
   /**
-   * Asks the person whether the bot may use the computer this turn, with the two buttons' words.
+   * Asks the person a yes/no question about using the computer, with the two buttons' words.
    * null: this way of asking is not available right now, and the system dialog asks instead.
    */
   askPermission?: (question: string, choices: [yes: string, no: string]) => Promise<Answer | null>;
@@ -67,6 +69,9 @@ export interface CuaOptions {
 
 /** The person did not allow this turn's computer use. */
 class NotPermitted extends Error {}
+
+/** The person refused one input (confirmRisk); the turn's permission stands. */
+class StepRefused extends Error {}
 
 /** The call's signal aborted before it did anything. */
 class Interrupted extends Error {}
@@ -82,7 +87,7 @@ interface View extends Target {
 }
 
 /** The display part of an engine result. */
-const screenOf = (r: ScreenInfo): ScreenInfo => ({ displays: r.displays, layout: r.layout, cursor: r.cursor, foreground: r.foreground, foregroundDisplay: r.foregroundDisplay });
+const screenOf = (r: ScreenInfo): ScreenInfo => ({ displays: r.displays, layout: r.layout, cursor: r.cursor, foreground: r.foreground, foregroundApp: r.foregroundApp ?? null, foregroundDisplay: r.foregroundDisplay });
 
 /** `p`'s value, or null when `signal` aborts first. */
 function untilAborted<T>(p: Promise<T>, signal: AbortSignal | undefined): Promise<T | null> {
@@ -266,12 +271,36 @@ export class Cua {
   }
 
   private async askPermission(level: PermissionLevel): Promise<Answer> {
-    const who = this.opts.botName || 'bot';
+    const who = this.who;
     const a = this.ui.ask;
-    const question = level === 'ask-each-turn' ? a.eachTurn(who) : level === 'ask-once' ? a.once(who, this.cfg.grantMinutes) : a.acting(who);
+    return this.ask(level === 'ask-each-turn' ? a.eachTurn(who) : level === 'ask-once' ? a.once(who, this.cfg.grantMinutes) : a.acting(who));
+  }
+
+  private get who(): string {
+    return this.opts.botName?.() || 'bot';
+  }
+
+  private async ask(question: string): Promise<Answer> {
+    const a = this.ui.ask;
     const viaApp = await this.opts.askPermission?.(question, [a.yes, a.no]) ?? null;
     if (viaApp) return viaApp;
     return this.call<Answer>({ op: 'confirm', text: question, caption: a.caption, yes: a.yes, no: a.no, timeoutMs: PERMISSION_TIMEOUT_MS });
+  }
+
+  /**
+   * Puts one input to the person after the turn's permission; a no or no answer refuses that input
+   * alone. `question` gets the foreground window as the engine sees it now, or null when the
+   * input is ordinary there.
+   */
+  private async confirmRisk(signal: AbortSignal | undefined, question: (window: string, terminal: boolean) => string | null): Promise<void> {
+    await this.permit('act', signal);
+    const info = await this.call<ScreenInfo>({ op: 'info' }, signal);
+    this.screen = screenOf(info);
+    const q = question(info.foreground ?? info.foregroundApp ?? '', isTerminal(info.foregroundApp));
+    if (!q) return;
+    const answer = await untilAborted(this.ask(q), signal);
+    if (answer === null) throw new Interrupted(this.t.interruptedAsking);
+    if (answer !== 'yes') throw new StepRefused(this.t.riskRefused);
   }
 
   /* ---------- coordinates ---------- */
@@ -341,6 +370,7 @@ export class Cua {
         } catch (err) {
           const t = this.t;
           if (err instanceof Interrupted) return { text: t.notRun(decl.name, err.message) };
+          if (err instanceof StepRefused) return { text: t.notRun(decl.name, err.message), failed: true };
           if (err instanceof NotPermitted) return { text: t.notRun(decl.name, err.message + t.askAgain), failed: true };
           return { text: t.failed(decl.name, (err as Error).message), failed: true };
         }
@@ -486,8 +516,10 @@ export class Cua {
     if (refused) return refused;
     const text = typeof args.text === 'string' ? args.text : '';
     if (!text) return { text: this.t.notRun('pet_cua_type', this.t.typeEmpty), failed: true };
-    const res = await this.call<TypeResult>({ op: 'type', text, chunkDelayMs: this.cfg.typeChunkDelayMs, yield: this.yieldCfg }, signal);
     const total = [...text].length;
+    if (total > TYPE_MAX) return { text: this.t.notRun('pet_cua_type', this.t.typeTooLong(total, TYPE_MAX)), failed: true };
+    await this.confirmRisk(signal, (window, terminal) => (terminal ? this.ui.ask.risky.typeInTerminal(this.who, window, text) : null));
+    const res = await this.call<TypeResult>({ op: 'type', text, chunkDelayMs: this.cfg.typeChunkDelayMs, yield: this.yieldCfg }, signal);
     const done = res.stoppedBy === 'cancel' || res.stoppedBy === 'user' ? this.t.typedPart(res.typed, total, res.stoppedBy) : this.t.typed(total);
     return this.after('pet_cua_type', res, signal, done, args);
   }
@@ -498,6 +530,10 @@ export class Cua {
     const spec = typeof args.keys === 'string' ? args.keys : '';
     const parsed = parseKeys(spec, this.language);
     if ('error' in parsed) return { text: this.t.notRun('pet_cua_key', this.t.keyBad(parsed.error)), failed: true };
+    const keys = spec.trim();
+    const r = this.ui.ask.risky;
+    await this.confirmRisk(signal, (window, terminal) => (launches(parsed.chords, process.platform) ? r.keys(this.who, keys)
+      : terminal && pressesEnter(parsed.chords) ? r.enterInTerminal(this.who, window, keys) : null));
     const res = await this.call<InputResult>({ op: 'key', chords: parsed.chords, yield: this.yieldCfg }, signal);
     return this.after('pet_cua_key', res, signal, this.t.pressed(spec.trim()), args);
   }

@@ -9,6 +9,11 @@ const ja: Translation<CuaText> = {
     caption: 'コンピューター操作',
     yes: 'はい',
     no: '今回は許可しない',
+    risky: {
+      keys: (who: string, keys: string) => `${who} が ${keys} を押そうとしています。このショートカットはシステムメニューを開いたりプログラムを起動したりできます。許可しますか？`,
+      typeInTerminal: (who: string, window: string, text: string) => `${who} がターミナルウィンドウ「${window}」に次の内容を入力しようとしています：\n${text}\n入力した内容はコマンドとして実行される可能性があります。許可しますか？`,
+      enterInTerminal: (who: string, window: string, keys: string) => `${who} がターミナルウィンドウ「${window}」で ${keys} を押そうとしています。入力済みのコマンドが実行されます。許可しますか？`,
+    },
   },
 
   preflight: {
@@ -31,7 +36,7 @@ const ja: Translation<CuaText> = {
     group: 'コンピューター操作',
     enabled: { title: 'コンピューター操作を使う' },
     control: { title: 'マウスとキーボードを許可', description: 'オフのときは、スクリーンショットとウィンドウ一覧だけです。' },
-    permission: { title: 'いつ確認するか', description: 'ask-each-turn：毎ターン、画面を見る前や操作の前に確認します。ask-before-acting：画面を見るのは確認なし、毎ターンマウスとキーボードを使う前に確認します。ask-once：画面を見るのは確認なし、マウスとキーボードを使う前に一度だけ確認し、許可は「許可の有効時間」のあいだ続きます。never-ask：確認しません。' },
+    permission: { title: 'いつ確認するか', description: 'ask-each-turn：毎ターン、画面を見る前や操作の前に確認します。ask-before-acting：画面を見るのは確認なし、毎ターンマウスとキーボードを使う前に確認します。ask-once：画面を見るのは確認なし、マウスとキーボードを使う前に一度だけ確認し、許可は「許可の有効時間」のあいだ続きます。never-ask：確認しません。どの設定でも、プログラムを起動できるショートカットを押す前と、ターミナルウィンドウで入力や Enter をする前は、その都度確認します。' },
     grantMinutes: { title: '許可の有効時間', suffix: '分', description: 'ask-once のときだけ使われます。' },
     userIdleMs: { title: 'ユーザーに譲る時間', description: 'あなたがマウスやキーボードを使ったあと、操作がこの時間止まるまで待ちます。' },
     maxYieldWaitMs: { title: 'ユーザーを待つ最長時間' },

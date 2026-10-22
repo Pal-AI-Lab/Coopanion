@@ -6,10 +6,12 @@
  * once (`interrupt`) or taken back.
  *
  * Everything shown comes from the World's stream (packages/cortico-world-desktop-pet/src/chat.ts);
- * the phase line is Core's RunPhase as the World passes it on.
+ * the phase line is Core's RunPhase as the World passes it on. The ring in the composer reads
+ * `/api/status` (context.ts) when the page opens, at each phase change and every few seconds.
  */
 import type { WebUiImageAttachment } from 'cortico/web/shared/client-panel.ts';
 import { linked } from 'cortico-world-desktop-pet/web/ui.js';
+import { get } from '../../base/api.ts';
 import { baseLanguage, LANGUAGE } from '../../base/language.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { panelStreamRoute } from '../../base/protocol.ts';
@@ -18,9 +20,12 @@ import { promptInput } from '../../base/ui/prompt-input.tsx';
 import { browserSocketEnv } from '../../base/websocket.ts';
 import { intro } from '../intro.ts';
 import { requestMode } from '../mode.ts';
+import { contextGauge, contextRing, type ContextGauge, type ContextStatus } from './context.ts';
 import { S, STEP } from './strings.ts';
 
 const PET_PAGE = 'world:desktop-pet';
+/** How often the context ring reads `/api/status` while the window is visible, besides each phase change. */
+const CONTEXT_POLL_MS = 5000;
 
 interface WireImage { ref: string; mime: string; name?: string }
 interface SayBeat { text: string; mood?: Record<string, string> }
@@ -68,6 +73,7 @@ async function mount(ctx: PageContext): Promise<void> {
   let imagesSeen = true;
   /** The question the pet still waits on an answer to, as the World says; null when none. */
   let openAsk: string | null = null;
+  let gauge: ContextGauge | null = null;
   /** Shown items by cursor, in the order the bot met them (`at` for a message that waited, else the cursor). */
   const items = new Map<number, ChatItem>();
   /** The person's messages the bot has not taken in yet. */
@@ -109,11 +115,13 @@ async function mount(ctx: PageContext): Promise<void> {
 
   const dock = ui.h('div', 'chat-dock');
   const queueBox = ui.h('div', 'chat-queue');
+  const ring = contextRing(ui, view, ctx.signal);
   const composer = promptInput(doc, ctx.signal, {
     label: S.title,
     draftKey: 'cortico.console.draft.chat',
     placeholder: S.connecting,
     images: { max: 8 },
+    tools: ring.el,
     onSubmit: (text, images) => {
       const id = nextSend++;
       sentById.set(id, { text, images });
@@ -136,7 +144,24 @@ async function mount(ctx: PageContext): Promise<void> {
     else if (p?.state === 'handoff') { state = 'busy'; text = S.handoff; }
     phaseEl.dataset.state = state;
     phaseText.textContent = text;
+    ring.paint(gauge, p?.state === 'handoff');
   };
+
+  // ---- context ring: one request at a time; a read asked for meanwhile runs after it
+  let reading = false;
+  let readAgain = false;
+  const readContext = (): void => {
+    if (reading) { readAgain = true; return; }
+    reading = true;
+    void get<ContextStatus>('/api/status', { signal: ctx.signal }).then(
+      (st) => { gauge = contextGauge(st); syncPhase(); },
+      () => { /* the last reading stays */ },
+    ).finally(() => {
+      reading = false;
+      if (readAgain && !ctx.signal.aborted) { readAgain = false; readContext(); }
+    });
+  };
+  ctx.lifecycle.interval(() => { if (!doc.hidden) readContext(); }, CONTEXT_POLL_MS);
 
   // ---- rendering
   const avatar = (): HTMLElement => {
@@ -417,9 +442,10 @@ async function mount(ctx: PageContext): Promise<void> {
           }
           case 'notice': ui.toast(String(f.text ?? '')); renderQueue(); return;
           case 'ask': openAsk = typeof f.askId === 'string' ? f.askId : null; render(); return;
-          case 'phase': phase = f.phase as RunPhase; refresh(); return;
+          case 'phase': phase = f.phase as RunPhase; refresh(); readContext(); return;
           case 'activity': live = Array.isArray(f.steps) ? { steps: f.steps as string[], startedAt: f.startedAt as number } : null; render(); return;
           case 'paused': paused = f.paused === true; refresh(); return;
+          case 'bot': bot = typeof f.bot === 'string' && f.bot ? f.bot : bot; composer.setPlaceholder(S.placeholder(bot)); refresh(); return;
           case 'draft': if (typeof f.text === 'string' && f.text) composer.restore(f.text); composer.focus(); return;
         }
       },
@@ -427,6 +453,7 @@ async function mount(ctx: PageContext): Promise<void> {
   }));
 
   syncPhase();
+  readContext();
   thread.append(ui.h('div', 'chat-empty', S.connecting));
 }
 

@@ -259,6 +259,16 @@ function frame(w: number): Rect {
   return { x: ax[0]!, y: ay[0]!, width: wd[0]!, height: ht[0]! };
 }
 
+/** The executable's name of process `pid` as the kernel keeps it (at most 15 characters), null when unknown. */
+export function processName(pid: number): string | null {
+  if (!pid) return null;
+  try {
+    return readFileSync(`/proc/${pid}/comm`, 'utf8').trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 /** Managed top-level windows with a title, front to back, from the window manager's stacking list. */
 export function windows(): WindowInfo[] {
   const active = numbers(prop(root, '_NET_ACTIVE_WINDOW'))[0] ?? 0;
