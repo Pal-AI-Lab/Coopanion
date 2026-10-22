@@ -144,7 +144,11 @@ export function field(doc: Document, label: string, control: HTMLElement): HTMLL
   return el;
 }
 
-/** 分段选择器保留全部重复 value 选项，并统一更新它们的选中态。 */
+/**
+ * 分段选择器保留全部重复 value 选项，并统一更新它们的选中态。
+ * 选中底色是一块滑块（`.segthumb`，颜色取 `--seg-thumb`），换选中项时从旧位置滑到新位置；
+ * 没有选中项或还没布局时滑块隐藏，第一次落位不播动画。
+ */
 export function segmented(
   doc: Document,
   signal: AbortSignal,
@@ -152,12 +156,32 @@ export function segmented(
   opts?: WebUiSegmentedOptions,
 ): WebUiSegmented {
   const o = opts ?? {};
-  const el = h(doc, 'div', o.size === 'sm' ? 'segwrap sm' : 'segwrap');
+  const el = h(doc, 'div', o.size === 'sm' ? 'segwrap sm is-sliding' : 'segwrap is-sliding');
+  const thumb = h(doc, 'span', 'segthumb');
+  el.appendChild(thumb);
   const keys: { value: string; btn: HTMLButtonElement }[] = [];
   let current = o.value ?? '';
+  const place = (): void => {
+    const active = keys.find((k) => k.value === current)?.btn;
+    thumb.hidden = !active?.offsetWidth;
+    if (!active?.offsetWidth) return;
+    thumb.style.width = `${active.offsetWidth}px`;
+    thumb.style.height = `${active.offsetHeight}px`;
+    thumb.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
+    if (!el.classList.contains('is-ready')) doc.defaultView?.requestAnimationFrame(() => el.classList.add('is-ready'));
+  };
   const paint = (): void => {
     for (const k of keys) k.btn.className = k.value === current ? 'seg active' : 'seg';
+    place();
   };
+  // 挂到页面、换行或改字号后按钮的位置会变；滑块跟着重新落位。没有 ResizeObserver 的环境（jsdom）
+  // 只在选中项变化时落位。
+  const view = doc.defaultView;
+  if (view?.ResizeObserver) {
+    const size = new view.ResizeObserver(place);
+    size.observe(el);
+    signal.addEventListener('abort', () => size.disconnect(), { once: true });
+  }
 
   for (const raw of items) {
     const item = typeof raw === 'string' ? { value: raw, label: raw } : raw;

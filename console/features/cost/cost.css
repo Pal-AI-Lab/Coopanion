@@ -73,13 +73,9 @@
 .ulegend > span:first-child { margin-right: 4px; }
 .ulegend > span:last-child { margin-left: 4px; }
 
-/* 单选切换：选中底色是一块随选中项滑动的滑块（index.ts 的 slidingSwitch）；拆分是多选，选中项用浅底 */
-.uswitch { position: relative; isolation: isolate; }
-.uswitch > .uthumb { position: absolute; top: 2px; bottom: 2px; left: 0; z-index: -1; border-radius: calc(var(--radius-md) - 2px); background: var(--accent); }
-.uswitch.is-ready > .uthumb { transition: transform 280ms cubic-bezier(.3, .7, .2, 1), width 280ms cubic-bezier(.3, .7, .2, 1); }
-.uswitch .seg { transition: color 200ms ease-out; }
-.uswitch .seg.active, .uswitch .seg.active:hover { background: transparent; color: #fff; font-weight: 600; }
-.uswitch .seg:hover:not(.active) { color: var(--ink); background: transparent; }
+/* 本页的单选切换：滑块用主题色，选中字白色；拆分是多选，选中项用浅底 */
+.uswitch { --seg-thumb: var(--accent); }
+.uswitch .seg.active { color: #fff; font-weight: 600; }
 .umulti .seg.active { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); font-weight: 600; }
 .umulti .seg:disabled { opacity: .4; cursor: not-allowed; }
 .uctrls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; }

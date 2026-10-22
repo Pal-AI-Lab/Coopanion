@@ -80,32 +80,6 @@ function headActions(ui: WebUi, sheet: WebUiSheet, ...actions: HTMLElement[]): v
   head.append(title, ...actions);
 }
 
-/**
- * 单选分段按钮的选中底色做成一块滑块，切换时从旧位置滑到新位置。
- * 选中项由 `ui.segmented` 以 `.active` 标出，这里只跟随它。
- */
-function slidingSwitch(seg: HTMLElement, signal: AbortSignal): void {
-  const view = seg.ownerDocument.defaultView!;
-  seg.classList.add('uswitch');
-  const thumb = seg.ownerDocument.createElement('span');
-  thumb.className = 'uthumb';
-  seg.prepend(thumb);
-  const place = (): void => {
-    const active = seg.querySelector<HTMLElement>('.seg.active');
-    thumb.hidden = !active?.offsetWidth;
-    if (!active?.offsetWidth) return;
-    thumb.style.width = `${active.offsetWidth}px`;
-    thumb.style.transform = `translateX(${active.offsetLeft}px)`;
-    // 第一次落位不播动画。
-    if (!seg.classList.contains('is-ready')) view.requestAnimationFrame(() => seg.classList.add('is-ready'));
-  };
-  const classes = new view.MutationObserver(place);
-  classes.observe(seg, { subtree: true, attributeFilter: ['class'] });
-  const size = new view.ResizeObserver(place);
-  size.observe(seg);
-  signal.addEventListener('abort', () => { classes.disconnect(); size.disconnect(); }, { once: true });
-}
-
 /** 控件条里的一组：小标签加它管的控件。 */
 function group(ui: WebUi, label: string, ...controls: HTMLElement[]): HTMLSpanElement {
   const el = ui.h('span', 'ugroup');
@@ -142,7 +116,7 @@ export function mountUsage(ctx: PageContext): void {
       void load();
     },
   });
-  slidingSwitch(presets.el, ctx.signal);
+  presets.el.classList.add('uswitch');
   const pickDate = (): void => {
     state.days = 0;
     state.from = fromInput.value;
@@ -221,14 +195,14 @@ export function mountUsage(ctx: PageContext): void {
     value: state.metric,
     onSelect: (v) => { state.metric = v as UsageMetric; renderMain(); },
   });
-  slidingSwitch(metricSeg.el, ctx.signal);
+  metricSeg.el.classList.add('uswitch');
   headActions(ui, trend, metricSeg.el);
   const bucketSeg = ui.segmented(BUCKETS, {
     size: 'sm',
     value: state.bucket,
     onSelect: (v) => { state.bucket = v as UsageBucketOption; void load(); },
   });
-  slidingSwitch(bucketSeg.el, ctx.signal);
+  bucketSeg.el.classList.add('uswitch');
   // 拆分维度可多选：同一组按钮，按下的高亮。
   const splitWrap = ui.h('div', 'segwrap sm umulti');
   const splitBtns = SPLITS.map(({ dim, label }) => {
@@ -287,7 +261,7 @@ export function mountUsage(ctx: PageContext): void {
     { value: 'model', label: S.byModel },
     { value: 'instance', label: S.byInstance },
   ], { size: 'sm', value: 'role', onSelect: (v) => showGroup(v as GroupKey) });
-  slidingSwitch(groupSeg.el, ctx.signal);
+  groupSeg.el.classList.add('uswitch');
   headActions(ui, breakdown, groupSeg.el);
   breakdown.body.appendChild(tableBox);
   showGroup('role');
