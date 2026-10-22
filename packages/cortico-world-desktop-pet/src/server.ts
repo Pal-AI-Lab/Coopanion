@@ -387,8 +387,9 @@ export class PetServer {
     const body = await readBody(req);
     const msg = body ? parse(body) : null;
     if (path === '/api/figures/import/install' && msg && typeof msg.token === 'string' && Array.isArray(msg.dirs)) {
-      const out = await importer.install(msg.token, msg.dirs.filter((d): d is string => typeof d === 'string'));
-      return json(res, 'error' in out ? 400 : 200, out);
+      const replace = Array.isArray(msg.replace) ? msg.replace.filter((id): id is string => typeof id === 'string') : [];
+      const out = await importer.install(msg.token, msg.dirs.filter((d): d is string => typeof d === 'string'), replace);
+      return json(res, 'error' in out ? 400 : 'conflicts' in out ? 409 : 200, out);
     }
     if (path === '/api/figures/import/cancel') { await importer.cancel(); return json(res, 200, { ok: true }); }
     return json(res, 400, { error: 'bad request' });

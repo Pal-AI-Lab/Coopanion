@@ -91,6 +91,9 @@ export default {
 
   // the dressing page: importing figure packs
   'import.button': '匯入',
+  'import.replaceTitle': '替換已有的形象包？',
+  'import.replaceText': '替換會刪除安裝目錄中這些形象包的原有檔案。',
+  'import.replace': '替換',
   'import.title': '匯入形象包',
   'import.unloaded': '有 {n} 個形象包沒有載入',
   'import.reason': '：{reason}',

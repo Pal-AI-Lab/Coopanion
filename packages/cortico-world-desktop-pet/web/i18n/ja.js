@@ -91,6 +91,9 @@ export default {
 
   // the dressing page: importing figure packs
   'import.button': 'インポート',
+  'import.replaceTitle': '既存のアバターパックを置き換えますか？',
+  'import.replaceText': '置き換えると、インストール先フォルダーにあるこれらのパックの既存ファイルが削除されます。',
+  'import.replace': '置き換える',
   'import.title': 'アバターパックをインポート',
   'import.unloaded': '読み込めなかったアバターパック：{n} 件',
   'import.reason': '：{reason}',
