@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./advanced/features/prompts/prompts.css";
+@import "./features/cost/cost.css";
 
 @theme inline {
   --color-background: var(--background);
@@ -584,41 +585,17 @@
   .seg.active { background: var(--accent); color: #fff; }
   .seg:hover:not(.active) { background: var(--sheet-3); }
 
-  .usagebar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-  .urange { display: inline-flex; align-items: center; gap: 6px; font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); }
-  .urange.hidden { display: none; }
-  .ulabel { font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); }
-  .urate { display: inline-flex; align-items: center; gap: 6px; }
-  .urate[hidden] { display: none; }
-  .urate > input { width: 96px; }
-  .ubkhint, .urangehint { font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); }
   .segwrap.sm .seg { padding: 4px 10px; font-size: var(--text-detail); }
-  .usagecards { margin-bottom: 16px; }
-  .u-stale { opacity: .5; }
-
-
-  #u-comp .compbar { display: flex; height: 26px; border-radius: 7px; overflow: hidden; border: 1px solid var(--line); background: var(--sheet); }
-  #u-comp .compseg { min-width: 2px; }
-  #u-comp .compleg { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; }
-  #u-comp .compitem { display: inline-flex; align-items: center; gap: 6px; font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); }
-  #u-comp .compsw { width: 11px; height: 11px; border-radius: 3px; }
-  #u-comp .compamt { font: var(--text-detail)/1.4 var(--mono); color: var(--ink); }
-  #u-comp .comppct { font: var(--text-detail)/1.4 var(--mono); color: var(--ink-soft); }
 
 
   .chart-legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 2px; }
   .chart-legend:empty { display: none; }
   .legitem { display: inline-flex; align-items: center; gap: 6px; font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); }
   .legsw { width: 11px; height: 11px; border-radius: 3px; }
-  #usagechart, #usagecalls { margin-top: 10px; overflow-x: auto; }
-  #usagechart svg, #usagecalls svg { display: block; }
   .barg .bseg { transition: opacity .1s; }
   .barg:hover .bseg { opacity: .82; }
   .barg .bhit { cursor: crosshair; }
   .bseg.seghi { stroke: var(--ink); stroke-width: 1.4; }
-  #usagechart .axis, #usagecalls .axis { stroke: var(--line-2); stroke-width: 1; }
-  #usagechart .glabel, #usagechart .vlabel, #usagecalls .glabel, #usagecalls .vlabel { fill: var(--ink-soft); font: var(--text-detail) var(--mono); }
-  .usagetables { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
 
 
   .u-tip { position: fixed; z-index: 130; pointer-events: none; box-sizing: border-box; width: max-content; max-width: min(268px, calc(100vw - 16px)); background: var(--sheet); border: 1px solid var(--line-strong); border-radius: 9px; padding: 9px 11px; box-shadow: 0 6px 22px var(--shadow-soft); font: 12px var(--sans); color: var(--ink); overflow-wrap: anywhere; }
@@ -740,9 +717,6 @@
     .theme-color-grid { grid-template-columns: repeat(auto-fill, minmax(144px, 1fr)); }
   }
 
-  @media (max-width: 900px) {
-    .usagetables { grid-template-columns: 1fr; }
-  }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
   }
@@ -1081,7 +1055,7 @@
   .panelslot > .sheet + .sheet,
   .measure > .sheet + .sheet,
   .measure > div > .sheet + .sheet { margin-top: var(--section-gap); }
-  .featureslot > :where(.iogrid, .usagetables) {
+  .featureslot > :where(.iogrid) {
     margin-top: var(--section-gap);
   }
   .featureslot > .featureintro + .sheet {
@@ -1089,15 +1063,6 @@
     padding-top: 0;
     border-top: 0;
   }
-  .usagetables > .sheet {
-    padding-top: 0;
-    border-top: 0;
-  }
-  .usagetables {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--section-gap);
-  }
-  .usagetables > .sheet { min-width: 0; }
   .sheetbody > .rowbar:last-child,
   .foldbody > .rowbar:last-child { margin-bottom: 0; }
   /* 为无自有间距的相邻卡片内容补间距；已有间距的标题、操作行和列表行除外。 */
@@ -1215,23 +1180,10 @@
   .iogrid > .sheet > .sheetbody { display: flex; flex: 1; min-height: 0; flex-direction: column; }
   .iogrid .actionbar { margin-top: auto; margin-bottom: 0; }
 
-  .statgrid, .usagecards {
+  .statgrid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 18px 28px;
   }
-  .usagecards {
-    margin-bottom: 0;
-  }
-  .usagecontrols {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 24px;
-    padding-bottom: 18px;
-    border-bottom: 1px solid var(--border);
-  }
-  .usagecontrols .usagebar { margin-bottom: 0; }
-  .usagecontrols + .usagecards { margin-top: 24px; }
   .stat {
     min-width: 0;
     min-height: 0;
@@ -1440,10 +1392,8 @@
   }
 
   @container console-content (max-width: 720px) {
-    .statgrid,
-    .usagecards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .statgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-    .usagetables,
     .theme-bench { grid-template-columns: minmax(0, 1fr); }
     .theme-bench-sample { position: static; }
   }
@@ -1492,13 +1442,10 @@
     .mountrow .mdetail { white-space: normal; overflow-wrap: anywhere; }
     .mountrow .macts { flex-wrap: wrap; }
 
-    .usagebar { gap: 8px; }
-    .usagebar > .grow { display: none; }
   }
 
   @container console-content (max-width: 380px) {
-    .statgrid,
-    .usagecards { grid-template-columns: minmax(0, 1fr); }
+    .statgrid { grid-template-columns: minmax(0, 1fr); }
   }
 
   /* 开场引导:控制台页时间线上方那一组 Cortico 气泡。 */
