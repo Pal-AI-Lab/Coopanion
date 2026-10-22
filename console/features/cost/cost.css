@@ -54,7 +54,7 @@
 .ugrid .ucell.is-dim { opacity: .4; filter: grayscale(1); }
 .ugrid .ucell[data-day] {
   position: relative;
-  transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1), opacity 200ms ease-out, box-shadow 200ms ease-out;
+  transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1), opacity 240ms ease-out, filter 240ms ease-out, box-shadow 200ms ease-out;
 }
 .ugrid:hover .ucell[data-day] { opacity: .4; }
 .ugrid:hover .ucell.is-dim { opacity: .15; }

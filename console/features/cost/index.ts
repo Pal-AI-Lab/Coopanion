@@ -466,9 +466,10 @@ export function mountUsage(ctx: PageContext): void {
     renderCards(d);
     renderComposition(d);
     if (daily && d.from && d.to) {
-      const fresh = activityData?.from !== d.from || activityData?.to !== d.to;
+      const prev = activityData;
       activityData = { daily, from: d.from, to: d.to };
-      renderActivity({ ui, box: activityBox, tip }, daily, activityData, fresh);
+      const moved = prev && (prev.from !== d.from || prev.to !== d.to);
+      renderActivity({ ui, box: activityBox, tip }, daily, activityData, !prev ? 'enter' : moved ? prev : null);
     }
     const cur = d.currency || 'USD';
     renderGroup(groupTables.role, d.byRole || [], cur);
@@ -551,7 +552,7 @@ export function mountUsage(ctx: PageContext): void {
       pending?.dispose();
       pending = lifecycle.timeout(() => {
         renderMain();
-        if (activityData) renderActivity({ ui, box: activityBox, tip }, activityData.daily, activityData, false);
+        if (activityData) renderActivity({ ui, box: activityBox, tip }, activityData.daily, activityData, null);
       }, RESIZE_DEBOUNCE_MS);
     });
     observer.observe(mainBox);
