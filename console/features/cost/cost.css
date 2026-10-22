@@ -1,24 +1,21 @@
 /* 用量与成本页：页头下方是时间范围，其下总览、Token 活跃度、用量时间序列、分组明细四节，节样式同设置页。 */
 .u-stale { opacity: .5; }
-/* 节样式同设置页：页头下第一节不再加上内边距 */
+/* 页头下第一节与页头的间距同其他页面 */
 .uresults > .sheet:first-child { padding-top: 0; }
 .usec-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 14px; }
 .usec-head > h3 { margin: 0; }
 .uresults > .sheet > h3 { margin-bottom: 14px; }
-.ulabel, .uhint { font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); white-space: nowrap; }
-.urate[hidden], .unotice[hidden], .ucomp[hidden] { display: none; }
+.ulabel { font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); white-space: nowrap; }
 
 /* 时间范围：页头第二行；日期框常驻，切换预设与自定义时宽度不变 */
 .featureslot.featureslot-usage > .featureintro > :is(.urangebar, .unotice) { grid-column: 1 / -1; }
 .urangebar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin-top: 16px; }
 /* 本页的下拉框与日期框与分段按钮同高 */
 .urangebar input.field, .uledger select.field { height: 30px; min-height: 30px; padding-block: 0; font-size: 12.5px; }
-.uledger select.field { padding-inline: 10px 30px; }
 .udates, .uledger, .urate { display: inline-flex; align-items: center; gap: 6px; }
 .udates > input { width: 136px; flex: none; }
 .udates > input.utz { width: auto; field-sizing: content; min-width: 0; color: var(--ink-soft); pointer-events: none; }
-.udates > input.utz[hidden] { display: none; }
-.uledger > select { width: auto; min-width: 0; }
+.uledger > select.field { width: auto; min-width: 0; padding-inline: 10px 30px; }
 .urate > input { width: 80px; }
 .unotice { margin: 10px 0 0; }
 
@@ -35,12 +32,11 @@
 .ucomp .compseg { min-width: 2px; transform-origin: center; transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1), opacity 200ms ease-out, box-shadow 200ms ease-out; }
 .ucomp .compseg:first-child { border-radius: 4px 0 0 4px; }
 .ucomp .compseg:last-child { border-radius: 0 4px 4px 0; }
-.ucomp .compitem { transition: opacity 200ms ease-out; }
 .ucomp.is-focus .compseg:not(.is-hi), .ucomp.is-focus .compitem:not(.is-hi) { opacity: .35; }
 .ucomp .compseg.is-hi { position: relative; z-index: 1; border-radius: 3px; transform: scaleY(1.9); box-shadow: 0 0 0 1.5px var(--background); }
 .ucomp .compitem.is-hi { color: var(--ink); }
 .ucomp .compleg { display: flex; flex-wrap: wrap; gap: 4px 14px; }
-.ucomp .compitem { display: inline-flex; align-items: center; gap: 5px; font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); white-space: nowrap; }
+.ucomp .compitem { display: inline-flex; align-items: center; gap: 5px; font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); white-space: nowrap; transition: opacity 200ms ease-out; }
 .ucomp .compsw { width: 9px; height: 9px; border-radius: 2px; }
 .ucomp .compamt { font-family: var(--mono); color: var(--ink); }
 .ucomp .comppct { font-family: var(--mono); }
@@ -77,10 +73,9 @@
 .ulegend > span:first-child { margin-right: 4px; }
 .ulegend > span:last-child { margin-left: 4px; }
 
-/* 用量时间序列与分组明细：标题右侧的切换选中项用主题色底 */
+/* 单选切换：选中底色是一块随选中项滑动的滑块（index.ts 的 slidingSwitch）；拆分是多选，选中项用浅底 */
 .uswitch { position: relative; isolation: isolate; }
 .uswitch > .uthumb { position: absolute; top: 2px; bottom: 2px; left: 0; z-index: -1; border-radius: calc(var(--radius-md) - 2px); background: var(--accent); }
-.uswitch > .uthumb[hidden] { display: none; }
 .uswitch.is-ready > .uthumb { transition: transform 280ms cubic-bezier(.3, .7, .2, 1), width 280ms cubic-bezier(.3, .7, .2, 1); }
 .uswitch .seg { transition: color 200ms ease-out; }
 .uswitch .seg.active, .uswitch .seg.active:hover { background: transparent; color: #fff; font-weight: 600; }
@@ -90,9 +85,12 @@
 .uctrls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; }
 .ugroup { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .ugroup > .ulabel { color: var(--ink); font-weight: 600; }
-.uctrls + .chart-legend { margin-top: 16px; }
-.uctrls + .chart-legend:empty + .uchart { margin-top: 20px; }
-.uchart { margin-top: 12px; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.chart-legend:empty { display: none; }
+.uchart { margin-top: 20px; }
+.chart-legend:not(:empty) + .uchart { margin-top: 8px; }
+.legitem { display: inline-flex; align-items: center; gap: 6px; font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); }
+.legsw { width: 11px; height: 11px; border-radius: 3px; }
 .uchart svg { display: block; }
 /* 悬停柱子：这一列略微抬起并发光，其余列淡出；悬停堆叠中的一段时这一段最亮 */
 .uchart .barg { transition: opacity 220ms ease-out, transform 260ms cubic-bezier(.34, 1.56, .64, 1), filter 220ms ease-out; }
@@ -103,7 +101,6 @@
 .uchart .bseg.seghi { filter: brightness(1.12) saturate(1.1); }
 .uchart .axis { stroke: var(--line-2); stroke-width: 1; }
 .uchart .glabel, .uchart .vlabel { fill: var(--ink-soft); font: var(--text-detail) var(--mono); }
-.chart-legend + .uchart { margin-top: 8px; }
 .unote { margin: 6px 0 0; }
 .unote:empty { display: none; }
 
@@ -115,11 +112,4 @@
   .ukpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ukpis > .stat:nth-child(n) { padding-left: 16px; border-left: 1px solid var(--line); }
   .ukpis > .stat:nth-child(2n + 1) { padding-left: 0; border-left: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .uchart .barg, .uchart .bseg, .ucomp .compseg, .ucomp .compitem { transition: none; }
-  .uchart .barg:hover, .ucomp .compseg.is-hi { transform: none; }
-  .uswitch.is-ready > .uthumb, .uswitch .seg { transition: none; }
-  .ugrid.is-entering .ucell { animation: none; }
-  .ugrid .ucell[data-day] { transition: none; }
 }

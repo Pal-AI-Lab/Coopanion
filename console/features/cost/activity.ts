@@ -1,6 +1,6 @@
 /**
  * Token 活跃度：按天的格子图，一列一周（周一在上），颜色深浅分五档，悬停显示日期与当天 token 数。
- * 格子铺满节宽，以页面时间范围的末日为终点向前排；范围内的日子正常显示，范围外的淡显作对照。
+ * 格子铺满节宽，以页面时间范围的末日为终点向前排；范围内的日子着色，范围外的灰色淡显作对照。
  * 范围长于一行能放下的周数时格子缩小，不横向滚动。
  */
 
@@ -15,7 +15,7 @@ const DAY_MS = 86_400_000;
 const CELL = 12;
 const GAP = 3;
 /** 范围之外最多向前补多少天作对照；取数时按这个长度取。 */
-export const ACTIVITY_CONTEXT_DAYS = 371;
+const ACTIVITY_CONTEXT_DAYS = 371;
 /** 月份标签之间至少隔几列，避免挤在一起。 */
 const MONTH_GAP = 3;
 /** 换范围时着色/褪色依次扫过各列，每列的延迟与整段扫过的上限（ms）。 */
@@ -74,8 +74,9 @@ export function renderActivity(deps: ActivityDeps, daily: UsageAggregate, range:
   const cols = Math.max(rangeCols, Math.min(fitCols, dataCols));
   const start = end - (cols * 7 - 1) * DAY_MS;
   // 深浅按整张图上的最大值分档，范围内外可直接比较。
+  const first = dayKey(start);
   let max = 1;
-  for (const [day, value] of tokens) if (day >= dayKey(start) && value > max) max = value;
+  for (const [day, value] of tokens) if (day >= first && value > max) max = value;
 
   const grid = ui.h('div', motion === 'enter' ? 'ugrid is-entering' : 'ugrid');
   const prev = motion && motion !== 'enter' ? motion : null;

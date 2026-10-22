@@ -587,13 +587,6 @@
 
   .segwrap.sm .seg { padding: 4px 10px; font-size: var(--text-detail); }
 
-
-  .chart-legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 2px; }
-  .chart-legend:empty { display: none; }
-  .legitem { display: inline-flex; align-items: center; gap: 6px; font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); }
-  .legsw { width: 11px; height: 11px; border-radius: 3px; }
-
-
   .u-tip { position: fixed; z-index: 130; pointer-events: none; box-sizing: border-box; width: max-content; max-width: min(268px, calc(100vw - 16px)); background: var(--sheet); border: 1px solid var(--line-strong); border-radius: 9px; padding: 9px 11px; box-shadow: 0 6px 22px var(--shadow-soft); font: 12px var(--sans); color: var(--ink); overflow-wrap: anywhere; }
   .u-tip.hidden { display: none; }
   .u-tip .tt-h { font: 600 12.5px var(--mono); color: var(--accent); margin-bottom: 3px; }
@@ -1437,7 +1430,6 @@
     .mountrow .macts { grid-column: 2 / -1; }
     .mountrow .mdetail { white-space: normal; overflow-wrap: anywhere; }
     .mountrow .macts { flex-wrap: wrap; }
-
   }
 
   @container console-content (max-width: 380px) {

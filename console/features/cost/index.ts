@@ -9,9 +9,9 @@ import type { WebUi, WebUiSheet, Disposable } from 'cortico/web/shared/client-pa
 import { get, setConfig } from '../../base/api.ts';
 import { esc } from '../../base/ui/dom.ts';
 import { consoleFormat } from '../../base/ui/format.ts';
-import { pageIntro } from '../../base/ui/page.ts';
 import { getThemeStudio } from '../../base/theme/studio.ts';
 import type { Page, PageContext } from '../../base/page.ts';
+import { intro as pageIntro } from '../intro.ts';
 import { activityFrom, renderActivity } from './activity.ts';
 import { bucketLabel, renderChart } from './chart.ts';
 import { U_TYPES, themeColorResolver } from './labels.ts';
@@ -121,15 +121,12 @@ export function mountUsage(ctx: PageContext): void {
   const tip = lifecycle.own(createUsageTip(doc, root));
 
   // ---- 页头：刷新 -----------------------------------------------------------
-  const intro = pageIntro(ui, S.pageTitle);
   const liveBox = ui.checkbox(S.liveRefresh, {
     title: S.liveRefreshTitle(LIVE_MS / 1000),
     onChange: (on) => setLive(on),
   });
   const refreshBtn = ui.button(S.refresh, { size: 'sm', onClick: () => void load() });
-  const introActs = ui.h('div', 'companion-introacts');
-  introActs.append(liveBox.el, refreshBtn);
-  intro.appendChild(introActs);
+  const intro = pageIntro(ui, S.pageTitle, { actions: [liveBox.el, refreshBtn] });
 
   // ---- 时间范围：页头第二行，随页头吸顶 --------------------------------------
   // 日期框一直在：预设档显示它算出的范围，改日期即切到自定义档，切换时这一行不变形。
@@ -161,7 +158,7 @@ export function mountUsage(ctx: PageContext): void {
   timezone.tabIndex = -1;
   timezone.classList.add('utz');
   const dates = ui.h('span', 'udates');
-  dates.append(fromInput, ui.h('span', 'uhint', '—'), toInput, timezone);
+  dates.append(fromInput, ui.h('span', 'ulabel', '—'), toInput, timezone);
   /** 取数失败、账目存储异常与汇率保存失败；没有时整行不占位。 */
   const notice = ui.msgline('', true);
   notice.classList.add('unotice');
@@ -169,7 +166,7 @@ export function mountUsage(ctx: PageContext): void {
   rangeBar.append(presets.el, dates);
   intro.append(rangeBar, notice);
 
-  // ---- 总览：读数、成本构成与账本口径 -----------------------------------------
+  // ---- 总览：读数、成本构成与计费口径 -----------------------------------------
   const overview = ui.sheet({ title: S.sectionOverview });
   let basis = 'marginal';
   let currency = '';
