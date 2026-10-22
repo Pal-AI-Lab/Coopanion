@@ -74,7 +74,7 @@ function offsetMinutes(timezone: string, d: Date): number {
 }
 
 /** Epoch ms of a wall-clock time in `timezone`. */
-export function localToEpoch(timezone: string, y: number, mo: number, d: number, h: number, mi: number): number {
+function localToEpoch(timezone: string, y: number, mo: number, d: number, h: number, mi: number): number {
   const guess = Date.UTC(y, mo - 1, d, h, mi);
   const first = guess + offsetMinutes(timezone, new Date(guess)) * 60_000;
   // across a daylight-saving change the offset at the result can differ from the guess's

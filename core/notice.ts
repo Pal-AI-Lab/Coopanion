@@ -300,7 +300,7 @@ const en: typeof zh = {
 
 const NOTICE_TEXT: Record<ModelLanguage, typeof zh> = { zh, en };
 
-export function updatedText(from: string | null, to: string, notes: Array<{ version: string; text: string }>, language: ModelLanguage = 'zh'): string {
+function updatedText(from: string | null, to: string, notes: Array<{ version: string; text: string }>, language: ModelLanguage = 'zh'): string {
   const t = NOTICE_TEXT[language];
   const head = from ? t.updatedFrom(from, to) : t.updatedTo(to);
   if (!notes.length) return `${head}${t.noNotes}`;
@@ -318,7 +318,7 @@ function look(read: (path: string) => unknown): Look {
 }
 
 /** One line per watched setting that differs between the two looks, in `WATCHED` order. */
-export function settingChanges(before: Look, after: Look, labels: Labels, language: ModelLanguage = 'zh'): string[] {
+function settingChanges(before: Look, after: Look, labels: Labels, language: ModelLanguage = 'zh'): string[] {
   const t = NOTICE_TEXT[language];
   return WATCHED.filter((w) => before[w.path] !== after[w.path]).map((w) => {
     const s = t.settings[w.key];
@@ -330,7 +330,7 @@ export function settingChanges(before: Look, after: Look, labels: Labels, langua
   });
 }
 
-export function guideText(end: GuideEnd, language: ModelLanguage = 'zh'): string {
+function guideText(end: GuideEnd, language: ModelLanguage = 'zh'): string {
   const t = NOTICE_TEXT[language];
   const name = end.name ?? t.someone;
   return [
@@ -341,7 +341,7 @@ export function guideText(end: GuideEnd, language: ModelLanguage = 'zh'): string
   ].join('\n');
 }
 
-export function changedText(lines: string[], language: ModelLanguage = 'zh'): string {
+function changedText(lines: string[], language: ModelLanguage = 'zh'): string {
   return [NOTICE_TEXT[language].changed, ...lines].join('\n');
 }
 
