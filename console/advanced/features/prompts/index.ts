@@ -404,6 +404,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
           popup.style.top = `${Math.max(8, Math.min(rect.top, window.innerHeight - popup.offsetHeight - 8))}px`;
         } });
         chip.className += ' varchip mono';
+        chip.title = variable.name;
         chip.draggable = true;
         chip.setAttribute('aria-expanded', 'false');
         chip.addEventListener('mousedown', (event) => { if (event.detail === 1) insertPosition = editor.view.state.selection.main.head; }, { signal });
