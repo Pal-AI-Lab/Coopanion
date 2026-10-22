@@ -4,7 +4,8 @@
  * coopanion World's page in the settings window lists them, and an alarm the person cancels there is
  * told to Coo. They are kept in `alarms.json` in the deployment directory, so they
  * outlive a restart; one that fell due while the app was closed is delivered at the next start,
- * saying when it was meant for. A daily one is then set for its next day.
+ * saying when it was meant for. Daily alarms keep their local clock time across daylight-saving
+ * changes. A skipped clock time moves forward by the gap for that occurrence only.
  *
  * Tool descriptions are English; receipts and the due event are in the model-text language.
  */
@@ -18,13 +19,14 @@ export interface Alarm {
   at: number;
   note: string;
   daily: boolean;
+  /** Daily local HH:MM; older records derive it from `at` when loaded. */
+  clock?: string;
   /** When it was set, epoch ms. */
   setAt: number;
 }
 
 interface Saved { next: number; alarms: Alarm[] }
 
-const DAY_MS = 86_400_000;
 /** A due alarm this much past its time was missed while the app was closed (the World looks every second). */
 const MISSED_AFTER_MS = 60_000;
 
@@ -35,10 +37,10 @@ const zh = {
   badAt: (got: string) => `at 应为 HH:MM 或 YYYY-MM-DD HH:MM,收到 ${got}`,
   due: (setAt: string, id: string, daily: boolean, note: string) => `[唤醒器] 你在 ${setAt} 设的唤醒到了(${id}${daily ? ',每天' : ''}):${note}`,
   missed: (when: string) => `原定 ${when},那时应用没开着,现在才送到。`,
-  listLine: (id: string, when: string, daily: boolean, note: string) => `- ${id}:${when}${daily ? '(每天)' : ''} ${note}`,
+  listLine: (id: string, when: string, clock: string | undefined, note: string) => `- ${id}:${when}${clock ? `(每天 ${clock})` : ''} ${note}`,
   noteEmpty: '[alarm_set 没执行] note 不能为空。',
   setFailed: (why: string) => `[alarm_set 没执行] ${why}。`,
-  set: (id: string, when: string, daily: boolean) => `已设 ${id}:${when}${daily ? ',之后每天这个时间' : ''}。`,
+  set: (id: string, when: string, clock: string | undefined) => `已设 ${id}:${when}${clock ? `,之后每天 ${clock}` : ''}。`,
   none: '没有设着的唤醒器。',
   missing: (id: string) => `[alarm_cancel 没执行] 没有 ${id} 这个唤醒器。`,
   cancelled: (id: string) => `已取消 ${id}。`,
@@ -52,10 +54,10 @@ const en: typeof zh = {
   badAt: (got) => `at must be HH:MM or YYYY-MM-DD HH:MM; got ${got}`,
   due: (setAt, id, daily, note) => `[alarm] The alarm you set at ${setAt} is due (${id}${daily ? ', daily' : ''}): ${note}`,
   missed: (when) => `It was due at ${when}; the app was not running then, so it arrives only now.`,
-  listLine: (id, when, daily, note) => `- ${id}: ${when}${daily ? ' (daily)' : ''} ${note}`,
+  listLine: (id, when, clock, note) => `- ${id}: ${when}${clock ? ` (daily at ${clock})` : ''} ${note}`,
   noteEmpty: '[alarm_set not run] note must not be empty.',
   setFailed: (why) => `[alarm_set not run] ${why}.`,
-  set: (id, when, daily) => `Set ${id}: ${when}${daily ? ', then at this time every day' : ''}.`,
+  set: (id, when, clock) => `Set ${id}: ${when}${clock ? `, then at ${clock} every day` : ''}.`,
   none: 'No alarms set.',
   missing: (id) => `[alarm_cancel not run] There is no alarm ${id}.`,
   cancelled: (id) => `Cancelled ${id}.`,
@@ -73,12 +75,26 @@ function offsetMinutes(timezone: string, d: Date): number {
   return (d.getTime() - d.getMilliseconds() - local) / 60_000;
 }
 
-/** Epoch ms of a wall-clock time in `timezone`. */
+/** Epoch ms of a wall-clock time in `timezone`; skipped times move forward by the gap. */
 export function localToEpoch(timezone: string, y: number, mo: number, d: number, h: number, mi: number): number {
   const guess = Date.UTC(y, mo - 1, d, h, mi);
   const first = guess + offsetMinutes(timezone, new Date(guess)) * 60_000;
-  // across a daylight-saving change the offset at the result can differ from the guess's
-  return guess + offsetMinutes(timezone, new Date(first)) * 60_000;
+  const second = guess + offsetMinutes(timezone, new Date(first)) * 60_000;
+  const wall = second - offsetMinutes(timezone, new Date(second)) * 60_000;
+  return wall === guess ? second : Math.max(first, second);
+}
+
+function localDate(timezone: string, ms: number): { year: number; month: number; day: number } {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+  return { year: +p.year!, month: +p.month!, day: +p.day! };
+}
+
+function nextClock(timezone: string, now: number, hour: number, minute: number, withinMinute = 0): number {
+  const { year, month, day } = localDate(timezone, now);
+  const at = localToEpoch(timezone, year, month, day, hour, minute) + withinMinute;
+  return at > now ? at : localToEpoch(timezone, year, month, day + 1, hour, minute) + withinMinute;
 }
 
 /** `MM-DD HH:MM` in `timezone`. */
@@ -102,15 +118,14 @@ export function dueTime(timezone: string, now: number, at: unknown, inMinutes: u
   if (typeof at !== 'string') return t.noTime;
   const full = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})$/.exec(at.trim());
   if (full) {
-    const ms = localToEpoch(timezone, +full[1]!, +full[2]!, +full[3]!, +full[4]!, +full[5]!);
+    const [, y, mo, d, h, mi] = full.map(Number);
+    if (mo! < 1 || mo! > 12 || d! < 1 || d! > new Date(Date.UTC(y!, mo!, 0)).getUTCDate() || h! > 23 || mi! > 59) return t.badAt(JSON.stringify(at));
+    const ms = localToEpoch(timezone, y!, mo!, d!, h!, mi!);
     return ms > now ? ms : t.past(at);
   }
   const clock = /^(\d{1,2}):(\d{2})$/.exec(at.trim());
   if (!clock || +clock[1]! > 23 || +clock[2]! > 59) return t.badAt(JSON.stringify(at));
-  const today = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' })
-    .formatToParts(new Date(now)).map((x) => [x.type, x.value]));
-  const ms = localToEpoch(timezone, +today.year!, +today.month!, +today.day!, +clock[1]!, +clock[2]!);
-  return ms > now ? ms : ms + DAY_MS;
+  return nextClock(timezone, now, +clock[1]!, +clock[2]!);
 }
 
 /** The tools' declarations; `Alarms.tools()` binds the handlers. */
@@ -122,10 +137,10 @@ export const ALARM_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
     parameters: {
       type: 'object',
       properties: {
-        at: { type: 'string', description: 'The person\'s local time: HH:MM (tomorrow if today\'s has passed), or YYYY-MM-DD HH:MM. Give this or in_minutes.' },
+        at: { type: 'string', description: 'The person\'s local time: HH:MM (tomorrow if today\'s has passed), or YYYY-MM-DD HH:MM. A clock time skipped by daylight saving moves forward by the gap. Give this or in_minutes.' },
         in_minutes: { type: 'number', minimum: 1, description: 'Minutes from now.' },
         note: { type: 'string', description: 'What to do when it is due and why you set it, written for yourself at that time.' },
-        daily: { type: 'boolean', description: 'true wakes you at this time every day until alarm_cancel.' },
+        daily: { type: 'boolean', description: 'true wakes you at this local clock time every day until alarm_cancel, including after daylight-saving changes.' },
       },
       required: ['note'],
     },
@@ -150,6 +165,11 @@ export class Alarms {
   /** `language`: the model-text language, read at each use. */
   constructor(private readonly file: string, private readonly timezone: string, private readonly language: () => ModelLanguage = () => 'zh') {
     this.saved = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as Saved : { next: 1, alarms: [] };
+    for (const alarm of this.saved.alarms) {
+      if (alarm.daily && (typeof alarm.clock !== 'string' || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(alarm.clock))) {
+        alarm.clock = localLabel(timezone, alarm.at).slice(-5);
+      }
+    }
   }
 
   private get t(): typeof zh {
@@ -167,8 +187,8 @@ export class Alarms {
     this.saved.alarms = this.saved.alarms.filter((a) => a.at > now);
     for (const a of due) {
       if (!a.daily) continue;
-      let at = a.at;
-      while (at <= now) at += DAY_MS;
+      const [hour, minute] = a.clock!.split(':').map(Number);
+      const at = nextClock(this.timezone, now, hour!, minute!, a.at % 60_000);
       this.saved.alarms.push({ ...a, at });
     }
     this.save();
@@ -203,7 +223,7 @@ export class Alarms {
 
   tools(now: () => number = Date.now): ToolDef[] {
     const tz = this.timezone;
-    const list = () => this.list().map((a) => this.t.listLine(a.id, localLabel(tz, a.at), a.daily, a.note)).join('\n');
+    const list = () => this.list().map((a) => this.t.listLine(a.id, localLabel(tz, a.at), a.daily ? a.clock : undefined, a.note)).join('\n');
     const handlers: Record<string, ToolDef['handler']> = {
       alarm_set: async (args) => {
         const t = this.t;
@@ -213,9 +233,14 @@ export class Alarms {
         const at = dueTime(tz, time, args.at, args.in_minutes, this.language());
         if (typeof at === 'string') return { text: t.setFailed(at), failed: true };
         const alarm: Alarm = { id: `a${this.saved.next++}`, at, note, daily: args.daily === true, setAt: time };
+        if (alarm.daily) {
+          alarm.clock = typeof args.in_minutes !== 'number' && typeof args.at === 'string'
+            ? args.at.trim().match(/\d{1,2}:\d{2}$/)![0].padStart(5, '0')
+            : localLabel(tz, at).slice(-5);
+        }
         this.saved.alarms.push(alarm);
         this.save();
-        return { text: t.set(alarm.id, localLabel(tz, at), alarm.daily) };
+        return { text: t.set(alarm.id, localLabel(tz, at), alarm.clock) };
       },
       alarm_list: async () => ({ text: this.saved.alarms.length ? list() : this.t.none }),
       alarm_cancel: async (args) => {

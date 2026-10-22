@@ -189,6 +189,12 @@ Talk key, microphone and listening mode (hold to talk / press to toggle / always
 
 Speech is recognized on your machine and audio is never uploaded: by **FunASR** (the SenseVoiceSmall model, about 230 MB) when the app language is Chinese, English, Japanese or Korean, and by **Whisper** (the small model, about 360 MB; the text appears once a sentence ends) for French, German, Spanish, Portuguese, Italian and Russian. The model is downloaded once, from the guide or the Voice input page. On Windows you can use the built-in recognizer instead, which needs no download but is less accurate.
 
+### Reminders
+
+Ask Coo to remind you at a local time or after a number of minutes. Daily reminders keep that local clock time across daylight-saving changes. If the clock skips the requested time, that occurrence moves forward by the gap; the next day uses the requested time again. Reminders missed while the app is closed arrive when it next starts.
+
+Existing daily reminders use their currently saved time as the daily clock. If an earlier daylight-saving change already shifted one, cancel it and ask Coo to set it again at the intended time.
+
 ### Playing with Coo
 
 - **Click** to poke it, **move back and forth over its head** to pat it, **press and drag** to pick it up; let go mid-swing to throw it. By default a poke makes Coo respond, and pats and pick-ups are passed on the next time it wakes. **Response mode** in Habits changes this: Quiet keeps every touch until you next talk to Coo, Eager responds to every touch, Custom… picks the touches that get a response right away.
