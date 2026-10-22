@@ -9,6 +9,11 @@ const it: Translation<CuaText> = {
     caption: 'Controllo del computer',
     yes: 'Sì',
     no: 'Non stavolta',
+    risky: {
+      keys: (who: string, keys: string) => `${who} vuole premere ${keys}. Questa scorciatoia può aprire menu di sistema o avviare programmi. Va bene?`,
+      typeInTerminal: (who: string, window: string, text: string) => `${who} vuole scrivere nella finestra del terminale «${window}»:\n${text}\nCiò che viene scritto può essere eseguito come comando. Va bene?`,
+      enterInTerminal: (who: string, window: string, keys: string) => `${who} vuole premere ${keys} nella finestra del terminale «${window}», che esegue il comando scritto lì. Va bene?`,
+    },
   },
 
   preflight: {
@@ -31,7 +36,7 @@ const it: Translation<CuaText> = {
     group: 'Controllo del computer',
     enabled: { title: 'Attiva il controllo del computer' },
     control: { title: 'Consenti mouse e tastiera', description: "Se disattivato, solo screenshot ed elenco delle finestre." },
-    permission: { title: 'Quando chiederti', description: 'ask-each-turn: chiede ogni turno prima di guardare lo schermo o agire; ask-before-acting: guardare è libero, chiede ogni turno prima di usare mouse e tastiera; ask-once: guardare è libero, chiede una volta prima di usare mouse e tastiera, e un sì dura quanto indicato in «Un sì vale»; never-ask: non chiede mai.' },
+    permission: { title: 'Quando chiederti', description: 'ask-each-turn: chiede ogni turno prima di guardare lo schermo o agire; ask-before-acting: guardare è libero, chiede ogni turno prima di usare mouse e tastiera; ask-once: guardare è libero, chiede una volta prima di usare mouse e tastiera, e un sì dura quanto indicato in «Un sì vale»; never-ask: non chiede mai. Con qualsiasi impostazione, prima di una scorciatoia che può avviare programmi e prima di scrivere o premere Invio in un terminale chiede ogni volta.' },
     grantMinutes: { title: 'Un sì vale', suffix: 'min', description: 'Solo per ask-once.' },
     userIdleMs: { title: 'Lasciarti il passo per', description: 'Dopo che hai usato mouse o tastiera, aspetta che restino inattivi per questo tempo.' },
     maxYieldWaitMs: { title: 'Attesa massima per te' },
