@@ -26,6 +26,8 @@ const KEYS = {
 /** The World's PERMISSION_LEVELS, strictest first. */
 const LEVELS = ['ask-each-turn', 'ask-before-acting', 'ask-once', 'never-ask'] as const;
 type Level = (typeof LEVELS)[number];
+/** The World's default `permission`, shown until Core gives one. */
+const DEFAULT_LEVEL: Level = 'ask-once';
 /** Remembers that the risks were confirmed once. */
 const memo = createMemo('coopanion.cua.');
 const RISKS_SEEN = 'risksSeen';
@@ -154,6 +156,7 @@ export function cuaSection(ctx: PageContext, row: Row): { el: HTMLElement; sync(
     if (signal.aborted) return;
     const values = config?.groups?.find((g) => g.group.id === CUA_GROUP)?.values ?? {};
     sync(values);
+    if (!LEVELS.some((l) => l === saved[KEYS.permission])) { level.setValue(DEFAULT_LEVEL); showLevel(DEFAULT_LEVEL); }
     const view = doc.defaultView;
     const route = view ? parseHash(view.location.hash) : null;
     if (view && route?.query.cua === ENABLE) {

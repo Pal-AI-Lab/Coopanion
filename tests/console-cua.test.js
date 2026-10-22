@@ -59,7 +59,8 @@ afterEach(async () => {
   document.body.replaceChildren();
 });
 
-async function mount() {
+/** The 「习惯」 page; `loaded` waits for the section to show Core's values. */
+async function mount(loaded = true) {
   life = new Lifecycle((err) => { throw err; });
   const root = document.createElement('div');
   document.body.append(root);
@@ -71,7 +72,7 @@ async function mount() {
   const section = label.closest('.sheet');
   const grant = section.querySelector('input[type="number"]');
   const level = (name) => [...section.querySelectorAll('button.seg')].find((el) => el.textContent === S.levels[name]);
-  await vi.waitFor(() => expect(grant.value).toBe(String(values[key('grantMinutes')])));
+  if (loaded) await vi.waitFor(() => expect(grant.value).toBe(String(values[key('grantMinutes')])));
   return { section, enabled, control, grant, level };
 }
 
@@ -86,6 +87,13 @@ it('restores the last saved switches and permission after a rejected write', asy
   await vi.waitFor(() => expect(level('ask-once').classList.contains('active')).toBe(true));
   expect(section.textContent).toContain(S.saveFailed('write failed'));
   expect(values[key('enabled')]).toBe(true);
+});
+
+it('shows the default ask-once with its hint when the first config read fails', async () => {
+  available = false;
+  const { section, level } = await mount(false);
+  await vi.waitFor(() => expect(level('ask-once').classList.contains('active')).toBe(true));
+  expect(section.textContent).toContain(S.levelHints['ask-once']);
 });
 
 it('resynchronizes all four controls after Core becomes reachable again', async () => {
