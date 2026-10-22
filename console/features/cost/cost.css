@@ -51,7 +51,7 @@
 .uactivity .ucell[data-level="3"] { background: color-mix(in srgb, var(--accent) 76%, transparent); }
 .uactivity .ucell[data-level="4"] { background: var(--accent); }
 .ugrid .ucell.is-out { visibility: hidden; }
-.ugrid .ucell.is-dim { opacity: .3; }
+.ugrid .ucell.is-dim { opacity: .4; filter: grayscale(1); }
 .ugrid .ucell[data-day] {
   position: relative;
   transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1), opacity 200ms ease-out, box-shadow 200ms ease-out;
