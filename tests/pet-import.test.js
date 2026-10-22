@@ -103,10 +103,11 @@ describe('figure import confirmation', () => {
     expect(figurePacks([p.root]).packs.some((pack) => pack.id === 'fixture-api2')).toBe(true);
   });
 
-  it('provides the replacement prompt in every app language', async () => {
+  it('provides the replacement and uninstall prompts in every app language', async () => {
+    const keys = ['import.replaceTitle', 'import.replaceText', 'import.replace', ...['label', 'title', 'lead', 'go', 'failed', 'done'].map((k) => `remove.${k}`)];
     for (const language of LANGUAGES) {
       const { default: text } = await import(`../packages/cortico-world-desktop-pet/web/i18n/${language}.js`);
-      for (const key of ['import.replaceTitle', 'import.replaceText', 'import.replace']) expect(text[key], `${language}: ${key}`).toEqual(expect.any(String));
+      for (const key of keys) expect(text[key], `${language}: ${key}`).toEqual(expect.any(String));
     }
   });
 });

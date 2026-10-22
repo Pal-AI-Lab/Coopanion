@@ -133,4 +133,11 @@ export default {
   'import.cannot': 'Cannot import',
   'import.dropOne': 'Drag one zip at a time, or folders.',
   'import.readFailed': 'Could not read the files',
+  // the dressing page: uninstalling figure packs
+  'remove.label': 'Uninstall {name}',
+  'remove.title': 'Uninstall {name}?',
+  'remove.lead': "The pack's files are deleted; import it again to use it. A pet wearing this pack changes back to Coo.",
+  'remove.go': 'Uninstall',
+  'remove.failed': 'Could not uninstall',
+  'remove.done': 'Uninstalled: {name}',
 };
