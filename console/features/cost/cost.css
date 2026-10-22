@@ -1,14 +1,22 @@
-/* 用量与成本页：时间范围、总览、Token 活跃度、用量时间序列、分组明细五节，节样式同设置页。 */
+/* 用量与成本页：页头下方是时间范围，其下总览、Token 活跃度、用量时间序列、分组明细四节，节样式同设置页。 */
 .u-stale { opacity: .5; }
+/* 节样式同设置页：页头下第一节不再加上内边距 */
+.uresults > .sheet:first-child { padding-top: 0; }
 .usec-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 14px; }
 .usec-head > h3 { margin: 0; }
 .ulabel, .uhint { font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); white-space: nowrap; }
 .urate[hidden], .unotice[hidden], .ucomp[hidden] { display: none; }
 
-/* 时间范围：日期框常驻，切换预设与自定义时宽度不变 */
-.urangebar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; }
+/* 时间范围：页头第二行；日期框常驻，切换预设与自定义时宽度不变 */
+.featureslot.featureslot-usage > .featureintro > :is(.urangebar, .unotice) { grid-column: 1 / -1; }
+.urangebar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin-top: 16px; }
+/* 本页的下拉框与日期框与分段按钮同高 */
+.urangebar input.field, .uledger select.field { height: 30px; min-height: 30px; padding-block: 0; font-size: 12.5px; }
+.uledger select.field { padding-inline: 10px 30px; }
 .udates, .uledger, .urate { display: inline-flex; align-items: center; gap: 6px; }
 .udates > input { width: 136px; flex: none; }
+.udates > input.utz { width: auto; field-sizing: content; min-width: 0; color: var(--ink-soft); pointer-events: none; }
+.udates > input.utz[hidden] { display: none; }
 .uledger > select { width: auto; min-width: 0; }
 .urate > input { width: 80px; }
 .unotice { margin: 10px 0 0; }

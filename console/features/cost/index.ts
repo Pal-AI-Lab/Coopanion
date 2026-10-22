@@ -1,6 +1,6 @@
 /**
  * 用量与成本页读取跨重启保留的调用流水，按时段与范围统计 token、成本和请求次数，按各角色实际模型计价。
- * 页面分为时间范围、总览、Token 活跃度、用量时间序列与分组明细五节；时间范围作用于整页。
+ * 页头下方的时间范围作用于整页；其下分为总览、Token 活跃度、用量时间序列与分组明细四节。
  * 状态属于本次 mount；定时器使用 lifecycle.interval，监听绑定 signal，tooltip 挂在本页 root。
  * 柱图由 chart.ts 提供，活跃度格子图由 activity.ts 提供。
  */
@@ -106,9 +106,8 @@ export function mountUsage(ctx: PageContext): void {
   introActs.append(liveBox.el, refreshBtn);
   intro.appendChild(introActs);
 
-  // ---- 时间范围 -------------------------------------------------------------
+  // ---- 时间范围：页头第二行，随页头吸顶 --------------------------------------
   // 日期框一直在：预设档显示它算出的范围，改日期即切到自定义档，切换时这一行不变形。
-  const rangeSheet = ui.sheet({ title: S.sectionRange });
   const presets = ui.segmented(PRESETS, {
     size: 'sm',
     value: String(state.days),
@@ -121,6 +120,7 @@ export function mountUsage(ctx: PageContext): void {
       void load();
     },
   });
+  presets.el.classList.add('uswitch');
   const pickDate = (): void => {
     state.days = 0;
     state.from = fromInput.value;
@@ -130,7 +130,11 @@ export function mountUsage(ctx: PageContext): void {
   };
   const fromInput = ui.input({ type: 'date', onChange: pickDate });
   const toInput = ui.input({ type: 'date', onChange: pickDate });
-  const timezone = ui.h('span', 'uhint');
+  // 统计按部署时区分日，这里只显示，与日期框同样式。
+  const timezone = ui.input({ type: 'text' });
+  timezone.readOnly = true;
+  timezone.tabIndex = -1;
+  timezone.classList.add('utz');
   const dates = ui.h('span', 'udates');
   dates.append(fromInput, ui.h('span', 'uhint', '—'), toInput, timezone);
   /** 取数失败、账目存储异常与汇率保存失败；没有时整行不占位。 */
@@ -138,7 +142,7 @@ export function mountUsage(ctx: PageContext): void {
   notice.classList.add('unotice');
   const rangeBar = ui.h('div', 'urangebar');
   rangeBar.append(presets.el, dates);
-  rangeSheet.body.append(rangeBar, notice);
+  intro.append(rangeBar, notice);
 
   // ---- 总览：读数、成本构成与账本口径 -----------------------------------------
   const overview = ui.sheet({ title: S.sectionOverview });
@@ -254,7 +258,7 @@ export function mountUsage(ctx: PageContext): void {
 
   const results = ui.h('div', 'uresults');
   results.append(overview.el, activity.el, trend.el, breakdown.el);
-  root.append(intro, rangeSheet.el, results);
+  root.append(intro, results);
 
   // ---- 渲染 -----------------------------------------------------------------
 
@@ -387,7 +391,8 @@ export function mountUsage(ctx: PageContext): void {
   function renderRange(d: UsageAggregate): void {
     if (doc.activeElement !== fromInput) fromInput.value = d.from ?? '';
     if (doc.activeElement !== toInput) toInput.value = d.to ?? '';
-    timezone.textContent = d.timezone ?? '';
+    timezone.value = d.timezone ?? '';
+    timezone.hidden = !timezone.value;
   }
 
   /** 顶部提示行只放需要处理的问题；统计口径写在总览下方。 */
