@@ -15,6 +15,8 @@ const zh = {
   languageHint: '界面和 Coo 说话都使用这种语言。',
   user: '称呼',
   userHint: 'Coo 会用这个名字称呼你。',
+  botName: 'Coo 的名字',
+  botNameHint: '桌宠菜单、对话页和气泡里的提问用这个名字称呼 Coo。',
   roam: '走动',
   roamFree: '常走动',
   roamCalm: '多待着',
@@ -112,6 +114,8 @@ export const en: typeof zh = {
   languageHint: 'The interface and Coo use this language.',
   user: 'Your name',
   userHint: 'Coo calls you by this name.',
+  botName: "Coo's name",
+  botNameHint: "The pet's menu, the Chat page and questions in the bubble call Coo by this name.",
   roam: 'Walking',
   roamFree: 'Often',
   roamCalm: 'Now and then',
@@ -159,9 +163,9 @@ export const en: typeof zh = {
   hoverHint: (n: number) => `Up to ${n}.`,
   dblclick: 'Open the typing box',
   statusBubble: 'Show what Coo is doing',
-  statusBubbleHint: 'Shows above Coo while it thinks, reads or writes files or uses the computer, file names included.',
+  statusBubbleHint: 'Shows above Coo while Coo thinks, reads or writes files or uses the computer, file names included.',
   saidBubble: 'Show what you said',
-  saidBubbleHint: 'What you type, say or send from the Chat page stays above Coo until it has replied. When off, speech still shows while it is recognized and fades once done.',
+  saidBubbleHint: 'What you type, say or send from the Chat page stays above Coo until Coo has replied. When off, speech still shows while it is recognized and fades once done.',
   wake: 'Response mode',
   wakeModes: { none: 'Quiet', poke: 'Default', all: 'Eager', custom: 'Custom…' },
   wakeHints: { none: 'Touches are noted and answered together when you next speak', poke: 'Responds only when poked', all: 'Responds to every touch' },
@@ -199,7 +203,7 @@ export const en: typeof zh = {
   glow: 'Outer glow',
   glowOff: 'Off',
   glowPx: (n: number) => `${n} px`,
-  glowHint: 'How far the light glow around the pet reaches when its colors match what is behind it; all the way left turns it off.',
+  glowHint: "How far the light glow around the pet reaches when Coo's colors match the background; all the way left turns it off.",
 };
 
 export const S = pick({

@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
+import type { FigurePack } from '../src/packs.ts';
 import { PetServer, type PageMessage, type PetServerOptions } from '../src/server.ts';
 
 const WEB_DIR = fileURLToPath(new URL('../web/', import.meta.url));
@@ -171,5 +175,20 @@ describe('OBS overlay', () => {
     server.syncOverlay();
     await expect.poll(viewer.closed).toBe(4003);
     await expect.poll(() => source.texts.at(-1)).toEqual({ t: 'overlay', on: false });
+  });
+});
+
+describe('installed pack files', () => {
+  it('a pack page opened on its own is sandboxed, and its script is still served as a script', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pet-pack-'));
+    writeFileSync(join(dir, 'page.html'), '<script>fetch("/api/state")</script>');
+    writeFileSync(join(dir, 'figure.js'), 'export const figure = {};');
+    const server = await serve({ on: false }, { packs: () => [{ id: 'p', dir, builtin: false } as FigurePack] });
+    const page = await fetch(`${server.origin}/packs/p/page.html`);
+    expect(page.headers.get('content-security-policy')).toMatch(/^sandbox allow-scripts;/);
+    expect(page.headers.get('x-content-type-options')).toBe('nosniff');
+    const script = await fetch(`${server.origin}/packs/p/figure.js`, { headers: { origin: 'null' } });
+    expect(script.headers.get('content-type')).toMatch(/^text\/javascript/);
+    expect(script.headers.get('access-control-allow-origin')).toBe('null');
   });
 });

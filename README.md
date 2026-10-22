@@ -210,6 +210,7 @@ Once it is on, Coo looks at the screen without asking, and asks before it first 
   - `ask-before-acting`: looking is not asked; ask every turn before using the mouse and keyboard;
   - `ask-once` (default): looking is not asked; ask once before acting, then not again for the time set in **A yes lasts** (30 minutes by default);
   - `never-ask`: never ask.
+- Whatever the setting, Coo asks before each shortcut that can start a program (one with the Windows or Super key, Command+Space on macOS, a terminal or run-box shortcut) and before it types or presses Enter in a terminal window. The question shows the keys or the full text.
 - With several displays, Coo looks at one at a time and moves to another when it needs to.
 - When you touch the mouse or keyboard, Coo stops and waits for you.
 - Logins, passwords and payments are left to you.
@@ -223,6 +224,8 @@ Coopanion keeps running in the background. Closing the settings window does not 
 
 The tray icon (menu bar on Mac, status bar on Linux) has a menu to open the settings, show the pet, start at login, restart and quit. On Windows, left-clicking the icon opens the settings.
 
+Restart and quit give Core 12 seconds to stop, then force termination and wait up to 5 more seconds for exit. The final statistics upload waits at most 5 seconds. If saving a data-folder choice fails, the app shows the filesystem error and exits.
+
 ## Settings window
 
 The sidebar button switches between full labels and an icon rail and remembers your choice. Hover or focus an icon to see its name. The Coopanion wordmark folds into the Coo logo: both o letters move inside the C. Narrow windows start with the icon rail; expanding it on a small screen overlays the page.
@@ -232,12 +235,12 @@ Click the tray icon, or right-click Coo and click the gear. The window opens in 
 | Page          | What is there                                                                                                    |
 | ------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Start         | Connect a model (the connected one and the other model services in one place), show or hide the pet on the desktop, preview the pet, pick the interface colors or edit their palette, rerun the guide. The bottom left says Running / Paused, beside pause / resume and shut down. |
-| Habits        | In sections: General (app language, your name, anonymous usage statistics), Behavior (walking, how Coo responds, what Coo may change by itself, hover buttons, double-click to type, status bubble, input bubbles), Display (size, bubble size, text size, bubble speed, frame rate, hide in full screen on Windows, remember position), Sounds (each kind can be turned off), Speech (bubbles read out syllable by syllable in place of the typing babble; pitch and speed by step or custom), Computer use (on/off, mouse and keyboard, when to ask you, how long a yes lasts), Other (OBS overlay) |
+| Habits        | In sections: General (app language, your name, Coo's name, anonymous usage statistics), Behavior (walking, how Coo responds, what Coo may change by itself, hover buttons, double-click to type, status bubble, input bubbles), Display (size, bubble size, text size, bubble speed, frame rate, hide in full screen on Windows, remember position), Sounds (each kind can be turned off), Speech (bubbles read out syllable by syllable in place of the typing babble; pitch and speed by step or custom), Computer use (on/off, mouse and keyboard, when to ask you, how long a yes lasts), Other (OBS overlay) |
 | Dress up      | Figure (Coo, the DeepSeek Whale or an installed figure pack), colors and accessories; changes apply at once. **Import** at the end of the figure row installs packs from a zip or a folder (up to 128 MB at a time); dropping one on the page works too. Replacing an existing pack requires confirmation |
 | Voice input   | On/off, recognizer, model download, talk key, microphone, listening mode                                          |
 | System prompt | Coo's system prompt; the persona is the CONSTITUTION section. The sections form one document; all but CONSTITUTION start folded, and folds last until the app quits. Template variables can be inserted and previewed with their current values; in the advanced mode a World's section links to that World's configuration. Ctrl+S saves to file and **Revert all edits** returns to the last save; **Apply now** saves and updates the current conversation's prompt, keeping its messages; **Clear conversation and restart** saves and clears the current conversation, keeping Memory and persona; **Full prompt preview** unfolds the whole prompt as assembled from the current files |
 | Usage & cost  | Tokens used and money spent per day                                                                               |
-| Chat          | The current conversation, with the images Coo shows; you can also talk to Coo from here                           |
+| Chat          | The current conversation, with the images Coo shows; you can also talk to Coo from here. The ring in the input box is the context in use; when full, the earlier conversation is tidied up. Hover it for the token count and when that last happened |
 
 <p align="center"><img src="image/README/habits-en.png" alt="Habits" width="720"></p>
 <p align="center"><img src="image/README/dress-en.png" alt="Dress up" width="720"></p>

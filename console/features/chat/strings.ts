@@ -25,6 +25,10 @@ const zh = {
   doing: (what: string) => `正在${what}`,
   retry: (at: string) => `模型没有应答，${at} 重试`,
   handoff: '正在整理之前的对话',
+  contextUsed: (used: string, limit: string) => `约 ${used} / ${limit} token`,
+  contextTokens: (used: string) => `约 ${used} token`,
+  contextLimit: (limit: string) => `达到 ${limit} 时整理之前的对话`,
+  contextLast: (when: string) => `上次整理：${when}`,
   paused: '已暂停 · 消息在继续后送达',
   queued: (bot: string) => `排队中，${bot} 完成当前步骤后查看`,
   queuedPaused: '已暂停，继续后送达',
@@ -70,6 +74,10 @@ export const en: typeof zh = {
   doing: (what: string) => `Busy: ${what}`,
   retry: (at: string) => `The model did not answer; retrying at ${at}`,
   handoff: 'Tidying up the earlier conversation',
+  contextUsed: (used: string, limit: string) => `About ${used} / ${limit} tokens`,
+  contextTokens: (used: string) => `About ${used} tokens`,
+  contextLimit: (limit: string) => `The earlier conversation is tidied up at ${limit}`,
+  contextLast: (when: string) => `Last tidied up: ${when}`,
   paused: 'Paused · messages arrive once resumed',
   queued: (bot: string) => `Queued; ${bot} reads it after this step`,
   queuedPaused: 'Paused; delivered once resumed',
@@ -106,13 +114,13 @@ export const S = pick({
 const stepZh = {
   pet_cua_screenshot: '截屏', pet_cua_click: '点击', pet_cua_move: '移动鼠标', pet_cua_drag: '拖动', pet_cua_scroll: '滚动', pet_cua_type: '打字',
   pet_cua_key: '按键', pet_cua_windows: '查看窗口', pet_cua_focus: '切换窗口', pet_cua_wait: '等待',
-  pet_move_to: '走动', pet_act: '做动作', pet_set: '调整自己', pet_quiet: '安静一会儿',
+  pet_move_to: '走动', pet_act: '做动作', pet_set: '调整设置', pet_quiet: '安静一会儿',
 };
 
 export const stepEn: typeof stepZh = {
   pet_cua_screenshot: 'Screenshot', pet_cua_click: 'Click', pet_cua_move: 'Move the mouse', pet_cua_drag: 'Drag', pet_cua_scroll: 'Scroll', pet_cua_type: 'Type',
   pet_cua_key: 'Press keys', pet_cua_windows: 'List windows', pet_cua_focus: 'Switch window', pet_cua_wait: 'Wait',
-  pet_move_to: 'Walk', pet_act: 'Move about', pet_set: 'Adjust itself', pet_quiet: 'Keep quiet',
+  pet_move_to: 'Walk', pet_act: 'Move about', pet_set: 'Adjust settings', pet_quiet: 'Keep quiet',
 };
 
 /** What the person reads for a tool's name. Tools not named here (the Persona's notes and turn control, other Worlds') stay on the Console page of the advanced mode. */

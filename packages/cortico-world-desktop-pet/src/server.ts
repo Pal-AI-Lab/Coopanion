@@ -52,6 +52,11 @@ const MIME: Record<string, string> = {
 const PAGES: Record<string, string> = { '/pet': 'pet.html', '/dress': 'dress.html' };
 const LOOPBACK = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/i;
 const PORT_ATTEMPTS = 10;
+/**
+ * A pack's files: the figure frame imports its scripts and loads its images, which this does not
+ * restrict; a pack's HTML or SVG opened as a page runs in an opaque origin with no network.
+ */
+const PACK_CSP = "sandbox allow-scripts; default-src 'none'";
 /** The pages' own CSP. */
 const PAGE_CSP = "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:* ws://localhost:*; img-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; frame-ancestors 'self' http://127.0.0.1:* http://localhost:*";
 /** What a watching pet page may still send: input that is the person's whichever page it came from. */
@@ -323,7 +328,7 @@ export class PetServer {
       const pack = (this.opts.packs?.() ?? []).find((p) => p.id === id && !p.builtin);
       const full = pack ? packFile(pack, decodeURIComponent(rest.join('/'))) : null;
       if (!full) { res.writeHead(404).end(); return; }
-      return this.sendFile(res, full, null, req.headers.origin === 'null');
+      return this.sendFile(res, full, PACK_CSP, req.headers.origin === 'null');
     }
     if (req.method === 'GET' && path === '/api/state') return json(res, 200, this.opts.snapshot());
     if (req.method === 'GET' && path === '/api/avatar') {
@@ -403,6 +408,7 @@ export class PetServer {
         'content-type': MIME[extname(full)] ?? 'application/octet-stream',
         'cache-control': 'no-cache',
         'content-security-policy': csp ?? PAGE_CSP,
+        'x-content-type-options': 'nosniff',
         ...(frame ? { 'access-control-allow-origin': 'null' } : {}),
       });
       res.end(bytes);
