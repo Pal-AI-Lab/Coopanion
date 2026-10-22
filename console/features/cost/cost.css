@@ -77,7 +77,6 @@
 .uswitch { --seg-thumb: var(--accent); }
 .uswitch .seg.active { color: #fff; font-weight: 600; }
 .umulti .seg.active { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); font-weight: 600; }
-.umulti .seg:disabled { opacity: .4; cursor: not-allowed; }
 .uctrls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; }
 .ugroup { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .ugroup > .ulabel { color: var(--ink); font-weight: 600; }

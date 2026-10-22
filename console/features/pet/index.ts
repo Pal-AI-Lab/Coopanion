@@ -10,7 +10,9 @@
  * pet page's icons. The 「音效」 section writes the World's sound group: the master switch (the same
  * one the pet menu flips), each kind of sound, and how long Coo snores in each sleep. 「说话声」 writes the
  * same group: the speech that replaces the babble, and its pitch and speed, each a step or 自定义; picking
- * 自定义 shows its number under the steps, starting from the step picked before.
+ * 自定义 shows its number under the steps, starting from the step picked before. The speech switch is
+ * disabled while sounds are off, and pitch and speed are greyed while the speech cannot be heard (sounds,
+ * the 说话 kind or the speech itself off), as the kinds are while sounds are off.
  *
  * The first row is the app language (`language` in the `companion` group), listed by the names the
  * Core gives (`/api/config/options/coopanion.language`). A change applies at once: the Core tells the
@@ -353,11 +355,11 @@ async function mount(ctx: PageContext): Promise<void> {
   /* ---------- sounds ---------- */
   const sounds = ui.sheet({ title: S.soundTitle });
   const soundMsg = ui.msgline('');
-  const sound = ui.checkbox(S.sound, { onChange: (on) => { void save(KEYS.sound, on, SOUND_GROUP, soundMsg); renderKinds(); } });
+  const sound = ui.checkbox(S.sound, { onChange: (on) => { void save(KEYS.sound, on, SOUND_GROUP, soundMsg); renderKinds(); renderSpeech(); } });
   const kindBox = ui.h('div', 'companion-checks');
   const kinds = SOUND_KINDS.map((kind) => {
     const [label, what] = S.kinds[kind] ?? [kind, ''];
-    const c = ui.checkbox(label, { title: what, onChange: (on) => void save(`${K}.sounds.${kind}`, on, SOUND_GROUP, soundMsg) });
+    const c = ui.checkbox(label, { title: what, onChange: (on) => { void save(`${K}.sounds.${kind}`, on, SOUND_GROUP, soundMsg); renderSpeech(); } });
     kindBox.append(c.el);
     return [kind, c] as const;
   });
@@ -376,7 +378,7 @@ async function mount(ctx: PageContext): Promise<void> {
   /* ---------- speech ---------- */
   const speechSheet = ui.sheet({ title: S.speechTitle });
   const speechMsg = ui.msgline('');
-  const speech = ui.checkbox(S.speech, { onChange: (on) => void save(KEYS.speech, on, SOUND_GROUP, speechMsg) });
+  const speech = ui.checkbox(S.speech, { onChange: (on) => { void save(KEYS.speech, on, SOUND_GROUP, speechMsg); renderSpeech(); } });
   /** A step picker with the custom number under it, shown while 自定义 is picked. */
   const stepPicker = (labels: Record<string, string>, levelKey: string, numKey: string, range: typeof SPEECH_PITCH, unit: string) => {
     let level = 'mid';
@@ -410,14 +412,30 @@ async function mount(ctx: PageContext): Promise<void> {
       if (typeof values[levelKey] === 'string') { level = values[levelKey] as string; seg.setValue(level); numBox.hidden = level !== 'custom'; }
       if (typeof values[numKey] === 'number' && document.activeElement !== num) num.value = num.dataset.saved = String(values[numKey]);
     };
-    return { box, sync };
+    const setEnabled = (on: boolean) => {
+      for (const b of seg.el.querySelectorAll('button')) b.disabled = !on;
+      num.disabled = !on;
+    };
+    return { box, sync, setEnabled };
   };
   const pitch = stepPicker(S.speechPitchLevels, KEYS.speechPitch, KEYS.speechPitchHz, SPEECH_PITCH, 'Hz');
   const speed = stepPicker(S.speechSpeedLevels, KEYS.speechSpeed, KEYS.speechRate, SPEECH_RATE, S.speechRateUnit);
+  const pitchRow = row(S.speechPitch, pitch.box);
+  const speedRow = row(S.speechSpeed, speed.box);
+  // the speech only plays while sounds and the 说话 kind are on; pitch and speed only matter while it plays
+  const renderSpeech = () => {
+    speech.input.disabled = !sound.checked;
+    const talk = kinds.find(([kind]) => kind === 'talk')![1];
+    const audible = sound.checked && talk.checked && speech.checked;
+    for (const [r, picker] of [[pitchRow, pitch], [speedRow, speed]] as const) {
+      picker.setEnabled(audible);
+      r.classList.toggle('is-off', !audible);
+    }
+  };
   speechSheet.body.append(
     row(S.speechTitle, speech.el, S.speechHint),
-    row(S.speechPitch, pitch.box),
-    row(S.speechSpeed, speed.box),
+    pitchRow,
+    speedRow,
     speechMsg,
   );
   root.append(sounds.el, speechSheet.el, cuaSection(ctx, row));
@@ -533,6 +551,7 @@ async function mount(ctx: PageContext): Promise<void> {
     if (typeof soundValues[KEYS.speech] === 'boolean') speech.setChecked(soundValues[KEYS.speech] as boolean);
     pitch.sync(soundValues);
     speed.sync(soundValues);
+    renderSpeech();
     if (typeof soundValues[KEYS.snoreSeconds] === 'number' && active !== snore) {
       snore.value = String(soundValues[KEYS.snoreSeconds]);
       snore.dataset.saved = snore.value;
