@@ -334,8 +334,7 @@ const PAD_L = 52;
 const PAD_R = 8;
 const PAD_B = 26;
 const PAD_T = 12;
-/** 图区没有高度（尚未布局）时的高度，也是最小高度。 */
-const CHART_H = 140;
+const CHART_H = 240;
 /** 每个横轴刻度标签至少占的宽度，按 stride 抽稀。 */
 const XLABEL_W = 72;
 
@@ -385,9 +384,9 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
     }
   }
 
-  // 画布与图区同宽同高：桶多时柱子变窄，不出现横向滚动。
+  // 画布与图区同宽：桶多时柱子变窄，不出现横向滚动。
   const W = Math.max(240, box.clientWidth || 700);
-  const H = Math.max(CHART_H, box.clientHeight);
+  const H = CHART_H;
   const chartH = H - PAD_T - PAD_B;
   const step = (W - PAD_L - PAD_R) / series.length;
   const bw = Math.max(1, Math.min(40, step * 0.6));

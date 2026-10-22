@@ -1,25 +1,28 @@
 /**
  * 用量与成本页读取跨重启保留的调用流水，按时段与范围统计 token、成本和请求次数，按各角色实际模型计价。
- * 状态属于本次 mount；定时器使用 lifecycle.interval，监听绑定 signal，tooltip 挂在本页 root。领域图表由 chart.ts 提供。
+ * 页面分为时间范围、总览、Token 活跃度、用量时间序列与分组明细五节；时间范围作用于整页。
+ * 状态属于本次 mount；定时器使用 lifecycle.interval，监听绑定 signal，tooltip 挂在本页 root。
+ * 柱图由 chart.ts 提供，活跃度格子图由 activity.ts 提供。
  */
 
-import type { WebUi, Disposable } from 'cortico/web/shared/client-panel.ts';
+import type { WebUi, WebUiSheet, Disposable } from 'cortico/web/shared/client-panel.ts';
 import { get, setConfig } from '../../base/api.ts';
 import { consoleFormat } from '../../base/ui/format.ts';
 import { pageIntro } from '../../base/ui/page.ts';
 import { getThemeStudio } from '../../base/theme/studio.ts';
 import type { Page, PageContext } from '../../base/page.ts';
+import { activityFrom, renderActivity } from './activity.ts';
 import { bucketLabel, renderChart } from './chart.ts';
 import { U_TYPES, themeColorResolver } from './labels.ts';
 import { usageQuery } from './range.ts';
 import { createUsageState } from './state.ts';
 import { S } from './strings.ts';
 import { createUsageTip } from './tooltip.ts';
-import type { UsageAccum, UsageAggregate, UsageBucketOption, UsageGroupStat, UsageMetric } from './types.ts';
+import type { UsageAccum, UsageAggregate, UsageBucketOption, UsageDim, UsageGroupStat, UsageMetric } from './types.ts';
 
 /** 自动刷新的周期。 */
 const LIVE_MS = 15_000;
-/** 图区尺寸变化后延迟重画图表，合并连续的尺寸变化。 */
+/** 图区变宽变窄后延迟重画图表，合并连续的尺寸变化。 */
 const RESIZE_DEBOUNCE_MS = 80;
 
 const BUCKETS: ReadonlyArray<{ value: UsageBucketOption; label: string }> = [
@@ -42,8 +45,14 @@ const PRESETS: ReadonlyArray<{ value: string; label: string }> = [
 
 const METRICS: ReadonlyArray<{ value: UsageMetric; label: string }> = [
   { value: 'cost', label: S.metricCost },
-  { value: 'tokens', label: 'token' },
+  { value: 'tokens', label: 'Token' },
   { value: 'calls', label: S.cardCalls },
+];
+
+const SPLITS: ReadonlyArray<{ dim: UsageDim; label: string }> = [
+  { dim: 'type', label: S.dimType },
+  { dim: 'role', label: S.dimRole },
+  { dim: 'model', label: S.dimModel },
 ];
 
 /** 已知金额。全部未计价为「未知」;部分未计价时金额是下限,后缀标出。 */
@@ -62,43 +71,77 @@ function isAbort(err: unknown): boolean {
   return (err as { name?: unknown } | null)?.name === 'AbortError';
 }
 
+/** 节标题右侧放这一节的切换控件。 */
+function headActions(ui: WebUi, sheet: WebUiSheet, ...actions: HTMLElement[]): void {
+  const title = sheet.el.querySelector('h3')!;
+  const head = ui.h('div', 'usec-head');
+  title.replaceWith(head);
+  head.append(title, ...actions);
+}
+
+/** 与设置页相同的「标签 | 控件」一行。 */
+function row(ui: WebUi, label: string, ...controls: HTMLElement[]): HTMLDivElement {
+  const el = ui.h('div', 'companion-row urow');
+  const box = ui.h('div', 'urow-controls');
+  box.append(...controls);
+  el.append(ui.h('div', 'companion-label', label), box);
+  return el;
+}
+
 export function mountUsage(ctx: PageContext): void {
   const { ui, root, lifecycle } = ctx;
   const doc = root.ownerDocument;
   const state = createUsageState();
   const color = themeColorResolver(doc);
   const tip = lifecycle.own(createUsageTip(doc, root));
-  const intro = pageIntro(ui, S.pageTitle);
 
-  // ---- 工具条：时段、账本口径、刷新 ------------------------------------------
-  const toolbar = ui.h('div', 'ubar');
+  // ---- 页头：刷新 -----------------------------------------------------------
+  const intro = pageIntro(ui, S.pageTitle);
+  const liveBox = ui.checkbox(S.liveRefresh, {
+    title: S.liveRefreshTitle(LIVE_MS / 1000),
+    onChange: (on) => setLive(on),
+  });
+  const refreshBtn = ui.button(S.refresh, { size: 'sm', onClick: () => void load() });
+  const introActs = ui.h('div', 'companion-introacts');
+  introActs.append(liveBox.el, refreshBtn);
+  intro.appendChild(introActs);
+
+  // ---- 时间范围 -------------------------------------------------------------
+  // 日期框一直在：预设档显示它算出的范围，改日期即切到自定义档，切换时这一行不变形。
+  const rangeSheet = ui.sheet({ title: S.sectionRange });
   const presets = ui.segmented(PRESETS, {
     size: 'sm',
     value: String(state.days),
     onSelect: (v) => {
       state.days = Number(v);
-      customRange.hidden = state.days !== 0;
       if (state.days === 0) {
-        // 自定义档从上一次结果的范围起步;那是按部署时区算出的日期。
-        if (!state.from) state.from = state.data?.from ?? '';
-        if (!state.to) state.to = state.data?.to ?? '';
-        fromInput.value = state.from;
-        toInput.value = state.to;
+        state.from = fromInput.value;
+        state.to = toInput.value;
       }
       void load();
     },
   });
-  const fromInput = ui.input({
-    type: 'date',
-    onChange: (v) => { state.from = v; if (state.days === 0) void load(); },
-  });
-  const toInput = ui.input({
-    type: 'date',
-    onChange: (v) => { state.to = v; if (state.days === 0) void load(); },
-  });
-  const customRange = ui.h('span', 'urange');
-  customRange.append(fromInput, ui.h('span', null, '—'), toInput);
-  customRange.hidden = true;
+  const pickDate = (): void => {
+    state.days = 0;
+    state.from = fromInput.value;
+    state.to = toInput.value;
+    presets.setValue('0');
+    void load();
+  };
+  const fromInput = ui.input({ type: 'date', onChange: pickDate });
+  const toInput = ui.input({ type: 'date', onChange: pickDate });
+  const timezone = ui.h('span', 'uhint');
+  const dates = ui.h('span', 'udates');
+  dates.append(fromInput, ui.h('span', 'uhint', '—'), toInput, timezone);
+  /** 取数失败、账目存储异常与汇率保存失败；没有时整行不占位。 */
+  const notice = ui.msgline('', true);
+  notice.classList.add('unotice');
+  const rangeBar = ui.h('div', 'urangebar');
+  rangeBar.append(presets.el, dates);
+  rangeSheet.body.append(rangeBar, notice);
+
+  // ---- 总览：读数、成本构成与账本口径 -----------------------------------------
+  const overview = ui.sheet({ title: S.sectionOverview });
   let basis = 'marginal';
   let currency = '';
   const currencySelect = ui.select({ options: [{value:'',label:S.autoCurrency}], onChange: value => { currency = value; void load(); } });
@@ -114,6 +157,7 @@ export function mountUsage(ctx: PageContext): void {
   const rateBox = ui.h('span', 'urate');
   rateBox.append(ui.h('span', 'ulabel', '1 USD ='), rateInput, rateCode);
   rateBox.hidden = true;
+  let rateNote = '';
   rateInput.addEventListener('change', () => {
     const code = rateCode.textContent ?? '';
     const value = Number(rateInput.value);
@@ -131,59 +175,63 @@ export function mountUsage(ctx: PageContext): void {
   }, { signal: ctx.signal });
   const ledger = ui.h('span', 'uledger');
   ledger.append(ui.h('span', 'ulabel', S.ledger), basisSelect, currencySelect, rateBox);
-  const liveBox = ui.checkbox(S.liveRefresh, {
-    title: S.liveRefreshTitle(LIVE_MS / 1000),
-    onChange: (on) => setLive(on),
-  });
-  const refreshBtn = ui.button(S.refresh, { size: 'sm', onClick: () => void load() });
-  toolbar.append(presets.el, customRange, ledger, ui.h('span', 'grow'), liveBox.el, refreshBtn);
-
-  /** 取数失败、账目存储异常与汇率保存失败；没有时整行不占位。 */
-  const notice = ui.msgline('', true);
-  notice.classList.add('unotice');
-  let rateNote = '';
-
-  // ---- 概览读数与成本构成 ----------------------------------------------------
+  headActions(ui, overview, ledger);
   const cards = ui.h('div', 'ukpis');
   const compBox = ui.h('div', 'ucomp');
+  const billingNote = ui.h('p', 'muted ufoot');
+  overview.body.append(cards, compBox, billingNote);
 
-  // ---- 时间序列：成本 / token / 调用次数共用一张图 ----------------------------
-  const chartPanel = ui.h('section', 'upanel uchartpanel');
-  const chartHead = ui.h('div', 'upanel-head');
-  const rangeHint = ui.h('span', 'uhint');
+  // ---- Token 活跃度 ---------------------------------------------------------
+  const activity = ui.sheet({ title: S.sectionActivity });
+  const activityBox = ui.h('div');
+  activity.body.appendChild(activityBox);
+  /** 最近一次的按天数据与它对应的页面范围；改窗宽时用它重画。 */
+  let activityData: { daily: UsageAggregate; from: string; to: string } | null = null;
+
+  // ---- 用量时间序列 ---------------------------------------------------------
+  const trend = ui.sheet({ title: S.mainTitle });
   const metricSeg = ui.segmented(METRICS, {
     size: 'sm',
     value: state.metric,
     onSelect: (v) => { state.metric = v as UsageMetric; renderMain(); },
   });
-  chartHead.append(ui.h('h3', null, S.mainTitle), rangeHint, ui.h('span', 'grow'), metricSeg.el);
-  const chartCtrls = ui.h('div', 'upanel-ctrls');
+  metricSeg.el.classList.add('uswitch');
+  headActions(ui, trend, metricSeg.el);
   const bucketSeg = ui.segmented(BUCKETS, {
     size: 'sm',
     value: state.bucket,
     onSelect: (v) => { state.bucket = v as UsageBucketOption; void load(); },
   });
-  const bkHint = ui.h('span', 'uhint');
-  const splitBoxes = (['type', 'role', 'model'] as const).map((dim) => [dim, ui.checkbox(
-    dim === 'type' ? S.dimType : dim === 'role' ? S.dimRole : S.dimModel,
-    { onChange: (on) => { state.splitDims[dim] = on; renderMain(); } },
-  )] as const);
-  const splitGroup = ui.h('span', 'usplit');
-  splitGroup.append(ui.h('span', 'ulabel', S.split), ...splitBoxes.map(([, box]) => box.el));
-  chartCtrls.append(
-    ui.h('span', 'ulabel', S.granularity), bucketSeg.el, bkHint, splitGroup, ui.h('span', 'grow'),
-    ui.checkbox(S.sortByShare, {
-      title: S.sortByShareTitle,
-      onChange: (on) => { state.sortByShare = on; renderMain(); },
-    }).el,
-  );
+  // 拆分维度可多选：同一组按钮，按下的高亮。
+  const splitWrap = ui.h('div', 'segwrap sm umulti');
+  const splitBtns = SPLITS.map(({ dim, label }) => {
+    const btn = ui.h('button', 'seg', label);
+    btn.type = 'button';
+    btn.setAttribute('aria-pressed', 'false');
+    btn.addEventListener('click', () => {
+      state.splitDims[dim] = !state.splitDims[dim];
+      btn.classList.toggle('active', !!state.splitDims[dim]);
+      btn.setAttribute('aria-pressed', String(!!state.splitDims[dim]));
+      renderMain();
+    }, { signal: ctx.signal });
+    splitWrap.appendChild(btn);
+    return { dim, btn };
+  });
+  const sortBox = ui.checkbox(S.sortByShare, {
+    title: S.sortByShareTitle,
+    onChange: (on) => { state.sortByShare = on; renderMain(); },
+  });
   const mainLegend = ui.h('div', 'chart-legend');
   const mainBox = ui.h('div', 'uchart');
-  mainBox.id = 'usagechart';
   const mainNote = ui.h('p', 'muted unote');
-  chartPanel.append(chartHead, chartCtrls, mainLegend, mainBox, mainNote);
+  trend.body.append(
+    row(ui, S.granularity, bucketSeg.el),
+    row(ui, S.split, splitWrap, sortBox.el),
+    mainLegend, mainBox, mainNote,
+  );
 
   // ---- 分组明细：同一时刻显示一张 -------------------------------------------
+  const breakdown = ui.sheet({ title: S.sectionBreakdown });
   const GROUP_HEAD = [S.headCalls, S.headInput, S.headOutput, S.headCache, S.headCost, S.headAvg];
   const groupTables = {
     role: ui.table({ head: [S.dimRole, ...GROUP_HEAD] }),
@@ -199,24 +247,20 @@ export function mountUsage(ctx: PageContext): void {
     { value: 'model', label: S.byModel },
     { value: 'instance', label: S.byInstance },
   ], { size: 'sm', value: 'role', onSelect: (v) => showGroup(v as GroupKey) });
+  groupSeg.el.classList.add('uswitch');
+  headActions(ui, breakdown, groupSeg.el);
   showGroup('role');
-  const groupPanel = ui.h('section', 'upanel ugroups');
-  const groupHead = ui.h('div', 'upanel-head');
-  groupHead.append(groupSeg.el);
-  groupPanel.append(groupHead, ...Object.values(groupTables).map((t) => t.el));
+  breakdown.body.append(...Object.values(groupTables).map((t) => t.el));
 
-  const footnote = ui.h('p', 'muted ufoot');
   const results = ui.h('div', 'uresults');
-  results.append(cards, compBox, chartPanel, groupPanel, footnote);
-  const board = ui.h('div', 'uboard');
-  board.append(toolbar, notice, results);
-  root.append(intro, board);
+  results.append(overview.el, activity.el, trend.el, breakdown.el);
+  root.append(intro, rangeSheet.el, results);
 
   // ---- 渲染 -----------------------------------------------------------------
 
   function renderMain(): void {
     const calls = state.metric === 'calls';
-    for (const [dim, box] of splitBoxes) if (dim === 'type') box.input.disabled = calls;
+    for (const { dim, btn } of splitBtns) if (dim === 'type') btn.disabled = calls;
     if (!state.data) return;
     const unpriced = state.data.totals?.unpricedCalls || 0;
     mainNote.textContent = state.metric === 'cost' && unpriced > 0 ? S.compUnpriced(unpriced) : '';
@@ -339,15 +383,14 @@ export function mountUsage(ctx: PageContext): void {
     }
   }
 
-  function renderHints(d: UsageAggregate): void {
-    const unit = d.bucket || 'day';
-    bkHint.textContent = state.bucket === 'auto'
-      ? S.autoBucket(BUCKETS.find((b) => b.value === unit)?.label ?? unit)
-      : '';
-    rangeHint.textContent = S.rangeHint(d.from || '—', d.to || '—', (d.series || []).length, d.timezone ?? null);
+  /** 预设档时日期框显示服务端算出的范围；正在编辑的框不覆盖。 */
+  function renderRange(d: UsageAggregate): void {
+    if (doc.activeElement !== fromInput) fromInput.value = d.from ?? '';
+    if (doc.activeElement !== toInput) toInput.value = d.to ?? '';
+    timezone.textContent = d.timezone ?? '';
   }
 
-  /** 顶部提示行只放需要处理的问题；统计口径写在页脚。 */
+  /** 顶部提示行只放需要处理的问题；统计口径写在总览下方。 */
   let staleNote = '';
   function renderNotes(): void {
     const d = state.data;
@@ -356,7 +399,7 @@ export function mountUsage(ctx: PageContext): void {
     notice.hidden = !notice.textContent;
   }
 
-  function renderAll(d: UsageAggregate): void {
+  function renderAll(d: UsageAggregate, daily: UsageAggregate | null): void {
     const currencies = d.currencies ?? [];
     currencySelect.replaceChildren(...['', ...currencies].map(value => {
       const option = doc.createElement('option');
@@ -373,12 +416,17 @@ export function mountUsage(ctx: PageContext): void {
       rateInput.value = String(rate);
       rateInput.dataset.saved = rateInput.value;
     }
-    footnote.textContent = S.billingHint +
+    billingNote.textContent = S.billingHint +
       (d.totals?.unknownUsageCalls ? S.unknownUsage(d.totals.unknownUsageCalls) : '');
+    renderRange(d);
     renderNotes();
     renderCards(d);
     renderComposition(d);
-    renderHints(d);
+    if (daily && d.from && d.to) {
+      const fresh = activityData?.from !== d.from || activityData?.to !== d.to;
+      activityData = { daily, from: d.from, to: d.to };
+      renderActivity({ ui, box: activityBox, tip }, daily, activityData, fresh);
+    }
     const cur = d.currency || 'USD';
     renderGroup(groupTables.role, d.byRole || [], cur);
     renderGroup(groupTables.model, d.byModel || [], cur);
@@ -392,19 +440,30 @@ export function mountUsage(ctx: PageContext): void {
   let generation = 0;
   let loadedAt = '';
 
+  /**
+   * 主数据按所选粒度分桶。活跃度格子图另取一份按天分桶的数据，范围要等主数据给出按部署时区算好的
+   * 起止日，再往前补对照的日子，所以第二次请求排在第一次之后。
+   */
   async function load(): Promise<void> {
     const mine = ++generation;
+    const ledgerQuery = `&basis=${basis}&currency=${encodeURIComponent(currency)}`;
     try {
       const d = await get<UsageAggregate>(
-        `/api/usage?${usageQuery(state.bucket, state.days, { from: state.from, to: state.to })}&basis=${basis}&currency=${encodeURIComponent(currency)}`,
+        `/api/usage?${usageQuery(state.bucket, state.days, { from: state.from, to: state.to })}${ledgerQuery}`,
         { signal: ctx.signal },
       );
+      const daily = d.from && d.to
+        ? await get<UsageAggregate>(
+          `/api/usage?${usageQuery('day', 0, { from: activityFrom({ from: d.from, to: d.to }), to: d.to })}${ledgerQuery}`,
+          { signal: ctx.signal },
+        )
+        : null;
       if (ctx.signal.aborted || mine !== generation) return;
       state.data = d;
       loadedAt = ui.fmt.clock(new Date().toISOString());
       staleNote = '';
       results.classList.remove('u-stale');
-      renderAll(d);
+      renderAll(d, daily);
     } catch (err) {
       if (isAbort(err) || ctx.signal.aborted || mine !== generation) return;
       if (!state.data) {
@@ -426,7 +485,7 @@ export function mountUsage(ctx: PageContext): void {
     liveTimer = on ? lifecycle.interval(() => void load(), LIVE_MS) : null;
   }
 
-  // ---- 重画触发：主题换色 / 图区尺寸变化 -------------------------------------
+  // ---- 重画触发：主题换色 / 页面宽度变化 -------------------------------------
   // 两者都只重画，不重取：数据没变，变的是画布与配色。
 
   /** 配色变了。图上的颜色是从 CSS 变量现读的，所以只能整张重画。 */
@@ -439,17 +498,18 @@ export function mountUsage(ctx: PageContext): void {
 
   lifecycle.own(getThemeStudio({ doc }).onChange(() => repaint()));
 
-  // 图区尺寸随窗口与明细表行数变化；SVG 绝对定位，不反过来撑大图区。
   const view = doc.defaultView;
   if (view) {
     let pending: Disposable | null = null;
-    let last = '';
+    let width = 0;
     const observer = new view.ResizeObserver(() => {
-      const size = `${mainBox.clientWidth}x${mainBox.clientHeight}`;
-      if (!state.data || size === last) return;
-      last = size;
+      if (!state.data || mainBox.clientWidth === width) return;
+      width = mainBox.clientWidth;
       pending?.dispose();
-      pending = lifecycle.timeout(() => renderMain(), RESIZE_DEBOUNCE_MS);
+      pending = lifecycle.timeout(() => {
+        renderMain();
+        if (activityData) renderActivity({ ui, box: activityBox, tip }, activityData.daily, activityData, false);
+      }, RESIZE_DEBOUNCE_MS);
     });
     observer.observe(mainBox);
     ctx.signal.addEventListener('abort', () => observer.disconnect(), { once: true });

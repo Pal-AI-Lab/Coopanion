@@ -75,9 +75,12 @@ const zh = {
   partOutput: '输出',
   partOther: '其他费用',
   noData: '无数据',
-  autoBucket: (label: string) => `自动 → 按${label}`,
-  rangeHint: (from: string, to: string, buckets: number, timezone: string | null) =>
-    `${from} ~ ${to}${timezone ? ` (${timezone})` : ''} · ${buckets} 桶`,
+  sectionRange: '时间范围',
+  sectionOverview: '总览',
+  sectionActivity: 'Token 活跃度',
+  sectionBreakdown: '分组明细',
+  less: '少',
+  more: '多',
   compUnpriced: (n: number) => `${n} 次调用在当前账本未完整计价，成本只含已知部分。`,
   stale: (err: string, at: string) => `刷新失败：${err}。下方是 ${at} 取回的结果。`,
   billingHint: '按请求时的报价快照统计。' +
@@ -173,9 +176,12 @@ export const en: typeof zh = {
   partOutput: 'Output',
   partOther: 'Other charges',
   noData: 'No data',
-  autoBucket: (label: string) => `Auto → by ${label}`,
-  rangeHint: (from: string, to: string, buckets: number, timezone: string | null) =>
-    `${from} ~ ${to}${timezone ? ` (${timezone})` : ''} · ${buckets} buckets`,
+  sectionRange: 'Time range',
+  sectionOverview: 'Overview',
+  sectionActivity: 'Token activity',
+  sectionBreakdown: 'Breakdown',
+  less: 'Less',
+  more: 'More',
   compUnpriced: (n: number) => `${n} calls are not fully priced in the current ledger; costs include the known part only.`,
   stale: (err: string, at: string) => `Refresh failed: ${err}. Results below were fetched at ${at}.`,
   billingHint: 'Computed from the price snapshot at request time. ' +

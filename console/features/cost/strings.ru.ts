@@ -66,9 +66,12 @@ export const S: Partial<typeof en> = {
   partOutput: 'Выход',
   partOther: 'Прочие расходы',
   noData: 'Нет данных',
-  autoBucket: (label: string) => `Авто → интервал: ${label}`,
-  rangeHint: (from: string, to: string, buckets: number, timezone: string | null) =>
-    `${from} ~ ${to}${timezone ? ` (${timezone})` : ''} · интервалов: ${buckets}`,
+  sectionRange: 'Период',
+  sectionOverview: 'Обзор',
+  sectionActivity: 'Активность токенов',
+  sectionBreakdown: 'Разбивка',
+  less: 'Меньше',
+  more: 'Больше',
   compUnpriced: (n: number) => `Вызовов без полной цены в текущем журнале: ${n}; стоимость включает только известную часть.`,
   stale: (err: string, at: string) => `Не удалось обновить: ${err}. Ниже результаты, полученные в ${at}.`,
   billingHint: 'Рассчитано по снимку цен на момент запроса. ' +

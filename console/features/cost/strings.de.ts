@@ -66,9 +66,12 @@ export const S: Partial<typeof en> = {
   partOutput: 'Ausgabe',
   partOther: 'Sonstige Kosten',
   noData: 'Keine Daten',
-  autoBucket: (label: string) => `Automatisch → nach ${label}`,
-  rangeHint: (from: string, to: string, buckets: number, timezone: string | null) =>
-    `${from} ~ ${to}${timezone ? ` (${timezone})` : ''} · ${buckets} ${buckets === 1 ? 'Intervall' : 'Intervalle'}`,
+  sectionRange: 'Zeitraum',
+  sectionOverview: 'Überblick',
+  sectionActivity: 'Token-Aktivität',
+  sectionBreakdown: 'Aufschlüsselung',
+  less: 'Weniger',
+  more: 'Mehr',
   compUnpriced: (n: number) => `${n} ${n === 1 ? 'Aufruf ist' : 'Aufrufe sind'} im aktuellen Journal nicht vollständig bepreist; die Kosten enthalten nur den bekannten Teil.`,
   stale: (err: string, at: string) => `Aktualisierung fehlgeschlagen: ${err}. Die Ergebnisse unten stammen von ${at}.`,
   billingHint: 'Berechnet aus dem Preis-Snapshot zum Anfragezeitpunkt. ' +

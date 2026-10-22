@@ -66,9 +66,12 @@ export const S: Partial<typeof en> = {
   partOutput: '輸出',
   partOther: '其他費用',
   noData: '無資料',
-  autoBucket: (label: string) => `自動 → 依${label}`,
-  rangeHint: (from: string, to: string, buckets: number, timezone: string | null) =>
-    `${from} ~ ${to}${timezone ? ` (${timezone})` : ''} · ${buckets} 桶`,
+  sectionRange: '時間範圍',
+  sectionOverview: '總覽',
+  sectionActivity: 'Token 活躍度',
+  sectionBreakdown: '分組明細',
+  less: '少',
+  more: '多',
   compUnpriced: (n: number) => `${n} 次呼叫在目前帳本未完整計價，成本只含已知部分。`,
   stale: (err: string, at: string) => `重新整理失敗：${err}。下方是 ${at} 取回的結果。`,
   billingHint: '依請求時的報價快照統計。' +

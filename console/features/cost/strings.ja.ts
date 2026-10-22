@@ -66,9 +66,12 @@ export const S: Partial<typeof en> = {
   partOutput: '出力',
   partOther: 'その他の費用',
   noData: 'データなし',
-  autoBucket: (label: string) => `自動 → ${label}単位`,
-  rangeHint: (from: string, to: string, buckets: number, timezone: string | null) =>
-    `${from} ~ ${to}${timezone ? ` (${timezone})` : ''} · ${buckets} 区間`,
+  sectionRange: '期間',
+  sectionOverview: '概要',
+  sectionActivity: 'Token アクティビティ',
+  sectionBreakdown: '内訳',
+  less: '少',
+  more: '多',
   compUnpriced: (n: number) => `${n} 回の呼び出しは現在の台帳で料金を完全には計算できていないため、コストには判明している部分だけを含みます。`,
   stale: (err: string, at: string) => `更新に失敗しました：${err}。以下は ${at} に取得した結果です。`,
   billingHint: 'リクエスト時点の料金スナップショットで集計しています。' +

@@ -66,9 +66,12 @@ export const S: Partial<typeof en> = {
   partOutput: 'Sortie',
   partOther: 'Autres frais',
   noData: 'Aucune donnée',
-  autoBucket: (label: string) => `Automatique → par ${label.toLowerCase()}`,
-  rangeHint: (from: string, to: string, buckets: number, timezone: string | null) =>
-    `${from} ~ ${to}${timezone ? ` (${timezone})` : ''} · ${buckets} intervalle${buckets > 1 ? 's' : ''}`,
+  sectionRange: 'Période',
+  sectionOverview: 'Vue d’ensemble',
+  sectionActivity: 'Activité des tokens',
+  sectionBreakdown: 'Détail',
+  less: 'Moins',
+  more: 'Plus',
   compUnpriced: (n: number) => `${n} appel${n > 1 ? 's' : ''} non entièrement tarifé${n > 1 ? 's' : ''} dans le registre actuel ; les coûts n'incluent que la part connue.`,
   stale: (err: string, at: string) => `Échec de l'actualisation : ${err}. Les résultats ci-dessous datent de ${at}.`,
   billingHint: "Calculé à partir de l'instantané des tarifs au moment de la requête. " +

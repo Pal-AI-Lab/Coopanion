@@ -66,9 +66,12 @@ export const S: Partial<typeof en> = {
   partOutput: '출력',
   partOther: '기타 비용',
   noData: '데이터 없음',
-  autoBucket: (label: string) => `자동 → ${label} 단위`,
-  rangeHint: (from: string, to: string, buckets: number, timezone: string | null) =>
-    `${from} ~ ${to}${timezone ? ` (${timezone})` : ''} · 구간 ${buckets}개`,
+  sectionRange: '기간',
+  sectionOverview: '개요',
+  sectionActivity: 'Token 활동',
+  sectionBreakdown: '세부 내역',
+  less: '적음',
+  more: '많음',
   compUnpriced: (n: number) => `호출 ${n}회는 현재 원장에서 가격이 완전히 산정되지 않아 비용에는 알려진 부분만 포함됩니다.`,
   stale: (err: string, at: string) => `새로 고치지 못했습니다: ${err}. 아래는 ${at}에 가져온 결과입니다.`,
   billingHint: '요청 시점의 가격 스냅숏으로 집계합니다. ' +

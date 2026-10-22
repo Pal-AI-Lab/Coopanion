@@ -1,31 +1,27 @@
-/* 用量与成本页。整页在设置窗口默认尺寸内放下；图区占剩余高度，高度不够时整页滚动。 */
-.featureslot.featureslot-usage { padding-bottom: 16px; }
-.featureslot.featureslot-usage > .featureintro { padding-top: 22px; margin-bottom: 12px; padding-bottom: 10px; }
-.featureslot.featureslot-usage > .uboard { flex: 1 0 auto; display: flex; flex-direction: column; gap: 12px; }
-.uresults { flex: 1 0 auto; display: flex; flex-direction: column; gap: 14px; }
+/* 用量与成本页：时间范围、总览、Token 活跃度、用量时间序列、分组明细五节，节样式同设置页。 */
 .u-stale { opacity: .5; }
+.usec-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 14px; }
+.usec-head > h3 { margin: 0; }
+.ulabel, .uhint { font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); white-space: nowrap; }
+.urate[hidden], .unotice[hidden], .ucomp[hidden] { display: none; }
 
-.ubar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
-.ubar > .grow { flex: 1; }
-.urange, .uledger, .urate, .usplit { display: inline-flex; align-items: center; gap: 6px; }
-.urange { font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); }
-.urange > input { width: 140px; }
+/* 时间范围：日期框常驻，切换预设与自定义时宽度不变 */
+.urangebar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; }
+.udates, .uledger, .urate { display: inline-flex; align-items: center; gap: 6px; }
+.udates > input { width: 136px; flex: none; }
 .uledger > select { width: auto; min-width: 0; }
 .urate > input { width: 80px; }
-.usplit { gap: 12px; }
-.ulabel, .uhint { font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); white-space: nowrap; }
-.urange[hidden], .urate[hidden], .unotice[hidden], .ucomp[hidden] { display: none; }
-.unotice { margin: 0; }
+.unotice { margin: 10px 0 0; }
 
-.ukpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 12px 0; border-block: 1px solid var(--border); }
+/* 总览 */
+.ukpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .ukpis > .stat { padding: 0 16px; border-left: 1px solid var(--line); }
 .ukpis > .stat:first-child { padding-left: 0; border-left: 0; }
 .ukpis .stat .k { margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ukpis .stat .v { font-size: 20px; }
 .ukpis .stat .v small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ukpis > .placeholder { grid-column: 1 / -1; }
-
-.ucomp { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: -4px; }
+.ucomp { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 18px; }
 .ucomp .compbar { display: flex; flex: 1 1 160px; height: 8px; overflow: hidden; border-radius: 4px; background: var(--line); }
 .ucomp .compseg { min-width: 2px; }
 .ucomp .compleg { display: flex; flex-wrap: wrap; gap: 4px 14px; }
@@ -33,23 +29,54 @@
 .ucomp .compsw { width: 9px; height: 9px; border-radius: 2px; }
 .ucomp .compamt { font-family: var(--mono); color: var(--ink); }
 .ucomp .comppct { font-family: var(--mono); }
+.ufoot { margin: 12px 0 0; color: var(--ink-dim); font-size: 11.5px; }
 
-.upanel { display: flex; flex-direction: column; min-width: 0; }
-.upanel-head, .upanel-ctrls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-.upanel-head > h3 { margin: 0; font: 600 14px/1.4 var(--sans); color: var(--ink); }
-.upanel-head > .grow, .upanel-ctrls > .grow { flex: 1; }
-.upanel-ctrls { margin-top: 10px; }
-.uchartpanel { flex: 1 0 auto; }
-.uchartpanel > .chart-legend { margin: 10px 0 0; }
-.uchart { position: relative; flex: 1 0 140px; margin-top: 8px; }
-.uchart > svg { position: absolute; inset: 0; display: block; }
+/* Token 活跃度 */
+.uactivity { --cell: 12px; --gap: 3px; display: grid; gap: 6px; }
+.ugrid, .umonths { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); column-gap: var(--gap); }
+.ugrid { grid-template-rows: repeat(7, auto); grid-auto-flow: column; row-gap: var(--gap); }
+.uactivity .ucell { display: block; width: var(--cell); aspect-ratio: 1; border-radius: 3px; background: color-mix(in srgb, var(--ink) 11%, transparent); }
+.ugrid .ucell { width: 100%; border-radius: min(3px, 25%); }
+.uactivity .ucell[data-level="1"] { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+.uactivity .ucell[data-level="2"] { background: color-mix(in srgb, var(--accent) 52%, transparent); }
+.uactivity .ucell[data-level="3"] { background: color-mix(in srgb, var(--accent) 76%, transparent); }
+.uactivity .ucell[data-level="4"] { background: var(--accent); }
+.ugrid .ucell.is-out { visibility: hidden; }
+.ugrid .ucell.is-dim { opacity: .3; }
+.ugrid .ucell[data-day] {
+  position: relative;
+  transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1), opacity 200ms ease-out, box-shadow 200ms ease-out;
+}
+.ugrid:hover .ucell[data-day] { opacity: .4; }
+.ugrid:hover .ucell.is-dim { opacity: .15; }
+.ugrid .ucell[data-day]:hover {
+  z-index: 1;
+  opacity: 1;
+  transform: scale(1.7);
+  box-shadow: 0 0 0 2px var(--background), 0 0 14px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.ugrid.is-entering .ucell { animation: ucell-in 420ms cubic-bezier(.34, 1.56, .64, 1) both; animation-delay: calc(var(--i) * 16ms); }
+@keyframes ucell-in { from { opacity: 0; transform: scale(.2); } }
+.umonths { font: 11px/1.4 var(--sans); color: var(--ink-soft); white-space: nowrap; }
+.ulegend { display: flex; align-items: center; justify-content: flex-end; gap: 3px; font: 11px/1.4 var(--sans); color: var(--ink-dim); }
+.ulegend > span:first-child { margin-right: 4px; }
+.ulegend > span:last-child { margin-left: 4px; }
+
+/* 用量时间序列与分组明细：标题右侧的切换选中项用主题色底 */
+.uswitch .seg.active { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.uswitch .seg:hover:not(.active) { color: var(--ink); }
+.umulti .seg.active { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); font-weight: 600; }
+.umulti .seg:disabled { opacity: .4; cursor: not-allowed; }
+.companion-row.urow { align-items: center; padding: 6px 0; }
+.urow-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; }
+.uchart { margin-top: 12px; }
+.uchart svg { display: block; }
 .uchart .axis { stroke: var(--line-2); stroke-width: 1; }
 .uchart .glabel, .uchart .vlabel { fill: var(--ink-soft); font: var(--text-detail) var(--mono); }
+.chart-legend + .uchart { margin-top: 8px; }
 .unote { margin: 6px 0 0; }
 .unote:empty { display: none; }
-.ugroups > .tablewrap { margin-top: 10px; }
-.ugroups > .tablewrap[hidden] { display: none; }
-.ufoot { margin: 0; color: var(--ink-dim); font-size: 11.5px; }
+.uresults .tablewrap[hidden] { display: none; }
 
 @container console-content (max-width: 720px) {
   .ukpis { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 14px; }
@@ -59,5 +86,8 @@
   .ukpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ukpis > .stat:nth-child(n) { padding-left: 16px; border-left: 1px solid var(--line); }
   .ukpis > .stat:nth-child(2n + 1) { padding-left: 0; border-left: 0; }
-  .ubar > .grow { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ugrid.is-entering .ucell { animation: none; }
+  .ugrid .ucell[data-day] { transition: none; }
 }
