@@ -91,6 +91,9 @@ export default {
 
   // the dressing page: importing figure packs
   'import.button': 'Importar',
+  'import.replaceTitle': 'Substituir os pacotes de personagem existentes?',
+  'import.replaceText': 'A substituição exclui os arquivos atuais desses pacotes na pasta de instalação.',
+  'import.replace': 'Substituir',
   'import.title': 'Importar pacotes de personagem',
   'import.unloaded': 'Pacotes de personagem que não carregaram: {n}',
   'import.reason': ': {reason}',

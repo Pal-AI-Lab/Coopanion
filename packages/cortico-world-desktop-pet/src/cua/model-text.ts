@@ -81,6 +81,8 @@ const zh = {
     return `已在 (${x}, ${y}) 滚动${parts.join('、')}。`;
   },
   typeEmpty: 'text 是空的。',
+  typeTooLong: (n: number, max: number) => `text 有 ${n} 个字，一次最多 ${max} 个。`,
+  riskRefused: '使用者没有允许这一步。',
   typedPart: (typed: number, total: number, by: 'cancel' | 'user') => `只输入了 ${typed}/${total} 个字符:${by === 'cancel' ? '收到打断' : '用户开始操作'},停了下来。`,
   typed: (total: number) => `已输入 ${total} 个字符。`,
   keyBad: (why: string) => `${why}。`,
@@ -180,6 +182,8 @@ const en: typeof zh = {
     return `Scrolled ${parts.join(' and ')} at (${x}, ${y}).`;
   },
   typeEmpty: 'text is empty.',
+  typeTooLong: (n, max) => `text has ${n} characters; at most ${max} at a time.`,
+  riskRefused: 'The person did not allow this step.',
   typedPart: (typed, total, by) => `Typed only ${typed}/${total} characters: stopped because ${by === 'cancel' ? 'of an interrupt' : 'the person started using the computer'}.`,
   typed: (total) => `Typed ${total} character${total === 1 ? '' : 's'}.`,
   keyBad: (why) => `${why}.`,

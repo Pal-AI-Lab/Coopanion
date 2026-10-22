@@ -24,7 +24,7 @@ export const S: Partial<typeof en> = {
   riskLead: 'Une fois activé, Coo regardera votre écran et utilisera votre souris et votre clavier. ',
   riskDanger: 'Cela peut être très dangereux',
   riskAfter: ' ; assurez-vous de bien comprendre ce qui suit :',
-  risks: ['Les captures d\'écran (qui peuvent montrer des contenus privés, comme vos conversations) sont envoyées au service de modèle que vous utilisez', 'Coo peut cliquer au mauvais endroit, faire des fautes de frappe ou se retrouver dans la mauvaise fenêtre. Assurez-vous toujours de pouvoir le surveiller et l\'interrompre à tout moment.', 'Ne confiez pas à Coo les paiements, les mots de passe ni rien qui touche à des informations sensibles, à des actions réelles ou à ce qui ne peut pas être annulé.'],
-  riskNote: 'Coo s\'arrête de lui-même dès que vous utilisez la souris ou le clavier. Vous pouvez désactiver cette fonction à tout moment.',
+  risks: ['Les captures d\'écran (qui peuvent montrer des contenus privés, comme vos conversations) sont envoyées au service de modèle que vous utilisez', 'Coo peut cliquer au mauvais endroit, faire des fautes de frappe ou se retrouver dans la mauvaise fenêtre. Assurez-vous toujours de pouvoir surveiller et interrompre Coo à tout moment.', 'Ne confiez pas à Coo les paiements, les mots de passe ni rien qui touche à des informations sensibles, à des actions réelles ou à ce qui ne peut pas être annulé.'],
+  riskNote: 'Coo s\'arrête automatiquement dès que vous utilisez la souris ou le clavier. Vous pouvez désactiver cette fonction à tout moment.',
   riskOk: 'Activer',
 };

@@ -31,7 +31,7 @@ const RECONNECT_MS = 2000;
  * Connects to `origin` (the World's page server) and streams while it asks. `getWindow` returns the
  * pet window or null.
  */
-function createOverlaySource({ origin, getWindow }) {
+function createOverlaySource({ origin, key, getWindow }) {
   // the global WebSocket came with Node 22 (Electron 35): an older Electron set by the app streams nothing
   if (typeof WebSocket !== 'function') return { frame: () => {}, pageLoaded: () => {}, stop: () => {} };
   let socket = null;
@@ -46,7 +46,8 @@ function createOverlaySource({ origin, getWindow }) {
 
   const connect = () => {
     if (stopped) return;
-    const ws = new WebSocket(`${origin.replace(/^http/, 'ws')}/socket?role=overlay-source`);
+    const params = new URLSearchParams({ role: 'overlay-source', key });
+    const ws = new WebSocket(`${origin.replace(/^http/, 'ws')}/socket?${params}`);
     ws.binaryType = 'arraybuffer';
     ws.addEventListener('message', (e) => {
       if (typeof e.data !== 'string') return;

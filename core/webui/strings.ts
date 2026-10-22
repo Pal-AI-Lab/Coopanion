@@ -16,7 +16,7 @@ import { S as ru } from './strings.ru.ts';
 
 const zh = {
   title: '闹钟',
-  desc: 'Coo 给自己设的闹钟。在这里删除后，Coo 会收到通知。',
+  desc: 'Coo 设的闹钟。在这里删除后，Coo 会收到通知。',
   head: ['时间', '内容', '设定于', ''] as readonly string[],
   daily: '每天',
   empty: 'Coo 现在没有设闹钟。',
@@ -29,7 +29,7 @@ const zh = {
 
 export const en: typeof zh = {
   title: 'Alarms',
-  desc: 'Alarms Coo has set for itself. Coo is told when you delete one here.',
+  desc: 'Alarms Coo has set. Coo is told when you delete one here.',
   head: ['Time', 'Note', 'Set at', ''],
   daily: 'Daily',
   empty: 'Coo has no alarms set.',
