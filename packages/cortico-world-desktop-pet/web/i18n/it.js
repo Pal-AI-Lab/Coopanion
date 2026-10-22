@@ -23,7 +23,7 @@ export default {
   'status.thinking': 'Sta pensando',
 
   // the menu and the hover buttons
-  'roam.off': 'Resta al suo posto',
+  'roam.off': 'Resta sul posto',
   'roam.calm': 'Ogni tanto',
   'roam.free': 'Spesso',
   'action.chat': 'Scrivi per parlarmi',

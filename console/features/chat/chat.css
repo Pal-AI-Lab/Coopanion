@@ -89,6 +89,17 @@
 .chat-queue .pill.primary:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); }
 .chat-queue .pill:disabled { opacity: .4; cursor: default; }
 
+/* 输入框里的上下文圆环(context.ts):填充到整理之前对话的那个点为满;交接中与 .spinner 同形转圈 */
+.chat-ctx { display: inline-grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 50%; outline: none; cursor: default; transition: background-color .15s; }
+.chat-ctx[hidden] { display: none; }
+.chat-ctx:hover { background: var(--hover); }
+.chat-ctx:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent); }
+.chat-ctx i { width: 16px; height: 16px; border-radius: 50%; background: conic-gradient(var(--accent) var(--fill, 0%), var(--line-2) 0); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px)); }
+.chat-ctx[data-state="busy"] i { background: none; border: 2px solid var(--line-2); border-top-color: var(--accent); -webkit-mask: none; mask: none; animation: chat-spin .8s linear infinite; }
+.chat-ctx-tip { display: grid; gap: 2px; line-height: 1.6; }
+.chat-ctx-tip b { font-weight: 600; color: var(--ink); }
+.chat-ctx-tip span { color: var(--ink-soft); }
+
 @media (max-width: 760px) {
   .chat-scroll { padding: 18px 16px 230px; }
   .chat-dock { padding: 0 16px 14px; }

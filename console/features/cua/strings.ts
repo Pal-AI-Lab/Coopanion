@@ -34,7 +34,7 @@ const zh = {
   riskLead: '打开后，Coo 将会观察你的屏幕，操作你的鼠标和键盘。',
   riskDanger: '这可能非常危险',
   riskAfter: '，请确认你理解以下内容：',
-  risks: ['屏幕截图（可能包含你的隐私内容，如聊天记录）将会发给上游模型服务', 'Coo 可能会点错地方、打错字，或者进入错误的窗口。时刻确保你能随时观察并打断它。', '付款、密码一类涉及敏感信息、现实操作或无法撤回的操作，请不要交给 Coo。'] as string[],
+  risks: ['屏幕截图（可能包含你的隐私内容，如聊天记录）将会发给上游模型服务', 'Coo 可能会点错地方、打错字，或者进入错误的窗口。时刻确保你能随时观察并打断 Coo。', '付款、密码一类涉及敏感信息、现实操作或无法撤回的操作，请不要交给 Coo。'] as string[],
   riskNote: 'Coo 会在你操作鼠标或键盘时自动停止。你可以随时关闭这个功能。',
   riskOk: '打开',
 };
@@ -63,8 +63,8 @@ export const en: typeof zh = {
   riskLead: 'Once this is on, Coo will watch your screen and use your mouse and keyboard. ',
   riskDanger: 'This can be very dangerous',
   riskAfter: '; make sure you understand the following:',
-  risks: ['Screenshots, which may show private things such as your chats, are sent to the model service you use', 'Coo may click the wrong place, mistype, or end up in the wrong window. Always make sure you can watch it and stop it at any time.', 'Do not hand Coo payments, passwords or anything else that involves sensitive information, real-world actions or cannot be undone.'],
-  riskNote: 'Coo stops by itself when you use the mouse or keyboard. You can turn this off at any time.',
+  risks: ['Screenshots, which may show private things such as your chats, are sent to the model service you use', 'Coo may click the wrong place, mistype, or end up in the wrong window. Always make sure you can watch and stop Coo at any time.', 'Do not hand Coo payments, passwords or anything else that involves sensitive information, real-world actions or cannot be undone.'],
+  riskNote: 'Coo stops automatically when you use the mouse or keyboard. You can turn this off at any time.',
   riskOk: 'Turn on',
 };
 

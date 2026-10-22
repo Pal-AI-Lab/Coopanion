@@ -22,6 +22,10 @@ export const S: Partial<typeof en> = {
   doing: (what: string) => `Сейчас: ${what}`,
   retry: (at: string) => `Модель не ответила; повтор в ${at}`,
   handoff: 'Прошлый разговор приводится в порядок',
+  contextUsed: (used: string, limit: string) => `Около ${used} / ${limit} token`,
+  contextTokens: (used: string) => `Около ${used} token`,
+  contextLimit: (limit: string) => `При ${limit} прошлый разговор приводится в порядок`,
+  contextLast: (when: string) => `В последний раз приведён в порядок: ${when}`,
   paused: 'На паузе · сообщения дойдут после продолжения',
   queued: (bot: string) => `В очереди; ${bot} прочитает после этого шага`,
   queuedPaused: 'На паузе; будет доставлено после продолжения',
@@ -54,5 +58,5 @@ export const S: Partial<typeof en> = {
 export const STEP: Partial<typeof stepEn> = {
   pet_cua_screenshot: 'Скриншот', pet_cua_click: 'Щелчок', pet_cua_move: 'Движение мыши', pet_cua_drag: 'Перетаскивание', pet_cua_scroll: 'Прокрутка', pet_cua_type: 'Ввод текста',
   pet_cua_key: 'Нажатие клавиш', pet_cua_windows: 'Список окон', pet_cua_focus: 'Переключение окна', pet_cua_wait: 'Ожидание',
-  pet_move_to: 'Прогулка', pet_act: 'Движение', pet_set: 'Настройка себя', pet_quiet: 'Тишина',
+  pet_move_to: 'Прогулка', pet_act: 'Движение', pet_set: 'Настройка', pet_quiet: 'Тишина',
 };

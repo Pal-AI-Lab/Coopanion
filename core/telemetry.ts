@@ -34,6 +34,7 @@ const TICK_GAP_MS = 3 * TICK_MS;
 /** One-off events kept while sends fail; the oldest go first past it. */
 const QUEUE_MAX = 300;
 const SEND_TIMEOUT_MS = 15_000;
+const STOP_TIMEOUT_MS = 5000;
 /** During the first run, how long after an event the send goes out; later events in that wait share it. */
 const FIRST_RUN_SEND_MS = 5000;
 /** Upper edges, in seconds, of the buckets a completed try's duration is counted in (`ModelUse.durations`); longer goes under `more`. */
@@ -151,6 +152,7 @@ export class Telemetry {
   private timers: NodeJS.Timeout[] = [];
   private lastTick: number;
   private sending: Promise<void> | null = null;
+  private sendAbort: AbortController | null = null;
   /** This run made the install: events are sent soon after they happen. */
   private readonly firstRun: boolean;
   private firstRunSend: NodeJS.Timeout | null = null;
@@ -197,14 +199,16 @@ export class Telemetry {
     void this.send();
   }
 
-  /** Stops the timers and makes one last send, bounded by `SEND_TIMEOUT_MS`. */
+  /** Stops the timers and gives the final send at most `STOP_TIMEOUT_MS`, including one already in flight. */
   async stop(): Promise<void> {
     for (const t of this.timers) clearInterval(t);
     this.timers = [];
     if (this.firstRunSend) clearTimeout(this.firstRunSend);
     this.firstRunSend = null;
     this.tick();
-    await this.send();
+    const timer = setTimeout(() => this.sendAbort?.abort(), STOP_TIMEOUT_MS);
+    try { await this.send(); }
+    finally { clearTimeout(timer); }
   }
 
   count(name: Counter, by = 1): void {
@@ -395,13 +399,18 @@ export class Telemetry {
       events: queue,
       days: days.map((d) => this.dayRecord(d)),
     };
+    const abort = new AbortController();
+    this.sendAbort = abort;
     try {
       const res = await this.fetchImpl(this.url, {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+        signal: AbortSignal.any([abort.signal, AbortSignal.timeout(SEND_TIMEOUT_MS)]),
       });
       if (!res.ok) return;
     } catch {
       return;
+    } finally {
+      this.sendAbort = null;
     }
     // what was queued meanwhile stays; closed days that went out are done
     this.state.queue.splice(0, queue.length);

@@ -24,7 +24,7 @@ export const S: Partial<typeof en> = {
   riskLead: 'Una volta attivato, Coo osserverà il tuo schermo e userà mouse e tastiera. ',
   riskDanger: 'Può essere molto pericoloso',
   riskAfter: '; conferma di aver capito quanto segue:',
-  risks: ['Le schermate (che possono mostrare contenuti privati, come le chat) vengono inviate al servizio di modelli che usi', 'Coo può cliccare nel punto sbagliato, sbagliare a scrivere o finire nella finestra sbagliata. Assicurati sempre di poterlo osservare e interrompere in qualsiasi momento.', 'Non affidare a Coo pagamenti, password o altro che riguardi informazioni sensibili, azioni nel mondo reale o operazioni irreversibili.'],
+  risks: ['Le schermate (che possono mostrare contenuti privati, come le chat) vengono inviate al servizio di modelli che usi', 'Coo può cliccare nel punto sbagliato, sbagliare a scrivere o finire nella finestra sbagliata. Assicurati sempre di poter osservare e interrompere Coo in qualsiasi momento.', 'Non affidare a Coo pagamenti, password o altro che riguardi informazioni sensibili, azioni nel mondo reale o operazioni irreversibili.'],
   riskNote: 'Coo si ferma da solo quando usi il mouse o la tastiera. Puoi disattivare questa funzione in qualsiasi momento.',
   riskOk: 'Attiva',
 };

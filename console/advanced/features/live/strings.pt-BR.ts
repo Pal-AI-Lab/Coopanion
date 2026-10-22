@@ -132,7 +132,7 @@ export const S: Partial<typeof en> = {
   obWorlds: 'Em seguida, ative e configure os ambientes externos que seu bot alcança (Cortico Worlds). Começar só com o chat do console já basta.',
   obWorldsState: (labels: readonly string[]) =>
     `No momento, ${labels.length} ${labels.length === 1 ? 'ambiente externo ativado' : 'ambientes externos ativados'}: ${labels.join(', ')}`,
-  obPrompts: 'Por fim, o prompt de sistema é editado aqui: quem ele é, como se comporta e como fala.',
+  obPrompts: 'Por fim, o prompt de sistema é editado aqui: quem Coo é, como se comporta e como fala.',
   obReady: 'Tudo pronto!',
   obGoConfigure: 'Configurar',
   obGoEdit: 'Editar',
