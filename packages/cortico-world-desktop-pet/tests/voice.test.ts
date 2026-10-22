@@ -120,7 +120,7 @@ async function setup(text: string | ((samples: number) => string), mode: MicMode
   await expect.poll(() => (world.voiceState().server as { phase: string }).phase).toBe('running');
   const page = await FakePage.open(world.petUrl.replace(/\/pet$/, ''));
   cleanup.push(() => page.close());
-  return { asr, world, host, page };
+  return { asr, cfg, world, host, page };
 }
 
 describe('voice input', () => {
@@ -316,6 +316,15 @@ describe('voice input', () => {
     await page.next((m) => m.t === 'listen' && m.phase === 'none');
     expect(asr.decodes).toHaveLength(0);
     expect(host.events).toHaveLength(0);
+  });
+
+  it('switching voice input off stops the recognizer; switching it on loads the model a second time', async () => {
+    const { asr, cfg, world } = await setup('你好');
+    cfg.asr.enabled = false;
+    await expect.poll(() => (world.voiceState().server as { phase: string }).phase).toBe('stopped');
+    cfg.asr.enabled = true;
+    await expect.poll(() => (world.voiceState().server as { phase: string }).phase).toBe('running');
+    expect(asr.configs).toHaveLength(2);
   });
 
   it('funasr without its model says so, and the download starts it', async () => {

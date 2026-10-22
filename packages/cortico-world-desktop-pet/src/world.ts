@@ -324,8 +324,11 @@ export class DesktopPetWorld implements World {
   private funasr: SherpaAsr | null = null;
   private whisper: SherpaAsr | null = null;
   private system: SystemRecognizer | null = null;
-  /** The engine the running backend belongs to; a config change starts the other one. */
+  /** The engine the running backend belongs to; a config change starts the other one. Null once stopped. */
   private runningEngine: AsrEngine | null = null;
+  /** `asr.enabled` and `cua.enabled` as syncPrefs last saw them: switching either off stops what it runs. */
+  private asrSeen = false;
+  private cuaSeen = false;
   /** The person asked to send what was heard now, without waiting for the pause that ends a sentence. */
   private committing = false;
   private readonly segmenter: Segmenter;
@@ -622,6 +625,8 @@ export class DesktopPetWorld implements World {
       log: host.log,
       spawnImpl: this.opts.spawnSystemRecognizer,
     });
+    this.asrSeen = this.cfg.asr.enabled;
+    this.cuaSeen = this.cfg.cua.enabled;
     if (this.cfg.asr.enabled) void this.startVoiceBackend();
     await this.syncHotkey();
     this.prefsKey = this.prefsSignature();
@@ -894,11 +899,20 @@ export class DesktopPetWorld implements World {
   /** Config is a live object edited by the console; changes reach the pages within PREFS_SYNC_MS. */
   private syncPrefs(): void {
     this.segmenter.configure(this.segmentConfig());
-    if (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== this.engine()) void this.startVoiceBackend();
+    // voice input switched off stops its engine, which frees the model; switched on, it starts again
+    if (this.cfg.asr.enabled !== this.asrSeen) {
+      this.asrSeen = this.cfg.asr.enabled;
+      if (!this.asrSeen && this.runningEngine) void this.stopVoiceBackend();
+      else if (this.asrSeen && !this.runningEngine) void this.startVoiceBackend();
+    }
+    else if (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== this.engine()) void this.startVoiceBackend();
     // the system recognizer serves one language; a new one needs a new helper
     else if (this.cfg.asr.enabled && this.runningEngine === 'system' && this.system?.languageChanged) void this.startVoiceBackend();
     // FunASR and Whisper load the model for one language and thread count
     else if (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== 'system' && this.sherpa(this.runningEngine)?.configChanged) void this.startVoiceBackend();
+    // computer use switched off ends the engine process; the next call after it is switched on starts another
+    if (this.cuaSeen && !this.cfg.cua.enabled) void this.cua.switchedOff();
+    this.cuaSeen = this.cfg.cua.enabled;
     void this.syncHotkey();
     // the person changed what a quiet holds back: theirs wins
     if (this.quiet && (this.cfg.sound !== this.quiet.base.sound || this.cfg.roam !== this.quiet.base.roam)) this.endQuiet();
@@ -1328,8 +1342,11 @@ export class DesktopPetWorld implements World {
     return this.backendState();
   }
 
+  /** Stops the running engine, which may differ from the one chosen since it started. */
   private async stopVoiceBackend(): Promise<void> {
-    await this.recognizer()?.stop();
+    const engine = this.runningEngine ?? this.engine();
+    this.runningEngine = null;
+    await this.recognizer(engine)?.stop();
     this.syncPrefs();
   }
 

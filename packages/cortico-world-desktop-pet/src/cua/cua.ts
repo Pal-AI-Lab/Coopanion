@@ -169,9 +169,20 @@ export class Cua {
   }
 
   async stop(): Promise<void> {
+    await this.endEngine(this.t.worldStopped);
+    this.host = null;
+  }
+
+  /** Computer use was switched off: the engine process ends, and the next call starts another. */
+  switchedOff(): Promise<void> {
+    return this.endEngine(this.t.switchedOff);
+  }
+
+  /** Ends the engine process; calls waiting on it fail with `why`. */
+  private async endEngine(why: string): Promise<void> {
     const engine = this.engine;
     this.engine = null;
-    for (const p of this.pending.values()) { clearTimeout(p.timer); p.fail(new Error(this.t.worldStopped)); }
+    for (const p of this.pending.values()) { clearTimeout(p.timer); p.fail(new Error(why)); }
     this.pending.clear();
     this.screenAsked = null;
     if (engine && engine.exitCode === null) {
@@ -180,7 +191,6 @@ export class Cua {
       await Promise.race([exited, new Promise((r) => setTimeout(r, 2000))]);
       if (engine.exitCode === null) engine.kill();
     }
-    this.host = null;
   }
 
   /* ---------- engine ---------- */
