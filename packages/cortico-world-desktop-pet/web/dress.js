@@ -57,8 +57,8 @@ showTheme();
 /** The floor is the stage's bottom 48 pixels, as in a tab (pet.css .floor). */
 const FLOOR = 48;
 const bounds = () => ({ W: preview.clientWidth, H: preview.clientHeight, floorY: preview.clientHeight - FLOOR, S: .5 });
-/** The body in the preview (body-host.js), and the page's clock. */
-let body = null, T = 0;
+/** The body in the preview (body-host.js). */
+let body = null;
 new ResizeObserver(() => body?.set({ bounds: bounds() })).observe(preview);
 const local = (e) => { const r = preview.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, t: e.timeStamp }; };
 preview.addEventListener('pointerdown', (e) => { const p = local(e); body?.pointer('down', p); if (body?.hit(p)) preview.setPointerCapture(e.pointerId); });
@@ -482,7 +482,6 @@ let frameErr = null;
 function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   try {
-    T += dt;
     body?.tick(dt);
     preview.style.cursor = body?.layout?.cursor ?? '';
   } catch (err) {

@@ -22,8 +22,8 @@ import { MODEL_TEXT, type ModelText } from './model-text.ts';
 
 type WindowText = ModelText['window'];
 
-export const HOST_ENV = 'CORTICO_DESKTOP_PET_HOST';
-export const HOST_MAIN = fileURLToPath(new URL('../host/electron-main.cjs', import.meta.url));
+const HOST_ENV = 'CORTICO_DESKTOP_PET_HOST';
+const HOST_MAIN = fileURLToPath(new URL('../host/electron-main.cjs', import.meta.url));
 
 export type HostPhase = 'stopped' | 'running' | 'missing' | 'error';
 
@@ -68,10 +68,6 @@ export class WindowHost {
 
   state(): HostState {
     return { ...this.st, pid: this.child?.pid ?? null };
-  }
-
-  get running(): boolean {
-    return this.child !== null;
   }
 
   start(cmd: HostCommand): void {

@@ -17,9 +17,7 @@
  *   没完",打包层据此继续持有。人在窗口里接着说,后半段照旧接上,两半并成一条——
  *   所以短门限不会把句子切碎,它只把**转写**提前,不把**发车**提前。
  *
- * **打包**(Packer):识别结果不是一句一投。人说话是一串短句,逐句唤醒她等于把
- * 一段话拆成五次打断。并句这件事现在由上面那条长门限管;`joinGapMs` 退成"在收尾
- * 静音之外还想多等多久",默认 0。流水线空闲后，`maxHoldMs` 到期的批次立即发车。
+ * Packer 按 minChars 过滤识别结果，在上游完成收音、转写和收尾静音后拼接投递。
  */
 
 import { joinSpeech, type TranscribeResult } from './result.ts';
@@ -67,16 +65,6 @@ export interface SegmentConfig {
   /** 短于这个的片段直接丢(ms):门限抖动出来的碎片不值得送去识别 */
   minUtteranceMs: number;
 }
-
-export const SEGMENT_DEFAULTS: SegmentConfig = {
-  thresholdDb: -42,
-  minSpeechMs: 180,
-  dispatchSilenceMs: 250,
-  silenceMs: 500,
-  maxUtteranceMs: 15_000,
-  preRollMs: 320,
-  minUtteranceMs: 350,
-};
 
 /** 一帧的均方根电平(dBFS);全零帧记 -100 而不是 -Infinity */
 export function rmsDb(frame: Int16Array): number {
@@ -232,41 +220,16 @@ export class Segmenter {
 // ---------------------------------------------------------------------------
 
 export interface PackConfig {
-  /**
-   * 转写落地且收尾静音结束后的额外等待时间（ms），默认 0。
-   * silenceMs 与 settleRemainingMs 处理短停顿合并；后到句子由总线下一批带走。正值直接增加响应延迟。
-   */
-  joinGapMs: number;
-  /** 一条最多攒多久(ms):再连着说也要发车 */
-  maxHoldMs: number;
   /** 少于这么多字的识别结果丢掉:噪声与语气词识别出来常是一两个字 */
   minChars: number;
 }
 
-export const PACK_DEFAULTS: PackConfig = {
-  joinGapMs: 0,
-  maxHoldMs: 8000,
-  minChars: 2,
-};
-
-/**
- * 识别结果的攒批。`add` 收句子,`due` 到点交货——**时钟由调用方给**,
- * 这样测试不必等真时间,World 也只有一处定时器。
- *
- * `hold` 是这里唯一真正管事的判据:上游(麦克风、转写队列、收尾静音)只要还有一件
- * 没完,批次就按着不动。`hold` 一撤,默认就是立刻发车。
- */
+/** 上游仍在收音、转写或等待收尾静音时持有识别结果；结束后将它们拼成一条。 */
 export class Packer {
-  private cfg: PackConfig;
+  private readonly cfg: PackConfig;
   private pieces: string[] = [];
-  private firstAt = 0;
-  private lastAt = 0;
 
   constructor(cfg: PackConfig) {
-    this.cfg = cfg;
-  }
-
-  configure(cfg: PackConfig): void {
     this.cfg = cfg;
   }
 
@@ -275,32 +238,18 @@ export class Packer {
   }
 
   /** 太短的直接丢,返回 false 表示这句没被收下 */
-  add(text: string, atMs: number): boolean {
+  add(text: string): boolean {
     const t = text.trim();
     if (t.length < this.cfg.minChars) return false;
-    if (this.pieces.length === 0) this.firstAt = atMs;
     this.pieces.push(t);
-    this.lastAt = atMs;
     return true;
   }
 
-  /** 到点就把攒着的并成一条交出来；上游仍在收音或转写时继续持有。 */
-  due(nowMs: number, hold = false): string | null {
-    if (this.pieces.length === 0) return null;
-    if (hold) return null;
-    const quiet = nowMs - this.lastAt >= this.cfg.joinGapMs;
-    const held = nowMs - this.firstAt >= this.cfg.maxHoldMs;
-    if (!quiet && !held) return null;
-    return this.take();
+  due(hold = false): string | null {
+    return hold ? null : this.take();
   }
 
-  /** 当前批最早应再次检查的绝对时刻。 */
-  deadline(): number | null {
-    if (this.pieces.length === 0) return null;
-    return Math.min(this.lastAt + this.cfg.joinGapMs, this.firstAt + this.cfg.maxHoldMs);
-  }
-
-  /** 不管到没到点,把攒着的交出来(停止采集、面板要求立刻投递时用) */
+  /** 停止采集或立即投递时取走已收下的结果。 */
   take(): string | null {
     if (this.pieces.length === 0) return null;
     const text = joinSpeech(this.pieces);

@@ -58,7 +58,7 @@ import { dressTable, planSettings, type SettingChange } from './self.ts';
 import { MODEL_TEXT, type ModelLanguage, type ModelText } from './model-text.ts';
 
 /** The console panels, titled in `language`. */
-export function desktopPetPanelDecls(language: Language = 'zh'): WorldPanelDecl[] {
+function desktopPetPanelDecls(language: Language = 'zh'): WorldPanelDecl[] {
   const p = petText(language).console.panels;
   return [
     { id: 'pet', ...p.pet, getMethods: ['state'] },
@@ -329,7 +329,7 @@ export class DesktopPetWorld implements World {
   /** The person asked to send what was heard now, without waiting for the pause that ends a sentence. */
   private committing = false;
   private readonly segmenter: Segmenter;
-  private readonly packer = new Packer({ joinGapMs: 0, maxHoldMs: 8000, minChars: 1 });
+  private readonly packer = new Packer({ minChars: 1 });
   private readonly queue: Utterance[] = [];
   private transcribing = false;
   private packTimer: NodeJS.Timeout | null = null;
@@ -1502,7 +1502,7 @@ export class DesktopPetWorld implements World {
           if (u.result) this.showHeard();
           continue;
         }
-        this.packer.add(text, Date.now());
+        this.packer.add(text);
         this.remember({ text, at: Date.now(), ms: res.ms });
         this.voiceFrame({ type: 'text', text, ms: res.ms });
         this.pendingText(text);
@@ -1563,7 +1563,7 @@ export class DesktopPetWorld implements World {
     const upstream = this.transcribing || this.queue.length > 0;
     // a commit does not wait for the closing pause, nor for speech begun after it
     const hold = upstream || (!this.committing && (this.segmenter.active || this.segmenter.settleRemainingMs > 0));
-    const text = this.committing && !upstream ? this.packer.take() : this.packer.due(Date.now(), hold);
+    const text = this.committing && !upstream ? this.packer.take() : this.packer.due(hold);
     if (this.committing && !upstream && !text) {
       // nothing was heard: the committed episode closes empty, unless the talk key still holds it open
       this.committing = false;
