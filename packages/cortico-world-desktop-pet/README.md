@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts -->
+<!-- Owner: src/definition.ts, src/cua/cua.ts -->
 
 <p align="center">
   <picture>
@@ -399,7 +399,7 @@ macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)�
 
 操作系统调用都在引擎子进程(`src/cua/engine-child.ts`)里,经 [koffi](https://koffi.dev/) 直接调系统接口。请求和结果里的坐标是某块显示器的物理像素,
 各系统自己的全局坐标只在子进程里换算(`src/cua/engine/display.ts`)。
-引擎在第一次要用时拉起;子进程崩溃只让在途的那次调用失败,下次调用重新拉起。World 页多一盏「操作引擎」灯。
+引擎在第一次要用时启动，请求的期限为 30 秒，加上该请求等待使用者让位或确认的时间。超过期限后强制结束引擎；崩溃或超时让该引擎的在途请求失败，下次请求启动新引擎。旧引擎的退出不会影响新引擎的请求。World 页的「操作引擎」灯显示它的状态。
 
 - Windows(`src/cua/engine/win32.ts`):`EnumDisplayMonitors` 列显示器,GDI `BitBlt` 按显示器矩形截图(带 `CAPTUREBLT`,透明与分层窗口也截得到)、
   `SetCursorPos` 定位指针(`SendInput` 的绝对坐标要折算到 0–65535,在显示器接缝处会差一个像素)、`SendInput` 发按键和滚轮、`EnumWindows`、

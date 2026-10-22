@@ -212,6 +212,7 @@ Once it is on, Coo looks at the screen without asking, and asks before it first 
   - `never-ask`: never ask.
 - With several displays, Coo looks at one at a time and moves to another when it needs to.
 - When you touch the mouse or keyboard, Coo stops and waits for you.
+- If a computer-use request times out, its engine is stopped; the next request starts a new one.
 - Logins, passwords and payments are left to you.
 - One wake makes at most 40 model requests; at the limit the turn ends and you can tell Coo to continue. The limit is on the Cormini page in advanced mode and applies after a restart.
 

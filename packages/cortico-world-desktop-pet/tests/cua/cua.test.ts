@@ -341,6 +341,7 @@ describe('displays', () => {
       send({ id, req }: { id: number; req: Record<string, unknown> }) {
         sent.push(req);
         const value = req.op === 'screenshot' ? { ...two, display: req.display, jpeg: new Uint8Array(1), width: 1280, height: 720, scale: 1280 / 3840 }
+          : req.op === 'zoom' ? { jpeg: new Uint8Array(1), width: req.width, height: req.height }
           : { ...two, yielded: false, cancelled: false, waitedMs: 0 };
         const p = inner.pending.get(id)!;
         inner.pending.delete(id);
@@ -355,6 +356,10 @@ describe('displays', () => {
     expect(shot.text).toContain('鼠标在显示器 1 上');
     await call('pet_cua_click', { x: 640, y: 360 });
     expect(sent.find((r) => r.op === 'click')).toMatchObject({ at: { display: 2, layout: 'two' }, x: 1920, y: 1080 });
+    await call('pet_cua_click', { x: 1279.9, y: 719.9 });
+    expect(sent.filter((r) => r.op === 'click').at(-1)).toMatchObject({ at: { display: 2, layout: 'two' }, x: 3839, y: 2159 });
+    await call('pet_cua_zoom', { x: 1279.5, y: 719.5, width: 100, height: 100 });
+    expect(sent.find((r) => r.op === 'zoom')).toMatchObject({ x: 3837, y: 2157, width: 3, height: 3 });
     expect((await call('pet_cua_screenshot', { display: 3 })).text).toContain('没有显示器 3');
   });
 

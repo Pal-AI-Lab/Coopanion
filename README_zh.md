@@ -210,6 +210,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
   - `never-ask`：都不问。
 - 接了几块显示器时，它一次看一块，需要时自己换到别的显示器。
 - 你一动鼠标或键盘，它就停下来等你。
+- 电脑操作请求超时后会停止对应引擎，下次请求重新启动。
 - 登录、密码、付款这类步骤交给你自己做。
 - 一次唤醒最多请求模型 40 次，到上限就结束这一轮，要继续就再跟它说。上限在高级模式「Cormini」页修改，重启后生效。
 
