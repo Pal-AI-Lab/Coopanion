@@ -33,6 +33,8 @@ interface Section {
   divider: HTMLElement;
   collapsed: boolean;
   updateVariables(): void;
+  /** Sizes each variable box to its name at the current column width. */
+  fitVariables(): void;
 }
 let labelWidth = 190;
 const FOLDS_KEY = 'coopanion.prompt-folds';
@@ -271,6 +273,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     const offset = editor.contentTop() - stage.getBoundingClientRect().top;
     const spacing = geometry.map((g, index) => {
       const section = sections[index];
+      if (!g.collapsed) section.fitVariables();
       const top = g.top + offset;
       // Flags are centred on section edges; the variables keep clear of this flag and the next one.
       const clearance = section.toggle.offsetHeight / 2 + 8;
@@ -371,7 +374,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     const tools = ui.h('span', 'prompt-vars-tools');
     const heading = ui.h('div', 'prompt-vars-heading');
     heading.append(ui.h('span', '', S.variablesTitle), tools);
-    const section: Section = { segment, doc, tone, label, toggle, badge, cell, vars, heading, tools, divider, collapsed, updateVariables() {} };
+    const section: Section = { segment, doc, tone, label, toggle, badge, cell, vars, heading, tools, divider, collapsed, updateVariables() {}, fitVariables() {} };
     if (!doc) return section;
     const chips = new Map<string, HTMLButtonElement>();
     const warning = ui.h('div', 'prompt-varwarn');
@@ -407,6 +410,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
         } });
         chip.className += ' varchip mono';
         chip.title = variable.name;
+        chip.replaceChildren(ui.h('span', 'varchip-name', variable.name));
         chip.draggable = true;
         chip.setAttribute('aria-expanded', 'false');
         chip.addEventListener('mousedown', (event) => { if (event.detail === 1) insertPosition = editor.view.state.selection.main.head; }, { signal });
@@ -431,6 +435,25 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
         chips.set(variable.name, chip);
         list.append(chip);
       }
+      /**
+       * A name that fits a grid cell keeps one cell; one that fits a whole row on one line takes the row;
+       * a longer one takes the row on up to two lines, wrapping after its dots, dashes and underscores,
+       * and ends in an ellipsis past them. Measured with every box in a cell, whose width does not depend
+       * on the boxes. The wrap points are `<wbr>`s, which Chromium honours even in `nowrap` text, so only
+       * a two-line name has them.
+       */
+      section.fitVariables = () => {
+        const boxes = [...chips.entries()].map(([name, chip]) => ({ name, chip, text: chip.firstElementChild as HTMLElement }));
+        for (const { name, chip, text } of boxes) { chip.dataset.size = 'cell'; text.textContent = name; }
+        const sizes = boxes.map(({ chip, text }) => {
+          const row = list.clientWidth - (chip.offsetWidth - text.clientWidth);
+          return text.scrollWidth <= text.clientWidth ? 'cell' : text.scrollWidth <= row ? 'row' : 'lines';
+        });
+        boxes.forEach(({ name, chip, text }, i) => {
+          chip.dataset.size = sizes[i];
+          if (sizes[i] === 'lines') text.replaceChildren(...name.split(/(?<=[.\-_])/).flatMap((part, n) => n ? [root.ownerDocument.createElement('wbr'), part] : [part]));
+        });
+      };
     }
     vars.append(warning);
     section.updateVariables = () => {
