@@ -43,7 +43,7 @@ const en: CuaText = {
     control: { title: 'Allow the mouse and keyboard', description: 'When off, only screenshots and the window list.' },
     permission: { title: 'When to ask you', description: 'ask-each-turn: before looking at the screen or acting, every turn; ask-before-acting: looking is free, asks before using the mouse and keyboard every turn; ask-once: looking is free, asks once before using the mouse and keyboard, and a yes holds for "A yes lasts"; never-ask: never asks.' },
     grantMinutes: { title: 'A yes lasts', suffix: 'min', description: 'For ask-once only.' },
-    userIdleMs: { title: 'Stay out of the way for', description: 'After you use the mouse or keyboard, it waits until they have been still this long.' },
+    userIdleMs: { title: 'Stay out of the way for', description: 'After you use the mouse or keyboard, Coo waits until they have been still this long.' },
     maxYieldWaitMs: { title: 'Longest wait for you' },
     maxWidth: { title: 'Screenshot max width' },
     maxHeight: { title: 'Screenshot max height' },
