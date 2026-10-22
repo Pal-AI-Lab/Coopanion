@@ -827,7 +827,7 @@ export class DesktopPetWorld implements World {
   openWindow(): void {
     if (!this.windowHost || !this.server.port) return;
     const managed = this.store.electron.executable();
-    this.windowHost.start(resolveHostCommand(this.petUrl, this.cfg.window.electronFile, managed, this.t.window));
+    this.windowHost.start(resolveHostCommand(this.server.windowUrl, this.cfg.window.electronFile, managed, this.t.window));
   }
 
   /* ---------- page protocol ---------- */

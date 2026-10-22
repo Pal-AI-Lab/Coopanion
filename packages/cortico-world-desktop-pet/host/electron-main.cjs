@@ -299,7 +299,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   // who holds the mouse, and when it is given back
   const mouse = createMouseLease({ getWindow: () => win });
   // the window as an OBS layer, while the World asks for it
-  const overlay = createOverlaySource({ origin, getWindow: () => win });
+  const key = new URLSearchParams(new URL(url).hash.slice(1)).get('key');
+  const overlay = createOverlaySource({ origin, key, getWindow: () => win });
   app.once('will-quit', () => overlay.stop());
   /** Id of the display whose work area the window covers. */
   let displayId = null;
