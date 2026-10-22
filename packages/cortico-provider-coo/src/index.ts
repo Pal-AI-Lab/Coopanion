@@ -50,6 +50,8 @@ export interface CooOptions {
 }
 
 const cooOptions = (entry: LLMProviderEntry): CooOptions => (entry.options ?? {}) as CooOptions;
+/** The longest Anthropic model list read; listing stops there. */
+const MODELS_MAX = 2000;
 
 export const protocolOf = (entry: LLMProviderEntry): Protocol =>
   cooOptions(entry).protocol ?? locate(entry.baseUrl)?.site.protocol ?? 'responses';
@@ -133,6 +135,8 @@ export const COO = {
         listModels: async () => {
           const models = [];
           for await (const model of client.client().models.list()) {
+            // the SDK pages on while the service says there is more
+            if (models.length >= MODELS_MAX) break;
             const row = model as typeof model & { max_input_tokens?: number; max_tokens?: number };
             windows.set(model.id, row.max_input_tokens);
             models.push({ id: model.id, displayName: model.display_name,
