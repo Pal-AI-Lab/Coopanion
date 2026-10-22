@@ -72,12 +72,17 @@
 .ulegend > span:last-child { margin-left: 4px; }
 
 /* 用量时间序列与分组明细：标题右侧的切换选中项用主题色底 */
-.uswitch .seg.active { background: var(--accent); color: #fff; font-weight: 600; }
-.uswitch .seg:hover:not(.active) { color: var(--ink); }
+.uswitch { position: relative; isolation: isolate; }
+.uswitch > .uthumb { position: absolute; top: 2px; bottom: 2px; left: 0; z-index: -1; border-radius: calc(var(--radius-md) - 2px); background: var(--accent); }
+.uswitch > .uthumb[hidden] { display: none; }
+.uswitch.is-ready > .uthumb { transition: transform 280ms cubic-bezier(.3, .7, .2, 1), width 280ms cubic-bezier(.3, .7, .2, 1); }
+.uswitch .seg { transition: color 200ms ease-out; }
+.uswitch .seg.active, .uswitch .seg.active:hover { background: transparent; color: #fff; font-weight: 600; }
+.uswitch .seg:hover:not(.active) { color: var(--ink); background: transparent; }
 .umulti .seg.active { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); font-weight: 600; }
 .umulti .seg:disabled { opacity: .4; cursor: not-allowed; }
-.companion-row.urow { align-items: center; padding: 6px 0; }
-.urow-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; }
+.uctrls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; }
+.ugroup { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .uchart { margin-top: 12px; }
 .uchart svg { display: block; }
 .uchart .axis { stroke: var(--line-2); stroke-width: 1; }
@@ -97,6 +102,7 @@
   .ukpis > .stat:nth-child(2n + 1) { padding-left: 0; border-left: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .uswitch.is-ready > .uthumb, .uswitch .seg { transition: none; }
   .ugrid.is-entering .ucell { animation: none; }
   .ugrid .ucell[data-day] { transition: none; }
 }
