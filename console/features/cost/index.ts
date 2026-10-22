@@ -7,6 +7,7 @@
 
 import type { WebUi, WebUiSheet, Disposable } from 'cortico/web/shared/client-panel.ts';
 import { get, setConfig } from '../../base/api.ts';
+import { esc } from '../../base/ui/dom.ts';
 import { consoleFormat } from '../../base/ui/format.ts';
 import { pageIntro } from '../../base/ui/page.ts';
 import { getThemeStudio } from '../../base/theme/studio.ts';
@@ -378,13 +379,25 @@ export function mountUsage(ctx: PageContext): void {
     if (t.costOther) parts.push({ label: S.partOther, val: t.costOther, color: color('chart-4') });
     const bar = ui.h('div', 'compbar');
     const leg = ui.h('div', 'compleg');
+    // 横条的一段与它的图例互相联动：悬停任一个，两者一起高亮，其余淡出。
+    const focus = (seg: HTMLElement | null, it: HTMLElement | null): void => {
+      compBox.classList.toggle('is-focus', !!seg);
+      for (const el of compBox.querySelectorAll('.is-hi')) el.classList.remove('is-hi');
+      seg?.classList.add('is-hi');
+      it?.classList.add('is-hi');
+    };
     for (const p of parts) {
       const seg = ui.h('div', 'compseg');
       seg.style.width = (p.val / total) * 100 + '%';
       seg.style.background = p.color;
-      seg.title = `${p.label} ${consoleFormat.money(p.val, cur)}`;
-      bar.appendChild(seg);
       const it = ui.h('span', 'compitem');
+      const tipHtml = `<div class="tt-h">${esc(p.label)}</div><div class="tt-tot">${consoleFormat.money(p.val, cur)} · ${consoleFormat.percent(p.val / total)}</div>`;
+      seg.addEventListener('mouseenter', () => { focus(seg, it); tip.show(tipHtml, p.label); }, { signal: ctx.signal });
+      seg.addEventListener('mousemove', (ev) => tip.move(ev), { signal: ctx.signal });
+      seg.addEventListener('mouseleave', () => { focus(null, null); tip.hide(); }, { signal: ctx.signal });
+      it.addEventListener('mouseenter', () => focus(seg, it), { signal: ctx.signal });
+      it.addEventListener('mouseleave', () => focus(null, null), { signal: ctx.signal });
+      bar.appendChild(seg);
       const sw = ui.h('span', 'compsw');
       sw.style.background = p.color;
       it.append(
