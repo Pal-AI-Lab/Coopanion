@@ -223,7 +223,7 @@ Coopanion keeps running in the background. Closing the settings window does not 
 
 The tray icon (menu bar on Mac, status bar on Linux) has a menu to open the settings, show the pet, start at login, restart and quit. On Windows, left-clicking the icon opens the settings.
 
-Restart and quit give Core 12 seconds to stop, then force termination and wait up to 5 more seconds for exit. If saving a data-folder choice fails, the app shows the filesystem error and exits.
+Restart and quit give Core 12 seconds to stop, then force termination and wait up to 5 more seconds for exit. The final statistics upload waits at most 5 seconds. If saving a data-folder choice fails, the app shows the filesystem error and exits.
 
 ## Settings window
 
