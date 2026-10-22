@@ -1,7 +1,7 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { WorldHost } from 'cortico/core/types.ts';
 import { noticeDefinition, releaseNotes, type AlarmsState } from '../core/notice.ts';
 
@@ -71,8 +71,12 @@ describe('alarms panel', () => {
 
 
 describe('notice state recovery', () => {
+  const dirs: string[] = [];
+  afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
+
   it.each(['', '{"version":', 'null', '{"version":7}'])('starts with invalid state %j', async (content) => {
     const dir = mkdtempSync(join(tmpdir(), 'coo-notice-state-'));
+    dirs.push(dir);
     const stateFile = join(dir, 'notice.json');
     writeFileSync(stateFile, content);
     const world = noticeDefinition({

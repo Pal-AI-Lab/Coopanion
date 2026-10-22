@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { afterEach, describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -64,8 +64,16 @@ describe('crash fields', () => {
 
 
 describe('telemetry state recovery', () => {
-  it.each(['', '{"installId":', 'null', '{"installId":"old","day":null,"days":[],"queue":[]}'])('recovers invalid state %j and retains the uninstall id', async (content) => {
+  const dirs: string[] = [];
+  afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
+  const stateDir = () => {
     const dir = mkdtempSync(join(tmpdir(), 'coo-telemetry-state-'));
+    dirs.push(dir);
+    return dir;
+  };
+
+  it.each(['', '{"installId":', 'null', '{"installId":"old","day":null,"days":[],"queue":[]}'])('recovers invalid state %j and retains the uninstall id', async (content) => {
+    const dir = stateDir();
     const file = join(dir, 'telemetry.json');
     writeFileSync(file, content);
     writeFileSync(join(dir, 'telemetry-id'), 'existing-install');
@@ -81,7 +89,7 @@ describe('telemetry state recovery', () => {
   });
 
   it('generates a new id when the state file was deleted', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'coo-telemetry-state-'));
+    const dir = stateDir();
     writeFileSync(join(dir, 'telemetry-id'), 'previous-install');
     const t = new Telemetry({ dir, version: 'test', enabled: () => false, snapshot: () => ({}), extensions: () => [] });
     t.start();
