@@ -2,6 +2,7 @@ import type { en } from './strings.ts';
 
 export const L: Partial<typeof en> = {
   collapseSidebar: 'Contraer barra lateral', expandSidebar: 'Expandir barra lateral',
+  goBack: 'Atrás', goForward: 'Adelante',
   trace: 'Consola', integrations: 'Integraciones', personaMemory: 'Personalidad y memoria', diagnostics: 'Solución de problemas',
   toAdvanced: 'Modo avanzado', toAdvancedHint: 'Muestra todo Cortico: modelos, extensiones, Worlds, memoria y diagnóstico',
   toNormal: 'Volver al modo normal', toNormalHint: 'Muestra solo las páginas sobre la mascota',

@@ -37,12 +37,23 @@ body.companion-sidebar { display: flex; height: 100dvh; overflow: hidden; }
 .companion-release > div { min-height: 0; overflow: hidden; }
 .is-collapsed .companion-release { grid-template-rows: 0fr; }
 .companion-sidebar-toggle {
-  display: flex; align-items: center; gap: 12px; height: 36px; flex: none; padding: 0 8px;
+  display: flex; align-items: center; gap: 12px; height: 36px; flex: 0 1 auto; min-width: 0; padding: 0 8px;
   border: 0; border-radius: 9px; background: transparent; color: var(--muted-foreground); cursor: pointer;
   font: 450 13px/1.35 var(--sans); white-space: nowrap;
 }
 .companion-sidebar-toggle:hover { background: var(--hover); color: var(--foreground); }
-.companion-sidebar-toggle > svg { width: 20px; height: 20px; }
+.companion-sidebar-toggle > svg { width: 20px; height: 20px; flex: none; }
+.companion-sidebar-toggle .lbl { overflow: hidden; text-overflow: ellipsis; }
+/* back and forward, left of the collapse button; folded, they narrow to nothing with the rail */
+.companion-history {
+  display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: none; margin-right: 2px; padding: 0; overflow: hidden;
+  border: 0; border-radius: 9px; background: transparent; color: var(--muted-foreground); cursor: pointer;
+  transition: width var(--rail-motion), margin-right var(--rail-motion), opacity 140ms ease, visibility 0s linear 0s;
+}
+.companion-history:hover:not(:disabled) { background: var(--hover); color: var(--foreground); }
+.companion-history:disabled { opacity: .35; cursor: default; }
+.companion-history > svg { width: 20px; height: 20px; flex: none; }
+#rail.is-collapsed .companion-history { width: 0; margin-right: 0; opacity: 0; visibility: hidden; transition: width var(--rail-motion), margin-right var(--rail-motion), opacity 100ms ease, visibility 0s linear 260ms; }
 .companion-sidebar-chevron { transform-origin: 15px 12px; transition: transform var(--rail-motion); }
 .is-collapsed .companion-sidebar-chevron { transform: rotate(180deg); }
 /* the version right under the logo, centred on it; a new release's link wraps under it in the same width */
@@ -97,7 +108,7 @@ body.companion-sidebar { display: flex; height: 100dvh; overflow: hidden; }
 #rail .companion-runstate { margin-left: 2px; }
 #rail .rail-action { flex: none; width: 40px; height: 32px; }
 #rail .rail-action[hidden] { display: none; }
-.companion-sidebar-toggle:focus-visible, #rail .companion-mode:focus-visible {
+.companion-sidebar-toggle:focus-visible, .companion-history:focus-visible, #rail .companion-mode:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
 }
 
