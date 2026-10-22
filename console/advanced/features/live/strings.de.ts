@@ -132,7 +132,7 @@ export const S: Partial<typeof en> = {
   obWorlds: 'Aktiviere und konfiguriere als Nächstes die externen Umgebungen, die dein Bot erreicht (Cortico-Worlds). Nur mit dem Konsolen-Chat zu beginnen, ist auch in Ordnung.',
   obWorldsState: (labels: readonly string[]) =>
     `Derzeit ${labels.length === 1 ? 'ist 1 externe Umgebung' : `sind ${labels.length} externe Umgebungen`} aktiviert: ${labels.join(', ')}`,
-  obPrompts: 'Zum Schluss bearbeitest du hier den System-Prompt: wer der Bot ist, wie er sich verhält, wie er spricht.',
+  obPrompts: 'Zum Schluss bearbeitest du hier den System-Prompt: wer Coo ist, wie Coo sich verhält und spricht.',
   obReady: 'Alles bereit!',
   obGoConfigure: 'Konfigurieren',
   obGoEdit: 'Bearbeiten',

@@ -55,7 +55,7 @@ export const S: Partial<typeof en> = {
   statusBubble: 'Mostrar o que Coo está fazendo',
   statusBubbleHint: 'Aparece acima de Coo enquanto pensa, lê ou grava arquivos ou usa o computador, com os nomes dos arquivos.',
   saidBubble: 'Mostrar o que você diz',
-  saidBubbleHint: 'O que você digita, fala ou envia pela página Chat fica acima de Coo até ele responder. Desligado, a fala ainda aparece enquanto é reconhecida e some em seguida.',
+  saidBubbleHint: 'O que você digita, fala ou envia pela página Chat fica acima de Coo até Coo responder. Desligado, a fala ainda aparece enquanto é reconhecida e some em seguida.',
   wake: 'Modo de resposta',
   wakeModes: { none: 'Quieto', poke: 'Padrão', all: 'Ativo', custom: 'Personalizado…' },
   wakeHints: { none: 'Os toques ficam anotados e são respondidos juntos quando você falar', poke: 'Só responde quando você cutuca', all: 'Responde a todos os toques' },
@@ -93,5 +93,5 @@ export const S: Partial<typeof en> = {
   glow: 'Brilho externo',
   glowOff: 'Desligado',
   glowPx: (n: number) => `${n} px`,
-  glowHint: 'Até onde vai o brilho claro em volta do pet quando as cores dele se parecem com o fundo; todo à esquerda desliga.',
+  glowHint: 'Até onde vai o brilho claro em volta do pet quando as cores do Coo se parecem com o fundo; todo à esquerda desliga.',
 };

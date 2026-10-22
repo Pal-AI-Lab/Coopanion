@@ -93,5 +93,5 @@ export const S: Partial<typeof en> = {
   glow: 'Brillo exterior',
   glowOff: 'Apagado',
   glowPx: (n: number) => `${n} px`,
-  glowHint: 'Hasta dónde llega el brillo claro alrededor de la mascota cuando sus colores se parecen al fondo; todo a la izquierda lo apaga.',
+  glowHint: 'Hasta dónde llega el brillo claro alrededor de la mascota cuando los colores de Coo se parecen al fondo; todo a la izquierda lo apaga.',
 };

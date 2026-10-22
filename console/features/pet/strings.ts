@@ -159,9 +159,9 @@ export const en: typeof zh = {
   hoverHint: (n: number) => `Up to ${n}.`,
   dblclick: 'Open the typing box',
   statusBubble: 'Show what Coo is doing',
-  statusBubbleHint: 'Shows above Coo while it thinks, reads or writes files or uses the computer, file names included.',
+  statusBubbleHint: 'Shows above Coo while Coo thinks, reads or writes files or uses the computer, file names included.',
   saidBubble: 'Show what you said',
-  saidBubbleHint: 'What you type, say or send from the Chat page stays above Coo until it has replied. When off, speech still shows while it is recognized and fades once done.',
+  saidBubbleHint: 'What you type, say or send from the Chat page stays above Coo until Coo has replied. When off, speech still shows while it is recognized and fades once done.',
   wake: 'Response mode',
   wakeModes: { none: 'Quiet', poke: 'Default', all: 'Eager', custom: 'Custom…' },
   wakeHints: { none: 'Touches are noted and answered together when you next speak', poke: 'Responds only when poked', all: 'Responds to every touch' },
@@ -199,7 +199,7 @@ export const en: typeof zh = {
   glow: 'Outer glow',
   glowOff: 'Off',
   glowPx: (n: number) => `${n} px`,
-  glowHint: 'How far the light glow around the pet reaches when its colors match what is behind it; all the way left turns it off.',
+  glowHint: "How far the light glow around the pet reaches when Coo's colors match the background; all the way left turns it off.",
 };
 
 export const S = pick({
