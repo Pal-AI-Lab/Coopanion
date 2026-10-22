@@ -6,17 +6,23 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Missing or invalid state returns null; invalid content is kept as `<file>.bad` when possible. */
+/**
+ * Missing or invalid state returns null; invalid content is kept as `<file>.bad` when possible. Any
+ * other read error is thrown: the caller must not rebuild and then replace a file it could not read.
+ */
 export function readState<T>(file: string, valid: (value: unknown) => value is T): T | null {
+  let text: string;
   try {
-    const value: unknown = JSON.parse(readFileSync(file, 'utf8'));
-    if (valid(value)) return value;
+    text = retryBusy(() => readFileSync(file, 'utf8'));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
-    if (!(error instanceof SyntaxError)) {
-      console.warn('[state] could not read', file, error);
-      return null;
-    }
+    throw error;
+  }
+  try {
+    const value: unknown = JSON.parse(text);
+    if (valid(value)) return value;
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
   }
   try { retryBusy(() => renameSync(file, `${file}.bad`)); }
   catch (error) { console.warn('[state] could not preserve invalid content', file, error); }

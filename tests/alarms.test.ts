@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Alarms, dueTime, localLabel } from '../core/alarms.ts';
@@ -70,5 +70,13 @@ describe('alarm state recovery', () => {
     expect(alarms.takeDue(60_000).map(({ alarm }) => alarm.note)).toEqual(['tea']);
     expect(alarms.takeDue(60_001)).toEqual([]);
     expect(readFileSync(file, 'utf8')).toBe(previous);
+  });
+
+  it('throws on a file it cannot read and leaves it in place', () => {
+    const file = stateFile();
+    mkdirSync(file);
+    expect(() => new Alarms(file, 'UTC')).toThrow(/EISDIR/);
+    expect(statSync(file).isDirectory()).toBe(true);
+    expect(existsSync(`${file}.bad`)).toBe(false);
   });
 });
