@@ -235,7 +235,7 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 | 语音输入   | 开关、识别引擎、模型下载、说话键、麦克风、收音方式                                                          |
 | 系统提示词 | Coo 的系统提示词，人设在「CONSTITUTION」一段。各段连成一份文档，除 CONSTITUTION 外首次打开时折叠，折叠状态保留到退出软件；模板变量可以插入，也可以预览当前值；高级模式下 World 的段可以跳到这个 World 的配置。Ctrl+S 保存到文件，「撤销全部改动」回到上次保存的内容；「立即应用」保存并更新当前对话的提示词，对话保留；「清空对话并重开」保存后清空当前对话，Memory 和人设保留；「完整提示词预览」展开按现在的文件拼出的整条提示词 |
 | 用量与成本 | 每天的 token 用量和花费                                                                                    |
-| 对话       | 当前对话的记录，Coo 发的图片也显示在这里；也可以在这里直接和 Coo 说话                                      |
+| 对话       | 当前对话的记录，Coo 发的图片也显示在这里；也可以在这里直接和 Coo 说话。输入框里的圆环是上下文用量，满时整理之前的对话；鼠标停在上面显示 token 数和上次整理的时间 |
 
 <p align="center"><img src="image/README/habits-zh.png" alt="Habits" width="720"></p>
 <p align="center"><img src="image/README/dress-zh.png" alt="Dress up" width="720"></p>

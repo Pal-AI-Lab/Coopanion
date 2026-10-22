@@ -237,7 +237,7 @@ Click the tray icon, or right-click Coo and click the gear. The window opens in 
 | Voice input   | On/off, recognizer, model download, talk key, microphone, listening mode                                          |
 | System prompt | Coo's system prompt; the persona is the CONSTITUTION section. The sections form one document; all but CONSTITUTION start folded, and folds last until the app quits. Template variables can be inserted and previewed with their current values; in the advanced mode a World's section links to that World's configuration. Ctrl+S saves to file and **Revert all edits** returns to the last save; **Apply now** saves and updates the current conversation's prompt, keeping its messages; **Clear conversation and restart** saves and clears the current conversation, keeping Memory and persona; **Full prompt preview** unfolds the whole prompt as assembled from the current files |
 | Usage & cost  | Tokens used and money spent per day                                                                               |
-| Chat          | The current conversation, with the images Coo shows; you can also talk to Coo from here                           |
+| Chat          | The current conversation, with the images Coo shows; you can also talk to Coo from here. The ring in the input box is the context in use; when full, the earlier conversation is tidied up. Hover it for the token count and when that last happened |
 
 <p align="center"><img src="image/README/habits-en.png" alt="Habits" width="720"></p>
 <p align="center"><img src="image/README/dress-en.png" alt="Dress up" width="720"></p>
