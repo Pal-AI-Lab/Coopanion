@@ -9,7 +9,7 @@ export const S: Partial<typeof en> = {
   roam: 'Movimento',
   roamFree: 'Spesso',
   roamCalm: 'Ogni tanto',
-  roamOff: 'Resta fermo',
+  roamOff: 'Resta sul posto',
   scale: 'Dimensione',
   bubbleSize: 'Dimensione dei fumetti',
   bubbleSizeHint: 'Cambia larghezza, margini e punta dei fumetti di Coo e dei tuoi; il testo mantiene la sua dimensione.',
