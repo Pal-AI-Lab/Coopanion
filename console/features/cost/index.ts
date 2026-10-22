@@ -257,7 +257,7 @@ export function mountUsage(ctx: PageContext): void {
   chartCtrls.append(group(ui, S.granularity, bucketSeg.el), group(ui, S.split, splitWrap, sortBox.el));
   trend.body.append(chartCtrls, mainLegend, mainBox, mainNote);
 
-  // ---- 分组明细：同一时刻显示一张 -------------------------------------------
+  // ---- 分组明细：三张表叠在同一格里，节高取最长的一张，切换时页面不跳 ---------
   const breakdown = ui.sheet({ title: S.sectionBreakdown });
   const GROUP_HEAD = [S.headCalls, S.headInput, S.headOutput, S.headCache, S.headCost, S.headAvg];
   const groupTables = {
@@ -267,7 +267,10 @@ export function mountUsage(ctx: PageContext): void {
   };
   type GroupKey = keyof typeof groupTables;
   const showGroup = (key: GroupKey): void => {
-    for (const k of Object.keys(groupTables) as GroupKey[]) groupTables[k].el.hidden = k !== key;
+    for (const k of Object.keys(groupTables) as GroupKey[]) {
+      groupTables[k].el.classList.toggle('is-off', k !== key);
+      groupTables[k].el.inert = k !== key;
+    }
   };
   const groupSeg = ui.segmented([
     { value: 'role', label: S.byRole },
@@ -277,7 +280,9 @@ export function mountUsage(ctx: PageContext): void {
   slidingSwitch(groupSeg.el, ctx.signal);
   headActions(ui, breakdown, groupSeg.el);
   showGroup('role');
-  breakdown.body.append(...Object.values(groupTables).map((t) => t.el));
+  const stack = ui.h('div', 'ustack');
+  stack.append(...Object.values(groupTables).map((t) => t.el));
+  breakdown.body.appendChild(stack);
 
   const results = ui.h('div', 'uresults');
   results.append(overview.el, activity.el, trend.el, breakdown.el);

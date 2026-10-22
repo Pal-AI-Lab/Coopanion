@@ -83,6 +83,9 @@
 .umulti .seg:disabled { opacity: .4; cursor: not-allowed; }
 .uctrls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; }
 .ugroup { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.ugroup > .ulabel { color: var(--ink); font-weight: 600; }
+.uctrls + .chart-legend { margin-top: 16px; }
+.uctrls + .chart-legend:empty + .uchart { margin-top: 20px; }
 .uchart { margin-top: 12px; }
 .uchart svg { display: block; }
 .uchart .axis { stroke: var(--line-2); stroke-width: 1; }
@@ -90,7 +93,9 @@
 .chart-legend + .uchart { margin-top: 8px; }
 .unote { margin: 6px 0 0; }
 .unote:empty { display: none; }
-.uresults .tablewrap[hidden] { display: none; }
+.ustack { display: grid; }
+.ustack > .tablewrap { grid-area: 1 / 1; align-self: start; }
+.ustack > .tablewrap.is-off { visibility: hidden; }
 
 @container console-content (max-width: 720px) {
   .ukpis { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 14px; }
