@@ -57,4 +57,4 @@ function dataDirIn(folder, exists = existsSync) {
   return null;
 }
 
-module.exports = { readRecord, writeRecord, locateData, dataDirIn, samePath };
+module.exports = { readRecord, writeRecord, locateData, dataDirIn };
