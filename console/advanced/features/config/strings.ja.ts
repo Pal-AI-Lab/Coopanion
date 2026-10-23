@@ -9,6 +9,7 @@ export const S: Partial<typeof en> = {
   recommendedDir: (dir: string) => `推奨ディレクトリ：${dir}`,
   download: 'ダウンロード',
   on: 'オン',
+  autoSaves: '変更は自動で保存されます。',
   leaveBlank: '空欄のまま',
   saving: '保存中…',
   saveFailed: (err: string) => '失敗：' + err,

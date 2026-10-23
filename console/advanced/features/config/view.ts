@@ -215,6 +215,21 @@ function pathField(
   return { node: field, read: () => input.value };
 }
 
+/** 输入框里显示的数：最多四位小数，去掉末尾的 0。 */
+function shown(n: number): string {
+  return String(Number(n.toFixed(4)));
+}
+
+/**
+ * 数字输入框。显示值按 `shown` 取整；字段没改过时读回原值——一组配置整组保存，
+ * 改别的字段不该把这一项的精度截掉。
+ */
+function numberInput(inp: HTMLInputElement, val: number): () => number {
+  inp.value = shown(val);
+  const untouched = inp.value;
+  return () => (inp.value === untouched ? val : Number(inp.value));
+}
+
 /** 渲染属性并返回存储单位的取值器；值变化经 onChange 提交。 */
 export function configField(
   ui: WebUi,
@@ -256,15 +271,15 @@ export function configField(
     if (prop.multipleOf != null) inp.step = String(prop.multipleOf / scale);
     if (prop.nullable) {
       // nullable 字段以空输入表示 null，0 保持为数值。
-      inp.value = val == null ? '' : String(Number(val) / scale);
       inp.placeholder = S.leaveBlank;
-      return {
-        node: inp,
-        read: () => (inp.value.trim() === '' ? null : Number(inp.value) * scale),
-      };
+      if (val == null) {
+        return { node: inp, read: () => (inp.value.trim() === '' ? null : Number(inp.value) * scale) };
+      }
+      const read = numberInput(inp, Number(val) / scale);
+      return { node: inp, read: () => (inp.value.trim() === '' ? null : read() * scale) };
     }
-    inp.value = String((Number(val) || 0) / scale);
-    return { node: inp, read: () => Number(inp.value) * scale };
+    const read = numberInput(inp, (Number(val) || 0) / scale);
+    return { node: inp, read: () => read() * scale };
   }
 
   // 仅两个 number/integer 的数组可编辑，其余数组只读。
@@ -325,7 +340,9 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
   const el = ui.h('div', 'configview');
   const body = ui.h('div');
   const bar = ui.actions();
-  const msg = ui.msgline();
+  // 修改前写明会自动保存；保存后这一行换成结果。
+  const msg = ui.msgline(S.autoSaves);
+  msg.classList.add('is-hint');
   bar.append(msg, ui.h('span', 'grow'));
   el.append(body, bar);
 
@@ -390,32 +407,43 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
         ));
         return;
       }
+      // 每组一节，行与「习惯」页同样式：左栏名称，右栏设置，说明贴在设置下面；开关项画成开关。
       for (const { group, values } of groups) {
-        const sec = ui.h('div', 'tsection', group.schema.title || group.id);
-        if (showOwner) sec.appendChild(ui.h('span', 'ttag', OWNER_LABEL[group.owner] || group.owner));
-        body.appendChild(sec);
-        if (group.schema.description) {
-          body.appendChild(ui.h('div', 'tsecdesc', group.schema.description));
-        }
+        const card = ui.sheet({ title: group.schema.title || group.id, ...(group.schema.description ? { desc: group.schema.description } : {}) });
+        if (showOwner) card.el.querySelector('h3')!.appendChild(ui.h('span', 'ttag', OWNER_LABEL[group.owner] || group.owner));
         for (const [path, prop] of Object.entries(group.schema.properties || {})) {
-          const row = ui.h('div', 'trow');
-          const label = ui.h('span', 'tlabel', prop.title || path);
+          const row = ui.h('div', 'companion-row configrow');
+          const label = ui.h('div', 'companion-label', prop.title || path);
+          const control = ui.h('div', 'companion-control');
+          // 设置本身和「重启生效」标签同一行，标签在设置右边。
+          const line = ui.h('div', 'configline');
+          control.appendChild(line);
+          let read: (() => ConfigValue) | null;
+          if (prop.type === 'boolean') {
+            const box = ui.checkbox('', { checked: !!(values || {})[path], onChange: () => queueSave(group.id) });
+            box.input.setAttribute('aria-label', prop.title || path);
+            // 与「习惯」页的开关同一个外框,画成开关而不是勾选框
+            line.classList.add('companion-switchbox');
+            line.appendChild(box.el);
+            read = () => box.checked;
+          } else {
+            const field = configField(ui, prop, (values || {})[path], () => queueSave(group.id), signal);
+            const fieldWrap = ui.h('div', 'tfield');
+            fieldWrap.appendChild(field.node);
+            if (prop['x-suffix']) fieldWrap.appendChild(ui.h('span', 'tunit', prop['x-suffix']));
+            line.appendChild(fieldWrap);
+            read = field.read;
+          }
           if (prop['x-hot'] === false) {
             // World 的配置在构造时读走:重启那个 World 即生效,不必重启进程。
-            label.appendChild(ui.h('span', 'ttag', group.owner.startsWith('world:') ? S.restartWorld : S.restartProcess));
+            line.appendChild(ui.h('span', 'ttag', group.owner.startsWith('world:') ? S.restartWorld : S.restartProcess));
           }
-          row.appendChild(label);
-          const { node, read } = configField(ui, prop, (values || {})[path], () => queueSave(group.id), signal);
-          const fieldWrap = ui.h('div', 'tfield');
-          fieldWrap.appendChild(node);
-          if (prop['x-suffix'] && prop.type !== 'boolean') {
-            fieldWrap.appendChild(ui.h('span', 'tunit', prop['x-suffix']));
-          }
-          row.appendChild(fieldWrap);
-          row.appendChild(ui.h('span', 'tdesc', prop.description || ''));
-          body.appendChild(row);
+          if (prop.description) control.appendChild(ui.h('p', 'home-note', prop.description));
+          row.append(label, control);
+          card.body.appendChild(row);
           if (read) readers.push({ groupId: group.id, path, read });
         }
+        body.appendChild(card.el);
       }
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;

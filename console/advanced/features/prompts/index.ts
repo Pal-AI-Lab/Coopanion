@@ -12,6 +12,7 @@ import { S as sessionText } from '../../../features/strings.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { createPrefixEditor, references, VARIABLE_DRAG_TYPE, type PrefixBlock } from './editor.ts';
 import { S } from './strings.ts';
+import { sharedTemplate } from './titles.ts';
 import type { PromptDoc, PromptVar } from './view.ts';
 
 interface PrefixSegment { title: string; text: string; sourceKey?: string }
@@ -42,9 +43,9 @@ let folds = new Map<string, boolean>();
 
 /** Names the sections of Cortico's persona; any other section shows its template's own title and description. */
 function description(segment: PrefixSegment, doc?: PromptDoc): { title: string; detail: string } {
+  const shared = sharedTemplate(segment.sourceKey ?? segment.title);
+  if (shared) return shared;
   switch (segment.sourceKey ?? segment.title) {
-    case 'constitution': return { title: S.constitutionTitle, detail: S.constitutionDesc };
-    case 'orientation': return { title: S.orientationTitle, detail: S.orientationDesc };
     case 'WORKSPACE': return { title: S.workspaceTitle, detail: S.workspaceDesc };
     case 'MEMORY': case 'memoryNote': return { title: S.memoryTitle, detail: doc?.description || S.memoryDesc };
     case 'PARTNER': return { title: S.partnerTitle, detail: doc?.description || S.partnerDesc };

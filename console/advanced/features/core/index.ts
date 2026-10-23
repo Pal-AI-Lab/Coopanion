@@ -6,6 +6,7 @@
 
 import type { Disposable } from 'cortico/web/shared/client-panel.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
+import { pageTabs } from '../../../base/ui/page-tabs.ts';
 import { pageIntro } from '../../../base/ui/page.ts';
 import { get } from '../../../base/api.ts';
 import { browserSocketEnv, openFrameworkSocket, type SocketEnv } from '../../../base/websocket.ts';
@@ -59,6 +60,15 @@ export const coreFeature: FrameworkFeature = {
   },
 };
 
+/** 上次停留的子页，跨窗口保留；存储不可用时不记。 */
+const LAST_SUB_KEY = 'coopanion.core.sub';
+function readLastSub(): string {
+  try { return localStorage.getItem(LAST_SUB_KEY) ?? ''; } catch { return ''; }
+}
+function writeLastSub(sub: string): void {
+  try { localStorage.setItem(LAST_SUB_KEY, sub); } catch { /* 不记也照常切换 */ }
+}
+
 function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   const { ui } = ctx;
 
@@ -68,23 +78,20 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   };
 
   const subs = CORE_SUBS.filter((s) => s.need === null || ctx.capabilities[s.need] === true);
-  const wanted = str(ctx.route.segments[1]);
+  // 没指定子页时回到上次停留的那个；切换子页时记下来。
+  const wanted = str(ctx.route.segments[1]) || readLastSub();
   let current = subs.some((s) => s.id === wanted) ? wanted : (subs[0]?.id ?? 'run');
 
   // ── 页头 ─────────────────────────────────────────────────────────
   const view = ui.h('div', 'coreview');
   const head = pageIntro(ui, S.pageTitle);
   head.className = 'featureintro pagehead';
-  const tabGroup = (ids: readonly SubDef[]) => ui.segmented(
-    ids.map((s) => ({ value: s.id, label: s.label })),
-    { value: current, onSelect: (v) => show(v, true) },
-  );
-  const observeSubs = subs.filter((s) => OBSERVE_SUBS.has(s.id));
-  const maintainSubs = subs.filter((s) => !OBSERVE_SUBS.has(s.id));
-  const tabs = [tabGroup(observeSubs), ...(maintainSubs.length ? [tabGroup(maintainSubs)] : [])];
-  const tabBar = ui.h('div', 'subtabs');
-  tabBar.append(ui.h('span', 'subtabgroup', S.groupObserve), tabs[0].el);
-  if (tabs[1]) tabBar.append(ui.h('span', 'subtabgroup', S.groupMaintain), tabs[1].el);
+  // 观察类子页在前，维护类在后，各带一个小组名；换子页是换页面，用页内栏目条。
+  const ordered = [...subs.filter((s) => OBSERVE_SUBS.has(s.id)), ...subs.filter((s) => !OBSERVE_SUBS.has(s.id))];
+  const tabs = pageTabs(ctx.root.ownerDocument, ctx.signal, ordered.map((s) => ({
+    value: s.id, label: s.label, group: OBSERVE_SUBS.has(s.id) ? S.groupObserve : S.groupMaintain,
+  })), { value: current, onSelect: (v) => show(v, true) });
+  const tabBar = tabs.el;
   const net = ui.msgline('');
   const exportButton = ui.button('', {
     size: 'sm',
@@ -137,8 +144,6 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     showOwner: false,
     emptyText: S.configEmpty,
   });
-  const configSheet = ui.sheet({ title: S.configTitle, en: 'core config', desc: S.configDesc });
-  configSheet.body.appendChild(config.el);
 
   const panes: Record<string, HTMLElement> = {
     run: run.el,
@@ -146,7 +151,7 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     events: events.el,
     runlog: runlog.el,
     data: dataSheet.el,
-    config: configSheet.el,
+    config: config.el,
   };
 
   /** 每次进入某个子页要做的事。进来才拉数据——没打开的页不该占网络。 */
@@ -181,7 +186,8 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
       if (current === 'events') events.setPolling(false);
       current = next;
     }
-    for (const t of tabs) t.setValue(current);
+    tabs.setValue(current);
+    writeLastSub(current);
     while (measure.children.length) measure.children[0].remove();
     const pane = panes[current];
     if (pane) measure.appendChild(pane);

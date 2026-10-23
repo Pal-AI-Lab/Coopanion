@@ -15,8 +15,6 @@ export const S: Partial<typeof en> = {
   groupMaintain: 'Mantener',
   dataTitle: 'Datos de Core',
   dataDesc: 'Almacenamiento que Core acumula por su cuenta: el almacén de eventos, la sesión, los registros de ejecución y el libro de uso.',
-  configTitle: 'Configuración de Core',
-  configDesc: 'Los cambios se guardan automáticamente en config.json. Los ajustes marcados para reinicio se aplican al reiniciar; el resto se aplica de inmediato.',
   configEmpty: 'Core no tiene ajustes configurables.',
   netOffline: 'No se puede acceder a la API',
 

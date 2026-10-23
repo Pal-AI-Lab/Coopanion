@@ -15,8 +15,6 @@ export const S: Partial<typeof en> = {
   groupMaintain: 'Warten',
   dataTitle: 'Core-Daten',
   dataDesc: 'Speicher, den der Core selbst anlegt: Ereignisspeicher, Session, Laufprotokolle und Verbrauchsjournal.',
-  configTitle: 'Core-Konfiguration',
-  configDesc: 'Änderungen werden automatisch in config.json gespeichert. Für einen Neustart markierte Einstellungen gelten nach dem Neustart, alle anderen sofort.',
   configEmpty: 'Der Core hat keine einstellbaren Werte.',
   netOffline: 'API nicht erreichbar',
 

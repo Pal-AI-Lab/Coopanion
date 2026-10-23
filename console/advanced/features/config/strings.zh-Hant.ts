@@ -9,6 +9,7 @@ export const S: Partial<typeof en> = {
   recommendedDir: (dir: string) => `建議目錄：${dir}`,
   download: '下載',
   on: '開啟',
+  autoSaves: '修改後自動儲存。',
   leaveBlank: '留空',
   saving: '儲存中…',
   saveFailed: (err: string) => '失敗: ' + err,
