@@ -153,6 +153,14 @@ export default {
     overLimit: (mb: number) => `超过 ${mb} MB`,
   },
 
+  /** 在装扮页卸载形象包 */
+  removing: {
+    notInstalled: (id: string) => `没有 id 为 ${id} 的形象包`,
+    builtin: (id: string) => `${id} 是内置形象，不能卸载`,
+    elsewhere: (id: string) => `${id} 不在形象包的安装目录里，不能在这里卸载`,
+    failed: (why: string) => `没能删除：${why}`,
+  },
+
   /** 桌宠想改设置、要先征得同意时的气泡:问句、三个按钮,以及每项改动的说法 */
   consent: {
     question: (items: string[]) => `我想${items.join('、')}，可以吗？`,

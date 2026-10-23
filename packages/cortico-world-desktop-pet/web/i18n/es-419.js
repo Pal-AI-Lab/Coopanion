@@ -127,4 +127,11 @@ export default {
   'import.cannot': 'No se puede importar',
   'import.dropOne': 'Arrastra un solo zip a la vez, o carpetas.',
   'import.readFailed': 'No se pudieron leer los archivos',
+  // the dressing page: uninstalling figure packs
+  'remove.label': 'Desinstalar {name}',
+  'remove.title': '¿Desinstalar {name}?',
+  'remove.lead': 'Se eliminan los archivos del paquete; vuelve a importarlo para usarlo. Si la mascota lo lleva puesto, vuelve a ser Coo.',
+  'remove.go': 'Desinstalar',
+  'remove.failed': 'No se pudo desinstalar',
+  'remove.done': 'Desinstalado: {name}',
 };

@@ -7,11 +7,11 @@
  * - `/dress`: the dressing page; changes go through `POST /api/skin` and `POST /api/prefs`.
  * - `/api/avatar`: the bot's avatar for the menu header, 404 until one exists.
  * - `POST /api/speech` (`{ text }`): the syllables the pet page's speech plays for a bubble's text (src/speech).
- * - `/api/figures`: the figure packs (src/packs.ts) the pages may load, Coo's first; `/packs/<id>/…`:
- *   an installed pack's files (a built-in one is under `/web/`). `/api/figures/status`: the installed
- *   packs that did not load and why, and whether packs can be imported here; `POST /api/figures/import`
- *   (a zip, or the page's framing of folders), `…/import/install` and `…/import/cancel` import them
- *   (src/pack-import.ts).
+ * - `/api/figures`: the figure packs (src/packs.ts) the pages may load, Coo's first, each with whether it
+ *   can be uninstalled (`removable`); `/packs/<id>/…`: an installed pack's files (a built-in one is under
+ *   `/web/`). `/api/figures/status`: the installed packs that did not load and why, and whether packs can be
+ *   imported here; `POST /api/figures/import` (a zip, or the page's framing of folders), `…/import/install`
+ *   and `…/import/cancel` import them, `POST /api/figures/remove` (`{ id }`) uninstalls one (src/pack-import.ts).
  * - `/figure-frame`: the sandbox a pack's code runs in. Its own CSP sandboxes it (an opaque
  *   origin) and denies it every connection; scripts and images come from this server only. Files
  *   under `/web/` and `/packs/` answer that opaque origin's CORS requests; nothing else does,
@@ -303,10 +303,15 @@ export class PetServer {
     const url = new URL(req.url ?? '/', 'http://x');
     const path = url.pathname;
     if (req.method === 'GET' && path === '/api/figures') {
-      return json(res, 200, (this.opts.packs?.() ?? []).map(({ id, base, manifest: m }) => ({
-        id, base, name: m.name, thumb: m.thumb ?? null, entry: m.entry, export: m.export, model: m.model ?? null, axes: m.axes, presets: m.presets,
-        vocab: m.vocab.map(({ id: w, kind, seconds, lasting }) => ({ id: w, kind, seconds, ...(lasting ? { lasting } : {}) })), sounds: m.sounds, can: m.can, needs: m.needs,
-      })));
+      const importer = this.opts.importer;
+      return json(res, 200, (this.opts.packs?.() ?? []).map((pack) => {
+        const { id, base, manifest: m } = pack;
+        return {
+          id, base, name: m.name, thumb: m.thumb ?? null, entry: m.entry, export: m.export, model: m.model ?? null, axes: m.axes, presets: m.presets,
+          vocab: m.vocab.map(({ id: w, kind, seconds, lasting }) => ({ id: w, kind, seconds, ...(lasting ? { lasting } : {}) })), sounds: m.sounds, can: m.can, needs: m.needs,
+          removable: importer?.removable(pack) ?? false,
+        };
+      }));
     }
     if (req.method === 'GET' && path === '/api/figures/status') {
       return json(res, 200, {
@@ -315,6 +320,12 @@ export class PetServer {
       });
     }
     if (req.method === 'POST' && path.startsWith('/api/figures/import') && this.opts.importer) return this.importRequest(req, res, path, this.opts.importer);
+    if (req.method === 'POST' && path === '/api/figures/remove' && this.opts.importer) {
+      const msg = parse(await readBody(req) ?? '');
+      if (typeof msg?.id !== 'string') return json(res, 400, { error: 'bad json' });
+      const out = await this.opts.importer.remove(msg.id);
+      return json(res, 'error' in out ? 400 : 200, out);
+    }
     if (req.method === 'GET' && path === '/figure-frame') {
       const self = `http://${req.headers.host}`;
       return this.sendFile(res, join(this.opts.webDir, 'figure-frame.html'), [

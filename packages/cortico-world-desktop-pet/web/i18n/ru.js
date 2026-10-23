@@ -127,4 +127,11 @@ export default {
   'import.cannot': 'Импорт невозможен',
   'import.dropOne': 'Перетаскивайте по одному zip за раз или папки.',
   'import.readFailed': 'Не удалось прочитать файлы',
+  // the dressing page: uninstalling figure packs
+  'remove.label': 'Удалить «{name}»',
+  'remove.title': 'Удалить «{name}»?',
+  'remove.lead': 'Файлы пакета будут удалены; чтобы снова им пользоваться, импортируйте его заново. Если пакет сейчас используется, питомец снова станет Coo.',
+  'remove.go': 'Удалить',
+  'remove.failed': 'Не удалось удалить',
+  'remove.done': 'Удалено: {name}',
 };

@@ -9,11 +9,12 @@
  * Packs are imported here too (src/pack-import.ts): a zip as it is, or the folders a picked or dropped folder
  * holds a pack in (a folder with figure.json, up to `depth` levels down, not looking inside a pack), framed
  * as the server reads them (`bundle`). The server says what it found; the person picks what to install.
+ * A pack the server lists as `removable` is uninstalled from its tile (`POST /api/figures/remove`).
  *
  * Text follows the app language (i18n.js): the page's own from its tables, the names of figures, Coo's
  * palettes and accessories, and other packs' picks from the packs' manifests.
  */
-import { themeButton } from './ui.js';
+import { ICONS, themeButton } from './ui.js';
 import { applyText, language, nameIn, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import {
@@ -67,7 +68,7 @@ preview.addEventListener('pointerup', (e) => body?.pointer('up', local(e)));
 preview.addEventListener('pointerleave', () => body?.pointer('leave', {}));
 
 function save(path, body) {
-  fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  return fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
     .then((r) => { $('#saved').textContent = t(r.ok ? 'dress.saved' : 'dress.notSaved'); })
     .catch(() => { $('#saved').textContent = t('dress.offline'); });
 }
@@ -130,7 +131,7 @@ function apply(next, persist) {
   lightFor(skin);
   showFigure(skin).catch((err) => console.error(err));
   render();
-  if (persist) save('/api/skin', { skin });
+  if (persist) return save('/api/skin', { skin });
 }
 
 const CROP = { palette: '18 18 220 220', head: '18 -72 220 220', side: '-52 -4 220 220', glasses: '28 7 220 220', neck: '32 84 220 220' };
@@ -187,7 +188,7 @@ function renderFigure() {
   const opts = el('div', 'opts');
   const choices = [{ id: 'coo', label: 'Coo', svg: `<svg viewBox="${CROP.palette}" aria-hidden="true">${mini('neutral', skin)}</svg>` },
     // a pack shows its own picture whatever it wears; the rows below show the picks
-    ...packs.filter((p) => p.id !== 'coo').map((p) => ({ id: p.id, label: nameOf(p.name), thumb: p.thumb ? p.base + p.thumb : null }))];
+    ...packs.filter((p) => p.id !== 'coo').map((p) => ({ id: p.id, label: nameOf(p.name), thumb: p.thumb ? p.base + p.thumb : null, pack: p }))];
   for (const c of choices) {
     const b = el('button', 'opt wide figure', c.svg);
     b.setAttribute('aria-pressed', String(skin.figure === c.id));
@@ -199,7 +200,10 @@ function renderFigure() {
       apply({ ...skin, figure: c.id, ...(pack && c.id !== 'coo' ? { scheme: schemeOf(pack, picksOf(pack, '')) } : {}) }, true);
       sfx.sparkle(); body?.cue('cheer');
     });
-    opts.appendChild(b);
+    if (c.pack?.removable) {
+      const tile = opts.appendChild(el('span', 'figure-tile'));
+      tile.append(b, removeButton(c.pack));
+    } else opts.appendChild(b);
   }
   if (packStatus.importable) {
     const b = el('button', 'opt wide figure import', '<svg viewBox="0 0 52 52" aria-hidden="true"><path d="M26 15v22M15 26h22"/></svg><span></span>');
@@ -249,6 +253,18 @@ function renderFigure() {
     after.after(label, slot);
     after = slot;
   }
+}
+
+/* ---------- uninstalling packs ---------- */
+
+/** The trash button in an installed pack's tile corner, shown while the tile is hovered or focused; it asks in the dialog. */
+function removeButton(pack) {
+  const b = el('button', 'pack-erase', ICONS.trash);
+  b.type = 'button';
+  b.title = t('remove.label', { name: nameOf(pack.name) });
+  b.setAttribute('aria-label', b.title);
+  b.addEventListener('click', () => { sfx.tick(); importDialog.remove(pack); });
+  return b;
 }
 
 /* ---------- importing packs ---------- */
@@ -386,6 +402,21 @@ const importDialog = (() => {
     if (replacing) void showFigure(skin);
   }
 
+  async function uninstall(pack) {
+    let res;
+    try {
+      res = await (await fetch('/api/figures/remove', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: pack.id }) })).json();
+    } catch {
+      res = { error: t('import.offline') };
+    }
+    if (res.error) return note(t('remove.failed'), res.error);
+    dlg.close();
+    // the saved look's own message would cover this one
+    if (skin.figure === pack.id) await apply({ ...skin, figure: 'coo' }, true);
+    $('#saved').textContent = t('remove.done', { name: nameOf(pack.name) });
+    await loadPacks();
+  }
+
   $('#importZip').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) void send(f, 'application/zip'); });
   $('#importDir').addEventListener('change', (e) => {
     const files = [...e.target.files].map((file) => ({ path: file.webkitRelativePath, file }));
@@ -396,6 +427,14 @@ const importDialog = (() => {
   });
 
   return {
+    /** Asks before deleting an installed pack; the pet wearing it changes to Coo. */
+    remove(pack) {
+      show(`<h2 id="importTitle"></h2><p class="lead" data-i18n="remove.lead"></p>
+        <div class="actions"><button class="btn" type="button" data-close data-i18n="import.cancel"></button><button class="btn danger" type="button" data-remove data-i18n="remove.go"></button></div>`);
+      dlg.querySelector('h2').textContent = t('remove.title', { name: nameOf(pack.name) });
+      const go = dlg.querySelector('[data-remove]');
+      go.addEventListener('click', () => { go.disabled = true; void uninstall(pack); });
+    },
     /** Asks what to import. */
     choose() {
       show(`<h2 id="importTitle" data-i18n="import.title"></h2>

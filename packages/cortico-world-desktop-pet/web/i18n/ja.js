@@ -127,4 +127,11 @@ export default {
   'import.cannot': 'インポートできません',
   'import.dropOne': 'zip は一度に 1 つずつ、またはフォルダーをドラッグしてください。',
   'import.readFailed': 'ファイルを読み込めませんでした',
+  // the dressing page: uninstalling figure packs
+  'remove.label': '{name} をアンインストール',
+  'remove.title': '{name} をアンインストールしますか？',
+  'remove.lead': 'このパックのファイルが削除されます。再び使うにはもう一度インポートしてください。ペットが使用中の場合は Coo に戻ります。',
+  'remove.go': 'アンインストール',
+  'remove.failed': 'アンインストールに失敗しました',
+  'remove.done': 'アンインストールしました：{name}',
 };

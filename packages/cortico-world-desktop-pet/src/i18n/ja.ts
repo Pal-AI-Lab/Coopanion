@@ -135,6 +135,13 @@ const ja: Translation<PetText> = {
     overLimit: (mb: number) => `${mb} MB を超えています`,
   },
 
+  removing: {
+    notInstalled: (id: string) => `id ${id} のアバターパックはありません`,
+    builtin: (id: string) => `${id} は内蔵アバターのため、アンインストールできません`,
+    elsewhere: (id: string) => `${id} はアバターパックのインストール先フォルダーにないため、ここではアンインストールできません`,
+    failed: (why: string) => `削除できませんでした：${why}`,
+  },
+
   consent: {
     question: (items: string[]) => `こう変えてもいいですか？${items.join('、')}`,
     choices: ['いいよ', 'これからは聞かなくていいよ', 'やめておく'] as [yes: string, always: string, no: string],
