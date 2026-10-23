@@ -91,7 +91,8 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
   const SCHEMES = (model.schemes || [{ id: 'deepseek' }]).filter(sc => sc.ready !== false);
   const schemeInfo = id => SCHEMES.find(sc => sc.id === id) || SCHEMES[0];
   // an outfit is its own part list: the maid dress is model.parts; another lists the parts it keeps from it and
-  // its own, whose `src` is the texture file (drawn in the outfit's colours, which no scheme changes)
+  // its own, whose `src` is the texture file (drawn in the outfit's colours, which no scheme changes); an own part
+  // without `src` has a texture in every scheme, beside the maid dress's
   const OUTFITS = model.outfits || [{ id: 'maid' }];
   const outfitInfo = id => OUTFITS.find(o => o.id === id) || OUTFITS[0];
   const pickOf = id => { const [c, o] = String(id ?? '').split('-'); return { scheme: schemeInfo(c).id, outfit: outfitInfo(o).id }; };
@@ -105,7 +106,7 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     const dir = sc === SCHEMES[0].id ? '' : `schemes/${sc}/`;
     const set = { tex: {}, img: {} };
     loaded[key] = Promise.all([
-      // an outfit's own part is drawn in the outfit's colours
+      // an outfit's own part with a `src` is drawn in the outfit's colours
       ...partsOf(of).map(async p => { set.tex[p.tex] = await load(asset(p.src || `${dir}tex/${p.tex}.png`)); }),
       ...featNames.map(async n => { set.img[n] = await load(asset(`${dir}feat/${n}.png`)); }),
     ]).then(() => (ready[key] = set));
@@ -185,7 +186,9 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
       deformers.creases = { kind: 'warp', parent: 'headFeat', rect: rectOf('eye_creases') };
       creases.parent = 'creases';
     }
-    return { PV, deformers, parts, brows, creases, swings };
+    // how far the arms fly out while she is held, as a share of the maid dress's (short sleeves look wrong flung wide)
+    const heldArms = outfitInfo(of).heldArms ?? 1;
+    return { PV, deformers, parts, brows, creases, swings, heldArms };
   }
   let L = layoutOf(outfit);
 
@@ -597,7 +600,7 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     // `swing` is whether the walk swings the arms: a pose that sets both arms holds them still
     let aN = 4, aF = -2, swing = walking ? 1 : 0;
     if (airborne) { aN = 40; aF = -30; }
-    if (held) { aN = 70 + 16 * Math.sin(t * 13); aF = -45 - 12 * Math.sin(t * 13 + 1.3); }
+    if (held) { aN = (70 + 16 * Math.sin(t * 13)) * L.heldArms; aF = (-45 - 12 * Math.sin(t * 13 + 1.3)) * L.heldArms; }
     if (sitK > .5 && !walking) { aN = lerp(aN, -4, sitK); aF = lerp(aF, -6, sitK); }
     if (face === 'happy' || face === 'love') { aN += 12 + 5 * Math.sin(t * 8); aF -= 8 + 4 * Math.sin(t * 8); }
     if (face === 'angry') { aN = 20 + 3 * Math.sin(t * 30); aF = -18 - 3 * Math.sin(t * 30); swing = 0; }
