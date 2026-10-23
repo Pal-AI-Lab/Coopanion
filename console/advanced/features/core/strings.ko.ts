@@ -15,8 +15,6 @@ export const S: Partial<typeof en> = {
   groupMaintain: '유지 관리',
   dataTitle: 'Core 데이터',
   dataDesc: 'Core가 스스로 쌓는 저장소: 이벤트 저장소, 세션, 실행 로그, 사용량 기록.',
-  configTitle: 'Core 설정',
-  configDesc: '변경 사항은 config.json에 자동 저장됩니다. 재시작이 필요하다고 표시된 설정은 재시작 후에, 나머지는 즉시 적용됩니다.',
   configEmpty: 'Core에는 조정할 수 있는 설정이 없습니다.',
   netOffline: 'API에 연결할 수 없음',
 

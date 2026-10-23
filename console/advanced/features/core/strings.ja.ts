@@ -15,8 +15,6 @@ export const S: Partial<typeof en> = {
   groupMaintain: 'メンテナンス',
   dataTitle: 'Core のデータ',
   dataDesc: 'Core 自身が蓄積するストレージ：イベントストア、セッション、実行ログ、使用量の記録。',
-  configTitle: 'Core の設定',
-  configDesc: '変更は config.json に自動保存されます。再起動が必要と表示された設定は再起動後に、それ以外はすぐに反映されます。',
   configEmpty: 'Core に調整できる設定はありません。',
   netOffline: 'API に接続できません',
 

@@ -24,8 +24,6 @@ const zh = {
   groupMaintain: '维护',
   dataTitle: 'Core 的数据',
   dataDesc: '事件库、session、运行日志、用量流水这些 Core 自己攒下的存储。',
-  configTitle: 'Core 配置',
-  configDesc: '修改自动保存到 config.json。标有重启要求的配置在重启后生效,其余立即生效。',
   configEmpty: 'Core 没有可调配置。',
   netOffline: '接口不可达',
 
@@ -111,8 +109,6 @@ export const en: typeof zh = {
   groupMaintain: 'Maintain',
   dataTitle: 'Core data',
   dataDesc: 'Storage Core accumulates on its own: the event store, the session, run logs and the usage ledger.',
-  configTitle: 'Core config',
-  configDesc: 'Changes save to config.json automatically. Settings marked for restart apply after restarting; the rest apply immediately.',
   configEmpty: 'Core has no tunable settings.',
   netOffline: 'API unreachable',
 

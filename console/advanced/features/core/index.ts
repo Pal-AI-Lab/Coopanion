@@ -145,8 +145,6 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     showOwner: false,
     emptyText: S.configEmpty,
   });
-  const configSheet = ui.sheet({ title: S.configTitle, en: 'core config', desc: S.configDesc });
-  configSheet.body.appendChild(config.el);
 
   const panes: Record<string, HTMLElement> = {
     run: run.el,
@@ -154,7 +152,7 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     events: events.el,
     runlog: runlog.el,
     data: dataSheet.el,
-    config: configSheet.el,
+    config: config.el,
   };
 
   /** 每次进入某个子页要做的事。进来才拉数据——没打开的页不该占网络。 */

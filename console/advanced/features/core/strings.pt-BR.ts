@@ -15,8 +15,6 @@ export const S: Partial<typeof en> = {
   groupMaintain: 'Manter',
   dataTitle: 'Dados do Core',
   dataDesc: 'Armazenamento que o Core acumula por conta própria: o armazenamento de eventos, a sessão, os logs de execução e o registro de uso.',
-  configTitle: 'Configuração do Core',
-  configDesc: 'As alterações são salvas automaticamente em config.json. As configurações marcadas para reinício valem após reiniciar; as demais valem na hora.',
   configEmpty: 'O Core não tem configurações ajustáveis.',
   netOffline: 'API inacessível',
 

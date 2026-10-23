@@ -15,8 +15,6 @@ export const S: Partial<typeof en> = {
   groupMaintain: '維護',
   dataTitle: 'Core 的資料',
   dataDesc: '事件庫、session、執行日誌、用量流水這些 Core 自己累積的儲存。',
-  configTitle: 'Core 設定',
-  configDesc: '修改自動儲存到 config.json。標有重新啟動要求的設定在重新啟動後生效,其餘立即生效。',
   configEmpty: 'Core 沒有可調設定。',
   netOffline: '介面無法連線',
 
