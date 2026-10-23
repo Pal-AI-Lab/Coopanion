@@ -62,7 +62,6 @@ export const S: Partial<typeof en> = {
   varUnreportedShort: 'Variável não fornecida',
   varEmptyShort: '(vazio neste momento; usa o texto padrão)',
   leaveUnsavedNamed: (names: string) => `Há alterações não salvas em modelos (${names}). Sair e descartá-las?`,
-  editableTemplate: 'modelo editável',
   cardDescDefault: 'Salvo no arquivo de origem; vale para a sessão atual após recarregar o prefixo de sistema.',
   loadedFromDeployment: 'Esta é a sua versão editada.',
   loadedFromPackage: 'Esta é a versão que vem com o Coo; salvar passa a usar a sua versão.',

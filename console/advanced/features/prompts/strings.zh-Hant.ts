@@ -62,7 +62,6 @@ export const S: Partial<typeof en> = {
   varUnreportedShort: '未提供此變數',
   varEmptyShort: '(此刻為空,會落到預設文案)',
   leaveUnsavedNamed: (names: string) => `有未儲存的範本變更（${names}）。離開並放棄？`,
-  editableTemplate: '可編輯範本',
   cardDescDefault: '儲存到來源檔案；重新載入系統前綴後對目前 session 生效。',
   loadedFromDeployment: '目前是你修改過的版本。',
   loadedFromPackage: '目前是 Coo 內建的版本；儲存後改用你的版本。',

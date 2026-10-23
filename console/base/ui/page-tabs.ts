@@ -1,7 +1,5 @@
 /**
- * Page tabs: the bar that switches between the views of one page (配置 / 提示词模板 / 工具表, 运行诊断's sub-pages).
- * It sits between two rules; the current view's label is larger and darker, with a theme-coloured line under it
- * that moves to the next label on a switch. Picking among options inside a view stays `ui.segmented`.
+ * Page tabs switch between the views of one page; a choice among options inside a view stays `ui.segmented`.
  *
  * The line is the bar's `::after`, placed through `--tab-x` / `--tab-w`; the bar carries `data-line` while a
  * current label is laid out, and `data-line="ready"` once it may animate (the first placement does not).
@@ -11,8 +9,6 @@
 export interface PageTabItem {
   value: string;
   label: string;
-  /** A small heading shown before the first tab of each group. */
-  group?: string;
 }
 
 export interface PageTabs {
@@ -30,15 +26,7 @@ export function pageTabs(
   el.className = 'pagetabs';
   const tabs: Array<{ value: string; btn: HTMLButtonElement; text: HTMLSpanElement }> = [];
   let current = opts.value ?? '';
-  let group: string | undefined;
   for (const item of items) {
-    if (item.group && item.group !== group) {
-      const head = doc.createElement('span');
-      head.className = 'pagetabs-group';
-      head.textContent = item.group;
-      el.appendChild(head);
-    }
-    group = item.group;
     const btn = doc.createElement('button');
     btn.type = 'button';
     btn.className = 'pagetab';

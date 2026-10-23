@@ -68,7 +68,6 @@ export const S: Partial<typeof en> = {
   varUnreportedShort: 'Переменная не передана',
   varEmptyShort: '(сейчас пусто; используется текст по умолчанию)',
   leaveUnsavedNamed: (names: string) => `Есть несохранённые изменения шаблонов (${names}). Уйти и отменить их?`,
-  editableTemplate: 'редактируемый шаблон',
   cardDescDefault: 'Сохраняется в исходный файл; для текущей сессии вступает в силу после перезагрузки системного префикса.',
   loadedFromDeployment: 'Это ваша изменённая версия.',
   loadedFromPackage: 'Это версия, встроенная в Coo; при сохранении будет использоваться ваша.',

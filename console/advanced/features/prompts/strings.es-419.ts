@@ -62,7 +62,6 @@ export const S: Partial<typeof en> = {
   varUnreportedShort: 'Variable no proporcionada',
   varEmptyShort: '(vacío en este momento; se usa el texto predeterminado)',
   leaveUnsavedNamed: (names: string) => `Hay cambios sin guardar en plantillas (${names}). ¿Salir y descartarlos?`,
-  editableTemplate: 'plantilla editable',
   cardDescDefault: 'Se guarda en el archivo de origen; se aplica a la sesión actual tras recargar el prefijo del sistema.',
   loadedFromDeployment: 'Esta es tu versión editada.',
   loadedFromPackage: 'Esta es la versión incluida con Coo; al guardar se usa tu propia versión.',

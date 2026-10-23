@@ -62,7 +62,6 @@ export const S: Partial<typeof en> = {
   varUnreportedShort: 'この変数は提供されていません',
   varEmptyShort: '（現在は空のため、既定の文面になります）',
   leaveUnsavedNamed: (names: string) => `保存していないテンプレートの変更があります（${names}）。破棄して移動しますか？`,
-  editableTemplate: '編集可能なテンプレート',
   cardDescDefault: 'ソースファイルに保存します。システムプレフィックスを再読み込みすると現在のセッションに反映されます。',
   loadedFromDeployment: 'あなたが編集した版です。',
   loadedFromPackage: 'Coo 組み込みの版です。保存するとあなたの版に切り替わります。',

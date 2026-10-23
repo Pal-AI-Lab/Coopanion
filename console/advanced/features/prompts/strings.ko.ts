@@ -62,7 +62,6 @@ export const S: Partial<typeof en> = {
   varUnreportedShort: '제공되지 않은 변수',
   varEmptyShort: '(지금은 비어 있어 기본 문구가 쓰임)',
   leaveUnsavedNamed: (names: string) => `저장하지 않은 템플릿 변경 사항이 있습니다(${names}). 버리고 나가시겠습니까?`,
-  editableTemplate: '편집 가능한 템플릿',
   cardDescDefault: '소스 파일에 저장됩니다. 시스템 프리픽스를 다시 불러오면 현재 세션에 적용됩니다.',
   loadedFromDeployment: '직접 수정한 버전입니다.',
   loadedFromPackage: 'Coo 기본 제공 버전입니다. 저장하면 직접 수정한 버전으로 바뀝니다.',

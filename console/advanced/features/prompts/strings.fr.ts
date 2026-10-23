@@ -62,7 +62,6 @@ export const S: Partial<typeof en> = {
   varUnreportedShort: 'Variable non fournie',
   varEmptyShort: '(vide pour le moment ; utilise le texte par défaut)',
   leaveUnsavedNamed: (names: string) => `Des modifications de modèles ne sont pas enregistrées (${names}). Quitter et les abandonner ?`,
-  editableTemplate: 'modèle modifiable',
   cardDescDefault: 'Enregistré dans le fichier source ; prend effet pour la session actuelle après un rechargement du préfixe système.',
   loadedFromDeployment: 'Ceci est votre version modifiée.',
   loadedFromPackage: 'Ceci est la version fournie avec Coo ; enregistrer passe à votre propre version.',

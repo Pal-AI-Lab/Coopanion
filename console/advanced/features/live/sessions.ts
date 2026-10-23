@@ -158,7 +158,8 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
   /** 量出放得下几张,摆好;`animate` 时已在场的卡从旧位置滑到新位置,新来的淡入。 */
   const layout = (animate: boolean): void => {
     const before = new Map<string, number>();
-    if (animate) for (const [id, card] of cards) if (card.isConnected) before.set(id, card.getBoundingClientRect().left);
+    // 只记行里的卡:浮窗里的卡没有可比的位置,从浮窗回到行里的卡按新来的淡入
+    if (animate) for (const [id, card] of cards) if (card.parentElement === el) before.set(id, card.getBoundingClientRect().left);
 
     const all = list.map((s) => ({ s, card: cardOf(s) }));
     // 全部先放进来量宽度

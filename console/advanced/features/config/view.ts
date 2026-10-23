@@ -340,7 +340,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
   const el = ui.h('div', 'configview');
   const body = ui.h('div');
   const bar = ui.actions();
-  // 修改前写明会自动保存；保存后这一行换成结果。
+  // 保存之前这一行说明修改会自动保存,保存后换成结果。
   const msg = ui.msgline(S.autoSaves);
   msg.classList.add('is-hint');
   bar.append(msg, ui.h('span', 'grow'));
@@ -407,7 +407,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
         ));
         return;
       }
-      // 每组一节，行与「习惯」页同样式：左栏名称，右栏设置，说明贴在设置下面；开关项画成开关。
+      // 每组一节;行沿用「习惯」页的 companion-row。
       for (const { group, values } of groups) {
         const card = ui.sheet({ title: group.schema.title || group.id, ...(group.schema.description ? { desc: group.schema.description } : {}) });
         if (showOwner) card.el.querySelector('h3')!.appendChild(ui.h('span', 'ttag', OWNER_LABEL[group.owner] || group.owner));
@@ -415,14 +415,13 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
           const row = ui.h('div', 'companion-row configrow');
           const label = ui.h('div', 'companion-label', prop.title || path);
           const control = ui.h('div', 'companion-control');
-          // 设置本身和「重启生效」标签同一行，标签在设置右边。
           const line = ui.h('div', 'configline');
           control.appendChild(line);
           let read: (() => ConfigValue) | null;
           if (prop.type === 'boolean') {
             const box = ui.checkbox('', { checked: !!(values || {})[path], onChange: () => queueSave(group.id) });
             box.input.setAttribute('aria-label', prop.title || path);
-            // 与「习惯」页的开关同一个外框,画成开关而不是勾选框
+            // companion-switchbox 把勾选框画成开关
             line.classList.add('companion-switchbox');
             line.appendChild(box.el);
             read = () => box.checked;

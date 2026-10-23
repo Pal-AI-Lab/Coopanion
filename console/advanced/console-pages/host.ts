@@ -232,20 +232,10 @@ export class ConsolePageHost {
     const storage = this.storageOf(page);
     const tools = this.toolsTabOf(page);
     // 没指定页签时回到上次停留的那个(仍存在的话)；每次落到某个页签都记下来。
-    const tabIds = [
-      ...panels.map((p) => p.id),
-      ...(configGroups.length ? [PROVIDER_CONFIG_ROUTE] : []),
-      ...(prompts.length ? [PROVIDER_PROMPTS_ROUTE] : []),
-      ...(storage.length ? [PROVIDER_STORAGE_ROUTE] : []),
-      ...(tools ? [PROVIDER_TOOLS_ROUTE] : []),
-    ];
+    const tabIds = this.tabsOf(page).map((t) => t.value);
     const memoKey = `tab:${pageId}`;
     const last = this.deps.memo.get<string>(memoKey, '');
-    const wanted = panelId ?? (tabIds.includes(last) ? last : undefined) ?? panels[0]?.id
-      ?? (configGroups.length ? PROVIDER_CONFIG_ROUTE : undefined)
-      ?? (prompts.length ? PROVIDER_PROMPTS_ROUTE : undefined)
-      ?? (storage.length ? PROVIDER_STORAGE_ROUTE : undefined)
-      ?? (tools ? PROVIDER_TOOLS_ROUTE : undefined);
+    const wanted = panelId ?? (tabIds.includes(last) ? last : tabIds[0]);
     if (wanted && tabIds.includes(wanted)) this.deps.memo.set(memoKey, wanted);
     if (wanted === PROVIDER_CONFIG_ROUTE && configGroups.length) {
       this.renderChrome(pageId, PROVIDER_CONFIG_ROUTE);
@@ -418,6 +408,18 @@ export class ConsolePageHost {
   }
 
   /** Persona 页才有工具表页签,且要部署挂着 /api/tool-schemas。 */
+  /** 这一页的页签,依次是面板、配置、提示词模板、数据清理、工具表(有的才列)。 */
+  private tabsOf(page: WebUiPageManifest): Array<{ value: string; label: string }> {
+    const prompts = asArray(page.prompts);
+    return [
+      ...tabbed(page).map((p) => ({ value: p.id, label: p.title || p.id })),
+      ...(this.configGroupsOf(page).length ? [{ value: PROVIDER_CONFIG_ROUTE, label: S.configTab }] : []),
+      ...(prompts.length ? [{ value: PROVIDER_PROMPTS_ROUTE, label: prompts.length === 1 ? prompts[0]!.title : S.promptsTab }] : []),
+      ...(this.storageOf(page).length ? [{ value: PROVIDER_STORAGE_ROUTE, label: S.storageTab }] : []),
+      ...(this.toolsTabOf(page) ? [{ value: PROVIDER_TOOLS_ROUTE, label: S.toolsTab }] : []),
+    ];
+  }
+
   private toolsTabOf(page: WebUiPageManifest): boolean {
     if (page.kind !== 'persona' || page.availability !== 'active') return false;
     return this.snapshot?.framework?.capabilities?.toolSchemas !== false;
@@ -554,15 +556,7 @@ export class ConsolePageHost {
       return;
     }
 
-    const panels = tabbed(page);
-    const prompts = asArray(page.prompts);
-    const items = [
-      ...panels.map((p) => ({ value: p.id, label: p.title || p.id })),
-      ...(this.configGroupsOf(page).length ? [{ value: PROVIDER_CONFIG_ROUTE, label: S.configTab }] : []),
-      ...(prompts.length ? [{ value: PROVIDER_PROMPTS_ROUTE, label: prompts.length === 1 ? prompts[0]!.title : S.promptsTab }] : []),
-      ...(this.storageOf(page).length ? [{ value: PROVIDER_STORAGE_ROUTE, label: S.storageTab }] : []),
-      ...(this.toolsTabOf(page) ? [{ value: PROVIDER_TOOLS_ROUTE, label: S.toolsTab }] : []),
-    ];
+    const items = this.tabsOf(page);
     // 页头里画的字段与页签都没变时才复用整个页头。
     const key = JSON.stringify([items, page.label, page.kind, page.availability, page.lamps, page.badges, page.agentVisible, page.prefixDrifted, page.reason, page.links]);
     if (this.tabs && this.tabs.pageId === pageId && this.tabs.key === key && chrome.contains(this.tabs.bar.el)) {

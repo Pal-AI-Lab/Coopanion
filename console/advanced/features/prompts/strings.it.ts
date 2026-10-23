@@ -62,7 +62,6 @@ export const S: Partial<typeof en> = {
   varUnreportedShort: 'Variabile non fornita',
   varEmptyShort: '(vuoto in questo momento; ricade sul testo predefinito)',
   leaveUnsavedNamed: (names: string) => `Ci sono modifiche ai template non salvate (${names}). Uscire e scartarle?`,
-  editableTemplate: 'template modificabile',
   cardDescDefault: 'Salvato nel file sorgente; ha effetto sulla sessione attuale dopo il ricaricamento del prefisso di sistema.',
   loadedFromDeployment: 'Questa è la tua versione modificata.',
   loadedFromPackage: 'Questa è la versione fornita con Coo; salvando passi alla tua versione.',

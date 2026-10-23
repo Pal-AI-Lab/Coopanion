@@ -29,7 +29,7 @@ import { icon } from '../../../base/ui/icons.ts';
 import { promptInput } from '../../../base/ui/prompt-input.tsx';
 import { createOnboarding, type OnboardingView } from './onboarding.ts';
 import { createSessionBand } from './sessions.ts';
-import { applyDisplayName, createStatusBand, phaseLabel } from './status.ts';
+import { applyDisplayName, createConnectionButton, createStatusBand, phaseLabel } from './status.ts';
 import { S } from './strings.ts';
 import { createTimeline } from './timeline.ts';
 import type { UsageAggregate } from '../../../features/cost/types.ts';
@@ -156,11 +156,8 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   };
 
   const summary = ui.h('div', 'live-summary');
-  const connection = ui.button('', { onClick: () => ctx.router.navigate(state.status?.modelConnection ? ['providers', state.status.modelConnection.name] : ['providers']) });
-  connection.className = 'live-connection';
-  const connectionValue = ui.h('span', 'live-connection-value');
-  connection.append(ui.h('span', 'live-connection-label', S.currentProvider), connectionValue);
-  // 今日花费:`/api/usage` 部署时区的今天;usage 没挂载(totals 为 null)或取不到时不显示。点开去「用量与成本」
+  const connection = createConnectionButton(ui, (name) => ctx.router.navigate(name ? ['providers', name] : ['providers']));
+  // 今日花费:`/api/usage` 部署时区的今天;usage 没挂载(totals 为 null)或取不到时不显示。
   const cost = ui.button('', { onClick: () => ctx.router.navigate(['usage']) });
   cost.className = 'live-cost';
   cost.hidden = true;
@@ -191,18 +188,15 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   ctx.signal.addEventListener('abort', () => { clearInterval(costTimer); clearTimeout(costSoon); }, { once: true });
   void loadCost();
 
-  // 第一行:运行状态与 token 读数在左;模型供应商、今日花费、连线状态在右。
-  // 第二行:各会话,左边一个小标题,最右端导出诊断
-  // 右边三项成一组靠右;一行放不下时这组整体换到下一行,仍靠右,不与左边叠在一起
+  // 右边三项是一组:放不下时整组换行
   const right = ui.h('div', 'live-summary-right');
-  right.append(connection, cost, netEl);
+  right.append(connection.el, cost, netEl);
   summary.append(status.el, right);
   const sessions = ui.h('div', 'live-sessions');
   sessions.append(ui.h('span', 'live-sessions-label', S.sessionsLabel), sessionBand.el);
   band.append(summary, sessions);
 
   const exportButton = ui.button('', {
-    size: 'sm',
     onClick: () => {
       void exportDiagnostics({ ui, doc, signal: ctx.signal }).catch((err: unknown) => {
         ui.toast(S.exportFailed, 'bad');
@@ -210,10 +204,8 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
       });
     },
   });
-  exportButton.className += ' btn-ico';
   exportButton.className = 'live-export';
   exportButton.append(icon(doc, 'download'), ui.h('span', null, S.exportDiagnostics));
-  // 会话那一行的最右端
   sessions.appendChild(exportButton);
 
   const composer = promptInput(doc, ctx.signal, {
@@ -333,10 +325,8 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   const setStatus = (st: StatusSnapshot | null): void => {
     state.status = st;
     status.render(st, mainStat());
-    const current = st?.modelConnection;
-    connectionValue.textContent = current ? `${current.name} · ${current.model ?? '—'}` : S.noProvider;
-    connection.title = current ? `${current.moduleTitle} (${current.module})\n${current.baseUrl}` : S.noProvider;
-    providerReady = current?.ready === true;
+    connection.render(st);
+    providerReady = st?.modelConnection?.ready === true;
     syncPlaceholder();
     onboarding?.setProvider(providerReady);
     if (st && applyDisplayName(doc, st.displayName, state.displayName)) {

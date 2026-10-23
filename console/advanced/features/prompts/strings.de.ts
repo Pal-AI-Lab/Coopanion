@@ -62,7 +62,6 @@ export const S: Partial<typeof en> = {
   varUnreportedShort: 'Variable nicht bereitgestellt',
   varEmptyShort: '(gerade leer; fällt auf den Standardtext zurück)',
   leaveUnsavedNamed: (names: string) => `Es gibt ungespeicherte Vorlagenänderungen (${names}). Verlassen und verwerfen?`,
-  editableTemplate: 'bearbeitbare Vorlage',
   cardDescDefault: 'Wird in der Quelldatei gespeichert; gilt für die aktuelle Session nach einem Neuladen des Systempräfixes.',
   loadedFromDeployment: 'Das ist deine bearbeitete Fassung.',
   loadedFromPackage: 'Das ist die mit Coo gelieferte Fassung; Speichern wechselt zu deiner eigenen.',

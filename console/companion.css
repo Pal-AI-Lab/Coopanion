@@ -30,12 +30,10 @@ body.companion-sidebar { display: flex; height: 100dvh; overflow: hidden; }
 .is-collapsed .companion-brand-tail { opacity: 0; transform: translateX(-18px); }
 
 .companion-sidebar-tools { position: relative; display: flex; align-items: center; margin-top: 8px; min-height: 36px; padding: 9px 0; transition: margin-top var(--rail-motion); }
-/* the lines above and below the row drawn as at the foot around 已暂停: the upper one across the whole rail, the lower
-   one inset as the line under the foot's buttons (16px from each side; the row itself sits 18px in) */
+/* the same two lines as around the foot's buttons: the upper across the rail, the lower 16px in (the row sits 18px in) */
 .companion-sidebar-tools::before, .companion-sidebar-tools::after { content: ''; position: absolute; height: 1px; background: var(--border); }
 .companion-sidebar-tools::before { top: 0; left: -18px; right: -18px; }
 .companion-sidebar-tools::after { bottom: 0; left: -2px; right: -2px; }
-/* back and forward from the left, the fold button at the right end; folded, only it is left, in the middle */
 .companion-sidebar-tools > .companion-sidebar-toggle { margin-left: auto; }
 /* a new release's link under the version: a little more room before the button, so the two lines of links do not run into it */
 #rail:not(.is-collapsed) .companion-brand-meta:has(.release-hint) + .companion-sidebar-tools { margin-top: 14px; }
@@ -43,7 +41,6 @@ body.companion-sidebar { display: flex; height: 100dvh; overflow: hidden; }
 .companion-release { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--rail-motion); }
 .companion-release > div { min-height: 0; overflow: hidden; }
 .is-collapsed .companion-release { grid-template-rows: 0fr; }
-/* the row's icon buttons; the name of each is its tooltip */
 .companion-sidebar-toggle {
   display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: none; padding: 0;
   border: 0; border-radius: 9px; background: transparent; color: var(--muted-foreground); cursor: pointer;
@@ -217,18 +214,16 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
   overflow: hidden; scrollbar-gutter: stable both-edges; border-bottom: 0;
   padding: 12px var(--page-gutter) 10px;
 }
-/* the band's line sits in the same column as the heading above and the timeline below */
 .liveview > .liveband > * { width: 100%; max-width: var(--content-width); margin-inline: auto; }
 .tlscroll { scrollbar-gutter: stable both-edges; padding-left: var(--page-gutter); padding-right: var(--page-gutter); }
 .tlinner, .tlthink { max-width: var(--content-width); }
-/* the composer: as wide as 对话's, the same column as the heading and the timeline */
+/* the composer sits as on 对话 (.chat-dock): the content width, a solid box over a band that fades the timeline out */
 .liveview > .prompt-input-host {
   left: 0; right: 0; width: auto; transform: none; pointer-events: none;
   padding-left: calc(var(--page-gutter) + 10px); padding-right: calc(var(--page-gutter) + 10px);
+  background: linear-gradient(to top, var(--paper) 55%, transparent);
 }
 .liveview > .prompt-input-host > * { max-width: var(--content-width); margin-inline: auto; pointer-events: auto; }
-/* as on 对话: a solid box over a band that fades the timeline out behind it */
-.liveview > .prompt-input-host { background: linear-gradient(to top, var(--paper) 55%, transparent); }
 .liveview > .prompt-input-host > form { background: var(--surface); }
 
 /* ---------- the rail's foot: the run state in words, both states in color ---------- */
