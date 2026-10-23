@@ -22,7 +22,7 @@
  *   bounds (`set({ bounds })` from the page changes what `host.bounds()` returns, then calls it); `do(word)`, `walk(x, run, id)`,
  *   `move({ to, run, params }, id)` (one of the manifest's `moves`, its `params` by id as the World checked them),
  *   `stopWalk(id)` (a walk's or a move's), `pointer(type, p)`, `drop(p)`, `shift(dx, dy)`, `place(x, facing)`,
- *   `set(state)`, `cue(kind)`, `talk()`, `setScheme(id, { fade })`, `z` (the colour of its sleep z's),
+ *   `set(state)`, `visual(state)`, `cue(kind)`, `talk()`, `setScheme(id, { fade })`, `z` (the colour of its sleep z's),
  *   `words` (every word `do` knows; the kit's bodies list theirs, and the manifest's words not in it are
  *   kept from the bot) and `dispose()`. Only `step`, `layout` and `do` are required.
  * - events (`emit`): `arrived` and `interrupted` ({ walkId, x, by }) for `walk` and `move` (`by`: a short word on what
@@ -99,6 +99,7 @@ addEventListener('message', async (e) => {
       await body.setScheme?.(m.id, { fade: m.fade });
       post({ t: 'scheme', seq: m.seq, z: body.z ?? null });
     } else if (m.t === 'do') body.do(m.word);
+    else if (m.t === 'visual') body.visual?.(m.state);
     else if (m.t === 'walk') { if (!body.walk?.(m.x, m.run, m.id)) events.push({ kind: 'interrupted', detail: { walkId: m.id, by: 'busy' } }); }
     else if (m.t === 'move') { if (!body.move?.(m.args, m.id)) events.push({ kind: 'interrupted', detail: { walkId: m.id, by: 'busy' } }); }
     else if (m.t === 'stop-walk') body.stopWalk?.(m.id);

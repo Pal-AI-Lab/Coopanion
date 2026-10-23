@@ -16,6 +16,7 @@ import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
 import { COO_CSS, PALETTES, mini, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
+import { boxBottomY, createOnlinePeers } from './online.js';
 import { accentColors, announcePainted, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
 
@@ -76,6 +77,13 @@ else ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, ()
 let below = 0;
 const floorGap = () => (host ? 2 + below : 48);
 const bounds = () => ({ W: innerWidth, H: innerHeight, floorY: innerHeight - floorGap(), S: .42 * prefs.scale });
+const onlinePeers = createOnlinePeers({
+  layer: $('#onlineLayer'),
+  bounds,
+  theme: () => prefs.theme,
+  onError: (err) => console.error('[online]', err),
+});
+let onlineActive = false;
 /**
  * The body on screen (body-host.js), null until the first one is ready, and the words it does (its pack's
  * vocab, by id). `T` is the page's clock, in seconds of frames drawn.
@@ -91,6 +99,7 @@ host?.onFloor?.((px) => { below = px; body?.set({ bounds: bounds() }); });
 host?.onWindows?.((list) => body?.setLedges(list));
 addEventListener('resize', () => {
   body?.set({ bounds: bounds() });
+  onlinePeers.resize();
   // the World reads walk targets and drop spots against the stage the pet is on now
   send({ t: 'hello', screen: { w: innerWidth, h: innerHeight } });
 });
@@ -230,7 +239,52 @@ function reportPosition() {
   const x = l.x / innerWidth;
   if (sentX !== null && Math.abs(x - sentX) * innerWidth < 1) return;
   sentX = x;
-  send({ t: 'position', x });
+  send({ t: 'position', x, y: bodyY(), dragging: dragging(), facing: l.facing });
+}
+
+/** The bottom centre's offset from the floor as a share of stage height; 0 at rest. */
+function bodyY() {
+  const b = at()?.box;
+  return b ? Math.max(-2, Math.min(2, (boxBottomY(b) - (innerHeight - floorGap())) / innerHeight)) : 0;
+}
+
+function dragging() {
+  const l = at();
+  return !!l?.pressing || l?.mode === 'drag' || l?.mode === 'air';
+}
+
+/** At most one position frame each 20 Hz server tick. */
+let onlineSentAt = 0;
+function reportOnlinePosition(force = false) {
+  const l = at();
+  if (!onlineActive || watching || !l) return;
+  const now = performance.now();
+  if (!force && now - onlineSentAt < 45) return;
+  onlineSentAt = now;
+  send({ t: 'online-position', x: l.x / innerWidth, y: bodyY(), dragging: dragging(), facing: l.facing });
+}
+
+function reportOnlineBehavior(behavior) {
+  if (onlineActive && !watching) send({ t: 'online-behavior', behavior });
+}
+
+let lastOnlineAction = '';
+let lastOnlineActionAt = -Infinity;
+function reportOnlineAction(action, kind = 'action') {
+  if (!onlineActive || watching || !action) return;
+  const now = performance.now();
+  if (action === lastOnlineAction && now - lastOnlineActionAt < 40) return;
+  lastOnlineAction = action;
+  lastOnlineActionAt = now;
+  reportOnlineBehavior({ kind, action });
+}
+
+function applyOnlineState(state) {
+  const entering = !onlineActive && state?.active === true;
+  onlineActive = state?.active === true;
+  if (entering) reportOnlineAction(at()?.mode ?? 'idle', 'state');
+  onlinePeers.setState(state);
+  reportOnlinePosition(true);
 }
 
 /** The skin as the config has it while a dialog card dresses the body in another (`tryOn`); null otherwise. */
@@ -256,9 +310,9 @@ function applyPrefs(p) {
   if (typeof p.sound === 'boolean') { prefs.sound = p.sound; sfx.set(p.sound); }
   if (p.sounds && typeof p.sounds === 'object') sfx.configure({ kinds: p.sounds, snoreSeconds: p.sounds.snoreSeconds });
   if (p.speech && typeof p.speech === 'object') speech.configure(p.speech);
-  if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); modeBtn?.show(p.theme); body?.set({ theme: p.theme }); }
+  if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); modeBtn?.show(p.theme); body?.set({ theme: p.theme }); onlinePeers.setTheme(); }
   if (typeof p.glow === 'number') prefs.glow = p.glow;
-  if (typeof p.scale === 'number') { prefs.scale = p.scale; body?.set({ bounds: bounds() }); }
+  if (typeof p.scale === 'number') { prefs.scale = p.scale; body?.set({ bounds: bounds() }); onlinePeers.resize(); }
   if (typeof p.bubbleSize === 'number') { prefs.bubbleSize = p.bubbleSize; sizeVar('--bubble-size', p.bubbleSize); }
   if (typeof p.fontSize === 'number') { prefs.fontSize = p.fontSize; sizeVar('--bubble-font', p.fontSize); }
   if (typeof p.bubbleSpeed === 'number') prefs.bubbleSpeed = p.bubbleSpeed;
@@ -276,6 +330,7 @@ function applyPrefs(p) {
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
   if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead(); }
+  if (p.online) applyOnlineState(p.online);
   if (typeof p.language === 'string' && p.language !== language()) void switchLanguage(p.language);
   if ('status' in p) setStatus(p.status);
   refreshButtons();
@@ -319,6 +374,10 @@ function onOrder(m) {
     case 'dialog': queue.push({ kind: 'dialog', id: m.id, d: m }); holdRoam(20); break;
     case 'dialog-update': updateDialog(m); break;
     case 'dialog-close': endDialog(m.id); break;
+    case 'online': applyOnlineState(m.online); break;
+    case 'online-peer': onlinePeers.upsert(m.peer); break;
+    case 'online-remove': onlinePeers.remove(m.id); break;
+    case 'online-behavior': onlinePeers.behavior(m.id, m.behavior); break;
   }
 }
 
@@ -340,7 +399,15 @@ function onBody(kind, d) {
     send({ t: 'touch', ...d });
     if (d.kind === 'grab') closeMenu();
   } else if (kind === 'mode') {
+    const mode = String(d.mode ?? '');
+    if (['idle', 'walk', 'run', 'look', 'sit', 'sleep', 'wake', 'land', 'dizzy', 'dance', 'drag'].includes(mode)) reportOnlineAction(mode, 'state');
     reportPosition();
+  } else if (kind === 'word' && typeof d.word === 'string') {
+    reportOnlineAction(d.word);
+  } else if (kind === 'expression' && typeof d.expression === 'string') {
+    reportOnlineAction(d.expression);
+  } else if (kind === 'cue' && typeof d.cue === 'string') {
+    reportOnlineBehavior({ kind: 'cue', cue: d.cue });
   } else if (kind === 'done') {
     // a word that ends on its own (a walk across the screen) lets the next one start at once
     if (d.word === actWord) actUntil = T;
@@ -352,7 +419,10 @@ function walk(m) {
   holdRoam(20);
   if (!body) { send({ t: 'interrupted', walkId: m.id, x: .5, by: 'none' }); return; }
   walkTargets.set(m.id, true);
-  if (m.t === 'move') { body.move(m.move, m.id); return; }
+  if (m.t === 'move') {
+    body.move(m.move, m.id);
+    return;
+  }
   const x = m.to === 'cursor' ? (pointerSeen ? lastPointer.x : innerWidth / 2) : clamp(Number(m.to), 0, 1) * innerWidth;
   body.walk(x, !!m.run, m.id);
 }
@@ -775,7 +845,9 @@ function stepTalkMotion() {
   if (!talk.motion || it.pinX === undefined || !l || l.busy || T < talk.next || l.mode !== 'idle') return;
   const home = it.pinX, R = Math.min(TALK_RANGE, innerWidth * .25);
   if (talk.motion === 'still') {
-    if (Math.abs(l.x - home) > 30) body.walk(home, false, 0);
+    if (Math.abs(l.x - home) > 30) {
+      body.walk(home, false, 0);
+    }
     talk.next = T + 1;
     return;
   }
@@ -783,7 +855,8 @@ function stepTalkMotion() {
   if (run && Math.random() < .3 && words.has('hop')) { body.do('hop'); talk.next = T + .5; return; }
   // to the other side of the bubble each time, so every move is plain to see
   const x = l.x < home ? home + R * (.4 + Math.random() * .6) : home - R * (.4 + Math.random() * .6);
-  body.walk(clamp(x, 40, innerWidth - 40), run, 0);
+  const next = clamp(x, 40, innerWidth - 40);
+  body.walk(next, run, 0);
   talk.next = T + (run ? .1 : 1.2 + Math.random() * 1.2);
 }
 
@@ -1445,8 +1518,10 @@ stage.addEventListener('pointerdown', (e) => {
   if (e.button !== 0) return;
   closeMenu();
   const p = { x: e.clientX, y: e.clientY, t: e.timeStamp };
+  const hit = !!body?.hit(p);
+  if (hit) reportOnlineBehavior({ kind: 'interrupt' });
   body?.pointer('down', p);
-  if (body?.hit(p)) { pressing = true; stage.setPointerCapture(e.pointerId); e.preventDefault(); }
+  if (hit) { pressing = true; stage.setPointerCapture(e.pointerId); e.preventDefault(); }
 });
 const up = (e) => { pressing = false; body?.pointer('up', { x: e?.clientX ?? lastPointer.x, y: e?.clientY ?? lastPointer.y, t: e?.timeStamp ?? performance.now() }); stage.style.cursor = ''; };
 /**
@@ -1735,6 +1810,8 @@ function frame(now) {
     stepStatus();
     setBody({ dialogOpen: !!item || !!listen.phase });
     body?.tick(dt);
+    onlinePeers.tick(dt);
+    reportOnlinePosition();
     stepBackdrop(dt);
     stepTools();
     layout(dt);
@@ -1755,5 +1832,5 @@ function frame(now) {
   if (full) requestAnimationFrame(frame);
   else setTimeout(() => requestAnimationFrame(frame), Math.max(0, dueAt - gap / 4 - performance.now()));
 }
-addEventListener('pagehide', reportPosition);
+addEventListener('pagehide', () => { reportPosition(); reportOnlinePosition(true); });
 requestAnimationFrame(frame);

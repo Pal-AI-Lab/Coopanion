@@ -1,0 +1,49 @@
+.online-form {
+  display: grid;
+  gap: 10px 12px;
+  align-items: end;
+}
+
+.online-grow {
+  max-width: 360px;
+}
+
+.online-connect {
+  grid-template-columns: minmax(180px, 1fr) minmax(100px, 150px) max-content;
+}
+
+.online-connect .field {
+  min-width: 0;
+}
+
+.online-connect > .btn {
+  min-height: 36px;
+}
+
+.online-statusline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.online-statustext {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.online-statusline + .msgline {
+  margin-top: -2px;
+}
+
+@media (max-width: 720px) {
+  .online-connect {
+    grid-template-columns: minmax(0, 1fr) 110px;
+  }
+
+  .online-connect > .btn {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}

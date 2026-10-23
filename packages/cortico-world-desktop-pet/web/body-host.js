@@ -153,6 +153,8 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
 
     const body = {
       pack: pack.id,
+      /** False once the frame timed out, failed or was disposed. */
+      get alive() { return !gone; },
       get layout() { return layout; },
       get z() { return z; },
       /** The words of the pack's vocabulary its body said it knows, or null when it did not say. */
@@ -161,6 +163,8 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
       hit: (p) => onBody(layout, p),
       tick(dt) { if (ready) post({ t: 'tick', dt }); },
       do: (word) => post({ t: 'do', word }),
+      /** Applies a visual mode or expression reported by another player. */
+      visual: (state) => post({ t: 'visual', state }),
       walk: (x, run, id) => post({ t: 'walk', x, run, id }),
       /** One of the pack's own targets, `{ to, run, params }` as the World checked it. */
       move: (args, id) => post({ t: 'move', args, id }),

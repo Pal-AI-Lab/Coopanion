@@ -87,6 +87,11 @@ export const KIT_EXPRESSIONS = ['neutral', 'happy', 'wink', 'love', 'shy', 'surp
   'smug', 'pout', 'worried', 'determined', 'flustered', 'scared', 'excited', 'cry', 'confused'];
 export const KIT_MOTIONS = ['stand', 'jump', 'hop', 'look', 'turn', 'nod', 'shake', 'spin', 'sit', 'sleep', 'dizzy', 'walk', 'run',
   'wave', 'bow', 'shiver', 'flap', 'dance'];
+/** Motions a remote body may play directly; jump, walk and the like come from position samples. */
+export const REMOTE_SAFE_MOTIONS = new Set(['stand', 'look', 'turn', 'nod', 'shake', 'spin', 'sit', 'sleep', 'dizzy',
+  'wave', 'bow', 'shiver', 'dance']);
+/** Body modes another player can replay without running this body's pointer or physics simulation. */
+export const REMOTE_POSED_MODES = new Set(['idle', 'walk', 'run', 'look', 'sit', 'sleep', 'wake', 'land', 'dizzy', 'dance', 'drag']);
 /** The tone each face plays as it comes on (the host's synthesized sounds, web/sound.js), filed as a face sound. */
 const FACE_TONES = {
   happy: 'happy', wink: 'wink', love: 'love', surprised: 'surprised', angry: 'angry', sad: 'sad', shy: 'shy', sleepy: 'yawn',
@@ -145,7 +150,7 @@ export function createPet(els, opts) {
     eyeSig: '', eyeCur: null, eyePrev: null, eyeDims: [[16, 16, 0, 0], [16, 16, 0, 0]], swapAge: 9,
     glance: [0, 0], glanceAt: 0, swing: 0, swingV: 0, prevA: null, velX: 0, talkK: 0, sfxAt: 0, skid: false, cue: 0,
     pulse: null, walkId: 0, walkWord: null, listening: false, thinking: false, thoughtShown: false, placed: false, noteAt: 0, tearN: 0,
-    cursor: '',
+    cursor: '', remoteHold: false, remoteMove: false,
   };
   const pointer = { x: -1e4, y: -1e4, inside: false, vx: 0, samples: [] };
   let press = null, strokeAcc = 0, petCool = 0;
@@ -239,11 +244,74 @@ export function createPet(els, opts) {
         if (m.sound) play(m.sound, 'move');
       }
     }
+    onEvent('word', { word: a });
     return true;
   }
   function pulse(kind, dur) { pet.pulse = { kind, t0: T, dur }; }
   /** A motion's own face, without the expression's sound and bounce (act() has just cleared any held face). */
   function holdFace(n, seconds) { pet.expr = n; pet.exprUntil = T + seconds; pet.nextAt = Math.max(pet.nextAt, pet.exprUntil + .6); }
+
+  function clearRemotePose() {
+    pet.remoteHold = false;
+    pet.remoteMove = false;
+  }
+
+  /** Applies a body mode reported by another player. Locomotion stays visually active while x/y arrive. */
+  function remoteState(action) {
+    if (!REMOTE_POSED_MODES.has(action)) return false;
+    if (action === 'idle') {
+      interrupt();
+      return true;
+    }
+    clearRemotePose();
+    pet.expr = null;
+    if (action === 'drag') {
+      pet.remoteHold = true;
+      setMode('drag', { dx: pet.x, dy: Math.max(0, floorY - 220 * S) });
+    } else if (action === 'walk' || action === 'run') {
+      pet.remoteMove = true;
+      setMode(action, { target: pet.x + pet.facing * 1000, walkId: 0 });
+    } else if (action === 'wake') {
+      setMode('wake', { startle: false });
+    } else if (action === 'land') {
+      setMode('land');
+    } else {
+      setMode(action, action === 'sit' ? { dur: 1e9, willSleep: false }
+        : action === 'sleep' ? { dur: 1e9 }
+          : action === 'dance' ? { dur: 3.2 } : {});
+    }
+    return true;
+  }
+
+  /** Stops whatever the remote copy was showing and puts it back on its feet without touching this stage's pointer. */
+  function interrupt() {
+    clearRemotePose();
+    pet.pulse = null;
+    pet.expr = null;
+    pet.exprUntil = 0;
+    pet.walkId = 0;
+    pet.walkWord = null;
+    pet.speed = 0;
+    pet.dx = 0;
+    pet.dy = 0;
+    if (pet.mode !== 'idle') setMode('idle');
+  }
+
+  /** Applies a visual action from another player. Unknown words and unsafe local physics leave the body as it was. */
+  function visualState(state) {
+    const action = typeof state?.action === 'string' ? state.action : '';
+    if (!action) return false;
+    if (remoteState(action)) return true;
+    if (KIT_EXPRESSIONS.includes(action) || words[action]?.expression) {
+      setExpr(action);
+      return true;
+    }
+    if (REMOTE_SAFE_MOTIONS.has(action) || words[action]?.motion) {
+      clearRemotePose();
+      return act(action);
+    }
+    return false;
+  }
 
   function setExpr(n, seconds) {
     if (n === 'sleep') { act('sleep'); return; }
@@ -256,6 +324,7 @@ export function createPet(els, opts) {
     }
     if (n === 'dizzy') { pet.expr = null; setMode('dizzy'); return; }
     if (pet.mode === 'look' || pet.mode === 'land') setMode('idle');
+    onEvent('expression', { expression: n });
     const own = words[n]?.expression;
     pet.expr = n; pet.exprUntil = T + (seconds ?? own?.seconds ?? (n === 'sleepy' ? 4.4 : 3.2));
     pet.nextAt = Math.max(pet.nextAt, pet.exprUntil + .6);
@@ -390,7 +459,8 @@ export function createPet(els, opts) {
         if (leanT < 0 && !pet.skid) { pet.skid = true; play('skid', 'move'); }
         const ramp = Math.min(1, mt / (run ? .35 : .25));
         pet.speed = lerp(pet.speed, vT * smooth(ramp), ease(run ? 6 : 9, dt));
-        pet.x += dir * Math.min(dist, pet.speed * dt);
+        // A remote walk moves from the synchronized x/y stream; this body only supplies the gait.
+        if (!pet.remoteMove) pet.x += dir * Math.min(dist, pet.speed * dt);
         const k = clamp(pet.speed / vMax, 0, 1);
         strideT *= .4 + .6 * k; liftT *= .4 + .6 * k;
         pet.phase += Math.PI * 2 * rate * dt * Math.max(.35, k);
@@ -401,7 +471,7 @@ export function createPet(els, opts) {
           if (run && pet.speed > 120) dustAt(128, dist < 50 ? 3 : 1, 20);
         }
         pet.lastHalf = half;
-        if (dist < 1.5) {
+        if (!pet.remoteMove && dist < 1.5) {
           pet.speed = 0;
           const id = pet.walkId; pet.walkId = 0;
           setMode('idle'); pet.nextAt = T + rnd(1.2, 3.2);
@@ -500,10 +570,15 @@ export function createPet(els, opts) {
         break;
       }
       case 'drag': {
-        pet.dx = lerp(pet.dx, pointer.x, ease(28, dt));
-        pet.dy = lerp(pet.dy, Math.min(pointer.y, floorY - 245 * S), ease(28, dt));
-        tiltT = clamp(pointer.vx * .035, -40, 40); tk = 90; tc = 5;
-        if (Math.abs(pointer.vx) > 500 && T > pet.sfxAt) { play('squeak', 'touch'); pet.sfxAt = T + rnd(.4, .7); }
+        if (pet.remoteHold) {
+          pet.dx = pet.x;
+          pet.dy = Math.max(0, floorY - 220 * S);
+        } else {
+          pet.dx = lerp(pet.dx, pointer.x, ease(28, dt));
+          pet.dy = lerp(pet.dy, Math.min(pointer.y, floorY - 245 * S), ease(28, dt));
+          tiltT = clamp(pointer.vx * .035, -40, 40); tk = 90; tc = 5;
+          if (Math.abs(pointer.vx) > 500 && T > pet.sfxAt) { play('squeak', 'touch'); pet.sfxAt = T + rnd(.4, .7); }
+        }
         break;
       }
     }
@@ -829,6 +904,19 @@ export function createPet(els, opts) {
   return {
     pet, step, render, resize, act, setExpr, doWord, walkTo, stopWalk, toStage, hitPet, busy, layout,
     pointerDown, pointerMove, pointerUp, pointerLeave, dropAt, shiftDrag,
+    remoteState, visualState, interrupt,
+    /** Moves a remote copy from synchronized stage coordinates without giving it local pointer control. */
+    remotePlace(x, facing) {
+      const lo = minX(), hi = maxX();
+      pet.x = clamp(x, lo, hi);
+      if (pet.remoteMove) pet.target = pet.x + (facing === -1 ? -1 : 1) * 1000;
+      else pet.target = pet.x;
+      if (facing === 1 || facing === -1) pet.facing = pet.faceVis = facing;
+      if (pet.remoteHold) {
+        pet.dx = pet.x;
+        pet.dy = Math.max(0, floorY - 220 * S);
+      }
+    },
     get pressing() { return !!press; },
     /** Pressed, carried, airborne, walking, running, dancing, turning round, or in a short gesture (nod, wave, bow…): motion that frames far apart show as jumps. */
     get moving() {
@@ -917,6 +1005,12 @@ export function createBody(host, opts) {
     layout: ctl.layout,
     resize: ctl.resize,
     do: ctl.doWord,
+    /** Applies a visual state from another player without taking part in this body's own input. */
+    visual(state) {
+      if (!state || typeof state !== 'object') return;
+      ctl.visualState(state);
+    },
+    interrupt: ctl.interrupt,
     words: [...KIT_EXPRESSIONS, ...KIT_MOTIONS, ...Object.keys(opts.words ?? {}).filter((w) => opts.words[w]?.expression || opts.words[w]?.motion)],
     walk: (x, run, id) => ctl.walkTo(x, run, id),
     stopWalk: (id) => ctl.stopWalk(id),
@@ -930,6 +1024,7 @@ export function createBody(host, opts) {
     shift: ctl.shiftDrag,
     /** Puts a body that is standing at stage x, turned to `facing` (1 right, -1 left). */
     place(x, facing) {
+      if (ctl.pet.remoteHold || ctl.pet.remoteMove) { ctl.remotePlace(x, facing); return; }
       if (ctl.pet.mode === 'drag' || ctl.pet.mode === 'air') return;
       const { minX, maxX } = ctl.bounds;
       ctl.pet.x = ctl.pet.target = clamp(x, minX, maxX);
@@ -947,6 +1042,7 @@ export function createBody(host, opts) {
     },
     /** The page's own moments: a talk key tapped (`perk`), speech heard (`heard`), an answer sent (`cheer`), a dress pick (`bounce`). */
     cue(kind) {
+      onEvent('cue', { cue: kind });
       if (kind === 'perk') { ctl.pet.sqv += .6; ctl.setExpr('surprised', .5); }
       else if (kind === 'heard') ctl.pet.sqv += .9;
       else if (kind === 'cheer') ctl.setExpr('happy');

@@ -119,7 +119,7 @@ cpSync(join(WINDOW, 'index.html'), join(WINDOW_OUT, 'index.html'));
 const slash = (path: string) => relative(WINDOW_OUT, path).split(sep).join('/');
 const windowEntry = join(WINDOW_OUT, 'tailwind.entry.css');
 writeFileSync(windowEntry, [
-  ...['styles.css', 'features/home/home.css', 'features/chat/chat.css', 'companion.css'].map((f) => `@import "${slash(join(WINDOW, f))}";`),
+  ...['styles.css', 'features/home/home.css', 'features/online/online.css', 'features/chat/chat.css', 'companion.css'].map((f) => `@import "${slash(join(WINDOW, f))}";`),
   `@source "${slash(WINDOW)}";`,
   `@source "${slash(join(pet, 'src', 'webui'))}";`,
   '',

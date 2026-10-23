@@ -82,8 +82,16 @@ body.desk .floor{display:none}
 /* the body's sandboxed frame: transparent (a colour scheme unlike the frame's would give it a backdrop) and never under the pointer */
 .figure-layer{position:absolute; inset:0; pointer-events:none}
 /* the frame's window onto the stage: body-host cuts it down to the body's surroundings while the halo is on */
-.figure-layer .figure-clip{position:absolute; inset:0; pointer-events:none}
-.figure-layer iframe{position:absolute; inset:0; width:100%; height:100%; border:0; background:transparent; color-scheme:normal; pointer-events:none}
+.figure-layer .figure-clip, .online-layer .figure-clip{position:absolute; inset:0; pointer-events:none}
+.figure-layer iframe, .online-layer iframe{position:absolute; inset:0; width:100%; height:100%; border:0; background:transparent; color-scheme:normal; pointer-events:none}
+.online-layer{position:absolute; inset:0; pointer-events:none}
+.online-figure{position:absolute; inset:0; pointer-events:none; will-change:transform}
+.online-name{
+  position:absolute; z-index:2; transform:translateX(-50%); max-width:160px; padding:2px 7px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:999px;
+  background:color-mix(in srgb, var(--surface) 88%, transparent); color:var(--muted);
+  font:600 11px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; box-shadow:0 2px 7px var(--shadow);
+}
 
 
 /* activity borrows the speech bubble, but never takes the pointer or competes with dialogue */

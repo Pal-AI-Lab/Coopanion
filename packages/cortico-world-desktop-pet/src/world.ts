@@ -56,6 +56,7 @@ import type { Answer } from './cua/engine-ipc.ts';
 import { PackImporter } from './pack-import.ts';
 import { dressTable, planSettings, type SettingChange } from './self.ts';
 import { MODEL_TEXT, type ModelLanguage, type ModelText } from './model-text.ts';
+import { OnlineRoom, type OnlineBehavior } from './online.ts';
 
 /** The console panels, titled in `language`. */
 function desktopPetPanelDecls(language: Language = 'zh'): WorldPanelDecl[] {
@@ -354,6 +355,10 @@ export class DesktopPetWorld implements World {
   private prefsTimer: NodeJS.Timeout | null = null;
   /** Where the pet window last said the pet stands, measured as `petX` is; written by `savePosition` on stop. */
   private standX: number | null = null;
+  /** The normalized point the pet page last reported; x is also used by the remembered position. */
+  private standY = 0;
+  private standDragging = false;
+  private standFacing: 1 | -1 = 1;
   private readonly voiceSockets = new Set<WorldStreamSocket>();
   private lastLevelAt = 0;
   private readonly heard: HeardLine[] = [];
@@ -392,6 +397,7 @@ export class DesktopPetWorld implements World {
 
   /** Installs packs the dressing page sends, when the app named a directory for them. */
   private readonly importer: PackImporter | null;
+  private readonly online: OnlineRoom;
 
   constructor(private readonly opts: DesktopPetWorldOptions) {
     this.cfg = opts.cfg;
@@ -432,6 +438,18 @@ export class DesktopPetWorld implements World {
       overlay: () => this.cfg.window.exportOverlay,
       speech: (text) => this.speechText.units(text, this.appLanguage),
     });
+    this.online = new OnlineRoom({
+      snapshot: () => this.onlineSnapshot(),
+      onPageState: (online) => { this.server.sendPet({ t: 'online', online }); },
+      onPeer: (peer) => { this.server.sendPet({ t: 'online-peer', peer }); },
+      onRemove: (id) => { this.server.sendPet({ t: 'online-remove', id }); },
+      onBehavior: (id, behavior) => { this.server.sendPet({ t: 'online-behavior', id, behavior }); },
+    });
+  }
+
+  private onlineSnapshot(): { x: number; y: number; dragging: boolean; facing: 1 | -1; skin: PetSkin } {
+    const x = this.standX ?? this.cfg.petX ?? .7;
+    return { x, y: this.standY, dragging: this.standDragging, facing: this.standFacing, skin: this.cfg.skin };
   }
 
   /* ---------- figures ---------- */
@@ -663,6 +681,7 @@ export class DesktopPetWorld implements World {
     for (const s of this.voiceSockets) s.close('stopped');
     this.voiceSockets.clear();
     this.chat.closeAll('stopped');
+    await this.online.stop();
     await this.windowHost?.stop();
     await this.funasr?.stop();
     await this.whisper?.stop();
@@ -871,6 +890,7 @@ export class DesktopPetWorld implements World {
       statusBubble: this.cfg.statusBubble,
       saidBubbles: this.cfg.saidBubbles,
       bot: this.botInfo(),
+      online: this.online.pageState(),
     };
   }
 
@@ -899,6 +919,7 @@ export class DesktopPetWorld implements World {
   private prefsSignature(): string {
     const s = this.snapshot();
     delete s.status;
+    delete s.online;
     // a talk key that opens the microphone sends each change by itself (setMicHeld): the signature keeps only that it does
     if (this.micOnPress()) s.mic = 'press';
     return JSON.stringify(s);
@@ -1074,6 +1095,20 @@ export class DesktopPetWorld implements World {
       case 'prefs': return this.savePrefs(msg);
       case 'position': {
         if (typeof msg.x === 'number' && Number.isFinite(msg.x)) this.standX = Math.min(1, Math.max(0, msg.x));
+        if (typeof msg.y === 'number' && Number.isFinite(msg.y)) this.standY = Math.min(2, Math.max(-2, msg.y));
+        this.standDragging = msg.dragging === true;
+        this.standFacing = msg.facing === -1 ? -1 : 1;
+        return;
+      }
+      case 'online-position': {
+        if (typeof msg.x === 'number' && Number.isFinite(msg.x)) this.standX = Math.min(1, Math.max(0, msg.x));
+        if (typeof msg.y === 'number' && Number.isFinite(msg.y)) this.standY = Math.min(2, Math.max(-2, msg.y));
+        this.standDragging = msg.dragging === true;
+        this.standFacing = msg.facing === -1 ? -1 : 1;
+        return;
+      }
+      case 'online-behavior': {
+        this.online.sendBehavior(msg.behavior as OnlineBehavior);
         return;
       }
       case 'devices': {
@@ -1938,6 +1973,10 @@ export class DesktopPetWorld implements World {
           this.opts.controls.guide();
           return this.petState();
         }
+        case 'onlineState': return this.online.uiState();
+        case 'createOnlineRoom': return this.online.create(args[0], args[1], args[2]);
+        case 'joinOnlineRoom': return this.online.join(args[0], args[1], args[2]);
+        case 'leaveOnlineRoom': return this.online.leave();
       }
     }
     if (panel === 'voice') {

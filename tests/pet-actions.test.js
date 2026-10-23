@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { createPet, FACES, KIT_EXPRESSIONS, KIT_MOTIONS, STAND } from '../packages/cortico-world-desktop-pet/web/kit/body.js';
+import { createPet, FACES, KIT_EXPRESSIONS, KIT_MOTIONS, REMOTE_POSED_MODES, REMOTE_SAFE_MOTIONS, STAND } from '../packages/cortico-world-desktop-pet/web/kit/body.js';
 import { cooFigure, defaultSkin, figure } from '../packages/cortico-world-desktop-pet/web/coo/coo.js';
 import { createSfx } from '../packages/cortico-world-desktop-pet/web/sound.js';
 import { haloRect, readLayout, touchGate } from '../packages/cortico-world-desktop-pet/web/body-host.js';
@@ -62,6 +62,52 @@ describe('the words the model can use', () => {
     }
   });
 
+  it('classifies every built-in motion as safe for remote bodies or position-driven', () => {
+    expect(KIT_MOTIONS.filter((motion) => !REMOTE_SAFE_MOTIONS.has(motion))).toEqual(['jump', 'hop', 'walk', 'run', 'flap']);
+  });
+
+  it('every remote state keeps a drawable body over the synchronized position', () => {
+    for (const action of REMOTE_POSED_MODES) {
+      const pet = barePet();
+      run(pet, .5);
+      pet.visualState({ action });
+      pet.remotePlace(800, -1);
+      run(pet, .1);
+      const box = pet.layout().box;
+      expect(box.w, action).toBeGreaterThan(0);
+      expect(box.h, action).toBeGreaterThan(0);
+      expect(Number.isFinite(box.x + box.y), action).toBe(true);
+      expect(pet.pet.mode, action).toBe(action);
+    }
+  });
+
+  it('a remote drag stays held, sleep stays asleep, and interrupt puts either back on its feet', () => {
+    const pet = barePet();
+    run(pet, .5);
+    pet.visualState({ action: 'drag' });
+    run(pet, 2);
+    expect(pet.pet.mode).toBe('drag');
+    pet.visualState({ action: 'sleep' });
+    run(pet, 12);
+    expect(pet.pet.mode).toBe('sleep');
+    pet.interrupt();
+    run(pet, .5);
+    expect(pet.pet.mode).toBe('idle');
+  });
+
+  it('replays every expression and remote-safe motion without losing the body', () => {
+    for (const action of [...KIT_EXPRESSIONS, ...REMOTE_SAFE_MOTIONS]) {
+      const pet = barePet();
+      run(pet, .5);
+      expect(pet.visualState({ action }), action).toBe(true);
+      run(pet, .1);
+      const box = pet.layout().box;
+      expect(box.w, action).toBeGreaterThan(0);
+      expect(box.h, action).toBeGreaterThan(0);
+      expect(Number.isFinite(box.x + box.y), action).toBe(true);
+    }
+  });
+
   it('a frame that took no time leaves the swing a number (#87: the whale lost her hair, tail and skirt for good)', () => {
     const pet = barePet();
     run(pet, 1);
@@ -120,6 +166,21 @@ describe('the words the model can use', () => {
     expect(Math.abs(o.lean)).toBeLessThan(.01);
     run(pet, 1);
     expect(frames.at(-1).gesture).toBeNull();
+  });
+});
+
+describe('the visual events online rooms follow', () => {
+  it('reports every accepted word, expression and posture change, including automatic actions', () => {
+    const events = [];
+    const pet = barePet((kind, detail) => events.push({ kind, detail }));
+    expect(pet.doWord('wave')).toBe(true);
+    pet.setExpr('love');
+    pet.doWord('sit');
+    expect(events).toEqual(expect.arrayContaining([
+      { kind: 'word', detail: { word: 'wave' } },
+      { kind: 'expression', detail: { expression: 'love' } },
+      { kind: 'mode', detail: { mode: 'sit' } },
+    ]));
   });
 });
 

@@ -9,6 +9,8 @@
 <body>
 <div class="floor" aria-hidden="true"></div>
 <div class="stage" id="stage">
+  <!-- other players' pets share this stage, so moving the pet window to another display carries all of them together -->
+  <div class="online-layer" id="onlineLayer"></div>
   <!-- the body (its shadow and particles too), run by its figure pack in a sandboxed frame (body-host.js) -->
   <div class="figure-layer" id="figureLayer"></div>
 </div>

@@ -33,6 +33,7 @@ export type ConsoleIconName =
   | 'home'
   | 'alert'
   | 'monitor'
+  | 'network'
   | 'cortico'
   | 'square-code'
   | 'copy'
@@ -191,6 +192,13 @@ const SHAPES: Readonly<Record<ConsoleIconName, readonly Shape[]>> = {
     ['rect', { x: '3', y: '4', width: '18', height: '12', rx: '2' }],
     ['path', { d: 'M8 20h8' }],
     ['path', { d: 'M12 16v4' }],
+  ],
+  network: [
+    ['circle', { cx: '12', cy: '5', r: '2.5' }],
+    ['circle', { cx: '5', cy: '18', r: '2.5' }],
+    ['circle', { cx: '19', cy: '18', r: '2.5' }],
+    ['path', { d: 'M12 7.5v4' }],
+    ['path', { d: 'M5 15.5v-2h14v2' }],
   ],
   calendar: [
     ['rect', { x: '3.5', y: '5', width: '17', height: '15.5', rx: '2.5' }],
