@@ -1,4 +1,5 @@
-import { itemText, type ContextRecord } from './context.ts';
+import type { ContextRecord } from 'cortico/protocol/open-responses/context.ts';
+import { itemText } from './context.ts';
 
 /** Approximate context occupancy shared by runtime and console; excludes native wire overhead. */
 export function estimateTokens(text: string): number {

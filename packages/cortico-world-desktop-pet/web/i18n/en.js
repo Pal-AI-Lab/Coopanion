@@ -44,7 +44,7 @@ export default {
   'action.soundOn': 'Sounds: on · click to turn off',
   'action.soundOff': 'Sounds: off · click to turn on',
   'action.dress': 'Dress up',
-  'action.hide': 'Hide the pet (show it again from the tray icon)',
+  'action.hide': 'Hide the pet (show Coo again from the tray icon)',
   'menu.cancel': 'Cancel',
   'menu.resume': 'Resume',
   'menu.pause': 'Pause',
@@ -96,6 +96,9 @@ export default {
 
   // the dressing page: importing figure packs
   'import.button': 'Import',
+  'import.replaceTitle': 'Replace existing figure packs?',
+  'import.replaceText': 'Replacing them deletes their existing files in the installation folder.',
+  'import.replace': 'Replace',
   'import.title': 'Import figure packs',
   'import.unloaded': 'Figure packs that did not load: {n}',
   /** Between a folder's name and the reason. */

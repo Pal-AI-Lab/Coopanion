@@ -7,7 +7,7 @@ export const S: Partial<typeof en> = {
   orientationTitle: "Règles de fonctionnement",
   orientationDesc: "Explique la continuité de la mémoire, les messages externes et les moments où garder le silence.",
   workspaceTitle: "Fichiers de travail",
-  workspaceDesc: "Liste les fichiers de Memory pour que Coo puisse retrouver ses souvenirs.",
+  workspaceDesc: "Liste les fichiers de Memory pour que Coo puisse retrouver les souvenirs.",
   memoryTitle: "Conventions de mémoire",
   memoryDesc: "Décrit l’organisation et la lecture de Memory.",
   partnerTitle: "Profil utilisateur",

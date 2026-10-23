@@ -16,6 +16,10 @@ export const S: Partial<typeof en> = {
   doing: (what: string) => `Occupé : ${what}`,
   retry: (at: string) => `Le modèle n'a pas répondu ; nouvel essai à ${at}`,
   handoff: 'Mise en ordre de la conversation précédente',
+  contextUsed: (used: string, limit: string) => `Environ ${used} / ${limit} tokens`,
+  contextTokens: (used: string) => `Environ ${used} tokens`,
+  contextLimit: (limit: string) => `La conversation précédente est mise en ordre à ${limit}`,
+  contextLast: (when: string) => `Dernière mise en ordre : ${when}`,
   paused: 'En pause · les messages arrivent à la reprise',
   queued: (bot: string) => `En file d'attente ; ${bot} le lit après cette étape`,
   queuedPaused: 'En pause ; remis à la reprise',
@@ -48,5 +52,5 @@ export const S: Partial<typeof en> = {
 export const STEP: Partial<typeof stepEn> = {
   pet_cua_screenshot: "Capture d'écran", pet_cua_click: 'Clic', pet_cua_move: 'Déplacer la souris', pet_cua_drag: 'Glisser', pet_cua_scroll: 'Défiler', pet_cua_type: 'Saisir du texte',
   pet_cua_key: 'Appuyer sur des touches', pet_cua_windows: 'Lister les fenêtres', pet_cua_focus: 'Changer de fenêtre', pet_cua_wait: 'Attendre',
-  pet_move_to: 'Marcher', pet_act: 'Bouger', pet_set: "S'ajuster", pet_quiet: 'Rester tranquille',
+  pet_move_to: 'Marcher', pet_act: 'Bouger', pet_set: 'Ajuster les réglages', pet_quiet: 'Rester tranquille',
 };

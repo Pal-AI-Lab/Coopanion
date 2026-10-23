@@ -4,7 +4,7 @@
  */
 
 /** Modifier flags of CGEventFlags, by the Windows virtual-key code of the modifier. */
-export const MAC_MODIFIERS: Record<number, { key: number; flag: number }> = {
+const MAC_MODIFIERS: Record<number, { key: number; flag: number }> = {
   0x10: { key: 0x38, flag: 0x20000 }, // shift
   0x11: { key: 0x3b, flag: 0x40000 }, // control
   0x12: { key: 0x3a, flag: 0x80000 }, // option

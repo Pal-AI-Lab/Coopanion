@@ -1,6 +1,6 @@
 /**
- * 「习惯」: the everyday settings of the desktop pet, in sections: 通用 (language, what Coo calls you,
- * the app's anonymous usage statistics in the `companion` group, core/telemetry.ts), 行为与互动, 显示,
+ * 「习惯」: the everyday settings of the desktop pet, in sections: 通用 (language, what Coo calls you, Coo's
+ * name, the app's anonymous usage statistics in the `companion` group, core/telemetry.ts), 行为与互动, 显示,
  * 音效, 电脑操作 (features/cua) and 其他 (the OBS overlay). Every row names its setting in the label column, except one that
  * only refines the row above it. In each row the setting comes first and what it means under it. An
  * on/off setting is a switch; picks among several (sound kinds, the popups) are checkboxes. Most are
@@ -16,6 +16,8 @@
  * Core gives (`/api/config/options/coopanion.language`). A change applies at once: the Core tells the
  * app, which reloads this window in the new language.
  *
+ * 「Coo 的名字」 is `displayName` in Core's config, the name the rail shows and renames.
+ *
  * 「回应模式」 (`touch.wakeOn`) and 「自主配置权限」 (`selfAdjust`) are read from the pet panel's state,
  * which gives values written by earlier versions as they now read. Their 「自定义…」 opens a popup whose
  * picks (a list, a map) `/api/config` cannot write; they are saved through the pet panel's
@@ -25,7 +27,8 @@ import { ICONS } from 'cortico-world-desktop-pet/web/ui.js';
 import { get, invokePanel, setConfig } from '../../base/api.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { intro } from '../intro.ts';
-import { cuaSection } from '../cua/index.ts';
+import { CUA_GROUP, cuaSection } from '../cua/index.ts';
+import { announceName } from '../bot-name.ts';
 import { scaleSlider } from './scale-slider.ts';
 import { S } from './strings.ts';
 
@@ -37,6 +40,10 @@ const STATS_DOC = 'https://github.com/Pal-AI-Lab/Coopanion/blob/main/docs/TELEME
 /** The app language: a key of the `companion` group, its choices from the Core. */
 const LANGUAGE_KEY = 'language';
 const LANGUAGE_OPTIONS = '/api/config/options/coopanion.language';
+/** The bot's name: a key of Core's own group; cleared, it is Coopanion's default (DISPLAY_NAME in core/seed.ts). */
+const NAME_GROUP = 'core';
+const NAME_KEY = 'displayName';
+const DEFAULT_NAME = 'Coo';
 /** The pet panel's page: its `state` gives the default name for the person in the app language and the two rows below. */
 const PET_PAGE = 'world:desktop-pet';
 const K = 'worlds.desktop-pet';
@@ -131,6 +138,8 @@ async function mount(ctx: PageContext): Promise<void> {
   }).catch(() => {});
   const user = ui.input();
   void invokePanel<{ defaultUser?: string }>(PET_PAGE, 'pet', 'state', [], opts).then((s) => { if (s?.defaultUser) user.placeholder = s.defaultUser; }).catch(() => {});
+  const botName = ui.input();
+  botName.placeholder = DEFAULT_NAME;
   const roam = ui.segmented([
     { value: 'free', label: S.roamFree }, { value: 'calm', label: S.roamCalm }, { value: 'off', label: S.roamOff },
   ], { size: 'sm', onSelect: (v) => void save(KEYS.roam, v, GROUP, behaviorMsg) });
@@ -321,6 +330,7 @@ async function mount(ctx: PageContext): Promise<void> {
   habits.body.append(
     row(S.language, language, S.languageHint),
     row(S.user, user, S.userHint),
+    row(S.botName, botName, S.botNameHint),
     row(S.statsLabel, statsBox, S.statsHint),
     msg,
   );
@@ -420,7 +430,8 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.speechSpeed, speed.box),
     speechMsg,
   );
-  root.append(sounds.el, speechSheet.el, cuaSection(ctx, row));
+  const cua = cuaSection(ctx, row);
+  root.append(sounds.el, speechSheet.el, cua.el);
 
   /* ---------- other: the OBS overlay ---------- */
   const other = ui.sheet({ title: S.groupOther });
@@ -439,16 +450,19 @@ async function mount(ctx: PageContext): Promise<void> {
 
   /* ---------- behaviour ---------- */
   const save = (key: string, value: string | number | boolean, group = GROUP, line = msg) => saveAll({ [key]: value }, group, line);
-  async function saveAll(values: Record<string, string | number | boolean>, group = GROUP, line = msg): Promise<void> {
+  /** Whether the values were saved. */
+  async function saveAll(values: Record<string, string | number | boolean>, group = GROUP, line = msg): Promise<boolean> {
     try {
       await setConfig(group, values, opts);
       // everything saves as it changes: only a failure is worth a line
       line.textContent = '';
       line.classList.remove('bad');
+      return true;
     } catch (err) {
-      if (signal.aborted) return;
+      if (signal.aborted) return false;
       line.textContent = S.saveFailed(errText(err));
       line.classList.add('bad');
+      return false;
     }
   }
   /** Calls a pet panel method (回应模式, 自主配置权限); a failure shows under 行为与互动, and the rows follow the state it returns. */
@@ -486,6 +500,14 @@ async function mount(ctx: PageContext): Promise<void> {
   };
   user.addEventListener('change', saveUser);
   user.addEventListener('keydown', (e) => { if (e.key === 'Enter') user.blur(); });
+  botName.addEventListener('change', () => {
+    const name = botName.value.trim() || DEFAULT_NAME;
+    botName.value = name;
+    if (name === botName.dataset.saved) return;
+    botName.dataset.saved = name;
+    void save(NAME_KEY, name, NAME_GROUP).then((saved) => { if (saved) announceName(name); });
+  });
+  botName.addEventListener('keydown', (e) => { if (e.key === 'Enter') botName.blur(); });
   snore.addEventListener('change', () => {
     const n = Math.round(Number(snore.value));
     if (snore.value === '' || !Number.isFinite(n) || n < 0 || n > 3600) { snore.value = snore.dataset.saved ?? '0'; return; }
@@ -500,11 +522,14 @@ async function mount(ctx: PageContext): Promise<void> {
     let values: Record<string, unknown> = {};
     let soundValues: Record<string, unknown> = {};
     let statsValues: Record<string, unknown> = {};
+    let nameValues: Record<string, unknown> = {};
     try {
       const d = await get<{ groups?: ConfigEntry[] }>('/api/config', opts);
       values = d.groups?.find((g) => g.group.id === GROUP)?.values ?? {};
       soundValues = d.groups?.find((g) => g.group.id === SOUND_GROUP)?.values ?? {};
       statsValues = d.groups?.find((g) => g.group.id === STATS_GROUP)?.values ?? {};
+      nameValues = d.groups?.find((g) => g.group.id === NAME_GROUP)?.values ?? {};
+      cua.sync(d.groups?.find((g) => g.group.id === CUA_GROUP)?.values ?? {});
     } catch { return; }
     if (typeof statsValues[STATS_KEY] === 'boolean') stats.setChecked(statsValues[STATS_KEY] as boolean);
     if (typeof statsValues[LANGUAGE_KEY] === 'string' && document.activeElement !== language) {
@@ -516,6 +541,10 @@ async function mount(ctx: PageContext): Promise<void> {
     if (typeof values[KEYS.user] === 'string' && active !== user) {
       user.value = values[KEYS.user] as string;
       user.dataset.saved = user.value;
+    }
+    if (typeof nameValues[NAME_KEY] === 'string' && active !== botName) {
+      botName.value = nameValues[NAME_KEY] as string;
+      botName.dataset.saved = botName.value;
     }
     if (typeof values[KEYS.roam] === 'string') roam.setValue(values[KEYS.roam] as string);
     if (typeof values[KEYS.scale] === 'number' && !scale.active && active !== scale.el) { scale.set(values[KEYS.scale] as number); showScale(); }

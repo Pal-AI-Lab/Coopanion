@@ -17,6 +17,7 @@ const zh = {
   protocol: '协议',
   protocolHint: '留空时,列出的服务用它自己的协议,其他地址用 responses。responses:POST <地址>/responses;chat:POST <地址>/chat/completions;anthropic:Messages API,地址填 /v1 之前的部分;gemini:Gemini API,地址填 /models 之前的部分。',
   badProtocol: (protocols: string) => `协议只能是 ${protocols}`,
+  httpRemote: "远程地址只能用 https:http 不加密，API Key 和对话会明文传输。本机和局域网的地址可以用 http。",
   chatgpt: {
     /** The sign-in section's title in the endpoint editor. */
     panel: 'ChatGPT 账号',
@@ -36,6 +37,7 @@ export const en: typeof zh = {
   protocol: 'Protocol',
   protocolHint: 'Unset: a listed service uses its own protocol, any other URL uses responses. responses: POST <URL>/responses; chat: POST <URL>/chat/completions; anthropic: the Messages API, with the URL before /v1; gemini: the Gemini API, with the URL before /models.',
   badProtocol: (protocols: string) => `The protocol must be one of ${protocols}`,
+  httpRemote: "A remote address must use https: http is not encrypted, so the API Key and the conversation would travel in plain text. Addresses on this computer or the local network may use http.",
   chatgpt: {
     panel: 'ChatGPT account',
     description: "Signs in with a ChatGPT account; requests count toward that account's ChatGPT plan.",

@@ -1,9 +1,11 @@
 /**
  * The parts of the WebUI HTTP API the settings window shares with Core: the headers and query
  * parameter that carry the window's language and the login state, and the paths of panel methods
- * and panel streams. Types of the panel contract come from Cortico (`import type` only);
+ * and panel streams, the manifest version and asset paths. Panel contract types come from Cortico
+ * (`import type` only);
  * tests/console-api.test.ts locks the routes these build.
  */
+import type { ContributingKind } from 'cortico/web/shared/webui-protocol.ts';
 import type { WebUiClientBundle, Disposable } from 'cortico/web/shared/client-panel.ts';
 
 export type { Disposable };
@@ -55,4 +57,19 @@ export type {
 export function isConsoleClientBundle(v: unknown): v is WebUiClientBundle {
   const panels = (v as { panels?: unknown } | null)?.panels;
   return !!panels && typeof panels === 'object' && !Array.isArray(panels);
+}
+
+/** The manifest version supported by the page host. */
+export const CONSOLE_PROTOCOL_VERSION = 1;
+export const CONSOLE_LAMPS_ROUTE = '/api/webui/lamps';
+
+export function pageIdFor(kind: ContributingKind, name: string): string {
+  return `${kind}:${name}`;
+}
+
+/** Asset paths stay under /assets/ and contain no traversal, encoding or query string. */
+export function isSafeAssetUrl(url: unknown): url is string {
+  if (typeof url !== 'string' || !/^\/assets\/[A-Za-z0-9._/-]+$/.test(url)) return false;
+  if (url.includes('//')) return false;
+  return !url.split('/').includes('..');
 }

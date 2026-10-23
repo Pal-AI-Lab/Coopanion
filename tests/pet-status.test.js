@@ -12,21 +12,27 @@ const pages = [];
 afterEach(() => { for (const p of pages.splice(0)) p.close(); });
 
 /** Run the actual page with a quiet socket and body; the test advances the page's frame clock. */
-function page() {
-  const dom = new JSDOM(html, { url: 'http://127.0.0.1/pet', runScripts: 'outside-only' });
+function page({ host = false, hash = '' } = {}) {
+  const dom = new JSDOM(html, { url: `http://127.0.0.1/pet${hash}`, runScripts: 'outside-only' });
   const win = dom.window;
   pages.push(win);
+  if (host) win.petHost = {};
+  const sockets = [];
   const bodyChanges = [];
   const body = {
     layout: { busy: false, facing: 1, cursor: '', bubble: { x: 500, y: 400 } },
     set: (change) => bodyChanges.push(change), cue() {}, talk() {},
   };
   win.requestAnimationFrame = () => 0;
-  win.WebSocket = class { readyState = 1; send() {} };
+  win.WebSocket = class {
+    readyState = 1;
+    constructor(url) { this.url = new URL(url); sockets.push(this); }
+    send() {}
+  };
   win.deps = {
     applyTheme: (theme) => { win.document.documentElement.dataset.theme = theme; }, clamp, f, ICONS, linked: (text, n) => linked(text, n, win.document),
     COO_CSS, mini, normalizeSkin, skinCss,
-    createSfx: () => ({ pop() {}, babble() {}, blub() {}, configure() {}, set() {}, listenStart() {}, listenEnd() {}, select() {}, tick() {} }),
+    createSfx: () => ({ unlock() {}, pop() {}, babble() {}, blub() {}, configure() {}, set() {}, listenStart() {}, listenEnd() {}, select() {}, tick() {} }),
     createSpeech: () => ({ configure() {}, begin() {}, reveal() { return false; }, stop() {}, active: false }),
     textSteps: () => 1,
     loadBody: async () => body, body,
@@ -35,8 +41,33 @@ function page() {
     lightWall() {}, dressFloor() {}, modeButton: () => ({ show() {} }), glowColor: () => null, setGlow() {}, bindAppearance() {}, announcePainted() {},
   };
   win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
-  return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document };
+  return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
+
+describe('pet page connection', () => {
+  it('uses the launch credential and reconnects a replaced desktop window', async () => {
+    const p = page({ host: true, hash: '#key=launch-credential' });
+    await expect.poll(() => p.sockets.length).toBe(1);
+    expect(p.sockets[0].url.searchParams.get('key')).toBe('launch-credential');
+    expect(p.sockets[0].url.searchParams.get('host')).toBe('window');
+    p.sockets[0].onopen();
+    p.sockets[0].onclose({ code: 4000 });
+    await expect.poll(() => p.sockets.length).toBe(2);
+    expect(p.sockets[1].url.href).toBe(p.sockets[0].url.href);
+  });
+
+  it('keeps a replaced browser tab disconnected and omits a fragment credential', async () => {
+    const p = page({ hash: '#key=unused' });
+    await expect.poll(() => p.sockets.length).toBe(1);
+    expect(p.sockets[0].url.searchParams.get('key')).toBeNull();
+    expect(p.sockets[0].url.searchParams.get('host')).toBe('tab');
+    const timers = [];
+    p.win.setTimeout = (fn) => { timers.push(fn); return 0; };
+    p.sockets[0].onclose({ code: 4000 });
+    for (const timer of timers) timer();
+    expect(p.sockets).toHaveLength(1);
+  });
+});
 const read = { kind: 'read', text: '在看', detail: '日记.md' };
 const think = { kind: 'think', text: '' };
 const show = (p, status) => p.onOrder({ t: 'status', status });

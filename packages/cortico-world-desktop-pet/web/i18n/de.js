@@ -91,6 +91,9 @@ export default {
 
   // the dressing page: importing figure packs
   'import.button': 'Importieren',
+  'import.replaceTitle': 'Vorhandene Figurenpakete ersetzen?',
+  'import.replaceText': 'Beim Ersetzen werden ihre bisherigen Dateien im Installationsordner gelöscht.',
+  'import.replace': 'Ersetzen',
   'import.title': 'Figurenpakete importieren',
   'import.unloaded': 'Nicht geladene Figurenpakete: {n}',
   'import.reason': ': {reason}',

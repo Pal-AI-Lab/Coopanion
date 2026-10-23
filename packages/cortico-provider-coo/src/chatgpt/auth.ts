@@ -40,9 +40,9 @@ export const PLAN_SCOPE = 'chatgpt.tokens.use.direct';
 const DYNAMIC_CLIENT = 'dynamic_agent_client';
 const CALLBACK_PATH = '/auth/callback';
 /** An access token with less than this left is refreshed before a request. */
-export const REFRESH_MARGIN_MS = 5 * 60_000;
+const REFRESH_MARGIN_MS = 5 * 60_000;
 /** A sign-in the browser has not come back from in this long is given up. */
-export const SIGN_IN_MS = 10 * 60_000;
+const SIGN_IN_MS = 10 * 60_000;
 /** Refresh errors after which the refresh token is no longer taken and the account has to sign in again. */
 const SIGNED_OUT_CODES = new Set(['invalid_grant', 'invalid_refresh_token', 'token_expired', 'refresh_token_expired', 'refresh_token_invalidated', 'refresh_token_reused']);
 
@@ -134,7 +134,7 @@ const decode = (part: string): Record<string, unknown> => JSON.parse(Buffer.from
  * The account an ID token names, after its RS256 signature is checked against the issuer's key set
  * and its issuer, audience (the issued client id), expiry and nonce against what was sent.
  */
-export async function verifyIdToken(token: string, opts: { service: ChatGPTService; clientId: string; nonce: string; fetchImpl: typeof fetch }): Promise<{ subject: string; email: string | null }> {
+async function verifyIdToken(token: string, opts: { service: ChatGPTService; clientId: string; nonce: string; fetchImpl: typeof fetch }): Promise<{ subject: string; email: string | null }> {
   const bad = (why: string) => new ChatGPTAuthError('invalid_id_token', `The ChatGPT identity could not be verified: ${why}`);
   const parts = token.split('.');
   if (parts.length !== 3) throw bad('not a JWT');

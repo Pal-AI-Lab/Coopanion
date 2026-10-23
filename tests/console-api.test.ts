@@ -199,6 +199,19 @@ describe('the WebUI API the settings window reads', () => {
     expect(body.modelConnection).toMatchObject({ ready: expect.any(Boolean), name: 'fixture', model: 'test-model', module: expect.any(String), moduleTitle: expect.any(String), baseUrl: 'http://127.0.0.1:9/v1' });
   });
 
+  it('status: the context count, the limits the chat page fills its ring to, and the last handoff', async () => {
+    const { body } = await json(await get('/api/status'));
+    expect(body.loop.estTokens).toEqual(expect.any(Number));
+    expect(body.loop.context.hardTokens === null || typeof body.loop.context.hardTokens === 'number').toBe(true);
+    expect(body.loop.lastTruncateAt === null || typeof body.loop.lastTruncateAt === 'string').toBe(true);
+    expect(body.loop.phase.state).toEqual(expect.any(String));
+    expect(body.context).toMatchObject({ maxTokens: expect.any(Number), softRatio: expect.any(Number) });
+    // the limits are the current config, not the values at start
+    const maxTokens = body.context.maxTokens + 1000;
+    expect((await post('/api/config', { group: 'cormini', values: { 'context.maxTokens': maxTokens } })).status).toBe(200);
+    expect((await json(await get('/api/status'))).body.context.maxTokens).toBe(maxTokens);
+  });
+
   it('capabilities: a table of booleans with the surfaces the window uses', async () => {
     const { body } = await json(await get('/api/capabilities'));
     for (const key of ['run', 'shutdown', 'storage', 'prompts']) expect(body.capabilities[key]).toBe(true);

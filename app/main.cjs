@@ -5,7 +5,8 @@
  * - the app: tray icon, the settings window (Coopanion's own front end, `build/console`, served under
  *   `/coopanion/` on the Core child's console origin in a session of its own, see serveWindow), and
  *   the Core child process (`core-host.cjs`). A start shows the pet and the tray icon only; the settings window opens from the tray, the pet's menu, or when the pet asks for
- *   a missing model key (`core/companion.ts`). Starting it again while it runs brings the pet back, or starts the
+ *   a missing model key (`core/companion.ts`). Closing the settings window ends its renderer, unless a page holds unsaved
+ *   edits, which keeps it hidden; it opens again at the route it last showed. Starting the app again while it runs brings the pet back, or starts the
  *   Core again when it stopped retrying (`failed`);
  * - `--pet-host --pet-url=… --parent-pid=…`: the desktop pet's transparent window, started by
  *   the desktop-pet World through `CORTICO_DESKTOP_PET_HOST`. It uses its own profile directory.
@@ -115,6 +116,9 @@ if (located?.ask && !PET_HOST) {
   app.whenReady().then(() => {
     if (askDataLocation(located)) app.relaunch();
     app.exit(0);
+  }).catch((err) => {
+    dialog.showErrorBox('Coopanion', String(err?.message ?? err));
+    app.exit(1);
   });
   return;
 }
@@ -276,6 +280,8 @@ const core = new CoreHost({
 });
 
 let settings = null;
+/** The route the settings window showed when it was last closed, where it opens next unless asked for another. */
+let settingsRoute = '';
 let tray = null;
 let quitting = false;
 /** The quit was asked for from the pet's update bubble: the updated app starts once installed. */
@@ -320,6 +326,11 @@ const SETTINGS_PARTITION = 'persist:coopanion-settings';
 const WINDOW_DIR = join(APP_ROOT, 'build', 'console');
 const WINDOW_PREFIX = '/coopanion/';
 const WINDOW_TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.map': 'application/json' };
+/**
+ * The window's own files run only scripts from the Core's origin, which serves the extensions' page bundles too; where its
+ * other requests may go is kept by keepRemoteOut.
+ */
+const WINDOW_CSP = "script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 const refused = () => new Response(null, { status: 403 });
 const coreOrigin = () => (core.port ? `http://127.0.0.1:${core.port}` : null);
 /** The desktop-pet World's server, as its panel reports it; asked again when a request names another origin. */
@@ -349,7 +360,7 @@ function windowFile(url) {
   try {
     const file = resolve(WINDOW_DIR, decodeURIComponent(url.pathname.slice(WINDOW_PREFIX.length)) || 'index.html');
     if (!file.startsWith(WINDOW_DIR + sep)) return new Response(null, { status: 404 });
-    return new Response(readFileSync(file), { headers: { 'content-type': WINDOW_TYPES[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store' } });
+    return new Response(readFileSync(file), { headers: { 'content-type': WINDOW_TYPES[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store', 'content-security-policy': WINDOW_CSP } });
   } catch {
     // a malformed escape, a directory, a file that is not there
     return new Response(null, { status: 404 });
@@ -462,14 +473,27 @@ function openSettings(path = '') {
   settings.once('ready-to-show', () => bringForward(settings));
   settings.on('page-title-updated', (e) => e.preventDefault());
   keepOnConsole(settings.webContents);
-  settings.on('close', (e) => {
-    if (quitting) return;
-    e.preventDefault();
-    settings.hide();
+  const win = settings;
+  let closing = false;
+  win.on('close', () => {
+    closing = true;
+    // the loading page, shown until the Core is up, has no route
+    const page = win.webContents.getURL();
+    if (page.startsWith('http://')) settingsRoute = new URL(page).hash;
+  });
+  // A page with unsaved edits (a leave guard, console/base/router.ts) refuses to unload: closing the window
+  // then hides it with the edits kept. A load the app starts itself, and a quit, go ahead.
+  win.webContents.on('will-prevent-unload', (e) => {
+    if (quitting || !closing) { e.preventDefault(); return; }
+    closing = false;
+    win.hide();
     if (MAC) app.dock?.hide();
   });
-  settings.on('closed', () => { settings = null; });
-  const url = settingsUrl(path);
+  win.on('closed', () => {
+    settings = null;
+    if (MAC && !quitting) app.dock?.hide();
+  });
+  const url = settingsUrl(path || settingsRoute);
   settings.loadURL(url ?? loadingPage(T().starting));
 }
 
@@ -477,7 +501,7 @@ function openSettings(path = '') {
 async function panel(pageId, panelId, method) {
   const url = consoleUrl(`api/webui/providers/${encodeURIComponent(pageId)}/panels/${panelId}/${method}`);
   if (!url) return null;
-  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args: [] }) });
+  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args: [] }), signal: AbortSignal.timeout(5000) });
   return res.ok ? res.json() : null;
 }
 
@@ -524,7 +548,7 @@ function refreshTray() {
   const t = T(), login = loginItem.get();
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: t.trayOpenSettings, click: () => openSettings() },
-    { label: t.trayShowPet, enabled: core.state === 'running', click: () => void showPet() },
+    { label: t.trayShowPet, enabled: core.state === 'running', click: () => void showPet().catch(() => { /* Core went away meanwhile */ }) },
     { type: 'separator' },
     { label: t.trayLaunchAtLogin, type: 'checkbox', checked: login, enabled: app.isPackaged, click: (item) => { loginItem.set(item.checked); noteAutostart(); refreshTray(); } },
     { label: t.trayRestart, click: () => void core.restart() },
@@ -581,11 +605,7 @@ core.on('state', (state, exit) => {
 
 core.on('open', (path) => openSettings(path));
 // the introduction runs again on the desktop, where Coo is
-core.on('hide', () => {
-  if (!settings) return;
-  settings.hide();
-  if (MAC) app.dock?.hide();
-});
+core.on('hide', () => settings?.close());
 core.on('quit', () => app.quit());
 const bringBack = () => {
   if (core.state === 'failed') void core.start();

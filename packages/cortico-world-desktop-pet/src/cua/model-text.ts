@@ -20,6 +20,7 @@ const zh = {
   askTimedOut: (seconds: number) => `问了使用者能不能用电脑,${seconds} 秒没有回应,这一轮不能用。`,
   refused: (level: PermissionLevel) => `使用者这一轮没有允许${level === 'ask-each-turn' ? '用电脑' : '动鼠标键盘'}。`,
   worldStopped: 'World 已停止',
+  switchedOff: '电脑操作已关闭',
   /** `code` absent: a clean exit. */
   engineExited: (code?: number | null) => (code === undefined ? '引擎进程已退出' : `引擎进程退出(退出码 ${code})`),
   engineTimeout: '引擎没有在期限内应答',
@@ -80,6 +81,8 @@ const zh = {
     return `已在 (${x}, ${y}) 滚动${parts.join('、')}。`;
   },
   typeEmpty: 'text 是空的。',
+  typeTooLong: (n: number, max: number) => `text 有 ${n} 个字，一次最多 ${max} 个。`,
+  riskRefused: '使用者没有允许这一步。',
   typedPart: (typed: number, total: number, by: 'cancel' | 'user') => `只输入了 ${typed}/${total} 个字符:${by === 'cancel' ? '收到打断' : '用户开始操作'},停了下来。`,
   typed: (total: number) => `已输入 ${total} 个字符。`,
   keyBad: (why: string) => `${why}。`,
@@ -122,6 +125,7 @@ const en: typeof zh = {
   askTimedOut: (seconds) => `Asked the person whether you may use the computer; no answer in ${seconds} seconds, so not this turn.`,
   refused: (level) => `The person did not allow ${level === 'ask-each-turn' ? 'computer use' : 'mouse and keyboard input'} this turn.`,
   worldStopped: 'The World stopped',
+  switchedOff: 'Computer use was switched off',
   engineExited: (code) => (code === undefined ? 'The engine process exited' : `The engine process exited (exit code ${code})`),
   engineTimeout: 'The engine did not answer in time',
   engineErrors: {
@@ -178,6 +182,8 @@ const en: typeof zh = {
     return `Scrolled ${parts.join(' and ')} at (${x}, ${y}).`;
   },
   typeEmpty: 'text is empty.',
+  typeTooLong: (n, max) => `text has ${n} characters; at most ${max} at a time.`,
+  riskRefused: 'The person did not allow this step.',
   typedPart: (typed, total, by) => `Typed only ${typed}/${total} characters: stopped because ${by === 'cancel' ? 'of an interrupt' : 'the person started using the computer'}.`,
   typed: (total) => `Typed ${total} character${total === 1 ? '' : 's'}.`,
   keyBad: (why) => `${why}.`,
