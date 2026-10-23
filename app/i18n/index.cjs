@@ -66,4 +66,4 @@ function textOf(language) {
   return { ...TABLES.en, ...TABLES[fallback], ...(LANGUAGES.includes(language) ? TABLES[language] : null) };
 }
 
-module.exports = { LANGUAGES, languageOfLocale, systemLanguage, configuredLanguage, textOf };
+module.exports = { LANGUAGES, systemLanguage, configuredLanguage, textOf };

@@ -86,6 +86,8 @@ export class SystemRecognizer {
   private culture = '';
   private language = '';
   private starting: Promise<void> | null = null;
+  private generation = 0;
+  private cancelStart: (() => void) | null = null;
   private readonly open = new Map<number, OpenSentence>();
   private nextId = 1;
 
@@ -125,8 +127,10 @@ export class SystemRecognizer {
   }
 
   private async doStart(): Promise<void> {
+    const generation = this.generation;
     if (this.ready) return;
-    if (this.child) await this.stop();
+    if (this.child) await this.stopChild();
+    if (generation !== this.generation) return;
     if (!systemRecognizerSupported()) {
       this.phase = 'error';
       this.detail = this.t.windowsOnly;
@@ -156,7 +160,9 @@ export class SystemRecognizer {
     child.stdin?.on('error', (err) => log.debug(`stdin: ${err.message}`));
     let ready: (ok: boolean) => void = () => {};
     const readyP = new Promise<boolean>((r) => { ready = r; });
+    this.cancelStart = () => ready(false);
     createInterface({ input: child.stdout! }).on('line', (line) => {
+      if (this.child !== child) return;
       let msg: Record<string, unknown>;
       try { msg = JSON.parse(line) as Record<string, unknown>; } catch { log.debug(line); return; }
       if (msg.ready) {
@@ -170,7 +176,11 @@ export class SystemRecognizer {
         ready(false);
       } else this.answer(msg);
     });
-    child.on('error', (err) => { this.phase = 'error'; this.detail = err.message; ready(false); });
+    child.on('error', (err) => {
+      ready(false);
+      if (this.child !== child) return;
+      this.phase = 'error'; this.detail = err.message;
+    });
     child.on('exit', (code) => {
       ready(false);
       if (this.child !== child) return;
@@ -181,9 +191,11 @@ export class SystemRecognizer {
     const timer = setTimeout(() => ready(false), READY_TIMEOUT_MS);
     const ok = await readyP;
     clearTimeout(timer);
+    if (this.child === child) this.cancelStart = null;
     if (!ok && this.child === child) {
       const detail = (this.phase as SystemPhase) === 'error' ? this.detail : this.t.notReady;
-      await this.stop();
+      await this.stopChild();
+      if (generation !== this.generation) return;
       this.phase = 'error';
       this.detail = detail;
     }
@@ -256,15 +268,25 @@ export class SystemRecognizer {
   }
 
   async stop(): Promise<void> {
+    this.generation++;
+    await this.stopChild();
+    await this.starting;
+  }
+
+  private async stopChild(): Promise<void> {
     const child = this.child;
     this.child = null;
+    this.cancelStart?.();
+    this.cancelStart = null;
     if (this.phase !== 'error') this.phase = 'stopped';
     this.failAll(this.t.stopped);
     if (!child || child.exitCode !== null) return;
     const exited = new Promise<void>((r) => child.once('exit', () => r()));
     // closing stdin ends the helper's read loop; a stuck one is killed
     child.stdin?.end();
-    const quit = await Promise.race([exited.then(() => true), new Promise<boolean>((r) => setTimeout(() => r(false), 1500))]);
+    let timer: NodeJS.Timeout | undefined;
+    const quit = await Promise.race([exited.then(() => true), new Promise<boolean>((r) => { timer = setTimeout(() => r(false), 1500); })]);
+    if (timer) clearTimeout(timer);
     if (!quit) child.kill();
   }
 }

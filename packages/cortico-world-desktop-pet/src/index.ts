@@ -9,7 +9,6 @@ export { DESKTOP_PET_DEFAULTS, SELF_KEYS, TOUCH_KINDS, USER_MAX, desktopPetConfi
 export { capFor, charCount, cutChars, petText, type PetText } from './i18n/index.ts';
 export type { DesktopPetConfigSection, PetSkin } from './config.ts';
 export { DesktopPetWorld, type ConfirmResult, type PetBotControls, type PetDialog, type PetDialogAnswer, type PetDialogHandle, type PetDialogInput, type PetDialogUpdate } from './world.ts';
-export { HOST_ENV, HOST_MAIN } from './window-host.ts';
 export { numberArg, stringArg, type DescribeTool, type PetStatus, type ToolArgs } from './status.ts';
 export { figurePacks, nameIn, type FigureManifest, type FigurePack, type FigurePreset } from './packs.ts';
 export type { ModelLanguage } from './model-text.ts';

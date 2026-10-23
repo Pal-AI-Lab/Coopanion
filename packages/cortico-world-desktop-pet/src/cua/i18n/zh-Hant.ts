@@ -9,6 +9,11 @@ const zhHant: Translation<CuaText> = {
     caption: '電腦操作',
     yes: '可以',
     no: '這次不行',
+    risky: {
+      keys: (who: string, keys: string) => `${who} 想按 ${keys}。這個組合鍵能開啟系統選單或啟動程式。可以嗎？`,
+      typeInTerminal: (who: string, window: string, text: string) => `${who} 想在命令列視窗「${window}」裡輸入：\n${text}\n輸入的內容可能作為命令執行。可以嗎？`,
+      enterInTerminal: (who: string, window: string, keys: string) => `${who} 想在命令列視窗「${window}」裡按 ${keys}，已輸入的命令會執行。可以嗎？`,
+    },
   },
 
   preflight: {
@@ -31,7 +36,7 @@ const zhHant: Translation<CuaText> = {
     group: '電腦操作',
     enabled: { title: '啟用電腦操作' },
     control: { title: '允許操作滑鼠和鍵盤', description: '關閉後只能截圖和列出視窗。' },
-    permission: { title: '詢問時機', description: 'ask-each-turn：每輪查看螢幕或操作前都詢問；ask-before-acting：查看螢幕不詢問，每輪操作滑鼠鍵盤前詢問；ask-once：查看螢幕不詢問，操作前詢問一次，同意後在「同意有效期」內不再詢問；never-ask：從不詢問。' },
+    permission: { title: '詢問時機', description: 'ask-each-turn：每輪查看螢幕或操作前都詢問；ask-before-acting：查看螢幕不詢問，每輪操作滑鼠鍵盤前詢問；ask-once：查看螢幕不詢問，操作前詢問一次，同意後在「同意有效期」內不再詢問；never-ask：從不詢問。無論選哪一檔，按下能啟動程式的組合鍵、在命令列視窗裡輸入或按 Enter 之前，都會單獨詢問。' },
     grantMinutes: { title: '同意有效期', suffix: '分鐘', description: '只對 ask-once 有效。' },
     userIdleMs: { title: '讓位時長', description: '你操作滑鼠或鍵盤後，需靜止這麼久才繼續操作。' },
     maxYieldWaitMs: { title: '讓位最多等待' },

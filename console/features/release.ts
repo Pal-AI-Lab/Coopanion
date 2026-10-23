@@ -8,7 +8,7 @@
 import { APP_CHANNEL, APP_VERSION } from '../app-version.ts';
 import { S } from './strings.ts';
 
-export const REPO_URL = 'https://github.com/Pal-AI-Lab/Coopanion';
+const REPO_URL = 'https://github.com/Pal-AI-Lab/Coopanion';
 const RELEASES_URL = `${REPO_URL}/releases/latest`;
 
 /** 更新器的一步(app/updater.cjs)。 */
@@ -23,14 +23,14 @@ const RELEASE_API = 'https://api.github.com/repos/Pal-AI-Lab/Coopanion/releases/
 /** 与 Cortico WebUI 查框架 Release 同一时限。 */
 const RELEASE_TIMEOUT_MS = 15_000;
 
-export interface ReleaseUpdate { version: string; url: string }
+interface ReleaseUpdate { version: string; url: string }
 
 function versionParts(version: string): number[] | null {
   const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(version);
   return match ? match.slice(1).map(Number) : null;
 }
 
-export function isNewer(latest: string, current: string): boolean {
+function isNewer(latest: string, current: string): boolean {
   const left = versionParts(latest);
   const right = versionParts(current);
   if (!left || !right) return false;
@@ -43,7 +43,7 @@ export function isNewer(latest: string, current: string): boolean {
 /** 一次启动只查一次;左栏换模式重建时复用同一个结果。 */
 let pending: Promise<ReleaseUpdate | null> | null = null;
 
-export function checkRelease(): Promise<ReleaseUpdate | null> {
+function checkRelease(): Promise<ReleaseUpdate | null> {
   pending ??= fetch(RELEASE_API, { headers: { Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(RELEASE_TIMEOUT_MS) })
     .then((res) => (res.ok ? res.json() as Promise<{ tag_name?: unknown; html_url?: unknown }> : null))
     .then((release) => {

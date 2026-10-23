@@ -6,10 +6,11 @@
 
 import {
   isConsoleClientBundle,
+  isSafeAssetUrl,
   type WebUiClientBundle,
   type WebUiPanel,
 } from '../../base/protocol.ts';
-import { isSafeAssetUrl, type ConsoleAssetEntry } from '../lib/web/shared/console-protocol.ts';
+import type { WebUiAssetEntry } from 'cortico/web/shared/webui-protocol.ts';
 import { S } from './strings.ts';
 
 export interface StyleLink {
@@ -51,7 +52,7 @@ export class ConsolePageLoader {
     return [...this.loaded.keys()];
   }
 
-  async load(pageId: string, asset: ConsoleAssetEntry | undefined): Promise<WebUiClientBundle> {
+  async load(pageId: string, asset: WebUiAssetEntry | undefined): Promise<WebUiClientBundle> {
     const cached = this.loaded.get(pageId);
     if (cached) return cached;
 
@@ -72,7 +73,7 @@ export class ConsolePageLoader {
 
   private async loadOnce(
     pageId: string,
-    asset: ConsoleAssetEntry | undefined,
+    asset: WebUiAssetEntry | undefined,
   ): Promise<WebUiClientBundle> {
     if (!asset) {
       throw new PanelBundleError(pageId, S.noBundle(pageId));
@@ -97,7 +98,7 @@ export class ConsolePageLoader {
   }
 
   /** 每页样式只注入一次，面板卸载时保留。 */
-  private injectStyle(pageId: string, asset: ConsoleAssetEntry): void {
+  private injectStyle(pageId: string, asset: WebUiAssetEntry): void {
     if (!asset.css || this.styled.has(pageId)) return;
     if (!isSafeAssetUrl(asset.css)) {
       this.deps.log?.(`「${pageId}」的样式地址不合法，已跳过`, { href: String(asset.css) });
@@ -115,7 +116,7 @@ export class ConsolePageLoader {
   async resolvePanel(
     pageId: string,
     panelId: string,
-    asset: ConsoleAssetEntry | undefined,
+    asset: WebUiAssetEntry | undefined,
   ): Promise<WebUiPanel> {
     const bundle = await this.load(pageId, asset);
     const panel = bundle.panels[panelId];

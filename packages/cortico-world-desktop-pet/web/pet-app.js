@@ -21,6 +21,7 @@ import { bindAppearance } from './appearance.js';
 
 const $ = (s) => document.querySelector(s);
 const host = window.petHost || null;
+const windowKey = host ? new URLSearchParams(location.hash.slice(1)).get('key') : null;
 document.body.classList.add(host ? 'desk' : 'tab');
 
 const stage = $('#stage');
@@ -98,9 +99,11 @@ addEventListener('resize', () => {
 let ws = null, backoff = 500, watching = false;
 function send(msg) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg)); }
 function connect() {
-  ws = new WebSocket(`ws://${location.host}/socket?role=pet&host=${host ? 'window' : 'tab'}`);
+  const params = new URLSearchParams({ role: 'pet', host: host ? 'window' : 'tab' });
+  if (windowKey) params.set('key', windowKey);
+  ws = new WebSocket(`ws://${location.host}/socket?${params}`);
   ws.binaryType = 'arraybuffer';
-  ws.onopen = () => { backoff = 500; send({ t: 'hello', screen: { w: innerWidth, h: innerHeight }, host: host ? 'window' : 'tab' }); reportVisibility(); };
+  ws.onopen = () => { backoff = 500; watching = false; send({ t: 'hello', screen: { w: innerWidth, h: innerHeight }, host: host ? 'window' : 'tab' }); reportVisibility(); };
   ws.onmessage = (e) => { try { onOrder(JSON.parse(e.data)); } catch (err) { console.error(err); } };
   ws.onclose = (e) => {
     ws = null;
@@ -108,7 +111,7 @@ function connect() {
     // the World gave up on these steps when the page went; it asks again once the page is back
     dropDialogs();
     setStatus(null);
-    if (e.code === 4000) return; // replaced by a newer pet page
+    if (e.code === 4000 && !host) return;
     setTimeout(connect, backoff);
     backoff = Math.min(8000, backoff * 2);
   };

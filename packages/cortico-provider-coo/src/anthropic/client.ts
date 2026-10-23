@@ -18,7 +18,7 @@ import type { CompatMediaOptions } from 'cortico/providers/transport/history.ts'
 import { sinceLastDelivery } from '../context.ts';
 import { ClaudeResponseAssembly, claudeRequest, parseClaudeMessage } from './wire.ts';
 
-export const DEFAULT_BASE_URL = 'https://api.anthropic.com';
+const DEFAULT_BASE_URL = 'https://api.anthropic.com';
 
 /** Waits before the second, third and fourth attempt. */
 const RETRY_DELAYS_MS = [1000, 4000, 10000];
@@ -59,7 +59,8 @@ export class ClaudeProvider extends BaseProvider {
   /** The SDK client; the key is checked when the first request needs it. */
   client(): Anthropic {
     if (!this.opts.apiKey) throw new LLMError('Claude 缺密钥(端点的密钥变量未设置)', 401, '');
-    this.sdk ??= new Anthropic({ apiKey: this.opts.apiKey, baseURL: this.opts.baseUrl || DEFAULT_BASE_URL, maxRetries: 0 });
+    // a redirect fails the request: the x-api-key header would follow it to the new address
+    this.sdk ??= new Anthropic({ apiKey: this.opts.apiKey, baseURL: this.opts.baseUrl || DEFAULT_BASE_URL, maxRetries: 0, fetch: (url, init) => fetch(url, { ...init, redirect: 'error' }) });
     return this.sdk;
   }
 

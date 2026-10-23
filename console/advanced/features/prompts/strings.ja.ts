@@ -5,7 +5,7 @@ export const S: Partial<typeof en> = {
   editable: "編集可能",
   readOnly: "読み取り専用",
   constitutionTitle: "人物像と行動原則",
-  constitutionDesc: "Coo の個性、話し方、行動原則を定義します。Coo 自身も編集できます。",
+  constitutionDesc: "Coo の個性、話し方、行動原則を定義します。Coo も編集できます。",
   orientationTitle: "基本動作の規則",
   orientationDesc: "記憶の継続、外部メッセージの受信、沈黙してよい場面を説明します。",
   workspaceTitle: "ワークスペースのファイル",

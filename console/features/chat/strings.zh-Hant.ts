@@ -16,6 +16,10 @@ export const S: Partial<typeof en> = {
   doing: (what: string) => `正在${what}`,
   retry: (at: string) => `模型沒有回應，${at} 重試`,
   handoff: '正在整理之前的對話',
+  contextUsed: (used: string, limit: string) => `約 ${used} / ${limit} token`,
+  contextTokens: (used: string) => `約 ${used} token`,
+  contextLimit: (limit: string) => `達到 ${limit} 時整理之前的對話`,
+  contextLast: (when: string) => `上次整理：${when}`,
   paused: '已暫停 · 訊息在繼續後送達',
   queued: (bot: string) => `排隊中，${bot} 完成目前步驟後查看`,
   queuedPaused: '已暫停，繼續後送達',
@@ -48,5 +52,5 @@ export const S: Partial<typeof en> = {
 export const STEP: Partial<typeof stepEn> = {
   pet_cua_screenshot: '截圖', pet_cua_click: '點選', pet_cua_move: '移動滑鼠', pet_cua_drag: '拖曳', pet_cua_scroll: '捲動', pet_cua_type: '打字',
   pet_cua_key: '按鍵', pet_cua_windows: '查看視窗', pet_cua_focus: '切換視窗', pet_cua_wait: '等待',
-  pet_move_to: '走動', pet_act: '做動作', pet_set: '調整自己', pet_quiet: '安靜一會兒',
+  pet_move_to: '走動', pet_act: '做動作', pet_set: '調整設定', pet_quiet: '安靜一會兒',
 };

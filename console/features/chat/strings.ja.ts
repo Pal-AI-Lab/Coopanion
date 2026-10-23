@@ -16,6 +16,10 @@ export const S: Partial<typeof en> = {
   doing: (what: string) => `作業中：${what}`,
   retry: (at: string) => `モデルが応答しませんでした。${at} に再試行します`,
   handoff: '以前の会話を整理しています',
+  contextUsed: (used: string, limit: string) => `約 ${used} / ${limit} token`,
+  contextTokens: (used: string) => `約 ${used} token`,
+  contextLimit: (limit: string) => `${limit} に達すると以前の会話を整理します`,
+  contextLast: (when: string) => `前回の整理：${when}`,
   paused: '一時停止中 · メッセージは再開後に届きます',
   queued: (bot: string) => `順番待ち。${bot} はこのステップのあとに読みます`,
   queuedPaused: '一時停止中。再開後に届きます',
@@ -48,5 +52,5 @@ export const S: Partial<typeof en> = {
 export const STEP: Partial<typeof stepEn> = {
   pet_cua_screenshot: 'スクリーンショット', pet_cua_click: 'クリック', pet_cua_move: 'マウス移動', pet_cua_drag: 'ドラッグ', pet_cua_scroll: 'スクロール', pet_cua_type: '入力',
   pet_cua_key: 'キー入力', pet_cua_windows: 'ウィンドウ一覧', pet_cua_focus: 'ウィンドウ切り替え', pet_cua_wait: '待機',
-  pet_move_to: '歩く', pet_act: '動作', pet_set: '自分を調整', pet_quiet: 'しばらく静かにする',
+  pet_move_to: '歩く', pet_act: '動作', pet_set: '設定を調整', pet_quiet: 'しばらく静かにする',
 };

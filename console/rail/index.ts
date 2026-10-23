@@ -17,6 +17,7 @@ import { buildHash, type Route, type Router } from '../base/router.ts';
 import { icon, type ConsoleIconName } from '../base/ui/icons.ts';
 import { lampRow, paintLamps } from '../base/ui/lamp.ts';
 import type { ConsoleMode } from '../features/mode.ts';
+import { onNameSaved } from '../features/bot-name.ts';
 import { mountRelease } from '../features/release.ts';
 import { sidebarBrand } from './brand.ts';
 import { L } from '../strings.ts';
@@ -416,6 +417,7 @@ export function createRail(deps: RailDeps): Rail {
     }, { signal });
     field.addEventListener('blur', () => finish(true), { signal });
   }, { signal });
+  onNameSaved(setName, signal);
   void get<{ displayName?: unknown; loop?: { paused?: unknown } } | null>('/api/status', { signal }).then((st) => {
     setName(st?.displayName);
     paused = st?.loop?.paused === true;

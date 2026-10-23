@@ -24,7 +24,7 @@ export const S: Partial<typeof en> = {
   riskLead: 'Ao ativar, o Coo vai observar sua tela e usar seu mouse e teclado. ',
   riskDanger: 'Isso pode ser muito perigoso',
   riskAfter: '; confirme que você entende o seguinte:',
-  risks: ['As capturas de tela (que podem mostrar conteúdo privado, como conversas) são enviadas ao serviço de modelo que você usa', 'O Coo pode clicar no lugar errado, digitar errado ou acabar na janela errada. Garanta sempre que você consegue acompanhá-lo e interrompê-lo a qualquer momento.', 'Não entregue ao Coo pagamentos, senhas nem nada que envolva informações sensíveis, ações no mundo real ou que não possa ser desfeito.'],
+  risks: ['As capturas de tela (que podem mostrar conteúdo privado, como conversas) são enviadas ao serviço de modelo que você usa', 'O Coo pode clicar no lugar errado, digitar errado ou acabar na janela errada. Garanta sempre que você consegue acompanhar e interromper o Coo a qualquer momento.', 'Não entregue ao Coo pagamentos, senhas nem nada que envolva informações sensíveis, ações no mundo real ou que não possa ser desfeito.'],
   riskNote: 'O Coo para sozinho quando você usa o mouse ou o teclado. Você pode desativar esta função a qualquer momento.',
   riskOk: 'Ativar',
 };

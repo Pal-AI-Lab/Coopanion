@@ -12,13 +12,13 @@ export const DEPLOYMENT = 'companion';
 export const CONSOLE_PORT = 17788;
 export const DISPLAY_NAME = 'Coo';
 /** The provider module of the app's endpoints (cortico-provider-coo). */
-export const MODULE = 'coo';
+const MODULE = 'coo';
 /** The module the endpoints of versions up to 0.1.2 name; it became `coo`. */
 const OLD_MODULE = 'deepseek';
 /** When computer use asks first (`worlds.desktop-pet.cua.permission`): new installs get it written out, so a config without it is from before and keeps the default it had. */
 const CUA_ASK = 'ask-once';
 const OLD_CUA_ASK = 'ask-each-turn';
-export const SEED_DIR = fileURLToPath(new URL('./seed/', import.meta.url));
+const SEED_DIR = fileURLToPath(new URL('./seed/', import.meta.url));
 /**
  * The self-descriptions Coo can start from, in the order the introduction offers them: Coo as it ships, four
  * after principles of Cultist Simulator, and the whale's (the GitHub build only). Each is in SEED_DIR/persona/

@@ -91,6 +91,9 @@ export default {
 
   // the dressing page: importing figure packs
   'import.button': 'Importar',
+  'import.replaceTitle': '¿Reemplazar los paquetes de personaje existentes?',
+  'import.replaceText': 'Al reemplazarlos, se eliminan sus archivos actuales de la carpeta de instalación.',
+  'import.replace': 'Reemplazar',
   'import.title': 'Importar paquetes de personaje',
   'import.unloaded': 'Paquetes de personaje que no se cargaron: {n}',
   'import.reason': ': {reason}',
@@ -124,4 +127,11 @@ export default {
   'import.cannot': 'No se puede importar',
   'import.dropOne': 'Arrastra un solo zip a la vez, o carpetas.',
   'import.readFailed': 'No se pudieron leer los archivos',
+  // the dressing page: uninstalling figure packs
+  'remove.label': 'Desinstalar {name}',
+  'remove.title': '¿Desinstalar {name}?',
+  'remove.lead': 'Se eliminan los archivos del paquete; vuelve a importarlo para usarlo. Si la mascota lo lleva puesto, vuelve a ser Coo.',
+  'remove.go': 'Desinstalar',
+  'remove.failed': 'No se pudo desinstalar',
+  'remove.done': 'Desinstalado: {name}',
 };

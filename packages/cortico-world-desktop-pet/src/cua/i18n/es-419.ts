@@ -9,6 +9,11 @@ const es419: Translation<CuaText> = {
     caption: 'Uso de la computadora',
     yes: 'Sí',
     no: 'Esta vez no',
+    risky: {
+      keys: (who: string, keys: string) => `${who} quiere presionar ${keys}. Este atajo puede abrir menús del sistema o iniciar programas. ¿Está bien?`,
+      typeInTerminal: (who: string, window: string, text: string) => `${who} quiere escribir en la ventana de terminal “${window}”:\n${text}\nLo que se escriba puede ejecutarse como un comando. ¿Está bien?`,
+      enterInTerminal: (who: string, window: string, keys: string) => `${who} quiere presionar ${keys} en la ventana de terminal “${window}”, lo que ejecuta el comando escrito ahí. ¿Está bien?`,
+    },
   },
 
   preflight: {
@@ -31,7 +36,7 @@ const es419: Translation<CuaText> = {
     group: 'Uso de la computadora',
     enabled: { title: 'Activar el uso de la computadora' },
     control: { title: 'Permitir el mouse y el teclado', description: 'Si está desactivado, solo capturas de pantalla y la lista de ventanas.' },
-    permission: { title: 'Cuándo preguntarte', description: 'ask-each-turn: antes de mirar la pantalla o actuar, en cada turno; ask-before-acting: mirar es libre, pregunta antes de usar el mouse y el teclado en cada turno; ask-once: mirar es libre, pregunta una vez antes de usar el mouse y el teclado, y un sí vale durante “Un sí dura”; never-ask: nunca pregunta.' },
+    permission: { title: 'Cuándo preguntarte', description: 'ask-each-turn: antes de mirar la pantalla o actuar, en cada turno; ask-before-acting: mirar es libre, pregunta antes de usar el mouse y el teclado en cada turno; ask-once: mirar es libre, pregunta una vez antes de usar el mouse y el teclado, y un sí vale durante “Un sí dura”; never-ask: nunca pregunta. Con cualquier opción, antes de un atajo que pueda iniciar programas y antes de escribir o presionar Enter en una terminal, pregunta cada vez.' },
     grantMinutes: { title: 'Un sí dura', suffix: 'min', description: 'Solo para ask-once.' },
     userIdleMs: { title: 'No estorbar durante', description: 'Después de que usas el mouse o el teclado, espera hasta que hayan estado quietos este tiempo.' },
     maxYieldWaitMs: { title: 'Espera máxima por ti' },
