@@ -52,11 +52,11 @@ if (PORTABLE && process.platform !== 'win32') {
 const rootPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as Record<string, unknown> & { version: string };
 const WORKSPACE = ['cortico-world-desktop-pet', 'cortico-provider-coo'];
 /**
- * Runtime dependencies: Core (express, ws), the TypeScript loader, pnpm for extension installs, the updater
+ * Runtime dependencies: Core (express, ws, undici for the per-host system proxy), the TypeScript loader, pnpm for extension installs, the updater
  * (app/updater.cjs, not in the portable build) or for Steam steamworks.js (app/steam.cjs), and the workspace packages' own.
  */
 const DEPS: Record<string, string> = {
-  express: '^4.22.3', ws: '^8.21.3', tsx: '^4.23.15', pnpm: '11.28.6',
+  express: '^4.22.3', ws: '^8.21.3', undici: '7.29.1', tsx: '^4.23.15', pnpm: '11.28.6',
   ...STEAM ? { 'steamworks.js': '0.4.0' } : PORTABLE ? {} : { 'electron-updater': '^6.8.9' },
 };
 for (const name of WORKSPACE) {

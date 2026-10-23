@@ -26,6 +26,9 @@ importers:
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
+      undici:
+        specifier: 7.29.1
+        version: 7.29.1
       ws:
         specifier: ^8.21.3
         version: 8.21.3
@@ -5405,8 +5408,7 @@ snapshots:
 
   undici@6.28.1: {}
 
-  undici@7.29.1:
-    optional: true
+  undici@7.29.1: {}
 
   undici@8.10.2: {}
 
