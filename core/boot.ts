@@ -5,6 +5,8 @@
  * Environment: `CORTICO_HOME` (deployments root) and `CORTICO_EXTENSIONS_DIR` (npm-installed
  * Worlds and providers, kept in the data directory so they survive app reinstalls and never write
  * into the program, which is read-only in a macOS .app) are set by the Electron main process.
+ * `COOPANION_SYSTEM_PROXY=1`, also set by it when there are no proxy variables of the person's own,
+ * has the Core's requests ask it for the system proxy per host (`system-proxy.ts`).
  */
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -16,6 +18,10 @@ if (!existsSync(join(CORTICO, 'src', 'core'))) {
   // a source checkout before staging; the message goes to the Core's log, read by whoever runs it from source
   console.error(`Cortico not found: ${CORTICO} (from source, run pnpm run build:cortico first)`);
   process.exit(2);
+}
+if (process.env.COOPANION_SYSTEM_PROXY === '1') {
+  const { SystemProxy, askAppProcess, installSystemProxy } = await import('./system-proxy.ts');
+  await installSystemProxy(new SystemProxy(askAppProcess()));
 }
 process.env.CORTICO_HOME ??= join(APP, 'build', 'home');
 process.env.CORTICO_EXTENSIONS_DIR ??= join(APP, 'build', 'data', 'extensions');
