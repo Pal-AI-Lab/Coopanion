@@ -112,6 +112,16 @@ it('serializes saves and keeps edits made during an apply unsaved, with usable u
   expect(root.querySelector('[role=status]').textContent).toBe(S.dirtyCount(1));
 });
 
+it('unsaved edits also hold back unloading the window, until they are saved', async () => {
+  const { button, edit } = await mount();
+  const unloadHeld = () => { const event = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(event); return event.defaultPrevented; };
+  expect(unloadHeld()).toBe(false);
+  edit('Unsaved ');
+  expect(unloadHeld()).toBe(true);
+  button(S.saveToFile).click();
+  await vi.waitFor(() => expect(unloadHeld()).toBe(false));
+});
+
 it('does not apply when a newer edit arrives during saving, and saves that edit with the new revision', async () => {
   const { button, edit } = await mount();
   saveGate = deferred();

@@ -352,26 +352,38 @@ const importDialog = (() => {
     const boxes = [...ul.querySelectorAll('input')];
     const sync = () => { go.disabled = !boxes.some((b) => b.checked); };
     for (const b of boxes) b.addEventListener('change', sync);
-    go.addEventListener('click', async () => {
+    go.addEventListener('click', () => {
       const chosen = found.filter((p) => boxes.some((b) => b.checked && b.value === p.dir));
-      // the pack on screen gets its new files the next time it loads
-      const replacing = chosen.some((p) => p.id === skin.figure);
       go.disabled = true;
-      let res;
-      try {
-        res = await (await fetch('/api/figures/import/install', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token, dirs: chosen.map((p) => p.dir) }) })).json();
-      } catch {
-        res = { error: t('import.offline') };
-      }
-      token = '';
-      if (res.error) return note(t('import.failed'), res.error);
-      dlg.close();
-      $('#saved').textContent = t('import.done', { names: chosen.map((p) => nameOf(p.name)).join(t('import.nameSep')) }) + (replacing ? t('import.replacing') : '');
-      sfx.sparkle();
-      if (replacing) { body?.dispose(); body = null; }
-      await loadPacks();
-      if (replacing) void showFigure(skin);
+      void install(chosen);
     });
+  }
+
+  async function install(chosen, replace = []) {
+    let res;
+    try {
+      res = await (await fetch('/api/figures/import/install', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token, dirs: chosen.map((p) => p.dir), replace }) })).json();
+    } catch {
+      res = { error: t('import.offline') };
+    }
+    if (res.error) return note(t('import.failed'), res.error);
+    if (res.conflicts) {
+      show(`<h2 id="importTitle" data-i18n="import.replaceTitle"></h2><p class="lead" data-i18n="import.replaceText"></p><ul></ul>
+        <div class="actions"><button class="btn" type="button" data-close data-i18n="import.cancel"></button><button class="btn primary" type="button" data-replace data-i18n="import.replace"></button></div>`);
+      const list = dlg.querySelector('ul');
+      for (const p of chosen.filter((p) => res.conflicts.includes(p.id))) list.appendChild(el('li')).textContent = `${nameOf(p.name)} (${p.id})`;
+      const go = dlg.querySelector('[data-replace]');
+      go.addEventListener('click', () => { go.disabled = true; void install(chosen, res.conflicts); });
+      return;
+    }
+    token = '';
+    dlg.close();
+    const replacing = chosen.some((p) => p.id === skin.figure);
+    $('#saved').textContent = t('import.done', { names: chosen.map((p) => nameOf(p.name)).join(t('import.nameSep')) }) + (replacing ? t('import.replacing') : '');
+    sfx.sparkle();
+    if (replacing) { body?.dispose(); body = null; }
+    await loadPacks();
+    if (replacing) void showFigure(skin);
   }
 
   $('#importZip').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) void send(f, 'application/zip'); });

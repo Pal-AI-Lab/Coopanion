@@ -256,7 +256,7 @@ const voicePanel: WebUiPanel = {
       else if (sv.phase === 'starting') srv.set(t.starting, 'busy', sv.url);
       else if (sv.phase === 'error') srv.set(t.error, 'bad', sv.detail ?? '');
       else srv.set(t.stopped, 'off', sv.url);
-      btnStart.disabled = sv?.phase === 'running' || sv?.phase === 'starting';
+      btnStart.disabled = !next.enabled || sv?.phase === 'running' || sv?.phase === 'starting';
       btnStop.disabled = sv?.phase !== 'running';
 
       const m = next.model;

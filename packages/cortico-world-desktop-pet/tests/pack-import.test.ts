@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { cp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -54,17 +54,64 @@ describe('importing figure packs', () => {
     expect(figurePacks([packDir]).packs.find((p) => p.id === 'fixture-api2')?.dir).toBe(join(packDir, 'fixture-api2'));
   });
 
-  it('replaces the installed pack with that id in whatever folder it sits, and refuses a path that climbs out', async () => {
+  it('preserves an installed pack until its replacement is approved, including a differently named folder', async () => {
     const { imp, packDir } = importer();
     await cp(FIXTURE, join(packDir, 'old-name'), { recursive: true });
+    writeFileSync(join(packDir, 'old-name', 'kept.txt'), 'original');
     const staged = await imp.stage(read(filesFromBundle(bundle(fixture('picked/')))), true);
     if ('error' in staged) throw new Error(staged.error);
     expect(staged.packs.map((p) => [p.dir, p.installed])).toEqual([['picked', '1.0.0']]);
-    await imp.install(staged.token, ['picked']);
+    expect(await imp.install(staged.token, ['picked'])).toEqual({ conflicts: ['fixture-api2'] });
+    expect(await imp.install(staged.token, ['picked'], ['another-id'])).toEqual({ conflicts: ['fixture-api2'] });
+    expect(readFileSync(join(packDir, 'old-name', 'kept.txt'), 'utf8')).toBe('original');
+    expect(readdirSync(packDir)).toEqual(['old-name']);
+    expect(await imp.install(staged.token, ['picked'], ['fixture-api2'])).toEqual({ installed: ['fixture-api2'] });
     expect(readdirSync(packDir)).toEqual(['fixture-api2']);
+    expect(readFileSync(join(packDir, 'fixture-api2', 'figure.json'), 'utf8')).toBe(readFileSync(join(FIXTURE, 'figure.json'), 'utf8'));
+  });
 
+  it('refuses a path that climbs out', async () => {
+    const { imp } = importer();
     const outside = join(tmpdir(), `climbed-${process.pid}.txt`);
     expect(await imp.stage([{ path: `../climbed-${process.pid}.txt`, bytes: strToU8('x') }], true)).toMatchObject({ error: expect.stringContaining('路径') });
     expect(existsSync(outside)).toBe(false);
+  });
+
+  it('checks all selected packs before writing and detects packs installed after staging', async () => {
+    const { imp, packDir } = importer();
+    const second = { ...JSON.parse(readFileSync(join(FIXTURE, 'figure.json'), 'utf8')), id: 'second-fixture' };
+    const files = { ...fixture('one/'), ...fixture('two/'), 'two/figure.json': strToU8(JSON.stringify(second)) };
+    const staged = await imp.stage(read(filesFromBundle(bundle(files))), true);
+    if ('error' in staged) throw new Error(staged.error);
+    expect(staged.packs.every((p) => p.installed === null)).toBe(true);
+    await cp(FIXTURE, join(packDir, 'old-name'), { recursive: true });
+    expect(await imp.install(staged.token, ['one', 'two'])).toEqual({ conflicts: ['fixture-api2'] });
+    expect(readdirSync(packDir)).toEqual(['old-name']);
+    await imp.cancel();
+    expect(await imp.install(staged.token, ['one', 'two'], ['fixture-api2'])).toHaveProperty('error');
+    expect(readdirSync(packDir)).toEqual(['old-name']);
+  });
+
+  it('requires approval before replacing an existing directory that is not a loadable pack', async () => {
+    const { imp, packDir } = importer();
+    const target = join(packDir, 'fixture-api2');
+    mkdirSync(target);
+    writeFileSync(join(target, 'kept.txt'), 'original');
+    const staged = await imp.stage(read(filesFromBundle(bundle(fixture('picked/')))), true);
+    if ('error' in staged) throw new Error(staged.error);
+    expect(await imp.install(staged.token, ['picked'])).toEqual({ conflicts: ['fixture-api2'] });
+    expect(readFileSync(join(target, 'kept.txt'), 'utf8')).toBe('original');
+    expect(await imp.install(staged.token, ['picked'], ['fixture-api2'])).toEqual({ installed: ['fixture-api2'] });
+    expect(existsSync(join(target, 'kept.txt'))).toBe(false);
+  });
+
+  it('consumes an installation token once when two installs arrive together', async () => {
+    const { imp, packDir } = importer();
+    const staged = await imp.stage(read(filesFromBundle(bundle(fixture('picked/')))), true);
+    if ('error' in staged) throw new Error(staged.error);
+    const [first, second] = await Promise.all([imp.install(staged.token, ['picked']), imp.install(staged.token, ['picked'])]);
+    expect(first).toEqual({ installed: ['fixture-api2'] });
+    expect(second).toHaveProperty('error');
+    expect(figurePacks([packDir]).packs.some((p) => p.id === 'fixture-api2')).toBe(true);
   });
 });

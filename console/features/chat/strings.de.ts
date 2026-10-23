@@ -16,6 +16,10 @@ export const S: Partial<typeof en> = {
   doing: (what: string) => `Beschäftigt: ${what}`,
   retry: (at: string) => `Das Modell hat nicht geantwortet; neuer Versuch um ${at}`,
   handoff: 'Räumt das frühere Gespräch auf',
+  contextUsed: (used: string, limit: string) => `Etwa ${used} / ${limit} Tokens`,
+  contextTokens: (used: string) => `Etwa ${used} Tokens`,
+  contextLimit: (limit: string) => `Bei ${limit} wird das frühere Gespräch aufgeräumt`,
+  contextLast: (when: string) => `Zuletzt aufgeräumt: ${when}`,
   paused: 'Pausiert · Nachrichten kommen nach dem Fortsetzen an',
   queued: (bot: string) => `In der Warteschlange; ${bot} liest es nach diesem Schritt`,
   queuedPaused: 'Pausiert; wird nach dem Fortsetzen zugestellt',
@@ -48,5 +52,5 @@ export const S: Partial<typeof en> = {
 export const STEP: Partial<typeof stepEn> = {
   pet_cua_screenshot: 'Screenshot', pet_cua_click: 'Klicken', pet_cua_move: 'Maus bewegen', pet_cua_drag: 'Ziehen', pet_cua_scroll: 'Scrollen', pet_cua_type: 'Tippen',
   pet_cua_key: 'Tasten drücken', pet_cua_windows: 'Fenster auflisten', pet_cua_focus: 'Fenster wechseln', pet_cua_wait: 'Warten',
-  pet_move_to: 'Laufen', pet_act: 'Sich bewegen', pet_set: 'Sich anpassen', pet_quiet: 'Still sein',
+  pet_move_to: 'Laufen', pet_act: 'Sich bewegen', pet_set: 'Einstellungen anpassen', pet_quiet: 'Still sein',
 };
