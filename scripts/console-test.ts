@@ -68,7 +68,9 @@ const stop = () => { core.kill(); process.exit(0); };
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
 
-const toCore = (headers: IncomingHttpHeaders): IncomingHttpHeaders => ({ ...headers, host: `127.0.0.1:${CORE_PORT}`, ...(headers.origin ? { origin: CORE_ORIGIN } : {}) });
+const PAGE_ORIGIN = `http://127.0.0.1:${PAGE_PORT}`;
+// only this page speaks with the Core's origin; a request from any other page keeps its own, and the Core refuses it
+const toCore = (headers: IncomingHttpHeaders): IncomingHttpHeaders => ({ ...headers, host: `127.0.0.1:${CORE_PORT}`, ...(headers.origin === PAGE_ORIGIN ? { origin: CORE_ORIGIN } : {}) });
 const languageScript = `<script>localStorage.setItem('cortico.console.language', ${JSON.stringify(language)})</script>`;
 
 const server = createServer((req, res) => {
