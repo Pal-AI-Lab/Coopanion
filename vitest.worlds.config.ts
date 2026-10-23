@@ -9,6 +9,8 @@ export default defineConfig({
     exclude: ['**/tests/cua/e2e/**', '**/node_modules/**'],
     env: { CORTICO_LANGUAGE: 'zh' },
     testTimeout: 20000,
+    // a busy Windows runner takes longer than the 1 s default to reach what a poll waits for
+    expect: { poll: { timeout: 10_000 } },
     pool: 'forks',
     maxWorkers: 2,
     minWorkers: 1,

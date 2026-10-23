@@ -26,7 +26,8 @@
  * `~/.config/Coopanion` (an AppImage is mounted read-only, a deb installs under /opt); from
  * source `build/data`; or `CORTICO_COMPANION_DATA`. It holds `home/` (deployment, endpoint,
  * Memory), `extensions/` (Worlds and providers installed from npm), `logs/`, `tmp/` (the process
- * temp directory), `pnpm/` (store and caches for extension installs), and the Chromium profiles.
+ * temp directory), `pnpm/` (store and caches for extension installs, in `%LOCALAPPDATA%\Coopanion` when the
+ * volume holds no junctions), and the Chromium profiles.
  *
  * On macOS the app lives in the menu bar (the Info.plist sets LSUIElement): no Dock icon, except
  * while the settings window is open, so it can be reached with Command-Tab.
@@ -40,7 +41,7 @@
 const { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
 const http = require('node:http');
 const { Readable } = require('node:stream');
-const { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, rmSync, writeFileSync } = require('node:fs');
+const { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, rmSync, symlinkSync, writeFileSync } = require('node:fs');
 const { delimiter, dirname, extname, join, resolve, sep } = require('node:path');
 const { dataDirIn, locateData, readRecord, writeRecord } = require('./data-dir.cjs');
 
@@ -228,6 +229,25 @@ const shimDir = join(__dirname, 'shims');
 const MINGIT = join(APP_ROOT, 'mingit', 'cmd');
 const petHost = app.isPackaged ? [process.execPath, '--pet-host'] : [process.execPath, APP_ROOT, '--pet-host'];
 
+/**
+ * Whether the data directory's volume holds junctions; FAT, exFAT and most network shares do not. pnpm registers each
+ * project it installs into with a link in its store, so on such a volume the store and caches live in
+ * `%LOCALAPPDATA%\Coopanion\pnpm` and node_modules hold the packages themselves.
+ */
+function dataHoldsLinks() {
+  if (process.platform !== 'win32') return true;
+  const probe = join(DATA, 'tmp', `link-probe-${process.pid}`);
+  try {
+    symlinkSync(DATA, probe, 'junction');
+  } catch {
+    return false;
+  }
+  rmdirSync(probe);
+  return true;
+}
+const LINKS = dataHoldsLinks();
+const PNPM_DIR = LINKS ? join(DATA, 'pnpm') : join(process.env.LOCALAPPDATA ?? app.getPath('temp'), 'Coopanion', 'pnpm');
+
 const core = new CoreHost({
   appRoot: APP_ROOT,
   logDir: join(userData, 'logs'),
@@ -241,12 +261,12 @@ const core = new CoreHost({
     CORTICO_START_PAUSED: '0',
     CORTICO_DESKTOP_PET_HOST: JSON.stringify(petHost),
     // pnpm keeps its store and caches in LOCALAPPDATA unless told otherwise; pnpm 11 reads the pnpm_config_ prefix
-    pnpm_config_store_dir: join(DATA, 'pnpm', 'store'),
-    pnpm_config_cache_dir: join(DATA, 'pnpm', 'cache'),
-    pnpm_config_state_dir: join(DATA, 'pnpm', 'state'),
+    pnpm_config_store_dir: join(PNPM_DIR, 'store'),
+    pnpm_config_cache_dir: join(PNPM_DIR, 'cache'),
+    pnpm_config_state_dir: join(PNPM_DIR, 'state'),
     // a portable folder is copied whole, which turns pnpm's links (absolute junctions on Windows) into plain folders an
     // extension no longer finds its dependencies through; hoisted node_modules hold the packages themselves
-    ...PORTABLE ? { pnpm_config_node_linker: 'hoisted' } : {},
+    ...PORTABLE || !LINKS ? { pnpm_config_node_linker: 'hoisted' } : {},
     // extension installs call `corepack pnpm`; the shim (corepack.cmd, or corepack on macOS) runs the bundled pnpm on this runtime.
     // The Windows build carries MinGit (scripts/pack.ts), ahead of any other git, for the history of Coo's workspace
     PATH: [shimDir, ...existsSync(MINGIT) ? [MINGIT] : [], process.env.PATH ?? ''].join(delimiter),
