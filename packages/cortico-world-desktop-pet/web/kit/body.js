@@ -132,6 +132,44 @@ export function createPet(els, opts) {
   const onEvent = opts.onEvent || (() => {});
   const words = opts.words || {};
   let W = 0, H = 0, floorY = 0, S = .42, T = 0;
+
+  /**
+   * The window tops under the pet, as `[{ y, spans: [[x0, x1], ...] }]` in stage pixels.
+   * The host gives `bounds().ledges` as `[{ x0, x1, y }]` — one segment per visible window edge,
+   * already converted against this window and clipped to its display — so grouping by height is all
+   * that is needed here, and a top made of several segments still counts as one surface.
+   */
+  function platforms() {
+    const ledges = opts.bounds().ledges;
+    if (!Array.isArray(ledges)) return [];
+    const out = [];
+    for (const l of ledges) {
+      const y = Number(l?.y), a = Number(l?.x0), b = Number(l?.x1);
+      if (!Number.isFinite(y) || !Number.isFinite(a) || !Number.isFinite(b) || b <= a) continue;
+      const last = out[out.length - 1];
+      if (last && Math.abs(last.y - y) < .5) last.spans.push([a, b]);
+      else out.push({ y, spans: [[a, b]] });
+    }
+    return out;
+  }
+
+  /** The highest window top at or below `from` under stage x; null when only the floor is there. */
+  function platformAt(x, from) {
+    let best = null;
+    for (const p of platforms()) {
+      if (!(p.y >= from - .5)) continue;
+      if (best && p.y >= best.y) continue;
+      for (const span of p.spans ?? []) {
+        if (x >= span[0] && x <= span[1]) { best = p; break; }
+      }
+    }
+    return best;
+  }
+
+  /** The first surface at or below `from` under stage x: a window top when one is there, else the floor. */
+  function groundAt(x, from) {
+    return platformAt(x, from)?.y ?? floorY;
+  }
   let roam = opts.roam ?? 'free';
   let skin = opts.skin || null;
   let hold = 0; // until T: an order from outside is in progress, free roaming waits
@@ -166,7 +204,25 @@ export function createPet(els, opts) {
     }
     pet.x = clamp(pet.x, minX(), maxX());
     pet.target = clamp(pet.target, minX(), maxX());
-    if (pet.mode !== 'air' && pet.mode !== 'drag') pet.fy = floorY;
+    if (pet.mode !== 'air' && pet.mode !== 'drag') {
+      // Whatever is under her feet decides. A top that is gone (closed, dragged away, edge covered)
+      // means she falls from where she is; a top that appears under the floor never lifts her —
+      // getting up there is the pack's own business.
+      //
+      // Following a window as it moves is left out on purpose: `ledges` arrives on the host's own
+      // sampling interval, and at that rate she lags behind the window visibly. Falling and landing
+      // on whatever is below reads better than a follower that is always a beat late.
+      if (!(pet.fy > 0)) pet.fy = floorY;
+      const under = platformAt(pet.x, pet.fy - 2);
+      if (!under) {
+        if (pet.fy < floorY - 12) { pet.vy = 0; pet.vx = 0; pet.airKind = 'drop'; setMode('air'); }
+        else pet.fy = floorY;
+      } else if (under.y > pet.fy + 12) {
+        pet.vy = 0; pet.vx = 0; pet.airKind = 'drop'; setMode('air');
+      } else if (under.y >= pet.fy - 12) {
+        pet.fy = under.y;
+      }
+    }
   }
 
   function toStage(lx, ly) {
@@ -459,6 +515,7 @@ export function createPet(els, opts) {
         break;
       }
       case 'air': {
+        const prevFy = pet.fy;
         pet.vy += 2300 * dt;
         pet.vx *= Math.exp(-dt * .4);
         pet.x += pet.vx * dt; pet.fy += pet.vy * dt;
@@ -468,7 +525,11 @@ export function createPet(els, opts) {
         sqT = -Math.min(.12, Math.abs(pet.vy) / 6000);
         tiltT = clamp(pet.vx * .025, -30, 30);
         tk = 70; tc = 8;
-        if (pet.fy >= floorY && pet.vy > 0) land();
+        if (pet.vy > 0) {
+          // land on the first surface the fall crosses, which may be a window top, not the floor
+          const surface = groundAt(pet.x, prevFy - .5);
+          if (pet.fy >= surface) { pet.landY = surface; land(); }
+        }
         break;
       }
       case 'land': {
@@ -623,7 +684,7 @@ export function createPet(els, opts) {
 
   function land() {
     const impact = pet.vy, kind = pet.airKind;
-    pet.fy = floorY; pet.vy = 0; pet.vx = 0;
+    pet.fy = pet.landY ?? floorY; pet.landY = null; pet.vy = 0; pet.vx = 0;
     pet.sqv += clamp(impact * .0024, .8, 4.5);
     play('land', 'move', kind !== 'jump' && impact > 1000);
     dustAt(128, impact > 900 ? 7 : 3, 70);
