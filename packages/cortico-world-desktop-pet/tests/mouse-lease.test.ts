@@ -11,7 +11,6 @@ interface Lease {
   tick(): void;
   release(): void;
   forget(): void;
-  state: () => { wanted: boolean; held: boolean };
 }
 const { createMouseLease } = require_('../host/mouse-lease.cjs') as {
   createMouseLease: (options: {

@@ -1,5 +1,6 @@
 ## Unreleased
 
+- `HOST_ENV` and `HOST_MAIN` are internal to the window host and no longer exported. Embedding apps configure the command with `CORTICO_DESKTOP_PET_HOST`.
 - An app can lend the bot's name as `botName()` in `desktopPetDefinition`'s assembly; it is read at each use, so the menu header, the chat page (a `bot` frame) and computer use's question follow a rename without a World restart. Without it the World keeps the name it was mounted with. `DesktopPetWorldOptions.botName` and `CuaOptions.botName` are functions now.
 - `pet_walk_to` is now `pet_move_to`, with the same `to` and `run` and an optional `params`. A bot that names the old tool has to use the new name.
 - Figure packs may declare targets of their own for it (`moves` in figure.json): the World checks the call's params against the pack and the body does the move (`move(args, id)`), reporting `arrived` or `interrupted` as walks do. The bot reads the targets in `{{pet.moves}}` and hears of added and removed ones on a figure switch. Packs without `moves`, Coo and the whale among them, behave as before.

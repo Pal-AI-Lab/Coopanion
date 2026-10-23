@@ -18,7 +18,7 @@ import type { CompatMediaOptions } from 'cortico/providers/transport/history.ts'
 import { sinceLastDelivery } from '../context.ts';
 import { ClaudeResponseAssembly, claudeRequest, parseClaudeMessage } from './wire.ts';
 
-export const DEFAULT_BASE_URL = 'https://api.anthropic.com';
+const DEFAULT_BASE_URL = 'https://api.anthropic.com';
 
 /** Waits before the second, third and fourth attempt. */
 const RETRY_DELAYS_MS = [1000, 4000, 10000];

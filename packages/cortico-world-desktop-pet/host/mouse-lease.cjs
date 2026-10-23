@@ -49,7 +49,6 @@ function createMouseLease({ getWindow, leaseMs = 1500, reassertMs = 2000, now = 
     forget() {
       held = null;
     },
-    state: () => ({ wanted, held: held === true, askedAt, appliedAt }),
   };
 }
 

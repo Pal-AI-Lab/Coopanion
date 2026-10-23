@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { functionCall, functionResult, message, record, type ContextRecord } from 'cortico/protocol/open-responses/context.ts';
 import type { StreamEvent } from 'cortico/protocol/open-responses/index.ts';
-import { ClaudeResponseAssembly, MISSING_RESULT, claudeInput, claudeRequest } from '../src/anthropic/wire.ts';
+import { ClaudeResponseAssembly, MISSING_RESULT, THINKING_BINDING_BETA, claudeInput, claudeRequest } from '../src/anthropic/wire.ts';
 
 const origin = { instance: 'c', module: 'claude', model: 'claude-haiku-5-5', compatibilityDomain: 'https://api.anthropic.com' };
 const request = { model: origin.model };
@@ -41,7 +41,7 @@ describe('claudeInput', () => {
     const on = claudeRequest(request, { context, origin, nativeSpec: { model: origin.model, thinking: true } });
     const blocks = on.params.messages.filter(m => m.role === 'assistant').map(m => (m.content as Array<{ type: string }>).map(b => b.type));
     expect(blocks).toEqual([['thinking', 'text'], ['text']]);
-    expect(on.betas).toContain('thinking-binding-controls-2026-08-01');
+    expect(on.betas).toContain(THINKING_BINDING_BETA);
     const off = claudeRequest(request, { context, origin, nativeSpec: { model: origin.model, thinking: false } });
     expect(off.params.thinking).toEqual({ type: 'disabled' });
     expect(off.params.messages.flatMap(m => (m.content as Array<{ type: string }>)).some(b => b.type === 'thinking')).toBe(false);

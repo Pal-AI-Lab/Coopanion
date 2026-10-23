@@ -9,7 +9,7 @@ import {
   type WebUiStreamHandlers,
   type Disposable,
 } from '../../base/protocol.ts';
-import { panelStreamRoute } from '../lib/web/shared/console-protocol.ts';
+import { panelStreamRoute } from '../../base/protocol.ts';
 import {
   invokePanel,
   invokePanelBinary,

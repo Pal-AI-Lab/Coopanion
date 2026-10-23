@@ -24,7 +24,7 @@ import { isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { asRecord, field, isRecord, readState, writeState } from './state-file.ts';
 
-export const TELEMETRY_URL = 'https://survey.palailab.org/v1/report';
+const TELEMETRY_URL = 'https://survey.palailab.org/v1/report';
 /** How often the day's record goes out while the app runs. */
 const SEND_MS = 30 * 60_000;
 /** Running time is counted in whole minutes. */
@@ -80,7 +80,7 @@ export interface ModelTry {
   elapsedMs?: number;
 }
 
-export interface TelemetryEvent { type: string; ts: string; [field: string]: unknown }
+interface TelemetryEvent { type: string; ts: string; [field: string]: unknown }
 
 interface Day {
   date: string;
@@ -210,8 +210,6 @@ export class Telemetry {
     this.state = readState(file, (value) => restoreState(value, fresh)) ?? fresh;
     if (this.firstRun) this.event('first_launch', {});
   }
-
-  get installId(): string { return this.state.installId; }
 
   /** Counts this start, notes extension changes, then sends now and every `SEND_MS`. */
   start(): void {
