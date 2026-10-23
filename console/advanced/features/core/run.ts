@@ -1,61 +1,61 @@
 /**
- * 运行态概览。只读——暂停/继续那颗按钮在顶栏,这里不重复一份。
+ * 运行态概览:一条与控制台顶栏同样的读数栏。只读——暂停/继续在左下角,这里不重复一份。
+ * 左边是控制台那一组(运行状态、下次提交、累计输入、缓存、条数、批次、在线);
+ * 右边是控制台没有的投递水位与本批轮数,以及当前模型供应商(点开去「模型供应商」)。
  */
 
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
-import { loopOf, type StatusSnapshot } from '../live/protocol.ts';
+import { loopOf, type SessionStat, type StatusSnapshot } from '../live/protocol.ts';
+import { createStatusBand } from '../live/status.ts';
+import { S as LIVE_S } from '../live/strings.ts';
 import { S } from './strings.ts';
 
 export interface RunViewDeps {
   ui: WebUi;
+  /** 点了模型供应商:去它的设置页;没有选中的供应商时是 null。 */
+  openProvider(name: string | null): void;
 }
 
 export interface RunView {
   el: HTMLElement;
-  render(st: StatusSnapshot | null): void;
+  render(st: StatusSnapshot | null, sessions: readonly SessionStat[]): void;
 }
 
 export function createRunView(deps: RunViewDeps): RunView {
   const { ui } = deps;
-  const sheet = ui.sheet({
-    title: S.runTitle,
-    en: 'context · cache · batches',
-  });
-  const grid = ui.statgrid();
-  sheet.body.appendChild(grid);
+  const el = ui.h('div', 'live-summary core-summary');
+  const band = createStatusBand(ui);
+  const right = ui.h('div', 'live-summary-right');
+  el.append(band.el, right);
+
+  /** 一枚读数:前后的字照常,中间的数加粗,与控制台的读数同一个样子。 */
+  const chip = (pre: string, value: string | number, post = ''): HTMLElement => {
+    const c = ui.chip('');
+    c.append(ui.h('span', null, pre), ui.h('b', null, String(value)), ui.h('span', null, post));
+    return c;
+  };
+
+  let current: string | null = null;
+  const connection = ui.button('', { onClick: () => deps.openProvider(current) });
+  connection.className = 'live-connection';
+  const connectionValue = ui.h('span', 'live-connection-value');
+  connection.append(ui.h('span', 'live-connection-label', LIVE_S.currentProvider), connectionValue);
 
   return {
-    el: sheet.el,
-    render(st) {
-      while (grid.children.length) grid.children[0].remove();
-      if (!st) {
-        grid.appendChild(ui.placeholder(S.noStatus));
-        return;
-      }
+    el,
+    render(st, sessions) {
+      band.render(st, sessions.find((s) => s.id === 'main') ?? null);
+      right.replaceChildren();
+      if (!st) return;
       const loop = loopOf(st);
-      const u = loop.lastUsage ?? {};
-      const cache =
-        u.promptTokens ? ui.fmt.percent((u.cacheHitTokens || 0) / u.promptTokens) : '—';
-      const connection = st.modelConnection;
-      // 先列决定 bot 能否响应的状态,累计统计排在后面。
-      const cards = [
-        {
-          k: S.statRun,
-          v: loop.paused ? S.runPaused : loop.scheduleBlocked ? S.runBlocked : S.runRunning,
-          accent: !!(loop.paused || loop.scheduleBlocked),
-        },
-        { k: S.statBehind, v: loop.behind ?? '—', accent: !!loop.behind },
-        { k: S.statDelivered, v: loop.lastDeliveredCursor ?? '—', unit: `/ ${st.latestEventCursor ?? '—'}` },
-        { k: S.statTruncating, v: loop.truncating ? S.truncatingOn : S.truncatingOff, accent: !!loop.truncating },
-        { k: S.statProvider, v: connection ? connection.name : '—', unit: connection?.model ?? '' },
-        { k: S.statContext, v: ui.fmt.count(loop.estTokens), unit: 'tok' },
-        { k: S.statCache, v: cache },
-        { k: S.statMessages, v: loop.messageCount ?? '—', unit: S.unitMsgs },
-        { k: S.statRounds, v: loop.roundsLastBatch ?? '—' },
-        { k: S.statBatches, v: loop.batchesHandled ?? '—' },
-        { k: S.statOnline, v: st.consoleOnline ?? '—', unit: S.unitPeople },
-      ];
-      for (const c of cards) grid.appendChild(ui.stat(c));
+      const chips = ui.h('div', 'chips');
+      chips.appendChild(chip(S.chipDelivered, loop.lastDeliveredCursor ?? '-', ` / ${st.latestEventCursor ?? '-'}`));
+      if (loop.roundsLastBatch != null) chips.appendChild(chip(S.chipRoundsPre, loop.roundsLastBatch, S.chipRoundsPost));
+      const conn = st.modelConnection;
+      current = conn?.name ?? null;
+      connectionValue.textContent = conn ? `${conn.name} · ${conn.model ?? '-'}` : LIVE_S.noProvider;
+      connection.title = conn ? `${conn.moduleTitle} (${conn.module})\n${conn.baseUrl}` : LIVE_S.noProvider;
+      right.append(chips, connection);
     },
   };
 }

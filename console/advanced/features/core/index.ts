@@ -37,17 +37,16 @@ interface SubDef {
   need: string | null;
 }
 
-/** 只读的观察子页;其余子页会改配置或删数据,单独成组。 */
-const OBSERVE_SUBS = new Set(['run', 'sessions', 'events', 'runlog']);
-
+// 「运行」一页里是运行读数、会话和事件三节;旧地址 sessions / events 落到它。
 const CORE_SUBS: readonly SubDef[] = [
   { id: 'run', label: S.subRun, need: null },
-  { id: 'sessions', label: S.subSessions, need: 'sessions' },
-  { id: 'events', label: S.subEvents, need: null },
   { id: 'runlog', label: S.subRunlog, need: null },
   { id: 'data', label: S.subData, need: 'storage' },
   { id: 'config', label: S.subConfig, need: 'config' },
 ];
+
+const MERGED_INTO_RUN = new Set(['sessions', 'events']);
+const subOf = (id: string): string => (MERGED_INTO_RUN.has(id) ? 'run' : id);
 
 export const coreFeature: FrameworkFeature = {
   route: CORE_ROUTE,
@@ -79,18 +78,18 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
 
   const subs = CORE_SUBS.filter((s) => s.need === null || ctx.capabilities[s.need] === true);
   // 没指定子页时回到上次停留的那个；切换子页时记下来。
-  const wanted = str(ctx.route.segments[1]) || readLastSub();
+  const wanted = subOf(str(ctx.route.segments[1]) || readLastSub());
   let current = subs.some((s) => s.id === wanted) ? wanted : (subs[0]?.id ?? 'run');
 
   // ── 页头 ─────────────────────────────────────────────────────────
   const view = ui.h('div', 'coreview');
   const head = pageIntro(ui, S.pageTitle);
   head.className = 'featureintro pagehead';
-  // 观察类子页在前，维护类在后，各带一个小组名；换子页是换页面，用页内栏目条。
-  const ordered = [...subs.filter((s) => OBSERVE_SUBS.has(s.id)), ...subs.filter((s) => !OBSERVE_SUBS.has(s.id))];
-  const tabs = pageTabs(ctx.root.ownerDocument, ctx.signal, ordered.map((s) => ({
-    value: s.id, label: s.label, group: OBSERVE_SUBS.has(s.id) ? S.groupObserve : S.groupMaintain,
-  })), { value: current, onSelect: (v) => show(v, true) });
+  // 换子页是换页面，用页内栏目条。
+  const tabs = pageTabs(ctx.root.ownerDocument, ctx.signal, subs.map((s) => ({ value: s.id, label: s.label })), {
+    value: current,
+    onSelect: (v) => show(v, true),
+  });
   const tabBar = tabs.el;
   const net = ui.msgline('');
   const exportButton = ui.button('', {
@@ -102,7 +101,7 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
       });
     },
   });
-  exportButton.className += ' btn-ico';
+  exportButton.className = 'pagetabs-action';
   exportButton.append(icon(ctx.root.ownerDocument, 'download'), ui.h('span', null, LIVE_S.exportDiagnostics));
   tabBar.append(net, ui.h('span', 'grow'), exportButton);
   const scroll = ui.h('div', 'scroll');
@@ -116,8 +115,12 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     net.textContent = online ? '' : S.netOffline;
   };
 
-  // ── 六个子页 ─────────────────────────────────────────────────────
-  const run = createRunView({ ui });
+  // ── 子页 ─────────────────────────────────────────────────────────
+  const run = createRunView({
+    ui,
+    openProvider: (name) => ctx.router.navigate(name ? ['providers', name] : ['providers']),
+  });
+  const hasSessions = ctx.capabilities.sessions === true;
   const sessions = createSessionTable(ui);
   const events = createEventsView({
     ui,
@@ -134,8 +137,6 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   });
   // Core 自己的存储项与配置组:按 owner 取,World / Persona / Memory 的各在自己页上。
   const data = createStorageView({ ui, signal: ctx.signal, filter: (p) => p.owner === 'core', clearAll: true });
-  const dataSheet = ui.sheet({ title: S.dataTitle, en: 'core storage', desc: S.dataDesc });
-  dataSheet.body.appendChild(data.el);
   const config = createConfigView({
     ui,
     lifecycle: ctx.lifecycle,
@@ -145,26 +146,26 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     emptyText: S.configEmpty,
   });
 
+  // 运行:读数栏在上,会话、事件两节在下
+  const runPane = ui.h('div', 'core-run');
+  runPane.append(run.el, ...(hasSessions ? [sessions.el] : []), events.el);
+
   const panes: Record<string, HTMLElement> = {
-    run: run.el,
-    sessions: sessions.el,
-    events: events.el,
+    run: runPane,
     runlog: runlog.el,
-    data: dataSheet.el,
+    data: data.el,
     config: config.el,
   };
 
   /** 每次进入某个子页要做的事。进来才拉数据——没打开的页不该占网络。 */
   const enter: Record<string, () => void> = {
     run: () => {
-      run.render(state.status);
-      if (!hasDebug) void refreshStatus();
-    },
-    sessions: () => {
+      run.render(state.status, state.sessions);
       sessions.render(state.sessions);
-      if (!hasDebug) void refreshSessions();
-    },
-    events: () => {
+      if (!hasDebug) {
+        void refreshStatus();
+        if (hasSessions) void refreshSessions();
+      }
       void events.init();
       events.setPolling(!hasDebug);
     },
@@ -183,7 +184,7 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     const next = subs.some((s) => s.id === sub) ? sub : (subs[0]?.id ?? 'run');
     if (next !== current) {
       // 离开事件流就停它的轮询:一个看不见的表不该继续问服务端要数据。
-      if (current === 'events') events.setPolling(false);
+      if (current === 'run') events.setPolling(false);
       current = next;
     }
     tabs.setValue(current);
@@ -199,7 +200,7 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   ctx.lifecycle.own(
     ctx.router.onChange((route) => {
       if (route.segments[0] !== CORE_ROUTE) return;
-      const sub = str(route.segments[1]) || (subs[0]?.id ?? 'run');
+      const sub = subOf(str(route.segments[1])) || (subs[0]?.id ?? 'run');
       if (sub !== current) show(sub, false);
     }),
   );
@@ -210,7 +211,7 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
       const st = await get<StatusSnapshot>('/api/status', { signal: ctx.signal });
       state.status = st;
       setNet(true);
-      if (current === 'run') run.render(st);
+      if (current === 'run') run.render(st, state.sessions);
     } catch (err) {
       if ((err as { name?: string } | null)?.name === 'AbortError') return;
       setNet(false);
@@ -222,7 +223,10 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     try {
       const d = await get<{ sessions?: SessionStat[] }>('/api/sessions', { signal: ctx.signal });
       state.sessions = d?.sessions ?? [];
-      if (current === 'sessions') sessions.render(state.sessions);
+      if (current === 'run') {
+        sessions.render(state.sessions);
+        run.render(state.status, state.sessions);
+      }
     } catch (err) {
       if ((err as { name?: string } | null)?.name === 'AbortError') return;
       ctx.onError(err);
@@ -242,20 +246,25 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
           case 'hello':
             state.sessions = arr<SessionStat>(f.sessions);
             state.status = (f.status as StatusSnapshot | null) ?? null;
-            if (current === 'run') run.render(state.status);
-            if (current === 'sessions') sessions.render(state.sessions);
+            if (current === 'run') {
+              run.render(state.status, state.sessions);
+              sessions.render(state.sessions);
+            }
             break;
           case 'status':
             state.status = (f.status as StatusSnapshot | null) ?? null;
-            if (current === 'run') run.render(state.status);
+            if (current === 'run') run.render(state.status, state.sessions);
             break;
           case 'sessions':
             state.sessions = arr<SessionStat>(f.sessions);
-            if (current === 'sessions') sessions.render(state.sessions);
+            if (current === 'run') {
+              run.render(state.status, state.sessions);
+              sessions.render(state.sessions);
+            }
             break;
           // 有推送就不必轮询:到了才追一次。
           case 'event':
-            if (current === 'events') void events.poll();
+            if (current === 'run') void events.poll();
             break;
           case 'runlog':
             if (current === 'runlog') runlog.noteLive();

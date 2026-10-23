@@ -3,11 +3,12 @@
  * log.jsonl 尾部查满 limit 条；run 默认当前运行，清单取自 /api/runs。
  * 文本输入去抖 300 ms，Enter 立即查询。
  * 实时日志帧只在查看当前 run 时触发重查；重查在途时到达的帧合并成结束后的一次。
+ * 表格分页、新的在前；换筛选条件回到第一页，实时重查留在当前页。
  */
 
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import { get } from '../../../base/api.ts';
-import { shouldStick } from '../../../base/ui/index.ts';
+import { createPager } from './pager.ts';
 import { S } from './strings.ts';
 
 export interface RunlogEntry {
@@ -32,12 +33,11 @@ interface RunsReply {
   runs: RunRow[];
 }
 
-const TAIL = 200;
+/** 取日志尾部多少条;表格分页显示,新的在前。 */
+const TAIL = 500;
 /** `data` 摘要最多印多少字。 */
 const DATA_MAX = 300;
 const DEBOUNCE_MS = 300;
-/** 距底多少像素之内仍算贴着底。 */
-const STICK_PX = 60;
 
 function truncate(s: string, n: number): string {
   return s && s.length > n ? `${s.slice(0, n)}…` : s;
@@ -74,6 +74,7 @@ export function createRunlogView(deps: RunlogViewDeps): RunlogView {
   };
   const later = (): void => {
     cancel();
+    pager.reset();
     debounce = setTimeout(() => {
       debounce = null;
       void view.refresh();
@@ -81,6 +82,7 @@ export function createRunlogView(deps: RunlogViewDeps): RunlogView {
   };
   const now = (): void => {
     cancel();
+    pager.reset();
     void view.refresh();
   };
   deps.signal.addEventListener('abort', cancel, { once: true });
@@ -143,22 +145,37 @@ export function createRunlogView(deps: RunlogViewDeps): RunlogView {
       now();
     },
   });
-  bar.append(
-    ui.h('span', 'pagedesc grow', S.runlogDesc),
-    runSel,
-    levelSel,
-    areaIn,
-    grepIn,
-    ui.field(S.roundField, roundIn),
-    refreshBtn,
-  );
+  bar.classList.add('core-filters');
+  runSel.classList.add('core-filter-run');
+  levelSel.classList.add('core-filter-level');
+  areaIn.classList.add('core-filter-text');
+  grepIn.classList.add('core-filter-text');
+  roundIn.classList.add('core-filter-round');
+  bar.append(runSel, levelSel, areaIn, grepIn, roundIn, ui.h('span', 'grow'), refreshBtn);
 
   const table = ui.table({
     head: [S.logHeadTime, S.logHeadLevel, S.logHeadArea, S.logHeadMsg],
-    maxHeight: 'calc(100vh - 300px)',
   });
+  /** 最近一次取回的日志,旧的在前。 */
+  let rows: RunlogEntry[] = [];
+  const pager = createPager(ui, { key: 'runlog', sizes: [20, 50, 100, 200], defaultSize: 50, onChange: () => paint() });
   const el = ui.h('div');
-  el.append(bar, table.el);
+  el.append(ui.h('p', 'pagedesc core-desc', S.runlogDesc), bar, table.el, pager.el);
+
+  /** 画当前页:新的在前。 */
+  function paint(): void {
+    pager.render(rows.length);
+    const [from, to] = pager.slice(rows.length);
+    table.clear(rows.length ? undefined : S.noLog);
+    for (const en of rows.slice(rows.length - to, rows.length - from).reverse()) {
+      table.addRow([
+        { text: ui.fmt.clock(en.ts), cls: 'mono' },
+        { text: en.level, cls: `lv lv-${en.level}` },
+        { text: en.event ? `${en.area}/${en.event}` : en.area, cls: 'mono' },
+        { el: bodyCell(en), cls: 'txt' },
+      ]);
+    }
+  }
 
   const query = (): string => {
     const p = new URLSearchParams({ limit: String(TAIL), level: q.level });
@@ -223,18 +240,8 @@ export function createRunlogView(deps: RunlogViewDeps): RunlogView {
         if (!runsLoaded) await loadRuns();
         const entries = await get<RunlogEntry[]>(query(), { signal: deps.signal });
         if (mine !== generation) return;
-        const rows = Array.isArray(entries) ? entries : [];
-        const wasStuck = shouldStick(table.el.scrollTop, table.el.scrollHeight, table.el.clientHeight, STICK_PX);
-        table.clear(rows.length ? undefined : S.noLog);
-        for (const en of rows) {
-          table.addRow([
-            { text: ui.fmt.clock(en.ts), cls: 'mono' },
-            { text: en.level, cls: `lv lv-${en.level}` },
-            { text: en.event ? `${en.area}/${en.event}` : en.area, cls: 'mono' },
-            { el: bodyCell(en), cls: 'txt' },
-          ]);
-        }
-        if (wasStuck) table.el.scrollTop = table.el.scrollHeight;
+        rows = Array.isArray(entries) ? entries : [];
+        paint();
         deps.onNet(true);
       } catch (err) {
         if ((err as { name?: string } | null)?.name === 'AbortError') return;
