@@ -156,6 +156,14 @@ const en: PetText = {
     overLimit: (mb: number) => `Over ${mb} MB`,
   },
 
+  /** Uninstalling packs on the dressing page. */
+  removing: {
+    notInstalled: (id: string) => `No figure pack has id ${id}`,
+    builtin: (id: string) => `${id} is a built-in figure and cannot be uninstalled`,
+    elsewhere: (id: string) => `${id} is not in the figure pack installation folder and cannot be uninstalled here`,
+    failed: (why: string) => `Could not delete it: ${why}`,
+  },
+
   /** The bubble in which the pet asks the person's consent to a change of settings: the question, its three buttons, and how each change is said */
   consent: {
     question: (items: string[]) => `Can I ${items.join(', ')}?`,

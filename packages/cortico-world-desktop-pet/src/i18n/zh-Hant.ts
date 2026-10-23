@@ -135,6 +135,13 @@ const zhHant: Translation<PetText> = {
     overLimit: (mb: number) => `超過 ${mb} MB`,
   },
 
+  removing: {
+    notInstalled: (id: string) => `沒有 id 為 ${id} 的形象包`,
+    builtin: (id: string) => `${id} 是內建形象，無法解除安裝`,
+    elsewhere: (id: string) => `${id} 不在形象包的安裝目錄中，無法在這裡解除安裝`,
+    failed: (why: string) => `無法刪除：${why}`,
+  },
+
   consent: {
     question: (items: string[]) => `我想${items.join('、')}，可以嗎？`,
     choices: ['可以', '以後都可以', '不用了'] as [yes: string, always: string, no: string],

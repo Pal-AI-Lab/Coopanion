@@ -127,4 +127,11 @@ export default {
   'import.cannot': '無法匯入',
   'import.dropOne': '每次只能拖入一個 zip，或拖入資料夾。',
   'import.readFailed': '無法讀取',
+  // the dressing page: uninstalling figure packs
+  'remove.label': '解除安裝「{name}」',
+  'remove.title': '解除安裝「{name}」？',
+  'remove.lead': '這個形象包的檔案會被刪除，再次使用需要重新匯入。桌寵正在使用它時會換回 Coo。',
+  'remove.go': '解除安裝',
+  'remove.failed': '無法解除安裝',
+  'remove.done': '已解除安裝：{name}',
 };

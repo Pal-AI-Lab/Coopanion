@@ -127,4 +127,11 @@ export default {
   'import.cannot': 'Importation impossible',
   'import.dropOne': 'Glissez un seul zip à la fois, ou des dossiers.',
   'import.readFailed': 'Impossible de lire les fichiers',
+  // the dressing page: uninstalling figure packs
+  'remove.label': 'Désinstaller {name}',
+  'remove.title': 'Désinstaller {name} ?',
+  'remove.lead': "Les fichiers du pack sont supprimés ; importez-le à nouveau pour l'utiliser. Un compagnon qui porte ce pack redevient Coo.",
+  'remove.go': 'Désinstaller',
+  'remove.failed': 'Échec de la désinstallation',
+  'remove.done': 'Désinstallé : {name}',
 };

@@ -135,6 +135,13 @@ const ko: Translation<PetText> = {
     overLimit: (mb: number) => `${mb} MB 초과`,
   },
 
+  removing: {
+    notInstalled: (id: string) => `id가 ${id}인 외형 팩이 없습니다`,
+    builtin: (id: string) => `${id}은(는) 내장 외형이라 제거할 수 없습니다`,
+    elsewhere: (id: string) => `${id}은(는) 외형 팩 설치 폴더에 없어 여기서 제거할 수 없습니다`,
+    failed: (why: string) => `삭제하지 못했습니다: ${why}`,
+  },
+
   consent: {
     question: (items: string[]) => `이렇게 바꿔도 될까요? ${items.join(', ')}`,
     choices: ['좋아요', '앞으로는 안 물어봐도 돼요', '바꾸지 마세요'] as [yes: string, always: string, no: string],

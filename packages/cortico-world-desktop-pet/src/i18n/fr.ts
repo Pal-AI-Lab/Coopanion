@@ -135,6 +135,13 @@ const fr: Translation<PetText> = {
     overLimit: (mb: number) => `Plus de ${mb} Mo`,
   },
 
+  removing: {
+    notInstalled: (id: string) => `Aucun pack de personnage n'a l'id ${id}`,
+    builtin: (id: string) => `${id} est un personnage intégré et ne peut pas être désinstallé`,
+    elsewhere: (id: string) => `${id} n'est pas dans le dossier d'installation des packs de personnage ; impossible de le désinstaller ici`,
+    failed: (why: string) => `Suppression impossible : ${why}`,
+  },
+
   consent: {
     question: (items: string[]) => `Je peux ${items.join(', ')} ?`,
     choices: ['Oui', 'Oui, toujours', 'Non merci'] as [yes: string, always: string, no: string],

@@ -135,6 +135,13 @@ const de: Translation<PetText> = {
     overLimit: (mb: number) => `Über ${mb} MB`,
   },
 
+  removing: {
+    notInstalled: (id: string) => `Kein Figurenpaket hat die id ${id}`,
+    builtin: (id: string) => `${id} ist eine eingebaute Figur und kann nicht deinstalliert werden`,
+    elsewhere: (id: string) => `${id} liegt nicht im Installationsordner der Figurenpakete und kann hier nicht deinstalliert werden`,
+    failed: (why: string) => `Löschen fehlgeschlagen: ${why}`,
+  },
+
   consent: {
     question: (items: string[]) => `Darf ich ${items.join(', ')}?`,
     choices: ['Ja', 'Ja, immer', 'Lieber nicht'] as [yes: string, always: string, no: string],
