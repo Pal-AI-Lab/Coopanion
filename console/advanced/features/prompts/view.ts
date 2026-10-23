@@ -112,7 +112,6 @@ export function createPromptsView(deps: PromptsViewDeps): PromptsView {
   const card = (doc: PromptDoc): HTMLElement => {
     const sheet = ui.sheet({
       title: doc.title,
-      en: S.editableTemplate,
       desc: doc.description || S.cardDescDefault,
     });
     sheet.el.className += ' prompt-card';

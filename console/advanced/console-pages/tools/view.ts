@@ -156,7 +156,6 @@ export interface ToolsView {
 export function createToolsView(ui: WebUi): ToolsView {
   const sheet = ui.sheet({
     title: S.toolsTitle,
-    en: 'tool schemas',
     desc: S.toolsDesc,
   });
   const bar = ui.rowbar();

@@ -85,6 +85,8 @@ export class ConsolePageHost {
   private snapshot: ConsoleManifest | null = null;
   private mounted: MountedPanel | null = null;
   private panes: Panes | null = null;
+  /** 页头里的页签。同一页内切换页签且页头内容没变时保留它，选中滑块才能滑过去。 */
+  private tabs: { pageId: string; key: string; seg: ReturnType<ReturnType<typeof createConsoleUi>['segmented']> } | null = null;
   /**
    * 挂载代号。异步 mount 期间用户可能已经走了；回来时对不上号就整个丢弃，
    * 免得把一个已经不该存在的面板贴进 DOM。
@@ -179,6 +181,15 @@ export class ConsolePageHost {
     this.deps.root.replaceChildren();
   }
 
+  /** 同一页内换页签：只卸面板、清面板槽，页头留着，页签的选中滑块才能滑过去。 */
+  private unmountPanel(): void {
+    const cur = this.mounted;
+    this.mounted = null;
+    this.generation++;
+    if (cur) cur.lifecycle.dispose();
+    this.panes?.slot.replaceChildren();
+  }
+
   /** 建（或复用）页头与面板槽两个容器。 */
   private ensurePanes(): Panes {
     if (this.panes) return this.panes;
@@ -208,7 +219,8 @@ export class ConsolePageHost {
   }
 
   private async showInner(pageId: string, panelId?: string): Promise<void> {
-    this.unmount();
+    if (this.panes && this.tabs?.pageId === pageId) this.unmountPanel();
+    else this.unmount();
     const gen = this.generation;
 
     const page = this.find(pageId);
@@ -444,7 +456,7 @@ export class ConsolePageHost {
       signal: lifecycle.signal,
       filter: (part) => refs.some((r) => r.owner === part.owner && r.key === part.key),
     });
-    const sheet = ui.sheet({ title: S.storageTitle, en: 'storage', desc: S.storageDesc });
+    const sheet = ui.sheet({ title: S.storageTitle, desc: S.storageDesc });
     sheet.body.appendChild(view.el);
     slot.appendChild(sheet.el);
     await view.load();
@@ -471,18 +483,12 @@ export class ConsolePageHost {
       showOwner: false,
       emptyText: S.configEmpty,
     });
-    const sheet = ui.sheet({
-      title: S.configTitle,
-      en: 'config',
-      desc: S.configDesc,
-    });
-    sheet.body.appendChild(view.el);
-    slot.appendChild(sheet.el);
+    slot.appendChild(view.el);
     await view.load();
     if (gen !== this.generation) lifecycle.dispose();
   }
 
-  /** 这一页声明的提示词模板仍由框架通用编辑器承载，扩展无需重复文件读写 UI。 */
+  /** 这一页声明的提示词模板仍由框架通用编辑器承载，扩展无需重复文件读写 UI；已进系统提示词的除外。 */
   private async showPrompts(pageId: string, keys: readonly string[], gen: number): Promise<void> {
     const { slot } = this.ensurePanes();
     const lifecycle = new Lifecycle(this.deps.onError);
@@ -493,16 +499,37 @@ export class ConsolePageHost {
       signal: lifecycle.signal,
       doc: this.deps.doc,
     });
-    const view = createPromptsView({
-      ui,
-      lifecycle,
-      signal: lifecycle.signal,
-      addLeaveGuard: (fn) => this.deps.router.addLeaveGuard(fn),
-      onError: this.deps.onError,
-      keys,
-    });
-    slot.appendChild(view.el);
-    await view.load();
+    // 已在系统提示词里的模板由「系统提示词」页编辑；这里只列其余的，同一份文件不在两处各改一份。
+    let inPrefix = new Set<string>();
+    try {
+      const out = await get<{ segments?: Array<{ sourceKey?: string }> }>('/api/prompts/prefix', { signal: lifecycle.signal });
+      inPrefix = new Set((out?.segments ?? []).flatMap((seg) => (seg.sourceKey ? [seg.sourceKey] : [])));
+    } catch (err) {
+      if ((err as { name?: string } | null)?.name === 'AbortError') return;
+      this.deps.onError(err); // 取不到前缀就全部列出
+    }
+    if (gen !== this.generation) { lifecycle.dispose(); return; }
+    const rest = keys.filter((key) => !inPrefix.has(key));
+    if (rest.length < keys.length) {
+      const note = ui.h('div', 'providernote');
+      note.append(
+        ui.h('span', null, S.promptsElsewhere),
+        ui.button(S.openPrompts, { size: 'sm', onClick: () => this.deps.router.navigate(['prompts']) }),
+      );
+      slot.appendChild(note);
+    }
+    if (rest.length) {
+      const view = createPromptsView({
+        ui,
+        lifecycle,
+        signal: lifecycle.signal,
+        addLeaveGuard: (fn) => this.deps.router.addLeaveGuard(fn),
+        onError: this.deps.onError,
+        keys: rest,
+      });
+      slot.appendChild(view.el);
+      await view.load();
+    }
     if (gen !== this.generation) lifecycle.dispose();
   }
 
@@ -523,12 +550,36 @@ export class ConsolePageHost {
   private renderChrome(pageId: string, activePanel?: string): void {
     const page = this.find(pageId);
     const { chrome } = this.ensurePanes();
+    if (!page) {
+      chrome.replaceChildren();
+      this.tabs = null;
+      return;
+    }
+
+    const panels = tabbed(page);
+    const prompts = asArray(page.prompts);
+    const items = [
+      ...panels.map((p) => ({ value: p.id, label: p.title || p.id })),
+      ...(this.configGroupsOf(page).length ? [{ value: PROVIDER_CONFIG_ROUTE, label: S.configTab }] : []),
+      ...(prompts.length ? [{ value: PROVIDER_PROMPTS_ROUTE, label: prompts.length === 1 ? prompts[0]!.title : S.promptsTab }] : []),
+      ...(this.storageOf(page).length ? [{ value: PROVIDER_STORAGE_ROUTE, label: S.storageTab }] : []),
+      ...(this.toolsTabOf(page) ? [{ value: PROVIDER_TOOLS_ROUTE, label: S.toolsTab }] : []),
+    ];
+    // 页头里画的字段与页签都没变时才复用整个页头。
+    const key = JSON.stringify([items, page.label, page.kind, page.availability, page.lamps, page.badges, page.agentVisible, page.prefixDrifted, page.reason, page.links]);
+    if (this.tabs && this.tabs.pageId === pageId && this.tabs.key === key && chrome.contains(this.tabs.seg.el)) {
+      this.tabs.seg.setValue(activePanel ?? '');
+      return;
+    }
     chrome.replaceChildren();
-    if (!page) return;
+    this.tabs = null;
 
     const ui = this.ui();
     const head = ui.h('header', 'featureintro providerintro');
-    const title = ui.h('h1', 'pagetitle', page.label);
+    // 人格与记忆页以用途作标题，实现名作小注；其余页仍用声明的名字。
+    const purpose = page.kind === 'persona' ? S.personaTitle : page.kind === 'memory' ? S.memoryTitle : null;
+    const title = ui.h('h1', 'pagetitle', purpose ?? page.label);
+    if (purpose) title.appendChild(ui.h('span', 'pagetitle-name', page.label));
     // 未激活页的状态由框架提供。
     title.appendChild(lampRow(
       this.deps.doc,
@@ -537,6 +588,8 @@ export class ConsolePageHost {
         : [{ label: S.assembly, state: 'offline', hint: page.availability === 'missing' ? S.notInstalled : S.notActivated }],
     ));
     head.appendChild(title);
+    const purposeDesc = page.kind === 'persona' ? S.personaDesc : page.kind === 'memory' ? S.memoryDesc : null;
+    if (purposeDesc) head.appendChild(ui.h('p', 'pagedesc', purposeDesc));
     chrome.append(head);
     const bar = ui.rowbar();
 
@@ -572,52 +625,17 @@ export class ConsolePageHost {
     if (bar.children.length > 1) chrome.appendChild(bar);
     if (page.reason) chrome.appendChild(ui.msgline(page.reason, true));
 
-    const panels = tabbed(page);
-    const prompts = asArray(page.prompts);
-    const configGroups = this.configGroupsOf(page);
-    const storage = this.storageOf(page);
-    const tools = this.toolsTabOf(page);
-    if (panels.length + (configGroups.length ? 1 : 0) + (prompts.length ? 1 : 0)
-      + (storage.length ? 1 : 0) + (tools ? 1 : 0) > 1) {
-      const tabs = ui.rowbar();
-      const go = (panelId: string): void => this.deps.router.navigate(this.routeOf(page.id, panelId));
-      for (const p of panels) {
-        const btn = ui.button(p.title || p.id, {
-          size: 'sm',
-          variant: p.id === activePanel ? 'primary' : 'plain',
-          onClick: () => go(p.id),
-        });
-        tabs.appendChild(btn);
-      }
-      if (configGroups.length) {
-        tabs.appendChild(ui.button(S.configTab, {
-          size: 'sm',
-          variant: activePanel === PROVIDER_CONFIG_ROUTE ? 'primary' : 'plain',
-          onClick: () => go(PROVIDER_CONFIG_ROUTE),
-        }));
-      }
-      if (prompts.length) {
-        tabs.appendChild(ui.button(prompts.length === 1 ? prompts[0]!.title : S.promptsTab, {
-          size: 'sm',
-          variant: activePanel === PROVIDER_PROMPTS_ROUTE ? 'primary' : 'plain',
-          onClick: () => go(PROVIDER_PROMPTS_ROUTE),
-        }));
-      }
-      if (storage.length) {
-        tabs.appendChild(ui.button(S.storageTab, {
-          size: 'sm',
-          variant: activePanel === PROVIDER_STORAGE_ROUTE ? 'primary' : 'plain',
-          onClick: () => go(PROVIDER_STORAGE_ROUTE),
-        }));
-      }
-      if (tools) {
-        tabs.appendChild(ui.button(S.toolsTab, {
-          size: 'sm',
-          variant: activePanel === PROVIDER_TOOLS_ROUTE ? 'primary' : 'plain',
-          onClick: () => go(PROVIDER_TOOLS_ROUTE),
-        }));
-      }
+    if (items.length > 1) {
+      const seg = ui.segmented(items, {
+        size: 'sm',
+        value: activePanel ?? '',
+        onSelect: (panelId) => this.deps.router.navigate(this.routeOf(page.id, panelId)),
+      });
+      // 包一层：页头的直接子元素都撑满宽度，分段按钮本身只占它需要的宽度。
+      const tabs = ui.h('div', 'providertabs');
+      tabs.appendChild(seg.el);
       chrome.appendChild(tabs);
+      this.tabs = { pageId, key, seg };
     }
   }
 
@@ -647,7 +665,7 @@ export class ConsolePageHost {
 
   private renderErrorInto(target: HTMLElement, title: string, detail: string): void {
     const ui = this.ui();
-    const card = ui.sheet({ title, en: 'panel error' });
+    const card = ui.sheet({ title });
     card.body.appendChild(ui.msgline(detail, true));
     target.appendChild(card.el);
   }
