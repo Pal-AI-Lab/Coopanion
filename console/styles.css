@@ -1945,9 +1945,15 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .extension-installed-grid .extension-description { -webkit-line-clamp: 1; font-size: 12.5px; }
 .extension-installed-grid .extension-meta, .extension-installed-grid .extension-status { font-size: 12px; }
 
+/* 配置里同一父键下的一串数字项(config/view.ts 的 FieldRun) */
+.configgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 24px; }
+.configcell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.configcell-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--ink); }
+.configcell-name .en { margin-left: 6px; font: 11.5px var(--mono); color: var(--ink-dim); }
+.configcell > input.field { flex: none; width: 96px; height: 32px; min-height: 32px; padding-top: 0; padding-bottom: 0; }
+
 /* 存储清单(storage/view.ts):每项一行,规模与清除键靠右;窄时规模与清除键换到下一行 */
-.storageview .stsection { margin: 26px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--ink-dim); }
-.storageview .stsection:first-child { margin-top: 0; }
+.storageview .strow:last-child { border-bottom: 0; padding-bottom: 0; }
 .storageview .strow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 4px 18px; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .storageview .strow .stinfo { min-width: 0; }
 .storageview .strow .stlabel { font-size: 14px; font-weight: 500; line-height: 1.45; color: var(--ink); }
@@ -1961,7 +1967,6 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
   .storageview .strow .ststat { text-align: left; }
 }
 
-.coreview .core-desc { margin: 0 0 12px; max-width: none; }
 .coreview .core-filters { flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
 .coreview .core-filters .field { height: 32px; min-height: 32px; padding-top: 0; padding-bottom: 0; font-size: 13px; }
 .coreview .core-filters .core-filter-source { width: 240px; }
@@ -1973,6 +1978,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .coreview .core-filters > .btn { flex: none; }
 .coreview .core-run > .core-summary { padding-bottom: 14px; }
 .coreview .core-run > .sheet { margin-top: 0; }
+.coreview :is(.configview, .storageview) > :first-child > .sheet:first-child { padding-top: 0; }
 .coreview .core-run .sheet .sh-desc { max-width: none; }
 .coreview .core-pager { flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; min-height: 32px; font-size: 12px; color: var(--ink-dim); }
 .coreview .core-pager-size { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }

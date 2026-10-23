@@ -8,6 +8,7 @@
 
 import type { WebUi, Disposable } from 'cortico/web/shared/client-panel.ts';
 import { get, pickPath, post } from '../../../base/api.ts';
+import { LANGUAGE } from '../../../base/language.ts';
 import type { Lifecycle } from '../../../base/lifecycle.ts';
 import { icon } from '../../../base/ui/icons.ts';
 import { S } from './strings.ts';
@@ -308,6 +309,61 @@ export function configField(
   return { node: ui.h('span', 'tdesc', JSON.stringify(val)), read: null };
 }
 
+/**
+ * 同一父键下一串数字项(如 `usage.rates.CNY`、`usage.rates.EUR`):说明相同,标题都是同一句话后接各自的键。
+ * 这样的一串合成一节,标题与说明各写一次,每项一个小输入框。
+ */
+interface FieldRun {
+  title: string;
+  description?: string;
+  items: Array<[path: string, key: string, prop: ConfigProperty]>;
+}
+
+/** 把属性按顺序切成单项与 FieldRun;少于两项的串仍按单项画。 */
+function splitRuns(entries: Array<[string, ConfigProperty]>): Array<[string, ConfigProperty] | FieldRun> {
+  const runKey = (path: string, prop: ConfigProperty): { parent: string; key: string; title: string } | null => {
+    const dot = path.lastIndexOf('.');
+    if (dot <= 0 || (prop.type !== 'number' && prop.type !== 'integer')) return null;
+    const key = path.slice(dot + 1);
+    const title = prop.title ?? '';
+    if (!title.endsWith(key)) return null;
+    const head = title.slice(0, -key.length).trim();
+    return head ? { parent: path.slice(0, dot), key, title: head } : null;
+  };
+  const out: Array<[string, ConfigProperty] | FieldRun> = [];
+  for (let i = 0; i < entries.length;) {
+    const [path, prop] = entries[i]!;
+    const first = runKey(path, prop);
+    let j = i + 1;
+    const items: FieldRun['items'] = first ? [[path, first.key, prop]] : [];
+    while (first && j < entries.length) {
+      const [p2, prop2] = entries[j]!;
+      const next = runKey(p2, prop2);
+      if (!next || next.parent !== first.parent || next.title !== first.title || prop2.description !== prop.description) break;
+      items.push([p2, next.key, prop2]);
+      j++;
+    }
+    if (first && items.length > 1) {
+      out.push({ title: first.title, ...(prop.description ? { description: prop.description } : {}), items });
+      i = j;
+    } else {
+      out.push(entries[i]!);
+      i++;
+    }
+  }
+  return out;
+}
+
+/** 三个大写字母的键当作货币代码,换成界面语言里的名字;认不出就原样。 */
+function keyName(key: string): string {
+  if (!/^[A-Z]{3}$/.test(key)) return key;
+  try {
+    return new Intl.DisplayNames([LANGUAGE], { type: 'currency' }).of(key) ?? key;
+  } catch {
+    return key;
+  }
+}
+
 export interface ConfigViewDeps {
   ui: WebUi;
   lifecycle: Lifecycle;
@@ -411,7 +467,25 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
       for (const { group, values } of groups) {
         const card = ui.sheet({ title: group.schema.title || group.id, ...(group.schema.description ? { desc: group.schema.description } : {}) });
         if (showOwner) card.el.querySelector('h3')!.appendChild(ui.h('span', 'ttag', OWNER_LABEL[group.owner] || group.owner));
-        for (const [path, prop] of Object.entries(group.schema.properties || {})) {
+        for (const entry of splitRuns(Object.entries(group.schema.properties || {}))) {
+          if (!Array.isArray(entry)) {
+            card.body.appendChild(ui.section(entry.title, entry.description));
+            const grid = ui.h('div', 'configgrid');
+            for (const [path, key, prop] of entry.items) {
+              const cell = ui.h('label', 'configcell');
+              const name = ui.h('span', 'configcell-name', keyName(key));
+              if (name.textContent !== key) name.appendChild(ui.h('span', 'en', key));
+              const field = configField(ui, prop, (values || {})[path], () => queueSave(group.id), signal);
+              cell.append(name, field.node);
+              if (prop['x-suffix']) cell.appendChild(ui.h('span', 'tunit', prop['x-suffix']));
+              if (prop['x-hot'] === false) cell.appendChild(ui.h('span', 'ttag', group.owner.startsWith('world:') ? S.restartWorld : S.restartProcess));
+              grid.appendChild(cell);
+              if (field.read) readers.push({ groupId: group.id, path, read: field.read });
+            }
+            card.body.appendChild(grid);
+            continue;
+          }
+          const [path, prop] = entry;
           const row = ui.h('div', 'companion-row configrow');
           const label = ui.h('div', 'companion-label', prop.title || path);
           const control = ui.h('div', 'companion-control');

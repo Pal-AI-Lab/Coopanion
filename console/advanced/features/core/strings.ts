@@ -34,7 +34,7 @@ const zh = {
   // events.ts
   eventsDesc: '事件记录，agent 可查询。',
   allSources: '全部来源',
-  sourceTitle: '按来源过滤。候选项取自已加载的事件，也可以直接输入。',
+  sourceTitle: '按来源过滤。候选项取自已加载的事件。',
   showArchive: '显示原始归档',
   showArchiveTitle: '包括仅归档、未直接投递到上下文的事件',
   evHeadTime: '时间',
@@ -52,7 +52,6 @@ const zh = {
   grepPlaceholder: '正则,匹配内容与 data',
   roundPlaceholder: '轮次',
   refresh: '刷新',
-  runlogDesc: '运行日志，agent 不可见。',
   logHeadTime: '时间',
   logHeadLevel: '级别',
   logHeadArea: '区域',
@@ -98,7 +97,7 @@ export const en: typeof zh = {
   // events.ts
   eventsDesc: 'Event records, queryable by the agent.',
   allSources: 'All sources',
-  sourceTitle: 'Filter by source. Suggestions come from loaded events; any source can be typed.',
+  sourceTitle: 'Filter by source. The choices come from loaded events.',
   showArchive: 'Show raw archive',
   showArchiveTitle: 'Include archived events that are not delivered directly to the context',
   evHeadTime: 'Time',
@@ -116,7 +115,6 @@ export const en: typeof zh = {
   grepPlaceholder: 'Regex, matches message and data',
   roundPlaceholder: 'Round',
   refresh: 'Refresh',
-  runlogDesc: 'Run logs, invisible to the agent.',
   logHeadTime: 'Time',
   logHeadLevel: 'Level',
   logHeadArea: 'Area',

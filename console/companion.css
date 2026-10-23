@@ -29,12 +29,7 @@ body.companion-sidebar { display: flex; height: 100dvh; overflow: hidden; }
 .is-collapsed .companion-brand-o-second { transform: translate(-20px, 6px) scale(.7); }
 .is-collapsed .companion-brand-tail { opacity: 0; transform: translateX(-18px); }
 
-.companion-sidebar-tools { position: relative; display: flex; align-items: center; margin-top: 8px; min-height: 36px; padding: 9px 0; transition: margin-top var(--rail-motion); }
-/* the same two lines as around the foot's buttons: the upper across the rail, the lower 16px in (the row sits 18px in) */
-.companion-sidebar-tools::before, .companion-sidebar-tools::after { content: ''; position: absolute; height: 1px; background: var(--border); }
-.companion-sidebar-tools::before { top: 0; left: -18px; right: -18px; }
-.companion-sidebar-tools::after { bottom: 0; left: -2px; right: -2px; }
-.companion-sidebar-tools > .companion-sidebar-toggle { margin-left: auto; }
+.companion-sidebar-tools { display: flex; align-items: center; margin-top: 8px; min-height: 36px; transition: margin-top var(--rail-motion); }
 /* a new release's link under the version: a little more room before the button, so the two lines of links do not run into it */
 #rail:not(.is-collapsed) .companion-brand-meta:has(.release-hint) + .companion-sidebar-tools { margin-top: 14px; }
 /* folded, the link's box shrinks to nothing: the button rises to where it is with no new release (rail/index.ts) */
@@ -42,21 +37,12 @@ body.companion-sidebar { display: flex; height: 100dvh; overflow: hidden; }
 .companion-release > div { min-height: 0; overflow: hidden; }
 .is-collapsed .companion-release { grid-template-rows: 0fr; }
 .companion-sidebar-toggle {
-  display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: none; padding: 0;
+  display: flex; align-items: center; gap: 12px; height: 36px; flex: none; padding: 0 8px;
   border: 0; border-radius: 9px; background: transparent; color: var(--muted-foreground); cursor: pointer;
+  font: 450 13px/1.35 var(--sans); white-space: nowrap;
 }
 .companion-sidebar-toggle:hover { background: var(--hover); color: var(--foreground); }
-.companion-sidebar-toggle > svg { width: 20px; height: 20px; flex: none; }
-/* back and forward, left of the fold button; folded, they narrow to nothing with the rail */
-.companion-history {
-  display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: none; margin-right: 2px; padding: 0; overflow: hidden;
-  border: 0; border-radius: 9px; background: transparent; color: var(--muted-foreground); cursor: pointer;
-  transition: width var(--rail-motion), margin-right var(--rail-motion), opacity 140ms ease, visibility 0s linear 0s;
-}
-.companion-history:hover:not(:disabled) { background: var(--hover); color: var(--foreground); }
-.companion-history:disabled { opacity: .35; cursor: default; }
-.companion-history > svg { width: 20px; height: 20px; flex: none; }
-#rail.is-collapsed .companion-history { width: 0; margin-right: 0; opacity: 0; visibility: hidden; transition: width var(--rail-motion), margin-right var(--rail-motion), opacity 100ms ease, visibility 0s linear 260ms; }
+.companion-sidebar-toggle > svg { width: 20px; height: 20px; }
 .companion-sidebar-chevron { transform-origin: 15px 12px; transition: transform var(--rail-motion); }
 .is-collapsed .companion-sidebar-chevron { transform: rotate(180deg); }
 /* the version right under the logo, centred on it; a new release's link wraps under it in the same width */
@@ -111,7 +97,7 @@ body.companion-sidebar { display: flex; height: 100dvh; overflow: hidden; }
 #rail .companion-runstate { margin-left: 2px; }
 #rail .rail-action { flex: none; width: 40px; height: 32px; }
 #rail .rail-action[hidden] { display: none; }
-.companion-sidebar-toggle:focus-visible, .companion-history:focus-visible, #rail .companion-mode:focus-visible {
+.companion-sidebar-toggle:focus-visible, #rail .companion-mode:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
 }
 

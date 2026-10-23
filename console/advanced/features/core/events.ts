@@ -74,28 +74,18 @@ export function createEventsView(deps: EventsViewDeps): EventsView {
   const sheet = ui.sheet({ title: S.sectionEvents, desc: S.eventsDesc });
   const bar = ui.rowbar();
   bar.classList.add('core-filters');
-  // `<datalist>` 靠全局 id 绑定,每次挂载各用一个。
-  const listId = `ev-sources-${Math.random().toString(36).slice(2, 8)}`;
-  const sourceList = ui.h('datalist');
-  sourceList.id = listId;
-  const pickSource = (v: string): void => {
-    const next = v.trim();
-    if (next === source) return;
-    source = next;
-    void view.init();
-  };
-  const sourceIn = ui.input({
-    type: 'search',
+  // 下拉的候选取自已载入的事件:原生 `<datalist>` 的弹层在 Electron 里会画离输入框,这里不用它。
+  const sourceSel = ui.select({
     cls: 'mono',
-    placeholder: S.allSources,
-    // 清除按钮只派发 input,清空即回到全部来源。
-    onInput: (v) => { if (v === '') pickSource(''); },
-    onChange: pickSource,
-    onCommit: pickSource,
+    options: [{ value: '', label: S.allSources }],
+    onChange: (v) => {
+      if (v === source) return;
+      source = v;
+      void view.init();
+    },
   });
-  sourceIn.setAttribute('list', listId);
-  sourceIn.title = S.sourceTitle;
-  sourceIn.classList.add('core-filter-source');
+  sourceSel.title = S.sourceTitle;
+  sourceSel.classList.add('core-filter-source');
   // 默认过滤 archiveOnly 记录；启用归档选项后同时显示未直接投递的记录。
   const archiveToggle = ui.checkbox(S.showArchive, {
     title: S.showArchiveTitle,
@@ -104,7 +94,7 @@ export function createEventsView(deps: EventsViewDeps): EventsView {
       void view.init();
     },
   });
-  bar.append(sourceIn, sourceList, archiveToggle.el);
+  bar.append(sourceSel, archiveToggle.el);
 
   const table: WebUiTable = ui.table({
     head: ['#', S.evHeadTime, S.evHeadSource, S.evHeadType, S.evHeadText],
@@ -141,9 +131,9 @@ export function createEventsView(deps: EventsViewDeps): EventsView {
     for (const e of events) {
       if (!e.source || sources.has(e.source)) continue;
       sources.add(e.source);
-      const op = ui.h('option');
+      const op = ui.h('option', null, e.source);
       op.value = e.source;
-      sourceList.appendChild(op);
+      sourceSel.appendChild(op);
     }
   };
 
