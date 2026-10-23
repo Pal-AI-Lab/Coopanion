@@ -3,7 +3,7 @@
  */
 
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
-import { chipsOf, loopOf, type RunPhase, type StatusSnapshot } from './protocol.ts';
+import { chipsOf, loopOf, type RunPhase, type SessionStat, type StatusSnapshot } from './protocol.ts';
 import { S } from './strings.ts';
 
 /** 一枚 chip:纯文本片段与要加粗的读数交替。 */
@@ -48,14 +48,15 @@ export function phaseLabel(ui: WebUi, phase: RunPhase | null): string | null {
 
 export interface StatusBand {
   el: HTMLElement;
-  render(st: StatusSnapshot | null): void;
+  /** `main` 是会话统计里主会话那一项(累计输入与缓存命中率取自它);还没有时省略那两项。 */
+  render(st: StatusSnapshot | null, main?: SessionStat | null): void;
 }
 
 export function createStatusBand(ui: WebUi): StatusBand {
   const el = ui.h('div', 'chips');
   return {
     el,
-    render(st) {
+    render(st, main) {
       while (el.children.length) el.children[0].remove();
       if (!st) {
         el.appendChild(ui.chip(S.chipDisconnected));
@@ -69,14 +70,18 @@ export function createStatusBand(ui: WebUi): StatusBand {
       if (loop.behind) el.appendChild(ui.chip(S.chipBehind(loop.behind), 'warn'));
       // 人格概念(「梦中」这类)由Persona自报文本,框架照画不解释。
       for (const chip of chipsOf(st)) el.appendChild(ui.chip(chip.label, chip.tone));
+      // token 三项:下次提交的上下文估算;main 本次运行累计的输入与缓存命中率
       if (loop.estTokens != null) {
-        el.appendChild(chipOf(ui, [{ b: ui.fmt.count(loop.estTokens) }, ' tok']));
+        const next = chipOf(ui, [S.chipNextSend, { b: ui.fmt.count(loop.estTokens) }, ' tok']);
+        next.title = S.nextSendTitle;
+        el.appendChild(next);
       }
-      const u = loop.lastUsage;
-      if (u && u.promptTokens) {
-        el.appendChild(
-          chipOf(ui, [S.chipCache, { b: ui.fmt.percent((u.cacheHitTokens || 0) / u.promptTokens) }]),
-        );
+      if (main) {
+        const input = chipOf(ui, [S.chipTotalInput, { b: ui.fmt.count(main.promptTokens) }, ' tok']);
+        input.title = S.totalInputTitle;
+        const cache = chipOf(ui, [S.chipCache, { b: main.cacheHitRate == null ? '-' : ui.fmt.percent(main.cacheHitRate) }]);
+        cache.title = S.cacheTitle;
+        el.append(input, cache);
       }
       if (loop.messageCount != null) el.appendChild(chipOf(ui, [{ b: loop.messageCount }, S.chipMsgs]));
       if (loop.batchesHandled != null) {

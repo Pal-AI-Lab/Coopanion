@@ -32,6 +32,7 @@ import { createSessionBand } from './sessions.ts';
 import { applyDisplayName, createStatusBand, phaseLabel } from './status.ts';
 import { S } from './strings.ts';
 import { createTimeline } from './timeline.ts';
+import type { UsageAggregate } from '../../../features/cost/types.ts';
 
 const DEBUG_WS_PATH = '/ws/debug';
 const SESSIONS_WS_PATH = '/ws/sessions';
@@ -159,8 +160,46 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   connection.className = 'live-connection';
   const connectionValue = ui.h('span', 'live-connection-value');
   connection.append(ui.h('span', 'live-connection-label', S.currentProvider), connectionValue);
-  summary.append(status.el, ui.h('span', 'grow'), connection, netEl);
-  band.append(summary, sessionBand.el);
+  // 今日花费:`/api/usage` 部署时区的今天;usage 没挂载(totals 为 null)或取不到时不显示。点开去「用量与成本」
+  const cost = ui.button('', { onClick: () => ctx.router.navigate(['usage']) });
+  cost.className = 'live-cost';
+  cost.hidden = true;
+  let costSeq = 0;
+  const loadCost = async (): Promise<void> => {
+    const seq = ++costSeq;
+    try {
+      const d = await get<UsageAggregate>('/api/usage?bucket=day&days=1', { signal: ctx.signal });
+      if (seq !== costSeq || ctx.signal.aborted) return;
+      const t = d.totals;
+      cost.hidden = !t;
+      if (!t) return;
+      const partial = (t.unpricedCalls || 0) > 0 ? '+' : '';
+      cost.textContent = S.todayCost(ui.fmt.money(t.cost ?? 0, d.currency || 'USD') + partial);
+      cost.title = S.todayCostTitle(t.calls || 0);
+    } catch (err) {
+      if ((err as { name?: string } | null)?.name === 'AbortError' || seq !== costSeq) return;
+      cost.hidden = true;
+    }
+  };
+  let costSoon: ReturnType<typeof setTimeout> | undefined;
+  /** 新的一条记录进来后稍等再取:那次调用的账要先落下。 */
+  const refreshCostSoon = (): void => {
+    clearTimeout(costSoon);
+    costSoon = setTimeout(() => { void loadCost(); }, 4000);
+  };
+  const costTimer = setInterval(() => { void loadCost(); }, 60_000);
+  ctx.signal.addEventListener('abort', () => { clearInterval(costTimer); clearTimeout(costSoon); }, { once: true });
+  void loadCost();
+
+  // 第一行:运行状态与 token 读数在左;模型供应商、今日花费、连线状态在右。
+  // 第二行:各会话,左边一个小标题,最右端导出诊断
+  // 右边三项成一组靠右;一行放不下时这组整体换到下一行,仍靠右,不与左边叠在一起
+  const right = ui.h('div', 'live-summary-right');
+  right.append(connection, cost, netEl);
+  summary.append(status.el, right);
+  const sessions = ui.h('div', 'live-sessions');
+  sessions.append(ui.h('span', 'live-sessions-label', S.sessionsLabel), sessionBand.el);
+  band.append(summary, sessions);
 
   const exportButton = ui.button('', {
     size: 'sm',
@@ -172,13 +211,15 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     },
   });
   exportButton.className += ' btn-ico';
+  exportButton.className = 'live-export';
   exportButton.append(icon(doc, 'download'), ui.h('span', null, S.exportDiagnostics));
+  // 会话那一行的最右端
+  sessions.appendChild(exportButton);
 
   const composer = promptInput(doc, ctx.signal, {
     label: S.composerLabel,
     draftKey: 'cortico.console.draft.live',
     placeholder: S.composerPlaceholder,
-    leading: exportButton,
     tools: ctxAnchor,
     images: { max: 8 },
     onSubmit: (text, images) => {
@@ -287,9 +328,11 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
       : S.ctxWaiting;
   };
 
+  const mainStat = (): SessionStat | null => state.sessions.find((s) => s.id === MAIN_ID) ?? null;
+
   const setStatus = (st: StatusSnapshot | null): void => {
     state.status = st;
-    status.render(st);
+    status.render(st, mainStat());
     const current = st?.modelConnection;
     connectionValue.textContent = current ? `${current.name} · ${current.model ?? '—'}` : S.noProvider;
     connection.title = current ? `${current.moduleTitle} (${current.module})\n${current.baseUrl}` : S.noProvider;
@@ -305,6 +348,7 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
 
   const setSessions = (list: SessionStat[]): void => {
     state.sessions = list;
+    status.render(state.status, mainStat());
     sessionBand.render(list, fork.id);
     fork.noteSessions();
   };
@@ -333,6 +377,7 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
           if (index === state.messages.length) {
             const message = f.message as ContextRecord;
             state.messages.push(message);
+            refreshCostSoon();
             if (fork.isMain()) timeline.append(message, index, true);
             break;
           }

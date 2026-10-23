@@ -1510,7 +1510,32 @@
 .connection-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:16px}.connection-actions .grow{flex:1}
 @media(max-width:760px){.connection-hub{grid-template-columns:1fr}.connection-index{position:static;max-height:320px}.connection-cards{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}}
 
-.live-summary { flex-wrap:wrap; }
+.live-summary { flex-wrap: wrap; row-gap: 6px; }
+.live-summary > .chips:first-child { flex: 0 1 auto; min-width: 0; }
+.live-summary-right { display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 100%; margin-left: auto; }
+.live-summary-right > .pill, .live-summary-right > .live-cost { flex: none; }
+.live-summary-right > .live-connection { flex: 0 1 auto; max-width: none; }
+.live-sessions { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.live-cost[hidden] { display: none; }
+.live-cost { flex: none; padding: 0; border: 0; background: none; cursor: pointer; font: 600 11.5px/1 var(--sans); color: var(--ink-soft); white-space: nowrap; }
+.live-cost:hover { color: var(--accent); }
+.live-cost:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+/* 导出诊断:与这一栏其他读数同字号的文字按钮,图标随字号缩小 */
+.live-sessions > .live-export { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: none; cursor: pointer; font: 11.5px/1 var(--sans); color: var(--ink-soft); white-space: nowrap; }
+.live-sessions > .live-export .icon { width: 13px; height: 13px; }
+.live-sessions > .live-export:hover { color: var(--accent); }
+.live-sessions > .live-export:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+.live-sessions-label { flex: none; font: 11.5px/1 var(--sans); color: var(--ink-dim); }
+.liveband .live-sessions > .sesscards { flex: 1 1 auto; width: auto; min-width: 0; }
+/* 会话卡只占一行、不滚动:放不下的已结束会话不画,进行中的收进「+N」的浮窗 */
+.liveband .live-sessions > .sesscards { overflow: hidden; padding-bottom: 0; }
+.liveband .sesscards > .sesscard, .sessmore { flex: none; }
+.sessmore { display: inline-flex; }
+.sessmore-btn { font-weight: 600; }
+.sesspop { position: fixed; z-index: 40; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 6px; background: var(--sheet); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px color-mix(in srgb, #000 16%, transparent); }
+.sesspop[hidden] { display: none; }
+.sesspop > .sesscard { justify-content: flex-start; }
+@container (max-width: 600px) { .live-connection-label { display: none; } }
 .live-connection { display:inline-flex; align-items:center; gap:7px; min-width:0; max-width:48%; background:none; border:0; color:var(--ink-soft); cursor:pointer; padding:0; font:11.5px/1 var(--sans); }
 .live-connection-label { flex-shrink:0; }
 .live-connection-value { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:4px 8px; border-radius:7px; background:var(--hover); border:1px solid var(--border); color:var(--ink-blue); font-weight:600; }
