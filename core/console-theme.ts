@@ -88,7 +88,7 @@ export function figureSchemes(packs: readonly FigurePack[], language: Language =
  * The console scheme for a pet look: Coo's, or the pack preset's. A pick that is not a preset takes the colours of
  * the preset with colours that picks the same option on the most axes, the first of them on a tie.
  */
-export function schemeForSkin(skin: { figure?: string; scheme?: string } | undefined, packs: readonly FigurePack[]): string {
+function schemeForSkin(skin: { figure?: string; scheme?: string } | undefined, packs: readonly FigurePack[]): string {
   const pack = packs.find((p) => p.id === skin?.figure);
   const presets = pack?.manifest.presets.filter((p) => p.console) ?? [];
   if (!pack || !presets.length) return COO_SCHEME;

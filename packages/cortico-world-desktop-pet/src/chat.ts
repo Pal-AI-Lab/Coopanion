@@ -18,7 +18,7 @@ export const SELF_TYPE = 'desktop-pet.self';
 const CHAT_TYPES = new Set(['desktop-pet.message', 'desktop-pet.speech', 'desktop-pet.answer', 'desktop-pet.touch', 'desktop-pet.figure', SELF_TYPE]);
 
 /** Tools whose work shows as the pet's own lines, not as steps. */
-export const SPOKEN_TOOLS = new Set(['pet_say', 'pet_ask']);
+const SPOKEN_TOOLS = new Set(['pet_say', 'pet_ask']);
 
 /** One image of a message: `ref` is the attachment handle; the page fetches its bytes from the console's `/api/blob`. */
 export interface WireImage { ref: string; mime: string; name?: string }

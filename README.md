@@ -189,6 +189,12 @@ Talk key, microphone and listening mode (hold to talk / press to toggle / always
 
 Speech is recognized on your machine and audio is never uploaded: by **FunASR** (the SenseVoiceSmall model, about 230 MB) when the app language is Chinese, English, Japanese or Korean, and by **Whisper** (the small model, about 360 MB; the text appears once a sentence ends) for French, German, Spanish, Portuguese, Italian and Russian. The model is downloaded once, from the guide or the Voice input page. On Windows you can use the built-in recognizer instead, which needs no download but is less accurate.
 
+Turning voice input off also unloads its recognition model or stops the Windows recognition helper. Turning it on loads the engine again.
+
+### Alarms
+
+Ask Coo to set an alarm at a local time or after a number of minutes. Daily alarms keep that local clock time across daylight-saving changes. If the clock skips the requested time, that occurrence moves forward by the gap; the next day uses the requested time again. Alarms missed while the app is closed arrive when it next starts.
+
 ### Playing with Coo
 
 - **Click** to poke it, **move back and forth over its head** to pat it, **press and drag** to pick it up; let go mid-swing to throw it. By default a poke makes Coo respond, and pats and pick-ups are passed on the next time it wakes. **Response mode** in Habits changes this: Quiet keeps every touch until you next talk to Coo, Eager responds to every touch, Custom… picks the touches that get a response right away.
@@ -210,6 +216,7 @@ Once it is on, Coo looks at the screen without asking, and asks before it first 
   - `ask-before-acting`: looking is not asked; ask every turn before using the mouse and keyboard;
   - `ask-once` (default): looking is not asked; ask once before acting, then not again for the time set in **A yes lasts** (30 minutes by default);
   - `never-ask`: never ask.
+- Whatever the setting, Coo asks before each shortcut that can start a program (one with the Windows or Super key, Command+Space on macOS, a terminal or run-box shortcut) and before it types or presses Enter in a terminal window. The question shows the keys or the full text.
 - With several displays, Coo looks at one at a time and moves to another when it needs to.
 - When you touch the mouse or keyboard, Coo stops and waits for you.
 - Logins, passwords and payments are left to you.
@@ -217,11 +224,15 @@ Once it is on, Coo looks at the screen without asking, and asks before it first 
 
 To keep Coo off your computer, untick **Let Coo use this computer** in the Computer use section of the Habits page.
 
+If saving a computer-use change fails, the switches and permission choice return to their last saved values.
+
 ### Tray / menu bar
 
 Coopanion keeps running in the background. Closing the settings window does not quit it, and opening the program again only brings Coo back.
 
 The tray icon (menu bar on Mac, status bar on Linux) has a menu to open the settings, show the pet, start at login, restart and quit. On Windows, left-clicking the icon opens the settings.
+
+Restart and quit give Core 12 seconds to stop, then force termination and wait up to 5 more seconds for exit. The final statistics upload waits at most 5 seconds. If saving a data-folder choice fails, the app shows the filesystem error and exits.
 
 ## Settings window
 
@@ -232,12 +243,12 @@ Click the tray icon, or right-click Coo and click the gear. The window opens in 
 | Page          | What is there                                                                                                    |
 | ------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Start         | Connect a model (the connected one and the other model services in one place), show or hide the pet on the desktop, preview the pet, pick the interface colors or edit their palette, rerun the guide. The bottom left says Running / Paused, beside pause / resume and shut down. |
-| Habits        | In sections: General (app language, your name, anonymous usage statistics), Behavior (walking, how Coo responds, what Coo may change by itself, hover buttons, double-click to type, status bubble, input bubbles), Display (size, bubble size, text size, bubble speed, frame rate, hide in full screen on Windows, remember position), Sounds (each kind can be turned off), Speech (bubbles read out syllable by syllable in place of the typing babble; pitch and speed by step or custom), Computer use (on/off, mouse and keyboard, when to ask you, how long a yes lasts), Other (OBS overlay) |
-| Dress up      | Figure (Coo, the DeepSeek Whale or an installed figure pack), colors and accessories; changes apply at once. **Import** at the end of the figure row installs packs from a zip or a folder (up to 128 MB at a time); dropping one on the page works too |
+| Habits        | In sections: General (app language, your name, Coo's name, anonymous usage statistics), Behavior (walking, how Coo responds, what Coo may change by itself, hover buttons, double-click to type, status bubble, input bubbles), Display (size, bubble size, text size, bubble speed, frame rate, hide in full screen on Windows, remember position), Sounds (each kind can be turned off), Speech (bubbles read out syllable by syllable in place of the typing babble; pitch and speed by step or custom), Computer use (on/off, mouse and keyboard, when to ask you, how long a yes lasts), Other (OBS overlay) |
+| Dress up      | Figure (Coo, the DeepSeek Whale or an installed figure pack), colors and accessories; changes apply at once. **Import** at the end of the figure row installs packs from a zip or a folder (up to 128 MB at a time); dropping one on the page works too. Replacing an existing pack requires confirmation |
 | Voice input   | On/off, recognizer, model download, talk key, microphone, listening mode                                          |
 | System prompt | Coo's system prompt; the persona is the CONSTITUTION section. The sections form one document; all but CONSTITUTION start folded, and folds last until the app quits. Template variables can be inserted and previewed with their current values; in the advanced mode a World's section links to that World's configuration. Ctrl+S saves to file and **Revert all edits** returns to the last save; **Apply now** saves and updates the current conversation's prompt, keeping its messages; **Clear conversation and restart** saves and clears the current conversation, keeping Memory and persona; **Full prompt preview** unfolds the whole prompt as assembled from the current files |
 | Usage & cost  | Tokens used and money spent per day                                                                               |
-| Chat          | The current conversation, with the images Coo shows; you can also talk to Coo from here                           |
+| Chat          | The current conversation, with the images Coo shows; you can also talk to Coo from here. The ring in the input box is the context in use; when full, the earlier conversation is tidied up. Hover it for the token count and when that last happened |
 
 <p align="center"><img src="image/README/habits-en.png" alt="Habits" width="720"></p>
 <p align="center"><img src="image/README/dress-en.png" alt="Dress up" width="720"></p>
@@ -276,6 +287,7 @@ After installing, click **Restart process** and enable it in **World Overview**.
 - **Cost**: Coopanion is free. The model service you choose bills you for usage; see the Usage & cost page (built-in prices exist for DeepSeek, OpenAI, Anthropic, Gemini's paid tier and xAI). Signed in with ChatGPT, requests count toward the ChatGPT plan instead and show no cost.
 - **Sent to the model service**: what you say and type, your interactions with Coo, and screenshots during computer use. Only the service you configured receives them.
 - **Kept on your machine**: API keys and the ChatGPT sign-in, memory, conversation history, settings and logs. Speech is recognized locally and only the text is sent.
+- **Local pet service**: browser writes and WebSocket connections require the pet service's own HTTP origin, including its port. The desktop window authenticates with a random credential passed to its host at startup.
 - **Anonymous usage statistics**: sent to `survey.palailab.org`. Only counts, time used, settings and a random install ID; no conversations, screenshots, keys or files. Every field is listed in [docs/TELEMETRY.md](docs/TELEMETRY.md). Turn it off in Habits.
 - **Other network access**: checks for new releases on GitHub (in the background on Windows and with the AppImage, when the settings window opens on Mac and with the deb); npm and the official extension index on GitHub on the Extensions page, and GitHub for votes and comments; ModelScope (or Hugging Face as a fallback) when downloading the speech model.
 
@@ -290,6 +302,8 @@ After installing, click **Restart process** and enable it in **World Overview**.
 Uninstalling keeps the data, so memory and settings are still there after a reinstall. To remove everything, delete the data folder by hand (on Windows, the whole install folder).
 
 On Windows, when the program is in a new folder (a reinstall elsewhere, for example) with no data beside it, Coopanion asks at start whether to inherit the data used before or start a new one. Where that data is, is noted in `%LOCALAPPDATA%\Coopanion\data-location.json`.
+
+If `home/companion/telemetry.json`, `notice.json` or `alarms.json` is damaged, the app preserves it with a `.bad` suffix and rebuilds that state. A due alarm is still delivered if saving fails; after a restart it may be delivered again.
 
 Inside the data folder, `home` holds memory, conversations, settings and API keys, `extensions` the extensions, `logs` the logs, and `home/models` the speech model.
 

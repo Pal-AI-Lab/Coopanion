@@ -44,7 +44,7 @@ export interface PromptsView {
 }
 
 /** 模板里用到的占位符名(与后端 templateVarNames 同一套语法)。 */
-export function usedVarNames(template: string): string[] {
+function usedVarNames(template: string): string[] {
   const names: string[] = [];
   const seen = new Set<string>();
   for (const m of template.matchAll(/\{\{\s*([\w.]+)\s*(?:\|[^}]*)?\}\}/g)) {
@@ -57,7 +57,7 @@ export function usedVarNames(template: string): string[] {
  * 模板与声明对不上的地方。**警告不阻止保存**——改坏了自己负责,是这套编辑器的
  * 明确取舍;框架只把事实摆出来。
  */
-export function varWarnings(template: string, vars: readonly PromptVar[]): string[] {
+function varWarnings(template: string, vars: readonly PromptVar[]): string[] {
   const declared = new Set(vars.map((v) => v.name));
   const used = new Set(usedVarNames(template));
   const out: string[] = [];

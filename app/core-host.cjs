@@ -87,8 +87,9 @@ class CoreHost extends EventEmitter {
     log.write(`\n===== ${new Date().toISOString()} start =====\n${proxy.note}\n`);
     const child = fork(join(this.opts.appRoot, 'core', 'boot.ts'), [], {
       cwd: this.opts.appRoot,
-      // --use-system-ca: TLS trusts the operating system's certificate store as well as Node's bundled one
-      execArgv: ['--use-env-proxy', '--use-system-ca', '--import', 'tsx'],
+      // --use-system-ca: TLS trusts the operating system's certificate store as well as Node's bundled one;
+      // --expose-gc: the desktop-pet World frees a speech model as soon as it stops it (its src/asr/sherpa.ts)
+      execArgv: ['--use-env-proxy', '--use-system-ca', '--expose-gc', '--import', 'tsx'],
       env: coreEnvironment({ ...this.opts.env, ...proxy.vars, ...(this.unexpectedExit === null ? {} : { COOPANION_CORE_EXIT: String(this.unexpectedExit) }) }),
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     });
@@ -202,15 +203,30 @@ class CoreHost extends EventEmitter {
     try { this.child?.send(msg); } catch { /* channel closing */ }
   }
 
-  /** Asks for a clean shutdown; kills the child if it has not exited within `graceMs`. */
+  /** Asks for a clean shutdown, then forces termination after `graceMs` and waits up to 5 s for exit. */
   async stop(graceMs = 12_000) {
     this.stopping = true;
     const child = this.child;
     if (!child) return;
     const exited = new Promise((r) => child.once('exit', r));
+    const within = (ms) => {
+      let timer;
+      return Promise.race([
+        exited.then(() => true),
+        new Promise((r) => { timer = setTimeout(() => r(false), ms); }),
+      ]).finally(() => clearTimeout(timer));
+    };
     try { child.send({ type: 'companion:shutdown' }); } catch { /* channel already closed */ }
-    const done = await Promise.race([exited.then(() => true), new Promise((r) => setTimeout(() => r(false), graceMs))]);
-    if (!done) child.kill();
+    if (await within(graceMs)) return;
+    // Core treats SIGTERM as another shutdown request and ignores it once shutdown is under way.
+    child.kill('SIGKILL');
+    if (await within(5000)) return;
+    if (this.child === child) {
+      this.child = null;
+      this.port = null;
+      this.state = 'stopped';
+      this.emit('state', this.state);
+    }
   }
 
   /** Restart on demand (tray menu). */

@@ -4,7 +4,7 @@
  */
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import type { spawn } from 'node:child_process';
+import type { ChildProcess, spawn } from 'node:child_process';
 
 export interface FakeSapiScript {
   /** The text so far after `bytes` of audio in the sentence, or null for no partial line. */
@@ -13,16 +13,18 @@ export interface FakeSapiScript {
   final: (bytes: number) => string;
   /** First line; a `{"fatal":…}` makes the helper refuse to start. */
   first?: string;
+  readyDelayMs?: number;
+  exitDelayMs?: number;
 }
 
 export function fakeSapi(script: FakeSapiScript) {
-  const spawned: Array<{ env: NodeJS.ProcessEnv | undefined; lines: string[] }> = [];
+  const spawned: Array<{ env: NodeJS.ProcessEnv | undefined; lines: string[]; child: ChildProcess }> = [];
   const spawnImpl = ((_exe: string, _args: string[], opts: { env?: NodeJS.ProcessEnv }) => {
     const child = Object.assign(new EventEmitter(), {
       stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(), pid: 4242, exitCode: null as number | null,
       kill: () => { child.exitCode = 1; child.emit('exit', 1); return true; },
     });
-    const record = { env: opts.env, lines: [] as string[] };
+    const record = { env: opts.env, lines: [] as string[], child: child as unknown as ChildProcess };
     spawned.push(record);
     const out = (o: Record<string, unknown>) => child.stdout.write(JSON.stringify(o) + '\n');
     let id = 0, bytes = 0, buf = '';
@@ -41,8 +43,12 @@ export function fakeSapi(script: FakeSapiScript) {
         } else if (line === 'E') out({ id, text: script.final(bytes) });
       }
     });
-    child.stdin.on('finish', () => { child.exitCode = 0; child.emit('exit', 0); });
-    setTimeout(() => child.stdout.write((script.first ?? '{"ready":true,"culture":"zh-CN","name":"fake"}') + '\n'), 5);
+    child.stdin.on('finish', () => {
+      const exit = () => { child.exitCode = 0; child.emit('exit', 0); };
+      if (script.exitDelayMs) setTimeout(exit, script.exitDelayMs);
+      else exit();
+    });
+    setTimeout(() => child.stdout.write((script.first ?? '{"ready":true,"culture":"zh-CN","name":"fake"}') + '\n'), script.readyDelayMs ?? 5);
     return child;
   }) as unknown as typeof spawn;
   return { spawnImpl, spawned };

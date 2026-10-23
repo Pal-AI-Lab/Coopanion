@@ -9,6 +9,7 @@ export default defineConfig({
   // what scripts/stage.ts defines when it builds the settings window (console/app-version.ts)
   define: { COOPANION_VERSION: JSON.stringify('0.0.0'), COOPANION_CHANNEL: JSON.stringify('github') },
   test: {
+    setupFiles: ['tests/setup/jsdom-storage.ts'],
     include: ['tests/**/*.test.{ts,js}', 'packages/cortico-provider-coo/tests/**/*.test.ts'],
     env: { CORTICO_LANGUAGE: 'zh' },
     testTimeout: 20000,

@@ -8,8 +8,8 @@ export const S: Partial<typeof en> = {
   permission: 'Wann du gefragt wirst',
   levels: { 'ask-each-turn': 'Jede Runde', 'ask-before-acting': 'Vor dem Handeln', 'ask-once': 'Einmal', 'never-ask': 'Nie' },
   levelHints: {
-    'ask-each-turn': 'Fragt jede Runde, bevor es zum ersten Mal auf den Bildschirm schaut oder Maus und Tastatur benutzt.',
-    'ask-before-acting': 'Schauen ohne Nachfrage; fragt jede Runde, bevor es zum ersten Mal Maus und Tastatur benutzt.',
+    'ask-each-turn': 'Fragt jede Runde, bevor Coo zum ersten Mal auf den Bildschirm schaut oder Maus und Tastatur benutzt.',
+    'ask-before-acting': 'Schauen ohne Nachfrage; fragt jede Runde, bevor Coo zum ersten Mal Maus und Tastatur benutzt.',
     'ask-once': 'Schauen ohne Nachfrage; fragt einmal vor dem Handeln, danach nicht mehr, solange das Ja gilt.',
     'never-ask': 'Fragt nie.',
   },
@@ -24,7 +24,7 @@ export const S: Partial<typeof en> = {
   riskLead: 'Wenn das an ist, sieht Coo deinen Bildschirm und bedient Maus und Tastatur. ',
   riskDanger: 'Das kann sehr gefährlich sein',
   riskAfter: '. Bitte bestätige, dass du Folgendes verstehst:',
-  risks: ['Bildschirmfotos (sie können Privates zeigen, etwa Chatverläufe) gehen an den Modelldienst, den du nutzt', 'Coo kann danebenklicken, sich vertippen oder im falschen Fenster landen. Sorge immer dafür, dass du es jederzeit beobachten und unterbrechen kannst.', 'Überlass Coo keine Zahlungen, Passwörter oder anderes, das sensible Daten, Handlungen in der echten Welt oder Unwiderrufliches betrifft.'],
-  riskNote: 'Coo hält von selbst an, sobald du Maus oder Tastatur benutzt. Du kannst die Funktion jederzeit ausschalten.',
+  risks: ['Bildschirmfotos (sie können Privates zeigen, etwa Chatverläufe) gehen an den Modelldienst, den du nutzt', 'Coo kann danebenklicken, sich vertippen oder im falschen Fenster landen. Sorge immer dafür, dass du Coo jederzeit beobachten und unterbrechen kannst.', 'Überlass Coo keine Zahlungen, Passwörter oder anderes, das sensible Daten, Handlungen in der echten Welt oder Unwiderrufliches betrifft.'],
+  riskNote: 'Coo hält automatisch an, sobald du Maus oder Tastatur benutzt. Du kannst die Funktion jederzeit ausschalten.',
   riskOk: 'Einschalten',
 };

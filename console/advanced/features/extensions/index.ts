@@ -383,7 +383,6 @@ interface CategoryState {
   hits: SearchHitView[]; fetched: boolean; generation: number; messages: Record<string, { text: string; bad: boolean }>;
   source: 'npm' | 'local'; input: string;
 }
-export const HITS_PER_PAGE = 12;
 /** 卡片网格的列数,按内容区宽度取。 */
 export function extensionColumns(width: number): number { return width >= 1000 ? 3 : width >= 660 ? 2 : 1; }
 /** 手动安装的 npm 输入:包名,可带 `@` 精确版本或 dist-tag。 */

@@ -16,6 +16,10 @@ export const S: Partial<typeof en> = {
   doing: (what: string) => `작업 중: ${what}`,
   retry: (at: string) => `모델이 응답하지 않았습니다. ${at}에 다시 시도합니다`,
   handoff: '이전 대화를 정리하는 중',
+  contextUsed: (used: string, limit: string) => `약 ${used} / ${limit} token`,
+  contextTokens: (used: string) => `약 ${used} token`,
+  contextLimit: (limit: string) => `${limit}에 도달하면 이전 대화를 정리합니다`,
+  contextLast: (when: string) => `마지막 정리: ${when}`,
   paused: '일시 중지됨 · 재개하면 메시지가 전달됩니다',
   queued: (bot: string) => `대기 중 · 이 단계가 끝나면 ${bot}에게 전달됩니다`,
   queuedPaused: '일시 중지됨 · 재개하면 전달됩니다',
@@ -48,5 +52,5 @@ export const S: Partial<typeof en> = {
 export const STEP: Partial<typeof stepEn> = {
   pet_cua_screenshot: '스크린샷', pet_cua_click: '클릭', pet_cua_move: '마우스 이동', pet_cua_drag: '드래그', pet_cua_scroll: '스크롤', pet_cua_type: '입력',
   pet_cua_key: '키 누르기', pet_cua_windows: '창 목록 보기', pet_cua_focus: '창 전환', pet_cua_wait: '대기',
-  pet_move_to: '걷기', pet_act: '동작하기', pet_set: '스스로 조정', pet_quiet: '잠시 조용히',
+  pet_move_to: '걷기', pet_act: '동작하기', pet_set: '설정 조정', pet_quiet: '잠시 조용히',
 };
