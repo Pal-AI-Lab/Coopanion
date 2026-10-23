@@ -94,8 +94,6 @@ export function createRail(deps: RailDeps): Rail {
   toggle.type = 'button';
   toggle.setAttribute('aria-controls', 'companion-navigation');
   toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/><path class="companion-sidebar-chevron" d="m16 9-3 3 3 3"/></svg>';
-  // the words only show on the open rail, where the button folds it: they stay put while the rail folds
-  toggle.append(ui.h('span', 'lbl', L.collapseSidebar));
   // back and forward through the window's history; the router's leave guards still apply
   const step = (label: string, path: string, go: () => void): HTMLButtonElement => {
     const button = ui.h('button', 'companion-history');
@@ -117,6 +115,7 @@ export function createRail(deps: RailDeps): Rail {
   };
   navigation?.addEventListener('currententrychange', paintHistory, { signal });
   paintHistory();
+  // the fold button keeps the right end of the row
   tools.append(back, forward, toggle);
   brand.append(sidebarBrand(doc), meta, tools);
   mountRelease(doc, meta, (hint) => {

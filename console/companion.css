@@ -29,22 +29,28 @@ body.companion-sidebar { display: flex; height: 100dvh; overflow: hidden; }
 .is-collapsed .companion-brand-o-second { transform: translate(-20px, 6px) scale(.7); }
 .is-collapsed .companion-brand-tail { opacity: 0; transform: translateX(-18px); }
 
-.companion-sidebar-tools { display: flex; align-items: center; margin-top: 8px; min-height: 36px; transition: margin-top var(--rail-motion); }
+.companion-sidebar-tools { position: relative; display: flex; align-items: center; margin-top: 8px; min-height: 36px; padding: 9px 0; transition: margin-top var(--rail-motion); }
+/* the lines above and below the row drawn as at the foot around 已暂停: the upper one across the whole rail, the lower
+   one inset as the line under the foot's buttons (16px from each side; the row itself sits 18px in) */
+.companion-sidebar-tools::before, .companion-sidebar-tools::after { content: ''; position: absolute; height: 1px; background: var(--border); }
+.companion-sidebar-tools::before { top: 0; left: -18px; right: -18px; }
+.companion-sidebar-tools::after { bottom: 0; left: -2px; right: -2px; }
+/* back and forward from the left, the fold button at the right end; folded, only it is left, in the middle */
+.companion-sidebar-tools > .companion-sidebar-toggle { margin-left: auto; }
 /* a new release's link under the version: a little more room before the button, so the two lines of links do not run into it */
 #rail:not(.is-collapsed) .companion-brand-meta:has(.release-hint) + .companion-sidebar-tools { margin-top: 14px; }
 /* folded, the link's box shrinks to nothing: the button rises to where it is with no new release (rail/index.ts) */
 .companion-release { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--rail-motion); }
 .companion-release > div { min-height: 0; overflow: hidden; }
 .is-collapsed .companion-release { grid-template-rows: 0fr; }
+/* the row's icon buttons; the name of each is its tooltip */
 .companion-sidebar-toggle {
-  display: flex; align-items: center; gap: 12px; height: 36px; flex: 0 1 auto; min-width: 0; padding: 0 8px;
+  display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: none; padding: 0;
   border: 0; border-radius: 9px; background: transparent; color: var(--muted-foreground); cursor: pointer;
-  font: 450 13px/1.35 var(--sans); white-space: nowrap;
 }
 .companion-sidebar-toggle:hover { background: var(--hover); color: var(--foreground); }
 .companion-sidebar-toggle > svg { width: 20px; height: 20px; flex: none; }
-.companion-sidebar-toggle .lbl { overflow: hidden; text-overflow: ellipsis; }
-/* back and forward, left of the collapse button; folded, they narrow to nothing with the rail */
+/* back and forward, left of the fold button; folded, they narrow to nothing with the rail */
 .companion-history {
   display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: none; margin-right: 2px; padding: 0; overflow: hidden;
   border: 0; border-radius: 9px; background: transparent; color: var(--muted-foreground); cursor: pointer;
