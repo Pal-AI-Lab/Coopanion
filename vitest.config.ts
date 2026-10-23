@@ -13,6 +13,8 @@ export default defineConfig({
     include: ['tests/**/*.test.{ts,js}', 'packages/cortico-provider-coo/tests/**/*.test.ts'],
     env: { CORTICO_LANGUAGE: 'zh' },
     testTimeout: 20000,
+    // a busy Windows runner takes longer than the 1 s default to reach what a poll waits for
+    expect: { poll: { timeout: 10_000 } },
     pool: 'forks',
   },
 });
