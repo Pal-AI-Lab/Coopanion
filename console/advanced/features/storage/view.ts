@@ -144,8 +144,9 @@ export function createStorageView(deps: StorageViewDeps): StorageView {
       for (const [kind, title] of [['disk', S.sectionDisk], ['memory', S.sectionMemory]] as const) {
         const items = parts.filter((p) => p.kind === kind);
         if (!items.length) continue;
-        body.appendChild(ui.h('div', 'stsection', title));
-        for (const p of items) body.appendChild(row(p));
+        const card = ui.sheet({ title });
+        for (const p of items) card.body.appendChild(row(p));
+        body.appendChild(card.el);
       }
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
