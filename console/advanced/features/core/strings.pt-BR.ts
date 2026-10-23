@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
   // events.ts
   eventsDesc: 'Registros de eventos que o agente pode consultar.',
   allSources: 'Todas as fontes',
-  sourceTitle: 'Filtre por fonte. As sugestões vêm dos eventos carregados; qualquer fonte pode ser digitada.',
+  sourceTitle: 'Filtre por fonte. As opções vêm dos eventos carregados.',
   showArchive: 'Mostrar arquivo bruto',
   showArchiveTitle: 'Incluir eventos arquivados que não são entregues diretamente ao contexto',
   evHeadTime: 'Hora',
@@ -43,7 +43,6 @@ export const S: Partial<typeof en> = {
   grepPlaceholder: 'Regex; corresponde à mensagem e aos dados',
   roundPlaceholder: 'Rodada',
   refresh: 'Atualizar',
-  runlogDesc: 'Logs de execução, invisíveis para o agente.',
   logHeadTime: 'Hora',
   logHeadLevel: 'Nível',
   logHeadArea: 'Área',

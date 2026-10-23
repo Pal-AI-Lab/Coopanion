@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
   // events.ts
   eventsDesc: '이벤트 기록이며 에이전트가 조회할 수 있습니다.',
   allSources: '모든 소스',
-  sourceTitle: '소스로 필터링합니다. 후보는 불러온 이벤트에서 가져오며 직접 입력할 수도 있습니다.',
+  sourceTitle: '소스로 필터링합니다. 후보는 불러온 이벤트에서 가져옵니다.',
   showArchive: '원본 보관 기록 표시',
   showArchiveTitle: '보관만 되고 컨텍스트에 직접 전달되지 않은 이벤트도 포함',
   evHeadTime: '시간',
@@ -43,7 +43,6 @@ export const S: Partial<typeof en> = {
   grepPlaceholder: '정규식, 메시지와 data에 일치',
   roundPlaceholder: '라운드',
   refresh: '새로 고침',
-  runlogDesc: '실행 로그이며 에이전트에게 보이지 않습니다.',
   logHeadTime: '시간',
   logHeadLevel: '수준',
   logHeadArea: '영역',

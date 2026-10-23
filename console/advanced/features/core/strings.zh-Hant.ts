@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
   // events.ts
   eventsDesc: '事件記錄，agent 可查詢。',
   allSources: '全部來源',
-  sourceTitle: '依來源篩選。候選項目取自已載入的事件，也可以直接輸入。',
+  sourceTitle: '依來源篩選。候選項目取自已載入的事件。',
   showArchive: '顯示原始封存',
   showArchiveTitle: '包括僅封存、未直接投遞到上下文的事件',
   evHeadTime: '時間',
@@ -43,7 +43,6 @@ export const S: Partial<typeof en> = {
   grepPlaceholder: '正規表示式,比對內容與 data',
   roundPlaceholder: '輪次',
   refresh: '重新整理',
-  runlogDesc: '執行日誌，agent 不可見。',
   logHeadTime: '時間',
   logHeadLevel: '層級',
   logHeadArea: '區域',

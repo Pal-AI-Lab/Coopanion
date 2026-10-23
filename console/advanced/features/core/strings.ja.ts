@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
   // events.ts
   eventsDesc: 'イベントの記録です。エージェントが検索できます。',
   allSources: 'すべてのソース',
-  sourceTitle: 'ソースで絞り込みます。候補は読み込み済みのイベントから取得しますが、直接入力もできます。',
+  sourceTitle: 'ソースで絞り込みます。候補は読み込み済みのイベントから取得します。',
   showArchive: '生のアーカイブを表示',
   showArchiveTitle: 'アーカイブのみで、コンテキストに直接配信されていないイベントも含める',
   evHeadTime: '時刻',
@@ -43,7 +43,6 @@ export const S: Partial<typeof en> = {
   grepPlaceholder: '正規表現。メッセージと data に一致',
   roundPlaceholder: 'ラウンド',
   refresh: '更新',
-  runlogDesc: '実行ログです。エージェントからは見えません。',
   logHeadTime: '時刻',
   logHeadLevel: 'レベル',
   logHeadArea: '領域',
