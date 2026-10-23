@@ -311,7 +311,7 @@ export function configField(
 
 /**
  * 同一父键下一串数字项(如 `usage.rates.CNY`、`usage.rates.EUR`):说明相同,标题都是同一句话后接各自的键。
- * 这样的一串合成一节,标题与说明各写一次,每项一个小输入框。
+ * 这样的一串单成一张卡,跟在所属组后面:标题与说明各写一次,每项一个小输入框。
  */
 interface FieldRun {
   title: string;
@@ -467,9 +467,11 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
       for (const { group, values } of groups) {
         const card = ui.sheet({ title: group.schema.title || group.id, ...(group.schema.description ? { desc: group.schema.description } : {}) });
         if (showOwner) card.el.querySelector('h3')!.appendChild(ui.h('span', 'ttag', OWNER_LABEL[group.owner] || group.owner));
+        const runs: HTMLElement[] = [];
         for (const entry of splitRuns(Object.entries(group.schema.properties || {}))) {
           if (!Array.isArray(entry)) {
-            card.body.appendChild(ui.section(entry.title, entry.description));
+            const runCard = ui.sheet({ title: entry.title, ...(entry.description ? { desc: entry.description } : {}) });
+            runs.push(runCard.el);
             const grid = ui.h('div', 'configgrid');
             for (const [path, key, prop] of entry.items) {
               const cell = ui.h('label', 'configcell');
@@ -482,7 +484,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
               grid.appendChild(cell);
               if (field.read) readers.push({ groupId: group.id, path, read: field.read });
             }
-            card.body.appendChild(grid);
+            runCard.body.appendChild(grid);
             continue;
           }
           const [path, prop] = entry;
@@ -516,7 +518,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
           card.body.appendChild(row);
           if (read) readers.push({ groupId: group.id, path, read });
         }
-        body.appendChild(card.el);
+        body.append(card.el, ...runs);
       }
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
