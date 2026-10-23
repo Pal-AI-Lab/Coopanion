@@ -34,11 +34,11 @@ type StreamPayload = Anthropic.Beta.Messages.BetaRawMessageStreamEvent;
 /** Beta that lets a request set `thinking.block_binding`. */
 export const THINKING_BINDING_BETA = 'thinking-binding-controls-2026-08-01';
 /** `encrypted_content` of a reasoning Item that holds a `redacted_thinking` block's data. */
-export const REDACTED_PREFIX = 'redacted_thinking:';
+const REDACTED_PREFIX = 'redacted_thinking:';
 /** Text of a user turn the API requires where the context has none (first message, after a trailing assistant turn). */
 export const FILLER_USER_TEXT = '-';
 /** `max_tokens` when the profile leaves it unset; thinking counts against it. */
-export const DEFAULT_MAX_TOKENS = 16000;
+const DEFAULT_MAX_TOKENS = 16000;
 /** Tool result for a call the context carries no output for. */
 export const MISSING_RESULT = '(no result recorded)';
 
@@ -53,7 +53,7 @@ const NO_FORCED_TOOLS = /^claude-(opus-5-5|fable-5-1|mythos-5-1|sonnet-5-5)/;
 const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
 
 /** Tool use ids must match `^[a-zA-Z0-9_-]+$`; ids from other endpoints are mapped onto that alphabet. */
-export function toolUseId(callId: string): string {
+function toolUseId(callId: string): string {
   const id = callId.replace(/[^a-zA-Z0-9_-]/g, '_');
   return id || 'call';
 }
@@ -223,7 +223,7 @@ function strayText(result: ToolResultParam): ContentBlockParam {
 }
 
 /** `thinking` and `output_config.effort` for the profile; thinking off uses the cheapest form the model accepts. */
-export function thinkingParams(spec: ModelSpec): { thinking?: Anthropic.Beta.Messages.BetaThinkingConfigParam; effort?: string; betas: string[] } {
+function thinkingParams(spec: ModelSpec): { thinking?: Anthropic.Beta.Messages.BetaThinkingConfigParam; effort?: string; betas: string[] } {
   const effort = spec.reasoningEffort && EFFORTS.has(spec.reasoningEffort) ? spec.reasoningEffort : undefined;
   const adaptive = { type: 'adaptive', block_binding: { prefix_mismatch_behavior: 'drop_block' } } as const;
   if (!spec.thinking) {
@@ -287,7 +287,7 @@ export function claudeRequest(request: Request, options: GenerateOptions, opts: 
 }
 
 /** Usage: `input_tokens` is what came after the last cache breakpoint; the prompt is all three input counts. */
-export function claudeMeters(raw: Partial<Anthropic.Beta.Messages.BetaUsage> | null | undefined, thought: boolean): TokenMeters {
+function claudeMeters(raw: Partial<Anthropic.Beta.Messages.BetaUsage> | null | undefined, thought: boolean): TokenMeters {
   if (!raw || typeof raw.input_tokens !== 'number') return unknownMeters();
   const fresh = raw.input_tokens;
   const written = raw.cache_creation_input_tokens ?? 0;

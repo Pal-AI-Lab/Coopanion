@@ -279,7 +279,7 @@ export const en: typeof zh = {
   obWorlds: 'Next, enable and configure the external environments your bot reaches (Cortico Worlds). Console chat alone is a fine start.',
   obWorldsState: (labels: readonly string[]) =>
     `Currently ${labels.length} external environment${labels.length === 1 ? '' : 's'} enabled: ${labels.join(', ')}`,
-  obPrompts: 'Finally, the system prompt is edited here: who it is, how it behaves, how it talks.',
+  obPrompts: 'Finally, the system prompt is edited here: who Coo is, how Coo behaves and talks.',
   obReady: 'Ready to go!',
   obGoConfigure: 'Configure',
   obGoEdit: 'Edit',

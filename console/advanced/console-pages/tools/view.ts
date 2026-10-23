@@ -8,7 +8,7 @@ import type { ToolSchemaDoc } from '../../features/live/protocol.ts';
 import { S } from './strings.ts';
 
 /** schema 节点的类型名。联合/枚举/组合都给一个能读的词,不返回空。 */
-export function schemaTypeLabel(node: unknown): string {
+function schemaTypeLabel(node: unknown): string {
   if (!node || typeof node !== 'object') return '—';
   const n = node as Record<string, unknown>;
   if (Array.isArray(n.type)) return n.type.join(' | ');
@@ -20,7 +20,7 @@ export function schemaTypeLabel(node: unknown): string {
   return 'schema';
 }
 
-export interface SchemaParamRow {
+interface SchemaParamRow {
   path: string;
   type: string;
   required: boolean;
@@ -28,7 +28,7 @@ export interface SchemaParamRow {
 }
 
 /** 参数表:递归展开 `properties`,数组元素记成 `x[]`。 */
-export function schemaParameterRows(parameters: unknown): SchemaParamRow[] {
+function schemaParameterRows(parameters: unknown): SchemaParamRow[] {
   const rows: SchemaParamRow[] = [];
   const walk = (node: unknown, prefix: string): void => {
     if (!node || typeof node !== 'object') return;
@@ -54,7 +54,7 @@ export function schemaParameterRows(parameters: unknown): SchemaParamRow[] {
 }
 
 /** 按 owner 分栏。返回顺序固定:原生动作、Persona、各 World(按出场顺序)。 */
-export function groupTools(
+function groupTools(
   schemas: readonly ToolSchemaDoc[],
 ): Array<[string, ToolSchemaDoc[]]> {
   const core: ToolSchemaDoc[] = [];

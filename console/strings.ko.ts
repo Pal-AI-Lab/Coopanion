@@ -2,6 +2,7 @@ import type { en } from './strings.ts';
 
 export const L: Partial<typeof en> = {
   collapseSidebar: '사이드바 접기', expandSidebar: '사이드바 펼치기',
+  goBack: '뒤로', goForward: '앞으로',
   trace: '콘솔', integrations: '연동', personaMemory: '인격과 기억', diagnostics: '진단',
   toAdvanced: '고급 모드', toAdvancedHint: 'Cortico의 모든 설정 표시: 모델, 확장, World, 기억, 진단',
   toNormal: '일반 모드로 돌아가기', toNormalHint: '펫 관련 페이지만 표시',

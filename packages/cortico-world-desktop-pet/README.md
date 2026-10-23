@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts -->
+<!-- Owner: src/definition.ts, src/cua/cua.ts, src/world.ts, src/asr/system-recognizer.ts -->
 
 <p align="center">
   <picture>
@@ -50,6 +50,9 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 ## 桌宠窗口
 
 World 在 `127.0.0.1:7797`(被占向上顺延)起一个页面服务:`/pet` 是桌宠本身,`/dress` 是装扮页。
+浏览器的写请求和 WebSocket 只接受本服务的 HTTP 源(含端口);不带 Origin 的本机客户端可以连接。
+宿主启动地址的 fragment 带随机凭据,桌宠窗口和 OBS 画面来源连接时必须提供;公开地址和状态不含凭据。
+桌宠窗口连接被替换后会重新连接。窗口在线时,浏览器预览只接收外观和偏好更新,仍可发送文字、修改偏好和使用运行控制。
 桌宠内置两个形象,和导入的形象包(见「形象包」)一起在装扮页最上面一行选,存在配置 `skin.figure` 里:`coo` 是 Coo,`whale` 是 DeepSeek 大肥鱼
 (鲸鱼女仆,`web/whale`,用 `web/rig` 画的 Live2D 式分件模型,八套配色存在 `skin.scheme`,见 [examples/whale](examples/whale/README.md))。
 选大肥鱼时装扮页的配色和配件换成大肥鱼的八套配色;桌宠页第一次用到大肥鱼时才加载这套贴图,只加载选中的那套。
@@ -141,7 +144,7 @@ kit 的身体(`web/kit/body.js`)另收 `set({ thoughtShown })`,表示页面正�
 OBS 里的位置与屏幕上一致。在 OBS 添加「浏览器」来源,网址填这个地址,宽高设为屏幕分辨率。关着时 `/overlay` 返回 404,
 窗口进程不截图。
 
-画面由窗口进程截:它以 `/socket?role=overlay-source` 连页面服务,开关开着且有 overlay 页在看时被告知开始。
+画面由窗口进程截:它以 `/socket?role=overlay-source&key=…` 连页面服务,开关开着且有 overlay 页在看时被告知开始。
 桌宠页每画一帧报一次要截的那块(身体加光晕和头顶的余量,并上显示中的气泡)和画出的时刻(`pet:overlayFrame`),
 窗口进程按帧截图(同时最多截 3 帧,再来的帧不发),连同所在屏幕的尺寸、这块在屏幕上的位置和画出的时刻发给页面服务,
 原样转给每个 `/socket?role=overlay`;窗口进程断开时页面收到一帧空画面。帧格式见 `host/overlay.cjs`。
@@ -165,6 +168,8 @@ overlay 页按画出的时刻显示各帧，帧与帧隔开的时间和桌宠页
 | `system` | Windows 自带的语音识别(SAPI 听写,System.Speech),不用下载,准确度低一些;其他系统上按空处理 |
 
 旧版本写下的 `auto` 按空处理。
+
+关闭 `asr.enabled` 会停止当前识别引擎：释放已加载的模型，或结束系统识别的 PowerShell 进程；再次开启时重新加载。
 
 `sherpa-onnx-node` 是本包的依赖,随包安装(Windows 约 24 MB,macOS 约 35 MB,Linux x64 约 33 MB),不在运行时下载;
 Windows x64、macOS arm64 / x64、Linux x64 / arm64 都有预编译包,Linux 上要 glibc 2.32 与 GCC 11 的 libstdc++ 以上(Ubuntu 22.04、Debian 12 起)。
@@ -281,8 +286,15 @@ Coopanion 在 Linux 上固定跑在 X11 上;Wayland 会话里经 XWayland 只看
 装扮页形象那一行的最后一格是「导入」:选一个 zip 或一个文件夹,也可以直接把 zip 或文件夹拖到装扮页上(`src/pack-import.ts`)。
 形象包是带 `figure.json` 的那个文件夹,从所选的位置往下最多找 3 层(GitHub 下载的 zip 外面会多套一层),找到一个包就不再往它里面找。
 找到的包先列出来:缩略图、名字、版本、作者、署名、打扮和词的数量、这一版用不上的部分;已经装了同 id 的包时,写明会换成哪一版。
-勾选的包装到数据目录的 `figures/<id>/`,替换同 id 的旧包,旧包所在的文件夹叫别的名字也一样;和内置形象同 id 的包导入不了。
-一次最多 128 MB。装了但没加载成功的包列在形象那一行下面,写明原因。直接构造 `DesktopPetWorld` 时不给 `packDir`,装扮页就不显示导入。
+勾选的包装到数据目录的 `figures/<id>/`。同 id 的包或目标目录已存在时,服务返回 409 和冲突 id,本批文件均不改动;
+装扮页列出冲突包,确认替换后再安装,取消则保留原文件。替换同 id 的旧包时,旧包所在的文件夹叫别的名字也一样;和内置形象同 id 的包导入不了。
+一次最多 128 MB。装了但没加载成功的包列在形象那一行下面,写明原因。直接构造 `DesktopPetWorld` 时不给 `packDir`,装扮页就不显示导入,也没有包能卸载。
+
+### 卸载
+
+`/api/figures` 给每个包标上 `removable`:只有装在 `packDir`(数据目录的 `figures/`)里的包能卸载,内置形象和 `packRoots` 其余目录里的包不能。
+装扮页上能卸载的包,悬停或聚焦卡片时右上角出现删除按钮,确认后 `POST /api/figures/remove`(`{ id }`)删掉这个包所在的整个文件夹;
+删的是正在用的形象时,装扮页把装扮换回 Coo。内置的、不在 `packDir` 里的或不存在的 id 返回 400 和原因,不删任何文件。
 
 ### 形象包兼容承诺
 
@@ -399,7 +411,7 @@ macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)�
 
 操作系统调用都在引擎子进程(`src/cua/engine-child.ts`)里,经 [koffi](https://koffi.dev/) 直接调系统接口。请求和结果里的坐标是某块显示器的物理像素,
 各系统自己的全局坐标只在子进程里换算(`src/cua/engine/display.ts`)。
-引擎在第一次要用时拉起;子进程崩溃只让在途的那次调用失败,下次调用重新拉起。World 页多一盏「操作引擎」灯。
+引擎在第一次要用时拉起;子进程崩溃或请求超时让这个引擎的在途请求失败,超时的引擎被强制结束,下次调用重新拉起。World 页多一盏「操作引擎」灯。
 
 - Windows(`src/cua/engine/win32.ts`):`EnumDisplayMonitors` 列显示器,GDI `BitBlt` 按显示器矩形截图(带 `CAPTUREBLT`,透明与分层窗口也截得到)、
   `SetCursorPos` 定位指针(`SendInput` 的绝对坐标要折算到 0–65535,在显示器接缝处会差一个像素)、`SendInput` 发按键和滚轮、`EnumWindows`、

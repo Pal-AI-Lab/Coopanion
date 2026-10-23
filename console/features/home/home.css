@@ -63,7 +63,6 @@
 .companion-row:has(.companion-hoverpick) > .companion-label { padding-top: 10px; }
 .companion-control > input { width: 100%; max-width: 320px; }
 .companion-rangebox { display: flex; align-items: center; gap: 12px; padding-top: 4px; }
-.companion-range { flex: 1; max-width: 280px; accent-color: var(--accent); }
 .companion-rangeval { min-width: 44px; font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .companion-rangebox > input[type=number] { width: 96px; }
 /* 大小:200% 以内是主段,分界线右边一小段到 1000%,越过分界线时这段拉长(scale-slider.ts) */

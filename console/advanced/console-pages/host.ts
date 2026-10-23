@@ -2,13 +2,8 @@
  * Console Page Host 根据 manifest 渲染导航与面板，并管理挂载和卸载；不依赖具体页的名称。扩展加载、mount 或面板解析失败仅将对应面板替换为错误卡，不影响其他页与框架。
  */
 
-import {
-  CONSOLE_PROTOCOL_VERSION,
-  type ConsoleManifest,
-  type ConsolePageManifest,
-  type ConsoleStorageRef,
-  type ConsolePanelManifest,
-} from '../lib/web/shared/console-protocol.ts';
+import { CONSOLE_PROTOCOL_VERSION } from '../../base/protocol.ts';
+import type { WebUiManifest, WebUiPageManifest, WebUiStorageRef, WebUiPanelManifest } from 'cortico/web/shared/webui-protocol.ts';
 import type { WebUiMemo, WebUiPanel, WebUiPanelContext, Disposable } from 'cortico/web/shared/client-panel.ts';
 import { get, post } from '../../base/api.ts';
 import { Lifecycle } from '../../base/lifecycle.ts';
@@ -42,7 +37,7 @@ function asArray<T>(v: readonly T[] | undefined): readonly T[] {
 }
 
 /** 页签只给独立面板；带 slot 的由宿主面板挂。 */
-function tabbed(page: ConsolePageManifest): readonly ConsolePanelManifest[] {
+function tabbed(page: WebUiPageManifest): readonly WebUiPanelManifest[] {
   return asArray(page.panels).filter((p) => p.slot === undefined);
 }
 
@@ -56,7 +51,7 @@ export interface ConsolePageHostDeps {
   /** 内核自带的面板实现，键即 `panel.builtin`。 */
   builtins: BuiltinPanels;
   router: Router;
-  fetchManifest(): Promise<ConsoleManifest>;
+  fetchManifest(): Promise<WebUiManifest>;
   memo: WebUiMemo;
   createSocket(url: string): SocketLike;
   wsUrl(path: string): string;
@@ -82,7 +77,7 @@ interface Panes {
 
 export class ConsolePageHost {
   private readonly deps: ConsolePageHostDeps;
-  private snapshot: ConsoleManifest | null = null;
+  private snapshot: WebUiManifest | null = null;
   private mounted: MountedPanel | null = null;
   private panes: Panes | null = null;
   /** 页头里的页签。同一页内切换页签且页头内容没变时保留它，选中滑块才能滑过去。 */
@@ -98,7 +93,7 @@ export class ConsolePageHost {
     this.deps = deps;
   }
 
-  get pages(): ConsolePageManifest[] {
+  get pages(): WebUiPageManifest[] {
     return this.snapshot?.providers ?? [];
   }
 
@@ -163,7 +158,7 @@ export class ConsolePageHost {
     }
   }
 
-  find(pageId: string): ConsolePageManifest | undefined {
+  find(pageId: string): WebUiPageManifest | undefined {
     return this.pages.find((p) => p.id === pageId);
   }
 
@@ -397,19 +392,19 @@ export class ConsolePageHost {
   }
 
   /** 仅返回当前页认领且部署支持 config 能力的配置组。 */
-  private configGroupsOf(page: ConsolePageManifest): readonly string[] {
+  private configGroupsOf(page: WebUiPageManifest): readonly string[] {
     if (this.snapshot?.framework?.capabilities?.config === false) return [];
     return asArray(page.configGroups);
   }
 
   /** 仅返回当前页声明且部署支持 storage 能力的存储项。 */
-  private storageOf(page: ConsolePageManifest): readonly ConsoleStorageRef[] {
+  private storageOf(page: WebUiPageManifest): readonly WebUiStorageRef[] {
     if (this.snapshot?.framework?.capabilities?.storage === false) return [];
     return asArray(page.storageParts);
   }
 
   /** Persona 页才有工具表页签,且要部署挂着 /api/tool-schemas。 */
-  private toolsTabOf(page: ConsolePageManifest): boolean {
+  private toolsTabOf(page: WebUiPageManifest): boolean {
     if (page.kind !== 'persona' || page.availability !== 'active') return false;
     return this.snapshot?.framework?.capabilities?.toolSchemas !== false;
   }
@@ -441,7 +436,7 @@ export class ConsolePageHost {
   }
 
   /** 这一页声明的存储项走同一张 /api/storage 清单;这里按归属与 key 挑出自己的。 */
-  private async showStorage(pageId: string, refs: readonly ConsoleStorageRef[], gen: number): Promise<void> {
+  private async showStorage(pageId: string, refs: readonly WebUiStorageRef[], gen: number): Promise<void> {
     const { slot } = this.ensurePanes();
     const lifecycle = new Lifecycle(this.deps.onError);
     this.mounted = { pageId, panelId: PROVIDER_STORAGE_ROUTE, lifecycle };

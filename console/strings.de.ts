@@ -2,6 +2,7 @@ import type { en } from './strings.ts';
 
 export const L: Partial<typeof en> = {
   collapseSidebar: 'Seitenleiste einklappen', expandSidebar: 'Seitenleiste ausklappen',
+  goBack: 'Zurück', goForward: 'Vorwärts',
   trace: 'Konsole', integrations: 'Integrationen', personaMemory: 'Persönlichkeit & Gedächtnis', diagnostics: 'Fehlersuche',
   toAdvanced: 'Erweiterter Modus', toAdvancedHint: 'Ganz Cortico zeigen: Modelle, Erweiterungen, Worlds, Gedächtnis und Diagnose',
   toNormal: 'Zurück zum normalen Modus', toNormalHint: 'Nur die Seiten zum Haustier zeigen',

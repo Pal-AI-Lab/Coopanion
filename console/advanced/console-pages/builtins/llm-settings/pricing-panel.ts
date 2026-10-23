@@ -1,5 +1,5 @@
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
-import { pick, type Language } from '../../../lib/core/language.ts';
+import { pick } from '../../../../base/language.ts';
 import { panel } from './strings.ts';
 
 interface Rule {
@@ -69,10 +69,9 @@ export function pricingEditor(
   saved: unknown[],
   quotes: ModelQuote[],
   commit: (pricing: unknown[]) => void,
-  language: Language,
   draft?: { raw?: string; onRaw(value: string): void },
 ) {
-  const S = pick(language, panel);
+  const S = pick(panel);
   const card = ui.sheet({
     title: S.pricingTitle,
     desc: S.pricingDescription,

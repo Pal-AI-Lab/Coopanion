@@ -135,6 +135,13 @@ const ptBR: Translation<PetText> = {
     overLimit: (mb: number) => `Mais de ${mb} MB`,
   },
 
+  removing: {
+    notInstalled: (id: string) => `Nenhum pacote de personagem tem o id ${id}`,
+    builtin: (id: string) => `${id} é um personagem integrado e não pode ser desinstalado`,
+    elsewhere: (id: string) => `${id} não está na pasta de instalação de pacotes de personagem; não é possível desinstalá-lo aqui`,
+    failed: (why: string) => `Não foi possível excluir: ${why}`,
+  },
+
   consent: {
     question: (items: string[]) => `Posso ${items.join(', ')}?`,
     choices: ['Pode', 'Pode sempre', 'Não, obrigado'] as [yes: string, always: string, no: string],
@@ -170,7 +177,7 @@ const ptBR: Translation<PetText> = {
       pet: { title: 'Pet de área de trabalho', description: 'A janela, o visual e o ambiente de execução da janela.' },
       voice: { title: 'Entrada de voz', description: 'Motor de reconhecimento, nível de entrada e o que foi ouvido.' },
     },
-    envPrompt: { title: 'Ambiente do pet de área de trabalho', description: 'Descreve o corpo do pet, suas quatro ferramentas e seus eventos de entrada.' },
+    envPrompt: { title: 'Ambiente do pet de área de trabalho', description: 'Descreve o corpo do pet, as quatro ferramentas e os eventos de entrada.' },
     vars: {
       'pet.user': 'Como o bot chama a pessoa',
       'pet.vocab': 'As expressões e os movimentos do personagem atual',
@@ -198,14 +205,14 @@ const ptBR: Translation<PetText> = {
     hoverButtons: { title: 'Botões ao passar o mouse', description: (max: number, ids: string) => `Botões ao lado do pet enquanto o ponteiro está em cima, até ${max}, separados por vírgulas: ${ids}.` },
     doubleClickChat: { title: 'Clique duplo para digitar', description: 'Clicar duas vezes no pet abre a caixa de texto.' },
     statusBubble: { title: 'Balão de status', description: 'Mostra o que o pet está fazendo enquanto pensa, consulta a memória ou usa o computador, incluindo nomes de arquivos.' },
-    saidBubbles: { title: 'Balões de entrada', description: 'O que é digitado, falado ou enviado pela página de chat aparece acima do pet até ele responder. Desligado, a fala só aparece enquanto é reconhecida.' },
-    selfAdjust: { title: 'Autoajuste', description: 'off: não pode mudar as próprias configurações nem fazer silêncio por um tempo. default: personagem, visual, passeios e ronco mudam direto; tamanho, tamanho dos balões, tamanho do texto, sons, modo noturno, botões ao passar o mouse e como chama você esperam seu consentimento. any: tudo muda direto. custom: conforme marcado na página Hábitos; o que estiver marcado muda direto e o resto espera seu consentimento.' },
+    saidBubbles: { title: 'Balões de entrada', description: 'O que é digitado, falado ou enviado pela página de chat aparece acima do pet até Coo responder. Desligado, a fala só aparece enquanto é reconhecida.' },
+    selfAdjust: { title: 'Autoajuste', description: 'off: Coo não pode mudar as configurações nem fazer silêncio por um tempo. default: personagem, visual, passeios e ronco mudam direto; tamanho, tamanho dos balões, tamanho do texto, sons, modo noturno, botões ao passar o mouse e como chama você esperam seu consentimento. any: tudo muda direto. custom: conforme marcado na página Hábitos; o que estiver marcado muda direto e o resto espera seu consentimento.' },
     windowEnabled: { title: 'Abrir a janela do pet ao iniciar' },
     scale: { title: 'Tamanho' },
     bubbleSize: { title: 'Tamanho dos balões', description: 'Largura, margens, cantos e ponta dos balões do pet e dos seus, 1 é o padrão; o texto mantém o tamanho.' },
     fontSize: { title: 'Tamanho do texto', description: 'Tamanho do texto nos balões, 1 é o padrão; os balões mantêm a largura.' },
     bubbleSpeed: { title: 'Velocidade dos balões', description: 'Velocidade com que os balões do pet são escritos e quanto tempo ficam, 1 é o padrão; valores maiores são mais rápidos.' },
-    glow: { title: 'Brilho externo', description: 'Quantos pixels o brilho claro em volta do pet alcança quando as cores dele se parecem com o fundo; 0 desliga.' },
+    glow: { title: 'Brilho externo', description: 'Quantos pixels o brilho claro em volta do pet alcança quando as cores do Coo se parecem com o fundo; 0 desliga.' },
     frameRate: { title: 'Taxa de quadros', description: 'Quadros por segundo enquanto o pet anda ou pula, ou enquanto você carrega o pet; 0 segue a tela. Acima da taxa de atualização da tela, vale a da tela. A página Hábitos oferece 60, 120, 144 e Sem limite.' },
     lockFrameRate: { title: 'Travar taxa de quadros', description: 'Desenha o pet nessa taxa também em repouso. Desligado, cai para 30 quadros por segundo quando está em pé, na posição sentada ou dormindo.' },
     hideWhenFullscreen: { title: 'Ocultar em tela cheia', description: 'Ligado, o pet se esconde enquanto a janela em primeiro plano ocupa toda a tela onde o pet está (um jogo, um vídeo em tela cheia, um navegador em tela cheia) e volta quando a tela cheia termina; uma janela maximizada não conta. Desligado, fica sempre por cima.' },

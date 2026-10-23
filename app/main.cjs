@@ -5,7 +5,8 @@
  * - the app: tray icon, the settings window (Coopanion's own front end, `build/console`, served under
  *   `/coopanion/` on the Core child's console origin in a session of its own, see serveWindow), and
  *   the Core child process (`core-host.cjs`). A start shows the pet and the tray icon only; the settings window opens from the tray, the pet's menu, or when the pet asks for
- *   a missing model key (`core/companion.ts`). Starting it again while it runs brings the pet back, or starts the
+ *   a missing model key (`core/companion.ts`). Closing the settings window ends its renderer, unless a page holds unsaved
+ *   edits, which keeps it hidden; it opens again at the route it last showed. Starting the app again while it runs brings the pet back, or starts the
  *   Core again when it stopped retrying (`failed`);
  * - `--pet-host --pet-url=… --parent-pid=…`: the desktop pet's transparent window, started by
  *   the desktop-pet World through `CORTICO_DESKTOP_PET_HOST`. It uses its own profile directory.
@@ -25,7 +26,8 @@
  * `~/.config/Coopanion` (an AppImage is mounted read-only, a deb installs under /opt); from
  * source `build/data`; or `CORTICO_COMPANION_DATA`. It holds `home/` (deployment, endpoint,
  * Memory), `extensions/` (Worlds and providers installed from npm), `logs/`, `tmp/` (the process
- * temp directory), `pnpm/` (store and caches for extension installs), and the Chromium profiles.
+ * temp directory), `pnpm/` (store and caches for extension installs, in `%LOCALAPPDATA%\Coopanion` when the
+ * volume holds no junctions), and the Chromium profiles.
  *
  * On macOS the app lives in the menu bar (the Info.plist sets LSUIElement): no Dock icon, except
  * while the settings window is open, so it can be reached with Command-Tab.
@@ -39,7 +41,7 @@
 const { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
 const http = require('node:http');
 const { Readable } = require('node:stream');
-const { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, rmSync, writeFileSync } = require('node:fs');
+const { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, rmSync, symlinkSync, writeFileSync } = require('node:fs');
 const { delimiter, dirname, extname, join, resolve, sep } = require('node:path');
 const { dataDirIn, locateData, readRecord, writeRecord } = require('./data-dir.cjs');
 
@@ -114,6 +116,9 @@ if (located?.ask && !PET_HOST) {
   app.whenReady().then(() => {
     if (askDataLocation(located)) app.relaunch();
     app.exit(0);
+  }).catch((err) => {
+    dialog.showErrorBox('Coopanion', String(err?.message ?? err));
+    app.exit(1);
   });
   return;
 }
@@ -224,6 +229,25 @@ const shimDir = join(__dirname, 'shims');
 const MINGIT = join(APP_ROOT, 'mingit', 'cmd');
 const petHost = app.isPackaged ? [process.execPath, '--pet-host'] : [process.execPath, APP_ROOT, '--pet-host'];
 
+/**
+ * Whether the data directory's volume holds junctions; FAT, exFAT and most network shares do not. pnpm registers each
+ * project it installs into with a link in its store, so on such a volume the store and caches live in
+ * `%LOCALAPPDATA%\Coopanion\pnpm` and node_modules hold the packages themselves.
+ */
+function dataHoldsLinks() {
+  if (process.platform !== 'win32') return true;
+  const probe = join(DATA, 'tmp', `link-probe-${process.pid}`);
+  try {
+    symlinkSync(DATA, probe, 'junction');
+  } catch {
+    return false;
+  }
+  rmdirSync(probe);
+  return true;
+}
+const LINKS = dataHoldsLinks();
+const PNPM_DIR = LINKS ? join(DATA, 'pnpm') : join(process.env.LOCALAPPDATA ?? app.getPath('temp'), 'Coopanion', 'pnpm');
+
 const core = new CoreHost({
   appRoot: APP_ROOT,
   logDir: join(userData, 'logs'),
@@ -237,12 +261,12 @@ const core = new CoreHost({
     CORTICO_START_PAUSED: '0',
     CORTICO_DESKTOP_PET_HOST: JSON.stringify(petHost),
     // pnpm keeps its store and caches in LOCALAPPDATA unless told otherwise; pnpm 11 reads the pnpm_config_ prefix
-    pnpm_config_store_dir: join(DATA, 'pnpm', 'store'),
-    pnpm_config_cache_dir: join(DATA, 'pnpm', 'cache'),
-    pnpm_config_state_dir: join(DATA, 'pnpm', 'state'),
+    pnpm_config_store_dir: join(PNPM_DIR, 'store'),
+    pnpm_config_cache_dir: join(PNPM_DIR, 'cache'),
+    pnpm_config_state_dir: join(PNPM_DIR, 'state'),
     // a portable folder is copied whole, which turns pnpm's links (absolute junctions on Windows) into plain folders an
     // extension no longer finds its dependencies through; hoisted node_modules hold the packages themselves
-    ...PORTABLE ? { pnpm_config_node_linker: 'hoisted' } : {},
+    ...PORTABLE || !LINKS ? { pnpm_config_node_linker: 'hoisted' } : {},
     // extension installs call `corepack pnpm`; the shim (corepack.cmd, or corepack on macOS) runs the bundled pnpm on this runtime.
     // The Windows build carries MinGit (scripts/pack.ts), ahead of any other git, for the history of Coo's workspace
     PATH: [shimDir, ...existsSync(MINGIT) ? [MINGIT] : [], process.env.PATH ?? ''].join(delimiter),
@@ -256,6 +280,8 @@ const core = new CoreHost({
 });
 
 let settings = null;
+/** The route the settings window showed when it was last closed, where it opens next unless asked for another. */
+let settingsRoute = '';
 let tray = null;
 let quitting = false;
 /** The quit was asked for from the pet's update bubble: the updated app starts once installed. */
@@ -300,6 +326,11 @@ const SETTINGS_PARTITION = 'persist:coopanion-settings';
 const WINDOW_DIR = join(APP_ROOT, 'build', 'console');
 const WINDOW_PREFIX = '/coopanion/';
 const WINDOW_TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.map': 'application/json' };
+/**
+ * The window's own files run only scripts from the Core's origin, which serves the extensions' page bundles too; where its
+ * other requests may go is kept by keepRemoteOut.
+ */
+const WINDOW_CSP = "script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 const refused = () => new Response(null, { status: 403 });
 const coreOrigin = () => (core.port ? `http://127.0.0.1:${core.port}` : null);
 /** The desktop-pet World's server, as its panel reports it; asked again when a request names another origin. */
@@ -329,7 +360,7 @@ function windowFile(url) {
   try {
     const file = resolve(WINDOW_DIR, decodeURIComponent(url.pathname.slice(WINDOW_PREFIX.length)) || 'index.html');
     if (!file.startsWith(WINDOW_DIR + sep)) return new Response(null, { status: 404 });
-    return new Response(readFileSync(file), { headers: { 'content-type': WINDOW_TYPES[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store' } });
+    return new Response(readFileSync(file), { headers: { 'content-type': WINDOW_TYPES[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store', 'content-security-policy': WINDOW_CSP } });
   } catch {
     // a malformed escape, a directory, a file that is not there
     return new Response(null, { status: 404 });
@@ -442,14 +473,27 @@ function openSettings(path = '') {
   settings.once('ready-to-show', () => bringForward(settings));
   settings.on('page-title-updated', (e) => e.preventDefault());
   keepOnConsole(settings.webContents);
-  settings.on('close', (e) => {
-    if (quitting) return;
-    e.preventDefault();
-    settings.hide();
+  const win = settings;
+  let closing = false;
+  win.on('close', () => {
+    closing = true;
+    // the loading page, shown until the Core is up, has no route
+    const page = win.webContents.getURL();
+    if (page.startsWith('http://')) settingsRoute = new URL(page).hash;
+  });
+  // A page with unsaved edits (a leave guard, console/base/router.ts) refuses to unload: closing the window
+  // then hides it with the edits kept. A load the app starts itself, and a quit, go ahead.
+  win.webContents.on('will-prevent-unload', (e) => {
+    if (quitting || !closing) { e.preventDefault(); return; }
+    closing = false;
+    win.hide();
     if (MAC) app.dock?.hide();
   });
-  settings.on('closed', () => { settings = null; });
-  const url = settingsUrl(path);
+  win.on('closed', () => {
+    settings = null;
+    if (MAC && !quitting) app.dock?.hide();
+  });
+  const url = settingsUrl(path || settingsRoute);
   settings.loadURL(url ?? loadingPage(T().starting));
 }
 
@@ -457,7 +501,7 @@ function openSettings(path = '') {
 async function panel(pageId, panelId, method) {
   const url = consoleUrl(`api/webui/providers/${encodeURIComponent(pageId)}/panels/${panelId}/${method}`);
   if (!url) return null;
-  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args: [] }) });
+  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args: [] }), signal: AbortSignal.timeout(5000) });
   return res.ok ? res.json() : null;
 }
 
@@ -504,7 +548,7 @@ function refreshTray() {
   const t = T(), login = loginItem.get();
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: t.trayOpenSettings, click: () => openSettings() },
-    { label: t.trayShowPet, enabled: core.state === 'running', click: () => void showPet() },
+    { label: t.trayShowPet, enabled: core.state === 'running', click: () => void showPet().catch(() => { /* Core went away meanwhile */ }) },
     { type: 'separator' },
     { label: t.trayLaunchAtLogin, type: 'checkbox', checked: login, enabled: app.isPackaged, click: (item) => { loginItem.set(item.checked); noteAutostart(); refreshTray(); } },
     { label: t.trayRestart, click: () => void core.restart() },
@@ -561,11 +605,7 @@ core.on('state', (state, exit) => {
 
 core.on('open', (path) => openSettings(path));
 // the introduction runs again on the desktop, where Coo is
-core.on('hide', () => {
-  if (!settings) return;
-  settings.hide();
-  if (MAC) app.dock?.hide();
-});
+core.on('hide', () => settings?.close());
 core.on('quit', () => app.quit());
 const bringBack = () => {
   if (core.state === 'failed') void core.start();

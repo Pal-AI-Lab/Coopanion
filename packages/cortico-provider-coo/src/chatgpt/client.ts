@@ -28,7 +28,7 @@ import { ChatGPTAuthError, type ChatGPTAccount } from './auth.ts';
 /** The error code of the plan's usage limit. */
 export const USAGE_LIMIT = 'subscription_sharing_usage_limit_exceeded';
 /** How long no request goes out after the usage limit is reached, between tries. The service states no reset time. */
-export const USAGE_PAUSE_MS = 5 * 60_000;
+const USAGE_PAUSE_MS = 5 * 60_000;
 /** Request fields the plan's route rejects. */
 const UNSUPPORTED = [
   'background', 'conversation', 'max_output_tokens', 'max_tool_calls', 'metadata', 'moderation', 'multi_agent', 'prompt',
@@ -51,7 +51,7 @@ export function usageLimited(err: unknown): boolean {
 const nonStrict = (tool: Item): Item => (tool.type === 'function' && tool.strict === undefined ? { ...tool, strict: false } : tool);
 
 /** `body` with its function and custom tools in `TOOL_NAMESPACE`, and the replayed calls of them naming it. */
-export function namespaced(body: Item): Item {
+function namespaced(body: Item): Item {
   const tools = Array.isArray(body.tools) ? (body.tools as Item[]) : [];
   const grouped = tools.filter((tool) => tool.type === 'function' || tool.type === 'custom');
   if (!grouped.length) return body;

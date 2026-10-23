@@ -58,7 +58,7 @@ import { dressTable, planSettings, type SettingChange } from './self.ts';
 import { MODEL_TEXT, type ModelLanguage, type ModelText } from './model-text.ts';
 
 /** The console panels, titled in `language`. */
-export function desktopPetPanelDecls(language: Language = 'zh'): WorldPanelDecl[] {
+function desktopPetPanelDecls(language: Language = 'zh'): WorldPanelDecl[] {
   const p = petText(language).console.panels;
   return [
     { id: 'pet', ...p.pet, getMethods: ['state'] },
@@ -212,8 +212,8 @@ export interface DesktopPetWorldOptions {
   /** The speech models to download; tests pass small ones. */
   funasrModel?: ModelSpec;
   whisperModel?: ModelSpec;
-  /** Shown in the menu header. */
-  botName?: string;
+  /** The bot's name for the menu header, the chat page and computer use's question; read at each use. */
+  botName?: () => string;
   /** PNG shown as the avatar in the menu header, when it exists. */
   avatarFile?: string;
   controls?: PetBotControls;
@@ -326,10 +326,15 @@ export class DesktopPetWorld implements World {
   private system: SystemRecognizer | null = null;
   /** The engine the running backend belongs to; a config change starts the other one. */
   private runningEngine: AsrEngine | null = null;
+  private voiceGeneration = 0;
+  private voiceStopping: Promise<void> | null = null;
+  private voiceEnabled = false;
+  /** `cua.enabled` as syncPrefs last saw it: switching it off ends the engine process. */
+  private cuaSeen = false;
   /** The person asked to send what was heard now, without waiting for the pause that ends a sentence. */
   private committing = false;
   private readonly segmenter: Segmenter;
-  private readonly packer = new Packer({ joinGapMs: 0, maxHoldMs: 8000, minChars: 1 });
+  private readonly packer = new Packer({ minChars: 1 });
   private readonly queue: Utterance[] = [];
   private transcribing = false;
   private packTimer: NodeJS.Timeout | null = null;
@@ -383,6 +388,7 @@ export class DesktopPetWorld implements World {
   /** Text the bubble's expand button carried, until a chat page takes it. */
   private draft: string | null = null;
   private pausedShown: boolean | null = null;
+  private botShown: string | null = null;
 
   /** Installs packs the dressing page sends, when the app named a directory for them. */
   private readonly importer: PackImporter | null;
@@ -622,6 +628,7 @@ export class DesktopPetWorld implements World {
       log: host.log,
       spawnImpl: this.opts.spawnSystemRecognizer,
     });
+    this.cuaSeen = this.cfg.cua.enabled;
     if (this.cfg.asr.enabled) void this.startVoiceBackend();
     await this.syncHotkey();
     this.prefsKey = this.prefsSignature();
@@ -629,6 +636,8 @@ export class DesktopPetWorld implements World {
   }
 
   async stop(): Promise<void> {
+    this.voiceGeneration++;
+    this.runningEngine = null;
     this.status.clear();
     if (this.quiet) clearTimeout(this.quiet.timer);
     this.quiet = null;
@@ -749,7 +758,7 @@ export class DesktopPetWorld implements World {
         this.chat.send(socket, {
           t: 'init', ...page, pending: [...this.pendingChat], askId: this.ask?.id ?? null, phase: this.phase,
           activity: this.activity.steps.length ? { steps: this.activity.steps, startedAt: this.activity.startedAt } : null,
-          paused: this.opts.controls?.isPaused?.() ?? false, user: this.userName, bot: this.opts.botName ?? '',
+          paused: this.opts.controls?.isPaused?.() ?? false, user: this.userName, bot: this.botName(),
           imagesSeen: host?.modelFacts.accepts('image/jpeg') ?? false,
         });
         if (this.draft !== null) { this.chat.send(socket, { t: 'draft', text: this.draft }); this.draft = null; }
@@ -827,7 +836,7 @@ export class DesktopPetWorld implements World {
   openWindow(): void {
     if (!this.windowHost || !this.server.port) return;
     const managed = this.store.electron.executable();
-    this.windowHost.start(resolveHostCommand(this.petUrl, this.cfg.window.electronFile, managed, this.t.window));
+    this.windowHost.start(resolveHostCommand(this.server.windowUrl, this.cfg.window.electronFile, managed, this.t.window));
   }
 
   /* ---------- page protocol ---------- */
@@ -865,6 +874,10 @@ export class DesktopPetWorld implements World {
     };
   }
 
+  private botName(): string {
+    return this.opts.botName?.() ?? '';
+  }
+
   private botInfo(): Record<string, unknown> {
     const c = this.opts.controls;
     let avatar: string | null = null;
@@ -873,7 +886,7 @@ export class DesktopPetWorld implements World {
     const label = typeof c?.quitLabel === 'function' ? c.quitLabel() : c?.quitLabel;
     const quitLabel = c?.quit ? label || this.ui.menu.quit : '';
     return {
-      name: this.opts.botName ?? '',
+      name: this.botName(),
       avatar,
       controls: !!c,
       buttons: { pause, settings: !!c?.openSettings, dress: !!c?.openDress, quit: !!c?.quit, chat: !!c?.openChat },
@@ -894,17 +907,25 @@ export class DesktopPetWorld implements World {
   /** Config is a live object edited by the console; changes reach the pages within PREFS_SYNC_MS. */
   private syncPrefs(): void {
     this.segmenter.configure(this.segmentConfig());
-    if (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== this.engine()) void this.startVoiceBackend();
+    const turnedOn = this.cfg.asr.enabled && !this.voiceEnabled;
+    this.voiceEnabled = this.cfg.asr.enabled;
+    if (!this.cfg.asr.enabled && this.runningEngine) void this.stopVoiceBackend();
+    else if (turnedOn || (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== this.engine())) void this.startVoiceBackend();
     // the system recognizer serves one language; a new one needs a new helper
     else if (this.cfg.asr.enabled && this.runningEngine === 'system' && this.system?.languageChanged) void this.startVoiceBackend();
     // FunASR and Whisper load the model for one language and thread count
     else if (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== 'system' && this.sherpa(this.runningEngine)?.configChanged) void this.startVoiceBackend();
+    // computer use switched off ends the engine process; the next call after it is switched on starts another
+    if (this.cuaSeen && !this.cfg.cua.enabled) void this.cua.switchedOff();
+    this.cuaSeen = this.cfg.cua.enabled;
     void this.syncHotkey();
     // the person changed what a quiet holds back: theirs wins
     if (this.quiet && (this.cfg.sound !== this.quiet.base.sound || this.cfg.roam !== this.quiet.base.roam)) this.endQuiet();
     this.server.syncOverlay();
     const paused = this.opts.controls?.isPaused?.() ?? false;
     if (paused !== this.pausedShown) { this.pausedShown = paused; this.chat.broadcast({ t: 'paused', paused }); }
+    const bot = this.botName();
+    if (bot !== this.botShown) { this.botShown = bot; this.chat.broadcast({ t: 'bot', bot }); }
     const key = this.prefsSignature();
     if (key === this.prefsKey) return;
     this.prefsKey = key;
@@ -1316,21 +1337,33 @@ export class DesktopPetWorld implements World {
 
   /** Starts the engine in force and stops the one that ran before. */
   async startVoiceBackend(): Promise<SherpaState | SystemRecognizerState | null> {
+    const generation = this.voiceGeneration;
+    await this.voiceStopping;
+    if (generation !== this.voiceGeneration || !this.cfg.asr.enabled) return this.backendState();
     const engine = this.engine();
     const recognizer = this.recognizer(engine);
     if (!recognizer) return null;
     if (this.runningEngine !== engine) {
       if (this.runningEngine) await this.recognizer(this.runningEngine)?.stop();
+      if (generation !== this.voiceGeneration || !this.cfg.asr.enabled || engine !== this.engine()) return this.backendState();
       this.runningEngine = engine;
     }
     await recognizer.start();
-    this.syncPrefs();
+    if (generation === this.voiceGeneration) this.syncPrefs();
     return this.backendState();
   }
 
-  private async stopVoiceBackend(): Promise<void> {
-    await this.recognizer()?.stop();
-    this.syncPrefs();
+  private stopVoiceBackend(): Promise<void> {
+    this.voiceGeneration++;
+    if (this.voiceStopping) return this.voiceStopping;
+    const engine = this.runningEngine;
+    this.runningEngine = null;
+    const stopped = ((engine ? this.recognizer(engine)?.stop() : undefined) ?? Promise.resolve()).finally(() => {
+      this.voiceStopping = null;
+      this.syncPrefs();
+    });
+    this.voiceStopping = stopped;
+    return stopped;
   }
 
   /* ---------- talk key ---------- */
@@ -1502,7 +1535,7 @@ export class DesktopPetWorld implements World {
           if (u.result) this.showHeard();
           continue;
         }
-        this.packer.add(text, Date.now());
+        this.packer.add(text);
         this.remember({ text, at: Date.now(), ms: res.ms });
         this.voiceFrame({ type: 'text', text, ms: res.ms });
         this.pendingText(text);
@@ -1563,7 +1596,7 @@ export class DesktopPetWorld implements World {
     const upstream = this.transcribing || this.queue.length > 0;
     // a commit does not wait for the closing pause, nor for speech begun after it
     const hold = upstream || (!this.committing && (this.segmenter.active || this.segmenter.settleRemainingMs > 0));
-    const text = this.committing && !upstream ? this.packer.take() : this.packer.due(Date.now(), hold);
+    const text = this.committing && !upstream ? this.packer.take() : this.packer.due(hold);
     if (this.committing && !upstream && !text) {
       // nothing was heard: the committed episode closes empty, unless the talk key still holds it open
       this.committing = false;

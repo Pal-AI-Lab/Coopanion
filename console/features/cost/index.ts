@@ -12,14 +12,14 @@ import { consoleFormat } from '../../base/ui/format.ts';
 import { getThemeStudio } from '../../base/theme/studio.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { intro as pageIntro } from '../intro.ts';
-import { activityFrom, renderActivity } from './activity.ts';
+import { ACTIVITY_CONTEXT_DAYS, renderActivity } from './activity.ts';
 import { bucketLabel, renderChart } from './chart.ts';
 import { U_TYPES, themeColorResolver } from './labels.ts';
 import { usageQuery } from './range.ts';
 import { createUsageState } from './state.ts';
 import { S } from './strings.ts';
 import { createUsageTip } from './tooltip.ts';
-import type { UsageAccum, UsageAggregate, UsageBucketOption, UsageDim, UsageGroupStat, UsageMetric } from './types.ts';
+import type { UsageAccum, UsageAggregate, UsageBucketOption, UsageDailyTokens, UsageDim, UsageGroupStat, UsageMetric } from './types.ts';
 
 /** 自动刷新的周期。 */
 const LIVE_MS = 15_000;
@@ -186,7 +186,7 @@ export function mountUsage(ctx: PageContext): void {
   const activityBox = ui.h('div');
   activity.body.appendChild(activityBox);
   /** 最近一次的按天数据与它对应的页面范围；改窗宽时用它重画。 */
-  let activityData: { daily: UsageAggregate; from: string; to: string } | null = null;
+  let activityData: { daily: readonly UsageDailyTokens[]; from: string; to: string } | null = null;
 
   // ---- 用量时间序列 ---------------------------------------------------------
   const trend = ui.sheet({ title: S.mainTitle });
@@ -426,7 +426,7 @@ export function mountUsage(ctx: PageContext): void {
     notice.hidden = !notice.textContent;
   }
 
-  function renderAll(d: UsageAggregate, daily: UsageAggregate | null): void {
+  function renderAll(d: UsageAggregate, daily: readonly UsageDailyTokens[] | null): void {
     const currencies = d.currencies ?? [];
     currencySelect.replaceChildren(...['', ...currencies].map(value => {
       const option = doc.createElement('option');
@@ -468,31 +468,21 @@ export function mountUsage(ctx: PageContext): void {
   let generation = 0;
   let loadedAt = '';
 
-  /**
-   * 主数据按所选粒度分桶。活跃度格子图另取一份按天分桶的数据，范围要等主数据给出按部署时区算好的
-   * 起止日，再往前补对照的日子，所以第二次请求排在第一次之后。
-   */
+  /** 主数据按所选粒度分桶;活跃度格子图的逐日 token 由同一次请求的 dailyTokenDays 带回。 */
   async function load(): Promise<void> {
     const mine = ++generation;
-    const ledgerQuery = `&basis=${basis}&currency=${encodeURIComponent(currency)}`;
+    const extra = `&basis=${basis}&currency=${encodeURIComponent(currency)}&dailyTokenDays=${ACTIVITY_CONTEXT_DAYS}`;
     try {
       const d = await get<UsageAggregate>(
-        `/api/usage?${usageQuery(state.bucket, state.days, { from: state.from, to: state.to })}${ledgerQuery}`,
+        `/api/usage?${usageQuery(state.bucket, state.days, { from: state.from, to: state.to })}${extra}`,
         { signal: ctx.signal },
       );
-      if (ctx.signal.aborted || mine !== generation) return;
-      const daily = d.from && d.to
-        ? await get<UsageAggregate>(
-          `/api/usage?${usageQuery('day', 0, { from: activityFrom({ from: d.from, to: d.to }), to: d.to })}${ledgerQuery}`,
-          { signal: ctx.signal },
-        )
-        : null;
       if (ctx.signal.aborted || mine !== generation) return;
       state.data = d;
       loadedAt = ui.fmt.clock(new Date().toISOString());
       staleNote = '';
       results.classList.remove('u-stale');
-      renderAll(d, daily);
+      renderAll(d, d.dailyTokens ?? null);
     } catch (err) {
       if (isAbort(err) || ctx.signal.aborted || mine !== generation) return;
       if (!state.data) {

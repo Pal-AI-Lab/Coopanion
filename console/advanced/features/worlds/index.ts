@@ -4,7 +4,7 @@
  * activation 写入 worlds.<id>.enabled 并挂载或卸载。详情由各 World 的控制台页提供。
  */
 
-import { pageIdFor } from '../../lib/web/shared/console-protocol.ts';
+import { pageIdFor } from '../../../base/protocol.ts';
 import type { WebUiBadge, WebUiLamp, WebUiLink } from 'cortico/web/shared/webui-protocol.ts';
 import { get, post } from '../../../base/api.ts';
 import { PROVIDER_ROUTE } from '../../console-pages/host.ts';

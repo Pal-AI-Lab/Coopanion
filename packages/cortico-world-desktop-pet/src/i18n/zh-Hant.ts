@@ -135,6 +135,13 @@ const zhHant: Translation<PetText> = {
     overLimit: (mb: number) => `超過 ${mb} MB`,
   },
 
+  removing: {
+    notInstalled: (id: string) => `沒有 id 為 ${id} 的形象包`,
+    builtin: (id: string) => `${id} 是內建形象，無法解除安裝`,
+    elsewhere: (id: string) => `${id} 不在形象包的安裝目錄中，無法在這裡解除安裝`,
+    failed: (why: string) => `無法刪除：${why}`,
+  },
+
   consent: {
     question: (items: string[]) => `我想${items.join('、')}，可以嗎？`,
     choices: ['可以', '以後都可以', '不用了'] as [yes: string, always: string, no: string],
@@ -199,7 +206,7 @@ const zhHant: Translation<PetText> = {
     doubleClickChat: { title: '點兩下開啟打字框', description: '在桌寵上點兩下開啟打字框。' },
     statusBubble: { title: '狀態氣泡', description: '想事情、翻記憶、操作電腦時顯示在做什麼，會顯示檔名。' },
     saidBubbles: { title: '輸入氣泡', description: '打字、語音和對話頁送出的訊息顯示在桌寵頭頂，回覆後淡出。關閉時語音只在辨識中顯示。' },
-    selfAdjust: { title: '自主設定權限', description: 'off 禁止：不能自己改設定，也不能臨時安靜；default 預設：形象、配色、走動和打呼直接改，大小、氣泡尺寸、字體尺寸、音效、夜間模式、懸停按鈕和稱呼先徵得你同意；any 任意：都直接改；custom 自訂：照「習慣」頁裡的勾選，勾上的直接改，其餘先徵得你同意。' },
+    selfAdjust: { title: '自主設定權限', description: 'off 禁止：不能自行改設定，也不能臨時安靜；default 預設：形象、配色、走動和打呼直接改，大小、氣泡尺寸、字體尺寸、音效、夜間模式、懸停按鈕和稱呼先徵得你同意；any 任意：都直接改；custom 自訂：照「習慣」頁裡的勾選，勾上的直接改，其餘先徵得你同意。' },
     windowEnabled: { title: '啟動時開啟桌寵視窗' },
     scale: { title: '大小' },
     bubbleSize: { title: '氣泡尺寸', description: '桌寵和你的氣泡的寬度、留白、圓角和尾巴，1 為預設；字級不變。' },
@@ -208,7 +215,7 @@ const zhHant: Translation<PetText> = {
     glow: { title: '外發光', description: '桌寵和身後的顏色相近時，身體周圍出現的淺色外發光向外延伸多少像素；0 為關閉。' },
     frameRate: { title: '幀率', description: '走動、被拎著、跳起時每秒畫幾幀；0 跟隨螢幕更新率。超過螢幕更新率時以螢幕的為準。「習慣」頁可選 60、120、144 和不限。' },
     lockFrameRate: { title: '幀率鎖定', description: '靜止時也依「幀率」繪製桌寵。關閉時站著、坐著、睡著會降到每秒 30 幀。' },
-    hideWhenFullscreen: { title: '全螢幕時自動隱藏', description: '開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕（遊戲、全螢幕影片、瀏覽器全螢幕）就把它藏起來，離開全螢幕後再放回來；最大化的視窗不算。關閉時一律浮在最上層。' },
+    hideWhenFullscreen: { title: '全螢幕時自動隱藏', description: '開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕（遊戲、全螢幕影片、瀏覽器全螢幕）就把 Coo 藏起來，離開全螢幕後再放回來；最大化的視窗不算。關閉時一律浮在最上層。' },
     exportOverlay: { title: 'OBS 畫面', description: '在 /overlay 提供桌寵視窗的透明畫面，供 OBS「瀏覽器」來源使用；關閉時不提供。' },
     electronFile: { title: 'Electron 程式', description: '留空時依序使用 CORTICO_DESKTOP_PET_HOST 和面板裡安裝的執行環境。' },
     port: { title: '頁面連接埠', description: '被佔用時往上順延到下一個空的連接埠。' },

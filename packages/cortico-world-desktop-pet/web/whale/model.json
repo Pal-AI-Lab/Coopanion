@@ -1268,6 +1268,389 @@
      "gain": 0.5
     }
    }
+  },
+  {
+   "id": "crew",
+   "pivots": {
+    "armNear": [
+     116.6,
+     159.48
+    ]
+   },
+   "deformers": {
+    "pony": {
+     "parent": "headBack",
+     "pivot": [
+      91.9,
+      59.35
+     ],
+     "gain": 0.35
+    }
+   },
+   "heldArms": 0.55,
+   "parts": [
+    {
+     "id": "ponytail",
+     "tex": "crew_ponytail",
+     "z": 0.8,
+     "parent": "pony",
+     "grid": [
+      6,
+      12
+     ],
+     "box": [
+      11.15,
+      36.36,
+      89.11,
+      171.76
+     ]
+    },
+    {
+     "id": "hair_back",
+     "tex": "crew_hair_back",
+     "z": 1,
+     "parent": "hairSway",
+     "grid": [
+      8,
+      12
+     ],
+     "box": [
+      75.94,
+      48.33,
+      114.19,
+      105.64
+     ]
+    },
+    {
+     "id": "tail",
+     "tex": "tail",
+     "z": 1.5,
+     "parent": "tailBend",
+     "grid": [
+      10,
+      4
+     ],
+     "box": [
+      24.26,
+      172.21,
+      83.03,
+      40.47
+     ]
+    },
+    {
+     "id": "leg_front",
+     "tex": "crew_leg_front",
+     "src": "outfits/crew/leg_front.png",
+     "z": 3,
+     "parent": "legFront",
+     "grid": [
+      3,
+      10
+     ],
+     "box": [
+      121.16,
+      169.93,
+      40.66,
+      87.02
+     ]
+    },
+    {
+     "id": "leg_back",
+     "tex": "crew_leg_back",
+     "src": "outfits/crew/leg_back.png",
+     "z": 4,
+     "parent": "legBack",
+     "grid": [
+      3,
+      10
+     ],
+     "box": [
+      96.27,
+      173.92,
+      39.14,
+      83.98
+     ]
+    },
+    {
+     "id": "arm_far",
+     "tex": "crew_arm_far",
+     "src": "outfits/crew/arm_far.png",
+     "z": 4.5,
+     "parent": "armFar",
+     "grid": [
+      3,
+      5
+     ],
+     "box": [
+      145.29,
+      164.42,
+      27.17,
+      37.81
+     ]
+    },
+    {
+     "id": "torso_up",
+     "tex": "crew_torso_up",
+     "src": "outfits/crew/torso_up.png",
+     "z": 5,
+     "parent": "body",
+     "grid": [
+      6,
+      6
+     ],
+     "box": [
+      114.13,
+      148.08,
+      41.8,
+      44.08
+     ]
+    },
+    {
+     "id": "skirt",
+     "tex": "crew_skirt",
+     "z": 5.2,
+     "parent": "skirt",
+     "grid": [
+      8,
+      6
+     ],
+     "box": [
+      82.21,
+      179.24,
+      96.71,
+      47.5
+     ]
+    },
+    {
+     "id": "skirt_sit",
+     "tex": "crew_skirt_sit",
+     "z": 5.3,
+     "parent": "skirtSit",
+     "grid": [
+      8,
+      4
+     ],
+     "box": [
+      48.2,
+      181.33,
+      150.29,
+      55.86
+     ]
+    },
+    {
+     "id": "arm_near",
+     "tex": "crew_arm_near",
+     "src": "outfits/crew/arm_near.png",
+     "z": 6,
+     "parent": "armNear",
+     "grid": [
+      4,
+      6
+     ],
+     "box": [
+      90.0,
+      154.54,
+      35.72,
+      53.39
+     ]
+    },
+    {
+     "id": "fin_far",
+     "tex": "fin_far",
+     "z": 7,
+     "parent": "finFar",
+     "grid": [
+      4,
+      3
+     ],
+     "box": [
+      166.0,
+      103.62,
+      38.76,
+      39.14
+     ]
+    },
+    {
+     "id": "sidelocks",
+     "tex": "crew_sidelocks",
+     "z": 7.5,
+     "parent": "bangsSway",
+     "grid": [
+      4,
+      8
+     ],
+     "box": [
+      88.1,
+      124.71,
+      95.95,
+      48.45
+     ]
+    },
+    {
+     "id": "face",
+     "tex": "face",
+     "z": 8,
+     "parent": "headMid",
+     "grid": [
+      6,
+      6
+     ],
+     "box": [
+      100.26,
+      73.98,
+      75.62,
+      82.08
+     ]
+    },
+    {
+     "id": "eye_creases",
+     "tex": "eye_creases",
+     "z": 8.5,
+     "parent": "headFeat",
+     "grid": [
+      4,
+      2
+     ],
+     "box": [
+      126.29,
+      108.94,
+      44.46,
+      9.88
+     ]
+    },
+    {
+     "id": "brows",
+     "tex": "brows",
+     "z": 8.6,
+     "parent": "headFeat",
+     "grid": [
+      12,
+      2
+     ],
+     "box": [
+      117.74,
+      97.35,
+      58.33,
+      9.12
+     ]
+    },
+    {
+     "id": "fin_near",
+     "tex": "fin_near",
+     "z": 11,
+     "parent": "finNear",
+     "grid": [
+      5,
+      3
+     ],
+     "box": [
+      37.37,
+      100.39,
+      59.85,
+      42.75
+     ]
+    },
+    {
+     "id": "bangs",
+     "tex": "bangs",
+     "z": 13,
+     "parent": "bangsSway",
+     "grid": [
+      8,
+      10
+     ],
+     "box": [
+      80.69,
+      51.75,
+      112.29,
+      99.75
+     ]
+    },
+    {
+     "id": "headset",
+     "tex": "crew_headset",
+     "src": "outfits/crew/headset.png",
+     "z": 13.25,
+     "parent": "headMid",
+     "grid": [
+      4,
+      4
+     ],
+     "box": [
+      81.83,
+      118.06,
+      48.07,
+      30.4
+     ]
+    },
+    {
+     "id": "visor",
+     "tex": "crew_visor",
+     "src": "outfits/crew/visor.png",
+     "z": 13.5,
+     "parent": "headFront",
+     "grid": [
+      8,
+      4
+     ],
+     "box": [
+      84.68,
+      53.27,
+      110.2,
+      71.25
+     ]
+    },
+    {
+     "id": "bow_near",
+     "tex": "crew_bow_near",
+     "src": "outfits/crew/bow_near.png",
+     "z": 13.55,
+     "parent": "headFront",
+     "grid": [
+      3,
+      3
+     ],
+     "box": [
+      74.99,
+      97.35,
+      25.27,
+      22.61
+     ]
+    },
+    {
+     "id": "pony_bow",
+     "tex": "crew_pony_bow",
+     "src": "outfits/crew/pony_bow.png",
+     "z": 13.6,
+     "parent": "pony",
+     "grid": [
+      3,
+      3
+     ],
+     "box": [
+      68.53,
+      46.43,
+      42.18,
+      36.67
+     ]
+    },
+    {
+     "id": "ahoge",
+     "tex": "ahoge",
+     "z": 14,
+     "parent": "ahoge",
+     "grid": [
+      5,
+      4
+     ],
+     "box": [
+      87.15,
+      20.4,
+      53.2,
+      36.29
+     ]
+    }
+   ]
   }
  ]
 }

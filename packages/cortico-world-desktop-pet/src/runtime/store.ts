@@ -84,7 +84,7 @@ export const ELECTRON_RUNTIME = {
 } as const;
 
 /** Depth-first search for a file name under `dir`. */
-export function findFile(dir: string, name: string, depth = 5): string | null {
+function findFile(dir: string, name: string, depth = 5): string | null {
   if (!existsSync(dir) || depth < 0) return null;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
@@ -121,7 +121,7 @@ export async function extract(archive: string, into: string, t: PetText['store']
   }
 }
 
-export async function sha256File(file: string): Promise<string> {
+async function sha256File(file: string): Promise<string> {
   const hash = createHash('sha256');
   for await (const chunk of createReadStream(file)) hash.update(chunk as Buffer);
   return hash.digest('hex');
