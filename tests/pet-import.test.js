@@ -16,6 +16,8 @@ const FIXTURE = fileURLToPath(new URL('tests/fixtures/api2-pack/', PKG));
 const dress = readFileSync(new URL('web/dress.js', PKG), 'utf8');
 const importing = dress.slice(dress.indexOf('const MB ='), dress.indexOf('// a zip or folders dragged onto the page'));
 const cleanup = [];
+/** Copying and renaming a pack takes seconds on a busy Windows runner; the 1 s default is not enough there. */
+const SLOW = { timeout: 15_000 };
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });
 
 async function page(installed = true) {
@@ -37,10 +39,15 @@ async function page(installed = true) {
   const win = dom.window;
   cleanup.push(() => win.close());
   const responses = [];
-  win.fetch = async (path, options = {}) => {
-    const res = await fetch(new URL(path, server.origin), { ...options, headers: { ...options.headers, origin: server.origin } });
-    responses.push({ path, status: res.status });
-    return res;
+  // the page's requests still on their way when a test ends (its refresh after an install) finish before the server stops
+  const inFlight = new Set();
+  cleanup.push(() => Promise.allSettled(inFlight));
+  win.fetch = (path, options = {}) => {
+    const request = fetch(new URL(path, server.origin), { ...options, headers: { ...options.headers, origin: server.origin } })
+      .then((res) => { responses.push({ path, status: res.status }); return res; });
+    inFlight.add(request);
+    void request.finally(() => inFlight.delete(request)).catch(() => {});
+    return request;
   };
   win.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   win.HTMLDialogElement.prototype.close = function () { this.open = false; };
@@ -61,22 +68,22 @@ async function page(installed = true) {
   const input = win.document.querySelector('#importZip');
   Object.defineProperty(input, 'files', { value: [zip] });
   input.dispatchEvent(new win.Event('change'));
-  await expect.poll(() => !!win.document.querySelector('[data-go]')).toBe(true);
+  await expect.poll(() => !!win.document.querySelector('[data-go]'), SLOW).toBe(true);
   return { root, old, server, responses, doc: win.document, dialog: win.document.querySelector('#importDialog') };
 }
 
-describe('figure import confirmation', () => {
+describe('figure import confirmation', { timeout: 60_000 }, () => {
   it('keeps the existing files when the person cancels the replacement', async () => {
     const p = await page();
     p.doc.querySelector('[data-go]').click();
-    await expect.poll(() => !!p.doc.querySelector('[data-replace]')).toBe(true);
+    await expect.poll(() => !!p.doc.querySelector('[data-replace]'), SLOW).toBe(true);
     expect(p.responses).toContainEqual({ path: '/api/figures/import/install', status: 409 });
     expect(p.dialog.querySelector('h2').textContent).toBe(t('import.replaceTitle'));
     expect(p.dialog.querySelector('li').textContent).toContain('fixture-api2');
     expect(readFileSync(join(p.old, 'kept.txt'), 'utf8')).toBe('original');
     expect(readdirSync(p.root)).toEqual(['old-name']);
     p.doc.querySelector('[data-close]').click();
-    await expect.poll(() => p.responses).toContainEqual({ path: '/api/figures/import/cancel', status: 200 });
+    await expect.poll(() => p.responses, SLOW).toContainEqual({ path: '/api/figures/import/cancel', status: 200 });
     expect(p.dialog.open).toBe(false);
     expect(readFileSync(join(p.old, 'kept.txt'), 'utf8')).toBe('original');
   });
@@ -84,10 +91,10 @@ describe('figure import confirmation', () => {
   it('replaces the pack only after the person confirms the listed conflict', async () => {
     const p = await page();
     p.doc.querySelector('[data-go]').click();
-    await expect.poll(() => !!p.doc.querySelector('[data-replace]')).toBe(true);
+    await expect.poll(() => !!p.doc.querySelector('[data-replace]'), SLOW).toBe(true);
     expect(readFileSync(join(p.old, 'kept.txt'), 'utf8')).toBe('original');
     p.doc.querySelector('[data-replace]').click();
-    await expect.poll(() => p.dialog.open).toBe(false);
+    await expect.poll(() => p.dialog.open, SLOW).toBe(false);
     expect(p.responses.filter((r) => r.path.endsWith('/install')).map((r) => r.status)).toEqual([409, 200]);
     expect(existsSync(p.old)).toBe(false);
     expect(JSON.parse(readFileSync(join(p.root, 'fixture-api2', 'figure.json'), 'utf8')).version).toBe('2.0.0');
@@ -98,7 +105,7 @@ describe('figure import confirmation', () => {
     const res = await fetch(`${p.server.origin}/api/figures/import`, { method: 'POST', headers: { origin: 'http://localhost', 'content-type': 'application/zip' }, body: new Uint8Array() });
     expect(res.status).toBe(421);
     p.doc.querySelector('[data-go]').click();
-    await expect.poll(() => p.dialog.open).toBe(false);
+    await expect.poll(() => p.dialog.open, SLOW).toBe(false);
     expect(p.responses.filter((r) => r.path.endsWith('/install')).map((r) => r.status)).toEqual([200]);
     expect(figurePacks([p.root]).packs.some((pack) => pack.id === 'fixture-api2')).toBe(true);
   });

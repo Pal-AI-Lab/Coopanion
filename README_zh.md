@@ -187,6 +187,12 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 
 语音在本机识别，录音不上传：应用语言是中、英、日、韩文时用 **FunASR**（SenseVoiceSmall 模型，约 230 MB），法、德、西、葡、意、俄语时用 **Whisper**（small 模型，约 360 MB，一句说完才出字）。模型在引导或「语音输入」页下载一次即可。Windows 上也可以用系统自带的识别，不用下载，准确率低一些。
 
+关闭语音输入也会释放识别模型或停止 Windows 识别进程；再次开启时重新加载引擎。
+
+### 闹钟
+
+可以请 Coo 在当地某个时间或若干分钟后设定闹钟。每日闹钟在夏令时切换后保持原来的当地钟点；如果当天跳过了指定钟点，这一次按跳过的时长顺延，次日恢复原定钟点。应用关闭期间错过的闹钟会在下次启动时送到。
+
 ### 和 Coo 互动
 
 - **点一下**是戳它，**在头上来回划**是摸头，**按住拖动**是拎起来，松手可以甩出去。默认戳它会让它回应，摸头和拎起只在下次它说话时一并告诉它。在「习惯」页的「回应模式」里可以改：安静是互动都先记着、和它说话时一起回应，积极是所有互动都回应，自定义…可以勾选哪些互动让它马上回应。
@@ -215,6 +221,8 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 - 一次唤醒最多请求模型 40 次，到上限就结束这一轮，要继续就再跟它说。上限在高级模式「Cormini」页修改，重启后生效。
 
 不想让它操作电脑：在「习惯」页「电脑操作」一节取消勾选「让 Coo 操作这台电脑」。
+
+电脑操作配置保存失败时，开关和询问时机会恢复到最近一次保存的值。
 
 ### 托盘 / 菜单栏
 
@@ -292,6 +300,8 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 卸载不会删除数据，重装后记忆和设置还在。不再需要时，手动删掉数据目录（Windows 上删整个安装目录）。
 
 Windows 上，程序换了目录（比如重装到别处）、旁边没有数据时，Coopanion 启动时会询问：继承之前使用的数据，还是新建一只。之前使用的数据在哪，记在 `%LOCALAPPDATA%\Coopanion\data-location.json`。
+
+如果 `home/companion/telemetry.json`、`notice.json` 或 `alarms.json` 损坏，应用会将原文件保留为 `.bad` 文件并重建该项状态。闹钟到期时即使保存失败仍会送达，重启后可能再次送达。
 
 数据目录里，`home` 是记忆、对话记录、设置和 API Key，`extensions` 是扩展，`logs` 是日志，`home/models` 是语音模型。
 

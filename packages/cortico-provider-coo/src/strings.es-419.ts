@@ -6,6 +6,7 @@ export const cooText: Partial<typeof en> = {
   protocol: 'Protocolo',
   protocolHint: 'Sin definir: un servicio de la lista usa su propio protocolo y cualquier otra URL usa responses. responses: POST <URL>/responses; chat: POST <URL>/chat/completions; anthropic: la Messages API, con la URL anterior a /v1; gemini: la Gemini API, con la URL anterior a /models.',
   badProtocol: (protocols: string) => `El protocolo debe ser uno de ${protocols}`,
+  httpRemote: "Una dirección remota debe usar https: http no está cifrado, así que la API Key y la conversación viajarían en texto plano. Las direcciones de esta computadora o de la red local pueden usar http.",
   chatgpt: {
     panel: 'Cuenta de ChatGPT',
     description: 'Inicia sesión con una cuenta de ChatGPT; las solicitudes cuentan para el plan de ChatGPT de esa cuenta.',

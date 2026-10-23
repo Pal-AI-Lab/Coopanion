@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { EventEmitter } from 'node:events';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -111,6 +112,37 @@ describe('tools without a page', () => {
     const out = await tool(world, 'pet_say').handler({ script: '你好' }, ctx);
     expect(out).toMatchObject({ failed: true });
     expect((out as { text: string }).text).toContain('没有连接');
+  });
+});
+
+describe('computer use', () => {
+  it('switching it off ends the engine process, and the engine starts again when needed (two spawns)', async () => {
+    const { world, cfg } = await mounted((c) => { c.cua.enabled = true; });
+    type Pending = Map<number, { done: (v: unknown) => void; timer: NodeJS.Timeout }>;
+    const cua = (world as unknown as { cua: { spawn: () => unknown; pending: Pending; ready: () => Promise<void> } }).cua;
+    const engines: Array<EventEmitter & { exitCode: number | null }> = [];
+    // an engine process that reports one display and exits when disconnected
+    cua.spawn = () => {
+      const engine = Object.assign(new EventEmitter(), {
+        exitCode: null as number | null,
+        send({ id }: { id: number }) {
+          const p = cua.pending.get(id)!;
+          cua.pending.delete(id);
+          clearTimeout(p.timer);
+          p.done({ displays: [{ index: 1, primary: true, width: 1920, height: 1080 }], layout: 'one', cursor: null, foreground: null, foregroundDisplay: 1 });
+        },
+        disconnect() { engine.exitCode = 0; engine.emit('exit', 0); },
+        kill() {},
+      });
+      engines.push(engine);
+      return engine;
+    };
+    await cua.ready();
+    cfg.cua.enabled = false;
+    await expect.poll(() => engines[0]!.exitCode).toBe(0);
+    cfg.cua.enabled = true;
+    await cua.ready();
+    expect(engines).toHaveLength(2);
   });
 });
 
