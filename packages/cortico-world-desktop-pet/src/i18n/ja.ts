@@ -66,6 +66,17 @@ const ja: Translation<PetText> = {
     notLoaded: '音声モデルが読み込まれていません',
   },
 
+  /** Vokie がこのコンピューターで動かす認識サービス */
+  vokie: {
+    notRunning: 'Vokie が起動していません',
+    apiOff: 'Vokie の設定で「外部 ASR API」がオンになっていません',
+    emptyReply: 'Vokie の返答が空です',
+    badReply: 'Vokie の返答を読み取れません',
+    failed: (why: string) => `Vokie の認識に失敗しました：${why}`,
+    timeout: (ms: number) => `認識がタイムアウトしました（${ms} ms）`,
+    stopped: 'Vokie の認識を停止しました',
+  },
+
   store: {
     noBuild: (platform: string) => `${platform} 用のビルド済みパッケージがありません`,
     downloading: (file: string) => `${file} をダウンロード中`,
@@ -237,9 +248,10 @@ const ja: Translation<PetText> = {
     speechSpeed: { title: 'おしゃべり声の速さ', description: (a: number, b: number, c: number) => `1 秒に読む音節の上限：low、mid、high はそれぞれ ${a}、${b}、${c}。custom はカスタムの速さを使います。文字より遅いと、文字が出終わってから読み終えます。` },
     speechRate: { title: 'カスタムの速さ', suffix: '音節/秒' },
     asrEnabled: { title: '音声入力' },
-    asrEngine: { title: '認識エンジン', description: 'funasr は FunASR の SenseVoiceSmall を動かし、中国語、英語、日本語、韓国語、広東語に対応します（初回のみ約 240 MB のダウンロードが必要）。whisper は OpenAI の Whisper small を動かし、フランス語、ドイツ語、スペイン語、ポルトガル語、イタリア語、ロシア語のほか約 90 の言語に対応し（初回のみ約 360 MB のダウンロードが必要）、文を言い終えてから文字が出ます。どちらもこのコンピューター上で認識します。system は Windows 内蔵の音声認識を使い、ダウンロード不要ですが精度は低めです（Windows のみ）。空欄ならアプリの言語で選びます：中国語、英語、日本語、韓国語は funasr、それ以外は whisper。' },
+    asrEngine: { title: '認識エンジン', description: 'funasr は FunASR の SenseVoiceSmall を動かし、中国語、英語、日本語、韓国語、広東語に対応します（初回のみ約 240 MB のダウンロードが必要）。whisper は OpenAI の Whisper small を動かし、フランス語、ドイツ語、スペイン語、ポルトガル語、イタリア語、ロシア語のほか約 90 の言語に対応し（初回のみ約 360 MB のダウンロードが必要）、文を言い終えてから文字が出ます。どちらもこのコンピューター上で認識します。system は Windows 内蔵の音声認識を使い、ダウンロード不要ですが精度は低めです（Windows のみ）。vokie は Vokie がこのコンピューターで動かす認識サービスを使い、ダウンロード不要で、Vokie の設定で「外部 ASR API」をオンにしてください。空欄ならアプリの言語で選びます：中国語、英語、日本語、韓国語は funasr、それ以外は whisper。' },
     asrLanguage: { title: '言語', description: 'ISO 639-1 の言語コード、またはモデルに判定させる auto。空欄ならアプリの言語に従います。FunASR は zh、en、ja、ko、yue、Whisper は fr、de、es、pt、it、ru など約 100 のコードを受け付け、受け付けないコードは auto として扱います。' },
     asrThreads: { title: 'CPU スレッド', description: 'FunASR と Whisper が 1 回の認識に使うスレッド数。0 = 2。' },
+    asrVokiePort: { title: 'Vokie のポート', description: 'Vokie 認識サービスのポート。0 なら Vokie の設定から読み取ります。' },
     asrSimplified: { title: '簡体字に変換', description: 'アプリの言語が簡体字中国語のとき、聞き取った内容の繁体字を簡体字に変換します。' },
     thresholdDb: { title: '発話のしきい値' },
     silenceMs: { title: '文の終わりとみなす無音' },
@@ -280,6 +292,8 @@ const ja: Translation<PetText> = {
     systemHint: 'ダウンロード不要、精度はそこそこ。より良い結果には FunASR か Whisper に切り替えてください',
     funasrHint: 'このコンピューター上の SenseVoiceSmall。中国語、英語、日本語、韓国語、広東語に対応',
     whisperHint: 'このコンピューター上の Whisper small。フランス語、ドイツ語、スペイン語、ポルトガル語、イタリア語、ロシア語などに対応。文を言い終えてから文字が出ます',
+    vokie: 'Vokie（このコンピューター上のサービス）',
+    vokieHint: 'Vokie がこのコンピューターで動かす認識サービスを使います。先に Vokie の設定で「外部 ASR API」をオンにしてください',
     server: '認識サービス',
     start: '開始',
     stop: '停止',

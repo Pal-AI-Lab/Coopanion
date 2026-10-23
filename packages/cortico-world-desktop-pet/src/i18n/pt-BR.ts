@@ -66,6 +66,17 @@ const ptBR: Translation<PetText> = {
     notLoaded: 'O modelo de voz não está carregado',
   },
 
+  /** O serviço de reconhecimento que o Vokie executa neste computador. */
+  vokie: {
+    notRunning: 'O Vokie não está em execução',
+    apiOff: 'A API ASR externa não está ativada nas configurações do Vokie',
+    emptyReply: 'O Vokie não retornou nada',
+    badReply: 'Não dá para ler a resposta do Vokie',
+    failed: (why: string) => `O Vokie não conseguiu reconhecer: ${why}`,
+    timeout: (ms: number) => `O reconhecimento excedeu o tempo limite (${ms} ms)`,
+    stopped: 'O reconhecimento do Vokie parou',
+  },
+
   store: {
     noBuild: (platform: string) => `Não há pacote pré-compilado para ${platform}`,
     downloading: (file: string) => `Baixando ${file}`,
@@ -237,9 +248,10 @@ const ptBR: Translation<PetText> = {
     speechSpeed: { title: 'Velocidade da voz', description: (a: number, b: number, c: number) => `Sílabas por segundo no máximo: low, mid e high são ${a}, ${b} e ${c}; custom usa a velocidade personalizada. Mais lenta que o texto, a voz termina depois dele.` },
     speechRate: { title: 'Velocidade personalizada', suffix: 'sílabas/s' },
     asrEnabled: { title: 'Entrada de voz' },
-    asrEngine: { title: 'Motor de reconhecimento', description: 'funasr roda o SenseVoiceSmall do FunASR, para chinês, inglês, japonês, coreano e cantonês, depois de um download único de cerca de 240 MB; whisper roda o Whisper small da OpenAI, para francês, alemão, espanhol, português, italiano, russo e cerca de 90 outros idiomas, depois de um download único de cerca de 360 MB, e mostra o texto quando a frase termina; os dois reconhecem neste computador. system usa o reconhecimento de fala do próprio Windows, sem download e com menos precisão (só no Windows). Vazio escolhe pelo idioma do app: funasr para chinês, inglês, japonês e coreano, whisper para os demais.' },
+    asrEngine: { title: 'Motor de reconhecimento', description: 'funasr roda o SenseVoiceSmall do FunASR, para chinês, inglês, japonês, coreano e cantonês, depois de um download único de cerca de 240 MB; whisper roda o Whisper small da OpenAI, para francês, alemão, espanhol, português, italiano, russo e cerca de 90 outros idiomas, depois de um download único de cerca de 360 MB, e mostra o texto quando a frase termina; os dois reconhecem neste computador. system usa o reconhecimento de fala do próprio Windows, sem download e com menos precisão (só no Windows). vokie usa o serviço de reconhecimento que o Vokie executa neste computador, sem download: ative a API ASR externa nas configurações do Vokie. Vazio escolhe pelo idioma do app: funasr para chinês, inglês, japonês e coreano, whisper para os demais.' },
     asrLanguage: { title: 'Idioma', description: 'Um código ISO 639-1, ou auto para o modelo identificar; vazio segue o idioma do app. O FunASR aceita zh, en, ja, ko e yue, e o Whisper cerca de cem códigos, como fr, de, es, pt, it e ru; um código que o modelo não aceita vale como auto.' },
     asrThreads: { title: 'Threads de CPU', description: 'Threads que o FunASR e o Whisper usam em um reconhecimento; 0 = 2.' },
+    asrVokiePort: { title: 'Porta do Vokie', description: 'Porta do serviço de reconhecimento do Vokie; 0 lê das configurações do Vokie.' },
     asrSimplified: { title: 'Converter para simplificado', description: 'Converte para simplificados os caracteres tradicionais do que foi ouvido enquanto o idioma do app é chinês simplificado.' },
     thresholdDb: { title: 'Limiar de fala' },
     silenceMs: { title: 'Silêncio que encerra uma frase' },
@@ -280,6 +292,8 @@ const ptBR: Translation<PetText> = {
     systemHint: 'Sem download, precisão razoável; mude para o FunASR ou o Whisper para resultados melhores',
     funasrHint: 'SenseVoiceSmall neste computador, para chinês, inglês, japonês, coreano e cantonês',
     whisperHint: 'Whisper small neste computador, para francês, alemão, espanhol, português, italiano, russo e outros; o texto aparece quando a frase termina',
+    vokie: 'Vokie (serviço local)',
+    vokieHint: 'Usa o serviço de reconhecimento que o Vokie executa neste computador; ative antes a API ASR externa nas configurações do Vokie',
     server: 'Serviço de reconhecimento',
     start: 'Iniciar',
     stop: 'Parar',

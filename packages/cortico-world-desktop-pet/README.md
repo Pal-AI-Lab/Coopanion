@@ -166,10 +166,38 @@ overlay 页按画出的时刻显示各帧，帧与帧隔开的时间和桌宠页
 | `funasr` | FunASR 的 SenseVoiceSmall(int8),经 sherpa-onnx 的 Node 插件在 World 进程里识别 |
 | `whisper` | OpenAI 的 Whisper small(int8),同样经 sherpa-onnx 在 World 进程里识别 |
 | `system` | Windows 自带的语音识别(SAPI 听写,System.Speech),不用下载,准确度低一些;其他系统上按空处理 |
+| `vokie` | Vokie 的本机识别服务(`/v1/asr/offline2pass`),一句一个临时 WAV 送过去取回文字,一句说完才出字;不随语言默认选中,要显式指定 |
 
 旧版本写下的 `auto` 按空处理。
 
 关闭 `asr.enabled` 会停止当前识别引擎：释放已加载的模型，或结束系统识别的 PowerShell 进程；再次开启时重新加载。
+
+`vokie` 需要 Vokie 在运行并打开「外部 ASR API」，端口从 Vokie 的设置里读，也可以用 `asr.vokiePort` 指定；
+服务没在运行时 `state()` 的 `phase` 是 `error`、`detail` 说明原因，「语音输入」页照原样显示。服务连不上就不出声，没有回落到 FunASR 或 Whisper 的行为。
+
+## Vokie 通道：完成的记录
+
+`vokie.records.enabled`（默认开）时，World 轮询 Vokie 的只读接口 `GET /v1/data/records?limit=10&full=true`，
+把**这个频道启动之后**才完成、并且不是空话的记录取出来：
+
+- 转写里的分段行（`00:00:01`、`SPEAKER_00:`、`UNKNOWN:`）去掉，中文分段直接拼接、西文用空格；只剩「嗯」这类填充词的记录丢掉（`isNoise`）。
+- 取到的文字走和麦克风同一条路：`listen` 的 `heard` 气泡 + `desktop-pet.speech`（`[voice]`），trigger `flush`，于是对话页、气泡和遥测那里，它和亲口说的话没有分别。
+- 不打开麦克风、不注入按键、不改 Vokie 的任何设置。
+
+`vokie.records.armMs`（默认 20000，0 = 全部接收）是**意图开关**：碰一下桌宠（`touch`，拎起除外）就把通道打开这么久，
+头顶亮 `listen` 的 `ready` 气泡；窗口里**第一段**完成的记录交给 Coo 后立即关闭，一次点击对应一句话。
+判断用记录的 `create_time` 而不是完成时间，所以戳完就开始说的长句不会被窗口截断。
+
+`vokie.records.type`（默认 `any`）在 World 里再筛一次：设成 `toggle`（旁听）或 `ptt`（听写）时，另一类记录只写一行日志、不投递。
+跳过的记录都写明原因：`没点过桌宠…`、`没有文字,跳过`、`是 ptt,这一句只要 toggle`；轮询本身能不能读通也会在变化时记一行。
+
+端口沿用 `asr.vokiePort`，0 表示读 Vokie 设置里的 `externalAsrApi.port`。实现见 `src/vokie/records.ts`。
+
+## 附：遥控器按键通道（不用）
+
+`vokie.remote.enabled`（默认关）是早先的长按方案：读 Vokie 日志里的按键边沿（`vokie.remote.source`：
+`log` 默认，`hid` 是直接读 HID 报告的另一条路，未在真机验证），长按超过 `holdMs` 时把这次倾听交给 Coo，
+并可用 `stopDictation` 按一次 Vokie 的开关快捷键结束它自己那次听写。保留代码与测试备查，推荐用上面的记录通道。
 
 `sherpa-onnx-node` 是本包的依赖,随包安装(Windows 约 24 MB,macOS 约 35 MB,Linux x64 约 33 MB),不在运行时下载;
 Windows x64、macOS arm64 / x64、Linux x64 / arm64 都有预编译包,Linux 上要 glibc 2.32 与 GCC 11 的 libstdc++ 以上(Ubuntu 22.04、Debian 12 起)。

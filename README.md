@@ -189,7 +189,19 @@ Talk key, microphone and listening mode (hold to talk / press to toggle / always
 
 Speech is recognized on your machine and audio is never uploaded: by **FunASR** (the SenseVoiceSmall model, about 230 MB) when the app language is Chinese, English, Japanese or Korean, and by **Whisper** (the small model, about 360 MB; the text appears once a sentence ends) for French, German, Spanish, Portuguese, Italian and Russian. The model is downloaded once, from the guide or the Voice input page. On Windows you can use the built-in recognizer instead, which needs no download but is less accurate.
 
+**Vokie** can recognize speech instead: install and run Vokie, then set the recognizer to `vokie` on the Voice input page. Talk key, listening bubble, cancel and timeout stay as they are; each sentence goes to Vokie's local recognition service (`POST /v1/asr/offline2pass`, about a second per sentence). Vokie must have its external ASR API turned on, on port 27678 by default; when the port was changed, set `worlds.desktop-pet.asr.vokiePort`. The Voice input page says why when Vokie is not running.
+
 Turning voice input off also unloads its recognition model or stops the Windows recognition helper. Turning it on loads the engine again.
+
+### With Vokie's remote control
+
+The Google TV remote's voice key starts a **旁听 (toggle) session** in Vokie: it records, transcribes, keeps the session in its history, and pastes nothing. Coopanion reads that history. Press the voice key, speak, press it again to finish; the transcript becomes one sentence for Coo, with no microphone taken from Vokie and no key pressed into it.
+
+- The switch is `worlds.desktop-pet.vokie.records.enabled`, on by default; `type` is `any` by default (旁听 and 听写 both count) and can be narrowed to one.
+- **Touch Coo first**: a poke makes the pet show it is listening, and the next finished session within 20 seconds becomes one sentence for Coo; after that it stops recognizing you again, so a 旁听 recording made for a meeting never lands in the conversation. `vokie.records.armMs` sets that window in milliseconds; 0 takes every session without a touch.
+- Normal dictation is unchanged: a held dictation from the remote or the keyboard is still transcribed and pasted by Vokie itself, and Coopanion does not read `ptt` records unless `type` says so.
+- Which microphone a 旁听 session records from is Vokie's own setting. When its transcript comes back empty or as a bare "嗯", turn off **Use the remote's microphone** in Vokie so it records from the computer's microphone.
+- A 旁听 transcript carries segment lines such as `00:00:01` and `SPEAKER_00:`; Coopanion drops those before handing the words to Coo, and drops a session that only heard a filler.
 
 ### Alarms
 

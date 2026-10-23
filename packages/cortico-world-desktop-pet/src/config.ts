@@ -132,9 +132,10 @@ export function directSettings(cfg: { selfAdjust: unknown; selfAdjustCustom?: Pa
 export type MicMode = 'hold' | 'toggle' | 'always';
 /**
  * funasr: FunASR's SenseVoiceSmall; whisper: OpenAI's Whisper small (both in this process, one model
- * download each, every platform); system: the recognizer Windows ships (nothing to download, less accurate).
+ * download each, every platform); system: the recognizer Windows ships (nothing to download, less accurate);
+ * vokie: the recognition service Vokie runs on this computer (src/asr/vokie.ts).
  */
-export type AsrEngine = 'funasr' | 'whisper' | 'system';
+export type AsrEngine = 'funasr' | 'whisper' | 'system' | 'vokie';
 
 /** Languages SenseVoiceSmall hears, by the app language that speaks them; it also takes `yue` and `auto`. */
 export const SENSEVOICE_LANGUAGES: Readonly<Record<string, string>> = { zh: 'zh', 'zh-Hant': 'zh', en: 'en', ja: 'ja', ko: 'ko' };
@@ -142,11 +143,12 @@ export const SENSEVOICE_LANGUAGES: Readonly<Record<string, string>> = { zh: 'zh'
 /**
  * The engine for an `asr.engine` setting and an app language. Empty, or a value this version does
  * not take, the app language picks: FunASR for a language SenseVoice hears, Whisper for the rest.
- * `system` holds only where Windows' recognizer exists (`systemSupported`).
+ * `system` holds only where Windows' recognizer exists (`systemSupported`); `vokie` is a choice
+ * that no language picks.
  */
 export function asrEngineFor(setting: string, language: string, systemSupported: boolean): AsrEngine {
   const byLanguage: AsrEngine = language in SENSEVOICE_LANGUAGES ? 'funasr' : 'whisper';
-  if (setting === 'funasr' || setting === 'whisper') return setting;
+  if (setting === 'funasr' || setting === 'whisper' || setting === 'vokie') return setting;
   return setting === 'system' && systemSupported ? 'system' : byLanguage;
 }
 
@@ -226,6 +228,8 @@ export interface DesktopPetConfigSection extends WorldSection {
     /** Traditional characters heard become Simplified, while the app language is `zh`. */
     simplified: boolean;
     timeoutMs: number;
+    /** Port of Vokie's recognition service; 0 reads it from Vokie's settings. */
+    vokiePort: number;
     segment: SegmentConfig;
     mic: {
       mode: MicMode;
@@ -235,6 +239,32 @@ export interface DesktopPetConfigSection extends WorldSection {
       deviceId: string;
       /** Hold mode: the microphone opens when the talk key goes down and closes after it goes up; off keeps it open while voice input is on. */
       openOnPress: boolean;
+    };
+  };
+  /**
+   * Vokie's remote control. `records` is the channel that fits Vokie's own design: the Google TV
+   * remote starts a 旁听 (toggle) session, Vokie transcribes and keeps it, and this World reads the
+   * finished transcript out of Vokie's history. `remote` is the earlier hold-to-talk attempt, which
+   * needs Vokie's voice key in toggle mode and presses Vokie's own shortcut to end its session.
+   */
+  vokie: {
+    records: {
+      enabled: boolean;
+      /** How long a touch on the pet keeps the channel open, in milliseconds; 0 takes every record. */
+      armMs: number;
+      /** `toggle`: the remote's 旁听; `ptt`: the 听写 Vokie pastes itself; `any`: either. */
+      type: 'toggle' | 'ptt' | 'any';
+      /** How often Vokie's history is read, in milliseconds. */
+      pollMs: number;
+    };
+    remote: {
+      enabled: boolean;
+      /** `log` reads the edges out of Vokie's log, the only place a second program sees them; `hid` reads the remote's HID reports directly (Windows only, unverified on shipping hardware). */
+      source: 'log' | 'hid';
+      /** The press length that separates a tap from a hold, in milliseconds. */
+      holdMs: number;
+      /** End the dictation Vokie started on the same press before Coo takes the microphone. */
+      stopDictation: boolean;
     };
   };
 }
@@ -279,8 +309,13 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
     threads: 0,
     simplified: true,
     timeoutMs: 20_000,
+    vokiePort: 0,
     segment: { thresholdDb: -42, minSpeechMs: 180, dispatchSilenceMs: 250, silenceMs: 600, maxUtteranceMs: 15_000, preRollMs: 320, minUtteranceMs: 350 },
     mic: { mode: 'hold', hotkey: DEFAULT_HOTKEY, deviceId: '', openOnPress: false },
+  },
+  vokie: {
+    records: { enabled: true, armMs: 20_000, type: 'any', pollMs: 900 },
+    remote: { enabled: false, source: 'log', holdMs: 500, stopDictation: true },
   },
 };
 
@@ -354,9 +389,10 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
       title: c.asrGroup,
       properties: {
         [`${K}.asr.enabled`]: { type: 'boolean', title: c.asrEnabled.title, 'x-hot': true },
-        [`${K}.asr.engine`]: { type: 'string', title: c.asrEngine.title, enum: ['', 'funasr', 'whisper', 'system'], description: c.asrEngine.description, 'x-hot': true },
+        [`${K}.asr.engine`]: { type: 'string', title: c.asrEngine.title, enum: ['', 'funasr', 'whisper', 'system', 'vokie'], description: c.asrEngine.description, 'x-hot': true },
         [`${K}.asr.language`]: { type: 'string', title: c.asrLanguage.title, description: c.asrLanguage.description, 'x-hot': true },
         [`${K}.asr.threads`]: { type: 'integer', title: c.asrThreads.title, minimum: 0, maximum: 16, description: c.asrThreads.description, 'x-hot': true },
+        [`${K}.asr.vokiePort`]: { type: 'integer', title: c.asrVokiePort.title, minimum: 0, maximum: 65535, description: c.asrVokiePort.description, 'x-hot': true },
         [`${K}.asr.simplified`]: { type: 'boolean', title: c.asrSimplified.title, description: c.asrSimplified.description, 'x-hot': true },
         [`${K}.asr.segment.thresholdDb`]: { type: 'number', title: c.thresholdDb.title, minimum: -80, maximum: 0, 'x-suffix': 'dBFS', 'x-hot': true },
         [`${K}.asr.segment.silenceMs`]: { type: 'integer', title: c.silenceMs.title, minimum: 200, maximum: 5000, 'x-suffix': 'ms', 'x-hot': true },

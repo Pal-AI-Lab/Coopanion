@@ -66,6 +66,17 @@ const zhHant: Translation<PetText> = {
     notLoaded: '辨識模型沒有載入',
   },
 
+  /** Vokie 在本機跑的辨識服務 */
+  vokie: {
+    notRunning: 'Vokie 沒有執行',
+    apiOff: 'Vokie 設定裡沒有開啟「外部 ASR API」',
+    emptyReply: 'Vokie 回傳的內容是空的',
+    badReply: 'Vokie 的回覆讀不懂',
+    failed: (why: string) => `Vokie 辨識失敗：${why}`,
+    timeout: (ms: number) => `辨識逾時（${ms} ms）`,
+    stopped: 'Vokie 辨識已停止',
+  },
+
   store: {
     noBuild: (platform: string) => `沒有 ${platform} 的預先編譯套件`,
     downloading: (file: string) => `下載 ${file}`,
@@ -237,9 +248,10 @@ const zhHant: Translation<PetText> = {
     speechSpeed: { title: '說話聲語速', description: (a: number, b: number, c: number) => `每秒最多念幾個音節：low、mid、high 依次為 ${a}、${b}、${c}；custom 用自訂語速。比文字慢時，聲音在文字打完後才念完。` },
     speechRate: { title: '自訂語速', suffix: '音節/秒' },
     asrEnabled: { title: '語音輸入總開關' },
-    asrEngine: { title: '辨識引擎', description: 'funasr 使用 FunASR 的 SenseVoiceSmall，支援中文、英文、日文、韓文和粵語，第一次要下載約 240 MB 的模型；whisper 使用 OpenAI 的 Whisper small，支援法語、德語、西班牙語、葡萄牙語、義大利語、俄語等近百種語言，第一次要下載約 360 MB 的模型，一句說完才出字；這兩個都在本機辨識。system 使用 Windows 內建的語音辨識，不用下載，準確度低一些（只在 Windows 上有）。留空時依應用程式語言選擇：中文、英文、日文、韓文用 funasr，其餘用 whisper。' },
+    asrEngine: { title: '辨識引擎', description: 'funasr 使用 FunASR 的 SenseVoiceSmall，支援中文、英文、日文、韓文和粵語，第一次要下載約 240 MB 的模型；whisper 使用 OpenAI 的 Whisper small，支援法語、德語、西班牙語、葡萄牙語、義大利語、俄語等近百種語言，第一次要下載約 360 MB 的模型，一句說完才出字；這兩個都在本機辨識。system 使用 Windows 內建的語音辨識，不用下載，準確度低一些（只在 Windows 上有）。vokie 用 Vokie 在本機跑的辨識服務，不用下載，要在 Vokie 設定裡開啟「外部 ASR API」。留空時依應用程式語言選擇：中文、英文、日文、韓文用 funasr，其餘用 whisper。' },
     asrLanguage: { title: '語言', description: 'ISO 639-1 語言代碼，或 auto 讓模型自己判斷；留空時跟隨應用程式語言。FunASR 認得 zh、en、ja、ko、yue，Whisper 認得 fr、de、es、pt、it、ru 等近百種，不認得的代碼當作 auto。' },
     asrThreads: { title: 'CPU 執行緒', description: 'FunASR 和 Whisper 一次辨識使用幾個執行緒；0 = 2。' },
+    asrVokiePort: { title: 'Vokie 連接埠', description: 'Vokie 辨識服務的連接埠；0 時從 Vokie 的設定裡讀。' },
     asrSimplified: { title: '轉成簡體', description: '應用程式語言是簡體中文時，把辨識出的繁體字轉成簡體。' },
     thresholdDb: { title: '說話門檻' },
     silenceMs: { title: '一句結束的靜音' },
@@ -280,6 +292,8 @@ const zhHant: Translation<PetText> = {
     systemHint: '不用下載，準確度普通；想要更準請換成 FunASR 或 Whisper',
     funasrHint: 'SenseVoiceSmall，在本機辨識，支援中文、英文、日文、韓文和粵語',
     whisperHint: 'Whisper small，在本機辨識，支援法語、德語、西班牙語、葡萄牙語、義大利語、俄語等；一句說完才出字',
+    vokie: 'Vokie（本機服務）',
+    vokieHint: '用 Vokie 在本機跑的辨識服務，要先在 Vokie 設定裡開啟「外部 ASR API」',
     server: '辨識服務',
     start: '啟動',
     stop: '停止',

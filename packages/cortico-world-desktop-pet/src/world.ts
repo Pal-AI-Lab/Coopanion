@@ -3,7 +3,8 @@
  *
  * Output goes through four tools that drive the pet page (bubble, options, going somewhere,
  * expressions and motions). Input arrives as events: speech heard through the pet window's
- * microphone (transcribed in this process by FunASR's SenseVoice or by Whisper, or by Windows' own recognizer), typed text, answers to `pet_ask`, and touches
+ * microphone (transcribed in this process by FunASR's SenseVoice or by Whisper, by Windows' own
+ * recognizer, or by the Vokie recognition service on this computer), typed text, answers to `pet_ask`, and touches
  * (poke, petting, being thrown). The page reports what actually happened; receipts and
  * events state only that.
  *
@@ -41,8 +42,14 @@ import { WindowHost, resolveHostCommand } from './window-host.ts';
 import { RuntimeStore, type ModelSpec } from './runtime/store.ts';
 import { SENSEVOICE, SherpaAsr, WHISPER, type SherpaModelKind, type SherpaModule, type SherpaState } from './asr/sherpa.ts';
 import { SystemRecognizer, systemRecognizerSupported, type SystemRecognizerState, type SystemSentence } from './asr/system-recognizer.ts';
+import { VokieRecognizer, type VokieRecognizerState } from './asr/vokie.ts';
 import { Packer, Segmenter, rmsDb, type SegmentConfig, type SegmentSink, type Utterance } from './asr/segmenter.ts';
 import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, watchHotkey, type KeyWatcher } from './asr/hotkey.ts';
+import { createGestureClassifier, type GestureClassifier, type GestureEvent, type RemoteEdge } from './vokie/gesture.ts';
+import { VokieLogWatch, vokieLogFile } from './vokie/log-watch.ts';
+import { VokieRecordsWatch, type VokieRecord } from './vokie/records.ts';
+import { VokieRemote } from './vokie/remote.ts';
+import { readVokieToggle, ShortcutPresser, vokieSettingsFile, type Shortcut } from './vokie/vokie-input.ts';
 import { joinSpeech, looksHallucinated } from './asr/result.ts';
 import { toSimplified } from './asr/simplify.ts';
 import { estimateSeconds, parseActions, parseScript, vocabChange, vocabTable, type VocabWord } from './script.ts';
@@ -99,6 +106,9 @@ const IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif
 const PREFS_SYNC_MS = 150;
 /** Talk-key polling interval: well under the shortest key tap. */
 const HOTKEY_POLL_MS = 30;
+/** How often Vokie's log is read for a new remote edge, and how closely a quiet press is watched for its hold. */
+const REMOTE_POLL_MS = 120;
+const REMOTE_TICK_MS = 40;
 /**
  * A microphone the talk key opened (`asr.mic.openOnPress`) closes this long after the key goes up,
  * so a press right after a release finds it open. The end of speech does not wait on it: the
@@ -199,6 +209,12 @@ export interface PetDialogHandle {
  */
 export type ConfirmResult = 'yes' | 'always' | 'no' | 'dismissed' | 'timeout' | 'unavailable';
 
+/** Where the remote's button edges come from: Vokie's log in this build (`src/vokie/log-watch.ts`). */
+export interface RemoteSource {
+  start(): void | Promise<void>;
+  stop(): void | Promise<void>;
+}
+
 export interface DesktopPetWorldOptions {
   cfg: DesktopPetConfigSection;
   timezone: string;
@@ -219,6 +235,10 @@ export interface DesktopPetWorldOptions {
   controls?: PetBotControls;
   /** Reads the talk key; tests pass a scripted one. */
   watchHotkey?: typeof watchHotkey;
+  /** Reads the remote's button edges; tests pass a scripted source. */
+  openRemote?: (onEdge: (edge: RemoteEdge) => void) => RemoteSource;
+  /** Reads Vokie's finished 旁听 sessions; tests pass a scripted source. */
+  openRecords?: (onRecord: (record: VokieRecord) => void) => RemoteSource;
   /** Starts the system recognizer's helper; tests pass a fake. */
   spawnSystemRecognizer?: typeof spawn;
   /** Directories whose subdirectories are installed figure packs (src/packs.ts). */
@@ -243,7 +263,7 @@ export interface DesktopPetWorldOptions {
   onCuaAnswer?: (answer: Answer) => void;
 }
 
-type SherpaEngine = Exclude<AsrEngine, 'system'>;
+type SherpaEngine = Exclude<AsrEngine, 'system' | 'vokie'>;
 
 interface PendingWalk {
   resolve: (text: string) => void;
@@ -324,6 +344,7 @@ export class DesktopPetWorld implements World {
   private funasr: SherpaAsr | null = null;
   private whisper: SherpaAsr | null = null;
   private system: SystemRecognizer | null = null;
+  private vokie: VokieRecognizer | null = null;
   /** The engine the running backend belongs to; a config change starts the other one. */
   private runningEngine: AsrEngine | null = null;
   private voiceGeneration = 0;
@@ -373,6 +394,20 @@ export class DesktopPetWorld implements World {
   /** Why the talk key cannot be read; the gate then stays closed. */
   private hotkeyProblem: string | null = null;
   private hotkeyKey = '';
+  /** The remote's source of button edges (src/vokie/log-watch.ts by default) and its classifier. */
+  private remote: RemoteSource | null = null;
+  private gestures: GestureClassifier | null = null;
+  private remoteTimer: NodeJS.Timeout | null = null;
+  private remoteKey = '';
+  /** Vokie's finished 旁听 sessions, as the pet's second way in (src/vokie/records.ts). */
+  private records: RemoteSource | null = null;
+  private recordsKey = '';
+  /** Until when a touch on the pet makes the next Vokie session Coo's; 0 when none was asked for. */
+  private relayFrom = 0;
+  private relayUntil = 0;
+  /** Vokie's own dictation shortcut, read from its settings the first time a hold needs it. */
+  private toggleShortcut: Shortcut | null = null;
+  private presser: ShortcutPresser | null = null;
   private level = -100;
   private readonly chat = new ChatSockets();
   private readonly activity = new ActivityGroup();
@@ -629,8 +664,19 @@ export class DesktopPetWorld implements World {
       spawnImpl: this.opts.spawnSystemRecognizer,
     });
     this.cuaSeen = this.cfg.cua.enabled;
+    // Vokie is a service on this computer, not a process here: this object only holds its address and settings
+    this.vokie = new VokieRecognizer({
+      port: () => this.cfg.asr.vokiePort,
+      language: () => this.cfg.asr.language,
+      appLanguage: () => this.appLanguage,
+      timeoutMs: () => this.cfg.asr.timeoutMs,
+      text: () => this.ui,
+      log: host.log,
+    });
     if (this.cfg.asr.enabled) void this.startVoiceBackend();
     await this.syncHotkey();
+    this.syncRemote();
+    this.syncRecordChannel();
     this.prefsKey = this.prefsSignature();
     this.prefsTimer = setInterval(() => this.syncPrefs(), PREFS_SYNC_MS);
   }
@@ -652,6 +698,13 @@ export class DesktopPetWorld implements World {
     this.touchWoke = false;
     this.keyWatcher?.stop();
     this.keyWatcher = null;
+    void this.remote?.stop();
+    this.remote = null;
+    this.gestures = null;
+    if (this.remoteTimer) clearInterval(this.remoteTimer);
+    this.remoteTimer = null;
+    void this.records?.stop();
+    this.records = null;
     if (this.micReleaseTimer) clearTimeout(this.micReleaseTimer);
     this.micReleaseTimer = null;
     for (const c of this.confirms.values()) { clearTimeout(c.timer); c.resolve('unavailable'); }
@@ -667,6 +720,7 @@ export class DesktopPetWorld implements World {
     await this.funasr?.stop();
     await this.whisper?.stop();
     await this.system?.stop();
+    await this.vokie?.stop();
     await this.server.stop();
     await this.cua.stop();
     this.host = null;
@@ -914,11 +968,13 @@ export class DesktopPetWorld implements World {
     // the system recognizer serves one language; a new one needs a new helper
     else if (this.cfg.asr.enabled && this.runningEngine === 'system' && this.system?.languageChanged) void this.startVoiceBackend();
     // FunASR and Whisper load the model for one language and thread count
-    else if (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== 'system' && this.sherpa(this.runningEngine)?.configChanged) void this.startVoiceBackend();
+    else if (this.cfg.asr.enabled && (this.runningEngine === 'funasr' || this.runningEngine === 'whisper') && this.sherpa(this.runningEngine)?.configChanged) void this.startVoiceBackend();
     // computer use switched off ends the engine process; the next call after it is switched on starts another
     if (this.cuaSeen && !this.cfg.cua.enabled) void this.cua.switchedOff();
     this.cuaSeen = this.cfg.cua.enabled;
     void this.syncHotkey();
+    this.syncRemote();
+    this.syncRecordChannel();
     // the person changed what a quiet holds back: theirs wins
     if (this.quiet && (this.cfg.sound !== this.quiet.base.sound || this.cfg.roam !== this.quiet.base.roam)) this.endQuiet();
     this.server.syncOverlay();
@@ -1203,6 +1259,8 @@ export class DesktopPetWorld implements World {
     if (!this.cfg.touch.enabled) return;
     const kind = String(msg.kind);
     if (kind === 'grab') return;
+    // touching the pet is how the person points the Vokie channel at Coo for the next sentence
+    this.armRelay();
     if (kind === 'crash' && this.touch && (this.touch.kind === 'throw' || this.touch.kind === 'drop')) {
       this.touch.crashed = true;
       return;
@@ -1315,15 +1373,16 @@ export class DesktopPetWorld implements World {
   /** The sherpa-onnx engine whose model voice input downloads: the one in force, else the app language's. */
   private modelEngine(): SherpaEngine {
     const engine = this.engine();
-    return engine === 'system' ? asrEngineFor('', this.appLanguage, false) as SherpaEngine : engine;
+    return engine === 'system' || engine === 'vokie' ? asrEngineFor('', this.appLanguage, false) as SherpaEngine : engine;
   }
 
   private sherpa(engine: SherpaEngine): SherpaAsr | null {
     return engine === 'whisper' ? this.whisper : this.funasr;
   }
 
-  private recognizer(engine = this.engine()): SherpaAsr | SystemRecognizer | null {
-    return engine === 'system' ? this.system : this.sherpa(engine);
+  private recognizer(engine = this.engine()): SherpaAsr | SystemRecognizer | VokieRecognizer | null {
+    if (engine === 'system') return this.system;
+    return engine === 'vokie' ? this.vokie : this.sherpa(engine);
   }
 
   /** The recognition language: the set one, else the app language's ISO 639-1 code; FunASR and Whisper read a code they do not take as `auto`. */
@@ -1331,12 +1390,12 @@ export class DesktopPetWorld implements World {
     return this.cfg.asr.language || this.appLanguage.split('-')[0]!;
   }
 
-  private backendState(): SherpaState | SystemRecognizerState | null {
+  private backendState(): SherpaState | SystemRecognizerState | VokieRecognizerState | null {
     return this.recognizer()?.state() ?? null;
   }
 
   /** Starts the engine in force and stops the one that ran before. */
-  async startVoiceBackend(): Promise<SherpaState | SystemRecognizerState | null> {
+  async startVoiceBackend(): Promise<SherpaState | SystemRecognizerState | VokieRecognizerState | null> {
     const generation = this.voiceGeneration;
     await this.voiceStopping;
     if (generation !== this.voiceGeneration || !this.cfg.asr.enabled) return this.backendState();
@@ -1419,6 +1478,129 @@ export class DesktopPetWorld implements World {
   private onTalkTap(): void {
     if (this.talking || !this.cfg.asr.enabled || !this.micWanted()) return;
     this.server.sendPet({ t: 'listen', phase: 'ready' });
+  }
+
+  /* ---------- Vokie's remote control ---------- */
+
+  /**
+   * Starts, restarts or stops reading Vokie's history to match the configuration. A finished 旁听
+   * session is the one the person started with the remote: Vokie recognizes it and keeps it, and Coo
+   * takes the text from there, so no microphone opens here and no key is pressed for Vokie.
+   */
+  private syncRecordChannel(): void {
+    const records = this.cfg.vokie.records;
+    const key = records.enabled ? `${records.type}:${records.pollMs}` : '';
+    if (key === this.recordsKey) return;
+    this.recordsKey = key;
+    void this.records?.stop();
+    this.records = null;
+    if (!key) return;
+    const onRecord = (record: VokieRecord): void => this.onVokieRecord(record);
+    this.records = this.opts.openRecords
+      ? this.opts.openRecords(onRecord)
+      : new VokieRecordsWatch({
+        port: () => this.cfg.asr.vokiePort,
+        pollMs: records.pollMs,
+        onRecord,
+        log: this.log ?? undefined,
+      });
+    void this.records.start();
+    this.log?.info(`Vokie 的记录通道已开始:${records.type} 的记录交给 Coo`);
+  }
+
+  /** One finished Vokie session becomes one speech event, the same shape the microphone produces. */
+  private onVokieRecord(record: VokieRecord): void {
+    const records = this.cfg.vokie.records;
+    if (records.type !== 'any' && record.type !== records.type) {
+      this.log?.info(`Vokie 记录 ${record.id} 是 ${record.type},这一句只要 ${records.type}`);
+      return;
+    }
+    if (records.armMs > 0 && (record.ts < this.relayFrom || record.ts > this.relayUntil)) {
+      this.log?.info(`Vokie 记录 ${record.id} 没点过桌宠,当成 Vokie 自己的记录`);
+      return;
+    }
+    // one touch, one sentence: a conversation needs a touch per sentence
+    this.relayFrom = 0;
+    this.relayUntil = 0;
+    this.counts.delivered++;
+    this.server.sendPet({ t: 'listen', phase: 'heard', text: record.text });
+    void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.userName, record.text), 'flush', { meta: { text: record.text } });
+    this.log?.info(`Vokie 记录 ${record.id} 交给了 Coo:${record.text.length} 字`);
+  }
+
+  /**
+   * Arms the Vokie channel for `armMs`: the person touches the pet to say the next 旁听 session is
+   * meant for Coo, so a 旁听 recording made for anything else is not spoken to the bot.
+   */
+  private armRelay(): void {
+    const records = this.cfg.vokie.records;
+    if (!records.enabled || records.armMs <= 0) return;
+    this.relayFrom = Date.now();
+    this.relayUntil = this.relayFrom + records.armMs;
+    this.server.sendPet({ t: 'listen', phase: 'ready' });
+  }
+
+  /**
+   * Starts, restarts or stops the remote watcher to match the configuration. The remote's voice
+   * key talks to Coo while it is held; a tap stays Vokie's own dictation, which Vokie starts by
+   * itself, so nothing here reacts to one.
+   */
+  private syncRemote(): void {
+    const remote = this.cfg.vokie.remote;
+    const key = remote.enabled && this.cfg.asr.enabled ? `${remote.source}:${remote.holdMs}:${remote.stopDictation}` : '';
+    if (key === this.remoteKey) return;
+    this.remoteKey = key;
+    void this.remote?.stop();
+    this.remote = null;
+    if (this.remoteTimer) clearInterval(this.remoteTimer);
+    this.remoteTimer = null;
+    this.gestures = null;
+    if (!key) return;
+    const classifier = createGestureClassifier({ holdMs: remote.holdMs, onEvent: (event) => this.onRemoteGesture(event) });
+    this.gestures = classifier;
+    const onEdge = (edge: RemoteEdge): void => classifier.edge(edge);
+    const log = this.log ?? undefined;
+    this.remote = this.opts.openRemote
+      ? this.opts.openRemote(onEdge)
+      : remote.source === 'hid'
+        ? new VokieRemote({ onEdge, log: log! })
+        : new VokieLogWatch({ file: vokieLogFile, pollMs: REMOTE_POLL_MS, onEdge, log });
+    void this.remote.start();
+    // a press that stays down crosses `holdMs` without another edge; the classifier has no clock
+    this.remoteTimer = setInterval(() => this.gestures?.tick(Date.now()), REMOTE_TICK_MS);
+    this.remoteTimer.unref?.();
+    this.log?.info('遥控器已开始监听:长按语音键和 Coo 说话,单击仍是 Vokie 自己的听写');
+  }
+
+  /** One gesture of the remote's voice key: the microphone follows a press, a tap is given back. */
+  private onRemoteGesture(event: GestureEvent): void {
+    if (event.type === 'press') {
+      // the microphone opens with the press: a hold that follows has no first syllable to lose
+      this.setTalking(true);
+      return;
+    }
+    if (event.type === 'hold') {
+      this.log?.info(`遥控器长按 ${Math.round(event.heldMs)} ms:这句话给 Coo`);
+      if (this.cfg.vokie.remote.stopDictation) void this.stopVokieDictation();
+      return;
+    }
+    if (event.type === 'hold-end') {
+      this.setTalking(false);
+      return;
+    }
+    // a tap: Vokie takes it, and nothing of what it heard here is sent
+    this.cancelSpeech();
+  }
+
+  /** Presses Vokie's own toggle shortcut, so its dictation of the same press ends before Coo takes the microphone. */
+  private async stopVokieDictation(): Promise<void> {
+    this.toggleShortcut ??= readVokieToggle(vokieSettingsFile(), this.log ?? undefined);
+    if (!this.toggleShortcut) {
+      this.log?.warn('读不到 Vokie 的开关快捷键,长按时 Vokie 会继续听写;请在 Vokie 设置里把语音输入改成「按一下开关」');
+      return;
+    }
+    this.presser ??= new ShortcutPresser(this.log ?? undefined);
+    await this.presser.press(this.toggleShortcut);
   }
 
   private onTalkKey(down: boolean): void {
@@ -1948,7 +2130,7 @@ export class DesktopPetWorld implements World {
         case 'stop': await this.stopVoiceBackend(); return this.voiceState();
         case 'setEngine': {
           const engine = args[0];
-          if (engine === 'funasr' || engine === 'whisper' || engine === 'system') this.opts.persist({ asr: { engine } });
+          if (engine === 'funasr' || engine === 'whisper' || engine === 'system' || engine === 'vokie') this.opts.persist({ asr: { engine } });
           if (this.cfg.asr.enabled) await this.startVoiceBackend();
           return this.voiceState();
         }

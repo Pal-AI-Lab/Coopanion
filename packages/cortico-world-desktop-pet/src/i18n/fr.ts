@@ -66,6 +66,17 @@ const fr: Translation<PetText> = {
     notLoaded: "Le modèle vocal n'est pas chargé",
   },
 
+  /** Le service de reconnaissance que Vokie exécute sur cet ordinateur. */
+  vokie: {
+    notRunning: 'Vokie ne fonctionne pas',
+    apiOff: "L'API ASR externe n'est pas activée dans les réglages de Vokie",
+    emptyReply: "Vokie n'a rien renvoyé",
+    badReply: 'La réponse de Vokie est illisible',
+    failed: (why: string) => `La reconnaissance Vokie a échoué : ${why}`,
+    timeout: (ms: number) => `Délai de reconnaissance dépassé (${ms} ms)`,
+    stopped: 'La reconnaissance Vokie est arrêtée',
+  },
+
   store: {
     noBuild: (platform: string) => `Aucun paquet précompilé pour ${platform}`,
     downloading: (file: string) => `Téléchargement de ${file}`,
@@ -237,9 +248,10 @@ const fr: Translation<PetText> = {
     speechSpeed: { title: 'Débit de la voix', description: (a: number, b: number, c: number) => `Syllabes par seconde au plus : low, mid et high valent ${a}, ${b} et ${c} ; custom utilise le débit personnalisé. Plus lente que le texte, la voix finit après lui.` },
     speechRate: { title: 'Débit personnalisé', suffix: 'syllabes/s' },
     asrEnabled: { title: 'Saisie vocale' },
-    asrEngine: { title: 'Moteur de reconnaissance', description: "funasr exécute SenseVoiceSmall de FunASR, pour le chinois, l'anglais, le japonais, le coréen et le cantonais, après un téléchargement unique d'environ 240 Mo ; whisper exécute Whisper small d'OpenAI, pour le français, l'allemand, l'espagnol, le portugais, l'italien, le russe et environ 90 autres langues, après un téléchargement unique d'environ 360 Mo, et affiche le texte une fois la phrase terminée ; les deux reconnaissent sur cet ordinateur. system utilise la reconnaissance vocale de Windows, sans téléchargement et moins précise (Windows uniquement). Vide : choix selon la langue de l'application, funasr pour le chinois, l'anglais, le japonais et le coréen, whisper pour les autres." },
+    asrEngine: { title: 'Moteur de reconnaissance', description: "funasr exécute SenseVoiceSmall de FunASR, pour le chinois, l'anglais, le japonais, le coréen et le cantonais, après un téléchargement unique d'environ 240 Mo ; whisper exécute Whisper small d'OpenAI, pour le français, l'allemand, l'espagnol, le portugais, l'italien, le russe et environ 90 autres langues, après un téléchargement unique d'environ 360 Mo, et affiche le texte une fois la phrase terminée ; les deux reconnaissent sur cet ordinateur. system utilise la reconnaissance vocale de Windows, sans téléchargement et moins précise (Windows uniquement). vokie utilise le service de reconnaissance que Vokie exécute sur cet ordinateur, sans téléchargement : activez son API ASR externe dans les réglages de Vokie. Vide : choix selon la langue de l'application, funasr pour le chinois, l'anglais, le japonais et le coréen, whisper pour les autres." },
     asrLanguage: { title: 'Langue', description: "Un code ISO 639-1, ou auto pour laisser le modèle décider ; vide suit la langue de l'application. FunASR accepte zh, en, ja, ko et yue, Whisper une centaine de codes comme fr, de, es, pt, it et ru ; un code que le modèle n'accepte pas vaut auto." },
     asrThreads: { title: 'Threads CPU', description: 'Threads utilisés par FunASR et Whisper pour une reconnaissance ; 0 = 2.' },
+    asrVokiePort: { title: 'Port de Vokie', description: 'Port du service de reconnaissance Vokie ; 0 le lit dans les réglages de Vokie.' },
     asrSimplified: { title: 'Convertir en simplifié', description: "Convertit en caractères simplifiés les caractères traditionnels entendus quand la langue de l'application est le chinois simplifié." },
     thresholdDb: { title: 'Seuil de parole' },
     silenceMs: { title: 'Silence qui termine une phrase' },
@@ -280,6 +292,8 @@ const fr: Translation<PetText> = {
     systemHint: 'Rien à télécharger, précision correcte ; passez à FunASR ou Whisper pour de meilleurs résultats',
     funasrHint: "SenseVoiceSmall sur cet ordinateur, pour le chinois, l'anglais, le japonais, le coréen et le cantonais",
     whisperHint: "Whisper small sur cet ordinateur, pour le français, l'allemand, l'espagnol, le portugais, l'italien, le russe et d'autres ; le texte s'affiche une fois la phrase terminée",
+    vokie: 'Vokie (service local)',
+    vokieHint: "Utilise le service de reconnaissance que Vokie exécute sur cet ordinateur ; activez d'abord l'API ASR externe dans les réglages de Vokie",
     server: 'Service de reconnaissance',
     start: 'Démarrer',
     stop: 'Arrêter',

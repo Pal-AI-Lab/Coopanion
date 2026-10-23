@@ -25,7 +25,7 @@ interface VoiceState {
   systemSupported: boolean;
   server: { phase: string; url: string; pid: number | null; detail: string | null } | null;
   /** The download of the FunASR or Whisper model: the engine in force's, else the app language's. */
-  model: Artifact & { bytes: number; engine: Exclude<Engine, 'system'> };
+  model: Artifact & { bytes: number; engine: Exclude<Engine, 'system' | 'vokie'> };
   mic: { state: string; detail: string | null };
   input: {
     mode: MicMode;
@@ -46,7 +46,7 @@ interface VoiceState {
 }
 
 type MicMode = 'hold' | 'toggle' | 'always';
-type Engine = 'funasr' | 'whisper' | 'system';
+type Engine = 'funasr' | 'whisper' | 'system' | 'vokie';
 
 /** `KeyboardEvent.code` → the key names `src/asr/hotkey.ts` reads. */
 const CODE_KEYS: Record<string, string> = {
@@ -157,7 +157,7 @@ const petPanel: WebUiPanel = {
 };
 
 /** The engines with a name of their own; the system recognizer's is in the text table. */
-const ENGINE_NAMES: Partial<Record<Engine, string>> = { funasr: 'FunASR', whisper: 'Whisper' };
+const ENGINE_NAMES: Partial<Record<Engine, string>> = { funasr: 'FunASR', whisper: 'Whisper', vokie: 'Vokie' };
 
 const FLOOR_DB = -60;
 const meterPct = (db: number) => Math.max(0, Math.min(100, ((db - FLOOR_DB) / -FLOOR_DB) * 100));
@@ -241,7 +241,7 @@ const voicePanel: WebUiPanel = {
       const onPressOn = next.input.mode === 'hold' && next.input.openOnPress;
       masterHint.textContent = !next.enabled ? t.disabledHint : onPressOn ? t.enabledHintOnPress : t.enabledHint;
       settings.classList.toggle('off', !next.enabled);
-      const engines: Partial<Record<Engine, string>> = { funasr: t.funasr, whisper: t.whisper };
+      const engines: Partial<Record<Engine, string>> = { funasr: t.funasr, whisper: t.whisper, vokie: t.vokie };
       // Windows' own recognizer exists only there
       if (next.systemSupported) engines.system = t.system;
       if (engineSel.dataset.list !== JSON.stringify(engines)) {
@@ -249,7 +249,8 @@ const voicePanel: WebUiPanel = {
         engineSel.replaceChildren(...(Object.keys(engines) as Engine[]).map((k) => { const o = ui.h('option', null, engines[k] ?? k); o.value = k; return o; }));
       }
       if (document.activeElement !== engineSel) engineSel.value = next.engine;
-      eng.set(ENGINE_NAMES[next.engine] ?? t.system, 'on', next.engine === 'system' ? t.systemHint : next.engine === 'whisper' ? t.whisperHint : t.funasrHint);
+      eng.set(ENGINE_NAMES[next.engine] ?? t.system, 'on',
+        next.engine === 'system' ? t.systemHint : next.engine === 'whisper' ? t.whisperHint : next.engine === 'vokie' ? t.vokieHint : t.funasrHint);
       const sv = next.server;
       if (!sv) srv.set('—', 'off');
       else if (sv.phase === 'running') srv.set(t.ready, 'on', sv.url);
@@ -267,8 +268,8 @@ const voicePanel: WebUiPanel = {
       btnInstall.disabled = m.phase === 'working';
       btnInstall.hidden = m.phase === 'ready';
       btnInstall.textContent = m.phase === 'error' ? t.retry : t.download;
-      // the system recognizer has no model
-      rt.row.style.display = next.engine === 'system' ? 'none' : '';
+      // neither the system recognizer nor Vokie has a model to download
+      rt.row.style.display = next.engine === 'system' || next.engine === 'vokie' ? 'none' : '';
 
       const mic = next.mic;
       micRow.set(t.micStates[mic.state] ?? mic.state, mic.state === 'on' ? 'on' : mic.state === 'off' ? 'off' : 'bad', mic.detail ?? '');

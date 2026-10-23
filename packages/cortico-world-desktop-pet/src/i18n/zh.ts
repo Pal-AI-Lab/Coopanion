@@ -81,6 +81,17 @@ export default {
     notLoaded: '识别模型没有载入',
   },
 
+  /** Vokie 在本机跑的识别服务 */
+  vokie: {
+    notRunning: 'Vokie 没有运行',
+    apiOff: 'Vokie 设置里没有开启「外部 ASR API」',
+    emptyReply: 'Vokie 返回的内容是空的',
+    badReply: 'Vokie 的回复读不懂',
+    failed: (why: string) => `Vokie 识别失败：${why}`,
+    timeout: (ms: number) => `识别超时（${ms}ms）`,
+    stopped: 'Vokie 识别已停止',
+  },
+
   /** 窗口运行时与识别模型的下载 */
   store: {
     noBuild: (platform: string) => `没有 ${platform} 的预编译包`,
@@ -261,9 +272,10 @@ export default {
     speechSpeed: { title: '说话声语速', description: (a: number, b: number, c: number) => `每秒最多念几个音节：low、mid、high 依次为 ${a}、${b}、${c}；custom 用自定义语速。比文字慢时，声音在文字打完后才念完。` },
     speechRate: { title: '自定义语速', suffix: '音节/秒' },
     asrEnabled: { title: '语音输入总开关' },
-    asrEngine: { title: '识别引擎', description: 'funasr 用 FunASR 的 SenseVoiceSmall，支持中文、英文、日文、韩文和粤语，首次要下载约 240 MB 的模型；whisper 用 OpenAI 的 Whisper small，支持法语、德语、西班牙语、葡萄牙语、意大利语、俄语等近百种语言，首次要下载约 360 MB 的模型，一句说完才出字；这两个都在本机识别。system 用 Windows 自带的语音识别，不用下载，准确度低一些（只在 Windows 上有）。留空时按应用语言选：中文、英文、日文、韩文用 funasr，其余用 whisper。' },
+    asrEngine: { title: '识别引擎', description: 'funasr 用 FunASR 的 SenseVoiceSmall，支持中文、英文、日文、韩文和粤语，首次要下载约 240 MB 的模型；whisper 用 OpenAI 的 Whisper small，支持法语、德语、西班牙语、葡萄牙语、意大利语、俄语等近百种语言，首次要下载约 360 MB 的模型，一句说完才出字；这两个都在本机识别。system 用 Windows 自带的语音识别，不用下载，准确度低一些（只在 Windows 上有）。vokie 用 Vokie 在本机跑的识别服务，不用下载，要在 Vokie 设置里开启「外部 ASR API」。留空时按应用语言选：中文、英文、日文、韩文用 funasr，其余用 whisper。' },
     asrLanguage: { title: '语言', description: 'ISO 639-1 语言代码，或 auto 让模型自己判断；留空时跟随应用语言。FunASR 认 zh、en、ja、ko、yue，Whisper 认 fr、de、es、pt、it、ru 等近百种，不认的代码按 auto。' },
     asrThreads: { title: 'CPU 线程', description: 'FunASR 和 Whisper 一次识别用几个线程，0 = 2。' },
+    asrVokiePort: { title: 'Vokie 端口', description: 'Vokie 识别服务的端口；0 时从 Vokie 的设置里读。' },
     asrSimplified: { title: '转成简体', description: '应用语言是简体中文时把识别出的繁体字转成简体。' },
     thresholdDb: { title: '说话门槛' },
     silenceMs: { title: '一句结束的静音' },
@@ -302,9 +314,11 @@ export default {
     funasr: 'FunASR（本机识别）',
     system: 'Windows 自带',
     whisper: 'Whisper（本机识别）',
+    vokie: 'Vokie（本机服务）',
     systemHint: '不用下载，准确度一般；想要更准换成 FunASR 或 Whisper',
     funasrHint: 'SenseVoiceSmall，在本机识别，支持中文、英文、日文、韩文和粤语',
     whisperHint: 'Whisper small，在本机识别，支持法语、德语、西班牙语、葡萄牙语、意大利语、俄语等；一句说完才出字',
+    vokieHint: '用 Vokie 在本机跑的识别服务，要先在 Vokie 设置里开启「外部 ASR API」',
     server: '识别服务',
     start: '启动',
     stop: '停止',

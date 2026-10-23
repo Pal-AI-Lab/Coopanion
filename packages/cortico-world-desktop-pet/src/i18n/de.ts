@@ -66,6 +66,17 @@ const de: Translation<PetText> = {
     notLoaded: 'Das Sprachmodell ist nicht geladen',
   },
 
+  /** Der Erkennungsdienst, den Vokie auf diesem Computer ausführt. */
+  vokie: {
+    notRunning: 'Vokie läuft nicht',
+    apiOff: 'In den Vokie-Einstellungen ist die externe ASR-API nicht eingeschaltet',
+    emptyReply: 'Vokie hat nichts zurückgegeben',
+    badReply: 'Die Antwort von Vokie ist nicht lesbar',
+    failed: (why: string) => `Vokie konnte es nicht erkennen: ${why}`,
+    timeout: (ms: number) => `Zeitüberschreitung bei der Erkennung (${ms} ms)`,
+    stopped: 'Die Vokie-Erkennung wurde gestoppt',
+  },
+
   store: {
     noBuild: (platform: string) => `Kein vorgefertigtes Paket für ${platform}`,
     downloading: (file: string) => `Lade ${file} herunter`,
@@ -237,9 +248,10 @@ const de: Translation<PetText> = {
     speechSpeed: { title: 'Sprechtempo', description: (a: number, b: number, c: number) => `Höchstens so viele Silben pro Sekunde: low, mid und high sind ${a}, ${b} und ${c}; custom nimmt das eigene Tempo. Langsamer als der Text, endet die Stimme nach ihm.` },
     speechRate: { title: 'Eigenes Tempo', suffix: 'Silben/s' },
     asrEnabled: { title: 'Spracheingabe' },
-    asrEngine: { title: 'Erkennungs-Engine', description: 'funasr führt SenseVoiceSmall von FunASR aus, für Chinesisch, Englisch, Japanisch, Koreanisch und Kantonesisch, nach einem einmaligen Download von etwa 240 MB; whisper führt Whisper small von OpenAI aus, für Französisch, Deutsch, Spanisch, Portugiesisch, Italienisch, Russisch und etwa 90 weitere Sprachen, nach einem einmaligen Download von etwa 360 MB, und zeigt den Text, sobald ein Satz endet; beide erkennen auf diesem Computer. system nutzt die Spracherkennung von Windows, ohne Download und weniger genau (nur Windows). Leer wählt nach der App-Sprache: funasr für Chinesisch, Englisch, Japanisch und Koreanisch, whisper für die übrigen.' },
+    asrEngine: { title: 'Erkennungs-Engine', description: 'funasr führt SenseVoiceSmall von FunASR aus, für Chinesisch, Englisch, Japanisch, Koreanisch und Kantonesisch, nach einem einmaligen Download von etwa 240 MB; whisper führt Whisper small von OpenAI aus, für Französisch, Deutsch, Spanisch, Portugiesisch, Italienisch, Russisch und etwa 90 weitere Sprachen, nach einem einmaligen Download von etwa 360 MB, und zeigt den Text, sobald ein Satz endet; beide erkennen auf diesem Computer. system nutzt die Spracherkennung von Windows, ohne Download und weniger genau (nur Windows). vokie nutzt den Erkennungsdienst, den Vokie auf diesem Computer ausführt, ohne Download; dazu in den Vokie-Einstellungen die externe ASR-API einschalten. Leer wählt nach der App-Sprache: funasr für Chinesisch, Englisch, Japanisch und Koreanisch, whisper für die übrigen.' },
     asrLanguage: { title: 'Sprache', description: 'Ein ISO-639-1-Code oder auto, damit das Modell selbst entscheidet; leer folgt der App-Sprache. FunASR nimmt zh, en, ja, ko und yue, Whisper etwa hundert Codes wie fr, de, es, pt, it und ru; ein Code, den das Modell nicht nimmt, gilt als auto.' },
     asrThreads: { title: 'CPU-Threads', description: 'Threads, die FunASR und Whisper für eine Erkennung nutzen; 0 = 2.' },
+    asrVokiePort: { title: 'Vokie-Port', description: 'Port des Vokie-Erkennungsdienstes; 0 liest ihn aus den Vokie-Einstellungen.' },
     asrSimplified: { title: 'In Kurzzeichen umwandeln', description: 'Wandelt Langzeichen im Gehörten in Kurzzeichen um, wenn die App-Sprache vereinfachtes Chinesisch ist.' },
     thresholdDb: { title: 'Sprechschwelle' },
     silenceMs: { title: 'Stille, die einen Satz beendet' },
@@ -280,6 +292,8 @@ const de: Translation<PetText> = {
     systemHint: 'Kein Download, mittlere Genauigkeit; für bessere Ergebnisse zu FunASR oder Whisper wechseln',
     funasrHint: 'SenseVoiceSmall auf diesem Computer, für Chinesisch, Englisch, Japanisch, Koreanisch und Kantonesisch',
     whisperHint: 'Whisper small auf diesem Computer, für Französisch, Deutsch, Spanisch, Portugiesisch, Italienisch, Russisch und mehr; der Text erscheint, sobald ein Satz endet',
+    vokie: 'Vokie (Dienst auf diesem Computer)',
+    vokieHint: 'Nutzt den Erkennungsdienst, den Vokie auf diesem Computer ausführt; zuerst in den Vokie-Einstellungen die externe ASR-API einschalten',
     server: 'Erkennungsdienst',
     start: 'Starten',
     stop: 'Stoppen',

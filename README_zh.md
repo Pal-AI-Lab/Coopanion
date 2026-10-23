@@ -187,7 +187,19 @@ irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/instal
 
 语音在本机识别，录音不上传：应用语言是中、英、日、韩文时用 **FunASR**（SenseVoiceSmall 模型，约 230 MB），法、德、西、葡、意、俄语时用 **Whisper**（small 模型，约 360 MB，一句说完才出字）。模型在引导或「语音输入」页下载一次即可。Windows 上也可以用系统自带的识别，不用下载，准确率低一些。
 
+识别引擎也可以选 **Vokie**：装好并运行 Vokie，在「语音输入」页把识别引擎改成 `vokie`，说话键、倾听气泡、取消和超时都照旧，句子交给 Vokie 的本机识别服务（`POST /v1/asr/offline2pass`，整句识别约一秒）。Vokie 要在设置里打开「外部 ASR API」，默认端口 27678；端口改过时，在配置里写 `worlds.desktop-pet.asr.vokiePort`。Vokie 没运行时「语音输入」页会写明原因。
+
 关闭语音输入也会释放识别模型或停止 Windows 识别进程；再次开启时重新加载引擎。
+
+### 用 Vokie 的遥控器
+
+Vokie 的谷歌遥控器语音键按下去是**旁听**（toggle）模式：它录音、转写、留在历史里，不往任何窗口粘贴。Coopanion 读的就是这份历史：遥控器按一下开始、说完再按一下结束，这段转写就作为一句话交给 Coo，麦克风不用抢、也不用往 Vokie 里注入按键。
+
+- 开关是 `worlds.desktop-pet.vokie.records.enabled`（默认开）；`type` 默认 `any`（旁听和听写都算），也可以只认一种。
+- **要先点一下 Coo**：戳它一下，旁边亮起「在听」，接下来 20 秒里**第一条**完成的记录才交给它，说完又回到不认识你。这样你用旁听录会议、记笔记时不会被发进对话。`vokie.records.armMs` 改这个时长（毫秒），设成 0 就是不点也全收。
+- 普通输入不受影响：遥控器的按住说话、键盘上的说话键照旧由 Vokie 自己转写并粘贴，Coopanion 不看 `ptt` 记录（除非 `type` 就这么设）。
+- 旁听录到哪个麦克风由 Vokie 决定。录出来是空的或只有「嗯」，就在 Vokie 设置里关掉「使用遥控器麦克风」，让它用电脑的麦克风。
+- 旁听的转写带 `00:00:01`、`SPEAKER_00:` 这样的分段行，Coopanion 去掉它们再交给 Coo；只剩「嗯」这种没内容的会丢掉。
 
 ### 闹钟
 
