@@ -135,6 +135,13 @@ const ko: Translation<PetText> = {
     overLimit: (mb: number) => `${mb} MB 초과`,
   },
 
+  removing: {
+    notInstalled: (id: string) => `id가 ${id}인 외형 팩이 없습니다`,
+    builtin: (id: string) => `${id}은(는) 내장 외형이라 제거할 수 없습니다`,
+    elsewhere: (id: string) => `${id}은(는) 외형 팩 설치 폴더에 없어 여기서 제거할 수 없습니다`,
+    failed: (why: string) => `삭제하지 못했습니다: ${why}`,
+  },
+
   consent: {
     question: (items: string[]) => `이렇게 바꿔도 될까요? ${items.join(', ')}`,
     choices: ['좋아요', '앞으로는 안 물어봐도 돼요', '바꾸지 마세요'] as [yes: string, always: string, no: string],
@@ -178,7 +185,7 @@ const ko: Translation<PetText> = {
       'pet.voice': '음성 입력이 켜져 있는지 여부',
       'pet.body': '현재 외형의 모습',
       'pet.dress': 'pet_set으로 고를 수 있는 외형과 꾸미기',
-      'pet.self': '"스스로 설정 권한": 직접 바꾸는 설정, 동의를 구하는 설정, 또는 아무것도 바꿀 수 없음',
+      'pet.self': '"Coo가 설정하는 권한": 직접 바꾸는 설정, 동의를 구하는 설정, 또는 아무것도 바꿀 수 없음',
       'pet.chat': '앱에 대화 페이지가 있으면 그에 대한 설명, 없으면 빈 값',
       'pet.reply': '앱 언어가 중국어 간체도 영어도 아닐 때 봇에게 그 언어로 말하라고 알리는 한 줄, 그 외에는 빈 값',
       'pet.cua': '컴퓨터 사용 부분: 스크린샷 좌표, 사용자에게 먼저 묻는 때, 사용자에게 양보하는 규칙. 컴퓨터 사용이 꺼져 있으면 비어 있음',
@@ -199,7 +206,7 @@ const ko: Translation<PetText> = {
     doubleClickChat: { title: '더블클릭으로 입력', description: '펫을 더블클릭하면 입력 상자가 열립니다.' },
     statusBubble: { title: '상태 말풍선', description: '펫이 생각하거나, 기억을 살펴보거나, 컴퓨터를 사용하는 동안 무엇을 하는지 파일 이름까지 보여 줍니다.' },
     saidBubbles: { title: '입력 말풍선', description: '입력, 음성, 대화 페이지에서 보낸 메시지를 펫이 답할 때까지 위에 표시합니다. 끄면 음성은 인식하는 동안만 표시됩니다.' },
-    selfAdjust: { title: '스스로 설정 권한', description: 'off 금지: 설정을 스스로 바꿀 수 없고 잠시 조용히 하기도 쓸 수 없습니다. default 기본: 외형, 꾸미기, 걷기, 코골이는 직접 바꾸고, 크기, 말풍선 크기, 글자 크기, 효과음, 야간 모드, 호버 버튼, 부를 이름은 먼저 동의를 구합니다. any 모두: 전부 직접 바꿉니다. custom 사용자 지정: 「습관」 페이지에서 체크한 항목은 직접 바꾸고, 나머지는 먼저 동의를 구합니다.' },
+    selfAdjust: { title: 'Coo가 설정하는 권한', description: 'off 금지: Coo가 설정을 바꿀 수 없고 잠시 조용히 하기도 쓸 수 없습니다. default 기본: 외형, 꾸미기, 걷기, 코골이는 직접 바꾸고, 크기, 말풍선 크기, 글자 크기, 효과음, 야간 모드, 호버 버튼, 부를 이름은 먼저 동의를 구합니다. any 모두: 전부 직접 바꿉니다. custom 사용자 지정: 「습관」 페이지에서 체크한 항목은 직접 바꾸고, 나머지는 먼저 동의를 구합니다.' },
     windowEnabled: { title: '시작할 때 펫 창 열기' },
     scale: { title: '크기' },
     bubbleSize: { title: '말풍선 크기', description: '펫과 당신의 말풍선 너비, 여백, 모서리, 꼬리. 1이 기본이며 글자 크기는 그대로입니다.' },

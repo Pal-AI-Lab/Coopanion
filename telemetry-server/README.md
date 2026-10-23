@@ -10,7 +10,7 @@ echo "STATS_TOKEN=$(openssl rand -hex 24)" > .env && chmod 600 .env
 docker compose --env-file .env up -d --build
 ```
 
-It listens on `127.0.0.1:8790`; put an HTTPS reverse proxy in front (the production one is Caddy on `survey.palailab.org`).
+It listens on `127.0.0.1:8790`; put an HTTPS reverse proxy in front (the production one is Caddy on `survey.palailab.org`). The rate limit counts per address, an IPv6 address per /64, and takes the address from the last `X-Forwarded-For` entry, the one the proxy writes; behind a CDN that entry is the CDN's, and the server has to read the CDN's client header instead. Reports must be sent as `application/json`.
 
 ## Summary
 

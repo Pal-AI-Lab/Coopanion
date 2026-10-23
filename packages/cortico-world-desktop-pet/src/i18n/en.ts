@@ -156,6 +156,14 @@ const en: PetText = {
     overLimit: (mb: number) => `Over ${mb} MB`,
   },
 
+  /** Uninstalling packs on the dressing page. */
+  removing: {
+    notInstalled: (id: string) => `No figure pack has id ${id}`,
+    builtin: (id: string) => `${id} is a built-in figure and cannot be uninstalled`,
+    elsewhere: (id: string) => `${id} is not in the figure pack installation folder and cannot be uninstalled here`,
+    failed: (why: string) => `Could not delete it: ${why}`,
+  },
+
   /** The bubble in which the pet asks the person's consent to a change of settings: the question, its three buttons, and how each change is said */
   consent: {
     question: (items: string[]) => `Can I ${items.join(', ')}?`,
@@ -195,7 +203,7 @@ const en: PetText = {
       pet: { title: 'Desktop pet', description: 'The window, the dress and the window runtime.' },
       voice: { title: 'Voice input', description: 'Recognition engine, input level and what was heard.' },
     },
-    envPrompt: { title: 'Desktop pet environment', description: "Describes the pet's body, its four tools and its input events." },
+    envPrompt: { title: 'Desktop pet environment', description: "Describes the pet's body, four tools and input events." },
     vars: {
       'pet.user': 'What the bot calls the person',
       'pet.vocab': "The current figure's expressions and motions",
@@ -220,21 +228,21 @@ const en: PetText = {
     user: { title: 'Your name', description: (max: number) => `The name voice, typing and touch events call you by, up to ${max} characters. Empty uses the default name.` },
     roam: { title: 'Walking', description: 'free walks about often; calm stays put most of the time; off moves only when asked.' },
     theme: { title: 'Night mode', description: 'dark is night: a light body and dark bubbles; light is day: a dark body and light bubbles.' },
-    rememberPosition: { title: 'Remember position', description: 'Saves how far across the screen the pet stands when the app quits, and starts there next time; with several screens it always starts on the main one.' },
-    hoverButtons: { title: 'Hover buttons', description: (max: number, ids: string) => `Buttons beside the pet while the pointer rests on it, up to ${max}, separated by commas: ${ids}.` },
+    rememberPosition: { title: 'Remember position', description: 'Saves how far across the screen the pet stands when the app quits, and starts there next time; with several screens Coo always starts on the main one.' },
+    hoverButtons: { title: 'Hover buttons', description: (max: number, ids: string) => `Buttons beside the pet while the pointer rests on Coo, up to ${max}, separated by commas: ${ids}.` },
     doubleClickChat: { title: 'Double-click to type', description: 'Double-clicking the pet opens the typing box.' },
-    statusBubble: { title: 'Status bubble', description: 'Shows what the pet is doing while it thinks, looks through its memory or uses the computer, file names included.' },
-    saidBubbles: { title: 'Input bubbles', description: 'What the person types, says or sends from the chat page shows above the pet until it replies. When off, speech shows only while it is recognized.' },
-    selfAdjust: { title: 'Self-adjustment', description: 'off: it cannot change its settings or keep quiet for a while. default: figure, dress, walking and snoring change directly; size, bubble size, text size, sounds, night mode, hover buttons and what it calls you wait for your consent. any: everything changes directly. custom: as ticked on the Habits page; ticked items change directly, the rest wait for your consent.' },
+    statusBubble: { title: 'Status bubble', description: 'Shows what the pet is doing while Coo thinks, looks through memory or uses the computer, file names included.' },
+    saidBubbles: { title: 'Input bubbles', description: 'What the person types, says or sends from the chat page shows above the pet until Coo replies. When off, speech shows only while it is recognized.' },
+    selfAdjust: { title: 'Self-adjustment', description: 'off: Coo cannot change settings or keep quiet for a while. default: figure, dress, walking and snoring change directly; size, bubble size, text size, sounds, night mode, hover buttons and what Coo calls you wait for your consent. any: everything changes directly. custom: as ticked on the Habits page; ticked items change directly, the rest wait for your consent.' },
     windowEnabled: { title: 'Open the pet window at start' },
     scale: { title: 'Size' },
     bubbleSize: { title: 'Bubble size', description: "Width, padding, corners and tail of the pet's bubbles and yours, 1 being the default; the text keeps its size." },
     fontSize: { title: 'Text size', description: 'Size of the text in the bubbles, 1 being the default; the bubbles keep their width.' },
     bubbleSpeed: { title: 'Bubble speed', description: "How fast the pet's bubbles type out and how long they stay, 1 being the default; higher is faster." },
-    glow: { title: 'Outer glow', description: 'How many pixels the light glow around the pet reaches when its colors match what is behind it; 0 turns it off.' },
+    glow: { title: 'Outer glow', description: "How many pixels the light glow around the pet reaches when Coo's colors match the background; 0 turns it off." },
     frameRate: { title: 'Frame rate', description: 'Frames a second while the pet walks, is carried or jumps; 0 follows the display. Above the display\'s refresh rate the display\'s rate applies. The Habits page offers 60, 120, 144 and Unlimited.' },
     lockFrameRate: { title: 'Lock frame rate', description: 'Draws the pet at the frame rate at rest too. When off, it drops to 30 frames a second while standing, sitting or asleep.' },
-    hideWhenFullscreen: { title: 'Hide during full screen', description: 'When on, the pet hides while the window in front fills the screen it is on (a game, a full-screen video, a browser in full screen) and comes back when full screen ends; a maximized window does not count. When off, it always stays on top.' },
+    hideWhenFullscreen: { title: 'Hide during full screen', description: 'When on, the pet hides while the window in front fills the screen Coo is on (a game, a full-screen video, a browser in full screen) and comes back when full screen ends; a maximized window does not count. When off, Coo always stays on top.' },
     exportOverlay: { title: 'OBS overlay', description: "Serves the pet window's picture on a transparent background at /overlay for an OBS Browser source; off, nothing is served." },
     electronFile: { title: 'Electron executable', description: 'Empty uses CORTICO_DESKTOP_PET_HOST, then the runtime installed from the panel.' },
     port: { title: 'Page port', description: 'Moves up to the next free port when taken.' },

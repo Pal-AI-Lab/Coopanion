@@ -64,13 +64,25 @@ export class GeminiProvider extends OpenAIHttpClient {
   }
 }
 
-/** `GET /models`, all pages; the id drops the `models/` prefix and the window is `inputTokenLimit`. */
+/** At most this many pages of the model list are read, within `MODEL_LIST_MS` in all. */
+export const MODEL_PAGES_MAX = 20;
+const MODEL_LIST_MS = 60_000;
+
+/**
+ * `GET /models`, page after page until there is no next page, a page token comes back again, or the limits
+ * above are reached; a redirect fails it, since the key header would follow it. The id drops the
+ * `models/` prefix and the window is `inputTokenLimit`.
+ */
 export async function listGeminiModels(baseUrl: string, apiKey: string): Promise<Array<{ id: string; contextWindow?: number; maxOutputTokens?: number }>> {
   const models: Array<{ id: string; contextWindow?: number; maxOutputTokens?: number }> = [];
+  const deadline = AbortSignal.timeout(MODEL_LIST_MS);
+  const seen = new Set<string>();
   let page = '';
-  do {
+  for (let pages = 0; pages < MODEL_PAGES_MAX; pages++) {
     const query = `pageSize=1000${page ? `&pageToken=${encodeURIComponent(page)}` : ''}`;
-    const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/models?${query}`, { headers: { 'x-goog-api-key': apiKey }, signal: AbortSignal.timeout(15_000) });
+    const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/models?${query}`, {
+      headers: { 'x-goog-api-key': apiKey }, redirect: 'error', signal: AbortSignal.any([deadline, AbortSignal.timeout(15_000)]),
+    });
     if (!res.ok) throw new Error(`GET /models ${res.status}: ${(await res.text()).slice(0, 300)}`);
     const data = await res.json() as { models?: Array<{ name?: unknown; inputTokenLimit?: unknown; outputTokenLimit?: unknown }>; nextPageToken?: string };
     for (const row of data.models ?? []) {
@@ -80,6 +92,8 @@ export async function listGeminiModels(baseUrl: string, apiKey: string): Promise
       models.push({ id: row.name.replace(/^models\//, ''), ...(window ? { contextWindow: window } : {}), ...(output ? { maxOutputTokens: output } : {}) });
     }
     page = data.nextPageToken ?? '';
-  } while (page);
+    if (!page || seen.has(page)) break;
+    seen.add(page);
+  }
   return models;
 }

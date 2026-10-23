@@ -95,6 +95,9 @@ export default {
 
   // 装扮页:导入形象包
   'import.button': '导入',
+  'import.replaceTitle': '替换已有的形象包？',
+  'import.replaceText': '替换会删除安装目录中这些形象包的原有文件。',
+  'import.replace': '替换',
   'import.title': '导入形象包',
   'import.unloaded': '有 {n} 个形象包没加载',
   /** 文件夹名与原因之间 */
@@ -129,4 +132,11 @@ export default {
   'import.cannot': '无法导入',
   'import.dropOne': '每次只能拖入一个 zip，或拖入文件夹。',
   'import.readFailed': '读取失败',
+  // 装扮页:卸载形象包
+  'remove.label': '卸载「{name}」',
+  'remove.title': '卸载「{name}」？',
+  'remove.lead': '这个形象包的文件会被删除，再次使用需要重新导入。桌宠正在使用它时会换回 Coo。',
+  'remove.go': '卸载',
+  'remove.failed': '卸载失败',
+  'remove.done': '已卸载：{name}',
 };

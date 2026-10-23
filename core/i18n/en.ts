@@ -12,7 +12,7 @@ const en: CoreText = {
   settings: {
     language: { title: 'Language', description: 'The interface and Coo use this language. Takes effect at once.' },
     telemetry: { title: 'Anonymous usage statistics', description: 'Sends usage counts and settings, never conversations, to help improve Coopanion. The fields are listed in docs/TELEMETRY.md.' },
-    roundsSoft: { title: 'Wrap-up reminder', suffix: 'requests', description: 'After this many model requests in one wake-up, Coo is reminded to finish what it is doing and end the turn.' },
+    roundsSoft: { title: 'Wrap-up reminder', suffix: 'requests', description: 'After this many model requests in one wake-up, Coo is reminded to finish the current task and end the turn.' },
     roundsHard: { title: 'Requests per wake-up', suffix: 'requests', description: 'The most model requests in one wake-up; the turn ends when it is reached.' },
   },
 

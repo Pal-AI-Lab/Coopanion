@@ -8,7 +8,7 @@ import type {
   WebUiStreamHandle,
   Disposable,
 } from 'cortico/web/shared/client-panel.ts';
-import { panelStreamRoute } from '../../lib/web/shared/console-protocol.ts';
+import { panelStreamRoute } from '../../../base/protocol.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { get, post } from '../../../base/api.ts';
 import { openStream } from '../../../base/stream.ts';
@@ -36,27 +36,17 @@ import { createTimeline } from './timeline.ts';
 const DEBUG_WS_PATH = '/ws/debug';
 const SESSIONS_WS_PATH = '/ws/sessions';
 
-/** 测试注入点:不传就是真浏览器那一套。 */
-export interface LiveFeatureOptions {
-  env?: SocketEnv;
-}
-
-export function createLiveFeature(opts: LiveFeatureOptions = {}): FrameworkFeature {
-  return {
-    route: 'live',
-    label: S.navLabel,
-    icon: 'terminal',
-    navMode: 'primary',
-    // 两条通道任一挂着这一页就有意义;都没有的话导航里根本不出现它。
-    needsAny: ['debug', 'sessions'],
-    mount(ctx) {
-      return mountLive(ctx, opts.env ?? browserSocketEnv(window));
-    },
-  };
-}
-
-/** 缺省实例。host 直接用这个。 */
-export const liveFeature: FrameworkFeature = createLiveFeature();
+export const liveFeature: FrameworkFeature = {
+  route: 'live',
+  label: S.navLabel,
+  icon: 'terminal',
+  navMode: 'primary',
+  // 两条通道任一挂着这一页就有意义;都没有的话导航里根本不出现它。
+  needsAny: ['debug', 'sessions'],
+  mount(ctx) {
+    return mountLive(ctx, browserSocketEnv(window));
+  },
+};
 
 function ctxRingStyle(d: ContextBreakdown | null): string {
   if (!d || !d.total || d.maxTokens === null) return '--ctx-ring:conic-gradient(var(--border) 0 100%)';

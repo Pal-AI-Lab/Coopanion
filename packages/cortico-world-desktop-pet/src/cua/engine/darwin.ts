@@ -273,11 +273,20 @@ function cfNumber(dict: unknown, name: string): number {
   return CFNumberGetValue(v, 4, out) ? Number(out[0]) : 0;
 }
 
+/** The app owning each window of the last enumeration, by process id. */
+const apps = new Map<number, string>();
+
+/** The app name of process `pid` as the last `windows()` saw it ("Terminal"). */
+export function processName(pid: number): string | null {
+  return apps.get(pid) ?? null;
+}
+
 /**
  * Ordinary windows on screen, front to back; the frontmost one belongs to the app in front.
  * Titles come only with the Screen Recording permission; without it a window is named by its app.
  */
 export function windows(): WindowInfo[] {
+  apps.clear();
   // kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements
   const list = CGWindowListCopyWindowInfo(1 | 16, 0);
   if (!list) return [];
@@ -295,6 +304,7 @@ export function windows(): WindowInfo[] {
       if (bounds) CGRectMakeWithDictionaryRepresentation(bounds, r);
       if (r.width < 2 || r.height < 2) continue;
       const pid = cfNumber(w, 'kCGWindowOwnerPID');
+      apps.set(pid, app);
       out.push({
         handle: `${pid}:${cfNumber(w, 'kCGWindowNumber')}`,
         title: name ? `${name} - ${app}` : app,

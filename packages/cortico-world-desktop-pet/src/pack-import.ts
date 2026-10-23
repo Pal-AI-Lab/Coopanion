@@ -2,13 +2,16 @@
  * Installing figure packs from the dressing page (web/dress.js). The page sends a zip, or the files of the
  * folders it found a pack in; they are unpacked into a staging directory, every pack there is read as an
  * installed one would be (src/packs.ts), and the person picks which to install. Installing copies a pack to
- * `<packDir>/<id>/`, in place of an installed pack with that id; a built-in id is refused.
+ * `<packDir>/<id>/`. Replacing existing packs or directories requires explicit approval of their ids;
+ * a built-in id is refused. Replacing or uninstalling deletes a pack's directory only when it is inside `packDir`
+ * (`removable`): built-in packs and those of the app's other pack roots stay.
  *
  * A pack is a directory holding `figure.json`, found at most `PACK_DEPTH` levels below what was picked (the
  * zip's root, a picked or dropped folder: a zip from GitHub wraps its files in `<repo>-<branch>/`, and a
  * repository may keep its pack in a folder of its own). The search does not go into a pack.
  */
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { extname, join, normalize, sep } from 'node:path';
@@ -183,25 +186,55 @@ export class PackImporter {
     }
   }
 
-  /** Installs the staged packs found at `dirs`; resolves to their ids. */
-  async install(token: string, dirs: readonly string[]): Promise<{ installed: string[] } | { error: string }> {
+  /** A conflict leaves every pack untouched and the token valid; `replace` names the ids approved for replacement. */
+  async install(token: string, dirs: readonly string[], replace: readonly string[] = []): Promise<{ installed: string[] } | { conflicts: string[] } | { error: string }> {
     const staged = this.staged;
     if (!staged || staged.token !== token) return { error: this.t.importing.expired };
     const chosen = staged.packs.filter((p) => dirs.includes(p.dir));
     if (!chosen.length) return { error: this.t.importing.noneChosen };
     const packDir = this.opts.packDir();
-    await mkdir(packDir, { recursive: true });
     const installed = this.opts.packs();
-    for (const p of chosen) {
-      // the pack it replaces may sit in a folder named otherwise; one in another pack root is left alone
-      const old = installed.find((x) => x.id === p.id && !x.builtin && within(packDir, x.dir));
-      if (old) await rm(old.dir, { recursive: true, force: true });
-      const target = join(packDir, p.id);
-      await rm(target, { recursive: true, force: true });
-      await cp(join(staged.root, ...p.dir.split('/').filter(Boolean)), target, { recursive: true });
+    const builtin = chosen.find((p) => installed.some((x) => x.id === p.id && x.builtin));
+    if (builtin) return { error: this.t.importing.builtinId(builtin.id) };
+    const conflicts = chosen.filter((p) => installed.some((x) => x.id === p.id) || existsSync(join(packDir, p.id))).map((p) => p.id);
+    if (conflicts.some((id) => !replace.includes(id))) return { conflicts };
+    // Consume the token before writing so concurrent installs cannot reuse it.
+    this.staged = null;
+    try {
+      await mkdir(packDir, { recursive: true });
+      for (const p of chosen) {
+        const target = join(packDir, p.id);
+        if (replace.includes(p.id)) {
+          // the pack it replaces may sit in a folder named otherwise; one in another pack root is left alone
+          const old = installed.find((x) => x.id === p.id && this.removable(x));
+          if (old) await rm(old.dir, { recursive: true, force: true });
+          await rm(target, { recursive: true, force: true });
+        }
+        await cp(join(staged.root, ...p.dir.split('/').filter(Boolean)), target, { recursive: true, force: false, errorOnExist: true });
+      }
+      return { installed: chosen.map((p) => p.id) };
+    } finally {
+      await rm(staged.root, { recursive: true, force: true });
     }
-    await this.cancel();
-    return { installed: chosen.map((p) => p.id) };
+  }
+
+  /** Whether `pack` is an installed pack inside `packDir`, the only kind replacing or uninstalling deletes. */
+  removable(pack: FigurePack): boolean {
+    return !pack.builtin && within(this.opts.packDir(), pack.dir);
+  }
+
+  /** Deletes the directory of the installed pack `id`; the next scan no longer lists it. */
+  async remove(id: string): Promise<{ removed: string } | { error: string }> {
+    const pack = this.opts.packs().find((p) => p.id === id);
+    if (!pack) return { error: this.t.removing.notInstalled(id) };
+    if (pack.builtin) return { error: this.t.removing.builtin(id) };
+    if (!this.removable(pack)) return { error: this.t.removing.elsewhere(id) };
+    try {
+      await rm(pack.dir, { recursive: true, force: true });
+    } catch (err) {
+      return { error: this.t.removing.failed((err as Error).message) };
+    }
+    return { removed: id };
   }
 
   /** Drops the staged import, if any. */

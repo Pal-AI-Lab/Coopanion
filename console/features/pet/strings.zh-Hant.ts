@@ -6,6 +6,8 @@ export const S: Partial<typeof en> = {
   languageHint: '介面和 Coo 說話都使用這種語言。',
   user: '稱呼',
   userHint: 'Coo 會用這個名字稱呼你。',
+  botName: 'Coo 的名字',
+  botNameHint: '桌寵選單、對話頁和氣泡裡的提問用這個名字稱呼 Coo。',
   roam: '走動',
   roamFree: '常走動',
   roamCalm: '多待著',

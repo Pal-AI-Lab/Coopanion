@@ -88,6 +88,7 @@ function info(): ScreenInfo {
     layout,
     cursor: on === null ? null : { display: on, ...toLocal(list[on - 1]!, c.x, c.y) },
     foreground: fg ? fg.title : null,
+    foregroundApp: fg ? os.processName(fg.pid) : null,
     foregroundDisplay: fg ? numberAt(list, fg.rect.x + fg.rect.width / 2, fg.rect.y + fg.rect.height / 2) : null,
   };
 }
