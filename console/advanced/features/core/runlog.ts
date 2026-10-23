@@ -160,7 +160,7 @@ export function createRunlogView(deps: RunlogViewDeps): RunlogView {
   let rows: RunlogEntry[] = [];
   const pager = createPager(ui, { key: 'runlog', sizes: [20, 50, 100, 200], defaultSize: 50, onChange: () => paint() });
   const el = ui.h('div');
-  el.append(ui.h('p', 'pagedesc core-desc', S.runlogDesc), bar, table.el, pager.el);
+  el.append(bar, table.el, pager.el);
 
   /** 画当前页:新的在前。 */
   function paint(): void {

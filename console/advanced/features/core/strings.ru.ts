@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
   // events.ts
   eventsDesc: 'Записи событий, доступные агенту для запросов.',
   allSources: 'Все источники',
-  sourceTitle: 'Фильтр по источнику. Подсказки берутся из загруженных событий; можно ввести любой источник.',
+  sourceTitle: 'Фильтр по источнику. Варианты берутся из загруженных событий.',
   showArchive: 'Показать сырой архив',
   showArchiveTitle: 'Включить архивные события, которые не доставляются в контекст напрямую',
   evHeadTime: 'Время',
@@ -43,7 +43,6 @@ export const S: Partial<typeof en> = {
   grepPlaceholder: 'Регулярное выражение по сообщению и данным',
   roundPlaceholder: 'Раунд',
   refresh: 'Обновить',
-  runlogDesc: 'Журнал запуска, агенту не виден.',
   logHeadTime: 'Время',
   logHeadLevel: 'Уровень',
   logHeadArea: 'Область',

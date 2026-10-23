@@ -2020,8 +2020,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
   .storageview .strow .ststat { text-align: left; }
 }
 
-/* 运行诊断:每个子页以栏目名为题,第一行一句说明;筛选是一行 32px 高的控件,动作按钮靠右 */
-.coreview .core-desc { margin: 0 0 12px; max-width: none; }
+/* 运行诊断:筛选是一行 32px 高的控件,动作按钮靠右 */
 .coreview .core-filters { flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
 .coreview .core-filters .field { height: 32px; min-height: 32px; padding-top: 0; padding-bottom: 0; font-size: 13px; }
 .coreview .core-filters .core-filter-source { width: 240px; }
@@ -2034,6 +2033,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 /* 运行:读数栏与控制台顶栏同一个样子,下面会话、事件两节 */
 .coreview .core-run > .core-summary { padding-bottom: 14px; }
 .coreview .core-run > .sheet { margin-top: 0; }
+.coreview :is(.configview, .storageview) > :first-child > .sheet:first-child { padding-top: 0; }
 .coreview .core-run .sheet .sh-desc { max-width: none; }
 /* 表格翻页:与扩展页一样,计数在左,每页条数与翻页键在右 */
 .coreview .core-pager { flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; min-height: 32px; font-size: 12px; color: var(--ink-dim); }

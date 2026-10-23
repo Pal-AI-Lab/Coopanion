@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
   // events.ts
   eventsDesc: "Enregistrements d'événements, consultables par l'agent.",
   allSources: 'Toutes les sources',
-  sourceTitle: 'Filtrer par source. Les suggestions proviennent des événements chargés ; toute source peut être saisie.',
+  sourceTitle: 'Filtrer par source. Les choix proviennent des événements chargés.',
   showArchive: "Afficher l'archive brute",
   showArchiveTitle: 'Inclure les événements archivés qui ne sont pas livrés directement au contexte',
   evHeadTime: 'Heure',
@@ -43,7 +43,6 @@ export const S: Partial<typeof en> = {
   grepPlaceholder: 'Regex, appliquée au message et à data',
   roundPlaceholder: 'Tour',
   refresh: 'Actualiser',
-  runlogDesc: "Journaux d'exécution, invisibles pour l'agent.",
   logHeadTime: 'Heure',
   logHeadLevel: 'Niveau',
   logHeadArea: 'Zone',
