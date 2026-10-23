@@ -23,7 +23,7 @@ export default {
   'status.thinking': 'Sta pensando',
 
   // the menu and the hover buttons
-  'roam.off': 'Resta al suo posto',
+  'roam.off': 'Resta sul posto',
   'roam.calm': 'Ogni tanto',
   'roam.free': 'Spesso',
   'action.chat': 'Scrivi per parlarmi',
@@ -91,6 +91,9 @@ export default {
 
   // the dressing page: importing figure packs
   'import.button': 'Importa',
+  'import.replaceTitle': 'Sostituire i pacchetti personaggio esistenti?',
+  'import.replaceText': 'La sostituzione elimina i loro file attuali nella cartella di installazione.',
+  'import.replace': 'Sostituisci',
   'import.title': 'Importa pacchetti personaggio',
   'import.unloaded': 'Pacchetti personaggio non caricati: {n}',
   'import.reason': ': {reason}',
@@ -124,4 +127,11 @@ export default {
   'import.cannot': 'Impossibile importare',
   'import.dropOne': 'Trascina uno zip alla volta, oppure delle cartelle.',
   'import.readFailed': 'Impossibile leggere i file',
+  // the dressing page: uninstalling figure packs
+  'remove.label': 'Disinstalla {name}',
+  'remove.title': 'Disinstallare {name}?',
+  'remove.lead': "I file del pacchetto vengono eliminati; importalo di nuovo per usarlo. Se l'animaletto lo indossa, torna a essere Coo.",
+  'remove.go': 'Disinstalla',
+  'remove.failed': 'Disinstallazione non riuscita',
+  'remove.done': 'Disinstallato: {name}',
 };

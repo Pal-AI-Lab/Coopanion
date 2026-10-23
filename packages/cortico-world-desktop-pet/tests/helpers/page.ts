@@ -22,8 +22,8 @@ export class FakePage {
     ws.on('close', (code) => { this.closeCode = code; });
   }
 
-  static async open(origin: string, query = 'role=pet&host=window'): Promise<FakePage> {
-    const ws = new WebSocket(`${origin.replace('http', 'ws')}/socket?${query}`);
+  static async open(origin: string, query = 'role=pet&host=tab'): Promise<FakePage> {
+    const ws = new WebSocket(`${origin.replace('http', 'ws')}/socket?${query}`, { origin });
     const page = new FakePage(ws);
     await new Promise<void>((done, fail) => { ws.once('open', () => done()); ws.once('error', fail); });
     page.init = await page.next((m) => m.t === 'init');

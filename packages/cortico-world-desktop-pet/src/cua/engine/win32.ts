@@ -60,6 +60,10 @@ const GetWindowTextW = user32.func('int __stdcall GetWindowTextW(HWND hwnd, _Out
 const GetWindowRect = user32.func('bool __stdcall GetWindowRect(HWND hwnd, _Out_ RECT *rect)');
 const GetWindowLongPtrW = user32.func('intptr_t __stdcall GetWindowLongPtrW(HWND hwnd, int index)');
 const GetWindowThreadProcessId = user32.func('uint32_t __stdcall GetWindowThreadProcessId(HWND hwnd, _Out_ uint32_t *pid)');
+const OpenProcess = kernel32.func('HANDLE __stdcall OpenProcess(uint32_t access, bool inherit, uint32_t pid)');
+const QueryFullProcessImageNameW = kernel32.func('bool __stdcall QueryFullProcessImageNameW(HANDLE process, uint32_t flags, _Out_ uint16_t *name, _Inout_ uint32_t *size)');
+const CloseHandle = kernel32.func('bool __stdcall CloseHandle(HANDLE handle)');
+const PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
 const GetForegroundWindow = user32.func('HWND __stdcall GetForegroundWindow()');
 const SetForegroundWindow = user32.func('bool __stdcall SetForegroundWindow(HWND hwnd)');
 const ShowWindow = user32.func('bool __stdcall ShowWindow(HWND hwnd, int cmd)');
@@ -234,6 +238,21 @@ export function windows(): WindowInfo[] {
     return true;
   }, 0);
   return out;
+}
+
+/** The executable's file name of process `pid` ("cmd.exe"), null when it cannot be read. */
+export function processName(pid: number): string | null {
+  const process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+  if (!process) return null;
+  try {
+    const buf = new Uint16Array(1024);
+    const size = [buf.length];
+    if (!QueryFullProcessImageNameW(process, 0, buf, size)) return null;
+    const path = String.fromCharCode(...buf.subarray(0, size[0]));
+    return path.slice(path.lastIndexOf('\\') + 1);
+  } finally {
+    CloseHandle(process);
+  }
 }
 
 /** Restores and raises a window; Windows only lets the foreground process hand focus away, so an Alt tap goes first. */

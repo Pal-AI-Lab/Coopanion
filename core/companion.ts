@@ -419,6 +419,8 @@ export async function main(): Promise<void> {
   /** Figure pack directories besides the data directory's `figures/`, from the main process (the Steam Workshop's, app/steam.cjs). */
   const packRoots = (process.env.COOPANION_PACK_ROOTS ?? '').split(delimiter).filter(Boolean);
   const DESKTOP_PET = desktopPetDefinition({
+    // `displayName` of the live config: a rename reaches the menu header, the chat page and computer use's question without a restart
+    botName: () => config?.displayName ?? DISPLAY_NAME,
     packRoots: () => packRoots,
     describeTool: petToolDescriber(language),
     // the menu's header lends pause/resume, settings and quit; its dress tile opens the settings window's dress page, the typing bubble's expand button its chat page

@@ -108,3 +108,14 @@ dialog.import .cant{margin-top:10px}
 .drop-hint{position:fixed; inset:8px; z-index:10; display:grid; place-items:center; pointer-events:none; border:2px dashed var(--accent); border-radius:14px; background:color-mix(in srgb, var(--bg) 82%, transparent)}
 .drop-hint[hidden]{display:none}
 .drop-hint p{font-size:16px; margin:0}
+/* uninstalling: the trash in an installed pack's tile corner, shown on hover or focus; the dialog asks */
+.figure-tile{position:relative; display:flex}
+.pack-erase{
+  position:absolute; top:6px; right:6px; display:grid; place-items:center; width:24px; height:24px; padding:0;
+  border:0; border-radius:6px; background:none; color:var(--muted); cursor:pointer;
+  opacity:0; pointer-events:none; transition:opacity .14s ease, color .14s ease;
+}
+.figure-tile:hover .pack-erase, .figure-tile:focus-within .pack-erase{opacity:1; pointer-events:auto}
+.pack-erase:hover{color:var(--anger)}
+.pack-erase svg{width:16px; height:16px; display:block}
+.btn.danger{background:var(--anger); border-color:var(--anger); color:#fff}

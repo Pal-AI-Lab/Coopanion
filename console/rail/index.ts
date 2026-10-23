@@ -17,6 +17,7 @@ import { buildHash, type Route, type Router } from '../base/router.ts';
 import { icon, type ConsoleIconName } from '../base/ui/icons.ts';
 import { lampRow, paintLamps } from '../base/ui/lamp.ts';
 import type { ConsoleMode } from '../features/mode.ts';
+import { onNameSaved } from '../features/bot-name.ts';
 import { mountRelease } from '../features/release.ts';
 import { sidebarBrand } from './brand.ts';
 import { L } from '../strings.ts';
@@ -95,7 +96,28 @@ export function createRail(deps: RailDeps): Rail {
   toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/><path class="companion-sidebar-chevron" d="m16 9-3 3 3 3"/></svg>';
   // the words only show on the open rail, where the button folds it: they stay put while the rail folds
   toggle.append(ui.h('span', 'lbl', L.collapseSidebar));
-  tools.append(toggle);
+  // back and forward through the window's history; the router's leave guards still apply
+  const step = (label: string, path: string, go: () => void): HTMLButtonElement => {
+    const button = ui.h('button', 'companion-history');
+    button.type = 'button';
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg>`;
+    button.addEventListener('click', go, { signal });
+    return button;
+  };
+  const back = step(L.goBack, 'm14.5 6-6 6 6 6', () => win.history.back());
+  const forward = step(L.goForward, 'm9.5 6 6 6-6 6', () => win.history.forward());
+  // Chromium's Navigation API says whether there is a page to go to; without it both stay enabled
+  const navigation = (win as Window & { navigation?: EventTarget & { canGoBack: boolean; canGoForward: boolean } }).navigation;
+  const paintHistory = (): void => {
+    if (!navigation) return;
+    back.disabled = !navigation.canGoBack;
+    forward.disabled = !navigation.canGoForward;
+  };
+  navigation?.addEventListener('currententrychange', paintHistory, { signal });
+  paintHistory();
+  tools.append(back, forward, toggle);
   brand.append(sidebarBrand(doc), meta, tools);
   mountRelease(doc, meta, (hint) => {
     releaseInner.append(hint);
@@ -395,6 +417,7 @@ export function createRail(deps: RailDeps): Rail {
     }, { signal });
     field.addEventListener('blur', () => finish(true), { signal });
   }, { signal });
+  onNameSaved(setName, signal);
   void get<{ displayName?: unknown; loop?: { paused?: unknown } } | null>('/api/status', { signal }).then((st) => {
     setName(st?.displayName);
     paused = st?.loop?.paused === true;

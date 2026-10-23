@@ -6,7 +6,7 @@ import { S } from '../console/advanced/features/prompts/strings.ts';
 import { createConsoleUi } from '../console/base/ui/index.ts';
 import { Lifecycle } from '../console/base/lifecycle.ts';
 import { Router } from '../console/base/router.ts';
-import { CONSOLE_PROTOCOL_VERSION } from '../console/advanced/lib/web/shared/console-protocol.ts';
+import { CONSOLE_PROTOCOL_VERSION } from '../console/base/protocol.ts';
 
 const worldKey = 'worlds.fixture.envPrompt';
 let sources, generated, session, writes, sessionWrites, saveGate, sessionGate, configAvailable, failures, mounted;
@@ -112,6 +112,16 @@ it('serializes saves and keeps edits made during an apply unsaved, with usable u
   expect(root.querySelector('[role=status]').textContent).toBe(S.dirtyCount(1));
 });
 
+it('unsaved edits also hold back unloading the window, until they are saved', async () => {
+  const { button, edit } = await mount();
+  const unloadHeld = () => { const event = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(event); return event.defaultPrevented; };
+  expect(unloadHeld()).toBe(false);
+  edit('Unsaved ');
+  expect(unloadHeld()).toBe(true);
+  button(S.saveToFile).click();
+  await vi.waitFor(() => expect(unloadHeld()).toBe(false));
+});
+
 it('does not apply when a newer edit arrives during saving, and saves that edit with the new revision', async () => {
   const { button, edit } = await mount();
   saveGate = deferred();
@@ -144,7 +154,7 @@ it('refreshes variables and generated text after applying, preserving undo and r
   delete sources[0].vars[0].value;
   root.querySelector('.prompt-preview-toggle').click();
   root.querySelector('.prompt-preview-toggle').click();
-  await vi.waitFor(() => expect(root.querySelector('.prompt-railwarn').textContent).toContain('fixture.name'));
+  await vi.waitFor(() => expect(root.querySelector('.prompt-varwarn').textContent).toContain('fixture.name'));
 });
 
 it('reloads templates changed outside the page when applying, so the next save uses their revision', async () => {
@@ -212,10 +222,47 @@ it('opens World configuration from the advanced mode only after the app accepts 
   await vi.waitFor(() => expect(document.querySelector('input[type="text"]')?.value).toBe('Friend'));
 });
 
-it('omits the World configuration shortcut in the normal mode and when the manifest disables configuration', async () => {
-  const normal = await mount();
-  expect(normal.root.querySelector('.prompt-settings-link')).toBeNull();
-  normal.life.dispose(); normal.root.remove();
+it('switches from the normal mode to the advanced mode to open World configuration, after unsaved edits are given up', async () => {
+  const { root, router, view, edit } = await mount();
+  const modes = [];
+  const request = (event) => modes.push(event.detail);
+  window.addEventListener('companion-mode-request', request);
+  const asked = [];
+  let discard = false;
+  vi.stubGlobal('confirm', (message) => { asked.push(message); return discard; });
+  try {
+    await vi.waitFor(() => expect(root.querySelector('.prompt-settings-link')).not.toBeNull());
+    edit('Unsaved ');
+    root.querySelector('.prompt-settings-link').click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(modes).toEqual([]);
+    expect(router.route.segments).toEqual(['prompts']);
+    expect(view.state.doc.toString()).toContain('Unsaved ');
+    discard = true;
+    root.querySelector('.prompt-settings-link').click();
+    await vi.waitFor(() => expect(router.route.segments).toEqual(['provider', 'world:fixture', '~config']));
+    expect(modes).toEqual(['advanced']);
+    expect(asked).toEqual([S.leaveUnsaved, S.leaveUnsaved]);
+    expect(document.querySelector('.confirm-card')).toBeNull();
+  } finally { window.removeEventListener('companion-mode-request', request); }
+});
+
+it('switches from the normal mode to World configuration at once when nothing is unsaved', async () => {
+  const { root, router } = await mount();
+  const modes = [];
+  const request = (event) => modes.push(event.detail);
+  window.addEventListener('companion-mode-request', request);
+  vi.stubGlobal('confirm', () => { throw new Error('asked'); });
+  try {
+    await vi.waitFor(() => expect(root.querySelector('.prompt-settings-link')).not.toBeNull());
+    root.querySelector('.prompt-settings-link').click();
+    await vi.waitFor(() => expect(router.route.segments).toEqual(['provider', 'world:fixture', '~config']));
+    expect(modes).toEqual(['advanced']);
+    expect(document.querySelector('.confirm-card')).toBeNull();
+  } finally { window.removeEventListener('companion-mode-request', request); }
+});
+
+it('omits the World configuration shortcut when the manifest disables configuration', async () => {
   localStorage.setItem('companion.mode', 'advanced');
   configAvailable = false;
   const { root } = await mount();
@@ -284,4 +331,13 @@ it('remembers folds across page mounts and resets them in a new window session',
   const restarted = await mount();
   expect(flag(restarted.root, 'constitution').getAttribute('aria-expanded')).toBe('true');
   expect(flag(restarted.root, worldKey).getAttribute('aria-expanded')).toBe('false');
+});
+
+it('labels each section with its key and whether it is editable, and lists its template variables under the label', async () => {
+  const { root } = await mount();
+  const label = root.querySelector('[data-source="constitution"]');
+  expect(label.querySelector('.prefix-flag-meta').textContent).toBe(`constitution${S.editable}`);
+  expect(root.querySelector('[data-source="WORKSPACE"] .prefix-flag-meta').textContent).toBe(`WORKSPACE${S.readOnly}`);
+  expect([...label.querySelectorAll('.varchip')].map((chip) => chip.textContent)).toEqual(['fixture.name']);
+  expect(label.querySelector('.prompt-vars-heading .prompt-preview-toggle').getAttribute('aria-label')).toBe(S.previewVariables);
 });

@@ -21,7 +21,7 @@ import { CHATGPT_SERVICE, accountAt, signedIn, type ChatGPTAccount, type ChatGPT
 import { ChatGPTResponses, listPlanModels } from './client.ts';
 
 export { USAGE_LIMIT, usageLimited } from './client.ts';
-export { signedIn, type SignInStatus } from './auth.ts';
+export { signedIn } from './auth.ts';
 export { SIGN_IN_PANEL };
 
 

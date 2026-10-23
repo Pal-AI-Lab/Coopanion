@@ -31,7 +31,7 @@ export interface VendorChatOptions {
 }
 
 /** Text of a tool result that held images only, once they move to the next user message. */
-export const IMAGE_RESULT = '[image]';
+const IMAGE_RESULT = '[image]';
 
 export type Message = Record<string, unknown>;
 
@@ -70,7 +70,7 @@ export function imagesAfterResults(messages: readonly Message[], format: ResultF
 }
 
 /** `reasoning_effort` for `spec`: `none` with thinking off, else the level; `effort` rewrites a level, null leaves the field out. */
-export function reasoningEffort(spec: ModelSpec, effort: EffortMap = {}): Record<string, unknown> {
+function reasoningEffort(spec: ModelSpec, effort: EffortMap = {}): Record<string, unknown> {
   const level = spec.thinking ? spec.reasoningEffort : 'none';
   const value = level && level in effort ? effort[level as Effort] : level;
   return value ? { reasoning_effort: value } : {};
@@ -82,7 +82,7 @@ export function reasoningEffort(spec: ModelSpec, effort: EffortMap = {}): Record
  * round that calls tools with no reasoning (a call Core built, or one whose reasoning was never
  * recorded) gets `SYNTHETIC_REASONING_TEXT`, as the Responses path sends for the same services.
  */
-export function roundReasoning(messages: readonly NativeChatMessage[], opts: { keepThinking: boolean; synthetic: boolean }): NativeChatMessage[] {
+function roundReasoning(messages: readonly NativeChatMessage[], opts: { keepThinking: boolean; synthetic: boolean }): NativeChatMessage[] {
   let start = messages.length - 1;
   while (start >= 0 && messages[start].role !== 'user') start--;
   const before = messages.slice(0, Math.max(start, 0));

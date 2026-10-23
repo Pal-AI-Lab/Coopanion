@@ -4,9 +4,10 @@
  * from the current files.
  */
 import { fetchManifest, get, post } from '../../../base/api.ts';
+import { icon, type ConsoleIconName } from '../../../base/ui/icons.ts';
 import { pageIntro } from '../../../base/ui/page.ts';
 import { estTok } from '../live/context.ts';
-import { readMode } from '../../../features/mode.ts';
+import { readMode, requestMode } from '../../../features/mode.ts';
 import { S as sessionText } from '../../../features/strings.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { createPrefixEditor, references, VARIABLE_DRAG_TYPE, type PrefixBlock } from './editor.ts';
@@ -21,15 +22,21 @@ interface Section {
   tone: PrefixBlock['tone'];
   label: HTMLElement;
   toggle: HTMLButtonElement;
-  cell: HTMLElement;
-  note: HTMLElement;
   badge: HTMLElement;
-  origin?: HTMLElement;
+  /** Spans the section's height in the label column so the variable list stays in view while it scrolls. */
+  cell: HTMLElement;
+  vars: HTMLElement;
+  /** The variables heading; in `vars` once it has variables or a button to show. */
+  heading: HTMLElement;
+  /** The heading's buttons: the preview toggle and the World configuration shortcut. */
+  tools: HTMLElement;
   divider: HTMLElement;
   collapsed: boolean;
   updateVariables(): void;
+  /** Sizes each variable box to its name at the current column width. */
+  fitVariables(): void;
 }
-const colWidth = { flags: 158, rail: 190 };
+let labelWidth = 190;
 const FOLDS_KEY = 'coopanion.prompt-folds';
 let folds = new Map<string, boolean>();
 
@@ -43,13 +50,6 @@ function description(segment: PrefixSegment, doc?: PromptDoc): { title: string; 
     case 'PARTNER': return { title: S.partnerTitle, detail: doc?.description || S.partnerDesc };
     default: return { title: doc?.title || segment.title, detail: doc?.description ?? (segment.sourceKey ? '' : S.generatedDesc) };
   }
-}
-
-function originText(doc: PromptDoc): string {
-  return doc.origin === 'deployment' ? S.loadedFromDeployment
-    : doc.origin === 'package' ? S.loadedFromPackage
-      : doc.origin === 'module' ? S.loadedFromWorld
-        : S.loadedFromSource;
 }
 
 export async function mountPrompts(ctx: FeatureContext): Promise<void> {
@@ -69,11 +69,9 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
   const stage = ui.h('div', 'prefix-stage');
   const flags = ui.h('div', 'prefix-flags');
   const host = ui.h('div', 'prefix-host');
-  const rail = ui.h('div', 'prefix-rail');
-  const gripL = ui.h('div', 'prefix-grip');
-  const gripR = ui.h('div', 'prefix-grip');
+  const grip = ui.h('div', 'prefix-grip');
   const dividers = ui.h('div', 'prefix-dividers');
-  stage.append(flags, gripL, host, gripR, rail, dividers);
+  stage.append(flags, grip, host, dividers);
   const full = ui.h('pre', 'mono prefix-full');
   const preview = ui.foldSheet('full-prompt', { title: S.fullPreview });
   preview.body.append(full);
@@ -91,13 +89,13 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
   function state(): void {
     controls();
     say(dirty.size ? S.dirtyCount(dirty.size) : pendingApply ? S.pendingApply : S.prefixStats(segments.length, estTok(segments.map((s) => s.text).join('')).toLocaleString()));
-    for (const { doc, toggle, badge, origin } of sections) {
+    for (const { doc, toggle, badge } of sections) {
       const changed = !!doc && dirty.has(doc.key);
-      badge.textContent = changed ? S.unsaved : doc ? S.editableTemplate : S.generated;
+      badge.textContent = changed ? S.unsaved : doc ? S.editable : S.readOnly;
       if (doc && !segments.some((s) => s.sourceKey === doc.key)) badge.textContent += ` · ${S.outsidePrefix}`;
       badge.classList.toggle('is-dirty', changed);
-      if (doc) toggle.title = originText(doc);
-      if (doc && origin) origin.textContent = doc.origin === 'deployment' ? S.originDeployment : doc.origin === 'package' ? S.originPackage : S.originWorld;
+      // a narrow label column cuts the title, key and badge short; the tooltip carries them whole
+      toggle.title = [...toggle.querySelectorAll('.prefix-flag-title, .prefix-flag-key, .prompt-section-badge')].map((part) => part.textContent).join('\n');
     }
   }
   function open(section: Section, expanded: boolean): void {
@@ -108,7 +106,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
   function animateSection(section: Section, index: number): void {
     if (section.collapsed || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const targets = host.querySelectorAll(`[data-prompt-section="${index}"]`);
-    for (const target of [...targets, section.note]) {
+    for (const target of [...targets, section.vars]) {
       target.getAnimations().forEach((animation) => animation.cancel());
       target.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 180, easing: 'ease-out' });
     }
@@ -224,7 +222,9 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
       button.focus({ preventScroll: true });
     }
   }
-  ctx.lifecycle.own(ctx.router.addLeaveGuard(() => dirty.size || savePromise ? S.leaveUnsaved : null));
+  /** Set once the person has already accepted losing unsaved edits for the navigation under way. */
+  let leaveAccepted = false;
+  ctx.lifecycle.own(ctx.router.addLeaveGuard(() => !leaveAccepted && (dirty.size || savePromise) ? S.leaveUnsaved : null));
   root.addEventListener('keydown', (event) => {
     if (!(event.ctrlKey || event.metaKey) || event.defaultPrevented) return;
     const key = event.key.toLowerCase();
@@ -259,7 +259,6 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
       try { sessionStorage.setItem(FOLDS_KEY, JSON.stringify([...folds])); } catch { /* Kept in memory. */ }
       section.toggle.setAttribute('aria-expanded', String(!collapsed));
       section.cell.hidden = collapsed;
-      if (section.origin) section.origin.hidden = collapsed;
       closePopup();
       expand.textContent = sections.every((s) => !s.collapsed) ? S.collapseAll : S.expandAll;
       queueMicrotask(() => { if (!signal.aborted) animateSection(section, index); });
@@ -268,59 +267,53 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
   });
   ctx.lifecycle.own(editor);
   function scheduleGeometry(): void {
-    if (!geometryFrame) geometryFrame = requestAnimationFrame(() => { geometryFrame = 0; positionSides(); });
+    if (!geometryFrame) geometryFrame = requestAnimationFrame(() => { geometryFrame = 0; positionLabels(); });
   }
-  function positionSides(): void {
-    root.style.setProperty('--prompt-rail-top', `${toolbar.offsetHeight + 12}px`);
+  function positionLabels(): void {
+    root.style.setProperty('--prompt-sticky-top', `${toolbar.offsetHeight + 12}px`);
     const geometry = editor.blockGeometry();
     const offset = editor.contentTop() - stage.getBoundingClientRect().top;
     const spacing = geometry.map((g, index) => {
       const section = sections[index];
-      const top = `${g.top + offset}px`;
-      section.label.style.top = top;
-      section.cell.style.top = top;
-      section.cell.style.height = `${g.height}px`;
-      section.divider.style.top = top;
+      if (!g.collapsed) section.fitVariables();
+      const top = g.top + offset;
+      // Flags are centred on section edges; the variables keep clear of this flag and the next one.
+      const clearance = section.toggle.offsetHeight / 2 + 8;
+      section.label.style.top = section.divider.style.top = `${top}px`;
+      section.cell.style.top = `${clearance}px`;
+      section.cell.style.height = `${Math.max(0, g.height - 2 * clearance)}px`;
       section.divider.style.left = `${flags.offsetWidth}px`;
-      const flagHeight = section.toggle.offsetHeight;
-      section.label.style.setProperty('--prompt-flag-height', `${flagHeight}px`);
-      const minHeight = Math.ceil(Math.max(50, section.note.offsetHeight + 12, section.origin && !g.collapsed ? flagHeight / 2 + section.origin.offsetHeight + 32 : 0));
+      const minHeight = Math.ceil(Math.max(50, g.collapsed ? 0 : 2 * clearance + section.vars.offsetHeight));
       return { minHeight, padding: g.collapsed ? 0 : Math.max(0, Math.ceil(minHeight - (g.height - g.padding))) };
     });
-    flags.style.height = rail.style.height = `${host.offsetHeight}px`;
+    flags.style.height = `${host.offsetHeight}px`;
     editor.setSpacing(spacing);
   }
-  function applyWidths(): void {
-    flags.style.flexBasis = `${colWidth.flags}px`;
-    rail.style.flexBasis = `${colWidth.rail}px`;
+  function applyWidth(): void {
+    flags.style.flexBasis = `${labelWidth}px`;
     scheduleGeometry();
   }
-  function bindGrip(grip: HTMLElement, side: 'flags' | 'rail'): void {
-    grip.addEventListener('pointerdown', (event) => {
-      event.preventDefault();
-      grip.setPointerCapture(event.pointerId);
-      const startX = event.clientX;
-      const start = colWidth[side];
-      const move = (e: PointerEvent) => {
-        colWidth[side] = Math.max(100, Math.min(300, start + (e.clientX - startX) * (side === 'flags' ? 1 : -1)));
-        applyWidths();
-      };
-      const end = () => {
-        grip.removeEventListener('pointermove', move);
-        grip.removeEventListener('lostpointercapture', end);
-      };
-      grip.addEventListener('pointermove', move, { signal });
-      grip.addEventListener('lostpointercapture', end, { signal });
-    }, { signal });
-  }
-  bindGrip(gripL, 'flags');
-  bindGrip(gripR, 'rail');
-  applyWidths();
+  grip.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    grip.setPointerCapture(event.pointerId);
+    const startX = event.clientX;
+    const start = labelWidth;
+    const move = (e: PointerEvent) => {
+      labelWidth = Math.max(120, Math.min(320, start + e.clientX - startX));
+      applyWidth();
+    };
+    const end = () => {
+      grip.removeEventListener('pointermove', move);
+      grip.removeEventListener('lostpointercapture', end);
+    };
+    grip.addEventListener('pointermove', move, { signal });
+    grip.addEventListener('lostpointercapture', end, { signal });
+  }, { signal });
+  applyWidth();
   const observer = new ResizeObserver(scheduleGeometry);
   observer.observe(stage);
   observer.observe(toolbar);
   observer.observe(flags);
-  observer.observe(rail);
   ctx.lifecycle.own({ dispose() { observer.disconnect(); cancelAnimationFrame(geometryFrame); } });
 
   let popup: HTMLElement | null = null;
@@ -349,6 +342,15 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     return pop;
   }
 
+  function toolButton(name: ConsoleIconName, text: string, onClick: () => void): HTMLButtonElement {
+    const button = ui.button('', { size: 'sm', onClick });
+    button.classList.add('btn-ico', 'prompt-vars-tool');
+    button.title = text;
+    button.setAttribute('aria-label', text);
+    button.append(icon(root.ownerDocument, name));
+    return button;
+  }
+
   function createSection(segment: PrefixSegment): Section {
     const doc = segment.sourceKey ? docs.get(segment.sourceKey) : undefined;
     const info = description(segment, doc);
@@ -359,47 +361,44 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     const toggle = ui.button('', { onClick: () => open(section, section.collapsed) });
     toggle.className = 'prefix-flag';
     toggle.setAttribute('aria-expanded', String(!collapsed));
-    const title = ui.h('span', 'prefix-flag-title', info.title);
     const key = segment.sourceKey?.startsWith('worlds.') ? segment.sourceKey : segment.title;
     const meta = ui.h('span', 'prefix-flag-meta');
     const badge = ui.h('span', 'prompt-section-badge');
     meta.append(ui.h('span', 'prefix-flag-key mono', key), badge);
-    toggle.append(title, meta);
-    label.append(toggle);
-    const cell = ui.h('div', `prefix-railcell tone-${tone}`);
-    const note = ui.h('div', 'prefix-railcontent');
-    cell.append(note);
+    toggle.append(ui.h('span', 'prefix-flag-title', info.title), meta);
+    const cell = ui.h('div', 'prefix-varcell');
+    const vars = ui.h('div', 'prefix-vars');
+    cell.append(vars);
     cell.hidden = collapsed;
+    label.append(toggle, cell);
     const divider = ui.h('div', `prefix-divider tone-${tone}`);
-    observer.observe(note);
-    const section: Section = { segment, doc, tone, label, toggle, cell, note, badge, divider, collapsed, updateVariables() {} };
-    if (!doc) {
-      if (segment.sourceKey) note.append(ui.h('p', 'prompt-help', S.sourceMissing(segment.sourceKey)));
-      return section;
-    }
-    if (doc.origin) {
-      section.origin = ui.h('p', 'prompt-help prefix-origin');
-      section.origin.hidden = collapsed;
-      label.append(section.origin);
-      observer.observe(section.origin);
-    }
+    observer.observe(vars);
+    const tools = ui.h('span', 'prompt-vars-tools');
+    const heading = ui.h('div', 'prompt-vars-heading');
+    const title = ui.h('span', 'prompt-vars-title', S.variablesTitle);
+    title.title = S.variablesTitle;
+    heading.append(title, tools);
+    const section: Section = { segment, doc, tone, label, toggle, badge, cell, vars, heading, tools, divider, collapsed, updateVariables() {}, fitVariables() {} };
+    if (!doc) return section;
     const chips = new Map<string, HTMLButtonElement>();
-    const warning = ui.h('div', 'prompt-railwarn');
+    const warning = ui.h('div', 'prompt-varwarn');
     if (doc.vars?.length) {
-      note.append(ui.h('div', 'prompt-rail-heading', S.variablesTitle), ui.h('p', 'prompt-help', S.insertHint));
       let previewing = false;
-      const preview = ui.button(S.previewVariables, { size: 'sm', onClick: () => {
+      const preview = toolButton('eye', S.previewVariables, () => {
         closePopup();
         previewing = !previewing;
         editor.setPreview(doc.key, previewing);
-        preview.textContent = previewing ? S.showVariableNames : S.previewVariables;
+        const text = previewing ? S.showVariableNames : S.previewVariables;
+        preview.title = text;
+        preview.setAttribute('aria-label', text);
         preview.setAttribute('aria-pressed', String(previewing));
         if (previewing) void refreshVariables(doc.key);
-      } });
+      });
       preview.classList.add('prompt-preview-toggle');
       preview.setAttribute('aria-pressed', 'false');
+      tools.append(preview);
       const list = ui.h('div', 'prompt-variable-list');
-      note.append(list, preview);
+      vars.append(heading, ui.h('p', 'prompt-help', S.insertHint), list);
       for (const variable of doc.vars) {
         let insertPosition = 0;
         const chip = ui.button(variable.name, { size: 'sm', onClick: () => {
@@ -410,10 +409,12 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
           popupChip = chip;
           chip.setAttribute('aria-expanded', 'true');
           const rect = chip.getBoundingClientRect();
-          popup.style.left = `${Math.max(8, rect.left - popup.offsetWidth - 10)}px`;
+          popup.style.left = `${Math.max(8, Math.min(rect.right + 10, window.innerWidth - popup.offsetWidth - 8))}px`;
           popup.style.top = `${Math.max(8, Math.min(rect.top, window.innerHeight - popup.offsetHeight - 8))}px`;
         } });
         chip.className += ' varchip mono';
+        chip.title = variable.name;
+        chip.replaceChildren(ui.h('span', 'varchip-name', variable.name));
         chip.draggable = true;
         chip.setAttribute('aria-expanded', 'false');
         chip.addEventListener('mousedown', (event) => { if (event.detail === 1) insertPosition = editor.view.state.selection.main.head; }, { signal });
@@ -438,8 +439,27 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
         chips.set(variable.name, chip);
         list.append(chip);
       }
+      /**
+       * A name that fits a grid cell keeps one cell; one that fits a whole row on one line takes the row;
+       * a longer one takes the row on up to two lines, wrapping after its dots, dashes and underscores,
+       * and ends in an ellipsis past them. Measured with every box in a cell, whose width does not depend
+       * on the boxes. The wrap points are `<wbr>`s, which Chromium honours even in `nowrap` text, so only
+       * a two-line name has them.
+       */
+      section.fitVariables = () => {
+        const boxes = [...chips.entries()].map(([name, chip]) => ({ name, chip, text: chip.firstElementChild as HTMLElement }));
+        for (const { name, chip, text } of boxes) { chip.dataset.size = 'cell'; text.textContent = name; }
+        const sizes = boxes.map(({ chip, text }) => {
+          const row = list.clientWidth - (chip.offsetWidth - text.clientWidth);
+          return text.scrollWidth <= text.clientWidth ? 'cell' : text.scrollWidth <= row ? 'row' : 'lines';
+        });
+        boxes.forEach(({ name, chip, text }, i) => {
+          chip.dataset.size = sizes[i];
+          if (sizes[i] === 'lines') text.replaceChildren(...name.split(/(?<=[.\-_])/).flatMap((part, n) => n ? [root.ownerDocument.createElement('wbr'), part] : [part]));
+        });
+      };
     }
-    note.append(warning);
+    vars.append(warning);
     section.updateVariables = () => {
       const used = new Set(references(editor.text(doc.key)).map((r) => r.name));
       for (const [name, chip] of chips) chip.classList.toggle('varchip-unused', !used.has(name));
@@ -451,7 +471,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
 
   /**
    * Matches the sections to the current prefix plus the templates it omits. A section whose source and
-   * template presence are unchanged is reused with its fold, preview and rail state.
+   * template presence are unchanged is reused with its fold, preview and variable list.
    */
   function layout(): void {
     closePopup();
@@ -472,13 +492,11 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
       return section;
     }));
     for (const gone of previous) {
-      gone.label.remove(); gone.cell.remove(); gone.divider.remove();
-      observer.unobserve(gone.note);
-      if (gone.origin) observer.unobserve(gone.origin);
+      gone.label.remove(); gone.divider.remove();
+      observer.unobserve(gone.vars);
     }
     for (const section of sections) {
       flags.append(section.label);
-      rail.append(section.cell);
       dividers.append(section.divider);
     }
     editor.setBlocks(sections.map(({ segment, doc, tone, collapsed }): PrefixBlock => ({
@@ -491,6 +509,21 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     if (created.length) void addSettings(created);
   }
 
+  /**
+   * World configuration is an advanced-mode page, so the normal mode switches to the advanced mode on
+   * the way. With unsaved edits the person agrees to losing them before the switch, so declining keeps
+   * the mode and the page as they are.
+   */
+  function openWorldConfig(pageId: string): void {
+    const route = ['provider', pageId, '~config'];
+    if (readMode() === 'advanced') { ctx.router.navigate(route); return; }
+    // the same question the router's leave guard asks (console/index.ts)
+    if ((dirty.size || savePromise) && !window.confirm(S.leaveUnsaved)) return;
+    leaveAccepted = true;
+    requestMode('advanced');
+    ctx.router.navigate(route);
+  }
+
   async function addSettings(targets: Section[]): Promise<void> {
     try {
       const manifest = await fetchManifest();
@@ -499,15 +532,14 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
         const page = manifest.providers.find((p) => p.kind === 'world' && p.prompts?.some((p) => p.key === section.segment.sourceKey));
         if (!page) continue;
         section.toggle.querySelector('.prefix-flag-title')!.textContent = page.label;
-        // World configuration is an advanced-mode page.
-        if (readMode() !== 'advanced' || manifest.framework?.capabilities?.config === false || !page.configGroups?.length) continue;
-        const settings = ui.button(S.worldSettings, { size: 'sm', variant: 'primary', onClick: () => {
-          ctx.router.navigate(['provider', page.id, '~config']);
-        } });
+        if (manifest.framework?.capabilities?.config === false || !page.configGroups?.length) continue;
+        const settings = toolButton('settings', S.worldSettings, () => openWorldConfig(page.id));
         settings.classList.add('prompt-settings-link');
-        section.note.insertBefore(settings, section.note.querySelector('.prompt-railwarn'));
+        section.tools.append(settings);
+        if (!section.heading.isConnected) section.vars.prepend(section.heading);
         scheduleGeometry();
       }
+      state();
     } catch (error) { if (!signal.aborted) ctx.onError(error); }
   }
   async function refreshVariables(key: string): Promise<void> {

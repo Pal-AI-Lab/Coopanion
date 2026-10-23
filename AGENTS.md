@@ -130,8 +130,12 @@ keep it; the checklist still applies to what they say.
   `pnpm run typecheck:web` and `pnpm run typecheck:worlds`, the same checks CI runs.
 - `pnpm run build:cortico` after changing `console/` or the submodule; reopen the settings window
   (`build/console`) or restart the app (`build/cortico`) afterwards.
-- Never verify against the operator's installed app or its data. Use tests, a script under
-  `scratch/`, or `pnpm run dev` with `CORTICO_COMPANION_DATA` pointing at an empty directory.
+- Never verify against the operator's installed app or its data, and leave it running. Use tests,
+  a script under `scratch/`, or `pnpm run dev` with `CORTICO_COMPANION_DATA` pointing at an empty
+  directory.
+- A settings-window change is shown with `pnpm run console:test`: the real page from
+  `build/console` with this checkout's Core behind it, on ports of its own. Mock pages of the
+  settings window are not used.
 
 ## 7. Scratch
 

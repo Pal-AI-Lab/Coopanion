@@ -24,7 +24,8 @@
  * The last version told is kept in `notice.json` in the deployment directory, written when the
  * event is delivered, so an update told while events are held (no key yet) is told on a later start.
  */
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { asRecord, field, readState, writeState } from './state-file.ts';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import type { ToolDef, World, WorldWebUiDecl, WorldHost } from 'cortico/core/types.ts';
@@ -300,7 +301,7 @@ const en: typeof zh = {
 
 const NOTICE_TEXT: Record<ModelLanguage, typeof zh> = { zh, en };
 
-export function updatedText(from: string | null, to: string, notes: Array<{ version: string; text: string }>, language: ModelLanguage = 'zh'): string {
+function updatedText(from: string | null, to: string, notes: Array<{ version: string; text: string }>, language: ModelLanguage = 'zh'): string {
   const t = NOTICE_TEXT[language];
   const head = from ? t.updatedFrom(from, to) : t.updatedTo(to);
   if (!notes.length) return `${head}${t.noNotes}`;
@@ -318,7 +319,7 @@ function look(read: (path: string) => unknown): Look {
 }
 
 /** One line per watched setting that differs between the two looks, in `WATCHED` order. */
-export function settingChanges(before: Look, after: Look, labels: Labels, language: ModelLanguage = 'zh'): string[] {
+function settingChanges(before: Look, after: Look, labels: Labels, language: ModelLanguage = 'zh'): string[] {
   const t = NOTICE_TEXT[language];
   return WATCHED.filter((w) => before[w.path] !== after[w.path]).map((w) => {
     const s = t.settings[w.key];
@@ -330,7 +331,7 @@ export function settingChanges(before: Look, after: Look, labels: Labels, langua
   });
 }
 
-export function guideText(end: GuideEnd, language: ModelLanguage = 'zh'): string {
+function guideText(end: GuideEnd, language: ModelLanguage = 'zh'): string {
   const t = NOTICE_TEXT[language];
   const name = end.name ?? t.someone;
   return [
@@ -341,7 +342,7 @@ export function guideText(end: GuideEnd, language: ModelLanguage = 'zh'): string
   ].join('\n');
 }
 
-export function changedText(lines: string[], language: ModelLanguage = 'zh'): string {
+function changedText(lines: string[], language: ModelLanguage = 'zh'): string {
   return [NOTICE_TEXT[language].changed, ...lines].join('\n');
 }
 
@@ -408,11 +409,9 @@ export class NoticeWorld implements World {
   private pendingUpdate(): { from: string | null; to: string } | null {
     const to = this.a.version;
     if (!parseVersion(to)) return null;
-    const last = existsSync(this.a.stateFile)
-      ? (JSON.parse(readFileSync(this.a.stateFile, 'utf8')) as { version?: unknown }).version
-      : undefined;
-    if (last === undefined && this.a.newInstall()) { this.record(to); return null; }
-    if (typeof last !== 'string') return { from: null, to };
+    const last = readState(this.a.stateFile, (value) => field(asRecord(value), 'version', (v): v is string => typeof v === 'string'));
+    if (last === null && this.a.newInstall()) { this.record(to); return null; }
+    if (last === null) return { from: null, to };
     const from = parseVersion(last);
     if (from && compare(parseVersion(to)!, from) > 0) return { from: last, to };
     if (last !== to) this.record(to);
@@ -430,7 +429,7 @@ export class NoticeWorld implements World {
   }
 
   private record(version: string): void {
-    writeFileSync(this.a.stateFile, `${JSON.stringify({ version }, null, 2)}\n`);
+    writeState(this.a.stateFile, `${JSON.stringify({ version }, null, 2)}\n`);
   }
 
   private tick(): void {
