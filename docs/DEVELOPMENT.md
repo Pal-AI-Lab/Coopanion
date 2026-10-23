@@ -96,7 +96,7 @@ GitHub Actions 会构建 Windows 安装包和两个 Mac 包(Apple 芯片、Intel
 
 ## 代理、主题与字标
 
-Core 使用内置 Electron 的 Node 环境代理支持，读取 HTTP_PROXY/HTTPS_PROXY 等变量。启动环境里没有这些变量时，主进程在每次启动 Core 前用 `session.resolveProxy` 查询系统代理(对 `https://api.openai.com/` 的结果用于所有目标),HTTP/HTTPS 代理写成这四个变量,DIRECT、SOCKS 或查询失败时不设;`core.log` 每次启动记一行代理来源。NO_PROXY 与 no_proxy 合并后补齐 localhost、127.0.0.1 和 IPv6 回环地址，避免本机控制台和桌宠通信被代理。变量必须存在于应用启动环境中；Finder 启动不自动读取 shell 配置。
+启动环境里有 HTTP_PROXY/HTTPS_PROXY 等变量时，Core 用内置 Electron 的 Node 环境代理支持按这些变量走，不再查系统。没有时，主进程给 Core 设 `COOPANION_SYSTEM_PROXY=1`,Core(`core/system-proxy.ts`)按请求的目标主机经 IPC 问主进程，主进程用 `session.resolveProxy` 回答(PAC 照样生效),每个主机的答案缓存 10 秒;fetch 走按主机选代理的全局 dispatcher,node:http/https 的全局 agent 和子进程继承的代理变量跟随 npm registry 的答案，每 10 秒刷新。HTTP/HTTPS 代理照用,DIRECT、SOCKS 或查询失败时直连;某个主机的答案变了，`core.log` 记一行。NO_PROXY 与 no_proxy 合并后补齐 localhost、127.0.0.1 和 IPv6 回环地址，避免本机控制台和桌宠通信被代理。变量必须存在于应用启动环境中；Finder 启动不自动读取 shell 配置。
 
 装扮页通过 URL 初始值和父窗口消息跟随控制台主题，消息校验精确来源与父窗口；桌宠配色独立保存。控制台打开装扮页时带 `fit=1`，装扮页把自身高度以 `companion:height` 发回控制台，控制台只收这个 iframe 自己的窗口和来源发来的消息，把框设成同高。
 

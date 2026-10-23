@@ -342,7 +342,7 @@ Windows 上，程序换了目录（比如重装到别处）、旁边没有数据
 <details>
 <summary><b>需要走代理</b></summary>
 
-Coopanion 使用系统代理（HTTP 或 HTTPS 代理；SOCKS 代理不生效），每次 Core 启动时重新读取。启动 Coopanion 的环境里设置了 `HTTP_PROXY` / `HTTPS_PROXY` 时以环境变量为准。本机通信会自动绕过代理。详见[开发文档](docs/DEVELOPMENT.md)。
+Coopanion 使用系统代理（HTTP 或 HTTPS 代理；SOCKS 代理不生效），按每次请求时的系统设置走：打开或关掉代理软件不用重启 Coopanion,PAC 脚本按网站分别决定。启动 Coopanion 的环境里设置了 `HTTP_PROXY` / `HTTPS_PROXY` 时以环境变量为准。本机通信会自动绕过代理。详见[开发文档](docs/DEVELOPMENT.md)。
 
 </details>
 
