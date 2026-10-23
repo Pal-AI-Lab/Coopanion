@@ -5,9 +5,6 @@
  */
 import type { ToolDef } from 'cortico/core/types.ts';
 
-/** The longest text `pet_cua_type` types, in code points. */
-export const TYPE_MAX = 2000;
-
 const shot = { type: 'boolean', description: 'Attach a screenshot afterwards; defaults to the configuration (attach). Leave it out only for a step whose result you do not need to see; after a step that may open a window or dialog, look before typing.' };
 const xy = {
   x: { type: 'integer', minimum: 0, description: 'Horizontal position, in pixels of the latest screenshot' },
@@ -103,7 +100,7 @@ export const CUA_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
     name: 'pet_cua_type',
     tags: ['act'],
     description: 'Type text at the current input focus (any language, whatever state the input method is in); \\n presses Enter once. Click where the text goes first.',
-    parameters: { type: 'object', properties: { text: { type: 'string', maxLength: TYPE_MAX }, screenshot: shot }, required: ['text'] },
+    parameters: { type: 'object', properties: { text: { type: 'string', maxLength: 2000 }, screenshot: shot }, required: ['text'] },
   },
   {
     name: 'pet_cua_key',

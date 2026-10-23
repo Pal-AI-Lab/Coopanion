@@ -9,11 +9,6 @@ const ptBR: Translation<CuaText> = {
     caption: 'Uso do computador',
     yes: 'Sim',
     no: 'Desta vez não',
-    risky: {
-      keys: (who: string, keys: string) => `${who} quer pressionar ${keys}. Este atalho pode abrir menus do sistema ou iniciar programas. Pode?`,
-      typeInTerminal: (who: string, window: string, text: string) => `${who} quer digitar na janela de terminal “${window}”:\n${text}\nO que for digitado pode ser executado como comando. Pode?`,
-      enterInTerminal: (who: string, window: string, keys: string) => `${who} quer pressionar ${keys} na janela de terminal “${window}”, o que executa o comando digitado ali. Pode?`,
-    },
   },
 
   preflight: {
@@ -36,7 +31,7 @@ const ptBR: Translation<CuaText> = {
     group: 'Uso do computador',
     enabled: { title: 'Ativar o uso do computador' },
     control: { title: 'Permitir o mouse e o teclado', description: 'Desligado, só capturas de tela e a lista de janelas.' },
-    permission: { title: 'Quando perguntar a você', description: 'ask-each-turn: antes de olhar a tela ou agir, a cada turno; ask-before-acting: olhar é livre, pergunta antes de usar o mouse e o teclado a cada turno; ask-once: olhar é livre, pergunta uma vez antes de usar o mouse e o teclado, e um sim vale por “Um sim dura”; never-ask: nunca pergunta. Em qualquer opção, antes de um atalho que possa iniciar programas e antes de digitar ou pressionar Enter em um terminal, pergunta toda vez.' },
+    permission: { title: 'Quando perguntar a você', description: 'ask-each-turn: antes de olhar a tela ou agir, a cada turno; ask-before-acting: olhar é livre, pergunta antes de usar o mouse e o teclado a cada turno; ask-once: olhar é livre, pergunta uma vez antes de usar o mouse e o teclado, e um sim vale por “Um sim dura”; never-ask: nunca pergunta.' },
     grantMinutes: { title: 'Um sim dura', suffix: 'min', description: 'Só para ask-once.' },
     userIdleMs: { title: 'Não atrapalhar por', description: 'Depois que você usa o mouse ou o teclado, espera até que fiquem parados por esse tempo.' },
     maxYieldWaitMs: { title: 'Espera máxima por você' },

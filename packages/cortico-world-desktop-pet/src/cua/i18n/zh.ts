@@ -13,12 +13,6 @@ export default {
     caption: '电脑操作',
     yes: '可以',
     no: '这次不行',
-    /** 能启动程序或执行命令的一步，单独询问:keys 是 pet_cua_key 的写法,window 是前台窗口标题 */
-    risky: {
-      keys: (who: string, keys: string) => `${who} 想按 ${keys}。这个组合键能打开系统菜单或启动程序。可以吗？`,
-      typeInTerminal: (who: string, window: string, text: string) => `${who} 想在命令行窗口「${window}」里输入：\n${text}\n输入的内容可能作为命令执行。可以吗？`,
-      enterInTerminal: (who: string, window: string, keys: string) => `${who} 想在命令行窗口「${window}」里按 ${keys}，已输入的命令会执行。可以吗？`,
-    },
   },
 
   /** 这个系统能不能用电脑操作 */
@@ -44,7 +38,7 @@ export default {
     group: '电脑操作',
     enabled: { title: '启用电脑操作' },
     control: { title: '允许操作鼠标和键盘', description: '关闭后只能截图和列出窗口。' },
-    permission: { title: '询问时机', description: 'ask-each-turn：每轮查看屏幕或操作前都询问；ask-before-acting：查看屏幕不询问，每轮操作鼠标键盘前询问；ask-once：查看屏幕不询问，操作前询问一次，同意后在「同意有效期」内不再询问；never-ask：从不询问。无论选哪一档，按下能启动程序的组合键、在命令行窗口里输入或按回车之前，都会单独询问。' },
+    permission: { title: '询问时机', description: 'ask-each-turn：每轮查看屏幕或操作前都询问；ask-before-acting：查看屏幕不询问，每轮操作鼠标键盘前询问；ask-once：查看屏幕不询问，操作前询问一次，同意后在「同意有效期」内不再询问；never-ask：从不询问。' },
     grantMinutes: { title: '同意有效期', suffix: '分钟', description: '只对 ask-once 有效。' },
     userIdleMs: { title: '让位时长', description: '你操作鼠标或键盘后，需静止这么久才继续操作。' },
     maxYieldWaitMs: { title: '让位最多等待' },

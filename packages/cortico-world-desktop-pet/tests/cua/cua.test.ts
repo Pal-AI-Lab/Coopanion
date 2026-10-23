@@ -7,8 +7,6 @@ import { downscale, drawCursor, encodeJpeg, fit } from '../../src/cua/engine/ima
 import { displayAt, ordered, toLocal, toNative } from '../../src/cua/engine/display.ts';
 import { CUA_DEFAULTS, type CuaConfig } from '../../src/cua/config.ts';
 import { Cua } from '../../src/cua/cua.ts';
-import { isTerminal, launches } from '../../src/cua/risk.ts';
-import { TYPE_MAX } from '../../src/cua/tools.ts';
 import { FakeHost } from '../helpers/fake-host.ts';
 
 describe('parseKeys', () => {
@@ -373,9 +371,9 @@ describe('displays', () => {
     cfg.screenshot.settleMs = 0;
     const w = new Cua({ cfg: () => cfg });
     const two = { displays: [{ index: 1, primary: true, width: 2560, height: 1600 }, { index: 2, primary: false, width: 2560, height: 1440 }], layout: 'two', cursor: null };
-    // a new window comes up on display 1 once the key has been pressed
+    // the Run box comes up on display 1 once the key has been pressed
     let pressed = false;
-    const fg = () => (pressed ? { foreground: 'New window', foregroundDisplay: 1 } : { foreground: 'Browser', foregroundDisplay: 2 });
+    const fg = () => (pressed ? { foreground: 'Run', foregroundDisplay: 1 } : { foreground: 'Browser', foregroundDisplay: 2 });
     const shots: unknown[] = [];
     const inner = w as unknown as { spawn: () => unknown; pending: Map<number, { done: (v: unknown) => void; timer: NodeJS.Timeout }> };
     inner.spawn = () => ({
@@ -395,88 +393,8 @@ describe('displays', () => {
     const call = (name: string, args: Record<string, unknown>) =>
       w.tools().find((t) => t.name === name)!.handler(args, { role: 'main', log: new FakeHost().log }) as Promise<{ text: string }>;
     await call('pet_cua_screenshot', { display: 2 });
-    const out = await call('pet_cua_key', { keys: 'ctrl+n' });
+    const out = await call('pet_cua_key', { keys: 'win+r' });
     expect(shots).toEqual([2, 1]);
     expect(out.text).toContain('显示器 1/2');
-  });
-});
-
-describe('inputs that can start a program', () => {
-  /**
-   * A never-ask world whose engine reports `app` as the foreground program; `sent` lists the input
-   * ops that reached the engine, `asked` the questions put to the person.
-   */
-  const riskWorld = (answers: Array<'yes' | 'no'>, app: { name: string | null } = { name: null }) => {
-    const cfg = { ...structuredClone(CUA_DEFAULTS), permission: 'never-ask' as const };
-    cfg.screenshot.afterAction = false;
-    const asked: string[] = [];
-    const sent: string[] = [];
-    const w = new Cua({ cfg: () => cfg, botName: () => 'Bot', askPermission: async (q) => { asked.push(q); return answers.shift() ?? 'no'; } });
-    const inner = w as unknown as { spawn: () => unknown; pending: Map<number, { done: (v: unknown) => void; timer: NodeJS.Timeout }> };
-    inner.spawn = () => ({
-      exitCode: null,
-      send({ id, req }: { id: number; req: { op: string } }) {
-        if (req.op !== 'info') sent.push(req.op);
-        const p = inner.pending.get(id)!;
-        inner.pending.delete(id);
-        clearTimeout(p.timer);
-        p.done({ ...ONE_DISPLAY, foreground: 'Window', foregroundApp: app.name, yielded: false, waitedMs: 0, typed: 0, stoppedBy: null });
-      },
-    });
-    return { w, asked, sent, app };
-  };
-  const call = (w: Cua, name: string, args: Record<string, unknown>) =>
-    w.tools().find((t) => t.name === name)!.handler(args, { role: 'main', log: new FakeHost().log }) as Promise<{ text: string; failed?: true }>;
-
-  it('a launcher shortcut is asked about even under never-ask, and a no sends nothing', async () => {
-    const { w, asked, sent } = riskWorld(['no', 'yes']);
-    const refused = await call(w, 'pet_cua_key', { keys: 'ctrl+shift+esc' });
-    expect(refused.failed).toBe(true);
-    expect(refused.text).toContain('没有允许这一步');
-    expect(sent).toEqual([]);
-    expect((await call(w, 'pet_cua_key', { keys: 'ctrl+shift+esc' })).failed).toBeUndefined();
-    expect(sent).toEqual(['key']);
-    expect(asked).toHaveLength(2);
-    expect(asked[0]).toContain('ctrl+shift+esc');
-  });
-
-  it('typing and Enter are asked about while a terminal is in front, and pass without asking elsewhere', async () => {
-    const { w, asked, sent, app } = riskWorld(['yes', 'yes']);
-    await call(w, 'pet_cua_type', { text: 'hello' });
-    await call(w, 'pet_cua_key', { keys: 'enter' });
-    expect(asked).toEqual([]);
-    app.name = 'WindowsTerminal.exe';
-    await call(w, 'pet_cua_type', { text: 'del /s x' });
-    await call(w, 'pet_cua_key', { keys: 'enter' });
-    await call(w, 'pet_cua_key', { keys: 'ctrl+c' });
-    expect(asked).toHaveLength(2);
-    expect(asked[0]).toContain('del /s x');
-    expect(sent).toEqual(['type', 'key', 'type', 'key', 'key']);
-  });
-
-  it('refuses a text over the limit before asking or typing', async () => {
-    const { w, asked, sent } = riskWorld([]);
-    const out = await call(w, 'pet_cua_type', { text: 'x'.repeat(TYPE_MAX + 1) });
-    expect(out.failed).toBe(true);
-    expect([asked, sent]).toEqual([[], []]);
-  });
-});
-
-describe('risk', () => {
-  const chords = (spec: string) => { const r = parseKeys(spec); if ('error' in r) throw new Error(r.error); return r.chords; };
-
-  it('takes every Windows-key chord as a launcher off macOS, and only Command+Space on it', () => {
-    expect(launches(chords('win+e'), 'win32')).toBe(true);
-    expect(launches(chords('super'), 'linux')).toBe(true);
-    expect(launches(chords('cmd+c'), 'darwin')).toBe(false);
-    expect(launches(chords('cmd+space'), 'darwin')).toBe(true);
-    expect(launches(chords('ctrl+shift+esc'), 'win32')).toBe(true);
-    expect(launches(chords('ctrl+alt+t'), 'linux')).toBe(true);
-    expect(launches(chords('ctrl+s alt+tab'), 'win32')).toBe(false);
-  });
-
-  it('knows terminals by program name on every platform', () => {
-    for (const app of ['cmd.exe', 'PowerShell.exe', 'WindowsTerminal.exe', 'Terminal', 'iTerm2', 'gnome-terminal-', 'konsole']) expect(isTerminal(app)).toBe(true);
-    for (const app of ['chrome.exe', 'Finder', 'firefox', null]) expect(isTerminal(app)).toBe(false);
   });
 });

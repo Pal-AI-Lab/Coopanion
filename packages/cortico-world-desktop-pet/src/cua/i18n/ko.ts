@@ -9,11 +9,6 @@ const ko: Translation<CuaText> = {
     caption: '컴퓨터 사용',
     yes: '예',
     no: '이번에는 아니요',
-    risky: {
-      keys: (who: string, keys: string) => `${who}에서 ${keys}을(를) 누르려고 합니다. 이 단축키는 시스템 메뉴를 열거나 프로그램을 실행할 수 있습니다. 허용하시겠습니까?`,
-      typeInTerminal: (who: string, window: string, text: string) => `${who}에서 터미널 창 "${window}"에 입력하려고 합니다:\n${text}\n입력한 내용은 명령으로 실행될 수 있습니다. 허용하시겠습니까?`,
-      enterInTerminal: (who: string, window: string, keys: string) => `${who}에서 터미널 창 "${window}"에서 ${keys}을(를) 누르려고 합니다. 입력된 명령이 실행됩니다. 허용하시겠습니까?`,
-    },
   },
 
   preflight: {
@@ -36,7 +31,7 @@ const ko: Translation<CuaText> = {
     group: '컴퓨터 사용',
     enabled: { title: '컴퓨터 사용 켜기' },
     control: { title: '마우스와 키보드 허용', description: '끄면 스크린샷과 창 목록만 쓸 수 있습니다.' },
-    permission: { title: '먼저 물어볼 때', description: 'ask-each-turn: 매 턴 화면을 보거나 조작하기 전에 묻습니다. ask-before-acting: 화면 보기는 묻지 않고, 매 턴 마우스와 키보드를 쓰기 전에 묻습니다. ask-once: 화면 보기는 묻지 않고, 마우스와 키보드를 쓰기 전에 한 번 묻습니다. 허용하면 "허용 유지 시간" 동안 유지됩니다. never-ask: 묻지 않습니다. 어떤 설정이든 프로그램을 실행할 수 있는 단축키를 누르기 전, 터미널 창에서 입력하거나 Enter를 누르기 전에는 매번 묻습니다.' },
+    permission: { title: '먼저 물어볼 때', description: 'ask-each-turn: 매 턴 화면을 보거나 조작하기 전에 묻습니다. ask-before-acting: 화면 보기는 묻지 않고, 매 턴 마우스와 키보드를 쓰기 전에 묻습니다. ask-once: 화면 보기는 묻지 않고, 마우스와 키보드를 쓰기 전에 한 번 묻습니다. 허용하면 "허용 유지 시간" 동안 유지됩니다. never-ask: 묻지 않습니다.' },
     grantMinutes: { title: '허용 유지 시간', suffix: '분', description: 'ask-once에만 적용됩니다.' },
     userIdleMs: { title: '비켜 주는 시간', description: '마우스나 키보드를 사용한 뒤 이만큼 움직임이 없을 때까지 기다립니다.' },
     maxYieldWaitMs: { title: '최대 대기 시간' },
