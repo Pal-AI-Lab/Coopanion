@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { mkdtempSync } from 'node:fs';
+import { afterEach, describe, expect, it } from 'vitest';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Alarms, dueTime, localLabel } from '../core/alarms.ts';
@@ -38,5 +38,53 @@ describe('Alarms', () => {
     ];
     expect(texts).toHaveLength(6);
     for (const text of texts) expect(text).not.toMatch(HAN);
+  });
+});
+
+
+describe('alarm state recovery', () => {
+  const dirs: string[] = [];
+  afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
+  const stateFile = () => {
+    const dir = mkdtempSync(join(tmpdir(), 'coo-alarms-state-'));
+    dirs.push(dir);
+    return join(dir, 'alarms.json');
+  };
+
+  it.each(['', '{"next":', 'null', '{"alarms":[]}'])('recovers invalid state %j', async (content) => {
+    const file = stateFile();
+    writeFileSync(file, content);
+    const alarms = new Alarms(file, 'UTC');
+    expect(alarms.list()).toEqual([]);
+    expect(readFileSync(`${file}.bad`, 'utf8')).toBe(content);
+    await alarms.tools(() => 0).find((tool) => tool.name === 'alarm_set')!.handler({ note: 'tea', in_minutes: 1 }, {} as never);
+    expect(new Alarms(file, 'UTC').list()).toEqual(alarms.list());
+  });
+
+  it('drops only the records that are not alarms', () => {
+    const file = stateFile();
+    const tea = { id: 'a2', at: 60_000, note: 'tea', daily: false, setAt: 0 };
+    writeFileSync(file, JSON.stringify({ next: 3, alarms: [null, { id: 'a1', note: 'no time' }, tea] }));
+    expect(new Alarms(file, 'UTC').list().map((a) => a.note)).toEqual(['tea']);
+    expect(existsSync(`${file}.bad`)).toBe(false);
+  });
+
+  it('delivers a due alarm once in the running process when its next save fails', async () => {
+    const file = stateFile();
+    const alarms = new Alarms(file, 'UTC');
+    await alarms.tools(() => 0).find((tool) => tool.name === 'alarm_set')!.handler({ note: 'tea', in_minutes: 1 }, {} as never);
+    const previous = readFileSync(file, 'utf8');
+    mkdirSync(`${file}.tmp`);
+    expect(alarms.takeDue(60_000).map(({ alarm }) => alarm.note)).toEqual(['tea']);
+    expect(alarms.takeDue(60_001)).toEqual([]);
+    expect(readFileSync(file, 'utf8')).toBe(previous);
+  });
+
+  it('throws on a file it cannot read and leaves it in place', () => {
+    const file = stateFile();
+    mkdirSync(file);
+    expect(() => new Alarms(file, 'UTC')).toThrow(/EISDIR/);
+    expect(statSync(file).isDirectory()).toBe(true);
+    expect(existsSync(`${file}.bad`)).toBe(false);
   });
 });

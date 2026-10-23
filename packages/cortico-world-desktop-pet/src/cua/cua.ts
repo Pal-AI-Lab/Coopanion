@@ -1,8 +1,8 @@
 /**
  * Computer use, a part of the desktop-pet World while `cua.enabled` is on. Tools take screenshots, move and click the mouse,
  * scroll, type, press keys, list and focus windows. All operating-system calls run in an
- * engine child process (`engine-child.ts`); a crash there fails the call in flight and the
- * next call starts a fresh engine.
+ * engine child process (`engine-child.ts`). A crash or an unanswered request past its deadline
+ * fails that engine's calls; a timed-out engine is killed and the next call starts a fresh one.
  *
  * A screenshot shows one display, scaled to fit `screenshot.maxWidth`×`maxHeight`; tool coordinates
  * are pixels of the latest screenshot and are mapped back to physical pixels of its display here.
@@ -112,7 +112,7 @@ export class Cua {
   private log: Logger | null = null;
   private engine: ChildProcess | null = null;
   private seq = 0;
-  private readonly pending = new Map<number, { done: (v: unknown) => void; fail: (e: Error) => void; timer: NodeJS.Timeout }>();
+  private readonly pending = new Map<number, { engine: ChildProcess; done: (v: unknown) => void; fail: (e: Error) => void; timer: NodeJS.Timeout }>();
   /** The displays as the engine last reported them. */
   private screen: ScreenInfo | null = null;
   /** The latest screenshot; coordinates refer to it. */
@@ -174,9 +174,20 @@ export class Cua {
   }
 
   async stop(): Promise<void> {
+    await this.endEngine(this.t.worldStopped);
+    this.host = null;
+  }
+
+  /** Computer use was switched off: the engine process ends, and the next call starts another. */
+  switchedOff(): Promise<void> {
+    return this.endEngine(this.t.switchedOff);
+  }
+
+  /** Ends the engine process; calls waiting on it fail with `why`. */
+  private async endEngine(why: string): Promise<void> {
     const engine = this.engine;
     this.engine = null;
-    for (const p of this.pending.values()) { clearTimeout(p.timer); p.fail(new Error(this.t.worldStopped)); }
+    for (const p of this.pending.values()) { clearTimeout(p.timer); p.fail(new Error(why)); }
     this.pending.clear();
     this.screenAsked = null;
     if (engine && engine.exitCode === null) {
@@ -185,7 +196,6 @@ export class Cua {
       await Promise.race([exited, new Promise((r) => setTimeout(r, 2000))]);
       if (engine.exitCode === null) engine.kill();
     }
-    this.host = null;
   }
 
   /* ---------- engine ---------- */
@@ -198,17 +208,20 @@ export class Cua {
     child.stderr?.on('data', forward);
     child.on('message', (msg: ChildToMain) => {
       const p = this.pending.get(msg.id);
-      if (!p) return;
+      if (!p || p.engine !== child) return;
       this.pending.delete(msg.id);
       clearTimeout(p.timer);
       if (msg.ok) p.done(msg.value);
       else p.fail(new Error(msg.code ? this.t.engineErrors[msg.code](...msg.args ?? []) : msg.error));
     });
     child.on('exit', (code) => {
-      if (this.engine === child) this.engine = null;
-      this.engineExit = code === 0 ? null : code;
+      if (this.engine === child) {
+        this.engine = null;
+        this.engineExit = code === 0 ? null : code;
+        this.screenAsked = null;
+      }
       const why = this.t.engineExited(code === 0 ? undefined : code);
-      for (const [id, p] of this.pending) { clearTimeout(p.timer); p.fail(new Error(why)); this.pending.delete(id); }
+      for (const [id, p] of this.pending) if (p.engine === child) { clearTimeout(p.timer); p.fail(new Error(why)); this.pending.delete(id); }
     });
     return child;
   }
@@ -227,8 +240,17 @@ export class Cua {
       const wait = 'yield' in req ? req.yield.maxWaitMs : req.op === 'confirm' ? req.timeoutMs : 0;
       const cancel = () => { if (engine.connected) engine.send({ cancel: id } satisfies MainToChild); };
       const unlisten = () => signal?.removeEventListener('abort', cancel);
-      const timer = setTimeout(() => { this.pending.delete(id); unlisten(); fail(new Error(this.t.engineTimeout)); }, ENGINE_TIMEOUT_MS + wait);
-      this.pending.set(id, { done: (v) => { unlisten(); done(v as T); }, fail: (e) => { unlisten(); fail(e); }, timer });
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        unlisten();
+        fail(new Error(this.t.engineTimeout));
+        if (this.engine === engine) {
+          this.engine = null;
+          this.screenAsked = null;
+          engine.kill('SIGKILL');
+        }
+      }, ENGINE_TIMEOUT_MS + wait);
+      this.pending.set(id, { engine, done: (v) => { unlisten(); done(v as T); }, fail: (e) => { unlisten(); fail(e); }, timer });
       signal?.addEventListener('abort', cancel, { once: true });
       engine.send({ id, req } satisfies MainToChild);
     });
@@ -319,7 +341,10 @@ export class Cua {
     if (!this.view) await this.ready();
     const v = this.shotSize();
     if (x >= v.width || y >= v.height) return this.t.offShot(x, y, v.width - 1, v.height - 1);
-    return { at: { display: v.display, layout: v.layout }, x: Math.round(x / v.scale), y: Math.round(y / v.scale) };
+    const display = this.screen?.displays.find((d) => d.index === v.display);
+    const width = display?.width ?? Math.round(v.width / v.scale);
+    const height = display?.height ?? Math.round(v.height / v.scale);
+    return { at: { display: v.display, layout: v.layout }, x: Math.min(width - 1, Math.round(x / v.scale)), y: Math.min(height - 1, Math.round(y / v.scale)) };
   }
 
   /** Where the pointer is, said against the latest screenshot. */
@@ -409,7 +434,7 @@ export class Cua {
     if (!ok || (x as number) < 0 || (y as number) < 0 || (x as number) >= v.width || (y as number) >= v.height || (width as number) < 1 || (height as number) < 1) {
       return { text: t.notRun('pet_cua_zoom', t.zoomBad), failed: true };
     }
-    const rx = Math.round(x as number), ry = Math.round(y as number);
+    const rx = Math.min(v.width - 1, Math.round(x as number)), ry = Math.min(v.height - 1, Math.round(y as number));
     const rw = Math.min(v.width - rx, Math.round(width as number)), rh = Math.min(v.height - ry, Math.round(height as number));
     const { maxWidth, maxHeight, quality } = this.cfg.screenshot;
     const res = await this.call<ZoomResult>({

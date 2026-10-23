@@ -20,6 +20,7 @@ const zh = {
   askTimedOut: (seconds: number) => `问了使用者能不能用电脑,${seconds} 秒没有回应,这一轮不能用。`,
   refused: (level: PermissionLevel) => `使用者这一轮没有允许${level === 'ask-each-turn' ? '用电脑' : '动鼠标键盘'}。`,
   worldStopped: 'World 已停止',
+  switchedOff: '电脑操作已关闭',
   /** `code` absent: a clean exit. */
   engineExited: (code?: number | null) => (code === undefined ? '引擎进程已退出' : `引擎进程退出(退出码 ${code})`),
   engineTimeout: '引擎没有在期限内应答',
@@ -124,6 +125,7 @@ const en: typeof zh = {
   askTimedOut: (seconds) => `Asked the person whether you may use the computer; no answer in ${seconds} seconds, so not this turn.`,
   refused: (level) => `The person did not allow ${level === 'ask-each-turn' ? 'computer use' : 'mouse and keyboard input'} this turn.`,
   worldStopped: 'The World stopped',
+  switchedOff: 'Computer use was switched off',
   engineExited: (code) => (code === undefined ? 'The engine process exited' : `The engine process exited (exit code ${code})`),
   engineTimeout: 'The engine did not answer in time',
   engineErrors: {
