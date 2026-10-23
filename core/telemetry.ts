@@ -22,6 +22,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { cpus, release, totalmem } from 'node:os';
 import { isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { asRecord, field, isRecord, readState, writeState } from './state-file.ts';
 
 export const TELEMETRY_URL = 'https://survey.palailab.org/v1/report';
 /** How often the day's record goes out while the app runs. */
@@ -106,6 +107,56 @@ interface State {
   queue: TelemetryEvent[];
 }
 
+const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+const isString = (value: unknown): value is string => typeof value === 'string';
+const isTally = (value: unknown): value is Record<string, number> => isRecord(value) && Object.values(value).every(finite);
+const ENDPOINT_KINDS: ReadonlyArray<unknown> = ['builtin', 'custom-remote', 'custom-local'] satisfies Array<ModelUse['endpointKind']>;
+const isEndpointKind = (value: unknown): value is ModelUse['endpointKind'] => ENDPOINT_KINDS.includes(value);
+
+function restoreModel(value: unknown): ModelUse {
+  const m = asRecord(value);
+  const n = (key: string) => field(m, key, finite, 0);
+  return {
+    vendor: field(m, 'vendor', isString), model: field(m, 'model', isString), endpointKind: field(m, 'endpointKind', isEndpointKind),
+    calls: n('calls'), failed: n('failed'), failedStatus: field(m, 'failedStatus', isTally, {}), aborted: n('aborted'),
+    tokensIn: n('tokensIn'), tokensOut: n('tokensOut'), tokensCached: n('tokensCached'), durations: field(m, 'durations', isTally, {}),
+  };
+}
+
+function restoreDay(value: unknown): Day {
+  const d = asRecord(value);
+  const counts = field(d, 'counts', isRecord, {});
+  const day: Day = {
+    date: field(d, 'date', isString),
+    runningMinutes: field(d, 'runningMinutes', finite, 0),
+    minutes: field(d, 'minutes', (v): v is number[] => Array.isArray(v) && v.every(finite), []),
+    counts: Object.fromEntries(COUNTERS.map((c) => [c, field(counts, c, finite, 0)])) as Record<Counter, number>,
+    models: Object.fromEntries(Object.entries(field(d, 'models', isRecord, {})).map(([key, m]) => [key, restoreModel(m)])),
+  };
+  if (d.snapshot !== undefined) day.snapshot = field(d, 'snapshot', isRecord);
+  return day;
+}
+
+/**
+ * The state as read from the state file. A field the file lacks is taken from `fresh` or starts at 0
+ * or empty; counters and model fields this version does not know are dropped. A field of the wrong
+ * type makes the content invalid.
+ */
+function restoreState(value: unknown, fresh: State): State {
+  const s = asRecord(value);
+  return {
+    installId: field(s, 'installId', isString, fresh.installId),
+    firstDate: field(s, 'firstDate', isString, fresh.firstDate),
+    chatDays: field(s, 'chatDays', finite, fresh.chatDays),
+    lastChatDate: field(s, 'lastChatDate', (v): v is string | null => v === null || isString(v), fresh.lastChatDate),
+    enabled: field(s, 'enabled', (v): v is boolean => typeof v === 'boolean', fresh.enabled),
+    extensions: field(s, 'extensions', (v): v is string[] => Array.isArray(v) && v.every(isString), fresh.extensions),
+    day: s.day === undefined ? fresh.day : restoreDay(s.day),
+    days: field(s, 'days', Array.isArray, fresh.days).map(restoreDay),
+    queue: field(s, 'queue', (v): v is TelemetryEvent[] => Array.isArray(v) && v.every((e) => isRecord(e) && isString(e.type) && isString(e.ts)), fresh.queue),
+  };
+}
+
 export interface TelemetryOptions {
   /** The deployment directory. */
   dir: string;
@@ -147,15 +198,17 @@ export class Telemetry {
     const file = join(opts.dir, STATE_FILE);
     const today = localDate(this.now());
     this.firstRun = !existsSync(file);
+    let installId: string = randomUUID();
     if (!this.firstRun) {
-      this.state = JSON.parse(readFileSync(file, 'utf8')) as State;
-    } else {
-      this.state = {
-        installId: randomUUID(), firstDate: today, chatDays: 0, lastChatDate: null, enabled: opts.enabled(),
-        extensions: [], day: newDay(today), days: [], queue: [],
-      };
-      this.event('first_launch', {});
+      try { installId = readFileSync(join(opts.dir, ID_FILE), 'utf8').trim() || installId; }
+      catch { /* the id is absent when statistics are disabled */ }
     }
+    const fresh: State = {
+      installId, firstDate: today, chatDays: 0, lastChatDate: null, enabled: opts.enabled(),
+      extensions: [], day: newDay(today), days: [], queue: [],
+    };
+    this.state = readState(file, (value) => restoreState(value, fresh)) ?? fresh;
+    if (this.firstRun) this.event('first_launch', {});
   }
 
   get installId(): string { return this.state.installId; }
@@ -214,10 +267,6 @@ export class Telemetry {
     this.rollDay();
     const key = `${use.vendor}\u0000${use.model}\u0000${use.endpointKind}`;
     const m = this.state.day.models[key] ??= { ...use, calls: 0, failed: 0, failedStatus: {}, aborted: 0, tokensIn: 0, tokensOut: 0, tokensCached: 0, durations: {} };
-    // a day carried over from an older version may lack these
-    m.failedStatus ??= {};
-    m.aborted ??= 0;
-    m.durations ??= {};
     m.calls += 1;
     m.tokensIn += rec.promptTokens;
     m.tokensOut += rec.completionTokens;
@@ -339,7 +388,7 @@ export class Telemetry {
 
   private save(): void {
     try {
-      writeFileSync(join(this.opts.dir, STATE_FILE), JSON.stringify(this.state) + '\n');
+      writeState(join(this.opts.dir, STATE_FILE), JSON.stringify(this.state) + '\n');
       const idFile = join(this.opts.dir, ID_FILE);
       if (this.state.enabled) writeFileSync(idFile, this.state.installId);
       else rmSync(idFile, { force: true });

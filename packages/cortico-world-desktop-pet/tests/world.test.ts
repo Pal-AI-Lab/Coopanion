@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { EventEmitter } from 'node:events';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +12,7 @@ import { DesktopPetWorld, type DesktopPetWorldOptions, type PetBotControls } fro
 import { chatItem } from '../src/chat.ts';
 import { FakeHost } from './helpers/fake-host.ts';
 import { FakePage } from './helpers/page.ts';
+import { HOST_ENV } from '../src/window-host.ts';
 
 const ctx = { role: 'main', log: new FakeHost().log };
 
@@ -47,6 +49,27 @@ async function mounted(patch?: (c: DesktopPetConfigSection) => void, extra?: Par
   await made.world.start(host);
   cleanup.push(() => made.world.stop());
   return { ...made, host };
+}
+
+/** A local host process receives the launch URL; the test connects its page with that credential. */
+async function windowPage(world: DesktopPetWorld): Promise<FakePage> {
+  const dir = mkdtempSync(join(tmpdir(), 'pet-window-'));
+  const file = join(dir, 'url');
+  cleanup.push(async () => { rmSync(dir, { recursive: true, force: true }); });
+  const previous = process.env[HOST_ENV];
+  process.env[HOST_ENV] = JSON.stringify([process.execPath, '-e',
+    'require("node:fs").writeFileSync(process.argv[1], process.argv.find(a => a.startsWith("--pet-url=")).slice(10)); setInterval(() => {}, 1000);', '--', file]);
+  try { world.openWindow(); } finally {
+    if (previous === undefined) delete process.env[HOST_ENV];
+    else process.env[HOST_ENV] = previous;
+  }
+  await expect.poll(() => existsSync(file)).toBe(true);
+  const url = new URL(readFileSync(file, 'utf8'));
+  const key = new URLSearchParams(url.hash.slice(1)).get('key');
+  expect(key).toBeTruthy();
+  expect(world.petUrl).toBe(`${url.origin}/pet`);
+  expect(JSON.stringify(world.petState())).not.toContain(key);
+  return FakePage.open(url.origin, new URLSearchParams({ role: 'pet', host: 'window', key: key! }).toString());
 }
 
 describe('definition', () => {
@@ -89,6 +112,37 @@ describe('tools without a page', () => {
     const out = await tool(world, 'pet_say').handler({ script: '你好' }, ctx);
     expect(out).toMatchObject({ failed: true });
     expect((out as { text: string }).text).toContain('没有连接');
+  });
+});
+
+describe('computer use', () => {
+  it('switching it off ends the engine process, and the engine starts again when needed (two spawns)', async () => {
+    const { world, cfg } = await mounted((c) => { c.cua.enabled = true; });
+    type Pending = Map<number, { done: (v: unknown) => void; timer: NodeJS.Timeout }>;
+    const cua = (world as unknown as { cua: { spawn: () => unknown; pending: Pending; ready: () => Promise<void> } }).cua;
+    const engines: Array<EventEmitter & { exitCode: number | null }> = [];
+    // an engine process that reports one display and exits when disconnected
+    cua.spawn = () => {
+      const engine = Object.assign(new EventEmitter(), {
+        exitCode: null as number | null,
+        send({ id }: { id: number }) {
+          const p = cua.pending.get(id)!;
+          cua.pending.delete(id);
+          clearTimeout(p.timer);
+          p.done({ displays: [{ index: 1, primary: true, width: 1920, height: 1080 }], layout: 'one', cursor: null, foreground: null, foregroundDisplay: 1 });
+        },
+        disconnect() { engine.exitCode = 0; engine.emit('exit', 0); },
+        kill() {},
+      });
+      engines.push(engine);
+      return engine;
+    };
+    await cua.ready();
+    cfg.cua.enabled = false;
+    await expect.poll(() => engines[0]!.exitCode).toBe(0);
+    cfg.cua.enabled = true;
+    await cua.ready();
+    expect(engines).toHaveLength(2);
   });
 });
 
@@ -357,7 +411,7 @@ describe('with a pet page', () => {
 
   it('a browser tab only watches while the pet window is connected', async () => {
     const { world } = await mounted();
-    const win = await FakePage.open(origin(world), 'role=pet&host=window');
+    const win = await windowPage(world);
     cleanup.push(() => win.close());
     const tab = await FakePage.open(origin(world), 'role=pet&host=tab');
     cleanup.push(() => tab.close());
@@ -382,7 +436,7 @@ describe('with a pet page', () => {
 
   it('a watching tab still sends typed text and a theme switch, which reaches the pet window', async () => {
     const { world, host, persisted } = await mounted();
-    const win = await FakePage.open(origin(world), 'role=pet&host=window');
+    const win = await windowPage(world);
     cleanup.push(() => win.close());
     const tab = await FakePage.open(origin(world), 'role=pet&host=tab');
     cleanup.push(() => tab.close());
@@ -499,7 +553,7 @@ describe('with a pet page', () => {
     const res = await fetch(`${origin(world)}/api/avatar`);
     expect(res.headers.get('content-type')).toBe('image/png');
     expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([0x89, 0x50, 0x4e, 0x47]);
-    const win = await FakePage.open(origin(world), 'role=pet&host=window');
+    const win = await windowPage(world);
     cleanup.push(() => win.close());
     const tab = await FakePage.open(origin(world), 'role=pet&host=tab');
     cleanup.push(() => tab.close());
@@ -517,7 +571,7 @@ describe('with a pet page', () => {
   it('the menu header shows only the controls the app lends', async () => {
     const calls: string[] = [];
     const { world } = await mounted(undefined, { botName: () => 'Bot', controls: { openSettings: () => calls.push('settings') } });
-    const win = await FakePage.open(origin(world), 'role=pet&host=window');
+    const win = await windowPage(world);
     cleanup.push(() => win.close());
     const state = await (await fetch(`${origin(world)}/api/state`)).json() as { bot: Record<string, unknown> };
     expect(state.bot).toMatchObject({ controls: true, buttons: { pause: false, settings: true, dress: false, quit: false }, paused: null, quitLabel: '', quitPrompt: '' });

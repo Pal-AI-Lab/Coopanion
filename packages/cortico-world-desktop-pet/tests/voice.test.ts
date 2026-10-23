@@ -23,7 +23,7 @@ import { FakePage } from './helpers/page.ts';
 import { fakeSapi } from './helpers/fake-sapi.ts';
 
 /** A recognizer that answers `reply(samples)`; `decodes` lists how many samples each decode got. */
-interface FakeFunAsr { sherpa: SherpaModule; decodes: number[]; configs: Array<Record<string, unknown>>; reply: (samples: number) => string }
+interface FakeFunAsr { sherpa: SherpaModule; decodes: number[]; configs: Array<Record<string, unknown>>; reply: (samples: number) => string; beforeLoad?: () => Promise<void> }
 
 function fakeFunAsr(text: string | ((samples: number) => string)): FakeFunAsr {
   const fake = { decodes: [] as number[], configs: [] as Array<Record<string, unknown>>, reply: typeof text === 'string' ? () => text : text } as FakeFunAsr;
@@ -31,6 +31,7 @@ function fakeFunAsr(text: string | ((samples: number) => string)): FakeFunAsr {
     OfflineRecognizer: {
       createAsync: async (config) => {
         fake.configs.push(config);
+        await fake.beforeLoad?.();
         return {
           createStream: () => {
             const stream = { samples: 0, acceptWaveform: (w: { samples: Float32Array }) => { stream.samples += w.samples.length; } };
@@ -101,8 +102,9 @@ function scriptedKey(problem?: string) {
   return { key, watch };
 }
 
-async function setup(text: string | ((samples: number) => string), mode: MicMode = 'always', watch?: ReturnType<typeof scriptedKey>['watch'], language: Language = 'zh', openOnPress = false) {
+async function setup(text: string | ((samples: number) => string), mode: MicMode = 'always', watch?: ReturnType<typeof scriptedKey>['watch'], language: Language = 'zh', openOnPress = false, loadGate?: Promise<void>) {
   const asr = fakeFunAsr(text);
+  if (loadGate) asr.beforeLoad = () => loadGate;
   const cfg = structuredClone(DESKTOP_PET_DEFAULTS);
   Object.assign(cfg, { enabled: true, port: 0 });
   cfg.window.enabled = false;
@@ -117,13 +119,66 @@ async function setup(text: string | ((samples: number) => string), mode: MicMode
   const host = new FakeHost();
   await world.start(host);
   cleanup.push(() => world.stop());
-  await expect.poll(() => (world.voiceState().server as { phase: string }).phase).toBe('running');
+  await expect.poll(() => (world.voiceState().server as { phase: string }).phase).toBe(loadGate ? 'starting' : 'running');
   const page = await FakePage.open(world.petUrl.replace(/\/pet$/, ''));
   cleanup.push(() => page.close());
-  return { asr, world, host, page };
+  return { asr, world, host, page, cfg };
 }
 
 describe('voice input', () => {
+  it.each(['zh', 'fr'] as Language[])('unloads the %s recognition model when disabled and reloads it when enabled', async (language) => {
+    const { cfg, world, page, asr } = await setup('hello', 'always', undefined, language);
+    cfg.asr.enabled = false;
+    await page.next((m) => m.t === 'prefs' && m.mic === false);
+    await expect.poll(() => (world.voiceState().server as { phase: string }).phase).toBe('stopped');
+    cfg.asr.enabled = true;
+    await expect.poll(() => (world.voiceState().server as { phase: string }).phase).toBe('running');
+    expect(asr.configs).toHaveLength(2);
+  });
+
+  it('stops the active engine when the configured engine changes before the stop request', async () => {
+    const { cfg, world } = await setup('hello');
+    cfg.asr.engine = 'whisper';
+    await world.webUi().invoke!('voice', 'stop', []);
+    cfg.asr.engine = 'funasr';
+    expect((world.voiceState().server as { phase: string }).phase).toBe('stopped');
+  });
+
+  it('finishes unloading a pending model before a rapid disable and enable starts it again', async () => {
+    let loaded!: () => void;
+    const loadGate = new Promise<void>((resolve) => { loaded = resolve; });
+    const { cfg, world, page, asr } = await setup('hello', 'always', undefined, 'zh', false, loadGate);
+    try {
+      cfg.asr.enabled = false;
+      await page.next((m) => m.t === 'prefs' && (m.voice as { enabled?: boolean })?.enabled === false);
+      cfg.asr.enabled = true;
+      const restarted = world.startVoiceBackend();
+      loaded();
+      await restarted;
+      expect((world.voiceState().server as { phase: string }).phase).toBe('running');
+      expect(asr.configs).toHaveLength(2);
+    } finally { loaded(); }
+  });
+
+  it('closes the system helper when voice input is disabled', async () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const cfg = structuredClone(DESKTOP_PET_DEFAULTS);
+    Object.assign(cfg, { enabled: true, port: 0 });
+    cfg.window.enabled = false;
+    cfg.asr.engine = 'system';
+    cfg.asr.mic.mode = 'always';
+    const { spawnImpl, spawned } = fakeSapi({ final: () => 'hello' });
+    const dir = mkdtempSync(join(tmpdir(), 'pet-voice-'));
+    const world = new DesktopPetWorld({ cfg, timezone: 'Asia/Shanghai', persist: () => {}, runtimesRoot: () => join(dir, 'rt'), modelsDir: () => join(dir, 'm'), spawnSystemRecognizer: spawnImpl });
+    await world.start(new FakeHost());
+    cleanup.push(() => world.stop());
+    await expect.poll(() => (world.voiceState().server as { phase: string }).phase).toBe('running');
+    cfg.asr.enabled = false;
+    await expect.poll(() => (world.voiceState().server as { phase: string }).phase).toBe('stopped');
+    expect(spawned[0].child.exitCode).toBe(0);
+    expect(world.voiceState().server).toMatchObject({ pid: null });
+  });
+
   it('turns a spoken utterance into one speech event that wakes', async () => {
     const { asr, host, page } = await setup('今天天气怎么样');
     for (const fr of [...tone(900, .3), ...tone(900, 0)]) page.audio(fr);

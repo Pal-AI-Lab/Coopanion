@@ -96,6 +96,9 @@ export default {
 
   // the dressing page: importing figure packs
   'import.button': 'Import',
+  'import.replaceTitle': 'Replace existing figure packs?',
+  'import.replaceText': 'Replacing them deletes their existing files in the installation folder.',
+  'import.replace': 'Replace',
   'import.title': 'Import figure packs',
   'import.unloaded': 'Figure packs that did not load: {n}',
   /** Between a folder's name and the reason. */

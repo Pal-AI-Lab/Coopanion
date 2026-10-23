@@ -5,7 +5,8 @@
  * - the app: tray icon, the settings window (Coopanion's own front end, `build/console`, served under
  *   `/coopanion/` on the Core child's console origin in a session of its own, see serveWindow), and
  *   the Core child process (`core-host.cjs`). A start shows the pet and the tray icon only; the settings window opens from the tray, the pet's menu, or when the pet asks for
- *   a missing model key (`core/companion.ts`). Starting it again while it runs brings the pet back, or starts the
+ *   a missing model key (`core/companion.ts`). Closing the settings window ends its renderer, unless a page holds unsaved
+ *   edits, which keeps it hidden; it opens again at the route it last showed. Starting the app again while it runs brings the pet back, or starts the
  *   Core again when it stopped retrying (`failed`);
  * - `--pet-host --pet-url=… --parent-pid=…`: the desktop pet's transparent window, started by
  *   the desktop-pet World through `CORTICO_DESKTOP_PET_HOST`. It uses its own profile directory.
@@ -259,6 +260,8 @@ const core = new CoreHost({
 });
 
 let settings = null;
+/** The route the settings window showed when it was last closed, where it opens next unless asked for another. */
+let settingsRoute = '';
 let tray = null;
 let quitting = false;
 /** The quit was asked for from the pet's update bubble: the updated app starts once installed. */
@@ -450,14 +453,27 @@ function openSettings(path = '') {
   settings.once('ready-to-show', () => bringForward(settings));
   settings.on('page-title-updated', (e) => e.preventDefault());
   keepOnConsole(settings.webContents);
-  settings.on('close', (e) => {
-    if (quitting) return;
-    e.preventDefault();
-    settings.hide();
+  const win = settings;
+  let closing = false;
+  win.on('close', () => {
+    closing = true;
+    // the loading page, shown until the Core is up, has no route
+    const page = win.webContents.getURL();
+    if (page.startsWith('http://')) settingsRoute = new URL(page).hash;
+  });
+  // A page with unsaved edits (a leave guard, console/base/router.ts) refuses to unload: closing the window
+  // then hides it with the edits kept. A load the app starts itself, and a quit, go ahead.
+  win.webContents.on('will-prevent-unload', (e) => {
+    if (quitting || !closing) { e.preventDefault(); return; }
+    closing = false;
+    win.hide();
     if (MAC) app.dock?.hide();
   });
-  settings.on('closed', () => { settings = null; });
-  const url = settingsUrl(path);
+  win.on('closed', () => {
+    settings = null;
+    if (MAC && !quitting) app.dock?.hide();
+  });
+  const url = settingsUrl(path || settingsRoute);
   settings.loadURL(url ?? loadingPage(T().starting));
 }
 
@@ -569,11 +585,7 @@ core.on('state', (state, exit) => {
 
 core.on('open', (path) => openSettings(path));
 // the introduction runs again on the desktop, where Coo is
-core.on('hide', () => {
-  if (!settings) return;
-  settings.hide();
-  if (MAC) app.dock?.hide();
-});
+core.on('hide', () => settings?.close());
 core.on('quit', () => app.quit());
 const bringBack = () => {
   if (core.state === 'failed') void core.start();
