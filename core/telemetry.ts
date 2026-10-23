@@ -42,7 +42,7 @@ const DURATION_EDGES = [2, 5, 10, 20, 40] as const;
 const STATE_FILE = 'telemetry.json';
 const ID_FILE = 'telemetry-id';
 
-const COUNTERS = [
+export const COUNTERS = [
   'sessions', 'messagesText', 'messagesVoice', 'touches', 'answers', 'petReplies',
   'cuaActions', 'cuaAsked', 'cuaGranted', 'providerErrors',
 ] as const;
