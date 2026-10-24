@@ -587,8 +587,7 @@ export class ConsolePageHost {
         : [{ label: S.assembly, state: 'offline', hint: page.availability === 'missing' ? S.notInstalled : S.notActivated }],
     ));
     head.appendChild(title);
-    const purposeDesc = page.kind === 'persona' ? S.personaDesc : page.kind === 'memory' ? S.memoryDesc : null;
-    if (purposeDesc) head.appendChild(ui.h('p', 'pagedesc', purposeDesc));
+    if (page.kind === 'memory') head.appendChild(ui.h('p', 'pagedesc', S.memoryDesc));
     chrome.append(head);
     const bar = ui.rowbar();
 
