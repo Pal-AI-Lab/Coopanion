@@ -96,4 +96,7 @@ export const S: Partial<typeof en> = {
   glowOff: 'Spento',
   glowPx: (n: number) => `${n} px`,
   glowHint: "Quanto si estende il bagliore chiaro attorno all'animaletto quando i colori di Coo somigliano allo sfondo; tutto a sinistra lo spegne.",
+  ringLabel: 'Anello del contesto',
+  ring: 'Mostra nella pagina Chat',
+  ringHint: 'Un anello nella casella di testo della pagina Chat mostra quanto manca al riordino della conversazione precedente.',
 };

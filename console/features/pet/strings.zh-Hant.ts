@@ -96,4 +96,7 @@ export const S: Partial<typeof en> = {
   glowOff: '關閉',
   glowPx: (n: number) => `${n} px`,
   glowHint: '桌寵和身後顏色相近時，身體周圍的淺色外發光延伸多遠；滑到最左為關閉。',
+  ringLabel: '上下文圓環',
+  ring: '在對話頁顯示',
+  ringHint: '對話頁輸入框顯示一個圓環，表示離整理之前的對話還有多遠。',
 };

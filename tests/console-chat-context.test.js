@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 /**
- * The chat page's context ring: full where Coo's Persona asks for the handoff, filled by the count
- * `/api/status` reports, and spinning while a handoff runs, as the phase line says.
+ * The chat page's context ring, switched on in the 「习惯」 page: full where Coo's Persona asks for the
+ * handoff, filled by the count `/api/status` reports, and spinning while a handoff runs, as the phase
+ * line says.
  */
 import { act } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -78,6 +79,7 @@ beforeEach(() => {
   window.WebSocket = FakeSocket;
   vi.stubGlobal('fetch', async (path) => {
     if (path === '/api/status') return new Response(JSON.stringify(status));
+    if (path === '/api/config') return new Response(JSON.stringify({ groups: [{ group: { id: 'companion' }, values: { 'companion.contextRing': true } }] }));
     throw new Error(`Unexpected request: ${path}`);
   });
 });

@@ -6,8 +6,9 @@
  * once (`interrupt`) or taken back.
  *
  * Everything shown comes from the World's stream (packages/cortico-world-desktop-pet/src/chat.ts);
- * the phase line is Core's RunPhase as the World passes it on. The ring in the composer reads
- * `/api/status` (context.ts) when the page opens, at each phase change and every few seconds.
+ * the phase line is Core's RunPhase as the World passes it on. The ring in the composer shows while
+ * `companion.contextRing` is on (the 「习惯」 page, read when the page opens) and reads `/api/status`
+ * (context.ts) then, at each phase change and every few seconds.
  */
 import type { WebUiImageAttachment } from 'cortico/web/shared/client-panel.ts';
 import { linked } from 'cortico-world-desktop-pet/web/ui.js';
@@ -24,6 +25,9 @@ import { contextGauge, contextRing, type ContextGauge, type ContextStatus } from
 import { S, STEP } from './strings.ts';
 
 const PET_PAGE = 'world:desktop-pet';
+/** The switch for the context ring, a key of the `companion` config group. */
+const RING_GROUP = 'companion';
+const RING_KEY = 'companion.contextRing';
 /** How often the context ring reads `/api/status` while the window is visible, besides each phase change. */
 const CONTEXT_POLL_MS = 5000;
 
@@ -74,6 +78,7 @@ async function mount(ctx: PageContext): Promise<void> {
   /** The question the pet still waits on an answer to, as the World says; null when none. */
   let openAsk: string | null = null;
   let gauge: ContextGauge | null = null;
+  let showRing = false;
   /** Shown items by cursor, in the order the bot met them (`at` for a message that waited, else the cursor). */
   const items = new Map<number, ChatItem>();
   /** The person's messages the bot has not taken in yet. */
@@ -144,13 +149,14 @@ async function mount(ctx: PageContext): Promise<void> {
     else if (p?.state === 'handoff') { state = 'busy'; text = S.handoff; }
     phaseEl.dataset.state = state;
     phaseText.textContent = text;
-    ring.paint(gauge, p?.state === 'handoff');
+    ring.paint(showRing ? gauge : null, showRing && p?.state === 'handoff');
   };
 
   // ---- context ring: one request at a time; a read asked for meanwhile runs after it
   let reading = false;
   let readAgain = false;
   const readContext = (): void => {
+    if (!showRing) return;
     if (reading) { readAgain = true; return; }
     reading = true;
     void get<ContextStatus>('/api/status', { signal: ctx.signal }).then(
@@ -453,7 +459,10 @@ async function mount(ctx: PageContext): Promise<void> {
   }));
 
   syncPhase();
-  readContext();
+  void get<{ groups?: Array<{ group: { id: string }; values?: Record<string, unknown> }> }>('/api/config', { signal: ctx.signal }).then((d) => {
+    showRing = d.groups?.find((g) => g.group.id === RING_GROUP)?.values?.[RING_KEY] === true;
+    readContext();
+  }, () => { /* the ring stays hidden */ });
   thread.append(ui.h('div', 'chat-empty', S.connecting));
 }
 

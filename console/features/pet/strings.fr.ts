@@ -96,4 +96,7 @@ export const S: Partial<typeof en> = {
   glowOff: 'Désactivé',
   glowPx: (n: number) => `${n} px`,
   glowHint: "Portée du halo clair autour du compagnon quand les couleurs de Coo se confondent avec l'arrière-plan ; tout à gauche le désactive.",
+  ringLabel: 'Anneau de contexte',
+  ring: 'Afficher sur la page Discussion',
+  ringHint: 'Un anneau dans la zone de saisie de la page Discussion indique combien il reste avant la mise en ordre de la conversation précédente.',
 };
