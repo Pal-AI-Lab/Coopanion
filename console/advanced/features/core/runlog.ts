@@ -3,7 +3,7 @@
  * log.jsonl 尾部查满 limit 条；run 默认当前运行，清单取自 /api/runs。
  * 文本输入去抖 300 ms，Enter 立即查询。
  * 实时日志帧只在查看当前 run 时触发重查；重查在途时到达的帧合并成结束后的一次。
- * 表格分页、新的在前；换筛选条件回到第一页，实时重查留在当前页。
+ * 表格分页、新的在前；换筛选条件回到第一页。不在第一页时不跟实时日志，当前页内容不动，回到第一页再重查。
  */
 
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
@@ -66,6 +66,8 @@ export function createRunlogView(deps: RunlogViewDeps): RunlogView {
   let generation = 0;
   let busy = false;
   let liveAgain = false;
+  /** 不在第一页时漏掉了实时日志。 */
+  let missed = false;
   let debounce: ReturnType<typeof setTimeout> | null = null;
 
   const cancel = (): void => {
@@ -158,7 +160,15 @@ export function createRunlogView(deps: RunlogViewDeps): RunlogView {
   });
   /** 最近一次取回的日志,旧的在前。 */
   let rows: RunlogEntry[] = [];
-  const pager = createPager(ui, { key: 'runlog', sizes: [20, 50, 100, 200], defaultSize: 50, onChange: () => paint() });
+  const pager = createPager(ui, {
+    key: 'runlog',
+    sizes: [20, 50, 100, 200],
+    defaultSize: 50,
+    onChange: () => {
+      paint();
+      if (missed && pager.page === 0) void view.refresh();
+    },
+  });
   const el = ui.h('div');
   el.append(bar, table.el, pager.el);
 
@@ -240,8 +250,14 @@ export function createRunlogView(deps: RunlogViewDeps): RunlogView {
         if (!runsLoaded) await loadRuns();
         const entries = await get<RunlogEntry[]>(query(), { signal: deps.signal });
         if (mine !== generation) return;
-        rows = Array.isArray(entries) ? entries : [];
-        paint();
+        // 换筛选条件与刷新键都先回到第一页；此刻不在第一页(重查途中翻了页，或带着原来的页码回到本页)就不画
+        if (pager.page > 0) {
+          missed = true;
+        } else {
+          missed = false;
+          rows = Array.isArray(entries) ? entries : [];
+          paint();
+        }
         deps.onNet(true);
       } catch (err) {
         if ((err as { name?: string } | null)?.name === 'AbortError') return;
@@ -259,6 +275,10 @@ export function createRunlogView(deps: RunlogViewDeps): RunlogView {
     },
     noteLive() {
       if (!runsLoaded || (q.run !== '' && q.run !== currentRun)) return;
+      if (pager.page > 0) {
+        missed = true;
+        return;
+      }
       if (busy) {
         liveAgain = true;
         return;
