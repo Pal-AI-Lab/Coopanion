@@ -41,7 +41,7 @@ export default {
   /** 状态气泡:Coo 正在用的工具 */
   status: {
     read: '在查看', browse: '在翻阅', memory: '记忆', find: '在查找', search: '在搜索', write: '在写入', edit: '在修改', append: '在追加',
-    delete: '在删除', save: '在保存', screen: '在查看屏幕', windows: '在查看打开的窗口', rightClick: '在右击', doubleClick: '在双击', click: '在点击',
+    delete: '在删除', moveFile: '在移动', save: '在保存', screen: '在查看屏幕', windows: '在查看打开的窗口', rightClick: '在右击', doubleClick: '在双击', click: '在点击',
     move: '在移动鼠标', drag: '在拖动', scroll: '在滚动', focus: '在切换窗口', type: '在打字', key: '在按键', wait: '在等待',
     alarmSet: '在设定闹钟', alarmList: '在查看闹钟', alarmCancel: '在取消闹钟',
     /** 在搜的关键词 */

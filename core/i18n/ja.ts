@@ -33,7 +33,7 @@ const ja: Translation<CoreText> = {
 
   status: {
     read: '読み取り中', browse: '閲覧中', memory: '記憶', find: '探索中', search: '検索中', write: '書き込み中', edit: '編集中', append: '追記中',
-    delete: '削除中', save: '保存中', screen: '画面を確認中', windows: '開いているウィンドウを確認中', rightClick: '右クリック中', doubleClick: 'ダブルクリック中', click: 'クリック中',
+    delete: '削除中', moveFile: '移動中', save: '保存中', screen: '画面を確認中', windows: '開いているウィンドウを確認中', rightClick: '右クリック中', doubleClick: 'ダブルクリック中', click: 'クリック中',
     move: 'マウスを移動中', drag: 'ドラッグ中', scroll: 'スクロール中', focus: 'ウィンドウを切り替え中', type: '入力中', key: 'キー入力中', wait: '待機中',
     alarmSet: 'アラームを設定中', alarmList: 'アラームを確認中', alarmCancel: 'アラームを取り消し中',
     quoted: (text: string) => `「${text}」`,

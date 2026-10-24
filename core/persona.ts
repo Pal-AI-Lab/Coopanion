@@ -1,9 +1,12 @@
 /**
- * Coo's Persona: Cortico's Cormini with three changes for the desktop pet.
+ * Coo's Persona: Cortico's Cormini with four changes for the desktop pet.
  *
  * - `PARTNER.md` in the workspace goes into the system prefix whole (Cormini's partner segment), after a
  *   standing line asking Coo to keep it short and put details under `partner/`, and cannot be deleted with
  *   `delete_file`, as `CONSTITUTION.md` cannot.
+ * - The prefix says how Coo keeps its workspace (`MEMORY_NOTE`, Cormini's memory segment, before the workspace
+ *   listing): files named for what they hold, dated when tied to a time, older parts moved into `archive/`,
+ *   which the listing shows as one line.
  * - Every write Coo makes to its workspace is committed to the workspace's Git repository, one commit
  *   per tool call, so the workspace has a history to look back on and go back to. `blobs/` is left out
  *   of the repository. Without Git (`gitInstalled`) the files are written all the same.
@@ -29,6 +32,19 @@ export const PARTNER_DIR = 'partner';
 export const PARTNER_NOTE = `${PARTNER_FILE} in your workspace, below, is read in full on every request. Keep it a short, distilled portrait `
   + `of the person: merge or drop what is outdated. Put stories, logs and longer notes in files under ${PARTNER_DIR}/ and read them `
   + 'when needed.';
+/** The workspace directory for what Coo has set aside; the prefix listing shows it as one line. */
+export const ARCHIVE_DIR = 'archive';
+/** Goes into the prefix right before the workspace listing, where the file names are all Coo sees of its files. */
+export const MEMORY_NOTE = [
+  'How you keep your workspace:',
+  '- One subject per file, named for what it holds, specific enough that the name alone tells you whether to open it '
+    + '(partner/food-likes-and-dislikes.md, not partner/notes2.md).',
+  '- Before starting a file, look for one on the same subject with glob_files or grep_files and change that one. '
+    + 'When a fact changes, rewrite it where it stands; delete what is no longer true.',
+  '- Anything tied to a time has its date in the name: a running log one file per month (log/2026-10.md), one day\'s events by the day.',
+  `- When a file grows long, move its older lines into ${ARCHIVE_DIR}/ with move_file (offset and limit); move finished files `
+    + `and folders there whole. ${ARCHIVE_DIR}/ shows below as one line, and grep_files still searches it.`,
+].join('\n');
 /** Commits of Coo's own writes. */
 export const AUTHOR_COO: GitAuthor = { name: 'coo', email: 'coo@persona.local' };
 /** Commits the app makes on its own: the snapshot at start. */
@@ -44,6 +60,7 @@ const WRITES: Record<string, { ok: string; verb: string }> = {
   edit_file: { ok: '[edited] ', verb: 'edited' },
   append_file: { ok: '[appended] ', verb: 'appended to' },
   delete_file: { ok: '[deleted] ', verb: 'deleted' },
+  move_file: { ok: '[moved] ', verb: 'moved' },
   save_blob: { ok: '[saved] ', verb: 'saved' },
 };
 
@@ -131,6 +148,10 @@ export function coopanionPersona(Base: typeof Cormini) {
 ${super.partnerDoc() || `(${PARTNER_FILE} is empty.)`}`;
     }
 
+    protected override memoryNote(): string {
+      return MEMORY_NOTE;
+    }
+
     /**
      * Brings the repository in line with this Persona: `blobs/` ignored and untracked, then whatever is
      * not committed yet committed and tagged `start-<version>` the first time `version` runs; then the partner
@@ -180,7 +201,7 @@ ${super.partnerDoc() || `(${PARTNER_FILE} is empty.)`}`;
           this.git.ensureRepo();
           const out = await base.handler(args, ctx);
           if (typeof out === 'string' && out.startsWith(ok)) {
-            const message = `Coo ${verb} ${String(args.path ?? '')}`.trim();
+            const message = `Coo ${verb} ${String(args.path ?? args.from ?? '')}`.trim();
             const run = () => this.git.commitAllAsync(message, AUTHOR_COO);
             this.commits = this.commits.then(run, run);
             await this.commits;
@@ -242,6 +263,7 @@ ${super.partnerDoc() || `(${PARTNER_FILE} is empty.)`}`;
       return [
         { prefix: 'handoffs/', line: (n) => `handoffs/ (${n} handoff notes; list_files with dir handoffs lists them all)` },
         { prefix: 'blobs/', line: (n) => `blobs/ (${n} binary files; list_files with dir blobs lists them all, read_file shows an image)` },
+        { prefix: `${ARCHIVE_DIR}/`, line: (n) => `${ARCHIVE_DIR}/ (${n} archived files; list_files with dir ${ARCHIVE_DIR} lists them all)` },
       ];
     }
   };

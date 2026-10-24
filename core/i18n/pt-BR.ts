@@ -33,7 +33,7 @@ const ptBR: Translation<CoreText> = {
 
   status: {
     read: 'Lendo', browse: 'Consultando', memory: 'memória', find: 'Procurando', search: 'Pesquisando', write: 'Escrevendo', edit: 'Editando', append: 'Acrescentando a',
-    delete: 'Excluindo', save: 'Salvando', screen: 'Olhando a tela', windows: 'Olhando as janelas abertas', rightClick: 'Clicando com o botão direito', doubleClick: 'Clicando duas vezes', click: 'Clicando',
+    delete: 'Excluindo', moveFile: 'Movendo', save: 'Salvando', screen: 'Olhando a tela', windows: 'Olhando as janelas abertas', rightClick: 'Clicando com o botão direito', doubleClick: 'Clicando duas vezes', click: 'Clicando',
     move: 'Movendo o mouse', drag: 'Arrastando', scroll: 'Rolando', focus: 'Trocando de janela', type: 'Digitando', key: 'Pressionando', wait: 'Esperando',
     alarmSet: 'Definindo um alarme', alarmList: 'Conferindo os alarmes', alarmCancel: 'Cancelando um alarme',
     quoted: (text: string) => `“${text}”`,

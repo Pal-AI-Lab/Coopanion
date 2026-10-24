@@ -33,7 +33,7 @@ const it: Translation<CoreText> = {
 
   status: {
     read: 'Legge', browse: 'Sfoglia', memory: 'memoria', find: 'Trova', search: 'Cerca', write: 'Scrive', edit: 'Modifica', append: 'Aggiunge a',
-    delete: 'Elimina', save: 'Salva', screen: 'Guarda lo schermo', windows: 'Guarda le finestre aperte', rightClick: 'Fa clic destro', doubleClick: 'Fa doppio clic', click: 'Fa clic',
+    delete: 'Elimina', moveFile: 'Sposta', save: 'Salva', screen: 'Guarda lo schermo', windows: 'Guarda le finestre aperte', rightClick: 'Fa clic destro', doubleClick: 'Fa doppio clic', click: 'Fa clic',
     move: 'Muove il mouse', drag: 'Trascina', scroll: 'Scorre', focus: 'Cambia finestra', type: 'Digita', key: 'Preme', wait: 'Aspetta',
     alarmSet: 'Imposta una sveglia', alarmList: 'Controlla le sveglie', alarmCancel: 'Annulla una sveglia',
     quoted: (text: string) => `«${text}»`,
