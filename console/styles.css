@@ -259,10 +259,6 @@
   .data-extra { color: var(--ink-dim); font: 11.5px var(--mono); word-break: break-all; }
 
 
-  .liveband {
-    flex: none; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    padding: 12px 30px; border-bottom: 1px solid var(--line);
-  }
   .chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .chip { font: 11.5px/1 var(--sans); color: var(--ink-soft); background: var(--sheet-2); border: 1px solid var(--line); border-radius: 20px; padding: 5px 11px; white-space: nowrap; }
   .chip b { color: var(--ink); font-weight: 600; }
@@ -1284,16 +1280,11 @@
   .world { padding: 10px 14px; border: 0; border-radius: 15px 4px 15px 15px; }
   .monolog { border: 0; border-radius: 4px 15px 15px 15px; }
   .liveband {
-    width: 100%;
-    max-width: calc(var(--content-width) + var(--page-gutter) + var(--page-gutter));
-    margin-inline: auto;
-    padding: 12px var(--page-gutter) 10px;
-    border-color: var(--border);
-    align-items: stretch;
-    flex-direction: column;
-    gap: 7px;
+    flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 7px;
+    padding: 12px var(--page-gutter) 10px; overflow: hidden; scrollbar-gutter: stable both-edges;
   }
-  .live-summary { display: flex; min-width: 0; align-items: center; gap: 10px; }
+  .liveband > * { width: 100%; max-width: var(--content-width); margin-inline: auto; }
+  .live-summary { display: flex; flex-wrap: wrap; min-width: 0; align-items: center; gap: 6px 10px; }
   .live-summary .grow { flex: 1; }
   .live-summary .chips { gap: 2px 10px; }
   .live-summary .chip,
@@ -1314,19 +1305,13 @@
   .prompt-input-host { width: min(100%, var(--conversation-width)); margin: 18px auto 0; }
   .prompt-input-host textarea:focus-visible { outline: none; }
   .liveview > .prompt-input-host {
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    z-index: 12;
-    width: min(
-      calc(100% - 64px + var(--radius-composer) + var(--radius-composer)),
-      calc(var(--conversation-width) + var(--radius-composer) + var(--radius-composer))
-    );
-    margin: 0;
-    padding: 10px 0 18px;
-    transform: translateX(calc(-50% - 5px));
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 12;
+    width: auto; margin: 0; padding: 10px calc(var(--page-gutter) + 10px) 18px;
+    background: linear-gradient(to top, var(--paper) 55%, transparent);
+    pointer-events: none;
   }
-  .liveview > .prompt-input-host > form { position: relative; background: color-mix(in srgb, var(--surface) 94%, transparent); }
+  .liveview > .prompt-input-host > * { max-width: var(--content-width); margin-inline: auto; pointer-events: auto; }
+  .liveview > .prompt-input-host > form { position: relative; background: var(--surface); }
   .liveview .tlscroll { padding-bottom: 154px; }
 
   /* Provider 页:左侧次级菜单是供应模块清单,右侧是嵌入的控制台页宿主(页头 + 面板槽)。
@@ -1510,7 +1495,6 @@
 .connection-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:16px}.connection-actions .grow{flex:1}
 @media(max-width:760px){.connection-hub{grid-template-columns:1fr}.connection-index{position:static;max-height:320px}.connection-cards{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}}
 
-.live-summary { flex-wrap: wrap; row-gap: 6px; }
 .live-summary > .chips:first-child { flex: 0 1 auto; min-width: 0; }
 .live-summary-right { display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 100%; margin-left: auto; }
 .live-summary-right > .pill, .live-summary-right > .live-cost { flex: none; }
@@ -1554,7 +1538,6 @@
 .featureslot > .featureintro + .sheet { margin-top:0; }
 .providerchrome { padding-bottom:0; }
 .providerchrome + .panelslot { padding-top:24px; }
-.coreview > .pagehead { padding-bottom:16px; }
 .connection-index { padding-top:0; top:100px; }
 .connection-detail > div > div:first-child > .sheet:first-child { padding-top:0; }
 .connection-hub .btn { border:1px solid var(--border-strong); }
