@@ -114,13 +114,15 @@ function watchTalk(bus: WakeBus): () => boolean {
 
 /** The switch for anonymous usage statistics, on the 「习惯」 page and in the advanced settings. */
 const TELEMETRY_KEY = 'companion.telemetry';
+/** Whether the Chat page shows the context ring; set on the 「习惯」 page. */
+const CONTEXT_RING_KEY = 'companion.contextRing';
 /** The `x-options` kind of the app language setting: the eleven languages, each named in itself. */
 const LANGUAGE_OPTIONS = 'coopanion.language';
 
 /**
- * Coopanion's own settings: the app language, the statistics switch and the round caps. A Persona's config
- * group is not asked for per request, so it is titled in the app language, which the settings window
- * follows; `main` retitles the object in place when the language changes.
+ * Coopanion's own settings: the app language, the statistics switch, the context ring and the round
+ * caps. A Persona's config group is not asked for per request, so it is titled in the app language,
+ * which the settings window follows; `main` retitles the object in place when the language changes.
  */
 function companionGroup(language: Language): ConfigGroup {
   const s = coreText(language).settings;
@@ -133,6 +135,7 @@ function companionGroup(language: Language): ConfigGroup {
       properties: {
         language: { type: 'string', title: s.language.title, description: s.language.description, enum: [...LANGUAGES], 'x-options': LANGUAGE_OPTIONS, 'x-hot': true },
         [TELEMETRY_KEY]: { type: 'boolean', title: s.telemetry.title, description: s.telemetry.description },
+        [CONTEXT_RING_KEY]: { type: 'boolean', title: s.contextRing.title, description: s.contextRing.description, 'x-hot': true },
         // Cormini copies `rounds` when the bot is built, so a change applies from the next start
         'rounds.soft': { type: 'integer', title: s.roundsSoft.title, minimum: 1, 'x-suffix': s.roundsSoft.suffix, 'x-hot': false, description: s.roundsSoft.description },
         'rounds.hard': { type: 'integer', title: s.roundsHard.title, minimum: 1, 'x-suffix': s.roundsHard.suffix, 'x-hot': false, description: s.roundsHard.description },
@@ -494,7 +497,7 @@ export async function main(): Promise<void> {
       // e2e harnesses give their persona
       rounds: { soft: 20, hard: 40 },
       context: { ...base.definition.defaults().context, maxTokens: 128_000, keepRatio: 0.25 },
-      companion: { telemetry: true },
+      companion: { telemetry: true, contextRing: false },
     }),
     // Cormini's own build with Coo's Persona class; the workspace is snapshotted before Coo can write to it
     build: (loaded, worlds) => {

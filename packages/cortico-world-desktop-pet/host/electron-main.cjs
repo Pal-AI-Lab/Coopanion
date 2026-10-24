@@ -25,7 +25,7 @@ const { pathToFileURL } = require('node:url');
 const { createCursorSource } = require('./cursor.cjs');
 const { createMouseLease } = require('./mouse-lease.cjs');
 const { createOverlaySource } = require('./overlay.cjs');
-const { createWindowSource, ledgesFrom } = require('./windows.cjs');
+const { createWindowSource, ledgesFrom, windowsFrom } = require('./windows.cjs');
 
 /** The pages' text table of `code`, falling back as web/i18n.js does. */
 async function pageText(code) {
@@ -38,7 +38,7 @@ async function pageText(code) {
 
 /** Milliseconds between the cursor reports the page gets. */
 const CURSOR_EVERY_MS = 100;
-/** Milliseconds between the reads of the other windows' tops, while the page asks for them. */
+/** Milliseconds between the reads of the other windows, while the page asks for them. */
 const WINDOWS_EVERY_MS = 700;
 /** Milliseconds between the checks for a fullscreen window covering the pet's display. */
 const FULLSCREEN_EVERY_MS = 200;
@@ -325,25 +325,27 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   let displayId = null;
   /** The setting, and whether it is what hid the window. */
   let hideWhenFullscreen = false, autoHidden = false;
-  // the other windows' tops, read only while the page asks (its body's pack needs them) and sent when they change
+  // the other windows, read only while the page asks (its body's pack needs them) and sent when they change:
+  // their tops, and the whole windows with their ids, order and foreground flag
   const windows = createWindowSource({ screen });
-  let ledgeTimer = null, sentLedges = '';
-  const readLedges = () => {
+  let windowTimer = null, sentWindows = '';
+  const readWindows = () => {
     if (!win || !win.isVisible()) return;
     const rects = windows.list(hwndOf(win));
     const b = win.getBounds();
     // the page's floor: 2 DIP above the bottom of the work area (web/pet-app.js floorGap)
-    const ledges = rects && ledgesFrom(rects, { x: b.x, y: b.y }, { width: b.width, floor: b.height - 2 - coverArea(display()).below });
-    const json = JSON.stringify(ledges);
-    if (json === sentLedges) return;
-    sentLedges = json;
-    win.webContents.send('pet:windows', ledges);
+    const origin = { x: b.x, y: b.y }, view = { width: b.width, floor: b.height - 2 - coverArea(display()).below };
+    const desk = rects && { ledges: ledgesFrom(rects, origin, view), windows: windowsFrom(rects, origin, view) };
+    const json = JSON.stringify(desk);
+    if (json === sentWindows) return;
+    sentWindows = json;
+    win.webContents.send('pet:windows', desk);
   };
   const watchWindows = (on) => {
-    clearInterval(ledgeTimer);
-    ledgeTimer = null;
-    sentLedges = '';
-    if (on && windows.available) { ledgeTimer = setInterval(readLedges, WINDOWS_EVERY_MS); readLedges(); }
+    clearInterval(windowTimer);
+    windowTimer = null;
+    sentWindows = '';
+    if (on && windows.available) { windowTimer = setInterval(readWindows, WINDOWS_EVERY_MS); readWindows(); }
   };
 
   /** The display the window belongs on: the one it was moved to, or the primary display once that one is gone. */
@@ -404,7 +406,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     win.webContents.on('before-input-event', (event, input) => {
       if ((input.control || input.meta) && (['-', '_', '=', '+', '0'].includes(input.key) || ['NumpadAdd', 'NumpadSubtract', 'Numpad0'].includes(input.code))) event.preventDefault();
     });
-    // a page loaded afresh asks for the windows' tops again once its body is on
+    // a page loaded afresh asks for the windows again once its body is on
     win.webContents.on('did-finish-load', () => { win.webContents.setZoomLevel(0); overlay.pageLoaded(); watchWindows(false); win.webContents.send('pet:floor', coverArea(display()).below); });
     // The page learns where the cursor is even when the click-through window misses its moves, and
     // it renews the mouse lease in its answer to every report: the report goes out on every tick,

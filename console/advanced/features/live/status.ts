@@ -94,6 +94,7 @@ export function createStatusBand(ui: WebUi): StatusBand {
       if (loop.behind) el.appendChild(ui.chip(S.chipBehind(loop.behind), 'warn'));
       // 人格概念(「梦中」这类)由Persona自报文本,框架照画不解释。
       for (const chip of chipsOf(st)) el.appendChild(ui.chip(chip.label, chip.tone));
+      // token 三项:下次提交的上下文估算;main 本次运行累计的输入与缓存命中率
       if (loop.estTokens != null) {
         const next = chipOf(ui, [S.chipNextSend, { b: ui.fmt.count(loop.estTokens) }, ' tok']);
         next.title = S.nextSendTitle;
