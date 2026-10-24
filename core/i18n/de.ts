@@ -7,6 +7,7 @@ const de: Translation<CoreText> = {
   settings: {
     language: { title: 'Sprache', description: 'Die Oberfläche und Coo verwenden diese Sprache. Gilt sofort.' },
     telemetry: { title: 'Anonyme Nutzungsstatistik', description: 'Sendet Nutzungszahlen und Einstellungen, nie Unterhaltungen, um Coopanion zu verbessern. Die Felder stehen in docs/TELEMETRY.md.' },
+    contextRing: { title: 'Kontextring', description: 'Zeigt im Eingabefeld der Chat-Seite einen Ring, wie weit es noch ist, bis das frühere Gespräch aufgeräumt wird.' },
     roundsSoft: { title: 'Abschluss-Erinnerung', suffix: 'Anfragen', description: 'Nach so vielen Modellanfragen in einem Aufwachen wird Coo erinnert, das Laufende abzuschließen und die Runde zu beenden.' },
     roundsHard: { title: 'Anfragen pro Aufwachen', suffix: 'Anfragen', description: 'Höchstzahl der Modellanfragen in einem Aufwachen; ist sie erreicht, endet die Runde.' },
   },
