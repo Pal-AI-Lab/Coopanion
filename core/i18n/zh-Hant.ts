@@ -7,6 +7,7 @@ const zhHant: Translation<CoreText> = {
   settings: {
     language: { title: '語言', description: '介面和 Coo 說話都使用這種語言，修改後立即生效。' },
     telemetry: { title: '匿名使用統計', description: '傳送不含對話內容的使用次數與設定，幫助改進 Coopanion。欄位見 docs/TELEMETRY.md。' },
+    contextRing: { title: '上下文圓環', description: '在對話頁輸入框顯示一個圓環，表示離整理之前的對話還有多遠。' },
     roundsSoft: { title: '收尾提醒', suffix: '次', description: '單次喚醒請求模型達到此次數時，提醒 Coo 完成目前任務後結束本輪。' },
     roundsHard: { title: '單次喚醒上限', suffix: '次', description: '單次喚醒最多請求模型的次數，達到後結束本輪。' },
   },

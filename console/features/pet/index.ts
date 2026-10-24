@@ -1,10 +1,10 @@
 /**
  * 「习惯」: the everyday settings of the desktop pet, in sections: 通用 (language, what Coo calls you, Coo's
  * name, the app's anonymous usage statistics in the `companion` group, core/telemetry.ts), 行为与互动, 显示,
- * 音效, 电脑操作 (features/cua) and 其他 (the OBS overlay). Every row names its setting in the label column, except one that
- * only refines the row above it. In each row the setting comes first and what it means under it. An
- * on/off setting is a switch; picks among several (sound kinds, the popups) are checkboxes. Most are
- * written to the desktop-pet World's config group through `/api/config` (only the keys shown here are sent). The pet's own menu
+ * 音效, 电脑操作 (features/cua) and 其他 (the OBS overlay, the Chat page's context ring). Every row names its
+ * setting in the label column, except one that only refines the row above it. In each row the setting
+ * comes first and what it means under it. An on/off setting is a switch; picks among several (sound
+ * kinds, the popups) are checkboxes. Most are written to the desktop-pet World's config group through `/api/config` (only the keys shown here are sent). The pet's own menu
  * changes some of the same values, so they are read again every few seconds. Dressing up has its own
  * page (features/dress). The hover buttons are picked from the pet menu's own actions, drawn with the
  * pet page's icons. The 「音效」 section writes the World's sound group: the master switch (the same
@@ -39,6 +39,8 @@ const SOUND_GROUP = 'world:desktop-pet:sound';
 const STATS_GROUP = 'companion';
 const STATS_KEY = 'companion.telemetry';
 const STATS_DOC = 'https://github.com/Pal-AI-Lab/Coopanion/blob/main/docs/TELEMETRY.md';
+/** Whether the Chat page shows its context ring (features/chat/context.ts), in the `companion` group; off by default. */
+const RING_KEY = 'companion.contextRing';
 /** The app language: a key of the `companion` group, its choices from the Core. */
 const LANGUAGE_KEY = 'language';
 const LANGUAGE_OPTIONS = '/api/config/options/coopanion.language';
@@ -451,7 +453,7 @@ async function mount(ctx: PageContext): Promise<void> {
   const cua = cuaSection(ctx, row);
   root.append(sounds.el, speechSheet.el, cua.el);
 
-  /* ---------- other: the OBS overlay ---------- */
+  /* ---------- other: the OBS overlay, the context ring ---------- */
   const other = ui.sheet({ title: S.groupOther });
   const otherMsg = ui.msgline('');
   const overlay = ui.checkbox(S.overlay, { onChange: (on) => { overlayUrlBox.hidden = !on || !overlayUrl.value; void save(KEYS.overlay, on, GROUP, otherMsg); } });
@@ -463,7 +465,8 @@ async function mount(ctx: PageContext): Promise<void> {
   overlayUrlBox.hidden = true;
   const overlayBox = ui.h('div', 'companion-switchbox');
   overlayBox.append(overlay.el, overlayUrlBox);
-  other.body.append(row(S.overlayLabel, overlayBox, S.overlayHint), otherMsg);
+  const ring = ui.checkbox(S.ring, { onChange: (on) => void save(RING_KEY, on, STATS_GROUP, otherMsg) });
+  other.body.append(row(S.overlayLabel, overlayBox, S.overlayHint), row(S.ringLabel, ring.el, S.ringHint), otherMsg);
   root.append(other.el);
 
   /* ---------- behaviour ---------- */
@@ -550,6 +553,7 @@ async function mount(ctx: PageContext): Promise<void> {
       cua.sync(d.groups?.find((g) => g.group.id === CUA_GROUP)?.values ?? {});
     } catch { return; }
     if (typeof statsValues[STATS_KEY] === 'boolean') stats.setChecked(statsValues[STATS_KEY] as boolean);
+    ring.setChecked(statsValues[RING_KEY] === true);
     if (typeof statsValues[LANGUAGE_KEY] === 'string' && document.activeElement !== language) {
       // before the choices arrive the select keeps the value as a lone option
       if (![...language.options].some((o) => o.value === statsValues[LANGUAGE_KEY])) language.append(Object.assign(ui.h('option', null, statsValues[LANGUAGE_KEY] as string), { value: statsValues[LANGUAGE_KEY] as string }));

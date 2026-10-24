@@ -106,6 +106,9 @@ const zh = {
   glowOff: '关闭',
   glowPx: (n: number) => `${n} px`,
   glowHint: '桌宠和身后颜色相近时，身体周围的浅色外发光延伸多远；滑到最左为关闭。',
+  ringLabel: '上下文圆环',
+  ring: '在对话页显示',
+  ringHint: '对话页输入框显示一个圆环，表示离整理之前的对话还有多远。',
 };
 
 export const en: typeof zh = {
@@ -204,6 +207,9 @@ export const en: typeof zh = {
   glowOff: 'Off',
   glowPx: (n: number) => `${n} px`,
   glowHint: "How far the light glow around the pet reaches when Coo's colors match the background; all the way left turns it off.",
+  ringLabel: 'Context ring',
+  ring: 'Show on the Chat page',
+  ringHint: "A ring in the Chat page's input box shows how far the conversation is from being tidied up.",
 };
 
 export const S = pick({
