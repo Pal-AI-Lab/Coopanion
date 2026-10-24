@@ -1,0 +1,2 @@
+/* an address fits on one line; on a narrow page the row's controls wrap below its name */
+.pet-voicebody .mountrow .macts input.pet-apifield{width:22em; max-width:100%; min-width:0}

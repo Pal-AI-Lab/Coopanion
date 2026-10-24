@@ -59,6 +59,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "cortico-provider-coo": "workspace:*",
     "fflate": "0.8.3",
     "jpeg-js": "^0.4.4",
     "koffi": "3.3.1",

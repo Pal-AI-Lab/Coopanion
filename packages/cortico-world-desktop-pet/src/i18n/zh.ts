@@ -89,6 +89,19 @@ export default {
     notLoaded: '识别模型没有载入',
   },
 
+  /** OpenAI 兼容的转写接口(引擎 api) */
+  transcription: {
+    noUrl: '还没有填写转写接口的地址',
+    badUrl: (url: string) => `接口地址不是 http 或 https 网址：${url}`,
+    httpRemote: '远程地址只能用 https：http 不加密，API Key 和录音会明文传输。本机和局域网的地址可以用 http。',
+    noModel: '还没有填写转写模型',
+    notRunning: '转写接口没有启动',
+    status: (status: number, message: string) => (message ? `HTTP ${status}：${message}` : `HTTP ${status}`),
+    timeout: (ms: number) => `接口在 ${ms} ms 内没有回应`,
+    network: (why: string) => `连不上接口：${why}`,
+    noText: '接口的回应里没有 text',
+  },
+
   /** 窗口运行时与识别模型的下载 */
   store: {
     noBuild: (platform: string) => `没有 ${platform} 的预编译包`,
@@ -269,8 +282,10 @@ export default {
     speechSpeed: { title: '说话声语速', description: (a: number, b: number, c: number) => `每秒最多念几个音节：low、mid、high 依次为 ${a}、${b}、${c}；custom 用自定义语速。比文字慢时，声音在文字打完后才念完。` },
     speechRate: { title: '自定义语速', suffix: '音节/秒' },
     asrEnabled: { title: '语音输入总开关' },
-    asrEngine: { title: '识别引擎', description: 'funasr 用 FunASR 的 SenseVoiceSmall，支持中文、英文、日文、韩文和粤语，首次要下载约 240 MB 的模型；whisper 用 OpenAI 的 Whisper small，支持法语、德语、西班牙语、葡萄牙语、意大利语、俄语等近百种语言，首次要下载约 360 MB 的模型，一句说完才出字；这两个都在本机识别。system 用 Windows 自带的语音识别，不用下载，准确度低一些（只在 Windows 上有）。留空时按应用语言选：中文、英文、日文、韩文用 funasr，其余用 whisper。' },
-    asrLanguage: { title: '语言', description: 'ISO 639-1 语言代码，或 auto 让模型自己判断；留空时跟随应用语言。FunASR 认 zh、en、ja、ko、yue，Whisper 认 fr、de、es、pt、it、ru 等近百种，不认的代码按 auto。' },
+    asrEngine: { title: '识别引擎', description: 'funasr 用 FunASR 的 SenseVoiceSmall，支持中文、英文、日文、韩文和粤语，首次要下载约 240 MB 的模型；whisper 用 OpenAI 的 Whisper small，支持法语、德语、西班牙语、葡萄牙语、意大利语、俄语等近百种语言，首次要下载约 360 MB 的模型，一句说完才出字；这两个都在本机识别。system 用 Windows 自带的语音识别，不用下载，准确度低一些（只在 Windows 上有）。api 把每句录音发送给 OpenAI 兼容的转写接口识别，一句说完才出字；地址和模型在下面填写，API Key 在「语音输入」页填写。留空时按应用语言选：中文、英文、日文、韩文用 funasr，其余用 whisper。' },
+    asrLanguage: { title: '语言', description: 'ISO 639-1 语言代码，或 auto 让模型自己判断；留空时跟随应用语言。FunASR 认 zh、en、ja、ko、yue，Whisper 认 fr、de、es、pt、it、ru 等近百种，不认的代码按 auto。转写接口只在代码是两个字母时带上语言。' },
+    asrApiUrl: { title: '转写接口地址', description: '引擎为 api 时，每句录音发送到这个地址后面的 /audio/transcriptions，例如 https://api.example.com/v1。远程地址只能用 https，本机和局域网的地址可以用 http。' },
+    asrApiModel: { title: '转写模型', description: '引擎为 api 时请求里的模型名。' },
     asrThreads: { title: 'CPU 线程', description: 'FunASR 和 Whisper 一次识别用几个线程，0 = 2。' },
     asrSimplified: { title: '转成简体', description: '应用语言是简体中文时把识别出的繁体字转成简体。' },
     thresholdDb: { title: '说话门槛' },
@@ -313,6 +328,14 @@ export default {
     systemHint: '不用下载，准确度一般；想要更准换成 FunASR 或 Whisper',
     funasrHint: 'SenseVoiceSmall，在本机识别，支持中文、英文、日文、韩文和粤语',
     whisperHint: 'Whisper small，在本机识别，支持法语、德语、西班牙语、葡萄牙语、意大利语、俄语等；一句说完才出字',
+    api: '转写接口（OpenAI 兼容）',
+    apiName: '转写接口',
+    apiHint: '每句录音发送给下面填写的接口识别，一句说完才出字',
+    apiUrl: '接口地址',
+    apiModel: '模型',
+    apiKey: 'API Key',
+    keySaved: '已保存',
+    keyMissing: '未填写',
     server: '识别服务',
     start: '启动',
     stop: '停止',

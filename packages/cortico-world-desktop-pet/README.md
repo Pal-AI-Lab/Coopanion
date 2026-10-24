@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts, src/cua/cua.ts, src/world.ts, src/asr/system-recognizer.ts -->
+<!-- Owner: src/definition.ts, src/cua/cua.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts -->
 
 <p align="center">
   <picture>
@@ -155,7 +155,7 @@ overlay 页按画出的时刻显示各帧，帧与帧隔开的时间和桌宠页
 
 桌宠窗口里的页面用麦克风收音,16 kHz 单声道 PCM 经 WebSocket 送到 World,按能量门限切句
 (`src/asr/segmenter.ts`),交给识别引擎,挡掉已知幻觉后作为 `desktop-pet.speech` 投递;应用语言是简体中文且 `asr.simplified` 开着时先把繁体转成简体。
-说话时桌宠歪头倾听,虚线气泡里边说边显示听到的字,还没定下来的部分是灰色的;用 Whisper 时一句说完才出字。识别完成后这个气泡留在 Coo 旁边(见「桌宠窗口」)。
+说话时桌宠歪头倾听,虚线气泡里边说边显示听到的字,还没定下来的部分是灰色的;用 Whisper 和转写接口时一句说完才出字。识别完成后这个气泡留在 Coo 旁边(见「桌宠窗口」)。
 按键收音(`hold`、`toggle`)时气泡里有「取消」按钮:桌宠页发 `cancel`,World 丢掉这次收音手上的音频、转写队列和已识别的文字,在途的转写落地后也丢掉,发 `listen` 的 `none`,不投递事件;`toggle` 下同时关掉收音。
 
 识别引擎存在 `asr.engine`:
@@ -166,6 +166,7 @@ overlay 页按画出的时刻显示各帧，帧与帧隔开的时间和桌宠页
 | `funasr` | FunASR 的 SenseVoiceSmall(int8),经 sherpa-onnx 的 Node 插件在 World 进程里识别 |
 | `whisper` | OpenAI 的 Whisper small(int8),同样经 sherpa-onnx 在 World 进程里识别 |
 | `system` | Windows 自带的语音识别(SAPI 听写,System.Speech),不用下载,准确度低一些;其他系统上按空处理 |
+| `api` | OpenAI 兼容的转写接口,`asr.api` 里填地址和模型(`src/asr/transcription-api.ts`) |
 
 旧版本写下的 `auto` 按空处理。
 
@@ -195,6 +196,16 @@ Whisper 对静音和底噪也会写出字(字幕署名、`[Musik]` 这类声音�
 进程约每 0.4 秒回报一次这句到目前为止的文字(`listen` 的 `partial` 带上 `interim`),一句收尾后几十毫秒内定稿,不必再整句识别一遍。
 按 `asr.language`(空着时取应用语言的语种)挑系统里装着的识别器,同一语种有几个时优先应用语言的地区(繁体中文 zh-TW,拉美西语 es-MX 等),再看 Windows 显示语言。中文 Windows 自带 zh-CN 识别器;
 没有时面板写明去 Windows 设置 → 时间和语言 → 语言里装「语音识别」。
+
+`api` 一句收尾后整句发出:16 kHz、单声道、16 位的 WAV,经 Core 的全局 `fetch`(系统代理照常生效)
+`POST {asr.api.baseUrl}/audio/transcriptions`,multipart 字段 `file`、`model`(`asr.api.model`)、`response_format=json`,
+识别语言是两个字母的代码时再带 `language`(`auto` 和 `yue` 不带);回应里的 `text` 就是这一句。
+API Key 不进 config:「语音输入」面板经 `storeSecret` 存进部署 `.env` 的 `DESKTOP_PET_ASR_API_KEY`(`DESKTOP_PET_SECRETS.asrApiKey`),
+每次请求按 `secret()` 现读,没存时不带 `Authorization`;面板只看得到存没存。
+远程地址只收 https,本机和局域网可以用 http,规则与模型服务的相同(provider-coo 的 `plainRemote`)。
+地址不能用、没填模型、请求失败(HTTP 状态和回应里的 `error.message`,不是这个格式时取回应正文的开头;`asr.timeoutMs` 内没回应;连不上)时,
+引擎停在出错,原因显示在面板的「识别服务」一行和桌宠的麦克风按钮上,失败的那句在识别结果里划掉;
+之后不再发请求,直到点「启动」、改了地址或模型,或在面板里存了新的 API Key。
 
 下载都先写 `.partial`,完整后才改名到位。
 

@@ -108,6 +108,9 @@ importers:
 
   packages/cortico-world-desktop-pet:
     dependencies:
+      cortico-provider-coo:
+        specifier: workspace:*
+        version: link:../cortico-provider-coo
       fflate:
         specifier: 0.8.3
         version: 0.8.3

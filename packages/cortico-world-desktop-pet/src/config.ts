@@ -132,9 +132,13 @@ export function directSettings(cfg: { selfAdjust: unknown; selfAdjustCustom?: Pa
 export type MicMode = 'hold' | 'toggle' | 'always';
 /**
  * funasr: FunASR's SenseVoiceSmall; whisper: OpenAI's Whisper small (both in this process, one model
- * download each, every platform); system: the recognizer Windows ships (nothing to download, less accurate).
+ * download each, every platform); system: the recognizer Windows ships (nothing to download, less accurate);
+ * api: an OpenAI-compatible transcription service at `asr.api` (src/asr/transcription-api.ts).
  */
-export type AsrEngine = 'funasr' | 'whisper' | 'system';
+export type AsrEngine = 'funasr' | 'whisper' | 'system' | 'api';
+
+/** The deployment secrets this World reads, by what they are for. */
+export const DESKTOP_PET_SECRETS = { asrApiKey: 'DESKTOP_PET_ASR_API_KEY' } as const;
 
 /** Languages SenseVoiceSmall hears, by the app language that speaks them; it also takes `yue` and `auto`. */
 export const SENSEVOICE_LANGUAGES: Readonly<Record<string, string>> = { zh: 'zh', 'zh-Hant': 'zh', en: 'en', ja: 'ja', ko: 'ko' };
@@ -146,7 +150,7 @@ export const SENSEVOICE_LANGUAGES: Readonly<Record<string, string>> = { zh: 'zh'
  */
 export function asrEngineFor(setting: string, language: string, systemSupported: boolean): AsrEngine {
   const byLanguage: AsrEngine = language in SENSEVOICE_LANGUAGES ? 'funasr' : 'whisper';
-  if (setting === 'funasr' || setting === 'whisper') return setting;
+  if (setting === 'funasr' || setting === 'whisper' || setting === 'api') return setting;
   return setting === 'system' && systemSupported ? 'system' : byLanguage;
 }
 
@@ -227,7 +231,10 @@ export interface DesktopPetConfigSection extends WorldSection {
     threads: number;
     /** Traditional characters heard become Simplified, while the app language is `zh`. */
     simplified: boolean;
+    /** How long Windows' recognizer and the transcription service get for one sentence. */
     timeoutMs: number;
+    /** Engine `api`: requests go to `baseUrl` + `/audio/transcriptions`; the API Key is the secret `DESKTOP_PET_SECRETS.asrApiKey`. */
+    api: { baseUrl: string; model: string };
     segment: SegmentConfig;
     mic: {
       mode: MicMode;
@@ -282,6 +289,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
     threads: 0,
     simplified: true,
     timeoutMs: 20_000,
+    api: { baseUrl: '', model: '' },
     segment: { thresholdDb: -42, minSpeechMs: 180, dispatchSilenceMs: 250, silenceMs: 600, maxUtteranceMs: 15_000, preRollMs: 320, minUtteranceMs: 350 },
     mic: { mode: 'hold', hotkey: DEFAULT_HOTKEY, deviceId: '', openOnPress: false },
   },
@@ -357,7 +365,9 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
       title: c.asrGroup,
       properties: {
         [`${K}.asr.enabled`]: { type: 'boolean', title: c.asrEnabled.title, 'x-hot': true },
-        [`${K}.asr.engine`]: { type: 'string', title: c.asrEngine.title, enum: ['', 'funasr', 'whisper', 'system'], description: c.asrEngine.description, 'x-hot': true },
+        [`${K}.asr.engine`]: { type: 'string', title: c.asrEngine.title, enum: ['', 'funasr', 'whisper', 'system', 'api'], description: c.asrEngine.description, 'x-hot': true },
+        [`${K}.asr.api.baseUrl`]: { type: 'string', title: c.asrApiUrl.title, description: c.asrApiUrl.description, 'x-hot': true },
+        [`${K}.asr.api.model`]: { type: 'string', title: c.asrApiModel.title, description: c.asrApiModel.description, 'x-hot': true },
         [`${K}.asr.language`]: { type: 'string', title: c.asrLanguage.title, description: c.asrLanguage.description, 'x-hot': true },
         [`${K}.asr.threads`]: { type: 'integer', title: c.asrThreads.title, minimum: 0, maximum: 16, description: c.asrThreads.description, 'x-hot': true },
         [`${K}.asr.simplified`]: { type: 'boolean', title: c.asrSimplified.title, description: c.asrSimplified.description, 'x-hot': true },

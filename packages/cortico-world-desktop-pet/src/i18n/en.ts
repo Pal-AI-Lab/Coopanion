@@ -92,6 +92,19 @@ const en: PetText = {
     notLoaded: 'The speech model is not loaded',
   },
 
+  /** The OpenAI-compatible transcription service (engine api) */
+  transcription: {
+    noUrl: 'The transcription service address is not set',
+    badUrl: (url: string) => `The address is not an http or https URL: ${url}`,
+    httpRemote: 'A remote address must use https: http is not encrypted, so the API Key and the recordings would travel in plain text. Addresses on this computer or the local network may use http.',
+    noModel: 'The transcription model is not set',
+    notRunning: 'The transcription service is not started',
+    status: (status: number, message: string) => (message ? `HTTP ${status}: ${message}` : `HTTP ${status}`),
+    timeout: (ms: number) => `The service did not answer within ${ms} ms`,
+    network: (why: string) => `Cannot reach the service: ${why}`,
+    noText: 'The service answered without text',
+  },
+
   /** Downloading the window runtime and the speech model. */
   store: {
     noBuild: (platform: string) => `No prebuilt package for ${platform}`,
@@ -272,8 +285,10 @@ const en: PetText = {
     speechSpeed: { title: 'Speech speed', description: (a: number, b: number, c: number) => `Most syllables a second: low, mid and high are ${a}, ${b} and ${c}; custom uses the custom speed. Slower than the text, the voice ends after the text has finished.` },
     speechRate: { title: 'Custom speed', suffix: 'syllables/s' },
     asrEnabled: { title: 'Voice input' },
-    asrEngine: { title: 'Recognition engine', description: "funasr runs FunASR's SenseVoiceSmall, for Chinese, English, Japanese, Korean and Cantonese, after a one-time download of about 240 MB; whisper runs OpenAI's Whisper small, for French, German, Spanish, Portuguese, Italian, Russian and about 90 more languages, after a one-time download of about 360 MB, and shows the text once a sentence ends; both recognize on this computer. system uses Windows' own speech recognition, with nothing to download and lower accuracy (Windows only). Empty picks by the app language: funasr for Chinese, English, Japanese and Korean, whisper for the rest." },
-    asrLanguage: { title: 'Language', description: 'An ISO 639-1 code, or auto to let the model tell; empty follows the app language. FunASR takes zh, en, ja, ko and yue, Whisper about a hundred codes such as fr, de, es, pt, it and ru; a code the model does not take reads as auto.' },
+    asrEngine: { title: 'Recognition engine', description: "funasr runs FunASR's SenseVoiceSmall, for Chinese, English, Japanese, Korean and Cantonese, after a one-time download of about 240 MB; whisper runs OpenAI's Whisper small, for French, German, Spanish, Portuguese, Italian, Russian and about 90 more languages, after a one-time download of about 360 MB, and shows the text once a sentence ends; both recognize on this computer. system uses Windows' own speech recognition, with nothing to download and lower accuracy (Windows only). api sends the recording of each sentence to an OpenAI-compatible transcription service and shows the text once the sentence ends; its address and model are set below, its API Key on the Voice input page. Empty picks by the app language: funasr for Chinese, English, Japanese and Korean, whisper for the rest." },
+    asrLanguage: { title: 'Language', description: 'An ISO 639-1 code, or auto to let the model tell; empty follows the app language. FunASR takes zh, en, ja, ko and yue, Whisper about a hundred codes such as fr, de, es, pt, it and ru; a code the model does not take reads as auto. The transcription service is sent the code only when it has two letters.' },
+    asrApiUrl: { title: 'Transcription service address', description: 'With engine api, each sentence is sent to /audio/transcriptions under this address, such as https://api.example.com/v1. A remote address must use https; addresses on this computer or the local network may use http.' },
+    asrApiModel: { title: 'Transcription model', description: 'The model named in requests with engine api.' },
     asrThreads: { title: 'CPU threads', description: 'Threads FunASR and Whisper use for one recognition; 0 = 2.' },
     asrSimplified: { title: 'Convert to Simplified', description: 'Turns Traditional characters in what was heard into Simplified while the app language is Simplified Chinese.' },
     thresholdDb: { title: 'Speech threshold' },
@@ -316,6 +331,14 @@ const en: PetText = {
     systemHint: 'Nothing to download, fair accuracy; switch to FunASR or Whisper for better results',
     funasrHint: 'SenseVoiceSmall on this computer, for Chinese, English, Japanese, Korean and Cantonese',
     whisperHint: 'Whisper small on this computer, for French, German, Spanish, Portuguese, Italian, Russian and more; the text appears once a sentence ends',
+    api: 'Transcription service (OpenAI-compatible)',
+    apiName: 'Transcription service',
+    apiHint: 'Each sentence is sent to the service set below; the text appears once a sentence ends',
+    apiUrl: 'Address',
+    apiModel: 'Model',
+    apiKey: 'API Key',
+    keySaved: 'Saved',
+    keyMissing: 'Not set',
     server: 'Recognition service',
     start: 'Start',
     stop: 'Stop',

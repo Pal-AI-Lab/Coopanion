@@ -1,12 +1,14 @@
 /**
  * Console panels for the desktop pet: `pet` (window, dressing, window runtime) and `voice`
- * (recognition engine, the FunASR or Whisper model download, microphone level, recognized lines). Data goes
+ * (recognition engine, the FunASR or Whisper model download or the transcription service's settings (api-rows.ts),
+ * microphone level, recognized lines). Data goes
  * through `ctx.invoke`, the level meter through `ctx.stream('voice')`. Text is the World's table
  * (src/i18n) for the console's language.
  */
 import type { WebUiClientBundle, WebUiPanel, WebUiPanelContext } from 'cortico/web/shared/client-panel.ts';
 import { petText } from '../i18n/index.ts';
 import { captureKey, PRESSES, splitTaps, withTaps } from './key-capture.ts';
+import { apiRows, type ApiState } from './api-rows.ts';
 import './style.css';
 
 interface Artifact { phase: 'absent' | 'working' | 'ready' | 'error'; path: string; done: number; total: number | null; detail: string | null }
@@ -26,7 +28,8 @@ interface VoiceState {
   systemSupported: boolean;
   server: { phase: string; url: string; pid: number | null; detail: string | null } | null;
   /** The download of the FunASR or Whisper model: the engine in force's, else the app language's. */
-  model: Artifact & { bytes: number; engine: Exclude<Engine, 'system'> };
+  model: Artifact & { bytes: number; engine: Exclude<Engine, 'system' | 'api'> };
+  api: ApiState;
   mic: { state: string; detail: string | null };
   input: {
     mode: MicMode;
@@ -47,7 +50,7 @@ interface VoiceState {
 }
 
 type MicMode = 'hold' | 'toggle' | 'always';
-type Engine = 'funasr' | 'whisper' | 'system';
+type Engine = 'funasr' | 'whisper' | 'system' | 'api';
 
 const MB = (n: number) => `${Math.round(n / 1048576)} MB`;
 const progress = (a: Artifact) => (a.total ? `${Math.round((a.done / a.total) * 100)}%` : MB(a.done));
@@ -178,6 +181,7 @@ const voicePanel: WebUiPanel = {
     const rt = statusRow(ctx, t.model);
     const btnInstall = ui.button(t.download, { size: 'sm', variant: 'primary' });
     rt.acts.append(btnInstall);
+    const api = apiRows(ctx, t, (name) => statusRow(ctx, name), (patch) => void call('setApi', [patch])());
 
     const micRow = statusRow(ctx, t.mic);
     const deviceSel = ui.select();
@@ -211,7 +215,7 @@ const voicePanel: WebUiPanel = {
     meterRow.append(meterDot, ui.h('span', 'mname', t.level), meter);
 
     const log = ui.log({ max: 100, empty: t.noResults });
-    settings.append(eng.row, srv.row, rt.row, micRow.row, keyRow.row, modeRow.row, onPressRow.row, meterRow, ui.section(t.results, t.resultsHint), log.el);
+    settings.append(eng.row, srv.row, rt.row, ...api.rows, micRow.row, keyRow.row, modeRow.row, onPressRow.row, meterRow, ui.section(t.results, t.resultsHint), log.el);
     s.append(master, msg, settings);
 
     let st: VoiceState | null = null;
@@ -226,12 +230,13 @@ const voicePanel: WebUiPanel = {
       const engines: Partial<Record<Engine, string>> = { funasr: t.funasr, whisper: t.whisper };
       // Windows' own recognizer exists only there
       if (next.systemSupported) engines.system = t.system;
+      engines.api = t.api;
       if (engineSel.dataset.list !== JSON.stringify(engines)) {
         engineSel.dataset.list = JSON.stringify(engines);
         engineSel.replaceChildren(...(Object.keys(engines) as Engine[]).map((k) => { const o = ui.h('option', null, engines[k] ?? k); o.value = k; return o; }));
       }
       if (document.activeElement !== engineSel) engineSel.value = next.engine;
-      eng.set(ENGINE_NAMES[next.engine] ?? t.system, 'on', next.engine === 'system' ? t.systemHint : next.engine === 'whisper' ? t.whisperHint : t.funasrHint);
+      eng.set(ENGINE_NAMES[next.engine] ?? (next.engine === 'api' ? t.apiName : t.system), 'on', { funasr: t.funasrHint, whisper: t.whisperHint, system: t.systemHint, api: t.apiHint }[next.engine]);
       const sv = next.server;
       if (!sv) srv.set('—', 'off');
       else if (sv.phase === 'running') srv.set(t.ready, 'on', sv.url);
@@ -249,8 +254,9 @@ const voicePanel: WebUiPanel = {
       btnInstall.disabled = m.phase === 'working';
       btnInstall.hidden = m.phase === 'ready';
       btnInstall.textContent = m.phase === 'error' ? t.retry : t.download;
-      // the system recognizer has no model
-      rt.row.style.display = next.engine === 'system' ? 'none' : '';
+      // the system recognizer and the transcription service have no model to download
+      rt.row.style.display = next.engine === 'system' || next.engine === 'api' ? 'none' : '';
+      api.render(next.api, next.engine === 'api');
 
       const mic = next.mic;
       micRow.set(t.micStates[mic.state] ?? mic.state, mic.state === 'on' ? 'on' : mic.state === 'off' ? 'off' : 'bad', mic.detail ?? '');

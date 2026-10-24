@@ -3,7 +3,8 @@
  *
  * Output goes through four tools that drive the pet page (bubble, options, going somewhere,
  * expressions and motions). Input arrives as events: speech heard through the pet window's
- * microphone (transcribed in this process by FunASR's SenseVoice or by Whisper, or by Windows' own recognizer), typed text, answers to `pet_ask`, and touches
+ * microphone (transcribed in this process by FunASR's SenseVoice or by Whisper, by Windows' own recognizer, or by an
+ * OpenAI-compatible transcription service), typed text, answers to `pet_ask`, and touches
  * (poke, petting, being thrown). The page reports what actually happened; receipts and
  * events state only that.
  *
@@ -41,6 +42,7 @@ import { WindowHost, resolveHostCommand } from './window-host.ts';
 import { RuntimeStore, type ModelSpec } from './runtime/store.ts';
 import { SENSEVOICE, SherpaAsr, WHISPER, type SherpaModelKind, type SherpaModule, type SherpaState } from './asr/sherpa.ts';
 import { SystemRecognizer, systemRecognizerSupported, type SystemRecognizerState, type SystemSentence } from './asr/system-recognizer.ts';
+import { TranscriptionApi, type TranscriptionState } from './asr/transcription-api.ts';
 import { Packer, Segmenter, rmsDb, type SegmentConfig, type SegmentSink, type Utterance } from './asr/segmenter.ts';
 import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, watchHotkey, type KeyWatcher } from './asr/hotkey.ts';
 import { joinSpeech, looksHallucinated } from './asr/result.ts';
@@ -212,6 +214,9 @@ export interface DesktopPetWorldOptions {
   /** The speech models to download; tests pass small ones. */
   funasrModel?: ModelSpec;
   whisperModel?: ModelSpec;
+  /** The transcription service's API Key, read at each request, and where the voice panel saves a new one; absent, there is none. */
+  asrApiKey?: () => string;
+  storeAsrApiKey?: (key: string) => void;
   /** The bot's name for the menu header, the chat page and computer use's question; read at each use. */
   botName?: () => string;
   /** PNG shown as the avatar in the menu header, when it exists. */
@@ -243,7 +248,8 @@ export interface DesktopPetWorldOptions {
   onCuaAnswer?: (answer: Answer) => void;
 }
 
-type SherpaEngine = Exclude<AsrEngine, 'system'>;
+type SherpaEngine = Exclude<AsrEngine, 'system' | 'api'>;
+type BackendState = SherpaState | SystemRecognizerState | TranscriptionState;
 
 interface PendingWalk {
   resolve: (text: string) => void;
@@ -324,6 +330,7 @@ export class DesktopPetWorld implements World {
   private funasr: SherpaAsr | null = null;
   private whisper: SherpaAsr | null = null;
   private system: SystemRecognizer | null = null;
+  private api: TranscriptionApi | null = null;
   /** The engine the running backend belongs to; a config change starts the other one. */
   private runningEngine: AsrEngine | null = null;
   private voiceGeneration = 0;
@@ -632,6 +639,14 @@ export class DesktopPetWorld implements World {
       log: host.log,
       spawnImpl: this.opts.spawnSystemRecognizer,
     });
+    this.api = new TranscriptionApi({
+      config: () => this.cfg.asr.api,
+      key: () => this.opts.asrApiKey?.() ?? '',
+      language: () => this.asrLanguage(),
+      timeoutMs: () => this.cfg.asr.timeoutMs,
+      text: () => this.ui,
+      log: host.log,
+    });
     this.cuaSeen = this.cfg.cua.enabled;
     if (this.cfg.asr.enabled) void this.startVoiceBackend();
     await this.syncHotkey();
@@ -675,6 +690,7 @@ export class DesktopPetWorld implements World {
     await this.funasr?.stop();
     await this.whisper?.stop();
     await this.system?.stop();
+    await this.api?.stop();
     await this.server.stop();
     await this.cua.stop();
     this.host = null;
@@ -921,8 +937,10 @@ export class DesktopPetWorld implements World {
     else if (turnedOn || (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== this.engine())) void this.startVoiceBackend();
     // the system recognizer serves one language; a new one needs a new helper
     else if (this.cfg.asr.enabled && this.runningEngine === 'system' && this.system?.languageChanged) void this.startVoiceBackend();
+    // the transcription service starts again for a new address or model, a failed one included; `setApi` starts it for a new API Key
+    else if (this.cfg.asr.enabled && this.runningEngine === 'api' && this.api?.configChanged) void this.startVoiceBackend();
     // FunASR and Whisper load the model for one language and thread count
-    else if (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== 'system' && this.sherpa(this.runningEngine)?.configChanged) void this.startVoiceBackend();
+    else if (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== 'system' && this.runningEngine !== 'api' && this.sherpa(this.runningEngine)?.configChanged) void this.startVoiceBackend();
     // computer use switched off ends the engine process; the next call after it is switched on starts another
     if (this.cuaSeen && !this.cfg.cua.enabled) void this.cua.switchedOff();
     this.cuaSeen = this.cfg.cua.enabled;
@@ -1324,15 +1342,15 @@ export class DesktopPetWorld implements World {
   /** The sherpa-onnx engine whose model voice input downloads: the one in force, else the app language's. */
   private modelEngine(): SherpaEngine {
     const engine = this.engine();
-    return engine === 'system' ? asrEngineFor('', this.appLanguage, false) as SherpaEngine : engine;
+    return engine === 'system' || engine === 'api' ? asrEngineFor('', this.appLanguage, false) as SherpaEngine : engine;
   }
 
   private sherpa(engine: SherpaEngine): SherpaAsr | null {
     return engine === 'whisper' ? this.whisper : this.funasr;
   }
 
-  private recognizer(engine = this.engine()): SherpaAsr | SystemRecognizer | null {
-    return engine === 'system' ? this.system : this.sherpa(engine);
+  private recognizer(engine = this.engine()): SherpaAsr | SystemRecognizer | TranscriptionApi | null {
+    return engine === 'system' ? this.system : engine === 'api' ? this.api : this.sherpa(engine);
   }
 
   /** The recognition language: the set one, else the app language's ISO 639-1 code; FunASR and Whisper read a code they do not take as `auto`. */
@@ -1340,12 +1358,12 @@ export class DesktopPetWorld implements World {
     return this.cfg.asr.language || this.appLanguage.split('-')[0]!;
   }
 
-  private backendState(): SherpaState | SystemRecognizerState | null {
+  private backendState(): BackendState | null {
     return this.recognizer()?.state() ?? null;
   }
 
   /** Starts the engine in force and stops the one that ran before. */
-  async startVoiceBackend(): Promise<SherpaState | SystemRecognizerState | null> {
+  async startVoiceBackend(): Promise<BackendState | null> {
     const generation = this.voiceGeneration;
     await this.voiceStopping;
     if (generation !== this.voiceGeneration || !this.cfg.asr.enabled) return this.backendState();
@@ -1990,8 +2008,19 @@ export class DesktopPetWorld implements World {
         case 'stop': await this.stopVoiceBackend(); return this.voiceState();
         case 'setEngine': {
           const engine = args[0];
-          if (engine === 'funasr' || engine === 'whisper' || engine === 'system') this.opts.persist({ asr: { engine } });
+          if (engine === 'funasr' || engine === 'whisper' || engine === 'system' || engine === 'api') this.opts.persist({ asr: { engine } });
           if (this.cfg.asr.enabled) await this.startVoiceBackend();
+          return this.voiceState();
+        }
+        // the transcription service: address and model go to the config, the API Key to the deployment's secrets
+        case 'setApi': {
+          const raw = args[0] && typeof args[0] === 'object' ? args[0] as Record<string, unknown> : {};
+          const api: { baseUrl?: string; model?: string } = {};
+          if (typeof raw.baseUrl === 'string') api.baseUrl = raw.baseUrl.trim();
+          if (typeof raw.model === 'string') api.model = raw.model.trim();
+          if (Object.keys(api).length) this.opts.persist({ asr: { api } });
+          if (typeof raw.key === 'string' && raw.key.trim()) this.opts.storeAsrApiKey?.(raw.key.trim());
+          if (this.cfg.asr.enabled && this.engine() === 'api') await this.startVoiceBackend();
           return this.voiceState();
         }
         case 'setEnabled': this.savePrefs({ mic: args[0] === true }); return this.voiceState();
@@ -2055,6 +2084,8 @@ export class DesktopPetWorld implements World {
       systemSupported: systemRecognizerSupported(),
       server: this.backendState(),
       model: { ...model.state(), bytes: model.bytes, engine: modelEngine },
+      /** The transcription service's settings; of the API Key only whether one is saved. */
+      api: { ...this.cfg.asr.api, keySaved: (this.opts.asrApiKey?.() ?? '') !== '' },
       mic: this.micState,
       input: {
         ...this.cfg.asr.mic,

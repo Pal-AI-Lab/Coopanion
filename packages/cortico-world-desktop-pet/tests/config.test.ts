@@ -14,6 +14,7 @@ describe('asrEngineFor', () => {
     expect(asrEngineFor('system', 'fr', true)).toBe('system');
     expect(asrEngineFor('system', 'fr', false)).toBe('whisper');
     expect(asrEngineFor('system', 'ja', false)).toBe('funasr');
+    expect(asrEngineFor('api', 'fr', false)).toBe('api');
   });
 
   it('reads a value this version does not take as unset', () => {
