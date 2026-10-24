@@ -1,25 +1,28 @@
 /**
- * The tops of the other windows on the desktop, for a figure pack whose manifest `needs` `windows`.
+ * The other windows on the desktop, for a figure pack whose manifest `needs` `windows`.
  *
  * `createWindowSource({ screen }).list(own)` lists the visible top-level windows front first, as
- * `{ x, y, w, h }` in Electron's screen DIPs, leaving out `own` (the pet window's native handle) and
- * what is not an ordinary window on the current desktop. Only their geometry leaves this file: no
- * title, class or program name. `ledgesFrom(rects, origin, view)` turns the list into the parts of each
- * top edge no window in front of it hides, as `{ x0, x1, y }` in the pet window's page pixels.
+ * `{ id, x, y, w, h, active }` in Electron's screen DIPs, leaving out `own` (the pet window's native handle)
+ * and what is not an ordinary window on the current desktop. `id` is the window's native number as a string
+ * (HWND, CGWindowID, X11 window id); `active` marks the foreground window and is absent on macOS. Only that
+ * leaves this file: no title, class or program name. `ledgesFrom(rects, origin, view)` turns the list into the
+ * parts of each top edge no window in front of it hides, as `{ x0, x1, y }` in the pet window's page pixels;
+ * `windowsFrom(rects, origin, view)` gives the whole windows on the page, as `{ id, x0, y0, x1, y1, active }`.
  *
  * Each platform reads what the computer-use engine reads (src/cua/engine), here in the window process:
  * - Windows: the z-order from GetTopWindow/GetWindow and the frame DWM draws, in physical pixels, each
  *   display at its own scale (`toDip` picks the display a corner is on); minimized, cloaked (another
- *   virtual desktop), tool and click-through windows and the shell's own are left out.
+ *   virtual desktop), tool and click-through windows and the shell's own are left out. The foreground
+ *   window is GetForegroundWindow's.
  * - macOS: CGWindowListCopyWindowInfo, front to back, layer 0 only (ordinary app windows; the pet
- *   window floats above it), reading `kCGWindowLayer` and `kCGWindowBounds` and never the window's
- *   name, which is what the Screen Recording permission guards. Bounds are points of the global
- *   display space, which is what Electron's DIPs are on macOS, so they need no conversion.
+ *   window floats above it), reading `kCGWindowLayer`, `kCGWindowNumber` and `kCGWindowBounds` and
+ *   never the window's name, which is what the Screen Recording permission guards. Bounds are points of
+ *   the global display space, which is what Electron's DIPs are on macOS, so they need no conversion.
  * - Linux: the window manager's `_NET_CLIENT_LIST_STACKING` over X11, in physical pixels of the whole
  *   X screen (one scale for all displays), with the frame the manager draws (`_NET_FRAME_EXTENTS`) put
  *   back and a client-side frame's shadow (`_GTK_FRAME_EXTENTS`) taken off; hidden windows, windows on
- *   another workspace, docks and the desktop are left out. Under Wayland the app runs through XWayland
- *   and sees only the X11 programs' windows.
+ *   another workspace, docks and the desktop are left out; the foreground window is `_NET_ACTIVE_WINDOW`.
+ *   Under Wayland the app runs through XWayland and sees only the X11 programs' windows.
  * Elsewhere, or where the native calls do not load, `list` answers null and nothing is read. koffi
  * loads on the first `list`, so the window process reads nothing until a pack asks.
  */
@@ -29,6 +32,8 @@ const { toDip } = require('./cursor.cjs');
 const WINDOWS_MAX = 512;
 /** Most tops one read reports. */
 const LEDGES_MAX = 64;
+/** Most whole windows one read reports, the frontmost kept. */
+const RECTS_MAX = 64;
 
 /** Windows: `(own) => rects` in DIPs. */
 function openWin32(koffi, screen) {
@@ -45,12 +50,14 @@ function openWin32(koffi, screen) {
   const GetWindowLongW = user32.func('int32_t __stdcall GetWindowLongW(intptr_t hwnd, int index)');
   const GetClassNameW = user32.func('int __stdcall GetClassNameW(intptr_t hwnd, void *buf, int max)');
   const GetWindowRect = user32.func('int __stdcall GetWindowRect(intptr_t hwnd, void *rect)');
+  const GetForegroundWindow = user32.func('intptr_t __stdcall GetForegroundWindow()');
   const DwmGetWindowAttribute = dwmapi.func('int32_t __stdcall DwmGetWindowAttribute(intptr_t hwnd, uint32_t attr, void *value, uint32_t size)');
   return (own) => {
     const displays = screen.getAllDisplays();
     const rect = Buffer.alloc(16), flag = Buffer.alloc(4), name = Buffer.alloc(128);
     const out = [];
     try {
+      const fg = GetForegroundWindow();
       let h = GetTopWindow(0);
       for (let i = 0; h && i < WINDOWS_MAX; i++, h = GetWindow(h, GW_HWNDNEXT)) {
         if (BigInt(h) === own || !IsWindowVisible(h) || IsIconic(h)) continue;
@@ -61,7 +68,7 @@ function openWin32(koffi, screen) {
         if (DwmGetWindowAttribute(h, DWMWA_EXTENDED_FRAME_BOUNDS, rect, 16) !== 0 && !GetWindowRect(h, rect)) continue;
         const p = toDip({ x: rect.readInt32LE(0), y: rect.readInt32LE(4) }, displays);
         const q = toDip({ x: rect.readInt32LE(8), y: rect.readInt32LE(12) }, displays);
-        if (q.x > p.x && q.y > p.y) out.push({ x: p.x, y: p.y, w: q.x - p.x, h: q.y - p.y });
+        if (q.x > p.x && q.y > p.y) out.push({ id: String(h), x: p.x, y: p.y, w: q.x - p.x, h: q.y - p.y, active: h === fg });
       }
     } catch { /* a window closing mid-walk fails a call; what was read stands */ }
     return out;
@@ -85,6 +92,7 @@ function openDarwin(koffi) {
   // kCFStringEncodingUTF8; the keys live as long as the process
   const LAYER = CFStringCreateWithCString(null, 'kCGWindowLayer', 0x08000100);
   const BOUNDS = CFStringCreateWithCString(null, 'kCGWindowBounds', 0x08000100);
+  const NUMBER = CFStringCreateWithCString(null, 'kCGWindowNumber', 0x08000100);
   // kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements; kCFNumberSInt64Type
   const ON_SCREEN = 1 | 16, SINT64 = 4;
   return () => {
@@ -100,7 +108,9 @@ function openDarwin(koffi) {
         const bounds = CFDictionaryGetValue(w, BOUNDS);
         const r = { x: 0, y: 0, width: 0, height: 0 };
         if (!bounds || !CGRectMakeWithDictionaryRepresentation(bounds, r) || !(r.width > 0) || !(r.height > 0)) continue;
-        out.push({ x: r.x, y: r.y, w: r.width, h: r.height });
+        const number = CFDictionaryGetValue(w, NUMBER), id = [0n];
+        if (!number || !CFNumberGetValue(number, SINT64, id)) continue;
+        out.push({ id: String(id[0]), x: r.x, y: r.y, w: r.width, h: r.height });
       }
     } finally {
       CFRelease(list);
@@ -150,7 +160,7 @@ function openX11(koffi, screen) {
     const out = [];
     try {
       const stack = prop(root, '_NET_CLIENT_LIST_STACKING');
-      const current = prop(root, '_NET_CURRENT_DESKTOP')[0];
+      const current = prop(root, '_NET_CURRENT_DESKTOP')[0], active = prop(root, '_NET_ACTIVE_WINDOW')[0];
       const hidden = atom('_NET_WM_STATE_HIDDEN'), skipTypes = [atom('_NET_WM_WINDOW_TYPE_DOCK'), atom('_NET_WM_WINDOW_TYPE_DESKTOP')];
       // the stacking list runs bottom to top
       for (const w of stack.reverse().slice(0, WINDOWS_MAX)) {
@@ -167,7 +177,7 @@ function openX11(koffi, screen) {
         const [sl = 0, sr = 0, st = 0, sb = 0] = prop(w, '_GTK_FRAME_EXTENTS');
         const x = ax[0] - fl + sl, y = ay[0] - ft + st, wd = gw[0] + fl + fr - sl - sr, ht = gh[0] + ft + fb - st - sb;
         const p = toDip({ x, y }, displays), q = toDip({ x: x + wd, y: y + ht }, displays);
-        if (q.x > p.x && q.y > p.y) out.push({ x: p.x, y: p.y, w: q.x - p.x, h: q.y - p.y });
+        if (q.x > p.x && q.y > p.y) out.push({ id: String(w), x: p.x, y: p.y, w: q.x - p.x, h: q.y - p.y, active: w === active });
       }
     } finally {
       // errors the server sends late arrive while ours is still the handler
@@ -222,4 +232,20 @@ function ledgesFrom(rects, origin, view) {
   return out.sort((a, b) => a.y - b.y || a.x0 - b.x0).slice(0, LEDGES_MAX);
 }
 
-module.exports = { createWindowSource, ledgesFrom };
+/**
+ * The windows of `rects` (screen DIPs, front first) that reach onto the page of the pet window above its floor,
+ * front first, as `{ id, x0, y0, x1, y1 }` in page pixels and whole (parts off the page and behind other windows
+ * included), with `active` where the platform reports it; `origin` and `view` as for `ledgesFrom`.
+ */
+function windowsFrom(rects, origin, view) {
+  const out = [];
+  for (const { id, x, y, w, h, active } of rects) {
+    const x0 = x - origin.x, y0 = y - origin.y, x1 = x0 + w, y1 = y0 + h;
+    if (x1 <= 0 || x0 >= view.width || y1 <= 0 || y0 >= view.floor) continue;
+    out.push(active === undefined ? { id, x0, y0, x1, y1 } : { id, x0, y0, x1, y1, active });
+    if (out.length === RECTS_MAX) break;
+  }
+  return out;
+}
+
+module.exports = { createWindowSource, ledgesFrom, windowsFrom };
