@@ -9,6 +9,7 @@ export const S: Partial<typeof en> = {
   recommendedDir: (dir: string) => `권장 디렉터리: ${dir}`,
   download: '다운로드',
   on: '켬',
+  autoSaves: '변경하면 자동으로 저장됩니다.',
   leaveBlank: '비워 두기',
   saving: '저장 중…',
   saveFailed: (err: string) => '실패: ' + err,

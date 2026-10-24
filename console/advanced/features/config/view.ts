@@ -8,6 +8,7 @@
 
 import type { WebUi, Disposable } from 'cortico/web/shared/client-panel.ts';
 import { get, pickPath, post } from '../../../base/api.ts';
+import { LANGUAGE } from '../../../base/language.ts';
 import type { Lifecycle } from '../../../base/lifecycle.ts';
 import { icon } from '../../../base/ui/icons.ts';
 import { S } from './strings.ts';
@@ -215,6 +216,21 @@ function pathField(
   return { node: field, read: () => input.value };
 }
 
+/** 输入框里显示的数：最多四位小数，去掉末尾的 0。 */
+function shown(n: number): string {
+  return String(Number(n.toFixed(4)));
+}
+
+/**
+ * 数字输入框。显示值按 `shown` 取整；字段没改过时读回原值——一组配置整组保存，
+ * 改别的字段不该把这一项的精度截掉。
+ */
+function numberInput(inp: HTMLInputElement, val: number): () => number {
+  inp.value = shown(val);
+  const untouched = inp.value;
+  return () => (inp.value === untouched ? val : Number(inp.value));
+}
+
 /** 渲染属性并返回存储单位的取值器；值变化经 onChange 提交。 */
 export function configField(
   ui: WebUi,
@@ -256,15 +272,15 @@ export function configField(
     if (prop.multipleOf != null) inp.step = String(prop.multipleOf / scale);
     if (prop.nullable) {
       // nullable 字段以空输入表示 null，0 保持为数值。
-      inp.value = val == null ? '' : String(Number(val) / scale);
       inp.placeholder = S.leaveBlank;
-      return {
-        node: inp,
-        read: () => (inp.value.trim() === '' ? null : Number(inp.value) * scale),
-      };
+      if (val == null) {
+        return { node: inp, read: () => (inp.value.trim() === '' ? null : Number(inp.value) * scale) };
+      }
+      const read = numberInput(inp, Number(val) / scale);
+      return { node: inp, read: () => (inp.value.trim() === '' ? null : read() * scale) };
     }
-    inp.value = String((Number(val) || 0) / scale);
-    return { node: inp, read: () => Number(inp.value) * scale };
+    const read = numberInput(inp, (Number(val) || 0) / scale);
+    return { node: inp, read: () => read() * scale };
   }
 
   // 仅两个 number/integer 的数组可编辑，其余数组只读。
@@ -291,6 +307,57 @@ export function configField(
 
   // 不认识的 type：只读展示，不参与提交
   return { node: ui.h('span', 'tdesc', JSON.stringify(val)), read: null };
+}
+
+/**
+ * 同一父键下一串数字项(如 `usage.rates.CNY`、`usage.rates.EUR`):说明相同,标题都是同一句话后接各自的键。
+ * 这样的一串单成一张卡,跟在所属组后面:标题与说明各写一次,每项一个小输入框。
+ */
+interface FieldRun {
+  title: string;
+  description?: string;
+  items: Array<[path: string, key: string, prop: ConfigProperty]>;
+}
+
+/** 把属性按顺序切成单项与 FieldRun;少于两项的串仍按单项画。 */
+function splitRuns(entries: Array<[string, ConfigProperty]>): Array<[string, ConfigProperty] | FieldRun> {
+  const runKey = (path: string, prop: ConfigProperty): { parent: string; key: string; title: string } | null => {
+    const dot = path.lastIndexOf('.');
+    if (dot <= 0 || (prop.type !== 'number' && prop.type !== 'integer')) return null;
+    const key = path.slice(dot + 1);
+    const title = prop.title ?? '';
+    if (!title.endsWith(key)) return null;
+    const head = title.slice(0, -key.length).trim();
+    return head ? { parent: path.slice(0, dot), key, title: head } : null;
+  };
+  const out: Array<[string, ConfigProperty] | FieldRun> = [];
+  for (let i = 0; i < entries.length;) {
+    const [path, prop] = entries[i]!;
+    const first = runKey(path, prop);
+    let j = i + 1;
+    const items: FieldRun['items'] = first ? [[path, first.key, prop]] : [];
+    while (first && j < entries.length) {
+      const [p2, prop2] = entries[j]!;
+      const next = runKey(p2, prop2);
+      if (!next || next.parent !== first.parent || next.title !== first.title || prop2.description !== prop.description) break;
+      items.push([p2, next.key, prop2]);
+      j++;
+    }
+    if (first && items.length > 1) {
+      out.push({ title: first.title, ...(prop.description ? { description: prop.description } : {}), items });
+      i = j;
+    } else {
+      out.push(entries[i]!);
+      i++;
+    }
+  }
+  return out;
+}
+
+/** 三个大写字母的键当作货币代码,换成界面语言里的名字;认不出就原样。 */
+function keyName(key: string): string {
+  if (!/^[A-Z]{3}$/.test(key)) return key;
+  return new Intl.DisplayNames([LANGUAGE], { type: 'currency' }).of(key) ?? key;
 }
 
 export interface ConfigViewDeps {
@@ -325,7 +392,9 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
   const el = ui.h('div', 'configview');
   const body = ui.h('div');
   const bar = ui.actions();
-  const msg = ui.msgline();
+  // 保存之前这一行说明修改会自动保存,保存后换成结果。
+  const msg = ui.msgline(S.autoSaves);
+  msg.classList.add('is-hint');
   bar.append(msg, ui.h('span', 'grow'));
   el.append(body, bar);
 
@@ -390,32 +459,62 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
         ));
         return;
       }
+      // 每组一节;行沿用「习惯」页的 companion-row。
       for (const { group, values } of groups) {
-        const sec = ui.h('div', 'tsection', group.schema.title || group.id);
-        if (showOwner) sec.appendChild(ui.h('span', 'ttag', OWNER_LABEL[group.owner] || group.owner));
-        body.appendChild(sec);
-        if (group.schema.description) {
-          body.appendChild(ui.h('div', 'tsecdesc', group.schema.description));
-        }
-        for (const [path, prop] of Object.entries(group.schema.properties || {})) {
-          const row = ui.h('div', 'trow');
-          const label = ui.h('span', 'tlabel', prop.title || path);
+        const card = ui.sheet({ title: group.schema.title || group.id, ...(group.schema.description ? { desc: group.schema.description } : {}) });
+        if (showOwner) card.el.querySelector('h3')!.appendChild(ui.h('span', 'ttag', OWNER_LABEL[group.owner] || group.owner));
+        const runs: HTMLElement[] = [];
+        for (const entry of splitRuns(Object.entries(group.schema.properties || {}))) {
+          if (!Array.isArray(entry)) {
+            const runCard = ui.sheet({ title: entry.title, ...(entry.description ? { desc: entry.description } : {}) });
+            runs.push(runCard.el);
+            const grid = ui.h('div', 'configgrid');
+            for (const [path, key, prop] of entry.items) {
+              const cell = ui.h('label', 'configcell');
+              const name = ui.h('span', 'configcell-name', keyName(key));
+              if (name.textContent !== key) name.appendChild(ui.h('span', 'en', key));
+              const field = configField(ui, prop, (values || {})[path], () => queueSave(group.id), signal);
+              cell.append(name, field.node);
+              if (prop['x-suffix']) cell.appendChild(ui.h('span', 'tunit', prop['x-suffix']));
+              if (prop['x-hot'] === false) cell.appendChild(ui.h('span', 'ttag', group.owner.startsWith('world:') ? S.restartWorld : S.restartProcess));
+              grid.appendChild(cell);
+              if (field.read) readers.push({ groupId: group.id, path, read: field.read });
+            }
+            runCard.body.appendChild(grid);
+            continue;
+          }
+          const [path, prop] = entry;
+          const row = ui.h('div', 'companion-row configrow');
+          const label = ui.h('div', 'companion-label', prop.title || path);
+          const control = ui.h('div', 'companion-control');
+          const line = ui.h('div', 'configline');
+          control.appendChild(line);
+          let read: (() => ConfigValue) | null;
+          if (prop.type === 'boolean') {
+            const box = ui.checkbox('', { checked: !!(values || {})[path], onChange: () => queueSave(group.id) });
+            box.input.setAttribute('aria-label', prop.title || path);
+            // companion-switchbox 把勾选框画成开关
+            line.classList.add('companion-switchbox');
+            line.appendChild(box.el);
+            read = () => box.checked;
+          } else {
+            const field = configField(ui, prop, (values || {})[path], () => queueSave(group.id), signal);
+            const fieldWrap = ui.h('div', 'tfield');
+            fieldWrap.appendChild(field.node);
+            if (prop['x-suffix']) fieldWrap.appendChild(ui.h('span', 'tunit', prop['x-suffix']));
+            line.appendChild(fieldWrap);
+            read = field.read;
+          }
           if (prop['x-hot'] === false) {
             // World 的配置在构造时读走:重启那个 World 即生效,不必重启进程。
-            label.appendChild(ui.h('span', 'ttag', group.owner.startsWith('world:') ? S.restartWorld : S.restartProcess));
+            line.appendChild(ui.h('span', 'ttag', group.owner.startsWith('world:') ? S.restartWorld : S.restartProcess));
           }
-          row.appendChild(label);
-          const { node, read } = configField(ui, prop, (values || {})[path], () => queueSave(group.id), signal);
-          const fieldWrap = ui.h('div', 'tfield');
-          fieldWrap.appendChild(node);
-          if (prop['x-suffix'] && prop.type !== 'boolean') {
-            fieldWrap.appendChild(ui.h('span', 'tunit', prop['x-suffix']));
-          }
-          row.appendChild(fieldWrap);
-          row.appendChild(ui.h('span', 'tdesc', prop.description || ''));
-          body.appendChild(row);
+          if (prop.description) control.appendChild(ui.h('p', 'home-note', prop.description));
+          row.append(label, control);
+          card.body.appendChild(row);
           if (read) readers.push({ groupId: group.id, path, read });
         }
+        body.append(card.el, ...runs);
       }
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;

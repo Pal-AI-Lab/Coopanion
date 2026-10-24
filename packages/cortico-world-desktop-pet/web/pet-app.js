@@ -87,8 +87,8 @@ const at = () => body?.layout ?? null;
 const bodyState = { listening: false, thinking: false, thoughtShown: true, dialogOpen: false };
 const holdRoam = (seconds) => body?.set({ hold: seconds });
 host?.onFloor?.((px) => { below = px; body?.set({ bounds: bounds() }); });
-// the window reads the tops of the windows on its display only while the body on screen asks for them (`watchWindows`)
-host?.onWindows?.((list) => body?.setLedges(list));
+// the window reads the windows on its display only while the body on screen asks for them (`watchWindows`)
+host?.onWindows?.((desk) => body?.setWindows(desk));
 addEventListener('resize', () => {
   body?.set({ bounds: bounds() });
   // the World reads walk targets and drop spots against the stage the pet is on now
