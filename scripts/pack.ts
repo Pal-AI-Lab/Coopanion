@@ -112,7 +112,7 @@ cpSync(join(ROOT, 'app'), join(OUT, 'app'), { recursive: true });
 cpSync(join(ROOT, 'core'), join(OUT, 'core'), { recursive: true });
 // the coopanion World (core/notice.ts) tells Coo these after an update
 cpSync(join(ROOT, 'docs', 'releases'), join(OUT, 'docs', 'releases'), { recursive: true });
-cpSync(join(ROOT, 'build', 'cortico'), join(OUT, 'build', 'cortico'), { recursive: true, filter: skip(join(ROOT, 'build', 'cortico')) });
+cpSync(join(ROOT, 'build', 'cortico'), join(OUT, 'build', 'cortico'), { recursive: true, filter: (src) => !src.endsWith('.map') && skip(join(ROOT, 'build', 'cortico'))(src) });
 // the settings window (app/main.cjs serves it)
 cpSync(join(ROOT, 'build', 'console'), join(OUT, 'build', 'console'), { recursive: true, filter: (src) => !src.endsWith('.map') });
 // the coopanion World's panel bundle (core/companion.ts registers it)
