@@ -229,6 +229,7 @@ ${super.partnerDoc() || `(${PARTNER_FILE} is empty.)`}`;
         'Only the latest stretch keeps what your speaking tools were called with and their receipts. ',
         'What a call was given is what you meant to say; whether the person saw it is in the receipt and the events after it. ',
         'Carry on with the current topic or action naturally, with no need to remark on the pause, the clear or the handoff. Old lines and folded fragments are not models for wording or length. ',
+        'Always speak to the person through pet_say; plain assistant text does not reach their screen. ',
         'Never call a speaking tool with empty content; nothing would show. ',
         'To say something, put it straight into the call. If you have nothing to say this turn, call end_turn.',
       ];

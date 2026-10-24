@@ -267,6 +267,70 @@ function hintFailures(core: Core<CoreConfig>, config: CoreConfig, pet: () => Des
   };
 }
 
+/**
+ * Synthesizes a `pet_say` tool call when the model outputs direct assistant text without calling any tools.
+ * Local models or models following context handoff may produce plain text responses; without a tool call,
+ * Cortico ends the turn without rendering in chat history or popping a pet bubble.
+ */
+export function fallbackTextReplies(core: Pick<Core<CoreConfig>, 'llm'>): void {
+  const { llm } = core;
+  const respond = llm.respond.bind(llm);
+  llm.respond = async (request, options) => {
+    const gen = await respond(request, options);
+    if (gen.response.status && gen.response.status !== 'completed') return gen;
+
+    const allowsPetSay = request.tools?.some((t) => t.name === 'pet_say');
+    if (!allowsPetSay) return gen;
+
+    const hasCalls = gen.response.output.some(
+      (item) => item.type === 'function_call',
+    );
+    if (!hasCalls) {
+      const texts: string[] = [];
+      for (const item of gen.response.output as Array<Record<string, unknown>>) {
+        if (item?.type === 'message' && item.role === 'assistant') {
+          if (Array.isArray(item.content)) {
+            for (const part of item.content) {
+              if (part && typeof part === 'object' && 'text' in part && typeof (part as { text: unknown }).text === 'string') {
+                texts.push((part as { text: string }).text);
+              }
+            }
+          } else if (typeof item.content === 'string') {
+            texts.push(item.content);
+          }
+        }
+      }
+      const text = texts
+        .join('\n')
+        .replace(/<think>[\s\S]*?<\/think>/gi, '')
+        .replace(/<think>[\s\S]*$/gi, '')
+        .trim();
+      if (text) {
+        const id = `fallback_${Date.now()}`;
+        (gen.response.output as unknown[]).push({
+          type: 'function_call',
+          id: `fc_say_${id}`,
+          call_id: `call_say_${id}`,
+          name: 'pet_say',
+          arguments: JSON.stringify({ script: text }),
+          status: 'completed',
+        });
+        if (request.tools?.some((t) => t.name === 'end_turn')) {
+          (gen.response.output as unknown[]).push({
+            type: 'function_call',
+            id: `fc_end_${id}`,
+            call_id: `call_end_${id}`,
+            name: 'end_turn',
+            arguments: '{}',
+            status: 'completed',
+          });
+        }
+      }
+    }
+    return gen;
+  };
+}
+
 interface UpdateStep { phase: 'downloading' | 'ready' | 'failed'; version: string; reason?: string }
 
 /**
@@ -569,6 +633,7 @@ export async function main(): Promise<void> {
   telemetry = stats;
   countUse(bot.core, loaded.config, stats);
   hintFailures(bot.core, loaded.config, () => pet);
+  fallbackTextReplies(bot.core);
   // set by app/core-host.cjs when this Core replaces one that exited unasked
   const exited = process.env.COOPANION_CORE_EXIT;
   delete process.env.COOPANION_CORE_EXIT;
