@@ -47,11 +47,9 @@ export function pageTabs(
     const text = doc.createElement('span');
     text.textContent = item.label;
     btn.appendChild(text);
+    // the caller moves the highlight with setValue once the switch went through: a leave guard may refuse it
     btn.addEventListener('click', () => {
-      if (current === item.value) return;
-      current = item.value;
-      paint();
-      opts.onSelect?.(item.value);
+      if (current !== item.value) opts.onSelect?.(item.value);
     }, { signal });
     el.appendChild(btn);
     tabs.push({ value: item.value, btn, text });
