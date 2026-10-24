@@ -127,7 +127,6 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
   let hideTimer: ReturnType<typeof setTimeout> | undefined;
   const showPop = (): void => {
     clearTimeout(hideTimer);
-    if (!pop.childElementCount) return;
     const r = moreBtn.getBoundingClientRect();
     pop.hidden = false;
     pop.style.top = `${Math.round(r.bottom + 6)}px`;
