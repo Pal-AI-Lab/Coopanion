@@ -147,7 +147,7 @@ body.companion-sidebar { display: flex; height: 100dvh; overflow: hidden; }
 .companion-sidebar-backdrop { display: none; }
 
 @media (min-width: 721px) {
-  .scroll, .pagehead, .subtabs { padding-left: var(--page-gutter); padding-right: var(--page-gutter); }
+  .scroll, .pagehead { padding-left: var(--page-gutter); padding-right: var(--page-gutter); }
 }
 @media (max-width: 720px) {
   body.companion-sidebar { padding-left: 72px; }
