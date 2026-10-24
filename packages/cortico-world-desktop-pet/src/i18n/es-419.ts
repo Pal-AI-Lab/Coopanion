@@ -176,6 +176,8 @@ const es419: Translation<PetText> = {
     window: 'Ventana de la mascota',
     connected: 'Página conectada',
     notOpen: 'Sin abrir',
+    noBody: (reason: string) => `Página conectada, el personaje no se puede dibujar: ${reason}`,
+    alsoBrowser: (hint: string) => `${hint}; hay una página del navegador conectada`,
     voice: 'Reconocimiento de voz',
     notStarted: 'Sin iniciar',
     viewInBrowser: 'Ver la mascota en el navegador',

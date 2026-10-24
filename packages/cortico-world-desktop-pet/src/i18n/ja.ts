@@ -176,6 +176,8 @@ const ja: Translation<PetText> = {
     window: 'ペットのウィンドウ',
     connected: 'ページ接続済み',
     notOpen: '開いていません',
+    noBody: (reason: string) => `ページ接続済み、アバターを描画できません：${reason}`,
+    alsoBrowser: (hint: string) => `${hint}；ブラウザーのページが接続済み`,
     voice: '音声認識',
     notStarted: '未起動',
     viewInBrowser: 'ブラウザーでペットを見る',

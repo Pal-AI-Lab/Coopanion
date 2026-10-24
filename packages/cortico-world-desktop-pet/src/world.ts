@@ -423,7 +423,7 @@ export class DesktopPetWorld implements World {
       snapshot: () => this.snapshot(),
       onPetMessage: (msg) => this.onPage(msg),
       onAudio: (frame) => this.onAudio(frame),
-      onPetConnect: () => { this.petHidden = false; this.log?.info('桌宠页面已连接'); },
+      onPetConnect: () => { this.petHidden = false; this.bodyMissing = null; this.log?.info('桌宠页面已连接'); },
       onPetDisconnect: () => this.onPageGone(),
       onSkin: (skin) => this.saveSkin(skin),
       onPrefs: (prefs) => this.savePrefs(prefs),
@@ -446,6 +446,8 @@ export class DesktopPetWorld implements World {
   private figureShown: string | null = null;
   /** The figure the page said would not run, while the skin still names it: the page shows Coo meanwhile. */
   private figureFailed: string | null = null;
+  /** Why Coo, the last stand-in, would not run on the connected page, which then shows no figure at all. */
+  private bodyMissing: string | null = null;
   /** The words each pack's body said it knows when the page last loaded it; a body that did not say is taken at its manifest's word. */
   private readonly bodyWords = new Map<string, ReadonlySet<string>>();
   /** The words the bot was last told it may use: its prompt's at start, then a `[figure]` event's or a `pet_set` receipt's. */
@@ -566,6 +568,7 @@ export class DesktopPetWorld implements World {
       this.figureShown = COO;
       this.figureFailed = id;
       const reason = typeof msg.reason === 'string' ? msg.reason.slice(0, 200) : this.t.reasonUnknown;
+      if (id === COO) this.bodyMissing = reason;
       // the page shows Coo instead, whose words then hold too
       const coo = packs.find((p) => p.id === COO) ?? null;
       const note = this.vocabNote();
@@ -583,6 +586,7 @@ export class DesktopPetWorld implements World {
     const problem = `形象包 ${id} 的词表里有身体不认得的词,没给 bot 用:${unknown.join('、')}`;
     if (unknown.length && !this.packProblems.has(problem)) { this.packProblems.add(problem); this.log?.warn(problem); }
     if (id === this.cfg.skin.figure) this.figureFailed = null;
+    this.bodyMissing = null;
     const shown = id === COO ? COO : `${id}:${typeof msg.scheme === 'string' ? msg.scheme : ''}`;
     this.figureShown = shown;
     let look: string | null = null;
@@ -1905,11 +1909,14 @@ export class DesktopPetWorld implements World {
     const w = this.windowHost?.state();
     const v = this.backendState();
     const c = petText(language).console;
+    // the lamp is the window's: a browser page standing in for it is only mentioned
+    const inWindow = this.server.petInWindow;
+    const hint = w?.detail ?? c.notOpen;
     const lamps: WorldLamp[] = [
       {
         label: c.window,
-        state: this.server.petConnected ? 'online' : w?.phase === 'running' ? 'loading' : w?.phase === 'missing' || w?.phase === 'error' ? 'error' : 'offline',
-        hint: this.server.petConnected ? c.connected : w?.detail ?? c.notOpen,
+        state: inWindow ? (this.bodyMissing === null ? 'online' : 'error') : w?.phase === 'running' ? 'loading' : w?.phase === 'missing' || w?.phase === 'error' ? 'error' : 'offline',
+        hint: inWindow ? (this.bodyMissing === null ? c.connected : c.noBody(this.bodyMissing)) : this.server.petConnected ? c.alsoBrowser(hint) : hint,
       },
       {
         label: c.voice,
@@ -2020,6 +2027,8 @@ export class DesktopPetWorld implements World {
   petState(): Record<string, unknown> {
     return {
       connected: this.server.petConnected,
+      /** The connected pet page is the window's, not a browser page standing in for it. */
+      inWindow: this.server.petInWindow,
       /** The pet window is connected and shown (hidden from its menu or the tray, it stays connected). */
       onDesktop: this.server.petInWindow && !this.petHidden,
       url: this.server.port ? this.petUrl : null,

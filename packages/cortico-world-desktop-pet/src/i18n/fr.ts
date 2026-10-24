@@ -176,6 +176,8 @@ const fr: Translation<PetText> = {
     window: 'Fenêtre du compagnon',
     connected: 'Page connectée',
     notOpen: 'Non ouverte',
+    noBody: (reason: string) => `Page connectée, le personnage ne peut pas être dessiné : ${reason}`,
+    alsoBrowser: (hint: string) => `${hint} ; une page du navigateur est connectée`,
     voice: 'Reconnaissance vocale',
     notStarted: 'Non démarrée',
     viewInBrowser: 'Voir le compagnon dans le navigateur',

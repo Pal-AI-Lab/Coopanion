@@ -176,6 +176,8 @@ const it: Translation<PetText> = {
     window: "Finestra dell'animaletto",
     connected: 'Pagina connessa',
     notOpen: 'Non aperta',
+    noBody: (reason: string) => `Pagina connessa, il personaggio non può essere disegnato: ${reason}`,
+    alsoBrowser: (hint: string) => `${hint}; è connessa una pagina del browser`,
     voice: 'Riconoscimento vocale',
     notStarted: 'Non avviato',
     viewInBrowser: "Guarda l'animaletto nel browser",

@@ -176,6 +176,8 @@ const de: Translation<PetText> = {
     window: 'Haustier-Fenster',
     connected: 'Seite verbunden',
     notOpen: 'Nicht geöffnet',
+    noBody: (reason: string) => `Seite verbunden, die Figur kann nicht gezeichnet werden: ${reason}`,
+    alsoBrowser: (hint: string) => `${hint}; eine Browserseite ist verbunden`,
     voice: 'Spracherkennung',
     notStarted: 'Nicht gestartet',
     viewInBrowser: 'Haustier im Browser ansehen',

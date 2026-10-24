@@ -203,6 +203,10 @@ const en: PetText = {
     window: 'Pet window',
     connected: 'Page connected',
     notOpen: 'Not open',
+    /** The window lamp while the page in the window reported that no figure would draw. */
+    noBody: (reason: string) => `Page connected, the figure cannot be drawn: ${reason}`,
+    /** The window lamp's hint when a browser page stands in for the window. */
+    alsoBrowser: (hint: string) => `${hint}; a browser page is connected`,
     voice: 'Speech recognition',
     notStarted: 'Not started',
     viewInBrowser: 'View the pet in the browser',

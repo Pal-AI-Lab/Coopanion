@@ -176,6 +176,8 @@ const ko: Translation<PetText> = {
     window: '펫 창',
     connected: '페이지 연결됨',
     notOpen: '열리지 않음',
+    noBody: (reason: string) => `페이지 연결됨, 외형을 그릴 수 없음: ${reason}`,
+    alsoBrowser: (hint: string) => `${hint}; 브라우저 페이지 연결됨`,
     voice: '음성 인식',
     notStarted: '시작 안 됨',
     viewInBrowser: '브라우저에서 펫 보기',

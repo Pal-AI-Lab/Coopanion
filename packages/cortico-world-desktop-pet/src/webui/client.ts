@@ -11,7 +11,7 @@ import './style.css';
 
 interface Artifact { phase: 'absent' | 'working' | 'ready' | 'error'; path: string; done: number; total: number | null; detail: string | null }
 interface PetState {
-  connected: boolean;
+  inWindow: boolean;
   url: string | null;
   dressUrl: string | null;
   window: { phase: string; pid: number | null; source: string | null; detail: string | null } | null;
@@ -107,7 +107,7 @@ const petPanel: WebUiPanel = {
     const render = (next: PetState) => {
       st = next;
       const w = next.window;
-      if (next.connected) win.set(t.connected, 'on');
+      if (next.inWindow) win.set(t.connected, 'on');
       else if (w?.phase === 'running') win.set(t.starting, 'busy');
       else win.set(w?.phase === 'missing' || w?.phase === 'error' ? t.cannotOpen : t.notOpen, w?.phase === 'missing' || w?.phase === 'error' ? 'bad' : 'off', w?.detail ?? '');
       btnOpen.disabled = w?.phase === 'running';

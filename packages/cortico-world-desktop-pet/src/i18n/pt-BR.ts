@@ -176,6 +176,8 @@ const ptBR: Translation<PetText> = {
     window: 'Janela do pet',
     connected: 'Página conectada',
     notOpen: 'Não aberta',
+    noBody: (reason: string) => `Página conectada, o personagem não pode ser desenhado: ${reason}`,
+    alsoBrowser: (hint: string) => `${hint}; há uma página do navegador conectada`,
     voice: 'Reconhecimento de voz',
     notStarted: 'Não iniciado',
     viewInBrowser: 'Ver o pet no navegador',

@@ -200,6 +200,10 @@ export default {
     window: '桌宠窗口',
     connected: '页面已连接',
     notOpen: '未打开',
+    /** The window lamp while the page in the window reported that no figure would draw. */
+    noBody: (reason: string) => `页面已连接，形象无法绘制：${reason}`,
+    /** The window lamp's hint when a browser page stands in for the window. */
+    alsoBrowser: (hint: string) => `${hint}；浏览器页面已连接`,
     voice: '语音识别',
     notStarted: '未启动',
     viewInBrowser: '在浏览器中查看桌宠',

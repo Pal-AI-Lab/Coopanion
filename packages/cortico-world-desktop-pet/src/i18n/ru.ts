@@ -182,6 +182,8 @@ const ru: Translation<PetText> = {
     window: 'Окно питомца',
     connected: 'Страница подключена',
     notOpen: 'Не открыто',
+    noBody: (reason: string) => `Страница подключена, персонажа не удаётся нарисовать: ${reason}`,
+    alsoBrowser: (hint: string) => `${hint}; подключена страница в браузере`,
     voice: 'Распознавание речи',
     notStarted: 'Не запущено',
     viewInBrowser: 'Открыть питомца в браузере',

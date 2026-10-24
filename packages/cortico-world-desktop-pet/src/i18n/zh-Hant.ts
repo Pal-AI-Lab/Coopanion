@@ -176,6 +176,8 @@ const zhHant: Translation<PetText> = {
     window: '桌寵視窗',
     connected: '頁面已連線',
     notOpen: '未開啟',
+    noBody: (reason: string) => `頁面已連線，形象無法繪製：${reason}`,
+    alsoBrowser: (hint: string) => `${hint}；瀏覽器頁面已連線`,
     voice: '語音辨識',
     notStarted: '未啟動',
     viewInBrowser: '在瀏覽器中查看桌寵',
