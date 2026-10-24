@@ -61,7 +61,8 @@ const DEPS: Record<string, string> = {
 };
 for (const name of WORKSPACE) {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'packages', name, 'package.json'), 'utf8')) as { dependencies?: Record<string, string> };
-  Object.assign(DEPS, pkg.dependencies ?? {});
+  // a workspace package one of them depends on is copied in below; npm cannot fetch a `workspace:` version
+  for (const [dep, version] of Object.entries(pkg.dependencies ?? {})) if (!WORKSPACE.includes(dep)) DEPS[dep] = version;
 }
 
 /**
