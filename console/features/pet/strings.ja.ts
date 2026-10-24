@@ -96,4 +96,7 @@ export const S: Partial<typeof en> = {
   glowOff: 'オフ',
   glowPx: (n: number) => `${n} px`,
   glowHint: 'ペットの色が背景と近いときに体のまわりに出る淡い光の広がり。左端でオフ。',
+  ringLabel: 'コンテキストリング',
+  ring: 'チャットページに表示',
+  ringHint: 'チャットページの入力欄に、以前の会話を整理するまでの残りを円で表示します。',
 };

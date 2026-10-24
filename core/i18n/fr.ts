@@ -7,6 +7,7 @@ const fr: Translation<CoreText> = {
   settings: {
     language: { title: 'Langue', description: "L'interface et Coo utilisent cette langue. Prend effet immédiatement." },
     telemetry: { title: "Statistiques d'utilisation anonymes", description: "Envoie des comptages d'utilisation et les réglages, jamais les conversations, pour aider à améliorer Coopanion. Les champs sont listés dans docs/TELEMETRY.md." },
+    contextRing: { title: 'Anneau de contexte', description: 'Affiche dans la zone de saisie de la page Discussion un anneau indiquant combien il reste avant la mise en ordre de la conversation précédente.' },
     roundsSoft: { title: 'Rappel de conclusion', suffix: 'requêtes', description: "Après ce nombre de requêtes au modèle dans un même réveil, un rappel demande à Coo de conclure ce qui est en cours et de terminer le tour." },
     roundsHard: { title: 'Requêtes par réveil', suffix: 'requêtes', description: 'Le maximum de requêtes au modèle dans un même réveil ; le tour se termine quand il est atteint.' },
   },

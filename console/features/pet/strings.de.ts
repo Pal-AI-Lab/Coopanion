@@ -96,4 +96,7 @@ export const S: Partial<typeof en> = {
   glowOff: 'Aus',
   glowPx: (n: number) => `${n} px`,
   glowHint: 'Wie weit der helle Schein um das Haustier reicht, wenn Coos Farben dem Hintergrund ähneln; ganz links schaltet ihn aus.',
+  ringLabel: 'Kontextring',
+  ring: 'Auf der Chat-Seite anzeigen',
+  ringHint: 'Ein Ring im Eingabefeld der Chat-Seite zeigt, wie weit es noch ist, bis das frühere Gespräch aufgeräumt wird.',
 };
