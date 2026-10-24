@@ -938,7 +938,7 @@
     min-width: 0;
     padding: 30px var(--page-gutter) 0;
   }
-  .panelslot { padding-top: 8px; }
+  .panelslot { padding-top: 0; }
   .featureslot > :where(:not(.viewport-overlay)),
   .providerchrome > *,
   .panelslot > :where(:not(.viewport-overlay)) {
@@ -1060,8 +1060,6 @@
     border-top: 0;
   }
   .measure .actionbar { justify-content: flex-start; }
-  .featureslot-prompts > .prompt-library,
-  .panelslot > .prompt-library { margin-top: 0; }
   .prompt-card textarea.field {
     width: 100%;
     min-height: 300px;
@@ -1485,11 +1483,9 @@
 .featureslot > .featureintro { position:sticky; top:0; z-index:20; padding-top:30px; margin-bottom:24px; background:var(--background); }
 .featureslot > .featureintro + * { margin-top:0; }
 .featureslot > .featureintro + .sheet { margin-top:0; }
-.providerchrome { padding-bottom:0; }
-/* 面板槽自己就是滚动容器:留白放在第一项的外边距上,不放在 padding 上——粘住的元素(工具条)贴在 padding 内沿,
-   padding 会在栏目条下面留出一道缝,内容从缝里滚过去 */
-.providerchrome + .panelslot { padding-top:0; }
-.providerchrome + .panelslot > :first-child { margin-top:24px; }
+/* 面板槽自己就是滚动容器,上方留白放在第一项的外边距上:粘住的元素贴在 padding 内沿,padding 会在栏目条下面留一道缝。
+   环境提示词的工具条直接贴着栏目条 */
+.panelslot > :first-child:not(.template-library) { margin-top:24px; }
 .connection-index { padding-top:0; top:100px; }
 .connection-detail > div > div:first-child > .sheet:first-child { padding-top:0; }
 .connection-hub .btn { border:1px solid var(--border-strong); }
@@ -1509,14 +1505,11 @@
 .coreview > .pagehead { border-bottom:0; }
 .coreview > .pagetabs { flex: none; width: calc(100% - 2 * var(--page-gutter)); max-width: var(--content-width); margin: 0 auto; }
 
-.providerchrome > .featureintro + * { margin-top: 24px; }
 .providerchrome > .msgline { margin-top: 12px; }
 .pagetitle-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
-.pagetitle-row > .pagetitle { margin: 0; }
 .pagetitle-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .pagetitle-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin-left: auto; }
 .pagetitle .pagetitle-name { margin-left: 10px; font: 400 13px var(--sans); color: var(--ink-dim); }
-.providerchrome > .providertabs { margin-top: 0; }
 .providerchrome > .featureintro:has(~ .pagetabs) { border-bottom: 0; }
 .prompt-card h3 > .chip { margin-left: 10px; vertical-align: 1px; }
 .prompt-card .actionbar { margin-top: 10px; padding-top: 0; border-top: 0; }
