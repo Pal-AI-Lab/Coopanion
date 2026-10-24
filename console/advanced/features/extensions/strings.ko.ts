@@ -19,6 +19,7 @@ export const S: Partial<typeof en> = {
   stateRemoved: '제거됨, 재시작 대기',
   enabled: '이 봇에 로드됨',
   disabled: '설치됨, 로드 안 됨',
+  worldNotLoaded: '설치됨. World 개요에서 로드하세요',
   adopted: '이 봇에서 사용 중',
   template: '설치됨, 인스턴스 생성 가능',
   hidden: '에이전트에게 숨김',

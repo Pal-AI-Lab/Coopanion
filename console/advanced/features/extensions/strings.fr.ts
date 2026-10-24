@@ -19,6 +19,7 @@ export const S: Partial<typeof en> = {
   stateRemoved: 'Désinstallée, redémarrage requis',
   enabled: 'Chargée dans ce bot',
   disabled: 'Installée, non chargée',
+  worldNotLoaded: 'Installée ; à charger depuis la vue d’ensemble des World',
   adopted: 'Utilisée par ce bot',
   template: 'Installée ; prête à créer des instances',
   hidden: "Masquée pour l'agent",

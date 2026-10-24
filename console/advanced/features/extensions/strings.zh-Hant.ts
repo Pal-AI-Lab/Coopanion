@@ -19,6 +19,7 @@ export const S: Partial<typeof en> = {
   stateRemoved: '已解除安裝，待重新啟動',
   enabled: '已載入到本 Bot',
   disabled: '已安裝，未載入',
+  worldNotLoaded: '已安裝，前往 World 總覽載入',
   adopted: '目前 Bot 正在採用',
   template: '已安裝，可建立實例',
   hidden: '對 Agent 隱藏',
