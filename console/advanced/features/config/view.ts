@@ -357,11 +357,7 @@ function splitRuns(entries: Array<[string, ConfigProperty]>): Array<[string, Con
 /** 三个大写字母的键当作货币代码,换成界面语言里的名字;认不出就原样。 */
 function keyName(key: string): string {
   if (!/^[A-Z]{3}$/.test(key)) return key;
-  try {
-    return new Intl.DisplayNames([LANGUAGE], { type: 'currency' }).of(key) ?? key;
-  } catch {
-    return key;
-  }
+  return new Intl.DisplayNames([LANGUAGE], { type: 'currency' }).of(key) ?? key;
 }
 
 export interface ConfigViewDeps {

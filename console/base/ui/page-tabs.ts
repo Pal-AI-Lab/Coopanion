@@ -58,7 +58,7 @@ export function pageTabs(
   const place = (): void => {
     const text = tabs.find((t) => t.value === current)?.text;
     if (!text?.offsetWidth) {
-      if (el.getAttribute('data-line') !== null) el.removeAttribute('data-line');
+      el.removeAttribute('data-line');
       return;
     }
     el.style.setProperty('--tab-x', `${text.offsetLeft}px`);

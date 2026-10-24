@@ -217,7 +217,7 @@ export class ConsolePageHost {
   }
 
   private async showInner(pageId: string, panelId?: string): Promise<void> {
-    if (this.panes && this.tabs?.pageId === pageId) this.unmountPanel();
+    if (this.tabs?.pageId === pageId) this.unmountPanel();
     else this.unmount();
     const gen = this.generation;
 
@@ -565,7 +565,7 @@ export class ConsolePageHost {
     ];
     // 页头里画的字段与页签都没变时才复用整个页头。
     const key = JSON.stringify([items, page.label, page.kind, page.availability, page.lamps, page.badges, page.agentVisible, page.prefixDrifted, page.reason, page.links]);
-    if (this.tabs && this.tabs.pageId === pageId && this.tabs.key === key && chrome.contains(this.tabs.bar.el)) {
+    if (this.tabs && this.tabs.pageId === pageId && this.tabs.key === key) {
       this.tabs.bar.setValue(activePanel ?? '');
       return;
     }
