@@ -4,6 +4,8 @@ appId: ai.pal.coopanion
 productName: Coopanion
 copyright: Copyright © 2026 Pal-AI-Lab
 electronVersion: 44.4.4
+# Electron locale codes for the languages in app/i18n/index.cjs.
+electronLanguages: [en-US, zh-CN, zh-TW, ja, ko, fr, de, es-419, pt-BR, it, ru]
 directories:
   app: build/app
   output: dist
@@ -48,6 +50,8 @@ nsis:
 # the first open goes through Privacy & Security → Open Anyway (see the README). It lives in the
 # menu bar (LSUIElement), not the Dock; its data is in ~/Library/Application Support/Coopanion.
 mac:
+  # macOS locale folders use underscores and bare en.
+  electronLanguages: [en, zh_CN, zh_TW, ja, ko, fr, de, es_419, pt_BR, it, ru]
   target:
     - target: dmg
     - target: zip
