@@ -1538,7 +1538,6 @@
 .featureslot > .featureintro + .sheet { margin-top:0; }
 .providerchrome { padding-bottom:0; }
 .providerchrome + .panelslot { padding-top:24px; }
-.coreview > .pagehead { padding-bottom:16px; }
 .connection-index { padding-top:0; top:100px; }
 .connection-detail > div > div:first-child > .sheet:first-child { padding-top:0; }
 .connection-hub .btn { border:1px solid var(--border-strong); }
@@ -2003,3 +2002,30 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
   .storageview .strow .stinfo { grid-column: 1 / -1; }
   .storageview .strow .ststat { text-align: left; }
 }
+
+/* 运行诊断:筛选是一行 32px 高的控件,动作按钮靠右 */
+.coreview .core-filters { flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
+.coreview .core-filters .field { height: 32px; min-height: 32px; padding-top: 0; padding-bottom: 0; font-size: 13px; }
+.coreview .core-filters .core-filter-source { width: 240px; }
+.coreview .core-filters .core-filter-run { width: 230px; }
+.coreview .core-filters .core-filter-level { width: 110px; }
+.coreview .core-filters .core-filter-text { flex: 1 1 140px; min-width: 120px; max-width: 240px; }
+.coreview .core-filters .core-filter-round { width: 80px; }
+.coreview .core-filters .grow { flex: 1 0 0; }
+.coreview .core-filters > .btn { flex: none; }
+/* 运行:读数栏与控制台顶栏同一个样子,下面会话、事件两节 */
+.coreview .core-run > .core-summary { padding-bottom: 14px; }
+.coreview .core-run > .sheet { margin-top: 0; }
+.coreview :is(.configview, .storageview) > :first-child > .sheet:first-child { padding-top: 0; }
+.coreview .core-run .sheet .sh-desc { max-width: none; }
+/* 表格翻页:与扩展页一样,计数在左,每页条数与翻页键在右 */
+.coreview .core-pager { flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; min-height: 32px; font-size: 12px; color: var(--ink-dim); }
+.coreview .core-pager-size { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.coreview .core-pager-size select.field { width: auto; min-width: 72px; height: 30px; min-height: 30px; padding-top: 0; padding-bottom: 0; font-size: 12.5px; }
+.coreview .core-pager-of { font: 12px var(--mono); color: var(--ink-soft); min-width: 44px; text-align: center; }
+.coreview .core-pager > [hidden] { display: none; }
+/* 页内栏目条右端的动作:与控制台顶栏的导出同样的小号文字按钮 */
+.pagetabs-action { flex: none; align-self: center; display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: none; cursor: pointer; font: 12.5px/1 var(--sans); color: var(--ink-soft); white-space: nowrap; }
+.pagetabs-action .icon { width: 14px; height: 14px; }
+.pagetabs-action:hover { color: var(--accent); }
+.pagetabs-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
