@@ -31,6 +31,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./web/*": "./web/*",
+    "./webui/key-capture.ts": "./src/webui/key-capture.ts",
     "./host/*": "./host/*"
   },
   "cortico": {

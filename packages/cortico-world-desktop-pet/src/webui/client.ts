@@ -6,6 +6,7 @@
  */
 import type { WebUiClientBundle, WebUiPanel, WebUiPanelContext } from 'cortico/web/shared/client-panel.ts';
 import { petText } from '../i18n/index.ts';
+import { captureKey, PRESSES, splitTaps, withTaps } from './key-capture.ts';
 import './style.css';
 
 interface Artifact { phase: 'absent' | 'working' | 'ready' | 'error'; path: string; done: number; total: number | null; detail: string | null }
@@ -47,25 +48,6 @@ interface VoiceState {
 
 type MicMode = 'hold' | 'toggle' | 'always';
 type Engine = 'funasr' | 'whisper' | 'system';
-
-/** `KeyboardEvent.code` → the key names `src/asr/hotkey.ts` reads. */
-const CODE_KEYS: Record<string, string> = {
-  ControlLeft: 'LeftCtrl', ControlRight: 'RightCtrl', AltLeft: 'LeftAlt', AltRight: 'RightAlt',
-  ShiftLeft: 'LeftShift', ShiftRight: 'RightShift', MetaLeft: 'Win', MetaRight: 'RightWin',
-  Space: 'Space', Tab: 'Tab', CapsLock: 'CapsLock', Backquote: 'Backquote', Enter: 'Enter', Insert: 'Insert',
-  Delete: 'Delete', Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown', Pause: 'Pause', ScrollLock: 'ScrollLock',
-};
-const keyOfCode = (code: string): string | null =>
-  CODE_KEYS[code] ?? (/^Key[A-Z]$/.test(code) ? code.slice(3) : /^Digit\d$/.test(code) ? code.slice(5) : /^F\d{1,2}$/.test(code) ? code : null);
-
-/** Presses of the talk key (`*2` in src/asr/hotkey.ts) offered, the default first. */
-const PRESSES = [2, 1, 3];
-/** The keys and the press count of a hotkey, as `splitTaps` in src/asr/hotkey.ts reads it. */
-const splitTaps = (hotkey: string): { combo: string; taps: number } => {
-  const m = /^(.*?)\s*\*\s*([1-3])$/.exec(hotkey.trim());
-  return m ? { combo: m[1]!, taps: Number(m[2]) } : { combo: hotkey.trim(), taps: 1 };
-};
-const withTaps = (combo: string, taps: number) => (taps > 1 ? `${combo}*${taps}` : combo);
 
 const MB = (n: number) => `${Math.round(n / 1048576)} MB`;
 const progress = (a: Artifact) => (a.total ? `${Math.round((a.done / a.total) * 100)}%` : MB(a.done));
@@ -291,8 +273,8 @@ const voicePanel: WebUiPanel = {
       }
       if (document.activeElement !== pressSel) pressSel.value = String(taps);
       // 「一直收音」 hides the key's row, its 「取消」 with it: a capture still listening there ends
-      if (capturing && input.mode === 'always') finishCapture(null);
-      if (!capturing) keyRow.set(input.keyLabel, input.hotkeyProblem ? 'bad' : 'on');
+      if (capture && input.mode === 'always') capture.stop();
+      if (!capture) keyRow.set(input.keyLabel, input.hotkeyProblem ? 'bad' : 'on');
       pressSel.hidden = input.mode === 'always';
       keyRow.row.style.display = input.mode === 'always' ? 'none' : '';
       modeRow.set(input.open ? t.listening : t.waitingKey, input.open ? 'on' : 'off', input.hint);
@@ -323,45 +305,21 @@ const voicePanel: WebUiPanel = {
       if (st) void call('setMic', [{ hotkey: withTaps(splitTaps(st.input.hotkey).combo, Number(pressSel.value)) }])();
     });
 
-    // The talk key is every key down until the first release; how it is pressed (`*2`) stays as chosen beside it.
-    let capturing = false;
-    const held: string[] = [];
+    // The talk key is a new combination (key-capture.ts); how it is pressed (`*2`) stays as chosen beside it.
+    let capture: { stop(): void } | null = null;
     const finishCapture = (combo: string | null) => {
-      capturing = false;
+      capture = null;
       keyBtn.textContent = t.changeKey;
-      held.length = 0;
-      window.removeEventListener('keydown', onKeyDown, true);
-      window.removeEventListener('keyup', onKeyUp, true);
-      window.removeEventListener('pointerdown', onPointer, true);
       if (combo && st) void call('setMic', [{ hotkey: withTaps(combo, splitTaps(st.input.hotkey).taps) }])();
       else void refresh();
     };
-    const onKeyDown = (e: KeyboardEvent) => {
-      e.preventDefault(); e.stopPropagation();
-      if (e.code === 'Escape') { finishCapture(null); return; }
-      const k = keyOfCode(e.code);
-      if (k && !held.includes(k)) held.push(k);
-    };
-    const onKeyUp = (e: KeyboardEvent) => {
-      e.preventDefault(); e.stopPropagation();
-      if (held.length) finishCapture(held.join('+'));
-    };
-    const onPointer = (e: PointerEvent) => {
-      const k = ({ 1: 'Mouse3', 3: 'Mouse4', 4: 'Mouse5' } as Record<number, string>)[e.button];
-      if (!k) return;
-      e.preventDefault(); e.stopPropagation();
-      finishCapture([...held, k].join('+'));
-    };
     keyBtn.addEventListener('click', () => {
-      if (capturing) { finishCapture(null); return; }
-      capturing = true;
+      if (capture) { capture.stop(); return; }
       keyRow.set('…', 'busy', t.capture);
       keyBtn.textContent = t.cancelKey;
-      window.addEventListener('keydown', onKeyDown, true);
-      window.addEventListener('keyup', onKeyUp, true);
-      window.addEventListener('pointerdown', onPointer, true);
+      capture = captureKey(window, finishCapture);
     });
-    ctx.own({ dispose: () => { if (capturing) finishCapture(null); } });
+    ctx.own({ dispose: () => capture?.stop() });
     ctx.stream({
       message: (text: string) => {
         const f = JSON.parse(text) as { type: string; level?: number; speaking?: boolean; open?: boolean };
