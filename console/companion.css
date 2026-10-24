@@ -37,12 +37,13 @@ body.companion-sidebar { display: flex; height: 100dvh; overflow: hidden; }
 .companion-release > div { min-height: 0; overflow: hidden; }
 .is-collapsed .companion-release { grid-template-rows: 0fr; }
 .companion-sidebar-toggle {
-  display: flex; align-items: center; gap: 12px; height: 36px; flex: none; padding: 0 8px;
+  display: flex; align-items: center; gap: 12px; height: 36px; flex: 0 1 auto; min-width: 0; padding: 0 8px;
   border: 0; border-radius: 9px; background: transparent; color: var(--muted-foreground); cursor: pointer;
   font: 450 13px/1.35 var(--sans); white-space: nowrap;
 }
 .companion-sidebar-toggle:hover { background: var(--hover); color: var(--foreground); }
-.companion-sidebar-toggle > svg { width: 20px; height: 20px; }
+.companion-sidebar-toggle > svg { width: 20px; height: 20px; flex: none; }
+.companion-sidebar-toggle .lbl { overflow: hidden; text-overflow: ellipsis; }
 .companion-sidebar-chevron { transform-origin: 15px 12px; transition: transform var(--rail-motion); }
 .is-collapsed .companion-sidebar-chevron { transform: rotate(180deg); }
 /* the version right under the logo, centred on it; a new release's link wraps under it in the same width */
