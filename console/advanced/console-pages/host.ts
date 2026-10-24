@@ -10,7 +10,6 @@ import { Lifecycle } from '../../base/lifecycle.ts';
 import type { Router } from '../../base/router.ts';
 import type { SocketLike } from '../../base/stream.ts';
 import { createConsoleUi } from '../../base/ui/index.ts';
-import { lampRow } from '../../base/ui/lamp.ts';
 import { pageTabs, type PageTabs } from '../../base/ui/page-tabs.ts';
 import { createConfigView } from '../features/config/view.ts';
 import type { ToolSchemaDoc } from '../features/live/protocol.ts';
@@ -558,7 +557,7 @@ export class ConsolePageHost {
 
     const items = this.tabsOf(page);
     // 页头里画的字段与页签都没变时才复用整个页头。
-    const key = JSON.stringify([items, page.label, page.kind, page.availability, page.lamps, page.badges, page.agentVisible, page.prefixDrifted, page.reason, page.links]);
+    const key = JSON.stringify([items, page.label, page.kind, page.availability, page.badges, page.agentVisible, page.prefixDrifted, page.reason, page.links]);
     if (this.tabs && this.tabs.pageId === pageId && this.tabs.key === key && chrome.contains(this.tabs.bar.el)) {
       this.tabs.bar.setValue(activePanel ?? '');
       return;
@@ -569,54 +568,42 @@ export class ConsolePageHost {
 
     const ui = this.ui();
     const head = ui.h('header', 'featureintro providerintro');
+    // 标题一行:名字,隔一小段是徽标与装配状态,最右是链接。状态灯只在侧栏。
+    const row = ui.h('div', 'pagetitle-row');
     // 人格与记忆页以用途作标题，实现名作小注；其余页仍用声明的名字。
     const purpose = page.kind === 'persona' ? S.personaTitle : page.kind === 'memory' ? S.memoryTitle : null;
     const title = ui.h('h1', 'pagetitle', purpose ?? page.label);
     if (purpose) title.appendChild(ui.h('span', 'pagetitle-name', page.label));
-    // 未激活页的状态由框架提供。
-    title.appendChild(lampRow(
-      this.deps.doc,
-      page.availability === 'active'
-        ? page.lamps ?? []
-        : [{ label: S.assembly, state: 'offline', hint: page.availability === 'missing' ? S.notInstalled : S.notActivated }],
-    ));
-    head.appendChild(title);
+    row.appendChild(title);
+
+    const badges = ui.h('div', 'pagetitle-badges');
+    for (const badge of asArray(page.badges)) {
+      badges.appendChild(ui.pill(`${badge.label} ${badge.value}`, badge.tone));
+    }
+    if (page.availability !== 'active') {
+      badges.appendChild(ui.pill(page.availability === 'missing' ? S.notInstalled : S.notActivated, 'off'));
+    }
+    if (page.agentVisible === false) badges.appendChild(ui.pill(S.hidden, 'off'));
+    if (badges.children.length) row.appendChild(badges);
+
+    const actions = ui.h('div', 'pagetitle-actions');
+    const textButton = (label: string, onClick: () => void): HTMLButtonElement => {
+      const button = ui.h('button', 'pagetitle-link', label);
+      button.type = 'button';
+      button.addEventListener('click', onClick);
+      return button;
+    };
+    if (page.prefixDrifted) actions.appendChild(textButton(S.reloadPrefix, () => { void this.reloadPrefix(ui); }));
+    for (const link of asArray(page.links)) {
+      actions.appendChild(textButton(link.label || S.open, () => {
+        this.deps.doc.defaultView?.open(resolveConsoleLinkHref(this.deps.doc, link), '_blank', 'noopener');
+      }));
+    }
+    if (actions.children.length) row.appendChild(actions);
+    head.appendChild(row);
     const purposeDesc = page.kind === 'persona' ? S.personaDesc : page.kind === 'memory' ? S.memoryDesc : null;
     if (purposeDesc) head.appendChild(ui.h('p', 'pagedesc', purposeDesc));
     chrome.append(head);
-    const bar = ui.rowbar();
-
-    for (const badge of asArray(page.badges)) {
-      bar.appendChild(ui.pill(`${badge.label} ${badge.value}`, badge.tone));
-    }
-    if (page.availability !== 'active') {
-      bar.appendChild(ui.pill(page.availability === 'missing' ? S.notInstalled : S.notActivated, 'off'));
-    }
-    if (page.agentVisible === false) bar.appendChild(ui.pill(S.hidden, 'off'));
-    if (page.prefixDrifted) {
-      bar.appendChild(ui.button(S.reloadPrefix, {
-        size: 'sm',
-        onClick: () => { void this.reloadPrefix(ui); },
-      }));
-    }
-    bar.appendChild(ui.h('span', 'grow'));
-
-    for (const link of asArray(page.links)) {
-      const open = ui.button(link.label || S.open, {
-        variant: 'primary',
-        size: 'sm',
-        onClick: () => {
-          this.deps.doc.defaultView?.open(
-            resolveConsoleLinkHref(this.deps.doc, link),
-            '_blank',
-            'noopener',
-          );
-        },
-      });
-      bar.appendChild(open);
-    }
-    if (bar.children.length > 1) chrome.appendChild(bar);
-    if (page.reason) chrome.appendChild(ui.msgline(page.reason, true));
 
     if (items.length > 1) {
       const stop = new AbortController();
@@ -628,6 +615,8 @@ export class ConsolePageHost {
       chrome.appendChild(bar.el);
       this.tabs = { pageId, key, bar, stop };
     }
+    // 装不上的原因在栏目条下面,与栏目内容同列
+    if (page.reason) chrome.appendChild(ui.msgline(page.reason, true));
   }
 
   /** 重载前缀后重新读取 manifest 中的漂移状态。 */

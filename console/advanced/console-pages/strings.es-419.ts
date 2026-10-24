@@ -12,7 +12,6 @@ export const S: Partial<typeof en> = {
   provides: (list: string) => 'Paneles disponibles: ' + list,
   panelFailed: (title: string) => `No se pudo cargar el panel “${title}”`,
   configEmpty: 'Los grupos de configuración no están disponibles.',
-  assembly: 'Ensamblado',
   notInstalled: 'No disponible',
   notActivated: 'no activado',
   hidden: 'oculto',

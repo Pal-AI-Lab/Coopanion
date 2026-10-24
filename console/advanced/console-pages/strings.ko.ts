@@ -12,7 +12,6 @@ export const S: Partial<typeof en> = {
   provides: (list: string) => '사용 가능한 패널: ' + list,
   panelFailed: (title: string) => `"${title}" 패널을 불러오지 못했습니다`,
   configEmpty: '설정 그룹을 사용할 수 없습니다.',
-  assembly: '구성',
   notInstalled: '사용 불가',
   notActivated: '비활성',
   hidden: '숨김',
