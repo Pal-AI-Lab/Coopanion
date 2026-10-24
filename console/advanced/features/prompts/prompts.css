@@ -195,3 +195,11 @@
   .prefix-flag:active { transform:translateY(-50%); }
   .prefix-fold-status:hover,.prefix-fold-status:active { transform:none; }
 }
+/* 一个 World 的环境提示词(template-view.ts):系统提示词的编辑器只装一份模板,左栏只有模板变量 */
+.template-edit + .template-edit { margin-top: 32px; }
+.template-stage { margin-top: 16px; }
+.template-side { flex: 0 0 168px; align-self: stretch; padding-right: 12px; }
+.template-side[hidden] { display: none; }
+.template-side > .prefix-vars { padding: 0; }
+/* the toolbar sits right under the tab bar, at rest as when the text scrolls under it */
+.providerchrome + .panelslot > .template-library:first-child { margin-top: 0; }

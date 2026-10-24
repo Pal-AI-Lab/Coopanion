@@ -520,7 +520,7 @@
 
 
   .mountrow { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); }
-  .mountrow .mname { width: 6.2em; flex: none; font-size: 13px; color: var(--ink); }
+  .mountrow .mname { width: 6.2em; flex: none; font-size: 13px; color: var(--ink); word-break: keep-all; overflow-wrap: anywhere; }
   .mountrow .mstate { font: 12px var(--sans); white-space: nowrap; }
   .mountrow .mdetail { flex: 1; min-width: 0; font: 11.5px var(--mono); color: var(--ink-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mountrow .macts { display: flex; gap: 6px; flex: none; }
@@ -1160,6 +1160,8 @@
     margin-top: 3px;
     line-height: 1.35;
   }
+  /* 金额后的「+未计价」:小一号、不折开,跟在数字同一行 */
+  .stat .v .stat-mark { margin-left: 4px; font-size: 12px; font-weight: 500; letter-spacing: 0; color: var(--ink-soft); white-space: nowrap; }
 
   .btn {
     min-height: 34px;
@@ -1507,7 +1509,10 @@
 .featureslot > .featureintro + * { margin-top:0; }
 .featureslot > .featureintro + .sheet { margin-top:0; }
 .providerchrome { padding-bottom:0; }
-.providerchrome + .panelslot { padding-top:24px; }
+/* 面板槽自己就是滚动容器:留白放在第一项的外边距上,不放在 padding 上——粘住的元素(工具条)贴在 padding 内沿,
+   padding 会在栏目条下面留出一道缝,内容从缝里滚过去 */
+.providerchrome + .panelslot { padding-top:0; }
+.providerchrome + .panelslot > :first-child { margin-top:24px; }
 .coreview > .pagehead { padding-bottom:16px; }
 .connection-index { padding-top:0; top:100px; }
 .connection-detail > div > div:first-child > .sheet:first-child { padding-top:0; }

@@ -13,6 +13,7 @@ import { createConsoleUi } from '../../base/ui/index.ts';
 import { pageTabs, type PageTabs } from '../../base/ui/page-tabs.ts';
 import { createConfigView } from '../features/config/view.ts';
 import type { ToolSchemaDoc } from '../features/live/protocol.ts';
+import { createTemplateView } from '../features/prompts/template-view.ts';
 import { createPromptsView } from '../features/prompts/view.ts';
 import { createStorageView } from '../features/storage/view.ts';
 import { S as TOOLS } from './tools/strings.ts';
@@ -36,9 +37,9 @@ function asArray<T>(v: readonly T[] | undefined): readonly T[] {
   return Array.isArray(v) ? v : [];
 }
 
-/** 页签只给独立面板；带 slot 的由宿主面板挂。 */
-function tabbed(page: WebUiPageManifest): readonly WebUiPanelManifest[] {
-  return asArray(page.panels).filter((p) => p.slot === undefined);
+/** 页签只给独立面板；带 slot 的由宿主面板挂，`hidden` 里的在窗口别处已有自己的页。 */
+function tabbed(page: WebUiPageManifest, hidden?: readonly string[]): readonly WebUiPanelManifest[] {
+  return asArray(page.panels).filter((p) => p.slot === undefined && !hidden?.includes(p.id));
 }
 
 export interface ConsolePageHostDeps {
@@ -61,6 +62,8 @@ export interface ConsolePageHostDeps {
    * 给自己那一页的前缀,页签切换才不会跳出那一页。
    */
   route?(pageId: string, panelId: string): readonly string[];
+  /** 不作页签的面板,按页 id 列出:窗口自己的页已经挂着它们。面板照常能被挂载与调用。 */
+  hiddenTabs?: Readonly<Record<string, readonly string[]>>;
 }
 
 interface MountedPanel {
@@ -225,7 +228,7 @@ export class ConsolePageHost {
       this.renderError(S.noPage(pageId), S.noPageHint);
       return;
     }
-    const panels = tabbed(page);
+    const panels = tabbed(page, this.deps.hiddenTabs?.[page.id]);
     const prompts = asArray(page.prompts);
     const configGroups = this.configGroupsOf(page);
     const storage = this.storageOf(page);
@@ -411,7 +414,7 @@ export class ConsolePageHost {
   private tabsOf(page: WebUiPageManifest): Array<{ value: string; label: string }> {
     const prompts = asArray(page.prompts);
     return [
-      ...tabbed(page).map((p) => ({ value: p.id, label: p.title || p.id })),
+      ...tabbed(page, this.deps.hiddenTabs?.[page.id]).map((p) => ({ value: p.id, label: p.title || p.id })),
       ...(this.configGroupsOf(page).length ? [{ value: PROVIDER_CONFIG_ROUTE, label: S.configTab }] : []),
       ...(prompts.length ? [{ value: PROVIDER_PROMPTS_ROUTE, label: prompts.length === 1 ? prompts[0]!.title : S.promptsTab }] : []),
       ...(this.storageOf(page).length ? [{ value: PROVIDER_STORAGE_ROUTE, label: S.storageTab }] : []),
@@ -507,6 +510,24 @@ export class ConsolePageHost {
       signal: lifecycle.signal,
       doc: this.deps.doc,
     });
+    // World 的环境提示词用「系统提示词」页的编辑器,只装这一页的模板
+    const page = this.find(pageId);
+    if (page?.kind === 'world') {
+      const configured = this.configGroupsOf(page).length > 0;
+      const view = createTemplateView({
+        ui,
+        lifecycle,
+        signal: lifecycle.signal,
+        addLeaveGuard: (fn) => this.deps.router.addLeaveGuard(fn),
+        onError: this.deps.onError,
+        keys,
+        ...(configured ? { openConfig: () => this.deps.router.navigate(this.routeOf(pageId, PROVIDER_CONFIG_ROUTE)) } : {}),
+      });
+      slot.appendChild(view.el);
+      await view.load();
+      if (gen !== this.generation) lifecycle.dispose();
+      return;
+    }
     // 已在系统提示词里的模板与「系统提示词」页编辑的是同一份文件：这里照常列出，卡片标题旁标出同步。
     let inPrefix = new Set<string>();
     try {

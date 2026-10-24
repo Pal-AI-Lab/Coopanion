@@ -110,6 +110,8 @@ export function boot(doc: Document = document): Disposable {
     fetchManifest: () => fetchManifest(),
     createSocket: (url: string) => new WebSocket(url) as unknown as SocketLike,
     wsUrl: (path: string) => wsUrlOf(location, withLanguage(path)),
+    // the pet's window and dress are on 开始 and 装扮, its voice input on 语音输入
+    hiddenTabs: { 'world:desktop-pet': ['pet', 'voice'] },
   };
   const host = new ConsolePageHost({ ...hostDeps, root: pageRoot });
   const consolePageHost: NonNullable<FeatureContext['consolePageHost']> = (opts) => new ConsolePageHost({ ...hostDeps, root: opts.root, route: opts.route });
