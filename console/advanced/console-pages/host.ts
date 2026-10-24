@@ -260,20 +260,10 @@ export class ConsolePageHost {
     const panel = wanted ? panels.find((p) => p.id === wanted) : undefined;
     if (!panel) {
       this.renderChrome(pageId, wanted);
-      if (panels.length === 0 && prompts.length === 0 && configGroups.length === 0
-        && storage.length === 0 && !tools) {
+      if (tabIds.length === 0) {
         this.appendNote(S.noPanels(page.label));
       } else {
-        this.renderError(
-          S.noSuchPanel(page.label, wanted ?? ''),
-          S.provides([
-            ...panels.map((p) => p.id),
-            ...(configGroups.length ? [PROVIDER_CONFIG_ROUTE] : []),
-            ...(prompts.length ? [PROVIDER_PROMPTS_ROUTE] : []),
-            ...(storage.length ? [PROVIDER_STORAGE_ROUTE] : []),
-            ...(tools ? [PROVIDER_TOOLS_ROUTE] : []),
-          ].join(' / ')),
-        );
+        this.renderError(S.noSuchPanel(page.label, wanted ?? ''), S.provides(tabIds.join(' / ')));
       }
       return;
     }
@@ -407,7 +397,6 @@ export class ConsolePageHost {
     return asArray(page.storageParts);
   }
 
-  /** Persona 页才有工具表页签,且要部署挂着 /api/tool-schemas。 */
   /** 这一页的页签,依次是面板、配置、提示词模板、数据清理、工具表(有的才列)。 */
   private tabsOf(page: WebUiPageManifest): Array<{ value: string; label: string }> {
     const prompts = asArray(page.prompts);
@@ -420,6 +409,7 @@ export class ConsolePageHost {
     ];
   }
 
+  /** Persona 页才有工具表页签,且要部署挂着 /api/tool-schemas。 */
   private toolsTabOf(page: WebUiPageManifest): boolean {
     if (page.kind !== 'persona' || page.availability !== 'active') return false;
     return this.snapshot?.framework?.capabilities?.toolSchemas !== false;
