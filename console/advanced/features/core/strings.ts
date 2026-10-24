@@ -43,8 +43,6 @@ const zh = {
   evHeadText: '正文',
   noEvents: '暂无事件',
 
-  // run.ts
-
   // runlog.ts
   currentRun: '当前 run',
   allLevels: '全部级别',
@@ -105,8 +103,6 @@ export const en: typeof zh = {
   evHeadType: 'Type',
   evHeadText: 'Text',
   noEvents: 'No events yet',
-
-  // run.ts
 
   // runlog.ts
   currentRun: 'Current run',

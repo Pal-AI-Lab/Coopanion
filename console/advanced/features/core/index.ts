@@ -37,16 +37,12 @@ interface SubDef {
   need: string | null;
 }
 
-// 「运行」一页里是运行读数、会话和事件三节;旧地址 sessions / events 落到它。
 const CORE_SUBS: readonly SubDef[] = [
   { id: 'run', label: S.subRun, need: null },
   { id: 'runlog', label: S.subRunlog, need: null },
   { id: 'data', label: S.subData, need: 'storage' },
   { id: 'config', label: S.subConfig, need: 'config' },
 ];
-
-const MERGED_INTO_RUN = new Set(['sessions', 'events']);
-const subOf = (id: string): string => (MERGED_INTO_RUN.has(id) ? 'run' : id);
 
 export const coreFeature: FrameworkFeature = {
   route: CORE_ROUTE,
@@ -72,7 +68,7 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
 
   const subs = CORE_SUBS.filter((s) => s.need === null || ctx.capabilities[s.need] === true);
   // 没指定子页时回到上次停留的那个；切换子页时记下来。
-  const wanted = subOf(str(ctx.route.segments[1]) || (localStorage.getItem(LAST_SUB_KEY) ?? ''));
+  const wanted = str(ctx.route.segments[1]) || (localStorage.getItem(LAST_SUB_KEY) ?? '');
   let current = subs.some((s) => s.id === wanted) ? wanted : (subs[0]?.id ?? 'run');
 
   // ── 页头 ─────────────────────────────────────────────────────────
@@ -140,7 +136,6 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     emptyText: S.configEmpty,
   });
 
-  // 运行:读数栏在上,会话、事件两节在下
   const runPane = ui.h('div', 'core-run');
   runPane.append(run.el, ...(hasSessions ? [sessions.el] : []), events.el);
 
@@ -194,7 +189,7 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   ctx.lifecycle.own(
     ctx.router.onChange((route) => {
       if (route.segments[0] !== CORE_ROUTE) return;
-      const sub = subOf(str(route.segments[1])) || (subs[0]?.id ?? 'run');
+      const sub = str(route.segments[1]) || (subs[0]?.id ?? 'run');
       if (sub !== current) show(sub, false);
     }),
   );

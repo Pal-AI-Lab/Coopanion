@@ -9,7 +9,7 @@ import { S } from './strings.ts';
 /** 一枚 chip:纯文本片段与要加粗的读数交替。 */
 type ChipPart = string | { b: string | number };
 
-function chipOf(ui: WebUi, parts: readonly ChipPart[]): HTMLElement {
+export function chipOf(ui: WebUi, parts: readonly ChipPart[]): HTMLElement {
   const c = ui.chip('');
   for (const p of parts) {
     if (typeof p === 'string') c.appendChild(ui.h('span', null, p));
