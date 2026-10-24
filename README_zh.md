@@ -165,7 +165,7 @@ Coopanion 常驻后台：关掉设置窗口不会退出，托盘图标（Mac 是
 
 高级模式的「模型」页可以换模型和调整思考档位、新建「OpenAI Responses Compatible」连接接入其他兼容 Responses API 的服务，以及为没有内置价目的服务填写价目。
 
-**扩展**：高级模式的「扩展」页列出 npm 上带 `cortico-world` 关键字的 World；收录在[官方索引](https://github.com/Pal-AI-Lab/cortico-extensions)里的包还显示标签、投票和评论。安装后点「重启进程」，再到「World 总览」里启用。
+**扩展**：高级模式的「扩展」页列出 npm 上带 `cortico-world` 关键字的 World；收录在[官方索引](https://github.com/Pal-AI-Lab/cortico-extensions)里的包还显示标签、投票和评论。安装后点「重启进程」，再到「World 总览」里启用。打开「启动时自动更新」后，每次启动都会检查已安装的 World 扩展，有新版就自动装好，本次启动即加载。
 
 **更新**：Windows 版和 AppImage 会在后台下载新版本，下好后 Coo 会问你要不要重启更新。Mac 版和 deb 在有新版本时，设置窗口版本号下面会出现手动下载的链接。
 

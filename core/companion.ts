@@ -53,7 +53,7 @@ import { secretReader } from 'cortico/core/secrets.ts';
 import type { Core } from 'cortico/core/core.ts';
 import type { CoreConfig, UsageRecord } from 'cortico/core/types.ts';
 import { loadDeployment } from 'cortico/deploy.ts';
-import { loadExtensions, readInstalled, type ExtensionSet } from 'cortico/extensions.ts';
+import { ExtensionManager, extensionsDir, loadExtensions, readInstalled, type ExtensionSet } from 'cortico/extensions.ts';
 import { deploymentRoot, providersRoot, repoRoot } from 'cortico/paths.ts';
 import { providerModules, registerProviderModules } from 'cortico/providers/registry.ts';
 import { withWorlds, type WorldDefinition, type WorldSection } from 'cortico/world.ts';
@@ -66,6 +66,7 @@ import { followPetLook } from './console-theme.ts';
 import { askForKey, guideDone, markDone, runGuide, type GuideDeps } from './guide.ts';
 import { NOTICE_ID, noticeDefinition, type NoticeWorld } from './notice.ts';
 import { coreText } from './i18n/index.ts';
+import { EXTENSION_AUTO_UPDATE_KEY, autoUpdateWorldExtensions } from './extension-update.ts';
 import { petToolDescriber } from './pet-status.ts';
 import { appLanguage, modelLanguage, replyLanguage } from './language.ts';
 import { CONSOLE_PORT, DEPLOYMENT, DISPLAY_NAME, followLanguage as followPersonaLanguage, personaOf, seed } from './seed.ts';
@@ -120,9 +121,10 @@ const CONTEXT_RING_KEY = 'companion.contextRing';
 const LANGUAGE_OPTIONS = 'coopanion.language';
 
 /**
- * Coopanion's own settings: the app language, the statistics switch, the context ring and the round
- * caps. A Persona's config group is not asked for per request, so it is titled in the app language,
- * which the settings window follows; `main` retitles the object in place when the language changes.
+ * Coopanion's own settings: the app language, the statistics switch, the context ring, the extension
+ * auto-update switch and the round caps. A Persona's config group is not asked for per request, so it
+ * is titled in the app language, which the settings window follows; `main` retitles the object in place
+ * when the language changes.
  */
 function companionGroup(language: Language): ConfigGroup {
   const s = coreText(language).settings;
@@ -136,6 +138,7 @@ function companionGroup(language: Language): ConfigGroup {
         language: { type: 'string', title: s.language.title, description: s.language.description, enum: [...LANGUAGES], 'x-options': LANGUAGE_OPTIONS, 'x-hot': true },
         [TELEMETRY_KEY]: { type: 'boolean', title: s.telemetry.title, description: s.telemetry.description },
         [CONTEXT_RING_KEY]: { type: 'boolean', title: s.contextRing.title, description: s.contextRing.description, 'x-hot': true },
+        [EXTENSION_AUTO_UPDATE_KEY]: { type: 'boolean', title: s.extensionAutoUpdate.title, description: s.extensionAutoUpdate.description, 'x-hot': false },
         // Cormini copies `rounds` when the bot is built, so a change applies from the next start
         'rounds.soft': { type: 'integer', title: s.roundsSoft.title, minimum: 1, 'x-suffix': s.roundsSoft.suffix, 'x-hot': false, description: s.roundsSoft.description },
         'rounds.hard': { type: 'integer', title: s.roundsHard.title, minimum: 1, 'x-suffix': s.roundsHard.suffix, 'x-hot': false, description: s.roundsHard.description },
@@ -527,6 +530,17 @@ export async function main(): Promise<void> {
   };
   const bundled = [CONSOLE, DESKTOP_PET, NOTICE] as WorldDefinition<WorldSection>[];
 
+  // extensions are read from disk here, so an update installed now is the version this start loads
+  const extensionsRoot = extensionsDir(repoRoot());
+  const autoUpdateManager = new ExtensionManager(repoRoot(), { dir: extensionsRoot, records: [], worlds: [], providers: [], webUiAssets: [] });
+  const autoUpdate = await autoUpdateWorldExtensions({
+    configFile: join(home, DEPLOYMENT, 'config.json'),
+    extensionsDir: extensionsRoot,
+    updates: () => autoUpdateManager.updates(),
+    check: (name) => autoUpdateManager.check({ name }, 'world'),
+    install: (name, version) => autoUpdateManager.install({ name, version }),
+  });
+
   // extension providers must be registered before endpoints are resolved
   const extensions = await loadExtensions(repoRoot(), {
     reserved: bundled.map((w) => w.id),
@@ -555,6 +569,12 @@ export async function main(): Promise<void> {
   consumeBootFlags(loaded.dataDir);
 
   const bot = createBot(loaded, definition, { extensions });
+  if (autoUpdate) {
+    const log = bot.core.runlog.logger('extensions');
+    for (const item of autoUpdate.installed) log.info('World 扩展已自动更新', item);
+    for (const item of autoUpdate.skipped) log.warn('World 扩展的新版不能加载,已跳过', item);
+    for (const item of autoUpdate.failed) log.warn('World 扩展自动更新失败', item);
+  }
   bus = bot.core.bus;
   core = bot.core;
   const stats = new Telemetry({

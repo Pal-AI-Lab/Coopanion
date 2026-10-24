@@ -390,6 +390,9 @@ export function parseInstallInput(raw: string): Target | null {
   const match = /^((?:@[a-z0-9_.-]+\/)?[a-z0-9][a-z0-9_.-]*)(?:@([a-zA-Z0-9][a-zA-Z0-9._-]*))?$/.exec(raw.trim());
   return match ? { name: match[1], ...(match[2] ? { version: match[2] } : {}) } : null;
 }
+/** The app's config group that holds the auto-update switch (`core/companion.ts`). */
+const CONFIG_GROUP = 'companion';
+const AUTO_UPDATE_KEY = 'companion.extensionAutoUpdate';
 /** 官方索引仓:标签、讨论区与扩展申请都在这里。 */
 const INDEX_REPO = 'https://github.com/Pal-AI-Lab/cortico-extensions';
 /** 预填包名的「标签」扩展申请:索引仓的网页表单,`package` 字段按查询参数预填。 */
@@ -424,6 +427,10 @@ export function mountExtensions(ctx: FeatureContext): void {
   let columns = extensionColumns(root.clientWidth);
   let installed: ExtensionView[] = [];
   let updates = new Map<string, UpdateView>();
+  /** Whether the next start updates installed World extensions; read from the `companion` config group. */
+  let autoUpdate = false;
+  /** The switch on screen, while the World tab shows one. */
+  let autoUpdateBox: { setChecked(value: boolean): void } | null = null;
   let directory = '';
   /** 服务端的 `process.platform`;列表回来之前是空串,这时不按平台拦安装。 */
   let platform = '';
@@ -1176,6 +1183,27 @@ export function mountExtensions(ctx: FeatureContext): void {
       installed = data.extensions; installedFetched = true; directory = data.dir; platform = data.platform ?? ''; const dirNode = root.querySelector('.extension-directory'); if (dirNode) dirNode.textContent = S.labelled(S.directory, directory); renderInstalled(); renderMarket(); restoreScroll(); return true;
     } catch (error) { if (!signal.aborted) { installedFetched = true; message(kind, 'management', S.listLoadFailed(errorText(error)), true); restoreScroll(); } return false; }
   }
+  /** The switch lives in the app's config group; a config that cannot be read leaves it off. */
+  async function loadAutoUpdate() {
+    try {
+      const data = await get<{ groups?: Array<{ group: { id: string }; values?: Record<string, unknown> }> }>('/api/config', { signal });
+      if (signal.aborted) return;
+      autoUpdate = data.groups?.find(group => group.group.id === CONFIG_GROUP)?.values?.[AUTO_UPDATE_KEY] === true;
+      autoUpdateBox?.setChecked(autoUpdate);
+    } catch { /* the switch stays off */ }
+  }
+  async function saveAutoUpdate(value: boolean) {
+    const owner = kind;
+    try {
+      await post('/api/config', { group: CONFIG_GROUP, values: { [AUTO_UPDATE_KEY]: value } }, { signal });
+      if (signal.aborted) return;
+      autoUpdate = value;
+      message(owner, 'management', value ? S.autoUpdateOn : S.autoUpdateOff);
+    } catch (error) {
+      autoUpdateBox?.setChecked(autoUpdate);
+      if (!signal.aborted) message(owner, 'management', S.autoUpdateFailed(errorText(error)), true);
+    }
+  }
   async function checkUpdates() {
     if (signal.aborted) return;
     try { const data = await get<UpdateResultView>('/api/extensions/updates', { signal }); if (signal.aborted) return; updates = new Map(data.updates.map(u => [u.name, u])); renderInstalled(); if (data.errors.length) message(kind, 'management', S.updateCheckFailed(data.errors.map(e => `${e.name}: ${e.error}`).join('; ')), true); }
@@ -1443,6 +1471,11 @@ export function mountExtensions(ctx: FeatureContext): void {
     managed.el.querySelector('h3')!.append(ui.h('span', 'extension-directory', S.labelled(S.directory, directory)));
     const installedFilters = ui.input({ type: 'search', value: state.installedFilter, placeholder: S.installedFilter, onInput: value => { state.installedFilter = value; state.installedPage = 0; renderInstalled(); save(); } });
     installedFilters.setAttribute('aria-label', S.installedFilter); bar.append(installedFilters, sizePicker('installed'));
+    if (kind === 'world') {
+      const toggle = ui.checkbox(S.autoUpdate, { checked: autoUpdate, onChange: (value) => void saveAutoUpdate(value) });
+      toggle.el.classList.add('extension-auto-update'); attachHint(toggle.el, S.autoUpdate, S.autoUpdateHint);
+      autoUpdateBox = toggle; bar.append(toggle.el);
+    } else autoUpdateBox = null;
     if (canRestart) { const button = ui.button(S.restartProcess, { onClick: () => void restart() }); button.classList.add('extension-restart'); bar.append(button); }
     bar.append(ui.button(S.refresh, { onClick: () => { void load(); void checkUpdates(); } }));
     messageNodes.management = ui.msgline(kind === 'bot' ? S.createBody : kind === 'provider' ? S.providerManagement : S.idleManagement); messageNodes.management.setAttribute('role', 'status'); installedGrid = ui.h('div', 'extension-grid extension-installed-grid'); installedPager = ui.rowbar();
@@ -1516,7 +1549,7 @@ export function mountExtensions(ctx: FeatureContext): void {
   }); observer.observe(panel); lifecycle.add(() => observer.disconnect()); }
   render();
   if (!categories.includes(router.route.segments[1] as ExtensionKindView)) router.replace(['extensions', kind]);
-  void load(); void checkUpdates(); void search(kind); void loadRegistry();
+  void load(); void checkUpdates(); void search(kind); void loadRegistry(); void loadAutoUpdate();
   try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { message(kind, 'management', S.reloadWait); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
 }
 export const extensionsFeature: FrameworkFeature = { route: 'extensions', label: S.navLabel, icon: 'download', navGroup: S.navGroup, needsAny: ['extensions'], mount: mountExtensions };

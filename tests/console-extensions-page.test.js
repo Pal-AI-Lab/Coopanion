@@ -88,6 +88,10 @@ function stub(over = {}) {
     }
     else if (u === '/api/extensions/uninstall')
       body = { ok: true, result: '已卸载 x。' };
+    else if (u === '/api/config') {
+      const groups = [{ group: { id: 'companion' }, values: { 'companion.extensionAutoUpdate': over.autoUpdate ?? false } }];
+      body = method === 'POST' ? { ok: true, result: '', groups } : { groups };
+    }
     else if (u === '/api/run/lifecycle')
       body = LIFE;
     else if (u === '/api/run/restart')
@@ -239,6 +243,26 @@ describe('extension categories', () => {
     expect(calls.find(c => c.url === '/api/extensions/check')?.body).toEqual({ target: { name: 'alpha-mod', version: '1.1.0' }, kind: 'world' });
     expect(calls.find(c => c.url === '/api/extensions/install')?.body).toEqual({ name: 'alpha-mod', version: '1.1.0' });
     expect(sheets(root)[0].textContent).toContain('更新成功');
+  });
+  it('stores the start-up auto-update switch in the app config group, on the World tab only', async () => {
+    stub();
+    const { ctx, root } = mount();
+    await flush();
+    const toggle = [...sheets(root)[0].querySelectorAll('label.check')].find(label => label.textContent.includes('启动时自动更新'));
+    expect(toggle.querySelector('input').checked).toBe(false);
+    toggle.querySelector('input').click();
+    await flush();
+    expect(calls.find(c => c.url === '/api/config' && c.method === 'POST')?.body).toEqual({ group: 'companion', values: { 'companion.extensionAutoUpdate': true } });
+    expect(sheets(root)[0].textContent).toContain('已开启启动时自动更新');
+    await switchTo(ctx, 'provider');
+    expect(sheets(root)[0].textContent).not.toContain('启动时自动更新');
+  });
+  it('checks a stored auto-update switch as on', async () => {
+    stub({ autoUpdate: true });
+    const { root } = mount();
+    await flush();
+    const toggle = [...sheets(root)[0].querySelectorAll('label.check')].find(label => label.textContent.includes('启动时自动更新'));
+    expect(toggle.querySelector('input').checked).toBe(true);
   });
   it('shows failed and pending states; a package without a manifest is listed under World', async () => {
     stub();
