@@ -159,11 +159,7 @@
   .rail-rename { flex: 1; min-width: 0; }
 
 
-  .pagehead {
-    flex: none; padding: 18px 30px 0; }
-  .pagetitle { font: 600 22px/1.3 var(--sans); color: var(--ink); margin: 5px 0 2px; letter-spacing: .5px; }
   .pagetitle .navlamps { margin-left: 10px; vertical-align: middle; }
-  .pagedesc { font-size: 13px; color: var(--ink-soft); }
 
   .scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 30px 40px; }
   .measure { max-width: var(--content-width); }
@@ -183,7 +179,6 @@
     background: var(--accent-2); border-radius: 0 0 4px 4px; opacity: .8;
   }
   .sheet h3 { font: 600 15.5px/1.3 var(--sans); color: var(--ink); margin: 0 0 3px; letter-spacing: .3px; }
-  .sheet .sh-desc { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 14px; }
   .sheet h3 .en { font: 10.5px var(--sans); color: var(--ink-dim); margin-left: 8px; letter-spacing: .04em; }
 
 
@@ -680,7 +675,6 @@
     .navitem { flex: none; padding: 7px 11px; margin: 0; min-height: 38px; }
     .navitem .tag { display: none; }
     .railfoot { display: none; }
-    .pagehead { padding-top: 14px; }
     .modalcard { width: 96vw; max-height: 92dvh; }
     .theme-color-grid { grid-template-columns: repeat(auto-fill, minmax(144px, 1fr)); }
   }
@@ -981,8 +975,7 @@
   .featureintro .pagedesc { margin: 6px 0 0; }
   .providerintro .rowbar { margin-top: 14px; }
   .providerintro .msgline { margin-top: 10px; }
-  .pagetitle { margin-top: 7px; font: 600 22px/1.3 var(--sans); letter-spacing: -.025em; }
-  .pagedesc { margin-top: 5px; color: var(--muted-foreground); font-size: 13px; line-height: 1.55; }
+  .pagetitle { font: 600 22px/1.3 var(--sans); color: var(--ink); letter-spacing: -.025em; }
   .scroll { padding: 22px var(--page-gutter) 48px; scrollbar-gutter: stable both-edges; }
   .measure { width: min(100%, var(--content-width)); margin-inline: auto; }
   .sheet {
@@ -998,7 +991,7 @@
   .sheet.tabbed::before { display: none; }
   .sheet h3 { font: 600 15px/1.4 var(--sans); letter-spacing: -.01em; }
   .sheet h3 .en { font-size: 11.5px; }
-  .sheet .sh-desc { margin-top: 3px; margin-bottom: 16px; line-height: 1.55; }
+  .sheet .sh-desc { margin-top: 3px; margin-bottom: 16px; }
   details.sheet.fold,
   .iogrid > .sheet {
     padding: 16px 18px;
