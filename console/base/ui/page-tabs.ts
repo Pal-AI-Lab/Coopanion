@@ -35,11 +35,9 @@ export function pageTabs(
     const text = doc.createElement('span');
     text.textContent = item.label;
     btn.appendChild(text);
+    // the caller moves the highlight with setValue once the switch went through: a leave guard may refuse it
     btn.addEventListener('click', () => {
-      if (current === item.value) return;
-      current = item.value;
-      paint();
-      opts.onSelect?.(item.value);
+      if (current !== item.value) opts.onSelect?.(item.value);
     }, { signal });
     el.appendChild(btn);
     tabs.push({ value: item.value, btn, text });
@@ -48,7 +46,7 @@ export function pageTabs(
   const place = (): void => {
     const text = tabs.find((t) => t.value === current)?.text;
     if (!text?.offsetWidth) {
-      if (el.getAttribute('data-line') !== null) el.removeAttribute('data-line');
+      el.removeAttribute('data-line');
       return;
     }
     el.style.setProperty('--tab-x', `${text.offsetLeft}px`);

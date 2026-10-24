@@ -61,6 +61,8 @@ export function createEventsView(deps: EventsViewDeps): EventsView {
   let archive = false;
   /** 已载入的事件,旧的在前。 */
   let rows: EventRow[] = [];
+  /** 分页算的是 rows 的前 shown 条。不在第一页时追到的新事件不算进来,当前页才不整体错位;回到第一页再补上。 */
+  let shown = 0;
   let earliest: number | null = null;
   /** 已经消费到的游标:之前的记录要么显示了,要么被当前过滤条件排除。 */
   let latest = 0;
@@ -120,10 +122,11 @@ export function createEventsView(deps: EventsViewDeps): EventsView {
 
   /** 画当前页:新的在前。 */
   function paint(): void {
-    pager.render(rows.length, hasEarlier());
-    const [from, to] = pager.slice(rows.length);
-    const newestFirst = rows.slice(rows.length - to, rows.length - from).reverse();
-    table.clear(rows.length ? undefined : S.noEvents);
+    if (pager.page === 0) shown = rows.length;
+    pager.render(shown, hasEarlier());
+    const [from, to] = pager.slice(shown);
+    const newestFirst = rows.slice(shown - to, shown - from).reverse();
+    table.clear(shown ? undefined : S.noEvents);
     for (const e of newestFirst) table.addRow(rowCells(e));
   }
 
@@ -159,6 +162,7 @@ export function createEventsView(deps: EventsViewDeps): EventsView {
       const events = d?.events ?? [];
       if (events.length) {
         rows = [...events, ...rows];
+        shown += events.length;
         earliest = events[0].cursor;
         noteSources(events);
       } else {

@@ -158,6 +158,7 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   const summary = ui.h('div', 'live-summary');
   const connection = createConnectionButton(ui, (name) => ctx.router.navigate(name ? ['providers', name] : ['providers']));
   // 今日花费:`/api/usage` 部署时区的今天;usage 没挂载(totals 为 null)或取不到时不显示。
+  // 服务端每次都整本读账本，所以只在挂载时和 main 记下一次调用后重取，过了零点要等下一次调用才换到新的一天。
   const cost = ui.button('', { onClick: () => ctx.router.navigate(['usage']) });
   cost.className = 'live-cost';
   cost.hidden = true;
@@ -166,7 +167,7 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     const seq = ++costSeq;
     try {
       const d = await get<UsageAggregate>('/api/usage?bucket=day&days=1', { signal: ctx.signal });
-      if (seq !== costSeq || ctx.signal.aborted) return;
+      if (seq !== costSeq) return;
       const t = d.totals;
       cost.hidden = !t;
       if (!t) return;
@@ -179,13 +180,12 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     }
   };
   let costSoon: ReturnType<typeof setTimeout> | undefined;
-  /** 新的一条记录进来后稍等再取:那次调用的账要先落下。 */
+  /** 去抖：同一轮里接连几次调用只重取一回。 */
   const refreshCostSoon = (): void => {
     clearTimeout(costSoon);
     costSoon = setTimeout(() => { void loadCost(); }, 4000);
   };
-  const costTimer = setInterval(() => { void loadCost(); }, 60_000);
-  ctx.signal.addEventListener('abort', () => { clearInterval(costTimer); clearTimeout(costSoon); }, { once: true });
+  ctx.signal.addEventListener('abort', () => clearTimeout(costSoon), { once: true });
   void loadCost();
 
   // 右边三项是一组:放不下时整组换行
@@ -337,7 +337,11 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   };
 
   const setSessions = (list: SessionStat[]): void => {
+    const before = mainStat()?.calls;
     state.sessions = list;
+    const after = mainStat()?.calls;
+    // 会话统计与账本在同一处记账：main 的调用数涨了，账本里已有那次调用
+    if (before !== undefined && after !== undefined && after > before) refreshCostSoon();
     status.render(state.status, mainStat());
     sessionBand.render(list, fork.id);
     fork.noteSessions();
@@ -367,7 +371,6 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
           if (index === state.messages.length) {
             const message = f.message as ContextRecord;
             state.messages.push(message);
-            refreshCostSoon();
             if (fork.isMain()) timeline.append(message, index, true);
             break;
           }

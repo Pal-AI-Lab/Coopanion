@@ -22,7 +22,6 @@ export const S: Partial<typeof en> = {
   storageTab: '資料清理',
   toolsTab: '工具表',
   memoryDesc: 'Coo 自己寫下的記憶檔案，以及每次修改的紀錄。',
-  personaDesc: '決定 Coo 怎麼思考和行動的設定、提示詞範本與工具。',
   memoryTitle: '記憶',
   personaTitle: '人格',
   reloadTitle: '重新載入 system 前綴？',

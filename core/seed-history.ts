@@ -75,4 +75,11 @@ export const EARLIER_PERSONAS: Readonly<Record<string, PersonaId>> = {
   '91619223c03d3d03a9eaedc4bdbbecaa12ddc59a5df4651d39ad8ac53a1e4f23': 'whale',
   '45cf9a6beb33e0215678913e41d983b6926c8d4a3fff9bb8f5032d7df5c91265': 'whale',
   '4fd1f79edd0fa2ce6bac60b1181923c50b2e2e30815cbf57b6bb755fa32374e6': 'whale',
+  // 0.2.5 to 0.2.8, Japanese, before each persona got its own first person
+  '78d4921d62d4b721184cb512b7bb6e6042364d7475e8945ca402ce1dce7874de': 'coo',
+  'd17537afeaefd3b08c8963bb2031479faef138f5c25f098ff2bad752a226e5d5': 'grail',
+  '12639f5fc2da18bf3ce9abc84fcf636a2980abf1d143b7a9d8d1dd5d0d4a21a5': 'forge',
+  '26372b9b0d34e6fc688466106ced50c6767342b4c74814d3786d036abcac0f10': 'heart',
+  '18bd3e5c56ba8e3106008e13cbcb9c405026f817c544de8409e3dbeaec47f6bc': 'winter',
+  '6bd3f628883e3eb60273df6fadef6011e789d9f4ad54a63306720b52119e28c0': 'whale',
 };
