@@ -35,7 +35,7 @@ const alarmsPanel: WebUiPanel = {
   mount(ctx) {
     const { ui, root } = ctx;
     const t = panelText(ctx.language);
-    const card = ui.sheet({ title: t.title, en: 'alarms', desc: t.desc });
+    const card = ui.sheet({ title: t.title, desc: t.desc });
     root.appendChild(card.el);
     const msg = ui.msgline('');
     const table = ui.table({ head: t.head });
