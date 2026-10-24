@@ -24,8 +24,13 @@
  * which gives values written by earlier versions as they now read. Their 「自定义…」 opens a popup whose
  * picks (a list, a map) `/api/config` cannot write; they are saved through the pet panel's
  * `setWakeKinds` and `setSelfAdjustCustom`, which set the mode to `custom` in the same write.
+ *
+ * 「打字键」 (`typeKey`) is read from the same state and saved through the pet panel's `setTypeKey`; its
+ * keys are set as the talk key's on the 语音输入 page (key-capture.ts), and how they are pressed is
+ * picked beside them. The state names the keys in the app language and says why they cannot be read.
  */
 import { ICONS } from 'cortico-world-desktop-pet/web/ui.js';
+import { captureKey, PRESSES, splitTaps, withTaps } from 'cortico-world-desktop-pet/webui/key-capture.ts';
 import { get, invokePanel, setConfig } from '../../base/api.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { intro } from '../intro.ts';
@@ -87,11 +92,14 @@ const SELF_MODES = ['off', 'default', 'any', 'custom'] as const;
 const SELF_KEYS = ['figure', 'scheme', 'roam', 'snoreSeconds', 'sound', 'scale', 'bubbleSize', 'fontSize', 'theme', 'hoverButtons', 'user'] as const;
 const SELF_DEFAULT: readonly string[] = ['figure', 'scheme', 'roam', 'snoreSeconds'];
 
-/** What the pet panel's state says of the two rows. */
+/** What the pet panel's state says of the two rows and of the typing key. */
 interface HabitState {
   wake?: { wakeOn: string; wakeKinds: string[] };
   selfAdjust?: { mode: string; custom: Record<string, boolean> };
+  typeKey?: TypeKeyState;
 }
+type Habits = Required<Pick<HabitState, 'wake' | 'selfAdjust'>>;
+interface TypeKeyState { enabled: boolean; hotkey: string; keyLabel: string; problem: string | null }
 
 /** The pet's actions in the menu's order (the World's PET_ACTIONS), with the icon each shows. */
 const ACTIONS: ReadonlyArray<[id: string, icon: string]> = [
@@ -197,7 +205,7 @@ async function mount(ctx: PageContext): Promise<void> {
   const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on, GROUP, behaviorMsg) });
   const saidBubbles = ui.checkbox(S.saidBubble, { onChange: (on) => void save(KEYS.saidBubbles, on, GROUP, behaviorMsg) });
   // the two rows below follow the pet panel's state; 「自定义…」 is picked by saving its popup
-  let habit: Required<HabitState> = { wake: { wakeOn: 'poke', wakeKinds: ['poke'] }, selfAdjust: { mode: 'default', custom: {} } };
+  let habit: Habits = { wake: { wakeOn: 'poke', wakeKinds: ['poke'] }, selfAdjust: { mode: 'default', custom: {} } };
   const wakeHint = ui.h('p', 'home-note');
   const wake = ui.segmented(WAKE_MODES.map((v) => ({ value: v, label: S.wakeModes[v] ?? v })), {
     size: 'sm',
@@ -221,7 +229,7 @@ async function mount(ctx: PageContext): Promise<void> {
   // 「自定义…」 opens its popup each time, picked or not; the row shows it picked once the popup is saved
   wake.el.lastElementChild?.addEventListener('click', () => { renderHabits(); openWakePopup(); }, { signal });
   selfMode.el.lastElementChild?.addEventListener('click', () => { renderHabits(); openSelfPopup(); }, { signal });
-  const directOf = (h: Required<HabitState>) => (h.selfAdjust.mode === 'any' ? [...SELF_KEYS]
+  const directOf = (h: Habits) => (h.selfAdjust.mode === 'any' ? [...SELF_KEYS]
     : h.selfAdjust.mode === 'default' ? SELF_KEYS.filter((k) => SELF_DEFAULT.includes(k))
     : SELF_KEYS.filter((k) => h.selfAdjust.custom[k] ?? SELF_DEFAULT.includes(k)));
   function renderHabits(): void {
@@ -277,6 +285,50 @@ async function mount(ctx: PageContext): Promise<void> {
       renderHabits();
       void callPet('setSelfAdjustCustom', [custom]);
     });
+  }
+  // 打字键: the switch, and while it is on the keys, a button to set others and how they are pressed
+  let typeKey: TypeKeyState = { enabled: false, hotkey: '', keyLabel: '', problem: null };
+  const typeSwitch = ui.checkbox(S.typeKey, { onChange: (on) => void callPet('setTypeKey', [{ enabled: on }]) });
+  const typeKeyName = ui.h('span', 'companion-rangeval');
+  const typeKeyBtn = ui.button(S.typeKeyChange, { size: 'sm' });
+  const typePress = ui.select({ onChange: (v) => void callPet('setTypeKey', [{ hotkey: withTaps(splitTaps(typeKey.hotkey).combo, Number(v)) }]) });
+  const typeKeyBox = ui.h('div', 'companion-rangebox');
+  typeKeyBox.append(typeKeyName, typeKeyBtn, typePress);
+  const typeBox = ui.h('div', 'companion-switchbox');
+  typeBox.append(typeSwitch.el, typeKeyBox);
+  const typeHint = ui.h('p', 'home-note');
+  let capture: { stop(): void } | null = null;
+  typeKeyBtn.addEventListener('click', () => {
+    if (capture) { capture.stop(); return; }
+    typeKeyName.textContent = '…';
+    typeKeyBtn.textContent = S.popupCancel;
+    typeHint.textContent = S.typeKeyCapture;
+    typeHint.classList.remove('bad');
+    capture = captureKey(window, (combo) => {
+      capture = null;
+      typeKeyBtn.textContent = S.typeKeyChange;
+      // how the keys are pressed stays as picked
+      if (combo) void callPet('setTypeKey', [{ hotkey: withTaps(combo, splitTaps(typeKey.hotkey).taps) }]);
+      else renderTypeKey();
+    });
+  }, { signal });
+  signal.addEventListener('abort', () => capture?.stop());
+  function renderTypeKey(): void {
+    typeSwitch.setChecked(typeKey.enabled);
+    typeKeyBox.hidden = !typeKey.enabled;
+    if (capture) return;
+    typeKeyName.textContent = typeKey.keyLabel;
+    // a key set to three presses in config.json keeps its choice; the row offers two or one
+    const { taps } = splitTaps(typeKey.hotkey);
+    const presses = PRESSES.filter((n) => n < 3 || n === taps);
+    if (typePress.dataset.list !== presses.join()) {
+      typePress.dataset.list = presses.join();
+      typePress.replaceChildren(...presses.map((n) => { const o = ui.h('option', null, S.typeKeyPresses[n] ?? String(n)); o.value = String(n); return o; }));
+    }
+    if (document.activeElement !== typePress) typePress.value = String(taps);
+    const problem = typeKey.enabled ? typeKey.problem : null;
+    typeHint.textContent = problem ?? S.typeKeyHint;
+    typeHint.classList.toggle('bad', !!problem);
   }
   const stats = ui.checkbox(S.stats, { onChange: (on) => void save(STATS_KEY, on, STATS_GROUP) });
   const statsDoc = ui.h('a', 'home-link companion-statsdoc', S.statsDoc);
@@ -345,6 +397,7 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.self, selfMode.el, selfHint),
     row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
     row(S.dblclickLabel, dblclick.el),
+    row(S.typeKeyLabel, typeBox, typeHint),
     row(S.statusBubbleLabel, statusBubble.el, S.statusBubbleHint),
     row(S.saidBubbleLabel, saidBubbles.el, S.saidBubbleHint),
     behaviorMsg,
@@ -486,7 +539,7 @@ async function mount(ctx: PageContext): Promise<void> {
       return false;
     }
   }
-  /** Calls a pet panel method (回应模式, 自主配置权限); a failure shows under 行为与互动, and the rows follow the state it returns. */
+  /** Calls a pet panel method (回应模式, 自主配置权限, 打字键); a failure shows under 行为与互动, and the rows follow the state it returns. */
   const callPet = async (method: string, args: unknown[]) => {
     try {
       const state = await invokePanel<HabitState>(PET_PAGE, 'pet', method, args, opts);
@@ -500,6 +553,7 @@ async function mount(ctx: PageContext): Promise<void> {
     }
   };
   function takeHabits(state: HabitState | null | undefined): void {
+    if (state?.typeKey) { typeKey = state.typeKey; renderTypeKey(); }
     if (!state?.wake || !state.selfAdjust) return;
     habit = { wake: state.wake, selfAdjust: state.selfAdjust };
     renderHabits();
