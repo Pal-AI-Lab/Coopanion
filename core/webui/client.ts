@@ -38,8 +38,8 @@ const alarmsPanel: WebUiPanel = {
     const card = ui.sheet({ title: t.title, desc: t.desc });
     root.appendChild(card.el);
     const msg = ui.msgline('');
-    const table = ui.table({ head: t.head });
-    card.body.append(table.el, msg);
+    const list = ui.h('div', 'coo-alarms');
+    card.body.append(list, msg);
 
     const rel = new Intl.RelativeTimeFormat(ctx.language, { numeric: 'auto' });
     let shown = '';
@@ -49,22 +49,23 @@ const alarmsPanel: WebUiPanel = {
       const key = JSON.stringify([st, Math.floor(Date.now() / 60_000)]);
       if (key === shown) return;
       shown = key;
-      if (!st.alarms.length) { table.clear(t.empty); return; }
-      table.clear();
-      for (const alarm of st.alarms) table.addRow(row(alarm, at));
+      if (!st.alarms.length) { list.replaceChildren(ui.placeholder(t.empty)); return; }
+      list.replaceChildren(...st.alarms.map((alarm) => row(alarm, at)));
     };
+    // one alarm as a row of the version history's commit list: when it rings above, its note below
     const row = (alarm: Alarm, at: ReturnType<typeof clock>) => {
-      const when = ui.h('div', 'coo-alarm-when');
-      when.append(ui.h('span', 'coo-alarm-time', at.format(alarm.at)));
-      if (alarm.daily) when.append(ui.chip(t.daily, 'accent'));
-      when.append(ui.h('small', 'muted', relative(rel, alarm.at - Date.now())));
-      const remove = ui.button(t.remove, { size: 'sm', variant: 'danger', onClick: () => void cancel(alarm, at.format(alarm.at), remove) });
-      return [
-        { el: when },
-        { text: alarm.note, cls: 'txt' },
-        { text: at.format(alarm.setAt), cls: 'mono' },
-        { el: remove, cls: 'coo-alarm-act' },
-      ];
+      const item = ui.h('div', 'histrow coo-alarm');
+      const head = ui.h('div', 'hh');
+      head.append(ui.h('span', 'hhash', at.format(alarm.at)));
+      if (alarm.daily) head.append(ui.h('span', 'hauthor', t.daily));
+      head.append(ui.h('span', 'coo-alarm-rel', relative(rel, alarm.at - Date.now())));
+      head.append(ui.h('span', 'hdate', `${t.head[2]} ${at.format(alarm.setAt)}`));
+      const remove = ui.h('button', 'coo-alarm-remove', t.remove);
+      remove.type = 'button';
+      remove.addEventListener('click', () => void cancel(alarm, at.format(alarm.at), remove));
+      head.append(remove);
+      item.append(head, ui.h('div', 'hmsg', alarm.note));
+      return item;
     };
     const cancel = async (alarm: Alarm, when: string, btn: HTMLButtonElement) => {
       if (!await ui.confirm({ title: t.confirmTitle(when), body: alarm.note })) return;

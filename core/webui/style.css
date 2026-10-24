@@ -1,6 +1,7 @@
-/* time, then 每天, then how far off on a line of its own */
-.coo-alarm-when{display:flex; flex-wrap:wrap; align-items:center; gap:2px 8px; white-space:nowrap}
-.coo-alarm-time{font-family:var(--mono); color:var(--ink)}
-.coo-alarm-when .chip{padding:3px 8px}
-.coo-alarm-when small.muted{flex-basis:100%}
-table.data td.coo-alarm-act{width:1%; white-space:nowrap; text-align:right; vertical-align:middle}
+/* the list reads like the version history's commit list (styles.css .histrow); a row is not a link */
+.coo-alarm { cursor: default; }
+.coo-alarm .coo-alarm-rel { font-size: 12px; color: var(--ink-dim); }
+.coo-alarm-remove { flex: none; padding: 0; border: 0; background: none; cursor: pointer; font: 12px/1 var(--sans); color: var(--ink-soft); }
+.coo-alarm-remove:hover { color: var(--danger); }
+.coo-alarm-remove:disabled { opacity: .5; cursor: default; }
+.coo-alarm-remove:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
