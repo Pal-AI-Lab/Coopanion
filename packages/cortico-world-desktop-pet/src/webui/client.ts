@@ -95,7 +95,7 @@ const petPanel: WebUiPanel = {
   mount(ctx) {
     const { ui, root } = ctx;
     const t = petText(ctx.language).panel;
-    const card = ui.sheet({ title: t.pet, en: 'pet' });
+    const card = ui.sheet({ title: t.pet });
     root.appendChild(card.el);
     const s = card.body;
     const msg = ui.msgline('');
@@ -114,12 +114,15 @@ const petPanel: WebUiPanel = {
     open.target = '_blank'; open.rel = 'noopener';
     links.append(open, msg);
 
+    const dress = ui.sheet({ title: t.dress, desc: t.dressHint });
+    root.appendChild(dress.el);
     const frameWrap = ui.h('div', 'pet-dressframe');
     const frame = ui.h('iframe');
     frame.title = t.dress;
     frameWrap.append(frame);
+    dress.body.append(frameWrap);
 
-    s.append(win.row, rt.row, links, ui.section(t.dress, t.dressHint), frameWrap);
+    s.append(win.row, rt.row, links);
 
     let st: PetState | null = null;
     const render = (next: PetState) => {
@@ -166,7 +169,7 @@ const voicePanel: WebUiPanel = {
   mount(ctx) {
     const { ui, root } = ctx;
     const t = petText(ctx.language).panel;
-    const card = ui.sheet({ title: t.voice, en: 'voice' });
+    const card = ui.sheet({ title: t.voice });
     root.appendChild(card.el);
     const s = card.body;
     const msg = ui.msgline('');
@@ -229,8 +232,11 @@ const voicePanel: WebUiPanel = {
     meterRow.append(meterDot, ui.h('span', 'mname', t.level), meter);
 
     const log = ui.log({ max: 100, empty: t.noResults });
-    settings.append(eng.row, srv.row, rt.row, micRow.row, keyRow.row, modeRow.row, onPressRow.row, meterRow, ui.section(t.results, t.resultsHint), log.el);
+    settings.append(eng.row, srv.row, rt.row, micRow.row, keyRow.row, modeRow.row, onPressRow.row, meterRow);
     s.append(master, msg, settings);
+    const results = ui.sheet({ title: t.results, desc: t.resultsHint });
+    results.body.append(log.el);
+    root.appendChild(results.el);
 
     let st: VoiceState | null = null;
     let seen = 0;
