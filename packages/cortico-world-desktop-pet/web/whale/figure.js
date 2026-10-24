@@ -188,7 +188,9 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     }
     // how far the arms fly out while she is held, as a share of the maid dress's (short sleeves look wrong flung wide)
     const heldArms = outfitInfo(of).heldArms ?? 1;
-    return { PV, deformers, parts, brows, creases, swings, heldArms };
+    // an outfit whose tail turns about its root inside the body (`tailRoot`) bends it from there to the tip (see `tailBend`)
+    const tailRoot = outfitInfo(of).tailRoot ? { x: PV.tail[0], tip: rectOf('tail')[0] } : null;
+    return { PV, deformers, parts, brows, creases, swings, heldArms, tailRoot };
   }
   let L = layoutOf(outfit);
 
@@ -643,7 +645,12 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     st.legBack = { fn: hinge(L.PV.legBack, lerp(legA[0], -55, sitK), (-lift[0] * .9 - behind[0]) * (1 - sitK)) };
     st.legFront = { fn: hinge(L.PV.legFront, lerp(legA[1], -60, sitK), (-lift[1] * .9 - behind[1]) * (1 - sitK)) };
     st.tail = { a: tail - 10 * sitK };
-    st.tailBend = { fn: u => [0, -tail * .5 * u * u] };
+    // the maid dress's tail turns about the edge of the skirt and bends most at its root end, out of sight under the
+    // skirt; one that turns about its root inside the body stays put there and its tip trails the turn
+    const tr = L.tailRoot;
+    st.tailBend = tr
+      ? { fn: (u, v, x) => { const k = clamp((tr.x - x) / (tr.x - tr.tip), 0, 1); return [0, tail * .3 * k * k]; } }
+      : { fn: u => [0, -tail * .5 * u * u] };
     // the head stays up while she leans forward for the ninja run
     st.neck = { a: headA + clamp(bend * .8, -10, 12) - runK * 12, ty: (mode === 'sleep' ? 2.5 : 0) + breath * .35 };
     const parallax = (k, ky) => (u, v) => [angleX * k * bump(u) * (.4 + .6 * bump(v)), angleY * ky * bump(v) * (.4 + .6 * bump(u))];
