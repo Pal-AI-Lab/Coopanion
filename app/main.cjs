@@ -9,7 +9,7 @@
  *   edits, which keeps it hidden; it opens again at the route it last showed. Starting the app again while it runs brings the pet back, or starts the
  *   Core again when it stopped retrying (`failed`);
  * - `--pet-host --pet-url=… --parent-pid=…`: the desktop pet's transparent window, started by
- *   the desktop-pet World through `CORTICO_DESKTOP_PET_HOST`. It uses its own profile directory.
+ *   the desktop-pet World through `CORTICO_DESKTOP_PET_HOST` with the app's own switches. It uses its own profile directory.
  *
  * A build is for one channel, `coopanion.channel` in the app's package.json (scripts/pack.ts): `github`
  * (the default) updates itself from the GitHub releases; `steam` is installed and updated by Steam, does
@@ -227,7 +227,8 @@ const userData = app.getPath('userData');
 const shimDir = join(__dirname, 'shims');
 /** MinGit's command directory in the Windows build (scripts/pack.ts). */
 const MINGIT = join(APP_ROOT, 'mingit', 'cmd');
-const petHost = app.isPackaged ? [process.execPath, '--pet-host'] : [process.execPath, APP_ROOT, '--pet-host'];
+/** The pet window's command: it gets the switches the app was started with, so a Chromium switch on the shortcut reaches it too. */
+const petHost = [process.execPath, ...app.isPackaged ? [] : [APP_ROOT], ...process.argv.slice(app.isPackaged ? 1 : 2).filter((a) => a.startsWith('--')), '--pet-host'];
 
 /**
  * Whether the data directory's volume holds junctions; FAT, exFAT and most network shares do not. pnpm registers each
