@@ -355,6 +355,13 @@ With Intel graphics (Mesa's iris driver), fast clear leaves old frames in the tr
 </details>
 
 <details>
+<summary><b>The screen under the pet turns black</b></summary>
+
+On some Windows machines a transparent window is drawn black while hardware acceleration is on. Try adding ` --disable-gpu-compositing` to the end of the shortcut's Target: Chromium switches given to Coopanion also apply to the pet window.
+
+</details>
+
+<details>
 <summary><b>What is it thinking?</b></summary>
 
 The Chat page has the full record. If something goes wrong, click **Export diagnostics** there and attach the file to an [issue](https://github.com/Pal-AI-Lab/Coopanion/issues).

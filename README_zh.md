@@ -353,6 +353,13 @@ Intel 核显（Mesa 的 iris 驱动）开着快速清屏时，透明窗口里会
 </details>
 
 <details>
+<summary><b>桌宠所在的屏幕整块变黑</b></summary>
+
+部分 Windows 电脑开着硬件加速时，透明窗口会画成黑色。可以在快捷方式「目标」的末尾加上 ` --disable-gpu-compositing` 试试：加在 Coopanion 上的 Chromium 开关，桌宠窗口也会用上。
+
+</details>
+
+<details>
 <summary><b>想看它在想什么</b></summary>
 
 「对话」页有完整的记录。遇到问题时在这一页点「导出诊断」，把诊断包附在 [Issue](https://github.com/Pal-AI-Lab/Coopanion/issues) 里。
