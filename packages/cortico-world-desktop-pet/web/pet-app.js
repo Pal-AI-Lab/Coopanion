@@ -1064,9 +1064,11 @@ async function startMic() {
     if (ctx) ctx.close();
     if (mic === opening) mic = null;
     send({ t: 'mic', state: err && err.name === 'NotAllowedError' ? 'denied' : 'error', detail: String(err && err.message || err) });
+    // access was granted, so the labels are readable: list the devices, another one may open where this one did not
+    if (err?.name !== 'NotAllowedError') void reportDevices();
   }
 }
-/** Device labels are readable only after microphone access was granted. */
+/** Device labels are readable only after microphone access was granted (an open that failed for another reason counts). */
 async function reportDevices() {
   const all = await navigator.mediaDevices.enumerateDevices();
   send({ t: 'devices', list: all.filter((d) => d.kind === 'audioinput' && d.deviceId !== 'default' && d.deviceId !== 'communications').map((d) => ({ id: d.deviceId, label: d.label })) });
