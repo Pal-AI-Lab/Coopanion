@@ -96,4 +96,7 @@ export const S: Partial<typeof en> = {
   glowOff: '끔',
   glowPx: (n: number) => `${n} px`,
   glowHint: '펫과 배경의 색이 비슷할 때 몸 주위에 생기는 옅은 빛이 퍼지는 정도. 맨 왼쪽은 끔.',
+  ringLabel: '컨텍스트 링',
+  ring: '대화 페이지에 표시',
+  ringHint: '대화 페이지 입력란에 이전 대화를 정리하기까지 얼마나 남았는지 원으로 표시합니다.',
 };

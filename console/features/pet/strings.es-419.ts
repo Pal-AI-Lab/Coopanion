@@ -96,4 +96,7 @@ export const S: Partial<typeof en> = {
   glowOff: 'Apagado',
   glowPx: (n: number) => `${n} px`,
   glowHint: 'Hasta dónde llega el brillo claro alrededor de la mascota cuando los colores de Coo se parecen al fondo; todo a la izquierda lo apaga.',
+  ringLabel: 'Anillo de contexto',
+  ring: 'Mostrar en la página Chat',
+  ringHint: 'Un anillo en el cuadro de texto de la página Chat muestra cuánto falta para ordenar la conversación anterior.',
 };
