@@ -33,7 +33,8 @@
 .companion-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 12px 0; }
 .companion-row[hidden] { display: none; }
 .companion-row.is-off > .companion-label { opacity: .5; }
-.companion-label { font-size: 14px; line-height: 1.6; color: var(--ink-soft); }
+/* 名称只在空格与标点处折行，一个词比栏宽还长时才任意断开 */
+.companion-label { font-size: 14px; line-height: 1.6; color: var(--ink-soft); word-break: keep-all; overflow-wrap: anywhere; }
 .companion-control > .home-note { margin: 6px 0 0; font-size: 12.5px; line-height: 1.55; }
 /* 开关:一项设置的开与关(左栏写着是哪一项);勾选框只用于多选 */
 .companion-control > .check, .companion-switchbox > .check { gap: 10px; font-size: 14px; }

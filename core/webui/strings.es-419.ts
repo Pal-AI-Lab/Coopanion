@@ -3,7 +3,7 @@ import type { en } from './strings.ts';
 export const S: Partial<typeof en> = {
   title: 'Alarmas',
   desc: 'Alarmas que Coo puso. Coo recibe un aviso cuando eliminas una aquí.',
-  head: ['Hora', 'Nota', 'Creada el', ''],
+  setAt: 'Creada el',
   daily: 'Diaria',
   empty: 'Coo no tiene alarmas.',
   remove: 'Eliminar',
@@ -11,4 +11,10 @@ export const S: Partial<typeof en> = {
   removed: 'Eliminada',
   failed: (msg) => `No se pudo eliminar: ${msg}`,
   loadFailed: (msg) => `No se pudo cargar: ${msg}`,
+  search: 'Buscar notas u horas',
+  noMatch: 'Ninguna alarma coincide.',
+  perPage: 'Por página',
+  shown: (from: number, to: number, total: number) => `${from}–${to} de ${total}`,
+  prevPage: '‹ Anterior',
+  nextPage: 'Siguiente ›',
 };

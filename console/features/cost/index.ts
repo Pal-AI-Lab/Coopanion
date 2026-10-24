@@ -67,6 +67,16 @@ function costText(amount: number, a: Partial<UsageAccum>, cur: string): string {
   return consoleFormat.money(amount, cur) + (unpriced > 0 ? S.partialMark : '');
 }
 
+/** 读数卡里的金额，「+未计价」用小一号的字。 */
+function costValue(ui: WebUi, amount: number, a: Partial<UsageAccum>, cur: string): HTMLElement {
+  const text = costText(amount, a, cur);
+  const mark = S.partialMark.trim();
+  const el = ui.h('span');
+  if (!text.endsWith(S.partialMark)) { el.textContent = text; return el; }
+  el.append(text.slice(0, -S.partialMark.length), ui.h('span', 'stat-mark', mark));
+  return el;
+}
+
 function errText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
@@ -321,7 +331,7 @@ export function mountUsage(ctx: PageContext): void {
 
     const items: Parameters<typeof ui.stat>[0][] = [
       {
-        k: S.cardKnownCost, v: costText(t.cost || 0, t, cur), accent: true,
+        k: S.cardKnownCost, v: costValue(ui, t.cost || 0, t, cur), accent: true,
         unit: unpriced > 0 ? S.unpriced(unpriced) : `${S.cardCoverage} ${t.pricedCalls || 0} / ${calls}`,
       },
       {
@@ -332,8 +342,8 @@ export function mountUsage(ctx: PageContext): void {
       },
       { k: S.cardInput, v: consoleFormat.count(t.promptTokens || 0), unit: S.hitRate(consoleFormat.percent(t.cacheHitRate)) },
       { k: S.cardOutput, v: consoleFormat.count(t.completionTokens || 0), unit: S.reasoningShare(consoleFormat.percent(rShare)) },
-      { k: S.cardAvgCost, v: okCalls ? costText(avgCost, successful, cur) : '—', unit: okCalls ? S.approxTok(consoleFormat.count(Math.round(avgTok))) : '' },
-      { k: S.cardPeak, v: peak ? costText(peak.cost || 0, peak, cur) : '—', unit: peak ? bucketLabel(peak.bucket, d.bucket || 'day') : '' },
+      { k: S.cardAvgCost, v: okCalls ? costValue(ui, avgCost, successful, cur) : '—', unit: okCalls ? S.approxTok(consoleFormat.count(Math.round(avgTok))) : '' },
+      { k: S.cardPeak, v: peak ? costValue(ui, peak.cost || 0, peak, cur) : '—', unit: peak ? bucketLabel(peak.bucket, d.bucket || 'day') : '' },
     ];
     cards.replaceChildren(...items.map((item) => {
       const el = ui.stat(item);

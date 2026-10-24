@@ -12,7 +12,6 @@ export const S: Partial<typeof en> = {
   provides: (list: string) => 'Доступные панели: ' + list,
   panelFailed: (title: string) => `Не удалось загрузить панель «${title}»`,
   configEmpty: 'Группы настроек недоступны.',
-  assembly: 'Сборка',
   notInstalled: 'Недоступно',
   notActivated: 'не активировано',
   hidden: 'скрыто',

@@ -13,7 +13,8 @@ import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { createPrefixEditor, references, VARIABLE_DRAG_TYPE, type PrefixBlock } from './editor.ts';
 import { S } from './strings.ts';
 import { sharedTemplate } from './titles.ts';
-import type { PromptDoc, PromptVar } from './view.ts';
+import { fitVariableChips, variablePopup } from './variables.ts';
+import type { PromptDoc } from './view.ts';
 
 interface PrefixSegment { title: string; text: string; sourceKey?: string }
 interface Section {
@@ -332,17 +333,6 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
   }, { signal, capture: true, passive: true });
   ctx.lifecycle.own({ dispose: closePopup });
 
-  function varPopup(v: PromptVar): HTMLElement {
-    const pop = ui.h('div', 'varpop');
-    pop.appendChild(ui.h('div', 'varpop-name mono', `{{${v.name}}}`));
-    pop.appendChild(ui.h('div', 'varpop-desc', v.description));
-    pop.appendChild(ui.h('div', 'varpop-label', v.multiline ? S.fillNowMultiline : S.fillNow));
-    const val = ui.h('pre', 'mono varpop-value');
-    val.textContent = v.value === undefined ? S.varUnreported : v.value === '' ? S.varEmpty : v.value;
-    pop.appendChild(val);
-    return pop;
-  }
-
   function toolButton(name: ConsoleIconName, text: string, onClick: () => void): HTMLButtonElement {
     const button = ui.button('', { size: 'sm', onClick });
     button.classList.add('btn-ico', 'prompt-vars-tool');
@@ -405,7 +395,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
         const chip = ui.button(variable.name, { size: 'sm', onClick: () => {
           if (popupChip === chip) { closePopup(); return; }
           closePopup();
-          popup = varPopup(doc.vars?.find((v) => v.name === variable.name) ?? variable);
+          popup = variablePopup(ui, doc.vars?.find((v) => v.name === variable.name) ?? variable);
           root.ownerDocument.body.append(popup);
           popupChip = chip;
           chip.setAttribute('aria-expanded', 'true');
@@ -440,25 +430,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
         chips.set(variable.name, chip);
         list.append(chip);
       }
-      /**
-       * A name that fits a grid cell keeps one cell; one that fits a whole row on one line takes the row;
-       * a longer one takes the row on up to two lines, wrapping after its dots, dashes and underscores,
-       * and ends in an ellipsis past them. Measured with every box in a cell, whose width does not depend
-       * on the boxes. The wrap points are `<wbr>`s, which Chromium honours even in `nowrap` text, so only
-       * a two-line name has them.
-       */
-      section.fitVariables = () => {
-        const boxes = [...chips.entries()].map(([name, chip]) => ({ name, chip, text: chip.firstElementChild as HTMLElement }));
-        for (const { name, chip, text } of boxes) { chip.dataset.size = 'cell'; text.textContent = name; }
-        const sizes = boxes.map(({ chip, text }) => {
-          const row = list.clientWidth - (chip.offsetWidth - text.clientWidth);
-          return text.scrollWidth <= text.clientWidth ? 'cell' : text.scrollWidth <= row ? 'row' : 'lines';
-        });
-        boxes.forEach(({ name, chip, text }, i) => {
-          chip.dataset.size = sizes[i];
-          if (sizes[i] === 'lines') text.replaceChildren(...name.split(/(?<=[.\-_])/).flatMap((part, n) => n ? [root.ownerDocument.createElement('wbr'), part] : [part]));
-        });
-      };
+      section.fitVariables = () => fitVariableChips(list, chips);
     }
     vars.append(warning);
     section.updateVariables = () => {

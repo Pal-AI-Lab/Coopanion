@@ -33,7 +33,7 @@ const ko: Translation<CoreText> = {
 
   status: {
     read: '읽는 중', browse: '둘러보는 중', memory: '기억', find: '찾는 중', search: '검색 중', write: '쓰는 중', edit: '고치는 중', append: '덧붙이는 중',
-    delete: '삭제 중', save: '저장 중', screen: '화면 보는 중', windows: '열린 창 보는 중', rightClick: '오른쪽 클릭 중', doubleClick: '더블클릭 중', click: '클릭 중',
+    delete: '삭제 중', moveFile: '옮기는 중', save: '저장 중', screen: '화면 보는 중', windows: '열린 창 보는 중', rightClick: '오른쪽 클릭 중', doubleClick: '더블클릭 중', click: '클릭 중',
     move: '마우스 옮기는 중', drag: '드래그 중', scroll: '스크롤 중', focus: '창 전환 중', type: '입력 중', key: '키 누르는 중', wait: '기다리는 중',
     alarmSet: '알람 맞추는 중', alarmList: '알람 확인 중', alarmCancel: '알람 취소 중',
     quoted: (text: string) => `"${text}"`,

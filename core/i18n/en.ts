@@ -42,7 +42,7 @@ const en: CoreText = {
   /** The status bubble: the tool Coo is using. */
   status: {
     read: 'Reading', browse: 'Browsing', memory: 'memory', find: 'Looking for', search: 'Searching', write: 'Writing', edit: 'Editing', append: 'Adding to',
-    delete: 'Deleting', save: 'Saving', screen: 'Looking at the screen', windows: 'Looking at the open windows', rightClick: 'Right-clicking', doubleClick: 'Double-clicking', click: 'Clicking',
+    delete: 'Deleting', moveFile: 'Moving', save: 'Saving', screen: 'Looking at the screen', windows: 'Looking at the open windows', rightClick: 'Right-clicking', doubleClick: 'Double-clicking', click: 'Clicking',
     move: 'Moving the mouse', drag: 'Dragging', scroll: 'Scrolling', focus: 'Switching windows', type: 'Typing', key: 'Pressing', wait: 'Waiting',
     alarmSet: 'Setting an alarm', alarmList: 'Checking alarms', alarmCancel: 'Cancelling an alarm',
     /** The words being searched for. */

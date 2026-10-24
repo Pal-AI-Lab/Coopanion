@@ -1,8 +1,7 @@
 .pet-dressframe{border:1px solid var(--line, #e2dfe8); border-radius:12px; overflow:hidden; height:640px}
 .pet-dressframe iframe{width:100%; height:100%; border:0; display:block; background:transparent}
-/* the meter belongs to how it listens: no rule between them, and only a little room before the results */
+/* the meter belongs to how it listens: no rule between them */
 .pet-voicebody .mountrow.pet-meterrow{border-top:0; padding:4px 0 6px}
-.pet-voicebody .pet-meterrow + .sectionhead{margin-top:10px}
 /* the name's characters sit 1px low in their line box; the bar follows them */
 .pet-meter{position:relative; top:1px; flex:1; min-width:0; height:10px; border-radius:999px; background:var(--line, #e2dfe8); overflow:hidden}
 .pet-meterfill{position:absolute; left:0; top:0; bottom:0; width:0; background:var(--muted, #6a6577); transition:width .08s linear}
@@ -14,10 +13,11 @@
 .pet-mastertext{flex:1; min-width:0; display:flex; flex-direction:column; gap:3px}
 .pet-mastertitle{font-size:16px; font-weight:600; color:var(--ink, #1b1a1e)}
 .pet-masterhint{font-size:13px; line-height:1.5; color:var(--ink-soft, #5c5c60)}
-.pet-switch{appearance:none; -webkit-appearance:none; flex:none; position:relative; width:48px; height:28px; margin:0; border-radius:999px; background:var(--line-strong, #aeb0ae); cursor:pointer; transition:background .15s}
-.pet-switch::after{content:''; position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:transform .15s}
+/* the console's switch (home.css .companion-control > .check > input) */
+.pet-switch{appearance:none; -webkit-appearance:none; flex:none; position:relative; width:34px; height:20px; margin:0; border-radius:10px; background:var(--line-2, #d0d2d0); cursor:pointer; transition:background .15s}
+.pet-switch::after{content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.3); transition:transform .15s}
 .pet-switch:checked{background:var(--accent, #00a870)}
-.pet-switch:checked::after{transform:translateX(20px)}
+.pet-switch:checked::after{transform:translateX(14px)}
 .pet-switch:focus-visible{outline:2px solid var(--accent, #00a870); outline-offset:2px}
 .pet-voicebody{transition:opacity .15s}
 .pet-voicebody.off{opacity:.5}

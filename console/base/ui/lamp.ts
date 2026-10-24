@@ -1,4 +1,4 @@
-/** 渲染贡献方自报的四态灯；导航、World 总览与页头共用非重叠轮询，隐藏页面跳过取数。 */
+/** 渲染贡献方自报的四态灯；导航与 World 总览共用非重叠轮询，隐藏页面跳过取数。 */
 
 import { get } from '../api.ts';
 import { CONSOLE_LAMPS_ROUTE, toDisposable, type Disposable } from '../protocol.ts';

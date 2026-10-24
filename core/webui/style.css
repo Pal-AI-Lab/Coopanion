@@ -1,6 +1,19 @@
-/* time, then 每天, then how far off on a line of its own */
-.coo-alarm-when{display:flex; flex-wrap:wrap; align-items:center; gap:2px 8px; white-space:nowrap}
-.coo-alarm-time{font-family:var(--mono); color:var(--ink)}
-.coo-alarm-when .chip{padding:3px 8px}
-.coo-alarm-when small.muted{flex-basis:100%}
-table.data td.coo-alarm-act{width:1%; white-space:nowrap; text-align:right; vertical-align:middle}
+.coo-alarm { padding: 8px 11px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 6px; background: var(--sheet-2); }
+.coo-alarm-head { display: flex; gap: 10px; align-items: baseline; }
+.coo-alarm-time { font: 11px var(--mono); color: var(--accent); }
+.coo-alarm-daily { font-size: 12px; color: var(--violet); }
+.coo-alarm-rel { font-size: 12px; color: var(--ink-dim); }
+.coo-alarm-setat { font: 10.5px var(--mono); color: var(--ink-dim); margin-left: auto; }
+.coo-alarm-note { font-size: 12.5px; color: var(--ink); margin-top: 2px; }
+.coo-alarm-remove { flex: none; padding: 0; border: 0; background: none; cursor: pointer; font: 12px/1 var(--sans); color: var(--ink-soft); }
+.coo-alarm-remove:hover { color: var(--danger); }
+.coo-alarm-remove:disabled { opacity: .5; cursor: default; }
+.coo-alarm-remove:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+.coo-alarm-bar { gap: 10px; margin-bottom: 8px; }
+.coo-alarm-bar .coo-alarm-search { flex: 0 1 560px; width: auto; min-width: 0; }
+.coo-alarm-pagesize { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-dim); white-space: nowrap; }
+.coo-alarm-pagesize select.field { width: auto; }
+.coo-alarm-pager { gap: 8px; min-height: 32px; }
+.coo-alarm-pager:empty { display: none; }
+.coo-alarm-dim { font-size: 11.5px; color: var(--ink-dim); }
+.coo-alarm-pageof { font: 12px var(--mono); color: var(--ink-soft); }

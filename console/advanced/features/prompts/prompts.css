@@ -195,3 +195,7 @@
   .prefix-flag:active { transform:translateY(-50%); }
   .prefix-fold-status:hover,.prefix-fold-status:active { transform:none; }
 }
+/* World 页的模板(template-view.ts) */
+.template-stage { margin-top: 16px; }
+.template-side { flex: 0 0 168px; align-self: stretch; padding-right: 12px; }
+.template-edit:first-child > .sectionhead { padding-top: 0; border-top: 0; }

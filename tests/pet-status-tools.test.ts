@@ -16,6 +16,7 @@ describe('the status bubble for each tool', () => {
     ['edit_file', { path: 'notes/today.md' }, { kind: 'write', text: T.edit, detail: 'today.md' }],
     ['append_file', { path: 'notes/today.md' }, { kind: 'write', text: T.append, detail: 'today.md' }],
     ['delete_file', { path: 'notes/today.md' }, { kind: 'delete', text: T.delete, detail: 'today.md' }],
+    ['move_file', { from: 'log/2026-09.md', to: 'archive/log/' }, { kind: 'write', text: T.moveFile, detail: '2026-09.md' }],
     ['save_blob', { path: 'blobs/cat.png', handle: 'private' }, { kind: 'save', text: T.save, detail: 'cat.png' }],
     ['pet_cua_screenshot', {}, { kind: 'look', text: T.screen }],
     ['pet_cua_windows', {}, { kind: 'look', text: T.windows }],

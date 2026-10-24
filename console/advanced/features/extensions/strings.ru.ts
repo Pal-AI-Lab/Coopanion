@@ -25,6 +25,7 @@ export const S: Partial<typeof en> = {
   stateRemoved: 'Удалено, ожидает перезапуска',
   enabled: 'Загружено в этот бот',
   disabled: 'Установлено, не загружено',
+  worldNotLoaded: 'Установлено; загрузите в обзоре World',
   adopted: 'Используется этим ботом',
   template: 'Установлено; можно создавать экземпляры',
   hidden: 'Скрыто от агента',

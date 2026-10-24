@@ -20,6 +20,8 @@ function clock(timezone: string): { format(ms: number): string } {
   };
 }
 
+const PAGE_SIZES = [15, 30, 60, 100];
+
 const errText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 /** The unit `Intl.RelativeTimeFormat` says a span of `ms` in, rounded. */
@@ -35,36 +37,79 @@ const alarmsPanel: WebUiPanel = {
   mount(ctx) {
     const { ui, root } = ctx;
     const t = panelText(ctx.language);
-    const card = ui.sheet({ title: t.title, en: 'alarms', desc: t.desc });
+    const card = ui.sheet({ title: t.title, desc: t.desc });
     root.appendChild(card.el);
     const msg = ui.msgline('');
-    const table = ui.table({ head: t.head });
-    card.body.append(table.el, msg);
+    let query = '';
+    let page = 0;
+    let size = ctx.memo.get<number>('alarms.pageSize', 30);
+    if (!PAGE_SIZES.includes(size)) size = 30;
+    const search = ui.input({
+      type: 'search',
+      placeholder: t.search,
+      onInput: (v) => { query = v.trim().toLowerCase(); page = 0; paint(); },
+    });
+    search.classList.add('coo-alarm-search');
+    const sizeLabel = ui.h('label', 'coo-alarm-pagesize');
+    sizeLabel.append(ui.h('span', null, t.perPage), ui.select({
+      value: String(size),
+      options: PAGE_SIZES.map(String),
+      onChange: (v) => { size = Number(v); ctx.memo.set('alarms.pageSize', size); page = 0; paint(); },
+    }));
+    const bar = ui.rowbar();
+    bar.classList.add('coo-alarm-bar');
+    bar.append(search, ui.h('span', 'grow'), sizeLabel);
+    const list = ui.h('div', 'coo-alarms');
+    const pager = ui.rowbar();
+    pager.classList.add('coo-alarm-pager');
+    card.body.append(bar, list, pager, msg);
 
     const rel = new Intl.RelativeTimeFormat(ctx.language, { numeric: 'auto' });
+    let state: AlarmsState | null = null;
     let shown = '';
     const render = (st: AlarmsState) => {
-      const at = clock(st.timezone);
       // the relative time moves by the minute: redraw only when the list or that changes
       const key = JSON.stringify([st, Math.floor(Date.now() / 60_000)]);
       if (key === shown) return;
       shown = key;
-      if (!st.alarms.length) { table.clear(t.empty); return; }
-      table.clear();
-      for (const alarm of st.alarms) table.addRow(row(alarm, at));
+      state = st;
+      paint();
+    };
+    const paint = () => {
+      pager.replaceChildren();
+      if (!state) return;
+      const at = clock(state.timezone);
+      if (!state.alarms.length) { list.replaceChildren(ui.placeholder(t.empty)); return; }
+      const matches = state.alarms.filter((alarm) => !query
+        || alarm.note.toLowerCase().includes(query) || at.format(alarm.at).includes(query));
+      if (!matches.length) { list.replaceChildren(ui.placeholder(t.noMatch)); return; }
+      const pages = Math.max(1, Math.ceil(matches.length / size));
+      page = Math.min(page, pages - 1);
+      const from = page * size;
+      const slice = matches.slice(from, from + size);
+      list.replaceChildren(...slice.map((alarm) => row(alarm, at)));
+      pager.append(ui.h('span', 'coo-alarm-dim', t.shown(from + 1, from + slice.length, matches.length)), ui.h('span', 'grow'));
+      if (pages > 1) {
+        const prev = ui.button(t.prevPage, { size: 'sm', onClick: () => { page -= 1; paint(); } });
+        const next = ui.button(t.nextPage, { size: 'sm', onClick: () => { page += 1; paint(); } });
+        prev.disabled = page === 0;
+        next.disabled = page === pages - 1;
+        pager.append(prev, ui.h('span', 'coo-alarm-pageof', t.pageOf(page + 1, pages)), next);
+      }
     };
     const row = (alarm: Alarm, at: ReturnType<typeof clock>) => {
-      const when = ui.h('div', 'coo-alarm-when');
-      when.append(ui.h('span', 'coo-alarm-time', at.format(alarm.at)));
-      if (alarm.daily) when.append(ui.chip(t.daily, 'accent'));
-      when.append(ui.h('small', 'muted', relative(rel, alarm.at - Date.now())));
-      const remove = ui.button(t.remove, { size: 'sm', variant: 'danger', onClick: () => void cancel(alarm, at.format(alarm.at), remove) });
-      return [
-        { el: when },
-        { text: alarm.note, cls: 'txt' },
-        { text: at.format(alarm.setAt), cls: 'mono' },
-        { el: remove, cls: 'coo-alarm-act' },
-      ];
+      const item = ui.h('div', 'coo-alarm');
+      const head = ui.h('div', 'coo-alarm-head');
+      head.append(ui.h('span', 'coo-alarm-time', at.format(alarm.at)));
+      if (alarm.daily) head.append(ui.h('span', 'coo-alarm-daily', t.daily));
+      head.append(ui.h('span', 'coo-alarm-rel', relative(rel, alarm.at - Date.now())));
+      head.append(ui.h('span', 'coo-alarm-setat', `${t.setAt} ${at.format(alarm.setAt)}`));
+      const remove = ui.h('button', 'coo-alarm-remove', t.remove);
+      remove.type = 'button';
+      remove.addEventListener('click', () => void cancel(alarm, at.format(alarm.at), remove));
+      head.append(remove);
+      item.append(head, ui.h('div', 'coo-alarm-note', alarm.note));
+      return item;
     };
     const cancel = async (alarm: Alarm, when: string, btn: HTMLButtonElement) => {
       if (!await ui.confirm({ title: t.confirmTitle(when), body: alarm.note })) return;

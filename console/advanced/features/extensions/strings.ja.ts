@@ -19,6 +19,7 @@ export const S: Partial<typeof en> = {
   stateRemoved: 'アンインストール済み、再起動待ち',
   enabled: 'このボットに読み込み済み',
   disabled: 'インストール済み、未読み込み',
+  worldNotLoaded: 'インストール済み。World 一覧で読み込んでください',
   adopted: 'このボットで使用中',
   template: 'インストール済み、インスタンスを作成可能',
   hidden: 'エージェントから非表示',

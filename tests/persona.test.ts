@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import type { ToolDef } from 'cortico/core/types.ts';
 import { Cormini } from '../vendor/cortico/bots/cormini/persona/persona.ts';
 import { gitInstalled } from '../vendor/cortico/bots/cormini/persona/workspaceGit.ts';
-import { AUTHOR_COO, PARTNER_DIR, PARTNER_FILE, PARTNER_NOTE, SNAPSHOT_TAG, arrangePartner, coopanionPersona } from '../core/persona.ts';
+import { ARCHIVE_DIR, AUTHOR_COO, PARTNER_DIR, PARTNER_FILE, PARTNER_NOTE, SNAPSHOT_TAG, arrangePartner, coopanionPersona } from '../core/persona.ts';
 
 const CoopanionPersona = coopanionPersona(Cormini);
 const ctx = { role: 'main', log: { emit: () => {}, warn: () => {}, error: () => {}, info: () => {}, debug: () => {} } } as never;
@@ -29,6 +29,18 @@ describe.skipIf(!gitInstalled())('Coo’s workspace history', () => {
       `${AUTHOR_COO.name}|Coo edited notes/today.md`,
       `${AUTHOR_COO.name}|Coo wrote notes/today.md`,
       expect.stringContaining('checkpoint0'),
+    ]);
+    expect(git(dir, 'status', '--porcelain')).toBe('');
+  });
+
+  it('commits a move of whole files and a move of lines once each, naming the file moved from', async () => {
+    const { dir, run } = persona();
+    await run('write_file', { path: 'log/2026-09.md', content: 'one\ntwo\n' });
+    await run('move_file', { from: 'log/2026-09.md', to: `${ARCHIVE_DIR}/log/2026-09.md` });
+    await run('move_file', { from: `${ARCHIVE_DIR}/log/2026-09.md`, to: 'log/kept.md', offset: 1, limit: 1 });
+    expect(git(dir, 'log', '--format=%s', '-2').split('\n')).toEqual([
+      `Coo moved ${ARCHIVE_DIR}/log/2026-09.md`,
+      'Coo moved log/2026-09.md',
     ]);
     expect(git(dir, 'status', '--porcelain')).toBe('');
   });
@@ -64,6 +76,25 @@ describe('PARTNER.md', () => {
 
 Likes cats. Works late.`);
     expect(String(await run('delete_file', { path: PARTNER_FILE }))).toContain('[delete failed]');
+  });
+
+  it('can have lines moved out of it but cannot be moved whole', async () => {
+    const { dir, run } = persona();
+    await run('write_file', { path: PARTNER_FILE, content: 'Likes cats.\n2026-09: moved house.\n' });
+    expect(String(await run('move_file', { from: PARTNER_FILE, to: 'old.md' }))).toContain('[move failed]');
+    await run('move_file', { from: PARTNER_FILE, to: `${PARTNER_DIR}/2026-09.md`, offset: 2 });
+    expect(readFileSync(join(dir, PARTNER_FILE), 'utf8')).toBe('Likes cats.\n');
+    expect(readFileSync(join(dir, PARTNER_DIR, '2026-09.md'), 'utf8')).toBe('2026-09: moved house.\n');
+  });
+});
+
+describe('archive/', () => {
+  it('shows in the prefix listing as one line however many files it holds', async () => {
+    const { p, run } = persona();
+    for (let i = 0; i < 12; i++) await run('write_file', { path: `${ARCHIVE_DIR}/log/2025-${String(i + 1).padStart(2, '0')}.md`, content: 'x' });
+    const prefix = (await p.systemSegments({ now: new Date(), timezone: 'UTC', worlds: [] })).map((s) => s.text).join('\n');
+    expect(prefix).toContain(`- ${ARCHIVE_DIR}/ (12 archived files;`);
+    expect(prefix).not.toContain(`${ARCHIVE_DIR}/log/2025-01.md`);
   });
 });
 

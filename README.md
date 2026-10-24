@@ -41,7 +41,7 @@ Coopanion is a desktop pet. **Coo** lives on the bottom edge of your screen: it 
 
 - **Many model services**: OpenAI, Anthropic, Gemini, xAI, OpenRouter, DeepSeek, Kimi, Qwen, MiniMax, Zhipu GLM, Doubao, Baidu Qianfan and StepFun. Pick one and paste an API key, or sign in with a ChatGPT account to use its ChatGPT plan.
 - **Chat**: hold the talk key and speak, or type; Coo answers in a bubble. Speech is recognized on your machine with FunASR or Whisper, picked by the app language.
-- **Memory**: Coo remembers what you talked about, and knows when you poke it or pat its head. What it knows about you goes in `PARTNER.md` in its workspace, which its prompt includes whole. Every change to the workspace is kept as a version; the Memory page in the advanced mode shows the history. The Windows build carries git; on macOS and Linux git has to be installed.
+- **Memory**: Coo remembers what you talked about, and knows when you poke it or pat its head. What it knows about you goes in `PARTNER.md` in its workspace, which its prompt includes whole. It keeps one subject per file, puts the date in the name of anything tied to a time, and moves the older part of a long file into `archive/`. Every change to the workspace is kept as a version; the Memory page in the advanced mode shows the history. The Windows build carries git; on macOS and Linux git has to be installed.
 - **Computer use**: clicking buttons, typing, switching windows. Coo asks before it acts.
 - **Activity bubbles**: see when Coo is thinking and what it is working on, with a different animated icon for reading, searching, writing and using the computer. File names appear; the bubble lets clicks through. On by default; turn it off in Habits.
 - **Figures**: Coo, or the **DeepSeek Chan**, a fully animated whale girl with eight vendor color schemes and three outfits (a maid dress, a winter outfit and a crew uniform). Other figure packs are imported on the Dress up page from a zip or a folder; packs written for figure API 2 keep loading in later versions (see the [figure pack compatibility promise](packages/cortico-world-desktop-pet/README.md#形象包兼容承诺)).
@@ -351,6 +351,13 @@ Coopanion uses the system proxy (an HTTP or HTTPS proxy; a SOCKS proxy is not us
 <summary><b>On Linux, Coo leaves square traces where it has been</b></summary>
 
 With Intel graphics (Mesa's iris driver), fast clear leaves old frames in the transparent window. Start Coopanion with `INTEL_DEBUG=nofc` set to turn it off, for example `INTEL_DEBUG=nofc coopanion` for the deb; rendering on a discrete GPU also avoids it.
+
+</details>
+
+<details>
+<summary><b>The screen under the pet turns black</b></summary>
+
+On some Windows machines a transparent window is drawn black while hardware acceleration is on. Try adding ` --disable-gpu-compositing` to the end of the shortcut's Target: Chromium switches given to Coopanion also apply to the pet window.
 
 </details>
 

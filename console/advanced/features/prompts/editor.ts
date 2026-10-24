@@ -1,5 +1,5 @@
 /** Templates remain ranges in one document; folds and variable values only affect presentation. */
-import { EditorState, StateEffect, StateField, Transaction, type Range } from '@codemirror/state';
+import { EditorState, Facet, StateEffect, StateField, Transaction, type Range } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType, keymap, lineNumbers, dropCursor, type DecorationSet } from '@codemirror/view';
 import { history, historyKeymap, isolateHistory, undo, redo, undoDepth } from '@codemirror/commands';
 import type { PromptVar } from './view.ts';
@@ -54,6 +54,8 @@ const blockField = StateField.define<BlockRange[]>({
     });
   },
 });
+/** Whether each block opens with its `//` description line and fold button. */
+const blockHeaders = Facet.define<boolean, boolean>({ combine: (values) => values[0] ?? true });
 export const VARIABLE_DRAG_TYPE = 'application/x-coopanion-prompt-variable';
 
 export function references(text: string): Array<{ name: string; from: number; to: number; token: string; fallback?: string }> {
@@ -148,13 +150,14 @@ class SectionHeader extends WidgetType {
 
 function decorate(state: EditorState): DecorationSet {
   const decorations: Range<Decoration>[] = [];
+  const headers = state.facet(blockHeaders);
   state.field(blockField).forEach((range, index) => {
     const { block, from, to } = range;
-    if (range.collapsed) {
+    if (range.collapsed && headers) {
       decorations.push(Decoration.replace({ widget: new SectionHeader(index, block.description, true, range.minHeight), block: true }).range(from, to));
       return;
     }
-    decorations.push(Decoration.widget({ widget: new SectionHeader(index, block.description, false), block: true, side: -1 }).range(from));
+    if (headers) decorations.push(Decoration.widget({ widget: new SectionHeader(index, block.description, false), block: true, side: -1 }).range(from));
     for (let n = state.doc.lineAt(from).number; n <= state.doc.lineAt(to).number; n++) {
       const line = state.doc.line(n);
       decorations.push(Decoration.line({
@@ -219,12 +222,14 @@ export function createPrefixEditor(options: {
   onGeometry(): void;
   onFold(index: number, collapsed: boolean): void;
   onHistory?(): void;
+  /** Defaults to true. */
+  headers?: boolean;
 }) {
   let last = new Map<string, string>();
   const view = new EditorView({
     parent: options.parent,
     state: EditorState.create({ extensions: [
-      blockField, hoverField, saveField, decorations, interactionDecorations, sourceGuard, history(), lineNumbers(), dropCursor(), EditorView.lineWrapping,
+      blockHeaders.of(options.headers ?? true), blockField, hoverField, saveField, decorations, interactionDecorations, sourceGuard, history(), lineNumbers(), dropCursor(), EditorView.lineWrapping,
       EditorView.contentAttributes.of({ 'aria-label': S.title, spellcheck: 'false' }),
       keymap.of([
         { key: 'Mod-s', preventDefault: true, run: () => { options.onSave(); return true; } },

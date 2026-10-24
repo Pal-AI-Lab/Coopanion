@@ -41,7 +41,7 @@ Coopanion 是一个桌宠。桌宠 **Coo** 待在屏幕底边，可以用气泡�
 
 - **多家模型**：DeepSeek、通义千问、Kimi、智谱 GLM、豆包、MiniMax、阶跃星辰、百度千帆、OpenRouter、OpenAI、Anthropic、Gemini、xAI。选一家，贴上 API Key 就能用；也可以登录 ChatGPT 账号，使用它的 ChatGPT 套餐。
 - **聊天**：按说话键说话，或者打字，Coo 在气泡里回复。语音在本机用 FunASR 或 Whisper 识别，按应用语言选。
-- **记忆**：记得聊过的内容，也知道你戳了它、摸了它的头。它对你的了解写在工作区的 `PARTNER.md`，这份文件每次整份读进它的提示词。工作区每次改动都记成一个版本，可以在高级模式的「记忆」页查看历史；Windows 版自带 git，macOS 和 Linux 要系统里装有 git。
+- **记忆**：记得聊过的内容，也知道你戳了它、摸了它的头。它对你的了解写在工作区的 `PARTNER.md`，这份文件每次整份读进它的提示词。它一个主题一份文件，跟时间有关的文件名里带日期，长文件里较早的部分移进 `archive/`。工作区每次改动都记成一个版本，可以在高级模式的「记忆」页查看历史；Windows 版自带 git，macOS 和 Linux 要系统里装有 git。
 - **操作电脑**：点按钮、打字、切窗口。动手前先问你。
 - **状态气泡**：想事情、看文件、搜索、写入、操作电脑时，头顶用各不相同的小图标和动画显示在做什么，也会显示文件名；气泡点击穿透。默认开启，可在「习惯」关闭。
 - **形象**：Coo，或者 **DeepSeek 大肥鱼**（全动态的鲸鱼娘，八套厂商配色，女仆装、冬装和店员装三套服装）。其他形象包在装扮页从 zip 或文件夹导入；按形象 API 2 写的包在之后的版本里照常加载（见[形象包兼容承诺](packages/cortico-world-desktop-pet/README.md#形象包兼容承诺)）。
@@ -349,6 +349,13 @@ Coopanion 使用系统代理（HTTP 或 HTTPS 代理；SOCKS 代理不生效）�
 <summary><b>Linux 上 Coo 走过的地方留下方块残影</b></summary>
 
 Intel 核显（Mesa 的 iris 驱动）开着快速清屏时，透明窗口里会留下旧画面。启动时设置环境变量 `INTEL_DEBUG=nofc` 关掉它，例如 deb 版运行 `INTEL_DEBUG=nofc coopanion`；有独立显卡时改用独显渲染也可以。
+
+</details>
+
+<details>
+<summary><b>桌宠所在的屏幕整块变黑</b></summary>
+
+部分 Windows 电脑开着硬件加速时，透明窗口会画成黑色。可以在快捷方式「目标」的末尾加上 ` --disable-gpu-compositing` 试试：加在 Coopanion 上的 Chromium 开关，桌宠窗口也会用上。
 
 </details>
 
