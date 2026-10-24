@@ -1,8 +1,7 @@
 /**
  * 用量与成本页读取跨重启保留的调用流水，按时段与范围统计 token、成本和请求次数，按各角色实际模型计价。
  * 页头下方的时间范围作用于整页；其下分为总览、Token 活跃度、用量时间序列与分组明细四节。
- * 状态属于本次 mount；换算币种例外，它是本机偏好，存在 localStorage，换页与重启后沿用。
- * 定时器使用 lifecycle.interval，监听绑定 signal，tooltip 挂在本页 root。
+ * 状态属于本次 mount，换算币种除外(存在 memo 里，换页与重启后沿用);定时器使用 lifecycle.interval，监听绑定 signal，tooltip 挂在本页 root。
  * 柱图由 chart.ts 提供，活跃度格子图由 activity.ts 提供。
  */
 
@@ -28,9 +27,8 @@ const LIVE_MS = 15_000;
 /** 图区变宽变窄后延迟重画图表，合并连续的尺寸变化。 */
 const RESIZE_DEBOUNCE_MS = 80;
 
-/** 币种是使用者的本机偏好，不随页面卸载：换页再回来仍是上次选的，空串表示自动。 */
+/** 换算币种，空串表示自动 */
 const memo = createMemo('coopanion.usage.');
-const CURRENCY_KEY = 'currency';
 
 const BUCKETS: ReadonlyArray<{ value: UsageBucketOption; label: string }> = [
   { value: 'auto', label: S.bucketAuto },
@@ -149,12 +147,11 @@ export function mountUsage(ctx: PageContext): void {
   // ---- 总览：读数、成本构成与计费口径 -----------------------------------------
   const overview = ui.sheet({ title: S.sectionOverview });
   let basis = 'marginal';
-  const savedCurrency = memo.get<unknown>(CURRENCY_KEY, '');
-  let currency = typeof savedCurrency === 'string' ? savedCurrency : '';
+  let currency = memo.get('currency', '');
   // 数据回来前先按记住的币种显示，免得选择框闪一下「自动」。
   const currencySelect = ui.select({
     options: [{ value: '', label: S.autoCurrency }, ...(currency ? [{ value: currency, label: currency }] : [])],
-    onChange: value => { currency = value; memo.set(CURRENCY_KEY, value); void load(); },
+    onChange: value => { currency = value; memo.set('currency', value); void load(); },
   });
   currencySelect.value = currency;
   const basisSelect = ui.select({ options: [{value:'marginal',label:S.basisMarginal},{value:'equivalent',label:S.basisEquivalent}], onChange: value => { basis = value; void load(); } });
@@ -444,7 +441,7 @@ export function mountUsage(ctx: PageContext): void {
     // 空着而金额仍按无法换算的币种算。
     if (currency && currencies.length && !currencies.includes(currency)) {
       currency = '';
-      memo.set(CURRENCY_KEY, '');
+      memo.set('currency', '');
       void load();
     }
     currencySelect.replaceChildren(...['', ...currencies].map(value => {
