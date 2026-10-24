@@ -11,4 +11,10 @@ export const S: Partial<typeof en> = {
   removed: 'Gelöscht',
   failed: (msg) => `Löschen fehlgeschlagen: ${msg}`,
   loadFailed: (msg) => `Laden fehlgeschlagen: ${msg}`,
+  search: 'Notiz oder Uhrzeit suchen',
+  noMatch: 'Kein Wecker passt.',
+  perPage: 'Pro Seite',
+  shown: (from: number, to: number, total: number) => `${from}–${to} von ${total}`,
+  prevPage: '‹ Zurück',
+  nextPage: 'Weiter ›',
 };

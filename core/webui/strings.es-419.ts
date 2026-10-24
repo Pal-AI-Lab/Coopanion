@@ -11,4 +11,10 @@ export const S: Partial<typeof en> = {
   removed: 'Eliminada',
   failed: (msg) => `No se pudo eliminar: ${msg}`,
   loadFailed: (msg) => `No se pudo cargar: ${msg}`,
+  search: 'Buscar notas u horas',
+  noMatch: 'Ninguna alarma coincide.',
+  perPage: 'Por página',
+  shown: (from: number, to: number, total: number) => `${from}–${to} de ${total}`,
+  prevPage: '‹ Anterior',
+  nextPage: 'Siguiente ›',
 };

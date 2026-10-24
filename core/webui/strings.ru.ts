@@ -11,4 +11,10 @@ export const S: Partial<typeof en> = {
   removed: 'Удалён',
   failed: (msg) => `Не удалось удалить: ${msg}`,
   loadFailed: (msg) => `Не удалось загрузить: ${msg}`,
+  search: 'Поиск по тексту или времени',
+  noMatch: 'Подходящих будильников нет.',
+  perPage: 'На странице',
+  shown: (from: number, to: number, total: number) => `${from}–${to} из ${total}`,
+  prevPage: '‹ Назад',
+  nextPage: 'Вперёд ›',
 };

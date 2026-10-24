@@ -25,6 +25,13 @@ const zh = {
   removed: '已删除',
   failed: (msg: string) => `删除失败：${msg}`,
   loadFailed: (msg: string) => `读取失败：${msg}`,
+  search: '搜索内容或时间',
+  noMatch: '没有符合的闹钟。',
+  perPage: '每页显示',
+  shown: (from: number, to: number, total: number) => `显示 ${from}–${to}，共 ${total} 条`,
+  prevPage: '‹ 上一页',
+  nextPage: '下一页 ›',
+  pageOf: (page: number, pages: number) => `${page} / ${pages}`,
 };
 
 export const en: typeof zh = {
@@ -38,6 +45,13 @@ export const en: typeof zh = {
   removed: 'Deleted',
   failed: (msg) => `Could not delete: ${msg}`,
   loadFailed: (msg) => `Could not load: ${msg}`,
+  search: 'Search notes or times',
+  noMatch: 'No alarm matches.',
+  perPage: 'Per page',
+  shown: (from, to, total) => `${from}–${to} of ${total}`,
+  prevPage: '‹ Previous',
+  nextPage: 'Next ›',
+  pageOf: (page, pages) => `${page} / ${pages}`,
 };
 
 export type PanelText = typeof en;

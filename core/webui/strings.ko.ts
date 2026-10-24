@@ -11,4 +11,10 @@ export const S: Partial<typeof en> = {
   removed: '삭제했습니다',
   failed: (msg) => `삭제하지 못했습니다: ${msg}`,
   loadFailed: (msg) => `불러오지 못했습니다: ${msg}`,
+  search: '내용이나 시간 검색',
+  noMatch: '일치하는 알람이 없습니다.',
+  perPage: '페이지당',
+  shown: (from: number, to: number, total: number) => `${total}개 중 ${from}–${to}`,
+  prevPage: '‹ 이전',
+  nextPage: '다음 ›',
 };

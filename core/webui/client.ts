@@ -20,6 +20,9 @@ function clock(timezone: string): { format(ms: number): string } {
   };
 }
 
+/** Alarms per page offered, as the version history's commit list offers them. */
+const PAGE_SIZES = [15, 30, 60, 100];
+
 const errText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 /** The unit `Intl.RelativeTimeFormat` says a span of `ms` in, rounded. */
@@ -38,19 +41,63 @@ const alarmsPanel: WebUiPanel = {
     const card = ui.sheet({ title: t.title, desc: t.desc });
     root.appendChild(card.el);
     const msg = ui.msgline('');
+    // the version history's commit list: a search and the page size above, the page, then the pager
+    let query = '';
+    let page = 0;
+    let size = ctx.memo.get<number>('alarms.pageSize', 30);
+    if (!PAGE_SIZES.includes(size)) size = 30;
+    const search = ui.input({
+      type: 'search',
+      placeholder: t.search,
+      onInput: (v) => { query = v.trim().toLowerCase(); page = 0; paint(); },
+    });
+    search.classList.add('coo-alarm-search');
+    const sizeLabel = ui.h('label', 'coo-alarm-pagesize');
+    sizeLabel.append(ui.h('span', null, t.perPage), ui.select({
+      value: String(size),
+      options: PAGE_SIZES.map(String),
+      onChange: (v) => { size = Number(v); ctx.memo.set('alarms.pageSize', size); page = 0; paint(); },
+    }));
+    const bar = ui.rowbar();
+    bar.classList.add('coo-alarm-bar');
+    bar.append(search, ui.h('span', 'grow'), sizeLabel);
     const list = ui.h('div', 'coo-alarms');
-    card.body.append(list, msg);
+    const pager = ui.rowbar();
+    pager.classList.add('coo-alarm-pager');
+    card.body.append(bar, list, pager, msg);
 
     const rel = new Intl.RelativeTimeFormat(ctx.language, { numeric: 'auto' });
+    let state: AlarmsState | null = null;
     let shown = '';
     const render = (st: AlarmsState) => {
-      const at = clock(st.timezone);
       // the relative time moves by the minute: redraw only when the list or that changes
       const key = JSON.stringify([st, Math.floor(Date.now() / 60_000)]);
       if (key === shown) return;
       shown = key;
-      if (!st.alarms.length) { list.replaceChildren(ui.placeholder(t.empty)); return; }
-      list.replaceChildren(...st.alarms.map((alarm) => row(alarm, at)));
+      state = st;
+      paint();
+    };
+    const paint = () => {
+      pager.replaceChildren();
+      if (!state) return;
+      const at = clock(state.timezone);
+      if (!state.alarms.length) { list.replaceChildren(ui.placeholder(t.empty)); return; }
+      const matches = state.alarms.filter((alarm) => !query
+        || alarm.note.toLowerCase().includes(query) || at.format(alarm.at).includes(query));
+      if (!matches.length) { list.replaceChildren(ui.placeholder(t.noMatch)); return; }
+      const pages = Math.max(1, Math.ceil(matches.length / size));
+      page = Math.min(page, pages - 1);
+      const from = page * size;
+      const slice = matches.slice(from, from + size);
+      list.replaceChildren(...slice.map((alarm) => row(alarm, at)));
+      pager.append(ui.h('span', 'coo-alarm-dim', t.shown(from + 1, from + slice.length, matches.length)), ui.h('span', 'grow'));
+      if (pages > 1) {
+        const prev = ui.button(t.prevPage, { size: 'sm', onClick: () => { page -= 1; paint(); } });
+        const next = ui.button(t.nextPage, { size: 'sm', onClick: () => { page += 1; paint(); } });
+        prev.disabled = page === 0;
+        next.disabled = page === pages - 1;
+        pager.append(prev, ui.h('span', 'coo-alarm-pageof', t.pageOf(page + 1, pages)), next);
+      }
     };
     // one alarm as a row of the version history's commit list: when it rings above, its note below
     const row = (alarm: Alarm, at: ReturnType<typeof clock>) => {
