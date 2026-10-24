@@ -34,8 +34,6 @@ export const S: Partial<typeof en> = {
   evHeadText: '正文',
   noEvents: '暫無事件',
 
-  // run.ts
-
   // runlog.ts
   currentRun: '目前 run',
   allLevels: '全部層級',

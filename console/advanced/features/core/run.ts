@@ -6,7 +6,7 @@
 
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import { loopOf, type SessionStat, type StatusSnapshot } from '../live/protocol.ts';
-import { createStatusBand } from '../live/status.ts';
+import { chipOf, createStatusBand } from '../live/status.ts';
 import { S as LIVE_S } from '../live/strings.ts';
 import { S } from './strings.ts';
 
@@ -28,13 +28,6 @@ export function createRunView(deps: RunViewDeps): RunView {
   const right = ui.h('div', 'live-summary-right');
   el.append(band.el, right);
 
-  /** 一枚读数:前后的字照常,中间的数加粗,与控制台的读数同一个样子。 */
-  const chip = (pre: string, value: string | number, post = ''): HTMLElement => {
-    const c = ui.chip('');
-    c.append(ui.h('span', null, pre), ui.h('b', null, String(value)), ui.h('span', null, post));
-    return c;
-  };
-
   let current: string | null = null;
   const connection = ui.button('', { onClick: () => deps.openProvider(current) });
   connection.className = 'live-connection';
@@ -49,8 +42,8 @@ export function createRunView(deps: RunViewDeps): RunView {
       if (!st) return;
       const loop = loopOf(st);
       const chips = ui.h('div', 'chips');
-      chips.appendChild(chip(S.chipDelivered, loop.lastDeliveredCursor ?? '-', ` / ${st.latestEventCursor ?? '-'}`));
-      if (loop.roundsLastBatch != null) chips.appendChild(chip(S.chipRoundsPre, loop.roundsLastBatch, S.chipRoundsPost));
+      chips.appendChild(chipOf(ui, [S.chipDelivered, { b: loop.lastDeliveredCursor ?? '-' }, ` / ${st.latestEventCursor ?? '-'}`]));
+      if (loop.roundsLastBatch != null) chips.appendChild(chipOf(ui, [S.chipRoundsPre, { b: loop.roundsLastBatch }, S.chipRoundsPost]));
       const conn = st.modelConnection;
       current = conn?.name ?? null;
       connectionValue.textContent = conn ? `${conn.name} · ${conn.model ?? '-'}` : LIVE_S.noProvider;

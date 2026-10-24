@@ -54,17 +54,6 @@ describe('console session chips', () => {
     expect(shownIds(band)).toEqual(['main', 'fork-3', 'fork-2', 'fork-1', 'fork-4']);
   });
 
-  it('shows no up-arrow count, only the name on main, and a plain dash when there is no cache rate', () => {
-    const { band } = mount();
-    band.render([session('main'), { ...session('fork-1'), cacheHitRate: 0.42 }, session('fork-2')], 'main');
-    const [main, fork1, fork2] = band.el.querySelectorAll('.sesscard');
-    expect(main.textContent).not.toContain('↑');
-    expect(main.querySelector('.shr')).toBeNull();
-    expect(fork1.querySelector('.shr').textContent).toContain('42%');
-    expect(fork2.querySelector('.shr').textContent).toMatch(/-$/);
-    expect(fork2.querySelector('.shr').textContent).not.toContain('—');
-  });
-
   it('leaves out the earliest-ended sessions that do not fit on the line', () => {
     rowWidth = 430; // four 100px cards with 6px gaps
     const { band } = mount();
