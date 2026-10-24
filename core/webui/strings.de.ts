@@ -3,7 +3,7 @@ import type { en } from './strings.ts';
 export const S: Partial<typeof en> = {
   title: 'Wecker',
   desc: 'Wecker, die Coo gestellt hat. Coo erfährt es, wenn du hier einen löschst.',
-  head: ['Zeit', 'Notiz', 'Gestellt am', ''],
+  setAt: 'Gestellt am',
   daily: 'Täglich',
   empty: 'Coo hat keine Wecker gestellt.',
   remove: 'Löschen',

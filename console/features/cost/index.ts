@@ -1,12 +1,13 @@
 /**
  * 用量与成本页读取跨重启保留的调用流水，按时段与范围统计 token、成本和请求次数，按各角色实际模型计价。
  * 页头下方的时间范围作用于整页；其下分为总览、Token 活跃度、用量时间序列与分组明细四节。
- * 状态属于本次 mount；定时器使用 lifecycle.interval，监听绑定 signal，tooltip 挂在本页 root。
+ * 状态属于本次 mount，换算币种除外(存在 memo 里，换页与重启后沿用);定时器使用 lifecycle.interval，监听绑定 signal，tooltip 挂在本页 root。
  * 柱图由 chart.ts 提供，活跃度格子图由 activity.ts 提供。
  */
 
 import type { WebUi, WebUiSheet, Disposable } from 'cortico/web/shared/client-panel.ts';
 import { get, setConfig } from '../../base/api.ts';
+import { createMemo } from '../../base/memo.ts';
 import { esc } from '../../base/ui/dom.ts';
 import { consoleFormat } from '../../base/ui/format.ts';
 import { getThemeStudio } from '../../base/theme/studio.ts';
@@ -25,6 +26,9 @@ import type { UsageAccum, UsageAggregate, UsageBucketOption, UsageDailyTokens, U
 const LIVE_MS = 15_000;
 /** 图区变宽变窄后延迟重画图表，合并连续的尺寸变化。 */
 const RESIZE_DEBOUNCE_MS = 80;
+
+/** 换算币种，空串表示自动 */
+const memo = createMemo('coopanion.usage.');
 
 const BUCKETS: ReadonlyArray<{ value: UsageBucketOption; label: string }> = [
   { value: 'auto', label: S.bucketAuto },
@@ -63,7 +67,7 @@ function costText(amount: number, a: Partial<UsageAccum>, cur: string): string {
   return consoleFormat.money(amount, cur) + (unpriced > 0 ? S.partialMark : '');
 }
 
-/** 读数卡里的金额:「+未计价」用小一号的字跟在金额后面,不和大数字挤一行。 */
+/** 读数卡里的金额，「+未计价」用小一号的字。 */
 function costValue(ui: WebUi, amount: number, a: Partial<UsageAccum>, cur: string): HTMLElement {
   const text = costText(amount, a, cur);
   const mark = S.partialMark.trim();
@@ -153,8 +157,13 @@ export function mountUsage(ctx: PageContext): void {
   // ---- 总览：读数、成本构成与计费口径 -----------------------------------------
   const overview = ui.sheet({ title: S.sectionOverview });
   let basis = 'marginal';
-  let currency = '';
-  const currencySelect = ui.select({ options: [{value:'',label:S.autoCurrency}], onChange: value => { currency = value; void load(); } });
+  let currency = memo.get('currency', '');
+  // 数据回来前先按记住的币种显示，免得选择框闪一下「自动」。
+  const currencySelect = ui.select({
+    options: [{ value: '', label: S.autoCurrency }, ...(currency ? [{ value: currency, label: currency }] : [])],
+    onChange: value => { currency = value; memo.set('currency', value); void load(); },
+  });
+  currencySelect.value = currency;
   const basisSelect = ui.select({ options: [{value:'marginal',label:S.basisMarginal},{value:'equivalent',label:S.basisEquivalent}], onChange: value => { basis = value; void load(); } });
   basisSelect.setAttribute('aria-label', S.ledger);
   // 换算币种的汇率：写回 Core 配置
@@ -438,6 +447,13 @@ export function mountUsage(ctx: PageContext): void {
 
   function renderAll(d: UsageAggregate, daily: readonly UsageDailyTokens[] | null): void {
     const currencies = d.currencies ?? [];
+    // 记住的币种可能已不在可选集（汇率被删、账目里无此币种）：清掉偏好退回自动，否则选择框
+    // 空着而金额仍按无法换算的币种算。
+    if (currency && currencies.length && !currencies.includes(currency)) {
+      currency = '';
+      memo.set('currency', '');
+      void load();
+    }
     currencySelect.replaceChildren(...['', ...currencies].map(value => {
       const option = doc.createElement('option');
       option.value = value;

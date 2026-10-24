@@ -22,7 +22,6 @@ export const S: Partial<typeof en> = {
   storageTab: 'データの消去',
   toolsTab: 'ツール',
   memoryDesc: 'Coo が自分で書いた記憶ファイルと、その変更の記録。',
-  personaDesc: 'Coo の考え方と行動を決める設定、プロンプトテンプレート、ツール。',
   memoryTitle: '記憶',
   personaTitle: 'ペルソナ',
   reloadTitle: 'システムプレフィックスを再読み込みしますか？',

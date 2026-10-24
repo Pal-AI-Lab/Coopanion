@@ -44,6 +44,7 @@ export function petToolDescriber(language: () => Language): DescribeTool {
       case 'edit_file': return show('write', s.edit, leaf(stringArg(args, 'path')));
       case 'append_file': return show('write', s.append, leaf(stringArg(args, 'path')));
       case 'delete_file': return show('delete', s.delete, leaf(stringArg(args, 'path')));
+      case 'move_file': return show('write', s.moveFile, leaf(stringArg(args, 'from')));
       case 'save_blob': return show('save', s.save, leaf(stringArg(args, 'path')));
       case 'pet_cua_screenshot': return show('look', s.screen);
       case 'pet_cua_windows': return show('look', s.windows);

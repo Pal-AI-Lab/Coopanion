@@ -3,7 +3,7 @@ import type { en } from './strings.ts';
 export const S: Partial<typeof en> = {
   title: 'Будильники',
   desc: 'Будильники, которые поставил Coo. Если удалить будильник здесь, Coo получит уведомление.',
-  head: ['Время', 'Заметка', 'Поставлен', ''],
+  setAt: 'Поставлен',
   daily: 'Каждый день',
   empty: 'У Coo нет будильников.',
   remove: 'Удалить',

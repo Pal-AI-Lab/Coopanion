@@ -63,6 +63,12 @@ const zh = {
   hover: '悬停按钮',
   hoverHint: (n: number) => `最多 ${n} 个。`,
   dblclick: '打开打字框',
+  typeKeyLabel: '打字键',
+  typeKey: '打开打字框',
+  typeKeyHint: '在任何窗口里按下都有效。',
+  typeKeyChange: '更改',
+  typeKeyCapture: '按下新的打字键，可以是组合键或鼠标侧键…（Esc 取消）',
+  typeKeyPresses: { 2: '双击', 1: '按一下', 3: '三击' } as Record<number, string>,
   statusBubble: '显示 Coo 在忙什么',
   statusBubbleHint: '思考、读写文件、操作电脑时在头顶显示，包括文件名。',
   saidBubble: '显示你说的话',
@@ -106,6 +112,9 @@ const zh = {
   glowOff: '关闭',
   glowPx: (n: number) => `${n} px`,
   glowHint: '桌宠和身后颜色相近时，身体周围的浅色外发光延伸多远；滑到最左为关闭。',
+  ringLabel: '上下文圆环',
+  ring: '在对话页显示',
+  ringHint: '对话页输入框显示一个圆环，表示离整理之前的对话还有多远。',
 };
 
 export const en: typeof zh = {
@@ -162,6 +171,12 @@ export const en: typeof zh = {
   hover: 'Hover buttons',
   hoverHint: (n: number) => `Up to ${n}.`,
   dblclick: 'Open the typing box',
+  typeKeyLabel: 'Typing key',
+  typeKey: 'Open the typing box',
+  typeKeyHint: 'Works whichever window is in front.',
+  typeKeyChange: 'Change',
+  typeKeyCapture: 'Press the new typing key: a key combination or a mouse side button… (Esc cancels)',
+  typeKeyPresses: { 2: 'Double-press', 1: 'Single press', 3: 'Triple-press' } as Record<number, string>,
   statusBubble: 'Show what Coo is doing',
   statusBubbleHint: 'Shows above Coo while Coo thinks, reads or writes files or uses the computer, file names included.',
   saidBubble: 'Show what you said',
@@ -204,6 +219,9 @@ export const en: typeof zh = {
   glowOff: 'Off',
   glowPx: (n: number) => `${n} px`,
   glowHint: "How far the light glow around the pet reaches when Coo's colors match the background; all the way left turns it off.",
+  ringLabel: 'Context ring',
+  ring: 'Show on the Chat page',
+  ringHint: "A ring in the Chat page's input box shows how far the conversation is from being tidied up.",
 };
 
 export const S = pick({

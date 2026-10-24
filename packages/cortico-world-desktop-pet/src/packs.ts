@@ -42,7 +42,7 @@ export const FIGURE_API_OLDEST = 2;
 export const COO = 'coo';
 /** Kinds a pack's own sounds are filed under, as web/sound.js mutes them (BODY_SOUND_KINDS). */
 export const PACK_SOUND_KINDS = ['move', 'touch', 'face', 'snore'] as const;
-/** Data about the desktop a pack may ask for: `windows`, the visible top edges of the windows on the pet's display. */
+/** Data about the desktop a pack may ask for: `windows`, the windows on the pet's display and their visible top edges. */
 export const PACK_NEEDS = ['windows'] as const;
 /** Most targets a pack declares, and most numbers one of them takes. */
 export const MOVES_MAX = 8;

@@ -44,6 +44,13 @@ const ko: Translation<PetText> = {
     linuxNoX11: '말하기 키가 X11 디스플레이에 연결할 수 없습니다',
     unsupported: '말하기 키는 Windows, macOS, Linux에서만 작동합니다',
   },
+  typeKey: {
+    macNoKey: 'Mac 키보드에는 이 키가 없습니다. 다른 입력 키를 선택하세요',
+    linuxNoKey: 'Linux에서는 이 키를 읽을 수 없습니다(마우스 측면 버튼은 작동하지 않음). 다른 입력 키를 선택하세요',
+    linuxNoDisplay: '입력 키를 Linux에서 쓰려면 X11(또는 XWayland)이 필요합니다. DISPLAY가 설정되어 있지 않습니다',
+    linuxNoX11: '입력 키가 X11 디스플레이에 연결할 수 없습니다',
+    unsupported: '입력 키는 Windows, macOS, Linux에서만 작동합니다',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Windows 음성 인식(${culture})` : 'Windows 음성 인식'),
@@ -169,6 +176,8 @@ const ko: Translation<PetText> = {
     window: '펫 창',
     connected: '페이지 연결됨',
     notOpen: '열리지 않음',
+    noBody: (reason: string) => `페이지 연결됨, 외형을 그릴 수 없음: ${reason}`,
+    alsoBrowser: (hint: string) => `${hint}; 브라우저 페이지 연결됨`,
     voice: '음성 인식',
     notStarted: '시작 안 됨',
     viewInBrowser: '브라우저에서 펫 보기',

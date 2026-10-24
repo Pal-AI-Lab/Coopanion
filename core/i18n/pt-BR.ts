@@ -7,6 +7,7 @@ const ptBR: Translation<CoreText> = {
   settings: {
     language: { title: 'Idioma', description: 'A interface e Coo usam este idioma. Vale na hora.' },
     telemetry: { title: 'Estatísticas de uso anônimas', description: 'Envia contagens de uso e configurações, nunca conversas, para ajudar a melhorar o Coopanion. Os campos estão listados em docs/TELEMETRY.md.' },
+    contextRing: { title: 'Anel de contexto', description: 'Mostra na caixa de texto da página Chat um anel com quanto falta para organizar a conversa anterior.' },
     roundsSoft: { title: 'Lembrete para encerrar', suffix: 'solicitações', description: 'Depois dessa quantidade de solicitações ao modelo em um mesmo despertar, Coo recebe um lembrete para terminar o que está fazendo e encerrar o turno.' },
     roundsHard: { title: 'Solicitações por despertar', suffix: 'solicitações', description: 'O máximo de solicitações ao modelo em um despertar; ao chegar nele, o turno termina.' },
   },
@@ -32,7 +33,7 @@ const ptBR: Translation<CoreText> = {
 
   status: {
     read: 'Lendo', browse: 'Consultando', memory: 'memória', find: 'Procurando', search: 'Pesquisando', write: 'Escrevendo', edit: 'Editando', append: 'Acrescentando a',
-    delete: 'Excluindo', save: 'Salvando', screen: 'Olhando a tela', windows: 'Olhando as janelas abertas', rightClick: 'Clicando com o botão direito', doubleClick: 'Clicando duas vezes', click: 'Clicando',
+    delete: 'Excluindo', moveFile: 'Movendo', save: 'Salvando', screen: 'Olhando a tela', windows: 'Olhando as janelas abertas', rightClick: 'Clicando com o botão direito', doubleClick: 'Clicando duas vezes', click: 'Clicando',
     move: 'Movendo o mouse', drag: 'Arrastando', scroll: 'Rolando', focus: 'Trocando de janela', type: 'Digitando', key: 'Pressionando', wait: 'Esperando',
     alarmSet: 'Definindo um alarme', alarmList: 'Conferindo os alarmes', alarmCancel: 'Cancelando um alarme',
     quoted: (text: string) => `“${text}”`,

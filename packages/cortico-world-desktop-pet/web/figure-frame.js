@@ -12,10 +12,14 @@
  * - `host`: `root` (the element to draw in, filling the stage), `bounds()` ({ W, H, floorY, S } in stage
  *   pixels: the floor's height and the size the body is drawn at, 1 logo unit = S pixels, the body
  *   inside a 256-unit square), `emit(kind, detail)`, `sound(name, kind, ...args)` and `start`
- *   ({ x, facing, enter, skin }). For a pack whose manifest `needs` `windows`, `bounds()` also has `ledges`
- *   while the window can read them (Windows, macOS, Linux on X11): the visible top edges of the other windows on the
- *   pet's display, `[{ x0, x1, y }]` in stage pixels, the parts hidden by a window in front left out,
- *   updated a few times a second; absent elsewhere.
+ *   ({ x, facing, enter, skin }). For a pack whose manifest `needs` `windows`, `bounds()` also has `ledges` and
+ *   `windows` while the window can read them (Windows, macOS, Linux on X11), both in stage pixels, read every 0.7 s
+ *   and replaced only when something changed; absent elsewhere. `ledges`: the visible top edges of the other windows
+ *   on the pet's display, `[{ x0, x1, y }]`, the parts hidden by a window in front left out, highest first.
+ *   `windows`: those windows whole, front first, `[{ id, x0, y0, x1, y1, active }]` (left, top, right, bottom, parts
+ *   off the stage or behind other windows included): every window that reaches onto the stage above the floor, at
+ *   most 64. `id` is an opaque string that stays the window's while it is open and may go to another window after
+ *   it closes; `active` is true for the foreground window and false for the others, and absent on macOS.
  * - `kit`: web/kit/body.js (createBody builds a whole body around a figure that only draws; createRig).
  * - the body: `step(dt)` advances and draws one frame; `layout()` says where it is ({ x, facing, mode,
  *   busy, moving, pressing, cursor, box, hit, bubble, side }, see the kit's `layout`); `resize()` takes new
@@ -31,7 +35,7 @@
  *
  * Messages in: `init { entry, export, base, model, scheme, start, theme, bounds, language }` (the app language,
  * for the frame's own error messages), then `tick { dt }`
- * once a frame, `ledges { ledges }` (null when there are none to read) and the calls above by name. Out: `loaded`, `ready { z, words }`, `frame { layout, events: [{ kind,
+ * once a frame, `windows { ledges, windows }` (null when there are none to read) and the calls above by name. Out: `loaded`, `ready { z, words }`, `frame { layout, events: [{ kind,
  * detail }], sounds: [{ name, kind, args }], z }` after each tick, `scheme { seq, z }`, and `error { message }`
  * once, after which it stops.
  */
@@ -39,9 +43,9 @@ import * as kit from './kit/body.js';
 import { t, useLanguage } from './i18n.js';
 
 const root = document.getElementById('root');
-let body = null, dead = false, bounds = { W: 0, H: 0, floorY: 0, S: .42 }, ledges = null;
-/** The stage's size from the page, with the window tops when there are any. */
-const setBounds = (b) => { bounds = ledges ? { ...b, ledges } : { ...b }; };
+let body = null, dead = false, bounds = { W: 0, H: 0, floorY: 0, S: .42 }, desk = null;
+/** The stage's size from the page, with the windows when there are any. */
+const setBounds = (b) => { bounds = desk ? { ...b, ...desk } : { ...b }; };
 let events = [], sounds = [];
 const post = (m) => parent.postMessage(m, '*');
 function fail(err) {
@@ -73,9 +77,9 @@ addEventListener('message', async (e) => {
   if (e.source !== parent || dead) return;
   const m = e.data || {};
   try {
-    if (m.t === 'ledges') {
-      ledges = Array.isArray(m.ledges) ? m.ledges : null;
-      const { ledges: _, ...b } = bounds;
+    if (m.t === 'windows') {
+      desk = Array.isArray(m.ledges) && Array.isArray(m.windows) ? { ledges: m.ledges, windows: m.windows } : null;
+      const { ledges: _l, windows: _w, ...b } = bounds;
       setBounds(b);
     } else if (m.t === 'init') {
       setBounds(m.bounds);

@@ -198,6 +198,7 @@ export function createToolsView(ui: WebUi): ToolsView {
       }
       for (const [name, tools] of groupTools(schemas)) {
         if (!tools.length) continue;
+        // 分栏标题可点:收起或展开这一栏的全部工具,右侧 + / − 表示当前状态。
         const section = ui.h('section', 'toolgroup schema-group');
         const head = ui.h('button', 'toolgroup-head');
         head.type = 'button';

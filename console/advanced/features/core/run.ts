@@ -5,7 +5,7 @@
 
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import { loopOf, type SessionStat, type StatusSnapshot } from '../live/protocol.ts';
-import { createConnectionButton, createStatusBand } from '../live/status.ts';
+import { chipOf, createConnectionButton, createStatusBand } from '../live/status.ts';
 import { S } from './strings.ts';
 
 export interface RunViewDeps {
@@ -26,13 +26,6 @@ export function createRunView(deps: RunViewDeps): RunView {
   const right = ui.h('div', 'live-summary-right');
   el.append(band.el, right);
 
-  /** 读数里的数加粗,与控制台顶栏的读数一致。 */
-  const chip = (pre: string, value: string | number, post = ''): HTMLElement => {
-    const c = ui.chip('');
-    c.append(ui.h('span', null, pre), ui.h('b', null, String(value)), ui.h('span', null, post));
-    return c;
-  };
-
   const connection = createConnectionButton(ui, deps.openProvider);
 
   return {
@@ -43,8 +36,8 @@ export function createRunView(deps: RunViewDeps): RunView {
       if (!st) return;
       const loop = loopOf(st);
       const chips = ui.h('div', 'chips');
-      chips.appendChild(chip(S.chipDelivered, loop.lastDeliveredCursor ?? '-', ` / ${st.latestEventCursor ?? '-'}`));
-      if (loop.roundsLastBatch != null) chips.appendChild(chip(S.chipRoundsPre, loop.roundsLastBatch, S.chipRoundsPost));
+      chips.appendChild(chipOf(ui, [S.chipDelivered, { b: loop.lastDeliveredCursor ?? '-' }, ` / ${st.latestEventCursor ?? '-'}`]));
+      if (loop.roundsLastBatch != null) chips.appendChild(chipOf(ui, [S.chipRoundsPre, { b: loop.roundsLastBatch }, S.chipRoundsPost]));
       connection.render(st);
       right.append(chips, connection.el);
     },

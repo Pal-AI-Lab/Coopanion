@@ -22,7 +22,6 @@ export const S: Partial<typeof en> = {
   storageTab: 'Очистка данных',
   toolsTab: 'Инструменты',
   memoryDesc: 'Файлы памяти, которые Coo пишет сам, и история каждого изменения.',
-  personaDesc: 'Настройки, шаблоны промптов и инструменты, которые определяют, как Coo думает и действует.',
   memoryTitle: 'Память',
   personaTitle: 'Персона',
   reloadTitle: 'Перезагрузить системный префикс?',

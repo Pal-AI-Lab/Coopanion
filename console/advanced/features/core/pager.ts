@@ -32,12 +32,8 @@ export interface PagerOptions {
 const storeKey = (key: string): string => `coopanion.core.pageSize.${key}`;
 
 function readSize(key: string, sizes: readonly number[], fallback: number): number {
-  try {
-    const n = Number(localStorage.getItem(storeKey(key)));
-    return sizes.includes(n) ? n : fallback;
-  } catch {
-    return fallback;
-  }
+  const n = Number(localStorage.getItem(storeKey(key)));
+  return sizes.includes(n) ? n : fallback;
 }
 
 export function createPager(ui: WebUi, opts: PagerOptions): Pager {
@@ -57,7 +53,7 @@ export function createPager(ui: WebUi, opts: PagerOptions): Pager {
       options: opts.sizes.map((n) => String(n)),
       onChange: (v) => {
         size = Number(v);
-        try { localStorage.setItem(storeKey(opts.key), String(size)); } catch { /* 不记也照常翻页 */ }
+        localStorage.setItem(storeKey(opts.key), String(size));
         page = 0;
         opts.onChange(false);
       },

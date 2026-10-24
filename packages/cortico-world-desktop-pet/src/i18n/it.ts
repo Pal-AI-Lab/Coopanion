@@ -44,6 +44,13 @@ const it: Translation<PetText> = {
     linuxNoX11: 'Il tasto per parlare non riesce a collegarsi al display X11',
     unsupported: 'Il tasto per parlare funziona solo su Windows, macOS e Linux',
   },
+  typeKey: {
+    macNoKey: 'Una tastiera Mac non ha questo tasto; scegli un altro tasto per scrivere',
+    linuxNoKey: 'Linux non può leggere questo tasto (i tasti laterali del mouse non funzionano); scegli un altro tasto per scrivere',
+    linuxNoDisplay: 'Su Linux il tasto per scrivere richiede X11 (o XWayland): DISPLAY non è impostato',
+    linuxNoX11: 'Il tasto per scrivere non riesce a collegarsi al display X11',
+    unsupported: 'Il tasto per scrivere funziona solo su Windows, macOS e Linux',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Riconoscimento vocale di Windows (${culture})` : 'Riconoscimento vocale di Windows'),
@@ -169,6 +176,8 @@ const it: Translation<PetText> = {
     window: "Finestra dell'animaletto",
     connected: 'Pagina connessa',
     notOpen: 'Non aperta',
+    noBody: (reason: string) => `Pagina connessa, il personaggio non può essere disegnato: ${reason}`,
+    alsoBrowser: (hint: string) => `${hint}; è connessa una pagina del browser`,
     voice: 'Riconoscimento vocale',
     notStarted: 'Non avviato',
     viewInBrowser: "Guarda l'animaletto nel browser",

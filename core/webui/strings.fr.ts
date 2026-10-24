@@ -3,7 +3,7 @@ import type { en } from './strings.ts';
 export const S: Partial<typeof en> = {
   title: 'Alarmes',
   desc: "Les alarmes que Coo a fixées. Coo est prévenu quand vous en supprimez une ici.",
-  head: ['Heure', 'Note', 'Créée le', ''],
+  setAt: 'Créée le',
   daily: 'Tous les jours',
   empty: "Coo n'a aucune alarme.",
   remove: 'Supprimer',

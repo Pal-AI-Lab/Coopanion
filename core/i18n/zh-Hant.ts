@@ -7,6 +7,7 @@ const zhHant: Translation<CoreText> = {
   settings: {
     language: { title: '語言', description: '介面和 Coo 說話都使用這種語言，修改後立即生效。' },
     telemetry: { title: '匿名使用統計', description: '傳送不含對話內容的使用次數與設定，幫助改進 Coopanion。欄位見 docs/TELEMETRY.md。' },
+    contextRing: { title: '上下文圓環', description: '在對話頁輸入框顯示一個圓環，表示離整理之前的對話還有多遠。' },
     roundsSoft: { title: '收尾提醒', suffix: '次', description: '單次喚醒請求模型達到此次數時，提醒 Coo 完成目前任務後結束本輪。' },
     roundsHard: { title: '單次喚醒上限', suffix: '次', description: '單次喚醒最多請求模型的次數，達到後結束本輪。' },
   },
@@ -32,7 +33,7 @@ const zhHant: Translation<CoreText> = {
 
   status: {
     read: '在查看', browse: '在翻閱', memory: '記憶', find: '在尋找', search: '在搜尋', write: '在寫入', edit: '在修改', append: '在附加',
-    delete: '在刪除', save: '在儲存', screen: '在查看螢幕', windows: '在查看開啟的視窗', rightClick: '在按右鍵', doubleClick: '在點兩下', click: '在點選',
+    delete: '在刪除', moveFile: '在移動', save: '在儲存', screen: '在查看螢幕', windows: '在查看開啟的視窗', rightClick: '在按右鍵', doubleClick: '在點兩下', click: '在點選',
     move: '在移動滑鼠', drag: '在拖曳', scroll: '在捲動', focus: '在切換視窗', type: '在打字', key: '在按鍵', wait: '在等待',
     alarmSet: '在設定鬧鐘', alarmList: '在查看鬧鐘', alarmCancel: '在取消鬧鐘',
     quoted: (text: string) => `「${text}」`,

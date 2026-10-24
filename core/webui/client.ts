@@ -20,7 +20,6 @@ function clock(timezone: string): { format(ms: number): string } {
   };
 }
 
-/** Alarms per page offered, as the version history's commit list offers them. */
 const PAGE_SIZES = [15, 30, 60, 100];
 
 const errText = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -41,7 +40,6 @@ const alarmsPanel: WebUiPanel = {
     const card = ui.sheet({ title: t.title, desc: t.desc });
     root.appendChild(card.el);
     const msg = ui.msgline('');
-    // the version history's commit list: a search and the page size above, the page, then the pager
     let query = '';
     let page = 0;
     let size = ctx.memo.get<number>('alarms.pageSize', 30);
@@ -99,19 +97,18 @@ const alarmsPanel: WebUiPanel = {
         pager.append(prev, ui.h('span', 'coo-alarm-pageof', t.pageOf(page + 1, pages)), next);
       }
     };
-    // one alarm as a row of the version history's commit list: when it rings above, its note below
     const row = (alarm: Alarm, at: ReturnType<typeof clock>) => {
-      const item = ui.h('div', 'histrow coo-alarm');
-      const head = ui.h('div', 'hh');
-      head.append(ui.h('span', 'hhash', at.format(alarm.at)));
-      if (alarm.daily) head.append(ui.h('span', 'hauthor', t.daily));
+      const item = ui.h('div', 'coo-alarm');
+      const head = ui.h('div', 'coo-alarm-head');
+      head.append(ui.h('span', 'coo-alarm-time', at.format(alarm.at)));
+      if (alarm.daily) head.append(ui.h('span', 'coo-alarm-daily', t.daily));
       head.append(ui.h('span', 'coo-alarm-rel', relative(rel, alarm.at - Date.now())));
-      head.append(ui.h('span', 'hdate', `${t.head[2]} ${at.format(alarm.setAt)}`));
+      head.append(ui.h('span', 'coo-alarm-setat', `${t.setAt} ${at.format(alarm.setAt)}`));
       const remove = ui.h('button', 'coo-alarm-remove', t.remove);
       remove.type = 'button';
       remove.addEventListener('click', () => void cancel(alarm, at.format(alarm.at), remove));
       head.append(remove);
-      item.append(head, ui.h('div', 'hmsg', alarm.note));
+      item.append(head, ui.h('div', 'coo-alarm-note', alarm.note));
       return item;
     };
     const cancel = async (alarm: Alarm, when: string, btn: HTMLButtonElement) => {

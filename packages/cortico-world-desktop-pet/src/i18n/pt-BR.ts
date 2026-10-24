@@ -44,6 +44,13 @@ const ptBR: Translation<PetText> = {
     linuxNoX11: 'A tecla para falar não consegue se conectar à tela do X11',
     unsupported: 'A tecla para falar só funciona no Windows, macOS e Linux',
   },
+  typeKey: {
+    macNoKey: 'O teclado do Mac não tem essa tecla; escolha outra tecla para digitar',
+    linuxNoKey: 'O Linux não consegue ler essa tecla (os botões laterais do mouse não funcionam); escolha outra tecla para digitar',
+    linuxNoDisplay: 'A tecla para digitar precisa do X11 (ou XWayland) no Linux: DISPLAY não está definido',
+    linuxNoX11: 'A tecla para digitar não consegue se conectar à tela do X11',
+    unsupported: 'A tecla para digitar só funciona no Windows, macOS e Linux',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Reconhecimento de Fala do Windows (${culture})` : 'Reconhecimento de Fala do Windows'),
@@ -169,6 +176,8 @@ const ptBR: Translation<PetText> = {
     window: 'Janela do pet',
     connected: 'Página conectada',
     notOpen: 'Não aberta',
+    noBody: (reason: string) => `Página conectada, o personagem não pode ser desenhado: ${reason}`,
+    alsoBrowser: (hint: string) => `${hint}; há uma página do navegador conectada`,
     voice: 'Reconhecimento de voz',
     notStarted: 'Não iniciado',
     viewInBrowser: 'Ver o pet no navegador',

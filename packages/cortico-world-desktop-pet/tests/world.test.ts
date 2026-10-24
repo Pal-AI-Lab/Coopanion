@@ -13,6 +13,7 @@ import { chatItem } from '../src/chat.ts';
 import { FakeHost } from './helpers/fake-host.ts';
 import { FakePage } from './helpers/page.ts';
 import { HOST_ENV } from '../src/window-host.ts';
+import { petText } from '../src/i18n/index.ts';
 
 const ctx = { role: 'main', log: new FakeHost().log };
 
@@ -419,6 +420,24 @@ describe('with a pet page', () => {
     await tool(world, 'pet_act').handler({ actions: ['nod'] }, ctx);
     await win.next((m) => m.t === 'act');
     expect(tab.messages.some((m) => m.t === 'act')).toBe(false);
+  });
+
+  it('the window lamp is the window\'s: a browser tab standing in is only mentioned, a window that draws no figure is an error', async () => {
+    const { world } = await mounted();
+    const c = petText('zh').console;
+    const lamp = () => world.webUi().lamps![0]!;
+    const tab = await FakePage.open(origin(world), 'role=pet&host=tab');
+    cleanup.push(() => tab.close());
+    await expect.poll(() => lamp().hint).toBe(c.alsoBrowser(c.notOpen));
+    expect(lamp().state).toBe('offline');
+    const win = await windowPage(world);
+    cleanup.push(() => win.close());
+    await expect.poll(() => lamp().state).toBe('online');
+    win.send({ t: 'figure', id: 'coo', ok: false, reason: 'webgl unavailable' });
+    await expect.poll(() => lamp().state).toBe('error');
+    expect(lamp().hint).toBe(c.noBody('webgl unavailable'));
+    win.send({ t: 'figure', id: 'coo', ok: true });
+    await expect.poll(() => lamp().state).toBe('online');
   });
 
   it('puts the local time before each event, with the date on the first one only', async () => {

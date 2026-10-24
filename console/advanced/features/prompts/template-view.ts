@@ -1,8 +1,7 @@
 /**
- * A World's environment prompt on its own page: the 系统提示词 editor holding one template, without the
- * section flag, its line or the description line. The column beside it lists the template's variables;
- * the eye shows their values in the text, the gear opens the page's 配置. Saving writes the deployment's
- * copy, as on 系统提示词; 「恢复默认版本」 removes that copy.
+ * A World's templates on its own page, each in the 系统提示词 editor without block headers, its
+ * variables beside it. Saving writes the deployment's copy, as on 系统提示词; 「恢复默认版本」 removes
+ * that copy. A page with more than one template titles each.
  */
 import type { WebUi, Disposable } from 'cortico/web/shared/client-panel.ts';
 import { get, post } from '../../../base/api.ts';
@@ -65,8 +64,9 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
     return button;
   };
 
-  function editorFor(source: PromptDoc): { el: HTMLElement; dispose(): void } {
+  function editorFor(source: PromptDoc, titled: boolean): { el: HTMLElement; dispose(): void } {
     const wrap = ui.h('div', 'template-edit');
+    if (titled) wrap.append(ui.section(source.title));
     const toolbar = ui.h('div', 'prompt-toolbar');
     const status = ui.msgline('');
     status.className += ' prompt-status';
@@ -297,7 +297,7 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
       const docs = (data?.prompts ?? []).filter((p) => wanted.has(p.key));
       if (!docs.length) { el.appendChild(ui.placeholder(S.noTemplatesScoped)); return; }
       for (const source of docs) {
-        const editor = editorFor(source);
+        const editor = editorFor(source, docs.length > 1);
         editors.push(editor);
         el.appendChild(editor.el);
       }

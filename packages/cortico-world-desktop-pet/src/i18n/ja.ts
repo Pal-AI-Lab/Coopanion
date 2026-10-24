@@ -44,6 +44,13 @@ const ja: Translation<PetText> = {
     linuxNoX11: '発話キーが X11 ディスプレイに接続できません',
     unsupported: '発話キーは Windows、macOS、Linux でのみ使えます',
   },
+  typeKey: {
+    macNoKey: 'Mac のキーボードにはこのキーがありません。別のタイピングキーを選んでください',
+    linuxNoKey: 'Linux ではこのキーを読み取れません（マウスのサイドボタンは使えません）。別のタイピングキーを選んでください',
+    linuxNoDisplay: 'Linux でタイピングキーを使うには X11（または XWayland）が必要です：DISPLAY が設定されていません',
+    linuxNoX11: 'タイピングキーが X11 ディスプレイに接続できません',
+    unsupported: 'タイピングキーは Windows、macOS、Linux でのみ使えます',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Windows 音声認識（${culture}）` : 'Windows 音声認識'),
@@ -169,6 +176,8 @@ const ja: Translation<PetText> = {
     window: 'ペットのウィンドウ',
     connected: 'ページ接続済み',
     notOpen: '開いていません',
+    noBody: (reason: string) => `ページ接続済み、アバターを描画できません：${reason}`,
+    alsoBrowser: (hint: string) => `${hint}；ブラウザーのページが接続済み`,
     voice: '音声認識',
     notStarted: '未起動',
     viewInBrowser: 'ブラウザーでペットを見る',

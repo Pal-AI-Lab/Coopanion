@@ -373,6 +373,10 @@ export class DesktopPetWorld implements World {
   /** Why the talk key cannot be read; the gate then stays closed. */
   private hotkeyProblem: string | null = null;
   private hotkeyKey = '';
+  /** The typing key's watcher while `typeKey.enabled`, and why it cannot be read. */
+  private typeWatcher: KeyWatcher | null = null;
+  private typeKeyProblem: string | null = null;
+  private typeKeyKey = '';
   private level = -100;
   private readonly chat = new ChatSockets();
   private readonly activity = new ActivityGroup();
@@ -419,7 +423,7 @@ export class DesktopPetWorld implements World {
       snapshot: () => this.snapshot(),
       onPetMessage: (msg) => this.onPage(msg),
       onAudio: (frame) => this.onAudio(frame),
-      onPetConnect: () => { this.petHidden = false; this.log?.info('桌宠页面已连接'); },
+      onPetConnect: () => { this.petHidden = false; this.bodyMissing = null; this.log?.info('桌宠页面已连接'); },
       onPetDisconnect: () => this.onPageGone(),
       onSkin: (skin) => this.saveSkin(skin),
       onPrefs: (prefs) => this.savePrefs(prefs),
@@ -442,6 +446,8 @@ export class DesktopPetWorld implements World {
   private figureShown: string | null = null;
   /** The figure the page said would not run, while the skin still names it: the page shows Coo meanwhile. */
   private figureFailed: string | null = null;
+  /** Why Coo, the last stand-in, would not run on the connected page, which then shows no figure at all. */
+  private bodyMissing: string | null = null;
   /** The words each pack's body said it knows when the page last loaded it; a body that did not say is taken at its manifest's word. */
   private readonly bodyWords = new Map<string, ReadonlySet<string>>();
   /** The words the bot was last told it may use: its prompt's at start, then a `[figure]` event's or a `pet_set` receipt's. */
@@ -562,6 +568,7 @@ export class DesktopPetWorld implements World {
       this.figureShown = COO;
       this.figureFailed = id;
       const reason = typeof msg.reason === 'string' ? msg.reason.slice(0, 200) : this.t.reasonUnknown;
+      if (id === COO) this.bodyMissing = reason;
       // the page shows Coo instead, whose words then hold too
       const coo = packs.find((p) => p.id === COO) ?? null;
       const note = this.vocabNote();
@@ -579,6 +586,7 @@ export class DesktopPetWorld implements World {
     const problem = `形象包 ${id} 的词表里有身体不认得的词,没给 bot 用:${unknown.join('、')}`;
     if (unknown.length && !this.packProblems.has(problem)) { this.packProblems.add(problem); this.log?.warn(problem); }
     if (id === this.cfg.skin.figure) this.figureFailed = null;
+    this.bodyMissing = null;
     const shown = id === COO ? COO : `${id}:${typeof msg.scheme === 'string' ? msg.scheme : ''}`;
     this.figureShown = shown;
     let look: string | null = null;
@@ -631,6 +639,7 @@ export class DesktopPetWorld implements World {
     this.cuaSeen = this.cfg.cua.enabled;
     if (this.cfg.asr.enabled) void this.startVoiceBackend();
     await this.syncHotkey();
+    await this.syncTypeKey();
     this.prefsKey = this.prefsSignature();
     this.prefsTimer = setInterval(() => this.syncPrefs(), PREFS_SYNC_MS);
   }
@@ -652,6 +661,9 @@ export class DesktopPetWorld implements World {
     this.touchWoke = false;
     this.keyWatcher?.stop();
     this.keyWatcher = null;
+    this.typeWatcher?.stop();
+    this.typeWatcher = null;
+    this.typeKeyKey = '';
     if (this.micReleaseTimer) clearTimeout(this.micReleaseTimer);
     this.micReleaseTimer = null;
     for (const c of this.confirms.values()) { clearTimeout(c.timer); c.resolve('unavailable'); }
@@ -919,6 +931,7 @@ export class DesktopPetWorld implements World {
     if (this.cuaSeen && !this.cfg.cua.enabled) void this.cua.switchedOff();
     this.cuaSeen = this.cfg.cua.enabled;
     void this.syncHotkey();
+    void this.syncTypeKey();
     // the person changed what a quiet holds back: theirs wins
     if (this.quiet && (this.cfg.sound !== this.quiet.base.sound || this.cfg.roam !== this.quiet.base.roam)) this.endQuiet();
     this.server.syncOverlay();
@@ -1403,6 +1416,29 @@ export class DesktopPetWorld implements World {
     } else this.keyWatcher = watcher;
   }
 
+  /** Starts, restarts or stops the typing key's watcher to match `typeKey`; a press opens the pet's typing box. */
+  private async syncTypeKey(): Promise<void> {
+    const { enabled, hotkey } = this.cfg.typeKey;
+    const key = enabled && this.host ? hotkey : '';
+    if (key === this.typeKeyKey) return;
+    this.typeKeyKey = key;
+    this.typeWatcher?.stop();
+    this.typeWatcher = null;
+    this.typeKeyProblem = null;
+    if (!key) return;
+    const parsed = parseHotkey(hotkey);
+    const watch = this.opts.watchHotkey ?? watchHotkey;
+    const text = { ...this.ui.hotkey, ...this.ui.typeKey };
+    // a hidden pet stays hidden: its typing box would open out of sight
+    const onPress = (down: boolean) => { if (down && !this.petHidden) this.server.sendPet({ t: 'type' }); };
+    const watcher = parsed ? await watch(parsed, onPress, HOTKEY_POLL_MS, undefined, text) : this.ui.voice.badKey(hotkey);
+    if (key !== this.typeKeyKey) { if (typeof watcher !== 'string') watcher.stop(); return; }
+    if (typeof watcher === 'string') {
+      this.typeKeyProblem = watcher;
+      this.log?.warn(`打字键不可用:${watcher}`);
+    } else this.typeWatcher = watcher;
+  }
+
   /** One line telling the person how to be heard. */
   private talkHint(): string {
     const { hotkey } = this.cfg.asr.mic;
@@ -1873,11 +1909,14 @@ export class DesktopPetWorld implements World {
     const w = this.windowHost?.state();
     const v = this.backendState();
     const c = petText(language).console;
+    // the lamp is the window's: a browser page standing in for it is only mentioned
+    const inWindow = this.server.petInWindow;
+    const hint = w?.detail ?? c.notOpen;
     const lamps: WorldLamp[] = [
       {
         label: c.window,
-        state: this.server.petConnected ? 'online' : w?.phase === 'running' ? 'loading' : w?.phase === 'missing' || w?.phase === 'error' ? 'error' : 'offline',
-        hint: this.server.petConnected ? c.connected : w?.detail ?? c.notOpen,
+        state: inWindow ? (this.bodyMissing === null ? 'online' : 'error') : w?.phase === 'running' ? 'loading' : w?.phase === 'missing' || w?.phase === 'error' ? 'error' : 'offline',
+        hint: inWindow ? (this.bodyMissing === null ? c.connected : c.noBody(this.bodyMissing)) : this.server.petConnected ? c.alsoBrowser(hint) : hint,
       },
       {
         label: c.voice,
@@ -1933,6 +1972,16 @@ export class DesktopPetWorld implements World {
           this.opts.persist({ selfAdjust: 'custom', selfAdjustCustom: custom });
           return this.petState();
         }
+        // the typing key, as the talk key is set through setMic: on or off, and a key `parseHotkey` reads
+        case 'setTypeKey': {
+          const raw = args[0] && typeof args[0] === 'object' ? args[0] as Record<string, unknown> : {};
+          const typeKey: { enabled?: boolean; hotkey?: string } = {};
+          if (typeof raw.enabled === 'boolean') typeKey.enabled = raw.enabled;
+          if (typeof raw.hotkey === 'string' && parseHotkey(raw.hotkey)) typeKey.hotkey = raw.hotkey;
+          this.opts.persist({ typeKey });
+          await this.syncTypeKey();
+          return this.petState();
+        }
         case 'guide': {
           if (!this.opts.controls?.guide) throw new Error(this.ui.console.noGuide);
           this.opts.controls.guide();
@@ -1978,6 +2027,8 @@ export class DesktopPetWorld implements World {
   petState(): Record<string, unknown> {
     return {
       connected: this.server.petConnected,
+      /** The connected pet page is the window's, not a browser page standing in for it. */
+      inWindow: this.server.petInWindow,
       /** The pet window is connected and shown (hidden from its menu or the tray, it stays connected). */
       onDesktop: this.server.petInWindow && !this.petHidden,
       url: this.server.port ? this.petUrl : null,
@@ -1993,6 +2044,8 @@ export class DesktopPetWorld implements World {
       /** The Habits page's two rows, legacy values read as they now mean. */
       wake: { wakeOn: this.cfg.touch.wakeOn, wakeKinds: this.cfg.touch.wakeKinds },
       selfAdjust: { mode: selfAdjustMode(this.cfg.selfAdjust), custom: this.selfCustom() },
+      /** The Habits page's typing key: the setting, the keys named in the app language, and why it cannot be read. */
+      typeKey: { ...this.cfg.typeKey, keyLabel: comboLabel(this.cfg.typeKey.hotkey, process.platform, this.ui), problem: this.typeKeyProblem },
     };
   }
 

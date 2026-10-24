@@ -158,8 +158,6 @@
   .rail-name:hover .rail-name-edit, .rail-name:focus-visible .rail-name-edit { opacity: .75; }
   .rail-rename { flex: 1; min-width: 0; }
 
-
-
   .scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 30px 40px; }
   .measure { max-width: var(--content-width); }
 
@@ -1147,7 +1145,6 @@
     margin-top: 3px;
     line-height: 1.35;
   }
-  /* 金额后的「+未计价」:小一号、不折开,跟在数字同一行 */
   .stat .v .stat-mark { margin-left: 4px; font-size: 12px; font-weight: 500; letter-spacing: 0; color: var(--ink-soft); white-space: nowrap; }
 
   .btn {
@@ -1483,8 +1480,7 @@
 .featureslot > .featureintro { position:sticky; top:0; z-index:20; padding-top:30px; margin-bottom:24px; background:var(--background); }
 .featureslot > .featureintro + * { margin-top:0; }
 .featureslot > .featureintro + .sheet { margin-top:0; }
-/* 面板槽自己就是滚动容器,上方留白放在第一项的外边距上:粘住的元素贴在 padding 内沿,padding 会在栏目条下面留一道缝。
-   环境提示词的工具条直接贴着栏目条 */
+/* 面板槽是滚动容器，吸顶元素贴在 padding 内沿，所以上方留白放在第一项的外边距上;World 页模板的工具条贴着栏目条 */
 .panelslot > :first-child:not(.template-library) { margin-top:24px; }
 .connection-index { padding-top:0; top:100px; }
 .connection-detail > div > div:first-child > .sheet:first-child { padding-top:0; }

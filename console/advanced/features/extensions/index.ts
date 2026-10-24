@@ -1013,7 +1013,6 @@ export function mountExtensions(ctx: FeatureContext): void {
     const title = ui.h('span', 'extension-card-title', item.metadata?.displayName ?? item.label ?? item.name); title.title = item.label ?? item.name;
     heading.append(title); if (item.enabled) heading.append(ui.pill(item.kind === 'provider' ? S.alreadyInstalled : item.kind === 'bot' ? S.adopted : S.stateLoaded, 'on'));
     card.append(heading);
-    // a World is loaded from World 总览, so its card says where to go
     const idle = item.state === 'loaded' && item.kind !== 'bot' ? S.worldNotLoaded : stateLabels[item.state];
     const text = item.state === 'removed' || item.state === 'pending-restart' || item.state === 'failed' ? stateLabels[item.state] : item.kind === 'provider' ? S.alreadyInstalled : item.enabled ? (item.kind === 'bot' ? S.adopted : S.enabled) : idle;
     const failed = item.state === 'failed';

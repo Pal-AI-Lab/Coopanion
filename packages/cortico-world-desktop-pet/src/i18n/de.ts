@@ -44,6 +44,13 @@ const de: Translation<PetText> = {
     linuxNoX11: 'Die Sprechtaste kann sich nicht mit dem X11-Display verbinden',
     unsupported: 'Die Sprechtaste funktioniert nur unter Windows, macOS und Linux',
   },
+  typeKey: {
+    macNoKey: 'Eine Mac-Tastatur hat diese Taste nicht; wähle eine andere Tipptaste',
+    linuxNoKey: 'Linux kann diese Taste nicht lesen (Maus-Seitentasten funktionieren nicht); wähle eine andere Tipptaste',
+    linuxNoDisplay: 'Die Tipptaste braucht unter Linux X11 (oder XWayland): DISPLAY ist nicht gesetzt',
+    linuxNoX11: 'Die Tipptaste kann sich nicht mit dem X11-Display verbinden',
+    unsupported: 'Die Tipptaste funktioniert nur unter Windows, macOS und Linux',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Windows-Spracherkennung (${culture})` : 'Windows-Spracherkennung'),
@@ -169,6 +176,8 @@ const de: Translation<PetText> = {
     window: 'Haustier-Fenster',
     connected: 'Seite verbunden',
     notOpen: 'Nicht geöffnet',
+    noBody: (reason: string) => `Seite verbunden, die Figur kann nicht gezeichnet werden: ${reason}`,
+    alsoBrowser: (hint: string) => `${hint}; eine Browserseite ist verbunden`,
     voice: 'Spracherkennung',
     notStarted: 'Nicht gestartet',
     viewInBrowser: 'Haustier im Browser ansehen',

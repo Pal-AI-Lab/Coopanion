@@ -7,6 +7,7 @@ const it: Translation<CoreText> = {
   settings: {
     language: { title: 'Lingua', description: "L'interfaccia e Coo usano questa lingua. Ha effetto subito." },
     telemetry: { title: "Statistiche d'uso anonime", description: "Invia conteggi d'uso e impostazioni, mai le conversazioni, per aiutare a migliorare Coopanion. I campi sono elencati in docs/TELEMETRY.md." },
+    contextRing: { title: 'Anello del contesto', description: 'Mostra nella casella di testo della pagina Chat un anello con quanto manca al riordino della conversazione precedente.' },
     roundsSoft: { title: 'Promemoria di chiusura', suffix: 'richieste', description: 'Dopo questo numero di richieste al modello in un risveglio, Coo riceve un invito a finire ciò che sta facendo e chiudere il turno.' },
     roundsHard: { title: 'Richieste per risveglio', suffix: 'richieste', description: 'Il massimo di richieste al modello in un risveglio; raggiunto il limite, il turno finisce.' },
   },
@@ -32,7 +33,7 @@ const it: Translation<CoreText> = {
 
   status: {
     read: 'Legge', browse: 'Sfoglia', memory: 'memoria', find: 'Trova', search: 'Cerca', write: 'Scrive', edit: 'Modifica', append: 'Aggiunge a',
-    delete: 'Elimina', save: 'Salva', screen: 'Guarda lo schermo', windows: 'Guarda le finestre aperte', rightClick: 'Fa clic destro', doubleClick: 'Fa doppio clic', click: 'Fa clic',
+    delete: 'Elimina', moveFile: 'Sposta', save: 'Salva', screen: 'Guarda lo schermo', windows: 'Guarda le finestre aperte', rightClick: 'Fa clic destro', doubleClick: 'Fa doppio clic', click: 'Fa clic',
     move: 'Muove il mouse', drag: 'Trascina', scroll: 'Scorre', focus: 'Cambia finestra', type: 'Digita', key: 'Preme', wait: 'Aspetta',
     alarmSet: 'Imposta una sveglia', alarmList: 'Controlla le sveglie', alarmCancel: 'Annulla una sveglia',
     quoted: (text: string) => `«${text}»`,

@@ -44,6 +44,13 @@ const es419: Translation<PetText> = {
     linuxNoX11: 'La tecla para hablar no puede conectarse a la pantalla X11',
     unsupported: 'La tecla para hablar solo funciona en Windows, macOS y Linux',
   },
+  typeKey: {
+    macNoKey: 'Un teclado Mac no tiene esa tecla; elige otra tecla para escribir',
+    linuxNoKey: 'Linux no puede leer esta tecla (los botones laterales del mouse no funcionan); elige otra tecla para escribir',
+    linuxNoDisplay: 'La tecla para escribir necesita X11 (o XWayland) en Linux: DISPLAY no está definido',
+    linuxNoX11: 'La tecla para escribir no puede conectarse a la pantalla X11',
+    unsupported: 'La tecla para escribir solo funciona en Windows, macOS y Linux',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Reconocimiento de voz de Windows (${culture})` : 'Reconocimiento de voz de Windows'),
@@ -169,6 +176,8 @@ const es419: Translation<PetText> = {
     window: 'Ventana de la mascota',
     connected: 'Página conectada',
     notOpen: 'Sin abrir',
+    noBody: (reason: string) => `Página conectada, el personaje no se puede dibujar: ${reason}`,
+    alsoBrowser: (hint: string) => `${hint}; hay una página del navegador conectada`,
     voice: 'Reconocimiento de voz',
     notStarted: 'Sin iniciar',
     viewInBrowser: 'Ver la mascota en el navegador',

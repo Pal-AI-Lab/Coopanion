@@ -54,7 +54,7 @@ const blockField = StateField.define<BlockRange[]>({
     });
   },
 });
-/** Whether each block opens with its `//` description line and fold button; a single template has neither. */
+/** Whether each block opens with its `//` description line and fold button. */
 const blockHeaders = Facet.define<boolean, boolean>({ combine: (values) => values[0] ?? true });
 export const VARIABLE_DRAG_TYPE = 'application/x-coopanion-prompt-variable';
 

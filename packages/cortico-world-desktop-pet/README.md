@@ -37,7 +37,7 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 | `type` | 正文 | 投递 |
 |---|---|---|
 | `desktop-pet.speech` | `[voice] 伙伴:…` | flush |
-| `desktop-pet.message` | `[typed] 伙伴:…`(悬停按钮;`worlds.desktop-pet.doubleClickChat` 打开时也可双击;或对话页,可附图片) | preempt |
+| `desktop-pet.message` | `[typed] 伙伴:…`(悬停按钮;`worlds.desktop-pet.doubleClickChat` 打开时也可双击,`typeKey.enabled` 打开时也可按打字键;或对话页,可附图片) | preempt |
 | `desktop-pet.answer` | `[answer] 伙伴回答「问题」:选了第 2 项「…」` / 自己写的 / 关掉没答 | flush,关掉没答为 debounce |
 | `desktop-pet.touch` | `[touch] 伙伴戳了你 3 下` / 摸了摸 / 拎起来甩了出去 / 摔晕 | `worlds.desktop-pet.touch.wakeOn` 让它唤醒的种类 debounce,其余 piggyback |
 | `desktop-pet.figure` | `[figure] 你现在的样子:…`(对方换了形象或打扮;bot 用 `pet_set` 自己换的不报) / `[figure] …没能显示出来(原因),你现在是 Coo 的样子` / `[figure] 词表变了。…`;词表或形象自己的目标有变化时都附上 | 换装 debounce,显示失败 flush |
@@ -98,7 +98,8 @@ Windows 上每 0.8 秒用 GDI 取一小块身体周围的屏幕像素来比,其�
 4. 本包能解析到的 `electron` 包。
 
 没有窗口时,在浏览器里打开 `/pet` 也能看到桌宠;窗口连着时浏览器标签页只旁观,不接收指令,
-打字和偏好改动照样送到 World。
+打字和偏好改动照样送到 World。World 页的「桌宠窗口」灯只看窗口：浏览器页面顶替窗口时灯不亮，说明里写一句浏览器页面已连接;
+窗口里的页面连 Coo 都画不出来(比如拿不到 WebGL)时灯显示出错和原因。
 
 夜间模式存在 `worlds.desktop-pet.theme`,默认 `dark`(浅色身体、深色气泡)。桌宠窗口、`/pet`、`/dress` 和控制台面板里的
 预览都按这一项画,与系统和控制台的深浅色设置无关。
@@ -212,6 +213,9 @@ Whisper 对静音和底噪也会写出字(字幕署名、`[Musik]` 这类声音�
 Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 CoreGraphics 的 `CGEventSourceKeyState`,要在「系统设置 → 隐私与安全性 → 输入监控」里允许,第一次会弹出询问;Linux 上轮询 X11 的 `XQueryKeymap`(Wayland 下经 XWayland,只在 X11 窗口有键盘焦点时读得到;鼠标侧键读不到)。读不到时不识别说话,面板上写明原因。
 `asr.mic.deviceId` 选麦克风,留空用系统默认;设备列表由桌宠页在拿到麦克风权限后报上来。
 麦克风在「开启语音输入」总开关开着时一直打开,电平条随时显示音量,说话键只决定哪一段送去识别。
+打字键 `typeKey` 默认关(「习惯」页的「打字键」,经 pet 面板的 `setTypeKey` 修改)。打开后在哪个窗口里按下 `typeKey.hotkey` 都打开桌宠的打字框，和双击桌宠打开的是同一个：World 给桌宠页发 `type`,桌宠隐藏时不发。
+写法和说话键相同，默认 `LeftCtrl*2`(快速按两下左 Ctrl,Mac 上是左 Control),连按时最后一下按下就算;「习惯」页录键与选按法(按一下、双击)的做法同「语音输入」面板(`src/webui/key-capture.ts`)。
+Windows 上桌宠窗口从前台窗口拿走键盘，打字框关掉后还回去。读键的方式和读不到时的原因同说话键，原因写在「习惯」页这一行下面。
 `hold` 下开启 `asr.mic.openOnPress`(默认关,「语音输入」页的「按住时才打开麦克风」)后,桌宠页只在说话键按住时打开麦克风,松开 500 ms 后关掉;倾听气泡等第一帧音频到了才出现。给一打开麦克风就切到通话模式的耳机用,按下到麦克风打开之间说的话收不到。
 
 ## 形象包
@@ -266,20 +270,29 @@ bot 用 `pet_move_to({ to: 目标 id, params: [数值…] })` 去,`to` 也认目
 
 没声明 `moves` 的包只有默认目标。
 
-### 窗口顶边
+### 窗口
 
 `needs: ["windows"]` 的包在场时,窗口进程每 0.7 秒读一次桌面上的顶层窗口(`host/windows.cjs`,读法和电脑操作的引擎相同,但在窗口进程里读,
-不开电脑操作的进程,也不看 `cua.enabled`),按 z 序裁掉被前面窗口挡住的部分,只留桌宠所在显示器上、地面以上的顶边,换成舞台坐标 `[{ x0, x1, y }]`,
-变了才发。身体从 `host.bounds().ledges` 读到它们,只有几何,没有标题和程序名。别的包在场时窗口进程一次都不读,桌宠页也不转。
+不开电脑操作的进程,也不看 `cua.enabled`),换成舞台坐标(和 `bounds()` 的 `floorY` 同一套像素,原点在舞台左上角,向右、向下为正),有变化才发。
+身体从 `host.bounds()` 读到两份:
+
+| 字段 | 内容 |
+|---|---|
+| `ledges` | 可见顶边 `[{ x0, x1, y }]`:按 z 序裁掉被前面窗口挡住的部分,只留桌宠所在显示器上、地面以上的,从高到低排 |
+| `windows` | 完整窗口 `[{ id, x0, y0, x1, y1, active }]`(左、上、右、下),从前到后排:伸进舞台、且不全在地面以下的窗口,伸出舞台和被挡住的部分照给,最多 64 个 |
+
+`id` 是不透明的字符串,窗口开着期间不变,关掉后可能分给别的窗口;`active` 前台窗口为 true、其余为 false,macOS 上没有这个字段。
+顺序、`id`、`active` 变了都算变化。竖边、遮挡这些由包按 `windows` 的顺序自己算。
+只有几何、编号和前台标记,没有标题和程序名。别的包在场时窗口进程一次都不读,桌宠页也不转。
 
 | 平台 | 怎么读 | 坐标 |
 |---|---|---|
-| Windows | `GetTopWindow`/`GetWindow` 的 z 序,`DwmGetWindowAttribute` 的可见边框;跳过最小化的、在别的虚拟桌面上的、工具窗口、点击穿透的窗口,以及桌面和任务栏 | 物理像素,按每个角所在显示器的缩放换成 DIP |
-| macOS(未实测) | `CGWindowListCopyWindowInfo`,从前到后,只取 `kCGWindowLayer` 为 0 的普通窗口,只读 `kCGWindowBounds`,不读窗口名;读名字才要「录屏」权限,所以预计不需要它,也不会去申请 | 点,即 macOS 上的 DIP,不用换算 |
-| Linux X11(未实测) | 窗口管理器的 `_NET_CLIENT_LIST_STACKING`;补回管理器画的边框(`_NET_FRAME_EXTENTS`),去掉自绘边框的阴影(`_GTK_FRAME_EXTENTS`);跳过隐藏的、在别的工作区的、停靠栏和桌面 | 整个 X 屏幕的物理像素,所有显示器同一个缩放,换成 DIP |
+| Windows | `GetTopWindow`/`GetWindow` 的 z 序,`DwmGetWindowAttribute` 的可见边框;跳过最小化的、在别的虚拟桌面上的、工具窗口、点击穿透的窗口,以及桌面和任务栏;编号用 HWND,前台窗口取 `GetForegroundWindow` | 物理像素,按每个角所在显示器的缩放换成 DIP |
+| macOS(未实测) | `CGWindowListCopyWindowInfo`,从前到后,只取 `kCGWindowLayer` 为 0 的普通窗口,只读 `kCGWindowBounds` 和编号 `kCGWindowNumber`,不读窗口名;读名字才要「录屏」权限,所以预计不需要它,也不会去申请 | 点,即 macOS 上的 DIP,不用换算 |
+| Linux X11(未实测) | 窗口管理器的 `_NET_CLIENT_LIST_STACKING`;补回管理器画的边框(`_NET_FRAME_EXTENTS`),去掉自绘边框的阴影(`_GTK_FRAME_EXTENTS`);跳过隐藏的、在别的工作区的、停靠栏和桌面;编号用 X11 窗口号,前台窗口取 `_NET_ACTIVE_WINDOW` | 整个 X 屏幕的物理像素,所有显示器同一个缩放,换成 DIP |
 
 Coopanion 在 Linux 上固定跑在 X11 上;Wayland 会话里经 XWayland 只看得到 X11 程序的窗口,原生 Wayland 程序的窗口不在里面。
-读不了的地方(没有 X 服务器、原生调用加载不了)和浏览器标签里没有 `ledges`,包要能在没有它时照常运行。
+读不了的地方(没有 X 服务器、原生调用加载不了)和浏览器标签里没有 `ledges` 和 `windows`,包要能在没有它们时照常运行。
 
 ### 导入
 

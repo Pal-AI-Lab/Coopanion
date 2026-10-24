@@ -1,5 +1,5 @@
 /**
- * The talk key: a hotkey held or pressed anywhere on the desktop, read by polling through koffi:
+ * The talk key and the typing key: hotkeys held or pressed anywhere on the desktop, read by polling through koffi:
  * GetAsyncKeyState on Windows, CGEventSourceKeyState / CGEventSourceButtonState on macOS,
  * XQueryKeymap on Linux (X11 or XWayland). macOS
  * reads the keyboard only for an app the person allowed under Privacy & Security → Input
@@ -30,6 +30,8 @@ const NAMED: Record<string, number> = {
 
 /** The talk key a new setup gets: a tap of left Alt (left Option on a Mac), then hold it. Every keyboard has one. */
 export const DEFAULT_HOTKEY = 'LeftAlt*2';
+/** The typing key a new setup gets once it is switched on: a double tap of left Ctrl (left Control on a Mac). */
+export const DEFAULT_TYPE_KEY = 'LeftCtrl*2';
 
 export interface Hotkey {
   /** Virtual-key codes, all down together. */

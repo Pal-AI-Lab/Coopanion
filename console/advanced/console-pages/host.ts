@@ -37,9 +37,9 @@ function asArray<T>(v: readonly T[] | undefined): readonly T[] {
   return Array.isArray(v) ? v : [];
 }
 
-/** 页签只给独立面板；带 slot 的由宿主面板挂，`hidden` 里的在窗口别处已有自己的页。 */
-function tabbed(page: WebUiPageManifest, hidden?: readonly string[]): readonly WebUiPanelManifest[] {
-  return asArray(page.panels).filter((p) => p.slot === undefined && !hidden?.includes(p.id));
+/** 页签只给独立面板；带 slot 的由宿主面板挂。 */
+function tabbed(page: WebUiPageManifest): readonly WebUiPanelManifest[] {
+  return asArray(page.panels).filter((p) => p.slot === undefined);
 }
 
 export interface ConsolePageHostDeps {
@@ -62,8 +62,6 @@ export interface ConsolePageHostDeps {
    * 给自己那一页的前缀,页签切换才不会跳出那一页。
    */
   route?(pageId: string, panelId: string): readonly string[];
-  /** 不作页签的面板,按页 id 列出:窗口自己的页已经挂着它们。面板照常能被挂载与调用。 */
-  hiddenTabs?: Readonly<Record<string, readonly string[]>>;
 }
 
 interface MountedPanel {
@@ -219,7 +217,7 @@ export class ConsolePageHost {
   }
 
   private async showInner(pageId: string, panelId?: string): Promise<void> {
-    if (this.panes && this.tabs?.pageId === pageId) this.unmountPanel();
+    if (this.tabs?.pageId === pageId) this.unmountPanel();
     else this.unmount();
     const gen = this.generation;
 
@@ -228,7 +226,7 @@ export class ConsolePageHost {
       this.renderError(S.noPage(pageId), S.noPageHint);
       return;
     }
-    const panels = tabbed(page, this.deps.hiddenTabs?.[page.id]);
+    const panels = tabbed(page);
     const prompts = asArray(page.prompts);
     const configGroups = this.configGroupsOf(page);
     const storage = this.storageOf(page);
@@ -262,20 +260,10 @@ export class ConsolePageHost {
     const panel = wanted ? panels.find((p) => p.id === wanted) : undefined;
     if (!panel) {
       this.renderChrome(pageId, wanted);
-      if (panels.length === 0 && prompts.length === 0 && configGroups.length === 0
-        && storage.length === 0 && !tools) {
+      if (tabIds.length === 0) {
         this.appendNote(S.noPanels(page.label));
       } else {
-        this.renderError(
-          S.noSuchPanel(page.label, wanted ?? ''),
-          S.provides([
-            ...panels.map((p) => p.id),
-            ...(configGroups.length ? [PROVIDER_CONFIG_ROUTE] : []),
-            ...(prompts.length ? [PROVIDER_PROMPTS_ROUTE] : []),
-            ...(storage.length ? [PROVIDER_STORAGE_ROUTE] : []),
-            ...(tools ? [PROVIDER_TOOLS_ROUTE] : []),
-          ].join(' / ')),
-        );
+        this.renderError(S.noSuchPanel(page.label, wanted ?? ''), S.provides(tabIds.join(' / ')));
       }
       return;
     }
@@ -409,12 +397,11 @@ export class ConsolePageHost {
     return asArray(page.storageParts);
   }
 
-  /** Persona 页才有工具表页签,且要部署挂着 /api/tool-schemas。 */
   /** 这一页的页签,依次是面板、配置、提示词模板、数据清理、工具表(有的才列)。 */
   private tabsOf(page: WebUiPageManifest): Array<{ value: string; label: string }> {
     const prompts = asArray(page.prompts);
     return [
-      ...tabbed(page, this.deps.hiddenTabs?.[page.id]).map((p) => ({ value: p.id, label: p.title || p.id })),
+      ...tabbed(page).map((p) => ({ value: p.id, label: p.title || p.id })),
       ...(this.configGroupsOf(page).length ? [{ value: PROVIDER_CONFIG_ROUTE, label: S.configTab }] : []),
       ...(prompts.length ? [{ value: PROVIDER_PROMPTS_ROUTE, label: prompts.length === 1 ? prompts[0]!.title : S.promptsTab }] : []),
       ...(this.storageOf(page).length ? [{ value: PROVIDER_STORAGE_ROUTE, label: S.storageTab }] : []),
@@ -422,6 +409,7 @@ export class ConsolePageHost {
     ];
   }
 
+  /** Persona 页才有工具表页签,且要部署挂着 /api/tool-schemas。 */
   private toolsTabOf(page: WebUiPageManifest): boolean {
     if (page.kind !== 'persona' || page.availability !== 'active') return false;
     return this.snapshot?.framework?.capabilities?.toolSchemas !== false;
@@ -510,7 +498,7 @@ export class ConsolePageHost {
       signal: lifecycle.signal,
       doc: this.deps.doc,
     });
-    // World 的环境提示词用「系统提示词」页的编辑器,只装这一页的模板
+    // World 的环境提示词用「系统提示词」页的编辑器
     const page = this.find(pageId);
     if (page?.kind === 'world') {
       const configured = this.configGroupsOf(page).length > 0;
@@ -579,7 +567,7 @@ export class ConsolePageHost {
     const items = this.tabsOf(page);
     // 页头里画的字段与页签都没变时才复用整个页头。
     const key = JSON.stringify([items, page.label, page.kind, page.availability, page.badges, page.agentVisible, page.prefixDrifted, page.reason, page.links]);
-    if (this.tabs && this.tabs.pageId === pageId && this.tabs.key === key && chrome.contains(this.tabs.bar.el)) {
+    if (this.tabs && this.tabs.pageId === pageId && this.tabs.key === key) {
       this.tabs.bar.setValue(activePanel ?? '');
       return;
     }
@@ -589,7 +577,6 @@ export class ConsolePageHost {
 
     const ui = this.ui();
     const head = ui.h('header', 'featureintro providerintro');
-    // 标题一行:名字,隔一小段是徽标与装配状态,最右是链接。状态灯只在侧栏。
     const row = ui.h('div', 'pagetitle-row');
     // 人格与记忆页以用途作标题，实现名作小注；其余页仍用声明的名字。
     const purpose = page.kind === 'persona' ? S.personaTitle : page.kind === 'memory' ? S.memoryTitle : null;
@@ -622,8 +609,7 @@ export class ConsolePageHost {
     }
     if (actions.children.length) row.appendChild(actions);
     head.appendChild(row);
-    const purposeDesc = page.kind === 'persona' ? S.personaDesc : page.kind === 'memory' ? S.memoryDesc : null;
-    if (purposeDesc) head.appendChild(ui.h('p', 'pagedesc', purposeDesc));
+    if (page.kind === 'memory') head.appendChild(ui.h('p', 'pagedesc', S.memoryDesc));
     chrome.append(head);
 
     if (items.length > 1) {
@@ -636,7 +622,6 @@ export class ConsolePageHost {
       chrome.appendChild(bar.el);
       this.tabs = { pageId, key, bar, stop };
     }
-    // 装不上的原因在栏目条下面,与栏目内容同列
     if (page.reason) chrome.appendChild(ui.msgline(page.reason, true));
   }
 

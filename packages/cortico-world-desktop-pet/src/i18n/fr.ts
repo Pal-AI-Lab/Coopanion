@@ -44,6 +44,13 @@ const fr: Translation<PetText> = {
     linuxNoX11: "La touche de parole ne peut pas se connecter à l'affichage X11",
     unsupported: 'La touche de parole ne fonctionne que sous Windows, macOS et Linux',
   },
+  typeKey: {
+    macNoKey: "Un clavier Mac n'a pas cette touche ; choisissez une autre touche de saisie",
+    linuxNoKey: 'Linux ne peut pas lire cette touche (les boutons latéraux de la souris ne fonctionnent pas) ; choisissez une autre touche de saisie',
+    linuxNoDisplay: "La touche de saisie nécessite X11 (ou XWayland) sous Linux : DISPLAY n'est pas défini",
+    linuxNoX11: "La touche de saisie ne peut pas se connecter à l'affichage X11",
+    unsupported: 'La touche de saisie ne fonctionne que sous Windows, macOS et Linux',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Reconnaissance vocale Windows (${culture})` : 'Reconnaissance vocale Windows'),
@@ -169,6 +176,8 @@ const fr: Translation<PetText> = {
     window: 'Fenêtre du compagnon',
     connected: 'Page connectée',
     notOpen: 'Non ouverte',
+    noBody: (reason: string) => `Page connectée, le personnage ne peut pas être dessiné : ${reason}`,
+    alsoBrowser: (hint: string) => `${hint} ; une page du navigateur est connectée`,
     voice: 'Reconnaissance vocale',
     notStarted: 'Non démarrée',
     viewInBrowser: 'Voir le compagnon dans le navigateur',

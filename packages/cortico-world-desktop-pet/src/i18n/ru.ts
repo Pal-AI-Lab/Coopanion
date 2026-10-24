@@ -50,6 +50,13 @@ const ru: Translation<PetText> = {
     linuxNoX11: 'Клавиша разговора не может подключиться к дисплею X11',
     unsupported: 'Клавиша разговора работает только в Windows, macOS и Linux',
   },
+  typeKey: {
+    macNoKey: 'На клавиатуре Mac нет такой клавиши; выберите другую клавишу ввода',
+    linuxNoKey: 'В Linux эту клавишу прочитать нельзя (боковые кнопки мыши не работают); выберите другую клавишу ввода',
+    linuxNoDisplay: 'Клавише ввода в Linux нужен X11 (или XWayland): переменная DISPLAY не задана',
+    linuxNoX11: 'Клавиша ввода не может подключиться к дисплею X11',
+    unsupported: 'Клавиша ввода работает только в Windows, macOS и Linux',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Распознавание речи Windows (${culture})` : 'Распознавание речи Windows'),
@@ -175,6 +182,8 @@ const ru: Translation<PetText> = {
     window: 'Окно питомца',
     connected: 'Страница подключена',
     notOpen: 'Не открыто',
+    noBody: (reason: string) => `Страница подключена, персонажа не удаётся нарисовать: ${reason}`,
+    alsoBrowser: (hint: string) => `${hint}; подключена страница в браузере`,
     voice: 'Распознавание речи',
     notStarted: 'Не запущено',
     viewInBrowser: 'Открыть питомца в браузере',
