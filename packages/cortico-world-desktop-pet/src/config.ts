@@ -3,7 +3,7 @@ import type { ConfigGroup } from 'cortico/core/config-schema.ts';
 import type { Language } from 'cortico/core/language.ts';
 import type { WorldSection } from 'cortico/world.ts';
 import type { SegmentConfig } from './asr/segmenter.ts';
-import { DEFAULT_HOTKEY } from './asr/hotkey.ts';
+import { DEFAULT_HOTKEY, DEFAULT_TYPE_KEY } from './asr/hotkey.ts';
 import { capFor, petText } from './i18n/index.ts';
 import { CUA_DEFAULTS, cuaConfigGroup, type CuaConfig } from './cua/config.ts';
 
@@ -197,6 +197,8 @@ export interface DesktopPetConfigSection extends WorldSection {
   hoverButtons: string;
   /** Double-clicking the pet opens the typing box. */
   doubleClickChat: boolean;
+  /** A hotkey, written as the talk key is (`src/asr/hotkey.ts`), that opens the typing box from any window while `enabled`. */
+  typeKey: { enabled: boolean; hotkey: string };
   /** Show the current activity above the pet, including file names. */
   statusBubble: boolean;
   /** Keep what the person typed, said or sent from the chat page above the pet until it replies. */
@@ -262,6 +264,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   petX: null,
   hoverButtons: 'chat,voice',
   doubleClickChat: false,
+  typeKey: { enabled: false, hotkey: DEFAULT_TYPE_KEY },
   statusBubble: true,
   saidBubbles: true,
   selfAdjust: 'default',

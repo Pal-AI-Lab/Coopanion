@@ -270,6 +270,17 @@ describe('voice input', () => {
     expect((world.voiceState().counts as { utterances: number }).utterances).toBe(0);
   });
 
+  it('the typing key is watched only once switched on, and its press opens the typing box', async () => {
+    const { key, watch } = scriptedKey();
+    // listening without a key: any key watched is the typing key
+    const { page, cfg } = await setup('', 'always', watch);
+    expect(key.hotkey).toBeNull();
+    cfg.typeKey.enabled = true;
+    await expect.poll(() => key.hotkey).not.toBeNull();
+    key.press(true);
+    await page.next((m) => m.t === 'type');
+  });
+
   it('the microphone button held down sends the sentence without waiting for its closing pause', async () => {
     const { host, page } = await setup('帮我开灯');
     // speech with no pause after it: the segmenter is still inside the sentence

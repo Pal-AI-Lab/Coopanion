@@ -373,6 +373,10 @@ export class DesktopPetWorld implements World {
   /** Why the talk key cannot be read; the gate then stays closed. */
   private hotkeyProblem: string | null = null;
   private hotkeyKey = '';
+  /** The typing key's watcher while `typeKey.enabled`, and why it cannot be read. */
+  private typeWatcher: KeyWatcher | null = null;
+  private typeKeyProblem: string | null = null;
+  private typeKeyKey = '';
   private level = -100;
   private readonly chat = new ChatSockets();
   private readonly activity = new ActivityGroup();
@@ -631,6 +635,7 @@ export class DesktopPetWorld implements World {
     this.cuaSeen = this.cfg.cua.enabled;
     if (this.cfg.asr.enabled) void this.startVoiceBackend();
     await this.syncHotkey();
+    await this.syncTypeKey();
     this.prefsKey = this.prefsSignature();
     this.prefsTimer = setInterval(() => this.syncPrefs(), PREFS_SYNC_MS);
   }
@@ -652,6 +657,9 @@ export class DesktopPetWorld implements World {
     this.touchWoke = false;
     this.keyWatcher?.stop();
     this.keyWatcher = null;
+    this.typeWatcher?.stop();
+    this.typeWatcher = null;
+    this.typeKeyKey = '';
     if (this.micReleaseTimer) clearTimeout(this.micReleaseTimer);
     this.micReleaseTimer = null;
     for (const c of this.confirms.values()) { clearTimeout(c.timer); c.resolve('unavailable'); }
@@ -919,6 +927,7 @@ export class DesktopPetWorld implements World {
     if (this.cuaSeen && !this.cfg.cua.enabled) void this.cua.switchedOff();
     this.cuaSeen = this.cfg.cua.enabled;
     void this.syncHotkey();
+    void this.syncTypeKey();
     // the person changed what a quiet holds back: theirs wins
     if (this.quiet && (this.cfg.sound !== this.quiet.base.sound || this.cfg.roam !== this.quiet.base.roam)) this.endQuiet();
     this.server.syncOverlay();
@@ -1401,6 +1410,29 @@ export class DesktopPetWorld implements World {
       this.hotkeyProblem = watcher;
       this.log?.warn(`说话键不可用,暂不识别说话:${watcher}`);
     } else this.keyWatcher = watcher;
+  }
+
+  /** Starts, restarts or stops the typing key's watcher to match `typeKey`; a press opens the pet's typing box. */
+  private async syncTypeKey(): Promise<void> {
+    const { enabled, hotkey } = this.cfg.typeKey;
+    const key = enabled && this.host ? hotkey : '';
+    if (key === this.typeKeyKey) return;
+    this.typeKeyKey = key;
+    this.typeWatcher?.stop();
+    this.typeWatcher = null;
+    this.typeKeyProblem = null;
+    if (!key) return;
+    const parsed = parseHotkey(hotkey);
+    const watch = this.opts.watchHotkey ?? watchHotkey;
+    const text = { ...this.ui.hotkey, ...this.ui.typeKey };
+    // a hidden pet stays hidden: its typing box would open out of sight
+    const onPress = (down: boolean) => { if (down && !this.petHidden) this.server.sendPet({ t: 'type' }); };
+    const watcher = parsed ? await watch(parsed, onPress, HOTKEY_POLL_MS, undefined, text) : this.ui.voice.badKey(hotkey);
+    if (key !== this.typeKeyKey) { if (typeof watcher !== 'string') watcher.stop(); return; }
+    if (typeof watcher === 'string') {
+      this.typeKeyProblem = watcher;
+      this.log?.warn(`打字键不可用:${watcher}`);
+    } else this.typeWatcher = watcher;
   }
 
   /** One line telling the person how to be heard. */
@@ -1933,6 +1965,16 @@ export class DesktopPetWorld implements World {
           this.opts.persist({ selfAdjust: 'custom', selfAdjustCustom: custom });
           return this.petState();
         }
+        // the typing key, as the talk key is set through setMic: on or off, and a key `parseHotkey` reads
+        case 'setTypeKey': {
+          const raw = args[0] && typeof args[0] === 'object' ? args[0] as Record<string, unknown> : {};
+          const typeKey: { enabled?: boolean; hotkey?: string } = {};
+          if (typeof raw.enabled === 'boolean') typeKey.enabled = raw.enabled;
+          if (typeof raw.hotkey === 'string' && parseHotkey(raw.hotkey)) typeKey.hotkey = raw.hotkey;
+          this.opts.persist({ typeKey });
+          await this.syncTypeKey();
+          return this.petState();
+        }
         case 'guide': {
           if (!this.opts.controls?.guide) throw new Error(this.ui.console.noGuide);
           this.opts.controls.guide();
@@ -1993,6 +2035,8 @@ export class DesktopPetWorld implements World {
       /** The Habits page's two rows, legacy values read as they now mean. */
       wake: { wakeOn: this.cfg.touch.wakeOn, wakeKinds: this.cfg.touch.wakeKinds },
       selfAdjust: { mode: selfAdjustMode(this.cfg.selfAdjust), custom: this.selfCustom() },
+      /** The Habits page's typing key: the setting, the keys named in the app language, and why it cannot be read. */
+      typeKey: { ...this.cfg.typeKey, keyLabel: comboLabel(this.cfg.typeKey.hotkey, process.platform, this.ui), problem: this.typeKeyProblem },
     };
   }
 

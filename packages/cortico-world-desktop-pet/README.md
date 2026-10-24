@@ -37,7 +37,7 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 | `type` | 正文 | 投递 |
 |---|---|---|
 | `desktop-pet.speech` | `[voice] 伙伴:…` | flush |
-| `desktop-pet.message` | `[typed] 伙伴:…`(悬停按钮;`worlds.desktop-pet.doubleClickChat` 打开时也可双击;或对话页,可附图片) | preempt |
+| `desktop-pet.message` | `[typed] 伙伴:…`(悬停按钮;`worlds.desktop-pet.doubleClickChat` 打开时也可双击,`typeKey.enabled` 打开时也可按打字键;或对话页,可附图片) | preempt |
 | `desktop-pet.answer` | `[answer] 伙伴回答「问题」:选了第 2 项「…」` / 自己写的 / 关掉没答 | flush,关掉没答为 debounce |
 | `desktop-pet.touch` | `[touch] 伙伴戳了你 3 下` / 摸了摸 / 拎起来甩了出去 / 摔晕 | `worlds.desktop-pet.touch.wakeOn` 让它唤醒的种类 debounce,其余 piggyback |
 | `desktop-pet.figure` | `[figure] 你现在的样子:…`(对方换了形象或打扮;bot 用 `pet_set` 自己换的不报) / `[figure] …没能显示出来(原因),你现在是 Coo 的样子` / `[figure] 词表变了。…`;词表或形象自己的目标有变化时都附上 | 换装 debounce,显示失败 flush |
@@ -212,6 +212,9 @@ Whisper 对静音和底噪也会写出字(字幕署名、`[Musik]` 这类声音�
 Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 CoreGraphics 的 `CGEventSourceKeyState`,要在「系统设置 → 隐私与安全性 → 输入监控」里允许,第一次会弹出询问;Linux 上轮询 X11 的 `XQueryKeymap`(Wayland 下经 XWayland,只在 X11 窗口有键盘焦点时读得到;鼠标侧键读不到)。读不到时不识别说话,面板上写明原因。
 `asr.mic.deviceId` 选麦克风,留空用系统默认;设备列表由桌宠页在拿到麦克风权限后报上来。
 麦克风在「开启语音输入」总开关开着时一直打开,电平条随时显示音量,说话键只决定哪一段送去识别。
+打字键 `typeKey` 默认关(「习惯」页的「打字键」,经 pet 面板的 `setTypeKey` 修改)。打开后在哪个窗口里按下 `typeKey.hotkey` 都打开桌宠的打字框，和双击桌宠打开的是同一个：World 给桌宠页发 `type`,桌宠隐藏时不发。
+写法和说话键相同，默认 `LeftCtrl*2`(快速按两下左 Ctrl,Mac 上是左 Control),连按时最后一下按下就算;「习惯」页录键与选按法(按一下、双击)的做法同「语音输入」面板(`src/webui/key-capture.ts`)。
+Windows 上桌宠窗口从前台窗口拿走键盘，打字框关掉后还回去。读键的方式和读不到时的原因同说话键，原因写在「习惯」页这一行下面。
 `hold` 下开启 `asr.mic.openOnPress`(默认关,「语音输入」页的「按住时才打开麦克风」)后,桌宠页只在说话键按住时打开麦克风,松开 500 ms 后关掉;倾听气泡等第一帧音频到了才出现。给一打开麦克风就切到通话模式的耳机用,按下到麦克风打开之间说的话收不到。
 
 ## 形象包

@@ -57,6 +57,14 @@ export default {
     linuxNoX11: '按键收音连不上 X11 显示',
     unsupported: '按键收音只在 Windows、macOS 和 Linux 上可用',
   },
+  /** 打字键读不了的原因;另两种(读不了键盘、没有输入监控权限)与说话键共用 `hotkey` 里的 */
+  typeKey: {
+    macNoKey: 'Mac 上没有这个按键，请更换打字键',
+    linuxNoKey: 'Linux 上无法读取该按键（不支持鼠标侧键），请更换打字键',
+    linuxNoDisplay: '打字键在 Linux 上需要 X11（或 XWayland）：没有找到 DISPLAY',
+    linuxNoX11: '打字键连不上 X11 显示',
+    unsupported: '打字键只在 Windows、macOS 和 Linux 上可用',
+  },
 
   /** Windows 自带的语音识别 */
   system: {

@@ -303,6 +303,7 @@ function onOrder(m) {
     case 'watching': watching = true; stopMic(); break;
     // the settings window's 「在桌面上隐藏」: the same as the menu's 「隐藏」
     case 'hide': host?.hide?.(); break;
+    case 'type': openTyping(); break;
     case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); holdRoam(20); break;
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
     case 'confirm': dropAsks(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
@@ -402,6 +403,19 @@ function closeBubble() {
   if (item) item.endedAt = T;
   item = null;
   speech.stop();
+}
+
+/**
+ * The typing key: the typing box, as a double-click opens it, or the one already open. The pet window
+ * takes the keyboard from the window in front and gives it back when the box closes (releaseKeys).
+ */
+function openTyping() {
+  if (item?.kind !== 'input') openInput();
+  // a question waiting on an answer keeps the bubble
+  if (item?.kind !== 'input') return;
+  // again for a box already open: the keyboard may have gone back to another window meanwhile
+  if (host?.grabFocus) { item.grabbed = true; host.grabFocus(); }
+  setTimeout(() => bubble.querySelector('textarea')?.focus(), 30);
 }
 
 /**

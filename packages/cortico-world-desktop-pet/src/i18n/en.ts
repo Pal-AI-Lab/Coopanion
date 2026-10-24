@@ -60,6 +60,14 @@ const en: PetText = {
     linuxNoX11: 'The talk key cannot connect to the X11 display',
     unsupported: 'The talk key works on Windows, macOS and Linux only',
   },
+  /** Why the typing key cannot be read; the other two reasons (the keyboard, Input Monitoring) are the ones in `hotkey`. */
+  typeKey: {
+    macNoKey: 'A Mac keyboard has no such key; pick another typing key',
+    linuxNoKey: 'Linux cannot read this key (mouse side buttons do not work); pick another typing key',
+    linuxNoDisplay: 'The typing key needs X11 (or XWayland) on Linux: DISPLAY is not set',
+    linuxNoX11: 'The typing key cannot connect to the X11 display',
+    unsupported: 'The typing key works on Windows, macOS and Linux only',
+  },
 
   /** Windows' own speech recognizer. */
   system: {
