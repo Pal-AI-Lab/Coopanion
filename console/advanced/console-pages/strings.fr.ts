@@ -23,7 +23,6 @@ export const S: Partial<typeof en> = {
   storageTab: 'Effacer les données',
   toolsTab: 'Outils',
   memoryDesc: 'Les fichiers de mémoire que Coo écrit lui-même, et l’historique de chaque modification.',
-  personaDesc: 'Les réglages, modèles de prompt et outils qui déterminent comment Coo pense et agit.',
   memoryTitle: 'Mémoire',
   personaTitle: 'Persona',
   reloadTitle: 'Recharger le préfixe système ?',

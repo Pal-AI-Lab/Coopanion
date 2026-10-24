@@ -60,14 +60,8 @@ export const coreFeature: FrameworkFeature = {
   },
 };
 
-/** 上次停留的子页，跨窗口保留；存储不可用时不记。 */
+/** 上次停留的子页，跨窗口保留。 */
 const LAST_SUB_KEY = 'coopanion.core.sub';
-function readLastSub(): string {
-  try { return localStorage.getItem(LAST_SUB_KEY) ?? ''; } catch { return ''; }
-}
-function writeLastSub(sub: string): void {
-  try { localStorage.setItem(LAST_SUB_KEY, sub); } catch { /* 不记也照常切换 */ }
-}
 
 function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   const { ui } = ctx;
@@ -79,7 +73,7 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
 
   const subs = CORE_SUBS.filter((s) => s.need === null || ctx.capabilities[s.need] === true);
   // 没指定子页时回到上次停留的那个；切换子页时记下来。
-  const wanted = str(ctx.route.segments[1]) || readLastSub();
+  const wanted = str(ctx.route.segments[1]) || (localStorage.getItem(LAST_SUB_KEY) ?? '');
   let current = subs.some((s) => s.id === wanted) ? wanted : (subs[0]?.id ?? 'run');
 
   // ── 页头 ─────────────────────────────────────────────────────────
@@ -187,7 +181,7 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
       current = next;
     }
     tabs.setValue(current);
-    writeLastSub(current);
+    localStorage.setItem(LAST_SUB_KEY, current);
     while (measure.children.length) measure.children[0].remove();
     const pane = panes[current];
     if (pane) measure.appendChild(pane);
