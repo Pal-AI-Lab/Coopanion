@@ -1,4 +1,4 @@
-/* 用量与成本页：页头下方是时间范围，其下总览、Token 活跃度、用量时间序列、分组明细四节，节样式同设置页。 */
+/* 用量与成本页：时间范围位于页头内，下方是总览、Token 活跃度、用量时间序列、分组明细四节。 */
 .u-stale { opacity: .5; }
 /* 页头下第一节与页头的间距同其他页面 */
 .uresults > .sheet:first-child { padding-top: 0; }
@@ -7,10 +7,9 @@
 .uresults > .sheet > h3 { margin-bottom: 14px; }
 .ulabel { font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); white-space: nowrap; }
 
-/* 时间范围位于标题分隔线下，随页头吸顶；日期框常驻。 */
-.featureslot.featureslot-usage > .featureintro { border-bottom: 0; }
+/* 时间范围位于页头第二行，随页头吸顶；日期框常驻。 */
 .featureslot.featureslot-usage > .featureintro > :is(.urangebar, .unotice) { grid-column: 1 / -1; }
-.urangebar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.urangebar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin-top: 16px; }
 /* 本页的下拉框与日期框与分段按钮同高 */
 .urangebar input.field, .uledger select.field { height: 30px; min-height: 30px; padding-block: 0; font-size: 12.5px; }
 .udates, .uledger, .urate { display: inline-flex; align-items: center; gap: 6px; }
