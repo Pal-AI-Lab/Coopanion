@@ -46,6 +46,7 @@ const { delimiter, dirname, extname, join, resolve, sep } = require('node:path')
 const { dataDirIn, locateData, readRecord, writeRecord } = require('./data-dir.cjs');
 
 const { MIN_SIZE, readSettingsSize, saveSettingsSize } = require('./settings-size.cjs');
+const { settingsChromeOptions, applySettingsTheme } = require('./settings-chrome.cjs');
 
 const MAC = process.platform === 'darwin';
 const LINUX = process.platform === 'linux';
@@ -464,6 +465,7 @@ function openSettings(path = '') {
   settings = new BrowserWindow({
     ...readSettingsSize(join(userData, 'settings-size.json'), area), minWidth: MIN_SIZE.width, minHeight: MIN_SIZE.height,
     title: 'Coopanion', icon: WINDOW_ICON, autoHideMenuBar: true, show: false,
+    ...settingsChromeOptions(process.platform),
     backgroundColor: '#f4f5f4',
     webPreferences: { partition: SETTINGS_PARTITION, preload: join(__dirname, 'settings-preload.cjs'), contextIsolation: true, sandbox: true, spellcheck: false },
   });
@@ -650,6 +652,8 @@ function askRestoreStranded() {
   app.exit(0);
   return true;
 }
+
+ipcMain.on('settings:theme', (event, theme) => applySettingsTheme(settings, event, theme));
 
 ipcMain.on('settings:language', (e) => { e.returnValue = language; });
 ipcMain.on('settings:update', (e) => { e.returnValue = { auto: SELF_UPDATE, step: updateLine() }; });
