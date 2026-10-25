@@ -1512,7 +1512,7 @@
 .prompt-card .actionbar { margin-top: 10px; padding-top: 0; border-top: 0; }
 /* 页内栏目条(base/ui/page-tabs.ts)。每项按当前项的字号与字重预留宽度,切换时其余项不移位。 */
 .pagetabs { position: relative; display: flex; flex-wrap: wrap; align-items: center; column-gap: 28px; border-block: 1px solid var(--border); }
-.pagetab { display: inline-flex; flex-direction: column; align-items: center; padding: 11px 0 20px; border: 0; background: none; color: var(--ink-soft); font: 400 14px/1.4 var(--sans); cursor: pointer; transition: color 200ms ease-out; }
+.pagetab { display: inline-flex; flex-direction: column; align-items: center; padding: 11px 0 20px; border: 0; background: none; color: var(--ink-soft); font: 400 14px/22px var(--sans); cursor: pointer; transition: color 200ms ease-out; }
 .pagetab::after { content: attr(data-label); height: 0; overflow: hidden; visibility: hidden; font-size: 15.5px; font-weight: 600; }
 .pagetab:hover { color: var(--ink); }
 .pagetab.active { color: var(--ink); font-size: 15.5px; font-weight: 600; }

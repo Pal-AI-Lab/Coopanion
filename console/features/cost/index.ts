@@ -9,7 +9,7 @@ import type { WebUi, WebUiSheet, Disposable } from 'cortico/web/shared/client-pa
 import { get, setConfig } from '../../base/api.ts';
 import { createMemo } from '../../base/memo.ts';
 import { esc } from '../../base/ui/dom.ts';
-import { consoleFormat } from '../../base/ui/format.ts';
+import { consoleFormat, formatMoney } from '../../base/ui/format.ts';
 import { getThemeStudio } from '../../base/theme/studio.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { intro as pageIntro } from '../intro.ts';
@@ -61,15 +61,15 @@ const SPLITS: ReadonlyArray<{ dim: UsageDim; label: string }> = [
 ];
 
 /** 已知金额。全部未计价为「未知」;部分未计价时金额是下限,后缀标出。 */
-function costText(amount: number, a: Partial<UsageAccum>, cur: string): string {
+function costText(amount: number, a: Partial<UsageAccum>, cur: string, decimals: 2 | 3 = 2): string {
   const unpriced = a.unpricedCalls || 0;
   if (unpriced > 0 && !(a.pricedCalls || 0) && !amount) return S.unknown;
-  return consoleFormat.money(amount, cur) + (unpriced > 0 ? S.partialMark : '');
+  return formatMoney(amount, cur, decimals) + (unpriced > 0 ? S.partialMark : '');
 }
 
 /** 读数卡里的金额，「+未计价」用小一号的字。 */
-function costValue(ui: WebUi, amount: number, a: Partial<UsageAccum>, cur: string): HTMLElement {
-  const text = costText(amount, a, cur);
+function costValue(ui: WebUi, amount: number, a: Partial<UsageAccum>, cur: string, decimals: 2 | 3 = 2): HTMLElement {
+  const text = costText(amount, a, cur, decimals);
   const mark = S.partialMark.trim();
   const el = ui.h('span');
   if (!text.endsWith(S.partialMark)) { el.textContent = text; return el; }
@@ -342,7 +342,7 @@ export function mountUsage(ctx: PageContext): void {
       },
       { k: S.cardInput, v: consoleFormat.count(t.promptTokens || 0), unit: S.hitRate(consoleFormat.percent(t.cacheHitRate)) },
       { k: S.cardOutput, v: consoleFormat.count(t.completionTokens || 0), unit: S.reasoningShare(consoleFormat.percent(rShare)) },
-      { k: S.cardAvgCost, v: okCalls ? costValue(ui, avgCost, successful, cur) : '—', unit: okCalls ? S.approxTok(consoleFormat.count(Math.round(avgTok))) : '' },
+      { k: S.cardAvgCost, v: okCalls ? costValue(ui, avgCost, successful, cur, 3) : '—', unit: okCalls ? S.approxTok(consoleFormat.count(Math.round(avgTok))) : '' },
       { k: S.cardPeak, v: peak ? costValue(ui, peak.cost || 0, peak, cur) : '—', unit: peak ? bucketLabel(peak.bucket, d.bucket || 'day') : '' },
     ];
     cards.replaceChildren(...items.map((item) => {
@@ -423,7 +423,7 @@ export function mountUsage(ctx: PageContext): void {
         { text: consoleFormat.count(g.completionTokens), cls: 'mono' },
         { text: consoleFormat.percent(g.cacheHitRate), cls: 'mono' },
         { text: costText(g.cost || 0, g, cur), cls: 'mono' },
-        { text: costText(avg, g, cur), cls: 'mono' },
+        { text: costText(avg, g, cur, 3), cls: 'mono' },
       ]);
     }
   }
