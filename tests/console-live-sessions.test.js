@@ -1,12 +1,18 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createConsoleUi } from '../console/base/ui/index.ts';
 import { createSessionBand } from '../console/advanced/features/live/sessions.ts';
 
 // jsdom has no layout: every card is 100px wide and the row is `rowWidth` wide.
 let rowWidth = 1000;
+let lives = [];
 const saved = {};
 beforeEach(() => {
+  // Browsers cannot focus a card inside a closed popover; jsdom does not enforce hidden layout.
+  const focus = HTMLElement.prototype.focus;
+  vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (options) {
+    if (!this.closest('[hidden]')) focus.call(this, options);
+  });
   saved.offset = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
   saved.client = Object.getOwnPropertyDescriptor(Element.prototype, 'clientWidth');
   Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get() { return 100; } });
@@ -16,6 +22,9 @@ beforeEach(() => {
   });
 });
 afterEach(() => {
+  lives.forEach(life => life.abort());
+  lives = [];
+  vi.restoreAllMocks();
   if (saved.offset) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', saved.offset);
   else delete HTMLElement.prototype.offsetWidth;
   if (saved.client) Object.defineProperty(Element.prototype, 'clientWidth', saved.client);
@@ -30,6 +39,7 @@ const session = (id, opts = {}) => ({
 
 function mount() {
   const life = new AbortController();
+  lives.push(life);
   const ui = createConsoleUi({ doc: document, overlayHost: document.body, signal: life.signal, memo: { get: (_, f) => f, set() {} } });
   const picked = [];
   const band = createSessionBand({ ui, signal: life.signal, onPick: (id) => picked.push(id) });
@@ -90,4 +100,42 @@ describe('console session chips', () => {
     expect(picked).toEqual(['fork-2']);
     expect(pop.hidden).toBe(true);
   });
+});
+
+
+it('keeps a focused overflow open on click and pointer exit, then closes on Escape from a card', async () => {
+  rowWidth = 220;
+  const { band } = mount();
+  band.render([session('main'), session('fork-1'), session('fork-2')], 'main');
+  const more = band.el.querySelector('.sessmore-btn');
+  const pop = band.el.querySelector('.sesspop');
+  more.focus(); more.click();
+  expect(pop.hidden).toBe(false);
+  const card = pop.querySelector('button');
+  card.focus();
+  band.el.querySelector('.sessmore').dispatchEvent(new MouseEvent('mouseleave'));
+  await new Promise(resolve => setTimeout(resolve, 200));
+  expect(pop.hidden).toBe(false);
+  card.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  expect(pop.hidden).toBe(true);
+  expect(document.activeElement).toBe(more);
+});
+
+it('preserves keyboard focus and dismissal across live session updates', () => {
+  rowWidth = 220;
+  const { band } = mount();
+  const data = [session('main'), session('fork-1'), session('fork-2')];
+  band.render(data, 'main');
+  const more = band.el.querySelector('.sessmore-btn');
+  const pop = band.el.querySelector('.sesspop');
+  more.focus();
+  const card = pop.querySelector('button'); card.focus();
+  band.render(data, 'main');
+  expect(document.activeElement).toBe(card);
+  expect(pop.hidden).toBe(false);
+  more.focus();
+  more.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape',bubbles:true}));
+  band.render(data, 'main');
+  expect(document.activeElement).toBe(more);
+  expect(pop.hidden).toBe(true);
 });

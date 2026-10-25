@@ -83,13 +83,13 @@ export class ConsolePageHost {
   private mounted: MountedPanel | null = null;
   private panes: Panes | null = null;
   /** 页头里的页签。同一页内切换页签且页头内容没变时保留它，下面那根线才能滑过去。 */
-  private tabs: { pageId: string; key: string; bar: PageTabs; stop: AbortController } | null = null;
+  private tabs: { pageId: string; key: string; bar: PageTabs } | null = null;
   /**
    * 挂载代号。异步 mount 期间用户可能已经走了；回来时对不上号就整个丢弃，
    * 免得把一个已经不该存在的面板贴进 DOM。
    */
   private generation = 0;
-  private badgeStop: AbortController | null = null;
+  private chromeStop: AbortController | null = null;
   private readonly navListeners = new Set<() => void>();
 
   constructor(deps: ConsolePageHostDeps) {
@@ -174,9 +174,8 @@ export class ConsolePageHost {
     const cur = this.mounted;
     this.mounted = null;
     this.panes = null;
-    this.badgeStop?.abort();
-    this.badgeStop = null;
-    this.tabs?.stop.abort();
+    this.chromeStop?.abort();
+    this.chromeStop = null;
     this.tabs = null;
     this.generation++;
     if (cur) cur.lifecycle.dispose();
@@ -563,9 +562,8 @@ export class ConsolePageHost {
     const { chrome } = this.ensurePanes();
     if (!page) {
       chrome.replaceChildren();
-      this.badgeStop?.abort();
-      this.badgeStop = null;
-      this.tabs?.stop.abort();
+      this.chromeStop?.abort();
+      this.chromeStop = null;
       this.tabs = null;
       return;
     }
@@ -578,11 +576,9 @@ export class ConsolePageHost {
       return;
     }
     chrome.replaceChildren();
-    this.badgeStop?.abort();
-    this.badgeStop = null;
-    this.tabs?.stop.abort();
+    this.chromeStop?.abort();
+    this.chromeStop = new AbortController();
     this.tabs = null;
-
     const ui = this.ui();
     const head = ui.h('header', 'featureintro providerintro');
     head.classList.toggle('is-world', page.kind === 'world');
@@ -619,21 +615,19 @@ export class ConsolePageHost {
     if (actions.children.length) row.appendChild(actions);
     head.appendChild(row);
     if (page.kind === 'world' && badges.children.length) {
-      this.badgeStop = new AbortController();
-      head.append(pageBadges(this.deps.doc, this.deps.overlayHost, this.badgeStop.signal, Array.from(badges.children) as HTMLElement[]));
+      head.append(pageBadges(this.deps.doc, this.deps.overlayHost, this.chromeStop.signal, Array.from(badges.children) as HTMLElement[]));
     }
     if (page.kind === 'memory') head.appendChild(ui.h('p', 'pagedesc', S.memoryDesc));
     chrome.append(head);
 
     if (items.length > 1) {
-      const stop = new AbortController();
-      const bar = pageTabs(this.deps.doc, stop.signal, items, {
+      const bar = pageTabs(this.deps.doc, this.chromeStop.signal, items, {
         value: activePanel ?? '',
         onSelect: (panelId) => this.deps.router.navigate(this.routeOf(page.id, panelId)),
       });
       bar.el.classList.add('providertabs');
       chrome.appendChild(bar.el);
-      this.tabs = { pageId, key, bar, stop };
+      this.tabs = { pageId, key, bar };
     }
     if (page.reason) chrome.appendChild(ui.msgline(page.reason, true));
   }

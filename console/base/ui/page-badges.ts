@@ -5,6 +5,7 @@ export function pageBadges(doc: Document, overlayHost: HTMLElement, signal: Abor
   const view = doc.defaultView!;
   const row = doc.createElement('div');
   row.className = 'pagedesc page-badge-row';
+  row.tabIndex = -1;
   const more = doc.createElement('button');
   more.type = 'button';
   more.className = 'pill page-badge-more';
@@ -13,6 +14,7 @@ export function pageBadges(doc: Document, overlayHost: HTMLElement, signal: Abor
   pop.className = 'page-badge-pop';
   pop.id = 'page-badges-' + view.crypto.randomUUID();
   pop.setAttribute('role', 'tooltip');
+  pop.tabIndex = -1;
   pop.hidden = true;
   more.setAttribute('aria-describedby', pop.id);
   overlayHost.append(pop);
@@ -29,15 +31,28 @@ export function pageBadges(doc: Document, overlayHost: HTMLElement, signal: Abor
     placeOverflowPopover(pop, more, row);
     more.setAttribute('aria-expanded', 'true');
   };
-  const hideSoon = (): void => { clearTimeout(hideTimer); hideTimer = setTimeout(hide, 180); };
+  const hasFocus = (): boolean => doc.activeElement === more || pop.contains(doc.activeElement);
+  const hideSoon = (): void => {
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => { if (!hasFocus()) hide(); }, 180);
+  };
   for (const el of [more, pop]) {
     el.addEventListener('mouseenter', show, { signal });
     el.addEventListener('mouseleave', hideSoon, { signal });
   }
   more.addEventListener('focus', show, { signal });
-  more.addEventListener('blur', hide, { signal });
+  for (const el of [more, pop] as HTMLElement[]) el.addEventListener('focusout', event => {
+    if (event.relatedTarget !== more && !pop.contains(event.relatedTarget as Node | null)) hide();
+  }, { signal });
+  more.addEventListener('keydown', event => {
+    if (event.key === 'ArrowDown') { event.preventDefault(); show(); pop.focus({ preventScroll: true }); }
+  }, { signal });
   more.addEventListener('click', show, { signal });
-  doc.addEventListener('keydown', event => { if (event.key === 'Escape') hide(); }, { signal });
+  doc.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || pop.hidden) return;
+    if (pop.contains(doc.activeElement)) more.focus({ preventScroll: true });
+    hide();
+  }, { signal });
   doc.addEventListener('pointerdown', event => {
     if (!more.contains(event.target as Node) && !pop.contains(event.target as Node)) hide();
   }, { signal });
@@ -46,14 +61,20 @@ export function pageBadges(doc: Document, overlayHost: HTMLElement, signal: Abor
 
   const layout = (): void => {
     if (signal.aborted || !row.isConnected) return;
-    hide();
+    const focused = hasFocus() ? doc.activeElement as HTMLElement : null;
+    const wasOpen = !pop.hidden;
+    const scrollTop = pop.scrollTop;
     row.replaceChildren(...badges);
     pop.replaceChildren();
     const width = row.clientWidth;
     const gap = parseFloat(view.getComputedStyle(row).columnGap) || 0;
     const widths = badges.map(b => b.getBoundingClientRect().width);
     let used = widths.reduce((sum, w) => sum + w, 0) + Math.max(0, badges.length - 1) * gap;
-    if (used <= width) return;
+    if (used <= width) {
+      hide();
+      if (focused) row.focus({ preventScroll: true });
+      return;
+    }
     row.append(more);
     let count = badges.length;
     do {
@@ -63,6 +84,10 @@ export function pageBadges(doc: Document, overlayHost: HTMLElement, signal: Abor
     } while (count > 0 && used + gap + more.getBoundingClientRect().width > width);
     row.replaceChildren(...badges.slice(0, count), more);
     pop.replaceChildren(...badges.slice(count));
+    if (wasOpen) show();
+    focused?.focus({ preventScroll: true });
+    if (!wasOpen) hide();
+    pop.scrollTop = scrollTop;
   };
   row.append(...badges);
   const frame = view.requestAnimationFrame(layout);

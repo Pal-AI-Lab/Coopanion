@@ -72,6 +72,7 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
   const moreBtn = ui.h('button', 'sesscard sessmore-btn');
   moreBtn.type = 'button';
   moreBtn.setAttribute('aria-haspopup', 'true');
+  moreBtn.setAttribute('aria-expanded', 'false');
   const pop = ui.h('div', 'sesspop');
   pop.hidden = true;
   more.append(moreBtn, pop);
@@ -129,15 +130,17 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
   const showPop = (): void => {
     clearTimeout(hideTimer);
     pop.hidden = false;
+    moreBtn.setAttribute('aria-expanded', 'true');
     placeOverflowPopover(pop, moreBtn, el.closest('.live-sessions') ?? el);
   };
   const hidePop = (): void => {
     clearTimeout(hideTimer);
     pop.hidden = true;
+    moreBtn.setAttribute('aria-expanded', 'false');
   };
   const hideSoon = (): void => {
     clearTimeout(hideTimer);
-    hideTimer = setTimeout(hidePop, 180);
+    hideTimer = setTimeout(() => { if (!more.contains(doc.activeElement)) hidePop(); }, 180);
   };
   view?.addEventListener('resize', () => { if (!pop.hidden) showPop(); }, { signal });
   more.addEventListener('mouseenter', showPop, { signal });
@@ -146,9 +149,10 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
   more.addEventListener('focusout', (ev) => {
     if (!more.contains(ev.relatedTarget as Node | null)) hidePop();
   }, { signal });
-  moreBtn.addEventListener('click', () => (pop.hidden ? showPop : hidePop)(), { signal });
+  moreBtn.addEventListener('click', showPop, { signal });
+  doc.addEventListener('pointerdown', event => { if (!more.contains(event.target as Node)) hidePop(); }, { signal });
   more.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Escape') { hidePop(); moreBtn.focus(); }
+    if (ev.key === 'Escape') { moreBtn.focus({ preventScroll: true }); hidePop(); }
   }, { signal });
   signal.addEventListener('abort', () => clearTimeout(hideTimer), { once: true });
 
@@ -156,6 +160,9 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
 
   /** 量出放得下几张,摆好;`animate` 时已在场的卡从旧位置滑到新位置,新来的淡入。 */
   const layout = (animate: boolean): void => {
+    const focused = el.contains(doc.activeElement) ? doc.activeElement as HTMLElement : null;
+    const wasOpen = !pop.hidden;
+    const scrollTop = pop.scrollTop;
     const before = new Map<string, number>();
     // 只记行里的卡:浮窗里的卡没有可比的位置,从浮窗回到行里的卡按新来的淡入
     if (animate) for (const [id, card] of cards) if (card.parentElement === el) before.set(id, card.getBoundingClientRect().left);
@@ -201,7 +208,11 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
       pop.replaceChildren();
       hidePop();
     }
-    if (!pop.hidden) showPop();
+    if (wasOpen && hidden.length) showPop();
+    if (focused?.isConnected) focused.focus({ preventScroll: true });
+    else if (focused) (hidden.length ? moreBtn : shown[0]?.card)?.focus({ preventScroll: true });
+    if (!wasOpen || !hidden.length) hidePop();
+    pop.scrollTop = scrollTop;
 
     // 不再出现的卡丢掉,免得 Map 越积越多
     const live = new Set(list.map((s) => s.id));

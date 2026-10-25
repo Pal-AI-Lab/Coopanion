@@ -33,10 +33,22 @@ it('fits badges on one line and preserves every hidden badge through narrowing, 
   expect([...row.children].map(el => el.textContent)).toEqual(['ready', 'online', '+2']);
   more.focus();
   expect(pop.hidden).toBe(false);
+  resize();
+  expect(document.activeElement).toBe(more);
+  expect(pop.hidden).toBe(false);
   document.dispatchEvent(new Event('scroll'));
   expect(pop.hidden).toBe(false);
   expect([...pop.children]).toEqual(badges.slice(2));
   more.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  expect(pop.hidden).toBe(true);
+  resize();
+  expect(document.activeElement).toBe(more);
+  expect(pop.hidden).toBe(true);
+  more.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+  expect(document.activeElement).toBe(pop);
+  expect(pop.hidden).toBe(false);
+  pop.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  expect(document.activeElement).toBe(more);
   expect(pop.hidden).toBe(true);
   width = 80; resize();
   expect(row.textContent).toBe('+4');
@@ -92,11 +104,37 @@ it.each([
   const anchor = document.createElement('button');
   const pop = document.createElement('div');
   content.getBoundingClientRect = () => ({ left: bounds[0], right: bounds[1] });
-  anchor.getBoundingClientRect = () => ({ left: trigger[0], right: trigger[1], bottom: 100 });
+  anchor.getBoundingClientRect = () => ({ left: trigger[0], right: trigger[1], top: 80, bottom: 100 });
   Object.defineProperty(pop, 'offsetWidth', { get: () => parseFloat(pop.style.maxWidth) });
   pop.getBoundingClientRect = () => ({ width: parseFloat(pop.style.maxWidth) });
   placeOverflowPopover(pop, anchor, content);
   expect([parseFloat(pop.style.left), parseFloat(pop.style.maxWidth)]).toEqual(expected);
   expect(parseFloat(pop.style.left) + pop.offsetWidth).toBeLessThanOrEqual(bounds[1]);
   expect(parseFloat(pop.style.left)).toBeGreaterThanOrEqual(bounds[0]);
+});
+
+
+it.each([{ top: 100, bottom: 122, above: false }, { top: 680, bottom: 702, above: true }])('fits tall overflow beside its trigger: %j', ({top, bottom, above}) => {
+  const content = document.createElement('div'), anchor = document.createElement('button'), pop = document.createElement('div');
+  content.getBoundingClientRect = () => ({left: 200, right: 900});
+  anchor.getBoundingClientRect = () => ({left: 850, right: 880, top, bottom});
+  Object.defineProperty(pop, 'scrollHeight', {get: () => 1200});
+  pop.getBoundingClientRect = () => ({width: 360, height: parseFloat(pop.style.maxHeight)});
+  placeOverflowPopover(pop, anchor, content);
+  const y = parseFloat(pop.style.top), height = parseFloat(pop.style.maxHeight);
+  expect(y).toBeGreaterThanOrEqual(8);
+  expect(y + height).toBeLessThanOrEqual(innerHeight - 8);
+  if (above) expect(y + height).toBeLessThan(top);
+  else expect(y).toBeGreaterThan(bottom);
+});
+
+
+it('accounts for popup width after the height limit adds a scrollbar', () => {
+  const content = document.createElement('div'), anchor = document.createElement('button'), pop = document.createElement('div');
+  content.getBoundingClientRect = () => ({left: 200, right: 900});
+  anchor.getBoundingClientRect = () => ({left: 860, right: 900, top: 80, bottom: 100});
+  Object.defineProperty(pop, 'scrollHeight', {get: () => 1200});
+  pop.getBoundingClientRect = () => ({width: pop.style.maxHeight ? 220 : 200, height: 200});
+  placeOverflowPopover(pop, anchor, content);
+  expect(parseFloat(pop.style.left) + pop.getBoundingClientRect().width).toBe(900);
 });

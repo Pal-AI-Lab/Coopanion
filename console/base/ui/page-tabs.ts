@@ -89,6 +89,7 @@ export function pageTabs(
   if (view?.ResizeObserver) {
     const size = new view.ResizeObserver(place);
     size.observe(el);
+    for (const tab of tabs) size.observe(tab.text);
     signal.addEventListener('abort', () => size.disconnect(), { once: true });
   }
   signal.addEventListener('abort', () => view?.cancelAnimationFrame(frame), { once: true });

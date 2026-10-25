@@ -396,6 +396,8 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
     if (t > max) max = t;
   }
   if (!(max > 0)) max = 1;
+  // Four intervals need at least one cent each to keep two-decimal labels distinct.
+  if (metric === 'cost') max = Math.max(max, 0.04);
 
   const svg = mkSvgEl(doc, 'svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H });
   const defs = mkSvgEl(doc, 'defs', {});
