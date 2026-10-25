@@ -151,6 +151,8 @@ Off by default. Tick **Let Coo use this computer** in the Computer use section o
 
 ### Settings window
 
+The title bar has Back, Forward, sidebar folding and light/dark controls, opposite the system window buttons. The sidebar folds when the page width crosses down to 1000px, even after it was manually expanded.
+
 The settings window remembers its last unmaximized size when closed and restores it within the primary display’s work area.
 
 Click the tray icon, or right-click Coo and click the gear. **Normal mode** shows the pages about the pet; **Advanced mode** at the bottom left of the expanded sidebar adds Worlds, models, extensions, memory, console and diagnostics.
