@@ -160,6 +160,9 @@ body.companion-sidebar {
 }
 
 /* ---------- one heading and one content width on every page ---------- */
+/* A title line also fits the 34px page controls without shifting its text baseline. */
+.featureintro .pagetitle { line-height: 34px; }
+.featureintro .pagedesc { line-height: 22px; }
 /* the page's controls sit at the right of the title row */
 .featureintro:has(> .companion-introacts) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; align-items: center; }
 .featureintro:has(> .companion-introacts) > :not(.companion-introacts) { grid-column: 1; }
