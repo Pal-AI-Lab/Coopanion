@@ -5,7 +5,8 @@
  * with its own accounts, keys and base URL. Base URLs, protocols, starting models, key pages, image
  * input, context windows and thinking levels are from each service's own documentation (Chinese
  * services' mainland platforms read 2026-09-24, everything else 2026-10-08, starting models and GLM's
- * and OpenRouter's thinking levels checked again 2026-10-09, StepFun's Step Plan read 2026-10-20);
+ * and OpenRouter's thinking levels checked again 2026-10-09, StepFun's Step Plan read 2026-10-20,
+ * Qianfan Token Plan read 2026-10-25);
  * only DeepSeek, Anthropic and StepFun's Step Plan have been tried with a key.
  *
  * This file imports nothing, so the browser console and the app's first-run seed can use it.
@@ -216,6 +217,19 @@ export const VENDORS: readonly Vendor[] = [
     toolOutputText: true,
   },
   {
+    // Qianfan's Token Plan subscription: Chat only, under /v2/tokenplan/personal, with a separate key
+    id: 'qianfan-tokenplan',
+    names: { zh: '百度千帆 Token Plan', 'zh-Hant': '百度千帆 Token Plan', en: 'Baidu Qianfan Token Plan', ja: 'Baidu Qianfan Token Plan', ko: 'Baidu Qianfan Token Plan' },
+    keyHint: PASTE_KEY,
+    secret: 'QIANFAN_TOKEN_PLAN_API_KEY',
+    sites: { global: { baseUrl: 'https://qianfan.baidubce.com/v2/tokenplan/personal', protocol: 'chat', keyUrl: 'https://console.bce.baidu.com/qianfan/resource/token-plan' } },
+    model: 'deepseek-v4.1-flash',
+    models: ['deepseek-v4.1-flash', 'deepseek-v4.1-flash-1017', 'deepseek-v4-pro', 'deepseek-v4-pro-0813', 'deepseek-v4-flash-0731', 'glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'glm-5.1'],
+    vision: ['deepseek-v4.1-flash', 'deepseek-v4.1-flash-1017', 'glm-5.3-flash'],
+    effort: { none: null, low: null, high: null, max: null },
+    toolOutputText: true,
+  },
+  {
     // takes max / xhigh / high / medium / low / minimal / none and moves a level a model lacks to the
     // nearest one it has; a model whose reasoning is mandatory (z-ai/glm-5.3-flash) rejects none
     id: 'openrouter', names: brand('OpenRouter'), keyHint: hint('sk-or-'), secret: 'OPENROUTER_API_KEY',
@@ -310,10 +324,10 @@ export const vendorOf = (baseUrl: string | undefined): Vendor | null => locate(b
 /** Mainland China for Chinese, the international platforms for every other language. */
 export const defaultRegion = (language: Language): Region => (language === 'zh' ? 'cn' : 'intl');
 
-const ORDER_ZH = ['deepseek', 'qwen', 'kimi', 'glm', 'doubao', 'minimax', 'stepfun', 'stepfun-plan', 'qianfan', 'openrouter', 'openai', 'chatgpt', 'anthropic', 'gemini', 'xai'];
+const ORDER_ZH = ['deepseek', 'qwen', 'kimi', 'glm', 'doubao', 'minimax', 'stepfun', 'stepfun-plan', 'qianfan', 'qianfan-tokenplan', 'openrouter', 'openai', 'chatgpt', 'anthropic', 'gemini', 'xai'];
 const ORDER_OTHER = ['openai', 'chatgpt', 'anthropic', 'gemini', 'xai', 'openrouter', 'deepseek', 'kimi', 'qwen', 'minimax', 'glm'];
 /** Services that take mainland China accounts only. */
-const MAINLAND_ONLY = ['doubao', 'qianfan', 'stepfun', 'stepfun-plan'];
+const MAINLAND_ONLY = ['doubao', 'qianfan', 'qianfan-tokenplan', 'stepfun', 'stepfun-plan'];
 
 /** The services in the order recommended for `language`; `more` are listed behind a toggle. */
 export function vendorsFor(language: Language): { shown: Vendor[]; more: Vendor[] } {
