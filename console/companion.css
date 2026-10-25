@@ -6,7 +6,7 @@
 
 /* ---------- compact navigation ---------- */
 body.companion-sidebar {
-  --titlebar-height: 40px; --rail-motion: 260ms cubic-bezier(.22, 1, .36, 1);
+  --titlebar-height: 36px; --rail-motion: 260ms cubic-bezier(.22, 1, .36, 1);
   display: flex; height: 100dvh; padding-top: var(--titlebar-height); overflow: hidden;
 }
 .companion-titlebar {

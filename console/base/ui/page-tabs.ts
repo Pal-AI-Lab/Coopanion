@@ -1,8 +1,8 @@
 /**
  * Page tabs switch between the views of one page; a choice among options inside a view stays `ui.segmented`.
  *
- * The line is the bar's `::after`, placed through `--tab-x` / `--tab-w`; the bar carries `data-line` while a
- * current label is laid out, and `data-line="ready"` once it may animate (the first placement does not).
+ * The line is the bar's `::after`, placed through `--tab-x` / `--tab-y` / `--tab-w`; the bar carries `data-line` while a
+ * current label is laid out. `ready` slides within a row; `appear` reveals the line after a row change.
  * A page may append its own controls (a status line, a button) to `el` after the tabs.
  */
 
@@ -43,20 +43,37 @@ export function pageTabs(
     tabs.push({ value: item.value, btn, text });
   }
 
+  let line: { x: number; y: number; width: number } | undefined;
+  let frame = 0;
   const place = (): void => {
     const text = tabs.find((t) => t.value === current)?.text;
     if (!text?.offsetWidth) {
       el.removeAttribute('data-line');
+      line = undefined;
       return;
     }
-    el.style.setProperty('--tab-x', `${text.offsetLeft}px`);
-    el.style.setProperty('--tab-w', `${text.offsetWidth}px`);
-    if (el.getAttribute('data-line') === null) {
+    const next = { x: text.offsetLeft, y: text.offsetTop + text.offsetHeight + 6, width: text.offsetWidth };
+    if (line && next.x === line.x && next.y === line.y && next.width === line.width) return;
+    const changesRow = line && Math.abs(next.y - line.y) > 1;
+    if (changesRow) {
       el.setAttribute('data-line', '');
-      doc.defaultView?.requestAnimationFrame(() => {
-        if (el.getAttribute('data-line') !== null) el.setAttribute('data-line', 'ready');
-      });
+      // Flush the previous animation so consecutive row changes each reveal a new line.
+      void el.offsetWidth;
+    } else if (line) {
+      el.setAttribute('data-line', 'ready');
     }
+    el.style.setProperty('--tab-x', next.x + 'px');
+    el.style.setProperty('--tab-w', next.width + 'px');
+    el.style.setProperty('--tab-y', next.y + 'px');
+    if (changesRow) {
+      el.setAttribute('data-line', 'appear');
+    } else if (!line) {
+      el.setAttribute('data-line', '');
+      frame = doc.defaultView?.requestAnimationFrame(() => {
+        if (el.getAttribute('data-line') === '') el.setAttribute('data-line', 'ready');
+      }) ?? 0;
+    }
+    line = next;
   };
   const paint = (): void => {
     for (const t of tabs) {
@@ -74,6 +91,7 @@ export function pageTabs(
     size.observe(el);
     signal.addEventListener('abort', () => size.disconnect(), { once: true });
   }
+  signal.addEventListener('abort', () => view?.cancelAnimationFrame(frame), { once: true });
   paint();
 
   return {

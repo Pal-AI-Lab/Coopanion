@@ -16,6 +16,7 @@
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import type { SessionStat } from './protocol.ts';
 import { S } from './strings.ts';
+import { placeOverflowPopover } from '../../../base/ui/overflow-popover.ts';
 
 export interface SessionBandDeps {
   ui: WebUi;
@@ -127,10 +128,8 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
   let hideTimer: ReturnType<typeof setTimeout> | undefined;
   const showPop = (): void => {
     clearTimeout(hideTimer);
-    const r = moreBtn.getBoundingClientRect();
     pop.hidden = false;
-    pop.style.top = `${Math.round(r.bottom + 6)}px`;
-    pop.style.left = `${Math.round(Math.max(8, r.right - pop.offsetWidth))}px`;
+    placeOverflowPopover(pop, moreBtn, el.closest('.live-sessions') ?? el);
   };
   const hidePop = (): void => {
     clearTimeout(hideTimer);
@@ -140,6 +139,7 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
     clearTimeout(hideTimer);
     hideTimer = setTimeout(hidePop, 180);
   };
+  view?.addEventListener('resize', () => { if (!pop.hidden) showPop(); }, { signal });
   more.addEventListener('mouseenter', showPop, { signal });
   more.addEventListener('mouseleave', hideSoon, { signal });
   more.addEventListener('focusin', showPop, { signal });

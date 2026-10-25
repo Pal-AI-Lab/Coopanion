@@ -1461,9 +1461,10 @@
 .liveband .sesscards > .sesscard, .sessmore { flex: none; }
 .sessmore { display: inline-flex; }
 .sessmore-btn { font-weight: 600; }
-.sesspop { position: fixed; z-index: 40; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 6px; background: var(--sheet); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px color-mix(in srgb, #000 16%, transparent); }
+.sesspop { width: max-content; max-height: calc(100vh - 16px); overflow: auto; position: fixed; z-index: 40; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 6px; background: var(--sheet); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px color-mix(in srgb, #000 16%, transparent); }
 .sesspop[hidden] { display: none; }
-.sesspop > .sesscard { justify-content: flex-start; }
+.sesspop > .sesscard { justify-content: flex-start; white-space: normal; overflow-wrap: anywhere; }
+.sesspop > .sesscard > span:last-child { min-width: 0; }
 @container (max-width: 600px) { .live-connection-label { display: none; } }
 .live-connection { display:inline-flex; align-items:center; gap:7px; min-width:0; background:none; border:0; color:var(--ink-soft); cursor:pointer; padding:0; font:11.5px/1 var(--sans); }
 .live-connection-label { flex-shrink:0; }
@@ -1516,7 +1517,7 @@
 .pagetab:hover { color: var(--ink); }
 .pagetab.active { color: var(--ink); font-size: 15.5px; font-weight: 600; }
 .pagetab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
-.pagetabs[data-line]::after { content: ''; position: absolute; left: 4px; bottom: 11px; width: calc(var(--tab-w) - 8px); height: 3px; border-radius: 2px; transform: translateX(var(--tab-x)); background: color-mix(in srgb, var(--accent) 78%, var(--ink)); }
+.pagetabs[data-line]::after { content: ''; position: absolute; left: 4px; top: var(--tab-y); width: calc(var(--tab-w) - 8px); height: 3px; border-radius: 2px; transform: translateX(var(--tab-x)); background: color-mix(in srgb, var(--accent) 78%, var(--ink)); }
 .pagetabs[data-line="ready"]::after { transition: transform 280ms cubic-bezier(.3, .7, .2, 1), width 280ms cubic-bezier(.3, .7, .2, 1); }
 .schema-toolbar > input.field { width: 70%; min-width: 0; }
 .toolgroup-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
@@ -1954,3 +1955,18 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .pagetabs-action .icon { width: 14px; height: 14px; }
 .pagetitle-link:hover, .pagetabs-action:hover { color: var(--accent); }
 .pagetitle-link:focus-visible, .pagetabs-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+.providerintro.is-world .pagetitle-row { flex-wrap: nowrap; }
+.providerintro.is-world .pagetitle { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.featureintro .page-badge-row { margin-top: 9px; }
+.page-badge-row { display: flex; align-items: center; gap: 6px; height: 22px; min-width: 0; overflow: hidden; }
+.page-badge-row > .pill { flex: none; white-space: nowrap; }
+.page-badge-row > .pill, .page-badge-pop > .pill { line-height: 14px; }
+.page-badge-more { cursor: pointer; }
+.page-badge-more:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.page-badge-pop { position: fixed; z-index: 120; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: max-content; max-width: min(360px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto; padding: 10px; background: var(--sheet); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px var(--shadow-strong); }
+.page-badge-pop[hidden] { display: none; }
+.page-badge-pop > .pill { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+.pagetabs[data-line="appear"]::after { animation: tab-line-appear 160ms ease-out; }
+@keyframes tab-line-appear { from { opacity: 0; clip-path: inset(0 50%); } to { opacity: 1; clip-path: inset(0); } }
+@media (prefers-reduced-motion: reduce) { .pagetabs[data-line]::after { transition: none; animation: none; } }
