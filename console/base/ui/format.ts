@@ -9,6 +9,13 @@ function pad2(n: number): string {
   return n < 10 ? '0' + n : String(n);
 }
 
+/** USD uses $; other ISO currency codes precede the amount. Average costs may request three decimals. */
+export function formatMoney(n: number | null | undefined, currency?: string, decimals: 2 | 3 = 2): string {
+  const code = currency || 'USD';
+  const prefix = code === 'USD' ? '$' : code + ' ';
+  return prefix + (n ?? 0).toFixed(decimals);
+}
+
 export const consoleFormat: WebUiFormat = {
   /** **满 10000 才转 k**（9999 仍是 9999，不是 10.0k） */
   count(n) {
@@ -40,15 +47,7 @@ export const consoleFormat: WebUiFormat = {
     return typeof ts === 'string' && ts.length >= 19 ? ts.slice(11, 19) : '';
   },
 
-  /**
-   * `<1` 保 4 位小数（单次调用成本常在 0.0x），`>=1` 保 2 位。
-   * 币种是 ISO 代码：`USD`（缺省）渲染成 `$`，其余代码原样前置并空一格（`EUR 1.00`）。
-   */
-  money(n, currency) {
-    const code = currency || 'USD';
-    const prefix = code === 'USD' ? '$' : code + ' ';
-    return prefix + (n == null ? '0' : n < 1 ? n.toFixed(4) : n.toFixed(2));
-  },
+  money: formatMoney,
 
   /**
    * 毫秒时长，口径在这里定死：

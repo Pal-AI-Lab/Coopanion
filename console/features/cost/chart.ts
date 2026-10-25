@@ -200,7 +200,7 @@ export function fmtMetric(v: number, metric: UsageMetric, cur?: string): string 
 
 /** 纵轴刻度：比读数短一截，不带单位。 */
 export function fmtAxis(v: number, metric: UsageMetric): string {
-  if (metric === 'cost') return v < 1 ? v.toFixed(3) : v.toFixed(1);
+  if (metric === 'cost') return v.toFixed(2);
   if (metric === 'calls') return String(Math.round(v));
   return consoleFormat.count(Math.round(v));
 }
