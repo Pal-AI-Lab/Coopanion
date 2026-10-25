@@ -1533,7 +1533,7 @@
 .configrow .configline { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .configrow .configline > .tfield { flex: 1 1 auto; }
 .configrow .configline > .ttag { flex: none; }
-.coreview > .scroll { scrollbar-gutter: auto; }
+.coreview > .scroll { margin-inline: -10px; scrollbar-gutter: stable both-edges; }
 /* 页内第一节贴着面板槽的上内边距（与其他页面页头下 24px 一致），节可以包在一两层容器里 */
 .panelslot > .sheet:first-child, .panelslot > :first-child > .sheet:first-child, .panelslot > :first-child > :first-child > .sheet:first-child { padding-top: 0; }
 
