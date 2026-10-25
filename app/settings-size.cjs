@@ -1,7 +1,7 @@
 /** Settings-window size in DIP, stored under the app's data directory. */
 const { readFileSync, writeFileSync, renameSync } = require('node:fs');
 
-const DEFAULT_SIZE = { width: 1200, height: 800 };
+const DEFAULT_SIZE = { width: 1200, height: 820 };
 const MIN_SIZE = { width: 880, height: 600 };
 
 function readSettingsSize(file, area) {
