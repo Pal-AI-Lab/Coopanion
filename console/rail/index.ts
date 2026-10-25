@@ -86,8 +86,7 @@ export function createRail(deps: RailDeps): Rail {
   const brand = ui.h('div', 'brand');
   // the logo and the version centred under it
   const meta = ui.h('div', 'companion-brand-meta');
-  // a new release's link sits in a box that folds to nothing with the rail (its row eases from 1fr to 0fr), so the
-  // button under it goes back up to where it is with no link, whatever height the link has
+  // The release link folds out of the layout with the rail.
   const release = ui.h('div', 'companion-release');
   const releaseInner = ui.h('div');
   release.append(releaseInner);
@@ -105,6 +104,7 @@ export function createRail(deps: RailDeps): Rail {
   const nav = ui.h('nav', 'stack');
   nav.id = 'companion-navigation';
   nav.setAttribute('aria-label', S.navAria);
+  nav.addEventListener('scroll', () => nav.classList.toggle('is-scrolled', nav.scrollTop > 0), { signal });
   let entries: Array<{ item: HTMLAnchorElement; segments: readonly string[]; pageId?: string; lamps?: HTMLSpanElement }> = [];
   let lamps: Record<string, readonly WebUiLamp[]> = {};
   let navLife: AbortController | null = null;
@@ -487,7 +487,7 @@ export function createRail(deps: RailDeps): Rail {
   narrow.addEventListener('change', resize, { signal });
 
   const showTip = (event: Event): void => {
-    const target = (event.target as Element).closest<HTMLElement>('a.navitem, .companion-mode, .rail-action, .rail-avatar, .companion-sidebar-toggle');
+    const target = (event.target as Element).closest<HTMLElement>('a.navitem, .companion-mode, .rail-action, .rail-avatar');
     if (!collapsed || !target || target.hidden) return;
     const label = target.getAttribute('aria-label') || target.title;
     if (!label) return;

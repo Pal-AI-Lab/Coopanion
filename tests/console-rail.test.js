@@ -164,3 +164,14 @@ describe('settings window rail', () => {
     expect(document.querySelector('.companion-sidebar-backdrop')).toBeNull();
   });
 });
+
+
+it('enables the upper fade only while navigation has scrolled away from the top', () => {
+  const { rail } = mount();
+  const nav = rail.el.querySelector('nav');
+  expect(nav.classList.contains('is-scrolled')).toBe(false);
+  nav.scrollTop = 30; nav.dispatchEvent(new Event('scroll'));
+  expect(nav.classList.contains('is-scrolled')).toBe(true);
+  nav.scrollTop = 0; nav.dispatchEvent(new Event('scroll'));
+  expect(nav.classList.contains('is-scrolled')).toBe(false);
+});

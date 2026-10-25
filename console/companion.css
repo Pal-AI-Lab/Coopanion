@@ -73,8 +73,10 @@ body.companion-sidebar {
 
 #rail nav.stack {
   display: block; padding: 8px 12px 32px; overflow-x: hidden; overflow-y: auto; scrollbar-width: none;
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent);
+  scroll-padding-block: 32px;
+  mask-image: linear-gradient(to bottom, var(--rail-top-mask, #000), #000 32px, #000 calc(100% - 32px), transparent);
 }
+#rail nav.stack.is-scrolled { --rail-top-mask: transparent; }
 /* the rail scrolls with the wheel but shows no scrollbar */
 #rail nav.stack::-webkit-scrollbar { display: none; }
 #rail .navgroup { display: flex; }
@@ -196,8 +198,6 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
 .chat-thread .bubble, .pet-bubble.say, .pet-bubble .b-text, .tlscroll, pre, code {
   -webkit-user-select: text; user-select: text;
 }
-
-/* 系统提示词: the persona box takes the window's height less the heading, its note and the buttons */
 
 /* 语音输入: the pet World's panel; its first card is titled like the page */
 .companion-voicebox .sheet:first-of-type > h3 { display: none; }
