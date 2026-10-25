@@ -45,7 +45,7 @@ const { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmdirSy
 const { delimiter, dirname, extname, join, resolve, sep } = require('node:path');
 const { dataDirIn, locateData, readRecord, writeRecord } = require('./data-dir.cjs');
 
-const { MIN_SIZE, readSettingsSize, saveSettingsSize } = require('./settings-size.cjs');
+const { readSettingsSize, saveSettingsSize } = require('./settings-size.cjs');
 const { settingsChromeOptions, applySettingsTheme } = require('./settings-chrome.cjs');
 
 const MAC = process.platform === 'darwin';
@@ -463,7 +463,7 @@ function openSettings(path = '') {
   }
   const area = screen.getPrimaryDisplay().workAreaSize;
   settings = new BrowserWindow({
-    ...readSettingsSize(join(userData, 'settings-size.json'), area), minWidth: MIN_SIZE.width, minHeight: MIN_SIZE.height,
+    ...readSettingsSize(join(userData, 'settings-size.json'), area),
     title: 'Coopanion', icon: WINDOW_ICON, autoHideMenuBar: true, show: false,
     ...settingsChromeOptions(process.platform),
     backgroundColor: '#f4f5f4',

@@ -10,9 +10,12 @@ function readSettingsSize(file, area) {
     const saved = JSON.parse(readFileSync(file, 'utf8'));
     if (Number.isInteger(saved?.width) && saved.width > 0 && Number.isInteger(saved?.height) && saved.height > 0) size = saved;
   } catch { /* A missing or damaged preference uses the default size. */ }
+  const minWidth = Math.min(area.width, MIN_SIZE.width);
+  const minHeight = Math.min(area.height, MIN_SIZE.height);
   return {
-    width: Math.min(area.width, Math.max(MIN_SIZE.width, size.width)),
-    height: Math.min(area.height, Math.max(MIN_SIZE.height, size.height)),
+    minWidth, minHeight,
+    width: Math.min(area.width, Math.max(minWidth, size.width)),
+    height: Math.min(area.height, Math.max(minHeight, size.height)),
   };
 }
 
