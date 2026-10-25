@@ -69,11 +69,19 @@ body.companion-sidebar {
 #rail nav.stack {
   display: block; padding: 8px 12px 32px; overflow-x: hidden; overflow-y: auto; scrollbar-width: none;
   scroll-padding-block: 32px;
-  mask-image: linear-gradient(to bottom, var(--rail-top-mask, #000), #000 32px, #000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(to left, #000 var(--rail-scrollbar-width, 0px), transparent var(--rail-scrollbar-width, 0px)),
+    linear-gradient(to bottom, var(--rail-top-mask, #000), #000 32px, #000 calc(100% - 32px), transparent);
 }
 #rail nav.stack.is-scrolled { --rail-top-mask: transparent; }
-/* the rail scrolls with the wheel but shows no scrollbar */
-#rail nav.stack::-webkit-scrollbar { display: none; }
+/* The native scrollbar uses 10px of the existing right padding, preserving item width. */
+#rail:not(.is-collapsed) nav.stack {
+  --rail-scrollbar-width: 10px;
+  scrollbar-width: auto; scrollbar-gutter: stable; padding-right: calc(12px - var(--rail-scrollbar-width));
+}
+#rail nav.stack::-webkit-scrollbar-thumb { background-color: transparent; }
+#rail:not(.is-collapsed):hover nav.stack::-webkit-scrollbar-thumb { background-color: var(--line-2); }
+#rail:not(.is-collapsed) nav.stack::-webkit-scrollbar-thumb:hover,
+#rail:not(.is-collapsed) nav.stack::-webkit-scrollbar-thumb:active { background-color: var(--line-strong); }
 #rail .navgroup { display: flex; }
 #rail .navgroup-primary + .navgroup-primary { margin-top: 4px; }
 #rail .stacklabel {
