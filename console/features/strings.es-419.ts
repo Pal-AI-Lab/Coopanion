@@ -8,6 +8,10 @@ export const S: Partial<typeof en> = {
   clearing: "Iniciando una nueva conversación…",
   cleared: "Nueva conversación iniciada",
   // release.ts
+  updateShort: (version: string) => `v${version} disponible`,
+  updateDownloadingShort: (version: string) => `Descargando v${version}`,
+  updateReadyShort: (version: string) => `v${version} lista`,
+  updateFailedShort: (version: string) => `Descargar v${version}`,
   repoHint: 'Abrir el proyecto Coopanion en GitHub',
   update: (latest: string) => `Salió Coopanion ${latest}: descarga la actualización`,
   updateDownloading: (version: string) => `Coopanion ${version} se está descargando en segundo plano`,

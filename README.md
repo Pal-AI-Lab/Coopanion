@@ -151,7 +151,7 @@ Off by default. Tick **Let Coo use this computer** in the Computer use section o
 
 ### Settings window
 
-The title bar uses one theme background across its full width, with a subtle bottom divider, on Windows, macOS and Linux (deb and AppImage). Back, Forward, sidebar folding and light/dark controls stay on the left when the sidebar folds; on macOS they sit to the right of the traffic lights. On Linux the controls follow the available title-bar area reported by Electron, including desktops with window buttons on the left. The sidebar folds when the page width crosses down to 1000px, even after it was manually expanded. Navigation fades at the bottom and, after scrolling, at the top; keyboard focus keeps entries clear of these edges.
+The title bar uses one theme background across its full width, with a subtle bottom divider, on Windows, macOS and Linux (deb and AppImage). Back, Forward, sidebar folding and light/dark controls stay on the left when the sidebar folds; on macOS they sit to the right of the traffic lights. A thin vertical divider separates these controls from the version and GitHub link; compact update status appears to their right, with details on hover. On Linux the controls follow the available title-bar area reported by Electron, including desktops with window buttons on the left. The sidebar folds when the page width crosses down to 1000px, even after it was manually expanded. Navigation fades at the bottom and, after scrolling, at the top; keyboard focus keeps entries clear of these edges.
 
 Page titles share a text baseline; descriptions sit below it, and the usage filters sit below the title divider. World status badges occupy one line below the title; overflow appears under +N on hover, focus or click. Both World badge and console session overflow popups align to their +N button, stay within the content edges and grow to at most 360px wide. Overflow keeps keyboard focus and scroll position through refreshes; Arrow Down enters badge details, and Escape closes them. Page tabs wrap onto rows of fixed height, with the selection underline sliding within a row and appearing in place when switching rows. Monetary amounts use two decimal places; average costs use three. Cost chart axis labels are at least one cent apart.
 
@@ -176,7 +176,7 @@ The Model page in advanced mode changes the model and reasoning effort, adds an 
 
 **Extensions**: the Extensions page in advanced mode lists Worlds on npm with the `cortico-world` keyword; packages in the [official index](https://github.com/Pal-AI-Lab/cortico-extensions) also show tags, votes and comments. After installing, click **Restart process** and enable the World in **World Overview**.
 
-**Updates**: the Windows build and the AppImage download new versions in the background, and Coo asks whether to restart and update. On Mac and with the deb, the line under the version in the settings window links to a newer release to download by hand.
+**Updates**: the Windows build and the AppImage download new versions in the background, and Coo asks whether to restart and update. On Mac and with the deb, the update status beside the version in the title bar links to a newer release to download by hand.
 
 ## Cost and privacy
 

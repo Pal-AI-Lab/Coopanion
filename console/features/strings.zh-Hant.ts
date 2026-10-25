@@ -8,6 +8,10 @@ export const S: Partial<typeof en> = {
   clearing: "正在開始新對話…",
   cleared: "已開始新對話",
   // release.ts
+  updateShort: (version: string) => `v${version} 可更新`,
+  updateDownloadingShort: (version: string) => `正在下載 v${version}`,
+  updateReadyShort: (version: string) => `v${version} 已就緒`,
+  updateFailedShort: (version: string) => `下載 v${version}`,
   repoHint: '在 GitHub 上開啟 Coopanion 專案',
   update: (latest: string) => `Coopanion ${latest} 已發布，點這裡下載更新`,
   updateDownloading: (version: string) => `Coopanion ${version} 正在背景下載`,
