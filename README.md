@@ -150,7 +150,7 @@ Off by default. Tick **Let Coo use this computer** in the Computer use section o
 
 ### Settings window
 
-The title bar has Back, Forward, sidebar folding and light/dark controls, opposite the system window buttons. The sidebar folds when the page width crosses down to 1000px, even after it was manually expanded.
+The title bar uses one theme background across its full width, with a subtle bottom divider, on Windows, macOS and Linux (deb and AppImage). Back, Forward, sidebar folding and light/dark controls stay on the left when the sidebar folds; on macOS they sit to the right of the traffic lights. On Linux the controls follow the available title-bar area reported by Electron, including desktops with window buttons on the left. The sidebar folds when the page width crosses down to 1000px, even after it was manually expanded.
 
 The settings window remembers its last unmaximized size when closed and restores it within the primary display’s work area.
 

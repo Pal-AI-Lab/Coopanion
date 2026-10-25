@@ -6,21 +6,20 @@
 
 /* ---------- compact navigation ---------- */
 body.companion-sidebar {
-  --titlebar-height: 40px; --rail-width: 248px; --rail-motion: 260ms cubic-bezier(.22, 1, .36, 1);
+  --titlebar-height: 40px; --rail-motion: 260ms cubic-bezier(.22, 1, .36, 1);
   display: flex; height: 100dvh; padding-top: var(--titlebar-height); overflow: hidden;
 }
-body.companion-sidebar:has(#rail.is-collapsed) { --rail-width: 72px; }
 .companion-titlebar {
   position: fixed; inset: 0 0 auto; height: var(--titlebar-height); z-index: 110;
-  background: var(--paper); color: var(--ink-soft); app-region: drag;
-  box-shadow: inset 0 -1px color-mix(in srgb, var(--border) 18%, transparent);
+  background: var(--paper-2); color: var(--ink-soft); app-region: drag;
+  box-shadow: inset 0 -1px color-mix(in srgb, var(--border) 50%, transparent);
 }
-.companion-titlebar::before {
-  content: ''; position: absolute; inset: 0 auto 0 0; width: var(--rail-width);
-  background: var(--paper-2); transition: width var(--rail-motion); pointer-events: none;
+/* The overlay's available area also excludes left-side window controls on Linux. */
+.companion-titlebar-actions {
+  position: absolute; inset: 0 auto 0 max(8px, calc(env(titlebar-area-x, 0px) + 8px));
+  display: flex; align-items: center; gap: 2px;
 }
-.companion-titlebar-actions { position: absolute; inset: 0 auto 0 8px; display: flex; align-items: center; gap: 2px; }
-.companion-titlebar[data-platform="darwin"] .companion-titlebar-actions { left: auto; right: 8px; }
+.companion-titlebar[data-platform="darwin"] .companion-titlebar-actions { left: max(86px, calc(env(titlebar-area-x, 0px) + 8px)); }
 .companion-titlebar button {
   display: grid; place-items: center; width: 32px; height: 28px; padding: 5px; border: 0; border-radius: 6px;
   background: transparent; color: inherit; cursor: pointer; app-region: no-drag;
