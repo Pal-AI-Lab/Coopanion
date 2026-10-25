@@ -45,6 +45,8 @@ const { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmdirSy
 const { delimiter, dirname, extname, join, resolve, sep } = require('node:path');
 const { dataDirIn, locateData, readRecord, writeRecord } = require('./data-dir.cjs');
 
+const { MIN_SIZE, readSettingsSize, saveSettingsSize } = require('./settings-size.cjs');
+
 const MAC = process.platform === 'darwin';
 const LINUX = process.platform === 'linux';
 // Linux: X11 (XWayland under a Wayland session). On Wayland a window cannot place itself or stay on top,
@@ -458,10 +460,9 @@ function openSettings(path = '') {
     if (url && path) settings.loadURL(url);
     return;
   }
-  // 1200 wide keeps the 开始 page's model list on two rows; a smaller screen gets its work area
   const area = screen.getPrimaryDisplay().workAreaSize;
   settings = new BrowserWindow({
-    width: Math.min(1200, area.width), height: Math.min(800, area.height), minWidth: 880, minHeight: 600,
+    ...readSettingsSize(join(userData, 'settings-size.json'), area), minWidth: MIN_SIZE.width, minHeight: MIN_SIZE.height,
     title: 'Coopanion', icon: WINDOW_ICON, autoHideMenuBar: true, show: false,
     backgroundColor: '#f4f5f4',
     webPreferences: { partition: SETTINGS_PARTITION, preload: join(__dirname, 'settings-preload.cjs'), contextIsolation: true, sandbox: true, spellcheck: false },
@@ -477,6 +478,8 @@ function openSettings(path = '') {
   const win = settings;
   let closing = false;
   win.on('close', () => {
+    try { saveSettingsSize(join(userData, 'settings-size.json'), win.getNormalBounds()); }
+    catch (err) { console.warn('[settings] could not save window size', err); }
     closing = true;
     // the loading page, shown until the Core is up, has no route
     const page = win.webContents.getURL();
