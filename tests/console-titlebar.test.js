@@ -30,7 +30,7 @@ it('uses the current theme studio after server theme replacement and persists ap
   await tick();
   const snapshot = getThemeStudio().snapshot();
   expect(storedTheme.mode).toBe('dark');
-  expect(nativeTheme).toEqual({ color: snapshot.palette.paper, symbolColor: snapshot.palette['ink-soft'] });
+  expect(nativeTheme).toEqual({ color: snapshot.palette['paper-2'], symbolColor: snapshot.palette['ink-soft'] });
   expect(button.title).toBe(THEME.appearanceLight);
   life.abort();
   const previous = nativeTheme;
