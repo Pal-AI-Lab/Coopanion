@@ -155,7 +155,7 @@ The title bar uses one theme background across its full width, with a subtle bot
 
 Page titles share a text baseline; descriptions sit below it, and the usage filters sit below the title divider. World status badges occupy one line below the title; overflow appears under +N on hover, focus or click. Both World badge and console session overflow popups align to their +N button, stay within the content edges and grow to at most 360px wide. Overflow keeps keyboard focus and scroll position through refreshes; Arrow Down enters badge details, and Escape closes them. Page tabs wrap onto rows of fixed height, with the selection underline sliding within a row and appearing in place when switching rows. Monetary amounts use two decimal places; average costs use three. Cost chart axis labels are at least one cent apart.
 
-The settings window remembers its last unmaximized size when closed and restores it within the primary display’s work area, including displays smaller than the usual minimum window size.
+The settings window defaults to 1200 × 820 DIP and remembers its last unmaximized size when closed and restores it within the primary display’s work area, including displays smaller than the usual minimum window size.
 
 Click the tray icon, or right-click Coo and click the gear. **Normal mode** shows the pages about the pet; **Advanced mode** at the bottom left of the expanded sidebar adds Worlds, models, extensions, memory, console and diagnostics.
 
