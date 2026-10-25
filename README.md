@@ -153,6 +153,8 @@ Off by default. Tick **Let Coo use this computer** in the Computer use section o
 
 The title bar uses one theme background across its full width, with a subtle bottom divider, on Windows, macOS and Linux (deb and AppImage). Back, Forward, sidebar folding and light/dark controls stay on the left when the sidebar folds; on macOS they sit to the right of the traffic lights. On Linux the controls follow the available title-bar area reported by Electron, including desktops with window buttons on the left. The sidebar folds when the page width crosses down to 1000px, even after it was manually expanded.
 
+Page titles share a text baseline; descriptions sit below it, and the usage filters sit below the title divider.
+
 The settings window remembers its last unmaximized size when closed and restores it within the primary display’s work area.
 
 Click the tray icon, or right-click Coo and click the gear. **Normal mode** shows the pages about the pet; **Advanced mode** at the bottom left of the expanded sidebar adds Worlds, models, extensions, memory, console and diagnostics.
