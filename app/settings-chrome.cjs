@@ -1,11 +1,11 @@
-/** Native window controls over the settings page's 40-DIP title bar. */
-const TITLEBAR_HEIGHT = 40;
+/** Native window controls over the settings page's 36-DIP title bar. */
+const TITLEBAR_HEIGHT = 36;
 
 function settingsChromeOptions(platform) {
   return {
     titleBarStyle: 'hidden',
     ...(platform === 'darwin'
-      ? { trafficLightPosition: { x: 14, y: 13 }, titleBarOverlay: { height: TITLEBAR_HEIGHT } }
+      ? { trafficLightPosition: { x: 14, y: 11 }, titleBarOverlay: { height: TITLEBAR_HEIGHT } }
       : { titleBarOverlay: { height: TITLEBAR_HEIGHT, color: '#ecedec', symbolColor: '#5c5c60' } }),
   };
 }
