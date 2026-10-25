@@ -17,6 +17,10 @@ const zh = {
   clearing: "正在开始新对话…",
   cleared: "已开始新对话",
   // release.ts
+  updateShort: (version: string) => `v${version} 可更新`,
+  updateDownloadingShort: (version: string) => `正在下载 v${version}`,
+  updateReadyShort: (version: string) => `v${version} 已就绪`,
+  updateFailedShort: (version: string) => `下载 v${version}`,
   repoHint: '在 GitHub 上打开 Coopanion 项目',
   update: (latest: string) => `Coopanion ${latest} 已发布，点击下载更新`,
   updateDownloading: (version: string) => `Coopanion ${version} 正在后台下载`,
@@ -32,6 +36,10 @@ export const en: typeof zh = {
   clearing: "Starting a new conversation…",
   cleared: "New conversation started",
   // release.ts
+  updateShort: (version: string) => `v${version} available`,
+  updateDownloadingShort: (version: string) => `Downloading v${version}`,
+  updateReadyShort: (version: string) => `v${version} ready`,
+  updateFailedShort: (version: string) => `Download v${version}`,
   repoHint: 'Open the Coopanion project on GitHub',
   update: (latest: string) => `Coopanion ${latest} is out: download the update`,
   updateDownloading: (version: string) => `Coopanion ${version} is downloading in the background`,

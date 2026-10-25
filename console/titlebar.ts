@@ -2,6 +2,7 @@
 import { getThemeStudio } from './base/theme/studio.ts';
 import { readThemeColor } from './base/theme/palette.ts';
 import { S as THEME } from './base/theme/strings.ts';
+import { mountRelease } from './features/release.ts';
 import { L } from './strings.ts';
 
 declare global {
@@ -38,6 +39,10 @@ export function createTitlebar(doc: Document, toggle: HTMLButtonElement, signal:
     studio.setMode(studio.appearance === 'dark' ? 'light' : 'dark');
   });
   actions.append(back, forward, toggle, appearance);
+  const release = doc.createElement('div');
+  release.className = 'companion-titlebar-release';
+  actions.append(release);
+  mountRelease(doc, release, signal);
   const navigation = (win as Window & { navigation?: EventTarget & { canGoBack: boolean; canGoForward: boolean } }).navigation;
   const paintHistory = (): void => {
     // Browsers without the Navigation API leave history controls enabled.

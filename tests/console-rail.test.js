@@ -45,7 +45,6 @@ function mount() {
   return {
     rail, dispose,
     toggle: rail.toggle,
-    meta: rail.el.querySelector('.companion-brand-meta'),
   };
 }
 
@@ -71,14 +70,13 @@ afterEach(() => {
 
 describe('settings window rail', () => {
   it('retains the C and both eyes while toggling and restores the choice after remount', () => {
-    const { rail, toggle, meta, dispose } = mount();
+    const { rail, toggle, dispose } = mount();
     const eyes = [...rail.el.querySelectorAll('.companion-brand .accent')];
     const c = rail.el.querySelector('.companion-brand-c');
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     toggle.click();
     expect(toggle.getAttribute('aria-label')).toBe(L.expandSidebar);
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(meta.inert).toBe(true);
     expect([...rail.el.querySelectorAll('.companion-brand .accent')]).toEqual(eyes);
     expect(rail.el.querySelector('.companion-brand-c')).toBe(c);
     expect(eyes).toHaveLength(2);
@@ -86,7 +84,6 @@ describe('settings window rail', () => {
     const restored = mount();
     expect(restored.toggle.getAttribute('aria-expanded')).toBe('false');
     restored.toggle.click();
-    expect(restored.meta.inert).toBe(false);
     expect(restored.toggle.getAttribute('aria-label')).toBe(L.collapseSidebar);
   });
 

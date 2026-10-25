@@ -20,20 +20,24 @@ describe('the version line of a build that updates itself', () => {
     const run = updater(null);
     const brand = document.createElement('div');
     const life = new AbortController();
-    mountRelease(document, brand, (hint) => brand.append(hint), life.signal);
+    mountRelease(document, brand, life.signal);
     expect(brand.querySelector('.release-hint')).toBeNull();
 
     run.tell({ phase: 'downloading', version: '9.9.9' });
-    expect(brand.querySelector('.release-hint').textContent).toBe(S.updateDownloading('9.9.9'));
+    expect(brand.querySelector('.release-hint').textContent).toBe(S.updateDownloadingShort('9.9.9'));
     expect(brand.querySelector('a.release-hint')).toBeNull();
 
     run.tell({ phase: 'ready', version: '9.9.9' });
     expect(brand.querySelectorAll('.release-hint')).toHaveLength(1);
-    expect(brand.querySelector('.release-hint').textContent).toBe(S.updateReady('9.9.9'));
+    expect(brand.querySelector('.release-hint').textContent).toBe(S.updateReadyShort('9.9.9'));
+
+    expect(brand.querySelector('.release-hint').title).toBe(S.updateReady('9.9.9'));
 
     run.tell({ phase: 'failed', version: '9.9.9' });
     const link = brand.querySelector('a.release-hint');
-    expect(link.textContent).toBe(S.updateFailed('9.9.9'));
+    expect(link.textContent).toBe(S.updateFailedShort('9.9.9'));
+    expect(link.title).toBe(S.updateFailed('9.9.9'));
+    expect(link.getAttribute('aria-label')).toBe(link.title);
     expect(link.href).toMatch(/\/releases\/latest$/);
 
     life.abort();
@@ -43,7 +47,7 @@ describe('the version line of a build that updates itself', () => {
   it('shows a step the updater reached before the window opened', () => {
     updater({ phase: 'ready', version: '9.9.9' });
     const brand = document.createElement('div');
-    mountRelease(document, brand, (hint) => brand.append(hint), new AbortController().signal);
-    expect(brand.querySelector('.release-hint').textContent).toBe(S.updateReady('9.9.9'));
+    mountRelease(document, brand, new AbortController().signal);
+    expect(brand.querySelector('.release-hint').textContent).toBe(S.updateReadyShort('9.9.9'));
   });
 });

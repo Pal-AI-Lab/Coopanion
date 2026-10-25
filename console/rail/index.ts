@@ -1,6 +1,5 @@
 /**
- * The settings window's left rail: the Coopanion mark with the version under it and a new release's
- * link, the pages in their groups (setNav), the button that
+ * The settings window's left rail: the Coopanion mark, the pages in their groups (setNav), the button that
  * switches between the normal and the advanced mode, and the foot (shut down, pause/resume with the
  * run state in words, the avatar and the bot's name). The normal mode shows only the entries marked
  * basic; switching fades the others in or out.
@@ -18,7 +17,6 @@ import { icon, type ConsoleIconName } from '../base/ui/icons.ts';
 import { lampRow, paintLamps } from '../base/ui/lamp.ts';
 import type { ConsoleMode } from '../features/mode.ts';
 import { onNameSaved } from '../features/bot-name.ts';
-import { mountRelease } from '../features/release.ts';
 import { sidebarBrand } from './brand.ts';
 import { L } from '../strings.ts';
 import { createAvatarControl } from './avatar.ts';
@@ -84,21 +82,11 @@ export function createRail(deps: RailDeps): Rail {
 
   /* ---------- brand ---------- */
   const brand = ui.h('div', 'brand');
-  // the logo and the version centred under it
-  const meta = ui.h('div', 'companion-brand-meta');
-  // The release link folds out of the layout with the rail.
-  const release = ui.h('div', 'companion-release');
-  const releaseInner = ui.h('div');
-  release.append(releaseInner);
   const toggle = ui.h('button', 'companion-sidebar-toggle');
   toggle.type = 'button';
   toggle.setAttribute('aria-controls', 'companion-navigation');
   toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/><path class="companion-sidebar-chevron" d="m16 9-3 3 3 3"/></svg>';
-  brand.append(sidebarBrand(doc), meta);
-  mountRelease(doc, meta, (hint) => {
-    releaseInner.append(hint);
-    meta.append(release);
-  }, signal);
+  brand.append(sidebarBrand(doc));
 
   /* ---------- pages ---------- */
   const nav = ui.h('nav', 'stack');
@@ -460,7 +448,6 @@ export function createRail(deps: RailDeps): Rail {
     toggle.setAttribute('aria-expanded', String(!collapsed));
     toggle.setAttribute('aria-label', collapsed ? L.expandSidebar : L.collapseSidebar);
     toggle.title = collapsed ? L.expandSidebar : L.collapseSidebar;
-    meta.inert = collapsed;
     backdrop.hidden = collapsed || !narrow.matches;
     deps.content.inert = !backdrop.hidden;
     hideTip();

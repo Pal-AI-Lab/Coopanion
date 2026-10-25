@@ -97,10 +97,6 @@
 .companion-statsdoc { margin: 0; line-height: 1.6; }
 @media (max-width: 640px) { .companion-row { grid-template-columns: 1fr; gap: 4px; } }
 
-/* 字标下的版本与项目地址的颜色;位置与字号在 companion.css 的 .companion-brand-meta */
-.companion-version { color: var(--ink-dim); text-decoration: none; }
-.companion-version:hover { color: var(--ink); text-decoration: underline; }
-
 /* 左栏分组之间不画分隔线,只留间距 */
 .navgroup + .navgroup { border-top: 0; padding-top: 0; }
 

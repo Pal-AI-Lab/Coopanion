@@ -9,12 +9,13 @@ let life;
 const tick = () => new Promise(resolve => setTimeout(resolve, 20));
 beforeEach(() => {
   life = new AbortController();
+  window.coopanionUpdate = { step: () => null, onStep: () => () => {} };
   document.body.replaceChildren();
   history.replaceState(null, '', '/#/home');
   vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
   applyStoredTheme(document, { injected: { defaultScheme: 'mint', theme: null }, save: async () => {} });
 });
-afterEach(() => { life.abort(); disposeThemeStudio(); delete window.coopanionWindow; vi.unstubAllGlobals(); });
+afterEach(() => { life.abort(); disposeThemeStudio(); delete window.coopanionWindow; delete window.coopanionUpdate; vi.unstubAllGlobals(); });
 
 it('uses the current theme studio after server theme replacement and persists appearance changes', async () => {
   let nativeTheme, storedTheme;
@@ -24,7 +25,7 @@ it('uses the current theme studio after server theme replacement and persists ap
   disposeThemeStudio();
   applyStoredTheme(document, { injected: { defaultScheme: 'navigator', theme: null }, save: async theme => { storedTheme = structuredClone(theme); } });
   await tick();
-  const button = bar.querySelector('button:last-child');
+  const button = bar.querySelector('button:nth-of-type(4)');
   expect(button.title).toBe(THEME.appearanceDark);
   button.click();
   await tick();
