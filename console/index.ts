@@ -49,6 +49,7 @@ import { createRail, type NavGroup, type NavItem } from './rail/index.ts';
 import { S as R } from './rail/strings.ts';
 import { L } from './strings.ts';
 import { createTitlebar } from './titlebar.ts';
+import { watchPageScrollInset } from './base/ui/page.ts';
 
 /** One entry of the rail and the page it mounts. */
 interface Entry {
@@ -185,6 +186,7 @@ export function boot(doc: Document = document): Disposable {
     const slot = doc.createElement('div');
     slot.className = `featureslot featureslot-${entry.route}`;
     slotHost.append(slot);
+    watchPageScrollInset(slot, lifecycle.signal);
     const pageUi = createConsoleUi({ memo, overlayHost: doc.body, signal: lifecycle.signal, doc });
     const ctx: FeatureContext = {
       root: slot, lifecycle, signal: lifecycle.signal, ui: pageUi, router, route, capabilities, onError, consolePageHost,

@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { pageBadges } from '../console/base/ui/page-badges.ts';
 import { placeOverflowPopover } from '../console/base/ui/overflow-popover.ts';
+import { watchPageScrollInset } from '../console/base/ui/page.ts';
 import { pageTabs } from '../console/base/ui/page-tabs.ts';
 let life, resize;
 beforeEach(() => {
@@ -137,4 +138,47 @@ it('accounts for popup width after the height limit adds a scrollbar', () => {
   pop.getBoundingClientRect = () => ({width: pop.style.maxHeight ? 220 : 200, height: 200});
   placeOverflowPopover(pop, anchor, content);
   expect(parseFloat(pop.style.left) + pop.getBoundingClientRect().width).toBe(900);
+});
+
+it('updates the scroll inset when sticky headings resize or are replaced, and releases it on disposal', async () => {
+  const slot = document.createElement('div');
+  document.body.append(slot);
+  watchPageScrollInset(slot, life.signal);
+  const heading = (height, sticky = true) => {
+    const el = document.createElement('header');
+    el.className = 'featureintro';
+    el.style.position = sticky ? 'sticky' : 'static';
+    el.style.top = '0px';
+    vi.spyOn(el, 'getBoundingClientRect').mockImplementation(() => ({ height: Number(el.dataset.height), bottom: Number(el.dataset.height) + Number(el.dataset.top ?? 0) }));
+    el.dataset.height = String(height);
+    return el;
+  };
+  const head = heading(80);
+  slot.append(head);
+  await Promise.resolve();
+  expect(slot.style.getPropertyValue('--page-scroll-inset')).toBe('80px');
+  head.dataset.height = '110'; resize();
+  expect(slot.style.getPropertyValue('--page-scroll-inset')).toBe('110px');
+  slot.replaceChildren(heading(90, false));
+  await Promise.resolve();
+  expect(slot.style.getPropertyValue('--page-scroll-inset')).toBe('0px');
+  slot.replaceChildren(heading(100));
+  await Promise.resolve();
+  expect(slot.style.getPropertyValue('--page-scroll-inset')).toBe('100px');
+  const toolbar = heading(50);
+  toolbar.className = 'prompt-toolbar';
+  toolbar.dataset.top = '100';
+  slot.replaceChildren(heading(80, false), toolbar);
+  await Promise.resolve();
+  expect(slot.style.getPropertyValue('--page-scroll-inset')).toBe('150px');
+  toolbar.dataset.top = '0';
+  slot.dispatchEvent(new Event('scroll'));
+  expect(slot.style.getPropertyValue('--page-scroll-inset')).toBe('50px');
+  slot.replaceChildren();
+  await Promise.resolve();
+  expect(slot.style.getPropertyValue('--page-scroll-inset')).toBe('0px');
+  life.abort();
+  slot.append(heading(120));
+  await Promise.resolve();
+  expect(slot.style.getPropertyValue('--page-scroll-inset')).toBe('');
 });
