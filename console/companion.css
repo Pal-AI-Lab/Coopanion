@@ -62,7 +62,10 @@ body.companion-sidebar { display: flex; height: 100dvh; overflow: hidden; }
    (a new release's link under it does fold away, see .companion-release) */
 .is-collapsed .companion-brand-meta { visibility: hidden; opacity: 0; transition: opacity 140ms ease, visibility 0s linear 140ms; }
 
-#rail nav.stack { display: block; padding: 8px 12px 16px; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
+#rail nav.stack {
+  display: block; padding: 8px 12px 32px; overflow-x: hidden; overflow-y: auto; scrollbar-width: none;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent);
+}
 /* the rail scrolls with the wheel but shows no scrollbar */
 #rail nav.stack::-webkit-scrollbar { display: none; }
 #rail .navgroup { display: flex; }
