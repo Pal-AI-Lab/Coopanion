@@ -9,9 +9,8 @@
  * Thinking is a four-step choice: off sends `reasoning.effort = none`, the others low / high /
  * max, each rewritten to the value a service documents where it takes other ones (`effortOf`); the
  * Messages and Gemini APIs get the levels in their own form. Images are sent only when the endpoint
- * is marked multimodal and, for a listed service, the service lists the model as reading them; tool
- * results may carry images too, which move to a user message after the results on Chat and for
- * `toolOutputText` services on Responses. Images go out only from the newest delivered batch of events on
+ * is marked multimodal; tool results may carry images too, which move to a user message after the
+ * results on Chat and for `toolOutputText` services on Responses. Images go out only from the newest delivered batch of events on
  * (`sinceLastDelivery`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
  * Streamed reasoning from services marked `lenientReasoning` is rewritten into standard events
  * (`LenientReasoningAssembly`). `nonStreamingResponses` services use a non-streaming fallback so
@@ -57,13 +56,6 @@ const MODELS_MAX = 2000;
 
 export const protocolOf = (entry: LLMProviderEntry): Protocol =>
   cooOptions(entry).protocol ?? locate(entry.baseUrl)?.site.protocol ?? 'responses';
-
-/** A listed service reads images on the models it lists; any other URL on every model. */
-function readsImages(entry: LLMProviderEntry, model: string | undefined): boolean {
-  if (!model) return false;
-  const vendor = vendorOf(entry.baseUrl);
-  return vendor ? (vendor.vision ?? []).includes(model) : true;
-}
 
 /** The Messages API states an oversized prompt as `prompt is too long`, the Gemini API as a token count over the maximum. */
 function contextOverflow(error: { status: number; body: string }): boolean {
@@ -113,7 +105,7 @@ export const COO = {
       throw new Error(cooText(language).badProtocol(PROTOCOLS.join(' / ')));
     if (plainRemote(entry.baseUrl)) throw new Error(cooText(language).httpRemote);
   },
-  accepts: (entry, spec, mime) => entry.multimodal === true && mime.startsWith('image/') && readsImages(entry, spec.model),
+  accepts: (entry, _spec, mime) => entry.multimodal === true && mime.startsWith('image/'),
   prices: (entry, _request, at) => vendorPrices(vendorOf(entry.baseUrl)?.id, at.startedAt),
   contextOverflow,
   create(name: string, entry: LLMProviderEntry, host): ProviderInstance {
@@ -128,7 +120,7 @@ export const COO = {
     const located = locate(entry.baseUrl);
     const vendor = located?.vendor ?? null;
     const protocol = protocolOf(entry);
-    const media = { enabled: () => current().multimodal === true && readsImages(current(), current().spec?.model), read: host.readBlob };
+    const media = { enabled: () => current().multimodal === true, read: host.readBlob };
     const compatibilityKey = () => [vendor?.id ?? 'coo', name, ...(protocol === 'responses' ? [] : [protocol])];
     const stated = (model: string) => vendor?.contextWindows?.[model];
     // the listing carries the windows the vendor table states, so the console fills them in instead of asking

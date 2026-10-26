@@ -95,10 +95,10 @@ describe('Coo Pet Provider', () => {
     expect(cost('2026-09-26T02:30:00.000Z')).toBeCloseTo(OFF_PEAK['deepseek-flash'].uncachedInput, 6); // Saturday
   });
 
-  it('accepts images only for a multimodal endpoint on a model that reads them', () => {
+  it('accepts images whenever the endpoint is marked multimodal, on models the vendor table does not list too', () => {
     const spec = (model: string) => ({ model, thinking: true });
     expect(COO.accepts!(entry(), spec('deepseek-flash'), 'image/jpeg')).toBe(true);
-    expect(COO.accepts!(entry(), spec('deepseek-v4-pro'), 'image/jpeg')).toBe(false);
+    expect(COO.accepts!(entry(), spec('deepseek-v4-pro'), 'image/jpeg')).toBe(true);
     expect(COO.accepts!(entry({ multimodal: false }), spec('deepseek-flash'), 'image/png')).toBe(false);
   });
 
