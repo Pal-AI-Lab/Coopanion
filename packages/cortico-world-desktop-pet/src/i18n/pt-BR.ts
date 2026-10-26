@@ -350,6 +350,7 @@ const ptBR: Translation<PetText> = {
     changeKey: 'Alterar',
     cancelKey: 'Cancelar',
     level: 'Nível de entrada',
+    thresholdHint: 'Só o som mais alto que esta linha conta como fala; se outra pessoa falar tão alto quanto você, também é reconhecida',
     noResults: 'Nenhum resultado ainda',
   },
 

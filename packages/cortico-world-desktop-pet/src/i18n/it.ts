@@ -350,6 +350,7 @@ const it: Translation<PetText> = {
     changeKey: 'Cambia',
     cancelKey: 'Annulla',
     level: 'Livello di ingresso',
+    thresholdHint: 'Conta come parlato solo il suono più forte di questa linea; se qualcun altro parla forte quanto te, viene riconosciuto anche lui',
     noResults: 'Ancora nessun risultato',
   },
 

@@ -350,6 +350,7 @@ const zhHant: Translation<PetText> = {
     changeKey: '變更',
     cancelKey: '取消',
     level: '輸入音量',
+    thresholdHint: '比這條線響的聲音才算說話；別人說話和你一樣響時也會被辨識',
     noResults: '尚無辨識結果',
   },
 

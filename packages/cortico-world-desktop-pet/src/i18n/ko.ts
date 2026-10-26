@@ -350,6 +350,7 @@ const ko: Translation<PetText> = {
     changeKey: '변경',
     cancelKey: '취소',
     level: '입력 음량',
+    thresholdHint: '이 선보다 큰 소리만 말소리로 칩니다. 다른 사람이 사용자만큼 크게 말하면 그 말도 인식됩니다',
     noResults: '아직 인식 결과가 없습니다',
   },
 

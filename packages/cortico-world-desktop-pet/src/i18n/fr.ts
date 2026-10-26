@@ -350,6 +350,7 @@ const fr: Translation<PetText> = {
     changeKey: 'Modifier',
     cancelKey: 'Annuler',
     level: "Niveau d'entrée",
+    thresholdHint: "Seul un son plus fort que ce trait compte comme parole ; quelqu'un d'autre qui parle aussi fort que vous est entendu aussi",
     noResults: 'Rien de reconnu pour le moment',
   },
 

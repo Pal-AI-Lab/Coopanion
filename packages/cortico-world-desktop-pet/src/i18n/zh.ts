@@ -375,11 +375,12 @@ export default {
     waitingKey: '等待说话键',
     results: '识别结果',
     resultsHint: '划线的条目过短或疑似幻觉，未发送',
-    /** 语音输入页:说话键单独一行、识别结果为空时的那一行、音量条左边的字 */
+    /** 语音输入页:说话键单独一行、识别结果为空时的那一行、音量条左边的字、音量条上门槛线的说明 */
     talkKeyName: '说话键',
     changeKey: '更改',
     cancelKey: '取消',
     level: '输入音量',
+    thresholdHint: '比这条线响的声音才算说话；别人说话和你一样响时也会被识别',
     noResults: '暂无识别结果',
   },
 

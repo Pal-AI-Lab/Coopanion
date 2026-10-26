@@ -350,6 +350,7 @@ const ja: Translation<PetText> = {
     changeKey: '変更',
     cancelKey: 'キャンセル',
     level: '入力音量',
+    thresholdHint: 'この線より大きい音だけを発話として扱います。ほかの人があなたと同じくらいの声で話すと、それも認識されます',
     noResults: 'まだ認識結果はありません',
   },
 

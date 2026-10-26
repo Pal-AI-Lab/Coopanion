@@ -30,8 +30,8 @@ import { nowIso, shortTime } from 'cortico/core/util.ts';
 import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
 import {
-  DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, SELF_KEYS, TOUCH_KINDS, USER_MAX, asrEngineFor, desktopPetConfigGroups, directSettings,
-  hoverButtonList, selfAdjustMode, speechFor, touchWakes,
+  DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, SELF_KEYS, THRESHOLD_DB_MAX, THRESHOLD_DB_MIN, TOUCH_KINDS, USER_MAX, asrEngineFor,
+  desktopPetConfigGroups, directSettings, hoverButtonList, selfAdjustMode, speechFor, touchWakes,
   type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type RoamMode, type SelfKey,
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
@@ -2034,6 +2034,12 @@ export class DesktopPetWorld implements World {
         case 'setMic': {
           this.savePrefs({ micSettings: args[0] });
           await this.syncHotkey();
+          return this.voiceState();
+        }
+        // the meter's mark; the segmenter reads the live section, so the next frame is measured against it
+        case 'setThreshold': {
+          const db = args[0];
+          if (typeof db === 'number' && Number.isFinite(db)) this.opts.persist({ asr: { segment: { thresholdDb: Math.max(THRESHOLD_DB_MIN, Math.min(THRESHOLD_DB_MAX, db)) } } });
           return this.voiceState();
         }
       }

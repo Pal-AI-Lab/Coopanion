@@ -3,11 +3,15 @@
 /* the meter belongs to how it listens: no rule between them */
 .pet-voicebody .mountrow.pet-meterrow{border-top:0; padding:4px 0 6px}
 /* the name's characters sit 1px low in their line box; the bar follows them */
-.pet-meter{position:relative; top:1px; flex:1; min-width:0; height:10px; border-radius:999px; background:var(--line, #e2dfe8); overflow:hidden}
+.pet-meterwrap{position:relative; top:1px; flex:1; min-width:0}
+.pet-meter{position:relative; height:10px; border-radius:999px; background:var(--line, #e2dfe8); overflow:hidden}
 .pet-meterfill{position:absolute; left:0; top:0; bottom:0; width:0; background:var(--muted, #6a6577); transition:width .08s linear}
 .pet-meterfill.on{background:var(--accent, #00a870)}
 .pet-meter.open{box-shadow:0 0 0 2px var(--accent, #00a870)}
-.pet-metermark{position:absolute; top:-2px; bottom:-2px; width:2px; background:var(--text, #1b1626)}
+/* the line is 2px, the handle around it 12px wide and taller than the bar */
+.pet-metermark{position:absolute; top:-5px; bottom:-5px; width:12px; margin-left:-6px; cursor:ew-resize; touch-action:none; border-radius:3px}
+.pet-metermark::before{content:''; position:absolute; left:5px; top:2px; bottom:2px; width:2px; background:var(--text, #1b1626)}
+.pet-metermark:focus-visible{outline:2px solid var(--accent, #00a870); outline-offset:0}
 .pet-master{display:flex; align-items:center; gap:16px; padding:14px 16px; margin-bottom:8px; border:1px solid var(--line, #e3e4e3); border-radius:12px; background:var(--sheet-2, #f2f3f2); cursor:pointer; transition:border-color .15s, background .15s}
 .pet-master.on{border-color:var(--accent, #00a870); background:color-mix(in srgb, var(--accent, #00a870) 8%, transparent)}
 .pet-mastertext{flex:1; min-width:0; display:flex; flex-direction:column; gap:3px}

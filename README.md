@@ -157,7 +157,7 @@ Click the tray icon, or right-click Coo and click the gear. **Normal mode** show
 | Start | Connect a model, show or hide the pet, interface colors, rerun the guide, pause / resume |
 | Habits | Language, your name and Coo's, usage statistics, walking, how Coo responds to touches, typing key, display sizes, sounds and speech, computer use, OBS overlay |
 | Dress up | Figure, colors and accessories; import or uninstall figure packs |
-| Voice input | Recognizer or transcription service, model download, talk key, microphone, listening mode |
+| Voice input | Recognizer or transcription service, model download, talk key, microphone, listening mode, speech threshold |
 | System prompt | Coo's system prompt; the persona is the CONSTITUTION section |
 | Usage & cost | Tokens used and money spent per day |
 | Chat | The current conversation, with the images Coo shows |

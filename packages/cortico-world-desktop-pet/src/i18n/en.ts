@@ -382,6 +382,7 @@ const en: PetText = {
     changeKey: 'Change',
     cancelKey: 'Cancel',
     level: 'Input level',
+    thresholdHint: 'Only sound louder than this line counts as speech; someone else talking as loudly as you is heard too',
     noResults: 'Nothing heard yet',
   },
 

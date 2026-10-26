@@ -350,6 +350,7 @@ const de: Translation<PetText> = {
     changeKey: 'Ändern',
     cancelKey: 'Abbrechen',
     level: 'Eingangspegel',
+    thresholdHint: 'Nur Schall, der lauter als dieser Strich ist, zählt als Sprache; spricht jemand anderes so laut wie du, wird das auch erkannt',
     noResults: 'Noch nichts erkannt',
   },
 

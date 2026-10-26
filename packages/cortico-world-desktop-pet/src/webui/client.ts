@@ -149,11 +149,15 @@ const ENGINE_NAMES: Partial<Record<Engine, string>> = { funasr: 'FunASR', whispe
 
 const FLOOR_DB = -60;
 const meterPct = (db: number) => Math.max(0, Math.min(100, ((db - FLOOR_DB) / -FLOOR_DB) * 100));
+/** The threshold the mark can be set to: the meter's span, whole dB. */
+const markDb = (db: number) => Math.round(Math.max(FLOOR_DB, Math.min(0, db)));
+const ARROW_STEPS: Record<string, number> = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 };
 
 const voicePanel: WebUiPanel = {
   mount(ctx) {
     const { ui, root } = ctx;
-    const t = petText(ctx.language).panel;
+    const text = petText(ctx.language);
+    const t = text.panel;
     const card = ui.sheet({ title: t.voice });
     root.appendChild(card.el);
     const s = card.body;
@@ -211,11 +215,20 @@ const voicePanel: WebUiPanel = {
     const meterRow = ui.h('div', 'mountrow pet-meterrow');
     const meterDot = ui.h('span', 'navdot');
     meterDot.style.visibility = 'hidden';
+    const meterWrap = ui.h('div', 'pet-meterwrap');
     const meter = ui.h('div', 'pet-meter');
     const fill = ui.h('div', 'pet-meterfill');
+    meter.append(fill);
+    // the speech threshold, dragged along the meter or moved with the arrow keys
     const mark = ui.h('div', 'pet-metermark');
-    meter.append(fill, mark);
-    meterRow.append(meterDot, ui.h('span', 'mname', t.level), meter);
+    mark.tabIndex = 0;
+    mark.title = t.thresholdHint;
+    mark.setAttribute('role', 'slider');
+    mark.setAttribute('aria-label', text.config.thresholdDb.title);
+    mark.setAttribute('aria-valuemin', String(FLOOR_DB));
+    mark.setAttribute('aria-valuemax', '0');
+    meterWrap.append(meter, mark);
+    meterRow.append(meterDot, ui.h('span', 'mname', t.level), meterWrap);
 
     const log = ui.log({ max: 100, empty: t.noResults });
     settings.append(eng.row, srv.row, rt.row, ...api.rows, micRow.row, keyRow.row, modeRow.row, onPressRow.row, meterRow);
@@ -226,6 +239,13 @@ const voicePanel: WebUiPanel = {
 
     let st: VoiceState | null = null;
     let seen = 0;
+    /** The threshold under the pointer while the mark is held */
+    let held: number | null = null;
+    const placeMark = (db: number) => {
+      mark.style.left = `${meterPct(db)}%`;
+      mark.setAttribute('aria-valuenow', String(db));
+      mark.setAttribute('aria-valuetext', `${db} dBFS`);
+    };
     const render = (next: VoiceState) => {
       st = next;
       enabled.checked = next.enabled;
@@ -295,7 +315,7 @@ const voicePanel: WebUiPanel = {
       onPressRow.set(input.openOnPress ? t.switchOn : t.switchOff, input.openOnPress ? 'on' : 'off', t.openOnPressHint);
       // the loudness threshold only decides where speech starts when the key is not held down
       mark.hidden = input.mode === 'hold';
-      mark.style.left = `${meterPct(next.thresholdDb)}%`;
+      if (document.activeElement !== mark) placeMark(next.thresholdDb);
       for (const line of next.recent) {
         if (line.at <= seen) continue;
         seen = line.at;
@@ -313,6 +333,40 @@ const voicePanel: WebUiPanel = {
     btnInstall.addEventListener('click', call('install'));
     modeSel.addEventListener('change', () => void call('setMic', [{ mode: modeSel.value }])());
     deviceSel.addEventListener('change', () => void call('setMic', [{ deviceId: deviceSel.value }])());
+    const dbAt = (x: number) => {
+      const r = meter.getBoundingClientRect();
+      return markDb(FLOOR_DB + ((x - r.left) / r.width) * -FLOOR_DB);
+    };
+    mark.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      mark.focus();
+      mark.setPointerCapture(e.pointerId);
+      held = dbAt(e.clientX);
+      placeMark(held);
+    });
+    mark.addEventListener('pointermove', (e) => {
+      if (held === null) return;
+      held = dbAt(e.clientX);
+      placeMark(held);
+    });
+    mark.addEventListener('pointerup', () => {
+      if (held === null) return;
+      const db = held;
+      held = null;
+      void call('setThreshold', [db])();
+    });
+    mark.addEventListener('pointercancel', () => {
+      held = null;
+      if (st) placeMark(st.thresholdDb);
+    });
+    mark.addEventListener('keydown', (e) => {
+      const step = ARROW_STEPS[e.key];
+      if (!step || held !== null) return;
+      e.preventDefault();
+      const db = markDb(Number(mark.getAttribute('aria-valuenow')) + step);
+      placeMark(db);
+      void call('setThreshold', [db])();
+    });
     pressSel.addEventListener('change', () => {
       if (st) void call('setMic', [{ hotkey: withTaps(splitTaps(st.input.hotkey).combo, Number(pressSel.value)) }])();
     });

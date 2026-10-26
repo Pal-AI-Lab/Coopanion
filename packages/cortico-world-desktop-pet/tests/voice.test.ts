@@ -81,6 +81,14 @@ const tone = (ms: number, amp: number) => {
   return frames;
 };
 
+/** Writes a config patch into the live section, as Core does with a World's persist. */
+const merge = (to: Record<string, unknown>, patch: Record<string, unknown>) => {
+  for (const [k, v] of Object.entries(patch)) {
+    if (v && typeof v === 'object' && !Array.isArray(v)) merge(to[k] as Record<string, unknown>, v as Record<string, unknown>);
+    else to[k] = v;
+  }
+};
+
 const platform = process.platform;
 let cleanup: Array<() => Promise<void>> = [];
 afterEach(async () => {
@@ -113,7 +121,7 @@ async function setup(text: string | ((samples: number) => string), mode: MicMode
   const dir = mkdtempSync(join(tmpdir(), 'pet-voice-'));
   placeModel(join(dir, 'm'));
   const world = new DesktopPetWorld({
-    cfg, timezone: 'Asia/Shanghai', persist: () => {}, runtimesRoot: () => join(dir, 'rt'), modelsDir: () => join(dir, 'm'),
+    cfg, timezone: 'Asia/Shanghai', persist: (patch) => merge(cfg as never, patch as never), runtimesRoot: () => join(dir, 'rt'), modelsDir: () => join(dir, 'm'),
     watchHotkey: watch, loadSherpa: () => asr.sherpa, funasrModel: modelSpec(), whisperModel: placeWhisper(join(dir, 'm')), language: () => language,
   });
   const host = new FakeHost();
@@ -190,6 +198,18 @@ describe('voice input', () => {
     // the last decode is the whole utterance: at least the 900 ms spoken
     expect(asr.decodes.at(-1)).toBeGreaterThanOrEqual(900 * 16);
     expect(asr.configs[0]).toMatchObject({ modelConfig: { senseVoice: { language: 'zh' }, numThreads: 2 } });
+  });
+
+  it('a threshold set from the meter applies to the next frame: speech below it is not heard', async () => {
+    const { world, host, page } = await setup('不该听见');
+    const speech = tone(900, .3);
+    const state = await world.webUi().invoke!('voice', 'setThreshold', [rmsDb(speech[0]) + 3]) as { thresholdDb: number };
+    expect(state.thresholdDb).toBe(rmsDb(speech[0]) + 3);
+    const last = tone(20, .05)[0];
+    for (const fr of [...speech, ...tone(900, 0), last]) page.audio(fr);
+    await expect.poll(() => world.voiceState().level).toBe(rmsDb(last));
+    expect((world.voiceState().counts as { utterances: number }).utterances).toBe(0);
+    expect(host.events).toHaveLength(0);
   });
 
   it('drops a known hallucination and tells the page nothing was heard', async () => {

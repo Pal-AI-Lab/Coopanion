@@ -256,6 +256,8 @@ export const BUBBLE_SIZE_MIN = .8, BUBBLE_SIZE_MAX = 1.6;
 export const BUBBLE_SPEED_MIN = .5, BUBBLE_SPEED_MAX = 2;
 /** The halo's reach in pixels: 0 is off; past GLOW_MAX it reads as a gray cloud rather than an outline. */
 export const GLOW_MAX = 16, GLOW_DEFAULT = 7;
+/** The range of `asr.segment.thresholdDb`, in dBFS. */
+export const THRESHOLD_DB_MIN = -80, THRESHOLD_DB_MAX = 0;
 
 export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   enabled: false,
@@ -371,7 +373,7 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
         [`${K}.asr.language`]: { type: 'string', title: c.asrLanguage.title, description: c.asrLanguage.description, 'x-hot': true },
         [`${K}.asr.threads`]: { type: 'integer', title: c.asrThreads.title, minimum: 0, maximum: 16, description: c.asrThreads.description, 'x-hot': true },
         [`${K}.asr.simplified`]: { type: 'boolean', title: c.asrSimplified.title, description: c.asrSimplified.description, 'x-hot': true },
-        [`${K}.asr.segment.thresholdDb`]: { type: 'number', title: c.thresholdDb.title, minimum: -80, maximum: 0, 'x-suffix': 'dBFS', 'x-hot': true },
+        [`${K}.asr.segment.thresholdDb`]: { type: 'number', title: c.thresholdDb.title, minimum: THRESHOLD_DB_MIN, maximum: THRESHOLD_DB_MAX, 'x-suffix': 'dBFS', 'x-hot': true },
         [`${K}.asr.segment.silenceMs`]: { type: 'integer', title: c.silenceMs.title, minimum: 200, maximum: 5000, 'x-suffix': 'ms', 'x-hot': true },
         [`${K}.asr.segment.maxUtteranceMs`]: { type: 'integer', title: c.maxUtteranceMs.title, minimum: 2000, maximum: 60000, 'x-suffix': 'ms', 'x-hot': true },
       },

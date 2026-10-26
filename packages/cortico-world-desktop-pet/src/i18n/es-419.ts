@@ -350,6 +350,7 @@ const es419: Translation<PetText> = {
     changeKey: 'Cambiar',
     cancelKey: 'Cancelar',
     level: 'Nivel de entrada',
+    thresholdHint: 'Solo el sonido más fuerte que esta línea cuenta como voz; si otra persona habla tan fuerte como tú, también se reconoce',
     noResults: 'Todavía no hay resultados',
   },
 
