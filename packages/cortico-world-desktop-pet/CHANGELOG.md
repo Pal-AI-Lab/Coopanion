@@ -1,5 +1,10 @@
 ## Unreleased
 
+- `kit.createBody(host, { ground: 'free' })` builds a body that stands anywhere on the stage above the floor, seen from above: it walks to any point, is set down where it is let go of, and a throw tosses it across the stage. Such a body reports `y` (the stage y its feet stand on) in `layout()`, in `arrived` and `interrupted`; the World keeps it with the remembered position (`petY`, hands it back as `start.y` and `init.startY`) and names it in `pet_move_to`'s receipt. `place(x, facing, y)` takes an optional `y`. Bodies without `y` behave as before.
+- `kit.createBody` answers the pack's own targets through `opts.moves`: `{ id: (params, bounds) => ({ x, y? }) | null }`.
+- Every body hears `set({ status })`, the kind of work the status bubble shows (or null); the kit hands it to the figure as `frame.status`.
+- figure.json may add `voice` (`{ pitch }`, 0.5–2), sounds of kind `talk` (played letter by letter in place of the synthesized babble), `effects` (`{ reach }`, how far past its box a pack draws, in 256-unit squares, 0–2: the halo's window and the OBS overlay's capture grow by it) and `bubble` (`{ light, dark }` of `{ fill, text, line }`, on the pack or a preset) for the bot's bubbles. Older apps skip all of them; `/api/figures` lists `voice`, `effects` and `bubble`.
+
 - `HOST_ENV` and `HOST_MAIN` are internal to the window host and no longer exported. Embedding apps configure the command with `CORTICO_DESKTOP_PET_HOST`.
 - An app can lend the bot's name as `botName()` in `desktopPetDefinition`'s assembly; it is read at each use, so the menu header, the chat page (a `bot` frame) and computer use's question follow a rename without a World restart. Without it the World keeps the name it was mounted with. `DesktopPetWorldOptions.botName` and `CuaOptions.botName` are functions now.
 - `pet_walk_to` is now `pet_move_to`, with the same `to` and `run` and an optional `params`. A bot that names the old tool has to use the new name.

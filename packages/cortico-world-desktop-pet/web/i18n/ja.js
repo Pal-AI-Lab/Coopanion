@@ -11,6 +11,11 @@ export default {
   'bubble.typePlaceholder': 'メッセージを入力…',
   'bubble.typeLabel': '入力して話す',
   'bubble.expand': 'チャットページで続ける',
+  'bubble.removeImage': '画像を削除',
+  'bubble.tooManyImages': '入力欄に添付できる画像は最大 {max} 枚です',
+  'bubble.imageUnreadable': 'この画像を読み込めません',
+  'bubble.imageTooLarge': 'この画像は縮小後も {mb}MB を超えています',
+  'bubble.imagesUnseen': '現在のモデルは画像を見られません。{bot} には送った枚数だけが伝わります。',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': '聞き取り中…',

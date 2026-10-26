@@ -632,7 +632,7 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     };
     // the sitting skirt breathes a little at its hem, and its front edge swings with the body
     st.skirtSit = { fn: (u, v) => [skirt * 1.5 * v * v, -Math.max(0, breath) * .4 * v] };
-    st.alpha.skirt = st.alpha.waist_bow_front = 1 - sitIn;
+    st.alpha.skirt = st.alpha.waist_bow_front = st.alpha.skirt_shadow = 1 - sitIn;
     st.alpha.leg_back = st.alpha.leg_front = 1 - smooth(.42, .52, sitK);
     st.alpha.skirt_sit = st.alpha.waist_bow_sit_front = sitIn;
     st.armNear = { a: armN };

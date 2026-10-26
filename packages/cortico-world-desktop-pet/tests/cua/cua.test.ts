@@ -113,8 +113,8 @@ describe('computer use without the engine', () => {
   });
 
   describe('permission levels', () => {
-    /** A world whose engine answers every request at once without touching the screen; `asked` collects the questions. */
-    const levelWorld = (permission: CuaConfig['permission'], answers: Array<'yes' | 'no'>) => {
+    /** A world whose engine answers every request at once without touching the screen, `foregroundApp` in front; `asked` collects the questions. */
+    const levelWorld = (permission: CuaConfig['permission'], answers: Array<'yes' | 'no'>, foregroundApp: string | null = null) => {
       const cfg = { ...structuredClone(CUA_DEFAULTS), permission, grantMinutes: 30 };
       cfg.screenshot.afterAction = false;
       const asked: string[] = [];
@@ -124,14 +124,14 @@ describe('computer use without the engine', () => {
       inner.spawn = () => ({
         exitCode: null,
         send({ id, req }: { id: number; req: { op: string } }) {
-          const value = req.op === 'screenshot' ? SHOT : req.op === 'windows' ? [] : { ...ONE_DISPLAY, yielded: false, waitedMs: 0 };
+          const value = req.op === 'screenshot' ? SHOT : req.op === 'windows' ? [] : { ...ONE_DISPLAY, foregroundApp, yielded: false, waitedMs: 0 };
           const p = inner.pending.get(id)!;
           inner.pending.delete(id);
           clearTimeout(p.timer);
           p.done(value);
         },
       });
-      return { w, asked };
+      return { w, cfg, asked };
     };
     const see = (w: Cua) => call(w, 'pet_cua_screenshot', {});
     const act = (w: Cua) => call(w, 'pet_cua_click', { x: 1, y: 1 });
@@ -186,6 +186,25 @@ describe('computer use without the engine', () => {
       const { w, asked } = levelWorld('never-ask', []);
       expect([(await see(w)).failed, (await act(w)).failed]).toEqual([undefined, undefined]);
       expect(asked).toEqual([]);
+    });
+
+    it('typing in a terminal is asked about on its own even under never-ask, unless skipTerminalAsk is on', async () => {
+      const type = (w: Cua) => call(w, 'pet_cua_type', { text: 'dir' });
+      const strict = levelWorld('never-ask', ['no'], 'pwsh');
+      expect((await type(strict.w)).text).toContain('命令行窗口');
+      expect(strict.asked).toHaveLength(1);
+      const skipping = levelWorld('never-ask', [], 'pwsh');
+      skipping.cfg.skipTerminalAsk = true;
+      expect((await type(skipping.w)).failed).toBeUndefined();
+      expect(skipping.asked).toEqual([]);
+    });
+
+    it('with skipTerminalAsk on, typing in a terminal gets only the question of the permission level', async () => {
+      const { w, cfg, asked } = levelWorld('ask-before-acting', ['yes'], 'pwsh');
+      cfg.skipTerminalAsk = true;
+      expect((await call(w, 'pet_cua_type', { text: 'dir' })).failed).toBeUndefined();
+      expect(asked).toHaveLength(1);
+      expect(asked[0]).not.toContain('dir');
     });
   });
 

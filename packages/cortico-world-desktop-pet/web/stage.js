@@ -90,6 +90,20 @@ export function accentColors(pack, skin) {
   return one ? { light: one, dark: one } : null;
 }
 
+/**
+ * The style that colours the bot's bubbles for the body on the stage: its preset's `bubble` colours, else its pack's
+ * (src/packs.ts); '' for a pack that names none. The person's own lines (`.heard`) keep the page's colours.
+ */
+export function bubbleCss(pack, skin) {
+  if (!pack) return '';
+  const preset = (pack.presets ?? []).find((p) => p.id === (skin?.scheme || pack.presets?.[0]?.id));
+  const b = preset?.bubble ?? pack.bubble;
+  if (!b?.light || !b?.dark) return '';
+  const vars = (c) => `--surface:${c.fill};--text:${c.text};--skin-ink:${c.line}`;
+  const sel = 'html:root .bubble:not(.heard)';
+  return `${sel}{${vars(b.light)}}@media (prefers-color-scheme: dark){html:root:not([data-theme="light"]) .bubble:not(.heard){${vars(b.dark)}}}html:root[data-theme="dark"] .bubble:not(.heard){${vars(b.dark)}}`;
+}
+
 /** Colors the light on `wall` (glowColor's answer). */
 export function setGlow(wall, color) {
   if (color) wall.style.setProperty('--glow', color);

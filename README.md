@@ -131,7 +131,8 @@ Each default is the fast, cheap, vision-capable tier of that vendor; change the 
 ### Talking and playing
 
 - **Voice**: tap Left Alt, then hold it and speak; releasing ends the sentence. The talk key, microphone and listening mode (hold to talk / press to toggle / always listen) are on the Voice input page. Instead of recognizing speech locally, you can pick an OpenAI-compatible transcription service there; the recording of each sentence then goes to that service.
-- **Typing**: rest the pointer on Coo and click the bubble button beside it. With **Typing key** on in Habits, pressing that key in any window opens the typing box too (left Ctrl pressed twice by default).
+- **Typing**: rest the pointer on Coo and click the bubble button beside it. With **Typing key** on in Habits, pressing that key in any window opens the typing box too (left Ctrl pressed twice by default). You can paste up to 4 images into the typing box.
+- **Bubbles**: Coo's bubble stays up while the pointer is on it; the countdown resumes when the pointer leaves.
 - **Alarms**: ask Coo for one at a local time or after a number of minutes. Daily alarms keep the local clock time across daylight-saving changes, and alarms missed while the app is closed arrive when it next starts.
 - **Touch**: click to poke Coo, move back and forth over its head to pat it, press and drag to pick it up; let go mid-swing to throw it, or over another display to move it there.
 - **Menu**: right-click Coo for pause / resume, settings, typing, voice input, dress up, hide and quit.
@@ -143,7 +144,7 @@ Coopanion keeps running in the background: closing the settings window does not 
 Off by default. Tick **Let Coo use this computer** in the Computer use section of the Habits page, read the risks it shows and click **Turn on**; untick it to keep Coo off your computer again.
 
 - **When to ask you**, from strictest to loosest: `ask-each-turn`, `ask-before-acting`, `ask-once` (the default: Coo looks at the screen without asking and asks once before using the mouse and keyboard; a yes lasts 30 minutes) and `never-ask`.
-- At every level, Coo asks once more before typing or pressing keys in a terminal window or pressing Win+R; after a yes it does not ask about these again for the same 30 minutes.
+- At every level, Coo asks once more before typing or pressing keys in a terminal window or pressing Win+R; after a yes it does not ask about these again for the same 30 minutes. Turning on **Turn off asking before terminals and the Run box** in the desktop pet World's config in advanced mode makes these steps follow the asking level like any other input.
 - Coo uses the computer only for what you say, type or pick in the desktop pet. When a message from elsewhere asks for it, Coo tells you in a bubble and waits for your yes.
 - When you touch the mouse or keyboard, Coo stops and waits for you. Logins, passwords and payments are left to you.
 - One wake makes at most 40 model requests; at the limit the turn ends and you can tell Coo to continue.

@@ -20,8 +20,10 @@ export interface CuaConfig {
   control: boolean;
   /** See PERMISSION_LEVELS. */
   permission: PermissionLevel;
-  /** ask-once: how long a yes holds. */
+  /** ask-once and the terminal question: how long a yes holds. */
   grantMinutes: number;
+  /** On: typing and keys in a terminal window and Win+R are asked about only as `permission` says, like any other input. */
+  skipTerminalAsk: boolean;
   screenshot: {
     maxWidth: number;
     maxHeight: number;
@@ -45,6 +47,7 @@ export const CUA_DEFAULTS: CuaConfig = {
   control: true,
   permission: 'ask-once',
   grantMinutes: 30,
+  skipTerminalAsk: false,
   screenshot: { maxWidth: 1280, maxHeight: 800, quality: 75, afterAction: true, settleMs: 500 },
   userIdleMs: 2000,
   maxYieldWaitMs: 15_000,
@@ -67,6 +70,7 @@ export function cuaConfigGroup(language: Language = 'zh'): ConfigGroup {
         [`${K}.control`]: { type: 'boolean', title: c.control.title, description: c.control.description, 'x-hot': true },
         [`${K}.permission`]: { type: 'string', title: c.permission.title, enum: [...PERMISSION_LEVELS], 'x-hot': true, description: c.permission.description },
         [`${K}.grantMinutes`]: { type: 'integer', title: c.grantMinutes.title, minimum: 1, maximum: 1440, 'x-suffix': c.grantMinutes.suffix, description: c.grantMinutes.description, 'x-hot': true },
+        [`${K}.skipTerminalAsk`]: { type: 'boolean', title: c.skipTerminalAsk.title, description: c.skipTerminalAsk.description, 'x-hot': true },
         [`${K}.userIdleMs`]: { type: 'integer', title: c.userIdleMs.title, minimum: 0, maximum: 30000, 'x-suffix': 'ms', description: c.userIdleMs.description, 'x-hot': true },
         [`${K}.maxYieldWaitMs`]: { type: 'integer', title: c.maxYieldWaitMs.title, minimum: 0, maximum: 120000, 'x-suffix': 'ms', 'x-hot': true },
         [`${K}.screenshot.maxWidth`]: { type: 'integer', title: c.maxWidth.title, minimum: 320, maximum: 3840, 'x-suffix': 'px', 'x-hot': true },

@@ -114,6 +114,7 @@ const zh = {
     'never-ask': '看屏幕和动鼠标键盘都不用先问使用者,工具直接执行。',
   })[level],
   terminal: (grantMinutes: number) => `在命令行窗口里打字或按键,以及按 win+r 打开运行框之前,不管上面的询问设置,都会单独问使用者一次,同意后 ${grantMinutes} 分钟内不再问;使用者没同意,这一轮这些步骤都不执行。`,
+  terminalSkipped: '在命令行窗口里打字或按键、按 win+r 打开运行框,和别的输入一样按上面的询问设置,没有单独的询问。',
 };
 
 const en: typeof zh = {
@@ -214,6 +215,7 @@ const en: typeof zh = {
     'never-ask': 'Looking at the screen and using the mouse and keyboard need no asking; the tools run directly.',
   })[level],
   terminal: (grantMinutes) => `Before typing or pressing keys in a terminal window, and before win+r opens the Run box, the person is asked once more whatever the setting above, and after a yes not again for ${grantMinutes} minutes; if they do not agree, none of these steps run this turn.`,
+  terminalSkipped: 'Typing or pressing keys in a terminal window, and win+r opening the Run box, follow the setting above like any other input, with no separate question.',
 };
 
 export type ModelText = typeof zh;

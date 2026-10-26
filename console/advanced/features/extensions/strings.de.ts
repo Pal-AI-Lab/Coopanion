@@ -5,7 +5,7 @@ export const S: Partial<typeof en> = {
   navGroup: 'Core',
   introTitle: 'Erweiterungen',
   scope: 'Erweiterungen werden im gemeinsamen Erweiterungsverzeichnis installiert; Installieren und Löschen gelten nach dem Neustart des Prozesses. Das Löschen einer Erweiterung entfernt das gemeinsame Paket.',
-  tabs: { world: 'World-Erweiterungen', provider: 'Anbieter-Erweiterungen', bot: 'Bot-Vorlagen' },
+  tabs: { world: 'World-Erweiterungen', provider: 'Anbieter-Erweiterungen' },
 
   installedTitle: 'Installiert',
   market: 'Erweiterungsmarkt',
@@ -20,14 +20,12 @@ export const S: Partial<typeof en> = {
   enabled: 'In diesen Bot geladen',
   disabled: 'Installiert, nicht geladen',
   worldNotLoaded: 'Installiert; in der World-Übersicht laden',
-  adopted: 'Von diesem Bot verwendet',
   template: 'Installiert; bereit zum Erstellen von Instanzen',
   hidden: 'Vor dem Agenten verborgen',
   runtimeVersion: (version: string) => `Der Prozess nutzt noch ${version}`,
 
   providerManagement: 'Anbieter-Erweiterungen dienen den Bots, die diese gemeinsame Umgebung nutzen.',
   idleManagement: 'Lade oder deaktiviere Worlds auf der Seite World-Übersicht links. Integrierte Erweiterungen können nicht gelöscht werden.',
-  createBody: 'Öffne auf dem Host eine Befehlszeile im Cortico-Projekt, führe pnpm start --new aus und wähle dann diese Bot-Vorlage, um eine neue Instanz zu erstellen.',
 
   restartConfirmTitle: 'Prozess neu starten?',
   restartNoLoopTitle: 'Manueller Start erforderlich',

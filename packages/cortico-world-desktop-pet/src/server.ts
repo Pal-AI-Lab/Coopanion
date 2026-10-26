@@ -309,6 +309,7 @@ export class PetServer {
         return {
           id, base, name: m.name, thumb: m.thumb ?? null, entry: m.entry, export: m.export, model: m.model ?? null, axes: m.axes, presets: m.presets,
           vocab: m.vocab.map(({ id: w, kind, seconds, lasting }) => ({ id: w, kind, seconds, ...(lasting ? { lasting } : {}) })), sounds: m.sounds, can: m.can, needs: m.needs,
+          voice: m.voice, effects: m.effects, bubble: m.bubble ?? null,
           removable: importer?.removable(pack) ?? false,
         };
       }));

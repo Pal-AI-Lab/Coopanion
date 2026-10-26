@@ -138,6 +138,24 @@
    ]
   },
   {
+   "id": "skirt_shadow",
+   "tex": "skirt_shadow",
+   "src": "tex/skirt_shadow.png",
+   "z": 4.2,
+   "parent": "skirt",
+   "grid": [
+    8,
+    6
+   ],
+   "box": [
+    79.55,
+    168.41,
+    98.04,
+    69.42
+   ],
+   "blend": "multiply"
+  },
+  {
    "id": "leg_front",
    "tex": "leg_front",
    "z": 3,
@@ -1375,6 +1393,24 @@
       37.05,
       79.99
      ]
+    },
+    {
+     "id": "skirt_shadow",
+     "tex": "crew_skirt_shadow",
+     "src": "outfits/crew/skirt_shadow.png",
+     "z": 4.2,
+     "parent": "skirt",
+     "grid": [
+      8,
+      6
+     ],
+     "box": [
+      82.21,
+      179.24,
+      96.71,
+      55.73
+     ],
+     "blend": "multiply"
     },
     {
      "id": "arm_far",

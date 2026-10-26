@@ -5,7 +5,7 @@ export const S: Partial<typeof en> = {
   navGroup: 'Core',
   introTitle: '拡張機能',
   scope: '拡張機能は共有の拡張機能ディレクトリにインストールされ、インストールと削除はプロセスの再起動後に反映されます。拡張機能を削除すると共有パッケージが削除されます。',
-  tabs: { world: 'World 拡張機能', provider: 'プロバイダー拡張機能', bot: 'ボットテンプレート' },
+  tabs: { world: 'World 拡張機能', provider: 'プロバイダー拡張機能' },
 
   installedTitle: 'インストール済み',
   market: '拡張機能マーケット',
@@ -20,14 +20,12 @@ export const S: Partial<typeof en> = {
   enabled: 'このボットに読み込み済み',
   disabled: 'インストール済み、未読み込み',
   worldNotLoaded: 'インストール済み。World 一覧で読み込んでください',
-  adopted: 'このボットで使用中',
   template: 'インストール済み、インスタンスを作成可能',
   hidden: 'エージェントから非表示',
   runtimeVersion: (version: string) => `プロセスはまだ ${version} を使用中`,
 
   providerManagement: 'プロバイダー拡張機能は、この共有環境を使うボットに提供されます。',
   idleManagement: 'World の読み込みと停止は左側の World 一覧ページで行います。組み込みの拡張機能は削除できません。',
-  createBody: 'Cortico を実行しているコンピューターでプロジェクトでコマンドラインを開き、pnpm start --new を実行して、このボットテンプレートを選んで新しいインスタンスを作成してください。',
 
   restartConfirmTitle: 'プロセスを再起動しますか？',
   restartNoLoopTitle: '手動での起動が必要です',

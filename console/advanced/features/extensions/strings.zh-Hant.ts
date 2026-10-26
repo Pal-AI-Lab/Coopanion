@@ -5,7 +5,7 @@ export const S: Partial<typeof en> = {
   navGroup: 'Core',
   introTitle: '擴充功能',
   scope: '擴充功能安裝在共用的擴充功能目錄中，安裝與刪除在處理程序重新啟動後生效。刪除擴充功能會移除共用安裝套件。',
-  tabs: { world: 'World 擴充功能', provider: '供應商擴充功能', bot: 'Bot 範本' },
+  tabs: { world: 'World 擴充功能', provider: '供應商擴充功能' },
 
   installedTitle: '已安裝',
   market: '擴充功能市集',
@@ -20,14 +20,12 @@ export const S: Partial<typeof en> = {
   enabled: '已載入到本 Bot',
   disabled: '已安裝，未載入',
   worldNotLoaded: '已安裝，前往 World 總覽載入',
-  adopted: '目前 Bot 正在採用',
   template: '已安裝，可建立實例',
   hidden: '對 Agent 隱藏',
   runtimeVersion: (version: string) => `目前處理程序仍為 ${version}`,
 
   providerManagement: '供應商擴充功能供共用環境中的 Bot 使用。',
   idleManagement: '在左側的 World 總覽頁面載入或停用 World；內建擴充功能不能刪除。',
-  createBody: '在執行 Cortico 的電腦上於專案目錄開啟命令列，執行 pnpm start --new，選擇此 Bot 範本並建立新實例。',
 
   restartConfirmTitle: '重新啟動處理程序？',
   restartNoLoopTitle: '需要手動啟動',

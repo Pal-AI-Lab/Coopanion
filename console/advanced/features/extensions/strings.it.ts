@@ -5,7 +5,7 @@ export const S: Partial<typeof en> = {
   navGroup: 'Core',
   introTitle: 'Estensioni',
   scope: "Le estensioni sono installate nella directory condivisa delle estensioni; installazione ed eliminazione hanno effetto dopo il riavvio del processo. Eliminare un'estensione rimuove il pacchetto condiviso.",
-  tabs: { world: 'Estensioni World', provider: 'Estensioni provider', bot: 'Template di bot' },
+  tabs: { world: 'Estensioni World', provider: 'Estensioni provider' },
 
   installedTitle: 'Installate',
   market: 'Catalogo estensioni',
@@ -20,14 +20,12 @@ export const S: Partial<typeof en> = {
   enabled: 'Caricata in questo bot',
   disabled: 'Installata, non caricata',
   worldNotLoaded: 'Installata; caricala dalla Panoramica dei World',
-  adopted: 'Usata da questo bot',
   template: 'Installata; pronta per creare istanze',
   hidden: "Nascosta all'agente",
   runtimeVersion: (version: string) => `Il processo usa ancora ${version}`,
 
   providerManagement: 'Le estensioni provider servono i bot che usano questo ambiente condiviso.',
   idleManagement: 'Carica o disattiva i World nella pagina Panoramica dei World, a sinistra. Le estensioni integrate non possono essere eliminate.',
-  createBody: 'Apri una riga di comando nel progetto Cortico sul suo host, esegui pnpm start --new, poi seleziona questo template di bot per creare una nuova istanza.',
 
   restartConfirmTitle: 'Riavviare il processo?',
   restartNoLoopTitle: 'Avvio manuale necessario',

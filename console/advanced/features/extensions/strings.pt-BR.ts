@@ -5,7 +5,7 @@ export const S: Partial<typeof en> = {
   navGroup: 'Core',
   introTitle: 'Extensões',
   scope: 'As extensões são instaladas no diretório compartilhado de extensões; instalar e excluir têm efeito após reiniciar o processo. Excluir uma extensão remove o pacote compartilhado.',
-  tabs: { world: 'Extensões de World', provider: 'Extensões de provedor', bot: 'Modelos de Bot' },
+  tabs: { world: 'Extensões de World', provider: 'Extensões de provedor' },
 
   installedTitle: 'Instaladas',
   market: 'Mercado de extensões',
@@ -20,14 +20,12 @@ export const S: Partial<typeof en> = {
   enabled: 'Carregada neste Bot',
   disabled: 'Instalada, não carregada',
   worldNotLoaded: 'Instalada; carregue-a na Visão geral dos Worlds',
-  adopted: 'Em uso por este Bot',
   template: 'Instalada; pronta para criar instâncias',
   hidden: 'Oculta para o agente',
   runtimeVersion: (version: string) => `O processo ainda usa ${version}`,
 
   providerManagement: 'As extensões de provedor atendem aos Bots que usam este ambiente compartilhado.',
   idleManagement: 'Carregue ou desative Worlds na página Visão geral dos Worlds, à esquerda. Extensões integradas não podem ser excluídas.',
-  createBody: 'Abra uma linha de comando no projeto Cortico no host dele, execute pnpm start --new e selecione este modelo de Bot para criar uma nova instância.',
 
   restartConfirmTitle: 'Reiniciar o processo?',
   restartNoLoopTitle: 'Inicialização manual necessária',

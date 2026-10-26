@@ -5,8 +5,9 @@
  * with its own accounts, keys and base URL. Base URLs, protocols, starting models, key pages, image
  * input, context windows and thinking levels are from each service's own documentation (Chinese
  * services' mainland platforms read 2026-09-24, everything else 2026-10-08, starting models and GLM's
- * and OpenRouter's thinking levels checked again 2026-10-09, StepFun's Step Plan read 2026-10-20);
- * only DeepSeek, Anthropic and StepFun's Step Plan have been tried with a key.
+ * and OpenRouter's thinking levels checked again 2026-10-09, StepFun's Step Plan read 2026-10-20,
+ * Qwen's deepseek-v4.1-flash read 2026-10-26); only DeepSeek, Anthropic and StepFun's Step Plan
+ * have been tried with a key.
  *
  * This file imports nothing, so the browser console and the app's first-run seed can use it.
  */
@@ -62,7 +63,7 @@ export interface Vendor {
   model: string;
   /** Other model names offered next to `model` where one is typed; any name the service takes works. */
   models?: readonly string[];
-  /** Models that read images. */
+  /** Models that read images: creating an endpoint, or typing its model in the normal mode, marks it multimodal exactly when the model is listed here. */
   vision?: readonly string[];
   /** Context windows the service states, where its model list does not report them. */
   contextWindows?: Readonly<Record<string, number>>;
@@ -130,7 +131,7 @@ export const VENDORS: readonly Vendor[] = [
       intl: { baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1', protocol: 'responses', keyUrl: 'https://modelstudio.console.alibabacloud.com/ap-southeast-1/model/settings/api-key' },
     },
     model: 'qwen3.8-flash', models: ['qwen3.7-flash', 'qwen3.8-max'],
-    vision: ['qwen3.8-flash', 'qwen3.7-flash', 'qwen3.8-max'], contextWindows: { 'qwen3.8-flash': 1_000_000 },
+    vision: ['qwen3.8-flash', 'qwen3.7-flash', 'qwen3.8-max', 'deepseek-v4.1-flash', 'deepseek-v4.1-flash-1017'], contextWindows: { 'qwen3.8-flash': 1_000_000 },
     effort: { high: 'medium', max: 'xhigh' },
     lenientReasoning: true,
     toolOutputText: true,

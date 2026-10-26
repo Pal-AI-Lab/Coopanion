@@ -180,8 +180,10 @@ describe('extension categories', () => {
     tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     expect(document.activeElement).toBe(tabs[1]);
     expect(tabs[0].getAttribute('aria-selected')).toBe('true');
-    tabs[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
-    expect(document.activeElement).toBe(tabs[2]);
+    tabs[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(document.activeElement).toBe(tabs[0]);
+    tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    expect(document.activeElement).toBe(tabs[1]);
   });
   it('caps installed cards at two rows and market at four rows at every column count', async () => {
     const many = { ...LIST, extensions: Array.from({ length: 15 }, (_, i) => ({ ...LIST.extensions[0], name: `item-${String(i).padStart(2, '0')}`, label: `Item ${i}` })) };
@@ -210,15 +212,16 @@ describe('extension categories', () => {
     expect(installedCards(root).textContent).toContain('甲扩展');
     expect(root.textContent).toContain('offline');
   });
-  it('keeps Bot templates free of load/unload actions and shows creation instructions', async () => {
-    stub({ list: { ...LIST, extensions: [{ ...LIST.extensions[0], name: 'sample-template', kind: 'bot', enabled: true }] } });
+  it('has no Bot tab: a Bot route opens the World tab and installed Bot packages are not listed', async () => {
+    stub({ list: { ...LIST, extensions: [...LIST.extensions, { ...LIST.extensions[0], name: 'sample-template', label: 'Bot 模板包', kind: 'bot', enabled: true }] } });
+    window.history.replaceState(null, '', '#/extensions/bot');
     const { ctx, root } = mount();
     await flush();
-    await switchTo(ctx, 'bot');
-    expect(installedCards(root).textContent).toContain('当前 Bot 正在采用');
-    expect(erase(installedCards(root)).disabled).toBe(true);
-    installedCards(root).firstElementChild.click();
-    expect(document.body.textContent).toContain('pnpm start --new');
+    expect([...root.querySelectorAll('[role=tab]')].map(tab => tab.id)).toEqual(['extension-tab-world', 'extension-tab-provider']);
+    expect(window.location.hash).toBe('#/extensions/world');
+    expect(installedCards(root).textContent).not.toContain('Bot 模板包');
+    await switchTo(ctx, 'provider');
+    expect(installedCards(root).textContent).not.toContain('Bot 模板包');
   });
   it('disables incompatible updates and states the reason on the card', async () => {
     stub({ updates: { updates: [{ name: 'alpha-mod', installedVersion: '1.0.0', latestVersion: '2.0.0', problems: ['扩展要求契约 v9'] }], errors: [] } });

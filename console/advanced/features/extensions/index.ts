@@ -398,8 +398,10 @@ export const tagIssueUrl = (name: string): string =>
 /** 已装包图标的地址;版本号放进查询串,换版本后浏览器重新取。 */
 export const iconUrl = (name: string, version: string | null | undefined): string =>
   '/api/extensions/icon?name=' + encodeURIComponent(name) + (version ? '&v=' + encodeURIComponent(version) : '');
-const categories: ExtensionKindView[] = ['world', 'provider', 'bot'];
-const TAB_ICONS = { world: 'boxes', provider: 'cpu', bot: 'bot' } as const;
+/** 页签。Coopanion 的 Persona 固定是 Coo,用不上 Bot 扩展，这一页只列 World 与供应商。 */
+type Category = Exclude<ExtensionKindView, 'bot'>;
+const categories: Category[] = ['world', 'provider'];
+const TAB_ICONS = { world: 'boxes', provider: 'cpu' } as const;
 const LINK_ICONS = { npm: 'package', repository: 'code', homepage: 'home', bugs: 'alert' } as const;
 const stateLabels = { loaded: S.disabled, failed: S.stateFailed, 'pending-restart': S.statePendingRestart, removed: S.stateRemoved, idle: S.template };
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
@@ -414,13 +416,13 @@ export function mountExtensions(ctx: FeatureContext): void {
     installedFilter: '', installedSize: 0, marketSize: 0,
     filter: '', sort: 'certified', hide: false, page: 0, installedPage: 0, scroll: 0, tags: [], hideWarnings: false, officialOnly: false, certifiedOnly: false, newOnly: false, advanced: false, author: '', keyword: '', license: '', sinceDays: 0, minDownloads: 0, hits: [], fetched: false, generation: 0,
     messages: {}, source: 'npm', input: '',
-  } satisfies CategoryState])) as unknown as Record<ExtensionKindView, CategoryState>;
+  } satisfies CategoryState])) as unknown as Record<Category, CategoryState>;
   try {
     const saved = JSON.parse(win.sessionStorage.getItem(storageKey) ?? '{}');
     for (const kind of categories) if (saved[kind]) Object.assign(states[kind], saved[kind], { hits: [], fetched: false, generation: 0, messages: {} });
     for (const kind of categories) if (!HIT_SORTS.includes(states[kind].sort)) states[kind].sort = 'certified';
   } catch { /* Storage can be disabled by the browser. */ }
-  let kind: ExtensionKindView = categories.includes(router.route.segments[1] as ExtensionKindView) ? router.route.segments[1] as ExtensionKindView : 'world';
+  let kind: Category = categories.includes(router.route.segments[1] as Category) ? router.route.segments[1] as Category : 'world';
   let columns = extensionColumns(root.clientWidth);
   let installed: ExtensionView[] = [];
   let updates = new Map<string, UpdateView>();
@@ -466,7 +468,8 @@ export function mountExtensions(ctx: FeatureContext): void {
     button.append(icon(doc, TAB_ICONS[value]), text);
     button.id = 'extension-tab-' + value; button.setAttribute('role', 'tab'); button.setAttribute('aria-controls', panel.id);
     button.addEventListener('keydown', event => {
-      const target = event.key === 'ArrowRight' ? (index + 1) % 3 : event.key === 'ArrowLeft' ? (index + 2) % 3 : event.key === 'Home' ? 0 : event.key === 'End' ? 2 : -1;
+      const count = categories.length;
+      const target = event.key === 'ArrowRight' ? (index + 1) % count : event.key === 'ArrowLeft' ? (index + count - 1) % count : event.key === 'Home' ? 0 : event.key === 'End' ? count - 1 : -1;
       if (target >= 0) { event.preventDefault(); tabButtons.forEach((b, i) => b.tabIndex = i === target ? 0 : -1); tabButtons[target].focus(); }
     }, { signal }); tabs.append(button); return button;
   });
@@ -485,7 +488,7 @@ export function mountExtensions(ctx: FeatureContext): void {
   };
   root.addEventListener('scroll', save, { signal, passive: true }); lifecycle.add(save);
   for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) root.addEventListener(event, () => { restoringScroll = false; }, { signal, passive: true });
-  function message(owner: ExtensionKindView, area: string, text: string, bad = false) {
+  function message(owner: Category, area: string, text: string, bad = false) {
     states[owner].messages[area] = { text, bad };
     if (owner === kind && messageNodes[area]) { messageNodes[area].textContent = text; messageNodes[area].className = 'msgline' + (bad ? ' bad' : ''); }
   }
@@ -684,17 +687,14 @@ export function mountExtensions(ctx: FeatureContext): void {
     }, { signal });
     more.addEventListener('keydown', event => event.stopPropagation(), { signal });
   }
-  /** 能力摘要:World 是工具与事件数,供应商是协议、登录与输入,Bot 是 World 数与 Memory。 */
-  function summaryLine(owner: ExtensionKindView, summary?: SummaryView) {
+  /** 能力摘要:World 是工具与事件数,供应商是协议、登录与输入。 */
+  function summaryLine(owner: Category, summary?: SummaryView) {
     const line = ui.h('div', 'extension-card-spec');
     if (!summary) return line;
     const part = (name: Parameters<typeof icon>[1] | null, text: string) => { const el = ui.h('span', ''); if (name) el.append(icon(doc, name)); el.append(ui.h('span', '', text)); line.append(el); };
     if (owner === 'provider') {
       const text = [summary.protocols?.join(S.listSeparator), summary.auth?.map(a => S.authNames[a]).join(S.listSeparator), summary.input?.map(i => S.inputNames[i]).join(S.listSeparator), summary.local ? S.runsLocal : ''].filter(Boolean).join(S.metaSeparator);
       if (text) part('cpu', text);
-    } else if (owner === 'bot') {
-      if (summary.worlds !== undefined) part('boxes', S.worldCount(summary.worlds));
-      if (summary.memory) part(null, S.labelled(S.memory, summary.memory));
     } else {
       if (summary.tools) part('wrench', S.toolCount(summary.tools));
       if (summary.events) part('zap', S.eventCount(summary.events));
@@ -730,13 +730,6 @@ export function mountExtensions(ctx: FeatureContext): void {
         { k: S.inputLabel, v: p.input.map(i => S.inputNames[i]).join(S.listSeparator) || '—' },
       ]));
       return { title: S.sectionProvider, el: section };
-    } else if (describe.bot) {
-      const b = describe.bot;
-      const worlds = ui.h('div', 'extension-tag-row'); for (const id of b.worlds) worlds.append(ui.h('span', 'extension-tag', id));
-      section.append(heading(S.botWorlds, b.worlds.length), worlds);
-      if (b.memory) section.append(heading(S.memory), ui.h('p', 'extension-describe-text', `${b.memory.name}${S.metaSeparator}${b.memory.form}`));
-      if (describe.tools?.length) section.append(heading(S.personaTools, describe.tools.length), toolList(describe.tools));
-      return { title: S.sectionBot, el: section };
     } else {
       if (!describe.tools?.length && !describe.events?.length) return null;
       if (describe.tools?.length) section.append(heading(S.toolsHeading, describe.tools.length), toolList(describe.tools));
@@ -762,7 +755,7 @@ export function mountExtensions(ctx: FeatureContext): void {
       head.append(ui.h('h5', '', prompt.title), ui.h('code', '', prompt.key), copyIcon(prompt.content));
       section.append(head, ui.h('pre', 'extension-prompt-body', prompt.content));
     }
-    return { title: describe.bot ? S.promptsTabBot : S.promptsTabWorld, el: section };
+    return { title: S.promptsTabWorld, el: section };
   }
   /** 统计项。给了 `title` 才有悬停,`detail` 是悬停里的完整读数。 */
   function stat(kind: string, parts: Array<SVGSVGElement | string>, title?: string, detail?: string) {
@@ -1011,10 +1004,10 @@ export function mountExtensions(ctx: FeatureContext): void {
     const heading = ui.h('div', 'extension-card-heading');
     heading.append(packageAvatar(item.icon ? iconUrl(item.name, item.installedVersion ?? item.version) : undefined));
     const title = ui.h('span', 'extension-card-title', item.metadata?.displayName ?? item.label ?? item.name); title.title = item.label ?? item.name;
-    heading.append(title); if (item.enabled) heading.append(ui.pill(item.kind === 'provider' ? S.alreadyInstalled : item.kind === 'bot' ? S.adopted : S.stateLoaded, 'on'));
+    heading.append(title); if (item.enabled) heading.append(ui.pill(item.kind === 'provider' ? S.alreadyInstalled : S.stateLoaded, 'on'));
     card.append(heading);
-    const idle = item.state === 'loaded' && item.kind !== 'bot' ? S.worldNotLoaded : stateLabels[item.state];
-    const text = item.state === 'removed' || item.state === 'pending-restart' || item.state === 'failed' ? stateLabels[item.state] : item.kind === 'provider' ? S.alreadyInstalled : item.enabled ? (item.kind === 'bot' ? S.adopted : S.enabled) : idle;
+    const idle = item.state === 'loaded' ? S.worldNotLoaded : stateLabels[item.state];
+    const text = item.state === 'removed' || item.state === 'pending-restart' || item.state === 'failed' ? stateLabels[item.state] : item.kind === 'provider' ? S.alreadyInstalled : item.enabled ? S.enabled : idle;
     const failed = item.state === 'failed';
     const symbol = failed ? '!' : item.state === 'pending-restart' ? '◷' : item.enabled ? '●' : '○';
     const author = item.author ?? S.unknownAuthor;
@@ -1181,7 +1174,7 @@ export function mountExtensions(ctx: FeatureContext): void {
     try { const data = await get<UpdateResultView>('/api/extensions/updates', { signal }); if (signal.aborted) return; updates = new Map(data.updates.map(u => [u.name, u])); renderInstalled(); if (data.errors.length) message(kind, 'management', S.updateCheckFailed(data.errors.map(e => `${e.name}: ${e.error}`).join('; ')), true); }
     catch (error) { if (!signal.aborted) message(kind, 'management', S.updateCheckFailed(errorText(error)), true); }
   }
-  async function search(owner: ExtensionKindView) {
+  async function search(owner: Category) {
     const state = states[owner], generation = ++state.generation;
     message(owner, 'market', S.searching);
     try {
@@ -1214,7 +1207,7 @@ export function mountExtensions(ctx: FeatureContext): void {
     void checkUpdates(); void search(owner);
   }
   /** 安装先按当前类别检查声明再装;删除直接卸。两者都改磁盘,重启进程后生效。 */
-  async function operate(action: 'install' | 'delete', target: Target, area: string, owner: ExtensionKindView) {
+  async function operate(action: 'install' | 'delete', target: Target, area: string, owner: Category) {
     const identity = 'name' in target ? target.name : target.path; if (busy.has(identity)) return;
     const actionLabel = action === 'delete' ? S.deletedAction : installed.some(item => item.name === identity) ? S.updatedAction : S.installedAction;
     busy.add(identity); renderInstalled(); message(owner, area, S.progress(actionLabel, identity));
@@ -1228,15 +1221,14 @@ export function mountExtensions(ctx: FeatureContext): void {
         await post('/api/extensions/uninstall', { name: identity }, { signal });
       }
       if (signal.aborted) return;
-      const restartHint = action === 'delete' || resultKind !== 'bot' ? ' ' + S.restartNeeded : '';
       const activateHint = actionLabel === S.installedAction && resultKind === 'world' ? ' ' + S.worldActivateHint : '';
-      message(owner, area, `${S.completed(actionLabel, name)}${version ? ' ' + S.version(version) : ''}${restartHint}${activateHint}`);
+      message(owner, area, `${S.completed(actionLabel, name)}${version ? ' ' + S.version(version) : ''} ${S.restartNeeded}${activateHint}`);
       updates.delete(name);
       if (!await load()) message(owner, area, S.completed(actionLabel, name) + ' ' + S.syncedFailed, true);
     } catch (error) { if (!signal.aborted) message(owner, area, errorText(error), true); }
     finally { busy.delete(identity); if (!signal.aborted) renderInstalled(); }
   }
-  function renderDetail(box: HTMLElement, data: PackageDetailView, owner: ExtensionKindView, hit?: SearchHitView, item?: ExtensionView) {
+  function renderDetail(box: HTMLElement, data: PackageDetailView, owner: Category, hit?: SearchHitView, item?: ExtensionView) {
       const title = box.closest('.modalcard')?.querySelector('.modaltitle');
       if (title) title.textContent = data.displayName ?? item?.metadata?.displayName ?? item?.label ?? data.name;
       const historyOpen = box.querySelector('details')?.open ?? false;
@@ -1364,12 +1356,11 @@ export function mountExtensions(ctx: FeatureContext): void {
         }
         releases.append(data.history.length ? history : ui.h('p', 'muted extension-history-empty', S.noHistory)); cta.append(releases);
       }
-      if (item?.kind === 'bot') info.append(ui.h('p', 'extension-create-help', S.createBody), ui.h('pre', '', 'pnpm start --new'));
       columns.classList.toggle('is-split', indexed); box.closest('.modalcard')?.classList.toggle('extension-detail-card', indexed);
       if (indexed) { const side = ui.h('aside', 'extension-detail-side'); side.append(commentsSection(listed?.name ?? data.name, listed?.rating)); columns.append(side); }
   }
   /** 历史版本走与市场安装相同的 check → install;结果同时写进抽屉。 */
-  async function installRelease(box: HTMLElement, data: PackageDetailView, version: string, owner: ExtensionKindView, hit?: SearchHitView, item?: ExtensionView) {
+  async function installRelease(box: HTMLElement, data: PackageDetailView, version: string, owner: Category, hit?: SearchHitView, item?: ExtensionView) {
     const current = installed.find(entry => entry.name === data.name && entry.state !== 'removed');
     if (busy.has(data.name) || !await ui.confirm({ title: S.versionConfirmTitle, body: S.versionConfirmBody(data.name, current?.installedVersion ?? current?.version ?? null, version), danger: true })) return;
     if (signal.aborted || busy.has(data.name)) return;
@@ -1388,7 +1379,7 @@ export function mountExtensions(ctx: FeatureContext): void {
     show(result);
   }
   /** `toComments`:打开后滚到评论区(从卡片上的评论数点进来)。 */
-  function openDetail(hit: SearchHitView, owner: ExtensionKindView, toComments = false) {
+  function openDetail(hit: SearchHitView, owner: Category, toComments = false) {
     const box = ui.h('div', 'extension-detail'); box.append(ui.placeholder(S.loadingDetail));
     const item = installed.find(item => item.name === hit.name && item.state !== 'removed');
     detailDrawer?.dispose(); detailDrawer = ui.drawer(item?.metadata?.displayName ?? item?.label ?? hit.name, box);
@@ -1445,7 +1436,7 @@ export function mountExtensions(ctx: FeatureContext): void {
     installedFilters.setAttribute('aria-label', S.installedFilter); bar.append(installedFilters, sizePicker('installed'));
     if (canRestart) { const button = ui.button(S.restartProcess, { onClick: () => void restart() }); button.classList.add('extension-restart'); bar.append(button); }
     bar.append(ui.button(S.refresh, { onClick: () => { void load(); void checkUpdates(); } }));
-    messageNodes.management = ui.msgline(kind === 'bot' ? S.createBody : kind === 'provider' ? S.providerManagement : S.idleManagement); messageNodes.management.setAttribute('role', 'status'); installedGrid = ui.h('div', 'extension-grid extension-installed-grid'); installedPager = ui.rowbar();
+    messageNodes.management = ui.msgline(kind === 'provider' ? S.providerManagement : S.idleManagement); messageNodes.management.setAttribute('role', 'status'); installedGrid = ui.h('div', 'extension-grid extension-installed-grid'); installedPager = ui.rowbar();
     managed.body.append(bar, messageNodes.management, installedGrid, installedPager);
     const marketSheet = ui.sheet({ title: S.market }); messageNodes.market = ui.msgline(); messageNodes.market.setAttribute('role', 'status');
     const filters = ui.rowbar(); filters.classList.add('extension-toolbar');
@@ -1499,7 +1490,7 @@ export function mountExtensions(ctx: FeatureContext): void {
     renderInstalled(); renderMarket();
   }
   lifecycle.own(router.onChange(route => {
-    const next = route.segments[1] as ExtensionKindView; if (!categories.includes(next) || next === kind || route.segments[0] !== 'extensions') return;
+    const next = route.segments[1] as Category; if (!categories.includes(next) || next === kind || route.segments[0] !== 'extensions') return;
     save(); kind = next; restoringScroll = true; render(); restoreScroll(); if (!states[kind].fetched) void search(kind);
   }));
   // 只看宽度变化
@@ -1515,7 +1506,7 @@ export function mountExtensions(ctx: FeatureContext): void {
     root.style.setProperty('--extension-columns', String(columns)); renderInstalled(); renderMarket();
   }); observer.observe(panel); lifecycle.add(() => observer.disconnect()); }
   render();
-  if (!categories.includes(router.route.segments[1] as ExtensionKindView)) router.replace(['extensions', kind]);
+  if (!categories.includes(router.route.segments[1] as Category)) router.replace(['extensions', kind]);
   void load(); void checkUpdates(); void search(kind); void loadRegistry();
   try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { message(kind, 'management', S.reloadWait); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
 }

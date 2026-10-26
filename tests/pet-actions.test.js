@@ -123,47 +123,73 @@ describe('the words the model can use', () => {
   });
 });
 
+/** Runs `fn(made)` over a Web Audio that counts the tones and clips started (`made.rates`: the clips' playback rates). */
+async function withAudio(fn) {
+  const made = { tones: 0, clips: 0, rates: [] };
+  const node = () => ({ connect() {}, start() {}, stop() {}, frequency: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, gain: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, Q: {} });
+  class Ctx {
+    constructor() { this.currentTime = 0; this.state = 'running'; this.sampleRate = 8; this.destination = {}; }
+    createGain() { return node(); }
+    createDynamicsCompressor() { return node(); }
+    createBiquadFilter() { return node(); }
+    createOscillator() { made.tones++; return node(); }
+    createBufferSource() {
+      made.clips++;
+      const rate = { set value(v) { made.rates.push(v); } };
+      return { ...node(), playbackRate: rate };
+    }
+    createBuffer() { return { getChannelData: () => new Float32Array(8) }; }
+    decodeAudioData() { return Promise.resolve({}); }
+  }
+  const saved = { window: globalThis.window, document: globalThis.document, location: globalThis.location, fetch: globalThis.fetch };
+  Object.assign(globalThis, { window: { AudioContext: Ctx }, document: { hidden: false }, location: { href: 'http://127.0.0.1/' }, fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }) });
+  try {
+    await fn(made);
+  } finally {
+    Object.assign(globalThis, saved);
+  }
+}
+
 describe('what the page holds a pack to', () => {
-  it("a body's sounds are muted with the kind they are filed under, a pack's own with its manifest's kind", async () => {
-    const made = { tones: 0, clips: 0 };
-    const node = () => ({ connect() {}, start() {}, stop() {}, frequency: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, gain: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, Q: {} });
-    class Ctx {
-      constructor() { this.currentTime = 0; this.state = 'running'; this.sampleRate = 8; this.destination = {}; }
-      createGain() { return node(); }
-      createDynamicsCompressor() { return node(); }
-      createBiquadFilter() { return node(); }
-      createOscillator() { made.tones++; return node(); }
-      createBufferSource() { made.clips++; return node(); }
-      createBuffer() { return { getChannelData: () => new Float32Array(8) }; }
-      decodeAudioData() { return Promise.resolve({}); }
-    }
-    const saved = { window: globalThis.window, document: globalThis.document, location: globalThis.location, fetch: globalThis.fetch };
-    Object.assign(globalThis, { window: { AudioContext: Ctx }, document: { hidden: false }, location: { href: 'http://127.0.0.1/' }, fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }) });
-    try {
-      const sfx = createSfx({ storageKey: 'test.sfx' });
-      sfx.unlock();
-      sfx.usePack('/packs/robot/', { boing: { file: 'boing.ogg', kind: 'move', volume: 1 } });
-      await new Promise((r) => setTimeout(r, 0));
-      sfx.configure({ kinds: { move: false } });
-      // looking about borrows the 'hmm' tone, which belongs to no kind; the pack's boing is a move sound whatever the body files it under
-      sfx.play('look', 'move'); sfx.play('boing', 'face');
-      expect(made).toEqual({ tones: 0, clips: 0 });
-      sfx.configure({ kinds: { move: true, face: false } });
-      // a face that borrows the ui tone 'pop' is a face sound
-      sfx.play('pop', 'face');
-      expect(made.tones).toBe(0);
-      sfx.play('boing', 'face'); sfx.play('look', 'move');
-      expect(made.clips).toBe(1);
-      expect(made.tones).toBeGreaterThan(0);
-      // a hidden window plays nothing, though its page still reads as visible (#136)
-      const before = { ...made };
-      sfx.setShown(false);
-      sfx.play('boing', 'move'); sfx.play('look', 'move'); sfx.pop();
-      expect(made).toEqual(before);
-    } finally {
-      Object.assign(globalThis, saved);
-    }
-  });
+  it("a body's sounds are muted with the kind they are filed under, a pack's own with its manifest's kind", () => withAudio(async (made) => {
+    const sfx = createSfx({ storageKey: 'test.sfx' });
+    sfx.unlock();
+    sfx.usePack('/packs/robot/', { boing: { file: 'boing.ogg', kind: 'move', volume: 1 } });
+    await new Promise((r) => setTimeout(r, 0));
+    sfx.configure({ kinds: { move: false } });
+    // looking about borrows the 'hmm' tone, which belongs to no kind; the pack's boing is a move sound whatever the body files it under
+    sfx.play('look', 'move'); sfx.play('boing', 'face');
+    expect(made).toMatchObject({ tones: 0, clips: 0 });
+    sfx.configure({ kinds: { move: true, face: false } });
+    // a face that borrows the ui tone 'pop' is a face sound
+    sfx.play('pop', 'face');
+    expect(made.tones).toBe(0);
+    sfx.play('boing', 'face'); sfx.play('look', 'move');
+    expect(made.clips).toBe(1);
+    expect(made.tones).toBeGreaterThan(0);
+    // a hidden window plays nothing, though its page still reads as visible (#136)
+    const before = { ...made };
+    sfx.setShown(false);
+    sfx.play('boing', 'move'); sfx.play('look', 'move'); sfx.pop();
+    expect(made).toEqual(before);
+  }));
+
+  it("a pack's voice babbles with its own talk sounds at its pitch, muted with the talk kind; without them the tone babbles", () => withAudio(async (made) => {
+    const sfx = createSfx({ storageKey: 'test.sfx' });
+    sfx.unlock();
+    sfx.usePack('/packs/robot/', { la: { file: 'la.ogg', kind: 'talk', volume: 1 } }, { pitch: 1.5 });
+    await new Promise((r) => setTimeout(r, 0));
+    sfx.babble('a');
+    expect(made).toMatchObject({ tones: 0, clips: 1 });
+    expect(made.rates[0]).toBeCloseTo(1.5, 0);
+    sfx.configure({ kinds: { talk: false } });
+    sfx.babble('a');
+    expect(made.clips).toBe(1);
+    sfx.configure({ kinds: { talk: true } });
+    sfx.usePack('/packs/robot/', {}, { pitch: 1.5 });
+    sfx.babble('a');
+    expect(made).toMatchObject({ tones: 1, clips: 1 });
+  }));
 
   it("a body's box is kept to the stage and to the most the kit stretches a body", () => {
     const size = { W: 1000, H: 600, S: .5 };
@@ -187,6 +213,15 @@ describe('what the page holds a pack to', () => {
     const small = readLayout({ box: { x: 100, y: 100, w: 20, h: 20 } }, size);
     expect(haloRect(small, size)).toEqual({ x: 76, y: 76, w: 68, h: 68 });
     expect(haloRect(small, size, 16)).toEqual({ x: 52, y: 52, w: 116, h: 116 });
+    // a pack whose effects reach one 256-unit square past its box (107.52 px at this scale) gets that much room
+    const mid = readLayout({ box: { x: 300, y: 300, w: 20, h: 20 } }, size);
+    expect(haloRect(mid, size, 7, 1)).toEqual({ x: 192, y: 192, w: 236, h: 236 });
+  });
+
+  it("a body's height is kept only when it gives one", () => {
+    const size = { W: 1000, H: 600, S: .5 };
+    expect(readLayout({ x: 10, y: 9e9, box: {} }, size).y).toBe(600);
+    expect(readLayout({ x: 10, box: {} }, size)).not.toHaveProperty('y');
   });
 
   it('a touch counts only right after pointer input, a crash only after a throw', () => {
@@ -200,6 +235,64 @@ describe('what the page holds a pack to', () => {
     expect(gate.take('throw', 6100)).toBe(true);
     expect(gate.take('crash', 7500)).toBe(true);
     expect(gate.take('crash', 7600)).toBe(false);
+  });
+});
+
+describe('a body that stands anywhere on the stage (ground: free)', () => {
+  it('walks to a point above the floor, says how far down it got, and stays there through a jump', () => {
+    const events = [];
+    const pet = barePet((kind, d) => events.push({ kind, d }), { ground: 'free' });
+    expect(pet.layout().y).toBe(380);
+    pet.walkTo(300, false, 7, 200);
+    run(pet, 10);
+    // a walk ends within 1.5 px of its target
+    const got = events.find((e) => e.kind === 'arrived')?.d;
+    expect(got).toMatchObject({ walkId: 7 });
+    expect(Math.hypot(got.x - 300, got.y - 200)).toBeLessThan(2);
+    pet.act('jump');
+    run(pet, 2);
+    expect(pet.pet.fy).toBeCloseTo(200, 0);
+    expect(pet.layout().y).toBeCloseTo(200, 0);
+  });
+
+  it('is set down where it is let go of, not dropped to the floor', () => {
+    const pet = barePet(undefined, { ground: 'free' });
+    run(pet, .5);
+    const { W, H } = pet.bounds;
+    let on = null;
+    for (let y = 0; y < H && !on; y += 4) for (let x = 0; x < W && !on; x += 4) if (pet.hitPet({ x, y })) on = { x, y };
+    pet.pointerDown({ ...on, t: 0 });
+    const up = { x: on.x + 60, y: on.y - 150 };
+    // a slow carry, held still before letting go: no throw
+    for (let t = 20; t <= 600; t += 20) { pet.pointerMove({ x: on.x + 60 * Math.min(1, t / 300), y: on.y - 150 * Math.min(1, t / 300), t }); pet.step(1 / 50); pet.render(); }
+    pet.pointerUp({ ...up, t: 620 });
+    run(pet, 2);
+    expect(['idle', 'land', 'look']).toContain(pet.pet.mode);
+    expect(pet.pet.gy).toBeLessThan(380 - 50);
+    expect(pet.pet.fy).toBeCloseTo(pet.pet.gy, 0);
+  });
+
+  it('a body on the floor walks along it whatever height it is asked for, and says none', () => {
+    const events = [];
+    const pet = barePet((kind, d) => events.push({ kind, d }));
+    pet.walkTo(300, false, 8, 200);
+    run(pet, 10);
+    const got = events.find((e) => e.kind === 'arrived')?.d;
+    expect(got).toMatchObject({ walkId: 8 });
+    expect(got).not.toHaveProperty('y');
+    expect(pet.pet.fy).toBe(380);
+    expect(pet.layout()).not.toHaveProperty('y');
+  });
+
+  it("the figure hears what the bot is busy with from its frame", () => {
+    const pet = barePet(), seen = [];
+    pet.setFigure({ draw: (g, face, o) => seen.push(o.status) });
+    pet.setStatus('read');
+    run(pet, .1);
+    expect(seen.at(-1)).toBe('read');
+    pet.setStatus(null);
+    run(pet, .1);
+    expect(seen.at(-1)).toBe(null);
   });
 });
 

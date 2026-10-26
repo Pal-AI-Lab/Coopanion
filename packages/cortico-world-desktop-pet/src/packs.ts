@@ -7,8 +7,9 @@
  * the pack's own (walking, falling, faces, drawing; most packs build it on the kit, `web/kit/body.js`).
  * What the World and the pages need without running it is in the manifest: names, the dress-up axes
  * and presets, what the bot is told the body looks like, the words it does (`vocab`, the whole of the
- * bot's vocabulary while it is on), its own sound files, whether it walks, the targets of its own
- * `pet_move_to` takes (`moves`), and the data about the desktop it asks the window for (`needs`).
+ * bot's vocabulary while it is on), its own sound files and voice, whether it walks, the targets of its own
+ * `pet_move_to` takes (`moves`), the data about the desktop it asks the window for (`needs`), how far its
+ * effects reach past its box (`effects`) and its bubbles' colours (`bubble`).
  *
  * The embedding app names directories whose subdirectories are more packs (`packRoots`). A built-in
  * id wins over an installed pack with the same id, and `coo` is only ever the built-in one.
@@ -41,9 +42,12 @@ export const FIGURE_API_OLDEST = 2;
 /** The built-in body, and the one shown when the skin names a pack that is not there. */
 export const COO = 'coo';
 /** Kinds a pack's own sounds are filed under, as web/sound.js mutes them (BODY_SOUND_KINDS). */
-export const PACK_SOUND_KINDS = ['move', 'touch', 'face', 'snore'] as const;
+export const PACK_SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk'] as const;
 /** Data about the desktop a pack may ask for: `windows`, the windows on the pet's display and their visible top edges. */
 export const PACK_NEEDS = ['windows'] as const;
+/** The range of `voice.pitch`, and of `effects.reach` in 256-unit squares. */
+export const VOICE_PITCH = { min: .5, max: 2 } as const;
+export const EFFECTS_REACH_MAX = 2;
 /** Most targets a pack declares, and most numbers one of them takes. */
 export const MOVES_MAX = 8;
 export const MOVE_PARAMS_MAX = 2;
@@ -75,7 +79,17 @@ export interface FigurePreset {
   /** Colours the sleep z's and the listening and thinking marks. */
   accent?: string;
   console?: { light: ConsoleHues; dark: ConsoleHues };
+  /** The bubbles' colours while this preset is on, over the pack's own. */
+  bubble?: BubbleTheme;
 }
+
+/** A bubble's colours (hex): its fill, its text, and its outline with the tail. */
+export interface BubbleColors { fill: string; text: string; line: string }
+/** The bot's bubbles in each of the pet's themes; the lines the person said keep the page's. */
+export interface BubbleTheme { light: BubbleColors; dark: BubbleColors }
+
+/** How the body talks: `pitch` scales the page's babble and the speed its own `talk` sounds play at. */
+export interface PackVoice { pitch: number }
 
 export interface PackSound {
   /** Relative to the pack. */
@@ -131,6 +145,10 @@ export interface FigureManifest {
   moves: MoveTarget[];
   /** What the page passes its body beyond the stage's size (`host.bounds()`); the window reads none of it for a pack that does not ask. */
   needs: Array<typeof PACK_NEEDS[number]>;
+  voice: PackVoice;
+  /** `reach`: how far past the body's box its effects are drawn, in 256-unit squares at its scale, each side. */
+  effects: { reach: number };
+  bubble?: BubbleTheme;
 }
 
 export interface FigurePack {
@@ -156,6 +174,21 @@ const NAME_BREAK = /[,，、\s【】<>＜＞]/;
 const WORD_KINDS = new Set(['expression', 'motion']);
 const SOUND_NAME = /^[a-z][a-zA-Z0-9-]{0,31}$/;
 const PARAM_ID = /^[a-z][a-zA-Z0-9]{0,23}$/;
+const HEX = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+
+/** `raw` as bubble colours, or undefined when it is not one whole set of hex colours per theme (left out, as a bad accent is). */
+function bubbleOf(raw: unknown): BubbleTheme | undefined {
+  const theme = (v: unknown): BubbleColors | null => {
+    const c = v as Record<string, unknown> | null;
+    return c && typeof c === 'object' && [c.fill, c.text, c.line].every((h) => typeof h === 'string' && HEX.test(h))
+      ? { fill: c.fill as string, text: c.text as string, line: c.line as string } : null;
+  };
+  const r = raw as Record<string, unknown> | null;
+  const light = theme(r?.light), dark = theme(r?.dark);
+  return light && dark ? { light, dark } : undefined;
+}
+/** A number in [min, max], else `fallback`. */
+const within = (v: unknown, min: number, max: number, fallback: number) => (typeof v === 'number' && v >= min && v <= max ? v : fallback);
 
 /** The vocabulary in `raw`, checked; a string says what is wrong with it. A word of a kind this version does not know is left out and named in `skipped`. */
 function readVocab(raw: unknown, skipped: string[], t: PackText): VocabWord[] | string {
@@ -290,6 +323,7 @@ export function readManifest(dir: string, builtin = false, skipped: string[] = [
       ...(namesOf(p.name) ? { name: namesOf(p.name)! } : {}),
       ...(typeof p.accent === 'string' ? { accent: p.accent } : {}),
       ...(p.console && typeof p.console === 'object' ? { console: p.console as FigurePreset['console'] } : {}),
+      ...(bubbleOf(p.bubble) ? { bubble: bubbleOf(p.bubble)! } : {}),
     });
   }
   const vocab = readVocab(raw.vocab, skipped, t);
@@ -302,9 +336,13 @@ export function readManifest(dir: string, builtin = false, skipped: string[] = [
   if (typeof moves === 'string') return moves;
   const needs = readNeeds(raw.needs, skipped, t);
   if (typeof needs === 'string') return needs;
+  const voice = { pitch: within((raw.voice as Record<string, unknown> | undefined)?.pitch, VOICE_PITCH.min, VOICE_PITCH.max, 1) };
+  const effects = { reach: within((raw.effects as Record<string, unknown> | undefined)?.reach, 0, EFFECTS_REACH_MAX, 0) };
+  const bubble = bubbleOf(raw.bubble);
   return {
     manifest: MANIFEST_VERSION, api: raw.api as number, id: raw.id, version: typeof raw.version === 'string' ? raw.version : '0.0.0',
-    name, about, entry: raw.entry, export: raw.export, axes, presets, vocab, sounds, can: { walk: can.walk !== false }, moves, needs,
+    name, about, entry: raw.entry, export: raw.export, axes, presets, vocab, sounds, can: { walk: can.walk !== false }, moves, needs, voice, effects,
+    ...(bubble ? { bubble } : {}),
     ...(typeof raw.author === 'string' ? { author: raw.author } : {}),
     ...(typeof raw.license === 'string' ? { license: raw.license } : {}),
     ...(Array.isArray(raw.credits) ? { credits: raw.credits as FigureManifest['credits'] } : {}),

@@ -16,7 +16,7 @@ export const S: Partial<typeof en> = {
   grant: 'Ein Ja gilt',
   grantSuffix: 'Minuten',
   grantBad: (min: number, max: number) => `Gib eine ganze Zahl von ${min} bis ${max} ein`,
-  more: 'Weitere Einstellungen findest du im erweiterten Modus auf der Seite Computersteuerung.',
+  more: 'Weitere Einstellungen findest du im erweiterten Modus auf der Seite Desktop-Haustier im Tab Konfiguration.',
   saveFailed: (why: string) => `Nicht gespeichert: ${why}`,
   enabledLabel: 'Computer verwenden',
   controlLabel: 'Maus und Tastatur',

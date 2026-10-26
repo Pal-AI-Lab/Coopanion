@@ -78,19 +78,19 @@ describe('activity in the shared speech bubble', () => {
     show(p, think); p.step(1);
     expect(p.bubble.getAttribute('aria-label')).toBe(t('status.thinking'));
     expect(p.bubble.hidden).toBe(false);
-    expect(p.bodyChanges).toContainEqual({ thinking: true });
+    expect(p.bodyChanges).toContainEqual({ thinking: true, status: 'think' });
     p.onOrder({ t: 'prefs', statusBubble: false }); p.step(.01);
     expect(p.bubble.hidden).toBe(true);
     p.onOrder({ t: 'prefs', statusBubble: true }); p.step(.01);
     expect(p.bubble.getAttribute('aria-label')).toBe(t('status.thinking'));
     expect(p.bubble.hidden).toBe(false);
-    expect(p.bodyChanges.filter(c => 'thinking' in c)).toEqual([{ thinking: true }]);
+    expect(p.bodyChanges.filter(c => 'thinking' in c)).toEqual([{ thinking: true, status: 'think' }]);
   });
 
   it('applies init and prefs to the body immediately, but waits .6 seconds before showing thought', () => {
     const p = page();
     p.onOrder({ t: 'init', status: think, statusBubble: true });
-    expect(p.bodyChanges).toContainEqual({ thinking: true });
+    expect(p.bodyChanges).toContainEqual({ thinking: true, status: 'think' });
     p.step(.59);
     expect(p.bubble.hidden).toBe(true);
     p.step(.02);
@@ -99,7 +99,7 @@ describe('activity in the shared speech bubble', () => {
     p.onOrder({ t: 'prefs', status: think, statusBubble: false });
     p.step(.01);
     expect(p.bubble.hidden).toBe(true);
-    expect(p.bodyChanges.filter(c => 'thinking' in c)).toEqual([{ thinking: true }]);
+    expect(p.bodyChanges.filter(c => 'thinking' in c)).toEqual([{ thinking: true, status: 'think' }]);
   });
 
   it('never flashes thought for a quick reply', () => {
