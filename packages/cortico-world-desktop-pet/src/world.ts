@@ -376,6 +376,8 @@ export class DesktopPetWorld implements World {
   private prefsTimer: NodeJS.Timeout | null = null;
   /** Where the pet window last said the pet stands, measured as `petX` is; written by `savePosition` on stop. */
   private standX: number | null = null;
+  /** How far down it stands, as `petY` is measured, when the body reported one with that position. */
+  private standY: number | null = null;
   private readonly voiceSockets = new Set<WorldStreamSocket>();
   private lastLevelAt = 0;
   private readonly heard: HeardLine[] = [];
@@ -895,6 +897,7 @@ export class DesktopPetWorld implements World {
       rememberPosition: this.cfg.rememberPosition,
       // read by the page from `init` only
       startX: this.cfg.rememberPosition ? this.cfg.petX : null,
+      startY: this.cfg.rememberPosition ? this.cfg.petY : null,
       hoverButtons: hoverButtonList(this.cfg.hoverButtons),
       doubleClickChat: this.cfg.doubleClickChat,
       scale: this.cfg.window.scale,
@@ -1062,9 +1065,11 @@ export class DesktopPetWorld implements World {
    */
   private savePosition(): void {
     const x = this.cfg.rememberPosition ? this.standX ?? this.cfg.petX : null;
-    if (x === this.cfg.petX) return;
+    // a report without y comes from a body on the floor, which clears a saved height
+    const y = !this.cfg.rememberPosition ? null : this.standX === null ? this.cfg.petY : this.standY;
+    if (x === this.cfg.petX && y === this.cfg.petY) return;
     try {
-      this.opts.persist({ petX: x });
+      this.opts.persist({ petX: x, ...(y !== this.cfg.petY ? { petY: y } : {}) });
     } catch (err) {
       this.log?.warn(`桌宠位置没有保存:${(err as Error).message}`);
     }
@@ -1084,8 +1089,8 @@ export class DesktopPetWorld implements World {
         if (!w) return;
         this.walks.delete(String(msg.walkId));
         clearTimeout(w.timer);
-        const at = typeof msg.x === 'number' ? pct(msg.x) : '?';
         const t = this.t;
+        const at = (typeof msg.x === 'number' ? pct(msg.x) : '?') + (typeof msg.y === 'number' ? t.downAt(pct(msg.y)) : '');
         // what stopped a figure's own move is its body's word, kept short
         const by = String(msg.by).slice(0, 40);
         const name = w.target;
@@ -1126,7 +1131,9 @@ export class DesktopPetWorld implements World {
       }
       case 'prefs': return this.savePrefs(msg);
       case 'position': {
-        if (typeof msg.x === 'number' && Number.isFinite(msg.x)) this.standX = Math.min(1, Math.max(0, msg.x));
+        if (typeof msg.x !== 'number' || !Number.isFinite(msg.x)) return;
+        this.standX = Math.min(1, Math.max(0, msg.x));
+        this.standY = typeof msg.y === 'number' && Number.isFinite(msg.y) ? Math.min(1, Math.max(0, msg.y)) : null;
         return;
       }
       case 'devices': {

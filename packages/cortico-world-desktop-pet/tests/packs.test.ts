@@ -103,6 +103,22 @@ describe('figure packs', () => {
     expect(readManifest(pack({ ...base, moves: [{ ...shelf, params: [1, 2, 3].map((i) => ({ id: `p${i}`, about: { zh: '量' }, min: 0, max: 1 })) }] }))).toMatch(/params/);
   });
 
+  it("reads a pack's voice, how far its effects reach and its bubbles' colours, leaving out values out of range or incomplete", () => {
+    const colours = { light: { fill: '#ffffff', text: '#111111', line: '#222222' }, dark: { fill: '#000000', text: '#eeeeee', line: '#dddddd' } };
+    const m = readManifest(pack({
+      ...base, voice: { pitch: 1.5 }, effects: { reach: .5 }, bubble: colours,
+      presets: [{ id: 'dusk', pick: {}, bubble: colours }, { id: 'dawn', pick: {}, bubble: { ...colours, dark: { fill: '#000' } } }],
+      sounds: { la: { file: 'la.ogg', kind: 'talk' } },
+    }, ['la.ogg']));
+    if (typeof m === 'string') throw new Error(m);
+    expect(m).toMatchObject({ voice: { pitch: 1.5 }, effects: { reach: .5 }, bubble: colours, sounds: { la: { kind: 'talk' } } });
+    expect(m.presets.map((p) => p.bubble)).toEqual([colours, undefined]);
+    const off = readManifest(pack({ ...base, voice: { pitch: 9 }, effects: { reach: 5 }, bubble: { light: colours.light } }));
+    if (typeof off === 'string') throw new Error(off);
+    expect(off).toMatchObject({ voice: { pitch: 1 }, effects: { reach: 0 } });
+    expect(off.bubble).toBeUndefined();
+  });
+
   it('says a pack made for a newer manifest or contract needs the app updated', () => {
     expect(readManifest(pack({ ...base, manifest: 3 }))).toMatch(/更新应用/);
     expect(readManifest(pack({ ...base, api: 3 }))).toMatch(/更新应用/);

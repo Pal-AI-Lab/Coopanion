@@ -16,7 +16,7 @@ import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
 import { COO_CSS, PALETTES, mini, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
-import { accentColors, announcePainted, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
+import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
 
 const $ = (s) => document.querySelector(s);
@@ -30,8 +30,10 @@ const tools = $('#tools');
 // Coo's drawing classes for the menu's avatar; the bubbles and buttons take their colours from Coo's palette
 // another pack's body sets the theme color instead (accentStyle, after skinStyle so it wins)
 const cooStyle = document.createElement('style'), skinStyle = document.createElement('style'), accentStyle = document.createElement('style');
+// the bubbles' colours of a pack that names its own (bubbleCss)
+const bubbleStyle = document.createElement('style');
 cooStyle.textContent = COO_CSS;
-document.head.append(cooStyle, skinStyle, accentStyle);
+document.head.append(cooStyle, skinStyle, accentStyle, bubbleStyle);
 
 const prefs = {
   roam: 'calm', sound: true, theme: document.documentElement.dataset.theme, scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, glow: 7, user: '', mic: false, micDevice: '', bot: null,
@@ -64,6 +66,7 @@ const lightFor = (s) => {
   if (!host) setGlow(document.body, glowColor(shownPack, s));
   const a = accentColors(shownPack, s);
   accentStyle.textContent = a ? `html:root{--skin-eye:${a.light}}@media (prefers-color-scheme: dark){html:root:not([data-theme="light"]){--skin-eye:${a.dark}}}html:root[data-theme="dark"]{--skin-eye:${a.dark}}` : '';
+  bubbleStyle.textContent = bubbleCss(shownPack, s);
 };
 
 const sfx = createSfx();
@@ -84,7 +87,7 @@ let body = null, words = new Map(), T = 0;
 /** Where the body last said it is (body-host.js `layout`), or null. */
 const at = () => body?.layout ?? null;
 /** What the body is told of the page: talking orders hold its roaming off, and these states. */
-const bodyState = { listening: false, thinking: false, thoughtShown: true, dialogOpen: false };
+const bodyState = { listening: false, thinking: false, thoughtShown: true, dialogOpen: false, status: null };
 const holdRoam = (seconds) => body?.set({ hold: seconds });
 host?.onFloor?.((px) => { below = px; body?.set({ bounds: bounds() }); });
 // the window reads the windows on its display only while the body on screen asks for them (`watchWindows`)
@@ -128,8 +131,9 @@ let overlayOn = false;
 function overlayRect() {
   const b = at()?.box;
   if (!b) return null;
-  // the halo reaches about 40% of the body's width out; emotes and z's float up to its height above
-  const side = Math.max(24, .4 * b.w), top = Math.max(48, b.h);
+  // the halo reaches about 40% of the body's width out; emotes and z's float up to its height above; a pack's effects as far as it says
+  const reach = (shownPack?.effects?.reach ?? 0) * 256 * bounds().S;
+  const side = Math.max(24, .4 * b.w, reach), top = Math.max(48, b.h, reach);
   const parts = [{ x: b.x - side, y: b.y - top, width: b.w + 2 * side, height: b.h + top + side }];
   for (const el of [bubble, ...lines.map((l) => l.el)]) if (!el.hidden) parts.push(rectOf(el));
   const x = Math.max(0, Math.min(...parts.map((r) => r.x))), y = Math.max(0, Math.min(...parts.map((r) => r.y)));
@@ -157,8 +161,8 @@ function bodyFailed(id, err) {
   // Coo stands in; when Coo itself will not run there is nothing left to show
   if (id !== 'coo' && wanted === id) showFigure({ ...skin, figure: 'coo' }).catch((e) => console.error(e));
 }
-/** Where the first body stands: the spot the World remembered (`restorePosition`), facing the middle of the screen. */
-let firstX = null;
+/** Where the first body stands: the spot the World remembered (`restorePosition`), facing the middle of the screen; `firstY` for a body off the floor. */
+let firstX = null, firstY = null;
 /** The pack whose body is being loaded: skins that come meanwhile wait for it (`skin` holds the latest). */
 let loading = null;
 async function showFigure(s) {
@@ -181,12 +185,12 @@ async function swapBody(s) {
   const pack = (await (await fetch('/api/figures')).json()).find((p) => p.id === s.figure);
   if (!pack) throw new Error(t('figure.notInstalled'));
   const was = at();
-  const x = was?.x ?? firstX ?? innerWidth * .7;
+  const x = was?.x ?? firstX ?? innerWidth * .7, y = was ? was.y : firstY;
   const holder = {};
   const next = await loadBody({
     layer: $('#figureLayer'), pack, theme: prefs.theme, bounds: bounds(),
     // the new body stands where the old one stood; the first one drops in
-    start: { x, facing: was?.facing ?? (x < innerWidth / 2 ? 1 : -1), enter: body ? undefined : 'drop', skin: s, scheme: s.scheme },
+    start: { x, ...(typeof y === 'number' ? { y } : {}), facing: was?.facing ?? (x < innerWidth / 2 ? 1 : -1), enter: body ? undefined : 'drop', skin: s, scheme: s.scheme },
     onEvent: (kind, d) => { if (body === holder.body) onBody(kind, d); },
     onSound: (name, kind, ...args) => { if (body === holder.body) sfx.play(name, kind, ...args); },
     onError: (err) => { if (body === holder.body) bodyFailed(pack.id, err); },
@@ -200,7 +204,7 @@ async function swapBody(s) {
   words = new Map(pack.vocab.map((w) => [w.id, w]));
   shownPack = pack;
   lightFor(s);
-  sfx.usePack(pack.base, pack.sounds);
+  sfx.usePack(pack.base, pack.sounds, pack.voice);
   reportFigure(s.figure, true, null, s.figure === 'coo' ? null : s.scheme, next.words);
 }
 async function applyFigure(s) {
@@ -209,11 +213,11 @@ async function applyFigure(s) {
 
 /**
  * The pet window puts the pet where it stood when the World last stopped (`startX`, a share of the window
- * width) from the first `init` only; after a reconnect it stays where it is. While `rememberPosition` is on it
+ * width, and `startY` of its height for a body that stood off the floor) from the first `init` only; after a reconnect it stays where it is. While `rememberPosition` is on it
  * reports where the pet stands each time the body changes mode, so the World holds the place of its last stop.
  */
-let restored = false, sentX = null;
-function restorePosition(startX) {
+let restored = false, sentX = null, sentY = null;
+function restorePosition(startX, startY) {
   sentX = null;
   if (restored) return;
   restored = true;
@@ -221,16 +225,17 @@ function restorePosition(startX) {
   // resting on the right half is not turned away from the likely interaction area.
   if (host && typeof startX === 'number') {
     firstX = startX * innerWidth;
-    body?.place(firstX, firstX < innerWidth / 2 ? 1 : -1);
+    firstY = typeof startY === 'number' ? startY * innerHeight : null;
+    body?.place(firstX, firstX < innerWidth / 2 ? 1 : -1, firstY ?? undefined);
   }
 }
 function reportPosition() {
   const l = at();
   if (!host || !prefs.rememberPosition || !l) return;
-  const x = l.x / innerWidth;
-  if (sentX !== null && Math.abs(x - sentX) * innerWidth < 1) return;
-  sentX = x;
-  send({ t: 'position', x });
+  const x = l.x / innerWidth, y = typeof l.y === 'number' ? l.y / innerHeight : null;
+  if (sentX !== null && Math.abs(x - sentX) * innerWidth < 1 && (y === null) === (sentY === null) && Math.abs((y ?? 0) - (sentY ?? 0)) * innerHeight < 1) return;
+  sentX = x; sentY = y;
+  send({ t: 'position', x, ...(y !== null ? { y } : {}) });
 }
 
 /** The skin as the config has it while a dialog card dresses the body in another (`tryOn`); null otherwise. */
@@ -298,7 +303,7 @@ async function switchLanguage(code) {
 
 function onOrder(m) {
   switch (m.t) {
-    case 'init': restorePosition(m.startX); applyPrefs(m); if (!host) announcePainted(); break;
+    case 'init': restorePosition(m.startX, m.startY); applyPrefs(m); if (!host) announcePainted(); break;
     case 'prefs': applyPrefs(m); break;
     case 'watching': watching = true; stopMic(); break;
     // the settings window's 「在桌面上隐藏」: the same as the menu's 「隐藏」
@@ -336,7 +341,8 @@ function onBody(kind, d) {
   if (kind === 'arrived' || kind === 'interrupted') {
     if (!d.walkId || !walkTargets.has(d.walkId)) return;
     walkTargets.delete(d.walkId);
-    send({ t: kind, walkId: d.walkId, x: (typeof d.x === 'number' ? d.x : at()?.x ?? 0) / innerWidth, by: d.by });
+    const y = typeof d.y === 'number' ? d.y : at()?.y;
+    send({ t: kind, walkId: d.walkId, x: (typeof d.x === 'number' ? d.x : at()?.x ?? 0) / innerWidth, ...(typeof y === 'number' ? { y: y / innerHeight } : {}), by: d.by });
   } else if (kind === 'touch') {
     send({ t: 'touch', ...d });
     if (d.kind === 'grab') closeMenu();
@@ -1068,7 +1074,7 @@ function stepLines() {
 /* ---------- activity: the same bubble, with conversation always taking priority ---------- */
 const status = { wanted: null, since: 0, shown: null, shownAt: 0, fadeAt: null };
 function setStatus(next) {
-  setBody({ thinking: next?.kind === 'think' });
+  setBody({ thinking: next?.kind === 'think', status: next?.kind ?? null });
   const prev = status.wanted;
   if (prev?.kind === next?.kind && prev?.text === next?.text && prev?.detail === next?.detail && prev?.count === next?.count) return;
   if (prev?.kind !== next?.kind) status.since = T;

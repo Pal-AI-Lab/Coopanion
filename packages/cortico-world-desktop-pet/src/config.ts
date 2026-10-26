@@ -197,6 +197,8 @@ export interface DesktopPetConfigSection extends WorldSection {
    * null when nothing is saved.
    */
   petX: number | null;
+  /** How far down the pet stood, as a share of the window height (0..1), saved with petX; null for a body on the floor. */
+  petY: number | null;
   /** Actions shown as buttons beside the pet on hover, ids from PET_ACTIONS joined by commas. */
   hoverButtons: string;
   /** Double-clicking the pet opens the typing box. */
@@ -269,6 +271,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   theme: 'dark',
   rememberPosition: false,
   petX: null,
+  petY: null,
   hoverButtons: 'chat,voice',
   doubleClickChat: false,
   typeKey: { enabled: false, hotkey: DEFAULT_TYPE_KEY },

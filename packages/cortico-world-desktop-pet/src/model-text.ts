@@ -66,6 +66,8 @@ const zh = {
   body: (name: string, about: string, picks: string[]) => `${name},${about}${picks.length ? `(${picks.join(',')})` : ''}`,
   pick: (axis: string, option: string) => `${axis}:${option}`,
 
+  /** Follows the across share in `at` for a body that stands off the floor: how far down it is (0% the top). */
+  downAt: (y: string) => `,纵向 ${y}`,
   walkArrived: (at: string) => `走到了屏幕横向 ${at} 处。`,
   walkStopped: (at: string) => `走到屏幕横向 ${at} 处停下了。`,
   walkGrabbed: (at: string, user: string) => `没走到:走到 ${at} 处时被${user}拎起来了。`,
@@ -193,6 +195,7 @@ const en: typeof zh = {
   body: (name, about, picks) => `${name}, ${about}${picks.length ? ` (${picks.join(', ')})` : ''}`,
   pick: (axis, option) => `${axis}: ${option}`,
 
+  downAt: (y) => ` (${y} down)`,
   walkArrived: (at) => `Arrived at ${at} across the screen.`,
   walkStopped: (at) => `Stopped at ${at} across the screen.`,
   walkGrabbed: (at, user) => `Did not get there: ${user} picked you up at ${at} across the screen.`,

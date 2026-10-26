@@ -76,16 +76,18 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
   }
   /** The pack's own sounds by name: kind, volume, the file's bytes, and the buffer once an audio context decoded them. */
   let own = new Map();
+  /** The pack's voice: its `talk` sounds, which babble in place of the tone, and the pitch both are played at. */
+  let voice = { talk: [], pitch: 1 };
   function decode(o) {
     if (o.buffer || o.decoding || !ctx) return;
     o.decoding = o.bytes.then((b) => ctx.decodeAudioData(b.slice(0))).then((buf) => { o.buffer = buf; }, (err) => console.error(`音效 ${o.name} 没能解码:`, err));
   }
-  function playOwn(o) {
+  function playOwn(o, rate = 1) {
     const c = ready(); if (!c) return;
     // the first ask before the file is decoded goes unheard; the decode starts with the audio context
     if (!o.buffer) { decode(o); return; }
     const src = c.createBufferSource(), g = c.createGain();
-    src.buffer = o.buffer; g.gain.value = o.volume;
+    src.buffer = o.buffer; src.playbackRate.value = rate; g.gain.value = o.volume;
     src.connect(g); g.connect(master);
     src.start();
   }
@@ -132,7 +134,10 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     sparkle() { [1568, 2093, 2637].forEach((fr, i) => tone({ f0: fr, dur: .25, vol: .06, at: i * .06 })); },
     select() { tone({ type: 'triangle', f0: 520, f1: 1040, dur: .1, vol: .12 }); },
     babble(ch) {
-      const fr = 330 + (ch.codePointAt(0) % 9) * 28;
+      // the same character always gets the same syllable or tone, so a word sounds alike each time
+      const n = ch.codePointAt(0);
+      if (voice.talk.length) { playOwn(voice.talk[n % voice.talk.length], voice.pitch * R(.95, 1.05)); return; }
+      const fr = (330 + (n % 9) * 28) * voice.pitch;
       tone({ type: 'square', f0: fr, f1: fr * R(.85, 1.1), dur: .05, vol: .05, filter: 1800 });
     },
     blub() { tone({ f0: R(500, 700), f1: R(900, 1200), dur: .05, vol: .05 }); },
@@ -159,15 +164,17 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     },
     /**
      * The body's sounds (`sounds` of the pack on screen, from `base`): each is fetched now and decoded once
-     * there is an audio context. `null` drops them.
+     * there is an audio context. `null` drops them. `v` is the pack's `voice` ({ pitch }); its `talk` sounds babble.
      */
-    usePack(base, sounds) {
+    usePack(base, sounds, v) {
       own = new Map(Object.entries(sounds ?? {}).map(([name, d]) => {
         const bytes = fetch(new URL(d.file, new URL(base, location.href))).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`HTTP ${r.status}`))));
         bytes.catch((err) => console.error(`音效 ${name}(${d.file})没能载入:`, err));
         return [name, { name, kind: d.kind, volume: d.volume ?? 1, bytes }];
       }));
       if (ctx) for (const o of own.values()) decode(o);
+      const pitch = typeof v?.pitch === 'number' && v.pitch >= .5 && v.pitch <= 2 ? v.pitch : 1;
+      voice = { talk: [...own.values()].filter((o) => o.kind === 'talk'), pitch };
     },
     /**
      * A sound the body asks for: the pack's own by that name (filed under the kind its manifest gives), else the

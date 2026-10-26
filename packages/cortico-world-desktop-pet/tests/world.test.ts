@@ -236,6 +236,12 @@ describe('with a pet page', () => {
     const w2 = await page.next((m) => m.t === 'walk');
     page.send({ t: 'interrupted', walkId: w2.id, x: .4, by: 'drag' });
     expect(await interrupted).toEqual({ text: '没走到:走到 40% 处时被伙伴拎起来了。' });
+
+    // a body that stands off the floor says how far down it got
+    const high = tool(world, 'pet_move_to').handler({ to: .2 }, ctx);
+    const w3 = await page.next((m) => m.t === 'walk');
+    page.send({ t: 'arrived', walkId: w3.id, x: .2, y: .4 });
+    expect(await high).toEqual({ text: '走到了屏幕横向 20%,纵向 40% 处。' });
   });
 
   it('pet_move_to rejects a target it cannot read', async () => {
@@ -399,6 +405,27 @@ describe('with a pet page', () => {
     await next.close();
     await again.world.stop();
     expect(again.persisted).toEqual([]);
+  });
+
+  it('a body standing off the floor has its height saved with its position and handed back; a body on the floor clears it', async () => {
+    const made = await mounted((c) => { c.rememberPosition = true; });
+    const page = await FakePage.open(origin(made.world));
+    page.send({ t: 'position', x: 0.3, y: 0.4 });
+    page.send({ t: 'text', text: 'ping' });
+    await expect.poll(() => made.host.events.length).toBe(1);
+    await page.close();
+    await made.world.stop();
+    expect(made.persisted).toEqual([{ petX: 0.3, petY: 0.4 }]);
+
+    const again = await mounted((c) => { c.rememberPosition = true; c.petX = 0.3; c.petY = 0.4; });
+    const next = await FakePage.open(origin(again.world));
+    expect(next.init).toMatchObject({ startX: 0.3, startY: 0.4 });
+    next.send({ t: 'position', x: 0.5 });
+    next.send({ t: 'text', text: 'ping' });
+    await expect.poll(() => again.host.events.length).toBe(1);
+    await next.close();
+    await again.world.stop();
+    expect(again.persisted).toEqual([{ petX: 0.5, petY: null }]);
   });
 
   it('with rememberPosition off the page gets no start position and a saved one is cleared on stop', async () => {

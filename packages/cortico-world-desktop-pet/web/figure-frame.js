@@ -12,7 +12,7 @@
  * - `host`: `root` (the element to draw in, filling the stage), `bounds()` ({ W, H, floorY, S } in stage
  *   pixels: the floor's height and the size the body is drawn at, 1 logo unit = S pixels, the body
  *   inside a 256-unit square), `emit(kind, detail)`, `sound(name, kind, ...args)` and `start`
- *   ({ x, facing, enter, skin }). For a pack whose manifest `needs` `windows`, `bounds()` also has `ledges` and
+ *   ({ x, y, facing, enter, skin }; `y` only where the body last reported one, see `layout`). For a pack whose manifest `needs` `windows`, `bounds()` also has `ledges` and
  *   `windows` while the window can read them (Windows, macOS, Linux on X11), both in stage pixels, read every 0.7 s
  *   and replaced only when something changed; absent elsewhere. `ledges`: the visible top edges of the other windows
  *   on the pet's display, `[{ x0, x1, y }]`, the parts hidden by a window in front left out, highest first.
@@ -21,15 +21,16 @@
  *   most 64. `id` is an opaque string that stays the window's while it is open and may go to another window after
  *   it closes; `active` is true for the foreground window and false for the others, and absent on macOS.
  * - `kit`: web/kit/body.js (createBody builds a whole body around a figure that only draws; createRig).
- * - the body: `step(dt)` advances and draws one frame; `layout()` says where it is ({ x, facing, mode,
- *   busy, moving, pressing, cursor, box, hit, bubble, side }, see the kit's `layout`); `resize()` takes new
+ * - the body: `step(dt)` advances and draws one frame; `layout()` says where it is ({ x, y, facing, mode,
+ *   busy, moving, pressing, cursor, box, hit, bubble, side }, see the kit's `layout`; `y`, the stage y its feet stand on, only
+ *   for a body that stands off the floor, which the World then keeps with its position and hands back as `start.y`); `resize()` takes new
  *   bounds (`set({ bounds })` from the page changes what `host.bounds()` returns, then calls it); `do(word)`, `walk(x, run, id)`,
  *   `move({ to, run, params }, id)` (one of the manifest's `moves`, its `params` by id as the World checked them),
- *   `stopWalk(id)` (a walk's or a move's), `pointer(type, p)`, `drop(p)`, `shift(dx, dy)`, `place(x, facing)`,
- *   `set(state)`, `cue(kind)`, `talk()`, `setScheme(id, { fade })`, `z` (the colour of its sleep z's),
+ *   `stopWalk(id)` (a walk's or a move's), `pointer(type, p)`, `drop(p)`, `shift(dx, dy)`, `place(x, facing, y)`,
+ *   `set(state)` (the kit's `set`, with `status`: the kind of work the page's status bubble shows, or null), `cue(kind)`, `talk()`, `setScheme(id, { fade })`, `z` (the colour of its sleep z's),
  *   `words` (every word `do` knows; the kit's bodies list theirs, and the manifest's words not in it are
  *   kept from the bot) and `dispose()`. Only `step`, `layout` and `do` are required.
- * - events (`emit`): `arrived` and `interrupted` ({ walkId, x, by }) for `walk` and `move` (`by`: a short word on what
+ * - events (`emit`): `arrived` and `interrupted` ({ walkId, x, y?, by }) for `walk` and `move` (`by`: a short word on what
  *   stopped it, which the bot reads; `drag` when it was picked up), `done` ({ word }) for a word
  *   that ends on its own, `touch` ({ kind: poke | pet | grab | drop | throw | crash, ... }), `mode` ({ mode }).
  *
@@ -109,7 +110,7 @@ addEventListener('message', async (e) => {
     else if (m.t === 'pointer') body.pointer?.(m.type, m.p);
     else if (m.t === 'drop') body.drop?.(m.p);
     else if (m.t === 'shift') body.shift?.(m.dx, m.dy);
-    else if (m.t === 'place') body.place?.(m.x, m.facing);
+    else if (m.t === 'place') body.place?.(m.x, m.facing, m.y);
     else if (m.t === 'set') {
       if (m.state?.bounds) { setBounds(m.state.bounds); body.resize?.(); }
       body.set?.(m.state);

@@ -84,7 +84,7 @@ Windows 上每 0.8 秒用 GDI 取一小块身体周围的屏幕像素来比,其�
 气泡尺寸 `worlds.desktop-pet.window.bubbleSize` 缩放所有气泡的宽度、留白、圆角、尾巴、离头顶的距离和连到桌宠的小圆点,边框粗细不变;
 字体尺寸 `window.fontSize` 缩放气泡里的字和同一行的小图标,气泡的宽度不变。两项都是 0.8–1.6 倍,默认 1,不随桌宠的大小变。
 气泡速度 `window.bubbleSpeed` 是 0.5–2 倍,默认 1:Coo 的气泡每秒打 20 乘以它个字,打完后的停留时间除以它,`pet_say` 报的显示时长也按它算。
-说话声 `worlds.desktop-pet.speech.*`(声音组，默认关)开启后，气泡逐字念成音节库 `web/speech/` 里的短音节，代替「说话」类的叽咕声，随这一类音效开关;
+说话声 `worlds.desktop-pet.speech.*`(声音组，默认关)开启后，气泡逐字念成音节库 `web/speech/` 里的短音节，代替「说话」类的叽咕声(叽咕声的音色和音高由形象包的 `voice` 和 `talk` 音效定，见「形象包」)，随这一类音效开关;
 文字怎么念由 World 定(`src/speech`,经 `POST /api/speech`):各语言按读音规则和词典转成国际音标，再取最接近的音节。
 音高 `speech.pitch` 为 low/mid/high(300/400/500 Hz)或 custom(`speech.pitchHz`,200–700),语速 `speech.speed` 为每秒最多 10/13/16 个音节或 custom(`speech.unitsPerSecond`,6–20)。
 开启时气泡按标点分别停顿，字母文字打得更快，`pet_say` 报的显示时长也按这些步长算。
@@ -138,6 +138,8 @@ Windows 上每 0.8 秒用 GDI 取一小块身体周围的屏幕像素来比,其�
 页面协议新增 `{ t: 'status', status: { kind, text, detail?, count? } | null }`;`init` 和 `prefs` 同样带
 `status`、`statusBubble`,供重连时恢复。`status` 变化只发状态消息,不会触发整份偏好广播;原来的 `thinking` 消息由它替代,
 kit 的身体(`web/kit/body.js`)另收 `set({ thoughtShown })`,表示页面正在气泡里显示思考。
+每个身体还收 `set({ status })`:状态气泡此刻的类别(上表的 `kind`,如 `read`、`type`),没有状态时为 null;kit 把它放进交给 `figure.draw` 的 `frame.status`,
+形象可以自己演出在忙什么。只给类别，不给文件名、打字内容这些细节。
 
 ### OBS 画面
 
@@ -241,7 +243,7 @@ Windows 上桌宠窗口从前台窗口拿走键盘，打字框关掉后还回去
 桌宠页只转发指针、下指令,读回它报告的位置和发生的事。多数包用 `web/kit/body.js` 这套现成的身体,只自己画。
 
 桌宠页替对方把着几条线(`web/body-host.js`):身体报告的框不超出舞台,也不超过 kit 自己能把身体拉伸到的大小,
-只有框里的命中圆接收鼠标;摸、戳、拎这类互动只在页面刚转给它真实指针输入之后才算数,摔晕只在甩出去之后才算;
+只有框里的命中圆接收鼠标;身体背后的柔光亮着时，沙箱只露出框周围一圈(框的 40%,至少 24 像素，或包声明的 `effects.reach`),OBS 画面也只截这一圈加上气泡，画得更远的特效看不到;摸、戳、拎这类互动只在页面刚转给它真实指针输入之后才算数,摔晕只在甩出去之后才算;
 声音由页面播放,按设置里的类别和总开关静音。
 
 `figure.json`(`manifest: 2`,`api: 2`,读取与校验在 `src/packs.ts`):
@@ -253,9 +255,12 @@ Windows 上桌宠窗口从前台窗口拿走键盘，打字框关掉后还回去
 | `entry`、`export` | 模块路径和它导出的工厂函数 |
 | `model` | 交给工厂的 JSON(`opts.model`),可省 |
 | `axes` | 打扮的维度,每维一组选项(`id`、`name`、`thumb`);装扮页每维一行 |
-| `presets` | 维度组合的命名,可带 `accent` 和设置窗口配色 `console` |
+| `presets` | 维度组合的命名,可带 `accent`、设置窗口配色 `console` 和气泡配色 `bubble`(同下) |
 | `vocab` | 这个身体做的全部表情和动作,也就是它在场时 bot 的整张词表:每个词 `id`、`kind`(`expression` / `motion`)、`names`(按语言的名字列表)、`about`(它做这个词的样子)、`seconds`(连着做时等多久再做下一个),`lasting: true` 表示保持到下一个动作;`kind` 是这一版不认识的值时跳过那个词 |
-| `sounds` | 包自带的音频:名字 → `{ file, kind, volume }`,文件是包里的 `.ogg` `.mp3` `.wav`,`kind` 是 `move` `touch` `face` `snore` 之一;不存在的文件、这一版不认识的 `kind` 或文件类型,在扫描时记一条问题,那个声音不响 |
+| `sounds` | 包自带的音频:名字 → `{ file, kind, volume }`,文件是包里的 `.ogg` `.mp3` `.wav`,`kind` 是 `move` `touch` `face` `snore` `talk` 之一;`talk` 的声音在气泡打字时逐字轮流响，代替页面合成的叽咕声，同一个字总是同一个声音;不存在的文件、这一版不认识的 `kind` 或文件类型,在扫描时记一条问题,那个声音不响 |
+| `voice` | `{ pitch }`:叽咕声的音高倍数,0.5–2,默认 1;有 `talk` 声音时是它们的播放速度。说话声(音节库)开着时按设置里的音高，不看它 |
+| `effects` | `{ reach }`:特效画到框外多远，以身体所在的 256 单位方格计,0–2,默认 0;柔光亮着时的可见范围和 OBS 截取范围按它放大 |
+| `bubble` | bot 气泡的配色:`{ light, dark }`,各是 `{ fill, text, line }`(底色、字色、边框和尾巴，十六进制颜色),按桌宠的夜间模式取一套;预设里的 `bubble` 优先。人说的话的气泡不变。缺一套或颜色写错时整项不用 |
 | `can` | `{ walk: false }` 表示不会走,`pet_move_to` 拒绝默认目标 |
 | `moves` | 这个包给 `pet_move_to` 加的目标,见下文;可省 |
 | `needs` | 包要桌宠页额外交给身体的桌面数据,这一版只有 `windows`,见下文;不认识的值跳过并记一条问题;可省 |
@@ -279,7 +284,21 @@ bot 用 `pet_move_to({ to: 目标 id, params: [数值…] })` 去,`to` 也认目
 到了报 `arrived`,没到报 `interrupted`,`by` 写一个短词说明原因,bot 在回执里读到它(最多 40 字符)。身体没有 `move` 或返回 false 时当场按 `busy` 报没到。
 30 秒上限和 interrupt(页面调 `stopWalk(id)`)照旧由 World 兜底,桌宠页对框、命中圆和互动的限制也照旧。
 
-没声明 `moves` 的包只有默认目标。
+没声明 `moves` 的包只有默认目标。用 kit 的包在 `createBody` 的 `moves` 里给每个目标一个函数 `(params, bounds) => ({ x, y? }) | null`,
+kit 走到它给的舞台坐标;返回 null 或没给这个目标时按 `busy` 报没到。
+
+### 不靠地面的身体
+
+`kit.createBody(host, { …, ground: 'free' })` 的身体可以站在舞台上地面以上的任何位置，像从上往下看:走到任意一点、被放下时留在松手的地方、
+被甩出时沿屏幕滑一段再落下、自由走动时横竖都走。它的「地面」是自己脚下那条线，跳起来落回这条线。不用 kit 的包照同样的契约自己做。
+
+这样的身体在 `layout()` 里多报一个 `y`(脚下那条线的舞台坐标)。页面和 World 据此:
+
+- 开着「记住位置」时，位置连纵坐标一起存(`petY`,窗口高度的比例),下次启动作为 `start.y` 交回;站在地面上的身体报位置时清掉存下的纵坐标。
+- `walk`、`move` 的 `arrived`、`interrupted` 带上 `y`,`pet_move_to` 的回执写明纵向位置(0% 是顶边)。
+- `place(x, facing, y)` 多一个可选的 `y`。
+
+`pet_move_to` 的默认目标仍然只管横向，不改纵向位置;要让 bot 指定纵向，包在 `moves` 里声明带两个参数的目标(比如 `x`、`y` 各 0–1)。
 
 ### 窗口
 

@@ -43,7 +43,10 @@ const HALO_PAD = .4, HALO_REACH = 24;
 const num = (v, fallback = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
 const clampTo = (v, a, b) => Math.max(a, Math.min(b, v));
 
-/** A body's layout report as the page takes it (`size`: the stage, { W, H, S }): numbers where numbers belong, and the limits above. */
+/**
+ * A body's layout report as the page takes it (`size`: the stage, { W, H, S }): numbers where numbers belong, and the limits above.
+ * `y`, where a body that stands off the floor has its feet, is kept only when the body gives one.
+ */
 export function readLayout(l, size) {
   if (!l || typeof l !== 'object') return null;
   const { W, H, S } = size, side = 256 * S * BOX_MAX;
@@ -53,7 +56,7 @@ export function readLayout(l, size) {
   const box = { x: Math.max(0, x0), y: Math.max(0, y0), w: Math.min(W, x0 + w) - Math.max(0, x0), h: Math.min(H, y0 + h) - Math.max(0, y0) };
   const pt = (p) => ({ x: clampTo(num(p?.x), 0, W), y: clampTo(num(p?.y), 0, H) });
   return {
-    x: clampTo(num(l.x, W / 2), 0, W), facing: l.facing === -1 ? -1 : 1, mode: typeof l.mode === 'string' ? l.mode.slice(0, 32) : 'idle',
+    x: clampTo(num(l.x, W / 2), 0, W), ...(typeof l.y === 'number' && Number.isFinite(l.y) ? { y: clampTo(l.y, 0, H) } : {}), facing: l.facing === -1 ? -1 : 1, mode: typeof l.mode === 'string' ? l.mode.slice(0, 32) : 'idle',
     busy: !!l.busy, moving: !!l.moving, pressing: !!l.pressing,
     cursor: l.cursor === 'grab' || l.cursor === 'grabbing' ? l.cursor : '',
     box,
@@ -71,14 +74,14 @@ export function onBody(layout, p) {
 
 /**
  * The window the halo is drawn in for a body with `layout` (readLayout's) on a `size` stage: its box with HALO_PAD
- * around it, and at least HALO_REACH or three times the halo's `reach`, in whole pixels inside the stage; null when
- * there is no box to draw around.
+ * around it, and at least HALO_REACH, three times the halo's `reach`, or the pack's `effects` reach (`fx`, in 256-unit
+ * squares), in whole pixels inside the stage; null when there is no box to draw around.
  */
-export function haloRect(layout, size, reach = 7) {
+export function haloRect(layout, size, reach = 7, fx = 0) {
   const b = layout?.box;
   if (!b || !(b.w > 0) || !(b.h > 0)) return null;
   // the drop shadows spread about three times their blur: a wider halo needs a wider window
-  const room = Math.max(HALO_REACH, reach * 3);
+  const room = Math.max(HALO_REACH, reach * 3, clampTo(num(fx), 0, BOX_MAX) * 256 * size.S);
   const px = Math.max(room, b.w * HALO_PAD), py = Math.max(room, b.h * HALO_PAD);
   const x = Math.max(0, Math.floor(b.x - px)), y = Math.max(0, Math.floor(b.y - py));
   const w = Math.min(Math.ceil(size.W), Math.ceil(b.x + b.w + px)) - x, h = Math.min(Math.ceil(size.H), Math.ceil(b.y + b.h + py)) - y;
@@ -173,7 +176,7 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
       pointer(type, p) { if (type !== 'leave') touches.input(performance.now()); post({ t: 'pointer', type, p }); },
       drop(p) { touches.input(performance.now()); post({ t: 'drop', p }); },
       shift: (dx, dy) => post({ t: 'shift', dx, dy }),
-      place: (x, facing) => post({ t: 'place', x, facing }),
+      place: (x, facing, y) => post({ t: 'place', x, facing, ...(typeof y === 'number' ? { y } : {}) }),
       /** The page's states (see the kit's `set`), and `bounds` when the stage changed size. */
       set(state) { if (state.bounds) size = state.bounds; post({ t: 'set', state }); },
       cue: (kind) => post({ t: 'cue', kind }),
@@ -189,7 +192,7 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
        * the body's surroundings (haloRect), so it blurs only those; a `k` or `reach` of 0 removes it. Called once a frame: it follows the body.
        */
       setHalo(k, reach) {
-        const r = k && reach > 0 ? haloRect(layout, size, reach) : null;
+        const r = k && reach > 0 ? haloRect(layout, size, reach, pack.effects?.reach) : null;
         const c = r ? `rgba(184,184,184,${k.toFixed(2)})` : '';
         // two blurs, the inner one 3/7 of the outer (the halo's look at the default reach of 7)
         const inner = Math.max(1, Math.round(reach * 3 / 7));
