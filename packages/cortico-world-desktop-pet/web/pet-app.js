@@ -1599,6 +1599,9 @@ function layout(dt = 0) {
   const l = at();
   if (!l) return;
   stage.style.cursor = l.cursor;
+  // the sounds come from where Coo is on its display: screenX and availLeft (the left of the work area the pet window
+  // covers) count from the same origin across all displays
+  sfx.setPan(((screenX - screen.availLeft + l.x) / (screen.availWidth || innerWidth)) * 2 - 1);
   if (!tools.hidden) placeTools(l);
   const a = l.bubble;
   let sayBox = null;

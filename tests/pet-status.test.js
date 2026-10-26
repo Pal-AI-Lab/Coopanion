@@ -32,7 +32,7 @@ function page({ host = false, hash = '' } = {}) {
   win.deps = {
     applyTheme: (theme) => { win.document.documentElement.dataset.theme = theme; }, clamp, f, ICONS, linked: (text, n) => linked(text, n, win.document),
     COO_CSS, mini, normalizeSkin, skinCss,
-    createSfx: () => ({ unlock() {}, pop() {}, babble() {}, blub() {}, configure() {}, set() {}, listenStart() {}, listenEnd() {}, select() {}, tick() {} }),
+    createSfx: () => ({ unlock() {}, pop() {}, babble() {}, blub() {}, configure() {}, set() {}, setPan() {}, listenStart() {}, listenEnd() {}, select() {}, tick() {} }),
     createSpeech: () => ({ configure() {}, begin() {}, reveal() { return false; }, stop() {}, active: false }),
     textSteps: () => 1,
     loadBody: async () => body, body,

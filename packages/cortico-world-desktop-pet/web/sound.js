@@ -15,9 +15,13 @@ export const SOUND_KINDS = {
 };
 /** The kinds a body's sounds are filed under; the rest belong to the page (talk, ui). */
 export const BODY_SOUND_KINDS = ['move', 'touch', 'face', 'snore'];
+/** The smallest change of pan worth passing to the audio graph. */
+const PAN_STEP = .01;
 const KIND_OF = Object.fromEntries(Object.entries(SOUND_KINDS).flatMap(([kind, names]) => names.map((n) => [n, kind])));
 export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } = {}) {
   let ctx = null, master = null, unlocked = false, on = true, noiseBuf = null, gainValue = volume;
+  // left to right, -1 to 1 (setPan); a context without StereoPannerNode plays everything centred
+  let panner = null, pan = 0;
   // kinds turned off, and seconds of snoring per sleep (0 = the whole sleep)
   let muted = new Set(), snoreSeconds = 0;
   // whether the window is shown: a window that does not throttle its page keeps document.hidden false while hidden
@@ -32,7 +36,11 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
       ctx = new C();
       master = ctx.createGain(); master.gain.value = gainValue;
       const comp = ctx.createDynamicsCompressor();
-      master.connect(comp); comp.connect(ctx.destination);
+      if (ctx.createStereoPanner) {
+        panner = ctx.createStereoPanner(); panner.pan.value = pan;
+        master.connect(panner); panner.connect(comp);
+      } else master.connect(comp);
+      comp.connect(ctx.destination);
     }
     if (ctx.state === 'suspended') ctx.resume();
     for (const o of own.values()) decode(o);
@@ -144,6 +152,13 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     isOn: () => on,
     set(v) { on = v; try { localStorage.setItem(storageKey, v ? 'on' : 'off'); } catch (e) { /* not persisted */ } },
     volume(v) { gainValue = v; if (master) master.gain.value = v; },
+    /** Where every sound seems to come from, -1 (left) to 1 (right); changes under PAN_STEP are skipped. */
+    setPan(v) {
+      const p = Math.max(-1, Math.min(1, v));
+      if (Math.abs(p - pan) < PAN_STEP) return;
+      pan = p;
+      panner?.pan.setTargetAtTime(p, ctx.currentTime, .03);
+    },
     /** The window was shown or hidden (by hand or while something is full screen); hidden, nothing plays. */
     setShown(v) { shown = v; },
     /** The audio context and the gain a sound of `kind` plays into, or null while it would not be heard. */
