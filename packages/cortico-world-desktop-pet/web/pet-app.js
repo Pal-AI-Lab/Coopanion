@@ -802,34 +802,108 @@ function stepTalkMotion() {
 }
 
 /* ---------- typed input: the hover button, or double-click when switched on ---------- */
+/**
+ * Pictures pasted into the box are fitted as the chat page fits them (console/base/ui/images.ts): only ever
+ * shrunk, the long edge to IMAGE_EDGE; one still past IMAGE_BYTES is encoded again as JPEG. The box holds
+ * BOX_IMAGES, one row of thumbnails; the chat page takes more.
+ */
+const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const IMAGE_EDGE = 2048, IMAGE_BYTES = 6 * 1024 * 1024, BOX_IMAGES = 4;
+
+/** One pasted picture as `{ name, mime, base64, bytes, width, height }`; a picture that cannot be used rejects with the note to show. */
+async function fitImage(file) {
+  let bitmap;
+  try { bitmap = await createImageBitmap(file); } catch { throw new Error(t('bubble.imageUnreadable')); }
+  try {
+    const name = file.name || 'image';
+    const scale = Math.min(1, IMAGE_EDGE / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale)), height = Math.max(1, Math.round(bitmap.height * scale));
+    if (scale === 1 && file.size <= IMAGE_BYTES) return { name, mime: file.type, base64: await base64Of(file), bytes: file.size, width, height };
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, width, height);
+    const encode = (mime, quality) => new Promise((resolve) => canvas.toBlob(resolve, mime, quality));
+    // canvas has no GIF encoder
+    let mime = file.type === 'image/gif' ? 'image/png' : file.type;
+    let blob = await encode(mime);
+    if (blob && blob.size > IMAGE_BYTES && mime !== 'image/jpeg') { mime = 'image/jpeg'; blob = await encode(mime, .85); }
+    if (!blob) throw new Error(t('bubble.imageUnreadable'));
+    if (blob.size > IMAGE_BYTES) throw new Error(t('bubble.imageTooLarge', { mb: IMAGE_BYTES / 1048576 }));
+    return { name, mime, base64: await base64Of(blob), bytes: blob.size, width, height };
+  } finally {
+    bitmap.close();
+  }
+}
+function base64Of(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error(t('bubble.imageUnreadable')));
+    reader.onload = () => { const url = String(reader.result); resolve(url.slice(url.indexOf(',') + 1)); };
+    reader.readAsDataURL(blob);
+  });
+}
+
 function openInput() {
   closeMenu();
   if (item && item.kind === 'ask' && !item.answered) return;
   if (item) closeBubble();
-  item = { kind: 'input' };
+  const it = item = { kind: 'input', images: [], pending: 0, pasted: 0 };
   const expand = prefs.bot?.buttons?.chat
     ? `<button class="b-expand" type="button" aria-label="${esc(t('bubble.expand'))}" title="${esc(t('bubble.expand'))}">${ICONS.expand}</button>`
     : '';
-  openBubble('ask', `<button class="b-close" type="button" aria-label="${esc(t('bubble.close'))}">×</button><form class="b-own"><textarea rows="1" maxlength="500" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}"></textarea>${expand}<button type="submit">${esc(t('bubble.send'))}</button></form>`);
+  openBubble('ask', `<button class="b-close" type="button" aria-label="${esc(t('bubble.close'))}">×</button><div class="b-imgs" hidden></div><form class="b-own"><textarea rows="1" maxlength="500" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}"></textarea>${expand}<button type="submit">${esc(t('bubble.send'))}</button></form><span class="b-hint b-note" hidden></span>`);
   const form = bubble.querySelector('form'), input = form.querySelector('textarea');
+  const tray = bubble.querySelector('.b-imgs'), note = bubble.querySelector('.b-note');
+  const say = (text) => { note.textContent = text || ''; note.hidden = !text; };
+  const draw = () => {
+    tray.hidden = !it.images.length;
+    tray.replaceChildren(...it.images.map((img) => {
+      const cell = document.createElement('span');
+      cell.className = 'b-img';
+      cell.innerHTML = `<img alt="" src="data:${esc(img.mime)};base64,${img.base64}"><button type="button" aria-label="${esc(t('bubble.removeImage'))}" title="${esc(t('bubble.removeImage'))}">×</button>`;
+      cell.querySelector('button').addEventListener('click', () => { it.images.splice(it.images.indexOf(img), 1); say(''); draw(); input.focus(); });
+      return cell;
+    }));
+  };
   // Enter sends, Shift+Enter starts a new line; Enter that confirms an input method's text does neither
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
   });
+  // a paste that carries pictures adds them and leaves the text as it was, as the chat page does
+  input.addEventListener('paste', (e) => {
+    const files = [...(e.clipboardData?.files ?? [])].filter((f) => IMAGE_MIMES.includes(f.type));
+    if (!files.length) return;
+    e.preventDefault();
+    if (it.images.length + it.pending + files.length > BOX_IMAGES) { say(t('bubble.tooManyImages', { max: BOX_IMAGES })); return; }
+    say(prefs.bot?.imagesSeen === false ? t('bubble.imagesUnseen', { bot: prefs.bot.name || 'Coo' }) : '');
+    for (const file of files) {
+      // the order is the paste's, though a big picture takes longer to fit
+      const order = ++it.pasted;
+      it.pending++;
+      fitImage(file).then((img) => {
+        if (item !== it) return;
+        it.images.push({ ...img, order });
+        it.images.sort((a, b) => a.order - b.order);
+        draw();
+      }, (err) => {
+        if (item === it) say(err.message);
+      }).finally(() => { it.pending--; });
+    }
+  });
   bubble.querySelector('.b-close').addEventListener('click', () => closeBubble());
-  // the chat page takes longer text and images; the draft goes with it
+  // the chat page takes longer text and more images; the draft goes with it
   bubble.querySelector('.b-expand')?.addEventListener('click', () => {
-    send({ t: 'expand', text: input.value });
+    send({ t: 'expand', text: input.value, images: it.images });
     closeBubble();
   });
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const v = input.value.trim();
-    if (!v) return;
-    send({ t: 'text', text: v });
+    if (it.pending || (!v && !it.images.length)) return;
+    send({ t: 'text', text: v, ...(it.images.length ? { images: it.images.map(({ mime, base64, name }) => ({ mime, base64, name })) } : {}) });
     sfx.select(); body?.cue('cheer');
     closeBubble();
-    if (prefs.saidBubbles) addLine('type', v);
+    if (prefs.saidBubbles) addLine('type', v, false, { images: it.images.length });
   });
   host?.focus?.();
   setTimeout(() => input.focus(), 30);

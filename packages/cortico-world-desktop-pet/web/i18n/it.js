@@ -11,6 +11,11 @@ export default {
   'bubble.typePlaceholder': 'Scrivi un messaggio…',
   'bubble.typeLabel': 'Scrivi per parlare',
   'bubble.expand': 'Continua nella pagina Chat',
+  'bubble.removeImage': 'Rimuovi immagine',
+  'bubble.tooManyImages': 'Al massimo {max} immagini nella casella',
+  'bubble.imageUnreadable': 'Impossibile leggere questa immagine',
+  'bubble.imageTooLarge': 'Questa immagine supera ancora {mb} MB dopo il ridimensionamento',
+  'bubble.imagesUnseen': 'Il modello attuale non vede le immagini; {bot} sa solo quante ne hai inviate.',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': 'In ascolto…',

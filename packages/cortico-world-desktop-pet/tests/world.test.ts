@@ -674,6 +674,23 @@ describe('chat page', () => {
     expect(await page.next((m) => m.t === 'said-withdrawn')).toEqual({ t: 'said-withdrawn', cursor });
   });
 
+  it('images pasted into the typing box go with its text and with the draft it carries to the chat page; a batch the chat page would refuse sends nothing', async () => {
+    const { world, host } = await mounted();
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const chat = chatSocket(world);
+    const png = { name: 'image.png', mime: 'image/png', base64: Buffer.from('png').toString('base64'), bytes: 3, width: 1, height: 1 };
+
+    page.send({ t: 'text', text: '这是什么', images: [{ mime: 'image/bmp', base64: png.base64 }] });
+    page.send({ t: 'text', text: '', images: [png] });
+    await expect.poll(() => host.events.length).toBe(1);
+    expect(host.events[0]).toMatchObject({ meta: { via: 'bubble', text: '' }, blobs: [{ mime: 'image/png', name: 'image.png' }] });
+    expect(chatItem(host.events[0]!)).toMatchObject({ kind: 'user', via: 'bubble', images: [{ mime: 'image/png' }] });
+
+    page.send({ t: 'expand', text: '还有这张', images: [png] });
+    await expect.poll(() => chat.last('draft')).toEqual({ t: 'draft', text: '还有这张', images: [png] });
+  });
+
   it('pet_say images show on the chat page as they were when shown, live and in history', async () => {
     const { world, host } = await mounted();
     const page = await FakePage.open(origin(world));

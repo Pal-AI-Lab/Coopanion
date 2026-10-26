@@ -11,6 +11,11 @@ export default {
   'bubble.typePlaceholder': '輸入想說的話…',
   'bubble.typeLabel': '打字說話',
   'bubble.expand': '在對話頁繼續編輯',
+  'bubble.removeImage': '移除圖片',
+  'bubble.tooManyImages': '輸入框最多放 {max} 張圖',
+  'bubble.imageUnreadable': '無法讀取這張圖片',
+  'bubble.imageTooLarge': '這張圖片縮小後仍超過 {mb}MB',
+  'bubble.imagesUnseen': '目前的模型看不到圖片，{bot} 只會知道你傳了幾張圖。',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': '正在傾聽…',

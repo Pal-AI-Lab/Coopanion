@@ -11,6 +11,11 @@ export default {
   'bubble.typePlaceholder': 'Введите сообщение…',
   'bubble.typeLabel': 'Написать сообщение',
   'bubble.expand': 'Продолжить на странице «Чат»',
+  'bubble.removeImage': 'Удалить изображение',
+  'bubble.tooManyImages': 'В поле ввода не больше {max} изображений',
+  'bubble.imageUnreadable': 'Не удалось прочитать это изображение',
+  'bubble.imageTooLarge': 'Это изображение после уменьшения всё ещё больше {mb} МБ',
+  'bubble.imagesUnseen': 'Текущая модель не видит изображения; {bot} узнает только, сколько вы их отправили.',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': 'Слушаю…',

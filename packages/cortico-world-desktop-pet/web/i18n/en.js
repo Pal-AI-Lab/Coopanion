@@ -15,6 +15,12 @@ export default {
   'bubble.typeLabel': 'Type to talk',
   /** The typing bubble's button that carries the draft to the Chat page in the settings window. */
   'bubble.expand': 'Continue on the Chat page',
+  /** Pictures pasted into the typing box: the remove button on a thumbnail, and the notes below the box. */
+  'bubble.removeImage': 'Remove image',
+  'bubble.tooManyImages': 'The box holds at most {max} images',
+  'bubble.imageUnreadable': 'This image could not be read',
+  'bubble.imageTooLarge': 'This image still exceeds {mb}MB after resizing',
+  'bubble.imagesUnseen': 'The current model cannot see images; {bot} only learns how many you sent.',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': 'Listening…',

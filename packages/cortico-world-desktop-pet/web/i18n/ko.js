@@ -11,6 +11,11 @@ export default {
   'bubble.typePlaceholder': '메시지를 입력하세요…',
   'bubble.typeLabel': '입력해서 말하기',
   'bubble.expand': '대화 페이지에서 계속 쓰기',
+  'bubble.removeImage': '이미지 제거',
+  'bubble.tooManyImages': '입력창에는 이미지를 최대 {max}장까지 넣을 수 있습니다',
+  'bubble.imageUnreadable': '이 이미지를 읽을 수 없습니다',
+  'bubble.imageTooLarge': '이 이미지는 크기를 줄인 뒤에도 {mb}MB를 넘습니다',
+  'bubble.imagesUnseen': '현재 모델은 이미지를 볼 수 없어 {bot}에게는 보낸 이미지 수만 전달됩니다.',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': '듣는 중…',

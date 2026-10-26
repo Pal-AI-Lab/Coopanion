@@ -317,6 +317,21 @@ function parseChatImages(raw: unknown, user: string, s: PetText['chat'], m: Mode
   return { ok: true, blobs };
 }
 
+/** A picture the typing box carries to the chat page with its draft, as the page's composer holds it; the page checks it again on send. */
+interface DraftImage { name: string; mime: string; base64: string; bytes: number; width: number; height: number }
+
+function draftImages(raw: unknown): DraftImage[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, IMAGES_MAX).flatMap((item) => {
+    const i = (item ?? {}) as Partial<Record<keyof DraftImage, unknown>>;
+    if (typeof i.mime !== 'string' || !IMAGE_MIMES.has(i.mime) || typeof i.base64 !== 'string' || !i.base64) return [];
+    if (i.base64.length > Math.ceil(IMAGE_MAX_BYTES / 3) * 4 || typeof i.width !== 'number' || typeof i.height !== 'number') return [];
+    const name = typeof i.name === 'string' && i.name ? i.name.slice(0, 120) : 'image';
+    const bytes = typeof i.bytes === 'number' ? i.bytes : Math.floor(i.base64.length * 3 / 4);
+    return [{ name, mime: i.mime, base64: i.base64, bytes, width: i.width, height: i.height }];
+  });
+}
+
 export class DesktopPetWorld implements World {
   readonly id = DESKTOP_PET_ID;
   private host: WorldHost | null = null;
@@ -397,7 +412,7 @@ export class DesktopPetWorld implements World {
   /** The first cursor of this run: Core queues this World's undelivered events from before it again at start. */
   private startCursor = 0;
   /** Text the bubble's expand button carried, until a chat page takes it. */
-  private draft: string | null = null;
+  private draft: { text: string; images: DraftImage[] } | null = null;
   private pausedShown: boolean | null = null;
   private botShown: string | null = null;
 
@@ -789,7 +804,7 @@ export class DesktopPetWorld implements World {
           paused: this.opts.controls?.isPaused?.() ?? false, user: this.userName, bot: this.botName(),
           imagesSeen: host?.modelFacts.accepts('image/jpeg') ?? false,
         });
-        if (this.draft !== null) { this.chat.send(socket, { t: 'draft', text: this.draft }); this.draft = null; }
+        if (this.draft !== null) { this.chat.send(socket, { t: 'draft', ...this.draft }); this.draft = null; }
         return;
       }
       case 'more': {
@@ -918,6 +933,8 @@ export class DesktopPetWorld implements World {
       avatar,
       controls: !!c,
       buttons: { pause, settings: !!c?.openSettings, dress: !!c?.openDress, quit: !!c?.quit, chat: !!c?.openChat },
+      // the typing box warns, as the chat page does, that the model gets only the count of pasted images
+      imagesSeen: this.host?.modelFacts.accepts('image/jpeg') ?? false,
       paused: pause && c?.isPaused ? c.isPaused() : null,
       quitLabel,
       quitPrompt: quitLabel ? this.ui.menu.quitPrompt(quitLabel) : '',
@@ -1082,13 +1099,18 @@ export class DesktopPetWorld implements World {
       case 'visibility': this.petHidden = msg.hidden === true; return;
       case 'text': {
         const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 500) : '';
-        if (text) void this.push('desktop-pet.message', `desktop-pet.text`, this.t.typed(this.userName, text), 'preempt', { meta: { via: 'bubble', text } });
+        const images = parseChatImages(msg.images, this.userName, petText(this.appLanguage).chat, this.t);
+        if (!images.ok) { this.log?.warn(`打字框发来的图片没有收下:${images.reason}`); return; }
+        if (!text && images.blobs.length === 0) return;
+        void this.push('desktop-pet.message', 'desktop-pet.text', this.t.typed(this.userName, text), 'preempt',
+          { meta: { via: 'bubble', text }, ...(images.blobs.length ? { blobs: images.blobs } : {}) });
         return;
       }
       case 'expand': {
         const text = typeof msg.text === 'string' ? msg.text.slice(0, CHAT_TEXT_MAX) : '';
-        this.draft = text;
-        if (this.chat.size) { this.chat.broadcast({ t: 'draft', text }); this.draft = null; }
+        const images = draftImages(msg.images);
+        this.draft = { text, images };
+        if (this.chat.size) { this.chat.broadcast({ t: 'draft', text, images }); this.draft = null; }
         this.opts.controls?.openChat?.();
         return;
       }

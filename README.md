@@ -131,7 +131,7 @@ Each default is the fast, cheap, vision-capable tier of that vendor; change the 
 ### Talking and playing
 
 - **Voice**: tap Left Alt, then hold it and speak; releasing ends the sentence. The talk key, microphone and listening mode (hold to talk / press to toggle / always listen) are on the Voice input page. Instead of recognizing speech locally, you can pick an OpenAI-compatible transcription service there; the recording of each sentence then goes to that service.
-- **Typing**: rest the pointer on Coo and click the bubble button beside it. With **Typing key** on in Habits, pressing that key in any window opens the typing box too (left Ctrl pressed twice by default).
+- **Typing**: rest the pointer on Coo and click the bubble button beside it. With **Typing key** on in Habits, pressing that key in any window opens the typing box too (left Ctrl pressed twice by default). You can paste up to 4 images into the typing box.
 - **Alarms**: ask Coo for one at a local time or after a number of minutes. Daily alarms keep the local clock time across daylight-saving changes, and alarms missed while the app is closed arrive when it next starts.
 - **Touch**: click to poke Coo, move back and forth over its head to pat it, press and drag to pick it up; let go mid-swing to throw it, or over another display to move it there.
 - **Menu**: right-click Coo for pause / resume, settings, typing, voice input, dress up, hide and quit.
