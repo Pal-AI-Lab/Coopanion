@@ -49,7 +49,7 @@ $env:CORTICO_COMPANION_DATA = "$env:TEMP\coo-test"; pnpm run start
 | `vendor/cortico` | Cortico 本体(子模块) |
 | `packages/cortico-world-desktop-pet` | 桌宠 World,电脑操作在其中的 `src/cua/`;源码由本仓库直接管理 |
 | `packages/cortico-provider-coo` | Coo Pet Provider:DeepSeek、千问、Kimi 等几家模型服务的 provider,DeepSeek 排第一 |
-| `core/` | Core 子进程的入口:装配 Cormini、World、provider;首次运行的种子文件;没填 Key 时让桌宠提醒;`coopanion` World(`notice.ts`)在更新后把更新说明、在引导结束后把引导里的对话、在对方改设置后把改了什么告诉 Coo,并提供 Coo 给自己设唤醒器的工具(`alarms.ts`,高级模式的应用通知页列出闹钟、可删除，删除时告诉 Coo;面板在 `core/webui/`,由 `scripts/stage.ts` 打包);匿名使用统计(`telemetry.ts`,字段见 [TELEMETRY.md](TELEMETRY.md)) |
+| `core/` | Core 子进程的入口:装配 Cormini、World、provider;首次运行的种子文件;没填 Key 时让桌宠提醒;`coopanion` World(`notice.ts`)在更新后把更新说明和开发者的信、在引导结束后把引导里的对话、在对方改设置后把改了什么告诉 Coo,并提供 Coo 给自己设唤醒器的工具(`alarms.ts`,高级模式的应用通知页列出闹钟、可删除，删除时告诉 Coo;面板在 `core/webui/`,由 `scripts/stage.ts` 打包);匿名使用统计(`telemetry.ts`,字段见 [TELEMETRY.md](TELEMETRY.md)) |
 | `console/` | 设置窗口：Coopanion 自己的前端，只经 Core 的 WebUI HTTP API 读写状态。`base/` 是请求、语言、流、路由、主题、UI 原语与面板宿主;`rail/` 是左栏;「开始」「习惯」(电脑操作是其中一节)「装扮」「语音输入」「用量与成本」「对话」各页在 `features/`,「系统提示词」(完整的系统提示词与「清空对话并重开」)两种模式共用 `advanced/` 里的那一页;普通/高级两种模式见 `features/mode.ts`;高级模式的页面(模型供应商、扩展、控制台、Core、World 总览)与按 manifest 挂 World、Persona、Memory 页的页面宿主是从 Cortico WebUI 复制来的，在 `advanced/`,归 Coopanion 维护;字标下的版本与更新提示在 `features/release.ts`(版本号与渠道由 `scripts/stage.ts` 构建时写入) |
 | `app/` | Electron 主进程:托盘(Mac 上是菜单栏图标)、设置窗口(启动时不打开，用自己的 session;在 Core WebUI 的源下以 `/coopanion/` 应答 `build/console` 的文件;只把来自 Core 自己的源的请求转给 Core,桌宠服务器只接来自 Core 或它自己的源的请求和无 referrer 的帧文件读取(`/figure-frame`、`/web/`、`/packs/`,以 Origin `null` 转发),其余一律 403;发往本机以外的请求只放行新版本查询与扩展市场的图片(官方索引里的包图标与截图、GitHub 头像),子 frame 只能留在本机;离开 Core WebUI 的链接交给系统浏览器;信任模型见 `main.cjs` 的注释)、Core 子进程托管、桌宠窗口模式、自动更新(`updater.cjs`)、Steam 版读创意工坊(`steam.cjs`);`app/shims/` 是扩展安装用的 corepack 替身 |
 | `scripts/stage.ts` | 从 `vendor/cortico` 生成应用使用的 `build/cortico`(去掉内建的平台 World 与 llamacpp,`src/web/client` 原样),构建 Cortico WebUI、桌宠面板与设置窗口 `build/console` |
@@ -75,6 +75,7 @@ Cortico 是内核,Coopanion 是用它做的一个产品。使用者看到的界�
 1. 改 `package.json` 里的 `version`;
 2. 写 `docs/releases/v<版本>.md`。它既是 GitHub Release 的正文，也随安装包分发：用户更新后 Coo 会读到上次运行的版本之后每个版本的说明(「## 下载」及以下不给 Coo),再用自己的话讲给用户;
    可以另写英文版 `docs/releases/v<版本>.en.md`,只随安装包分发,模型文本是英文时 Coo 读它(没有就读中文版),它的下载列表以 `## Download` 开头;
+   要给用户写更长的话，写成开发者的信 `docs/releases/v<版本>.letter.md`(英文版 `.letter.en.md`):不进 GitHub Release,随安装包分发，跟更新说明一起整封交给 Coo,附 GitHub 上该版本标签下的原文链接，由 Coo 决定转不转达、怎么转达;跨了几个版本更新时只给其中最新的一封;
 3. 提交后打 `v<版本>` 标签并推送。
 
 GitHub Actions 会构建 Windows 安装包和两个 Mac 包(Apple 芯片、Intel,都在 Apple 芯片的 runner 上打),附到对应的 Release 上,连同自动更新读的 `latest.yml`(Windows)和 `latest-linux.yml`(AppImage)。已装的 Windows 版和 AppImage 由 `app/updater.cjs`(electron-updater)在后台下载新版本,Coo 在气泡里问要不要重启更新;Mac(临时签名装不了自动更新)和 deb 仍靠设置窗口字标下的提示手动下载。仓库配好 Steam 的变量和密钥后，同一个标签还会构建 Steam 版并上传到 Steam,见 [STEAM.md](STEAM.md)。

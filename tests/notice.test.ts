@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { WorldHost } from 'cortico/core/types.ts';
-import { noticeDefinition, releaseNotes, type AlarmsState } from '../core/notice.ts';
+import { noticeDefinition, releaseLetter, releaseNotes, type AlarmsState } from '../core/notice.ts';
 
 /** A releases directory with one file per version, each `## 下载` section after its body. */
 function releases(versions: string[]): string {
@@ -38,6 +38,32 @@ describe('releaseNotes', () => {
     const [note] = releaseNotes(releases(['0.1.13']), null, '0.1.13');
     expect(note!.text).toContain('本版 0.1.13');
     expect(note!.text).not.toContain('安装包');
+  });
+});
+
+describe('releaseLetter', () => {
+  /** Releases 0.1.11 to 0.1.14, with letters for the versions given. */
+  function lettered(versions: string[]): string {
+    const dir = releases(['0.1.11', '0.1.12', '0.1.13', '0.1.14']);
+    for (const v of versions) writeFileSync(join(dir, `v${v}.letter.md`), `给你的信 ${v}\n\n## 下载\n\n信里的段落\n`);
+    return dir;
+  }
+
+  it('takes only the newest letter in the range, whole, and is not taken as notes', () => {
+    const dir = lettered(['0.1.12', '0.1.13', '0.1.14']);
+    const letter = releaseLetter(dir, '0.1.11', '0.1.13');
+    expect(letter!.version).toBe('0.1.13');
+    expect(letter!.text).toContain('信里的段落');
+    expect(letter!.url).toBe('https://github.com/Pal-AI-Lab/Coopanion/blob/v0.1.13/docs/releases/v0.1.13.letter.md');
+    expect(releaseNotes(dir, '0.1.11', '0.1.13').map((n) => n.version)).toEqual(['0.1.12', '0.1.13']);
+    expect(releaseLetter(dir, '0.1.13', '0.1.13')).toBeNull();
+  });
+
+  it('reads the English letter for English model text, the Chinese one where there is none', () => {
+    const dir = lettered(['0.1.12', '0.1.13']);
+    writeFileSync(join(dir, 'v0.1.13.letter.en.md'), 'A letter 0.1.13\n');
+    expect(releaseLetter(dir, '0.1.11', '0.1.13', 'en')!.url).toMatch(/v0\.1\.13\.letter\.en\.md$/);
+    expect(releaseLetter(dir, '0.1.11', '0.1.12', 'en')!.text).toContain('给你的信 0.1.12');
   });
 });
 

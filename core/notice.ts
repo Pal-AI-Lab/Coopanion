@@ -5,7 +5,9 @@
  *   (`docs/releases/v<version>.md`, which the installer ships), once the pet page is connected. A
  *   new install starts silent; an install from before this World (no state file) hears the
  *   current version's notes only. Development runs (`dev`) say nothing. With English model text a
- *   version's `v<version>.en.md` is read instead, when it exists.
+ *   version's `v<version>.en.md` is read instead, when it exists. With the notes goes the newest
+ *   letter from the developers among those versions (`v<version>.letter.md`, `.letter.en.md` in
+ *   English), whole, with its link on GitHub; the GitHub release does not carry letters.
  * - When the person changes a setting Coo shows or works by (what it calls them, Coo's dress, size,
  *   colours, walking, sounds, which touches wake it, what it may change itself, voice input, computer
  *   use), what changed, from what to what. A switch of
@@ -46,6 +48,8 @@ export interface AlarmsState { timezone: string; alarms: Alarm[] }
 const LOOK_EVERY_MS = 1000;
 /** Where the release notes stop being about the app: the download list that ends each file, by the file's language. */
 const NOTES_END: Record<ModelLanguage, RegExp> = { zh: /^## 下载/m, en: /^## Download/m };
+/** Where a letter is read on GitHub: the file at its version's tag. */
+const LETTER_URL = (version: string, file: string) => `https://github.com/Pal-AI-Lab/Coopanion/blob/v${version}/docs/releases/${file}`;
 
 export interface NoticeAssembly {
   /** The running version (`COOPANION_VERSION`), `dev` outside a packaged app. */
@@ -84,21 +88,26 @@ function compare(a: Version, b: Version): number {
   return 0;
 }
 
+/** The `v<version><suffix>` files in `dir` of the versions after `from` up to `to`, oldest first; with `from` null, of `to` only. */
+function versionFiles(dir: string, suffix: string, from: string | null, to: string): Array<{ name: string; v: Version }> {
+  const upper = parseVersion(to);
+  if (!upper) return [];
+  const lower = from === null ? null : parseVersion(from);
+  const files = existsSync(dir) ? readdirSync(dir) : [];
+  return files
+    .map((name) => ({ name, v: name.endsWith(suffix) ? parseVersion(name.slice(0, -suffix.length)) : null }))
+    .filter((f): f is { name: string; v: Version } => f.v !== null)
+    .filter(({ v }) => compare(v, upper) <= 0 && (lower ? compare(v, lower) > 0 : compare(v, upper) === 0))
+    .sort((a, b) => compare(a.v, b.v));
+}
+
 /**
  * The notes of the versions after `from` up to `to`, oldest first, each cut before its download
  * list; with `from` null, the notes of `to` only. Versions without a file are left out. In English a
  * version's `.en.md` file is taken when there is one, its Chinese file otherwise.
  */
 export function releaseNotes(dir: string, from: string | null, to: string, language: ModelLanguage = 'zh'): Array<{ version: string; text: string }> {
-  const upper = parseVersion(to);
-  if (!upper) return [];
-  const lower = from === null ? null : parseVersion(from);
-  const files = existsSync(dir) ? readdirSync(dir) : [];
-  return files
-    .map((name) => ({ name, v: parseVersion(name.replace(/\.md$/, '')) }))
-    .filter((f): f is { name: string; v: Version } => f.v !== null && f.name.endsWith('.md'))
-    .filter(({ v }) => compare(v, upper) <= 0 && (lower ? compare(v, lower) > 0 : compare(v, upper) === 0))
-    .sort((a, b) => compare(a.v, b.v))
+  return versionFiles(dir, '.md', from, to)
     .map(({ name, v }) => {
       const english = name.replace(/\.md$/, '.en.md');
       const [file, written]: [string, ModelLanguage] = language === 'en' && existsSync(join(dir, english)) ? [english, 'en'] : [name, 'zh'];
@@ -106,6 +115,21 @@ export function releaseNotes(dir: string, from: string | null, to: string, langu
       const end = text.search(NOTES_END[written]);
       return { version: v.join('.'), text: (end < 0 ? text : text.slice(0, end)).trim() };
     });
+}
+
+export interface Letter { version: string; text: string; url: string }
+
+/**
+ * The letter of the newest version in `releaseNotes`' range that has one, whole, or null. In English
+ * its `.letter.en.md` file is taken when there is one.
+ */
+export function releaseLetter(dir: string, from: string | null, to: string, language: ModelLanguage = 'zh'): Letter | null {
+  const newest = versionFiles(dir, '.letter.md', from, to).at(-1);
+  if (!newest) return null;
+  const english = newest.name.replace(/\.md$/, '.en.md');
+  const file = language === 'en' && existsSync(join(dir, english)) ? english : newest.name;
+  const version = newest.v.join('.');
+  return { version, text: readFileSync(join(dir, file), 'utf8').replaceAll('\r\n', '\n').trim(), url: LETTER_URL(version, file) };
 }
 
 interface Labels {
@@ -225,6 +249,8 @@ const zh = {
   noNotes: '这个版本没有附带更新说明。',
   notesIntro: (several: boolean) => `下面是${several ? '这之间各版本' : '这个版本'}的更新说明,原文是写给对方看的:`,
   notesOutro: '\n挑对方用得上的新功能和修复,用你自己的话告诉对方,不用照念,也不用一次说完。',
+  letterIntro: (version: string, url: string) => `开发者还随 ${version} 写了一封给对方的信,原文也在 ${url}:`,
+  letterOutro: '\n要不要转达、怎么转达由你决定:可以用自己的话讲,可以念原文,可以给对方原文链接,也可以先问对方想不想听。',
 
   someone: '对方',
   guideFinished: (name: string) => `[启动引导] ${name}刚在你的气泡里走完了启动引导:定了你怎么称呼对方(「${name}」)、你平时活泼到什么程度、互动时你什么时候回应、用哪家模型服务,也看过了怎么语音输入、按钮和菜单在哪。`,
@@ -284,6 +310,8 @@ const en: typeof zh = {
   noNotes: ' This version came without release notes.',
   notesIntro: (several) => ` Below are the release notes of ${several ? 'each version in between' : 'this version'}, written for the person to read:`,
   notesOutro: '\nPick the new features and fixes the person can use and tell them in your own words; no need to read them out or to say it all at once.',
+  letterIntro: (version, url) => `The developers also wrote the person a letter with ${version}, also at ${url}:`,
+  letterOutro: '\nWhether and how to pass it on is yours to decide: tell it in your own words, read it out, give them the link, or first ask whether they want to hear it.',
 
   someone: 'the person',
   guideFinished: (name) => `[introduction] ${name} just walked through the introduction in your bubble: settled what you call them ("${name}"), how lively you are day to day, when you respond to touches, and which model service to use, and saw how voice input works and where the buttons and the menu are.`,
@@ -301,15 +329,14 @@ const en: typeof zh = {
 
 const NOTICE_TEXT: Record<ModelLanguage, typeof zh> = { zh, en };
 
-function updatedText(from: string | null, to: string, notes: Array<{ version: string; text: string }>, language: ModelLanguage = 'zh'): string {
+function updatedText(from: string | null, to: string, notes: Array<{ version: string; text: string }>, letter: Letter | null, language: ModelLanguage = 'zh'): string {
   const t = NOTICE_TEXT[language];
   const head = from ? t.updatedFrom(from, to) : t.updatedTo(to);
-  if (!notes.length) return `${head}${t.noNotes}`;
-  return [
-    `${head}${t.notesIntro(notes.length > 1)}`,
-    ...notes.map((n) => `\n<release version="${n.version}">\n${n.text}\n</release>`),
-    t.notesOutro,
-  ].join('\n');
+  const lines = notes.length
+    ? [`${head}${t.notesIntro(notes.length > 1)}`, ...notes.map((n) => `\n<release version="${n.version}">\n${n.text}\n</release>`), t.notesOutro]
+    : [`${head}${t.noNotes}`];
+  if (letter) lines.push(`\n${t.letterIntro(letter.version, letter.url)}`, `\n<letter version="${letter.version}">\n${letter.text}\n</letter>`, t.letterOutro);
+  return lines.join('\n');
 }
 
 type Look = Record<string, string>;
@@ -454,7 +481,7 @@ export class NoticeWorld implements World {
         render: () => {
           this.record(to);
           const language = this.language;
-          return updatedText(from, to, releaseNotes(this.a.notesDir, from, to, language), language);
+          return updatedText(from, to, releaseNotes(this.a.notesDir, from, to, language), releaseLetter(this.a.notesDir, from, to, language), language);
         },
       }, { trigger: 'flush' });
     }
@@ -488,7 +515,7 @@ const DESCRIBE: WorldDescribe = {
     { type: 'coopanion.guide', description: { zh: '使用向导结束,附向导里发生的事。', en: 'The introduction ended, with what happened in it.' }, trigger: 'flush' },
     { type: 'coopanion.alarm', description: { zh: '自己定的唤醒到时间了。', en: 'A wake-up it set is due.' }, trigger: 'flush' },
     { type: 'coopanion.alarm-cancelled', description: { zh: '使用者在设置窗口取消了它定的一个唤醒。', en: 'The person cancelled one of its wake-ups in the settings window.' }, trigger: 'debounce' },
-    { type: 'coopanion.updated', description: { zh: '应用升级了,附新版本的更新说明。', en: 'The app was updated, with the release notes of the new version.' }, trigger: 'flush' },
+    { type: 'coopanion.updated', description: { zh: '应用升级了,附新版本的更新说明;有开发者的信时附最新一封。', en: 'The app was updated, with the release notes of the new version and the newest letter from the developers, if any.' }, trigger: 'flush' },
     { type: 'coopanion.settings-changed', description: { zh: '使用者改了桌宠的外观或习惯。', en: "The person changed the pet's looks or habits." }, trigger: 'debounce' },
   ],
 };
