@@ -15,7 +15,7 @@
  * `grantMinutes`, or never. The question goes through `askPermission` (the pet's bubble), or through a
  * system dialog while the pet page cannot ask. A refusal stands until the turn ends. Working in a
  * terminal (terminal.ts) is asked about on its own after that, at every level, and a yes holds for
- * `grantMinutes`.
+ * `grantMinutes`; with `skipTerminalAsk` on it is asked about only as `permission` says.
  *
  * Every tool is interruptible. When the call's signal aborts, the tool stops at the next point
  * where no input is left half-done and its receipt says what it did: a call waiting for the
@@ -306,6 +306,7 @@ export class Cua {
    */
   private async permitTerminal(signal: AbortSignal | undefined, question: (window: string, terminal: boolean) => string | null): Promise<void> {
     await this.permit('act', signal);
+    if (this.cfg.skipTerminalAsk) return;
     const info = await this.call<ScreenInfo>({ op: 'info' }, signal);
     this.screen = screenOf(info);
     if (Date.now() < this.terminalGrantedUntil) return;
@@ -623,7 +624,7 @@ export class Cua {
       'cua.control': t.control(this.cfg.control),
       'cua.idle': String(Math.round(this.cfg.userIdleMs / 100) / 10),
       'cua.permission': t.permission(this.level, this.cfg.grantMinutes),
-      'cua.terminal': t.terminal(this.cfg.grantMinutes),
+      'cua.terminal': this.cfg.skipTerminalAsk ? t.terminalSkipped : t.terminal(this.cfg.grantMinutes),
     };
     return renderTemplate(readFileSync(this.envPromptFile(), 'utf8'), vars).trim();
   }
