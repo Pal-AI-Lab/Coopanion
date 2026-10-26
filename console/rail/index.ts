@@ -402,8 +402,7 @@ export function createRail(deps: RailDeps): Rail {
 
   const compact = win.matchMedia('(max-width: 1000px)');
   const narrow = win.matchMedia('(max-width: 720px)');
-  const stored = deps.memo.get<unknown>(COLLAPSED_KEY, null);
-  let preference = typeof stored === 'boolean' ? stored : null;
+  let preference = deps.memo.get<unknown>(COLLAPSED_KEY, null) === true;
   let collapsed = false;
 
   /**
@@ -452,7 +451,7 @@ export function createRail(deps: RailDeps): Rail {
     deps.content.inert = !backdrop.hidden;
     hideTip();
   };
-  const resize = (): void => render(narrow.matches || compact.matches || preference === true);
+  const resize = (): void => render(compact.matches || preference);
   toggle.addEventListener('click', () => {
     if (!narrow.matches) {
       preference = !collapsed;

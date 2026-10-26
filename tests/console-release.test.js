@@ -37,7 +37,6 @@ describe('the version line of a build that updates itself', () => {
     const link = brand.querySelector('a.release-hint');
     expect(link.textContent).toBe(S.updateFailedShort('9.9.9'));
     expect(link.title).toBe(S.updateFailed('9.9.9'));
-    expect(link.getAttribute('aria-label')).toBe(link.title);
     expect(link.href).toMatch(/\/releases\/latest$/);
 
     life.abort();

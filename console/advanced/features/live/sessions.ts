@@ -16,7 +16,7 @@
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import type { SessionStat } from './protocol.ts';
 import { S } from './strings.ts';
-import { placeOverflowPopover } from '../../../base/ui/overflow-popover.ts';
+import { overflowPopover } from '../../../base/ui/overflow-popover.ts';
 
 export interface SessionBandDeps {
   ui: WebUi;
@@ -76,6 +76,8 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
   const pop = ui.h('div', 'sesspop');
   pop.hidden = true;
   more.append(moreBtn, pop);
+  // ── 「+N」的浮窗:悬停或聚焦时出现,离开一会儿后收起 ──
+  const popover = overflowPopover({ trigger: moreBtn, pop, parts: [more], content: () => el.closest('.live-sessions') ?? el, signal });
   const setMore = (n: number): void => {
     moreBtn.textContent = `+${n}`;
     moreBtn.setAttribute('aria-label', S.moreSessions(n));
@@ -117,7 +119,7 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
       card.addEventListener('click', () => {
         const cur = list.find((x) => x.id === id);
         if (cur) deps.onPick(cur.id, cur.label);
-        hidePop();
+        popover.hide();
       }, { signal });
       cards.set(s.id, card);
     }
@@ -125,94 +127,59 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
     return card;
   };
 
-  // ── 「+N」的浮窗:悬停或聚焦时出现,离开一会儿后收起 ──
-  let hideTimer: ReturnType<typeof setTimeout> | undefined;
-  const showPop = (): void => {
-    clearTimeout(hideTimer);
-    pop.hidden = false;
-    moreBtn.setAttribute('aria-expanded', 'true');
-    placeOverflowPopover(pop, moreBtn, el.closest('.live-sessions') ?? el);
-  };
-  const hidePop = (): void => {
-    clearTimeout(hideTimer);
-    pop.hidden = true;
-    moreBtn.setAttribute('aria-expanded', 'false');
-  };
-  const hideSoon = (): void => {
-    clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => { if (!more.contains(doc.activeElement)) hidePop(); }, 180);
-  };
-  view?.addEventListener('resize', () => { if (!pop.hidden) showPop(); }, { signal });
-  more.addEventListener('mouseenter', showPop, { signal });
-  more.addEventListener('mouseleave', hideSoon, { signal });
-  more.addEventListener('focusin', showPop, { signal });
-  more.addEventListener('focusout', (ev) => {
-    if (!more.contains(ev.relatedTarget as Node | null)) hidePop();
-  }, { signal });
-  moreBtn.addEventListener('click', showPop, { signal });
-  doc.addEventListener('pointerdown', event => { if (!more.contains(event.target as Node)) hidePop(); }, { signal });
-  more.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Escape') { moreBtn.focus({ preventScroll: true }); hidePop(); }
-  }, { signal });
-  signal.addEventListener('abort', () => clearTimeout(hideTimer), { once: true });
-
   const reduced = (): boolean => view?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
   /** 量出放得下几张,摆好;`animate` 时已在场的卡从旧位置滑到新位置,新来的淡入。 */
   const layout = (animate: boolean): void => {
     const focused = el.contains(doc.activeElement) ? doc.activeElement as HTMLElement : null;
-    const wasOpen = !pop.hidden;
-    const scrollTop = pop.scrollTop;
     const before = new Map<string, number>();
     // 只记行里的卡:浮窗里的卡没有可比的位置,从浮窗回到行里的卡按新来的淡入
     if (animate) for (const [id, card] of cards) if (card.parentElement === el) before.set(id, card.getBoundingClientRect().left);
 
     const all = list.map((s) => ({ s, card: cardOf(s) }));
-    // 全部先放进来量宽度
-    el.replaceChildren(...all.map((x) => x.card));
-    const width = el.clientWidth;
-    const w = new Map(all.map((x) => [x.s.id, x.card.offsetWidth]));
-    const sum = (items: typeof all): number => items.reduce((n, x) => n + w.get(x.s.id)! + GAP, 0) - (items.length ? GAP : 0);
+    let shown: typeof all = [];
+    popover.refill(() => {
+      // 全部先放进来量宽度
+      el.replaceChildren(...all.map((x) => x.card));
+      const width = el.clientWidth;
+      const w = new Map(all.map((x) => [x.s.id, x.card.offsetWidth]));
+      const sum = (items: typeof all): number => items.reduce((n, x) => n + w.get(x.s.id)! + GAP, 0) - (items.length ? GAP : 0);
 
-    const pinned = all.filter((x) => x.s.id === MAIN_ID || x.s.endedAt == null);
-    const ended = all.filter((x) => x.s.id !== MAIN_ID && x.s.endedAt != null);
-    let shown: typeof all;
-    let hidden: typeof all = [];
-    if (sum(pinned) <= width) {
-      // 进行中的都放得下:已结束的从刚结束的往前补,补到放不下为止
-      const keep: typeof all = [];
-      for (let i = ended.length - 1; i >= 0; i--) {
-        if (sum([...pinned, ended[i], ...keep]) > width) break;
-        keep.unshift(ended[i]);
+      const pinned = all.filter((x) => x.s.id === MAIN_ID || x.s.endedAt == null);
+      const ended = all.filter((x) => x.s.id !== MAIN_ID && x.s.endedAt != null);
+      let hidden: typeof all = [];
+      if (sum(pinned) <= width) {
+        // 进行中的都放得下:已结束的从刚结束的往前补,补到放不下为止
+        const keep: typeof all = [];
+        for (let i = ended.length - 1; i >= 0; i--) {
+          if (sum([...pinned, ended[i], ...keep]) > width) break;
+          keep.unshift(ended[i]);
+        }
+        shown = [...pinned, ...keep];
+      } else {
+        // 进行中的放不下:留出「+N」的位置,其余收进浮窗;已结束的一张不画
+        setMore(pinned.length);
+        el.appendChild(more);
+        const moreW = more.offsetWidth + GAP;
+        shown = [];
+        for (const x of pinned) {
+          if (sum([...shown, x]) + moreW > width && shown.length > 0) break;
+          shown.push(x);
+        }
+        hidden = pinned.slice(shown.length);
       }
-      shown = [...pinned, ...keep];
-    } else {
-      // 进行中的放不下:留出「+N」的位置,其余收进浮窗;已结束的一张不画
-      setMore(pinned.length);
-      el.appendChild(more);
-      const moreW = more.offsetWidth + GAP;
-      shown = [];
-      for (const x of pinned) {
-        if (sum([...shown, x]) + moreW > width && shown.length > 0) break;
-        shown.push(x);
-      }
-      hidden = pinned.slice(shown.length);
-    }
 
-    el.replaceChildren(...shown.map((x) => x.card));
-    if (hidden.length) {
-      setMore(hidden.length);
-      pop.replaceChildren(...hidden.map((x) => x.card));
-      el.appendChild(more);
-    } else {
-      pop.replaceChildren();
-      hidePop();
-    }
-    if (wasOpen && hidden.length) showPop();
-    if (focused?.isConnected) focused.focus({ preventScroll: true });
-    else if (focused) (hidden.length ? moreBtn : shown[0]?.card)?.focus({ preventScroll: true });
-    if (!wasOpen || !hidden.length) hidePop();
-    pop.scrollTop = scrollTop;
+      el.replaceChildren(...shown.map((x) => x.card));
+      if (hidden.length) {
+        setMore(hidden.length);
+        pop.replaceChildren(...hidden.map((x) => x.card));
+        el.appendChild(more);
+      } else pop.replaceChildren();
+      return hidden.length > 0;
+    }, (overflow) => {
+      if (focused?.isConnected) focused.focus({ preventScroll: true });
+      else if (focused) (overflow ? moreBtn : shown[0]?.card)?.focus({ preventScroll: true });
+    });
 
     // 不再出现的卡丢掉,免得 Map 越积越多
     const live = new Set(list.map((s) => s.id));

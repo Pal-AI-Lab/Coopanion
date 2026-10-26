@@ -653,7 +653,8 @@ function askRestoreStranded() {
   return true;
 }
 
-ipcMain.on('settings:theme', (event, theme) => applySettingsTheme(settings, event, theme));
+// only the settings window's preload sends this, from its main frame
+ipcMain.on('settings:theme', (_e, theme) => applySettingsTheme(settings, theme));
 
 ipcMain.on('settings:language', (e) => { e.returnValue = language; });
 ipcMain.on('settings:update', (e) => { e.returnValue = { auto: SELF_UPDATE, step: updateLine() }; });

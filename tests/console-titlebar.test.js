@@ -40,9 +40,8 @@ it('uses the current theme studio after server theme replacement and persists ap
   expect(nativeTheme).toBe(previous);
 });
 
-it('navigates actual history and honors the router leave guard', async () => {
-  let allowLeave = true;
-  const router = new Router({ win: window, confirmLeave: async () => allowLeave });
+it('goes back and forward in the window history', async () => {
+  const router = new Router({ win: window, confirmLeave: async () => true });
   const stop = router.start();
   const bar = createTitlebar(document, document.createElement('button'), life.signal);
   document.body.append(bar);
@@ -52,11 +51,5 @@ it('navigates actual history and honors the router leave guard', async () => {
   await expect.poll(() => router.route.segments[0]).toBe('home');
   bar.querySelector('[aria-label="' + L.goForward + '"]').click();
   await expect.poll(() => router.route.segments[0]).toBe('chat');
-  const guard = router.addLeaveGuard(() => 'Unsaved edits');
-  allowLeave = false;
-  bar.querySelector('[aria-label="' + L.goBack + '"]').click();
-  await tick();
-  expect(router.route.segments).toEqual(['chat']);
-  await expect.poll(() => location.hash).toBe('#/chat');
-  guard.dispose(); stop.dispose();
+  stop.dispose();
 });

@@ -106,6 +106,7 @@ describe('settings window rail', () => {
 
   it('closes the small-screen overlay on Escape, backdrop and navigation without replacing the desktop choice', () => {
     const { rail, toggle } = mount();
+    queries.get('(max-width: 1000px)').set(true);
     queries.get('(max-width: 720px)').set(true);
     const backdrop = document.querySelector('.companion-sidebar-backdrop');
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
@@ -123,6 +124,7 @@ describe('settings window rail', () => {
     rail.el.querySelector('a.navitem').click();
     expect(backdrop.hidden).toBe(true);
     queries.get('(max-width: 720px)').set(false);
+    queries.get('(max-width: 1000px)').set(false);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
   });
 

@@ -62,19 +62,18 @@ function link(doc: Document, className: string, text: string, href: string): HTM
   return a;
 }
 
-function stepHint(doc: Document, step: UpdateStep): HTMLElement {
-  if (step.phase === 'failed') {
-    const hint = link(doc, 'release-hint', S.updateFailedShort(step.version), RELEASES_URL);
-    hint.title = S.updateFailed(step.version);
-    hint.setAttribute('aria-label', hint.title);
-    return hint;
-  }
-  const hint = doc.createElement('span');
-  hint.className = 'release-hint';
-  hint.textContent = step.phase === 'downloading' ? S.updateDownloadingShort(step.version) : S.updateReadyShort(step.version);
-  hint.title = step.phase === 'downloading' ? S.updateDownloading(step.version) : S.updateReady(step.version);
-  hint.setAttribute('aria-label', hint.title);
-  return hint;
+/** The short status line; the full sentence is its tooltip, which screen readers read after the line. */
+function hint(doc: Document, text: string, detail: string, href?: string): HTMLElement {
+  const el = href ? link(doc, 'release-hint', text, href) : Object.assign(doc.createElement('span'), { className: 'release-hint', textContent: text });
+  el.title = detail;
+  return el;
+}
+
+function stepHint(doc: Document, { phase, version }: UpdateStep): HTMLElement {
+  if (phase === 'failed') return hint(doc, S.updateFailedShort(version), S.updateFailed(version), RELEASES_URL);
+  return phase === 'downloading'
+    ? hint(doc, S.updateDownloadingShort(version), S.updateDownloading(version))
+    : hint(doc, S.updateReadyShort(version), S.updateReady(version));
 }
 
 export function mountRelease(doc: Document, container: Element, signal: AbortSignal): void {
@@ -89,9 +88,7 @@ export function mountRelease(doc: Document, container: Element, signal: AbortSig
   const updater = doc.defaultView?.coopanionUpdate;
   if (updater) {
     const show = (step: UpdateStep | null) => {
-      if (!step) return;
-      const hint = stepHint(doc, step);
-      status.replaceChildren(hint);
+      if (step) status.replaceChildren(stepHint(doc, step));
     };
     show(updater.step());
     const stop = updater.onStep(show);
@@ -100,9 +97,6 @@ export function mountRelease(doc: Document, container: Element, signal: AbortSig
   }
   void checkRelease().then((update) => {
     if (signal.aborted || !update) return;
-    const hint = link(doc, 'release-hint', S.updateShort(update.version), update.url);
-    hint.title = S.update(update.version);
-    hint.setAttribute('aria-label', hint.title);
-    status.append(hint);
+    status.append(hint(doc, S.updateShort(update.version), S.update(update.version), update.url));
   });
 }

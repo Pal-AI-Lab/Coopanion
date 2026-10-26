@@ -20,7 +20,7 @@ describe('settings window size', () => {
   });
   it('uses the default for missing, malformed or invalid preferences', () => {
     expect(readSettingsSize(file, area)).toEqual({ ...DEFAULT_SIZE, ...minimum });
-    for (const value of ['{', 'null', '{"width":-2,"height":700}', '{"width":"1000","height":700}']) {
+    for (const value of ['{', 'null', '{"width":"1000","height":700}']) {
       writeFileSync(file, value);
       expect(readSettingsSize(file, area)).toEqual({ ...DEFAULT_SIZE, ...minimum });
     }

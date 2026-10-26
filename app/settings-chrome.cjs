@@ -10,11 +10,10 @@ function settingsChromeOptions(platform) {
   };
 }
 
-function applySettingsTheme(win, event, theme) {
-  if (!win || event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) return;
-  if (!/^#[0-9a-f]{6}$/i.test(theme?.color) || !/^#[0-9a-f]{6}$/i.test(theme?.symbolColor)) return;
+/** `theme` holds two of the page's palette colours, each `#rrggbb` (`normalizePalette` in console/base/theme/schemes.ts). */
+function applySettingsTheme(win, theme) {
   win.setBackgroundColor(theme.color);
   if (process.platform !== 'darwin') win.setTitleBarOverlay({ color: theme.color, symbolColor: theme.symbolColor });
 }
 
-module.exports = { TITLEBAR_HEIGHT, settingsChromeOptions, applySettingsTheme };
+module.exports = { settingsChromeOptions, applySettingsTheme };

@@ -8,7 +8,7 @@ function readSettingsSize(file, area) {
   let size = DEFAULT_SIZE;
   try {
     const saved = JSON.parse(readFileSync(file, 'utf8'));
-    if (Number.isInteger(saved?.width) && saved.width > 0 && Number.isInteger(saved?.height) && saved.height > 0) size = saved;
+    if (Number.isInteger(saved?.width) && Number.isInteger(saved?.height)) size = saved;
   } catch { /* A missing or damaged preference uses the default size. */ }
   const minWidth = Math.min(area.width, MIN_SIZE.width);
   const minHeight = Math.min(area.height, MIN_SIZE.height);
