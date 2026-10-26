@@ -16,7 +16,7 @@ export const S: Partial<typeof en> = {
   grant: '許可の有効時間',
   grantSuffix: '分',
   grantBad: (min: number, max: number) => `${min} から ${max} までの整数を入力してください`,
-  more: 'その他の設定は詳細モードの「コンピューター操作」ページにあります。',
+  more: 'その他の設定は詳細モードの「デスクトップペット」ページの「設定」タブにあります。',
   saveFailed: (why: string) => `保存できませんでした：${why}`,
   enabledLabel: 'コンピューターの使用',
   controlLabel: 'マウスとキーボード',
