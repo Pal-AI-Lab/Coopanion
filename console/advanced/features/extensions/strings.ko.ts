@@ -5,7 +5,7 @@ export const S: Partial<typeof en> = {
   navGroup: 'Core',
   introTitle: '확장',
   scope: '확장은 공유 확장 디렉터리에 설치되며, 설치와 삭제는 프로세스를 재시작한 뒤 적용됩니다. 확장을 삭제하면 공유 패키지가 제거됩니다.',
-  tabs: { world: 'World 확장', provider: '공급자 확장', bot: '봇 템플릿' },
+  tabs: { world: 'World 확장', provider: '공급자 확장' },
 
   installedTitle: '설치됨',
   market: '확장 마켓',
@@ -20,14 +20,12 @@ export const S: Partial<typeof en> = {
   enabled: '이 봇에 로드됨',
   disabled: '설치됨, 로드 안 됨',
   worldNotLoaded: '설치됨. World 개요에서 로드하세요',
-  adopted: '이 봇에서 사용 중',
   template: '설치됨, 인스턴스 생성 가능',
   hidden: '에이전트에게 숨김',
   runtimeVersion: (version: string) => `프로세스는 아직 ${version} 사용 중`,
 
   providerManagement: '공급자 확장은 이 공유 환경을 쓰는 봇에 제공됩니다.',
   idleManagement: '왼쪽 World 개요 페이지에서 World를 로드하거나 비활성화하세요. 기본 제공 확장은 삭제할 수 없습니다.',
-  createBody: 'Cortico를 실행하는 컴퓨터에서 프로젝트에서 명령줄을 열고 pnpm start --new를 실행한 뒤, 이 봇 템플릿을 선택해 새 인스턴스를 만드세요.',
 
   restartConfirmTitle: '프로세스를 재시작하시겠습니까?',
   restartNoLoopTitle: '수동 시작 필요',

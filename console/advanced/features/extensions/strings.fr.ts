@@ -5,7 +5,7 @@ export const S: Partial<typeof en> = {
   navGroup: 'Core',
   introTitle: 'Extensions',
   scope: "Les extensions sont installées dans le répertoire d'extensions partagé ; l'installation et la suppression prennent effet après le redémarrage du processus. Supprimer une extension retire le paquet partagé.",
-  tabs: { world: 'Extensions World', provider: 'Extensions de fournisseur', bot: 'Modèles de bot' },
+  tabs: { world: 'Extensions World', provider: 'Extensions de fournisseur' },
 
   installedTitle: 'Installées',
   market: "Catalogue d'extensions",
@@ -20,14 +20,12 @@ export const S: Partial<typeof en> = {
   enabled: 'Chargée dans ce bot',
   disabled: 'Installée, non chargée',
   worldNotLoaded: 'Installée ; à charger depuis la vue d’ensemble des World',
-  adopted: 'Utilisée par ce bot',
   template: 'Installée ; prête à créer des instances',
   hidden: "Masquée pour l'agent",
   runtimeVersion: (version: string) => `Le processus utilise encore ${version}`,
 
   providerManagement: 'Les extensions de fournisseur servent les bots qui utilisent cet environnement partagé.',
   idleManagement: "Chargez ou désactivez les World dans la page Vue d'ensemble des World, à gauche. Les extensions intégrées ne peuvent pas être supprimées.",
-  createBody: 'Ouvrez une ligne de commande dans le projet Cortico sur sa machine hôte, lancez pnpm start --new, puis sélectionnez ce modèle de bot pour créer une nouvelle instance.',
 
   restartConfirmTitle: 'Redémarrer le processus ?',
   restartNoLoopTitle: 'Démarrage manuel requis',
