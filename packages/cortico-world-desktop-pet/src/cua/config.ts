@@ -70,7 +70,7 @@ export function cuaConfigGroup(language: Language = 'zh'): ConfigGroup {
         [`${K}.control`]: { type: 'boolean', title: c.control.title, description: c.control.description, 'x-hot': true },
         [`${K}.permission`]: { type: 'string', title: c.permission.title, enum: [...PERMISSION_LEVELS], 'x-hot': true, description: c.permission.description },
         [`${K}.grantMinutes`]: { type: 'integer', title: c.grantMinutes.title, minimum: 1, maximum: 1440, 'x-suffix': c.grantMinutes.suffix, description: c.grantMinutes.description, 'x-hot': true },
-        [`${K}.skipTerminalAsk`]: { type: 'boolean', title: c.skipTerminalAsk.title, description: c.skipTerminalAsk.description, 'x-hot': true },
+        [`${K}.skipTerminalAsk`]: { type: 'boolean', title: c.skipTerminalAsk.title, description: c.skipTerminalAsk.description, 'x-hot': true, 'x-warning': true },
         [`${K}.userIdleMs`]: { type: 'integer', title: c.userIdleMs.title, minimum: 0, maximum: 30000, 'x-suffix': 'ms', description: c.userIdleMs.description, 'x-hot': true },
         [`${K}.maxYieldWaitMs`]: { type: 'integer', title: c.maxYieldWaitMs.title, minimum: 0, maximum: 120000, 'x-suffix': 'ms', 'x-hot': true },
         [`${K}.screenshot.maxWidth`]: { type: 'integer', title: c.maxWidth.title, minimum: 320, maximum: 3840, 'x-suffix': 'px', 'x-hot': true },
