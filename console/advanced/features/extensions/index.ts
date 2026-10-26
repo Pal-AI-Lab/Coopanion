@@ -1209,7 +1209,7 @@ export function mountExtensions(ctx: FeatureContext): void {
       const data = await get<{ groups?: Array<{ group: { id: string }; values?: Record<string, unknown> }> }>('/api/config', { signal });
       if (signal.aborted) return;
       const value = data.groups?.find(group => group.group.id === CONFIG_GROUP)?.values?.[AUTO_UPDATE_KEY];
-      autoUpdateNames = new Set(typeof value === 'string' ? value.split(',').map(name => name.trim()).filter(Boolean) : []);
+      autoUpdateNames = new Set(typeof value === 'string' ? value.split(/[,\n]/).map(name => name.trim()).filter(Boolean) : []);
       renderInstalled();
     } catch { /* no package is selected */ }
   }
