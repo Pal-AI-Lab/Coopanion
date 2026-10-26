@@ -445,14 +445,17 @@ function startItem(it) {
   }
 }
 
+/** The pointer is on Coo's bubble: a line's countdown stands still meanwhile, so it can be read to the end or its link clicked. */
+const pointedAt = () => !bubble.hidden && bubble.matches(':hover');
+
 function stepDialog(dt) {
   if (!item && queue.length && at() && !at().busy) startItem(queue.shift());
   const it = item;
   if (!it) return;
   if (it.kind === 'say') {
     if (it.i < 0 || it.beatDone) {
-      // a bubble with a link stays while the pointer is on it, so the link can be clicked
-      if (it.beatDone && (T < it.holdUntil || (bubble.matches(':hover') && bubble.querySelector('a')))) return;
+      if (it.beatDone && pointedAt()) it.holdUntil += dt;
+      if (it.beatDone && T < it.holdUntil) return;
       it.i++;
       it.beatDone = false;
       if (it.i >= it.beats.length) { closeBubble(); return; }
@@ -602,9 +605,11 @@ function stepTalk(it, dt) {
 }
 
 /** A step with nothing to answer ends once its line has been read. */
-function stepTalkRead() {
+function stepTalkRead(dt) {
   const it = item;
-  if (it?.kind === 'dialog' && it.readUntil && T > it.readUntil) settleDialog(it, { done: true });
+  if (it?.kind !== 'dialog' || !it.readUntil) return;
+  if (pointedAt()) it.readUntil += dt;
+  if (T > it.readUntil) settleDialog(it, { done: true });
 }
 
 function showDialogInput(it) {
@@ -1819,7 +1824,7 @@ function frame(now) {
     T += dt;
     stepActs();
     stepDialog(dt);
-    stepTalkRead();
+    stepTalkRead(dt);
     stepTalkMotion();
     stepLines();
     stepStatus();
