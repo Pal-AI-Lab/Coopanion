@@ -11,9 +11,10 @@
  *
  * Each platform reads what the computer-use engine reads (src/cua/engine), here in the window process:
  * - Windows: the z-order from GetTopWindow/GetWindow and the frame DWM draws, in physical pixels, each
- *   display at its own scale (`toDip` picks the display a corner is on); minimized, cloaked (another
- *   virtual desktop), tool and click-through windows and the shell's own are left out. The foreground
- *   window is GetForegroundWindow's.
+ *   display at its own scale (`screen.screenToDipPoint` picks the display a corner is on; not `toDip`: on
+ *   Windows Electron's `nativeOrigin` is a display's pixel origin divided by its scale, so a display off the
+ *   origin at other than 100% would come out shifted); minimized, cloaked (another virtual desktop), tool
+ *   and click-through windows and the shell's own are left out. The foreground window is GetForegroundWindow's.
  * - macOS: CGWindowListCopyWindowInfo, front to back, layer 0 only (ordinary app windows; the pet
  *   window floats above it), reading `kCGWindowLayer`, `kCGWindowNumber` and `kCGWindowBounds` and
  *   never the window's name, which is what the Screen Recording permission guards. Bounds are points of
@@ -52,8 +53,8 @@ function openWin32(koffi, screen) {
   const GetWindowRect = user32.func('int __stdcall GetWindowRect(intptr_t hwnd, void *rect)');
   const GetForegroundWindow = user32.func('intptr_t __stdcall GetForegroundWindow()');
   const DwmGetWindowAttribute = dwmapi.func('int32_t __stdcall DwmGetWindowAttribute(intptr_t hwnd, uint32_t attr, void *value, uint32_t size)');
+  const dip = (x, y) => { const p = screen.screenToDipPoint({ x, y }); return { x: Math.floor(p.x), y: Math.floor(p.y) }; };
   return (own) => {
-    const displays = screen.getAllDisplays();
     const rect = Buffer.alloc(16), flag = Buffer.alloc(4), name = Buffer.alloc(128);
     const out = [];
     try {
@@ -66,8 +67,7 @@ function openWin32(koffi, screen) {
         if (GetClassNameW(h, name, 64) > 0 && SHELL_CLASSES.has(name.toString('utf16le').split('\0')[0])) continue;
         // the frame DWM draws, without the invisible resize borders GetWindowRect counts in
         if (DwmGetWindowAttribute(h, DWMWA_EXTENDED_FRAME_BOUNDS, rect, 16) !== 0 && !GetWindowRect(h, rect)) continue;
-        const p = toDip({ x: rect.readInt32LE(0), y: rect.readInt32LE(4) }, displays);
-        const q = toDip({ x: rect.readInt32LE(8), y: rect.readInt32LE(12) }, displays);
+        const p = dip(rect.readInt32LE(0), rect.readInt32LE(4)), q = dip(rect.readInt32LE(8), rect.readInt32LE(12));
         if (q.x > p.x && q.y > p.y) out.push({ id: String(h), x: p.x, y: p.y, w: q.x - p.x, h: q.y - p.y, active: h === fg });
       }
     } catch { /* a window closing mid-walk fails a call; what was read stands */ }
