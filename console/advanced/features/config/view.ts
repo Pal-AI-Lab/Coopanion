@@ -89,12 +89,14 @@ export interface ConfigGroupEntry {
 }
 
 /**
- * 一个渲染好的字段：节点 + **存储单位**的取值器。
- * `read` 为 `null` 表示这一项只读（不认识的 type），不参与提交。
+ * 一个渲染好的字段：节点 + **存储单位**的取值器与赋值器。
+ * `read` 为 `null` 表示这一项只读（不认识的 type），不参与提交，`write` 同为 `null`。
+ * `write` 是程序赋值，不触发 onChange。
  */
 export interface ConfigField {
   node: HTMLElement;
   read: (() => ConfigValue) | null;
+  write: ((value: unknown) => void) | null;
 }
 
 /** 只翻译框架自己认识的 owner；`core` 与 `world:<id>` 这类原样显示。 */
@@ -104,6 +106,10 @@ const OWNER_LABEL: Record<string, string> = {
 
 function errText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+function sameValue(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function isAbort(err: unknown): boolean {
@@ -127,6 +133,7 @@ function optionsField(
     onChange,
   });
   let seq = 0;
+  let live: OptionItem[] = [];
   const refresh = (): void => {
     const n = ++seq;
     void get<{ options?: OptionItem[] }>(
@@ -134,7 +141,7 @@ function optionsField(
       signal ? { signal } : undefined,
     ).then((d) => {
       if (n !== seq || signal?.aborted) return;
-      const live = Array.isArray(d.options) ? d.options : [];
+      live = Array.isArray(d.options) ? d.options : [];
       fillSelect(ui, sel, mergeOptionList(live, sel.value), sel.value);
     }).catch((err: unknown) => {
       if (isAbort(err) || signal?.aborted) return;
@@ -144,7 +151,14 @@ function optionsField(
   sel.addEventListener('pointerdown', refresh, listenOpts);
   sel.addEventListener('focus', refresh, listenOpts);
   refresh();
-  return { node: sel, read: () => sel.value };
+  return {
+    node: sel,
+    read: () => sel.value,
+    write: (value) => {
+      const next = value == null ? '' : String(value);
+      if (next !== sel.value) fillSelect(ui, sel, mergeOptionList(live, next), next);
+    },
+  };
 }
 
 function httpDownloadHref(raw: string): string | null {
@@ -213,7 +227,11 @@ function pathField(
     meta.appendChild(link);
   }
   if (meta.children.length) field.appendChild(meta);
-  return { node: field, read: () => input.value };
+  return {
+    node: field,
+    read: () => input.value,
+    write: (value) => { input.value = value == null ? '' : String(value); },
+  };
 }
 
 /** 输入框里显示的数：最多四位小数，去掉末尾的 0。 */
@@ -222,13 +240,20 @@ function shown(n: number): string {
 }
 
 /**
- * 数字输入框。显示值按 `shown` 取整；字段没改过时读回原值——一组配置整组保存，
+ * 数字输入框。显示值按 `shown` 取整；字段在最近一次赋值后没改过时读回原值——一组配置整组保存，
  * 改别的字段不该把这一项的精度截掉。
  */
-function numberInput(inp: HTMLInputElement, val: number): () => number {
-  inp.value = shown(val);
-  const untouched = inp.value;
-  return () => (inp.value === untouched ? val : Number(inp.value));
+function numberInput(inp: HTMLInputElement): { read: () => number; write: (n: number) => void } {
+  let exact = 0;
+  let untouched: string | null = null;
+  return {
+    read: () => (inp.value === untouched ? exact : Number(inp.value)),
+    write: (n) => {
+      exact = n;
+      inp.value = shown(n);
+      untouched = inp.value;
+    },
+  };
 }
 
 /** 渲染属性并返回存储单位的取值器；值变化经 onChange 提交。 */
@@ -240,28 +265,30 @@ export function configField(
   signal?: AbortSignal,
 ): ConfigField {
   const changed = (): void => onChange?.();
+  const text = (v: unknown): string => (v == null ? '' : String(v));
   if (prop.type === 'boolean') {
     const box = ui.checkbox(S.on, { checked: !!val, onChange: changed });
-    return { node: box.el, read: () => box.checked };
+    return { node: box.el, read: () => box.checked, write: (v) => box.setChecked(!!v) };
   }
 
   if (prop.type === 'string') {
     if (prop['x-options']) {
-      return optionsField(ui, prop['x-options'], val == null ? '' : String(val), changed, signal);
+      return optionsField(ui, prop['x-options'], text(val), changed, signal);
     }
     if (Array.isArray(prop.enum)) {
+      const first = prop.enum[0];
       const sel = ui.select({
         options: prop.enum,
-        value: val == null ? prop.enum[0] : String(val),
+        value: val == null ? first : String(val),
         onChange: changed,
       });
-      return { node: sel, read: () => sel.value };
+      return { node: sel, read: () => sel.value, write: (v) => { sel.value = v == null ? first : String(v); } };
     }
     if (prop['x-path']) {
-      return pathField(ui, prop, val == null ? '' : String(val), changed, signal);
+      return pathField(ui, prop, text(val), changed, signal);
     }
-    const inp = ui.input({ type: 'text', value: val == null ? '' : String(val), onChange: changed });
-    return { node: inp, read: () => inp.value };
+    const inp = ui.input({ type: 'text', value: text(val), onChange: changed });
+    return { node: inp, read: () => inp.value, write: (v) => { inp.value = text(v); } };
   }
 
   if (prop.type === 'integer' || prop.type === 'number') {
@@ -273,14 +300,18 @@ export function configField(
     if (prop.nullable) {
       // nullable 字段以空输入表示 null，0 保持为数值。
       inp.placeholder = S.leaveBlank;
-      if (val == null) {
-        return { node: inp, read: () => (inp.value.trim() === '' ? null : Number(inp.value) * scale) };
-      }
-      const read = numberInput(inp, Number(val) / scale);
-      return { node: inp, read: () => (inp.value.trim() === '' ? null : read() * scale) };
+      const num = numberInput(inp);
+      const write = (v: unknown): void => {
+        if (v == null) inp.value = '';
+        else num.write(Number(v) / scale);
+      };
+      write(val);
+      return { node: inp, read: () => (inp.value.trim() === '' ? null : num.read() * scale), write };
     }
-    const read = numberInput(inp, (Number(val) || 0) / scale);
-    return { node: inp, read: () => read() * scale };
+    const num = numberInput(inp);
+    const write = (v: unknown): void => num.write((Number(v) || 0) / scale);
+    write(val);
+    return { node: inp, read: () => num.read() * scale, write };
   }
 
   // 仅两个 number/integer 的数组可编辑，其余数组只读。
@@ -288,25 +319,31 @@ export function configField(
   if (prop.type === 'array' && (itemType === 'integer' || itemType === 'number')) {
     const scale = prop['x-scale'] || 1;
     const spec = prop.items || {};
-    const mk = (v: unknown): HTMLInputElement => {
-      const inp = ui.input({ type: 'number', value: String((Number(v) || 0) / scale), onChange: changed });
+    const mk = (): HTMLInputElement => {
+      const inp = ui.input({ type: 'number', onChange: changed });
       if (spec.minimum != null) inp.min = String(spec.minimum / scale);
       if (spec.maximum != null) inp.max = String(spec.maximum / scale);
       return inp;
     };
-    const pair = Array.isArray(val) ? (val as unknown[]) : [0, 0];
-    const a = mk(pair[0]);
-    const b = mk(pair[1]);
+    const a = mk();
+    const b = mk();
+    const write = (v: unknown): void => {
+      const pair = Array.isArray(v) ? (v as unknown[]) : [0, 0];
+      a.value = String((Number(pair[0]) || 0) / scale);
+      b.value = String((Number(pair[1]) || 0) / scale);
+    };
+    write(val);
     const wrap = ui.h('div', 'pairfield');
     wrap.append(a, ui.h('span', 'pairsep', '–'), b);
     return {
       node: wrap,
       read: () => [Number(a.value) * scale, Number(b.value) * scale],
+      write,
     };
   }
 
   // 不认识的 type：只读展示，不参与提交
-  return { node: ui.h('span', 'tdesc', JSON.stringify(val)), read: null };
+  return { node: ui.h('span', 'tdesc', JSON.stringify(val)), read: null, write: null };
 }
 
 /**
@@ -398,8 +435,20 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
   bar.append(msg, ui.h('span', 'grow'));
   el.append(body, bar);
 
-  /** 每次 load 重建本次页面的组、路径与取值器列表。 */
-  let readers: Array<{ groupId: string; path: string; read: () => ConfigValue }> = [];
+  /**
+   * 每次 load 重建本次页面的组、路径与取值器列表。
+   * `saved` 是这一项最近一次载入或保存成功时的值；读数与它不同即改过未存。
+   */
+  let readers: Array<{
+    groupId: string;
+    path: string;
+    read: () => ConfigValue;
+    write: (value: unknown) => void;
+    saved: ConfigValue;
+  }> = [];
+  /** 已发出、尚未回复的保存请求数。 */
+  let saving = 0;
+  let refreshSeq = 0;
 
   function setMsg(text: string, bad?: boolean): void {
     msg.textContent = text;
@@ -409,9 +458,11 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
   /** 提交一组：`/api/config` 一次收一组（校验按那一组的 schema 走）。 */
   async function persist(groupId: string): Promise<void> {
     if(signal.aborted)return;
+    saving++;
     try {
+      const sent = readers.filter((r) => r.groupId === groupId);
       const values: Record<string, ConfigValue> = {};
-      for (const r of readers) if (r.groupId === groupId) values[r.path] = r.read();
+      for (const r of sent) values[r.path] = r.read();
       setMsg(S.saving);
       const out = await post<{ result?: string }>(
         '/api/config',
@@ -419,10 +470,39 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
         { signal },
       );
       if (signal.aborted) return;
+      for (const r of sent) r.saved = values[r.path];
       setMsg('✓ ' + (out.result || groupId));
+      void refresh();
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
       setMsg(S.saveFailed(errText(err)), true);
+    } finally {
+      saving--;
+    }
+  }
+
+  /**
+   * 保存成功后重取一次 `/api/config`，就地更新取值：服务端随这次保存改了的其他项显示新值，
+   * 改过未存的项保持原样。不重建节点，焦点与滚动位置不变。
+   */
+  async function refresh(): Promise<void> {
+    const n = ++refreshSeq;
+    try {
+      const d = await get<{ groups?: ConfigGroupEntry[] }>('/api/config', { signal });
+      // 期间又发出的保存成功后会再取一次。
+      if (n !== refreshSeq || saving > 0 || signal.aborted) return;
+      const latest = new Map((d.groups ?? []).map((entry) => [entry.group.id, entry.values ?? {}]));
+      for (const r of readers) {
+        const values = latest.get(r.groupId);
+        if (!values || !(r.path in values)) continue;
+        const current = r.read();
+        if (!sameValue(current, r.saved)) continue;
+        if (!sameValue(current, values[r.path])) r.write(values[r.path]);
+        r.saved = r.read();
+      }
+    } catch (err) {
+      if (isAbort(err) || signal.aborted) return;
+      setMsg(S.loadFailed(errText(err)), true);
     }
   }
 
@@ -478,7 +558,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
               if (prop['x-suffix']) cell.appendChild(ui.h('span', 'tunit', prop['x-suffix']));
               if (prop['x-hot'] === false) cell.appendChild(ui.h('span', 'ttag', group.owner.startsWith('world:') ? S.restartWorld : S.restartProcess));
               grid.appendChild(cell);
-              if (field.read) readers.push({ groupId: group.id, path, read: field.read });
+              if (field.read && field.write) readers.push({ groupId: group.id, path, read: field.read, write: field.write, saved: field.read() });
             }
             runCard.body.appendChild(grid);
             continue;
@@ -490,6 +570,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
           const line = ui.h('div', 'configline');
           control.appendChild(line);
           let read: (() => ConfigValue) | null;
+          let write: ((value: unknown) => void) | null;
           if (prop.type === 'boolean') {
             const box = ui.checkbox('', { checked: !!(values || {})[path], onChange: () => queueSave(group.id) });
             box.input.setAttribute('aria-label', prop.title || path);
@@ -497,6 +578,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
             line.classList.add('companion-switchbox');
             line.appendChild(box.el);
             read = () => box.checked;
+            write = (v) => box.setChecked(!!v);
           } else {
             const field = configField(ui, prop, (values || {})[path], () => queueSave(group.id), signal);
             const fieldWrap = ui.h('div', 'tfield');
@@ -504,6 +586,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
             if (prop['x-suffix']) fieldWrap.appendChild(ui.h('span', 'tunit', prop['x-suffix']));
             line.appendChild(fieldWrap);
             read = field.read;
+            write = field.write;
           }
           if (prop['x-hot'] === false) {
             // World 的配置在构造时读走:重启那个 World 即生效,不必重启进程。
@@ -512,7 +595,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
           if (prop.description) control.appendChild(ui.h('p', 'home-note', prop.description));
           row.append(label, control);
           card.body.appendChild(row);
-          if (read) readers.push({ groupId: group.id, path, read });
+          if (read && write) readers.push({ groupId: group.id, path, read, write, saved: read() });
         }
         body.append(card.el, ...runs);
       }
