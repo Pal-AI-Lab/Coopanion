@@ -249,7 +249,7 @@ const zh = {
   noNotes: '这个版本没有附带更新说明。',
   notesIntro: (several: boolean) => `下面是${several ? '这之间各版本' : '这个版本'}的更新说明,原文是写给对方看的:`,
   notesOutro: '\n挑对方用得上的新功能和修复,用你自己的话告诉对方,不用照念,也不用一次说完。',
-  letterIntro: (version: string, url: string) => `开发者还随 ${version} 写了一封给对方的信,原文也在 ${url}:`,
+  letterIntro: (version: string, url: string) => `开发者还随 ${version} 写了一封信,全文在下面,原文链接是 ${url}`,
   letterOutro: '\n要不要转达、怎么转达由你决定:可以用自己的话讲,可以念原文,可以给对方原文链接,也可以先问对方想不想听。',
 
   someone: '对方',
@@ -310,7 +310,7 @@ const en: typeof zh = {
   noNotes: ' This version came without release notes.',
   notesIntro: (several) => ` Below are the release notes of ${several ? 'each version in between' : 'this version'}, written for the person to read:`,
   notesOutro: '\nPick the new features and fixes the person can use and tell them in your own words; no need to read them out or to say it all at once.',
-  letterIntro: (version, url) => `The developers also wrote the person a letter with ${version}, also at ${url}:`,
+  letterIntro: (version, url) => `The developers also wrote a letter with ${version}, in full below; its link is ${url}`,
   letterOutro: '\nWhether and how to pass it on is yours to decide: tell it in your own words, read it out, give them the link, or first ask whether they want to hear it.',
 
   someone: 'the person',
