@@ -8,7 +8,7 @@ const ptBR: Translation<CoreText> = {
     language: { title: 'Idioma', description: 'A interface e Coo usam este idioma. Vale na hora.' },
     telemetry: { title: 'Estatísticas de uso anônimas', description: 'Envia contagens de uso e configurações, nunca conversas, para ajudar a melhorar o Coopanion. Os campos estão listados em docs/TELEMETRY.md.' },
     contextRing: { title: 'Anel de contexto', description: 'Mostra na caixa de texto da página Chat um anel com quanto falta para organizar a conversa anterior.' },
-    extensionAutoUpdate: { title: 'Atualização automática de extensões World', description: 'A cada início verifica as extensões World instaladas e instala as versões mais novas, que este início carrega em seguida.' },
+    autoUpdateWorlds: { title: 'Extensões World para atualizar', description: 'Extensões World atualizadas ao iniciar, como nomes de pacote separados por vírgulas. Ative ou desative cada uma no cartão dela na página Extensões.' },
     roundsSoft: { title: 'Lembrete para encerrar', suffix: 'solicitações', description: 'Depois dessa quantidade de solicitações ao modelo em um mesmo despertar, Coo recebe um lembrete para terminar o que está fazendo e encerrar o turno.' },
     roundsHard: { title: 'Solicitações por despertar', suffix: 'solicitações', description: 'O máximo de solicitações ao modelo em um despertar; ao chegar nele, o turno termina.' },
   },

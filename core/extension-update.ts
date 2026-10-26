@@ -1,10 +1,11 @@
 /**
  * Updates installed World extensions at start, before they are loaded.
  *
- * The switch is `companion.extensionAutoUpdate` in the deployment config; it is read from the file
- * because the extensions load before the deployment is merged. Packages installed from a folder, a
- * tarball or a URL never update, and a newer version whose manifest this framework cannot load is
- * skipped. Each package is installed on its own, so one failure leaves the others as they were.
+ * The choice is `companion.autoUpdateWorlds` in the deployment config, a comma-separated list of
+ * package names; it is read from the file because the extensions load before the deployment is
+ * merged. Packages installed from a folder, a tarball or a URL never update, and a newer version
+ * whose manifest this framework cannot load is skipped. Each package is installed on its own, so
+ * one failure leaves the others as they were.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -13,7 +14,7 @@ import { readInstalled } from 'cortico/extensions.ts';
 import { parseExtensionManifest } from 'cortico/extensions/manifest.ts';
 import type { ExtensionUpdateResult } from 'cortico/web/server.ts';
 
-export const EXTENSION_AUTO_UPDATE_KEY = 'companion.extensionAutoUpdate';
+export const EXTENSION_AUTO_UPDATE_KEY = 'companion.autoUpdateWorlds';
 /** The registry lookups of every installed package; the start goes on without them once this passes. */
 const CHECK_TIMEOUT_MS = 10_000;
 
@@ -35,13 +36,15 @@ export interface AutoUpdateOptions {
   timeoutMs?: number;
 }
 
-/** The switch as the config file holds it; a missing or unreadable file leaves auto-update off. */
-export function autoUpdateEnabled(configFile: string): boolean {
-  if (!existsSync(configFile)) return false;
+/** The packages the config file names, split on commas and newlines; a missing or unreadable file selects none. */
+export function autoUpdatePackages(configFile: string): Set<string> {
+  if (!existsSync(configFile)) return new Set();
   try {
-    return getByPath(JSON.parse(readFileSync(configFile, 'utf8')) as Record<string, unknown>, EXTENSION_AUTO_UPDATE_KEY) === true;
+    const raw = getByPath(JSON.parse(readFileSync(configFile, 'utf8')) as Record<string, unknown>, EXTENSION_AUTO_UPDATE_KEY);
+    const names = typeof raw === 'string' ? raw.split(/[,\n]/).map((name) => name.trim()).filter(Boolean) : [];
+    return new Set(names);
   } catch {
-    return false;
+    return new Set();
   }
 }
 
@@ -66,13 +69,14 @@ export function worldPackages(extensionsDir: string): Set<string> {
 }
 
 /**
- * Checks every installed package and installs the newer version of each World that can load. Null
- * when the switch is off or the check ran out of time.
+ * Checks every installed package and installs the newer version of each selected World that can
+ * load. Null when nothing is selected or the check ran out of time.
  */
 export async function autoUpdateWorldExtensions(opts: AutoUpdateOptions): Promise<AutoUpdateReport | null> {
-  if (!autoUpdateEnabled(opts.configFile)) return null;
+  const selected = autoUpdatePackages(opts.configFile);
   const worlds = worldPackages(opts.extensionsDir);
-  if (!worlds.size) return null;
+  const targets = new Set([...worlds].filter((name) => selected.has(name)));
+  if (!targets.size) return null;
   let checked: ExtensionUpdateResult | null;
   try {
     checked = await within(opts.updates(), opts.timeoutMs ?? CHECK_TIMEOUT_MS);
@@ -83,7 +87,7 @@ export async function autoUpdateWorldExtensions(opts: AutoUpdateOptions): Promis
   if (!checked) return null;
   const report: AutoUpdateReport = { installed: [], skipped: [], failed: [] };
   for (const update of checked.updates) {
-    if (!worlds.has(update.name)) continue;
+    if (!targets.has(update.name)) continue;
     if (update.problems.length) {
       report.skipped.push({ name: update.name, reason: update.problems.join(' ') });
       continue;

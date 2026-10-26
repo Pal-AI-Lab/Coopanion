@@ -89,7 +89,7 @@ function stub(over = {}) {
     else if (u === '/api/extensions/uninstall')
       body = { ok: true, result: '已卸载 x。' };
     else if (u === '/api/config') {
-      const groups = [{ group: { id: 'companion' }, values: { 'companion.extensionAutoUpdate': over.autoUpdate ?? false } }];
+      const groups = [{ group: { id: 'companion' }, values: { 'companion.autoUpdateWorlds': over.autoUpdate ?? '' } }];
       body = method === 'POST' ? { ok: true, result: '', groups } : { groups };
     }
     else if (u === '/api/run/lifecycle')
@@ -244,25 +244,36 @@ describe('extension categories', () => {
     expect(calls.find(c => c.url === '/api/extensions/install')?.body).toEqual({ name: 'alpha-mod', version: '1.1.0' });
     expect(sheets(root)[0].textContent).toContain('更新成功');
   });
-  it('stores the start-up auto-update switch in the app config group, on the World tab only', async () => {
-    stub();
+  it('turns auto-update on and off per installed World card, writing the package list', async () => {
+    stub({ autoUpdate: 'alpha-mod' });
     const { ctx, root } = mount();
     await flush();
-    const toggle = [...sheets(root)[0].querySelectorAll('label.check')].find(label => label.textContent.includes('启动时自动更新'));
-    expect(toggle.querySelector('input').checked).toBe(false);
-    toggle.querySelector('input').click();
+    const toggleOf = (title) => cardOf(root, title).querySelector('.extension-auto-update input');
+    expect(toggleOf('甲扩展').checked).toBe(true);
+    expect(toggleOf('beta-mod').checked).toBe(false);
+    toggleOf('beta-mod').click();
     await flush();
-    expect(calls.find(c => c.url === '/api/config' && c.method === 'POST')?.body).toEqual({ group: 'companion', values: { 'companion.extensionAutoUpdate': true } });
-    expect(sheets(root)[0].textContent).toContain('已开启启动时自动更新');
+    expect(calls.find(c => c.url === '/api/config' && c.method === 'POST')?.body).toEqual({ group: 'companion', values: { 'companion.autoUpdateWorlds': 'alpha-mod,beta-mod' } });
+    expect(sheets(root)[0].textContent).toContain('已开启 beta-mod 的自动更新');
+    expect(toggleOf('beta-mod').checked).toBe(true);
+    toggleOf('甲扩展').click();
+    await flush();
+    expect(calls.filter(c => c.url === '/api/config' && c.method === 'POST').at(-1)?.body).toEqual({ group: 'companion', values: { 'companion.autoUpdateWorlds': 'beta-mod' } });
+    expect(toggleOf('甲扩展').checked).toBe(false);
     await switchTo(ctx, 'provider');
-    expect(sheets(root)[0].textContent).not.toContain('启动时自动更新');
+    expect(sheets(root)[0].querySelector('.extension-auto-update')).toBeNull();
   });
-  it('checks a stored auto-update switch as on', async () => {
-    stub({ autoUpdate: true });
+  it('shows the same per-package switch in an installed World\'s detail', async () => {
+    stub({ autoUpdate: 'alpha-mod' });
     const { root } = mount();
     await flush();
-    const toggle = [...sheets(root)[0].querySelectorAll('label.check')].find(label => label.textContent.includes('启动时自动更新'));
-    expect(toggle.querySelector('input').checked).toBe(true);
+    cardOf(root, '甲扩展').click();
+    await flush();
+    const toggle = document.querySelector('.modal .extension-auto-update-detail input');
+    expect(toggle.checked).toBe(true);
+    toggle.click();
+    await flush();
+    expect(calls.filter(c => c.url === '/api/config' && c.method === 'POST').at(-1)?.body).toEqual({ group: 'companion', values: { 'companion.autoUpdateWorlds': '' } });
   });
   it('shows failed and pending states; a package without a manifest is listed under World', async () => {
     stub();

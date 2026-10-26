@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { autoUpdateEnabled, autoUpdateWorldExtensions, worldPackages } from '../core/extension-update.ts';
+import { autoUpdatePackages, autoUpdateWorldExtensions, worldPackages } from '../core/extension-update.ts';
 
 const roots: string[] = [];
 afterEach(() => {
@@ -31,25 +31,25 @@ function install(dir: string, name: string, kind: 'world' | 'provider' | 'bot', 
   writeFileSync(join(packageDir, 'package.json'), JSON.stringify({ name, version: '1.0.0', type: 'module', cortico: manifest }));
 }
 
-function configFile(enabled: boolean | null): string {
+function configFile(selected: string | null): string {
   const root = mkdtempSync(join(tmpdir(), 'coo-extension-update-config-'));
   roots.push(root);
   const home = join(root, 'home', 'companion');
   mkdirSync(home, { recursive: true });
   const file = join(home, 'config.json');
-  if (enabled !== null) writeFileSync(file, JSON.stringify({ companion: { extensionAutoUpdate: enabled } }));
+  if (selected !== null) writeFileSync(file, JSON.stringify({ companion: { autoUpdateWorlds: selected } }));
   return file;
 }
 
 const update = (name: string, latestVersion: string, problems: string[] = []) =>
   ({ name, installedVersion: '1.0.0', latestVersion, problems });
 
-describe('the switch', () => {
-  it('is off without a config file, unreadable JSON, or a value other than true', () => {
-    expect(autoUpdateEnabled(join(tmpdir(), 'no-such-config.json'))).toBe(false);
-    expect(autoUpdateEnabled(configFile(null))).toBe(false);
-    expect(autoUpdateEnabled(configFile(false))).toBe(false);
-    expect(autoUpdateEnabled(configFile(true))).toBe(true);
+describe('the package list', () => {
+  it('is empty without a config file, and splits commas and newlines with surrounding spaces dropped', () => {
+    expect(autoUpdatePackages(join(tmpdir(), 'no-such-config.json'))).toEqual(new Set());
+    expect(autoUpdatePackages(configFile(null))).toEqual(new Set());
+    expect(autoUpdatePackages(configFile(''))).toEqual(new Set());
+    expect(autoUpdatePackages(configFile('world-a, world-b\nworld-c ,, '))).toEqual(new Set(['world-a', 'world-b', 'world-c']));
   });
 });
 
@@ -73,10 +73,11 @@ describe('one start', () => {
     install(dir, 'world-c', 'world', '1.0.0');
     install(dir, 'world-d', 'world', '1.0.0');
     install(dir, 'world-e', 'world', '1.0.0');
+    install(dir, 'world-f', 'world', '1.0.0');
     install(dir, 'provider-b', 'provider', '1.0.0');
     const installed: Array<[string, string]> = [];
     const report = await autoUpdateWorldExtensions({
-      configFile: configFile(true),
+      configFile: configFile('world-a, provider-b, world-c, world-d, world-e'),
       extensionsDir: dir,
       updates: async () => ({
         updates: [
@@ -85,6 +86,7 @@ describe('one start', () => {
           update('world-c', '2.0.0', ['扩展要求契约 v9']),
           update('world-d', '1.1.0'),
           update('world-e', '1.1.0'),
+          update('world-f', '1.1.0'),
         ],
         errors: [],
       }),
@@ -105,12 +107,12 @@ describe('one start', () => {
     });
   });
 
-  it('does not check the registry while the switch is off', async () => {
+  it('does not check the registry while no package is selected', async () => {
     const dir = extensionsDir();
     install(dir, 'world-a', 'world', '1.0.0');
     let checks = 0;
     const report = await autoUpdateWorldExtensions({
-      configFile: configFile(false),
+      configFile: configFile(''),
       extensionsDir: dir,
       updates: async () => { checks++; return { updates: [update('world-a', '1.1.0')], errors: [] }; },
       check: async () => {},
@@ -124,7 +126,7 @@ describe('one start', () => {
     const dir = extensionsDir();
     install(dir, 'world-a', 'world', '1.0.0');
     const report = await autoUpdateWorldExtensions({
-      configFile: configFile(true),
+      configFile: configFile('world-a'),
       extensionsDir: dir,
       updates: () => new Promise(() => {}),
       check: async () => {},
@@ -140,7 +142,7 @@ describe('one start', () => {
     install(dir, 'world-b', 'world', '1.0.0');
     const installed: string[] = [];
     const report = await autoUpdateWorldExtensions({
-      configFile: configFile(true),
+      configFile: configFile('world-a,world-b'),
       extensionsDir: dir,
       updates: async () => ({ updates: [update('world-a', '2.0.0'), update('world-b', '1.1.0')], errors: [] }),
       check: async (name) => { if (name === 'world-a') throw new Error('扩展实际类型为 provider'); },

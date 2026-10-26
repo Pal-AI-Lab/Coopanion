@@ -8,7 +8,7 @@ const ja: Translation<CoreText> = {
     language: { title: '言語', description: '画面の表示と Coo の話す言葉にこの言語を使います。すぐに反映されます。' },
     telemetry: { title: '匿名の利用統計', description: '会話内容を含まない利用回数と設定を送信し、Coopanion の改善に役立てます。送信する項目は docs/TELEMETRY.md に記載されています。' },
     contextRing: { title: 'コンテキストリング', description: 'チャットページの入力欄に、以前の会話を整理するまでの残りを円で表示します。' },
-    extensionAutoUpdate: { title: 'World 拡張の自動更新', description: '起動のたびにインストール済みの World 拡張を確認し、新しい版があれば自動でインストールします。新しい版はこの起動で読み込まれます。' },
+    autoUpdateWorlds: { title: '自動更新する World 拡張', description: '起動時に自動更新する World 拡張をパッケージ名のカンマ区切りで指定します。拡張ページのインストール済みカードで個別にオン・オフできます。' },
     roundsSoft: { title: 'まとめのリマインド', suffix: '回', description: '1 回のウェイクでモデルへのリクエストがこの回数に達すると、今の作業を片付けてターンを終えるよう Coo に促します。' },
     roundsHard: { title: '1 回のウェイクのリクエスト上限', suffix: '回', description: '1 回のウェイクでモデルにリクエストできる最大回数です。達するとターンが終わります。' },
   },

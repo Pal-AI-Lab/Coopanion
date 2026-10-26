@@ -390,9 +390,9 @@ export function parseInstallInput(raw: string): Target | null {
   const match = /^((?:@[a-z0-9_.-]+\/)?[a-z0-9][a-z0-9_.-]*)(?:@([a-zA-Z0-9][a-zA-Z0-9._-]*))?$/.exec(raw.trim());
   return match ? { name: match[1], ...(match[2] ? { version: match[2] } : {}) } : null;
 }
-/** The app's config group that holds the auto-update switch (`core/companion.ts`). */
+/** The app's config group that holds the auto-update package list (`core/companion.ts`). */
 const CONFIG_GROUP = 'companion';
-const AUTO_UPDATE_KEY = 'companion.extensionAutoUpdate';
+const AUTO_UPDATE_KEY = 'companion.autoUpdateWorlds';
 /** 官方索引仓:标签、讨论区与扩展申请都在这里。 */
 const INDEX_REPO = 'https://github.com/Pal-AI-Lab/cortico-extensions';
 /** 预填包名的「标签」扩展申请:索引仓的网页表单,`package` 字段按查询参数预填。 */
@@ -427,10 +427,10 @@ export function mountExtensions(ctx: FeatureContext): void {
   let columns = extensionColumns(root.clientWidth);
   let installed: ExtensionView[] = [];
   let updates = new Map<string, UpdateView>();
-  /** Whether the next start updates installed World extensions; read from the `companion` config group. */
-  let autoUpdate = false;
-  /** The switch on screen, while the World tab shows one. */
-  let autoUpdateBox: { setChecked(value: boolean): void } | null = null;
+  /** Package names the next start updates; read from the `companion` config group. */
+  let autoUpdateNames = new Set<string>();
+  /** One write at a time, so two cards toggled in a row do not overwrite each other's list. */
+  let autoUpdateBusy = false;
   let directory = '';
   /** 服务端的 `process.platform`;列表回来之前是空串,这时不按平台拦安装。 */
   let platform = '';
@@ -1010,6 +1010,21 @@ export function mountExtensions(ctx: FeatureContext): void {
     ui.drawer(S.changesTitle(title), box);
     box.closest('.modalcard')?.classList.add('extension-changes-card');
   }
+  /** A World installed from the registry can be updated at start; a linked, local or built-in one cannot. */
+  const autoUpdatable = (item: ExtensionView) => item.kind === 'world' && !item.builtin && item.state !== 'removed'
+    && (/^(?:\^|~|>=|>|<=|<|=)?\s*[0-9]/.test(item.spec) || item.spec === 'latest' || item.spec === '*');
+  /** The switch for one package; a failed write puts it back. */
+  function autoUpdateToggle(item: ExtensionView) {
+    const label = item.metadata?.displayName ?? item.label ?? item.name;
+    const toggle = ui.checkbox(S.autoUpdate, {
+      checked: autoUpdateNames.has(item.name),
+      onChange: (value) => void saveAutoUpdate(item.name, label, value, (checked) => toggle.setChecked(checked)),
+    });
+    toggle.el.classList.add('extension-auto-update');
+    toggle.input.disabled = autoUpdateBusy || busy.has(item.name);
+    attachHint(toggle.el, S.autoUpdate, S.autoUpdateHint);
+    return toggle;
+  }
   function installedCard(item: ExtensionView) {
     const card = ui.h('article', 'extension-card extension-installed-card' + (item.enabled ? ' is-enabled' : ''));
     card.tabIndex = 0; card.setAttribute('aria-label', item.metadata?.displayName ?? item.label ?? item.name);
@@ -1056,6 +1071,11 @@ export function mountExtensions(ctx: FeatureContext): void {
     } else version.textContent = item.hidden ? S.hidden : item.installedVersion && item.version !== item.installedVersion ? S.runtimeVersion(item.version ?? '—') : '';
     if (version.hasChildNodes()) card.append(version);
     for (const problem of update?.problems ?? []) card.append(ui.msgline(problem, true));
+    if (autoUpdatable(item)) {
+      const row = ui.h('div', 'extension-auto-update-row'); row.append(autoUpdateToggle(item).el);
+      row.addEventListener('click', event => event.stopPropagation(), { signal });
+      card.append(row);
+    }
     const footer = ui.h('div', 'extension-status-row'); footer.append(status);
     if (item.state !== 'removed') {
       const remove = ui.h('button', 'connection-erase extension-erase') as HTMLButtonElement; remove.type = 'button';
@@ -1183,25 +1203,35 @@ export function mountExtensions(ctx: FeatureContext): void {
       installed = data.extensions; installedFetched = true; directory = data.dir; platform = data.platform ?? ''; const dirNode = root.querySelector('.extension-directory'); if (dirNode) dirNode.textContent = S.labelled(S.directory, directory); renderInstalled(); renderMarket(); restoreScroll(); return true;
     } catch (error) { if (!signal.aborted) { installedFetched = true; message(kind, 'management', S.listLoadFailed(errorText(error)), true); restoreScroll(); } return false; }
   }
-  /** The switch lives in the app's config group; a config that cannot be read leaves it off. */
-  async function loadAutoUpdate() {
+  /** The package list lives in the app's config group; a config that cannot be read selects none. */
+  async function loadAutoUpdates() {
     try {
       const data = await get<{ groups?: Array<{ group: { id: string }; values?: Record<string, unknown> }> }>('/api/config', { signal });
       if (signal.aborted) return;
-      autoUpdate = data.groups?.find(group => group.group.id === CONFIG_GROUP)?.values?.[AUTO_UPDATE_KEY] === true;
-      autoUpdateBox?.setChecked(autoUpdate);
-    } catch { /* the switch stays off */ }
+      const value = data.groups?.find(group => group.group.id === CONFIG_GROUP)?.values?.[AUTO_UPDATE_KEY];
+      autoUpdateNames = new Set(typeof value === 'string' ? value.split(',').map(name => name.trim()).filter(Boolean) : []);
+      renderInstalled();
+    } catch { /* no package is selected */ }
   }
-  async function saveAutoUpdate(value: boolean) {
+  /** Turns one package on or off, writing the whole list; `label` is what the receipt calls it, `revert` puts a checkbox back when the write fails. */
+  async function saveAutoUpdate(name: string, label: string, value: boolean, revert?: (checked: boolean) => void) {
+    if (autoUpdateBusy) { revert?.(autoUpdateNames.has(name)); renderInstalled(); return; }
+    autoUpdateBusy = true;
+    const before = autoUpdateNames;
+    const next = new Set(before); if (value) next.add(name); else next.delete(name);
+    autoUpdateNames = next;
     const owner = kind;
     try {
-      await post('/api/config', { group: CONFIG_GROUP, values: { [AUTO_UPDATE_KEY]: value } }, { signal });
+      await post('/api/config', { group: CONFIG_GROUP, values: { [AUTO_UPDATE_KEY]: [...next].join(',') } }, { signal });
       if (signal.aborted) return;
-      autoUpdate = value;
-      message(owner, 'management', value ? S.autoUpdateOn : S.autoUpdateOff);
+      message(owner, 'management', value ? S.autoUpdateOn(label) : S.autoUpdateOff(label));
     } catch (error) {
-      autoUpdateBox?.setChecked(autoUpdate);
+      autoUpdateNames = before;
+      revert?.(before.has(name));
       if (!signal.aborted) message(owner, 'management', S.autoUpdateFailed(errorText(error)), true);
+    } finally {
+      autoUpdateBusy = false;
+      if (!signal.aborted) renderInstalled();
     }
   }
   async function checkUpdates() {
@@ -1333,6 +1363,10 @@ export function mountExtensions(ctx: FeatureContext): void {
       const intro = ui.h('div', 'extension-intro');
       intro.append(renderMarkdown(doc, item?.builtin ? [item.description, S.builtinNote].filter(Boolean).join(' ') : data.description ?? '—'));
       info.append(ui.h('h4', '', S.introduction), intro);
+      if (local && autoUpdatable(local)) {
+        const row = ui.h('div', 'extension-auto-update-detail'); row.append(autoUpdateToggle(local).el);
+        info.append(row);
+      }
       // 内建条目要有对应的 npm 包才在索引里
       const indexed = (!item?.builtin || !!listed) && Object.keys(marketIndex.tags).length > 0;
       if (tags.length) { const row = ui.h('div', 'extension-tag-row'); row.append(...tags.map(id => tagChip(id))); info.append(row); }
@@ -1471,11 +1505,6 @@ export function mountExtensions(ctx: FeatureContext): void {
     managed.el.querySelector('h3')!.append(ui.h('span', 'extension-directory', S.labelled(S.directory, directory)));
     const installedFilters = ui.input({ type: 'search', value: state.installedFilter, placeholder: S.installedFilter, onInput: value => { state.installedFilter = value; state.installedPage = 0; renderInstalled(); save(); } });
     installedFilters.setAttribute('aria-label', S.installedFilter); bar.append(installedFilters, sizePicker('installed'));
-    if (kind === 'world') {
-      const toggle = ui.checkbox(S.autoUpdate, { checked: autoUpdate, onChange: (value) => void saveAutoUpdate(value) });
-      toggle.el.classList.add('extension-auto-update'); attachHint(toggle.el, S.autoUpdate, S.autoUpdateHint);
-      autoUpdateBox = toggle; bar.append(toggle.el);
-    } else autoUpdateBox = null;
     if (canRestart) { const button = ui.button(S.restartProcess, { onClick: () => void restart() }); button.classList.add('extension-restart'); bar.append(button); }
     bar.append(ui.button(S.refresh, { onClick: () => { void load(); void checkUpdates(); } }));
     messageNodes.management = ui.msgline(kind === 'bot' ? S.createBody : kind === 'provider' ? S.providerManagement : S.idleManagement); messageNodes.management.setAttribute('role', 'status'); installedGrid = ui.h('div', 'extension-grid extension-installed-grid'); installedPager = ui.rowbar();
@@ -1549,7 +1578,7 @@ export function mountExtensions(ctx: FeatureContext): void {
   }); observer.observe(panel); lifecycle.add(() => observer.disconnect()); }
   render();
   if (!categories.includes(router.route.segments[1] as ExtensionKindView)) router.replace(['extensions', kind]);
-  void load(); void checkUpdates(); void search(kind); void loadRegistry(); void loadAutoUpdate();
+  void load(); void checkUpdates(); void search(kind); void loadRegistry(); void loadAutoUpdates();
   try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { message(kind, 'management', S.reloadWait); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
 }
 export const extensionsFeature: FrameworkFeature = { route: 'extensions', label: S.navLabel, icon: 'download', navGroup: S.navGroup, needsAny: ['extensions'], mount: mountExtensions };

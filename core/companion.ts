@@ -122,7 +122,7 @@ const LANGUAGE_OPTIONS = 'coopanion.language';
 
 /**
  * Coopanion's own settings: the app language, the statistics switch, the context ring, the extension
- * auto-update switch and the round caps. A Persona's config group is not asked for per request, so it
+ * auto-update list and the round caps. A Persona's config group is not asked for per request, so it
  * is titled in the app language, which the settings window follows; `main` retitles the object in place
  * when the language changes.
  */
@@ -138,7 +138,7 @@ function companionGroup(language: Language): ConfigGroup {
         language: { type: 'string', title: s.language.title, description: s.language.description, enum: [...LANGUAGES], 'x-options': LANGUAGE_OPTIONS, 'x-hot': true },
         [TELEMETRY_KEY]: { type: 'boolean', title: s.telemetry.title, description: s.telemetry.description },
         [CONTEXT_RING_KEY]: { type: 'boolean', title: s.contextRing.title, description: s.contextRing.description, 'x-hot': true },
-        [EXTENSION_AUTO_UPDATE_KEY]: { type: 'boolean', title: s.extensionAutoUpdate.title, description: s.extensionAutoUpdate.description, 'x-hot': false },
+        [EXTENSION_AUTO_UPDATE_KEY]: { type: 'string', title: s.autoUpdateWorlds.title, description: s.autoUpdateWorlds.description, 'x-hot': false },
         // Cormini copies `rounds` when the bot is built, so a change applies from the next start
         'rounds.soft': { type: 'integer', title: s.roundsSoft.title, minimum: 1, 'x-suffix': s.roundsSoft.suffix, 'x-hot': false, description: s.roundsSoft.description },
         'rounds.hard': { type: 'integer', title: s.roundsHard.title, minimum: 1, 'x-suffix': s.roundsHard.suffix, 'x-hot': false, description: s.roundsHard.description },

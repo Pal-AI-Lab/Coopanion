@@ -10,7 +10,7 @@ export default {
     language: { title: '语言', description: '界面和 Coo 说话都使用这种语言，修改后立即生效。' },
     telemetry: { title: '匿名使用统计', description: '发送不含对话内容的使用次数与设置，帮助改进 Coopanion。字段见 docs/TELEMETRY.md。' },
     contextRing: { title: '上下文圆环', description: '在对话页输入框显示一个圆环，表示离整理之前的对话还有多远。' },
-    extensionAutoUpdate: { title: '自动更新 World 扩展', description: '每次启动时检查已安装的 World 扩展，有新版就自动安装。本次启动即加载新版。' },
+    autoUpdateWorlds: { title: '自动更新的 World 扩展', description: '启动时自动更新哪些 World 扩展，包名用逗号分隔。可在扩展页的已装卡片上逐项打开或关闭。' },
     roundsSoft: { title: '收尾提醒', suffix: '次', description: '单次唤醒请求模型达到此次数时，提醒 Coo 完成当前任务后结束本轮。' },
     roundsHard: { title: '单次唤醒上限', suffix: '次', description: '单次唤醒最多请求模型的次数，达到后结束本轮。' },
   },

@@ -8,7 +8,7 @@ const ko: Translation<CoreText> = {
     language: { title: '언어', description: '인터페이스와 Coo가 이 언어를 사용합니다. 바로 적용됩니다.' },
     telemetry: { title: '익명 사용 통계', description: '대화 내용 없이 사용 횟수와 설정을 보내 Coopanion 개선에 도움을 줍니다. 보내는 항목은 docs/TELEMETRY.md에 있습니다.' },
     contextRing: { title: '컨텍스트 링', description: '대화 페이지 입력란에 이전 대화를 정리하기까지 얼마나 남았는지 원으로 표시합니다.' },
-    extensionAutoUpdate: { title: 'World 확장 자동 업데이트', description: '시작할 때마다 설치된 World 확장을 확인하고 새 버전이 있으면 자동으로 설치합니다. 새 버전은 이번 시작에서 불러옵니다.' },
+    autoUpdateWorlds: { title: '자동 업데이트할 World 확장', description: '시작할 때 자동 업데이트할 World 확장을 패키지 이름의 쉼표 구분 목록으로 지정합니다. 확장 페이지의 설치된 카드에서 각각 켜거나 끌 수 있습니다.' },
     roundsSoft: { title: '마무리 알림', suffix: '회', description: '한 번 깨어난 동안 모델 요청이 이만큼 쌓이면 Coo에게 하던 일을 마치고 턴을 끝내라고 알립니다.' },
     roundsHard: { title: '한 번 깨어날 때 요청 한도', suffix: '회', description: '한 번 깨어난 동안 보낼 수 있는 최대 모델 요청 수이며, 도달하면 턴이 끝납니다.' },
   },

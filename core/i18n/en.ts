@@ -13,7 +13,7 @@ const en: CoreText = {
     language: { title: 'Language', description: 'The interface and Coo use this language. Takes effect at once.' },
     telemetry: { title: 'Anonymous usage statistics', description: 'Sends usage counts and settings, never conversations, to help improve Coopanion. The fields are listed in docs/TELEMETRY.md.' },
     contextRing: { title: 'Context ring', description: "Shows a ring in the Chat page's input box with how far the conversation is from being tidied up." },
-    extensionAutoUpdate: { title: 'Auto-update World extensions', description: 'At every start, checks the installed World extensions and installs newer versions, which this start then loads.' },
+    autoUpdateWorlds: { title: 'World extensions to auto-update', description: 'World extensions updated at start, as package names separated by commas. Switch each one on or off on its card in the Extensions page.' },
     roundsSoft: { title: 'Wrap-up reminder', suffix: 'requests', description: 'After this many model requests in one wake-up, Coo is reminded to finish the current task and end the turn.' },
     roundsHard: { title: 'Requests per wake-up', suffix: 'requests', description: 'The most model requests in one wake-up; the turn ends when it is reached.' },
   },
