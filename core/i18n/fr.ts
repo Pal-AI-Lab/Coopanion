@@ -13,8 +13,13 @@ const fr: Translation<CoreText> = {
   },
 
   failure: {
-    text: (n: number, status: number, reason: string) => `Mes ${n} dernières requêtes au modèle ont échoué. Erreur${status ? ` ${status}` : ''} : ${reason}. Vérifiez le nom du modèle et l'API Key sur la page Accueil des paramètres, où vous pouvez tester la connexion.`,
+    text: (n: number, status: number, reason: string, advice: string) => `Mes ${n} dernières requêtes au modèle ont échoué. Erreur${status ? ` ${status}` : ''} : ${reason}.${advice && ` ${advice}`}`,
     reasoningReplay: (n: number) => `Mes ${n} dernières requêtes au modèle ont échoué : ce service exige que la réflexion soit renvoyée avant chaque appel d'outil, et Coopanion a désactivé cela pour lui. Merci de le signaler aux développeurs : https://github.com/Pal-AI-Lab/Coopanion/issues`,
+    advice: {
+      key: "Vérifiez l'API Key sur la page Accueil des paramètres, où vous pouvez tester la connexion.",
+      model: 'Vérifiez le nom du modèle sur la page Accueil des paramètres, où vous pouvez tester la connexion.',
+      later: 'Le service du modèle rencontre un problème ou limite les requêtes ; réessayez dans un moment.',
+    },
     open: 'Ouvrir les paramètres',
     ok: 'OK',
   },

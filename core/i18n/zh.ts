@@ -16,9 +16,15 @@ export default {
 
   /** 连续几次请求模型失败后,桌宠气泡里的说明 */
   failure: {
-    text: (n: number, status: number, reason: string) => `我连着 ${n} 次没能从模型那里拿到回复。错误${status ? ` ${status}` : ''}：${reason}。请在设置的「开始」页检查模型名和 API Key，那里可以测试连接。`,
+    text: (n: number, status: number, reason: string, advice: string) => `我连着 ${n} 次没能从模型那里拿到回复。错误${status ? ` ${status}` : ''}：${reason}。${advice}`,
     /** 服务商预设关掉了 `sendSyntheticReasoning`,端点却要它而回 400 时的说明 */
     reasoningReplay: (n: number) => `我连着 ${n} 次没能从模型那里拿到回复：这家服务商要求每次调用工具前都回传思考内容，Coopanion 对它关掉了这一项。请把这件事反馈给开发者：https://github.com/Pal-AI-Lab/Coopanion/issues`,
+    /** 按状态码选一句接在原因后面;没有对应建议的状态码只说原因 */
+    advice: {
+      key: '请在设置的「开始」页检查 API Key，那里可以测试连接。',
+      model: '请在设置的「开始」页检查模型名，那里可以测试连接。',
+      later: '这是模型服务那边出了问题或者在限流，等一会儿再试试吧。',
+    },
     open: '打开设置',
     ok: '知道了',
   },

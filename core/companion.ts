@@ -227,13 +227,16 @@ function failureOf(err: unknown): { status: number; reason: string } {
 
 /**
  * After `FAILURES_BEFORE_HINT` model requests in a row fail, the pet says why in its bubble, once
- * per run of failures, with a button to the settings window's home page, where the model and key
- * are set and tested. Any answered request ends the run; a request cut off by newer input or by
- * shutdown neither counts nor ends it, and neither does one refused for a ChatGPT plan's usage limit,
- * which only reaches the log. A 400 the vendor preset caused by turning `sendSyntheticReasoning` off
- * is said as that, with no settings button: nothing the person can set fixes it.
+ * per run of failures. The last failure's status picks what follows the upstream's reason: 401 and
+ * 403 point at the key and 404 at the model name, each with a button to the settings window's home
+ * page, where both are set and tested; 429 and 5xx say the service is in trouble or limiting
+ * requests; any other status, 0 included, adds nothing. Any answered request ends the run; a
+ * request cut off by newer input or by shutdown neither counts nor ends it, and neither does one
+ * refused for a ChatGPT plan's usage limit, which only reaches the log. A 400 the vendor preset
+ * caused by turning `sendSyntheticReasoning` off is said as that, with no settings button: nothing
+ * the person can set fixes it.
  */
-function hintFailures(core: Core<CoreConfig>, config: CoreConfig, pet: () => DesktopPetWorld | null): void {
+export function hintFailures(core: Core<CoreConfig>, config: CoreConfig, pet: () => DesktopPetWorld | null): void {
   const { llm } = core;
   const respond = llm.respond.bind(llm);
   let failures = 0;
@@ -251,12 +254,17 @@ function hintFailures(core: Core<CoreConfig>, config: CoreConfig, pet: () => Des
           const S = coreText(appLanguage(config.language)).failure;
           const { status, reason } = failureOf(err);
           const replay = err instanceof Error && err.message.includes(SYNTHETIC_REASONING_OFF);
+          const advice = status === 401 || status === 403 ? S.advice.key
+            : status === 404 ? S.advice.model
+            : status === 429 || status >= 500 ? S.advice.later
+            : '';
+          const settings = status === 401 || status === 403 || status === 404;
           shown = true;
           void p.dialog({
-            text: replay ? S.reasoningReplay(failures) : S.text(failures, status, reason), actions: ['sad'], closable: true,
-            input: { kind: 'buttons', options: replay ? [{ label: S.ok, primary: true }] : [{ label: S.open, primary: true }, { label: S.ok }] },
+            text: replay ? S.reasoningReplay(failures) : S.text(failures, status, reason, advice), actions: ['sad'], closable: true,
+            input: { kind: 'buttons', options: settings ? [{ label: S.open, primary: true }, { label: S.ok }] : [{ label: S.ok, primary: true }] },
           }).answer.then((a) => {
-            if (!replay && 'index' in a && a.index === 0) process.send?.({ type: 'companion:open', path: '#/home' });
+            if (settings && 'index' in a && a.index === 0) process.send?.({ type: 'companion:open', path: '#/home' });
             // the page went away before it showed: the next failure tries again
             if ('unavailable' in a) shown = false;
           });

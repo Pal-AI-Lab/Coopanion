@@ -13,8 +13,13 @@ const ptBR: Translation<CoreText> = {
   },
 
   failure: {
-    text: (n: number, status: number, reason: string) => `Minhas últimas ${n} solicitações ao modelo falharam. Erro${status ? ` ${status}` : ''}: ${reason}. Confira o nome do modelo e a API Key na página Início das configurações, onde você pode testar a conexão.`,
+    text: (n: number, status: number, reason: string, advice: string) => `Minhas últimas ${n} solicitações ao modelo falharam. Erro${status ? ` ${status}` : ''}: ${reason}.${advice && ` ${advice}`}`,
     reasoningReplay: (n: number) => `Minhas últimas ${n} solicitações ao modelo falharam: este serviço exige que o raciocínio seja reenviado antes de cada chamada de ferramenta, e o Coopanion está com isso desativado para ele. Por favor, avise os desenvolvedores: https://github.com/Pal-AI-Lab/Coopanion/issues`,
+    advice: {
+      key: 'Confira a API Key na página Início das configurações, onde você pode testar a conexão.',
+      model: 'Confira o nome do modelo na página Início das configurações, onde você pode testar a conexão.',
+      later: 'O serviço do modelo está com problemas ou limitando as solicitações; tente de novo daqui a pouco.',
+    },
     open: 'Abrir configurações',
     ok: 'OK',
   },

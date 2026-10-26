@@ -13,8 +13,13 @@ const de: Translation<CoreText> = {
   },
 
   failure: {
-    text: (n: number, status: number, reason: string) => `Meine letzten ${n} Anfragen an das Modell sind fehlgeschlagen. Fehler${status ? ` ${status}` : ''}: ${reason}. Prüf den Modellnamen und den API Key auf der Seite Start in den Einstellungen; dort kannst du die Verbindung testen.`,
+    text: (n: number, status: number, reason: string, advice: string) => `Meine letzten ${n} Anfragen an das Modell sind fehlgeschlagen. Fehler${status ? ` ${status}` : ''}: ${reason}.${advice && ` ${advice}`}`,
     reasoningReplay: (n: number) => `Meine letzten ${n} Anfragen an das Modell sind fehlgeschlagen: Dieser Dienst verlangt, dass das Nachdenken vor jedem Werkzeugaufruf zurückgeschickt wird, und Coopanion hat das für ihn ausgeschaltet. Bitte melde das den Entwicklern: https://github.com/Pal-AI-Lab/Coopanion/issues`,
+    advice: {
+      key: 'Prüf den API Key auf der Seite Start in den Einstellungen; dort kannst du die Verbindung testen.',
+      model: 'Prüf den Modellnamen auf der Seite Start in den Einstellungen; dort kannst du die Verbindung testen.',
+      later: 'Der Modelldienst hat gerade Probleme oder begrenzt die Anfragen; versuch es später noch einmal.',
+    },
     open: 'Einstellungen öffnen',
     ok: 'OK',
   },

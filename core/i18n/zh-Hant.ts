@@ -13,8 +13,13 @@ const zhHant: Translation<CoreText> = {
   },
 
   failure: {
-    text: (n: number, status: number, reason: string) => `我連續 ${n} 次沒能從模型那裡拿到回覆。錯誤${status ? ` ${status}` : ''}：${reason}。請在設定的「開始」頁檢查模型名稱和 API Key，那裡可以測試連線。`,
+    text: (n: number, status: number, reason: string, advice: string) => `我連續 ${n} 次沒能從模型那裡拿到回覆。錯誤${status ? ` ${status}` : ''}：${reason}。${advice}`,
     reasoningReplay: (n: number) => `我連續 ${n} 次沒能從模型那裡拿到回覆：這家服務商要求每次呼叫工具前都回傳思考內容，Coopanion 對它關掉了這一項。請把這件事回報給開發者：https://github.com/Pal-AI-Lab/Coopanion/issues`,
+    advice: {
+      key: '請在設定的「開始」頁檢查 API Key，那裡可以測試連線。',
+      model: '請在設定的「開始」頁檢查模型名稱，那裡可以測試連線。',
+      later: '這是模型服務那邊出了問題或者在限流，等一會兒再試試吧。',
+    },
     open: '開啟設定',
     ok: '知道了',
   },
