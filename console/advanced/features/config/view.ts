@@ -30,6 +30,8 @@ export interface ConfigProperty {
   'x-scale'?: number;
   'x-suffix'?: string;
   'x-hot'?: boolean;
+  /** 打开或修改后会降低安全性;标题用警示色。 */
+  'x-warning'?: boolean;
   'x-options'?: string;
   'x-path'?: {
     kind: 'file' | 'directory';
@@ -565,7 +567,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
           }
           const [path, prop] = entry;
           const row = ui.h('div', 'companion-row configrow');
-          const label = ui.h('div', 'companion-label', prop.title || path);
+          const label = ui.h('div', prop['x-warning'] ? 'companion-label warning' : 'companion-label', prop.title || path);
           const control = ui.h('div', 'companion-control');
           const line = ui.h('div', 'configline');
           control.appendChild(line);
