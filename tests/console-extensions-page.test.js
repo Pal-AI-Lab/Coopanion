@@ -9,7 +9,8 @@ localStorage.setItem('cortico.console.language', 'zh');
 const { createConsoleUi } = await import('../console/base/ui/index.ts');
 const { Lifecycle } = await import('../console/base/lifecycle.ts');
 const { Router } = await import('../console/base/router.ts');
-const { mountExtensions, parseInstallInput, arrangeHits, extensionsFeature, restartOutcome, extensionColumns, osAllowed, changesBetween } = await import('../console/advanced/features/extensions/index.ts');
+const { mountExtensionContent, mountExtensions, parseInstallInput, arrangeHits, extensionsFeature, restartOutcome, extensionColumns, osAllowed, changesBetween } = await import('../console/advanced/features/extensions/index.ts');
+const { mountProviders } = await import('../console/advanced/features/providers/index.ts');
 const flush = async (n = 30) => { for (let i = 0; i < n; i++) await Promise.resolve(); };
 const LIST = {
   dir: 'C:/repo/extensions',
@@ -63,7 +64,9 @@ function stub(over = {}) {
     calls.push({ url: u, method, body: init?.body ? JSON.parse(String(init.body)) : undefined });
     let status = 200;
     let body = {};
-    if (u === '/api/extensions')
+    if (u === '/api/providers') body = { scope: 'test-provider-tabs', active: '', providers: [] };
+    else if (u === '/api/provider-modules') body = [];
+    else if (u === '/api/extensions')
       body = over.list ?? LIST;
     else if (u === '/api/extensions/updates') {
       status = over.updateStatus ?? 200;
@@ -95,8 +98,7 @@ function stub(over = {}) {
     return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }));
   });
 }
-function mkCtx(caps = { extensions: true, restart: true, supervised: true }) {
-  const root = document.createElement('div');
+function mkCtx(caps = { extensions: true, restart: true, supervised: true }, root = document.createElement('div')) {
   document.body.appendChild(root);
   const lifecycle = new Lifecycle(() => { });
   const ui = createConsoleUi({
@@ -111,7 +113,7 @@ function mkCtx(caps = { extensions: true, restart: true, supervised: true }) {
     ctx: {
       ui, root, lifecycle, signal: lifecycle.signal,
       capabilities: caps,
-      route: { segments: ['extensions'] },
+      route: router.route,
       router,
       onError: () => { },
     },
@@ -154,7 +156,15 @@ afterEach(() => { lives.splice(0).forEach(life => life.dispose()); vi.unstubAllG
 const installedCards = (root) => root.querySelector('.extension-grid');
 const marketCards = (root) => root.querySelectorAll('.extension-grid')[1];
 const sheets = (root) => root.querySelectorAll('.extension-category > .sheet');
-const switchTo = async (ctx, kind) => { ctx.router.replace(['extensions', kind]); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush(); };
+const switchTo = async (ctx, kind) => {
+  ctx.lifecycle.dispose();
+  ctx.root.replaceChildren();
+  const next = mkCtx(ctx.capabilities, ctx.root);
+  Object.assign(ctx, next.ctx);
+  lives.push(next.lifecycle);
+  mountExtensionContent(ctx, kind);
+  await flush();
+};
 const filterMarket = (root, value) => { const input = root.querySelectorAll('input[type=search]')[1]; input.value = value; input.dispatchEvent(new Event('input')); };
 describe('extension categories', () => {
   it('isolates installed categories and preserves each market filter across routes', async () => {
@@ -171,19 +181,6 @@ describe('extension categories', () => {
     await switchTo(ctx, 'world');
     expect(root.querySelectorAll('input[type=search]')[1].value).toBe('found');
     expect(marketCards(root).querySelectorAll('.extension-card')).toHaveLength(1);
-  });
-  it('uses keyboard focus without activating a category until Enter or click', async () => {
-    stub();
-    const { root } = mount();
-    await flush();
-    const tabs = root.querySelectorAll('[role=tab]');
-    tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    expect(document.activeElement).toBe(tabs[1]);
-    expect(tabs[0].getAttribute('aria-selected')).toBe('true');
-    tabs[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    expect(document.activeElement).toBe(tabs[0]);
-    tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
-    expect(document.activeElement).toBe(tabs[1]);
   });
   it('caps installed cards at two rows and market at four rows at every column count', async () => {
     const many = { ...LIST, extensions: Array.from({ length: 15 }, (_, i) => ({ ...LIST.extensions[0], name: `item-${String(i).padStart(2, '0')}`, label: `Item ${i}` })) };
@@ -217,7 +214,7 @@ describe('extension categories', () => {
     window.history.replaceState(null, '', '#/extensions/bot');
     const { ctx, root } = mount();
     await flush();
-    expect([...root.querySelectorAll('[role=tab]')].map(tab => tab.id)).toEqual(['extension-tab-world', 'extension-tab-provider']);
+    expect(root.querySelectorAll('[role=tab]')).toHaveLength(0);
     expect(window.location.hash).toBe('#/extensions/world');
     expect(installedCards(root).textContent).not.toContain('Bot 模板包');
     await switchTo(ctx, 'provider');
@@ -739,5 +736,49 @@ describe('extension card and history controls', () => {
     const actions = [...document.querySelectorAll('.extension-version-action')];
     expect(actions.length).toBeGreaterThan(0);
     expect(actions.every(action => action.disabled)).toBe(true);
+  });
+});
+
+
+describe('provider page tabs', () => {
+  async function openProviders(caps = { extensions: true }) {
+    window.history.replaceState(null, '', '#/providers');
+    const page = mkCtx(caps);
+    lives.push(page.lifecycle);
+    mountProviders(page.ctx);
+    await flush();
+    return page;
+  }
+  async function navigate(ctx, view) {
+    ctx.router.navigate(['providers'], view ? { view } : undefined);
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await flush();
+  }
+  it('keeps settings and market filters when switching tabs and returning through history', async () => {
+    stub();
+    const { ctx, root } = await openProviders();
+    expect(root.querySelectorAll('h1')).toHaveLength(1);
+    expect(root.querySelector('.provider-market').hidden).toBe(true);
+    expect(calls.some(call => call.url.startsWith('/api/extensions'))).toBe(false);
+    await navigate(ctx, 'market');
+    const market = root.querySelector('.provider-market');
+    expect(root.querySelector('.provider-settings').hidden).toBe(true);
+    expect(installedCards(market).textContent).toContain('gamma-prov');
+    expect(installedCards(market).textContent).not.toContain('甲扩展');
+    expect(calls.some(call => call.url.includes('/api/extensions/search?') && call.url.includes('kind=provider'))).toBe(true);
+    filterMarket(market, 'keep this query');
+    await navigate(ctx);
+    await navigate(ctx, 'market');
+    expect(market.querySelectorAll('input[type=search]')[1].value).toBe('keep this query');
+    expect(root.querySelectorAll('.extension-category')).toHaveLength(1);
+    expect(root.querySelector('.pagetab.active').textContent).toBe('扩展市场');
+  });
+  it('hides the market without the extensions capability, including a direct URL', async () => {
+    stub();
+    const { ctx, root } = await openProviders({});
+    await navigate(ctx, 'market');
+    expect(root.querySelectorAll('.pagetab')).toHaveLength(1);
+    expect(root.querySelector('.provider-settings').hidden).toBe(false);
+    expect(calls.some(call => call.url.startsWith('/api/extensions'))).toBe(false);
   });
 });

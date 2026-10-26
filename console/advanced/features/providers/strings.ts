@@ -9,6 +9,7 @@ import { S as ptBR } from './strings.pt-BR.ts';
 import { S as it } from './strings.it.ts';
 import { S as ru } from './strings.ru.ts';
 const zh = {
+  settingsTab: '设置', marketTab: '扩展市场',
   pageTitle: '模型供应商', navLabel: '模型供应商', navGroup: 'Core', create: '+ 新建供应商实例', newName: '未命名实例',
   createHint: '实例 = 填一组供应商配置保存成卡片',
   empty: '还没有模型供应商', emptyHint: '添加一条模型连接后，Cortico 才能进行模型推理。',
@@ -38,6 +39,7 @@ const zh = {
   deleteConfirm: '删除供应商及其目录中的全部文件？', referenced: '此供应商正在被以下 Bot 使用，不能删除：', reload: '重新加载',
 };
 export const en: typeof zh = {
+  settingsTab: 'Settings', marketTab: 'Extension market',
   pageTitle: 'Model connections', navLabel: 'Model connections', navGroup: 'Core', create: '+ New connection instance', newName: 'Unnamed instance',
   createHint: 'An instance is one set of provider settings saved as a card.',
   empty: 'No model connections yet', emptyHint: 'Add a model connection to enable inference.',

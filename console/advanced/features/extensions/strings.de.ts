@@ -5,7 +5,6 @@ export const S: Partial<typeof en> = {
   navGroup: 'Core',
   introTitle: 'Erweiterungen',
   scope: 'Erweiterungen werden im gemeinsamen Erweiterungsverzeichnis installiert; Installieren und Löschen gelten nach dem Neustart des Prozesses. Das Löschen einer Erweiterung entfernt das gemeinsame Paket.',
-  tabs: { world: 'World-Erweiterungen', provider: 'Anbieter-Erweiterungen' },
 
   installedTitle: 'Installiert',
   market: 'Erweiterungsmarkt',

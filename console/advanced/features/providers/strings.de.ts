@@ -1,6 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  settingsTab: 'Einstellungen', marketTab: 'Erweiterungsmarkt',
   pageTitle: 'Modellverbindungen', navLabel: 'Modellverbindungen', navGroup: 'Core', create: '+ Neue Verbindungsinstanz', newName: 'Unbenannte Instanz',
   createHint: 'Eine Instanz ist ein Satz Anbieter-Einstellungen, gespeichert als Karte.',
   empty: 'Noch keine Modellverbindungen', emptyHint: 'Füge eine Modellverbindung hinzu, um Inferenz zu ermöglichen.',

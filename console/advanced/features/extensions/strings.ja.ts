@@ -5,7 +5,6 @@ export const S: Partial<typeof en> = {
   navGroup: 'Core',
   introTitle: '拡張機能',
   scope: '拡張機能は共有の拡張機能ディレクトリにインストールされ、インストールと削除はプロセスの再起動後に反映されます。拡張機能を削除すると共有パッケージが削除されます。',
-  tabs: { world: 'World 拡張機能', provider: 'プロバイダー拡張機能' },
 
   installedTitle: 'インストール済み',
   market: '拡張機能マーケット',

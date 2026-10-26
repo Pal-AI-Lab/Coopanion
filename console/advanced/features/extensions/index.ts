@@ -1,4 +1,4 @@
-/** 扩展管理页。扩展信息与运行状态由服务端提供；安装、卸载后需重启进程才能生效。类别取路由第二段。 */
+/** 扩展管理页。扩展信息与运行状态由服务端提供；安装、卸载后需重启进程才能生效。World 与供应商页面共用内容。 */
 
 import { get, post, pickPath } from '../../../base/api.ts';
 import { icon, brandMark } from '../../../base/ui/icons.ts';
@@ -398,16 +398,21 @@ export const tagIssueUrl = (name: string): string =>
 /** 已装包图标的地址;版本号放进查询串,换版本后浏览器重新取。 */
 export const iconUrl = (name: string, version: string | null | undefined): string =>
   '/api/extensions/icon?name=' + encodeURIComponent(name) + (version ? '&v=' + encodeURIComponent(version) : '');
-/** 页签。Coopanion 的 Persona 固定是 Coo,用不上 Bot 扩展，这一页只列 World 与供应商。 */
+/** Coopanion 的 Persona 固定是 Coo，只管理 World 与供应商扩展。 */
 type Category = Exclude<ExtensionKindView, 'bot'>;
 const categories: Category[] = ['world', 'provider'];
-const TAB_ICONS = { world: 'boxes', provider: 'cpu' } as const;
 const LINK_ICONS = { npm: 'package', repository: 'code', homepage: 'home', bugs: 'alert' } as const;
 const stateLabels = { loaded: S.disabled, failed: S.stateFailed, 'pending-restart': S.statePendingRestart, removed: S.stateRemoved, idle: S.template };
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 
 export function mountExtensions(ctx: FeatureContext): void {
-  const { root, ui, lifecycle, signal, router } = ctx;
+  ctx.root.append(pageIntro(ctx.ui, S.introTitle, S.scope));
+  mountExtensionContent(ctx, 'world');
+  if (ctx.router.route.segments[1] !== 'world') ctx.router.replace(['extensions', 'world']);
+}
+
+export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrollRoot = ctx.root): void {
+  const { root, ui, lifecycle, signal } = ctx;
   const win = root.ownerDocument.defaultView!;
   const canRestart = ctx.capabilities.restart === true;
   const supervised = ctx.capabilities.supervised === true;
@@ -422,7 +427,6 @@ export function mountExtensions(ctx: FeatureContext): void {
     for (const kind of categories) if (saved[kind]) Object.assign(states[kind], saved[kind], { hits: [], fetched: false, generation: 0, messages: {} });
     for (const kind of categories) if (!HIT_SORTS.includes(states[kind].sort)) states[kind].sort = 'certified';
   } catch { /* Storage can be disabled by the browser. */ }
-  let kind: Category = categories.includes(router.route.segments[1] as Category) ? router.route.segments[1] as Category : 'world';
   let columns = extensionColumns(root.clientWidth);
   let installed: ExtensionView[] = [];
   let updates = new Map<string, UpdateView>();
@@ -445,8 +449,8 @@ export function mountExtensions(ctx: FeatureContext): void {
   let installedFetched = false;
   let restoringScroll = true;
   const restoreScroll = () => {
-    if (!restoringScroll || !installedFetched || !states[kind].fetched) return;
-    root.scrollTop = states[kind].scroll;
+    if (root.hidden || !restoringScroll || !installedFetched || !states[kind].fetched) return;
+    scrollRoot.scrollTop = states[kind].scroll;
     restoringScroll = false;
   };
   /** 正在安装或删除的包;同一个包的第二次操作等前一次回来。 */
@@ -458,36 +462,20 @@ export function mountExtensions(ctx: FeatureContext): void {
   doc.addEventListener('keydown', event => { if (event.key === 'Escape') disarm(); }, { signal });
   // 历史版本下拉:在同一个抽屉里点别处就收起;确认框等别的浮层里的点击不算
   doc.addEventListener('click', event => { for (const open of doc.querySelectorAll<HTMLDetailsElement>('.extension-releases[open]')) if (!open.contains(event.target as Node) && open.closest('.modalcard')?.contains(event.target as Node)) open.open = false; }, { signal });
-  const intro = pageIntro(ui, S.introTitle, S.scope);
-  const tabs = ui.h('div', 'extension-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', S.introTitle);
-  const indicator = ui.h('span', 'extension-tab-indicator'); indicator.setAttribute('aria-hidden', 'true'); tabs.append(indicator);
-  const panel = ui.h('div', 'extension-category'); panel.setAttribute('role', 'tabpanel'); panel.id = 'extension-category';
-  const tabButtons = categories.map((value, index) => {
-    const button = ui.button('', { onClick: () => router.navigate(['extensions', value]) });
-    const text = ui.h('span', 'extension-tab-text'); text.append(ui.h('span', 'extension-tab-label', S.tabs[value]), ui.h('span', 'extension-tab-note', S.tabNotes[value]));
-    button.append(icon(doc, TAB_ICONS[value]), text);
-    button.id = 'extension-tab-' + value; button.setAttribute('role', 'tab'); button.setAttribute('aria-controls', panel.id);
-    button.addEventListener('keydown', event => {
-      const count = categories.length;
-      const target = event.key === 'ArrowRight' ? (index + 1) % count : event.key === 'ArrowLeft' ? (index + count - 1) % count : event.key === 'Home' ? 0 : event.key === 'End' ? count - 1 : -1;
-      if (target >= 0) { event.preventDefault(); tabButtons.forEach((b, i) => b.tabIndex = i === target ? 0 : -1); tabButtons[target].focus(); }
-    }, { signal }); tabs.append(button); return button;
-  });
-  root.append(intro, tabs, panel);
+  const panel = ui.h('div', 'extension-category');
+  root.append(panel);
   let installedGrid: HTMLElement, marketGrid: HTMLElement, installedPager: HTMLElement, marketPager: HTMLElement;
   let tagBar: HTMLElement | undefined, clearButton: HTMLButtonElement | undefined, licenseList: HTMLElement | undefined;
   let messageNodes: Record<string, HTMLElement> = {};
   const save = () => {
-    if (!restoringScroll) states[kind].scroll = root.scrollTop;
+    if (!root.hidden && !restoringScroll) states[kind].scroll = scrollRoot.scrollTop;
     try {
-      win.sessionStorage.setItem(storageKey, JSON.stringify(Object.fromEntries(categories.map(k => {
-        const { hits: _hits, fetched: _fetched, generation: _gen, messages: _messages, ...s } = states[k];
-        return [k, s];
-      }))));
+      const { hits: _hits, fetched: _fetched, generation: _gen, messages: _messages, ...saved } = states[kind];
+      win.sessionStorage.setItem(storageKey, JSON.stringify({ ...JSON.parse(win.sessionStorage.getItem(storageKey) ?? '{}'), [kind]: saved }));
     } catch { /* Optional browser state. */ }
   };
-  root.addEventListener('scroll', save, { signal, passive: true }); lifecycle.add(save);
-  for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) root.addEventListener(event, () => { restoringScroll = false; }, { signal, passive: true });
+  scrollRoot.addEventListener('scroll', save, { signal, passive: true }); lifecycle.add(save);
+  for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) scrollRoot.addEventListener(event, () => { restoringScroll = false; }, { signal, passive: true });
   function message(owner: Category, area: string, text: string, bad = false) {
     states[owner].messages[area] = { text, bad };
     if (owner === kind && messageNodes[area]) { messageNodes[area].textContent = text; messageNodes[area].className = 'msgline' + (bad ? ' bad' : ''); }
@@ -1426,8 +1414,7 @@ export function mountExtensions(ctx: FeatureContext): void {
     }; void check();
   }
   function render() {
-    const state = states[kind]; tabs.style.setProperty('--tab-index', String(categories.indexOf(kind)));
-    tabButtons.forEach((button, i) => { const active = categories[i] === kind; button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1; }); panel.setAttribute('aria-labelledby', 'extension-tab-' + kind);
+    const state = states[kind];
     panel.replaceChildren(); messageNodes = {};
     const managed = ui.sheet({ title: S.installedTitle });
     const bar = ui.rowbar(); bar.classList.add('extension-toolbar');
@@ -1489,14 +1476,10 @@ export function mountExtensions(ctx: FeatureContext): void {
     for (const [area, value] of Object.entries(state.messages)) if (messageNodes[area]) { messageNodes[area].textContent = value.text; messageNodes[area].className = 'msgline' + (value.bad ? ' bad' : ''); }
     renderInstalled(); renderMarket();
   }
-  lifecycle.own(router.onChange(route => {
-    const next = route.segments[1] as Category; if (!categories.includes(next) || next === kind || route.segments[0] !== 'extensions') return;
-    save(); kind = next; restoringScroll = true; render(); restoreScroll(); if (!states[kind].fetched) void search(kind);
-  }));
   // 只看宽度变化
   let panelWidth = panel.clientWidth;
   if (typeof win.ResizeObserver === 'function') { const observer = new win.ResizeObserver(() => {
-    if (panel.clientWidth === panelWidth) return;
+    if (!panel.clientWidth || panel.clientWidth === panelWidth) return;
     panelWidth = panel.clientWidth;
     const next = extensionColumns(panelWidth);
     if (next === columns) { for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) if (!row.classList.contains('is-open')) foldTags(row); return; }
@@ -1506,7 +1489,6 @@ export function mountExtensions(ctx: FeatureContext): void {
     root.style.setProperty('--extension-columns', String(columns)); renderInstalled(); renderMarket();
   }); observer.observe(panel); lifecycle.add(() => observer.disconnect()); }
   render();
-  if (!categories.includes(router.route.segments[1] as Category)) router.replace(['extensions', kind]);
   void load(); void checkUpdates(); void search(kind); void loadRegistry();
   try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { message(kind, 'management', S.reloadWait); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
 }

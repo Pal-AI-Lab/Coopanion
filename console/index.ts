@@ -223,6 +223,7 @@ export function boot(doc: Document = document): Disposable {
     // an empty route, and in the normal mode a page it does not list, open 开始 without a history entry
     const reachable = mode === 'advanced' ? head === PROVIDER_ROUTE || !!entry : !!entry?.basic;
     if (!head || !reachable) { router.replace([HOME]); return; }
+    if (head === 'extensions' && route.segments[1] === 'provider') { router.replace(['providers'], { view: 'market' }); return; }
     // a model module's page is a section of 模型供应商
     if (head === PROVIDER_ROUTE && route.segments[1]?.startsWith('llm:')) { router.replace(['providers']); return; }
     if (head === PROVIDER_ROUTE) {

@@ -5,7 +5,6 @@ export const S: Partial<typeof en> = {
   navGroup: 'Core',
   introTitle: 'Estensioni',
   scope: "Le estensioni sono installate nella directory condivisa delle estensioni; installazione ed eliminazione hanno effetto dopo il riavvio del processo. Eliminare un'estensione rimuove il pacchetto condiviso.",
-  tabs: { world: 'Estensioni World', provider: 'Estensioni provider' },
 
   installedTitle: 'Installate',
   market: 'Catalogo estensioni',

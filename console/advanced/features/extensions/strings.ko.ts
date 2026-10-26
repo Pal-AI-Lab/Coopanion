@@ -5,7 +5,6 @@ export const S: Partial<typeof en> = {
   navGroup: 'Core',
   introTitle: '확장',
   scope: '확장은 공유 확장 디렉터리에 설치되며, 설치와 삭제는 프로세스를 재시작한 뒤 적용됩니다. 확장을 삭제하면 공유 패키지가 제거됩니다.',
-  tabs: { world: 'World 확장', provider: '공급자 확장' },
 
   installedTitle: '설치됨',
   market: '확장 마켓',

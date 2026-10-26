@@ -1,6 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  settingsTab: 'Configuration', marketTab: 'Marché des extensions',
   pageTitle: 'Connexions de modèles', navLabel: 'Connexions de modèles', navGroup: 'Core', create: '+ Nouvelle instance de connexion', newName: 'Instance sans nom',
   createHint: 'Une instance est un ensemble de réglages de fournisseur enregistré sous forme de carte.',
   empty: 'Aucune connexion de modèle', emptyHint: "Ajoutez une connexion de modèle pour activer l'inférence.",

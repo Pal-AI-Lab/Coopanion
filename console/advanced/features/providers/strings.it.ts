@@ -1,6 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  settingsTab: 'Impostazioni', marketTab: 'Mercato delle estensioni',
   pageTitle: 'Connessioni ai modelli', navLabel: 'Connessioni ai modelli', navGroup: 'Core', create: '+ Nuova istanza di connessione', newName: 'Istanza senza nome',
   createHint: "Un'istanza è un insieme di impostazioni del provider salvato come scheda.",
   empty: 'Ancora nessuna connessione ai modelli', emptyHint: "Aggiungi una connessione a un modello per abilitare l'inferenza.",

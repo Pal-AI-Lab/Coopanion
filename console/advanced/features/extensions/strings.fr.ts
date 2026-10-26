@@ -5,7 +5,6 @@ export const S: Partial<typeof en> = {
   navGroup: 'Core',
   introTitle: 'Extensions',
   scope: "Les extensions sont installées dans le répertoire d'extensions partagé ; l'installation et la suppression prennent effet après le redémarrage du processus. Supprimer une extension retire le paquet partagé.",
-  tabs: { world: 'Extensions World', provider: 'Extensions de fournisseur' },
 
   installedTitle: 'Installées',
   market: "Catalogue d'extensions",

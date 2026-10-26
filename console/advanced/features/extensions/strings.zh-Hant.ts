@@ -5,7 +5,6 @@ export const S: Partial<typeof en> = {
   navGroup: 'Core',
   introTitle: '擴充功能',
   scope: '擴充功能安裝在共用的擴充功能目錄中，安裝與刪除在處理程序重新啟動後生效。刪除擴充功能會移除共用安裝套件。',
-  tabs: { world: 'World 擴充功能', provider: '供應商擴充功能' },
 
   installedTitle: '已安裝',
   market: '擴充功能市集',

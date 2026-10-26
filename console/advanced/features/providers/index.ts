@@ -1,4 +1,6 @@
 import { pageIntro } from '../../../base/ui/page.ts';
+import { pageTabs } from '../../../base/ui/page-tabs.ts';
+import { mountExtensionContent } from '../extensions/index.ts';
 import { icon } from '../../../base/ui/icons.ts';
 import { NEW_DRAFT_ID, providerDrafts } from './drafts.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
@@ -11,9 +13,46 @@ import { CHATGPT_MODULE } from 'cortico-provider-coo/src/vendors.ts';
 
 /** How often the card list re-reads other deployments' usage. */
 const USAGE_REFRESH_MS = 5000;
-export async function mountProviders(ctx: FeatureContext): Promise<void> {
+export function mountProviders(ctx: FeatureContext): void {
+  const { root, ui, router, signal } = ctx;
+  const intro = pageIntro(ui, S.pageTitle);
+  const settings = ui.h('div', 'provider-settings');
+  const market = ui.h('div', 'provider-market');
+  const panes = { settings, market };
+  const started = new Set<string>();
+  const scroll = { settings: 0, market: 0 };
+  let current: 'settings' | 'market' | undefined;
+  const tabs = pageTabs(root.ownerDocument, signal, [
+    { value: 'settings', label: S.settingsTab },
+    ...(ctx.capabilities.extensions ? [{ value: 'market', label: S.marketTab }] : []),
+  ], { onSelect: value => router.navigate(router.route.segments, value === 'market' ? { view: 'market' } : undefined) });
+  intro.classList.add('provider-intro');
+  intro.append(tabs.el);
+  root.append(intro, settings, market);
+  const show = () => {
+    if (signal.aborted || router.route.segments[0] !== 'providers') return;
+    const next = router.route.query.view === 'market' && ctx.capabilities.extensions ? 'market' : 'settings';
+    if (current === next) return;
+    if (current) scroll[current] = root.scrollTop;
+    current = next;
+    settings.hidden = next !== 'settings';
+    market.hidden = next !== 'market';
+    tabs.setValue(next);
+    root.scrollTop = scroll[next];
+    if (started.has(next)) return;
+    started.add(next);
+    const child = { ...ctx, root: panes[next], route: router.route };
+    if (next === 'market') mountExtensionContent(child, 'provider', root);
+    else void mountConnections(child).catch(error => {
+      if (!signal.aborted) settings.replaceChildren(ui.msgline(String(error), true));
+    });
+  };
+  ctx.lifecycle.own(router.onChange(show));
+  show();
+}
+
+async function mountConnections(ctx: FeatureContext): Promise<void> {
   const { ui, root } = ctx;
-  root.append(pageIntro(ui, S.pageTitle));
   const report = ui.msgline();
   const layout = ui.h('div', 'connection-hub');
   const index = ui.h('div', 'connection-index');
@@ -199,8 +238,12 @@ export async function mountProviders(ctx: FeatureContext): Promise<void> {
   creator.append(ui.button(S.create, { variant: 'primary', onClick: () => run(create) }), ui.h('p', 'connection-create-hint', S.createHint));
   index.append(creator, cards);
   ctx.lifecycle.own({ dispose: () => { renderId++; controller?.dispose(); } });
+  let routeName = ctx.route.segments[1];
   ctx.lifecycle.own(ctx.router.onChange(route => {
-    if (route.segments[0] === 'providers' && route.segments[1]) run(() => select(route.segments[1]));
+    if (ctx.signal.aborted || route.segments[0] !== 'providers' || route.query.view === 'market') return;
+    const name = route.segments[1];
+    if (name && name !== routeName) run(() => select(name));
+    routeName = name;
   }));
   // Other deployments' selections and liveness change without this page; the detail form is left alone.
   let refreshing = false;

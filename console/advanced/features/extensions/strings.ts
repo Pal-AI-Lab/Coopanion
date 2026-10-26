@@ -14,8 +14,6 @@ const zh = {
   navGroup: 'Core',
   introTitle: '扩展',
   scope: '扩展安装在共享的扩展目录中，安装与删除在进程重启后生效。删除扩展会移除共享安装包。',
-  tabs: { world: 'World 扩展', provider: '供应商扩展' },
-  tabNotes: { world: '将 Bot 连接到外部环境', provider: '适配不同的上游 LLM API' },
 
   installedTitle: '已安装',
   market: '扩展市场',
@@ -239,8 +237,6 @@ export const en: typeof zh = {
   navGroup: 'Core',
   introTitle: 'Extensions',
   scope: 'Extensions are installed in the shared extensions directory; installing and deleting take effect after the process restarts. Deleting an extension removes the shared package.',
-  tabs: { world: 'World extensions', provider: 'Provider extensions' },
-  tabNotes: { world: 'Connect the bot to outside environments', provider: 'Adapt different upstream LLM APIs' },
 
   installedTitle: 'Installed',
   market: 'Extension market',

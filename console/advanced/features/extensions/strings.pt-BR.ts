@@ -5,7 +5,6 @@ export const S: Partial<typeof en> = {
   navGroup: 'Core',
   introTitle: 'Extensões',
   scope: 'As extensões são instaladas no diretório compartilhado de extensões; instalar e excluir têm efeito após reiniciar o processo. Excluir uma extensão remove o pacote compartilhado.',
-  tabs: { world: 'Extensões de World', provider: 'Extensões de provedor' },
 
   installedTitle: 'Instaladas',
   market: 'Mercado de extensões',

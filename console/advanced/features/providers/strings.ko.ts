@@ -1,6 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  settingsTab: '설정', marketTab: '확장 마켓',
   pageTitle: '모델 연결', navLabel: '모델 연결', navGroup: 'Core', create: '+ 새 연결 인스턴스', newName: '이름 없는 인스턴스',
   createHint: '인스턴스는 공급자 설정 한 세트를 카드로 저장한 것입니다.',
   empty: '아직 모델 연결이 없습니다', emptyHint: '모델 연결을 추가해야 추론할 수 있습니다.',
