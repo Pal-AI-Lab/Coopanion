@@ -1,6 +1,6 @@
-# cortico-provider-coo
+<!-- Owner: src/index.ts -->
 
-Owner: `src/index.ts`
+# cortico-provider-coo
 
 Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 provider 模块(`kind: "coo"`),
 接 Coopanion 列出的模型服务。按端点的 `baseUrl` 认出是哪一家、哪个平台,平台决定走哪种协议:
@@ -37,6 +37,12 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
 - **协议**:列出的服务按平台走(`Site.protocol`);`options.protocol` 可改;别的地址不填时走 `responses`。
   MiniMax 的 Responses 使用非流式兼容回退(`nonStreamingResponses`):流中可能提前结束工具项,最终响应也可能修订已结束项;
   等完整响应校验成功后再执行工具,避免空参数调用和已回复后的协议错误重试。工具开始执行前需等待整条响应返回。
+- **流式兼容回退**:自建网关可在该端点启用「Responses 流式兼容」(`options.normalizeResponses: true`)，默认关闭，只作用于 `coo` 的 Responses 请求。
+  `src/responses-stream.ts` 归一化推理事件别名、输出文本的空 `logprobs`；推理 `content` 明确为 `null` 或空数组时补回已确认的内容。
+  终态仅接受流中已结束的项，按原输出位置逐字段核对后才恢复流中的 `id` / `call_id`；推理项的终态 `status` 为 `null` 时沿用已结束项的状态。
+  终态省略该项定义之外的字段（如文字消息的 `summary`）时保留流中的值；定义内的字段省略仍会失败，`status` 和工具 `namespace` 也参与校验。
+  工具参数只允许 JSON 字符串外的空白差异；内容、工具名、参数值、显式状态、输出顺序变化，以及重复或跨位置冲突的 ID 都会失败。内容相同的多次调用按位置分别保留。
+  事件仍由 Cortico 校验；完整响应通过后才显示输出和执行工具。失败或取消时不交出缓存的事件，错误的 `partial` 为空，未展示的输出不进入会话；错误诊断和用量保留。
 - **思考档位**:不思考 / 快 / 标准 / 最深,Responses 发 `reasoning.effort`、Chat 发 `reasoning_effort` = `none` / `low` / `high` / `max`;
   某家文档写明只收别的值时按 `effortOf` 换算(`Vendor.effort`、平台的 `Site.effort`、个别模型的 `Vendor.modelEffort`):千问 `high→medium`、`max→xhigh`;
   Kimi、智谱两个平台的 GLM-5.3 系列、OpenRouter 的 `z-ai/glm-5.3-flash` 没有 `none`,换成 `low`;MiniMax、阶跃星辰(两种计费)没有 `max`,换成 `high`;千帆、智谱的 GLM-4.6V 没写 effort,不发;

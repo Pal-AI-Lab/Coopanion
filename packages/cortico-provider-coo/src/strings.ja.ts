@@ -5,6 +5,9 @@ export const cooText: Partial<typeof en> = {
   tiers: { off: '思考なし', low: '思考 · 速い', high: '思考 · 標準', max: '思考 · 最も深い' },
   protocol: 'プロトコル',
   protocolHint: '未設定のとき、一覧にあるサービスはそれぞれのプロトコルを、それ以外の URL は responses を使います。responses：POST <URL>/responses、chat：POST <URL>/chat/completions、anthropic：Messages API（URL は /v1 より前の部分）、gemini：Gemini API（URL は /models より前の部分）。',
+  normalizeResponses: "Responses ストリーム互換性",
+  normalizeResponsesHint: "vLLM のストリーム形式に差異があるゲートウェイで有効にします。このエンドポイントの Responses リクエストに適用され、応答全体の検証後に出力とツールの実行を開始します。",
+  badNormalizeResponses: "Responses ストリーム互換性には真偽値を指定してください。",
   badProtocol: (protocols: string) => `プロトコルは ${protocols} のいずれかにしてください`,
   httpRemote: "リモートのアドレスは https のみ使えます。http は暗号化されず、API Key と会話が平文で送られます。このコンピューターやローカルネットワークのアドレスは http でもかまいません。",
   chatgpt: {

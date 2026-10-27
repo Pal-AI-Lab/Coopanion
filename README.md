@@ -174,6 +174,8 @@ Click the tray icon, or right-click Coo and click the gear. **Normal mode** show
 
 The Model page in advanced mode changes the model and reasoning effort, adds an "OpenAI Responses Compatible" connection for any other service that speaks the Responses API, and takes prices for services without built-in ones.
 
+For a self-hosted Responses gateway, create a **Coo Pet Provider** endpoint and enable **Responses stream compatibility** when needed. This option accepts specific stream format differences and waits for the complete response to pass validation before displaying output or executing tools. Output from a failed or cancelled request is not saved in the conversation.
+
 **Extensions**: the Extensions page in advanced mode lists Worlds on npm with the `cortico-world` keyword; packages in the [official index](https://github.com/Pal-AI-Lab/cortico-extensions) also show tags, votes and comments. After installing, click **Restart process** and enable the World in **World Overview**.
 
 **Updates**: the Windows build and the AppImage download new versions in the background, and Coo asks whether to restart and update. On Mac and with the deb, the update status beside the version in the title bar links to a newer release to download by hand.

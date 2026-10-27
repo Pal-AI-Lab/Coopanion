@@ -5,6 +5,9 @@ export const cooText: Partial<typeof en> = {
   tiers: { off: 'Senza ragionamento', low: 'Ragionamento · veloce', high: 'Ragionamento · standard', max: 'Ragionamento · massimo' },
   protocol: 'Protocollo',
   protocolHint: "Non impostato: un servizio elencato usa il proprio protocollo, ogni altro URL usa responses. responses: POST <URL>/responses; chat: POST <URL>/chat/completions; anthropic: la Messages API, con l'URL prima di /v1; gemini: la Gemini API, con l'URL prima di /models.",
+  normalizeResponses: "Compatibilità del flusso Responses",
+  normalizeResponsesHint: "Attiva per i gateway con differenze nel formato del flusso vLLM. Si applica alle richieste Responses di questo endpoint; l’output e gli strumenti attendono la convalida della risposta completa.",
+  badNormalizeResponses: "La compatibilità del flusso Responses deve essere un valore booleano.",
   badProtocol: (protocols: string) => `Il protocollo deve essere uno tra ${protocols}`,
   httpRemote: "Un indirizzo remoto deve usare https: http non è cifrato, quindi l'API Key e la conversazione viaggerebbero in chiaro. Gli indirizzi di questo computer o della rete locale possono usare http.",
   chatgpt: {

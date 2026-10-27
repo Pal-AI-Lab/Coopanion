@@ -5,6 +5,9 @@ export const cooText: Partial<typeof en> = {
   tiers: { off: '不思考', low: '思考 · 快', high: '思考 · 標準', max: '思考 · 最深' },
   protocol: '協定',
   protocolHint: '留空時，列出的服務使用它自己的協定，其他位址使用 responses。responses：POST <位址>/responses；chat：POST <位址>/chat/completions；anthropic：Messages API，位址填 /v1 之前的部分；gemini：Gemini API，位址填 /models 之前的部分。',
+  normalizeResponses: "Responses 串流相容",
+  normalizeResponsesHint: "相容 vLLM 的串流格式差異，僅對目前端點的 Responses 協定生效。輸出和工具執行會等待完整回應驗證。",
+  badNormalizeResponses: "Responses 串流相容配置必須是布林值。",
   badProtocol: (protocols: string) => `協定只能是 ${protocols}`,
   httpRemote: "遠端位址只能用 https:http 不加密，API Key 和對話會以明文傳輸。本機和區域網路的位址可以用 http。",
   chatgpt: {

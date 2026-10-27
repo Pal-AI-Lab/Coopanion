@@ -1,10 +1,11 @@
 import { ResponsesProvider, type ResponsesProviderOptions } from 'cortico/providers/openai-responses-compat/native.ts';
 import type { ResponseAssembly } from 'cortico/providers/transport/response-assembly.ts';
-import type { GenerateOptions, Generation } from 'cortico/core/generation.ts';
-import type { Request } from 'cortico/protocol/open-responses/index.ts';
+import { GenerationError, type GenerateOptions, type Generation } from 'cortico/core/generation.ts';
+import type { Request, StreamEvent } from 'cortico/protocol/open-responses/index.ts';
 import { imagesAfterResults, type Message, type ResultFormat } from './chat.ts';
 import { sinceLastDelivery } from './context.ts';
 import { LenientReasoningAssembly } from './stream.ts';
+import { CompatibleResponsesAssembly } from './responses-stream.ts';
 import type { EffortMap } from './vendors.ts';
 
 export interface VendorQuirks {
@@ -12,6 +13,7 @@ export interface VendorQuirks {
   effort?: (model: string) => EffortMap | undefined;
   lenientReasoning?: true;
   nonStreamingResponses?: true;
+  normalizeResponses?: boolean;
   toolOutputText?: true;
 }
 
@@ -30,9 +32,27 @@ export class VendorResponses extends ResponsesProvider {
     super(opts);
   }
 
-  /** Fallback for premature item.done events and terminal item revisions: Core executes only the full response's tools. */
-  override respond(request: Request, options: GenerateOptions = {}): Promise<Generation> {
-    return super.respond(request, this.quirks.nonStreamingResponses ? { ...options, onEvent: undefined } : options);
+  /** Compatibility fallbacks expose tools only after the complete response passes validation. */
+  override async respond(request: Request, options: GenerateOptions = {}): Promise<Generation> {
+    const generateOptions = this.quirks.nonStreamingResponses ? { ...options, onEvent: undefined } : options;
+    if (!this.quirks.normalizeResponses) return super.respond(request, generateOptions);
+    const events: StreamEvent[] = [];
+    let result: Generation;
+    try {
+      result = await super.respond(request, generateOptions.onEvent ? { ...generateOptions, onEvent: event => {
+        if (event.type === 'response.created') events.length = 0;
+        events.push(event);
+      } } : generateOptions);
+    } catch (error) {
+      if (error instanceof GenerationError && error.partial)
+        throw new GenerationError(error.message, error.attempts, null, error.origin, error.status, error.body, { cause: error.cause });
+      throw error;
+    }
+    for (const event of events) {
+      if (options.signal?.aborted) break;
+      options.onEvent?.(event);
+    }
+    return result;
   }
 
   protected override buildResponseBody(request: Request, options: GenerateOptions): Record<string, unknown> {
@@ -49,6 +69,7 @@ export class VendorResponses extends ResponsesProvider {
   }
 
   protected override responseAssembly(): ResponseAssembly {
+    if (this.quirks.normalizeResponses) return new CompatibleResponsesAssembly();
     return this.quirks.lenientReasoning ? new LenientReasoningAssembly() : super.responseAssembly();
   }
 }

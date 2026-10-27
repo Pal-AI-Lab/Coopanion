@@ -5,6 +5,9 @@ export const cooText: Partial<typeof en> = {
   tiers: { off: 'Без рассуждения', low: 'Рассуждение · быстро', high: 'Рассуждение · стандартно', max: 'Рассуждение · максимально' },
   protocol: 'Протокол',
   protocolHint: 'Если не задано, сервис из списка использует свой протокол, а любой другой URL использует responses. responses: POST <URL>/responses; chat: POST <URL>/chat/completions; anthropic: Messages API, URL до /v1; gemini: Gemini API, URL до /models.',
+  normalizeResponses: "Совместимость потока Responses",
+  normalizeResponsesHint: "Включите для шлюзов с отличиями в формате потока vLLM. Применяется к запросам Responses этой конечной точки; вывод и инструменты ожидают проверки полного ответа.",
+  badNormalizeResponses: "Совместимость потока Responses должна иметь логическое значение.",
   badProtocol: (protocols: string) => `Протокол должен быть одним из: ${protocols}`,
   httpRemote: "Удалённый адрес должен использовать https: http не шифруется, и API Key вместе с разговором пойдут открытым текстом. Адреса этого компьютера и локальной сети могут использовать http.",
   chatgpt: {

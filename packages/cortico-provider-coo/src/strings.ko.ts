@@ -5,6 +5,9 @@ export const cooText: Partial<typeof en> = {
   tiers: { off: '추론 안 함', low: '추론 · 빠름', high: '추론 · 표준', max: '추론 · 최대' },
   protocol: '프로토콜',
   protocolHint: '비워 두면 목록에 있는 서비스는 자체 프로토콜을, 그 밖의 URL은 responses를 씁니다. responses: POST <URL>/responses, chat: POST <URL>/chat/completions, anthropic: Messages API이며 URL은 /v1 앞부분까지, gemini: Gemini API이며 URL은 /models 앞부분까지 입력합니다.',
+  normalizeResponses: "Responses 스트림 호환성",
+  normalizeResponsesHint: "vLLM 스트림 형식 차이가 있는 게이트웨이에서 활성화합니다. 이 엔드포인트의 Responses 요청에만 적용되며, 전체 응답을 검증한 후 출력과 도구 실행이 시작됩니다.",
+  badNormalizeResponses: "Responses 스트림 호환성은 불리언 값이어야 합니다.",
   badProtocol: (protocols: string) => `프로토콜은 ${protocols} 중 하나여야 합니다`,
   httpRemote: "원격 주소는 https만 쓸 수 있습니다. http는 암호화되지 않아 API Key와 대화가 평문으로 전송됩니다. 이 컴퓨터나 로컬 네트워크의 주소는 http를 써도 됩니다.",
   chatgpt: {

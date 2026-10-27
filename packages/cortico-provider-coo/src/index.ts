@@ -15,6 +15,8 @@
  * Streamed reasoning from services marked `lenientReasoning` is rewritten into standard events
  * (`LenientReasoningAssembly`). `nonStreamingResponses` services use a non-streaming fallback so
  * tools execute only after the complete response has been read and validated.
+ * An endpoint's `normalizeResponses` fallback normalizes equivalent gateway stream fields and
+ * buffers output until the complete response has passed validation.
  */
 import type { ProviderModule, ProviderInstance } from 'cortico/providers/base.ts';
 import type { LLMProviderEntry, ReasoningTier } from 'cortico/core/types.ts';
@@ -47,6 +49,8 @@ const tiers = (t: CooText['tiers']): ReasoningTier[] => [
 export interface CooOptions {
   /** Unset: the listed service's own protocol, Responses for any other URL. */
   protocol?: Protocol;
+  /** Opt-in gateway stream normalization; output waits for complete-response validation. */
+  normalizeResponses?: boolean;
 }
 
 const cooOptions = (entry: LLMProviderEntry): CooOptions => (entry.options ?? {}) as CooOptions;
@@ -72,6 +76,9 @@ function optionsGroup(name: string, t: CooText): ConfigGroup {
       properties: {
         [`providers.${name}.options.protocol`]: {
           type: 'string', enum: [...PROTOCOLS], title: t.protocol, description: t.protocolHint,
+        },
+        [`providers.${name}.options.normalizeResponses`]: {
+          type: 'boolean', title: t.normalizeResponses, description: t.normalizeResponsesHint,
         },
       },
     },
@@ -100,9 +107,11 @@ export const COO = {
   normalize,
   config: (name, _entry, language) => [optionsGroup(name, cooText(language))],
   validateEntry: (entry, language) => {
-    const { protocol } = cooOptions(entry);
+    const { protocol, normalizeResponses } = cooOptions(entry);
     if (protocol !== undefined && !PROTOCOLS.includes(protocol))
       throw new Error(cooText(language).badProtocol(PROTOCOLS.join(' / ')));
+    if (normalizeResponses !== undefined && typeof normalizeResponses !== 'boolean')
+      throw new Error(cooText(language).badNormalizeResponses);
     if (plainRemote(entry.baseUrl)) throw new Error(cooText(language).httpRemote);
   },
   accepts: (entry, _spec, mime) => entry.multimodal === true && mime.startsWith('image/'),
@@ -177,7 +186,8 @@ export const COO = {
           keepThinking: host.keepThinking,
           reasoningReplay: vendor?.encryptedReasoning ? 'encrypted' : 'plaintext',
           sendSyntheticReasoning: vendor?.syntheticReasoning,
-        }, { effort, lenientReasoning: vendor?.lenientReasoning, nonStreamingResponses: vendor?.nonStreamingResponses, toolOutputText: vendor?.toolOutputText }),
+        }, { effort, lenientReasoning: vendor?.lenientReasoning, nonStreamingResponses: vendor?.nonStreamingResponses,
+          normalizeResponses: cooOptions(entry).normalizeResponses, toolOutputText: vendor?.toolOutputText }),
     };
   },
 } satisfies ProviderModule;

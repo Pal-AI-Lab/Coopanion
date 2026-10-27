@@ -16,6 +16,9 @@ const zh = {
   tiers: { off: '不思考', low: '思考 · 快', high: '思考 · 标准', max: '思考 · 最深' },
   protocol: '协议',
   protocolHint: '留空时,列出的服务用它自己的协议,其他地址用 responses。responses:POST <地址>/responses;chat:POST <地址>/chat/completions;anthropic:Messages API,地址填 /v1 之前的部分;gemini:Gemini API,地址填 /models 之前的部分。',
+  normalizeResponses: "Responses 流式兼容",
+  normalizeResponsesHint: "兼容 vLLM 的流式格式差异，仅对当前端点的 Responses 协议生效。输出和工具执行会等待完整响应校验。",
+  badNormalizeResponses: "Responses 流式兼容配置必须是布尔值。",
   badProtocol: (protocols: string) => `协议只能是 ${protocols}`,
   httpRemote: "远程地址只能用 https:http 不加密，API Key 和对话会明文传输。本机和局域网的地址可以用 http。",
   chatgpt: {
@@ -36,6 +39,9 @@ export const en: typeof zh = {
   tiers: { off: 'No thinking', low: 'Thinking · fast', high: 'Thinking · standard', max: 'Thinking · deepest' },
   protocol: 'Protocol',
   protocolHint: 'Unset: a listed service uses its own protocol, any other URL uses responses. responses: POST <URL>/responses; chat: POST <URL>/chat/completions; anthropic: the Messages API, with the URL before /v1; gemini: the Gemini API, with the URL before /models.',
+  normalizeResponses: "Responses stream compatibility",
+  normalizeResponsesHint: "Enable for gateways with vLLM stream format differences. Applies to this endpoint’s Responses requests; output and tools wait for validation of the complete response.",
+  badNormalizeResponses: "Responses stream compatibility must be a boolean.",
   badProtocol: (protocols: string) => `The protocol must be one of ${protocols}`,
   httpRemote: "A remote address must use https: http is not encrypted, so the API Key and the conversation would travel in plain text. Addresses on this computer or the local network may use http.",
   chatgpt: {
