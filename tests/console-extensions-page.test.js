@@ -10,6 +10,8 @@ const { createConsoleUi } = await import('../console/base/ui/index.ts');
 const { Lifecycle } = await import('../console/base/lifecycle.ts');
 const { Router } = await import('../console/base/router.ts');
 const { mountExtensionContent, mountExtensions, parseInstallInput, arrangeHits, extensionsFeature, restartOutcome, extensionColumns, osAllowed, changesBetween } = await import('../console/advanced/features/extensions/index.ts');
+const { mountWorlds } = await import('../console/advanced/features/worlds/index.ts');
+const { worldLibrary } = await import('../console/advanced/features/worlds/library.ts');
 const { mountProviders } = await import('../console/advanced/features/providers/index.ts');
 const { S: providerStrings } = await import('../console/advanced/features/providers/strings.ts');
 const flush = async (n = 30) => { for (let i = 0; i < n; i++) await Promise.resolve(); };
@@ -65,7 +67,8 @@ function stub(over = {}) {
     calls.push({ url: u, method, body: init?.body ? JSON.parse(String(init.body)) : undefined });
     let status = 200;
     let body = {};
-    if (u === '/api/providers') body = { scope: 'test-provider-tabs', active: '', providers: [] };
+    if (u === '/api/worlds') body = { worlds: over.worlds ?? [{ id: 'alpha', label: '甲扩展', status: 'active', visible: true }, { id: 'builtin', label: 'Builtin', status: 'inactive' }] };
+    else if (u === '/api/providers') body = { scope: 'test-provider-tabs', active: '', providers: [] };
     else if (u === '/api/provider-modules') body = [];
     else if (u === '/api/extensions')
       body = over.list ?? LIST;
@@ -780,6 +783,76 @@ describe('provider page tabs', () => {
     await navigate(ctx, 'market');
     expect(root.querySelectorAll('.pagetab')).toHaveLength(1);
     expect(root.querySelector('.provider-settings').hidden).toBe(false);
+    expect(calls.some(call => call.url.startsWith('/api/extensions'))).toBe(false);
+  });
+});
+
+
+describe('World library and catalog', () => {
+  async function openWorlds(over = {}, caps = { worlds: true, extensions: true, worldActivation: true, restart: true, supervised: true }) {
+    stub(over);
+    window.history.replaceState(null, '', '#/world?view=market');
+    const context = mkCtx(caps); lives.push(context.lifecycle);
+    mountWorlds(context.ctx); await flush(); return context;
+  }
+  it('merges runtime Worlds with packages and puts recent pending downloads first', () => {
+    const worlds = [{ id: 'alpha', status: 'active' }, { id: 'builtin', status: 'inactive' }];
+    const old = { name: 'older', state: 'pending-restart', kind: 'world' };
+    const latest = { name: 'newest', state: 'pending-restart', kind: 'world' };
+    const items = worldLibrary(worlds, [...LIST.extensions, old, latest], ['newest']);
+    expect(items.map(item => item.key)).toEqual(['newest', 'older', 'alpha-mod', 'world:builtin', 'beta-mod', 'delta-mod', 'epsilon-mod']);
+    expect(items.find(item => item.key === 'alpha-mod').world).toBe(worlds[0]);
+    expect(items[0].world).toBeUndefined();
+  });
+  it('keeps the rail, search and scroll containers across tabs and selects a management row', async () => {
+    const { root, ctx } = await openWorlds();
+    const rail = root.querySelector('.world-library');
+    const railItems = [...rail.querySelectorAll('button')];
+    expect(rail.querySelectorAll('.navdot, .navlamps')).toHaveLength(0);
+    const search = root.querySelector('.world-market input[type=search]');
+    search.value = 'found'; search.dispatchEvent(new Event('input', { bubbles: true }));
+    const scroll = root.querySelector('.world-catalog-scroll'); scroll.scrollTop = 40;
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    expect(root.querySelector('.world-market').hidden).toBe(true);
+    ctx.router.navigate(['world'], { view: 'market' }); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    expect(root.querySelector('.world-library')).toBe(rail);
+    expect([...rail.querySelectorAll('button')]).toEqual(railItems);
+    expect(search.value).toBe('found'); expect(scroll.scrollTop).toBe(40);
+    railItems.find(item => item.textContent.includes('甲扩展')).click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    expect(root.querySelector('.world-mine').hidden).toBe(false);
+    expect(document.activeElement.dataset.key).toBe('alpha-mod');
+    expect(rail.querySelector('[aria-current=true]').textContent).toContain('甲扩展');
+  });
+  it('adds from the catalog without opening details, then exposes pending restart in management', async () => {
+    const list = structuredClone(LIST);
+    const { root } = await openWorlds({ list, hits: { hits: HITS.hits.slice(0, 2) }, onInstall: () => list.extensions.push({ name: 'found-mod', kind: 'world', version: '3.1.0', state: 'pending-restart', loaded: false, webUiClient: true }) });
+    const card = cardOf(root, 'found-mod');
+    button(card, '添加到仓库').click(); await flush(100);
+    expect(document.querySelector('.modal')).toBeNull();
+    expect(root.querySelector('.world-library-item').textContent).toContain('found-mod');
+    expect(root.querySelector('.world-restart-count').hidden).toBe(false);
+    button(root, '我的 World').click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    const pending = root.querySelector('.world-blade');
+    expect(pending.dataset.state).toBe('pending');
+    expect(pending.textContent).toContain('重启');
+    expect(buttons(pending).some(item => item.textContent === '激活 World')).toBe(false);
+    root.querySelector('.world-blade-actions [aria-label="管理扩展"]').click(); await flush();
+    expect(document.querySelector('.world-package-management').textContent).toContain('found-mod');
+  });
+  it('filters by capabilities and resets the selected category with clear filters', async () => {
+    const { root } = await openWorlds({ hits: { hits: [{ ...HITS.hits[0], summary: { tools: 2, events: 0 } }, { ...HITS.hits[1], summary: { tools: 0, events: 2 } }] } });
+    button(root, '接收事件').click(); await flush();
+    expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(1);
+    expect(root.querySelector('.world-catalog .extension-market-card').textContent).toContain('甲扩展');
+    button(root, '清除筛选').click(); await flush();
+    expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(2);
+    expect(button(root, '全部').getAttribute('aria-pressed')).toBe('true');
+  });
+  it('keeps runtime controls available when the catalog capability is absent', async () => {
+    const { root } = await openWorlds({}, { worlds: true, worldActivation: true });
+    expect(root.querySelector('.world-mine').hidden).toBe(false);
+    expect(root.querySelectorAll('.pagetab')).toHaveLength(1);
+    expect(root.querySelector('.world-blade').textContent).toContain('配置');
     expect(calls.some(call => call.url.startsWith('/api/extensions'))).toBe(false);
   });
 });

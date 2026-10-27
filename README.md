@@ -49,7 +49,7 @@ Coopanion is a desktop pet. **Coo** lives on the bottom edge of your screen: it 
 - **Figures**: Coo, or the **DeepSeek Chan**, a fully animated whale girl with eight vendor color schemes and three outfits. Other figure packs are imported on the Dress up page (see the [figure pack compatibility promise](packages/cortico-world-desktop-pet/README.md#形象包兼容承诺)).
 - **Dress up**: Coo's colors (five of them after Cultist Simulator's principles: Lantern, Grail, Forge, Heart, Winter), hats, earrings, glasses and neckwear, its size and how often it walks.
 - **Alarms**: ask Coo to set one at a local time or after a number of minutes.
-- **Extensions**: Worlds such as a QQ bot, a drawing room and small games, installed from the Extensions page.
+- **Extensions**: Worlds such as a QQ bot, a drawing room and small games, installed from World overview → World extensions.
 - **OBS overlay**: Coo and its bubbles as an OBS Browser source on a transparent background.
 
 What changed in each version is in [Releases](https://github.com/Pal-AI-Lab/Coopanion/releases).
@@ -174,7 +174,7 @@ Click the tray icon, or right-click Coo and click the gear. **Normal mode** show
 
 The Model page in advanced mode changes the model and reasoning effort, adds an "OpenAI Responses Compatible" connection for any other service that speaks the Responses API, and takes prices for services without built-in ones.
 
-**Extensions**: the Extensions page in advanced mode lists Worlds on npm with the `cortico-world` keyword; packages in the [official index](https://github.com/Pal-AI-Lab/cortico-extensions) also show tags, votes and comments. After installing, click **Restart process** and enable the World in **World Overview**. Provider extensions are under **Model connections → Provider extensions**; the **Settings** tab keeps connection configuration. Its instance list and configuration form scroll independently, with the new-instance button fixed above the list and scrollbars shown on hover. The configuration scrollbar sits at the right edge of the page.
+**Extensions**: **World overview → World extensions** in advanced mode lists Worlds on npm with the `cortico-world` keyword; packages in the [official index](https://github.com/Pal-AI-Lab/cortico-extensions) also show tags, votes and comments. The **My Worlds** and **World extensions** tabs share an avatar-and-name library. New downloads appear first, with their pending-restart state shown in the management area. After installing, click **Restart process**, then configure and enable the World in **My Worlds**. The catalog supports search, capability categories, multi-select tags and package details; each list scrolls independently. My Worlds keeps assembly order and shows runtime states and controls in horizontal rows. Provider extensions are under **Model connections → Provider extensions**; the **Settings** tab keeps connection configuration. Its instance list and configuration form scroll independently, with the new-instance button fixed above the list and scrollbars shown on hover. The configuration scrollbar sits at the right edge of the page.
 
 **Updates**: the Windows build and the AppImage download new versions in the background, and Coo asks whether to restart and update. On Mac and with the deb, the update status beside the version in the title bar links to a newer release to download by hand.
 

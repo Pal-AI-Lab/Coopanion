@@ -1,6 +1,11 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  addToLibrary: "라이브러리에 추가",
+  filterSidebar: "필터",
+  catalogCategory: "카테고리",
+  catalogCategories: {"all": "전체", "tools": "도구", "events": "이벤트", "local": "로컬 실행"},
+
   navLabel: '확장',
   navGroup: 'Core',
   introTitle: '확장',

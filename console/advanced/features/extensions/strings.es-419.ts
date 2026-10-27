@@ -1,6 +1,11 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  addToLibrary: "Agregar a la biblioteca",
+  filterSidebar: "Filtros",
+  catalogCategory: "Categorías",
+  catalogCategories: {"all": "Todo", "tools": "Herramientas", "events": "Eventos", "local": "Ejecución local"},
+
   navLabel: 'Extensiones',
   navGroup: 'Core',
   introTitle: 'Extensiones',

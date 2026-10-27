@@ -1,6 +1,11 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  addToLibrary: "加入收藏庫",
+  filterSidebar: "篩選",
+  catalogCategory: "類別",
+  catalogCategories: {"all": "全部", "tools": "提供工具", "events": "接收事件", "local": "本機執行"},
+
   navLabel: '擴充功能',
   navGroup: 'Core',
   introTitle: '擴充功能',

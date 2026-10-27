@@ -382,6 +382,7 @@ interface CategoryState {
   advanced: boolean; author: string; keyword: string; license: string; sinceDays: number; minDownloads: number;
   hits: SearchHitView[]; fetched: boolean; generation: number; messages: Record<string, { text: string; bad: boolean }>;
   source: 'npm' | 'local'; input: string;
+  catalogCategory: 'all' | 'tools' | 'events' | 'local'; filtersFolded: boolean;
 }
 /** 卡片网格的列数,按内容区宽度取。 */
 export function extensionColumns(width: number): number { return width >= 1000 ? 3 : width >= 660 ? 2 : 1; }
@@ -411,7 +412,17 @@ export function mountExtensions(ctx: FeatureContext): void {
   if (ctx.router.route.segments[1] !== 'world') ctx.router.replace(['extensions', 'world']);
 }
 
-export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrollRoot = ctx.root): void {
+export interface ExtensionWorkspace {
+  statusRoot: HTMLElement;
+  onChange(items: readonly ExtensionView[]): void;
+  onAdded(name: string): void;
+}
+export interface ExtensionController {
+  refresh(): Promise<boolean>;
+  manage(name: string): void;
+}
+
+export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrollRoot = ctx.root, workspace?: ExtensionWorkspace): ExtensionController {
   const { root, ui, lifecycle, signal } = ctx;
   const win = root.ownerDocument.defaultView!;
   const canRestart = ctx.capabilities.restart === true;
@@ -420,14 +431,14 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   const states = Object.fromEntries(categories.map(kind => [kind, {
     installedFilter: '', installedSize: 0, marketSize: 0,
     filter: '', sort: 'certified', hide: false, page: 0, installedPage: 0, scroll: 0, tags: [], hideWarnings: false, officialOnly: false, certifiedOnly: false, newOnly: false, advanced: false, author: '', keyword: '', license: '', sinceDays: 0, minDownloads: 0, hits: [], fetched: false, generation: 0,
-    messages: {}, source: 'npm', input: '',
+    messages: {}, source: 'npm', input: '', catalogCategory: 'all', filtersFolded: false,
   } satisfies CategoryState])) as unknown as Record<Category, CategoryState>;
   try {
     const saved = JSON.parse(win.sessionStorage.getItem(storageKey) ?? '{}');
     for (const kind of categories) if (saved[kind]) Object.assign(states[kind], saved[kind], { hits: [], fetched: false, generation: 0, messages: {} });
     for (const kind of categories) if (!HIT_SORTS.includes(states[kind].sort)) states[kind].sort = 'certified';
   } catch { /* Storage can be disabled by the browser. */ }
-  let columns = extensionColumns(root.clientWidth);
+  let columns = workspace ? 1 : extensionColumns(root.clientWidth);
   let installed: ExtensionView[] = [];
   let updates = new Map<string, UpdateView>();
   let directory = '';
@@ -458,11 +469,17 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   let armed: (() => void) | null = null;
   const disarm = () => { armed?.(); armed = null; };
   const doc = root.ownerDocument;
+  if (workspace) scrollRoot = ui.h('div', 'world-catalog-scroll');
+  const narrowFilters = win.matchMedia?.('(max-width: 760px)');
+  let narrowFiltersOpen = false;
+  let syncFilterLayout: (() => void) | undefined;
+  narrowFilters?.addEventListener('change', () => syncFilterLayout?.(), { signal });
+  let managementDrawer: { name: string; box: HTMLElement } | undefined;
   doc.addEventListener('click', event => { if (!(event.target as Element).closest('.extension-erase')) disarm(); }, { signal });
   doc.addEventListener('keydown', event => { if (event.key === 'Escape') disarm(); }, { signal });
   // 历史版本下拉:在同一个抽屉里点别处就收起;确认框等别的浮层里的点击不算
   doc.addEventListener('click', event => { for (const open of doc.querySelectorAll<HTMLDetailsElement>('.extension-releases[open]')) if (!open.contains(event.target as Node) && open.closest('.modalcard')?.contains(event.target as Node)) open.open = false; }, { signal });
-  const panel = ui.h('div', 'extension-category');
+  const panel = ui.h('div', 'extension-category' + (workspace ? ' world-catalog' : ''));
   root.append(panel);
   let installedGrid: HTMLElement, marketGrid: HTMLElement, installedPager: HTMLElement, marketPager: HTMLElement;
   let tagBar: HTMLElement | undefined, clearButton: HTMLButtonElement | undefined, licenseList: HTMLElement | undefined;
@@ -635,9 +652,9 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     };
   }
   /** 「清除筛选」清搜索词、标签、徽标筛选与高级搜索,不动两个隐藏开关。 */
-  const filtersActive = (state: CategoryState) => !!(state.filter.trim() || state.tags.length || state.officialOnly || state.certifiedOnly || state.newOnly || state.author.trim() || state.keyword.trim() || state.license.trim() || state.sinceDays || state.minDownloads);
+  const filtersActive = (state: CategoryState) => !!(workspace && state.catalogCategory !== 'all' || state.filter.trim() || state.tags.length || state.officialOnly || state.certifiedOnly || state.newOnly || state.author.trim() || state.keyword.trim() || state.license.trim() || state.sinceDays || state.minDownloads);
   function clearFilters() {
-    Object.assign(states[kind], { filter: '', tags: [], officialOnly: false, certifiedOnly: false, newOnly: false, author: '', keyword: '', license: '', sinceDays: 0, minDownloads: 0, page: 0 });
+    Object.assign(states[kind], { catalogCategory: 'all', filter: '', tags: [], officialOnly: false, certifiedOnly: false, newOnly: false, author: '', keyword: '', license: '', sinceDays: 0, minDownloads: 0, page: 0 });
     save(); render();
   }
   function toggleTag(id: string) {
@@ -1050,7 +1067,31 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     }
     card.append(footer); return card;
   }
+  function paintManagement() {
+    if (!managementDrawer?.box.isConnected) return;
+    const item = installed.find(item => item.name === managementDrawer!.name);
+    if (!item) { managementDrawer.box.replaceChildren(ui.placeholder(S.noExtensions)); return; }
+    managementDrawer.box.replaceChildren(installedCard(item), ui.button(S.detailInfoTab, { onClick: () => showLocal(item) }));
+  }
+  function manage(name: string) {
+    const item = installed.find(item => item.name === name);
+    if (!item) return;
+    const box = ui.h('div', 'world-package-management');
+    detailDrawer?.dispose();
+    detailDrawer = ui.drawer(item.metadata?.displayName ?? item.label ?? name, box);
+    managementDrawer = { name, box };
+    paintManagement();
+  }
   function renderInstalled() {
+    paintManagement();
+    if (workspace) {
+      const pending = installed.filter(item => (item.kind === kind || !item.kind) && (item.state === 'pending-restart' || item.state === 'removed')).length;
+      const notice = workspace.statusRoot.querySelector<HTMLElement>('.world-restart-count');
+      if (notice) { notice.hidden = !pending; notice.textContent = `${pending} · ${S.statePendingRestart}`; }
+      const restartButton = workspace.statusRoot.querySelector<HTMLButtonElement>('.extension-restart');
+      if (restartButton) { restartButton.hidden = !pending; restartButton.disabled = busy.size > 0; }
+      return;
+    }
     if (!installedGrid) return;
     const needle = states[kind].installedFilter.trim().toLowerCase();
     const mine = installed.filter(p => (p.kind === kind || !p.kind && kind === 'world') && (!needle || [p.label, p.name, p.description, p.worldId].some(value => value?.toLowerCase().includes(needle)))).sort((a, b) => a.name.localeCompare(b.name));
@@ -1062,7 +1103,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   }
   function renderMarket() {
     const state = states[kind];
-    const hits = state.hits.map(h => ({ ...h, installed: installed.some(p => p.name === h.name && p.state !== 'removed') }));
+    const hits = state.hits.filter(hit => !workspace || state.catalogCategory === 'all' || !state.catalogCategory || (state.catalogCategory === 'local' ? hit.summary?.local : (hit.summary?.[state.catalogCategory] ?? 0) > 0)).map(h => ({ ...h, installed: installed.some(p => p.name === h.name && p.state !== 'removed') }));
     state.tags = state.tags.filter(id => marketIndex.tags[id]);
     const result = arrangeHits(hits, { filter: state.filter, sort: state.sort, hideInstalled: state.hide, page: state.page, pageSize: pageSize('market'), tags: state.tags, excludeTags: state.hideWarnings ? warningTags() : [], officialOnly: state.officialOnly, certifiedOnly: state.certifiedOnly, newOnly: state.newOnly, ...advancedFilters(state) }); if (state.fetched) state.page = result.page;
     if (clearButton) clearButton.disabled = !filtersActive(state);
@@ -1071,8 +1112,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     marketGrid.replaceChildren(...result.shown.map(hit => {
       const card = ui.h('article', 'extension-card extension-market-card' + (hit.installed ? ' is-installed' : ''));
       const owner = kind; card.tabIndex = 0; card.setAttribute('role', 'button'); card.setAttribute('aria-label', hit.displayName ?? hit.name);
-      card.addEventListener('click', () => openDetail(hit, owner), { signal });
-      card.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openDetail(hit, owner); } }, { signal });
+      card.addEventListener('click', event => { if (!(event.target as Element).closest('button, a')) openDetail(hit, owner); }, { signal });
+      card.addEventListener('keydown', event => { if (event.target === card && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openDetail(hit, owner); } }, { signal });
       const heading = ui.h('div', 'extension-card-heading'); const local = installed.find(item => item.name === hit.name);
       const titleBlock = ui.h('div', 'extension-card-titleblock'), titleLine = ui.h('div', 'extension-card-titleline');
       const title = ui.h('span', 'extension-card-title', hit.displayName ?? local?.metadata?.displayName ?? local?.label ?? hit.name);
@@ -1115,9 +1156,20 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
       foot.append(downloadsStat(hit));
       if (hit.date) foot.append(dateStat(hit.date));
       card.append(foot);
+      if (workspace) {
+        const add = ui.button(hit.installed ? S.alreadyInstalled : S.addToLibrary, { variant: hit.installed ? 'plain' : 'primary', size: 'sm', onClick: async () => {
+          add.disabled = true;
+          const warnings = (hit.tags ?? []).filter(id => marketIndex.tags[id]?.style === 'warning');
+          if (warnings.length && !await ui.confirm({ title: S.installWarningTitle, body: S.installWarningBody(hit.name, warnings.map(id => `${marketIndex.tags[id].label}${S.labelSeparator}${plainHint(marketIndex.tags[id].hint)}`), hit.note), danger: true })) { add.disabled = false; return; }
+          if (!signal.aborted) await operate('install', { name: hit.name, version: hit.version }, 'market', owner);
+        } });
+        add.classList.add('world-catalog-add');
+        add.disabled = hit.installed || busy.has(hit.name) || !osSupported(hit.os ?? []);
+        card.append(add);
+      }
       return card;
     }));
-    stabilizeGrid(marketGrid, result.matched, pageSize('market'), 232);
+    stabilizeGrid(marketGrid, result.matched, pageSize('market'), workspace ? 160 : 232);
     for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) foldTags(row);
     if (!result.matched) marketGrid.append(ui.placeholder(state.fetched ? state.hits.length ? S.noHits : registry ? S.noPackagesAt(registry) : S.noPackages : S.searching));
     pager(marketPager, result.matched, result.page, pageSize('market'), page => { marketGrid.style.minHeight = `${marketGrid.getBoundingClientRect().height}px`; state.page = page; renderMarket(); save(); });
@@ -1154,7 +1206,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     try {
       const data = await get<{ dir: string; platform?: string; extensions: ExtensionView[] }>('/api/extensions', { signal });
       if (signal.aborted || generation !== loadGeneration) return !signal.aborted;
-      installed = data.extensions; installedFetched = true; directory = data.dir; platform = data.platform ?? ''; const dirNode = root.querySelector('.extension-directory'); if (dirNode) dirNode.textContent = S.labelled(S.directory, directory); renderInstalled(); renderMarket(); restoreScroll(); return true;
+      installed = data.extensions; installedFetched = true; directory = data.dir; platform = data.platform ?? ''; const dirNode = root.querySelector('.extension-directory'); if (dirNode) dirNode.textContent = S.labelled(S.directory, directory); renderInstalled(); renderMarket(); restoreScroll(); workspace?.onChange(installed.filter(item => item.kind === kind || !item.kind)); return true;
     } catch (error) { if (!signal.aborted) { installedFetched = true; message(kind, 'management', S.listLoadFailed(errorText(error)), true); restoreScroll(); } return false; }
   }
   async function checkUpdates() {
@@ -1197,8 +1249,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   /** 安装先按当前类别检查声明再装;删除直接卸。两者都改磁盘,重启进程后生效。 */
   async function operate(action: 'install' | 'delete', target: Target, area: string, owner: Category) {
     const identity = 'name' in target ? target.name : target.path; if (busy.has(identity)) return;
-    const actionLabel = action === 'delete' ? S.deletedAction : installed.some(item => item.name === identity) ? S.updatedAction : S.installedAction;
-    busy.add(identity); renderInstalled(); message(owner, area, S.progress(actionLabel, identity));
+    const actionLabel = action === 'delete' ? S.deletedAction : installed.some(item => item.name === identity && item.state !== 'removed') ? S.updatedAction : S.installedAction;
+    busy.add(identity); renderInstalled(); if (workspace) renderMarket(); message(owner, area, S.progress(actionLabel, identity));
     try {
       let name = identity, version: string | undefined, resultKind: string | undefined;
       if (action === 'install') {
@@ -1212,9 +1264,10 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
       const activateHint = actionLabel === S.installedAction && resultKind === 'world' ? ' ' + S.worldActivateHint : '';
       message(owner, area, `${S.completed(actionLabel, name)}${version ? ' ' + S.version(version) : ''} ${S.restartNeeded}${activateHint}`);
       updates.delete(name);
+      if (action === 'install' && actionLabel === S.installedAction) workspace?.onAdded(name);
       if (!await load()) message(owner, area, S.completed(actionLabel, name) + ' ' + S.syncedFailed, true);
     } catch (error) { if (!signal.aborted) message(owner, area, errorText(error), true); }
-    finally { busy.delete(identity); if (!signal.aborted) renderInstalled(); }
+    finally { busy.delete(identity); if (!signal.aborted) { renderInstalled(); if (workspace) renderMarket(); } }
   }
   function renderDetail(box: HTMLElement, data: PackageDetailView, owner: Category, hit?: SearchHitView, item?: ExtensionView) {
       const title = box.closest('.modalcard')?.querySelector('.modaltitle');
@@ -1472,7 +1525,42 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     const install = ui.button(S.install, { variant: 'primary', onClick: () => { try { void operate('install', target(), 'manual', owner); } catch (error) { message(owner, 'manual', errorText(error), true); } } });
     const manualActions = ui.rowbar(); manualActions.classList.add('extension-manual-actions'); manualActions.append(check, install, messageNodes.manual);
     manual.body.append(ui.h('p', 'sh-desc extension-install-help', state.source === 'npm' ? S.npmHelp : S.localHelp), source.el, manualBar, manualActions);
-    panel.append(managed.el, marketSheet.el, manual.el); root.style.setProperty('--extension-columns', String(columns));
+    if (workspace) {
+      const statusBar = ui.rowbar(); statusBar.classList.add('world-statusbar');
+      const count = ui.h('span', 'world-restart-count'); count.hidden = true;
+      statusBar.append(count, ui.h('span', 'grow'));
+      const restartButton = bar.querySelector('.extension-restart');
+      if (restartButton) statusBar.append(restartButton);
+      messageNodes.management.textContent = '';
+      workspace.statusRoot.replaceChildren(statusBar, messageNodes.management);
+      const body = ui.h('div', 'world-catalog-body');
+      const side = ui.h('aside', 'world-catalog-filters'); side.id = 'world-catalog-filters';
+      const toggle = ui.button(S.filterSidebar, { size: 'sm', onClick: () => {
+        if (narrowFilters?.matches) narrowFiltersOpen = side.hidden; else state.filtersFolded = !side.hidden;
+        syncFilterLayout?.(); save();
+      } });
+      syncFilterLayout = () => {
+        side.hidden = narrowFilters?.matches ? !narrowFiltersOpen : state.filtersFolded;
+        toggle.setAttribute('aria-expanded', String(!side.hidden));
+      };
+      syncFilterLayout(); toggle.setAttribute('aria-controls', side.id);
+      filters.prepend(toggle);
+      const categoryList = ui.h('div', 'world-catalog-categories');
+      for (const value of ['all', 'tools', 'events', 'local'] as const) {
+        const button = ui.button(S.catalogCategories[value], { onClick: () => {
+          state.catalogCategory = value; state.page = 0;
+          for (const node of categoryList.querySelectorAll<HTMLButtonElement>('button')) node.setAttribute('aria-pressed', String(node === button));
+          renderMarket(); save();
+        } });
+        button.setAttribute('aria-pressed', String((state.catalogCategory ?? 'all') === value)); categoryList.append(button);
+      }
+      side.append(ui.h('h3', '', S.catalogCategory), categoryList, tagBar, options);
+      const manualFold = ui.h('details', 'world-manual'); manualFold.append(ui.h('summary', '', S.manual), manual.body);
+      scrollRoot.replaceChildren(marketGrid, marketPager, manualFold);
+      body.append(side, scrollRoot);
+      panel.append(filters, advanced, registryPanel, messageNodes.market, body);
+    } else panel.append(managed.el, marketSheet.el, manual.el);
+    root.style.setProperty('--extension-columns', String(columns));
     for (const [area, value] of Object.entries(state.messages)) if (messageNodes[area]) { messageNodes[area].textContent = value.text; messageNodes[area].className = 'msgline' + (value.bad ? ' bad' : ''); }
     renderInstalled(); renderMarket();
   }
@@ -1481,7 +1569,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   if (typeof win.ResizeObserver === 'function') { const observer = new win.ResizeObserver(() => {
     if (!panel.clientWidth || panel.clientWidth === panelWidth) return;
     panelWidth = panel.clientWidth;
-    const next = extensionColumns(panelWidth);
+    const next = workspace ? 1 : extensionColumns(panelWidth);
     if (next === columns) { for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) if (!row.classList.contains('is-open')) foldTags(row); return; }
     for (const state of Object.values(states)) { if (!state.installedSize) state.installedPage = Math.floor(state.installedPage * columns / next); if (!state.marketSize) state.page = Math.floor(state.page * columns / next); }
     columns = next; installedGrid.style.minHeight = ''; marketGrid.style.minHeight = '';
@@ -1491,5 +1579,6 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   render();
   void load(); void checkUpdates(); void search(kind); void loadRegistry();
   try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { message(kind, 'management', S.reloadWait); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
+  return { refresh: load, manage };
 }
 export const extensionsFeature: FrameworkFeature = { route: 'extensions', label: S.navLabel, icon: 'download', navGroup: S.navGroup, needsAny: ['extensions'], mount: mountExtensions };

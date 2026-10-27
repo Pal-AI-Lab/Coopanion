@@ -7,6 +7,11 @@ const plural = (n: number, one: string, few: string, many: string) => {
 };
 
 export const S: Partial<typeof en> = {
+  addToLibrary: "Добавить в библиотеку",
+  filterSidebar: "Фильтры",
+  catalogCategory: "Категории",
+  catalogCategories: {"all": "Все", "tools": "Инструменты", "events": "События", "local": "Локально"},
+
   navLabel: 'Расширения',
   navGroup: 'Core',
   introTitle: 'Расширения',

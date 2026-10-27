@@ -34,7 +34,6 @@ import { ConsolePageLoader } from './advanced/console-pages/loader.ts';
 import { featureAvailable, type FeatureContext, type FrameworkFeature } from './advanced/features/feature.ts';
 import { promptsFeature } from './advanced/features/prompts/index.ts';
 import { coreFeature } from './advanced/features/core/index.ts';
-import { extensionsFeature } from './advanced/features/extensions/index.ts';
 import { providersFeature } from './advanced/features/providers/index.ts';
 import { traceFeature } from './advanced/features/trace.ts';
 import { worldsFeature } from './advanced/features/worlds/index.ts';
@@ -75,7 +74,7 @@ export const ENTRIES: readonly Entry[] = [
   fromPage(homePage), fromPage(petPage), fromPage(dressPage), fromPage(voicePage),
   fromFeature(promptsFeature, 'primary', true), fromPage(usagePage), fromPage(chatPage),
   // 模型供应商 keeps the providers page's own name
-  fromFeature(providersFeature, 'integrations'), fromFeature(extensionsFeature, 'integrations'),
+  fromFeature(providersFeature, 'integrations'),
   fromFeature(traceFeature, 'diagnostics'), fromFeature(coreFeature, 'diagnostics'),
   fromFeature(worldsFeature, 'world-root'),
 ];
@@ -219,11 +218,13 @@ export function boot(doc: Document = document): Disposable {
     rail.setRoute(route);
     if (!ready) return;
     const head = route.segments[0];
+    if (head === 'extensions' && mode === 'advanced') {
+      router.replace([route.segments[1] === 'provider' ? 'providers' : 'world'], { view: 'market' }); return;
+    }
     const entry = ENTRIES.find((e) => e.route === head);
     // an empty route, and in the normal mode a page it does not list, open 开始 without a history entry
     const reachable = mode === 'advanced' ? head === PROVIDER_ROUTE || !!entry : !!entry?.basic;
     if (!head || !reachable) { router.replace([HOME]); return; }
-    if (head === 'extensions' && route.segments[1] === 'provider') { router.replace(['providers'], { view: 'market' }); return; }
     // a model module's page is a section of 模型供应商
     if (head === PROVIDER_ROUTE && route.segments[1]?.startsWith('llm:')) { router.replace(['providers']); return; }
     if (head === PROVIDER_ROUTE) {

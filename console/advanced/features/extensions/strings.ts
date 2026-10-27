@@ -10,6 +10,11 @@ import { S as it } from './strings.it.ts';
 import { S as ru } from './strings.ru.ts';
 
 const zh = {
+  addToLibrary: "添加到仓库",
+  filterSidebar: "筛选",
+  catalogCategory: "类别",
+  catalogCategories: {"all": "全部", "tools": "提供工具", "events": "接收事件", "local": "本地运行"},
+
   navLabel: '扩展',
   navGroup: 'Core',
   introTitle: '扩展',
@@ -233,6 +238,11 @@ const zh = {
 };
 
 export const en: typeof zh = {
+  addToLibrary: "Add to library",
+  filterSidebar: "Filters",
+  catalogCategory: "Categories",
+  catalogCategories: {"all": "All", "tools": "Tools", "events": "Events", "local": "Local"},
+
   navLabel: 'Extensions',
   navGroup: 'Core',
   introTitle: 'Extensions',
