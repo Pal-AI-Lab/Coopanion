@@ -804,22 +804,28 @@ describe('World library and catalog', () => {
     expect(items.find(item => item.key === 'alpha-mod').world).toBe(worlds[0]);
     expect(items[0].world).toBeUndefined();
   });
-  it('keeps the rail, search and scroll containers across tabs and selects a management row', async () => {
+  it('keeps the same avatars and scroll position when the library expands into management rows', async () => {
     const { root, ctx } = await openWorlds();
     const rail = root.querySelector('.world-library');
-    const railItems = [...rail.querySelectorAll('button')];
-    expect(rail.querySelectorAll('.navdot, .navlamps')).toHaveLength(0);
+    const railItems = [...rail.querySelectorAll('.world-library-item')];
+    const libraryScroll = rail.querySelector('.world-library-list'); libraryScroll.scrollTop = 25;
+    expect(rail.querySelectorAll('.world-library-item .navdot, .world-library-item .navlamps')).toHaveLength(0);
     const search = root.querySelector('.world-market input[type=search]');
     search.value = 'found'; search.dispatchEvent(new Event('input', { bubbles: true }));
     const scroll = root.querySelector('.world-catalog-scroll'); scroll.scrollTop = 40;
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     expect(root.querySelector('.world-market').hidden).toBe(true);
+    expect(rail.hidden).toBe(false);
+    expect(root.querySelector('.world-workspace').dataset.view).toBe('mine');
     ctx.router.navigate(['world'], { view: 'market' }); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     expect(root.querySelector('.world-library')).toBe(rail);
-    expect([...rail.querySelectorAll('button')]).toEqual(railItems);
+    expect(rail.hidden).toBe(false);
+    expect(libraryScroll.scrollTop).toBe(25);
+    expect(root.querySelectorAll('.world-blade .world-avatar')).toHaveLength(0);
+    expect([...rail.querySelectorAll('.world-library-item')]).toEqual(railItems);
     expect(search.value).toBe('found'); expect(scroll.scrollTop).toBe(40);
     railItems.find(item => item.textContent.includes('甲扩展')).click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
-    expect(root.querySelector('.world-mine').hidden).toBe(false);
+    expect(root.querySelector('.world-workspace').dataset.view).toBe('mine');
     expect(document.activeElement.dataset.key).toBe('alpha-mod');
     expect(rail.querySelector('[aria-current=true]').textContent).toContain('甲扩展');
   });
@@ -850,7 +856,7 @@ describe('World library and catalog', () => {
   });
   it('keeps runtime controls available when the catalog capability is absent', async () => {
     const { root } = await openWorlds({}, { worlds: true, worldActivation: true });
-    expect(root.querySelector('.world-mine').hidden).toBe(false);
+    expect(root.querySelector('.world-workspace').dataset.view).toBe('mine');
     expect(root.querySelectorAll('.pagetab')).toHaveLength(1);
     expect(root.querySelector('.world-blade').textContent).toContain('配置');
     expect(calls.some(call => call.url.startsWith('/api/extensions'))).toBe(false);

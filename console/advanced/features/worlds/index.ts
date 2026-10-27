@@ -1,4 +1,4 @@
-/** World library, runtime controls and extension catalog share one persistent navigation rail. */
+/** Both World views keep the same avatar nodes and row geometry. */
 import { resolveConsoleLinkHref } from '../../../base/theme/handoff.ts';
 import { pageIdFor } from '../../../base/protocol.ts';
 import type { WebUiBadge, WebUiLamp, WebUiLink } from 'cortico/web/shared/webui-protocol.ts';
@@ -67,31 +67,33 @@ export function mountWorlds(ctx: FeatureContext): void {
   ], { onSelect: value => router.navigate(['world'], value === 'market' ? { view: 'market' } : undefined) });
   intro.append(tabs.el);
   const workspace = ui.h('div', 'world-workspace');
-  const rail = ui.h('nav', 'world-library'); rail.setAttribute('aria-label', S.library);
-  const railTitle = ui.h('div', 'world-library-heading', S.library);
-  const railList = ui.h('div', 'world-library-list'); rail.append(railTitle, railList);
-  const stage = ui.h('div', 'world-stage');
+  const rail = ui.h('section', 'world-library'); rail.setAttribute('aria-label', S.library);
+  const header = ui.h('div', 'world-library-header');
+  const railTitle = ui.h('h2', 'world-library-heading', S.library);
+  const railList = ui.h('div', 'world-library-list');
   const status = ui.h('div', 'world-workspace-status');
-  const mine = ui.h('div', 'world-pane world-mine');
   const catalog = ui.h('div', 'world-pane world-market');
-  const management = ui.h('div', 'world-management-scroll');
   const toolbar = ui.rowbar(); toolbar.classList.add('world-management-toolbar');
   const msg = ui.msgline(); msg.setAttribute('role', 'status');
   const reloadBtn = ui.button(S.reloadPrefixBtn, { size: 'sm', onClick: () => void reloadPrefix(reloadBtn) });
-  toolbar.append(ui.h('span', 'grow'), reloadBtn, ui.button(E.refresh, { size: 'sm', onClick: () => void refresh() }));
-  const grid = ui.h('div', 'world-blades');
-  management.append(msg, grid); mine.append(toolbar, management);
-  stage.append(status, mine, catalog); workspace.append(rail, stage); root.append(intro, workspace);
+  toolbar.append(reloadBtn, ui.button(E.refresh, { size: 'sm', onClick: () => void refresh() }));
+  header.append(railTitle, toolbar); rail.append(header, railList);
+  const feedback = ui.h('div', 'world-feedback'); feedback.append(msg);
+  workspace.append(rail, catalog); root.append(intro, status, feedback, workspace);
   const reduceMotion = () => win.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const show = () => {
     if (signal.aborted || router.route.segments[0] !== 'world') return;
     const next = canBrowse && router.route.query.view === 'market' ? 'market' : 'mine';
     if (next === current) return;
     const previous = current; current = next;
-    mine.hidden = next !== 'mine'; catalog.hidden = next !== 'market'; tabs.setValue(next);
+    workspace.dataset.view = next;
+    catalog.hidden = next !== 'market'; toolbar.hidden = next !== 'mine'; tabs.setValue(next);
+    for (const row of railList.querySelectorAll<HTMLElement>('.world-blade')) row.inert = next === 'market';
     if (next === 'mine' && focusRequested) focusSelected();
-    const pane = next === 'mine' ? mine : catalog;
-    if (previous && !reduceMotion()) pane.animate?.([{ opacity: 0, transform: `translateX(${next === 'mine' ? '-12' : '12'}px)` }, { opacity: 1, transform: 'translateX(0)' }], { duration: 200, easing: 'ease-out' });
+    if (previous && !reduceMotion()) {
+      const panes = next === 'market' ? [catalog] : Array.from(railList.querySelectorAll('.world-blade'));
+      for (const pane of panes) pane.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
+    }
   };
   lifecycle.own(router.onChange(show)); show();
   if (canBrowse) market = mountExtensionContent({ ...ctx, root: catalog }, 'world', catalog, {
@@ -254,12 +256,13 @@ export function mountWorlds(ctx: FeatureContext): void {
   }
   function focusSelected() {
     focusRequested = false;
-    const row = Array.from(grid.children).find(row => (row as HTMLElement).dataset.key === selected) as HTMLElement | undefined;
+    const row = Array.from(railList.querySelectorAll<HTMLElement>('.world-blade')).find(row => row.dataset.key === selected);
     if (row) { row.scrollIntoView?.({ block: 'nearest', behavior: reduceMotion() ? 'instant' : 'smooth' }); row.focus({ preventScroll: true }); }
   }
   function renderRail(items: readonly WorldLibraryItem[]) {
     const positions = new Map(Array.from(railNodes, ([key, node]) => [key, node.getBoundingClientRect().top]));
-    for (const [key, node] of railNodes) if (!items.some(item => item.key === key)) { node.remove(); railNodes.delete(key); }
+    for (const [key, node] of railNodes) if (!items.some(item => item.key === key)) { node.parentElement?.remove(); railNodes.delete(key); }
+    let cursor = railList.firstElementChild;
     for (const item of items) {
       let node = railNodes.get(item.key);
       if (!node) {
@@ -270,7 +273,13 @@ export function mountWorlds(ctx: FeatureContext): void {
       const name = node.querySelector('.world-library-name')!;
       name.textContent = item.label.replace(/^cortico-world-/, '');
       node.title = item.label; node.setAttribute('aria-label', item.label); node.setAttribute('aria-current', item.key === selected ? 'true' : 'false');
-      railList.append(node);
+      const row = worldRow(item); row.inert = current === 'market';
+      let entry = node.parentElement;
+      if (!entry) { entry = ui.h('div', 'world-library-entry'); entry.append(node, row); }
+      else entry.querySelector('.world-blade')!.replaceWith(row);
+      entry.dataset.state = row.dataset.state;
+      if (entry !== cursor) railList.insertBefore(entry, cursor);
+      cursor = entry.nextElementSibling;
     }
     for (const [key, node] of railNodes) {
       const before = positions.get(key), delta = before === undefined ? 0 : before - node.getBoundingClientRect().top;
@@ -308,7 +317,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     }
     if (m) actions.append(ui.button(S.configure, { size: 'sm', onClick: () => router.navigate([PROVIDER_ROUTE, worldPageId(m.id)]) }));
     if (pack) actions.append(iconButton('package', S.manageExtension, '', () => market?.manage(pack.name)));
-    row.append(avatar(item), identity, readings, actions);
+    row.append(identity, readings, actions);
     if (failed) row.append(ui.h('p', 'world-blade-note bad', m?.reason || pack?.reason || S.missingReasonDefault));
     else if (pending) row.append(ui.h('p', 'world-blade-note', E.restartNeeded));
     else if (m?.status === 'inactive' && !canActivate) row.append(ui.h('p', 'world-blade-note', S.inactiveNoteManual(m.id)));
@@ -336,9 +345,9 @@ export function mountWorlds(ctx: FeatureContext): void {
   }
   function render(): void {
     const items = worldLibrary(worlds, extensions, recent);
+    if (!railNodes.size) railList.replaceChildren();
     lampNodes.clear(); renderRail(items);
-    grid.replaceChildren(...items.map(worldRow));
-    if (!items.length) grid.append(ui.placeholder(S.noWorlds));
+    if (!items.length) railList.replaceChildren(ui.placeholder(S.noWorlds));
     reloadBtn.hidden = !worlds.some(world => world.prefixDrifted);
   }
   async function load(): Promise<void> {
@@ -352,7 +361,7 @@ export function mountWorlds(ctx: FeatureContext): void {
       if (!signal.aborted && own === generation) setMsg(S.listLoadFailed(errText(error)), true);
     }
   }
-  grid.append(ui.placeholder(S.loading));
+  railList.append(ui.placeholder(S.loading));
   void load();
 }
 
