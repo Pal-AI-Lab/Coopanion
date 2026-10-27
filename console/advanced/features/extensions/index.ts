@@ -414,6 +414,8 @@ export function mountExtensions(ctx: FeatureContext): void {
 
 export interface ExtensionWorkspace {
   statusRoot: HTMLElement;
+  restartRoot: HTMLElement;
+  beforeReload(): void;
   onChange(items: readonly ExtensionView[]): void;
   onAdded(name: string): void;
 }
@@ -1086,9 +1088,9 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     paintManagement();
     if (workspace) {
       const pending = installed.filter(item => (item.kind === kind || !item.kind) && (item.state === 'pending-restart' || item.state === 'removed')).length;
-      const notice = workspace.statusRoot.querySelector<HTMLElement>('.world-restart-count');
+      const notice = workspace.restartRoot.querySelector<HTMLElement>('.world-restart-count');
       if (notice) { notice.hidden = !pending; notice.textContent = `${pending} · ${S.statePendingRestart}`; }
-      const restartButton = workspace.statusRoot.querySelector<HTMLButtonElement>('.extension-restart');
+      const restartButton = workspace.restartRoot.querySelector<HTMLButtonElement>('.extension-restart');
       if (restartButton) { restartButton.hidden = !pending; restartButton.disabled = busy.size > 0; }
       return;
     }
@@ -1461,7 +1463,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
       try {
         const next = await get<Life>('/api/run/lifecycle', { signal });
         if (restartOutcome(before, next) === 'wrong-deployment') { win.sessionStorage.removeItem(storageKey + ':restart'); message(kind, 'management', S.otherBot, true); return; }
-        if (restartOutcome(before, next) === 'ready') { win.sessionStorage.removeItem(storageKey + ':restart'); save(); win.location.reload(); return; }
+        if (restartOutcome(before, next) === 'ready') { win.sessionStorage.removeItem(storageKey + ':restart'); save(); workspace?.beforeReload(); win.location.reload(); return; }
       } catch { /* Wait while the listener is unavailable. */ }
       lifecycle.timeout(() => void check(), 1000);
     }; void check();
@@ -1532,7 +1534,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
       const restartButton = bar.querySelector('.extension-restart');
       if (restartButton) statusBar.append(restartButton);
       messageNodes.management.textContent = '';
-      workspace.statusRoot.replaceChildren(statusBar, messageNodes.management);
+      workspace.restartRoot.replaceChildren(statusBar);
+      workspace.statusRoot.replaceChildren(messageNodes.management);
       const body = ui.h('div', 'world-catalog-body');
       const side = ui.h('aside', 'world-catalog-filters'); side.id = 'world-catalog-filters';
       const toggle = ui.button(S.filterSidebar, { size: 'sm', onClick: () => {

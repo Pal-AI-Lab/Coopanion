@@ -6,6 +6,8 @@ export const S: Partial<typeof en> = {
   library: "라이브러리",
   configure: "구성",
   manageExtension: "확장 관리",
+  stopMode: "중지",
+  connectMode: "연결",
   modeOff: "중지됨",
   modeRunning: "실행만",
   modeAttached: "연결됨",

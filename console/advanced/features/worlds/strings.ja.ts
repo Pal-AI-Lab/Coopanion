@@ -6,6 +6,8 @@ export const S: Partial<typeof en> = {
   library: "ライブラリ",
   configure: "設定",
   manageExtension: "拡張機能を管理",
+  stopMode: "停止",
+  connectMode: "接続",
   modeOff: "停止中",
   modeRunning: "実行のみ",
   modeAttached: "接続中",

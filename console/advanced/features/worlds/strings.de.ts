@@ -6,6 +6,8 @@ export const S: Partial<typeof en> = {
   library: "Bibliothek",
   configure: "Konfigurieren",
   manageExtension: "Erweiterung verwalten",
+  stopMode: "Stoppen",
+  connectMode: "Verbinden",
   modeOff: "Gestoppt",
   modeRunning: "Nur ausführen",
   modeAttached: "Verbunden",

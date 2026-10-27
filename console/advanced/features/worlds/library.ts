@@ -8,6 +8,10 @@ export interface WorldLibraryItem {
   extension?: ExtensionView;
 }
 
+export function needsRestart(item: WorldLibraryItem): boolean {
+  return item.extension?.state === 'pending-restart' || item.extension?.state === 'removed';
+}
+
 /** Pending downloads lead the list; every other item retains the server's assembly order. */
 export function worldLibrary(worlds: readonly WorldView[], extensions: readonly ExtensionView[], recent: readonly string[] = []): WorldLibraryItem[] {
   const available = extensions.filter(item => item.kind === 'world' || !item.kind);
@@ -21,8 +25,8 @@ export function worldLibrary(worlds: readonly WorldView[], extensions: readonly 
     items.push({ key: extension.name, label: extension.metadata?.displayName || extension.label || extension.worldId || extension.name, extension });
   }
   const rank = (item: WorldLibraryItem) => {
-    if (item.extension?.state !== 'pending-restart') return recent.length + 1;
-    const index = recent.indexOf(item.extension.name);
+    if (!needsRestart(item)) return recent.length + 1;
+    const index = recent.indexOf(item.key);
     return index < 0 ? recent.length : index;
   };
   return items.sort((a, b) => rank(a) - rank(b));

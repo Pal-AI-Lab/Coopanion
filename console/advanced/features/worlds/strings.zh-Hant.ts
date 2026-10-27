@@ -6,6 +6,8 @@ export const S: Partial<typeof en> = {
   library: "收藏庫",
   configure: "配置",
   manageExtension: "管理擴充功能",
+  stopMode: "停用",
+  connectMode: "接入",
   modeOff: "已停用",
   modeRunning: "僅執行",
   modeAttached: "已接入",

@@ -12,6 +12,8 @@ export const S: Partial<typeof en> = {
   library: "Библиотека",
   configure: "Настроить",
   manageExtension: "Управление расширением",
+  stopMode: "Остановить",
+  connectMode: "Подключить",
   modeOff: "Остановлен",
   modeRunning: "Только работа",
   modeAttached: "Подключён",
