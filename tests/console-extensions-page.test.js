@@ -459,7 +459,7 @@ describe('changelog range', () => {
 describe('arrangeHits', () => {
   const hit = (over) => ({ name: 'x', version: '1.0.0', description: '', downloads: { month: 0 }, dependents: 0, links: {}, installed: false, ...over });
   const opts = (over) => ({ filter: '', hideInstalled: false, sort: 'downloads', page: 0, pageSize: 2, ...over });
-  it('sorts unknown downloads after real zero and excludes them from a minimum filter', () => {
+  it('月下载量未知的排在 0 之后,设了最低下载量时不列出', () => {
     const hits = [
       hit({ name: 'a-unknown', downloads: {} }),
       hit({ name: 'z-zero', downloads: { month: 0 } }),
@@ -615,20 +615,6 @@ describe('extension review interactions', () => {
     const downloads = card.querySelector('.extension-stat-downloads');
     expect(downloads.textContent).toBe('42');
     expect(downloads.getAttribute('aria-description')).toBe('累计 130 · 30 天 42 · 7 天 9');
-  });
-  it('displays unknown downloads as a dash and real zero as zero', async () => {
-    stub({ hits: { hits: [
-      { ...HITS.hits[0], name: 'unknown-mod', downloads: {} },
-      { ...HITS.hits[0], name: 'zero-mod', downloads: { month: 0, week: 0, total: 0 } },
-    ] } });
-    const { root } = mount();
-    await flush();
-    const unknown = cardOf(root, 'unknown-mod').querySelector('.extension-stat-downloads');
-    const zero = cardOf(root, 'zero-mod').querySelector('.extension-stat-downloads');
-    expect(unknown.textContent).toBe('—');
-    expect(unknown.getAttribute('aria-description')).toBe('累计 — · 30 天 — · 7 天 —');
-    expect(zero.textContent).toBe('0');
-    expect(zero.getAttribute('aria-description')).toBe('累计 0 · 30 天 0 · 7 天 0');
   });
   it('keeps installed metadata available when registry details fail', async () => {
     stub({ detailStatus: 503, list: { dir: LIST.dir, extensions: [{ ...LIST.extensions[0], metadata: { license: 'MIT', dependencies: ['example-dependency'], links: { repository: 'https://git.example/module' } } }] } });

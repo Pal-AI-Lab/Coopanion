@@ -308,7 +308,7 @@ export function arrangeHits(
     if (keyword && !(h.keywords ?? []).some(k => k.toLowerCase().includes(keyword))) return false;
     if (opts.license && (h.license ?? '').toLowerCase() !== opts.license.trim().toLowerCase()) return false;
     if (opts.publishedSince && (h.date ?? '') < opts.publishedSince) return false;
-    if (opts.minDownloads && (h.downloads.month === undefined || h.downloads.month < opts.minDownloads)) return false;
+    if (opts.minDownloads && (h.downloads.month ?? 0) < opts.minDownloads) return false;
     if (opts.tags?.some((t) => !h.tags?.includes(t))) return false;
     if (opts.excludeTags?.some((t) => h.tags?.includes(t))) return false;
     if (!needle) return true;
