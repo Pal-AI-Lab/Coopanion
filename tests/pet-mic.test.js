@@ -17,6 +17,7 @@ function page({ deviceId = '', aliases = true } = {}) {
   const messages = [], frames = [], streams = [], contexts = [], nodes = [], errors = [];
   const prefs = { mic: true, micDevice: deviceId };
   const media = new EventTarget();
+  media.attempts = [];
   media.defaultId = 'virtual';
   media.inputs = [
     { kind: 'audioinput', deviceId: 'virtual', groupId: 'virtual-group', label: 'Virtual input' },
@@ -38,9 +39,14 @@ function page({ deviceId = '', aliases = true } = {}) {
   };
   media.getUserMedia = async ({ audio }) => {
     const id = audio.deviceId?.exact || media.defaultId;
+    media.attempts.push(id);
     const input = media.inputs.find((d) => d.deviceId === id);
     if (!input) throw new DOMException('Input is unavailable', 'NotFoundError');
-    const track = { label: input.label, readyState: 'live', stop() { this.readyState = 'ended'; } };
+    const track = Object.assign(new EventTarget(), {
+      label: input.label, readyState: 'live',
+      stop() { this.readyState = 'ended'; },
+      end() { this.stop(); this.dispatchEvent(new Event('ended')); },
+    });
     const stream = { id, track, getTracks: () => [track], getAudioTracks: () => [track] };
     const pending = media.nextOpen; media.nextOpen = null;
     if (pending) await pending.promise;
@@ -220,7 +226,7 @@ describe('pet microphone', () => {
   it('does not overwrite a new stream with a cancelled open error', async () => {
     const p = page();
     const pending = p.media.nextOpen = deferred();
-    const oldOpening = p.startMic();
+    const oldOpening = p.startMic(); await settle();
     p.stopMic();
     p.prefs.micDevice = 'array';
     await p.startMic(); await settle();
@@ -230,6 +236,92 @@ describe('pet microphone', () => {
     expect(p.active()).toEqual(['array']);
     expect(p.states()).toEqual(states);
     p.stopMic();
+  });
+
+  it('recovers from a failed default input when a usable device is selected again', async () => {
+    const p = page();
+    await p.startMic(); await settle();
+    const pending = p.media.nextOpen = deferred();
+    p.media.change('array'); await settle();
+    pending.reject(new DOMException('Input is busy', 'NotReadableError')); await settle();
+    expect(p.active()).toEqual([]);
+    expect(p.states().at(-1)).toMatchObject({ state: 'error', detail: 'Input is busy' });
+    p.media.change('virtual'); await settle();
+    expect(p.active()).toEqual(['virtual']);
+    expect(p.states().at(-1)).toMatchObject({ state: 'on', detail: 'Virtual input' });
+    p.stopMic();
+  });
+
+  it('retries a temporarily unavailable input when devices change without a new default', async () => {
+    const p = page();
+    const pending = p.media.nextOpen = deferred();
+    const opening = p.startMic(); await settle();
+    pending.reject(new DOMException('Input is not ready', 'NotReadableError'));
+    await opening;
+    p.media.change(); await settle();
+    expect(p.active()).toEqual(['virtual']);
+    p.stopMic();
+  });
+
+  it('reopens the selected microphone after its track ends and it is plugged back in', async () => {
+    const p = page({ deviceId: 'virtual' });
+    await p.startMic(); await settle();
+    const input = p.media.inputs.shift();
+    p.streams[0].track.end();
+    p.media.change('array'); await settle();
+    expect(p.active()).toEqual([]);
+    expect(p.contexts[0].state).toBe('closed');
+    p.media.inputs.push(input);
+    p.media.change(); await settle();
+    expect(p.active()).toEqual(['virtual']);
+    p.stopMic();
+  });
+
+  it('never retries a permission denial on device changes', async () => {
+    const p = page();
+    const pending = p.media.nextOpen = deferred();
+    const opening = p.startMic(); await settle();
+    pending.reject(new DOMException('Permission denied', 'NotAllowedError'));
+    await opening;
+    p.media.change('array'); await settle();
+    p.media.change('virtual'); await settle();
+    expect(p.media.attempts).toHaveLength(1);
+    expect(p.active()).toEqual([]);
+    expect(p.states().at(-1).state).toBe('denied');
+  });
+
+  it.each(['disabled', 'stopped'])('does not retry an input after capture is %s', async (action) => {
+    const p = page();
+    const pending = p.media.nextOpen = deferred();
+    const opening = p.startMic(); await settle();
+    pending.reject(new DOMException('Input is busy', 'NotReadableError'));
+    await opening;
+    if (action === 'disabled') p.prefs.mic = false;
+    p.stopMic();
+    p.media.change('array'); await settle();
+    expect(p.media.attempts).toHaveLength(1);
+    expect(p.active()).toEqual([]);
+  });
+
+  it('compares a delayed device event with the default before capture opened', async () => {
+    const p = page();
+    const pending = p.media.nextOpen = deferred();
+    const opening = p.startMic(); await settle();
+    p.media.defaultId = 'array';
+    pending.resolve(); await opening; await settle();
+    p.media.change(); await settle();
+    expect(p.active()).toEqual(['array']);
+    p.stopMic();
+  });
+
+  it('does not request capture after stopping during the initial device query', async () => {
+    const p = page();
+    const pending = p.media.nextEnumeration = deferred();
+    const opening = p.startMic();
+    p.stopMic();
+    pending.resolve(); await opening; await settle();
+    expect(p.media.attempts).toHaveLength(0);
+    expect(p.active()).toEqual([]);
   });
 
   it('keeps recording when device enumeration fails and handles the next change', async () => {
