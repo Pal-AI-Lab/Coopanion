@@ -351,7 +351,7 @@ async function serveWindow(request) {
   if (url.origin === coreOrigin()) {
     if (url.pathname.startsWith(WINDOW_PREFIX)) return windowFile(url);
     if (from !== coreOrigin()) return refused();
-    // the rail's power button is the only caller: the exit it asks for is not a crash
+    // a shutdown the console asked for is not a crash
     if (request.method === 'POST' && url.pathname === '/api/run/shutdown') {
       core.expectStop();
       const response = await forward(request, url, from);

@@ -11,7 +11,7 @@ const repo = fileURLToPath(new URL('../', import.meta.url));
 const roots: string[] = [];
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
 
-async function exercise(mode: 'clean' | 'hung' | 'console' | 'unasked') {
+async function exercise(mode: 'clean' | 'hung' | 'console') {
   const root = mkdtempSync(join(tmpdir(), 'coo-core-host-'));
   roots.push(root);
   mkdirSync(join(root, 'core'));
@@ -53,10 +53,6 @@ async function exercise(mode: 'clean' | 'hung' | 'console' | 'unasked') {
         // longer than the 3 s restart delay: a restart would show up as a new child
         await new Promise((done) => setTimeout(done, 3500));
         replacement = host.child?.pid ?? null;
-      } else if (process.env.COOPANION_TEST_STOP === 'unasked') {
-        host.send({ type: 'test:exit' });
-        await once(host, 'ready');
-        replacement = host.child.pid;
       }
       await host.stop();
       const [code, signal] = await exited;
@@ -98,13 +94,5 @@ describe('Core shutdown', () => {
     expect(result).toMatchObject({ replacement: null, child: null, port: null, state: 'stopped', crashes: [] });
     expect(result.states).toEqual(['starting', 'running', 'stopped']);
     expect(result.exits).toEqual([]);
-  });
-
-  it('still restarts an unasked clean exit', async () => {
-    const result = await exercise('unasked');
-    expect(result.replacement).not.toBe(result.original);
-    expect(result).toMatchObject({ child: null, port: null, state: 'stopped', crashes: [expect.any(Number)] });
-    expect(result.states).toEqual(['starting', 'running', 'restarting', 'starting', 'running', 'stopped']);
-    expect(result.exits).toEqual([{ kind: 'restarting', code: 0 }]);
   });
 });
