@@ -1,7 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  settingsTab: 'Configuración', marketTab: 'Mercado de extensiones',
+  settingsTab: 'Configuración', marketTab: 'Extensiones de proveedores',
   pageTitle: 'Conexiones de modelo', navLabel: 'Conexiones de modelo', navGroup: 'Core', create: '+ Nueva instancia de conexión', newName: 'Instancia sin nombre',
   createHint: 'Una instancia es un conjunto de ajustes del proveedor guardado como tarjeta.',
   empty: 'Aún no hay conexiones de modelo', emptyHint: 'Agrega una conexión de modelo para habilitar la inferencia.',

@@ -11,6 +11,7 @@ const { Lifecycle } = await import('../console/base/lifecycle.ts');
 const { Router } = await import('../console/base/router.ts');
 const { mountExtensionContent, mountExtensions, parseInstallInput, arrangeHits, extensionsFeature, restartOutcome, extensionColumns, osAllowed, changesBetween } = await import('../console/advanced/features/extensions/index.ts');
 const { mountProviders } = await import('../console/advanced/features/providers/index.ts');
+const { S: providerStrings } = await import('../console/advanced/features/providers/strings.ts');
 const flush = async (n = 30) => { for (let i = 0; i < n; i++) await Promise.resolve(); };
 const LIST = {
   dir: 'C:/repo/extensions',
@@ -771,7 +772,7 @@ describe('provider page tabs', () => {
     await navigate(ctx, 'market');
     expect(market.querySelectorAll('input[type=search]')[1].value).toBe('keep this query');
     expect(root.querySelectorAll('.extension-category')).toHaveLength(1);
-    expect(root.querySelector('.pagetab.active').textContent).toBe('扩展市场');
+    expect(root.querySelector('.pagetab.active').textContent).toBe(providerStrings.marketTab);
   });
   it('hides the market without the extensions capability, including a direct URL', async () => {
     stub();

@@ -1,7 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  settingsTab: '設定', marketTab: '拡張機能マーケット',
+  settingsTab: '設定', marketTab: 'プロバイダー拡張機能',
   pageTitle: 'モデル接続', navLabel: 'モデル接続', navGroup: 'Core', create: '+ 新しい接続インスタンス', newName: '名前のないインスタンス',
   createHint: 'インスタンスとは、プロバイダー設定の 1 セットをカードとして保存したものです。',
   empty: 'モデル接続はまだありません', emptyHint: 'モデル接続を追加すると推論できるようになります。',
