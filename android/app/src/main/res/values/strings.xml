@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Coopanion</string>
+    <string name="cua_service_label">Coopanion · 安卓 CUA 接头</string>
+    <string name="cua_service_desc">让 Coopanion 能看见屏幕、点按和滑动。开了它，桌宠世界里的「操作电脑」类插件就能在平板上工作（截图与手势都只在本机使用）。</string>
+</resources>

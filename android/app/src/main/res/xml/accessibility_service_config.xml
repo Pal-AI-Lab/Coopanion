@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 安卓 CUA 接头：读屏 + 截图 + 手势。只给本机的 world 引擎用（HTTP 只监听 127.0.0.1）。 -->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows|flagReportViewIds"
+    android:canPerformGestures="true"
+    android:canRetrieveWindowContent="true"
+    android:canTakeScreenshot="true"
+    android:description="@string/cua_service_desc"
+    android:notificationTimeout="200"
+    android:settingsActivity="lab.palailab.coo.mobile.MainActivity" />

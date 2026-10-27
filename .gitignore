@@ -5,3 +5,36 @@ scratch/
 *.log
 promo/assets/bgm.mp3
 packages/cortico-world-desktop-pet/scripts/speech-bank/.cache/
+
+# ===== Android 移植（android/ 目录）=====
+# ===== 构建产物 =====
+android/.gradle/
+android/build/
+android/app/build/
+*.apk
+*.aab
+*.class
+
+# ===== 本机环境 =====
+android/local.properties
+local.properties
+.idea/
+*.iml
+
+# ===== 运行时包（403MB，且内含本机 API key、对话记录、设备标识）=====
+# 绝不能提交：它相当于把你的私聊历史和密钥一起公开。
+# 需要分发包时用 tools/pack-runtime.py 生成剔除 home/ 用户数据的干净版本。
+android/app/src/main/assets/runtime.tgz
+
+# ===== 日志与临时文件 =====
+*.log
+tools/*.log
+build-info.log
+dbg.log
+
+# ===== 系统垃圾 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+# 测试录音（真人声音，不进仓库）
+tools/test-audio/
