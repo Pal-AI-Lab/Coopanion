@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { EventEmitter } from 'node:events';
+import { createServer } from 'node:http';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dryMountWorld, fakeWorldContext } from 'cortico/extensions/dry-mount.ts';
 import { renderTemplate } from 'cortico/core/template.ts';
+import type { StreamEvent } from 'cortico/protocol/open-responses/index.ts';
+import { VendorChat } from 'cortico-provider-coo/src/chat.ts';
 import { DESKTOP_PET, desktopPetDefinition } from '../src/definition.ts';
 import { DESKTOP_PET_DEFAULTS, SELF_DEFAULT, type DesktopPetConfigSection } from '../src/config.ts';
 import { DesktopPetWorld, type DesktopPetWorldOptions, type PetBotControls } from '../src/world.ts';
@@ -104,15 +107,77 @@ describe('English model text', () => {
 });
 
 describe('tools without a page', () => {
-  it('does not install an output tap without a connected pet page', async () => {
-    const { world } = await mounted();
-    expect(world.outputTap()).toBeUndefined();
-  });
   it('fail and say the window is not connected', async () => {
     const { world } = await mounted();
     const out = await tool(world, 'pet_say').handler({ script: '你好' }, ctx);
     expect(out).toMatchObject({ failed: true });
     expect((out as { text: string }).text).toContain('没有连接');
+  });
+});
+
+describe('output stream', () => {
+  it('receives a stream-only model response before connection, while connected and after disconnection', async () => {
+    const { world } = await mounted();
+    const server = createServer(async (req, res) => {
+      let raw = '';
+      for await (const chunk of req) raw += chunk;
+      if (JSON.parse(raw).stream !== true) {
+        res.writeHead(400, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: 'stream=true is required' } }));
+        return;
+      }
+      const chunks = [
+        { id: 'response-test', model: 'test-model', choices: [{ index: 0, delta: { content: 'hello' }, finish_reason: null }] },
+        { choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] },
+      ];
+      res.writeHead(200, { 'content-type': 'text/event-stream' });
+      res.end(chunks.map((chunk) => `data: ${JSON.stringify(chunk)}\n\n`).join('') + 'data: [DONE]\n\n');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    cleanup.push(() => new Promise<void>((resolve) => server.close(() => resolve())));
+    const client = new VendorChat({ baseUrl: `http://127.0.0.1:${(server.address() as { port: number }).port}` });
+    const respond = async () => {
+      const result = await client.respond({ model: 'test-model', input: [] }, {
+        diagnostic: true, onEvent: world.outputTap()?.onEvent,
+      });
+      expect(result.response).toMatchObject({
+        status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: 'hello' }] }],
+      });
+    };
+    await respond();
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    await respond();
+    await page.close();
+    await expect.poll(() => world.petState().connected).toBe(false);
+    await respond();
+  });
+
+  it('uses the current page connection for a tap acquired offline without externalizing output', async () => {
+    const { world } = await mounted();
+    const tap = world.outputTap()!;
+    const call = (id: string): StreamEvent => ({
+      type: 'response.output_item.added', sequence_number: 1, output_index: 0,
+      item: { type: 'function_call', id, call_id: id, name: 'read_file', arguments: '', status: 'in_progress' },
+    });
+    world.onRunPhase({ state: 'model', round: 1, running: [], enteredAt: new Date().toISOString() });
+    tap.onEvent(call('before-connection'));
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    expect(page.init.status).toEqual({ kind: 'think', text: '' });
+    const event = call('connected');
+    expect(tap.externalizes?.(event)).toBe(false);
+    tap.onEvent(event);
+    const status = await page.next((m) => m.t === 'status' && (m.status as { kind: string })?.kind === 'work');
+    expect(status.status).toEqual({ kind: 'work', text: petText().busy });
+    await page.close();
+    await expect.poll(() => world.petState().connected).toBe(false);
+    tap.onEvent(call('disconnected'));
+    const next = await FakePage.open(origin(world));
+    cleanup.push(() => next.close());
+    expect(next.init.status).toEqual(status.status);
+    tap.onEvent(call('reconnected'));
+    expect(await next.next((m) => m.t === 'status')).toMatchObject({ status: { kind: 'work', count: 2 } });
   });
 });
 

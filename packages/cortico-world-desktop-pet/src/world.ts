@@ -737,12 +737,14 @@ export class DesktopPetWorld implements World {
     return { text: this.t.cuaSettingsOpened(this.userName) };
   }
 
-  outputTap(): OutputTap | undefined {
-    if (!this.server.petConnected) return undefined;
+  /** The main session keeps its streaming mode across pet page connections. */
+  outputTap(): OutputTap {
     return {
       // the pet shows nothing of the stream itself; its tools act when they run
       externalizes: () => false,
-      onEvent: (event) => this.status.onEvent(event),
+      onEvent: (event) => {
+        if (this.server.petConnected) this.status.onEvent(event);
+      },
     };
   }
 

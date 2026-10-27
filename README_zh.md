@@ -1,3 +1,5 @@
+<!-- Owner: core/companion.ts, packages/cortico-world-desktop-pet/src/world.ts -->
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
@@ -205,6 +207,8 @@ Windows 上，重装到新目录后启动时会询问：继承之前使用的数
 <summary><b>桌宠不见了</b></summary>
 
 右键托盘图标 →「显示桌宠」；托盘图标被折叠时，点任务栏右下角的 `^`。也可以再打开一次程序。Mac 上点菜单栏图标 →「显示桌宠」。
+
+Coopanion 运行期间，桌宠窗口尚未连接或断开时，主会话仍可使用仅支持流式请求的模型端点。气泡和桌面动作需要桌宠页面连接。
 
 </details>
 

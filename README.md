@@ -1,3 +1,5 @@
+<!-- Owner: core/companion.ts, packages/cortico-world-desktop-pet/src/world.ts -->
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
@@ -205,6 +207,8 @@ On Windows, a reinstall into a new folder asks at start whether to inherit the d
 <summary><b>The pet is gone</b></summary>
 
 Right-click the tray icon → Show pet; if the icon is hidden, click `^` at the bottom right of the taskbar. Opening the program again also works. On Mac, click the menu bar icon → Show pet.
+
+While Coopanion is running, its main session can use streaming-only model endpoints even if the pet window is not connected. Speech bubbles and on-screen actions require a connected pet page.
 
 </details>
 

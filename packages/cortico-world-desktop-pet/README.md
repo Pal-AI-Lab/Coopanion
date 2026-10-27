@@ -108,6 +108,7 @@ Windows 上每 0.8 秒用 GDI 取一小块身体周围的屏幕像素来比,其�
 开启状态气泡后,干活时头顶会冒一个小泡(`src/status.ts`、`web/pet-app.js`)。什么时候显示由 Core 的运行阶段(`onRunPhase`)决定:
 请求模型、等待重试和上下文交接时是想事情,新一轮请求从想事情开始,一批结束(`idle`)时收起。显示什么来自主 session 的
 `outputTap` 流事件里的工具调用,包括其他 World 和 Persona 的工具;参数里的文件名一闭合就显示,不等整份正文流完。
+World 始终提供 `outputTap`,桌宠页面断连不改变主会话请求的流式设置;只有页面连接时才更新流事件对应的状态。
 调用按 item id 和到达顺序记录,连续同类工作合并成「第一个文件 等 N 个」。哪个工具显示成什么由嵌入的应用给出
 (`desktopPetDefinition({ describeTool })`,Coopanion 的在 `core/pet-status.ts`);没给出的工具显示「在忙」,`pet_*` 不显示。
 下表是 Coopanion 给出的样子。
