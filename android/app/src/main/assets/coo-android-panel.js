@@ -49,6 +49,23 @@
     });
     return i;
   }
+  /** 文本输入：改完（失焦或回车）才提交，不绑逐字输入——config 每敲一个字写一次太重。 */
+  function text(value, maxLength, placeholder, onCommit) {
+    var i = mk('input');
+    i.type = 'text';
+    i.value = value || '';
+    i.placeholder = placeholder || '';
+    i.maxLength = maxLength || 32;
+    i.style.cssText = 'width:9em;padding:4px 8px;margin-right:6px;border:1px solid var(--border,#3c4048);'
+      + 'border-radius:8px;background:var(--card,transparent);color:inherit;font:inherit';
+    var last = i.value;
+    i.addEventListener('change', function () {
+      var v = i.value.trim();
+      if (v !== last) { last = v; onCommit(v); }
+    });
+    i.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') i.blur(); });
+    return i;
+  }
   function row(id, name, detail) {
     var r = mk('div', 'mountrow');
     r.setAttribute('data-coo-android', id);
@@ -92,11 +109,12 @@
   function readHabits() {
     try { var raw = A.habitState(); return typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { return null; }
   }
-  function save(values) {
+  /** group 缺省写 desktop-pet 那组；displayName 这类顶层键属于 core 组，得单独指定。 */
+  function save(values, group) {
     return fetch('/api/config', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ group: GROUP, values: values })
+      body: JSON.stringify({ group: group || GROUP, values: values })
     }).catch(function (err) { console.error('coo habit save', err); });
   }
   function ttsStatus() {
@@ -107,6 +125,70 @@
   var habitPage = null;
   var habitNav = null;
   var hc = null;   // habit 控件引用
+
+  /* ---------- 窄屏 / 竖屏：侧栏搬到底部 ---------- */
+  /**
+   * 面板的侧栏是 PC 那套：宽屏竖着站左边（262px），窄屏上游自己那条 @media(≤720px) 更糟 ——
+   * `#rail{width:100%;position:sticky;top:0}` 把它压成贴顶的一条横滚，还挡住页头，手指够不着。
+   *
+   * 而且竖屏平板根本不吃那条媒体查询：777×1164 的屏，宽度 777 > 720，
+   * 于是整条 262px 的侧栏横在竖屏左边，白吃掉三分之一屏宽，内容只剩 500 出头。
+   *
+   * 所以这里不管上游怎么写，自己钉一套：
+   *   窄屏（<700px）或竖屏 → 侧栏贴到屏幕最下沿，导航项横排、可横滚，内容区在上面铺满；
+   *   横屏且宽（≥700px）→ 一条都不写，保持原来的左侧栏。
+   * 全都带 !important：上游的 @media 块和 companion.css 里都写死了 #rail 的 position / width，
+   * 我们的 <style> 虽然后插，光靠选择器优先级压不住它们。
+   */
+  var NAV_CSS = [
+    '@media (max-width: 700px), (orientation: portrait) {',
+    // 竖排：内容在上，导航贴底；body 留出导航的高度，否则最后一屏内容被压在栏底下
+    '  body { flex-direction: column !important; overflow: hidden !important;',
+    '    padding-left: 0 !important; padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px)) !important; }',
+    // 侧栏整块搬到底部：定宽 262 换成整行，原来是左侧切片的边框改成上边框
+    '  #rail { position: fixed !important; left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important;',
+    '    width: 100% !important; height: auto !important; max-height: none !important; flex: none !important;',
+    '    z-index: 100 !important; border: 0 !important; border-top: 1px solid var(--border, #e3e4e3) !important;',
+    '    background: var(--paper-2, #ecedec) !important; box-shadow: 0 -6px 20px rgba(0,0,0,.07) !important;',
+    '    transition: none !important; }',
+    '  #rail.is-collapsed { width: 100% !important; }',   // 折叠是桌面才有的概念，窄屏一律摊开
+    // 侧栏内部也横过来：导航占满，最右边留一个「基础/高级」模式键（竖排时它藏在脚注上方，
+    // 横排以后没有脚注可依，塞在行尾最省地方，又不会让人找不到它）
+    '  #rail { display: flex !important; flex-direction: row !important; align-items: stretch !important; }',
+    // 底下这排不放 brand / 头像脚注 / 分组标题，只留导航项和模式键
+    '  #rail .brand, #rail .railfoot, #rail .stacklabel,',
+    '  #rail .companion-sidebar-toggle, .companion-sidebar-backdrop { display: none !important; }',
+    '  #rail .companion-mode, #rail.is-collapsed .companion-mode { display: flex !important; align-items: center !important;',
+    '    flex: none !important; height: 44px !important; min-height: 44px !important; opacity: 1 !important;',
+    '    margin: 6px 8px 6px 0 !important; padding: 0 12px !important; gap: 6px !important; border-radius: 10px !important; }',
+    '  #rail .companion-mode .lbl { font-size: 13px !important; opacity: 1 !important; visibility: visible !important; }',
+    // 竖排的 nav.stack 转成横排：一行横滚，滚动条藏掉，上游那两道 mask 渐变也去掉（横滚时会糊掉两头）
+    '  #rail nav.stack { display: flex !important; flex-direction: row !important; align-items: stretch !important;',
+    '    flex: 1 1 auto !important; min-width: 0 !important; gap: 4px !important; padding: 6px 8px !important;',
+    '    overflow-x: auto !important; overflow-y: hidden !important; -webkit-overflow-scrolling: touch;',
+    '    scrollbar-width: none; mask-image: none !important; -webkit-mask-image: none !important; }',
+    '  #rail nav.stack::-webkit-scrollbar { display: none; }',
+    // 上游每个一级项各占一个 navgroup，横排时这些 group 也横过去，别竖着叠
+    '  #rail .navgroup { display: flex !important; flex-direction: row !important;',
+    '    gap: 4px !important; margin: 0 !important; padding: 0 !important; border: 0 !important; }',
+    // 44px 高是手指按得住的下限；图标照留，字不换行
+    '  #rail .navitem { flex: none !important; min-height: 44px !important;',
+    '    padding: 6px 12px !important; gap: 7px !important; border-radius: 10px !important; white-space: nowrap; }',
+    '  #rail .navitem .lbl { font-size: 13.5px !important; }',
+    '  #rail .navitem.active::after { display: none !important; }',   // 左边那条竖线是竖排侧栏的语言，横排里改成底色
+    '  #kernel-root { flex: 1 1 auto !important; height: auto !important; min-height: 0 !important; }',
+    '  .scroll { padding-left: 16px !important; padding-right: 16px !important; }',
+    '}',
+  ].join('\n');
+
+  /** 挂一次就够（按 id 幂等）；面板重渲染后 head 还在，不用重挂。 */
+  function ensureMobileNav() {
+    if (document.getElementById('coo-mobile-nav')) return;
+    var st = mk('style');
+    st.id = 'coo-mobile-nav';
+    st.textContent = NAV_CSS;
+    (document.head || document.documentElement).appendChild(st);
+  }
 
   /* ---------- 安卓设置（桌宠 tab） ---------- */
   function buildAndroid(body) {
@@ -147,6 +229,16 @@
     sheet.appendChild(host);
     slot.appendChild(sheet);
     view.append(chrome, slot);
+
+    /* 0. 称呼：她怎么叫你。存在 desktop-pet 组的 user 键，跟 PC 版设置页同一个位置。 */
+    var rUser = row('h-user', '称呼', 'Coo 会用这个名字称呼你');
+    var userIn = text('', 24, '老大', function (v) { save({ [K + 'user']: v }); });
+    rUser.acts.appendChild(userIn);
+
+    /* 0b. 她的名字：displayName 是顶层键，归 core 组，不能走 desktop-pet 那组。 */
+    var rBot = row('h-botname', 'Coo 的名字', '桌宠菜单、对话页和气泡里的提问用这个名字称呼 Coo');
+    var botIn = text('', 24, 'Coo', function (v) { save({ displayName: v }, 'core'); });
+    rBot.acts.appendChild(botIn);
 
     /* 1. 自主配置权限 */
     var rMode = row('h-mode', '自主配置权限', '禁止 / 默认（小事直接改）/ 任意 / 自定义（按下面勾的来）');
@@ -236,11 +328,12 @@
       btn('停下', false, function () { if (A.ttsStop) A.ttsStop(); })
     );
 
-    host.append(rMode.row, rKeys.row, rWake.row, rFps.row, rTts.row, rRate.row, rPitch.row, rTest.row);
+    host.append(rUser.row, rBot.row, rMode.row, rKeys.row, rWake.row, rFps.row, rTts.row, rRate.row, rPitch.row, rTest.row);
 
     hc = {
       modeSel: modeSel, keyBoxes: keyBoxes, wakeSel: wakeSel, wakeBoxes: wakeBoxes, fpsSel: fpsSel,
       modeRow: rMode, wakeRow: rWake, fpsRow: rFps,
+      userIn: userIn, botIn: botIn,
       ttsOn: ttsOn.querySelector('input'), rowState: rTts.state, rateIn: rateIn, pitchIn: pitchIn
     };
     return view;
@@ -329,9 +422,27 @@
     showHabit(false);
   }, true);
 
+  /* 称呼和她的名字都不在 habitState（那是 Android 侧偏好），只能问 core 的 /api/config：
+     一个在 desktop-pet 组，一个在 core 组。拿不到就留空，用户填了照样能存。 */
+  function loadNames() {
+    if (!hc || !hc.userIn || !hc.botIn) return;
+    fetch('/api/config', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var gs = (d && d.groups) || [];
+        for (var i = 0; i < gs.length; i++) {
+          var g = gs[i], id = g.group && g.group.id, vals = g.values || {};
+          if (id === GROUP && typeof vals[K + 'user'] === 'string') hc.userIn.value = vals[K + 'user'];
+          if (id === 'core' && typeof vals.displayName === 'string') hc.botIn.value = vals.displayName;
+        }
+      })
+      .catch(function () {});
+  }
+
   /* 从 config.json 读回来的值填到控件上 */
   function fillHabit() {
     if (!hc) return;
+    loadNames();
     var h = readHabits();
     if (!h) return;
     if (h.selfAdjust) hc.modeSel.value = h.selfAdjust;
@@ -478,6 +589,7 @@
 
   /* ---------- 幂等 patch ---------- */
   function patch() {
+    ensureMobileNav();
     ensureHabitNav();
     var bodies = document.querySelectorAll('.sheetbody');
     for (var i = 0; i < bodies.length; i++) {

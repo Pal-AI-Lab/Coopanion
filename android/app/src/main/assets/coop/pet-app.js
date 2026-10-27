@@ -79,14 +79,22 @@ else ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, ()
 let below = 0;
 const floorGap = () => (host ? 2 + below : 48);
 /**
- * 她按 256 个单位画，S 是每个单位多少像素。放大到很大或窗口变矮（横屏）时，
- * .42 × scale 会让她比窗口还高、半个身子飘在屏幕外 —— 这里按窗口高度收一下，
- * 保证她整个装得下（横竖屏切换会触发 resize，所以这条一直有效）。
+ * 她按 256 个单位画，S 是每个单位多少像素。
+ *
+ * 以前只按窗口高度收：放大到很大、或者横屏窗口变矮时，她不会高过窗口了。但竖屏是「窄而高」——
+ * 高度富余得很，光按高度算出来的身宽能到 0.9 个屏高，远远超出一个竖屏的宽度，
+ * 于是左右两边直接被屏幕切掉，看着就是「只能看到一部分桌宠」。
+ * 现在两个方向都收，取更紧的那个：上下各留 4%（脚下还要让出地板那 48px），左右各留 5%。
+ * 256 单位当成一个整方块来算 —— 比按某个形象的实际身宽保守一点，换任何形象都装得下。
  */
 const bounds = () => {
-  const H = innerHeight;
-  const S = Math.min(.42 * prefs.scale, (H * .92) / 256);
-  return { W: innerWidth, H, floorY: H - floorGap(), S };
+  const W = innerWidth, H = innerHeight, gap = floorGap();
+  const S = Math.min(
+    .42 * prefs.scale,
+    Math.max(0, H - gap) * .92 / 256,   // 头顶到脚下
+    W * .90 / 256,                      // 左右各留 5%
+  );
+  return { W, H, floorY: H - gap, S };
 };
 /**
  * The body on screen (body-host.js), null until the first one is ready, and the words it does (its pack's
@@ -103,6 +111,10 @@ host?.onFloor?.((px) => { below = px; body?.set({ bounds: bounds() }); });
 host?.onWindows?.((desk) => body?.setWindows(desk));
 addEventListener('resize', () => {
   body?.set({ bounds: bounds() });
+  // 转屏 / 改窗口大小后宽高比变了：先前的合身尺寸是按旧屏幕算的，她可能已经压在新屏幕边上，
+  // 只剩半个身子。压到边上的话挪回正中站好（没压着就不动，别打断她自己的走动）。
+  const now = at(), half = 128 * bounds().S;
+  if (now && (now.x - half < 0 || now.x + half > innerWidth)) body?.place(innerWidth / 2, now.facing);
   // the World reads walk targets and drop spots against the stage the pet is on now
   send({ t: 'hello', screen: { w: innerWidth, h: innerHeight } });
 });
