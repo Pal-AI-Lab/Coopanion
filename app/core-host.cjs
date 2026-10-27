@@ -4,7 +4,8 @@
  * The child is `core/boot.ts` under the app's own runtime in Node mode, with `--import tsx`.
  * It reports `companion:ready` with the console port. It exits on purpose after asking for a
  * restart (`cortico:restart`, or `<dataDir>/.restart-request` written by the console), and is
- * started again; an unexpected exit is restarted after 3 s, at most 5 times in 5 minutes, except one that
+ * started again; the console's power button asks it to shut down (`expectStop`), which leaves it
+ * stopped; an unexpected exit is restarted after 3 s, at most 5 times in 5 minutes, except one that
  * said another process holds the data directory's lock (`companion:locked`) or every console port it tries
  * (`companion:ports-busy`), which a restart would meet again and so is not restarted, and one
  * before `companion:ready` with ERR_MODULE_NOT_FOUND on stderr, which waits longer each time (MISSING_MODULE_DELAYS_MS).
@@ -58,6 +59,8 @@ class CoreHost extends EventEmitter {
     this.keyMissing = false;
     this.restartAsked = false;
     this.stopping = false;
+    /** The console asked for a shutdown through the WebUI: the child's exit is intentional. */
+    this.shutdownAsked = false;
     this.crashes = [];
     /** ERR_MODULE_NOT_FOUND exits before ready since the last ready child: the index into MISSING_MODULE_DELAYS_MS. */
     this.missingModuleExits = 0;
@@ -100,6 +103,7 @@ class CoreHost extends EventEmitter {
     this.child = child;
     this.state = 'starting';
     this.restartAsked = false;
+    this.shutdownAsked = false;
     this.emit('state', this.state);
     child.on('message', (msg) => {
       if (msg?.type === 'companion:ready') {
@@ -144,7 +148,12 @@ class CoreHost extends EventEmitter {
       if (this.child !== child) return;
       this.child = null;
       this.port = null;
-      if (this.stopping) { this.state = 'stopped'; this.emit('state', this.state); return; }
+      if (this.stopping || this.shutdownAsked) {
+        this.shutdownAsked = false;
+        this.state = 'stopped';
+        this.emit('state', this.state);
+        return;
+      }
       const flagged = this.dataDir && existsSync(join(this.dataDir, '.restart-request'));
       if (this.restartAsked || flagged) {
         this.state = 'restarting';
@@ -194,6 +203,16 @@ class CoreHost extends EventEmitter {
       child.stderr.once('end', settle);
       setTimeout(settle, 1000);
     });
+  }
+
+  /** The console's power button asked the running child to shut down; its exit is not a crash. */
+  expectStop() {
+    if (this.child) this.shutdownAsked = true;
+  }
+
+  /** The shutdown request did not reach the child, so a later exit is a crash again. */
+  forgetStop() {
+    this.shutdownAsked = false;
   }
 
   /** Sends a message to the running child; dropped while there is none. */
