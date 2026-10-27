@@ -126,57 +126,60 @@
   var habitNav = null;
   var hc = null;   // habit 控件引用
 
-  /* ---------- 窄屏 / 竖屏：侧栏搬到底部 ---------- */
+  /* ---------- 窄屏：侧栏收窄，但永远贴在当前方向的左边 ---------- */
   /**
-   * 面板的侧栏是 PC 那套：宽屏竖着站左边（262px），窄屏上游自己那条 @media(≤720px) 更糟 ——
-   * `#rail{width:100%;position:sticky;top:0}` 把它压成贴顶的一条横滚，还挡住页头，手指够不着。
+   * 面板侧栏是 PC 那套：宽屏竖着站左边（262px）。上游窄屏的行为不对 ——
+   * `@media (max-width:720px)` 把 #rail 改成 position:sticky + width:100% + flex-direction:row，
+   * 也就是「压成贴顶的一条横栏、还挡着页头」，手机上就是侧栏跑到顶上那副样子。
    *
-   * 而且竖屏平板根本不吃那条媒体查询：777×1164 的屏，宽度 777 > 720，
-   * 于是整条 262px 的侧栏横在竖屏左边，白吃掉三分之一屏宽，内容只剩 500 出头。
-   *
-   * 所以这里不管上游怎么写，自己钉一套：
-   *   窄屏（<700px）或竖屏 → 侧栏贴到屏幕最下沿，导航项横排、可横滚，内容区在上面铺满；
-   *   横屏且宽（≥700px）→ 一条都不写，保持原来的左侧栏。
-   * 全都带 !important：上游的 @media 块和 companion.css 里都写死了 #rail 的 position / width，
-   * 我们的 <style> 虽然后插，光靠选择器优先级压不住它们。
+   * 这里一律留在左边：262 收成 76 的图标条（图标居中、文字隐去、左边高亮竖条保留），
+   * 内容区只让出 76px，不会被整条横栏压掉一行。
+   * 竖屏平板 777 宽本来就走上游的 clamp(210px, 28.3vw-54px, 262px) = 210，不需要动；
+   * 所以这段只在 <=720 生效，宽屏一个字都不写。
+   * 全都带 !important：dist/web/styles.css 和 companion.css 各写死过一次 #rail 的 position / width。
    */
   var NAV_CSS = [
-    '@media (max-width: 700px), (orientation: portrait) {',
-    // 竖排：内容在上，导航贴底；body 留出导航的高度，否则最后一屏内容被压在栏底下
-    '  body { flex-direction: column !important; overflow: hidden !important;',
-    '    padding-left: 0 !important; padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px)) !important; }',
-    // 侧栏整块搬到底部：定宽 262 换成整行，原来是左侧切片的边框改成上边框
-    '  #rail { position: fixed !important; left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important;',
-    '    width: 100% !important; height: auto !important; max-height: none !important; flex: none !important;',
-    '    z-index: 100 !important; border: 0 !important; border-top: 1px solid var(--border, #e3e4e3) !important;',
-    '    background: var(--paper-2, #ecedec) !important; box-shadow: 0 -6px 20px rgba(0,0,0,.07) !important;',
-    '    transition: none !important; }',
-    '  #rail.is-collapsed { width: 100% !important; }',   // 折叠是桌面才有的概念，窄屏一律摊开
-    // 侧栏内部也横过来：导航占满，最右边留一个「基础/高级」模式键（竖排时它藏在脚注上方，
-    // 横排以后没有脚注可依，塞在行尾最省地方，又不会让人找不到它）
-    '  #rail { display: flex !important; flex-direction: row !important; align-items: stretch !important; }',
-    // 底下这排不放 brand / 头像脚注 / 分组标题，只留导航项和模式键
-    '  #rail .brand, #rail .railfoot, #rail .stacklabel,',
-    '  #rail .companion-sidebar-toggle, .companion-sidebar-backdrop { display: none !important; }',
-    '  #rail .companion-mode, #rail.is-collapsed .companion-mode { display: flex !important; align-items: center !important;',
-    '    flex: none !important; height: 44px !important; min-height: 44px !important; opacity: 1 !important;',
-    '    margin: 6px 8px 6px 0 !important; padding: 0 12px !important; gap: 6px !important; border-radius: 10px !important; }',
-    '  #rail .companion-mode .lbl { font-size: 13px !important; opacity: 1 !important; visibility: visible !important; }',
-    // 竖排的 nav.stack 转成横排：一行横滚，滚动条藏掉，上游那两道 mask 渐变也去掉（横滚时会糊掉两头）
-    '  #rail nav.stack { display: flex !important; flex-direction: row !important; align-items: stretch !important;',
-    '    flex: 1 1 auto !important; min-width: 0 !important; gap: 4px !important; padding: 6px 8px !important;',
-    '    overflow-x: auto !important; overflow-y: hidden !important; -webkit-overflow-scrolling: touch;',
+    '@media (max-width: 720px) {',
+    // 上游在窄屏把 body 变成 column，这里改回 row：侧栏在左、内容在右
+    '  body, body.companion-sidebar { flex-direction: row !important;',
+    '    padding-left: 0 !important; padding-bottom: 0 !important; }',
+    // 侧栏：撤掉上游的 sticky + width:100% + 横排，改回贴着左边的一条竖栏
+    '  #rail { position: static !important; top: auto !important; left: auto !important;',
+    '    right: auto !important; bottom: auto !important;',
+    '    width: 76px !important; min-width: 76px !important; max-width: 76px !important;',
+    '    flex: none !important; flex-direction: column !important; align-items: stretch !important;',
+    '    height: auto !important; max-height: none !important; z-index: 100 !important;',
+    '    overflow: hidden !important;',
+    '    border: 0 !important; border-right: 1px solid var(--border, #e3e4e3) !important;',
+    '    border-bottom: 0 !important; box-shadow: none !important; }',
+    '  #rail.is-collapsed { width: 76px !important; }',
+    // 图标条里只留导航：脚注 / 分组标题 / 汉堡键 / 遮罩都不要，品牌居中（多半只剩图标）
+    '  #rail .railfoot, #rail .stacklabel, #rail .companion-sidebar-toggle,',
+    '  .companion-sidebar-backdrop { display: none !important; }',
+    '  #rail .brand { justify-content: center !important; padding: 10px 0 !important; overflow: hidden !important; }',
+    '  #rail .brand .lbl, #rail .brand .name { display: none !important; }',
+    // 导航组竖排；竖着排不下就自己滚，滚动条藏掉，上游那两道 mask 渐变也去掉
+    '  #rail nav.stack { display: flex !important; flex-direction: column !important;',
+    '    align-items: stretch !important; gap: 4px !important; padding: 4px 0 !important;',
+    '    overflow-y: auto !important; overflow-x: hidden !important;',
     '    scrollbar-width: none; mask-image: none !important; -webkit-mask-image: none !important; }',
     '  #rail nav.stack::-webkit-scrollbar { display: none; }',
-    // 上游每个一级项各占一个 navgroup，横排时这些 group 也横过去，别竖着叠
-    '  #rail .navgroup { display: flex !important; flex-direction: row !important;',
+    '  #rail .navgroup { display: flex !important; flex-direction: column !important;',
     '    gap: 4px !important; margin: 0 !important; padding: 0 !important; border: 0 !important; }',
-    // 44px 高是手指按得住的下限；图标照留，字不换行
-    '  #rail .navitem { flex: none !important; min-height: 44px !important;',
-    '    padding: 6px 12px !important; gap: 7px !important; border-radius: 10px !important; white-space: nowrap; }',
-    '  #rail .navitem .lbl { font-size: 13.5px !important; }',
-    '  #rail .navitem.active::after { display: none !important; }',   // 左边那条竖线是竖排侧栏的语言，横排里改成底色
-    '  #kernel-root { flex: 1 1 auto !important; height: auto !important; min-height: 0 !important; }',
+    // 每个导航项：方形居中图标，46px 高（手指按得住的下限）；文字和右侧小灯都不显示
+    '  #rail .navitem { justify-content: center !important; align-items: center !important;',
+    '    min-height: 46px !important; padding: 0 !important; margin: 2px 8px !important;',
+    '    gap: 0 !important; border-radius: 12px !important; }',
+    '  #rail .navitem .lbl, #rail .navitem .navlamps { display: none !important; }',
+    '  #rail .navitem svg { width: 22px !important; height: 22px !important; }',
+    '  #rail .navitem .tag { display: block !important; }',   // 左边那条高亮竖条留着，认得出当前在哪一栏
+    // 「基础 / 高级」模式键：收成一个图标大小的方块，贴在导航下面
+    '  #rail .companion-mode, #rail.is-collapsed .companion-mode { display: flex !important;',
+    '    flex-direction: column !important; align-items: center !important; justify-content: center !important;',
+    '    height: 46px !important; min-height: 46px !important; margin: 6px 8px !important;',
+    '    padding: 0 !important; gap: 0 !important; border-radius: 12px !important; opacity: 1 !important; }',
+    '  #rail .companion-mode .lbl { display: none !important; }',
+    '  #kernel-root { flex: 1 1 auto !important; min-width: 0 !important; min-height: 0 !important; }',
     '  .scroll { padding-left: 16px !important; padding-right: 16px !important; }',
     '}',
   ].join('\n');
@@ -232,7 +235,7 @@
 
     /* 0. 称呼：她怎么叫你。存在 desktop-pet 组的 user 键，跟 PC 版设置页同一个位置。 */
     var rUser = row('h-user', '称呼', 'Coo 会用这个名字称呼你');
-    var userIn = text('', 24, '老大', function (v) { save({ [K + 'user']: v }); });
+    var userIn = text('', 24, '', function (v) { save({ [K + 'user']: v }); });
     rUser.acts.appendChild(userIn);
 
     /* 0b. 她的名字：displayName 是顶层键，归 core 组，不能走 desktop-pet 那组。 */
@@ -354,7 +357,13 @@
       var href = all[i].getAttribute('href') || '';
       if (href.indexOf('desktop-pet') >= 0 || all[i].textContent.trim() === '桌宠') { petNav = all[i]; break; }
     }
-    var a = mk('a', 'navitem', '习惯');
+    var a = mk('a', 'navitem');
+    // 跟 core 的导航项同构：一个 svg + 一个 .lbl。
+    // 否则窄屏那条 76px 图标条里它没有图标可显示，只剩「习惯」两个字挤压在栏底。
+    a.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"'
+      + ' stroke-linecap="round" stroke-linejoin="round" width="18" height="18" aria-hidden="true">'
+      + '<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>'
+      + '<span class="lbl">习惯</span>';
     a.href = '#/habit';
     a.setAttribute('data-coo-habit', '1');
     a.addEventListener('click', function (ev) {
