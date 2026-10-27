@@ -121,6 +121,16 @@ object CoreRuntime {
                 runCatching { flag.writeText("1") }
                 Log.i(TAG, "语音首次迁移：mic.mode → gesture，asr.enabled → true（之后交给三段按钮）")
             }
+            // 形象同样做一次性迁移：运行时包的 home 模板里 skin.figure 是打包机当时选的
+            // whale（DeepSeek 大肥鱼），新装第一眼不该是她。只在还是 whale 时改，
+            // 用户自己换过的形象一律不碰。
+            val figFlag = File(f.parentFile, ".coo-figure-migrated")
+            if (!figFlag.exists()) {
+                val whale = Regex("\"figure\"\\s*:\\s*\"whale\"")
+                if (whale.containsMatchIn(out)) out = whale.replaceFirst(out, "\"figure\": \"coo\"")
+                runCatching { figFlag.writeText("1") }
+                Log.i(TAG, "形象首次迁移：figure whale -> coo")
+            }
             if (out != s) f.writeText(out)
         }.onFailure { Log.w(TAG, "调整桌宠配置失败", it) }
     }
