@@ -132,8 +132,8 @@
    * `@media (max-width:720px)` 把 #rail 改成 position:sticky + width:100% + flex-direction:row，
    * 也就是「压成贴顶的一条横栏、还挡着页头」，手机上就是侧栏跑到顶上那副样子。
    *
-   * 这里一律留在左边：262 收成 76 的图标条（图标居中、文字隐去、左边高亮竖条保留），
-   * 内容区只让出 76px，不会被整条横栏压掉一行。
+   * 这里一律留在左边：262 收成 82 的图标条（图标居中、文字隐去、左边高亮竖条保留），
+   * 内容区只让出 82px，不会被整条横栏压掉一行。
    * 竖屏平板 777 宽本来就走上游的 clamp(210px, 28.3vw-54px, 262px) = 210，不需要动；
    * 所以这段只在 <=720 生效，宽屏一个字都不写。
    * 全都带 !important：dist/web/styles.css 和 companion.css 各写死过一次 #rail 的 position / width。
@@ -141,18 +141,22 @@
   var NAV_CSS = [
     '@media (max-width: 720px) {',
     // 上游在窄屏把 body 变成 column，这里改回 row：侧栏在左、内容在右
-    '  body, body.companion-sidebar { flex-direction: row !important;',
-    '    padding-left: 0 !important; padding-bottom: 0 !important; }',
+    // body 默认是 block。只写 flex-direction 一点用都没有（对块级容器不生效），
+    // 结果 #rail 和 #kernel-root 在块流里各占一行 —— 手机上就是「内容被挤到侧栏下面」。
+    // body 真正参与布局的子元素只有 #rail 和 #kernel-root（其余是 0x0 的 script/noscript
+    // 和一个 absolute 的隐藏 textarea），所以改成 flex row 是安全的。
+    '  body, body.companion-sidebar { display: flex !important; flex-direction: row !important;',
+    '    align-items: stretch !important; padding-left: 0 !important; padding-bottom: 0 !important; }',
     // 侧栏：撤掉上游的 sticky + width:100% + 横排，改回贴着左边的一条竖栏
     '  #rail { position: static !important; top: auto !important; left: auto !important;',
     '    right: auto !important; bottom: auto !important;',
-    '    width: 76px !important; min-width: 76px !important; max-width: 76px !important;',
+    '    width: 82px !important; min-width: 82px !important; max-width: 82px !important;',
     '    flex: none !important; flex-direction: column !important; align-items: stretch !important;',
     '    height: auto !important; max-height: none !important; z-index: 100 !important;',
     '    overflow: hidden !important;',
     '    border: 0 !important; border-right: 1px solid var(--border, #e3e4e3) !important;',
     '    border-bottom: 0 !important; box-shadow: none !important; }',
-    '  #rail.is-collapsed { width: 76px !important; }',
+    '  #rail.is-collapsed { width: 82px !important; }',
     // 图标条里只留导航：脚注 / 分组标题 / 汉堡键 / 遮罩都不要，品牌居中（多半只剩图标）
     '  #rail .railfoot, #rail .stacklabel, #rail .companion-sidebar-toggle,',
     '  .companion-sidebar-backdrop { display: none !important; }',
@@ -167,30 +171,85 @@
     '  #rail .navgroup { display: flex !important; flex-direction: column !important;',
     '    gap: 4px !important; margin: 0 !important; padding: 0 !important; border: 0 !important; }',
     // 每个导航项：方形居中图标，46px 高（手指按得住的下限）；文字和右侧小灯都不显示
-    '  #rail .navitem { justify-content: center !important; align-items: center !important;',
-    '    min-height: 46px !important; padding: 0 !important; margin: 2px 8px !important;',
-    '    gap: 0 !important; border-radius: 12px !important; }',
-    '  #rail .navitem .lbl, #rail .navitem .navlamps { display: none !important; }',
-    '  #rail .navitem svg { width: 22px !important; height: 22px !important; }',
+    // 图标在上、文字在下。窄栏放不下「图标 + 文字」并排，但竖着叠两层刚好；
+    // 字按 10px 走，能装下四五个汉字，更长的用省略号收尾。
+    '  #rail .navitem { flex-direction: column !important; justify-content: center !important;',
+    '    align-items: center !important; min-height: 50px !important; padding: 4px 2px !important;',
+    '    margin: 2px 6px !important; gap: 3px !important; border-radius: 12px !important; }',
+    '  #rail .navitem .navlamps { display: none !important; }',
+    '  #rail .navitem svg { width: 20px !important; height: 20px !important; flex: none !important; }',
+    // 上游给 .lbl 写了 position:absolute + top:20.19px（宽屏「图标在左、文字在右」时用来摆位），
+    // 竖排后它正好压在图标身上 —— 截图里就是「只有图标、没有文字」。必须拉回文档流。
+    '  #rail .navitem .lbl { position: static !important; top: auto !important; left: auto !important;',
+    '    display: block !important; width: 100% !important; min-width: 0 !important;',
+    '    font-size: 10px !important;',
+    '    line-height: 1.2 !important; max-width: 100% !important; text-align: center !important;',
+    '    letter-spacing: 0 !important; white-space: nowrap !important;',
+    '    overflow: hidden !important; text-overflow: ellipsis !important; }',
     '  #rail .navitem .tag { display: block !important; }',   // 左边那条高亮竖条留着，认得出当前在哪一栏
     // 「基础 / 高级」模式键：收成一个图标大小的方块，贴在导航下面
     '  #rail .companion-mode, #rail.is-collapsed .companion-mode { display: flex !important;',
     '    flex-direction: column !important; align-items: center !important; justify-content: center !important;',
     '    height: 46px !important; min-height: 46px !important; margin: 6px 8px !important;',
     '    padding: 0 !important; gap: 0 !important; border-radius: 12px !important; opacity: 1 !important; }',
-    '  #rail .companion-mode .lbl { display: none !important; }',
+    '  #rail .companion-mode .lbl { display: block !important; font-size: 10px !important;',
+    '    line-height: 1.2 !important; white-space: nowrap !important; overflow: hidden !important; }',
     '  #kernel-root { flex: 1 1 auto !important; min-width: 0 !important; min-height: 0 !important; }',
     '  .scroll { padding-left: 16px !important; padding-right: 16px !important; }',
     '}',
   ].join('\n');
 
+  /**
+   * 窄屏下把导航项压成「图标在上、文字在下」。
+   * 光靠 NAV_CSS 不够：core 给 .lbl 直接写了行内样式（量到 font-size:12.5px、高度被压成 1px），
+   * 行内的优先级高于带 !important 的作者样式表，只能回写 element.style 并同样带 important。
+   * 导航项是 core 动态渲染的，所以每次 patch() 都要再过一遍。
+   */
+  function applyNavLabels() {
+    if (!window.matchMedia || !window.matchMedia('(max-width: 720px)').matches) return;
+    var items = document.querySelectorAll('#rail .navitem');
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      it.style.setProperty('flex-direction', 'column', 'important');
+      it.style.setProperty('justify-content', 'center', 'important');
+      it.style.setProperty('align-items', 'center', 'important');
+      it.style.setProperty('min-height', '50px', 'important');
+      it.style.setProperty('padding', '4px 2px', 'important');
+      it.style.setProperty('gap', '3px', 'important');
+      var lbl = it.querySelector('.lbl');
+      if (!lbl) continue;
+      lbl.style.setProperty('position', 'static', 'important');
+      lbl.style.setProperty('top', 'auto', 'important');
+      lbl.style.setProperty('left', 'auto', 'important');
+      lbl.style.setProperty('inset', 'auto', 'important');
+      lbl.style.setProperty('display', 'block', 'important');
+      lbl.style.setProperty('width', '100%', 'important');
+      lbl.style.setProperty('min-width', '0', 'important');
+      lbl.style.setProperty('height', 'auto', 'important');
+      lbl.style.setProperty('max-height', 'none', 'important');
+      lbl.style.setProperty('font-size', '10px', 'important');
+      lbl.style.setProperty('line-height', '1.25', 'important');
+      lbl.style.setProperty('text-align', 'center', 'important');
+      lbl.style.setProperty('white-space', 'nowrap', 'important');
+      lbl.style.setProperty('overflow', 'hidden', 'important');
+      lbl.style.setProperty('text-overflow', 'ellipsis', 'important');
+      lbl.style.setProperty('letter-spacing', '0', 'important');
+      lbl.style.setProperty('opacity', '1', 'important');
+    }
+  }
+
   /** 挂一次就够（按 id 幂等）；面板重渲染后 head 还在，不用重挂。 */
   function ensureMobileNav() {
-    if (document.getElementById('coo-mobile-nav')) return;
-    var st = mk('style');
-    st.id = 'coo-mobile-nav';
-    st.textContent = NAV_CSS;
-    (document.head || document.documentElement).appendChild(st);
+    if (!document.getElementById('coo-mobile-nav')) {
+      var st = mk('style');
+      st.id = 'coo-mobile-nav';
+      st.textContent = NAV_CSS;
+      (document.head || document.documentElement).appendChild(st);
+    }
+    applyNavLabels();
+    // 导航是 core 异步渲染的：注入那一刻可能还没有 navitem，补两次兜住
+    setTimeout(applyNavLabels, 300);
+    setTimeout(applyNavLabels, 1200);
   }
 
   /* ---------- 安卓设置（桌宠 tab） ---------- */
@@ -359,7 +418,7 @@
     }
     var a = mk('a', 'navitem');
     // 跟 core 的导航项同构：一个 svg + 一个 .lbl。
-    // 否则窄屏那条 76px 图标条里它没有图标可显示，只剩「习惯」两个字挤压在栏底。
+    // 否则窄屏那条 82px 图标条里它没有图标可显示，只剩「习惯」两个字挤压在栏底。
     a.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"'
       + ' stroke-linecap="round" stroke-linejoin="round" width="18" height="18" aria-hidden="true">'
       + '<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>'
