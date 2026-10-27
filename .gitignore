@@ -38,3 +38,4 @@ Thumbs.db
 desktop.ini
 # 测试录音（真人声音，不进仓库）
 tools/test-audio/
+android/app/src/main/assets/runtime-clean.tgz

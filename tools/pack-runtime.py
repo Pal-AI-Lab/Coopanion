@@ -47,19 +47,28 @@ PRIVATE_PREFIXES = (
     "companion/avatar.png",
 )
 
-HOME_MARK = "build/home/"
+# 命中就剔除。两处都有 home：opt/coopanion/home/ 是运行时数据，
+# opt/coopanion/app/build/home/ 是出厂模板——但当初打这个包时把用户 home
+# 整份复制进了模板，所以那边也混着 workspace、runs、avatar 之类的私人内容，一起清。
+HOME_MARKS = (
+    "opt/coopanion/home/",
+    "opt/coopanion/app/build/home/",
+)
 
 
 def rel_under_home(name: str) -> str | None:
-    """如果这个条目在 home/ 下，返回相对 home/ 的路径；否则 None。"""
-    i = name.find(HOME_MARK)
-    if i < 0:
-        return None
-    return name[i + len(HOME_MARK):]
+    """如果这个条目在任一 home/ 下，返回相对 home/ 的路径；否则 None。"""
+    for mk in HOME_MARKS:
+        i = name.find(mk)
+        if i >= 0:
+            return name[i + len(mk):]
+    return None
 
 
 def is_private(rel: str) -> bool:
-    if rel.startswith("providers/") and rel.endswith("config.json"):
+    # providers/ 整个目录都是这台机器上的模型配置：baseUrl（内网地址）、.env 里的
+    # 网关令牌、以及各家 API key，一个都不能带走。
+    if rel.startswith("providers/"):
         return True
     return any(rel.startswith(p) for p in PRIVATE_PREFIXES)
 
