@@ -1469,7 +1469,7 @@ const diag = { move: null, poll: null, type: '', types: new Set(), skipped: 0, l
 /**
  * Fewest milliseconds between two lines; the lines in between are counted into the next one, and
  * the last of them is written once the gap has passed. A flickering pointer flips the window at
- * the cursor report rate (10 a second) or faster; one line a second still names the check that
+ * the cursor report rate (up to 66 a second) or faster; one line a second still names the check that
  * flipped it, and an hour of flicker stays under 3600 lines.
  */
 const POINTER_LOG_EVERY_MS = 1000;
@@ -1524,17 +1524,27 @@ document.addEventListener('pointermove', (e) => {
   followDrag(p);
 });
 /**
- * The pet window also reports where the cursor is on its own, a few times a second: a click-through
+ * The pet window also reports where the cursor is on its own, several times a second: a click-through
  * window may miss the move that takes the cursor off the pet (onto the taskbar, another screen),
- * and the hover buttons would then stay.
+ * and the hover buttons would then stay. While the window passes the mouse through, the reports
+ * are also the body's pointer moves: on Windows such a window gets no moves at all.
  */
+let polled = null;
 host?.onCursor?.((p) => {
   cursor.at = p;
   if (!p) {
     diag.poll = { at: performance.now(), off: true };
     if (!pressing) setInteractive(false, 'poll');
+    if (polled && !pressing) body?.pointer('leave', {});
+    polled = null;
     return;
   }
+  if (!interactive && !pressing && (p.x !== polled?.x || p.y !== polled?.y)) {
+    pointerSeen = true;
+    lastPointer.x = p.x; lastPointer.y = p.y;
+    body?.pointer('move', { ...p, t: performance.now() });
+  }
+  polled = p;
   const el = document.elementFromPoint(p.x, p.y);
   const hit = !!body?.hit(p), ui = !!el?.closest?.(UI_SELECTOR);
   diag.poll = { at: performance.now(), x: p.x, y: p.y, hit, ui };

@@ -15,6 +15,15 @@
  *
  * The window is read through `getWindow`, so the lease can be exercised without Electron.
  */
+
+/**
+ * Whether a click-through window still passes the mouse moves to the page. On Windows Electron
+ * forwards them through a low-level mouse hook that every mouse event on the system goes through,
+ * which stalls the window process under a high-rate mouse; there the page follows the cursor
+ * through the cursor reports alone.
+ */
+const FORWARD_MOVES = process.platform !== 'win32';
+
 function createMouseLease({ getWindow, leaseMs = 1500, reassertMs = 2000, now = () => Date.now() }) {
   let wanted = false, askedAt = 0;
   /** The last verdict, or null while it is not known to be in force. */
@@ -28,7 +37,7 @@ function createMouseLease({ getWindow, leaseMs = 1500, reassertMs = 2000, now = 
     if (hold === held && stamp - appliedAt < reassertMs) return;
     held = hold;
     appliedAt = stamp;
-    win.setIgnoreMouseEvents(!hold, { forward: true });
+    win.setIgnoreMouseEvents(!hold, { forward: FORWARD_MOVES });
   };
 
   return {
@@ -52,4 +61,4 @@ function createMouseLease({ getWindow, leaseMs = 1500, reassertMs = 2000, now = 
   };
 }
 
-module.exports = { createMouseLease };
+module.exports = { createMouseLease, FORWARD_MOVES };
