@@ -1,6 +1,6 @@
 /**
  * The talk key and the typing key: hotkeys held or pressed anywhere on the desktop, read by polling through koffi:
- * GetAsyncKeyState on Windows, CGEventSourceKeyState / CGEventSourceButtonState on macOS,
+ * GetAsyncKeyState on Windows, CGEventSourceFlagsState / CGEventSourceKeyState / CGEventSourceButtonState on macOS,
  * XQueryKeymap on Linux (X11 or XWayland). macOS
  * reads the keyboard only for an app the person allowed under Privacy & Security → Input
  * Monitoring; the first watch asks for it, and until it is given `watchHotkey` returns why.
@@ -91,14 +91,25 @@ export function hotkeyBadge(hotkey: string, platform: NodeJS.Platform = process.
 }
 
 /**
- * macOS key codes (kVK_*) for the Windows virtual-key codes `parseHotkey` gives; a code listed
- * with several keys is down when any of them is. Mouse buttons are CGMouseButton numbers, apart.
+ * The modifier keys as device-dependent bits of CGEventFlags (IOKit's NX_DEVICE*KEYMASK in
+ * IOLLEvent.h), one bit per physical key; a code with two bits is down when either is.
+ * CGEventSourceKeyState does not report the right-hand modifiers, these bits do.
+ */
+const MAC_MODIFIERS: Record<number, number> = {
+  0x11: 0x0001 | 0x2000, 0xa2: 0x0001, 0xa3: 0x2000,
+  0x10: 0x0002 | 0x0004, 0xa0: 0x0002, 0xa1: 0x0004,
+  0x5b: 0x0008 | 0x0010, 0x5c: 0x0010,
+  0x12: 0x0020 | 0x0040, 0xa4: 0x0020, 0xa5: 0x0040,
+};
+
+/** Whether the modifier `vk` is down in `flags`, as CGEventSourceFlagsState returns them; false for any other key. */
+export const macModifierDown = (vk: number, flags: number): boolean => (flags & (MAC_MODIFIERS[vk] ?? 0)) !== 0;
+
+/**
+ * macOS key codes (kVK_*) for the other Windows virtual-key codes `parseHotkey` gives. Mouse
+ * buttons are CGMouseButton numbers, apart.
  */
 const MAC_KEYS: Record<number, number[]> = {
-  0x11: [0x3b, 0x3e], 0xa2: [0x3b], 0xa3: [0x3e],
-  0x12: [0x3a, 0x3d], 0xa4: [0x3a], 0xa5: [0x3d],
-  0x10: [0x38, 0x3c], 0xa0: [0x38], 0xa1: [0x3c],
-  0x5b: [0x37, 0x36], 0x5c: [0x36],
   0x20: [0x31], 0x09: [0x30], 0x14: [0x39], 0xc0: [0x32], 0x0d: [0x24],
   0x2d: [0x72], 0x2e: [0x75], 0x24: [0x73], 0x23: [0x77], 0x21: [0x74], 0x22: [0x79],
   // A–Z and 0–9 where the ANSI layout places them
@@ -114,7 +125,7 @@ const MAC_KEYS: Record<number, number[]> = {
 const MAC_BUTTONS: Record<number, number> = { 0x04: 2, 0x05: 3, 0x06: 4 };
 
 /** The Windows virtual-key codes a Mac can read; the rest have no Mac key. */
-export const macReadable = (vk: number): boolean => MAC_KEYS[vk] !== undefined || MAC_BUTTONS[vk] !== undefined;
+export const macReadable = (vk: number): boolean => MAC_MODIFIERS[vk] !== undefined || MAC_KEYS[vk] !== undefined || MAC_BUTTONS[vk] !== undefined;
 
 export interface KeyWatcher {
   stop(): void;
@@ -143,11 +154,16 @@ async function macReader(keys: number[], t: PetText['hotkey']): Promise<KeyReade
     const request = cg.func('bool CGRequestListenEventAccess()') as () => boolean;
     // asks once; the answer takes effect after the app restarts
     if (!preflight() && !request()) return t.macPermission;
+    const flagsState = cg.func('uint64_t CGEventSourceFlagsState(int32_t state)') as (state: number) => number | bigint;
     const keyState = cg.func('bool CGEventSourceKeyState(int32_t state, uint16_t key)') as (state: number, key: number) => boolean;
     const buttonState = cg.func('bool CGEventSourceButtonState(int32_t state, uint32_t button)') as (state: number, button: number) => boolean;
     // kCGEventSourceStateHIDSystemState: the hardware, whichever app has the keyboard
     const HID = 1;
-    return (vk) => (MAC_BUTTONS[vk] !== undefined ? buttonState(HID, MAC_BUTTONS[vk]!) : (MAC_KEYS[vk] ?? []).some((k) => keyState(HID, k)));
+    return (vk) => {
+      if (MAC_BUTTONS[vk] !== undefined) return buttonState(HID, MAC_BUTTONS[vk]!);
+      if (MAC_MODIFIERS[vk] !== undefined) return macModifierDown(vk, Number(flagsState(HID)));
+      return (MAC_KEYS[vk] ?? []).some((k) => keyState(HID, k));
+    };
   } catch (err) {
     return t.cannotRead((err as Error).message);
   }
