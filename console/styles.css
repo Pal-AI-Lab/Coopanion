@@ -1386,7 +1386,7 @@
   .ob-btn:disabled { opacity: .55; cursor: not-allowed; }
   .ob-btn.ob-go { background: var(--accent); color: #fff; }
   .ob-btn.ob-go:hover:not(:disabled) { filter: brightness(1.06); }
-.featureslot-providers:has(> .provider-settings:not([hidden])){overflow:hidden;padding-bottom:0}
+.featureslot-providers:has(> .provider-settings:not([hidden])){overflow:hidden;scrollbar-gutter:auto;padding-inline:calc(var(--page-gutter) + 10px);padding-bottom:0}
 .featureslot-providers > .provider-settings:not([hidden]){--provider-edge:calc(var(--page-gutter) + 10px + max(0px,(100cqw - var(--content-width)) / 2));display:flex;flex-direction:column;flex:1;min-height:0}
 .provider-settings > .msgline{flex:none}
 .connection-hub{display:grid;flex:1;min-height:0;grid-template-columns:minmax(210px,280px) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:24px}
