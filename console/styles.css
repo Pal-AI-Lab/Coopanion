@@ -1386,9 +1386,12 @@
   .ob-btn:disabled { opacity: .55; cursor: not-allowed; }
   .ob-btn.ob-go { background: var(--accent); color: #fff; }
   .ob-btn.ob-go:hover:not(:disabled) { filter: brightness(1.06); }
-.connection-hub{display:grid;grid-template-columns:minmax(210px,280px) minmax(0,1fr);gap:24px;align-items:start}
-.connection-index{position:sticky;top:16px;min-width:0;max-height:calc(100vh - 140px);overflow:auto;padding:4px}
-.connection-cards{display:grid;gap:12px;padding:3px}
+.featureslot-providers:has(> .provider-settings:not([hidden])){overflow:hidden;padding-bottom:0}
+.featureslot-providers > .provider-settings:not([hidden]){--provider-edge:calc(var(--page-gutter) + 10px + max(0px,(100cqw - var(--content-width)) / 2));display:flex;flex-direction:column;flex:1;min-height:0}
+.provider-settings > .msgline{flex:none}
+.connection-hub{display:grid;flex:1;min-height:0;grid-template-columns:minmax(210px,280px) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:24px}
+.connection-index{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;padding:0 4px}
+.connection-cards{display:grid;align-content:start;grid-auto-rows:max-content;flex:1;min-height:0;gap:12px;padding:3px 3px 32px;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
 .connection-card{min-width:0;border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--paper);cursor:pointer;transition:background .15s,border-color .15s}
 .connection-card.is-active{border-color:var(--accent);box-shadow:0 0 8px color-mix(in srgb,var(--accent) 12%,transparent)}
 .connection-card.is-selected{background:color-mix(in srgb,var(--ink) 5%,var(--paper));outline:2px solid var(--ink-dim);outline-offset:1px}
@@ -1398,7 +1401,7 @@
 .connection-facts .kv{max-width:100%}.connection-facts .kv-v{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kv-kind{--kv-line:color-mix(in srgb,var(--ink-blue) 60%,transparent)}.kv-model{--kv-line:color-mix(in srgb,var(--accent-2) 75%,transparent)}.kv-baseUrl{--kv-line:var(--line-strong)}
 .connection-status{font-size:12px;margin-top:14px}.connection-secondary{font-size:11px;color:var(--ink-dim)}
-.connection-detail{min-width:0}.connection-detail .sheet{margin-bottom:0}
+.connection-detail{min-width:0;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;margin-right:calc(-1 * var(--provider-edge));padding:0 calc(4px + var(--provider-edge)) 56px 4px}.connection-detail .sheet{margin-bottom:0}
 .connection-identity+.connection-flow{margin-top:13px;padding-top:13px;border-top:1px solid var(--border-strong)}
 .connection-flow{counter-reset:step}.connection-step{counter-increment:step;min-width:0}
 .connection-step>.sheet{padding:11px 0 13px;border-top:0}
@@ -1443,7 +1446,7 @@
 .connection-detail .field-error{color:var(--danger,#b43c38);font-size:12px;min-height:0}.connection-shared{color:var(--ink-dim);font-size:12px;line-height:1.7;margin:10px 0 0}
 .connection-shared+.connection-shared{margin-top:3px}
 .connection-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:16px}.connection-actions .grow{flex:1}
-@media(max-width:760px){.connection-hub{grid-template-columns:1fr}.connection-index{position:static;max-height:320px}.connection-cards{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}}
+@media(max-width:600px){.connection-hub{grid-template-columns:1fr;grid-template-rows:repeat(2,minmax(0,1fr));gap:16px}.connection-cards{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}}
 
 .live-summary > .chips:first-child { flex: 0 1 auto; min-width: 0; }
 .live-summary-right { display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 100%; margin-left: auto; }
@@ -1483,7 +1486,6 @@
 .featureslot > .featureintro + .sheet { margin-top:0; }
 /* 面板槽是滚动容器，吸顶元素贴在 padding 内沿，所以上方留白放在第一项的外边距上;World 页模板的工具条贴着栏目条 */
 .panelslot > :first-child:not(.template-library) { margin-top:24px; }
-.connection-index { padding-top:0; top:100px; }
 .connection-detail > div > div:first-child > .sheet:first-child { padding-top:0; }
 .connection-hub .btn { border:1px solid var(--border-strong); }
 .connection-hub .btn:hover { border-color:var(--ink-soft); }
@@ -1543,7 +1545,7 @@
 .panelslot > .sheet:first-child, .panelslot > :first-child > .sheet:first-child, .panelslot > :first-child > :first-child > .sheet:first-child { padding-top: 0; }
 
 /* 卡片:连接在右上,删除在右下,图标底边对齐状态行。 */
-.connection-create { margin-bottom:16px; }
+.connection-create { flex:none; margin-bottom:16px; }
 .connection-create-hint { margin:7px 2px 0; font:var(--text-detail)/1.5 var(--sans); color:var(--muted-foreground); }
 .connection-create > .btn { width:100%; }
 .connection-card { position:relative; padding-right:64px; }
@@ -1558,8 +1560,6 @@
 .connection-connect[hidden] { display:none; }
 .connection-hub .btn.connection-activate { display:block; width:32px; height:28px; min-height:28px; padding:0; border:0; font-size:17px; line-height:28px; }
 .connection-connect-label { display:block; font-size:10px; line-height:14px; color:var(--muted-foreground); }
-.connection-index { scrollbar-width:none; }
-.connection-index::-webkit-scrollbar { display:none; }
 .required-mark { color:var(--danger); }
 .connection-test { gap:12px; align-items:center; }
 .connection-test .msgline { margin:0; }

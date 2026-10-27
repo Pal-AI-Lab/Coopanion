@@ -177,6 +177,7 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
   async function refresh() { state = await get<HubState>('/api/providers', opts); paint(); }
   async function select(identity: string, force = false): Promise<void> {
     if (!force && identity === selected) return;
+    const scrollTop = identity === selected ? detailRoot.scrollTop : 0;
     const gen = ++renderId;
     controller?.dispose(); controller = null;
     // The disposed editor stays visible until its replacement is ready and takes no input meanwhile.
@@ -187,12 +188,12 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
       detailRoot.replaceChildren(ui.h('h3', '', S.empty), ui.msgline(S.emptyHint), ui.button(S.create, { onClick: () => run(create) }));
       return;
     }
-    try { await openDetail(identity, gen); } catch (error) {
+    try { await openDetail(identity, gen, scrollTop); } catch (error) {
       if (gen === renderId) { detailRoot.replaceChildren(); detailRoot.toggleAttribute('inert', false); }
       throw error;
     }
   }
-  async function openDetail(identity: string, gen: number): Promise<void> {
+  async function openDetail(identity: string, gen: number, scrollTop: number): Promise<void> {
     const saved = identity === NEW_DRAFT_ID ? null : await get<Detail>(connectionPath(identity), opts);
     if (gen !== renderId || ctx.signal.aborted) return;
     const detailView = ui.h('div');
@@ -217,11 +218,9 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
     });
     if (gen !== renderId || ctx.signal.aborted) mounted.dispose();
     else {
-      const scroll = detailRoot.closest<HTMLElement>('.featureslot, .scroll');
-      const scrollTop = scroll?.scrollTop;
       detailRoot.replaceChildren(detailView);
       detailRoot.toggleAttribute('inert', false);
-      if (scroll && scrollTop !== undefined) scroll.scrollTop = scrollTop;
+      detailRoot.scrollTop = scrollTop;
       controller = mounted;
     }
   }

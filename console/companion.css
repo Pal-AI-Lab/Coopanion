@@ -86,6 +86,12 @@ body.companion-sidebar {
 #rail nav.stack::-webkit-scrollbar-thumb:active,
 #kernel-root ::-webkit-scrollbar-thumb:hover,
 #kernel-root ::-webkit-scrollbar-thumb:active { background-color: var(--line-strong); }
+#kernel-root .connection-index:hover .connection-cards::-webkit-scrollbar-thumb,
+#kernel-root .connection-detail:hover::-webkit-scrollbar-thumb { background-color: var(--line-2); }
+#kernel-root :is(.connection-cards, .connection-detail)::-webkit-scrollbar-thumb:hover,
+#kernel-root :is(.connection-cards, .connection-detail)::-webkit-scrollbar-thumb:active { background-color: var(--line-strong); }
+#kernel-root .connection-index:not(:hover) .connection-cards::-webkit-scrollbar-thumb,
+#kernel-root .connection-detail:not(:hover)::-webkit-scrollbar-thumb { background-color: transparent; }
 #rail .navgroup { display: flex; }
 #rail .navgroup-primary + .navgroup-primary { margin-top: 4px; }
 #rail .stacklabel {
