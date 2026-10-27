@@ -216,6 +216,10 @@ ${super.partnerDoc() || `(${PARTNER_FILE} is empty.)`}`;
     }
 
     override onWorldLifecycle(event: WorldLifecycleEvent): void {
+      if (event.kind === 'start-failed') {
+        this.core?.injectInternal(`[system] The World "${event.label}" failed to start and is not running this time: ${event.reason}`, 'notice');
+        return;
+      }
       const what = event.kind === 'visibility'
         ? (event.visible ? 'is visible to you again' : 'is hidden from you; its events no longer reach you')
         : event.kind === 'mounted' ? 'is on' : event.kind === 'unmounted' ? 'is off' : 'restarted';

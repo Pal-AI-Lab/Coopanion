@@ -350,7 +350,16 @@ async function serveWindow(request) {
   const from = request.referrer ? new URL(request.referrer).origin : null;
   if (url.origin === coreOrigin()) {
     if (url.pathname.startsWith(WINDOW_PREFIX)) return windowFile(url);
-    return from === coreOrigin() ? forward(request, url, from) : refused();
+    if (from !== coreOrigin()) return refused();
+    // a shutdown the console asked for is not a crash
+    if (request.method === 'POST' && url.pathname === '/api/run/shutdown') {
+      core.expectStop();
+      const response = await forward(request, url, from);
+      // a request Core refused leaves it running; a later exit is a crash again
+      if (!response.ok) core.forgetStop();
+      return response;
+    }
+    return forward(request, url, from);
   }
   if (url.origin !== petOrigin && url.origin !== await learnPetOrigin()) return refused();
   if (from === coreOrigin() || from === petOrigin) return forward(request, url, from);
