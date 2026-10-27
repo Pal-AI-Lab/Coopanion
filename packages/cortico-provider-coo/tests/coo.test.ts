@@ -420,3 +420,43 @@ describe('connecting a service through the WebUI routes', () => {
     expect(calls.some(([p]) => p.endsWith('/activate') || p === '/api/run/resume')).toBe(false);
   });
 });
+
+describe('audio on a Gemini endpoint', () => {
+  const gemini = () => entry({ baseUrl: siteOf(VENDORS.find((v) => v.id === 'gemini')!, 'intl').baseUrl, spec: { model: 'gemini-x-flash', thinking: false } });
+
+  it('accepts audio and video on a multimodal Gemini endpoint and only images elsewhere', () => {
+    const spec = (model: string) => ({ model, thinking: true });
+    expect(COO.accepts!(gemini(), spec('gemini-x-flash'), 'audio/wav')).toBe(true);
+    expect(COO.accepts!(gemini(), spec('gemini-x-flash'), 'video/mp4')).toBe(true);
+    expect(COO.accepts!(gemini(), spec('gemini-x-flash'), 'application/zip')).toBe(false);
+    expect(COO.accepts!({ ...gemini(), multimodal: false }, spec('gemini-x-flash'), 'audio/wav')).toBe(false);
+    expect(COO.accepts!(entry(), spec('deepseek-flash'), 'audio/wav')).toBe(false);
+  });
+
+  it('puts the newest heard audio in the request body as inline data; earlier audio keeps only its text line', async () => {
+    const bodies: Array<{ contents: Array<{ role: string; parts: Array<Record<string, any>> }> }> = [];
+    const urls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: { body: string }) => {
+      urls.push(url);
+      bodies.push(JSON.parse(init.body));
+      return new Response(JSON.stringify({ candidates: [{ content: { role: 'model', parts: [{ text: 'ok' }] }, finishReason: 'STOP' }],
+        usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1, totalTokenCount: 2 } }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    const wav: Record<string, Buffer> = { 'log:old.wav': Buffer.from('RIFF-old'), 'log:new.wav': Buffer.from('RIFF-new') };
+    const instance = COO.create('gemini', gemini(), { ...host(), readBlob: (handle: string) => wav[handle] ?? null } as never);
+    const heard = (handle: string, text: string) => {
+      const ref = { handle, mime: 'audio/wav', fallbackText: text };
+      return { ...message('user', blobLine(ref)), context: { blobs: [ref] } };
+    };
+    const context = [heard('log:old.wav', 'traffic'), message('assistant', 'heard it'), heard('log:new.wav', 'birds')];
+    try {
+      await instance.client.respond({ model: 'gemini-x-flash', input: context.map((r) => r.item) } as unknown as Request, { context });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(urls[0]).toContain('/models/gemini-x-flash:generateContent');
+    const parts = bodies[0].contents.flatMap((c) => c.parts);
+    expect(parts.filter((p) => p.inlineData)).toEqual([{ inlineData: { mimeType: 'audio/wav', data: wav['log:new.wav'].toString('base64') } }]);
+    expect(parts.some((p) => typeof p.text === 'string' && p.text.includes('traffic'))).toBe(true);
+  });
+});
