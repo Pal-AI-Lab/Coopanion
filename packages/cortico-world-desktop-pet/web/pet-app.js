@@ -18,6 +18,7 @@ import { COO_CSS, PALETTES, mini, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
 import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
+import { createMic } from './mic.js';
 
 const $ = (s) => document.querySelector(s);
 const host = window.petHost || null;
@@ -1123,92 +1124,7 @@ function stepStatus() {
 }
 
 /* ---------- microphone: open while `prefs.mic`, which the World turns on and off with a held talk key in hold mode ---------- */
-let mic = null;
-let deviceReport = 0, retryMic = false;
-async function startMic() {
-  if (mic) return;
-  retryMic = false;
-  const opening = mic = { starting: true, devicesChanged: false };
-  // 拿到一半就失败时也要停麦关声卡,否则录音指示灯常亮到页面刷新
-  let stream = null, ctx = null;
-  try {
-    // The capture keeps the default read before opening; later device reports may already see its replacement.
-    opening.defaultInput = await reportDevices();
-    if (mic !== opening) return;
-    const audio = { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true };
-    if (prefs.micDevice) audio.deviceId = { exact: prefs.micDevice };
-    stream = await navigator.mediaDevices.getUserMedia({ audio });
-    if (mic !== opening) { stream.getTracks().forEach((t) => t.stop()); return; }
-    ctx = new AudioContext({ sampleRate: 16000 });
-    await ctx.audioWorklet.addModule('/web/mic-worklet.js');
-    // A pending open may have captured the previous default before the devicechange event.
-    let changed = false;
-    while (mic === opening && opening.devicesChanged && !changed) {
-      opening.devicesChanged = false;
-      const input = await reportDevices();
-      changed = input !== undefined && input !== opening.defaultInput;
-    }
-    if (!prefs.mic || mic !== opening || changed) {
-      stream.getTracks().forEach((t) => t.stop()); ctx.close();
-      if (mic === opening) { mic = null; if (prefs.mic) return startMic(); }
-      return;
-    }
-    const src = ctx.createMediaStreamSource(stream);
-    const node = new AudioWorkletNode(ctx, 'pet-mic');
-    const active = { stream, ctx, node, defaultInput: opening.defaultInput };
-    node.port.onmessage = (e) => { if (mic === active && ws && ws.readyState === 1) ws.send(e.data); };
-    src.connect(node);
-    mic = active;
-    for (const track of stream.getAudioTracks()) track.addEventListener('ended', () => {
-      if (mic !== active) return;
-      stopMic();
-      if (prefs.mic) void startMic();
-    });
-    send({ t: 'mic', state: 'on', detail: stream.getAudioTracks()[0]?.label || null });
-    void reportDevices();
-  } catch (err) {
-    if (stream) stream.getTracks().forEach((t) => t.stop());
-    if (ctx) ctx.close();
-    if (mic !== opening) return;
-    mic = null;
-    retryMic = err?.name !== 'NotAllowedError';
-    send({ t: 'mic', state: err && err.name === 'NotAllowedError' ? 'denied' : 'error', detail: String(err && err.message || err) });
-    // access was granted, so the labels are readable: list the devices, another one may open where this one did not
-    if (err?.name !== 'NotAllowedError') void reportDevices();
-  }
-}
-/** Reports the input list and returns the current default input's identity. */
-async function reportDevices() {
-  const current = mic, report = ++deviceReport;
-  try {
-    const all = await navigator.mediaDevices.enumerateDevices();
-    if (report !== deviceReport || mic !== current) return;
-    const inputs = all.filter((d) => d.kind === 'audioinput');
-    // Chromium's default alias keeps its deviceId when its underlying input changes.
-    const input = inputs.find((d) => d.deviceId === 'default') || inputs[0];
-    const next = JSON.stringify(input ? [input.deviceId, input.groupId, input.label] : null);
-    send({ t: 'devices', list: inputs.filter((d) => d.deviceId !== 'default' && d.deviceId !== 'communications').map((d) => ({ id: d.deviceId, label: d.label })) });
-    return next;
-  } catch (err) {
-    console.error(err);
-  }
-}
-navigator.mediaDevices?.addEventListener('devicechange', async () => {
-  const current = mic;
-  if (!current) { if (prefs.mic && retryMic) void startMic(); return; }
-  if (current.starting) { if (!prefs.micDevice) current.devicesChanged = true; return; }
-  const input = await reportDevices();
-  if (input !== undefined && input !== current.defaultInput && mic === current && prefs.mic && !prefs.micDevice) { stopMic(); void startMic(); }
-});
-function stopMic() {
-  const m = mic;
-  mic = null;
-  retryMic = false;
-  if (!m || m.starting) return;
-  m.stream.getTracks().forEach((t) => t.stop());
-  m.ctx.close();
-  send({ t: 'mic', state: 'off' });
-}
+const { start: startMic, stop: stopMic } = createMic({ prefs, send, sendAudio: (data) => { if (ws && ws.readyState === 1) ws.send(data); } });
 
 /* ---------- actions: the menu's lower zone and the hover buttons draw from one list ---------- */
 const ROAM_ORDER = ['off', 'calm', 'free'];
