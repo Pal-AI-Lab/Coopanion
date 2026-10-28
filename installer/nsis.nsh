@@ -12,7 +12,7 @@
   ${IfNot} ${FileExists} "$INSTDIR\Coopanion.exe"
   ${OrIfNot} ${FileExists} "$INSTDIR\resources\app\node_modules\tsx\dist\loader.mjs"
     ; /SD: a silent install (an automatic update runs one) must not wait on the box
-    MessageBox MB_OK|MB_ICONSTOP "Coopanion's files did not all reach the install directory: the installer could not extract its package. This is usually antivirus software or low disk space. Nothing was installed; please check and run the installer again." /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "Coopanion's files did not all reach the install directory: the installer could not extract its package. This is usually antivirus software or low disk space. The install is incomplete; please check and run the installer again." /SD IDOK
     Abort
   ${EndIf}
 !macroend
