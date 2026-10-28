@@ -13,7 +13,8 @@ const zh = {
   addToLibrary: "添加到仓库",
   filterSidebar: "筛选",
   catalogCategory: "类别",
-  catalogCategories: {"all": "全部", "tools": "提供工具", "events": "接收事件", "local": "本地运行"},
+  catalogCategories: {"all": "全部", "chat": "聊天与社交", "game": "游戏", "streaming": "直播", "companion": "陪伴", "media": "语音与视频", "creative": "创作", "web": "联网与浏览器", "computer": "电脑与应用", "diagnostics": "诊断", "other": "其他"},
+  tagGroups: {"badges": "推荐", "series": "系列", "setup": "使用条件", "cautions": "注意事项"},
 
   navLabel: '扩展',
   navGroup: 'Core',
@@ -242,7 +243,8 @@ export const en: typeof zh = {
   addToLibrary: "Add to library",
   filterSidebar: "Filters",
   catalogCategory: "Categories",
-  catalogCategories: {"all": "All", "tools": "Tools", "events": "Events", "local": "Local"},
+  catalogCategories: {"all": "All", "chat": "Chat & social", "game": "Games", "streaming": "Streaming", "companion": "Companionship", "media": "Voice & video", "creative": "Creative", "web": "Web & browser", "computer": "Computer & apps", "diagnostics": "Diagnostics", "other": "Other"},
+  tagGroups: {"badges": "Highlights", "series": "Series", "setup": "Requirements", "cautions": "Cautions"},
 
   navLabel: 'Extensions',
   navGroup: 'Core',

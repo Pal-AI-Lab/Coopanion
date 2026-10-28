@@ -986,14 +986,28 @@ describe('World library and catalog', () => {
     root.querySelector('.world-market [aria-label="清除筛选"]').click(); await flush();
     expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(2);
   });
-  it('filters by capabilities and resets the selected category with clear filters', async () => {
-    const { root } = await openWorlds({ hits: { hits: [{ ...HITS.hits[0], summary: { tools: 2, events: 0 } }, { ...HITS.hits[1], summary: { tools: 0, events: 2 } }] } });
-    button(root, '接收事件').click(); await flush();
-    expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(1);
-    expect(root.querySelector('.world-catalog .extension-market-card').textContent).toContain('甲扩展');
+  it('groups the catalog by function tags and lists the remaining tags under their group', async () => {
+    const index = { tags: { game: { label: '游戏' }, im: { label: '即时通讯' }, experimental: { label: '实验性', style: 'notice' } } };
+    const hits = [{ ...HITS.hits[0], tags: ['im', 'experimental'] }, { ...HITS.hits[1], tags: ['game'] }];
+    const { root } = await openWorlds({ hits: { hits, index } });
+    const category = id => root.querySelector(`.world-catalog-categories [data-category="${id}"]`);
+    expect(category('game').querySelector('.extension-tag-count').textContent).toBe('1');
+    expect(category('streaming').hidden).toBe(true);
+    const sidebarTags = [...root.querySelectorAll('.world-catalog-filters .extension-tagbar .extension-tag')].map(tag => tag.textContent);
+    expect(sidebarTags.some(text => text.startsWith('游戏') || text.startsWith('即时通讯'))).toBe(false);
+    expect([...root.querySelectorAll('.world-catalog-filters .extension-tagbar-label')].map(label => label.textContent)).toContain('注意事项');
+    category('game').click(); await flush();
+    expect([...root.querySelectorAll('.world-catalog .extension-market-card')].map(card => card.dataset.name)).toEqual([HITS.hits[1].name]);
     root.querySelector('.world-market [aria-label="清除筛选"]').click(); await flush();
     expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(2);
-    expect(button(root.querySelector('.world-catalog-categories'), '全部').getAttribute('aria-pressed')).toBe('true');
+    expect(category('all').getAttribute('aria-pressed')).toBe('true');
+  });
+  it('selects the category when a function tag on a card is clicked', async () => {
+    const index = { tags: { game: { label: '游戏' } } };
+    const { root } = await openWorlds({ hits: { hits: [{ ...HITS.hits[0], tags: ['game'] }, HITS.hits[1]], index } });
+    root.querySelector('.world-catalog .extension-market-card .extension-tag').click(); await flush();
+    expect(root.querySelector('.world-catalog-categories [data-category="game"]').getAttribute('aria-pressed')).toBe('true');
+    expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(1);
   });
   it('keeps runtime controls available when the catalog capability is absent', async () => {
     const { root } = await openWorlds({}, { worlds: true, worldActivation: true });

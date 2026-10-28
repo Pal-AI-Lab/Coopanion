@@ -2047,6 +2047,10 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-catalog-categories{display:flex;flex-direction:column;gap:2px;padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:16px}
 .world-catalog-categories .btn{justify-content:flex-start;text-align:left;border:0;background:transparent;color:var(--ink-soft);font-size:12.5px;min-height:32px;padding:6px 10px;border-radius:8px}
 .world-catalog-categories .btn:hover{background:var(--hover);color:var(--ink)}
+.world-catalog-categories .btn{display:flex;align-items:center;width:100%}
+.world-catalog-categories .btn .extension-tag-count{margin-left:auto;padding-left:8px;font-size:11px;font-weight:400;color:var(--ink-dim)}
+.world-catalog-categories .btn[hidden]{display:none}
+.world-catalog-filters .extension-tagbar .extension-tag-row{margin-bottom:14px}
 .world-catalog-categories .btn[aria-pressed=true]{background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--accent);font-weight:600}
 .world-catalog-filters .extension-tagbar-label{display:block;padding:0 10px;line-height:18px;font-size:11px}
 .world-catalog-filters .extension-tagbar{display:block;margin:0 0 20px;padding:0;border:0}

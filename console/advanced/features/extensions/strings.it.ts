@@ -4,7 +4,8 @@ export const S: Partial<typeof en> = {
   addToLibrary: "Aggiungi alla libreria",
   filterSidebar: "Filtri",
   catalogCategory: "Categorie",
-  catalogCategories: {"all": "Tutte", "tools": "Strumenti", "events": "Eventi", "local": "Esecuzione locale"},
+  catalogCategories: {"all": "Tutte", "chat": "Chat e social", "game": "Giochi", "streaming": "Streaming", "companion": "Compagnia", "media": "Voce e video", "creative": "Creatività", "web": "Web e browser", "computer": "Computer e app", "diagnostics": "Diagnostica", "other": "Altro"},
+  tagGroups: {"badges": "In evidenza", "series": "Serie", "setup": "Requisiti", "cautions": "Avvertenze"},
 
   navLabel: 'Estensioni',
   navGroup: 'Core',

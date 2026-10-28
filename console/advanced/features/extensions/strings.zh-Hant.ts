@@ -4,7 +4,8 @@ export const S: Partial<typeof en> = {
   addToLibrary: "加入收藏庫",
   filterSidebar: "篩選",
   catalogCategory: "類別",
-  catalogCategories: {"all": "全部", "tools": "提供工具", "events": "接收事件", "local": "本機執行"},
+  catalogCategories: {"all": "全部", "chat": "聊天與社群", "game": "遊戲", "streaming": "直播", "companion": "陪伴", "media": "語音與影片", "creative": "創作", "web": "連網與瀏覽器", "computer": "電腦與應用程式", "diagnostics": "診斷", "other": "其他"},
+  tagGroups: {"badges": "推薦", "series": "系列", "setup": "使用條件", "cautions": "注意事項"},
 
   navLabel: '擴充功能',
   navGroup: 'Core',

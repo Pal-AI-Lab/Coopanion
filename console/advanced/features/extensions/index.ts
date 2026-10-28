@@ -6,6 +6,7 @@ import { pageIntro } from '../../../base/ui/page.ts';
 import { renderMarkdown } from './markdown.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { S } from './strings.ts';
+import { CATALOG_CATEGORIES, CATALOG_CATEGORY_IDS, inCatalogCategory, isFunctionTag, type CatalogCategory } from './catalog.ts';
 import { S as UI } from '../../../base/ui/strings.ts';
 
 /** 扩展类别。与 `ExtensionKind` 同形;这一页只用它分组与选关键字。 */
@@ -383,7 +384,7 @@ interface CategoryState {
   advanced: boolean; author: string; keyword: string; license: string; sinceDays: number; minDownloads: number;
   hits: SearchHitView[]; fetched: boolean; generation: number; messages: Record<string, { text: string; bad: boolean }>;
   source: 'npm' | 'local'; input: string;
-  catalogCategory: 'all' | 'tools' | 'events' | 'local'; filtersFolded: boolean;
+  catalogCategory: CatalogCategory; filtersFolded: boolean;
   /** World catalog: list every package, only installed ones, or only those not installed. */
   installation: 'all' | 'installed' | 'available';
 }
@@ -448,6 +449,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     const saved = JSON.parse(win.sessionStorage.getItem(storageKey) ?? '{}');
     for (const kind of categories) if (saved[kind]) Object.assign(states[kind], saved[kind], { hits: [], fetched: false, generation: 0, messages: {} });
     for (const kind of categories) if (!HIT_SORTS.includes(states[kind].sort)) states[kind].sort = 'certified';
+    for (const kind of categories) if (!CATALOG_CATEGORY_IDS.includes(states[kind].catalogCategory)) states[kind].catalogCategory = 'all';
   } catch { /* Storage can be disabled by the browser. */ }
   let columns = workspace ? 1 : extensionColumns(root.clientWidth);
   let installed: ExtensionView[] = [];
@@ -468,6 +470,9 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   /** npm 源下拉是否展开;读不出源时自动展开。 */
   let registryOpen = false;
   let loadGeneration = 0;
+  /** Repaints the World catalog's category list: counts and the selected category. */
+  let paintCategories: (() => void) | undefined;
+  function selectCategory(value: CatalogCategory) { states[kind].catalogCategory = value; states[kind].page = 0; renderMarket(); save(); }
   /** Loads and searches in flight; the World toolbar's refresh icon spins while any runs. */
   let refreshing = 0;
   let refreshControl: HTMLElement | undefined;
@@ -713,6 +718,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     save(); render();
   }
   function toggleTag(id: string) {
+    if (workspace && isFunctionTag(id)) { selectCategory((Object.keys(CATALOG_CATEGORIES) as (keyof typeof CATALOG_CATEGORIES)[]).find(key => (CATALOG_CATEGORIES[key] as readonly string[]).includes(id))!); return; }
     const state = states[kind];
     state.tags = state.tags.includes(id) ? state.tags.filter(t => t !== id) : [...state.tags, id];
     state.page = 0; renderMarket(); save();
@@ -1191,7 +1197,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   }
   function renderMarket() {
     const state = states[kind];
-    const hits = state.hits.filter(hit => !workspace || state.catalogCategory === 'all' || !state.catalogCategory || (state.catalogCategory === 'local' ? hit.summary?.local : (hit.summary?.[state.catalogCategory] ?? 0) > 0)).map(h => ({ ...h, installed: installed.some(p => p.name === h.name && p.state !== 'removed') })).filter(h => !workspace || state.installation !== 'installed' || h.installed);
+    paintCategories?.();
+    const hits = state.hits.filter(hit => !workspace || inCatalogCategory(hit.tags, state.catalogCategory)).map(h => ({ ...h, installed: installed.some(p => p.name === h.name && p.state !== 'removed') })).filter(h => !workspace || state.installation !== 'installed' || h.installed);
     state.tags = state.tags.filter(id => marketIndex.tags[id]);
     const result = arrangeHits(hits, { filter: state.filter, sort: state.sort, hideInstalled: workspace ? state.installation === 'available' : state.hide, page: state.page, pageSize: pageSize('market'), tags: state.tags, excludeTags: state.hideWarnings ? warningTags() : [], officialOnly: state.officialOnly, certifiedOnly: state.certifiedOnly, newOnly: state.newOnly, ...advancedFilters(state) }); if (state.fetched) state.page = result.page;
     if (clearButton) clearButton.disabled = !filtersActive(state);
@@ -1276,8 +1283,21 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     badgeToggle('certifiedOnly', 'shield-check', S.certified, S.certifiedHint, certifiedCount);
     badgeToggle('officialOnly', 'cortico', S.officialRelease, S.officialHint, officialCount);
     badgeToggle('newOnly', 'sparkles', S.newLabel, S.newHint(marketIndex.newDays ?? 14), newCount);
-    chips.append(...ids.map(id => tagChip(id, { active: state.tags.includes(id), count: counts.get(id), onToggle: () => toggleTag(id) })));
-    tagBar.replaceChildren(ui.h('span', 'extension-tagbar-label', S.tagFilter), chips);
+    const chip = (id: string) => tagChip(id, { active: state.tags.includes(id), count: counts.get(id), onToggle: () => toggleTag(id) });
+    if (!workspace) { chips.append(...ids.map(chip)); tagBar.replaceChildren(ui.h('span', 'extension-tagbar-label', S.tagFilter), chips); return; }
+    // The World catalog groups what is left after the category's function tags by what each tag says.
+    const style = (id: string) => marketIndex.tags[id].style;
+    const groups: Array<[string, HTMLElement[]]> = [
+      [S.tagGroups.badges, [...chips.children] as HTMLElement[]],
+      [S.tagGroups.series, ids.filter(id => style(id) === 'official').map(chip)],
+      [S.tagGroups.setup, ids.filter(id => !style(id) && !isFunctionTag(id)).map(chip)],
+      [S.tagGroups.cautions, ids.filter(id => style(id) === 'notice' || style(id) === 'warning').map(chip)],
+    ];
+    tagBar.replaceChildren(...groups.filter(([, items]) => items.length).flatMap(([label, items]) => {
+      const row = ui.h('div', 'extension-tag-row'); row.append(...items);
+      return [ui.h('span', 'extension-tagbar-label', label), row];
+    }));
+    tagBar.hidden = !tagBar.childElementCount;
   }
   function load(): Promise<boolean> { return refreshed(loadList()); }
   async function loadList(): Promise<boolean> {
@@ -1637,14 +1657,19 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
       syncFilterLayout(); toggle.setAttribute('aria-controls', side.id);
       filters.insertBefore(toggle, clear);
       const categoryList = ui.h('div', 'world-catalog-categories');
-      for (const value of ['all', 'tools', 'events', 'local'] as const) {
-        const button = ui.button(S.catalogCategories[value], { onClick: () => {
-          state.catalogCategory = value; state.page = 0;
-          for (const node of categoryList.querySelectorAll<HTMLButtonElement>('button')) node.setAttribute('aria-pressed', String(node === button));
-          renderMarket(); save();
-        } });
-        button.setAttribute('aria-pressed', String((state.catalogCategory ?? 'all') === value)); categoryList.append(button);
-      }
+      const categoryButtons = CATALOG_CATEGORY_IDS.map(value => {
+        const button = ui.button(S.catalogCategories[value], { onClick: () => selectCategory(value) });
+        button.dataset.category = value; button.append(ui.h('span', 'extension-tag-count')); categoryList.append(button);
+        return button;
+      });
+      paintCategories = () => {
+        for (const button of categoryButtons) {
+          const value = button.dataset.category as CatalogCategory, count = state.hits.filter(hit => inCatalogCategory(hit.tags, value)).length;
+          button.setAttribute('aria-pressed', String(state.catalogCategory === value));
+          button.querySelector('.extension-tag-count')!.textContent = state.fetched ? String(count) : '';
+          button.hidden = state.fetched && !count && value !== 'all' && state.catalogCategory !== value;
+        }
+      };
       for (const [button, mark, label] of [[advancedToggle, 'sliders', S.advancedSearch], [registryToggle, 'globe', S.registryLabel]] as const) {
         button.classList.add('world-catalog-toggle'); button.replaceChildren(icon(doc, mark));
         button.setAttribute('aria-label', label); attachHint(button, label);

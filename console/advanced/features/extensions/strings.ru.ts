@@ -10,7 +10,8 @@ export const S: Partial<typeof en> = {
   addToLibrary: "Добавить в библиотеку",
   filterSidebar: "Фильтры",
   catalogCategory: "Категории",
-  catalogCategories: {"all": "Все", "tools": "Инструменты", "events": "События", "local": "Локально"},
+  catalogCategories: {"all": "Все", "chat": "Чаты и общение", "game": "Игры", "streaming": "Стримы", "companion": "Компаньон", "media": "Голос и видео", "creative": "Творчество", "web": "Сеть и браузер", "computer": "Компьютер и приложения", "diagnostics": "Диагностика", "other": "Другое"},
+  tagGroups: {"badges": "Избранное", "series": "Серии", "setup": "Требования", "cautions": "Предупреждения"},
 
   navLabel: 'Расширения',
   navGroup: 'Core',

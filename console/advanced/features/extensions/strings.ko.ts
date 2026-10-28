@@ -4,7 +4,8 @@ export const S: Partial<typeof en> = {
   addToLibrary: "라이브러리에 추가",
   filterSidebar: "필터",
   catalogCategory: "카테고리",
-  catalogCategories: {"all": "전체", "tools": "도구", "events": "이벤트", "local": "로컬 실행"},
+  catalogCategories: {"all": "전체", "chat": "채팅·소셜", "game": "게임", "streaming": "방송", "companion": "동반", "media": "음성·영상", "creative": "창작", "web": "웹·브라우저", "computer": "컴퓨터·앱", "diagnostics": "진단", "other": "기타"},
+  tagGroups: {"badges": "추천", "series": "시리즈", "setup": "사용 조건", "cautions": "주의 사항"},
 
   navLabel: '확장',
   navGroup: 'Core',
