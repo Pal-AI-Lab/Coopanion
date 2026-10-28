@@ -117,7 +117,8 @@ export function mountWorlds(ctx: FeatureContext): void {
     const open = { clipPath: 'inset(0 0 0 0%)' };
     catalog.hidden = false;
     if (previous && !reduceMotion() && catalog.animate) {
-      transition = catalog.animate(next === 'market' ? [interrupted ?? closed, open] : [interrupted ?? open, closed], { duration: 360, easing: 'cubic-bezier(.2,.7,.2,1)' });
+      const timing = { duration: 420, easing: 'cubic-bezier(.32,.72,0,1)' };
+      transition = catalog.animate(next === 'market' ? [interrupted ?? closed, open] : [interrupted ?? open, closed], timing);
       const own = transition;
       void own.finished.then(() => { if (transition === own) catalog.hidden = current !== 'market'; }, () => {});
     } else catalog.hidden = next !== 'market';
@@ -238,9 +239,10 @@ export function mountWorlds(ctx: FeatureContext): void {
       let node = railNodes.get(item.key);
       if (!node) {
         node = ui.h('button', 'world-library-item'); node.type = 'button';
-        node.append(avatar(item));
+        node.append(avatar(item), ui.h('span', 'world-library-label'));
         node.addEventListener('click', () => select(item), { signal }); railNodes.set(item.key, node);
       }
+      node.querySelector('.world-library-label')!.textContent = item.label.replace(/^cortico-world-/, '');
       node.title = item.label; node.setAttribute('aria-label', item.label); node.setAttribute('aria-current', item.key === selected ? 'true' : 'false');
       const row = worldRow(item); row.inert = current === 'market';
       let entry = node.parentElement;
@@ -285,13 +287,12 @@ export function mountWorlds(ctx: FeatureContext): void {
       details.addEventListener('click', () => showDetails(m), { signal }); heading.append(details);
     } else heading.textContent = item.label;
     identity.append(heading, ui.h('code', '', m?.id ?? pack?.name ?? item.key));
-    const readings = ui.h('div', 'world-blade-readings');
+    const signals = ui.h('div', 'world-blade-signals');
     const state = pending ? pack?.state === 'removed' ? E.stateRemoved : E.statePendingRestart : failed ? E.stateFailed : m?.status === 'active' ? m.visible === false ? S.modeRunning : S.modeAttached : S.modeOff;
-    readings.append(ui.h('span', 'world-state', state));
     if (m?.status === 'active') {
-      const lamps = ui.h('span', 'world-signals'); paintSignals(lamps, m.lamps ?? []); readings.append(lamps); lampNodes.set(worldPageId(m.id), lamps);
+      const lamps = ui.h('span', 'world-signals'); paintSignals(lamps, m.lamps ?? []); signals.append(lamps); lampNodes.set(worldPageId(m.id), lamps);
     }
-    if (m?.prefixDrifted) readings.append(ui.pill(S.prefixPending));
+    if (m?.prefixDrifted) signals.append(ui.pill(S.prefixPending));
     const actions = ui.h('div', 'world-blade-actions');
     if (m && !pending && !failed) {
       if (m.status === 'active') {
@@ -302,7 +303,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     }
     if (m) actions.append(ui.button(S.configure, { size: 'sm', onClick: () => router.navigate([PROVIDER_ROUTE, worldPageId(m.id)]) }));
     if (pack) actions.append(iconButton('package', S.manageExtension, '', () => market?.manage(pack.name)));
-    row.append(identity, readings, actions);
+    row.append(identity, ui.h('span', 'world-state', state), signals, actions);
     if (failed) row.append(ui.h('p', 'world-blade-note bad', m?.reason || pack?.reason || S.missingReasonDefault));
     else if (m?.status === 'inactive' && !canActivate) row.append(ui.h('p', 'world-blade-note', S.inactiveNoteManual(m.id)));
     else if (!m && !pending) row.append(ui.h('p', 'world-blade-note', E.worldNotLoaded));
