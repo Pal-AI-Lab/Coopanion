@@ -146,6 +146,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     },
     onChange: items => { extensions = items; extensionsReady = true; void load(); },
     onLoadError: () => { extensionsReady = true; render(); },
+    reveal: name => { const item = worldLibrary(worlds, extensions, recent).find(entry => entry.key === name); if (item) select(item); },
     onAdded: (name, from) => { const previous = recent.indexOf(name); if (previous >= 0) recent.splice(previous, 1); recent.unshift(name); selected = name; arrival = { key: name, from }; railList.scrollTop = 0; },
   });
   else status.hidden = true;

@@ -421,6 +421,8 @@ export interface ExtensionWorkspace {
   onChange(items: readonly ExtensionView[]): void;
   /** `from` is where the package's icon was on screen when the install started. */
   onAdded(name: string, from?: DOMRect): void;
+  /** Shows the installed package's row in the World library. */
+  reveal(name: string): void;
 }
 /** Resolves the control an operation's error popover points at; the control may be re-rendered meanwhile. */
 export type Anchor = () => Element | null | undefined;
@@ -464,6 +466,13 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   /** npm 源下拉是否展开;读不出源时自动展开。 */
   let registryOpen = false;
   let loadGeneration = 0;
+  /** Loads and searches in flight; the World toolbar's refresh icon spins while any runs. */
+  let refreshing = 0;
+  let refreshControl: HTMLElement | undefined;
+  const refreshed = <T,>(work: Promise<T>) => {
+    refreshing++; refreshControl?.classList.add('is-spinning');
+    return work.finally(() => { if (--refreshing === 0) refreshControl?.classList.remove('is-spinning'); });
+  };
   let installedFetched = false;
   let restoringScroll = true;
   const restoreScroll = () => {
@@ -1134,10 +1143,15 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     if (!mine.length) installedGrid.append(ui.placeholder(S.noExtensions));
     pager(installedPager, mine.length, state.installedPage, size, page => { installedGrid.style.minHeight = `${installedGrid.getBoundingClientRect().height}px`; state.installedPage = page; renderInstalled(); save(); });
   }
-  /** The market card's one control: install, its progress, or an available update. Installed packages without an update show none. */
+  /** The market card's one control: install, its progress, an available update, or a link to the installed package's row. */
   function getButton(hit: SearchHitView & { installed: boolean }, owner: Category): HTMLButtonElement | null {
     const update = updates.get(hit.name), working = busy.has(hit.name);
-    if (hit.installed && !update && !working) return null;
+    if (hit.installed && !update && !working) {
+      const done = ui.h('button', 'extension-get is-installed') as HTMLButtonElement; done.type = 'button';
+      done.setAttribute('aria-label', S.alreadyInstalled); attachHint(done, S.alreadyInstalled); done.append(icon(doc, 'check'));
+      done.addEventListener('click', event => { event.stopPropagation(); workspace?.reveal(hit.name); }, { signal });
+      return done;
+    }
     const anchor: Anchor = () => marketGrid.querySelector(`.extension-market-card[data-name="${CSS.escape(hit.name)}"] .extension-get`);
     const label = working ? S.progress(hit.installed ? S.updatedAction : S.installedAction, hit.name) : update ? `${S.updateAction} ${S.updateVersions(update.installedVersion, update.latestVersion)}` : S.addToLibrary;
     const button = ui.h('button', 'extension-get' + (working ? ' is-working' : update ? ' is-update' : '')) as HTMLButtonElement; button.type = 'button';
@@ -1254,7 +1268,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     chips.append(...ids.map(id => tagChip(id, { active: state.tags.includes(id), count: counts.get(id), onToggle: () => toggleTag(id) })));
     tagBar.replaceChildren(ui.h('span', 'extension-tagbar-label', S.tagFilter), chips);
   }
-  async function load(): Promise<boolean> {
+  function load(): Promise<boolean> { return refreshed(loadList()); }
+  async function loadList(): Promise<boolean> {
     if (signal.aborted) return false;
     const generation = ++loadGeneration;
     try {
@@ -1268,9 +1283,10 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     try { const data = await get<UpdateResultView>('/api/extensions/updates', { signal }); if (signal.aborted) return; updates = new Map(data.updates.map(u => [u.name, u])); renderInstalled(); if (workspace) renderMarket(); if (data.errors.length) message(kind, 'management', S.updateCheckFailed(data.errors.map(e => `${e.name}: ${e.error}`).join('; ')), true); }
     catch (error) { if (!signal.aborted) message(kind, 'management', S.updateCheckFailed(errorText(error)), true); }
   }
-  async function search(owner: Category) {
+  function search(owner: Category) { return refreshed(searchMarket(owner)); }
+  async function searchMarket(owner: Category) {
     const state = states[owner], generation = ++state.generation;
-    message(owner, 'market', S.searching);
+    message(owner, 'market', workspace ? '' : S.searching);
     try {
       const data = await get<{ hits: SearchHitView[]; partial?: boolean; registry?: string; index?: MarketIndexView }>(`/api/extensions/search?kind=${owner}`, { signal });
       if (signal.aborted || state.generation !== generation) return;
@@ -1631,6 +1647,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
         button.setAttribute('aria-label', label); attachHint(button, label);
       }
       clear.classList.add('extension-clear');
+      refreshControl = refresh; refresh.classList.toggle('is-spinning', refreshing > 0);
       side.append(ui.h('h3', '', S.catalogCategory), categoryList, tagBar, options);
       const manualFold = ui.h('details', 'world-manual'); manualFold.append(ui.h('summary', '', S.manual), manual.body);
       scrollRoot.replaceChildren(marketGrid, marketPager, manualFold);

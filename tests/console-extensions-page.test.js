@@ -829,7 +829,7 @@ describe('World library and catalog', () => {
     expect(document.activeElement.dataset.key).toBe('alpha-mod');
     expect(rail.querySelector('[aria-current=true]').getAttribute('aria-label')).toBe('甲扩展');
   });
-  it('keeps catalog metadata beside the title and shows no control for an installed package', async () => {
+  it('keeps catalog metadata beside the title and links an installed package to its row', async () => {
     const hit = { ...HITS.hits[1], summary: { tools: 3, events: 2 } };
     const { root } = await openWorlds({ hits: { hits: [hit] } });
     const card = root.querySelector('.world-catalog .extension-market-card');
@@ -837,7 +837,11 @@ describe('World library and catalog', () => {
     expect(heading.querySelector('.extension-card-byline').textContent).toContain('v1.0.0');
     expect(heading.textContent).not.toContain('已安装');
     expect(card.querySelector('.extension-card-spec')).toBeNull();
-    expect(card.querySelector('.extension-get')).toBeNull();
+    const control = card.querySelector('.extension-get');
+    expect(control.classList.contains('is-installed')).toBe(true);
+    control.click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    expect(root.querySelector('.world-workspace').dataset.view).toBe('mine');
+    expect(document.activeElement.dataset.key).toBe(hit.name);
   });
   it('offers an installed package\'s update from its market card', async () => {
     const hit = HITS.hits[1];
