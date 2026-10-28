@@ -1,0 +1,88 @@
+:root{
+  --bg:#0D1117; --surface:#151A22; --text:#E9EDF2; --muted:#8C95A3; --line:#252C37;
+  --accent:#6E8BFF; --accent-ink:#0B1020; --bad:#F06A7A;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font:14px/1.45 system-ui,"Segoe UI","Microsoft YaHei",sans-serif;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+header{
+  flex:none; display:flex; align-items:center; gap:12px; padding:10px 14px;
+  background:var(--surface); border-bottom:1px solid var(--line);
+}
+header .brand{font-weight:650; letter-spacing:.02em}
+header .grow{flex:1}
+header .link{color:var(--muted); text-decoration:none; padding:6px 8px; border-radius:8px}
+header .link:hover{background:#1D2430; color:var(--text)}
+.pick{display:flex; align-items:center; gap:6px; color:var(--muted); font-size:13px}
+select,input,button{font:inherit}
+select,input[type="number"],input[type="text"]{
+  background:#0F141B; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:5px 8px; min-width:0;
+}
+input[type="number"]{width:100%}
+button{
+  background:#1B2230; color:var(--text); border:1px solid var(--line); border-radius:9px;
+  padding:6px 12px; cursor:pointer;
+}
+button:hover{border-color:#3A4453; background:#212B3B}
+button.primary{background:var(--accent); color:var(--accent-ink); border-color:transparent; font-weight:600}
+button.primary:hover{filter:brightness(1.08)}
+button.small{padding:3px 8px; border-radius:7px; font-size:12.5px}
+button:disabled{opacity:.45; cursor:default}
+#status{font-size:12.5px; color:var(--muted); max-width:44ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+#status.bad{color:var(--bad)}
+
+main{flex:1; min-height:0; display:grid; grid-template-columns:250px minmax(0,1fr) 310px}
+aside{background:var(--surface); border-right:1px solid var(--line); overflow:auto; min-height:0}
+aside#side{border-right:0; border-left:1px solid var(--line)}
+.pane{padding:12px; border-bottom:1px solid var(--line)}
+.pane h2{margin:0 0 10px; font-size:13px; color:var(--muted); font-weight:600; letter-spacing:.04em}
+.pane-title{
+  position:sticky; top:0; z-index:1; display:flex; align-items:center; gap:8px;
+  padding:10px 12px; background:var(--surface); border-bottom:1px solid var(--line);
+  font-size:13px; color:var(--muted); font-weight:600;
+}
+.pane-title .grow{flex:1}
+#layerList{list-style:none; margin:0; padding:6px}
+#layerList li{
+  display:flex; align-items:center; gap:8px; padding:6px; border-radius:10px; cursor:pointer;
+  border:1px solid transparent;
+}
+#layerList li:hover{background:#1A2130}
+#layerList li.on{border-color:var(--accent); background:#182034}
+#layerList img{width:34px; height:34px; object-fit:contain; flex:none; background:#0B0F15; border-radius:6px}
+#layerList .meta{flex:1; min-width:0}
+#layerList .id{font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+#layerList .sub{font-size:11.5px; color:var(--muted)}
+#layerList .ops{display:flex; gap:2px; flex:none}
+#layerList .ops button{padding:2px 6px; font-size:12px; background:none; border-color:transparent; color:var(--muted)}
+#layerList .ops button:hover{background:#242E40; color:var(--text)}
+
+#stageWrap{
+  position:relative; display:grid; place-items:center; padding:16px; min-width:0; overflow:hidden;
+  background:
+    linear-gradient(45deg,#11161F 25%,transparent 25%,transparent 75%,#11161F 75%),
+    linear-gradient(45deg,#11161F 25%,#0B0F15 25%,#0B0F15 75%,#11161F 75%);
+  background-size:32px 32px; background-position:0 0,16px 16px;
+}
+#view{
+  width:min(100%,calc(100vh - 150px)); height:auto; aspect-ratio:1; display:block;
+  background:transparent; border:1px solid var(--line); border-radius:12px; cursor:crosshair;
+  touch-action:none;
+}
+#hint{
+  position:absolute; bottom:6px; left:0; right:0; margin:0; text-align:center;
+  font-size:12px; color:var(--muted); pointer-events:none;
+}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.grid2 label{display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted)}
+.grid2 label.wide{grid-column:1 / -1}
+.row{display:flex; align-items:center; gap:8px}
+.row.grow{flex:1}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+#time{width:100%; margin:8px 0 3px; accent-color:var(--accent)}
+code{background:#0B0F15; padding:1px 5px; border-radius:5px; font-size:12px}

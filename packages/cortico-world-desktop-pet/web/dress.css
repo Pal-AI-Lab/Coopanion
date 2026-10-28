@@ -119,3 +119,11 @@ dialog.import .cant{margin-top:10px}
 .pack-erase:hover{color:var(--anger)}
 .pack-erase svg{width:16px; height:16px; display:block}
 .btn.danger{background:var(--anger); border-color:var(--anger); color:#fff}
+
+/* the layered-figure editor: this page's own way in */
+.dress-page .dressnav{display:flex; justify-content:flex-end; margin:0 0 8px}
+.dress-page .dressnav a{
+  font-size:12.5px; color:var(--muted); text-decoration:none; padding:5px 10px;
+  border:1.5px solid var(--line); border-radius:999px; background:var(--surface);
+}
+.dress-page .dressnav a:hover{color:var(--text); border-color:var(--accent)}

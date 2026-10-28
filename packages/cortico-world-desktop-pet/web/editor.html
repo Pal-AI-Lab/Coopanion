@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>分层形象编辑器</title>
+<link rel="stylesheet" href="/web/editor.css">
+</head>
+<body>
+<header>
+  <span class="brand" data-i18n="editor.title">分层形象编辑器</span>
+  <label class="pick"><span data-i18n="editor.pack">形象</span> <select id="pack" aria-label="选择形象包" data-i18n-label="editor.pack"></select></label>
+  <button id="save" type="button" class="primary" data-i18n="editor.save">保存到形象包</button>
+  <span id="status" role="status" aria-live="polite"></span>
+  <span class="grow"></span>
+  <a href="/dress" class="link" data-i18n="editor.openDress">装扮页</a>
+  <a href="/pet" class="link" target="_blank" rel="noreferrer" data-i18n="editor.openPet">看效果</a>
+</header>
+
+<main>
+  <aside id="layers" aria-label="图层列表" data-i18n-label="editor.layers">
+    <div class="pane-title">
+      <span data-i18n="editor.layers">图层</span>
+      <button id="addLayer" type="button" class="small" data-i18n="editor.addImage">+ 加图片</button>
+    </div>
+    <ol id="layerList"></ol>
+  </aside>
+
+  <section id="stageWrap">
+    <canvas id="view" width="768" height="768"></canvas>
+    <p id="hint" data-i18n="editor.hint">拖动层移动 · Alt+拖动改锚点 · 滚轮缩放 · 方向键微移 · Delete 删除</p>
+  </section>
+
+  <aside id="side">
+    <div class="pane">
+      <h2 data-i18n="editor.layerHeading">层</h2>
+      <p id="layerName" class="muted" data-i18n="editor.none">未选中</p>
+      <div class="grid2">
+        <label>x <input id="lx" type="number" step="0.5"></label>
+        <label>y <input id="ly" type="number" step="0.5"></label>
+        <label><span data-i18n="editor.width">宽</span> <input id="lw" type="number" step="0.5" min="1"></label>
+        <label><span data-i18n="editor.height">高</span> <input id="lh" type="number" step="0.5" min="1"></label>
+        <label><span data-i18n="editor.z">层级 z</span> <input id="lz" type="number" step="1"></label>
+        <label><span data-i18n="editor.alpha">不透明度</span> <input id="la" type="number" step="0.05" min="0" max="1"></label>
+        <label><span data-i18n="editor.pivotX">锚点 x</span> <input id="lpx" type="number" step="0.5"></label>
+        <label><span data-i18n="editor.pivotY">锚点 y</span> <input id="lpy" type="number" step="0.5"></label>
+        <label class="wide"><span data-i18n="editor.image">图片</span> <input id="lsrc" type="text" readonly></label>
+      </div>
+    </div>
+
+    <div class="pane">
+      <h2 data-i18n="editor.motionHeading">动作</h2>
+      <div class="row">
+        <select id="motion" aria-label="动作" data-i18n-label="editor.motionHeading"></select>
+        <button id="play" type="button" class="small" data-i18n="editor.play">播放</button>
+        <button id="newMotion" type="button" class="small" data-i18n="editor.newMotion">+ 新动作</button>
+      </div>
+      <input id="time" type="range" min="0" max="1" step="0.01" value="0" aria-label="动作时间" data-i18n-label="editor.time">
+      <div class="row muted small"><span id="timeText">0.00 s</span><span class="grow"></span><span id="motionLength">—</span></div>
+      <div class="grid2">
+        <label><span data-i18n="editor.rotation">旋转 r</span> <input id="kr" type="number" step="1" value="0"></label>
+        <label><span data-i18n="editor.moveX">位移 x</span> <input id="kx" type="number" step="0.5" value="0"></label>
+        <label><span data-i18n="editor.moveY">位移 y</span> <input id="ky" type="number" step="0.5" value="0"></label>
+        <label><span data-i18n="editor.scale">缩放 s</span> <input id="ks" type="number" step="0.01" value="1"></label>
+        <label><span data-i18n="editor.opacity">透明度 a</span> <input id="ka" type="number" step="0.05" value="1" min="0" max="1"></label>
+      </div>
+      <button id="record" type="button" class="small" data-i18n="editor.record">把当前值记为关键帧</button>
+      <p id="trackInfo" class="muted small" data-i18n="editor.trackHint">选中层与动作后可用</p>
+    </div>
+
+    <div class="pane">
+      <h2 data-i18n="editor.noteHeading">说明</h2>
+      <p class="muted small" data-i18n="editor.note"></p>
+    </div>
+  </aside>
+</main>
+
+<input id="files" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>
+<script type="module" src="/web/editor.js"></script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -190,5 +190,55 @@ describe('installed pack files', () => {
     const script = await fetch(`${server.origin}/packs/p/figure.js`, { headers: { origin: 'null' } });
     expect(script.headers.get('content-type')).toMatch(/^text\/javascript/);
     expect(script.headers.get('access-control-allow-origin')).toBe('null');
+  });
+});
+
+describe('layered-figure editor', () => {
+  /** An installed pack with a model.json, as the editor finds one. */
+  function packDir() {
+    const dir = mkdtempSync(join(tmpdir(), 'pet-pack-'));
+    writeFileSync(join(dir, 'figure.json'), '{}');
+    writeFileSync(join(dir, 'model.json'), JSON.stringify({ layers: [], motions: {} }));
+    return dir;
+  }
+  const packAt = (dir: string, id = 'p', builtin = false) =>
+    ({ id, dir, builtin, manifest: { model: 'model.json' } }) as unknown as FigurePack;
+
+  it('replaces an installed pack\'s model.json', async () => {
+    const dir = packDir();
+    const server = await serve({ on: false }, { packs: () => [packAt(dir)] });
+    const model = { layers: [{ id: 'a', src: 'img/a.png', box: [0, 0, 10, 10], z: 1 }], motions: {} };
+    const res = await fetch(`${server.origin}/api/figures/p/model`, { method: 'POST', body: JSON.stringify(model) });
+    expect(res.status).toBe(200);
+    expect(JSON.parse(readFileSync(join(dir, 'model.json'), 'utf8'))).toEqual(model);
+  });
+
+  it('refuses a built-in pack, a body that is not JSON, and a model over its limit', async () => {
+    const dir = packDir();
+    const server = await serve({ on: false }, { packs: () => [packAt(dir), packAt(dir, 'coo', true)] });
+
+    expect((await fetch(`${server.origin}/api/figures/coo/model`, { method: 'POST', body: '{}' })).status).toBe(404);
+    expect((await fetch(`${server.origin}/api/figures/p/model`, { method: 'POST', body: '{' })).status).toBe(400);
+    expect((await fetch(`${server.origin}/api/figures/p/model`, { method: 'POST', body: 'x'.repeat(2 * 1024 * 1024 + 1) })).status).toBe(413);
+    expect(JSON.parse(readFileSync(join(dir, 'model.json'), 'utf8'))).toEqual({ layers: [], motions: {} });
+  });
+
+  it('writes an added layer image into the pack\'s img/', async () => {
+    const dir = packDir();
+    const server = await serve({ on: false }, { packs: () => [packAt(dir)] });
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01]);
+    const res = await fetch(`${server.origin}/api/figures/p/asset?name=layer.png`, { method: 'POST', body: png });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, path: 'img/layer.png' });
+    expect(readFileSync(join(dir, 'img', 'layer.png'))).toEqual(png);
+  });
+
+  it('refuses a layer image whose name could leave the pack', async () => {
+    const dir = packDir();
+    const server = await serve({ on: false }, { packs: () => [packAt(dir)] });
+    for (const name of ['../escape.png', 'a/b.png', 'layer.svg', '.png']) {
+      const res = await fetch(`${server.origin}/api/figures/p/asset?name=${encodeURIComponent(name)}`, { method: 'POST', body: Buffer.from([1, 2, 3, 4, 5, 6, 7, 8]) });
+      expect(res.status, name).toBe(400);
+    }
   });
 });

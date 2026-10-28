@@ -29,7 +29,7 @@
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import { basename, extname, join, normalize, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { languageTag, type Language } from 'cortico/core/language.ts';
@@ -49,7 +49,11 @@ const MIME: Record<string, string> = {
   '.mp3': 'audio/mpeg',
   '.wav': 'audio/wav',
 };
-const PAGES: Record<string, string> = { '/pet': 'pet.html', '/dress': 'dress.html' };
+const PAGES: Record<string, string> = { '/pet': 'pet.html', '/dress': 'dress.html', '/editor': 'editor.html' };
+/** The layered-figure editor replaces an installed pack's model.json and adds its layer images. */
+const MODEL_MAX = 2 * 1024 * 1024;
+const ASSET_MAX = 8 * 1024 * 1024;
+const ASSET_NAME = /^[A-Za-z0-9_-][A-Za-z0-9._-]*\.(?:png|jpe?g|webp)$/i;
 const LOOPBACK = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/i;
 const PORT_ATTEMPTS = 10;
 /**
@@ -326,6 +330,38 @@ export class PetServer {
       if (typeof msg?.id !== 'string') return json(res, 400, { error: 'bad json' });
       const out = await this.opts.importer.remove(msg.id);
       return json(res, 'error' in out ? 400 : 200, out);
+    }
+    // the layered-figure editor: an installed pack's model.json, and the layer images it adds
+    const edit = /^\/api\/figures\/([^/]+)\/(model|asset)$/.exec(path);
+    if (req.method === 'POST' && edit) {
+      const pack = (this.opts.packs?.() ?? []).find((p) => p.id === decodeURIComponent(edit[1]!) && !p.builtin);
+      if (!pack) return json(res, 404, { error: 'not an installed pack' });
+      if (edit[2] === 'model') {
+        const modelPath = pack.manifest.model;
+        if (!modelPath || !/\.json$/i.test(modelPath)) return json(res, 400, { error: 'this pack has no model.json' });
+        const full = packFile(pack, modelPath);
+        if (!full) return json(res, 400, { error: 'bad path' });
+        const bytes = await readBytes(req, MODEL_MAX);
+        if (!bytes) return json(res, 413, { error: 'the model is too large' });
+        const text = Buffer.from(bytes).toString('utf8');
+        let model: unknown;
+        try { model = JSON.parse(text); } catch { return json(res, 400, { error: 'bad json' }); }
+        if (!model || typeof model !== 'object' || Array.isArray(model)) return json(res, 400, { error: 'bad json' });
+        // beside the old file and renamed, so a half-written model never reaches the pet
+        await writeFile(full + '.tmp', text, 'utf8');
+        await rename(full + '.tmp', full);
+        return json(res, 200, { ok: true });
+      }
+      const name = url.searchParams.get('name') ?? '';
+      if (!ASSET_NAME.test(name)) return json(res, 400, { error: 'the name must be a png, jpg or webp file name' });
+      const bytes = await readBytes(req, ASSET_MAX);
+      if (!bytes || bytes.length < 8) return json(res, 400, { error: 'the image is empty or too large' });
+      const dir = join(pack.dir, 'img');
+      const full = normalize(join(dir, name));
+      if (!full.startsWith(normalize(dir) + sep)) return json(res, 400, { error: 'bad path' });
+      await mkdir(dir, { recursive: true });
+      await writeFile(full, bytes);
+      return json(res, 200, { ok: true, path: `img/${name}` });
     }
     if (req.method === 'GET' && path === '/figure-frame') {
       const self = `http://${req.headers.host}`;
