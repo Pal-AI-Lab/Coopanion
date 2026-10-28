@@ -4,13 +4,15 @@
 !macro customFiles_x64
   ; the installer template never checks whether Nsis7z::Extract succeeded: an extraction that
   ; antivirus software or a full disk emptied read as success, and the wizard registers, shortcuts to
-  ; and "runs" an install that wrote no files. Coopanion.exe missing is that case: stop here, before
+  ; and "runs" an install that wrote no files or only part of them. Coopanion.exe or the TypeScript
+  ; loader the Core starts with (app/core-host.cjs) missing is that case: stop here, before
   ; the uninstaller, the registry entry and the shortcuts are written, so a failed install leaves
   ; nothing behind. customFiles_x64 is undocumented but the first hook after the files land
   ; (customInstall runs only after the install is already registered).
   ${IfNot} ${FileExists} "$INSTDIR\Coopanion.exe"
+  ${OrIfNot} ${FileExists} "$INSTDIR\resources\app\node_modules\tsx\dist\loader.mjs"
     ; /SD: a silent install (an automatic update runs one) must not wait on the box
-    MessageBox MB_OK|MB_ICONSTOP "Coopanion's files did not reach the install directory: the installer could not extract its package. This is usually antivirus software or low disk space. Nothing was installed; please check and run the installer again." /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "Coopanion's files did not all reach the install directory: the installer could not extract its package. This is usually antivirus software or low disk space. The install is incomplete; please check and run the installer again." /SD IDOK
     Abort
   ${EndIf}
 !macroend
