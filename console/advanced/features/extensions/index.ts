@@ -1148,7 +1148,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     if (workspace) {
       const pending = installed.some(item => (item.kind === kind || !item.kind) && (item.state === 'pending-restart' || item.state === 'removed'));
       const restartButton = workspace.restartRoot.querySelector<HTMLButtonElement>('.extension-restart');
-      if (restartButton) { restartButton.hidden = !pending; restartButton.disabled = busy.size > 0; }
+      if (restartButton) { restartButton.hidden = !pending; restartButton.disabled = busy.size > 0 || workspace.restartRoot.classList.contains('is-restarting'); }
       return;
     }
     if (!installedGrid) return;
@@ -1553,7 +1553,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     try {
       const before = await get<Life>('/api/run/lifecycle', { signal });
       save(); win.sessionStorage.setItem(storageKey + ':restart', JSON.stringify(before));
-      message(kind, 'management', supervised ? S.reloadWait : S.restartManual);
+      showRestarting(true);
+      if (!workspace || !supervised) message(kind, 'management', supervised ? S.reloadWait : S.restartManual);
       let report: PowerReport | undefined;
       try { report = await post<PowerReport>('/api/run/restart', undefined, { signal }); } catch (error) {
         if ((error as { status?: number }).status) { win.sessionStorage.removeItem(storageKey + ':restart'); throw error; }
@@ -1567,21 +1568,29 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
         });
       }
       watchRestart(before);
-    } catch (error) { if (!signal.aborted) message(kind, 'management', errorText(error), true); }
+    } catch (error) { if (!signal.aborted) { showRestarting(false); message(kind, 'management', errorText(error), true); } }
+  }
+  /** The World workspace shows a restart in progress as a spinner beside its restart button. */
+  function showRestarting(on: boolean) {
+    workspace?.restartRoot.classList.toggle('is-restarting', on);
+    const button = workspace?.restartRoot.querySelector<HTMLButtonElement>('.extension-restart'); if (button && on) button.disabled = true;
   }
   function watchRestart(before: Life) {
     const check = async () => {
       if (signal.aborted) return;
       try {
         const next = await get<Life>('/api/run/lifecycle', { signal });
-        if (restartOutcome(before, next) === 'wrong-deployment') { win.sessionStorage.removeItem(storageKey + ':restart'); message(kind, 'management', S.otherBot, true); return; }
+        if (restartOutcome(before, next) === 'wrong-deployment') { win.sessionStorage.removeItem(storageKey + ':restart'); showRestarting(false); message(kind, 'management', S.otherBot, true); return; }
         if (restartOutcome(before, next) === 'ready') { win.sessionStorage.removeItem(storageKey + ':restart'); save(); workspace?.beforeReload(); win.location.reload(); return; }
       } catch { /* Wait while the listener is unavailable. */ }
       lifecycle.timeout(() => void check(), 1000);
     }; void check();
   }
+  /** The World catalog's manual install fold, kept open across re-renders. */
+  let manualOpen = false;
   function render() {
     const state = states[kind];
+    const keptScroll = workspace ? scrollRoot.scrollTop : 0;
     panel.replaceChildren(); messageNodes = {};
     const managed = ui.sheet({ title: S.installedTitle });
     const bar = ui.rowbar(); bar.classList.add('extension-toolbar');
@@ -1638,7 +1647,9 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     const check = ui.button(S.check, { onClick: async () => { const lock = ui.disable(check); try { const data = await post<{ name: string; version: string; kind: string }>('/api/extensions/check', { target: target(), kind: owner }, { signal }); message(owner, 'manual', `${S.checkOk} · ${data.name}@${data.version} · ${data.kind}`); } catch (error) { message(owner, 'manual', errorText(error), true); } finally { lock.dispose(); } } });
     const install = ui.button(S.install, { variant: 'primary', onClick: () => { try { void operate('install', target(), 'manual', owner); } catch (error) { message(owner, 'manual', errorText(error), true); } } });
     const manualActions = ui.rowbar(); manualActions.classList.add('extension-manual-actions'); manualActions.append(check, install, messageNodes.manual);
-    manual.body.append(ui.h('p', 'sh-desc extension-install-help', state.source === 'npm' ? S.npmHelp : S.localHelp), source.el, manualBar, manualActions);
+    const installHelp = ui.h('p', 'sh-desc extension-install-help', state.source === 'npm' ? S.npmHelp : S.localHelp);
+    if (workspace) { const row = ui.h('div', 'world-manual-source'); row.append(source.el, installHelp); manual.body.append(row, manualBar, manualActions); }
+    else manual.body.append(installHelp, source.el, manualBar, manualActions);
     if (workspace) {
       const restartButton = bar.querySelector('.extension-restart');
       messageNodes.management.textContent = '';
@@ -1693,7 +1704,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
       });
       installation.el.classList.add('world-catalog-installation');
       side.append(installation.el, ui.h('h3', '', S.catalogCategory), categoryList, tagBar);
-      const manualFold = ui.h('details', 'world-manual'); manualFold.append(ui.h('summary', '', S.manual), manual.body);
+      const manualFold = ui.h('details', 'world-manual') as HTMLDetailsElement; manualFold.append(ui.h('summary', '', S.manual), manual.body);
+      manualFold.open = manualOpen; manualFold.addEventListener('toggle', () => { manualOpen = manualFold.open; }, { signal });
       scrollRoot.replaceChildren(marketGrid, marketPager, manualFold);
       body.append(side, scrollRoot);
       panel.append(filters, advanced, registryPanel, messageNodes.market, body);
@@ -1701,6 +1713,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     root.style.setProperty('--extension-columns', String(columns));
     for (const [area, value] of Object.entries(state.messages)) if (messageNodes[area]) { messageNodes[area].textContent = value.text; messageNodes[area].className = 'msgline' + (value.bad ? ' bad' : ''); }
     renderInstalled(); renderMarket();
+    if (workspace) scrollRoot.scrollTop = keptScroll;
   }
   // 只看宽度变化
   let panelWidth = panel.clientWidth;
@@ -1716,7 +1729,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   }); observer.observe(panel); lifecycle.add(() => observer.disconnect()); }
   render();
   void load(); void checkUpdates(); void search(kind); void loadRegistry();
-  try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { message(kind, 'management', S.reloadWait); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
+  try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { showRestarting(true); if (!workspace) message(kind, 'management', S.reloadWait); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
   return { manage, remove };
 }
 export const extensionsFeature: FrameworkFeature = { route: 'extensions', label: S.navLabel, icon: 'download', navGroup: S.navGroup, needsAny: ['extensions'], mount: mountExtensions };

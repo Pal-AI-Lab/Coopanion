@@ -1002,6 +1002,23 @@ describe('World library and catalog', () => {
     expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(2);
     expect(category('all').getAttribute('aria-pressed')).toBe('true');
   });
+  it('keeps the manual install fold open and the list where it was when the source changes', async () => {
+    const { root } = await openWorlds();
+    const fold = root.querySelector('.world-manual'); fold.open = true; fold.dispatchEvent(new Event('toggle'));
+    const scroll = root.querySelector('.world-catalog-scroll'); scroll.scrollTop = 60;
+    [...fold.querySelectorAll('.world-manual-source button')].find(item => item.textContent === '从本机目录安装').click(); await flush();
+    expect(root.querySelector('.world-manual').open).toBe(true);
+    expect(root.querySelector('.world-catalog-scroll').scrollTop).toBe(60);
+  });
+  it('shows a restart in progress as a spinner beside the button without a status line', async () => {
+    const list = { extensions: [{ name: 'late', kind: 'world', state: 'pending-restart' }] };
+    const { root } = await openWorlds({ list });
+    root.querySelector('.world-restart-footer .extension-restart').click(); await flush();
+    answer(true); await flush(100);
+    expect(root.querySelector('.world-restart-footer').classList.contains('is-restarting')).toBe(true);
+    expect(root.querySelector('.world-restart-footer .extension-restart').disabled).toBe(true);
+    expect(root.querySelector('.world-workspace-status').textContent).toBe('');
+  });
   it('selects the category when a function tag on a card is clicked', async () => {
     const index = { tags: { game: { label: '游戏' } } };
     const { root } = await openWorlds({ hits: { hits: [{ ...HITS.hits[0], tags: ['game'] }, HITS.hits[1]], index } });
