@@ -61,7 +61,11 @@ const APP_ROOT = app.getAppPath();
 const ICONS = join(__dirname, 'icons');
 /** Window icon: on Windows the .ico, so the taskbar picks the size it draws instead of scaling a 512 px PNG. */
 const WINDOW_ICON = join(ICONS, process.platform === 'win32' ? 'icon.ico' : 'icon.png');
-const APP_ID = 'ai.pal.coopanion';
+/**
+ * The AppUserModelID, by which Windows groups taskbar buttons and picks their icon: electron-builder.yml's appId for
+ * a packaged build, an id of its own for a run from source, which would otherwise lend the installed app electron.exe's icon.
+ */
+const APP_ID = app.isPackaged ? 'ai.pal.coopanion' : 'ai.pal.coopanion.dev';
 /** The build's channel and, for `steam`, its Steam app id (see the module header). */
 const BUILD = JSON.parse(readFileSync(join(APP_ROOT, 'package.json'), 'utf8')).coopanion ?? {};
 const STEAM = BUILD.channel === 'steam';
