@@ -280,6 +280,7 @@ const core = new CoreHost({
     COOPANION_VERSION: app.getVersion(),
     // the introduction offers the whale's persona outside Steam (core/guide.ts)
     COOPANION_CHANNEL: STEAM ? 'steam' : 'github',
+    COOPANION_SELF_UPDATE: SELF_UPDATE ? '1' : '0',
   },
 });
 
@@ -596,9 +597,23 @@ function buildTray() {
 core.on('ready', ({ language: next }) => {
   followLanguage(next);
   if (settings) settings.loadURL(settingsUrl());
-  if (updateStep) core.send(updateStep);
+  core.send({ type: 'companion:update', step: updateStep });
 });
 core.on('language', followLanguage);
+// The saved preference reaches the main process before the first update check.
+core.on('auto-update', (enabled) => {
+  if (!SELF_UPDATE) return;
+  if (updater) { updater.setEnabled(enabled); return; }
+  updater = startUpdater({
+    logDir: join(userData, 'logs'),
+    enabled,
+    tell: (step) => {
+      updateStep = step;
+      core.send({ type: 'companion:update', step });
+      settings?.webContents.send('settings:update', updateLine());
+    },
+  });
+});
 // the quit stops the Core and takes the tray icon down before the installer runs; the installer kills a
 // Coopanion still running, which would leave its icon in the notification area
 core.on('update-install', () => {
@@ -682,12 +697,4 @@ app.whenReady().then(() => {
   buildTray();
   noteAutostart();
   void core.start();
-  if (SELF_UPDATE) updater = startUpdater({
-    logDir: join(userData, 'logs'),
-    tell: (step) => {
-      updateStep = { type: 'companion:update', ...step };
-      core.send(updateStep);
-      settings?.webContents.send('settings:update', updateLine());
-    },
-  });
 });

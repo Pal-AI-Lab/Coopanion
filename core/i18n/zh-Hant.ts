@@ -5,6 +5,7 @@ const MAC = process.platform === 'darwin';
 
 const zhHant: Translation<CoreText> = {
   settings: {
+    autoUpdate: { title: "自動更新", description: "自動下載並在結束應用程式時安裝更新。關閉後立即停止檢查和下載，已下載的更新也不會自動安裝。" },
     language: { title: '語言', description: '介面和 Coo 說話都使用這種語言，修改後立即生效。' },
     telemetry: { title: '匿名使用統計', description: '傳送不含對話內容的使用次數與設定，幫助改進 Coopanion。欄位見 docs/TELEMETRY.md。' },
     contextRing: { title: '上下文圓環', description: '在對話頁輸入框顯示一個圓環，表示離整理之前的對話還有多遠。' },
