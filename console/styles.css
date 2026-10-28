@@ -2080,7 +2080,8 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .extension-get:active:not(:disabled){transform:scale(.92)}
 .extension-get:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .extension-get:disabled{cursor:default;color:var(--ink-dim);background:var(--hover)}
-.extension-get.is-update{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 45%,transparent)}
+.extension-get.is-update{background:transparent;color:var(--accent)}
+.extension-get.is-update .icon{width:24px;height:24px;stroke-width:1.8}
 .extension-get.is-installed{background:transparent;color:var(--ink-dim);box-shadow:inset 0 0 0 1px var(--border)}
 .extension-get.is-installed:hover{background:var(--hover);color:var(--accent)}
 .extension-get.is-update:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 10%,transparent)}
