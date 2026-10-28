@@ -6,6 +6,13 @@ export const S: Partial<typeof en> = {
   groupWorlds: 'World',
   moduleInstancesAria: 'World 實例',
 
+  updateTitle: (label, from, to) => `${label} 有新版本：${from} → ${to}。點一下安裝，重新啟動 Coopanion 後生效。`,
+  updateAria: (label, to) => `更新 ${label} 到 ${to}`,
+  updateDismissAria: (label) => `忽略 ${label} 的這次更新`,
+  updateDone: (label, version) => `${label} 已更新到 ${version}，重新啟動 Coopanion 後生效`,
+  updateFailed: (label, detail) => (detail ? `${label} 沒有更新成功：${detail}` : `${label} 沒有更新成功`),
+  updateGone: '這個更新已經不在清單裡了，已重新檢查',
+
   runResume: '繼續執行',
   runPause: '暫停執行',
   shutdownAria: '關機',

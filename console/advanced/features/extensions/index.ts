@@ -1,6 +1,7 @@
 /** 扩展管理页。扩展信息与运行状态由服务端提供；安装、卸载后需重启进程才能生效。类别取路由第二段。 */
 
 import { get, post, pickPath } from '../../../base/api.ts';
+import { setUpdatesShown, updatesShown } from '../../../base/world-updates.ts';
 import { icon, brandMark } from '../../../base/ui/icons.ts';
 import { pageIntro } from '../../../base/ui/page.ts';
 import { renderMarkdown } from './markdown.ts';
@@ -1435,6 +1436,8 @@ export function mountExtensions(ctx: FeatureContext): void {
     const installedFilters = ui.input({ type: 'search', value: state.installedFilter, placeholder: S.installedFilter, onInput: value => { state.installedFilter = value; state.installedPage = 0; renderInstalled(); save(); } });
     installedFilters.setAttribute('aria-label', S.installedFilter); bar.append(installedFilters, sizePicker('installed'));
     if (canRestart) { const button = ui.button(S.restartProcess, { onClick: () => void restart() }); button.classList.add('extension-restart'); bar.append(button); }
+    // 左栏那条更新箭头:开关与别的界面偏好一样只存这份浏览器里
+    bar.append(ui.checkbox(S.updateHints, { checked: updatesShown(), onChange: value => setUpdatesShown(value) }).el);
     bar.append(ui.button(S.refresh, { onClick: () => { void load(); void checkUpdates(); } }));
     messageNodes.management = ui.msgline(kind === 'provider' ? S.providerManagement : S.idleManagement); messageNodes.management.setAttribute('role', 'status'); installedGrid = ui.h('div', 'extension-grid extension-installed-grid'); installedPager = ui.rowbar();
     managed.body.append(bar, messageNodes.management, installedGrid, installedPager);

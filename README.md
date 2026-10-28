@@ -174,7 +174,7 @@ Click the tray icon, or right-click Coo and click the gear. **Normal mode** show
 
 The Model page in advanced mode changes the model and reasoning effort, adds an "OpenAI Responses Compatible" connection for any other service that speaks the Responses API, and takes prices for services without built-in ones.
 
-**Extensions**: the Extensions page in advanced mode lists Worlds on npm with the `cortico-world` keyword; packages in the [official index](https://github.com/Pal-AI-Lab/cortico-extensions) also show tags, votes and comments. After installing, click **Restart process** and enable the World in **World Overview**.
+**Extensions**: the Extensions page in advanced mode lists Worlds on npm with the `cortico-world` keyword; packages in the [official index](https://github.com/Pal-AI-Lab/cortico-extensions) also show tags, votes and comments. After installing, click **Restart process** and enable the World in **World Overview**. An installed World with a newer version gets a green arrow on its row in the rail once the settings window is open: a click installs that version, which runs after a restart, and the × at its corner closes the hint for that version until a newer one is published. The switch in the installed section of the Extensions page turns the hint off. Extensions installed from a local path or with `link:` take no part in it.
 
 **Updates**: the Windows build and the AppImage download new versions in the background, and Coo asks whether to restart and update. On Mac and with the deb, the update status beside the version in the title bar links to a newer release to download by hand.
 
@@ -185,7 +185,7 @@ The Model page in advanced mode changes the model and reasoning effort, adds an 
 - **Kept on your machine**: API keys and the ChatGPT sign-in, memory, conversation history, settings and logs. Speech is recognized locally and only the text is sent, unless a transcription service is chosen on the Voice input page: then the recording of each sentence goes to that service.
 - **Local pet service**: browser writes and WebSocket connections require the pet service's own HTTP origin, including its port. The desktop window authenticates with a random credential passed to its host at startup.
 - **Anonymous usage statistics**: sent to `survey.palailab.org`. Only counts, time used, settings and a random install ID; no conversations, screenshots, keys or files. Every field is listed in [docs/TELEMETRY.md](docs/TELEMETRY.md). Turn it off in Habits.
-- **Other network access**: checks for new releases on GitHub (in the background on Windows and with the AppImage, when the settings window opens on Mac and with the deb); npm and the official extension index on GitHub on the Extensions page, and GitHub for votes and comments; ModelScope (or Hugging Face as a fallback) when downloading the speech model.
+- **Other network access**: checks for new releases on GitHub (in the background on Windows and with the AppImage, when the settings window opens on Mac and with the deb); npm for newer versions of installed extensions whenever the settings window opens and on the Extensions page, npm and the official extension index on GitHub there, and GitHub for votes and comments; ModelScope (or Hugging Face as a fallback) when downloading the speech model.
 
 ## Data and uninstalling
 

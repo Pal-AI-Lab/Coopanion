@@ -6,6 +6,13 @@ export const S: Partial<typeof en> = {
   groupWorlds: 'World',
   moduleInstancesAria: 'Instancias de World',
 
+  updateTitle: (label, from, to) => `${label} tiene una versión más nueva: ${from} → ${to}. Al hacer clic se instala; se aplica al reiniciar Coopanion.`,
+  updateAria: (label, to) => `Actualizar ${label} a ${to}`,
+  updateDismissAria: (label) => `Ignorar esta actualización de ${label}`,
+  updateDone: (label, version) => `${label} se actualizó a ${version}; se aplica al reiniciar Coopanion`,
+  updateFailed: (label, detail) => (detail ? `${label} no se actualizó: ${detail}` : `${label} no se actualizó`),
+  updateGone: 'Esa actualización ya no está en la lista; se volvió a comprobar',
+
   runResume: 'Reanudar',
   runPause: 'Pausar',
   shutdownAria: 'Apagar',

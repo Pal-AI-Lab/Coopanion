@@ -6,6 +6,13 @@ export const S: Partial<typeof en> = {
   groupWorlds: 'World',
   moduleInstancesAria: 'World 인스턴스',
 
+  updateTitle: (label, from, to) => `${label}의 새 버전이 있습니다: ${from} → ${to}. 클릭하면 설치되며 Coopanion을 다시 시작한 뒤 적용됩니다.`,
+  updateAria: (label, to) => `${label}을(를) ${to}(으)로 업데이트`,
+  updateDismissAria: (label) => `${label}의 이번 업데이트 무시`,
+  updateDone: (label, version) => `${label}을(를) ${version}(으)로 업데이트했습니다. Coopanion을 다시 시작한 뒤 적용됩니다`,
+  updateFailed: (label, detail) => (detail ? `${label}을(를) 업데이트하지 못했습니다: ${detail}` : `${label}을(를) 업데이트하지 못했습니다`),
+  updateGone: '이 업데이트는 더 이상 목록에 없습니다. 다시 확인했습니다',
+
   runResume: '재개',
   runPause: '일시 중지',
   shutdownAria: '종료',

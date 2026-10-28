@@ -6,6 +6,13 @@ export const S: Partial<typeof en> = {
   groupWorlds: 'World',
   moduleInstancesAria: 'World インスタンス',
 
+  updateTitle: (label, from, to) => `${label} に新しいバージョンがあります：${from} → ${to}。クリックでインストールし、Coopanion の再起動後に有効になります。`,
+  updateAria: (label, to) => `${label} を ${to} に更新`,
+  updateDismissAria: (label) => `${label} のこの更新を無視`,
+  updateDone: (label, version) => `${label} を ${version} に更新しました。Coopanion の再起動後に有効になります`,
+  updateFailed: (label, detail) => (detail ? `${label} を更新できませんでした：${detail}` : `${label} を更新できませんでした`),
+  updateGone: 'この更新は一覧にありません。再確認しました',
+
   runResume: '再開',
   runPause: '一時停止',
   shutdownAria: 'シャットダウン',

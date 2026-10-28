@@ -78,6 +78,7 @@ export const S: Partial<typeof en> = {
     name: 'Имя',
   },
   hideInstalled: 'Скрыть установленные',
+  updateHints: 'Показывать обновления World на боковой панели',
   perPage: 'На странице',
   automaticCount: (n: number) => `Авто (${n})`,
   shown: (from: number, to: number, total: number) => `Показано ${from}–${to} из ${total}`,

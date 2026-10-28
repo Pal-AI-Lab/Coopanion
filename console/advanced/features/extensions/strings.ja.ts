@@ -72,6 +72,7 @@ export const S: Partial<typeof en> = {
     name: '名前',
   },
   hideInstalled: 'インストール済みを隠す',
+  updateHints: '左バーに World の更新を表示',
   perPage: '1 ページの表示数',
   automaticCount: (n: number) => `自動（${n}）`,
   shown: (from: number, to: number, total: number) => `${total} 件中 ${from}–${to} 件を表示`,

@@ -72,6 +72,7 @@ export const S: Partial<typeof en> = {
     name: '依名稱',
   },
   hideInstalled: '隱藏已安裝',
+  updateHints: '在左欄提示 World 更新',
   perPage: '每頁顯示',
   automaticCount: (n: number) => `自動（${n}）`,
   shown: (from: number, to: number, total: number) => `顯示 ${from}–${to}，共 ${total} 個`,

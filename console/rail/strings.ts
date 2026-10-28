@@ -15,6 +15,13 @@ const zh = {
   groupWorlds: 'World',
   moduleInstancesAria: 'World 实例',
 
+  updateTitle: (label: string, from: string, to: string) => `${label} 有新版本：${from} → ${to}。点一下安装，重启 Coopanion 后生效。`,
+  updateAria: (label: string, to: string) => `更新 ${label} 到 ${to}`,
+  updateDismissAria: (label: string) => `忽略 ${label} 的这次更新`,
+  updateDone: (label: string, version: string) => `${label} 已更新到 ${version}，重启 Coopanion 后生效`,
+  updateFailed: (label: string, detail: string) => (detail ? `${label} 没有更新成功：${detail}` : `${label} 没有更新成功`),
+  updateGone: '这个更新已经不在列表里了，已重新检查',
+
   runResume: '继续运行',
   runPause: '暂停运行',
   shutdownAria: '关机',
@@ -57,6 +64,13 @@ export const en: typeof zh = {
   navAria: 'Settings navigation',
   groupWorlds: 'World',
   moduleInstancesAria: 'World instances',
+
+  updateTitle: (label, from, to) => `${label} has a newer version: ${from} → ${to}. Click to install; it runs after Coopanion restarts.`,
+  updateAria: (label, to) => `Update ${label} to ${to}`,
+  updateDismissAria: (label) => `Ignore this update of ${label}`,
+  updateDone: (label, version) => `${label} is now ${version}; it runs after Coopanion restarts`,
+  updateFailed: (label, detail) => (detail ? `${label} was not updated: ${detail}` : `${label} was not updated`),
+  updateGone: 'That update is no longer listed; checked again',
 
   runResume: 'Resume',
   runPause: 'Pause',

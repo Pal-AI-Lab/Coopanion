@@ -72,6 +72,7 @@ export const S: Partial<typeof en> = {
     name: '이름순',
   },
   hideInstalled: '설치된 항목 숨기기',
+  updateHints: '왼쪽 레일에서 World 업데이트 표시',
   perPage: '페이지당 표시',
   automaticCount: (n: number) => `자동(${n})`,
   shown: (from: number, to: number, total: number) => `전체 ${total}개 중 ${from}–${to} 표시`,

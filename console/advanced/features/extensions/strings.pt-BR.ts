@@ -72,6 +72,7 @@ export const S: Partial<typeof en> = {
     name: 'Nome',
   },
   hideInstalled: 'Ocultar instaladas',
+  updateHints: 'Mostrar atualizações de World na barra lateral',
   perPage: 'Por página',
   automaticCount: (n: number) => `Automático (${n})`,
   shown: (from: number, to: number, total: number) => `Mostrando ${from}–${to} de ${total}`,

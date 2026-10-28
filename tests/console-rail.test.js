@@ -24,7 +24,7 @@ let queries;
 let disposals;
 let saved;
 
-function mount() {
+function mount(groups = nav) {
   const life = new AbortController();
   const memo = {
     get: (key, fallback) => saved.has(key) ? saved.get(key) : fallback,
@@ -34,7 +34,7 @@ function mount() {
   const router = new Router({ win: window, onError: (err) => { throw err; } });
   const content = document.getElementById('kernel-root');
   const rail = createRail({ doc: document, ui, router, mode: 'normal', memo, signal: life.signal, content, onModeToggle() {}, onError: (err) => { throw err; } });
-  rail.setNav(nav);
+  rail.setNav(groups);
   document.body.prepend(rail.el);
   rail.el.after(rail.backdrop);
   document.body.prepend(rail.toggle);
@@ -51,6 +51,7 @@ function mount() {
 beforeEach(() => {
   saved = new Map();
   disposals = [];
+  localStorage.clear();
   document.body.replaceChildren();
   const content = document.createElement('main');
   content.id = 'kernel-root';
@@ -173,4 +174,75 @@ it('enables the upper fade only while navigation has scrolled away from the top'
   expect(nav.classList.contains('is-scrolled')).toBe(true);
   nav.scrollTop = 0; nav.dispatchEvent(new Event('scroll'));
   expect(nav.classList.contains('is-scrolled')).toBe(false);
+});
+
+describe('World extensions with a newer version', () => {
+  const worlds = [{ kind: 'world-tree', label: 'World', items: [], modules: [
+    { label: 'RVC', segments: ['provider', 'world:rvc'], basic: false, pageId: 'world:rvc', lamps: [] },
+    { label: 'Pet', segments: ['provider', 'world:pet'], basic: false, pageId: 'world:pet', lamps: [] },
+  ] }];
+  const update = { name: 'cortico-world-rvc-for-coopanion', worldId: 'rvc', installedVersion: '0.1.2', latestVersion: '0.1.3' };
+  const listUrl = '/api/webui/providers/persona%3Acormini/panels/updates/list';
+  const applyUrl = '/api/webui/providers/persona%3Acormini/panels/updates/apply';
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  /** The rail entry of a World, by the name it shows. */
+  const entryOf = (rail, label) => [...rail.el.querySelectorAll('a.navitem')].find((el) => el.querySelector('.lbl').textContent === label);
+
+  /** Answers the rail's panel calls with `updates` and records every request it makes. */
+  function serve(updates) {
+    const calls = [];
+    vi.stubGlobal('fetch', async (url, init) => {
+      const body = init?.body ? JSON.parse(String(init.body)) : null;
+      calls.push({ url: String(url), body });
+      const reply = String(url) === listUrl
+        ? { updates }
+        : String(url) === applyUrl ? { ok: true, name: update.name, worldId: update.worldId, version: updates[0].latestVersion } : {};
+      return new Response(JSON.stringify(reply), { headers: { 'Content-Type': 'application/json' } });
+    });
+    return calls;
+  }
+
+  it('puts the arrow on that World, installs that version on a click and restarts nothing', async () => {
+    const calls = serve([update]);
+    const { rail } = mount(worlds);
+    await flush();
+    const item = entryOf(rail, 'RVC');
+    expect(item.querySelector('.navupdate-go').getAttribute('aria-label')).toContain('0.1.3');
+    expect(entryOf(rail, 'Pet').querySelector('.navupdate')).toBeNull();
+    item.querySelector('.navupdate-go').click();
+    await flush();
+    expect(calls.filter((call) => call.body).map((call) => call.body.args))
+      .toEqual([['cortico-world-rvc-for-coopanion', 'rvc', '0.1.3']]);
+    expect(calls.map((call) => call.url).some((url) => url.includes('/api/run/'))).toBe(false);
+    expect(item.querySelector('.navupdate')).toBeNull();
+  });
+
+  it('closes one version on its × until the package publishes a newer one', async () => {
+    serve([update]);
+    const first = mount(worlds);
+    await flush();
+    first.rail.el.querySelector('.navupdate-x').click();
+    expect(first.rail.el.querySelector('.navupdate')).toBeNull();
+    first.dispose();
+    const same = mount(worlds);
+    await flush();
+    expect(same.rail.el.querySelector('.navupdate')).toBeNull();
+    same.dispose();
+    serve([{ ...update, latestVersion: '0.1.4' }]);
+    const newer = mount(worlds);
+    await flush();
+    expect(newer.rail.el.querySelector('.navupdate-go').getAttribute('aria-label')).toContain('0.1.4');
+  });
+
+  it('draws no arrow while the switch is off, and takes it back when the switch returns', async () => {
+    serve([update]);
+    localStorage.setItem('companion.worldUpdates', 'off');
+    const { rail } = mount(worlds);
+    await flush();
+    expect(rail.el.querySelector('.navupdate')).toBeNull();
+    localStorage.setItem('companion.worldUpdates', 'on');
+    window.dispatchEvent(new Event('companion:world-updates'));
+    await flush();
+    expect(rail.el.querySelector('.navupdate-go').getAttribute('aria-label')).toContain('0.1.3');
+  });
 });

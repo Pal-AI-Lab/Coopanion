@@ -2,15 +2,19 @@
  * The settings window's left rail: the Coopanion mark, the pages in their groups (setNav), the button that
  * switches between the normal and the advanced mode, and the foot (shut down, pause/resume with the
  * run state in words, the avatar and the bot's name). The normal mode shows only the entries marked
- * basic; switching fades the others in or out.
+ * basic; switching fades the others in or out. A World extension the registry has a newer version of
+ * carries a green arrow between its name and its lamps: the click installs that version, the × closes it.
  *
  * Folded, the rail shows icons only and a tooltip names what is under the pointer. At 1000px or less
  * it folds when the width crosses the breakpoint; below 720px it opens over the
  * page, with a backdrop that folds it again. Pause and resume, shutting down and renaming go to Core
- * through `/api/run/*` and `/api/config`.
+ * through `/api/run/*` and `/api/config`; the arrow goes through the Persona page's `updates` panel.
  */
 import type { WebUiMemo, WebUi } from 'cortico/web/shared/client-panel.ts';
 import { get, post, setConfig } from '../base/api.ts';
+import {
+  HINTS_CHANGED, applyWorldUpdate, dismissUpdate, isDismissed, listWorldUpdates, updatesShown, type WorldUpdate,
+} from '../base/world-updates.ts';
 import type { WebUiLamp } from 'cortico/web/shared/webui-protocol.ts';
 import { buildHash, type Route, type Router } from '../base/router.ts';
 import { icon, type ConsoleIconName } from '../base/ui/icons.ts';
@@ -93,12 +97,97 @@ export function createRail(deps: RailDeps): Rail {
   nav.id = 'companion-navigation';
   nav.setAttribute('aria-label', S.navAria);
   nav.addEventListener('scroll', () => nav.classList.toggle('is-scrolled', nav.scrollTop > 0), { signal });
-  let entries: Array<{ item: HTMLAnchorElement; segments: readonly string[]; pageId?: string; lamps?: HTMLSpanElement }> = [];
+  let entries: Array<{ item: HTMLAnchorElement; segments: readonly string[]; pageId?: string; lamps?: HTMLSpanElement; update?: HTMLSpanElement }> = [];
   let lamps: Record<string, readonly WebUiLamp[]> = {};
+  /** The World extensions the registry has a newer version of, by the World page they serve. */
+  let updates = new Map<string, WorldUpdate>();
   let navLife: AbortController | null = null;
   signal.addEventListener('abort', () => navLife?.abort(), { once: true });
   let route: Route | null = null;
   let mode: ConsoleMode = deps.mode;
+
+  /**
+   * The green arrow of one World with a newer version. Its click installs exactly that version; its ×
+   * closes this version until the package publishes another one.
+   */
+  const updateBadge = (update: WorldUpdate, label: string): HTMLSpanElement => {
+    const wrap = ui.h('span', 'navupdate');
+    const go = ui.h('button', 'navupdate-go') as HTMLButtonElement;
+    go.type = 'button';
+    go.append(icon(doc, 'arrow-up'));
+    go.setAttribute('aria-label', S.updateAria(label, update.latestVersion));
+    go.title = S.updateTitle(label, update.installedVersion, update.latestVersion);
+    const close = ui.h('button', 'navupdate-x') as HTMLButtonElement;
+    close.type = 'button';
+    close.append(icon(doc, 'close'));
+    close.setAttribute('aria-label', S.updateDismissAria(label));
+    close.title = S.updateDismissAria(label);
+    go.addEventListener('click', (event) => {
+      // the entry is a link to the page: the arrow stays on this page and only installs
+      event.preventDefault();
+      event.stopPropagation();
+      void installUpdate(update, label, go);
+    }, { signal });
+    close.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      dismissUpdate(update);
+      updates.delete('world:' + update.worldId);
+      paintUpdates();
+    }, { signal });
+    wrap.append(go, close);
+    return wrap;
+  };
+
+  const installUpdate = async (update: WorldUpdate, label: string, button: HTMLButtonElement): Promise<void> => {
+    if (button.disabled) return;
+    button.disabled = true;
+    try {
+      const out = await applyWorldUpdate(update, { signal });
+      if (signal.aborted) return;
+      if (out.ok) {
+        updates.delete('world:' + update.worldId);
+        paintUpdates();
+        ui.toast(S.updateDone(label, out.version));
+        return;
+      }
+      if (out.reason === 'failed') { ui.toast(S.updateFailed(label, out.detail), 'bad'); return; }
+      ui.toast(S.updateGone);
+      void loadUpdates();
+    } catch (err) {
+      if (!signal.aborted) ui.toast(S.updateFailed(label, err instanceof Error ? err.message : String(err)), 'bad');
+    } finally {
+      button.disabled = false;
+    }
+  };
+
+  /** Draws the arrows the update list asks for; the entries themselves stay where they are. */
+  const paintUpdates = (): void => {
+    for (const entry of entries) {
+      entry.update?.remove();
+      entry.update = undefined;
+      const update = entry.pageId ? updates.get(entry.pageId) : undefined;
+      if (!update) continue;
+      const label = entry.item.querySelector('.lbl')?.textContent ?? update.name;
+      entry.update = updateBadge(update, label);
+      entry.item.insertBefore(entry.update, entry.lamps ?? null);
+    }
+  };
+
+  /** Asks Core for the World extensions with a newer version; a registry that cannot be read leaves no arrow. */
+  const loadUpdates = async (): Promise<void> => {
+    if (!updatesShown()) {
+      updates = new Map();
+      paintUpdates();
+      return;
+    }
+    try {
+      const list = await listWorldUpdates({ signal });
+      if (signal.aborted) return;
+      updates = new Map(list.filter((update) => !isDismissed(update)).map((update) => ['world:' + update.worldId, update]));
+      paintUpdates();
+    } catch { /* the arrow is a hint; its absence says nothing */ }
+  };
 
   const addItem = (parent: HTMLElement, it: NavItem, itemSignal: AbortSignal): void => {
     const item = ui.h('a', 'navitem');
@@ -158,6 +247,7 @@ export function createRail(deps: RailDeps): Rail {
       }
     }
     applyRoute();
+    paintUpdates();
     filterNav(false);
   };
 
@@ -473,7 +563,7 @@ export function createRail(deps: RailDeps): Rail {
   narrow.addEventListener('change', resize, { signal });
 
   const showTip = (event: Event): void => {
-    const target = (event.target as Element).closest<HTMLElement>('a.navitem, .companion-mode, .rail-action, .rail-avatar');
+    const target = (event.target as Element).closest<HTMLElement>('a.navitem, .navupdate, .companion-mode, .rail-action, .rail-avatar');
     if (!collapsed || !target || target.hidden) return;
     const label = target.getAttribute('aria-label') || target.title;
     if (!label) return;
@@ -500,6 +590,8 @@ export function createRail(deps: RailDeps): Rail {
   renderRun();
   renderPower();
   resize();
+  win.addEventListener(HINTS_CHANGED, () => void loadUpdates(), { signal });
+  void loadUpdates();
 
   return {
     el,

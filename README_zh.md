@@ -174,7 +174,7 @@ Windows、macOS 和 Linux（deb、AppImage）的标题栏整条使用统一的�
 
 高级模式的「模型」页可以换模型和调整思考档位、新建「OpenAI Responses Compatible」连接接入其他兼容 Responses API 的服务，以及为没有内置价目的服务填写价目。
 
-**扩展**：高级模式的「扩展」页列出 npm 上带 `cortico-world` 关键字的 World；收录在[官方索引](https://github.com/Pal-AI-Lab/cortico-extensions)里的包还显示标签、投票和评论。安装后点「重启进程」，再到「World 总览」里启用。
+**扩展**：高级模式的「扩展」页列出 npm 上带 `cortico-world` 关键字的 World；收录在[官方索引](https://github.com/Pal-AI-Lab/cortico-extensions)里的包还显示标签、投票和评论。安装后点「重启进程」，再到「World 总览」里启用。已装的 World 有新版本时，打开设置窗口后左栏那一行会出现绿色向上箭头，点一下装上那个版本，重启后生效；箭头右上角的 × 关掉这次的提示，以后发了更新的版本再出现。「扩展」页已装区的「在左栏提示 World 更新」关掉整个提示。从本机路径、`link:` 装的扩展不参与这项提示。
 
 **更新**：Windows 版和 AppImage 会在后台下载新版本，下好后 Coo 会问你要不要重启更新。Mac 版和 deb 在有新版本时，标题栏版本号右侧会出现手动下载的链接。
 
@@ -185,7 +185,7 @@ Windows、macOS 和 Linux（deb、AppImage）的标题栏整条使用统一的�
 - **留在本机的内容**：API Key 和 ChatGPT 的登录状态、记忆、对话记录、设置、日志。语音在本机识别，只把识别出的文字发出去；在「语音输入」页选了转写接口时，每句录音发送给那个接口。
 - **桌宠本地服务**：浏览器写请求和 WebSocket 连接必须来自桌宠服务自己的 HTTP 源（含端口）。桌宠窗口通过启动时交给宿主的随机凭据验证身份。
 - **匿名使用统计**：发到 `survey.palailab.org`，只有使用次数、时长、设置和随机生成的安装编号，不含对话、截图、Key 和文件。字段见 [docs/TELEMETRY.md](docs/TELEMETRY.md)，可在「习惯」页关闭。
-- **其他联网**：向 GitHub 查询新版本（Windows 版和 AppImage 在后台定时查询，Mac 版和 deb 在打开设置窗口时查询）；扩展页访问 npm 与 GitHub 上的官方扩展索引，投票和评论访问 GitHub；下载语音模型时访问 ModelScope（失败时用 Hugging Face）。
+- **其他联网**：向 GitHub 查询新版本（Windows 版和 AppImage 在后台定时查询，Mac 版和 deb 在打开设置窗口时查询）；打开设置窗口时与扩展页向 npm 查询已装扩展的新版本，扩展页还访问 npm 与 GitHub 上的官方扩展索引，投票和评论访问 GitHub；下载语音模型时访问 ModelScope（失败时用 Hugging Face）。
 
 ## 数据与卸载
 
