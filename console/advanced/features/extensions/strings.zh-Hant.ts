@@ -19,7 +19,7 @@ export const S: Partial<typeof en> = {
 
   stateLoaded: '已載入',
   stateFailed: '載入失敗',
-  statePendingRestart: '待重新啟動',
+  statePendingRestart: '待生效',
   stateRemoved: '已解除安裝，待重新啟動',
   enabled: '已載入到本 Bot',
   disabled: '已安裝，未載入',

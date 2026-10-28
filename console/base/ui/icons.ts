@@ -39,7 +39,12 @@ export type ConsoleIconName =
   | 'reply'
   | 'shield-check'
   | 'sparkles'
-  | 'github';
+  | 'github'
+  | 'update'
+  | 'sliders'
+  | 'globe'
+  | 'check'
+  | 'sidebar';
 
 type Shape = readonly [tag: 'path' | 'circle' | 'rect' | 'line', attrs: Readonly<Record<string, string>>];
 
@@ -191,6 +196,29 @@ const SHAPES: Readonly<Record<ConsoleIconName, readonly Shape[]>> = {
     ['rect', { x: '3', y: '4', width: '18', height: '12', rx: '2' }],
     ['path', { d: 'M8 20h8' }],
     ['path', { d: 'M12 16v4' }],
+  ],
+  update: [
+    ['circle', { cx: '12', cy: '12', r: '9' }],
+    ['path', { d: 'M12 16.5v-9' }],
+    ['path', { d: 'm8 11 4-4 4 4' }],
+  ],
+  sliders: [
+    ['path', { d: 'M4 7h10' }],
+    ['path', { d: 'M18 7h2' }],
+    ['circle', { cx: '16', cy: '7', r: '2' }],
+    ['path', { d: 'M4 17h3' }],
+    ['path', { d: 'M11 17h9' }],
+    ['circle', { cx: '9', cy: '17', r: '2' }],
+  ],
+  globe: [
+    ['circle', { cx: '12', cy: '12', r: '9' }],
+    ['path', { d: 'M3 12h18' }],
+    ['path', { d: 'M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18' }],
+  ],
+  check: [['path', { d: 'm5 12.5 4.5 4.5L19 7.5' }]],
+  sidebar: [
+    ['rect', { x: '3.5', y: '4.5', width: '17', height: '15', rx: '2.5' }],
+    ['path', { d: 'M9.5 4.5v15' }],
   ],
   calendar: [
     ['rect', { x: '3.5', y: '5', width: '17', height: '15.5', rx: '2.5' }],

@@ -6,6 +6,7 @@ import { pageIntro } from '../../../base/ui/page.ts';
 import { renderMarkdown } from './markdown.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { S } from './strings.ts';
+import { S as UI } from '../../../base/ui/strings.ts';
 
 /** 扩展类别。与 `ExtensionKind` 同形;这一页只用它分组与选关键字。 */
 export type ExtensionKindView = 'world' | 'provider' | 'bot';
@@ -418,10 +419,14 @@ export interface ExtensionWorkspace {
   beforeReload(): void;
   onLoadError(): void;
   onChange(items: readonly ExtensionView[]): void;
-  onAdded(name: string): void;
+  /** `from` is where the package's icon was on screen when the install started. */
+  onAdded(name: string, from?: DOMRect): void;
 }
+/** Resolves the control an operation's error popover points at; the control may be re-rendered meanwhile. */
+export type Anchor = () => Element | null | undefined;
 export interface ExtensionController {
   manage(name: string): void;
+  remove(name: string, anchor: Anchor): Promise<void>;
 }
 
 export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrollRoot = ctx.root, workspace?: ExtensionWorkspace): ExtensionController {
@@ -584,6 +589,34 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   const hideSoon = () => { keepHint(); hideTimer = lifecycle.timeout(hideHint, 150); };
   hintBox.addEventListener('pointerenter', keepHint, { signal });
   hintBox.addEventListener('pointerleave', hideSoon, { signal });
+  /** An operation's error, shown beside the control that started it until dismissed. */
+  const problemBox = ui.h('div', 'u-tip extension-problem hidden'); problemBox.setAttribute('role', 'alert');
+  doc.body.append(problemBox); lifecycle.add(() => problemBox.remove());
+  let problemAnchor: Element | null = null;
+  const hideProblem = () => { problemBox.classList.add('hidden'); problemAnchor = null; };
+  function placeProblem() {
+    if (!problemAnchor?.isConnected) { hideProblem(); return; }
+    const target = problemAnchor.getBoundingClientRect(), tip = problemBox.getBoundingClientRect(), view = doc.documentElement;
+    const below = target.bottom + 10, above = target.top - tip.height - 10;
+    const flip = below + tip.height > view.clientHeight - 8 && above > 8;
+    const left = Math.max(8, Math.min(target.right - tip.width + 12, view.clientWidth - tip.width - 8));
+    problemBox.classList.toggle('is-above', flip);
+    problemBox.style.top = `${flip ? above : below}px`; problemBox.style.left = `${left}px`;
+    problemBox.style.setProperty('--problem-arrow', `${Math.max(14, Math.min(tip.width - 14, target.left + target.width / 2 - left))}px`);
+  }
+  function showProblem(anchor: Element, text: string) {
+    const close = ui.h('button', 'extension-problem-close') as HTMLButtonElement; close.type = 'button';
+    close.setAttribute('aria-label', UI.close); close.append(icon(doc, 'close'));
+    close.addEventListener('click', hideProblem, { signal });
+    problemBox.replaceChildren(icon(doc, 'alert', 'icon extension-problem-mark'), ui.h('span', 'extension-problem-text', text), close);
+    problemAnchor = anchor; problemBox.classList.remove('hidden'); placeProblem();
+    problemBox.animate?.([{ opacity: 0, transform: 'translateY(-4px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 180, easing: 'ease-out' });
+    anchor.animate?.([0, -5, 5, -3, 2, 0].map(x => ({ transform: `translateX(${x}px)` })), { duration: 420, easing: 'ease-out' });
+  }
+  doc.addEventListener('pointerdown', event => { if (problemAnchor && !problemBox.contains(event.target as Node) && !problemAnchor.contains(event.target as Node)) hideProblem(); }, { signal });
+  doc.addEventListener('keydown', event => { if (event.key === 'Escape') hideProblem(); }, { signal });
+  doc.addEventListener('scroll', () => { if (problemAnchor) placeProblem(); }, { capture: true, passive: true, signal });
+  win.addEventListener('resize', () => { if (problemAnchor) placeProblem(); }, { signal });
   doc.addEventListener('scroll', hideHint, { capture: true, passive: true, signal });
   const HINT_LINK = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
   const plainHint = (text: string) => text.replace(HINT_LINK, '$1');
@@ -1101,6 +1134,36 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     if (!mine.length) installedGrid.append(ui.placeholder(S.noExtensions));
     pager(installedPager, mine.length, state.installedPage, size, page => { installedGrid.style.minHeight = `${installedGrid.getBoundingClientRect().height}px`; state.installedPage = page; renderInstalled(); save(); });
   }
+  /** The market card's one control: install, its progress, or an available update. Installed packages without an update show none. */
+  function getButton(hit: SearchHitView & { installed: boolean }, owner: Category): HTMLButtonElement | null {
+    const update = updates.get(hit.name), working = busy.has(hit.name);
+    if (hit.installed && !update && !working) return null;
+    const anchor: Anchor = () => marketGrid.querySelector(`.extension-market-card[data-name="${CSS.escape(hit.name)}"] .extension-get`);
+    const label = working ? S.progress(hit.installed ? S.updatedAction : S.installedAction, hit.name) : update ? `${S.updateAction} ${S.updateVersions(update.installedVersion, update.latestVersion)}` : S.addToLibrary;
+    const button = ui.h('button', 'extension-get' + (working ? ' is-working' : update ? ' is-update' : '')) as HTMLButtonElement; button.type = 'button';
+    button.setAttribute('aria-label', label);
+    if (working) {
+      const svg = 'http://www.w3.org/2000/svg';
+      const ring = doc.createElementNS(svg, 'svg'); ring.setAttribute('viewBox', '0 0 32 32'); ring.setAttribute('class', 'extension-get-ring'); ring.setAttribute('aria-hidden', 'true');
+      for (const cls of ['track', 'arc']) { const circle = doc.createElementNS(svg, 'circle'); for (const [key, value] of Object.entries({ cx: '16', cy: '16', r: '13', class: cls })) circle.setAttribute(key, value); ring.append(circle); }
+      button.append(ring); button.disabled = true; return button;
+    }
+    button.append(icon(doc, update ? 'update' : 'download'));
+    if (update) {
+      button.disabled = !!update.problems.length; attachHint(button, label, update.problems.join('\n') || undefined);
+      button.addEventListener('click', event => { event.stopPropagation(); void operate('install', { name: hit.name, version: update.latestVersion }, 'market', owner, anchor); }, { signal });
+      return button;
+    }
+    attachHint(button, label);
+    button.disabled = !osSupported(hit.os ?? []);
+    button.addEventListener('click', async event => {
+      event.stopPropagation(); button.disabled = true;
+      const warnings = (hit.tags ?? []).filter(id => marketIndex.tags[id]?.style === 'warning');
+      if (warnings.length && !await ui.confirm({ title: S.installWarningTitle, body: S.installWarningBody(hit.name, warnings.map(id => `${marketIndex.tags[id].label}${S.labelSeparator}${plainHint(marketIndex.tags[id].hint)}`), hit.note), danger: true })) { button.disabled = false; return; }
+      if (!signal.aborted) await operate('install', { name: hit.name, version: hit.version }, 'market', owner, anchor);
+    }, { signal });
+    return button;
+  }
   function renderMarket() {
     const state = states[kind];
     const hits = state.hits.filter(hit => !workspace || state.catalogCategory === 'all' || !state.catalogCategory || (state.catalogCategory === 'local' ? hit.summary?.local : (hit.summary?.[state.catalogCategory] ?? 0) > 0)).map(h => ({ ...h, installed: installed.some(p => p.name === h.name && p.state !== 'removed') }));
@@ -1157,17 +1220,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
       foot.append(downloadsStat(hit));
       if (hit.date) foot.append(dateStat(hit.date));
       card.append(foot);
-      if (workspace) {
-        const add = ui.button(hit.installed ? S.alreadyInstalled : S.addToLibrary, { variant: hit.installed ? 'plain' : 'primary', size: 'sm', onClick: async () => {
-          add.disabled = true;
-          const warnings = (hit.tags ?? []).filter(id => marketIndex.tags[id]?.style === 'warning');
-          if (warnings.length && !await ui.confirm({ title: S.installWarningTitle, body: S.installWarningBody(hit.name, warnings.map(id => `${marketIndex.tags[id].label}${S.labelSeparator}${plainHint(marketIndex.tags[id].hint)}`), hit.note), danger: true })) { add.disabled = false; return; }
-          if (!signal.aborted) await operate('install', { name: hit.name, version: hit.version }, 'market', owner);
-        } });
-        add.classList.add('world-catalog-add');
-        add.disabled = hit.installed || busy.has(hit.name) || !osSupported(hit.os ?? []);
-        card.append(add);
-      }
+      if (workspace) { card.dataset.name = hit.name; const get = getButton(hit, owner); if (get) card.append(get); }
       return card;
     }));
     stabilizeGrid(marketGrid, result.matched, pageSize('market'), workspace ? 160 : 232);
@@ -1212,7 +1265,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   }
   async function checkUpdates() {
     if (signal.aborted) return;
-    try { const data = await get<UpdateResultView>('/api/extensions/updates', { signal }); if (signal.aborted) return; updates = new Map(data.updates.map(u => [u.name, u])); renderInstalled(); if (data.errors.length) message(kind, 'management', S.updateCheckFailed(data.errors.map(e => `${e.name}: ${e.error}`).join('; ')), true); }
+    try { const data = await get<UpdateResultView>('/api/extensions/updates', { signal }); if (signal.aborted) return; updates = new Map(data.updates.map(u => [u.name, u])); renderInstalled(); if (workspace) renderMarket(); if (data.errors.length) message(kind, 'management', S.updateCheckFailed(data.errors.map(e => `${e.name}: ${e.error}`).join('; ')), true); }
     catch (error) { if (!signal.aborted) message(kind, 'management', S.updateCheckFailed(errorText(error)), true); }
   }
   async function search(owner: Category) {
@@ -1248,10 +1301,16 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     void checkUpdates(); void search(owner);
   }
   /** 安装先按当前类别检查声明再装;删除直接卸。两者都改磁盘,重启进程后生效。 */
-  async function operate(action: 'install' | 'delete', target: Target, area: string, owner: Category) {
+  /**
+   * In the World workspace, market and management operations report through their controls: the
+   * button shows progress, the rail shows the result, and an error opens beside `anchor`.
+   */
+  async function operate(action: 'install' | 'delete', target: Target, area: string, owner: Category, anchor?: Anchor) {
     const identity = 'name' in target ? target.name : target.path; if (busy.has(identity)) return;
     const actionLabel = action === 'delete' ? S.deletedAction : installed.some(item => item.name === identity && item.state !== 'removed') ? S.updatedAction : S.installedAction;
-    busy.add(identity); renderInstalled(); if (workspace) renderMarket(); message(owner, area, S.progress(actionLabel, identity));
+    const quiet = !!workspace && area !== 'manual';
+    let problem: string | undefined;
+    busy.add(identity); renderInstalled(); if (workspace) renderMarket(); if (!quiet) message(owner, area, S.progress(actionLabel, identity));
     try {
       let name = identity, version: string | undefined, resultKind: string | undefined;
       if (action === 'install') {
@@ -1263,12 +1322,19 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
       }
       if (signal.aborted) return;
       const activateHint = actionLabel === S.installedAction && resultKind === 'world' ? ' ' + S.worldActivateHint : '';
-      message(owner, area, `${S.completed(actionLabel, name)}${version ? ' ' + S.version(version) : ''} ${S.restartNeeded}${activateHint}`);
+      if (!quiet) message(owner, area, `${S.completed(actionLabel, name)}${version ? ' ' + S.version(version) : ''} ${S.restartNeeded}${activateHint}`);
       updates.delete(name);
-      if (action === 'install' && actionLabel === S.installedAction) workspace?.onAdded(name);
-      if (!await load()) message(owner, area, S.completed(actionLabel, name) + ' ' + S.syncedFailed, true);
-    } catch (error) { if (!signal.aborted) message(owner, area, errorText(error), true); }
+      if (action === 'install' && actionLabel === S.installedAction) workspace?.onAdded(name, anchor?.()?.closest('.extension-market-card')?.querySelector('.extension-avatar')?.getBoundingClientRect());
+      if (!await load()) message(owner, quiet ? 'management' : area, S.completed(actionLabel, name) + ' ' + S.syncedFailed, true);
+    } catch (error) { if (!signal.aborted) problem = errorText(error); }
     finally { busy.delete(identity); if (!signal.aborted) { renderInstalled(); if (workspace) renderMarket(); } }
+    if (problem === undefined || signal.aborted) return;
+    const control = quiet ? anchor?.() : null;
+    if (control?.isConnected) showProblem(control, problem); else message(owner, area, problem, true);
+  }
+  async function remove(name: string, anchor: Anchor) {
+    if (busy.has(name) || !await ui.confirm({ title: S.remove, body: S.removeBody, danger: true }) || signal.aborted) return;
+    await operate('delete', { name }, 'management', kind, anchor);
   }
   function renderDetail(box: HTMLElement, data: PackageDetailView, owner: Category, hit?: SearchHitView, item?: ExtensionView) {
       const title = box.closest('.modalcard')?.querySelector('.modaltitle');
@@ -1552,6 +1618,19 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
         } });
         button.setAttribute('aria-pressed', String((state.catalogCategory ?? 'all') === value)); categoryList.append(button);
       }
+      for (const [button, mark, label] of [[advancedToggle, 'sliders', S.advancedSearch], [registryToggle, 'globe', S.registryLabel]] as const) {
+        button.classList.add('world-catalog-toggle'); button.replaceChildren(icon(doc, mark));
+        button.setAttribute('aria-label', label); attachHint(button, label);
+        filters.insertBefore(button, clear);
+      }
+      toggles.remove();
+      // The toolbar's secondary actions are icons with name tags, so the row fits beside the search field.
+      const refresh = filters.lastElementChild as HTMLButtonElement;
+      for (const [button, mark, label] of [[toggle, 'sidebar', S.filterSidebar], [clear, 'close', S.clearFilters], [refresh, 'refresh', S.refresh.replace(/^↻\s*/, '')]] as const) {
+        button.className = 'world-catalog-toggle'; button.replaceChildren(icon(doc, mark));
+        button.setAttribute('aria-label', label); attachHint(button, label);
+      }
+      clear.classList.add('extension-clear');
       side.append(ui.h('h3', '', S.catalogCategory), categoryList, tagBar, options);
       const manualFold = ui.h('details', 'world-manual'); manualFold.append(ui.h('summary', '', S.manual), manual.body);
       scrollRoot.replaceChildren(marketGrid, marketPager, manualFold);
@@ -1577,6 +1656,6 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   render();
   void load(); void checkUpdates(); void search(kind); void loadRegistry();
   try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { message(kind, 'management', S.reloadWait); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
-  return { manage };
+  return { manage, remove };
 }
 export const extensionsFeature: FrameworkFeature = { route: 'extensions', label: S.navLabel, icon: 'download', navGroup: S.navGroup, needsAny: ['extensions'], mount: mountExtensions };

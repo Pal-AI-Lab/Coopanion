@@ -28,7 +28,7 @@ const zh = {
 
   stateLoaded: '已加载',
   stateFailed: '加载失败',
-  statePendingRestart: '待重启',
+  statePendingRestart: '待生效',
   stateRemoved: '已卸载，待重启',
   enabled: '已加载到本 Bot',
   disabled: '已安装，未加载',
@@ -256,7 +256,7 @@ export const en: typeof zh = {
 
   stateLoaded: 'Loaded',
   stateFailed: 'Load failed',
-  statePendingRestart: 'Restart pending',
+  statePendingRestart: 'Applies on restart',
   stateRemoved: 'Uninstalled, restart pending',
   enabled: 'Loaded into this Bot',
   disabled: 'Installed, not loaded',

@@ -252,7 +252,7 @@ describe('extension categories', () => {
     expect(cardOf(root, 'epsilon-mod').textContent).toContain('加载失败');
     expect(buttons(cardOf(root, 'delta-mod')).map(b => b.textContent)).not.toContain('删除扩展');
     await switchTo(ctx, 'provider');
-    expect(cardOf(root, 'gamma-prov').textContent).toContain('待重启');
+    expect(cardOf(root, 'gamma-prov').textContent).toContain('待生效');
   });
 });
 describe('package authors', () => {
@@ -721,7 +721,7 @@ describe('extension card and history controls', () => {
     expect(button(historyRow(detail, '0.9.0'), '当前版本').disabled).toBe(true);
     const installedRow = [...detail.querySelectorAll('tr')].find(row => row.textContent?.includes('已安装版本'));
     expect(installedRow.textContent).toContain('0.9.0');
-    expect(document.querySelector('.extension-status')?.textContent).toContain('待重启');
+    expect(document.querySelector('.extension-status')?.textContent).toContain('待生效');
   });
   it('a failed release install keeps the error in the drawer and re-enables the row', async () => {
     const detail = await installedHistory({ installStatus: 400 });
@@ -829,7 +829,7 @@ describe('World library and catalog', () => {
     expect(document.activeElement.dataset.key).toBe('alpha-mod');
     expect(rail.querySelector('[aria-current=true]').getAttribute('aria-label')).toBe('甲扩展');
   });
-  it('keeps catalog metadata beside the title and installed state in the action', async () => {
+  it('keeps catalog metadata beside the title and shows no control for an installed package', async () => {
     const hit = { ...HITS.hits[1], summary: { tools: 3, events: 2 } };
     const { root } = await openWorlds({ hits: { hits: [hit] } });
     const card = root.querySelector('.world-catalog .extension-market-card');
@@ -837,14 +837,43 @@ describe('World library and catalog', () => {
     expect(heading.querySelector('.extension-card-byline').textContent).toContain('v1.0.0');
     expect(heading.textContent).not.toContain('已安装');
     expect(card.querySelector('.extension-card-spec')).toBeNull();
-    expect(button(card, '已安装').disabled).toBe(true);
+    expect(card.querySelector('.extension-get')).toBeNull();
+  });
+  it('offers an installed package\'s update from its market card', async () => {
+    const hit = HITS.hits[1];
+    const { root } = await openWorlds({ hits: { hits: [hit] }, updates: { updates: [{ name: hit.name, installedVersion: '0.9.0', latestVersion: '1.0.0', problems: [] }], errors: [] } });
+    const control = root.querySelector('.world-catalog .extension-market-card .extension-get');
+    expect(control.classList.contains('is-update')).toBe(true);
+    control.click(); await flush(100);
+    expect(calls.find(call => call.url === '/api/extensions/install').body).toEqual({ name: hit.name, version: '1.0.0' });
+  });
+  it('reports a failed install beside its control and leaves the status line empty', async () => {
+    const { root } = await openWorlds({ hits: { hits: HITS.hits.slice(0, 1) }, installStatus: 500 });
+    root.querySelector('.world-catalog .extension-market-card .extension-get').click(); await flush(100);
+    const problem = document.querySelector('.extension-problem');
+    expect(problem.classList.contains('hidden')).toBe(false);
+    expect(problem.textContent).toContain('pnpm add 退出码 1');
+    expect(root.querySelector('.world-workspace-status').textContent).toBe('');
+    expect(root.querySelector('.world-catalog .extension-get').getAttribute('aria-label')).toBe('添加到仓库');
+    problem.querySelector('.extension-problem-close').click();
+    expect(problem.classList.contains('hidden')).toBe(true);
+  });
+  it('uninstalls an inactive package from its World row after confirmation', async () => {
+    const { root, ctx } = await openWorlds();
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'beta-mod');
+    row.querySelector('.iobtn-remove').click(); await flush();
+    expect(calls.some(call => call.url === '/api/extensions/uninstall')).toBe(false);
+    answer(true); await flush(100);
+    expect(calls.find(call => call.url === '/api/extensions/uninstall').body).toEqual({ name: 'beta-mod' });
   });
   it('adds from the catalog without opening details, then exposes pending restart in management', async () => {
     const list = structuredClone(LIST);
     const { root } = await openWorlds({ list, hits: { hits: HITS.hits.slice(0, 2) }, onInstall: () => list.extensions.push({ name: 'found-mod', kind: 'world', version: '3.1.0', state: 'pending-restart', loaded: false, webUiClient: true }) });
     const card = cardOf(root, 'found-mod');
-    button(card, '添加到仓库').click(); await flush(100);
+    card.querySelector('.extension-get').click(); await flush(100);
     expect(document.querySelector('.modal')).toBeNull();
+    expect(root.querySelector('.world-workspace-status').textContent).toBe('');
     expect(root.querySelector('.world-library-item').getAttribute('aria-label')).toBe('found-mod');
     const group = root.querySelector('.world-pending-group');
     expect(group.querySelectorAll('.world-library-entry')).toHaveLength(2);
@@ -854,7 +883,7 @@ describe('World library and catalog', () => {
     button(root, '我的 World').click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     const pending = root.querySelector('.world-blade');
     expect(pending.dataset.state).toBe('pending');
-    expect(pending.textContent).toContain('重启');
+    expect(pending.textContent).toContain('待生效');
     expect(buttons(pending).some(item => item.textContent === '激活 World')).toBe(false);
     root.querySelector('.world-blade-actions [aria-label="管理扩展"]').click(); await flush();
     expect(document.querySelector('.world-package-management').textContent).toContain('found-mod');
@@ -894,7 +923,7 @@ describe('World library and catalog', () => {
     const { root } = await openWorlds({ list, worlds });
     const pending = root.querySelector('.world-pending-list .world-library-item');
     list.extensions[0].state = 'loaded'; worlds.push({ id: 'last', status: 'inactive' });
-    button(root, '↻ 刷新').click(); await flush(100);
+    root.querySelector('.world-market [aria-label="刷新"]').click(); await flush(100);
     expect(root.querySelector('.world-pending-group').hidden).toBe(true);
     expect([...root.querySelectorAll('.world-ready-list .world-library-item')].at(-1)).toBe(pending);
   });
@@ -904,10 +933,10 @@ describe('World library and catalog', () => {
     Element.prototype.animate = function() { animated.push(this); return { cancel() {}, finished: Promise.resolve() }; };
     try {
       const { root } = await openWorlds();
-      button(root.querySelector('.world-market'), '↻ 刷新').click(); await flush(100);
+      root.querySelector('.world-market [aria-label="刷新"]').click(); await flush(100);
       expect(animated.filter(el => el.classList.contains('world-library-entry'))).toHaveLength(0);
       expect(root.querySelector('.world-management-toolbar')).toBeNull();
-      expect([...root.querySelectorAll('.world-library-heading')].map(el => el.textContent)).toEqual(['待重启', '扩展列表']);
+      expect([...root.querySelectorAll('.world-library-heading')].map(el => el.textContent)).toEqual(['待生效', '扩展列表']);
     } finally { if (original) Element.prototype.animate = original; else delete Element.prototype.animate; }
   });
   it('restores positions once after reload and waits for both lists', async () => {
@@ -948,7 +977,7 @@ describe('World library and catalog', () => {
     button(root, '接收事件').click(); await flush();
     expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(1);
     expect(root.querySelector('.world-catalog .extension-market-card').textContent).toContain('甲扩展');
-    button(root, '清除筛选').click(); await flush();
+    root.querySelector('.world-market [aria-label="清除筛选"]').click(); await flush();
     expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(2);
     expect(button(root, '全部').getAttribute('aria-pressed')).toBe('true');
   });

@@ -4,7 +4,7 @@ import { pageIdFor } from '../../../base/protocol.ts';
 import type { WebUiBadge, WebUiLamp, WebUiLink } from 'cortico/web/shared/webui-protocol.ts';
 import { get, post } from '../../../base/api.ts';
 import { PROVIDER_ROUTE } from '../../console-pages/host.ts';
-import { icon, type ConsoleIconName } from '../../../base/ui/icons.ts';
+import { brandMark, icon, type ConsoleIconName } from '../../../base/ui/icons.ts';
 import { lampRow, subscribeLamps } from '../../../base/ui/lamp.ts';
 import { pageIntro } from '../../../base/ui/page.ts';
 import { pageTabs } from '../../../base/ui/page-tabs.ts';
@@ -56,6 +56,8 @@ export function mountWorlds(ctx: FeatureContext): void {
   let selected = '', current = '', generation = 0, focusRequested = false;
   let market: ExtensionController | undefined;
   const recent: string[] = [];
+  /** The package just installed from the market, landing in the rail on its next render. */
+  let arrival: { key: string; from?: DOMRect } | undefined;
   let worldsReady = !ctx.capabilities.worlds, extensionsReady = !canBrowse;
   const layoutKey = `coopanion.world-layout:${win.location.origin}`;
   let savedLayout: { positions: [string, number][]; scroll: number; at: number } | undefined;
@@ -96,6 +98,19 @@ export function mountWorlds(ctx: FeatureContext): void {
   rail.append(railList);
   const feedback = ui.h('div', 'world-feedback'); feedback.append(msg);
   workspace.append(rail, catalog); root.append(intro, status, feedback, workspace);
+  /** Name tag beside a rail avatar in the market view, where the rail shows avatars alone. */
+  const dockTip = ui.h('div', 'u-tip world-dock-tip hidden'); dockTip.setAttribute('role', 'tooltip');
+  doc.body.append(dockTip); lifecycle.add(() => dockTip.remove());
+  const hideTip = () => dockTip.classList.add('hidden');
+  function showTip(node: HTMLElement, item: WorldLibraryItem) {
+    if (current !== 'market') return;
+    dockTip.dataset.state = node.parentElement?.dataset.state ?? '';
+    dockTip.replaceChildren(ui.h('b', '', item.label), ui.h('span', '', node.parentElement?.querySelector('.world-state')?.textContent ?? ''));
+    dockTip.classList.remove('hidden');
+    const target = node.querySelector('.world-avatar')!.getBoundingClientRect(), tip = dockTip.getBoundingClientRect();
+    dockTip.style.left = `${target.right + 16}px`; dockTip.style.top = `${Math.max(8, target.top + target.height / 2 - tip.height / 2)}px`;
+  }
+  doc.addEventListener('scroll', hideTip, { capture: true, passive: true, signal });
   const reduceMotion = () => win.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   let transition: Animation | undefined;
   lifecycle.add(() => transition?.cancel());
@@ -107,7 +122,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     const style = transition?.playState === 'running' ? win.getComputedStyle(catalog) : undefined;
     const interrupted = style ? { clipPath: style.clipPath } : undefined;
     transition?.cancel();
-    workspace.dataset.view = next;
+    workspace.dataset.view = next; hideTip();
     tabs.setValue(next);
     catalog.inert = next !== 'market';
     for (const row of railList.querySelectorAll<HTMLElement>('.world-blade')) row.inert = next === 'market';
@@ -131,7 +146,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     },
     onChange: items => { extensions = items; extensionsReady = true; void load(); },
     onLoadError: () => { extensionsReady = true; render(); },
-    onAdded: name => { const previous = recent.indexOf(name); if (previous >= 0) recent.splice(previous, 1); recent.unshift(name); selected = name; railList.scrollTop = 0; },
+    onAdded: (name, from) => { const previous = recent.indexOf(name); if (previous >= 0) recent.splice(previous, 1); recent.unshift(name); selected = name; arrival = { key: name, from }; railList.scrollTop = 0; },
   });
   else status.hidden = true;
   function setMsg(text: string, bad?: boolean): void {
@@ -207,15 +222,36 @@ export function mountWorlds(ctx: FeatureContext): void {
   }
 
 
+  /** Packages without an icon, or whose icon fails to load, show the Cortico mark. */
   function avatar(item: WorldLibraryItem): HTMLElement {
     const box = ui.h('span', 'world-avatar');
-    const initials = item.label.replace(/^cortico-world-/, '');
-    box.append(ui.h('span', '', Array.from(initials).slice(0, 2).join('').toUpperCase()));
+    const fallback = () => { box.classList.add('is-default'); box.replaceChildren(brandMark(doc)); };
     if (item.extension?.icon) {
       const img = ui.h('img'); img.alt = ''; img.src = iconUrl(item.extension.name, item.extension.installedVersion ?? item.extension.version);
-      img.addEventListener('error', () => img.remove(), { once: true, signal }); box.append(img);
-    }
+      img.addEventListener('error', fallback, { once: true, signal }); box.append(img);
+    } else fallback();
     return box;
+  }
+  /** The new avatar flies from the market card into its rail slot, or pops in when it has no origin. */
+  function land(node: HTMLElement, from?: DOMRect) {
+    const entry = node.parentElement!, face = node.querySelector<HTMLElement>('.world-avatar')!;
+    const height = entry.getBoundingClientRect().height;
+    entry.animate?.([{ height: '0px', minHeight: '0px', marginBottom: '0px', opacity: 0 }, { height: `${height}px`, minHeight: `${height}px`, opacity: 1 }], { duration: 260, easing: 'cubic-bezier(.32,.72,0,1)' });
+    const pop = () => face.animate?.([{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1.12)', opacity: 1, offset: .6 }, { transform: 'scale(1)' }], { duration: 380, easing: 'cubic-bezier(.32,.72,0,1)' });
+    if (!from || current !== 'market' || !face.animate) { pop(); return; }
+    const to = face.getBoundingClientRect();
+    const ghost = face.cloneNode(true) as HTMLElement; ghost.classList.add('world-avatar-ghost');
+    Object.assign(ghost.style, { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px` });
+    doc.body.append(ghost); face.style.opacity = '0';
+    const dx = from.left + from.width / 2 - (to.left + to.width / 2), dy = from.top + from.height / 2 - (to.top + to.height / 2), scale = from.width / to.width;
+    const flight = ghost.animate([
+      { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, opacity: 1 },
+      { transform: `translate(${dx * .45}px, ${dy * .45 - 48}px) scale(${(scale + 1) / 2 * 1.08})`, offset: .45 },
+      { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+    ], { duration: 640, easing: 'cubic-bezier(.45,.05,.25,1)' });
+    const finish = () => { ghost.remove(); face.style.opacity = ''; if (!signal.aborted) face.animate?.([{ transform: 'scale(1.14)' }, { transform: 'scale(1)' }], { duration: 260, easing: 'cubic-bezier(.32,.72,0,1)' }); };
+    void flight.finished.then(finish, finish);
+    lifecycle.add(() => ghost.remove());
   }
   function select(item: WorldLibraryItem) {
     selected = item.key; focusRequested = true;
@@ -240,10 +276,14 @@ export function mountWorlds(ctx: FeatureContext): void {
       if (!node) {
         node = ui.h('button', 'world-library-item'); node.type = 'button';
         node.append(avatar(item), ui.h('span', 'world-library-label'));
-        node.addEventListener('click', () => select(item), { signal }); railNodes.set(item.key, node);
+        const own = node;
+        node.addEventListener('click', () => { hideTip(); select(item); }, { signal });
+        for (const event of ['pointerenter', 'focus']) node.addEventListener(event, () => showTip(own, worldLibrary(worlds, extensions, recent).find(entry => entry.key === own.dataset.key) ?? item), { signal });
+        for (const event of ['pointerleave', 'blur']) node.addEventListener(event, hideTip, { signal });
+        node.dataset.key = item.key; railNodes.set(item.key, node);
       }
       node.querySelector('.world-library-label')!.textContent = item.label.replace(/^cortico-world-/, '');
-      node.title = item.label; node.setAttribute('aria-label', item.label); node.setAttribute('aria-current', item.key === selected ? 'true' : 'false');
+      node.setAttribute('aria-label', item.label); node.setAttribute('aria-current', item.key === selected ? 'true' : 'false');
       const row = worldRow(item); row.inert = current === 'market';
       let entry = node.parentElement;
       if (!entry) { entry = ui.h('div', 'world-library-entry'); entry.append(node, row); }
@@ -255,6 +295,8 @@ export function mountWorlds(ctx: FeatureContext): void {
       cursors.set(group, entry.nextElementSibling);
     }
     if (restored) railList.scrollTop = restored.scroll;
+    const landing = arrival && railNodes.get(arrival.key);
+    if (landing && arrival) { const { from } = arrival; arrival = undefined; if (!reduceMotion()) land(landing, from); }
     for (const [key, node] of railNodes) {
       const before = positions.get(key), delta = before === undefined ? 0 : before - node.parentElement!.getBoundingClientRect().top;
       if (delta && node.parentElement!.dataset.state !== 'pending' && node.parentElement!.dataset.state !== 'failed' && !reduceMotion()) {
@@ -303,6 +345,12 @@ export function mountWorlds(ctx: FeatureContext): void {
     }
     if (m) actions.append(ui.button(S.configure, { size: 'sm', onClick: () => router.navigate([PROVIDER_ROUTE, worldPageId(m.id)]) }));
     if (pack) actions.append(iconButton('package', S.manageExtension, '', () => market?.manage(pack.name)));
+    if (pack && !pack.builtin && pack.state !== 'removed' && market) {
+      const owner = market, key = item.key;
+      const remove = iconButton('trash', E.remove, 'iobtn-remove', () => void owner.remove(pack.name, () => railList.querySelector(`.world-blade[data-key="${CSS.escape(key)}"] .iobtn-remove`)));
+      if (pack.enabled) { remove.disabled = true; remove.title = E.removeInUse; }
+      actions.append(remove);
+    }
     row.append(identity, ui.h('span', 'world-state', state), signals, actions);
     if (failed) row.append(ui.h('p', 'world-blade-note bad', m?.reason || pack?.reason || S.missingReasonDefault));
     else if (m?.status === 'inactive' && !canActivate) row.append(ui.h('p', 'world-blade-note', S.inactiveNoteManual(m.id)));

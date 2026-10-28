@@ -19,7 +19,7 @@ export const S: Partial<typeof en> = {
 
   stateLoaded: 'Geladen',
   stateFailed: 'Laden fehlgeschlagen',
-  statePendingRestart: 'Neustart ausstehend',
+  statePendingRestart: 'Wirkt nach Neustart',
   stateRemoved: 'Deinstalliert, Neustart ausstehend',
   enabled: 'In diesen Bot geladen',
   disabled: 'Installiert, nicht geladen',

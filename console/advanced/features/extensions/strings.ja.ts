@@ -19,7 +19,7 @@ export const S: Partial<typeof en> = {
 
   stateLoaded: '読み込み済み',
   stateFailed: '読み込み失敗',
-  statePendingRestart: '再起動待ち',
+  statePendingRestart: '再起動後に反映',
   stateRemoved: 'アンインストール済み、再起動待ち',
   enabled: 'このボットに読み込み済み',
   disabled: 'インストール済み、未読み込み',

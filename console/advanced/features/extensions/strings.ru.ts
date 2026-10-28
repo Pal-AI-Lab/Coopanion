@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
 
   stateLoaded: 'Загружено',
   stateFailed: 'Ошибка загрузки',
-  statePendingRestart: 'Ожидает перезапуска',
+  statePendingRestart: 'После перезапуска',
   stateRemoved: 'Удалено, ожидает перезапуска',
   enabled: 'Загружено в этот бот',
   disabled: 'Установлено, не загружено',

@@ -19,7 +19,7 @@ export const S: Partial<typeof en> = {
 
   stateLoaded: '로드됨',
   stateFailed: '로드 실패',
-  statePendingRestart: '재시작 대기',
+  statePendingRestart: '재시작 후 적용',
   stateRemoved: '제거됨, 재시작 대기',
   enabled: '이 봇에 로드됨',
   disabled: '설치됨, 로드 안 됨',
