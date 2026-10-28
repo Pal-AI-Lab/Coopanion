@@ -10,6 +10,9 @@ import { S as it } from './strings.it.ts';
 import { S as ru } from './strings.ru.ts';
 
 const zh = {
+  autoUpdateLabel: "自动更新",
+  autoUpdate: "自动下载和安装更新",
+  autoUpdateHint: "自动下载并在退出时安装更新。关闭后立即停止检查和下载，已下载的更新也不会自动安装。",
   nav: '习惯',
   language: '语言',
   languageHint: '界面和 Coo 说话都使用这种语言。',
@@ -118,6 +121,9 @@ const zh = {
 };
 
 export const en: typeof zh = {
+  autoUpdateLabel: "Automatic updates",
+  autoUpdate: "Download and install updates automatically",
+  autoUpdateHint: "Download updates automatically and install them when you quit. Turning this off stops checks and downloads immediately and prevents downloaded updates from installing automatically.",
   nav: 'Habits',
   language: 'Language',
   languageHint: 'The interface and Coo use this language.',

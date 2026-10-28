@@ -1,4 +1,4 @@
-# 开发文档
+# 开发文档（scripts/stage.ts、app/main.cjs、app/updater.cjs、core/companion.ts）
 
 Coopanion 是用 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 组装的 Electron 桌面应用:Cortico Core + Cormini Persona +
 [桌宠 World](../packages/cortico-world-desktop-pet)(含电脑操作),
@@ -78,7 +78,7 @@ Cortico 是内核,Coopanion 是用它做的一个产品。使用者看到的界�
    要给用户写更长的话，写成开发者的信 `docs/releases/v<版本>.letter.md`(英文版 `.letter.en.md`):不进 GitHub Release,随安装包分发，跟更新说明一起整封交给 Coo,附 GitHub 上该版本标签下的原文链接，由 Coo 决定转不转达、怎么转达;跨了几个版本更新时只给其中最新的一封;
 3. 提交后打 `v<版本>` 标签并推送。
 
-GitHub Actions 会构建 Windows 安装包和两个 Mac 包(Apple 芯片、Intel,都在 Apple 芯片的 runner 上打),附到对应的 Release 上,连同自动更新读的 `latest.yml`(Windows)和 `latest-linux.yml`(AppImage)。已装的 Windows 版和 AppImage 由 `app/updater.cjs`(electron-updater)在后台下载新版本,Coo 在气泡里问要不要重启更新;Mac(临时签名装不了自动更新)和 deb 仍靠设置窗口字标下的提示手动下载。仓库配好 Steam 的变量和密钥后，同一个标签还会构建 Steam 版并上传到 Steam,见 [STEAM.md](STEAM.md)。
+GitHub Actions 会构建 Windows 安装包和两个 Mac 包(Apple 芯片、Intel,都在 Apple 芯片的 runner 上打),附到对应的 Release 上,连同自动更新读的 `latest.yml`(Windows)和 `latest-linux.yml`(AppImage)。Windows 安装版和 AppImage 由 `app/updater.cjs`(electron-updater)检查、下载新版本，并在退出时安装。`companion.autoUpdate` 默认开启，可在「习惯 → 通用」关闭；Core 通过 `companion:auto-update` 将初始值和修改后的值交给主进程，主进程收到初始值后才开始检查。关闭时取消下载、清除更新提示并阻止退出安装。Mac(临时签名装不了自动更新)、deb 和 Windows 便携版仍靠标题栏版本号右侧的提示手动下载。仓库配好 Steam 的变量和密钥后，同一个标签还会构建 Steam 版并上传到 Steam,见 [STEAM.md](STEAM.md)。
 
 ## 提交改动
 

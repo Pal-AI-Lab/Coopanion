@@ -61,7 +61,11 @@ const APP_ROOT = app.getAppPath();
 const ICONS = join(__dirname, 'icons');
 /** Window icon: on Windows the .ico, so the taskbar picks the size it draws instead of scaling a 512 px PNG. */
 const WINDOW_ICON = join(ICONS, process.platform === 'win32' ? 'icon.ico' : 'icon.png');
-const APP_ID = 'ai.pal.coopanion';
+/**
+ * The AppUserModelID, by which Windows groups taskbar buttons and picks their icon: electron-builder.yml's appId for
+ * a packaged build, an id of its own for a run from source, which would otherwise lend the installed app electron.exe's icon.
+ */
+const APP_ID = app.isPackaged ? 'ai.pal.coopanion' : 'ai.pal.coopanion.dev';
 /** The build's channel and, for `steam`, its Steam app id (see the module header). */
 const BUILD = JSON.parse(readFileSync(join(APP_ROOT, 'package.json'), 'utf8')).coopanion ?? {};
 const STEAM = BUILD.channel === 'steam';
@@ -280,6 +284,7 @@ const core = new CoreHost({
     COOPANION_VERSION: app.getVersion(),
     // the introduction offers the whale's persona outside Steam (core/guide.ts)
     COOPANION_CHANNEL: STEAM ? 'steam' : 'github',
+    COOPANION_SELF_UPDATE: SELF_UPDATE ? '1' : '0',
   },
 });
 
@@ -596,9 +601,23 @@ function buildTray() {
 core.on('ready', ({ language: next }) => {
   followLanguage(next);
   if (settings) settings.loadURL(settingsUrl());
-  if (updateStep) core.send(updateStep);
+  if (updateStep) core.send({ type: 'companion:update', step: updateStep });
 });
 core.on('language', followLanguage);
+// The saved preference reaches the main process before the first update check.
+core.on('auto-update', (enabled) => {
+  if (!SELF_UPDATE) return;
+  if (updater) { updater.setEnabled(enabled); return; }
+  updater = startUpdater({
+    logDir: join(userData, 'logs'),
+    enabled,
+    tell: (step) => {
+      updateStep = step;
+      core.send({ type: 'companion:update', step });
+      settings?.webContents.send('settings:update', updateLine());
+    },
+  });
+});
 // the quit stops the Core and takes the tray icon down before the installer runs; the installer kills a
 // Coopanion still running, which would leave its icon in the notification area
 core.on('update-install', () => {
@@ -683,12 +702,4 @@ app.whenReady().then(() => {
   buildTray();
   noteAutostart();
   void core.start();
-  if (SELF_UPDATE) updater = startUpdater({
-    logDir: join(userData, 'logs'),
-    tell: (step) => {
-      updateStep = { type: 'companion:update', ...step };
-      core.send(updateStep);
-      settings?.webContents.send('settings:update', updateLine());
-    },
-  });
 });
