@@ -49,4 +49,16 @@ describe('the version line of a build that updates itself', () => {
     mountRelease(document, brand, new AbortController().signal);
     expect(brand.querySelector('.release-hint').textContent).toBe(S.updateReadyShort('9.9.9'));
   });
+
+  it('clears a ready update when automatic updates are disabled and shows later updates', () => {
+    const run = updater({ phase: 'ready', version: '9.9.9' });
+    const brand = document.createElement('div');
+    const life = new AbortController();
+    mountRelease(document, brand, life.signal);
+    run.tell(null);
+    expect(brand.querySelector('.release-hint')).toBeNull();
+    run.tell({ phase: 'downloading', version: '9.9.9' });
+    expect(brand.querySelector('.release-hint').textContent).toBe(S.updateDownloadingShort('9.9.9'));
+    life.abort();
+  });
 });

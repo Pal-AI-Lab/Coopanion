@@ -1,6 +1,9 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  autoUpdateLabel: "Aggiornamenti automatici",
+  autoUpdate: "Scarica e installa gli aggiornamenti automaticamente",
+  autoUpdateHint: "Scarica gli aggiornamenti automaticamente e li installa alla chiusura. Disattivando questa opzione, ricerca e download si interrompono subito e gli aggiornamenti già scaricati non vengono installati automaticamente.",
   nav: 'Abitudini',
   language: 'Lingua',
   languageHint: "L'interfaccia e Coo usano questa lingua.",

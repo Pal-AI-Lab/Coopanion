@@ -17,6 +17,7 @@
  * 「习惯」 page through the WebUI config API, goes out from `watchLanguage` the moment the live
  * config takes it: to the persona file, to Coopanion's config group titles, to the Electron main
  * process (tray menu, settings window), to the pet's pages, and to the settings window's colour scheme names.
+ * `companion.autoUpdate` is sent to the main process at load and on change (`update-settings.ts`).
  *
  * The settings window's colours follow the pet's look (`console-theme.ts`): at start and whenever the
  * dressing page saves one.
@@ -59,7 +60,7 @@ import { providerModules, registerProviderModules } from 'cortico/providers/regi
 import { withWorlds, type WorldDefinition, type WorldSection } from 'cortico/world.ts';
 import { InstanceLockedError } from 'cortico/core/instance-lock.ts';
 import { CONSOLE } from 'cortico/worlds/console/definition.ts';
-import { desktopPetDefinition, figurePacks, type DesktopPetWorld } from 'cortico-world-desktop-pet';
+import { desktopPetDefinition, figurePacks, type DesktopPetWorld, type PetDialogHandle } from 'cortico-world-desktop-pet';
 import COO, { CHATGPT, CHATGPT_PROVIDER, signedIn, usageLimited, vendorOf } from 'cortico-provider-coo';
 import { appWebUiAsset, bundledWebUiAssets } from './bundled-panels.ts';
 import { followPetLook } from './console-theme.ts';
@@ -74,6 +75,7 @@ import type { Cormini } from '../vendor/cortico/bots/cormini/persona/persona.ts'
 import type { contextStageConfigGroup } from '../vendor/cortico/bots/cormini/persona/config.ts';
 import type { CorminiConfig } from '../vendor/cortico/bots/cormini/index.ts';
 import { crashFields, describeEndpoint, publicExtensionName, Telemetry, type Counter } from './telemetry.ts';
+import { AUTO_UPDATE_DEFAULT, autoUpdateProperties, watchAutoUpdate, type UpdateConfig } from './update-settings.ts';
 
 /** The active endpoint's key is set in the process environment or the endpoint's `.env`; a ChatGPT plan's endpoint is signed in. */
 function hasKey(config: CoreConfig): boolean {
@@ -120,7 +122,7 @@ const CONTEXT_RING_KEY = 'companion.contextRing';
 const LANGUAGE_OPTIONS = 'coopanion.language';
 
 /**
- * Coopanion's own settings: the app language, the statistics switch, the context ring and the round
+ * Coopanion's own settings: the app language, automatic updates, statistics, the context ring and the round
  * caps. A Persona's config group is not asked for per request, so it is titled in the app language,
  * which the settings window follows; `main` retitles the object in place when the language changes.
  */
@@ -136,6 +138,7 @@ function companionGroup(language: Language): ConfigGroup {
         language: { type: 'string', title: s.language.title, description: s.language.description, enum: [...LANGUAGES], 'x-options': LANGUAGE_OPTIONS, 'x-hot': true },
         [TELEMETRY_KEY]: { type: 'boolean', title: s.telemetry.title, description: s.telemetry.description },
         [CONTEXT_RING_KEY]: { type: 'boolean', title: s.contextRing.title, description: s.contextRing.description, 'x-hot': true },
+        ...autoUpdateProperties(language),
         // Cormini copies `rounds` when the bot is built, so a change applies from the next start
         'rounds.soft': { type: 'integer', title: s.roundsSoft.title, minimum: 1, 'x-suffix': s.roundsSoft.suffix, 'x-hot': false, description: s.roundsSoft.description },
         'rounds.hard': { type: 'integer', title: s.roundsHard.title, minimum: 1, 'x-suffix': s.roundsHard.suffix, 'x-hot': false, description: s.roundsHard.description },
@@ -281,8 +284,9 @@ interface UpdateStep { phase: 'downloading' | 'ready' | 'failed'; version: strin
  * Says the updater's steps (app/updater.cjs) in the pet's bubble: once each, when the pet page is
  * there and the introduction is not running; a newer step replaces one not yet said.
  */
-function sayUpdates(config: CoreConfig, pet: () => DesktopPetWorld | null, guiding: () => boolean): (step: UpdateStep) => void {
+function sayUpdates(config: CoreConfig, pet: () => DesktopPetWorld | null, guiding: () => boolean): (step: UpdateStep | null) => void {
   let pending: UpdateStep | null = null;
+  let dialog: PetDialogHandle | null = null;
   const said = new Set<string>();
   const S = () => coreText(appLanguage(config.language)).update;
   setInterval(() => {
@@ -294,7 +298,12 @@ function sayUpdates(config: CoreConfig, pet: () => DesktopPetWorld | null, guidi
     const [text, options] = step.phase === 'downloading' ? [s.downloading(step.version), [{ label: s.ok, primary: true }, { label: s.trouble, hover: s.githubByHand }]]
       : step.phase === 'ready' ? [s.ready(step.version), [{ label: s.install, primary: true }, { label: s.later }]]
         : [s.failed(step.version, step.reason ?? '?'), [{ label: s.github, primary: true }, { label: s.gotIt }]];
-    void p.dialog({ text, actions: [step.phase === 'failed' ? 'sad' : 'happy'], closable: true, input: { kind: 'buttons', options } }).answer.then((a) => {
+    dialog?.close();
+    const shown = p.dialog({ text, actions: [step.phase === 'failed' ? 'sad' : 'happy'], closable: true, input: { kind: 'buttons', options } });
+    dialog = shown;
+    void shown.answer.then((a) => {
+      if (dialog !== shown) return;
+      dialog = null;
       if ('unavailable' in a) { pending ??= step; return; }
       if (!('index' in a)) return;
       const github = (step.phase === 'downloading' && a.index === 1) || (step.phase === 'failed' && a.index === 0);
@@ -303,6 +312,13 @@ function sayUpdates(config: CoreConfig, pet: () => DesktopPetWorld | null, guidi
     });
   }, 2000).unref();
   return (step) => {
+    if (!step) {
+      pending = null;
+      said.clear();
+      dialog?.close();
+      dialog = null;
+      return;
+    }
     const key = `${step.phase}:${step.version}`;
     if (said.has(key)) return;
     said.add(key);
@@ -484,7 +500,7 @@ export async function main(): Promise<void> {
   const base = await cormini();
   /** Coo's Persona, once the bot is built. */
   let coo: CoopanionPersona | null = null;
-  const definitionBase: BotDefinition<CorminiConfig> = {
+  const definitionBase: BotDefinition<CorminiConfig & UpdateConfig> = {
     ...base.definition,
     declares: [CONSOLE.id, DESKTOP_PET.id, NOTICE.id],
     // Cormini's tools under the same names; the memory differs by PARTNER.md and the version history
@@ -505,7 +521,7 @@ export async function main(): Promise<void> {
       // e2e harnesses give their persona
       rounds: { soft: 20, hard: 40 },
       context: { ...base.definition.defaults().context, maxTokens: 128_000, keepRatio: 0.25 },
-      companion: { telemetry: true, contextRing: false },
+      companion: { telemetry: true, contextRing: false, autoUpdate: AUTO_UPDATE_DEFAULT },
     }),
     // Cormini's own build with Coo's Persona class; the workspace is snapshotted before Coo can write to it
     build: (loaded, worlds) => {
@@ -548,6 +564,7 @@ export async function main(): Promise<void> {
 
   const loaded = loadDeployment(definition, deployDir, repoRoot(), join(repoRoot(), 'bots', 'cormini'), providersRoot());
   config = loaded.config;
+  watchAutoUpdate(loaded.config, (enabled) => process.send?.({ type: 'companion:auto-update', enabled }));
   Object.assign(settingsGroup, companionGroup(language()));
   watchLanguage(loaded.config, (next) => {
     Object.assign(settingsGroup, companionGroup(next));
@@ -627,10 +644,12 @@ export async function main(): Promise<void> {
     process.exit(done ? 0 : 1);
   };
   const update = sayUpdates(loaded.config, () => pet, () => guiding);
-  process.on('message', (msg: { type?: string } & Partial<UpdateStep>) => {
+  process.on('message', (msg: { type?: string; step?: UpdateStep | null }) => {
     if (msg?.type === 'companion:shutdown') void shutdown('应用退出');
-    else if (msg?.type === 'companion:update' && typeof msg.version === 'string' && (msg.phase === 'downloading' || msg.phase === 'ready' || msg.phase === 'failed')) {
-      update({ phase: msg.phase, version: msg.version, reason: typeof msg.reason === 'string' ? msg.reason : undefined });
+    else if (msg?.type === 'companion:update') {
+      const step = msg.step;
+      if (step === null) update(null);
+      else if (step && typeof step.version === 'string' && (step.phase === 'downloading' || step.phase === 'ready' || step.phase === 'failed')) update(step);
     }
   });
   process.on('disconnect', () => void shutdown('应用进程已退出'));

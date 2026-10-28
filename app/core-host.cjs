@@ -19,7 +19,7 @@
  * `state` (the state, and for an unexpected exit `{ kind: 'restarting', code }` or, once it stops
  * retrying, `{ kind: 'failed', times, code, logFile }`, for a lock held elsewhere `{ kind: 'locked', pid, file }`, or for
  * the console ports `{ kind: 'ports-busy', from, to }`), and the Core's requests `open`, `hide`,
- * `quit`, `update-install` and `releases`.
+ * `quit`, `update-install`, `releases` and `auto-update` (the saved boolean preference).
  */
 const { fork } = require('node:child_process');
 const { coreEnvironment, lookupProxy, proxySource } = require('./core-env.cjs');
@@ -120,6 +120,8 @@ class CoreHost extends EventEmitter {
         });
       } else if (msg?.type === 'companion:language') {
         this.emit('language', msg.language);
+      } else if (msg?.type === 'companion:auto-update' && typeof msg.enabled === 'boolean') {
+        this.emit('auto-update', msg.enabled);
       } else if (msg?.type === 'cortico:ready') {
         this.dataDir = msg.dataDir;
       } else if (msg?.type === 'companion:locked') {
