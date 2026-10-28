@@ -112,7 +112,7 @@ export async function createMyBody(base, opts) {
 **音效**：`figure.json` 的 `sounds` 声明包里的音频文件和它的类别（`move` `touch` `face` `snore`）。身体按名字要声音，
 桌宠页播放，设置里按类别关掉的那一类连包的声音一起静音。和桌宠内置音色同名的声音会替换掉内置的那个，比如包里的 `jump`。
 
-**沙箱**：包的脚本跑在不透明源的 iframe 里，连不了网络，图片要用 `opts.loadImage` 载入（WebGL 才读得了），
+**沙箱**：包的脚本跑在不透明源的 iframe 里，只能用 `fetch(opts.asset(路径))` 读本包目录里的文件（见 World README「读包里的文件」），图片要用 `opts.loadImage` 载入（WebGL 才读得了），
 别的脚本和图片用 `opts.asset(路径)` 拿地址；视频、音频和字体在沙箱里加载不了，声音写进 `sounds`。身体报告的框会被限制在 kit 能拉伸到的大小以内，互动事件只在真实的鼠标输入之后才算数。
 
 **不用 kit**：工厂也可以自己实现 `step`、`layout`、`do` 等方法，身体怎么动全由包决定；会飞的、不走路的、3D 的都可以这样做。

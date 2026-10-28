@@ -191,4 +191,12 @@ describe('installed pack files', () => {
     expect(script.headers.get('content-type')).toMatch(/^text\/javascript/);
     expect(script.headers.get('access-control-allow-origin')).toBe('null');
   });
+
+  it('the figure frame may connect only to the folder of the installed pack it names', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pet-pack-'));
+    const server = await serve({ on: false }, { packs: () => [{ id: 'p', dir, builtin: false }, { id: 'coo', dir, builtin: true }] as FigurePack[] });
+    const connect = async (query: string) => (await fetch(`${server.origin}/figure-frame${query}`)).headers.get('content-security-policy')!.match(/connect-src ([^;]*)/)![1];
+    expect(await connect('?pack=p')).toBe(`${server.origin}/packs/p/`);
+    for (const query of ['?pack=other', '?pack=coo', '']) expect(await connect(query)).toBe("'none'");
+  });
 });

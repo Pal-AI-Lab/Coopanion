@@ -12,8 +12,9 @@
  *   `/web/`). `/api/figures/status`: the installed packs that did not load and why, and whether packs can be
  *   imported here; `POST /api/figures/import` (a zip, or the page's framing of folders), `…/import/install`
  *   and `…/import/cancel` import them, `POST /api/figures/remove` (`{ id }`) uninstalls one (src/pack-import.ts).
- * - `/figure-frame`: the sandbox a pack's code runs in. Its own CSP sandboxes it (an opaque
- *   origin) and denies it every connection; scripts and images come from this server only. Files
+ * - `/figure-frame?pack=<id>`: the sandbox a pack's code runs in. Its own CSP sandboxes it (an opaque
+ *   origin) and lets it connect only to `/packs/<id>/` of an installed pack, nowhere for any other id;
+ *   scripts and images come from this server only. Files
  *   under `/web/` and `/packs/` answer that opaque origin's CORS requests; nothing else does,
  *   and a write (`POST`, the socket) from it is refused.
  * - `/socket?role=pet|dress&host=window|tab`: one live pet connection plus any number of
@@ -329,8 +330,12 @@ export class PetServer {
     }
     if (req.method === 'GET' && path === '/figure-frame') {
       const self = `http://${req.headers.host}`;
+      // an installed pack (`?pack=<id>`) may fetch its own folder, which never redirects (a CSP path stops holding after
+      // a redirect); a built-in pack, an unknown id or none connects nowhere
+      const id = url.searchParams.get('pack');
+      const own = id && (this.opts.packs?.() ?? []).some((p) => p.id === id && !p.builtin) ? `${self}/packs/${id}/` : "'none'";
       return this.sendFile(res, join(this.opts.webDir, 'figure-frame.html'), [
-        'sandbox allow-scripts', "default-src 'none'", `script-src ${self}`, `img-src ${self} data: blob:`, "style-src 'unsafe-inline'", "connect-src 'none'",
+        'sandbox allow-scripts', "default-src 'none'", `script-src ${self}`, `img-src ${self} data: blob:`, "style-src 'unsafe-inline'", `connect-src ${own}`,
         // the pet page holds it, and the console that shows the pet page in its own frames (another local port) is an ancestor too
         `frame-ancestors ${self} http://127.0.0.1:* http://localhost:*`,
       ].join('; '));

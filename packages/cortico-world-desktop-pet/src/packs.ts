@@ -3,7 +3,7 @@
  * (`web/coo/`), and so is the whale maid (`web/whale/`).
  *
  * A pack's code runs only inside the sandboxed figure frame (`web/figure-frame.html`): an opaque
- * origin with no network access, talking to the pet page by `postMessage` alone. The body there is
+ * origin that may fetch only its own pack's files (an installed pack's), talking to the pet page by `postMessage` alone. The body there is
  * the pack's own (walking, falling, faces, drawing; most packs build it on the kit, `web/kit/body.js`).
  * What the World and the pages need without running it is in the manifest: names, the dress-up axes
  * and presets, what the bot is told the body looks like, the words it does (`vocab`, the whole of the

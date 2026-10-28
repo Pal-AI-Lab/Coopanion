@@ -241,9 +241,9 @@ Windows 上桌宠窗口从前台窗口拿走键盘，打字框关掉后还回去
 桌宠的身体都来自形象包,Coo 也是一个。形象包是一个目录,根上有 `figure.json`;内置的 Coo 在 `web/coo/`、大肥鱼在 `web/whale/`,
 其余的从数据目录的 `figures/<目录>/` 和应用给的 `packRoots` 里找。`skin.figure` 是包的 id,`skin.scheme` 是它的打扮(Coo 的打扮存在 skin 自己的配色和配件字段里)。
 
-包里的代码只在沙箱里跑:桌宠页把它放进 `/figure-frame`,这个页面的 CSP 把它设成不透明源、禁止一切网络连接,
+包里的代码只在沙箱里跑:桌宠页把它放进 `/figure-frame?pack=<id>`,这个页面的 CSP 把它设成不透明源,网络连接只许 `fetch` 这个包自己目录下的文件(见下文「读包里的文件」;内置包哪里都连不了),
 脚本和图片只能从桌宠服务读,和桌宠页之间只有 postMessage(`web/figure-frame.js`、`web/body-host.js`)。
-视频、音频元素和字体在沙箱里加载不了,`fetch` 也读不到包里的文件;包要出声就在 `figure.json` 的 `sounds` 里声明,由桌宠页播放。
+视频、音频元素和字体在沙箱里加载不了;包要出声就在 `figure.json` 的 `sounds` 里声明,由桌宠页播放。
 它连不到桌宠的 socket,也没法替对方说话或改设置。身体整个归包管:走、跳、被拎、表情、动作、画法都是包的代码,
 桌宠页只转发指针、下指令,读回它报告的位置和发生的事。多数包用 `web/kit/body.js` 这套现成的身体,只自己画。
 
@@ -278,6 +278,33 @@ Windows 上桌宠窗口从前台窗口拿走键盘，打字框关掉后还回去
 工厂按 `factory(base, { model, scheme, kit, loadImage, asset, host })` 调用,返回一个身体;契约写在 `web/figure-frame.js` 开头。
 用 kit 的包只要 `kit.createBody(host, { figure, words })`:`figure` 每帧画一次,`words` 是 kit 本身没有的词怎么做。
 `examples/whale/README.md` 是写形象包的完整说明。20 秒内没准备好、或者跑的时候抛错,桌宠换回 Coo,并告诉 bot 词表的变化。
+
+### 读包里的文件
+
+Live2D 的 `.moc3`、大的 JSON 这类文件直接放在包目录里,在工厂里用 `fetch` 读。地址用工厂拿到的 `asset(路径)`:路径相对包目录,和 `figure.json` 里写的一样。
+
+```js
+export async function createMyBody(base, { asset, kit, host }) {
+  const moc = await (await fetch(asset('model/model.moc3'))).arrayBuffer();
+  const physics = await (await fetch(asset('model/model.physics.json'))).json();
+  // …
+}
+```
+
+只读得到本包目录(`/packs/<id>/`)以下的文件,别的包、桌宠服务的接口和外网都会被拒绝。
+Coopanion 0.2.13 及更早的版本不许任何 `fetch`。要让包在这些版本上也能用,把同一个文件再打一份成 JS 模块
+(例如 `model.moc3.js`,内容是 `export default '<文件的 base64>';`),`fetch` 失败时改读它:
+
+```js
+async function readBytes(asset, file) {
+  try {
+    const res = await fetch(asset(file));
+    if (res.ok) return await res.arrayBuffer();
+  } catch { /* 旧版本拒绝 fetch */ }
+  const { default: b64 } = await import(asset(`${file}.js`).href);
+  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)).buffer;
+}
+```
 
 ### 自己的移动目标
 
