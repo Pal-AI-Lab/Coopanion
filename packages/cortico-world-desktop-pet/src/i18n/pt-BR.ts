@@ -253,6 +253,7 @@ const ptBR: Translation<PetText> = {
       ui: { title: 'Botões e avisos', description: 'Cliques em botões, balões abrindo, seleções, e o início e o fim da escuta.' },
     },
     snoreSeconds: { title: 'Duração do ronco', suffix: 's', description: 'Em cada soneca o pet para de roncar depois desse tempo; os z continuam flutuando. 0 = roncar até acordar.' },
+    panByPosition: { title: 'Panorama pela posição', description: 'Os sons pendem para o lado onde o Coo está; desligado, tocam no centro.' },
     speech: { title: 'Voz', description: 'Diz uma sílaba a cada caractere que aparece num balão, no lugar do balbucio de Fala; fica muda enquanto os sons de Fala estão desligados.' },
     speechPitch: { title: 'Tom da voz', description: (a: number, b: number, c: number) => `low, mid e high são ${a}, ${b} e ${c} Hz; custom usa o tom personalizado.` },
     speechPitchHz: { title: 'Tom personalizado' },

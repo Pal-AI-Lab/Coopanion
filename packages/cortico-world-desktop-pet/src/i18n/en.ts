@@ -283,6 +283,7 @@ const en: PetText = {
       ui: { title: 'Buttons and cues', description: 'Button clicks, bubbles opening, picks, and listening starting and ending.' },
     },
     snoreSeconds: { title: 'Snore length', suffix: 's', description: "In each sleep the pet goes quiet after snoring this long; the z's keep floating. 0 = snore until waking." },
+    panByPosition: { title: 'Pan by position', description: 'Sounds lean toward the side Coo stands on; off, they play centered.' },
     speech: { title: 'Speech', description: 'Reads out a syllable as each character appears in a bubble, in place of the Talking babble; silent while Talking sounds are off.' },
     speechPitch: { title: 'Speech pitch', description: (a: number, b: number, c: number) => `low, mid and high are ${a}, ${b} and ${c} Hz; custom uses the custom pitch.` },
     speechPitchHz: { title: 'Custom pitch' },

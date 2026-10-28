@@ -253,6 +253,7 @@ const ja: Translation<PetText> = {
       ui: { title: 'ボタンと合図', description: 'ボタンのクリック、吹き出しが開く音、選択、聞き取りの開始と終了。' },
     },
     snoreSeconds: { title: 'いびきの長さ', suffix: '秒', description: '眠るたびに、この時間いびきをかいたあと静かになります。z の文字は浮かび続けます。0 = 起きるまでいびきをかく。' },
+    panByPosition: { title: '位置に合わせて左右に振り分ける', description: 'Coo がいる側から音が聞こえます。オフにすると中央で鳴ります。' },
     speech: { title: 'おしゃべり声', description: '吹き出しに文字が出るたびに音節を読み上げ、「おしゃべり」の効果音の代わりに鳴らします。「おしゃべり」をオフにすると鳴りません。' },
     speechPitch: { title: 'おしゃべり声の高さ', description: (a: number, b: number, c: number) => `low、mid、high はそれぞれ ${a}、${b}、${c} Hz。custom はカスタムの高さを使います。` },
     speechPitchHz: { title: 'カスタムの高さ' },

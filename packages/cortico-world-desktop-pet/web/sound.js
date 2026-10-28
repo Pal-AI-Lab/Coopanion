@@ -17,11 +17,14 @@ export const SOUND_KINDS = {
 export const BODY_SOUND_KINDS = ['move', 'touch', 'face', 'snore'];
 /** The smallest change of pan worth passing to the audio graph. */
 const PAN_STEP = .01;
+/** The farthest a sound leans to one side; at ±1 the far channel all but falls silent. */
+const PAN_MAX = .5;
 const KIND_OF = Object.fromEntries(Object.entries(SOUND_KINDS).flatMap(([kind, names]) => names.map((n) => [n, kind])));
 export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } = {}) {
   let ctx = null, master = null, unlocked = false, on = true, noiseBuf = null, gainValue = volume;
-  // left to right, -1 to 1 (setPan); a context without StereoPannerNode plays everything centred
-  let panner = null, pan = 0;
+  // left to right, -PAN_MAX to PAN_MAX: `pan` is what plays, `where` is Coo's place (setPan), heard while `byPosition`;
+  // a context without StereoPannerNode plays everything centred
+  let panner = null, pan = 0, where = 0, byPosition = true;
   // kinds turned off, and seconds of snoring per sleep (0 = the whole sleep)
   let muted = new Set(), snoreSeconds = 0;
   // whether the window is shown: a window that does not throttle its page keeps document.hidden false while hidden
@@ -45,6 +48,12 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     if (ctx.state === 'suspended') ctx.resume();
     for (const o of own.values()) decode(o);
     return ctx;
+  }
+  function applyPan() {
+    const p = byPosition ? where : 0;
+    if (Math.abs(p - pan) < PAN_STEP) return;
+    pan = p;
+    panner?.pan.setTargetAtTime(p, ctx.currentTime, .03);
   }
   function tone({ type = 'sine', f0 = 440, f1 = f0, dur = .1, vol = .2, at = 0, attack = .005, vib = 0, vibRate = 0, filter = 0 }) {
     const c = ready(); if (!c) return;
@@ -157,12 +166,10 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     isOn: () => on,
     set(v) { on = v; try { localStorage.setItem(storageKey, v ? 'on' : 'off'); } catch (e) { /* not persisted */ } },
     volume(v) { gainValue = v; if (master) master.gain.value = v; },
-    /** Where every sound seems to come from, -1 (left) to 1 (right); changes under PAN_STEP are skipped. */
+    /** Coo's place across its display, -1 (left) to 1 (right), held to ±PAN_MAX; changes under PAN_STEP are skipped. */
     setPan(v) {
-      const p = Math.max(-1, Math.min(1, v));
-      if (Math.abs(p - pan) < PAN_STEP) return;
-      pan = p;
-      panner?.pan.setTargetAtTime(p, ctx.currentTime, .03);
+      where = Math.max(-PAN_MAX, Math.min(PAN_MAX, v));
+      applyPan();
     },
     /** The window was shown or hidden (by hand or while something is full screen); hidden, nothing plays. */
     setShown(v) { shown = v; },
@@ -172,10 +179,14 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
       const c = ready();
       return c ? { ctx: c, master } : null;
     },
-    /** `kinds`: kind → on (SOUND_KINDS); `snoreSeconds`: snoring stops this long into a sleep, 0 = never. */
-    configure({ kinds, snoreSeconds: s } = {}) {
+    /**
+     * `kinds`: kind → on (SOUND_KINDS); `snoreSeconds`: snoring stops this long into a sleep, 0 = never;
+     * `panByPosition`: sounds follow setPan, off = they ease back to the centre.
+     */
+    configure({ kinds, snoreSeconds: s, panByPosition: b } = {}) {
       if (kinds) muted = new Set(Object.keys(SOUND_KINDS).filter((k) => kinds[k] === false));
       if (typeof s === 'number' && s >= 0) snoreSeconds = s;
+      if (typeof b === 'boolean') { byPosition = b; applyPan(); }
     },
     /**
      * The body's sounds (`sounds` of the pack on screen, from `base`): each is fetched now and decoded once
