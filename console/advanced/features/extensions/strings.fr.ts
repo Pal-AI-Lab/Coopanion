@@ -33,7 +33,7 @@ export const S: Partial<typeof en> = {
 
   restartConfirmTitle: 'Redémarrer le processus ?',
   restartNoLoopTitle: 'Démarrage manuel requis',
-  restartConfirmBody: 'Le processus va redémarrer.',
+  restartConfirmBody: 'Les extensions ne se chargent qu’au démarrage du processus ; celles installées, mises à jour ou supprimées prennent effet après un redémarrage.\nLe redémarrage interrompt la réponse en cours, chaque World se déconnecte puis se reconnecte, et Coo quitte le bureau un instant. Les sessions, la Memory et la configuration sont conservées.',
   restartNoLoopBody: 'Le processus va se terminer et devra être redémarré manuellement. Continuer ?',
   stepIncomplete: 'incomplet',
   doneRestartSupervised: 'Processus terminé ; en attente du redémarrage',
@@ -127,6 +127,7 @@ export const S: Partial<typeof en> = {
   linkNames: { npm: 'Paquet npm', repository: 'Dépôt source', homepage: 'Page du projet', bugs: 'Signaler un problème' },
   install: 'Installer',
   alreadyInstalled: 'Installé',
+  notInstalled: 'Non installé',
 
   npm: 'Depuis npm',
   local: 'Depuis un répertoire local',

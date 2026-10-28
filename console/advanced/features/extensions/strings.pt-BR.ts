@@ -33,7 +33,7 @@ export const S: Partial<typeof en> = {
 
   restartConfirmTitle: 'Reiniciar o processo?',
   restartNoLoopTitle: 'Inicialização manual necessária',
-  restartConfirmBody: 'O processo será reiniciado.',
+  restartConfirmBody: 'As extensões só são carregadas quando o processo inicia; as instaladas, atualizadas ou removidas valem após reiniciar.\nReiniciar interrompe a resposta em andamento, cada World se desconecta e reconecta, e o Coo sai da área de trabalho por um momento. Sessões, Memory e configuração são mantidas.',
   restartNoLoopBody: 'O processo será encerrado e precisará ser reiniciado manualmente. Continuar?',
   stepIncomplete: 'não concluída',
   doneRestartSupervised: 'Encerrado; aguardando reinício',
@@ -127,6 +127,7 @@ export const S: Partial<typeof en> = {
   linkNames: { npm: 'Pacote npm', repository: 'Repositório do código-fonte', homepage: 'Página do projeto', bugs: 'Relatar um problema' },
   install: 'Instalar',
   alreadyInstalled: 'Instalada',
+  notInstalled: 'Não instalado',
 
   npm: 'Do npm',
   local: 'De um diretório local',

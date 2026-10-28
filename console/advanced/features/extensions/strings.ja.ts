@@ -33,7 +33,7 @@ export const S: Partial<typeof en> = {
 
   restartConfirmTitle: 'プロセスを再起動しますか？',
   restartNoLoopTitle: '手動での起動が必要です',
-  restartConfirmBody: 'プロセスが再起動します。',
+  restartConfirmBody: '拡張はプロセス起動時にのみ読み込まれるため、インストール・更新・削除は再起動後に反映されます。\n再起動すると進行中の返信は中断され、各 World は切断して再接続し、Coo はしばらくデスクトップから離れます。セッション、Memory、設定は保持されます。',
   restartNoLoopBody: 'プロセスが終了し、手動で再起動する必要があります。続行しますか？',
   stepIncomplete: '未完了',
   doneRestartSupervised: '終了しました。再起動を待っています',
@@ -127,6 +127,7 @@ export const S: Partial<typeof en> = {
   linkNames: { npm: 'npm パッケージページ', repository: 'ソースリポジトリ', homepage: 'プロジェクトのホームページ', bugs: '問題を報告' },
   install: 'インストール',
   alreadyInstalled: 'インストール済み',
+  notInstalled: '未インストール',
 
   npm: 'npm からインストール',
   local: 'ローカルディレクトリからインストール',

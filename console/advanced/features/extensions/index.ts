@@ -384,6 +384,8 @@ interface CategoryState {
   hits: SearchHitView[]; fetched: boolean; generation: number; messages: Record<string, { text: string; bad: boolean }>;
   source: 'npm' | 'local'; input: string;
   catalogCategory: 'all' | 'tools' | 'events' | 'local'; filtersFolded: boolean;
+  /** World catalog: list every package, only installed ones, or only those not installed. */
+  installation: 'all' | 'installed' | 'available';
 }
 /** 卡片网格的列数,按内容区宽度取。 */
 export function extensionColumns(width: number): number { return width >= 1000 ? 3 : width >= 660 ? 2 : 1; }
@@ -440,7 +442,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   const states = Object.fromEntries(categories.map(kind => [kind, {
     installedFilter: '', installedSize: 0, marketSize: 0,
     filter: '', sort: 'certified', hide: false, page: 0, installedPage: 0, scroll: 0, tags: [], hideWarnings: false, officialOnly: false, certifiedOnly: false, newOnly: false, advanced: false, author: '', keyword: '', license: '', sinceDays: 0, minDownloads: 0, hits: [], fetched: false, generation: 0,
-    messages: {}, source: 'npm', input: '', catalogCategory: 'all', filtersFolded: false,
+    messages: {}, source: 'npm', input: '', catalogCategory: 'all', filtersFolded: false, installation: 'all',
   } satisfies CategoryState])) as unknown as Record<Category, CategoryState>;
   try {
     const saved = JSON.parse(win.sessionStorage.getItem(storageKey) ?? '{}');
@@ -469,9 +471,15 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   /** Loads and searches in flight; the World toolbar's refresh icon spins while any runs. */
   let refreshing = 0;
   let refreshControl: HTMLElement | undefined;
+  /** The spinning icon finishes its current turn before it stops. */
+  const settleSpin = () => {
+    const turning = refreshControl?.querySelector('.icon')?.getAnimations?.()[0];
+    if (!turning) { refreshControl?.classList.remove('is-spinning'); return; }
+    refreshControl!.addEventListener('animationiteration', () => { if (!refreshing) refreshControl?.classList.remove('is-spinning'); }, { once: true, signal });
+  };
   const refreshed = <T,>(work: Promise<T>) => {
     refreshing++; refreshControl?.classList.add('is-spinning');
-    return work.finally(() => { if (--refreshing === 0) refreshControl?.classList.remove('is-spinning'); });
+    return work.finally(() => { if (--refreshing === 0) settleSpin(); });
   };
   let installedFetched = false;
   let restoringScroll = true;
@@ -699,9 +707,9 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     };
   }
   /** 「清除筛选」清搜索词、标签、徽标筛选与高级搜索,不动两个隐藏开关。 */
-  const filtersActive = (state: CategoryState) => !!(workspace && state.catalogCategory !== 'all' || state.filter.trim() || state.tags.length || state.officialOnly || state.certifiedOnly || state.newOnly || state.author.trim() || state.keyword.trim() || state.license.trim() || state.sinceDays || state.minDownloads);
+  const filtersActive = (state: CategoryState) => !!(workspace && (state.catalogCategory !== 'all' || state.installation !== 'all') || state.filter.trim() || state.tags.length || state.officialOnly || state.certifiedOnly || state.newOnly || state.author.trim() || state.keyword.trim() || state.license.trim() || state.sinceDays || state.minDownloads);
   function clearFilters() {
-    Object.assign(states[kind], { catalogCategory: 'all', filter: '', tags: [], officialOnly: false, certifiedOnly: false, newOnly: false, author: '', keyword: '', license: '', sinceDays: 0, minDownloads: 0, page: 0 });
+    Object.assign(states[kind], { catalogCategory: 'all', installation: 'all', filter: '', tags: [], officialOnly: false, certifiedOnly: false, newOnly: false, author: '', keyword: '', license: '', sinceDays: 0, minDownloads: 0, page: 0 });
     save(); render();
   }
   function toggleTag(id: string) {
@@ -1183,9 +1191,9 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   }
   function renderMarket() {
     const state = states[kind];
-    const hits = state.hits.filter(hit => !workspace || state.catalogCategory === 'all' || !state.catalogCategory || (state.catalogCategory === 'local' ? hit.summary?.local : (hit.summary?.[state.catalogCategory] ?? 0) > 0)).map(h => ({ ...h, installed: installed.some(p => p.name === h.name && p.state !== 'removed') }));
+    const hits = state.hits.filter(hit => !workspace || state.catalogCategory === 'all' || !state.catalogCategory || (state.catalogCategory === 'local' ? hit.summary?.local : (hit.summary?.[state.catalogCategory] ?? 0) > 0)).map(h => ({ ...h, installed: installed.some(p => p.name === h.name && p.state !== 'removed') })).filter(h => !workspace || state.installation !== 'installed' || h.installed);
     state.tags = state.tags.filter(id => marketIndex.tags[id]);
-    const result = arrangeHits(hits, { filter: state.filter, sort: state.sort, hideInstalled: state.hide, page: state.page, pageSize: pageSize('market'), tags: state.tags, excludeTags: state.hideWarnings ? warningTags() : [], officialOnly: state.officialOnly, certifiedOnly: state.certifiedOnly, newOnly: state.newOnly, ...advancedFilters(state) }); if (state.fetched) state.page = result.page;
+    const result = arrangeHits(hits, { filter: state.filter, sort: state.sort, hideInstalled: workspace ? state.installation === 'available' : state.hide, page: state.page, pageSize: pageSize('market'), tags: state.tags, excludeTags: state.hideWarnings ? warningTags() : [], officialOnly: state.officialOnly, certifiedOnly: state.certifiedOnly, newOnly: state.newOnly, ...advancedFilters(state) }); if (state.fetched) state.page = result.page;
     if (clearButton) clearButton.disabled = !filtersActive(state);
     if (licenseList) licenseList.replaceChildren(...[...new Set(hits.map(h => h.license).filter(Boolean))].sort().map(value => { const option = ui.h('option') as HTMLOptionElement; option.value = value!; return option; }));
     renderTagBar(hits);
@@ -1642,7 +1650,10 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
         button.setAttribute('aria-label', label); attachHint(button, label);
         filters.insertBefore(button, clear);
       }
-      toggles.remove();
+      toggles.remove(); switches.remove();
+      const warnings = ui.h('button', 'world-catalog-toggle' + (state.hideWarnings ? ' is-open' : '')) as HTMLButtonElement; warnings.type = 'button';
+      warnings.append(icon(doc, 'eye-off')); warnings.setAttribute('aria-label', S.hideWarnings); warnings.setAttribute('aria-pressed', String(state.hideWarnings)); attachHint(warnings, S.hideWarnings);
+      warnings.addEventListener('click', () => { state.hideWarnings = !state.hideWarnings; state.page = 0; warnings.classList.toggle('is-open', state.hideWarnings); warnings.setAttribute('aria-pressed', String(state.hideWarnings)); renderMarket(); save(); }, { signal });
       // The toolbar's secondary actions are icons with name tags, so the row fits beside the search field.
       const refresh = filters.lastElementChild as HTMLButtonElement;
       for (const [button, mark, label] of [[toggle, 'sidebar', S.filterSidebar], [clear, 'close', S.clearFilters], [refresh, 'refresh', S.refresh.replace(/^↻\s*/, '')]] as const) {
@@ -1651,7 +1662,12 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
       }
       clear.classList.add('extension-clear');
       refreshControl = refresh; refresh.classList.toggle('is-spinning', refreshing > 0);
-      side.append(ui.h('h3', '', S.catalogCategory), categoryList, tagBar, options);
+      filters.insertBefore(warnings, refresh);
+      const installation = ui.segmented([{ value: 'all', label: S.catalogCategories.all }, { value: 'installed', label: S.alreadyInstalled }, { value: 'available', label: S.notInstalled }], {
+        value: state.installation, onSelect: value => { state.installation = value as CategoryState['installation']; state.page = 0; renderMarket(); save(); },
+      });
+      installation.el.classList.add('world-catalog-installation');
+      side.append(installation.el, ui.h('h3', '', S.catalogCategory), categoryList, tagBar);
       const manualFold = ui.h('details', 'world-manual'); manualFold.append(ui.h('summary', '', S.manual), manual.body);
       scrollRoot.replaceChildren(marketGrid, marketPager, manualFold);
       body.append(side, scrollRoot);

@@ -881,8 +881,8 @@ describe('World library and catalog', () => {
     expect(root.querySelector('.world-library-item').getAttribute('aria-label')).toBe('found-mod');
     const group = root.querySelector('.world-pending-group');
     expect(group.querySelectorAll('.world-library-entry')).toHaveLength(2);
-    expect(group.lastElementChild.className).toBe('world-restart-footer');
-    expect(group.lastElementChild.querySelector('.extension-restart')).not.toBeNull();
+    expect(group.lastElementChild.className).toBe('world-restart-row');
+    expect(group.lastElementChild.querySelector('.world-restart-footer .extension-restart')).not.toBeNull();
     expect(root.querySelector('.world-ready-list .world-blade').dataset.state).toBe('attached');
     button(root, '我的 World').click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     const pending = root.querySelector('.world-blade');
@@ -976,6 +976,16 @@ describe('World library and catalog', () => {
       expect(root.querySelector('.world-market').inert).toBe(false);
     } finally { if (original) Element.prototype.animate = original; else delete Element.prototype.animate; }
   });
+  it('filters the catalog by installation state and resets it with clear filters', async () => {
+    const { root } = await openWorlds({ hits: { hits: HITS.hits.slice(0, 2) } });
+    const segment = label => [...root.querySelectorAll('.world-catalog-installation button')].find(item => item.textContent === label);
+    segment('已安装').click(); await flush();
+    expect([...root.querySelectorAll('.world-catalog .extension-market-card')].map(card => card.dataset.name)).toEqual([HITS.hits[1].name]);
+    segment('未安装').click(); await flush();
+    expect([...root.querySelectorAll('.world-catalog .extension-market-card')].map(card => card.dataset.name)).toEqual([HITS.hits[0].name]);
+    root.querySelector('.world-market [aria-label="清除筛选"]').click(); await flush();
+    expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(2);
+  });
   it('filters by capabilities and resets the selected category with clear filters', async () => {
     const { root } = await openWorlds({ hits: { hits: [{ ...HITS.hits[0], summary: { tools: 2, events: 0 } }, { ...HITS.hits[1], summary: { tools: 0, events: 2 } }] } });
     button(root, '接收事件').click(); await flush();
@@ -983,7 +993,7 @@ describe('World library and catalog', () => {
     expect(root.querySelector('.world-catalog .extension-market-card').textContent).toContain('甲扩展');
     root.querySelector('.world-market [aria-label="清除筛选"]').click(); await flush();
     expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(2);
-    expect(button(root, '全部').getAttribute('aria-pressed')).toBe('true');
+    expect(button(root.querySelector('.world-catalog-categories'), '全部').getAttribute('aria-pressed')).toBe('true');
   });
   it('keeps runtime controls available when the catalog capability is absent', async () => {
     const { root } = await openWorlds({}, { worlds: true, worldActivation: true });

@@ -33,7 +33,7 @@ export const S: Partial<typeof en> = {
 
   restartConfirmTitle: '프로세스를 재시작하시겠습니까?',
   restartNoLoopTitle: '수동 시작 필요',
-  restartConfirmBody: '프로세스가 재시작됩니다.',
+  restartConfirmBody: '확장은 프로세스가 시작될 때만 불러오므로 설치·업데이트·삭제한 확장은 재시작 후에 적용됩니다.\n재시작하면 진행 중인 답변이 중단되고 각 World가 연결을 끊었다가 다시 연결하며, Coo는 잠시 바탕화면을 떠납니다. 세션, Memory, 설정은 유지됩니다.',
   restartNoLoopBody: '프로세스가 종료되며 직접 다시 시작해야 합니다. 계속하시겠습니까?',
   stepIncomplete: '미완료',
   doneRestartSupervised: '종료됨, 다시 시작 대기 중',
@@ -127,6 +127,7 @@ export const S: Partial<typeof en> = {
   linkNames: { npm: 'npm 패키지 페이지', repository: '소스 저장소', homepage: '프로젝트 홈페이지', bugs: '문제 보고' },
   install: '설치',
   alreadyInstalled: '설치됨',
+  notInstalled: '미설치',
 
   npm: 'npm에서 설치',
   local: '로컬 디렉터리에서 설치',

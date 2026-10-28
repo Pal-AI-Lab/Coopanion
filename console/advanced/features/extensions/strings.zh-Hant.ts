@@ -33,7 +33,7 @@ export const S: Partial<typeof en> = {
 
   restartConfirmTitle: '重新啟動處理程序？',
   restartNoLoopTitle: '需要手動啟動',
-  restartConfirmBody: '處理程序將重新啟動。',
+  restartConfirmBody: '擴充只在處理程序啟動時載入，新裝、更新或刪除的擴充要重新啟動後才生效。\n重新啟動會打斷正在進行的回覆，各 World 的連線會中斷並重新連線，期間 Coo 暫時離開桌面。工作階段、Memory 和設定都會保留。',
   restartNoLoopBody: '處理程序將結束，需要手動重新啟動。繼續？',
   stepIncomplete: '未完成',
   doneRestartSupervised: '已結束，等待重新啟動',
@@ -127,6 +127,7 @@ export const S: Partial<typeof en> = {
   linkNames: { npm: 'npm 套件頁面', repository: '原始碼儲存庫', homepage: '專案首頁', bugs: '問題回報' },
   install: '安裝',
   alreadyInstalled: '已安裝',
+  notInstalled: '未安裝',
 
   npm: '從 npm 安裝',
   local: '從本機目錄安裝',

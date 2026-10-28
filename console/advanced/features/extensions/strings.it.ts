@@ -33,7 +33,7 @@ export const S: Partial<typeof en> = {
 
   restartConfirmTitle: 'Riavviare il processo?',
   restartNoLoopTitle: 'Avvio manuale necessario',
-  restartConfirmBody: 'Il processo verrà riavviato.',
+  restartConfirmBody: 'Le estensioni si caricano solo all’avvio del processo; quelle installate, aggiornate o rimosse hanno effetto dopo il riavvio.\nIl riavvio interrompe la risposta in corso, ogni World si disconnette e si riconnette, e Coo lascia il desktop per un momento. Sessioni, Memory e configurazione vengono mantenute.',
   restartNoLoopBody: 'Il processo terminerà e dovrà essere riavviato manualmente. Continuare?',
   stepIncomplete: 'incompleto',
   doneRestartSupervised: 'Terminato; in attesa del riavvio',
@@ -127,6 +127,7 @@ export const S: Partial<typeof en> = {
   linkNames: { npm: 'Pacchetto npm', repository: 'Repository dei sorgenti', homepage: 'Home page del progetto', bugs: 'Segnala un problema' },
   install: 'Installa',
   alreadyInstalled: 'Installato',
+  notInstalled: 'Non installato',
 
   npm: 'Da npm',
   local: 'Da una directory locale',

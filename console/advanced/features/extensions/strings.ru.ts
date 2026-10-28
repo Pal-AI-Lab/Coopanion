@@ -39,7 +39,7 @@ export const S: Partial<typeof en> = {
 
   restartConfirmTitle: 'Перезапустить процесс?',
   restartNoLoopTitle: 'Требуется ручной запуск',
-  restartConfirmBody: 'Процесс будет перезапущен.',
+  restartConfirmBody: 'Расширения загружаются только при запуске процесса, поэтому установленные, обновлённые или удалённые начинают действовать после перезапуска.\nПерезапуск прерывает текущий ответ, каждый World отключается и подключается снова, а Coo ненадолго покидает рабочий стол. Сессии, Memory и конфигурация сохраняются.',
   restartNoLoopBody: 'Процесс завершится, и его нужно будет запустить вручную. Продолжить?',
   stepIncomplete: 'не выполнен',
   doneRestartSupervised: 'Завершён; ожидание перезапуска',
@@ -133,6 +133,7 @@ export const S: Partial<typeof en> = {
   linkNames: { npm: 'Пакет npm', repository: 'Репозиторий исходного кода', homepage: 'Сайт проекта', bugs: 'Сообщить о проблеме' },
   install: 'Установить',
   alreadyInstalled: 'Установлено',
+  notInstalled: 'Не установлено',
 
   npm: 'Из npm',
   local: 'Из локальной папки',

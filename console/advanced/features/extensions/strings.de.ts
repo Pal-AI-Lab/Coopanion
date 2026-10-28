@@ -33,7 +33,7 @@ export const S: Partial<typeof en> = {
 
   restartConfirmTitle: 'Prozess neu starten?',
   restartNoLoopTitle: 'Manueller Start erforderlich',
-  restartConfirmBody: 'Der Prozess wird neu gestartet.',
+  restartConfirmBody: 'Erweiterungen werden nur beim Start des Prozesses geladen; installierte, aktualisierte oder entfernte wirken erst nach einem Neustart.\nDer Neustart unterbricht eine laufende Antwort, jede World trennt und verbindet sich neu, und Coo verlässt kurz den Desktop. Sitzungen, Memory und Konfiguration bleiben erhalten.',
   restartNoLoopBody: 'Der Prozess wird beendet und muss manuell neu gestartet werden. Fortfahren?',
   stepIncomplete: 'unvollständig',
   doneRestartSupervised: 'Beendet; warte auf Neustart',
@@ -127,6 +127,7 @@ export const S: Partial<typeof en> = {
   linkNames: { npm: 'npm-Paket', repository: 'Quell-Repository', homepage: 'Projekt-Homepage', bugs: 'Problem melden' },
   install: 'Installieren',
   alreadyInstalled: 'Installiert',
+  notInstalled: 'Nicht installiert',
 
   npm: 'Von npm',
   local: 'Aus lokalem Verzeichnis',

@@ -1990,7 +1990,12 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-library-item:focus-visible{outline:none}
 .world-library-item:focus-visible .world-avatar{outline:2px solid var(--accent);outline-offset:3px}
 .world-blade:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:0 11px 11px 0}
-.world-restart-footer{width:var(--world-rail-width);padding:0}
+.world-restart-row{display:flex;align-items:center;gap:12px;width:var(--world-entry-width);margin-top:14px;transition:width var(--world-duration) var(--world-easing)}
+.world-workspace[data-view=market] .world-restart-row{width:var(--world-rail-width)}
+.world-restart-row:has(.extension-restart[hidden]){display:none}
+.world-restart-note{font-size:12px;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity 200ms}
+.world-workspace[data-view=market] .world-restart-note{opacity:0}
+.world-restart-footer{flex:none;width:var(--world-rail-width);padding:0}
 .world-restart-footer .extension-restart{width:100%;min-height:28px;padding:4px 6px;border-radius:8px;border-color:transparent;background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent);font-size:11.5px;font-weight:550;white-space:nowrap;justify-content:center}
 .world-restart-footer .extension-restart:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 16%,transparent)}
 .world-restart-footer .extension-restart[hidden]{display:none}
@@ -2036,6 +2041,8 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-catalog-body{display:flex;flex:1;gap:20px;min-height:0;min-width:0}
 .world-catalog-filters{flex:none;width:152px;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding:0 2px 32px 0}
 .world-catalog-filters[hidden]{display:none}
+.world-catalog-installation{display:flex;width:100%;margin:0 0 16px}
+.world-catalog-installation>*{flex:1 1 0;min-width:0;padding-inline:4px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .world-catalog-filters h3{margin:0 0 8px;padding:0 10px;line-height:18px;font-size:11px;color:var(--ink-dim);font-weight:500}
 .world-catalog-categories{display:flex;flex-direction:column;gap:2px;padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:16px}
 .world-catalog-categories .btn{justify-content:flex-start;text-align:left;border:0;background:transparent;color:var(--ink-soft);font-size:12.5px;min-height:32px;padding:6px 10px;border-radius:8px}
@@ -2069,10 +2076,10 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .extension-get:active:not(:disabled){transform:scale(.92)}
 .extension-get:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .extension-get:disabled{cursor:default;color:var(--ink-dim);background:var(--hover)}
-.extension-get.is-update{background:var(--accent);color:var(--sheet)}
+.extension-get.is-update{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 45%,transparent)}
 .extension-get.is-installed{background:transparent;color:var(--ink-dim);box-shadow:inset 0 0 0 1px var(--border)}
 .extension-get.is-installed:hover{background:var(--hover);color:var(--accent)}
-.extension-get.is-update:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 86%,var(--ink))}
+.extension-get.is-update:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .extension-get.is-working,.extension-get.is-working:disabled{background:transparent;color:var(--accent)}
 .extension-get-ring{width:36px;height:36px;animation:extension-ring-spin 900ms linear infinite}
 .extension-get-ring circle{fill:none;stroke-width:2.5}

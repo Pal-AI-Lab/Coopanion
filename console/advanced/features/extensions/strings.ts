@@ -42,7 +42,7 @@ const zh = {
 
   restartConfirmTitle: '重启进程？',
   restartNoLoopTitle: '需要手动启动',
-  restartConfirmBody: '进程将重启。',
+  restartConfirmBody: '扩展只在进程启动时加载，新装、更新或删除的扩展要重启后才生效。\n重启会打断正在进行的回复，各 World 的连接会断开并重新连接，期间 Coo 暂时离开桌面。会话、Memory 和配置都会保留。',
   restartNoLoopBody: '进程将退出，需要手动重新启动。继续？',
   stepIncomplete: '未完成',
   doneRestartSupervised: '已退出，等待重新启动',
@@ -137,6 +137,7 @@ const zh = {
   linkNames: { npm: 'npm 包页面', repository: '源代码仓库', homepage: '项目主页', bugs: '问题反馈' },
   install: '安装',
   alreadyInstalled: '已安装',
+  notInstalled: '未安装',
 
   npm: '从 npm 安装',
   local: '从本机目录安装',
@@ -270,7 +271,7 @@ export const en: typeof zh = {
 
   restartConfirmTitle: 'Restart the process?',
   restartNoLoopTitle: 'Manual startup required',
-  restartConfirmBody: 'The process will restart.',
+  restartConfirmBody: 'Extensions load only when the process starts, so installed, updated or removed ones take effect after a restart.\nRestarting interrupts any reply in progress; each World disconnects and reconnects, and Coo leaves the desktop for a moment. Sessions, Memory and configuration are kept.',
   restartNoLoopBody: 'The process will exit and must be restarted manually. Continue?',
   stepIncomplete: 'incomplete',
   doneRestartSupervised: 'Exited; waiting to restart',
@@ -365,6 +366,7 @@ export const en: typeof zh = {
   linkNames: { npm: 'npm package', repository: 'Source repository', homepage: 'Project homepage', bugs: 'Report an issue' },
   install: 'Install',
   alreadyInstalled: 'Installed',
+  notInstalled: 'Not installed',
 
   npm: 'From npm',
   local: 'From a local directory',
