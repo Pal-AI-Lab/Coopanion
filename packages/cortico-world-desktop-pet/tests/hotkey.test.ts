@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_HOTKEY, TAP_GAP_MS, TAP_MAX_MS, hotkeyBadge, hotkeyLabel, macReadable, parseHotkey, tapTracker } from '../src/asr/hotkey.ts';
+import { DEFAULT_HOTKEY, TAP_GAP_MS, TAP_MAX_MS, hotkeyBadge, hotkeyLabel, macModifierDown, macReadable, parseHotkey, tapTracker } from '../src/asr/hotkey.ts';
 
 describe('parseHotkey', () => {
   it('reads modifiers, letters, digits, function keys and mouse side buttons', () => {
@@ -77,5 +77,21 @@ describe('the Mac key table', () => {
     for (const n of names) expect(parseHotkey(n)!.keys.every(macReadable), n).toBe(true);
     // no Pause, Scroll Lock or F21–F24 on a Mac keyboard
     for (const n of ['Pause', 'ScrollLock', 'F21']) expect(parseHotkey(n)!.keys.every(macReadable), n).toBe(false);
+  });
+
+  it('tells a right-hand modifier from the left one by the flags macOS reports', () => {
+    // CGEventFlags with one right-hand key held: its device-independent mask, the non-coalesced bit and its device bit (IOLLEvent.h)
+    const cases: Array<[right: string, either: string, left: string | null, flags: number]> = [
+      ['RightAlt', 'Alt', 'LeftAlt', 0x80000 | 0x100 | 0x40],
+      ['RightCtrl', 'Ctrl', 'LeftCtrl', 0x40000 | 0x100 | 0x2000],
+      ['RightShift', 'Shift', 'LeftShift', 0x20000 | 0x100 | 0x4],
+      ['RightWin', 'Win', null, 0x100000 | 0x100 | 0x10],
+    ];
+    const down = (name: string, flags: number) => macModifierDown(parseHotkey(name)!.keys[0]!, flags);
+    for (const [right, either, left, flags] of cases) {
+      expect(down(right, flags), right).toBe(true);
+      expect(down(either, flags), either).toBe(true);
+      if (left) expect(down(left, flags), `${left} while ${right} is held`).toBe(false);
+    }
   });
 });
