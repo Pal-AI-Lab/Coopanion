@@ -89,7 +89,7 @@
     // 原来 margin-right:10px + 宽度随文字，网格里一排排对不齐（"形象 配色 走动" 像狗牙）。
     // 交给父容器的 grid 定宽度，这里只留内边距和触屏最小高度。
     lab.style.cssText = 'display:flex;align-items:center;gap:6px;cursor:pointer;margin:0;padding:7px 2px;'
-      + 'min-height:34px;font-size:14px;box-sizing:border-box';
+      + 'min-height:34px;font-size:14px;box-sizing:border-box;white-space:nowrap';
     var cb = mk('input');
     cb.type = 'checkbox';
     cb.checked = !!checked;
@@ -155,18 +155,26 @@
    */
   var FORM_CSS = [
     '@media (max-width:720px) {',
-    '  #kernel-root .mountrow { align-items: baseline !important; gap: 0 8px !important;',
+    // 上游 .mountrow 是 display:grid，不是 flex —— 之前写的 flex:1 1 100% 对它无效，
+    // 结果长摘要（引擎包名）撑开的 auto 列把 mname 压成 0 宽，"系统语音"竖排成单字。
+    // 这里显式给三列：圆点 / 标题(吃剩余) / 摘要(封顶后省略)，说明和控件跨整行。
+    '  #kernel-root .mountrow { display: grid !important;',
+    '    grid-template-columns: auto minmax(0, 1fr) auto !important;',
+    '    align-items: baseline !important; gap: 0 8px !important;',
     '    padding: 10px 0 !important; border-bottom: 1px solid var(--border, #3c4048) !important; }',
-    '  #kernel-root .mountrow .mname { font-size: 15px !important; }',
-    '  #kernel-root .mountrow .mstate { font-size: 13px !important; margin-left: auto !important; }',
-    '  #kernel-root .mountrow .mdetail { flex: 1 1 100% !important; width: 100% !important;',
-    '    font-size: 12px !important; line-height: 1.45 !important; opacity: .75 !important;',
-    '    margin-top: 2px !important; }',
-    '  #kernel-root .mountrow .macts { flex: 1 1 100% !important; width: 100% !important;',
-    '    margin-top: 8px !important; display: flex !important; align-items: center !important; }',
+    '  #kernel-root .mountrow .mname { font-size: 15px !important; min-width: 0 !important;',
+    '    white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }',
+    '  #kernel-root .mountrow .mstate { font-size: 13px !important; white-space: nowrap !important;',
+    '    max-width: 9em !important; overflow: hidden !important; text-overflow: ellipsis !important;',
+    '    justify-self: end !important; text-align: right !important; }',
+    '  #kernel-root .mountrow .mdetail { grid-column: 1 / -1 !important; font-size: 12px !important;',
+    '    line-height: 1.45 !important; opacity: .75 !important; margin-top: 2px !important; }',
+    '  #kernel-root .mountrow .macts { grid-column: 1 / -1 !important; margin-top: 8px !important;',
+    '    display: flex !important; align-items: center !important; gap: 6px !important; }',
     '  #kernel-root .mountrow .macts > * { flex: 1 1 auto !important; min-width: 0 !important; }',
     '  #kernel-root .providerintro h1 { font-size: 22px !important; }',
-    '  #kernel-root .providerintro p { font-size: 13px !important; line-height: 1.5 !important; }',
+    '  #kernel-root .providerintro p { font-size: 13px !important; line-height: 1.5 !important;',
+    '    word-break: keep-all !important; overflow-wrap: break-word !important; }',
     '  #kernel-root .sheetbody { padding: 4px 14px 20px !important; }',
     '}',
     ''
@@ -349,7 +357,7 @@
     /* 2. 逐项勾选 */
     var rKeys = row('h-keys', '她能自己改的项', '选「自定义」时，只有勾上的项她能自己动，其余会先问你');
     var keysWrap = mk('span');
-    keysWrap.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));'
+    keysWrap.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));'
       + 'gap:0 8px;width:100%;margin-top:6px';
     var keyBoxes = [];
     SELF_KEYS.forEach(function (pair) {
@@ -371,7 +379,7 @@
     rWake.acts.appendChild(wakeSel);
     syncState(rWake, WAKE_LABEL, 'all');
     var wakeWrap = mk('span');
-    wakeWrap.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));'
+    wakeWrap.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));'
       + 'gap:0 8px;width:100%;margin-top:6px';
     var wakeBoxes = [];
     TOUCH_KINDS.forEach(function (pair, i) {
@@ -437,7 +445,7 @@
     return view;
   }
 
-  /** 侧栏加一项「习惯」：放在「桌宠」后面，点它是整页，不参与面板自己的路由。 */
+  /** 侧栏加一项「习惯」：放在「控制台」正下面那一栏，点它是整页，不参与面板自己的路由。 */
   function ensureHabitNav() {
     if (document.querySelector('a.navitem[data-coo-habit]')) {
       habitNav = document.querySelector('a.navitem[data-coo-habit]');
@@ -446,11 +454,14 @@
     var any = document.querySelector('a.navitem');
     if (!any) return;
     var stack = any.parentElement;          // nav.stack 里的第一个 .navgroup
-    var petNav = null;
+    var petNav = null, consoleNav = null;
     var all = document.querySelectorAll('a.navitem');
     for (var i = 0; i < all.length; i++) {
       var href = all[i].getAttribute('href') || '';
-      if (href.indexOf('desktop-pet') >= 0 || all[i].textContent.trim() === '桌宠') { petNav = all[i]; break; }
+      var txt = all[i].textContent.trim();
+      // 精确比对：页面上还有个「控制台对话」，用 indexOf 会抢到它。
+      if (!consoleNav && txt === '控制台') consoleNav = all[i];
+      if (!petNav && (href.indexOf('desktop-pet') >= 0 || txt === '桌宠')) petNav = all[i];
     }
     var a = mk('a', 'navitem');
     // 跟 core 的导航项同构：一个 svg + 一个 .lbl。
@@ -466,7 +477,9 @@
       ev.stopPropagation();
       showHabit(true);
     });
-    if (petNav && petNav.parentElement) petNav.after(a);
+    // 用户要求：紧贴在「控制台」下面一栏。
+    if (consoleNav && consoleNav.parentElement) consoleNav.after(a);
+    else if (petNav && petNav.parentElement) petNav.after(a);
     else stack.appendChild(a);
     habitNav = a;
   }
