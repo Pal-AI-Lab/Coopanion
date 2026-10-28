@@ -176,7 +176,7 @@ The Model page in advanced mode changes the model and reasoning effort, adds an 
 
 **Extensions**: the Extensions page in advanced mode lists Worlds on npm with the `cortico-world` keyword; packages in the [official index](https://github.com/Pal-AI-Lab/cortico-extensions) also show tags, votes and comments. After installing, click **Restart process** and enable the World in **World Overview**.
 
-**Updates**: the Windows installer build and AppImage check for and download updates automatically by default. Coo asks whether to restart when a download is ready; choosing Later installs it when you quit. Turn automatic updates off or back on in **Habits → General → Automatic updates**. Changes take effect immediately and survive restarts. Turning it off stops further checks, cancels an active download, and prevents downloaded updates from installing on quit. Mac, deb and Windows portable builds use the download link beside the version in the title bar and do not show this switch. Steam manages updates for the Steam build.
+**Updates**: the Windows installer build and the AppImage download new versions in the background, and Coo asks whether to restart and update; choosing **Later** installs it when you quit. Turning off **Habits → General → Automatic updates** stops the checks, cancels a download under way and keeps a downloaded update from installing. On Mac, with the deb and with the Windows portable build, the update status beside the version in the title bar links to a newer release to download by hand. Steam updates the Steam build.
 
 ## Cost and privacy
 
