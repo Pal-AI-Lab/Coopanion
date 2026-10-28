@@ -87,7 +87,7 @@ export const S: Partial<typeof en> = {
   noPackagesAt: (registry: string) => `Nessun pacchetto di questo tipo nel registro npm ${registry}.`,
   registryLabel: 'Registro npm',
   registrySave: 'Salva',
-  registryHelp: 'Viene scritto nel .npmrc del percorso di installazione; controllo aggiornamenti, ricerca e installazione lo usano subito. Salvare il campo vuoto ripristina il registro predefinito.',
+  registryHelp: 'Vale subito per ricerca, aggiornamenti e installazione; vuoto = predefinito.',
   registrySaved: (url: string) => `Salvato. Registro in uso: ${url}`,
   noHits: 'Nessun pacchetto corrispondente',
   searchFailed: (msg: string) => `Caricamento non riuscito: ${msg}`,

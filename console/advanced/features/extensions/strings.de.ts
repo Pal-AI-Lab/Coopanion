@@ -87,7 +87,7 @@ export const S: Partial<typeof en> = {
   noPackagesAt: (registry: string) => `Keine Pakete dieser Art in der npm-Registry ${registry}.`,
   registryLabel: 'npm-Registry',
   registrySave: 'Speichern',
-  registryHelp: 'Wird in die .npmrc am Installationsort geschrieben; Update-Prüfung, Suche und Installation verwenden sie sofort. Leer speichern stellt die Standard-Registry wieder her.',
+  registryHelp: 'Gilt sofort für Suche, Updates und Installation; leer = Standard.',
   registrySaved: (url: string) => `Gespeichert. Verwendete Registry: ${url}`,
   noHits: 'Keine passenden Pakete',
   searchFailed: (msg: string) => `Laden fehlgeschlagen: ${msg}`,

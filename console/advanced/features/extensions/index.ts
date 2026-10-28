@@ -513,11 +513,14 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     states[owner].messages[area] = { text, bad };
     if (owner === kind && messageNodes[area]) { messageNodes[area].textContent = text; messageNodes[area].className = 'msgline' + (bad ? ' bad' : ''); }
   }
-  const pageSize = (area: 'installed' | 'market', owner = kind) => area === 'installed' ? states[owner].installedSize || columns * 2 : states[owner].marketSize || columns * 4;
+  /** The World catalog lists one card per row, so it pages in fixed sizes instead of filling columns. */
+  const WORKSPACE_PAGE_SIZES = [10, 20, 30, 50], WORKSPACE_PAGE_SIZE = 30;
+  const pageSize = (area: 'installed' | 'market', owner = kind) => area === 'installed' ? states[owner].installedSize || columns * 2 : workspace ? WORKSPACE_PAGE_SIZES.includes(states[owner].marketSize) ? states[owner].marketSize : WORKSPACE_PAGE_SIZE : states[owner].marketSize || columns * 4;
   function sizePicker(area: 'installed' | 'market') {
     const state = states[kind], key = area === 'installed' ? 'installedSize' : 'marketSize';
     const label = ui.h('label', 'extension-size'); label.dataset.area = area; label.append(ui.h('span', '', S.perPage));
-    label.append(ui.select({ value: String(state[key]), options: [0, 3, 6, 12, 24, 48].map(value => ({ value: String(value), label: value ? String(value) : S.automaticCount(columns * (area === 'installed' ? 2 : 4)) })), onChange: value => {
+    const sizes = workspace && area === 'market' ? WORKSPACE_PAGE_SIZES : [0, 3, 6, 12, 24, 48];
+    label.append(ui.select({ value: String(workspace && area === 'market' ? pageSize('market') : state[key]), options: sizes.map(value => ({ value: String(value), label: value ? String(value) : S.automaticCount(columns * (area === 'installed' ? 2 : 4)) })), onChange: value => {
       state[key] = Number(value); (area === 'installed' ? installedGrid : marketGrid).style.minHeight = ''; if (area === 'installed') { state.installedPage = 0; renderInstalled(); } else { state.page = 0; renderMarket(); } save();
     } })); return label;
   }

@@ -87,7 +87,7 @@ export const S: Partial<typeof en> = {
   noPackagesAt: (registry: string) => `Aucun paquet de ce type sur le registre npm ${registry}.`,
   registryLabel: 'Registre npm',
   registrySave: 'Enregistrer',
-  registryHelp: "Écrit dans le .npmrc de l'emplacement d'installation ; la vérification des mises à jour, la recherche et l'installation l'utilisent aussitôt. Enregistrer un champ vide rétablit le registre par défaut.",
+  registryHelp: 'Appliqué aussitôt à la recherche, aux mises à jour et à l’installation ; vide = par défaut.',
   registrySaved: (url: string) => `Enregistré. Registre utilisé : ${url}`,
   noHits: 'Aucun paquet correspondant',
   searchFailed: (msg: string) => `Échec du chargement : ${msg}`,

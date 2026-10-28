@@ -87,7 +87,7 @@ export const S: Partial<typeof en> = {
   noPackagesAt: (registry: string) => `npm 레지스트리 ${registry}에 이 종류의 패키지가 없습니다.`,
   registryLabel: 'npm 레지스트리',
   registrySave: '저장',
-  registryHelp: '설치 위치의 .npmrc에 기록되며 업데이트 확인, 검색, 설치에 바로 적용됩니다. 비워 두고 저장하면 기본값으로 돌아갑니다.',
+  registryHelp: '검색·업데이트·설치에 바로 적용됩니다. 비우면 기본값입니다.',
   registrySaved: (url: string) => `저장했습니다. 사용 중인 레지스트리: ${url}`,
   noHits: '일치하는 패키지가 없습니다',
   searchFailed: (msg: string) => `불러오지 못했습니다: ${msg}`,

@@ -87,7 +87,7 @@ export const S: Partial<typeof en> = {
   noPackagesAt: (registry: string) => `npm 來源 ${registry} 上沒有這一類的套件`,
   registryLabel: 'npm 來源',
   registrySave: '儲存',
-  registryHelp: '寫入安裝位置的 .npmrc，檢查更新、搜尋和安裝立即改用這個來源；留空儲存則恢復預設。',
+  registryHelp: '立即用於搜尋、更新和安裝；留空恢復預設。',
   registrySaved: (url: string) => `已儲存。目前來源：${url}`,
   noHits: '沒有符合的套件',
   searchFailed: (msg: string) => `讀取失敗： ${msg}`,

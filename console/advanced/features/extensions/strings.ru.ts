@@ -93,7 +93,7 @@ export const S: Partial<typeof en> = {
   noPackagesAt: (registry: string) => `В реестре npm ${registry} нет пакетов этого типа.`,
   registryLabel: 'Реестр npm',
   registrySave: 'Сохранить',
-  registryHelp: 'Записывается в .npmrc в месте установки; проверка обновлений, поиск и установка сразу используют его. Сохраните пустое поле, чтобы вернуть реестр по умолчанию.',
+  registryHelp: 'Сразу применяется к поиску, обновлениям и установке; пусто — по умолчанию.',
   registrySaved: (url: string) => `Сохранено. Используемый реестр: ${url}`,
   noHits: 'Подходящих пакетов нет',
   searchFailed: (msg: string) => `Ошибка загрузки: ${msg}`,

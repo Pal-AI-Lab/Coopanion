@@ -87,7 +87,7 @@ export const S: Partial<typeof en> = {
   noPackagesAt: (registry: string) => `npm レジストリ ${registry} にこの種類のパッケージはありません。`,
   registryLabel: 'npm レジストリ',
   registrySave: '保存',
-  registryHelp: 'インストール先の .npmrc に書き込み、更新確認・検索・インストールはすぐにこのレジストリを使います。空のまま保存すると既定に戻ります。',
+  registryHelp: '検索・更新・インストールにすぐ反映。空欄で既定に戻ります。',
   registrySaved: (url: string) => `保存しました。使用中のレジストリ: ${url}`,
   noHits: '一致するパッケージがありません',
   searchFailed: (msg: string) => `読み込みに失敗しました：${msg}`,

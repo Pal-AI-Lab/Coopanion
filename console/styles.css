@@ -2027,7 +2027,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-catalog>.extension-toolbar input[type=search]{flex:1 1 220px;min-width:120px;height:32px;min-height:32px;padding-block:0;font-size:12.5px}
 .world-catalog>.extension-toolbar select{height:32px;padding-block:0}
 .world-catalog>.extension-toolbar>.extension-size{flex:none;gap:6px;color:var(--ink-dim);font-size:12px}
-.world-catalog>.extension-toolbar>.extension-size select{min-width:0;width:auto}
+.world-catalog>.extension-toolbar>.extension-size select{min-width:0;width:60px;padding-right:22px}
 .world-catalog>.extension-toolbar .btn,.world-catalog>.extension-toolbar select{font-size:12px;min-height:32px}
 .world-catalog>.msgline{flex:none;margin:0 var(--world-inset) 8px 0}
 .world-catalog>.msgline:empty{display:none}
