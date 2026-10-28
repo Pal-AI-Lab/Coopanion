@@ -35,6 +35,18 @@ const bubbleStyle = document.createElement('style');
 cooStyle.textContent = COO_CSS;
 document.head.append(cooStyle, skinStyle, accentStyle, bubbleStyle);
 
+// ANDROID PATCH: .wall-glow is hard-coded 560px and .wall-lens-grid 4000px. On a
+// 393px-wide phone they blow the layout viewport past the screen (measured
+// innerWidth 474 vs screen.width 393), so every fixed element -- floor, stage,
+// the pet iframe, the speech bubble -- is positioned in a coordinate space wider
+// than what the user can see. That is the "content runs off the screen" bug, and
+// it also makes the whole page render at 83% scale. Pin both to the screen width.
+const fitStyle = document.createElement('style');
+fitStyle.textContent =
+  '.wall-glow{width:100%!important;min-width:0!important;max-width:100%!important;left:0!important;right:0!important}'
+  + '.wall-lens-grid{max-width:100%!important}';
+document.head.append(fitStyle);
+
 const prefs = {
   roam: 'calm', sound: true, theme: document.documentElement.dataset.theme, scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, glow: 7, user: '', mic: false, micDevice: '', bot: null,
   /** Voice input: switched on, recognizer ready, why not, how to talk, and the mode in force. */

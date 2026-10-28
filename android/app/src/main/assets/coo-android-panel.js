@@ -56,8 +56,11 @@
     i.value = value || '';
     i.placeholder = placeholder || '';
     i.maxLength = maxLength || 32;
-    i.style.cssText = 'width:9em;padding:4px 8px;margin-right:6px;border:1px solid var(--border,#3c4048);'
-      + 'border-radius:8px;background:var(--card,transparent);color:inherit;font:inherit';
+    // 宽度原来写死 9em（实测 135px），311px 宽的窄屏内容区里只占 43%，右边空一大块。
+    // 改成撑满 + 上限 22em：窄屏吃满一行，宽屏也不会拉成长条。
+    i.style.cssText = 'width:100%;max-width:22em;box-sizing:border-box;min-height:38px;padding:6px 10px;margin:0;'
+      + 'border:1px solid var(--border,#3c4048);border-radius:8px;background:var(--card,transparent);'
+      + 'color:inherit;font-family:inherit;font-size:14px';
     var last = i.value;
     i.addEventListener('change', function () {
       var v = i.value.trim();
@@ -83,7 +86,10 @@
   function syncState(r, map, v) { if (r && r.state) r.state.textContent = map[v] || v; }
   function check(text, checked, onChange) {
     var lab = mk('label');
-    lab.style.cssText = 'display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin:2px 10px 2px 0';
+    // 原来 margin-right:10px + 宽度随文字，网格里一排排对不齐（"形象 配色 走动" 像狗牙）。
+    // 交给父容器的 grid 定宽度，这里只留内边距和触屏最小高度。
+    lab.style.cssText = 'display:flex;align-items:center;gap:6px;cursor:pointer;margin:0;padding:7px 2px;'
+      + 'min-height:34px;font-size:14px;box-sizing:border-box';
     var cb = mk('input');
     cb.type = 'checkbox';
     cb.checked = !!checked;
@@ -93,7 +99,11 @@
   }
   function select(options, value, onChange) {
     var s = mk('select');
-    s.style.cssText = 'padding:2px 6px';
+    // 不给宽度时 select 按最长选项撑开，同一页几个下拉宽度各不相同（239/201/163）。
+    // 统一撑满 + 上限，和输入框对齐。
+    s.style.cssText = 'width:100%;max-width:22em;box-sizing:border-box;min-height:38px;padding:6px 10px;margin:0;'
+      + 'border:1px solid var(--border,#3c4048);border-radius:8px;background:var(--card,transparent);'
+      + 'color:inherit;font-family:inherit;font-size:14px';
     options.forEach(function (o) {
       var op = mk('option', null, o[1]);
       op.value = o[0];
@@ -138,6 +148,30 @@
    * 所以这段只在 <=720 生效，宽屏一个字都不写。
    * 全都带 !important：dist/web/styles.css 和 companion.css 各写死过一次 #rail 的 position / width。
    */
+  /**
+   * 窄屏设置页的比例。PC 那套 mountrow 是「名称 ……… 状态 控件」一行摆开，
+   * 到 311px 的内容区里就挤成：名称和值各占一头、中间一片黑，控件还被推到最右。
+   * 窄屏改成：名称和值一行，说明一行，控件独占一行撑满。
+   */
+  var FORM_CSS = [
+    '@media (max-width:720px) {',
+    '  #kernel-root .mountrow { align-items: baseline !important; gap: 0 8px !important;',
+    '    padding: 10px 0 !important; border-bottom: 1px solid var(--border, #3c4048) !important; }',
+    '  #kernel-root .mountrow .mname { font-size: 15px !important; }',
+    '  #kernel-root .mountrow .mstate { font-size: 13px !important; margin-left: auto !important; }',
+    '  #kernel-root .mountrow .mdetail { flex: 1 1 100% !important; width: 100% !important;',
+    '    font-size: 12px !important; line-height: 1.45 !important; opacity: .75 !important;',
+    '    margin-top: 2px !important; }',
+    '  #kernel-root .mountrow .macts { flex: 1 1 100% !important; width: 100% !important;',
+    '    margin-top: 8px !important; display: flex !important; align-items: center !important; }',
+    '  #kernel-root .mountrow .macts > * { flex: 1 1 auto !important; min-width: 0 !important; }',
+    '  #kernel-root .providerintro h1 { font-size: 22px !important; }',
+    '  #kernel-root .providerintro p { font-size: 13px !important; line-height: 1.5 !important; }',
+    '  #kernel-root .sheetbody { padding: 4px 14px 20px !important; }',
+    '}',
+    ''
+  ].join('\n');
+
   var NAV_CSS = [
     '@media (max-width: 720px) {',
     // 上游在窄屏把 body 变成 column，这里改回 row：侧栏在左、内容在右
@@ -243,7 +277,7 @@
     if (!document.getElementById('coo-mobile-nav')) {
       var st = mk('style');
       st.id = 'coo-mobile-nav';
-      st.textContent = NAV_CSS;
+      st.textContent = NAV_CSS + FORM_CSS;
       (document.head || document.documentElement).appendChild(st);
     }
     applyNavLabels();
@@ -315,7 +349,8 @@
     /* 2. 逐项勾选 */
     var rKeys = row('h-keys', '她能自己改的项', '选「自定义」时，只有勾上的项她能自己动，其余会先问你');
     var keysWrap = mk('span');
-    keysWrap.style.cssText = 'display:flex;flex-wrap:wrap;width:100%;margin-top:4px';
+    keysWrap.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));'
+      + 'gap:0 8px;width:100%;margin-top:6px';
     var keyBoxes = [];
     SELF_KEYS.forEach(function (pair) {
       var cb = check(pair[1], false, function (on) {
@@ -336,7 +371,8 @@
     rWake.acts.appendChild(wakeSel);
     syncState(rWake, WAKE_LABEL, 'all');
     var wakeWrap = mk('span');
-    wakeWrap.style.cssText = 'display:flex;flex-wrap:wrap;width:100%;margin-top:4px';
+    wakeWrap.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));'
+      + 'gap:0 8px;width:100%;margin-top:6px';
     var wakeBoxes = [];
     TOUCH_KINDS.forEach(function (pair, i) {
       var cb = check(pair[1], false, function () {
