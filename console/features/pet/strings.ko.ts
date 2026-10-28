@@ -1,6 +1,9 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  autoUpdateLabel: "자동 업데이트",
+  autoUpdate: "업데이트 자동 다운로드 및 설치",
+  autoUpdateHint: "업데이트를 자동으로 다운로드하고 앱 종료 시 설치합니다. 끄면 확인과 다운로드가 즉시 중지되며, 이미 다운로드한 업데이트도 자동 설치되지 않습니다.",
   nav: '습관',
   language: '언어',
   languageHint: '인터페이스와 Coo가 이 언어를 사용합니다.',
