@@ -10,6 +10,9 @@
  * The `coopanion` World (`notice.ts`) tells Coo what the app has to say: the release notes after
  * an update, and the settings the person changes.
  *
+ * The settings window's rail marks the World extensions a registry has a newer version of, and installs
+ * one when the person clicks it (`extension-updates.ts`); the new version runs at the next start.
+ *
  * The app language (`config.language`, `language.ts`) picks the text people read and the language of
  * what Coo reads: the bundled Worlds' events, receipts and environment prompts, and the seeded persona
  * file, which is swapped for the other language's while it is still exactly as seeded. Each read takes
@@ -53,9 +56,10 @@ import { secretReader } from 'cortico/core/secrets.ts';
 import type { Core } from 'cortico/core/core.ts';
 import type { CoreConfig, UsageRecord } from 'cortico/core/types.ts';
 import { loadDeployment } from 'cortico/deploy.ts';
-import { loadExtensions, readInstalled, type ExtensionSet } from 'cortico/extensions.ts';
+import { ExtensionManager, loadExtensions, readInstalled, type ExtensionSet } from 'cortico/extensions.ts';
 import { deploymentRoot, providersRoot, repoRoot } from 'cortico/paths.ts';
 import { providerModules, registerProviderModules } from 'cortico/providers/registry.ts';
+import { pageIdFor } from 'cortico/web/shared/webui-protocol.ts';
 import { withWorlds, type WorldDefinition, type WorldSection } from 'cortico/world.ts';
 import { InstanceLockedError } from 'cortico/core/instance-lock.ts';
 import { CONSOLE } from 'cortico/worlds/console/definition.ts';
@@ -63,6 +67,7 @@ import { desktopPetDefinition, figurePacks, type DesktopPetWorld } from 'cortico
 import COO, { CHATGPT, CHATGPT_PROVIDER, signedIn, usageLimited, vendorOf } from 'cortico-provider-coo';
 import { appWebUiAsset, bundledWebUiAssets } from './bundled-panels.ts';
 import { followPetLook } from './console-theme.ts';
+import { UPDATES_PANEL, updatesPanel } from './extension-updates.ts';
 import { askForKey, guideDone, markDone, runGuide, type GuideDeps } from './guide.ts';
 import { NOTICE_ID, noticeDefinition, type NoticeWorld } from './notice.ts';
 import { coreText } from './i18n/index.ts';
@@ -482,6 +487,9 @@ export async function main(): Promise<void> {
   /** Coopanion's config group; the console reads this object, retitled in place when the app language changes. */
   const settingsGroup = companionGroup('zh');
   const base = await cormini();
+  /** Reads and installs World extension updates for the settings window's rail; set once the extensions are loaded. */
+  let extensionUpdates: ExtensionManager | null = null;
+  let railUpdates: ReturnType<typeof updatesPanel> | null = null;
   /** Coo's Persona, once the bot is built. */
   let coo: CoopanionPersona | null = null;
   const definitionBase: BotDefinition<CorminiConfig> = {
@@ -529,6 +537,14 @@ export async function main(): Promise<void> {
           configGroups: [base.contextGroup, settingsGroup],
           status: () => ({ context: { maxTokens: cfg.context.maxTokens, softRatio: cfg.context.softRatio } }),
           configOptions: (kind) => (kind === LANGUAGE_OPTIONS ? LANGUAGES.map((value) => ({ value, label: LANGUAGE_NAMES[value] })) : []),
+          // the rail's update arrow: the panel sits in a slot, so the Persona page shows no tab for it
+          webUiPages: () => [{
+            id: pageIdFor('persona', base.definition.id),
+            kind: 'persona',
+            label: DISPLAY_NAME,
+            panels: [UPDATES_PANEL],
+            invoke: (panel, method, args) => railUpdates!.invoke(panel, method, args),
+          }],
         },
       };
     },
@@ -540,6 +556,8 @@ export async function main(): Promise<void> {
     reserved: bundled.map((w) => w.id),
     reservedProviders: [...providerModules.map((m) => m.id), COO.id, CHATGPT_PROVIDER.id],
   });
+  extensionUpdates = new ExtensionManager(repoRoot(), extensions);
+  railUpdates = updatesPanel(extensionUpdates, extensions.records);
   registerProviderModules([COO, CHATGPT_PROVIDER, ...extensions.providers]);
   extensions.webUiAssets.push(...bundledWebUiAssets([
     { id: DESKTOP_PET.id, packageName: 'cortico-world-desktop-pet' },
