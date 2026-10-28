@@ -9,6 +9,7 @@ module.exports = {
   trayQuit: 'Esci',
 
   coreFailed: (times, code, logFile) => `Il Core si è chiuso ${times} volte in 5 minuti (codice di uscita ${code}) e non viene più riavviato. Se l'app è stata appena aggiornata, scegli «Esci» nel menu dell'area di notifica e riapri Coopanion. Log: ${logFile}`,
+  coreIncomplete: (url, logFile) => `Mancano dei file di Coopanion, quindi il Core non può avviarsi. Scarica il programma di installazione completo da ${url} e installalo nella stessa cartella; impostazioni, API Key, prompt e memoria restano. Log: ${logFile}`,
   coreRestarting: (code) => `Il Core si è chiuso inaspettatamente (codice di uscita ${code}); riavvio tra 3 secondi`,
   coreLocked: (pid, file) => `Un altro processo${pid ? ` (PID ${pid})` : ''} sta usando i dati di Coopanion, quindi il Core non è partito. Attendi che termini o chiudilo, poi scegli «Riavvia» nel menu dell'area di notifica. File di blocco: ${file}`,
   corePortsBusy: (from, to) => `Le porte della console ${from}–${to} sono tutte occupate, quindi il Core non è partito. Forse ci sono già ${to - from + 1} copie di Coopanion aperte, oppure altri programmi usano queste porte. Chiudine una, poi scegli «Riavvia» nel menu dell'area di notifica.`,

@@ -9,6 +9,7 @@ module.exports = {
   trayQuit: 'Salir',
 
   coreFailed: (times, code, logFile) => `El Core se cerró ${times} veces en 5 minutos (código de salida ${code}) y ya no se reinicia. Si la app se acaba de actualizar, elige «Salir» en el menú de la bandeja y vuelve a abrir Coopanion. Registro: ${logFile}`,
+  coreIncomplete: (url, logFile) => `Faltan archivos de Coopanion, así que el Core no puede iniciarse. Descarga el instalador completo desde ${url} e instálalo en la misma carpeta; la configuración, las API Keys, los prompts y la memoria se conservan. Registro: ${logFile}`,
   coreRestarting: (code) => `El Core se cerró de forma inesperada (código de salida ${code}); se reinicia en 3 segundos`,
   coreLocked: (pid, file) => `Otro proceso${pid ? ` (PID ${pid})` : ''} está usando los datos de Coopanion, así que el Core no se inició. Espera a que termine o ciérralo, y luego elige «Reiniciar» en el menú de la bandeja. Archivo de bloqueo: ${file}`,
   corePortsBusy: (from, to) => `Los puertos de la consola ${from}–${to} están todos ocupados, así que el Core no se inició. Puede que ya haya ${to - from + 1} copias de Coopanion abiertas, u otros programas usan esos puertos. Cierra uno de ellos y luego elige «Reiniciar» en el menú de la bandeja.`,
