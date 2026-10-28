@@ -90,6 +90,11 @@ body.companion-sidebar {
 #kernel-root .connection-cards::-webkit-scrollbar-thumb:hover,
 #kernel-root .connection-cards::-webkit-scrollbar-thumb:active { background-color: var(--line-strong); }
 #kernel-root .connection-index:not(:hover) .connection-cards::-webkit-scrollbar-thumb { background-color: transparent; }
+#kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll) { --world-scroll-thumb: transparent; }
+#kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll):hover { --world-scroll-thumb: var(--line-2); }
+#kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll)::-webkit-scrollbar-thumb { background-color: var(--world-scroll-thumb); }
+#kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll)::-webkit-scrollbar-thumb:hover,
+#kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll)::-webkit-scrollbar-thumb:active { background-color: var(--line-strong); }
 #rail .navgroup { display: flex; }
 #rail .navgroup-primary + .navgroup-primary { margin-top: 4px; }
 #rail .stacklabel {

@@ -1119,7 +1119,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
       const heading = ui.h('div', 'extension-card-heading'); const local = installed.find(item => item.name === hit.name);
       const titleBlock = ui.h('div', 'extension-card-titleblock'), titleLine = ui.h('div', 'extension-card-titleline');
       const title = ui.h('span', 'extension-card-title', hit.displayName ?? local?.metadata?.displayName ?? local?.label ?? hit.name);
-      titleLine.append(title); if (hit.installed) titleLine.append(ui.pill(S.alreadyInstalled));
+      titleLine.append(title); if (hit.installed && !workspace) titleLine.append(ui.pill(S.alreadyInstalled));
       const metaRow = ui.h('div', 'extension-card-metarow');
       // 署名用 author,悬停 npm 账号;没有 author 时写 `npm@账号`。
       // author 在包文档里,回来之前只写版本。发布者是 GitHub Actions 时改用维护者。
@@ -1138,7 +1138,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
       // 搜索结果没带 os 时等包文档
       const placeOs = (os?: readonly string[]) => { metaRow.querySelector('.extension-os')?.remove(); if (os?.length) metaRow.append(osBadge(os)); };
       placeOs(hit.os);
-      titleBlock.append(titleLine, metaRow);
+      if (workspace) { titleLine.append(metaRow); titleBlock.append(titleLine); }
+      else titleBlock.append(titleLine, metaRow);
       heading.append(packageAvatar(hit.icon ?? (local?.icon ? iconUrl(local.name, local.installedVersion ?? local.version) : undefined)), titleBlock);
       void fetchDetail(hit.name, hit.version).then(data => {
         if (signal.aborted) return;
@@ -1147,7 +1148,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
         if (!hit.os) placeOs(data.os);
       }).catch(() => { /* Search results remain usable when package metadata is unavailable. */ });
       card.append(heading, ui.h('p', 'extension-description', hit.description));
-      card.append(summaryLine(owner, hit.summary));
+      if (!workspace) card.append(summaryLine(owner, hit.summary));
       const tags = orderedTags(hit.tags);
       if (tags.length) {
         const row = ui.h('div', 'extension-tag-row'); row.append(...tags.map(id => tagChip(id, { active: state.tags.includes(id), onToggle: () => toggleTag(id) }))); card.append(row);

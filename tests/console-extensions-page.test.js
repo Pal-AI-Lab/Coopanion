@@ -829,6 +829,16 @@ describe('World library and catalog', () => {
     expect(document.activeElement.dataset.key).toBe('alpha-mod');
     expect(rail.querySelector('[aria-current=true]').getAttribute('aria-label')).toBe('甲扩展');
   });
+  it('keeps catalog metadata beside the title and installed state in the action', async () => {
+    const hit = { ...HITS.hits[1], summary: { tools: 3, events: 2 } };
+    const { root } = await openWorlds({ hits: { hits: [hit] } });
+    const card = root.querySelector('.world-catalog .extension-market-card');
+    const heading = card.querySelector('.extension-card-titleline');
+    expect(heading.querySelector('.extension-card-byline').textContent).toContain('v1.0.0');
+    expect(heading.textContent).not.toContain('已安装');
+    expect(card.querySelector('.extension-card-spec')).toBeNull();
+    expect(button(card, '已安装').disabled).toBe(true);
+  });
   it('adds from the catalog without opening details, then exposes pending restart in management', async () => {
     const list = structuredClone(LIST);
     const { root } = await openWorlds({ list, hits: { hits: HITS.hits.slice(0, 2) }, onInstall: () => list.extensions.push({ name: 'found-mod', kind: 'world', version: '3.1.0', state: 'pending-restart', loaded: false, webUiClient: true }) });
