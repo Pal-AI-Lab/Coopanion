@@ -70,6 +70,7 @@ const KEYS = {
   overlay: `${K}.window.exportOverlay`,
   sound: `${K}.sound`,
   snoreSeconds: `${K}.sounds.snoreSeconds`,
+  panByPosition: `${K}.sounds.panByPosition`,
   speech: `${K}.speech.enabled`,
   speechPitch: `${K}.speech.pitch`,
   speechPitchHz: `${K}.speech.pitchHz`,
@@ -428,8 +429,9 @@ async function mount(ctx: PageContext): Promise<void> {
     kindBox.append(c.el);
     return [kind, c] as const;
   });
-  // the kinds only matter while sounds play at all
-  const renderKinds = () => { for (const [, c] of kinds) c.input.disabled = !sound.checked; };
+  const pan = ui.checkbox(S.pan, { onChange: (on) => { void save(KEYS.panByPosition, on, SOUND_GROUP, soundMsg); } });
+  // the kinds and the panning only matter while sounds play at all
+  const renderKinds = () => { for (const [, c] of kinds) c.input.disabled = !sound.checked; pan.input.disabled = !sound.checked; };
   const snore = ui.input({ type: 'number' });
   snore.min = '0'; snore.max = '3600'; snore.step = '1';
   const snoreBox = ui.h('div', 'companion-rangebox');
@@ -438,6 +440,7 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.soundLabel, sound.el),
     row(S.soundKinds, kindBox, S.soundKindsHint),
     row(S.snore, snoreBox, S.snoreHint),
+    row(S.panLabel, pan.el, S.panHint),
     soundMsg,
   );
   /* ---------- speech ---------- */
@@ -634,6 +637,7 @@ async function mount(ctx: PageContext): Promise<void> {
       const v = soundValues[`${K}.sounds.${kind}`];
       if (typeof v === 'boolean') c.setChecked(v);
     }
+    if (typeof soundValues[KEYS.panByPosition] === 'boolean') pan.setChecked(soundValues[KEYS.panByPosition] as boolean);
     renderKinds();
     if (typeof soundValues[KEYS.speech] === 'boolean') speech.setChecked(soundValues[KEYS.speech] as boolean);
     pitch.sync(soundValues);
