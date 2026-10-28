@@ -12,21 +12,16 @@ import { S as ru } from './strings.ru.ts';
 const zh = {
   myWorlds: "我的 World",
   marketTab: "World 扩展",
-  library: "仓库",
+  extensionList: "扩展列表",
   configure: "配置",
   manageExtension: "管理扩展",
-  stopMode: "停用",
-  connectMode: "接入",
   modeOff: "已停用",
   modeRunning: "仅运行",
   modeAttached: "已接入",
 
   navLabel: 'World 总览',
   introTitle: 'World',
-  reloadPrefixBtn: '↻ 重载系统前缀',
-  prefixReloaded: '前缀已重载',
   prefixReloadFailed: (msg: string) => `前缀重载失败: ${msg}`,
-  updated: '已更新',
   toggleFailed: (msg: string) => `切换失败: ${msg}`,
   reloadNowTitle: '现在重载 system 前缀?',
   reloadNowBody: (name: string, wantVisible: boolean) =>
@@ -37,13 +32,8 @@ const zh = {
   deactivateBody: (id: string) =>
     'World 会立即停止(它托管的外部进程与连接一并收尾),并写回 config.json 的 '
     + `worlds.${id}.enabled=false。agent 的环境提示词与工具随即撤下;再次激活按当前配置重建。`,
-  activated: '已激活',
-  deactivated: '已停用',
-  activateFailed: (msg: string) => `激活失败: ${msg}`,
-  deactivateFailed: (msg: string) => `停用失败: ${msg}`,
   restartTitle: (name: string) => `重启「${name}」?`,
   restartBody: "停止并重建 World，应用标有「重启 World 生效」的配置。托管进程与连接会停止后重新启动。",
-  restarted: '已重启',
   restartFailed: (msg: string) => `重启失败: ${msg}`,
   declaredByPersona: 'Persona定义',
   optionalAddon: '选配外挂',
@@ -69,21 +59,16 @@ const zh = {
 export const en: typeof zh = {
   myWorlds: "My Worlds",
   marketTab: "World extensions",
-  library: "Library",
+  extensionList: "Extensions",
   configure: "Configure",
   manageExtension: "Manage extension",
-  stopMode: "Stop",
-  connectMode: "Connect",
   modeOff: "Stopped",
   modeRunning: "Running only",
   modeAttached: "Connected",
 
   navLabel: 'World overview',
   introTitle: 'Worlds',
-  reloadPrefixBtn: '↻ Reload system prefix',
-  prefixReloaded: 'Prefix reloaded',
   prefixReloadFailed: (msg: string) => `Prefix reload failed: ${msg}`,
-  updated: 'Updated',
   toggleFailed: (msg: string) => `Toggle failed: ${msg}`,
   reloadNowTitle: 'Reload the system prefix now?',
   reloadNowBody: (name: string, wantVisible: boolean) =>
@@ -94,13 +79,8 @@ export const en: typeof zh = {
   deactivateBody: (id: string) =>
     'The World stops immediately (its managed external processes and connections are wound down), and '
     + `worlds.${id}.enabled=false is written back to config.json. The agent's environment prompt and tools are withdrawn right away; activating again rebuilds it from the current config.`,
-  activated: 'Activated',
-  deactivated: 'Deactivated',
-  activateFailed: (msg: string) => `Activation failed: ${msg}`,
-  deactivateFailed: (msg: string) => `Deactivation failed: ${msg}`,
   restartTitle: (name: string) => `Restart "${name}"?`,
   restartBody: "Stops and rebuilds the World to apply settings marked for World restart. Managed processes and connections stop and restart.",
-  restarted: 'Restarted',
   restartFailed: (msg: string) => `Restart failed: ${msg}`,
   declaredByPersona: 'Declared by Persona',
   optionalAddon: 'Optional add-on',

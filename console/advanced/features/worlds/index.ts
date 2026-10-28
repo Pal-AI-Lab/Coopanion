@@ -80,23 +80,20 @@ export function mountWorlds(ctx: FeatureContext): void {
   ], { onSelect: value => router.navigate(['world'], value === 'market' ? { view: 'market' } : undefined) });
   intro.append(tabs.el);
   const workspace = ui.h('div', 'world-workspace');
-  const rail = ui.h('section', 'world-library'); rail.setAttribute('aria-label', S.library);
-  const header = ui.h('div', 'world-library-header');
-  const railTitle = ui.h('h2', 'world-library-heading', S.library);
+  const rail = ui.h('section', 'world-library'); rail.setAttribute('aria-label', S.extensionList);
   const railList = ui.h('div', 'world-library-list');
   const pendingGroup = ui.h('div', 'world-pending-group');
   const pendingList = ui.h('div', 'world-pending-list');
   const restartRoot = ui.h('div', 'world-restart-footer');
   const readyList = ui.h('div', 'world-ready-list');
-  pendingGroup.append(pendingList, restartRoot); pendingGroup.hidden = true;
-  railList.append(pendingGroup, readyList);
+  const readyGroup = ui.h('div', 'world-ready-group');
+  pendingGroup.append(ui.h('h2', 'world-library-heading', E.statePendingRestart), pendingList, restartRoot); pendingGroup.hidden = true;
+  readyGroup.append(ui.h('h2', 'world-library-heading', S.extensionList), readyList);
+  railList.append(pendingGroup, readyGroup);
   const status = ui.h('div', 'world-workspace-status');
   const catalog = ui.h('div', 'world-pane world-market');
-  const toolbar = ui.rowbar(); toolbar.classList.add('world-management-toolbar');
   const msg = ui.msgline(); msg.setAttribute('role', 'status');
-  const reloadBtn = ui.button(S.reloadPrefixBtn, { size: 'sm', onClick: () => void reloadPrefix(reloadBtn) });
-  toolbar.append(reloadBtn, ui.button(E.refresh, { size: 'sm', onClick: () => void refresh() }));
-  header.append(railTitle, toolbar); rail.append(header, railList);
+  rail.append(railList);
   const feedback = ui.h('div', 'world-feedback'); feedback.append(msg);
   workspace.append(rail, catalog); root.append(intro, status, feedback, workspace);
   const reduceMotion = () => win.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -108,19 +105,19 @@ export function mountWorlds(ctx: FeatureContext): void {
     if (next === current) return;
     const previous = current; current = next;
     const style = transition?.playState === 'running' ? win.getComputedStyle(catalog) : undefined;
-    const interrupted = style ? { opacity: style.opacity, transform: style.transform } : undefined;
+    const interrupted = style ? { clipPath: style.clipPath } : undefined;
     transition?.cancel();
     workspace.dataset.view = next;
-    toolbar.hidden = next !== 'mine'; tabs.setValue(next);
+    tabs.setValue(next);
     catalog.inert = next !== 'market';
     for (const row of railList.querySelectorAll<HTMLElement>('.world-blade')) row.inert = next === 'market';
     if (next === 'mine' && catalog.contains(doc.activeElement)) tabs.el.querySelector<HTMLButtonElement>('[aria-current=page]')?.focus();
     if (next === 'mine' && focusRequested) focusSelected();
-    const closed = { opacity: 0, transform: 'translateX(18px) scale(.985)' };
-    const open = { opacity: 1, transform: 'translateX(0) scale(1)' };
+    const closed = { clipPath: 'inset(0 0 0 100%)' };
+    const open = { clipPath: 'inset(0 0 0 0%)' };
     catalog.hidden = false;
     if (previous && !reduceMotion() && catalog.animate) {
-      transition = catalog.animate(next === 'market' ? [interrupted ?? closed, open] : [interrupted ?? open, closed], { duration: 240, easing: 'cubic-bezier(.2,.7,.2,1)' });
+      transition = catalog.animate(next === 'market' ? [interrupted ?? closed, open] : [interrupted ?? open, closed], { duration: 360, easing: 'cubic-bezier(.2,.7,.2,1)' });
       const own = transition;
       void own.finished.then(() => { if (transition === own) catalog.hidden = current !== 'market'; }, () => {});
     } else catalog.hidden = next !== 'market';
@@ -129,91 +126,67 @@ export function mountWorlds(ctx: FeatureContext): void {
   if (canBrowse) market = mountExtensionContent({ ...ctx, root: catalog }, 'world', catalog, {
     statusRoot: status, restartRoot,
     beforeReload: () => {
-      try { win.sessionStorage.setItem(layoutKey, JSON.stringify({ positions: [...railNodes].map(([key, node]) => [key, node.parentElement!.getBoundingClientRect().top]), scroll: railList.scrollTop, at: Date.now() })); } catch { /* Storage may be unavailable. */ }
+      try { win.sessionStorage.setItem(layoutKey, JSON.stringify({ positions: [...railNodes].filter(([, node]) => node.parentElement!.dataset.state === 'pending').map(([key, node]) => [key, node.parentElement!.getBoundingClientRect().top]), scroll: railList.scrollTop, at: Date.now() })); } catch { /* Storage may be unavailable. */ }
     },
-    onChange: items => { extensions = items; extensionsReady = true; render(); void load(); },
+    onChange: items => { extensions = items; extensionsReady = true; void load(); },
+    onLoadError: () => { extensionsReady = true; render(); },
     onAdded: name => { const previous = recent.indexOf(name); if (previous >= 0) recent.splice(previous, 1); recent.unshift(name); selected = name; railList.scrollTop = 0; },
   });
   else status.hidden = true;
-  async function refresh(): Promise<void> {
-    if (market) await market.refresh(); else await load();
-  }
   function setMsg(text: string, bad?: boolean): void {
     msg.textContent = text;
     msg.className = 'msgline' + (bad ? ' bad' : '');
   }
 
-  async function reloadPrefix(btn?: HTMLButtonElement): Promise<void> {
-    const lock = btn ? ui.disable(btn) : null;
+  async function reloadPrefix(): Promise<void> {
     try {
-      const out = await post<{ result?: string }>(
-        '/api/session/reload-prefix',
-        undefined,
-        { signal: ctx.signal },
-      );
-      if (ctx.signal.aborted) return;
-      setMsg(out?.result || S.prefixReloaded);
-      await refresh();
+      await post('/api/session/reload-prefix', undefined, { signal });
+      if (!signal.aborted) await load();
     } catch (err) {
-      if (isAbort(err) || ctx.signal.aborted) return;
-      setMsg(S.prefixReloadFailed(errText(err)), true);
-    } finally {
-      lock?.dispose();
+      if (!isAbort(err) && !signal.aborted) setMsg(S.prefixReloadFailed(errText(err)), true);
     }
   }
 
-  const changingModes = new Set<string>();
-  async function setMode(m: WorldView, mode: 'off' | 'running' | 'attached'): Promise<void> {
-    if (changingModes.has(m.id)) return;
-    changingModes.add(m.id);
-    render();
+  const changingWorlds = new Set<string>();
+  async function changeWorld(m: WorldView, action: 'activation' | 'visibility', value: boolean): Promise<void> {
+    if (changingWorlds.has(m.id)) return;
+    changingWorlds.add(m.id); setMsg(''); render();
     let drifted = false;
     try {
-      if (mode === 'off') {
-        if (!await ui.confirm({ title: S.deactivateTitle(m.label || m.id), body: S.deactivateBody(m.id), danger: true }) || signal.aborted) return;
-        await post('/api/worlds/activation', { id: m.id, enabled: false }, { signal });
-      } else {
-        if (m.status !== 'active') await post('/api/worlds/activation', { id: m.id, enabled: true }, { signal });
-        if (canToggleVisibility) {
-          const out = await post<{ driftedWorlds?: string[] }>('/api/worlds/visibility', { id: m.id, visible: mode === 'attached' }, { signal });
-          drifted = !!out.driftedWorlds?.length;
-        }
-      }
-      if (signal.aborted) return;
-      setMsg(S.updated);
-      void ctx.refreshNav?.().catch(ctx.onError);
+      if (action === 'activation' && !value && (!await ui.confirm({ title: S.deactivateTitle(m.label || m.id), body: S.deactivateBody(m.id), danger: true }) || signal.aborted)) return;
+      const out = await post<{ driftedWorlds?: string[] }>(`/api/worlds/${action}`, action === 'activation' ? { id: m.id, enabled: value } : { id: m.id, visible: value }, { signal });
+      drifted = action === 'visibility' && !!out.driftedWorlds?.length;
+      if (!signal.aborted) void ctx.refreshNav?.().catch(ctx.onError);
     } catch (error) {
       if (!isAbort(error) && !signal.aborted) setMsg(S.toggleFailed(errText(error)), true);
     } finally {
-      changingModes.delete(m.id);
-      if (!signal.aborted) await refresh();
+      changingWorlds.delete(m.id);
+      if (!signal.aborted) await load();
     }
-    if (drifted && !signal.aborted && await ui.confirm({ title: S.reloadNowTitle, body: S.reloadNowBody(m.label || m.id, mode === 'attached') })) await reloadPrefix();
+    if (drifted && !signal.aborted && await ui.confirm({ title: S.reloadNowTitle, body: S.reloadNowBody(m.label || m.id, value) })) await reloadPrefix();
   }
 
   async function restart(m: WorldView): Promise<void> {
-    if (changingModes.has(m.id)) return;
+    if (changingWorlds.has(m.id)) return;
     const name = m.label || m.id;
     const ok = await ui.confirm({
       title: S.restartTitle(name),
       body: S.restartBody,
     });
     if (!ok || ctx.signal.aborted) return;
-    changingModes.add(m.id); render();
+    changingWorlds.add(m.id); setMsg(''); render();
     try {
-      const out = await post<{ result?: string }>(
+      await post(
         '/api/worlds/restart',
         { id: m.id },
         { signal: ctx.signal },
       );
-      if (ctx.signal.aborted) return;
-      setMsg(out?.result || S.restarted);
     } catch (err) {
       if (isAbort(err) || ctx.signal.aborted) return;
       setMsg(S.restartFailed(errText(err)), true);
     } finally {
-      changingModes.delete(m.id);
-      if (!signal.aborted) await refresh();
+      changingWorlds.delete(m.id);
+      if (!signal.aborted) await load();
     }
   }
 
@@ -221,14 +194,14 @@ export function mountWorlds(ctx: FeatureContext): void {
     name: ConsoleIconName,
     label: string,
     cls: string,
-    onClick: (btn: HTMLButtonElement) => void,
+    onClick: () => void,
   ): HTMLButtonElement {
     const btn = ui.h('button', `iobtn ${cls}`);
     btn.type = 'button';
     btn.title = label;
     btn.setAttribute('aria-label', label);
     btn.appendChild(icon(doc, name));
-    btn.addEventListener('click', () => onClick(btn), { signal: ctx.signal });
+    btn.addEventListener('click', onClick, { signal: ctx.signal });
     return btn;
   }
 
@@ -256,10 +229,8 @@ export function mountWorlds(ctx: FeatureContext): void {
   }
   function renderRail(items: readonly WorldLibraryItem[]) {
     const restored = worldsReady && extensionsReady ? savedLayout : undefined;
-    const positions = new Map(restored?.positions ?? Array.from(railNodes, ([key, node]) => [key, node.parentElement!.getBoundingClientRect().top]));
+    const positions = new Map(restored?.positions);
     if (restored) savedLayout = undefined;
-    for (const animation of movements) animation.cancel();
-    movements.clear();
     pendingGroup.hidden = !items.some(needsRestart);
     for (const [key, node] of railNodes) if (!items.some(item => item.key === key)) { node.parentElement?.remove(); railNodes.delete(key); }
     const cursors = new Map<HTMLElement, Element | null>([[pendingList, pendingList.firstElementChild], [readyList, readyList.firstElementChild]]);
@@ -267,11 +238,9 @@ export function mountWorlds(ctx: FeatureContext): void {
       let node = railNodes.get(item.key);
       if (!node) {
         node = ui.h('button', 'world-library-item'); node.type = 'button';
-        node.append(avatar(item), ui.h('span', 'world-library-name', item.label.replace(/^cortico-world-/, '')));
+        node.append(avatar(item));
         node.addEventListener('click', () => select(item), { signal }); railNodes.set(item.key, node);
       }
-      const name = node.querySelector('.world-library-name')!;
-      name.textContent = item.label.replace(/^cortico-world-/, '');
       node.title = item.label; node.setAttribute('aria-label', item.label); node.setAttribute('aria-current', item.key === selected ? 'true' : 'false');
       const row = worldRow(item); row.inert = current === 'market';
       let entry = node.parentElement;
@@ -286,7 +255,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     if (restored) railList.scrollTop = restored.scroll;
     for (const [key, node] of railNodes) {
       const before = positions.get(key), delta = before === undefined ? 0 : before - node.parentElement!.getBoundingClientRect().top;
-      if (delta && !reduceMotion()) {
+      if (delta && node.parentElement!.dataset.state !== 'pending' && node.parentElement!.dataset.state !== 'failed' && !reduceMotion()) {
         const animation = node.parentElement!.animate?.([{ transform: `translateY(${delta}px)` }, { transform: 'translateY(0)' }], { duration: 480, easing: 'cubic-bezier(.2,.7,.2,1)' });
         if (animation) { movements.add(animation); void animation.finished.then(() => movements.delete(animation), () => movements.delete(animation)); }
       }
@@ -322,34 +291,18 @@ export function mountWorlds(ctx: FeatureContext): void {
     if (m?.status === 'active') {
       const lamps = ui.h('span', 'world-signals'); paintSignals(lamps, m.lamps ?? []); readings.append(lamps); lampNodes.set(worldPageId(m.id), lamps);
     }
-    if (m) {
-      const metadata = ui.h('div', 'world-blade-metadata');
-      metadata.append(ui.h('span', '', `${S.kvTools} ${m.tools?.length ?? 0}`));
-      for (const badge of m.badges ?? []) metadata.append(ui.pill(`${badge.label} ${badge.value}`, badge.tone));
-      metadata.title = metadata.textContent || '';
-      identity.append(metadata);
-    }
     if (m?.prefixDrifted) readings.append(ui.pill(S.prefixPending));
     const actions = ui.h('div', 'world-blade-actions');
-    const modes = ui.h('div', 'segwrap sm world-modes'); modes.setAttribute('role', 'group'); modes.setAttribute('aria-label', item.label);
-    if (m && !pending && !failed && canToggleVisibility) {
-      const value = m.status !== 'active' ? 'off' : m.visible === false ? 'running' : 'attached';
-      for (const [mode, label] of [['off', S.stopMode], ['running', S.modeRunning], ['attached', S.connectMode]] as const) {
-        const button = ui.h('button', 'seg' + (mode === value ? ' active' : ''), label); button.type = 'button';
-        button.setAttribute('aria-pressed', String(mode === value));
-        button.disabled = changingModes.has(m.id) || (mode === 'off' ? !canActivate : m.status !== 'active' && !canActivate);
-        button.addEventListener('click', () => { if (mode !== value) void setMode(m, mode); }, { signal }); modes.append(button);
-      }
-    }
-    if (m && !pending && !failed && canActivate) {
-      if (m.status === 'active') actions.append(iconButton('refresh', S.restartWorld, '', () => void restart(m)));
-      if (!canToggleVisibility) actions.append(ui.button(m.status === 'active' ? S.deactivateWorld : S.activateWorld, { size: 'sm', onClick: () => void setMode(m, m.status === 'active' ? 'off' : 'attached') }));
-      if (changingModes.has(m.id)) for (const button of actions.querySelectorAll('button')) button.disabled = true;
+    if (m && !pending && !failed) {
+      if (m.status === 'active') {
+        if (canToggleVisibility) actions.append(iconButton(m.visible === false ? 'eye-off' : 'eye', m.visible === false ? S.showToAgent : S.hideFromAgent, m.visible === false ? '' : 'iobtn-visible', () => void changeWorld(m, 'visibility', m.visible === false)));
+        if (canActivate) actions.append(iconButton('refresh', S.restartWorld, '', () => void restart(m)), iconButton('power', S.deactivateWorld, 'iobtn-stop', () => void changeWorld(m, 'activation', false)));
+      } else if (canActivate) actions.append(iconButton('power', S.activateWorld, '', () => void changeWorld(m, 'activation', true)));
+      if (changingWorlds.has(m.id)) for (const button of actions.querySelectorAll('button')) button.disabled = true;
     }
     if (m) actions.append(ui.button(S.configure, { size: 'sm', onClick: () => router.navigate([PROVIDER_ROUTE, worldPageId(m.id)]) }));
     if (pack) actions.append(iconButton('package', S.manageExtension, '', () => market?.manage(pack.name)));
-    if (modes.childElementCount) readings.querySelector('.world-state')?.remove();
-    row.append(identity, modes, readings, actions);
+    row.append(identity, readings, actions);
     if (failed) row.append(ui.h('p', 'world-blade-note bad', m?.reason || pack?.reason || S.missingReasonDefault));
     else if (m?.status === 'inactive' && !canActivate) row.append(ui.h('p', 'world-blade-note', S.inactiveNoteManual(m.id)));
     else if (!m && !pending) row.append(ui.h('p', 'world-blade-note', E.worldNotLoaded));
@@ -375,11 +328,12 @@ export function mountWorlds(ctx: FeatureContext): void {
     detailsDrawer?.dispose(); detailsDrawer = ui.drawer(m.label || m.id, box);
   }
   function render(): void {
+    if (!worldsReady || !extensionsReady || signal.aborted) return;
     const items = worldLibrary(worlds, extensions, recent);
     readyList.querySelector('.placeholder')?.remove();
     lampNodes.clear(); renderRail(items);
     if (!items.length) readyList.replaceChildren(ui.placeholder(S.noWorlds));
-    reloadBtn.hidden = !worlds.some(world => world.prefixDrifted);
+    readyGroup.hidden = !!items.length && !items.some(item => !needsRestart(item));
   }
   async function load(): Promise<void> {
     if (!ctx.capabilities.worlds) { render(); return; }
@@ -389,7 +343,7 @@ export function mountWorlds(ctx: FeatureContext): void {
       if (signal.aborted || own !== generation) return;
       worlds = data.worlds; worldsReady = true; render();
     } catch (error) {
-      if (!signal.aborted && own === generation) setMsg(S.listLoadFailed(errText(error)), true);
+      if (!signal.aborted && own === generation) { worldsReady = true; setMsg(S.listLoadFailed(errText(error)), true); render(); }
     }
   }
   readyList.append(ui.placeholder(S.loading));

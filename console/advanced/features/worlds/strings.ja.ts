@@ -3,21 +3,16 @@ import type { en } from './strings.ts';
 export const S: Partial<typeof en> = {
   myWorlds: "自分の World",
   marketTab: "World 拡張機能",
-  library: "ライブラリ",
+  extensionList: "拡張機能一覧",
   configure: "設定",
   manageExtension: "拡張機能を管理",
-  stopMode: "停止",
-  connectMode: "接続",
   modeOff: "停止中",
   modeRunning: "実行のみ",
   modeAttached: "接続中",
 
   navLabel: 'World 一覧',
   introTitle: 'World',
-  reloadPrefixBtn: '↻ システムプレフィックスを再読み込み',
-  prefixReloaded: 'プレフィックスを再読み込みしました',
   prefixReloadFailed: (msg: string) => `プレフィックスの再読み込みに失敗しました：${msg}`,
-  updated: '更新しました',
   toggleFailed: (msg: string) => `切り替えに失敗しました：${msg}`,
   reloadNowTitle: '今すぐシステムプレフィックスを再読み込みしますか？',
   reloadNowBody: (name: string, wantVisible: boolean) =>
@@ -28,13 +23,8 @@ export const S: Partial<typeof en> = {
   deactivateBody: (id: string) =>
     'World は直ちに停止し（管理している外部プロセスと接続も終了処理されます）、config.json に '
     + `worlds.${id}.enabled=false を書き戻します。エージェントの環境プロンプトとツールはすぐに取り下げられ、再び有効化すると現在の設定から再構築されます。`,
-  activated: '有効化しました',
-  deactivated: '無効化しました',
-  activateFailed: (msg: string) => `有効化に失敗しました：${msg}`,
-  deactivateFailed: (msg: string) => `無効化に失敗しました：${msg}`,
   restartTitle: (name: string) => `「${name}」を再起動しますか？`,
   restartBody: 'World を停止して再構築し、「World の再起動後に反映」と表示された設定を適用します。管理しているプロセスと接続は停止した後に再起動します。',
-  restarted: '再起動しました',
   restartFailed: (msg: string) => `再起動に失敗しました：${msg}`,
   declaredByPersona: 'Persona で定義',
   optionalAddon: 'オプションのアドオン',

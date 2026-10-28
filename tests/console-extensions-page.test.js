@@ -68,10 +68,10 @@ function stub(over = {}) {
     let status = 200;
     let body = {};
     if (u === '/api/worlds') body = { worlds: over.worlds ?? [{ id: 'alpha', label: '甲扩展', status: 'active', visible: true }, { id: 'builtin', label: 'Builtin', status: 'inactive' }] };
+    else if (u === '/api/worlds/visibility') body = { driftedWorlds: over.driftedWorlds ?? [] };
     else if (u === '/api/providers') body = { scope: 'test-provider-tabs', active: '', providers: [] };
     else if (u === '/api/provider-modules') body = [];
-    else if (u === '/api/extensions')
-      body = over.list ?? LIST;
+    else if (u === '/api/extensions') { status = over.listStatus ?? 200; body = status === 200 ? over.list ?? LIST : { error: 'Unavailable' }; }
     else if (u === '/api/extensions/updates') {
       status = over.updateStatus ?? 200;
       body = status === 200 ? over.updates ?? { updates: [], errors: [] } : { error: 'npm unavailable' };
@@ -824,10 +824,10 @@ describe('World library and catalog', () => {
     expect(root.querySelectorAll('.world-blade .world-avatar')).toHaveLength(0);
     expect([...rail.querySelectorAll('.world-library-item')]).toEqual(railItems);
     expect(search.value).toBe('found'); expect(scroll.scrollTop).toBe(40);
-    railItems.find(item => item.textContent.includes('甲扩展')).click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    railItems.find(item => item.getAttribute('aria-label') === '甲扩展').click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     expect(root.querySelector('.world-workspace').dataset.view).toBe('mine');
     expect(document.activeElement.dataset.key).toBe('alpha-mod');
-    expect(rail.querySelector('[aria-current=true]').textContent).toContain('甲扩展');
+    expect(rail.querySelector('[aria-current=true]').getAttribute('aria-label')).toBe('甲扩展');
   });
   it('adds from the catalog without opening details, then exposes pending restart in management', async () => {
     const list = structuredClone(LIST);
@@ -835,7 +835,7 @@ describe('World library and catalog', () => {
     const card = cardOf(root, 'found-mod');
     button(card, '添加到仓库').click(); await flush(100);
     expect(document.querySelector('.modal')).toBeNull();
-    expect(root.querySelector('.world-library-item').textContent).toContain('found-mod');
+    expect(root.querySelector('.world-library-item').getAttribute('aria-label')).toBe('found-mod');
     expect(root.querySelector('.world-restart-count').hidden).toBe(false);
     const group = root.querySelector('.world-pending-group');
     expect(group.querySelectorAll('.world-library-entry')).toHaveLength(2);
@@ -855,13 +855,29 @@ describe('World library and catalog', () => {
     const { root } = await openWorlds({ worlds }, { worlds: true, worldVisibility: true, worldActivation: true });
     const row = root.querySelector('.world-blade');
     expect(row.textContent).toContain('Link · 2 clients');
-    expect(row.querySelector('.world-blade-metadata').textContent).toContain('1');
-    button(row, '停用').click(); await flush();
+    expect(row.querySelector('.world-modes')).toBeNull();
+    row.querySelector('[aria-label="停用 World"]').click(); await flush();
     expect(calls.some(call => call.url === '/api/worlds/activation')).toBe(false);
     answer(false); await flush();
     expect(calls.some(call => call.url === '/api/worlds/activation')).toBe(false);
-    button(root.querySelector('.world-blade'), '仅运行').click(); await flush();
+    root.querySelector('[aria-label="对 agent 隐藏"]').click(); await flush();
     expect(calls.find(call => call.url === '/api/worlds/visibility').body).toEqual({ id: 'alpha', visible: false });
+    expect(root.querySelector('.world-feedback').textContent).toBe('');
+  });
+  it('keeps prefix reload confirmation without a page toolbar or success banner', async () => {
+    const { root } = await openWorlds({ driftedWorlds: ['alpha'] }, { worlds: true, worldVisibility: true });
+    root.querySelector('[aria-label="对 agent 隐藏"]').click(); await flush(100);
+    expect(document.querySelector('.modal').textContent).toContain('现在重载');
+    expect(calls.some(call => call.url === '/api/session/reload-prefix')).toBe(false);
+    answer(true); await flush(100);
+    expect(calls.some(call => call.url === '/api/session/reload-prefix')).toBe(true);
+    expect(root.querySelector('.world-feedback').textContent).toBe('');
+    expect(root.querySelector('.world-management-toolbar')).toBeNull();
+  });
+  it('keeps runtime Worlds available when the extension list fails to load', async () => {
+    const { root } = await openWorlds({ listStatus: 503 });
+    expect(root.querySelectorAll('.world-blade')).toHaveLength(2);
+    expect(root.querySelector('.world-workspace-status').textContent).toContain('Unavailable');
   });
   it('moves restarted packages into assembly order without replacing avatars', async () => {
     const list = { extensions: [{ name: 'last', worldId: 'last', kind: 'world', state: 'pending-restart' }] };
@@ -872,6 +888,18 @@ describe('World library and catalog', () => {
     button(root, '↻ 刷新').click(); await flush(100);
     expect(root.querySelector('.world-pending-group').hidden).toBe(true);
     expect([...root.querySelectorAll('.world-ready-list .world-library-item')].at(-1)).toBe(pending);
+  });
+  it('does not animate entries during ordinary loading or catalog refresh', async () => {
+    const original = Element.prototype.animate;
+    const animated = [];
+    Element.prototype.animate = function() { animated.push(this); return { cancel() {}, finished: Promise.resolve() }; };
+    try {
+      const { root } = await openWorlds();
+      button(root.querySelector('.world-market'), '↻ 刷新').click(); await flush(100);
+      expect(animated.filter(el => el.classList.contains('world-library-entry'))).toHaveLength(0);
+      expect(root.querySelector('.world-management-toolbar')).toBeNull();
+      expect([...root.querySelectorAll('.world-library-heading')].map(el => el.textContent)).toEqual(['待重启', '扩展列表']);
+    } finally { if (original) Element.prototype.animate = original; else delete Element.prototype.animate; }
   });
   it('restores positions once after reload and waits for both lists', async () => {
     const key = `coopanion.world-layout:${window.location.origin}`;
@@ -920,7 +948,7 @@ describe('World library and catalog', () => {
     expect(root.querySelector('.world-workspace').dataset.view).toBe('mine');
     expect(root.querySelectorAll('.pagetab')).toHaveLength(1);
     expect(root.querySelector('.world-blade').textContent).toContain('配置');
-    button(root, '激活 World').click(); await flush();
+    root.querySelector('[aria-label="激活 World"]').click(); await flush();
     expect(calls.find(call => call.url === '/api/worlds/activation').body).toEqual({ id: 'builtin', enabled: true });
     expect(calls.some(call => call.url.startsWith('/api/extensions'))).toBe(false);
   });

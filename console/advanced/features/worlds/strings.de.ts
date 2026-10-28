@@ -3,21 +3,16 @@ import type { en } from './strings.ts';
 export const S: Partial<typeof en> = {
   myWorlds: "Meine Worlds",
   marketTab: "World-Erweiterungen",
-  library: "Bibliothek",
+  extensionList: "Erweiterungsliste",
   configure: "Konfigurieren",
   manageExtension: "Erweiterung verwalten",
-  stopMode: "Stoppen",
-  connectMode: "Verbinden",
   modeOff: "Gestoppt",
   modeRunning: "Nur ausführen",
   modeAttached: "Verbunden",
 
   navLabel: 'World-Übersicht',
   introTitle: 'Worlds',
-  reloadPrefixBtn: '↻ Systempräfix neu laden',
-  prefixReloaded: 'Präfix neu geladen',
   prefixReloadFailed: (msg: string) => `Neuladen des Präfixes fehlgeschlagen: ${msg}`,
-  updated: 'Aktualisiert',
   toggleFailed: (msg: string) => `Umschalten fehlgeschlagen: ${msg}`,
   reloadNowTitle: 'Systempräfix jetzt neu laden?',
   reloadNowBody: (name: string, wantVisible: boolean) =>
@@ -28,13 +23,8 @@ export const S: Partial<typeof en> = {
   deactivateBody: (id: string) =>
     'Die World stoppt sofort (ihre verwalteten externen Prozesse und Verbindungen werden beendet), und '
     + `worlds.${id}.enabled=false wird in config.json zurückgeschrieben. Umgebungs-Prompt und Tools des Agenten werden sofort entfernt; eine erneute Aktivierung baut sie aus der aktuellen Konfiguration neu auf.`,
-  activated: 'Aktiviert',
-  deactivated: 'Deaktiviert',
-  activateFailed: (msg: string) => `Aktivierung fehlgeschlagen: ${msg}`,
-  deactivateFailed: (msg: string) => `Deaktivierung fehlgeschlagen: ${msg}`,
   restartTitle: (name: string) => `„${name}“ neu starten?`,
   restartBody: 'Stoppt die World und baut sie neu auf, um Einstellungen anzuwenden, die einen World-Neustart erfordern. Verwaltete Prozesse und Verbindungen werden gestoppt und neu gestartet.',
-  restarted: 'Neu gestartet',
   restartFailed: (msg: string) => `Neustart fehlgeschlagen: ${msg}`,
   declaredByPersona: 'Von der Persona deklariert',
   optionalAddon: 'Optionales Add-on',

@@ -3,21 +3,16 @@ import type { en } from './strings.ts';
 export const S: Partial<typeof en> = {
   myWorlds: "Mes Worlds",
   marketTab: "Extensions World",
-  library: "Bibliothèque",
+  extensionList: "Extensions",
   configure: "Configurer",
   manageExtension: "Gérer l’extension",
-  stopMode: "Arrêter",
-  connectMode: "Connecter",
   modeOff: "Arrêté",
   modeRunning: "Exécution seule",
   modeAttached: "Connecté",
 
   navLabel: "Vue d'ensemble des World",
   introTitle: 'World',
-  reloadPrefixBtn: '↻ Recharger le préfixe système',
-  prefixReloaded: 'Préfixe rechargé',
   prefixReloadFailed: (msg: string) => `Échec du rechargement du préfixe : ${msg}`,
-  updated: 'Mis à jour',
   toggleFailed: (msg: string) => `Échec du basculement : ${msg}`,
   reloadNowTitle: 'Recharger le préfixe système maintenant ?',
   reloadNowBody: (name: string, wantVisible: boolean) =>
@@ -28,13 +23,8 @@ export const S: Partial<typeof en> = {
   deactivateBody: (id: string) =>
     "Le World s'arrête immédiatement (ses processus externes et connexions gérés sont clôturés), et "
     + `worlds.${id}.enabled=false est réécrit dans config.json. Le prompt d'environnement et les outils de l'agent sont retirés aussitôt ; une nouvelle activation le reconstruit à partir de la configuration actuelle.`,
-  activated: 'Activé',
-  deactivated: 'Désactivé',
-  activateFailed: (msg: string) => `Échec de l'activation : ${msg}`,
-  deactivateFailed: (msg: string) => `Échec de la désactivation : ${msg}`,
   restartTitle: (name: string) => `Redémarrer « ${name} » ?`,
   restartBody: "Arrête et reconstruit le World pour appliquer les réglages marqués pour un redémarrage du World. Les processus et connexions gérés s'arrêtent puis redémarrent.",
-  restarted: 'Redémarré',
   restartFailed: (msg: string) => `Échec du redémarrage : ${msg}`,
   declaredByPersona: 'Déclaré par la Persona',
   optionalAddon: 'Module optionnel',

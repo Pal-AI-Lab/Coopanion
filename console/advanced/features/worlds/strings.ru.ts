@@ -9,21 +9,16 @@ const plural = (n: number, one: string, few: string, many: string) => {
 export const S: Partial<typeof en> = {
   myWorlds: "Мои World",
   marketTab: "Расширения World",
-  library: "Библиотека",
+  extensionList: "Список расширений",
   configure: "Настроить",
   manageExtension: "Управление расширением",
-  stopMode: "Остановить",
-  connectMode: "Подключить",
   modeOff: "Остановлен",
   modeRunning: "Только работа",
   modeAttached: "Подключён",
 
   navLabel: 'Обзор World',
   introTitle: 'World',
-  reloadPrefixBtn: '↻ Перезагрузить системный префикс',
-  prefixReloaded: 'Префикс перезагружен',
   prefixReloadFailed: (msg: string) => `Не удалось перезагрузить префикс: ${msg}`,
-  updated: 'Обновлено',
   toggleFailed: (msg: string) => `Не удалось переключить: ${msg}`,
   reloadNowTitle: 'Перезагрузить системный префикс сейчас?',
   reloadNowBody: (name: string, wantVisible: boolean) =>
@@ -34,13 +29,8 @@ export const S: Partial<typeof en> = {
   deactivateBody: (id: string) =>
     'World немедленно останавливается (его управляемые внешние процессы и подключения завершаются), а в config.json '
     + `записывается worlds.${id}.enabled=false. Промпт окружения и инструменты агента сразу убираются; при повторной активации World пересобирается по текущей конфигурации.`,
-  activated: 'Активировано',
-  deactivated: 'Деактивировано',
-  activateFailed: (msg: string) => `Не удалось активировать: ${msg}`,
-  deactivateFailed: (msg: string) => `Не удалось деактивировать: ${msg}`,
   restartTitle: (name: string) => `Перезапустить «${name}»?`,
   restartBody: 'Останавливает и пересобирает World, чтобы применить параметры с пометкой о перезапуске World. Управляемые процессы и подключения останавливаются и запускаются заново.',
-  restarted: 'Перезапущено',
   restartFailed: (msg: string) => `Не удалось перезапустить: ${msg}`,
   declaredByPersona: 'Объявлено Persona',
   optionalAddon: 'Дополнительное расширение',

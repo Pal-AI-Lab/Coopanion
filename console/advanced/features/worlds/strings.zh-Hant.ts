@@ -3,21 +3,16 @@ import type { en } from './strings.ts';
 export const S: Partial<typeof en> = {
   myWorlds: "我的 World",
   marketTab: "World 擴充功能",
-  library: "收藏庫",
+  extensionList: "擴展清單",
   configure: "配置",
   manageExtension: "管理擴充功能",
-  stopMode: "停用",
-  connectMode: "接入",
   modeOff: "已停用",
   modeRunning: "僅執行",
   modeAttached: "已接入",
 
   navLabel: 'World 總覽',
   introTitle: 'World',
-  reloadPrefixBtn: '↻ 重新載入系統前綴',
-  prefixReloaded: '前綴已重新載入',
   prefixReloadFailed: (msg: string) => `前綴重新載入失敗: ${msg}`,
-  updated: '已更新',
   toggleFailed: (msg: string) => `切換失敗: ${msg}`,
   reloadNowTitle: '現在重新載入 system 前綴?',
   reloadNowBody: (name: string, wantVisible: boolean) =>
@@ -28,13 +23,8 @@ export const S: Partial<typeof en> = {
   deactivateBody: (id: string) =>
     'World 會立即停止(它託管的外部處理程序與連線一併收尾),並寫回 config.json 的 '
     + `worlds.${id}.enabled=false。agent 的環境提示詞與工具隨即撤下;再次啟用依目前設定重建。`,
-  activated: '已啟用',
-  deactivated: '已停用',
-  activateFailed: (msg: string) => `啟用失敗: ${msg}`,
-  deactivateFailed: (msg: string) => `停用失敗: ${msg}`,
   restartTitle: (name: string) => `重新啟動「${name}」?`,
   restartBody: '停止並重建 World，套用標有「重新啟動 World 生效」的設定。託管處理程序與連線會停止後重新啟動。',
-  restarted: '已重新啟動',
   restartFailed: (msg: string) => `重新啟動失敗: ${msg}`,
   declaredByPersona: 'Persona定義',
   optionalAddon: '選配外掛',

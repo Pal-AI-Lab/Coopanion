@@ -3,21 +3,16 @@ import type { en } from './strings.ts';
 export const S: Partial<typeof en> = {
   myWorlds: "Meus Worlds",
   marketTab: "Extensões World",
-  library: "Biblioteca",
+  extensionList: "Lista de extensões",
   configure: "Configurar",
   manageExtension: "Gerenciar extensão",
-  stopMode: "Parar",
-  connectMode: "Conectar",
   modeOff: "Parado",
   modeRunning: "Somente execução",
   modeAttached: "Conectado",
 
   navLabel: 'Visão geral dos Worlds',
   introTitle: 'Worlds',
-  reloadPrefixBtn: '↻ Recarregar prefixo de sistema',
-  prefixReloaded: 'Prefixo recarregado',
   prefixReloadFailed: (msg: string) => `Falha ao recarregar o prefixo: ${msg}`,
-  updated: 'Atualizado',
   toggleFailed: (msg: string) => `Falha ao alternar: ${msg}`,
   reloadNowTitle: 'Recarregar o prefixo de sistema agora?',
   reloadNowBody: (name: string, wantVisible: boolean) =>
@@ -28,13 +23,8 @@ export const S: Partial<typeof en> = {
   deactivateBody: (id: string) =>
     'O World para imediatamente (seus processos externos e conexões gerenciados são encerrados), e '
     + `worlds.${id}.enabled=false é gravado em config.json. O prompt do ambiente e as ferramentas do agente são retirados na hora; ativar de novo o reconstrói com a configuração atual.`,
-  activated: 'Ativado',
-  deactivated: 'Desativado',
-  activateFailed: (msg: string) => `Falha na ativação: ${msg}`,
-  deactivateFailed: (msg: string) => `Falha na desativação: ${msg}`,
   restartTitle: (name: string) => `Reiniciar “${name}”?`,
   restartBody: 'Para e reconstrói o World para aplicar as configurações marcadas para reinício do World. Processos e conexões gerenciados param e reiniciam.',
-  restarted: 'Reiniciado',
   restartFailed: (msg: string) => `Falha ao reiniciar: ${msg}`,
   declaredByPersona: 'Declarado pela Persona',
   optionalAddon: 'Complemento opcional',

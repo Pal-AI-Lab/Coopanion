@@ -3,21 +3,16 @@ import type { en } from './strings.ts';
 export const S: Partial<typeof en> = {
   myWorlds: "I miei World",
   marketTab: "Estensioni World",
-  library: "Libreria",
+  extensionList: "Elenco estensioni",
   configure: "Configura",
   manageExtension: "Gestisci estensione",
-  stopMode: "Arresta",
-  connectMode: "Connetti",
   modeOff: "Fermo",
   modeRunning: "Solo esecuzione",
   modeAttached: "Connesso",
 
   navLabel: 'Panoramica dei World',
   introTitle: 'World',
-  reloadPrefixBtn: '↻ Ricarica prefisso di sistema',
-  prefixReloaded: 'Prefisso ricaricato',
   prefixReloadFailed: (msg: string) => `Ricaricamento del prefisso non riuscito: ${msg}`,
-  updated: 'Aggiornato',
   toggleFailed: (msg: string) => `Cambio non riuscito: ${msg}`,
   reloadNowTitle: 'Ricaricare ora il prefisso di sistema?',
   reloadNowBody: (name: string, wantVisible: boolean) =>
@@ -28,13 +23,8 @@ export const S: Partial<typeof en> = {
   deactivateBody: (id: string) =>
     'Il World si arresta subito (i processi esterni e le connessioni che gestisce vengono chiusi) e '
     + `worlds.${id}.enabled=false viene riscritto in config.json. Il prompt dell'ambiente e gli strumenti dell'agente vengono ritirati subito; una nuova attivazione lo ricostruisce dalla configurazione attuale.`,
-  activated: 'Attivato',
-  deactivated: 'Disattivato',
-  activateFailed: (msg: string) => `Attivazione non riuscita: ${msg}`,
-  deactivateFailed: (msg: string) => `Disattivazione non riuscita: ${msg}`,
   restartTitle: (name: string) => `Riavviare «${name}»?`,
   restartBody: 'Arresta e ricostruisce il World per applicare le impostazioni che richiedono il riavvio del World. I processi e le connessioni gestiti si arrestano e ripartono.',
-  restarted: 'Riavviato',
   restartFailed: (msg: string) => `Riavvio non riuscito: ${msg}`,
   declaredByPersona: 'Dichiarato dalla Persona',
   optionalAddon: 'Componente aggiuntivo opzionale',

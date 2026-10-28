@@ -416,11 +416,11 @@ export interface ExtensionWorkspace {
   statusRoot: HTMLElement;
   restartRoot: HTMLElement;
   beforeReload(): void;
+  onLoadError(): void;
   onChange(items: readonly ExtensionView[]): void;
   onAdded(name: string): void;
 }
 export interface ExtensionController {
-  refresh(): Promise<boolean>;
   manage(name: string): void;
 }
 
@@ -1209,7 +1209,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
       const data = await get<{ dir: string; platform?: string; extensions: ExtensionView[] }>('/api/extensions', { signal });
       if (signal.aborted || generation !== loadGeneration) return !signal.aborted;
       installed = data.extensions; installedFetched = true; directory = data.dir; platform = data.platform ?? ''; const dirNode = root.querySelector('.extension-directory'); if (dirNode) dirNode.textContent = S.labelled(S.directory, directory); renderInstalled(); renderMarket(); restoreScroll(); workspace?.onChange(installed.filter(item => item.kind === kind || !item.kind)); return true;
-    } catch (error) { if (!signal.aborted) { installedFetched = true; message(kind, 'management', S.listLoadFailed(errorText(error)), true); restoreScroll(); } return false; }
+    } catch (error) { if (!signal.aborted) { installedFetched = true; message(kind, 'management', S.listLoadFailed(errorText(error)), true); restoreScroll(); workspace?.onLoadError(); } return false; }
   }
   async function checkUpdates() {
     if (signal.aborted) return;
@@ -1483,7 +1483,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     const marketSheet = ui.sheet({ title: S.market }); messageNodes.market = ui.msgline(); messageNodes.market.setAttribute('role', 'status');
     const filters = ui.rowbar(); filters.classList.add('extension-toolbar');
     const clear = clearButton = ui.button('', { onClick: clearFilters }); clear.classList.add('extension-clear'); clear.append(icon(doc, 'close'), ui.h('span', '', S.clearFilters));
-    filters.append(ui.input({ type: 'search', value: state.filter, placeholder: S.filterPlaceholder, onInput: value => { state.filter = value; state.page = 0; renderMarket(); save(); } }), ui.select({ value: state.sort, options: HIT_SORTS.map(value => ({ value, label: S.sortLabel[value] })), onChange: value => { state.sort = value as HitSort; state.page = 0; renderMarket(); save(); } }), sizePicker('market'), clear, ui.button(S.refresh, { onClick: () => void search(kind) }));
+    filters.append(ui.input({ type: 'search', value: state.filter, placeholder: S.filterPlaceholder, onInput: value => { state.filter = value; state.page = 0; renderMarket(); save(); } }), ui.select({ value: state.sort, options: HIT_SORTS.map(value => ({ value, label: S.sortLabel[value] })), onChange: value => { state.sort = value as HitSort; state.page = 0; renderMarket(); save(); } }), sizePicker('market'), clear, ui.button(S.refresh, { onClick: () => { if (workspace) void load(); void search(kind); } }));
     const options = ui.h('div', 'extension-search-options');
     const advancedToggle = ui.h('button', 'extension-advanced-toggle' + (state.advanced ? ' is-open' : ''), S.advancedSearch) as HTMLButtonElement; advancedToggle.type = 'button';
     advancedToggle.setAttribute('aria-expanded', String(state.advanced)); advancedToggle.setAttribute('aria-controls', 'extension-advanced');
@@ -1582,6 +1582,6 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   render();
   void load(); void checkUpdates(); void search(kind); void loadRegistry();
   try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { message(kind, 'management', S.reloadWait); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
-  return { refresh: load, manage };
+  return { manage };
 }
 export const extensionsFeature: FrameworkFeature = { route: 'extensions', label: S.navLabel, icon: 'download', navGroup: S.navGroup, needsAny: ['extensions'], mount: mountExtensions };
