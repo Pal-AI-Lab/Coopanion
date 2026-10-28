@@ -34,6 +34,8 @@ function startUpdater({ logDir, tell, enabled }) {
   const log = createWriteStream(join(logDir, 'updater.log'), { flags: 'a' });
   const line = (level) => (...args) => log.write(`${new Date().toISOString()} ${level} ${args.map(String).join(' ')}\n`);
   autoUpdater.logger = { info: line('info'), warn: line('warn'), error: line('error'), debug: line('debug') };
+  // electron-updater emits `error` for failed checks, downloads and installer launches; without a listener the emit throws
+  autoUpdater.on('error', line('error'));
   // the installer takes the directory registered for the app, or its default one when none is: an update goes
   // into the directory of the program that is running, so data beside it stays with it
   if (process.platform === 'win32') autoUpdater.installDirectory = dirname(process.execPath);
@@ -46,8 +48,9 @@ function startUpdater({ logDir, tell, enabled }) {
  * `installOnQuit(runAfter)` installs a ready update once; `runAfter` starts the updated app afterwards.
  */
 function manageUpdates(autoUpdater, { tell, enabled: initial }) {
-  // The preference is checked after the release query and again before installation on quit.
+  // downloads start here, after the check, so that turning updates off can cancel them
   autoUpdater.autoDownload = false;
+  // the app's own quit stops the Core first and then exits, which skips the quit event the updater waits for: installOnQuit does it
   autoUpdater.autoInstallOnAppQuit = false;
   let enabled = false;
   let generation = 0;
@@ -78,7 +81,7 @@ function manageUpdates(autoUpdater, { tell, enabled: initial }) {
           ready = downloading;
           tell({ phase: 'ready', version: ready });
         } catch (err) {
-          // Check failures are logged by electron-updater; only an active download is shown in the UI.
+          // a failed check (no network, GitHub out of reach) is only logged; a download that was under way is told
           if (enabled && current === generation && downloading) {
             tell({ phase: 'failed', version: downloading, reason: String(err?.message ?? err).split('\n')[0].slice(0, 200) });
           }
@@ -112,9 +115,9 @@ function manageUpdates(autoUpdater, { tell, enabled: initial }) {
 
   return {
     setEnabled,
-    hasUpdate: () => enabled && !!ready,
+    hasUpdate: () => !!ready,
     installOnQuit(runAfter = false) {
-      if (!enabled || !ready) return false;
+      if (!ready) return false;
       ready = null;
       autoUpdater.quitAndInstall(true, runAfter);
       return true;

@@ -597,7 +597,7 @@ function buildTray() {
 core.on('ready', ({ language: next }) => {
   followLanguage(next);
   if (settings) settings.loadURL(settingsUrl());
-  core.send({ type: 'companion:update', step: updateStep });
+  if (updateStep) core.send({ type: 'companion:update', step: updateStep });
 });
 core.on('language', followLanguage);
 // The saved preference reaches the main process before the first update check.
