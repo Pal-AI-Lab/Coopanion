@@ -1087,9 +1087,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   function renderInstalled() {
     paintManagement();
     if (workspace) {
-      const pending = installed.filter(item => (item.kind === kind || !item.kind) && (item.state === 'pending-restart' || item.state === 'removed')).length;
-      const notice = workspace.restartRoot.querySelector<HTMLElement>('.world-restart-count');
-      if (notice) { notice.hidden = !pending; notice.textContent = `${pending} · ${S.statePendingRestart}`; }
+      const pending = installed.some(item => (item.kind === kind || !item.kind) && (item.state === 'pending-restart' || item.state === 'removed'));
       const restartButton = workspace.restartRoot.querySelector<HTMLButtonElement>('.extension-restart');
       if (restartButton) { restartButton.hidden = !pending; restartButton.disabled = busy.size > 0; }
       return;
@@ -1529,13 +1527,9 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     const manualActions = ui.rowbar(); manualActions.classList.add('extension-manual-actions'); manualActions.append(check, install, messageNodes.manual);
     manual.body.append(ui.h('p', 'sh-desc extension-install-help', state.source === 'npm' ? S.npmHelp : S.localHelp), source.el, manualBar, manualActions);
     if (workspace) {
-      const statusBar = ui.rowbar(); statusBar.classList.add('world-statusbar');
-      const count = ui.h('span', 'world-restart-count'); count.hidden = true;
-      statusBar.append(count, ui.h('span', 'grow'));
       const restartButton = bar.querySelector('.extension-restart');
-      if (restartButton) statusBar.append(restartButton);
       messageNodes.management.textContent = '';
-      workspace.restartRoot.replaceChildren(statusBar);
+      workspace.restartRoot.replaceChildren(...(restartButton ? [restartButton] : []));
       workspace.statusRoot.replaceChildren(messageNodes.management);
       const body = ui.h('div', 'world-catalog-body');
       const side = ui.h('aside', 'world-catalog-filters'); side.id = 'world-catalog-filters';

@@ -846,7 +846,6 @@ describe('World library and catalog', () => {
     button(card, '添加到仓库').click(); await flush(100);
     expect(document.querySelector('.modal')).toBeNull();
     expect(root.querySelector('.world-library-item').getAttribute('aria-label')).toBe('found-mod');
-    expect(root.querySelector('.world-restart-count').hidden).toBe(false);
     const group = root.querySelector('.world-pending-group');
     expect(group.querySelectorAll('.world-library-entry')).toHaveLength(2);
     expect(group.lastElementChild.className).toBe('world-restart-footer');
