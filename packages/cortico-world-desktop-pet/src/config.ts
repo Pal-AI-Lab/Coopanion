@@ -51,6 +51,8 @@ export type SoundKind = typeof SOUND_KINDS[number];
 export type SoundSettings = Record<SoundKind, boolean> & {
   /** Snoring stops this many seconds into each sleep; the z's keep floating. 0 = snore the whole sleep. */
   snoreSeconds: number;
+  /** Sounds lean toward the side of the display Coo stands on; off, they play centred. */
+  panByPosition: boolean;
 };
 
 /** A step of the speech's pitch or speed; `custom` takes the number saved beside it. */
@@ -268,7 +270,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   window: { enabled: true, electronFile: '', scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, glow: GLOW_DEFAULT, frameRate: 60, lockFrameRate: false, hideWhenFullscreen: false, exportOverlay: false },
   roam: 'calm',
   sound: true,
-  sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, snoreSeconds: 0 },
+  sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, snoreSeconds: 0, panByPosition: true },
   speech: { enabled: false, pitch: 'mid', pitchHz: SPEECH_PITCH_HZ.mid, speed: 'mid', unitsPerSecond: SPEECH_RATE.mid },
   theme: 'dark',
   rememberPosition: false,
@@ -354,6 +356,7 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
           type: 'boolean' as const, title: c.sounds[kind].title, ...(c.sounds[kind].description ? { description: c.sounds[kind].description } : {}), 'x-hot': true,
         }])),
         [`${K}.sounds.snoreSeconds`]: { type: 'integer', title: c.snoreSeconds.title, minimum: 0, maximum: 3600, 'x-suffix': c.snoreSeconds.suffix, description: c.snoreSeconds.description, 'x-hot': true },
+        [`${K}.sounds.panByPosition`]: { type: 'boolean', title: c.panByPosition.title, description: c.panByPosition.description, 'x-hot': true },
         [`${K}.speech.enabled`]: { type: 'boolean', title: c.speech.title, description: c.speech.description, 'x-hot': true },
         [`${K}.speech.pitch`]: { type: 'string', title: c.speechPitch.title, enum: [...SPEECH_LEVELS], description: c.speechPitch.description(SPEECH_PITCH_HZ.low, SPEECH_PITCH_HZ.mid, SPEECH_PITCH_HZ.high), 'x-hot': true },
         [`${K}.speech.pitchHz`]: { type: 'integer', title: c.speechPitchHz.title, minimum: SPEECH_PITCH_MIN, maximum: SPEECH_PITCH_MAX, 'x-suffix': 'Hz', 'x-hot': true },

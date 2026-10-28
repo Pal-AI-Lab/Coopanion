@@ -253,6 +253,7 @@ const ko: Translation<PetText> = {
       ui: { title: '버튼과 알림음', description: '버튼 클릭, 말풍선 열림, 선택, 듣기 시작과 끝.' },
     },
     snoreSeconds: { title: '코골이 시간', suffix: '초', description: '잠들 때마다 이만큼 코를 곤 뒤 조용해지며, z는 계속 떠오릅니다. 0 = 깰 때까지 코골이.' },
+    panByPosition: { title: '위치에 따라 좌우 배분', description: 'Coo가 있는 쪽으로 소리가 치우칩니다. 끄면 가운데에서 재생됩니다.' },
     speech: { title: '말소리', description: '말풍선에 글자가 나올 때마다 음절을 읽어 「말하기」 효과음 대신 냅니다. 「말하기」를 끄면 나지 않습니다.' },
     speechPitch: { title: '말소리 높이', description: (a: number, b: number, c: number) => `low, mid, high는 각각 ${a}, ${b}, ${c} Hz이며 custom은 사용자 지정 높이를 씁니다.` },
     speechPitchHz: { title: '사용자 지정 높이' },

@@ -17,7 +17,8 @@
  *
  * Events: `ready` ({ port, keyMissing, language }), `language` (the app language after a change),
  * `state` (the state, and for an unexpected exit `{ kind: 'restarting', code }` or, once it stops
- * retrying, `{ kind: 'failed', times, code, logFile }`, for a lock held elsewhere `{ kind: 'locked', pid, file }`, or for
+ * retrying, `{ kind: 'failed', times, code, logFile }`, or `{ kind: 'incomplete', logFile }` when the exits were
+ * ERR_MODULE_NOT_FOUND and the entry or tsx is still missing, for a lock held elsewhere `{ kind: 'locked', pid, file }`, or for
  * the console ports `{ kind: 'ports-busy', from, to }`), and the Core's requests `open`, `hide`,
  * `quit`, `update-install`, `releases` and `auto-update` (the saved boolean preference).
  */
@@ -40,12 +41,13 @@ const MISSING_MODULE_DELAYS_MS = [3_000, 10_000, 30_000, 30_000, 30_000, 30_000,
 const TSX_ENTRY = ['node_modules', 'tsx', 'dist', 'loader.mjs'];
 const LOG_ROTATE_BYTES = 5 * 1024 * 1024;
 
+/** The Core's entry and the file `--import tsx` loads. */
+const startFiles = (appRoot) => [join(appRoot, 'core', 'boot.ts'), join(appRoot, ...TSX_ENTRY)];
+
 /** The app process's arguments and parent PID, and whether the Core's entry and tsx exist, as a line for core.log. */
 function startDiagnostics(appRoot) {
-  const entry = join(appRoot, 'core', 'boot.ts');
-  const tsx = join(appRoot, ...TSX_ENTRY);
   const on = (file) => `${file} ${existsSync(file) ? 'exists' : 'missing'}`;
-  return `exited before ready; app argv ${JSON.stringify(process.argv.slice(1))}, ppid ${process.ppid}; ${on(entry)}; ${on(tsx)}\n`;
+  return `exited before ready; app argv ${JSON.stringify(process.argv.slice(1))}, ppid ${process.ppid}; ${startFiles(appRoot).map(on).join('; ')}\n`;
 }
 
 class CoreHost extends EventEmitter {
@@ -181,7 +183,9 @@ class CoreHost extends EventEmitter {
           return;
         }
         this.state = 'failed';
-        this.emit('state', this.state, { kind: 'failed', times: this.missingModuleExits + 1, code, logFile });
+        // app files still missing after every wait: the install was cut short, and only installing again restores them
+        const incomplete = startFiles(this.opts.appRoot).some((file) => !existsSync(file));
+        this.emit('state', this.state, incomplete ? { kind: 'incomplete', logFile } : { kind: 'failed', times: this.missingModuleExits + 1, code, logFile });
         return;
       }
       const now = Date.now();

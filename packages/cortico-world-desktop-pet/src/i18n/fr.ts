@@ -253,6 +253,7 @@ const fr: Translation<PetText> = {
       ui: { title: 'Boutons et signaux', description: "Clics de boutons, ouverture des bulles, sélections, début et fin de l'écoute." },
     },
     snoreSeconds: { title: 'Durée des ronflements', suffix: 's', description: "À chaque sommeil, le compagnon se tait après avoir ronflé ce temps ; les z continuent de flotter. 0 = ronfler jusqu'au réveil." },
+    panByPosition: { title: 'Répartir selon la position', description: 'Les sons penchent du côté où se trouve Coo ; désactivé, ils sont joués au centre.' },
     speech: { title: 'Voix', description: 'Prononce une syllabe à chaque caractère qui apparaît dans une bulle, à la place du babil de Parole ; muette quand les sons Parole sont coupés.' },
     speechPitch: { title: 'Hauteur de la voix', description: (a: number, b: number, c: number) => `low, mid et high valent ${a}, ${b} et ${c} Hz ; custom utilise la hauteur personnalisée.` },
     speechPitchHz: { title: 'Hauteur personnalisée' },

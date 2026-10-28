@@ -9,6 +9,7 @@ module.exports = {
   trayQuit: '結束',
 
   coreFailed: (times, code, logFile) => `Core 在 5 分鐘內結束了 ${times} 次（結束代碼 ${code}），已停止重試。如果剛剛更新過，請從系統匣選單選擇「結束」，再重新開啟 Coopanion。記錄檔：${logFile}`,
+  coreIncomplete: (url, logFile) => `Coopanion 的程式檔案不完整，Core 無法啟動。請從 ${url} 下載完整的安裝程式，安裝到原來的資料夾；設定、API Key、提示詞和記憶都會保留。記錄檔：${logFile}`,
   coreRestarting: (code) => `Core 意外結束（結束代碼 ${code}），3 秒後重新啟動`,
   coreLocked: (pid, file) => `另一個程序${pid ? `（PID ${pid}）` : ''}正在使用 Coopanion 的資料，Core 沒有啟動。等它結束或手動結束它，再從系統匣選單選「重新啟動」。鎖定檔：${file}`,
   corePortsBusy: (from, to) => `控制台連接埠 ${from}–${to} 都被佔用，Core 沒有啟動。可能已經有 ${to - from + 1} 隻 Coopanion 在執行，或其他程式佔用了這些連接埠。關掉其中一隻或那個程式，再從系統匣選單選擇「重新啟動」。`,

@@ -280,6 +280,7 @@ export default {
       ui: { title: '按钮与提示', description: '点按钮、气泡弹出、选中、开始和结束听你说话。' },
     } as Record<'move' | 'touch' | 'face' | 'snore' | 'talk' | 'ui', { title: string; description: string }>,
     snoreSeconds: { title: '呼噜时长', suffix: '秒', description: '每次睡着后打这么久呼噜就安静下来，Z 照样飘；0 = 一直打到醒。' },
+    panByPosition: { title: '按位置分配左右声道', description: '声音偏向 Coo 所在的一侧，关闭后居中播放。' },
     speech: { title: '说话声', description: '开启后气泡逐字冒出时念出音节，代替「说话」类的叽咕声；「说话」类关掉时也不出声。' },
     speechPitch: { title: '说话声音高', description: (a: number, b: number, c: number) => `low、mid、high 依次为 ${a}、${b}、${c} Hz；custom 用自定义音高。` },
     speechPitchHz: { title: '自定义音高' },

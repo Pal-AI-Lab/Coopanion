@@ -253,6 +253,7 @@ const zhHant: Translation<PetText> = {
       ui: { title: '按鈕與提示', description: '點按鈕、氣泡彈出、選取、開始和結束聽你說話。' },
     },
     snoreSeconds: { title: '打呼時長', suffix: '秒', description: '每次睡著後打呼這麼久就安靜下來，Z 照樣飄；0 = 一直打到醒來。' },
+    panByPosition: { title: '依位置分配左右聲道', description: '聲音偏向 Coo 所在的一側，關閉後置中播放。' },
     speech: { title: '說話聲', description: '開啟後氣泡逐字冒出時念出音節，代替「說話」類的嘰咕聲；「說話」類關掉時也不出聲。' },
     speechPitch: { title: '說話聲音高', description: (a: number, b: number, c: number) => `low、mid、high 依次為 ${a}、${b}、${c} Hz；custom 用自訂音高。` },
     speechPitchHz: { title: '自訂音高' },

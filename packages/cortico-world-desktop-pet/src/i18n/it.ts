@@ -253,6 +253,7 @@ const it: Translation<PetText> = {
       ui: { title: 'Pulsanti e segnali', description: "Clic sui pulsanti, apertura dei fumetti, selezioni, inizio e fine dell'ascolto." },
     },
     snoreSeconds: { title: 'Durata del russare', suffix: 's', description: "In ogni sonno l'animaletto smette di russare dopo questo tempo; le z continuano a fluttuare. 0 = russa fino al risveglio." },
+    panByPosition: { title: 'Bilanciamento in base alla posizione', description: 'I suoni pendono verso il lato in cui si trova Coo; disattivato, suonano al centro.' },
     speech: { title: 'Voce', description: 'Pronuncia una sillaba per ogni carattere che appare in un fumetto, al posto del borbottio di Parlare; tace mentre i suoni Parlare sono spenti.' },
     speechPitch: { title: 'Altezza della voce', description: (a: number, b: number, c: number) => `low, mid e high sono ${a}, ${b} e ${c} Hz; custom usa l'altezza personalizzata.` },
     speechPitchHz: { title: 'Altezza personalizzata' },

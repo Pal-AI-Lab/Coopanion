@@ -632,7 +632,8 @@ core.on('state', (state, exit) => {
   if (!exit) return;
   const detail = exit.kind === 'locked' ? T().coreLocked(exit.pid, exit.file)
     : exit.kind === 'ports-busy' ? T().corePortsBusy(exit.from, exit.to)
-      : exit.kind === 'failed' ? T().coreFailed(exit.times, exit.code, exit.logFile) : T().coreRestarting(exit.code);
+      : exit.kind === 'incomplete' ? T().coreIncomplete(RELEASES_URL, exit.logFile)
+        : exit.kind === 'failed' ? T().coreFailed(exit.times, exit.code, exit.logFile) : T().coreRestarting(exit.code);
   if (Notification.isSupported()) new Notification({ title: 'Coopanion', body: detail, icon: WINDOW_ICON }).show();
   if (state === 'failed') dialog.showErrorBox('Coopanion', detail);
 });

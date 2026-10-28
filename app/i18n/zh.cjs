@@ -11,6 +11,8 @@ module.exports = {
 
   /** Core 在 5 分钟内退出太多次,不再重启;系统通知和错误框里显示 */
   coreFailed: (times, code, logFile) => `Core 在 5 分钟内退出了 ${times} 次（退出码 ${code}），已停止重试。如果刚刚更新过，请从托盘菜单选择「退出」，再重新打开 Coopanion。日志：${logFile}`,
+  /** 等过所有重试后 Core 的入口或 tsx 仍不在磁盘上(安装没有完成),不再重启;系统通知和错误框里显示 */
+  coreIncomplete: (url, logFile) => `Coopanion 的程序文件不完整，Core 无法启动。请从 ${url} 下载完整的安装包，安装到原来的文件夹；设置、API Key、提示词和记忆都会保留。日志：${logFile}`,
   coreRestarting: (code) => `Core 意外退出（退出码 ${code}），3 秒后重启`,
   /** 另一个进程占着数据目录的实例锁,Core 没有启动;系统通知和错误框里显示 */
   coreLocked: (pid, file) => `另一个进程${pid ? `（PID ${pid}）` : ''}正在使用 Coopanion 的数据，Core 没有启动。等它退出或手动结束它，再从托盘菜单选「重新启动」。锁文件：${file}`,
