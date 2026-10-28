@@ -1542,7 +1542,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
         toggle.setAttribute('aria-expanded', String(!side.hidden));
       };
       syncFilterLayout(); toggle.setAttribute('aria-controls', side.id);
-      filters.prepend(toggle);
+      filters.insertBefore(toggle, clear);
       const categoryList = ui.h('div', 'world-catalog-categories');
       for (const value of ['all', 'tools', 'events', 'local'] as const) {
         const button = ui.button(S.catalogCategories[value], { onClick: () => {
