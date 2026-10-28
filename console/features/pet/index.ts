@@ -153,14 +153,7 @@ async function mount(ctx: PageContext): Promise<void> {
   void invokePanel<{ defaultUser?: string }>(PET_PAGE, 'pet', 'state', [], opts).then((s) => { if (s?.defaultUser) user.placeholder = s.defaultUser; }).catch(() => {});
   const botName = ui.input();
   botName.placeholder = DEFAULT_NAME;
-  let updateRevision = 0;
-  const autoUpdate = ui.checkbox(S.autoUpdate, { checked: true, onChange: async (on) => {
-    updateRevision += 1;
-    autoUpdate.input.disabled = true;
-    const saved = await save(AUTO_UPDATE_KEY, on, STATS_GROUP);
-    if (!saved) autoUpdate.setChecked(!on);
-    autoUpdate.input.disabled = false;
-  } });
+  const autoUpdate = ui.checkbox(S.autoUpdate, { onChange: (on) => void save(AUTO_UPDATE_KEY, on, STATS_GROUP) });
   const roam = ui.segmented([
     { value: 'free', label: S.roamFree }, { value: 'calm', label: S.roamCalm }, { value: 'off', label: S.roamOff },
   ], { size: 'sm', onSelect: (v) => void save(KEYS.roam, v, GROUP, behaviorMsg) });
@@ -604,7 +597,6 @@ async function mount(ctx: PageContext): Promise<void> {
   snore.addEventListener('keydown', (e) => { if (e.key === 'Enter') snore.blur(); });
 
   const refreshValues = async () => {
-    const revision = updateRevision;
     // with the OBS overlay page while it is exported
     const habitState = invokePanel<HabitState & { overlayUrl?: string | null }>(PET_PAGE, 'pet', 'state', [], opts).catch(() => null);
     let values: Record<string, unknown> = {};
@@ -621,7 +613,7 @@ async function mount(ctx: PageContext): Promise<void> {
     } catch { return; }
     if (typeof statsValues[STATS_KEY] === 'boolean') stats.setChecked(statsValues[STATS_KEY] as boolean);
     autoUpdateRow.hidden = typeof statsValues[AUTO_UPDATE_KEY] !== 'boolean';
-    if (!autoUpdateRow.hidden && !autoUpdate.input.disabled && revision === updateRevision) autoUpdate.setChecked(statsValues[AUTO_UPDATE_KEY] as boolean);
+    if (!autoUpdateRow.hidden) autoUpdate.setChecked(statsValues[AUTO_UPDATE_KEY] as boolean);
     ring.setChecked(statsValues[RING_KEY] === true);
     if (typeof statsValues[LANGUAGE_KEY] === 'string' && document.activeElement !== language) {
       // before the choices arrive the select keeps the value as a lone option
