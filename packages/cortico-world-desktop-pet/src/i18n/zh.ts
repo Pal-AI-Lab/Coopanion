@@ -225,7 +225,7 @@ export default {
       pet: { title: '桌宠', description: '窗口、装扮与窗口运行时。' },
       voice: { title: '语音输入', description: '识别引擎、电平与识别结果。' },
     } as Record<'pet' | 'voice', { title: string; description: string }>,
-    envPrompt: { title: '桌宠环境', description: '描述桌宠的身体、四个工具与输入事件。' },
+    envPrompt: { title: '桌宠环境', description: '描述桌宠的身体、工具与输入事件。' },
     vars: {
       'pet.user': '对使用者的称呼',
       'pet.vocab': '当前形象的表情与动作词表',

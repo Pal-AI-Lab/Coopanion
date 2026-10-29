@@ -199,7 +199,7 @@ const zhHant: Translation<PetText> = {
       pet: { title: '桌寵', description: '視窗、裝扮與視窗執行環境。' },
       voice: { title: '語音輸入', description: '辨識引擎、音量與辨識結果。' },
     },
-    envPrompt: { title: '桌寵環境', description: '描述桌寵的身體、四個工具與輸入事件。' },
+    envPrompt: { title: '桌寵環境', description: '描述桌寵的身體、工具與輸入事件。' },
     vars: {
       'pet.user': '對使用者的稱呼',
       'pet.vocab': '目前形象的表情與動作詞表',
