@@ -685,6 +685,10 @@ function askRestoreStranded() {
 // only the settings window's preload sends this, from its main frame
 ipcMain.on('settings:theme', (_e, theme) => applySettingsTheme(settings, theme));
 
+require('./chat-export.cjs').registerChatExport({
+  ipcMain, dialog, shell, getWindow: () => settings, documents: () => app.getPath('documents'),
+});
+
 ipcMain.on('settings:language', (e) => { e.returnValue = language; });
 ipcMain.on('settings:update', (e) => { e.returnValue = { auto: SELF_UPDATE, step: updateLine() }; });
 

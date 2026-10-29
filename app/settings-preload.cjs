@@ -13,6 +13,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('coopanionWindow', {
   platform: process.platform,
   setTheme: (theme) => ipcRenderer.send('settings:theme', theme),
+  exportChat: (data) => ipcRenderer.invoke('settings:export-chat', data),
+  revealChatExport: () => ipcRenderer.invoke('settings:reveal-chat-export'),
 });
 
 try {
