@@ -143,7 +143,6 @@ const fr: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Zip illisible : ${why}`,
-    tooBig: (mb: number) => `Plus de ${mb} Mo une fois décompressé`,
     truncated: "L'envoi est incomplet",
     badPath: (path: string) => `Un chemin est inutilisable : ${path}`,
     builtinId: (id: string) => `l'id ${id} appartient à un personnage intégré ; changez l'id pour l'importer`,
@@ -152,7 +151,6 @@ const fr: Translation<PetText> = {
     expired: 'Cette importation a expiré ; choisissez à nouveau les fichiers',
     noneChosen: 'Aucun pack choisi',
     zipOrFolder: 'Seuls un zip ou des dossiers peuvent être importés',
-    overLimit: (mb: number) => `Plus de ${mb} Mo`,
   },
 
   removing: {

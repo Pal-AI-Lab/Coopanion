@@ -143,7 +143,6 @@ const ja: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `読み込める zip ではありません：${why}`,
-    tooBig: (mb: number) => `展開後のサイズが ${mb} MB を超えています`,
     truncated: 'アップロードが不完全です',
     badPath: (path: string) => `使えないパスがあります：${path}`,
     builtinId: (id: string) => `id ${id} は内蔵アバターのものです。インポートするには id を変えてください`,
@@ -152,7 +151,6 @@ const ja: Translation<PetText> = {
     expired: 'このインポートは期限切れです。ファイルを選び直してください',
     noneChosen: 'パックが選ばれていません',
     zipOrFolder: 'インポートできるのは zip またはフォルダーだけです',
-    overLimit: (mb: number) => `${mb} MB を超えています`,
   },
 
   removing: {

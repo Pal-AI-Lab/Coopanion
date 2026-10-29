@@ -143,7 +143,6 @@ const ptBR: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Não é um zip legível: ${why}`,
-    tooBig: (mb: number) => `Mais de ${mb} MB descompactado`,
     truncated: 'O envio está incompleto',
     badPath: (path: string) => `Um caminho não pode ser usado: ${path}`,
     builtinId: (id: string) => `O id ${id} pertence a um personagem integrado; mude o id para importá-lo`,
@@ -152,7 +151,6 @@ const ptBR: Translation<PetText> = {
     expired: 'Esta importação expirou; escolha os arquivos de novo',
     noneChosen: 'Nenhum pacote foi escolhido',
     zipOrFolder: 'Só é possível importar um zip ou pastas',
-    overLimit: (mb: number) => `Mais de ${mb} MB`,
   },
 
   removing: {

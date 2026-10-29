@@ -143,7 +143,6 @@ const it: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Non è uno zip leggibile: ${why}`,
-    tooBig: (mb: number) => `Oltre ${mb} MB una volta estratto`,
     truncated: 'Il caricamento è incompleto',
     badPath: (path: string) => `Un percorso non può essere usato: ${path}`,
     builtinId: (id: string) => `l'id ${id} appartiene a un personaggio integrato; cambia l'id per importarlo`,
@@ -152,7 +151,6 @@ const it: Translation<PetText> = {
     expired: 'Questa importazione è scaduta; scegli di nuovo i file',
     noneChosen: 'Nessun pacchetto scelto',
     zipOrFolder: 'Si possono importare solo uno zip o delle cartelle',
-    overLimit: (mb: number) => `Oltre ${mb} MB`,
   },
 
   removing: {
