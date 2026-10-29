@@ -824,6 +824,10 @@ describe('World library and catalog', () => {
     expect(root.querySelectorAll('.world-blade .world-avatar')).toHaveLength(0);
     expect([...rail.querySelectorAll('.world-library-item')]).toEqual(railItems);
     expect(search.value).toBe('found'); expect(scroll.scrollTop).toBe(40);
+    railItems.find(item => item.getAttribute('aria-label') === '甲扩展').click(); await flush();
+    expect(root.querySelector('.world-workspace').dataset.view).toBe('market');
+    expect(document.querySelector('.extension-detail')).not.toBeNull();
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     railItems.find(item => item.getAttribute('aria-label') === '甲扩展').click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     expect(root.querySelector('.world-workspace').dataset.view).toBe('mine');
     expect(document.activeElement.dataset.key).toBe('alpha-mod');
@@ -889,8 +893,8 @@ describe('World library and catalog', () => {
     expect(pending.dataset.state).toBe('pending');
     expect(pending.textContent).toContain('待生效');
     expect(buttons(pending).some(item => item.textContent === '激活 World')).toBe(false);
-    root.querySelector('.world-blade-actions [aria-label="管理扩展"]').click(); await flush();
-    expect(document.querySelector('.world-package-management').textContent).toContain('found-mod');
+    root.querySelector('.world-blade-actions [aria-label="安装信息"]').click(); await flush();
+    expect(document.querySelector('.extension-detail').textContent).toContain('found-mod');
   });
   it('shows live readings and changes mode only after confirmation', async () => {
     const worlds = [{ id: 'alpha', status: 'active', visible: true, tools: ['read'], lamps: [{ label: 'Link', state: 'online', hint: '2 clients' }] }];
@@ -1019,6 +1023,23 @@ describe('World library and catalog', () => {
     expect(root.querySelector('.world-restart-footer .extension-restart').disabled).toBe(true);
     expect(root.querySelector('.world-workspace-status').textContent).toBe('');
   });
+  it('orders row controls from install info to power and opens configuration on a row click', async () => {
+    const { root, ctx } = await openWorlds({}, { worlds: true, extensions: true, worldActivation: true, worldVisibility: true, restart: true, supervised: true });
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod');
+    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['安装信息', '删除扩展', '配置', '对 agent 隐藏', '重启 World', '停用 World']);
+    row.querySelector('.world-blade-identity code').click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    expect(decodeURIComponent(window.location.hash)).toBe('#/provider/world:alpha');
+  });
+  it('keeps warning-tagged packages hidden whatever the sidebar selects', async () => {
+    const index = { tags: { unsafe: { label: '不安全', style: 'warning' }, game: { label: '游戏' } } };
+    const hits = [{ ...HITS.hits[0], tags: ['unsafe', 'game'] }, { ...HITS.hits[1], tags: ['game'] }];
+    const { root } = await openWorlds({ hits: { hits, index } });
+    [...root.querySelectorAll('.world-catalog-filters .extension-tag')].find(tag => tag.textContent.startsWith('不安全')).click(); await flush();
+    root.querySelector('.world-market [aria-label="隐藏带警示标签的扩展"]').click(); await flush();
+    expect([...root.querySelectorAll('.world-catalog .extension-market-card')].map(card => card.dataset.name)).toEqual([HITS.hits[1].name]);
+    expect([...root.querySelectorAll('.world-catalog-filters .extension-tag')].some(tag => tag.textContent.startsWith('不安全'))).toBe(false);
+  });
   it('selects the category when a function tag on a card is clicked', async () => {
     const index = { tags: { game: { label: '游戏' } } };
     const { root } = await openWorlds({ hits: { hits: [{ ...HITS.hits[0], tags: ['game'] }, HITS.hits[1]], index } });
@@ -1030,7 +1051,7 @@ describe('World library and catalog', () => {
     const { root } = await openWorlds({}, { worlds: true, worldActivation: true });
     expect(root.querySelector('.world-workspace').dataset.view).toBe('mine');
     expect(root.querySelectorAll('.pagetab')).toHaveLength(1);
-    expect(root.querySelector('.world-blade').textContent).toContain('配置');
+    expect(root.querySelector('.world-blade [aria-label="配置"]')).not.toBeNull();
     root.querySelector('[aria-label="激活 World"]').click(); await flush();
     expect(calls.find(call => call.url === '/api/worlds/activation').body).toEqual({ id: 'builtin', enabled: true });
     expect(calls.some(call => call.url.startsWith('/api/extensions'))).toBe(false);

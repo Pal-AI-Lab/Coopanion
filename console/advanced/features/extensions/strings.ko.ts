@@ -63,7 +63,7 @@ export const S: Partial<typeof en> = {
   deletedAction: '삭제',
   progress: (action: string, name: string) => `${action} 중: ${name}…`,
   completed: (action: string, name: string) => `${action} 완료: ${name}.`,
-  restartNeeded: '프로세스를 재시작한 뒤 적용됩니다.',
+  restartNeeded: '확장은 프로세스를 재시작한 뒤 적용됩니다.',
   worldActivateHint: '활성화되지 않은 World는 World 개요에서 활성화하세요.',
   syncedFailed: '작업은 끝났지만 목록이 동기화되지 않았습니다. 새로 고치세요.',
 
@@ -133,7 +133,7 @@ export const S: Partial<typeof en> = {
   npm: 'npm에서 설치',
   local: '로컬 디렉터리에서 설치',
   npmHelp: 'npm 패키지 이름을 입력하세요. @버전이나 태그를 붙일 수 있습니다. 웹 페이지 URL은 입력하지 마세요.',
-  localHelp: 'Cortico를 실행하는 컴퓨터에서 package.json이 있는 확장 디렉터리를 선택하세요. 로컬 확장은 링크로 연결되며, 소스를 바꾼 뒤에는 다시 빌드하고 재시작해야 할 수 있습니다. 설치 기록을 삭제해도 소스 디렉터리는 남습니다.',
+  localHelp: 'Cortico를 실행하는 컴퓨터에서 package.json이 있는 확장 디렉터리를 선택하세요.',
   folder: '폴더 선택',
   pathLabel: '확장 프로젝트 디렉터리',
   packageLabel: '패키지 이름과 버전',

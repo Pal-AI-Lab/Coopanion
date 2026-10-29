@@ -63,7 +63,7 @@ export const S: Partial<typeof en> = {
   deletedAction: 'Suppression',
   progress: (action: string, name: string) => `${action} de ${name} en cours…`,
   completed: (action: string, name: string) => `${action} de ${name} réussie.`,
-  restartNeeded: 'Prend effet après le redémarrage du processus.',
+  restartNeeded: 'Les extensions prennent effet après le redémarrage du processus.',
   worldActivateHint: "Si le World n'est pas actif, activez-le dans Vue d'ensemble des World.",
   syncedFailed: "Opération terminée, mais la liste n'est pas synchronisée. Actualisez pour réessayer.",
 
@@ -133,7 +133,7 @@ export const S: Partial<typeof en> = {
   npm: 'Depuis npm',
   local: 'Depuis un répertoire local',
   npmHelp: "Saisissez un nom de paquet npm, éventuellement suivi de @version ou d'un tag. Ne saisissez pas d'URL de site web.",
-  localHelp: "Sélectionnez un répertoire contenant package.json sur l'hôte de Cortico. Les extensions locales sont liées ; les modifications du code source peuvent nécessiter une recompilation et un redémarrage. Supprimer l'installation conserve le code source.",
+  localHelp: 'Choisissez sur l’hôte de Cortico un dossier d’extension contenant package.json.',
   folder: 'Choisir un dossier',
   pathLabel: "Répertoire de l'extension",
   packageLabel: 'Paquet et version',

@@ -63,7 +63,7 @@ export const S: Partial<typeof en> = {
   deletedAction: '削除',
   progress: (action: string, name: string) => `${action}中：${name}…`,
   completed: (action: string, name: string) => `${action}が完了しました：${name}。`,
-  restartNeeded: 'プロセスの再起動後に反映されます。',
+  restartNeeded: '拡張はプロセスの再起動後に反映されます。',
   worldActivateHint: '有効になっていない World は World 一覧で有効化してください。',
   syncedFailed: '操作は完了しましたが、一覧が同期されていません。更新してください。',
 
@@ -133,7 +133,7 @@ export const S: Partial<typeof en> = {
   npm: 'npm からインストール',
   local: 'ローカルディレクトリからインストール',
   npmHelp: 'npm パッケージ名を入力してください。@バージョンまたはタグを付けられます。Web ページの URL は入力しないでください。',
-  localHelp: 'Cortico を実行しているコンピューター上の、package.json を含む拡張機能ディレクトリを選択してください。拡張機能はリンクで接続されます。ソースを更新した後は再ビルドと再起動が必要になる場合があります。インストールの記録を削除してもソースディレクトリは削除されません。',
+  localHelp: 'Cortico を実行しているコンピューター上の、package.json を含む拡張ディレクトリを選択します。',
   folder: 'フォルダーを選択',
   pathLabel: '拡張機能のプロジェクトディレクトリ',
   packageLabel: 'パッケージ名とバージョン',

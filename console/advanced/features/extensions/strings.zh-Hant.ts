@@ -63,7 +63,7 @@ export const S: Partial<typeof en> = {
   deletedAction: '刪除',
   progress: (action: string, name: string) => `正在${action}：${name}…`,
   completed: (action: string, name: string) => `${action}成功：${name}。`,
-  restartNeeded: '重新啟動處理程序後生效。',
+  restartNeeded: '擴充需重新啟動處理程序後生效。',
   worldActivateHint: '未啟用的 World 請到 World 總覽啟用。',
   syncedFailed: '操作已完成，但清單未同步；請重新整理。',
 
@@ -133,7 +133,7 @@ export const S: Partial<typeof en> = {
   npm: '從 npm 安裝',
   local: '從本機目錄安裝',
   npmHelp: '輸入 npm 套件名稱，可附帶 @版本或標籤；不要填寫網頁連結。',
-  localHelp: '選擇執行 Cortico 的電腦上包含 package.json 的擴充功能目錄。擴充功能透過連結接入；更新原始碼後可能需要重新建置並重新啟動。刪除安裝記錄不會刪除來源目錄。',
+  localHelp: '選擇執行 Cortico 的電腦上包含 package.json 的擴充功能目錄。',
   folder: '選擇資料夾',
   pathLabel: '擴充功能專案目錄',
   packageLabel: '套件名稱與版本',

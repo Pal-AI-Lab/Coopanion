@@ -63,7 +63,7 @@ export const S: Partial<typeof en> = {
   deletedAction: 'Eliminazione',
   progress: (action: string, name: string) => `${action} di ${name} in corso…`,
   completed: (action: string, name: string) => `Operazione completata: ${action.toLowerCase()} di ${name}.`,
-  restartNeeded: 'Ha effetto dopo il riavvio del processo.',
+  restartNeeded: 'Le estensioni hanno effetto dopo il riavvio del processo.',
   worldActivateHint: 'Se il World non è attivo, attivalo in Panoramica dei World.',
   syncedFailed: "Operazione completata, ma l'elenco non è sincronizzato. Aggiorna per riprovare.",
 
@@ -133,7 +133,7 @@ export const S: Partial<typeof en> = {
   npm: 'Da npm',
   local: 'Da una directory locale',
   npmHelp: "Inserisci un nome di pacchetto npm, eventualmente seguito da @versione o da un tag. Non inserire l'URL di un sito web.",
-  localHelp: "Seleziona una directory contenente package.json sull'host di Cortico. Le estensioni locali vengono collegate; le modifiche ai sorgenti possono richiedere una nuova build e un riavvio. Eliminare l'installazione conserva i sorgenti.",
+  localHelp: 'Scegli sull’host di Cortico una cartella di estensione con package.json.',
   folder: 'Scegli cartella',
   pathLabel: "Directory dell'estensione",
   packageLabel: 'Pacchetto e versione',

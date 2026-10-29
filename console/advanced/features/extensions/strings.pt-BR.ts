@@ -63,7 +63,7 @@ export const S: Partial<typeof en> = {
   deletedAction: 'Exclusão',
   progress: (action: string, name: string) => `${action} em andamento: ${name}…`,
   completed: (action: string, name: string) => `${action} concluída: ${name}.`,
-  restartNeeded: 'Tem efeito após reiniciar o processo.',
+  restartNeeded: 'As extensões têm efeito após reiniciar o processo.',
   worldActivateHint: 'Se o World não estiver ativo, ative-o em Visão geral dos Worlds.',
   syncedFailed: 'Operação concluída, mas a lista está dessincronizada. Atualize para tentar de novo.',
 
@@ -133,7 +133,7 @@ export const S: Partial<typeof en> = {
   npm: 'Do npm',
   local: 'De um diretório local',
   npmHelp: 'Digite um nome de pacote npm, opcionalmente seguido de @versão ou uma tag. Não digite a URL de um site.',
-  localHelp: 'Selecione um diretório que contenha package.json no host do Cortico. Extensões locais são vinculadas; alterações no código-fonte podem exigir recompilar e reiniciar. Excluir a instalação mantém o código-fonte.',
+  localHelp: 'Escolha no host do Cortico uma pasta de extensão com package.json.',
   folder: 'Escolher pasta',
   pathLabel: 'Diretório da extensão',
   packageLabel: 'Pacote e versão',

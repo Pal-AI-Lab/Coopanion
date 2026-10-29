@@ -5,7 +5,7 @@ export const S: Partial<typeof en> = {
   marketTab: "World 擴充功能",
   extensionList: "擴展清單",
   configure: "配置",
-  manageExtension: "管理擴充功能",
+  packageInfo: "安裝資訊",
   modeOff: "已停用",
   modeRunning: "僅執行",
   modeAttached: "已接入",

@@ -11,7 +11,7 @@ export const S: Partial<typeof en> = {
   marketTab: "Расширения World",
   extensionList: "Список расширений",
   configure: "Настроить",
-  manageExtension: "Управление расширением",
+  packageInfo: "Сведения об установке",
   modeOff: "Остановлен",
   modeRunning: "Только работа",
   modeAttached: "Подключён",

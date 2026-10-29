@@ -69,7 +69,7 @@ export const S: Partial<typeof en> = {
   deletedAction: 'Удаление',
   progress: (action: string, name: string) => `${action} ${name}…`,
   completed: (action: string, name: string) => `${action} ${name}: готово.`,
-  restartNeeded: 'Вступит в силу после перезапуска процесса.',
+  restartNeeded: 'Расширения вступят в силу после перезапуска процесса.',
   worldActivateHint: 'Если World не активен, активируйте его на странице «Обзор World».',
   syncedFailed: 'Операция выполнена, но список не синхронизирован. Обновите, чтобы повторить.',
 
@@ -139,7 +139,7 @@ export const S: Partial<typeof en> = {
   npm: 'Из npm',
   local: 'Из локальной папки',
   npmHelp: 'Введите имя пакета npm, при необходимости с @версией или тегом. Не вводите URL сайта.',
-  localHelp: 'Выберите на хосте Cortico папку, содержащую package.json. Локальные расширения подключаются ссылкой; после изменений исходного кода может потребоваться пересборка и перезапуск. При удалении установки исходный код сохраняется.',
+  localHelp: 'Выберите на хосте Cortico папку расширения с package.json.',
   folder: 'Выбрать папку',
   pathLabel: 'Папка расширения',
   packageLabel: 'Пакет и версия',

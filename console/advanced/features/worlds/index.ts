@@ -16,6 +16,9 @@ import { S } from './strings.ts';
 import { S as UI } from '../../../base/ui/strings.ts';
 
 const worldPageId = (id: string) => pageIdFor('world', id);
+/** Row controls, left to right. */
+const ACTION_SLOTS = ['info', 'remove', 'configure', 'visibility', 'restart', 'power'] as const;
+type ActionSlot = typeof ACTION_SLOTS[number];
 export interface WorldView {
   id: string;
   status: 'active' | 'inactive' | 'missing';
@@ -147,7 +150,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     },
     onChange: items => { extensions = items; extensionsReady = true; void load(); },
     onLoadError: () => { extensionsReady = true; render(); },
-    reveal: name => { const item = worldLibrary(worlds, extensions, recent).find(entry => entry.key === name); if (item) select(item); },
+    reveal: name => { const item = worldLibrary(worlds, extensions, recent).find(entry => entry.key === name); if (item) reveal(item); },
     onAdded: (name, from) => { const previous = recent.indexOf(name); if (previous >= 0) recent.splice(previous, 1); recent.unshift(name); selected = name; arrival = { key: name, from }; railList.scrollTop = 0; },
   });
   else status.hidden = true;
@@ -208,6 +211,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     }
   }
 
+  const slot = (name: ActionSlot, button: HTMLButtonElement) => { button.dataset.slot = name; return button; };
   function iconButton(
     name: ConsoleIconName,
     label: string,
@@ -255,7 +259,11 @@ export function mountWorlds(ctx: FeatureContext): void {
     void flight.finished.then(finish, finish);
     lifecycle.add(() => ghost.remove());
   }
+  /** In the market view a rail avatar opens its package's install information; elsewhere it shows the World's row. */
   function select(item: WorldLibraryItem) {
+    if (current === 'market' && item.extension && market) market.details(item.extension.name); else reveal(item);
+  }
+  function reveal(item: WorldLibraryItem) {
     selected = item.key; focusRequested = true;
     router.navigate(['world']);
     for (const [key, node] of railNodes) node.setAttribute('aria-current', key === selected ? 'true' : 'false');
@@ -337,21 +345,31 @@ export function mountWorlds(ctx: FeatureContext): void {
       const lamps = ui.h('span', 'world-signals'); paintSignals(lamps, m.lamps ?? []); signals.append(lamps); lampNodes.set(worldPageId(m.id), lamps);
     }
     if (m?.prefixDrifted) signals.append(ui.pill(S.prefixPending));
+    // Left to right: install info, uninstall, configure, visibility, restart, power.
     const actions = ui.h('div', 'world-blade-actions');
-    if (m && !pending && !failed) {
-      if (m.status === 'active') {
-        if (canToggleVisibility) actions.append(iconButton(m.visible === false ? 'eye-off' : 'eye', m.visible === false ? S.showToAgent : S.hideFromAgent, m.visible === false ? '' : 'iobtn-visible', () => void changeWorld(m, 'visibility', m.visible === false)));
-        if (canActivate) actions.append(iconButton('refresh', S.restartWorld, '', () => void restart(m)), iconButton('power', S.deactivateWorld, 'iobtn-stop', () => void changeWorld(m, 'activation', false)));
-      } else if (canActivate) actions.append(iconButton('power', S.activateWorld, '', () => void changeWorld(m, 'activation', true)));
-      if (changingWorlds.has(m.id)) for (const button of actions.querySelectorAll('button')) button.disabled = true;
-    }
-    if (m) actions.append(ui.button(S.configure, { size: 'sm', onClick: () => router.navigate([PROVIDER_ROUTE, worldPageId(m.id)]) }));
-    if (pack) actions.append(iconButton('package', S.manageExtension, '', () => market?.manage(pack.name)));
+    if (pack && market) { const owner = market; actions.append(slot('info', iconButton('package', S.packageInfo, '', () => owner.details(pack.name)))); }
     if (pack && !pack.builtin && pack.state !== 'removed' && market) {
       const owner = market, key = item.key;
-      const remove = iconButton('trash', E.remove, 'iobtn-remove', () => void owner.remove(pack.name, () => railList.querySelector(`.world-blade[data-key="${CSS.escape(key)}"] .iobtn-remove`)));
+      const remove = slot('remove', iconButton('trash', E.remove, 'iobtn-remove', () => void owner.remove(pack.name, () => railList.querySelector(`.world-blade[data-key="${CSS.escape(key)}"] .iobtn-remove`))));
       if (pack.enabled) { remove.disabled = true; remove.title = E.removeInUse; }
       actions.append(remove);
+    }
+    if (m) actions.append(slot('configure', iconButton('settings', S.configure, '', () => router.navigate([PROVIDER_ROUTE, worldPageId(m.id)]))));
+    if (m && !pending && !failed) {
+      const runtime: HTMLButtonElement[] = [];
+      if (m.status === 'active') {
+        if (canToggleVisibility) runtime.push(slot('visibility', iconButton(m.visible === false ? 'eye-off' : 'eye', m.visible === false ? S.showToAgent : S.hideFromAgent, m.visible === false ? '' : 'iobtn-visible', () => void changeWorld(m, 'visibility', m.visible === false))));
+        if (canActivate) runtime.push(slot('restart', iconButton('refresh', S.restartWorld, '', () => void restart(m))), slot('power', iconButton('power', S.deactivateWorld, 'iobtn-stop', () => void changeWorld(m, 'activation', false))));
+      } else if (canActivate) runtime.push(slot('power', iconButton('power', S.activateWorld, '', () => void changeWorld(m, 'activation', true))));
+      if (changingWorlds.has(m.id)) for (const button of runtime) button.disabled = true;
+      actions.append(...runtime);
+    }
+    // Each control keeps its column across rows, so a missing one leaves a gap instead of shifting the rest.
+    for (const button of actions.querySelectorAll<HTMLButtonElement>('button')) button.style.gridColumn = String(ACTION_SLOTS.indexOf(button.dataset.slot as ActionSlot) + 1);
+    // A click on the row, outside its controls, opens the World's configuration page.
+    if (m) {
+      row.classList.add('is-configurable');
+      row.addEventListener('click', event => { if (!(event.target as Element).closest('button, a')) router.navigate([PROVIDER_ROUTE, worldPageId(m.id)]); }, { signal });
     }
     row.append(identity, ui.h('span', 'world-state', state), signals, actions);
     if (failed) row.append(ui.h('p', 'world-blade-note bad', m?.reason || pack?.reason || S.missingReasonDefault));

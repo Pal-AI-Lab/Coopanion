@@ -44,7 +44,8 @@ export type ConsoleIconName =
   | 'globe'
   | 'check'
   | 'sidebar'
-  | 'arrow-up';
+  | 'arrow-up'
+  | 'bell';
 
 type Shape = readonly [tag: 'path' | 'circle' | 'rect' | 'line', attrs: Readonly<Record<string, string>>];
 
@@ -211,6 +212,10 @@ const SHAPES: Readonly<Record<ConsoleIconName, readonly Shape[]>> = {
     ['path', { d: 'M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18' }],
   ],
   check: [['path', { d: 'm5 12.5 4.5 4.5L19 7.5' }]],
+  bell: [
+    ['path', { d: 'M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9' }],
+    ['path', { d: 'M10.3 20a1.9 1.9 0 0 0 3.4 0' }],
+  ],
   'arrow-up': [
     ['path', { d: 'M12 19V5' }],
     ['path', { d: 'm6 11 6-6 6 6' }],
