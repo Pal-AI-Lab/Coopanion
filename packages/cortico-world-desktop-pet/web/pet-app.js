@@ -452,8 +452,17 @@ function startItem(it) {
   }
 }
 
-/** The pointer is on Coo's bubble: a line's countdown stands still meanwhile, so it can be read to the end or its link clicked. */
-const pointedAt = () => !bubble.hidden && bubble.matches(':hover');
+/**
+ * The cursor is on Coo's bubble: a line's countdown stands still meanwhile, so it can be read to the end or its link
+ * clicked. Decided from where the cursor is now, as stepTools does: `:hover` stays with the last mouse event, and a
+ * click-through window stops getting them once the cursor has left.
+ */
+function pointedAt() {
+  const p = cursor.at;
+  if (bubble.hidden || !p) return false;
+  const r = bubble.getBoundingClientRect();
+  return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom;
+}
 
 function stepDialog(dt) {
   if (!item && queue.length && at() && !at().busy) startItem(queue.shift());
