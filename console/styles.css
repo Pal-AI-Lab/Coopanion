@@ -2221,3 +2221,6 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-drop-line{position:absolute;left:0;z-index:3;width:var(--world-entry-width);height:2px;margin-top:-1px;border-radius:2px;background:var(--accent);pointer-events:none}
 .world-drop-line[hidden]{display:none}
 .world-library-entry.is-dragging,.world-group.is-dragging{opacity:.4}
+/* Ungrouped rows after a group start below a divider, so an expanded group's end stays visible. */
+.world-group{transition:padding var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),border-color 200ms;border-bottom:1px solid transparent}
+.world-workspace[data-view=mine] .world-group:has(+ .world-library-entry){width:var(--world-entry-width);padding-bottom:6px;margin-bottom:14px;border-bottom-color:var(--line)}
