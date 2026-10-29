@@ -18,13 +18,15 @@ describe('joinSpeech', () => {
 
 describe('looksHallucinated', () => {
   it("drops Whisper's sound labels, cut off or whole, and its subtitle credits", () => {
-    for (const line of ['[Musique]', '(...)', '...', '*Bruit de la porte*', '* Stille *', '[Sottotitoli e rispondenti del', '(звук пива', 'Субтитры субтитров О.', '♪']) {
+    for (const line of ['[Musique]', '(...)', '...', '*Bruit de la porte*', '* Stille *', '[Sottotitoli e rispondenti del', '(звук пива', 'Субтитры субтитров О.', '♪',
+      '请不吝点赞 订阅 转发 打赏支持明镜与点点栏目', '点赞、订阅、转发、打赏', '谢谢观看。', '字幕由Amara.org社区提供', '中文字幕志愿者 李宗盛']) {
       expect(looksHallucinated(line), line).toBe(true);
     }
   });
 
-  it('keeps sentences', () => {
-    for (const line of ["Il n'avait pas non plus le pouvoir de déroger aux lois fiscales.", 'Они умеют отлично видеть в темноте.', 'Kannst du die Musik leiser machen?', '今天天气怎么样']) {
+  it('keeps sentences, those that mention subscribing, forwarding or subtitles included', () => {
+    for (const line of ["Il n'avait pas non plus le pouvoir de déroger aux lois fiscales.", 'Они умеют отлично видеть в темноте.', 'Kannst du die Musik leiser machen?', '今天天气怎么样',
+      '帮我把这个转发给他', '这个频道我订阅了', '把字幕打开', '谢谢观看我的视频的朋友们']) {
       expect(looksHallucinated(line), line).toBe(false);
     }
   });

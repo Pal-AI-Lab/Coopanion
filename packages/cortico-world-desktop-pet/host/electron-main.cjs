@@ -357,12 +357,16 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
 
   /** Moves the window over display `d`; returns the area it now covers. */
   const cover = (d) => {
+    const from = screen.getDisplayMatching(win.getBounds());
     displayId = d.id;
     const area = coverArea(d), { below, ...rect } = area;
-    win.setBounds(rect);
-    // Windows: a window moved onto a display with another scale factor is resized by the DPI
-    // change to its old size times the ratio of the two scales; once it is on the new display, the
-    // same bounds set again hold.
+    // Windows: setBounds converts the rect with the scale of the display the window is on. Onto a
+    // display with another scale the window comes out sized for the old one, can reach back over it
+    // and stay counted on it, so setting the rect again changes nothing. A 1x1 window at the new
+    // origin lies wholly on the new display, and the rect set after it holds.
+    if (process.platform === 'win32' && from.id !== d.id && from.scaleFactor !== d.scaleFactor) {
+      win.setBounds({ x: rect.x, y: rect.y, width: 1, height: 1 });
+    }
     win.setBounds(rect);
     // where the floor is: the page keeps it this far above the window's bottom
     win.webContents.send('pet:floor', below);

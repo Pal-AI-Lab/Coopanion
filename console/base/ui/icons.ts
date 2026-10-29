@@ -39,7 +39,18 @@ export type ConsoleIconName =
   | 'reply'
   | 'shield-check'
   | 'sparkles'
-  | 'github';
+  | 'github'
+  | 'sliders'
+  | 'globe'
+  | 'check'
+  | 'sidebar'
+  | 'arrow-up'
+  | 'warning'
+  | 'arrow-left'
+  | 'radio-on'
+  | 'radio-off'
+  | 'info'
+  | 'help';
 
 type Shape = readonly [tag: 'path' | 'circle' | 'rect' | 'line', attrs: Readonly<Record<string, string>>];
 
@@ -74,9 +85,10 @@ const SHAPES: Readonly<Record<ConsoleIconName, readonly Shape[]>> = {
     ['path', { d: 'M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21h-4v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3v-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.5V3h4v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.1v4h-.1a1.7 1.7 0 0 0-1.5 1Z' }],
   ],
   play: [['path', { d: 'm8 5 11 7-11 7V5Z' }]],
+  // Drawn half a unit low so the glyph, open at the top, is centred in its box.
   power: [
-    ['path', { d: 'M12 3v8' }],
-    ['path', { d: 'M17.7 6.3a8 8 0 1 1-11.4 0' }],
+    ['path', { d: 'M12 3.5v8' }],
+    ['path', { d: 'M17.7 6.8a8 8 0 1 1-11.4 0' }],
   ],
   pause: [
     ['rect', { x: '7', y: '5', width: '3', height: '14', rx: '1' }],
@@ -126,11 +138,11 @@ const SHAPES: Readonly<Record<ConsoleIconName, readonly Shape[]>> = {
     ['path', { d: 'M21 3v6h-6' }],
   ],
   trash: [
-    ['path', { d: 'M4 7h16' }],
-    ['path', { d: 'M9.5 7V5h5v2' }],
-    ['path', { d: 'M6.5 7v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V7' }],
-    ['path', { d: 'M10 11v6' }],
-    ['path', { d: 'M14 11v6' }],
+    ['path', { d: 'M4 6h16' }],
+    ['path', { d: 'M9.5 6V4h5v2' }],
+    ['path', { d: 'M6.5 6v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V6' }],
+    ['path', { d: 'M10 10v6' }],
+    ['path', { d: 'M14 10v6' }],
   ],
   'vote-up': [['path', { d: 'M12 6.5 19 17.5H5Z' }]],
   'vote-down': [['path', { d: 'M12 17.5 5 6.5h14Z' }]],
@@ -191,6 +203,54 @@ const SHAPES: Readonly<Record<ConsoleIconName, readonly Shape[]>> = {
     ['rect', { x: '3', y: '4', width: '18', height: '12', rx: '2' }],
     ['path', { d: 'M8 20h8' }],
     ['path', { d: 'M12 16v4' }],
+  ],
+  sliders: [
+    ['path', { d: 'M4 7h10' }],
+    ['path', { d: 'M18 7h2' }],
+    ['circle', { cx: '16', cy: '7', r: '2' }],
+    ['path', { d: 'M4 17h3' }],
+    ['path', { d: 'M11 17h9' }],
+    ['circle', { cx: '9', cy: '17', r: '2' }],
+  ],
+  globe: [
+    ['circle', { cx: '12', cy: '12', r: '9' }],
+    ['path', { d: 'M3 12h18' }],
+    ['path', { d: 'M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18' }],
+  ],
+  check: [['path', { d: 'm5 12.5 4.5 4.5L19 7.5' }]],
+  'arrow-left': [
+    ['path', { d: 'M19 12H5' }],
+    ['path', { d: 'm11 6-6 6 6 6' }],
+  ],
+  'radio-on': [
+    ['circle', { cx: '12', cy: '12', r: '7' }],
+    ['circle', { cx: '12', cy: '12', r: '3', fill: 'currentColor' }],
+  ],
+  'radio-off': [
+    ['circle', { cx: '12', cy: '12', r: '7' }],
+  ],
+  warning: [
+    ['path', { d: 'M10.3 4.2 2.6 17.5a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z' }],
+    ['path', { d: 'M12 9.5v4' }],
+    ['path', { d: 'M12 17h.01' }],
+  ],
+  help: [
+    ['circle', { cx: '12', cy: '12', r: '9' }],
+    ['path', { d: 'M9.6 9.3a2.5 2.5 0 0 1 4.9.7c0 1.7-2.5 2.1-2.5 3.6' }],
+    ['path', { d: 'M12 16.8h.01' }],
+  ],
+  info: [
+    ['circle', { cx: '12', cy: '12', r: '9' }],
+    ['path', { d: 'M12 11v5' }],
+    ['path', { d: 'M12 8h.01' }],
+  ],
+  'arrow-up': [
+    ['path', { d: 'M12 19V5' }],
+    ['path', { d: 'm6 11 6-6 6 6' }],
+  ],
+  sidebar: [
+    ['rect', { x: '3.5', y: '4.5', width: '17', height: '15', rx: '2.5' }],
+    ['path', { d: 'M9.5 4.5v15' }],
   ],
   calendar: [
     ['rect', { x: '3.5', y: '5', width: '17', height: '15.5', rx: '2.5' }],
@@ -267,6 +327,51 @@ export function brandMark(doc: Document, cls = 'brandmark'): SVGSVGElement {
   svg.setAttribute('aria-hidden', 'true');
   svg.setAttribute('class', cls);
   shapesInto(doc, svg, WORDMARK_MARK);
+  return svg;
+}
+
+/**
+ * 内置形象 Coo 站着的样子：两条腿、C 形身子和一张脸。坐标与线宽照桌宠的画法
+ * (packages/cortico-world-desktop-pet/web/coo/coo.js、web/kit/body.js):腿从髋 (104,212)、(150,212) 落到地面，线宽 30;
+ * 身子半径 84、线宽 36,开口随脸变;眼睛在 (113,117)、(163,117),线宽 12。
+ */
+const COO_LEGS: readonly Shape[] = [
+  ['path', { d: 'M104 212V241', 'stroke-width': '30' }],
+  ['path', { d: 'M150 212V241', 'stroke-width': '30' }],
+];
+/** 桌宠表情里的三张脸：「> <」(被拎起)、「0 0」加一个问号、「- -」。身子的开口按各自表情取。 */
+const COO_FACES: Readonly<Record<'squint' | 'puzzled' | 'flat', readonly Shape[]>> = {
+  squint: [
+    ['path', { d: 'M176.2 59.2A84 84 0 1 0 176.2 196.8', 'stroke-width': '36' }],
+    ['path', { d: 'M103 104 124 117 103 130', 'stroke-width': '12' }],
+    ['path', { d: 'M173 104 152 117 173 130', 'stroke-width': '12' }],
+  ],
+  puzzled: [
+    ['path', { d: 'M182 63.7A84 84 0 1 0 182 192.3', 'stroke-width': '36' }],
+    ['circle', { cx: '113', cy: '117', r: '16', 'stroke-width': '12' }],
+    ['circle', { cx: '163', cy: '117', r: '16', 'stroke-width': '12' }],
+    ['path', { d: 'M213 24a12 12 0 1 1 17 11c-5 3-6 6-6 11', 'stroke-width': '10' }],
+    ['path', { d: 'M224 58v.01', 'stroke-width': '12' }],
+  ],
+  flat: [
+    ['path', { d: 'M188.4 69.6A84 84 0 1 0 188.4 186.4', 'stroke-width': '36' }],
+    ['path', { d: 'M97 117H129', 'stroke-width': '12' }],
+    ['path', { d: 'M147 117H179', 'stroke-width': '12' }],
+  ],
+};
+export type CooFace = keyof typeof COO_FACES;
+export const COO_FACE_NAMES = Object.keys(COO_FACES) as CooFace[];
+
+export function cooFigure(doc: Document, face: CooFace, cls = 'coo-figure'): SVGSVGElement {
+  const svg = doc.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '24 4 224 252');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('class', cls);
+  shapesInto(doc, svg, [...COO_LEGS, ...COO_FACES[face]]);
   return svg;
 }
 

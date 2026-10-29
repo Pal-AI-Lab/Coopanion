@@ -12,6 +12,7 @@ export const S: Partial<typeof en> = {
   provides: (list: string) => 'Доступные панели: ' + list,
   panelFailed: (title: string) => `Не удалось загрузить панель «${title}»`,
   configEmpty: 'Группы настроек недоступны.',
+  backToWorlds: "Назад к расширениям World",
   notInstalled: 'Недоступно',
   notActivated: 'не активировано',
   hidden: 'скрыто',

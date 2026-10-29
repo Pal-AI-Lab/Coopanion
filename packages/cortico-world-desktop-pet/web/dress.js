@@ -192,6 +192,7 @@ function renderFigure() {
   for (const c of choices) {
     const b = el('button', 'opt wide figure', c.svg);
     b.setAttribute('aria-pressed', String(skin.figure === c.id));
+    b.title = c.label;
     if (c.thumb) Object.assign(b.appendChild(el('img')), { src: c.thumb, alt: '' });
     b.appendChild(el('span')).textContent = c.label;
     b.addEventListener('click', () => {

@@ -15,6 +15,7 @@
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
+import { readTextFile } from 'cortico/core/util.ts';
 import { ipaSyllables } from './ipa.ts';
 import { japanesePhonemes, isKana, isKanji, type JapaneseReadings } from './japanese.ts';
 import { JUKUJIKUN } from './jukujikun.ts';
@@ -69,7 +70,7 @@ export class SpeechText {
   constructor(private readonly dataDir: string, private readonly bankFile: string) {}
 
   private has = (key: string) => {
-    this.bank ??= new Set(Object.keys((JSON.parse(readFileSync(this.bankFile, 'utf8')) as { units: Record<string, unknown> }).units));
+    this.bank ??= new Set(Object.keys((JSON.parse(readTextFile(this.bankFile)) as { units: Record<string, unknown> }).units));
     return this.bank.has(key);
   };
   private tsv(name: string): Map<string, string> {
@@ -83,7 +84,7 @@ export class SpeechText {
   private han(ch: string): [string, number] | undefined {
     if (!this.zh) {
       this.zh = new Map();
-      const table = JSON.parse(readFileSync(join(this.dataDir, 'zh.json'), 'utf8')) as Record<string, string>;
+      const table = JSON.parse(readTextFile(join(this.dataDir, 'zh.json'))) as Record<string, string>;
       for (const [k, chars] of Object.entries(table)) for (const c of chars) this.zh.set(c, [k.slice(0, -1), Number(k.slice(-1))]);
     }
     return this.zh.get(ch);

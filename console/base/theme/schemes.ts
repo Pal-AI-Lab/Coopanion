@@ -15,7 +15,7 @@ export interface ThemeScheme {
   id: string;
   name: string;
   note: string;
-  /** 浅色与黑夜是**两份独立配色**，不是同一份的明暗算法推导。 */
+  /** 浅色与黑夜各存一份配色，互不推导。 */
   palettes: Record<ThemeAppearance, ThemePalette>;
   builtin?: boolean;
   custom?: boolean;

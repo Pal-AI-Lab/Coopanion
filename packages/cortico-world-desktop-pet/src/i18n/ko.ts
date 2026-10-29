@@ -197,7 +197,7 @@ const ko: Translation<PetText> = {
       pet: { title: '데스크톱 펫', description: '창, 꾸미기, 창 런타임.' },
       voice: { title: '음성 입력', description: '인식 엔진, 입력 레벨, 들은 내용.' },
     },
-    envPrompt: { title: '데스크톱 펫 환경', description: '펫의 몸, 도구 네 가지, 입력 이벤트를 설명합니다.' },
+    envPrompt: { title: '데스크톱 펫 환경', description: '펫의 몸, 도구, 입력 이벤트를 설명합니다.' },
     vars: {
       'pet.user': '봇이 사용자를 부르는 이름',
       'pet.vocab': '현재 외형의 표정과 동작',

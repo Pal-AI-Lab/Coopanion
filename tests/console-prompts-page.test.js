@@ -37,7 +37,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', async (path, options) => {
     if (path === '/api/theme') return json({ theme: null });
     if (path === '/api/status') return json({ displayName: 'Fixture', loop: { paused: true } });
-    if (path === '/api/capabilities') return json({ capabilities: { prompts: true, config: true, storage: true, sessionControl: true } });
+    if (path === '/api/capabilities') return json({ capabilities: { worlds: true, prompts: true, config: true, storage: true, sessionControl: true } });
     if (path === '/api/config') return json({ groups: [{ group: { id: 'worlds.fixture', owner: 'world:fixture', schema: { title: 'Fixture configuration', properties: { 'worlds.fixture.name': { type: 'string', title: 'Fixture name' } } } }, values: { 'worlds.fixture.name': 'Friend' } }] });
     if (path === '/api/webui/lamps') return json({ lamps: {} });
     if (path === '/api/webui/manifest') return json({ protocolVersion: CONSOLE_PROTOCOL_VERSION, framework: { capabilities: { config: configAvailable } }, providers: [
@@ -202,13 +202,18 @@ it('keeps the accepted route unchanged when leaving for World configuration is c
   } finally { window.removeEventListener('companion-mode-request', request); }
 });
 
-it('opens World configuration from the advanced mode only after the app accepts leaving the prompt editor', async () => {
+it.each(['normal', 'advanced'])('opens World configuration in %s mode only after the app accepts leaving the prompt editor', async (mode) => {
   const { boot } = await import('../console/index.ts');
-  localStorage.setItem('companion.mode', 'advanced');
+  localStorage.setItem('companion.mode', mode);
   let allowLeave = false;
   vi.stubGlobal('confirm', () => allowLeave);
   mounted.push(boot());
   await vi.waitFor(() => expect(document.querySelector('.prompt-settings-link')).not.toBeNull());
+  const worldNav = document.querySelector('#rail a[href="#/world"]');
+  expect(worldNav.hidden).toBe(false);
+  expect(worldNav.closest('.navgroup').hidden).toBe(false);
+  expect(worldNav.closest('.navgroup').querySelector('.stacklabel')).toBeNull();
+  expect(document.querySelector('#rail a[href*="world%3Afixture"]').hidden).toBe(false);
   const view = EditorView.findFromDOM(document.querySelector('.cm-editor'));
   view.dispatch({ changes: { from: 0, insert: 'Unsaved ' } });
   document.querySelector('.prompt-settings-link').click();
@@ -222,28 +227,24 @@ it('opens World configuration from the advanced mode only after the app accepts 
   await vi.waitFor(() => expect(document.querySelector('input[type="text"]')?.value).toBe('Friend'));
 });
 
-it('switches from the normal mode to the advanced mode to open World configuration, after unsaved edits are given up', async () => {
+it('keeps normal mode and unsaved edits when leaving for World configuration is cancelled', async () => {
   const { root, router, view, edit } = await mount();
   const modes = [];
   const request = (event) => modes.push(event.detail);
   window.addEventListener('companion-mode-request', request);
-  const asked = [];
-  let discard = false;
-  vi.stubGlobal('confirm', (message) => { asked.push(message); return discard; });
   try {
-    await vi.waitFor(() => expect(root.querySelector('.prompt-settings-link')).not.toBeNull());
     edit('Unsaved ');
     root.querySelector('.prompt-settings-link').click();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(modes).toEqual([]);
+    await vi.waitFor(() => expect(document.querySelector('.confirm-card')).not.toBeNull());
+    document.querySelector('.confirm-card .btn').click();
+    await vi.waitFor(() => expect(location.hash).toBe('#/prompts'));
     expect(router.route.segments).toEqual(['prompts']);
     expect(view.state.doc.toString()).toContain('Unsaved ');
-    discard = true;
     root.querySelector('.prompt-settings-link').click();
+    await vi.waitFor(() => expect(document.querySelector('.confirm-card')).not.toBeNull());
+    document.querySelector('.confirm-card .btn.primary').click();
     await vi.waitFor(() => expect(router.route.segments).toEqual(['provider', 'world:fixture', '~config']));
-    expect(modes).toEqual(['advanced']);
-    expect(asked).toEqual([S.leaveUnsaved, S.leaveUnsaved]);
-    expect(document.querySelector('.confirm-card')).toBeNull();
+    expect(modes).toEqual([]);
   } finally { window.removeEventListener('companion-mode-request', request); }
 });
 
@@ -257,7 +258,7 @@ it('switches from the normal mode to World configuration at once when nothing is
     await vi.waitFor(() => expect(root.querySelector('.prompt-settings-link')).not.toBeNull());
     root.querySelector('.prompt-settings-link').click();
     await vi.waitFor(() => expect(router.route.segments).toEqual(['provider', 'world:fixture', '~config']));
-    expect(modes).toEqual(['advanced']);
+    expect(modes).toEqual([]);
     expect(document.querySelector('.confirm-card')).toBeNull();
   } finally { window.removeEventListener('companion-mode-request', request); }
 });
