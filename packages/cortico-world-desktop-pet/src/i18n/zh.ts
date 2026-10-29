@@ -162,7 +162,6 @@ export default {
   /** 在装扮页导入形象包 */
   importing: {
     badZip: (why: string) => `这不是能读的 zip：${why}`,
-    tooBig: (mb: number) => `解开后超过 ${mb} MB`,
     truncated: '上传的内容不完整',
     badPath: (path: string) => `有一个路径不能用：${path}`,
     builtinId: (id: string) => `id ${id} 是内置形象的，换个 id 才能导入`,
@@ -171,7 +170,6 @@ export default {
     expired: '这次导入已经过期，请重新选择',
     noneChosen: '没有选要导入的形象包',
     zipOrFolder: '只收 zip 或文件夹',
-    overLimit: (mb: number) => `超过 ${mb} MB`,
   },
 
   /** 在装扮页卸载形象包 */
@@ -280,6 +278,7 @@ export default {
       ui: { title: '按钮与提示', description: '点按钮、气泡弹出、选中、开始和结束听你说话。' },
     } as Record<'move' | 'touch' | 'face' | 'snore' | 'talk' | 'ui', { title: string; description: string }>,
     snoreSeconds: { title: '呼噜时长', suffix: '秒', description: '每次睡着后打这么久呼噜就安静下来，Z 照样飘；0 = 一直打到醒。' },
+    panByPosition: { title: '按位置分配左右声道', description: '声音偏向 Coo 所在的一侧，关闭后居中播放。' },
     speech: { title: '说话声', description: '开启后气泡逐字冒出时念出音节，代替「说话」类的叽咕声；「说话」类关掉时也不出声。' },
     speechPitch: { title: '说话声音高', description: (a: number, b: number, c: number) => `low、mid、high 依次为 ${a}、${b}、${c} Hz；custom 用自定义音高。` },
     speechPitchHz: { title: '自定义音高' },

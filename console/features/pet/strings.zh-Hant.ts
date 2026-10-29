@@ -1,6 +1,9 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  autoUpdateLabel: "自動更新",
+  autoUpdate: "自動下載和安裝更新",
+  autoUpdateHint: "自動下載並在結束應用程式時安裝更新。關閉後立即停止檢查和下載，已下載的更新也不會自動安裝。",
   nav: '習慣',
   language: '語言',
   languageHint: '介面和 Coo 說話都使用這種語言。',
@@ -41,6 +44,9 @@ export const S: Partial<typeof en> = {
   snore: '打呼時長',
   snoreUnit: '秒',
   snoreHint: '0 表示持續到醒來。',
+  panLabel: '聲道',
+  pan: '依位置分配左右聲道',
+  panHint: '聲音偏向 Coo 所在的一側，關閉後置中播放。',
   speechTitle: '說話聲',
   speech: '念出氣泡文字',
   speechHint: '每個字念成一個短音節，代替「說話」類音效；「說話」類關掉時不出聲。',

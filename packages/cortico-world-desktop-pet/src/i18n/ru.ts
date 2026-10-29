@@ -149,7 +149,6 @@ const ru: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Не удаётся прочитать zip: ${why}`,
-    tooBig: (mb: number) => `Больше ${mb} МБ в распакованном виде`,
     truncated: 'Загрузка неполная',
     badPath: (path: string) => `Путь нельзя использовать: ${path}`,
     builtinId: (id: string) => `id ${id} принадлежит встроенному персонажу; измените id, чтобы импортировать пакет`,
@@ -158,7 +157,6 @@ const ru: Translation<PetText> = {
     expired: 'Срок этого импорта истёк; выберите файлы заново',
     noneChosen: 'Пакет не выбран',
     zipOrFolder: 'Импортировать можно только zip или папки',
-    overLimit: (mb: number) => `Больше ${mb} МБ`,
   },
 
   removing: {
@@ -259,6 +257,7 @@ const ru: Translation<PetText> = {
       ui: { title: 'Кнопки и сигналы', description: 'Нажатия кнопок, появление облачков, выбор, начало и конец прослушивания.' },
     },
     snoreSeconds: { title: 'Длительность храпа', suffix: 'с', description: 'Каждый раз во сне питомец замолкает, прохрапев столько; z продолжают плыть. 0 = храпеть до пробуждения.' },
+    panByPosition: { title: 'Панорама по положению', description: 'Звуки смещаются в сторону, где стоит Coo; если выключить, звучат по центру.' },
     speech: { title: 'Голос', description: 'Произносит слог на каждый символ, появляющийся в пузыре, вместо бормотания «Речи»; молчит, пока звуки «Речи» выключены.' },
     speechPitch: { title: 'Высота голоса', description: (a: number, b: number, c: number) => `low, mid и high — ${a}, ${b} и ${c} Гц; custom берёт свою высоту.` },
     speechPitchHz: { title: 'Своя высота' },

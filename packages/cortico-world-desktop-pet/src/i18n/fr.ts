@@ -143,7 +143,6 @@ const fr: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Zip illisible : ${why}`,
-    tooBig: (mb: number) => `Plus de ${mb} Mo une fois décompressé`,
     truncated: "L'envoi est incomplet",
     badPath: (path: string) => `Un chemin est inutilisable : ${path}`,
     builtinId: (id: string) => `l'id ${id} appartient à un personnage intégré ; changez l'id pour l'importer`,
@@ -152,7 +151,6 @@ const fr: Translation<PetText> = {
     expired: 'Cette importation a expiré ; choisissez à nouveau les fichiers',
     noneChosen: 'Aucun pack choisi',
     zipOrFolder: 'Seuls un zip ou des dossiers peuvent être importés',
-    overLimit: (mb: number) => `Plus de ${mb} Mo`,
   },
 
   removing: {
@@ -253,6 +251,7 @@ const fr: Translation<PetText> = {
       ui: { title: 'Boutons et signaux', description: "Clics de boutons, ouverture des bulles, sélections, début et fin de l'écoute." },
     },
     snoreSeconds: { title: 'Durée des ronflements', suffix: 's', description: "À chaque sommeil, le compagnon se tait après avoir ronflé ce temps ; les z continuent de flotter. 0 = ronfler jusqu'au réveil." },
+    panByPosition: { title: 'Répartir selon la position', description: 'Les sons penchent du côté où se trouve Coo ; désactivé, ils sont joués au centre.' },
     speech: { title: 'Voix', description: 'Prononce une syllabe à chaque caractère qui apparaît dans une bulle, à la place du babil de Parole ; muette quand les sons Parole sont coupés.' },
     speechPitch: { title: 'Hauteur de la voix', description: (a: number, b: number, c: number) => `low, mid et high valent ${a}, ${b} et ${c} Hz ; custom utilise la hauteur personnalisée.` },
     speechPitchHz: { title: 'Hauteur personnalisée' },

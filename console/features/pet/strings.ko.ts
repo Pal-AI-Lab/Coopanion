@@ -1,6 +1,9 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  autoUpdateLabel: "자동 업데이트",
+  autoUpdate: "업데이트 자동 다운로드 및 설치",
+  autoUpdateHint: "업데이트를 자동으로 다운로드하고 앱 종료 시 설치합니다. 끄면 확인과 다운로드가 즉시 중지되며, 이미 다운로드한 업데이트도 자동 설치되지 않습니다.",
   nav: '습관',
   language: '언어',
   languageHint: '인터페이스와 Coo가 이 언어를 사용합니다.',
@@ -41,6 +44,9 @@ export const S: Partial<typeof en> = {
   snore: '코골이 시간',
   snoreUnit: '초',
   snoreHint: '0 = 깰 때까지.',
+  panLabel: '스테레오',
+  pan: '위치에 따라 좌우 배분',
+  panHint: 'Coo가 있는 쪽으로 소리가 치우칩니다. 끄면 가운데에서 재생됩니다.',
   speechTitle: '말소리',
   speech: '말풍선 읽어 주기',
   speechHint: '글자마다 짧은 음절로 읽어 「말하기」 효과음 대신 냅니다. 「말하기」가 꺼져 있으면 나지 않습니다.',

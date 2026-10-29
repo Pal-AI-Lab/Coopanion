@@ -1,6 +1,9 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  autoUpdateLabel: "Actualizaciones automáticas",
+  autoUpdate: "Descargar e instalar actualizaciones automáticamente",
+  autoUpdateHint: "Descarga actualizaciones automáticamente y las instala al salir. Al desactivar esta opción, se detienen de inmediato las búsquedas y descargas, y las actualizaciones ya descargadas no se instalan automáticamente.",
   nav: 'Hábitos',
   language: 'Idioma',
   languageHint: 'La interfaz y Coo usan este idioma.',
@@ -41,6 +44,9 @@ export const S: Partial<typeof en> = {
   snore: 'Duración del ronquido',
   snoreUnit: 's',
   snoreHint: '0 = hasta despertar.',
+  panLabel: 'Estéreo',
+  pan: 'Panorama según la posición',
+  panHint: 'Los sonidos se inclinan hacia el lado donde está Coo; desactivado, suenan al centro.',
   speechTitle: 'Voz',
   speech: 'Leer los globos en voz alta',
   speechHint: 'Cada carácter se dice como una sílaba corta, en lugar de los sonidos de Habla; calla mientras Habla está desactivado.',

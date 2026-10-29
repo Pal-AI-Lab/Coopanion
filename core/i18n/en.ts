@@ -10,6 +10,7 @@ const MAC = process.platform === 'darwin';
 const en: CoreText = {
   /** Coopanion's own settings, on the Habits page and in the advanced settings. */
   settings: {
+    autoUpdate: { title: "Automatic updates", description: "Download updates automatically and install them when you quit. Turning this off stops checks and downloads immediately and prevents downloaded updates from installing automatically." },
     language: { title: 'Language', description: 'The interface and Coo use this language. Takes effect at once.' },
     telemetry: { title: 'Anonymous usage statistics', description: 'Sends usage counts and settings, never conversations, to help improve Coopanion. The fields are listed in docs/TELEMETRY.md.' },
     contextRing: { title: 'Context ring', description: "Shows a ring in the Chat page's input box with how far the conversation is from being tidied up." },

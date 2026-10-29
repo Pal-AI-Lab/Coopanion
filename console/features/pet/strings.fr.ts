@@ -1,6 +1,9 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  autoUpdateLabel: "Mises à jour automatiques",
+  autoUpdate: "Télécharger et installer les mises à jour automatiquement",
+  autoUpdateHint: "Télécharge les mises à jour et les installe à la fermeture. Désactiver cette option arrête immédiatement les recherches et téléchargements et empêche l’installation automatique des mises à jour déjà téléchargées.",
   nav: 'Habitudes',
   language: 'Langue',
   languageHint: "L'interface et Coo utilisent cette langue.",
@@ -41,6 +44,9 @@ export const S: Partial<typeof en> = {
   snore: 'Durée des ronflements',
   snoreUnit: 's',
   snoreHint: "0 = jusqu'au réveil.",
+  panLabel: 'Stéréo',
+  pan: 'Répartir selon la position',
+  panHint: 'Les sons penchent du côté où se trouve Coo ; désactivé, ils sont joués au centre.',
   speechTitle: 'Voix',
   speech: 'Lire les bulles à voix haute',
   speechHint: 'Chaque caractère est lu comme une courte syllabe, à la place des sons Parole ; muette quand Parole est coupé.',

@@ -165,7 +165,6 @@ const en: PetText = {
   /** Importing packs on the dressing page. */
   importing: {
     badZip: (why: string) => `Not a readable zip: ${why}`,
-    tooBig: (mb: number) => `Over ${mb} MB unpacked`,
     truncated: 'The upload is incomplete',
     badPath: (path: string) => `A path cannot be used: ${path}`,
     builtinId: (id: string) => `id ${id} belongs to a built-in figure; change the id to import it`,
@@ -174,7 +173,6 @@ const en: PetText = {
     expired: 'This import has expired; choose the files again',
     noneChosen: 'No pack is chosen',
     zipOrFolder: 'Only a zip or folders can be imported',
-    overLimit: (mb: number) => `Over ${mb} MB`,
   },
 
   /** Uninstalling packs on the dressing page. */
@@ -283,6 +281,7 @@ const en: PetText = {
       ui: { title: 'Buttons and cues', description: 'Button clicks, bubbles opening, picks, and listening starting and ending.' },
     },
     snoreSeconds: { title: 'Snore length', suffix: 's', description: "In each sleep the pet goes quiet after snoring this long; the z's keep floating. 0 = snore until waking." },
+    panByPosition: { title: 'Pan by position', description: 'Sounds lean toward the side Coo stands on; off, they play centered.' },
     speech: { title: 'Speech', description: 'Reads out a syllable as each character appears in a bubble, in place of the Talking babble; silent while Talking sounds are off.' },
     speechPitch: { title: 'Speech pitch', description: (a: number, b: number, c: number) => `low, mid and high are ${a}, ${b} and ${c} Hz; custom uses the custom pitch.` },
     speechPitchHz: { title: 'Custom pitch' },

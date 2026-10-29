@@ -143,7 +143,6 @@ const de: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Kein lesbares ZIP: ${why}`,
-    tooBig: (mb: number) => `Entpackt über ${mb} MB`,
     truncated: 'Der Upload ist unvollständig',
     badPath: (path: string) => `Ein Pfad ist nicht verwendbar: ${path}`,
     builtinId: (id: string) => `id ${id} gehört zu einer eingebauten Figur; ändere die id, um es zu importieren`,
@@ -152,7 +151,6 @@ const de: Translation<PetText> = {
     expired: 'Dieser Import ist abgelaufen; wähle die Dateien erneut',
     noneChosen: 'Kein Paket gewählt',
     zipOrFolder: 'Nur ein ZIP oder Ordner können importiert werden',
-    overLimit: (mb: number) => `Über ${mb} MB`,
   },
 
   removing: {
@@ -253,6 +251,7 @@ const de: Translation<PetText> = {
       ui: { title: 'Schaltflächen und Signale', description: 'Schaltflächenklicks, sich öffnende Sprechblasen, Auswahlen sowie Beginn und Ende des Zuhörens.' },
     },
     snoreSeconds: { title: 'Schnarchdauer', suffix: 's', description: 'In jedem Schlaf wird das Haustier nach so langem Schnarchen still; die Zs schweben weiter. 0 = schnarchen bis zum Aufwachen.' },
+    panByPosition: { title: 'Nach Position verteilen', description: 'Töne kommen von der Seite, auf der Coo steht; aus, werden sie mittig abgespielt.' },
     speech: { title: 'Stimme', description: 'Spricht für jedes Zeichen, das in einer Sprechblase erscheint, eine Silbe statt des Plapperns von Sprechen; stumm, solange Sprechen-Töne aus sind.' },
     speechPitch: { title: 'Stimmhöhe', description: (a: number, b: number, c: number) => `low, mid und high sind ${a}, ${b} und ${c} Hz; custom nimmt die eigene Höhe.` },
     speechPitchHz: { title: 'Eigene Höhe' },

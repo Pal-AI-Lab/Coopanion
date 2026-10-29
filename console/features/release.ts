@@ -12,7 +12,7 @@ export interface UpdateStep { phase: 'downloading' | 'ready' | 'failed'; version
 declare global {
   interface Window {
     /** 只在能自己更新的版本里有:上一步(还没有就是 null),以及订阅之后每一步、返回退订。 */
-    coopanionUpdate?: { step(): UpdateStep | null; onStep(listener: (step: UpdateStep) => void): () => void };
+    coopanionUpdate?: { step(): UpdateStep | null; onStep(listener: (step: UpdateStep | null) => void): () => void };
   }
 }
 const RELEASE_API = 'https://api.github.com/repos/Pal-AI-Lab/Coopanion/releases/latest';
@@ -88,7 +88,7 @@ export function mountRelease(doc: Document, container: Element, signal: AbortSig
   const updater = doc.defaultView?.coopanionUpdate;
   if (updater) {
     const show = (step: UpdateStep | null) => {
-      if (step) status.replaceChildren(stepHint(doc, step));
+      status.replaceChildren(...(step ? [stepHint(doc, step)] : []));
     };
     show(updater.step());
     const stop = updater.onStep(show);

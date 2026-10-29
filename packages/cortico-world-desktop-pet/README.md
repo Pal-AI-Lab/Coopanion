@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts, src/cua/cua.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts -->
+<!-- Owner: src/definition.ts, src/cua/cua.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js -->
 
 <p align="center">
   <picture>
@@ -84,7 +84,8 @@ Windows 上每 0.8 秒用 GDI 取一小块身体周围的屏幕像素来比,其�
 气泡尺寸 `worlds.desktop-pet.window.bubbleSize` 缩放所有气泡的宽度、留白、圆角、尾巴、离头顶的距离和连到桌宠的小圆点,边框粗细不变;
 字体尺寸 `window.fontSize` 缩放气泡里的字和同一行的小图标,气泡的宽度不变。两项都是 0.8–1.6 倍,默认 1,不随桌宠的大小变。
 气泡速度 `window.bubbleSpeed` 是 0.5–2 倍,默认 1:Coo 的气泡每秒打 20 乘以它个字,打完后的停留时间除以它,`pet_say` 报的显示时长也按它算。
-桌宠页的音效和说话声按 Coo 在所在显示器上的左右位置分配左右声道(`web/sound.js` 的 `setPan`),没有 `StereoPannerNode` 的浏览器里居中。
+桌宠页的音效和说话声按 Coo 在所在显示器上的左右位置分配左右声道(`web/sound.js` 的 `setPan`),pan 值钳在 ±0.5 以内，贴着屏幕边时远侧也听得到;
+`worlds.desktop-pet.sounds.panByPosition`(声音组，默认开)关闭后居中播放，没有 `StereoPannerNode` 的浏览器里也居中。
 说话声 `worlds.desktop-pet.speech.*`(声音组，默认关)开启后，气泡逐字念成音节库 `web/speech/` 里的短音节，代替「说话」类的叽咕声(叽咕声的音色和音高由形象包的 `voice` 和 `talk` 音效定，见「形象包」)，随这一类音效开关;
 文字怎么念由 World 定(`src/speech`,经 `POST /api/speech`):各语言按读音规则和词典转成国际音标，再取最接近的音节。
 音高 `speech.pitch` 为 low/mid/high(300/400/500 Hz)或 custom(`speech.pitchHz`,200–700),语速 `speech.speed` 为每秒最多 10/13/16 个音节或 custom(`speech.unitsPerSecond`,6–20)。
@@ -227,7 +228,9 @@ API Key 不进 config:「语音输入」面板经 `storeSecret` 存进部署 `.e
 默认 `LeftAlt*2`:快速按一下左 Alt(Mac 上是左 Option),紧接着按住说话。按完快速的那一下,World 给桌宠页发 `listen` 的 `ready`,Coo 先抬头看一眼,按住时立刻进入聆听。
 在哪个窗口里按都算;「语音输入」面板的说话键按钮录下组合键,旁边的下拉框选「双击再按住」(`*2`)或「直接按住」(不带 `*`),录键时保留当前的按法。桌宠麦克风按钮的角标显示说话键的简写(`Alt×2`、`F8`、`M4`),一直收音时显示 `AUTO`。
 Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 CoreGraphics 的 `CGEventSourceKeyState`,要在「系统设置 → 隐私与安全性 → 输入监控」里允许,第一次会弹出询问;Linux 上轮询 X11 的 `XQueryKeymap`(Wayland 下经 XWayland,只在 X11 窗口有键盘焦点时读得到;鼠标侧键读不到)。读不到时不识别说话,面板上写明原因。
-`asr.mic.deviceId` 选麦克风,留空用系统默认;设备列表由桌宠页在拿到麦克风权限后报上来。
+`asr.mic.deviceId` 选麦克风,留空用系统默认;设备列表由桌宠页上报,设备名称需要麦克风权限。
+系统默认输入设备改变时,桌宠页关闭旧音频流并重新收音;指定麦克风时保留所选设备。
+音轨结束时重新开麦,打开失败(权限被拒绝除外)时在下一次设备变化后重试。
 麦克风在「开启语音输入」总开关开着时一直打开,电平条随时显示音量,说话键只决定哪一段送去识别。
 打字键 `typeKey` 默认关(「习惯」页的「打字键」,经 pet 面板的 `setTypeKey` 修改)。打开后在哪个窗口里按下 `typeKey.hotkey` 都打开桌宠的打字框，和双击桌宠打开的是同一个：World 给桌宠页发 `type`,桌宠隐藏时不发。
 写法和说话键相同，默认 `LeftCtrl*2`(快速按两下左 Ctrl,Mac 上是左 Control),连按时最后一下按下就算;「习惯」页录键与选按法(按一下、双击)的做法同「语音输入」面板(`src/webui/key-capture.ts`)。
@@ -239,9 +242,9 @@ Windows 上桌宠窗口从前台窗口拿走键盘，打字框关掉后还回去
 桌宠的身体都来自形象包,Coo 也是一个。形象包是一个目录,根上有 `figure.json`;内置的 Coo 在 `web/coo/`、大肥鱼在 `web/whale/`,
 其余的从数据目录的 `figures/<目录>/` 和应用给的 `packRoots` 里找。`skin.figure` 是包的 id,`skin.scheme` 是它的打扮(Coo 的打扮存在 skin 自己的配色和配件字段里)。
 
-包里的代码只在沙箱里跑:桌宠页把它放进 `/figure-frame`,这个页面的 CSP 把它设成不透明源、禁止一切网络连接,
+包里的代码只在沙箱里跑:桌宠页把它放进 `/figure-frame?pack=<id>`,这个页面的 CSP 把它设成不透明源,网络连接只许 `fetch` 这个包自己目录下的文件(见下文「读包里的文件」;内置包哪里都连不了),
 脚本和图片只能从桌宠服务读,和桌宠页之间只有 postMessage(`web/figure-frame.js`、`web/body-host.js`)。
-视频、音频元素和字体在沙箱里加载不了,`fetch` 也读不到包里的文件;包要出声就在 `figure.json` 的 `sounds` 里声明,由桌宠页播放。
+视频、音频元素和字体在沙箱里加载不了;包要出声就在 `figure.json` 的 `sounds` 里声明,由桌宠页播放。
 它连不到桌宠的 socket,也没法替对方说话或改设置。身体整个归包管:走、跳、被拎、表情、动作、画法都是包的代码,
 桌宠页只转发指针、下指令,读回它报告的位置和发生的事。多数包用 `web/kit/body.js` 这套现成的身体,只自己画。
 
@@ -276,6 +279,33 @@ Windows 上桌宠窗口从前台窗口拿走键盘，打字框关掉后还回去
 工厂按 `factory(base, { model, scheme, kit, loadImage, asset, host })` 调用,返回一个身体;契约写在 `web/figure-frame.js` 开头。
 用 kit 的包只要 `kit.createBody(host, { figure, words })`:`figure` 每帧画一次,`words` 是 kit 本身没有的词怎么做。
 `examples/whale/README.md` 是写形象包的完整说明。20 秒内没准备好、或者跑的时候抛错,桌宠换回 Coo,并告诉 bot 词表的变化。
+
+### 读包里的文件
+
+Live2D 的 `.moc3`、大的 JSON 这类文件直接放在包目录里,在工厂里用 `fetch` 读。地址用工厂拿到的 `asset(路径)`:路径相对包目录,和 `figure.json` 里写的一样。
+
+```js
+export async function createMyBody(base, { asset, kit, host }) {
+  const moc = await (await fetch(asset('model/model.moc3'))).arrayBuffer();
+  const physics = await (await fetch(asset('model/model.physics.json'))).json();
+  // …
+}
+```
+
+只读得到本包目录(`/packs/<id>/`)以下的文件,别的包、桌宠服务的接口和外网都会被拒绝。
+Coopanion 0.2.13 及更早的版本不许任何 `fetch`。要让包在这些版本上也能用,把同一个文件再打一份成 JS 模块
+(例如 `model.moc3.js`,内容是 `export default '<文件的 base64>';`),`fetch` 失败时改读它:
+
+```js
+async function readBytes(asset, file) {
+  try {
+    const res = await fetch(asset(file));
+    if (res.ok) return await res.arrayBuffer();
+  } catch { /* 旧版本拒绝 fetch */ }
+  const { default: b64 } = await import(asset(`${file}.js`).href);
+  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)).buffer;
+}
+```
 
 ### 自己的移动目标
 
@@ -334,7 +364,7 @@ Coopanion 在 Linux 上固定跑在 X11 上;Wayland 会话里经 XWayland 只看
 找到的包先列出来:缩略图、名字、版本、作者、署名、打扮和词的数量、这一版用不上的部分;已经装了同 id 的包时,写明会换成哪一版。
 勾选的包装到数据目录的 `figures/<id>/`。同 id 的包或目标目录已存在时,服务返回 409 和冲突 id,本批文件均不改动;
 装扮页列出冲突包,确认替换后再安装,取消则保留原文件。替换同 id 的旧包时,旧包所在的文件夹叫别的名字也一样;和内置形象同 id 的包导入不了。
-一次最多 128 MB。装了但没加载成功的包列在形象那一行下面,写明原因。直接构造 `DesktopPetWorld` 时不给 `packDir`,装扮页就不显示导入,也没有包能卸载。
+不限体积，超过 128 MB 时确认框里提示体积。装了但没加载成功的包列在形象那一行下面,写明原因。直接构造 `DesktopPetWorld` 时不给 `packDir`,装扮页就不显示导入,也没有包能卸载。
 
 ### 卸载
 

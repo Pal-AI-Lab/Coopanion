@@ -23,7 +23,7 @@ const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen, session, s
 const { join } = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { createCursorSource } = require('./cursor.cjs');
-const { createMouseLease } = require('./mouse-lease.cjs');
+const { createMouseLease, FORWARD_MOVES } = require('./mouse-lease.cjs');
 const { createOverlaySource } = require('./overlay.cjs');
 const { createWindowSource, ledgesFrom, windowsFrom } = require('./windows.cjs');
 
@@ -36,8 +36,12 @@ async function pageText(code) {
   return { ...await load('en'), ...await load(code === 'zh' || code === 'zh-Hant' ? 'zh' : 'en'), ...await load(code) };
 }
 
-/** Milliseconds between the cursor reports the page gets. */
-const CURSOR_EVERY_MS = 100;
+/**
+ * Milliseconds between the cursor reports the page gets. On Windows the reports are all the page
+ * learns of a cursor moving over the click-through window (see FORWARD_MOVES), so they come at
+ * the system timer's default resolution.
+ */
+const CURSOR_EVERY_MS = process.platform === 'win32' ? 15 : 100;
 /** Milliseconds between the reads of the other windows, while the page asks for them. */
 const WINDOWS_EVERY_MS = 700;
 /** Milliseconds between the checks for a fullscreen window covering the pet's display. */
@@ -393,7 +397,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     win.setAlwaysOnTop(true, process.platform === 'darwin' ? 'floating' : 'screen-saver');
     // on every Space, and over an app in full screen
     if (process.platform === 'darwin') win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
-    win.setIgnoreMouseEvents(true, { forward: true });
+    win.setIgnoreMouseEvents(true, { forward: FORWARD_MOVES });
     guard(win.webContents);
     win.once('ready-to-show', () => win.showInactive());
     // The page cannot tell for itself that it is hidden (background throttling is off, so it always reads as

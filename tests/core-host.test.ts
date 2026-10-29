@@ -11,7 +11,7 @@ const repo = fileURLToPath(new URL('../', import.meta.url));
 const roots: string[] = [];
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
 
-async function exercise(mode: 'clean' | 'hung') {
+async function exercise(mode: 'clean' | 'hung' | 'console') {
   const root = mkdtempSync(join(tmpdir(), 'coo-core-host-'));
   roots.push(root);
   mkdirSync(join(root, 'core'));
@@ -20,7 +20,8 @@ async function exercise(mode: 'clean' | 'hung') {
     process.on('SIGTERM', () => {});
     process.on('disconnect', () => process.exit(0));
     process.on('message', (msg) => {
-      if (msg.type === 'companion:shutdown' && process.env.COOPANION_TEST_STOP === 'clean') process.exit(0);
+      if (msg.type === 'companion:shutdown' && process.env.COOPANION_TEST_STOP !== 'hung') process.exit(0);
+      if (msg.type === 'test:exit') process.exit(0);
     });
     process.send({ type: 'companion:ready', port: 1, dataDir: process.cwd() });
   `);
@@ -29,7 +30,8 @@ async function exercise(mode: 'clean' | 'hung') {
     const { CoreHost } = require(process.env.COOPANION_TEST_HOST);
     const host = new CoreHost({ appRoot: process.cwd(), logDir: 'logs', env: process.env, resolveProxy: async () => 'DIRECT' });
     const states = [];
-    host.on('state', (state) => states.push(state));
+    const exits = [];
+    host.on('state', (state, exit) => { states.push(state); if (exit) exits.push(exit); });
     (async () => {
       const ready = once(host, 'ready');
       await host.start();
@@ -44,11 +46,18 @@ async function exercise(mode: 'clean' | 'hung') {
         await host.restart();
         await readyAgain;
         replacement = host.child.pid;
+      } else if (process.env.COOPANION_TEST_STOP === 'console') {
+        host.expectStop();
+        host.send({ type: 'test:exit' });
+        await exited;
+        // longer than the 3 s restart delay: a restart would show up as a new child
+        await new Promise((done) => setTimeout(done, 3500));
+        replacement = host.child?.pid ?? null;
       }
       await host.stop();
       const [code, signal] = await exited;
       console.log(JSON.stringify({ code, signal, original: original.pid, replacement,
-        child: host.child, port: host.port, state: host.state, crashes: host.crashes, states }));
+        child: host.child, port: host.port, state: host.state, crashes: host.crashes, states, exits }));
     })().catch((err) => { console.error(err); process.exitCode = 1; host.child?.kill('SIGKILL'); });
   `);
   const child = spawn(require('electron'), [join(root, 'drive.cjs')], {
@@ -78,5 +87,12 @@ describe('Core shutdown', () => {
     expect(result.replacement).not.toBe(result.original);
     expect(result).toMatchObject({ child: null, port: null, state: 'stopped', crashes: [] });
     expect(result.states).toEqual(['starting', 'running', 'stopped', 'starting', 'running', 'stopped']);
+  });
+
+  it('leaves Core stopped after the console asked for a shutdown, with no crash notification', async () => {
+    const result = await exercise('console');
+    expect(result).toMatchObject({ replacement: null, child: null, port: null, state: 'stopped', crashes: [] });
+    expect(result.states).toEqual(['starting', 'running', 'stopped']);
+    expect(result.exits).toEqual([]);
   });
 });

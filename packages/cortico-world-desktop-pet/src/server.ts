@@ -12,8 +12,9 @@
  *   `/web/`). `/api/figures/status`: the installed packs that did not load and why, and whether packs can be
  *   imported here; `POST /api/figures/import` (a zip, or the page's framing of folders), `…/import/install`
  *   and `…/import/cancel` import them, `POST /api/figures/remove` (`{ id }`) uninstalls one (src/pack-import.ts).
- * - `/figure-frame`: the sandbox a pack's code runs in. Its own CSP sandboxes it (an opaque
- *   origin) and denies it every connection; scripts and images come from this server only. Files
+ * - `/figure-frame?pack=<id>`: the sandbox a pack's code runs in. Its own CSP sandboxes it (an opaque
+ *   origin) and lets it connect only to `/packs/<id>/` of an installed pack, nowhere for any other id;
+ *   scripts and images come from this server only. Files
  *   under `/web/` and `/packs/` answer that opaque origin's CORS requests; nothing else does,
  *   and a write (`POST`, the socket) from it is refused.
  * - `/socket?role=pet|dress&host=window|tab`: one live pet connection plus any number of
@@ -34,7 +35,7 @@ import { basename, extname, join, normalize, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { languageTag, type Language } from 'cortico/core/language.ts';
 import { packFile, type FigurePack, type PackProblem } from './packs.ts';
-import { BUNDLE_TYPE, IMPORT_MAX, PACK_DEPTH, filesFromBundle, filesFromZip, type PackImporter } from './pack-import.ts';
+import { BUNDLE_TYPE, IMPORT_LARGE, PACK_DEPTH, filesFromBundle, filesFromZip, type PackImporter } from './pack-import.ts';
 import { petText, type PetText } from './i18n/index.ts';
 import type { SpeechUnit } from './speech/index.ts';
 
@@ -316,7 +317,7 @@ export class PetServer {
     }
     if (req.method === 'GET' && path === '/api/figures/status') {
       return json(res, 200, {
-        importable: !!this.opts.importer, max: IMPORT_MAX, depth: PACK_DEPTH,
+        importable: !!this.opts.importer, large: IMPORT_LARGE, depth: PACK_DEPTH,
         problems: (this.opts.packProblems?.() ?? []).filter((p) => !p.loaded).map((p) => ({ dir: basename(p.dir), reason: p.reason })),
       });
     }
@@ -329,8 +330,12 @@ export class PetServer {
     }
     if (req.method === 'GET' && path === '/figure-frame') {
       const self = `http://${req.headers.host}`;
+      // an installed pack (`?pack=<id>`) may fetch its own folder, which never redirects (a CSP path stops holding after
+      // a redirect); a built-in pack, an unknown id or none connects nowhere
+      const id = url.searchParams.get('pack');
+      const own = id && (this.opts.packs?.() ?? []).some((p) => p.id === id && !p.builtin) ? `${self}/packs/${id}/` : "'none'";
       return this.sendFile(res, join(this.opts.webDir, 'figure-frame.html'), [
-        'sandbox allow-scripts', "default-src 'none'", `script-src ${self}`, `img-src ${self} data: blob:`, "style-src 'unsafe-inline'", "connect-src 'none'",
+        'sandbox allow-scripts', "default-src 'none'", `script-src ${self}`, `img-src ${self} data: blob:`, "style-src 'unsafe-inline'", `connect-src ${own}`,
         // the pet page holds it, and the console that shows the pet page in its own frames (another local port) is an ancestor too
         `frame-ancestors ${self} http://127.0.0.1:* http://localhost:*`,
       ].join('; '));
@@ -394,8 +399,8 @@ export class PetServer {
     if (path === '/api/figures/import') {
       const type = (req.headers['content-type'] ?? '').split(';')[0]!.trim();
       if (type !== 'application/zip' && type !== BUNDLE_TYPE) return json(res, 415, { error: this.t.importing.zipOrFolder });
-      const bytes = await readBytes(req, IMPORT_MAX);
-      if (!bytes) return json(res, 413, { error: this.t.importing.overLimit(IMPORT_MAX / 1048576) });
+      const bytes = await readBytes(req);
+      if (!bytes) return json(res, 400, { error: this.t.importing.truncated });
       const files = type === BUNDLE_TYPE ? filesFromBundle(bytes, this.t.importing) : filesFromZip(bytes, this.t.importing);
       if (typeof files === 'string') return json(res, 400, { error: files });
       const out = await importer.stage(files, type === BUNDLE_TYPE);
@@ -445,16 +450,10 @@ function json(res: ServerResponse, status: number, body: unknown): void {
 }
 
 /** The body of `req`, or null when it is longer than `max` bytes or breaks off. */
-function readBytes(req: IncomingMessage, max: number): Promise<Uint8Array | null> {
+function readBytes(req: IncomingMessage): Promise<Uint8Array | null> {
   return new Promise((done) => {
-    if (Number(req.headers['content-length'] ?? 0) > max) { req.resume(); done(null); return; }
-    let size = 0;
     const chunks: Buffer[] = [];
-    req.on('data', (c: Buffer) => {
-      size += c.length;
-      if (size > max) { req.destroy(); done(null); return; }
-      chunks.push(c);
-    });
+    req.on('data', (c: Buffer) => chunks.push(c));
     req.on('end', () => done(Buffer.concat(chunks)));
     req.on('error', () => done(null));
   });

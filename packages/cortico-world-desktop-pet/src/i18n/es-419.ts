@@ -143,7 +143,6 @@ const es419: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `No es un zip legible: ${why}`,
-    tooBig: (mb: number) => `Más de ${mb} MB descomprimido`,
     truncated: 'La carga está incompleta',
     badPath: (path: string) => `Una ruta no se puede usar: ${path}`,
     builtinId: (id: string) => `El id ${id} pertenece a un personaje integrado; cambia el id para importarlo`,
@@ -152,7 +151,6 @@ const es419: Translation<PetText> = {
     expired: 'Esta importación expiró; vuelve a elegir los archivos',
     noneChosen: 'No se eligió ningún paquete',
     zipOrFolder: 'Solo se puede importar un zip o carpetas',
-    overLimit: (mb: number) => `Más de ${mb} MB`,
   },
 
   removing: {
@@ -253,6 +251,7 @@ const es419: Translation<PetText> = {
       ui: { title: 'Botones y avisos', description: 'Clics en botones, burbujas que se abren, selecciones, y el inicio y el fin de la escucha.' },
     },
     snoreSeconds: { title: 'Duración del ronquido', suffix: 's', description: 'En cada siesta la mascota se queda en silencio tras roncar este tiempo; las z siguen flotando. 0 = roncar hasta despertar.' },
+    panByPosition: { title: 'Panorama según la posición', description: 'Los sonidos se inclinan hacia el lado donde está Coo; desactivado, suenan al centro.' },
     speech: { title: 'Voz', description: 'Dice una sílaba por cada carácter que aparece en un globo, en lugar del balbuceo de Habla; calla mientras los sonidos de Habla están desactivados.' },
     speechPitch: { title: 'Tono de la voz', description: (a: number, b: number, c: number) => `low, mid y high son ${a}, ${b} y ${c} Hz; custom usa el tono personalizado.` },
     speechPitchHz: { title: 'Tono personalizado' },

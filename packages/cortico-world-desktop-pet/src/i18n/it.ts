@@ -143,7 +143,6 @@ const it: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Non è uno zip leggibile: ${why}`,
-    tooBig: (mb: number) => `Oltre ${mb} MB una volta estratto`,
     truncated: 'Il caricamento è incompleto',
     badPath: (path: string) => `Un percorso non può essere usato: ${path}`,
     builtinId: (id: string) => `l'id ${id} appartiene a un personaggio integrato; cambia l'id per importarlo`,
@@ -152,7 +151,6 @@ const it: Translation<PetText> = {
     expired: 'Questa importazione è scaduta; scegli di nuovo i file',
     noneChosen: 'Nessun pacchetto scelto',
     zipOrFolder: 'Si possono importare solo uno zip o delle cartelle',
-    overLimit: (mb: number) => `Oltre ${mb} MB`,
   },
 
   removing: {
@@ -253,6 +251,7 @@ const it: Translation<PetText> = {
       ui: { title: 'Pulsanti e segnali', description: "Clic sui pulsanti, apertura dei fumetti, selezioni, inizio e fine dell'ascolto." },
     },
     snoreSeconds: { title: 'Durata del russare', suffix: 's', description: "In ogni sonno l'animaletto smette di russare dopo questo tempo; le z continuano a fluttuare. 0 = russa fino al risveglio." },
+    panByPosition: { title: 'Bilanciamento in base alla posizione', description: 'I suoni pendono verso il lato in cui si trova Coo; disattivato, suonano al centro.' },
     speech: { title: 'Voce', description: 'Pronuncia una sillaba per ogni carattere che appare in un fumetto, al posto del borbottio di Parlare; tace mentre i suoni Parlare sono spenti.' },
     speechPitch: { title: 'Altezza della voce', description: (a: number, b: number, c: number) => `low, mid e high sono ${a}, ${b} e ${c} Hz; custom usa l'altezza personalizzata.` },
     speechPitchHz: { title: 'Altezza personalizzata' },

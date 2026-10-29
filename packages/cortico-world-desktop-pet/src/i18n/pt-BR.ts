@@ -143,7 +143,6 @@ const ptBR: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Não é um zip legível: ${why}`,
-    tooBig: (mb: number) => `Mais de ${mb} MB descompactado`,
     truncated: 'O envio está incompleto',
     badPath: (path: string) => `Um caminho não pode ser usado: ${path}`,
     builtinId: (id: string) => `O id ${id} pertence a um personagem integrado; mude o id para importá-lo`,
@@ -152,7 +151,6 @@ const ptBR: Translation<PetText> = {
     expired: 'Esta importação expirou; escolha os arquivos de novo',
     noneChosen: 'Nenhum pacote foi escolhido',
     zipOrFolder: 'Só é possível importar um zip ou pastas',
-    overLimit: (mb: number) => `Mais de ${mb} MB`,
   },
 
   removing: {
@@ -253,6 +251,7 @@ const ptBR: Translation<PetText> = {
       ui: { title: 'Botões e avisos', description: 'Cliques em botões, balões abrindo, seleções, e o início e o fim da escuta.' },
     },
     snoreSeconds: { title: 'Duração do ronco', suffix: 's', description: 'Em cada soneca o pet para de roncar depois desse tempo; os z continuam flutuando. 0 = roncar até acordar.' },
+    panByPosition: { title: 'Panorama pela posição', description: 'Os sons pendem para o lado onde o Coo está; desligado, tocam no centro.' },
     speech: { title: 'Voz', description: 'Diz uma sílaba a cada caractere que aparece num balão, no lugar do balbucio de Fala; fica muda enquanto os sons de Fala estão desligados.' },
     speechPitch: { title: 'Tom da voz', description: (a: number, b: number, c: number) => `low, mid e high são ${a}, ${b} e ${c} Hz; custom usa o tom personalizado.` },
     speechPitchHz: { title: 'Tom personalizado' },

@@ -9,6 +9,7 @@ module.exports = {
   trayQuit: 'Quitter',
 
   coreFailed: (times, code, logFile) => `Le Core s'est arrêté ${times} fois en 5 minutes (code de sortie ${code}) et n'est plus redémarré. Si l'application vient d'être mise à jour, choisissez « Quitter » dans le menu de la barre d'état, puis rouvrez Coopanion. Journal : ${logFile}`,
+  coreIncomplete: (url, logFile) => `Des fichiers de Coopanion manquent : le Core ne peut pas démarrer. Téléchargez le programme d'installation complet depuis ${url} et installez-le dans le même dossier ; les paramètres, API Keys, prompts et la mémoire sont conservés. Journal : ${logFile}`,
   coreRestarting: (code) => `Le Core s'est arrêté de façon inattendue (code de sortie ${code}) ; redémarrage dans 3 secondes`,
   coreLocked: (pid, file) => `Un autre processus${pid ? ` (PID ${pid})` : ''} utilise les données de Coopanion, le Core n'a donc pas démarré. Attendez qu'il se termine ou arrêtez-le, puis choisissez « Redémarrer » dans le menu de la barre d'état. Fichier de verrou : ${file}`,
   corePortsBusy: (from, to) => `Les ports de la console ${from}–${to} sont tous pris, le Core n'a donc pas démarré. ${to - from + 1} copies de Coopanion tournent peut-être déjà, ou d'autres programmes utilisent ces ports. Fermez-en un, puis choisissez « Redémarrer » dans le menu de la barre d'état.`,

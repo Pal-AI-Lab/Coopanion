@@ -126,7 +126,8 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
     frame.setAttribute('aria-hidden', 'true');
     frame.tabIndex = -1;
     frame.className = 'figure-frame';
-    frame.src = '/figure-frame';
+    // the server lets the frame fetch the files of the pack it names (an installed one)
+    frame.src = `/figure-frame?pack=${encodeURIComponent(pack.id)}`;
     // the frame's window onto the stage: all of it, or with the halo on, the halo's rect around the body (haloRect)
     const clip = document.createElement('div');
     clip.className = 'figure-clip';
