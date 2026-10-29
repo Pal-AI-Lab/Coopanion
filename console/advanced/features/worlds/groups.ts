@@ -14,7 +14,7 @@ export const LAYOUT_STORAGE_KEY = 'coopanion.world-groups.v1';
 const groupToken = (id: string) => `group:${id}`;
 const groupOf = (token: string) => token.startsWith('group:') ? token.slice(6) : undefined;
 
-export function emptyLayout(): WorldLayout { return { top: [], groups: {} }; }
+function emptyLayout(): WorldLayout { return { top: [], groups: {} }; }
 
 export function readLayout(storage: Pick<Storage, 'getItem'> | undefined): WorldLayout | undefined {
   try {

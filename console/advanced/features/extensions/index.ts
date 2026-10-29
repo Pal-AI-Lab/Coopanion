@@ -266,7 +266,7 @@ export interface PackageDetailView {
  * `certified` 先排认证,其余按名字;`rating` 按喜欢减不喜欢。
  */
 export type HitSort = 'certified' | 'downloads' | 'date' | 'name' | 'rating';
-export const HIT_SORTS: readonly HitSort[] = ['certified', 'name', 'date', 'downloads', 'rating'];
+const HIT_SORTS: readonly HitSort[] = ['certified', 'name', 'date', 'downloads', 'rating'];
 
 export interface ArrangeOptions {
   filter: string;
@@ -376,7 +376,7 @@ export function osAllowed(os: readonly string[] | undefined, platform: string): 
 const PLATFORM_NAMES: Record<string, string> = { win32: 'Windows', darwin: 'macOS', linux: 'Linux' };
 const platformName = (value: string) => PLATFORM_NAMES[value] ?? value;
 /** `os` 的读法:正向列表写「仅 X」,只有排除项写「不支持 X」。 */
-export function osText(os: readonly string[]): string {
+function osText(os: readonly string[]): string {
   const listed = os.filter(value => !value.startsWith('!'));
   return listed.length
     ? S.osOnly(listed.map(platformName).join(S.listSeparator))
@@ -410,7 +410,7 @@ export function parseInstallInput(raw: string): Target | null {
 /** 官方索引仓:标签、讨论区与扩展申请都在这里。 */
 const INDEX_REPO = 'https://github.com/Pal-AI-Lab/cortico-extensions';
 /** 预填包名的「标签」扩展申请:索引仓的网页表单,`package` 字段按查询参数预填。 */
-export const tagIssueUrl = (name: string): string =>
+const tagIssueUrl = (name: string): string =>
   `${INDEX_REPO}/issues/new?${new URLSearchParams({ template: '1-tags.yml', title: `${S.tagIssuePrefix} ${name}`, package: name })}`;
 /** 已装包图标的地址;版本号放进查询串,换版本后浏览器重新取。 */
 export const iconUrl = (name: string, version: string | null | undefined): string =>
@@ -436,7 +436,12 @@ export interface ExtensionWorkspace {
 /** Resolves the control an operation's error popover points at; the control may be re-rendered meanwhile. */
 export type Anchor = () => Element | null | undefined;
 export interface ExtensionController {
-  activate(): void;
+  /**
+   * Shows the market again: restores its scroll and renders the cards in view at once, until `until`
+   * settles. A reveal passes its end: under its clip the browser does not count those cards as in
+   * view, so they would stay blank until it ended.
+   */
+  activate(until?: Promise<unknown>): void;
   /** Opens the package's install information: installed version, location and releases. */
   details(name: string): void;
   remove(name: string, anchor: Anchor): Promise<void>;
@@ -1106,20 +1111,23 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   /**
    * Renders the cards in the window now rather than a frame later, so this frame's layout, which a
    * reflow measures, is the one that will show. A rendered card's own height can bring the next one
-   * into view. They go back to skipping by themselves once drawn.
+   * into view. They go back to skipping by themselves once drawn, or once `until` settles.
    */
-  function renderInView() {
+  /** The end of the market's reveal while it runs (see ExtensionController.activate); renders meanwhile hold their cards until then. */
+  let revealEnd: Promise<unknown> | undefined;
+  function renderInView(until = revealEnd) {
     const bottom = scrollerOf(marketGrid)?.getBoundingClientRect().bottom ?? win.innerHeight, shown: HTMLElement[] = [];
     for (const card of marketGrid.querySelectorAll<HTMLElement>(':scope > .extension-market-card')) {
       const box = card.getBoundingClientRect();
       if (box.top >= bottom) break;
       if (box.bottom > 0) { card.classList.add('is-in-view'); shown.push(card); }
     }
-    win.requestAnimationFrame(() => win.requestAnimationFrame(() => { for (const card of shown) card.classList.remove('is-in-view'); }));
+    const release = () => { for (const card of shown) card.classList.remove('is-in-view'); };
+    if (until) void until.then(release, release); else win.requestAnimationFrame(() => win.requestAnimationFrame(release));
   }
   /** The market's cards by package, for animating a re-render (see measureReflow): cards that go leave
    * sideways first, then the rest close up. */
-  const measureCards = () => marketGrid?.isConnected ? measureReflow(marketGrid, ':scope > .extension-market-card', card => card.dataset.name, { aside: 24 }) : undefined;
+  const measureCards = () => marketGrid?.isConnected ? measureReflow(marketGrid, ':scope > .extension-market-card', card => card.dataset.name) : undefined;
   function renderMarket(keepHeight = false) {
     const reflow = measureCards();
     if (!keepHeight) marketGrid.style.minHeight = '';
@@ -1685,5 +1693,11 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   render();
   void load(); void checkUpdates(); void search(kind); void loadRegistry();
   try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { showRestarting(true); if (!workspace) message(kind, 'management', S.reloadWait); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
-  return { details, remove, activate: restoreScroll };
+  const activate = (until?: Promise<unknown>) => {
+    const own = revealEnd = until;
+    const over = () => { if (revealEnd === own) revealEnd = undefined; };
+    if (own) void own.then(over, over);
+    restoreScroll(); renderInView(until);
+  };
+  return { details, remove, activate };
 }

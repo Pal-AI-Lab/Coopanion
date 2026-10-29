@@ -214,18 +214,7 @@ export function mountWorlds(ctx: FeatureContext): void {
       const own = transition;
       void own.finished.then(() => { if (transition === own) catalog.hidden = current !== 'market'; }, () => {});
     } else catalog.hidden = next !== 'market';
-    if (next === 'market') market?.activate();
-    // Cards past the first screen skip rendering until scrolled to, and the browser does not count
-    // them as in view under the reveal's clip, so they would stay blank until it ends. The ones in
-    // view render now, and go back to skipping once the reveal is over.
-    if (next === 'market' && transition?.playState === 'running') {
-      const own = transition, scroller = catalog.querySelector('.world-catalog-scroll'), bottom = scroller?.getBoundingClientRect().bottom ?? 0;
-      // A rendered card's own height replaces its placeholder's, which can bring the next one into view.
-      const cards = [...catalog.querySelectorAll<HTMLElement>('.extension-market-card')], shown: HTMLElement[] = [];
-      for (const card of cards) { if (card.getBoundingClientRect().top >= bottom) break; card.classList.add('is-in-view'); shown.push(card); }
-      const settle = () => { for (const card of shown) card.classList.remove('is-in-view'); };
-      void own.finished.then(settle, settle);
-    }
+    if (next === 'market') market?.activate(transition?.playState === 'running' ? transition.finished : undefined);
   };
   lifecycle.own(router.onChange(show)); show();
   if (canBrowse) market = mountExtensionContent({ ...ctx, root: catalog }, 'world', {
@@ -454,7 +443,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     : el.classList.contains('world-group-head') ? `group:${el.closest<HTMLElement>('.world-group')?.dataset.group}`
     : el.classList.contains('world-restart-row') ? 'restart' : `heading:${el.closest('.world-pending-group') ? 'pending' : 'ready'}`;
   /** The market view's dock has its own motion; only the rows view reflows. */
-  const measureRail = () => current === 'mine' ? measureReflow(railList, RAIL_ITEMS, railKey, { aside: 24 }) : undefined;
+  const measureRail = () => current === 'mine' ? measureReflow(railList, RAIL_ITEMS, railKey) : undefined;
   function applyFilter(animate = false) {
     const reflow = animate ? measureRail() : undefined;
     const terms = searchTerms(filterText), active = filtering();

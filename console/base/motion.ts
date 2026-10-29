@@ -38,7 +38,9 @@ export function fold(el: HTMLElement, open: boolean, opts: FoldOptions = {}): vo
   const none: Keyframe = { opacity: 0, transform: shift ? `translateX(${shift}px)` : 'none' };
   for (const property of [size, min, ...sides.flatMap(side => [`padding-${side}`, `margin-${side}`])]) {
     const key = property.replace(/-./g, part => part[1].toUpperCase());
-    full[key] = style.getPropertyValue(property); none[key] = '0px';
+    // A min size of auto cannot be interpolated and would flip halfway; from zero it grows with the size.
+    const value = style.getPropertyValue(property);
+    full[key] = value === 'auto' ? '0px' : value; none[key] = '0px';
   }
   const borders = sides.reduce((sum, side) => sum + (parseFloat(style.getPropertyValue(`border-${side}-width`)) || 0), 0);
   if (borders) none[axis === 'y' ? 'marginBottom' : 'marginRight'] = `${-borders}px`;
@@ -54,28 +56,18 @@ export interface Reflow {
   play(container?: HTMLElement): void;
 }
 
-export interface ReflowOptions {
-  /**
-   * Play in steps, so nothing crosses anything: what went slides this many pixels sideways as it
-   * fades, then the rest close the gap, and what appears slides in from the other side as they
-   * arrive (new items take their final places, which the rest are still crossing until then).
-   * Without it (0) everything moves at once and what went fades where it stands.
-   */
-  aside?: number;
-}
-
-const REFLOW_MS = 280, EXIT_MS = 180, REFLOW_EASING = 'cubic-bezier(.32,.72,0,1)';
+const REFLOW_MS = 280, EXIT_MS = 180, ASIDE = 24, REFLOW_EASING = 'cubic-bezier(.32,.72,0,1)';
 
 /**
  * Measures the items in `container` (those matching `selector`, keyed by `key`) before a change, so
- * the change can then play as motion: an item that stays slides from where it was, one that
- * appears fades in, and one that went fades out as a copy where it stood while the rest close the
- * gap. Only items in the window are animated, and an item that does not move does not animate. An
- * item is "there" while it has a box; hidden or filtered-out items count as gone. With reduced
- * motion `play` does nothing.
+ * the change can then play as motion, in steps so that nothing crosses anything: what went slides
+ * sideways as it fades, as a copy where it stood; then the rest close the gap; and what appears
+ * slides in from the other side as they arrive (it takes its final place at once, which the rest
+ * are crossing until then). Only items in the window are animated, and an item that does not move
+ * does not animate. An item is "there" while it has a box; hidden or filtered-out items count as
+ * gone. With reduced motion `play` does nothing.
  */
-export function measureReflow(container: HTMLElement, selector: string, key: (el: HTMLElement) => string | undefined, opts: ReflowOptions = {}): Reflow {
-  const { aside = 0 } = opts;
+export function measureReflow(container: HTMLElement, selector: string, key: (el: HTMLElement) => string | undefined): Reflow {
   const win = container.ownerDocument.defaultView;
   const before = new Map<string, { el: HTMLElement; parent: HTMLElement | null; rect: DOMRect; display: string }>();
   // Rects include a running slide, so an interrupted reflow continues from where the items are.
@@ -96,10 +88,11 @@ export function measureReflow(container: HTMLElement, selector: string, key: (el
       }
       // Items that change places with others would cross them if they slid. Only the largest set
       // that keeps its order slides; the rest leave where they were and arrive where they are.
-      const order = [...before.keys()], kept = new Set(steadiest([...now.keys()].filter(id => before.has(id)).map(id => order.indexOf(id))).map(index => order[index]));
+      const order = [...before.keys()], rank = new Map(order.map((id, index) => [id, index]));
+      const kept = new Set(steadiest([...now.keys()].filter(id => rank.has(id)).map(id => rank.get(id)!)).map(index => order[index]));
       const gone = [...before].filter(([id, was]) => !kept.has(id) && inView(was.rect)).map(([, was]) => was);
-      // In steps the rest wait, where they were, until what went has left; what appears waits until
-      // they have (nearly) arrived.
+      // The rest wait, where they were, until what went has left; what appears waits until they have
+      // (nearly) arrived.
       const moves: [HTMLElement, number, number][] = [], arrivals: HTMLElement[] = [];
       for (const [id, { el, rect }] of now) {
         const was = kept.has(id) ? before.get(id) : undefined;
@@ -107,10 +100,10 @@ export function measureReflow(container: HTMLElement, selector: string, key: (el
         const dx = was.rect.left - rect.left, dy = was.rect.top - rect.top;
         if ((Math.abs(dx) > .5 || Math.abs(dy) > .5) && (inView(rect) || inView(was.rect))) moves.push([el, dx, dy]);
       }
-      const exit = aside && gone.length ? EXIT_MS : 0, enter = aside ? exit + (moves.length ? REFLOW_MS * .8 : 0) : 0;
+      const exit = gone.length ? EXIT_MS : 0, enter = exit + (moves.length ? REFLOW_MS * .8 : 0);
       const timing = (delay: number) => ({ id: 'reflow', duration: REFLOW_MS, easing: REFLOW_EASING, delay, fill: 'backwards' as const });
       for (const [el, dx, dy] of moves) el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], timing(exit));
-      for (const el of arrivals) el.animate([{ opacity: 0, transform: aside ? `translateX(${-aside}px)` : 'scale(.98)' }, { opacity: 1, transform: 'none' }], timing(enter));
+      for (const el of arrivals) el.animate([{ opacity: 0, transform: `translateX(${-ASIDE}px)` }, { opacity: 1, transform: 'none' }], timing(enter));
       // What went leaves as a copy where it stood: in its own parent while that is still shown, so
       // the styles it had there still apply.
       for (const was of gone) {
@@ -118,16 +111,16 @@ export function measureReflow(container: HTMLElement, selector: string, key: (el
         const box = host.getBoundingClientRect();
         if (win.getComputedStyle(host).position === 'static') host.style.position = 'relative';
         const ghost = was.el.cloneNode(true) as HTMLElement;
-        ghost.classList.add('motion-ghost'); ghost.removeAttribute('id'); ghost.inert = true; ghost.setAttribute('aria-hidden', 'true');
-        for (const attr of ['data-name', 'data-key']) { ghost.removeAttribute(attr); for (const inner of ghost.querySelectorAll(`[${attr}]`)) inner.removeAttribute(attr); }
+        ghost.classList.add('motion-ghost'); ghost.inert = true; ghost.setAttribute('aria-hidden', 'true');
+        // The copy must not answer to lookups meant for the real item.
+        for (const attr of ['id', 'data-name', 'data-key']) for (const node of [ghost, ...ghost.querySelectorAll(`[${attr}]`)]) node.removeAttribute(attr);
         Object.assign(ghost.style, {
           position: 'absolute', display: was.display, margin: '0', pointerEvents: 'none', boxSizing: 'border-box',
           left: `${was.rect.left - box.left - host.clientLeft + host.scrollLeft}px`, top: `${was.rect.top - box.top - host.clientTop + host.scrollTop}px`,
           width: `${was.rect.width}px`, height: `${was.rect.height}px`,
         });
         host.append(ghost);
-        const away = aside ? `translateX(${aside}px)` : 'scale(.98)';
-        const out = ghost.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: away }], { duration: aside ? EXIT_MS : REFLOW_MS * .7, easing: aside ? 'cubic-bezier(.4,0,1,1)' : 'ease-out', fill: 'forwards' });
+        const out = ghost.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: `translateX(${ASIDE}px)` }], { duration: EXIT_MS, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
         void out.finished.then(() => ghost.remove(), () => ghost.remove());
       }
     },
