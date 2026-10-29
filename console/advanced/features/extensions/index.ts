@@ -1098,8 +1098,9 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     }, { signal });
     return button;
   }
-  /** The market's cards by package, for animating a re-render (see measureReflow). */
-  const measureCards = () => marketGrid?.isConnected ? measureReflow(marketGrid, ':scope > .extension-market-card', card => card.dataset.name) : undefined;
+  /** The market's cards by package, for animating a re-render (see measureReflow): cards that go leave
+   * sideways first, then the rest close up. */
+  const measureCards = () => marketGrid?.isConnected ? measureReflow(marketGrid, ':scope > .extension-market-card', card => card.dataset.name, { aside: 24 }) : undefined;
   function renderMarket(keepHeight = false) {
     const reflow = measureCards();
     if (!keepHeight) marketGrid.style.minHeight = '';

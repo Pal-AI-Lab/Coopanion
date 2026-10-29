@@ -12,7 +12,7 @@ function item(key, top) {
 }
 function stubLayout() {
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () { return tops.has(this) ? rect(tops.get(this)) : rect(0); });
-  HTMLElement.prototype.animate = function (frames, options) { const animation = { id: options?.id ?? '', frames, finished: new Promise(() => {}), cancel() {} }; played.push([this, animation]); return animation; };
+  HTMLElement.prototype.animate = function (frames, options) { const animation = { id: options?.id ?? '', frames, options, finished: new Promise(() => {}), cancel() {} }; played.push([this, animation]); return animation; };
   HTMLElement.prototype.getAnimations = () => [];
 }
 afterEach(() => { vi.restoreAllMocks(); delete HTMLElement.prototype.animate; delete HTMLElement.prototype.getAnimations; tops.clear(); played = []; document.body.replaceChildren(); });
@@ -36,6 +36,23 @@ describe('measureReflow', () => {
     expect(ghost.inert).toBe(true);
     expect(ghost.style.top).toBe('50px');
     expect(of(ghost)[0]).toMatchObject({ opacity: 1 });
+  });
+  it('in two steps, lets what went leave sideways before the rest move and new items slide in', () => {
+    stubLayout();
+    const list = document.createElement('div'); document.body.append(list);
+    const a = item('a', 0), b = item('b', 50);
+    list.append(a, b);
+    const reflow = measureReflow(list, '.item', el => el.dataset.key, { aside: 24 });
+    a.remove(); tops.set(b, 0);
+    const c = item('c', 50); list.append(c);
+    reflow.play();
+    const of = (el) => played.find(([target]) => target === el)?.[1];
+    const ghost = list.querySelector('.motion-ghost');
+    expect(of(ghost).frames[1]).toMatchObject({ opacity: 0, transform: 'translateX(24px)' });
+    expect(of(b).frames[0]).toEqual({ transform: 'translate(0px, 50px)' });
+    expect(of(c).frames[0]).toMatchObject({ opacity: 0, transform: 'translateX(-24px)' });
+    // The rest wait, in place, until what went has left.
+    for (const el of [b, c]) expect(of(el).options).toMatchObject({ delay: 180, fill: 'backwards' });
   });
   it('does nothing for a first render or with reduced motion', () => {
     stubLayout();

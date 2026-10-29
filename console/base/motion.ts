@@ -54,16 +54,27 @@ export interface Reflow {
   play(container?: HTMLElement): void;
 }
 
-const REFLOW_MS = 280, REFLOW_EASING = 'cubic-bezier(.32,.72,0,1)';
+export interface ReflowOptions {
+  /**
+   * Play in two steps: what went slides this many pixels sideways as it fades, and only then do the
+   * rest close the gap and what appears slides in from the other side. Without it (0) everything
+   * moves at once and what went fades where it stands.
+   */
+  aside?: number;
+}
+
+const REFLOW_MS = 280, EXIT_MS = 180, REFLOW_EASING = 'cubic-bezier(.32,.72,0,1)';
 
 /**
  * Measures the items in `container` (those matching `selector`, keyed by `key`) before a change, so
  * the change can then play as motion: an item that stays slides from where it was, one that
- * appears fades in, and one that went fades out where it stood while the rest close the gap. Only
- * items in the window are animated. An item is "there" while it has a box; hidden or filtered-out
- * items count as gone. With reduced motion `play` does nothing.
+ * appears fades in, and one that went fades out as a copy where it stood while the rest close the
+ * gap. Only items in the window are animated, and an item that does not move does not animate. An
+ * item is "there" while it has a box; hidden or filtered-out items count as gone. With reduced
+ * motion `play` does nothing.
  */
-export function measureReflow(container: HTMLElement, selector: string, key: (el: HTMLElement) => string | undefined): Reflow {
+export function measureReflow(container: HTMLElement, selector: string, key: (el: HTMLElement) => string | undefined, opts: ReflowOptions = {}): Reflow {
+  const { aside = 0 } = opts;
   const win = container.ownerDocument.defaultView;
   const before = new Map<string, { el: HTMLElement; parent: HTMLElement | null; rect: DOMRect; display: string }>();
   // Rects include a running slide, so an interrupted reflow continues from where the items are.
@@ -75,22 +86,28 @@ export function measureReflow(container: HTMLElement, selector: string, key: (el
   return {
     play(target = container) {
       if (!before.size || !win || !target.animate) return;
-      const seen = new Set<string>(), inView = (rect: DOMRect) => rect.bottom > 0 && rect.top < win.innerHeight;
+      const inView = (rect: DOMRect) => rect.bottom > 0 && rect.top < win.innerHeight;
+      const now = new Map<string, { el: HTMLElement; rect: DOMRect }>();
       for (const el of target.querySelectorAll<HTMLElement>(selector)) {
         for (const running of el.getAnimations()) if (running.id === 'reflow') running.cancel();
         const id = key(el), rect = el.getBoundingClientRect();
-        if (!id || !rect.height) continue;
-        seen.add(id);
-        const was = before.get(id);
-        if (!was) { if (inView(rect)) el.animate([{ opacity: 0, transform: 'scale(.98)' }, { opacity: 1, transform: 'none' }], { id: 'reflow', duration: REFLOW_MS, easing: REFLOW_EASING }); continue; }
-        const dx = was.rect.left - rect.left, dy = was.rect.top - rect.top;
-        if ((Math.abs(dx) > .5 || Math.abs(dy) > .5) && (inView(rect) || inView(was.rect)))
-          el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { id: 'reflow', duration: REFLOW_MS, easing: REFLOW_EASING });
+        if (id && rect.height) now.set(id, { el, rect });
       }
-      // What went fades out as a copy where it stood, above the gap the rest are closing: in its own
-      // parent while that is still shown, so the styles it had there still apply.
-      for (const [id, was] of before) {
-        if (seen.has(id) || !inView(was.rect)) continue;
+      const gone = [...before].filter(([id, was]) => !now.has(id) && inView(was.rect)).map(([, was]) => was);
+      // In two steps the rest wait, where they were, until what went has left.
+      const delay = aside && gone.length ? EXIT_MS : 0, timing = { id: 'reflow', duration: REFLOW_MS, easing: REFLOW_EASING, delay, fill: 'backwards' as const };
+      for (const [id, { el, rect }] of now) {
+        const was = before.get(id);
+        if (!was) {
+          if (inView(rect)) el.animate([{ opacity: 0, transform: aside ? `translateX(${-aside}px)` : 'scale(.98)' }, { opacity: 1, transform: 'none' }], timing);
+          continue;
+        }
+        const dx = was.rect.left - rect.left, dy = was.rect.top - rect.top;
+        if ((Math.abs(dx) > .5 || Math.abs(dy) > .5) && (inView(rect) || inView(was.rect))) el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], timing);
+      }
+      // What went leaves as a copy where it stood: in its own parent while that is still shown, so
+      // the styles it had there still apply.
+      for (const was of gone) {
         const host = was.parent?.isConnected && was.parent.getClientRects().length && target.contains(was.parent) ? was.parent : target;
         const box = host.getBoundingClientRect();
         if (win.getComputedStyle(host).position === 'static') host.style.position = 'relative';
@@ -103,7 +120,8 @@ export function measureReflow(container: HTMLElement, selector: string, key: (el
           width: `${was.rect.width}px`, height: `${was.rect.height}px`,
         });
         host.append(ghost);
-        const out = ghost.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.98)' }], { duration: REFLOW_MS * .7, easing: 'ease-out', fill: 'forwards' });
+        const away = aside ? `translateX(${aside}px)` : 'scale(.98)';
+        const out = ghost.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: away }], { duration: aside ? EXIT_MS : REFLOW_MS * .7, easing: aside ? 'cubic-bezier(.4,0,1,1)' : 'ease-out', fill: 'forwards' });
         void out.finished.then(() => ghost.remove(), () => ghost.remove());
       }
     },

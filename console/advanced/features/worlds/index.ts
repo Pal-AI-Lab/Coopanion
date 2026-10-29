@@ -454,7 +454,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     : el.classList.contains('world-group-head') ? `group:${el.closest<HTMLElement>('.world-group')?.dataset.group}`
     : el.classList.contains('world-restart-row') ? 'restart' : `heading:${el.closest('.world-pending-group') ? 'pending' : 'ready'}`;
   /** The market view's dock has its own motion; only the rows view reflows. */
-  const measureRail = () => current === 'mine' ? measureReflow(railList, RAIL_ITEMS, railKey) : undefined;
+  const measureRail = () => current === 'mine' ? measureReflow(railList, RAIL_ITEMS, railKey, { aside: 24 }) : undefined;
   function applyFilter(animate = false) {
     const reflow = animate ? measureRail() : undefined;
     const terms = searchTerms(filterText), active = filtering();
