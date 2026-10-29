@@ -229,44 +229,77 @@ describe('installation feedback', () => {
     await flush();
     return document.querySelector('.modal');
   }
-  it('checks the category, installs the exact version and leaves feedback in the market', async () => {
-    stub();
+  /** The detail page's install control, the market card's own. */
+  const detailControl = (box) => box.querySelector('.extension-detail-control .extension-get');
+  it('installs the exact version from the detail page with the market card\'s control', async () => {
+    const list = { ...LIST, extensions: [...LIST.extensions] };
+    stub({ list, onInstall: target => list.extensions.push({ name: target.name, version: target.version, kind: 'world', state: 'pending-restart' }) });
     const { root } = mount();
     await flush();
     const box = await detail(root);
-    button(box, '安装').click();
+    expect(detailControl(box).getAttribute('aria-label')).toBe(extensionStrings.addToLibrary);
+    detailControl(box).click();
     await flush();
     expect(calls.find(c => c.url === '/api/extensions/check')?.body).toEqual({ target: { name: 'found-mod', version: '3.1.0' }, kind: 'world' });
     expect(calls.find(c => c.url === '/api/extensions/install')?.body).toEqual({ name: 'found-mod', version: '3.1.0' });
-    expect(feedback(root).textContent).toContain('安装成功');
-    expect(feedback(root).textContent).toContain('重启进程后生效');
-    expect(root.querySelector('.world-workspace-status').textContent).not.toContain('安装成功');
     expect(calls.filter(c => c.url === '/api/extensions').length).toBe(2);
+    // Like the card: no status line, the control itself reads installed afterwards.
+    expect(root.querySelector('.world-workspace-status').textContent).not.toContain('安装成功');
+    await vi.waitFor(() => expect(detailControl(box).getAttribute('aria-label')).toBe('已安装'));
   });
   it('a refused check stops before installing and shows the reason only in the originating section', async () => {
     stub({ checkStatus: 400 });
     const { root } = mount();
     await flush();
-    button(await detail(root), '安装').click();
+    detailControl(await detail(root)).click();
     await flush();
     expect(calls.some(c => c.url === '/api/extensions/install')).toBe(false);
-    expect(feedback(root)?.textContent).toContain('请切换到对应分类');
+    expect(document.querySelector('.extension-problem:not(.hidden)')?.textContent).toContain('请切换到对应分类');
     expect(root.querySelector('.world-workspace-status .msgline.bad')).toBeNull();
   });
-  it('an install failure reports the server error', async () => {
+  it('shows the install progress ring in the detail page while the install runs', async () => {
+    stub(); let finish;
+    const fetch = globalThis.fetch;
+    vi.stubGlobal('fetch', (url, init) => String(url) === '/api/extensions/check' ? new Promise(resolve => { finish = () => resolve(fetch(url, init)); }) : fetch(url, init));
+    const { root } = mount(); await flush();
+    const box = await detail(root);
+    detailControl(box).click(); await flush();
+    expect(detailControl(box).classList.contains('is-working')).toBe(true);
+    expect(detailControl(box).querySelector('.extension-get-ring')).not.toBeNull();
+    finish();
+    await vi.waitFor(() => expect(detailControl(box).classList.contains('is-working')).toBe(false));
+  });
+  it('an install failure from the detail page opens beside its control', async () => {
     stub({ installStatus: 400 });
     const { root } = mount();
     await flush();
-    button(await detail(root), '安装').click();
+    detailControl(await detail(root)).click();
     await flush();
-    expect(feedback(root)?.textContent).toContain('pnpm add 退出码 1');
+    expect(document.querySelector('.extension-problem:not(.hidden)')?.textContent).toContain('pnpm add 退出码 1');
+  });
+  it('offers an available update in the detail page and beside the name in My World', async () => {
+    const update = (name, from, to) => ({ name, installedVersion: from, latestVersion: to, problems: [] });
+    const list = { ...LIST, extensions: [...LIST.extensions, { name: 'found-mod', spec: '^3.0.0', version: '3.0.0', installedVersion: '3.0.0', kind: 'world', api: 3, state: 'loaded' }] };
+    stub({ list, updates: { updates: [update('found-mod', '3.0.0', '3.1.0'), update('alpha-mod', '1.0.0', '1.2.0')], errors: [] } });
+    const { root, ctx } = mount();
+    await flush();
+    const box = await detail(root);
+    expect(detailControl(box).classList.contains('is-update')).toBe(true);
+    expect(detailControl(box).getAttribute('aria-label')).toContain('3.0.0 → 3.1.0');
+    box.querySelector('.modalhead .btn')?.click();
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod');
+    const badge = row.querySelector('.world-name-info + .world-name-update');
+    expect(badge.getAttribute('aria-label')).toContain('1.0.0 → 1.2.0');
+    badge.click(); await flush();
+    expect(document.querySelector('.modal .modaltitle')?.textContent).toBeTruthy();
   });
   it('blocks incompatible detail installation and dangerous links', async () => {
     stub({ detail: { problems: ['incompatible'], links: { npm: 'javascript:alert(1)' } } });
     const { root } = mount();
     await flush();
     const box = await detail(root);
-    expect(button(box, '安装').disabled).toBe(true);
+    expect(detailControl(box).disabled).toBe(true);
     expect(box.querySelector('a')).toBeNull();
   });
   it('a market detail that fails to load shows the error in the drawer and leaves the list intact', async () => {

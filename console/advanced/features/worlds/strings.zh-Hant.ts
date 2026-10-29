@@ -13,6 +13,7 @@ export const S: Partial<typeof en> = {
   deleteGroup: "刪除分組（保留擴充）",
   pendingNote: "以上擴充需重新啟動處理程序後生效。",
   packageInfo: "擴充資訊",
+  updateAvailable: (from: string, to: string) => `有更新：${from} → ${to}`,
   hideFromSidebar: "側欄隱藏",
   showInSidebar: "側欄顯示",
   builtinAlwaysOn: "內建擴充始終開啟。",

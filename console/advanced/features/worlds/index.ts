@@ -85,6 +85,8 @@ export function mountWorlds(ctx: FeatureContext): void {
   let worldsReady = !ctx.capabilities.worlds, extensionsReady = !canBrowse;
   /** The extension list arrived, so a World without a package is built in. */
   let extensionsListed = false;
+  /** Installed packages with an update, by name, as the market last reported them. */
+  let updatable: ReadonlyMap<string, { installedVersion: string; latestVersion: string }> = new Map();
   const layoutKey = `coopanion.world-layout:${win.location.origin}`;
   let savedLayout: { positions: [string, number][]; scroll: number; at: number } | undefined;
   try {
@@ -224,6 +226,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     },
     onChange: items => { extensions = items; extensionsReady = true; extensionsListed = true; void load(); },
     onLoadError: () => { extensionsReady = true; render(); },
+    onUpdates: next => { updatable = next; render(); },
     reveal: name => { const item = worldLibrary(worlds, extensions, recent).find(entry => entry.key === name); if (item) reveal(item); },
     onAdded: (name, from) => { const previous = recent.indexOf(name); if (previous >= 0) recent.splice(previous, 1); recent.unshift(name); selected = name; arrival = { key: name, from }; railList.scrollTop = 0; },
   });
@@ -594,7 +597,12 @@ export function mountWorlds(ctx: FeatureContext): void {
       details.addEventListener('click', () => owner.details(pack.name), { signal }); heading.append(details);
     } else heading.append(ui.h('span', 'world-name', item.label));
     // Extension info sits beside the name; a row click opens the World's settings.
-    if (pack && market) { const owner = market; heading.append(slot('info', iconButton('package', S.packageInfo, 'world-name-info', () => owner.details(pack.name)))); }
+    if (pack && market) {
+      const owner = market, update = updatable.get(pack.name);
+      heading.append(slot('info', iconButton('package', S.packageInfo, 'world-name-info', () => owner.details(pack.name))));
+      // An available update shows beside it and opens the same page, where the update is.
+      if (update) heading.append(iconButton('alert', S.updateAvailable(update.installedVersion, update.latestVersion), 'world-name-update', () => owner.details(pack.name)));
+    }
     identity.append(heading, ui.h('code', '', m?.id ?? pack?.name ?? item.key));
     const signals = ui.h('div', 'world-blade-signals');
     const state = pending ? pack?.state === 'removed' ? E.stateRemoved : E.statePendingRestart : failed ? E.stateFailed : m?.status === 'active' ? m.visible === false ? S.modeRunning : S.modeAttached : S.modeOff;
