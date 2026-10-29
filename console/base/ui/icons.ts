@@ -45,7 +45,8 @@ export type ConsoleIconName =
   | 'check'
   | 'sidebar'
   | 'arrow-up'
-  | 'bell';
+  | 'warning'
+  | 'warning-off';
 
 type Shape = readonly [tag: 'path' | 'circle' | 'rect' | 'line', attrs: Readonly<Record<string, string>>];
 
@@ -212,9 +213,16 @@ const SHAPES: Readonly<Record<ConsoleIconName, readonly Shape[]>> = {
     ['path', { d: 'M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18' }],
   ],
   check: [['path', { d: 'm5 12.5 4.5 4.5L19 7.5' }]],
-  bell: [
-    ['path', { d: 'M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9' }],
-    ['path', { d: 'M10.3 20a1.9 1.9 0 0 0 3.4 0' }],
+  warning: [
+    ['path', { d: 'M10.3 4.2 2.6 17.5a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z' }],
+    ['path', { d: 'M12 9.5v4' }],
+    ['path', { d: 'M12 17h.01' }],
+  ],
+  'warning-off': [
+    ['path', { d: 'M10.3 4.2 2.6 17.5a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z' }],
+    ['path', { d: 'M12 9.5v4' }],
+    ['path', { d: 'M12 17h.01' }],
+    ['path', { d: 'M3 3l18 18' }],
   ],
   'arrow-up': [
     ['path', { d: 'M12 19V5' }],

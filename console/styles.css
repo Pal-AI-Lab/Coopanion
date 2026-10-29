@@ -2039,7 +2039,8 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-blade[data-state=running] .world-state{color:var(--chart-7)}
 .world-blade[data-state=pending] .world-state{color:var(--warn)}
 .world-blade[data-state=failed] .world-state{color:var(--danger)}
-.world-blade-actions{display:grid;grid-template-columns:repeat(5,30px);align-items:center;gap:4px;justify-content:end}
+.world-blade-actions{display:grid;grid-template-columns:repeat(4,30px) 38px;align-items:center;gap:4px;justify-content:end}
+.world-blade-actions .iobtn-power{justify-self:end}
 .world-blade-actions .iobtn[aria-disabled=true]{opacity:.35;cursor:not-allowed}
 .world-blade-actions .iobtn[aria-disabled=true]:hover{background:transparent;color:inherit}
 /* Power is a round switch: green while the World runs, red while it is off. */
@@ -2185,3 +2186,31 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
   .world-blade-actions{grid-column:1/-1;grid-row:3;justify-content:start}
 }
 @media(prefers-reduced-motion:reduce){.extension-get-ring,.extension-get-ring .arc,.world-dock-tip{animation:none}.world-library-entry,.world-library-list,.world-library-heading,.world-library-label,.world-pending-group,.world-avatar{transition:none}.world-library-item:is(:hover,:focus-visible,:active) .world-avatar{transform:none}}
+/* My World's filter row folds away in the market view. */
+.world-library-tools{flex:none;display:flex;align-items:center;gap:8px;height:auto;margin:0 0 14px;overflow:hidden;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 200ms}
+.world-library-tools input[type=search]{flex:0 1 240px;min-width:120px;height:32px;min-height:32px;padding-block:0;font-size:12.5px}
+.world-library-tools select{height:32px;min-height:32px;padding-block:0;font-size:12.5px;width:auto}
+.world-library-tools :is(input,select):focus,.world-library-tools :is(input,select):focus-visible{outline:none;box-shadow:none;border-color:var(--line-strong)}
+.world-library-tools>.btn{margin-left:auto;min-height:32px;font-size:12px}
+.world-workspace[data-view=market] .world-library-tools{height:0;margin:0;opacity:0}
+.world-workspace[data-view=mine] .is-filtered-out{display:none}
+/* Groups: a header row, then its rows. The market view's rail drops the headers and shows every avatar. */
+.world-ready-group{position:relative}
+.world-group-head{display:flex;align-items:center;gap:2px;width:var(--world-entry-width);height:32px;margin:6px 0 6px;padding:0 4px 0 0;border-radius:8px;overflow:hidden;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 200ms,background-color 150ms}
+.world-group-head[draggable=true]{cursor:grab}
+.world-group-head.is-drop-target{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.world-group-toggle{display:flex;align-items:center;gap:8px;min-width:0;height:100%;padding:0 8px 0 6px;border:0;border-radius:8px;background:transparent;font:600 13px/1 var(--sans);color:var(--ink-soft);cursor:pointer}
+.world-group-toggle:hover{color:var(--ink)}
+.world-group-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.world-group-chevron{flex:none;width:6px;height:6px;margin:0 3px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translate(-1px,-1px);transition:transform 160ms}
+.world-group.is-collapsed .world-group-chevron{transform:rotate(-45deg)}
+.world-group-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.world-group-count{flex:none;min-width:18px;padding:2px 6px;border-radius:9px;background:var(--hover);font:500 11px/1.2 var(--sans);color:var(--ink-dim);text-align:center}
+.world-group-action{opacity:0;transition:opacity 150ms}
+.world-group-head:is(:hover,:focus-within) .world-group-action{opacity:1}
+.world-group-rename{height:26px;min-height:26px;width:200px;padding:0 8px;font:600 13px var(--sans)}
+.world-workspace[data-view=mine] .world-group.is-collapsed .world-group-list{display:none}
+.world-workspace[data-view=market] .world-group-head{height:0;margin:0;opacity:0;pointer-events:none}
+.world-drop-line{position:absolute;left:0;z-index:3;width:var(--world-entry-width);height:2px;margin-top:-1px;border-radius:2px;background:var(--accent);pointer-events:none}
+.world-drop-line[hidden]{display:none}
+.world-library-entry.is-dragging,.world-group.is-dragging{opacity:.4}

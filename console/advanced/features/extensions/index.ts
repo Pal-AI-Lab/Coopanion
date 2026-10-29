@@ -502,6 +502,12 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   const disarm = () => { armed?.(); armed = null; };
   const doc = root.ownerDocument;
   if (workspace) scrollRoot = ui.h('div', 'world-catalog-scroll');
+  if (workspace) root.addEventListener('wheel', event => {
+    const target = event.target as Element;
+    if (target.closest('.world-catalog-scroll, .world-catalog-filters, select, textarea')) return;
+    const own = scrollerOf(target); if (own && root.contains(own) && own !== root) return;
+    event.preventDefault(); scrollRoot.scrollBy({ top: wheelDelta(event) });
+  }, { passive: false, signal });
   const narrowFilters = win.matchMedia?.('(max-width: 760px)');
   let narrowFiltersOpen = false;
   let syncFilterLayout: (() => void) | undefined;
@@ -616,6 +622,35 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   const hideSoon = () => { keepHint(); hideTimer = lifecycle.timeout(hideHint, 150); };
   hintBox.addEventListener('pointerenter', keepHint, { signal });
   hintBox.addEventListener('pointerleave', hideSoon, { signal });
+  let hintAnchor: Element | null = null;
+  // Floating tips sit over the page; the wheel still scrolls what is under them.
+  hintBox.addEventListener('wheel', event => { const target = scrollerOf(hintAnchor); hideHint(); if (target) { event.preventDefault(); target.scrollBy({ top: wheelDelta(event) }); } }, { passive: false, signal });
+  const reduceMotion = () => !!win.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const easing = 'cubic-bezier(.32,.72,0,1)';
+  /** Opens or closes a panel by its height (`axis` 'y') or width ('x'), then sets `hidden`. */
+  function slide(el: HTMLElement, open: boolean, axis: 'x' | 'y' = 'y') {
+    for (const running of el.getAnimations?.() ?? []) running.cancel();
+    if (reduceMotion() || !el.animate) { el.hidden = !open; return; }
+    el.hidden = false;
+    const style = win.getComputedStyle(el);
+    const size = axis === 'y' ? `${el.offsetHeight}px` : `${el.offsetWidth}px`;
+    const full = axis === 'y'
+      ? { height: size, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, marginBottom: style.marginBottom, opacity: 1 }
+      : { width: size, paddingRight: style.paddingRight, opacity: 1 };
+    const none = axis === 'y' ? { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginBottom: '0px', opacity: 0 } : { width: '0px', paddingRight: '0px', opacity: 0 };
+    el.style.overflow = 'hidden';
+    const motion = el.animate(open ? [none, full] : [full, none], { duration: 240, easing });
+    void motion.finished.then(() => { el.style.overflow = ''; if (!open) el.hidden = true; }, () => { el.style.overflow = ''; });
+  }
+  /** The nearest ancestor that scrolls vertically. */
+  function scrollerOf(el: Element | null): HTMLElement | null {
+    for (let node = el?.parentElement ?? null; node; node = node.parentElement) {
+      const overflow = win.getComputedStyle(node).overflowY;
+      if ((overflow === 'auto' || overflow === 'scroll') && node.scrollHeight > node.clientHeight) return node;
+    }
+    return null;
+  }
+  const wheelDelta = (event: WheelEvent) => event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? win.innerHeight : 1);
   /** An operation's error, shown beside the control that started it until dismissed. */
   const problemBox = ui.h('div', 'u-tip extension-problem hidden'); problemBox.setAttribute('role', 'alert');
   doc.body.append(problemBox); lifecycle.add(() => problemBox.remove());
@@ -640,6 +675,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     problemBox.animate?.([{ opacity: 0, transform: 'translateY(-4px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 180, easing: 'ease-out' });
     anchor.animate?.([0, -5, 5, -3, 2, 0].map(x => ({ transform: `translateX(${x}px)` })), { duration: 420, easing: 'ease-out' });
   }
+  problemBox.addEventListener('wheel', event => { const target = scrollerOf(problemAnchor); if (target) { event.preventDefault(); target.scrollBy({ top: wheelDelta(event) }); } }, { passive: false, signal });
   doc.addEventListener('pointerdown', event => { if (problemAnchor && !problemBox.contains(event.target as Node) && !problemAnchor.contains(event.target as Node)) hideProblem(); }, { signal });
   doc.addEventListener('keydown', event => { if (event.key === 'Escape') hideProblem(); }, { signal });
   doc.addEventListener('scroll', () => { if (problemAnchor) placeProblem(); }, { capture: true, passive: true, signal });
@@ -660,7 +696,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   function attachHint(el: HTMLElement, title: string | (() => string), text?: string) {
     if (text) el.setAttribute('aria-description', plainHint(text));
     const show = () => {
-      keepHint();
+      keepHint(); hintAnchor = el;
       const heading = typeof title === 'string' ? title : title(); if (!heading) return;
       hintBox.replaceChildren(ui.h('b', '', heading), ...(text ? [hintBody(text)] : [])); hintBox.classList.toggle('is-title-only', !text); hintBox.classList.remove('hidden');
       const target = el.getBoundingClientRect(), tip = hintBox.getBoundingClientRect(), view = doc.documentElement;
@@ -1601,7 +1637,11 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     const options = ui.h('div', 'extension-search-options');
     const advancedToggle = ui.h('button', 'extension-advanced-toggle' + (state.advanced ? ' is-open' : ''), S.advancedSearch) as HTMLButtonElement; advancedToggle.type = 'button';
     advancedToggle.setAttribute('aria-expanded', String(state.advanced)); advancedToggle.setAttribute('aria-controls', 'extension-advanced');
-    advancedToggle.addEventListener('click', () => { state.advanced = !state.advanced; save(); render(); }, { signal });
+    advancedToggle.addEventListener('click', () => {
+      state.advanced = !state.advanced; save();
+      if (!workspace) { render(); return; }
+      advancedToggle.classList.toggle('is-open', state.advanced); advancedToggle.setAttribute('aria-expanded', String(state.advanced)); slide(advanced, state.advanced);
+    }, { signal });
     const switches = ui.h('div', 'extension-switches');
     switches.append(
       ui.checkbox(S.hideInstalled, { checked: state.hide, onChange: value => { state.hide = value; state.page = 0; renderMarket(); save(); } }).el,
@@ -1609,7 +1649,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     );
     const registryToggle = ui.h('button', 'extension-advanced-toggle extension-registry-toggle' + (registryOpen ? ' is-open' : ''), S.registryLabel) as HTMLButtonElement; registryToggle.type = 'button';
     registryToggle.setAttribute('aria-expanded', String(registryOpen)); registryToggle.setAttribute('aria-controls', 'extension-registry');
-    registryToggle.addEventListener('click', () => { registryOpen = !registryOpen; registryPanel.hidden = !registryOpen; registryToggle.classList.toggle('is-open', registryOpen); registryToggle.setAttribute('aria-expanded', String(registryOpen)); }, { signal });
+    registryToggle.addEventListener('click', () => { registryOpen = !registryOpen; if (workspace) slide(registryPanel, registryOpen); else registryPanel.hidden = !registryOpen; registryToggle.classList.toggle('is-open', registryOpen); registryToggle.setAttribute('aria-expanded', String(registryOpen)); }, { signal });
     const toggles = ui.h('div', 'extension-search-toggles'); toggles.append(advancedToggle, registryToggle);
     options.append(toggles, switches);
     const advanced = ui.h('div', 'extension-advanced'); advanced.id = 'extension-advanced'; advanced.hidden = !state.advanced;
@@ -1651,8 +1691,9 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
       const body = ui.h('div', 'world-catalog-body');
       const side = ui.h('aside', 'world-catalog-filters'); side.id = 'world-catalog-filters';
       const toggle = ui.button(S.filterSidebar, { size: 'sm', onClick: () => {
-        if (narrowFilters?.matches) narrowFiltersOpen = side.hidden; else state.filtersFolded = !side.hidden;
-        syncFilterLayout?.(); save();
+        const open = side.hidden;
+        if (narrowFilters?.matches) narrowFiltersOpen = open; else state.filtersFolded = !open;
+        slide(side, open, narrowFilters?.matches ? 'y' : 'x'); toggle.setAttribute('aria-expanded', String(open)); save();
       } });
       syncFilterLayout = () => {
         side.hidden = narrowFilters?.matches ? !narrowFiltersOpen : state.filtersFolded;
@@ -1681,8 +1722,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
       }
       toggles.remove(); switches.remove();
       const warnings = ui.h('button', 'world-catalog-toggle' + (state.hideWarnings ? ' is-open' : '')) as HTMLButtonElement; warnings.type = 'button';
-      warnings.append(icon(doc, 'bell')); warnings.setAttribute('aria-label', S.hideWarnings); warnings.setAttribute('aria-pressed', String(state.hideWarnings)); attachHint(warnings, S.hideWarnings);
-      warnings.addEventListener('click', () => { state.hideWarnings = !state.hideWarnings; state.page = 0; warnings.classList.toggle('is-open', state.hideWarnings); warnings.setAttribute('aria-pressed', String(state.hideWarnings)); renderMarket(); save(); }, { signal });
+      warnings.append(icon(doc, state.hideWarnings ? 'warning-off' : 'warning')); warnings.setAttribute('aria-label', S.hideWarnings); warnings.setAttribute('aria-pressed', String(state.hideWarnings)); attachHint(warnings, S.hideWarnings);
+      warnings.addEventListener('click', () => { state.hideWarnings = !state.hideWarnings; state.page = 0; warnings.classList.toggle('is-open', state.hideWarnings); warnings.replaceChildren(icon(doc, state.hideWarnings ? 'warning-off' : 'warning')); warnings.setAttribute('aria-pressed', String(state.hideWarnings)); renderMarket(); save(); }, { signal });
       // The toolbar's secondary actions are icons with name tags, so the row fits beside the search field.
       const refresh = filters.lastElementChild as HTMLButtonElement;
       for (const [button, mark, label] of [[toggle, 'sidebar', S.filterSidebar], [clear, 'close', S.clearFilters], [refresh, 'refresh', S.refresh.replace(/^↻\s*/, '')]] as const) {

@@ -790,7 +790,7 @@ describe('provider page tabs', () => {
 
 describe('World library and catalog', () => {
   async function openWorlds(over = {}, caps = { worlds: true, extensions: true, worldActivation: true, restart: true, supervised: true }) {
-    stub(over);
+    stub(over); window.localStorage.removeItem('coopanion.world-groups.v1');
     window.history.replaceState(null, '', '#/world?view=market');
     const context = mkCtx(caps); lives.push(context.lifecycle);
     mountWorlds(context.ctx); await flush(); return context;
@@ -893,7 +893,7 @@ describe('World library and catalog', () => {
     expect(pending.dataset.state).toBe('pending');
     expect(pending.textContent).toContain('待生效');
     expect(buttons(pending).some(item => item.textContent === '激活 World')).toBe(false);
-    root.querySelector('.world-blade-actions [aria-label="安装信息"]').click(); await flush();
+    root.querySelector('.world-blade-actions [aria-label="扩展信息"]').click(); await flush();
     expect(document.querySelector('.extension-detail').textContent).toContain('found-mod');
   });
   it('shows live readings and changes mode only after confirmation', async () => {
@@ -925,7 +925,7 @@ describe('World library and catalog', () => {
     expect(root.querySelectorAll('.world-blade')).toHaveLength(2);
     expect(root.querySelector('.world-workspace-status').textContent).toContain('Unavailable');
   });
-  it('moves restarted packages into assembly order without replacing avatars', async () => {
+  it('puts packages new after a restart at the top of the list without replacing avatars', async () => {
     const list = { extensions: [{ name: 'last', worldId: 'last', kind: 'world', state: 'pending-restart' }] };
     const worlds = [{ id: 'builtin', status: 'active' }];
     const { root } = await openWorlds({ list, worlds });
@@ -933,7 +933,7 @@ describe('World library and catalog', () => {
     list.extensions[0].state = 'loaded'; worlds.push({ id: 'last', status: 'inactive' });
     root.querySelector('.world-market [aria-label="刷新"]').click(); await flush(100);
     expect(root.querySelector('.world-pending-group').hidden).toBe(true);
-    expect([...root.querySelectorAll('.world-ready-list .world-library-item')].at(-1)).toBe(pending);
+    expect(root.querySelector('.world-ready-list .world-library-item')).toBe(pending);
   });
   it('does not animate entries during ordinary loading or catalog refresh', async () => {
     const original = Element.prototype.animate;
@@ -1027,9 +1027,27 @@ describe('World library and catalog', () => {
     const { root, ctx } = await openWorlds({}, { worlds: true, extensions: true, worldActivation: true, worldVisibility: true, restart: true, supervised: true });
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod');
-    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['安装信息', '删除扩展', '配置', '对 agent 隐藏', '停用 World']);
+    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['扩展信息', '删除扩展', '配置', '对 agent 隐藏', '停用 World']);
     row.querySelector('.world-blade-identity code').click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     expect(decodeURIComponent(window.location.hash)).toBe('#/provider/world:alpha');
+  });
+  it('filters My World by name and state, and keeps a named, collapsed group across reloads', async () => {
+    const { root, ctx } = await openWorlds();
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    const visible = () => [...root.querySelectorAll('.world-ready-list .world-library-entry:not(.is-filtered-out)')].map(entry => entry.dataset.key);
+    const search = root.querySelector('.world-library-tools input[type=search]');
+    search.value = '甲'; search.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(visible()).toEqual(['alpha-mod']);
+    expect(root.querySelector('.world-library-entry').draggable).toBe(false);
+    search.value = ''; search.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(root.querySelector('.world-ready-list .world-library-entry').draggable).toBe(true);
+    button(root.querySelector('.world-library-tools'), '新建分组').click(); await flush();
+    const rename = root.querySelector('.world-group-rename');
+    rename.value = '聊天'; rename.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    root.querySelector('.world-group-toggle').click();
+    const saved = JSON.parse(window.localStorage.getItem('coopanion.world-groups.v1'));
+    expect(Object.values(saved.groups)).toEqual([expect.objectContaining({ name: '聊天', collapsed: true, items: [] })]);
+    expect(saved.top[0]).toMatch(/^group:/);
   });
   it('greys out an unavailable uninstall and names the reason', async () => {
     const { root, ctx } = await openWorlds();
