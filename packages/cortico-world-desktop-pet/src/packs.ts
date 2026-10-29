@@ -18,10 +18,11 @@
  * manifest's axis order (one axis: the option id), or a preset id. Coo keeps its picks in the skin's
  * own fields, one per axis (`lookOf`, `lookPatch`).
  */
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Language } from 'cortico/core/language.ts';
+import { readTextFile } from 'cortico/core/util.ts';
 import type { ModelLanguage } from './model-text.ts';
 import { INLINE_TAG_MAX, type VocabWord } from './script.ts';
 import { petText, type PetText } from './i18n/index.ts';
@@ -287,7 +288,7 @@ export function readManifest(dir: string, builtin = false, skipped: string[] = [
   const file = join(dir, MANIFEST_FILE);
   if (!existsSync(file)) return t.noManifest(MANIFEST_FILE);
   let raw: Record<string, unknown>;
-  try { raw = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>; } catch (err) { return t.badJson(MANIFEST_FILE, (err as Error).message); }
+  try { raw = JSON.parse(readTextFile(file)) as Record<string, unknown>; } catch (err) { return t.badJson(MANIFEST_FILE, (err as Error).message); }
   for (const [key, oldest, now] of [['manifest', MANIFEST_OLDEST, MANIFEST_VERSION], ['api', FIGURE_API_OLDEST, FIGURE_API]] as const) {
     const v = raw[key];
     if (typeof v !== 'number' || !Number.isInteger(v)) return t.notInteger(key, JSON.stringify(v));

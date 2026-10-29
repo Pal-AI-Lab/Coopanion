@@ -222,7 +222,7 @@ function restorePosition(startX, startY) {
   sentX = null;
   if (restored) return;
   restored = true;
-  // She starts facing the middle of the screen rather than always right (#59), so a pet
+  // She starts facing the middle of the screen, so a pet
   // resting on the right half is not turned away from the likely interaction area.
   if (host && typeof startX === 'number') {
     firstX = startX * innerWidth;
@@ -1615,7 +1615,7 @@ document.addEventListener('keydown', (e) => {
 /* ---------- layout ---------- */
 /**
  * Bubbles up to TAIL_CENTER wide (empty, or a word or two) point their tail from their middle; wider ones
- * move it over to Coo by TAIL_FOLLOW wide (#139). Between the two it slides, so a bubble growing as the line
+ * move it over to Coo by TAIL_FOLLOW wide. Between the two it slides, so a bubble growing as the line
  * types out carries its tail along with it.
  */
 const TAIL_CENTER = 70, TAIL_FOLLOW = 130;
@@ -1722,9 +1722,10 @@ function oklab(r, g, b) {
   const s = Math.cbrt(.0883024619 * r + .2817188376 * g + .6299787005 * b);
   return [.2104542553 * l + .793617785 * m - .0040720468 * s, 1.9779984951 * l - 2.428592205 * m + .4505937099 * s, .0259040371 * l + .7827717662 * m - .808675766 * s];
 }
-/** The body's color as [r, g, b], from `--skin-ink` (#rgb or #rrggbb). */
+/** The body's color as [r, g, b]: its palette's fixed body, else `--skin-ink` (#rgb or #rrggbb). */
 function inkRgb() {
-  let h = getComputedStyle(document.documentElement).getPropertyValue('--skin-ink').trim().replace('#', '');
+  const fixed = skin.figure === 'coo' ? PALETTES.find((p) => p.id === skin.palette)?.fixed?.body : null;
+  let h = (fixed ?? getComputedStyle(document.documentElement).getPropertyValue('--skin-ink')).trim().replace('#', '');
   if (h.length === 3) h = [...h].map((c) => c + c).join('');
   const n = parseInt(h, 16);
   return /^[0-9a-f]{6}$/i.test(h) ? [n >> 16, (n >> 8) & 255, n & 255] : null;
@@ -1787,8 +1788,7 @@ let last = performance.now(), dueAt = 0, gap = 0;
 let frameErr = null;
 /**
  * Frames whose timestamp was not past the one before (a zero or negative dt), and when that was last logged (ms):
- * one such frame used to leave the whale without hair, tail and skirt until restart (#87), and where these
- * timestamps come from is not known yet. Logged at most once a minute, with the count so far. The first frame is
+ * where these timestamps come from is not known yet. Logged at most once a minute, with the count so far. The first frame is
  * left out: `last` starts at the page's clock, which may be ahead of the first frame's timestamp.
  */
 let stalls = 0, stallLoggedAt = -Infinity, framed = false;

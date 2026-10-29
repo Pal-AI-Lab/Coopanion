@@ -86,8 +86,17 @@ body.companion-sidebar {
 #rail nav.stack::-webkit-scrollbar-thumb:active,
 #kernel-root ::-webkit-scrollbar-thumb:hover,
 #kernel-root ::-webkit-scrollbar-thumb:active { background-color: var(--line-strong); }
+#kernel-root .connection-index:hover .connection-cards::-webkit-scrollbar-thumb { background-color: var(--line-2); }
+#kernel-root .connection-cards::-webkit-scrollbar-thumb:hover,
+#kernel-root .connection-cards::-webkit-scrollbar-thumb:active { background-color: var(--line-strong); }
+#kernel-root .connection-index:not(:hover) .connection-cards::-webkit-scrollbar-thumb { background-color: transparent; }
+#kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll) { --world-scroll-thumb: transparent; }
+#kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll):hover { --world-scroll-thumb: var(--line-2); }
+#kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll)::-webkit-scrollbar-thumb { background-color: var(--world-scroll-thumb); }
+#kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll)::-webkit-scrollbar-thumb:hover,
+#kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll)::-webkit-scrollbar-thumb:active { background-color: var(--line-strong); }
 #rail .navgroup { display: flex; }
-#rail .navgroup-primary + .navgroup-primary { margin-top: 4px; }
+#rail .navgroup-primary + :is(.navgroup-primary, .navgroup-world-tree) { margin-top: 4px; }
 #rail .stacklabel {
   display: block; height: 16px; margin: 6px 12px 8px; line-height: 16px; white-space: nowrap; overflow: hidden; background: transparent;
   transition: height var(--rail-motion), margin var(--rail-motion), color 120ms ease, background-color var(--rail-motion);
@@ -233,6 +242,10 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
 @keyframes companion-enter { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
 @keyframes companion-leave { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(-6px); } }
 #rail .companion-enter { animation: companion-enter 200ms cubic-bezier(.22, 1, .36, 1) both; }
+/* A page joining or leaving the sidebar (rail/index.ts `fold`): its label is clipped to the row as it
+   opens or closes, while the tree connector to its left stays drawn. */
+#rail :is(.companion-arrive, .companion-depart) { overflow: clip; overflow-clip-margin: 14px; }
+#rail .companion-depart { pointer-events: none; }
 #rail .companion-leave { animation: companion-leave 200ms ease both; pointer-events: none; }
 @keyframes companion-press { 0% { transform: scale(1); } 40% { transform: scale(.95); } 100% { transform: scale(1); } }
 @keyframes companion-turn { from { transform: rotate(-90deg); opacity: .3; } to { transform: none; opacity: 1; } }

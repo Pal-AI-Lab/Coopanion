@@ -1,6 +1,6 @@
 /**
  * Chromium's X11 cursor cache only advances with pointer events. A click-through pet receives
- * none, so asking Electron for that cache cannot tell it when to take the mouse again (#119).
+ * none, so asking Electron for that cache cannot tell it when to take the mouse again.
  * Keep a separate X connection and query the server; the rest of the host still uses screen DIPs.
  */
 function createCursorSource({ screen, platform = process.platform, loadKoffi = () => require('koffi') }) {

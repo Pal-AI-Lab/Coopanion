@@ -261,7 +261,7 @@ describe('Coo Pet Provider', () => {
     }
   });
 
-  it('reads the reasoning streams of StepFun and Qwen, which the standard parser rejects (#94)', async () => {
+  it('reads the reasoning streams of StepFun and Qwen, which the standard parser rejects', async () => {
     const at = { output_index: 0, item_id: 'rs_1', content_index: 0 };
     const message = { id: 'msg_1', type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: '好', annotations: [] }] };
     const tail = [

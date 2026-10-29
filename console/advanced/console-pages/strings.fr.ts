@@ -12,6 +12,7 @@ export const S: Partial<typeof en> = {
   provides: (list: string) => 'Panneaux disponibles : ' + list,
   panelFailed: (title: string) => `Échec du chargement du panneau « ${title} »`,
   configEmpty: 'Groupes de configuration indisponibles.',
+  backToWorlds: "Retour aux extensions World",
   notInstalled: 'Indisponible',
   notActivated: 'non activé',
   hidden: 'masqué',

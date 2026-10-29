@@ -1,4 +1,6 @@
 import { pageIntro } from '../../../base/ui/page.ts';
+import { pageTabs } from '../../../base/ui/page-tabs.ts';
+import { mountExtensionContent, type ExtensionController } from '../extensions/index.ts';
 import { icon } from '../../../base/ui/icons.ts';
 import { NEW_DRAFT_ID, providerDrafts } from './drafts.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
@@ -11,9 +13,45 @@ import { CHATGPT_MODULE } from 'cortico-provider-coo/src/vendors.ts';
 
 /** How often the card list re-reads other deployments' usage. */
 const USAGE_REFRESH_MS = 5000;
-export async function mountProviders(ctx: FeatureContext): Promise<void> {
+export function mountProviders(ctx: FeatureContext): void {
+  const { root, ui, router, signal } = ctx;
+  const intro = pageIntro(ui, S.pageTitle);
+  const settings = ui.h('div', 'provider-settings');
+  const market = ui.h('div', 'provider-market');
+  const panes = { settings, market };
+  const started = new Set<string>();
+  let catalog: ExtensionController | undefined;
+  let current: 'settings' | 'market' | undefined;
+  const tabs = pageTabs(root.ownerDocument, signal, [
+    { value: 'settings', label: S.settingsTab },
+    ...(ctx.capabilities.extensions ? [{ value: 'market', label: S.marketTab }] : []),
+  ], { onSelect: value => router.navigate(router.route.segments, value === 'market' ? { view: 'market' } : undefined) });
+  intro.classList.add('provider-intro');
+  intro.append(tabs.el);
+  root.append(intro, settings, market);
+  const show = () => {
+    if (signal.aborted || router.route.segments[0] !== 'providers') return;
+    const next = router.route.query.view === 'market' && ctx.capabilities.extensions ? 'market' : 'settings';
+    if (current === next) return;
+    current = next;
+    settings.hidden = next !== 'settings';
+    market.hidden = next !== 'market';
+    tabs.setValue(next);
+    if (next === 'market') catalog?.activate();
+    if (started.has(next)) return;
+    started.add(next);
+    const child = { ...ctx, root: panes[next], route: router.route };
+    if (next === 'market') catalog = mountExtensionContent(child, 'provider');
+    else void mountConnections(child).catch(error => {
+      if (!signal.aborted) settings.replaceChildren(ui.msgline(String(error), true));
+    });
+  };
+  ctx.lifecycle.own(router.onChange(show));
+  show();
+}
+
+async function mountConnections(ctx: FeatureContext): Promise<void> {
   const { ui, root } = ctx;
-  root.append(pageIntro(ui, S.pageTitle));
   const report = ui.msgline();
   const layout = ui.h('div', 'connection-hub');
   const index = ui.h('div', 'connection-index');
@@ -32,7 +70,7 @@ export async function mountProviders(ctx: FeatureContext): Promise<void> {
   let controller: DetailController | null = null;
   let renderId = 0;
   interface CardNode {
-    el: HTMLElement; title: HTMLElement; model: HTMLElement; url: HTMLElement; status: HTMLElement; secondary: HTMLElement;
+    el: HTMLElement; title: HTMLElement; model: HTMLElement; status: HTMLElement; secondary: HTMLElement;
     kind: HTMLElement; activate: HTMLButtonElement; erase: HTMLButtonElement;
   }
   const nodes = new Map<string, CardNode>();
@@ -45,8 +83,8 @@ export async function mountProviders(ctx: FeatureContext): Promise<void> {
   const fallback = () => state.providers.find(item => item.name === state.active)?.name || state.providers[0]?.name || '';
   function paint() {
     report.textContent = state.active && !state.providers.some(item => item.name === state.active) ? S.missing + state.active : '';
-    const all: Array<Connection | { name: string; moduleTitle: string; model: string | null; baseUrl: string; readiness: { state: string } }> = [...state.providers];
-    if (newDraft) all.unshift({ name: NEW_DRAFT_ID, moduleTitle: moduleName(newDraft.entry.kind), model: newDraft.entry.spec?.model ?? null, baseUrl: newDraft.entry.baseUrl, readiness: { state: 'draft' } });
+    const all: Array<Connection | { name: string; moduleTitle: string; model: string | null; readiness: { state: string } }> = [...state.providers];
+    if (newDraft) all.unshift({ name: NEW_DRAFT_ID, moduleTitle: moduleName(newDraft.entry.kind), model: newDraft.entry.spec?.model ?? null, readiness: { state: 'draft' } });
     for (const [name, node] of nodes) if (!all.some(item => item.name === name)) { node.el.remove(); nodes.delete(name); }
     for (const item of all) {
       const identity = item.name;
@@ -56,7 +94,7 @@ export async function mountProviders(ctx: FeatureContext): Promise<void> {
         const title = ui.h('div', 'connection-name');
         const facts = ui.h('div', 'connection-facts');
         const fact = (key: string) => { const box = ui.h('span', `kv kv-${key}`); const value = ui.h('span', 'kv-v'); box.append(ui.h('span', 'kv-k', key), value); facts.append(box); return value; };
-        const kind = fact('kind'); const model = fact('model'); const url = fact('baseUrl');
+        const kind = fact('kind'); const model = fact('model');
         const status = ui.h('div', 'connection-status'); const secondary = ui.h('div', 'connection-secondary');
         const activate = ui.button('⇄', { size: 'sm', onClick: () => run(async () => {
           activate.disabled = true;
@@ -72,17 +110,17 @@ export async function mountProviders(ctx: FeatureContext): Promise<void> {
         el.addEventListener('keydown', event => { if (event.target === el && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); run(() => select(identity)); } }, opts);
         el.addEventListener('click', event => { if (!(event.target as Element).closest('button')) run(() => select(identity)); }, opts);
         if (identity === NEW_DRAFT_ID) cards.prepend(el); else cards.append(el);
-        node = { el, title, kind, model, url, status, secondary, activate, erase }; nodes.set(identity, node);
+        node = { el, title, kind, model, status, secondary, activate, erase }; nodes.set(identity, node);
       }
       const active = identity === state.active;
       node.el.classList.toggle('is-active', active); node.el.classList.toggle('is-selected', identity === selected);
       node.title.textContent = identity === NEW_DRAFT_ID ? newDraft?.name || S.newName : identity;
       node.title.title = node.title.textContent;
       const draft = identity === NEW_DRAFT_ID ? null : drafts.get(identity);
-      const model = draft?.entry.spec?.model || item.model || '—'; const url = draft?.entry.baseUrl || item.baseUrl || '—';
+      const model = draft?.entry.spec?.model || item.model || '—';
       node.kind.textContent = item.moduleTitle; node.kind.title = item.moduleTitle;
-      node.model.textContent = model; node.url.textContent = url;
-      node.model.title = model; node.url.title = url;
+      node.model.textContent = model;
+      node.model.title = model;
       const readiness = invalid.has(identity) && identity !== NEW_DRAFT_ID ? 'invalid' : item.readiness.state;
       const users = 'usage' in item ? item.usage : [];
       const running = users.filter(user => user.running).map(user => user.name);
@@ -138,6 +176,7 @@ export async function mountProviders(ctx: FeatureContext): Promise<void> {
   async function refresh() { state = await get<HubState>('/api/providers', opts); paint(); }
   async function select(identity: string, force = false): Promise<void> {
     if (!force && identity === selected) return;
+    const scrollTop = identity === selected ? detailRoot.scrollTop : 0;
     const gen = ++renderId;
     controller?.dispose(); controller = null;
     // The disposed editor stays visible until its replacement is ready and takes no input meanwhile.
@@ -148,12 +187,12 @@ export async function mountProviders(ctx: FeatureContext): Promise<void> {
       detailRoot.replaceChildren(ui.h('h3', '', S.empty), ui.msgline(S.emptyHint), ui.button(S.create, { onClick: () => run(create) }));
       return;
     }
-    try { await openDetail(identity, gen); } catch (error) {
+    try { await openDetail(identity, gen, scrollTop); } catch (error) {
       if (gen === renderId) { detailRoot.replaceChildren(); detailRoot.toggleAttribute('inert', false); }
       throw error;
     }
   }
-  async function openDetail(identity: string, gen: number): Promise<void> {
+  async function openDetail(identity: string, gen: number, scrollTop: number): Promise<void> {
     const saved = identity === NEW_DRAFT_ID ? null : await get<Detail>(connectionPath(identity), opts);
     if (gen !== renderId || ctx.signal.aborted) return;
     const detailView = ui.h('div');
@@ -178,11 +217,9 @@ export async function mountProviders(ctx: FeatureContext): Promise<void> {
     });
     if (gen !== renderId || ctx.signal.aborted) mounted.dispose();
     else {
-      const scroll = detailRoot.closest<HTMLElement>('.featureslot, .scroll');
-      const scrollTop = scroll?.scrollTop;
       detailRoot.replaceChildren(detailView);
       detailRoot.toggleAttribute('inert', false);
-      if (scroll && scrollTop !== undefined) scroll.scrollTop = scrollTop;
+      detailRoot.scrollTop = scrollTop;
       controller = mounted;
     }
   }
@@ -199,8 +236,12 @@ export async function mountProviders(ctx: FeatureContext): Promise<void> {
   creator.append(ui.button(S.create, { variant: 'primary', onClick: () => run(create) }), ui.h('p', 'connection-create-hint', S.createHint));
   index.append(creator, cards);
   ctx.lifecycle.own({ dispose: () => { renderId++; controller?.dispose(); } });
+  let routeName = ctx.route.segments[1];
   ctx.lifecycle.own(ctx.router.onChange(route => {
-    if (route.segments[0] === 'providers' && route.segments[1]) run(() => select(route.segments[1]));
+    if (ctx.signal.aborted || route.segments[0] !== 'providers' || route.query.view === 'market') return;
+    const name = route.segments[1];
+    if (name && name !== routeName) run(() => select(name));
+    routeName = name;
   }));
   // Other deployments' selections and liveness change without this page; the detail form is left alone.
   let refreshing = false;

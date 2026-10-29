@@ -143,16 +143,14 @@ const zhHant: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `這不是能讀取的 zip：${why}`,
-    tooBig: (mb: number) => `解壓縮後超過 ${mb} MB`,
     truncated: '上傳的內容不完整',
     badPath: (path: string) => `有一個路徑不能用：${path}`,
-    builtinId: (id: string) => `id ${id} 屬於內建形象，換個 id 才能匯入`,
+    builtinId: (id: string) => `id ${id} 屬於內建形象，更換 id 才能匯入`,
     duplicateId: (id: string) => `id ${id} 和這次匯入的另一個形象包重複`,
     unpackFailed: (why: string) => `無法解壓縮：${why}`,
     expired: '這次匯入已經過期，請重新選擇',
     noneChosen: '沒有選擇要匯入的形象包',
     zipOrFolder: '只能匯入 zip 或資料夾',
-    overLimit: (mb: number) => `超過 ${mb} MB`,
   },
 
   removing: {
@@ -199,7 +197,7 @@ const zhHant: Translation<PetText> = {
       pet: { title: '桌寵', description: '視窗、裝扮與視窗執行環境。' },
       voice: { title: '語音輸入', description: '辨識引擎、音量與辨識結果。' },
     },
-    envPrompt: { title: '桌寵環境', description: '描述桌寵的身體、四個工具與輸入事件。' },
+    envPrompt: { title: '桌寵環境', description: '描述桌寵的身體、工具與輸入事件。' },
     vars: {
       'pet.user': '對使用者的稱呼',
       'pet.vocab': '目前形象的表情與動作詞表',
@@ -207,7 +205,7 @@ const zhHant: Translation<PetText> = {
       'pet.voice': '語音輸入開著還是關著',
       'pet.body': '目前形象的樣子',
       'pet.dress': 'pet_set 能選的形象與裝扮',
-      'pet.self': '「自主設定權限」：哪些設定直接改、哪些先徵得同意，或都不能改',
+      'pet.self': '「自主設定權限」：哪些設定直接修改、哪些先徵得同意，或都不能修改',
       'pet.chat': '應用程式提供對話頁時，對它的說明；沒有時為空',
       'pet.reply': '應用程式語言既不是簡體中文也不是英文時，讓 bot 用那種語言說話的一句；否則為空',
       'pet.cua': '電腦操作一節：截圖座標、何時先詢問使用者、讓位規則；電腦操作關閉時為空',
@@ -228,7 +226,7 @@ const zhHant: Translation<PetText> = {
     doubleClickChat: { title: '點兩下開啟打字框', description: '在桌寵上點兩下開啟打字框。' },
     statusBubble: { title: '狀態氣泡', description: '想事情、翻記憶、操作電腦時顯示在做什麼，會顯示檔名。' },
     saidBubbles: { title: '輸入氣泡', description: '打字、語音和對話頁送出的訊息顯示在桌寵頭頂，回覆後淡出。關閉時語音只在辨識中顯示。' },
-    selfAdjust: { title: '自主設定權限', description: 'off 禁止：不能自行改設定，也不能臨時安靜；default 預設：形象、配色、走動和打呼直接改，大小、氣泡尺寸、字體尺寸、音效、夜間模式、懸停按鈕和稱呼先徵得你同意；any 任意：都直接改；custom 自訂：照「習慣」頁裡的勾選，勾上的直接改，其餘先徵得你同意。' },
+    selfAdjust: { title: '自主設定權限', description: 'off 禁止：不能自行修改設定，也不能臨時安靜；default 預設：形象、配色、走動和打呼直接修改，大小、氣泡尺寸、字體尺寸、音效、夜間模式、懸停按鈕和稱呼先徵得你同意；any 任意：都直接修改；custom 自訂：照「習慣」頁裡的勾選，勾上的直接修改，其餘先徵得你同意。' },
     windowEnabled: { title: '啟動時開啟桌寵視窗' },
     scale: { title: '大小' },
     bubbleSize: { title: '氣泡尺寸', description: '桌寵和你的氣泡的寬度、留白、圓角和尾巴，1 為預設；字級不變。' },
@@ -302,7 +300,7 @@ const zhHant: Translation<PetText> = {
     funasr: 'FunASR（本機辨識）',
     system: 'Windows 內建',
     whisper: 'Whisper（本機辨識）',
-    systemHint: '不用下載，準確度普通；想要更準請換成 FunASR 或 Whisper',
+    systemHint: '不用下載，準確度普通；想要更準確請更換為 FunASR 或 Whisper',
     funasrHint: 'SenseVoiceSmall，在本機辨識，支援中文、英文、日文、韓文和粵語',
     whisperHint: 'Whisper small，在本機辨識，支援法語、德語、西班牙語、葡萄牙語、義大利語、俄語等；一句說完才出字',
     api: '轉寫介面（OpenAI 相容）',

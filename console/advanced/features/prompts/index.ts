@@ -7,7 +7,6 @@ import { fetchManifest, get, post } from '../../../base/api.ts';
 import { icon, type ConsoleIconName } from '../../../base/ui/icons.ts';
 import { pageIntro } from '../../../base/ui/page.ts';
 import { estTok } from '../live/context.ts';
-import { readMode, requestMode } from '../../../features/mode.ts';
 import { S as sessionText } from '../../../features/strings.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { createPrefixEditor, references, VARIABLE_DRAG_TYPE, type PrefixBlock } from './editor.ts';
@@ -15,6 +14,7 @@ import { S } from './strings.ts';
 import { sharedTemplate } from './titles.ts';
 import { fitVariableChips, variablePopup } from './variables.ts';
 import type { PromptDoc } from './view.ts';
+import { prefersStill } from '../../../base/motion.ts';
 
 interface PrefixSegment { title: string; text: string; sourceKey?: string }
 interface Section {
@@ -106,7 +106,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     editor.setCollapsed(index, !expanded);
   }
   function animateSection(section: Section, index: number): void {
-    if (section.collapsed || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (section.collapsed || prefersStill(window)) return;
     const targets = host.querySelectorAll(`[data-prompt-section="${index}"]`);
     for (const target of [...targets, section.vars]) {
       target.getAnimations().forEach((animation) => animation.cancel());
@@ -225,8 +225,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     }
   }
   /** Set once the person has already accepted losing unsaved edits for the navigation under way. */
-  let leaveAccepted = false;
-  ctx.lifecycle.own(ctx.router.addLeaveGuard(() => !leaveAccepted && (dirty.size || savePromise) ? S.leaveUnsaved : null));
+  ctx.lifecycle.own(ctx.router.addLeaveGuard(() => (dirty.size || savePromise) ? S.leaveUnsaved : null));
   root.addEventListener('keydown', (event) => {
     if (!(event.ctrlKey || event.metaKey) || event.defaultPrevented) return;
     const key = event.key.toLowerCase();
@@ -482,19 +481,8 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     if (created.length) void addSettings(created);
   }
 
-  /**
-   * World configuration is an advanced-mode page, so the normal mode switches to the advanced mode on
-   * the way. With unsaved edits the person agrees to losing them before the switch, so declining keeps
-   * the mode and the page as they are.
-   */
   function openWorldConfig(pageId: string): void {
-    const route = ['provider', pageId, '~config'];
-    if (readMode() === 'advanced') { ctx.router.navigate(route); return; }
-    // the same question the router's leave guard asks (console/index.ts)
-    if ((dirty.size || savePromise) && !window.confirm(S.leaveUnsaved)) return;
-    leaveAccepted = true;
-    requestMode('advanced');
-    ctx.router.navigate(route);
+    ctx.router.navigate(['provider', pageId, '~config']);
   }
 
   async function addSettings(targets: Section[]): Promise<void> {

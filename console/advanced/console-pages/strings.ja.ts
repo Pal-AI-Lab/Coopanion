@@ -12,6 +12,7 @@ export const S: Partial<typeof en> = {
   provides: (list: string) => '利用できるパネル：' + list,
   panelFailed: (title: string) => `パネル「${title}」を読み込めませんでした`,
   configEmpty: '設定グループを利用できません。',
+  backToWorlds: "World 拡張に戻る",
   notInstalled: '利用不可',
   notActivated: '無効',
   hidden: '非表示',

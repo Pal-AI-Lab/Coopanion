@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { extensionPackageFile } from 'cortico/extensions.ts';
 import { parseExtensionManifest, type ExtensionWebUiAsset, type ExtensionPackageJson } from 'cortico/extensions/manifest.ts';
 import { pageIdFor } from 'cortico/web/shared/webui-protocol.ts';
+import { readTextFile } from 'cortico/core/util.ts';
 
 const NODE_MODULES = fileURLToPath(new URL('../node_modules/', import.meta.url));
 
@@ -18,7 +19,7 @@ export function bundledWebUiAssets(worlds: ReadonlyArray<{ id: string; packageNa
   const out: ExtensionWebUiAsset[] = [];
   for (const { id, packageName } of worlds) {
     const dir = join(NODE_MODULES, packageName);
-    const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as ExtensionPackageJson & { version: string };
+    const pkg = JSON.parse(readTextFile(join(dir, 'package.json'))) as ExtensionPackageJson & { version: string };
     const parsed = parseExtensionManifest(pkg);
     if (!parsed.ok || parsed.manifest.webUiClient === undefined) continue;
     // a missing file leaves the page without a bundle; the WebUI manifest names the page and the fix

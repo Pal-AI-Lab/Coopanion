@@ -84,7 +84,6 @@ const ENV_PROMPT_FILES: Record<ModelLanguage, string> = {
 /** Longest `pet_quiet`: a quiet that outlasts a day is a setting, which `pet_set` changes. */
 const QUIET_MAX_MIN = 24 * 60;
 const FRAME_MS = 20;
-const SAMPLE_RATE = 16_000;
 const WALK_TIMEOUT_MS = 30_000;
 /** Touches of one kind closer than this are reported as one event with a count. */
 const TOUCH_MERGE_MS = 2500;
@@ -1178,11 +1177,12 @@ export class DesktopPetWorld implements World {
 
   /**
    * Asks the person in a bubble with two choices, the first one meaning yes, or three, the middle one
-   * meaning yes and from now on. Answers never reach the bot as events; the caller gets them.
+   * meaning yes and from now on. Answers never reach the bot as events; the caller gets them. A hidden
+   * pet's bubble cannot be seen, so the caller gets 'unavailable' at once, as with no pet page.
    */
   confirm(question: string, choices: [yes: string, no: string] | [yes: string, always: string, no: string]): Promise<ConfirmResult> {
     const id = nextId('k');
-    if (!this.server.sendPet({ t: 'confirm', id, question, options: choices })) return Promise.resolve('unavailable');
+    if (this.petHidden || !this.server.sendPet({ t: 'confirm', id, question, options: choices })) return Promise.resolve('unavailable');
     return new Promise((resolve) => {
       const timer = setTimeout(() => { this.confirms.delete(id); resolve('timeout'); }, CONFIRM_TIMEOUT_MS);
       this.confirms.set(id, { resolve, timer, choices: choices.length });

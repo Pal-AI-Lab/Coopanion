@@ -62,7 +62,7 @@ describe('the words the model can use', () => {
     }
   });
 
-  it('a frame that took no time leaves the swing a number (#87: the whale lost her hair, tail and skirt for good)', () => {
+  it('a frame that took no time leaves the swing a number', () => {
     const pet = barePet();
     run(pet, 1);
     pet.doWord('sleep');
@@ -167,7 +167,7 @@ describe('what the page holds a pack to', () => {
     sfx.play('boing', 'face'); sfx.play('look', 'move');
     expect(made.clips).toBe(1);
     expect(made.tones).toBeGreaterThan(0);
-    // a hidden window plays nothing, though its page still reads as visible (#136)
+    // a hidden window plays nothing, though its page still reads as visible
     const before = { ...made };
     sfx.setShown(false);
     sfx.play('boing', 'move'); sfx.play('look', 'move'); sfx.pop();
@@ -200,7 +200,7 @@ describe('what the page holds a pack to', () => {
     expect(l.bubble).toEqual({ x: 0, y: 600 });
   });
 
-  it("the halo blurs only the body's surroundings, not the whole stage (#86: the whale kept a Mac's GPU busy)", () => {
+  it("the halo blurs only the body's surroundings, not the whole stage", () => {
     const size = { W: 1470, H: 859, S: .42 };
     const l = readLayout({ box: { x: 970, y: 745, w: 120, h: 114 } }, size);
     // 40% of the box each side, cut off at the floor
