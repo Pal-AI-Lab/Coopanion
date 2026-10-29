@@ -15,31 +15,15 @@ const zh = {
   catalogCategory: "类别",
   catalogCategories: {"all": "全部", "chat": "聊天与社交", "game": "游戏", "streaming": "直播", "companion": "陪伴", "media": "语音与视频", "creative": "创作", "web": "联网与浏览器", "computer": "电脑与应用", "diagnostics": "诊断", "other": "其他"},
   tagGroups: {"badges": "推荐", "series": "系列", "setup": "使用条件", "cautions": "注意事项"},
-
-  navLabel: '扩展',
-  navGroup: 'Core',
-  introTitle: '扩展',
-  scope: '扩展安装在共享的扩展目录中，安装与删除在进程重启后生效。删除扩展会移除共享安装包。',
-
-  installedTitle: '已安装',
-  market: '扩展市场',
   manual: '手动安装',
   refresh: '↻ 刷新',
   restartProcess: '重启进程',
-
-  stateLoaded: '已加载',
   stateFailed: '加载失败',
   statePendingRestart: '待生效',
   stateRemoved: '已卸载，待重启',
-  enabled: '已加载到本 Bot',
   disabled: '已安装，未加载',
   worldNotLoaded: '已安装，前往 World 总览加载',
   template: '已安装，可创建实例',
-  hidden: '对 Agent 隐藏',
-  runtimeVersion: (version: string) => `当前进程仍为 ${version}`,
-
-  providerManagement: '供应商扩展供共享环境中的 Bot 使用。',
-  idleManagement: '在左侧的 World 总览页面加载或停用 World；内置扩展不能删除。',
 
   restartConfirmTitle: '重启进程？',
   restartNoLoopTitle: '需要手动启动',
@@ -57,10 +41,7 @@ const zh = {
   updateAction: '更新',
   updateCheckFailed: (detail: string) => `更新检查失败： ${detail}`,
   noteWebUiMissing: '缺少浏览器构建产物。请在扩展目录构建，再重启进程。',
-  noExtensions: '还没装任何扩展',
   listLoadFailed: (msg: string) => `扩展清单加载失败： ${msg}`,
-
-  eraseConfirm: '确认删除',
   remove: '删除扩展',
   removeInUse: '正在本 Bot 中使用，停用后才能删除。',
   removeBody: '将从共享扩展目录移除此扩展包，重启进程后生效。使用它的其他 Bot 也会受到影响。不会删除 Memory、已有配置或本地扩展源码。',
@@ -77,7 +58,6 @@ const zh = {
   syncedFailed: '操作已完成，但列表未同步；请刷新。',
 
   filterPlaceholder: '筛选：包名、描述、关键字',
-  installedFilter: '筛选：名称、类型、描述',
   sortLabel: {
     certified: '按认证',
     rating: '按评分',
@@ -85,9 +65,7 @@ const zh = {
     date: '按最近发布',
     name: '按名字',
   },
-  hideInstalled: '隐藏已安装',
   perPage: '每页显示',
-  automaticCount: (n: number) => `自动（${n}）`,
   shown: (from: number, to: number, total: number) => `显示 ${from}–${to}，共 ${total} 个`,
   prevPage: '‹ 上一页',
   nextPage: '下一页 ›',
@@ -107,7 +85,6 @@ const zh = {
   introduction: '简介',
   information: '信息',
   deprecated: (note: string) => `npm 上标了弃用： ${note}`,
-  packageName: '包名',
   authorLabel: '作者',
   unknownAuthor: '未提供',
   fieldInstalledVersion: '已安装版本',
@@ -115,7 +92,6 @@ const zh = {
   runtime: '运行版本',
   fieldVersion: '最新版本',
   fieldLicense: '许可证',
-  released: '发布日期',
   fieldReleases: '发布',
   releaseCount: (n: number, created: string) => `${n} 个版本${created ? `，首发 ${created}` : ''}`,
   fieldSize: '体积',
@@ -152,9 +128,7 @@ const zh = {
   invalidInput: '请输入有效的 npm 包名，可附带明确版本或标签。',
 
   version: (v: string) => `版本：${v}`,
-  author: (v: string) => `作者：${v}`,
   downloads: (total: string, month: string, week: string) => `累计 ${total} · 30 天 ${month} · 7 天 ${week}`,
-  labelled: (label: string, value: string) => `${label}：${value}`,
   metaSeparator: '　',
   listSeparator: '、',
 
@@ -164,7 +138,6 @@ const zh = {
   officialHint: 'Cortico 主仓库发布并维护的扩展',
   certifiedHint: '经过 Cortico 官方认证的符合开发规范的优秀扩展',
   newHint: (days: number) => `最近 ${days} 天内首次发布的扩展`,
-  tagFilter: '标签',
   hideWarnings: '隐藏带警示标签的扩展',
   indexFailed: (msg: string) => `官方索引读取失败，标签、徽标与评分暂不显示：${msg}`,
   clearFilters: '清除筛选',
@@ -210,13 +183,9 @@ const zh = {
   feedbackTags: '反馈标签',
   tagIssuePrefix: '[标签]',
   changelogLink: '更新日志',
-  updateNotes: '更新说明',
-  changesTitle: (name: string) => `${name} 更新说明`,
   openDiscussion: '在 GitHub 上查看讨论',
   detailInfoTab: '扩展信息',
   promptsTabWorld: '环境提示词',
-  toolCount: (n: number) => `${n} 个工具`,
-  eventCount: (n: number) => `${n} 种事件`,
   sectionWorld: '工具与事件',
   sectionProvider: '接入方式',
   toolsHeading: '工具',
@@ -235,7 +204,6 @@ const zh = {
   labelSeparator: '：',
   installWarningTitle: '安装带警示标签的扩展？',
   installWarningBody: (name: string, lines: string[], note?: string) => [name, '', ...lines, ...(note ? ['', `官方说明：${note}`] : [])].join('\n'),
-  blocked: (reason: string) => `已被官方拉黑：${reason}`,
 };
 
 export const en: typeof zh = {
@@ -244,31 +212,15 @@ export const en: typeof zh = {
   catalogCategory: "Categories",
   catalogCategories: {"all": "All", "chat": "Chat & social", "game": "Games", "streaming": "Streaming", "companion": "Companionship", "media": "Voice & video", "creative": "Creative", "web": "Web & browser", "computer": "Computer & apps", "diagnostics": "Diagnostics", "other": "Other"},
   tagGroups: {"badges": "Highlights", "series": "Series", "setup": "Requirements", "cautions": "Cautions"},
-
-  navLabel: 'Extensions',
-  navGroup: 'Core',
-  introTitle: 'Extensions',
-  scope: 'Extensions are installed in the shared extensions directory; installing and deleting take effect after the process restarts. Deleting an extension removes the shared package.',
-
-  installedTitle: 'Installed',
-  market: 'Extension market',
   manual: 'Manual install',
   refresh: '↻ Refresh',
   restartProcess: 'Restart process',
-
-  stateLoaded: 'Loaded',
   stateFailed: 'Load failed',
   statePendingRestart: 'Applies on restart',
   stateRemoved: 'Uninstalled, restart pending',
-  enabled: 'Loaded into this Bot',
   disabled: 'Installed, not loaded',
   worldNotLoaded: 'Installed; load it in World overview',
   template: 'Installed; ready to create instances',
-  hidden: 'Hidden from the Agent',
-  runtimeVersion: (version: string) => `Process still uses ${version}`,
-
-  providerManagement: 'Provider extensions serve the Bots using this shared environment.',
-  idleManagement: 'Load or disable Worlds on the World overview page in the left sidebar. Built-in extensions cannot be deleted.',
 
   restartConfirmTitle: 'Restart the process?',
   restartNoLoopTitle: 'Manual startup required',
@@ -286,10 +238,7 @@ export const en: typeof zh = {
   updateAction: 'Update',
   updateCheckFailed: (detail: string) => `Update check failed: ${detail}`,
   noteWebUiMissing: 'Browser bundle missing. Build in the extension directory and restart the process.',
-  noExtensions: 'No extensions installed yet',
   listLoadFailed: (msg: string) => `Extension list failed to load: ${msg}`,
-
-  eraseConfirm: 'Confirm delete',
   remove: 'Delete extension',
   removeInUse: 'In use by this Bot. Disable it before deleting.',
   removeBody: 'Removes this package from the shared extensions directory; takes effect after the process restarts. Other Bots using it are affected. Memory, saved configuration and local source directories are kept.',
@@ -306,7 +255,6 @@ export const en: typeof zh = {
   syncedFailed: 'Operation completed, but the list is out of sync. Refresh to retry.',
 
   filterPlaceholder: 'Filter: name, description, keywords',
-  installedFilter: 'Filter: name, type, description',
   sortLabel: {
     certified: 'Certified first',
     rating: 'Rating',
@@ -314,9 +262,7 @@ export const en: typeof zh = {
     date: 'Recently published',
     name: 'Name',
   },
-  hideInstalled: 'Hide installed',
   perPage: 'Per page',
-  automaticCount: (n: number) => `Auto (${n})`,
   shown: (from: number, to: number, total: number) => `Showing ${from}–${to} of ${total}`,
   prevPage: '‹ Previous',
   nextPage: 'Next ›',
@@ -336,7 +282,6 @@ export const en: typeof zh = {
   introduction: 'Description',
   information: 'Information',
   deprecated: (note: string) => `Deprecated on npm: ${note}`,
-  packageName: 'Package',
   authorLabel: 'Author',
   unknownAuthor: 'Not provided',
   fieldInstalledVersion: 'Installed version',
@@ -344,7 +289,6 @@ export const en: typeof zh = {
   runtime: 'Running version',
   fieldVersion: 'Latest',
   fieldLicense: 'License',
-  released: 'Published',
   fieldReleases: 'Releases',
   releaseCount: (n: number, created: string) => `${n} versions${created ? `, first ${created}` : ''}`,
   fieldSize: 'Size',
@@ -381,9 +325,7 @@ export const en: typeof zh = {
   invalidInput: 'Enter a valid npm package name, optionally with an exact version or tag.',
 
   version: (v: string) => `Version: ${v}`,
-  author: (v: string) => `Author: ${v}`,
   downloads: (total: string, month: string, week: string) => `Total ${total} · 30d ${month} · 7d ${week}`,
-  labelled: (label: string, value: string) => `${label}: ${value}`,
   metaSeparator: ' · ',
   listSeparator: ', ',
 
@@ -393,7 +335,6 @@ export const en: typeof zh = {
   officialHint: 'Published and maintained by the main Cortico repository',
   certifiedHint: 'Certified by Cortico as an excellent extension that follows the development guidelines',
   newHint: (days: number) => `First published in the last ${days} days`,
-  tagFilter: 'Tags',
   hideWarnings: 'Hide extensions with warning tags',
   indexFailed: (msg: string) => `Could not read the official index; tags, badges and ratings are hidden: ${msg}`,
   clearFilters: 'Clear filters',
@@ -439,13 +380,9 @@ export const en: typeof zh = {
   feedbackTags: 'Report tags',
   tagIssuePrefix: '[tags]',
   changelogLink: 'Changelog',
-  updateNotes: "What's new",
-  changesTitle: (name: string) => `What's new in ${name}`,
   openDiscussion: 'View the discussion on GitHub',
   detailInfoTab: 'Extension info',
   promptsTabWorld: 'Environment prompt',
-  toolCount: (n: number) => `${n} tools`,
-  eventCount: (n: number) => `${n} event types`,
   sectionWorld: 'Tools and events',
   sectionProvider: 'Connection',
   toolsHeading: 'Tools',
@@ -464,7 +401,6 @@ export const en: typeof zh = {
   labelSeparator: ': ',
   installWarningTitle: 'Install an extension with warning tags?',
   installWarningBody: (name: string, lines: string[], note?: string) => [name, '', ...lines, ...(note ? ['', `Official note: ${note}`] : [])].join('\n'),
-  blocked: (reason: string) => `Blocked by the maintainers: ${reason}`,
 };
 
 export const S = pick({

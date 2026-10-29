@@ -156,11 +156,13 @@ export function mountWorlds(ctx: FeatureContext): void {
   doc.addEventListener('scroll', hideTip, { capture: true, passive: true, signal });
   const reduceMotion = () => win.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   let transition: Animation | undefined;
+  let viewGeneration = 0;
   lifecycle.add(() => transition?.cancel());
   const show = () => {
     if (signal.aborted || router.route.segments[0] !== 'world') return;
     const next = canBrowse && router.route.query.view === 'market' ? 'market' : 'mine';
     if (next === current) return;
+    const generation = ++viewGeneration;
     const previous = current; current = next;
     const style = transition?.playState === 'running' ? win.getComputedStyle(catalog) : undefined;
     const interrupted = style ? { clipPath: style.clipPath } : undefined;
@@ -179,7 +181,7 @@ export function mountWorlds(ctx: FeatureContext): void {
       // the switch; the clock is the fallback when the row's height does not change.
       let start: number | undefined, seen = false;
       const glide = (now: number) => {
-        if (signal.aborted || current !== next) return;
+        if (signal.aborted || generation !== viewGeneration) return;
         start ??= now;
         const own = anchor.getAnimations?.().find(animation => (animation as CSSTransition).transitionProperty === 'height');
         if (own) seen = true;
@@ -208,9 +210,10 @@ export function mountWorlds(ctx: FeatureContext): void {
       const own = transition;
       void own.finished.then(() => { if (transition === own) catalog.hidden = current !== 'market'; }, () => {});
     } else catalog.hidden = next !== 'market';
+    if (next === 'market') market?.activate();
   };
   lifecycle.own(router.onChange(show)); show();
-  if (canBrowse) market = mountExtensionContent({ ...ctx, root: catalog }, 'world', catalog, {
+  if (canBrowse) market = mountExtensionContent({ ...ctx, root: catalog }, 'world', {
     statusRoot: status, restartRoot,
     beforeReload: () => {
       try { win.sessionStorage.setItem(layoutKey, JSON.stringify({ positions: [...railNodes].filter(([, node]) => node.parentElement!.dataset.state === 'pending').map(([key, node]) => [key, node.parentElement!.getBoundingClientRect().top]), scroll: railList.scrollTop, at: Date.now() })); } catch { /* Storage may be unavailable. */ }
@@ -517,7 +520,7 @@ export function mountWorlds(ctx: FeatureContext): void {
         node = ui.h('button', 'world-library-item'); node.type = 'button';
         node.append(avatar(item), ui.h('span', 'world-library-label'));
         const own = node;
-        node.addEventListener('click', () => { hideTip(); select(item); }, { signal });
+        node.addEventListener('click', () => { hideTip(); const current = worldLibrary(worlds, extensions, recent).find(entry => entry.key === own.dataset.key); if (current) select(current); }, { signal });
         for (const event of ['pointerenter', 'focus']) node.addEventListener(event, () => showTip(own, worldLibrary(worlds, extensions, recent).find(entry => entry.key === own.dataset.key) ?? item), { signal });
         for (const event of ['pointerleave', 'blur']) node.addEventListener(event, hideTip, { signal });
         node.dataset.key = item.key; railNodes.set(item.key, node);

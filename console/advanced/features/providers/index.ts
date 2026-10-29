@@ -1,6 +1,6 @@
 import { pageIntro } from '../../../base/ui/page.ts';
 import { pageTabs } from '../../../base/ui/page-tabs.ts';
-import { mountExtensionContent } from '../extensions/index.ts';
+import { mountExtensionContent, type ExtensionController } from '../extensions/index.ts';
 import { icon } from '../../../base/ui/icons.ts';
 import { NEW_DRAFT_ID, providerDrafts } from './drafts.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
@@ -20,6 +20,7 @@ export function mountProviders(ctx: FeatureContext): void {
   const market = ui.h('div', 'provider-market');
   const panes = { settings, market };
   const started = new Set<string>();
+  let catalog: ExtensionController | undefined;
   let current: 'settings' | 'market' | undefined;
   const tabs = pageTabs(root.ownerDocument, signal, [
     { value: 'settings', label: S.settingsTab },
@@ -36,10 +37,11 @@ export function mountProviders(ctx: FeatureContext): void {
     settings.hidden = next !== 'settings';
     market.hidden = next !== 'market';
     tabs.setValue(next);
+    if (next === 'market') catalog?.activate();
     if (started.has(next)) return;
     started.add(next);
     const child = { ...ctx, root: panes[next], route: router.route };
-    if (next === 'market') mountExtensionContent(child, 'provider', root);
+    if (next === 'market') catalog = mountExtensionContent(child, 'provider');
     else void mountConnections(child).catch(error => {
       if (!signal.aborted) settings.replaceChildren(ui.msgline(String(error), true));
     });

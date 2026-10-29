@@ -1,7 +1,7 @@
 /**
  * An operation's error, shown in a popover beside the control that started it until dismissed:
- * the control shakes, the popover points at it, follows it while the page scrolls, and passes
- * the wheel to whatever scrolls under it. One popover per page; a new error replaces the last.
+ * the control shakes and the popover follows it while the page scrolls. Long messages scroll
+ * inside it. One popover per page; a new error replaces the last.
  */
 import { icon } from './icons.ts';
 import { S as UI } from './strings.ts';
@@ -37,10 +37,15 @@ export function problemPopover(doc: Document, signal: AbortSignal): ProblemPopov
     const flip = below + tip.height > view.clientHeight - 8 && above > 8;
     const left = Math.max(8, Math.min(target.right - tip.width + 12, view.clientWidth - tip.width - 8));
     box.classList.toggle('is-above', flip);
-    box.style.top = `${flip ? above : below}px`; box.style.left = `${left}px`;
+    box.style.top = `${Math.max(8, Math.min(flip ? above : below, view.clientHeight - tip.height - 8))}px`; box.style.left = `${left}px`;
     box.style.setProperty('--problem-arrow', `${Math.max(14, Math.min(tip.width - 14, target.left + target.width / 2 - left))}px`);
   };
-  box.addEventListener('wheel', event => { const target = scrollerOf(anchor); if (target) { event.preventDefault(); target.scrollBy({ top: wheelDelta(event) }); } }, { passive: false, signal });
+  box.addEventListener('wheel', event => {
+    const message = (event.target as Element).closest('.extension-problem-text');
+    if (message && message.scrollHeight > message.clientHeight) return;
+    const target = scrollerOf(anchor);
+    if (target) { event.preventDefault(); target.scrollBy({ top: wheelDelta(event) }); }
+  }, { passive: false, signal });
   doc.addEventListener('pointerdown', event => { if (anchor && !box.contains(event.target as Node) && !anchor.contains(event.target as Node)) hide(); }, { signal });
   doc.addEventListener('keydown', event => { if (event.key === 'Escape') hide(); }, { signal });
   doc.addEventListener('scroll', () => { if (anchor) place(); }, { capture: true, passive: true, signal });

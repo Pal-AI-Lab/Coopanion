@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * The advanced mode's extension page against a faked WebUI API. Its strings are picked when the
+ * The World and provider pages against a faked WebUI API. Its strings are picked when the
  * modules load, so the window language is set to zh before they are imported.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,10 +9,11 @@ localStorage.setItem('cortico.console.language', 'zh');
 const { createConsoleUi } = await import('../console/base/ui/index.ts');
 const { Lifecycle } = await import('../console/base/lifecycle.ts');
 const { Router } = await import('../console/base/router.ts');
-const { mountExtensionContent, mountExtensions, parseInstallInput, arrangeHits, extensionsFeature, restartOutcome, extensionColumns, osAllowed, changesBetween } = await import('../console/advanced/features/extensions/index.ts');
+const { mountExtensionContent, parseInstallInput, arrangeHits, restartOutcome, osAllowed } = await import('../console/advanced/features/extensions/index.ts');
 const { mountWorlds } = await import('../console/advanced/features/worlds/index.ts');
 const { worldLibrary } = await import('../console/advanced/features/worlds/library.ts');
 const { mountProviders } = await import('../console/advanced/features/providers/index.ts');
+const { S: extensionStrings } = await import('../console/advanced/features/extensions/strings.ts');
 const { S: providerStrings } = await import('../console/advanced/features/providers/strings.ts');
 const flush = async (n = 30) => { for (let i = 0; i < n; i++) await Promise.resolve(); };
 const LIST = {
@@ -127,7 +128,6 @@ function mkCtx(caps = { extensions: true, restart: true, supervised: true }, roo
     lifecycle,
   };
 }
-const erase = (el) => el.querySelector('.extension-erase');
 const buttons = (el) => [...el.querySelectorAll('button')];
 const button = (el, text) => {
   const hit = buttons(el).find((b) => b.textContent?.trim() === text);
@@ -155,13 +155,13 @@ const cardOf = (root, title) => {
   return hit;
 };
 const lives = [];
-function mount(caps = { extensions: true, restart: true, supervised: true }) { const context = mkCtx(caps); lives.push(context.lifecycle); mountExtensions(context.ctx); return context; }
+function mount(caps = { extensions: true, restart: true, supervised: true }) { window.history.replaceState(null, '', '#/world?view=market'); const context = mkCtx({ worlds: true, ...caps }); lives.push(context.lifecycle); mountWorlds(context.ctx); return context; }
 const WIDTH = 1100;
 beforeEach(() => { calls = []; window.sessionStorage.clear(); window.history.replaceState(null, '', '#/extensions/world'); Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => WIDTH }); HTMLElement.prototype.scrollIntoView = vi.fn(); });
 afterEach(() => { lives.splice(0).forEach(life => life.dispose()); vi.unstubAllGlobals(); document.body.replaceChildren(); });
-const installedCards = (root) => root.querySelector('.extension-grid');
-const marketCards = (root) => root.querySelectorAll('.extension-grid')[1];
-const sheets = (root) => root.querySelectorAll('.extension-category > .sheet');
+const marketCards = (root) => root.querySelector('.world-catalog-scroll > .extension-grid');
+const feedback = (_root) => document.querySelector('.extension-operation-feedback');
+const installedInfo = (root, name) => [...root.querySelectorAll('.world-blade')].find(row => row.querySelector('.world-name')?.textContent === name).querySelector('.world-name-info');
 const switchTo = async (ctx, kind) => {
   ctx.lifecycle.dispose();
   ctx.root.replaceChildren();
@@ -171,92 +171,7 @@ const switchTo = async (ctx, kind) => {
   mountExtensionContent(ctx, kind);
   await flush();
 };
-const filterMarket = (root, value) => { const input = root.querySelectorAll('input[type=search]')[1]; input.value = value; input.dispatchEvent(new Event('input')); };
-describe('extension categories', () => {
-  it('isolates installed categories and preserves each market filter across routes', async () => {
-    stub();
-    const { ctx, root } = mount();
-    await flush();
-    expect(installedCards(root).textContent).toContain('甲扩展');
-    expect(installedCards(root).textContent).not.toContain('gamma-prov');
-    filterMarket(root, 'found');
-    await flush();
-    await switchTo(ctx, 'provider');
-    expect(installedCards(root).textContent).toContain('gamma-prov');
-    expect(installedCards(root).textContent).not.toContain('甲扩展');
-    await switchTo(ctx, 'world');
-    expect(root.querySelectorAll('input[type=search]')[1].value).toBe('found');
-    expect(marketCards(root).querySelectorAll('.extension-card')).toHaveLength(1);
-  });
-  it('caps installed cards at two rows and market at four rows at every column count', async () => {
-    const many = { ...LIST, extensions: Array.from({ length: 15 }, (_, i) => ({ ...LIST.extensions[0], name: `item-${String(i).padStart(2, '0')}`, label: `Item ${i}` })) };
-    for (const width of [1100, 800, 500]) {
-      const perRow = extensionColumns(width);
-      Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => width });
-      stub({ list: many });
-      const { root, lifecycle } = mount();
-      await flush();
-      expect(installedCards(root).querySelectorAll('.extension-card')).toHaveLength(perRow * 2);
-      expect(marketCards(root).querySelectorAll('.extension-card')).toHaveLength(perRow * 4);
-      button(sheets(root)[0], '下一页 ›').click();
-      expect(installedCards(root).textContent).toContain(`Item ${perRow * 2}`);
-      lifecycle.dispose();
-      root.remove();
-      window.sessionStorage.clear();
-    }
-  });
-  it('retains installed records if refresh fails', async () => {
-    stub();
-    const { root } = mount();
-    await flush();
-    vi.stubGlobal('fetch', () => Promise.reject(new Error('offline')));
-    button(root, '↻ 刷新').click();
-    await flush();
-    expect(installedCards(root).textContent).toContain('甲扩展');
-    expect(root.textContent).toContain('offline');
-  });
-  it('has no Bot tab: a Bot route opens the World tab and installed Bot packages are not listed', async () => {
-    stub({ list: { ...LIST, extensions: [...LIST.extensions, { ...LIST.extensions[0], name: 'sample-template', label: 'Bot 模板包', kind: 'bot', enabled: true }] } });
-    window.history.replaceState(null, '', '#/extensions/bot');
-    const { ctx, root } = mount();
-    await flush();
-    expect(root.querySelectorAll('[role=tab]')).toHaveLength(0);
-    expect(window.location.hash).toBe('#/extensions/world');
-    expect(installedCards(root).textContent).not.toContain('Bot 模板包');
-    await switchTo(ctx, 'provider');
-    expect(installedCards(root).textContent).not.toContain('Bot 模板包');
-  });
-  it('disables incompatible updates and states the reason on the card', async () => {
-    stub({ updates: { updates: [{ name: 'alpha-mod', installedVersion: '1.0.0', latestVersion: '2.0.0', problems: ['扩展要求契约 v9'] }], errors: [] } });
-    const { root } = mount();
-    await flush();
-    const alpha = cardOf(root, '甲扩展');
-    expect(alpha.textContent).toContain('1.0.0 → 2.0.0');
-    expect(button(alpha, '更新').disabled).toBe(true);
-    expect(alpha.querySelector('.msgline.bad')?.textContent).toContain('扩展要求契约 v9');
-  });
-  it('the update check failure is reported; a compatible update checks and installs the latest version', async () => {
-    stub({ updates: { updates: [{ name: 'alpha-mod', installedVersion: '1.0.0', latestVersion: '1.1.0', problems: [] }], errors: [{ name: 'beta-mod', error: 'registry unavailable' }] } });
-    const { root } = mount();
-    await flush();
-    expect(root.textContent).toContain('更新检查失败');
-    button(cardOf(root, '甲扩展'), '更新').click();
-    await flush();
-    expect(calls.find(c => c.url === '/api/extensions/check')?.body).toEqual({ target: { name: 'alpha-mod', version: '1.1.0' }, kind: 'world' });
-    expect(calls.find(c => c.url === '/api/extensions/install')?.body).toEqual({ name: 'alpha-mod', version: '1.1.0' });
-    expect(sheets(root)[0].textContent).toContain('更新成功');
-  });
-  it('shows failed and pending states; a package without a manifest is listed under World', async () => {
-    stub();
-    const { ctx, root } = mount();
-    await flush();
-    expect(cardOf(root, 'beta-mod').querySelector('.extension-status.bad')?.textContent).toContain('加载失败');
-    expect(cardOf(root, 'epsilon-mod').textContent).toContain('加载失败');
-    expect(buttons(cardOf(root, 'delta-mod')).map(b => b.textContent)).not.toContain('删除扩展');
-    await switchTo(ctx, 'provider');
-    expect(cardOf(root, 'gamma-prov').textContent).toContain('待生效');
-  });
-});
+const filterMarket = (root, value) => { const input = root.querySelector('.world-catalog input[type=search]'); input.value = value; input.dispatchEvent(new Event('input')); };
 describe('package authors', () => {
   const detailAuthor = () => [...document.querySelectorAll('.extension-detail .kvtable tr')]
     .find(row => row.children[0].textContent === '作者')?.children[1].textContent;
@@ -272,9 +187,7 @@ describe('package authors', () => {
     });
     const { root } = mount();
     await flush();
-    const card = installedCards(root).querySelector('.extension-card');
-    expect(card.textContent).toContain(`作者：${expected}`);
-    card.querySelector('.extension-card-title').click();
+    installedInfo(root, '甲扩展').click();
     await flush();
     expect(detailAuthor()).toBe(expected);
   });
@@ -297,6 +210,19 @@ describe('package authors', () => {
   });
 });
 describe('installation feedback', () => {
+  it('releases pagination height when a search reduces the catalog', async () => {
+    stub();
+    const { root } = mount(); await flush();
+    const size = root.querySelector('.extension-size select');
+    size.value = '10'; size.dispatchEvent(new Event('change', { bubbles: true }));
+    const grid = marketCards(root);
+    grid.getBoundingClientRect = () => ({ height: 1800 });
+    button(root.querySelector('.extension-pager'), extensionStrings.nextPage).click();
+    expect(grid.style.minHeight).toBe('1800px');
+    filterMarket(root, 'found');
+    expect(grid.children).toHaveLength(1);
+    expect(grid.style.minHeight).toBe('');
+  });
   async function detail(root) {
     filterMarket(root, 'found');
     marketCards(root).querySelector('[aria-label="found-mod"]').click();
@@ -312,9 +238,9 @@ describe('installation feedback', () => {
     await flush();
     expect(calls.find(c => c.url === '/api/extensions/check')?.body).toEqual({ target: { name: 'found-mod', version: '3.1.0' }, kind: 'world' });
     expect(calls.find(c => c.url === '/api/extensions/install')?.body).toEqual({ name: 'found-mod', version: '3.1.0' });
-    expect(sheets(root)[1].textContent).toContain('安装成功');
-    expect(sheets(root)[1].textContent).toContain('重启进程后生效');
-    expect(sheets(root)[0].textContent).not.toContain('安装成功');
+    expect(feedback(root).textContent).toContain('安装成功');
+    expect(feedback(root).textContent).toContain('重启进程后生效');
+    expect(root.querySelector('.world-workspace-status').textContent).not.toContain('安装成功');
     expect(calls.filter(c => c.url === '/api/extensions').length).toBe(2);
   });
   it('a refused check stops before installing and shows the reason only in the originating section', async () => {
@@ -324,8 +250,8 @@ describe('installation feedback', () => {
     button(await detail(root), '安装').click();
     await flush();
     expect(calls.some(c => c.url === '/api/extensions/install')).toBe(false);
-    expect(sheets(root)[1].querySelector('.msgline.bad')?.textContent).toContain('请切换到对应分类');
-    expect(sheets(root)[0].querySelector('.msgline.bad')).toBeNull();
+    expect(feedback(root)?.textContent).toContain('请切换到对应分类');
+    expect(root.querySelector('.world-workspace-status .msgline.bad')).toBeNull();
   });
   it('an install failure reports the server error', async () => {
     stub({ installStatus: 400 });
@@ -333,7 +259,7 @@ describe('installation feedback', () => {
     await flush();
     button(await detail(root), '安装').click();
     await flush();
-    expect(sheets(root)[1].querySelector('.msgline.bad')?.textContent).toContain('pnpm add 退出码 1');
+    expect(feedback(root)?.textContent).toContain('pnpm add 退出码 1');
   });
   it('blocks incompatible detail installation and dangerous links', async () => {
     stub({ detail: { problems: ['incompatible'], links: { npm: 'javascript:alert(1)' } } });
@@ -362,6 +288,30 @@ describe('installation feedback', () => {
     await flush();
     expect(calls.filter(c => c.url.startsWith('/api/extensions/package')).length).toBe(first);
   });
+  it('ignores an old manual check after the source or input changes', async () => {
+    stub(); const fetch = globalThis.fetch; let finish;
+    vi.stubGlobal('fetch', (url, init) => String(url) === '/api/extensions/check' ? new Promise(resolve => { finish = resolve; }) : fetch(url, init));
+    const { root } = mount(); await flush();
+    const input = root.querySelector('.world-manual input'); input.value = 'example-world'; input.dispatchEvent(new Event('input'));
+    button(root, '检查有效性').click(); await flush();
+    button(root, '从本机目录安装').click();
+    finish(new Response(JSON.stringify({ name: 'example-world', version: '1.0.0', kind: 'world' }), { status: 200 })); await flush();
+    expect(root.querySelector('.extension-manual-actions .msgline').textContent).toBe('');
+    expect(button(root, '检查有效性').disabled).toBe(false);
+    expect(input.getAttribute('aria-label')).toBe('扩展项目目录');
+  });
+  it('keeps keyboard focus on the catalog card throughout installation', async () => {
+    const list = { ...LIST, extensions: [...LIST.extensions] }; let finish;
+    stub({ list, hits: { hits: [HITS.hits[0]] }, onInstall: target => list.extensions.push({ name: target.name, version: target.version, kind: 'world', state: 'pending-restart' }) });
+    const fetch = globalThis.fetch;
+    vi.stubGlobal('fetch', (url, init) => String(url) === '/api/extensions/check' ? new Promise(resolve => { finish = () => resolve(fetch(url, init)); }) : fetch(url, init));
+    const { root } = mount(); await flush();
+    const control = root.querySelector('.extension-get'); control.focus(); control.click(); await flush();
+    expect(document.activeElement.classList.contains('extension-market-card')).toBe(true);
+    finish(); await flush();
+    expect(document.activeElement.dataset.name).toBe('found-mod');
+    expect(root.querySelector('.extension-get').getAttribute('aria-label')).toBe('已安装');
+  });
   it('an empty category says there are no packages yet', async () => {
     stub({ hits: { hits: [] } });
     const { root } = mount();
@@ -389,27 +339,11 @@ describe('installation feedback', () => {
     expect(calls.find(c => c.url === '/api/extensions/check')?.body).toEqual({ target: { path: 'C:/work/my-world' }, kind: 'world' });
     expect(calls.find(c => c.url === '/api/extensions/install')?.body).toEqual({ path: 'C:/work/my-world' });
   });
-  it('the trash button first states the shared-directory effect, then uninstalls and reloads', async () => {
-    stub();
-    const { root } = mount();
-    await flush();
-    erase(cardOf(root, 'beta-mod')).click();
-    await flush();
-    expect(calls.some(c => c.url === '/api/extensions/uninstall')).toBe(false);
-    expect(cardOf(root, 'beta-mod').textContent).toContain('使用它的其他 Bot 也会受到影响');
-    erase(cardOf(root, 'beta-mod')).click();
-    await flush();
-    expect(calls.find(c => c.url === '/api/extensions/uninstall')?.body).toEqual({ name: 'beta-mod' });
-    expect(calls.filter(c => c.url === '/api/extensions').length).toBe(2);
-    expect(sheets(root)[0].textContent).toContain('删除成功');
-  });
+
 });
 describe('package avatars', () => {
   it('a declared icon is shown; without one, or when it fails to load, the Cortico mark is shown', async () => {
-    stub({ list: { dir: LIST.dir, extensions: [
-          { ...LIST.extensions[0], name: 'pictured-world', label: 'Pictured', icon: true, installedVersion: '1.2.0' },
-          { ...LIST.extensions[0], name: 'cortico-world-plain', label: undefined },
-        ] } });
+    stub({ hits: { hits: [{ ...HITS.hits[0], name: 'pictured-world', displayName: 'Pictured', icon: '/api/extensions/icon?name=pictured-world&v=1.2.0' }, { ...HITS.hits[0], name: 'cortico-world-plain' }] } });
     const { root } = mount();
     await flush();
     const pictured = cardOf(root, 'Pictured');
@@ -450,13 +384,6 @@ describe('npm os field', () => {
     expect(osAllowed(['!win32'], 'linux')).toBe(true);
     expect(osAllowed(['!win32'], 'win32')).toBe(false);
     expect(osAllowed(['linux', '!linux'], 'linux')).toBe(false);
-  });
-});
-describe('changelog range', () => {
-  it('lists versions after the installed one up to the target, newest first, with pre-releases before their release', () => {
-    const versions = ['0.1.9', '0.1.10', '0.2.0-beta.1', '0.2.0', '0.2.1'];
-    expect(changesBetween(versions, '0.1.9', '0.2.0')).toEqual(['0.2.0', '0.2.0-beta.1', '0.1.10']);
-    expect(changesBetween(undefined, '0.1.0', '0.2.0')).toEqual([]);
   });
 });
 describe('arrangeHits', () => {
@@ -504,7 +431,7 @@ describe('restart', () => {
     stub({ restart: { ok: true, result: '本地关机完成', steps: [{ label: '按住事件投递', ok: true, elapsedMs: 2 }, { label: '外部直播平台', ok: false, elapsedMs: 5000, detail: '需手动结束' }] } });
     const { root } = mount();
     await flush();
-    button(sheets(root)[0], '重启进程').click();
+    button(root.querySelector('.world-restart-footer'), '重启进程').click();
     await flush();
     expect(calls.some(c => c.url === '/api/run/restart')).toBe(false);
     answer(true);
@@ -512,13 +439,23 @@ describe('restart', () => {
     expect(calls.find(c => c.url === '/api/run/restart')?.method).toBe('POST');
     expect(calls.some(c => c.url === '/api/run/lifecycle')).toBe(true);
     expect(document.body.textContent).toContain('✗ 外部直播平台 · 需手动结束');
-    expect(sheets(root)[0].textContent).toContain('等待当前 Bot 的新进程就绪');
+    expect(root.querySelector('.extension-restart').disabled).toBe(true);
+  });
+  it('allows retrying a rejected restart and removes its recovery marker', async () => {
+    stub({ restart: { error: 'shutdown rejected' } });
+    const { root } = mount(); await flush();
+    button(root.querySelector('.world-restart-footer'), '重启进程').click(); await flush(); answer(true); await flush();
+    expect(root.querySelector('.extension-restart').disabled).toBe(false);
+    expect(root.querySelector('.world-workspace-status').textContent).toContain('shutdown rejected');
+    expect(sessionStorage.getItem('cortico.extensions.v3:' + location.origin + ':restart')).toBeNull();
+    button(root.querySelector('.world-restart-footer'), '重启进程').click(); await flush();
+    expect(document.querySelector('.modal')).not.toBeNull(); answer(false); await flush();
   });
   it('an unsupervised process asks for a manual start', async () => {
     stub();
     const { root } = mount({ extensions: true, restart: true, supervised: false });
     await flush();
-    button(sheets(root)[0], '重启进程').click();
+    button(root.querySelector('.world-restart-footer'), '重启进程').click();
     await flush();
     expect(document.querySelector('.modal')?.textContent).toContain('需要手动启动');
     answer(false);
@@ -535,57 +472,10 @@ describe('restart', () => {
     await flush();
     expect(document.querySelector('.extension-detail')).toBeTruthy();
   });
-  it('a remount shows the category help, not the result of an earlier operation', async () => {
-    stub();
-    const first = mount();
-    await flush();
-    erase(cardOf(first.root, 'beta-mod')).click();
-    erase(cardOf(first.root, 'beta-mod')).click();
-    await flush();
-    expect(sheets(first.root)[0].textContent).toContain('删除成功');
-    first.lifecycle.dispose();
-    first.root.remove();
-    const second = mount();
-    await flush();
-    expect(sheets(second.root)[0].textContent).not.toContain('删除成功');
-    expect(sheets(second.root)[0].textContent).toContain('在左侧的 World 总览页面加载或停用 World');
-  });
+
 });
 describe('extension review interactions', () => {
-  it('built-ins and enabled Worlds cannot be deleted', async () => {
-    stub({ list: { dir: LIST.dir, extensions: [
-          { ...LIST.extensions[0], enabled: true, installedVersion: '2.0.0', state: 'pending-restart' },
-          { ...LIST.extensions[0], name: 'builtin:world:example', builtin: true, label: 'Built-in example' },
-          { ...LIST.extensions[0], name: 'running-world', label: 'Running', enabled: true },
-        ] } });
-    const { root } = mount();
-    await flush();
-    const cards = installedCards(root).querySelectorAll('.extension-card');
-    expect(cards[0].querySelector('.extension-card-heading')?.textContent).toContain('已加载');
-    expect(erase(cards[1]).disabled).toBe(true);
-    const running = cardOf(root, 'Running');
-    expect(erase(running).disabled).toBe(true);
-    expect(erase(running).title).toContain('停用后才能删除');
-  });
-  it('filters installed modules independently and lets users override each page capacity', async () => {
-    stub({ list: { dir: LIST.dir, extensions: Array.from({ length: 8 }, (_, i) => ({ ...LIST.extensions[0], name: `module-${i}`, label: `模块 ${i}` })) } });
-    const { root } = mount();
-    await flush();
-    const sizes = root.querySelectorAll('.extension-size select');
-    sizes[0].value = '3';
-    sizes[0].dispatchEvent(new Event('change'));
-    expect(installedCards(root).children).toHaveLength(3);
-    sizes[1].value = '6';
-    sizes[1].dispatchEvent(new Event('change'));
-    expect(marketCards(root).children).toHaveLength(6);
-    const filter = root.querySelector('input[type=search]');
-    filter.value = 'module-7';
-    filter.dispatchEvent(new Event('input'));
-    expect(installedCards(root).children).toHaveLength(1);
-    expect(installedCards(root).textContent).toContain('模块 7');
-    expect(marketCards(root).children).toHaveLength(6);
-    expect(root.querySelector('.extension-directory')?.textContent).toContain('安装位置：');
-  });
+
   it('opens market details from the card and restores metadata and release rows', async () => {
     stub();
     const { root } = mount();
@@ -612,7 +502,7 @@ describe('extension review interactions', () => {
     stub({ detailStatus: 503, list: { dir: LIST.dir, extensions: [{ ...LIST.extensions[0], metadata: { license: 'MIT', dependencies: ['example-dependency'], links: { repository: 'https://git.example/module' } } }] } });
     const { root } = mount();
     await flush();
-    cardOf(root, '甲扩展').click();
+    installedInfo(root, '甲扩展').click();
     await flush();
     const detail = document.querySelector('.extension-detail');
     expect([...detail.querySelectorAll('h4')].map(node => node.textContent)).toEqual(['简介', '信息']);
@@ -621,67 +511,22 @@ describe('extension review interactions', () => {
     expect(detail.querySelector('a')?.href).toBe('https://git.example/module');
   });
 });
-it('keeps the installed grid height and scroll position when the last page has one card', async () => {
-  stub({ list: { dir: LIST.dir, extensions: Array.from({ length: 7 }, (_, i) => ({ ...LIST.extensions[0], name: `page-${i}` })) } });
-  const { root } = mount();
-  await flush();
-  const grid = installedCards(root);
-  const measured = 576;
-  vi.spyOn(grid, 'getBoundingClientRect').mockReturnValue({ height: measured });
-  root.scrollTop = 200;
-  const pager = root.querySelector('.extension-pager');
-  button(pager, '下一页 ›').click();
-  expect(grid.children).toHaveLength(1);
-  expect(grid.style.minHeight).toBe(`${measured}px`);
-  expect(root.scrollTop).toBe(200);
-  expect(pager.textContent).toContain('2 / 2');
-  button(pager, '‹ 上一页').click();
-  expect(grid.children).toHaveLength(extensionColumns(WIDTH) * 2);
-  expect(root.scrollTop).toBe(200);
-});
+
 describe('feature contract', () => {
-  it('route is extensions, needsAny is extensions, grouped under Core', () => {
-    expect(extensionsFeature.route).toBe('extensions');
-    expect(extensionsFeature.needsAny).toEqual(['extensions']);
-    expect(extensionsFeature.navGroup).toBe('Core');
-  });
+
   it('sends no requests after dispose', async () => {
     stub();
     const { root, lifecycle } = mount();
     await flush();
     lifecycle.dispose();
     const before = calls.length;
-    button(root, '↻ 刷新').click();
+    root.querySelector('[aria-label=刷新]').click();
     await flush();
     expect(calls.length).toBe(before);
   });
 });
 describe('extension card and history controls', () => {
-  it('the installed card opens its details from the keyboard', async () => {
-    stub();
-    const { root } = mount();
-    await flush();
-    const card = cardOf(root, '甲扩展');
-    card.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await flush();
-    expect(document.querySelector('.extension-detail')).toBeTruthy();
-  });
-  it('trash confirmation cancels on outside click or Escape and never opens details', async () => {
-    stub();
-    const { root } = mount();
-    await flush();
-    const remove = erase(cardOf(root, 'beta-mod'));
-    remove.click();
-    expect(remove.classList.contains('is-armed')).toBe(true);
-    expect(document.querySelector('.modal')).toBeNull();
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    expect(remove.classList.contains('is-armed')).toBe(false);
-    expect(cardOf(root, 'beta-mod').textContent).not.toContain('使用它的其他 Bot 也会受到影响');
-    remove.click();
-    document.body.click();
-    expect(remove.classList.contains('is-armed')).toBe(false);
-    expect(calls.some(call => call.url === '/api/extensions/uninstall')).toBe(false);
-  });
+
   async function installedHistory(options = {}) {
     stub({ ...options, detail: { ...DETAIL, name: 'alpha-mod', version: '2.0.0', history: [
           { version: '2.0.0', date: '2026-03-01' },
@@ -690,7 +535,7 @@ describe('extension card and history controls', () => {
         ], ...options?.detail } });
     const { root } = mount();
     await flush();
-    cardOf(root, '甲扩展').click();
+    installedInfo(root, '甲扩展').click();
     await flush();
     return document.querySelector('.extension-detail');
   }
@@ -723,7 +568,7 @@ describe('extension card and history controls', () => {
     expect(button(historyRow(detail, '0.9.0'), '当前版本').disabled).toBe(true);
     const installedRow = [...detail.querySelectorAll('tr')].find(row => row.textContent?.includes('已安装版本'));
     expect(installedRow.textContent).toContain('0.9.0');
-    expect(document.querySelector('.extension-status')?.textContent).toContain('待生效');
+    expect(document.querySelector('.world-pending-group').textContent).toContain('待生效');
   });
   it('a failed release install keeps the error in the drawer and re-enables the row', async () => {
     const detail = await installedHistory({ installStatus: 400 });
@@ -744,7 +589,6 @@ describe('extension card and history controls', () => {
     expect(actions.every(action => action.disabled)).toBe(true);
   });
 });
-
 
 describe('provider page tabs', () => {
   async function openProviders(caps = { extensions: true }) {
@@ -815,6 +659,16 @@ describe('provider page tabs', () => {
     expect(market.querySelector('.extension-get').getAttribute('aria-label')).toBe('已安装');
     expect(market.querySelector('.extension-restart').hidden).toBe(false);
   });
+  it('restores the catalog scroll when search finishes while Settings is visible', async () => {
+    stub(); const fetch = globalThis.fetch; let finish;
+    vi.stubGlobal('fetch', (url, init) => String(url).startsWith('/api/extensions/search') ? new Promise(resolve => { finish = resolve; }) : fetch(url, init));
+    sessionStorage.setItem('cortico.extensions.v3:' + location.origin, JSON.stringify({ provider: { scroll: 240 } }));
+    const { ctx, root } = await openProviders(); await navigate(ctx, 'market'); await navigate(ctx);
+    finish(new Response(JSON.stringify({ hits: [] }), { status: 200 })); await flush();
+    const scroller = root.querySelector('.world-catalog-scroll');
+    expect(scroller.scrollTop).toBe(0);
+    await navigate(ctx, 'market'); expect(scroller.scrollTop).toBe(240);
+  });
   it('hides the market without the extensions capability, including a direct URL', async () => {
     stub();
     const { ctx, root } = await openProviders({});
@@ -824,7 +678,6 @@ describe('provider page tabs', () => {
     expect(calls.some(call => call.url.startsWith('/api/extensions'))).toBe(false);
   });
 });
-
 
 describe('World library and catalog', () => {
   async function openWorlds(over = {}, caps = { worlds: true, extensions: true, worldActivation: true, restart: true, supervised: true }) {
@@ -892,6 +745,13 @@ describe('World library and catalog', () => {
     expect(control.classList.contains('is-update')).toBe(true);
     control.click(); await flush(100);
     expect(calls.find(call => call.url === '/api/extensions/install').body).toEqual({ name: hit.name, version: '1.0.0' });
+  });
+  it('blocks incompatible updates in the actual market and explains the reason', async () => {
+    const { root } = await openWorlds({ updates: { updates: [{ name: 'alpha-mod', installedVersion: '1.0.0', latestVersion: '2.0.0', problems: ['Unsupported API'] }], errors: [] } });
+    const control = root.querySelector('.extension-market-card[data-name="alpha-mod"] .extension-get');
+    expect(control.disabled).toBe(true);
+    expect(control.getAttribute('aria-description')).toContain('Unsupported API');
+    control.click(); await flush(); expect(calls.some(call => call.url === '/api/extensions/install')).toBe(false);
   });
   it('reports a failed install beside its control and leaves the status line empty', async () => {
     const { root } = await openWorlds({ hits: { hits: HITS.hits.slice(0, 1) }, installStatus: 500 });
