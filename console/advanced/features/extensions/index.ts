@@ -7,7 +7,7 @@ import type { FeatureContext } from '../feature.ts';
 import { S } from './strings.ts';
 import { CATALOG_CATEGORIES, CATALOG_CATEGORY_IDS, inCatalogCategory, isFunctionTag, type CatalogCategory } from './catalog.ts';
 import { problemPopover, scrollerOf, wheelDelta } from '../../../base/ui/problem.ts';
-import { fold } from '../../../base/motion.ts';
+import { fold, measureReflow } from '../../../base/motion.ts';
 import { matchRanges, matchRank, prepareFields, searchTerms, type MatchRank, type PreparedFields } from './search.ts';
 
 /** 扩展类别。与 `ExtensionKind` 同形;这一页只用它分组与选关键字。 */
@@ -1098,7 +1098,10 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     }, { signal });
     return button;
   }
+  /** The market's cards by package, for animating a re-render (see measureReflow). */
+  const measureCards = () => marketGrid?.isConnected ? measureReflow(marketGrid, ':scope > .extension-market-card', card => card.dataset.name) : undefined;
   function renderMarket(keepHeight = false) {
+    const reflow = measureCards();
     if (!keepHeight) marketGrid.style.minHeight = '';
     const state = states[kind];
     if (state.hideWarnings) state.tags = state.tags.filter(id => marketIndex.tags[id]?.style !== 'warning');
@@ -1175,6 +1178,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) foldTags(row);
     if (!result.matched) marketGrid.append(emptyMarket(state));
     pager(marketPager, result.matched, result.page, pageSize(), page => { marketGrid.style.minHeight = `${marketGrid.getBoundingClientRect().height}px`; state.page = page; renderMarket(true); save(); });
+    reflow?.play();
   }
   /** 标签筛选条:本页签结果里出现过的标签;选中的在前,其余按颜色分组(红色最后)、组内按出现次数;选中的要求全部带上。 */
   function renderTagBar(hits: readonly SearchHitView[]) {
@@ -1517,6 +1521,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   function render() {
     const state = states[kind];
     const keptScroll = scrollRoot.scrollTop;
+    // The panel is rebuilt with a new grid; its cards still move from where the old ones were.
+    const reflow = measureCards();
     manualOpen = panel.querySelector<HTMLDetailsElement>('.world-manual')?.open ?? manualOpen;
     panel.replaceChildren(); messageNodes = {};
     const restartButton = canRestart ? ui.button(S.restartProcess, { onClick: () => void restart() }) : undefined;
@@ -1641,6 +1647,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     for (const [area, value] of Object.entries(state.messages)) if (messageNodes[area]) { messageNodes[area].textContent = value.text; messageNodes[area].className = 'msgline' + (value.bad ? ' bad' : ''); }
     renderRestart(); renderMarket();
     scrollRoot.scrollTop = keptScroll;
+    reflow?.play(marketGrid);
   }
   // 只看宽度变化
   let panelWidth = panel.clientWidth;

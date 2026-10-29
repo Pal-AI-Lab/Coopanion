@@ -16,7 +16,7 @@ import { worldLibrary, needsRestart, type WorldLibraryItem } from './library.ts'
 import { addGroup, arrangeLayout, groupToken, moveGroup, moveItem, readLayout, removeGroup, writeLayout, type WorldGroup, type WorldLayout } from './groups.ts';
 import { S } from './strings.ts';
 import { S as UI } from '../../../base/ui/strings.ts';
-import { prefersStill } from '../../../base/motion.ts';
+import { measureReflow, prefersStill } from '../../../base/motion.ts';
 import { foldText, searchTerms } from '../extensions/search.ts';
 
 const worldPageId = (id: string) => pageIdFor('world', id);
@@ -126,12 +126,12 @@ export function mountWorlds(ctx: FeatureContext): void {
   let filterText = '', filterState = 'all';
   const filtering = () => !!filterText.trim() || filterState !== 'all';
   const tools = ui.h('div', 'world-library-tools');
-  const search = ui.input({ type: 'search', placeholder: S.filterByName, onInput: value => { filterText = value; applyFilter(); } });
+  const search = ui.input({ type: 'search', placeholder: S.filterByName, onInput: value => { filterText = value; applyFilter(true); } });
   search.setAttribute('aria-label', S.filterByName);
   const stateFilter = ui.select({ value: 'all', options: [
     { value: 'all', label: S.allStates }, { value: 'attached', label: S.modeAttached }, { value: 'running', label: S.modeRunning },
     { value: 'inactive', label: S.modeOff }, { value: 'pending', label: E.statePendingRestart }, { value: 'failed', label: E.stateFailed },
-  ], onChange: value => { filterState = value; applyFilter(); } });
+  ], onChange: value => { filterState = value; applyFilter(true); } });
   const newGroup = ui.button(S.newGroup, { size: 'sm', onClick: () => createGroup() });
   tools.append(search, stateFilter, newGroup);
   readyHeading.after(tools);
@@ -175,7 +175,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     // where the first row in view will sit, so a scrolled rail glides instead of snapping when it
     // gets shorter than its scroll position. Going back the rail only grows and needs no help.
     const listTop = railList.getBoundingClientRect().top;
-    const anchor = previous && next === 'market' && !reduceMotion() ? [...railList.querySelectorAll<HTMLElement>('.world-library-entry')].find(entry => entry.offsetParent && entry.getBoundingClientRect().bottom > listTop + 4) : undefined;
+    const anchor = previous && next === 'market' && !reduceMotion() ? [...railList.querySelectorAll<HTMLElement>('.world-library-entry:not(.motion-ghost)')].find(entry => entry.offsetParent && entry.getBoundingClientRect().bottom > listTop + 4) : undefined;
     const glideFrom = railList.scrollTop, anchorAt = anchor ? anchor.getBoundingClientRect().top - listTop : 0;
     workspace.dataset.view = next; hideTip();
     if (anchor) {
@@ -352,10 +352,11 @@ export function mountWorlds(ctx: FeatureContext): void {
     const TILE = 74, PENDING_TAIL = 23, GROUP_TAIL = 1, LIST_TAIL = 24;
     const tops = new Map<HTMLElement, number>(); let y = 0;
     const place = (entry: HTMLElement) => { tops.set(entry, y); y += TILE; };
-    if (!pendingGroup.hidden) { for (const entry of pendingList.querySelectorAll<HTMLElement>(':scope > .world-library-entry')) place(entry); y += PENDING_TAIL; }
+    if (!pendingGroup.hidden) { for (const entry of pendingList.querySelectorAll<HTMLElement>(':scope > .world-library-entry:not(.motion-ghost)')) place(entry); y += PENDING_TAIL; }
     if (!readyGroup.hidden) for (const child of readyList.children) {
+      if (child.classList.contains('motion-ghost')) continue;
       if (child.classList.contains('world-library-entry')) place(child as HTMLElement);
-      else if (child.classList.contains('world-group')) { for (const entry of child.querySelectorAll<HTMLElement>('.world-group-list > .world-library-entry')) place(entry); y += GROUP_TAIL; }
+      else if (child.classList.contains('world-group')) { for (const entry of child.querySelectorAll<HTMLElement>('.world-group-list > .world-library-entry:not(.motion-ghost)')) place(entry); y += GROUP_TAIL; }
     }
     return { tops, height: y + LIST_TAIL };
   }
@@ -414,7 +415,7 @@ export function mountWorlds(ctx: FeatureContext): void {
   }
   /** Re-renders after a layout change, sliding rows and groups from where they were. */
   function reorder() {
-    const tracked = [...readyList.querySelectorAll<HTMLElement>('.world-library-entry, .world-group-head')];
+    const tracked = [...readyList.querySelectorAll<HTMLElement>('.world-library-entry:not(.motion-ghost), .world-group-head:not(.motion-ghost)')];
     const before = new Map(tracked.map(el => [el, el.getBoundingClientRect().top]));
     render();
     if (reduceMotion()) return;
@@ -447,7 +448,15 @@ export function mountWorlds(ctx: FeatureContext): void {
     input.addEventListener('click', event => event.stopPropagation(), { signal });
     node.name.replaceWith(input); input.focus(); input.select();
   }
-  function applyFilter() {
+  /** My World's rows, group headers, headings and restart row, for animating what a render or filter changes. */
+  const RAIL_ITEMS = '.world-library-entry, .world-group-head, .world-library-heading, .world-restart-row';
+  const railKey = (el: HTMLElement) => el.classList.contains('world-library-entry') ? `row:${el.dataset.key}`
+    : el.classList.contains('world-group-head') ? `group:${el.closest<HTMLElement>('.world-group')?.dataset.group}`
+    : el.classList.contains('world-restart-row') ? 'restart' : `heading:${el.closest('.world-pending-group') ? 'pending' : 'ready'}`;
+  /** The market view's dock has its own motion; only the rows view reflows. */
+  const measureRail = () => current === 'mine' ? measureReflow(railList, RAIL_ITEMS, railKey) : undefined;
+  function applyFilter(animate = false) {
+    const reflow = animate ? measureRail() : undefined;
     const terms = searchTerms(filterText), active = filtering();
     for (const entry of readyList.querySelectorAll<HTMLElement>('.world-library-entry')) {
       entry.classList.toggle('is-filtered-out', active && !(terms.every(term => entry.dataset.name?.includes(term)) && (filterState === 'all' || entry.dataset.state === filterState)));
@@ -455,6 +464,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     for (const node of groupNodes.values()) node.el.classList.toggle('is-filtered-out', active && !node.list.querySelector('.world-library-entry:not(.is-filtered-out)'));
     noMatches.hidden = !active || !!readyList.querySelector('.world-library-entry:not(.is-filtered-out)');
     syncDraggable();
+    reflow?.play();
   }
   /** Rows and groups can be dragged in the rows view while no filter hides any of them. */
   function syncDraggable() {
@@ -495,7 +505,7 @@ export function mountWorlds(ctx: FeatureContext): void {
       const first = [...readyList.children].find((el): el is HTMLElement => el !== dropLine && (el as HTMLElement).offsetParent !== null);
       if (!head && first && y < first.getBoundingClientRect().top) { dropAt = { group: null, before: tokenOf(first) }; showDrop(first.getBoundingClientRect().top - 4); return; }
       if (head) { const group = layout?.groups[head.dataset.group!]; dropAt = { group: head.dataset.group!, before: group?.items.find(key => key !== (dragging as { key: string }).key) ?? null, head }; head.classList.add('is-drop-target'); return; }
-      const rows = [...readyList.querySelectorAll<HTMLElement>('.world-library-entry')].filter(el => el.offsetParent && !el.classList.contains('is-dragging') && !el.closest('.world-group.is-collapsed'));
+      const rows = [...readyList.querySelectorAll<HTMLElement>('.world-library-entry:not(.motion-ghost)')].filter(el => el.offsetParent && !el.classList.contains('is-dragging') && !el.closest('.world-group.is-collapsed'));
       const over = rows.find(el => { const r = el.getBoundingClientRect(); return y >= r.top && y <= r.bottom; }) ?? rows.find(el => el.getBoundingClientRect().top > y);
       if (!over) { dropAt = { group: null, before: null }; const last = readyList.lastElementChild?.getBoundingClientRect(); if (last) showDrop(last.bottom + 4); return; }
       const r = over.getBoundingClientRect(), after = y > r.top + r.height / 2 && y <= r.bottom;
@@ -527,6 +537,9 @@ export function mountWorlds(ctx: FeatureContext): void {
     const restored = worldsReady && extensionsReady ? savedLayout : undefined;
     const positions = new Map(restored?.positions);
     if (restored) savedLayout = undefined;
+    // Rows that appear, go or change lists move as a reflow, unless the rail is restoring its layout
+    // or landing an arrival, which move on their own.
+    const reflow = restored || arrival ? undefined : measureRail();
     pendingGroup.hidden = !items.some(needsRestart);
     for (const [key, node] of railNodes) if (!items.some(item => item.key === key)) { node.parentElement?.remove(); railNodes.delete(key); }
     const cursors = new Map<HTMLElement, Element | null>([[pendingList, pendingList.firstElementChild]]);
@@ -565,6 +578,7 @@ export function mountWorlds(ctx: FeatureContext): void {
         if (animation) { movements.add(animation); void animation.finished.then(() => movements.delete(animation), () => movements.delete(animation)); }
       }
     }
+    reflow?.play();
   }
   function paintSignals(host: HTMLElement, lamps: readonly WebUiLamp[]): void {
     const signature = JSON.stringify(lamps);

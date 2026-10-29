@@ -1571,6 +1571,8 @@ mark.extension-hit { color: inherit; background: color-mix(in srgb, var(--accent
 
 .extension-card-heading .extension-card-title { flex: 1; }
 .extension-market-card { cursor: pointer; }
+/* Installed packages read a shade quieter than the ones still to get. */
+.extension-market-card.is-installed { background: color-mix(in srgb, var(--sheet) 96.5%, var(--ink)); }
 .extension-card:hover { border-color:var(--line-strong); }
 .extension-market-card:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
 .extension-toolbar { align-items: center; gap: 12px; }
@@ -2168,7 +2170,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-library-entry.is-dragging,.world-group.is-dragging{opacity:.4}
 /* Ungrouped rows after a group start below a divider, so an expanded group's end stays visible. */
 .world-group{transition:padding var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),border-color 200ms;border-bottom:1px solid transparent}
-.world-workspace[data-view=mine] .world-group:has(+ .world-library-entry){width:var(--world-entry-width);padding-bottom:6px;margin-bottom:14px;border-bottom-color:var(--line)}
+.world-workspace[data-view=mine] .world-group:has(+ .world-library-entry:not(.motion-ghost)){width:var(--world-entry-width);padding-bottom:6px;margin-bottom:14px;border-bottom-color:var(--line)}
 /* Cards past the first screen skip rendering until scrolled to, so showing the market lays out only
    the cards in view; those are marked is-in-view while the market slides in. */
 .world-catalog .extension-market-card{content-visibility:auto;contain-intrinsic-size:auto 160px}
