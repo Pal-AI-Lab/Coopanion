@@ -275,7 +275,8 @@ const core = new CoreHost({
     // a portable folder is copied whole, which turns pnpm's links (absolute junctions on Windows) into plain folders an
     // extension no longer finds its dependencies through; hoisted node_modules hold the packages themselves
     ...PORTABLE || !LINKS ? { pnpm_config_node_linker: 'hoisted' } : {},
-    // extension installs call `corepack pnpm`; the shim (corepack.cmd, or corepack on macOS and Linux) runs the bundled pnpm on this runtime.
+    // extension installs call `corepack pnpm`, and the build scripts pnpm runs call `node`; the shims (.cmd on Windows) run
+    // the bundled pnpm and those scripts on this runtime.
     // The Windows build carries MinGit (scripts/pack.ts), ahead of any other git, for the history of Coo's workspace
     PATH: [shimDir, ...existsSync(MINGIT) ? [MINGIT] : [], process.env.PATH ?? ''].join(delimiter),
     CORTICO_NODE_EXE: process.execPath,
