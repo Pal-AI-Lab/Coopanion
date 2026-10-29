@@ -1507,7 +1507,10 @@
 .configview > .actionbar { justify-content: flex-start; margin-top: 0; padding-top: 10px; }
 .configview > .actionbar > .msgline.is-hint { color: var(--ink-dim); }
 /* On a World page the bar stays at the bottom of the scroll area; long errors scroll inside it. */
-.configview.has-restart > .actionbar { position: sticky; bottom: -56px; z-index: 5; align-items: center; gap: 10px; padding: 10px 0 70px; margin-bottom: -56px; border-top: 1px solid var(--line); background: var(--background); }
+.panelslot:has(> .configview.has-restart) { padding-bottom: 0; }
+.configview.has-restart > .actionbar > * { margin: 0; }
+.configview.has-restart > .actionbar > .btn { min-height: 28px; padding-block: 3px; }
+.configview.has-restart > .actionbar { position: sticky; bottom: 0; z-index: 5; align-items: center; gap: 10px; min-height: 0; padding: 8px 0; border-top: 1px solid var(--line); background: var(--background); }
 .configview.has-restart > .actionbar > .msgline { max-height: 30vh; overflow: auto; white-space: pre-wrap; }
 .configview.has-restart > .actionbar > .grow { display: none; }
 .configview.has-restart > .actionbar > .msgline { flex: 1 1 auto; min-width: 0; }
