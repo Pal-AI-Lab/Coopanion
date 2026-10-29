@@ -26,7 +26,7 @@ import type {
   BlobInput, EventEnvelope, Logger, OutputTap, RunPhase, ToolCallContext, ToolDef, ToolOutcome, TriggerMode, World, WorldWebUiDecl,
   WorldHost, WorldLamp, WorldPanelDecl, WorldStreamSocket,
 } from 'cortico/core/types.ts';
-import { nowIso, shortTime } from 'cortico/core/util.ts';
+import { nowIso, parseTimeIn, shortTime } from 'cortico/core/util.ts';
 import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
 import {
@@ -48,7 +48,9 @@ import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, watchHotk
 import { joinSpeech, looksHallucinated } from './asr/result.ts';
 import { toSimplified } from './asr/simplify.ts';
 import { estimateSeconds, parseActions, parseScript, vocabChange, vocabTable, type VocabWord } from './script.ts';
-import { ActivityGroup, ChatSockets, SELF_TYPE, chatHistory, chatItem, chatRefs, type ChatFigure } from './chat.ts';
+import {
+  ActivityGroup, ChatSockets, SELF_TYPE, chatExport, chatHistory, chatItem, chatLocate, chatMatches, chatRefs, type ChatFigure,
+} from './chat.ts';
 import { ASK_OPTION_MAX, petToolDecls } from './tools.ts';
 import { COO, figurePacks, lookOf, modelName, nameIn, packFor, type FigurePack, type MoveTarget, type PackScan } from './packs.ts';
 import { moveChange, moveTable, readMove } from './moves.ts';
@@ -92,6 +94,27 @@ const TOUCH_MERGE_MS = 2500;
 const CONFIRM_TIMEOUT_MS = 60_000;
 /** History events read per chat page load; the page asks for the ones before by cursor. */
 const CHAT_PAGE_EVENTS = 300;
+/** Matches a history search returns at once; older ones come by passing the returned `before` back. */
+const CHAT_HISTORY_LIMIT = 100;
+/** Items on either side of the one a locate request names. */
+const CHAT_LOCATE_RADIUS = 20;
+/** A search query is cut to this many characters before it is matched. */
+const CHAT_QUERY_MAX = 200;
+
+/** A history request's time bound in ms; undefined when absent, throws on unreadable text. */
+function timeBound(timezone: string, value: unknown): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value !== 'string') throw new Error('fromTs and toTs must be ISO 8601 text');
+  const ms = parseTimeIn(timezone, value);
+  if (Number.isNaN(ms)) throw new Error(`${value} is not a date`);
+  return ms;
+}
+
+/** A cursor an item or a page boundary must carry. */
+function requireCursor(value: unknown, field: string): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) throw new Error(`${field} must be a positive integer cursor`);
+  return value;
+}
 /** A message from the chat page: text cut to this, up to IMAGES_MAX images of at most IMAGE_MAX_BYTES each, as the console World takes them. */
 const CHAT_TEXT_MAX = 4000;
 const IMAGES_MAX = 8;
@@ -789,6 +812,9 @@ export class DesktopPetWorld implements World {
    * - `now { cursor }`: a pending message delivered at once, stopping what the bot is doing (`interrupt`)
    * - `withdraw { cursor }`: a pending message taken back; answered with `withdrawn { cursor }` to every page, or `notice` when it was already delivered
    * - `answer { askId, index | text }`: the open `pet_ask` answered on the page
+   * - `history { id, query?, fromTs?, toTs?, before?, snapshot? }`: the visible conversation matching `query`, in `[fromTs, toTs)`, newest 100; return `snapshot` with `before` for stable paging
+   * - `locate { id, cursor }`: the twenty items either side of the one with that cursor
+   * - `export { id, fromTs?, toTs? }`: the visible conversation in that window as Markdown
    *
    * `init` and `ask` frames carry the id of the question that can still be answered (`askId`, null
    * when none). `init` and `older` carry `refs`: the `withdrawn` and `delivered` records in that
@@ -846,6 +872,9 @@ export class DesktopPetWorld implements World {
         this.server.sendPet({ t: 'said-withdrawn', cursor });
         return;
       }
+      case 'history': return this.onHistory(msg, socket);
+      case 'locate': return this.onLocate(msg, socket);
+      case 'export': return this.onExport(msg, socket, language);
       case 'answer': return this.onAnswer(msg, 'chat');
     }
   }
@@ -864,6 +893,71 @@ export class DesktopPetWorld implements World {
       refs: { withdrawn: refs.withdrawn.filter((c) => c < first), delivered: refs.delivered.filter(([c]) => c < first) },
       more, before: more ? first : null,
     };
+  }
+
+  /** This World's whole event stream, across runs; a history request reads it whole. */
+  private historyEvents(): EventEnvelope[] {
+    return this.host?.store.range({ source: this.id }) ?? [];
+  }
+
+  private historyError(socket: WorldStreamSocket, id: string, err: unknown): void {
+    this.chat.send(socket, { t: 'historyError', id, message: (err as Error).message });
+  }
+
+  /** The visible conversation that matches a query in a time window, newest 100, with cursor paging. */
+  private onHistory(msg: Record<string, unknown>, socket: WorldStreamSocket): void {
+    const id = typeof msg.id === 'string' ? msg.id : '';
+    try {
+      if (msg.query !== undefined && typeof msg.query !== 'string') throw new Error('query must be text');
+      const query = msg.query === undefined ? undefined : msg.query.slice(0, CHAT_QUERY_MAX);
+      const fromMs = timeBound(this.opts.timezone, msg.fromTs);
+      const toMs = timeBound(this.opts.timezone, msg.toTs);
+      if (fromMs !== undefined && toMs !== undefined && fromMs >= toMs) throw new Error('fromTs must be before toTs');
+      const before = msg.before === undefined ? undefined : requireCursor(msg.before, 'before');
+      const snapshot = msg.snapshot === undefined ? undefined : requireCursor(msg.snapshot, 'snapshot');
+      const page = chatMatches(this.historyEvents(), {
+        ...(query !== undefined ? { query } : {}),
+        ...(fromMs !== undefined ? { fromMs } : {}),
+        ...(toMs !== undefined ? { toMs } : {}),
+        ...(before !== undefined ? { before } : {}),
+        ...(snapshot !== undefined ? { snapshot } : {}),
+        limit: CHAT_HISTORY_LIMIT,
+      });
+      this.chat.send(socket, { t: 'history', id, matches: page.matches, more: page.more, snapshot: page.snapshot, ...(page.before !== null ? { before: page.before } : {}) });
+    } catch (err) {
+      this.historyError(socket, id, err);
+    }
+  }
+
+  /** The items twenty either side of the one a cursor names. */
+  private onLocate(msg: Record<string, unknown>, socket: WorldStreamSocket): void {
+    const id = typeof msg.id === 'string' ? msg.id : '';
+    try {
+      const cursor = requireCursor(msg.cursor, 'cursor');
+      const items = chatLocate(this.historyEvents(), cursor, CHAT_LOCATE_RADIUS);
+      if (!items) throw new Error(`no item at cursor ${cursor}`);
+      this.chat.send(socket, { t: 'located', id, cursor, items });
+    } catch (err) {
+      this.historyError(socket, id, err);
+    }
+  }
+
+  /** The visible conversation in a time window as Markdown; reads the history, changes nothing. */
+  private onExport(msg: Record<string, unknown>, socket: WorldStreamSocket, language: Language): void {
+    const id = typeof msg.id === 'string' ? msg.id : '';
+    try {
+      const fromMs = timeBound(this.opts.timezone, msg.fromTs);
+      const toMs = timeBound(this.opts.timezone, msg.toTs);
+      if (fromMs !== undefined && toMs !== undefined && fromMs >= toMs) throw new Error('fromTs must be before toTs');
+      const text = chatExport(this.historyEvents(), {
+        ...(fromMs !== undefined ? { fromMs } : {}),
+        ...(toMs !== undefined ? { toMs } : {}),
+        user: this.userName, bot: this.botName(), language,
+      });
+      this.chat.send(socket, { t: 'exported', id, text });
+    } catch (err) {
+      this.historyError(socket, id, err);
+    }
   }
 
   /** The open question changed: pages let only the one still open be answered. */

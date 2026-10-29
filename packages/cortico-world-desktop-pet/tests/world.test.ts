@@ -792,6 +792,57 @@ describe('chat page', () => {
   });
 });
 
+describe('chat history requests', () => {
+  it('answers history, locate and export over the stored events, and reports a refused boundary as historyError', async () => {
+    const { world, host } = await mounted(undefined, { botName: () => 'Coo' });
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const chat = chatSocket(world);
+
+    chat.send({ t: 'send', id: 1, text: '周末去爬山' });
+    await expect.poll(() => chat.last('sent')).toMatchObject({ id: 1 });
+    await tool(world, 'pet_say').handler({ script: '好呀' }, ctx);
+    await expect.poll(() => chat.last('item')?.item).toMatchObject({ kind: 'say' });
+    const stored = host.events.length;
+
+    chat.send({ t: 'history', id: 'h1', query: '爬山' });
+    await expect.poll(() => chat.last('history')).toBeDefined();
+    const found = chat.last('history')!;
+    expect(found).toMatchObject({ t: 'history', id: 'h1', more: false });
+    const matches = found.matches as Array<{ kind: string; cursor: number; text?: string }>;
+    expect(matches.map((m) => m.kind)).toEqual(['user']);
+    expect(matches[0]).toMatchObject({ text: '周末去爬山' });
+
+    chat.send({ t: 'locate', id: 'l1', cursor: matches[0]!.cursor });
+    await expect.poll(() => chat.last('located')).toBeDefined();
+    const located = chat.last('located')!;
+    expect(located).toMatchObject({ t: 'located', id: 'l1', cursor: matches[0]!.cursor });
+    expect((located.items as Array<{ kind: string }>).map((i) => i.kind)).toEqual(['user', 'say']);
+
+    chat.send({ t: 'export', id: 'e1' });
+    await expect.poll(() => chat.last('exported')).toBeDefined();
+    const exported = chat.last('exported')!.text as string;
+    expect(exported).toContain('# 对话记录');
+    expect(exported).toContain('周末去爬山');
+    expect(exported).toContain('好呀');
+    expect(host.events.length).toBe(stored);
+
+    chat.send({ t: 'history', id: 'h2', query: 5 });
+    await expect.poll(() => chat.last('historyError')).toMatchObject({ t: 'historyError', id: 'h2', message: 'query must be text' });
+
+    chat.send({ t: 'history', id: 'h3', fromTs: '2026-13-01' });
+    await expect.poll(() => chat.last('historyError')).toMatchObject({ t: 'historyError', id: 'h3' });
+    expect(String((chat.last('historyError') as { message: string }).message)).toContain('is not a date');
+
+    chat.send({ t: 'history', id: 'h4', fromTs: '2026-10-29T00:00:00', toTs: '2026-10-28T00:00:00' });
+    await expect.poll(() => chat.last('historyError')).toMatchObject({ t: 'historyError', id: 'h4', message: 'fromTs must be before toTs' });
+
+    chat.send({ t: 'locate', id: 'l2', cursor: 999999 });
+    await expect.poll(() => chat.last('historyError')).toMatchObject({ t: 'historyError', id: 'l2' });
+    expect(String((chat.last('historyError') as { message: string }).message)).toContain('no item at cursor 999999');
+  });
+});
+
 describe("the bot's name", () => {
   it('is read at each use: a rename reaches the menu header and an open chat page without a restart', async () => {
     let name = 'Coo';
