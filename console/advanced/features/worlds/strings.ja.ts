@@ -4,6 +4,7 @@ export const S: Partial<typeof en> = {
   myWorlds: "自分の World",
   marketTab: "World 拡張機能",
   extensionList: "拡張機能一覧",
+  pendingNote: "上の拡張はプロセスの再起動後に反映されます。",
   configure: "設定",
   packageInfo: "インストール情報",
   modeOff: "停止中",

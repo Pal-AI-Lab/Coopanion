@@ -4,6 +4,7 @@ export const S: Partial<typeof en> = {
   myWorlds: "我的 World",
   marketTab: "World 擴充功能",
   extensionList: "擴展清單",
+  pendingNote: "以上擴充需重新啟動處理程序後生效。",
   configure: "配置",
   packageInfo: "安裝資訊",
   modeOff: "已停用",

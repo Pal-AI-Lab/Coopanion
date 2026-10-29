@@ -10,6 +10,7 @@ export const S: Partial<typeof en> = {
   myWorlds: "Мои World",
   marketTab: "Расширения World",
   extensionList: "Список расширений",
+  pendingNote: "Расширения выше вступят в силу после перезапуска процесса.",
   configure: "Настроить",
   packageInfo: "Сведения об установке",
   modeOff: "Остановлен",

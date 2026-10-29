@@ -92,7 +92,7 @@ export function mountWorlds(ctx: FeatureContext): void {
   const restartRoot = ui.h('div', 'world-restart-footer');
   const readyList = ui.h('div', 'world-ready-list');
   const readyGroup = ui.h('div', 'world-ready-group');
-  const restartRow = ui.h('div', 'world-restart-row'); restartRow.append(restartRoot, ui.h('span', 'world-restart-note', E.restartNeeded));
+  const restartRow = ui.h('div', 'world-restart-row'); restartRow.append(restartRoot, ui.h('span', 'world-restart-note', S.pendingNote));
   pendingGroup.append(ui.h('h2', 'world-library-heading', E.statePendingRestart), pendingList, restartRow); pendingGroup.hidden = true;
   readyGroup.append(ui.h('h2', 'world-library-heading', S.extensionList), readyList);
   railList.append(pendingGroup, readyGroup);

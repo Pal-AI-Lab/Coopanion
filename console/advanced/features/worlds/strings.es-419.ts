@@ -4,6 +4,7 @@ export const S: Partial<typeof en> = {
   myWorlds: "Mis Worlds",
   marketTab: "Extensiones World",
   extensionList: "Lista de extensiones",
+  pendingNote: "Las extensiones de arriba surten efecto al reiniciar el proceso.",
   configure: "Configurar",
   packageInfo: "Información de instalación",
   modeOff: "Detenido",
