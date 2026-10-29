@@ -35,7 +35,7 @@ export const S: Partial<typeof en> = {
   cropPreview: 'アバターの切り抜きプレビュー',
   zoomAria: 'アバターの拡大縮小',
   zoom: '拡大縮小',
-  note: '画像をドラッグして位置を調整し、マウスホイールかスライダーで拡大縮小します。保存するとCoo のデータディレクトリの avatar.png に書き込みます。',
+  note: '画像をドラッグして位置を調整し、マウスホイールかスライダーで拡大縮小します。保存すると Coo のデータディレクトリの avatar.png に書き込みます。',
   cancel: 'キャンセル',
   save: 'アバターを保存',
   cropTitle: 'アバターの切り抜き',
