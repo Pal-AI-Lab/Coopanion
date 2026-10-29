@@ -14,6 +14,7 @@ import { S } from './strings.ts';
 import { sharedTemplate } from './titles.ts';
 import { fitVariableChips, variablePopup } from './variables.ts';
 import type { PromptDoc } from './view.ts';
+import { prefersStill } from '../../../base/motion.ts';
 
 interface PrefixSegment { title: string; text: string; sourceKey?: string }
 interface Section {
@@ -105,7 +106,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     editor.setCollapsed(index, !expanded);
   }
   function animateSection(section: Section, index: number): void {
-    if (section.collapsed || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (section.collapsed || prefersStill(window)) return;
     const targets = host.querySelectorAll(`[data-prompt-section="${index}"]`);
     for (const target of [...targets, section.vars]) {
       target.getAnimations().forEach((animation) => animation.cancel());

@@ -17,6 +17,7 @@ import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import type { SessionStat } from './protocol.ts';
 import { S } from './strings.ts';
 import { overflowPopover } from '../../../base/ui/overflow-popover.ts';
+import { prefersStill } from '../../../base/motion.ts';
 
 export interface SessionBandDeps {
   ui: WebUi;
@@ -127,7 +128,7 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
     return card;
   };
 
-  const reduced = (): boolean => view?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  const reduced = (): boolean => prefersStill(view);
 
   /** 量出放得下几张,摆好;`animate` 时已在场的卡从旧位置滑到新位置,新来的淡入。 */
   const layout = (animate: boolean): void => {

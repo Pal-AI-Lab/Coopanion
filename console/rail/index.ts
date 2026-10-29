@@ -21,6 +21,7 @@ import { sidebarBrand } from './brand.ts';
 import { L } from '../strings.ts';
 import { createAvatarControl } from './avatar.ts';
 import { S } from './strings.ts';
+import { fold, prefersStill } from '../base/motion.ts';
 
 const COLLAPSED_KEY = 'companion.sidebar.collapsed';
 const DEFAULT_NAME = 'bot';
@@ -139,17 +140,8 @@ export function createRail(deps: RailDeps): Rail {
   let listedPages: Set<string> | null = null;
   /** How long a page takes to join or leave the sidebar. */
   const DEPART_MS = 280, ARRIVE_MS = 320;
-  const FLOW = 'cubic-bezier(.4, 0, .2, 1)';
-  /**
-   * One motion for a page joining or leaving: the row's own height, its padding, a short slide and
-   * the fade run together, so neighbours move with it instead of after it.
-   */
-  const fold = (item: HTMLElement, open: boolean, duration: number): void => {
-    const style = doc.defaultView!.getComputedStyle(item);
-    const full = { height: `${item.offsetHeight}px`, minHeight: style.minHeight, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, opacity: 1, transform: 'none' };
-    const none = { height: '0px', minHeight: '0px', paddingTop: '0px', paddingBottom: '0px', opacity: 0, transform: 'translateX(-8px)' };
-    item.animate?.(open ? [none, full] : [full, none], { duration, easing: FLOW, fill: open ? 'none' : 'forwards' });
-  };
+  /** A page joining or leaving moves with its neighbours: its height, padding, a short slide and the fade together. */
+  const move = (item: HTMLElement, open: boolean, duration: number) => fold(item, open, { duration, easing: 'cubic-bezier(.4, 0, .2, 1)', shift: -8, hide: false, clip: false });
   let departing: ReturnType<typeof setTimeout> | undefined;
   signal.addEventListener('abort', () => clearTimeout(departing), { once: true });
   /** Pages that leave the sidebar fold away first; the redraw follows. */
@@ -157,9 +149,9 @@ export function createRail(deps: RailDeps): Rail {
     clearTimeout(departing); departing = undefined;
     const next = new Set(groups.flatMap((g) => [...g.items, ...(g.modules ?? [])]).flatMap((it) => it.pageId ? [it.pageId] : []));
     const leaving = entries.filter((entry) => entry.pageId && !next.has(entry.pageId) && !entry.item.hidden && entry.item.isConnected);
-    const still = doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const still = prefersStill(doc.defaultView);
     if (!leaving.length || still) { drawNav(groups); return; }
-    for (const { item } of leaving) { item.classList.add('companion-depart'); fold(item, false, DEPART_MS); }
+    for (const { item } of leaving) { item.classList.add('companion-depart'); move(item, false, DEPART_MS); }
     departing = setTimeout(() => { departing = undefined; drawNav(groups); }, DEPART_MS);
   };
   const drawNav = (groups: readonly NavGroup[]): void => {
@@ -188,10 +180,10 @@ export function createRail(deps: RailDeps): Rail {
     applyRoute();
     filterNav(false);
     listedPages = new Set(entries.flatMap((entry) => entry.pageId ? [entry.pageId] : []));
-    const still = doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const still = prefersStill(doc.defaultView);
     if (before && !still) for (const { item, pageId } of entries) if (pageId && !before.has(pageId) && !item.hidden) {
       item.classList.add('companion-arrive');
-      fold(item, true, ARRIVE_MS);
+      move(item, true, ARRIVE_MS);
       setTimeout(() => item.classList.remove('companion-arrive'), ARRIVE_MS);
     }
   };
@@ -241,7 +233,7 @@ export function createRail(deps: RailDeps): Rail {
       const to = Math.max(0, Math.min(from, nav.scrollHeight - nav.clientHeight));
       for (const x of leaving) x.style.display = '';
       nav.scrollTop = from;
-      if (to < from && !win.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) {
+      if (to < from && !prefersStill(win)) {
         const start = performance.now();
         const step = (now: number): void => {
           const k = Math.min(1, (now - start) / FADE_MS);
@@ -446,7 +438,7 @@ export function createRail(deps: RailDeps): Rail {
    * along with the pause key as they fade.
    */
   const flip = (change: () => void): void => {
-    const moving = typeof foot.animate === 'function' && !win.matchMedia('(prefers-reduced-motion: reduce)')?.matches
+    const moving = typeof foot.animate === 'function' && !prefersStill(win)
       ? Array.from(foot.querySelectorAll<HTMLElement>('.rail-who, .rail-action, .companion-runstate')).filter((x) => !x.hidden)
       : [];
     const before = moving.map((x) => x.getBoundingClientRect());
