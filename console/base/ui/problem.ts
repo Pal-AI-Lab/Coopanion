@@ -59,8 +59,8 @@ export function problemPopover(doc: Document, signal: AbortSignal): ProblemPopov
       const message = doc.createElement('span'); message.className = 'extension-problem-text'; message.textContent = text;
       box.replaceChildren(icon(doc, 'alert', 'icon extension-problem-mark'), message, close);
       anchor = target; box.classList.remove('hidden'); place();
-      box.animate?.([{ opacity: 0, transform: 'translateY(-4px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 180, easing: 'ease-out' });
-      target.animate?.([0, -5, 5, -3, 2, 0].map(x => ({ transform: `translateX(${x}px)` })), { duration: 420, easing: 'ease-out' });
+      box.animate?.([{ opacity: 0, transform: 'translateY(-4px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 130, easing: 'ease-out' });
+      target.animate?.([0, -5, 5, -3, 2, 0].map(x => ({ transform: `translateX(${x}px)` })), { duration: 290, easing: 'ease-out' });
     },
   };
 }

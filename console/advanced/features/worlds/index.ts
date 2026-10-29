@@ -21,7 +21,7 @@ import { foldText, searchTerms } from '../extensions/search.ts';
 
 const worldPageId = (id: string) => pageIdFor('world', id);
 /** The view switch's duration and curve, as `--world-duration` and `--world-easing` in styles.css. */
-const VIEW_MS = 420;
+const VIEW_MS = 290;
 const viewEasing = cubicBezier(.32, .72, 0, 1);
 /** A CSS cubic-bezier timing function, solved for x by Newton's method with a bisection fallback. */
 function cubicBezier(x1: number, y1: number, x2: number, y2: number): (t: number) => number {
@@ -190,7 +190,7 @@ export function mountWorlds(ctx: FeatureContext): void {
         const own = anchor.getAnimations?.().find(animation => (animation as CSSTransition).transitionProperty === 'height');
         if (own) seen = true;
         // Waiting for the transition to start holds still; once it has run and gone, the glide ends.
-        const waited = now - start, clock = Math.min(1, Math.max(0, waited - 120) / VIEW_MS);
+        const waited = now - start, clock = Math.min(1, Math.max(0, waited - 80) / VIEW_MS);
         const progress = own ? own.effect?.getComputedTiming().progress ?? 0 : seen ? 1 : viewEasing(clock);
         const done = !own && (seen || clock >= 1);
         railList.scrollTop = glideFrom + (to - glideFrom) * (done ? 1 : progress);
@@ -209,7 +209,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     const open = { clipPath: 'inset(0 0 0 0%)' };
     catalog.hidden = false;
     if (previous && !reduceMotion() && catalog.animate) {
-      const timing = { duration: 420, easing: 'cubic-bezier(.32,.72,0,1)' };
+      const timing = { duration: 290, easing: 'cubic-bezier(.32,.72,0,1)' };
       transition = catalog.animate(next === 'market' ? [interrupted ?? closed, open] : [interrupted ?? open, closed], timing);
       const own = transition;
       void own.finished.then(() => { if (transition === own) catalog.hidden = current !== 'market'; }, () => {});
@@ -299,8 +299,8 @@ export function mountWorlds(ctx: FeatureContext): void {
   function land(node: HTMLElement, from?: DOMRect) {
     const entry = node.parentElement!, face = node.querySelector<HTMLElement>('.world-avatar')!;
     const height = entry.getBoundingClientRect().height;
-    entry.animate?.([{ height: '0px', minHeight: '0px', marginBottom: '0px', opacity: 0 }, { height: `${height}px`, minHeight: `${height}px`, opacity: 1 }], { duration: 260, easing: 'cubic-bezier(.32,.72,0,1)' });
-    const pop = () => face.animate?.([{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1.12)', opacity: 1, offset: .6 }, { transform: 'scale(1)' }], { duration: 380, easing: 'cubic-bezier(.32,.72,0,1)' });
+    entry.animate?.([{ height: '0px', minHeight: '0px', marginBottom: '0px', opacity: 0 }, { height: `${height}px`, minHeight: `${height}px`, opacity: 1 }], { duration: 180, easing: 'cubic-bezier(.32,.72,0,1)' });
+    const pop = () => face.animate?.([{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1.12)', opacity: 1, offset: .6 }, { transform: 'scale(1)' }], { duration: 270, easing: 'cubic-bezier(.32,.72,0,1)' });
     if (!from || current !== 'market' || !face.animate) { pop(); return; }
     const to = face.getBoundingClientRect();
     const ghost = face.cloneNode(true) as HTMLElement; ghost.classList.add('world-avatar-ghost');
@@ -311,8 +311,8 @@ export function mountWorlds(ctx: FeatureContext): void {
       { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, opacity: 1 },
       { transform: `translate(${dx * .45}px, ${dy * .45 - 48}px) scale(${(scale + 1) / 2 * 1.08})`, offset: .45 },
       { transform: 'translate(0, 0) scale(1)', opacity: 1 },
-    ], { duration: 640, easing: 'cubic-bezier(.45,.05,.25,1)' });
-    const finish = () => { ghost.remove(); face.style.opacity = ''; if (!signal.aborted) face.animate?.([{ transform: 'scale(1.14)' }, { transform: 'scale(1)' }], { duration: 260, easing: 'cubic-bezier(.32,.72,0,1)' }); };
+    ], { duration: 450, easing: 'cubic-bezier(.45,.05,.25,1)' });
+    const finish = () => { ghost.remove(); face.style.opacity = ''; if (!signal.aborted) face.animate?.([{ transform: 'scale(1.14)' }, { transform: 'scale(1)' }], { duration: 180, easing: 'cubic-bezier(.32,.72,0,1)' }); };
     void flight.finished.then(finish, finish);
     lifecycle.add(() => ghost.remove());
   }
@@ -411,7 +411,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     for (const [el, top] of before) {
       if (!el.isConnected) continue;
       const delta = top - el.getBoundingClientRect().top;
-      if (delta) el.animate?.([{ transform: `translateY(${delta}px)` }, { transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.32,.72,0,1)' });
+      if (delta) el.animate?.([{ transform: `translateY(${delta}px)` }, { transform: 'none' }], { duration: 180, easing: 'cubic-bezier(.32,.72,0,1)' });
     }
   }
   function createGroup() {
@@ -527,8 +527,8 @@ export function mountWorlds(ctx: FeatureContext): void {
     const positions = new Map(restored?.positions);
     if (restored) savedLayout = undefined;
     // Rows that appear, go or change lists move as a reflow, unless the rail is restoring its layout
-    // or landing an arrival, which move on their own.
-    const reflow = restored || arrival ? undefined : measureRail();
+    // or landing an arrival, which move on their own. The first fill after the page opens is no change and stays still.
+    const reflow = restored || arrival || !railNodes.size ? undefined : measureRail();
     pendingGroup.hidden = !items.some(needsRestart);
     for (const [key, node] of railNodes) if (!items.some(item => item.key === key)) { node.parentElement?.remove(); railNodes.delete(key); }
     const cursors = new Map<HTMLElement, Element | null>([[pendingList, pendingList.firstElementChild]]);
@@ -563,7 +563,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     for (const [key, node] of railNodes) {
       const before = positions.get(key), delta = before === undefined ? 0 : before - node.parentElement!.getBoundingClientRect().top;
       if (delta && node.parentElement!.dataset.state !== 'pending' && node.parentElement!.dataset.state !== 'failed' && !reduceMotion()) {
-        const animation = node.parentElement!.animate?.([{ transform: `translateY(${delta}px)` }, { transform: 'translateY(0)' }], { duration: 480, easing: 'cubic-bezier(.2,.7,.2,1)' });
+        const animation = node.parentElement!.animate?.([{ transform: `translateY(${delta}px)` }, { transform: 'translateY(0)' }], { duration: 340, easing: 'cubic-bezier(.2,.7,.2,1)' });
         if (animation) { movements.add(animation); void animation.finished.then(() => movements.delete(animation), () => movements.delete(animation)); }
       }
     }
@@ -594,7 +594,7 @@ export function mountWorlds(ctx: FeatureContext): void {
       details.addEventListener('click', () => owner.details(pack.name), { signal }); heading.append(details);
     } else heading.append(ui.h('span', 'world-name', item.label));
     // Extension info sits beside the name; a row click opens the World's settings.
-    if (pack && market) { const owner = market; heading.append(slot('info', iconButton('package', S.packageInfo, 'world-name-info', () => owner.details(pack.name)))); }
+    if (pack && market) { const owner = market; heading.append(slot('info', iconButton('info', S.packageInfo, 'world-name-info', () => owner.details(pack.name)))); }
     identity.append(heading, ui.h('code', '', m?.id ?? pack?.name ?? item.key));
     const signals = ui.h('div', 'world-blade-signals');
     const state = pending ? pack?.state === 'removed' ? E.stateRemoved : E.statePendingRestart : failed ? E.stateFailed : m?.status === 'active' ? m.visible === false ? S.modeRunning : S.modeAttached : S.modeOff;

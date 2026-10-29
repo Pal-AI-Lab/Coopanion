@@ -139,7 +139,7 @@ export function createRail(deps: RailDeps): Rail {
   /** Pages listed by the last draw; a page new since then arrives with an animation. */
   let listedPages: Set<string> | null = null;
   /** How long a page takes to join or leave the sidebar. */
-  const DEPART_MS = 280, ARRIVE_MS = 320;
+  const DEPART_MS = 200, ARRIVE_MS = 220;
   /** A page joining or leaving moves with its neighbours: its height, padding, a short slide and the fade together. */
   const move = (item: HTMLElement, open: boolean, duration: number) => fold(item, open, { duration, easing: 'cubic-bezier(.4, 0, .2, 1)', shift: -8, hide: false, clip: false });
   let departing: ReturnType<typeof setTimeout> | undefined;

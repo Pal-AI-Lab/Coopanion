@@ -49,7 +49,8 @@ export type ConsoleIconName =
   | 'arrow-left'
   | 'radio-on'
   | 'radio-off'
-  | 'warning-off';
+  | 'info'
+  | 'help';
 
 type Shape = readonly [tag: 'path' | 'circle' | 'rect' | 'line', attrs: Readonly<Record<string, string>>];
 
@@ -233,11 +234,15 @@ const SHAPES: Readonly<Record<ConsoleIconName, readonly Shape[]>> = {
     ['path', { d: 'M12 9.5v4' }],
     ['path', { d: 'M12 17h.01' }],
   ],
-  'warning-off': [
-    ['path', { d: 'M10.3 4.2 2.6 17.5a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z' }],
-    ['path', { d: 'M12 9.5v4' }],
-    ['path', { d: 'M12 17h.01' }],
-    ['path', { d: 'M3 3l18 18' }],
+  help: [
+    ['circle', { cx: '12', cy: '12', r: '9' }],
+    ['path', { d: 'M9.6 9.3a2.5 2.5 0 0 1 4.9.7c0 1.7-2.5 2.1-2.5 3.6' }],
+    ['path', { d: 'M12 16.8h.01' }],
+  ],
+  info: [
+    ['circle', { cx: '12', cy: '12', r: '9' }],
+    ['path', { d: 'M12 11v5' }],
+    ['path', { d: 'M12 8h.01' }],
   ],
   'arrow-up': [
     ['path', { d: 'M12 19V5' }],
@@ -322,6 +327,51 @@ export function brandMark(doc: Document, cls = 'brandmark'): SVGSVGElement {
   svg.setAttribute('aria-hidden', 'true');
   svg.setAttribute('class', cls);
   shapesInto(doc, svg, WORDMARK_MARK);
+  return svg;
+}
+
+/**
+ * 内置形象 Coo 站着的样子：两条腿、C 形身子和一张脸。坐标与线宽照桌宠的画法
+ * (packages/cortico-world-desktop-pet/web/coo/coo.js、web/kit/body.js):腿从髋 (104,212)、(150,212) 落到地面，线宽 30;
+ * 身子半径 84、线宽 36,开口随脸变;眼睛在 (113,117)、(163,117),线宽 12。
+ */
+const COO_LEGS: readonly Shape[] = [
+  ['path', { d: 'M104 212V241', 'stroke-width': '30' }],
+  ['path', { d: 'M150 212V241', 'stroke-width': '30' }],
+];
+/** 桌宠表情里的三张脸：「> <」(被拎起)、「0 0」加一个问号、「- -」。身子的开口按各自表情取。 */
+const COO_FACES: Readonly<Record<'squint' | 'puzzled' | 'flat', readonly Shape[]>> = {
+  squint: [
+    ['path', { d: 'M176.2 59.2A84 84 0 1 0 176.2 196.8', 'stroke-width': '36' }],
+    ['path', { d: 'M103 104 124 117 103 130', 'stroke-width': '12' }],
+    ['path', { d: 'M173 104 152 117 173 130', 'stroke-width': '12' }],
+  ],
+  puzzled: [
+    ['path', { d: 'M182 63.7A84 84 0 1 0 182 192.3', 'stroke-width': '36' }],
+    ['circle', { cx: '113', cy: '117', r: '16', 'stroke-width': '12' }],
+    ['circle', { cx: '163', cy: '117', r: '16', 'stroke-width': '12' }],
+    ['path', { d: 'M213 24a12 12 0 1 1 17 11c-5 3-6 6-6 11', 'stroke-width': '10' }],
+    ['path', { d: 'M224 58v.01', 'stroke-width': '12' }],
+  ],
+  flat: [
+    ['path', { d: 'M188.4 69.6A84 84 0 1 0 188.4 186.4', 'stroke-width': '36' }],
+    ['path', { d: 'M97 117H129', 'stroke-width': '12' }],
+    ['path', { d: 'M147 117H179', 'stroke-width': '12' }],
+  ],
+};
+export type CooFace = keyof typeof COO_FACES;
+export const COO_FACE_NAMES = Object.keys(COO_FACES) as CooFace[];
+
+export function cooFigure(doc: Document, face: CooFace, cls = 'coo-figure'): SVGSVGElement {
+  const svg = doc.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '24 4 224 252');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('class', cls);
+  shapesInto(doc, svg, [...COO_LEGS, ...COO_FACES[face]]);
   return svg;
 }
 

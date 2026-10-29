@@ -1,13 +1,13 @@
 /** 扩展管理页。扩展信息与运行状态由服务端提供；安装、卸载后需重启进程才能生效。World 与供应商页面共用内容。 */
 
 import { get, post, pickPath } from '../../../base/api.ts';
-import { icon, brandMark } from '../../../base/ui/icons.ts';
+import { icon, brandMark, cooFigure, COO_FACE_NAMES } from '../../../base/ui/icons.ts';
 import { renderMarkdown } from './markdown.ts';
 import type { FeatureContext } from '../feature.ts';
 import { S } from './strings.ts';
-import { CATALOG_CATEGORIES, CATALOG_CATEGORY_IDS, inCatalogCategory, isFunctionTag, type CatalogCategory } from './catalog.ts';
+import { CATALOG_CATEGORY_IDS, inCatalogCategory, isFunctionTag, type CatalogCategory } from './catalog.ts';
 import { problemPopover, scrollerOf, wheelDelta } from '../../../base/ui/problem.ts';
-import { fold, measureReflow } from '../../../base/motion.ts';
+import { fold, measureReflow, prefersStill } from '../../../base/motion.ts';
 import { matchRanges, matchRank, prepareFields, searchTerms, type MatchRank, type PreparedFields } from './search.ts';
 
 /** 扩展类别。与 `ExtensionKind` 同形;这一页只用它分组与选关键字。 */
@@ -394,7 +394,8 @@ export function restartOutcome(before: Life, next: Life): 'waiting' | 'ready' | 
 interface CategoryState {
   marketSize: number;
   filter: string; sort: HitSort; page: number; scroll: number;
-  tags: string[]; hideWarnings: boolean; officialOnly: boolean; certifiedOnly: boolean; newOnly: boolean;
+  /** `tags` must all be on a package. 推荐 is one of certified and official. */
+  tags: string[]; officialOnly: boolean; certifiedOnly: boolean; newOnly: boolean;
   advanced: boolean; author: string; keyword: string; license: string; sinceDays: number; minDownloads: number;
   hits: SearchHitView[]; fetched: boolean; generation: number; messages: Record<string, { text: string; bad: boolean }>;
   source: 'npm' | 'local'; input: string;
@@ -456,7 +457,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   const storageKey = 'cortico.extensions.v3:' + win.location.origin;
   const states = Object.fromEntries(categories.map(kind => [kind, {
     marketSize: 0,
-    filter: '', sort: 'certified', page: 0, scroll: 0, tags: [], hideWarnings: false, officialOnly: false, certifiedOnly: false, newOnly: false, advanced: false, author: '', keyword: '', license: '', sinceDays: 0, minDownloads: 0, hits: [], fetched: false, generation: 0,
+    filter: '', sort: 'certified', page: 0, scroll: 0, tags: [], officialOnly: false, certifiedOnly: false, newOnly: false, advanced: false, author: '', keyword: '', license: '', sinceDays: 0, minDownloads: 0, hits: [], fetched: false, generation: 0,
     messages: {}, source: 'npm', input: '', catalogCategory: 'all', filtersFolded: false, installation: 'all',
   } satisfies CategoryState])) as unknown as Record<Category, CategoryState>;
   try {
@@ -465,6 +466,11 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     for (const kind of categories) if (!HIT_SORTS.includes(states[kind].sort)) states[kind].sort = 'certified';
     for (const kind of categories) if (!CATALOG_CATEGORY_IDS.includes(states[kind].catalogCategory)) states[kind].catalogCategory = 'all';
   } catch { /* Storage can be disabled by the browser. */ }
+  /** 注意事项 the viewer excludes. They outlast the session and apply to both markets. */
+  const exclusionsKey = 'cortico.extensions.exclusions.v1:' + win.location.origin;
+  let exclusions: string[] = [];
+  try { const saved: unknown = JSON.parse(win.localStorage.getItem(exclusionsKey) ?? '[]'); if (Array.isArray(saved)) exclusions = saved.filter((id): id is string => typeof id === 'string'); } catch { /* Storage can be disabled by the browser. */ }
+  const saveExclusions = () => { try { win.localStorage.setItem(exclusionsKey, JSON.stringify(exclusions)); } catch { /* Optional browser state. */ } };
   let installed: ExtensionView[] = [];
   let updates = new Map<string, UpdateView>();
   let directory = '';
@@ -483,8 +489,11 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   /** npm 源下拉是否展开;读不出源时自动展开。 */
   let registryOpen = false;
   let loadGeneration = 0, updateGeneration = 0;
-  /** The extension catalog's hits before any sidebar filter: hiding warning-tagged packages overrides every sidebar choice. */
-  const catalogHits = (state: CategoryState): SearchHitView[] => {
+  /**
+   * The extension catalog's hits before any sidebar choice. Excluded tags take their packages out first, so no
+   * sidebar choice brings them back; `unexcluded` keeps them, to count what the exclusions hide.
+   */
+  const catalogHits = (state: CategoryState, unexcluded = false): SearchHitView[] => {
     const hits = [...state.hits];
     // Providers have no separate library, so local packages remain accessible without npm results.
     if (kind === 'provider') for (const item of installed) {
@@ -492,11 +501,18 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       hits.push({ name: item.name, version: item.installedVersion ?? item.version ?? '', description: item.description ?? item.metadata?.description ?? '', displayName: item.metadata?.displayName ?? item.label,
         author: item.author ?? item.metadata?.author, kind, installed: true, downloads: { month: 0 }, dependents: 0, links: item.metadata?.links ?? {} });
     }
-    return state.hideWarnings ? hits.filter(hit => !(hit.tags ?? []).some(id => marketIndex.tags[id]?.style === 'warning')) : hits;
+    const excluded = unexcluded ? [] : exclusions;
+    return excluded.length ? hits.filter(hit => !(hit.tags ?? []).some(id => excluded.includes(id))) : hits;
   };
   /** Repaints the extension catalog's category list: counts and the selected category. */
   let paintCategories: (() => void) | undefined;
-  function selectCategory(value: CatalogCategory) { states[kind].catalogCategory = value; states[kind].page = 0; renderMarket(); save(); }
+  /** A second click on the selected category goes back to all. Picking a category starts its tags afresh: 推荐, selected tags and exclusions are cleared. */
+  function selectCategory(value: CatalogCategory) {
+    const state = states[kind]; state.catalogCategory = state.catalogCategory === value ? 'all' : value;
+    state.tags = []; state.certifiedOnly = state.officialOnly = state.newOnly = false;
+    if (exclusions.length) { exclusions = []; saveExclusions(); }
+    state.page = 0; renderMarket(); save();
+  }
   /** Loads and searches in flight; the catalog toolbar's refresh icon spins while any runs. */
   let refreshing = 0;
   let refreshControl: HTMLElement | undefined;
@@ -510,6 +526,19 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     refreshing++; refreshControl?.classList.add('is-spinning');
     return work.finally(() => { if (--refreshing === 0) settleSpin(); });
   };
+  /** The refresh button hides the cards while the list reloads, then deals them back in, so a refresh shows even when nothing changed. */
+  let replays = 0;
+  /** The face of the empty result on show; it holds while the list stays empty, so typing does not change Coo's mind. */
+  let emptyFace: number | undefined;
+  async function replayCards(work: Promise<unknown>) {
+    const run = ++replays, grid = marketGrid;
+    if (prefersStill(win)) { await work; return; }
+    grid.classList.add('is-reloading');
+    await Promise.all([work.catch(() => {}), new Promise(resolve => win.setTimeout(resolve, 110))]);
+    if (signal.aborted || run !== replays) return;
+    grid.classList.remove('is-reloading');
+    grid.querySelectorAll<HTMLElement>(':scope > .extension-market-card').forEach((card, index) => card.animate?.([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 180, delay: Math.min(index, 10) * 20, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'backwards' }));
+  }
   let installedFetched = false;
   let restoringScroll = true;
   const restoreScroll = () => {
@@ -536,7 +565,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   const panel = ui.h('div', 'extension-category world-catalog');
   root.append(panel);
   let marketGrid: HTMLElement, marketPager: HTMLElement;
-  let tagBar: HTMLElement | undefined, clearButton: HTMLButtonElement | undefined, licenseList: HTMLElement | undefined;
+  let tagBar: HTMLElement | undefined, activeBar: HTMLElement | undefined, warningControl: HTMLElement | undefined, clearButton: HTMLButtonElement | undefined, licenseList: HTMLElement | undefined;
   let messageNodes: Record<string, HTMLElement> = {};
   const save = () => {
     if (!root.hidden && !restoringScroll) states[kind].scroll = scrollRoot.scrollTop;
@@ -673,12 +702,24 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     el.addEventListener('pointerenter', show, { signal }); el.addEventListener('focus', show, { signal });
     el.addEventListener('pointerleave', hideSoon, { signal }); el.addEventListener('blur', hideHint, { signal });
   }
-  /** 标签:悬停显示说明。给了 `onToggle` 就是筛选按钮,点它不打开卡片。 */
-  function tagChip(id: string, opts?: { active?: boolean; count?: number; onToggle?: () => void }) {
+  /**
+   * A sidebar row keeps its explanation behind a question mark beside the name, shown while the row is hovered;
+   * hovering the mark opens it, and a click on the mark does not press the row.
+   */
+  function helpMark(row: HTMLElement, title: string, text: string) {
+    row.setAttribute('aria-description', plainHint(text));
+    const mark = ui.h('span', 'extension-tag-help'); mark.append(icon(doc, 'help'));
+    attachHint(mark, title, text);
+    mark.addEventListener('click', event => event.stopPropagation(), { signal });
+    return mark;
+  }
+  /** 标签:悬停显示说明,侧栏里(`helpMark`)改由名字旁的问号显示。给了 `onToggle` 就是筛选按钮,点它不打开卡片。 */
+  function tagChip(id: string, opts?: { active?: boolean; count?: number; onToggle?: () => void; helpMark?: boolean }) {
     const tag = marketIndex.tags[id];
     const el = ui.h(opts?.onToggle ? 'button' : 'span', 'extension-tag' + (tag.style ? ' is-' + tag.style : '') + (opts?.active ? ' is-active' : ''));
-    el.append(ui.h('span', '', tag.label)); if (opts?.count !== undefined) el.append(ui.h('span', 'extension-tag-count', String(opts.count)));
-    attachHint(el, tag.label, tag.hint);
+    el.append(ui.h('span', '', tag.label));
+    if (!opts?.helpMark) attachHint(el, tag.label, tag.hint); else if (tag.hint) el.append(helpMark(el, tag.label, tag.hint));
+    if (opts?.count !== undefined) el.append(ui.h('span', 'extension-tag-count', String(opts.count)));
     const toggle = opts?.onToggle;
     if (toggle) {
       (el as HTMLButtonElement).type = 'button'; el.setAttribute('aria-pressed', String(!!opts?.active));
@@ -714,7 +755,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       ...(state.sinceDays ? { publishedSince: new Date(Date.now() - state.sinceDays * 86_400_000).toISOString() } : {}),
     };
   }
-  /** 「清除筛选」清搜索词、标签、徽标筛选与高级搜索,保留警告隐藏开关。 */
+  /** 「清除筛选」清搜索词、标签、徽标筛选与高级搜索,保留注意事项的排除。 */
   const filtersActive = (state: CategoryState) => !!((state.catalogCategory !== 'all' || state.installation !== 'all') || state.filter.trim() || state.tags.length || state.officialOnly || state.certifiedOnly || state.newOnly || state.author.trim() || state.keyword.trim() || state.license.trim() || state.sinceDays || state.minDownloads);
   /** 「清除其他筛选」只留下搜索词。 */
   function clearFilters(keepQuery = false) {
@@ -728,16 +769,47 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const all = catalogHits(state).map(named);
     if (!all.length) return ui.placeholder(registry ? S.noPackagesAt(registry) : S.noPackages);
     const elsewhere = state.filter.trim() ? arrangeHits(all, { filter: state.filter, tagLabel, sort: state.sort, hideInstalled: false, page: 0, pageSize: 1 }).matched : 0;
-    if (!elsewhere) return ui.placeholder(S.noHits);
-    const box = ui.placeholder(S.hitsElsewhere(elsewhere)); box.classList.add('extension-hits-elsewhere');
-    box.append(ui.button(S.clearOtherFilters, { onClick: () => clearFilters(true) }));
+    if (!elsewhere) return noResult();
+    const box = noResult(ui.h('p', 'extension-empty-note', S.hitsElsewhere(elsewhere)), ui.button(S.clearOtherFilters, { onClick: () => clearFilters(true) }));
+    box.classList.add('extension-hits-elsewhere');
     return box;
   }
+  /** Nothing matches: a standing Coo with one of three faces at random, its line beneath, and whatever else the case adds below. */
+  function noResult(...more: HTMLElement[]) {
+    emptyFace ??= Math.floor(Math.random() * COO_FACE_NAMES.length);
+    const box = ui.h('div', 'extension-empty-coo'); box.append(cooFigure(doc, COO_FACE_NAMES[emptyFace]), ui.h('p', '', S.noHitLines[emptyFace]), ...more);
+    return box;
+  }
+  /** 注意事项 only exclude: the notice and warning tags, and after them the plain tags that pick no category. */
+  const isExclusion = (id: string) => { const tag = marketIndex.tags[id]; return !!tag && (tag.style === 'notice' || tag.style === 'warning' || (!tag.style && !isFunctionTag(id))); };
   function toggleTag(id: string) {
-    if (isFunctionTag(id)) { selectCategory((Object.keys(CATALOG_CATEGORIES) as (keyof typeof CATALOG_CATEGORIES)[]).find(key => (CATALOG_CATEGORIES[key] as readonly string[]).includes(id))!); return; }
     const state = states[kind];
     state.tags = state.tags.includes(id) ? state.tags.filter(t => t !== id) : [...state.tags, id];
     state.page = 0; renderMarket(); save();
+  }
+  /** Excluding a tag drops it from the selection and is kept across sessions. */
+  function toggleExclude(id: string) {
+    const state = states[kind];
+    exclusions = exclusions.includes(id) ? exclusions.filter(t => t !== id) : [...exclusions, id]; saveExclusions();
+    state.tags = state.tags.filter(t => t !== id);
+    state.page = 0; renderMarket(); save();
+  }
+  /** A tag on a card: a 注意事项 strikes through and shows a grey eye on hover, and a click excludes it; any other tag adds to the selection within the current category. */
+  function cardTag(id: string) {
+    if (isExclusion(id)) {
+      const chip = tagChip(id, { onToggle: () => toggleExclude(id) });
+      chip.classList.add('is-exclusion'); chip.setAttribute('aria-label', S.excludeTag(tagLabel(id) ?? id)); chip.append(icon(doc, 'eye', 'icon extension-tag-eye'));
+      return chip;
+    }
+    const state = states[kind];
+    return tagChip(id, { active: state.tags.includes(id), onToggle: () => toggleTag(id) });
+  }
+  const warningsHidden = () => { const warnings = warningTags(); return !!warnings.length && warnings.every(id => exclusions.includes(id)); };
+  /** The toolbar's warning switch: excludes every warning tag at once, or lets them all back. */
+  function toggleWarnings() {
+    const warnings = warningTags(), all = warnings.every(id => exclusions.includes(id));
+    exclusions = all ? exclusions.filter(id => !warnings.includes(id)) : [...new Set([...exclusions, ...warnings])]; saveExclusions();
+    const state = states[kind]; state.tags = state.tags.filter(id => !exclusions.includes(id)); state.page = 0; renderMarket(); save();
   }
   /** 「+N」自己也要落在第二行,放不下就再多收一个。 */
   function foldTags(row: HTMLElement) {
@@ -1132,15 +1204,19 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const reflow = measureCards();
     if (!keepHeight) marketGrid.style.minHeight = '';
     const state = states[kind];
-    if (state.hideWarnings) state.tags = state.tags.filter(id => marketIndex.tags[id]?.style !== 'warning');
     paintCategories?.();
-    const hits = catalogHits(state).filter(hit => inCatalogCategory(hit.tags, state.catalogCategory)).map(h => ({ ...named(h), installed: installed.some(p => p.name === h.name && p.state !== 'removed') })).filter(h => state.installation !== 'installed' || h.installed);
-    state.tags = state.tags.filter(id => marketIndex.tags[id]);
+    const listed = (pool: SearchHitView[]) => pool.filter(hit => inCatalogCategory(hit.tags, state.catalogCategory)).map(h => ({ ...named(h), installed: installed.some(p => p.name === h.name && p.state !== 'removed') })).filter(h => state.installation !== 'installed' || h.installed);
+    const hits = listed(catalogHits(state)), unexcluded = listed(catalogHits(state, true));
+    // 注意事项 only exclude, so a selection carried over from before holds none of them.
+    state.tags = state.tags.filter(id => marketIndex.tags[id] && !isExclusion(id) && !exclusions.includes(id));
     const terms = searchTerms(state.filter);
-    const result = arrangeHits(hits, { filter: state.filter, tagLabel, sort: state.sort, hideInstalled: state.installation === 'available', page: state.page, pageSize: pageSize(), tags: state.tags, excludeTags: state.hideWarnings ? warningTags() : [], officialOnly: state.officialOnly, certifiedOnly: state.certifiedOnly, newOnly: state.newOnly, ...advancedFilters(state) }); if (state.fetched) state.page = result.page;
+    const arrange: ArrangeOptions = { filter: state.filter, tagLabel, sort: state.sort, hideInstalled: state.installation === 'available', page: state.page, pageSize: pageSize(), tags: state.tags, officialOnly: state.officialOnly, certifiedOnly: state.certifiedOnly, newOnly: state.newOnly, ...advancedFilters(state) };
+    const result = arrangeHits(hits, arrange); if (state.fetched) state.page = result.page;
+    if (result.matched) emptyFace = undefined;
     if (clearButton) clearButton.disabled = !filtersActive(state);
     if (licenseList) licenseList.replaceChildren(...[...new Set(hits.map(h => h.license).filter(Boolean))].sort().map(value => { const option = ui.h('option') as HTMLOptionElement; option.value = value!; return option; }));
-    renderTagBar(hits);
+    renderTagBar(hits, unexcluded);
+    renderActive(state, exclusions.length ? arrangeHits(unexcluded, { ...arrange, page: 0, pageSize: 1 }).matched - result.matched : 0);
     const focused = doc.activeElement instanceof win.HTMLElement && marketGrid.contains(doc.activeElement) ? doc.activeElement : null;
     const focusName = focused?.closest<HTMLElement>('.extension-market-card')?.dataset.name;
     const focusAction = focused?.classList.contains('extension-get');
@@ -1188,9 +1264,9 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       }).catch(() => { /* Search results remain usable when package metadata is unavailable. */ });
       const description = ui.h('p', 'extension-description'); writeMarked(description, hit.description, terms);
       card.append(heading, description);
-      const tags = orderedTags(hit.tags);
+      const tags = orderedTags(hit.tags).sort((a, b) => Number(state.tags.includes(b)) - Number(state.tags.includes(a)));
       if (tags.length) {
-        const row = ui.h('div', 'extension-tag-row'); row.append(...tags.map(id => tagChip(id, { active: !state.tags.includes(id), onToggle: () => toggleTag(id) }))); card.append(row);
+        const row = ui.h('div', 'extension-tag-row'); row.append(...tags.map(cardTag)); card.append(row);
         card.addEventListener('pointerleave', () => { if (row.classList.contains('is-open')) foldTags(row); }, { signal });
       }
       const foot = ui.h('div', 'extension-card-foot');
@@ -1214,41 +1290,97 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     pager(marketPager, result.matched, result.page, pageSize(), page => { marketGrid.style.minHeight = `${marketGrid.getBoundingClientRect().height}px`; state.page = page; renderMarket(true); save(); });
     reflow?.play();
   }
-  /** 标签筛选条:本页签结果里出现过的标签;选中的在前,其余按颜色分组(红色最后)、组内按出现次数;选中的要求全部带上。 */
-  function renderTagBar(hits: readonly SearchHitView[]) {
+  /**
+   * The sidebar below the categories. 推荐 picks one of certified and official, with 新品 beside them on its own; 系列
+   * select and must all be on a package; 注意事项 only exclude, the plain ones (本地模型 and the like) last. Counts
+   * are what the category and installation leave; an excluded row counts what it hides.
+   */
+  function renderTagBar(hits: readonly SearchHitView[], unexcluded: readonly SearchHitView[]) {
     if (!tagBar) return;
-    const state = states[kind];
-    const counts = new Map<string, number>();
-    for (const hit of hits) for (const id of hit.tags ?? []) if (marketIndex.tags[id]) counts.set(id, (counts.get(id) ?? 0) + 1);
-    const officialCount = hits.filter(h => h.official).length, certifiedCount = hits.filter(h => h.certified).length, newCount = hits.filter(h => h.isNew).length;
-    tagBar.hidden = !counts.size && !officialCount && !certifiedCount && !newCount;
-    const ids = orderedTags([...counts.keys()]);
-    const chips = ui.h('div', 'extension-tag-row');
-    const badgeToggle = (key: 'newOnly' | 'certifiedOnly' | 'officialOnly', mark: Parameters<typeof icon>[1], label: string, hint: string, count: number) => {
-      if (!count) return;
-      const toggle = ui.h('button', 'extension-tag is-badge extension-badge-toggle' + (key === 'newOnly' ? ' is-new' : '') + (state[key] ? ' is-active' : '')) as HTMLButtonElement; toggle.type = 'button';
-      toggle.append(icon(doc, mark), ui.h('span', '', label), ui.h('span', 'extension-tag-count', String(count)));
-      attachHint(toggle, label, hint); toggle.setAttribute('aria-pressed', String(state[key]));
-      toggle.addEventListener('click', () => { state[key] = !state[key]; state.page = 0; renderMarket(); save(); }, { signal });
-      chips.append(toggle);
-    };
-    badgeToggle('certifiedOnly', 'shield-check', S.certified, S.certifiedHint, certifiedCount);
-    badgeToggle('officialOnly', 'cortico', S.officialRelease, S.officialHint, officialCount);
-    badgeToggle('newOnly', 'sparkles', S.newLabel, S.newHint(marketIndex.newDays ?? 14), newCount);
-    const chip = (id: string) => tagChip(id, { active: state.tags.includes(id), count: counts.get(id), onToggle: () => toggleTag(id) });
-    // The extension catalog groups what is left after the category's function tags by what each tag says.
+    const state = states[kind], excluded = exclusions;
+    const tally = (list: readonly SearchHitView[]) => { const counts = new Map<string, number>(); for (const hit of list) for (const id of hit.tags ?? []) if (marketIndex.tags[id]) counts.set(id, (counts.get(id) ?? 0) + 1); return counts; };
+    const counts = tally(hits), present = tally(unexcluded);
+    const ids = orderedTags([...present.keys()]);
     const style = (id: string) => marketIndex.tags[id].style;
+    const badgeRow = (on: boolean, mark: Parameters<typeof icon>[1], label: string, hint: string, count: number, onClick: () => void, cls = '') => {
+      const toggle = ui.h('button', 'extension-tag is-badge extension-badge-toggle' + cls + (on ? ' is-active' : '')) as HTMLButtonElement; toggle.type = 'button';
+      toggle.append(icon(doc, mark), ui.h('span', '', label), helpMark(toggle, label, hint), ui.h('span', 'extension-tag-count', String(count)));
+      toggle.setAttribute('aria-pressed', String(on));
+      toggle.addEventListener('click', () => { onClick(); state.page = 0; renderMarket(); save(); }, { signal });
+      return toggle;
+    };
+    const pick = (key: 'certifiedOnly' | 'officialOnly') => () => { const on = !state[key]; state.certifiedOnly = state.officialOnly = false; state[key] = on; };
+    const certifiedCount = hits.filter(h => h.certified).length, officialCount = hits.filter(h => h.official).length, newCount = hits.filter(h => h.isNew).length;
+    const recommended = [
+      ...certifiedCount || state.certifiedOnly ? [badgeRow(state.certifiedOnly, 'shield-check', S.certified, S.certifiedHint, certifiedCount, pick('certifiedOnly'))] : [],
+      ...officialCount || state.officialOnly ? [badgeRow(state.officialOnly, 'cortico', S.officialRelease, S.officialHint, officialCount, pick('officialOnly'))] : [],
+      ...newCount || state.newOnly ? [badgeRow(state.newOnly, 'sparkles', S.newLabel, S.newHint(marketIndex.newDays ?? 14), newCount, () => { state.newOnly = !state.newOnly; }, ' is-new')] : [],
+    ];
+    const select = (id: string) => tagChip(id, { active: state.tags.includes(id), count: counts.get(id) ?? 0, onToggle: () => toggleTag(id), helpMark: true });
+    // 注意事项: the row itself excludes; the eye at its end shows it.
+    const exclude = (id: string) => {
+      const off = excluded.includes(id), row = tagChip(id, { count: present.get(id) ?? 0, onToggle: () => toggleExclude(id), helpMark: true });
+      row.classList.add('is-exclusion'); row.classList.toggle('is-excluded', off); row.setAttribute('aria-pressed', String(off));
+      row.setAttribute('aria-label', (off ? S.stopExcluding : S.excludeTag)(tagLabel(id) ?? id));
+      row.append(icon(doc, off ? 'eye-off' : 'eye', 'icon extension-tag-eye'));
+      return row;
+    };
+    const cautions = orderedTags([...new Set([...present.keys(), ...exclusions])]).filter(isExclusion);
     const groups: Array<[string, HTMLElement[]]> = [
-      [S.tagGroups.badges, [...chips.children] as HTMLElement[]],
-      [S.tagGroups.series, ids.filter(id => style(id) === 'official').map(chip)],
-      [S.tagGroups.setup, ids.filter(id => !style(id) && !isFunctionTag(id)).map(chip)],
-      [S.tagGroups.cautions, ids.filter(id => style(id) === 'notice' || style(id) === 'warning').map(chip)],
+      [S.tagGroups.badges, recommended],
+      [S.tagGroups.series, ids.filter(id => style(id) === 'official' && (counts.has(id) || state.tags.includes(id))).map(select)],
+      [S.tagGroups.cautions, [...cautions.filter(id => style(id)), ...cautions.filter(id => !style(id))].map(exclude)],
     ];
     tagBar.replaceChildren(...groups.filter(([, items]) => items.length).flatMap(([label, items]) => {
       const row = ui.h('div', 'extension-tag-row'); row.append(...items);
       return [ui.h('span', 'extension-tagbar-label', label), row];
     }));
+    warningControl?.classList.toggle('is-open', warningsHidden()); warningControl?.setAttribute('aria-pressed', String(warningsHidden()));
     tagBar.hidden = !tagBar.childElementCount;
+  }
+  /**
+   * Above the cards: the first line names what is selected, the second what is excluded and how many packages
+   * that hides here. Each item removes itself.
+   */
+  function renderActive(state: CategoryState, hidden: number) {
+    if (!activeBar) return;
+    const item = (label: string, onRemove: () => void, cls = '') => {
+      const button = ui.h('button', 'extension-active-item' + cls) as HTMLButtonElement; button.type = 'button';
+      button.append(ui.h('span', '', label), icon(doc, 'close')); button.setAttribute('aria-label', S.removeFilter(label));
+      button.addEventListener('click', onRemove, { signal });
+      return button;
+    };
+    // The installation switch and the advanced fields are drawn with the panel, so removing them redraws it.
+    const drop = (change: () => void) => () => { change(); state.page = 0; save(); render(); };
+    const chosen = [
+      ...state.catalogCategory !== 'all' ? [item(S.catalogCategories[state.catalogCategory], drop(() => { state.catalogCategory = 'all'; }))] : [],
+      ...state.installation !== 'all' ? [item(state.installation === 'installed' ? S.alreadyInstalled : S.notInstalled, drop(() => { state.installation = 'all'; }))] : [],
+      ...state.certifiedOnly ? [item(S.certified, drop(() => { state.certifiedOnly = false; }))] : [],
+      ...state.officialOnly ? [item(S.officialRelease, drop(() => { state.officialOnly = false; }))] : [],
+      ...state.newOnly ? [item(S.newLabel, drop(() => { state.newOnly = false; }))] : [],
+      ...state.tags.map(id => item(tagLabel(id) ?? id, drop(() => { state.tags = state.tags.filter(t => t !== id); }))),
+      ...state.author.trim() ? [item(`${S.advancedAuthor}: ${state.author.trim()}`, drop(() => { state.author = ''; }))] : [],
+      ...state.keyword.trim() ? [item(`${S.advancedKeyword}: ${state.keyword.trim()}`, drop(() => { state.keyword = ''; }))] : [],
+      ...state.license.trim() ? [item(`${S.advancedLicense}: ${state.license.trim()}`, drop(() => { state.license = ''; }))] : [],
+      ...state.sinceDays ? [item(S.sinceLabel(state.sinceDays), drop(() => { state.sinceDays = 0; }))] : [],
+      ...state.minDownloads ? [item(`${S.advancedDownloads} ${ui.fmt.count(state.minDownloads)}`, drop(() => { state.minDownloads = 0; }))] : [],
+    ];
+    const excluded = exclusions.filter(id => marketIndex.tags[id]).map(id => {
+      const el = item(tagLabel(id)!, () => toggleExclude(id), ' is-excluded'); const tone = marketIndex.tags[id].style; if (tone) el.classList.add('is-' + tone);
+      return el;
+    });
+    const line = (label: string, items: HTMLElement[], note?: string) => {
+      // Items that wrap line up under the first item, not under the label.
+      const row = ui.h('div', 'extension-active-row'), list = ui.h('div', 'extension-active-items'); list.append(...items);
+      if (note) list.append(ui.h('span', 'extension-active-note', note));
+      row.append(ui.h('span', 'extension-active-label', label), list);
+      return row;
+    };
+    activeBar.replaceChildren(
+      ...chosen.length ? [line(S.activeChosen, chosen)] : [],
+      ...excluded.length ? [line(S.activeExcluded, excluded, hidden ? S.hiddenByExclusions(hidden) : undefined)] : [],
+    );
+    activeBar.hidden = !activeBar.childElementCount;
   }
   function load(): Promise<boolean> { return refreshed(loadList()); }
   async function loadList(): Promise<boolean> {
@@ -1565,7 +1697,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     messageNodes.market = ui.msgline(); messageNodes.market.setAttribute('role', 'status');
     const filters = ui.rowbar(); filters.classList.add('extension-toolbar');
     const clear = clearButton = ui.button('', { onClick: () => clearFilters() }); clear.classList.add('extension-clear'); clear.append(icon(doc, 'close'), ui.h('span', '', S.clearFilters));
-    filters.append(ui.input({ type: 'search', value: state.filter, placeholder: S.filterPlaceholder, onInput: value => { state.filter = value; state.page = 0; renderMarket(); save(); } }), ui.select({ value: state.sort, options: HIT_SORTS.map(value => ({ value, label: S.sortLabel[value] })), onChange: value => { state.sort = value as HitSort; state.page = 0; renderMarket(); save(); } }), sizePicker(), clear, ui.button(S.refresh, { onClick: () => { void load(); void checkUpdates(); void search(kind); } }));
+    filters.append(ui.input({ type: 'search', value: state.filter, placeholder: S.filterPlaceholder, onInput: value => { state.filter = value; state.page = 0; renderMarket(); save(); } }), ui.select({ value: state.sort, options: HIT_SORTS.map(value => ({ value, label: S.sortLabel[value] })), onChange: value => { state.sort = value as HitSort; state.page = 0; renderMarket(); save(); } }), sizePicker(), clear, ui.button(S.refresh, { onClick: () => { void replayCards(Promise.all([load(), search(kind)])); void checkUpdates(); } }));
     const advancedToggle = ui.h('button', 'extension-advanced-toggle' + (state.advanced ? ' is-open' : ''), S.advancedSearch) as HTMLButtonElement; advancedToggle.type = 'button';
     advancedToggle.setAttribute('aria-expanded', String(state.advanced)); advancedToggle.setAttribute('aria-controls', 'extension-advanced');
     advancedToggle.addEventListener('click', () => {
@@ -1592,6 +1724,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const registryPanel = ui.h('div', 'extension-registry'); registryPanel.id = 'extension-registry'; registryPanel.hidden = !registryOpen;
     registryPanel.append(registryBar, messageNodes.registry);
     tagBar = ui.h('div', 'extension-tagbar'); tagBar.hidden = true;
+    activeBar = ui.h('div', 'extension-active-filters'); activeBar.hidden = true;
     marketGrid = ui.h('div', 'extension-grid'); marketPager = ui.rowbar();
     const manual = ui.sheet({ title: S.manual }); messageNodes.manual = ui.msgline(); messageNodes.manual.setAttribute('role', 'status');
     let inputRevision = 0;
@@ -1655,9 +1788,6 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
         button.setAttribute('aria-label', label); attachHint(button, label);
         filters.insertBefore(button, clear);
       }
-      const warnings = ui.h('button', 'world-catalog-toggle' + (state.hideWarnings ? ' is-open' : '')) as HTMLButtonElement; warnings.type = 'button';
-      warnings.append(icon(doc, state.hideWarnings ? 'warning-off' : 'warning')); warnings.setAttribute('aria-label', S.hideWarnings); warnings.setAttribute('aria-pressed', String(state.hideWarnings)); attachHint(warnings, S.hideWarnings);
-      warnings.addEventListener('click', () => { state.hideWarnings = !state.hideWarnings; state.page = 0; warnings.classList.toggle('is-open', state.hideWarnings); warnings.replaceChildren(icon(doc, state.hideWarnings ? 'warning-off' : 'warning')); warnings.setAttribute('aria-pressed', String(state.hideWarnings)); renderMarket(); save(); }, { signal });
       // The toolbar's secondary actions are icons with name tags, so the row fits beside the search field.
       const refresh = filters.lastElementChild as HTMLButtonElement;
       for (const [button, mark, label] of [[toggle, 'sidebar', S.filterSidebar], [clear, 'close', S.clearFilters], [refresh, 'refresh', S.refresh.replace(/^↻\s*/, '')]] as const) {
@@ -1666,6 +1796,9 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       }
       clear.classList.add('extension-clear');
       refreshControl = refresh; refresh.classList.toggle('is-spinning', refreshing > 0);
+      const warnings = warningControl = ui.h('button', 'world-catalog-toggle') as HTMLButtonElement; warnings.type = 'button';
+      warnings.append(icon(doc, 'warning')); warnings.setAttribute('aria-label', S.hideWarnings); attachHint(warnings, S.hideWarnings);
+      warnings.addEventListener('click', toggleWarnings, { signal });
       filters.insertBefore(warnings, refresh);
       const installation = ui.segmented([{ value: 'all', label: S.catalogCategories.all }, { value: 'installed', label: S.alreadyInstalled }, { value: 'available', label: S.notInstalled }], {
         value: state.installation, onSelect: value => { state.installation = value as CategoryState['installation']; state.page = 0; renderMarket(); save(); },
@@ -1674,7 +1807,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       side.append(installation.el, ui.h('h3', '', S.catalogCategory), categoryList, tagBar);
       const manualFold = ui.h('details', 'world-manual') as HTMLDetailsElement; manualFold.append(ui.h('summary', '', S.manual), manual.body);
       manualFold.open = manualOpen;
-      scrollRoot.replaceChildren(marketGrid, marketPager, manualFold);
+      scrollRoot.replaceChildren(activeBar, marketGrid, marketPager, manualFold);
       body.append(side, scrollRoot);
       panel.append(filters, advanced, registryPanel, messageNodes.market, body);
     }

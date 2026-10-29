@@ -37,9 +37,9 @@ describe('measureReflow', () => {
     // The rest wait in place until what went has left; new items take their final places, so they
     // wait until the rest have (nearly) arrived.
     expect(of(c).frames[0]).toEqual({ transform: 'translate(0px, 50px)' });
-    expect(of(c).options).toMatchObject({ delay: 180, fill: 'backwards' });
+    expect(of(c).options).toMatchObject({ delay: 130, fill: 'backwards' });
     expect(of(d).frames[0]).toMatchObject({ opacity: 0, transform: 'translateX(-24px)' });
-    expect(of(d).options.delay).toBeGreaterThan(180 + 200);
+    expect(of(d).options.delay).toBeGreaterThan(130 + 140);
   });
   it('lets items that change places leave and arrive instead of sliding through the others', () => {
     stubLayout();

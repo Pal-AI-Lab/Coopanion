@@ -1095,20 +1095,33 @@ describe('World library and catalog', () => {
     remove.click(); await flush();
     expect(document.querySelector('.modal')).toBeNull();
   });
-  it('keeps warning-tagged packages hidden whatever the sidebar selects', async () => {
-    const index = { tags: { unsafe: { label: '不安全', style: 'warning' }, game: { label: '游戏' } } };
-    const hits = [{ ...HITS.hits[0], tags: ['unsafe', 'game'] }, { ...HITS.hits[1], tags: ['game'] }];
-    const { root } = await openWorlds({ hits: { hits, index } });
-    [...root.querySelectorAll('.world-catalog-filters .extension-tag')].find(tag => tag.textContent.startsWith('不安全')).click(); await flush();
-    root.querySelector('.world-market [aria-label="隐藏带警示标签的扩展"]').click(); await flush();
-    expect([...root.querySelectorAll('.world-catalog .extension-market-card')].map(card => card.dataset.name)).toEqual([HITS.hits[1].name]);
-    expect([...root.querySelectorAll('.world-catalog-filters .extension-tag')].some(tag => tag.textContent.startsWith('不安全'))).toBe(false);
+  it('excludes caution tags for good, lists them above the cards and lets them back from there', async () => {
+    const key = 'cortico.extensions.exclusions.v1:' + location.origin;
+    localStorage.removeItem(key);
+    try {
+      const index = { tags: { unsafe: { label: '不安全', style: 'warning' }, game: { label: '游戏' } } };
+      const hits = [{ ...HITS.hits[0], tags: ['unsafe', 'game'] }, { ...HITS.hits[1], tags: ['game'] }];
+      const cards = root => [...root.querySelectorAll('.world-catalog .extension-market-card')].map(card => card.dataset.name);
+      const first = await openWorlds({ hits: { hits, index } });
+      first.root.querySelector('.world-market [aria-label="隐藏带警示标签的扩展"]').click(); await flush();
+      expect(cards(first.root)).toEqual([HITS.hits[1].name]);
+      // A new session still excludes it, and the sidebar keeps its row so it can be let back.
+      window.sessionStorage.clear();
+      const { root } = await openWorlds({ hits: { hits, index } });
+      expect(cards(root)).toEqual([HITS.hits[1].name]);
+      expect([...root.querySelectorAll('.world-catalog-filters .extension-tag.is-excluded')].map(tag => tag.textContent)).toEqual(['不安全1']);
+      expect(root.querySelector('.extension-active-row .extension-active-note').textContent).toBe('隐藏了 1 个');
+      root.querySelector('.extension-active-item.is-excluded').click(); await flush();
+      expect(cards(root)).toHaveLength(2);
+      expect(root.querySelector('.extension-active-filters').hidden).toBe(true);
+    } finally { localStorage.removeItem(key); }
   });
-  it('selects the category when a function tag on a card is clicked', async () => {
+  it('adds a tag clicked on a card to the selection, within the current category', async () => {
     const index = { tags: { game: { label: '游戏' } } };
     const { root } = await openWorlds({ hits: { hits: [{ ...HITS.hits[0], tags: ['game'] }, HITS.hits[1]], index } });
     root.querySelector('.world-catalog .extension-market-card .extension-tag').click(); await flush();
-    expect(root.querySelector('.world-catalog-categories [data-category="game"]').getAttribute('aria-pressed')).toBe('true');
+    expect(root.querySelector('.world-catalog-categories [data-category="all"]').getAttribute('aria-pressed')).toBe('true');
+    expect([...root.querySelectorAll('.extension-active-row .extension-active-item')].map(item => item.textContent)).toEqual(['游戏']);
     expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(1);
   });
   it('keeps runtime controls available when the catalog capability is absent', async () => {

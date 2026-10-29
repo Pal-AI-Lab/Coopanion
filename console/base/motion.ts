@@ -27,7 +27,7 @@ export interface FoldOptions {
  * only toggles `hidden`.
  */
 export function fold(el: HTMLElement, open: boolean, opts: FoldOptions = {}): void {
-  const { axis = 'y', duration = 240, easing = 'cubic-bezier(.32,.72,0,1)', shift = 0, hide = true, clip = true } = opts;
+  const { axis = 'y', duration = 170, easing = 'cubic-bezier(.32,.72,0,1)', shift = 0, hide = true, clip = true } = opts;
   const win = el.ownerDocument.defaultView;
   for (const running of el.getAnimations?.() ?? []) running.cancel();
   if (prefersStill(win) || !el.animate) { if (hide) el.hidden = !open; return; }
@@ -56,7 +56,7 @@ export interface Reflow {
   play(container?: HTMLElement): void;
 }
 
-const REFLOW_MS = 280, EXIT_MS = 180, ASIDE = 24, REFLOW_EASING = 'cubic-bezier(.32,.72,0,1)';
+const REFLOW_MS = 200, EXIT_MS = 130, ASIDE = 24, REFLOW_EASING = 'cubic-bezier(.32,.72,0,1)';
 
 /**
  * Measures the items in `container` (those matching `selector`, keyed by `key`) before a change, so
