@@ -81,7 +81,7 @@ function stub(over = {}) {
       body = status === 200 ? { ...DETAIL, ...(over.detail ?? {}) } : { error: 'npm 没有这个包' };
     }
     else if (u.startsWith('/api/extensions/search'))
-      body = over.hits ?? HITS;
+      body = over.hits ?? (u.includes('kind=provider') ? { hits: [] } : HITS);
     else if (u === '/api/extensions/check') {
       const payload = JSON.parse(init.body);
       status = over.checkStatus ?? 200;
@@ -93,8 +93,10 @@ function stub(over = {}) {
         over.onInstall?.(JSON.parse(init.body));
       body = status === 200 ? { ok: true, result: '已安装 x。重启进程后加载。\n+ x 1.0.0' } : { error: 'pnpm add 退出码 1' };
     }
-    else if (u === '/api/extensions/uninstall')
+    else if (u === '/api/extensions/uninstall') {
+      over.onUninstall?.(JSON.parse(init.body));
       body = { ok: true, result: '已卸载 x。' };
+    }
     else if (u === '/api/run/lifecycle')
       body = LIFE;
     else if (u === '/api/run/restart')
@@ -767,15 +769,51 @@ describe('provider page tabs', () => {
     await navigate(ctx, 'market');
     const market = root.querySelector('.provider-market');
     expect(root.querySelector('.provider-settings').hidden).toBe(true);
-    expect(installedCards(market).textContent).toContain('gamma-prov');
-    expect(installedCards(market).textContent).not.toContain('甲扩展');
+    expect(market.querySelector('.world-catalog')).not.toBeNull();
+    expect(market.querySelector('.world-library')).toBeNull();
+    expect(market.querySelector('.extension-installed-grid')).toBeNull();
+    expect(market.textContent).toContain('gamma-prov');
     expect(calls.some(call => call.url.includes('/api/extensions/search?') && call.url.includes('kind=provider'))).toBe(true);
-    filterMarket(market, 'keep this query');
+    const search = market.querySelector('input[type=search]');
+    search.value = 'keep this query'; search.dispatchEvent(new Event('input'));
     await navigate(ctx);
     await navigate(ctx, 'market');
-    expect(market.querySelectorAll('input[type=search]')[1].value).toBe('keep this query');
+    expect(market.querySelector('input[type=search]').value).toBe('keep this query');
     expect(root.querySelectorAll('.extension-category')).toHaveLength(1);
     expect(root.querySelector('.pagetab.active').textContent).toBe(providerStrings.marketTab);
+  });
+  it('keeps local providers manageable and exposes pending restart without a World dock', async () => {
+    const list = { ...LIST, extensions: [{ ...LIST.extensions[2], spec: 'file:C:/fixtures/gamma' }] };
+    stub({ list, hits: { hits: [] }, onUninstall: () => { list.extensions[0].state = 'removed'; } });
+    const { ctx, root } = await openProviders({ extensions: true, restart: true, supervised: true });
+    await navigate(ctx, 'market');
+    const market = root.querySelector('.provider-market');
+    expect(market.querySelector('.extension-restart').hidden).toBe(false);
+    const card = market.querySelector('.extension-market-card');
+    expect(card.textContent).toContain('gamma-prov');
+    card.querySelector('.extension-get').click(); await flush();
+    expect(document.querySelector('.extension-detail').textContent).toContain('2.0.0');
+    const drawer = document.querySelector('.extension-detail');
+    button(drawer, '删除扩展').click(); await flush(); answer(false); await flush();
+    expect(market.querySelector('.extension-market-card')).not.toBeNull();
+    button(drawer, '删除扩展').click(); await flush(); answer(true); await flush();
+    expect(market.querySelector('.extension-market-card')).toBeNull();
+    expect(document.querySelector('.extension-detail')).toBeNull();
+    expect(market.querySelector('.extension-restart').hidden).toBe(false);
+  });
+  it('installs a provider from a catalog card and shows it under the installed filter', async () => {
+    const hit = { ...HITS.hits[0], kind: 'provider', name: 'found-provider' };
+    const list = { ...LIST, extensions: [] };
+    stub({ list, hits: { hits: [hit] }, onInstall: target => list.extensions.push({ name: target.name, version: target.version, kind: 'provider', state: 'pending-restart' }) });
+    const { ctx, root } = await openProviders({ extensions: true, restart: true });
+    await navigate(ctx, 'market');
+    const market = root.querySelector('.provider-market');
+    market.querySelector('.extension-get').click(); await flush();
+    expect(calls.find(call => call.url === '/api/extensions/check').body.kind).toBe('provider');
+    button(market.querySelector('.world-catalog-installation'), '已安装').click(); await flush();
+    expect(market.querySelectorAll('.extension-market-card')).toHaveLength(1);
+    expect(market.querySelector('.extension-get').getAttribute('aria-label')).toBe('已安装');
+    expect(market.querySelector('.extension-restart').hidden).toBe(false);
   });
   it('hides the market without the extensions capability, including a direct URL', async () => {
     stub();
@@ -1027,7 +1065,7 @@ describe('World library and catalog', () => {
     const { root, ctx } = await openWorlds({}, { worlds: true, extensions: true, worldActivation: true, worldVisibility: true, restart: true, supervised: true });
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod');
-    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['不在左栏显示', '删除扩展', '对 agent 隐藏', '停用 World']);
+    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['左栏隐藏', '删除扩展', '对 agent 隐藏', '停用 World']);
     expect(row.querySelector('.world-blade-identity h3 [aria-label="扩展信息"]')).not.toBeNull();
     row.querySelector('.world-blade-identity code').click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     expect(decodeURIComponent(window.location.hash)).toBe('#/provider/world:alpha');
@@ -1076,7 +1114,7 @@ describe('World library and catalog', () => {
     root.querySelector('.world-blade[data-world="alpha"] [data-slot="sidebar"]').click(); await flush();
     expect(JSON.parse(window.localStorage.getItem('coopanion.world-nav-hidden.v1'))).toEqual(['world:alpha']);
     expect(fired).toBe(1);
-    expect(root.querySelector('.world-blade[data-world="alpha"] [data-slot="sidebar"]').getAttribute('aria-label')).toBe('在左栏显示');
+    expect(root.querySelector('.world-blade[data-world="alpha"] [data-slot="sidebar"]').getAttribute('aria-label')).toBe('左栏显示');
     window.localStorage.removeItem('coopanion.world-nav-hidden.v1');
   });
   it('shows a failed switch beside its control instead of a status line', async () => {

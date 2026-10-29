@@ -1,7 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  settingsTab: 'Настройки', marketTab: 'Расширения провайдеров',
+  settingsTab: 'Настройки', marketTab: 'Магазин расширений',
   pageTitle: 'Подключения к моделям', navLabel: 'Подключения к моделям', navGroup: 'Core', create: '+ Новый экземпляр подключения', newName: 'Безымянный экземпляр',
   createHint: 'Экземпляр — это набор настроек провайдера, сохранённый как карточка.',
   empty: 'Подключений к моделям пока нет', emptyHint: 'Добавьте подключение к модели, чтобы включить инференс.',

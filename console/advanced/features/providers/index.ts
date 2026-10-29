@@ -20,7 +20,6 @@ export function mountProviders(ctx: FeatureContext): void {
   const market = ui.h('div', 'provider-market');
   const panes = { settings, market };
   const started = new Set<string>();
-  const scroll = { settings: 0, market: 0 };
   let current: 'settings' | 'market' | undefined;
   const tabs = pageTabs(root.ownerDocument, signal, [
     { value: 'settings', label: S.settingsTab },
@@ -33,12 +32,10 @@ export function mountProviders(ctx: FeatureContext): void {
     if (signal.aborted || router.route.segments[0] !== 'providers') return;
     const next = router.route.query.view === 'market' && ctx.capabilities.extensions ? 'market' : 'settings';
     if (current === next) return;
-    if (current) scroll[current] = root.scrollTop;
     current = next;
     settings.hidden = next !== 'settings';
     market.hidden = next !== 'market';
     tabs.setValue(next);
-    root.scrollTop = scroll[next];
     if (started.has(next)) return;
     started.add(next);
     const child = { ...ctx, root: panes[next], route: router.route };
@@ -71,7 +68,7 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
   let controller: DetailController | null = null;
   let renderId = 0;
   interface CardNode {
-    el: HTMLElement; title: HTMLElement; model: HTMLElement; url: HTMLElement; status: HTMLElement; secondary: HTMLElement;
+    el: HTMLElement; title: HTMLElement; model: HTMLElement; status: HTMLElement; secondary: HTMLElement;
     kind: HTMLElement; activate: HTMLButtonElement; erase: HTMLButtonElement;
   }
   const nodes = new Map<string, CardNode>();
@@ -84,8 +81,8 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
   const fallback = () => state.providers.find(item => item.name === state.active)?.name || state.providers[0]?.name || '';
   function paint() {
     report.textContent = state.active && !state.providers.some(item => item.name === state.active) ? S.missing + state.active : '';
-    const all: Array<Connection | { name: string; moduleTitle: string; model: string | null; baseUrl: string; readiness: { state: string } }> = [...state.providers];
-    if (newDraft) all.unshift({ name: NEW_DRAFT_ID, moduleTitle: moduleName(newDraft.entry.kind), model: newDraft.entry.spec?.model ?? null, baseUrl: newDraft.entry.baseUrl, readiness: { state: 'draft' } });
+    const all: Array<Connection | { name: string; moduleTitle: string; model: string | null; readiness: { state: string } }> = [...state.providers];
+    if (newDraft) all.unshift({ name: NEW_DRAFT_ID, moduleTitle: moduleName(newDraft.entry.kind), model: newDraft.entry.spec?.model ?? null, readiness: { state: 'draft' } });
     for (const [name, node] of nodes) if (!all.some(item => item.name === name)) { node.el.remove(); nodes.delete(name); }
     for (const item of all) {
       const identity = item.name;
@@ -95,7 +92,7 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
         const title = ui.h('div', 'connection-name');
         const facts = ui.h('div', 'connection-facts');
         const fact = (key: string) => { const box = ui.h('span', `kv kv-${key}`); const value = ui.h('span', 'kv-v'); box.append(ui.h('span', 'kv-k', key), value); facts.append(box); return value; };
-        const kind = fact('kind'); const model = fact('model'); const url = fact('baseUrl');
+        const kind = fact('kind'); const model = fact('model');
         const status = ui.h('div', 'connection-status'); const secondary = ui.h('div', 'connection-secondary');
         const activate = ui.button('⇄', { size: 'sm', onClick: () => run(async () => {
           activate.disabled = true;
@@ -111,17 +108,17 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
         el.addEventListener('keydown', event => { if (event.target === el && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); run(() => select(identity)); } }, opts);
         el.addEventListener('click', event => { if (!(event.target as Element).closest('button')) run(() => select(identity)); }, opts);
         if (identity === NEW_DRAFT_ID) cards.prepend(el); else cards.append(el);
-        node = { el, title, kind, model, url, status, secondary, activate, erase }; nodes.set(identity, node);
+        node = { el, title, kind, model, status, secondary, activate, erase }; nodes.set(identity, node);
       }
       const active = identity === state.active;
       node.el.classList.toggle('is-active', active); node.el.classList.toggle('is-selected', identity === selected);
       node.title.textContent = identity === NEW_DRAFT_ID ? newDraft?.name || S.newName : identity;
       node.title.title = node.title.textContent;
       const draft = identity === NEW_DRAFT_ID ? null : drafts.get(identity);
-      const model = draft?.entry.spec?.model || item.model || '—'; const url = draft?.entry.baseUrl || item.baseUrl || '—';
+      const model = draft?.entry.spec?.model || item.model || '—';
       node.kind.textContent = item.moduleTitle; node.kind.title = item.moduleTitle;
-      node.model.textContent = model; node.url.textContent = url;
-      node.model.title = model; node.url.title = url;
+      node.model.textContent = model;
+      node.model.title = model;
       const readiness = invalid.has(identity) && identity !== NEW_DRAFT_ID ? 'invalid' : item.readiness.state;
       const users = 'usage' in item ? item.usage : [];
       const running = users.filter(user => user.running).map(user => user.name);

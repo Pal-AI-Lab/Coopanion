@@ -1,7 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  settingsTab: '設定', marketTab: '供應商擴充功能',
+  settingsTab: '設定', marketTab: '擴充市集',
   pageTitle: '模型供應商', navLabel: '模型供應商', navGroup: 'Core', create: '+ 新增供應商實例', newName: '未命名實例',
   createHint: '實例 = 填一組供應商設定儲存成卡片',
   empty: '還沒有模型供應商', emptyHint: '新增一條模型連線後，Cortico 才能進行模型推理。',
