@@ -19,7 +19,7 @@ export const S: Partial<typeof en> = {
   reasoning: 'Sforzo di ragionamento', thinking: 'Abilita ragionamento', temperature: 'Temperatura', maxTokens: 'Token massimi in uscita', context: 'Limite di contesto', tier: 'Livello di servizio', images: 'Accetta immagini',
   catalogNoWindow: "L'elenco dei modelli non indica una finestra di contesto per questo modello; inseriscila dalla documentazione del provider.",
   catalogMaxOutput: (tokens: number) => `L'elenco dei modelli indica un output massimo di ${tokens} token.`,
-  advancedHint: 'Modifica solo per gateway API personalizzati o servizi compatibili.', secret: 'Variabile di ambiente delle credenziali',
+  secret: 'Variabile di ambiente delle credenziali',
   extraHeaders: 'Header aggiuntivi (oggetto JSON)', extraBody: 'Corpo della richiesta aggiuntivo (oggetto JSON)', priceRules: 'Regole di prezzo complete (array JSON)',
   shared: "Configurazione condivisa: più bot possono usare questa connessione. Le modifiche aggiornano questa configurazione condivisa; crea un'altra connessione se ti servono impostazioni diverse.",
   remove: 'Elimina connessione', duplicate: 'Duplica connessione', cancel: 'Annulla modifiche', save: 'Salva', saved: 'Salvato',

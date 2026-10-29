@@ -16,6 +16,7 @@ import { worldLibrary, needsRestart, type WorldLibraryItem } from './library.ts'
 import { addGroup, arrangeLayout, groupToken, moveGroup, moveItem, readLayout, removeGroup, writeLayout, type WorldGroup, type WorldLayout } from './groups.ts';
 import { S } from './strings.ts';
 import { S as UI } from '../../../base/ui/strings.ts';
+import { prefersStill } from '../../../base/motion.ts';
 
 const worldPageId = (id: string) => pageIdFor('world', id);
 /** The view switch's duration and curve, as `--world-duration` and `--world-easing` in styles.css. */
@@ -134,6 +135,7 @@ export function mountWorlds(ctx: FeatureContext): void {
   tools.append(search, stateFilter, newGroup);
   readyHeading.after(tools);
   const dropLine = ui.h('div', 'world-drop-line'); dropLine.hidden = true; readyGroup.append(dropLine);
+  const noMatches = ui.h('p', 'world-no-matches', S.noMatches); noMatches.hidden = true; readyGroup.append(noMatches);
   const groupNodes = new Map<string, { el: HTMLElement; head: HTMLElement; name: HTMLElement; count: HTMLElement; list: HTMLElement }>();
   const status = ui.h('div', 'world-workspace-status');
   const catalog = ui.h('div', 'world-pane world-market');
@@ -151,10 +153,11 @@ export function mountWorlds(ctx: FeatureContext): void {
     dockTip.replaceChildren(ui.h('b', '', item.label), ui.h('span', '', node.parentElement?.querySelector('.world-state')?.textContent ?? ''));
     dockTip.classList.remove('hidden');
     const target = node.querySelector('.world-avatar')!.getBoundingClientRect(), tip = dockTip.getBoundingClientRect();
-    dockTip.style.left = `${target.right + 16}px`; dockTip.style.top = `${Math.max(8, target.top + target.height / 2 - tip.height / 2)}px`;
+    dockTip.style.left = `${target.right + 16}px`;
+    dockTip.style.top = `${Math.max(8, Math.min(target.top + target.height / 2 - tip.height / 2, doc.documentElement.clientHeight - tip.height - 8))}px`;
   }
   doc.addEventListener('scroll', hideTip, { capture: true, passive: true, signal });
-  const reduceMotion = () => win.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const reduceMotion = () => prefersStill(win);
   let transition: Animation | undefined;
   let viewGeneration = 0;
   lifecycle.add(() => transition?.cancel());
@@ -438,6 +441,7 @@ export function mountWorlds(ctx: FeatureContext): void {
       entry.classList.toggle('is-filtered-out', active && !((!needle || entry.dataset.name?.includes(needle)) && (filterState === 'all' || entry.dataset.state === filterState)));
     }
     for (const node of groupNodes.values()) node.el.classList.toggle('is-filtered-out', active && !node.list.querySelector('.world-library-entry:not(.is-filtered-out)'));
+    noMatches.hidden = !active || !!readyList.querySelector('.world-library-entry:not(.is-filtered-out)');
     syncDraggable();
   }
   /** Rows and groups can be dragged in the rows view while no filter hides any of them. */

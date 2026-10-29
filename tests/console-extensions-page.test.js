@@ -936,7 +936,7 @@ describe('World library and catalog', () => {
     expect(root.querySelector('.world-restart-footer .extension-restart').disabled).toBe(true);
     expect(root.querySelector('.world-workspace-status').textContent).toBe('');
   });
-  it('orders row controls from install info to power and opens configuration on a row click', async () => {
+  it('orders row controls from the sidebar switch to power and opens configuration on a row click', async () => {
     const { root, ctx } = await openWorlds({}, { worlds: true, extensions: true, worldActivation: true, worldVisibility: true, restart: true, supervised: true });
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod');
@@ -953,6 +953,10 @@ describe('World library and catalog', () => {
     search.value = '甲'; search.dispatchEvent(new Event('input', { bubbles: true }));
     expect(visible()).toEqual(['alpha-mod']);
     expect(root.querySelector('.world-library-entry').draggable).toBe(false);
+    expect(root.querySelector('.world-no-matches').hidden).toBe(true);
+    search.value = '不存在的名字'; search.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(visible()).toEqual([]);
+    expect(root.querySelector('.world-no-matches').hidden).toBe(false);
     search.value = ''; search.dispatchEvent(new Event('input', { bubbles: true }));
     expect(root.querySelector('.world-ready-list .world-library-entry').draggable).toBe(true);
     button(root.querySelector('.world-library-tools'), '新建分组').click(); await flush();

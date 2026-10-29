@@ -7,6 +7,7 @@ import type { FeatureContext } from '../feature.ts';
 import { S } from './strings.ts';
 import { CATALOG_CATEGORIES, CATALOG_CATEGORY_IDS, inCatalogCategory, isFunctionTag, type CatalogCategory } from './catalog.ts';
 import { problemPopover, scrollerOf, wheelDelta } from '../../../base/ui/problem.ts';
+import { fold } from '../../../base/motion.ts';
 
 /** 扩展类别。与 `ExtensionKind` 同形;这一页只用它分组与选关键字。 */
 export type ExtensionKindView = 'world' | 'provider' | 'bot';
@@ -600,23 +601,6 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   let hintAnchor: Element | null = null;
   // Floating tips sit over the page; the wheel still scrolls what is under them.
   hintBox.addEventListener('wheel', event => { const target = scrollerOf(hintAnchor); hideHint(); if (target) { event.preventDefault(); target.scrollBy({ top: wheelDelta(event) }); } }, { passive: false, signal });
-  const reduceMotion = () => !!win.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const easing = 'cubic-bezier(.32,.72,0,1)';
-  /** Opens or closes a panel by its height (`axis` 'y') or width ('x'), then sets `hidden`. */
-  function slide(el: HTMLElement, open: boolean, axis: 'x' | 'y' = 'y') {
-    for (const running of el.getAnimations?.() ?? []) running.cancel();
-    if (reduceMotion() || !el.animate) { el.hidden = !open; return; }
-    el.hidden = false;
-    const style = win.getComputedStyle(el);
-    const size = axis === 'y' ? `${el.offsetHeight}px` : `${el.offsetWidth}px`;
-    const full = axis === 'y'
-      ? { height: size, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, marginBottom: style.marginBottom, opacity: 1 }
-      : { width: size, paddingRight: style.paddingRight, opacity: 1 };
-    const none = axis === 'y' ? { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginBottom: '0px', opacity: 0 } : { width: '0px', paddingRight: '0px', opacity: 0 };
-    el.style.overflow = 'hidden';
-    const motion = el.animate(open ? [none, full] : [full, none], { duration: 240, easing });
-    void motion.finished.then(() => { el.style.overflow = ''; if (!open) el.hidden = true; }, () => { el.style.overflow = ''; });
-  }
   const problems = problemPopover(doc, signal);
   doc.addEventListener('scroll', hideHint, { capture: true, passive: true, signal });
   const HINT_LINK = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
@@ -1133,8 +1117,6 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       const action = focusAction ? card?.querySelector<HTMLButtonElement>('.extension-get:not(:disabled)') : undefined;
       (action ?? card)?.focus({ preventScroll: true });
     }
-    const rows = Math.min(result.matched, pageSize());
-    marketGrid.style.gridTemplateRows = rows ? `repeat(${rows}, minmax(160px, auto))` : '';
     for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) foldTags(row);
     if (!result.matched) marketGrid.append(ui.placeholder(state.fetched ? catalogHits(state).length ? S.noHits : registry ? S.noPackagesAt(registry) : S.noPackages : S.searching));
     pager(marketPager, result.matched, result.page, pageSize(), page => { marketGrid.style.minHeight = `${marketGrid.getBoundingClientRect().height}px`; state.page = page; renderMarket(true); save(); });
@@ -1493,11 +1475,11 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     advancedToggle.setAttribute('aria-expanded', String(state.advanced)); advancedToggle.setAttribute('aria-controls', 'extension-advanced');
     advancedToggle.addEventListener('click', () => {
       state.advanced = !state.advanced; save();
-      advancedToggle.classList.toggle('is-open', state.advanced); advancedToggle.setAttribute('aria-expanded', String(state.advanced)); slide(advanced, state.advanced);
+      advancedToggle.classList.toggle('is-open', state.advanced); advancedToggle.setAttribute('aria-expanded', String(state.advanced)); fold(advanced, state.advanced);
     }, { signal });
     const registryToggle = ui.h('button', 'extension-advanced-toggle extension-registry-toggle' + (registryOpen ? ' is-open' : ''), S.registryLabel) as HTMLButtonElement; registryToggle.type = 'button';
     registryToggle.setAttribute('aria-expanded', String(registryOpen)); registryToggle.setAttribute('aria-controls', 'extension-registry');
-    registryToggle.addEventListener('click', () => { registryOpen = !registryOpen; slide(registryPanel, registryOpen); registryToggle.classList.toggle('is-open', registryOpen); registryToggle.setAttribute('aria-expanded', String(registryOpen)); }, { signal });
+    registryToggle.addEventListener('click', () => { registryOpen = !registryOpen; fold(registryPanel, registryOpen); registryToggle.classList.toggle('is-open', registryOpen); registryToggle.setAttribute('aria-expanded', String(registryOpen)); }, { signal });
     const advanced = ui.h('div', 'extension-advanced'); advanced.id = 'extension-advanced'; advanced.hidden = !state.advanced;
     const field = (label: string, control: HTMLElement) => { const el = ui.h('label', 'extension-advanced-field'); el.append(ui.h('span', '', label), control); return el; };
     const text = (key: 'author' | 'keyword' | 'license', placeholder: string) => ui.input({ value: state[key], placeholder, onInput: value => { state[key] = value; state.page = 0; renderMarket(); save(); } });
@@ -1551,7 +1533,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       const toggle = ui.button(S.filterSidebar, { size: 'sm', onClick: () => {
         const open = side.hidden;
         if (narrowFilters?.matches) narrowFiltersOpen = open; else state.filtersFolded = !open;
-        slide(side, open, narrowFilters?.matches ? 'y' : 'x'); toggle.setAttribute('aria-expanded', String(open)); save();
+        fold(side, open, { axis: narrowFilters?.matches ? 'y' : 'x' }); toggle.setAttribute('aria-expanded', String(open)); save();
       } });
       syncFilterLayout = () => {
         side.hidden = narrowFilters?.matches ? !narrowFiltersOpen : state.filtersFolded;

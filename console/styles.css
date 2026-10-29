@@ -1788,7 +1788,6 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .extension-vote.is-mine { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); font-weight: 600; }
 .extension-card-foot > .extension-votes + .extension-stat-comments { margin-left: -6px; }
 .extension-card-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: auto; padding-top: 14px; border-top: 1px solid var(--line); }
-.extension-card-foot .extension-stat-date { margin-left: auto; }
 /* 市场卡片页头 */
 .extension-market-card .extension-card-heading { align-items: flex-start; }
 .extension-card-titleblock { display: grid; gap: 5px; min-width: 0; flex: 1; padding-top: 2px; }
@@ -1865,6 +1864,11 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .pagetitle-link:hover, .pagetabs-action:hover { color: var(--accent); }
 .pagetitle-link:focus-visible, .pagetabs-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 
+/* A World page opened from the World list leads back to it. */
+.pagetitle-back{flex:none;display:grid;place-items:center;width:32px;height:32px;margin:0 6px 0 -6px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--ink-soft);cursor:pointer;align-self:center;transition:background-color 150ms,color 150ms,transform 150ms}
+.pagetitle-back:hover{background:var(--hover);color:var(--ink);transform:translateX(-2px)}
+.pagetitle-back:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pagetitle-back .icon{width:20px;height:20px}
 .providerintro.is-world .pagetitle-row { flex-wrap: nowrap; }
 .providerintro.is-world .pagetitle { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .featureintro .page-badge-row { margin-top: 9px; }
@@ -1886,6 +1890,11 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-intro{padding-bottom:0}
 .world-intro>.pagetabs{margin-top:16px;border-bottom:0}
 .world-workspace-status:not(:has(>.msgline:not(:empty))){display:none}
+/* The compact field of the World pages' toolbars, filter row, panels and group names: 32px, the focus
+   shown by the border alone. */
+:is(.world-catalog,.world-library-tools,.world-group-head) :is(input:not([type=checkbox]):not([type=radio]),select){height:32px;min-height:32px;padding-block:0;font-size:12.5px}
+:is(.world-catalog,.world-library-tools,.world-group-head) :is(input,select):is(:focus,:focus-visible){outline:none;box-shadow:none;border-color:var(--line-strong)}
+.world-manual .btn{min-height:32px}
 .world-name{font:inherit;color:inherit;border:0;padding:0;background:none;text-align:left;cursor:pointer}
 .world-name:hover{color:var(--accent)}
 .world-name:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
@@ -1894,7 +1903,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 @property --world-inset{syntax:'<length>';inherits:true;initial-value:0px}
 .featureslot-world>.world-workspace{--world-rail-width:72px;--world-gap:20px;--world-inset:max(calc(var(--page-gutter) + 10px),calc((100cqw - var(--content-width)) / 2));--world-entry-width:100cqw;--world-duration:420ms;--world-easing:cubic-bezier(.32,.72,0,1);interpolate-size:allow-keywords;position:relative;container-type:inline-size;display:block;flex:1;min-height:0;max-width:none;padding:0 var(--world-inset)}
 .world-library{display:flex;flex-direction:column;min-height:0;height:100%;width:100%}
-.world-library-list{flex:1;min-height:0;width:calc(100% + var(--world-inset));margin-right:calc(-1 * var(--world-inset));padding-right:calc(var(--world-inset) - 10px);overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding-bottom:24px;transition:width var(--world-duration) var(--world-easing),padding var(--world-duration) var(--world-easing)}
+.world-library-list{overflow-anchor:none;flex:1;min-height:0;width:calc(100% + var(--world-inset));margin-right:calc(-1 * var(--world-inset));padding-right:calc(var(--world-inset) - 10px);overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding-bottom:24px;transition:width var(--world-duration) var(--world-easing),padding var(--world-duration) var(--world-easing)}
 /* In the market view the rail's scrollbar runs along the divider. */
 .world-workspace[data-view=market] .world-library-list{width:calc(var(--world-rail-width) + var(--world-gap));padding-right:0}
 .world-library-heading{height:auto;margin:2px 0 12px;font:600 15px/1.4 var(--sans);letter-spacing:-.01em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 200ms}
@@ -1912,7 +1921,10 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-workspace[data-view=market] .world-library-label{max-height:14px;margin-top:8px;opacity:1;transition-delay:0s,0s,280ms}
 /* App icons: one rounded tile with a hairline edge, a soft drop shadow and a faint top light. */
 .world-avatar,.world-catalog .extension-avatar{--icon-edge:color-mix(in srgb,var(--ink) 13%,transparent);position:relative;border-radius:28%;background:var(--sheet);box-shadow:0 0 0 .5px var(--icon-edge),0 1px 2px color-mix(in srgb,var(--ink) 8%,transparent),0 6px 14px -7px color-mix(in srgb,var(--ink) 30%,transparent)}
-.world-avatar::after,.world-catalog .extension-avatar::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(180deg,rgb(255 255 255/.28),rgb(255 255 255/0) 48%);box-shadow:inset 0 .5px 0 rgb(255 255 255/.5)}
+.world-avatar::after,.world-catalog .extension-avatar::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(180deg,rgb(255 255 255/.16),rgb(255 255 255/0) 42%);box-shadow:inset 0 .5px 0 rgb(255 255 255/.35)}
+/* In dark mode the top light is a hint only, so the tiles stay flat against the dark surface. */
+:root[data-color-mode="dark"] :is(.world-avatar,.world-catalog .extension-avatar)::after{background:linear-gradient(180deg,rgb(255 255 255/.05),rgb(255 255 255/0) 40%);box-shadow:inset 0 .5px 0 rgb(255 255 255/.08)}
+:root[data-color-mode="dark"] :is(.world-avatar,.world-catalog .extension-avatar){box-shadow:0 0 0 .5px var(--icon-edge),0 2px 6px -3px rgb(0 0 0/.5)}
 .world-avatar{display:grid;place-items:center;flex:none;width:42px;height:42px;color:var(--ink-soft);transition:transform 220ms var(--world-easing),outline-color 200ms}
 .world-avatar img{position:absolute;inset:0;width:100%;height:100%;border-radius:inherit;object-fit:cover}
 .world-avatar.is-default,.world-catalog .extension-avatar-default{background:linear-gradient(150deg,color-mix(in srgb,var(--accent) 16%,var(--sheet)),color-mix(in srgb,var(--accent) 5%,var(--paper-2)));color:color-mix(in srgb,var(--accent) 55%,var(--ink-soft))}
@@ -1961,12 +1973,11 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-pane{display:flex;flex-direction:column;flex:1;min-height:0;min-width:0}
 .world-pane[hidden]{display:none}
 .world-market{z-index:2;position:absolute;left:calc(var(--world-inset) + var(--world-rail-width) + var(--world-gap));right:0;top:0;bottom:0;overflow:hidden;padding-left:24px;border-left:1px solid var(--line)}
-/* Fixed column widths keep state, lamps and actions aligned from row to row. */
-.world-blade{transition:opacity 160ms}
 .world-blade.is-configurable{cursor:pointer}
 .world-library-entry:has(.world-blade.is-configurable:hover){border-color:var(--line-strong)}
 .world-workspace[data-view=market] .world-blade{opacity:0;transition-delay:120ms}
-.world-blade{position:relative;display:grid;grid-template-columns:minmax(0,14rem) 4.5rem minmax(0,1fr) auto;align-items:start;gap:6px 16px;min-width:0;min-height:62px;padding:11px 14px 9px 0}
+/* Fixed column widths keep state, lamps and actions aligned from row to row. */
+.world-blade{position:relative;display:grid;grid-template-columns:minmax(0,14rem) 4.5rem minmax(0,1fr) auto;align-items:start;gap:6px 16px;min-width:0;min-height:62px;padding:11px 14px 9px 0;transition:opacity 160ms}
 .world-blade-identity,.world-blade-signals{min-width:0}
 .world-blade-identity h3{display:flex;align-items:center;gap:2px;min-width:0;font:600 14px/1.4 var(--sans);margin:0;white-space:nowrap}
 .world-blade-identity h3>.world-name{min-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -1980,35 +1991,34 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-signal>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* State and lights line up with the middle of the name block (name and id), the row's top part. */
 .world-state{margin-top:9px;font-size:12px;line-height:20px;font-weight:600;white-space:nowrap;color:var(--ink-dim)}
+.world-state-problem{display:inline-flex;align-items:center;gap:4px;padding:0;border:0;background:none;font:inherit;font-size:12px;line-height:20px;font-weight:600;color:var(--danger);cursor:pointer}
+.world-state-problem .icon{width:14px;height:14px}
+.world-state-problem:hover span{text-decoration:underline;text-underline-offset:2px}
+.world-state-problem:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
 .world-blade[data-state=attached] .world-state{color:var(--accent)}
 .world-blade[data-state=running] .world-state{color:var(--chart-7)}
 .world-blade[data-state=pending] .world-state{color:var(--warn)}
 .world-blade[data-state=failed] .world-state{color:var(--danger)}
 .world-blade-actions{align-self:start;margin-top:5px;display:grid;grid-template-columns:repeat(3,30px) 38px;align-items:center;gap:4px;justify-content:end}
-.world-blade-actions .iobtn-power{justify-self:end}
 .world-blade-actions .iobtn[aria-disabled=true]{opacity:.35;cursor:not-allowed}
 .world-blade-actions .iobtn[aria-disabled=true]:hover{background:transparent;color:inherit}
 /* Power is a round switch: green while the World runs, red while it is off. */
-.world-blade-actions .iobtn-power{width:28px;height:28px;margin:1px;border-radius:50%;color:var(--danger);background:color-mix(in srgb,var(--danger) 8%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--danger) 55%,transparent);transition:background-color 160ms,color 160ms,box-shadow 160ms,transform 120ms}
+.world-blade-actions .iobtn-power{justify-self:end;width:28px;height:28px;margin:1px;border-radius:50%;color:var(--danger);background:color-mix(in srgb,var(--danger) 8%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--danger) 55%,transparent);transition:background-color 160ms,color 160ms,box-shadow 160ms,transform 120ms}
 .world-blade-actions .iobtn-power[aria-disabled=true]{opacity:.4}
 .world-blade-actions .iobtn-power:hover:not(:disabled){color:var(--danger);background:color-mix(in srgb,var(--danger) 15%,transparent)}
 .world-blade-actions .iobtn-power.is-on{color:#fff;background:var(--accent);box-shadow:0 1px 4px color-mix(in srgb,var(--accent) 45%,transparent)}
 .world-blade-actions .iobtn-power.is-on:hover:not(:disabled){color:#fff;background:color-mix(in srgb,var(--accent) 88%,var(--ink))}
 .world-blade-actions .iobtn-power:active:not(:disabled){transform:scale(.92)}
 .world-blade-actions .iobtn-power .icon{width:14px;height:14px;stroke-width:2.4}
-.world-blade-actions .btn{font-size:12px;min-height:28px;padding:4px 10px}
 .world-blade-note{grid-column:1/-1;margin:-2px 0 0;font-size:12px;color:var(--ink-dim);overflow-wrap:anywhere}
-.world-blade-note.bad{color:var(--danger)}
 .world-catalog{display:flex;flex-direction:column;flex:1;height:100%;min-height:0;min-width:0}
 .world-catalog>.extension-toolbar{flex:none;gap:8px;margin:0;padding:0 var(--world-inset) 16px 0}
-.world-catalog>.extension-toolbar input[type=search]{flex:1 1 220px;min-width:120px;height:32px;min-height:32px;padding-block:0;font-size:12.5px}
-.world-catalog>.extension-toolbar select{height:32px;padding-block:0}
+.world-catalog>.extension-toolbar input[type=search]{flex:1 1 220px;min-width:120px}
 .world-catalog>.extension-toolbar>.extension-size{flex:none;gap:6px;color:var(--ink-dim);font-size:12px}
 .world-catalog>.extension-toolbar>.extension-size select{min-width:0;width:60px;padding-right:22px}
 .world-catalog>.extension-toolbar .btn,.world-catalog>.extension-toolbar select{font-size:12px;min-height:32px}
 .world-catalog>.msgline{flex:none;margin:0 var(--world-inset) 8px 0}
 .world-catalog>.msgline:empty{display:none}
-.world-catalog>.extension-advanced,.world-catalog>.extension-registry{margin-right:var(--world-inset);max-height:220px;overflow:auto;flex:none}
 .world-catalog>.extension-advanced[hidden],.world-catalog>.extension-registry[hidden]{display:none}
 /* The filter column's scrollbar sits midway between its text and the cards; the space right of it scrolls the cards. */
 .world-catalog-body{display:flex;flex:1;gap:0;min-height:0;min-width:0}
@@ -2027,21 +2037,18 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-catalog-filters .extension-tagbar-label{display:block;padding:0 10px;line-height:18px;font-size:11px}
 .world-catalog-filters .extension-tagbar{display:block;margin:0 0 20px;padding:0;border:0}
 .world-catalog-filters .extension-tag-row{display:flex;flex-direction:column;align-items:stretch;gap:2px;max-height:none;overflow:visible;margin-top:8px}
-.world-catalog-filters .extension-tag{display:flex;justify-content:flex-start;max-width:100%;border:0;border-radius:8px;background:transparent;font-size:11.5px;min-height:28px;padding:4px 10px}
 /* Sidebar filters, one scheme: text in the tag's colour (plain tags grey), no fill or border;
    hover adds a neutral fill; selected adds a tint of the tag's colour (plain tags green) and bold. */
-.world-catalog-filters .extension-tag{--tag-ink:var(--ink-soft);--tag-colour:var(--accent)}
+.world-catalog-filters .extension-tag{--tag-ink:var(--ink-soft);--tag-colour:var(--accent);display:flex;justify-content:flex-start;max-width:100%;min-height:28px;padding:4px 10px;border:0;border-radius:8px;font-size:11.5px;font-weight:400;color:var(--tag-ink);background:transparent}
 .world-catalog-filters .extension-tag.is-warning{--tag-ink:var(--extension-alert);--tag-colour:var(--extension-alert)}
 .world-catalog-filters .extension-tag.is-official{--tag-ink:var(--extension-mark);--tag-colour:var(--extension-mark)}
 .world-catalog-filters .extension-tag.is-notice{--tag-ink:var(--extension-caution);--tag-colour:var(--extension-caution)}
 .world-catalog-filters .extension-tag.is-badge{--tag-ink:var(--extension-badge);--tag-colour:var(--extension-badge)}
 .world-catalog-filters .extension-tag.is-badge.is-new{--tag-ink:var(--extension-new);--tag-colour:var(--extension-new)}
-.world-catalog-filters .extension-tag{color:var(--tag-ink);background:transparent;border-color:transparent;font-weight:400}
 .world-catalog-filters button.extension-tag:hover{color:var(--tag-ink);background:var(--hover);border-color:transparent}
 .world-catalog-filters .extension-tag.is-active,.world-catalog-filters button.extension-tag.is-active:hover{color:var(--tag-colour);background:color-mix(in srgb,var(--tag-colour) 13%,transparent);border-color:transparent;font-weight:600}
 .world-catalog-filters button.extension-tag.is-active:hover{background:color-mix(in srgb,var(--tag-colour) 19%,transparent)}
-.world-catalog-filters .extension-tag .extension-tag-count{color:var(--ink-dim);font-weight:400}
-.world-catalog-filters .extension-tag-count{margin-left:auto;color:var(--ink-dim)}
+.world-catalog-filters .extension-tag-count{margin-left:auto;font-weight:400;color:var(--ink-dim)}
 .world-catalog-scroll{flex:1;min-width:0;min-height:0;overflow:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding:0 calc(var(--world-inset) - 10px) 24px 10px}
 .world-catalog-filters[hidden]+.world-catalog-scroll{padding-left:0}
 .world-catalog .extension-card-heading .extension-avatar{position:absolute;left:16px;top:16px;width:44px;height:44px}
@@ -2085,12 +2092,9 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-catalog-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .world-catalog-toggle:is(.is-open,[aria-expanded=true]){color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--sheet))}
 .world-catalog-toggle.is-spinning .icon{animation:extension-ring-spin 800ms linear infinite}
-/* Toolbar and panel fields mark focus with their border alone. */
-.world-catalog :is(input,select):focus,.world-catalog :is(input,select):focus-visible{outline:none;box-shadow:none;border-color:var(--line-strong)}
 .world-catalog-toggle .icon{width:16px;height:16px}
-.world-catalog>.extension-advanced,.world-catalog>.extension-registry{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:-8px;margin-bottom:16px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--sheet)}
+.world-catalog>.extension-advanced,.world-catalog>.extension-registry{flex:none;max-height:220px;overflow:auto;margin-right:var(--world-inset);display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:-8px;margin-bottom:16px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--sheet)}
 .world-catalog>.extension-advanced .extension-advanced-field{gap:6px;color:var(--ink-soft)}
-.world-catalog :is(.extension-advanced,.extension-registry) :is(input,select){height:32px;min-height:32px;padding-block:0;font-size:12.5px}
 .world-catalog>.extension-advanced .extension-advanced-field input{width:72px}
 .world-catalog>.extension-advanced .extension-advanced-field:first-child input{width:100px}
 .world-catalog>.extension-advanced .extension-advanced-field input[type=number]{width:64px}
@@ -2102,7 +2106,6 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-manual>summary{font-size:12px;color:var(--ink-dim);cursor:pointer;margin-bottom:12px}
 .world-manual-source{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;margin-bottom:10px}
 .world-manual-source>.extension-install-help{margin:0;font-size:11.5px;color:var(--ink-dim)}
-.world-manual :is(input,.btn){min-height:32px}
 @container console-content (max-width:850px){
   .world-blade{grid-template-columns:minmax(0,1fr) 4.5rem auto;padding:10px 12px 10px 0}
   .world-blade-signals{grid-column:1/3;grid-row:2}
@@ -2129,9 +2132,8 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 @media(prefers-reduced-motion:reduce){.extension-get-ring,.extension-get-ring .arc,.world-dock-tip{animation:none}.world-library-entry,.world-library-list,.world-library-heading,.world-library-label,.world-pending-group,.world-avatar{transition:none}.world-library-item:is(:hover,:focus-visible,:active) .world-avatar{transform:none}}
 /* My World's filter row folds away in the market view. */
 .world-library-tools{flex:none;display:flex;align-items:center;gap:8px;width:var(--world-entry-width);height:auto;margin:0 0 12px;overflow:hidden;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 200ms}
-.world-library-tools input[type=search]{flex:0 1 240px;min-width:120px;height:32px;min-height:32px;padding-block:0;font-size:12.5px}
-.world-library-tools select{height:32px;min-height:32px;padding-block:0;font-size:12.5px;width:auto}
-.world-library-tools :is(input,select):focus,.world-library-tools :is(input,select):focus-visible{outline:none;box-shadow:none;border-color:var(--line-strong)}
+.world-library-tools input[type=search]{flex:0 1 240px;min-width:120px}
+.world-library-tools select{width:auto}
 .world-library-tools>.btn{margin-left:auto;min-height:32px;font-size:12px}
 .world-workspace[data-view=market] .world-library-tools{height:0;margin:0;opacity:0}
 .world-workspace[data-view=mine] .is-filtered-out{display:none}
@@ -2149,9 +2151,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-group-count{flex:none;min-width:18px;padding:2px 6px;border-radius:9px;background:var(--hover);font:500 11px/1.2 var(--sans);color:var(--ink-dim);text-align:center}
 .world-group-action{opacity:0;transition:opacity 150ms}
 .world-group-head:is(:hover,:focus-within) .world-group-action{opacity:1}
-/* The rename field is the filter row's field: same height, border and focus. */
-.world-group-head input.world-group-rename{width:240px;height:32px;min-height:32px;padding-block:0;font-size:12.5px}
-.world-group-head input.world-group-rename:is(:focus,:focus-visible){outline:none;box-shadow:none;border-color:var(--line-strong)}
+.world-group-head input.world-group-rename{width:240px}
 .world-group-list{height:auto;overflow:clip;overflow-clip-margin:8px;transition:height var(--world-duration) var(--world-easing),opacity 240ms}
 .world-workspace[data-view=mine] .world-group.is-collapsed .world-group-list{height:0;opacity:0}
 .world-workspace[data-view=market] .world-group-head{height:0;margin:0;opacity:0;overflow:clip;pointer-events:none}
@@ -2161,15 +2161,8 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 /* Ungrouped rows after a group start below a divider, so an expanded group's end stays visible. */
 .world-group{transition:padding var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),border-color 200ms;border-bottom:1px solid transparent}
 .world-workspace[data-view=mine] .world-group:has(+ .world-library-entry){width:var(--world-entry-width);padding-bottom:6px;margin-bottom:14px;border-bottom-color:var(--line)}
-.pagetitle-back{flex:none;display:grid;place-items:center;width:32px;height:32px;margin:0 6px 0 -6px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--ink-soft);cursor:pointer;align-self:center;transition:background-color 150ms,color 150ms,transform 150ms}
-.pagetitle-back:hover{background:var(--hover);color:var(--ink);transform:translateX(-2px)}
-.pagetitle-back:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.pagetitle-back .icon{width:20px;height:20px}
 /* Cards past the first screen skip rendering until scrolled to, so showing the market lays out only
    the first few. The first four always render: they are in view while the market slides in. */
 .world-catalog .extension-market-card:nth-child(n+5){content-visibility:auto;contain-intrinsic-size:auto 160px}
-.world-library-list{overflow-anchor:none}
-.world-state-problem{display:inline-flex;align-items:center;gap:4px;padding:0;border:0;background:none;font:inherit;font-size:12px;line-height:20px;font-weight:600;color:var(--danger);cursor:pointer}
-.world-state-problem .icon{width:14px;height:14px}
-.world-state-problem:hover span{text-decoration:underline;text-underline-offset:2px}
-.world-state-problem:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.world-no-matches{margin:4px 0 0;padding:20px 0;font-size:12.5px;color:var(--ink-dim);text-align:center}
+.world-workspace[data-view=market] .world-no-matches{display:none}

@@ -1,23 +1,17 @@
 import type { en } from './strings.ts';
 
-const pluralRules = new Intl.PluralRules('ru');
-const plural = (n: number, one: string, few: string, many: string) => {
-  const form = pluralRules.select(n);
-  return form === 'one' ? one : form === 'many' ? many : few;
-};
-
 export const S: Partial<typeof en> = {
   myWorlds: "Мои World",
   marketTab: "Магазин расширений",
   extensionList: "Список расширений",
   filterByName: "Фильтр по имени",
   allStates: "Все состояния",
+  noMatches: "Нет расширений, подходящих под фильтр.",
   newGroup: "Новая группа",
   groupDefaultName: "Новая группа",
   renameGroup: "Переименовать группу",
   deleteGroup: "Удалить группу (расширения останутся)",
   pendingNote: "Расширения выше вступят в силу после перезапуска процесса.",
-  configure: "Настроить",
   packageInfo: "Сведения о расширении",
   hideFromSidebar: "Скрыть из боковой панели",
   showInSidebar: "Показывать в боковой панели",
