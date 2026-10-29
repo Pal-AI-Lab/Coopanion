@@ -137,8 +137,19 @@ export function createRail(deps: RailDeps): Rail {
   /** Draws the groups in order; entries the normal mode does not list are hidden at once. */
   /** Pages listed by the last draw; a page new since then arrives with an animation. */
   let listedPages: Set<string> | null = null;
-  /** How long a page leaving the sidebar folds away (companion.css `.companion-depart`). */
-  const DEPART_MS = 320;
+  /** How long a page takes to join or leave the sidebar. */
+  const DEPART_MS = 280, ARRIVE_MS = 320;
+  const FLOW = 'cubic-bezier(.4, 0, .2, 1)';
+  /**
+   * One motion for a page joining or leaving: the row's own height, its padding, a short slide and
+   * the fade run together, so neighbours move with it instead of after it.
+   */
+  const fold = (item: HTMLElement, open: boolean, duration: number): void => {
+    const style = doc.defaultView!.getComputedStyle(item);
+    const full = { height: `${item.offsetHeight}px`, minHeight: style.minHeight, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, opacity: 1, transform: 'none' };
+    const none = { height: '0px', minHeight: '0px', paddingTop: '0px', paddingBottom: '0px', opacity: 0, transform: 'translateX(-8px)' };
+    item.animate?.(open ? [none, full] : [full, none], { duration, easing: FLOW, fill: open ? 'none' : 'forwards' });
+  };
   let departing: ReturnType<typeof setTimeout> | undefined;
   signal.addEventListener('abort', () => clearTimeout(departing), { once: true });
   /** Pages that leave the sidebar fold away first; the redraw follows. */
@@ -148,7 +159,7 @@ export function createRail(deps: RailDeps): Rail {
     const leaving = entries.filter((entry) => entry.pageId && !next.has(entry.pageId) && !entry.item.hidden && entry.item.isConnected);
     const still = doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (!leaving.length || still) { drawNav(groups); return; }
-    for (const { item } of leaving) item.classList.add('companion-depart');
+    for (const { item } of leaving) { item.classList.add('companion-depart'); fold(item, false, DEPART_MS); }
     departing = setTimeout(() => { departing = undefined; drawNav(groups); }, DEPART_MS);
   };
   const drawNav = (groups: readonly NavGroup[]): void => {
@@ -177,9 +188,11 @@ export function createRail(deps: RailDeps): Rail {
     applyRoute();
     filterNav(false);
     listedPages = new Set(entries.flatMap((entry) => entry.pageId ? [entry.pageId] : []));
-    if (before) for (const { item, pageId } of entries) if (pageId && !before.has(pageId) && !item.hidden) {
+    const still = doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (before && !still) for (const { item, pageId } of entries) if (pageId && !before.has(pageId) && !item.hidden) {
       item.classList.add('companion-arrive');
-      item.addEventListener('animationend', () => item.classList.remove('companion-arrive'), { once: true });
+      fold(item, true, ARRIVE_MS);
+      setTimeout(() => item.classList.remove('companion-arrive'), ARRIVE_MS);
     }
   };
 
