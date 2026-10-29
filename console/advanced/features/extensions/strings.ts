@@ -58,7 +58,7 @@ const zh = {
 
   eraseConfirm: '确认删除',
   remove: '删除扩展',
-  removeInUse: '正在被 Coo 使用，停用后才能删除。',
+  removeInUse: 'Coo 正在使用，停用后才能删除。',
   removeBody: '将从共享扩展目录移除此扩展包，重启进程后生效。使用它的其他 Bot 也会受到影响。不会删除 Memory、已有配置或本地扩展源码。',
   builtin: '内置扩展',
   builtinNote: '随 Coopanion 提供，不能单独删除。',

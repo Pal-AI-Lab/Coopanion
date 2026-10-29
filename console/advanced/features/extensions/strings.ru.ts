@@ -12,7 +12,7 @@ export const S: Partial<typeof en> = {
   introTitle: 'Расширения',
   scope: 'Расширения устанавливаются в общую папку расширений; установка и удаление вступают в силу после перезапуска процесса. Удаление расширения удаляет общий пакет.',
   tabs: { world: 'Расширения World', provider: 'Расширения провайдеров' },
-  tabNotes: { world: 'Подключает Coo к внешним окружениям', provider: 'Подстраивается под разные вышестоящие API LLM' },
+  tabNotes: { world: 'Подключает Coo к внешним окружениям', provider: 'Адаптирует разные API провайдеров LLM' },
 
   installedTitle: 'Установленные',
   market: 'Каталог расширений',
@@ -55,7 +55,7 @@ export const S: Partial<typeof en> = {
 
   eraseConfirm: 'Подтвердить удаление',
   remove: 'Удалить расширение',
-  removeInUse: 'Используется Coo. Отключите его перед удалением.',
+  removeInUse: 'Используется Coo. Отключите перед удалением.',
   removeBody: 'Удаляет этот пакет из общей папки расширений; вступает в силу после перезапуска процесса. Это затронет другие боты, которые его используют. Memory, сохранённая конфигурация и локальные папки с исходным кодом сохраняются.',
   builtin: 'Встроенное',
   builtinNote: 'Входит в Coopanion; удалить отдельно нельзя.',
@@ -188,7 +188,7 @@ export const S: Partial<typeof en> = {
   githubLogin: 'Войти через GitHub',
   githubLogout: 'Выйти',
   githubLoginTitle: 'Войти через GitHub',
-  githubRequesting: 'Запрашиваем у GitHub код входа…',
+  githubRequesting: 'Запрос кода входа у GitHub…',
   githubStep: 'Введите этот код на GitHub и подтвердите доступ.',
   githubOpen: 'Открыть GitHub',
   githubWaiting: 'Ожидание подтверждения…',

@@ -49,7 +49,7 @@ export const S: Partial<typeof en> = {
 
   eraseConfirm: 'Löschen bestätigen',
   remove: 'Erweiterung löschen',
-  removeInUse: 'Wird von Coo verwendet. Deaktiviere sie vor dem Löschen.',
+  removeInUse: 'Wird von Coo verwendet. Vor dem Löschen deaktivieren.',
   removeBody: 'Entfernt dieses Paket aus dem gemeinsamen Erweiterungsverzeichnis; gilt nach dem Neustart des Prozesses. Andere Bots, die es nutzen, sind betroffen. Memory, gespeicherte Konfiguration und lokale Quellverzeichnisse bleiben erhalten.',
   builtin: 'Integriert',
   builtinNote: 'Wird mit Coopanion ausgeliefert; kann nicht einzeln gelöscht werden.',

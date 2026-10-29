@@ -6,7 +6,7 @@ export const S: Partial<typeof en> = {
   introTitle: 'Extensiones',
   scope: 'Las extensiones se instalan en el directorio compartido de extensiones; instalar y eliminar surten efecto después de reiniciar el proceso. Eliminar una extensión quita el paquete compartido.',
   tabs: { world: 'Extensiones de World', provider: 'Extensiones de proveedor' },
-  tabNotes: { world: 'Conecta a Coo con entornos externos', provider: 'Se adapta a distintas API de LLM de origen' },
+  tabNotes: { world: 'Conecta a Coo con entornos externos', provider: 'Adapta distintas API de LLM de origen' },
 
   installedTitle: 'Instaladas',
   market: 'Mercado de extensiones',
@@ -215,7 +215,7 @@ export const S: Partial<typeof en> = {
   runsCloud: 'Nube',
   inputLabel: 'Entrada',
   showAll: (n: number) => `Mostrar los ${n}`,
-  authNames: { 'api-key': 'Clave de API', oauth: 'OAuth', 'device-code': 'Código de dispositivo', 'web-session': 'Sesión web iniciada' },
+  authNames: { 'api-key': 'Clave de API', oauth: 'OAuth', 'device-code': 'Código de dispositivo', 'web-session': 'Sesión web' },
   inputNames: { text: 'Texto', image: 'Imagen', audio: 'Audio', video: 'Video' },
   toolTagNames: { read: 'Lectura', write: 'Escritura', speak: 'Habla', act: 'Acción', flow: 'Flujo', snapshot: 'Instantánea' },
   labelSeparator: ': ',

@@ -6,7 +6,7 @@ export const S: Partial<typeof en> = {
   introTitle: 'Extensions',
   scope: "Les extensions sont installées dans le répertoire d'extensions partagé ; l'installation et la suppression prennent effet après le redémarrage du processus. Supprimer une extension retire le paquet partagé.",
   tabs: { world: 'Extensions World', provider: 'Extensions de fournisseur' },
-  tabNotes: { world: 'Relier Coo à des environnements extérieurs', provider: "S'adapter aux différentes API LLM en amont" },
+  tabNotes: { world: 'Connecter Coo à des environnements externes', provider: 'Adapter différentes API LLM en amont' },
 
   installedTitle: 'Installées',
   market: "Catalogue d'extensions",
@@ -144,7 +144,7 @@ export const S: Partial<typeof en> = {
   metaSeparator: ' · ',
   listSeparator: ', ',
   certified: 'Certifiée',
-  newLabel: 'Nouvelle',
+  newLabel: 'Nouveau',
   officialRelease: 'Officielle',
   officialHint: 'Publiée et maintenue par le dépôt principal de Cortico',
   certifiedHint: 'Certifiée par Cortico comme une excellente extension qui suit les règles de développement',

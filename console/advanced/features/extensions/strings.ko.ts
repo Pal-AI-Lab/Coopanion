@@ -147,7 +147,7 @@ export const S: Partial<typeof en> = {
   newLabel: '신규',
   officialRelease: '공식',
   officialHint: 'Cortico 메인 저장소가 배포하고 관리하는 확장',
-  certifiedHint: '개발 규범을 따르는 우수한 확장으로 Cortico가 인증함',
+  certifiedHint: 'Cortico가 인증한, 개발 규범을 따르는 우수한 확장',
   newHint: (days: number) => `최근 ${days}일 안에 처음 배포된 확장`,
   tagFilter: '태그',
   hideWarnings: '경고 태그가 붙은 확장 숨기기',

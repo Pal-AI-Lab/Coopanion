@@ -49,7 +49,7 @@ export const S: Partial<typeof en> = {
 
   eraseConfirm: '確認刪除',
   remove: '刪除擴充功能',
-  removeInUse: '正在被 Coo 使用，停用後才能刪除。',
+  removeInUse: 'Coo 正在使用，停用後才能刪除。',
   removeBody: '將從共用擴充功能目錄移除此擴充套件，重新啟動處理程序後生效。使用它的其他 Bot 也會受到影響。不會刪除 Memory、既有設定或本機擴充功能原始碼。',
   builtin: '內建擴充功能',
   builtinNote: '隨 Coopanion 提供，不能單獨刪除。',
