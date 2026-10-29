@@ -26,12 +26,13 @@
  * Receipts and the environment prompt's computer-use part are in the model-text language (`model-text.ts`).
  */
 import { fork, type ChildProcess } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import type { Logger, ToolCallContext, ToolDef, ToolOutcome, WorldHost, WorldLamp } from 'cortico/core/types.ts';
 import type { Language } from 'cortico/core/language.ts';
 import { renderTemplate } from 'cortico/core/template.ts';
+import { readTextFile } from 'cortico/core/util.ts';
 import { childExecArgv } from 'cortico/extensions/runtime.ts';
 import type { CuaConfig, PermissionLevel } from './config.ts';
 import { cuaText, type CuaText } from './i18n/index.ts';
@@ -626,7 +627,7 @@ export class Cua {
       'cua.permission': t.permission(this.level, this.cfg.grantMinutes),
       'cua.terminal': this.cfg.skipTerminalAsk ? t.terminalSkipped : t.terminal(this.cfg.grantMinutes),
     };
-    return renderTemplate(readFileSync(this.envPromptFile(), 'utf8'), vars).trim();
+    return renderTemplate(readTextFile(this.envPromptFile()), vars).trim();
   }
 
   /** The environment prompt template of the model-text language. */

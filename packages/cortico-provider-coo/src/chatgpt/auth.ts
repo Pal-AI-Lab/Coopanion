@@ -18,9 +18,10 @@
  * signs the endpoint out; the registration and the host id stay for the next sign-in.
  */
 import { createHash, createPublicKey, randomBytes, randomUUID, timingSafeEqual, verify, type JsonWebKey } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import { join, resolve } from 'node:path';
+import { readTextFile } from 'cortico/core/util.ts';
 
 export interface ChatGPTService {
   /** The authorization server; its `/.well-known/openid-configuration` names the signing keys and the revocation endpoint. */
@@ -74,7 +75,7 @@ const TOKENS: readonly Field[] = ['accessToken', 'expiresAt', 'refreshToken', 's
 
 export function readStored(dir: string): Stored {
   const file = join(dir, '.env');
-  const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
+  const text = existsSync(file) ? readTextFile(file) : '';
   const out: Stored = {};
   for (const [field, key] of Object.entries(KEYS) as Array<[Field, string]>) {
     const m = new RegExp(`^\\s*${key}\\s*=\\s*(\\S+)`, 'm').exec(text);
@@ -87,7 +88,7 @@ export function readStored(dir: string): Stored {
 function writeStored(dir: string, patch: Partial<Record<Field, string | undefined>>): void {
   mkdirSync(dir, { recursive: true });
   const file = join(dir, '.env');
-  const lines = (existsSync(file) ? readFileSync(file, 'utf8') : '').split(/\r?\n/).filter(Boolean);
+  const lines = (existsSync(file) ? readTextFile(file) : '').split(/\r?\n/).filter(Boolean);
   const touched = new Set<string>(Object.keys(patch).map((field) => KEYS[field as Field]));
   const kept = lines.filter((line) => !touched.has(line.split('=')[0]!.trim()));
   for (const [field, value] of Object.entries(patch)) if (value) kept.push(`${KEYS[field as Field]}=${value}`);
