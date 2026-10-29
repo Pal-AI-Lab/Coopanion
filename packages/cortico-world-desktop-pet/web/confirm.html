@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coopanion</title>
+<link rel="stylesheet" href="/web/pet.css">
+<link rel="stylesheet" href="/web/confirm.css">
+</head>
+<body class="confirm-page">
+<main class="approval" aria-labelledby="caption" aria-describedby="question">
+  <header>
+    <span class="approval-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="13" rx="3"/><path d="M8 21h8M12 17v4"/></svg></span>
+    <div class="approval-heading"><span class="brand">Coopanion</span><h1 id="caption"></h1></div>
+    <button class="close" id="close" type="button">×</button>
+  </header>
+  <p class="request" id="question"></p>
+  <footer id="choices"></footer>
+</main>
+<script type="module" src="/web/confirm-app.js"></script>
+</body>
+</html>

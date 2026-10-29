@@ -111,6 +111,9 @@ function connect() {
   ws.onmessage = (e) => { try { onOrder(JSON.parse(e.data)); } catch (err) { console.error(err); } };
   ws.onclose = (e) => {
     ws = null;
+    host?.closeConfirms?.();
+    for (let i = queue.length - 1; i >= 0; i--) if (queue[i].confirm) queue.splice(i, 1);
+    if (item?.confirm) closeBubble();
     stopMic();
     // the World gave up on these steps when the page went; it asks again once the page is back
     dropDialogs();
@@ -125,6 +128,7 @@ let windowShown = true;
 function reportVisibility() { if (host) send({ t: 'visibility', hidden: !windowShown }); }
 // the page itself always reads as visible (its window does not throttle it): the window process says when it is hidden
 host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVisibility(); });
+host?.onConfirmWindow?.((id) => closeAsk(id));
 
 /* ---------- OBS overlay: while the window streams, each frame drawn is reported with the part it sends, the pet and its bubbles ---------- */
 let overlayOn = false;
@@ -312,11 +316,20 @@ function onOrder(m) {
     case 'type': openTyping(); break;
     case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); holdRoam(20); break;
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
-    case 'confirm': dropAsks(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
+    case 'confirm': {
+      const outside = m.outsideWhenHidden && !!host?.confirm;
+      if (outside) {
+        const socket = ws;
+        const answered = (index) => { if (ws === socket) send({ t: 'confirmed', id: m.id, index }); };
+        host.confirm({ id: m.id, question: m.question, options: m.options, caption: m.caption, theme: prefs.theme, language: language() })
+          .then(answered, () => answered(null));
+      }
+      dropAsks(); queue.push({ kind: 'ask', confirm: true, outside, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
+    }
     case 'walk': walk(m); break;
     case 'move': walk(m); break;
     case 'walk-stop': body?.stopWalk(m.id); break;
-    case 'ask-close': closeAsk(m.id); break;
+    case 'ask-close': closeAsk(m.id); host?.closeConfirm?.(m.id); break;
     case 'act': acts.push(...m.actions); holdRoam(20); break;
     case 'listen': onListen(m); break;
     // a message sent from the chat page, once the bot has it, and one taken back before delivery
@@ -570,7 +583,8 @@ function answer(node, a) {
   sfx.select();
   node.classList.add('chosen');
   bubble.querySelectorAll('.b-opt, .b-own').forEach((n) => { if (n !== node) n.classList.add('dim'); });
-  send(it.confirm ? { t: 'confirmed', id: it.id, index: a.index } : { t: 'answer', askId: it.id, ...a });
+  if (it.outside) host.answerConfirm(it.id, a.index);
+  else send(it.confirm ? { t: 'confirmed', id: it.id, index: a.index } : { t: 'answer', askId: it.id, ...a });
   // the bubble stays a moment longer; the keyboard goes back now
   releaseKeys(it);
   body?.cue('cheer');
@@ -579,13 +593,14 @@ function answer(node, a) {
 /** The question was answered elsewhere (the chat page): it leaves the queue or the bubble without an answer from here. */
 function closeAsk(id) {
   for (let i = queue.length - 1; i >= 0; i--) if (queue[i].kind === 'ask' && queue[i].id === id) queue.splice(i, 1);
-  if (item && item.kind === 'ask' && item.id === id && !item.answered) { item.answered = true; closeBubble(); }
+  if (item && item.kind === 'ask' && item.id === id) { item.answered = true; closeBubble(); }
 }
 function dismissAsk() {
   const it = item;
   if (!it || it.kind !== 'ask' || it.answered) return;
   it.answered = true;
-  send(it.confirm ? { t: 'confirmed', id: it.id, index: null } : { t: 'answer', askId: it.id, dismissed: true });
+  if (it.outside) host.answerConfirm(it.id, null);
+  else send(it.confirm ? { t: 'confirmed', id: it.id, index: null } : { t: 'answer', askId: it.id, dismissed: true });
   closeBubble();
 }
 

@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts, src/cua/cua.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js -->
+<!-- Owner: src/definition.ts, src/cua/cua.ts, src/world.ts, host/confirm.cjs, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js -->
 
 <p align="center">
   <picture>
@@ -449,8 +449,12 @@ bot 还有 `pet_cua_open_settings`,在使用者同意后把设置窗口打开到
 | `ask-once`(默认) | 不问 | 问一次,同意后 `cua.grantMinutes`(默认 30)分钟内不再问 |
 | `never-ask` | 不问 | 不问 |
 
-问句在桌宠的气泡里出(两个按钮:可以、这次不行,按应用语言);桌宠页不在时,弹一个置顶的系统对话框(Windows 上是 `MessageBoxTimeoutW`,
-macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)。每次气泡里的回答经 `desktopPetDefinition({ onCuaAnswer })` 告诉内嵌应用。
+桌宠显示时，问句在气泡里出(两个按钮:可以、这次不行,按应用语言)；桌宠隐藏时，改用独立的授权卡片，桌宠保持隐藏。
+卡片在 Windows、macOS 和 Linux 上共用 Electron 窗口，跟随应用的主题和语言。卡片位于桌宠所在屏幕可用区域的右下角，留出 16 DIP 边距，不抢键盘焦点。
+等待气泡回答时隐藏桌宠，会关闭原气泡并转到卡片，
+原气泡的迟到回答不再生效，60 秒的期限保持不变。关闭卡片、连接断开或应用退出都会结束该请求。
+桌宠页面不在时，仍由电脑操作引擎用系统对话框询问。
+每次气泡或卡片里的回答经 `desktopPetDefinition({ onCuaAnswer })` 告诉内嵌应用。
 没同意(拒绝、关掉或 60 秒没回应)时,这一轮剩下要问的调用都不执行,回执写明原因,下一轮再用时重新问。
 参数不合法的调用在问之前就被拒掉。`pet_cua_wait` 的等待从不问;`ask-each-turn` 下这一轮还没同意看屏幕时,它只等不截图。
 
@@ -519,6 +523,7 @@ macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)�
 借了哪个就只画哪个按钮或菜单行(暂停要 `isPaused` 和 `setPaused`,设置要 `openSettings`,退出要 `quit` 与可选的 `quitLabel`,可以是每次开菜单时调用的函数);
 `onCreate` 拿到 World 实例,应用可以调 `world.confirm(问题, [同意, 不同意])` 弹一个两选项气泡(或 `[同意, 以后都同意, 不同意]` 三选项,中间那项答 `always`),
 结果是 `yes` / `no` / `dismissed` / `timeout`(60 秒没人答) / `unavailable`(没有桌宠页),不会作为事件送给 bot。
+传第三个参数 `{ outsideWhenHidden: true, caption: 标题 }` 时，桌面窗口宿主在桌宠隐藏期间把该问句移到独立的授权卡片；电脑操作授权使用此入口。
 
 应用自己的一问一答(比如首次启动的引导)用 `world.dialog(步骤)`:Coo 在气泡里说一句,下面接一个输入组件,
 回答同样只交给调用方。组件有按钮行(可带一个反复演示按法的按键帽)、可试选的卡片(可带图标或一张 `data:image/…` 图,比如服务的标志,名字下可带一行小字 `note`;选中时 Coo 当场演示对应动作:站着、溜达、跑来跑去)、

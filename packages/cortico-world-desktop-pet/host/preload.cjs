@@ -12,6 +12,11 @@ contextBridge.exposeInMainWorld('petHost', {
   grabFocus: () => ipcRenderer.send('pet:grabFocus'),
   releaseFocus: () => ipcRenderer.send('pet:releaseFocus'),
   hide: () => ipcRenderer.send('pet:hide'),
+  confirm: request => ipcRenderer.invoke('pet:confirm', request),
+  answerConfirm: (id, index) => ipcRenderer.send('pet:confirm-answer', id, index),
+  closeConfirm: id => ipcRenderer.send('pet:confirm-close', id),
+  closeConfirms: () => ipcRenderer.send('pet:confirm-close-all'),
+  onConfirmWindow: cb => ipcRenderer.on('pet:confirm-window', (_e, id) => cb(id)),
   /** Whether the window is shown, each time it is shown or hidden (by the menu, the tray or a fullscreen window). */
   onShown: (cb) => ipcRenderer.on('pet:shown', (_e, shown) => cb(!!shown)),
   /** Whether the window hides itself while a fullscreen window covers its display. */

@@ -50,7 +50,7 @@ const MIME: Record<string, string> = {
   '.mp3': 'audio/mpeg',
   '.wav': 'audio/wav',
 };
-const PAGES: Record<string, string> = { '/pet': 'pet.html', '/dress': 'dress.html' };
+const PAGES: Record<string, string> = { '/pet': 'pet.html', '/dress': 'dress.html', '/confirm': 'confirm.html' };
 const LOOPBACK = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/i;
 const PORT_ATTEMPTS = 10;
 /**

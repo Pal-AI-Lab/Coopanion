@@ -24,6 +24,7 @@ const { join } = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { createCursorSource } = require('./cursor.cjs');
 const { createMouseLease, FORWARD_MOVES } = require('./mouse-lease.cjs');
+const { createConfirmations } = require('./confirm.cjs');
 const { createOverlaySource } = require('./overlay.cjs');
 const { createWindowSource, ledgesFrom, windowsFrom } = require('./windows.cjs');
 
@@ -319,6 +320,15 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   const onPet = (channel, fn) => ipcMain.on(channel, (e, ...args) => { if (fromPet(e)) fn(e, ...args); });
   const handlePet = (channel, fn) => ipcMain.handle(channel, (e, ...args) => (fromPet(e) ? fn(e, ...args) : null));
   let win = null, tray = null, dress = null, cursor;
+  const confirmations = createConfirmations({ BrowserWindow, screen, getPet: () => win, origin,
+    onStandalone: id => win?.webContents.send('pet:confirm-window', id) });
+  handlePet('pet:confirm', (_e, request) => confirmations.ask(request));
+  onPet('pet:confirm-answer', (_e, id, index) => confirmations.answerBubble(id, index));
+  onPet('pet:confirm-close', (_e, id) => confirmations.close(id));
+  onPet('pet:confirm-close-all', () => confirmations.closeAll());
+  ipcMain.handle('confirm:state', e => confirmations.state(e.sender));
+  ipcMain.on('confirm:answer', (e, index) => confirmations.answerWindow(e.sender, index));
+  app.once('before-quit', () => confirmations.closeAll());
   // who holds the mouse, and when it is given back
   const mouse = createMouseLease({ getWindow: () => win });
   // the window as an OBS layer, while the World asks for it
@@ -392,6 +402,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
         autoplayPolicy: 'no-user-gesture-required',
       },
     });
+    confirmations.watchPet(win);
     cover(d);
     // Native candidate windows and Chromium popups must remain above the pet.
     win.setAlwaysOnTop(true, process.platform === 'darwin' ? 'floating' : 'screen-saver');
@@ -403,7 +414,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     // The page cannot tell for itself that it is hidden (background throttling is off, so it always reads as
     // visible): the window tells it, for the settings window's 「在桌面上 / 已隐藏」.
     win.on('show', () => win?.webContents.send('pet:shown', true));
-    win.on('hide', () => { win?.webContents.send('pet:shown', false); mouse.release(); });
+    win.on('hide', () => { win?.webContents.send('pet:shown', false); mouse.release(); confirmations.hidden(); });
     // Zoom stays at 1: the cursor below is sent in DIPs and the page hit-tests with them as CSS pixels,
     // so any zoom flips the window between click-through and interactive. A drawing tablet's shortcut
     // keys are a keyboard and can send Ctrl+- to the focused pet, and the zoom is saved per host.
@@ -431,11 +442,12 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     // hidden while the setting is on and a window fills the pet's monitor; shown again once neither holds
     const fullscreenTimer = fullscreen && setInterval(() => {
       if (!win) return;
+      if (hideWhenFullscreen && autoHidden && confirmations.focused()) return;
       const covered = hideWhenFullscreen && fullscreen(hwndOf(win));
       if (covered && !autoHidden && win.isVisible()) { autoHidden = true; win.hide(); }
       else if (!covered && autoHidden) { autoHidden = false; win.showInactive(); }
     }, FULLSCREEN_EVERY_MS);
-    win.on('closed', () => { clearInterval(cursorTimer); clearInterval(fullscreenTimer); watchWindows(false); win = null; });
+    win.on('closed', () => { confirmations.closeAll(); clearInterval(cursorTimer); clearInterval(fullscreenTimer); watchWindows(false); win = null; });
     // page console lines reach the World's log through stdout
     win.webContents.on('console-message', (e) => { if (e.level !== 'debug') console.log(`[page:${e.level}] ${e.message}`); });
     win.webContents.on('did-fail-load', (_e, code, desc, failedUrl) => console.log(`[page:error] 加载失败 ${code} ${desc} ${failedUrl}`));

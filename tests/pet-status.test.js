@@ -16,8 +16,9 @@ function page({ host = false, hash = '' } = {}) {
   const dom = new JSDOM(html, { url: `http://127.0.0.1/pet${hash}`, runScripts: 'outside-only' });
   const win = dom.window;
   pages.push(win);
-  if (host) win.petHost = {};
+  if (host) win.petHost = typeof host === 'object' ? host : {};
   const sockets = [];
+  const messages = [];
   const bodyChanges = [];
   const body = {
     layout: { busy: false, facing: 1, cursor: '', bubble: { x: 500, y: 400 } },
@@ -27,7 +28,7 @@ function page({ host = false, hash = '' } = {}) {
   win.WebSocket = class {
     readyState = 1;
     constructor(url) { this.url = new URL(url); sockets.push(this); }
-    send() {}
+    send(message) { messages.push(JSON.parse(message)); }
   };
   win.deps = {
     applyTheme: (theme) => { win.document.documentElement.dataset.theme = theme; }, clamp, f, ICONS, linked: (text, n) => linked(text, n, win.document),
@@ -42,8 +43,62 @@ function page({ host = false, hash = '' } = {}) {
     createMic: () => ({ start() {}, stop() {} }),
   };
   win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
-  return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
+  return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, messages, win };
 }
+
+describe('permission card bridge', () => {
+  function connected() {
+    let answer, standalone;
+    const closed = [], bubbleAnswers = [];
+    const host = {
+      confirm: () => new Promise(resolve => { answer = resolve; }),
+      onConfirmWindow: callback => { standalone = callback; },
+      answerConfirm: (id, index) => { bubbleAnswers.push({ id, index }); },
+      closeConfirm: id => { closed.push(id); answer(null); },
+      closeConfirms: () => answer?.(null),
+    };
+    const p = page({ host });
+    return { ...p, closed, bubbleAnswers, answer: index => answer(index), standalone: id => standalone(id) };
+  }
+  const question = { t: 'confirm', id: 'permission', question: 'May Coo use your computer?',
+    options: ['Allow', 'Deny'], caption: 'Computer use', outsideWhenHidden: true };
+
+  it('moves the visible bubble out of the way and sends only the host-accepted answer', async () => {
+    const p = connected();
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.onOrder(question); p.step(10); p.step(.01);
+    expect(p.bubble.hidden).toBe(false);
+    p.bubble.querySelector('.b-opt').click();
+    expect(p.bubbleAnswers).toEqual([{ id: 'permission', index: 0 }]);
+    expect(p.messages.some(m => m.t === 'confirmed')).toBe(false);
+    p.standalone('permission'); p.step(.01);
+    expect(p.bubble.hidden).toBe(true);
+    p.answer(1);
+    await Promise.resolve();
+    expect(p.messages.filter(m => m.t === 'confirmed')).toEqual([{ t: 'confirmed', id: 'permission', index: 1 }]);
+  });
+
+  it('closes the host request on World timeout without reporting approval', async () => {
+    const p = connected();
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.onOrder(question); p.step(.01);
+    p.onOrder({ t: 'ask-close', id: question.id }); p.step(.01);
+    await Promise.resolve();
+    expect(p.closed).toEqual(['permission']);
+    expect(p.bubble.hidden).toBe(true);
+    expect(p.messages.filter(m => m.t === 'confirmed')).toEqual([{ t: 'confirmed', id: 'permission', index: null }]);
+  });
+
+  it('does not send a disconnected request answer to the socket', async () => {
+    const p = connected();
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.onOrder(question); p.step(.01);
+    p.sockets[0].onclose({ code: 4000 });
+    await Promise.resolve();
+    expect(p.messages.some(m => m.t === 'confirmed')).toBe(false);
+    expect(p.bubble.hidden).toBe(true);
+  });
+});
 
 describe('pet page connection', () => {
   it('uses the launch credential and reconnects a replaced desktop window', async () => {

@@ -283,6 +283,7 @@ interface PendingConfirm {
   /** How many choices the bubble shows: the last one is no. */
   choices: number;
   timer: NodeJS.Timeout;
+  outsideWhenHidden: boolean;
 }
 
 /** Characters a step's line is shown for per second (typing, then reading), for its time limit. */
@@ -428,8 +429,8 @@ export class DesktopPetWorld implements World {
       botName: opts.botName,
       modelLanguage: () => this.language,
       language: () => this.appLanguage,
-      askPermission: async (question, choices) => {
-        const answer = await this.confirm(question, choices);
+      askPermission: async (question, choices, caption) => {
+        const answer = await this.confirm(question, choices, { outsideWhenHidden: true, caption });
         if (answer === 'unavailable') return null;
         const said: Answer = answer === 'yes' || answer === 'timeout' ? answer : 'no';
         opts.onCuaAnswer?.(said);
@@ -677,6 +678,7 @@ export class DesktopPetWorld implements World {
   }
 
   async stop(): Promise<void> {
+    for (const [id, c] of this.confirms) this.finishConfirm(id, c.outsideWhenHidden ? 'dismissed' : 'unavailable');
     this.voiceGeneration++;
     this.runningEngine = null;
     this.status.clear();
@@ -698,8 +700,6 @@ export class DesktopPetWorld implements World {
     this.typeKeyKey = '';
     if (this.micReleaseTimer) clearTimeout(this.micReleaseTimer);
     this.micReleaseTimer = null;
-    for (const c of this.confirms.values()) { clearTimeout(c.timer); c.resolve('unavailable'); }
-    this.confirms.clear();
     for (const d of this.dialogs.values()) d({ unavailable: true });
     this.dialogs.clear();
     for (const w of this.walks.values()) { clearTimeout(w.timer); w.resolve(this.t.walkWorldStopped); }
@@ -1146,9 +1146,7 @@ export class DesktopPetWorld implements World {
       case 'confirmed': {
         const c = this.confirms.get(String(msg.id));
         if (!c) return;
-        this.confirms.delete(String(msg.id));
-        clearTimeout(c.timer);
-        c.resolve(msg.index === 0 ? 'yes' : msg.index === c.choices - 1 ? 'no' : msg.index === 1 ? 'always' : 'dismissed');
+        this.finishConfirm(String(msg.id), msg.index === 0 ? 'yes' : msg.index === c.choices - 1 ? 'no' : msg.index === 1 ? 'always' : 'dismissed');
         return;
       }
       case 'control': return this.onControl(String(msg.action));
@@ -1179,14 +1177,25 @@ export class DesktopPetWorld implements World {
   /**
    * Asks the person in a bubble with two choices, the first one meaning yes, or three, the middle one
    * meaning yes and from now on. Answers never reach the bot as events; the caller gets them.
+   * `outsideWhenHidden` lets the window host move the question to its own window while the pet is hidden.
    */
-  confirm(question: string, choices: [yes: string, no: string] | [yes: string, always: string, no: string]): Promise<ConfirmResult> {
+  confirm(question: string, choices: [yes: string, no: string] | [yes: string, always: string, no: string], { outsideWhenHidden = false, caption = '' } = {}): Promise<ConfirmResult> {
     const id = nextId('k');
-    if (!this.server.sendPet({ t: 'confirm', id, question, options: choices })) return Promise.resolve('unavailable');
+    if (!this.server.sendPet({ t: 'confirm', id, question, options: choices, outsideWhenHidden, caption })) return Promise.resolve('unavailable');
     return new Promise((resolve) => {
-      const timer = setTimeout(() => { this.confirms.delete(id); resolve('timeout'); }, CONFIRM_TIMEOUT_MS);
-      this.confirms.set(id, { resolve, timer, choices: choices.length });
+      const timer = setTimeout(() => this.finishConfirm(id, 'timeout'), CONFIRM_TIMEOUT_MS);
+      this.confirms.set(id, { resolve, timer, choices: choices.length, outsideWhenHidden });
     });
+  }
+
+  private finishConfirm(id: string, result: ConfirmResult): void {
+    const c = this.confirms.get(id);
+    if (!c) return;
+    this.confirms.delete(id);
+    clearTimeout(c.timer);
+    // Answered bubbles finish their selection animation before closing.
+    if (result === 'timeout' || result === 'unavailable' || result === 'dismissed') this.server.sendPet({ t: 'ask-close', id });
+    c.resolve(result);
   }
 
   /**
@@ -1232,7 +1241,7 @@ export class DesktopPetWorld implements World {
     this.log?.info('桌宠页面断开');
     for (const [id, d] of this.dialogs) { d({ unavailable: true }); this.dialogs.delete(id); }
     for (const [id, w] of this.walks) { clearTimeout(w.timer); w.resolve(this.t.walkWindowGone); this.walks.delete(id); }
-    for (const [id, c] of this.confirms) { clearTimeout(c.timer); c.resolve('unavailable'); this.confirms.delete(id); }
+    for (const [id, c] of this.confirms) this.finishConfirm(id, c.outsideWhenHidden ? 'dismissed' : 'unavailable');
     this.segmenter.flush();
     if (this.wasSpeaking) this.wasSpeaking = false;
   }

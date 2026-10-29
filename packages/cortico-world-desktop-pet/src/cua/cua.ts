@@ -12,7 +12,7 @@
  *
  * `permission` sets when the person is asked first (config.ts, PERMISSION_LEVELS): at most once
  * a turn, before the first call that reads the screen or before the first input, or once for
- * `grantMinutes`, or never. The question goes through `askPermission` (the pet's bubble), or through a
+ * `grantMinutes`, or never. The question goes through `askPermission` (the pet's bubble or approval card), or through a
  * system dialog while the pet page cannot ask. A refusal stands until the turn ends. Working in a
  * terminal (terminal.ts) is asked about on its own after that, at every level, and a yes holds for
  * `grantMinutes`; with `skipTerminalAsk` on it is asked about only as `permission` says.
@@ -61,7 +61,7 @@ export interface CuaOptions {
    * Asks the person whether the bot may use the computer this turn, with the two buttons' words.
    * null: this way of asking is not available right now, and the system dialog asks instead.
    */
-  askPermission?: (question: string, choices: [yes: string, no: string]) => Promise<Answer | null>;
+  askPermission?: (question: string, choices: [yes: string, no: string], caption: string) => Promise<Answer | null>;
   /** The language of what the bot reads from this World, read at each use; Chinese when absent. */
   modelLanguage?: () => ModelLanguage;
   /** The app language: the permission question and the system dialog's words. Read at each use; `zh` when absent. */
@@ -295,7 +295,7 @@ export class Cua {
 
   private async ask(question: string): Promise<Answer> {
     const a = this.ui.ask;
-    const viaApp = await this.opts.askPermission?.(question, [a.yes, a.no]) ?? null;
+    const viaApp = await this.opts.askPermission?.(question, [a.yes, a.no], a.caption) ?? null;
     if (viaApp) return viaApp;
     return this.call<Answer>({ op: 'confirm', text: question, caption: a.caption, yes: a.yes, no: a.no, timeoutMs: PERMISSION_TIMEOUT_MS });
   }

@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
+import type { ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -14,6 +15,7 @@ import { FakeHost } from './helpers/fake-host.ts';
 import { FakePage } from './helpers/page.ts';
 import { HOST_ENV } from '../src/window-host.ts';
 import { petText } from '../src/i18n/index.ts';
+import type { Answer, EngineRequest } from '../src/cua/engine-ipc.ts';
 
 const ctx = { role: 'main', log: new FakeHost().log };
 
@@ -72,6 +74,124 @@ async function windowPage(world: DesktopPetWorld): Promise<FakePage> {
   expect(JSON.stringify(world.petState())).not.toContain(key);
   return FakePage.open(url.origin, new URLSearchParams({ role: 'pet', host: 'window', key: key! }).toString());
 }
+
+describe('computer-use permission visibility', () => {
+  async function permissionWorld(extra?: Partial<DesktopPetWorldOptions>) {
+    const made = await mounted((cfg) => { cfg.cua.enabled = true; cfg.cua.permission = 'ask-each-turn'; }, extra);
+    const page = await windowPage(made.world);
+    cleanup.push(() => page.close());
+    const engine = (made.world as unknown as { cua: {
+      spawn(): ChildProcess;
+      pending: Map<number, { done(value: unknown): void; timer: NodeJS.Timeout }>;
+    } }).cua;
+    const requests: EngineRequest[] = [];
+    const questions: Array<{ request: Extract<EngineRequest, { op: 'confirm' }>; answer(value: Answer): void }> = [];
+    const events = new EventEmitter();
+    const child = Object.assign(events, {
+      connected: true, exitCode: null as number | null,
+      disconnect() { this.connected = false; this.exitCode = 0; events.emit('exit', 0); },
+      send({ id, req }: { id: number; req: EngineRequest }) {
+        requests.push(req);
+        const reply = (value: unknown) => {
+          const pending = engine.pending.get(id);
+          if (!pending) return;
+          engine.pending.delete(id);
+          clearTimeout(pending.timer);
+          pending.done(value);
+        };
+        if (req.op === 'confirm') questions.push({ request: req, answer: reply });
+        else reply({ displays: [{ index: 1, primary: true, width: 800, height: 600 }], layout: 'one',
+          cursor: null, foreground: null, foregroundDisplay: 1, display: 1,
+          jpeg: new Uint8Array([1]), width: 800, height: 600, scale: 1 });
+      },
+    });
+    engine.spawn = () => child as unknown as ChildProcess;
+    const screenshot = () => tool(made.world, 'pet_cua_screenshot').handler({}, ctx) as Promise<{ failed?: boolean; text: string }>;
+    const hidden = async (value: boolean) => {
+      page.send({ t: 'visibility', hidden: value });
+      await expect.poll(() => made.world.petState().onDesktop).toBe(!value);
+    };
+    return { ...made, page, requests, questions, screenshot, hidden };
+  }
+
+  it.each([0, 1, null])('routes hidden permission through the host and respects choice %s', async (index) => {
+    const { world, page, questions, requests, screenshot, hidden } = await permissionWorld();
+    await hidden(true);
+    const result = screenshot();
+    const question = await page.next(m => m.t === 'confirm');
+    expect(question).toMatchObject({ outsideWhenHidden: true, caption: expect.any(String) });
+    expect(question.question).toContain('这一次可以吗');
+    expect(requests.some(r => r.op === 'screenshot')).toBe(false);
+    expect(questions).toHaveLength(0);
+    page.send({ t: 'confirmed', id: question.id, index });
+    expect((await result).failed === true).toBe(index !== 0);
+    expect(requests.some(r => r.op === 'screenshot')).toBe(index === 0);
+    expect(world.petState().onDesktop).toBe(false);
+  });
+
+  it('keeps the visible pet bubble as the confirmation entry', async () => {
+    const { page, questions, requests, screenshot } = await permissionWorld();
+    const result = screenshot();
+    const bubble = await page.next(m => m.t === 'confirm');
+    expect(questions).toHaveLength(0);
+    expect(requests).toHaveLength(0);
+    page.send({ t: 'confirmed', id: bubble.id, index: 1 });
+    expect((await result).failed).toBe(true);
+    expect(questions).toHaveLength(0);
+  });
+
+  it('keeps one permission deadline across visibility changes and closes the host prompt on timeout', async () => {
+    const { world, page, questions, requests, screenshot } = await permissionWorld();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    const started = Date.now();
+    const result = screenshot();
+    let bubble;
+    try {
+      bubble = await page.next(m => m.t === 'confirm');
+      await vi.advanceTimersByTimeAsync(30_000);
+      page.send({ t: 'visibility', hidden: true });
+      await vi.waitFor(() => expect(world.petState().onDesktop).toBe(false));
+      page.send({ t: 'visibility', hidden: false });
+      await vi.waitFor(() => expect(world.petState().onDesktop).toBe(true));
+      await vi.advanceTimersByTimeAsync(60_000 - (Date.now() - started));
+    } finally { vi.useRealTimers(); }
+    expect((await result).failed).toBe(true);
+    expect(await page.next(m => m.t === 'ask-close')).toMatchObject({ id: bubble!.id });
+    page.send({ t: 'confirmed', id: bubble!.id, index: 0 });
+    expect(questions).toHaveLength(0);
+    expect(requests.some(r => r.op === 'screenshot')).toBe(false);
+  });
+
+  it('cancels permission before awaiting shutdown work without opening a system dialog', async () => {
+    const packDir = mkdtempSync(join(tmpdir(), 'pet-confirm-packs-'));
+    cleanup.push(async () => { rmSync(packDir, { recursive: true, force: true }); });
+    const { world, page, questions, screenshot } = await permissionWorld({ packDir: () => packDir });
+    const result = screenshot();
+    await page.next(m => m.t === 'confirm');
+    const importer = (world as unknown as { importer: { cancel(): Promise<void> } }).importer;
+    let release!: () => void;
+    const blocked = new Promise<void>(resolve => { release = resolve; });
+    const cancel = vi.spyOn(importer, 'cancel').mockReturnValue(blocked);
+    let settled = false;
+    void result.then(() => { settled = true; });
+    const stopping = world.stop();
+    try {
+      await expect.poll(() => settled, { timeout: 1000 }).toBe(true);
+      expect((await result).failed).toBe(true);
+      expect(questions).toHaveLength(0);
+    } finally { release(); cancel.mockRestore(); await stopping; }
+  });
+
+  it('cancels an existing request on disconnect without opening a native dialog', async () => {
+    const { page, questions, requests, screenshot } = await permissionWorld();
+    const result = screenshot();
+    await page.next(m => m.t === 'confirm');
+    await page.close();
+    expect((await result).failed).toBe(true);
+    expect(questions).toHaveLength(0);
+    expect(requests.some(r => r.op === 'screenshot')).toBe(false);
+  });
+});
 
 describe('definition', () => {
   it('passes the extension dry mount', async () => {
