@@ -12,10 +12,10 @@ import { cooText as ru } from './strings.ru.ts';
 /** What the console shows of this provider: its description, the thinking levels, the protocol setting and its error. */
 const zh = {
   /** `names`: the services' names in the console's language. */
-  description: (names: readonly string[]) => `一个模块接 ${names.join('、')};按接口地址认是哪一家、走哪种协议。思考可调四档。`,
+  description: (names: readonly string[]) => `一个模块接 ${names.join('、')};按接口地址识别是哪一家、走哪种协议。思考可调节四档。`,
   tiers: { off: '不思考', low: '思考 · 快', high: '思考 · 标准', max: '思考 · 最深' },
   protocol: '协议',
-  protocolHint: '留空时,列出的服务用它自己的协议,其他地址用 responses。responses:POST <地址>/responses;chat:POST <地址>/chat/completions;anthropic:Messages API,地址填 /v1 之前的部分;gemini:Gemini API,地址填 /models 之前的部分。',
+  protocolHint: '留空时,列出的服务用它自己的协议,其他地址用 responses。responses:POST <地址>/responses;chat:POST <地址>/chat/completions;anthropic:Messages API,地址填写 /v1 之前的部分;gemini:Gemini API,地址填写 /models 之前的部分。',
   badProtocol: (protocols: string) => `协议只能是 ${protocols}`,
   httpRemote: "远程地址只能用 https:http 不加密，API Key 和对话会明文传输。本机和局域网的地址可以用 http。",
   chatgpt: {

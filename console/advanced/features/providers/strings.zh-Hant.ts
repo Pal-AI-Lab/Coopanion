@@ -2,7 +2,7 @@ import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
   pageTitle: '模型供應商', navLabel: '模型供應商', navGroup: 'Core', create: '+ 新增供應商實例', newName: '未命名實例',
-  createHint: '實例 = 填一組供應商設定儲存成卡片',
+  createHint: '實例 = 填寫一組供應商設定，儲存成卡片',
   empty: '還沒有模型供應商', emptyHint: '新增一條模型連線後，Cortico 才能進行模型推理。',
   eraseConfirm: '確認刪除',
   connect: '連線', activate: '設為目前供應商', active: '目前模型', missing: '目前模型供應商不存在，設定中引用：',

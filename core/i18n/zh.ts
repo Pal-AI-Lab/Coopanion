@@ -60,7 +60,7 @@ export default {
   /** 设置窗口「开始」页「配色方案」里跟着桌宠形象的配色方案 */
   scheme: {
     name: (figure: string, preset: string) => `${figure} · ${preset}`,
-    note: (figure: string, preset: string) => `桌宠换成${figure}的「${preset}」时自动换上`,
+    note: (figure: string, preset: string) => `桌宠更换为${figure}的「${preset}」时自动换上`,
   },
 
   /** 启动引导:第一次启动时 Coo 在气泡里一步步说的话 */

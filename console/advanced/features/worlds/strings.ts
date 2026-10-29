@@ -46,7 +46,7 @@ const zh = {
   missingReasonDefault: "无法加载这个 World。",
   activateWorld: '激活 World',
   inactiveNoteActivatable: "激活后写入 config.json 并立即启动。",
-  inactiveNoteManual: (id: string) => `本地有实现但没装配。要启用,把 config.json 里 worlds.${id}.enabled 改为 true 后重启。`,
+  inactiveNoteManual: (id: string) => `本地有实现但没装配。要启用,把 config.json 里 worlds.${id}.enabled 修改为 true 后重启。`,
   hideFromAgent: '对 agent 隐藏',
   showToAgent: '对 agent 显示',
   restartWorld: '重启 World',
