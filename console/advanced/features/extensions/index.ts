@@ -795,7 +795,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       }
       return list;
     };
-    const heading = (text: string, count?: number) => { const h = ui.h('h5', '', text); if (count !== undefined) h.append(ui.h('span', 'extension-describe-count', String(count))); return h; };
+    // Headed like the information tab's 简介; a count follows the title.
+    const heading = (text: string, count?: number) => { const h = ui.h('h4', 'extension-detail-heading-note', text); if (count !== undefined) h.append(ui.h('span', 'extension-describe-count', String(count))); return h; };
     if (describe.provider) {
       const p = describe.provider;
       section.append(ui.kv([
@@ -826,8 +827,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     if (!describe?.prompts?.length) return null;
     const section = ui.h('section', 'extension-describe extension-prompts');
     for (const prompt of describe.prompts) {
-      const head = ui.h('div', 'extension-prompt-head');
-      head.append(ui.h('h5', '', prompt.title), ui.h('code', '', prompt.key));
+      // Headed like the information tab's 简介; the prompt's key follows the title.
+      const head = ui.h('h4', 'extension-detail-heading-note', prompt.title); head.append(ui.h('code', '', prompt.key));
       section.append(head, ui.h('pre', 'extension-prompt-body', prompt.content));
     }
     return { title: S.promptsTabWorld, el: section };

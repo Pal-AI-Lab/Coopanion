@@ -1657,8 +1657,7 @@ button.extension-tag { cursor: pointer; }
 .extension-tag.is-badge.is-new:hover { border-color: var(--extension-new); background: color-mix(in srgb, var(--extension-new) 16%, var(--background)); }
 /* 扩展详情里的工具与事件 */
 .extension-describe { margin-top: 0; }
-.extension-describe h5 { display: flex; align-items: baseline; gap: 8px; margin: 14px 0 8px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); }
-.extension-describe-count { font-weight: 400; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.extension-describe-count { font-variant-numeric: tabular-nums; }
 .extension-tool-list, .extension-event-list { display: grid; border-block: 1px solid var(--line); }
 .extension-tool { border-bottom: 1px solid var(--line); }
 .extension-tool:last-child { border-bottom: 0; }
@@ -1719,6 +1718,9 @@ button.extension-tag { cursor: pointer; }
 .extension-detail-columns { border-top: 1px solid var(--line); padding-top: 8px; }
 .extension-detail-columns.is-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: start; }
 .extension-detail-main h4 { margin: 18px 0 10px; }
+/* A tab's heading with a note after its title (a count, a prompt's key), otherwise as 简介. */
+.extension-detail-main h4.extension-detail-heading-note { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.extension-detail-heading-note > :is(span, code) { font-size: 12px; font-weight: 400; color: var(--ink-dim); }
 .extension-detail-main > p { line-height: 1.7; margin: 0 0 4px; }
 .extension-detail-main, .extension-detail-side { min-width: 0; }
 .extension-detail-side { position: sticky; top: 0; }
@@ -1781,10 +1783,6 @@ button.extension-tag { cursor: pointer; }
 .extension-hint b { font-weight: 600; color: var(--ink); }
 .extension-hint span { color: var(--ink-soft); white-space: pre-line; }
 /* 默认提示词 */
-.extension-prompt-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 14px 0 6px; }
-.extension-prompt-head:first-child { margin-top: 0; }
-.extension-prompt-head h5 { margin: 0; font-size: 13px; }
-.extension-prompt-head code { font-size: 11.5px; color: var(--ink-dim); }
 .extension-prompt-body { margin: 0; max-height: 420px; overflow: auto; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--sheet-2); font: 12px/1.65 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 /* 统计项:评分、评论、下载、日期 */
 .extension-stat { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-soft); font-size: 12.5px; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; cursor: default; border-radius: 6px; }
