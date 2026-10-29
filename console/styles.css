@@ -2004,6 +2004,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-blade[data-state=pending] .world-state{color:var(--warn)}
 .world-blade[data-state=failed] .world-state{color:var(--danger)}
 .world-blade-actions{align-self:start;margin-top:5px;display:grid;grid-template-columns:repeat(3,30px) 38px;align-items:center;gap:4px;justify-content:end}
+.world-blade-actions>button{grid-column:var(--slot,auto)}
 .world-blade-actions .iobtn[aria-disabled=true]{opacity:.35;cursor:not-allowed}
 .world-blade-actions .iobtn[aria-disabled=true]:hover{background:transparent;color:inherit}
 /* Power is a round switch: green while the World runs, red while it is off. */
@@ -2025,8 +2026,10 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-catalog>.msgline:empty{display:none}
 .world-catalog>.extension-advanced[hidden],.world-catalog>.extension-registry[hidden]{display:none}
 /* The filter column's scrollbar sits midway between its text and the cards; the space right of it scrolls the cards. */
-.world-catalog-body{display:flex;flex:1;gap:0;min-height:0;min-width:0}
-.world-catalog-filters{flex:none;width:170px;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding:0 10px 32px 0}
+/* The space between the filters and the cards belongs to the filters (their margin), so it folds away
+   with them; the cards keep 10px on their left for their shadows, which the body's -10px offsets. */
+.world-catalog-body{display:flex;flex:1;gap:0;min-height:0;min-width:0;margin-left:-10px}
+.world-catalog-filters{flex:none;width:170px;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;margin-left:10px;padding:0 10px 32px 0}
 .world-catalog-filters[hidden]{display:none}
 .world-catalog-installation{display:flex;width:100%;margin:0 0 16px}
 .world-catalog-installation>*{flex:1 1 0;min-width:0;padding-inline:4px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -2054,7 +2057,6 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-catalog-filters button.extension-tag.is-active:hover{background:color-mix(in srgb,var(--tag-colour) 19%,transparent)}
 .world-catalog-filters .extension-tag-count{margin-left:auto;font-weight:400;color:var(--ink-dim)}
 .world-catalog-scroll{flex:1;min-width:0;min-height:0;overflow:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding:0 calc(var(--world-inset) - 10px) 24px 10px}
-.world-catalog-filters[hidden]+.world-catalog-scroll{padding-left:0}
 .world-catalog .extension-card-heading .extension-avatar{position:absolute;left:16px;top:16px;width:44px;height:44px}
 .world-catalog .extension-card-title{font-size:15px;overflow-wrap:anywhere}
 .world-catalog .extension-card-titleline{flex-wrap:wrap;gap:5px 12px}
@@ -2122,8 +2124,8 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 @media(max-width:760px){
   .featureslot-world>.world-workspace{--world-rail-width:64px;--world-gap:12px}
   .world-market{padding-left:16px}
-  .world-catalog-body{flex-direction:column;gap:10px}
-  .world-catalog-filters{width:auto;max-height:170px;padding-right:var(--world-inset);flex:0 0 auto}
+  .world-catalog-body{flex-direction:column}
+  .world-catalog-filters{width:auto;max-height:170px;margin-bottom:10px;padding-right:var(--world-inset);flex:0 0 auto}
   .world-catalog-categories{flex-direction:row;flex-wrap:wrap;gap:4px;margin-bottom:8px;padding-bottom:8px}
   .world-catalog-filters .extension-tag-row{flex-direction:row;flex-wrap:wrap}
 }
@@ -2132,6 +2134,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
   .world-state{grid-column:2;grid-row:1}
   .world-blade-signals{grid-column:1/-1;grid-row:2}
   .world-blade-actions{grid-column:1/-1;grid-row:3;justify-content:start}
+  .world-blade-actions>button{grid-column:auto}
 }
 @media(prefers-reduced-motion:reduce){.extension-get-ring,.extension-get-ring .arc,.world-dock-tip{animation:none}.world-library-entry,.world-library-list,.world-library-heading,.world-library-label,.world-pending-group,.world-avatar{transition:none}.world-library-item:is(:hover,:focus-visible,:active) .world-avatar{transform:none}}
 /* My World's filter row folds away in the market view. */
@@ -2156,7 +2159,8 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-group-action{opacity:0;transition:opacity 150ms}
 .world-group-head:is(:hover,:focus-within) .world-group-action{opacity:1}
 .world-group-head input.world-group-rename{width:240px}
-.world-group-list{height:auto;overflow:clip;overflow-clip-margin:8px;transition:height var(--world-duration) var(--world-easing),opacity 240ms}
+/* flow-root keeps the last row's margin inside the list, so the animated height ends where height:auto lands. */
+.world-group-list{display:flow-root;height:auto;overflow:clip;overflow-clip-margin:8px;transition:height var(--world-duration) var(--world-easing),opacity 240ms}
 .world-workspace[data-view=mine] .world-group.is-collapsed .world-group-list{height:0;opacity:0}
 .world-workspace[data-view=market] .world-group-head{height:0;margin:0;opacity:0;overflow:clip;pointer-events:none}
 .world-drop-line{position:absolute;left:0;z-index:3;width:var(--world-entry-width);height:2px;margin-top:-1px;border-radius:2px;background:var(--accent);pointer-events:none}
@@ -2166,7 +2170,8 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-group{transition:padding var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),border-color 200ms;border-bottom:1px solid transparent}
 .world-workspace[data-view=mine] .world-group:has(+ .world-library-entry){width:var(--world-entry-width);padding-bottom:6px;margin-bottom:14px;border-bottom-color:var(--line)}
 /* Cards past the first screen skip rendering until scrolled to, so showing the market lays out only
-   the first few. The first four always render: they are in view while the market slides in. */
-.world-catalog .extension-market-card:nth-child(n+5){content-visibility:auto;contain-intrinsic-size:auto 160px}
+   the cards in view; those are marked is-in-view while the market slides in. */
+.world-catalog .extension-market-card{content-visibility:auto;contain-intrinsic-size:auto 160px}
+.world-catalog .extension-market-card.is-in-view{content-visibility:visible}
 .world-no-matches{margin:4px 0 0;padding:20px 0;font-size:12.5px;color:var(--ink-dim);text-align:center}
 .world-workspace[data-view=market] .world-no-matches{display:none}

@@ -990,6 +990,11 @@ describe('World library and catalog', () => {
     const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod');
     expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['左栏隐藏', '删除扩展', '对 agent 隐藏', '停用 World']);
     expect(row.querySelector('.world-blade-identity h3 [aria-label="扩展信息"]')).not.toBeNull();
+    // Rows with fewer controls pack them to the right, with no gap at the end.
+    const slots = (item) => [...item.querySelectorAll('.world-blade-actions button')].map(button => button.style.getPropertyValue('--slot'));
+    expect(slots(row)).toEqual(['1', '2', '3', '4']);
+    const failed = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'beta-mod');
+    expect(slots(failed).at(-1)).toBe('4');
     row.querySelector('.world-blade-identity code').click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     expect(decodeURIComponent(window.location.hash)).toBe('#/provider/world:alpha');
   });

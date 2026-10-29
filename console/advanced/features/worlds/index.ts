@@ -215,6 +215,17 @@ export function mountWorlds(ctx: FeatureContext): void {
       void own.finished.then(() => { if (transition === own) catalog.hidden = current !== 'market'; }, () => {});
     } else catalog.hidden = next !== 'market';
     if (next === 'market') market?.activate();
+    // Cards past the first screen skip rendering until scrolled to, and the browser does not count
+    // them as in view under the reveal's clip, so they would stay blank until it ends. The ones in
+    // view render now, and go back to skipping once the reveal is over.
+    if (next === 'market' && transition?.playState === 'running') {
+      const own = transition, scroller = catalog.querySelector('.world-catalog-scroll'), bottom = scroller?.getBoundingClientRect().bottom ?? 0;
+      // A rendered card's own height replaces its placeholder's, which can bring the next one into view.
+      const cards = [...catalog.querySelectorAll<HTMLElement>('.extension-market-card')], shown: HTMLElement[] = [];
+      for (const card of cards) { if (card.getBoundingClientRect().top >= bottom) break; card.classList.add('is-in-view'); shown.push(card); }
+      const settle = () => { for (const card of shown) card.classList.remove('is-in-view'); };
+      void own.finished.then(settle, settle);
+    }
   };
   lifecycle.own(router.onChange(show)); show();
   if (canBrowse) market = mountExtensionContent({ ...ctx, root: catalog }, 'world', {
@@ -621,8 +632,9 @@ export function mountWorlds(ctx: FeatureContext): void {
       if (changingWorlds.has(m.id)) for (const button of runtime) button.disabled = true;
       actions.append(...runtime);
     }
-    // Each control keeps its column across rows, so a missing one leaves a gap instead of shifting the rest.
-    for (const button of actions.querySelectorAll<HTMLButtonElement>('button')) button.style.gridColumn = String(ACTION_SLOTS.indexOf(button.dataset.slot as ActionSlot) + 1);
+    // The controls keep their order and pack to the right, so a missing one leaves no gap at the row's end.
+    const placed = [...actions.querySelectorAll<HTMLButtonElement>('button')].sort((x, y) => ACTION_SLOTS.indexOf(x.dataset.slot as ActionSlot) - ACTION_SLOTS.indexOf(y.dataset.slot as ActionSlot));
+    placed.forEach((button, index) => { button.style.setProperty('--slot', String(ACTION_SLOTS.length - placed.length + index + 1)); });
     // A click on the row, outside its controls, opens the World's configuration page.
     if (m) {
       row.classList.add('is-configurable');

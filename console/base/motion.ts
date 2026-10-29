@@ -19,8 +19,12 @@ export interface FoldOptions {
 }
 
 /**
- * Opens or closes `el` by its own measured size, with its padding and a fade alongside, so its
- * neighbours move with it. With reduced motion it only toggles `hidden`.
+ * Opens or closes `el` by its own measured size, with a fade alongside, so its neighbours move with
+ * it. The size and every padding and margin on the axis go to zero, so the closed frame takes the
+ * space `hidden` takes and the open frame the space the element ends at: nothing jumps when the
+ * animation hands over to the stylesheet. Borders keep their width (the browser draws any width under
+ * a pixel as a whole one), and the far margin gives their width back instead. With reduced motion it
+ * only toggles `hidden`.
  */
 export function fold(el: HTMLElement, open: boolean, opts: FoldOptions = {}): void {
   const { axis = 'y', duration = 240, easing = 'cubic-bezier(.32,.72,0,1)', shift = 0, hide = true, clip = true } = opts;
@@ -29,13 +33,15 @@ export function fold(el: HTMLElement, open: boolean, opts: FoldOptions = {}): vo
   if (prefersStill(win) || !el.animate) { if (hide) el.hidden = !open; return; }
   el.hidden = false;
   const style = win!.getComputedStyle(el);
-  const moved = shift ? `translateX(${shift}px)` : 'none';
-  const full = axis === 'y'
-    ? { height: `${el.offsetHeight}px`, minHeight: style.minHeight, paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, marginBottom: style.marginBottom, opacity: 1, transform: 'none' }
-    : { width: `${el.offsetWidth}px`, paddingRight: style.paddingRight, opacity: 1, transform: 'none' };
-  const none = axis === 'y'
-    ? { height: '0px', minHeight: '0px', paddingTop: '0px', paddingBottom: '0px', marginBottom: '0px', opacity: 0, transform: moved }
-    : { width: '0px', paddingRight: '0px', opacity: 0, transform: moved };
+  const [size, min, sides] = axis === 'y' ? ['height', 'min-height', ['top', 'bottom']] as const : ['width', 'min-width', ['left', 'right']] as const;
+  const full: Keyframe = { opacity: 1, transform: 'none' };
+  const none: Keyframe = { opacity: 0, transform: shift ? `translateX(${shift}px)` : 'none' };
+  for (const property of [size, min, ...sides.flatMap(side => [`padding-${side}`, `margin-${side}`])]) {
+    const key = property.replace(/-./g, part => part[1].toUpperCase());
+    full[key] = style.getPropertyValue(property); none[key] = '0px';
+  }
+  const borders = sides.reduce((sum, side) => sum + (parseFloat(style.getPropertyValue(`border-${side}-width`)) || 0), 0);
+  if (borders) none[axis === 'y' ? 'marginBottom' : 'marginRight'] = `${-borders}px`;
   const overflow = el.style.overflow;
   if (clip) el.style.overflow = 'hidden';
   const motion = el.animate(open ? [none, full] : [full, none], { duration, easing, fill: !open && !hide ? 'forwards' : 'none' });
