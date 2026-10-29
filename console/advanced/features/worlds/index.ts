@@ -19,8 +19,25 @@ import { S } from './strings.ts';
 import { S as UI } from '../../../base/ui/strings.ts';
 
 const worldPageId = (id: string) => pageIdFor('world', id);
+/** The view switch's duration and curve, as `--world-duration` and `--world-easing` in styles.css. */
+const VIEW_MS = 420;
+const viewEasing = cubicBezier(.32, .72, 0, 1);
+/** A CSS cubic-bezier timing function, solved for x by Newton's method with a bisection fallback. */
+function cubicBezier(x1: number, y1: number, x2: number, y2: number): (t: number) => number {
+  const at = (a: number, b: number, s: number) => 3 * a * s * (1 - s) ** 2 + 3 * b * s * s * (1 - s) + s ** 3;
+  const slope = (a: number, b: number, s: number) => 3 * a * (1 - s) ** 2 + 6 * (b - a) * s * (1 - s) + 3 * (1 - b) * s * s;
+  return (x: number) => {
+    if (x <= 0 || x >= 1) return x <= 0 ? 0 : 1;
+    let s = x;
+    for (let i = 0; i < 8; i++) { const d = slope(x1, x2, s); if (Math.abs(d) < 1e-6) break; s -= (at(x1, x2, s) - x) / d; }
+    if (s < 0 || s > 1 || Math.abs(at(x1, x2, s) - x) > 1e-4) { let lo = 0, hi = 1; s = x; for (let i = 0; i < 30; i++) { if (at(x1, x2, s) < x) lo = s; else hi = s; s = (lo + hi) / 2; } }
+    return at(y1, y2, s);
+  };
+}
 /** Row controls, left to right. */
-const ACTION_SLOTS = ['info', 'sidebar', 'remove', 'configure', 'visibility', 'power'] as const;
+const ACTION_SLOTS = ['sidebar', 'remove', 'visibility', 'power'] as const;
+/** Controls outside the action columns. */
+type ControlSlot = typeof ACTION_SLOTS[number] | 'info';
 type ActionSlot = typeof ACTION_SLOTS[number];
 export interface WorldView {
   id: string;
@@ -149,7 +166,33 @@ export function mountWorlds(ctx: FeatureContext): void {
     const style = transition?.playState === 'running' ? win.getComputedStyle(catalog) : undefined;
     const interrupted = style ? { clipPath: style.clipPath } : undefined;
     transition?.cancel();
+    // Going to the market the rows shrink into the dock. Its scroll moves, on the rows' own curve, to
+    // where the first row in view will sit, so a scrolled rail glides instead of snapping when it
+    // gets shorter than its scroll position. Going back the rail only grows and needs no help.
+    const listTop = railList.getBoundingClientRect().top;
+    const anchor = previous && next === 'market' && !reduceMotion() ? [...railList.querySelectorAll<HTMLElement>('.world-library-entry')].find(entry => entry.offsetParent && entry.getBoundingClientRect().bottom > listTop + 4) : undefined;
+    const glideFrom = railList.scrollTop, anchorAt = anchor ? anchor.getBoundingClientRect().top - listTop : 0;
     workspace.dataset.view = next; hideTip();
+    if (anchor) {
+      const dock = dockLayout();
+      const to = Math.max(0, Math.min((dock.tops.get(anchor) ?? 0) - anchorAt, dock.height - railList.clientHeight));
+      // The scroll follows the anchor row's own height transition, which starts a frame or two after
+      // the switch; the clock is the fallback when the row's height does not change.
+      let start: number | undefined, seen = false;
+      const glide = (now: number) => {
+        if (signal.aborted || current !== next) return;
+        start ??= now;
+        const own = anchor.getAnimations?.().find(animation => (animation as CSSTransition).transitionProperty === 'height');
+        if (own) seen = true;
+        // Waiting for the transition to start holds still; once it has run and gone, the glide ends.
+        const waited = now - start, clock = Math.min(1, Math.max(0, waited - 120) / VIEW_MS);
+        const progress = own ? own.effect?.getComputedTiming().progress ?? 0 : seen ? 1 : viewEasing(clock);
+        const done = !own && (seen || clock >= 1);
+        railList.scrollTop = glideFrom + (to - glideFrom) * (done ? 1 : progress);
+        if (!done) win.requestAnimationFrame(glide);
+      };
+      if (to !== glideFrom) win.requestAnimationFrame(glide);
+    }
     tabs.setValue(next);
     catalog.inert = next !== 'market';
     for (const row of railList.querySelectorAll<HTMLElement>('.world-blade')) row.inert = next === 'market';
@@ -219,7 +262,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     if (drifted && !signal.aborted && await ui.confirm({ title: S.reloadNowTitle, body: S.reloadNowBody(m.label || m.id, value) })) await reloadPrefix(m.id);
   }
 
-  const slot = (name: ActionSlot, button: HTMLButtonElement) => { button.dataset.slot = name; return button; };
+  const slot = (name: ControlSlot, button: HTMLButtonElement) => { button.dataset.slot = name; return button; };
   function iconButton(
     name: ConsoleIconName,
     label: string,
@@ -281,6 +324,23 @@ export function mountWorlds(ctx: FeatureContext): void {
     focusRequested = false;
     const row = Array.from(railList.querySelectorAll<HTMLElement>('.world-blade')).find(row => row.dataset.key === selected);
     if (row) { row.scrollIntoView?.({ block: 'nearest', behavior: reduceMotion() ? 'instant' : 'smooth' }); row.focus({ preventScroll: true }); }
+  }
+  /**
+   * Where each row's tile sits in the market view's dock, and the dock's height, from the dock's fixed
+   * sizes in styles.css: 74px tiles, the pending group's 10px padding, 1px rule and 12px margin, a
+   * group's 1px bottom border and the list's 24px bottom padding. Headings, filters and group headers
+   * fold to nothing there.
+   */
+  function dockLayout(): { tops: Map<HTMLElement, number>; height: number } {
+    const TILE = 74, PENDING_TAIL = 23, GROUP_TAIL = 1, LIST_TAIL = 24;
+    const tops = new Map<HTMLElement, number>(); let y = 0;
+    const place = (entry: HTMLElement) => { tops.set(entry, y); y += TILE; };
+    if (!pendingGroup.hidden) { for (const entry of pendingList.querySelectorAll<HTMLElement>(':scope > .world-library-entry')) place(entry); y += PENDING_TAIL; }
+    if (!readyGroup.hidden) for (const child of readyList.children) {
+      if (child.classList.contains('world-library-entry')) place(child as HTMLElement);
+      else if (child.classList.contains('world-group')) { for (const entry of child.querySelectorAll<HTMLElement>('.world-group-list > .world-library-entry')) place(entry); y += GROUP_TAIL; }
+    }
+    return { tops, height: y + LIST_TAIL };
   }
   /** Orders `container`'s children as `nodes`, moving only what is out of place. */
   function placeChildren(container: HTMLElement, nodes: readonly HTMLElement[]) {
@@ -511,6 +571,8 @@ export function mountWorlds(ctx: FeatureContext): void {
       const details = ui.h('button', 'world-name', item.label); details.type = 'button';
       details.addEventListener('click', () => showDetails(m), { signal }); heading.append(details);
     } else heading.textContent = item.label;
+    // Extension info sits beside the name; a row click opens the World's settings.
+    if (pack && market) { const owner = market; heading.append(slot('info', iconButton('package', S.packageInfo, 'world-name-info', () => owner.details(pack.name)))); }
     identity.append(heading, ui.h('code', '', m?.id ?? pack?.name ?? item.key));
     const signals = ui.h('div', 'world-blade-signals');
     const state = pending ? pack?.state === 'removed' ? E.stateRemoved : E.statePendingRestart : failed ? E.stateFailed : m?.status === 'active' ? m.visible === false ? S.modeRunning : S.modeAttached : S.modeOff;
@@ -518,9 +580,8 @@ export function mountWorlds(ctx: FeatureContext): void {
       const lamps = ui.h('span', 'world-signals'); paintSignals(lamps, m.lamps ?? []); signals.append(lamps); lampNodes.set(worldPageId(m.id), lamps);
     }
     if (m?.prefixDrifted) signals.append(ui.pill(S.prefixPending));
-    // Left to right: install info, uninstall, configure, visibility, power.
+    // Left to right: sidebar, uninstall, agent visibility, power.
     const actions = ui.h('div', 'world-blade-actions');
-    if (pack && market) { const owner = market; actions.append(slot('info', iconButton('package', S.packageInfo, '', () => owner.details(pack.name)))); }
     if (pack && market && m?.status === 'active') {
       // Whether the active World has its own entry in the sidebar; kept in this window's storage.
       const hidden = navHidden(win).has(worldPageId(m.id));
@@ -535,7 +596,6 @@ export function mountWorlds(ctx: FeatureContext): void {
       actions.append(remove);
     }
     const configure = (id: string) => { markReturn(win, worldPageId(id)); router.navigate([PROVIDER_ROUTE, worldPageId(id)]); };
-    if (m) actions.append(slot('configure', iconButton('settings', S.configure, '', () => configure(m.id))));
     if (m && !pending && !failed) {
       const runtime: HTMLButtonElement[] = [];
       // Built-in Worlds stay on and visible; their off switches are greyed with the reason.
@@ -561,10 +621,18 @@ export function mountWorlds(ctx: FeatureContext): void {
       row.dataset.world = m.id;
       row.addEventListener('click', event => { if (!(event.target as Element).closest('button, a')) configure(m.id); }, { signal });
     }
-    row.append(identity, ui.h('span', 'world-state', state), signals, actions);
-    if (failed) row.append(ui.h('p', 'world-blade-note bad', m?.reason || pack?.reason || S.missingReasonDefault));
-    else if (m?.status === 'inactive' && !canActivate) row.append(ui.h('p', 'world-blade-note', S.inactiveNoteManual(m.id)));
-    else if (!m && !pending) row.append(ui.h('p', 'world-blade-note', E.worldNotLoaded));
+    // A load failure reads as its state; the reason opens in the error popover beside it.
+    let stateNode: HTMLElement = ui.h('span', 'world-state', state);
+    if (failed) {
+      const reason = m?.reason || pack?.reason || S.missingReasonDefault;
+      const button = ui.h('button', 'world-state world-state-problem') as HTMLButtonElement; button.type = 'button';
+      button.append(icon(doc, 'alert'), ui.h('span', '', state)); button.setAttribute('aria-label', `${state}: ${reason}`);
+      button.addEventListener('click', event => { event.stopPropagation(); problems.show(button, reason); }, { signal });
+      stateNode = button;
+    }
+    row.append(identity, stateNode, signals, actions);
+    if (!failed && m?.status === 'inactive' && !canActivate) row.append(ui.h('p', 'world-blade-note', S.inactiveNoteManual(m.id)));
+    else if (!failed && !m && !pending) row.append(ui.h('p', 'world-blade-note', E.worldNotLoaded));
     return row;
   }
   let detailsDrawer: ReturnType<typeof ui.drawer> | undefined;

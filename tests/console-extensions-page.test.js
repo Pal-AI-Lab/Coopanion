@@ -893,7 +893,7 @@ describe('World library and catalog', () => {
     expect(pending.dataset.state).toBe('pending');
     expect(pending.textContent).toContain('待生效');
     expect(buttons(pending).some(item => item.textContent === '激活 World')).toBe(false);
-    root.querySelector('.world-blade-actions [aria-label="扩展信息"]').click(); await flush();
+    root.querySelector('.world-blade [aria-label="扩展信息"]').click(); await flush();
     expect(document.querySelector('.extension-detail').textContent).toContain('found-mod');
   });
   it('shows live readings and changes mode only after confirmation', async () => {
@@ -1027,7 +1027,8 @@ describe('World library and catalog', () => {
     const { root, ctx } = await openWorlds({}, { worlds: true, extensions: true, worldActivation: true, worldVisibility: true, restart: true, supervised: true });
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod');
-    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['扩展信息', '不在左栏显示', '删除扩展', '配置', '对 agent 隐藏', '停用 World']);
+    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['不在左栏显示', '删除扩展', '对 agent 隐藏', '停用 World']);
+    expect(row.querySelector('.world-blade-identity h3 [aria-label="扩展信息"]')).not.toBeNull();
     row.querySelector('.world-blade-identity code').click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     expect(decodeURIComponent(window.location.hash)).toBe('#/provider/world:alpha');
   });
@@ -1087,6 +1088,15 @@ describe('World library and catalog', () => {
     expect(problem.textContent).toContain('World 启动失败');
     expect(root.querySelector('.world-feedback').textContent).toBe('');
   });
+  it('keeps a load failure to its state and opens the reason in the error popover', async () => {
+    const { root, ctx } = await openWorlds();
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'beta-mod');
+    expect(row.querySelector('.world-blade-note')).toBeNull();
+    row.querySelector('.world-state-problem').click();
+    const problem = [...document.querySelectorAll('.extension-problem')].find(el => !el.classList.contains('hidden'));
+    expect(problem.textContent).toContain('默认导出不是 WorldDefinition');
+  });
   it('greys out an unavailable uninstall and names the reason', async () => {
     const { root, ctx } = await openWorlds();
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
@@ -1116,7 +1126,7 @@ describe('World library and catalog', () => {
     const { root } = await openWorlds({}, { worlds: true, worldActivation: true });
     expect(root.querySelector('.world-workspace').dataset.view).toBe('mine');
     expect(root.querySelectorAll('.pagetab')).toHaveLength(1);
-    expect(root.querySelector('.world-blade [aria-label="配置"]')).not.toBeNull();
+    expect(root.querySelector('.world-blade').classList.contains('is-configurable')).toBe(true);
     root.querySelector('[aria-label="激活 World"]').click(); await flush();
     expect(calls.find(call => call.url === '/api/worlds/activation').body).toEqual({ id: 'builtin', enabled: true });
     expect(calls.some(call => call.url.startsWith('/api/extensions'))).toBe(false);
