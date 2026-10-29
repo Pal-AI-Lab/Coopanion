@@ -175,7 +175,7 @@ export function createRail(deps: RailDeps): Rail {
         for (const it of g.items) addItem(group('navgroup-framework navgroup-primary', it.label, false), it, itemSignal);
         continue;
       }
-      const box = group(g.kind === 'persona' ? 'navgroup-persona navgroup-provider' : g.kind === 'world-tree' ? 'navgroup-world-tree' : 'navgroup-framework', g.label, true);
+      const box = group(g.kind === 'persona' ? 'navgroup-persona navgroup-provider' : g.kind === 'world-tree' ? 'navgroup-world-tree' : 'navgroup-framework', g.label, g.kind !== 'world-tree');
       for (const it of g.items) addItem(box, it, itemSignal);
       if (g.modules?.length) {
         const list = ui.h('div', 'navmodule-list');

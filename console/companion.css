@@ -96,7 +96,7 @@ body.companion-sidebar {
 #kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll)::-webkit-scrollbar-thumb:hover,
 #kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll)::-webkit-scrollbar-thumb:active { background-color: var(--line-strong); }
 #rail .navgroup { display: flex; }
-#rail .navgroup-primary + .navgroup-primary { margin-top: 4px; }
+#rail .navgroup-primary + :is(.navgroup-primary, .navgroup-world-tree) { margin-top: 4px; }
 #rail .stacklabel {
   display: block; height: 16px; margin: 6px 12px 8px; line-height: 16px; white-space: nowrap; overflow: hidden; background: transparent;
   transition: height var(--rail-motion), margin var(--rail-motion), color 120ms ease, background-color var(--rail-motion);
