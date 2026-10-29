@@ -6,7 +6,7 @@
 
 /* ---------- compact navigation ---------- */
 body.companion-sidebar {
-  --titlebar-height: 36px; --rail-motion: 260ms cubic-bezier(.22, 1, .36, 1);
+  --titlebar-height: 36px; --rail-width: 248px; --rail-motion: 260ms cubic-bezier(.22, 1, .36, 1);
   display: flex; height: 100dvh; padding-top: var(--titlebar-height); overflow: hidden;
 }
 .companion-titlebar {
@@ -15,11 +15,12 @@ body.companion-sidebar {
   box-shadow: inset 0 -1px color-mix(in srgb, var(--border) 50%, transparent);
 }
 /* The overlay's available area also excludes left-side window controls on Linux. */
+.companion-titlebar { --titlebar-actions-left: max(8px, calc(env(titlebar-area-x, 0px) + 8px)); }
+.companion-titlebar[data-platform="darwin"] { --titlebar-actions-left: max(86px, calc(env(titlebar-area-x, 0px) + 8px)); }
 .companion-titlebar-actions {
-  position: absolute; inset: 0 max(64px, calc(100% - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px)) 0 max(8px, calc(env(titlebar-area-x, 0px) + 8px));
+  position: absolute; inset: 0 max(64px, calc(100% - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px)) 0 var(--titlebar-actions-left);
   display: flex; align-items: center; gap: 2px;
 }
-.companion-titlebar[data-platform="darwin"] .companion-titlebar-actions { left: max(86px, calc(env(titlebar-area-x, 0px) + 8px)); }
 .companion-titlebar button {
   display: grid; place-items: center; flex: none; width: 32px; height: 28px; padding: 5px; border: 0; border-radius: 6px;
   background: transparent; color: inherit; cursor: pointer; app-region: no-drag;
@@ -33,6 +34,10 @@ body.companion-sidebar {
   margin-left: 8px; padding-left: 10px; border-left: 1px solid var(--border);
   font-size: 11px; line-height: 16px; white-space: nowrap;
 }
+/* On macOS the divider lines up with the expanded sidebar's border. Where the buttons start depends on
+   the window controls, so the space before it is worked out from the same start: four 32px buttons and
+   their 2px gaps come first. */
+.companion-titlebar[data-platform="darwin"] .companion-titlebar-release { margin-left: max(8px, calc(var(--rail-width) - 1px - var(--titlebar-actions-left) - 4 * (32px + 2px))); }
 .companion-titlebar-release a { text-decoration: none; }
 .companion-titlebar-release a:hover { text-decoration: underline; }
 .companion-titlebar-release a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
@@ -45,7 +50,7 @@ body.companion-sidebar {
 .companion-sidebar-chevron { transform-origin: 15px 12px; transition: transform var(--rail-motion); }
 .companion-sidebar-toggle[aria-expanded="false"] .companion-sidebar-chevron { transform: rotate(180deg); }
 #rail {
-  width: 248px; height: 100%; flex: none; position: relative; z-index: 10;
+  width: var(--rail-width); height: 100%; flex: none; position: relative; z-index: 10;
   border-right: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
   transition: width var(--rail-motion);
 }
