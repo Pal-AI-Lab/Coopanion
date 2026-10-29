@@ -49,7 +49,7 @@ const zhHant: Translation<CoreText> = {
 
   scheme: {
     name: (figure: string, preset: string) => `${figure} · ${preset}`,
-    note: (figure: string, preset: string) => `桌寵換成${figure}的「${preset}」時自動換上`,
+    note: (figure: string, preset: string) => `桌寵更換為${figure}的「${preset}」時自動換上`,
   },
 
   guide: {

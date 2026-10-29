@@ -37,7 +37,7 @@ export const S: Partial<typeof en> = {
   missingReasonDefault: '無法載入這個 World。',
   activateWorld: '啟用 World',
   inactiveNoteActivatable: '啟用後寫入 config.json 並立即啟動。',
-  inactiveNoteManual: (id: string) => `本機有實作但沒裝配。要啟用,把 config.json 裡 worlds.${id}.enabled 改為 true 後重新啟動。`,
+  inactiveNoteManual: (id: string) => `本機有實作但沒裝配。要啟用,把 config.json 裡 worlds.${id}.enabled 修改為 true 後重新啟動。`,
   hideFromAgent: '對 agent 隱藏',
   showToAgent: '對 agent 顯示',
   restartWorld: '重新啟動 World',

@@ -14,7 +14,7 @@ export const S: Partial<typeof en> = {
   notInstalled: '無法使用',
   notActivated: '未啟用',
   hidden: '已隱藏',
-  reloadPrefix: '前綴待重新載入 · 點此重新載入',
+  reloadPrefix: '前綴待重新載入 · 點擊重新載入',
   open: '開啟',
   configTab: '設定',
   promptsTab: '提示詞範本',

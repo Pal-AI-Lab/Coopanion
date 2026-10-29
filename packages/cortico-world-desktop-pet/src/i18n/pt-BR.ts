@@ -143,7 +143,6 @@ const ptBR: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Não é um zip legível: ${why}`,
-    tooBig: (mb: number) => `Mais de ${mb} MB descompactado`,
     truncated: 'O envio está incompleto',
     badPath: (path: string) => `Um caminho não pode ser usado: ${path}`,
     builtinId: (id: string) => `O id ${id} pertence a um personagem integrado; mude o id para importá-lo`,
@@ -152,7 +151,6 @@ const ptBR: Translation<PetText> = {
     expired: 'Esta importação expirou; escolha os arquivos de novo',
     noneChosen: 'Nenhum pacote foi escolhido',
     zipOrFolder: 'Só é possível importar um zip ou pastas',
-    overLimit: (mb: number) => `Mais de ${mb} MB`,
   },
 
   removing: {
@@ -199,7 +197,7 @@ const ptBR: Translation<PetText> = {
       pet: { title: 'Pet de área de trabalho', description: 'A janela, o visual e o ambiente de execução da janela.' },
       voice: { title: 'Entrada de voz', description: 'Motor de reconhecimento, nível de entrada e o que foi ouvido.' },
     },
-    envPrompt: { title: 'Ambiente do pet de área de trabalho', description: 'Descreve o corpo do pet, as quatro ferramentas e os eventos de entrada.' },
+    envPrompt: { title: 'Ambiente do pet de área de trabalho', description: 'Descreve o corpo do pet, as ferramentas e os eventos de entrada.' },
     vars: {
       'pet.user': 'Como o bot chama a pessoa',
       'pet.vocab': 'As expressões e os movimentos do personagem atual',

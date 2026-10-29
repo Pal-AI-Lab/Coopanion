@@ -75,7 +75,7 @@ function save(path, body) {
 
 // the installed figure packs, asked for again whenever the page hears of a look, and the ones that did not load
 let packs = [];
-let packStatus = { importable: false, max: 0, depth: 3, problems: [] };
+let packStatus = { importable: false, large: Infinity, depth: 3, problems: [] };
 const loadPacks = () => Promise.all([fetch('/api/figures').then((r) => r.json()), fetch('/api/figures/status').then((r) => r.json())])
   .then(([list, status]) => { packs = list; packStatus = status; lightFor(skin); render(); }).catch(() => {});
 /** The preview's light in the picked body's colors (stage.js glowColor), the settings window's theme color when its pack names none. */
@@ -319,7 +319,6 @@ const importDialog = (() => {
   const none = () => note(t('import.noneTitle'), t('import.noneText', { depth: packStatus.depth }));
 
   async function send(body, type) {
-    if (body.size > packStatus.max) return note(t('import.tooBigTitle'), t('import.tooBigText', { max: MB(packStatus.max), size: MB(body.size) }));
     show('<h2 id="importTitle" data-i18n="import.reading"></h2>');
     let res;
     try {
@@ -330,10 +329,10 @@ const importDialog = (() => {
     if (res.error) return note(t('import.failed'), res.error);
     if (!res.packs.length && !res.problems.length) return none();
     token = res.token;
-    confirm(res);
+    confirm(res, body.size);
   }
 
-  function confirm({ packs: found, problems }) {
+  function confirm({ packs: found, problems }, size) {
     show(`<h2 id="importTitle"></h2><ul class="found"></ul><div class="cant"></div>
       <div class="actions"><button class="btn" type="button" data-close data-i18n="import.cancel"></button><button class="btn primary" type="button" data-go data-i18n="import.button"></button></div>`);
     dlg.querySelector('h2').textContent = found.length ? t('import.found', { n: found.length }) : t('import.allBad');
@@ -357,6 +356,7 @@ const importDialog = (() => {
       }
     }
     const cant = dlg.querySelector('.cant');
+    if (found.length && size > packStatus.large) cant.appendChild(el('p', 'warn')).textContent = t('import.large', { size: MB(size) });
     if (problems.length && found.length) cant.appendChild(el('p', 'meta')).textContent = t('import.someBad');
     for (const p of problems) {
       const line = cant.appendChild(el('p', 'warn'));
