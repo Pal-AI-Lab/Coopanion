@@ -1097,6 +1097,12 @@ describe('World library and catalog', () => {
     const problem = [...document.querySelectorAll('.extension-problem')].find(el => !el.classList.contains('hidden'));
     expect(problem.textContent).toContain('默认导出不是 WorldDefinition');
   });
+  it("opens extension info from a World's name", async () => {
+    const { root, ctx } = await openWorlds();
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod').querySelector('button.world-name').click(); await flush();
+    expect(document.querySelector('.extension-detail')).not.toBeNull();
+  });
   it('greys out an unavailable uninstall and names the reason', async () => {
     const { root, ctx } = await openWorlds();
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();

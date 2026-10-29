@@ -1,5 +1,4 @@
 /** Both World views keep the same avatar nodes and row geometry. */
-import { resolveConsoleLinkHref } from '../../../base/theme/handoff.ts';
 import { pageIdFor } from '../../../base/protocol.ts';
 import type { WebUiBadge, WebUiLamp, WebUiLink } from 'cortico/web/shared/webui-protocol.ts';
 import { get, post } from '../../../base/api.ts';
@@ -567,10 +566,11 @@ export function mountWorlds(ctx: FeatureContext): void {
     row.dataset.state = pending ? 'pending' : failed ? 'failed' : m?.status === 'active' ? m.visible === false ? 'running' : 'attached' : 'inactive';
     const identity = ui.h('div', 'world-blade-identity');
     const heading = ui.h('h3');
-    if (m) {
-      const details = ui.h('button', 'world-name', item.label); details.type = 'button';
-      details.addEventListener('click', () => showDetails(m), { signal }); heading.append(details);
-    } else heading.textContent = item.label;
+    // The name opens the package's extension info, as the icon beside it does.
+    if (pack && market) {
+      const owner = market, details = ui.h('button', 'world-name', item.label) as HTMLButtonElement; details.type = 'button';
+      details.addEventListener('click', () => owner.details(pack.name), { signal }); heading.append(details);
+    } else heading.append(ui.h('span', 'world-name', item.label));
     // Extension info sits beside the name; a row click opens the World's settings.
     if (pack && market) { const owner = market; heading.append(slot('info', iconButton('package', S.packageInfo, 'world-name-info', () => owner.details(pack.name)))); }
     identity.append(heading, ui.h('code', '', m?.id ?? pack?.name ?? item.key));
@@ -634,25 +634,6 @@ export function mountWorlds(ctx: FeatureContext): void {
     if (!failed && m?.status === 'inactive' && !canActivate) row.append(ui.h('p', 'world-blade-note', S.inactiveNoteManual(m.id)));
     else if (!failed && !m && !pending) row.append(ui.h('p', 'world-blade-note', E.worldNotLoaded));
     return row;
-  }
-  let detailsDrawer: ReturnType<typeof ui.drawer> | undefined;
-  lifecycle.add(() => detailsDrawer?.dispose());
-  function showDetails(m: WorldView): void {
-    const box = ui.h('div');
-    const badges = ui.rowbar();
-    if (m.declared !== undefined) badges.append(ui.pill(m.declared ? S.declaredByPersona : S.optionalAddon));
-    badges.append(...(m.badges ?? []).map(badge => ui.pill(`${badge.label} ${badge.value}`, badge.tone)));
-    box.append(badges, ui.kv([
-      { k: S.kvTools, v: (m.tools ?? []).join(S.listSep) || S.kvNone },
-      { k: S.kvWorkspace, v: m.workspace || '—' },
-    ]));
-    if (m.prefixDrifted) box.append(ui.msgline(S.driftNote));
-    const actions = ui.actions();
-    for (const link of m.links ?? []) if (link.href) actions.append(ui.button(link.label || S.open, {
-      size: 'sm', onClick: () => win.open(resolveConsoleLinkHref(doc, link), '_blank', 'noopener'),
-    }));
-    box.append(actions);
-    detailsDrawer?.dispose(); detailsDrawer = ui.drawer(m.label || m.id, box);
   }
   function render(): void {
     if (!worldsReady || !extensionsReady || signal.aborted) return;
