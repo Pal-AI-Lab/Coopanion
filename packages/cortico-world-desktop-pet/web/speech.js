@@ -171,6 +171,12 @@ export function createSpeech(sfx, {
     },
     /** Whether the bubble types with speech's pauses and leaves the sound to it. */
     get active() { return Boolean(ready()); },
+    /** How many seconds of speech are still to be heard (0 = nothing left); the bubble waits on it. */
+    remaining() {
+      const out = sfx.output('talk');
+      if (!out) return 0;
+      return Math.max(0, clock.end - out.ctx.currentTime);
+    },
     /** The bubble starts typing `t`: while speech is on, its units are asked for now, else at its first reveal. */
     begin(t) {
       if (t === text) return;
