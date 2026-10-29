@@ -1572,7 +1572,7 @@ mark.extension-hit { color: inherit; background: color-mix(in srgb, var(--accent
 .extension-card-heading .extension-card-title { flex: 1; }
 .extension-market-card { cursor: pointer; }
 /* Installed packages read a shade quieter than the ones still to get. */
-.extension-market-card.is-installed { background: color-mix(in srgb, var(--sheet) 96.5%, var(--ink)); }
+.extension-market-card.is-installed { background: color-mix(in srgb, var(--sheet) 98.5%, var(--ink)); }
 .extension-card:hover { border-color:var(--line-strong); }
 .extension-market-card:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
 .extension-toolbar { align-items: center; gap: 12px; }
