@@ -10,6 +10,7 @@ export const S: Partial<typeof en> = {
   download: 'Télécharger',
   on: 'Activé',
   autoSaves: 'Les modifications sont enregistrées automatiquement.',
+  saved: 'Enregistré.',
   worldRestartPending: 'Certaines modifications prennent effet au redémarrage du World.',
   leaveBlank: 'Laisser vide',
   saving: 'Enregistrement…',

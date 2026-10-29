@@ -12,7 +12,7 @@ import type { SocketLike } from '../../base/stream.ts';
 import { createConsoleUi } from '../../base/ui/index.ts';
 import { pageTabs, type PageTabs } from '../../base/ui/page-tabs.ts';
 import { pageBadges } from '../../base/ui/page-badges.ts';
-import { createConfigView } from '../features/config/view.ts';
+import { createConfigView, type ConfigValue } from '../features/config/view.ts';
 import type { ToolSchemaDoc } from '../features/live/protocol.ts';
 import { createTemplateView } from '../features/prompts/template-view.ts';
 import { createPromptsView } from '../features/prompts/view.ts';
@@ -82,8 +82,8 @@ export class ConsolePageHost {
   private readonly deps: ConsolePageHostDeps;
   private snapshot: WebUiManifest | null = null;
   private mounted: MountedPanel | null = null;
-  /** World pages with a saved change that waits for a World restart; kept while the window is open. */
-  private readonly restartPending = new Set<string>();
+  /** Per World page, the values its restart-only settings had when the World last started; kept while the window is open. */
+  private readonly restartApplied = new Map<string, Map<string, ConfigValue>>();
   private panes: Panes | null = null;
   /** 页头里的页签。同一页内切换页签且页头内容没变时保留它，下面那根线才能滑过去。 */
   private tabs: { pageId: string; key: string; bar: PageTabs } | null = null;
@@ -491,8 +491,7 @@ export class ConsolePageHost {
       emptyText: S.configEmpty,
       ...(worldId ? { restart: {
         label: WORLD.restartWorld,
-        pending: this.restartPending.has(pageId),
-        onPendingChange: (pending: boolean) => { if (pending) this.restartPending.add(pageId); else this.restartPending.delete(pageId); },
+        applied: this.restartApplied.get(pageId) ?? this.restartApplied.set(pageId, new Map()).get(pageId)!,
         run: async () => {
           if (!await ui.confirm({ title: WORLD.restartTitle(page?.label || worldId), body: WORLD.restartBody })) return false;
           await post('/api/worlds/restart', { id: worldId }, { signal: lifecycle.signal });

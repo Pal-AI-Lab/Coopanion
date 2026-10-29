@@ -415,10 +415,11 @@ export interface ConfigViewDeps {
   /** 是否显示组的 owner 标签。 */
   showOwner?: boolean;
   /**
-   * A World page's restart. The bar gets its button and, once a saved change to a setting that
-   * takes effect on World restart waits for it, a note; `pending` carries that across visits.
+   * A World page's restart. The bar gets its button and a note while a saved value of a setting
+   * that takes effect on World restart differs from `applied`, the value the World last started
+   * with; the caller keeps `applied` across visits.
    */
-  restart?: { label: string; pending: boolean; onPendingChange(pending: boolean): void; run(): Promise<boolean> };
+  restart?: { label: string; applied: Map<string, ConfigValue>; run(): Promise<boolean> };
 }
 
 export interface ConfigView {
@@ -442,21 +443,20 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
   bar.append(msg, ui.h('span', 'grow'));
   el.append(body, bar);
   const restart = deps.restart;
-  const restartNote = ui.h('span', 'config-restart-note', S.worldRestartPending);
-  function setPending(pending: boolean): void {
-    restartNote.hidden = !pending;
-    if (restart && restart.pending !== pending) { restart.pending = pending; restart.onPendingChange(pending); }
+  const restartNote = ui.h('span', 'config-restart-note', S.worldRestartPending); restartNote.hidden = true;
+  const key = (r: { groupId: string; path: string }) => `${r.groupId}\u0000${r.path}`;
+  function paintPending(): void {
+    if (restart) restartNote.hidden = !readers.some((r) => r.cold && restart.applied.has(key(r)) && !sameValue(r.saved, restart.applied.get(key(r))!));
   }
   if (restart) {
     el.classList.add('has-restart');
     const button = ui.button(restart.label, { size: 'sm', onClick: async () => {
       const lock = ui.disable(button);
-      try { if (await restart.run() && !signal.aborted) { setPending(false); setMsg(S.autoSaves); msg.classList.add('is-hint'); } }
+      try { if (await restart.run() && !signal.aborted) { for (const r of readers) if (r.cold) restart.applied.set(key(r), r.saved); paintPending(); setMsg(S.autoSaves); msg.classList.add('is-hint'); } }
       catch (err) { if (!isAbort(err) && !signal.aborted) setMsg(errText(err), true); }
       finally { lock.dispose(); }
     } });
     bar.append(restartNote, button);
-    restartNote.hidden = !restart.pending;
   }
 
   /**
@@ -469,6 +469,8 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
     read: () => ConfigValue;
     write: (value: unknown) => void;
     saved: ConfigValue;
+    /** The value when the page loaded; a save that brings every field back to it reports nothing. */
+    loaded: ConfigValue;
     /** Takes effect only after a restart (`x-hot: false`). */
     cold: boolean;
   }> = [];
@@ -490,15 +492,16 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
       const values: Record<string, ConfigValue> = {};
       for (const r of sent) values[r.path] = r.read();
       setMsg(S.saving);
-      const out = await post<{ result?: string }>(
+      await post<{ result?: string }>(
         '/api/config',
         { group: groupId, values },
         { signal },
       );
       if (signal.aborted) return;
-      if (sent.some((r) => r.cold && !sameValue(r.saved, values[r.path]))) setPending(true);
       for (const r of sent) r.saved = values[r.path];
-      setMsg('✓ ' + (out.result || groupId));
+      paintPending();
+      if (readers.every((r) => sameValue(r.saved, r.loaded))) { setMsg(S.autoSaves); msg.classList.add('is-hint'); }
+      else setMsg('✓ ' + S.saved);
       void refresh();
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
@@ -585,7 +588,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
               if (prop['x-suffix']) cell.appendChild(ui.h('span', 'tunit', prop['x-suffix']));
               if (prop['x-hot'] === false) cell.appendChild(ui.h('span', 'ttag', group.owner.startsWith('world:') ? S.restartWorld : S.restartProcess));
               grid.appendChild(cell);
-              if (field.read && field.write) readers.push({ groupId: group.id, path, read: field.read, write: field.write, saved: field.read(), cold: prop['x-hot'] === false });
+              if (field.read && field.write) { const value = field.read(); readers.push({ groupId: group.id, path, read: field.read, write: field.write, saved: value, loaded: value, cold: prop['x-hot'] === false }); }
             }
             runCard.body.appendChild(grid);
             continue;
@@ -622,10 +625,12 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
           if (prop.description) control.appendChild(ui.h('p', 'home-note', prop.description));
           row.append(label, control);
           card.body.appendChild(row);
-          if (read && write) readers.push({ groupId: group.id, path, read, write, saved: read(), cold: prop['x-hot'] === false });
+          if (read && write) { const value = read(); readers.push({ groupId: group.id, path, read, write, saved: value, loaded: value, cold: prop['x-hot'] === false }); }
         }
         body.append(card.el, ...runs);
       }
+      // A restart-only value first seen here is what the running World started with.
+      if (restart) { for (const r of readers) if (r.cold && !restart.applied.has(key(r))) restart.applied.set(key(r), r.saved); paintPending(); }
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
       body.replaceChildren(ui.placeholder(S.loadFailed(errText(err))));
