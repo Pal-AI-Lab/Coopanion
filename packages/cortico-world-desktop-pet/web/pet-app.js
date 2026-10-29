@@ -222,7 +222,7 @@ function restorePosition(startX, startY) {
   sentX = null;
   if (restored) return;
   restored = true;
-  // She starts facing the middle of the screen rather than always right (#59), so a pet
+  // She starts facing the middle of the screen, so a pet
   // resting on the right half is not turned away from the likely interaction area.
   if (host && typeof startX === 'number') {
     firstX = startX * innerWidth;
@@ -1615,7 +1615,7 @@ document.addEventListener('keydown', (e) => {
 /* ---------- layout ---------- */
 /**
  * Bubbles up to TAIL_CENTER wide (empty, or a word or two) point their tail from their middle; wider ones
- * move it over to Coo by TAIL_FOLLOW wide (#139). Between the two it slides, so a bubble growing as the line
+ * move it over to Coo by TAIL_FOLLOW wide. Between the two it slides, so a bubble growing as the line
  * types out carries its tail along with it.
  */
 const TAIL_CENTER = 70, TAIL_FOLLOW = 130;
@@ -1787,8 +1787,7 @@ let last = performance.now(), dueAt = 0, gap = 0;
 let frameErr = null;
 /**
  * Frames whose timestamp was not past the one before (a zero or negative dt), and when that was last logged (ms):
- * one such frame used to leave the whale without hair, tail and skirt until restart (#87), and where these
- * timestamps come from is not known yet. Logged at most once a minute, with the count so far. The first frame is
+ * where these timestamps come from is not known yet. Logged at most once a minute, with the count so far. The first frame is
  * left out: `last` starts at the page's clock, which may be ahead of the first frame's timestamp.
  */
 let stalls = 0, stallLoggedAt = -Infinity, framed = false;

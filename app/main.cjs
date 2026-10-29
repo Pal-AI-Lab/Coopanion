@@ -160,9 +160,9 @@ if (INSTALLED && !dataWritable()) {
 
 /**
  * An install made through the installer's pages sits in %LOCALAPPDATA%\Programs\Coopanion: the per-user
- * install mode (installer/nsis.nsh's customInstallMode) sets that after its customInit ran. From 0.1.14 to
- * 0.1.16 an update, which installs silently and so keeps customInit's choice, moved the program to %USERPROFILE%\Coopanion and left data\ behind
- * (#84). The first start in the new place takes that data\ back. When the app has run here since, this data\ may
+ * install mode (installer/nsis.nsh's customInstallMode) sets that after its customInit ran. Updates of 0.1.14 to
+ * 0.1.16, which install silently and so keep customInit's choice, put the program in %USERPROFILE%\Coopanion and
+ * left data\ in the old place. The first start in the new place takes that data\ back. When the app has run here since, this data\ may
  * be the one in use, so a dialog asks first (askRestoreStranded); taking the old one back then happens on the
  * next start, before anything here is open, and keeps this one beside it as data-replaced-<time>.
  */
@@ -275,7 +275,7 @@ const core = new CoreHost({
     // a portable folder is copied whole, which turns pnpm's links (absolute junctions on Windows) into plain folders an
     // extension no longer finds its dependencies through; hoisted node_modules hold the packages themselves
     ...PORTABLE || !LINKS ? { pnpm_config_node_linker: 'hoisted' } : {},
-    // extension installs call `corepack pnpm`; the shim (corepack.cmd, or corepack on macOS) runs the bundled pnpm on this runtime.
+    // extension installs call `corepack pnpm`; the shim (corepack.cmd, or corepack on macOS and Linux) runs the bundled pnpm on this runtime.
     // The Windows build carries MinGit (scripts/pack.ts), ahead of any other git, for the history of Coo's workspace
     PATH: [shimDir, ...existsSync(MINGIT) ? [MINGIT] : [], process.env.PATH ?? ''].join(delimiter),
     CORTICO_NODE_EXE: process.execPath,
@@ -409,7 +409,7 @@ function forward(request, url, origin) {
   });
 }
 
-/** The only remote address the settings page asks: the latest Coopanion release, for the hint under the wordmark. */
+/** The latest Coopanion release, for the update status in the settings window's title bar. */
 const RELEASE_CHECK = 'https://api.github.com/repos/Pal-AI-Lab/Coopanion/releases/latest';
 /** Images of the extension market: package icons and screenshots of the official index, and GitHub avatars. */
 const MARKET_IMAGES = ['https://raw.githubusercontent.com/Pal-AI-Lab/cortico-extensions/', 'https://avatars.githubusercontent.com/'];

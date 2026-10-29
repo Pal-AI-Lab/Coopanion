@@ -598,7 +598,7 @@ export function createPet(els, opts) {
     const AX = pet.mode === 'drag' ? pet.dx : pet.x;
     if (pet.prevA != null) pet.velX = lerp(pet.velX, (AX - pet.prevA) / dt, .25);
     // lerp keeps a NaN or an infinity for good, and the swing with it: a figure's warps that read the swing then
-    // draw nothing (the whale's hair, tail and skirt went missing, #87). Start the speed over and say what it came from.
+    // draw nothing. Start the speed over and say what it came from.
     if (!Number.isFinite(pet.velX)) {
       if (!velXBad) console.warn(`[pet] 横向速度不是有限数,已归零:velX=${pet.velX} x=${AX} 上一帧x=${pet.prevA} dt=${dt} 模式=${m}`);
       velXBad = true;

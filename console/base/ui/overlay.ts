@@ -81,8 +81,7 @@ function openModal(env: OverlayEnv, onClose: () => void): Overlay {
 const TOAST_MS = 2000;
 
 /**
- * 瞬时提示。`prev` 是上一条 toast（同一个 ui 实例只留一条，后来的顶掉前面的，
- * 与既有前端 `sendToast` 的行为一致）。返回新的一层，面板 abort 后返回 `null`。
+ * 瞬时提示。`prev` 是上一条 toast(同一个 ui 实例只留一条，后来的顶掉前面的)。返回新的一层，面板 abort 后返回 `null`。
  */
 export function toast(
   env: OverlayEnv,

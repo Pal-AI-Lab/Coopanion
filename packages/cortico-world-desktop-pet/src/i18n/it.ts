@@ -143,7 +143,6 @@ const it: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Non è uno zip leggibile: ${why}`,
-    tooBig: (mb: number) => `Oltre ${mb} MB una volta estratto`,
     truncated: 'Il caricamento è incompleto',
     badPath: (path: string) => `Un percorso non può essere usato: ${path}`,
     builtinId: (id: string) => `l'id ${id} appartiene a un personaggio integrato; cambia l'id per importarlo`,
@@ -152,7 +151,6 @@ const it: Translation<PetText> = {
     expired: 'Questa importazione è scaduta; scegli di nuovo i file',
     noneChosen: 'Nessun pacchetto scelto',
     zipOrFolder: 'Si possono importare solo uno zip o delle cartelle',
-    overLimit: (mb: number) => `Oltre ${mb} MB`,
   },
 
   removing: {
@@ -199,7 +197,7 @@ const it: Translation<PetText> = {
       pet: { title: 'Animaletto da desktop', description: 'La finestra, il guardaroba e il runtime della finestra.' },
       voice: { title: 'Input vocale', description: 'Motore di riconoscimento, livello di ingresso e cosa è stato sentito.' },
     },
-    envPrompt: { title: "Ambiente dell'animaletto da desktop", description: "Descrive il corpo dell'animaletto, i quattro strumenti e gli eventi di input." },
+    envPrompt: { title: "Ambiente dell'animaletto da desktop", description: "Descrive il corpo dell'animaletto, gli strumenti e gli eventi di input." },
     vars: {
       'pet.user': 'Come il bot chiama la persona',
       'pet.vocab': 'Le espressioni e i movimenti del personaggio attuale',

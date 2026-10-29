@@ -143,7 +143,6 @@ const fr: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Zip illisible : ${why}`,
-    tooBig: (mb: number) => `Plus de ${mb} Mo une fois décompressé`,
     truncated: "L'envoi est incomplet",
     badPath: (path: string) => `Un chemin est inutilisable : ${path}`,
     builtinId: (id: string) => `l'id ${id} appartient à un personnage intégré ; changez l'id pour l'importer`,
@@ -152,7 +151,6 @@ const fr: Translation<PetText> = {
     expired: 'Cette importation a expiré ; choisissez à nouveau les fichiers',
     noneChosen: 'Aucun pack choisi',
     zipOrFolder: 'Seuls un zip ou des dossiers peuvent être importés',
-    overLimit: (mb: number) => `Plus de ${mb} Mo`,
   },
 
   removing: {
@@ -199,7 +197,7 @@ const fr: Translation<PetText> = {
       pet: { title: 'Compagnon de bureau', description: "La fenêtre, la tenue et l'environnement d'exécution de la fenêtre." },
       voice: { title: 'Saisie vocale', description: "Moteur de reconnaissance, niveau d'entrée et ce qui a été entendu." },
     },
-    envPrompt: { title: 'Environnement du compagnon de bureau', description: "Décrit le corps du compagnon, les quatre outils et les événements d'entrée." },
+    envPrompt: { title: 'Environnement du compagnon de bureau', description: "Décrit le corps du compagnon, les outils et les événements d'entrée." },
     vars: {
       'pet.user': 'Comment le bot appelle la personne',
       'pet.vocab': 'Les expressions et mouvements du personnage actuel',

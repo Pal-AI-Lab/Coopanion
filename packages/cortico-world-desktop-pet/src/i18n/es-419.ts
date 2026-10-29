@@ -143,7 +143,6 @@ const es419: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `No es un zip legible: ${why}`,
-    tooBig: (mb: number) => `Más de ${mb} MB descomprimido`,
     truncated: 'La carga está incompleta',
     badPath: (path: string) => `Una ruta no se puede usar: ${path}`,
     builtinId: (id: string) => `El id ${id} pertenece a un personaje integrado; cambia el id para importarlo`,
@@ -152,7 +151,6 @@ const es419: Translation<PetText> = {
     expired: 'Esta importación expiró; vuelve a elegir los archivos',
     noneChosen: 'No se eligió ningún paquete',
     zipOrFolder: 'Solo se puede importar un zip o carpetas',
-    overLimit: (mb: number) => `Más de ${mb} MB`,
   },
 
   removing: {
@@ -199,7 +197,7 @@ const es419: Translation<PetText> = {
       pet: { title: 'Mascota de escritorio', description: 'La ventana, el vestuario y el entorno de ejecución de la ventana.' },
       voice: { title: 'Entrada de voz', description: 'Motor de reconocimiento, nivel de entrada y lo que se escuchó.' },
     },
-    envPrompt: { title: 'Entorno de la mascota de escritorio', description: 'Describe el cuerpo de la mascota, las cuatro herramientas y los eventos de entrada.' },
+    envPrompt: { title: 'Entorno de la mascota de escritorio', description: 'Describe el cuerpo de la mascota, las herramientas y los eventos de entrada.' },
     vars: {
       'pet.user': 'Cómo llama el bot a la persona',
       'pet.vocab': 'Las expresiones y los movimientos del personaje actual',

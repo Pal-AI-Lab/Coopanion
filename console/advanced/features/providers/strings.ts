@@ -10,7 +10,7 @@ import { S as it } from './strings.it.ts';
 import { S as ru } from './strings.ru.ts';
 const zh = {
   pageTitle: '模型供应商', navLabel: '模型供应商', navGroup: 'Core', create: '+ 新建供应商实例', newName: '未命名实例',
-  createHint: '实例 = 填一组供应商配置保存成卡片',
+  createHint: '实例 = 填写一组供应商配置，保存成卡片',
   empty: '还没有模型供应商', emptyHint: '添加一条模型连接后，Cortico 才能进行模型推理。',
   eraseConfirm: '确认删除',
   connect: '连接', activate: '设为当前供应商', active: '当前模型', missing: '当前模型供应商不存在，配置中引用：',
@@ -22,9 +22,9 @@ const zh = {
   nameHint: '英文字母、数字、- 或 _，以字母或数字开头，不允许空格或系统保留名。',
   fixedModule: '供应商类型保存后不可更改。使用其他类型需新建供应商。',
   test: '测试连接', testOk: '测试成功', testFailed: '测试失败',
-  keyEmpty: '输入 API Key', fetchModels: '获取模型列表', modelList: '模型列表', modelsFetched: (count: number) => `取到 ${count} 个模型。`,
+  keyEmpty: '输入 API Key', fetchModels: '获取模型列表', modelList: '模型列表', modelsFetched: (count: number) => `获取到 ${count} 个模型。`,
   reasoning: '推理强度', thinking: '开启推理', temperature: '温度', maxTokens: '最大输出 token', context: '上下文上限', tier: '服务档位', images: '接受图片',
-  catalogNoWindow: '目录没有给出这个模型的上下文上限；请按服务商文档手填。',
+  catalogNoWindow: '目录没有给出这个模型的上下文上限；请按服务商文档手动填写。',
   catalogMaxOutput: (tokens: number) => `目录给出的最大输出为 ${tokens} token。`,
   advancedHint: '仅在使用自定义 API 网关或兼容服务时调整。', secret: '密钥环境变量名',
   extraHeaders: '附加请求头（JSON object）', extraBody: '附加请求体（JSON object）', priceRules: '完整计价规则（JSON array）',

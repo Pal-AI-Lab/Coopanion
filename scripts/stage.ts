@@ -93,7 +93,7 @@ await esbuild.build({
 
 // the settings window: one ES module bundle (the CSS it imports becomes index.css), its stylesheet, the page.
 // The version and the build's channel (COOPANION_CHANNEL as scripts/pack.ts writes it into the app, github
-// by default) go in for the release check under the wordmark.
+// by default) go in for the release check in the title bar.
 const { version } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { version: string };
 rmSync(WINDOW_OUT, { recursive: true, force: true });
 mkdirSync(WINDOW_OUT, { recursive: true });

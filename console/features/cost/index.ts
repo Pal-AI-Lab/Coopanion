@@ -81,7 +81,7 @@ function errText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-/** abort 不是失败，是"这一页已经不在了"。 */
+/** 离开页面引起的 abort,不当作失败显示。 */
 function isAbort(err: unknown): boolean {
   return (err as { name?: unknown } | null)?.name === 'AbortError';
 }

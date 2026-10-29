@@ -87,5 +87,5 @@ linux:
     entry:
       StartupWMClass: Coopanion
 deb:
-  # libxtst6/libxss1: the computer-use World's input and idle time; xdotool types text; zenity asks before acting
+  # libxtst6/libxss1: computer use's input and idle time; xdotool types text; zenity asks before acting
   depends: [libgtk-3-0 | libgtk-3-0t64, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0 | libatspi2.0-0t64, libuuid1, libsecret-1-0, libasound2 | libasound2t64, xdotool, zenity]

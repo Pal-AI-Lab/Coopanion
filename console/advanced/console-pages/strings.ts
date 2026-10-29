@@ -23,7 +23,7 @@ const zh = {
   notInstalled: "不可用",
   notActivated: '未激活',
   hidden: '已隐藏',
-  reloadPrefix: '前缀待重载 · 点此重载',
+  reloadPrefix: '前缀待重载 · 点击重载',
   open: '打开',
   configTab: '配置',
   promptsTab: '提示词模板',

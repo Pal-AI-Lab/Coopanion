@@ -1,4 +1,4 @@
-/** 主题的界面文案：方案名、token 标签与分组。数据与纯函数在 web/shared/theme.ts。 */
+/** 主题的界面文案：方案名、token 标签与分组。数据与纯函数在 `schemes.ts`。 */
 
 import {
   BUILTIN_PALETTES,
@@ -43,11 +43,11 @@ export interface ThemeToken {
   readonly group: string;
   /** CSS 变量名去掉 `--` 前缀，如 `paper` → `--paper` */
   readonly key: string;
-  /** 编辑器里的中文标签 */
+  /** 编辑器里的标签，按窗口语言 */
   readonly label: string;
 }
 
-/** 明暗模式的中文挡位名。分段选择器与提示语共用一套措辞。 */
+/** 明暗模式的挡位名。分段选择器与提示语共用一套措辞。 */
 export const THEME_MODE_LABELS: Readonly<Record<ThemeMode, string>> = {
   light: S.modeLight,
   dark: S.modeDark,
