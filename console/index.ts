@@ -3,13 +3,9 @@
  * API (tests/console-api.test.ts locks the routes). The Electron main process serves this build
  * under `/coopanion/` on Core's own origin (app/main.cjs), so requests and WebSockets are same-origin.
  *
- * Two modes (features/mode.ts). The normal mode lists the pages about the pet, 系统提示词 (the whole
- * system prompt with 「清空对话并重开」, the page of advanced/ that uses public routes only), 用量与成本 and 对话;
- * every other route opens 开始. The advanced mode adds the pages copied from Cortico's WebUI
- * (advanced/): the World tree with the World pages, 接入 (模型供应商, 扩展), 人格与记忆 (the Persona and
- * Memory pages), 诊断 (控制台, Core). Pages from the manifest (`/api/webui/manifest`: Worlds, the
- * Persona, Memory) mount through the page host (advanced/console-pages) by the panel contract. The rail is built once; a mode
- * change only hides or shows the entries the normal mode does not list, and the page open stays.
+ * Normal mode includes pet pages, prompts, usage, chat and World extensions with their pages.
+ * Advanced mode also lists model providers, Persona, Memory and diagnostics. Manifest pages mount
+ * through the panel contract. Switching modes filters the rail and keeps the open page.
  *
  * The colour scheme is painted from the last record this window saw before anything renders, then
  * from `/api/theme`.
@@ -34,7 +30,6 @@ import { ConsolePageLoader } from './advanced/console-pages/loader.ts';
 import { featureAvailable, type FeatureContext, type FrameworkFeature } from './advanced/features/feature.ts';
 import { promptsFeature } from './advanced/features/prompts/index.ts';
 import { coreFeature } from './advanced/features/core/index.ts';
-import { extensionsFeature } from './advanced/features/extensions/index.ts';
 import { providersFeature } from './advanced/features/providers/index.ts';
 import { traceFeature } from './advanced/features/trace.ts';
 import { worldsFeature } from './advanced/features/worlds/index.ts';
@@ -49,6 +44,7 @@ import { createRail, type NavGroup, type NavItem } from './rail/index.ts';
 import { S as R } from './rail/strings.ts';
 import { L } from './strings.ts';
 import { createTitlebar } from './titlebar.ts';
+import { navHidden, NAV_HIDDEN_EVENT } from './base/world-nav.ts';
 import { watchPageScrollInset } from './base/ui/page.ts';
 
 /** One entry of the rail and the page it mounts. */
@@ -75,9 +71,9 @@ export const ENTRIES: readonly Entry[] = [
   fromPage(homePage), fromPage(petPage), fromPage(dressPage), fromPage(voicePage),
   fromFeature(promptsFeature, 'primary', true), fromPage(usagePage), fromPage(chatPage),
   // 模型供应商 keeps the providers page's own name
-  fromFeature(providersFeature, 'integrations'), fromFeature(extensionsFeature, 'integrations'),
+  fromFeature(providersFeature, 'integrations'),
   fromFeature(traceFeature, 'diagnostics'), fromFeature(coreFeature, 'diagnostics'),
-  fromFeature(worldsFeature, 'world-root'),
+  fromFeature(worldsFeature, 'world-root', true),
 ];
 
 const HOME = homePage.route;
@@ -134,8 +130,9 @@ export function boot(doc: Document = document): Disposable {
   const renderNav = (): void => {
     const entries = ENTRIES.filter(available);
     const listed = host.pages.filter((p) => p.availability === 'active');
-    const pages = (kind: string, icon?: ConsoleIconName) => listed.filter((p) => p.kind === kind).map((p): NavItem => ({
-      label: p.label || p.id, ...(icon ? { icon } : {}), segments: [PROVIDER_ROUTE, p.id], basic: false, pageId: p.id, lamps: p.lamps ?? [],
+    const hidden = navHidden(window);
+    const pages = (kind: string, icon?: ConsoleIconName) => listed.filter((p) => p.kind === kind && !hidden.has(p.id)).map((p): NavItem => ({
+      label: p.label || p.id, ...(icon ? { icon } : {}), segments: [PROVIDER_ROUTE, p.id], basic: kind === 'world', pageId: p.id, lamps: p.lamps ?? [],
     }));
     const of = (group: Entry['group']) => entries.filter((e) => e.group === group).map(item);
     const groups: NavGroup[] = [
@@ -148,21 +145,14 @@ export function boot(doc: Document = document): Disposable {
     rail.setNav(groups);
   };
   renderNav();
+  window.addEventListener(NAV_HIDDEN_EVENT, renderNav, { signal: life.signal });
 
-  // the lamps of the manifest pages, which only the advanced mode lists (`/api/webui/lamps` is an internal route)
-  let lamps: Disposable | null = null;
-  const followLamps = (): void => {
-    if (mode === 'advanced') lamps ??= subscribeLamps(doc, (next) => rail.setLamps(next));
-    else { lamps?.dispose(); lamps = null; }
-  };
-  life.add(() => lamps?.dispose());
-  followLamps();
+  life.own(subscribeLamps(doc, (next) => rail.setLamps(next)));
   const setMode = (next: ConsoleMode): void => {
     if (next === mode) return;
     mode = next;
     writeMode(mode);
     rail.setMode(mode, true);
-    followLamps();
     // the page open now stays, even one the normal mode does not list; the next page picked is checked as usual
   };
   onModeRequest(setMode, life.signal);
@@ -219,9 +209,13 @@ export function boot(doc: Document = document): Disposable {
     rail.setRoute(route);
     if (!ready) return;
     const head = route.segments[0];
+    if (head === 'extensions' && (mode === 'advanced' || route.segments[1] !== 'provider')) {
+      router.replace([route.segments[1] === 'provider' ? 'providers' : 'world'], { view: 'market' }); return;
+    }
     const entry = ENTRIES.find((e) => e.route === head);
     // an empty route, and in the normal mode a page it does not list, open 开始 without a history entry
-    const reachable = mode === 'advanced' ? head === PROVIDER_ROUTE || !!entry : !!entry?.basic;
+    const worldPage = head === PROVIDER_ROUTE && host.pages.some((page) => page.id === route.segments[1] && page.kind === 'world');
+    const reachable = mode === 'advanced' ? head === PROVIDER_ROUTE || !!entry : !!entry?.basic || worldPage;
     if (!head || !reachable) { router.replace([HOME]); return; }
     // a model module's page is a section of 模型供应商
     if (head === PROVIDER_ROUTE && route.segments[1]?.startsWith('llm:')) { router.replace(['providers']); return; }

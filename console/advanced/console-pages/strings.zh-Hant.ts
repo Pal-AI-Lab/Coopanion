@@ -11,6 +11,7 @@ export const S: Partial<typeof en> = {
   provides: (list: string) => '可用面板：' + list,
   panelFailed: (title: string) => `面板「${title}」載入失敗`,
   configEmpty: '設定群組無法使用。',
+  backToWorlds: "返回 World 擴充",
   notInstalled: '無法使用',
   notActivated: '未啟用',
   hidden: '已隱藏',

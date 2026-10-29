@@ -19,14 +19,16 @@ const zh = {
   download: '下载',
   on: '开启',
   autoSaves: '修改后自动保存。',
+  saved: '已保存。',
+  worldRestartPending: '有改动需重启 World 后生效。',
   leaveBlank: '留空',
   saving: '保存中…',
-  saveFailed: (err: string) => '失败: ' + err,
+  saveFailed: (err: string) => '失败：' + err,
   emptyDefault: "此页没有配置项。",
   noSchema: "未提供配置项。",
   restartWorld: '重启 World 生效',
   restartProcess: '重启生效',
-  loadFailed: (err: string) => '配置项加载失败: ' + err,
+  loadFailed: (err: string) => '配置项加载失败：' + err,
 };
 
 export const en: typeof zh = {
@@ -39,6 +41,8 @@ export const en: typeof zh = {
   download: 'Download',
   on: 'On',
   autoSaves: 'Changes save automatically.',
+  saved: 'Saved.',
+  worldRestartPending: 'Some changes take effect after the World restarts.',
   leaveBlank: 'Leave blank',
   saving: 'Saving…',
   saveFailed: (err: string) => 'Failed: ' + err,

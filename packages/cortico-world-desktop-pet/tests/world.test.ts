@@ -514,8 +514,15 @@ describe('with a pet page', () => {
     const closed = world.confirm('再问一次?', ['可以', '不行']);
     page.send({ t: 'confirmed', id: (await page.next((m) => m.t === 'confirm')).id, index: null });
     expect(await closed).toBe('dismissed');
+    // hidden from its menu or the tray, the pet is not asked
+    const hidden = () => (world as unknown as { petHidden: boolean }).petHidden;
+    page.send({ t: 'visibility', hidden: true });
+    await expect.poll(hidden).toBe(true);
+    expect(await world.confirm('看得见吗?', ['可以', '不行'])).toBe('unavailable');
+    page.send({ t: 'visibility', hidden: false });
+    await expect.poll(hidden).toBe(false);
     const gone = world.confirm('还在吗?', ['可以', '不行']);
-    await page.next((m) => m.t === 'confirm');
+    expect((await page.next((m) => m.t === 'confirm')).question).toBe('还在吗?');
     await page.close();
     expect(await gone).toBe('unavailable');
     expect(host.events).toHaveLength(0);

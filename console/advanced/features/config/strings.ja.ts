@@ -10,6 +10,8 @@ export const S: Partial<typeof en> = {
   download: 'ダウンロード',
   on: 'オン',
   autoSaves: '変更は自動で保存されます。',
+  saved: '保存しました。',
+  worldRestartPending: '一部の変更は World の再起動後に反映されます。',
   leaveBlank: '空欄のまま',
   saving: '保存中…',
   saveFailed: (err: string) => '失敗：' + err,

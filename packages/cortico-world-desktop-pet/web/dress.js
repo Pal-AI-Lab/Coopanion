@@ -488,7 +488,7 @@ function render() {
   for (const p of PALETTES) {
     const b = el('button', 'opt swatch');
     b.setAttribute('aria-pressed', String(skin.palette === p.id));
-    b.innerHTML = `<svg viewBox="${CROP.palette}" aria-hidden="true" style="--sl-ink:${p.l[0]};--sl-eye:${p.l[1]};--sd-ink:${p.d[0]};--sd-eye:${p.d[1]}">${mini('neutral', { ...skin, head: 'none', side: 'none', glasses: 'none', neck: 'none' })}</svg><span></span>`;
+    b.innerHTML = `<svg viewBox="${CROP.palette}" aria-hidden="true" style="--sl-ink:${p.l[0]};--sl-eye:${p.l[1]};--sd-ink:${p.d[0]};--sd-eye:${p.d[1]}">${mini('neutral', { ...skin, palette: p.id, head: 'none', side: 'none', glasses: 'none', neck: 'none' })}</svg><span></span>`;
     b.querySelector('span').textContent = cooName('palette', p.id);
     b.addEventListener('click', () => { apply({ ...skin, palette: p.id }, true); sfx.sparkle(); body?.cue('cheer'); });
     palOpts.appendChild(b);

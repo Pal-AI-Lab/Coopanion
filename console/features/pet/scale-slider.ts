@@ -6,6 +6,7 @@
  * stays where it is while the bar changes under it: a drag goes on from the thumb, not from where the pointer
  * would land on the new scale.
  */
+import { prefersStill } from '../../base/motion.ts';
 
 /** Shares of the bar and its width: at rest, and while the value is past the divider. */
 const COLLAPSED = { width: 280, main: .88 };
@@ -57,7 +58,7 @@ export function scaleSlider(doc: Document, o: ScaleSliderOptions): ScaleSlider {
   /** 0 at rest, 1 widened; eased toward `target`. */
   let k = 0, from = 0, target = 0, startedAt = 0, raf = 0;
   let dragging = false, lastX = 0, offset = 0;
-  const reduced = () => doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  const reduced = () => prefersStill(doc.defaultView);
 
   /** No stretch past a divider: `soft` is the end. */
   const single = o.soft >= o.max;

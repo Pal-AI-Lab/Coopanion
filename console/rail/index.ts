@@ -21,6 +21,7 @@ import { sidebarBrand } from './brand.ts';
 import { L } from '../strings.ts';
 import { createAvatarControl } from './avatar.ts';
 import { S } from './strings.ts';
+import { fold, prefersStill } from '../base/motion.ts';
 
 const COLLAPSED_KEY = 'companion.sidebar.collapsed';
 const DEFAULT_NAME = 'bot';
@@ -135,7 +136,26 @@ export function createRail(deps: RailDeps): Rail {
   };
 
   /** Draws the groups in order; entries the normal mode does not list are hidden at once. */
+  /** Pages listed by the last draw; a page new since then arrives with an animation. */
+  let listedPages: Set<string> | null = null;
+  /** How long a page takes to join or leave the sidebar. */
+  const DEPART_MS = 200, ARRIVE_MS = 220;
+  /** A page joining or leaving moves with its neighbours: its height, padding, a short slide and the fade together. */
+  const move = (item: HTMLElement, open: boolean, duration: number) => fold(item, open, { duration, easing: 'cubic-bezier(.4, 0, .2, 1)', shift: -8, hide: false, clip: false });
+  let departing: ReturnType<typeof setTimeout> | undefined;
+  signal.addEventListener('abort', () => clearTimeout(departing), { once: true });
+  /** Pages that leave the sidebar fold away first; the redraw follows. */
   const setNav = (groups: readonly NavGroup[]): void => {
+    clearTimeout(departing); departing = undefined;
+    const next = new Set(groups.flatMap((g) => [...g.items, ...(g.modules ?? [])]).flatMap((it) => it.pageId ? [it.pageId] : []));
+    const leaving = entries.filter((entry) => entry.pageId && !next.has(entry.pageId) && !entry.item.hidden && entry.item.isConnected);
+    const still = prefersStill(doc.defaultView);
+    if (!leaving.length || still) { drawNav(groups); return; }
+    for (const { item } of leaving) { item.classList.add('companion-depart'); move(item, false, DEPART_MS); }
+    departing = setTimeout(() => { departing = undefined; drawNav(groups); }, DEPART_MS);
+  };
+  const drawNav = (groups: readonly NavGroup[]): void => {
+    const before = listedPages;
     navLife?.abort();
     navLife = new AbortController();
     const itemSignal = navLife.signal;
@@ -147,7 +167,7 @@ export function createRail(deps: RailDeps): Rail {
         for (const it of g.items) addItem(group('navgroup-framework navgroup-primary', it.label, false), it, itemSignal);
         continue;
       }
-      const box = group(g.kind === 'persona' ? 'navgroup-persona navgroup-provider' : g.kind === 'world-tree' ? 'navgroup-world-tree' : 'navgroup-framework', g.label, true);
+      const box = group(g.kind === 'persona' ? 'navgroup-persona navgroup-provider' : g.kind === 'world-tree' ? 'navgroup-world-tree' : 'navgroup-framework', g.label, g.kind !== 'world-tree');
       for (const it of g.items) addItem(box, it, itemSignal);
       if (g.modules?.length) {
         const list = ui.h('div', 'navmodule-list');
@@ -159,6 +179,13 @@ export function createRail(deps: RailDeps): Rail {
     }
     applyRoute();
     filterNav(false);
+    listedPages = new Set(entries.flatMap((entry) => entry.pageId ? [entry.pageId] : []));
+    const still = prefersStill(doc.defaultView);
+    if (before && !still) for (const { item, pageId } of entries) if (pageId && !before.has(pageId) && !item.hidden) {
+      item.classList.add('companion-arrive');
+      move(item, true, ARRIVE_MS);
+      setTimeout(() => item.classList.remove('companion-arrive'), ARRIVE_MS);
+    }
   };
 
   const applyRoute = (): void => {
@@ -206,7 +233,7 @@ export function createRail(deps: RailDeps): Rail {
       const to = Math.max(0, Math.min(from, nav.scrollHeight - nav.clientHeight));
       for (const x of leaving) x.style.display = '';
       nav.scrollTop = from;
-      if (to < from && !win.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) {
+      if (to < from && !prefersStill(win)) {
         const start = performance.now();
         const step = (now: number): void => {
           const k = Math.min(1, (now - start) / FADE_MS);
@@ -411,7 +438,7 @@ export function createRail(deps: RailDeps): Rail {
    * along with the pause key as they fade.
    */
   const flip = (change: () => void): void => {
-    const moving = typeof foot.animate === 'function' && !win.matchMedia('(prefers-reduced-motion: reduce)')?.matches
+    const moving = typeof foot.animate === 'function' && !prefersStill(win)
       ? Array.from(foot.querySelectorAll<HTMLElement>('.rail-who, .rail-action, .companion-runstate')).filter((x) => !x.hidden)
       : [];
     const before = moving.map((x) => x.getBoundingClientRect());

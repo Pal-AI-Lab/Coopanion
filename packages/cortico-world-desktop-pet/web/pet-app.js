@@ -1722,9 +1722,10 @@ function oklab(r, g, b) {
   const s = Math.cbrt(.0883024619 * r + .2817188376 * g + .6299787005 * b);
   return [.2104542553 * l + .793617785 * m - .0040720468 * s, 1.9779984951 * l - 2.428592205 * m + .4505937099 * s, .0259040371 * l + .7827717662 * m - .808675766 * s];
 }
-/** The body's color as [r, g, b], from `--skin-ink` (#rgb or #rrggbb). */
+/** The body's color as [r, g, b]: its palette's fixed body, else `--skin-ink` (#rgb or #rrggbb). */
 function inkRgb() {
-  let h = getComputedStyle(document.documentElement).getPropertyValue('--skin-ink').trim().replace('#', '');
+  const fixed = skin.figure === 'coo' ? PALETTES.find((p) => p.id === skin.palette)?.fixed?.body : null;
+  let h = (fixed ?? getComputedStyle(document.documentElement).getPropertyValue('--skin-ink')).trim().replace('#', '');
   if (h.length === 3) h = [...h].map((c) => c + c).join('');
   const n = parseInt(h, 16);
   return /^[0-9a-f]{6}$/i.test(h) ? [n >> 16, (n >> 8) & 255, n & 255] : null;
