@@ -520,7 +520,7 @@ describe('restart', () => {
     expect(calls.find(c => c.url === '/api/run/restart')?.method).toBe('POST');
     expect(calls.some(c => c.url === '/api/run/lifecycle')).toBe(true);
     expect(document.body.textContent).toContain('✗ 外部直播平台 · 需手动结束');
-    expect(sheets(root)[0].textContent).toContain('等待当前 Bot 的新进程就绪');
+    expect(sheets(root)[0].textContent).toContain('等待 Coo 的新进程就绪');
   });
   it('an unsupervised process asks for a manual start', async () => {
     stub();
