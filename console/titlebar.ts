@@ -10,6 +10,8 @@ declare global {
     coopanionWindow?: {
       platform: string;
       setTheme(theme: { color: string; symbolColor: string }): void;
+      exportChat(data: { name: string; text: string }): Promise<boolean>;
+      revealChatExport(): Promise<void>;
     };
   }
 }

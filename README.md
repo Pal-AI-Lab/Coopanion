@@ -167,7 +167,7 @@ Click the tray icon, or right-click Coo and click the gear. **Normal mode** show
 | Voice input | Recognizer or transcription service, model download, talk key, microphone, listening mode, speech threshold |
 | System prompt | Coo's system prompt; the persona is the CONSTITUTION section |
 | Usage & cost | Tokens used and money spent per day |
-| Chat | The current conversation, with the images Coo shows |
+| Chat | Conversations and images; find earlier messages by keyword or local date, jump to their context, and export all history or a day as Markdown. The desktop app can open the saved file's folder. |
 
 <p align="center"><img src="image/README/habits-en.png" alt="Habits" width="720"></p>
 <p align="center"><img src="image/README/dress-en.png" alt="Dress up" width="720"></p>

@@ -167,7 +167,7 @@ Windows、macOS 和 Linux（deb、AppImage）的标题栏整条使用统一的�
 | 语音输入   | 识别引擎或转写接口、模型下载、说话键、麦克风、收音方式、说话门槛                                          |
 | 系统提示词 | Coo 的系统提示词，人设在「CONSTITUTION」一段                                                              |
 | 用量与成本 | 每天的 token 用量和花费                                                                                   |
-| 对话       | 当前对话的记录，以及 Coo 发的图片                                                                         |
+| 对话       | 对话记录与图片；按关键词或本地日期查找早期消息并跳转到前后对话，导出全部或当天记录为 Markdown。桌面应用可打开导出文件所在文件夹。 |
 
 <p align="center"><img src="image/README/habits-zh.png" alt="Habits" width="720"></p>
 <p align="center"><img src="image/README/dress-zh.png" alt="Dress up" width="720"></p>

@@ -11,6 +11,8 @@
  * (context.ts) then, at each phase change and every few seconds.
  */
 import type { WebUiImageAttachment } from 'cortico/web/shared/client-panel.ts';
+import type { ChatItem, ChatTouch, WireImage } from '../../../packages/cortico-world-desktop-pet/src/chat.ts';
+export type { ChatItem } from '../../../packages/cortico-world-desktop-pet/src/chat.ts';
 import { linked } from 'cortico-world-desktop-pet/web/ui.js';
 import { get } from '../../base/api.ts';
 import { baseLanguage, LANGUAGE } from '../../base/language.ts';
@@ -23,6 +25,7 @@ import { intro } from '../intro.ts';
 import { requestMode } from '../mode.ts';
 import { contextGauge, contextRing, type ContextGauge, type ContextStatus } from './context.ts';
 import { S, STEP } from './strings.ts';
+import { chatHistoryControls } from './history.ts';
 
 const PET_PAGE = 'world:desktop-pet';
 /** The switch for the context ring, a key of the `companion` config group. */
@@ -31,18 +34,8 @@ const RING_KEY = 'companion.contextRing';
 /** How often the context ring reads `/api/status` while the window is visible, besides each phase change. */
 const CONTEXT_POLL_MS = 5000;
 
-interface WireImage { ref: string; mime: string; name?: string }
-interface SayBeat { text: string; mood?: Record<string, string> }
-export interface Touch { kind: string; count: number; woke: boolean; crashed: boolean }
+export type Touch = ChatTouch;
 interface Refs { withdrawn?: number[]; delivered?: Array<[number, number]> }
-type ChatItem =
-  | { kind: 'user'; cursor: number; ts: string; via: 'chat' | 'bubble' | 'voice'; text: string; images?: WireImage[]; at?: number }
-  | { kind: 'answer'; cursor: number; ts: string; askId: string; index?: number; text?: string; dismissed?: true }
-  | { kind: 'touch'; cursor: number; ts: string; touch?: Touch; text?: string }
-  | { kind: 'figure'; cursor: number; ts: string; figure: { kind: string; name: Record<string, string> } }
-  | { kind: 'say'; cursor: number; ts: string; beats: SayBeat[]; images?: WireImage[] }
-  | { kind: 'ask'; cursor: number; ts: string; askId: string; question: string; options: string[]; own: boolean }
-  | { kind: 'activity'; cursor: number; ts: string; steps: string[]; ms: number };
 type UserItem = Extract<ChatItem, { kind: 'user' }>;
 interface RunPhase { state: 'idle' | 'delivering' | 'model' | 'tools' | 'backoff' | 'handoff'; running: readonly string[]; retryAt?: string }
 
@@ -81,6 +74,9 @@ async function mount(ctx: PageContext): Promise<void> {
   let showRing = false;
   /** Shown items by cursor, in the order the bot met them (`at` for a message that waited, else the cursor). */
   const items = new Map<number, ChatItem>();
+  let archive: ChatItem[] | null = null;
+  let highlighted: number | null = null;
+  const displayedItems = (): ChatItem[] => archive ?? [...items.values()];
   /** The person's messages the bot has not taken in yet. */
   const pending = new Map<number, UserItem>();
   /** Messages that never reached the bot. */
@@ -136,7 +132,20 @@ async function mount(ctx: PageContext): Promise<void> {
     },
   });
   dock.append(queueBox, composer.el);
-  view.append(top, scroll, dock);
+  const history = chatHistoryControls(ctx, {
+    send: (frame) => stream.send(JSON.stringify(frame)),
+    locate: (found, cursor) => {
+      archive = found;
+      const target = found.find((it) => it.cursor === cursor);
+      highlighted = target?.kind === 'answer'
+        ? found.find((it) => it.kind === 'ask' && it.askId === target.askId)?.cursor ?? cursor
+        : cursor;
+      render();
+      thread.querySelector<HTMLElement>(`[data-cursor="${highlighted}"]`)?.scrollIntoView({ block: 'center' });
+    },
+    latest: () => { archive = null; highlighted = null; render(); toBottom(); },
+  });
+  view.append(top, history.el, scroll, dock);
 
   // ---- phase line
   const syncPhase = (): void => {
@@ -208,7 +217,7 @@ async function mount(ctx: PageContext): Promise<void> {
     const question = ui.h('p', 'b-text');
     question.append(linked(it.question));
     box.append(question);
-    const answer = [...items.values()].find((x): x is Extract<ChatItem, { kind: 'answer' }> => x.kind === 'answer' && x.askId === it.askId);
+    const answer = displayedItems().find((x): x is Extract<ChatItem, { kind: 'answer' }> => x.kind === 'answer' && x.askId === it.askId);
     if (answer) box.classList.add('answered');
     const opts = ui.h('div', 'b-opts');
     it.options.forEach((label, i) => {
@@ -264,16 +273,16 @@ async function mount(ctx: PageContext): Promise<void> {
 
   /** Rebuilds the thread: the bot's consecutive lines and steps share one avatar. */
   const render = (): void => {
-    const stick = nearBottom();
+    const stick = archive === null && nearBottom();
     const focused = doc.activeElement instanceof HTMLInputElement && thread.contains(doc.activeElement) ? doc.activeElement : null;
     const caret = focused?.dataset.ask ? { askId: focused.dataset.ask, start: focused.selectionStart, end: focused.selectionEnd } : null;
     thread.replaceChildren();
-    if (more) {
+    if (more && archive === null) {
       const b = ui.button(S.older, { size: 'sm', onClick: () => { if (before !== null) stream.send(JSON.stringify({ t: 'more', before })); } });
       b.classList.add('chat-older');
       thread.append(b);
     }
-    const shown = [...items.values()].filter((it) => !(it.kind === 'user' && pending.has(it.cursor)) && it.kind !== 'answer');
+    const shown = displayedItems().filter((it) => !(archive === null && it.kind === 'user' && pending.has(it.cursor)) && it.kind !== 'answer');
     if (shown.length === 0 && !live && !busy()) thread.append(ui.h('div', 'chat-empty', S.empty(bot)));
     let group: HTMLElement | null = null;
     const cooBody = (): HTMLElement => {
@@ -284,8 +293,22 @@ async function mount(ctx: PageContext): Promise<void> {
       thread.append(row);
       return group;
     };
+    const mark = (node: HTMLElement, it: ChatItem): HTMLElement => {
+      node.dataset.cursor = String(it.cursor);
+      node.classList.toggle('chat-match', it.cursor === highlighted);
+      node.title = new Date(it.ts).toLocaleString();
+      return node;
+    };
+    let day = '';
     for (const it of shown) {
-      if (it.kind === 'user') { group = null; thread.append(userNode(it)); continue; }
+      const date = new Date(it.ts).toLocaleDateString();
+      if (date !== day) {
+        day = date; group = null;
+        const time = ui.h('time', 'chat-day', date);
+        time.dateTime = it.ts;
+        thread.append(time);
+      }
+      if (it.kind === 'user') { group = null; thread.append(mark(userNode(it), it)); continue; }
       if (it.kind === 'touch') { group = null; thread.append(ui.h('div', 'chat-note', it.touch ? S.touch(it.touch, bot) : it.text ?? '')); continue; }
       if (it.kind === 'figure') { group = null; thread.append(ui.h('div', 'chat-note', S.figure(it.figure.kind, localName(it.figure.name), bot))); continue; }
       if (it.kind === 'say') {
@@ -296,17 +319,17 @@ async function mount(ctx: PageContext): Promise<void> {
           said.append(linked(beat.text));
           row.append(said);
           if (beat.mood) row.append(ui.h('span', 'mood', localName(beat.mood)));
-          body.append(row);
+          body.append(mark(row, it));
         }
-        for (const img of it.images ?? []) body.append(thumb(img));
-      } else if (it.kind === 'ask') cooBody().append(askNode(it, it.askId === openAsk));
+        for (const img of it.images ?? []) body.append(mark(thumb(img), it));
+      } else if (it.kind === 'ask') cooBody().append(mark(askNode(it, archive === null && it.askId === openAsk), it));
       else if (it.kind === 'activity' && shownSteps(it.steps).length) cooBody().append(activityNode(String(it.cursor), shownSteps(it.steps), S.seconds(Math.max(1, Math.round(it.ms / 1000))), false));
     }
     const liveSteps = live ? shownSteps(live.steps) : [];
     // more than one step: the title counts them, the meta names the one running now
     const current = phase?.state === 'tools' ? shownSteps(phase.running).at(-1) : undefined;
-    if (!paused && liveSteps.length) cooBody().append(activityNode('live', liveSteps, liveSteps.length > 1 && current ? stepLabel(current) : '', true));
-    else if (!paused && busy()) {
+    if (archive === null && !paused && liveSteps.length) cooBody().append(activityNode('live', liveSteps, liveSteps.length > 1 && current ? stepLabel(current) : '', true));
+    else if (archive === null && !paused && busy()) {
       const dots = ui.h('div', 'pet-bubble say thinking');
       dots.append(ui.h('i'), ui.h('i'), ui.h('i'));
       dots.setAttribute('aria-label', S.thinking(bot));
@@ -370,9 +393,11 @@ async function mount(ctx: PageContext): Promise<void> {
     onError: (err) => ctx.onError(err),
     handlers: {
       open: () => stream.send(JSON.stringify({ t: 'hello' })),
+      close: () => history.reset(),
       message: (raw) => {
         let f: Record<string, unknown>;
         try { f = JSON.parse(raw) as Record<string, unknown>; } catch { return; }
+        if (history.handle(f)) return;
         switch (f.t) {
           case 'init': {
             items.clear(); pending.clear();
@@ -389,7 +414,7 @@ async function mount(ctx: PageContext): Promise<void> {
             for (const it of (f.items as ChatItem[]) ?? []) addItem(it, waiting.has(it.cursor));
             composer.setPlaceholder(S.placeholder(bot));
             refresh();
-            toBottom();
+            if (archive === null) toBottom();
             return;
           }
           case 'older': {
@@ -404,7 +429,7 @@ async function mount(ctx: PageContext): Promise<void> {
             more = f.more === true;
             before = typeof f.before === 'number' ? f.before : null;
             render();
-            scroll.scrollTop = scroll.scrollHeight - height;
+            if (archive === null) scroll.scrollTop = scroll.scrollHeight - height;
             return;
           }
           case 'item': addItem(f.item as ChatItem, f.pending === true); sortItems(); refresh(); return;
@@ -439,6 +464,7 @@ async function mount(ctx: PageContext): Promise<void> {
             const it = pending.get(c);
             pending.delete(c);
             items.delete(c);
+            if (archive) archive = archive.filter((it) => it.cursor !== c);
             const mine = sentByCursor.get(c);
             sentByCursor.delete(c);
             if (mine) composer.restore(mine.text, mine.images);

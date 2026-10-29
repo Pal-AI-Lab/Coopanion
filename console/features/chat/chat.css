@@ -14,6 +14,21 @@
 .chat-empty { align-self: center; color: var(--ink-dim); font-size: 13.5px; padding: 40px 0; }
 .chat-older { align-self: center; }
 .chat-note { align-self: center; font-size: 12.5px; color: var(--ink-dim); }
+.chat-day { align-self: center; font-size: 12px; color: var(--ink-dim); padding: 4px 0; }
+.chat-match { outline: 2px solid var(--accent); outline-offset: 5px; border-radius: 8px; }
+.chat-history { flex: none; margin: 0 32px; padding: 0 0 10px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.chat-history summary { cursor: pointer; color: var(--ink-soft); padding: 6px 0; }
+.chat-history-form, .chat-history-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.chat-history-form input { min-width: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; }
+.chat-history-form input[type="search"] { flex: 1; min-width: 120px; }
+.chat-history-status { color: var(--ink-dim); }
+.chat-history-results { display: flex; flex-direction: column; max-height: 150px; overflow-y: auto; }
+.chat-history-results:empty { display: none; }
+.chat-history-result { display: flex; gap: 10px; width: 100%; text-align: left; justify-content: flex-start; margin-top: 6px; }
+.chat-history-result time { flex: none; font-size: 11px; color: var(--ink-dim); }
+.chat-history-result span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.chat-history-result[aria-pressed="true"] { border-color: var(--accent); }
+.chat-history [hidden] { display: none; }
 
 /* 使用者:右侧浅色气泡,右上角尖;Coo 的气泡与它镜像。所有气泡都带一圈很淡的外阴影 */
 .chatview .msg-user { align-self: flex-end; max-width: 78%; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
@@ -101,6 +116,8 @@
 .chat-ctx-tip span { color: var(--ink-soft); }
 
 @media (max-width: 760px) {
+  .chat-history { margin: 0 16px; }
+  .chat-history-result { flex-wrap: wrap; }
   .chat-scroll { padding: 18px 16px 230px; }
   .chat-dock { padding: 0 16px 14px; }
 }
