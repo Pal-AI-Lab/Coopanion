@@ -471,6 +471,17 @@ function stepDialog(dt) {
   if (it.kind === 'say') {
     if (it.i < 0 || it.beatDone) {
       if (it.beatDone && pointedAt()) it.holdUntil += dt;
+      // 语音还没念完就先别推进，否则 closeBubble() 会把没念完的尾巴掐掉
+      if (it.beatDone && speech.remaining() > .15) {
+        // 兜底：音频上下文被挂起或计时器卡死时 remaining() 会一直 > 0，气泡就永远不往前走。
+        // 累计等待超过 25 秒就硬推一格：宁可尾巴难看，也别让她看起来“不回话”。
+        it.gateWait = (it.gateWait || 0) + dt;
+        if (it.gateWait < 25) return;
+        it.gateWait = 0;
+        speech.stop();
+      } else {
+        it.gateWait = 0;
+      }
       if (it.beatDone && T < it.holdUntil) return;
       it.i++;
       it.beatDone = false;
@@ -479,7 +490,12 @@ function stepDialog(dt) {
       let lead = 0;
       for (const a of b.actions || []) { acts.push(a); lead = .45; }
       it.shown = 0; it.acc = 0; it.fired = 0; it.startAt = T + lead;
-      if (b.text) { openBubble('say', '<p class="b-text"></p>'); sfx.pop(); } else { bubble.hidden = true; }
+      if (b.text) {
+        openBubble('say', '<p class="b-text"></p>'); sfx.pop();
+        // 短句（两三个字）往往一次就整句显示，走不到 typeText 的逐字路径，也就没有声音。
+        // 这里在气泡创建时先起一次语音；begin() 内部按文本去重，重复调用没有副作用。
+        speech.begin(b.text);
+      } else { bubble.hidden = true; }
       return;
     }
     const b = it.beats[it.i];
@@ -1618,6 +1634,7 @@ document.addEventListener('keydown', (e) => {
  * move it over to Coo by TAIL_FOLLOW wide (#139). Between the two it slides, so a bubble growing as the line
  * types out carries its tail along with it.
  */
+const EDGE = 18;
 const TAIL_CENTER = 70, TAIL_FOLLOW = 130;
 /** Where the tail's tip sits along a bubble `bw` wide whose left edge is `x` left of Coo. */
 function tailAt(bw, x) {
@@ -1627,7 +1644,17 @@ function tailAt(bw, x) {
 /** Coo's bubble above its head, moved over to the side it faces. */
 function place(el, a, extraUp) {
   const bw = el.offsetWidth, bh = el.offsetHeight;
-  const left = clamp(a.x - bw / 2 + (at()?.facing ?? 1) * 26, 10, Math.max(10, innerWidth - bw - 10));
+  const facing = at()?.facing ?? 1;
+  const maxLeft = Math.max(EDGE, innerWidth - bw - EDGE);
+  let left;
+  // 贴右缘时整块翻到左边（尾巴朝右），否则按朝向偏一点、再钳进屏幕
+  if (a.x + bw / 2 + 26 > innerWidth - EDGE) {
+    left = clamp(a.x - 26 - bw, EDGE, maxLeft);
+  } else if (a.x - bw / 2 - 26 < EDGE) {
+    left = clamp(a.x + 26, EDGE, maxLeft);
+  } else {
+    left = clamp(a.x - bw / 2 + facing * 26, EDGE, maxLeft);
+  }
   const top = Math.max(8, a.y - bh - extraUp);
   el.style.left = f(left) + 'px';
   el.style.top = f(top) + 'px';
@@ -1641,7 +1668,7 @@ function placeTalk(it, a) {
   const mode = at()?.mode;
   if (mode === 'drag' || (FLYING.has(mode) && !talk.motion)) it.carried = true;
   if (it.carried) { it.pinX = a.x; it.pinY = a.y; if (!FLYING.has(mode)) it.carried = false; }
-  const left = clamp(it.pinX - bw / 2, 10, Math.max(10, innerWidth - bw - 10));
+  const left = clamp(it.pinX - bw / 2, EDGE, Math.max(EDGE, innerWidth - bw - EDGE));
   const top = Math.max(8, it.pinY - bh - 18 * prefs.bubbleSize);
   bubble.style.left = f(left) + 'px';
   bubble.style.top = f(top) + 'px';
@@ -1691,7 +1718,7 @@ function placeLines(a, box, dt) {
     el.classList.toggle('older', i !== lines.length - 1);
     if (line.fadeAt === null || line.ox === null) {
       const bw = el.offsetWidth, bh = el.offsetHeight;
-      const left = clamp(cx - bw / 2, 10, Math.max(10, W - bw - 10));
+      const left = clamp(cx - bw / 2, EDGE, Math.max(EDGE, W - bw - EDGE));
       const top = Math.max(8, bottom - bh);
       if (line.ox === null) { line.ox = left - a.x; line.oy = top - a.y; }
       else { line.ox += (left - a.x - line.ox) * k; line.oy += (top - a.y - line.oy) * k; }
