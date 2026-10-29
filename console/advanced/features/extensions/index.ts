@@ -1662,16 +1662,28 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     tagBar = ui.h('div', 'extension-tagbar'); tagBar.hidden = true;
     marketGrid = ui.h('div', 'extension-grid'); marketPager = ui.rowbar(); marketSheet.body.append(filters, advanced, options, registryPanel, tagBar, messageNodes.market, marketGrid, marketPager);
     const manual = ui.sheet({ title: S.manual }); messageNodes.manual = ui.msgline(); messageNodes.manual.setAttribute('role', 'status');
-    const source = ui.segmented([{ value: 'npm', label: S.npm }, { value: 'local', label: S.local }], { value: state.source, onSelect: value => { state.source = value as 'npm' | 'local'; state.input = ''; render(); save(); } });
+    const source = ui.segmented([{ value: 'npm', label: S.npm }, { value: 'local', label: S.local }], { value: state.source, onSelect: value => { state.source = value as 'npm' | 'local'; state.input = input.value = ''; syncSource(); save(); } });
     const manualBar = ui.rowbar(); const input = ui.input({ value: state.input, placeholder: state.source === 'npm' ? `@scope/cortico-${kind}-demo@1.2.3` : '', onInput: value => { state.input = value; } });
-    input.setAttribute('aria-label', state.source === 'npm' ? S.packageLabel : S.pathLabel); manualBar.append(input);
-    if (state.source === 'local') manualBar.append(ui.button(S.folder, { onClick: async () => { try { const path = await pickPath({ kind: 'directory', currentPath: input.value }, { signal }); if (path) { state.input = input.value = path; } } catch (error) { message(kind, 'manual', errorText(error), true); } } }));
+    const folder = ui.button(S.folder, { onClick: async () => { try { const path = await pickPath({ kind: 'directory', currentPath: input.value }, { signal }); if (path) { state.input = input.value = path; } } catch (error) { message(kind, 'manual', errorText(error), true); } } });
+    folder.classList.add('extension-manual-folder');
+    manualBar.append(input, folder);
     const target = (): Target => { if (state.source === 'local' && state.input.trim()) return { path: state.input.trim() }; const value = parseInstallInput(state.input); if (!value) throw new Error(S.invalidInput); return value; };
     const owner = kind;
     const check = ui.button(S.check, { onClick: async () => { const lock = ui.disable(check); try { const data = await post<{ name: string; version: string; kind: string }>('/api/extensions/check', { target: target(), kind: owner }, { signal }); message(owner, 'manual', `${S.checkOk} · ${data.name}@${data.version} · ${data.kind}`); } catch (error) { message(owner, 'manual', errorText(error), true); } finally { lock.dispose(); } } });
     const install = ui.button(S.install, { variant: 'primary', onClick: () => { try { void operate('install', target(), 'manual', owner); } catch (error) { message(owner, 'manual', errorText(error), true); } } });
     const manualActions = ui.rowbar(); manualActions.classList.add('extension-manual-actions'); manualActions.append(check, install, messageNodes.manual);
-    const installHelp = ui.h('p', 'sh-desc extension-install-help', state.source === 'npm' ? S.npmHelp : S.localHelp);
+    const installHelp = ui.h('div', 'sh-desc extension-install-help');
+    const help = { npm: ui.h('span', '', S.npmHelp), local: ui.h('span', '', S.localHelp) };
+    installHelp.append(help.npm, help.local);
+    // Both explanations keep their layout space, including when translated text wraps.
+    function syncSource() {
+      const local = state.source === 'local';
+      input.placeholder = local ? '' : `@scope/cortico-${kind}-demo@1.2.3`;
+      input.setAttribute('aria-label', local ? S.pathLabel : S.packageLabel);
+      folder.setAttribute('aria-hidden', String(!local)); folder.disabled = !local;
+      for (const [key, text] of Object.entries(help)) text.setAttribute('aria-hidden', String(key !== state.source));
+    }
+    syncSource();
     if (catalog) { const row = ui.h('div', 'world-manual-source'); row.append(source.el, installHelp); manual.body.append(row, manualBar, manualActions); }
     else manual.body.append(installHelp, source.el, manualBar, manualActions);
     if (catalog) {

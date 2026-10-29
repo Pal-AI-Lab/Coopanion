@@ -1044,13 +1044,28 @@ describe('World library and catalog', () => {
     expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(2);
     expect(category('all').getAttribute('aria-pressed')).toBe('true');
   });
-  it('keeps the manual install fold open and the list where it was when the source changes', async () => {
-    const { root } = await openWorlds();
+  it.each(['world', 'provider'])('keeps %s market nodes, focus and scrolling when the install source changes', async kind => {
+    const { root, ctx } = await openWorlds();
+    if (kind === 'provider') await switchTo(ctx, kind);
     const fold = root.querySelector('.world-manual'); fold.open = true; fold.dispatchEvent(new Event('toggle'));
     const scroll = root.querySelector('.world-catalog-scroll'); scroll.scrollTop = 60;
-    [...fold.querySelectorAll('.world-manual-source button')].find(item => item.textContent === '从本机目录安装').click(); await flush();
-    expect(root.querySelector('.world-manual').open).toBe(true);
-    expect(root.querySelector('.world-catalog-scroll').scrollTop).toBe(60);
+    const firstCard = root.querySelector('.extension-market-card');
+    const input = fold.querySelector('input');
+    for (const [label, field, placeholder] of [['从本机目录安装', '扩展项目目录', ''], ['从 npm 安装', '包名与版本', `@scope/cortico-${kind}-demo@1.2.3`]]) {
+      input.value = 'old input'; input.dispatchEvent(new Event('input'));
+      const choice = button(fold, label); choice.focus(); choice.click(); await flush();
+      expect(document.activeElement).toBe(choice);
+      expect(root.querySelector('.world-manual')).toBe(fold);
+      expect(fold.open).toBe(true);
+      expect(root.querySelector('.extension-market-card')).toBe(firstCard);
+      expect(scroll.scrollTop).toBe(60);
+      expect(fold.querySelector('input')).toBe(input);
+      expect(input.getAttribute('aria-label')).toBe(field);
+      expect(input.placeholder).toBe(placeholder);
+      expect(input.value).toBe('');
+      expect(fold.querySelector('.extension-manual-folder').disabled).toBe(label === '从 npm 安装');
+      expect(fold.querySelectorAll('.extension-install-help>[aria-hidden=false]')).toHaveLength(1);
+    }
   });
   it('shows a restart in progress as a spinner beside the button without a status line', async () => {
     const list = { extensions: [{ name: 'late', kind: 'world', state: 'pending-restart' }] };
