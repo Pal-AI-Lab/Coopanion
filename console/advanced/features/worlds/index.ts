@@ -63,6 +63,8 @@ export function mountWorlds(ctx: FeatureContext): void {
   /** The package just installed from the market, landing in the rail on its next render. */
   let arrival: { key: string; from?: DOMRect } | undefined;
   let worldsReady = !ctx.capabilities.worlds, extensionsReady = !canBrowse;
+  /** The extension list arrived, so a World without a package is built in. */
+  let extensionsListed = false;
   const layoutKey = `coopanion.world-layout:${win.location.origin}`;
   let savedLayout: { positions: [string, number][]; scroll: number; at: number } | undefined;
   try {
@@ -169,7 +171,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     beforeReload: () => {
       try { win.sessionStorage.setItem(layoutKey, JSON.stringify({ positions: [...railNodes].filter(([, node]) => node.parentElement!.dataset.state === 'pending').map(([key, node]) => [key, node.parentElement!.getBoundingClientRect().top]), scroll: railList.scrollTop, at: Date.now() })); } catch { /* Storage may be unavailable. */ }
     },
-    onChange: items => { extensions = items; extensionsReady = true; void load(); },
+    onChange: items => { extensions = items; extensionsReady = true; extensionsListed = true; void load(); },
     onLoadError: () => { extensionsReady = true; render(); },
     reveal: name => { const item = worldLibrary(worlds, extensions, recent).find(entry => entry.key === name); if (item) reveal(item); },
     onAdded: (name, from) => { const previous = recent.indexOf(name); if (previous >= 0) recent.splice(previous, 1); recent.unshift(name); selected = name; arrival = { key: name, from }; railList.scrollTop = 0; },
@@ -317,9 +319,10 @@ export function mountWorlds(ctx: FeatureContext): void {
       live.add(entry.group.id);
       const node = groupNode(entry.group);
       placeChildren(node.list, entry.keys.map(entryOf));
-      paintGroup(entry.group);
       return node.el;
     }));
+    // Counted once every row is placed: a row that left a group drawn earlier is out of its list by now.
+    for (const entry of arranged.entries) if (!('key' in entry)) paintGroup(entry.group);
     for (const [id, node] of groupNodes) if (!live.has(id)) { node.el.remove(); groupNodes.delete(id); }
     applyFilter(); syncDraggable();
   }
@@ -520,7 +523,15 @@ export function mountWorlds(ctx: FeatureContext): void {
     if (m) actions.append(slot('configure', iconButton('settings', S.configure, '', () => router.navigate([PROVIDER_ROUTE, worldPageId(m.id)]))));
     if (m && !pending && !failed) {
       const runtime: HTMLButtonElement[] = [];
-      if (m.status === 'active') {
+      // Built-in Worlds stay on and visible; their off switches are greyed with the reason.
+      const builtin = pack ? !!pack.builtin : extensionsListed;
+      const locked = (button: HTMLButtonElement) => { button.setAttribute('aria-disabled', 'true'); button.title = S.builtinAlwaysOn; button.setAttribute('aria-label', `${button.getAttribute('aria-label')}: ${S.builtinAlwaysOn}`); return button; };
+      if (m.status === 'active' && builtin) {
+        if (canToggleVisibility) runtime.push(m.visible === false
+          ? slot('visibility', iconButton('eye-off', S.showToAgent, '', () => void changeWorld(m, 'visibility', true)))
+          : slot('visibility', locked(iconButton('eye', S.hideFromAgent, 'iobtn-visible', () => {}))));
+        if (canActivate) runtime.push(slot('power', locked(iconButton('power', S.deactivateWorld, 'iobtn-power is-on', () => {}))));
+      } else if (m.status === 'active') {
         if (canToggleVisibility) runtime.push(slot('visibility', iconButton(m.visible === false ? 'eye-off' : 'eye', m.visible === false ? S.showToAgent : S.hideFromAgent, m.visible === false ? '' : 'iobtn-visible', () => void changeWorld(m, 'visibility', m.visible === false))));
         if (canActivate) runtime.push(slot('power', iconButton('power', S.deactivateWorld, 'iobtn-power is-on', () => void changeWorld(m, 'activation', false))));
       } else if (canActivate) runtime.push(slot('power', iconButton('power', S.activateWorld, 'iobtn-power', () => void changeWorld(m, 'activation', true))));

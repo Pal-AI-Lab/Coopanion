@@ -19,6 +19,7 @@ export const S: Partial<typeof en> = {
   pendingNote: "Расширения выше вступят в силу после перезапуска процесса.",
   configure: "Настроить",
   packageInfo: "Сведения о расширении",
+  builtinAlwaysOn: "Встроенные World всегда включены.",
   modeOff: "Остановлен",
   modeRunning: "Только работа",
   modeAttached: "Подключён",

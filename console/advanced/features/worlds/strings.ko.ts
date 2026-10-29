@@ -13,6 +13,7 @@ export const S: Partial<typeof en> = {
   pendingNote: "위 확장은 프로세스를 재시작한 뒤 적용됩니다.",
   configure: "구성",
   packageInfo: "확장 정보",
+  builtinAlwaysOn: "내장 World는 항상 켜져 있습니다.",
   modeOff: "중지됨",
   modeRunning: "실행만",
   modeAttached: "연결됨",

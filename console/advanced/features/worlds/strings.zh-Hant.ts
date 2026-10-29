@@ -13,6 +13,7 @@ export const S: Partial<typeof en> = {
   pendingNote: "以上擴充需重新啟動處理程序後生效。",
   configure: "配置",
   packageInfo: "擴充資訊",
+  builtinAlwaysOn: "內建擴充始終開啟。",
   modeOff: "已停用",
   modeRunning: "僅執行",
   modeAttached: "已接入",

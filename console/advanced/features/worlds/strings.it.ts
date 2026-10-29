@@ -13,6 +13,7 @@ export const S: Partial<typeof en> = {
   pendingNote: "Le estensioni qui sopra hanno effetto dopo il riavvio del processo.",
   configure: "Configura",
   packageInfo: "Info estensione",
+  builtinAlwaysOn: "I World integrati restano sempre attivi.",
   modeOff: "Fermo",
   modeRunning: "Solo esecuzione",
   modeAttached: "Connesso",

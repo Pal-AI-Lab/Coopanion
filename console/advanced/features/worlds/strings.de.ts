@@ -13,6 +13,7 @@ export const S: Partial<typeof en> = {
   pendingNote: "Die obigen Erweiterungen wirken erst nach dem Neustart des Prozesses.",
   configure: "Konfigurieren",
   packageInfo: "Erweiterungsinfo",
+  builtinAlwaysOn: "Integrierte Worlds sind immer an.",
   modeOff: "Gestoppt",
   modeRunning: "Nur ausführen",
   modeAttached: "Verbunden",

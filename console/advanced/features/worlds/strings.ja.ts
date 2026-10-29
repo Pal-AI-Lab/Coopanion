@@ -13,6 +13,7 @@ export const S: Partial<typeof en> = {
   pendingNote: "上の拡張はプロセスの再起動後に反映されます。",
   configure: "設定",
   packageInfo: "拡張の情報",
+  builtinAlwaysOn: "内蔵の World は常にオンです。",
   modeOff: "停止中",
   modeRunning: "実行のみ",
   modeAttached: "接続中",

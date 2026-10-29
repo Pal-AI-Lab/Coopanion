@@ -1049,6 +1049,24 @@ describe('World library and catalog', () => {
     expect(Object.values(saved.groups)).toEqual([expect.objectContaining({ name: '聊天', collapsed: true, items: [] })]);
     expect(saved.top[0]).toMatch(/^group:/);
   });
+  it('keeps a built-in World on and visible: its hide and power controls are greyed', async () => {
+    const worlds = [{ id: 'core', label: 'Core', status: 'active', visible: true }];
+    const { root, ctx } = await openWorlds({ worlds }, { worlds: true, extensions: true, worldActivation: true, worldVisibility: true, restart: true, supervised: true });
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'world:core');
+    for (const slot of ['visibility', 'power']) expect(row.querySelector(`[data-slot="${slot}"]`).getAttribute('aria-disabled')).toBe('true');
+    row.querySelector('[data-slot="power"]').click(); await flush();
+    expect(document.querySelector('.modal')).toBeNull();
+    expect(calls.some(call => call.url === '/api/worlds/activation')).toBe(false);
+  });
+  it('recounts a group after one of its rows moves out', async () => {
+    window.localStorage.setItem('coopanion.world-groups.v1', JSON.stringify({ top: ['group:g', 'world:builtin'], groups: { g: { name: 'G', collapsed: false, items: ['alpha-mod', 'delta-mod'] } } }));
+    stub({}); window.history.replaceState(null, '', '#/world');
+    const context = mkCtx({ worlds: true, extensions: true, worldActivation: true, restart: true, supervised: true }); lives.push(context.lifecycle);
+    mountWorlds(context.ctx); await flush();
+    const root = context.root;
+    expect(root.querySelector('.world-group-count').textContent).toBe(String(root.querySelectorAll('.world-group-list .world-library-entry').length));
+  });
   it('greys out an unavailable uninstall and names the reason', async () => {
     const { root, ctx } = await openWorlds();
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();

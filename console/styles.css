@@ -2002,8 +2002,8 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-library-item:focus-visible{outline:none}
 .world-library-item:focus-visible .world-avatar{outline:2px solid var(--accent);outline-offset:3px}
 .world-blade:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:0 11px 11px 0}
-.world-restart-row{display:flex;align-items:center;gap:12px;width:var(--world-entry-width);margin-top:8px;transition:width var(--world-duration) var(--world-easing)}
-.world-workspace[data-view=market] .world-restart-row{width:var(--world-rail-width)}
+.world-restart-row{display:flex;align-items:center;gap:12px;width:var(--world-entry-width);height:auto;margin-top:8px;transition:width var(--world-duration) var(--world-easing),height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 200ms}
+.world-workspace[data-view=market] .world-restart-row{width:var(--world-rail-width);height:0;margin-top:0;opacity:0;overflow:clip;pointer-events:none}
 .world-restart-row:has(.extension-restart[hidden]){display:none}
 .world-restart-note{font-size:12px;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity 200ms}
 .world-workspace[data-view=market] .world-restart-note{opacity:0}
@@ -2045,6 +2045,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-blade-actions .iobtn[aria-disabled=true]:hover{background:transparent;color:inherit}
 /* Power is a round switch: green while the World runs, red while it is off. */
 .world-blade-actions .iobtn-power{width:28px;height:28px;margin:1px;border-radius:50%;color:var(--danger);background:color-mix(in srgb,var(--danger) 8%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--danger) 55%,transparent);transition:background-color 160ms,color 160ms,box-shadow 160ms,transform 120ms}
+.world-blade-actions .iobtn-power[aria-disabled=true]{opacity:.4}
 .world-blade-actions .iobtn-power:hover:not(:disabled){color:var(--danger);background:color-mix(in srgb,var(--danger) 15%,transparent)}
 .world-blade-actions .iobtn-power.is-on{color:#fff;background:var(--accent);box-shadow:0 1px 4px color-mix(in srgb,var(--accent) 45%,transparent)}
 .world-blade-actions .iobtn-power.is-on:hover:not(:disabled){color:#fff;background:color-mix(in srgb,var(--accent) 88%,var(--ink))}
@@ -2201,7 +2202,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-workspace[data-view=mine] .is-filtered-out{display:none}
 /* Groups: a header row, then its rows. The market view's rail drops the headers and shows every avatar. */
 .world-ready-group{position:relative}
-.world-group-head{display:flex;align-items:center;gap:2px;width:var(--world-entry-width);height:32px;margin:6px 0 6px;padding:0 4px 0 0;border-radius:8px;overflow:hidden;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 200ms,background-color 150ms}
+.world-group-head{display:flex;align-items:center;gap:2px;width:var(--world-entry-width);height:36px;margin:4px 0 6px;padding:0 4px 0 0;border-radius:8px;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 200ms,background-color 150ms}
 .world-group-head[draggable=true]{cursor:grab}
 .world-group-head.is-drop-target{background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .world-group-toggle{display:flex;align-items:center;gap:8px;min-width:0;height:100%;padding:0 8px 0 6px;border:0;border-radius:8px;background:transparent;font:600 13px/1 var(--sans);color:var(--ink-soft);cursor:pointer}
@@ -2213,11 +2214,12 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-group-count{flex:none;min-width:18px;padding:2px 6px;border-radius:9px;background:var(--hover);font:500 11px/1.2 var(--sans);color:var(--ink-dim);text-align:center}
 .world-group-action{opacity:0;transition:opacity 150ms}
 .world-group-head:is(:hover,:focus-within) .world-group-action{opacity:1}
-.world-group-rename{height:28px;min-height:28px;width:200px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--sheet);font:600 13px var(--sans)}
-.world-group-rename:focus,.world-group-rename:focus-visible{outline:none;box-shadow:none;border-color:var(--line-strong)}
+/* The rename field is the filter row's field: same height, border and focus. */
+.world-group-head input.world-group-rename{width:240px;height:32px;min-height:32px;padding-block:0;font-size:12.5px}
+.world-group-head input.world-group-rename:is(:focus,:focus-visible){outline:none;box-shadow:none;border-color:var(--line-strong)}
 .world-group-list{height:auto;overflow:clip;overflow-clip-margin:8px;transition:height var(--world-duration) var(--world-easing),opacity 240ms}
 .world-workspace[data-view=mine] .world-group.is-collapsed .world-group-list{height:0;opacity:0}
-.world-workspace[data-view=market] .world-group-head{height:0;margin:0;opacity:0;pointer-events:none}
+.world-workspace[data-view=market] .world-group-head{height:0;margin:0;opacity:0;overflow:clip;pointer-events:none}
 .world-drop-line{position:absolute;left:0;z-index:3;width:var(--world-entry-width);height:2px;margin-top:-1px;border-radius:2px;background:var(--accent);pointer-events:none}
 .world-drop-line[hidden]{display:none}
 .world-library-entry.is-dragging,.world-group.is-dragging{opacity:.4}
