@@ -220,6 +220,10 @@ ${super.partnerDoc() || `(${PARTNER_FILE} is empty.)`}`;
         this.core?.injectInternal(`[system] The World "${event.label}" failed to start and is not running this time: ${event.reason}`, 'notice');
         return;
       }
+      if (event.kind === 'failed') {
+        this.core?.injectInternal(`[system] The World "${event.label}" hit an error while running and was turned off; it is not running this time: ${event.reason}`, 'notice');
+        return;
+      }
       const what = event.kind === 'visibility'
         ? (event.visible ? 'is visible to you again' : 'is hidden from you; its events no longer reach you')
         : event.kind === 'mounted' ? 'is on' : event.kind === 'unmounted' ? 'is off' : 'restarted';
