@@ -308,9 +308,11 @@ describe('installation feedback', () => {
     const { root } = mount(); await flush();
     const control = root.querySelector('.extension-get'); control.focus(); control.click(); await flush();
     expect(document.activeElement.classList.contains('extension-market-card')).toBe(true);
-    finish(); await flush();
+    // The install settles through a chain of requests whose length in microtask turns differs between
+    // Node versions, so wait for the outcome instead of counting turns.
+    finish();
+    await vi.waitFor(() => expect(root.querySelector('.extension-get').getAttribute('aria-label')).toBe('已安装'));
     expect(document.activeElement.dataset.name).toBe('found-mod');
-    expect(root.querySelector('.extension-get').getAttribute('aria-label')).toBe('已安装');
   });
   it('an empty category says there are no packages yet', async () => {
     stub({ hits: { hits: [] } });
