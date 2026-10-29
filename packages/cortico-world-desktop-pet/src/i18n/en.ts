@@ -165,7 +165,6 @@ const en: PetText = {
   /** Importing packs on the dressing page. */
   importing: {
     badZip: (why: string) => `Not a readable zip: ${why}`,
-    tooBig: (mb: number) => `Over ${mb} MB unpacked`,
     truncated: 'The upload is incomplete',
     badPath: (path: string) => `A path cannot be used: ${path}`,
     builtinId: (id: string) => `id ${id} belongs to a built-in figure; change the id to import it`,
@@ -174,7 +173,6 @@ const en: PetText = {
     expired: 'This import has expired; choose the files again',
     noneChosen: 'No pack is chosen',
     zipOrFolder: 'Only a zip or folders can be imported',
-    overLimit: (mb: number) => `Over ${mb} MB`,
   },
 
   /** Uninstalling packs on the dressing page. */

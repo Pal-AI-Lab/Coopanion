@@ -149,7 +149,6 @@ const ru: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Не удаётся прочитать zip: ${why}`,
-    tooBig: (mb: number) => `Больше ${mb} МБ в распакованном виде`,
     truncated: 'Загрузка неполная',
     badPath: (path: string) => `Путь нельзя использовать: ${path}`,
     builtinId: (id: string) => `id ${id} принадлежит встроенному персонажу; измените id, чтобы импортировать пакет`,
@@ -158,7 +157,6 @@ const ru: Translation<PetText> = {
     expired: 'Срок этого импорта истёк; выберите файлы заново',
     noneChosen: 'Пакет не выбран',
     zipOrFolder: 'Импортировать можно только zip или папки',
-    overLimit: (mb: number) => `Больше ${mb} МБ`,
   },
 
   removing: {

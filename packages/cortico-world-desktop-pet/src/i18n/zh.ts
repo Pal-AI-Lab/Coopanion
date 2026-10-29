@@ -162,7 +162,6 @@ export default {
   /** 在装扮页导入形象包 */
   importing: {
     badZip: (why: string) => `这不是能读的 zip：${why}`,
-    tooBig: (mb: number) => `解开后超过 ${mb} MB`,
     truncated: '上传的内容不完整',
     badPath: (path: string) => `有一个路径不能用：${path}`,
     builtinId: (id: string) => `id ${id} 是内置形象的，换个 id 才能导入`,
@@ -171,7 +170,6 @@ export default {
     expired: '这次导入已经过期，请重新选择',
     noneChosen: '没有选要导入的形象包',
     zipOrFolder: '只收 zip 或文件夹',
-    overLimit: (mb: number) => `超过 ${mb} MB`,
   },
 
   /** 在装扮页卸载形象包 */
