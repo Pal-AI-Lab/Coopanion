@@ -137,7 +137,21 @@ export function createRail(deps: RailDeps): Rail {
   /** Draws the groups in order; entries the normal mode does not list are hidden at once. */
   /** Pages listed by the last draw; a page new since then arrives with an animation. */
   let listedPages: Set<string> | null = null;
+  /** How long a page leaving the sidebar folds away (companion.css `.companion-depart`). */
+  const DEPART_MS = 320;
+  let departing: ReturnType<typeof setTimeout> | undefined;
+  signal.addEventListener('abort', () => clearTimeout(departing), { once: true });
+  /** Pages that leave the sidebar fold away first; the redraw follows. */
   const setNav = (groups: readonly NavGroup[]): void => {
+    clearTimeout(departing); departing = undefined;
+    const next = new Set(groups.flatMap((g) => [...g.items, ...(g.modules ?? [])]).flatMap((it) => it.pageId ? [it.pageId] : []));
+    const leaving = entries.filter((entry) => entry.pageId && !next.has(entry.pageId) && !entry.item.hidden && entry.item.isConnected);
+    const still = doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (!leaving.length || still) { drawNav(groups); return; }
+    for (const { item } of leaving) item.classList.add('companion-depart');
+    departing = setTimeout(() => { departing = undefined; drawNav(groups); }, DEPART_MS);
+  };
+  const drawNav = (groups: readonly NavGroup[]): void => {
     const before = listedPages;
     navLife?.abort();
     navLife = new AbortController();

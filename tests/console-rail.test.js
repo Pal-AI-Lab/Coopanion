@@ -69,6 +69,22 @@ afterEach(() => {
 });
 
 describe('settings window rail', () => {
+  it('folds away a World page leaving the sidebar before redrawing, and animates one that joins', () => {
+    vi.useFakeTimers();
+    try {
+      const { rail } = mount();
+      rail.setMode('advanced', false);
+      const world = (pageIds) => [...nav, { kind: 'world-tree', label: 'World', items: [], modules: pageIds.map((pageId) => ({ label: pageId, segments: ['provider', pageId], basic: false, pageId, lamps: [] })) }];
+      rail.setNav(world(['world:a', 'world:b']));
+      rail.setNav(world(['world:a']));
+      const leaving = rail.el.querySelector('a.navitem[href*="world:b"], a.navitem[href*="world%3Ab"]');
+      expect(leaving.classList.contains('companion-depart')).toBe(true);
+      vi.advanceTimersByTime(400);
+      expect(rail.el.querySelector('a.navitem[href*="world:b"], a.navitem[href*="world%3Ab"]')).toBeNull();
+      rail.setNav(world(['world:a', 'world:b']));
+      expect(rail.el.querySelector('a.navitem[href*="world:b"], a.navitem[href*="world%3Ab"]').classList.contains('companion-arrive')).toBe(true);
+    } finally { vi.useRealTimers(); }
+  });
   it('retains the C and both eyes while toggling and restores the choice after remount', () => {
     const { rail, toggle, dispose } = mount();
     const eyes = [...rail.el.querySelectorAll('.companion-brand .accent')];
