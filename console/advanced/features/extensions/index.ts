@@ -1368,7 +1368,9 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       const badgeList = listed ? badgesOf(listed) : [];
       if (badgeList.length) { const badges = ui.h('div', 'extension-detail-badges'); badges.append(...badgeList); heading.append(badges); }
       header.append(heading);
-      const cta = ui.h('div', 'extension-detail-cta');
+      // The control centres on the header; what goes under it (problems, removal, the version history)
+      // hangs below it, outside the centring.
+      const cta = ui.h('div', 'extension-detail-cta'), below = ui.h('div', 'extension-detail-cta-below');
       // The market card's control, repainted with the cards: install, its progress, an update, installed.
       if (!item?.builtin) {
         const isInstalled = () => installed.some(entry => entry.name === data.name && entry.state !== 'removed');
@@ -1378,8 +1380,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
         const paint = () => control.replaceChildren(installControl({ ...base, name: data.name, version: data.version, os, installed: isInstalled() }, owner, { anchor, blocked }));
         paint(); detailControls.set(control, paint); cta.append(control);
         if (!isInstalled()) {
-          for (const text of data.problems ?? []) cta.append(ui.h('p', 'extension-cta-problem', text));
-          if (!osSupported(os)) cta.append(ui.h('p', 'extension-cta-problem', S.osUnsupported(platformName(platform))));
+          for (const text of data.problems ?? []) below.append(ui.h('p', 'extension-cta-problem', text));
+          if (!osSupported(os)) below.append(ui.h('p', 'extension-cta-problem', S.osUnsupported(platformName(platform))));
         }
       }
       if (owner === 'provider' && local && local.state !== 'removed') {
@@ -1392,16 +1394,16 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
         } });
         erase.disabled = !!local.builtin || busy.has(local.name);
         if (local.builtin) erase.title = S.builtinNote;
-        cta.append(erase);
+        below.append(erase);
       }
       if (listed?.supersededBy) {
         const next = listed.supersededBy, target = states[owner].hits.find(entry => entry.name === next);
         const [before, after] = S.supersededBy.split('{}');
         const link = ui.h('a', 'extension-superseded-link', target?.displayName ?? next); link.href = '#';
         link.addEventListener('click', event => { event.preventDefault(); openDetail(target ?? { name: next, version: '', description: '', downloads: {}, dependents: 0, links: {}, installed: false }, owner); }, { signal });
-        const line = ui.h('p', 'extension-cta-superseded'); line.append(before, link, after); cta.append(line);
+        const line = ui.h('p', 'extension-cta-superseded'); line.append(before, link, after); below.append(line);
       }
-      header.append(cta);
+      cta.append(below); header.append(cta);
       const links = ui.rowbar(); links.classList.add('extension-detail-actions');
       for (const [name, href] of Object.entries(data.links)) if (href && /^https?:\/\//i.test(href)) {
         const label = S.linkNames[name as keyof typeof S.linkNames];
@@ -1491,7 +1493,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
           if (body) row.append(body);
           history.append(row);
         }
-        releases.append(data.history.length ? history : ui.h('p', 'muted extension-history-empty', S.noHistory)); cta.append(releases);
+        releases.append(data.history.length ? history : ui.h('p', 'muted extension-history-empty', S.noHistory)); below.append(releases);
       }
       columns.classList.toggle('is-split', indexed); box.closest('.modalcard')?.classList.toggle('extension-detail-card', indexed);
       if (indexed) { const side = ui.h('aside', 'extension-detail-side'); side.append(commentsSection(listed?.name ?? data.name, listed?.rating)); columns.append(side); }

@@ -182,7 +182,7 @@ const zh = {
   osExcept: (names: string) => `不支持 ${names}`,
   osUnsupported: (current: string) => `不支持当前系统（${current}）`,
   supersededBy: '已被 {} 取代',
-  feedbackTags: '反馈标签',
+  feedbackTags: '标签反馈',
   tagIssuePrefix: '[标签]',
   changelogLink: '更新日志',
   openDiscussion: '在 GitHub 上查看讨论',

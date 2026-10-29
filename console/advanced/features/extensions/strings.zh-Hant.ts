@@ -123,5 +123,5 @@ export const S: Partial<typeof en> = {
   downloads: (total: string, month: string, week: string) => `累計 ${total} · 30 天 ${month} · 7 天 ${week}`,
   metaSeparator: '　',
   listSeparator: '、',
-  feedbackTags: '回報標籤',
+  feedbackTags: '標籤回報',
 };
