@@ -38,7 +38,7 @@ const zh = {
   saveCurrent: '保存当前方案',
   saveAsCustom: '另存为自定义',
   builtinHint: '内置方案不可覆盖；调色后可另存为自定义。',
-  saveFailed: (reason: string) => `配色没能存进部署：${reason}`,
+  saveFailed: (reason: string) => `配色没能保存到部署：${reason}`,
   customHint: '自定义方案可直接保存；浅色与黑夜变体互相独立。',
   specimenTitle: '组件试色',
   thinkLabel: '思考',

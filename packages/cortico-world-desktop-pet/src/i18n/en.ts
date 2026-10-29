@@ -226,7 +226,7 @@ const en: PetText = {
       pet: { title: 'Desktop pet', description: 'The window, the dress and the window runtime.' },
       voice: { title: 'Voice input', description: 'Recognition engine, input level and what was heard.' },
     },
-    envPrompt: { title: 'Desktop pet environment', description: "Describes the pet's body, four tools and input events." },
+    envPrompt: { title: 'Desktop pet environment', description: "Describes the pet's body, tools and input events." },
     vars: {
       'pet.user': 'What the bot calls the person',
       'pet.vocab': "The current figure's expressions and motions",

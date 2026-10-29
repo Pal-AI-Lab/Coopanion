@@ -29,7 +29,7 @@ export const S: Partial<typeof en> = {
   saveCurrent: '儲存目前方案',
   saveAsCustom: '另存為自訂',
   builtinHint: '內建方案不可覆寫；調色後可另存為自訂。',
-  saveFailed: (reason: string) => `配色未能存進部署：${reason}`,
+  saveFailed: (reason: string) => `配色未能儲存到部署：${reason}`,
   customHint: '自訂方案可直接儲存；淺色與黑夜變體互相獨立。',
   specimenTitle: '元件試色',
   thinkLabel: '思考',

@@ -15,14 +15,14 @@ module.exports = {
   coreIncomplete: (url, logFile) => `Coopanion 的程序文件不完整，Core 无法启动。请从 ${url} 下载完整的安装包，安装到原来的文件夹；设置、API Key、提示词和记忆都会保留。日志：${logFile}`,
   coreRestarting: (code) => `Core 意外退出（退出码 ${code}），3 秒后重启`,
   /** 另一个进程占着数据目录的实例锁,Core 没有启动;系统通知和错误框里显示 */
-  coreLocked: (pid, file) => `另一个进程${pid ? `（PID ${pid}）` : ''}正在使用 Coopanion 的数据，Core 没有启动。等它退出或手动结束它，再从托盘菜单选「重新启动」。锁文件：${file}`,
+  coreLocked: (pid, file) => `另一个进程${pid ? `（PID ${pid}）` : ''}正在使用 Coopanion 的数据，Core 没有启动。等它退出或手动结束它，再从托盘菜单选择「重新启动」。锁文件：${file}`,
   /** 控制台试过的端口都监听不了,Core 没有启动;系统通知和错误框里显示 */
   corePortsBusy: (from, to) => `控制台端口 ${from}–${to} 都被占用，Core 没有启动。可能已经有 ${to - from + 1} 只 Coopanion 在运行，或者别的程序占用了这些端口。关掉其中一只或那个程序，再从托盘菜单选择「重新启动」。`,
 
   /** 一次自动更新把程序挪了位置,旧的数据目录还留在原处时问一次 */
   strandedMessage: '找到更新前的设置',
   strandedDetail: (stranded, parent) => `之前的一次自动更新把 Coopanion 装到了现在的位置，更新前的设置、API Key、提示词和记忆还留在：\n${stranded}\n\n`
-    + `换回后，现在这份改名为 data-replaced-<时间>，留在 ${parent} 里，不会删除。选「继续使用当前设置」以后不再询问。`,
+    + `换回后，现在这份改名为 data-replaced-<时间>，留在 ${parent} 里，不会删除。选择「继续使用当前设置」以后不再询问。`,
   strandedRestore: '换回更新前的设置',
   strandedKeep: '继续使用当前设置',
 

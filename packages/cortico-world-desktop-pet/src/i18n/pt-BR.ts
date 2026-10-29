@@ -197,7 +197,7 @@ const ptBR: Translation<PetText> = {
       pet: { title: 'Pet de área de trabalho', description: 'A janela, o visual e o ambiente de execução da janela.' },
       voice: { title: 'Entrada de voz', description: 'Motor de reconhecimento, nível de entrada e o que foi ouvido.' },
     },
-    envPrompt: { title: 'Ambiente do pet de área de trabalho', description: 'Descreve o corpo do pet, as quatro ferramentas e os eventos de entrada.' },
+    envPrompt: { title: 'Ambiente do pet de área de trabalho', description: 'Descreve o corpo do pet, as ferramentas e os eventos de entrada.' },
     vars: {
       'pet.user': 'Como o bot chama a pessoa',
       'pet.vocab': 'As expressões e os movimentos do personagem atual',

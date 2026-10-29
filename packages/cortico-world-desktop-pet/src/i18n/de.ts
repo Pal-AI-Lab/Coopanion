@@ -197,7 +197,7 @@ const de: Translation<PetText> = {
       pet: { title: 'Desktop-Haustier', description: 'Das Fenster, das Outfit und die Fenster-Laufzeit.' },
       voice: { title: 'Spracheingabe', description: 'Erkennungs-Engine, Eingangspegel und was gehört wurde.' },
     },
-    envPrompt: { title: 'Desktop-Haustier-Umgebung', description: 'Beschreibt den Körper des Haustiers, die vier Tools und die Eingabeereignisse.' },
+    envPrompt: { title: 'Desktop-Haustier-Umgebung', description: 'Beschreibt den Körper des Haustiers, die Tools und die Eingabeereignisse.' },
     vars: {
       'pet.user': 'Wie der Bot die Person nennt',
       'pet.vocab': 'Die Ausdrücke und Bewegungen der aktuellen Figur',

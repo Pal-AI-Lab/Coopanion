@@ -17,7 +17,7 @@ export const S: Partial<typeof en> = {
   composerLabel: '控制台訊息輸入',
   composerPlaceholder: '輸入訊息…',
   exportDiagnostics: '匯出診斷',
-  exportFailed: '診斷包取不回來',
+  exportFailed: '無法取得診斷包',
   exportConfirmTitle: '匯出診斷包',
   exportConfirmBody: '診斷包包含對話、提示詞、事件、工具呼叫、用量和執行日誌。設定裡的金鑰已遮蔽，其餘內容原樣寫出。分享前請檢查其中的私人資訊。',
   composerFork: '正在查看背景工作階段；這裡發出的訊息仍送到主工作階段',

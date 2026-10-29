@@ -433,6 +433,8 @@ export interface ExtensionWorkspace {
   onAdded(name: string, from?: DOMRect): void;
   /** Shows the installed package's row in the World library. */
   reveal(name: string): void;
+  /** The installed packages that have an update, by name, each time that set changes. */
+  onUpdates(updates: ReadonlyMap<string, { installedVersion: string; latestVersion: string }>): void;
 }
 /** Resolves the control an operation's error popover points at; the control may be re-rendered meanwhile. */
 export type Anchor = () => Element | null | undefined;
@@ -473,6 +475,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   const saveExclusions = () => { try { win.localStorage.setItem(exclusionsKey, JSON.stringify(exclusions)); } catch { /* Optional browser state. */ } };
   let installed: ExtensionView[] = [];
   let updates = new Map<string, UpdateView>();
+  const announceUpdates = () => workspace?.onUpdates(new Map(updates));
   let directory = '';
   /** 服务端的 `process.platform`;列表回来之前是空串,这时不按平台拦安装。 */
   let platform = '';
@@ -864,7 +867,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       }
       return list;
     };
-    const heading = (text: string, count?: number) => { const h = ui.h('h5', '', text); if (count !== undefined) h.append(ui.h('span', 'extension-describe-count', String(count))); return h; };
+    // Headed like the information tab's 简介; a count follows the title.
+    const heading = (text: string, count?: number) => { const h = ui.h('h4', 'extension-detail-heading-note', text); if (count !== undefined) h.append(ui.h('span', 'extension-describe-count', String(count))); return h; };
     if (describe.provider) {
       const p = describe.provider;
       section.append(ui.kv([
@@ -895,8 +899,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     if (!describe?.prompts?.length) return null;
     const section = ui.h('section', 'extension-describe extension-prompts');
     for (const prompt of describe.prompts) {
-      const head = ui.h('div', 'extension-prompt-head');
-      head.append(ui.h('h5', '', prompt.title), ui.h('code', '', prompt.key), copyIcon(prompt.content));
+      // Headed like the information tab's 简介; the prompt's key follows the title.
+      const head = ui.h('h4', 'extension-detail-heading-note', prompt.title); head.append(ui.h('code', '', prompt.key));
       section.append(head, ui.h('pre', 'extension-prompt-body', prompt.content));
     }
     return { title: S.promptsTabWorld, el: section };
@@ -1140,16 +1144,28 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const button = restartRoot.querySelector<HTMLButtonElement>('.extension-restart');
     if (button) { button.hidden = !pending; button.disabled = busy.size > 0 || restartRoot.classList.contains('is-restarting'); }
   }
-  /** The market card's one control: install, its progress, an available update, or a link to the installed package's row. */
+  /** The market card's control; an installed package's leads to its row. */
   function getButton(hit: SearchHitView & { installed: boolean }, owner: Category): HTMLButtonElement {
-    const update = updates.get(hit.name), working = busy.has(hit.name);
+    return installControl(hit, owner, {
+      anchor: () => marketGrid.querySelector(`.extension-market-card[data-name="${CSS.escape(hit.name)}"] .extension-get`),
+      onInstalled: () => { if (workspace) workspace.reveal(hit.name); else details(hit.name); },
+    });
+  }
+  /**
+   * The install control the market cards and the detail page share: install, its progress, an
+   * available update, or the installed mark (a link when `onInstalled` is given). Errors open beside
+   * the control `anchor` finds; `blocked` keeps an install from starting.
+   */
+  function installControl(hit: SearchHitView & { installed: boolean }, owner: Category, opts: { anchor: Anchor; onInstalled?: () => void; blocked?: boolean }): HTMLButtonElement {
+    const update = updates.get(hit.name), working = busy.has(hit.name), { anchor } = opts;
     if (hit.installed && !update && !working) {
       const done = ui.h('button', 'extension-get is-installed') as HTMLButtonElement; done.type = 'button';
       done.setAttribute('aria-label', S.alreadyInstalled); attachHint(done, S.alreadyInstalled); done.append(icon(doc, 'check'));
-      done.addEventListener('click', event => { event.stopPropagation(); if (workspace) workspace.reveal(hit.name); else details(hit.name); }, { signal });
+      const open = opts.onInstalled;
+      if (open) done.addEventListener('click', event => { event.stopPropagation(); open(); }, { signal });
+      else done.classList.add('is-mark');
       return done;
     }
-    const anchor: Anchor = () => marketGrid.querySelector(`.extension-market-card[data-name="${CSS.escape(hit.name)}"] .extension-get`);
     const label = working ? S.progress(hit.installed ? S.updatedAction : S.installedAction, hit.name) : update ? `${S.updateAction} ${S.updateVersions(update.installedVersion, update.latestVersion)}` : owner === 'provider' ? S.install : S.addToLibrary;
     const button = ui.h('button', 'extension-get' + (working ? ' is-working' : update ? ' is-update' : '')) as HTMLButtonElement; button.type = 'button';
     button.setAttribute('aria-label', label);
@@ -1166,7 +1182,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       return button;
     }
     attachHint(button, label);
-    button.disabled = !osSupported(hit.os ?? []);
+    button.disabled = !!opts.blocked || !osSupported(hit.os ?? []);
     button.addEventListener('click', async event => {
       event.stopPropagation(); button.disabled = true;
       const warnings = (hit.tags ?? []).filter(id => marketIndex.tags[id]?.style === 'warning');
@@ -1180,13 +1196,13 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const style = win.getComputedStyle(card), edge = (name: string) => parseFloat(style.getPropertyValue(name)) || 0;
     return Math.max(0, card.offsetHeight - edge('padding-top') - edge('padding-bottom') - edge('border-top-width') - edge('border-bottom-width'));
   };
+  /** The end of the market's reveal while it runs (see ExtensionController.activate); renders meanwhile hold their cards until then. */
+  let revealEnd: Promise<unknown> | undefined;
   /**
    * Renders the cards in the window now rather than a frame later, so this frame's layout, which a
    * reflow measures, is the one that will show. A rendered card's own height can bring the next one
    * into view. They go back to skipping by themselves once drawn, or once `until` settles.
    */
-  /** The end of the market's reveal while it runs (see ExtensionController.activate); renders meanwhile hold their cards until then. */
-  let revealEnd: Promise<unknown> | undefined;
   function renderInView(until = revealEnd) {
     const bottom = scrollerOf(marketGrid)?.getBoundingClientRect().bottom ?? win.innerHeight, shown: HTMLElement[] = [];
     for (const card of marketGrid.querySelectorAll<HTMLElement>(':scope > .extension-market-card')) {
@@ -1286,6 +1302,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     }
     for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) foldTags(row);
     renderInView();
+    for (const [control, paint] of detailControls) if (control.isConnected) paint(); else detailControls.delete(control);
     if (!result.matched) marketGrid.append(emptyMarket(state));
     pager(marketPager, result.matched, result.page, pageSize(), page => { marketGrid.style.minHeight = `${marketGrid.getBoundingClientRect().height}px`; state.page = page; renderMarket(true); save(); });
     reflow?.play();
@@ -1395,7 +1412,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   async function checkUpdates() {
     if (signal.aborted) return;
     const generation = ++updateGeneration;
-    try { const data = await get<UpdateResultView>('/api/extensions/updates', { signal }); if (signal.aborted || generation !== updateGeneration) return; updates = new Map(data.updates.map(u => [u.name, u])); renderRestart(); renderMarket(); if (data.errors.length) message(kind, 'management', S.updateCheckFailed(data.errors.map(e => `${e.name}: ${e.error}`).join('; ')), true); }
+    try { const data = await get<UpdateResultView>('/api/extensions/updates', { signal }); if (signal.aborted || generation !== updateGeneration) return; updates = new Map(data.updates.map(u => [u.name, u])); announceUpdates(); renderRestart(); renderMarket(); if (data.errors.length) message(kind, 'management', S.updateCheckFailed(data.errors.map(e => `${e.name}: ${e.error}`).join('; ')), true); }
     catch (error) { if (!signal.aborted && generation === updateGeneration) message(kind, 'management', S.updateCheckFailed(errorText(error)), true); }
   }
   function search(owner: Category) { return refreshed(searchMarket(owner)); }
@@ -1422,7 +1439,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     try { registrySetting = await post<RegistryView>('/api/extensions/registry', { registry: value }, { signal }); }
     catch (error) { if (!signal.aborted) message(owner, 'registry', errorText(error), true); return; }
     if (signal.aborted) return;
-    registryDraft = null; detailsCache.clear(); updates = new Map();
+    registryDraft = null; detailsCache.clear(); updates = new Map(); announceUpdates();
     for (const state of Object.values(states)) {
       state.hits = []; state.fetched = false; state.generation++; delete state.messages.market;
       if (state.messages.management?.bad) delete state.messages.management;
@@ -1454,7 +1471,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       if (signal.aborted) return;
       const activateHint = actionLabel === S.installedAction && resultKind === 'world' ? ' ' + S.worldActivateHint : '';
       if (!quiet) report(`${S.completed(actionLabel, name)}${version ? ' ' + S.version(version) : ''} ${S.restartNeeded}${activateHint}`);
-      updateGeneration++; updates.delete(name);
+      updateGeneration++; if (updates.delete(name)) announceUpdates();
       if (action === 'install' && actionLabel === S.installedAction) workspace?.onAdded(name, anchor?.()?.closest('.extension-market-card')?.querySelector('.extension-avatar')?.getBoundingClientRect());
       if (!await load()) report(S.completed(actionLabel, name) + ' ' + S.syncedFailed, true);
     } catch (error) { if (!signal.aborted) problem = errorText(error); }
@@ -1467,6 +1484,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     if (busy.has(name) || !await ui.confirm({ title: S.remove, body: S.removeBody, danger: true }) || signal.aborted) return;
     await operate('delete', { name }, 'management', kind, anchor);
   }
+  /** The detail page's install control, repainted whenever the market's cards are. */
+  const detailControls = new Map<HTMLElement, () => void>();
   function renderDetail(box: HTMLElement, data: PackageDetailView, owner: Category, hit?: SearchHitView, item?: ExtensionView) {
       const title = box.closest('.modalcard')?.querySelector('.modaltitle');
       if (title) title.textContent = data.displayName ?? item?.metadata?.displayName ?? item?.label ?? data.name;
@@ -1482,20 +1501,21 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       const badgeList = listed ? badgesOf(listed) : [];
       if (badgeList.length) { const badges = ui.h('div', 'extension-detail-badges'); badges.append(...badgeList); heading.append(badges); }
       header.append(heading);
-      const cta = ui.h('div', 'extension-detail-cta');
-      if (!item) {
-        const isInstalled = installed.some(item => item.name === data.name && item.state !== 'removed');
-        const warnings = tags.filter(id => marketIndex.tags[id].style === 'warning');
-        const button = ui.button(isInstalled ? S.alreadyInstalled : S.install, { variant: 'primary', onClick: async () => {
-          button.disabled = true;
-          if (warnings.length && !await ui.confirm({ title: S.installWarningTitle, body: S.installWarningBody(data.name, warnings.map(id => `${marketIndex.tags[id].label}${S.labelSeparator}${plainHint(marketIndex.tags[id].hint)}`), listed?.note), danger: true })) { button.disabled = false; return; }
-          void operate('install', { name: data.name, version: data.version }, 'market', owner, undefined, note => detailFeedback(box, note)).finally(() => { if (box.isConnected) button.disabled = installed.some(item => item.name === data.name && item.state !== 'removed'); });
-        } });
-        button.classList.add('extension-detail-install'); if (!isInstalled) button.prepend(icon(doc, 'download'));
-        const os = listed?.os ?? data.os, osBlocked = !isInstalled && !osSupported(os);
-        button.disabled = isInstalled || !data.manifest || !!data.problems?.length || data.manifest.kind !== owner || osBlocked; cta.append(button);
-        for (const text of data.problems ?? []) cta.append(ui.h('p', 'extension-cta-problem', text));
-        if (osBlocked) cta.append(ui.h('p', 'extension-cta-problem', S.osUnsupported(platformName(platform))));
+      // The control centres on the header; what goes under it (problems, removal, the version history)
+      // hangs below it, outside the centring.
+      const cta = ui.h('div', 'extension-detail-cta'), below = ui.h('div', 'extension-detail-cta-below');
+      // The market card's control, repainted with the cards: install, its progress, an update, installed.
+      if (!item?.builtin) {
+        const isInstalled = () => installed.some(entry => entry.name === data.name && entry.state !== 'removed');
+        const os = listed?.os ?? data.os, base = listed ?? { description: data.description ?? '', downloads: { month: 0 }, dependents: 0, links: {} };
+        const blocked = !data.manifest || !!data.problems?.length || data.manifest.kind !== owner;
+        const control = ui.h('div', 'extension-detail-control'), anchor: Anchor = () => control.querySelector('.extension-get');
+        const paint = () => control.replaceChildren(installControl({ ...base, name: data.name, version: data.version, os, installed: isInstalled() }, owner, { anchor, blocked }));
+        paint(); detailControls.set(control, paint); cta.append(control);
+        if (!isInstalled()) {
+          for (const text of data.problems ?? []) below.append(ui.h('p', 'extension-cta-problem', text));
+          if (!osSupported(os)) below.append(ui.h('p', 'extension-cta-problem', S.osUnsupported(platformName(platform))));
+        }
       }
       if (owner === 'provider' && local && local.state !== 'removed') {
         const erase = ui.button(S.remove, { variant: 'danger', onClick: async () => {
@@ -1507,16 +1527,16 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
         } });
         erase.disabled = !!local.builtin || busy.has(local.name);
         if (local.builtin) erase.title = S.builtinNote;
-        cta.append(erase);
+        below.append(erase);
       }
       if (listed?.supersededBy) {
         const next = listed.supersededBy, target = states[owner].hits.find(entry => entry.name === next);
         const [before, after] = S.supersededBy.split('{}');
         const link = ui.h('a', 'extension-superseded-link', target?.displayName ?? next); link.href = '#';
         link.addEventListener('click', event => { event.preventDefault(); openDetail(target ?? { name: next, version: '', description: '', downloads: {}, dependents: 0, links: {}, installed: false }, owner); }, { signal });
-        const line = ui.h('p', 'extension-cta-superseded'); line.append(before, link, after); cta.append(line);
+        const line = ui.h('p', 'extension-cta-superseded'); line.append(before, link, after); below.append(line);
       }
-      header.append(cta);
+      cta.append(below); header.append(cta);
       const links = ui.rowbar(); links.classList.add('extension-detail-actions');
       for (const [name, href] of Object.entries(data.links)) if (href && /^https?:\/\//i.test(href)) {
         const label = S.linkNames[name as keyof typeof S.linkNames];
@@ -1550,10 +1570,11 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       info.append(ui.h('h4', '', S.introduction), intro);
       // 内建条目要有对应的 npm 包才在索引里
       const indexed = (!item?.builtin || !!listed) && Object.keys(marketIndex.tags).length > 0;
-      if (tags.length) { const row = ui.h('div', 'extension-tag-row'); row.append(...tags.map(id => tagChip(id))); info.append(row); }
-      if (indexed) {
-        const report = ui.h('a', 'extension-tag-feedback', S.feedbackTags); report.href = tagIssueUrl(listed?.name ?? data.name); report.target = '_blank'; report.rel = 'noopener noreferrer';
-        info.append(report);
+      // The tag feedback link follows the last tag on its line.
+      if (tags.length || indexed) {
+        const row = ui.h('div', 'extension-tag-row'); row.append(...tags.map(id => tagChip(id)));
+        if (indexed) { const report = ui.h('a', 'extension-tag-feedback', S.feedbackTags); report.href = tagIssueUrl(listed?.name ?? data.name); report.target = '_blank'; report.rel = 'noopener noreferrer'; row.append(report); }
+        info.append(row);
       }
       if (listed?.screenshots?.length) {
         const shots = ui.h('div', 'extension-screenshots');
@@ -1605,7 +1626,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
           if (body) row.append(body);
           history.append(row);
         }
-        releases.append(data.history.length ? history : ui.h('p', 'muted extension-history-empty', S.noHistory)); cta.append(releases);
+        releases.append(data.history.length ? history : ui.h('p', 'muted extension-history-empty', S.noHistory)); below.append(releases);
       }
       columns.classList.toggle('is-split', indexed); box.closest('.modalcard')?.classList.toggle('extension-detail-card', indexed);
       if (indexed) { const side = ui.h('aside', 'extension-detail-side'); side.append(commentsSection(listed?.name ?? data.name, listed?.rating)); columns.append(side); }
