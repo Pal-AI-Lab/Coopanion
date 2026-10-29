@@ -3,7 +3,7 @@
 
 Steam 版和 GitHub 版用同一份代码，构建时用 `COOPANION_CHANNEL=steam` 区分：
 
-- 由 Steam 安装和更新：不带自动更新（`app/updater.cjs`），设置窗口字标下不查 GitHub 新版本。
+- 由 Steam 安装和更新：不带自动更新（`app/updater.cjs`），设置窗口标题栏不查 GitHub 新版本。
 - 数据在 `%APPDATA%\Coopanion`。Steam 卸载时会删除整个安装目录，所以数据不放在安装目录里。
 - 不内置大肥鱼，大肥鱼作为形象包发在创意工坊。
 - 带 steamworks.js，启动时读取已订阅的创意工坊物品，每个物品当作一个形象包（`app/steam.cjs`）。

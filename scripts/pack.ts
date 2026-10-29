@@ -3,7 +3,7 @@
  *
  * The workspace's pnpm layout (symlinked packages) is not what an installed app should carry, so
  * the app directory is built flat: the app code, the release notes, the staged Cortico copy, a `package.json` with
- * only the runtime dependencies installed by npm, and the three workspace packages copied into
+ * only the runtime dependencies installed by npm, and the workspace packages (`WORKSPACE`) copied into
  * `node_modules/` as real directories.
  *
  * Run: `pnpm run build:installer` (builds build/cortico first). Output: `dist/Coopanion-Setup-<version>.exe` on

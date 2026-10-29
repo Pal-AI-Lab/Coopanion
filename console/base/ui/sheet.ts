@@ -1,7 +1,7 @@
 /**
  * 档案卡与几个行内小件。
  *
- * 视觉全部复用 `src/web/public/styles.css` 里的共享 class。`sheetbody` 是卡片内部
+ * 视觉全部复用 `console/styles.css` 里的共享 class。`sheetbody` 是卡片内部
  * 布局的稳定挂点，供等高卡片把动作区压到下沿。
  */
 
@@ -95,7 +95,6 @@ export function button(
     onClick?: (ev: MouseEvent) => void;
   },
 ): HTMLButtonElement {
-  // class 顺序与既有前端一致:`btn sm primary`
   let cls = 'btn';
   if (opts?.size === 'sm') cls += ' sm';
   if (opts?.variant === 'primary' || opts?.variant === 'danger') cls += ' ' + opts.variant;
