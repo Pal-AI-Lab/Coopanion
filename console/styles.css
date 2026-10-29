@@ -1506,6 +1506,13 @@
 .toolgroup.is-collapsed .toolgroup-list { display: none; }
 .configview > .actionbar { justify-content: flex-start; margin-top: 0; padding-top: 10px; }
 .configview > .actionbar > .msgline.is-hint { color: var(--ink-dim); }
+/* On a World page the bar stays at the bottom of the scroll area; long errors scroll inside it. */
+.configview.has-restart > .actionbar { position: sticky; bottom: -56px; z-index: 5; align-items: center; gap: 10px; padding: 10px 0 70px; margin-bottom: -56px; border-top: 1px solid var(--line); background: var(--background); }
+.configview.has-restart > .actionbar > .msgline { max-height: 30vh; overflow: auto; white-space: pre-wrap; }
+.configview.has-restart > .actionbar > .grow { display: none; }
+.configview.has-restart > .actionbar > .msgline { flex: 1 1 auto; min-width: 0; }
+.config-restart-note { flex: none; font-size: 12px; color: var(--warn); }
+.config-restart-note[hidden] { display: none; }
 .configrow .configline { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .configrow .configline > .tfield { flex: 1 1 auto; }
 .configrow .configline > .ttag { flex: none; }
@@ -1992,7 +1999,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-library-item:focus-visible{outline:none}
 .world-library-item:focus-visible .world-avatar{outline:2px solid var(--accent);outline-offset:3px}
 .world-blade:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:0 11px 11px 0}
-.world-restart-row{display:flex;align-items:center;gap:12px;width:var(--world-entry-width);margin-top:14px;transition:width var(--world-duration) var(--world-easing)}
+.world-restart-row{display:flex;align-items:center;gap:12px;width:var(--world-entry-width);margin-top:8px;transition:width var(--world-duration) var(--world-easing)}
 .world-workspace[data-view=market] .world-restart-row{width:var(--world-rail-width)}
 .world-restart-row:has(.extension-restart[hidden]){display:none}
 .world-restart-note{font-size:12px;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity 200ms}
@@ -2029,7 +2036,16 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-blade[data-state=running] .world-state{color:var(--chart-7)}
 .world-blade[data-state=pending] .world-state{color:var(--warn)}
 .world-blade[data-state=failed] .world-state{color:var(--danger)}
-.world-blade-actions{display:grid;grid-template-columns:repeat(6,30px);align-items:center;gap:4px;justify-content:end}
+.world-blade-actions{display:grid;grid-template-columns:repeat(5,30px);align-items:center;gap:4px;justify-content:end}
+.world-blade-actions .iobtn[aria-disabled=true]{opacity:.35;cursor:not-allowed}
+.world-blade-actions .iobtn[aria-disabled=true]:hover{background:transparent;color:inherit}
+/* Power is a round switch: green while the World runs, red while it is off. */
+.world-blade-actions .iobtn-power{width:28px;height:28px;margin:1px;border-radius:50%;color:var(--danger);background:color-mix(in srgb,var(--danger) 8%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--danger) 55%,transparent);transition:background-color 160ms,color 160ms,box-shadow 160ms,transform 120ms}
+.world-blade-actions .iobtn-power:hover:not(:disabled){color:var(--danger);background:color-mix(in srgb,var(--danger) 15%,transparent)}
+.world-blade-actions .iobtn-power.is-on{color:#fff;background:var(--accent);box-shadow:0 1px 4px color-mix(in srgb,var(--accent) 45%,transparent)}
+.world-blade-actions .iobtn-power.is-on:hover:not(:disabled){color:#fff;background:color-mix(in srgb,var(--accent) 88%,var(--ink))}
+.world-blade-actions .iobtn-power:active:not(:disabled){transform:scale(.92)}
+.world-blade-actions .iobtn-power .icon{width:14px;height:14px;stroke-width:2.4}
 .world-blade-actions .btn{font-size:12px;min-height:28px;padding:4px 10px}
 .world-blade-note{grid-column:1/-1;margin:-2px 0 0;font-size:12px;color:var(--ink-dim);overflow-wrap:anywhere}
 .world-blade-note.bad{color:var(--danger)}

@@ -10,7 +10,7 @@ import { S as it } from './strings.it.ts';
 import { S as ru } from './strings.ru.ts';
 
 const zh = {
-  addToLibrary: "添加到仓库",
+  addToLibrary: "添加到我的 World",
   filterSidebar: "筛选",
   catalogCategory: "类别",
   catalogCategories: {"all": "全部", "chat": "聊天与社交", "game": "游戏", "streaming": "直播", "companion": "陪伴", "media": "语音与视频", "creative": "创作", "web": "联网与浏览器", "computer": "电脑与应用", "diagnostics": "诊断", "other": "其他"},
@@ -239,7 +239,7 @@ const zh = {
 };
 
 export const en: typeof zh = {
-  addToLibrary: "Add to library",
+  addToLibrary: "Add to My Worlds",
   filterSidebar: "Filters",
   catalogCategory: "Categories",
   catalogCategories: {"all": "All", "chat": "Chat & social", "game": "Games", "streaming": "Streaming", "companion": "Companionship", "media": "Voice & video", "creative": "Creative", "web": "Web & browser", "computer": "Computer & apps", "diagnostics": "Diagnostics", "other": "Other"},

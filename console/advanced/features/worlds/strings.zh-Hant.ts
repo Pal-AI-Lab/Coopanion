@@ -25,7 +25,6 @@ export const S: Partial<typeof en> = {
     + `worlds.${id}.enabled=false。agent 的環境提示詞與工具隨即撤下;再次啟用依目前設定重建。`,
   restartTitle: (name: string) => `重新啟動「${name}」?`,
   restartBody: '停止並重建 World，套用標有「重新啟動 World 生效」的設定。託管處理程序與連線會停止後重新啟動。',
-  restartFailed: (msg: string) => `重新啟動失敗: ${msg}`,
   declaredByPersona: 'Persona定義',
   optionalAddon: '選配外掛',
   open: '開啟',

@@ -25,7 +25,6 @@ export const S: Partial<typeof en> = {
     + `worlds.${id}.enabled=false wird in config.json zurückgeschrieben. Umgebungs-Prompt und Tools des Agenten werden sofort entfernt; eine erneute Aktivierung baut sie aus der aktuellen Konfiguration neu auf.`,
   restartTitle: (name: string) => `„${name}“ neu starten?`,
   restartBody: 'Stoppt die World und baut sie neu auf, um Einstellungen anzuwenden, die einen World-Neustart erfordern. Verwaltete Prozesse und Verbindungen werden gestoppt und neu gestartet.',
-  restartFailed: (msg: string) => `Neustart fehlgeschlagen: ${msg}`,
   declaredByPersona: 'Von der Persona deklariert',
   optionalAddon: 'Optionales Add-on',
   open: 'Öffnen',

@@ -25,7 +25,6 @@ export const S: Partial<typeof en> = {
     + `worlds.${id}.enabled=false viene riscritto in config.json. Il prompt dell'ambiente e gli strumenti dell'agente vengono ritirati subito; una nuova attivazione lo ricostruisce dalla configurazione attuale.`,
   restartTitle: (name: string) => `Riavviare «${name}»?`,
   restartBody: 'Arresta e ricostruisce il World per applicare le impostazioni che richiedono il riavvio del World. I processi e le connessioni gestiti si arrestano e ripartono.',
-  restartFailed: (msg: string) => `Riavvio non riuscito: ${msg}`,
   declaredByPersona: 'Dichiarato dalla Persona',
   optionalAddon: 'Componente aggiuntivo opzionale',
   open: 'Apri',

@@ -1,7 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  addToLibrary: "加入收藏庫",
+  addToLibrary: "加入我的 World",
   filterSidebar: "篩選",
   catalogCategory: "類別",
   catalogCategories: {"all": "全部", "chat": "聊天與社群", "game": "遊戲", "streaming": "直播", "companion": "陪伴", "media": "語音與影片", "creative": "創作", "web": "連網與瀏覽器", "computer": "電腦與應用程式", "diagnostics": "診斷", "other": "其他"},

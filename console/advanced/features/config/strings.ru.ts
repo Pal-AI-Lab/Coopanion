@@ -10,6 +10,7 @@ export const S: Partial<typeof en> = {
   download: 'Скачать',
   on: 'Включено',
   autoSaves: 'Изменения сохраняются автоматически.',
+  worldRestartPending: 'Часть изменений вступит в силу после перезапуска World.',
   leaveBlank: 'Оставьте пустым',
   saving: 'Сохранение…',
   saveFailed: (err: string) => 'Ошибка: ' + err,

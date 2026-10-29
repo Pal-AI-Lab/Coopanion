@@ -25,7 +25,6 @@ export const S: Partial<typeof en> = {
     + `worlds.${id}.enabled=false가 기록됩니다. 에이전트의 환경 프롬프트와 도구는 바로 제거되며, 다시 활성화하면 현재 설정으로 다시 만듭니다.`,
   restartTitle: (name: string) => `"${name}"을(를) 재시작하시겠습니까?`,
   restartBody: 'World를 중지하고 다시 만들어 "World 재시작 후 적용"으로 표시된 설정을 적용합니다. 관리하는 프로세스와 연결은 중지된 뒤 다시 시작됩니다.',
-  restartFailed: (msg: string) => `재시작하지 못했습니다: ${msg}`,
   declaredByPersona: 'Persona에서 정의',
   optionalAddon: '선택형 애드온',
   open: '열기',

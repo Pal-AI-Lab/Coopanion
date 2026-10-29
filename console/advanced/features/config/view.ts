@@ -414,6 +414,11 @@ export interface ConfigViewDeps {
   emptyText?: string;
   /** 是否显示组的 owner 标签。 */
   showOwner?: boolean;
+  /**
+   * A World page's restart. The bar gets its button and, once a saved change to a setting that
+   * takes effect on World restart waits for it, a note; `pending` carries that across visits.
+   */
+  restart?: { label: string; pending: boolean; onPendingChange(pending: boolean): void; run(): Promise<boolean> };
 }
 
 export interface ConfigView {
@@ -436,6 +441,23 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
   msg.classList.add('is-hint');
   bar.append(msg, ui.h('span', 'grow'));
   el.append(body, bar);
+  const restart = deps.restart;
+  const restartNote = ui.h('span', 'config-restart-note', S.worldRestartPending);
+  function setPending(pending: boolean): void {
+    restartNote.hidden = !pending;
+    if (restart && restart.pending !== pending) { restart.pending = pending; restart.onPendingChange(pending); }
+  }
+  if (restart) {
+    el.classList.add('has-restart');
+    const button = ui.button(restart.label, { size: 'sm', onClick: async () => {
+      const lock = ui.disable(button);
+      try { if (await restart.run() && !signal.aborted) { setPending(false); setMsg(S.autoSaves); msg.classList.add('is-hint'); } }
+      catch (err) { if (!isAbort(err) && !signal.aborted) setMsg(errText(err), true); }
+      finally { lock.dispose(); }
+    } });
+    bar.append(restartNote, button);
+    restartNote.hidden = !restart.pending;
+  }
 
   /**
    * 每次 load 重建本次页面的组、路径与取值器列表。
@@ -447,6 +469,8 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
     read: () => ConfigValue;
     write: (value: unknown) => void;
     saved: ConfigValue;
+    /** Takes effect only after a restart (`x-hot: false`). */
+    cold: boolean;
   }> = [];
   /** 已发出、尚未回复的保存请求数。 */
   let saving = 0;
@@ -472,6 +496,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
         { signal },
       );
       if (signal.aborted) return;
+      if (sent.some((r) => r.cold && !sameValue(r.saved, values[r.path]))) setPending(true);
       for (const r of sent) r.saved = values[r.path];
       setMsg('✓ ' + (out.result || groupId));
       void refresh();
@@ -560,7 +585,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
               if (prop['x-suffix']) cell.appendChild(ui.h('span', 'tunit', prop['x-suffix']));
               if (prop['x-hot'] === false) cell.appendChild(ui.h('span', 'ttag', group.owner.startsWith('world:') ? S.restartWorld : S.restartProcess));
               grid.appendChild(cell);
-              if (field.read && field.write) readers.push({ groupId: group.id, path, read: field.read, write: field.write, saved: field.read() });
+              if (field.read && field.write) readers.push({ groupId: group.id, path, read: field.read, write: field.write, saved: field.read(), cold: prop['x-hot'] === false });
             }
             runCard.body.appendChild(grid);
             continue;
@@ -597,7 +622,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
           if (prop.description) control.appendChild(ui.h('p', 'home-note', prop.description));
           row.append(label, control);
           card.body.appendChild(row);
-          if (read && write) readers.push({ groupId: group.id, path, read, write, saved: read() });
+          if (read && write) readers.push({ groupId: group.id, path, read, write, saved: read(), cold: prop['x-hot'] === false });
         }
         body.append(card.el, ...runs);
       }

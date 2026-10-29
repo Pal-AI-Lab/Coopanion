@@ -25,7 +25,6 @@ export const S: Partial<typeof en> = {
     + `worlds.${id}.enabled=false を書き戻します。エージェントの環境プロンプトとツールはすぐに取り下げられ、再び有効化すると現在の設定から再構築されます。`,
   restartTitle: (name: string) => `「${name}」を再起動しますか？`,
   restartBody: 'World を停止して再構築し、「World の再起動後に反映」と表示された設定を適用します。管理しているプロセスと接続は停止した後に再起動します。',
-  restartFailed: (msg: string) => `再起動に失敗しました：${msg}`,
   declaredByPersona: 'Persona で定義',
   optionalAddon: 'オプションのアドオン',
   open: '開く',

@@ -25,7 +25,6 @@ export const S: Partial<typeof en> = {
     + `worlds.${id}.enabled=false est réécrit dans config.json. Le prompt d'environnement et les outils de l'agent sont retirés aussitôt ; une nouvelle activation le reconstruit à partir de la configuration actuelle.`,
   restartTitle: (name: string) => `Redémarrer « ${name} » ?`,
   restartBody: "Arrête et reconstruit le World pour appliquer les réglages marqués pour un redémarrage du World. Les processus et connexions gérés s'arrêtent puis redémarrent.",
-  restartFailed: (msg: string) => `Échec du redémarrage : ${msg}`,
   declaredByPersona: 'Déclaré par la Persona',
   optionalAddon: 'Module optionnel',
   open: 'Ouvrir',

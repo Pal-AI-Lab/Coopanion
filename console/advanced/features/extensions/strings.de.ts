@@ -1,7 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  addToLibrary: "Zur Bibliothek hinzufügen",
+  addToLibrary: "Zu „Meine Worlds“ hinzufügen",
   filterSidebar: "Filter",
   catalogCategory: "Kategorien",
   catalogCategories: {"all": "Alle", "chat": "Chat & Soziales", "game": "Spiele", "streaming": "Streaming", "companion": "Begleitung", "media": "Sprache & Video", "creative": "Kreativ", "web": "Web & Browser", "computer": "Computer & Apps", "diagnostics": "Diagnose", "other": "Sonstiges"},

@@ -25,7 +25,6 @@ export const S: Partial<typeof en> = {
     + `se escribe worlds.${id}.enabled=false en config.json. El prompt del entorno y las herramientas del agente se retiran en el acto; al activarlo de nuevo se reconstruye con la configuración actual.`,
   restartTitle: (name: string) => `¿Reiniciar “${name}”?`,
   restartBody: 'Detiene y reconstruye el World para aplicar los ajustes marcados para reinicio del World. Los procesos y conexiones gestionados se detienen y vuelven a iniciarse.',
-  restartFailed: (msg: string) => `Falló el reinicio: ${msg}`,
   declaredByPersona: 'Declarado por la Persona',
   optionalAddon: 'Complemento opcional',
   open: 'Abrir',

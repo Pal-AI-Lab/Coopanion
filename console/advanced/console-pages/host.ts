@@ -24,6 +24,7 @@ import type { BuiltinPanels } from './builtins.ts';
 import { createPanelContext, namespacedMemo } from './context.ts';
 import { ConsolePageLoader } from './loader.ts';
 import { S } from './strings.ts';
+import { S as WORLD } from '../features/worlds/strings.ts';
 
 /** 控制台页路由的首段，与框架页路由分开。 */
 export const PROVIDER_ROUTE = 'provider';
@@ -81,6 +82,8 @@ export class ConsolePageHost {
   private readonly deps: ConsolePageHostDeps;
   private snapshot: WebUiManifest | null = null;
   private mounted: MountedPanel | null = null;
+  /** World pages with a saved change that waits for a World restart; kept while the window is open. */
+  private readonly restartPending = new Set<string>();
   private panes: Panes | null = null;
   /** 页头里的页签。同一页内切换页签且页头内容没变时保留它，下面那根线才能滑过去。 */
   private tabs: { pageId: string; key: string; bar: PageTabs } | null = null;
@@ -477,6 +480,8 @@ export class ConsolePageHost {
       doc: this.deps.doc,
     });
     const wanted = new Set(groupIds);
+    const page = this.find(pageId);
+    const worldId = page?.kind === 'world' ? pageId.slice('world:'.length) : undefined;
     const view = createConfigView({
       ui,
       lifecycle,
@@ -484,6 +489,16 @@ export class ConsolePageHost {
       filter: (group) => wanted.has(group.id),
       showOwner: false,
       emptyText: S.configEmpty,
+      ...(worldId ? { restart: {
+        label: WORLD.restartWorld,
+        pending: this.restartPending.has(pageId),
+        onPendingChange: (pending: boolean) => { if (pending) this.restartPending.add(pageId); else this.restartPending.delete(pageId); },
+        run: async () => {
+          if (!await ui.confirm({ title: WORLD.restartTitle(page?.label || worldId), body: WORLD.restartBody })) return false;
+          await post('/api/worlds/restart', { id: worldId }, { signal: lifecycle.signal });
+          return true;
+        },
+      } } : {}),
     });
     slot.appendChild(view.el);
     await view.load();

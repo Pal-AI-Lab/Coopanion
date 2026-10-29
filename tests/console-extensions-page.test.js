@@ -862,7 +862,7 @@ describe('World library and catalog', () => {
     expect(problem.classList.contains('hidden')).toBe(false);
     expect(problem.textContent).toContain('pnpm add 退出码 1');
     expect(root.querySelector('.world-workspace-status').textContent).toBe('');
-    expect(root.querySelector('.world-catalog .extension-get').getAttribute('aria-label')).toBe('添加到仓库');
+    expect(root.querySelector('.world-catalog .extension-get').getAttribute('aria-label')).toBe('添加到我的 World');
     problem.querySelector('.extension-problem-close').click();
     expect(problem.classList.contains('hidden')).toBe(true);
   });
@@ -1027,9 +1027,18 @@ describe('World library and catalog', () => {
     const { root, ctx } = await openWorlds({}, { worlds: true, extensions: true, worldActivation: true, worldVisibility: true, restart: true, supervised: true });
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod');
-    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['安装信息', '删除扩展', '配置', '对 agent 隐藏', '重启 World', '停用 World']);
+    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['安装信息', '删除扩展', '配置', '对 agent 隐藏', '停用 World']);
     row.querySelector('.world-blade-identity code').click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     expect(decodeURIComponent(window.location.hash)).toBe('#/provider/world:alpha');
+  });
+  it('greys out an unavailable uninstall and names the reason', async () => {
+    const { root, ctx } = await openWorlds();
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    const remove = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'world:builtin').querySelector('.iobtn-remove');
+    expect(remove.getAttribute('aria-disabled')).toBe('true');
+    expect(remove.title).toBe('随 Coopanion 提供，不能单独删除。');
+    remove.click(); await flush();
+    expect(document.querySelector('.modal')).toBeNull();
   });
   it('keeps warning-tagged packages hidden whatever the sidebar selects', async () => {
     const index = { tags: { unsafe: { label: '不安全', style: 'warning' }, game: { label: '游戏' } } };

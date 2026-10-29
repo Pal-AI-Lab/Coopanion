@@ -72,3 +72,30 @@ it('after a save, shows the values the Core changed alongside it and leaves fiel
   releasePost();
   life.dispose();
 });
+
+it('notes a saved change that waits for a World restart until the restart runs', async () => {
+  const cold = { ...group, schema: { title: 'Voice', properties: { 'worlds.voice.audio': { type: 'string', title: 'Reference audio', 'x-hot': false } } } };
+  let server = { 'worlds.voice.audio': 'a.wav' };
+  vi.stubGlobal('fetch', async (path, options) => {
+    if (path === '/api/config' && options.method === 'POST') { server = JSON.parse(options.body).values; return json({ ok: true, result: 'Saved' }); }
+    if (path === '/api/config') return json({ groups: [{ group: cold, values: server }] });
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  const life = new Lifecycle((error) => { throw error; });
+  const ui = createConsoleUi({ doc: document, overlayHost: document.body, signal: life.signal, memo: { get: (_, fallback) => fallback, set() {} } });
+  const changes = [];
+  let runs = 0;
+  const view = createConfigView({ ui, lifecycle: life, signal: life.signal, restart: { label: 'Restart World', pending: false, onPendingChange: (pending) => changes.push(pending), run: async () => { runs++; return true; } } });
+  document.body.append(view.el);
+  await view.load();
+  const note = view.el.querySelector('.config-restart-note');
+  expect(note.hidden).toBe(true);
+  const audio = view.el.querySelector('.configrow input');
+  audio.value = 'b.wav'; audio.dispatchEvent(new Event('change'));
+  await vi.waitFor(() => expect(note.hidden).toBe(false));
+  [...view.el.querySelectorAll('.actionbar button')].find((button) => button.textContent === 'Restart World').click();
+  await vi.waitFor(() => expect(note.hidden).toBe(true));
+  expect(runs).toBe(1);
+  expect(changes).toEqual([true, false]);
+  life.dispose();
+});

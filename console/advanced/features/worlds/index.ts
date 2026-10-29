@@ -17,7 +17,7 @@ import { S as UI } from '../../../base/ui/strings.ts';
 
 const worldPageId = (id: string) => pageIdFor('world', id);
 /** Row controls, left to right. */
-const ACTION_SLOTS = ['info', 'remove', 'configure', 'visibility', 'restart', 'power'] as const;
+const ACTION_SLOTS = ['info', 'remove', 'configure', 'visibility', 'power'] as const;
 type ActionSlot = typeof ACTION_SLOTS[number];
 export interface WorldView {
   id: string;
@@ -187,30 +187,6 @@ export function mountWorlds(ctx: FeatureContext): void {
     if (drifted && !signal.aborted && await ui.confirm({ title: S.reloadNowTitle, body: S.reloadNowBody(m.label || m.id, value) })) await reloadPrefix();
   }
 
-  async function restart(m: WorldView): Promise<void> {
-    if (changingWorlds.has(m.id)) return;
-    const name = m.label || m.id;
-    const ok = await ui.confirm({
-      title: S.restartTitle(name),
-      body: S.restartBody,
-    });
-    if (!ok || ctx.signal.aborted) return;
-    changingWorlds.add(m.id); setMsg(''); render();
-    try {
-      await post(
-        '/api/worlds/restart',
-        { id: m.id },
-        { signal: ctx.signal },
-      );
-    } catch (err) {
-      if (isAbort(err) || ctx.signal.aborted) return;
-      setMsg(S.restartFailed(errText(err)), true);
-    } finally {
-      changingWorlds.delete(m.id);
-      if (!signal.aborted) await load();
-    }
-  }
-
   const slot = (name: ActionSlot, button: HTMLButtonElement) => { button.dataset.slot = name; return button; };
   function iconButton(
     name: ConsoleIconName,
@@ -345,13 +321,15 @@ export function mountWorlds(ctx: FeatureContext): void {
       const lamps = ui.h('span', 'world-signals'); paintSignals(lamps, m.lamps ?? []); signals.append(lamps); lampNodes.set(worldPageId(m.id), lamps);
     }
     if (m?.prefixDrifted) signals.append(ui.pill(S.prefixPending));
-    // Left to right: install info, uninstall, configure, visibility, restart, power.
+    // Left to right: install info, uninstall, configure, visibility, power.
     const actions = ui.h('div', 'world-blade-actions');
     if (pack && market) { const owner = market; actions.append(slot('info', iconButton('package', S.packageInfo, '', () => owner.details(pack.name)))); }
-    if (pack && !pack.builtin && pack.state !== 'removed' && market) {
+    // An unavailable uninstall stays visible, greyed, with the reason on hover.
+    if (pack?.state !== 'removed') {
       const owner = market, key = item.key;
-      const remove = slot('remove', iconButton('trash', E.remove, 'iobtn-remove', () => void owner.remove(pack.name, () => railList.querySelector(`.world-blade[data-key="${CSS.escape(key)}"] .iobtn-remove`))));
-      if (pack.enabled) { remove.disabled = true; remove.title = E.removeInUse; }
+      const reason = !pack || pack.builtin ? E.builtinNote : pack.enabled ? E.removeInUse : !owner ? E.remove : '';
+      const remove = slot('remove', iconButton('trash', E.remove, 'iobtn-remove', () => { if (!reason && pack && owner) void owner.remove(pack.name, () => railList.querySelector(`.world-blade[data-key="${CSS.escape(key)}"] .iobtn-remove`)); }));
+      if (reason) { remove.setAttribute('aria-disabled', 'true'); remove.title = reason; remove.setAttribute('aria-label', `${E.remove}: ${reason}`); }
       actions.append(remove);
     }
     if (m) actions.append(slot('configure', iconButton('settings', S.configure, '', () => router.navigate([PROVIDER_ROUTE, worldPageId(m.id)]))));
@@ -359,8 +337,8 @@ export function mountWorlds(ctx: FeatureContext): void {
       const runtime: HTMLButtonElement[] = [];
       if (m.status === 'active') {
         if (canToggleVisibility) runtime.push(slot('visibility', iconButton(m.visible === false ? 'eye-off' : 'eye', m.visible === false ? S.showToAgent : S.hideFromAgent, m.visible === false ? '' : 'iobtn-visible', () => void changeWorld(m, 'visibility', m.visible === false))));
-        if (canActivate) runtime.push(slot('restart', iconButton('refresh', S.restartWorld, '', () => void restart(m))), slot('power', iconButton('power', S.deactivateWorld, 'iobtn-stop', () => void changeWorld(m, 'activation', false))));
-      } else if (canActivate) runtime.push(slot('power', iconButton('power', S.activateWorld, '', () => void changeWorld(m, 'activation', true))));
+        if (canActivate) runtime.push(slot('power', iconButton('power', S.deactivateWorld, 'iobtn-power is-on', () => void changeWorld(m, 'activation', false))));
+      } else if (canActivate) runtime.push(slot('power', iconButton('power', S.activateWorld, 'iobtn-power', () => void changeWorld(m, 'activation', true))));
       if (changingWorlds.has(m.id)) for (const button of runtime) button.disabled = true;
       actions.append(...runtime);
     }
