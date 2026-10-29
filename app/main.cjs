@@ -44,6 +44,7 @@ const { Readable } = require('node:stream');
 const { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, rmSync, symlinkSync, writeFileSync } = require('node:fs');
 const { delimiter, dirname, extname, join, resolve, sep } = require('node:path');
 const { dataDirIn, locateData, readRecord, writeRecord } = require('./data-dir.cjs');
+const { readTextFile } = require('./read-text.cjs');
 
 const { readSettingsSize, saveSettingsSize } = require('./settings-size.cjs');
 const { settingsChromeOptions, applySettingsTheme } = require('./settings-chrome.cjs');
@@ -67,7 +68,7 @@ const WINDOW_ICON = join(ICONS, process.platform === 'win32' ? 'icon.ico' : 'ico
  */
 const APP_ID = app.isPackaged ? 'ai.pal.coopanion' : 'ai.pal.coopanion.dev';
 /** The build's channel and, for `steam`, its Steam app id (see the module header). */
-const BUILD = JSON.parse(readFileSync(join(APP_ROOT, 'package.json'), 'utf8')).coopanion ?? {};
+const BUILD = JSON.parse(readTextFile(join(APP_ROOT, 'package.json'))).coopanion ?? {};
 const STEAM = BUILD.channel === 'steam';
 const PORTABLE = BUILD.channel === 'portable';
 const PET_HOST = process.argv.includes('--pet-host');
@@ -176,7 +177,7 @@ function restoreStrandedData() {
   if (!STRANDED_DATA || STRANDED_DATA.toLowerCase() === DATA.toLowerCase()) return false;
   // an install still living there is its own install, not a leftover
   if (!existsSync(join(STRANDED_DATA, 'home')) || existsSync(join(STRANDED_DIR, 'Coopanion.exe'))) return false;
-  const choice = existsSync(STRANDED_CHOICE) ? readFileSync(STRANDED_CHOICE, 'utf8') : '';
+  const choice = existsSync(STRANDED_CHOICE) ? readTextFile(STRANDED_CHOICE) : '';
   if (choice === 'keep') return false;
   if (choice !== 'restore' && existsSync(join(DATA, 'home'))) return true;
   rmSync(STRANDED_CHOICE, { force: true });

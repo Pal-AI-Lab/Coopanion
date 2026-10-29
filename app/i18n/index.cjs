@@ -4,8 +4,9 @@
  * Each language's text is a file beside this one named for its code. `zh.cjs` and `en.cjs` have every
  * key; a key another language's file leaves out reads `zh.cjs` for `zh-Hant` and `en.cjs` for the rest.
  */
-const { existsSync, readFileSync } = require('node:fs');
+const { existsSync } = require('node:fs');
 const { join } = require('node:path');
+const { readTextFile } = require('../read-text.cjs');
 
 /** The app's languages: Cortico's WebUI languages, as `LANGUAGES` in `cortico/core/language.ts` lists them. */
 const LANGUAGES = ['zh', 'zh-Hant', 'en', 'ja', 'ko', 'fr', 'de', 'es-419', 'pt-BR', 'it', 'ru'];
@@ -39,7 +40,7 @@ function configuredLanguage(home) {
   const file = join(home, 'companion', 'config.json');
   if (!existsSync(file)) return null;
   try {
-    const language = JSON.parse(readFileSync(file, 'utf8')).language;
+    const language = JSON.parse(readTextFile(file)).language;
     return LANGUAGES.includes(language) ? language : 'zh';
   } catch {
     return null;

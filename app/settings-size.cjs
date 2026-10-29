@@ -1,5 +1,6 @@
 /** Settings-window size in DIP, stored under the app's data directory. */
-const { readFileSync, writeFileSync, renameSync } = require('node:fs');
+const { writeFileSync, renameSync } = require('node:fs');
+const { readTextFile } = require('./read-text.cjs');
 
 const DEFAULT_SIZE = { width: 1200, height: 820 };
 const MIN_SIZE = { width: 880, height: 600 };
@@ -7,7 +8,7 @@ const MIN_SIZE = { width: 880, height: 600 };
 function readSettingsSize(file, area) {
   let size = DEFAULT_SIZE;
   try {
-    const saved = JSON.parse(readFileSync(file, 'utf8'));
+    const saved = JSON.parse(readTextFile(file));
     if (Number.isInteger(saved?.width) && Number.isInteger(saved?.height)) size = saved;
   } catch { /* A missing or damaged preference uses the default size. */ }
   const minWidth = Math.min(area.width, MIN_SIZE.width);
