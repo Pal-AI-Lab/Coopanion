@@ -162,7 +162,6 @@ export default {
   /** 在装扮页导入形象包 */
   importing: {
     badZip: (why: string) => `这不是能读的 zip：${why}`,
-    tooBig: (mb: number) => `解开后超过 ${mb} MB`,
     truncated: '上传的内容不完整',
     badPath: (path: string) => `有一个路径不能用：${path}`,
     builtinId: (id: string) => `id ${id} 是内置形象的，更换 id 才能导入`,
@@ -171,7 +170,6 @@ export default {
     expired: '这次导入已经过期，请重新选择',
     noneChosen: '没有选择要导入的形象包',
     zipOrFolder: '只收 zip 或文件夹',
-    overLimit: (mb: number) => `超过 ${mb} MB`,
   },
 
   /** 在装扮页卸载形象包 */
@@ -225,7 +223,7 @@ export default {
       pet: { title: '桌宠', description: '窗口、装扮与窗口运行时。' },
       voice: { title: '语音输入', description: '识别引擎、电平与识别结果。' },
     } as Record<'pet' | 'voice', { title: string; description: string }>,
-    envPrompt: { title: '桌宠环境', description: '描述桌宠的身体、四个工具与输入事件。' },
+    envPrompt: { title: '桌宠环境', description: '描述桌宠的身体、工具与输入事件。' },
     vars: {
       'pet.user': '对使用者的称呼',
       'pet.vocab': '当前形象的表情与动作词表',

@@ -143,7 +143,6 @@ const zhHant: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `這不是能讀取的 zip：${why}`,
-    tooBig: (mb: number) => `解壓縮後超過 ${mb} MB`,
     truncated: '上傳的內容不完整',
     badPath: (path: string) => `有一個路徑不能用：${path}`,
     builtinId: (id: string) => `id ${id} 屬於內建形象，更換 id 才能匯入`,
@@ -152,7 +151,6 @@ const zhHant: Translation<PetText> = {
     expired: '這次匯入已經過期，請重新選擇',
     noneChosen: '沒有選擇要匯入的形象包',
     zipOrFolder: '只能匯入 zip 或資料夾',
-    overLimit: (mb: number) => `超過 ${mb} MB`,
   },
 
   removing: {
@@ -199,7 +197,7 @@ const zhHant: Translation<PetText> = {
       pet: { title: '桌寵', description: '視窗、裝扮與視窗執行環境。' },
       voice: { title: '語音輸入', description: '辨識引擎、音量與辨識結果。' },
     },
-    envPrompt: { title: '桌寵環境', description: '描述桌寵的身體、四個工具與輸入事件。' },
+    envPrompt: { title: '桌寵環境', description: '描述桌寵的身體、工具與輸入事件。' },
     vars: {
       'pet.user': '對使用者的稱呼',
       'pet.vocab': '目前形象的表情與動作詞表',

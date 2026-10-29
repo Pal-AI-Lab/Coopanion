@@ -143,7 +143,6 @@ const ko: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `읽을 수 있는 zip이 아닙니다: ${why}`,
-    tooBig: (mb: number) => `압축을 풀면 ${mb} MB를 넘습니다`,
     truncated: '업로드가 완전하지 않습니다',
     badPath: (path: string) => `쓸 수 없는 경로가 있습니다: ${path}`,
     builtinId: (id: string) => `id ${id}은(는) 내장 외형의 것입니다. 가져오려면 id를 바꾸세요`,
@@ -152,7 +151,6 @@ const ko: Translation<PetText> = {
     expired: '이 가져오기는 만료되었습니다. 파일을 다시 선택하세요',
     noneChosen: '선택한 팩이 없습니다',
     zipOrFolder: 'zip 파일이나 폴더만 가져올 수 있습니다',
-    overLimit: (mb: number) => `${mb} MB 초과`,
   },
 
   removing: {
@@ -199,7 +197,7 @@ const ko: Translation<PetText> = {
       pet: { title: '데스크톱 펫', description: '창, 꾸미기, 창 런타임.' },
       voice: { title: '음성 입력', description: '인식 엔진, 입력 레벨, 들은 내용.' },
     },
-    envPrompt: { title: '데스크톱 펫 환경', description: '펫의 몸, 도구 네 가지, 입력 이벤트를 설명합니다.' },
+    envPrompt: { title: '데스크톱 펫 환경', description: '펫의 몸, 도구, 입력 이벤트를 설명합니다.' },
     vars: {
       'pet.user': '봇이 사용자를 부르는 이름',
       'pet.vocab': '현재 외형의 표정과 동작',

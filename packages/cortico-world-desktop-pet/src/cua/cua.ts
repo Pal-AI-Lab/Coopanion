@@ -434,7 +434,7 @@ export class Cua {
     return { text, blobs: [{ bytes: shot.jpeg, mime: 'image/jpeg', name: 'screen.jpg', fallbackText: t.screenshotFallback(shot.width, shot.height) }] };
   }
 
-  /** `pet_cua_zoom`: a region of the latest screenshot, captured again at full resolution. */
+  /** `pet_cua_zoom`: a region of the latest screenshot, captured again from the screen and scaled down only past the screenshot size limit. */
   private async zoom(args: Args, signal?: AbortSignal): Promise<ToolOutcome> {
     const t = this.t, v = this.view;
     if (!v) return { text: t.notRun('pet_cua_zoom', t.zoomNoShot), failed: true };

@@ -35,7 +35,7 @@ import { basename, extname, join, normalize, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { languageTag, type Language } from 'cortico/core/language.ts';
 import { packFile, type FigurePack, type PackProblem } from './packs.ts';
-import { BUNDLE_TYPE, IMPORT_MAX, PACK_DEPTH, filesFromBundle, filesFromZip, type PackImporter } from './pack-import.ts';
+import { BUNDLE_TYPE, IMPORT_LARGE, PACK_DEPTH, filesFromBundle, filesFromZip, type PackImporter } from './pack-import.ts';
 import { petText, type PetText } from './i18n/index.ts';
 import type { SpeechUnit } from './speech/index.ts';
 
@@ -317,7 +317,7 @@ export class PetServer {
     }
     if (req.method === 'GET' && path === '/api/figures/status') {
       return json(res, 200, {
-        importable: !!this.opts.importer, max: IMPORT_MAX, depth: PACK_DEPTH,
+        importable: !!this.opts.importer, large: IMPORT_LARGE, depth: PACK_DEPTH,
         problems: (this.opts.packProblems?.() ?? []).filter((p) => !p.loaded).map((p) => ({ dir: basename(p.dir), reason: p.reason })),
       });
     }
@@ -399,8 +399,8 @@ export class PetServer {
     if (path === '/api/figures/import') {
       const type = (req.headers['content-type'] ?? '').split(';')[0]!.trim();
       if (type !== 'application/zip' && type !== BUNDLE_TYPE) return json(res, 415, { error: this.t.importing.zipOrFolder });
-      const bytes = await readBytes(req, IMPORT_MAX);
-      if (!bytes) return json(res, 413, { error: this.t.importing.overLimit(IMPORT_MAX / 1048576) });
+      const bytes = await readBytes(req);
+      if (!bytes) return json(res, 400, { error: this.t.importing.truncated });
       const files = type === BUNDLE_TYPE ? filesFromBundle(bytes, this.t.importing) : filesFromZip(bytes, this.t.importing);
       if (typeof files === 'string') return json(res, 400, { error: files });
       const out = await importer.stage(files, type === BUNDLE_TYPE);
@@ -450,16 +450,10 @@ function json(res: ServerResponse, status: number, body: unknown): void {
 }
 
 /** The body of `req`, or null when it is longer than `max` bytes or breaks off. */
-function readBytes(req: IncomingMessage, max: number): Promise<Uint8Array | null> {
+function readBytes(req: IncomingMessage): Promise<Uint8Array | null> {
   return new Promise((done) => {
-    if (Number(req.headers['content-length'] ?? 0) > max) { req.resume(); done(null); return; }
-    let size = 0;
     const chunks: Buffer[] = [];
-    req.on('data', (c: Buffer) => {
-      size += c.length;
-      if (size > max) { req.destroy(); done(null); return; }
-      chunks.push(c);
-    });
+    req.on('data', (c: Buffer) => chunks.push(c));
     req.on('end', () => done(Buffer.concat(chunks)));
     req.on('error', () => done(null));
   });

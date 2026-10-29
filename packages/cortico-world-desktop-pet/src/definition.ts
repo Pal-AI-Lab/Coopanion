@@ -26,7 +26,7 @@ const DESCRIBE: WorldDescribe = {
     pet_act: { zh: '不说话,播放一串表情或动作。', en: 'Plays a sequence of expressions or motions without speaking.' },
     pet_cua_open_settings: { zh: '电脑操作关着时,把设置窗口打开到它的开关,附风险说明。', en: 'While computer use is off, opens the settings window at its switch, with what it risks.' },
     pet_cua_screenshot: { zh: '截取一块显示器,附鼠标位置与前台窗口标题。', en: 'Captures one display, with the pointer position and the foreground window title.' },
-    pet_cua_zoom: { zh: '按原始分辨率重截截图里的一块,读看不清的小字。', en: 'Captures a region of the screenshot again at full resolution, for small text.' },
+    pet_cua_zoom: { zh: '从屏幕重新截取截图里的一块,读看不清的小字。', en: 'Captures a region of the screenshot again from the screen, for small text.' },
     pet_cua_click: { zh: '把鼠标移到某处并点击。', en: 'Moves the mouse to a point and clicks.' },
     pet_cua_move: { zh: '只移动鼠标,不点击。', en: 'Moves the mouse without clicking.' },
     pet_cua_drag: { zh: '按住左键从一处拖到另一处。', en: 'Drags with the left button from one point to another.' },
