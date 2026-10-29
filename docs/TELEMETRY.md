@@ -84,7 +84,7 @@
 | `key_prompt` | `answer` | 没连模型时跟 Coo 说话，它问「要去接通模型吗？」的回答：`connect` / `later` |
 | `voice_model` | `result` | 引导里语音识别模型的下载：`ready`（下好了）、`failed`（没下下来）、`later`（选了先不用） |
 | `extension_installed` / `extension_removed` | `name`、`version`、`kind` | 启动时发现扩展比上次多了或少了 |
-| `crash` | `where`，其余见下表 | Core 出错。`where` 是来源：`core`（未捕获的异常，Core 随后退出）、`core-rejection`（未处理的 promise 拒绝，Core 继续运行；同样的一条在一次运行里只报一次）、`core-exit`（Core 进程意外退出后被重启，由重启后的 Core 报告） |
+| `crash` | `where`，其余见下表 | Core 出错。`where` 是来源：`core`（未捕获的异常，Core 随后退出）、`core-rejection`（未处理的 promise 拒绝，Core 继续运行；同样的一条在一次运行里只报一次）、`core-loop`（主循环异常退出，Core 随后关机并由应用重启）、`core-exit`（Core 进程意外退出后被重启，由重启后的 Core 报告） |
 | `telemetry_disabled` / `telemetry_enabled` | | 关掉或重新打开统计 |
 | `uninstalled` | | Windows 上卸载（升级时不算）；由卸载程序发出，统计关着时不发 |
 
@@ -92,7 +92,7 @@
 
 | 字段 | 例子 | 说明 |
 |---|---|---|
-| `error` | `TypeError` | 错误类名；抛出的不是错误对象时是它的类型（如 `string`）。`core` 和 `core-rejection` 才有 |
+| `error` | `TypeError` | 错误类名；抛出的不是错误对象时是它的类型（如 `string`）。`core`、`core-rejection` 和 `core-loop` 才有 |
 | `code` | `ENOENT` | 错误自带的错误码，没有就不发 |
 | `frames` | `["core/guide.ts:212", "build/cortico/src/core/loop.ts:1043"]` | 调用栈最上面 3 处在程序目录里的位置：相对程序目录的文件路径和行号。程序目录以外的位置（你的文件、装的扩展、Node 自身）跳过 |
 | `exitCode` / `signal` | `1` / `null` | 只在 `core-exit`：上一个 Core 进程的退出码，或结束它的信号名 |

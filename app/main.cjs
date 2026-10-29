@@ -44,6 +44,7 @@ const { Readable } = require('node:stream');
 const { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, rmSync, symlinkSync, writeFileSync } = require('node:fs');
 const { delimiter, dirname, extname, join, resolve, sep } = require('node:path');
 const { dataDirIn, locateData, readRecord, writeRecord } = require('./data-dir.cjs');
+const { readTextFile } = require('./read-text.cjs');
 
 const { readSettingsSize, saveSettingsSize } = require('./settings-size.cjs');
 const { settingsChromeOptions, applySettingsTheme } = require('./settings-chrome.cjs');
@@ -67,7 +68,7 @@ const WINDOW_ICON = join(ICONS, process.platform === 'win32' ? 'icon.ico' : 'ico
  */
 const APP_ID = app.isPackaged ? 'ai.pal.coopanion' : 'ai.pal.coopanion.dev';
 /** The build's channel and, for `steam`, its Steam app id (see the module header). */
-const BUILD = JSON.parse(readFileSync(join(APP_ROOT, 'package.json'), 'utf8')).coopanion ?? {};
+const BUILD = JSON.parse(readTextFile(join(APP_ROOT, 'package.json'))).coopanion ?? {};
 const STEAM = BUILD.channel === 'steam';
 const PORTABLE = BUILD.channel === 'portable';
 const PET_HOST = process.argv.includes('--pet-host');
@@ -160,9 +161,9 @@ if (INSTALLED && !dataWritable()) {
 
 /**
  * An install made through the installer's pages sits in %LOCALAPPDATA%\Programs\Coopanion: the per-user
- * install mode (installer/nsis.nsh's customInstallMode) sets that after its customInit ran. From 0.1.14 to
- * 0.1.16 an update, which installs silently and so keeps customInit's choice, moved the program to %USERPROFILE%\Coopanion and left data\ behind
- * (#84). The first start in the new place takes that data\ back. When the app has run here since, this data\ may
+ * install mode (installer/nsis.nsh's customInstallMode) sets that after its customInit ran. Updates of 0.1.14 to
+ * 0.1.16, which install silently and so keep customInit's choice, put the program in %USERPROFILE%\Coopanion and
+ * left data\ in the old place. The first start in the new place takes that data\ back. When the app has run here since, this data\ may
  * be the one in use, so a dialog asks first (askRestoreStranded); taking the old one back then happens on the
  * next start, before anything here is open, and keeps this one beside it as data-replaced-<time>.
  */
@@ -176,7 +177,7 @@ function restoreStrandedData() {
   if (!STRANDED_DATA || STRANDED_DATA.toLowerCase() === DATA.toLowerCase()) return false;
   // an install still living there is its own install, not a leftover
   if (!existsSync(join(STRANDED_DATA, 'home')) || existsSync(join(STRANDED_DIR, 'Coopanion.exe'))) return false;
-  const choice = existsSync(STRANDED_CHOICE) ? readFileSync(STRANDED_CHOICE, 'utf8') : '';
+  const choice = existsSync(STRANDED_CHOICE) ? readTextFile(STRANDED_CHOICE) : '';
   if (choice === 'keep') return false;
   if (choice !== 'restore' && existsSync(join(DATA, 'home'))) return true;
   rmSync(STRANDED_CHOICE, { force: true });
@@ -275,7 +276,8 @@ const core = new CoreHost({
     // a portable folder is copied whole, which turns pnpm's links (absolute junctions on Windows) into plain folders an
     // extension no longer finds its dependencies through; hoisted node_modules hold the packages themselves
     ...PORTABLE || !LINKS ? { pnpm_config_node_linker: 'hoisted' } : {},
-    // extension installs call `corepack pnpm`; the shim (corepack.cmd, or corepack on macOS) runs the bundled pnpm on this runtime.
+    // extension installs call `corepack pnpm`, and the build scripts pnpm runs call `node`; the shims (.cmd on Windows) run
+    // the bundled pnpm and those scripts on this runtime.
     // The Windows build carries MinGit (scripts/pack.ts), ahead of any other git, for the history of Coo's workspace
     PATH: [shimDir, ...existsSync(MINGIT) ? [MINGIT] : [], process.env.PATH ?? ''].join(delimiter),
     CORTICO_NODE_EXE: process.execPath,
@@ -409,7 +411,7 @@ function forward(request, url, origin) {
   });
 }
 
-/** The only remote address the settings page asks: the latest Coopanion release, for the hint under the wordmark. */
+/** The latest Coopanion release, for the update status in the settings window's title bar. */
 const RELEASE_CHECK = 'https://api.github.com/repos/Pal-AI-Lab/Coopanion/releases/latest';
 /** Images of the extension market: package icons and screenshots of the official index, and GitHub avatars. */
 const MARKET_IMAGES = ['https://raw.githubusercontent.com/Pal-AI-Lab/cortico-extensions/', 'https://avatars.githubusercontent.com/'];

@@ -34,6 +34,7 @@ import { readFile } from 'node:fs/promises';
 import { basename, extname, join, normalize, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { languageTag, type Language } from 'cortico/core/language.ts';
+import { readTextFile } from 'cortico/core/util.ts';
 import { packFile, type FigurePack, type PackProblem } from './packs.ts';
 import { BUNDLE_TYPE, IMPORT_LARGE, PACK_DEPTH, filesFromBundle, filesFromZip, type PackImporter } from './pack-import.ts';
 import { petText, type PetText } from './i18n/index.ts';
@@ -387,7 +388,7 @@ export class PetServer {
   private async sendPage(res: ServerResponse, full: string): Promise<void> {
     const lang = languageTag(this.opts.language?.() ?? 'zh');
     try {
-      const html = (await readFile(full, 'utf8')).replace(/<html lang="[^"]*"/, `<html lang="${lang}"`);
+      const html = readTextFile(full).replace(/<html lang="[^"]*"/, `<html lang="${lang}"`);
       res.writeHead(200, { 'content-type': MIME['.html'], 'cache-control': 'no-cache', 'content-security-policy': PAGE_CSP });
       res.end(html);
     } catch {

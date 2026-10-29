@@ -24,8 +24,8 @@
 !macroend
 
 !macro customInit
-  ; the per-user default is %LOCALAPPDATA%\Programs. An update stays where the install is: moving it left
-  ; data\ behind (#84; app/main.cjs takes it back after such a move)
+  ; the per-user default is %LOCALAPPDATA%\Programs. An update stays where the install is, since data\ sits
+  ; beside the program (app/main.cjs takes back a data\ that an earlier update left in the old place)
   StrLen $0 "$LOCALAPPDATA"
   StrCpy $1 "$INSTDIR" $0
   StrLen $2 "$APPDATA"

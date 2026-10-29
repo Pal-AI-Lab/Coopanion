@@ -1,10 +1,11 @@
 /** First-run files of the app's deployment. */
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defaultRegion, endpointName, firstVendor, vendorEntry } from 'cortico-provider-coo/src/vendors.ts';
 import { LANGUAGES, type Language } from 'cortico/core/language.ts';
+import { readTextFile } from 'cortico/core/util.ts';
 import { appLanguage } from './language.ts';
 import { EARLIER_PERSONAS } from './seed-history.ts';
 
@@ -63,7 +64,7 @@ export function seed(home: string, language: Language): void {
       worlds: { 'desktop-pet': { cua: { permission: CUA_ASK } } },
     });
   }
-  const configured = appLanguage((JSON.parse(readFileSync(config, 'utf8')) as { language?: unknown }).language);
+  const configured = appLanguage((JSON.parse(readTextFile(config)) as { language?: unknown }).language);
   if (!existsSync(join(workspace, CONSTITUTION))) copyFileSync(personaFile('coo', configured), join(workspace, CONSTITUTION));
   // the console shows it as the bot's avatar
   if (!existsSync(join(deploy, 'avatar.png'))) copyFileSync(join(SEED_DIR, 'avatar.png'), join(deploy, 'avatar.png'));
@@ -85,7 +86,7 @@ type WorldSections = { worlds?: Record<string, Section | undefined> };
  * the new names. A key or folder already at the new name stays as it is.
  */
 function moveTerminalToConsole(deploy: string, file: string): void {
-  const config = JSON.parse(readFileSync(file, 'utf8')) as WorldSections & { logging?: Section };
+  const config = JSON.parse(readTextFile(file)) as WorldSections & { logging?: Section };
   let changed = false;
   const old = config.worlds?.terminal;
   if (config.worlds && old) {
@@ -106,7 +107,7 @@ function moveTerminalToConsole(deploy: string, file: string): void {
 
 /** `worlds.cua` becomes `worlds.desktop-pet.cua`; a key already there stays as it is. */
 function moveCuaIntoPet(file: string): void {
-  const config = JSON.parse(readFileSync(file, 'utf8')) as WorldSections;
+  const config = JSON.parse(readTextFile(file)) as WorldSections;
   const old = config.worlds?.cua;
   if (!config.worlds || !old) return;
   const pet = config.worlds['desktop-pet'] ?? {};
@@ -116,7 +117,7 @@ function moveCuaIntoPet(file: string): void {
 }
 
 function keepCuaAsking(file: string): void {
-  const config = JSON.parse(readFileSync(file, 'utf8')) as WorldSections;
+  const config = JSON.parse(readTextFile(file)) as WorldSections;
   const pet = config.worlds?.['desktop-pet'];
   const cua = pet?.cua as Section | undefined;
   if (cua?.permission !== undefined) return;
@@ -128,7 +129,7 @@ function moveEndpointsToCoo(providers: string): void {
   for (const dir of readdirSync(providers, { withFileTypes: true })) {
     const file = join(providers, dir.name, 'config.json');
     if (!dir.isDirectory() || !existsSync(file)) continue;
-    const config = JSON.parse(readFileSync(file, 'utf8')) as { kind?: string };
+    const config = JSON.parse(readTextFile(file)) as { kind?: string };
     if (config.kind !== OLD_MODULE) continue;
     config.kind = MODULE;
     writeFileSync(file, JSON.stringify(config, null, 2) + '\n');
@@ -136,7 +137,7 @@ function moveEndpointsToCoo(providers: string): void {
 }
 
 /** SHA-256 of a file's text with line endings as LF; null when it is missing. */
-const hashOf = (file: string) => (existsSync(file) ? createHash('sha256').update(readFileSync(file, 'utf8').replaceAll('\r\n', '\n')).digest('hex') : null);
+const hashOf = (file: string) => (existsSync(file) ? createHash('sha256').update(readTextFile(file).replaceAll('\r\n', '\n')).digest('hex') : null);
 
 /** Each shipped self-description by the SHA-256 of its text; computed on first use. */
 let shipped: Map<string, PersonaId> | null = null;

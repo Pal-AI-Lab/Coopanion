@@ -6,7 +6,7 @@ Coopanion 用 AGPL-3.0-or-later 发布。0.1.10 及之前的版本是 MIT,已经
 ## 提 issue 之前
 
 - 一个 issue 只报一个问题:实际发生了什么、期望怎样、怎么复现
-- 写明 Coopanion 版本(设置窗口左上角字标下面)和操作系统,Mac 写明 Apple 芯片还是 Intel
+- 写明 Coopanion 版本(设置窗口标题栏左侧)和操作系统,Mac 写明 Apple 芯片还是 Intel
 - 从源码运行的,附上和该版本 Pal-AI-Lab/Coopanion Release 的 diff:
   `git diff --submodule=diff <tag>`,子模块的改动也在里面。用没改过的安装包就写「无」
 - Coo 行为不对或报错时附诊断包:设置窗口切到高级模式,「运行诊断」页点「导出诊断」。

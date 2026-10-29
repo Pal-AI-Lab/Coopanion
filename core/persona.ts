@@ -18,9 +18,10 @@
  * passed in: the app loads it from the staged Cortico (`companion.ts`), the tests from vendor/cortico.
  */
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, statSync, unlinkSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, renameSync, rmdirSync, statSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import type { EventEnvelope, SessionOpeningReason, ToolDef, WorldLifecycleEvent } from 'cortico/core/types.ts';
+import { readTextFile } from 'cortico/core/util.ts';
 import type { Cormini } from '../vendor/cortico/bots/cormini/persona/persona.ts';
 import type { GitAuthor, WorkspaceGit } from '../vendor/cortico/bots/cormini/persona/workspaceGit.ts';
 
@@ -91,7 +92,7 @@ export function arrangePartner(dir: string): boolean {
       appendFileSync(join(dir, PARTNER_FILE), `
 
 --- merged from ${name} ---
-${readFileSync(join(dir, name), 'utf8')}`, 'utf8');
+${readTextFile(join(dir, name))}`, 'utf8');
       unlinkSync(join(dir, name));
     } else {
       renameSync(join(dir, name), join(dir, PARTNER_FILE));
@@ -176,7 +177,7 @@ ${super.partnerDoc() || `(${PARTNER_FILE} is empty.)`}`;
       const git = this.git;
       try {
         const ignore = join(this.memoryDir, '.gitignore');
-        const lines = existsSync(ignore) ? readFileSync(ignore, 'utf8').split(/\r?\n/) : [];
+        const lines = existsSync(ignore) ? readTextFile(ignore).split(/\r?\n/) : [];
         if (!lines.includes(IGNORED)) appendFileSync(ignore, `${lines.length && lines.at(-1) !== '' ? '\n' : ''}${IGNORED}\n`, 'utf8');
         untrack(this.memoryDir, IGNORED);
         const tag = SNAPSHOT_TAG(version);

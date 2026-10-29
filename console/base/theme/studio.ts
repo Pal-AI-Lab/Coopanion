@@ -265,7 +265,7 @@ export class ThemeStudio {
     });
   }
 
-  /** 摘掉系统深色监听并清空订阅。进程级实例通常活到页面关闭，测试与热重载用。 */
+  /** 摘掉系统深色监听并清空订阅。部署的主题记录换了时由 `disposeThemeStudio` 调用。 */
   dispose(): void {
     if (this.closed) return;
     this.closed = true;
@@ -273,7 +273,7 @@ export class ThemeStudio {
     this.listeners.clear();
   }
 
-  /** 回写部署。失败记在快照里,由外观页呈现;当前选择在本页仍然生效。 */
+  /** 回写部署。失败记在快照的 `saveError` 里，由配色方案页(`features/schemes`)呈现;当前选择在本页仍然生效。 */
   private persist(): void {
     const sending = JSON.parse(JSON.stringify(this.state)) as StoredTheme;
     void this.save(sending).then(
@@ -335,7 +335,7 @@ export function getThemeStudio(deps?: Partial<ThemeStudioDeps>): ThemeStudio {
 }
 
 /**
- * **首屏第一件事**：读服务端注入的部署主题记录、把颜色刷到 `documentElement`。
+ * **首屏第一件事**：读这个窗口缓存的主题记录(调用方传了 `injected` 就用它),把颜色刷到 `documentElement`。
  *
  * 同步执行、不等任何路由，所以内核入口可以在第一行直接调它。部署还没有记录且这台
  * 机器存过旧记录时，构造函数会把旧记录回写一次。
@@ -350,7 +350,7 @@ export function applyStoredTheme(
   return studio.snapshot();
 }
 
-/** 丢掉进程级实例（测试与热重载）。生产代码里没有它的用处。 */
+/** 丢掉进程级实例：部署的主题记录换了时，下一次 `getThemeStudio` 用新记录重建。 */
 export function disposeThemeStudio(): void {
   shared?.dispose();
   shared = null;
