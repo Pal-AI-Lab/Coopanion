@@ -11,11 +11,11 @@
  * console code page touches it; its output escapes everything outside ASCII for the same reason.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import type { Logger } from 'cortico/core/types.ts';
+import { readTextFile } from 'cortico/core/util.ts';
 import type { TranscribeResult } from './result.ts';
 import { petText, type PetText } from '../i18n/index.ts';
 
@@ -140,7 +140,7 @@ export class SystemRecognizer {
     this.language = this.wanted();
     this.phase = 'starting';
     this.detail = null;
-    const encoded = Buffer.from(readFileSync(SCRIPT_FILE, 'utf8'), 'utf16le').toString('base64');
+    const encoded = Buffer.from(readTextFile(SCRIPT_FILE), 'utf16le').toString('base64');
     let child: ChildProcess;
     try {
       child = (this.opts.spawnImpl ?? spawn)(powershellExe(), ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded], {
