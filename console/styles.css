@@ -2172,7 +2172,8 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-group{transition:padding var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),border-color 200ms;border-bottom:1px solid transparent}
 .world-workspace[data-view=mine] .world-group:has(+ .world-library-entry:not(.motion-ghost)){width:var(--world-entry-width);padding-bottom:6px;margin-bottom:14px;border-bottom-color:var(--line)}
 /* Cards past the first screen skip rendering until scrolled to, so showing the market lays out only
-   the cards in view; those are marked is-in-view while the market slides in. */
+   the cards in view. Cards are marked is-in-view to render at once: right after a re-render, and while
+   the market slides in. A re-rendered card's placeholder takes its predecessor's height (inline). */
 .world-catalog .extension-market-card{content-visibility:auto;contain-intrinsic-size:auto 160px}
 .world-catalog .extension-market-card.is-in-view{content-visibility:visible}
 .world-no-matches{margin:4px 0 0;padding:20px 0;font-size:12.5px;color:var(--ink-dim);text-align:center}

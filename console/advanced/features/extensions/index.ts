@@ -1098,6 +1098,25 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     }, { signal });
     return button;
   }
+  /** A card's content height, which its placeholder stands in for while it skips rendering. */
+  const contentHeight = (card: HTMLElement) => {
+    const style = win.getComputedStyle(card), edge = (name: string) => parseFloat(style.getPropertyValue(name)) || 0;
+    return Math.max(0, card.offsetHeight - edge('padding-top') - edge('padding-bottom') - edge('border-top-width') - edge('border-bottom-width'));
+  };
+  /**
+   * Renders the cards in the window now rather than a frame later, so this frame's layout, which a
+   * reflow measures, is the one that will show. A rendered card's own height can bring the next one
+   * into view. They go back to skipping by themselves once drawn.
+   */
+  function renderInView() {
+    const bottom = scrollerOf(marketGrid)?.getBoundingClientRect().bottom ?? win.innerHeight, shown: HTMLElement[] = [];
+    for (const card of marketGrid.querySelectorAll<HTMLElement>(':scope > .extension-market-card')) {
+      const box = card.getBoundingClientRect();
+      if (box.top >= bottom) break;
+      if (box.bottom > 0) { card.classList.add('is-in-view'); shown.push(card); }
+    }
+    win.requestAnimationFrame(() => win.requestAnimationFrame(() => { for (const card of shown) card.classList.remove('is-in-view'); }));
+  }
   /** The market's cards by package, for animating a re-render (see measureReflow): cards that go leave
    * sideways first, then the rest close up. */
   const measureCards = () => marketGrid?.isConnected ? measureReflow(marketGrid, ':scope > .extension-market-card', card => card.dataset.name, { aside: 24 }) : undefined;
@@ -1117,6 +1136,10 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const focused = doc.activeElement instanceof win.HTMLElement && marketGrid.contains(doc.activeElement) ? doc.activeElement : null;
     const focusName = focused?.closest<HTMLElement>('.extension-market-card')?.dataset.name;
     const focusAction = focused?.classList.contains('extension-get');
+    // Cards skip rendering until scrolled to, sized by a placeholder meanwhile. A re-render builds new
+    // cards, so each takes over the height its predecessor had: the list keeps its layout, above the
+    // window too, instead of every card falling back to the placeholder's height.
+    const heights = new Map([...marketGrid.querySelectorAll<HTMLElement>(':scope > .extension-market-card[data-name]')].map(card => [card.dataset.name!, contentHeight(card)]));
     marketGrid.replaceChildren(...result.shown.map(hit => {
       const card = ui.h('article', 'extension-card extension-market-card' + (hit.installed ? ' is-installed' : ''));
       const owner = kind; card.tabIndex = 0; card.setAttribute('role', 'button'); card.setAttribute('aria-label', hit.displayName ?? hit.name);
@@ -1169,6 +1192,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       if (hit.date) foot.append(dateStat(hit.date));
       card.append(foot);
       card.dataset.name = hit.name; card.append(getButton(hit, owner));
+      const known = heights.get(hit.name); if (known) card.style.containIntrinsicHeight = `auto ${known}px`;
       return card;
     }));
     if (focusName) {
@@ -1177,6 +1201,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       (action ?? card)?.focus({ preventScroll: true });
     }
     for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) foldTags(row);
+    renderInView();
     if (!result.matched) marketGrid.append(emptyMarket(state));
     pager(marketPager, result.matched, result.page, pageSize(), page => { marketGrid.style.minHeight = `${marketGrid.getBoundingClientRect().height}px`; state.page = page; renderMarket(true); save(); });
     reflow?.play();

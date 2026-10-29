@@ -56,9 +56,10 @@ export interface Reflow {
 
 export interface ReflowOptions {
   /**
-   * Play in two steps: what went slides this many pixels sideways as it fades, and only then do the
-   * rest close the gap and what appears slides in from the other side. Without it (0) everything
-   * moves at once and what went fades where it stands.
+   * Play in steps, so nothing crosses anything: what went slides this many pixels sideways as it
+   * fades, then the rest close the gap, and what appears slides in from the other side as they
+   * arrive (new items take their final places, which the rest are still crossing until then).
+   * Without it (0) everything moves at once and what went fades where it stands.
    */
   aside?: number;
 }
@@ -93,18 +94,23 @@ export function measureReflow(container: HTMLElement, selector: string, key: (el
         const id = key(el), rect = el.getBoundingClientRect();
         if (id && rect.height) now.set(id, { el, rect });
       }
-      const gone = [...before].filter(([id, was]) => !now.has(id) && inView(was.rect)).map(([, was]) => was);
-      // In two steps the rest wait, where they were, until what went has left.
-      const delay = aside && gone.length ? EXIT_MS : 0, timing = { id: 'reflow', duration: REFLOW_MS, easing: REFLOW_EASING, delay, fill: 'backwards' as const };
+      // Items that change places with others would cross them if they slid. Only the largest set
+      // that keeps its order slides; the rest leave where they were and arrive where they are.
+      const order = [...before.keys()], kept = new Set(steadiest([...now.keys()].filter(id => before.has(id)).map(id => order.indexOf(id))).map(index => order[index]));
+      const gone = [...before].filter(([id, was]) => !kept.has(id) && inView(was.rect)).map(([, was]) => was);
+      // In steps the rest wait, where they were, until what went has left; what appears waits until
+      // they have (nearly) arrived.
+      const moves: [HTMLElement, number, number][] = [], arrivals: HTMLElement[] = [];
       for (const [id, { el, rect }] of now) {
-        const was = before.get(id);
-        if (!was) {
-          if (inView(rect)) el.animate([{ opacity: 0, transform: aside ? `translateX(${-aside}px)` : 'scale(.98)' }, { opacity: 1, transform: 'none' }], timing);
-          continue;
-        }
+        const was = kept.has(id) ? before.get(id) : undefined;
+        if (!was) { if (inView(rect)) arrivals.push(el); continue; }
         const dx = was.rect.left - rect.left, dy = was.rect.top - rect.top;
-        if ((Math.abs(dx) > .5 || Math.abs(dy) > .5) && (inView(rect) || inView(was.rect))) el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], timing);
+        if ((Math.abs(dx) > .5 || Math.abs(dy) > .5) && (inView(rect) || inView(was.rect))) moves.push([el, dx, dy]);
       }
+      const exit = aside && gone.length ? EXIT_MS : 0, enter = aside ? exit + (moves.length ? REFLOW_MS * .8 : 0) : 0;
+      const timing = (delay: number) => ({ id: 'reflow', duration: REFLOW_MS, easing: REFLOW_EASING, delay, fill: 'backwards' as const });
+      for (const [el, dx, dy] of moves) el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], timing(exit));
+      for (const el of arrivals) el.animate([{ opacity: 0, transform: aside ? `translateX(${-aside}px)` : 'scale(.98)' }, { opacity: 1, transform: 'none' }], timing(enter));
       // What went leaves as a copy where it stood: in its own parent while that is still shown, so
       // the styles it had there still apply.
       for (const was of gone) {
@@ -126,4 +132,17 @@ export function measureReflow(container: HTMLElement, selector: string, key: (el
       }
     },
   };
+}
+
+/** The longest run of `values` that increases (not necessarily adjacent), as values. */
+export function steadiest(values: readonly number[]): number[] {
+  const tails: number[] = [], links = new Array<number>(values.length);
+  values.forEach((value, index) => {
+    let low = 0, high = tails.length;
+    while (low < high) { const mid = (low + high) >> 1; if (values[tails[mid]] < value) low = mid + 1; else high = mid; }
+    links[index] = low ? tails[low - 1] : -1; tails[low] = index;
+  });
+  const run: number[] = [];
+  for (let index = tails.length ? tails[tails.length - 1] : -1; index >= 0; index = links[index]) run.unshift(values[index]);
+  return run;
 }
