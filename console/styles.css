@@ -2083,15 +2083,20 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-catalog-filters .extension-tagbar{display:block;margin:0 0 20px;padding:0;border:0}
 .world-catalog-filters .extension-tag-row{display:flex;flex-direction:column;align-items:stretch;gap:2px;max-height:none;overflow:visible;margin-top:8px}
 .world-catalog-filters .extension-tag{display:flex;justify-content:flex-start;max-width:100%;border:0;border-radius:8px;background:transparent;font-size:11.5px;min-height:28px;padding:4px 10px}
-.world-catalog-filters .extension-tag:hover{background:var(--hover)}
 /* A selected sidebar filter keeps its own colour on a tint of it. */
-.world-catalog-filters .extension-tag.is-active,.world-catalog-filters button.extension-tag.is-active:hover{background:color-mix(in srgb,currentColor 13%,transparent);font-weight:600}
-.world-catalog-filters .extension-tag.is-active:not(.is-warning,.is-official,.is-notice,.is-badge){color:var(--accent)}
-.world-catalog-filters .extension-tag.is-warning.is-active{color:var(--extension-alert)}
-.world-catalog-filters .extension-tag.is-official.is-active{color:var(--extension-mark)}
-.world-catalog-filters .extension-tag.is-notice.is-active{color:var(--extension-caution)}
-.world-catalog-filters .extension-tag.is-badge.is-active{color:var(--extension-badge)}
-.world-catalog-filters .extension-tag.is-badge.is-new.is-active{color:var(--extension-new)}
+/* Sidebar filters, one scheme: text in the tag's colour (plain tags grey), no fill or border;
+   hover adds a neutral fill; selected adds a tint of the tag's colour (plain tags green) and bold. */
+.world-catalog-filters .extension-tag{--tag-ink:var(--ink-soft);--tag-colour:var(--accent)}
+.world-catalog-filters .extension-tag.is-warning{--tag-ink:var(--extension-alert);--tag-colour:var(--extension-alert)}
+.world-catalog-filters .extension-tag.is-official{--tag-ink:var(--extension-mark);--tag-colour:var(--extension-mark)}
+.world-catalog-filters .extension-tag.is-notice{--tag-ink:var(--extension-caution);--tag-colour:var(--extension-caution)}
+.world-catalog-filters .extension-tag.is-badge{--tag-ink:var(--extension-badge);--tag-colour:var(--extension-badge)}
+.world-catalog-filters .extension-tag.is-badge.is-new{--tag-ink:var(--extension-new);--tag-colour:var(--extension-new)}
+.world-catalog-filters.world-catalog-filters .extension-tag.extension-tag{color:var(--tag-ink);background:transparent;border-color:transparent;font-weight:400}
+.world-catalog-filters.world-catalog-filters button.extension-tag.extension-tag:hover{color:var(--tag-ink);background:var(--hover);border-color:transparent}
+.world-catalog-filters.world-catalog-filters .extension-tag.extension-tag.is-active,.world-catalog-filters.world-catalog-filters button.extension-tag.extension-tag.is-active:hover{color:var(--tag-colour);background:color-mix(in srgb,var(--tag-colour) 13%,transparent);border-color:transparent;font-weight:600}
+.world-catalog-filters.world-catalog-filters button.extension-tag.extension-tag.is-active:hover{background:color-mix(in srgb,var(--tag-colour) 19%,transparent)}
+.world-catalog-filters .extension-tag .extension-tag-count{color:var(--ink-dim);font-weight:400}
 .world-catalog-filters .extension-tag-count{margin-left:auto;color:var(--ink-dim)}
 .world-catalog-filters .extension-search-options{padding:0 10px}
 .world-catalog-filters .extension-search-options,.world-catalog-filters .extension-search-toggles,.world-catalog-filters .extension-switches{display:flex;flex-direction:column;align-items:stretch;gap:10px}
@@ -2187,7 +2192,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 }
 @media(prefers-reduced-motion:reduce){.extension-get-ring,.extension-get-ring .arc,.world-dock-tip{animation:none}.world-library-entry,.world-library-list,.world-library-heading,.world-library-label,.world-pending-group,.world-avatar{transition:none}.world-library-item:is(:hover,:focus-visible,:active) .world-avatar{transform:none}}
 /* My World's filter row folds away in the market view. */
-.world-library-tools{flex:none;display:flex;align-items:center;gap:8px;height:auto;margin:0 0 14px;overflow:hidden;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 200ms}
+.world-library-tools{flex:none;display:flex;align-items:center;gap:8px;width:var(--world-entry-width);height:auto;margin:0 0 12px;overflow:hidden;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 200ms}
 .world-library-tools input[type=search]{flex:0 1 240px;min-width:120px;height:32px;min-height:32px;padding-block:0;font-size:12.5px}
 .world-library-tools select{height:32px;min-height:32px;padding-block:0;font-size:12.5px;width:auto}
 .world-library-tools :is(input,select):focus,.world-library-tools :is(input,select):focus-visible{outline:none;box-shadow:none;border-color:var(--line-strong)}
@@ -2208,8 +2213,10 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-group-count{flex:none;min-width:18px;padding:2px 6px;border-radius:9px;background:var(--hover);font:500 11px/1.2 var(--sans);color:var(--ink-dim);text-align:center}
 .world-group-action{opacity:0;transition:opacity 150ms}
 .world-group-head:is(:hover,:focus-within) .world-group-action{opacity:1}
-.world-group-rename{height:26px;min-height:26px;width:200px;padding:0 8px;font:600 13px var(--sans)}
-.world-workspace[data-view=mine] .world-group.is-collapsed .world-group-list{display:none}
+.world-group-rename{height:28px;min-height:28px;width:200px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--sheet);font:600 13px var(--sans)}
+.world-group-rename:focus,.world-group-rename:focus-visible{outline:none;box-shadow:none;border-color:var(--line-strong)}
+.world-group-list{height:auto;overflow:clip;overflow-clip-margin:8px;transition:height var(--world-duration) var(--world-easing),opacity 240ms}
+.world-workspace[data-view=mine] .world-group.is-collapsed .world-group-list{height:0;opacity:0}
 .world-workspace[data-view=market] .world-group-head{height:0;margin:0;opacity:0;pointer-events:none}
 .world-drop-line{position:absolute;left:0;z-index:3;width:var(--world-entry-width);height:2px;margin-top:-1px;border-radius:2px;background:var(--accent);pointer-events:none}
 .world-drop-line[hidden]{display:none}

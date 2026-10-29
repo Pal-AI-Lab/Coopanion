@@ -95,7 +95,8 @@ export function mountWorlds(ctx: FeatureContext): void {
   const readyGroup = ui.h('div', 'world-ready-group');
   const restartRow = ui.h('div', 'world-restart-row'); restartRow.append(restartRoot, ui.h('span', 'world-restart-note', S.pendingNote));
   pendingGroup.append(ui.h('h2', 'world-library-heading', E.statePendingRestart), pendingList, restartRow); pendingGroup.hidden = true;
-  readyGroup.append(ui.h('h2', 'world-library-heading', S.extensionList), readyList);
+  const readyHeading = ui.h('h2', 'world-library-heading', S.extensionList);
+  readyGroup.append(readyHeading, readyList);
   railList.append(pendingGroup, readyGroup);
   // My World's filter row and groups. Filtering, collapsing and dragging apply to the rows view;
   // the market view's rail shows every avatar in the user's order.
@@ -111,12 +112,13 @@ export function mountWorlds(ctx: FeatureContext): void {
   ], onChange: value => { filterState = value; applyFilter(); } });
   const newGroup = ui.button(S.newGroup, { size: 'sm', onClick: () => createGroup() });
   tools.append(search, stateFilter, newGroup);
+  readyHeading.after(tools);
   const dropLine = ui.h('div', 'world-drop-line'); dropLine.hidden = true; readyGroup.append(dropLine);
   const groupNodes = new Map<string, { el: HTMLElement; head: HTMLElement; name: HTMLElement; count: HTMLElement; list: HTMLElement }>();
   const status = ui.h('div', 'world-workspace-status');
   const catalog = ui.h('div', 'world-pane world-market');
   const msg = ui.msgline(); msg.setAttribute('role', 'status');
-  rail.append(tools, railList);
+  rail.append(railList);
   const feedback = ui.h('div', 'world-feedback'); feedback.append(msg);
   workspace.append(rail, catalog); root.append(intro, status, feedback, workspace);
   /** Name tag beside a rail avatar in the market view, where the rail shows avatars alone. */
@@ -148,6 +150,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     catalog.inert = next !== 'market';
     for (const row of railList.querySelectorAll<HTMLElement>('.world-blade')) row.inert = next === 'market';
     tools.inert = next === 'market'; syncDraggable();
+    for (const id of groupNodes.keys()) { const group = layout?.groups[id]; if (group) paintGroup(group); }
     if (next === 'mine' && catalog.contains(doc.activeElement)) tabs.el.querySelector<HTMLButtonElement>('[aria-current=page]')?.focus();
     if (next === 'mine' && focusRequested) focusSelected();
     const closed = { clipPath: 'inset(0 0 0 100%)' };
@@ -299,7 +302,7 @@ export function mountWorlds(ctx: FeatureContext): void {
   function paintGroup(group: WorldGroup) {
     const node = groupNode(group);
     node.name.textContent = group.name; node.count.textContent = String(node.list.childElementCount);
-    node.el.classList.toggle('is-collapsed', group.collapsed);
+    node.el.classList.toggle('is-collapsed', group.collapsed); node.list.inert = group.collapsed && current === 'mine';
     node.head.querySelector('.world-group-toggle')!.setAttribute('aria-expanded', String(!group.collapsed));
   }
   /** Places the ready rows and the groups by the saved layout, recording every row it places. */
@@ -357,11 +360,10 @@ export function mountWorlds(ctx: FeatureContext): void {
   }
   function applyFilter() {
     const needle = filterText.trim().toLowerCase(), active = filtering();
-    for (const entry of railList.querySelectorAll<HTMLElement>('.world-library-entry')) {
+    for (const entry of readyList.querySelectorAll<HTMLElement>('.world-library-entry')) {
       entry.classList.toggle('is-filtered-out', active && !((!needle || entry.dataset.name?.includes(needle)) && (filterState === 'all' || entry.dataset.state === filterState)));
     }
     for (const node of groupNodes.values()) node.el.classList.toggle('is-filtered-out', active && !node.list.querySelector('.world-library-entry:not(.is-filtered-out)'));
-    pendingGroup.classList.toggle('is-filtered-out', active && !pendingList.querySelector('.world-library-entry:not(.is-filtered-out)'));
     syncDraggable();
   }
   /** Rows and groups can be dragged in the rows view while no filter hides any of them. */
@@ -399,8 +401,11 @@ export function mountWorlds(ctx: FeatureContext): void {
     const y = event.clientY;
     if (dragging.kind === 'item') {
       const head = [...groupNodes.values()].map(node => node.head).find(el => { const r = el.getBoundingClientRect(); return y >= r.top && y <= r.bottom; });
+      if (head && y < head.getBoundingClientRect().top + head.offsetHeight / 3) { dropAt = { group: null, before: groupToken(head.dataset.group!) }; showDrop(head.getBoundingClientRect().top - 4); return; }
+      const first = [...readyList.children].find((el): el is HTMLElement => el !== dropLine && (el as HTMLElement).offsetParent !== null);
+      if (!head && first && y < first.getBoundingClientRect().top) { dropAt = { group: null, before: tokenOf(first) }; showDrop(first.getBoundingClientRect().top - 4); return; }
       if (head) { const group = layout?.groups[head.dataset.group!]; dropAt = { group: head.dataset.group!, before: group?.items.find(key => key !== (dragging as { key: string }).key) ?? null, head }; head.classList.add('is-drop-target'); return; }
-      const rows = [...readyList.querySelectorAll<HTMLElement>('.world-library-entry')].filter(el => el.offsetParent && !el.classList.contains('is-dragging'));
+      const rows = [...readyList.querySelectorAll<HTMLElement>('.world-library-entry')].filter(el => el.offsetParent && !el.classList.contains('is-dragging') && !el.closest('.world-group.is-collapsed'));
       const over = rows.find(el => { const r = el.getBoundingClientRect(); return y >= r.top && y <= r.bottom; }) ?? rows.find(el => el.getBoundingClientRect().top > y);
       if (!over) { dropAt = { group: null, before: null }; const last = readyList.lastElementChild?.getBoundingClientRect(); if (last) showDrop(last.bottom + 4); return; }
       const r = over.getBoundingClientRect(), after = y > r.top + r.height / 2 && y <= r.bottom;

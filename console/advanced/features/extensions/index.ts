@@ -727,11 +727,13 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
   const certifiedBadge = (active = false) => badge('extension-certified-badge' + (active ? ' is-active' : ''), 'shield-check', S.certified, S.certifiedHint);
   const newBadge = (active = false) => badge('extension-new-badge' + (active ? ' is-active' : ''), 'sparkles', S.newLabel, S.newHint(marketIndex.newDays ?? 14));
   /** 一个包的全部徽标。 */
+  /** Badges on a card; outside the World catalog they also show which badge filters are on. */
   function badgesOf(hit: SearchHitView, state: CategoryState) {
+    const marks = !workspace;
     return [
-      ...(hit.certified ? [certifiedBadge(state.certifiedOnly)] : []),
-      ...(hit.official ? [officialBadge(state.officialOnly)] : []),
-      ...(hit.isNew ? [newBadge(state.newOnly)] : []),
+      ...(hit.certified ? [certifiedBadge(marks && state.certifiedOnly)] : []),
+      ...(hit.official ? [officialBadge(marks && state.officialOnly)] : []),
+      ...(hit.isNew ? [newBadge(marks && state.newOnly)] : []),
     ];
   }
   /** 列表回来之前不知道本机平台,先当装得上。 */
@@ -1273,7 +1275,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
       if (!workspace) card.append(summaryLine(owner, hit.summary));
       const tags = orderedTags(hit.tags);
       if (tags.length) {
-        const row = ui.h('div', 'extension-tag-row'); row.append(...tags.map(id => tagChip(id, { active: state.tags.includes(id), onToggle: () => toggleTag(id) }))); card.append(row);
+        const row = ui.h('div', 'extension-tag-row'); row.append(...tags.map(id => tagChip(id, { active: !workspace && state.tags.includes(id), onToggle: () => toggleTag(id) }))); card.append(row);
         card.addEventListener('pointerleave', () => { if (row.classList.contains('is-open')) foldTags(row); }, { signal });
       }
       const foot = ui.h('div', 'extension-card-foot');
