@@ -46,7 +46,7 @@ const zh = {
   restartBody: "停止并重建 World，应用标有「重启 World 生效」的配置。托管进程与连接会停止后重新启动。",
   missingReasonDefault: "无法加载这个 World。",
   activateWorld: '激活 World',
-  inactiveNoteManual: (id: string) => `本地有实现但没装配。要启用,把 config.json 里 worlds.${id}.enabled 改为 true 后重启。`,
+  inactiveNoteManual: (id: string) => `本地有实现但没装配。要启用,把 config.json 里 worlds.${id}.enabled 修改为 true 后重启。`,
   hideFromAgent: '对 agent 隐藏',
   showToAgent: '对 agent 显示',
   restartWorld: '重启 World',

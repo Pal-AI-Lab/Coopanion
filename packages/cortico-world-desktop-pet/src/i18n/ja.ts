@@ -197,7 +197,7 @@ const ja: Translation<PetText> = {
       pet: { title: 'デスクトップペット', description: 'ウィンドウ、着せ替え、ウィンドウのランタイム。' },
       voice: { title: '音声入力', description: '認識エンジン、入力レベル、聞き取った内容。' },
     },
-    envPrompt: { title: 'デスクトップペットの環境', description: 'ペットの体、4 つのツール、入力イベントの説明。' },
+    envPrompt: { title: 'デスクトップペットの環境', description: 'ペットの体、ツール、入力イベントの説明。' },
     vars: {
       'pet.user': 'ボットがユーザーを呼ぶ名前',
       'pet.vocab': '現在のアバターの表情と動作',

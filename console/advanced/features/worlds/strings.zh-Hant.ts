@@ -37,7 +37,7 @@ export const S: Partial<typeof en> = {
   restartBody: '停止並重建 World，套用標有「重新啟動 World 生效」的設定。託管處理程序與連線會停止後重新啟動。',
   missingReasonDefault: '無法載入這個 World。',
   activateWorld: '啟用 World',
-  inactiveNoteManual: (id: string) => `本機有實作但沒裝配。要啟用,把 config.json 裡 worlds.${id}.enabled 改為 true 後重新啟動。`,
+  inactiveNoteManual: (id: string) => `本機有實作但沒裝配。要啟用,把 config.json 裡 worlds.${id}.enabled 修改為 true 後重新啟動。`,
   hideFromAgent: '對 agent 隱藏',
   showToAgent: '對 agent 顯示',
   restartWorld: '重新啟動 World',
