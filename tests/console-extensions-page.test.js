@@ -1027,7 +1027,7 @@ describe('World library and catalog', () => {
     const { root, ctx } = await openWorlds({}, { worlds: true, extensions: true, worldActivation: true, worldVisibility: true, restart: true, supervised: true });
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod');
-    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['扩展信息', '删除扩展', '配置', '对 agent 隐藏', '停用 World']);
+    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['扩展信息', '不在左栏显示', '删除扩展', '配置', '对 agent 隐藏', '停用 World']);
     row.querySelector('.world-blade-identity code').click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     expect(decodeURIComponent(window.location.hash)).toBe('#/provider/world:alpha');
   });
@@ -1066,6 +1066,26 @@ describe('World library and catalog', () => {
     mountWorlds(context.ctx); await flush();
     const root = context.root;
     expect(root.querySelector('.world-group-count').textContent).toBe(String(root.querySelectorAll('.world-group-list .world-library-entry').length));
+  });
+  it('hides an active World from the sidebar and remembers it', async () => {
+    window.localStorage.removeItem('coopanion.world-nav-hidden.v1');
+    const { root, ctx } = await openWorlds({}, { worlds: true, extensions: true, worldActivation: true, worldVisibility: true, restart: true, supervised: true });
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    let fired = 0; window.addEventListener('coopanion:world-nav-hidden', () => fired++, { once: true });
+    root.querySelector('.world-blade[data-world="alpha"] [data-slot="sidebar"]').click(); await flush();
+    expect(JSON.parse(window.localStorage.getItem('coopanion.world-nav-hidden.v1'))).toEqual(['world:alpha']);
+    expect(fired).toBe(1);
+    expect(root.querySelector('.world-blade[data-world="alpha"] [data-slot="sidebar"]').getAttribute('aria-label')).toBe('在左栏显示');
+    window.localStorage.removeItem('coopanion.world-nav-hidden.v1');
+  });
+  it('shows a failed switch beside its control instead of a status line', async () => {
+    const { root, ctx } = await openWorlds({ worlds: [{ id: 'alpha', label: '甲扩展', status: 'inactive' }] }, { worlds: true, extensions: true, worldActivation: true, restart: true, supervised: true });
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    vi.stubGlobal('fetch', (url, init) => Promise.resolve(String(url) === '/api/worlds/activation' ? new Response(JSON.stringify({ error: 'World 启动失败' }), { status: 500, headers: { 'Content-Type': 'application/json' } }) : new Response(JSON.stringify(String(url) === '/api/worlds' ? { worlds: [{ id: 'alpha', label: '甲扩展', status: 'inactive' }] } : { extensions: LIST.extensions, dir: '' }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+    root.querySelector('.world-blade[data-world="alpha"] [data-slot="power"]').click(); await flush(100);
+    const problem = [...document.querySelectorAll('.extension-problem')].find(el => !el.classList.contains('hidden'));
+    expect(problem.textContent).toContain('World 启动失败');
+    expect(root.querySelector('.world-feedback').textContent).toBe('');
   });
   it('greys out an unavailable uninstall and names the reason', async () => {
     const { root, ctx } = await openWorlds();

@@ -4,6 +4,8 @@ import { pageIdFor } from '../../../base/protocol.ts';
 import type { WebUiBadge, WebUiLamp, WebUiLink } from 'cortico/web/shared/webui-protocol.ts';
 import { get, post } from '../../../base/api.ts';
 import { PROVIDER_ROUTE } from '../../console-pages/host.ts';
+import { markReturn, navHidden, setNavHidden } from '../../../base/world-nav.ts';
+import { problemPopover } from '../../../base/ui/problem.ts';
 import { brandMark, icon, type ConsoleIconName } from '../../../base/ui/icons.ts';
 import { lampRow, subscribeLamps } from '../../../base/ui/lamp.ts';
 import { pageIntro } from '../../../base/ui/page.ts';
@@ -18,7 +20,7 @@ import { S as UI } from '../../../base/ui/strings.ts';
 
 const worldPageId = (id: string) => pageIdFor('world', id);
 /** Row controls, left to right. */
-const ACTION_SLOTS = ['info', 'remove', 'configure', 'visibility', 'power'] as const;
+const ACTION_SLOTS = ['info', 'sidebar', 'remove', 'configure', 'visibility', 'power'] as const;
 type ActionSlot = typeof ACTION_SLOTS[number];
 export interface WorldView {
   id: string;
@@ -182,32 +184,39 @@ export function mountWorlds(ctx: FeatureContext): void {
     msg.className = 'msgline' + (bad ? ' bad' : '');
   }
 
-  async function reloadPrefix(): Promise<void> {
+  async function reloadPrefix(id: string): Promise<void> {
     try {
       await post('/api/session/reload-prefix', undefined, { signal });
       if (!signal.aborted) await load();
     } catch (err) {
-      if (!isAbort(err) && !signal.aborted) setMsg(S.prefixReloadFailed(errText(err)), true);
+      if (isAbort(err) || signal.aborted) return;
+      const control = controlOf(id, 'visibility');
+      if (control) problems.show(control, S.prefixReloadFailed(errText(err))); else setMsg(S.prefixReloadFailed(errText(err)), true);
     }
   }
 
+  const problems = problemPopover(doc, signal);
+  /** The row control an action on World `id` started from, as it is after the row re-renders. */
+  const controlOf = (id: string, slotName: ActionSlot) => railList.querySelector(`.world-blade[data-world="${CSS.escape(id)}"] [data-slot="${slotName}"]`);
   const changingWorlds = new Set<string>();
   async function changeWorld(m: WorldView, action: 'activation' | 'visibility', value: boolean): Promise<void> {
     if (changingWorlds.has(m.id)) return;
     changingWorlds.add(m.id); setMsg(''); render();
-    let drifted = false;
+    let drifted = false, problem: string | undefined;
     try {
       if (action === 'activation' && !value && (!await ui.confirm({ title: S.deactivateTitle(m.label || m.id), body: S.deactivateBody(m.id), danger: true }) || signal.aborted)) return;
       const out = await post<{ driftedWorlds?: string[] }>(`/api/worlds/${action}`, action === 'activation' ? { id: m.id, enabled: value } : { id: m.id, visible: value }, { signal });
       drifted = action === 'visibility' && !!out.driftedWorlds?.length;
       if (!signal.aborted) void ctx.refreshNav?.().catch(ctx.onError);
     } catch (error) {
-      if (!isAbort(error) && !signal.aborted) setMsg(S.toggleFailed(errText(error)), true);
+      if (!isAbort(error) && !signal.aborted) problem = S.toggleFailed(errText(error));
     } finally {
       changingWorlds.delete(m.id);
       if (!signal.aborted) await load();
     }
-    if (drifted && !signal.aborted && await ui.confirm({ title: S.reloadNowTitle, body: S.reloadNowBody(m.label || m.id, value) })) await reloadPrefix();
+    const control = problem === undefined ? null : controlOf(m.id, action === 'activation' ? 'power' : 'visibility');
+    if (problem !== undefined) { if (control) problems.show(control, problem); else setMsg(problem, true); return; }
+    if (drifted && !signal.aborted && await ui.confirm({ title: S.reloadNowTitle, body: S.reloadNowBody(m.label || m.id, value) })) await reloadPrefix(m.id);
   }
 
   const slot = (name: ActionSlot, button: HTMLButtonElement) => { button.dataset.slot = name; return button; };
@@ -512,6 +521,11 @@ export function mountWorlds(ctx: FeatureContext): void {
     // Left to right: install info, uninstall, configure, visibility, power.
     const actions = ui.h('div', 'world-blade-actions');
     if (pack && market) { const owner = market; actions.append(slot('info', iconButton('package', S.packageInfo, '', () => owner.details(pack.name)))); }
+    if (pack && market && m?.status === 'active') {
+      // Whether the active World has its own entry in the sidebar; kept in this window's storage.
+      const hidden = navHidden(win).has(worldPageId(m.id));
+      actions.append(slot('sidebar', iconButton(hidden ? 'radio-off' : 'radio-on', hidden ? S.showInSidebar : S.hideFromSidebar, hidden ? '' : 'iobtn-visible', () => { setNavHidden(win, worldPageId(m.id), !hidden); render(); })));
+    }
     // An unavailable uninstall stays visible, greyed, with the reason on hover.
     if (pack?.state !== 'removed') {
       const owner = market, key = item.key;
@@ -520,7 +534,8 @@ export function mountWorlds(ctx: FeatureContext): void {
       if (reason) { remove.setAttribute('aria-disabled', 'true'); remove.title = reason; remove.setAttribute('aria-label', `${E.remove}: ${reason}`); }
       actions.append(remove);
     }
-    if (m) actions.append(slot('configure', iconButton('settings', S.configure, '', () => router.navigate([PROVIDER_ROUTE, worldPageId(m.id)]))));
+    const configure = (id: string) => { markReturn(win, worldPageId(id)); router.navigate([PROVIDER_ROUTE, worldPageId(id)]); };
+    if (m) actions.append(slot('configure', iconButton('settings', S.configure, '', () => configure(m.id))));
     if (m && !pending && !failed) {
       const runtime: HTMLButtonElement[] = [];
       // Built-in Worlds stay on and visible; their off switches are greyed with the reason.
@@ -543,7 +558,8 @@ export function mountWorlds(ctx: FeatureContext): void {
     // A click on the row, outside its controls, opens the World's configuration page.
     if (m) {
       row.classList.add('is-configurable');
-      row.addEventListener('click', event => { if (!(event.target as Element).closest('button, a')) router.navigate([PROVIDER_ROUTE, worldPageId(m.id)]); }, { signal });
+      row.dataset.world = m.id;
+      row.addEventListener('click', event => { if (!(event.target as Element).closest('button, a')) configure(m.id); }, { signal });
     }
     row.append(identity, ui.h('span', 'world-state', state), signals, actions);
     if (failed) row.append(ui.h('p', 'world-blade-note bad', m?.reason || pack?.reason || S.missingReasonDefault));

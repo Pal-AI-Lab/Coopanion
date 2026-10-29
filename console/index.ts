@@ -48,6 +48,7 @@ import { createRail, type NavGroup, type NavItem } from './rail/index.ts';
 import { S as R } from './rail/strings.ts';
 import { L } from './strings.ts';
 import { createTitlebar } from './titlebar.ts';
+import { navHidden, NAV_HIDDEN_EVENT } from './base/world-nav.ts';
 import { watchPageScrollInset } from './base/ui/page.ts';
 
 /** One entry of the rail and the page it mounts. */
@@ -133,7 +134,8 @@ export function boot(doc: Document = document): Disposable {
   const renderNav = (): void => {
     const entries = ENTRIES.filter(available);
     const listed = host.pages.filter((p) => p.availability === 'active');
-    const pages = (kind: string, icon?: ConsoleIconName) => listed.filter((p) => p.kind === kind).map((p): NavItem => ({
+    const hidden = navHidden(window);
+    const pages = (kind: string, icon?: ConsoleIconName) => listed.filter((p) => p.kind === kind && !hidden.has(p.id)).map((p): NavItem => ({
       label: p.label || p.id, ...(icon ? { icon } : {}), segments: [PROVIDER_ROUTE, p.id], basic: false, pageId: p.id, lamps: p.lamps ?? [],
     }));
     const of = (group: Entry['group']) => entries.filter((e) => e.group === group).map(item);
@@ -147,6 +149,7 @@ export function boot(doc: Document = document): Disposable {
     rail.setNav(groups);
   };
   renderNav();
+  window.addEventListener(NAV_HIDDEN_EVENT, renderNav, { signal: life.signal });
 
   // the lamps of the manifest pages, which only the advanced mode lists (`/api/webui/lamps` is an internal route)
   let lamps: Disposable | null = null;

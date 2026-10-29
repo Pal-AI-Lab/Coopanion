@@ -135,7 +135,10 @@ export function createRail(deps: RailDeps): Rail {
   };
 
   /** Draws the groups in order; entries the normal mode does not list are hidden at once. */
+  /** Pages listed by the last draw; a page new since then arrives with an animation. */
+  let listedPages: Set<string> | null = null;
   const setNav = (groups: readonly NavGroup[]): void => {
+    const before = listedPages;
     navLife?.abort();
     navLife = new AbortController();
     const itemSignal = navLife.signal;
@@ -159,6 +162,11 @@ export function createRail(deps: RailDeps): Rail {
     }
     applyRoute();
     filterNav(false);
+    listedPages = new Set(entries.flatMap((entry) => entry.pageId ? [entry.pageId] : []));
+    if (before) for (const { item, pageId } of entries) if (pageId && !before.has(pageId) && !item.hidden) {
+      item.classList.add('companion-arrive');
+      item.addEventListener('animationend', () => item.classList.remove('companion-arrive'), { once: true });
+    }
   };
 
   const applyRoute = (): void => {

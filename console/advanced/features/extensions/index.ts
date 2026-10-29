@@ -7,7 +7,7 @@ import { renderMarkdown } from './markdown.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { S } from './strings.ts';
 import { CATALOG_CATEGORIES, CATALOG_CATEGORY_IDS, inCatalogCategory, isFunctionTag, type CatalogCategory } from './catalog.ts';
-import { S as UI } from '../../../base/ui/strings.ts';
+import { problemPopover, scrollerOf, wheelDelta } from '../../../base/ui/problem.ts';
 
 /** 扩展类别。与 `ExtensionKind` 同形;这一页只用它分组与选关键字。 */
 export type ExtensionKindView = 'world' | 'provider' | 'bot';
@@ -642,44 +642,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     const motion = el.animate(open ? [none, full] : [full, none], { duration: 240, easing });
     void motion.finished.then(() => { el.style.overflow = ''; if (!open) el.hidden = true; }, () => { el.style.overflow = ''; });
   }
-  /** The nearest ancestor that scrolls vertically. */
-  function scrollerOf(el: Element | null): HTMLElement | null {
-    for (let node = el?.parentElement ?? null; node; node = node.parentElement) {
-      const overflow = win.getComputedStyle(node).overflowY;
-      if ((overflow === 'auto' || overflow === 'scroll') && node.scrollHeight > node.clientHeight) return node;
-    }
-    return null;
-  }
-  const wheelDelta = (event: WheelEvent) => event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? win.innerHeight : 1);
-  /** An operation's error, shown beside the control that started it until dismissed. */
-  const problemBox = ui.h('div', 'u-tip extension-problem hidden'); problemBox.setAttribute('role', 'alert');
-  doc.body.append(problemBox); lifecycle.add(() => problemBox.remove());
-  let problemAnchor: Element | null = null;
-  const hideProblem = () => { problemBox.classList.add('hidden'); problemAnchor = null; };
-  function placeProblem() {
-    if (!problemAnchor?.isConnected) { hideProblem(); return; }
-    const target = problemAnchor.getBoundingClientRect(), tip = problemBox.getBoundingClientRect(), view = doc.documentElement;
-    const below = target.bottom + 10, above = target.top - tip.height - 10;
-    const flip = below + tip.height > view.clientHeight - 8 && above > 8;
-    const left = Math.max(8, Math.min(target.right - tip.width + 12, view.clientWidth - tip.width - 8));
-    problemBox.classList.toggle('is-above', flip);
-    problemBox.style.top = `${flip ? above : below}px`; problemBox.style.left = `${left}px`;
-    problemBox.style.setProperty('--problem-arrow', `${Math.max(14, Math.min(tip.width - 14, target.left + target.width / 2 - left))}px`);
-  }
-  function showProblem(anchor: Element, text: string) {
-    const close = ui.h('button', 'extension-problem-close') as HTMLButtonElement; close.type = 'button';
-    close.setAttribute('aria-label', UI.close); close.append(icon(doc, 'close'));
-    close.addEventListener('click', hideProblem, { signal });
-    problemBox.replaceChildren(icon(doc, 'alert', 'icon extension-problem-mark'), ui.h('span', 'extension-problem-text', text), close);
-    problemAnchor = anchor; problemBox.classList.remove('hidden'); placeProblem();
-    problemBox.animate?.([{ opacity: 0, transform: 'translateY(-4px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 180, easing: 'ease-out' });
-    anchor.animate?.([0, -5, 5, -3, 2, 0].map(x => ({ transform: `translateX(${x}px)` })), { duration: 420, easing: 'ease-out' });
-  }
-  problemBox.addEventListener('wheel', event => { const target = scrollerOf(problemAnchor); if (target) { event.preventDefault(); target.scrollBy({ top: wheelDelta(event) }); } }, { passive: false, signal });
-  doc.addEventListener('pointerdown', event => { if (problemAnchor && !problemBox.contains(event.target as Node) && !problemAnchor.contains(event.target as Node)) hideProblem(); }, { signal });
-  doc.addEventListener('keydown', event => { if (event.key === 'Escape') hideProblem(); }, { signal });
-  doc.addEventListener('scroll', () => { if (problemAnchor) placeProblem(); }, { capture: true, passive: true, signal });
-  win.addEventListener('resize', () => { if (problemAnchor) placeProblem(); }, { signal });
+  const problems = problemPopover(doc, signal);
   doc.addEventListener('scroll', hideHint, { capture: true, passive: true, signal });
   const HINT_LINK = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
   const plainHint = (text: string) => text.replace(HINT_LINK, '$1');
@@ -1408,7 +1371,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, scrol
     finally { busy.delete(identity); if (!signal.aborted) { renderInstalled(); if (workspace) renderMarket(); } }
     if (problem === undefined || signal.aborted) return;
     const control = quiet ? anchor?.() : null;
-    if (control?.isConnected) showProblem(control, problem); else message(owner, area, problem, true);
+    if (control?.isConnected) problems.show(control, problem); else message(owner, area, problem, true);
   }
   async function remove(name: string, anchor: Anchor) {
     if (busy.has(name) || !await ui.confirm({ title: S.remove, body: S.removeBody, danger: true }) || signal.aborted) return;

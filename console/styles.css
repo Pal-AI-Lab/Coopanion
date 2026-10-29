@@ -2039,7 +2039,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-blade[data-state=running] .world-state{color:var(--chart-7)}
 .world-blade[data-state=pending] .world-state{color:var(--warn)}
 .world-blade[data-state=failed] .world-state{color:var(--danger)}
-.world-blade-actions{display:grid;grid-template-columns:repeat(4,30px) 38px;align-items:center;gap:4px;justify-content:end}
+.world-blade-actions{display:grid;grid-template-columns:repeat(5,30px) 38px;align-items:center;gap:4px;justify-content:end}
 .world-blade-actions .iobtn-power{justify-self:end}
 .world-blade-actions .iobtn[aria-disabled=true]{opacity:.35;cursor:not-allowed}
 .world-blade-actions .iobtn[aria-disabled=true]:hover{background:transparent;color:inherit}
@@ -2226,3 +2226,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 /* Ungrouped rows after a group start below a divider, so an expanded group's end stays visible. */
 .world-group{transition:padding var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),border-color 200ms;border-bottom:1px solid transparent}
 .world-workspace[data-view=mine] .world-group:has(+ .world-library-entry){width:var(--world-entry-width);padding-bottom:6px;margin-bottom:14px;border-bottom-color:var(--line)}
+.pagetitle-back{flex:none;display:grid;place-items:center;width:32px;height:32px;margin:0 6px 0 -6px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--ink-soft);cursor:pointer;align-self:center;transition:background-color 150ms,color 150ms,transform 150ms}
+.pagetitle-back:hover{background:var(--hover);color:var(--ink);transform:translateX(-2px)}
+.pagetitle-back:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pagetitle-back .icon{width:20px;height:20px}

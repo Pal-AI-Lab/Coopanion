@@ -46,6 +46,9 @@ export type ConsoleIconName =
   | 'sidebar'
   | 'arrow-up'
   | 'warning'
+  | 'arrow-left'
+  | 'radio-on'
+  | 'radio-off'
   | 'warning-off';
 
 type Shape = readonly [tag: 'path' | 'circle' | 'rect' | 'line', attrs: Readonly<Record<string, string>>];
@@ -213,6 +216,17 @@ const SHAPES: Readonly<Record<ConsoleIconName, readonly Shape[]>> = {
     ['path', { d: 'M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18' }],
   ],
   check: [['path', { d: 'm5 12.5 4.5 4.5L19 7.5' }]],
+  'arrow-left': [
+    ['path', { d: 'M19 12H5' }],
+    ['path', { d: 'm11 6-6 6 6 6' }],
+  ],
+  'radio-on': [
+    ['circle', { cx: '12', cy: '12', r: '8' }],
+    ['circle', { cx: '12', cy: '12', r: '3.5', fill: 'currentColor' }],
+  ],
+  'radio-off': [
+    ['circle', { cx: '12', cy: '12', r: '8' }],
+  ],
   warning: [
     ['path', { d: 'M10.3 4.2 2.6 17.5a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z' }],
     ['path', { d: 'M12 9.5v4' }],

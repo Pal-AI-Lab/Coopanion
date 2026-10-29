@@ -25,6 +25,8 @@ import { createPanelContext, namespacedMemo } from './context.ts';
 import { ConsolePageLoader } from './loader.ts';
 import { S } from './strings.ts';
 import { S as WORLD } from '../features/worlds/strings.ts';
+import { takeReturn } from '../../base/world-nav.ts';
+import { icon } from '../../base/ui/icons.ts';
 
 /** 控制台页路由的首段，与框架页路由分开。 */
 export const PROVIDER_ROUTE = 'provider';
@@ -82,6 +84,8 @@ export class ConsolePageHost {
   private readonly deps: ConsolePageHostDeps;
   private snapshot: WebUiManifest | null = null;
   private mounted: MountedPanel | null = null;
+  /** The World page this visit came to from the World list; its header shows a way back. */
+  private backFor: string | null = null;
   /** Per World page, the values its restart-only settings had when the World last started; kept while the window is open. */
   private readonly restartApplied = new Map<string, Map<string, ConfigValue>>();
   private panes: Panes | null = null;
@@ -175,6 +179,7 @@ export class ConsolePageHost {
   /** 卸载当前面板：abort → dispose → 清空 root。顺序见 client-panel.ts 的说明。 */
   unmount(): void {
     const cur = this.mounted;
+    this.backFor = null;
     this.mounted = null;
     this.panes = null;
     this.chromeStop?.abort();
@@ -584,7 +589,10 @@ export class ConsolePageHost {
 
     const items = this.tabsOf(page);
     // 页头里画的字段与页签都没变时才复用整个页头。
-    const key = JSON.stringify([items, page.label, page.kind, page.availability, page.badges, page.agentVisible, page.prefixDrifted, page.reason, page.links]);
+    // The visit that came from the World list keeps its way back while it stays on this page.
+    if (this.backFor !== pageId) this.backFor = page.kind === 'world' && takeReturn(this.deps.doc.defaultView!, pageId) ? pageId : null;
+    const back = this.backFor === pageId;
+    const key = JSON.stringify([items, page.label, page.kind, page.availability, page.badges, page.agentVisible, page.prefixDrifted, page.reason, page.links, back]);
     if (this.tabs && this.tabs.pageId === pageId && this.tabs.key === key) {
       this.tabs.bar.setValue(activePanel ?? '');
       return;
@@ -601,6 +609,13 @@ export class ConsolePageHost {
     const purpose = page.kind === 'persona' ? S.personaTitle : page.kind === 'memory' ? S.memoryTitle : null;
     const title = ui.h('h1', 'pagetitle', purpose ?? page.label);
     if (purpose) title.appendChild(ui.h('span', 'pagetitle-name', page.label));
+    // A World page opened from the World list leads back to it.
+    if (back) {
+      const button = ui.h('button', 'pagetitle-back') as HTMLButtonElement; button.type = 'button';
+      button.title = S.backToWorlds; button.setAttribute('aria-label', S.backToWorlds); button.append(icon(this.deps.doc, 'arrow-left'));
+      button.addEventListener('click', () => { this.backFor = null; this.deps.router.navigate(['world']); }, { signal: this.chromeStop.signal });
+      row.appendChild(button);
+    }
     row.appendChild(title);
 
     const badges = ui.h('div', 'pagetitle-badges');

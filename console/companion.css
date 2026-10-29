@@ -242,6 +242,9 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
 @keyframes companion-enter { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
 @keyframes companion-leave { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(-6px); } }
 #rail .companion-enter { animation: companion-enter 200ms cubic-bezier(.22, 1, .36, 1) both; }
+/* A page that joins the sidebar opens its row, then slides in. */
+@keyframes companion-arrive { 0% { max-height: 0; min-height: 0; padding-block: 0; opacity: 0; transform: translateX(-10px); } 45% { max-height: 44px; opacity: 0; transform: translateX(-10px); } 100% { max-height: 44px; opacity: 1; transform: none; } }
+#rail .companion-arrive { overflow: hidden; animation: companion-arrive 420ms cubic-bezier(.22, 1, .36, 1) both; }
 #rail .companion-leave { animation: companion-leave 200ms ease both; pointer-events: none; }
 @keyframes companion-press { 0% { transform: scale(1); } 40% { transform: scale(.95); } 100% { transform: scale(1); } }
 @keyframes companion-turn { from { transform: rotate(-90deg); opacity: .3; } to { transform: none; opacity: 1; } }
@@ -250,7 +253,7 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
 #rail .companion-mode:active { transform: scale(.97); }
 /* with less motion asked for, the rail folds at once (its width, the logo, the words, the link under the version) and modes change without fading */
 @media (prefers-reduced-motion: reduce) {
-  #rail .companion-enter, #rail .companion-leave, #rail .companion-mode.companion-pressed, #rail .companion-mode.companion-pressed .navicon { animation: none; }
+  #rail .companion-enter, #rail .companion-leave, #rail .companion-arrive, #rail .companion-mode.companion-pressed, #rail .companion-mode.companion-pressed .navicon { animation: none; }
   body.companion-sidebar { --rail-motion: 0s linear; }
   #rail .lbl, #rail .rail-name, #rail .rail-rename, #rail .companion-runstate, #rail .stacklabel { transition: none; }
 }
