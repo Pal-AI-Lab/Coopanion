@@ -8,6 +8,7 @@ import { S } from './strings.ts';
 import { CATALOG_CATEGORIES, CATALOG_CATEGORY_IDS, inCatalogCategory, isFunctionTag, type CatalogCategory } from './catalog.ts';
 import { problemPopover, scrollerOf, wheelDelta } from '../../../base/ui/problem.ts';
 import { fold } from '../../../base/motion.ts';
+import { matchRanges, matchRank, prepareFields, searchTerms, type MatchRank, type PreparedFields } from './search.ts';
 
 /** 扩展类别。与 `ExtensionKind` 同形;这一页只用它分组与选关键字。 */
 export type ExtensionKindView = 'world' | 'provider' | 'bot';
@@ -197,6 +198,8 @@ export interface SearchHitView {
   links: { npm?: string; repository?: string; homepage?: string };
   installed: boolean;
   kind?: ExtensionKindView;
+  /** 页面自己补的名字:包文档或本地安装给的显示名,只用于搜索 */
+  aliases?: string[];
   /** 以下来自官方索引,索引读不到时缺席。 */
   displayName?: string;
   /** 合并后的标签 id:作者声明的、keywords 里命中词表的、官方加的,减去官方删的 */
@@ -267,6 +270,8 @@ export const HIT_SORTS: readonly HitSort[] = ['certified', 'name', 'date', 'down
 
 export interface ArrangeOptions {
   filter: string;
+  /** 标签 id 换成显示名,搜索词也比标签名 */
+  tagLabel?: (id: string) => string | undefined;
   hideInstalled: boolean;
   sort: HitSort;
   page: number;
@@ -289,16 +294,41 @@ export interface ArrangeOptions {
   minDownloads?: number;
 }
 
+/** 把文本写进 `el`,命中的部分包进 `<mark>`。 */
+function writeMarked(el: HTMLElement, text: string, terms: readonly string[]): void {
+  const doc = el.ownerDocument, nodes: Node[] = [];
+  let at = 0;
+  for (const [start, end] of matchRanges(text, terms)) {
+    if (start > at) nodes.push(doc.createTextNode(text.slice(at, start)));
+    const mark = doc.createElement('mark'); mark.className = 'extension-hit'; mark.textContent = text.slice(start, end); nodes.push(mark);
+    at = end;
+  }
+  if (at < text.length || !nodes.length) nodes.push(doc.createTextNode(text.slice(at)));
+  el.replaceChildren(...nodes);
+}
+
+/** 规整过的搜索字段按包缓存,内容没变就不重算;每敲一个字都要过一遍整份结果。 */
+const preparedHits = new Map<string, { key: string; fields: PreparedFields }>();
+function searchFields(h: SearchHitView, tagLabel?: (id: string) => string | undefined): PreparedFields {
+  const labels = [...(h.tags ?? []).map(id => tagLabel?.(id) ?? id), ...h.keywords ?? [], h.author, h.publisher, ...h.maintainers ?? []];
+  const parts = { names: [h.name, h.displayName, ...h.aliases ?? []], labels, text: [h.description, h.note] };
+  const key = JSON.stringify(parts), cached = preparedHits.get(h.name);
+  if (cached?.key === key) return cached.fields;
+  const fields = prepareFields(parts); preparedHits.set(h.name, { key, fields });
+  return fields;
+}
+
 /**
  * 在整份结果上筛选、排序、切页。registry 的搜索端点在 `keywords:` 过滤下不按文本
- * 缩小结果,所以文本匹配在这里做:包名、描述、关键字任一命中即算。
+ * 缩小结果,所以文本匹配在这里做,规则见 search.ts。有搜索词时先按命中档次,同档再按 `sort`。
  * `page` 超出范围时收回最后一页,返回值里的 `page` 是实际用的那一页。
  */
 export function arrangeHits(
   hits: readonly SearchHitView[],
   opts: ArrangeOptions,
 ): { matched: number; pages: number; page: number; shown: SearchHitView[] } {
-  const needle = opts.filter.trim().toLowerCase();
+  const terms = searchTerms(opts.filter);
+  const ranks = new Map<SearchHitView, MatchRank>();
   const matched = hits.filter((h) => {
     if (opts.hideInstalled && h.installed) return false;
     if (opts.officialOnly && !h.official) return false;
@@ -313,14 +343,15 @@ export function arrangeHits(
     if (opts.minDownloads && h.downloads.month < opts.minDownloads) return false;
     if (opts.tags?.some((t) => !h.tags?.includes(t))) return false;
     if (opts.excludeTags?.some((t) => h.tags?.includes(t))) return false;
-    if (!needle) return true;
-    return h.name.toLowerCase().includes(needle)
-      || (h.displayName ?? '').toLowerCase().includes(needle)
-      || h.description.toLowerCase().includes(needle)
-      || (h.keywords ?? []).some((k) => k.toLowerCase().includes(needle));
+    if (!terms.length) return true;
+    const rank = matchRank(terms, searchFields(h, opts.tagLabel));
+    if (rank === undefined) return false;
+    ranks.set(h, rank); return true;
   });
   const score = (h: SearchHitView) => h.rating ? h.rating.up - h.rating.down : -Infinity;
   matched.sort((a, b) => {
+    const ahead = (ranks.get(b) ?? 0) - (ranks.get(a) ?? 0);
+    if (ahead) return ahead;
     switch (opts.sort) {
       case 'certified': return Number(!!b.certified) - Number(!!a.certified) || a.name.localeCompare(b.name);
       case 'rating': return score(b) - score(a) || (b.rating?.up ?? 0) - (a.rating?.up ?? 0) || a.name.localeCompare(b.name);
@@ -535,13 +566,21 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   }
   /** 包文档按 name@version 缓存,失败的也留着:registry 连不上时翻页、筛选不会反复重发。 */
   const detailsCache = new Map<string, Promise<PackageDetailView>>();
+  /** 包文档里的显示名:索引没给显示名的包,卡片标题等文档回来才有,搜索也要认它。 */
+  const documentNames = new Map<string, string>();
+  /** 卡片标题可能用到的其他名字(包文档的、本地安装的显示名与名称),搜索都认。 */
+  const named = (hit: SearchHitView): SearchHitView => {
+    const local = installed.find(item => item.name === hit.name);
+    const aliases = [documentNames.get(hit.name), local?.metadata?.displayName, local?.label].filter((name): name is string => !!name && name !== hit.displayName);
+    return aliases.length ? { ...hit, aliases } : hit;
+  };
   function fetchDetail(name: string, version?: string) {
     const key = name + '@' + (version ?? 'latest');
     let request = detailsCache.get(key);
     if (!request) {
       request = get<PackageDetailView>('/api/extensions/package?name=' + encodeURIComponent(name) + (version ? '&version=' + encodeURIComponent(version) : ''), { signal });
       detailsCache.set(key, request);
-      void request.catch(() => { /* The rejection is kept for this page's lifetime. */ });
+      void request.then(data => { if (data.displayName) documentNames.set(name, data.displayName); }, () => { /* The rejection is kept for this page's lifetime. */ });
     }
     return request;
   }
@@ -672,9 +711,22 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   }
   /** 「清除筛选」清搜索词、标签、徽标筛选与高级搜索,保留警告隐藏开关。 */
   const filtersActive = (state: CategoryState) => !!((state.catalogCategory !== 'all' || state.installation !== 'all') || state.filter.trim() || state.tags.length || state.officialOnly || state.certifiedOnly || state.newOnly || state.author.trim() || state.keyword.trim() || state.license.trim() || state.sinceDays || state.minDownloads);
-  function clearFilters() {
-    Object.assign(states[kind], { catalogCategory: 'all', installation: 'all', filter: '', tags: [], officialOnly: false, certifiedOnly: false, newOnly: false, author: '', keyword: '', license: '', sinceDays: 0, minDownloads: 0, page: 0 });
+  /** 「清除其他筛选」只留下搜索词。 */
+  function clearFilters(keepQuery = false) {
+    Object.assign(states[kind], { catalogCategory: 'all', installation: 'all', filter: keepQuery ? states[kind].filter : '', tags: [], officialOnly: false, certifiedOnly: false, newOnly: false, author: '', keyword: '', license: '', sinceDays: 0, minDownloads: 0, page: 0 });
     save(); render();
+  }
+  const tagLabel = (id: string) => marketIndex.tags[id]?.label;
+  /** 没有结果时的说明;搜索词在去掉其他筛选后有结果,就说有几个并给出一键清除。 */
+  function emptyMarket(state: CategoryState): HTMLElement {
+    if (!state.fetched) return ui.placeholder(S.searching);
+    const all = catalogHits(state).map(named);
+    if (!all.length) return ui.placeholder(registry ? S.noPackagesAt(registry) : S.noPackages);
+    const elsewhere = state.filter.trim() ? arrangeHits(all, { filter: state.filter, tagLabel, sort: state.sort, hideInstalled: false, page: 0, pageSize: 1 }).matched : 0;
+    if (!elsewhere) return ui.placeholder(S.noHits);
+    const box = ui.placeholder(S.hitsElsewhere(elsewhere)); box.classList.add('extension-hits-elsewhere');
+    box.append(ui.button(S.clearOtherFilters, { onClick: () => clearFilters(true) }));
+    return box;
   }
   function toggleTag(id: string) {
     if (isFunctionTag(id)) { selectCategory((Object.keys(CATALOG_CATEGORIES) as (keyof typeof CATALOG_CATEGORIES)[]).find(key => (CATALOG_CATEGORIES[key] as readonly string[]).includes(id))!); return; }
@@ -1051,9 +1103,10 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const state = states[kind];
     if (state.hideWarnings) state.tags = state.tags.filter(id => marketIndex.tags[id]?.style !== 'warning');
     paintCategories?.();
-    const hits = catalogHits(state).filter(hit => inCatalogCategory(hit.tags, state.catalogCategory)).map(h => ({ ...h, installed: installed.some(p => p.name === h.name && p.state !== 'removed') })).filter(h => state.installation !== 'installed' || h.installed);
+    const hits = catalogHits(state).filter(hit => inCatalogCategory(hit.tags, state.catalogCategory)).map(h => ({ ...named(h), installed: installed.some(p => p.name === h.name && p.state !== 'removed') })).filter(h => state.installation !== 'installed' || h.installed);
     state.tags = state.tags.filter(id => marketIndex.tags[id]);
-    const result = arrangeHits(hits, { filter: state.filter, sort: state.sort, hideInstalled: state.installation === 'available', page: state.page, pageSize: pageSize(), tags: state.tags, excludeTags: state.hideWarnings ? warningTags() : [], officialOnly: state.officialOnly, certifiedOnly: state.certifiedOnly, newOnly: state.newOnly, ...advancedFilters(state) }); if (state.fetched) state.page = result.page;
+    const terms = searchTerms(state.filter);
+    const result = arrangeHits(hits, { filter: state.filter, tagLabel, sort: state.sort, hideInstalled: state.installation === 'available', page: state.page, pageSize: pageSize(), tags: state.tags, excludeTags: state.hideWarnings ? warningTags() : [], officialOnly: state.officialOnly, certifiedOnly: state.certifiedOnly, newOnly: state.newOnly, ...advancedFilters(state) }); if (state.fetched) state.page = result.page;
     if (clearButton) clearButton.disabled = !filtersActive(state);
     if (licenseList) licenseList.replaceChildren(...[...new Set(hits.map(h => h.license).filter(Boolean))].sort().map(value => { const option = ui.h('option') as HTMLOptionElement; option.value = value!; return option; }));
     renderTagBar(hits);
@@ -1068,7 +1121,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       const heading = ui.h('div', 'extension-card-heading'); const local = installed.find(item => item.name === hit.name);
       const listed = state.hits.some(item => item.name === hit.name);
       const titleBlock = ui.h('div', 'extension-card-titleblock'), titleLine = ui.h('div', 'extension-card-titleline');
-      const title = ui.h('span', 'extension-card-title', hit.displayName ?? local?.metadata?.displayName ?? local?.label ?? hit.name);
+      const title = ui.h('span', 'extension-card-title');
+      writeMarked(title, hit.displayName ?? local?.metadata?.displayName ?? local?.label ?? hit.name, terms);
       titleLine.append(title);
       const metaRow = ui.h('div', 'extension-card-metarow');
       // 署名用 author,悬停 npm 账号;没有 author 时写 `npm@账号`。
@@ -1093,11 +1147,12 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       heading.append(packageAvatar(hit.icon ?? (local?.icon ? iconUrl(local.name, local.installedVersion ?? local.version) : undefined)), titleBlock);
       if (listed) void fetchDetail(hit.name, hit.version).then(data => {
         if (signal.aborted) return;
-        if (data.displayName && !hit.displayName) title.textContent = data.displayName;
+        if (data.displayName && !hit.displayName) writeMarked(title, data.displayName, terms);
         sign(data.maintainers, data.author, true);
         if (!hit.os) placeOs(data.os);
       }).catch(() => { /* Search results remain usable when package metadata is unavailable. */ });
-      card.append(heading, ui.h('p', 'extension-description', hit.description));
+      const description = ui.h('p', 'extension-description'); writeMarked(description, hit.description, terms);
+      card.append(heading, description);
       const tags = orderedTags(hit.tags);
       if (tags.length) {
         const row = ui.h('div', 'extension-tag-row'); row.append(...tags.map(id => tagChip(id, { active: !state.tags.includes(id), onToggle: () => toggleTag(id) }))); card.append(row);
@@ -1118,7 +1173,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       (action ?? card)?.focus({ preventScroll: true });
     }
     for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) foldTags(row);
-    if (!result.matched) marketGrid.append(ui.placeholder(state.fetched ? catalogHits(state).length ? S.noHits : registry ? S.noPackagesAt(registry) : S.noPackages : S.searching));
+    if (!result.matched) marketGrid.append(emptyMarket(state));
     pager(marketPager, result.matched, result.page, pageSize(), page => { marketGrid.style.minHeight = `${marketGrid.getBoundingClientRect().height}px`; state.page = page; renderMarket(true); save(); });
   }
   /** 标签筛选条:本页签结果里出现过的标签;选中的在前,其余按颜色分组(红色最后)、组内按出现次数;选中的要求全部带上。 */
@@ -1469,7 +1524,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     messageNodes.management = ui.msgline(); messageNodes.management.setAttribute('role', 'status');
     messageNodes.market = ui.msgline(); messageNodes.market.setAttribute('role', 'status');
     const filters = ui.rowbar(); filters.classList.add('extension-toolbar');
-    const clear = clearButton = ui.button('', { onClick: clearFilters }); clear.classList.add('extension-clear'); clear.append(icon(doc, 'close'), ui.h('span', '', S.clearFilters));
+    const clear = clearButton = ui.button('', { onClick: () => clearFilters() }); clear.classList.add('extension-clear'); clear.append(icon(doc, 'close'), ui.h('span', '', S.clearFilters));
     filters.append(ui.input({ type: 'search', value: state.filter, placeholder: S.filterPlaceholder, onInput: value => { state.filter = value; state.page = 0; renderMarket(); save(); } }), ui.select({ value: state.sort, options: HIT_SORTS.map(value => ({ value, label: S.sortLabel[value] })), onChange: value => { state.sort = value as HitSort; state.page = 0; renderMarket(); save(); } }), sizePicker(), clear, ui.button(S.refresh, { onClick: () => { void load(); void checkUpdates(); void search(kind); } }));
     const advancedToggle = ui.h('button', 'extension-advanced-toggle' + (state.advanced ? ' is-open' : ''), S.advancedSearch) as HTMLButtonElement; advancedToggle.type = 'button';
     advancedToggle.setAttribute('aria-expanded', String(state.advanced)); advancedToggle.setAttribute('aria-controls', 'extension-advanced');

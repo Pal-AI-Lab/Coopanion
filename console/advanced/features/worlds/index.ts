@@ -17,6 +17,7 @@ import { addGroup, arrangeLayout, groupToken, moveGroup, moveItem, readLayout, r
 import { S } from './strings.ts';
 import { S as UI } from '../../../base/ui/strings.ts';
 import { prefersStill } from '../../../base/motion.ts';
+import { foldText, searchTerms } from '../extensions/search.ts';
 
 const worldPageId = (id: string) => pageIdFor('world', id);
 /** The view switch's duration and curve, as `--world-duration` and `--world-easing` in styles.css. */
@@ -436,9 +437,9 @@ export function mountWorlds(ctx: FeatureContext): void {
     node.name.replaceWith(input); input.focus(); input.select();
   }
   function applyFilter() {
-    const needle = filterText.trim().toLowerCase(), active = filtering();
+    const terms = searchTerms(filterText), active = filtering();
     for (const entry of readyList.querySelectorAll<HTMLElement>('.world-library-entry')) {
-      entry.classList.toggle('is-filtered-out', active && !((!needle || entry.dataset.name?.includes(needle)) && (filterState === 'all' || entry.dataset.state === filterState)));
+      entry.classList.toggle('is-filtered-out', active && !(terms.every(term => entry.dataset.name?.includes(term)) && (filterState === 'all' || entry.dataset.state === filterState)));
     }
     for (const node of groupNodes.values()) node.el.classList.toggle('is-filtered-out', active && !node.list.querySelector('.world-library-entry:not(.is-filtered-out)'));
     noMatches.hidden = !active || !!readyList.querySelector('.world-library-entry:not(.is-filtered-out)');
@@ -536,7 +537,7 @@ export function mountWorlds(ctx: FeatureContext): void {
       if (!entry) { entry = ui.h('div', 'world-library-entry'); entry.append(node, row); }
       else entry.querySelector('.world-blade')!.replaceWith(row);
       entry.dataset.state = row.dataset.state; entry.dataset.key = item.key;
-      entry.dataset.name = `${item.label} ${item.key}`.toLowerCase();
+      entry.dataset.name = foldText(`${item.label} ${item.key}`);
       if (!needsRestart(item)) { if (!entry.parentElement) readyList.append(entry); continue; }
       const cursor = cursors.get(pendingList)!;
       if (entry !== cursor) pendingList.insertBefore(entry, cursor);

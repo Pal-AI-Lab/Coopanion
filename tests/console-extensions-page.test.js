@@ -419,6 +419,54 @@ describe('arrangeHits', () => {
     expect(arrangeHits([], opts({}))).toMatchObject({ matched: 0, pages: 1, page: 0, shown: [] });
   });
 });
+describe('market search', () => {
+  const SEARCH_HITS = {
+    hits: [
+      { name: 'other-mod', version: '1.0.0', description: 'Works with qq too', downloads: { month: 900 }, dependents: 0, links: {}, installed: false, kind: 'world' },
+      { name: 'cortico-world-qq', displayName: 'QQ 群聊', version: '1.0.0', description: 'OneBot 适配器', downloads: { month: 5 }, dependents: 0, links: {}, installed: false, kind: 'world', tags: ['voice'] },
+    ],
+    index: { tags: { voice: { label: '语音' } } },
+  };
+  const names = (root) => [...marketCards(root).querySelectorAll('.extension-market-card')].map(card => card.dataset.name);
+  it('matches every word anywhere, tag names included, and ranks name hits first', async () => {
+    stub({ hits: SEARCH_HITS });
+    const { root } = mount(); await flush();
+    filterMarket(root, '语音 QQ');
+    expect(names(root)).toEqual(['cortico-world-qq']);
+    expect(marketCards(root).querySelector('.extension-card-title mark').textContent).toBe('QQ');
+    filterMarket(root, 'qq');
+    expect(names(root)).toEqual(['cortico-world-qq', 'other-mod']);
+    filterMarket(root, 'cortico world');
+    expect(names(root)).toEqual(['cortico-world-qq']);
+  });
+  it('offers to clear the other filters when only they hide the query\'s matches', async () => {
+    stub({ hits: SEARCH_HITS });
+    const { root } = mount(); await flush();
+    button(root.querySelector('.world-catalog-filters'), extensionStrings.alreadyInstalled).click();
+    filterMarket(root, 'qq');
+    expect(names(root)).toEqual([]);
+    const empty = marketCards(root).querySelector('.extension-hits-elsewhere');
+    expect(empty.textContent).toContain(extensionStrings.hitsElsewhere(2));
+    button(empty, extensionStrings.clearOtherFilters).click();
+    expect(names(root)).toEqual(['cortico-world-qq', 'other-mod']);
+    expect(root.querySelector('.world-catalog input[type=search]').value).toBe('qq');
+  });
+  it('finds a package by the name its installed World shows', async () => {
+    stub();
+    const { root } = mount(); await flush();
+    filterMarket(root, '甲扩展');
+    expect(names(root)).toEqual(['alpha-mod']);
+  });
+  it('waits for the input method to finish a word before filtering', async () => {
+    stub({ hits: SEARCH_HITS });
+    const { root } = mount(); await flush();
+    const input = root.querySelector('.world-catalog input[type=search]');
+    input.value = 'yuyin'; input.dispatchEvent(new InputEvent('input', { isComposing: true }));
+    expect(names(root)).toHaveLength(2);
+    input.value = '语音'; input.dispatchEvent(new CompositionEvent('compositionend'));
+    expect(names(root)).toEqual(['cortico-world-qq']);
+  });
+});
 describe('restart', () => {
   it('waits for a new ready process of the same deployment', () => {
     const before = { deployment: 'same', bootId: 'old', ready: true };

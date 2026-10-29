@@ -69,6 +69,8 @@ export const S: Partial<typeof en> = {
   registryHelp: '検索・更新・インストールにすぐ反映。空欄で既定に戻ります。',
   registrySaved: (url: string) => `保存しました。使用中のレジストリ: ${url}`,
   noHits: '一致するパッケージがありません',
+  hitsElsewhere: (n: number) => `現在の絞り込みでは一致するパッケージがありません。絞り込みを外すと ${n} 件あります`,
+  clearOtherFilters: 'ほかの絞り込みを解除',
   searchFailed: (msg: string) => `読み込みに失敗しました：${msg}`,
   partial: 'npm の検索結果は一部のみ表示しています。正確なパッケージ名は手動インストールで指定してください。',
 

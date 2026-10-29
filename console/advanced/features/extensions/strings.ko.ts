@@ -69,6 +69,8 @@ export const S: Partial<typeof en> = {
   registryHelp: '검색·업데이트·설치에 바로 적용됩니다. 비우면 기본값입니다.',
   registrySaved: (url: string) => `저장했습니다. 사용 중인 레지스트리: ${url}`,
   noHits: '일치하는 패키지가 없습니다',
+  hitsElsewhere: (n: number) => `현재 필터에 맞는 패키지가 없습니다. 필터를 빼면 ${n}개가 있습니다`,
+  clearOtherFilters: '다른 필터 지우기',
   searchFailed: (msg: string) => `불러오지 못했습니다: ${msg}`,
   partial: 'npm 검색 결과의 일부만 표시됩니다. 정확한 패키지 이름은 수동 설치로 지정하세요.',
 

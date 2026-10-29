@@ -69,6 +69,8 @@ export const S: Partial<typeof en> = {
   registryHelp: '立即用於搜尋、更新和安裝；留空恢復預設。',
   registrySaved: (url: string) => `已儲存。目前來源：${url}`,
   noHits: '沒有符合的套件',
+  hitsElsewhere: (n: number) => `目前篩選下沒有符合的套件，去掉篩選後有 ${n} 個`,
+  clearOtherFilters: '清除其他篩選',
   searchFailed: (msg: string) => `讀取失敗： ${msg}`,
   partial: '僅顯示部分 npm 搜尋結果，請使用手動安裝查找確切套件名稱。',
 

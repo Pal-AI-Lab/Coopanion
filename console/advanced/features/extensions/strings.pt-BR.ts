@@ -69,6 +69,8 @@ export const S: Partial<typeof en> = {
   registryHelp: 'Vale na hora para busca, atualizações e instalação; vazio = padrão.',
   registrySaved: (url: string) => `Salvo. Registro em uso: ${url}`,
   noHits: 'Nenhum pacote correspondente',
+  hitsElsewhere: (n: number) => `Nenhum resultado com os filtros atuais; sem eles há ${n}`,
+  clearOtherFilters: 'Limpar os outros filtros',
   searchFailed: (msg: string) => `Falha ao carregar: ${msg}`,
   partial: 'Os resultados do npm estão incompletos. Use a instalação manual para um nome de pacote exato.',
 

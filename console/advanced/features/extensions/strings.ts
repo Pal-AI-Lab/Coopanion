@@ -78,6 +78,8 @@ const zh = {
   registryHelp: '立即用于搜索、更新和安装；留空恢复默认。',
   registrySaved: (url: string) => `已保存。当前源：${url}`,
   noHits: '没有匹配的包',
+  hitsElsewhere: (n: number) => `当前筛选下没有匹配的包，去掉筛选后有 ${n} 个`,
+  clearOtherFilters: '清除其他筛选',
   searchFailed: (msg: string) => `读取失败： ${msg}`,
   partial: '仅显示部分 npm 搜索结果，请使用手动安装查找确切包名。',
 
@@ -275,6 +277,8 @@ export const en: typeof zh = {
   registryHelp: 'Applies to search, updates and installs at once; empty restores the default.',
   registrySaved: (url: string) => `Saved. Registry in use: ${url}`,
   noHits: 'No matching packages',
+  hitsElsewhere: (n: number) => `No matches with the current filters; ${n} without them`,
+  clearOtherFilters: 'Clear other filters',
   searchFailed: (msg: string) => `Loading failed: ${msg}`,
   partial: 'npm results are incomplete. Use manual installation for an exact package name.',
 
