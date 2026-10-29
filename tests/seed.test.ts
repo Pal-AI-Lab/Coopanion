@@ -86,7 +86,7 @@ describe('first-run seed', () => {
     const home = mkdtempSync(join(tmpdir(), 'cc-seed-'));
     seed(home, 'zh');
     const endpoint = join(home, 'providers', endpointName(firstVendor('zh'), defaultRegion('zh')), 'config.json');
-    const old = { ...read(endpoint), kind: 'deepseek', spec: { model: 'deepseek-v4-pro' } };
+    const old = { ...read(endpoint), kind: 'deepseek', spec: { model: 'model-a' } };
     writeFileSync(endpoint, JSON.stringify(old));
     const other = join(home, 'providers', 'mine', 'config.json');
     mkdirSync(join(home, 'providers', 'mine'));
