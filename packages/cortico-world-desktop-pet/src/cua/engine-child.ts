@@ -23,34 +23,19 @@ const os: typeof import('./engine/win32.ts') = process.platform === 'darwin' ? a
 import { downscale, drawCursor, encodeJpeg, fit } from './engine/image.ts';
 import { EngineFailure } from './engine/fail.ts';
 import { crop, displayAt, layoutOf, ordered, physicalSize, toLocal, toNative, type NativeDisplay } from './engine/display.ts';
+import { UserActivity } from './engine/user-activity.ts';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const since = (now: number, then: number) => (now - then) >>> 0;
-
-let ownTick = 0;
-let ownCursor: { x: number; y: number } | null = null;
-let movedAt = 0;
+const activity = new UserActivity();
 
 function markOwn(): void {
-  ownTick = os.tick();
-  ownCursor = os.cursor();
-  movedAt = 0;
+  activity.markOwn(os.tick(), os.cursor());
 }
 
-/** Milliseconds since the user's last input; Infinity when none is on record. */
 function userIdleMs(): number {
-  const now = os.tick();
-  const cur = os.cursor();
-  if (ownCursor && (Math.abs(cur.x - ownCursor.x) > 2 || Math.abs(cur.y - ownCursor.y) > 2)) {
-    ownCursor = cur;
-    movedAt = now;
-  }
-  const last = os.lastInputTick();
-  // ticks wrap at 2^32: a forward distance below 2^31 means `last` is later than `ownTick`
-  const afterOwn = ownTick === 0 || (since(last, ownTick) > 40 && since(last, ownTick) < 0x80000000);
-  let userAt = afterOwn ? last : 0;
-  if (movedAt && (!userAt || since(movedAt, userAt) < 0x80000000)) userAt = movedAt;
-  return userAt ? since(now, userAt) : Infinity;
+  const cursor = os.cursor();
+  const lastInputTick = os.lastInputTick();
+  return activity.idleMs({ now: os.tick(), lastInputTick, cursor });
 }
 
 /** Whether a cancel has arrived for the request being handled. */

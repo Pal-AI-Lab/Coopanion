@@ -146,7 +146,7 @@ Off by default. Tick **Let Coo use this computer** in the Computer use section o
 - **When to ask you**, from strictest to loosest: `ask-each-turn`, `ask-before-acting`, `ask-once` (the default: Coo looks at the screen without asking and asks once before using the mouse and keyboard; a yes lasts 30 minutes) and `never-ask`.
 - At every level, Coo asks once more before typing or pressing keys in a terminal window or pressing Win+R; after a yes it does not ask about these again for the same 30 minutes. Turning on **Turn off asking before terminals and the Run box** in the desktop pet World's config in advanced mode makes these steps follow the asking level like any other input.
 - Coo uses the computer only for what you say, type or pick in the desktop pet. When a message from elsewhere asks for it, Coo tells you in a bubble and waits for your yes.
-- When you touch the mouse or keyboard, Coo stops and waits for you. Logins, passwords and payments are left to you.
+- When you touch the mouse or keyboard, Coo stops and waits until you have been idle for 2 seconds by default; time already spent idle counts toward that wait. Logins, passwords and payments are left to you.
 - One wake makes at most 40 model requests; at the limit the turn ends and you can tell Coo to continue.
 
 ### Settings window

@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts, src/cua/cua.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js -->
+<!-- Owner: src/definition.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js -->
 
 <p align="center">
   <picture>
@@ -460,7 +460,9 @@ macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)�
 ### 让位给使用者
 
 发出任何输入前,引擎先确认使用者已经静止 `cua.userIdleMs`(默认 2 秒)。「使用者动过」的依据是两条可以核实的事实:
-系统记录的最后一次输入晚于引擎自己的最后一次注入(Windows 的 `GetLastInputInfo`,macOS 的 `CGEventSourceSecondsSinceLastEventType`,Linux 的 MIT-SCREEN-SAVER 扩展),或者鼠标指针不在引擎上次放下的位置。
+系统记录的最后一次输入比引擎自己的最后一次注入晚 40ms 以上(Windows 的 `GetLastInputInfo`,macOS 的 `CGEventSourceSecondsSinceLastEventType`,Linux 的 MIT-SCREEN-SAVER 扩展),或者鼠标指针任一轴偏离引擎上次放下或上次发现位移的位置超过 2px。
+位移按系统记录的最后输入时间计;没有晚于引擎注入的记录时,按发现时间计。连续采样发现指针还在移动、但系统输入记录早于上一采样时,也按发现时间计。
+每 100ms 检查一次,已经停手的时间计入静止时长;tick 按 32 位无符号数处理回绕。判定在 `src/cua/engine/user-activity.ts`,引擎子进程只采样系统值。
 等满 `cua.maxYieldWaitMs`(默认 15 秒)使用者还在用,这次操作不执行,回执照实说明。打字按 16 个字形一段发送
 (emoji 这类多码位的字不会被拆开),每段之间再检查一次,使用者一动就停,回执报告实际打出了几个字符。
 
