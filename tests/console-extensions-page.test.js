@@ -224,6 +224,23 @@ describe('installation feedback', () => {
     expect(scroller.scrollTop).toBe(0);
     expect(grid.style.minHeight).toBe('');
   });
+  it('comes back to the page it was on when a filter is dropped again, and starts a new one on its first page', async () => {
+    stub();
+    const { root } = mount(); await flush();
+    const size = root.querySelector('.extension-size select');
+    size.value = '10'; size.dispatchEvent(new Event('change', { bubbles: true }));
+    const first = () => marketCards(root).querySelector('.extension-market-card')?.dataset.name;
+    const firstPage = first();
+    button(root.querySelector('.extension-pager'), extensionStrings.nextPage).click();
+    const secondPage = first();
+    expect(secondPage).not.toBe(firstPage);
+    // A new combination starts on its first page.
+    filterMarket(root, 'mod');
+    expect(first()).not.toBe(secondPage);
+    // Dropping it again comes back to page 2.
+    filterMarket(root, '');
+    expect(first()).toBe(secondPage);
+  });
   async function detail(root) {
     filterMarket(root, 'found');
     marketCards(root).querySelector('[aria-label="found-mod"]').click();
