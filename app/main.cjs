@@ -293,6 +293,11 @@ const core = new CoreHost({
 let settings = null;
 /** The route the settings window showed when it was last closed, where it opens next unless asked for another. */
 let settingsRoute = '';
+/** The hash route a settings window shows; the loading page, shown until the Core is up, has none. */
+function shownRoute(win) {
+  const page = win.webContents.getURL();
+  return page.startsWith('http://') ? new URL(page).hash : '';
+}
 let tray = null;
 let quitting = false;
 /** The quit was asked for from the pet's update bubble: the updated app starts once installed. */
@@ -499,9 +504,8 @@ function openSettings(path = '') {
     try { saveSettingsSize(join(userData, 'settings-size.json'), win.getNormalBounds()); }
     catch (err) { console.warn('[settings] could not save window size', err); }
     closing = true;
-    // the loading page, shown until the Core is up, has no route
-    const page = win.webContents.getURL();
-    if (page.startsWith('http://')) settingsRoute = new URL(page).hash;
+    const route = shownRoute(win);
+    if (route) settingsRoute = route;
   });
   // A page with unsaved edits (a leave guard, console/base/router.ts) refuses to unload: closing the window
   // then hides it with the edits kept. A load the app starts itself, and a quit, go ahead.
@@ -602,7 +606,8 @@ function buildTray() {
 
 core.on('ready', ({ language: next }) => {
   followLanguage(next);
-  if (settings) settings.loadURL(settingsUrl());
+  // A restarted Core brings the window back to the page it showed (the World page it was restarted from).
+  if (settings) settings.loadURL(settingsUrl(shownRoute(settings)));
   if (updateStep) core.send({ type: 'companion:update', step: updateStep });
 });
 core.on('language', followLanguage);
