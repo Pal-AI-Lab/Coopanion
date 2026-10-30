@@ -87,7 +87,7 @@ export function schemesCard(ctx: PageContext, title: string): HTMLElement {
     en: 'palette',
     desc: S.paletteSheetDesc,
   });
-  paletteFold.el.classList.add('theme-palette-fold');
+  paletteFold.el.classList.add('fold-plain');
   const nameInput = ui.input({ cls: 'mono', placeholder: S.schemeName });
   nameInput.maxLength = 40;
   const paletteBox = ui.h('div', 'theme-palette');

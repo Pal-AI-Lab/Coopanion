@@ -75,7 +75,9 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
   const dividers = ui.h('div', 'prefix-dividers');
   stage.append(flags, grip, host, dividers);
   const full = ui.h('pre', 'mono prefix-full');
+  // Folded like the palette on 开始: a rule above, the prompt in a white box once opened.
   const preview = ui.foldSheet('full-prompt', { title: S.fullPreview });
+  preview.el.classList.add('fold-plain', 'prefix-preview');
   preview.body.append(full);
   root.append(pageIntro(ui, S.title, S.introDesc), toolbar, stage, preview.el);
 

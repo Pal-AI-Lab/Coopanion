@@ -611,12 +611,13 @@
   .theme-scheme:hover { transform: translateY(-2px); border-color: var(--line-strong); box-shadow: 2px 3px 0 var(--line); }
   .theme-scheme.active { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent-2); background: var(--sheet); }
   .theme-scheme-head { display: flex; align-items: center; gap: 8px; font: 600 13px var(--sans); }
-  .theme-scheme-kind { margin-left: auto; color: var(--ink-dim); font: 9px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+  .theme-scheme-kind { flex: none; margin-left: auto; white-space: nowrap; color: var(--ink-dim); font: 9px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
   .theme-scheme-note { min-height: 32px; margin: 4px 0 8px; color: var(--ink-soft); font-size: 11px; line-height: 1.45; }
   .theme-swatches { display: flex; height: 15px; overflow: hidden; border: 1px solid var(--line); border-radius: 3px; }
   .theme-swatches span { flex: 1; }
-  details.sheet.fold.theme-palette-fold { margin: 22px 0 0; padding: 16px 0 0; background: transparent; border: 0; border-top: 1px solid var(--border); border-radius: 0; }
-  details.sheet.fold.theme-palette-fold > .foldbody { padding: 0; margin-top: 10px; }
+  /* A fold without a box: a rule above its title, and what it opens below with a little room. */
+  details.sheet.fold.fold-plain { margin: 22px 0 0; padding: 16px 0 0; background: transparent; border: 0; border-top: 1px solid var(--border); border-radius: 0; }
+  details.sheet.fold.fold-plain > .foldbody { padding: 0; margin-top: 10px; }
   .theme-bench { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 24px; align-items: start; }
   .theme-bench-colors > .fieldrow:first-child { margin-top: 0; }
   .theme-bench-colors > .theme-palette { margin-top: 14px; }
