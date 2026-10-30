@@ -64,8 +64,10 @@ async function windowPage(world: DesktopPetWorld): Promise<FakePage> {
     if (previous === undefined) delete process.env[HOST_ENV];
     else process.env[HOST_ENV] = previous;
   }
-  await expect.poll(() => existsSync(file)).toBe(true);
-  const url = new URL(readFileSync(file, 'utf8'));
+  // writeFileSync makes the file before it writes the URL into it: wait for the URL, not just the file.
+  const written = () => existsSync(file) ? readFileSync(file, 'utf8') : '';
+  await expect.poll(written).not.toBe('');
+  const url = new URL(written());
   const key = new URLSearchParams(url.hash.slice(1)).get('key');
   expect(key).toBeTruthy();
   expect(world.petUrl).toBe(`${url.origin}/pet`);
