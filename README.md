@@ -81,6 +81,8 @@ Installing does not need administrator rights.
 2. The app has no Apple developer signature, so macOS blocks the first open. Open it once and click Done on the warning, then go to System Settings → Privacy & Security, click **Open Anyway** and confirm with your password.
 3. Coopanion lives in the menu bar; it shows in the Dock only while the settings window is open.
 
+While App Store is the active app, Coo stays behind other windows so that App Store purchases can be confirmed with Touch ID.
+
 > [!NOTE]
 > macOS asks for Microphone (voice input), Input Monitoring (talk key), and Screen & System Audio Recording plus Accessibility (computer use) the first time each is needed. Restart Coopanion after changing the last three. macOS does not carry these grants over to an updated version: if Coopanion says a permission is missing while its switch is on, remove Coopanion from that list with −, add `/Applications/Coopanion.app` back and restart.
 

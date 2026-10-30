@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts, src/cua/cua.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js -->
+<!-- Owner: src/definition.ts, src/cua/cua.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js, host/app-store.cjs -->
 
 <p align="center">
   <picture>
@@ -61,6 +61,8 @@ World 在 `127.0.0.1:7797`(被占向上顺延)起一个页面服务:`/pet` 是�
 形象画在地面以下的部分(比如坐在边沿时垂下的腿)显示在任务栏上。桌宠被拎着拖到另一块显示器上时,窗口当场挪到那块显示器,拖动中桌宠一直跟着光标,松手就在那块显示器上落下;
 走路只在当前这块显示器上。窗口所在的显示器被拔掉时回到主显示器。`pet_move_to` 的 0–1 和事件里的横向位置都按当前这块显示器算。
 鼠标只在身体、气泡、右键菜单和悬停按钮上时才接收点击,其余位置点击穿透。托盘图标可以显示、隐藏、关闭它。
+macOS 上 App Store 是当前应用时,窗口降到普通层级、排在所有窗口后面,换到别的应用后回到置顶(`host/app-store.cjs`):
+别的进程的窗口盖在 App Store 的付款弹窗上时,弹窗不接受触控 ID,透明、点击穿透的窗口也算。
 鼠标停在桌宠身上时,身旁出现两个按钮:打字说话;语音输入开关(点一下开关 `asr.enabled`,
 正在听时长按半秒把听到的这句话立刻送出,不等停顿;按 toggle 方式开着的说话键同时关上)。夜间模式在右键菜单里切换。窗口打开时桌宠从屏幕顶上掉到底边。
 右键菜单顶上一行是 bot 的头像(部署目录的 `avatar.png`,没有时画桌宠自己)和名字;内嵌应用借出运行控制时,
