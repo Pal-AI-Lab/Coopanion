@@ -2255,20 +2255,27 @@ html.is-list-dragging,html.is-list-dragging *{cursor:none!important;user-select:
 .u-tip.hover-hint{max-width:min(280px,calc(100vw - 16px));padding:5px 9px;border-radius:8px;font:12px/1.45 var(--sans);color:var(--ink);box-shadow:0 6px 18px -8px var(--shadow-strong);animation:hover-hint-in 120ms ease-out}
 @keyframes hover-hint-in{from{opacity:0}}
 
-/* Dropdowns: every select keeps its field look closed and opens its list in a white rounded box,
-   options highlighted under the pointer, the chosen one bold. */
-select.field:not([multiple]):not([size]),select.field::picker(select){appearance:base-select}
-/* The customizable select lays its value out as flex content: centred, as the native one was. */
-select.field:not([multiple]):not([size]){align-items:center}
-select.field:not([multiple]):not([size])::picker-icon{display:none}
-select.field::picker(select){margin-block:4px;padding:4px;min-width:anchor-size(width);max-height:min(320px,60vh);overflow-y:auto;background:var(--sheet);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 30px -14px var(--shadow-strong);opacity:1;transition:opacity 120ms ease-out,display 120ms allow-discrete,overlay 120ms allow-discrete}
-@starting-style{select.field:open::picker(select){opacity:0}}
-select.field option{display:flex;align-items:center;gap:8px;min-height:30px;padding:5px 10px;border-radius:6px;font:13px/1.35 var(--sans);color:var(--ink);white-space:nowrap;cursor:pointer}
-select.field option:is(:hover,:focus-visible){background:var(--surface-hover);outline:none}
-select.field option:checked{font-weight:600}
-select.field option::checkmark{order:1;margin-left:auto;color:var(--ink-dim)}
-select.field option:disabled{color:var(--ink-dim);cursor:default}
-@media (prefers-reduced-motion: reduce){.u-tip.hover-hint{animation:none}select.field::picker(select){transition:none}}
+/* Dropdowns (base/ui/dropdown.ts): every select, and every text field with suggestions (which carries the
+   select's arrow), opens its list in one white rounded box, the row under the pointer highlighted and the chosen
+   one bold. It fades in as it opens and is gone at once when it closes. */
+input.field:is([list],[data-combo-list]){padding-right:36px;background-image:linear-gradient(45deg,transparent 50%,var(--muted-foreground) 50%),linear-gradient(135deg,var(--muted-foreground) 50%,transparent 50%);background-position:right 18px center,right 14px center;background-size:4px 4px;background-repeat:no-repeat}
+input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{display:none!important}
+.combo-list{position:fixed;z-index:130;box-sizing:border-box;margin:0;padding:4px 0 4px 4px;max-width:min(480px,calc(100vw - 16px));max-height:min(320px,60vh);overflow-y:auto;overscroll-behavior:contain;background:var(--sheet);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 30px -14px var(--shadow-strong);color:var(--ink);font:13px/1.35 var(--sans);transition:opacity 120ms ease-out}
+.combo-list[hidden]{display:none}
+@starting-style{.combo-list{opacity:0}}
+/* Its scrollbar is the pages' one: thin, no arrows, on a clear track, in the room the right padding gives up,
+   so it never narrows the rows. */
+.combo-list{scrollbar-gutter:stable}
+.combo-list::-webkit-scrollbar{width:10px}
+.combo-list::-webkit-scrollbar-button{display:none;height:0}
+.combo-list::-webkit-scrollbar-thumb{background:var(--line-2);border:3px solid transparent;border-radius:6px;background-clip:padding-box}
+.combo-list::-webkit-scrollbar-thumb:hover{background:var(--line-strong);background-clip:padding-box}
+.combo-option{display:flex;align-items:center;gap:8px;min-height:30px;padding:5px 10px;border-radius:6px;white-space:nowrap;cursor:pointer}
+.combo-option.is-active{background:var(--surface-hover)}
+.combo-option[aria-selected=true]{font-weight:600}
+.combo-option[aria-selected=true]::after{content:"";flex:none;width:9px;height:5px;margin-left:auto;border:solid var(--ink-dim);border-width:0 0 1.5px 1.5px;transform:translateY(-2px) rotate(-45deg)}
+.combo-option[aria-disabled=true]{color:var(--ink-dim);cursor:default}
+@media (prefers-reduced-motion: reduce){.u-tip.hover-hint{animation:none}.combo-list{transition:none}}
 
 /* The extension info page's pictures (extensions/gallery.ts): a row that pages sideways, and a lightbox. */
 .extension-gallery{position:relative;margin:4px 0 6px}

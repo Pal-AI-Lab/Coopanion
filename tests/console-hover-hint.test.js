@@ -65,3 +65,71 @@ describe('extension pictures', () => {
     expect(document.querySelector('.extension-lightbox')).toBeNull();
   });
 });
+
+describe('dropdown lists', () => {
+  it('opens a field\'s datalist in the console list, filters it while typing, and picks with the keys or the pointer', async () => {
+    const { mountDropdowns } = await import('../console/base/ui/dropdown.ts');
+    const life = new AbortController(); lives.push(life);
+    mountDropdowns(document, life.signal);
+    const list = document.createElement('datalist'); list.id = 'models';
+    for (const value of ['deepseek-flash', 'deepseek-v4-pro', 'qwen-max']) list.append(Object.assign(document.createElement('option'), { value }));
+    const input = document.createElement('input'); input.setAttribute('list', 'models'); input.value = 'deepseek-flash';
+    document.body.append(list, input);
+    const box = document.querySelector('.combo-list');
+    const key = (k) => input.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+    const shown = () => [...box.querySelectorAll('.combo-option')].map(option => option.textContent);
+
+    input.focus(); input.click();
+    expect(input.hasAttribute('list')).toBe(false);
+    expect(box.hidden).toBe(false);
+    expect(shown()).toEqual(['deepseek-flash', 'deepseek-v4-pro', 'qwen-max']);
+    expect(box.querySelector('[aria-selected="true"]').textContent).toBe('deepseek-flash');
+
+    input.click(); expect(box.hidden).toBe(true); input.click();
+    key('ArrowDown'); key('ArrowDown'); key('Enter');
+    expect(input.value).toBe('deepseek-v4-pro');
+    expect(box.hidden).toBe(true);
+
+    input.value = 'qwen'; input.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(shown()).toEqual(['qwen-max']);
+    let changed = 0; input.addEventListener('change', () => changed++);
+    box.querySelector('.combo-option').dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true }));
+    expect([input.value, changed, box.hidden]).toEqual(['qwen-max', 1, true]);
+
+    // Esc closes the list and goes no further (a window around the field stays open).
+    key('ArrowDown');
+    let reached = false; document.addEventListener('keydown', () => { reached = true; }, { once: true });
+    key('Escape');
+    expect(box.hidden).toBe(true);
+    expect(reached).toBe(false);
+  });
+});
+
+describe('select dropdowns', () => {
+  it('opens a select in the console list instead of the system popup, from its value, and a second press closes it', async () => {
+    const { mountDropdowns } = await import('../console/base/ui/dropdown.ts');
+    const life = new AbortController(); lives.push(life);
+    mountDropdowns(document, life.signal);
+    const select = document.createElement('select'); select.className = 'field';
+    for (const [value, label] of [['zh', '简体中文'], ['en', 'English'], ['ja', '日本語']]) select.append(Object.assign(document.createElement('option'), { value, textContent: label }));
+    select.value = 'en';
+    document.body.append(select);
+    const box = document.querySelector('.combo-list');
+    const press = () => { const event = new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }); select.dispatchEvent(event); return event.defaultPrevented; };
+    const key = (k) => select.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+    let changes = 0; select.addEventListener('change', () => changes++);
+
+    expect(press()).toBe(true);
+    expect(box.hidden).toBe(false);
+    expect([...box.querySelectorAll('.combo-option')].map(row => row.textContent)).toEqual(['简体中文', 'English', '日本語']);
+    expect(box.querySelector('.is-active').textContent).toBe('English');
+    press();
+    expect(box.hidden).toBe(true);
+
+    key(' '); key('ArrowDown'); key('Enter');
+    expect([select.value, changes, box.hidden]).toEqual(['ja', 1, true]);
+    // A closed select's arrows are left to it.
+    key('ArrowUp');
+    expect(box.hidden).toBe(true);
+  });
+});
