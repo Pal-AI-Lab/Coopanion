@@ -899,16 +899,23 @@ describe('World library and catalog', () => {
     answer(false); await flush();
     expect(calls.some(call => call.url === '/api/worlds/activation')).toBe(false);
     root.querySelector('[aria-label="对 agent 隐藏"]').click(); await flush();
+    // Hiding asks first; cancelling leaves the World as it was.
+    expect(document.querySelector('.modal').textContent).toContain('对 agent 隐藏');
+    expect(calls.some(call => call.url === '/api/worlds/visibility')).toBe(false);
+    answer(false); await flush();
+    expect(calls.some(call => call.url === '/api/worlds/visibility')).toBe(false);
+    root.querySelector('[aria-label="对 agent 隐藏"]').click(); await flush();
+    answer(true); await flush();
     expect(calls.find(call => call.url === '/api/worlds/visibility').body).toEqual({ id: 'alpha', visible: false });
     expect(root.querySelector('.world-feedback').textContent).toBe('');
   });
-  it('keeps prefix reload confirmation without a page toolbar or success banner', async () => {
+  it('applies a confirmed visibility change to the current conversation without asking again', async () => {
     const { root } = await openWorlds({ driftedWorlds: ['alpha'] }, { worlds: true, worldVisibility: true });
     root.querySelector('[aria-label="对 agent 隐藏"]').click(); await flush(100);
-    expect(document.querySelector('.modal').textContent).toContain('现在重载');
     expect(calls.some(call => call.url === '/api/session/reload-prefix')).toBe(false);
     answer(true); await flush(100);
     expect(calls.some(call => call.url === '/api/session/reload-prefix')).toBe(true);
+    expect(document.querySelector('.modal')).toBeNull();
     expect(root.querySelector('.world-feedback').textContent).toBe('');
     expect(root.querySelector('.world-management-toolbar')).toBeNull();
   });

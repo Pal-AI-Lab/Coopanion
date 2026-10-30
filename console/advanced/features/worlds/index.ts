@@ -256,6 +256,8 @@ export function mountWorlds(ctx: FeatureContext): void {
     let drifted = false, problem: string | undefined;
     try {
       if (action === 'activation' && !value && (!await ui.confirm({ title: S.deactivateTitle(m.label || m.id), body: S.deactivateBody, danger: true }) || signal.aborted)) return;
+      // Visibility is asked first too, so Cancel leaves it as it was.
+      if (action === 'visibility' && (!await ui.confirm({ title: S.visibilityTitle(m.label || m.id, value), body: S.visibilityBody(value) }) || signal.aborted)) return;
       const out = await post<{ driftedWorlds?: string[] }>(`/api/worlds/${action}`, action === 'activation' ? { id: m.id, enabled: value } : { id: m.id, visible: value }, { signal });
       drifted = action === 'visibility' && !!out.driftedWorlds?.length;
       if (!signal.aborted) void ctx.refreshNav?.().catch(ctx.onError);
@@ -267,7 +269,8 @@ export function mountWorlds(ctx: FeatureContext): void {
     }
     const control = problem === undefined ? null : controlOf(m.id, action === 'activation' ? 'power' : 'visibility');
     if (problem !== undefined) { if (control) problems.show(control, problem); else setMsg(problem, true); return; }
-    if (drifted && !signal.aborted && await ui.confirm({ title: S.reloadNowTitle, body: S.reloadNowBody(m.label || m.id, value) })) await reloadPrefix(m.id);
+    // The confirmation said the current conversation takes the change at once.
+    if (drifted && !signal.aborted) await reloadPrefix(m.id);
   }
 
   const slot = (name: ControlSlot, button: HTMLButtonElement) => { button.dataset.slot = name; return button; };

@@ -25,11 +25,10 @@ export const S: Partial<typeof en> = {
   introTitle: 'World 拡張',
   prefixReloadFailed: (msg: string) => `プレフィックスの再読み込みに失敗しました：${msg}`,
   toggleFailed: (msg: string) => `切り替えに失敗しました：${msg}`,
-  reloadNowTitle: '今すぐシステムプレフィックスを再読み込みしますか？',
-  reloadNowBody: (name: string, wantVisible: boolean) =>
-    (wantVisible ? `「${name}」はエージェントから再び見えるようになりました。` : `「${name}」をエージェントから隠しました。`)
-    + '\n\nイベント配信は既に新しい状態に従っています。再読み込みすると環境プロンプトとツール宣言が更新され、既存の会話は保持されます。'
-    + 'キャンセルした場合は、次のコンテキスト引き継ぎか再起動のときに更新されます。',
+  visibilityTitle: (name: string, visible: boolean) => visible ? `「${name}」をエージェントに表示しますか？` : `「${name}」をエージェントから隠しますか？`,
+  visibilityBody: (visible: boolean): string => visible
+    ? "Coo はこの World のツールと情報を使えるようになり、送られてくるメッセージも受け取ります。変更は今の会話にすぐ反映され、チャット履歴はそのまま残ります。"
+    : "Coo はこの World のツールと情報を見られなくなり、送られてくるメッセージも受け取らなくなります。World 自体は動き続けます。変更は今の会話にすぐ反映され、チャット履歴はそのまま残ります。",
   deactivateTitle: (name: string) => `「${name}」を無効化しますか？`,
   deactivateBody: "停止すると、この World はすぐに動作を終え、提供していたツールと環境情報は Coo から使えなくなります。",
   restartTitle: (name: string) => `「${name}」を再起動しますか？`,

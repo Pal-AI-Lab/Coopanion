@@ -34,11 +34,10 @@ const zh = {
   introTitle: 'World 扩展',
   prefixReloadFailed: (msg: string) => `前缀重载失败: ${msg}`,
   toggleFailed: (msg: string) => `切换失败: ${msg}`,
-  reloadNowTitle: '现在重载 system 前缀?',
-  reloadNowBody: (name: string, wantVisible: boolean) =>
-    (wantVisible ? `「${name}」已对 agent 重新可见。` : `「${name}」已对 agent 隐藏。`)
-    + '\n\n事件投递已按新状态生效。重载会更新环境提示词与工具声明，保留已有对话。'
-    + '取消后将在下次上下文交接或重开时更新。',
+  visibilityTitle: (name: string, visible: boolean) => visible ? `对 agent 显示「${name}」？` : `对 agent 隐藏「${name}」？`,
+  visibilityBody: (visible: boolean): string => visible
+    ? "显示后，Coo 可以使用这个 World 提供的工具和信息，并收到它发来的消息。更改会立即用于当前对话，聊天记录不受影响。"
+    : "隐藏后，Coo 将看不到这个 World 提供的工具和信息，也不再收到它发来的消息；这个 World 本身仍会继续运行。更改会立即用于当前对话，聊天记录不受影响。",
   deactivateTitle: (name: string) => `停用「${name}」?`,
   deactivateBody: "停用后，该 World 会立即停止运行，它提供的工具和环境信息将不再提供给 Coo。",
   restartTitle: (name: string) => `重启「${name}」?`,
@@ -81,11 +80,10 @@ export const en: typeof zh = {
   introTitle: 'World extensions',
   prefixReloadFailed: (msg: string) => `Prefix reload failed: ${msg}`,
   toggleFailed: (msg: string) => `Toggle failed: ${msg}`,
-  reloadNowTitle: 'Reload the system prefix now?',
-  reloadNowBody: (name: string, wantVisible: boolean) =>
-    (wantVisible ? `"${name}" is visible to the agent again.` : `"${name}" is now hidden from the agent.`)
-    + '\n\nEvent delivery already follows the new state. Reloading updates the environment prompt and tool declarations and keeps existing conversation messages. '
-    + 'If cancelled, they update at the next context handoff or restart.',
+  visibilityTitle: (name: string, visible: boolean) => visible ? `Show "${name}" to the agent?` : `Hide "${name}" from the agent?`,
+  visibilityBody: (visible: boolean): string => visible
+    ? "Coo will be able to use this World’s tools and information and receive its messages. The change applies to the current conversation right away; the chat history stays."
+    : "Coo will no longer see this World’s tools and information or receive its messages; the World itself keeps running. The change applies to the current conversation right away; the chat history stays.",
   deactivateTitle: (name: string) => `Deactivate "${name}"?`,
   deactivateBody: "The World stops running immediately, and its tools and context are no longer available to Coo.",
   restartTitle: (name: string) => `Restart "${name}"?`,

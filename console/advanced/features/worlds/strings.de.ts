@@ -25,11 +25,10 @@ export const S: Partial<typeof en> = {
   introTitle: 'World-Erweiterungen',
   prefixReloadFailed: (msg: string) => `Neuladen des Präfixes fehlgeschlagen: ${msg}`,
   toggleFailed: (msg: string) => `Umschalten fehlgeschlagen: ${msg}`,
-  reloadNowTitle: 'Systempräfix jetzt neu laden?',
-  reloadNowBody: (name: string, wantVisible: boolean) =>
-    (wantVisible ? `„${name}“ ist für den Agenten wieder sichtbar.` : `„${name}“ ist jetzt vor dem Agenten verborgen.`)
-    + '\n\nDie Ereigniszustellung folgt bereits dem neuen Zustand. Neuladen aktualisiert den Umgebungs-Prompt und die Tool-Deklarationen und behält bestehende Gesprächsnachrichten. '
-    + 'Bei Abbruch werden sie bei der nächsten Kontextübergabe oder beim nächsten Neustart aktualisiert.',
+  visibilityTitle: (name: string, visible: boolean) => visible ? `„${name}“ dem Agenten zeigen?` : `„${name}“ vor dem Agenten verbergen?`,
+  visibilityBody: (visible: boolean): string => visible
+    ? "Coo kann die Werkzeuge und Informationen dieser World nutzen und erhält ihre Nachrichten. Die Änderung gilt sofort für das aktuelle Gespräch; der Chatverlauf bleibt erhalten."
+    : "Coo sieht die Werkzeuge und Informationen dieser World nicht mehr und erhält ihre Nachrichten nicht mehr; die World selbst läuft weiter. Die Änderung gilt sofort für das aktuelle Gespräch; der Chatverlauf bleibt erhalten.",
   deactivateTitle: (name: string) => `„${name}“ deaktivieren?`,
   deactivateBody: "Die World wird sofort beendet; ihre Werkzeuge und Kontextinformationen stehen Coo dann nicht mehr zur Verfügung.",
   restartTitle: (name: string) => `„${name}“ neu starten?`,
