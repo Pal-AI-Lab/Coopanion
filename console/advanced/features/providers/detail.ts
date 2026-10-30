@@ -1,4 +1,5 @@
 import type { FeatureContext } from '../feature.ts';
+import { notice } from '../../../base/ui/index.ts';
 import { get, post } from '../../../base/api.ts';
 import { Lifecycle } from '../../../base/lifecycle.ts';
 import { configField, type ConfigGroup } from '../config/view.ts';
@@ -293,7 +294,7 @@ export async function mountDetail(options: Options): Promise<DetailController> {
     if (saved) {
       actions.append(ui.button(S.remove, { variant: 'danger', onClick: ev => run(async () => {
         const current = await get<Detail>(connectionPath(saved.name), opts);
-        if (current.references.length) { await ui.confirm({ title: S.remove, body: S.referenced + current.references.join(', ') }); return; }
+        if (current.references.length) { await notice(ui, { title: S.remove, body: S.referenced + current.references.join(', ') }); return; }
         if (!(await ui.confirm({ title: S.remove, body: S.deleteConfirm, danger: true }))) return;
         if (saved.entry.kind === CHATGPT_MODULE && current.revision === saved.revision) await signOutBeforeDelete(saved.name, lifecycle.signal);
         await post(connectionPath(saved.name) + '/delete', { expectedRevision: saved.revision }, opts); await options.deleted();

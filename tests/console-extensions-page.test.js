@@ -702,8 +702,11 @@ describe('provider connection cards', () => {
     const { root } = await openConnections({ references: { b: ['Coo'] }, onDelete: url => deleted.push(url) });
     const trash = (name) => root.querySelector(`.connection-card[data-provider="${name}"] .connection-erase`);
     trash('b').click(); await flush();
+    // Only told: one button, nothing to choose.
     expect(document.querySelector('.modal').textContent).toContain('Coo');
-    answer(true); await flush();
+    const only = [...document.querySelectorAll('.modal .confirm-card button')];
+    expect(only).toHaveLength(1);
+    only[0].click(); await flush();
     expect(deleted).toEqual([]);
     trash('a').click(); await flush();
     answer(false); await flush();

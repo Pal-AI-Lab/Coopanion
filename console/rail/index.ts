@@ -14,6 +14,7 @@ import { get, post, setConfig } from '../base/api.ts';
 import type { WebUiLamp } from 'cortico/web/shared/webui-protocol.ts';
 import { buildHash, type Route, type Router } from '../base/router.ts';
 import { icon, type ConsoleIconName } from '../base/ui/icons.ts';
+import { notice } from '../base/ui/index.ts';
 import { lampRow, paintLamps } from '../base/ui/lamp.ts';
 import type { ConsoleMode } from '../features/mode.ts';
 import { onNameSaved } from '../features/bot-name.ts';
@@ -352,7 +353,7 @@ export function createRail(deps: RailDeps): Rail {
       const localComplete = out?.localComplete ?? steps.every((step) => step.ok);
       const externalUnverified = (out?.externalChecks ?? []).some((check) => check.status !== 'verified-ended');
       const lines = steps.map((s) => `${s.ok ? '✓' : '✗'} ${s.label} · ${(s.elapsedMs / 1000).toFixed(1)}s${s.ok ? '' : ` — ${s.detail ?? S.stepIncomplete}`}`);
-      void ui.confirm({
+      void notice(ui, {
         title: !localComplete ? S.resultLocalIncomplete
           : externalUnverified ? S.resultExternalUnverified
           : out?.ok === false ? S.resultUnverified : S.doneShutdown,

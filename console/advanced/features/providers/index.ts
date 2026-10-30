@@ -2,6 +2,7 @@ import { pageIntro } from '../../../base/ui/page.ts';
 import { pageTabs } from '../../../base/ui/page-tabs.ts';
 import { mountExtensionContent, type ExtensionController } from '../extensions/index.ts';
 import { icon } from '../../../base/ui/icons.ts';
+import { notice } from '../../../base/ui/index.ts';
 import { NEW_DRAFT_ID, providerDrafts } from './drafts.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { get, post } from '../../../base/api.ts';
@@ -176,7 +177,7 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
       run(async () => {
         if (identity === NEW_DRAFT_ID) { if (await ui.confirm({ title: S.cancel, danger: true })) await remove(identity); return; }
         const current = await get<Detail>(connectionPath(identity), opts);
-        if (current.references.length) { await ui.confirm({ title: S.remove, body: S.referenced + current.references.join(', ') }); return; }
+        if (current.references.length) { await notice(ui, { title: S.remove, body: S.referenced + current.references.join(', ') }); return; }
         if (await ui.confirm({ title: S.remove, body: S.deleteConfirm, danger: true })) await remove(identity);
       });
     }, opts);

@@ -163,3 +163,20 @@ describe('widget edge cases', () => {
     expect(rows()).toEqual(['A', 'B']);
   });
 });
+
+describe('notice dialogs', () => {
+  it('tells with a single 知道了 and nothing to choose, where a confirm asks with two buttons', async () => {
+    const { createConsoleUi, notice } = await import('../console/base/ui/index.ts');
+    const { S } = await import('../console/base/ui/strings.ts');
+    const life = new AbortController(); lives.push(life);
+    const ui = createConsoleUi({ memo: { get: () => undefined, set: () => {} }, overlayHost: document.body, signal: life.signal, doc: document });
+    const done = notice(ui, { title: '删除供应商', body: '此供应商正在被以下 Bot 使用，不能删除：Coo' });
+    const buttons = () => [...document.querySelectorAll('.modal .confirm-card button')].map(button => button.textContent);
+    expect(buttons()).toEqual([S.gotIt]);
+    document.querySelector('.modal .confirm-card button').click();
+    await expect(done).resolves.toBeUndefined();
+    expect(document.querySelector('.modal')).toBeNull();
+    void ui.confirm({ title: '确认？' });
+    expect(buttons()).toEqual([S.cancel, S.confirm]);
+  });
+});

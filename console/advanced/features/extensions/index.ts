@@ -2,6 +2,7 @@
 
 import { get, post, pickPath } from '../../../base/api.ts';
 import { icon, brandMark, cooFigure, COO_FACE_NAMES } from '../../../base/ui/icons.ts';
+import { notice } from '../../../base/ui/index.ts';
 import { renderMarkdown } from './markdown.ts';
 import { gallery, takeImages } from './gallery.ts';
 import type { FeatureContext } from '../feature.ts';
@@ -1682,7 +1683,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       if (report?.error) { win.sessionStorage.removeItem(storageKey + ':restart'); throw new Error(report.error); }
       const incomplete = (report?.steps ?? []).filter(step => !step.ok);
       if (report && incomplete.length) {
-        void ui.confirm({
+        void notice(ui, {
           title: supervised ? S.doneRestartSupervised : S.doneRestart,
           body: [report.result ?? S.resultDefault, '', ...incomplete.map(step => `✗ ${step.label} · ${step.detail ?? S.stepIncomplete}`)].join('\n'),
         });

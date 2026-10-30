@@ -537,6 +537,8 @@
   /* The scrollbar has its place from the start (10px each side, as on the pages), so its appearing changes no
      width; the side padding gives those 10px back, keeping the content 20px in. */
   .modalbody { flex: 1; min-height: 0; overflow: auto; padding: 16px 10px; scrollbar-gutter: stable both-edges; }
+  /* A confirm or notice: its buttons stand clear of the text above them, the card's padding below. */
+  .confirm-card .modalbody > .rowbar:last-child { margin: 20px 0 0; }
 
 
   .segwrap { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
