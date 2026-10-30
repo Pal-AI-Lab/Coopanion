@@ -1909,10 +1909,9 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-intro{padding-bottom:0}
 .world-intro>.pagetabs{margin-top:16px;border-bottom:0}
 .world-workspace-status:not(:has(>.msgline:not(:empty))){display:none}
-/* The compact field of the World pages' toolbars, filter row, panels and group names: 32px, the focus
-   shown by the border alone. */
+/* The compact field of the World pages' toolbars, filter row, panels and group names: 32px; its focus is
+   every other page's. */
 :is(.world-catalog,.world-library-tools,.world-group-head) :is(input:not([type=checkbox]):not([type=radio]),select){height:32px;min-height:32px;padding-block:0;font-size:12.5px}
-:is(.world-catalog,.world-library-tools,.world-group-head) :is(input,select):is(:focus,:focus-visible){outline:none;box-shadow:none;border-color:var(--line-strong)}
 .world-manual .btn{min-height:32px}
 .world-name{font:inherit;color:inherit;border:0;padding:0;background:none;text-align:left;cursor:pointer}
 .world-name:hover{color:var(--accent)}
