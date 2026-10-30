@@ -31,9 +31,7 @@ export const S: Partial<typeof en> = {
     + '\n\nA entrega de eventos já segue o novo estado. Recarregar atualiza o prompt do ambiente e as declarações de ferramentas e mantém as mensagens existentes da conversa. '
     + 'Se cancelar, eles são atualizados na próxima transferência de contexto ou reinício.',
   deactivateTitle: (name: string) => `Desativar “${name}”?`,
-  deactivateBody: (id: string) =>
-    'O World para imediatamente (seus processos externos e conexões gerenciados são encerrados), e '
-    + `worlds.${id}.enabled=false é gravado em config.json. O prompt do ambiente e as ferramentas do agente são retirados na hora; ativar de novo o reconstrói com a configuração atual.`,
+  deactivateBody: "O World para imediatamente, e suas ferramentas e informações de contexto deixam de estar disponíveis para o Coo.",
   restartTitle: (name: string) => `Reiniciar “${name}”?`,
   restartBody: 'Para e reconstrói o World para aplicar as configurações marcadas para reinício do World. Processos e conexões gerenciados param e reiniciam.',
   missingReasonDefault: 'Não foi possível carregar este World.',

@@ -31,9 +31,7 @@ export const S: Partial<typeof en> = {
     + '\n\nイベント配信は既に新しい状態に従っています。再読み込みすると環境プロンプトとツール宣言が更新され、既存の会話は保持されます。'
     + 'キャンセルした場合は、次のコンテキスト引き継ぎか再起動のときに更新されます。',
   deactivateTitle: (name: string) => `「${name}」を無効化しますか？`,
-  deactivateBody: (id: string) =>
-    'World は直ちに停止し（管理している外部プロセスと接続も終了処理されます）、config.json に '
-    + `worlds.${id}.enabled=false を書き戻します。エージェントの環境プロンプトとツールはすぐに取り下げられ、再び有効化すると現在の設定から再構築されます。`,
+  deactivateBody: "停止すると、この World はすぐに動作を終え、提供していたツールと環境情報は Coo から使えなくなります。",
   restartTitle: (name: string) => `「${name}」を再起動しますか？`,
   restartBody: 'World を停止して再構築し、「World の再起動後に反映」と表示された設定を適用します。管理しているプロセスと接続は停止した後に再起動します。',
   missingReasonDefault: 'この World を読み込めません。',

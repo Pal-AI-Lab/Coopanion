@@ -31,9 +31,7 @@ export const S: Partial<typeof en> = {
     + "\n\nLa consegna degli eventi segue già il nuovo stato. Il ricaricamento aggiorna il prompt dell'ambiente e le dichiarazioni degli strumenti e conserva i messaggi della conversazione esistenti. "
     + 'Se annulli, si aggiornano al prossimo passaggio di contesto o al prossimo riavvio.',
   deactivateTitle: (name: string) => `Disattivare «${name}»?`,
-  deactivateBody: (id: string) =>
-    'Il World si arresta subito (i processi esterni e le connessioni che gestisce vengono chiusi) e '
-    + `worlds.${id}.enabled=false viene riscritto in config.json. Il prompt dell'ambiente e gli strumenti dell'agente vengono ritirati subito; una nuova attivazione lo ricostruisce dalla configurazione attuale.`,
+  deactivateBody: "Il World si arresta subito e i suoi strumenti e le informazioni di contesto non sono più disponibili per Coo.",
   restartTitle: (name: string) => `Riavviare «${name}»?`,
   restartBody: 'Arresta e ricostruisce il World per applicare le impostazioni che richiedono il riavvio del World. I processi e le connessioni gestiti si arrestano e ripartono.',
   missingReasonDefault: 'Impossibile caricare questo World.',

@@ -1920,11 +1920,13 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-pending-group{width:var(--world-entry-width);padding-bottom:16px;margin-bottom:20px;border-bottom:1px solid var(--line);transition:width var(--world-duration) var(--world-easing),padding var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing)}
 .world-workspace[data-view=market] .world-pending-group{width:var(--world-rail-width);padding-bottom:10px;margin-bottom:12px}
 .world-pending-group[hidden],.world-ready-group[hidden]{display:none}
-.world-library-entry{position:relative;display:grid;grid-template-columns:var(--world-rail-width) calc(var(--world-entry-width) - var(--world-rail-width) - 2px);width:var(--world-entry-width);height:auto;min-height:64px;margin-bottom:8px;border:1px solid var(--border);border-radius:12px;background:var(--sheet);overflow:clip;overflow-clip-margin:6px;transition:width var(--world-duration) var(--world-easing),height var(--world-duration) var(--world-easing),min-height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),background-color 80ms,border-color 80ms}
-.world-workspace[data-view=market] .world-library-item{padding-top:4px}
+.world-library-entry{position:relative;display:grid;grid-template-columns:var(--world-rail-width) calc(var(--world-entry-width) - var(--world-rail-width) - 2px);grid-template-rows:minmax(0,1fr);width:var(--world-entry-width);height:auto;min-height:64px;margin-bottom:8px;border:1px solid var(--border);border-radius:12px;background:var(--sheet);overflow:clip;overflow-clip-margin:6px;transition:width var(--world-duration) var(--world-easing),height var(--world-duration) var(--world-easing),min-height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),background-color 80ms,border-color 80ms}
 .world-workspace[data-view=market] .world-library-entry{width:var(--world-rail-width);height:74px;min-height:74px;margin-bottom:0;background:transparent;border-color:transparent;transition-property:width,height,min-height,margin,background-color,border-color;transition-duration:var(--world-duration),var(--world-duration),var(--world-duration),var(--world-duration),110ms,110ms;transition-delay:0s,0s,0s,0s,180ms,180ms}
 /* The avatar keeps to the top of its row, so a tall row moves it no further than the row itself moves. */
-.world-library-item{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;width:100%;min-width:0;padding:10px 4px 0;transition:padding var(--world-duration) var(--world-easing);border:0;border-radius:12px;background:transparent;color:var(--ink-soft);cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* The avatar centres on its row, however tall, in both views. The row's one grid track follows the
+   row's height rather than its content's, so a row shrinking into the dock carries the avatar along
+   without a jump; a 64px row or a dock tile puts it where the old top padding did. */
+.world-library-item{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-width:0;padding:0 4px;border:0;border-radius:12px;background:transparent;color:var(--ink-soft);cursor:pointer;-webkit-tap-highlight-color:transparent}
 .world-library-label{display:block;max-width:100%;max-height:0;margin-top:0;opacity:0;font:500 11px/14px var(--sans);color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:max-height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 140ms}
 .world-workspace[data-view=market] .world-library-label{max-height:14px;margin-top:8px;opacity:1;transition-delay:0s,0s,200ms}
 /* App icons: one rounded tile with a hairline edge, a soft drop shadow and a faint top light. */
@@ -2203,7 +2205,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 /* Groups: a header row, then its rows. The market view's rail drops the headers and shows every avatar. */
 .world-ready-group{position:relative}
 .world-group-head{display:flex;align-items:center;gap:2px;width:var(--world-entry-width);height:36px;margin:4px 0 6px;padding:0 4px 0 0;border-radius:8px;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 140ms,background-color 110ms}
-.world-group-head[draggable=true]{cursor:grab}
+.world-group-head.is-movable{cursor:grab}
 .world-group-head.is-drop-target{background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .world-group-toggle{display:flex;align-items:center;gap:8px;min-width:0;height:100%;padding:0 8px 0 6px;border:0;border-radius:8px;background:transparent;font:600 13px/1 var(--sans);color:var(--ink-soft);cursor:pointer}
 .world-group-toggle:hover{color:var(--ink)}
@@ -2219,9 +2221,12 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-group-list{display:flow-root;height:auto;overflow:clip;overflow-clip-margin:8px;transition:height var(--world-duration) var(--world-easing),opacity 170ms}
 .world-workspace[data-view=mine] .world-group.is-collapsed .world-group-list{height:0;opacity:0}
 .world-workspace[data-view=market] .world-group-head{height:0;margin:0;opacity:0;overflow:clip;pointer-events:none}
-.world-drop-line{position:absolute;left:0;z-index:3;width:var(--world-entry-width);height:2px;margin-top:-1px;border-radius:2px;background:var(--accent);pointer-events:none}
-.world-drop-line[hidden]{display:none}
-.world-library-entry.is-dragging,.world-group.is-dragging{opacity:.4}
+/* The dragged element's place, wherever it would land: an empty outline the size of the element. */
+.world-library-entry.is-dragging,.world-group.is-dragging{border:1px dashed var(--line-strong);border-radius:12px;background:transparent}
+:is(.world-library-entry,.world-group).is-dragging>*{visibility:hidden}
+/* While a row or group is dragged only its lifted copy moves: the pointer is hidden and nothing gets selected. */
+html.is-world-dragging,html.is-world-dragging *{cursor:none!important;user-select:none}
+.world-drag-copy{position:absolute;left:0;z-index:20;margin:0;border-radius:10px;background:var(--sheet);box-shadow:0 0 0 1px var(--line),0 14px 30px -14px var(--shadow-strong);pointer-events:none;transition:none;opacity:1}
 /* Ungrouped rows after a group start below a divider, so an expanded group's end stays visible. */
 .world-group{transition:padding var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),border-color 140ms;border-bottom:1px solid transparent}
 .world-workspace[data-view=mine] .world-group:has(+ .world-library-entry:not(.motion-ghost)){width:var(--world-entry-width);padding-bottom:6px;margin-bottom:14px;border-bottom-color:var(--line)}

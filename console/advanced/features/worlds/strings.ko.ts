@@ -31,9 +31,7 @@ export const S: Partial<typeof en> = {
     + '\n\n이벤트 전달은 이미 새 상태를 따릅니다. 다시 불러오면 환경 프롬프트와 도구 선언이 업데이트되고 기존 대화는 유지됩니다. '
     + '취소하면 다음 컨텍스트 인계나 재시작 때 업데이트됩니다.',
   deactivateTitle: (name: string) => `"${name}"을(를) 비활성화하시겠습니까?`,
-  deactivateBody: (id: string) =>
-    'World가 즉시 중지되고(관리하는 외부 프로세스와 연결도 함께 정리됨), config.json에 '
-    + `worlds.${id}.enabled=false가 기록됩니다. 에이전트의 환경 프롬프트와 도구는 바로 제거되며, 다시 활성화하면 현재 설정으로 다시 만듭니다.`,
+  deactivateBody: "끄면 이 World는 즉시 실행을 멈추고, 제공하던 도구와 환경 정보를 Coo가 더 이상 사용할 수 없습니다.",
   restartTitle: (name: string) => `"${name}"을(를) 재시작하시겠습니까?`,
   restartBody: 'World를 중지하고 다시 만들어 "World 재시작 후 적용"으로 표시된 설정을 적용합니다. 관리하는 프로세스와 연결은 중지된 뒤 다시 시작됩니다.',
   missingReasonDefault: '이 World를 불러올 수 없습니다.',

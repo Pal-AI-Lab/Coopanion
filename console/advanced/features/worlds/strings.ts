@@ -40,9 +40,7 @@ const zh = {
     + '\n\n事件投递已按新状态生效。重载会更新环境提示词与工具声明，保留已有对话。'
     + '取消后将在下次上下文交接或重开时更新。',
   deactivateTitle: (name: string) => `停用「${name}」?`,
-  deactivateBody: (id: string) =>
-    'World 会立即停止(它托管的外部进程与连接一并收尾),并写回 config.json 的 '
-    + `worlds.${id}.enabled=false。agent 的环境提示词与工具随即撤下;再次激活按当前配置重建。`,
+  deactivateBody: "停用后，该 World 会立即停止运行，它提供的工具和环境信息将不再提供给 Coo。",
   restartTitle: (name: string) => `重启「${name}」?`,
   restartBody: "停止并重建 World，应用标有「重启 World 生效」的配置。托管进程与连接会停止后重新启动。",
   missingReasonDefault: "无法加载这个 World。",
@@ -89,9 +87,7 @@ export const en: typeof zh = {
     + '\n\nEvent delivery already follows the new state. Reloading updates the environment prompt and tool declarations and keeps existing conversation messages. '
     + 'If cancelled, they update at the next context handoff or restart.',
   deactivateTitle: (name: string) => `Deactivate "${name}"?`,
-  deactivateBody: (id: string) =>
-    'The World stops immediately (its managed external processes and connections are wound down), and '
-    + `worlds.${id}.enabled=false is written back to config.json. The agent's environment prompt and tools are withdrawn right away; activating again rebuilds it from the current config.`,
+  deactivateBody: "The World stops running immediately, and its tools and context are no longer available to Coo.",
   restartTitle: (name: string) => `Restart "${name}"?`,
   restartBody: "Stops and rebuilds the World to apply settings marked for World restart. Managed processes and connections stop and restart.",
   missingReasonDefault: "Could not load this World.",

@@ -1051,13 +1051,13 @@ describe('World library and catalog', () => {
     const search = root.querySelector('.world-library-tools input[type=search]');
     search.value = '甲'; search.dispatchEvent(new Event('input', { bubbles: true }));
     expect(visible()).toEqual(['alpha-mod']);
-    expect(root.querySelector('.world-library-entry').draggable).toBe(false);
+    expect(root.querySelector('.world-library-entry').classList.contains('is-movable')).toBe(false);
     expect(root.querySelector('.world-no-matches').hidden).toBe(true);
     search.value = '不存在的名字'; search.dispatchEvent(new Event('input', { bubbles: true }));
     expect(visible()).toEqual([]);
     expect(root.querySelector('.world-no-matches').hidden).toBe(false);
     search.value = ''; search.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(root.querySelector('.world-ready-list .world-library-entry').draggable).toBe(true);
+    expect(root.querySelector('.world-ready-list .world-library-entry').classList.contains('is-movable')).toBe(true);
     button(root.querySelector('.world-library-tools'), '新建分组').click(); await flush();
     const rename = root.querySelector('.world-group-rename');
     rename.value = '聊天'; rename.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
@@ -1065,6 +1065,31 @@ describe('World library and catalog', () => {
     const saved = JSON.parse(window.localStorage.getItem('coopanion.world-groups.v1'));
     expect(Object.values(saved.groups)).toEqual([expect.objectContaining({ name: '聊天', collapsed: true, items: [] })]);
     expect(saved.top[0]).toMatch(/^group:/);
+  });
+  it('drags a row with the pointer: a lifted copy, no cursor, and the click after the drop opens nothing', async () => {
+    const { root, ctx } = await openWorlds();
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    const order = () => [...root.querySelectorAll('.world-ready-list .world-library-entry')].map(entry => entry.dataset.key);
+    const [first, ...rest] = order();
+    expect(rest.length).toBeGreaterThan(0);
+    const pointer = (type, target, y) => { const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: 10, clientY: y }); Object.defineProperty(event, 'pointerId', { value: 1 }); target.dispatchEvent(event); };
+    const row = root.querySelector(`.world-ready-list .world-library-entry[data-key="${first}"] .world-blade-state, .world-ready-list .world-library-entry[data-key="${first}"] .world-blade`);
+    const hash = window.location.hash;
+    pointer('pointerdown', row, 10);
+    pointer('pointermove', window, 12);
+    expect(root.querySelector('.world-drag-copy')).toBeNull();
+    pointer('pointermove', window, 400);
+    expect(root.querySelector('.world-drag-copy')).not.toBeNull();
+    expect(document.documentElement.classList.contains('is-world-dragging')).toBe(true);
+    expect(root.querySelector(`.world-library-entry[data-key="${first}"]`).classList.contains('is-dragging')).toBe(true);
+    pointer('pointerup', window, 400);
+    // The drop re-renders the rows; the click lands on the live one.
+    root.querySelector(`.world-ready-list .world-library-entry[data-key="${first}"] .world-blade`).click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    expect(window.location.hash).toBe(hash);
+    expect(root.querySelector('.world-drag-copy')).toBeNull();
+    expect(document.documentElement.classList.contains('is-world-dragging')).toBe(false);
+    // jsdom lays nothing out, so the drop lands after the last row.
+    expect(order()).toEqual([...rest, first]);
   });
   it('keeps a built-in World on and visible: its hide and power controls are greyed', async () => {
     const worlds = [{ id: 'core', label: 'Core', status: 'active', visible: true }];

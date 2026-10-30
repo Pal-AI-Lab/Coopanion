@@ -31,9 +31,7 @@ export const S: Partial<typeof en> = {
     + '\n\nDie Ereigniszustellung folgt bereits dem neuen Zustand. Neuladen aktualisiert den Umgebungs-Prompt und die Tool-Deklarationen und behält bestehende Gesprächsnachrichten. '
     + 'Bei Abbruch werden sie bei der nächsten Kontextübergabe oder beim nächsten Neustart aktualisiert.',
   deactivateTitle: (name: string) => `„${name}“ deaktivieren?`,
-  deactivateBody: (id: string) =>
-    'Die World stoppt sofort (ihre verwalteten externen Prozesse und Verbindungen werden beendet), und '
-    + `worlds.${id}.enabled=false wird in config.json zurückgeschrieben. Umgebungs-Prompt und Tools des Agenten werden sofort entfernt; eine erneute Aktivierung baut sie aus der aktuellen Konfiguration neu auf.`,
+  deactivateBody: "Die World wird sofort beendet; ihre Werkzeuge und Kontextinformationen stehen Coo dann nicht mehr zur Verfügung.",
   restartTitle: (name: string) => `„${name}“ neu starten?`,
   restartBody: 'Stoppt die World und baut sie neu auf, um Einstellungen anzuwenden, die einen World-Neustart erfordern. Verwaltete Prozesse und Verbindungen werden gestoppt und neu gestartet.',
   missingReasonDefault: 'Diese World konnte nicht geladen werden.',
