@@ -1997,9 +1997,9 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-blade-identity h3>.world-name-info{flex:none;width:24px;height:24px;margin:-2px 0 -2px 2px;opacity:.7}
 .world-blade-identity h3>.world-name-info .icon{width:14px;height:14px}
 .world-blade-identity h3>.world-name-info:hover{opacity:1}
-/* An available update: a round exclamation mark after the info button, in the update's colour. */
+/* An available update: an up arrow after the info button, in the update's colour. */
 .world-blade-identity h3>.world-name-update{flex:none;width:24px;height:24px;margin:-2px 0 -2px -2px;color:var(--accent)}
-.world-blade-identity h3>.world-name-update .icon{width:15px;height:15px;stroke-width:2}
+.world-blade-identity h3>.world-name-update .icon{width:15px;height:15px}
 .world-blade-identity h3>.world-name-update:hover{color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .world-blade-identity code{display:block;color:var(--ink-dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 .world-blade-signals{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;color:var(--ink-dim);font-size:12px}

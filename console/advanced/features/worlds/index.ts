@@ -692,7 +692,7 @@ export function mountWorlds(ctx: FeatureContext): void {
       const owner = market, update = updatable.get(pack.name);
       heading.append(slot('info', iconButton('info', S.packageInfo, 'world-name-info', () => owner.details(pack.name))));
       // An available update shows beside it and opens the same page, where the update is.
-      if (update) heading.append(iconButton('alert', S.updateAvailable(update.installedVersion, update.latestVersion), 'world-name-update', () => owner.details(pack.name)));
+      if (update) heading.append(iconButton('update', S.updateAvailable(update.installedVersion, update.latestVersion), 'world-name-update', () => owner.details(pack.name)));
     }
     identity.append(heading, ui.h('code', '', m?.id ?? pack?.name ?? item.key));
     const signals = ui.h('div', 'world-blade-signals');
