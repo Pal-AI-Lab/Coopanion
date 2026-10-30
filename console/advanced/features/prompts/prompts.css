@@ -123,6 +123,7 @@
   .prefix-vars .varchip[aria-expanded=true] { outline:none; box-shadow:inset 0 0 0 1px var(--section-color); opacity:1; }
 
 .prefix-full { margin:0; color:var(--ink); font:13px/1.7 var(--mono); white-space:pre-wrap; overflow-wrap:anywhere; }
+details.sheet.fold.fold-plain.prefix-preview > .foldbody { margin-top:16px; }
 .prefix-preview .prefix-full { padding:14px 16px; border:1px solid var(--border); border-radius:12px; background:var(--sheet); }
 .prefix-label { position:absolute; left:0; right:0; height:0; }
 .prefix-label.tone-persona .prefix-flag { background:color-mix(in srgb,var(--accent) 26%,var(--sheet)); }
