@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
   introTitle: 'Estensioni World',
   prefixReloadFailed: (msg: string) => `Ricaricamento del prefisso non riuscito: ${msg}`,
   toggleFailed: (msg: string) => `Cambio non riuscito: ${msg}`,
-  visibilityTitle: (name: string, visible: boolean) => visible ? `Mostrare «${name}» all’agente?` : `Nascondere «${name}» all’agente?`,
+  visibilityTitle: (name: string, visible: boolean) => visible ? `Mostrare «${name}» a Coo?` : `Nascondere «${name}» a Coo?`,
   visibilityBody: (visible: boolean): string => visible
     ? "Coo potrà usare gli strumenti e le informazioni di questo World e ricevere i suoi messaggi. La modifica vale subito per la conversazione in corso; la cronologia della chat resta."
     : "Coo non vedrà più gli strumenti e le informazioni di questo World né riceverà i suoi messaggi; il World continua a funzionare. La modifica vale subito per la conversazione in corso; la cronologia della chat resta.",
@@ -36,8 +36,8 @@ export const S: Partial<typeof en> = {
   missingReasonDefault: 'Impossibile caricare questo World.',
   activateWorld: 'Attiva World',
   inactiveNoteManual: (id: string) => `Implementato in locale ma non assemblato. Per attivarlo, imposta worlds.${id}.enabled a true in config.json e riavvia.`,
-  hideFromAgent: "Nascondi all'agente",
-  showToAgent: "Mostra all'agente",
+  hideFromAgent: 'Nascondi a Coo',
+  showToAgent: 'Mostra a Coo',
   restartWorld: 'Riavvia World',
   deactivateWorld: 'Disattiva World',
   prefixPending: 'Ricaricamento prefisso in attesa',

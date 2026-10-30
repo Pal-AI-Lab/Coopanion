@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
   introTitle: 'Расширения World',
   prefixReloadFailed: (msg: string) => `Не удалось перезагрузить префикс: ${msg}`,
   toggleFailed: (msg: string) => `Не удалось переключить: ${msg}`,
-  visibilityTitle: (name: string, visible: boolean) => visible ? `Показать «${name}» агенту?` : `Скрыть «${name}» от агента?`,
+  visibilityTitle: (name: string, visible: boolean) => visible ? `Показать «${name}» Coo?` : `Скрыть «${name}» от Coo?`,
   visibilityBody: (visible: boolean): string => visible
     ? "Coo сможет пользоваться инструментами и сведениями этого World и получать его сообщения. Изменение сразу применится к текущему разговору; история чата сохранится."
     : "Coo больше не будет видеть инструменты и сведения этого World и получать его сообщения; сам World продолжит работать. Изменение сразу применится к текущему разговору; история чата сохранится.",
@@ -36,8 +36,8 @@ export const S: Partial<typeof en> = {
   missingReasonDefault: 'Не удалось загрузить этот World.',
   activateWorld: 'Активировать World',
   inactiveNoteManual: (id: string) => `Реализация есть локально, но World не собран. Чтобы включить его, задайте worlds.${id}.enabled значение true в config.json и перезапустите.`,
-  hideFromAgent: 'Скрыть от агента',
-  showToAgent: 'Показать агенту',
+  hideFromAgent: 'Скрыть от Coo',
+  showToAgent: 'Показать Coo',
   restartWorld: 'Перезапустить World',
   deactivateWorld: 'Деактивировать World',
   prefixPending: 'Нужна перезагрузка префикса',

@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
   introTitle: 'World-Erweiterungen',
   prefixReloadFailed: (msg: string) => `Neuladen des Präfixes fehlgeschlagen: ${msg}`,
   toggleFailed: (msg: string) => `Umschalten fehlgeschlagen: ${msg}`,
-  visibilityTitle: (name: string, visible: boolean) => visible ? `„${name}“ dem Agenten zeigen?` : `„${name}“ vor dem Agenten verbergen?`,
+  visibilityTitle: (name: string, visible: boolean) => visible ? `„${name}“ Coo zeigen?` : `„${name}“ vor Coo verbergen?`,
   visibilityBody: (visible: boolean): string => visible
     ? "Coo kann die Werkzeuge und Informationen dieser World nutzen und erhält ihre Nachrichten. Die Änderung gilt sofort für das aktuelle Gespräch; der Chatverlauf bleibt erhalten."
     : "Coo sieht die Werkzeuge und Informationen dieser World nicht mehr und erhält ihre Nachrichten nicht mehr; die World selbst läuft weiter. Die Änderung gilt sofort für das aktuelle Gespräch; der Chatverlauf bleibt erhalten.",
@@ -36,8 +36,8 @@ export const S: Partial<typeof en> = {
   missingReasonDefault: 'Diese World konnte nicht geladen werden.',
   activateWorld: 'World aktivieren',
   inactiveNoteManual: (id: string) => `Lokal implementiert, aber nicht assembliert. Zum Aktivieren setze worlds.${id}.enabled in config.json auf true und starte neu.`,
-  hideFromAgent: 'Vor dem Agenten verbergen',
-  showToAgent: 'Dem Agenten zeigen',
+  hideFromAgent: 'Vor Coo verbergen',
+  showToAgent: 'Coo zeigen',
   restartWorld: 'World neu starten',
   deactivateWorld: 'World deaktivieren',
   prefixPending: 'Präfix-Neuladen ausstehend',

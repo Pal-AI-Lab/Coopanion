@@ -212,17 +212,16 @@ describe('package authors', () => {
   });
 });
 describe('installation feedback', () => {
-  it('releases pagination height when a search reduces the catalog', async () => {
+  it('starts another page at the top of the list, holding no height from the last', async () => {
     stub();
     const { root } = mount(); await flush();
     const size = root.querySelector('.extension-size select');
     size.value = '10'; size.dispatchEvent(new Event('change', { bubbles: true }));
     const grid = marketCards(root);
-    grid.getBoundingClientRect = () => ({ height: 1800 });
+    const scroller = root.querySelector('.world-catalog-scroll');
+    scroller.scrollTop = 900;
     button(root.querySelector('.extension-pager'), extensionStrings.nextPage).click();
-    expect(grid.style.minHeight).toBe('1800px');
-    filterMarket(root, 'found');
-    expect(grid.children).toHaveLength(1);
+    expect(scroller.scrollTop).toBe(0);
     expect(grid.style.minHeight).toBe('');
   });
   async function detail(root) {
@@ -945,20 +944,20 @@ describe('World library and catalog', () => {
     expect(calls.some(call => call.url === '/api/worlds/activation')).toBe(false);
     answer(false); await flush();
     expect(calls.some(call => call.url === '/api/worlds/activation')).toBe(false);
-    root.querySelector('[aria-label="对 agent 隐藏"]').click(); await flush();
+    root.querySelector('[aria-label="对 Coo 隐藏"]').click(); await flush();
     // Hiding asks first; cancelling leaves the World as it was.
-    expect(document.querySelector('.modal').textContent).toContain('对 agent 隐藏');
+    expect(document.querySelector('.modal').textContent).toContain('对 Coo 隐藏');
     expect(calls.some(call => call.url === '/api/worlds/visibility')).toBe(false);
     answer(false); await flush();
     expect(calls.some(call => call.url === '/api/worlds/visibility')).toBe(false);
-    root.querySelector('[aria-label="对 agent 隐藏"]').click(); await flush();
+    root.querySelector('[aria-label="对 Coo 隐藏"]').click(); await flush();
     answer(true); await flush();
     expect(calls.find(call => call.url === '/api/worlds/visibility').body).toEqual({ id: 'alpha', visible: false });
     expect(root.querySelector('.world-feedback').textContent).toBe('');
   });
   it('applies a confirmed visibility change to the current conversation without asking again', async () => {
     const { root } = await openWorlds({ driftedWorlds: ['alpha'] }, { worlds: true, worldVisibility: true });
-    root.querySelector('[aria-label="对 agent 隐藏"]').click(); await flush(100);
+    root.querySelector('[aria-label="对 Coo 隐藏"]').click(); await flush(100);
     expect(calls.some(call => call.url === '/api/session/reload-prefix')).toBe(false);
     answer(true); await flush(100);
     expect(calls.some(call => call.url === '/api/session/reload-prefix')).toBe(true);
@@ -1094,7 +1093,7 @@ describe('World library and catalog', () => {
     const { root, ctx } = await openWorlds({}, { worlds: true, extensions: true, worldActivation: true, worldVisibility: true, restart: true, supervised: true });
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod');
-    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['左栏隐藏', '删除扩展', '对 agent 隐藏', '停用 World']);
+    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['左栏隐藏', '删除扩展', '对 Coo 隐藏', '停用 World']);
     expect(row.querySelector('.world-blade-identity h3 [aria-label="扩展信息"]')).not.toBeNull();
     // Rows with fewer controls pack them to the right, with no gap at the end.
     const slots = (item) => [...item.querySelectorAll('.world-blade-actions button')].map(button => button.style.getPropertyValue('--slot'));

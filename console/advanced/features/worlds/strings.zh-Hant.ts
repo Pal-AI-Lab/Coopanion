@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
   introTitle: 'World 擴充',
   prefixReloadFailed: (msg: string) => `前綴重新載入失敗: ${msg}`,
   toggleFailed: (msg: string) => `切換失敗: ${msg}`,
-  visibilityTitle: (name: string, visible: boolean) => visible ? `對 agent 顯示「${name}」？` : `對 agent 隱藏「${name}」？`,
+  visibilityTitle: (name: string, visible: boolean) => visible ? `對 Coo 顯示「${name}」？` : `對 Coo 隱藏「${name}」？`,
   visibilityBody: (visible: boolean): string => visible
     ? "顯示後，Coo 可以使用這個 World 提供的工具和資訊，並收到它傳來的訊息。變更會立即套用到目前的對話，聊天紀錄不受影響。"
     : "隱藏後，Coo 將看不到這個 World 提供的工具和資訊，也不再收到它傳來的訊息；這個 World 本身仍會繼續執行。變更會立即套用到目前的對話，聊天紀錄不受影響。",
@@ -36,8 +36,8 @@ export const S: Partial<typeof en> = {
   missingReasonDefault: '無法載入這個 World。',
   activateWorld: '啟用 World',
   inactiveNoteManual: (id: string) => `本機有實作但沒裝配。要啟用,把 config.json 裡 worlds.${id}.enabled 修改為 true 後重新啟動。`,
-  hideFromAgent: '對 agent 隱藏',
-  showToAgent: '對 agent 顯示',
+  hideFromAgent: '對 Coo 隱藏',
+  showToAgent: '對 Coo 顯示',
   restartWorld: '重新啟動 World',
   deactivateWorld: '停用 World',
   prefixPending: '前綴待重新載入',

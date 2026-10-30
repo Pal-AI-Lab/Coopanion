@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
   introTitle: 'World 확장',
   prefixReloadFailed: (msg: string) => `프리픽스를 다시 불러오지 못했습니다: ${msg}`,
   toggleFailed: (msg: string) => `전환하지 못했습니다: ${msg}`,
-  visibilityTitle: (name: string, visible: boolean) => visible ? `「${name}」을(를) 에이전트에게 표시할까요?` : `「${name}」을(를) 에이전트에게서 숨길까요?`,
+  visibilityTitle: (name: string, visible: boolean) => visible ? `「${name}」을(를) Coo에게 표시할까요?` : `「${name}」을(를) Coo에게서 숨길까요?`,
   visibilityBody: (visible: boolean): string => visible
     ? "Coo가 이 World의 도구와 정보를 사용하고, 보내오는 메시지도 받게 됩니다. 변경은 지금 대화에 바로 적용되며 채팅 기록은 그대로 남습니다."
     : "Coo는 이 World의 도구와 정보를 볼 수 없고, 보내오는 메시지도 받지 않습니다. World 자체는 계속 실행됩니다. 변경은 지금 대화에 바로 적용되며 채팅 기록은 그대로 남습니다.",
@@ -36,8 +36,8 @@ export const S: Partial<typeof en> = {
   missingReasonDefault: '이 World를 불러올 수 없습니다.',
   activateWorld: 'World 활성화',
   inactiveNoteManual: (id: string) => `로컬에 구현은 있지만 구성되지 않았습니다. 사용하려면 config.json에서 worlds.${id}.enabled를 true로 바꾸고 재시작하세요.`,
-  hideFromAgent: '에이전트에게서 숨기기',
-  showToAgent: '에이전트에게 표시',
+  hideFromAgent: 'Coo에게서 숨기기',
+  showToAgent: 'Coo에게 표시',
   restartWorld: 'World 재시작',
   deactivateWorld: 'World 비활성화',
   prefixPending: '프리픽스 다시 불러오기 대기',

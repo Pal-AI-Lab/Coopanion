@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
   introTitle: 'World 拡張',
   prefixReloadFailed: (msg: string) => `プレフィックスの再読み込みに失敗しました：${msg}`,
   toggleFailed: (msg: string) => `切り替えに失敗しました：${msg}`,
-  visibilityTitle: (name: string, visible: boolean) => visible ? `「${name}」をエージェントに表示しますか？` : `「${name}」をエージェントから隠しますか？`,
+  visibilityTitle: (name: string, visible: boolean) => visible ? `「${name}」をCooに表示しますか？` : `「${name}」をCooから隠しますか？`,
   visibilityBody: (visible: boolean): string => visible
     ? "Coo はこの World のツールと情報を使えるようになり、送られてくるメッセージも受け取ります。変更は今の会話にすぐ反映され、チャット履歴はそのまま残ります。"
     : "Coo はこの World のツールと情報を見られなくなり、送られてくるメッセージも受け取らなくなります。World 自体は動き続けます。変更は今の会話にすぐ反映され、チャット履歴はそのまま残ります。",
@@ -36,8 +36,8 @@ export const S: Partial<typeof en> = {
   missingReasonDefault: 'この World を読み込めません。',
   activateWorld: 'World を有効化',
   inactiveNoteManual: (id: string) => `ローカルに実装はありますが、構成に含まれていません。有効にするには config.json の worlds.${id}.enabled を true にして再起動してください。`,
-  hideFromAgent: 'エージェントから隠す',
-  showToAgent: 'エージェントに表示',
+  hideFromAgent: 'Cooから隠す',
+  showToAgent: 'Cooに表示',
   restartWorld: 'World を再起動',
   deactivateWorld: 'World を無効化',
   prefixPending: 'プレフィックスの再読み込み待ち',

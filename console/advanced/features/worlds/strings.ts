@@ -34,7 +34,7 @@ const zh = {
   introTitle: 'World 扩展',
   prefixReloadFailed: (msg: string) => `前缀重载失败: ${msg}`,
   toggleFailed: (msg: string) => `切换失败: ${msg}`,
-  visibilityTitle: (name: string, visible: boolean) => visible ? `对 agent 显示「${name}」？` : `对 agent 隐藏「${name}」？`,
+  visibilityTitle: (name: string, visible: boolean) => visible ? `对 Coo 显示「${name}」？` : `对 Coo 隐藏「${name}」？`,
   visibilityBody: (visible: boolean): string => visible
     ? "显示后，Coo 可以使用这个 World 提供的工具和信息，并收到它发来的消息。更改会立即用于当前对话，聊天记录不受影响。"
     : "隐藏后，Coo 将看不到这个 World 提供的工具和信息，也不再收到它发来的消息；这个 World 本身仍会继续运行。更改会立即用于当前对话，聊天记录不受影响。",
@@ -45,8 +45,8 @@ const zh = {
   missingReasonDefault: "无法加载这个 World。",
   activateWorld: '激活 World',
   inactiveNoteManual: (id: string) => `本地有实现但没装配。要启用,把 config.json 里 worlds.${id}.enabled 修改为 true 后重启。`,
-  hideFromAgent: '对 agent 隐藏',
-  showToAgent: '对 agent 显示',
+  hideFromAgent: '对 Coo 隐藏',
+  showToAgent: '对 Coo 显示',
   restartWorld: '重启 World',
   deactivateWorld: '停用 World',
   prefixPending: '前缀待重载',
@@ -80,7 +80,7 @@ export const en: typeof zh = {
   introTitle: 'World extensions',
   prefixReloadFailed: (msg: string) => `Prefix reload failed: ${msg}`,
   toggleFailed: (msg: string) => `Toggle failed: ${msg}`,
-  visibilityTitle: (name: string, visible: boolean) => visible ? `Show "${name}" to the agent?` : `Hide "${name}" from the agent?`,
+  visibilityTitle: (name: string, visible: boolean) => visible ? `Show "${name}" to Coo?` : `Hide "${name}" from Coo?`,
   visibilityBody: (visible: boolean): string => visible
     ? "Coo will be able to use this World’s tools and information and receive its messages. The change applies to the current conversation right away; the chat history stays."
     : "Coo will no longer see this World’s tools and information or receive its messages; the World itself keeps running. The change applies to the current conversation right away; the chat history stays.",
@@ -91,8 +91,8 @@ export const en: typeof zh = {
   missingReasonDefault: "Could not load this World.",
   activateWorld: 'Activate World',
   inactiveNoteManual: (id: string) => `Implemented locally but not assembled. To enable it, set worlds.${id}.enabled to true in config.json and restart.`,
-  hideFromAgent: 'Hide from agent',
-  showToAgent: 'Show to agent',
+  hideFromAgent: 'Hide from Coo',
+  showToAgent: 'Show to Coo',
   restartWorld: 'Restart World',
   deactivateWorld: 'Deactivate World',
   prefixPending: 'Prefix reload pending',

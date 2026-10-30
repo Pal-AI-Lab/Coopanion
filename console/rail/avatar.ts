@@ -23,7 +23,7 @@ export function createAvatarControl(opts: {
   const button = ui.h('button', 'rail-avatar');
   button.type = 'button';
   button.setAttribute('aria-label', S.changeAvatar);
-  button.title = S.uploadAvatar;
+  button.setAttribute('aria-description', S.uploadAvatar);
 
   const image = ui.h('img', 'rail-avatar-image');
   image.alt = '';

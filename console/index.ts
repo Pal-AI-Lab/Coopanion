@@ -22,6 +22,7 @@ import { wsUrlOf } from './base/websocket.ts';
 import { applyStoredTheme, disposeThemeStudio } from './base/theme/studio.ts';
 import { fetchTheme } from './base/theme/storage.ts';
 import { createConsoleUi } from './base/ui/index.ts';
+import { mountHoverHints } from './base/ui/hover-hint.ts';
 import type { ConsoleIconName } from './base/ui/icons.ts';
 import { subscribeLamps } from './base/ui/lamp.ts';
 import { BUILTIN_PANELS } from './advanced/console-pages/builtins.ts';
@@ -116,6 +117,7 @@ export function boot(doc: Document = document): Disposable {
   let capabilities: Record<string, boolean> = {};
   let ready = false;
   const ui = createConsoleUi({ memo, overlayHost: doc.body, signal: life.signal, doc });
+  mountHoverHints(doc, life.signal);
   const rail = createRail({
     doc, ui, router, mode, memo, signal: life.signal, content: root, onError,
     onModeToggle: () => setMode(mode === 'advanced' ? 'normal' : 'advanced'),

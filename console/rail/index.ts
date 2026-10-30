@@ -105,7 +105,6 @@ export function createRail(deps: RailDeps): Rail {
     const item = ui.h('a', 'navitem');
     item.href = buildHash(it.segments);
     item.setAttribute('aria-label', it.label);
-    item.title = it.label;
     item.dataset.basic = String(it.basic);
     // a World instance has no icon of its own: the folded rail shows a generic one
     item.append(icon(doc, it.icon ?? 'boxes', it.icon ? 'navicon' : 'navicon companion-module-icon'));
@@ -257,7 +256,7 @@ export function createRail(deps: RailDeps): Rail {
   modeButton.addEventListener('animationend', () => modeButton.classList.remove('companion-pressed'), { signal });
   const renderMode = (animate: boolean): void => {
     const advanced = mode === 'advanced';
-    modeButton.title = advanced ? L.toNormalHint : L.toAdvancedHint;
+    modeButton.setAttribute('aria-description', advanced ? L.toNormalHint : L.toAdvancedHint);
     modeButton.setAttribute('aria-label', advanced ? L.toNormal : L.toAdvanced);
     modeButton.replaceChildren(icon(doc, advanced ? 'eye-off' : 'settings', 'navicon'), ui.h('span', 'lbl', advanced ? L.toNormal : L.toAdvanced));
     doc.body.classList.toggle('companion-normal', !advanced);
@@ -270,7 +269,7 @@ export function createRail(deps: RailDeps): Rail {
   const avatar = createAvatarControl({ doc, ui, signal, onError });
   const name = ui.h('button', 'rail-name');
   name.type = 'button';
-  name.title = S.renameTitle;
+  name.setAttribute('aria-description', S.renameTitle);
   const nameText = ui.h('span', 'rail-name-text', DEFAULT_NAME);
   const nameEdit = ui.h('span', 'rail-name-edit');
   nameEdit.setAttribute('aria-hidden', 'true');
@@ -302,7 +301,6 @@ export function createRail(deps: RailDeps): Rail {
     run.disabled = !available || runPending;
     run.replaceChildren(icon(doc, paused ? 'play' : 'pause'));
     run.setAttribute('aria-label', paused ? S.runResume : S.runPause);
-    run.title = paused ? S.runResume : S.runPause;
     run.classList.toggle('paused', paused);
     runState.textContent = paused ? L.paused : L.running;
     runState.classList.toggle('paused', paused);
@@ -334,7 +332,7 @@ export function createRail(deps: RailDeps): Rail {
     shutdown.hidden = !can;
     shutdown.disabled = !can || shuttingDown;
     shutdown.setAttribute('aria-label', S.shutdownAria);
-    shutdown.title = shuttingDown ? S.finishing : S.shutdownTitle;
+    shutdown.setAttribute('aria-description', shuttingDown ? S.finishing : S.shutdownTitle);
   };
   shutdown.addEventListener('click', () => void (async () => {
     if (shuttingDown || capabilities.shutdown !== true) return;
@@ -502,7 +500,7 @@ export function createRail(deps: RailDeps): Rail {
   const showTip = (event: Event): void => {
     const target = (event.target as Element).closest<HTMLElement>('a.navitem, .companion-mode, .rail-action, .rail-avatar');
     if (!collapsed || !target || target.hidden) return;
-    const label = target.getAttribute('aria-label') || target.title;
+    const label = target.getAttribute('aria-label');
     if (!label) return;
     tooltip.textContent = label;
     tooltip.hidden = false;

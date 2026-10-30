@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
   introTitle: 'Extensões World',
   prefixReloadFailed: (msg: string) => `Falha ao recarregar o prefixo: ${msg}`,
   toggleFailed: (msg: string) => `Falha ao alternar: ${msg}`,
-  visibilityTitle: (name: string, visible: boolean) => visible ? `Mostrar "${name}" ao agente?` : `Ocultar "${name}" do agente?`,
+  visibilityTitle: (name: string, visible: boolean) => visible ? `Mostrar "${name}" ao Coo?` : `Ocultar "${name}" do Coo?`,
   visibilityBody: (visible: boolean): string => visible
     ? "O Coo poderá usar as ferramentas e as informações deste World e receber as mensagens dele. A mudança vale na hora para a conversa atual; o histórico do chat é mantido."
     : "O Coo não verá mais as ferramentas e as informações deste World nem receberá as mensagens dele; o World continua funcionando. A mudança vale na hora para a conversa atual; o histórico do chat é mantido.",
@@ -36,8 +36,8 @@ export const S: Partial<typeof en> = {
   missingReasonDefault: 'Não foi possível carregar este World.',
   activateWorld: 'Ativar World',
   inactiveNoteManual: (id: string) => `Implementado localmente, mas não montado. Para ativá-lo, defina worlds.${id}.enabled como true em config.json e reinicie.`,
-  hideFromAgent: 'Ocultar do agente',
-  showToAgent: 'Mostrar ao agente',
+  hideFromAgent: 'Ocultar do Coo',
+  showToAgent: 'Mostrar ao Coo',
   restartWorld: 'Reiniciar World',
   deactivateWorld: 'Desativar World',
   prefixPending: 'Recarga do prefixo pendente',

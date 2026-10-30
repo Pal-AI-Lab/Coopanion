@@ -25,7 +25,7 @@ export const S: Partial<typeof en> = {
   introTitle: 'Extensions World',
   prefixReloadFailed: (msg: string) => `Échec du rechargement du préfixe : ${msg}`,
   toggleFailed: (msg: string) => `Échec du basculement : ${msg}`,
-  visibilityTitle: (name: string, visible: boolean) => visible ? `Afficher « ${name} » pour l’agent ?` : `Masquer « ${name} » pour l’agent ?`,
+  visibilityTitle: (name: string, visible: boolean) => visible ? `Afficher « ${name} » pour Coo ?` : `Masquer « ${name} » pour Coo ?`,
   visibilityBody: (visible: boolean): string => visible
     ? "Coo pourra utiliser les outils et les informations de ce World et recevra ses messages. Le changement s’applique tout de suite à la conversation en cours ; l’historique du chat est conservé."
     : "Coo ne verra plus les outils ni les informations de ce World et ne recevra plus ses messages ; le World continue de fonctionner. Le changement s’applique tout de suite à la conversation en cours ; l’historique du chat est conservé.",
@@ -36,8 +36,8 @@ export const S: Partial<typeof en> = {
   missingReasonDefault: 'Impossible de charger ce World.',
   activateWorld: 'Activer le World',
   inactiveNoteManual: (id: string) => `Implémenté localement mais non assemblé. Pour l'activer, mettez worlds.${id}.enabled à true dans config.json et redémarrez.`,
-  hideFromAgent: "Masquer pour l'agent",
-  showToAgent: "Afficher pour l'agent",
+  hideFromAgent: 'Masquer pour Coo',
+  showToAgent: 'Afficher pour Coo',
   restartWorld: 'Redémarrer le World',
   deactivateWorld: 'Désactiver le World',
   prefixPending: 'Rechargement du préfixe en attente',
