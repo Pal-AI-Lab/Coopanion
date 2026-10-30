@@ -270,13 +270,11 @@ const fr: Translation<PetText> = {
   },
 
   panel: {
-    pet: 'Compagnon de bureau',
     window: 'Fenêtre du compagnon',
     openWindow: 'Ouvrir la fenêtre',
     closeWindow: 'Fermer la fenêtre',
     runtime: "Environnement d'exécution",
     install: 'Installer',
-    viewInBrowser: 'Voir dans le navigateur',
     dress: 'Habiller',
     dressHint: 'Les modifications sont enregistrées aussitôt et transmises à la fenêtre du compagnon',
     connected: 'Connectée',
@@ -291,7 +289,6 @@ const fr: Translation<PetText> = {
     noBuild: 'Aucun paquet précompilé pour cette plateforme',
     electronSize: 'Electron 44.4.4, environ 150 Mo',
 
-    voice: 'Saisie vocale',
     enable: 'Activer la saisie vocale',
     enabledHint: "Le micro reste ouvert ; ce que vous dites va à Coo selon le mode d'écoute",
     enabledHintOnPress: "Le micro s'ouvre tant que la touche de parole est maintenue et se ferme au relâchement",

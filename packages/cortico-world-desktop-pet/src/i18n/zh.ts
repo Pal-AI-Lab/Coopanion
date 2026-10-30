@@ -298,13 +298,11 @@ export default {
 
   /** 控制台的「桌宠」「语音输入」面板 */
   panel: {
-    pet: '桌宠',
     window: '桌宠窗口',
     openWindow: '打开窗口',
     closeWindow: '关闭窗口',
     runtime: '窗口运行时',
     install: '安装',
-    viewInBrowser: '在浏览器中查看',
     dress: '装扮',
     dressHint: '改动会立刻保存，并同步到桌宠窗口',
     connected: '已连接',
@@ -319,7 +317,6 @@ export default {
     noBuild: '本平台没有预编译包',
     electronSize: 'Electron 44.4.4，约 150 MB',
 
-    voice: '语音输入',
     enable: '开启语音输入',
     enabledHint: '麦克风保持开启，按收音方式发送给 Coo',
     enabledHintOnPress: '按住说话键时打开麦克风，松开后关闭',

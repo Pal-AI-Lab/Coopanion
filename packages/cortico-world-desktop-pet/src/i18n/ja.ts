@@ -270,13 +270,11 @@ const ja: Translation<PetText> = {
   },
 
   panel: {
-    pet: 'デスクトップペット',
     window: 'ペットのウィンドウ',
     openWindow: 'ウィンドウを開く',
     closeWindow: 'ウィンドウを閉じる',
     runtime: 'ウィンドウのランタイム',
     install: 'インストール',
-    viewInBrowser: 'ブラウザーで見る',
     dress: '着せ替え',
     dressHint: '変更はすぐに保存され、ペットのウィンドウに反映されます',
     connected: '接続済み',
@@ -291,7 +289,6 @@ const ja: Translation<PetText> = {
     noBuild: 'このプラットフォーム用のビルド済みパッケージがありません',
     electronSize: 'Electron 44.4.4、約 150 MB',
 
-    voice: '音声入力',
     enable: '音声入力をオンにする',
     enabledHint: 'マイクは開いたままで、話した内容は聞き取り方の設定どおり Coo に届きます',
     enabledHintOnPress: '発話キーを押している間だけマイクを開き、離すと閉じます',

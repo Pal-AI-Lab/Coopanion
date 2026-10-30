@@ -270,13 +270,11 @@ const ptBR: Translation<PetText> = {
   },
 
   panel: {
-    pet: 'Pet de área de trabalho',
     window: 'Janela do pet',
     openWindow: 'Abrir janela',
     closeWindow: 'Fechar janela',
     runtime: 'Ambiente da janela',
     install: 'Instalar',
-    viewInBrowser: 'Ver no navegador',
     dress: 'Guarda-roupa',
     dressHint: 'As mudanças são salvas na hora e chegam à janela do pet',
     connected: 'Conectada',
@@ -291,7 +289,6 @@ const ptBR: Translation<PetText> = {
     noBuild: 'Não há pacote pré-compilado para esta plataforma',
     electronSize: 'Electron 44.4.4, cerca de 150 MB',
 
-    voice: 'Entrada de voz',
     enable: 'Ligar a entrada de voz',
     enabledHint: 'O microfone fica aberto; a fala vai para Coo conforme o modo de escuta',
     enabledHintOnPress: 'O microfone abre enquanto a tecla para falar está pressionada e fecha ao soltar',

@@ -270,13 +270,11 @@ const es419: Translation<PetText> = {
   },
 
   panel: {
-    pet: 'Mascota de escritorio',
     window: 'Ventana de la mascota',
     openWindow: 'Abrir ventana',
     closeWindow: 'Cerrar ventana',
     runtime: 'Entorno de la ventana',
     install: 'Instalar',
-    viewInBrowser: 'Ver en el navegador',
     dress: 'Vestuario',
     dressHint: 'Los cambios se guardan al instante y llegan a la ventana de la mascota',
     connected: 'Conectada',
@@ -291,7 +289,6 @@ const es419: Translation<PetText> = {
     noBuild: 'No hay paquete precompilado para esta plataforma',
     electronSize: 'Electron 44.4.4, unos 150 MB',
 
-    voice: 'Entrada de voz',
     enable: 'Activar la entrada de voz',
     enabledHint: 'El micrófono queda abierto; lo que dices llega a Coo según el modo de escucha',
     enabledHintOnPress: 'El micrófono se abre mientras mantienes la tecla para hablar y se cierra al soltarla',

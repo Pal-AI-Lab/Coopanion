@@ -301,13 +301,11 @@ const en: PetText = {
 
   /** The console's Desktop pet and Voice input panels. */
   panel: {
-    pet: 'Desktop pet',
     window: 'Pet window',
     openWindow: 'Open window',
     closeWindow: 'Close window',
     runtime: 'Window runtime',
     install: 'Install',
-    viewInBrowser: 'View in browser',
     dress: 'Dress up',
     dressHint: 'Changes are saved at once and reach the pet window',
     connected: 'Connected',
@@ -322,7 +320,6 @@ const en: PetText = {
     noBuild: 'No prebuilt package for this platform',
     electronSize: 'Electron 44.4.4, about 150 MB',
 
-    voice: 'Voice input',
     enable: 'Turn on voice input',
     enabledHint: 'The microphone stays open; speech goes to Coo by the listening mode',
     enabledHintOnPress: 'The microphone opens while the talk key is held and closes after release',

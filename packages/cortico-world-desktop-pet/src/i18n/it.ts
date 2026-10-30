@@ -270,13 +270,11 @@ const it: Translation<PetText> = {
   },
 
   panel: {
-    pet: 'Animaletto da desktop',
     window: "Finestra dell'animaletto",
     openWindow: 'Apri finestra',
     closeWindow: 'Chiudi finestra',
     runtime: 'Runtime della finestra',
     install: 'Installa',
-    viewInBrowser: 'Guarda nel browser',
     dress: 'Guardaroba',
     dressHint: "Le modifiche vengono salvate subito e arrivano alla finestra dell'animaletto",
     connected: 'Connessa',
@@ -291,7 +289,6 @@ const it: Translation<PetText> = {
     noBuild: 'Nessun pacchetto precompilato per questa piattaforma',
     electronSize: 'Electron 44.4.4, circa 150 MB',
 
-    voice: 'Input vocale',
     enable: "Attiva l'input vocale",
     enabledHint: 'Il microfono resta aperto; ciò che dici arriva a Coo secondo la modalità di ascolto',
     enabledHintOnPress: 'Il microfono si apre mentre tieni premuto il tasto per parlare e si chiude quando lo rilasci',

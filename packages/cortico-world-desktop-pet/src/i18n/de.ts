@@ -270,13 +270,11 @@ const de: Translation<PetText> = {
   },
 
   panel: {
-    pet: 'Desktop-Haustier',
     window: 'Haustier-Fenster',
     openWindow: 'Fenster öffnen',
     closeWindow: 'Fenster schließen',
     runtime: 'Fenster-Laufzeit',
     install: 'Installieren',
-    viewInBrowser: 'Im Browser ansehen',
     dress: 'Einkleiden',
     dressHint: 'Änderungen werden sofort gespeichert und erreichen das Haustier-Fenster',
     connected: 'Verbunden',
@@ -291,7 +289,6 @@ const de: Translation<PetText> = {
     noBuild: 'Kein vorgefertigtes Paket für diese Plattform',
     electronSize: 'Electron 44.4.4, etwa 150 MB',
 
-    voice: 'Spracheingabe',
     enable: 'Spracheingabe einschalten',
     enabledHint: 'Das Mikrofon bleibt offen; was du sagst, geht je nach Zuhörmodus an Coo',
     enabledHintOnPress: 'Das Mikrofon öffnet sich, solange die Sprechtaste gehalten wird, und schließt sich nach dem Loslassen',

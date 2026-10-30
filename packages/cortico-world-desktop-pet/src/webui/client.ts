@@ -76,11 +76,19 @@ function statusRow(ctx: WebUiPanelContext, name: string) {
   };
 }
 
+/** A card without a heading: the tab above it already names the page. */
+function untitledSheet(ui: WebUiPanelContext['ui']): { el: HTMLElement; body: HTMLElement } {
+  const el = ui.h('div', 'sheet tabbed pet-untitled');
+  const body = ui.h('div', 'sheetbody');
+  el.append(body);
+  return { el, body };
+}
+
 const petPanel: WebUiPanel = {
   mount(ctx) {
     const { ui, root } = ctx;
     const t = petText(ctx.language).panel;
-    const card = ui.sheet({ title: t.pet });
+    const card = untitledSheet(ui);
     root.appendChild(card.el);
     const s = card.body;
     const msg = ui.msgline('');
@@ -94,11 +102,6 @@ const petPanel: WebUiPanel = {
     const btnInstall = ui.button(t.install, { size: 'sm', variant: 'primary' });
     rt.acts.append(btnInstall);
 
-    const links = ui.rowbar();
-    const open = ui.h('a', 'btn sm', t.viewInBrowser);
-    open.target = '_blank'; open.rel = 'noopener';
-    links.append(open, msg);
-
     const dress = ui.sheet({ title: t.dress, desc: t.dressHint });
     root.appendChild(dress.el);
     const frameWrap = ui.h('div', 'pet-dressframe');
@@ -107,7 +110,7 @@ const petPanel: WebUiPanel = {
     frameWrap.append(frame);
     dress.body.append(frameWrap);
 
-    s.append(win.row, rt.row, links);
+    s.append(win.row, rt.row, msg);
 
     let st: PetState | null = null;
     const render = (next: PetState) => {
@@ -126,7 +129,6 @@ const petPanel: WebUiPanel = {
       else rt.set(e.supported ? t.notInstalled : t.noBuild, 'off', e.supported ? t.electronSize : '');
       btnInstall.hidden = e.phase === 'ready' || !e.supported;
       btnInstall.disabled = e.phase === 'working';
-      if (next.url) open.href = next.url;
       if (next.dressUrl && frame.dataset.src !== next.dressUrl) {
         frame.dataset.src = next.dressUrl;
         frame.src = next.dressUrl;
@@ -158,7 +160,7 @@ const voicePanel: WebUiPanel = {
     const { ui, root } = ctx;
     const text = petText(ctx.language);
     const t = text.panel;
-    const card = ui.sheet({ title: t.voice });
+    const card = untitledSheet(ui);
     root.appendChild(card.el);
     const s = card.body;
     const msg = ui.msgline('');

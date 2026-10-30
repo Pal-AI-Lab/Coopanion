@@ -270,13 +270,11 @@ const ko: Translation<PetText> = {
   },
 
   panel: {
-    pet: '데스크톱 펫',
     window: '펫 창',
     openWindow: '창 열기',
     closeWindow: '창 닫기',
     runtime: '창 런타임',
     install: '설치',
-    viewInBrowser: '브라우저에서 보기',
     dress: '꾸미기',
     dressHint: '변경 사항은 바로 저장되어 펫 창에 반영됩니다',
     connected: '연결됨',
@@ -291,7 +289,6 @@ const ko: Translation<PetText> = {
     noBuild: '이 플랫폼용 사전 빌드 패키지 없음',
     electronSize: 'Electron 44.4.4, 약 150 MB',
 
-    voice: '음성 입력',
     enable: '음성 입력 켜기',
     enabledHint: '마이크가 계속 열려 있고, 말한 내용은 듣는 방식에 따라 Coo에게 전달됩니다',
     enabledHintOnPress: '말하기 키를 누르는 동안만 마이크를 열고, 떼면 닫습니다',

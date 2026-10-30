@@ -270,13 +270,11 @@ const zhHant: Translation<PetText> = {
   },
 
   panel: {
-    pet: '桌寵',
     window: '桌寵視窗',
     openWindow: '開啟視窗',
     closeWindow: '關閉視窗',
     runtime: '視窗執行環境',
     install: '安裝',
-    viewInBrowser: '在瀏覽器中查看',
     dress: '裝扮',
     dressHint: '變更會立即儲存，並同步到桌寵視窗',
     connected: '已連線',
@@ -291,7 +289,6 @@ const zhHant: Translation<PetText> = {
     noBuild: '此平台沒有預先編譯套件',
     electronSize: 'Electron 44.4.4，約 150 MB',
 
-    voice: '語音輸入',
     enable: '開啟語音輸入',
     enabledHint: '麥克風保持開啟，依收音方式傳送給 Coo',
     enabledHintOnPress: '按住說話鍵時開啟麥克風，放開後關閉',
