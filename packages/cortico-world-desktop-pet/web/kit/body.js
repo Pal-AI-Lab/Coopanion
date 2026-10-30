@@ -41,6 +41,16 @@ export function heartD(cx, cy, s) {
 const ring = o => ({ shape: 'ring', rx: 16, ry: 16, ...o });
 const yawn = t => { const p = (t % 4.2) / 1.6; return p < 1 ? Math.sin(Math.PI * p) ** 2 : 0; };
 
+/** How close to a side counts as "at the edge", in stage pixels. */
+const SILENT_EDGE = 80;
+/** Seconds a seated body waits at the edge before it hides. */
+const SILENT_DELAY = 2;
+/** How far past the side it slips, in stage pixels. */
+const SILENT_OUT = 54;
+/** The scale and the share of opacity it loses while hidden. */
+const SILENT_SCALE = .3;
+const SILENT_FADE = .45;
+
 export const FACES = {
   neutral:   { label: '平静', kao: '(0 0',  f: () => ({ gap: [50, 50], eyes: [ring(), ring()] }) },
   happy:     { label: '开心', kao: '(^ ^',  f: () => ({ gap: [58, 58], eyes: [{ shape: 'up' }, { shape: 'up' }], blush: .45 }) },
@@ -236,8 +246,8 @@ export function createPet(els, opts) {
       case 'nod': pulse('nod', .7); play('nod', 'move'); break;
       case 'shake': pulse('shake', .7); play('shake', 'move'); break;
       case 'spin': if (!seated) setMode('idle'); pulse('spin', .6); play('spin', 'move'); break;
-      case 'sit': setMode('sit', { dur: 1e9, willSleep: false }); break;
-      case 'sleep': setMode('sleep', { dur: 1e9 }); break;
+      case 'sit': setMode('sit', { dur: 1e9, willSleep: false }); maybeSilent(); break;
+      case 'sleep': setMode('sleep', { dur: 1e9 }); maybeSilent(); break;
       case 'dizzy': setMode('dizzy'); break;
       case 'wave': pulse('wave', 1.6); holdFace('happy', 1.8); break;
       case 'bow': if (!seated) setMode('idle'); pulse('bow', 1.6); holdFace('bowing', 1.5); play('tick', 'move'); break;
@@ -257,6 +267,22 @@ export function createPet(els, opts) {
     return true;
   }
   function pulse(kind, dur) { pet.pulse = { kind, t0: T, dur }; }
+
+  /**
+   * Out of sight at the screen's edge. Checked once, when the body is told to sit or sleep, never
+   * per frame: within SILENT_EDGE of either side it slips out of the stage after SILENT_DELAY.
+   * `mode` is untouched, so a sleeping body keeps its closed eyes, its breathing and its z's while
+   * it hides. Any word brings it back (doWord).
+   */
+  function maybeSilent() {
+    if (pet.x <= minX() + SILENT_EDGE || pet.x >= maxX() - SILENT_EDGE) {
+      pet.silentAt = T + SILENT_DELAY;
+      pet.silentSide = pet.x < W / 2 ? 'left' : 'right';
+    } else {
+      pet.silentAt = 0;
+      pet.silentSide = null;
+    }
+  }
   /** A motion's own face, without the expression's sound and bounce (act() has just cleared any held face). */
   function holdFace(n, seconds) { pet.expr = n; pet.exprUntil = T + seconds; pet.nextAt = Math.max(pet.nextAt, pet.exprUntil + .6); }
 
@@ -286,6 +312,7 @@ export function createPet(els, opts) {
    * Returns false for a word it does not know or cannot take now.
    */
   function doWord(w) {
+    if (pet.silent) { pet.silent = false; pet.silentSide = null; }
     if (w === 'neutral') { setExpr('neutral', .1); return true; }
     if (w === 'walk' || w === 'run') {
       const x = pet.x < W / 2 ? W * (.55 + Math.random() * .35) : W * (.1 + Math.random() * .35);
@@ -368,6 +395,12 @@ export function createPet(els, opts) {
     // a frame that took no time has nothing to advance, and the horizontal speed below divides by its length
     if (!(dt > 0 && dt < Infinity)) return;
     T += dt; pet.modeT += dt;
+    if (pet.silentAt && T >= pet.silentAt) { pet.silentAt = 0; pet.silent = true; }
+    if (pet.silent) {
+      const edge = pet.silentSide === 'left' ? minX() - SILENT_OUT : maxX() + SILENT_OUT;
+      pet.x = lerp(pet.x, edge, ease(3.2, dt));
+    }
+    pet.silentK = lerp(pet.silentK || 0, pet.silent ? 1 : 0, ease(3.2, dt));
     A = anchors();
     const m = pet.mode, mt = pet.modeT;
     let sqT = 0, strideT = 0, liftT = 0, leanT = 0, sitT = 0, bobT = 0, rate = 0, lookT = [0, 0], tiltT = 0;
@@ -676,7 +709,9 @@ export function createPet(els, opts) {
     const kx = S * pet.faceVis * sx, ky = S * sy, lean = pet.lean * pet.faceVis;
     const rot = custom?.groupTilt ? custom.groupTilt(pet.mode, pet.tilt, lean) : pet.tilt + lean;
     pet.xf = { AX, AY, ax, ay, kx, ky, rot };
-    petG.setAttribute('transform', `translate(${f(AX)} ${f(AY)}) rotate(${f(rot)}) scale(${kx.toFixed(4)} ${ky.toFixed(4)}) translate(${-ax} ${-ay})`);
+    const sk = pet.silentK || 0, ss = 1 - SILENT_SCALE * sk;
+    petG.setAttribute('transform', `translate(${f(AX)} ${f(AY)}) rotate(${f(rot)}) scale(${(kx * ss).toFixed(4)} ${(ky * ss).toFixed(4)}) translate(${-ax} ${-ay})`);
+    petG.setAttribute('opacity', f(1 - SILENT_FADE * sk));
 
     const legs = pet.feet.map((ft, i) => [HIPS[i][0], HIPS[i][1] + pet.low, ft[0], ft[1]]);
     // drowsy blinks are slower
