@@ -30,6 +30,7 @@ export const S: Partial<typeof en> = {
   hideFullscreen: '自動で隠す',
   hideFullscreenHint: '全画面表示のあいだは隠れ、終わると再表示します。最大化したウィンドウは対象外です。',
   soundTitle: 'サウンド',
+  worldScope: "ほかの World 拡張が追加した機能はこのスイッチの影響を受けません。各 World のページで設定してください。",
   sound: 'サウンドを鳴らす',
   soundKinds: '種類ごと',
   soundKindsHint: 'ポインターを乗せると、含まれる音が表示されます。',

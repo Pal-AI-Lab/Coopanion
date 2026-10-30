@@ -16,7 +16,7 @@ export const S: Partial<typeof en> = {
   grant: 'Um sim dura',
   grantSuffix: 'minutos',
   grantBad: (min: number, max: number) => `Digite um número inteiro de ${min} a ${max}`,
-  more: 'Mais configurações na aba Configuração da página Pet de área de trabalho do modo avançado.',
+  more: 'Mais configurações na aba Configuração da página Pet de área de trabalho do modo avançado. Funções adicionadas por outras extensões World não dependem destas configurações; configure-as na página de cada World.',
   saveFailed: (why: string) => `Não foi salvo: ${why}`,
   enabledLabel: 'Usar o computador',
   controlLabel: 'Mouse e teclado',

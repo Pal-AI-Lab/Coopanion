@@ -16,7 +16,7 @@ export const S: Partial<typeof en> = {
   grant: '同意有效期',
   grantSuffix: '分鐘',
   grantBad: (min: number, max: number) => `請填寫 ${min} 到 ${max} 之間的整數`,
-  more: '更多設定在進階模式「桌寵」頁的「設定」分頁。',
+  more: '更多設定在進階模式「桌寵」頁的「設定」分頁。由其他 World 擴充補充的功能不受這裡的設定影響，請在對應 World 頁面設定。',
   saveFailed: (why: string) => `沒有儲存：${why}`,
   enabledLabel: '使用電腦',
   controlLabel: '滑鼠與鍵盤',

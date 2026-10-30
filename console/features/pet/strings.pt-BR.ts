@@ -30,6 +30,7 @@ export const S: Partial<typeof en> = {
   hideFullscreen: 'Ocultar automaticamente',
   hideFullscreenHint: 'Some enquanto algo está em tela cheia e volta depois. Uma janela maximizada não conta.',
   soundTitle: 'Sons',
+  worldScope: "Funções adicionadas por outras extensões World não dependem desta chave; configure-as na página de cada World.",
   sound: 'Tocar sons',
   soundKinds: 'Por tipo',
   soundKindsHint: 'Deixe o ponteiro sobre um para ver quais sons ele inclui.',

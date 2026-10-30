@@ -30,6 +30,7 @@ export const S: Partial<typeof en> = {
   hideFullscreen: 'Nascondi automaticamente',
   hideFullscreenHint: "Si nasconde a schermo intero e ricompare all'uscita. Una finestra ingrandita non conta.",
   soundTitle: 'Suoni',
+  worldScope: "Le funzioni aggiunte da altre estensioni World non dipendono da questo interruttore; impostale nella pagina di ogni World.",
   sound: 'Riproduci suoni',
   soundKinds: 'Per tipo',
   soundKindsHint: 'Tieni il puntatore su un tipo per vedere quali suoni comprende.',

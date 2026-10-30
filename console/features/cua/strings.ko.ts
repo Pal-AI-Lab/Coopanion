@@ -16,7 +16,7 @@ export const S: Partial<typeof en> = {
   grant: '허용 유지 시간',
   grantSuffix: '분',
   grantBad: (min: number, max: number) => `${min}부터 ${max}까지의 정수를 입력하세요`,
-  more: '더 많은 설정은 고급 모드의 데스크톱 펫 페이지 설정 탭에 있습니다.',
+  more: '더 많은 설정은 고급 모드의 데스크톱 펫 페이지 설정 탭에 있습니다. 다른 World 확장이 추가한 기능은 이 설정의 영향을 받지 않습니다. 해당 World 페이지에서 설정하세요.',
   saveFailed: (why: string) => `저장하지 못했습니다: ${why}`,
   enabledLabel: '컴퓨터 사용',
   controlLabel: '마우스와 키보드',

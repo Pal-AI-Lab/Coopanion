@@ -30,6 +30,7 @@ export const S: Partial<typeof en> = {
   hideFullscreen: 'Automatisch ausblenden',
   hideFullscreenHint: 'Blendet sich bei Vollbild aus und kommt danach zurück. Ein maximiertes Fenster zählt nicht.',
   soundTitle: 'Töne',
+  worldScope: "Von anderen World-Erweiterungen ergänzte Funktionen betrifft dieser Schalter nicht; stelle sie auf der Seite der jeweiligen World ein.",
   sound: 'Töne abspielen',
   soundKinds: 'Nach Art',
   soundKindsHint: 'Bleib mit dem Mauszeiger auf einer Art, um zu sehen, welche Töne dazugehören.',

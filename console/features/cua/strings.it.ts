@@ -16,7 +16,7 @@ export const S: Partial<typeof en> = {
   grant: 'Un sì vale',
   grantSuffix: 'minuti',
   grantBad: (min: number, max: number) => `Inserisci un numero intero da ${min} a ${max}`,
-  more: 'Altre impostazioni sono nella scheda Configurazione della pagina Animaletto da desktop, in modalità avanzata.',
+  more: 'Altre impostazioni sono nella scheda Configurazione della pagina Animaletto da desktop, in modalità avanzata. Le funzioni aggiunte da altre estensioni World non dipendono da queste impostazioni; impostale nella pagina di ogni World.',
   saveFailed: (why: string) => `Non salvato: ${why}`,
   enabledLabel: 'Usare il computer',
   controlLabel: 'Mouse e tastiera',

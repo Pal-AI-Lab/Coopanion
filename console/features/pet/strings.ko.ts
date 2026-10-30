@@ -30,6 +30,7 @@ export const S: Partial<typeof en> = {
   hideFullscreen: '자동으로 숨기기',
   hideFullscreenHint: '전체 화면일 때 숨었다가 전체 화면이 끝나면 다시 나타납니다. 최대화된 창은 해당하지 않습니다.',
   soundTitle: '효과음',
+  worldScope: "다른 World 확장이 추가한 기능은 이 스위치의 영향을 받지 않습니다. 해당 World 페이지에서 설정하세요.",
   sound: '효과음 재생',
   soundKinds: '종류별',
   soundKindsHint: '항목에 포인터를 올리면 어떤 소리가 포함되는지 볼 수 있습니다.',

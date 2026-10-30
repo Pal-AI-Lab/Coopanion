@@ -370,13 +370,13 @@ async function mount(ctx: PageContext): Promise<void> {
     }
   };
 
-  const row = (label: string, control: HTMLElement, hint?: string | HTMLElement) => {
+  const row = (label: string, control: HTMLElement, hint?: string | HTMLElement | readonly string[]) => {
     const r = ui.h('div', 'companion-row');
     const l = ui.h('div', 'companion-label', label);
     const c = ui.h('div', 'companion-control');
     // the setting first, what it means under it
     c.append(control);
-    if (hint) c.append(typeof hint === 'string' ? ui.h('p', 'home-note', hint) : hint);
+    if (hint) c.append(...typeof hint === 'string' ? [ui.h('p', 'home-note', hint)] : Array.isArray(hint) ? hint.map(text => ui.h('p', 'home-note', text)) : [hint as HTMLElement]);
     r.append(l, c);
     return r;
   };
@@ -442,7 +442,7 @@ async function mount(ctx: PageContext): Promise<void> {
   const snoreBox = ui.h('div', 'companion-rangebox');
   snoreBox.append(snore, ui.h('span', 'companion-rangeval', S.snoreUnit));
   sounds.body.append(
-    row(S.soundLabel, sound.el),
+    row(S.soundLabel, sound.el, S.worldScope),
     row(S.soundKinds, kindBox, S.soundKindsHint),
     row(S.snore, snoreBox, S.snoreHint),
     row(S.panLabel, pan.el, S.panHint),
@@ -506,7 +506,7 @@ async function mount(ctx: PageContext): Promise<void> {
     }
   };
   speechSheet.body.append(
-    row(S.speechTitle, speech.el, S.speechHint),
+    row(S.speechTitle, speech.el, [S.speechHint, S.worldScope]),
     pitchRow,
     speedRow,
     speechMsg,
