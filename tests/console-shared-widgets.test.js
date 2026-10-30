@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-/** Hover hints (`console/base/ui/hover-hint.ts`) and the extension info page's pictures (`extensions/gallery.ts`). */
+/** Shared widgets: hover hints (`base/ui/hover-hint.ts`), dropdown lists (`base/ui/dropdown.ts`) and the extension info page's pictures (`extensions/gallery.ts`). */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mountHoverHints } from '../console/base/ui/hover-hint.ts';
 import { gallery, takeImages } from '../console/advanced/features/extensions/gallery.ts';
@@ -131,5 +131,35 @@ describe('select dropdowns', () => {
     // A closed select's arrows are left to it.
     key('ArrowUp');
     expect(box.hidden).toBe(true);
+  });
+});
+
+describe('widget edge cases', () => {
+  it('drops a picture that fails to load, and the whole section once none is left', () => {
+    const life = new AbortController(); lives.push(life);
+    const section = gallery(document, [{ src: 'https://example.com/1.png', alt: '' }, { src: 'https://example.com/2.png', alt: '' }], life.signal);
+    document.body.append(section);
+    expect(section.querySelector('h4')).not.toBeNull();
+    const [one, two] = section.querySelectorAll('.extension-gallery-shot img');
+    one.dispatchEvent(new Event('error'));
+    expect(section.querySelectorAll('.extension-gallery-shot')).toHaveLength(1);
+    expect(section.isConnected).toBe(true);
+    two.dispatchEvent(new Event('error'));
+    expect(section.isConnected).toBe(false);
+  });
+
+  it('keeps an open select list in step with options the page replaces', async () => {
+    const { mountDropdowns } = await import('../console/base/ui/dropdown.ts');
+    const life = new AbortController(); lives.push(life);
+    mountDropdowns(document, life.signal);
+    const select = document.createElement('select'); select.className = 'field';
+    select.append(Object.assign(document.createElement('option'), { value: 'a', textContent: 'A' }));
+    document.body.append(select);
+    select.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }));
+    const rows = () => [...document.querySelectorAll('.combo-list .combo-option')].map(row => row.textContent);
+    expect(rows()).toEqual(['A']);
+    select.append(Object.assign(document.createElement('option'), { value: 'b', textContent: 'B' }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(rows()).toEqual(['A', 'B']);
   });
 });
