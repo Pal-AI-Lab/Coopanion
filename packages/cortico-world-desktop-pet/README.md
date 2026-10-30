@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js -->
+<!-- Owner: src/definition.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/cua/engine/foreground.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js -->
 
 <p align="center">
   <picture>
@@ -490,6 +490,10 @@ macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)�
 操作系统调用都在引擎子进程(`src/cua/engine-child.ts`)里,经 [koffi](https://koffi.dev/) 直接调系统接口。请求和结果里的坐标是某块显示器的物理像素,
 各系统自己的全局坐标只在子进程里换算(`src/cua/engine/display.ts`)。
 引擎在第一次要用时拉起;子进程崩溃或请求超时让这个引擎的在途请求失败,超时的引擎被强制结束,下次调用重新拉起。World 页多一盏「操作引擎」灯。
+
+回执里的前台窗口和程序按系统当前键盘目标读取:Windows 用 `GetForegroundWindow`,macOS 用 `GetFrontProcess` 和辅助功能的 `AXFocusedWindow`,Linux 用 `_NET_ACTIVE_WINDOW`。
+桌宠打字框这类工具窗口、无标题窗口都保留;有前台目标但读不到标题时写「标题不可用」。macOS 未授予辅助功能权限时仍可读取前台程序,窗口标题和位置不可用。
+`pet_cua_windows`、`pet_cua_focus` 的候选列表仍按各系统原有规则过滤。
 
 - Windows(`src/cua/engine/win32.ts`):`EnumDisplayMonitors` 列显示器,GDI `BitBlt` 按显示器矩形截图(带 `CAPTUREBLT`,透明与分层窗口也截得到)、
   `SetCursorPos` 定位指针(`SendInput` 的绝对坐标要折算到 0–65535,在显示器接缝处会差一个像素)、`SendInput` 发按键和滚轮、`EnumWindows`、

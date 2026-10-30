@@ -19,6 +19,7 @@ import { join } from 'node:path';
 import { linuxKeysym, zenityAnswer } from './linux-keys.ts';
 import { EngineFailure } from './fail.ts';
 import { crop, type NativeDisplay } from './display.ts';
+import type { ForegroundWindow } from './foreground.ts';
 
 const x11 = koffi.load('libX11.so.6');
 const xtst = koffi.load('libXtst.so.6');
@@ -267,6 +268,16 @@ export function processName(pid: number): string | null {
   } catch {
     return null;
   }
+}
+
+export function foregroundWindow(): ForegroundWindow | null {
+  const active = numbers(prop(root, '_NET_ACTIVE_WINDOW'))[0];
+  if (!active) return null;
+  return {
+    title: text(prop(active, '_NET_WM_NAME')) || text(prop(active, 'WM_NAME')),
+    app: processName(numbers(prop(active, '_NET_WM_PID'))[0] ?? 0),
+    rect: frame(active),
+  };
 }
 
 /** Managed top-level windows with a title, front to back, from the window manager's stacking list. */

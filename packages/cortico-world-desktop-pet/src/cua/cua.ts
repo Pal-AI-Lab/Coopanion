@@ -476,7 +476,7 @@ export class Cua {
     if (res.yielded) return { text: t.notRun(tool, t.yielded(Math.round(res.waitedMs / 1000))), failed: true };
     if (res.cancelled) return { text: t.notRun(tool, t.cancelledWaiting((res.waitedMs / 1000).toFixed(1))) };
     const line = `${done}${res.waitedMs >= 300 ? t.waitedFirst((res.waitedMs / 1000).toFixed(1)) : ''}`;
-    const said = (s: ScreenInfo) => `${t.after(line, this.cursorText(s.cursor), s.foreground)}${s.foreground ? '' : t.noForeground}`;
+    const said = (s: ScreenInfo) => `${t.after(line, this.cursorText(s.cursor), s.foreground)}${s.foreground === null ? t.noForeground : ''}`;
     const want = typeof args.screenshot === 'boolean' ? args.screenshot : this.cfg.screenshot.afterAction;
     await pause(this.cfg.screenshot.settleMs, signal);
     if (signal?.aborted) return { text: `${said(res)}${want ? t.noShotInterrupted : ''}` };

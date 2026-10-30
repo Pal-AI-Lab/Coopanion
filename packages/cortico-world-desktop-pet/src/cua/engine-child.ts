@@ -65,7 +65,7 @@ const numberAt = (list: NativeDisplay[], x: number, y: number) => {
 
 function info(): ScreenInfo {
   const { list, layout } = current();
-  const fg = os.windows().find((w) => w.foreground);
+  const fg = os.foregroundWindow();
   const c = os.cursor();
   const on = numberAt(list, c.x, c.y);
   return {
@@ -73,8 +73,8 @@ function info(): ScreenInfo {
     layout,
     cursor: on === null ? null : { display: on, ...toLocal(list[on - 1]!, c.x, c.y) },
     foreground: fg ? fg.title : null,
-    foregroundApp: fg ? os.processName(fg.pid) : null,
-    foregroundDisplay: fg ? numberAt(list, fg.rect.x + fg.rect.width / 2, fg.rect.y + fg.rect.height / 2) : null,
+    foregroundApp: fg?.app ?? null,
+    foregroundDisplay: fg?.rect ? numberAt(list, fg.rect.x + fg.rect.width / 2, fg.rect.y + fg.rect.height / 2) : null,
   };
 }
 

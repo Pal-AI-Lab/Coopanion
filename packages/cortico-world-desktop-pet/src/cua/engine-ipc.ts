@@ -52,6 +52,7 @@ export interface ScreenInfo {
   layout: string;
   /** Physical pixels of the display it is on; null while it is on none. */
   cursor: { display: number; x: number; y: number } | null;
+  /** null when there is no foreground target; empty when its title is unavailable. */
   foreground: string | null;
   /** The program the foreground window belongs to: the executable's file name on Windows and Linux, the app's name on macOS. */
   foregroundApp: string | null;
