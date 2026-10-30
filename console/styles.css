@@ -1365,10 +1365,19 @@
 .extension-catalog-restart:not(:has(.extension-restart:not([hidden]))){display:none}
 .connection-hub{display:grid;flex:1;min-height:0;grid-template-columns:minmax(210px,280px) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:24px}
 .connection-index{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;padding:0 4px}
-.connection-cards{display:grid;align-content:start;grid-auto-rows:max-content;flex:1;min-height:0;gap:12px;padding:3px 3px 32px;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
-.connection-card{min-width:0;border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--paper);cursor:pointer;transition:background .15s,border-color .15s}
+.connection-cards{position:relative;overflow-anchor:none;display:grid;align-content:start;grid-auto-rows:max-content;flex:1;min-height:0;gap:12px;padding:3px 3px 32px;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
+/* White cards with a quiet border, as the World list's rows. */
+.connection-card{min-width:0;border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--sheet);cursor:pointer;transition:background .15s,border-color .15s,box-shadow .18s,transform .18s cubic-bezier(.32,.72,0,1)}
+/* Hovered, a card lifts a little. */
+.connection-card:hover:not(.is-dragging,.connection-drag-copy){border-color:var(--line-strong);box-shadow:0 8px 20px -14px var(--shadow-strong);transform:translateY(-1px)}
+@media (prefers-reduced-motion: reduce){.connection-card:hover{transform:none}}
 .connection-card.is-active{border-color:var(--accent);box-shadow:0 0 8px color-mix(in srgb,var(--accent) 12%,transparent)}
-.connection-card.is-selected{background:color-mix(in srgb,var(--ink) 5%,var(--paper));outline:2px solid var(--ink-dim);outline-offset:1px}
+.connection-card.is-selected{background:color-mix(in srgb,var(--ink) 4%,var(--sheet));outline:2px solid var(--ink-dim);outline-offset:1px}
+/* A dragged card leaves an empty place where it would land, and its copy follows the pointer. */
+.connection-card.is-dragging{border-style:dashed;border-color:var(--line-strong);background:transparent;box-shadow:none;outline:none}
+.connection-card.is-dragging>*{visibility:hidden}
+/* Specific enough to win over the card's own position:relative further down. */
+.connection-cards>.connection-card.connection-drag-copy{position:absolute;left:3px;z-index:20;margin:0;pointer-events:none;transform:none;box-shadow:0 0 0 1px var(--line),0 14px 30px -14px var(--shadow-strong);transition:none}
 .connection-name,.connection-status,.connection-secondary{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .connection-name{font:700 17px/1.25 var(--sans)}
 .connection-facts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;min-width:0}
@@ -1534,15 +1543,11 @@
 .connection-create > .btn { width:100%; }
 .connection-card { position:relative; padding-right:64px; }
 .connection-erase { position:absolute; bottom:13px; right:13px; display:flex; align-items:center; gap:0; height:28px; padding:0 4px; border:1px solid transparent; border-radius:8px; background:none; color:var(--ink-dim); cursor:pointer; transition:color .14s ease, background .14s ease, border-color .14s ease, gap .18s ease; }
-.connection-erase .icon { width:20px; height:20px; flex:none; }
+.connection-erase .icon { width:18px; height:18px; flex:none; }
 .connection-erase:hover { color:var(--danger,#b43c38); background:var(--hover); }
-.connection-erase-text { display:grid; grid-template-columns:0fr; overflow:hidden; font:600 12px/1 var(--sans); white-space:nowrap; transition:grid-template-columns .18s ease; }
-.connection-erase-text > span { overflow:hidden; }
-.connection-erase.is-armed { gap:6px; color:var(--danger,#b43c38); border-color:currentColor; background:var(--paper); }
-.connection-erase.is-armed .connection-erase-text { grid-template-columns:1fr; }
 .connection-connect { position:absolute; top:12px; right:12px; width:32px; text-align:center; }
 .connection-connect[hidden] { display:none; }
-.connection-hub .btn.connection-activate { display:block; width:32px; height:28px; min-height:28px; padding:0; border:0; font-size:17px; line-height:28px; }
+.connection-hub .btn.connection-activate { display:block; width:32px; height:28px; min-height:28px; padding:0; border:0; font-size:15px; line-height:28px; }
 .connection-connect-label { display:block; font-size:10px; line-height:14px; color:var(--muted-foreground); }
 .required-mark { color:var(--danger); }
 .connection-test { gap:12px; align-items:center; }
@@ -2230,7 +2235,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-library-entry.is-dragging,.world-group.is-dragging{border:1px dashed var(--line-strong);border-radius:12px;background:transparent}
 :is(.world-library-entry,.world-group).is-dragging>*{visibility:hidden}
 /* While a row or group is dragged only its lifted copy moves: the pointer is hidden and nothing gets selected. */
-html.is-world-dragging,html.is-world-dragging *{cursor:none!important;user-select:none}
+html.is-list-dragging,html.is-list-dragging *{cursor:none!important;user-select:none}
 .world-drag-copy{position:absolute;left:0;z-index:20;margin:0;border-radius:10px;background:var(--sheet);box-shadow:0 0 0 1px var(--line),0 14px 30px -14px var(--shadow-strong);pointer-events:none;transition:none;opacity:1}
 /* Ungrouped rows after a group start below a divider, so an expanded group's end stays visible. */
 .world-group{transition:padding var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),border-color 140ms;border-bottom:1px solid transparent}

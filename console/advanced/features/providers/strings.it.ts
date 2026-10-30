@@ -5,7 +5,6 @@ export const S: Partial<typeof en> = {
   pageTitle: 'Connessioni ai modelli', navLabel: 'Connessioni ai modelli', navGroup: 'Core', create: '+ Nuova istanza di connessione', newName: 'Istanza senza nome',
   createHint: "Un'istanza è un insieme di impostazioni del provider salvato come scheda.",
   empty: 'Ancora nessuna connessione ai modelli', emptyHint: "Aggiungi una connessione a un modello per abilitare l'inferenza.",
-  eraseConfirm: 'Conferma eliminazione',
   connect: 'Connetti', activate: 'Imposta come connessione attuale', active: 'Modello attuale', missing: 'Connessione al modello attuale mancante: ',
   inUse: (names: string) => `In uso da: ${names}`, selectedBy: (names: string) => `Selezionata da ${names} (non in esecuzione)`,
   names: (list: string[]) => list.join(', '),

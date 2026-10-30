@@ -5,7 +5,6 @@ export const S: Partial<typeof en> = {
   pageTitle: 'Conexões de modelo', navLabel: 'Conexões de modelo', navGroup: 'Core', create: '+ Nova instância de conexão', newName: 'Instância sem nome',
   createHint: 'Uma instância é um conjunto de configurações do provedor salvo como cartão.',
   empty: 'Ainda não há conexões de modelo', emptyHint: 'Adicione uma conexão de modelo para habilitar a inferência.',
-  eraseConfirm: 'Confirmar exclusão',
   connect: 'Conectar', activate: 'Definir como conexão atual', active: 'Modelo atual', missing: 'A conexão de modelo atual não existe: ',
   inUse: (names: string) => `Em uso por: ${names}`, selectedBy: (names: string) => `Selecionada por ${names} (fora de execução)`,
   names: (list: string[]) => list.join(', '),

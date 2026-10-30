@@ -5,7 +5,6 @@ export const S: Partial<typeof en> = {
   pageTitle: 'モデル接続', navLabel: 'モデル接続', navGroup: 'Core', create: '+ 新しい接続インスタンス', newName: '名前のないインスタンス',
   createHint: 'インスタンスとは、プロバイダー設定の 1 セットをカードとして保存したものです。',
   empty: 'モデル接続はまだありません', emptyHint: 'モデル接続を追加すると推論できるようになります。',
-  eraseConfirm: '削除を確定',
   connect: '接続', activate: '現在の接続に設定', active: '現在のモデル', missing: '現在のモデル接続が存在しません。設定での参照：',
   inUse: (names: string) => `使用中：${names}`, selectedBy: (names: string) => `${names} が選択中（未実行）`,
   names: (list: string[]) => list.join('、'),

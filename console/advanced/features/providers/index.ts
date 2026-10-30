@@ -10,6 +10,8 @@ import { connectionPath, type HubState, type Connection, type Module, type Detai
 import { mountDetail, type DetailController } from './detail.ts';
 import { signOutBeforeDelete } from '../../../features/chatgpt/index.ts';
 import { CHATGPT_MODULE } from 'cortico-provider-coo/src/vendors.ts';
+import { dragList, moveGap, settledBox } from '../../../base/drag.ts';
+import { measureReflow, prefersStill } from '../../../base/motion.ts';
 
 /** How often the card list re-reads other deployments' usage. */
 const USAGE_REFRESH_MS = 5000;
@@ -77,11 +79,33 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
   const rows = new Map<string, Connection>();
   const doc = root.ownerDocument;
   const run = (work: () => Promise<unknown>) => { void work().catch(error => { if (!ctx.signal.aborted) report.textContent = String(error); }); };
-  // 同时只有一张卡处在「确认删除」态。
-  let armed: (() => void) | null = null;
-  const disarm = () => { armed?.(); armed = null; };
+  // 卡片的先后由用户拖动决定，按部署记在本机；没排过时沿用列表本来的顺序。
+  const orderKey = `coopanion.provider-order.v1:${state.scope}`;
+  const storage = root.ownerDocument.defaultView!.localStorage;
+  const readOrder = (): string[] | null => { try { const saved = JSON.parse(storage.getItem(orderKey) ?? 'null'); return Array.isArray(saved) ? saved.filter((name): name is string => typeof name === 'string') : null; } catch { return null; } };
+  const writeOrder = (names: readonly string[]) => { try { storage.setItem(orderKey, JSON.stringify(names)); } catch { /* Storage may be unavailable. */ } };
+  /** The card being dragged, which stays put while the list repaints. */
+  let dragged: HTMLElement | null = null;
   const fallback = () => state.providers.find(item => item.name === state.active)?.name || state.providers[0]?.name || '';
+  /** Cards that appear or go reflow like the World lists (see measureReflow); a card's lifted copy is not a card. */
+  const cardKey = (el: HTMLElement) => el.classList.contains('connection-drag-copy') ? undefined : el.dataset.provider;
   function paint() {
+    const reflow = measureReflow(cards, ':scope > .connection-card', cardKey);
+    paintCards(); placeCards();
+    reflow.play();
+  }
+  /** Puts the cards in the saved order, the draft first; cards new to it keep their place after the rest. */
+  function placeCards() {
+    const order = readOrder();
+    if (!order || dragged) return;
+    const rank = new Map(order.map((name, index) => [name, index]));
+    const all = [...cards.querySelectorAll<HTMLElement>(':scope > .connection-card:not(.connection-drag-copy)')];
+    const sorted = [...all].sort((a, b) => (a.dataset.provider === NEW_DRAFT_ID ? -1 : 0) - (b.dataset.provider === NEW_DRAFT_ID ? -1 : 0)
+      || (rank.get(a.dataset.provider!) ?? order.length + all.indexOf(a)) - (rank.get(b.dataset.provider!) ?? order.length + all.indexOf(b)));
+    let cursor = cards.firstElementChild;
+    for (const el of sorted) { if (el === cursor) { cursor = cursor.nextElementSibling; continue; } cards.insertBefore(el, cursor); }
+  }
+  function paintCards() {
     report.textContent = state.active && !state.providers.some(item => item.name === state.active) ? S.missing + state.active : '';
     const all: Array<Connection | { name: string; moduleTitle: string; model: string | null; readiness: { state: string } }> = [...state.providers];
     if (newDraft) all.unshift({ name: NEW_DRAFT_ID, moduleTitle: moduleName(newDraft.entry.kind), model: newDraft.entry.spec?.model ?? null, readiness: { state: 'draft' } });
@@ -139,21 +163,22 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
       if (identity === NEW_DRAFT_ID) rows.delete(identity); else rows.set(identity, item as Connection);
     }
   }
-  /** 删除按钮先伸成「确认删除」,第二次点击才动手;点别处或 Esc 收回。 */
+  /**
+   * 删除先弹窗确认，与供应商详情里的删除、World 的停用一样：正被 Bot 使用的连接说明不能删；
+   * 没保存过的新实例问是否放弃。
+   */
   function eraseButton(identity: string): HTMLButtonElement {
     const el = ui.h('button', 'connection-erase') as HTMLButtonElement;
-    el.type = 'button';
-    const text = ui.h('span', 'connection-erase-text'); text.append(ui.h('span', '', S.eraseConfirm));
-    el.append(icon(doc, 'trash'), text);
-    const label = (armedNow: boolean) => { const name = armedNow ? S.eraseConfirm : S.remove; el.title = name; el.setAttribute('aria-label', name); };
-    label(false);
+    el.type = 'button'; el.title = S.remove; el.setAttribute('aria-label', S.remove);
+    el.append(icon(doc, 'trash'));
     el.addEventListener('click', event => {
       event.stopPropagation();
-      const wasArmed = el.classList.contains('is-armed');
-      disarm();
-      if (wasArmed) { run(() => remove(identity)); return; }
-      el.classList.add('is-armed'); label(true);
-      armed = () => { el.classList.remove('is-armed'); label(false); };
+      run(async () => {
+        if (identity === NEW_DRAFT_ID) { if (await ui.confirm({ title: S.cancel, danger: true })) await remove(identity); return; }
+        const current = await get<Detail>(connectionPath(identity), opts);
+        if (current.references.length) { await ui.confirm({ title: S.remove, body: S.referenced + current.references.join(', ') }); return; }
+        if (await ui.confirm({ title: S.remove, body: S.deleteConfirm, danger: true })) await remove(identity);
+      });
     }, opts);
     return el;
   }
@@ -230,8 +255,37 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
     await select(NEW_DRAFT_ID, true);
   }
   const moduleName = (kind: string) => modules.find(module => module.id === kind)?.title ?? kind;
-  doc.addEventListener('click', event => { if (!(event.target as Element).closest('.connection-erase')) disarm(); }, opts);
-  doc.addEventListener('keydown', event => { if (event.key === 'Escape') disarm(); }, opts);
+  // Dragging a card up or down sets the order (console/base/drag.ts); the new instance stays first.
+  const movable = () => [...cards.querySelectorAll<HTMLElement>(':scope > .connection-card:not(.connection-drag-copy)')].filter(el => el.dataset.provider !== NEW_DRAFT_ID);
+  let before: HTMLElement[] = [];
+  dragList(cards, {
+    pick(target) {
+      if (target.closest('button, a, input, select, textarea')) return null;
+      const card = target.closest<HTMLElement>('.connection-card');
+      return card && card.dataset.provider !== NEW_DRAFT_ID ? card : null;
+    },
+    lifted(el) { dragged = el; before = movable(); },
+    locate(y) {
+      if (!dragged) return;
+      const others = movable().filter(el => el !== dragged);
+      const over = others.find(el => { const box = settledBox(el); return y >= box.top && y <= box.bottom; }) ?? others.find(el => settledBox(el).top > y);
+      const next = !over ? null : y > settledBox(over).top + settledBox(over).height / 2 && y <= settledBox(over).bottom ? over.nextElementSibling : over;
+      moveGap(dragged, cards, next, movable());
+    },
+    drop(el, copyTop) {
+      dragged = null;
+      writeOrder(movable().map(card => card.dataset.provider!));
+      // The card slides into its place from where its copy was.
+      const delta = copyTop - el.getBoundingClientRect().top;
+      if (delta && !prefersStill(doc.defaultView)) el.animate?.([{ transform: `translateY(${delta}px)` }, { transform: 'none' }], { duration: 180, easing: 'cubic-bezier(.32,.72,0,1)' });
+    },
+    cancel() {
+      const gap = dragged; dragged = null;
+      // Back where it was: the cards it passed slide back too.
+      if (gap) moveGap(gap, cards, before[before.indexOf(gap) + 1] ?? null, movable());
+    },
+    layer: cards, scroller: cards, copyClass: 'connection-drag-copy',
+  }, ctx.signal);
   const creator = ui.h('div', 'connection-create');
   creator.append(ui.button(S.create, { variant: 'primary', onClick: () => run(create) }), ui.h('p', 'connection-create-hint', S.createHint));
   index.append(creator, cards);

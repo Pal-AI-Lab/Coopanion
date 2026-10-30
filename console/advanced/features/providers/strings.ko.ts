@@ -5,7 +5,6 @@ export const S: Partial<typeof en> = {
   pageTitle: '모델 연결', navLabel: '모델 연결', navGroup: 'Core', create: '+ 새 연결 인스턴스', newName: '이름 없는 인스턴스',
   createHint: '인스턴스는 공급자 설정 한 세트를 카드로 저장한 것입니다.',
   empty: '아직 모델 연결이 없습니다', emptyHint: '모델 연결을 추가해야 추론할 수 있습니다.',
-  eraseConfirm: '삭제 확인',
   connect: '연결', activate: '현재 연결로 설정', active: '현재 모델', missing: '현재 모델 연결이 없습니다. 설정에서 참조: ',
   inUse: (names: string) => `사용 중: ${names}`, selectedBy: (names: string) => `${names}에서 선택함(실행 안 됨)`,
   names: (list: string[]) => list.join(', '),

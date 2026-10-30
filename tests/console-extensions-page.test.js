@@ -70,7 +70,9 @@ function stub(over = {}) {
     let body = {};
     if (u === '/api/worlds') body = { worlds: over.worlds ?? [{ id: 'alpha', label: '甲扩展', status: 'active', visible: true }, { id: 'builtin', label: 'Builtin', status: 'inactive' }] };
     else if (u === '/api/worlds/visibility') body = { driftedWorlds: over.driftedWorlds ?? [] };
-    else if (u === '/api/providers') body = { scope: 'test-provider-tabs', active: '', providers: [] };
+    else if (u === '/api/providers') body = { scope: 'test-provider-tabs', active: over.active ?? '', providers: over.providers ?? [] };
+    else if (u.startsWith('/api/providers/') && u.endsWith('/delete')) { over.onDelete?.(u); body = { ok: true }; }
+    else if (u.startsWith('/api/providers/')) { const name = decodeURIComponent(u.slice('/api/providers/'.length)); body = { name, revision: 'r1', references: over.references?.[name] ?? [], entry: { kind: 'openai', baseUrl: 'https://example.invalid', spec: { model: 'm' } }, secret: null }; }
     else if (u === '/api/provider-modules') body = [];
     else if (u === '/api/extensions') { status = over.listStatus ?? 200; body = status === 200 ? over.list ?? LIST : { error: 'Unavailable' }; }
     else if (u === '/api/extensions/updates') {
@@ -684,6 +686,51 @@ describe('extension card and history controls', () => {
   });
 });
 
+describe('provider connection cards', () => {
+  const connection = (name) => ({ name, moduleTitle: 'OpenAI', module: 'openai', model: 'm', revision: 'r1', readiness: { state: 'ready' }, usage: [] });
+  async function openConnections(over) {
+    stub({ providers: ['a', 'b', 'c'].map(connection), ...over });
+    window.history.replaceState(null, '', '#/providers');
+    const page = mkCtx({ extensions: true });
+    lives.push(page.lifecycle);
+    mountProviders(page.ctx);
+    await flush(60);
+    return page;
+  }
+  const order = (root) => [...root.querySelectorAll('.connection-cards > .connection-card')].map(card => card.dataset.provider);
+  it('asks before deleting a connection, and refuses one a Bot uses', async () => {
+    const deleted = [];
+    const { root } = await openConnections({ references: { b: ['Coo'] }, onDelete: url => deleted.push(url) });
+    const trash = (name) => root.querySelector(`.connection-card[data-provider="${name}"] .connection-erase`);
+    trash('b').click(); await flush();
+    expect(document.querySelector('.modal').textContent).toContain('Coo');
+    answer(true); await flush();
+    expect(deleted).toEqual([]);
+    trash('a').click(); await flush();
+    answer(false); await flush();
+    expect(deleted).toEqual([]);
+    trash('a').click(); await flush();
+    answer(true); await flush(60);
+    expect(deleted).toEqual(['/api/providers/a/delete']);
+  });
+  it('reorders the cards by dragging and keeps the order for the next visit', async () => {
+    window.localStorage.clear();
+    const { root } = await openConnections();
+    expect(order(root)).toEqual(['a', 'b', 'c']);
+    const pointer = (type, target, y) => { const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: 10, clientY: y }); Object.defineProperty(event, 'pointerId', { value: 3 }); target.dispatchEvent(event); };
+    const first = root.querySelector('.connection-card[data-provider="a"] .connection-name');
+    pointer('pointerdown', first, 5); pointer('pointermove', window, 300);
+    expect(root.querySelector('.connection-drag-copy')).not.toBeNull();
+    pointer('pointerup', window, 300); await flush();
+    // jsdom lays nothing out, so the drop lands after the last card.
+    expect(order(root)).toEqual(['b', 'c', 'a']);
+    expect(root.querySelector('.connection-drag-copy')).toBeNull();
+    lives.splice(0).forEach(life => life.dispose()); document.body.replaceChildren();
+    const again = await openConnections();
+    expect(order(again.root)).toEqual(['b', 'c', 'a']);
+  });
+});
+
 describe('provider page tabs', () => {
   async function openProviders(caps = { extensions: true }) {
     window.history.replaceState(null, '', '#/providers');
@@ -1093,14 +1140,14 @@ describe('World library and catalog', () => {
     expect(root.querySelector('.world-drag-copy')).toBeNull();
     pointer('pointermove', window, 400);
     expect(root.querySelector('.world-drag-copy')).not.toBeNull();
-    expect(document.documentElement.classList.contains('is-world-dragging')).toBe(true);
+    expect(document.documentElement.classList.contains('is-list-dragging')).toBe(true);
     expect(root.querySelector(`.world-library-entry[data-key="${first}"]`).classList.contains('is-dragging')).toBe(true);
     pointer('pointerup', window, 400);
     // The drop re-renders the rows; the click lands on the live one.
     root.querySelector(`.world-ready-list .world-library-entry[data-key="${first}"] .world-blade`).click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     expect(window.location.hash).toBe(hash);
     expect(root.querySelector('.world-drag-copy')).toBeNull();
-    expect(document.documentElement.classList.contains('is-world-dragging')).toBe(false);
+    expect(document.documentElement.classList.contains('is-list-dragging')).toBe(false);
     // jsdom lays nothing out, so the drop lands after the last row.
     expect(order()).toEqual([...rest, first]);
   });

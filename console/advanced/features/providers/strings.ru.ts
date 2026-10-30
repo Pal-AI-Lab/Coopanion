@@ -5,7 +5,6 @@ export const S: Partial<typeof en> = {
   pageTitle: 'Подключения к моделям', navLabel: 'Подключения к моделям', navGroup: 'Core', create: '+ Новый экземпляр подключения', newName: 'Безымянный экземпляр',
   createHint: 'Экземпляр — это набор настроек провайдера, сохранённый как карточка.',
   empty: 'Подключений к моделям пока нет', emptyHint: 'Добавьте подключение к модели, чтобы включить инференс.',
-  eraseConfirm: 'Подтвердить удаление',
   connect: 'Подключить', activate: 'Сделать текущим подключением', active: 'Текущая модель', missing: 'Текущее подключение к модели отсутствует: ',
   inUse: (names: string) => `Используется: ${names}`, selectedBy: (names: string) => `Выбрано: ${names} (не запущено)`,
   names: (list: string[]) => list.join(', '),
