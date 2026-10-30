@@ -32,10 +32,15 @@ export function currencyName(currency?: string): string {
   return symbol === code ? code : `${symbol} ${code}`;
 }
 
-/** An amount with its currency's symbol (¥1.46, $0.13); a code without a symbol precedes it. Average costs may request three decimals. */
+/**
+ * An amount with its currency's symbol (¥1.46, $0.13, -$0.20); a code without a symbol precedes it. Average costs may
+ * request three decimals. An amount that rounds to zero is written without a sign.
+ */
 export function formatMoney(n: number | null | undefined, currency?: string, decimals: 2 | 3 = 2): string {
   const code = currency || 'USD', symbol = currencySymbol(code);
-  return (symbol === code ? code + ' ' : symbol) + (n ?? 0).toFixed(decimals);
+  const digits = Math.abs(n ?? 0).toFixed(decimals);
+  const sign = (n ?? 0) < 0 && Number(digits) !== 0 ? '-' : '';
+  return sign + (symbol === code ? code + ' ' : symbol) + digits;
 }
 
 export const consoleFormat: WebUiFormat = {
