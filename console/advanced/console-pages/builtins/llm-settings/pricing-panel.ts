@@ -1,5 +1,6 @@
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import { pick } from '../../../../base/language.ts';
+import { currencyName } from '../../../../base/ui/format.ts';
 import { panel } from './strings.ts';
 
 interface Rule {
@@ -83,7 +84,7 @@ export function pricingEditor(
         ui.kv([
           {
             k: row.model,
-            v: `${quote.currency} · ${quote.basis === 'marginal' ? S.marginal : S.equivalent}`,
+            v: `${currencyName(quote.currency)} · ${quote.basis === 'marginal' ? S.marginal : S.equivalent}`,
           },
         ]),
         ui.msgline(

@@ -13,7 +13,9 @@
 /* 本页的下拉框与日期框与分段按钮同高 */
 .urangebar input.field, .uledger select.field { height: 30px; min-height: 30px; padding-block: 0; font-size: 12.5px; }
 .udates, .uledger, .urate { display: inline-flex; align-items: center; gap: 6px; }
-.udates > input { width: 136px; flex: none; }
+.udates > input { width: 136px; flex: none; font-variant-numeric: tabular-nums; }
+/* The calendar glyph keeps one size: by default it gives way to the date text, so dates of different widths drew it at different sizes. */
+.udates > input::-webkit-calendar-picker-indicator { flex: none; width: 14px; height: 14px; margin: 0 0 0 6px; padding: 0; }
 .udates > input.utz { width: auto; field-sizing: content; min-width: 0; color: var(--ink-soft); pointer-events: none; }
 .uledger > select.field { width: auto; min-width: 0; padding-inline: 10px 30px; }
 .uledger, .urate { flex-wrap: wrap; }
