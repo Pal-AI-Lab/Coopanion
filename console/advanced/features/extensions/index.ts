@@ -1041,7 +1041,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const body = ui.h('div', 'extension-comment-body'); body.append(renderMarkdown(doc, text));
     for (const pre of body.querySelectorAll('pre')) {
       const block = ui.h('div', 'extension-codeblock'); pre.replaceWith(block);
-      block.append(pre, copyIcon(pre.textContent ?? ''));
+      // An empty code block has nothing to copy.
+      block.append(pre, ...(pre.textContent?.trim() ? [copyIcon(pre.textContent)] : []));
     }
     return body;
   }
