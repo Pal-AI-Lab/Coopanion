@@ -1685,6 +1685,9 @@ button.extension-tag { cursor: pointer; }
 .extension-tag-feedback { align-self: center; font-size: 12px; }
 /* 详情两栏 */
 .modalcard.extension-detail-card { width: min(1240px, 94vw); }
+/* An extension's information keeps one height, its tallest, from loading through every tab: the body
+   scrolls instead of the dialog growing and shrinking. */
+.modalcard:has(> .modalbody > .extension-detail) { height: min(84vh, 920px); }
 .extension-detail { padding: 6px 8px 8px; }
 .extension-detail-header { display: flex; align-items: center; gap: 18px; padding-bottom: 12px; }
 .extension-detail-header .extension-avatar { width: 64px; height: 64px; flex-basis: 64px; }
