@@ -1921,9 +1921,10 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 @property --world-inset{syntax:'<length>';inherits:true;initial-value:0px}
 .featureslot-world>.world-workspace{--world-rail-width:72px;--world-gap:20px;--world-inset:max(calc(var(--page-gutter) + 10px),calc((100cqw - var(--content-width)) / 2));--world-entry-width:100cqw;--world-duration:290ms;--world-easing:cubic-bezier(.32,.72,0,1);interpolate-size:allow-keywords;position:relative;container-type:inline-size;display:block;flex:1;min-height:0;max-width:none;padding:0 var(--world-inset)}
 .world-library{display:flex;flex-direction:column;min-height:0;height:100%;width:100%}
-.world-library-list{overflow-anchor:none;flex:1;min-height:0;width:calc(100% + var(--world-inset));margin-right:calc(-1 * var(--world-inset));padding-right:calc(var(--world-inset) - 10px);overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding-bottom:24px;transition:width var(--world-duration) var(--world-easing),padding var(--world-duration) var(--world-easing)}
+/* 4px of room on the left (given back by the margin) so a focused field there shows its whole ring. */
+.world-library-list{overflow-anchor:none;flex:1;min-height:0;width:calc(100% + var(--world-inset) + 4px);margin-left:-4px;padding-left:4px;margin-right:calc(-1 * var(--world-inset));padding-right:calc(var(--world-inset) - 10px);overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding-bottom:24px;transition:width var(--world-duration) var(--world-easing),padding var(--world-duration) var(--world-easing)}
 /* In the market view the rail's scrollbar runs along the divider. */
-.world-workspace[data-view=market] .world-library-list{width:calc(var(--world-rail-width) + var(--world-gap));padding-right:0}
+.world-workspace[data-view=market] .world-library-list{width:calc(var(--world-rail-width) + var(--world-gap) + 4px);padding-right:0}
 .world-library-heading{height:auto;margin:2px 0 12px;font:600 15px/1.4 var(--sans);letter-spacing:-.01em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 140ms}
 .world-workspace[data-view=market] .world-library-heading{height:0;margin:0;opacity:0}
 .world-pending-list,.world-ready-list{display:flow-root}
@@ -1994,7 +1995,8 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-workspace-status>.msgline{margin:4px 0 8px}
 .world-pane{display:flex;flex-direction:column;flex:1;min-height:0;min-width:0}
 .world-pane[hidden]{display:none}
-.world-market{z-index:2;position:absolute;left:calc(var(--world-inset) + var(--world-rail-width) + var(--world-gap));right:0;top:0;bottom:0;overflow:hidden;padding-left:24px;border-left:1px solid var(--line)}
+/* Clipped, but with room for a focused field's ring (2px outline, 2px off) at the edges: the toolbar sits at its top. */
+.world-market{z-index:2;position:absolute;left:calc(var(--world-inset) + var(--world-rail-width) + var(--world-gap));right:0;top:0;bottom:0;overflow:clip;overflow-clip-margin:4px;padding-left:24px;border-left:1px solid var(--line)}
 .world-blade.is-configurable{cursor:pointer}
 .world-library-entry:has(.world-blade.is-configurable:hover){border-color:var(--line-strong)}
 .world-workspace[data-view=market] .world-blade{opacity:0;transition-delay:80ms}
@@ -2208,7 +2210,8 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 }
 @media(prefers-reduced-motion:reduce){.extension-get-ring,.extension-get-ring .arc,.world-dock-tip{animation:none}.world-library-entry,.world-library-list,.world-library-heading,.world-library-label,.world-pending-group,.world-avatar{transition:none}.world-library-item:is(:hover,:focus-visible,:active) .world-avatar{transform:none}}
 /* My World's filter row folds away in the market view. */
-.world-library-tools{flex:none;display:flex;align-items:center;gap:8px;width:var(--world-entry-width);height:auto;margin:0 0 12px;overflow:hidden;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 140ms}
+/* Its fields fill it edge to edge; the clip leaves room for their focus ring. */
+.world-library-tools{flex:none;display:flex;align-items:center;gap:8px;width:var(--world-entry-width);height:auto;margin:0 0 12px;overflow:clip;overflow-clip-margin:4px;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 140ms}
 .world-library-tools input[type=search]{flex:0 1 240px;min-width:120px}
 .world-library-tools select{width:auto}
 .world-library-tools>.btn{margin-left:auto;min-height:32px;font-size:12px}
