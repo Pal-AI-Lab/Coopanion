@@ -534,7 +534,9 @@
   .modalcard { background: var(--paper); border: 1px solid var(--line-strong); border-radius: 14px; width: min(880px, 92vw); max-height: min(84vh, 920px); display: flex; flex-direction: column; box-shadow: 0 20px 50px -24px var(--shadow-strong); }
   .modalhead { flex: none; display: flex; align-items: center; gap: 10px; padding: 13px 18px; border-bottom: 1px solid var(--line); }
   .modaltitle { font: 600 15px var(--sans); color: var(--ink); flex: 1; }
-  .modalbody { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px; }
+  /* The scrollbar has its place from the start (10px each side, as on the pages), so its appearing changes no
+     width; the side padding gives those 10px back, keeping the content 20px in. */
+  .modalbody { flex: 1; min-height: 0; overflow: auto; padding: 16px 10px; scrollbar-gutter: stable both-edges; }
 
 
   .segwrap { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
