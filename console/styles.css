@@ -1589,7 +1589,8 @@ mark.extension-hit { color: inherit; background: color-mix(in srgb, var(--accent
 .extension-toolbar { align-items: center; gap: 12px; }
 .extension-size { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; }
 .extension-size select { width: auto; min-width: 90px; }
-.extension-pager { font-size: 12px; min-height: 36px; }
+/* Spaced from the cards above as 运行诊断's pager is from its table: 10px, 32px tall. */
+.extension-pager { font-size: 12px; min-height: 32px; margin-top: 10px; }
 .extension-manual-actions { align-items: center; margin-top: 12px; gap: 10px; }
 .extension-install-help{display:grid}
 .extension-install-help>span{grid-area:1/1}
