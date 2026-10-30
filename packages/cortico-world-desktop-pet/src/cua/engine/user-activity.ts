@@ -7,6 +7,14 @@ export interface InputSample {
   cursor: Point;
 }
 
+export interface InputActivity extends InputSample {
+  ownInputTick: number | null;
+  systemInputTick: number | null;
+  pointerTick: number | null;
+  pointerMoved: boolean;
+  idleMs: number;
+}
+
 const since = (now: number, then: number) => (now - then) >>> 0;
 
 export class UserActivity {
@@ -22,10 +30,11 @@ export class UserActivity {
     this.movedTick = null;
   }
 
-  /** Milliseconds since the user's last input; Infinity when none is on record. */
-  idleMs({ now, lastInputTick: last, cursor }: InputSample): number {
+  /** Each signal's tick and their combined idle time; Infinity when neither records input. */
+  sample({ now, lastInputTick: last, cursor }: InputSample): InputActivity {
     const afterOwn = this.ownTick === null || (since(last, this.ownTick) > 40 && since(last, this.ownTick) < 0x80000000);
-    if (this.cursor && (Math.abs(cursor.x - this.cursor.x) > 2 || Math.abs(cursor.y - this.cursor.y) > 2)) {
+    const pointerMoved = this.cursor !== null && (Math.abs(cursor.x - this.cursor.x) > 2 || Math.abs(cursor.y - this.cursor.y) > 2);
+    if (pointerMoved) {
       // Movement observed between samples needs an input record at least as recent as the earlier sample.
       const recorded = afterOwn && (this.sampledTick === null || since(last, this.sampledTick) < 0x80000000);
       this.movedTick = recorded ? last : now;
@@ -33,6 +42,10 @@ export class UserActivity {
     }
     this.cursor ??= cursor;
     this.sampledTick = now;
-    return Math.min(afterOwn ? since(now, last) : Infinity, this.movedTick === null ? Infinity : since(now, this.movedTick));
+    return {
+      now, lastInputTick: last, cursor, ownInputTick: this.ownTick,
+      systemInputTick: afterOwn ? last : null, pointerTick: this.movedTick, pointerMoved,
+      idleMs: Math.min(afterOwn ? since(now, last) : Infinity, this.movedTick === null ? Infinity : since(now, this.movedTick)),
+    };
   }
 }

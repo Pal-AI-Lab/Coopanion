@@ -6,6 +6,7 @@
  */
 import type { PermissionLevel } from './config.ts';
 import type { EngineErrorCode } from './engine/fail.ts';
+import type { YieldDiagnostics } from './engine-ipc.ts';
 
 export type ModelLanguage = 'zh' | 'en';
 
@@ -61,7 +62,15 @@ const zh = {
   zoomNoShot: '还没有截图:先用 pet_cua_screenshot 截一张,放大的区域用那张截图的坐标',
   listSep: '、',
   viewOnly: '这台电脑的设置只允许看,不允许操作鼠标键盘(worlds.desktop-pet.cua.control 关着)。',
-  yielded: (seconds: number) => `等了 ${seconds} 秒,用户一直在用鼠标或键盘,没有和用户抢着操作。可以告诉对方你在等他停手,或者过一会儿再试。`,
+  yielded: (seconds: number) => `等了 ${seconds} 秒,输入信号仍未满静止时长,本次操作未执行。`,
+  yieldDetails: (activity: YieldDiagnostics, foreground: string | null, app: string | null) => {
+    const signals = activity.blockedBy.map((s) => s === 'systemInput' ? '系统最后输入时间' : '指针位移').join('、');
+    const source = activity.blockedBy.includes('systemInput') && activity.pointerMovement.count === 0
+      ? '未检测到近期指针位移,具体输入设备未知,可能是键盘、滚轮或其他输入设备。' : '';
+    return `阻挡信号:${signals}。${source}`
+      + `让位检查命中:系统输入 ${activity.systemInput.count} 次(最后 tick ${activity.systemInput.lastTick ?? '无'}),指针位移 ${activity.pointerMovement.count} 次(最后 tick ${activity.pointerMovement.lastTick ?? '无'});次数是采样检查次数。`
+      + `前台窗口「${foreground === null ? '无' : foreground || '标题不可用'}」,程序「${app ?? '未知'}」。`;
+  },
   cancelledWaiting: (seconds: string) => `等用户停手 ${seconds} 秒时收到打断,没有发出输入。`,
   waitedFirst: (seconds: string) => `(先等用户停手 ${seconds} 秒)`,
   after: (line: string, cursor: string, foreground: string | null) => `${line} 鼠标${cursor};前台窗口「${foreground === null ? '无' : foreground || '标题不可用'}」。`,
@@ -163,7 +172,15 @@ const en: typeof zh = {
   zoomNoShot: 'No screenshot yet: take one with pet_cua_screenshot and give the region in its coordinates',
   listSep: ', ',
   viewOnly: 'This computer\'s settings allow looking only, no mouse or keyboard input (worlds.desktop-pet.cua.control is off).',
-  yielded: (seconds) => `Waited ${seconds} seconds and the person kept using the mouse or keyboard, so nothing was sent to compete with them. You can tell them you are waiting for them to stop, or try again in a while.`,
+  yielded: (seconds) => `Waited ${seconds} seconds; input signals were still within the idle period, so the action was not performed. `,
+  yieldDetails: (activity, foreground, app) => {
+    const signals = activity.blockedBy.map((s) => s === 'systemInput' ? 'system last-input time' : 'pointer displacement').join(' and ');
+    const source = activity.blockedBy.includes('systemInput') && activity.pointerMovement.count === 0
+      ? 'No recent pointer displacement was detected; the input device is unknown and may be the keyboard, wheel or another input device. ' : '';
+    return `Blocking signals: ${signals}. ${source}`
+      + `Blocking checks: system input ${activity.systemInput.count} (last tick ${activity.systemInput.lastTick ?? 'none'}), pointer displacement ${activity.pointerMovement.count} (last tick ${activity.pointerMovement.lastTick ?? 'none'}); counts are sampled checks. `
+      + `Foreground window "${foreground === null ? 'none' : foreground || 'title unavailable'}", program "${app ?? 'unknown'}".`;
+  },
   cancelledWaiting: (seconds) => `Interrupted after waiting ${seconds} seconds for the person to stop; no input was sent.`,
   waitedFirst: (seconds) => ` (after waiting ${seconds} seconds for the person to stop)`,
   after: (line, cursor, foreground) => `${line} Mouse ${cursor}; foreground window "${foreground === null ? 'none' : foreground || 'title unavailable'}".`,

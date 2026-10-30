@@ -24,6 +24,7 @@ import { downscale, drawCursor, encodeJpeg, fit } from './engine/image.ts';
 import { EngineFailure } from './engine/fail.ts';
 import { crop, displayAt, layoutOf, ordered, physicalSize, toLocal, toNative, type NativeDisplay } from './engine/display.ts';
 import { UserActivity } from './engine/user-activity.ts';
+import { recordActivity, waitIdle } from './engine/wait-idle.ts';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const activity = new UserActivity();
@@ -32,24 +33,14 @@ function markOwn(): void {
   activity.markOwn(os.tick(), os.cursor());
 }
 
-function userIdleMs(): number {
+function userActivity() {
   const cursor = os.cursor();
   const lastInputTick = os.lastInputTick();
-  return activity.idleMs({ now: os.tick(), lastInputTick, cursor });
+  return activity.sample({ now: os.tick(), lastInputTick, cursor });
 }
 
 /** Whether a cancel has arrived for the request being handled. */
 type Cancelled = () => boolean;
-
-async function waitIdle(y: Yield, cancelled: Cancelled): Promise<{ yielded: boolean; cancelled: boolean; waitedMs: number }> {
-  const start = Date.now();
-  for (;;) {
-    if (cancelled()) return { yielded: false, cancelled: true, waitedMs: Date.now() - start };
-    if (userIdleMs() >= y.idleMs) return { yielded: false, cancelled: false, waitedMs: Date.now() - start };
-    if (Date.now() - start >= y.maxWaitMs) return { yielded: true, cancelled: false, waitedMs: Date.now() - start };
-    await sleep(100);
-  }
-}
 
 /** The displays as they are now, in the order they are numbered. */
 function current(): { list: NativeDisplay[]; layout: string } {
@@ -98,7 +89,7 @@ function moveOn(d: NativeDisplay, x: number, y: number): void {
 }
 
 async function withInput(y: Yield, cancelled: Cancelled, act: () => Promise<void> | void): Promise<InputResult> {
-  const w = await waitIdle(y, cancelled);
+  const w = await waitIdle(y, cancelled, userActivity);
   if (!w.yielded && !w.cancelled) {
     await act();
     markOwn();
@@ -166,14 +157,21 @@ async function handle(req: EngineRequest, cancelled: Cancelled): Promise<unknown
       }
     }); }
     case 'type': {
-      const w = await waitIdle(req.yield, cancelled);
+      const w = await waitIdle(req.yield, cancelled, userActivity);
       if (w.yielded || w.cancelled) return { ...info(), ...w, typed: 0, stoppedBy: null } satisfies TypeResult;
       const graphemes = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(req.text)].map((s) => s.segment);
       let typed = 0;
       let stoppedBy: TypeResult['stoppedBy'] = null;
       for (let i = 0; i < graphemes.length; i += 16) {
         if (i > 0 && cancelled()) { stoppedBy = 'cancel'; break; }
-        if (i > 0 && userIdleMs() < 300) { stoppedBy = 'user'; break; }
+        if (i > 0) {
+          const input = userActivity();
+          if (input.idleMs < 300) {
+            recordActivity(w.activity, input, 300);
+            stoppedBy = 'user';
+            break;
+          }
+        }
         const chunk = graphemes.slice(i, i + 16).join('');
         os.typeUnicode(chunk);
         typed += [...chunk].length;
@@ -199,7 +197,7 @@ async function handle(req: EngineRequest, cancelled: Cancelled): Promise<unknown
     }
     case 'confirm': return os.askYesNo(req.text, req.caption, { yes: req.yes, no: req.no }, req.timeoutMs);
     case 'focus': {
-      const w = await waitIdle(req.yield, cancelled);
+      const w = await waitIdle(req.yield, cancelled, userActivity);
       if (w.yielded || w.cancelled) return { ...info(), ...w, focused: false };
       const focused = os.focus(req.handle);
       markOwn();

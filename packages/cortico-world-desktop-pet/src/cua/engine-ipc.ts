@@ -75,6 +75,21 @@ export interface ZoomResult {
   height: number;
 }
 
+/** Counts blocking checks, not input events: several checks can see the same input tick. */
+export interface YieldSignal {
+  count: number;
+  lastTick: number | null;
+}
+
+export interface YieldDiagnostics {
+  /** Signals still inside the idle threshold at the last check. */
+  blockedBy: Array<'systemInput' | 'pointerMovement'>;
+  systemInput: YieldSignal;
+  pointerMovement: YieldSignal;
+  /** Raw sample and injection ticks wrap at 2^32; null before the first check. */
+  lastSample: { now: number; lastInputTick: number; ownInputTick: number | null; pointerMoved: boolean } | null;
+}
+
 /** Every input op reports how long it waited for the user and where the pointer ended up. */
 export interface InputResult extends ScreenInfo {
   /** The user was not idle within `maxWaitMs`; nothing was sent. */
@@ -82,6 +97,8 @@ export interface InputResult extends ScreenInfo {
   /** A cancel arrived while waiting for the user; nothing was sent. */
   cancelled: boolean;
   waitedMs: number;
+  /** Checks while waiting, plus the stopping check if typing yields between chunks. */
+  activity: YieldDiagnostics;
 }
 
 /** `typed` counts code points sent; `stoppedBy` is null when the whole text went out. */

@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/cua/engine/foreground.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js -->
+<!-- Owner: src/definition.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/cua/engine/wait-idle.ts, src/cua/engine/foreground.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js -->
 
 <p align="center">
   <picture>
@@ -463,8 +463,13 @@ macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)�
 系统记录的最后一次输入比引擎自己的最后一次注入晚 40ms 以上(Windows 的 `GetLastInputInfo`,macOS 的 `CGEventSourceSecondsSinceLastEventType`,Linux 的 MIT-SCREEN-SAVER 扩展),或者鼠标指针任一轴偏离引擎上次放下或上次发现位移的位置超过 2px。
 位移按系统记录的最后输入时间计;没有晚于引擎注入的记录时,按发现时间计。连续采样发现指针还在移动、但系统输入记录早于上一采样时,也按发现时间计。
 每 100ms 检查一次,已经停手的时间计入静止时长;tick 按 32 位无符号数处理回绕。判定在 `src/cua/engine/user-activity.ts`,引擎子进程只采样系统值。
-等满 `cua.maxYieldWaitMs`(默认 15 秒)使用者还在用,这次操作不执行,回执照实说明。打字按 16 个字形一段发送
+等满 `cua.maxYieldWaitMs`(默认 15 秒)输入信号仍未满静止时长,这次操作不执行。回执写明最后阻挡的是系统输入时间、指针位移或两者,两个信号各自命中检查的次数和最后 tick,以及当时的前台窗口和程序。
+次数是等待期间命中信号的采样检查次数,同一次输入可以命中多次;不表示按键或移动次数。没有近期指针位移而系统输入时间阻挡时,具体设备未知,可能是键盘、滚轮或其他输入设备。
+`cua.ts` 在放弃操作或打字中途让位时记一条 `input yielded` debug 日志,包含回执里的信号数据,以及最后采样时间、系统最后输入 tick、引擎上次注入 tick、该次采样是否发现位移、前台窗口、程序和光标位置。
+使用者在桌宠打字框或对话页给 bot 打字也触发让位;环境提示词要求等消息到了再操作。
+打字按 16 个字形一段发送
 (emoji 这类多码位的字不会被拆开),每段之间再检查一次,使用者一动就停,回执报告实际打出了几个字符。
+打字中途让位的信号统计还包含触发停止的那次段间检查。
 
 `cua.control` 关掉后只能截图和列窗口,所有输入工具返回拒绝原因。
 登录、密码、验证码、支付交还给使用者,以及发送、删除、提交、购买前先问,这些写在 `src/cua/ENV_PROMPT.md` 里。
