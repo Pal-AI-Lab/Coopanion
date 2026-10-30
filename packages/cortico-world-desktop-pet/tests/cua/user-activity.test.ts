@@ -75,4 +75,54 @@ describe('user activity', () => {
     expect(idleFor(activity, { now: 0, lastInputTick: 0xffff_ff00, cursor: moved })).toBe(0);
     expect(idleFor(activity, { now: CUA_DEFAULTS.userIdleMs, lastInputTick: 0xffff_ff00, cursor: moved })).toBe(CUA_DEFAULTS.userIdleMs);
   });
+
+  it.each([1000, 0xffff_ff00])('keeps yielding to keyboard input more than half a tick cycle after injection at %i', (ownTick) => {
+    const activity = new UserActivity();
+    activity.markOwn(ownTick, origin);
+    const now = (ownTick + 0x8000_0000 + CUA_DEFAULTS.userIdleMs) >>> 0;
+    const sample = activity.sample({ now, lastInputTick: now, cursor: origin });
+    expect(sample.systemInputTick).toBe(now);
+    expect(sample.idleMs).toBeLessThan(CUA_DEFAULTS.userIdleMs);
+  });
+
+  it('ignores input preceding a recent injection by more than half a tick cycle', () => {
+    const activity = new UserActivity();
+    const now = 0xffff_ffff;
+    activity.markOwn(now - 100, origin);
+    expect(idleFor(activity, { now, lastInputTick: 1000, cursor: origin })).toBe(Infinity);
+    const movedNow = activity.sample({ now, lastInputTick: 1000, cursor: moved });
+    expect(movedNow.systemInputTick).toBeNull();
+    expect(movedNow.pointerTick).toBe(now);
+    expect(movedNow.idleMs).toBeLessThan(CUA_DEFAULTS.userIdleMs);
+  });
+
+  it('dates a recorded move from its input after a sampling gap exceeding half a tick cycle', () => {
+    const activity = new UserActivity();
+    activity.markOwn(1000, origin);
+    const now = (1000 + 0x8000_0000 + 10_000) >>> 0;
+    const lastInputTick = now - 10_000;
+    const sample = activity.sample({ now, lastInputTick, cursor: moved });
+    expect(sample.pointerTick).toBe(lastInputTick);
+    expect(sample.idleMs).toBeGreaterThanOrEqual(CUA_DEFAULTS.userIdleMs);
+  });
+
+  it.each([10_000, 2 * 3_600_000, 0xffff_ffff])('uses discovery time for unrecorded movement at tick %i regardless of time since injection', (now) => {
+    const activity = new UserActivity();
+    activity.markOwn(1000, origin);
+    const sample = activity.sample({ now, lastInputTick: null, cursor: moved });
+    expect(sample.systemInputTick).toBeNull();
+    expect(sample.pointerTick).toBe(now);
+    expect(sample.idleMs).toBeLessThan(CUA_DEFAULTS.userIdleMs);
+  });
+
+  it('keeps yielding to pointer movement while system input is unavailable across wraparound', () => {
+    const activity = new UserActivity();
+    activity.markOwn(0xffff_ff00, origin);
+    for (let elapsed = 100; elapsed <= CUA_DEFAULTS.maxYieldWaitMs; elapsed += 100) {
+      const now = (0xffff_ff00 + elapsed) >>> 0;
+      const sample = activity.sample({ now, lastInputTick: null, cursor: { x: elapsed, y: 0 } });
+      expect(sample.pointerTick).toBe(now);
+      expect(sample.idleMs).toBeLessThan(CUA_DEFAULTS.userIdleMs);
+    }
+  });
 });

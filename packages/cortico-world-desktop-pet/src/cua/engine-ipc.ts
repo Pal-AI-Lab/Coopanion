@@ -86,8 +86,8 @@ export interface YieldDiagnostics {
   blockedBy: Array<'systemInput' | 'pointerMovement'>;
   systemInput: YieldSignal;
   pointerMovement: YieldSignal;
-  /** Raw sample and injection ticks wrap at 2^32; null before the first check. */
-  lastSample: { now: number; lastInputTick: number; ownInputTick: number | null; pointerMoved: boolean } | null;
+  /** Raw ticks wrap at 2^32; absent before the first check. lastInputTick is null when the system cannot report input. */
+  lastSample: { now: number; lastInputTick: number | null; ownInputTick: number | null; pointerMoved: boolean } | null;
 }
 
 /** Every input op reports how long it waited for the user and where the pointer ended up. */

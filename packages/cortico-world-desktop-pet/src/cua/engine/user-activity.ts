@@ -3,7 +3,8 @@ interface Point { x: number; y: number }
 
 export interface InputSample {
   now: number;
-  lastInputTick: number;
+  /** null when the system cannot report the last input. */
+  lastInputTick: number | null;
   cursor: Point;
 }
 
@@ -32,11 +33,13 @@ export class UserActivity {
 
   /** Each signal's tick and their combined idle time; Infinity when neither records input. */
   sample({ now, lastInputTick: last, cursor }: InputSample): InputActivity {
-    const afterOwn = this.ownTick === null || (since(last, this.ownTick) > 40 && since(last, this.ownTick) < 0x80000000);
+    // Compare ages within the current tick cycle; pairwise ordering is ambiguous after half a cycle.
+    const inputAge = last === null ? Infinity : since(now, last);
+    const afterOwn = last !== null && (this.ownTick === null || since(now, this.ownTick) > inputAge + 40);
     const pointerMoved = this.cursor !== null && (Math.abs(cursor.x - this.cursor.x) > 2 || Math.abs(cursor.y - this.cursor.y) > 2);
     if (pointerMoved) {
       // Movement observed between samples needs an input record at least as recent as the earlier sample.
-      const recorded = afterOwn && (this.sampledTick === null || since(last, this.sampledTick) < 0x80000000);
+      const recorded = afterOwn && (this.sampledTick === null || inputAge <= since(now, this.sampledTick));
       this.movedTick = recorded ? last : now;
       this.cursor = cursor;
     }
@@ -45,7 +48,7 @@ export class UserActivity {
     return {
       now, lastInputTick: last, cursor, ownInputTick: this.ownTick,
       systemInputTick: afterOwn ? last : null, pointerTick: this.movedTick, pointerMoved,
-      idleMs: Math.min(afterOwn ? since(now, last) : Infinity, this.movedTick === null ? Infinity : since(now, this.movedTick)),
+      idleMs: Math.min(afterOwn ? inputAge : Infinity, this.movedTick === null ? Infinity : since(now, this.movedTick)),
     };
   }
 }

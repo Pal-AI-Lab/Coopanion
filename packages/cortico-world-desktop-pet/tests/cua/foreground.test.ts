@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const native = vi.hoisted(() => ({
   active: 2,
   accessible: true,
+  inputTick: null as number | null,
   windows: new Map<number, { title: string; app: string; pid: number; tool: boolean; layer: number }>(),
   stack: [1, 2, 3],
   atoms: new Map<string, number>(),
@@ -32,6 +33,10 @@ vi.mock('koffi', () => {
     load: () => ({ func: (signature: string) => {
       const name = signature.match(/(\w+)\(/)![1];
       switch (name) {
+        case 'GetLastInputInfo': return (info: { dwTime: number }) => {
+          if (native.inputTick === null) return false;
+          info.dwTime = native.inputTick; return true;
+        };
         case 'GetForegroundWindow': return () => native.active || null;
         case 'EnumWindows': return (cb: (id: number) => void) => { for (const id of native.stack) cb(id); };
         case 'IsWindowVisible': return () => true;
@@ -102,6 +107,7 @@ import * as darwin from '../../src/cua/engine/darwin.ts';
 beforeEach(() => {
   native.active = 2;
   native.accessible = true;
+  native.inputTick = null;
   native.stack = [1, 2, 3];
   native.windows.clear();
   native.windows.set(1, { title: 'Notes', app: 'notes', pid: 101, tool: false, layer: 0 });
@@ -142,5 +148,17 @@ describe('foreground windows', () => {
   it.each([win32, linux, darwin])('reports no foreground target when the system has none', (os) => {
     native.active = 0;
     expect(os.foregroundWindow()).toBeNull();
+  });
+});
+
+describe('system input availability', () => {
+  it('distinguishes a Windows query failure from an input at tick zero', () => {
+    expect(win32.lastInputTick()).toBeNull();
+    native.inputTick = 0;
+    expect(win32.lastInputTick()).toBe(0);
+  });
+
+  it('reports no input record on Linux without the screen-saver extension', () => {
+    expect(linux.lastInputTick()).toBeNull();
   });
 });

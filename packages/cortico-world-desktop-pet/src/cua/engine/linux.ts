@@ -165,11 +165,11 @@ export function tick(): number {
   return (Date.now() - t0) >>> 0;
 }
 
-/** Tick of the last input the X server saw. Without the screen-saver extension: an hour ago, so only pointer moves count. */
-export function lastInputTick(): number {
+/** Tick of the last input the X server saw; null without a working screen-saver extension. */
+export function lastInputTick(): number | null {
   const info = { window: 0, state: 0, kind: 0, til_or_since: 0, idle: 0, eventMask: 0 };
-  const idle = hasIdle && XScreenSaverQueryInfo!(dpy, root, info) ? Number(info.idle) : 3_600_000;
-  return (tick() - idle) >>> 0;
+  if (!hasIdle || !XScreenSaverQueryInfo!(dpy, root, info)) return null;
+  return (tick() - Number(info.idle)) >>> 0;
 }
 
 export type Button = 'left' | 'right' | 'middle';

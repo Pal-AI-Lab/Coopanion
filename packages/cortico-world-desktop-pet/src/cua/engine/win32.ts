@@ -132,11 +132,10 @@ export function cursor(): { x: number; y: number } {
   return p;
 }
 
-/** Tick (ms since boot, wraps at 2^32) of the last input from any source. */
-export function lastInputTick(): number {
+/** Tick (ms since boot, wraps at 2^32) of the last input from any source; null when the query fails. */
+export function lastInputTick(): number | null {
   const info = { cbSize: koffi.sizeof(LASTINPUTINFO), dwTime: 0 };
-  GetLastInputInfo(info);
-  return info.dwTime;
+  return GetLastInputInfo(info) ? info.dwTime : null;
 }
 
 export function tick(): number {
