@@ -4,6 +4,10 @@ const native = vi.hoisted(() => ({
   active: 2,
   accessible: true,
   inputTick: null as number | null,
+  axAppDelayMs: 0,
+  axWindowDelayMs: 0,
+  axElapsedMs: 0,
+  axTimeouts: new WeakMap<object, number>(),
   windows: new Map<number, { title: string; app: string; pid: number; tool: boolean; layer: number }>(),
   stack: [1, 2, 3],
   atoms: new Map<string, number>(),
@@ -72,8 +76,15 @@ vi.mock('koffi', () => {
           AXTitle: window(native.active).title, AXPosition: { x: native.rect.x, y: native.rect.y },
           AXSize: { width: native.rect.width, height: native.rect.height },
         } });
+        case 'AXUIElementSetMessagingTimeout': return (element: object, seconds: number) => {
+          native.axTimeouts.set(element, seconds * 1000); return 0;
+        };
         case 'AXUIElementCopyAttributeValue': return (element: Record<string, unknown>, attr: string, out: unknown[]) => {
           if (!native.accessible) return -25211;
+          const delay = attr === 'AXFocusedWindow' ? native.axAppDelayMs : native.axWindowDelayMs;
+          const timeout = native.axTimeouts.get(element) ?? Infinity;
+          native.axElapsedMs += Math.min(delay, timeout);
+          if (delay > timeout) return -25204;
           out[0] = element[attr] ?? null; return 0;
         };
         case 'AXValueGetValue': return (value: object, _: number, out: object) => { Object.assign(out, value); return true; };
@@ -108,6 +119,8 @@ beforeEach(() => {
   native.active = 2;
   native.accessible = true;
   native.inputTick = null;
+  native.axAppDelayMs = native.axWindowDelayMs = native.axElapsedMs = 0;
+  native.axTimeouts = new WeakMap();
   native.stack = [1, 2, 3];
   native.windows.clear();
   native.windows.set(1, { title: 'Notes', app: 'notes', pid: 101, tool: false, layer: 0 });
@@ -143,6 +156,19 @@ describe('foreground windows', () => {
   it('retains the macOS foreground app when Accessibility cannot read its window', () => {
     native.accessible = false;
     expect(darwin.foregroundWindow()).toEqual({ title: '', app: 'pet', rect: null });
+  });
+
+  it('bounds a macOS foreground lookup when the app does not respond', () => {
+    native.axAppDelayMs = darwin.FOREGROUND_QUERY_TIMEOUT_MS * 10;
+    expect(darwin.foregroundWindow()).toEqual({ title: '', app: 'pet', rect: null });
+    expect(native.axElapsedMs).toBeLessThanOrEqual(darwin.FOREGROUND_QUERY_TIMEOUT_MS);
+  });
+
+  it('bounds macOS window attribute reads independently of the app lookup', () => {
+    native.axAppDelayMs = darwin.FOREGROUND_QUERY_TIMEOUT_MS / 2;
+    native.axWindowDelayMs = darwin.FOREGROUND_QUERY_TIMEOUT_MS * 10;
+    expect(darwin.foregroundWindow()).toEqual({ title: '', app: 'pet', rect: null });
+    expect(native.axElapsedMs).toBeLessThanOrEqual(4 * darwin.FOREGROUND_QUERY_TIMEOUT_MS);
   });
 
   it.each([win32, linux, darwin])('reports no foreground target when the system has none', (os) => {

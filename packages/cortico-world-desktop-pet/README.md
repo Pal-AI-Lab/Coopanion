@@ -499,6 +499,7 @@ Linux 缺少 MIT-SCREEN-SAVER 扩展或系统输入查询失败时,最后输入�
 
 回执里的前台窗口和程序按系统当前键盘目标读取:Windows 用 `GetForegroundWindow`,macOS 用 `GetFrontProcess` 和辅助功能的 `AXFocusedWindow`,Linux 用 `_NET_ACTIVE_WINDOW`。
 桌宠打字框这类工具窗口、无标题窗口都保留;有前台目标但读不到标题时写「标题不可用」。macOS 未授予辅助功能权限时仍可读取前台程序,窗口标题和位置不可用。
+macOS 的辅助功能查询每次最多等待 200ms,超时后仍报告前台程序名;应用和窗口对象分别设置此时限。
 `pet_cua_windows`、`pet_cua_focus` 的候选列表仍按各系统原有规则过滤。
 
 - Windows(`src/cua/engine/win32.ts`):`EnumDisplayMonitors` 列显示器,GDI `BitBlt` 按显示器矩形截图(带 `CAPTUREBLT`,透明与分层窗口也截得到)、
