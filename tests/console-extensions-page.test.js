@@ -959,24 +959,30 @@ describe('World library and catalog', () => {
       expect(animations.some(a => a.element.classList.contains('world-library-entry') && a.frames[0].transform === 'translateY(90px)')).toBe(true);
     } finally { if (original) Element.prototype.animate = original; else delete Element.prototype.animate; }
   });
-  it('keeps the catalog open when an interrupted closing animation completes', async () => {
+  it('hides the market at once when leaving it, and slides it in when entering', async () => {
     const original = Element.prototype.animate;
     const animations = [];
-    Element.prototype.animate = function() {
+    Element.prototype.animate = function(frames) {
       let finish;
-      const animation = { cancel() {}, finished: new Promise(resolve => { finish = resolve; }) };
-      if (this.classList.contains('world-market')) animations.push({ animation, finish });
+      const animation = { cancel() {}, playState: 'running', finished: new Promise(resolve => { finish = resolve; }) };
+      if (this.classList.contains('world-market')) animations.push({ frames, animation, finish });
       return animation;
     };
     try {
       const { root, ctx } = await openWorlds();
+      const market = root.querySelector('.world-market');
+      // Leaving: gone at once, with nothing animating it out to show through the rows.
       ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
-      expect(root.querySelector('.world-market').hidden).toBe(false);
+      expect(market.hidden).toBe(true);
+      expect(animations).toHaveLength(0);
+      // Entering: shown and slid in; finishing late changes nothing.
       ctx.router.navigate(['world'], { view: 'market' }); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+      expect(market.hidden).toBe(false);
+      expect(animations).toHaveLength(1);
+      expect(animations[0].frames.at(-1)).toEqual({ clipPath: 'inset(0 0 0 0%)' });
       animations[0].finish(); await flush();
-      expect(root.querySelector('.world-market').hidden).toBe(false);
-      animations.at(-1).finish(); await flush();
-      expect(root.querySelector('.world-market').inert).toBe(false);
+      expect(market.hidden).toBe(false);
+      expect(market.inert).toBe(false);
     } finally { if (original) Element.prototype.animate = original; else delete Element.prototype.animate; }
   });
   it('filters the catalog by installation state and resets it with clear filters', async () => {

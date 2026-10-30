@@ -169,8 +169,6 @@ export function mountWorlds(ctx: FeatureContext): void {
     if (next === current) return;
     const generation = ++viewGeneration;
     const previous = current; current = next;
-    const style = transition?.playState === 'running' ? win.getComputedStyle(catalog) : undefined;
-    const interrupted = style ? { clipPath: style.clipPath } : undefined;
     transition?.cancel();
     // Going to the market the rows shrink into the dock. Its scroll moves, on the rows' own curve, to
     // where the first row in view will sit, so a scrolled rail glides instead of snapping when it
@@ -206,15 +204,12 @@ export function mountWorlds(ctx: FeatureContext): void {
     for (const id of groupNodes.keys()) { const group = layout?.groups[id]; if (group) paintGroup(group); }
     if (next === 'mine' && catalog.contains(doc.activeElement)) tabs.el.querySelector<HTMLButtonElement>('[aria-current=page]')?.focus();
     if (next === 'mine' && focusRequested) focusSelected();
-    const closed = { clipPath: 'inset(0 0 0 100%)' };
-    const open = { clipPath: 'inset(0 0 0 0%)' };
-    catalog.hidden = false;
-    if (previous && !reduceMotion() && catalog.animate) {
-      const timing = { duration: 290, easing: 'cubic-bezier(.32,.72,0,1)' };
-      transition = catalog.animate(next === 'market' ? [interrupted ?? closed, open] : [interrupted ?? open, closed], timing);
-      const own = transition;
-      void own.finished.then(() => { if (transition === own) catalog.hidden = current !== 'market'; }, () => {});
-    } else catalog.hidden = next !== 'market';
+    // Entering, the market slides in over the rows shrinking into the dock. Leaving, it goes at once: the
+    // rows take My World's layout straight away, and a market still sliding out behind them showed
+    // through, for longer whenever the page was busy (a filter's reflow still running, say).
+    catalog.hidden = next !== 'market';
+    if (next === 'market' && previous && !reduceMotion() && catalog.animate)
+      transition = catalog.animate([{ clipPath: 'inset(0 0 0 100%)' }, { clipPath: 'inset(0 0 0 0%)' }], { duration: 290, easing: 'cubic-bezier(.32,.72,0,1)' });
     if (next === 'market') market?.activate(transition?.playState === 'running' ? transition.finished : undefined);
   };
   lifecycle.own(router.onChange(show)); show();
