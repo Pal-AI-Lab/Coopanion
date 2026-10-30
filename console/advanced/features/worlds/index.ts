@@ -603,6 +603,10 @@ export function mountWorlds(ctx: FeatureContext): void {
   }, { signal });
   win.addEventListener('pointercancel', event => { if (press && event.pointerId === press.id) { press = undefined; cancelDrag(); } }, { signal });
   doc.addEventListener('keydown', event => { if (event.key === 'Escape' && lift) { press = undefined; cancelDrag(); } }, { signal });
+  // A drag the window or the page walks away from ends too (focus lost, the page left mid-drag), or the
+  // pointer would stay hidden everywhere.
+  win.addEventListener('blur', () => { if (press) { press = undefined; cancelDrag(); } }, { signal });
+  signal.addEventListener('abort', endDrag, { once: true });
   /** Ends a drag without a drop: the empty place, moved along the way, slides back with the rest. */
   function cancelDrag() { const moved = !!lift; endDrag(); if (moved) reorder(); }
   function endDrag() {
@@ -754,6 +758,8 @@ export function mountWorlds(ctx: FeatureContext): void {
   }
   function render(): void {
     if (!worldsReady || !extensionsReady || signal.aborted) return;
+    // A row or group being dragged keeps the list as it is; the drop renders it again.
+    if (readyList.querySelector('.is-dragging')) return;
     const items = worldLibrary(worlds, extensions, recent);
     readyList.querySelector('.placeholder')?.remove();
     lampNodes.clear(); renderRail(items);
