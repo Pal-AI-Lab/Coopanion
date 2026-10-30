@@ -1125,6 +1125,20 @@ describe('World library and catalog', () => {
     expect(Object.values(saved.groups)).toEqual([expect.objectContaining({ name: '聊天', collapsed: true, items: [] })]);
     expect(saved.top[0]).toMatch(/^group:/);
   });
+  it('ends a drag the window or the page walks away from, so the pointer shows again', async () => {
+    const { root, ctx, lifecycle } = await openWorlds();
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    const pointer = (type, target, y) => { const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: 10, clientY: y }); Object.defineProperty(event, 'pointerId', { value: 1 }); target.dispatchEvent(event); };
+    const lift = () => { pointer('pointerdown', root.querySelector('.world-ready-list .world-library-entry .world-blade'), 10); pointer('pointermove', window, 400); };
+    const hidden = () => document.documentElement.classList.contains('is-list-dragging');
+    lift(); expect(hidden()).toBe(true);
+    window.dispatchEvent(new Event('blur'));
+    expect(hidden()).toBe(false);
+    expect(root.querySelector('.world-drag-copy')).toBeNull();
+    lift(); expect(hidden()).toBe(true);
+    lives.splice(lives.indexOf(lifecycle), 1); lifecycle.dispose();
+    expect(hidden()).toBe(false);
+  });
   it('drags a row with the pointer: a lifted copy, no cursor, and the click after the drop opens nothing', async () => {
     const { root, ctx } = await openWorlds();
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
