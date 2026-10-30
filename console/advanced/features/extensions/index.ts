@@ -1175,7 +1175,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       for (const cls of ['track', 'arc']) { const circle = doc.createElementNS(svg, 'circle'); for (const [key, value] of Object.entries({ cx: '16', cy: '16', r: '13', class: cls })) circle.setAttribute(key, value); ring.append(circle); }
       button.append(ring); button.disabled = true; return button;
     }
-    button.append(icon(doc, update ? 'arrow-up' : 'download'));
+    button.append(icon(doc, update ? 'update' : 'download'));
     if (update) {
       button.disabled = !!update.problems.length; attachHint(button, label, update.problems.join('\n') || undefined);
       button.addEventListener('click', event => { event.stopPropagation(); void operate('install', { name: hit.name, version: update.latestVersion }, 'market', owner, anchor); }, { signal });

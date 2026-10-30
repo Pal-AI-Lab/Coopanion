@@ -25,15 +25,12 @@ export const S: Partial<typeof en> = {
   introTitle: 'Extensions World',
   prefixReloadFailed: (msg: string) => `Échec du rechargement du préfixe : ${msg}`,
   toggleFailed: (msg: string) => `Échec du basculement : ${msg}`,
-  reloadNowTitle: 'Recharger le préfixe système maintenant ?',
-  reloadNowBody: (name: string, wantVisible: boolean) =>
-    (wantVisible ? `« ${name} » est de nouveau visible pour l'agent.` : `« ${name} » est désormais masqué pour l'agent.`)
-    + "\n\nLa livraison des événements suit déjà le nouvel état. Le rechargement met à jour le prompt d'environnement et les déclarations d'outils, et conserve les messages de conversation existants. "
-    + "En cas d'annulation, ils sont mis à jour à la prochaine passation de contexte ou au prochain redémarrage.",
+  visibilityTitle: (name: string, visible: boolean) => visible ? `Afficher « ${name} » pour l’agent ?` : `Masquer « ${name} » pour l’agent ?`,
+  visibilityBody: (visible: boolean): string => visible
+    ? "Coo pourra utiliser les outils et les informations de ce World et recevra ses messages. Le changement s’applique tout de suite à la conversation en cours ; l’historique du chat est conservé."
+    : "Coo ne verra plus les outils ni les informations de ce World et ne recevra plus ses messages ; le World continue de fonctionner. Le changement s’applique tout de suite à la conversation en cours ; l’historique du chat est conservé.",
   deactivateTitle: (name: string) => `Désactiver « ${name} » ?`,
-  deactivateBody: (id: string) =>
-    "Le World s'arrête immédiatement (ses processus externes et connexions gérés sont clôturés), et "
-    + `worlds.${id}.enabled=false est réécrit dans config.json. Le prompt d'environnement et les outils de l'agent sont retirés aussitôt ; une nouvelle activation le reconstruit à partir de la configuration actuelle.`,
+  deactivateBody: "Le World s’arrête immédiatement, et ses outils et informations de contexte ne sont plus disponibles pour Coo.",
   restartTitle: (name: string) => `Redémarrer « ${name} » ?`,
   restartBody: "Arrête et reconstruit le World pour appliquer les réglages marqués pour un redémarrage du World. Les processus et connexions gérés s'arrêtent puis redémarrent.",
   missingReasonDefault: 'Impossible de charger ce World.',

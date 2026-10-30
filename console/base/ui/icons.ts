@@ -44,7 +44,7 @@ export type ConsoleIconName =
   | 'globe'
   | 'check'
   | 'sidebar'
-  | 'arrow-up'
+  | 'update'
   | 'warning'
   | 'arrow-left'
   | 'radio-on'
@@ -244,9 +244,10 @@ const SHAPES: Readonly<Record<ConsoleIconName, readonly Shape[]>> = {
     ['path', { d: 'M12 11v5' }],
     ['path', { d: 'M12 8h.01' }],
   ],
-  'arrow-up': [
-    ['path', { d: 'M12 19V5' }],
-    ['path', { d: 'm6 11 6-6 6 6' }],
+  // An available update: a solid up arrow with a straight stem, so it does not read as the circled info
+  // and alert marks it often sits beside.
+  update: [
+    ['path', { d: 'M12 3.5 18.5 10.5H13.9V19a1 1 0 0 1-1 1h-1.8a1 1 0 0 1-1-1V10.5H5.5Z', fill: 'currentColor', 'stroke-width': '1.2' }],
   ],
   sidebar: [
     ['rect', { x: '3.5', y: '4.5', width: '17', height: '15', rx: '2.5' }],

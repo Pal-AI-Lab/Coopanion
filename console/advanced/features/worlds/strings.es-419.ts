@@ -25,15 +25,12 @@ export const S: Partial<typeof en> = {
   introTitle: 'Extensiones World',
   prefixReloadFailed: (msg: string) => `Falló la recarga del prefijo: ${msg}`,
   toggleFailed: (msg: string) => `No se pudo cambiar: ${msg}`,
-  reloadNowTitle: '¿Recargar ahora el prefijo del sistema?',
-  reloadNowBody: (name: string, wantVisible: boolean) =>
-    (wantVisible ? `“${name}” vuelve a ser visible para el agente.` : `“${name}” ahora está oculto para el agente.`)
-    + '\n\nLa entrega de eventos ya sigue el nuevo estado. Al recargar se actualizan el prompt del entorno y las declaraciones de herramientas, y se conservan los mensajes existentes de la conversación. '
-    + 'Si cancelas, se actualizan en el próximo traspaso de contexto o reinicio.',
+  visibilityTitle: (name: string, visible: boolean) => visible ? `¿Mostrar «${name}» al agente?` : `¿Ocultar «${name}» al agente?`,
+  visibilityBody: (visible: boolean): string => visible
+    ? "Coo podrá usar las herramientas y la información de este World y recibirá sus mensajes. El cambio se aplica de inmediato a la conversación actual; el historial del chat se conserva."
+    : "Coo ya no verá las herramientas ni la información de este World ni recibirá sus mensajes; el World sigue funcionando. El cambio se aplica de inmediato a la conversación actual; el historial del chat se conserva.",
   deactivateTitle: (name: string) => `¿Desactivar “${name}”?`,
-  deactivateBody: (id: string) =>
-    'El World se detiene de inmediato (sus procesos externos y conexiones gestionados se cierran) y '
-    + `se escribe worlds.${id}.enabled=false en config.json. El prompt del entorno y las herramientas del agente se retiran en el acto; al activarlo de nuevo se reconstruye con la configuración actual.`,
+  deactivateBody: "El World se detiene de inmediato y sus herramientas e información de contexto dejan de estar disponibles para Coo.",
   restartTitle: (name: string) => `¿Reiniciar “${name}”?`,
   restartBody: 'Detiene y reconstruye el World para aplicar los ajustes marcados para reinicio del World. Los procesos y conexiones gestionados se detienen y vuelven a iniciarse.',
   missingReasonDefault: 'No se pudo cargar este World.',
