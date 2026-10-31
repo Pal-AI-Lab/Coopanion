@@ -114,7 +114,7 @@ describe('computer use without the engine', () => {
 
   describe('permission levels', () => {
     /** A world whose engine answers every request at once without touching the screen, `foregroundApp` in front; `asked` collects the questions. */
-    const levelWorld = (permission: CuaConfig['permission'], answers: Array<'yes' | 'no'>, foregroundApp: string | null = null) => {
+    const levelWorld = (permission: CuaConfig['permission'], answers: Array<'yes' | 'no'>, foregroundApp: string | null = null, foreground: string | null = null) => {
       const cfg = { ...structuredClone(CUA_DEFAULTS), permission, grantMinutes: 30 };
       cfg.screenshot.afterAction = false;
       const asked: string[] = [];
@@ -124,7 +124,7 @@ describe('computer use without the engine', () => {
       inner.spawn = () => ({
         exitCode: null,
         send({ id, req }: { id: number; req: { op: string } }) {
-          const value = req.op === 'screenshot' ? SHOT : req.op === 'windows' ? [] : { ...ONE_DISPLAY, foregroundApp, yielded: false, waitedMs: 0 };
+          const value = req.op === 'screenshot' ? SHOT : req.op === 'windows' ? [] : { ...ONE_DISPLAY, foreground, foregroundApp, yielded: false, waitedMs: 0 };
           const p = inner.pending.get(id)!;
           inner.pending.delete(id);
           clearTimeout(p.timer);
@@ -135,6 +135,16 @@ describe('computer use without the engine', () => {
     };
     const see = (w: Cua) => call(w, 'pet_cua_screenshot', {});
     const act = (w: Cua) => call(w, 'pet_cua_click', { x: 1, y: 1 });
+
+    it.each(['Pet typing', ''])('reports the foreground target %j even when it is absent from the window list', async (title) => {
+      const { w, cfg } = levelWorld('never-ask', [], 'pet', title);
+      cfg.screenshot.settleMs = 0;
+      const out = await act(w);
+      expect(out.failed).toBeUndefined();
+      expect(out.text).toContain(title || '标题不可用');
+      expect(out.text).not.toContain('没有窗口在接收键盘输入');
+      expect(out.text).not.toContain('前台窗口「无」');
+    });
 
     it('ask-each-turn asks before the first look of every turn', async () => {
       const { w, asked } = levelWorld('ask-each-turn', ['yes', 'yes']);

@@ -81,6 +81,8 @@ Installing does not need administrator rights.
 2. The app has no Apple developer signature, so macOS blocks the first open. Open it once and click Done on the warning, then go to System Settings → Privacy & Security, click **Open Anyway** and confirm with your password.
 3. Coopanion lives in the menu bar; it shows in the Dock only while the settings window is open.
 
+While App Store is the active app, Coo stays behind other windows so that App Store purchases can be confirmed with Touch ID.
+
 > [!NOTE]
 > macOS asks for Microphone (voice input), Input Monitoring (talk key), and Screen & System Audio Recording plus Accessibility (computer use) the first time each is needed. Restart Coopanion after changing the last three. macOS does not carry these grants over to an updated version: if Coopanion says a permission is missing while its switch is on, remove Coopanion from that list with −, add `/Applications/Coopanion.app` back and restart.
 
@@ -146,7 +148,9 @@ Off by default. Tick **Let Coo use this computer** in the Computer use section o
 - **When to ask you**, from strictest to loosest: `ask-each-turn`, `ask-before-acting`, `ask-once` (the default: Coo looks at the screen without asking and asks once before using the mouse and keyboard; a yes lasts 30 minutes) and `never-ask`.
 - At every level, Coo asks once more before typing or pressing keys in a terminal window or pressing Win+R; after a yes it does not ask about these again for the same 30 minutes. Turning on **Turn off asking before terminals and the Run box** in the desktop pet World's config in advanced mode makes these steps follow the asking level like any other input.
 - Coo uses the computer only for what you say, type or pick in the desktop pet. When a message from elsewhere asks for it, Coo tells you in a bubble and waits for your yes.
-- When you touch the mouse or keyboard, Coo stops and waits for you. Logins, passwords and payments are left to you.
+- When you touch the mouse or keyboard, Coo stops and waits until you have been idle for 2 seconds by default; time already spent idle counts toward that wait. Logins, passwords and payments are left to you.
+- Action receipts identify the system's current keyboard target, including the pet's typing box and untitled windows; an unreadable title is marked as unavailable. On macOS, an app that does not respond to window queries is still identified by its program name.
+- When input is blocked, the receipt reports the system-input or pointer signal, its check count and last tick, and the foreground window and program; the diagnostics include the same evidence. Typing to Coo in its typing box or the chat page also takes priority, and Coo is instructed to wait for your message before acting.
 - One wake makes at most 40 model requests; at the limit the turn ends and you can tell Coo to continue.
 
 ### Settings window

@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts, src/cua/cua.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js -->
+<!-- Owner: src/definition.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/cua/engine/wait-idle.ts, src/cua/engine/foreground.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js, host/app-store.cjs -->
 
 <p align="center">
   <picture>
@@ -61,6 +61,8 @@ World 在 `127.0.0.1:7797`(被占向上顺延)起一个页面服务:`/pet` 是�
 形象画在地面以下的部分(比如坐在边沿时垂下的腿)显示在任务栏上。桌宠被拎着拖到另一块显示器上时,窗口当场挪到那块显示器,拖动中桌宠一直跟着光标,松手就在那块显示器上落下;
 走路只在当前这块显示器上。窗口所在的显示器被拔掉时回到主显示器。`pet_move_to` 的 0–1 和事件里的横向位置都按当前这块显示器算。
 鼠标只在身体、气泡、右键菜单和悬停按钮上时才接收点击,其余位置点击穿透。托盘图标可以显示、隐藏、关闭它。
+macOS 上 App Store 是当前应用时,窗口降到普通层级、排在所有窗口后面,换到别的应用后回到置顶(`host/app-store.cjs`):
+别的进程的窗口盖在 App Store 的付款弹窗上时,弹窗不接受触控 ID,透明、点击穿透的窗口也算。
 鼠标停在桌宠身上时,身旁出现两个按钮:打字说话;语音输入开关(点一下开关 `asr.enabled`,
 正在听时长按半秒把听到的这句话立刻送出,不等停顿;按 toggle 方式开着的说话键同时关上)。夜间模式在右键菜单里切换。窗口打开时桌宠从屏幕顶上掉到底边。
 右键菜单顶上一行是 bot 的头像(部署目录的 `avatar.png`,没有时画桌宠自己)和名字;内嵌应用借出运行控制时,
@@ -460,9 +462,17 @@ macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)�
 ### 让位给使用者
 
 发出任何输入前,引擎先确认使用者已经静止 `cua.userIdleMs`(默认 2 秒)。「使用者动过」的依据是两条可以核实的事实:
-系统记录的最后一次输入晚于引擎自己的最后一次注入(Windows 的 `GetLastInputInfo`,macOS 的 `CGEventSourceSecondsSinceLastEventType`,Linux 的 MIT-SCREEN-SAVER 扩展),或者鼠标指针不在引擎上次放下的位置。
-等满 `cua.maxYieldWaitMs`(默认 15 秒)使用者还在用,这次操作不执行,回执照实说明。打字按 16 个字形一段发送
+系统记录的最后一次输入比引擎自己的最后一次注入晚 40ms 以上(Windows 的 `GetLastInputInfo`,macOS 的 `CGEventSourceSecondsSinceLastEventType`,Linux 的 MIT-SCREEN-SAVER 扩展),或者鼠标指针任一轴偏离引擎上次放下或上次发现位移的位置超过 2px。
+位移按系统记录的最后输入时间计;没有晚于引擎注入的记录时,按发现时间计。连续采样发现指针还在移动、但系统输入记录早于上一采样时,也按发现时间计。
+Linux 缺少 MIT-SCREEN-SAVER 扩展或系统输入查询失败时,最后输入时间为 `null`,位移按发现时间计。
+每 100ms 检查一次,已经停手的时间计入静止时长;tick 按 32 位无符号数处理回绕,按各时间距当前采样的时长比较先后,间隔超过半个 tick 周期也保持让位判定。判定在 `src/cua/engine/user-activity.ts`,引擎子进程只采样系统值。
+等满 `cua.maxYieldWaitMs`(默认 15 秒)输入信号仍未满静止时长,这次操作不执行。回执写明最后阻挡的是系统输入时间、指针位移或两者,两个信号各自命中检查的次数和最后 tick,以及当时的前台窗口和程序。
+次数是等待期间命中信号的采样检查次数,同一次输入可以命中多次;不表示按键或移动次数。没有近期指针位移而系统输入时间阻挡时,具体设备未知,可能是键盘、滚轮或其他输入设备。
+`cua.ts` 在放弃操作或打字中途让位时记一条 `input yielded` debug 日志,包含回执里的信号数据,以及最后采样时间、系统最后输入 tick、引擎上次注入 tick、该次采样是否发现位移、前台窗口、程序和光标位置。
+使用者在桌宠打字框或对话页给 bot 打字也触发让位;环境提示词要求等消息到了再操作。
+打字按 16 个字形一段发送
 (emoji 这类多码位的字不会被拆开),每段之间再检查一次,使用者一动就停,回执报告实际打出了几个字符。
+打字中途让位的信号统计还包含触发停止的那次段间检查。
 
 `cua.control` 关掉后只能截图和列窗口,所有输入工具返回拒绝原因。
 登录、密码、验证码、支付交还给使用者,以及发送、删除、提交、购买前先问,这些写在 `src/cua/ENV_PROMPT.md` 里。
@@ -488,6 +498,11 @@ macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)�
 操作系统调用都在引擎子进程(`src/cua/engine-child.ts`)里,经 [koffi](https://koffi.dev/) 直接调系统接口。请求和结果里的坐标是某块显示器的物理像素,
 各系统自己的全局坐标只在子进程里换算(`src/cua/engine/display.ts`)。
 引擎在第一次要用时拉起;子进程崩溃或请求超时让这个引擎的在途请求失败,超时的引擎被强制结束,下次调用重新拉起。World 页多一盏「操作引擎」灯。
+
+回执里的前台窗口和程序按系统当前键盘目标读取:Windows 用 `GetForegroundWindow`,macOS 用 `GetFrontProcess` 和辅助功能的 `AXFocusedWindow`,Linux 用 `_NET_ACTIVE_WINDOW`。
+桌宠打字框这类工具窗口、无标题窗口都保留;有前台目标但读不到标题时写「标题不可用」。macOS 未授予辅助功能权限时仍可读取前台程序,窗口标题和位置不可用。
+macOS 的辅助功能查询每次最多等待 200ms,超时后仍报告前台程序名;应用和窗口对象分别设置此时限。
+`pet_cua_windows`、`pet_cua_focus` 的候选列表仍按各系统原有规则过滤。
 
 - Windows(`src/cua/engine/win32.ts`):`EnumDisplayMonitors` 列显示器,GDI `BitBlt` 按显示器矩形截图(带 `CAPTUREBLT`,透明与分层窗口也截得到)、
   `SetCursorPos` 定位指针(`SendInput` 的绝对坐标要折算到 0–65535,在显示器接缝处会差一个像素)、`SendInput` 发按键和滚轮、`EnumWindows`、
