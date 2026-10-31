@@ -4,6 +4,8 @@ module.exports = {
 
   trayOpenSettings: '開啟設定',
   trayShowPet: '顯示桌寵',
+  trayClickThrough: '滑鼠穿透',
+  trayClickThroughTip: 'Coopanion（滑鼠穿透中）',
   trayLaunchAtLogin: '開機時自動啟動',
   trayRestart: '重新啟動',
   trayQuit: '結束',

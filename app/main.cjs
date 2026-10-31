@@ -524,10 +524,10 @@ function openSettings(path = '') {
 }
 
 /** Calls a panel method of a World page through the WebUI API. */
-async function panel(pageId, panelId, method) {
+async function panel(pageId, panelId, method, args = []) {
   const url = consoleUrl(`api/webui/providers/${encodeURIComponent(pageId)}/panels/${panelId}/${method}`);
   if (!url) return null;
-  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args: [] }), signal: AbortSignal.timeout(5000) });
+  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args }), signal: AbortSignal.timeout(5000) });
   return res.ok ? res.json() : null;
 }
 
@@ -569,12 +569,25 @@ function noteAutostart() {
   core.opts.env.COOPANION_AUTOSTART = app.isPackaged && loginItem.get() ? '1' : '0';
 }
 
+/**
+ * The tray's "click through": every click passes through the pet, which still shows, walks and talks
+ * (for a game under it). It lasts for this run of the app and is sent again to a restarted Core.
+ */
+let clickThrough = false;
+function setClickThrough(on) {
+  clickThrough = on;
+  refreshTray();
+  return panel('world:desktop-pet', 'pet', 'setClickThrough', [on]).catch(() => { /* Core went away meanwhile; sent again when it is back */ });
+}
+
 function refreshTray() {
   if (!tray) return;
   const t = T(), login = loginItem.get();
+  tray.setToolTip(clickThrough ? t.trayClickThroughTip : 'Coopanion');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: t.trayOpenSettings, click: () => openSettings() },
     { label: t.trayShowPet, enabled: core.state === 'running', click: () => void showPet().catch(() => { /* Core went away meanwhile */ }) },
+    { label: t.trayClickThrough, type: 'checkbox', checked: clickThrough, enabled: core.state === 'running', click: (item) => void setClickThrough(item.checked) },
     { type: 'separator' },
     { label: t.trayLaunchAtLogin, type: 'checkbox', checked: login, enabled: app.isPackaged, click: (item) => { loginItem.set(item.checked); noteAutostart(); refreshTray(); } },
     { label: t.trayRestart, click: () => void core.restart() },
@@ -597,7 +610,6 @@ function buildTray() {
   icon.addRepresentation({ scaleFactor: 2, buffer: nativeImage.createFromPath(join(ICONS, `${name}@2x.png`)).toPNG() });
   if (MAC) icon.setTemplateImage(true);
   tray = new Tray(icon);
-  tray.setToolTip('Coopanion');
   refreshTray();
   core.on('state', refreshTray);
   // on macOS a click opens the menu, as every menu-bar icon does
@@ -606,6 +618,7 @@ function buildTray() {
 
 core.on('ready', ({ language: next }) => {
   followLanguage(next);
+  if (clickThrough) void setClickThrough(true);
   // A restarted Core brings the window back to the page it showed (the World page it was restarted from).
   if (settings) settings.loadURL(settingsUrl(shownRoute(settings)));
   if (updateStep) core.send({ type: 'companion:update', step: updateStep });

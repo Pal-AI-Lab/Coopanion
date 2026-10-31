@@ -52,6 +52,8 @@ const prefs = {
   /** Frames a second while the body moves; 0 follows the display. */
   frameRate: 60,
   lockFrameRate: false,
+  /** Every click passes through the pet (the tray's "click through"): no hover buttons, and a bubble under the cursor does not wait. */
+  clickThrough: false,
 };
 // in a tab (the settings window's preview) the page is its own stage: a wall that answers the pointer, a floor with icons, a night/day button
 const modeBtn = host ? null : modeButton(document.body, () => prefs.theme, (theme) => applyPrefs({ theme }));
@@ -280,6 +282,7 @@ function applyPrefs(p) {
   if (typeof p.frameRate === 'number' && p.frameRate >= 0) prefs.frameRate = p.frameRate;
   // the window process does the hiding; the page only passes the setting on
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
+  if (typeof p.clickThrough === 'boolean') { prefs.clickThrough = p.clickThrough; host?.clickThrough?.(p.clickThrough); }
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
   if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead(); }
   if (typeof p.language === 'string' && p.language !== language()) void switchLanguage(p.language);
@@ -459,7 +462,7 @@ function startItem(it) {
  */
 function pointedAt() {
   const p = cursor.at;
-  if (bubble.hidden || !p) return false;
+  if (prefs.clickThrough || bubble.hidden || !p) return false;
   const r = bubble.getBoundingClientRect();
   return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom;
 }
@@ -1396,7 +1399,7 @@ function stepTools() {
   const p = cursor.at;
   const l = at();
   if (p && (body?.hit(p) || overTools(p))) toolsUntil = T + TOOLS_LINGER;
-  tools.hidden = !(T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && toolIds !== '');
+  tools.hidden = !(!prefs.clickThrough && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && toolIds !== '');
   if (tools.hidden) endHold();
   tools.querySelector('[data-action="voice"]')?.classList.toggle('live', listen.phase === 'hearing');
 }

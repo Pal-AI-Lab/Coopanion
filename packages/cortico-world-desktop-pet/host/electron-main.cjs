@@ -486,6 +486,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   onPet('pet:hide', () => { releaseAutoHidden(); if (win) win.hide(); });
   onPet('pet:overlayFrame', (_e, rect, at) => overlay.frame(rect, at));
   onPet('pet:hideWhenFullscreen', (_e, on) => { hideWhenFullscreen = !!on; });
+  onPet('pet:clickThrough', (_e, on) => mouse.lock(on));
   onPet('pet:watchWindows', (_e, on) => watchWindows(!!on));
   onPet('pet:openDress', () => openDress());
   let language = 'zh';

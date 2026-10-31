@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 const require_ = createRequire(import.meta.url);
 interface Lease {
   ask(on: boolean): void;
+  lock(on: boolean): void;
   tick(): void;
   release(): void;
   forget(): void;
@@ -127,4 +128,20 @@ describe('createMouseLease', () => {
     expect(win.told.length).toBe(told + 1);
   });
 
+  it('passes every click through while locked, whatever the page asks, and takes the wish back up once unlocked', () => {
+    const win = fakeWindow();
+    const { lease } = leaseOn(win);
+
+    lease.ask(true);
+    expect(win.holding()).toBe(true);
+
+    lease.lock(true);
+    expect(win.holding()).toBe(false);
+    lease.ask(true);
+    lease.tick();
+    expect(win.holding()).toBe(false);
+
+    lease.lock(false);
+    expect(win.holding()).toBe(true);
+  });
 });

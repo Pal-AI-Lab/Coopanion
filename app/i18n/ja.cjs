@@ -4,6 +4,8 @@ module.exports = {
 
   trayOpenSettings: '設定を開く',
   trayShowPet: 'ペットを表示',
+  trayClickThrough: 'クリックを Coo に通さない',
+  trayClickThroughTip: 'Coopanion（クリックが Coo を通り抜けます）',
   trayLaunchAtLogin: 'ログイン時に起動',
   trayRestart: '再起動',
   trayQuit: '終了',

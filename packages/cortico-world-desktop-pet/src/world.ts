@@ -340,6 +340,8 @@ export class DesktopPetWorld implements World {
   /** The syllables of the pet page's speech; its dictionaries load the first time a text needs them. */
   private readonly speechText = new SpeechText(SPEECH_DATA, join(WEB_DIR, 'speech', 'zh.json'));
   private windowHost: WindowHost | null = null;
+  /** The tray's "click through": every click passes through the pet window. Not saved: it lasts until the Core stops. */
+  private clickThrough = false;
   private readonly store: RuntimeStore;
   private funasr: SherpaAsr | null = null;
   private whisper: SherpaAsr | null = null;
@@ -907,6 +909,7 @@ export class DesktopPetWorld implements World {
       frameRate: this.cfg.window.frameRate,
       lockFrameRate: this.cfg.window.lockFrameRate,
       hideWhenFullscreen: this.cfg.window.hideWhenFullscreen,
+      clickThrough: this.clickThrough,
       language: this.appLanguage,
       user: this.userName,
       mic: this.micOpen(),
@@ -2005,6 +2008,8 @@ export class DesktopPetWorld implements World {
         case 'closeWindow': await this.windowHost?.stop(); return this.petState();
         // hides the window as the pet's menu does; it stays connected and comes back with openWindow
         case 'hideWindow': this.server.sendPet({ t: 'hide' }); return this.petState();
+        // the tray's "click through": kept for this run only, and sent again to a window that reconnects
+        case 'setClickThrough': this.clickThrough = args[0] === true; this.server.sendPet({ t: 'prefs', clickThrough: this.clickThrough }); return this.petState();
         case 'installElectron': void this.store.electron.install(); return this.petState();
         // the Habits page's custom picks (/api/config writes no list or map): `custom` and its picks in one write, as the person's change
         case 'setWakeKinds': {
@@ -2091,6 +2096,7 @@ export class DesktopPetWorld implements World {
   petState(): Record<string, unknown> {
     return {
       connected: this.server.petConnected,
+      clickThrough: this.clickThrough,
       /** The connected pet page is the window's, not a browser page standing in for it. */
       inWindow: this.server.petInWindow,
       /** The pet window is connected and shown (hidden from its menu or the tray, it stays connected). */

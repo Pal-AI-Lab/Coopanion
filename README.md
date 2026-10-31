@@ -139,7 +139,7 @@ Each default is the fast, cheap, vision-capable tier of that vendor; change the 
 - **Touch**: click to poke Coo, move back and forth over its head to pat it, press and drag to pick it up; let go mid-swing to throw it, or over another display to move it there.
 - **Menu**: right-click Coo for pause / resume, settings, typing, voice input, dress up, hide and quit.
 
-Coopanion keeps running in the background: closing the settings window does not quit it, and the tray icon (menu bar on Mac) has show pet, start at login, restart and quit.
+Coopanion keeps running in the background: closing the settings window does not quit it, and the tray icon (menu bar on Mac) has show pet, let clicks pass through Coo, start at login, restart and quit. With clicks passing through, every click goes to the window underneath while Coo still walks and talks, which helps while playing a game; it lasts for this run, and the same tray item turns it off.
 
 ### Computer use
 

@@ -10,6 +10,8 @@ module.exports = {
 
   trayOpenSettings: 'Открыть настройки',
   trayShowPet: 'Показать питомца',
+  trayClickThrough: 'Пропускать клики сквозь Coo',
+  trayClickThroughTip: 'Coopanion (клики проходят сквозь Coo)',
   trayLaunchAtLogin: 'Запускать при входе в систему',
   trayRestart: 'Перезапустить',
   trayQuit: 'Выйти',

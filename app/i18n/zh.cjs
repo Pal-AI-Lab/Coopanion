@@ -5,6 +5,9 @@ module.exports = {
 
   trayOpenSettings: '打开设置',
   trayShowPet: '显示桌宠',
+  trayClickThrough: '鼠标穿透',
+  /** 鼠标穿透时托盘图标的悬停提示 */
+  trayClickThroughTip: 'Coopanion（鼠标穿透中）',
   trayLaunchAtLogin: '开机自动启动',
   trayRestart: '重新启动',
   trayQuit: '退出',

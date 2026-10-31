@@ -7,6 +7,9 @@ module.exports = {
 
   trayOpenSettings: 'Open settings',
   trayShowPet: 'Show pet',
+  trayClickThrough: 'Let clicks pass through Coo',
+  /** The tray icon's tooltip while clicks pass through Coo */
+  trayClickThroughTip: 'Coopanion (clicks pass through Coo)',
   trayLaunchAtLogin: 'Start at login',
   trayRestart: 'Restart',
   trayQuit: 'Quit',
