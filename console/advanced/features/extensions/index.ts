@@ -1583,7 +1583,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       }
       // After the description, its pictures: the listing's screenshots, then those from the text. Only shown when there are any.
       const images = [...(listed?.screenshots ?? []).map(src => ({ src, alt: '' })), ...blurb.images];
-      if (images.length) info.append(ui.h('h4', '', S.gallery), gallery(doc, images, signal));
+      if (images.length) info.append(gallery(doc, images, signal));
       info.append(ui.h('h4', '', S.information));
       if (item?.reason) info.append(ui.msgline(item.reason, true));
       if (item?.webUi === 'missing') info.append(ui.msgline(S.noteWebUiMissing, true));

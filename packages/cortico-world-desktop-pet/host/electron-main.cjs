@@ -26,6 +26,7 @@ const { createCursorSource } = require('./cursor.cjs');
 const { createMouseLease, FORWARD_MOVES } = require('./mouse-lease.cjs');
 const { createOverlaySource } = require('./overlay.cjs');
 const { createWindowSource, ledgesFrom, windowsFrom } = require('./windows.cjs');
+const { createAppStoreRule } = require('./app-store.cjs');
 
 /** The pages' text table of `code`, falling back as web/i18n.js does. */
 async function pageText(code) {
@@ -398,7 +399,10 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     });
     cover(d);
     // Native candidate windows and Chromium popups must remain above the pet.
-    win.setAlwaysOnTop(true, process.platform === 'darwin' ? 'floating' : 'screen-saver');
+    const level = process.platform === 'darwin' ? 'floating' : 'screen-saver';
+    win.setAlwaysOnTop(true, level);
+    // macOS: behind the other windows while App Store is the active application
+    const appStore = createAppStoreRule({ window: win, level });
     // on every Space, and over an app in full screen
     if (process.platform === 'darwin') win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
     win.setIgnoreMouseEvents(true, { forward: FORWARD_MOVES });
@@ -439,7 +443,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       if (covered && !autoHidden && win.isVisible()) { autoHidden = true; win.hide(); }
       else if (!covered && autoHidden) { autoHidden = false; win.showInactive(); }
     }, FULLSCREEN_EVERY_MS);
-    win.on('closed', () => { clearInterval(cursorTimer); clearInterval(fullscreenTimer); watchWindows(false); win = null; });
+    win.on('closed', () => { appStore?.stop(); clearInterval(cursorTimer); clearInterval(fullscreenTimer); watchWindows(false); win = null; });
     // page console lines reach the World's log through stdout
     win.webContents.on('console-message', (e) => { if (e.level !== 'debug') console.log(`[page:${e.level}] ${e.message}`); });
     win.webContents.on('did-fail-load', (_e, code, desc, failedUrl) => console.log(`[page:error] 加载失败 ${code} ${desc} ${failedUrl}`));
