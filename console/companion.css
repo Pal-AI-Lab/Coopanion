@@ -1,7 +1,7 @@
 /*
  * The settings window's own layer over styles.css (scripts/stage.ts adds it last): the rail (folding, the
  * logo, the two modes, the foot), one heading and one content width for every page, icon lines, the check
- * boxes, and what text can be selected. Only the theme's color variables are used.
+ * boxes, and what text can be selected.
  */
 
 /* ---------- compact navigation ---------- */
@@ -61,6 +61,8 @@ body.companion-sidebar {
 .is-collapsed .companion-lockup { width: 36px; margin-left: .5px; }
 .companion-brand { display: block; width: 174px; height: auto; }
 .companion-brand .accent { stroke: var(--accent); }
+.companion-lockup:has(.companion-brand-hat), .companion-brand:has(.companion-brand-hat) { overflow: visible; }
+.companion-brand-hat { pointer-events: none; }
 .companion-brand-c, .companion-brand-o-first, .companion-brand-o-second { transition: transform var(--rail-motion); }
 .companion-brand-c { transform: translate(-22px, 28px) scale(.5); }
 .companion-brand-o-first { transform: translate(-42.80151519px, -65.5px) scale(1.5); }
