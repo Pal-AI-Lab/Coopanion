@@ -1698,7 +1698,7 @@ export class DesktopPetWorld implements World {
       this.listenOpen = false;
       this.counts.delivered++;
       this.server.sendPet({ t: 'listen', phase: 'heard', text });
-      void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.userName, text), 'flush', { meta: { text } });
+      void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.userName, text), 'interrupt', { meta: { text } });
       return;
     }
     if (this.segmenter.active || this.transcribing || this.queue.length > 0) this.listenOpen = true;

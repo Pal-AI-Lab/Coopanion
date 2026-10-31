@@ -46,7 +46,7 @@ const DESCRIBE: WorldDescribe = {
     {
       type: 'desktop-pet.speech',
       description: { zh: '使用者按住说话键说的话,识别成的文字。', en: 'What the person said while holding the talk key, as recognized text.' },
-      trigger: 'flush',
+      trigger: 'interrupt',
     },
     {
       type: 'desktop-pet.answer',
