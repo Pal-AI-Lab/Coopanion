@@ -3,7 +3,7 @@ import { pageIdFor } from '../../../base/protocol.ts';
 import type { WebUiBadge, WebUiLamp, WebUiLink } from 'cortico/web/shared/webui-protocol.ts';
 import { get, post } from '../../../base/api.ts';
 import { PROVIDER_ROUTE } from '../../console-pages/host.ts';
-import { markReturn, navHidden, setNavHidden } from '../../../base/world-nav.ts';
+import { markReturn, navHidden, setNavHidden, setNavOrder } from '../../../base/world-nav.ts';
 import { problemPopover } from '../../../base/ui/problem.ts';
 import { brandMark, icon, type ConsoleIconName } from '../../../base/ui/icons.ts';
 import { lampRow, subscribeLamps } from '../../../base/ui/lamp.ts';
@@ -389,6 +389,9 @@ export function mountWorlds(ctx: FeatureContext): void {
     const labels = new Map(ready.map(item => [item.key, item.label]));
     const arranged = arrangeLayout(layout, ready.map(item => item.key), key => labels.get(key) ?? key);
     layout = arranged.layout; writeLayout(win.localStorage, layout);
+    // The sidebar lists the World pages in this order, groups opened up in place.
+    const worldOf = new Map(ready.map(item => [item.key, item.world?.id]));
+    setNavOrder(win, arranged.entries.flatMap(entry => 'key' in entry ? [entry.key] : entry.keys).flatMap(key => { const id = worldOf.get(key); return id ? [worldPageId(id)] : []; }));
     const entryOf = (key: string) => railNodes.get(key)!.parentElement as HTMLElement;
     const live = new Set<string>();
     placeChildren(readyList, arranged.entries.map(entry => {

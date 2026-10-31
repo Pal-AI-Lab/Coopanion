@@ -22,7 +22,7 @@ import { sidebarBrand } from './brand.ts';
 import { L } from '../strings.ts';
 import { createAvatarControl } from './avatar.ts';
 import { S } from './strings.ts';
-import { fold, prefersStill } from '../base/motion.ts';
+import { fold, prefersStill, steadiest } from '../base/motion.ts';
 
 const COLLAPSED_KEY = 'companion.sidebar.collapsed';
 const DEFAULT_NAME = 'bot';
@@ -154,8 +154,17 @@ export function createRail(deps: RailDeps): Rail {
     for (const { item } of leaving) { item.classList.add('companion-depart'); move(item, false, DEPART_MS); }
     departing = setTimeout(() => { departing = undefined; drawNav(groups); }, DEPART_MS);
   };
+  /** Entries that change places slide from where they were; the ones that moved pass over the rest. */
+  const REORDER_MS = 240;
   const drawNav = (groups: readonly NavGroup[]): void => {
     const before = listedPages;
+    const still = prefersStill(doc.defaultView);
+    const was = new Map<string, number>();
+    if (!still) for (const { item, pageId } of entries) {
+      const rect = item.getBoundingClientRect();
+      if (pageId && rect.height) was.set(pageId, rect.top);
+    }
+    const scroll = nav.scrollTop;
     navLife?.abort();
     navLife = new AbortController();
     const itemSignal = navLife.signal;
@@ -179,12 +188,32 @@ export function createRail(deps: RailDeps): Rail {
     }
     applyRoute();
     filterNav(false);
+    // emptying the list scrolled it to the top; the same list stays where it was
+    nav.scrollTop = scroll;
     listedPages = new Set(entries.flatMap((entry) => entry.pageId ? [entry.pageId] : []));
-    const still = prefersStill(doc.defaultView);
+    const arriving = !!before && [...listedPages].some((id) => !before.has(id));
+    if (!arriving && was.size) slide(was);
     if (before && !still) for (const { item, pageId } of entries) if (pageId && !before.has(pageId) && !item.hidden) {
       item.classList.add('companion-arrive');
       move(item, true, ARRIVE_MS);
       setTimeout(() => item.classList.remove('companion-arrive'), ARRIVE_MS);
+    }
+  };
+
+  const slide = (was: ReadonlyMap<string, number>): void => {
+    const order = new Map([...was.keys()].map((id, index) => [id, index]));
+    const now = entries.flatMap(({ item, pageId }) => {
+      const rect = item.getBoundingClientRect(), top = pageId ? was.get(pageId) : undefined;
+      return top === undefined || !rect.height ? [] : [{ item, dy: top - rect.top, rank: order.get(pageId!)! }];
+    });
+    if (!now.some(({ dy }) => Math.abs(dy) > .5)) return;
+    const kept = new Set(steadiest(now.map(({ rank }) => rank)));
+    for (const { item, dy, rank } of now) {
+      if (Math.abs(dy) <= .5) continue;
+      const mover = !kept.has(rank);
+      if (mover) item.classList.add('companion-reorder');
+      const motion = item.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: REORDER_MS, easing: 'cubic-bezier(.32, .72, 0, 1)' });
+      if (mover) void motion.finished.finally(() => item.classList.remove('companion-reorder')).catch(() => {});
     }
   };
 

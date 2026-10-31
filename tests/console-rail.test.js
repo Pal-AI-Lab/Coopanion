@@ -4,6 +4,7 @@ import { createRail } from '../console/rail/index.ts';
 import { createConsoleUi } from '../console/base/ui/index.ts';
 import { Router } from '../console/base/router.ts';
 import { L } from '../console/strings.ts';
+import { inNavOrder, NAV_HIDDEN_EVENT, setNavOrder } from '../console/base/world-nav.ts';
 
 class MediaQuery extends EventTarget {
   constructor(media, matches) { super(); this.media = media; this.matches = matches; }
@@ -84,6 +85,36 @@ describe('settings window rail', () => {
       rail.setNav(world(['world:a', 'world:b']));
       expect(rail.el.querySelector('a.navitem[href*="world:b"], a.navitem[href*="world%3Ab"]').classList.contains('companion-arrive')).toBe(true);
     } finally { vi.useRealTimers(); }
+  });
+  it('follows the World page order, pages it does not know first, and is told only of a change', () => {
+    window.localStorage.removeItem('coopanion.world-nav-order.v1');
+    let told = 0; const count = () => told++;
+    window.addEventListener(NAV_HIDDEN_EVENT, count);
+    try {
+      expect(inNavOrder(window, ['world:b', 'world:a'], (id) => id)).toEqual(['world:b', 'world:a']);
+      setNavOrder(window, ['world:a', 'world:b']);
+      setNavOrder(window, ['world:a', 'world:b']);
+      expect(told).toBe(1);
+      expect(inNavOrder(window, ['world:b', 'world:new', 'world:a'], (id) => id)).toEqual(['world:new', 'world:a', 'world:b']);
+    } finally { window.removeEventListener(NAV_HIDDEN_EVENT, count); window.localStorage.removeItem('coopanion.world-nav-order.v1'); }
+  });
+  it('slides World pages that change places, the moved one over the rest', () => {
+    const { rail } = mount();
+    rail.setMode('advanced', false);
+    const world = (pageIds) => [...nav, { kind: 'world-tree', label: 'World', items: [], modules: pageIds.map((pageId) => ({ label: pageId, segments: ['provider', pageId], basic: false, pageId, lamps: [] })) }];
+    rail.setNav(world(['world:a', 'world:b', 'world:c']));
+    const slides = new Map();
+    const box = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      const top = this.matches('.navmodule-list > a') ? [...this.parentElement.children].indexOf(this) * 40 : 0;
+      return { top, bottom: top + 36, left: 0, right: 200, width: 200, height: 36, x: 0, y: top, toJSON() {} };
+    });
+    HTMLElement.prototype.animate = function (frames) { slides.set(this.textContent, frames[0].transform); return { finished: new Promise(() => {}) }; };
+    try {
+      rail.setNav(world(['world:c', 'world:a', 'world:b']));
+      expect(Object.fromEntries(slides)).toEqual({ 'world:c': 'translateY(80px)', 'world:a': 'translateY(-40px)', 'world:b': 'translateY(-40px)' });
+      const moved = [...rail.el.querySelectorAll('.companion-reorder')].map((item) => item.textContent);
+      expect(moved).toEqual(['world:c']);
+    } finally { box.mockRestore(); delete HTMLElement.prototype.animate; }
   });
   it('retains the C and both eyes while toggling and restores the choice after remount', () => {
     const { rail, toggle, dispose } = mount();
