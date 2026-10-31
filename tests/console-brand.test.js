@@ -22,19 +22,19 @@ const hat = (brand) => brand.querySelector('.companion-brand-hat');
 
 describe('Christmas wordmark', () => {
   it.each([
-    [2026, 10, 24, false],
-    [2026, 11, 23, false],
-    [2026, 11, 24, true],
-    [2026, 11, 25, true],
-    [2026, 11, 26, false],
-    [2027, 0, 24, false],
-    [2027, 11, 24, true],
+    [2026, 11, 24, false],
+    [2026, 12, 23, false],
+    [2026, 12, 24, true],
+    [2026, 12, 25, true],
+    [2026, 12, 26, false],
+    [2027, 1, 24, false],
+    [2027, 12, 24, true],
   ])('uses the local calendar date %i/%i/%i (hat: %s)', (year, month, day, visible) => {
-    vi.setSystemTime(new Date(year, month, day, 0, 0, 0));
+    vi.setSystemTime(new Date(year, month - 1, day, 0, 0, 0));
     const brand = mount();
     expect(Boolean(hat(brand))).toBe(visible);
     expect(brand.getAttribute('aria-label')).toBe('Coopanion');
-    if (visible) expect(hat(brand).parentElement.classList.contains('companion-brand-c')).toBe(true);
+    if (visible) expect(hat(brand).parentElement).toBe(brand.querySelector('.companion-brand'));
   });
 
   it('adds the hat at December 24 midnight and removes it at December 26 midnight without remounting', () => {
@@ -50,7 +50,7 @@ describe('Christmas wordmark', () => {
     expect(hat(brand)).toBeNull();
   });
 
-  it('rechecks the date when a suspended window returns', () => {
+  it('rechecks the date on focus and visibility changes', () => {
     vi.setSystemTime(new Date(2026, 11, 23));
     const brand = mount();
     vi.setSystemTime(new Date(2026, 11, 24));

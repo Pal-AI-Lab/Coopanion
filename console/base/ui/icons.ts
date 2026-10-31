@@ -276,6 +276,12 @@ const WORDMARK_MARK: readonly Shape[] = [
   ['circle', { cx: '163', cy: '117', r: '16', 'stroke-width': '11', class: 'accent' }],
 ];
 
+const CHRISTMAS_HAT: readonly Shape[] = [
+  ['path', { fill: '#d94743', d: 'M159.118 22.491C139.719 -4.853 114.068 -41.731 79.592 -41.044C39.744 -40.714 17.63 -1.985 11.944 38.766L35.316 42.739C41.214 15.587 50.512 -1.103 66.014 -1.934C62.398 16.064 54.646 37.509 50.674 60.881Z' }],
+  ['path', { fill: '#fff9f0', d: 'M160.45 13.646Q99.655 23.937 42.495 55.126Q33.603 60.119 38.262 71.222Q42.921 82.326 52.123 78.285Q108.64 48.355 167.534 38.683Q178.304 36.235 174.596 24.822Q171.839 13.1 160.45 13.646Z' }],
+  ['circle', { cx: '18.554', cy: '42.928', r: '16', fill: '#fff9f0' }],
+];
+
 const WORDMARK_TEXT: readonly Shape[] = [
   ['path', { d: 'M230.97 93.03A24 24 0 1 0 230.97 126.97' }],
   ['circle', { cx: '286', cy: '110', r: '24', class: 'accent' }],
@@ -333,6 +339,14 @@ export function brandMark(doc: Document, cls = 'brandmark'): SVGSVGElement {
   svg.setAttribute('class', cls);
   shapesInto(doc, svg, WORDMARK_MARK);
   return svg;
+}
+
+/** Santa hat in brandMark's C coordinates. */
+export function christmasHat(doc: Document): SVGGElement {
+  const hat = doc.createElementNS(SVG_NS, 'g');
+  hat.setAttribute('stroke', 'none');
+  shapesInto(doc, hat, CHRISTMAS_HAT);
+  return hat;
 }
 
 /**

@@ -57,12 +57,10 @@ body.companion-sidebar {
 #rail.is-collapsed { width: 72px; }
 #rail .brand { display: block; flex: none; min-width: 0; padding: 20px 18px 10px; overflow: hidden; }
 /* open, the C's left edge is on the nav icons'; collapsed, the small C is centred on them (the rail's middle, x=36) */
-.companion-lockup { margin-left: 11px; width: 174px; height: 39px; overflow: hidden; color: var(--foreground); transition: width var(--rail-motion), margin-left var(--rail-motion); }
+.companion-lockup { margin-left: 11px; width: 174px; height: 39px; overflow: visible; clip-path: inset(-16px 0 0 -8px); color: var(--foreground); transition: width var(--rail-motion), margin-left var(--rail-motion); }
 .is-collapsed .companion-lockup { width: 36px; margin-left: .5px; }
-.companion-brand { display: block; width: 174px; height: auto; }
+.companion-brand { display: block; width: 174px; height: auto; overflow: visible; }
 .companion-brand .accent { stroke: var(--accent); }
-.companion-lockup:has(.companion-brand-hat), .companion-brand:has(.companion-brand-hat) { overflow: visible; }
-.companion-brand-hat { pointer-events: none; }
 .companion-brand-c, .companion-brand-o-first, .companion-brand-o-second { transition: transform var(--rail-motion); }
 .companion-brand-c { transform: translate(-22px, 28px) scale(.5); }
 .companion-brand-o-first { transform: translate(-42.80151519px, -65.5px) scale(1.5); }
