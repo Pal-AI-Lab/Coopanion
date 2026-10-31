@@ -9,8 +9,8 @@
  * Thinking is a four-step choice: off sends `reasoning.effort = none`, the others low / high /
  * max, each rewritten to the value a service documents where it takes other ones (`effortOf`); the
  * Messages and Gemini APIs get the levels in their own form. Images are sent only when the endpoint
- * is marked multimodal; tool results may carry images too, which move to a user message after the
- * results on Chat and for `toolOutputText` services on Responses. Images go out only from the newest delivered batch of events on
+ * is marked multimodal, and on the Gemini API so are audio, video and documents; tool results may carry images too, which move to a user message after the
+ * results on Chat and for `toolOutputText` services on Responses. Media go out only from the newest delivered batch of events on
  * (`sinceLastDelivery`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
  * Streamed reasoning from services marked `lenientReasoning` is rewritten into standard events
  * (`LenientReasoningAssembly`). `nonStreamingResponses` services use a non-streaming fallback so
@@ -25,6 +25,7 @@ import { ModelCatalog } from 'cortico/providers/openai-responses-compat/native.t
 import { ClaudeProvider } from './anthropic/client.ts';
 import { VendorChat } from './chat.ts';
 import { GeminiProvider, listGeminiModels } from './gemini/client.ts';
+import { geminiInlineMime } from './gemini/wire.ts';
 import { vendorPrices } from './pricing.ts';
 import { VendorResponses } from './responses.ts';
 import { cooText } from './strings.ts';
@@ -88,7 +89,7 @@ export const COO = {
   id: 'coo',
   title: 'Coo Pet Provider',
   description: 'DeepSeek, Qwen, Kimi, GLM, Doubao, MiniMax, StepFun, Baidu Qianfan, OpenRouter, OpenAI, Anthropic, Gemini and xAI.',
-  describe: { protocols: ['openai-responses', 'openai-chat', 'anthropic-messages', 'gemini'], auth: ['api-key'], local: false, input: ['text', 'image'] },
+  describe: { protocols: ['openai-responses', 'openai-chat', 'anthropic-messages', 'gemini'], auth: ['api-key'], local: false, input: ['text', 'image', 'audio', 'video'] },
   localize: (language) => {
     const t = cooText(language);
     return { description: t.description(VENDORS.map((v) => vendorName(v, language))), reasoningTiers: tiers(t.tiers) };
@@ -105,7 +106,9 @@ export const COO = {
       throw new Error(cooText(language).badProtocol(PROTOCOLS.join(' / ')));
     if (plainRemote(entry.baseUrl)) throw new Error(cooText(language).httpRemote);
   },
-  accepts: (entry, _spec, mime) => entry.multimodal === true && mime.startsWith('image/'),
+  // a Gemini endpoint marked multimodal also takes audio, video and documents
+  accepts: (entry, _spec, mime) => entry.multimodal === true
+    && (mime.startsWith('image/') || (protocolOf(entry) === 'gemini' && geminiInlineMime(mime) !== null)),
   prices: (entry, _request, at) => vendorPrices(vendorOf(entry.baseUrl)?.id, at.startedAt),
   contextOverflow,
   create(name: string, entry: LLMProviderEntry, host): ProviderInstance {
