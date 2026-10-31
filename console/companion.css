@@ -251,6 +251,7 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
    opens or closes, while the tree connector to its left stays drawn. */
 #rail :is(.companion-arrive, .companion-depart) { overflow: clip; overflow-clip-margin: 14px; }
 #rail .companion-depart { pointer-events: none; }
+#rail .companion-reorder { position: relative; z-index: 1; }
 #rail .companion-leave { animation: companion-leave 200ms ease both; pointer-events: none; }
 @keyframes companion-press { 0% { transform: scale(1); } 40% { transform: scale(.95); } 100% { transform: scale(1); } }
 @keyframes companion-turn { from { transform: rotate(-90deg); opacity: .3; } to { transform: none; opacity: 1; } }
