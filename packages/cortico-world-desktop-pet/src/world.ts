@@ -1458,7 +1458,7 @@ export class DesktopPetWorld implements World {
     if (!key) return;
     const parsed = parseHotkey(hotkey);
     const watch = this.opts.watchHotkey ?? watchHotkey;
-    const watcher = parsed ? await watch(parsed, (down) => this.onTalkKey(down), HOTKEY_POLL_MS, () => this.onTalkTap(), this.ui.hotkey) : this.ui.voice.badKey(hotkey);
+    const watcher = parsed ? await watch(parsed, (down) => this.onTalkKey(down), HOTKEY_POLL_MS, () => this.onTalkTap(), this.ui.hotkey, mode === 'hold' ? 'hold' : 'press') : this.ui.voice.badKey(hotkey);
     if (key !== this.hotkeyKey) { if (typeof watcher !== 'string') watcher.stop(); return; }
     if (typeof watcher === 'string') {
       this.hotkeyProblem = watcher;
@@ -1466,7 +1466,7 @@ export class DesktopPetWorld implements World {
     } else this.keyWatcher = watcher;
   }
 
-  /** Starts, restarts or stops the typing key's watcher to match `typeKey`; a press opens the pet's typing box. */
+  /** Starts, restarts or stops the typing key's watcher; multi-press shortcuts require completed quick taps. */
   private async syncTypeKey(): Promise<void> {
     const { enabled, hotkey } = this.cfg.typeKey;
     const key = enabled && this.host ? hotkey : '';
@@ -1481,7 +1481,7 @@ export class DesktopPetWorld implements World {
     const text = { ...this.ui.hotkey, ...this.ui.typeKey };
     // a hidden pet stays hidden: its typing box would open out of sight
     const onPress = (down: boolean) => { if (down && !this.petHidden) this.server.sendPet({ t: 'type' }); };
-    const watcher = parsed ? await watch(parsed, onPress, HOTKEY_POLL_MS, undefined, text) : this.ui.voice.badKey(hotkey);
+    const watcher = parsed ? await watch(parsed, onPress, HOTKEY_POLL_MS, undefined, text, parsed.taps > 1 ? 'tap' : 'press') : this.ui.voice.badKey(hotkey);
     if (key !== this.typeKeyKey) { if (typeof watcher !== 'string') watcher.stop(); return; }
     if (typeof watcher === 'string') {
       this.typeKeyProblem = watcher;
