@@ -34,15 +34,12 @@ const zh = {
   introTitle: 'World 扩展',
   prefixReloadFailed: (msg: string) => `前缀重载失败: ${msg}`,
   toggleFailed: (msg: string) => `切换失败: ${msg}`,
-  reloadNowTitle: '现在重载 system 前缀?',
-  reloadNowBody: (name: string, wantVisible: boolean) =>
-    (wantVisible ? `「${name}」已对 agent 重新可见。` : `「${name}」已对 agent 隐藏。`)
-    + '\n\n事件投递已按新状态生效。重载会更新环境提示词与工具声明，保留已有对话。'
-    + '取消后将在下次上下文交接或重开时更新。',
+  visibilityTitle: (name: string, visible: boolean) => visible ? `对 agent 显示「${name}」？` : `对 agent 隐藏「${name}」？`,
+  visibilityBody: (visible: boolean): string => visible
+    ? "显示后，Coo 可以使用这个 World 提供的工具和信息，并收到它发来的消息。更改会立即用于当前对话，聊天记录不受影响。"
+    : "隐藏后，Coo 将看不到这个 World 提供的工具和信息，也不再收到它发来的消息；这个 World 本身仍会继续运行。更改会立即用于当前对话，聊天记录不受影响。",
   deactivateTitle: (name: string) => `停用「${name}」?`,
-  deactivateBody: (id: string) =>
-    'World 会立即停止(它托管的外部进程与连接一并收尾),并写回 config.json 的 '
-    + `worlds.${id}.enabled=false。agent 的环境提示词与工具随即撤下;再次激活按当前配置重建。`,
+  deactivateBody: "停用后，该 World 会立即停止运行，它提供的工具和环境信息将不再提供给 Coo。",
   restartTitle: (name: string) => `重启「${name}」?`,
   restartBody: "停止并重建 World，应用标有「重启 World 生效」的配置。托管进程与连接会停止后重新启动。",
   missingReasonDefault: "无法加载这个 World。",
@@ -83,15 +80,12 @@ export const en: typeof zh = {
   introTitle: 'World extensions',
   prefixReloadFailed: (msg: string) => `Prefix reload failed: ${msg}`,
   toggleFailed: (msg: string) => `Toggle failed: ${msg}`,
-  reloadNowTitle: 'Reload the system prefix now?',
-  reloadNowBody: (name: string, wantVisible: boolean) =>
-    (wantVisible ? `"${name}" is visible to the agent again.` : `"${name}" is now hidden from the agent.`)
-    + '\n\nEvent delivery already follows the new state. Reloading updates the environment prompt and tool declarations and keeps existing conversation messages. '
-    + 'If cancelled, they update at the next context handoff or restart.',
+  visibilityTitle: (name: string, visible: boolean) => visible ? `Show "${name}" to the agent?` : `Hide "${name}" from the agent?`,
+  visibilityBody: (visible: boolean): string => visible
+    ? "Coo will be able to use this World’s tools and information and receive its messages. The change applies to the current conversation right away; the chat history stays."
+    : "Coo will no longer see this World’s tools and information or receive its messages; the World itself keeps running. The change applies to the current conversation right away; the chat history stays.",
   deactivateTitle: (name: string) => `Deactivate "${name}"?`,
-  deactivateBody: (id: string) =>
-    'The World stops immediately (its managed external processes and connections are wound down), and '
-    + `worlds.${id}.enabled=false is written back to config.json. The agent's environment prompt and tools are withdrawn right away; activating again rebuilds it from the current config.`,
+  deactivateBody: "The World stops running immediately, and its tools and context are no longer available to Coo.",
   restartTitle: (name: string) => `Restart "${name}"?`,
   restartBody: "Stops and rebuilds the World to apply settings marked for World restart. Managed processes and connections stop and restart.",
   missingReasonDefault: "Could not load this World.",

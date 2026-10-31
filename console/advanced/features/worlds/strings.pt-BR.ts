@@ -25,15 +25,12 @@ export const S: Partial<typeof en> = {
   introTitle: 'Extensões World',
   prefixReloadFailed: (msg: string) => `Falha ao recarregar o prefixo: ${msg}`,
   toggleFailed: (msg: string) => `Falha ao alternar: ${msg}`,
-  reloadNowTitle: 'Recarregar o prefixo de sistema agora?',
-  reloadNowBody: (name: string, wantVisible: boolean) =>
-    (wantVisible ? `“${name}” está visível para o agente novamente.` : `“${name}” agora está oculto para o agente.`)
-    + '\n\nA entrega de eventos já segue o novo estado. Recarregar atualiza o prompt do ambiente e as declarações de ferramentas e mantém as mensagens existentes da conversa. '
-    + 'Se cancelar, eles são atualizados na próxima transferência de contexto ou reinício.',
+  visibilityTitle: (name: string, visible: boolean) => visible ? `Mostrar "${name}" ao agente?` : `Ocultar "${name}" do agente?`,
+  visibilityBody: (visible: boolean): string => visible
+    ? "O Coo poderá usar as ferramentas e as informações deste World e receber as mensagens dele. A mudança vale na hora para a conversa atual; o histórico do chat é mantido."
+    : "O Coo não verá mais as ferramentas e as informações deste World nem receberá as mensagens dele; o World continua funcionando. A mudança vale na hora para a conversa atual; o histórico do chat é mantido.",
   deactivateTitle: (name: string) => `Desativar “${name}”?`,
-  deactivateBody: (id: string) =>
-    'O World para imediatamente (seus processos externos e conexões gerenciados são encerrados), e '
-    + `worlds.${id}.enabled=false é gravado em config.json. O prompt do ambiente e as ferramentas do agente são retirados na hora; ativar de novo o reconstrói com a configuração atual.`,
+  deactivateBody: "O World para imediatamente, e suas ferramentas e informações de contexto deixam de estar disponíveis para o Coo.",
   restartTitle: (name: string) => `Reiniciar “${name}”?`,
   restartBody: 'Para e reconstrói o World para aplicar as configurações marcadas para reinício do World. Processos e conexões gerenciados param e reiniciam.',
   missingReasonDefault: 'Não foi possível carregar este World.',

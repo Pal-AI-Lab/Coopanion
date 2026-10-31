@@ -25,15 +25,12 @@ export const S: Partial<typeof en> = {
   introTitle: 'Estensioni World',
   prefixReloadFailed: (msg: string) => `Ricaricamento del prefisso non riuscito: ${msg}`,
   toggleFailed: (msg: string) => `Cambio non riuscito: ${msg}`,
-  reloadNowTitle: 'Ricaricare ora il prefisso di sistema?',
-  reloadNowBody: (name: string, wantVisible: boolean) =>
-    (wantVisible ? `«${name}» è di nuovo visibile all'agente.` : `«${name}» è ora nascosto all'agente.`)
-    + "\n\nLa consegna degli eventi segue già il nuovo stato. Il ricaricamento aggiorna il prompt dell'ambiente e le dichiarazioni degli strumenti e conserva i messaggi della conversazione esistenti. "
-    + 'Se annulli, si aggiornano al prossimo passaggio di contesto o al prossimo riavvio.',
+  visibilityTitle: (name: string, visible: boolean) => visible ? `Mostrare «${name}» all’agente?` : `Nascondere «${name}» all’agente?`,
+  visibilityBody: (visible: boolean): string => visible
+    ? "Coo potrà usare gli strumenti e le informazioni di questo World e ricevere i suoi messaggi. La modifica vale subito per la conversazione in corso; la cronologia della chat resta."
+    : "Coo non vedrà più gli strumenti e le informazioni di questo World né riceverà i suoi messaggi; il World continua a funzionare. La modifica vale subito per la conversazione in corso; la cronologia della chat resta.",
   deactivateTitle: (name: string) => `Disattivare «${name}»?`,
-  deactivateBody: (id: string) =>
-    'Il World si arresta subito (i processi esterni e le connessioni che gestisce vengono chiusi) e '
-    + `worlds.${id}.enabled=false viene riscritto in config.json. Il prompt dell'ambiente e gli strumenti dell'agente vengono ritirati subito; una nuova attivazione lo ricostruisce dalla configurazione attuale.`,
+  deactivateBody: "Il World si arresta subito e i suoi strumenti e le informazioni di contesto non sono più disponibili per Coo.",
   restartTitle: (name: string) => `Riavviare «${name}»?`,
   restartBody: 'Arresta e ricostruisce il World per applicare le impostazioni che richiedono il riavvio del World. I processi e le connessioni gestiti si arrestano e ripartono.',
   missingReasonDefault: 'Impossibile caricare questo World.',

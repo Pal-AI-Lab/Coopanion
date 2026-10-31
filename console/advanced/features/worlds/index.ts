@@ -137,7 +137,6 @@ export function mountWorlds(ctx: FeatureContext): void {
   const newGroup = ui.button(S.newGroup, { size: 'sm', onClick: () => createGroup() });
   tools.append(search, stateFilter, newGroup);
   readyHeading.after(tools);
-  const dropLine = ui.h('div', 'world-drop-line'); dropLine.hidden = true; readyGroup.append(dropLine);
   const noMatches = ui.h('p', 'world-no-matches', S.noMatches); noMatches.hidden = true; readyGroup.append(noMatches);
   const groupNodes = new Map<string, { el: HTMLElement; head: HTMLElement; name: HTMLElement; count: HTMLElement; list: HTMLElement }>();
   const status = ui.h('div', 'world-workspace-status');
@@ -170,8 +169,6 @@ export function mountWorlds(ctx: FeatureContext): void {
     if (next === current) return;
     const generation = ++viewGeneration;
     const previous = current; current = next;
-    const style = transition?.playState === 'running' ? win.getComputedStyle(catalog) : undefined;
-    const interrupted = style ? { clipPath: style.clipPath } : undefined;
     transition?.cancel();
     // Going to the market the rows shrink into the dock. Its scroll moves, on the rows' own curve, to
     // where the first row in view will sit, so a scrolled rail glides instead of snapping when it
@@ -207,15 +204,12 @@ export function mountWorlds(ctx: FeatureContext): void {
     for (const id of groupNodes.keys()) { const group = layout?.groups[id]; if (group) paintGroup(group); }
     if (next === 'mine' && catalog.contains(doc.activeElement)) tabs.el.querySelector<HTMLButtonElement>('[aria-current=page]')?.focus();
     if (next === 'mine' && focusRequested) focusSelected();
-    const closed = { clipPath: 'inset(0 0 0 100%)' };
-    const open = { clipPath: 'inset(0 0 0 0%)' };
-    catalog.hidden = false;
-    if (previous && !reduceMotion() && catalog.animate) {
-      const timing = { duration: 290, easing: 'cubic-bezier(.32,.72,0,1)' };
-      transition = catalog.animate(next === 'market' ? [interrupted ?? closed, open] : [interrupted ?? open, closed], timing);
-      const own = transition;
-      void own.finished.then(() => { if (transition === own) catalog.hidden = current !== 'market'; }, () => {});
-    } else catalog.hidden = next !== 'market';
+    // Entering, the market slides in over the rows shrinking into the dock. Leaving, it goes at once: the
+    // rows take My World's layout straight away, and a market still sliding out behind them showed
+    // through, for longer whenever the page was busy (a filter's reflow still running, say).
+    catalog.hidden = next !== 'market';
+    if (next === 'market' && previous && !reduceMotion() && catalog.animate)
+      transition = catalog.animate([{ clipPath: 'inset(0 0 0 100%)' }, { clipPath: 'inset(0 0 0 0%)' }], { duration: 290, easing: 'cubic-bezier(.32,.72,0,1)' });
     if (next === 'market') market?.activate(transition?.playState === 'running' ? transition.finished : undefined);
   };
   lifecycle.own(router.onChange(show)); show();
@@ -256,7 +250,9 @@ export function mountWorlds(ctx: FeatureContext): void {
     changingWorlds.add(m.id); setMsg(''); render();
     let drifted = false, problem: string | undefined;
     try {
-      if (action === 'activation' && !value && (!await ui.confirm({ title: S.deactivateTitle(m.label || m.id), body: S.deactivateBody(m.id), danger: true }) || signal.aborted)) return;
+      if (action === 'activation' && !value && (!await ui.confirm({ title: S.deactivateTitle(m.label || m.id), body: S.deactivateBody, danger: true }) || signal.aborted)) return;
+      // Visibility is asked first too, so Cancel leaves it as it was.
+      if (action === 'visibility' && (!await ui.confirm({ title: S.visibilityTitle(m.label || m.id, value), body: S.visibilityBody(value) }) || signal.aborted)) return;
       const out = await post<{ driftedWorlds?: string[] }>(`/api/worlds/${action}`, action === 'activation' ? { id: m.id, enabled: value } : { id: m.id, visible: value }, { signal });
       drifted = action === 'visibility' && !!out.driftedWorlds?.length;
       if (!signal.aborted) void ctx.refreshNav?.().catch(ctx.onError);
@@ -268,7 +264,8 @@ export function mountWorlds(ctx: FeatureContext): void {
     }
     const control = problem === undefined ? null : controlOf(m.id, action === 'activation' ? 'power' : 'visibility');
     if (problem !== undefined) { if (control) problems.show(control, problem); else setMsg(problem, true); return; }
-    if (drifted && !signal.aborted && await ui.confirm({ title: S.reloadNowTitle, body: S.reloadNowBody(m.label || m.id, value) })) await reloadPrefix(m.id);
+    // The confirmation said the current conversation takes the change at once.
+    if (drifted && !signal.aborted) await reloadPrefix(m.id);
   }
 
   const slot = (name: ControlSlot, button: HTMLButtonElement) => { button.dataset.slot = name; return button; };
@@ -356,7 +353,7 @@ export function mountWorlds(ctx: FeatureContext): void {
   function placeChildren(container: HTMLElement, nodes: readonly HTMLElement[]) {
     let cursor = container.firstElementChild;
     for (const node of nodes) {
-      while (cursor && (cursor === dropLine || cursor.classList.contains('placeholder'))) cursor = cursor.nextElementSibling;
+      while (cursor && cursor.classList.contains('placeholder')) cursor = cursor.nextElementSibling;
       if (node === cursor) { cursor = cursor.nextElementSibling; continue; }
       container.insertBefore(node, cursor);
     }
@@ -405,10 +402,10 @@ export function mountWorlds(ctx: FeatureContext): void {
     for (const [id, node] of groupNodes) if (!live.has(id)) { node.el.remove(); groupNodes.delete(id); }
     applyFilter(); syncDraggable();
   }
-  /** Re-renders after a layout change, sliding rows and groups from where they were. */
-  function reorder() {
+  /** Re-renders after a layout change, sliding rows and groups from where they were, or from `from`. */
+  function reorder(from?: ReadonlyMap<HTMLElement, number>) {
     const tracked = [...readyList.querySelectorAll<HTMLElement>('.world-library-entry:not(.motion-ghost), .world-group-head:not(.motion-ghost)')];
-    const before = new Map(tracked.map(el => [el, el.getBoundingClientRect().top]));
+    const before = new Map(tracked.map(el => [el, from?.get(el) ?? el.getBoundingClientRect().top]));
     render();
     if (reduceMotion()) return;
     for (const [el, top] of before) {
@@ -442,7 +439,7 @@ export function mountWorlds(ctx: FeatureContext): void {
   }
   /** My World's rows, group headers, headings and restart row, for animating what a render or filter changes. */
   const RAIL_ITEMS = '.world-library-entry, .world-group-head, .world-library-heading, .world-restart-row';
-  const railKey = (el: HTMLElement) => el.classList.contains('world-library-entry') ? `row:${el.dataset.key}`
+  const railKey = (el: HTMLElement) => el.closest('.world-drag-copy') ? undefined : el.classList.contains('world-library-entry') ? `row:${el.dataset.key}`
     : el.classList.contains('world-group-head') ? `group:${el.closest<HTMLElement>('.world-group')?.dataset.group}`
     : el.classList.contains('world-restart-row') ? 'restart' : `heading:${el.closest('.world-pending-group') ? 'pending' : 'ready'}`;
   /** The market view's dock has its own motion; only the rows view reflows. */
@@ -458,72 +455,165 @@ export function mountWorlds(ctx: FeatureContext): void {
     syncDraggable();
     reflow?.play();
   }
-  /** Rows and groups can be dragged in the rows view while no filter hides any of them. */
+  /** Rows and groups can be moved in the rows view while no filter hides any of them. */
+  function canMove() { return current === 'mine' && !filtering(); }
   function syncDraggable() {
-    const on = current === 'mine' && !filtering();
-    for (const entry of readyList.querySelectorAll<HTMLElement>('.world-library-entry')) entry.draggable = on;
-    for (const node of groupNodes.values()) node.head.draggable = on;
+    const on = canMove();
+    for (const entry of readyList.querySelectorAll<HTMLElement>('.world-library-entry')) entry.classList.toggle('is-movable', on);
+    for (const node of groupNodes.values()) node.head.classList.toggle('is-movable', on);
   }
-  // Drag and drop. A row dropped on a group's header joins the group at its top; a row or group
-  // dropped on a row lands before or after it by which half the pointer is over.
+  // Dragging, with the pointer rather than the browser's drag and drop, which always shows its cursor
+  // and a faint snapshot of the element and does not scroll the list. The row or group lifts out as a
+  // copy that follows the pointer up and down, the pointer itself hidden. Its empty place moves to
+  // where it would land, the rows in between sliding aside; near the list's top or bottom the list
+  // scrolls. A row over a group's header joins the group at its top (the header lights up); otherwise a
+  // row or group lands before or after the row under the pointer, by which half the pointer is over.
+  const DRAG_SLOP = 4, SCROLL_EDGE = 56, SCROLL_MAX = 18;
   let dragging: { kind: 'item'; key: string } | { kind: 'group'; id: string } | undefined;
   let dropAt: { group: string | null; before: string | null; head?: HTMLElement } | undefined;
+  let press: { id: number; x: number; y: number; source: HTMLElement; head: HTMLElement | null } | undefined;
+  let lift: { el: HTMLElement; copy: HTMLElement; offset: number; y: number; frame?: number } | undefined;
   const tokenOf = (el: Element | null): string | null => !el ? null : el.classList.contains('world-group') ? groupToken((el as HTMLElement).dataset.group!) : (el as HTMLElement).dataset.key ?? null;
-  const nextToken = (el: Element) => { let next = el.nextElementSibling; while (next && next === dropLine) next = next.nextElementSibling; return tokenOf(next); };
-  function showDrop(y: number) {
-    const box = readyGroup.getBoundingClientRect();
-    dropLine.hidden = false; dropLine.style.top = `${y - box.top}px`;
-  }
+  const nextToken = (el: Element) => tokenOf(el.nextElementSibling);
+  const elementOf = (token: string): HTMLElement | undefined => token.startsWith('group:') ? groupNodes.get(token.slice('group:'.length))?.el : railNodes.get(token)?.parentElement ?? undefined;
+  /** An element's box without the slide it may be in the middle of, so the target does not chase the animation. */
+  const settled = (el: HTMLElement) => {
+    const box = el.getBoundingClientRect(), transform = win.getComputedStyle(el).transform;
+    const shift = transform && transform !== 'none' && win.DOMMatrixReadOnly ? new win.DOMMatrixReadOnly(transform).m42 : 0;
+    return { top: box.top - shift, bottom: box.bottom - shift, height: box.height };
+  };
   function clearDrop() {
-    dropLine.hidden = true; dropAt = undefined;
+    dropAt = undefined;
     for (const node of groupNodes.values()) node.head.classList.remove('is-drop-target');
   }
-  readyGroup.addEventListener('dragstart', event => {
-    const target = event.target as HTMLElement;
-    const head = target.closest<HTMLElement>('.world-group-head'), entry = target.closest<HTMLElement>('.world-library-entry');
-    if (head?.draggable) dragging = { kind: 'group', id: head.dataset.group! };
-    else if (entry?.draggable) dragging = { kind: 'item', key: entry.dataset.key! };
-    else return;
-    event.dataTransfer?.setData('text/plain', 'world'); if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-    (head ? head.parentElement! : entry!).classList.add('is-dragging');
-  }, { signal });
-  readyGroup.addEventListener('dragover', event => {
+  /** Where a drop at `y` would land; the empty place moves there. */
+  function locateDrop(y: number) {
     if (!dragging) return;
-    event.preventDefault(); clearDrop();
-    const y = event.clientY;
+    clearDrop();
+    const shown = (el: Element): el is HTMLElement => (el as HTMLElement).offsetParent !== null && !el.classList.contains('is-dragging');
     if (dragging.kind === 'item') {
-      const head = [...groupNodes.values()].map(node => node.head).find(el => { const r = el.getBoundingClientRect(); return y >= r.top && y <= r.bottom; });
-      if (head && y < head.getBoundingClientRect().top + head.offsetHeight / 3) { dropAt = { group: null, before: groupToken(head.dataset.group!) }; showDrop(head.getBoundingClientRect().top - 4); return; }
-      const first = [...readyList.children].find((el): el is HTMLElement => el !== dropLine && (el as HTMLElement).offsetParent !== null);
-      if (!head && first && y < first.getBoundingClientRect().top) { dropAt = { group: null, before: tokenOf(first) }; showDrop(first.getBoundingClientRect().top - 4); return; }
-      if (head) { const group = layout?.groups[head.dataset.group!]; dropAt = { group: head.dataset.group!, before: group?.items.find(key => key !== (dragging as { key: string }).key) ?? null, head }; head.classList.add('is-drop-target'); return; }
-      const rows = [...readyList.querySelectorAll<HTMLElement>('.world-library-entry:not(.motion-ghost)')].filter(el => el.offsetParent && !el.classList.contains('is-dragging') && !el.closest('.world-group.is-collapsed'));
-      const over = rows.find(el => { const r = el.getBoundingClientRect(); return y >= r.top && y <= r.bottom; }) ?? rows.find(el => el.getBoundingClientRect().top > y);
-      if (!over) { dropAt = { group: null, before: null }; const last = readyList.lastElementChild?.getBoundingClientRect(); if (last) showDrop(last.bottom + 4); return; }
-      const r = over.getBoundingClientRect(), after = y > r.top + r.height / 2 && y <= r.bottom;
+      const head = [...groupNodes.values()].map(node => node.head).find(el => { const r = settled(el); return y >= r.top && y <= r.bottom; });
+      if (head && y < settled(head).top + head.offsetHeight / 3) { dropAt = { group: null, before: groupToken(head.dataset.group!) }; moveGap(); return; }
+      const first = [...readyList.children].find(shown);
+      if (!head && first && y < settled(first).top) { dropAt = { group: null, before: tokenOf(first) }; moveGap(); return; }
+      if (head) { const group = layout?.groups[head.dataset.group!]; dropAt = { group: head.dataset.group!, before: group?.items.find(key => key !== (dragging as { key: string }).key) ?? null, head }; head.classList.add('is-drop-target'); moveGap(); return; }
+      const rows = [...readyList.querySelectorAll<HTMLElement>('.world-library-entry:not(.motion-ghost)')].filter(el => shown(el) && !el.closest('.world-group.is-collapsed'));
+      const over = rows.find(el => { const r = settled(el); return y >= r.top && y <= r.bottom; }) ?? rows.find(el => settled(el).top > y);
+      if (!over) { dropAt = { group: null, before: null }; moveGap(); return; }
+      const r = settled(over), after = y > r.top + r.height / 2 && y <= r.bottom;
       const groupEl = over.parentElement!.classList.contains('world-group-list') ? over.parentElement!.parentElement as HTMLElement : null;
       dropAt = { group: groupEl?.dataset.group ?? null, before: after ? nextToken(over) : over.dataset.key! };
-      showDrop(after ? r.bottom + 4 : r.top - 4);
-      return;
+      moveGap(); return;
     }
-    const nodes = [...readyList.children].filter((el): el is HTMLElement => el !== dropLine && (el as HTMLElement).offsetParent !== null && !el.classList.contains('is-dragging') && !el.classList.contains('placeholder'));
-    const over = nodes.find(el => { const r = el.getBoundingClientRect(); return y >= r.top && y <= r.bottom; }) ?? nodes.find(el => el.getBoundingClientRect().top > y);
-    if (!over) { dropAt = { group: null, before: null }; const last = nodes.at(-1)?.getBoundingClientRect(); if (last) showDrop(last.bottom + 4); return; }
-    const r = over.getBoundingClientRect(), after = y > r.top + r.height / 2 && y <= r.bottom;
+    const nodes = [...readyList.children].filter(shown).filter(el => !el.classList.contains('placeholder'));
+    const over = nodes.find(el => { const r = settled(el); return y >= r.top && y <= r.bottom; }) ?? nodes.find(el => settled(el).top > y);
+    if (!over) { dropAt = { group: null, before: null }; moveGap(); return; }
+    const r = settled(over), after = y > r.top + r.height / 2 && y <= r.bottom;
     dropAt = { group: null, before: after ? nextToken(over) : tokenOf(over) };
-    showDrop(after ? r.bottom + 4 : r.top - 4);
+    moveGap();
+  }
+  /** Moves the dragged element's empty place to the drop target; the rows it passes slide aside. */
+  function moveGap() {
+    if (!lift || !dropAt || !dragging) return;
+    const gap = lift.el, inGroup = dragging.kind === 'item' && dropAt.group ? groupNodes.get(dropAt.group) : undefined;
+    const parent = inGroup ? inGroup.list : readyList;
+    const next = dropAt.before && !(inGroup && dropAt.before.startsWith('group:')) ? elementOf(dropAt.before) ?? null : null;
+    if (next === gap || (gap.parentElement === parent && gap.nextElementSibling === next)) return;
+    const moving = [...readyList.querySelectorAll<HTMLElement>('.world-library-entry:not(.motion-ghost), .world-group-head')].filter(el => !gap.contains(el));
+    // Each starts from where it shows now, mid-slide or not.
+    const from = new Map(moving.map(el => [el, el.getBoundingClientRect().top]));
+    for (const el of moving) for (const running of el.getAnimations?.() ?? []) if (running.id === 'drag-shift') running.cancel();
+    parent.insertBefore(gap, next);
+    if (reduceMotion()) return;
+    for (const [el, top] of from) {
+      const delta = top - el.getBoundingClientRect().top;
+      if (Math.abs(delta) > .5) el.animate?.([{ transform: `translateY(${delta}px)` }, { transform: 'none' }], { id: 'drag-shift', duration: 180, easing: 'cubic-bezier(.32,.72,0,1)' });
+    }
+  }
+  readyGroup.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || !canMove() || lift) return;
+    const target = event.target as HTMLElement, head = target.closest<HTMLElement>('.world-group-head');
+    // A group moves by its header (its name toggles it on a plain click); a row by anywhere but its controls.
+    if (head ? target.closest('.world-group-action, input') : target.closest('button, a, input, select, textarea')) return;
+    const entry = head ? null : target.closest<HTMLElement>('.world-library-entry');
+    if (!head && !entry) return;
+    press = { id: event.pointerId, x: event.clientX, y: event.clientY, source: target, head };
   }, { signal });
-  readyGroup.addEventListener('drop', event => {
-    if (!dragging || !dropAt || !layout) return;
+  // An avatar image would start the browser's own drag, which cancels this one.
+  readyGroup.addEventListener('dragstart', event => { if (press) event.preventDefault(); }, { signal });
+  function startLift(event: PointerEvent) {
+    const { head, source } = press!;
+    const el = head ? head.parentElement! : source.closest<HTMLElement>('.world-library-entry')!;
+    dragging = head ? { kind: 'group', id: head.dataset.group! } : { kind: 'item', key: el.dataset.key! };
+    const box = el.getBoundingClientRect();
+    const copy = el.cloneNode(true) as HTMLElement;
+    copy.classList.add('world-drag-copy'); copy.inert = true; copy.setAttribute('aria-hidden', 'true');
+    copy.style.width = `${box.width}px`; copy.style.height = `${box.height}px`;
+    readyGroup.append(copy);
+    lift = { el, copy, offset: press!.y - box.top, y: event.clientY };
+    el.classList.add('is-dragging'); doc.documentElement.classList.add('is-world-dragging');
+    win.getSelection()?.removeAllRanges(); hideTip();
+    source.setPointerCapture?.(event.pointerId);
+  }
+  /**
+   * Keeps the lifted copy under the pointer, the list scrolled or not, but inside the ready list's own
+   * box: below it the copy would lengthen what the list scrolls over, and the list would scroll on.
+   */
+  function placeCopy() {
+    if (!lift) return;
+    const top = lift.y - lift.offset - readyGroup.getBoundingClientRect().top;
+    lift.copy.style.top = `${Math.max(0, Math.min(top, readyGroup.offsetHeight - lift.copy.offsetHeight))}px`;
+  }
+  /** Scrolls the list while the pointer is near its top or bottom, faster the nearer it is. */
+  function scrollStep() {
+    if (!lift) return;
+    lift.frame = undefined;
+    const box = railList.getBoundingClientRect(), y = lift.y;
+    const depth = y < box.top + SCROLL_EDGE ? y - box.top - SCROLL_EDGE : y > box.bottom - SCROLL_EDGE ? y - box.bottom + SCROLL_EDGE : 0;
+    if (!depth) return;
+    const was = railList.scrollTop;
+    railList.scrollTop += Math.sign(depth) * Math.max(1, Math.min(SCROLL_MAX, Math.abs(depth) / SCROLL_EDGE * SCROLL_MAX));
+    if (railList.scrollTop === was) return;
+    placeCopy(); locateDrop(y);
+    lift.frame = win.requestAnimationFrame(scrollStep);
+  }
+  win.addEventListener('pointermove', event => {
+    if (!press || event.pointerId !== press.id) return;
+    if (!lift) { if (Math.hypot(event.clientX - press.x, event.clientY - press.y) < DRAG_SLOP) return; startLift(event); }
     event.preventDefault();
-    if (dragging.kind === 'item') moveItem(layout, dragging.key, dropAt.group, dropAt.group ? (dropAt.before && !dropAt.before.startsWith('group:') ? dropAt.before : null) : dropAt.before);
-    else moveGroup(layout, dragging.id, dropAt.before);
-    writeLayout(win.localStorage, layout);
-    endDrag(); reorder();
+    lift!.y = event.clientY; placeCopy(); locateDrop(event.clientY);
+    if (lift!.frame === undefined) lift!.frame = win.requestAnimationFrame(scrollStep);
   }, { signal });
-  const endDrag = () => { dragging = undefined; clearDrop(); for (const el of readyList.querySelectorAll('.is-dragging')) el.classList.remove('is-dragging'); };
-  readyGroup.addEventListener('dragend', endDrag, { signal });
-  readyGroup.addEventListener('dragleave', event => { if (!readyGroup.contains(event.relatedTarget as Node)) clearDrop(); }, { signal });
+  win.addEventListener('pointerup', event => {
+    if (!press || event.pointerId !== press.id) return;
+    press = undefined;
+    if (!lift) return;
+    // The click that follows a drag, in the same turn, is the drop, not a click on the row.
+    const swallow = (stop: Event) => { stop.stopPropagation(); stop.preventDefault(); };
+    win.addEventListener('click', swallow, { capture: true, once: true, signal });
+    win.setTimeout(() => win.removeEventListener('click', swallow, { capture: true }), 0);
+    if (dragging && dropAt && layout) {
+      if (dragging.kind === 'item') moveItem(layout, dragging.key, dropAt.group, dropAt.group ? (dropAt.before && !dropAt.before.startsWith('group:') ? dropAt.before : null) : dropAt.before);
+      else moveGroup(layout, dragging.id, dropAt.before);
+      writeLayout(win.localStorage, layout);
+      // The dropped row or group slides into place from where its copy was.
+      const { el, copy } = lift, from = copy.getBoundingClientRect().top, moved = dragging.kind === 'group' ? el.querySelector<HTMLElement>('.world-group-head') ?? el : el;
+      endDrag(); reorder(new Map([[moved, from]]));
+    } else cancelDrag();
+  }, { signal });
+  win.addEventListener('pointercancel', event => { if (press && event.pointerId === press.id) { press = undefined; cancelDrag(); } }, { signal });
+  doc.addEventListener('keydown', event => { if (event.key === 'Escape' && lift) { press = undefined; cancelDrag(); } }, { signal });
+  // A drag the window or the page walks away from ends too (focus lost, the page left mid-drag), or the
+  // pointer would stay hidden everywhere.
+  win.addEventListener('blur', () => { if (press) { press = undefined; cancelDrag(); } }, { signal });
+  signal.addEventListener('abort', endDrag, { once: true });
+  /** Ends a drag without a drop: the empty place, moved along the way, slides back with the rest. */
+  function cancelDrag() { const moved = !!lift; endDrag(); if (moved) reorder(); }
+  function endDrag() {
+    if (lift) { if (lift.frame !== undefined) win.cancelAnimationFrame(lift.frame); lift.copy.remove(); lift = undefined; }
+    dragging = undefined; clearDrop(); doc.documentElement.classList.remove('is-world-dragging');
+    for (const el of readyList.querySelectorAll('.is-dragging')) el.classList.remove('is-dragging');
+  }
 
   function renderRail(items: readonly WorldLibraryItem[]) {
     const restored = worldsReady && extensionsReady ? savedLayout : undefined;
@@ -601,7 +691,7 @@ export function mountWorlds(ctx: FeatureContext): void {
       const owner = market, update = updatable.get(pack.name);
       heading.append(slot('info', iconButton('info', S.packageInfo, 'world-name-info', () => owner.details(pack.name))));
       // An available update shows beside it and opens the same page, where the update is.
-      if (update) heading.append(iconButton('alert', S.updateAvailable(update.installedVersion, update.latestVersion), 'world-name-update', () => owner.details(pack.name)));
+      if (update) heading.append(iconButton('update', S.updateAvailable(update.installedVersion, update.latestVersion), 'world-name-update', () => owner.details(pack.name)));
     }
     identity.append(heading, ui.h('code', '', m?.id ?? pack?.name ?? item.key));
     const signals = ui.h('div', 'world-blade-signals');
@@ -668,6 +758,8 @@ export function mountWorlds(ctx: FeatureContext): void {
   }
   function render(): void {
     if (!worldsReady || !extensionsReady || signal.aborted) return;
+    // A row or group being dragged keeps the list as it is; the drop renders it again.
+    if (readyList.querySelector('.is-dragging')) return;
     const items = worldLibrary(worlds, extensions, recent);
     readyList.querySelector('.placeholder')?.remove();
     lampNodes.clear(); renderRail(items);

@@ -899,16 +899,23 @@ describe('World library and catalog', () => {
     answer(false); await flush();
     expect(calls.some(call => call.url === '/api/worlds/activation')).toBe(false);
     root.querySelector('[aria-label="对 agent 隐藏"]').click(); await flush();
+    // Hiding asks first; cancelling leaves the World as it was.
+    expect(document.querySelector('.modal').textContent).toContain('对 agent 隐藏');
+    expect(calls.some(call => call.url === '/api/worlds/visibility')).toBe(false);
+    answer(false); await flush();
+    expect(calls.some(call => call.url === '/api/worlds/visibility')).toBe(false);
+    root.querySelector('[aria-label="对 agent 隐藏"]').click(); await flush();
+    answer(true); await flush();
     expect(calls.find(call => call.url === '/api/worlds/visibility').body).toEqual({ id: 'alpha', visible: false });
     expect(root.querySelector('.world-feedback').textContent).toBe('');
   });
-  it('keeps prefix reload confirmation without a page toolbar or success banner', async () => {
+  it('applies a confirmed visibility change to the current conversation without asking again', async () => {
     const { root } = await openWorlds({ driftedWorlds: ['alpha'] }, { worlds: true, worldVisibility: true });
     root.querySelector('[aria-label="对 agent 隐藏"]').click(); await flush(100);
-    expect(document.querySelector('.modal').textContent).toContain('现在重载');
     expect(calls.some(call => call.url === '/api/session/reload-prefix')).toBe(false);
     answer(true); await flush(100);
     expect(calls.some(call => call.url === '/api/session/reload-prefix')).toBe(true);
+    expect(document.querySelector('.modal')).toBeNull();
     expect(root.querySelector('.world-feedback').textContent).toBe('');
     expect(root.querySelector('.world-management-toolbar')).toBeNull();
   });
@@ -952,24 +959,30 @@ describe('World library and catalog', () => {
       expect(animations.some(a => a.element.classList.contains('world-library-entry') && a.frames[0].transform === 'translateY(90px)')).toBe(true);
     } finally { if (original) Element.prototype.animate = original; else delete Element.prototype.animate; }
   });
-  it('keeps the catalog open when an interrupted closing animation completes', async () => {
+  it('hides the market at once when leaving it, and slides it in when entering', async () => {
     const original = Element.prototype.animate;
     const animations = [];
-    Element.prototype.animate = function() {
+    Element.prototype.animate = function(frames) {
       let finish;
-      const animation = { cancel() {}, finished: new Promise(resolve => { finish = resolve; }) };
-      if (this.classList.contains('world-market')) animations.push({ animation, finish });
+      const animation = { cancel() {}, playState: 'running', finished: new Promise(resolve => { finish = resolve; }) };
+      if (this.classList.contains('world-market')) animations.push({ frames, animation, finish });
       return animation;
     };
     try {
       const { root, ctx } = await openWorlds();
+      const market = root.querySelector('.world-market');
+      // Leaving: gone at once, with nothing animating it out to show through the rows.
       ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
-      expect(root.querySelector('.world-market').hidden).toBe(false);
+      expect(market.hidden).toBe(true);
+      expect(animations).toHaveLength(0);
+      // Entering: shown and slid in; finishing late changes nothing.
       ctx.router.navigate(['world'], { view: 'market' }); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+      expect(market.hidden).toBe(false);
+      expect(animations).toHaveLength(1);
+      expect(animations[0].frames.at(-1)).toEqual({ clipPath: 'inset(0 0 0 0%)' });
       animations[0].finish(); await flush();
-      expect(root.querySelector('.world-market').hidden).toBe(false);
-      animations.at(-1).finish(); await flush();
-      expect(root.querySelector('.world-market').inert).toBe(false);
+      expect(market.hidden).toBe(false);
+      expect(market.inert).toBe(false);
     } finally { if (original) Element.prototype.animate = original; else delete Element.prototype.animate; }
   });
   it('filters the catalog by installation state and resets it with clear filters', async () => {
@@ -1051,13 +1064,13 @@ describe('World library and catalog', () => {
     const search = root.querySelector('.world-library-tools input[type=search]');
     search.value = '甲'; search.dispatchEvent(new Event('input', { bubbles: true }));
     expect(visible()).toEqual(['alpha-mod']);
-    expect(root.querySelector('.world-library-entry').draggable).toBe(false);
+    expect(root.querySelector('.world-library-entry').classList.contains('is-movable')).toBe(false);
     expect(root.querySelector('.world-no-matches').hidden).toBe(true);
     search.value = '不存在的名字'; search.dispatchEvent(new Event('input', { bubbles: true }));
     expect(visible()).toEqual([]);
     expect(root.querySelector('.world-no-matches').hidden).toBe(false);
     search.value = ''; search.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(root.querySelector('.world-ready-list .world-library-entry').draggable).toBe(true);
+    expect(root.querySelector('.world-ready-list .world-library-entry').classList.contains('is-movable')).toBe(true);
     button(root.querySelector('.world-library-tools'), '新建分组').click(); await flush();
     const rename = root.querySelector('.world-group-rename');
     rename.value = '聊天'; rename.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
@@ -1065,6 +1078,45 @@ describe('World library and catalog', () => {
     const saved = JSON.parse(window.localStorage.getItem('coopanion.world-groups.v1'));
     expect(Object.values(saved.groups)).toEqual([expect.objectContaining({ name: '聊天', collapsed: true, items: [] })]);
     expect(saved.top[0]).toMatch(/^group:/);
+  });
+  it('ends a drag the window or the page walks away from, so the pointer shows again', async () => {
+    const { root, ctx, lifecycle } = await openWorlds();
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    const pointer = (type, target, y) => { const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: 10, clientY: y }); Object.defineProperty(event, 'pointerId', { value: 1 }); target.dispatchEvent(event); };
+    const lift = () => { pointer('pointerdown', root.querySelector('.world-ready-list .world-library-entry .world-blade'), 10); pointer('pointermove', window, 400); };
+    const hidden = () => document.documentElement.classList.contains('is-list-dragging') || document.documentElement.classList.contains('is-world-dragging');
+    lift(); expect(hidden()).toBe(true);
+    window.dispatchEvent(new Event('blur'));
+    expect(hidden()).toBe(false);
+    expect(root.querySelector('.world-drag-copy')).toBeNull();
+    lift(); expect(hidden()).toBe(true);
+    lives.splice(lives.indexOf(lifecycle), 1); lifecycle.dispose();
+    expect(hidden()).toBe(false);
+  });
+  it('drags a row with the pointer: a lifted copy, no cursor, and the click after the drop opens nothing', async () => {
+    const { root, ctx } = await openWorlds();
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    const order = () => [...root.querySelectorAll('.world-ready-list .world-library-entry')].map(entry => entry.dataset.key);
+    const [first, ...rest] = order();
+    expect(rest.length).toBeGreaterThan(0);
+    const pointer = (type, target, y) => { const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: 10, clientY: y }); Object.defineProperty(event, 'pointerId', { value: 1 }); target.dispatchEvent(event); };
+    const row = root.querySelector(`.world-ready-list .world-library-entry[data-key="${first}"] .world-blade-state, .world-ready-list .world-library-entry[data-key="${first}"] .world-blade`);
+    const hash = window.location.hash;
+    pointer('pointerdown', row, 10);
+    pointer('pointermove', window, 12);
+    expect(root.querySelector('.world-drag-copy')).toBeNull();
+    pointer('pointermove', window, 400);
+    expect(root.querySelector('.world-drag-copy')).not.toBeNull();
+    expect(document.documentElement.classList.contains('is-world-dragging')).toBe(true);
+    expect(root.querySelector(`.world-library-entry[data-key="${first}"]`).classList.contains('is-dragging')).toBe(true);
+    pointer('pointerup', window, 400);
+    // The drop re-renders the rows; the click lands on the live one.
+    root.querySelector(`.world-ready-list .world-library-entry[data-key="${first}"] .world-blade`).click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    expect(window.location.hash).toBe(hash);
+    expect(root.querySelector('.world-drag-copy')).toBeNull();
+    expect(document.documentElement.classList.contains('is-world-dragging')).toBe(false);
+    // jsdom lays nothing out, so the drop lands after the last row.
+    expect(order()).toEqual([...rest, first]);
   });
   it('keeps a built-in World on and visible: its hide and power controls are greyed', async () => {
     const worlds = [{ id: 'core', label: 'Core', status: 'active', visible: true }];
