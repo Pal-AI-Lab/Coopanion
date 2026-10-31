@@ -155,8 +155,6 @@ Off by default. Tick **Let Coo use this computer** in the Computer use section o
 
 ### Settings window
 
-On December 24 and 25 each year, the C in the settings window’s Coopanion wordmark wears a Santa hat, including with the sidebar folded. It follows the computer’s local date and updates at midnight.
-
 The title bar holds Back, Forward, sidebar folding and the light/dark switch on the left (to the right of the traffic lights on macOS), followed by the version, the GitHub link and the update status; hover the status for details. The sidebar folds when the window gets narrower than 1000px. The window remembers its last unmaximized size and reopens at it within the primary display’s work area.
 
 Click the tray icon, or right-click Coo and click the gear. **Normal mode** shows pet pages, World extensions and their pages; **Advanced mode** at the bottom left of the expanded sidebar adds model providers, Persona, Memory, console and diagnostics.
