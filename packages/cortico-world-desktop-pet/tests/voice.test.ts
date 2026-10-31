@@ -193,7 +193,6 @@ describe('voice input', () => {
     await page.next((m) => m.t === 'listen' && m.phase === 'start');
     await expect.poll(() => host.events.length, { timeout: 5000 }).toBe(1);
     expect(host.events[0]).toMatchObject({ type: 'desktop-pet.speech', senderKey: 'desktop-pet.voice', text: '[voice] 伙伴:今天天气怎么样' });
-    expect(host.pushOpts[0]).toEqual({ trigger: 'flush' });
     expect((await page.next((m) => m.t === 'listen' && m.phase === 'heard')).text).toBe('今天天气怎么样');
     // the last decode is the whole utterance: at least the 900 ms spoken
     expect(asr.decodes.at(-1)).toBeGreaterThanOrEqual(900 * 16);

@@ -36,7 +36,7 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 
 | `type` | 正文 | 投递 |
 |---|---|---|
-| `desktop-pet.speech` | `[voice] 伙伴:…` | flush |
+| `desktop-pet.speech` | `[voice] 伙伴:…` | interrupt |
 | `desktop-pet.message` | `[typed] 伙伴:…`(悬停按钮;`worlds.desktop-pet.doubleClickChat` 打开时也可双击,`typeKey.enabled` 打开时也可按打字键;或对话页,可附图片) | preempt |
 | `desktop-pet.answer` | `[answer] 伙伴回答「问题」:选了第 2 项「…」` / 自己写的 / 关掉没答 | flush,关掉没答为 debounce |
 | `desktop-pet.touch` | `[touch] 伙伴戳了你 3 下` / 摸了摸 / 拎起来甩了出去 / 摔晕 | `worlds.desktop-pet.touch.wakeOn` 让它唤醒的种类 debounce,其余 piggyback |
@@ -478,6 +478,8 @@ Linux 缺少 MIT-SCREEN-SAVER 扩展或系统输入查询失败时,最后输入�
 登录、密码、验证码、支付交还给使用者,以及发送、删除、提交、购买前先问,这些写在 `src/cua/ENV_PROMPT.md` 里。
 
 ### 打断
+
+每条语音在转写完成、合并为消息并投递时以 `interrupt` 停止当前轮:取消正在生成的回复,给执行中的可打断工具发送取消信号,跳过同轮尚未开始的工具。收音或转写尚未完成时不发送这个信号,已经发生的操作不回滚。
 
 十一个工具都声明为 `interruptible`。Core 投递 `interrupt` 事件时,执行中的调用停在下一个不留半截输入的地方,
 回执写明停下前做了什么:
