@@ -18,12 +18,24 @@ import { join } from 'node:path';
 import { appleString, dialogAnswer, macKey, unicodeChunks } from './mac-keys.ts';
 import { EngineFailure } from './fail.ts';
 import type { NativeDisplay } from './display.ts';
+import type { ForegroundWindow } from './foreground.ts';
 
 const cg = koffi.load('/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics');
 const cf = koffi.load('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation');
+const services = koffi.load('/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices');
 
 const CGPoint = koffi.struct('CGPoint', { x: 'double', y: 'double' });
 const CGRect = koffi.struct('CGRect', { x: 'double', y: 'double', width: 'double', height: 'double' });
+const CGSize = koffi.struct('CGSize', { width: 'double', height: 'double' });
+const ProcessSerialNumber = koffi.struct('ProcessSerialNumber', { highLongOfPSN: 'uint32_t', lowLongOfPSN: 'uint32_t' });
+const GetFrontProcess = services.func('int16_t GetFrontProcess(_Out_ ProcessSerialNumber *psn)');
+const GetProcessPID = services.func('int32_t GetProcessPID(const ProcessSerialNumber *psn, _Out_ int32_t *pid)');
+const CopyProcessName = services.func('int32_t CopyProcessName(const ProcessSerialNumber *psn, _Out_ void **name)');
+const AXUIElementCreateApplication = services.func('void *AXUIElementCreateApplication(int32_t pid)');
+const AXUIElementSetMessagingTimeout = services.func('int32_t AXUIElementSetMessagingTimeout(void *element, float seconds)');
+const AXUIElementCopyAttributeValue = services.func('int32_t AXUIElementCopyAttributeValue(void *element, void *attribute, _Out_ void **value)');
+const AXValueGetPoint = services.func('bool AXValueGetValue(void *value, uint32_t type, _Out_ CGPoint *point)');
+const AXValueGetSize = services.func('bool AXValueGetValue(void *value, uint32_t type, _Out_ CGSize *size)');
 
 const CGMainDisplayID = cg.func('uint32_t CGMainDisplayID()');
 const CGGetActiveDisplayList = cg.func('int32_t CGGetActiveDisplayList(uint32_t max, uint32_t *displays, _Out_ uint32_t *count)');
@@ -75,6 +87,8 @@ const LINES_PER_NOTCH = 3;
 const UNICODE_CHUNK = 20;
 /** A second press this soon and this close to the last counts as a double (or triple) click. */
 const MULTI_CLICK_MS = 500, MULTI_CLICK_PX = 4;
+/** Each Accessibility query has this budget, including when the foreground app is unresponsive. */
+export const FOREGROUND_QUERY_TIMEOUT_MS = 200;
 
 export interface Rect { x: number; y: number; width: number; height: number }
 
@@ -259,7 +273,9 @@ const cfKey = (name: string) => {
   return k;
 };
 function cfString(dict: unknown, name: string): string {
-  const v = CFDictionaryGetValue(dict, cfKey(name));
+  return readCfString(CFDictionaryGetValue(dict, cfKey(name)));
+}
+function readCfString(v: unknown): string {
   if (!v) return '';
   const buf = Buffer.alloc(1024);
   if (!CFStringGetCString(v, buf, buf.length, UTF8)) return '';
@@ -279,6 +295,37 @@ const apps = new Map<number, string>();
 /** The app name of process `pid` as the last `windows()` saw it ("Terminal"). */
 export function processName(pid: number): string | null {
   return apps.get(pid) ?? null;
+}
+
+function axAttribute(element: unknown, name: string): unknown {
+  const value = [null];
+  return AXUIElementCopyAttributeValue(element, cfKey(name), value) === 0 ? value[0] : null;
+}
+
+export function foregroundWindow(): ForegroundWindow | null {
+  const psn = { highLongOfPSN: 0, lowLongOfPSN: 0 }, pid = [0], name = [null];
+  if (GetFrontProcess(psn) !== 0 || GetProcessPID(psn, pid) !== 0) return null;
+  CopyProcessName(psn, name);
+  const app = readCfString(name[0]) || null;
+  if (name[0]) CFRelease(name[0]);
+  const element = AXUIElementCreateApplication(pid[0]);
+  AXUIElementSetMessagingTimeout(element, FOREGROUND_QUERY_TIMEOUT_MS / 1000);
+  const window = axAttribute(element, 'AXFocusedWindow');
+  CFRelease(element);
+  if (!window) return { title: '', app, rect: null };
+  // Accessibility timeouts apply to individual elements and are not inherited by their windows.
+  AXUIElementSetMessagingTimeout(window, FOREGROUND_QUERY_TIMEOUT_MS / 1000);
+  const title = axAttribute(window, 'AXTitle');
+  const position = axAttribute(window, 'AXPosition');
+  const size = axAttribute(window, 'AXSize');
+  try {
+    const point = { x: 0, y: 0 }, extent = { width: 0, height: 0 };
+    const rect = position && size && AXValueGetPoint(position, 1, point) && AXValueGetSize(size, 2, extent)
+      ? { ...point, ...extent } : null;
+    return { title: readCfString(title), app, rect };
+  } finally {
+    for (const value of [title, position, size, window]) if (value) CFRelease(value);
+  }
 }
 
 /**

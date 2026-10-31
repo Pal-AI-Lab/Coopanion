@@ -42,3 +42,11 @@ it('gives small costs distinct cent-based axis labels without changing the displ
   expect(detail).toContain(consoleFormat.money(0.003));
   life.abort();
 });
+
+it('puts a negative amount\'s sign before its symbol and writes an amount that rounds to zero unsigned', () => {
+  expect(formatMoney(-0.2, 'CNY')).toBe('-¥0.20');
+  expect(formatMoney(-1.5)).toBe('-$1.50');
+  expect(formatMoney(-0.001)).toBe('$0.00');
+  expect(formatMoney(-0.0004, 'USD', 3)).toBe('$0.000');
+  expect(formatMoney(-2, 'XQZ')).toBe('-XQZ 2.00');
+});
