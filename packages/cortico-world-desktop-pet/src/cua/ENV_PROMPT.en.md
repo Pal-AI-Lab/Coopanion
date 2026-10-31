@@ -16,6 +16,7 @@ You can see and operate the screen of this {{cua.os}} computer: {{cua.control}}.
 {{cua.terminal}}
 
 The person is using this computer too. After they touch the mouse or keyboard, your actions first wait until they have been still for {{cua.idle}} seconds; if they keep going, the action does not run and you are told so. If they move while you are typing, the typing stops where it got to.
+Typing to you in the pet's typing box or the chat page also uses the keyboard; wait for that message to arrive before acting.
 
 ### Who can have you use the computer
 
