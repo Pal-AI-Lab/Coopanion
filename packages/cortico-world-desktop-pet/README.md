@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/cua/engine/wait-idle.ts, src/cua/engine/foreground.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js, host/app-store.cjs -->
+<!-- Owner: src/definition.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/cua/engine/wait-idle.ts, src/cua/engine/foreground.ts, src/world.ts, src/asr/hotkey.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js, host/app-store.cjs -->
 
 <p align="center">
   <picture>
@@ -220,22 +220,22 @@ API Key 不进 config:「语音输入」面板经 `storeSecret` 存进部署 `.e
 
 | `asr.mic.mode` | 行为 |
 |---|---|
-| `hold`(默认) | 按住说话键时收音,整段都算话,松开即一句结束;连按的键是最后一下按住时收音 |
+| `hold`(默认) | 说话键最后一下持续按住超过 300 ms 后开始收音,整段都算话,松开即一句结束;短按和快速连按不开始收音 |
 | `toggle` | 按一下说话键开始,再按一下停;中间按停顿切句 |
 | `always` | 一直收音,按停顿切句 |
 
 不按住说话键的两种方式里,比说话门槛 `asr.segment.thresholdDb`(dBFS,默认 -42)响的声音才算说话。「语音输入」面板音量条上的竖线就是它,拖动或用方向键修改,经 voice 面板的 `setThreshold` 写进配置,下一帧起生效。门槛只看响度,和使用者一样响的别人说话照样会收进来。
 
-说话键 `asr.mic.hotkey` 用 `+` 连写组合键(`Ctrl+Space`、`F8`、`Mouse4`),结尾加 `*2` / `*3` 表示连按:前面几下是快速的一按一放(每下不超过 300 ms,两下之间隔不超过 400 ms),最后一下按住才算按下。
-默认 `LeftAlt*2`:快速按一下左 Alt(Mac 上是左 Option),紧接着按住说话。按完快速的那一下,World 给桌宠页发 `listen` 的 `ready`,Coo 先抬头看一眼,按住时立刻进入聆听。
+说话键 `asr.mic.hotkey` 用 `+` 连写组合键(`Ctrl+Space`、`F8`、`Mouse4`),结尾加 `*2` / `*3` 表示连按:前面几下是快速的一按一放(每下不超过 300 ms,两下之间隔不超过 400 ms)。`hold` 的最后一下按住超过 300 ms 才开始收音,`toggle` 的最后一下按下就开关收音。
+默认 `LeftAlt*2`:快速按一下左 Alt(Mac 上是左 Option),紧接着按住说话。按完快速的那一下,World 给桌宠页发 `listen` 的 `ready`,Coo 先抬头看一眼,最后一下按住超过 300 ms 后进入聆听。
 在哪个窗口里按都算;「语音输入」面板的说话键按钮录下组合键,旁边的下拉框选「双击再按住」(`*2`)或「直接按住」(不带 `*`),录键时保留当前的按法。桌宠麦克风按钮的角标显示说话键的简写(`Alt×2`、`F8`、`M4`),一直收音时显示 `AUTO`。
 Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 CoreGraphics 的 `CGEventSourceKeyState`,要在「系统设置 → 隐私与安全性 → 输入监控」里允许,第一次会弹出询问;Linux 上轮询 X11 的 `XQueryKeymap`(Wayland 下经 XWayland,只在 X11 窗口有键盘焦点时读得到;鼠标侧键读不到)。读不到时不识别说话,面板上写明原因。
 `asr.mic.deviceId` 选麦克风,留空用系统默认;设备列表由桌宠页上报,设备名称需要麦克风权限。
 系统默认输入设备改变时,桌宠页关闭旧音频流并重新收音;指定麦克风时保留所选设备。
 音轨结束时重新开麦,打开失败(权限被拒绝除外)时在下一次设备变化后重试。
 麦克风在「开启语音输入」总开关开着时一直打开,电平条随时显示音量,说话键只决定哪一段送去识别。
-打字键 `typeKey` 默认关(「习惯」页的「打字键」,经 pet 面板的 `setTypeKey` 修改)。打开后在哪个窗口里按下 `typeKey.hotkey` 都打开桌宠的打字框，和双击桌宠打开的是同一个：World 给桌宠页发 `type`,桌宠隐藏时不发。
-写法和说话键相同，默认 `LeftCtrl*2`(快速按两下左 Ctrl,Mac 上是左 Control),连按时最后一下按下就算;「习惯」页录键与选按法(按一下、双击)的做法同「语音输入」面板(`src/webui/key-capture.ts`)。
+打字键 `typeKey` 默认关(「习惯」页的「打字键」,经 pet 面板的 `setTypeKey` 修改)。打开后在哪个窗口里触发 `typeKey.hotkey` 都打开桌宠的打字框，和双击桌宠打开的是同一个：World 给桌宠页发 `type`,桌宠隐藏时不发。
+写法和说话键相同，默认 `LeftCtrl*2`(快速按两下左 Ctrl,Mac 上是左 Control)。单按键按下就打开;连按时每一下都必须在 300 ms 内松开,两下之间隔不超过 400 ms,最后一下松开才打开打字框。按住超过 300 ms 会取消这次连按,同一个键可用于双击打字和按住说话。「习惯」页录键与选按法(按一下、双击)的做法同「语音输入」面板(`src/webui/key-capture.ts`)。
 Windows 上桌宠窗口从前台窗口拿走键盘，打字框关掉后还回去。读键的方式和读不到时的原因同说话键，原因写在「习惯」页这一行下面。
 `hold` 下开启 `asr.mic.openOnPress`(默认关,「语音输入」页的「按住时才打开麦克风」)后,桌宠页只在说话键按住时打开麦克风,松开 500 ms 后关掉;倾听气泡等第一帧音频到了才出现。给一打开麦克风就切到通话模式的耳机用,按下到麦克风打开之间说的话收不到。
 

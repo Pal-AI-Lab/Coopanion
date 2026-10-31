@@ -16,7 +16,7 @@ import type { MicMode } from '../src/config.ts';
 import type { Language } from 'cortico/core/language.ts';
 import type { SherpaModule } from '../src/asr/sherpa.ts';
 import type { ModelSpec } from '../src/runtime/store.ts';
-import { parseHotkey, type Hotkey } from '../src/asr/hotkey.ts';
+import { parseHotkey, tapTracker, TAP_MAX_MS, type Hotkey, type watchHotkey } from '../src/asr/hotkey.ts';
 import { rmsDb } from '../src/asr/segmenter.ts';
 import { FakeHost } from './helpers/fake-host.ts';
 import { FakePage } from './helpers/page.ts';
@@ -108,6 +108,24 @@ function scriptedKey(problem?: string) {
     return { stop: () => {} };
   };
   return { key, watch };
+}
+
+/** Hardware key samples go through the production gesture tracker for every active watcher. */
+function sampledKeys() {
+  const held = new Set<number>();
+  const watchers = new Set<{ keys: number[]; step: ReturnType<typeof tapTracker> }>();
+  const watch: typeof watchHotkey = async (hotkey, onChange, _pollMs, onTap, _text, trigger) => {
+    const watcher = { keys: hotkey.keys, step: tapTracker(hotkey.taps, onChange, onTap, trigger) };
+    watchers.add(watcher);
+    return { stop: () => { watchers.delete(watcher); } };
+  };
+  const sample = (key: string, down: boolean, at: number) => {
+    for (const vk of parseHotkey(key)!.keys) {
+      if (down) held.add(vk); else held.delete(vk);
+    }
+    for (const watcher of watchers) watcher.step(watcher.keys.every((vk) => held.has(vk)), at);
+  };
+  return { watch, sample };
 }
 
 async function setup(text: string | ((samples: number) => string), mode: MicMode = 'always', watch?: ReturnType<typeof scriptedKey>['watch'], language: Language = 'zh', openOnPress = false, loadGate?: Promise<void>) {
@@ -298,6 +316,69 @@ describe('voice input', () => {
     cfg.typeKey.enabled = true;
     await expect.poll(() => key.hotkey).not.toBeNull();
     key.press(true);
+    await page.next((m) => m.t === 'type');
+  });
+
+  it.each([
+    ['RightCtrl', false], ['RightCtrl', true], ['RightCtrl*2', false], ['RightCtrl*2', true],
+  ] as const)('%s with openOnPress=%s: double-tap types without voice; holding speaks without typing', async (hotkey, openOnPress) => {
+    const { watch, sample } = sampledKeys();
+    const { world, page, asr, host } = await setup('听清楚了', 'hold', watch, 'zh', openOnPress);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey }]);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
+
+    sample('RightCtrl', true, 0);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+    sample('RightCtrl', false, 100);
+    sample('RightCtrl', true, 200);
+    sample('RightCtrl', true, 200 + TAP_MAX_MS);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+    for (const fr of tone(600, .3)) page.audio(fr);
+    const closedFrame = tone(20, .05)[0];
+    page.audio(closedFrame);
+    await expect.poll(() => world.voiceState().level).toBe(rmsDb(closedFrame));
+    sample('RightCtrl', false, 200 + TAP_MAX_MS);
+    await page.next((m) => m.t === 'type');
+    expect(page.messages.some((m) => m.t === 'listen' && m.phase === 'start')).toBe(false);
+    if (openOnPress) expect(page.messages.some((m) => m.t === 'prefs' && m.mic === true)).toBe(false);
+    expect(asr.decodes).toHaveLength(0);
+    expect(host.events).toHaveLength(0);
+
+    sample('RightCtrl', true, 1000);
+    sample('RightCtrl', false, 1100);
+    sample('RightCtrl', true, 1200);
+    sample('RightCtrl', true, 1200 + TAP_MAX_MS + 1);
+    expect(world.voiceState().input).toMatchObject({ open: true });
+    if (openOnPress) await page.next((m) => m.t === 'prefs' && m.mic === true);
+    for (const fr of tone(600, .3)) page.audio(fr);
+    const openFrame = tone(20, .1)[0];
+    page.audio(openFrame);
+    await page.next((m) => m.t === 'listen' && m.phase === 'start');
+    await expect.poll(() => world.voiceState().level).toBe(rmsDb(openFrame));
+    sample('RightCtrl', false, 2200);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+    await page.next((m) => m.t === 'listen' && m.phase === 'heard');
+    expect(host.events).toHaveLength(1);
+    expect(host.events[0].text).toBe('[voice] 伙伴:听清楚了');
+    expect(page.messages.some((m) => m.t === 'type')).toBe(false);
+  });
+
+  it('stopping a key watcher during a pending hold prevents it from opening voice later', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world, page } = await setup('', 'hold', watch, 'zh', true);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'RightCtrl' }]);
+    sample('RightCtrl', true, 0);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'F8' }]);
+    sample('RightCtrl', true, TAP_MAX_MS + 1);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+    expect(page.messages.some((m) => m.t === 'listen' && m.phase === 'start')).toBe(false);
+  });
+
+  it('a single-press typing shortcut opens the box before the key is released', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world, page } = await setup('', 'always', watch);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'F8' }]);
+    sample('F8', true, 0);
     await page.next((m) => m.t === 'type');
   });
 
