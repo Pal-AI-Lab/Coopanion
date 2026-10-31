@@ -163,7 +163,7 @@ beforeEach(() => { calls = []; window.sessionStorage.clear(); window.history.rep
 afterEach(() => { lives.splice(0).forEach(life => life.dispose()); vi.unstubAllGlobals(); document.body.replaceChildren(); });
 const marketCards = (root) => root.querySelector('.world-catalog-scroll > .extension-grid');
 const feedback = (_root) => document.querySelector('.extension-operation-feedback');
-const installedInfo = (root, name) => [...root.querySelectorAll('.world-blade')].find(row => row.querySelector('.world-name')?.textContent === name).querySelector('.world-name-info');
+const installedInfo = (root, name) => [...root.querySelectorAll('.world-blade')].find(row => row.querySelector('.world-name')?.textContent === name).querySelector('button.world-name');
 const switchTo = async (ctx, kind) => {
   ctx.lifecycle.dispose();
   ctx.root.replaceChildren();
@@ -307,7 +307,7 @@ describe('installation feedback', () => {
     box.querySelector('.modalhead .btn')?.click();
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod');
-    const badge = row.querySelector('.world-name-info + .world-name-update');
+    const badge = row.querySelector('button.world-name + .world-name-update');
     expect(badge.getAttribute('aria-label')).toContain('1.0.0 → 1.2.0');
     badge.click(); await flush();
     expect(document.querySelector('.modal .modaltitle')?.textContent).toBeTruthy();
@@ -878,11 +878,6 @@ describe('World library and catalog', () => {
     railItems.find(item => item.getAttribute('aria-label') === '甲扩展').click(); await flush();
     expect(root.querySelector('.world-workspace').dataset.view).toBe('market');
     expect(document.querySelector('.extension-detail')).not.toBeNull();
-    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
-    railItems.find(item => item.getAttribute('aria-label') === '甲扩展').click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
-    expect(root.querySelector('.world-workspace').dataset.view).toBe('mine');
-    expect(document.activeElement.dataset.key).toBe('alpha-mod');
-    expect(rail.querySelector('[aria-current=true]').getAttribute('aria-label')).toBe('甲扩展');
   });
   it('keeps catalog metadata beside the title and links an installed package to its row', async () => {
     const hit = { ...HITS.hits[1], summary: { tools: 3, events: 2 } };
@@ -951,7 +946,7 @@ describe('World library and catalog', () => {
     expect(pending.dataset.state).toBe('pending');
     expect(pending.textContent).toContain('待生效');
     expect(buttons(pending).some(item => item.textContent === '激活 World')).toBe(false);
-    root.querySelector('.world-blade [aria-label="扩展信息"]').click(); await flush();
+    root.querySelector('.world-blade button.world-name').click(); await flush();
     expect(document.querySelector('.extension-detail').textContent).toContain('found-mod');
   });
   it('shows live readings and changes mode only after confirmation', async () => {
@@ -1114,7 +1109,7 @@ describe('World library and catalog', () => {
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod');
     expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['左栏隐藏', '删除扩展', '对 Coo 隐藏', '停用 World']);
-    expect(row.querySelector('.world-blade-identity h3 [aria-label="扩展信息"]')).not.toBeNull();
+    expect([...row.querySelectorAll('.world-blade-identity h3 button')].map(item => item.className)).toEqual(['world-name']);
     // Rows with fewer controls pack them to the right, with no gap at the end.
     const slots = (item) => [...item.querySelectorAll('.world-blade-actions button')].map(button => button.style.getPropertyValue('--slot'));
     expect(slots(row)).toEqual(['1', '2', '3', '4']);
@@ -1184,6 +1179,22 @@ describe('World library and catalog', () => {
     // jsdom lays nothing out, so the drop lands after the last row.
     expect(order()).toEqual([...rest, first]);
   });
+  it("moves a row by its avatar like the rest of the card, without opening the info or dragging the picture out", async () => {
+    const { root, ctx } = await openWorlds();
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    const order = () => [...root.querySelectorAll('.world-ready-list .world-library-entry')].map(entry => entry.dataset.key);
+    const [first, ...rest] = order();
+    const pointer = (type, target, y) => { const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: 10, clientY: y }); Object.defineProperty(event, 'pointerId', { value: 1 }); target.dispatchEvent(event); };
+    const avatar = root.querySelector(`.world-ready-list .world-library-entry[data-key="${first}"] .world-library-item`);
+    for (const img of root.querySelectorAll('.world-avatar img')) expect(img.draggable).toBe(false);
+    pointer('pointerdown', avatar.querySelector('.world-avatar'), 10);
+    pointer('pointermove', window, 400);
+    expect(root.querySelector(`.world-library-entry[data-key="${first}"]`).classList.contains('is-dragging')).toBe(true);
+    pointer('pointerup', window, 400);
+    avatar.click(); await flush();
+    expect(document.querySelector('.extension-detail')).toBeNull();
+    expect(order()).toEqual([...rest, first]);
+  });
   it('keeps a built-in World on and visible: its hide and power controls are greyed', async () => {
     const worlds = [{ id: 'core', label: 'Core', status: 'active', visible: true }];
     const { root, ctx } = await openWorlds({ worlds }, { worlds: true, extensions: true, worldActivation: true, worldVisibility: true, restart: true, supervised: true });
@@ -1235,6 +1246,16 @@ describe('World library and catalog', () => {
     const { root, ctx } = await openWorlds();
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod').querySelector('button.world-name').click(); await flush();
+    expect(document.querySelector('.extension-detail')).not.toBeNull();
+  });
+  it("opens extension info from a World's avatar; one with no package shows its row", async () => {
+    const { root, ctx } = await openWorlds();
+    ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
+    const avatar = key => [...root.querySelectorAll('.world-library-item')].find(item => item.dataset.key === key);
+    avatar('world:builtin').click(); await flush();
+    expect(document.querySelector('.extension-detail')).toBeNull();
+    expect(avatar('world:builtin').getAttribute('aria-current')).toBe('true');
+    avatar('alpha-mod').click(); await flush();
     expect(document.querySelector('.extension-detail')).not.toBeNull();
   });
   it('greys out an unavailable uninstall and names the reason', async () => {
