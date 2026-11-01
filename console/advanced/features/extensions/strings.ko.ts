@@ -11,6 +11,7 @@ export const S: Partial<typeof en> = {
   restartProcess: '프로세스 재시작',
   stateFailed: '로드 실패',
   statePendingRestart: '재시작 후 적용',
+  stateInstalledPendingRestart: "설치됨, 재시작 대기",
   stateRemoved: '제거됨, 재시작 대기',
   disabled: '설치됨, 로드 안 됨',
   worldNotLoaded: '설치됨. World 개요에서 로드하세요',

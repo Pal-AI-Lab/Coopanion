@@ -11,6 +11,7 @@ export const S: Partial<typeof en> = {
   restartProcess: 'プロセスを再起動',
   stateFailed: '読み込み失敗',
   statePendingRestart: '再起動後に反映',
+  stateInstalledPendingRestart: "インストール済み、再起動待ち",
   stateRemoved: 'アンインストール済み、再起動待ち',
   disabled: 'インストール済み、未読み込み',
   worldNotLoaded: 'インストール済み。World 一覧で読み込んでください',

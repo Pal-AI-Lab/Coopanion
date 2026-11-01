@@ -11,6 +11,7 @@ export const S: Partial<typeof en> = {
   restartProcess: 'Prozess neu starten',
   stateFailed: 'Laden fehlgeschlagen',
   statePendingRestart: 'Wirkt nach Neustart',
+  stateInstalledPendingRestart: "Installiert, Neustart ausstehend",
   stateRemoved: 'Deinstalliert, Neustart ausstehend',
   disabled: 'Installiert, nicht geladen',
   worldNotLoaded: 'Installiert; in der World-Übersicht laden',

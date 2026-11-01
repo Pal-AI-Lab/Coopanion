@@ -11,6 +11,7 @@ export const S: Partial<typeof en> = {
   restartProcess: 'Riavvia processo',
   stateFailed: 'Caricamento non riuscito',
   statePendingRestart: 'Effettivo al riavvio',
+  stateInstalledPendingRestart: "Installata, in attesa di riavvio",
   stateRemoved: 'Disinstallata, riavvio in sospeso',
   disabled: 'Installata, non caricata',
   worldNotLoaded: 'Installata; caricala dalla Panoramica dei World',

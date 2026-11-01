@@ -11,6 +11,7 @@ export const S: Partial<typeof en> = {
   restartProcess: '重新啟動處理程序',
   stateFailed: '載入失敗',
   statePendingRestart: '待生效',
+  stateInstalledPendingRestart: "已安裝，待重新啟動",
   stateRemoved: '已解除安裝，待重新啟動',
   disabled: '已安裝，未載入',
   worldNotLoaded: '已安裝，前往 World 總覽載入',
