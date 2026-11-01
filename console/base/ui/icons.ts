@@ -51,7 +51,6 @@ export type ConsoleIconName =
   | 'chevron-right'
   | 'radio-on'
   | 'radio-off'
-  | 'info'
   | 'help';
 
 type Shape = readonly [tag: 'path' | 'circle' | 'rect' | 'line', attrs: Readonly<Record<string, string>>];
@@ -243,13 +242,7 @@ const SHAPES: Readonly<Record<ConsoleIconName, readonly Shape[]>> = {
     ['path', { d: 'M9.6 9.3a2.5 2.5 0 0 1 4.9.7c0 1.7-2.5 2.1-2.5 3.6' }],
     ['path', { d: 'M12 16.8h.01' }],
   ],
-  info: [
-    ['circle', { cx: '12', cy: '12', r: '9' }],
-    ['path', { d: 'M12 11v5' }],
-    ['path', { d: 'M12 8h.01' }],
-  ],
-  // An available update: a solid up arrow with a straight stem, so it does not read as the circled info
-  // and alert marks it often sits beside.
+  // An available update: a solid up arrow with a straight stem, so it does not read as an alert mark.
   update: [
     ['path', { d: 'M12 3.5 18.5 10.5H13.9V19a1 1 0 0 1-1 1h-1.8a1 1 0 0 1-1-1V10.5H5.5Z', fill: 'currentColor', 'stroke-width': '1.2' }],
   ],
@@ -274,6 +267,12 @@ const WORDMARK_MARK: readonly Shape[] = [
   ['path', { d: 'M182 63.66A84 84 0 1 0 182 192.34', 'stroke-width': '30' }],
   ['circle', { cx: '113', cy: '117', r: '16', 'stroke-width': '11', class: 'accent' }],
   ['circle', { cx: '163', cy: '117', r: '16', 'stroke-width': '11', class: 'accent' }],
+];
+
+const CHRISTMAS_HAT: readonly Shape[] = [
+  ['path', { fill: '#d94743', d: 'M159.118 22.491C139.719 -4.853 114.068 -41.731 79.592 -41.044C39.744 -40.714 17.63 -1.985 11.944 38.766L35.316 42.739C41.214 15.587 50.512 -1.103 66.014 -1.934C62.398 16.064 54.646 37.509 50.674 60.881Z' }],
+  ['path', { fill: '#fff9f0', d: 'M160.45 13.646Q99.655 23.937 42.495 55.126Q33.603 60.119 38.262 71.222Q42.921 82.326 52.123 78.285Q108.64 48.355 167.534 38.683Q178.304 36.235 174.596 24.822Q171.839 13.1 160.45 13.646Z' }],
+  ['circle', { cx: '18.554', cy: '42.928', r: '16', fill: '#fff9f0' }],
 ];
 
 const WORDMARK_TEXT: readonly Shape[] = [
@@ -333,6 +332,14 @@ export function brandMark(doc: Document, cls = 'brandmark'): SVGSVGElement {
   svg.setAttribute('class', cls);
   shapesInto(doc, svg, WORDMARK_MARK);
   return svg;
+}
+
+/** Santa hat in brandMark's C coordinates. */
+export function christmasHat(doc: Document): SVGGElement {
+  const hat = doc.createElementNS(SVG_NS, 'g');
+  hat.setAttribute('stroke', 'none');
+  shapesInto(doc, hat, CHRISTMAS_HAT);
+  return hat;
 }
 
 /**
