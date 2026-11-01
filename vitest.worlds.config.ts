@@ -13,6 +13,5 @@ export default defineConfig({
     expect: { poll: { timeout: 10_000 } },
     pool: 'forks',
     maxWorkers: 2,
-    minWorkers: 1,
   },
 });
