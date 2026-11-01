@@ -55,12 +55,14 @@ afterEach(async () => {
 });
 
 describe('transcribed speech through Core', () => {
-  it('ends an active computer-use wait and skips the next tool only after transcription is delivered', async () => {
+  it('talk-key speech ends an active computer-use wait and skips the next tool only after transcription is delivered', async () => {
     let world!: DesktopPetWorld;
     let running: readonly string[] = [];
     const definition = desktopPetDefinition({ onCreate: (created) => {
       world = created;
       displayOnlyEngine((world as unknown as { cua: Cua }).cua);
+      // a talk key that is never pressed: the utterance below is fed in directly
+      (world as unknown as { opts: { watchHotkey: () => Promise<{ stop(): void }> } }).opts.watchHotkey = async () => ({ stop: () => {} });
       const onPhase = world.onRunPhase.bind(world);
       world.onRunPhase = (phase) => { running = phase.running; onPhase(phase); };
     } });
@@ -73,7 +75,7 @@ describe('transcribed speech through Core', () => {
       sections: { 'desktop-pet': {
         port: 0,
         window: { ...DESKTOP_PET_DEFAULTS.window, enabled: false },
-        asr: { ...DESKTOP_PET_DEFAULTS.asr, enabled: false, mic: { ...DESKTOP_PET_DEFAULTS.asr.mic, mode: 'always' } },
+        asr: { ...DESKTOP_PET_DEFAULTS.asr, enabled: false, mic: { ...DESKTOP_PET_DEFAULTS.asr.mic, mode: 'hold' } },
         typeKey: { ...DESKTOP_PET_DEFAULTS.typeKey, enabled: false },
         cua: { ...DESKTOP_PET_DEFAULTS.cua, enabled: true, permission: 'ask-each-turn' },
       } },

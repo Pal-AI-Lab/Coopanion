@@ -1698,7 +1698,9 @@ export class DesktopPetWorld implements World {
       this.listenOpen = false;
       this.counts.delivered++;
       this.server.sendPet({ t: 'listen', phase: 'heard', text });
-      void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.userName, text), 'interrupt', { meta: { text } });
+      // speech through the talk key stops the round; always listening also hears a TV or other people, so it only wakes
+      const trigger = this.cfg.asr.mic.mode === 'always' ? 'flush' : 'interrupt';
+      void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.userName, text), trigger, { meta: { text } });
       return;
     }
     if (this.segmenter.active || this.transcribing || this.queue.length > 0) this.listenOpen = true;
