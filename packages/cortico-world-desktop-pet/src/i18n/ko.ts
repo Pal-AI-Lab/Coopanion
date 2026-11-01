@@ -242,6 +242,7 @@ const ko: Translation<PetText> = {
     touchEnabled: { title: '터치를 이벤트로 전달', description: '찌르기, 쓰다듬기, 들어 올려 던지기.' },
     touchWakeOn: { title: '반응 모드', description: 'poke: 찌를 때만 바로 반응하고, 나머지 터치는 다음 반응 때 함께 전달됩니다. all: 모든 터치에 바로 반응합니다. none: 모든 터치가 다음 반응 때 함께 전달됩니다. custom: 「습관」 페이지에서 체크한 터치에 바로 반응합니다. 한 번 반응한 뒤 그 차례가 끝날 때까지의 터치는 다음 반응 때 함께 전달됩니다.' },
     sound: { title: '모든 효과음', description: '펫 메뉴의 효과음 버튼이 이 설정을 켜고 끕니다.' },
+    volume: { title: '음량' },
     sounds: {
       move: { title: '움직임', description: '걷기, 달리기, 점프, 착지, 던져지기, 끄덕이기, 고개 젓기, 회전, 어지러움, 떨기, 춤, 두리번거리기.' },
       touch: { title: '터치', description: '들어 올려지기, 흔들리기, 쓰다듬어지기, 찔리기.' },

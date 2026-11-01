@@ -242,6 +242,7 @@ const ptBR: Translation<PetText> = {
     touchEnabled: { title: 'Toques viram eventos', description: 'Cutucadas, carinho, e pegar e arremessar o pet.' },
     touchWakeOn: { title: 'Modo de resposta', description: 'poke: só um cutucão recebe resposta na hora; os outros toques esperam a próxima resposta. all: todo toque recebe resposta na hora. none: todo toque espera a próxima resposta. custom: os toques marcados na página Hábitos recebem resposta na hora. Depois de uma resposta, os toques até o fim desse turno esperam a próxima.' },
     sound: { title: 'Todos os sons', description: 'O botão de som no menu do pet alterna isto.' },
+    volume: { title: 'Volume' },
     sounds: {
       move: { title: 'Movimentos', description: 'Andar, correr, pular, aterrissar, arremesso, acenar com a cabeça, balançar a cabeça, girar, tontura, tremer, dançar, olhar em volta.' },
       touch: { title: 'Toque', description: 'Pegar, balançar, fazer carinho, cutucar.' },

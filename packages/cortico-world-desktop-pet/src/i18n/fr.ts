@@ -242,6 +242,7 @@ const fr: Translation<PetText> = {
     touchEnabled: { title: 'Les contacts deviennent des événements', description: 'Petits coups, caresses, se faire soulever et lancer.' },
     touchWakeOn: { title: 'Mode de réponse', description: 'poke : seul un petit coup obtient une réponse immédiate ; les autres contacts attendent la prochaine réponse. all : chaque contact obtient une réponse immédiate. none : chaque contact attend la prochaine réponse. custom : les contacts cochés sur la page Habitudes obtiennent une réponse immédiate. Après une réponse, les contacts jusqu’à la fin de ce tour attendent la suivante.' },
     sound: { title: 'Tous les sons', description: 'Le bouton son du menu du compagnon bascule ce réglage.' },
+    volume: { title: 'Volume' },
     sounds: {
       move: { title: 'Mouvements', description: 'Marcher, courir, sauter, atterrir, se faire lancer, hocher la tête, la secouer, tourner, vertige, frissons, danser, regarder autour.' },
       touch: { title: 'Contact', description: 'Se faire soulever, balancer, caresser, tapoter.' },

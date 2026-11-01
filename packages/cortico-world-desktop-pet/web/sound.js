@@ -20,8 +20,9 @@ const PAN_STEP = .01;
 /** The farthest a sound leans to one side; at ±1 the far channel all but falls silent. */
 const PAN_MAX = .5;
 const KIND_OF = Object.fromEntries(Object.entries(SOUND_KINDS).flatMap(([kind, names]) => names.map((n) => [n, kind])));
+/** `volume`: the master gain at 100%; the setting (`configure`) scales it. */
 export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } = {}) {
-  let ctx = null, master = null, unlocked = false, on = true, noiseBuf = null, gainValue = volume;
+  let ctx = null, master = null, unlocked = false, on = true, noiseBuf = null, level = 1;
   // left to right, -PAN_MAX to PAN_MAX: `pan` is what plays, `where` is Coo's place (setPan), heard while `byPosition`;
   // a context without StereoPannerNode plays everything centred
   let panner = null, pan = 0, where = 0, byPosition = true;
@@ -37,7 +38,7 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
       const C = window.AudioContext || window.webkitAudioContext;
       if (!C) return null;
       ctx = new C();
-      master = ctx.createGain(); master.gain.value = gainValue;
+      master = ctx.createGain(); master.gain.value = volume * level;
       const comp = ctx.createDynamicsCompressor();
       if (ctx.createStereoPanner) {
         panner = ctx.createStereoPanner(); panner.pan.value = pan;
@@ -165,7 +166,6 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     unlock() { unlocked = true; ready(); },
     isOn: () => on,
     set(v) { on = v; try { localStorage.setItem(storageKey, v ? 'on' : 'off'); } catch (e) { /* not persisted */ } },
-    volume(v) { gainValue = v; if (master) master.gain.value = v; },
     /** Coo's place across its display, -1 (left) to 1 (right), held to ±PAN_MAX; changes under PAN_STEP are skipped. */
     setPan(v) {
       where = Math.max(-PAN_MAX, Math.min(PAN_MAX, v));
@@ -181,12 +181,13 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     },
     /**
      * `kinds`: kind → on (SOUND_KINDS); `snoreSeconds`: snoring stops this long into a sleep, 0 = never;
-     * `panByPosition`: sounds follow setPan, off = they ease back to the centre.
+     * `panByPosition`: sounds follow setPan, off = they ease back to the centre; `volume`: percent of the master gain, 0–100.
      */
-    configure({ kinds, snoreSeconds: s, panByPosition: b } = {}) {
+    configure({ kinds, snoreSeconds: s, panByPosition: b, volume: v } = {}) {
       if (kinds) muted = new Set(Object.keys(SOUND_KINDS).filter((k) => kinds[k] === false));
       if (typeof s === 'number' && s >= 0) snoreSeconds = s;
       if (typeof b === 'boolean') { byPosition = b; applyPan(); }
+      if (typeof v === 'number' && Number.isFinite(v)) { level = Math.max(0, Math.min(100, v)) / 100; if (master) master.gain.value = volume * level; }
     },
     /**
      * The body's sounds (`sounds` of the pack on screen, from `base`): each is fetched now and decoded once

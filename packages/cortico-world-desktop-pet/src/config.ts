@@ -53,6 +53,8 @@ export type SoundSettings = Record<SoundKind, boolean> & {
   snoreSeconds: number;
   /** Sounds lean toward the side of the display Coo stands on; off, they play centred. */
   panByPosition: boolean;
+  /** Loudness of every sound on the pet and dress pages, in percent of their own levels: 0–100. */
+  volume: number;
 };
 
 /** A step of the speech's pitch or speed; `custom` takes the number saved beside it. */
@@ -270,7 +272,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   window: { enabled: true, electronFile: '', scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, glow: GLOW_DEFAULT, frameRate: 60, lockFrameRate: false, hideWhenFullscreen: false, exportOverlay: false },
   roam: 'calm',
   sound: true,
-  sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, snoreSeconds: 0, panByPosition: true },
+  sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, snoreSeconds: 0, panByPosition: true, volume: 100 },
   speech: { enabled: false, pitch: 'mid', pitchHz: SPEECH_PITCH_HZ.mid, speed: 'mid', unitsPerSecond: SPEECH_RATE.mid },
   theme: 'dark',
   rememberPosition: false,
@@ -352,6 +354,7 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
       title: c.soundGroup,
       properties: {
         [`${K}.sound`]: { type: 'boolean', title: c.sound.title, description: c.sound.description, 'x-hot': true },
+        [`${K}.sounds.volume`]: { type: 'integer', title: c.volume.title, minimum: 0, maximum: 100, 'x-suffix': '%', 'x-hot': true },
         ...Object.fromEntries(SOUND_KINDS.map((kind) => [`${K}.sounds.${kind}`, {
           type: 'boolean' as const, title: c.sounds[kind].title, ...(c.sounds[kind].description ? { description: c.sounds[kind].description } : {}), 'x-hot': true,
         }])),
