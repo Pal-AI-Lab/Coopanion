@@ -1202,6 +1202,17 @@ describe('World library and catalog', () => {
     const root = context.root;
     expect(root.querySelector('.world-group-count').textContent).toBe(String(root.querySelectorAll('.world-group-list .world-library-entry').length));
   });
+  it('records the World page order for the sidebar, groups opened up in place', async () => {
+    window.localStorage.setItem('coopanion.world-groups.v1', JSON.stringify({ top: ['group:g', 'world:builtin'], groups: { g: { name: 'G', collapsed: true, items: ['alpha-mod', 'delta-mod'] } } }));
+    window.localStorage.removeItem('coopanion.world-nav-order.v1');
+    stub({}); window.history.replaceState(null, '', '#/world');
+    const context = mkCtx({ worlds: true, extensions: true, worldActivation: true, restart: true, supervised: true }); lives.push(context.lifecycle);
+    mountWorlds(context.ctx); await flush();
+    const shown = [...context.root.querySelectorAll('.world-library-list .world-blade[data-world]')].map(row => `world:${row.dataset.world}`);
+    expect(shown.length).toBeGreaterThan(1);
+    expect(JSON.parse(window.localStorage.getItem('coopanion.world-nav-order.v1'))).toEqual(shown);
+    window.localStorage.removeItem('coopanion.world-nav-order.v1');
+  });
   it('hides an active World from the sidebar and remembers it', async () => {
     window.localStorage.removeItem('coopanion.world-nav-hidden.v1');
     const { root, ctx } = await openWorlds({}, { worlds: true, extensions: true, worldActivation: true, worldVisibility: true, restart: true, supervised: true });
