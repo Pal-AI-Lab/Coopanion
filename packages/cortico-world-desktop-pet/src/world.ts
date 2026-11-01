@@ -44,7 +44,7 @@ import { SENSEVOICE, SherpaAsr, WHISPER, type SherpaModelKind, type SherpaModule
 import { SystemRecognizer, systemRecognizerSupported, type SystemRecognizerState, type SystemSentence } from './asr/system-recognizer.ts';
 import { TranscriptionApi, type TranscriptionState } from './asr/transcription-api.ts';
 import { Packer, Segmenter, rmsDb, type SegmentConfig, type SegmentSink, type Utterance } from './asr/segmenter.ts';
-import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, watchHotkey, type KeyWatcher } from './asr/hotkey.ts';
+import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, watchHotkey, type HotkeyTrigger, type KeyWatcher } from './asr/hotkey.ts';
 import { joinSpeech, looksHallucinated } from './asr/result.ts';
 import { toSimplified } from './asr/simplify.ts';
 import { estimateSeconds, parseActions, parseScript, vocabChange, vocabTable, type VocabWord } from './script.ts';
@@ -1445,10 +1445,14 @@ export class DesktopPetWorld implements World {
     return this.cfg.asr.mic.mode === 'hold' ? { ...seg, thresholdDb: -Infinity, minSpeechMs: 0 } : seg;
   }
 
-  /** Starts, restarts or stops the key watcher to match the configured mode and key. */
+  /**
+   * Starts, restarts or stops the key watcher to match the configured mode and key. Hold to talk
+   * waits out a tap only while the typing key is the same key, so that key's double tap only types.
+   */
   private async syncHotkey(): Promise<void> {
     const { mode, hotkey } = this.cfg.asr.mic;
-    const key = mode === 'always' || !this.host ? '' : `${mode}:${hotkey}`;
+    const trigger: HotkeyTrigger = mode === 'hold' && this.typeKeyShares(hotkey) ? 'hold' : 'press';
+    const key = mode === 'always' || !this.host ? '' : `${mode}:${hotkey}:${trigger}`;
     if (key === this.hotkeyKey) return;
     this.hotkeyKey = key;
     this.keyWatcher?.stop();
@@ -1458,7 +1462,7 @@ export class DesktopPetWorld implements World {
     if (!key) return;
     const parsed = parseHotkey(hotkey);
     const watch = this.opts.watchHotkey ?? watchHotkey;
-    const watcher = parsed ? await watch(parsed, (down) => this.onTalkKey(down), HOTKEY_POLL_MS, () => this.onTalkTap(), this.ui.hotkey) : this.ui.voice.badKey(hotkey);
+    const watcher = parsed ? await watch(parsed, (down) => this.onTalkKey(down), HOTKEY_POLL_MS, () => this.onTalkTap(), this.ui.hotkey, trigger) : this.ui.voice.badKey(hotkey);
     if (key !== this.hotkeyKey) { if (typeof watcher !== 'string') watcher.stop(); return; }
     if (typeof watcher === 'string') {
       this.hotkeyProblem = watcher;
@@ -1466,7 +1470,16 @@ export class DesktopPetWorld implements World {
     } else this.keyWatcher = watcher;
   }
 
-  /** Starts, restarts or stops the typing key's watcher to match `typeKey`; a press opens the pet's typing box. */
+  /** The typing key is on and made of the same keys as `talk`, press counts aside. */
+  private typeKeyShares(talk: string): boolean {
+    const { enabled, hotkey } = this.cfg.typeKey;
+    const a = parseHotkey(talk), b = parseHotkey(hotkey);
+    if (!enabled || !a || !b) return false;
+    const keys = new Set(b.keys);
+    return new Set(a.keys).size === keys.size && a.keys.every((vk) => keys.has(vk));
+  }
+
+  /** Starts, restarts or stops the typing key's watcher; multi-press shortcuts require completed quick taps. */
   private async syncTypeKey(): Promise<void> {
     const { enabled, hotkey } = this.cfg.typeKey;
     const key = enabled && this.host ? hotkey : '';
@@ -1481,7 +1494,7 @@ export class DesktopPetWorld implements World {
     const text = { ...this.ui.hotkey, ...this.ui.typeKey };
     // a hidden pet stays hidden: its typing box would open out of sight
     const onPress = (down: boolean) => { if (down && !this.petHidden) this.server.sendPet({ t: 'type' }); };
-    const watcher = parsed ? await watch(parsed, onPress, HOTKEY_POLL_MS, undefined, text) : this.ui.voice.badKey(hotkey);
+    const watcher = parsed ? await watch(parsed, onPress, HOTKEY_POLL_MS, undefined, text, parsed.taps > 1 ? 'tap' : 'press') : this.ui.voice.badKey(hotkey);
     if (key !== this.typeKeyKey) { if (typeof watcher !== 'string') watcher.stop(); return; }
     if (typeof watcher === 'string') {
       this.typeKeyProblem = watcher;
@@ -1698,7 +1711,9 @@ export class DesktopPetWorld implements World {
       this.listenOpen = false;
       this.counts.delivered++;
       this.server.sendPet({ t: 'listen', phase: 'heard', text });
-      void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.userName, text), 'flush', { meta: { text } });
+      // speech through the talk key stops the round; always listening also hears a TV or other people, so it only wakes
+      const trigger = this.cfg.asr.mic.mode === 'always' ? 'flush' : 'interrupt';
+      void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.userName, text), trigger, { meta: { text } });
       return;
     }
     if (this.segmenter.active || this.transcribing || this.queue.length > 0) this.listenOpen = true;
@@ -2032,6 +2047,8 @@ export class DesktopPetWorld implements World {
           if (typeof raw.hotkey === 'string' && parseHotkey(raw.hotkey)) typeKey.hotkey = raw.hotkey;
           this.opts.persist({ typeKey });
           await this.syncTypeKey();
+          // the talk key's trigger depends on the typing key
+          await this.syncHotkey();
           return this.petState();
         }
         case 'guide': {
