@@ -47,7 +47,8 @@ export function createMic({ prefs, send, sendAudio }) {
       // read before opening: a report after it may already see the next default
       const target = await reportDevices();
       if (mic !== opening) return;
-      const audio = { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+      // AGC can change the system microphone volume on Windows.
+      const audio = { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: false };
       // inputs that cannot be told apart yet: the chosen device is asked for by its id
       const deviceId = target ? target.deviceId : prefs.micDevice;
       if (deviceId) audio.deviceId = { exact: deviceId };
