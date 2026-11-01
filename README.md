@@ -299,7 +299,9 @@ The Chat page has the full record. If something goes wrong, switch to advanced m
 
 ## Community
 
-- QQ Group 2: 1129285246 (Group 1, 1080755910, is full)
+- QQ Group 4: 1080323271
+- QQ Group 5: 702451490
+- Groups 1 (1080755910), 2 (1129285246) and 3 (1132082279) are full
 - [Discord](https://discord.gg/DR37WB5zJf)
 
 ## Contributing
