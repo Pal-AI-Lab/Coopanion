@@ -187,12 +187,13 @@ describe('voice input', () => {
     expect(world.voiceState().server).toMatchObject({ pid: null });
   });
 
-  it('turns a spoken utterance into one speech event that wakes', async () => {
+  it('turns a spoken utterance into one speech event that wakes without interrupting the round', async () => {
     const { asr, host, page } = await setup('今天天气怎么样');
     for (const fr of [...tone(900, .3), ...tone(900, 0)]) page.audio(fr);
     await page.next((m) => m.t === 'listen' && m.phase === 'start');
     await expect.poll(() => host.events.length, { timeout: 5000 }).toBe(1);
     expect(host.events[0]).toMatchObject({ type: 'desktop-pet.speech', senderKey: 'desktop-pet.voice', text: '[voice] 伙伴:今天天气怎么样' });
+    // always listening also hears a TV or other people
     expect(host.pushOpts[0]).toEqual({ trigger: 'flush' });
     expect((await page.next((m) => m.t === 'listen' && m.phase === 'heard')).text).toBe('今天天气怎么样');
     // the last decode is the whole utterance: at least the 900 ms spoken
@@ -238,6 +239,7 @@ describe('voice input', () => {
     key.press(false);
     await expect.poll(() => host.events.length, { timeout: 5000 }).toBe(1);
     expect(host.events[0].text).toBe('[voice] 伙伴:帮我看看这个');
+    expect(host.pushOpts[0]).toEqual({ trigger: 'interrupt' });
   });
 
   it('hold: the microphone stays open across a press and release unless it is set to open on press', async () => {
@@ -322,6 +324,7 @@ describe('voice input', () => {
     for (const fr of tone(600, .3)) page.audio(fr);
     page.send({ t: 'commit' });
     await expect.poll(() => host.events.length, { timeout: 5000 }).toBe(1);
+    expect(host.pushOpts[0]).toEqual({ trigger: 'interrupt' });
     expect((world.voiceState().input as { open: boolean }).open).toBe(false);
   });
 
