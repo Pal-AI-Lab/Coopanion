@@ -441,6 +441,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
   const problem = actionProblem(ui, el.ownerDocument, signal);
   const body = ui.h('div');
   const bar = ui.actions();
+  bar.classList.add('hidden');
   // 保存之前这一行说明修改会自动保存,保存后换成结果。
   const msg = ui.msgline(S.autoSaves);
   msg.classList.add('is-hint');
@@ -575,6 +576,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
       const all = Array.isArray(d.groups) ? d.groups : [];
       const groups = deps.filter ? all.filter((entry) => deps.filter!(entry.group)) : all;
       readers = [];
+      bar.classList.add('hidden');
       body.replaceChildren();
       if (!groups.length) {
         body.appendChild(ui.placeholder(
@@ -644,6 +646,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
         }
         body.append(card.el, ...runs);
       }
+      bar.classList.toggle('hidden', readers.length === 0);
       // A restart-only value first seen here is what the running World started with.
       if (restart) { for (const r of readers) if (r.cold && !restart.applied.has(key(r))) restart.applied.set(key(r), r.saved); paintPending(); }
     } catch (err) {

@@ -1416,6 +1416,19 @@ describe('World library and catalog', () => {
     expect([...root.querySelectorAll('.extension-active-row .extension-active-item')].map(item => item.textContent)).toEqual(['游戏']);
     expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(1);
   });
+  it('shows a filtered empty state when caution tags hide every package, and restores the cards when cleared', async () => {
+    const key = 'cortico.extensions.exclusions.v1:' + location.origin;
+    localStorage.removeItem(key);
+    try {
+      const index = { tags: { unsafe: { label: '不安全', style: 'warning' } } };
+      const { root } = await openWorlds({ hits: { hits: [{ ...HITS.hits[0], tags: ['unsafe'] }], index } });
+      root.querySelector('.world-market [aria-label="隐藏带警示标签的扩展"]').click(); await flush();
+      expect(marketCards(root).querySelector('.extension-empty-coo')).not.toBeNull();
+      expect(marketCards(root).textContent).not.toContain(extensionStrings.noPackages);
+      root.querySelector('.extension-active-item.is-excluded').click(); await flush();
+      expect(marketCards(root).querySelector('.extension-market-card').dataset.name).toBe(HITS.hits[0].name);
+    } finally { localStorage.removeItem(key); }
+  });
   it('keeps runtime controls available when the catalog capability is absent', async () => {
     const { root } = await openWorlds({}, { worlds: true, worldActivation: true });
     expect(root.querySelector('.world-workspace').dataset.view).toBe('mine');

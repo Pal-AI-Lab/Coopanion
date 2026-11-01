@@ -814,7 +814,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   function emptyMarket(state: CategoryState): HTMLElement {
     if (!state.fetched) return ui.placeholder(S.searching);
     const all = catalogHits(state).map(named);
-    if (!all.length) return ui.placeholder(registry ? S.noPackagesAt(registry) : S.noPackages);
+    if (!catalogHits(state, true).length) return ui.placeholder(registry ? S.noPackagesAt(registry) : S.noPackages);
     const elsewhere = state.filter.trim() ? arrangeHits(all, { filter: state.filter, tagLabel, sort: state.sort, hideInstalled: false, page: 0, pageSize: 1 }).matched : 0;
     if (!elsewhere) return noResult();
     const box = noResult(ui.h('p', 'extension-empty-note', S.hitsElsewhere(elsewhere)), ui.button(S.clearOtherFilters, { onClick: () => clearFilters(true) }));

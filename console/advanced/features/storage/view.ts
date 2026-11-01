@@ -134,9 +134,10 @@ export function createStorageView(deps: StorageViewDeps): StorageView {
     try {
       const data = await get<{ parts?: StoragePartView[] }>('/api/storage', { signal });
       if (signal.aborted) return;
-      loaded = true; bar.classList.remove('hidden');
+      loaded = true;
       const all = data.parts || [];
       everything = all;
+      bar.classList.toggle('hidden', !nukeBtn || !all.length);
       const parts = deps.filter ? all.filter((p) => deps.filter!(p)) : all;
       body.replaceChildren();
       if (!parts.length) {

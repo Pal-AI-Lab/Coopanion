@@ -195,8 +195,6 @@
 
 
   .statgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-  /* 网格里只剩一句占位时横跨整行，不缩在第一格 */
-  .statgrid > .placeholder { grid-column: 1 / -1; }
   .stat {
     background: var(--sheet-2); border: 1px solid var(--line); border-radius: 10px 11px 9px 10px;
     padding: 12px 14px;
@@ -233,7 +231,7 @@
   .msgline:empty { display: none; }
   .msgline.feedback-status:empty { display: block; visibility: hidden; }
   .msgline.bad { color: var(--danger); }
-  .placeholder { color: var(--ink-dim); font-size: 13px; text-align: center; padding: 30px 12px; }
+  .placeholder { grid-column: 1 / -1; min-width: 0; max-width: 100%; color: var(--ink-dim); font-size: 13px; text-align: center; padding: 30px 12px; overflow-wrap: anywhere; }
   .rowbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
   .rowbar .grow { flex: 1; }
   label.check { display: inline-flex; gap: 7px; align-items: center; font-size: var(--text-detail); color: var(--ink-soft); cursor: pointer; }
@@ -1479,6 +1477,7 @@
 .featureslot > .featureintro + .sheet { margin-top:0; }
 /* 面板槽是滚动容器，吸顶元素贴在 padding 内沿，所以上方留白放在第一项的外边距上;World 页模板的工具条贴着栏目条 */
 .panelslot > :first-child:not(.template-library) { margin-top:24px; }
+.panelslot > .template-library:has(> :is(.placeholder,.extension-list-problem)) { margin-top:24px; }
 .connection-detail > div > div:first-child > .sheet:first-child { padding-top:0; }
 .connection-hub .btn { border:1px solid var(--border-strong); }
 .connection-hub .btn:hover { border-color:var(--ink-soft); }
