@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/cua/engine/wait-idle.ts, src/cua/engine/foreground.ts, src/world.ts, src/asr/hotkey.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js, host/app-store.cjs -->
+<!-- Owner: src/definition.ts, src/webui/client.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/cua/engine/wait-idle.ts, src/cua/engine/foreground.ts, src/world.ts, src/asr/hotkey.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js, host/app-store.cjs -->
 
 <p align="center">
   <picture>
@@ -588,3 +588,5 @@ npx tsx scripts/check-voice.ts <模型根> <语音.wav> [应用语言]   # 连�
 装进 Cortico 运行时由框架的模块钩子解析。网页部分不依赖 World:`web/kit/` 是现成的身体(动作模拟、表情、粒子,
 和画大肥鱼用的 rig),`web/coo/` 是 Coo 的造型、配件与形象包入口,`web/sound.js` 是合成音效与包自带音频的播放,
 `web/body-host.js` 是桌宠页、装扮页这一侧的身体代理。
+
+桌宠与语音面板的操作失败使用宿主提供的错误通知；读取状态失败显示在状态区，读取恢复后清除。引擎、下载和麦克风的持续状态仍在各自行内显示。
