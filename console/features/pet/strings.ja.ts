@@ -45,6 +45,7 @@ export const S: Partial<typeof en> = {
   snore: 'いびきの長さ',
   snoreUnit: '秒',
   snoreHint: '0 = 起きるまで。',
+  volume: '音量',
   panLabel: 'ステレオ',
   pan: '位置に合わせて左右に振り分ける',
   panHint: 'Coo がいる側から音が聞こえます。オフにすると中央で鳴ります。',

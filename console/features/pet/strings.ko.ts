@@ -45,6 +45,7 @@ export const S: Partial<typeof en> = {
   snore: '코골이 시간',
   snoreUnit: '초',
   snoreHint: '0 = 깰 때까지.',
+  volume: '음량',
   panLabel: '스테레오',
   pan: '위치에 따라 좌우 배분',
   panHint: 'Coo가 있는 쪽으로 소리가 치우칩니다. 끄면 가운데에서 재생됩니다.',

@@ -45,6 +45,7 @@ export const S: Partial<typeof en> = {
   snore: 'Durata del russare',
   snoreUnit: 's',
   snoreHint: '0 = fino al risveglio.',
+  volume: 'Volume',
   panLabel: 'Stereo',
   pan: 'Bilanciamento in base alla posizione',
   panHint: 'I suoni pendono verso il lato in cui si trova Coo; disattivato, suonano al centro.',
