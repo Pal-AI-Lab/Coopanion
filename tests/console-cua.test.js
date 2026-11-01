@@ -85,7 +85,7 @@ it('restores the last saved switches and permission after a rejected write', asy
   await vi.waitFor(() => expect(control.checked).toBe(true));
   level('never-ask').click();
   await vi.waitFor(() => expect(level('ask-once').classList.contains('active')).toBe(true));
-  expect(section.textContent).toContain(S.saveFailed('write failed'));
+  expect(document.querySelector('[role=alert]:not(.hidden)')?.textContent).toContain(S.saveFailed('write failed'));
   expect(values[key('enabled')]).toBe(true);
 });
 
@@ -123,7 +123,7 @@ it('keeps a pending confirmation and a focused grant edit intact during polling'
   grant.value = '75';
   rejectWrites = true;
   grant.dispatchEvent(new Event('change', { bubbles: true }));
-  await vi.waitFor(() => expect(section.textContent).toContain(S.saveFailed('write failed')));
+  await vi.waitFor(() => expect(document.querySelector('[role=alert]:not(.hidden)')?.textContent).toContain(S.saveFailed('write failed')));
   await vi.advanceTimersByTimeAsync(3000);
   expect(grant.value).toBe('75');
   grant.blur();

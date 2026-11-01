@@ -4,6 +4,8 @@
  * process sends every page off the console there); the sign-in runs in the Core, in Coo Pet
  * Provider's `chatgpt` module, through its console methods (`connect.ts`).
  */
+
+import { actionProblem } from '../../base/ui/problem.ts';
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import { chatgptState, signInChatGPT, signOutChatGPT, type SignInState } from 'cortico-provider-coo/src/connect.ts';
 import { signInReason } from 'cortico-provider-coo/src/strings.ts';
@@ -22,13 +24,17 @@ export const signOutBeforeDelete = (name: string, signal?: AbortSignal): Promise
 /** The account line of the saved `chatgpt` endpoint `name` with its sign-in and sign-out buttons, and the quota note. */
 export function accountRow(ui: WebUi, name: string, signal: AbortSignal): HTMLElement {
   const call = consoleCall(signal);
+  const problem = actionProblem(ui, document, signal);
+  let current: SignInState | undefined;
   const line = ui.msgline('');
   const signIn = ui.button(S.go, { variant: 'primary' });
   const signOut = ui.button(S.signOut, { size: 'sm' });
   signOut.hidden = true;
   const show = (state: SignInState) => {
-    line.textContent = state.signedIn ? S.signedIn(state.email ?? '') : state.phase === 'failed' ? S.failed(signInReason(state.reason ?? '', LANGUAGE)) : S.signedOut;
-    line.classList.toggle('bad', state.phase === 'failed');
+    if (signal.aborted) return;
+    current = state;
+    line.textContent = state.signedIn ? S.signedIn(state.email ?? '') : S.signedOut;
+    if (state.phase === 'failed') problem(signIn, S.failed(signInReason(state.reason ?? '', LANGUAGE)));
     signOut.hidden = !state.signedIn;
   };
   signIn.addEventListener('click', async () => {
@@ -39,15 +45,16 @@ export function accountRow(ui: WebUi, name: string, signal: AbortSignal): HTMLEl
       show(await signInChatGPT(call, name, openInBrowser, { signal }));
     } catch (err) {
       if (signal.aborted) return;
-      line.textContent = S.failed(err instanceof Error ? err.message : String(err));
-      line.classList.add('bad');
+      line.textContent = current?.signedIn ? S.signedIn(current.email ?? '') : S.signedOut;
+      problem(signIn, S.failed(err instanceof Error ? err.message : String(err)));
     } finally {
       signIn.disabled = false;
     }
   }, { signal });
   signOut.addEventListener('click', async () => {
     signOut.disabled = true;
-    try { show(await signOutChatGPT(call, name)); } finally { signOut.disabled = false; }
+    try { show(await signOutChatGPT(call, name)); }
+    catch (err) { problem(signOut, S.failed(err instanceof Error ? err.message : String(err))); } finally { signOut.disabled = false; }
   }, { signal });
   void chatgptState(call, name).then(show, () => {});
   const row = ui.rowbar();

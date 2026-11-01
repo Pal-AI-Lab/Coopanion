@@ -3,6 +3,8 @@
  * 每一格在 change 时写回端点条目，模块自有的段落挂在 `instance` 插槽里。
  * reasoningTiers 非空时限制为所列档位；为空时接受开放字符串。空值使用端点默认，none 关闭推理，其余写入 reasoningEffort。
  */
+
+import { actionProblem } from '../../../../base/ui/problem.ts';
 import type {
   WebUiDisablable,
   WebUiFormat,
@@ -156,6 +158,7 @@ export const llmSettingsPanel: WebUiPanel = {
   mount: async (ctx: WebUiPanelContext) => {
     const { ui, root } = ctx;
     const S = pick(panel);
+    const problem = actionProblem(ui, root.ownerDocument, ctx.signal);
     // `<datalist>` 靠全局 id 绑定;每次挂载一个前缀,同页两份面板互不串。
     const uid = `llm-${Math.random().toString(36).slice(2, 8)}`;
     let selected = '';
@@ -167,11 +170,11 @@ export const llmSettingsPanel: WebUiPanel = {
     const body = ui.h('div');
     root.append(body, report);
     /** 写一格:落盘后只更新状态行与页头徽标,表单留在原处。 */
-    const patch = async (fields: Record<string, unknown>): Promise<boolean> => {
+    const patch = async (fields: Record<string, unknown>, anchor = root.ownerDocument.activeElement): Promise<boolean> => {
       try {
         await ctx.invoke('save', [{ name: selected, ...fields }]);
       } catch (error) {
-        report.textContent = String(error);
+        problem(anchor, String(error));
         return false;
       }
       report.textContent = S.saved;
@@ -179,11 +182,11 @@ export const llmSettingsPanel: WebUiPanel = {
       return true;
     };
     /** 改了实例集合或当前实例的动作:落盘后整页重画。 */
-    const action = async (method: string, args: unknown[], done = S.saved): Promise<boolean> => {
+    const action = async (method: string, args: unknown[], done = S.saved, anchor = root.ownerDocument.activeElement): Promise<boolean> => {
       try {
         await ctx.invoke(method, args);
       } catch (error) {
-        report.textContent = String(error);
+        problem(anchor, String(error));
         return false;
       }
       report.textContent = done;
@@ -193,11 +196,12 @@ export const llmSettingsPanel: WebUiPanel = {
     };
     /** 读类方法(取模型、探测):不重画;失败把服务端措辞放进 report。 */
     const query = async <T>(method: string, args: unknown[], ...locked: WebUiDisablable[]) => {
+      const anchor = root.ownerDocument.activeElement;
       const release = ui.disable(...locked);
       try {
         return await ctx.invoke<T>(method, args);
       } catch (error) {
-        report.textContent = String(error);
+        problem(anchor, String(error));
         return null;
       } finally {
         release.dispose();
@@ -272,7 +276,7 @@ export const llmSettingsPanel: WebUiPanel = {
               await ctx.refresh();
               await changed?.(value);
             } catch (error) {
-              report.textContent = String(error);
+              problem(field.node, String(error));
             }
           })();
         }, ctx.signal);
@@ -366,10 +370,11 @@ export const llmSettingsPanel: WebUiPanel = {
         return next;
       };
       function saveOptions(): void {
+        const anchor = root.ownerDocument.activeElement;
         try {
           void patch({ options: optionsPayload() });
         } catch (error) {
-          report.textContent = String(error);
+          problem(anchor, String(error));
         }
       }
 
@@ -420,7 +425,8 @@ export const llmSettingsPanel: WebUiPanel = {
       }
       /** 取目录:成功换成选单并带出上下文窗口,失败把原因留在模型格下面。 */
       async function fetchCatalog(...locked: WebUiDisablable[]): Promise<void> {
-        const release = ui.disable(...locked);
+        const anchor = root.ownerDocument.activeElement;
+      const release = ui.disable(...locked);
         try {
           const result = await ctx.invoke<{ models: ModelEntry[] }>('models', [{ name: selected }]);
           catalog = result.models;
@@ -432,8 +438,8 @@ export const llmSettingsPanel: WebUiPanel = {
             await patch({ spec });
           }
         } catch (error) {
-          catalog = [];
-          modelNote.textContent = S.modelListFailed(String(error));
+          problem(anchor, S.modelListFailed(String(error)));
+          return;
         } finally {
           release.dispose();
         }

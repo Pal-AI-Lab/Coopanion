@@ -3,6 +3,9 @@
  * `clearAll` 打开时多一颗一键清空,清的是服务端整张清单;确认框逐项列出受影响的存储项与归属。
  */
 
+import { S as COMMON } from '../../../base/ui/strings.ts';
+import { actionProblem, listProblem } from '../../../base/ui/problem.ts';
+
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import { get, post } from '../../../base/api.ts';
 import { S } from './strings.ts';
@@ -47,18 +50,16 @@ function isAbort(err: unknown): boolean {
 export function createStorageView(deps: StorageViewDeps): StorageView {
   const { ui, signal } = deps;
   const el = ui.h('div', 'storageview');
+  const problem = actionProblem(ui, el.ownerDocument, signal);
   const body = ui.h('div');
+  let loaded = false;
   const bar = ui.actions();
-  const msg = ui.msgline();
-  bar.append(msg, ui.h('span', 'grow'));
+  bar.append(ui.h('span', 'grow'));
   const nukeBtn = deps.clearAll ? ui.button(S.nukeAll, { variant: 'danger', onClick: () => void nuke() }) : null;
   if (nukeBtn) bar.appendChild(nukeBtn);
   el.append(body, bar);
+  bar.classList.add('hidden');
 
-  function setMsg(text: string, bad?: boolean): void {
-    msg.textContent = text;
-    msg.className = 'msgline' + (bad ? ' bad' : '');
-  }
 
   function row(p: StoragePartView): HTMLDivElement {
     const item = ui.h('div', 'strow');
@@ -91,11 +92,11 @@ export function createStorageView(deps: StorageViewDeps): StorageView {
         { signal },
       );
       if (signal.aborted) return;
-      setMsg('✓ ' + (out.result || S.cleared));
+      ui.toast(out.result || S.cleared, 'ok');
       await load();
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
-      setMsg(S.clearFailed(errText(err)), true);
+      problem(btn, S.clearFailed(errText(err)));
     } finally {
       lock.dispose();
     }
@@ -119,11 +120,12 @@ export function createStorageView(deps: StorageViewDeps): StorageView {
       if (signal.aborted) return;
       const results = out.results || [];
       const bad = results.filter((x) => !x.ok);
-      setMsg(bad.length ? S.partialFailed(bad.map((x) => `${x.owner} ${x.key}`).join(',')) : S.nukedAll(results.length), bad.length > 0);
+      if (bad.length) problem(nukeBtn, S.partialFailed(bad.map((x) => `${x.owner} ${x.key}`).join(',')));
+      else ui.toast(S.nukedAll(results.length), 'ok');
       await load();
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
-      setMsg(S.nukeFailed(errText(err)), true);
+      problem(nukeBtn, S.nukeFailed(errText(err)));
     } finally {
       lock.dispose();
     }
@@ -133,6 +135,7 @@ export function createStorageView(deps: StorageViewDeps): StorageView {
     try {
       const data = await get<{ parts?: StoragePartView[] }>('/api/storage', { signal });
       if (signal.aborted) return;
+      loaded = true; bar.classList.remove('hidden');
       const all = data.parts || [];
       everything = all;
       const parts = deps.filter ? all.filter((p) => deps.filter!(p)) : all;
@@ -150,7 +153,9 @@ export function createStorageView(deps: StorageViewDeps): StorageView {
       }
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
-      body.replaceChildren(ui.placeholder(S.loadFailed(errText(err))));
+      const text = S.loadFailed(errText(err));
+      if (loaded) ui.toast(text, 'bad');
+      else body.replaceChildren(listProblem(el.ownerDocument, text, COMMON.retry, load));
     }
   }
 

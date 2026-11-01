@@ -7,6 +7,8 @@
 
 import type { WebUi, WebUiSheet, Disposable } from 'cortico/web/shared/client-panel.ts';
 import { get } from '../../base/api.ts';
+import { listProblem } from '../../base/ui/problem.ts';
+import { S as COMMON } from '../../base/ui/strings.ts';
 import { createMemo } from '../../base/memo.ts';
 import { esc } from '../../base/ui/dom.ts';
 import { consoleFormat, currencyName, currencySymbol, formatMoney } from '../../base/ui/format.ts';
@@ -147,12 +149,14 @@ export function mountUsage(ctx: PageContext): void {
   timezone.classList.add('utz');
   const dates = ui.h('span', 'udates');
   dates.append(fromInput, ui.h('span', 'ulabel', '—'), toInput, timezone);
-  /** 取数失败与账目存储异常；没有时整行不占位。 */
-  const notice = ui.msgline('', true);
+  /** 账目存储异常；没有时不占位。 */
+  const notice = ui.h('div', 'extension-list-problem');
+  notice.hidden = true;
+  notice.setAttribute('role', 'status');
   notice.classList.add('unotice');
   const rangeBar = ui.h('div', 'urangebar');
   rangeBar.append(presets.el, dates);
-  intro.append(rangeBar, notice);
+  intro.append(rangeBar);
 
   // ---- 总览：读数、成本构成与计费口径 -----------------------------------------
   const overview = ui.sheet({ title: S.sectionOverview });
@@ -178,7 +182,7 @@ export function mountUsage(ctx: PageContext): void {
   const cards = ui.h('div', 'ukpis');
   const compBox = ui.h('div', 'ucomp');
   const billingNote = ui.h('p', 'muted ufoot');
-  overview.body.append(cards, compBox, billingNote);
+  overview.body.append(notice, cards, compBox, billingNote);
 
   // ---- Token 活跃度 ---------------------------------------------------------
   const activity = ui.sheet({ title: S.sectionActivity });
@@ -416,8 +420,6 @@ export function mountUsage(ctx: PageContext): void {
     timezone.hidden = !timezone.value;
   }
 
-  /** 顶部提示行只放需要处理的问题；统计口径写在总览下方。 */
-  let staleNote = '';
   function renderRateSource(source: UsageRateSource | undefined): void {
     rateSource.textContent = '';
     if (source?.kind === 'builtin') rateSource.textContent = S.rateBuiltin(source.date);
@@ -433,7 +435,7 @@ export function mountUsage(ctx: PageContext): void {
   function renderNotes(): void {
     const d = state.data;
     const ledgerError = d?.ledger?.error ? S.ledgerError(d.ledger.pending, d.ledger.error).trim() : '';
-    notice.textContent = [staleNote, ledgerError].filter(Boolean).join(' ');
+    notice.textContent = ledgerError;
     notice.hidden = !notice.textContent;
   }
 
@@ -495,18 +497,16 @@ export function mountUsage(ctx: PageContext): void {
       if (ctx.signal.aborted || mine !== generation) return;
       state.data = d;
       loadedAt = ui.fmt.clock(new Date().toISOString());
-      staleNote = '';
       results.classList.remove('u-stale');
       renderAll(d, d.dailyTokens ?? null);
     } catch (err) {
       if (isAbort(err) || ctx.signal.aborted || mine !== generation) return;
       if (!state.data) {
-        cards.replaceChildren(ui.placeholder(S.loadFailed(errText(err))));
+        cards.replaceChildren(listProblem(doc, S.loadFailed(errText(err)), COMMON.retry, load));
         return;
       }
       // 保留上一次的结果,整块标为过期,并写明取回时刻。
-      staleNote = S.stale(errText(err), loadedAt);
-      renderNotes();
+      if (!results.classList.contains('u-stale')) ui.toast(S.stale(errText(err), loadedAt), 'bad');
       results.classList.add('u-stale');
     }
   }

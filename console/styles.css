@@ -229,8 +229,9 @@
   .btn-ico { display: inline-flex; align-items: center; gap: 6px; }
   .btn-ico .icon { width: 14px; height: 14px; }
 
-  .msgline { font: var(--text-detail)/1.45 var(--sans); min-height: 16px; color: var(--ok); }
+  .msgline { min-width:0; overflow-wrap:anywhere; font: var(--text-detail)/1.45 var(--sans); min-height: 16px; color: var(--ok); }
   .msgline:empty { display: none; }
+  .msgline.feedback-status:empty { display: block; visibility: hidden; }
   .msgline.bad { color: var(--danger); }
   .placeholder { color: var(--ink-dim); font-size: 13px; text-align: center; padding: 30px 12px; }
   .rowbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -427,15 +428,18 @@
   .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--violet); animation: pulse 1.15s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { opacity: .3; transform: scale(.75); } 50% { opacity: 1; transform: scale(1.15); } }
 
-  @keyframes toast { 0% { opacity: 0; transform: translate(-50%, 8px); } 12% { opacity: 1; transform: translate(-50%, 0); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -8px); } }
+  @keyframes toast { 0% { opacity: 0; transform: translate(-50%, 8px); } 6% { opacity: 1; transform: translate(-50%, 0); } 92% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -8px); } }
 
   .toast {
     position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 130;
     background: var(--sheet); border: 1px solid var(--line-2); color: var(--ink-soft);
-    font-size: 12px; border-radius: 16px; padding: 5px 15px; white-space: nowrap;
-    pointer-events: none; animation: toast 1.9s ease forwards;
+    font-size: 12px; border-radius: 16px; padding: 5px 15px;
+    display: flex; align-items: flex-start; gap: 8px; box-sizing: border-box; width: max-content;
+    max-width: min(560px, calc(100vw - 32px)); white-space: normal; overflow-wrap: anywhere;
+    pointer-events: auto; animation: toast var(--toast-duration, 2000ms) ease forwards;
     box-shadow: 0 12px 32px -16px var(--shadow-strong);
   }
+  .toast-text { min-width: 0; max-height: min(300px, 50vh); overflow-y: auto; overscroll-behavior: contain; }
   .toast.bad { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 42%, transparent); }
 
 
@@ -2145,8 +2149,9 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 @keyframes extension-ring-spin{to{transform:rotate(360deg)}}
 @keyframes extension-ring-arc{50%{stroke-dashoffset:28}}
 /* Error popover beside the control whose operation failed. */
-.extension-list-problem{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;color:var(--danger);font-size:13px;overflow-wrap:anywhere}
-.extension-list-problem>span{min-width:0}
+.extension-list-problem{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--sheet);color:var(--danger);font-size:13px;min-width:0;box-sizing:border-box;overflow-wrap:anywhere}
+.extension-list-problem[hidden]{display:none}
+.extension-list-problem>span{min-width:0;max-height:240px;overflow-y:auto;overscroll-behavior:contain}
 .extension-list-problem>.btn{flex:none}
 
 .extension-problem{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:8px;width:max-content;max-width:min(560px,var(--problem-available-width,calc(100vw - 16px)));padding:10px 8px 10px 11px;pointer-events:auto;line-height:1.55;border-color:color-mix(in srgb,var(--danger) 35%,var(--line-strong))}
@@ -2154,7 +2159,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .extension-problem.is-above::before{top:auto;bottom:-5px;transform:rotate(225deg)}
 .extension-problem-mark{width:16px;height:16px;margin-top:1px;color:var(--danger)}
 .extension-problem-text{max-height:min(300px,calc(100vh - 80px));overflow-y:auto;overscroll-behavior:contain;font-size:12px;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
-.extension-problem-close{display:grid;place-items:center;width:22px;height:22px;margin:-2px 0 0;padding:0;border:0;border-radius:6px;background:transparent;color:var(--ink-dim);cursor:pointer}
+.extension-problem-close{flex:none;display:grid;place-items:center;width:22px;height:22px;margin:-2px 0 0;padding:0;border:0;border-radius:6px;background:transparent;color:var(--ink-dim);cursor:pointer}
 .extension-problem-close:hover{background:var(--hover);color:var(--ink)}
 .extension-problem-close .icon{width:13px;height:13px}
 /* Toolbar toggles for advanced search and the npm registry; their panels open under the toolbar. */

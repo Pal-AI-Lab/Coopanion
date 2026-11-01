@@ -4,6 +4,7 @@ import type { Disposable } from 'cortico/web/shared/client-panel.ts';
 import { h } from './dom.ts';
 import { button, rowbar } from './sheet.ts';
 import { S } from './strings.ts';
+import { icon } from './icons.ts';
 
 /** 浮层的生存环境：文档、挂载点、面板生命周期。 */
 export interface OverlayEnv {
@@ -77,11 +78,12 @@ function openModal(env: OverlayEnv, onClose: () => void): Overlay {
   return layer;
 }
 
-/** toast 停留多久（与 `@keyframes toast` 的 1.9s 对齐，留一点余量再摘节点）。 */
+/** Errors allow more reading time; hovering or focusing pauses dismissal. */
 const TOAST_MS = 2000;
+const ERROR_TOAST_MS = 6000;
 
 /**
- * 瞬时提示。`prev` 是上一条 toast(同一个 ui 实例只留一条，后来的顶掉前面的)。返回新的一层，面板 abort 后返回 `null`。
+ * 底部通知自动消失。每个 ui 实例只保留最新一条；面板 abort 后不显示。
  */
 export function toast(
   env: OverlayEnv,
@@ -91,9 +93,37 @@ export function toast(
 ): Overlay | null {
   prev?.close();
   if (env.signal.aborted) return null;
-  const el = h(env.doc, 'div', tone === 'bad' ? 'toast bad' : 'toast', text);
+  const el = h(env.doc, 'div', tone === 'bad' ? 'toast bad' : 'toast');
+  el.setAttribute('role', tone === 'bad' ? 'alert' : 'status');
+  el.append(h(env.doc, 'span', 'toast-text', text));
   const layer = openLayer(env, el);
-  const timer = setTimeout(() => layer.close(), TOAST_MS);
+  const duration = tone === 'bad' ? ERROR_TOAST_MS : TOAST_MS;
+  el.style.setProperty('--toast-duration', `${duration}ms`);
+  if (tone === 'bad') {
+    const close = button(env.doc, layer.signal, '', { size: 'sm', onClick: () => layer.close() });
+    close.className = 'extension-problem-close';
+    close.setAttribute('aria-label', S.close);
+    close.append(icon(env.doc, 'close'));
+    el.append(close);
+    env.doc.addEventListener('keydown', event => { if (event.key === 'Escape') layer.close(); }, { signal: layer.signal });
+  }
+  let timer = setTimeout(() => layer.close(), duration);
+  let remaining = duration, started = Date.now(), paused = false;
+  const pause = () => {
+    if (paused) return;
+    paused = true; remaining -= Date.now() - started;
+    clearTimeout(timer); el.style.animationPlayState = 'paused';
+  };
+  const resume = () => {
+    if (!paused || el.matches(':hover') || el.contains(env.doc.activeElement)) return;
+    paused = false; started = Date.now();
+    el.style.animationPlayState = 'running';
+    clearTimeout(timer); timer = setTimeout(() => layer.close(), remaining);
+  };
+  el.addEventListener('pointerenter', pause, { signal: layer.signal });
+  el.addEventListener('pointerleave', resume, { signal: layer.signal });
+  el.addEventListener('focusin', pause, { signal: layer.signal });
+  el.addEventListener('focusout', resume, { signal: layer.signal });
   // 提前关掉(被下一条顶掉、或面板卸载)时把定时器也撤了,免得留一个空转的回调
   layer.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
   return layer;

@@ -5,8 +5,25 @@
  */
 import { icon } from './icons.ts';
 import { S as UI } from './strings.ts';
+import type { Disposable, WebUi } from 'cortico/web/shared/client-panel.ts';
 
 export interface ProblemPopover { show(anchor: Element, text: string): void; hide(): void }
+
+/** Capture the initiating control before awaiting. A removed or offscreen control uses a dismissible toast. */
+export function actionProblem(ui: WebUi, doc: Document, signal: AbortSignal) {
+  const popup = problemPopover(doc, signal);
+  let notification: Disposable | undefined;
+  signal.addEventListener('abort', () => notification?.dispose(), { once: true });
+  return (anchor: Element | null | undefined, text: string): void => {
+    if (signal.aborted) return;
+    notification?.dispose(); notification = undefined;
+    const rect = anchor?.getBoundingClientRect();
+    const scroller = anchor ? scrollerOf(anchor)?.getBoundingClientRect() : null;
+    if (problemAnchorVisible(anchor) && rect && rect.bottom > Math.max(0, scroller?.top ?? 0)
+      && rect.top < Math.min(doc.documentElement.clientHeight, scroller?.bottom ?? Infinity)) popup.show(anchor, text);
+    else { popup.hide(); notification = ui.toast(text, 'bad'); }
+  };
+}
 
 /** A control can remain mounted while its page, drawer or disclosure is hidden. */
 export function problemAnchorVisible(anchor: Element | null | undefined): anchor is Element {
@@ -26,7 +43,12 @@ export function listProblem(doc: Document, text: string, label: string, retry: (
   const box = doc.createElement('div'); box.className = 'extension-list-problem'; box.setAttribute('role', 'status');
   const message = doc.createElement('span'); message.textContent = text;
   const button = doc.createElement('button'); button.type = 'button'; button.className = 'btn secondary sm'; button.textContent = label;
-  button.addEventListener('click', async () => { button.disabled = true; try { await retry(); } finally { button.disabled = false; } });
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    try { await retry(); }
+    catch (error) { message.textContent = error instanceof Error ? error.message : String(error); }
+    finally { button.disabled = false; }
+  });
   box.append(message, button); return box;
 }
 
@@ -55,10 +77,16 @@ export function problemPopover(doc: Document, signal: AbortSignal): ProblemPopov
   const place = () => {
     if (!problemAnchorVisible(anchor)) { hide(); return; }
     const target = anchor.getBoundingClientRect(), view = doc.documentElement;
-    const region = anchor.closest('.modalcard, .world-catalog-scroll, .world-workspace, .extension-category');
+    const region = anchor.closest<HTMLElement>('.modalcard, .extension-toolbar, .world-catalog-scroll, .world-workspace, .extension-category, .connection-detail, .connection-index, .featureslot, .panelslot');
     const bounds = region?.getBoundingClientRect(), style = region ? win.getComputedStyle(region) : null;
-    const minLeft = Math.max(8, bounds?.width ? bounds.left + Math.max(8, parseFloat(style!.paddingLeft) || 0) : 8);
-    const maxRight = Math.min(view.clientWidth - 8, bounds?.width ? bounds.right - Math.max(8, parseFloat(style!.paddingRight) || 0) : view.clientWidth - 8);
+    let minLeft = Math.max(8, bounds?.width ? bounds.left + (region?.clientLeft ?? 0) + Math.max(8, parseFloat(style!.paddingLeft) || 0) : 8);
+    let maxRight = Math.min(view.clientWidth - 8, bounds?.width ? bounds.left + (region?.clientLeft ?? 0) + (region?.clientWidth || bounds.width) - Math.max(8, parseFloat(style!.paddingRight) || 0) : view.clientWidth - 8);
+    if (anchor !== region && region?.matches('.featureslot, .panelslot')) {
+      let content = anchor;
+      while (content.parentElement && content.parentElement !== region) content = content.parentElement;
+      const column = content.getBoundingClientRect();
+      if (column.width) { minLeft = Math.max(minLeft, column.left); maxRight = Math.min(maxRight, column.right); }
+    }
     box.style.setProperty('--problem-available-width', `${Math.max(0, maxRight - minLeft)}px`);
     const tip = box.getBoundingClientRect();
     const below = target.bottom + 10, above = target.top - tip.height - 10;
@@ -87,6 +115,7 @@ export function problemPopover(doc: Document, signal: AbortSignal): ProblemPopov
   return {
     hide,
     show(target, text) {
+      if (signal.aborted) return;
       const close = doc.createElement('button'); close.type = 'button'; close.className = 'extension-problem-close';
       close.setAttribute('aria-label', UI.close); close.append(icon(doc, 'close'));
       close.addEventListener('click', hide, { signal });
