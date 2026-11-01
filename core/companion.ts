@@ -637,11 +637,13 @@ export async function main(): Promise<void> {
   const shutdown = async (reason: string) => {
     if (stopping) return;
     stopping = true;
-    const done = await Promise.race([
-      Promise.all([bot.shutdown(reason), stats.stop()]).then(() => true),
-      new Promise<false>((r) => setTimeout(() => r(false), 30_000)),
-    ]);
-    process.exit(done ? 0 : 1);
+    try {
+      const [report] = await Promise.all([bot.shutdown(reason), stats.stop()]);
+      process.exit(report.complete ? 0 : 1);
+    } catch (error) {
+      console.error(error);
+      process.exit(1);
+    }
   };
   const update = sayUpdates(loaded.config, () => pet, () => guiding);
   process.on('message', (msg: { type?: string; step?: UpdateStep | null }) => {
