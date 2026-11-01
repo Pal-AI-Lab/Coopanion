@@ -367,11 +367,60 @@ describe('voice input', () => {
     const { watch, sample } = sampledKeys();
     const { world, page } = await setup('', 'hold', watch, 'zh', true);
     await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'RightCtrl' }]);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
     sample('RightCtrl', true, 0);
     await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'F8' }]);
     sample('RightCtrl', true, TAP_MAX_MS + 1);
     expect(world.voiceState().input).toMatchObject({ open: false });
     expect(page.messages.some((m) => m.t === 'listen' && m.phase === 'start')).toBe(false);
+  });
+
+  it('hold: a talk key apart from the typing key listens from the press', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world, page } = await setup('', 'hold', watch);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'RightCtrl' }]);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'F8*2' }]);
+    sample('RightCtrl', true, 0);
+    expect(world.voiceState().input).toMatchObject({ open: true });
+    await page.next((m) => m.t === 'listen' && m.phase === 'start');
+    sample('RightCtrl', false, 100);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+  });
+
+  it('hold: a talk key shared with the typing key listens only once held past a tap', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world } = await setup('', 'hold', watch);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'RightCtrl' }]);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
+    sample('RightCtrl', true, 0);
+    sample('RightCtrl', true, TAP_MAX_MS);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+    sample('RightCtrl', true, TAP_MAX_MS + 1);
+    expect(world.voiceState().input).toMatchObject({ open: true });
+  });
+
+  it('hold: changing the typing key restarts the talk key watcher with the matching trigger', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world, cfg } = await setup('', 'hold', watch);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'RightCtrl' }]);
+    sample('RightCtrl', true, 0);
+    expect(world.voiceState().input).toMatchObject({ open: true });
+    sample('RightCtrl', false, 100);
+    // switched on through the pet panel with the same key: the press waits out a tap
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
+    sample('RightCtrl', true, 1000);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+    sample('RightCtrl', true, 1000 + TAP_MAX_MS + 1);
+    expect(world.voiceState().input).toMatchObject({ open: true });
+    sample('RightCtrl', false, 1500);
+    // switched off in the config directly: the next config sync goes back to listening from the press
+    cfg.typeKey.enabled = false;
+    await expect.poll(() => {
+      sample('RightCtrl', true, 2000);
+      const open = (world.voiceState().input as { open: boolean }).open;
+      sample('RightCtrl', false, 2050);
+      return open;
+    }).toBe(true);
   });
 
   it('a single-press typing shortcut opens the box before the key is released', async () => {
