@@ -22,10 +22,7 @@ export const S: Partial<typeof en> = {
   restartConfirmBody: '擴充只在處理程序啟動時載入，新裝、更新或刪除的擴充要重新啟動後才生效。\n重新啟動會打斷正在進行的回覆，各 World 的連線會中斷並重新連線，期間 Coo 暫時離開桌面。工作階段、Memory 和設定都會保留。',
   restartNoLoopBody: '處理程序將結束，需要手動重新啟動。繼續？',
   stepIncomplete: '未完成',
-  doneRestartSupervised: '已結束，等待重新啟動',
-  doneRestart: '已結束',
   resultDefault: '關閉步驟已執行。',
-  reloadWait: '等待 Coo 的新處理程序就緒…',
   otherBot: '此連接埠已由另一個 Bot 使用，已停止恢復。',
   restartManual: '處理程序已結束，請在命令列手動啟動；此頁面會等待就緒。',
 

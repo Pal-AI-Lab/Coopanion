@@ -8,6 +8,28 @@ import { S as UI } from './strings.ts';
 
 export interface ProblemPopover { show(anchor: Element, text: string): void; hide(): void }
 
+/** A control can remain mounted while its page, drawer or disclosure is hidden. */
+export function problemAnchorVisible(anchor: Element | null | undefined): anchor is Element {
+  if (!anchor?.isConnected || anchor.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
+  const win = anchor.ownerDocument.defaultView!;
+  for (let node: Element | null = anchor; node; node = node.parentElement) {
+    const style = win.getComputedStyle(node);
+    if ((node as HTMLElement).inert) return false;
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    if (node instanceof win.HTMLDetailsElement && !node.open && !node.querySelector('summary')?.contains(anchor)) return false;
+  }
+  return true;
+}
+
+/** A failed list read stays with that list; retry never repeats a mutation. */
+export function listProblem(doc: Document, text: string, label: string, retry: () => Promise<unknown>): HTMLElement {
+  const box = doc.createElement('div'); box.className = 'extension-list-problem'; box.setAttribute('role', 'status');
+  const message = doc.createElement('span'); message.textContent = text;
+  const button = doc.createElement('button'); button.type = 'button'; button.className = 'btn secondary sm'; button.textContent = label;
+  button.addEventListener('click', async () => { button.disabled = true; try { await retry(); } finally { button.disabled = false; } });
+  box.append(message, button); return box;
+}
+
 /** The nearest ancestor that scrolls vertically. */
 export function scrollerOf(el: Element | null): HTMLElement | null {
   const win = el?.ownerDocument.defaultView;
@@ -31,11 +53,17 @@ export function problemPopover(doc: Document, signal: AbortSignal): ProblemPopov
   let anchor: Element | null = null;
   const hide = () => { box.classList.add('hidden'); anchor = null; };
   const place = () => {
-    if (!anchor?.isConnected) { hide(); return; }
-    const target = anchor.getBoundingClientRect(), tip = box.getBoundingClientRect(), view = doc.documentElement;
+    if (!problemAnchorVisible(anchor)) { hide(); return; }
+    const target = anchor.getBoundingClientRect(), view = doc.documentElement;
+    const region = anchor.closest('.modalcard, .world-catalog-scroll, .world-workspace, .extension-category');
+    const bounds = region?.getBoundingClientRect(), style = region ? win.getComputedStyle(region) : null;
+    const minLeft = Math.max(8, bounds?.width ? bounds.left + Math.max(8, parseFloat(style!.paddingLeft) || 0) : 8);
+    const maxRight = Math.min(view.clientWidth - 8, bounds?.width ? bounds.right - Math.max(8, parseFloat(style!.paddingRight) || 0) : view.clientWidth - 8);
+    box.style.setProperty('--problem-available-width', `${Math.max(0, maxRight - minLeft)}px`);
+    const tip = box.getBoundingClientRect();
     const below = target.bottom + 10, above = target.top - tip.height - 10;
     const flip = below + tip.height > view.clientHeight - 8 && above > 8;
-    const left = Math.max(8, Math.min(target.right - tip.width + 12, view.clientWidth - tip.width - 8));
+    const left = Math.max(minLeft, Math.min(target.right - tip.width + 12, maxRight - tip.width));
     box.classList.toggle('is-above', flip);
     box.style.top = `${Math.max(8, Math.min(flip ? above : below, view.clientHeight - tip.height - 8))}px`; box.style.left = `${left}px`;
     box.style.setProperty('--problem-arrow', `${Math.max(14, Math.min(tip.width - 14, target.left + target.width / 2 - left))}px`);
@@ -46,10 +74,16 @@ export function problemPopover(doc: Document, signal: AbortSignal): ProblemPopov
     const target = scrollerOf(anchor);
     if (target) { event.preventDefault(); target.scrollBy({ top: wheelDelta(event) }); }
   }, { passive: false, signal });
-  doc.addEventListener('pointerdown', event => { if (anchor && !box.contains(event.target as Node) && !anchor.contains(event.target as Node)) hide(); }, { signal });
+  doc.addEventListener('pointerdown', event => { if (anchor && !box.contains(event.target as Node)) hide(); }, { signal });
+  doc.addEventListener('click', event => { if (anchor?.contains(event.target as Node)) hide(); }, { capture: true, signal });
   doc.addEventListener('keydown', event => { if (event.key === 'Escape') hide(); }, { signal });
   doc.addEventListener('scroll', () => { if (anchor) place(); }, { capture: true, passive: true, signal });
   win.addEventListener('resize', () => { if (anchor) place(); }, { signal });
+  const observer = new win.MutationObserver(records => {
+    if (anchor && records.some(record => !box.contains(record.target) && (record.type === 'childList' || (record.target as Element).contains(anchor)))) place();
+  });
+  observer.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'inert', 'open', 'class', 'style', 'data-view'] });
+  signal.addEventListener('abort', () => observer.disconnect(), { once: true });
   return {
     hide,
     show(target, text) {

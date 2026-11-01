@@ -2,13 +2,12 @@
 
 import { get, post, pickPath } from '../../../base/api.ts';
 import { icon, brandMark, cooFigure, COO_FACE_NAMES } from '../../../base/ui/icons.ts';
-import { notice } from '../../../base/ui/index.ts';
 import { renderMarkdown } from './markdown.ts';
 import { gallery, takeImages } from './gallery.ts';
 import type { FeatureContext } from '../feature.ts';
 import { S } from './strings.ts';
 import { CATALOG_CATEGORY_IDS, inCatalogCategory, isFunctionTag, type CatalogCategory } from './catalog.ts';
-import { problemPopover, scrollerOf, wheelDelta } from '../../../base/ui/problem.ts';
+import { problemPopover, problemAnchorVisible, listProblem, scrollerOf, wheelDelta } from '../../../base/ui/problem.ts';
 import { fold, measureReflow, prefersStill } from '../../../base/motion.ts';
 import { matchRanges, matchRank, prepareFields, searchTerms, type MatchRank, type PreparedFields } from './search.ts';
 
@@ -429,10 +428,9 @@ export function removalBlockReason(item: ExtensionView | undefined, active = ite
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 
 export interface ExtensionWorkspace {
-  statusRoot: HTMLElement;
   restartRoot: HTMLElement;
   beforeReload(): void;
-  onLoadError(): void;
+  onLoadError(text: string): void;
   onChange(items: readonly ExtensionView[]): void;
   /** `from` is where the package's icon was on screen when the install started. */
   onAdded(name: string, from?: DOMRect): void;
@@ -444,6 +442,7 @@ export interface ExtensionWorkspace {
 /** Resolves the control an operation's error popover points at; the control may be re-rendered meanwhile. */
 export type Anchor = () => Element | null | undefined;
 export interface ExtensionController {
+  refresh(): Promise<boolean>;
   /**
    * Shows the market again: restores its scroll and renders the cards in view at once, until `until`
    * settles. A reveal passes its end: under its clip the browser does not count those cards as in
@@ -575,6 +574,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   let marketGrid: HTMLElement, marketPager: HTMLElement;
   let tagBar: HTMLElement | undefined, activeBar: HTMLElement | undefined, warningControl: HTMLElement | undefined, clearButton: HTMLButtonElement | undefined, licenseList: HTMLElement | undefined;
   let messageNodes: Record<string, HTMLElement> = {};
+  let listErrorText = '';
   const save = () => {
     if (!root.hidden && !restoringScroll) states[kind].scroll = scrollRoot.scrollTop;
     try {
@@ -608,6 +608,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   }
   /** 包文档按 name@version 缓存,失败的也留着:registry 连不上时翻页、筛选不会反复重发。 */
   const detailsCache = new Map<string, Promise<PackageDetailView>>();
+  const failedDetails = new Set<string>();
   /** 包文档里的显示名:索引没给显示名的包,卡片标题等文档回来才有,搜索也要认它。 */
   const documentNames = new Map<string, string>();
   /** 卡片标题可能用到的其他名字(包文档的、本地安装的显示名与名称),搜索都认。 */
@@ -616,13 +617,14 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const aliases = [documentNames.get(hit.name), local?.metadata?.displayName, local?.label].filter((name): name is string => !!name && name !== hit.displayName);
     return aliases.length ? { ...hit, aliases } : hit;
   };
-  function fetchDetail(name: string, version?: string) {
+  function fetchDetail(name: string, version?: string, retry = false) {
     const key = name + '@' + (version ?? 'latest');
+    if (retry && failedDetails.delete(key)) detailsCache.delete(key);
     let request = detailsCache.get(key);
     if (!request) {
       request = get<PackageDetailView>('/api/extensions/package?name=' + encodeURIComponent(name) + (version ? '&version=' + encodeURIComponent(version) : ''), { signal });
       detailsCache.set(key, request);
-      void request.then(data => { if (data.displayName) documentNames.set(name, data.displayName); }, () => { /* The rejection is kept for this page's lifetime. */ });
+      void request.then(data => { if (data.displayName) documentNames.set(name, data.displayName); }, () => { failedDetails.add(key); });
     }
     return request;
   }
@@ -634,12 +636,11 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const local: PackageDetailView = { name: item.name, version: item.installedVersion ?? item.version ?? '—', versionCount: 0, history: [], warnings: [], frameworkApi: item.api ?? 0, dependencies: [], maintainers: [], links: {}, installed: true, ...item.metadata, description: item.description ?? item.metadata?.description, author: item.author };
     renderDetail(box, local, kind, hit, item);
     if (!item.builtin && !/^(link:|file:)/.test(item.spec) && item.state !== 'removed') {
-      void fetchDetail(item.name).then(data => {
+      void fetchDetail(item.name, undefined, true).then(data => {
         if (!signal.aborted && box.isConnected) renderDetail(box, data, kind, hit, item);
       }).catch(error => {
         if (!signal.aborted && box.isConnected) {
-          const feedback = box.querySelector<HTMLElement>('.extension-operation-feedback')!;
-          feedback.textContent = errorText(error); feedback.classList.add('bad');
+          detailLoadError(box, errorText(error));
         }
       });
     }
@@ -683,6 +684,30 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   // Floating tips sit over the page; the wheel still scrolls what is under them.
   hintBox.addEventListener('wheel', event => { const target = scrollerOf(hintAnchor); hideHint(); if (target) { event.preventDefault(); target.scrollBy({ top: wheelDelta(event) }); } }, { passive: false, signal });
   const problems = problemPopover(doc, signal);
+  const pendingProblems = new Map<string, { anchor: Anchor; text: string }>();
+  function showProblems() {
+    if (signal.aborted) return;
+    const groups = new Map<Element, string[]>();
+    for (const [key, note] of pendingProblems) {
+      const control = note.anchor();
+      if (!problemAnchorVisible(control)) continue;
+      const messages = groups.get(control) ?? []; messages.push(note.text); groups.set(control, messages);
+      pendingProblems.delete(key);
+    }
+    for (const [control, messages] of groups) problems.show(control, messages.join('\n'));
+  }
+  function controlProblem(key: string, anchor: Anchor, text: string) {
+    if (text) pendingProblems.set(key, { anchor, text }); else pendingProblems.delete(key);
+    showProblems();
+  }
+  const marketControl = (name: string) => marketGrid.querySelector(`.extension-market-card[data-name="${CSS.escape(name)}"] .extension-get`);
+  const restartControl = () => restartRoot.querySelector('.extension-restart');
+  function listFeedback(text: string) {
+    listErrorText = text;
+    const node = messageNodes.list;
+    node.replaceChildren(...text ? [listProblem(doc, text, S.refresh, load)] : []);
+    workspace?.onLoadError(text);
+  }
   doc.addEventListener('scroll', hideHint, { capture: true, passive: true, signal });
   const HINT_LINK = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
   const plainHint = (text: string) => text.replace(HINT_LINK, '$1');
@@ -925,20 +950,20 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       const button = ui.h('button', 'extension-stat extension-vote' + (mine ? ' is-mine' : '')) as HTMLButtonElement; button.type = 'button';
       button.append(icon(doc, value === 'up' ? 'vote-up' : 'vote-down'), ui.h('span', '', ui.fmt.count(count)));
       button.setAttribute('aria-pressed', String(mine)); button.setAttribute('aria-label', value === 'up' ? S.like : S.dislike);
-      button.addEventListener('click', event => { event.stopPropagation(); hideHint(); void vote(name, rating, mine ? null : value); }, { signal });
+      button.addEventListener('click', event => { event.stopPropagation(); hideHint(); void vote(name, rating, mine ? null : value, button.closest('.extension-detail, .extension-market-card')!, value); }, { signal });
       button.addEventListener('keydown', event => event.stopPropagation(), { signal });
       el.append(button);
     }
     return el;
   }
-  async function vote(name: string, rating: RatingView, next: 'up' | 'down' | null) {
+  async function vote(name: string, rating: RatingView, next: 'up' | 'down' | null, scope: Element, direction: 'up' | 'down') {
     const before = { ...rating };
     const apply = (value: RatingView) => { Object.assign(rating, value); if (!value.mine) delete rating.mine; for (const node of doc.querySelectorAll<HTMLElement>('[data-vote-for]')) if (node.dataset.voteFor === name) node.replaceWith(votes(name, rating)); };
     const optimistic: RatingView = { ...rating, up: rating.up - (rating.mine === 'up' ? 1 : 0) + (next === 'up' ? 1 : 0), down: rating.down - (rating.mine === 'down' ? 1 : 0) + (next === 'down' ? 1 : 0) };
     if (next) optimistic.mine = next; else delete optimistic.mine;
     apply(optimistic);
     try { apply(await withGithub(() => post<RatingView>('/api/extensions/vote', { name, vote: next }, { signal }))); }
-    catch (error) { if (signal.aborted) return; apply(before); if (!needsLogin(error)) message(kind, 'market', S.voteFailed(errorText(error)), true); }
+    catch (error) { if (signal.aborted) return; apply(before); if (!needsLogin(error)) controlProblem('vote:' + name, () => (scope.isConnected ? scope : marketControl(name)?.closest('.extension-market-card'))?.querySelector(`[data-vote-for] button[aria-label="${CSS.escape(direction === 'up' ? S.like : S.dislike)}"]`), S.voteFailed(errorText(error))); }
   }
   /** 服务端回 428:这个操作要先登录 GitHub。 */
   const needsLogin = (error: unknown) => (error as { status?: number }).status === 428;
@@ -954,7 +979,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   let signingIn: Promise<boolean> | null = null;
   const wait = (ms: number) => new Promise<void>(resolve => { lifecycle.timeout(resolve, ms); });
   /** GitHub 设备码登录:显示码与验证页,按 `interval` 查账号直到登上。登上返回 true;关掉抽屉、过期或出错返回 false。 */
-  function signIn(): Promise<boolean> {
+  function signIn(anchor?: Element): Promise<boolean> {
     return signingIn ??= (async () => {
       const box = ui.h('div', 'extension-login');
       const status = ui.msgline(S.githubRequesting); status.setAttribute('role', 'status');
@@ -980,31 +1005,42 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
         if (box.isConnected) { status.textContent = S.githubExpired; status.classList.add('bad'); open.remove(); row.remove(); }
         return false;
       } catch (error) {
-        if (box.isConnected) { status.textContent = errorText(error); status.classList.add('bad'); }
+        if (box.isConnected) {
+          if (anchor && !box.querySelector('.extension-login-open')) { handle.dispose(); problems.show(anchor, errorText(error)); }
+          else { status.textContent = errorText(error); status.classList.add('bad'); }
+        }
         return false;
       } finally { signingIn = null; }
     })();
   }
-  async function signOut() {
+  async function signOut(anchor: Element) {
     try { await post('/api/extensions/github/logout', undefined, { signal }); github = Promise.resolve({}); refreshAccounts(); }
-    catch (error) { if (!signal.aborted) ui.toast(errorText(error), 'bad'); }
+    catch (error) { if (!signal.aborted) problems.show(anchor, errorText(error)); }
   }
   function accountSlot() {
     const slot = ui.h('span', 'extension-github-account'); slot.dataset.githubAccount = '';
     void githubAccount().then(account => {
       if (signal.aborted) return;
       if (account.login) {
-        const out = ui.button(S.githubLogout, { size: 'sm', onClick: () => void signOut() });
+        const out = ui.button(S.githubLogout, { size: 'sm', onClick: () => void signOut(out) });
         slot.replaceChildren(githubAvatar(account.login, account.avatar), ui.h('span', 'extension-github-login', '@' + account.login), out);
       } else {
-        const login = ui.button(S.githubLogin, { size: 'sm', onClick: () => void signIn() });
+        const login = ui.button(S.githubLogin, { size: 'sm', onClick: () => void signIn(login) });
         login.classList.add('extension-github-signin'); login.prepend(icon(doc, 'github'));
         slot.replaceChildren(login);
       }
     }, error => {
       if (signal.aborted) return;
       github = null;
-      slot.replaceChildren(ui.h('span', 'extension-github-error', errorText(error)));
+      const retry = ui.button('GitHub', { size: 'sm', onClick: async () => {
+        const lock = ui.disable(retry);
+        try { await githubAccount(); refreshAccounts(); }
+        catch (error) { github = null; if (!signal.aborted) problems.show(retry, errorText(error)); }
+        finally { lock.dispose(); }
+      } });
+      retry.prepend(icon(doc, 'alert')); retry.setAttribute('aria-label', 'GitHub: ' + errorText(error));
+      retry.addEventListener('pointerenter', () => problems.show(retry, errorText(error)), { once: true, signal });
+      slot.replaceChildren(retry);
     });
     return slot;
   }
@@ -1078,6 +1114,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const input = ui.textarea({ placeholder: S.commentPlaceholder, rows: 3 }); input.setAttribute('aria-label', S.commentPlaceholder);
     const feedback = ui.msgline(); feedback.setAttribute('role', 'status');
     const list = ui.h('div', 'extension-comment-list');
+    const listStatus = ui.msgline(); listStatus.setAttribute('role', 'status');
     const submit = ui.button(S.commentSubmit, { variant: 'primary', size: 'sm', onClick: async () => {
       const body = input.value.trim(); if (!body) return;
       const lock = ui.disable(submit, input); feedback.textContent = ''; feedback.classList.remove('bad');
@@ -1093,7 +1130,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const composer = ui.h('div', 'extension-comment-composer'); composer.append(input, actions);
     const more = ui.button(S.loadMore, { size: 'sm', onClick: () => void page() }); more.classList.add('extension-comment-more'); more.hidden = true;
     const link = ui.h('a', 'extension-discussion-link', S.openDiscussion); link.target = '_blank'; link.rel = 'noopener noreferrer'; link.hidden = true;
-    section.append(heading, composer, feedback, list, more, link);
+    section.append(heading, composer, feedback, list, listStatus, more, link);
     const countOne = () => { if (rating) { rating.comments++; for (const node of doc.querySelectorAll<HTMLElement>('[data-comments-for]')) if (node.dataset.commentsFor === name) node.lastElementChild!.textContent = ui.fmt.count(rating.comments); } };
     /** 顶层评论与它的回复;回复只有一层,都以顶层评论为 `replyTo`。 */
     function thread(top: CommentView) {
@@ -1126,14 +1163,15 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     }
     let cursor: string | undefined;
     async function page() {
-      const lock = ui.disable(more);
+      const lock = ui.disable(more); listStatus.textContent = '';
+
       try {
         const data = await get<CommentPageView>('/api/extensions/comments?name=' + encodeURIComponent(name) + (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''), { signal });
         if (signal.aborted) return;
         list.append(...data.comments.map(thread)); cursor = data.next; more.hidden = !cursor;
         if (!list.hasChildNodes()) list.append(ui.h('p', 'muted extension-comment-empty', S.noComments));
         if (data.discussion && /^https:\/\//.test(data.discussion)) { link.href = data.discussion; link.hidden = false; }
-      } catch (error) { if (!signal.aborted) { feedback.textContent = S.commentsLoadFailed(errorText(error)); feedback.classList.add('bad'); } }
+      } catch (error) { if (!signal.aborted) { if (cursor) problems.show(more, S.commentsLoadFailed(errorText(error))); else { listStatus.textContent = S.commentsLoadFailed(errorText(error)); listStatus.classList.add('bad'); } } }
       finally { lock.dispose(); }
     }
     void page();
@@ -1184,7 +1222,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     button.append(icon(doc, update ? 'update' : 'download'));
     if (update) {
       button.disabled = !!update.problems.length; attachHint(button, label, update.problems.join('\n') || undefined);
-      button.addEventListener('click', event => { event.stopPropagation(); void operate('install', { name: hit.name, version: update.latestVersion }, 'market', owner, anchor); }, { signal });
+      button.addEventListener('click', event => { event.stopPropagation(); void operate('install', { name: hit.name, version: update.latestVersion }, owner, anchor); }, { signal });
       return button;
     }
     attachHint(button, label);
@@ -1193,7 +1231,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       event.stopPropagation(); button.disabled = true;
       const warnings = (hit.tags ?? []).filter(id => marketIndex.tags[id]?.style === 'warning');
       if (warnings.length && !await ui.confirm({ title: S.installWarningTitle, body: S.installWarningBody(hit.name, warnings.map(id => `${marketIndex.tags[id].label}${S.labelSeparator}${plainHint(marketIndex.tags[id].hint)}`), hit.note), danger: true })) { button.disabled = false; return; }
-      if (!signal.aborted) await operate('install', { name: hit.name, version: hit.version }, 'market', owner, anchor);
+      if (!signal.aborted) await operate('install', { name: hit.name, version: hit.version }, owner, anchor);
     }, { signal });
     return button;
   }
@@ -1352,9 +1390,14 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) foldTags(row);
     renderInView();
     for (const [control, paint] of detailControls) if (control.isConnected) paint(); else detailControls.delete(control);
-    if (!result.matched) marketGrid.append(emptyMarket(state));
+    const searchError = state.messages.market;
+    if (searchError?.bad) {
+      marketGrid.replaceChildren(listProblem(doc, searchError.text, S.refresh, () => search(kind)));
+    } else if (!result.matched) marketGrid.append(emptyMarket(state));
     // Another page starts at the top of the list at once, however many cards it has.
     pager(marketPager, result.matched, result.page, pageSize(), page => { state.page = page; renderMarket(true); save(); });
+    marketPager.hidden = !!state.messages.market?.bad;
+    showProblems();
     shown = { key, page: result.page, size: pageSize() };
     if (leaving) placeAt(back); else if (toTop) scrollRoot.scrollTop = 0;
     reflow?.play();
@@ -1459,15 +1502,15 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     try {
       const data = await get<{ dir: string; platform?: string; extensions: ExtensionView[] }>('/api/extensions', { signal });
       if (signal.aborted || generation !== loadGeneration) return !signal.aborted;
-      installed = data.extensions; installedFetched = true; directory = data.dir; platform = data.platform ?? '';
+      installed = data.extensions; installedFetched = true; directory = data.dir; platform = data.platform ?? ''; listFeedback('');
       renderRestart(); renderMarket(); restoreScroll(); workspace?.onChange(installed.filter(item => item.kind === kind || !item.kind)); return true;
-    } catch (error) { if (!signal.aborted && generation === loadGeneration) { installedFetched = true; message(kind, 'management', S.listLoadFailed(errorText(error)), true); restoreScroll(); workspace?.onLoadError(); } return false; }
+    } catch (error) { if (!signal.aborted && generation === loadGeneration) { installedFetched = true; listFeedback(S.listLoadFailed(errorText(error))); restoreScroll(); } return false; }
   }
   async function checkUpdates() {
     if (signal.aborted) return;
     const generation = ++updateGeneration;
-    try { const data = await get<UpdateResultView>('/api/extensions/updates', { signal }); if (signal.aborted || generation !== updateGeneration) return; updates = new Map(data.updates.map(u => [u.name, u])); announceUpdates(); renderRestart(); renderMarket(); if (data.errors.length) message(kind, 'management', S.updateCheckFailed(data.errors.map(e => `${e.name}: ${e.error}`).join('; ')), true); }
-    catch (error) { if (!signal.aborted && generation === updateGeneration) message(kind, 'management', S.updateCheckFailed(errorText(error)), true); }
+    try { const data = await get<UpdateResultView>('/api/extensions/updates', { signal }); if (signal.aborted || generation !== updateGeneration) return; updates = new Map(data.updates.map(u => [u.name, u])); announceUpdates(); renderRestart(); renderMarket(); controlProblem('updates', () => refreshControl, data.errors.length ? S.updateCheckFailed(data.errors.map(e => `${e.name}: ${e.error}`).join('; ')) : ''); }
+    catch (error) { if (!signal.aborted && generation === updateGeneration) controlProblem('updates', () => refreshControl, S.updateCheckFailed(errorText(error))); }
   }
   function search(owner: Category) { return refreshed(searchMarket(owner)); }
   async function searchMarket(owner: Category) {
@@ -1477,42 +1520,41 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       const data = await get<{ hits: SearchHitView[]; partial?: boolean; registry?: string; index?: MarketIndexView }>(`/api/extensions/search?kind=${owner}`, { signal });
       if (signal.aborted || state.generation !== generation) return;
       registry = data.registry ?? ''; marketIndex = data.index ?? { tags: {} }; state.hits = data.hits; state.fetched = true;
-      message(owner, 'market', [data.partial ? S.partial : '', data.index?.error ? S.indexFailed(data.index.error) : ''].filter(Boolean).join('\n')); if (owner === kind) { renderRestart(); renderMarket(); restoreScroll(); }
+      controlProblem('index', () => refreshControl, [data.partial ? S.partial : '', data.index?.error ? S.indexFailed(data.index.error) : ''].filter(Boolean).join('\n')); if (owner === kind) { renderRestart(); renderMarket(); restoreScroll(); }
     } catch (error) { if (!signal.aborted && state.generation === generation) { state.fetched = true; message(owner, 'market', S.searchFailed(errorText(error)), true); if (owner === kind) { renderMarket(); restoreScroll(); } } }
   }
   async function loadRegistry() {
     try { registrySetting = await get<RegistryView>('/api/extensions/registry', { signal }); }
-    catch (error) { if (!signal.aborted) message(kind, 'registry', errorText(error), true); return; }
+    catch (error) { if (!signal.aborted) controlProblem('registry-read', () => panel.querySelector('.extension-registry-toggle'), errorText(error)); return; }
     if (signal.aborted) return;
-    if (registrySetting.registryError) { message(kind, 'registry', registrySetting.registryError, true); registryOpen = true; root.querySelector<HTMLElement>('#extension-registry')?.removeAttribute('hidden'); root.querySelector('.extension-registry-toggle')?.classList.add('is-open'); }
+    controlProblem('registry-read', () => panel.querySelector('.extension-registry-toggle'), registrySetting.registryError ?? '');
     if (registryInput) { registryInput.placeholder = registrySetting.registry ?? ''; if (registryDraft === null) registryInput.value = registrySetting.configured ?? ''; }
   }
   /** 换源后已取到的搜索结果、包详情与更新检查都作废,按新源重取。 */
-  async function saveRegistry(value: string) {
+  async function saveRegistry(value: string, anchor: Element) {
     const owner = kind;
     try { registrySetting = await post<RegistryView>('/api/extensions/registry', { registry: value }, { signal }); }
-    catch (error) { if (!signal.aborted) message(owner, 'registry', errorText(error), true); return; }
+    catch (error) { if (!signal.aborted) problems.show(anchor, errorText(error)); return; }
     if (signal.aborted) return;
-    registryDraft = null; detailsCache.clear(); updates = new Map(); announceUpdates();
+    registryDraft = null; detailsCache.clear(); failedDetails.clear(); updates = new Map(); announceUpdates();
     for (const state of Object.values(states)) {
       state.hits = []; state.fetched = false; state.generation++; delete state.messages.market;
-      if (state.messages.management?.bad) delete state.messages.management;
     }
     render();
-    message(owner, 'registry', registrySetting.registry ? S.registrySaved(registrySetting.registry) : registrySetting.registryError ?? '', !registrySetting.registry);
+    message(owner, 'registry', registrySetting.registry ? S.registrySaved(registrySetting.registry) : '');
+    if (registrySetting.registryError) controlProblem('registry', () => panel.querySelector('.extension-registry .btn'), registrySetting.registryError);
     void checkUpdates(); void search(owner);
   }
   /**
    * Installation checks the package kind before writing; install and delete take effect after restart.
    * Catalog operations show progress on the action button and errors beside `anchor`.
    */
-  async function operate(action: 'install' | 'delete', target: Target, area: string, owner: Category, anchor?: Anchor, onFeedback?: (note: { text: string; bad: boolean }) => void) {
+  async function operate(action: 'install' | 'delete', target: Target, owner: Category, anchor: Anchor, onFeedback?: (text: string) => void) {
     const identity = 'name' in target ? target.name : target.path; if (busy.has(identity)) return;
     const actionLabel = action === 'delete' ? S.deletedAction : installed.some(item => item.name === identity && item.state !== 'removed') ? S.updatedAction : S.installedAction;
-    const quiet = !!anchor;
-    const report = (text: string, bad = false) => { if (onFeedback) onFeedback({ text, bad }); else message(owner, area, text, bad); };
+    pendingProblems.delete('operation:' + identity); problems.hide();
     let problem: string | undefined;
-    busy.add(identity); renderRestart(); renderMarket(); if (!quiet) report(S.progress(actionLabel, identity));
+    busy.add(identity); renderRestart(); renderMarket(); onFeedback?.(S.progress(actionLabel, identity));
     try {
       let name = identity, version: string | undefined, resultKind: string | undefined;
       if (action === 'install') {
@@ -1524,15 +1566,18 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       }
       if (signal.aborted) return;
       const activateHint = actionLabel === S.installedAction && resultKind === 'world' ? ' ' + S.worldActivateHint : '';
-      if (!quiet) report(`${S.completed(actionLabel, name)}${version ? ' ' + S.version(version) : ''} ${S.restartNeeded}${activateHint}`);
+      onFeedback?.(`${S.completed(actionLabel, name)}${version ? ' ' + S.version(version) : ''} ${S.restartNeeded}${activateHint}`);
       updateGeneration++; if (updates.delete(name)) announceUpdates();
-      if (action === 'install' && actionLabel === S.installedAction) workspace?.onAdded(name, anchor?.()?.closest('.extension-market-card')?.querySelector('.extension-avatar')?.getBoundingClientRect());
-      if (!await load()) report(S.completed(actionLabel, name) + ' ' + S.syncedFailed, true);
+      if (action === 'install' && actionLabel === S.installedAction) workspace?.onAdded(name, anchor()?.closest('.extension-market-card')?.querySelector('.extension-avatar')?.getBoundingClientRect());
+      if (!await load()) listFeedback(S.completed(actionLabel, name) + ' ' + S.syncedFailed);
     } catch (error) { if (!signal.aborted) problem = errorText(error); }
     finally { busy.delete(identity); if (!signal.aborted) { renderRestart(); renderMarket(); } }
     if (problem === undefined || signal.aborted) return;
-    const control = quiet ? anchor?.() : null;
-    if (control?.isConnected) problems.show(control, problem); else report(problem, true);
+    onFeedback?.('');
+    controlProblem('operation:' + identity, () => {
+      const control = anchor();
+      return problemAnchorVisible(control) ? control : marketControl(identity);
+    }, problem);
   }
   async function remove(name: string, anchor: Anchor) {
     if (busy.has(name) || !await ui.confirm({ title: S.remove, body: S.removeBody, danger: true }) || signal.aborted) return;
@@ -1545,7 +1590,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       if (control?.isConnected) problems.show(control, reason);
       return;
     }
-    await operate('delete', { name }, 'management', kind, anchor);
+    await operate('delete', { name }, kind, anchor);
   }
   /** The detail page's install control, repainted whenever the market's cards are. */
   const detailControls = new Map<HTMLElement, () => void>();
@@ -1645,11 +1690,12 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       // After the description, its pictures: the listing's screenshots, then those from the text. Only shown when there are any.
       const images = [...(listed?.screenshots ?? []).map(src => ({ src, alt: '' })), ...blurb.images];
       if (images.length) info.append(gallery(doc, images, signal));
-      info.append(ui.h('h4', '', S.information));
-      if (item?.reason) info.append(ui.msgline(item.reason, true));
-      if (item?.webUi === 'missing') info.append(ui.msgline(S.noteWebUiMissing, true));
-      for (const text of [...item ? data.problems ?? [] : [], ...data.warnings]) info.append(ui.msgline(text, true));
-      if (data.deprecated) info.append(ui.msgline(S.deprecated(data.deprecated), true));
+      const information = ui.h('section', 'extension-detail-information'); info.append(information);
+      information.append(ui.h('h4', '', S.information));
+      if (item?.reason) information.append(ui.msgline(item.reason, true));
+      if (item?.webUi === 'missing') information.append(ui.msgline(S.noteWebUiMissing, true));
+      for (const text of [...item ? data.problems ?? [] : [], ...data.warnings]) information.append(ui.msgline(text, true));
+      if (data.deprecated) information.append(ui.msgline(S.deprecated(data.deprecated), true));
       const rows = [
         { k: S.authorLabel, v: item?.author ?? data.author ?? S.unknownAuthor },
         ...(item ? [{ k: S.fieldInstalledVersion, v: item.installedVersion ?? item.version ?? '—' }, { k: S.directory, v: item.location ?? directory }] : []),
@@ -1661,7 +1707,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
         { k: S.fieldKeywords, v: data.keywords?.join(S.listSeparator) || '—' },
         { k: S.fieldDownloads, v: hit ? downloadsText(hit) : '—' }, { k: S.fieldDependents, v: hit ? String(hit.dependents) : '—' },
       ];
-      info.append(ui.kv(rows));
+      information.append(ui.kv(rows));
       {
         const releases = ui.h('details', 'extension-releases'); releases.open = historyOpen;
         releases.append(ui.h('summary', '', S.fieldHistory));
@@ -1672,8 +1718,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
           const row = ui.h('div');
           const same = (current?.installedVersion ?? current?.version) === release.version;
           const incompatible = !same && !!release.problems?.length;
-          const button = ui.button(same ? S.currentVersion : incompatible ? S.incompatible : S.installVersion, { variant: 'danger', size: 'sm', onClick: () => void installRelease(box, data, release.version, owner, hit, item) });
-          button.classList.add('extension-version-action');
+          const button = ui.button(same ? S.currentVersion : incompatible ? S.incompatible : S.installVersion, { variant: 'danger', size: 'sm', onClick: () => void installRelease(box, data, release.version, owner) });
+          button.classList.add('extension-version-action'); button.dataset.version = release.version;
           button.disabled = same || incompatible || linked || busy.has(data.name);
           if (linked) button.title = S.localVersionNote;
           const notes = data.changelog?.[release.version];
@@ -1695,23 +1741,44 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       columns.classList.toggle('is-split', indexed); box.closest('.modalcard')?.classList.toggle('extension-detail-card', indexed);
       if (indexed) { const side = ui.h('aside', 'extension-detail-side'); side.append(commentsSection(listed?.name ?? data.name, listed?.rating)); columns.append(side); }
   }
-  function detailFeedback(box: HTMLElement, note: { text: string; bad: boolean }) {
-    const feedback = box.querySelector<HTMLElement>('.extension-operation-feedback');
-    if (feedback) { feedback.textContent = note.text; feedback.classList.toggle('bad', note.bad); }
+  function detailLoadError(box: HTMLElement, text: string, unavailable = false) {
+    const info = box.querySelector('.extension-detail-information')!;
+    const note = ui.msgline(text, true); note.setAttribute('role', 'status');
+    if (unavailable) {
+      info.replaceChildren(ui.h('h4', '', S.information), note);
+      box.querySelector('.extension-releases')?.remove();
+    } else info.querySelector('h4')!.after(note);
   }
-  /** 历史版本走与市场安装相同的 check → install;结果同时写进抽屉。 */
-  async function installRelease(box: HTMLElement, data: PackageDetailView, version: string, owner: Category, hit?: SearchHitView, item?: ExtensionView) {
+  function detailFeedback(box: HTMLElement, text: string) {
+    const feedback = box.querySelector<HTMLElement>('.extension-operation-feedback');
+    if (feedback) feedback.textContent = text;
+  }
+  /** 历史版本复用安装流程，保留评论草稿和展开的版本记录。 */
+  async function installRelease(box: HTMLElement, data: PackageDetailView, version: string, owner: Category) {
     const current = installed.find(entry => entry.name === data.name && entry.state !== 'removed');
     if (busy.has(data.name) || !await ui.confirm({ title: S.versionConfirmTitle, body: S.versionConfirmBody(data.name, current?.installedVersion ?? current?.version ?? null, version), danger: true })) return;
     if (signal.aborted || busy.has(data.name)) return;
-    let result: { text: string; bad: boolean } | undefined;
-    const done = operate('install', { name: data.name, version }, 'management', owner, undefined, note => { result = note; detailFeedback(box, note); });
+    let result: string | undefined;
+    const done = operate('install', { name: data.name, version }, owner, () => box.querySelector(`.extension-version-action[data-version="${CSS.escape(version)}"]`), note => { result = note; detailFeedback(box, note); });
     box.querySelectorAll<HTMLButtonElement>('.extension-version-action').forEach(button => { button.disabled = true; });
     await done;
     await checkUpdates();
     if (signal.aborted || !box.isConnected) return;
-    renderDetail(box, data, owner, hit, item && installed.find(entry => entry.name === data.name && entry.state !== 'removed'));
-    if (result) detailFeedback(box, result);
+    const latest = installed.find(entry => entry.name === data.name && entry.state !== 'removed');
+    for (const button of box.querySelectorAll<HTMLButtonElement>('.extension-version-action')) {
+      const release = data.history.find(entry => entry.version === button.dataset.version)!;
+      button.disabled = (latest?.installedVersion ?? latest?.version) === release.version || !!release.problems?.length || /^(link:|file:)/.test(latest?.spec ?? '');
+    }
+    if (result) {
+      const installedVersion = latest?.installedVersion ?? latest?.version;
+      for (const button of box.querySelectorAll<HTMLButtonElement>('.extension-version-action')) {
+        const release = data.history.find(entry => entry.version === button.dataset.version)!;
+        button.textContent = installedVersion === release.version ? S.currentVersion : release.problems?.length ? S.incompatible : S.installVersion;
+      }
+      const row = [...box.querySelectorAll('tr')].find(row => row.firstElementChild?.textContent === S.fieldInstalledVersion);
+      if (row?.lastElementChild) row.lastElementChild.textContent = installedVersion ?? '—';
+      detailFeedback(box, result);
+    }
   }
   /** `toComments`:打开后滚到评论区(从卡片上的评论数点进来)。 */
   function openDetail(hit: SearchHitView, owner: Category, toComments = false) {
@@ -1719,23 +1786,28 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     if (kind === 'provider' && item && !toComments) { showLocal(item); return; }
     const box = ui.h('div', 'extension-detail'); box.append(ui.placeholder(S.loadingDetail));
     detailDrawer?.dispose(); detailDrawer = ui.drawer(item?.metadata?.displayName ?? item?.label ?? hit.name, box);
-    void fetchDetail(hit.name, hit.version || undefined).then(data => {
+    void fetchDetail(hit.name, hit.version || undefined, true).then(data => {
       if (!signal.aborted && box.isConnected) { renderDetail(box, data, owner, hit); if (toComments) box.querySelector('.extension-comments')?.scrollIntoView({ block: 'start' }); }
-    }).catch(error => { if (!signal.aborted && box.isConnected) box.replaceChildren(ui.msgline(errorText(error), true)); });
+    }).catch(error => {
+      if (signal.aborted || !box.isConnected) return;
+      renderDetail(box, { name: hit.name, displayName: hit.displayName, version: hit.version, description: hit.description, links: hit.links, versionCount: 0, history: [], warnings: [], frameworkApi: 0, dependencies: [], maintainers: [], installed: !!item }, owner, hit);
+      detailLoadError(box, errorText(error), true);
+    });
   }
 
   /**
    * 重启 = 落标志 + 规范关机,之后轮询 lifecycle 等同一部署的新进程就绪再刷新页面。
-   * 关机步骤有没完成的,回执摊在对话框里。
+   * 未完成的关机步骤显示在重启按钮旁。
    */
   async function restart() {
     if (!canRestart) return;
+    pendingProblems.delete('restart'); problems.hide();
     if (!await ui.confirm({ title: supervised ? S.restartConfirmTitle : S.restartNoLoopTitle, body: supervised ? S.restartConfirmBody : S.restartNoLoopBody, danger: !supervised })) return;
     try {
       const before = await get<Life>('/api/run/lifecycle', { signal });
       save(); win.sessionStorage.setItem(storageKey + ':restart', JSON.stringify(before));
       showRestarting(true);
-      if (!supervised) message(kind, 'management', S.restartManual);
+      if (!supervised) controlProblem('restart', restartControl, S.restartManual);
       let report: PowerReport | undefined;
       try { report = await post<PowerReport>('/api/run/restart', undefined, { signal }); } catch (error) {
         if ((error as { status?: number }).status) { win.sessionStorage.removeItem(storageKey + ':restart'); throw error; }
@@ -1743,13 +1815,10 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       if (report?.error) { win.sessionStorage.removeItem(storageKey + ':restart'); throw new Error(report.error); }
       const incomplete = (report?.steps ?? []).filter(step => !step.ok);
       if (report && incomplete.length) {
-        void notice(ui, {
-          title: supervised ? S.doneRestartSupervised : S.doneRestart,
-          body: [report.result ?? S.resultDefault, '', ...incomplete.map(step => `✗ ${step.label} · ${step.detail ?? S.stepIncomplete}`)].join('\n'),
-        });
+        controlProblem('restart', restartControl, [report.result ?? S.resultDefault, ...incomplete.map(step => `${step.label} · ${step.detail ?? S.stepIncomplete}`)].join('\n'));
       }
       watchRestart(before);
-    } catch (error) { if (!signal.aborted) { win.sessionStorage.removeItem(storageKey + ':restart'); showRestarting(false); message(kind, 'management', errorText(error), true); } }
+    } catch (error) { if (!signal.aborted) { win.sessionStorage.removeItem(storageKey + ':restart'); showRestarting(false); controlProblem('restart', restartControl, errorText(error)); } }
   }
   /** Disables the restart control while the process is restarting. */
   function showRestarting(on: boolean) {
@@ -1761,7 +1830,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       if (signal.aborted) return;
       try {
         const next = await get<Life>('/api/run/lifecycle', { signal });
-        if (restartOutcome(before, next) === 'wrong-deployment') { win.sessionStorage.removeItem(storageKey + ':restart'); showRestarting(false); message(kind, 'management', S.otherBot, true); return; }
+        if (restartOutcome(before, next) === 'wrong-deployment') { win.sessionStorage.removeItem(storageKey + ':restart'); showRestarting(false); controlProblem('restart', restartControl, S.otherBot); return; }
         if (restartOutcome(before, next) === 'ready') { win.sessionStorage.removeItem(storageKey + ':restart'); save(); workspace?.beforeReload(); win.location.reload(); return; }
       } catch { /* Wait while the listener is unavailable. */ }
       lifecycle.timeout(() => void check(), 1000);
@@ -1780,8 +1849,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     panel.replaceChildren(); messageNodes = {};
     const restartButton = canRestart ? ui.button(S.restartProcess, { onClick: () => void restart() }) : undefined;
     restartButton?.classList.add('extension-restart');
-    messageNodes.management = ui.msgline(); messageNodes.management.setAttribute('role', 'status');
-    messageNodes.market = ui.msgline(); messageNodes.market.setAttribute('role', 'status');
+    messageNodes.list = ui.msgline(); messageNodes.list.setAttribute('role', 'status');
     const filters = ui.rowbar(); filters.classList.add('extension-toolbar');
     const clear = clearButton = ui.button('', { onClick: () => clearFilters() }); clear.classList.add('extension-clear'); clear.append(icon(doc, 'close'), ui.h('span', '', S.clearFilters));
     filters.append(ui.input({ type: 'search', value: state.filter, placeholder: S.filterPlaceholder, onInput: value => { state.filter = value; state.page = 0; renderMarket(); save(); } }), ui.select({ value: state.sort, options: HIT_SORTS.map(value => ({ value, label: S.sortLabel[value] })), onChange: value => { state.sort = value as HitSort; state.page = 0; renderMarket(); save(); } }), sizePicker(), clear, ui.button(S.refresh, { onClick: () => { void replayCards(Promise.all([load(), search(kind)])); void checkUpdates(); } }));
@@ -1793,7 +1861,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     }, { signal });
     const registryToggle = ui.h('button', 'extension-advanced-toggle extension-registry-toggle' + (registryOpen ? ' is-open' : ''), S.registryLabel) as HTMLButtonElement; registryToggle.type = 'button';
     registryToggle.setAttribute('aria-expanded', String(registryOpen)); registryToggle.setAttribute('aria-controls', 'extension-registry');
-    registryToggle.addEventListener('click', () => { registryOpen = !registryOpen; fold(registryPanel, registryOpen); registryToggle.classList.toggle('is-open', registryOpen); registryToggle.setAttribute('aria-expanded', String(registryOpen)); }, { signal });
+    registryToggle.addEventListener('click', () => { registryOpen = !registryOpen; fold(registryPanel, registryOpen); registryToggle.classList.toggle('is-open', registryOpen); registryToggle.setAttribute('aria-expanded', String(registryOpen)); if (registryOpen) void loadRegistry(); }, { signal });
     const advanced = ui.h('div', 'extension-advanced'); advanced.id = 'extension-advanced'; advanced.hidden = !state.advanced;
     const field = (label: string, control: HTMLElement) => { const el = ui.h('label', 'extension-advanced-field'); el.append(ui.h('span', '', label), control); return el; };
     const text = (key: 'author' | 'keyword' | 'license', placeholder: string) => ui.input({ value: state[key], placeholder, onInput: value => { state[key] = value; state.page = 0; renderMarket(); save(); } });
@@ -1805,7 +1873,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const registryBar = ui.rowbar(); registryBar.classList.add('extension-toolbar');
     const registryField = registryInput = ui.input({ value: registryDraft ?? registrySetting?.configured ?? '', placeholder: registrySetting?.registry ?? '', onInput: value => { registryDraft = value; } });
     registryField.setAttribute('aria-label', S.registryLabel);
-    const saveRegistryButton = ui.button(S.registrySave, { onClick: async () => { const lock = ui.disable(saveRegistryButton); try { await saveRegistry(registryField.value); } finally { lock.dispose(); } } });
+    const saveRegistryButton = ui.button(S.registrySave, { onClick: async () => { const lock = ui.disable(saveRegistryButton); try { await saveRegistry(registryField.value, saveRegistryButton); } finally { lock.dispose(); } } });
     registryBar.append(registryField, saveRegistryButton);
     messageNodes.registry = ui.msgline(S.registryHelp); messageNodes.registry.setAttribute('role', 'status');
     const registryPanel = ui.h('div', 'extension-registry'); registryPanel.id = 'extension-registry'; registryPanel.hidden = !registryOpen;
@@ -1815,15 +1883,21 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     marketGrid = ui.h('div', 'extension-grid'); marketPager = ui.rowbar();
     const manual = ui.sheet({ title: S.manual }); messageNodes.manual = ui.msgline(); messageNodes.manual.setAttribute('role', 'status');
     let inputRevision = 0;
-    const source = ui.segmented([{ value: 'npm', label: S.npm }, { value: 'local', label: S.local }], { value: state.source, onSelect: value => { inputRevision++; state.source = value as 'npm' | 'local'; state.input = input.value = ''; syncSource(); save(); } });
+    const source = ui.segmented([{ value: 'npm', label: S.npm }, { value: 'local', label: S.local }], { value: state.source, onSelect: value => { inputRevision++; problems.hide(); message(kind, 'manual', ''); state.source = value as 'npm' | 'local'; state.input = input.value = ''; syncSource(); save(); } });
     const manualBar = ui.rowbar(); const input = ui.input({ value: state.input, onInput: value => { inputRevision++; state.input = value; } });
-    const folder = ui.button(S.folder, { onClick: async () => { try { const path = await pickPath({ kind: 'directory', currentPath: input.value }, { signal }); if (path) { inputRevision++; state.input = input.value = path; } } catch (error) { message(kind, 'manual', errorText(error), true); } } });
+    const folder = ui.button(S.folder, { onClick: async () => { try { const path = await pickPath({ kind: 'directory', currentPath: input.value }, { signal }); if (path) { inputRevision++; state.input = input.value = path; } } catch (error) { if (!signal.aborted) problems.show(folder, errorText(error)); } } });
     folder.classList.add('extension-manual-folder');
     manualBar.append(input, folder);
     const target = (): Target => { if (state.source === 'local' && state.input.trim()) return { path: state.input.trim() }; const value = parseInstallInput(state.input); if (!value) throw new Error(S.invalidInput); return value; };
     const owner = kind;
-    const check = ui.button(S.check, { onClick: async () => { const revision = inputRevision, lock = ui.disable(check); try { const data = await post<{ name: string; version: string; kind: string }>('/api/extensions/check', { target: target(), kind: owner }, { signal }); if (revision === inputRevision && !signal.aborted) message(owner, 'manual', `${S.checkOk} · ${data.name}@${data.version} · ${data.kind}`); } catch (error) { if (revision === inputRevision && !signal.aborted) message(owner, 'manual', errorText(error), true); } finally { lock.dispose(); } } });
-    const install = ui.button(S.install, { variant: 'primary', onClick: () => { try { void operate('install', target(), 'manual', owner); } catch (error) { message(owner, 'manual', errorText(error), true); } } });
+    const check = ui.button(S.check, { onClick: async () => { const revision = inputRevision, lock = ui.disable(check); try { const data = await post<{ name: string; version: string; kind: string }>('/api/extensions/check', { target: target(), kind: owner }, { signal }); if (revision === inputRevision && !signal.aborted) message(owner, 'manual', `${S.checkOk} · ${data.name}@${data.version} · ${data.kind}`); } catch (error) { if (revision === inputRevision && !signal.aborted) problems.show(check, errorText(error)); } finally { lock.dispose(); } } });
+    const install = ui.button(S.install, { variant: 'primary', onClick: async () => {
+      const lock = ui.disable(install, check, input, folder, ...source.el.querySelectorAll<HTMLButtonElement>('button'));
+      try { await operate('install', target(), owner, () => panel.querySelector('.extension-manual-install'), text => message(owner, 'manual', text)); }
+      catch (error) { if (!signal.aborted) problems.show(install, errorText(error)); }
+      finally { lock.dispose(); }
+    } });
+    install.classList.add('extension-manual-install');
     const manualActions = ui.rowbar(); manualActions.classList.add('extension-manual-actions'); manualActions.append(check, install, messageNodes.manual);
     const installHelp = ui.h('div', 'sh-desc extension-install-help');
     const help = { npm: ui.h('span', '', S.npmHelp), local: ui.h('span', '', S.localHelp) };
@@ -1839,10 +1913,9 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     syncSource();
     const row = ui.h('div', 'world-manual-source'); row.append(source.el, installHelp); manual.body.append(row, manualBar, manualActions);
     {
-      messageNodes.management.textContent = '';
+      messageNodes.list.textContent = '';
       restartRoot.replaceChildren(...(restartButton ? [restartButton] : []));
-      if (workspace) workspace.statusRoot.replaceChildren(messageNodes.management);
-      else panel.append(messageNodes.management, restartRoot);
+      if (!workspace) panel.append(restartRoot);
       const body = ui.h('div', 'world-catalog-body');
       const side = ui.h('aside', 'world-catalog-filters'); side.id = `${kind}-catalog-filters`;
       const toggle = ui.button(S.filterSidebar, { size: 'sm', onClick: () => {
@@ -1892,13 +1965,14 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       });
       installation.el.classList.add('world-catalog-installation');
       side.append(installation.el, ui.h('h3', '', S.catalogCategory), categoryList, tagBar);
-      const manualFold = ui.h('details', 'world-manual') as HTMLDetailsElement; manualFold.append(ui.h('summary', '', S.manual), manual.body);
+      const manualFold = ui.h('details', 'world-manual') as HTMLDetailsElement; manualFold.addEventListener('toggle', showProblems, { signal }); manualFold.append(ui.h('summary', '', S.manual), manual.body);
       manualFold.open = manualOpen;
-      scrollRoot.replaceChildren(activeBar, marketGrid, marketPager, manualFold);
+      scrollRoot.replaceChildren(messageNodes.list, activeBar, marketGrid, marketPager, manualFold);
       body.append(side, scrollRoot);
-      panel.append(filters, advanced, registryPanel, messageNodes.market, body);
+      panel.append(filters, advanced, registryPanel, body);
     }
     for (const [area, value] of Object.entries(state.messages)) if (messageNodes[area]) { messageNodes[area].textContent = value.text; messageNodes[area].className = 'msgline' + (value.bad ? ' bad' : ''); }
+    messageNodes.list.replaceChildren(...listErrorText ? [listProblem(doc, listErrorText, S.refresh, load)] : []);
     renderRestart();
     if (!renderMarket()) scrollRoot.scrollTop = keptScroll;
     reflow?.play(marketGrid);
@@ -1912,12 +1986,12 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   }); observer.observe(panel); lifecycle.add(() => observer.disconnect()); }
   render();
   void load(); void checkUpdates(); void search(kind); void loadRegistry();
-  try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { showRestarting(true); if (!workspace) message(kind, 'management', S.reloadWait); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
+  try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { showRestarting(true); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
   const activate = (until?: Promise<unknown>) => {
     const own = revealEnd = until;
     const over = () => { if (revealEnd === own) revealEnd = undefined; };
     if (own) void own.then(over, over);
-    restoreScroll(); renderInView(until);
+    restoreScroll(); renderInView(until); showProblems();
   };
-  return { details, remove, activate };
+  return { details, remove, activate, refresh: load };
 }

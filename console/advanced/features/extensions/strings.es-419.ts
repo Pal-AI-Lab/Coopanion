@@ -22,10 +22,7 @@ export const S: Partial<typeof en> = {
   restartConfirmBody: 'Las extensiones solo se cargan al iniciar el proceso; las instaladas, actualizadas o eliminadas se aplican tras reiniciar.\nReiniciar interrumpe la respuesta en curso, cada World se desconecta y vuelve a conectarse, y Coo deja el escritorio un momento. Las sesiones, la Memory y la configuración se conservan.',
   restartNoLoopBody: 'El proceso se cerrará y habrá que reiniciarlo manualmente. ¿Continuar?',
   stepIncomplete: 'incompleto',
-  doneRestartSupervised: 'Cerrado; esperando el reinicio',
-  doneRestart: 'Cerrado',
   resultDefault: 'Pasos de apagado ejecutados.',
-  reloadWait: 'Esperando a que un proceso nuevo de Coo esté listo…',
   otherBot: 'Otro Bot está usando este puerto. Se detuvo la recuperación.',
   restartManual: 'El proceso terminó. Inícialo manualmente desde la línea de comandos; esta página esperará a que esté listo.',
 

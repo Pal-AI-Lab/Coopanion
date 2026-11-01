@@ -22,10 +22,7 @@ export const S: Partial<typeof en> = {
   restartConfirmBody: 'Erweiterungen werden nur beim Start des Prozesses geladen; installierte, aktualisierte oder entfernte wirken erst nach einem Neustart.\nDer Neustart unterbricht eine laufende Antwort, jede World trennt und verbindet sich neu, und Coo verlässt kurz den Desktop. Sitzungen, Memory und Konfiguration bleiben erhalten.',
   restartNoLoopBody: 'Der Prozess wird beendet und muss manuell neu gestartet werden. Fortfahren?',
   stepIncomplete: 'unvollständig',
-  doneRestartSupervised: 'Beendet; warte auf Neustart',
-  doneRestart: 'Beendet',
   resultDefault: 'Schritte zum Herunterfahren ausgeführt.',
-  reloadWait: 'Warte, bis ein neuer Prozess von Coo bereit ist…',
   otherBot: 'Ein anderer Bot nutzt diesen Port. Wiederherstellung gestoppt.',
   restartManual: 'Der Prozess wurde beendet. Starte ihn manuell über die Befehlszeile; diese Seite wartet, bis er bereit ist.',
 

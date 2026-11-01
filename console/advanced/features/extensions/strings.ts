@@ -37,10 +37,7 @@ const zh = {
   restartConfirmBody: '扩展只在进程启动时加载，新装、更新或删除的扩展要重启后才生效。\n重启会打断正在进行的回复，各 World 的连接会断开并重新连接，期间 Coo 暂时离开桌面。会话、Memory 和配置都会保留。',
   restartNoLoopBody: '进程将退出，需要手动重新启动。继续？',
   stepIncomplete: '未完成',
-  doneRestartSupervised: '已退出，等待重新启动',
-  doneRestart: '已退出',
   resultDefault: '关闭步骤已执行。',
-  reloadWait: '等待 Coo 的新进程就绪…',
   otherBot: '此端口已由另一 Bot 使用，已停止恢复。',
   restartManual: '进程已退出，请在命令行手动启动；此页面会等待就绪。',
 
@@ -249,10 +246,7 @@ export const en: typeof zh = {
   restartConfirmBody: 'Extensions load only when the process starts, so installed, updated or removed ones take effect after a restart.\nRestarting interrupts any reply in progress; each World disconnects and reconnects, and Coo leaves the desktop for a moment. Sessions, Memory and configuration are kept.',
   restartNoLoopBody: 'The process will exit and must be restarted manually. Continue?',
   stepIncomplete: 'incomplete',
-  doneRestartSupervised: 'Exited; waiting to restart',
-  doneRestart: 'Exited',
   resultDefault: 'Shutdown steps executed.',
-  reloadWait: "Waiting for Coo's new process to become ready…",
   otherBot: 'Another Bot is using this port. Recovery stopped.',
   restartManual: 'The process exited. Start it manually from the command line; this page will wait for readiness.',
 

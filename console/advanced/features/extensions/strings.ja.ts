@@ -22,10 +22,7 @@ export const S: Partial<typeof en> = {
   restartConfirmBody: '拡張はプロセス起動時にのみ読み込まれるため、インストール・更新・削除は再起動後に反映されます。\n再起動すると進行中の返信は中断され、各 World は切断して再接続し、Coo はしばらくデスクトップから離れます。セッション、Memory、設定は保持されます。',
   restartNoLoopBody: 'プロセスが終了し、手動で再起動する必要があります。続行しますか？',
   stepIncomplete: '未完了',
-  doneRestartSupervised: '終了しました。再起動を待っています',
-  doneRestart: '終了しました',
   resultDefault: 'シャットダウン手順を実行しました。',
-  reloadWait: 'Coo の新しいプロセスの準備ができるのを待っています…',
   otherBot: 'このポートは別のボットが使用しているため、復帰を中止しました。',
   restartManual: 'プロセスが終了しました。コマンドラインから手動で起動してください。このページは準備ができるまで待機します。',
 
