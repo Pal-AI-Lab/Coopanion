@@ -232,8 +232,9 @@ export type HotkeyTrigger = 'press' | 'hold' | 'tap';
 /**
  * Samples the raw key state on every poll, including while held. `onChange` pairs activation
  * with release; a completed tap emits both at once. `onTap` reports the preceding quick taps.
+ * `onRelease` reports every raw release, including a tap that never activated the hotkey.
  */
-export function tapTracker(taps: number, onChange: (down: boolean) => void, onTap: (count: number) => void = () => {}, trigger: HotkeyTrigger = 'press') {
+export function tapTracker(taps: number, onChange: (down: boolean) => void, onTap: (count: number) => void = () => {}, trigger: HotkeyTrigger = 'press', onRelease: () => void = () => {}) {
   let count = 0, lastUp = 0, pressAt = 0, active = false, wasDown = false;
   return (down: boolean, now: number): void => {
     if (down === wasDown) {
@@ -249,6 +250,7 @@ export function tapTracker(taps: number, onChange: (down: boolean) => void, onTa
       if (count === taps - 1 && trigger === 'press') { count = 0; active = true; onChange(true); }
       return;
     }
+    onRelease();
     if (active) { active = false; onChange(false); return; }
     if (now - pressAt > TAP_MAX_MS) { count = 0; return; }
     count++; lastUp = now;
@@ -261,16 +263,16 @@ export function tapTracker(taps: number, onChange: (down: boolean) => void, onTa
 
 /**
  * Calls `onChange` when `trigger` activates and releases `hotkey`, and `onTap` on each preceding quick tap;
- * returns why the key cannot be read instead, in the words of `t`.
+ * `onRelease` also reports releases before activation. Returns why the key cannot be read instead, in the words of `t`.
  */
-export async function watchHotkey(hotkey: Hotkey, onChange: (down: boolean) => void, pollMs: number, onTap?: (count: number) => void, t: PetText['hotkey'] = petText().hotkey, trigger: HotkeyTrigger = 'press'): Promise<KeyWatcher | string> {
+export async function watchHotkey(hotkey: Hotkey, onChange: (down: boolean) => void, pollMs: number, onTap?: (count: number) => void, t: PetText['hotkey'] = petText().hotkey, trigger: HotkeyTrigger = 'press', onRelease?: () => void): Promise<KeyWatcher | string> {
   const { keys, taps } = hotkey;
   const reader = process.platform === 'win32' ? await windowsReader(t)
     : process.platform === 'darwin' ? await macReader(keys, t)
     : process.platform === 'linux' ? await linuxReader(keys, t)
     : t.unsupported;
   if (typeof reader === 'string') return reader;
-  const step = tapTracker(taps, onChange, onTap, trigger);
+  const step = tapTracker(taps, onChange, onTap, trigger, onRelease);
   const timer = setInterval(() => {
     step(keys.every((vk) => reader(vk)), performance.now());
   }, pollMs);

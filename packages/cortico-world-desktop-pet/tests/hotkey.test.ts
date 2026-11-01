@@ -114,6 +114,19 @@ describe('tapTracker', () => {
     expect(run(2, [[false, 0], [true, 50], [true, 100], [false, 150], [false, 200], [true, 250], [true, 300], [false, 350], [false, 400]]))
       .toEqual(['tap1', 'down', 'up']);
   });
+
+  it('reports each raw release once, including taps that never activate a hold', () => {
+    const events: string[] = [];
+    const step = tapTracker(1, (down) => events.push(down ? 'start' : 'end'), undefined, 'hold', () => events.push('release'));
+    step(true, 0);
+    step(false, 100);
+    step(false, 150);
+    step(true, 200);
+    step(true, 200 + TAP_MAX_MS + 1);
+    step(false, 300 + TAP_MAX_MS);
+    step(false, 350 + TAP_MAX_MS);
+    expect(events).toEqual(['release', 'start', 'release', 'end']);
+  });
 });
 
 describe('the Mac key table', () => {

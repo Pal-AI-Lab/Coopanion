@@ -44,7 +44,7 @@ import { SENSEVOICE, SherpaAsr, WHISPER, type SherpaModelKind, type SherpaModule
 import { SystemRecognizer, systemRecognizerSupported, type SystemRecognizerState, type SystemSentence } from './asr/system-recognizer.ts';
 import { TranscriptionApi, type TranscriptionState } from './asr/transcription-api.ts';
 import { Packer, Segmenter, rmsDb, type SegmentConfig, type SegmentSink, type Utterance } from './asr/segmenter.ts';
-import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, watchHotkey, type HotkeyTrigger, type KeyWatcher } from './asr/hotkey.ts';
+import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, TAP_MAX_MS, watchHotkey, type HotkeyTrigger, type KeyWatcher } from './asr/hotkey.ts';
 import { joinSpeech, looksHallucinated } from './asr/result.ts';
 import { toSimplified } from './asr/simplify.ts';
 import { estimateSeconds, parseActions, parseScript, vocabChange, vocabTable, type VocabWord } from './script.ts';
@@ -100,6 +100,8 @@ const IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif
 const PREFS_SYNC_MS = 150;
 /** Talk-key polling interval: well under the shortest key tap. */
 const HOTKEY_POLL_MS = 30;
+/** Covers the hold decision and one key poll, rounded up to whole audio frames. */
+const HOLD_PRE_ROLL_FRAMES = Math.ceil((TAP_MAX_MS + HOTKEY_POLL_MS) / FRAME_MS);
 /**
  * A microphone the talk key opened (`asr.mic.openOnPress`) closes this long after the key goes up,
  * so a press right after a release finds it open. The end of speech does not wait on it: the
@@ -389,7 +391,9 @@ export class DesktopPetWorld implements World {
   private readonly dialogs = new Map<string, (a: PetDialogAnswer) => void>();
   /** The talk key is down (hold) or was switched on (toggle). */
   private talking = false;
-  /** With `micOnPress`: the page keeps the microphone open from the talk key's press until MIC_RELEASE_MS after its release. */
+  /** Recent microphone frames retained until a shared talk key is confirmed as held. */
+  private readonly holdPreRoll: Array<{ frame: Int16Array; atMs: number }> = [];
+  /** With `micOnPress`: the microphone stays open from talk-key activation until MIC_RELEASE_MS after release. */
   private micHeld = false;
   private micReleaseTimer: NodeJS.Timeout | null = null;
   /** Counts cancelled captures; a transcription begun before a cancel is dropped when it lands. */
@@ -694,6 +698,7 @@ export class DesktopPetWorld implements World {
     this.touchWoke = false;
     this.keyWatcher?.stop();
     this.keyWatcher = null;
+    this.holdPreRoll.length = 0;
     this.typeWatcher?.stop();
     this.typeWatcher = null;
     this.typeKeyKey = '';
@@ -957,6 +962,7 @@ export class DesktopPetWorld implements World {
   /** Config is a live object edited by the console; changes reach the pages within PREFS_SYNC_MS. */
   private syncPrefs(): void {
     this.segmenter.configure(this.segmentConfig());
+    if (!this.holdPreRollEnabled()) this.holdPreRoll.length = 0;
     const turnedOn = this.cfg.asr.enabled && !this.voiceEnabled;
     this.voiceEnabled = this.cfg.asr.enabled;
     if (!this.cfg.asr.enabled && this.runningEngine) void this.stopVoiceBackend();
@@ -1126,6 +1132,7 @@ export class DesktopPetWorld implements World {
         this.micState = { state: String(msg.state), detail: typeof msg.detail === 'string' ? msg.detail : null };
         // a closed microphone sends no more frames: the meter drops to silence
         if (this.micState.state !== 'on') {
+          this.holdPreRoll.length = 0;
           this.level = -100;
           this.voiceFrame({ type: 'level', level: this.level, speaking: false, open: this.gateOpen() });
         }
@@ -1233,6 +1240,7 @@ export class DesktopPetWorld implements World {
 
   private onPageGone(): void {
     this.log?.info('桌宠页面断开');
+    this.holdPreRoll.length = 0;
     for (const [id, d] of this.dialogs) { d({ unavailable: true }); this.dialogs.delete(id); }
     for (const [id, w] of this.walks) { clearTimeout(w.timer); w.resolve(this.t.walkWindowGone); this.walks.delete(id); }
     for (const [id, c] of this.confirms) { clearTimeout(c.timer); c.resolve('unavailable'); this.confirms.delete(id); }
@@ -1418,6 +1426,7 @@ export class DesktopPetWorld implements World {
 
   private stopVoiceBackend(): Promise<void> {
     this.voiceGeneration++;
+    this.holdPreRoll.length = 0;
     if (this.voiceStopping) return this.voiceStopping;
     const engine = this.runningEngine;
     this.runningEngine = null;
@@ -1434,6 +1443,11 @@ export class DesktopPetWorld implements World {
   /** Audio reaches the segmenter only while this is true. */
   private gateOpen(): boolean {
     return this.cfg.asr.mic.mode === 'always' || this.talking;
+  }
+
+  private holdPreRollEnabled(): boolean {
+    const { mode, hotkey, openOnPress } = this.cfg.asr.mic;
+    return this.micWanted() && mode === 'hold' && !openOnPress && this.typeKeyShares(hotkey);
   }
 
   /**
@@ -1462,7 +1476,8 @@ export class DesktopPetWorld implements World {
     if (!key) return;
     const parsed = parseHotkey(hotkey);
     const watch = this.opts.watchHotkey ?? watchHotkey;
-    const watcher = parsed ? await watch(parsed, (down) => this.onTalkKey(down), HOTKEY_POLL_MS, () => this.onTalkTap(), this.ui.hotkey, trigger) : this.ui.voice.badKey(hotkey);
+    const watcher = parsed ? await watch(parsed, (down) => this.onTalkKey(down), HOTKEY_POLL_MS, () => this.onTalkTap(), this.ui.hotkey, trigger,
+      () => { this.holdPreRoll.length = 0; }) : this.ui.voice.badKey(hotkey);
     if (key !== this.hotkeyKey) { if (typeof watcher !== 'string') watcher.stop(); return; }
     if (typeof watcher === 'string') {
       this.hotkeyProblem = watcher;
@@ -1526,6 +1541,7 @@ export class DesktopPetWorld implements World {
   }
 
   private setTalking(on: boolean): void {
+    if (!on || !this.holdPreRollEnabled()) this.holdPreRoll.length = 0;
     if (this.talking === on) return;
     this.talking = on;
     this.voiceFrame({ type: 'gate', open: on });
@@ -1533,9 +1549,13 @@ export class DesktopPetWorld implements World {
     if (!this.cfg.asr.enabled || !this.micWanted()) return;
     if (on) {
       this.listenOpen = true;
-      // the microphone opens only now: the first frame that reaches the World starts the listening (onAudio)
+      // With openOnPress, the first microphone frame starts the listening bubble.
       if (this.micOnPress()) this.setMicHeld(true);
       else this.server.sendPet({ t: 'listen', phase: 'start' });
+      const since = performance.now() - HOLD_PRE_ROLL_FRAMES * FRAME_MS;
+      for (const { frame, atMs } of this.holdPreRoll.splice(0)) {
+        if (atMs >= since) this.onAudio(frame);
+      }
       return;
     }
     const tail = this.segmenter.flush();
@@ -1550,6 +1570,7 @@ export class DesktopPetWorld implements World {
    * nothing to send; a switched-on one is switched off.
    */
   private cancelSpeech(): void {
+    this.holdPreRoll.length = 0;
     if (this.cfg.asr.mic.mode === 'always' || (!this.talking && !this.listenOpen)) return;
     if (this.talking) {
       this.talking = false;
@@ -1595,9 +1616,13 @@ export class DesktopPetWorld implements World {
   }
 
   private onAudio(frame: Int16Array): void {
-    if (!this.cfg.asr.enabled || !this.micWanted()) return;
+    if (!this.cfg.asr.enabled || !this.micWanted()) { this.holdPreRoll.length = 0; return; }
     const open = this.gateOpen();
     if (open) for (const u of this.segmenter.push(frame)) this.enqueue(u);
+    else if (this.holdPreRollEnabled()) {
+      this.holdPreRoll.push({ frame, atMs: performance.now() });
+      while (this.holdPreRoll.length > HOLD_PRE_ROLL_FRAMES) this.holdPreRoll.shift();
+    } else this.holdPreRoll.length = 0;
     this.level = open ? this.segmenter.level : rmsDb(frame);
     const speaking = open && this.segmenter.active;
     if (speaking && !this.wasSpeaking) this.server.sendPet({ t: 'listen', phase: 'start' });
