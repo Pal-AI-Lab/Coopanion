@@ -272,6 +272,7 @@ const en: PetText = {
     touchEnabled: { title: 'Touches become events', description: 'Pokes, petting, and being picked up and thrown.' },
     touchWakeOn: { title: 'Response mode', description: 'poke: only a poke gets a response right away; other touches wait for the next response. all: every touch gets one. none: every touch waits for the next response. custom: the touches ticked on the Habits page get one. After a touch gets a response, the touches until that turn ends wait for the next one.' },
     sound: { title: 'All sounds', description: "The sound button in the pet's menu flips this." },
+    volume: { title: 'Volume' },
     sounds: {
       move: { title: 'Moving', description: 'Walking, running, jumping, landing, being thrown, nodding, shaking, spinning, dizziness, shivering, dancing, looking about.' },
       touch: { title: 'Touch', description: 'Being picked up, swung, petted, poked.' },

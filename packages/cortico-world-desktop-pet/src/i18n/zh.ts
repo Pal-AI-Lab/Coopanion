@@ -269,6 +269,7 @@ export default {
     touchEnabled: { title: '互动发成事件', description: '戳、摸、拎起来甩出去。' },
     touchWakeOn: { title: '回应模式', description: 'poke：只有戳一下马上回应，其余互动等下次回应时一并送达；all：所有互动都马上回应；none：所有互动都等下次回应时一并送达；custom：按「习惯」页勾选的互动马上回应。一次互动得到回应之后、本轮结束之前的互动，都等下次回应时一并送达。' },
     sound: { title: '音效总开关', description: '桌宠菜单里的音效按钮切的就是这个。' },
+    volume: { title: '音量' },
     sounds: {
       move: { title: '动作', description: '走路、跑、跳、落地、被甩出去、点头、摇头、转圈、晕、发抖、跳舞、张望。' },
       touch: { title: '互动', description: '被拎起来、拎着晃、被摸、被戳。' },

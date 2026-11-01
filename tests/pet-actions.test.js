@@ -123,13 +123,13 @@ describe('the words the model can use', () => {
   });
 });
 
-/** Runs `fn(made)` over a Web Audio that counts the tones and clips started (`made.rates`: the clips' playback rates). */
+/** Runs `fn(made)` over a Web Audio that counts the tones and clips started (`made.rates`: the clips' playback rates, `made.gains`: the gain nodes, the master first). */
 async function withAudio(fn) {
-  const made = { tones: 0, clips: 0, rates: [] };
+  const made = { tones: 0, clips: 0, rates: [], gains: [] };
   const node = () => ({ connect() {}, start() {}, stop() {}, frequency: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, gain: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, Q: {} });
   class Ctx {
     constructor() { this.currentTime = 0; this.state = 'running'; this.sampleRate = 8; this.destination = {}; }
-    createGain() { return node(); }
+    createGain() { const g = node(); made.gains.push(g); return g; }
     createDynamicsCompressor() { return node(); }
     createBiquadFilter() { return node(); }
     createOscillator() { made.tones++; return node(); }
@@ -172,6 +172,20 @@ describe('what the page holds a pack to', () => {
     sfx.setShown(false);
     sfx.play('boing', 'move'); sfx.play('look', 'move'); sfx.pop();
     expect(made).toEqual(before);
+  }));
+
+  it('the volume setting scales the master gain the page starts from, before and after the audio starts', () => withAudio(async (made) => {
+    const sfx = createSfx({ storageKey: 'test.sfx', volume: .4 });
+    sfx.configure({ volume: 50 });
+    sfx.unlock();
+    const master = made.gains[0];
+    expect(master.gain.value).toBeCloseTo(.2);
+    sfx.configure({ volume: 0 });
+    expect(master.gain.value).toBe(0);
+    sfx.configure({ volume: 100 });
+    expect(master.gain.value).toBeCloseTo(.4);
+    sfx.configure({ kinds: { move: false } });
+    expect(master.gain.value).toBeCloseTo(.4);
   }));
 
   it("a pack's voice babbles with its own talk sounds at its pitch, muted with the talk kind; without them the tone babbles", () => withAudio(async (made) => {

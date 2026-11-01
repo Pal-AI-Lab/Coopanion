@@ -45,6 +45,7 @@ export const S: Partial<typeof en> = {
   snore: '打呼時長',
   snoreUnit: '秒',
   snoreHint: '0 表示持續到醒來。',
+  volume: '音量',
   panLabel: '聲道',
   pan: '依位置分配左右聲道',
   panHint: '聲音偏向 Coo 所在的一側，關閉後置中播放。',

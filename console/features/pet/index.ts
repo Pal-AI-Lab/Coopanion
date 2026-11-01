@@ -70,6 +70,7 @@ const KEYS = {
   hideFullscreen: `${K}.window.hideWhenFullscreen`,
   overlay: `${K}.window.exportOverlay`,
   sound: `${K}.sound`,
+  volume: `${K}.sounds.volume`,
   snoreSeconds: `${K}.sounds.snoreSeconds`,
   panByPosition: `${K}.sounds.panByPosition`,
   speech: `${K}.speech.enabled`,
@@ -435,14 +436,32 @@ async function mount(ctx: PageContext): Promise<void> {
     return [kind, c] as const;
   });
   const pan = ui.checkbox(S.pan, { onChange: (on) => { void save(KEYS.panByPosition, on, SOUND_GROUP, soundMsg); } });
-  // the kinds and the panning only matter while sounds play at all
-  const renderKinds = () => { for (const [, c] of kinds) c.input.disabled = !sound.checked; pan.input.disabled = !sound.checked; };
+  // 音量: the same slider in whole percent, 0 to 100; saved once a drag or a key press ends
+  const volumeText = ui.h('span', 'companion-rangeval');
+  const volumeBox = ui.h('div', 'companion-rangebox');
+  const volume = scaleSlider(root.ownerDocument, {
+    min: 0, soft: 100, max: 100, step: 1, label: S.volume, format: (v) => `${v}%`,
+    room: () => volumeBox.clientWidth - volumeText.offsetWidth - 12,
+    onInput: () => showVolume(),
+    onChange: () => { showVolume(); void save(KEYS.volume, volume.value, SOUND_GROUP, soundMsg); },
+  });
+  volumeBox.append(volume.el, volumeText);
+  new ResizeObserver(() => volume.relayout()).observe(volumeBox);
+  const showVolume = () => { volumeText.textContent = `${volume.value}%`; };
+  const volumeRow = row(S.volume, volumeBox);
+  // the kinds, the volume and the panning only matter while sounds play at all
+  const renderKinds = () => {
+    for (const [, c] of kinds) c.input.disabled = !sound.checked;
+    pan.input.disabled = !sound.checked;
+    volumeRow.classList.toggle('is-off', !sound.checked);
+  };
   const snore = ui.input({ type: 'number' });
   snore.min = '0'; snore.max = '3600'; snore.step = '1';
   const snoreBox = ui.h('div', 'companion-rangebox');
   snoreBox.append(snore, ui.h('span', 'companion-rangeval', S.snoreUnit));
   sounds.body.append(
     row(S.soundLabel, sound.el, S.worldScope),
+    volumeRow,
     row(S.soundKinds, kindBox, S.soundKindsHint),
     row(S.snore, snoreBox, S.snoreHint),
     row(S.panLabel, pan.el, S.panHint),
@@ -645,6 +664,7 @@ async function mount(ctx: PageContext): Promise<void> {
       if (typeof v === 'boolean') c.setChecked(v);
     }
     if (typeof soundValues[KEYS.panByPosition] === 'boolean') pan.setChecked(soundValues[KEYS.panByPosition] as boolean);
+    if (typeof soundValues[KEYS.volume] === 'number' && !volume.active && active !== volume.el) { volume.set(soundValues[KEYS.volume] as number); showVolume(); }
     renderKinds();
     if (typeof soundValues[KEYS.speech] === 'boolean') speech.setChecked(soundValues[KEYS.speech] as boolean);
     pitch.sync(soundValues);

@@ -45,6 +45,7 @@ export const S: Partial<typeof en> = {
   snore: 'Durée des ronflements',
   snoreUnit: 's',
   snoreHint: "0 = jusqu'au réveil.",
+  volume: 'Volume',
   panLabel: 'Stéréo',
   pan: 'Répartir selon la position',
   panHint: 'Les sons penchent du côté où se trouve Coo ; désactivé, ils sont joués au centre.',

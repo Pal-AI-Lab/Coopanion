@@ -522,6 +522,7 @@ function connect() {
     if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; showTheme(); modeBtn.show(theme); body?.set({ theme }); }
     if (m.t === 'init') { loadPacks(); announcePainted(); }
     if ((m.t === 'init' || m.t === 'prefs') && m.skin && JSON.stringify(normalizeSkin(m.skin)) !== JSON.stringify(skin)) apply(normalizeSkin(m.skin), false);
+    if ((m.t === 'init' || m.t === 'prefs') && m.sounds && typeof m.sounds === 'object') sfx.configure({ volume: m.sounds.volume });
     if ((m.t === 'init' || m.t === 'prefs') && typeof m.language === 'string' && m.language !== language()) void useLanguage(m.language).then(() => { showText(); render(); });
   };
   ws.onclose = () => setTimeout(connect, 2000);

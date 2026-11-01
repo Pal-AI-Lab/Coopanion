@@ -45,6 +45,7 @@ export const S: Partial<typeof en> = {
   snore: 'Длительность храпа',
   snoreUnit: 'с',
   snoreHint: '0 = до пробуждения.',
+  volume: 'Громкость',
   panLabel: 'Стерео',
   pan: 'Панорама по положению',
   panHint: 'Звуки смещаются в сторону, где стоит Coo; если выключить, звучат по центру.',

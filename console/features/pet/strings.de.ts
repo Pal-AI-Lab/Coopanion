@@ -45,6 +45,7 @@ export const S: Partial<typeof en> = {
   snore: 'Schnarchdauer',
   snoreUnit: 's',
   snoreHint: '0 = bis zum Aufwachen.',
+  volume: 'Lautstärke',
   panLabel: 'Stereo',
   pan: 'Nach Position verteilen',
   panHint: 'Töne kommen von der Seite, auf der Coo steht; aus, werden sie mittig abgespielt.',

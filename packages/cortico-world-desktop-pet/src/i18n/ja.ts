@@ -242,6 +242,7 @@ const ja: Translation<PetText> = {
     touchEnabled: { title: 'ふれあいをイベントにする', description: 'つつく、なでる、持ち上げて投げる。' },
     touchWakeOn: { title: '反応モード', description: 'poke：つついたときだけすぐに反応し、ほかのふれあいは次の反応時にまとめて届きます。all：すべてのふれあいにすぐ反応します。none：すべてのふれあいは次の反応時にまとめて届きます。custom：「ふるまい」ページでチェックしたふれあいにすぐ反応します。一度反応したあと、そのターンが終わるまでのふれあいは次の反応時にまとめて届きます。' },
     sound: { title: 'すべてのサウンド', description: 'ペットのメニューのサウンドボタンでこれを切り替えます。' },
+    volume: { title: '音量' },
     sounds: {
       move: { title: '動き', description: '歩く、走る、跳ぶ、着地、投げられる、うなずく、首を振る、回る、目を回す、震える、踊る、見回す。' },
       touch: { title: 'ふれあい', description: '持ち上げられる、振り回される、なでられる、つつかれる。' },
