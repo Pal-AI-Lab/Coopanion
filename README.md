@@ -309,7 +309,22 @@ The Chat page has the full record. If something goes wrong, switch to advanced m
 
 ## Acknowledgements
 
+Thanks to everyone who has written code for Coopanion:
+
+<a href="https://github.com/Pal-AI-Lab/Coopanion/graphs/contributors"><img src="https://contrib.rocks/image?repo=Pal-AI-Lab/Coopanion" alt="Coopanion contributors"></a>
+
+And thanks to everyone who reports bugs and suggests ideas in Issues, the QQ groups and Discord.
+
 Coopanion is assembled from [Cortico](https://github.com/Pal-AI-Lab/Cortico): Cortico Core + Cormini Persona + the [desktop pet World](packages/cortico-world-desktop-pet), computer use included.
+
+## Star history
+
+<a href="https://star-history.com/#Pal-AI-Lab/Coopanion&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Pal-AI-Lab/Coopanion&type=Date&theme=dark">
+    <img src="https://api.star-history.com/svg?repos=Pal-AI-Lab/Coopanion&type=Date" alt="Coopanion star history" width="720">
+  </picture>
+</a>
 
 ## License
 

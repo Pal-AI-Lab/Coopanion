@@ -309,7 +309,22 @@ Coopanion 用系统代理（HTTP 或 HTTPS 代理，SOCKS 代理不生效），�
 
 ## 致谢
 
+谢谢每一位给 Coopanion 写过代码的朋友：
+
+<a href="https://github.com/Pal-AI-Lab/Coopanion/graphs/contributors"><img src="https://contrib.rocks/image?repo=Pal-AI-Lab/Coopanion" alt="Coopanion 的贡献者"></a>
+
+也谢谢在 Issue、QQ 群和 Discord 里报问题、提建议的各位。
+
 Coopanion 用 [Cortico](https://github.com/Pal-AI-Lab/Cortico) 组装：Cortico Core + Cormini Persona + [桌宠 World](packages/cortico-world-desktop-pet)（含电脑操作）。
+
+## Star 趋势
+
+<a href="https://star-history.com/#Pal-AI-Lab/Coopanion&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Pal-AI-Lab/Coopanion&type=Date&theme=dark">
+    <img src="https://api.star-history.com/svg?repos=Pal-AI-Lab/Coopanion&type=Date" alt="Coopanion 的 Star 趋势" width="720">
+  </picture>
+</a>
 
 ## 许可
 
