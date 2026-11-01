@@ -446,12 +446,12 @@ describe('voice input', () => {
     expect(asr.audio.at(-1)).toEqual(expected);
   });
 
-  it('shared hold key retains only the latest audio frames covering the hold delay and one poll', async () => {
+  it('shared hold key retains only the latest audio frames covering the hold delay and both key polls', async () => {
     const keys = sampledKeys();
     const { world, page, asr } = await setup('听清楚了', 'hold', keys.watch);
     await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'RightCtrl' }]);
     await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
-    const windowMs = Math.ceil((TAP_MAX_MS + keys.pollMs) / 20) * 20;
+    const windowMs = Math.ceil((TAP_MAX_MS + 2 * keys.pollMs) / 20) * 20;
     const recent = [...tone(windowMs - 20, .2), ...tone(20, .05)];
     keys.sample('RightCtrl', true, 0);
     await sendAudio(world, page, [...tone(1000, .4), ...recent]);
@@ -502,7 +502,7 @@ describe('voice input', () => {
       page.send({ t: 'mic', state: 'off' });
       await expect.poll(() => world.voiceState().level).toBe(-100);
       page.send({ t: 'mic', state: 'on' });
-    } else await new Promise((r) => setTimeout(r, TAP_MAX_MS + keys.pollMs + 40));
+    } else await new Promise((r) => setTimeout(r, TAP_MAX_MS + 2 * keys.pollMs + 40));
     keys.sample('RightCtrl', true, 1000);
     keys.sample('RightCtrl', true, 1000 + TAP_MAX_MS + 1);
     const spoken = [...tone(700, .2), ...tone(20, .1)];

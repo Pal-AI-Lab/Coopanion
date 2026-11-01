@@ -100,8 +100,11 @@ const IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif
 const PREFS_SYNC_MS = 150;
 /** Talk-key polling interval: well under the shortest key tap. */
 const HOTKEY_POLL_MS = 30;
-/** Covers the hold decision and one key poll, rounded up to whole audio frames. */
-const HOLD_PRE_ROLL_FRAMES = Math.ceil((TAP_MAX_MS + HOTKEY_POLL_MS) / FRAME_MS);
+/**
+ * Longest time from the physical press to hold activation, rounded up to whole audio frames: the
+ * press is seen up to one poll late, and TAP_MAX_MS being exceeded up to one more poll late.
+ */
+const HOLD_PRE_ROLL_FRAMES = Math.ceil((TAP_MAX_MS + 2 * HOTKEY_POLL_MS) / FRAME_MS);
 /**
  * A microphone the talk key opened (`asr.mic.openOnPress`) closes this long after the key goes up,
  * so a press right after a release finds it open. The end of speech does not wait on it: the
