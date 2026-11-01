@@ -1,3 +1,4 @@
+<!-- Owner: app/main.cjs, core/companion.ts, console/index.ts. -->
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
@@ -35,19 +36,17 @@ Coopanion is a desktop pet. **Coo** lives on the bottom edge of your screen: it 
 
 **Languages**: the app and its first-run guide are in 简体中文, 繁體中文, English, 日本語, 한국어, Français, Deutsch, Español (Latinoamérica), Português (Brasil), Italiano and Русский. A new install uses the system language (English when the system language is none of these); change it under **Language** on the Habits page. Coo talks to you in the app language.
 
-![1790222143546](image/README/1790222143546.png)
-
-<p align="center"><img src="image/README/pet-desktop-en.png" alt="Coo" width="640"></p>
+<p align="center"><img src="image/README/start-en.png" alt="Coopanion settings: model connections and the Coo preview" width="960"></p>
 
 ## Features
 
 - **Many model services**: OpenAI, Anthropic, Gemini, xAI, OpenRouter, DeepSeek, Kimi, Qwen, MiniMax, Zhipu GLM, Doubao, Baidu Qianfan and StepFun with an API key, or a ChatGPT account through its ChatGPT plan.
-- **Chat**: hold the talk key and speak, or type; Coo answers in a bubble. Speech is recognized on your machine with FunASR or Whisper.
-- **Memory**: Coo remembers what you talked about and when you poke it or pat its head. What it knows about you goes in `PARTNER.md` in its workspace, and every change to the workspace is kept as a version (the Windows build carries git; on macOS and Linux git has to be installed).
-- **Computer use**: clicking buttons, typing, switching windows. Coo asks before it acts.
+- **Chat**: hold the talk key and speak, or type; Coo answers in a bubble. Speech is recognized locally with FunASR or Whisper, or by a transcription service you configure.
+- **Memory**: Coo keeps notes about you in `PARTNER.md` and organizes longer memories by topic and date. Its text changes are versioned when Git is available; Windows includes Git, while macOS and Linux use the system installation.
+- **Computer use**: let Coo look at the screen, click, type and switch windows. Off by default, with configurable consent and interruption when you use the mouse, keyboard or talk key.
 - **Activity bubbles**: an animated icon shows when Coo is thinking, reading, searching, writing or using the computer.
 - **Figures**: Coo, or the **DeepSeek Chan**, a fully animated whale girl with eight vendor color schemes and three outfits. Other figure packs are imported on the Dress up page (see the [figure pack compatibility promise](packages/cortico-world-desktop-pet/README.md#形象包兼容承诺)).
-- **Dress up**: Coo's colors (five of them after Cultist Simulator's principles: Lantern, Grail, Forge, Heart, Winter), hats, earrings, glasses and neckwear, its size and how often it walks.
+- **Dress up**: colors including Nai Coo and five Cultist Simulator principles, hats, earrings, glasses and neckwear. Adjust the pet, bubble and text sizes separately.
 - **Alarms**: ask Coo to set one at a local time or after a number of minutes.
 - **Extensions**: Worlds such as a QQ bot, a drawing room and small games, installed from World extensions → Extension market.
 - **OBS overlay**: Coo and its bubbles as an OBS Browser source on a transparent background.
@@ -60,8 +59,6 @@ You need:
 
 - Windows 10 / 11 (64-bit), macOS 13 or later (Apple silicon or Intel), or a 64-bit Linux desktop (X11, or XWayland under Wayland; speech recognition needs glibc 2.32 or later: Ubuntu 22.04, Debian 12 and later);
 - an API key from one model service, which bills you for usage (see [Cost and privacy](#cost-and-privacy)), or a ChatGPT account with a plan.
-
-Installing does not need administrator rights.
 
 ### Windows
 
@@ -89,7 +86,7 @@ While App Store is the active app, Coo stays behind other windows so that App St
 ### Linux
 
 1. From the [latest release](https://github.com/Pal-AI-Lab/Coopanion/releases/latest), download `Coopanion-<version>-linux-x64.deb` (Debian / Ubuntu) or `Coopanion-<version>-linux-x64.AppImage` (other distributions).
-2. deb: `sudo apt install ./Coopanion-<version>-linux-x64.deb`. AppImage: `chmod +x Coopanion-*.AppImage` and run it; Ubuntu 22.04 and later need `libfuse2` first (`sudo apt install libfuse2t64`).
+2. deb: `sudo apt install ./Coopanion-<version>-linux-x64.deb`. AppImage: install your distribution’s FUSE 2 compatibility library, run `chmod +x Coopanion-*.AppImage`, then open the file.
 
 > [!NOTE]
 > The pet is a transparent always-on-top window, so the desktop needs compositing (on by default in GNOME and KDE). The tray icon needs status icon support (GNOME needs the AppIndicator extension); without a tray, right-click Coo to reach the settings. Computer use needs `xdotool` and `zenity`, which the deb installs; screenshots under Wayland also need one of `grim`, `spectacle`, `scrot` or ImageMagick.
@@ -97,11 +94,11 @@ While App Store is the active app, Coo stays behind other windows so that App St
 ## Getting started
 
 1. **Start**: Coo drops to the bottom of the screen and an icon appears in the tray (menu bar on Mac, status bar on Linux). No window opens.
-2. **Guide**: Coo walks you through setup in its bubbles: what to call you, what Coo is like, how much it walks, which model service to use, and the speech model download (from ModelScope; FunASR about 230 MB, or Whisper about 360 MB when the app language is French, German, Spanish, Portuguese, Italian or Russian). The × on the bubble ends the guide; **Guide** on the Start page runs it again. Afterwards you can talk Coo through its personality and way of speaking, and it writes the persona into its prompt itself.
+2. **Guide**: Coo walks you through setup in its bubbles: the app language, what to call you, what Coo is like, how much it walks, which model service to use, and the speech model download (from ModelScope; FunASR about 230 MB, or Whisper about 360 MB when the app language is French, German, Spanish, Portuguese, Italian or Russian). The × on the bubble ends the guide; **Guide** on the Start page runs it again. Afterwards you can talk Coo through its personality and way of speaking, and it writes the persona into its prompt itself.
 3. **Say hello**: tap **Left Alt** (**Left Option** on Mac), then press and hold it, say "hello", and release to send. Allow microphone access when asked.
 
 <details>
-<summary><b>Getting an API key</b></summary>
+<summary><b>Connect a model: API key or ChatGPT sign-in</b></summary>
 
 Select a service in Coo's bubble or on the Start page, create a key on its platform (DeepSeek also needs a topped-up balance) and paste it in.
 
@@ -122,7 +119,7 @@ Select a service in Coo's bubble or on the Start page, create a key on its platf
 | StepFun | [platform.stepfun.com](https://platform.stepfun.com/interface-key) | `step-3.7-flash` |
 | StepFun Step Plan | [platform.stepfun.com](https://platform.stepfun.com/interface-key) | `step-5-preview` (billed to the Step Plan subscription) |
 
-Each default is the fast, cheap, vision-capable tier of that vendor; change the name in the Model field on the Start page to use another. Kimi, Qwen, MiniMax and Zhipu GLM have separate mainland China and international platforms with separate accounts and keys; switch between them on the Start page. Doubao, Baidu Qianfan, StepFun and StepFun Step Plan take mainland China accounts only. Only DeepSeek, Anthropic and StepFun Step Plan have been tested with real keys; open an issue if another one fails.
+These are the app’s [configured defaults](packages/cortico-provider-coo/src/vendors.ts). To use another model, change the Model field on the Start page; computer use requires image support. Kimi, Qwen, MiniMax and Zhipu GLM have separate mainland China and international platforms with separate accounts and keys; switch between them on the Start page. Doubao, Baidu Qianfan, StepFun and StepFun Step Plan take mainland China accounts only. Only DeepSeek, Anthropic and StepFun Step Plan have been tested with real keys; open an issue if another one fails.
 
 **ChatGPT** takes no key: pick it, press **Continue with ChatGPT** and sign in in the browser that opens. Coo's requests count toward that account's ChatGPT plan and its usage limits; at the limit Coo goes quiet and tries again every few minutes.
 
@@ -132,61 +129,92 @@ Each default is the fast, cheap, vision-capable tier of that vendor; change the 
 
 ### Talking and playing
 
-- **Voice**: tap Left Alt, then hold it and speak; releasing ends the sentence. When the talk key and the typing key are the same key, hold to talk starts once the final press lasts more than 300 ms, so a quick double tap only opens the typing box. The talk key, microphone and listening mode (hold to talk / press to toggle / always listen) are on the Voice input page. With the system default microphone selected, changing the default input in system settings switches voice input to that device without restarting Coopanion. Instead of recognizing speech locally, you can pick an OpenAI-compatible transcription service there; the recording of each sentence then goes to that service.
-- **Typing**: rest the pointer on Coo and click the bubble button beside it. With **Typing key** on in Habits, pressing that key in any window opens the typing box too (left Ctrl pressed twice by default). Multi-press shortcuts open it after the final quick release; holding the final press does not open it. You can paste up to 4 images into the typing box.
-- **Bubbles**: Coo's bubble stays up while the pointer is on it; the countdown resumes when the pointer leaves.
-- **Alarms**: ask Coo for one at a local time or after a number of minutes. Daily alarms keep the local clock time across daylight-saving changes, and alarms missed while the app is closed arrive when it next starts.
-- **Touch**: click to poke Coo, move back and forth over its head to pat it, press and drag to pick it up; let go mid-swing to throw it, or over another display to move it there.
-- **Menu**: right-click Coo for pause / resume, settings, typing, voice input, dress up, hide and quit.
+- **Voice**: tap **Left Alt** (**Left Option** on Mac), then hold it and speak; release to send. The Voice input page sets the talk key, microphone, speech threshold and listening mode: hold to talk, press to toggle or always listen. With the system default microphone selected, Coo follows changes to the default input device.
+- **Typing**: hover over Coo and click the bubble button. Enable **Habits → Typing key** to open the box from any window (double-press Left Ctrl by default). Paste up to four images into a message. You can also type on the Chat page.
+- **Shared shortcuts**: when the talk key and typing key use the same key, a quick double tap opens typing; holding the final press for more than 300 ms starts voice input. A held final press does not open the typing box.
+- **Bubbles**: hovering over a bubble keeps it open. Habits controls activity bubbles, input bubbles, bubble size, text size and how quickly text appears.
+- **Alarms**: ask Coo for one at a local time or after a number of minutes. Daily alarms keep their local time across daylight-saving changes; missed alarms arrive when the app next starts.
+- **Touch**: click to poke, move across Coo’s head to pat it, or drag to pick it up. Release mid-swing to throw it, or on another display to move it there. **Habits → Response mode** chooses which touches get an immediate answer.
 
-Coopanion keeps running in the background: closing the settings window does not quit it, and the tray icon (menu bar on Mac) has show pet, let clicks pass through Coo, start at login, restart and quit. With clicks passing through, every click goes to the window underneath while Coo still walks and talks, which helps while playing a game; it lasts for this run, and the same tray item turns it off.
+Speech recognition is local by default: FunASR for Chinese, English, Japanese and Korean, and Whisper for French, German, Spanish, Portuguese, Italian and Russian. Windows also offers its system recognizer. Choose an **OpenAI-compatible** transcription service on the Voice input page to send each sentence’s recording to that service instead.
+
+Right-click Coo for settings, typing, voice input, dress up, pause / resume, hide and quit. Closing settings leaves Coopanion running. The tray menu (menu bar on Mac) also offers start at login, restart and **Let clicks pass through Coo**. Click-through lasts until you turn it off or quit; Coo keeps walking and talking.
+
+### Appearance and sound
+
+**Dress up** changes the figure, palette and accessories immediately. Import a figure pack from a zip or folder, or drag it onto the page; imported packs can be uninstalled there. Large imports have a confirmation warning above 128 MB.
+
+<p align="center"><img src="image/README/dress-en.png" alt="Dress up: Coo palettes, hats and accessories" width="960"></p>
+
+In **Habits → Sounds**, choose sound categories, set the volume for all pet sounds, and decide whether audio pans with Coo’s position. **Speech → Read bubbles aloud** replaces the talking sound with short syllables, with adjustable pitch and speed. These switches affect the desktop pet; sound provided by another World is configured on that World’s page.
+
+<p align="center"><img src="image/README/habits-en.png" alt="Habits: pet sound volume, stereo positioning and speech settings" width="960"></p>
+
+To use Coo in OBS, turn on **Habits → Other → Export OBS overlay** and add the displayed URL as an OBS Browser source, using your screen’s resolution. It includes Coo and the bubbles on a transparent background.
 
 ### Computer use
 
-Off by default. Tick **Let Coo use this computer** in the Computer use section of the Habits page, read the risks it shows and click **Turn on**; untick it to keep Coo off your computer again.
+Off by default. In **Habits → Computer use**, enable **Let Coo use this computer** and confirm the risk notice. Turn off **Allow the mouse and keyboard** to allow screenshots only, or disable computer use entirely.
 
-- **When to ask you**, from strictest to loosest: `ask-each-turn`, `ask-before-acting`, `ask-once` (the default: Coo looks at the screen without asking and asks once before using the mouse and keyboard; a yes lasts 30 minutes) and `never-ask`.
-- At every level, Coo asks once more before typing or pressing keys in a terminal window or pressing Win+R; after a yes it does not ask about these again for the same 30 minutes. Turning on **Turn off asking before terminals and the Run box** in the desktop pet World's config in advanced mode makes these steps follow the asking level like any other input.
-- Coo uses the computer only for what you say, type or pick in the desktop pet. When a message from elsewhere asks for it, Coo tells you in a bubble and waits for your yes.
-- When you touch the mouse or keyboard, Coo stops and waits until you have been idle for 2 seconds by default; time already spent idle counts toward that wait. Logins, passwords and payments are left to you.
-- Each voice message spoken with the talk key (hold to talk or press to toggle) interrupts reply generation or the current computer operation once transcription finishes and the message is sent. Waiting ends early, typing stops between chunks, and unstarted steps in the same round are skipped. A click, drag or key sequence already in progress finishes before stopping; completed actions are not undone. Speech heard while always listening does not interrupt.
-- Action receipts identify the system's current keyboard target, including the pet's typing box and untitled windows; an unreadable title is marked as unavailable. On macOS, an app that does not respond to window queries is still identified by its program name.
-- When input is blocked, the receipt reports the system-input or pointer signal, its check count and last tick, and the foreground window and program; the diagnostics include the same evidence. Typing to Coo in its typing box or the chat page also takes priority, and Coo is instructed to wait for your message before acting.
-- One wake makes at most 40 model requests; at the limit the turn ends and you can tell Coo to continue.
+| When to ask you | Behavior |
+| --- | --- |
+| Every turn | Ask before the first screenshot or input in each turn. |
+| Before acting | Take screenshots without asking; ask before the first mouse or keyboard action each turn. |
+| Once (default) | Take screenshots without asking; ask before acting, then reuse consent for the configured period (30 minutes by default). |
+| Never | Take screenshots and act without asking. |
+
+- Terminal input and Win+R require separate consent for the configured period. Advanced mode’s **Desktop pet → Config** can turn off that extra question.
+- Computer use is authorized through what you say, type or choose in the desktop pet. Requests from other Worlds need your confirmation in a bubble.
+- Moving the mouse or using the keyboard makes Coo yield until you have been idle for two seconds by default. Typing to Coo also takes priority.
+- A message sent with the talk key interrupts a reply or computer operation once transcription finishes. Waiting and remaining steps stop; a click, drag or key sequence already in progress finishes first. Always-listening speech does not interrupt.
+- Handle logins, passwords and payments yourself. One wake allows up to 40 model requests; tell Coo to continue if it reaches that limit.
+
+These controls apply to the desktop pet’s computer use. Configure tools supplied by other Worlds on their own pages.
 
 ### Settings window
 
-The title bar holds Back, Forward, sidebar folding and the light/dark switch on the left (to the right of the traffic lights on macOS), followed by the version, the GitHub link and the update status; hover the status for details. The sidebar folds when the window gets narrower than 1000px. The window remembers its last unmaximized size and reopens at it within the primary display’s work area.
+Open settings from the tray or Coo’s right-click menu. The title bar has Back, Forward, sidebar folding, appearance and update controls. The sidebar folds below 1000 px; the window remembers its size.
 
-Click the tray icon, or right-click Coo and click the gear. **Normal mode** shows pet pages, World extensions and their pages; **Advanced mode** at the bottom left of the expanded sidebar adds model providers, Persona, Memory, console and diagnostics.
-
-| Page | What is there |
+| Page | What you can change or view |
 | --- | --- |
-| Start | Connect a model, show or hide the pet, interface colors, rerun the guide, pause / resume |
-| Habits | Language, your name and Coo's, usage statistics, walking, how Coo responds to touches, typing key, display sizes, sounds and speech, computer use, OBS overlay |
+| Start | Model connection, pet visibility and preview, interface colors, first-run guide |
+| Habits | Language and names, walking and touch responses, self-adjustment permissions, shortcuts, display, sound, computer use, OBS overlay |
 | Dress up | Figure, colors and accessories; import or uninstall figure packs |
-| Voice input | Recognizer or transcription service, model download, talk key, microphone, listening mode, speech threshold |
-| System prompt | Coo's system prompt; the persona is the CONSTITUTION section |
-| Usage & cost | Tokens used and money spent per day |
-| Chat | The current conversation, with the images Coo shows |
+| Voice input | Recognition engine or transcription service, model download, talk key, microphone, listening mode and speech threshold |
+| System prompt | Persona and prompt templates; save with Ctrl+S, then **Apply now** to update the current conversation |
+| Usage & cost | Token usage and costs by day and model |
+| Chat | Conversation history, typing, images and diagnostic export |
+| World extensions | Installed Worlds, groups, ordering and the extension market |
 
-<p align="center"><img src="image/README/habits-en.png" alt="Habits" width="720"></p>
-<p align="center"><img src="image/README/dress-en.png" alt="Dress up" width="720"></p>
+Pause / resume is at the bottom of the sidebar. **Advanced mode** adds **Model connections**, Persona, Memory and diagnostics. Model connections lets you change models and reasoning settings, add compatible services, set prices and install provider extensions. Return to normal mode from the same sidebar control.
 
-The Model page in advanced mode changes the model and reasoning effort, adds an "OpenAI Responses Compatible" connection for any other service that speaks the Responses API, and takes prices for services without built-in ones.
+### World extensions
 
-**Extensions**: **World extensions → Extension market** in normal mode lists Worlds on npm with the `cortico-world` keyword; packages in the [official index](https://github.com/Pal-AI-Lab/cortico-extensions) also show tags, votes and comments. The **World extensions** tab contracts each World card into an icon in a separate column while the catalog opens from the right; returning to **My Worlds** expands the cards and closes the catalog. Both tabs preserve avatar positions and list scrolling. Pending extensions appear under **Pending restart**, with **Restart process** below the group; other entries appear under **Extensions**. Only a process restart animates pending entries into assembly order. Compact white cards use icon controls and show labeled live signals; package details and World configuration remain available. Visibility changes offer to reload the system prefix when required. Routine action success is reflected in the entry state. Install and version-change results stay in their detail drawer; failed restarts can be retried. The catalog supports search, capability categories (choosing one clears the tag choices), tags and package details: series tags select, caution tags exclude and stay excluded across sessions, and the selections and exclusions are listed above the cards; switching the manual installation source keeps the form in place; each list scrolls independently, with scrollbars shown only while hovering its region and the catalog scrollbar at the page’s right edge. Catalog cards place author, version and badges beside the title; installed state appears on the action button. Provider extensions are under **Model connections → Extension market**, using the same catalog layout without the World icon column. Switching between it and **Settings** has no transition animation. **Settings** keeps connection configuration; instance cards show provider type and model. Its instance list and configuration form scroll independently, with the new-instance button fixed above the list and scrollbars shown on hover. The configuration scrollbar sits at the right edge of the page.
+In **World extensions → Extension market**, search for Worlds, filter by capability or tags, and open a package’s details to install it. Packages in the [official index](https://github.com/Pal-AI-Lab/cortico-extensions) include tags, votes and comments. Excluding a caution tag keeps matching packages out of the results across visits.
 
-**Updates**: the Windows installer build and the AppImage download new versions in the background, and Coo asks whether to restart and update; choosing **Later** installs it when you quit. Turning off **Habits → General → Automatic updates** stops the checks, cancels a download under way and keeps a downloaded update from installing. On Mac, with the deb and with the Windows portable build, the update status beside the version in the title bar links to a newer release to download by hand. Steam updates the Steam build.
+After installation, use **Restart process** when the extension is listed under **Pending restart**. In **My Worlds**, you can:
+
+- group and drag Worlds into order; the sidebar follows that order;
+- open extension details from a World’s name or avatar and open its configuration;
+- hide a World from the sidebar, hide its tools and messages from Coo while it keeps running, or stop it.
+
+<p align="center"><img src="image/README/worlds-en.png" alt="World extensions: installed Worlds, status and grouping controls" width="960"></p>
+
+Provider extensions are under **Advanced mode → Model connections → Extension market**. Installed extensions remain in the data folder across application reinstalls.
+
+### Updates
+
+The Windows installer build and AppImage download updates in the background. Coo asks whether to restart and install; **Later** installs on quit. On these builds, **Habits → General → Automatic updates** stops checks and downloads and prevents a downloaded update from installing when disabled.
+
+macOS, deb and Windows portable builds link to a newer release in the title bar for manual installation. Steam manages updates for its build.
 
 ## Cost and privacy
 
 - **Cost**: Coopanion is free. The model service you choose bills you for usage; see the Usage & cost page (built-in prices exist for DeepSeek, OpenAI, Anthropic, Gemini's paid tier and xAI). Signed in with ChatGPT, requests count toward the ChatGPT plan instead and show no cost.
-- **Sent to the model service**: what you say and type, your interactions with Coo, and screenshots during computer use. Only the service you configured receives them.
+- **Sent to the model service**: what you say and type, attached images, your interactions with Coo, and screenshots during computer use. Only the service you configured receives them.
 - **Kept on your machine**: API keys and the ChatGPT sign-in, memory, conversation history, settings and logs. Speech is recognized locally and only the text is sent, unless a transcription service is chosen on the Voice input page: then the recording of each sentence goes to that service.
-- **Local pet service**: browser writes and WebSocket connections require the pet service's own HTTP origin, including its port. The desktop window authenticates with a random credential passed to its host at startup.
 - **Anonymous usage statistics**: sent to `survey.palailab.org`. Only counts, time used, settings and a random install ID; no conversations, screenshots, keys or files. Every field is listed in [docs/TELEMETRY.md](docs/TELEMETRY.md). Turn it off in Habits.
-- **Other network access**: checks for new releases on GitHub (in the background on Windows and with the AppImage, when the settings window opens on Mac and with the deb); npm and the official extension index on GitHub on the Extensions page, and GitHub for votes and comments; ModelScope (or Hugging Face as a fallback) when downloading the speech model.
+- **Other network access**: checks for new releases on GitHub (in the background on Windows and with the AppImage, when the settings window opens on Mac and with the deb); npm and the official extension index on GitHub in the extension market, and GitHub for votes and comments; ModelScope (or Hugging Face as a fallback) when downloading the speech model.
 
 ## Data and uninstalling
 
@@ -196,7 +224,7 @@ The Model page in advanced mode changes the model and reasoning effort, adds an 
 | macOS | `~/Library/Application Support/Coopanion` | Drag Coopanion from Applications to the Trash |
 | Linux | `~/.config/Coopanion` | deb: `sudo apt remove coopanion`; AppImage: delete the file |
 
-Uninstalling keeps the data, so memory and settings are still there after a reinstall. To remove everything, delete the data folder by hand (on Windows, the whole install folder). Inside it, `home` holds memory, conversations, settings and API keys, `home/models` the speech model, `extensions` the extensions and `logs` the logs.
+Uninstalling an installed build keeps its data. Deleting a portable folder also deletes its `data`, so back that up first. To remove everything, delete the data folder by hand (on Windows, the whole install folder). Inside it, `home` holds memory, conversations, settings and API keys, `home/models` the speech model, `extensions` the extensions and `logs` the logs.
 
 On Windows, a reinstall into a new folder asks at start whether to inherit the data used before or start a new one.
 
@@ -212,7 +240,7 @@ Right-click the tray icon → Show pet; if the icon is hidden, click `^` at the 
 <details>
 <summary><b>Coo does not answer</b></summary>
 
-Check the status next to the title on the Start page. **Paused**: click resume. **No model connected**: check that the API key is complete and the account has balance, then click **Test**. Keys for Kimi, Qwen, MiniMax and Zhipu GLM only work on the platform (mainland China or international) they were created on; Doubao needs the default model enabled in the Ark console. After 5 failed model requests in a row, Coo says the error in a bubble.
+Check **Start → Connected model** and the run status at the bottom of the sidebar. **Paused**: click resume. **Not connected**: check that the API key is complete and the account has balance, then click **Save and start**. Use **Test** to recheck an existing connection. Keys for Kimi, Qwen, MiniMax and Zhipu GLM only work on the platform (mainland China or international) they were created on; Doubao needs the default model enabled in the Ark console. After 5 failed model requests in a row, Coo says the error in a bubble.
 
 </details>
 
@@ -258,7 +286,7 @@ The Chat page has the full record. If something goes wrong, click **Export diagn
 ## Community
 
 - QQ Group 2: 1129285246 (Group 1, 1080755910, is full)
-- Discord Server: https://discord.gg/DR37WB5zJf
+- [Discord server](https://discord.gg/DR37WB5zJf)
 
 ## Contributing
 
