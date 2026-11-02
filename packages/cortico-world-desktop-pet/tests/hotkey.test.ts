@@ -44,11 +44,11 @@ describe('hotkeyLabel', () => {
 });
 
 describe('tapTracker', () => {
-  /** Feeds raw [down, ms] steps and returns what the hotkey did. */
-  function run(taps: number, steps: Array<[boolean, number]>, trigger: 'press' | 'hold' | 'tap' = 'press') {
+  /** Feeds raw [down, ms, another key down] steps and returns what the hotkey did. */
+  function run(taps: number, steps: Array<[boolean, number, boolean?]>, trigger: 'press' | 'hold' | 'tap' = 'press') {
     const out: string[] = [];
     const step = tapTracker(taps, (down) => out.push(down ? 'down' : 'up'), (n) => out.push(`tap${n}`), trigger);
-    for (const [down, at] of steps) step(down, at);
+    for (const [down, at, others] of steps) step(down, at, others);
     return out;
   }
 
@@ -108,6 +108,18 @@ describe('tapTracker', () => {
     expect(run(2, [[true, 0], [false, 50], [true, 100], [true, 101 + TAP_MAX_MS], [false, 150 + TAP_MAX_MS],
       [true, 200 + TAP_MAX_MS], [false, 250 + TAP_MAX_MS], [true, 300 + TAP_MAX_MS], [false, 350 + TAP_MAX_MS]], 'tap'))
       .toEqual(['tap1', 'tap1', 'down', 'up']);
+  });
+
+  it('tap: a press with another key down is no tap and starts the count over', () => {
+    // Ctrl+C with C let go first, then Ctrl+V with V already down at the press
+    const shortcuts: Array<[boolean, number, boolean?]> = [[true, 0], [true, 30, true], [true, 60], [false, 90], [true, 200, true], [false, 260]];
+    expect(run(2, shortcuts, 'tap')).toEqual([]);
+    expect(run(2, [...shortcuts, [true, 300], [false, 350], [true, 450], [false, 500]], 'tap')).toEqual(['tap1', 'down', 'up']);
+    expect(run(2, [[true, 0], [false, 50], [true, 100, true], [false, 150], [true, 200], [false, 250]], 'tap')).toEqual(['tap1', 'tap1']);
+  });
+
+  it('press: Alt+Tab is no tap, so the next press does not activate', () => {
+    expect(run(2, [[true, 0, true], [false, 100], [true, 200], [false, 300]])).toEqual(['tap1']);
   });
 
   it('press: repeated polling triggers toggle once on the final press', () => {

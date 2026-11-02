@@ -141,7 +141,10 @@ function sampledKeys() {
     for (const vk of parseHotkey(key)!.keys) {
       if (down) held.add(vk); else held.delete(vk);
     }
-    for (const watcher of watchers) watcher.step(watcher.keys.every((vk) => held.has(vk)), at);
+    for (const watcher of watchers) {
+      const down = watcher.keys.every((vk) => held.has(vk));
+      watcher.step(down, at, down && [...held].some((vk) => !watcher.keys.includes(vk)));
+    }
   };
   return { watch, sample, get pollMs() { return pollMs; } };
 }
@@ -566,6 +569,27 @@ describe('voice input', () => {
     const { world, page } = await setup('', 'always', watch);
     await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'F8' }]);
     sample('F8', true, 0);
+    await page.next((m) => m.t === 'type');
+  });
+
+  it('Ctrl+C then Ctrl+V does not open the typing box; a double tap of Ctrl does', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world, page } = await setup('', 'always', watch);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'LeftCtrl*2' }]);
+    for (const [letter, at] of [['C', 0], ['V', 200]] as const) {
+      sample('LeftCtrl', true, at);
+      sample(letter, true, at + 30);
+      sample(letter, false, at + 90);
+      sample('LeftCtrl', false, at + 120);
+    }
+    // a later message on the same socket: a type sent for the shortcuts would have arrived before it
+    await world.webUi().invoke!('pet', 'setClickThrough', [true]);
+    await page.next((m) => m.t === 'prefs' && m.clickThrough === true);
+    expect(page.messages.some((m) => m.t === 'type')).toBe(false);
+    sample('LeftCtrl', true, 1000);
+    sample('LeftCtrl', false, 1080);
+    sample('LeftCtrl', true, 1200);
+    sample('LeftCtrl', false, 1280);
     await page.next((m) => m.t === 'type');
   });
 
