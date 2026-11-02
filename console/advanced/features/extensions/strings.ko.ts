@@ -36,6 +36,7 @@ export const S: Partial<typeof en> = {
   listLoadFailed: (msg: string) => `확장 목록을 불러오지 못했습니다: ${msg}`,
   remove: '확장 삭제',
   removeInUse: 'Coo가 사용 중입니다. 비활성화한 뒤 삭제하세요.',
+  removeInUseProvider: '이 공급자를 쓰는 모델 연결이 남아 있습니다. 먼저 그 연결을 삭제하세요.',
   removeBody: '공유 확장 디렉터리에서 이 패키지를 제거하며, 프로세스를 재시작한 뒤 적용됩니다. 이 패키지를 쓰는 다른 봇도 영향을 받습니다. Memory, 저장된 설정, 로컬 확장 소스는 삭제되지 않습니다.',
   builtin: '기본 제공',
   builtinNote: 'Coopanion에 포함되어 있어 따로 삭제할 수 없습니다.',

@@ -36,6 +36,7 @@ export const S: Partial<typeof en> = {
   listLoadFailed: (msg: string) => `Échec du chargement de la liste des extensions : ${msg}`,
   remove: "Supprimer l'extension",
   removeInUse: 'Utilisée par Coo. Désactivez-la avant de la supprimer.',
+  removeInUseProvider: 'Une connexion de modèle utilise encore ce fournisseur. Supprimez d’abord cette connexion.',
   removeBody: "Retire ce paquet du répertoire d'extensions partagé ; prend effet après le redémarrage du processus. Les autres bots qui l'utilisent sont concernés. Memory, la configuration enregistrée et les répertoires sources locaux sont conservés.",
   builtin: 'Intégrée',
   builtinNote: 'Fournie avec Coopanion ; ne peut pas être supprimée séparément.',
