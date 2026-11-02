@@ -10,7 +10,7 @@ import { lampRow, subscribeLamps } from '../../../base/ui/lamp.ts';
 import { pageIntro } from '../../../base/ui/page.ts';
 import { pageTabs } from '../../../base/ui/page-tabs.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
-import { mountExtensionContent, iconUrl, type ExtensionView, type ExtensionController } from '../extensions/index.ts';
+import { mountExtensionContent, iconUrl, removalBlockReason, type ExtensionView, type ExtensionController } from '../extensions/index.ts';
 import { S as E } from '../extensions/strings.ts';
 import { worldLibrary, needsRestart, type WorldLibraryItem } from './library.ts';
 import { addGroup, arrangeLayout, groupToken, moveGroup, moveItem, readLayout, removeGroup, writeLayout, type WorldGroup, type WorldLayout } from './groups.ts';
@@ -56,6 +56,7 @@ export interface WorldView {
   prefixDrifted?: boolean;
   /** 装不上的原因(仅 missing)。原样显示,这一页不改写措辞。 */
   reason?: string;
+  envPromptError?: string;
   workspace?: string;
   tools?: string[];
   badges?: WebUiBadge[];
@@ -219,7 +220,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     beforeReload: () => {
       try { win.sessionStorage.setItem(layoutKey, JSON.stringify({ positions: [...railNodes].filter(([, node]) => node.parentElement!.dataset.state === 'pending').map(([key, node]) => [key, node.parentElement!.getBoundingClientRect().top]), scroll: railList.scrollTop, at: Date.now() })); } catch { /* Storage may be unavailable. */ }
     },
-    onChange: items => { extensions = items; extensionsReady = true; extensionsListed = true; void load(); },
+    onChange: items => { extensions = items; extensionsReady = true; extensionsListed = true; render(); void load(); },
     onLoadError: () => { extensionsReady = true; render(); },
     onUpdates: next => { updatable = next; render(); },
     reveal: name => { const item = worldLibrary(worlds, extensions, recent).find(entry => entry.key === name); if (item) reveal(item); },
@@ -581,7 +582,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     if (landing && arrival) { const { from } = arrival; arrival = undefined; if (!reduceMotion()) land(landing, from); }
     for (const [key, node] of railNodes) {
       const before = positions.get(key), delta = before === undefined ? 0 : before - node.parentElement!.getBoundingClientRect().top;
-      if (delta && node.parentElement!.dataset.state !== 'pending' && node.parentElement!.dataset.state !== 'failed' && !reduceMotion()) {
+      if (delta && node.parentElement!.parentElement !== pendingList && node.parentElement!.dataset.state !== 'failed' && !reduceMotion()) {
         const animation = node.parentElement!.animate?.([{ transform: `translateY(${delta}px)` }, { transform: 'translateY(0)' }], { duration: 340, easing: 'cubic-bezier(.2,.7,.2,1)' });
         if (animation) { movements.add(animation); void animation.finished.then(() => movements.delete(animation), () => movements.delete(animation)); }
       }
@@ -602,9 +603,11 @@ export function mountWorlds(ctx: FeatureContext): void {
   function worldRow(item: WorldLibraryItem): HTMLElement {
     const row = ui.h('article', 'world-blade'); row.dataset.key = item.key; row.tabIndex = -1;
     const { world: m, extension: pack } = item;
-    const pending = pack?.state === 'pending-restart' || pack?.state === 'removed';
+    const pending = needsRestart(item);
+    const active = m ? m.status === 'active' : pack?.enabled === true;
+    const hiddenFromAgent = m ? m.visible === false : pack?.hidden === true;
     const failed = pack?.state === 'failed' || m?.status === 'missing';
-    row.dataset.state = pending ? 'pending' : failed ? 'failed' : m?.status === 'active' ? m.visible === false ? 'running' : 'attached' : 'inactive';
+    row.dataset.state = pack?.state === 'removed' ? 'removed' : pending ? 'pending' : failed ? 'failed' : active ? hiddenFromAgent ? 'running' : 'attached' : 'inactive';
     const identity = ui.h('div', 'world-blade-identity');
     const heading = ui.h('h3');
     // The name opens the package's extension info, as the avatar does.
@@ -617,9 +620,9 @@ export function mountWorlds(ctx: FeatureContext): void {
       const owner = market, update = updatable.get(pack.name);
       if (update) heading.append(iconButton('update', S.updateAvailable(update.installedVersion, update.latestVersion), 'world-name-update', () => owner.details(pack.name)));
     }
-    identity.append(heading, ui.h('code', '', m?.id ?? pack?.name ?? item.key));
+    identity.append(heading, ui.h('code', '', m?.id ?? pack?.worldId ?? pack?.name ?? item.key));
     const signals = ui.h('div', 'world-blade-signals');
-    const state = pending ? pack?.state === 'removed' ? E.stateRemoved : E.statePendingRestart : failed ? E.stateFailed : m?.status === 'active' ? m.visible === false ? S.modeRunning : S.modeAttached : S.modeOff;
+    const state = pending ? pack?.state === 'removed' ? E.stateRemoved : E.stateInstalledPendingRestart : failed ? E.stateFailed : active ? hiddenFromAgent ? S.modeRunning : S.modeAttached : S.modeOff;
     if (m?.status === 'active') {
       const lamps = ui.h('span', 'world-signals'); paintSignals(lamps, m.lamps ?? []); signals.append(lamps); lampNodes.set(worldPageId(m.id), lamps);
     }
@@ -634,7 +637,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     // An unavailable uninstall stays visible, greyed, with the reason on hover.
     if (pack?.state !== 'removed') {
       const owner = market, key = item.key;
-      const reason = !pack || pack.builtin ? E.builtinNote : pack.enabled ? E.removeInUse : !owner ? E.remove : '';
+      const reason = removalBlockReason(pack, m ? m.status === 'active' || changingWorlds.has(m.id) : pack?.enabled) || (!owner ? E.remove : '');
       const remove = slot('remove', iconButton('trash', E.remove, 'iobtn-remove', () => { if (!reason && pack && owner) void owner.remove(pack.name, () => railList.querySelector(`.world-blade[data-key="${CSS.escape(key)}"] .iobtn-remove`)); }));
       if (reason) { remove.setAttribute('aria-disabled', 'true'); remove.title = reason; remove.setAttribute('aria-label', `${E.remove}: ${reason}`); }
       actions.append(remove);
@@ -668,8 +671,8 @@ export function mountWorlds(ctx: FeatureContext): void {
     }
     // A load failure reads as its state; the reason opens in the error popover beside it.
     let stateNode: HTMLElement = ui.h('span', 'world-state', state);
-    if (failed) {
-      const reason = m?.reason || pack?.reason || S.missingReasonDefault;
+    if (failed || m?.envPromptError) {
+      const reason = m?.envPromptError || m?.reason || pack?.reason || S.missingReasonDefault;
       const button = ui.h('button', 'world-state world-state-problem') as HTMLButtonElement; button.type = 'button';
       button.append(icon(doc, 'alert'), ui.h('span', '', state)); button.setAttribute('aria-label', `${state}: ${reason}`);
       button.addEventListener('click', event => { event.stopPropagation(); problems.show(button, reason); }, { signal });
@@ -677,7 +680,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     }
     row.append(identity, stateNode, signals, actions);
     if (!failed && m?.status === 'inactive' && !canActivate) row.append(ui.h('p', 'world-blade-note', S.inactiveNoteManual(m.id)));
-    else if (!failed && !m && !pending) row.append(ui.h('p', 'world-blade-note', E.worldNotLoaded));
+    else if (!failed && !m && !pending && !active) row.append(ui.h('p', 'world-blade-note', E.worldNotLoaded));
     return row;
   }
   function render(): void {

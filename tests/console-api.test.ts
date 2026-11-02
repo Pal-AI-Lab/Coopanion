@@ -22,6 +22,8 @@ import { CONSOLE } from 'cortico/worlds/console/definition.ts';
 const CORTICO = resolve(import.meta.dirname, '../vendor/cortico');
 const PROBE_PAGE = 'world:probe';
 const LANGUAGE_KIND = 'probe.language';
+/** While set, the probe's environment prompt fails to render. */
+let envFails = false;
 
 /** Stands in for the desktop-pet World: one panel whose methods echo, and a stream that greets and echoes. */
 const PROBE: WorldDefinition = {
@@ -31,7 +33,10 @@ const PROBE: WorldDefinition = {
   configOptions: (kind) => (kind === LANGUAGE_KIND ? [{ value: 'en', label: 'English' }] : []),
   create: () => ({
     id: 'probe',
-    envPromptVars: () => ({}),
+    envPromptVars: () => {
+      if (envFails) throw new Error('probe environment failed');
+      return {};
+    },
     tools: () => [],
     start: async () => {},
     stop: async () => {},
@@ -134,6 +139,14 @@ describe('routes the advanced mode uses beyond the public table', () => {
 
   it('tool schemas: the list the Persona page reads', async () => {
     expect((await json(await get('/api/tool-schemas'))).body.tools).toEqual(expect.any(Array));
+  });
+
+  it('Worlds: a running World whose environment prompt fails to render stays active and carries the error', async () => {
+    envFails = true;
+    try {
+      const { body } = await json(await get('/api/worlds'));
+      expect(body.worlds.find((world: { id: string }) => world.id === PROBE.id)).toMatchObject({ status: 'active', envPrompt: '', envPromptError: 'probe environment failed' });
+    } finally { envFails = false; }
   });
 
   it('Worlds: the list, visibility, restart, activation', async () => {

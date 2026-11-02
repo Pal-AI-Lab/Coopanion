@@ -4,6 +4,7 @@
  * modules load, so the window language is set to zh before they are imported.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CONSOLE_PROTOCOL_VERSION } from '../console/base/protocol.ts';
 
 localStorage.setItem('cortico.console.language', 'zh');
 const { createConsoleUi } = await import('../console/base/ui/index.ts');
@@ -68,7 +69,9 @@ function stub(over = {}) {
     calls.push({ url: u, method, body: init?.body ? JSON.parse(String(init.body)) : undefined });
     let status = 200;
     let body = {};
-    if (u === '/api/worlds') body = { worlds: over.worlds ?? [{ id: 'alpha', label: '甲扩展', status: 'active', visible: true }, { id: 'builtin', label: 'Builtin', status: 'inactive' }] };
+    if (u === '/api/worlds') { status = over.worldStatus ?? 200; body = status === 200 ? { worlds: over.worlds ?? [{ id: 'alpha', label: '甲扩展', status: 'active', visible: true }, { id: 'builtin', label: 'Builtin', status: 'inactive' }] } : { error: 'Environment file missing' }; }
+    else if (u === '/api/capabilities') body = { capabilities: { worlds: true, extensions: true } };
+    else if (u === '/api/webui/manifest') body = { protocolVersion: CONSOLE_PROTOCOL_VERSION, framework: {}, providers: over.pages ?? [] };
     else if (u === '/api/worlds/visibility') body = { driftedWorlds: over.driftedWorlds ?? [] };
     else if (u === '/api/providers') body = { scope: 'test-provider-tabs', active: over.active ?? '', providers: over.providers ?? [] };
     else if (u.startsWith('/api/providers/') && u.endsWith('/delete')) { over.onDelete?.(u); body = { ok: true }; }
@@ -801,9 +804,36 @@ describe('provider page tabs', () => {
     button(drawer, '删除扩展').click(); await flush(); answer(false); await flush();
     expect(market.querySelector('.extension-market-card')).not.toBeNull();
     button(drawer, '删除扩展').click(); await flush(); answer(true); await flush();
+    await vi.waitFor(() => expect(document.querySelector('.extension-detail')).toBeNull());
     expect(market.querySelector('.extension-market-card')).toBeNull();
-    expect(document.querySelector('.extension-detail')).toBeNull();
     expect(market.querySelector('.extension-restart').hidden).toBe(false);
+  });
+  it('disables uninstall in the details of a running provider', async () => {
+    stub({ list: { extensions: [{ ...LIST.extensions[2], state: 'loaded', enabled: true }] }, hits: { hits: [] } });
+    const { ctx, root } = await openProviders({ extensions: true });
+    await navigate(ctx, 'market');
+    root.querySelector('.extension-market-card .extension-get').click(); await flush();
+    const remove = button(document.querySelector('.extension-detail'), extensionStrings.remove);
+    expect(remove.disabled).toBe(true);
+    expect(remove.title).toBe(extensionStrings.removeInUseProvider);
+    remove.click(); await flush();
+    expect(document.querySelector('.confirm-card')).toBeNull();
+  });
+  it('rereads the list on returning to the market, so a provider whose connections were deleted can be uninstalled', async () => {
+    const list = { extensions: [{ ...LIST.extensions[2], state: 'loaded', enabled: true }] };
+    stub({ list, hits: { hits: [] }, onUninstall: () => { list.extensions[0].state = 'removed'; } });
+    const { ctx, root } = await openProviders({ extensions: true });
+    await navigate(ctx, 'market');
+    root.querySelector('.extension-market-card .extension-get').click(); await flush();
+    expect(button(document.querySelector('.extension-detail'), extensionStrings.remove).disabled).toBe(true);
+    list.extensions[0].enabled = false;
+    await navigate(ctx);
+    await navigate(ctx, 'market');
+    root.querySelector('.extension-market-card .extension-get').click(); await flush();
+    const remove = button(document.querySelector('.extension-detail'), extensionStrings.remove);
+    expect(remove.disabled).toBe(false);
+    remove.click(); await flush(); answer(true); await flush();
+    expect(calls.find(call => call.url === '/api/extensions/uninstall').body).toEqual({ name: list.extensions[0].name });
   });
   it('installs a provider from a catalog card and shows it under the installed filter', async () => {
     const hit = { ...HITS.hits[0], kind: 'provider', name: 'found-provider' };
@@ -854,6 +884,25 @@ describe('World library and catalog', () => {
     expect(items.map(item => item.key)).toEqual(['newest', 'delta-mod', 'older', 'alpha-mod', 'world:builtin', 'beta-mod', 'epsilon-mod']);
     expect(items.find(item => item.key === 'alpha-mod').world).toBe(worlds[0]);
     expect(items[0].world).toBeUndefined();
+  });
+  it('keeps a removed package separate from an older inactive World snapshot', () => {
+    const removed = LIST.extensions.find(item => item.state === 'removed');
+    const items = worldLibrary([{ id: removed.worldId, status: 'inactive' }], [removed]);
+    expect(items).toHaveLength(1);
+    expect(items[0].extension).toBe(removed);
+    expect(items[0].world).toBeUndefined();
+  });
+  it('does not attach an ID-conflicting failed package to the running World', () => {
+    const running = { id: 'alpha', status: 'active' };
+    const failed = { ...LIST.extensions[0], name: 'conflict', state: 'failed', loaded: false };
+    const items = worldLibrary([running], [failed, LIST.extensions[0]]);
+    expect(items.find(item => item.key === 'alpha-mod').world).toBe(running);
+    expect(items.find(item => item.key === 'conflict').world).toBeUndefined();
+  });
+  it('keeps a failed built-in definition attached to its missing World entry', () => {
+    const world = { id: 'builtin', status: 'missing' };
+    const extension = { name: 'builtin:world:builtin', worldId: 'builtin', kind: 'world', builtin: true, loaded: false, state: 'failed' };
+    expect(worldLibrary([world], [extension])).toEqual([{ key: extension.name, label: world.id, world, extension }]);
   });
   it('keeps the same avatars and scroll position when the library expands into management rows', async () => {
     const { root, ctx } = await openWorlds();
@@ -920,13 +969,61 @@ describe('World library and catalog', () => {
     expect(problem.classList.contains('hidden')).toBe(true);
   });
   it('uninstalls an inactive package from its World row after confirmation', async () => {
-    const { root, ctx } = await openWorlds();
+    const extension = { ...LIST.extensions[0], enabled: false };
+    const { root, ctx } = await openWorlds({
+      list: { extensions: [extension] }, worlds: [{ id: 'alpha', status: 'inactive' }],
+      onUninstall: () => { extension.state = 'removed'; },
+    });
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
-    const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'beta-mod');
+    const row = root.querySelector('.world-blade[data-world="alpha"]');
+    expect(row.querySelector('.iobtn-power')).not.toBeNull();
+    expect(row.classList.contains('is-configurable')).toBe(true);
     row.querySelector('.iobtn-remove').click(); await flush();
     expect(calls.some(call => call.url === '/api/extensions/uninstall')).toBe(false);
     answer(true); await flush(100);
-    expect(calls.find(call => call.url === '/api/extensions/uninstall').body).toEqual({ name: 'beta-mod' });
+    expect(calls.find(call => call.url === '/api/extensions/uninstall').body).toEqual({ name: 'alpha-mod' });
+    const removed = root.querySelector('.world-pending-list .world-blade');
+    expect(removed.dataset.state).toBe('removed');
+    expect(removed.querySelector('.world-blade-actions').childElementCount).toBe(0);
+    expect(removed.querySelector('.world-blade-signals').childElementCount).toBe(0);
+    removed.querySelector('.world-blade-identity code').click(); await flush();
+    expect(location.hash).not.toContain('/provider/');
+  });
+  it('uses current World status to block removal when the extension snapshot predates activation', async () => {
+    const list = structuredClone(LIST);
+    list.extensions[0].enabled = false;
+    const worlds = [{ id: 'alpha', status: 'active' }];
+    const { root } = await openWorlds({ list, worlds });
+    const active = root.querySelector('.world-blade[data-world="alpha"]');
+    expect(active.querySelector('.iobtn-remove').getAttribute('aria-disabled')).toBe('true');
+    active.querySelector('.iobtn-remove').click(); await flush();
+    expect(document.querySelector('.confirm-card')).toBeNull();
+  });
+  it('preserves known running state when the World list fails and keeps its delete control disabled', async () => {
+    const list = { extensions: [{ ...LIST.extensions[0], enabled: true }] };
+    const { root } = await openWorlds({ list, worldStatus: 500 });
+    const row = root.querySelector('.world-blade');
+    expect(row.dataset.state).toBe('attached');
+    expect(row.querySelector('.world-state').textContent).toBe('已接入');
+    expect(row.querySelector('.world-blade-note')).toBeNull();
+    expect(row.querySelector('.iobtn-remove').getAttribute('aria-disabled')).toBe('true');
+    expect(root.textContent).toContain('Environment file missing');
+  });
+  it('shows an environment read error without changing a running World to failed', async () => {
+    const { root } = await openWorlds({ worlds: [{ id: 'alpha', status: 'active', envPromptError: 'Environment file missing' }] });
+    const row = root.querySelector('.world-blade[data-world="alpha"]');
+    expect(row.dataset.state).toBe('attached');
+    row.querySelector('.world-state-problem').click(); await flush();
+    expect(document.querySelector('.extension-problem:not(.hidden)').textContent).toContain('Environment file missing');
+  });
+  it.each(['active', 'unavailable'])('does not uninstall when the confirmation-time status becomes %s', async status => {
+    const list = structuredClone(LIST), over = { list };
+    const { root } = await openWorlds(over);
+    root.querySelector('.world-blade[data-key="beta-mod"] .iobtn-remove').click(); await flush();
+    if (status === 'active') list.extensions[1].enabled = true;
+    else over.listStatus = 503;
+    answer(true); await flush(150);
+    expect(calls.some(call => call.url === '/api/extensions/uninstall')).toBe(false);
   });
   it('adds from the catalog without opening details, then exposes pending restart in management', async () => {
     const list = structuredClone(LIST);
@@ -944,7 +1041,7 @@ describe('World library and catalog', () => {
     button(root, '我的 World').click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     const pending = root.querySelector('.world-blade');
     expect(pending.dataset.state).toBe('pending');
-    expect(pending.textContent).toContain('待生效');
+    expect(pending.textContent).toContain(extensionStrings.stateInstalledPendingRestart);
     expect(buttons(pending).some(item => item.textContent === '激活 World')).toBe(false);
     root.querySelector('.world-blade button.world-name').click(); await flush();
     expect(document.querySelector('.extension-detail').textContent).toContain('found-mod');
@@ -990,7 +1087,7 @@ describe('World library and catalog', () => {
     const worlds = [{ id: 'builtin', status: 'active' }];
     const { root } = await openWorlds({ list, worlds });
     const pending = root.querySelector('.world-pending-list .world-library-item');
-    list.extensions[0].state = 'loaded'; worlds.push({ id: 'last', status: 'inactive' });
+    list.extensions[0].state = 'loaded'; list.extensions[0].loaded = true; worlds.push({ id: 'last', status: 'inactive' });
     root.querySelector('.world-market [aria-label="刷新"]').click(); await flush(100);
     expect(root.querySelector('.world-pending-group').hidden).toBe(true);
     expect(root.querySelector('.world-ready-list .world-library-item')).toBe(pending);
@@ -1108,7 +1205,7 @@ describe('World library and catalog', () => {
     const { root, ctx } = await openWorlds({}, { worlds: true, extensions: true, worldActivation: true, worldVisibility: true, restart: true, supervised: true });
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod');
-    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['左栏隐藏', '删除扩展', '对 Coo 隐藏', '停用 World']);
+    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.dataset.slot)).toEqual(['sidebar', 'remove', 'visibility', 'power']);
     expect([...row.querySelectorAll('.world-blade-identity h3 button')].map(item => item.className)).toEqual(['world-name']);
     // Rows with fewer controls pack them to the right, with no gap at the end.
     const slots = (item) => [...item.querySelectorAll('.world-blade-actions button')].map(button => button.style.getPropertyValue('--slot'));

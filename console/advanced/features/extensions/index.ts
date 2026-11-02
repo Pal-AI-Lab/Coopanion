@@ -422,7 +422,12 @@ export const iconUrl = (name: string, version: string | null | undefined): strin
 type Category = Exclude<ExtensionKindView, 'bot'>;
 const categories: Category[] = ['world', 'provider'];
 const LINK_ICONS = { npm: 'package', repository: 'code', homepage: 'home', bugs: 'alert' } as const;
-const stateLabels = { loaded: S.disabled, failed: S.stateFailed, 'pending-restart': S.statePendingRestart, removed: S.stateRemoved, idle: S.template };
+const stateLabels = { loaded: S.disabled, failed: S.stateFailed, 'pending-restart': S.stateInstalledPendingRestart, removed: S.stateRemoved, idle: S.template };
+export function removalBlockReason(item: ExtensionView | undefined, active = item?.enabled): string {
+  if (!item || item.builtin) return S.builtinNote;
+  if (item.state === 'removed') return S.stateRemoved;
+  return !active ? '' : item.kind === 'provider' ? S.removeInUseProvider : S.removeInUse;
+}
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 
 export interface ExtensionWorkspace {
@@ -1456,7 +1461,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     try {
       const data = await get<{ dir: string; platform?: string; extensions: ExtensionView[] }>('/api/extensions', { signal });
       if (signal.aborted || generation !== loadGeneration) return !signal.aborted;
-      installed = data.extensions; installedFetched = true; directory = data.dir; platform = data.platform ?? ''; renderRestart(); renderMarket(); restoreScroll(); workspace?.onChange(installed.filter(item => item.kind === kind || !item.kind)); return true;
+      installed = data.extensions; installedFetched = true; directory = data.dir; platform = data.platform ?? '';
+      renderRestart(); renderMarket(); restoreScroll(); workspace?.onChange(installed.filter(item => item.kind === kind || !item.kind)); return true;
     } catch (error) { if (!signal.aborted && generation === loadGeneration) { installedFetched = true; message(kind, 'management', S.listLoadFailed(errorText(error)), true); restoreScroll(); workspace?.onLoadError(); } return false; }
   }
   async function checkUpdates() {
@@ -1532,6 +1538,15 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   }
   async function remove(name: string, anchor: Anchor) {
     if (busy.has(name) || !await ui.confirm({ title: S.remove, body: S.removeBody, danger: true }) || signal.aborted) return;
+    if (!await load() || signal.aborted) return;
+    const item = installed.find(entry => entry.name === name);
+    if (!item) return;
+    const reason = removalBlockReason(item);
+    if (reason) {
+      const control = anchor();
+      if (control?.isConnected) problems.show(control, reason);
+      return;
+    }
     await operate('delete', { name }, 'management', kind, anchor);
   }
   /** The detail page's install control, repainted whenever the market's cards are. */
@@ -1573,10 +1588,11 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
           try {
             await remove(local.name, () => erase);
             if (!installed.some(item => item.name === local.name && item.state !== 'removed')) detailDrawer?.dispose();
-          } finally { erase.disabled = !!local.builtin || busy.has(local.name); }
+          } finally { erase.disabled = !!removalBlockReason(installed.find(item => item.name === local.name)) || busy.has(local.name); }
         } });
-        erase.disabled = !!local.builtin || busy.has(local.name);
-        if (local.builtin) erase.title = S.builtinNote;
+        const reason = removalBlockReason(local);
+        erase.disabled = !!reason || busy.has(local.name);
+        if (reason) erase.title = reason;
         below.append(erase);
       }
       if (listed?.supersededBy) {
@@ -1904,6 +1920,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const over = () => { if (revealEnd === own) revealEnd = undefined; };
     if (own) void own.then(over, over);
     restoreScroll(); renderInView(until);
+    // Whether a provider is in use depends on the connections under Settings, which may have changed.
+    if (kind === 'provider') void load();
   };
   return { details, remove, activate };
 }
