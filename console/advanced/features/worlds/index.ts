@@ -119,7 +119,8 @@ export function mountWorlds(ctx: FeatureContext): void {
   const restartRoot = ui.h('div', 'world-restart-footer');
   const readyList = ui.h('div', 'world-ready-list');
   const readyGroup = ui.h('div', 'world-ready-group');
-  const restartRow = ui.h('div', 'world-restart-row'); restartRow.append(restartRoot, ui.h('span', 'world-restart-note', S.pendingNote));
+  const restartStatus = ui.h('span', 'world-restart-status');
+  const restartRow = ui.h('div', 'world-restart-row'); restartRow.append(restartRoot, ui.h('span', 'world-restart-note', S.pendingNote), restartStatus);
   pendingGroup.append(ui.h('h2', 'world-library-heading', E.statePendingRestart), pendingList, restartRow); pendingGroup.hidden = true;
   const readyHeading = ui.h('h2', 'world-library-heading', S.extensionList);
   readyGroup.append(readyHeading, readyList);
@@ -143,8 +144,10 @@ export function mountWorlds(ctx: FeatureContext): void {
   const groupNodes = new Map<string, { el: HTMLElement; head: HTMLElement; name: HTMLElement; count: HTMLElement; list: HTMLElement }>();
   const catalog = ui.h('div', 'world-pane world-market');
   const feedback = ui.h('div', 'world-list-feedback');
+  /** The market view's rail shows avatars alone, so the World list's own failure shows above the catalog. */
+  const marketFeedback = ui.h('div', 'world-list-feedback');
   const listErrors = new Map<'worlds' | 'extensions', string>();
-  readyHeading.after(feedback);
+  readyHeading.after(feedback); catalog.append(marketFeedback);
   rail.append(railList);
   workspace.append(rail, catalog); root.append(intro, workspace);
   /** Name tag beside a rail avatar in the market view, where the rail shows avatars alone. */
@@ -217,23 +220,27 @@ export function mountWorlds(ctx: FeatureContext): void {
   };
   lifecycle.own(router.onChange(show)); show();
   if (canBrowse) market = mountExtensionContent({ ...ctx, root: catalog }, 'world', {
-    restartRoot,
+    restartRoot, restartStatus,
     beforeReload: () => {
       try { win.sessionStorage.setItem(layoutKey, JSON.stringify({ positions: [...railNodes].filter(([, node]) => node.parentElement!.dataset.state === 'pending').map(([key, node]) => [key, node.parentElement!.getBoundingClientRect().top]), scroll: railList.scrollTop, at: Date.now() })); } catch { /* Storage may be unavailable. */ }
     },
-    onChange: items => { extensions = items; extensionsReady = true; extensionsListed = true; render(); void load(); },
+    onChange: items => { extensions = items; extensionsReady = true; extensionsListed = true; listError('extensions', ''); render(); void load(); },
     onLoadError: text => { extensionsReady = true; listError('extensions', text); render(); },
     onUpdates: next => { updatable = next; render(); },
     reveal: name => { const item = worldLibrary(worlds, extensions, recent).find(entry => entry.key === name); if (item) reveal(item); },
     onAdded: (name, from) => { const previous = recent.indexOf(name); if (previous >= 0) recent.splice(previous, 1); recent.unshift(name); selected = name; arrival = { key: name, from }; railList.scrollTop = 0; },
   });
   function listError(source: 'worlds' | 'extensions', text: string): void {
+    if ((listErrors.get(source) ?? '') === text) return;
     if (text) listErrors.set(source, text); else listErrors.delete(source);
-    feedback.replaceChildren(...[...listErrors].map(([source, text]) => listProblem(doc, text, E.refresh, () => source === 'worlds' ? load() : market!.refresh())));
+    const problem = (source: 'worlds' | 'extensions', text: string) => listProblem(doc, text, E.refresh, () => source === 'worlds' ? load() : market!.refresh());
+    feedback.replaceChildren(...[...listErrors].map(([source, text]) => problem(source, text)));
+    // The catalog shows the extension list's failure itself.
+    const worldsError = listErrors.get('worlds');
+    marketFeedback.replaceChildren(...worldsError ? [problem('worlds', worldsError)] : []);
   }
   function worldProblem(id: string, action: ActionSlot, text: string) {
-    const control = controlOf(id, action) ?? railList.querySelector(`.world-blade[data-world="${CSS.escape(id)}"] .world-name`);
-    if (control) problems.show(control, text);
+    problems.show(() => controlOf(id, action) ?? railList.querySelector(`.world-blade[data-world="${CSS.escape(id)}"] .world-name`), text);
   }
 
   async function reloadPrefix(id: string): Promise<void> {
@@ -677,7 +684,7 @@ export function mountWorlds(ctx: FeatureContext): void {
       const reason = m?.envPromptError || m?.reason || pack?.reason || S.missingReasonDefault;
       const button = ui.h('button', 'world-state world-state-problem') as HTMLButtonElement; button.type = 'button';
       button.append(icon(doc, 'alert'), ui.h('span', '', state)); button.setAttribute('aria-label', `${state}: ${reason}`);
-      button.addEventListener('click', event => { event.stopPropagation(); problems.show(button, reason); }, { signal });
+      button.addEventListener('click', event => { event.stopPropagation(); problems.show(() => railList.querySelector(`.world-blade[data-key="${CSS.escape(item.key)}"] .world-state-problem`), reason); }, { signal });
       stateNode = button;
     }
     row.append(identity, stateNode, signals, actions);

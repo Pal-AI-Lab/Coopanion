@@ -2,6 +2,7 @@
 
 import { get, post, pickPath } from '../../../base/api.ts';
 import { icon, brandMark, cooFigure, COO_FACE_NAMES } from '../../../base/ui/icons.ts';
+import { notice } from '../../../base/ui/index.ts';
 import { renderMarkdown } from './markdown.ts';
 import { gallery, takeImages } from './gallery.ts';
 import type { FeatureContext } from '../feature.ts';
@@ -429,7 +430,10 @@ const errorText = (error: unknown) => error instanceof Error ? error.message : S
 
 export interface ExtensionWorkspace {
   restartRoot: HTMLElement;
+  /** Says what the page waits for while the process restarts; empty otherwise. */
+  restartStatus: HTMLElement;
   beforeReload(): void;
+  /** The installed list failed to load; the next successful load arrives through `onChange`. */
   onLoadError(text: string): void;
   onChange(items: readonly ExtensionView[]): void;
   /** `from` is where the package's icon was on screen when the install started. */
@@ -684,29 +688,37 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   // Floating tips sit over the page; the wheel still scrolls what is under them.
   hintBox.addEventListener('wheel', event => { const target = scrollerOf(hintAnchor); hideHint(); if (target) { event.preventDefault(); target.scrollBy({ top: wheelDelta(event) }); } }, { passive: false, signal });
   const problems = problemPopover(doc, signal);
+  /** Operation errors whose control was out of view, by operation; each opens once its control is in view. */
   const pendingProblems = new Map<string, { anchor: Anchor; text: string }>();
+  /** Opens the first waiting error whose control is in view, unless another error is on show. */
   function showProblems() {
-    if (signal.aborted) return;
-    const groups = new Map<Element, string[]>();
+    if (signal.aborted || problems.open) return;
     for (const [key, note] of pendingProblems) {
-      const control = note.anchor();
-      if (!problemAnchorVisible(control)) continue;
-      const messages = groups.get(control) ?? []; messages.push(note.text); groups.set(control, messages);
-      pendingProblems.delete(key);
+      if (!problemAnchorVisible(note.anchor())) continue;
+      pendingProblems.delete(key); problems.show(note.anchor, note.text); return;
     }
-    for (const [control, messages] of groups) problems.show(control, messages.join('\n'));
   }
+  /** Opens an operation's error beside its control, or once the control comes into view. */
   function controlProblem(key: string, anchor: Anchor, text: string) {
-    if (text) pendingProblems.set(key, { anchor, text }); else pendingProblems.delete(key);
-    showProblems();
+    pendingProblems.delete(key);
+    if (problemAnchorVisible(anchor())) problems.show(anchor, text); else pendingProblems.set(key, { anchor, text });
   }
   const marketControl = (name: string) => marketGrid.querySelector(`.extension-market-card[data-name="${CSS.escape(name)}"] .extension-get`);
   const restartControl = () => restartRoot.querySelector('.extension-restart');
+  /** Failed reads of the installed list and of the search, above the cards, each with its retry; the cards stay. */
+  function paintListProblems() {
+    const node = messageNodes.list, failed = states[kind].messages.market;
+    const lines: Array<[string, () => Promise<unknown>]> = [];
+    if (listErrorText) lines.push([listErrorText, load]);
+    if (failed?.bad) lines.push([failed.text, () => search(kind)]);
+    const shown = JSON.stringify(lines.map(([text]) => text));
+    if (!node || node.dataset.shown === shown) return;
+    node.dataset.shown = shown;
+    node.replaceChildren(...lines.map(([text, retry]) => listProblem(doc, text, S.refresh, retry)));
+  }
   function listFeedback(text: string) {
-    listErrorText = text;
-    const node = messageNodes.list;
-    node.replaceChildren(...text ? [listProblem(doc, text, S.refresh, load)] : []);
-    workspace?.onLoadError(text);
+    listErrorText = text; paintListProblems();
+    if (text) workspace?.onLoadError(text);
   }
   doc.addEventListener('scroll', hideHint, { capture: true, passive: true, signal });
   const HINT_LINK = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
@@ -1032,13 +1044,13 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     }, error => {
       if (signal.aborted) return;
       github = null;
-      const retry = ui.button('GitHub', { size: 'sm', onClick: async () => {
+      const retry = ui.button(S.githubRetry, { size: 'sm', onClick: async () => {
         const lock = ui.disable(retry);
         try { await githubAccount(); refreshAccounts(); }
         catch (error) { github = null; if (!signal.aborted) problems.show(retry, errorText(error)); }
         finally { lock.dispose(); }
       } });
-      retry.prepend(icon(doc, 'alert')); retry.setAttribute('aria-label', 'GitHub: ' + errorText(error));
+      retry.prepend(icon(doc, 'alert')); retry.setAttribute('aria-description', errorText(error));
       retry.addEventListener('pointerenter', () => problems.show(retry, errorText(error)), { once: true, signal });
       slot.replaceChildren(retry);
     });
@@ -1390,14 +1402,13 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) foldTags(row);
     renderInView();
     for (const [control, paint] of detailControls) if (control.isConnected) paint(); else detailControls.delete(control);
-    const searchError = state.messages.market;
-    if (searchError?.bad) {
-      marketGrid.replaceChildren(listProblem(doc, searchError.text, S.refresh, () => search(kind)));
-    } else if (!result.matched) marketGrid.append(emptyMarket(state));
+    // A failed search keeps the cards already listed, installed providers among them; its failure shows above them.
+    const searchFailed = !!state.messages.market?.bad;
+    if (!result.matched && !searchFailed) marketGrid.append(emptyMarket(state));
     // Another page starts at the top of the list at once, however many cards it has.
     pager(marketPager, result.matched, result.page, pageSize(), page => { state.page = page; renderMarket(true); save(); });
-    marketPager.hidden = !!state.messages.market?.bad;
-    showProblems();
+    marketPager.hidden = searchFailed && !result.matched;
+    paintListProblems(); showProblems();
     shown = { key, page: result.page, size: pageSize() };
     if (leaving) placeAt(back); else if (toTop) scrollRoot.scrollTop = 0;
     reflow?.play();
@@ -1509,8 +1520,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   async function checkUpdates() {
     if (signal.aborted) return;
     const generation = ++updateGeneration;
-    try { const data = await get<UpdateResultView>('/api/extensions/updates', { signal }); if (signal.aborted || generation !== updateGeneration) return; updates = new Map(data.updates.map(u => [u.name, u])); announceUpdates(); renderRestart(); renderMarket(); controlProblem('updates', () => refreshControl, data.errors.length ? S.updateCheckFailed(data.errors.map(e => `${e.name}: ${e.error}`).join('; ')) : ''); }
-    catch (error) { if (!signal.aborted && generation === updateGeneration) controlProblem('updates', () => refreshControl, S.updateCheckFailed(errorText(error))); }
+    try { const data = await get<UpdateResultView>('/api/extensions/updates', { signal }); if (signal.aborted || generation !== updateGeneration) return; updates = new Map(data.updates.map(u => [u.name, u])); announceUpdates(); renderRestart(); renderMarket(); message(kind, 'updates', data.errors.length ? S.updateCheckFailed(data.errors.map(e => `${e.name}: ${e.error}`).join('; ')) : '', true); }
+    catch (error) { if (!signal.aborted && generation === updateGeneration) message(kind, 'updates', S.updateCheckFailed(errorText(error)), true); }
   }
   function search(owner: Category) { return refreshed(searchMarket(owner)); }
   async function searchMarket(owner: Category) {
@@ -1520,14 +1531,21 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       const data = await get<{ hits: SearchHitView[]; partial?: boolean; registry?: string; index?: MarketIndexView }>(`/api/extensions/search?kind=${owner}`, { signal });
       if (signal.aborted || state.generation !== generation) return;
       registry = data.registry ?? ''; marketIndex = data.index ?? { tags: {} }; state.hits = data.hits; state.fetched = true;
-      controlProblem('index', () => refreshControl, [data.partial ? S.partial : '', data.index?.error ? S.indexFailed(data.index.error) : ''].filter(Boolean).join('\n')); if (owner === kind) { renderRestart(); renderMarket(); restoreScroll(); }
+      message(owner, 'index', [data.partial ? S.partial : '', data.index?.error ? S.indexFailed(data.index.error) : ''].filter(Boolean).join('\n')); if (owner === kind) { renderRestart(); renderMarket(); restoreScroll(); }
     } catch (error) { if (!signal.aborted && state.generation === generation) { state.fetched = true; message(owner, 'market', S.searchFailed(errorText(error)), true); if (owner === kind) { renderMarket(); restoreScroll(); } } }
   }
   async function loadRegistry() {
     try { registrySetting = await get<RegistryView>('/api/extensions/registry', { signal }); }
-    catch (error) { if (!signal.aborted) controlProblem('registry-read', () => panel.querySelector('.extension-registry-toggle'), errorText(error)); return; }
+    catch (error) { if (!signal.aborted) message(kind, 'registry', errorText(error), true); return; }
     if (signal.aborted) return;
-    controlProblem('registry-read', () => panel.querySelector('.extension-registry-toggle'), registrySetting.registryError ?? '');
+    // An unusable configured source opens the npm source panel, where its error stays.
+    if (registrySetting.registryError) {
+      message(kind, 'registry', registrySetting.registryError, true);
+      if (!registryOpen) {
+        registryOpen = true; panel.querySelector<HTMLElement>('.extension-registry')?.removeAttribute('hidden');
+        const toggle = panel.querySelector('.extension-registry-toggle'); toggle?.classList.add('is-open'); toggle?.setAttribute('aria-expanded', 'true');
+      }
+    } else if (states[kind].messages.registry?.bad) message(kind, 'registry', S.registryHelp);
     if (registryInput) { registryInput.placeholder = registrySetting.registry ?? ''; if (registryDraft === null) registryInput.value = registrySetting.configured ?? ''; }
   }
   /** 换源后已取到的搜索结果、包详情与更新检查都作废,按新源重取。 */
@@ -1585,11 +1603,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const item = installed.find(entry => entry.name === name);
     if (!item) return;
     const reason = removalBlockReason(item);
-    if (reason) {
-      const control = anchor();
-      if (control?.isConnected) problems.show(control, reason);
-      return;
-    }
+    if (reason) { controlProblem('operation:' + name, anchor, reason); return; }
     await operate('delete', { name }, kind, anchor);
   }
   /** The detail page's install control, repainted whenever the market's cards are. */
@@ -1797,7 +1811,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
 
   /**
    * 重启 = 落标志 + 规范关机,之后轮询 lifecycle 等同一部署的新进程就绪再刷新页面。
-   * 未完成的关机步骤显示在重启按钮旁。
+   * 未完成的关机步骤列在对话框里。
    */
   async function restart() {
     if (!canRestart) return;
@@ -1807,7 +1821,6 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       const before = await get<Life>('/api/run/lifecycle', { signal });
       save(); win.sessionStorage.setItem(storageKey + ':restart', JSON.stringify(before));
       showRestarting(true);
-      if (!supervised) controlProblem('restart', restartControl, S.restartManual);
       let report: PowerReport | undefined;
       try { report = await post<PowerReport>('/api/run/restart', undefined, { signal }); } catch (error) {
         if ((error as { status?: number }).status) { win.sessionStorage.removeItem(storageKey + ':restart'); throw error; }
@@ -1815,15 +1828,22 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       if (report?.error) { win.sessionStorage.removeItem(storageKey + ':restart'); throw new Error(report.error); }
       const incomplete = (report?.steps ?? []).filter(step => !step.ok);
       if (report && incomplete.length) {
-        controlProblem('restart', restartControl, [report.result ?? S.resultDefault, ...incomplete.map(step => `${step.label} · ${step.detail ?? S.stepIncomplete}`)].join('\n'));
+        void notice(ui, {
+          title: supervised ? S.doneRestartSupervised : S.doneRestart,
+          body: [report.result ?? S.resultDefault, '', ...incomplete.map(step => `✗ ${step.label} · ${step.detail ?? S.stepIncomplete}`)].join('\n'),
+        });
       }
       watchRestart(before);
     } catch (error) { if (!signal.aborted) { win.sessionStorage.removeItem(storageKey + ':restart'); showRestarting(false); controlProblem('restart', restartControl, errorText(error)); } }
   }
-  /** Disables the restart control while the process is restarting. */
+  /** What the page waits for while the process restarts; empty otherwise. */
+  let restartNote = '';
+  const paintRestartNote = () => { const node = workspace?.restartStatus ?? messageNodes.restart; if (node) node.textContent = restartNote; };
+  /** Disables the restart control and says what the page waits for while the process is restarting. */
   function showRestarting(on: boolean) {
     restartRoot.classList.toggle('is-restarting', on);
-    renderRestart();
+    restartNote = on ? supervised ? S.reloadWait : S.restartManual : '';
+    paintRestartNote(); renderRestart();
   }
   function watchRestart(before: Life) {
     const check = async () => {
@@ -1850,6 +1870,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const restartButton = canRestart ? ui.button(S.restartProcess, { onClick: () => void restart() }) : undefined;
     restartButton?.classList.add('extension-restart');
     messageNodes.list = ui.msgline(); messageNodes.list.setAttribute('role', 'status');
+    // Page state: the restart's wait beside the restart control (a World page has its own place for it); failed update checks and incomplete results above the catalog's body.
+    for (const area of [...workspace ? [] : ['restart'], 'updates', 'index']) { messageNodes[area] = ui.msgline(); messageNodes[area].setAttribute('role', 'status'); }
     const filters = ui.rowbar(); filters.classList.add('extension-toolbar');
     const clear = clearButton = ui.button('', { onClick: () => clearFilters() }); clear.classList.add('extension-clear'); clear.append(icon(doc, 'close'), ui.h('span', '', S.clearFilters));
     filters.append(ui.input({ type: 'search', value: state.filter, placeholder: S.filterPlaceholder, onInput: value => { state.filter = value; state.page = 0; renderMarket(); save(); } }), ui.select({ value: state.sort, options: HIT_SORTS.map(value => ({ value, label: S.sortLabel[value] })), onChange: value => { state.sort = value as HitSort; state.page = 0; renderMarket(); save(); } }), sizePicker(), clear, ui.button(S.refresh, { onClick: () => { void replayCards(Promise.all([load(), search(kind)])); void checkUpdates(); } }));
@@ -1913,9 +1935,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     syncSource();
     const row = ui.h('div', 'world-manual-source'); row.append(source.el, installHelp); manual.body.append(row, manualBar, manualActions);
     {
-      messageNodes.list.textContent = '';
       restartRoot.replaceChildren(...(restartButton ? [restartButton] : []));
-      if (!workspace) panel.append(restartRoot);
+      if (!workspace) panel.append(restartRoot, messageNodes.restart);
       const body = ui.h('div', 'world-catalog-body');
       const side = ui.h('aside', 'world-catalog-filters'); side.id = `${kind}-catalog-filters`;
       const toggle = ui.button(S.filterSidebar, { size: 'sm', onClick: () => {
@@ -1969,10 +1990,10 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       manualFold.open = manualOpen;
       scrollRoot.replaceChildren(messageNodes.list, activeBar, marketGrid, marketPager, manualFold);
       body.append(side, scrollRoot);
-      panel.append(filters, advanced, registryPanel, body);
+      panel.append(filters, advanced, registryPanel, messageNodes.updates, messageNodes.index, body);
     }
     for (const [area, value] of Object.entries(state.messages)) if (messageNodes[area]) { messageNodes[area].textContent = value.text; messageNodes[area].className = 'msgline' + (value.bad ? ' bad' : ''); }
-    messageNodes.list.replaceChildren(...listErrorText ? [listProblem(doc, listErrorText, S.refresh, load)] : []);
+    paintListProblems(); paintRestartNote();
     renderRestart();
     if (!renderMarket()) scrollRoot.scrollTop = keptScroll;
     reflow?.play(marketGrid);

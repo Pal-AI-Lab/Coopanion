@@ -22,7 +22,10 @@ export const S: Partial<typeof en> = {
   restartConfirmBody: 'Les extensions ne se chargent qu’au démarrage du processus ; celles installées, mises à jour ou supprimées prennent effet après un redémarrage.\nLe redémarrage interrompt la réponse en cours, chaque World se déconnecte puis se reconnecte, et Coo quitte le bureau un instant. Les sessions, la Memory et la configuration sont conservées.',
   restartNoLoopBody: 'Le processus va se terminer et devra être redémarré manuellement. Continuer ?',
   stepIncomplete: 'incomplet',
+  doneRestartSupervised: 'Processus terminé ; en attente du redémarrage',
+  doneRestart: 'Processus terminé',
   resultDefault: "Étapes d'arrêt exécutées.",
+  reloadWait: "En attente qu'un nouveau processus de Coo soit prêt…",
   otherBot: 'Un autre bot utilise ce port. Récupération arrêtée.',
   restartManual: "Le processus est terminé. Démarrez-le manuellement en ligne de commande ; cette page attendra qu'il soit prêt.",
 
@@ -170,6 +173,7 @@ export const S: Partial<typeof en> = {
   githubOpen: 'Ouvrir GitHub',
   githubWaiting: "En attente de l'autorisation…",
   githubExpired: 'Le code a expiré. Fermez cette fenêtre et reconnectez-vous.',
+  githubRetry: 'Recharger le compte GitHub',
   fieldPlatform: 'Plateforme',
   osAny: 'Toutes',
   osOnly: (names: string) => `${names} uniquement`,
