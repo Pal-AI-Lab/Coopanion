@@ -36,6 +36,7 @@ export const S: Partial<typeof en> = {
   listLoadFailed: (msg: string) => `Caricamento dell'elenco delle estensioni non riuscito: ${msg}`,
   remove: 'Elimina estensione',
   removeInUse: 'In uso da Coo. Disattivala prima di eliminarla.',
+  removeInUseProvider: 'Una connessione a un modello usa ancora questo provider. Elimina prima quella connessione.',
   removeBody: 'Rimuove questo pacchetto dalla directory condivisa delle estensioni; ha effetto dopo il riavvio del processo. Gli altri bot che lo usano ne risentono. Memory, la configurazione salvata e le directory sorgente locali vengono conservate.',
   builtin: 'Integrata',
   builtinNote: 'Inclusa in Coopanion; non può essere eliminata separatamente.',
