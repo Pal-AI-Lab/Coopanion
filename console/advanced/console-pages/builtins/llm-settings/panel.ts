@@ -169,11 +169,15 @@ export const llmSettingsPanel: WebUiPanel = {
     const report = ui.msgline();
     const body = ui.h('div');
     root.append(body, report);
-    /** 写一格:落盘后只更新状态行与页头徽标,表单留在原处。 */
-    const patch = async (fields: Record<string, unknown>, anchor = root.ownerDocument.activeElement): Promise<boolean> => {
+    /**
+     * 写一格:落盘后只更新状态行与页头徽标,表单留在原处。
+     * `anchor` 是发起这次写入的控件，失败显示在它旁边；调用方在任何 await 之前取得它。
+     */
+    const patch = async (fields: Record<string, unknown>, anchor: Element): Promise<boolean> => {
       try {
         await ctx.invoke('save', [{ name: selected, ...fields }]);
       } catch (error) {
+        report.textContent = '';
         problem(anchor, String(error));
         return false;
       }
@@ -181,11 +185,12 @@ export const llmSettingsPanel: WebUiPanel = {
       await ctx.refresh();
       return true;
     };
-    /** 改了实例集合或当前实例的动作:落盘后整页重画。 */
-    const action = async (method: string, args: unknown[], done = S.saved, anchor = root.ownerDocument.activeElement): Promise<boolean> => {
+    /** 改了实例集合或当前实例的动作:落盘后整页重画。`anchor` 同 `patch`。 */
+    const action = async (method: string, args: unknown[], anchor: Element, done = S.saved): Promise<boolean> => {
       try {
         await ctx.invoke(method, args);
       } catch (error) {
+        report.textContent = '';
         problem(anchor, String(error));
         return false;
       }
@@ -194,9 +199,8 @@ export const llmSettingsPanel: WebUiPanel = {
       await load();
       return true;
     };
-    /** 读类方法(取模型、探测):不重画;失败把服务端措辞放进 report。 */
-    const query = async <T>(method: string, args: unknown[], ...locked: WebUiDisablable[]) => {
-      const anchor = root.ownerDocument.activeElement;
+    /** 读类方法(探测):不重画;失败的服务端措辞显示在 `anchor` 旁。 */
+    const query = async <T>(method: string, args: unknown[], anchor: Element, ...locked: WebUiDisablable[]) => {
       const release = ui.disable(...locked);
       try {
         return await ctx.invoke<T>(method, args);
@@ -241,19 +245,20 @@ export const llmSettingsPanel: WebUiPanel = {
       const createUrl = ui.input({ placeholder: S.newInstanceUrl, cls: 'mono' });
       createUrl.setAttribute('list', `${uid}-baseurls`);
       const createRow = ui.rowbar();
+      const create = ui.button(S.addInstance, {
+        onClick: async () => {
+          const name = createName.value.trim();
+          const before = selected;
+          selected = name;
+          if (!(await action('create', [{ name, baseUrl: createUrl.value.trim() }], create)))
+            selected = before;
+        },
+      });
       createRow.append(
         createName,
         createUrl,
         datalist(ui, `${uid}-baseurls`, state.baseUrlSuggestions ?? []),
-        ui.button(S.addInstance, {
-          onClick: async () => {
-            const name = createName.value.trim();
-            const before = selected;
-            selected = name;
-            if (!(await action('create', [{ name, baseUrl: createUrl.value.trim() }])))
-              selected = before;
-          },
-        }),
+        create,
       );
       top.body.append(createRow);
       body.append(top.el);
@@ -261,7 +266,7 @@ export const llmSettingsPanel: WebUiPanel = {
       if (!current) return;
       const entry = current.entry;
       const spec: Spec = structuredClone(entry.spec) ?? { model: '', thinking: open };
-      const saveSpec = () => void patch({ spec });
+      const saveSpec = (anchor: Element) => void patch({ spec }, anchor);
 
       function configInput(suffix: string, label: string, changed?: (value: unknown) => void | Promise<void>): HTMLElement {
         const path = `providers.${current!.name}.${suffix}`;
@@ -306,10 +311,11 @@ export const llmSettingsPanel: WebUiPanel = {
         );
         const value = ui.input({ type: 'password', placeholder: S.secretValuePlaceholder });
         value.setAttribute('aria-label', S.secretValue);
-        row.append(status, value, ui.button(S.saveSecret, {
+        const saveSecret = ui.button(S.saveSecret, {
           onClick: () =>
-            void action('setSecret', [{ name: selected, value: value.value }], S.secretSaved),
-        }));
+            void action('setSecret', [{ name: selected, value: value.value }], saveSecret, S.secretSaved),
+        });
+        row.append(status, value, saveSecret);
         connection.body.append(ui.field(S.secretStatus, row));
         if (!entry.secret) connection.body.append(ui.msgline(S.secretNameFirst));
       }
@@ -329,14 +335,14 @@ export const llmSettingsPanel: WebUiPanel = {
           rows: 3,
           cls: 'mono',
           value: jsonText(options.extraHeaders),
-          onChange: saveOptions,
+          onChange: () => saveOptions(extraHeaders!),
         });
         extraHeaders.setAttribute('aria-label', S.extraHeaders);
         extraBody = ui.textarea({
           rows: 3,
           cls: 'mono',
           value: jsonText(options.extraBody),
-          onChange: saveOptions,
+          onChange: () => saveOptions(extraBody!),
         });
         extraBody.setAttribute('aria-label', S.extraBody);
         connection.body.append(
@@ -369,10 +375,9 @@ export const llmSettingsPanel: WebUiPanel = {
         }
         return next;
       };
-      function saveOptions(): void {
-        const anchor = root.ownerDocument.activeElement;
+      function saveOptions(anchor: Element): void {
         try {
-          void patch({ options: optionsPayload() });
+          void patch({ options: optionsPayload() }, anchor);
         } catch (error) {
           problem(anchor, String(error));
         }
@@ -402,7 +407,7 @@ export const llmSettingsPanel: WebUiPanel = {
                 spec.model = value;
                 const known = catalog.find((item) => item.id === value)?.contextWindow;
                 if (known !== undefined) spec.contextWindow = known;
-                saveSpec();
+                saveSpec(modelHolder);
                 renderModelField();
               },
             })
@@ -411,7 +416,7 @@ export const llmSettingsPanel: WebUiPanel = {
               placeholder: S.modelName,
               onChange: (value) => {
                 spec.model = value;
-                saveSpec();
+                saveSpec(modelHolder);
               },
             });
         control.setAttribute('aria-label', S.modelAria);
@@ -423,23 +428,24 @@ export const llmSettingsPanel: WebUiPanel = {
         row.append(control, fetchModels);
         modelHolder.replaceChildren(ui.field(S.modelFieldLabel, row));
       }
-      /** 取目录:成功换成选单并带出上下文窗口,失败把原因留在模型格下面。 */
+      /** 取目录:成功换成选单并带出上下文窗口,失败退回自由输入,原因留在模型格下面。 */
       async function fetchCatalog(...locked: WebUiDisablable[]): Promise<void> {
-        const anchor = root.ownerDocument.activeElement;
-      const release = ui.disable(...locked);
+        const release = ui.disable(...locked);
         try {
           const result = await ctx.invoke<{ models: ModelEntry[] }>('models', [{ name: selected }]);
           catalog = result.models;
           modelNote.textContent = S.modelsFetched(catalog.length);
+          modelNote.classList.remove('bad');
           const known = catalog.find((item) => item.id === spec.model)?.contextWindow;
           if (known !== undefined && known !== spec.contextWindow) {
             spec.contextWindow = known;
             contextWindowInput.value = String(known);
-            await patch({ spec });
+            await patch({ spec }, contextWindowInput);
           }
         } catch (error) {
-          problem(anchor, S.modelListFailed(String(error)));
-          return;
+          catalog = [];
+          modelNote.textContent = S.modelListFailed(String(error));
+          modelNote.classList.add('bad');
         } finally {
           release.dispose();
         }
@@ -460,7 +466,7 @@ export const llmSettingsPanel: WebUiPanel = {
           placeholder: S.effortPlaceholder,
           onChange: (value) => {
             applyEffort(spec, value);
-            saveSpec();
+            saveSpec(effort);
           },
         });
         effort.setAttribute('list', `${uid}-effort`);
@@ -487,7 +493,7 @@ export const llmSettingsPanel: WebUiPanel = {
             spec.thinking = chosen.thinking;
             if (chosen.effort) spec.reasoningEffort = chosen.effort;
             else delete spec.reasoningEffort;
-            saveSpec();
+            saveSpec(tier);
           },
         });
         tier.setAttribute('aria-label', S.tierAria);
@@ -500,7 +506,7 @@ export const llmSettingsPanel: WebUiPanel = {
         onChange: (value) => {
           if (value.trim() === '') delete spec.temperature;
           else spec.temperature = Number(value);
-          saveSpec();
+          saveSpec(temperature);
         },
       });
       temperature.min = '0';
@@ -529,7 +535,7 @@ export const llmSettingsPanel: WebUiPanel = {
           onChange: (value) => {
             if (value.trim() === '') delete spec[key];
             else spec[key] = Number(value);
-            saveSpec();
+            saveSpec(input);
           },
         });
         input.min = '1';
@@ -544,20 +550,17 @@ export const llmSettingsPanel: WebUiPanel = {
       for (const note of new Set(state.reasoningTiers.map((tier) => tier.note).filter(Boolean)))
         card.body.append(ui.msgline(note!));
       if (state.temperatureNote) card.body.append(ui.msgline(state.temperatureNote));
-      if (state.serviceTiers.length)
-        card.body.append(
-          ui.field(
-            S.serviceTier,
-            ui.select({
-              value: entry.serviceTier ?? '',
-              options: [
-                { value: '', label: S.serverDefault },
-                ...state.serviceTiers.map((tier) => ({ value: tier.id, label: tier.label })),
-              ],
-              onChange: (value) => void patch({ serviceTier: value }),
-            }),
-          ),
-        );
+      if (state.serviceTiers.length) {
+        const serviceTier = ui.select({
+          value: entry.serviceTier ?? '',
+          options: [
+            { value: '', label: S.serverDefault },
+            ...state.serviceTiers.map((tier) => ({ value: tier.id, label: tier.label })),
+          ],
+          onChange: (value) => void patch({ serviceTier: value }, serviceTier),
+        });
+        card.body.append(ui.field(S.serviceTier, serviceTier));
+      }
       for (const tier of state.serviceTiers) if (tier.note) card.body.append(ui.msgline(tier.note));
       body.append(card.el);
 
@@ -566,7 +569,7 @@ export const llmSettingsPanel: WebUiPanel = {
         ui,
         entry.pricing ?? [],
         current.quotes,
-        (pricing) => void patch({ pricing }),
+        (pricing) => void patch({ pricing }, prices.el),
       );
       body.append(prices.el);
 
@@ -579,30 +582,40 @@ export const llmSettingsPanel: WebUiPanel = {
       duplicateHolder.append(duplicateRow);
       const duplicateName = ui.input({ placeholder: S.duplicateName });
       duplicateName.setAttribute('aria-label', S.duplicateName);
-      duplicateRow.append(
-        duplicateName,
-        ui.button(S.duplicateConfirm, {
-          size: 'sm',
-          onClick: async () => {
-            const as = duplicateName.value.trim();
-            const before = selected;
-            selected = as;
-            if (!(await action('duplicate', [{ name: before, as }], S.duplicated))) selected = before;
-          },
-        }),
-      );
+      const duplicateConfirm = ui.button(S.duplicateConfirm, {
+        size: 'sm',
+        onClick: async () => {
+          const as = duplicateName.value.trim();
+          const before = selected;
+          selected = as;
+          if (!(await action('duplicate', [{ name: before, as }], duplicateConfirm, S.duplicated))) selected = before;
+        },
+      });
+      duplicateRow.append(duplicateName, duplicateConfirm);
       const probe = ui.button(S.probe, {
         onClick: async () => {
-          const result = await query<ProbeResult>('probe', [{ name: selected }], probe);
+          const result = await query<ProbeResult>('probe', [{ name: selected }], probe, probe);
           if (!result || ctx.signal.aborted) return;
           probeBox.replaceChildren(probeCard(ui, S, result));
         },
       });
+      const activate = ui.button(S.activate, {
+        variant: 'primary',
+        onClick: () => void action('activate', [{ name: selected }], activate),
+      });
+      const remove = ui.button(S.delete, {
+        variant: 'danger',
+        onClick: async () => {
+          const ok = await ui.confirm({
+            title: S.deleteConfirmTitle(selected),
+            body: S.deleteConfirmBody,
+            danger: true,
+          });
+          if (ok) void action('delete', [{ name: selected }], remove, S.deleted);
+        },
+      });
       buttons.append(
-        ui.button(S.activate, {
-          variant: 'primary',
-          onClick: () => void action('activate', [{ name: selected }]),
-        }),
+        activate,
         probe,
         ui.button(S.duplicate, {
           onClick: () => {
@@ -610,17 +623,7 @@ export const llmSettingsPanel: WebUiPanel = {
             if (!duplicateHolder.hidden) duplicateName.focus();
           },
         }),
-        ui.button(S.delete, {
-          variant: 'danger',
-          onClick: async () => {
-            const ok = await ui.confirm({
-              title: S.deleteConfirmTitle(selected),
-              body: S.deleteConfirmBody,
-              danger: true,
-            });
-            if (ok) void action('delete', [{ name: selected }], S.deleted);
-          },
-        }),
+        remove,
       );
       body.append(buttons, duplicateHolder, probeBox);
       const mounted = await ctx.mountSlot(MODULE_SLOT, slot, { instance: selected });
