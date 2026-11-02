@@ -815,9 +815,25 @@ describe('provider page tabs', () => {
     root.querySelector('.extension-market-card .extension-get').click(); await flush();
     const remove = button(document.querySelector('.extension-detail'), extensionStrings.remove);
     expect(remove.disabled).toBe(true);
-    expect(remove.title).toBe(extensionStrings.removeInUse);
+    expect(remove.title).toBe(extensionStrings.removeInUseProvider);
     remove.click(); await flush();
     expect(document.querySelector('.confirm-card')).toBeNull();
+  });
+  it('rereads the list on returning to the market, so a provider whose connections were deleted can be uninstalled', async () => {
+    const list = { extensions: [{ ...LIST.extensions[2], state: 'loaded', enabled: true }] };
+    stub({ list, hits: { hits: [] }, onUninstall: () => { list.extensions[0].state = 'removed'; } });
+    const { ctx, root } = await openProviders({ extensions: true });
+    await navigate(ctx, 'market');
+    root.querySelector('.extension-market-card .extension-get').click(); await flush();
+    expect(button(document.querySelector('.extension-detail'), extensionStrings.remove).disabled).toBe(true);
+    list.extensions[0].enabled = false;
+    await navigate(ctx);
+    await navigate(ctx, 'market');
+    root.querySelector('.extension-market-card .extension-get').click(); await flush();
+    const remove = button(document.querySelector('.extension-detail'), extensionStrings.remove);
+    expect(remove.disabled).toBe(false);
+    remove.click(); await flush(); answer(true); await flush();
+    expect(calls.find(call => call.url === '/api/extensions/uninstall').body).toEqual({ name: list.extensions[0].name });
   });
   it('installs a provider from a catalog card and shows it under the installed filter', async () => {
     const hit = { ...HITS.hits[0], kind: 'provider', name: 'found-provider' };

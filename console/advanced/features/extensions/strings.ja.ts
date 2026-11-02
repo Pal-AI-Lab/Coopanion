@@ -36,6 +36,7 @@ export const S: Partial<typeof en> = {
   listLoadFailed: (msg: string) => `拡張機能の一覧を読み込めませんでした：${msg}`,
   remove: '拡張機能を削除',
   removeInUse: 'Coo が使用中です。無効にしてから削除してください。',
+  removeInUseProvider: 'このプロバイダーを使うモデル接続が残っています。先にその接続を削除してください。',
   removeBody: 'このパッケージを共有の拡張機能ディレクトリから削除します。プロセスの再起動後に反映されます。これを使っている他のボットにも影響します。Memory、保存済みの設定、ローカルの拡張機能ソースは削除されません。',
   builtin: '組み込み',
   builtinNote: 'Coopanion に同梱されているため、個別には削除できません。',

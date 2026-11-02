@@ -424,7 +424,9 @@ const categories: Category[] = ['world', 'provider'];
 const LINK_ICONS = { npm: 'package', repository: 'code', homepage: 'home', bugs: 'alert' } as const;
 const stateLabels = { loaded: S.disabled, failed: S.stateFailed, 'pending-restart': S.stateInstalledPendingRestart, removed: S.stateRemoved, idle: S.template };
 export function removalBlockReason(item: ExtensionView | undefined, active = item?.enabled): string {
-  return !item || item.builtin ? S.builtinNote : item.state === 'removed' ? S.stateRemoved : active ? S.removeInUse : '';
+  if (!item || item.builtin) return S.builtinNote;
+  if (item.state === 'removed') return S.stateRemoved;
+  return !active ? '' : item.kind === 'provider' ? S.removeInUseProvider : S.removeInUse;
 }
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 
@@ -1918,6 +1920,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const over = () => { if (revealEnd === own) revealEnd = undefined; };
     if (own) void own.then(over, over);
     restoreScroll(); renderInView(until);
+    // Whether a provider is in use depends on the connections under Settings, which may have changed.
+    if (kind === 'provider') void load();
   };
   return { details, remove, activate };
 }
