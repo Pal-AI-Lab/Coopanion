@@ -475,6 +475,19 @@ export async function main(): Promise<void> {
       if (answer === 'yes') telemetry?.count('cuaGranted');
     },
     onBotChange: () => (notice as NoticeWorld | null)?.acceptCurrent(),
+    // the other mode's tools and environment prompt reach the model with the rebuilt prefix; a build already under way
+    // when the mode changed was made for the mode before, and is followed by one more
+    onModeChange: () => {
+      const rebuild = (again: boolean): void => {
+        core?.loop.reloadSystemPrefix().then(() => {
+          const world = pet as DesktopPetWorld | null;
+          if (again && world && world.promptMode !== world.petMode) rebuild(false);
+        }, (err: unknown) => {
+          core?.runlog.logger('process').emit('warn', '表情决策换模式后重建前缀失败', { event: 'decider-prefix-reload-failed', err });
+        });
+      };
+      rebuild(true);
+    },
     onSkin: (skin) => followPetLook(join(deploymentRoot(), DEPLOYMENT), skin, (pet as DesktopPetWorld | null)?.packs() ?? [], language()),
   });
   const home = deploymentRoot();
