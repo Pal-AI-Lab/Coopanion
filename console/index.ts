@@ -133,7 +133,7 @@ export function boot(doc: Document = document): Disposable {
   /** The rail's groups: the pages, the World tree, 接入, 人格与记忆, 诊断. Only active pages of the manifest are listed. */
   const renderNav = (): void => {
     const entries = ENTRIES.filter(available);
-    const listed = host.pages.filter((p) => p.availability === 'active');
+    const listed = ready ? host.pages.filter((p) => p.availability === 'active') : [];
     const hidden = navHidden(window);
     const pages = (kind: string, icon?: ConsoleIconName) => (kind === 'world' ? inNavOrder(window, listed, (p) => p.id) : listed).filter((p) => p.kind === kind && !hidden.has(p.id)).map((p): NavItem => ({
       label: p.label || p.id, ...(icon ? { icon } : {}), segments: [PROVIDER_ROUTE, p.id], basic: kind === 'world', pageId: p.id, lamps: p.lamps ?? [],
@@ -244,7 +244,9 @@ export function boot(doc: Document = document): Disposable {
   const stopRouter = router.start();
 
   void Promise.allSettled([
-    get<{ capabilities?: Record<string, boolean> }>('/api/capabilities').then((r) => { capabilities = r?.capabilities ?? {}; }),
+    get<{ capabilities?: Record<string, boolean> }>('/api/capabilities').then((r) => {
+      capabilities = r?.capabilities ?? {};
+    }),
     fetchTheme().then((injected) => {
       disposeThemeStudio();
       applyStoredTheme(doc, { injected });

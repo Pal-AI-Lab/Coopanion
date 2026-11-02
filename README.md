@@ -203,9 +203,11 @@ A newly installed extension shows up under **Applies on restart**; click **Resta
 - click a World's name or avatar to see its details and open its configuration;
 - hide a World from the sidebar, keep it running but hide its tools and messages from Coo, or stop, restart or delete it.
 
+A running World can't be deleted; stop it first. A deleted World stays under **Applies on restart**, marked in red, until you restart the process.
+
 <p align="center"><img src="image/README/worlds-en.png" alt="World extensions: installed Worlds, status and grouping controls" width="960"></p>
 
-Provider extensions are under **Advanced mode → Model connections → Extension market**. Installed extensions live in the data folder and survive a reinstall of the app.
+Provider extensions are under **Advanced mode → Model connections → Extension market**; one that a connection still uses can't be deleted until you delete that connection. Installed extensions live in the data folder and survive a reinstall of the app.
 
 ### Updates
 

@@ -10,6 +10,7 @@ import { S as it } from './strings.it.ts';
 import { S as ru } from './strings.ru.ts';
 
 const zh = {
+  retry: '重试',
   copy: '复制',
   copyNothing: '没有可复制的内容',
   copied: '已复制',
@@ -44,6 +45,7 @@ const zh = {
 };
 
 export const en: typeof zh = {
+  retry: 'Retry',
   copy: 'Copy',
   copyNothing: 'Nothing to copy',
   copied: 'Copied',

@@ -4,6 +4,8 @@
  * 子页状态由路由表达；未挂载的能力不显示页签。仅当前子页运行轮询，状态保存在挂载闭包，由调试帧或一次性 GET 填充。
  */
 
+import { actionProblem } from '../../../base/ui/problem.ts';
+
 import type { Disposable } from 'cortico/web/shared/client-panel.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { pageTabs } from '../../../base/ui/page-tabs.ts';
@@ -82,11 +84,12 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   });
   const tabBar = tabs.el;
   const net = ui.msgline('');
+  const problem = actionProblem(ui, ctx.root.ownerDocument, ctx.signal);
   const exportButton = ui.button('', {
     size: 'sm',
     onClick: () => {
       void exportDiagnostics({ ui, doc: ctx.root.ownerDocument, signal: ctx.signal }).catch((err: unknown) => {
-        ui.toast(LIVE_S.exportFailed, 'bad');
+        problem(exportButton, LIVE_S.exportFailed);
         ctx.onError(err);
       });
     },

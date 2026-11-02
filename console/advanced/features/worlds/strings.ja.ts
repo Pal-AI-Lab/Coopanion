@@ -11,7 +11,7 @@ export const S: Partial<typeof en> = {
   groupDefaultName: "新しいグループ",
   renameGroup: "グループ名を変更",
   deleteGroup: "グループを削除（拡張は残ります）",
-  pendingNote: "上の拡張はプロセスの再起動後に反映されます。",
+  pendingNote: "上の拡張の状態は、プロセスの再起動後に反映されます。",
   updateAvailable: (from: string, to: string) => `更新があります：${from} → ${to}`,
   hideFromSidebar: "サイドバーに表示しない",
   showInSidebar: "サイドバーに表示",

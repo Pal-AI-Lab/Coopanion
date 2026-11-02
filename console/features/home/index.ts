@@ -17,6 +17,8 @@
  * for it). Saving and testing the key lives in model.ts. Every control calls an endpoint the rest of
  * the console already uses. Styles are in home.css, which scripts/stage.ts adds to the console stylesheet.
  */
+
+import { actionProblem } from '../../base/ui/problem.ts';
 import { invokePanel } from '../../base/api.ts';
 import { LANGUAGE } from '../../base/language.ts';
 import type { Page, PageContext } from '../../base/page.ts';
@@ -50,10 +52,11 @@ const errText = (err: unknown) => (err instanceof Error ? err.message : String(e
 async function mount(ctx: PageContext): Promise<void> {
   const { ui, root, signal } = ctx;
   const opts = { signal };
+  const problem = actionProblem(ui, root.ownerDocument, signal);
   root.classList.add('home');
 
   /* ---------- heading ---------- */
-  const guide = ui.button(S.guide, { size: 'sm', onClick: () => { void invokePanel(PET_PAGE, 'pet', 'guide', [], opts).catch((err) => ui.toast(String(err instanceof Error ? err.message : err))); } });
+  const guide = ui.button(S.guide, { size: 'sm', onClick: () => { void invokePanel(PET_PAGE, 'pet', 'guide', [], opts).catch((err) => problem(guide, errText(err))); } });
   guide.title = S.guideHint;
   root.append(intro(ui, S.nav, { actions: [guide] }));
 
@@ -62,6 +65,7 @@ async function mount(ctx: PageContext): Promise<void> {
   // the model and key boxes under them, saved with 「保存并开始」
   const model = ui.sheet({ title: S.modelTitle });
   const modelMsg = ui.msgline('');
+  modelMsg.classList.add('feedback-status');
   const call = consoleCall(signal);
   const { shown, more } = vendorsFor(LANGUAGE);
   const listed = [...shown, ...more];
@@ -90,7 +94,7 @@ async function mount(ctx: PageContext): Promise<void> {
   /** The first row: the service in use (a button that picks it) or a line saying none is, and the test. */
   const currentBox = ui.h('div', 'home-vendors home-current');
   const test = ui.button(S.test, { size: 'sm' });
-  // the test's result right of its button; a long one wraps under its own first line
+  // Successful probes keep their elapsed time beside the button.
   const testMsg = ui.msgline('');
   testMsg.classList.add('home-testmsg');
   /** The second row: every other service, the ones behind 「更多」 once unfolded. */
@@ -247,10 +251,10 @@ async function mount(ctx: PageContext): Promise<void> {
     renderStatus(await readStatus(signal));
   };
 
-  /** 「测试连接」 answers beside its button; saving answers under the boxes. */
   const showTest = (r: ConnectResult, line = modelMsg) => {
-    line.textContent = r.ok ? S.testOk(r.ms) : S.testFail(r.why ?? '');
-    line.classList.toggle('bad', !r.ok);
+    if (signal.aborted) return;
+    line.textContent = r.ok ? S.testOk(r.ms) : '';
+    if (!r.ok) problem(line === testMsg ? test : save, S.testFail(r.why ?? ''));
   };
   const testing = (line = modelMsg) => {
     line.textContent = S.testing;
@@ -262,12 +266,14 @@ async function mount(ctx: PageContext): Promise<void> {
       save.disabled = true;
       modelMsg.textContent = CHATGPT_TEXT.waiting;
       modelMsg.classList.remove('bad');
-      const r = await connectChatGPT(call, openInBrowser, { signal });
-      save.disabled = false;
-      if (signal.aborted) return;
-      showTest({ ...r, why: r.why && signInReason(r.why, LANGUAGE) });
-      if (r.ok) modelMsg.textContent = S.started;
-      await refreshModel();
+      try {
+        const r = await connectChatGPT(call, openInBrowser, { signal });
+        if (signal.aborted) return;
+        showTest({ ...r, why: r.why && signInReason(r.why, LANGUAGE) });
+        if (r.ok) modelMsg.textContent = S.started;
+        await refreshModel();
+      } catch (err) { modelMsg.textContent = ''; problem(save, errText(err)); }
+      finally { save.disabled = false; }
       return;
     }
     const key = keyInput.value.trim();
@@ -277,13 +283,13 @@ async function mount(ctx: PageContext): Promise<void> {
     try {
       testing();
       const r = await connectVendor(call, vendor, key, modelInput.value, region);
-      keyInput.value = '';
+      if (r.ok) keyInput.value = '';
       showTest(r);
       if (r.ok) modelMsg.textContent = S.started;
       await refreshModel();
     } catch (err) {
-      modelMsg.textContent = errText(err);
-      modelMsg.classList.add('bad');
+      modelMsg.textContent = '';
+      problem(save, errText(err));
     } finally {
       save.disabled = false;
     }
@@ -291,8 +297,11 @@ async function mount(ctx: PageContext): Promise<void> {
   test.addEventListener('click', async () => {
     const name = status?.modelConnection?.name;
     if (!name) return;
+    test.disabled = true;
     testing(testMsg);
-    showTest(await testEndpoint(call, name), testMsg);
+    try { showTest(await testEndpoint(call, name), testMsg); }
+    catch (err) { testMsg.textContent = ''; problem(test, errText(err)); }
+    finally { test.disabled = false; }
   });
 
   /* pet */
