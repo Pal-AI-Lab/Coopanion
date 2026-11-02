@@ -555,9 +555,13 @@ describe('restart', () => {
     await flush();
     expect(calls.find(c => c.url === '/api/run/restart')?.method).toBe('POST');
     expect(calls.some(c => c.url === '/api/run/lifecycle')).toBe(true);
-    expect(document.querySelector('.extension-problem:not(.hidden)').textContent).toContain('外部直播平台 · 需手动结束');
-    expect(document.querySelector('.modal')).toBeNull();
+    const dialog = document.querySelector('.modal');
+    expect(dialog.textContent).toContain(extensionStrings.doneRestartSupervised);
+    expect(dialog.textContent).toContain('✗ 外部直播平台 · 需手动结束');
+    expect(dialog.querySelectorAll('button')).toHaveLength(1);
+    expect(document.querySelector('.extension-problem:not(.hidden)')).toBeNull();
     expect(root.querySelector('.extension-restart').disabled).toBe(true);
+    expect(root.querySelector('.world-restart-status').textContent).toBe(extensionStrings.reloadWait);
   });
   it('allows retrying a rejected restart and removes its recovery marker', async () => {
     stub({ restart: { error: 'shutdown rejected' } });
@@ -1605,6 +1609,51 @@ describe('feedback across re-renders and background reads', () => {
     cardOf(root, 'gamma-prov').click(); await flush();
     expect(document.querySelector('.extension-detail')).not.toBeNull();
   });
+  it('shows incomplete results and a missing index as a catalog line that stays', async () => {
+    stub({ hits: { ...HITS, partial: true, index: { tags: {}, error: 'index unreachable' } } });
+    const { root } = mount(); await flush();
+    const line = root.querySelector('.world-catalog > .msgline:not(.bad):not(:empty)');
+    expect(line.textContent).toBe([extensionStrings.partial, extensionStrings.indexFailed('index unreachable')].join('\n'));
+    expect(visibleProblem()).toBeNull();
+    document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    expect(line.isConnected && line.textContent).toContain(extensionStrings.partial);
+  });
+  it('shows a failed update check as a catalog line and clears it when a check succeeds', async () => {
+    const over = { updateStatus: 503 }; stub(over);
+    const { root } = mount(); await flush();
+    const line = () => root.querySelector('.world-catalog > .msgline.bad');
+    expect(line().textContent).toBe(extensionStrings.updateCheckFailed('npm unavailable'));
+    expect(visibleProblem()).toBeNull();
+    over.updateStatus = 200; refresh(root).click(); await flush(100);
+    expect(line().textContent).toBe('');
+  });
+  it('says the page waits for a manual start beside the restart control', async () => {
+    stub();
+    const { root } = mount({ extensions: true, restart: true, supervised: false }); await flush(); await toMine(root);
+    button(root.querySelector('.world-restart-footer'), extensionStrings.restartProcess).click(); await flush();
+    answer(true); await flush();
+    expect(root.querySelector('.world-restart-status').textContent).toBe(extensionStrings.restartManual);
+    expect(visibleProblem()).toBeNull();
+  });
+  it('shows the provider market waiting for the new process after a reload during a restart', async () => {
+    stub();
+    window.sessionStorage.setItem('cortico.extensions.v3:' + location.origin + ':restart', JSON.stringify(LIFE));
+    const { root, ctx } = mount(); await flush();
+    await switchTo(ctx, 'provider');
+    expect(root.querySelector('.world-catalog > .msgline:not(:empty)').textContent).toBe(extensionStrings.reloadWait);
+    expect(root.querySelector('.extension-restart').disabled).toBe(true);
+  });
+  it('shows a failed World list read above the catalog in the market view', async () => {
+    const over = { worldStatus: 503, listStatus: 503 }; stub(over);
+    const { root } = mount(); await flush();
+    const above = root.querySelector('.world-market > .world-list-feedback');
+    expect(above.closest('[inert], [hidden]')).toBeNull();
+    // The catalog shows the extension list's own failure; the World list's shows here once.
+    expect(above.querySelectorAll('.extension-list-problem')).toHaveLength(1);
+    expect(above.textContent).toContain(worldStrings.listLoadFailed('Environment file missing'));
+    over.worldStatus = 200; above.querySelector('button').click(); await flush();
+    expect(above.textContent).toBe('');
+  });
   it('opens errors that come into view together one at a time, each beside its own card', async () => {
     stub(); const original = globalThis.fetch; const held = [];
     vi.stubGlobal('fetch', (url, init) => {
@@ -1625,5 +1674,20 @@ describe('feedback across re-renders and background reads', () => {
     visibleProblem().querySelector('.extension-problem-close').click();
     await view(); await view({ view: 'market' });
     expect(visibleProblem()?.textContent).toContain('filler-0 failed');
+  });
+  it('names the GitHub account retry and reloads the account from it', async () => {
+    stub({ hits: { hits: [{ ...HITS.hits[0], rating: { up: 0, down: 0, comments: 0 } }], index: { tags: { sample: { label: 'Sample' } } } } });
+    const original = globalThis.fetch; let accountStatus = 503;
+    vi.stubGlobal('fetch', (url, init) => {
+      const path = String(url);
+      if (path === '/api/extensions/github') return Promise.resolve(new Response(JSON.stringify(accountStatus === 200 ? {} : { error: 'GitHub unreachable' }), { status: accountStatus }));
+      if (path.startsWith('/api/extensions/comments')) return Promise.resolve(new Response(JSON.stringify({ comments: [] })));
+      return original(url, init);
+    });
+    const { root } = mount(); await flush(); cardOf(root, 'found-mod').click(); await flush();
+    const retry = button(document.querySelector('.extension-detail'), extensionStrings.githubRetry);
+    expect(retry.getAttribute('aria-description')).toBe('GitHub unreachable');
+    accountStatus = 200; retry.click(); await flush();
+    expect(button(document.querySelector('.extension-detail'), extensionStrings.githubLogin)).toBeTruthy();
   });
 });

@@ -22,7 +22,10 @@ export const S: Partial<typeof en> = {
   restartConfirmBody: 'Le estensioni si caricano solo all’avvio del processo; quelle installate, aggiornate o rimosse hanno effetto dopo il riavvio.\nIl riavvio interrompe la risposta in corso, ogni World si disconnette e si riconnette, e Coo lascia il desktop per un momento. Sessioni, Memory e configurazione vengono mantenute.',
   restartNoLoopBody: 'Il processo terminerà e dovrà essere riavviato manualmente. Continuare?',
   stepIncomplete: 'incompleto',
+  doneRestartSupervised: 'Terminato; in attesa del riavvio',
+  doneRestart: 'Terminato',
   resultDefault: 'Passaggi di arresto eseguiti.',
+  reloadWait: 'In attesa che un nuovo processo di Coo sia pronto…',
   otherBot: 'Un altro bot usa questa porta. Ripristino interrotto.',
   restartManual: 'Il processo è terminato. Avvialo manualmente dalla riga di comando; questa pagina attenderà che sia pronto.',
 
@@ -170,6 +173,7 @@ export const S: Partial<typeof en> = {
   githubOpen: 'Apri GitHub',
   githubWaiting: "In attesa dell'autorizzazione…",
   githubExpired: 'Il codice è scaduto. Chiudi questa finestra e accedi di nuovo.',
+  githubRetry: "Ricarica l'account GitHub",
   fieldPlatform: 'Piattaforma',
   osAny: 'Qualsiasi',
   osOnly: (names: string) => `Solo ${names}`,

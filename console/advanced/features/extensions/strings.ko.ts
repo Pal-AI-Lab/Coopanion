@@ -22,7 +22,10 @@ export const S: Partial<typeof en> = {
   restartConfirmBody: '확장은 프로세스가 시작될 때만 불러오므로 설치·업데이트·삭제한 확장은 재시작 후에 적용됩니다.\n재시작하면 진행 중인 답변이 중단되고 각 World가 연결을 끊었다가 다시 연결하며, Coo는 잠시 바탕화면을 떠납니다. 세션, Memory, 설정은 유지됩니다.',
   restartNoLoopBody: '프로세스가 종료되며 직접 다시 시작해야 합니다. 계속하시겠습니까?',
   stepIncomplete: '미완료',
+  doneRestartSupervised: '종료됨, 다시 시작 대기 중',
+  doneRestart: '종료됨',
   resultDefault: '종료 단계를 실행했습니다.',
+  reloadWait: 'Coo의 새 프로세스가 준비되기를 기다리는 중…',
   otherBot: '다른 봇이 이 포트를 사용 중이어서 복구를 중단했습니다.',
   restartManual: '프로세스가 종료되었습니다. 명령줄에서 직접 시작하세요. 이 페이지는 준비될 때까지 기다립니다.',
 
@@ -170,6 +173,7 @@ export const S: Partial<typeof en> = {
   githubOpen: 'GitHub 열기',
   githubWaiting: '승인을 기다리는 중…',
   githubExpired: '코드가 만료되었습니다. 닫은 뒤 다시 로그인하세요.',
+  githubRetry: 'GitHub 계정 다시 불러오기',
   fieldPlatform: '플랫폼',
   osAny: '제한 없음',
   osOnly: (names: string) => `${names} 전용`,

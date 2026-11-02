@@ -22,7 +22,10 @@ export const S: Partial<typeof en> = {
   restartConfirmBody: 'As extensões só são carregadas quando o processo inicia; as instaladas, atualizadas ou removidas valem após reiniciar.\nReiniciar interrompe a resposta em andamento, cada World se desconecta e reconecta, e o Coo sai da área de trabalho por um momento. Sessões, Memory e configuração são mantidas.',
   restartNoLoopBody: 'O processo será encerrado e precisará ser reiniciado manualmente. Continuar?',
   stepIncomplete: 'não concluída',
+  doneRestartSupervised: 'Encerrado; aguardando reinício',
+  doneRestart: 'Encerrado',
   resultDefault: 'Etapas de desligamento executadas.',
+  reloadWait: 'Aguardando o novo processo do Coo ficar pronto…',
   otherBot: 'Outro Bot está usando esta porta. A recuperação foi interrompida.',
   restartManual: 'O processo foi encerrado. Inicie-o manualmente pela linha de comando; esta página vai aguardar até que esteja pronto.',
 
@@ -170,6 +173,7 @@ export const S: Partial<typeof en> = {
   githubOpen: 'Abrir o GitHub',
   githubWaiting: 'Aguardando autorização…',
   githubExpired: 'O código expirou. Feche esta janela e entre novamente.',
+  githubRetry: 'Recarregar a conta do GitHub',
   fieldPlatform: 'Plataforma',
   osAny: 'Qualquer',
   osOnly: (names: string) => `Somente ${names}`,
