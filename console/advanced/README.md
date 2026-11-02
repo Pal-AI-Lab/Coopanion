@@ -19,3 +19,5 @@ normal mode too and calls public routes only; `tests/console-api.test.ts` locks 
 bump that changes one fails the tests.
 
 Manifest and context-record types come from Cortico through type-only imports. The browser helpers for page ids, asset paths and panel streams live in `console/base/protocol.ts`; text uses the window language from `console/base/language.ts`.
+
+Action errors use `console/base/ui/problem.ts`; initial read failures replace the missing content with a shared error card; later refresh failures keep existing content and use a timed notification. The shared config and prompt views keep drafts after a failed save and mark them unsaved. Error toasts in `console/base/ui/overlay.ts` last six seconds, pause while hovered or focused, and close with their panel.

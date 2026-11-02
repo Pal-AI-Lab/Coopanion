@@ -4,6 +4,7 @@
  * modules load, so the window language is set to zh before they are imported.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CONSOLE_PROTOCOL_VERSION } from '../console/base/protocol.ts';
 
 localStorage.setItem('cortico.console.language', 'zh');
 const { createConsoleUi } = await import('../console/base/ui/index.ts');
@@ -15,6 +16,7 @@ const { worldLibrary } = await import('../console/advanced/features/worlds/libra
 const { mountProviders } = await import('../console/advanced/features/providers/index.ts');
 const { S: extensionStrings } = await import('../console/advanced/features/extensions/strings.ts');
 const { S: providerStrings } = await import('../console/advanced/features/providers/strings.ts');
+const { S: worldStrings } = await import('../console/advanced/features/worlds/strings.ts');
 const flush = async (n = 30) => { for (let i = 0; i < n; i++) await Promise.resolve(); };
 const LIST = {
   dir: 'C:/repo/extensions',
@@ -68,7 +70,9 @@ function stub(over = {}) {
     calls.push({ url: u, method, body: init?.body ? JSON.parse(String(init.body)) : undefined });
     let status = 200;
     let body = {};
-    if (u === '/api/worlds') body = { worlds: over.worlds ?? [{ id: 'alpha', label: '甲扩展', status: 'active', visible: true }, { id: 'builtin', label: 'Builtin', status: 'inactive' }] };
+    if (u === '/api/worlds') { status = over.worldStatus ?? 200; body = status === 200 ? { worlds: over.worlds ?? [{ id: 'alpha', label: '甲扩展', status: 'active', visible: true }, { id: 'builtin', label: 'Builtin', status: 'inactive' }] } : { error: 'Environment file missing' }; }
+    else if (u === '/api/capabilities') body = { capabilities: { worlds: true, extensions: true } };
+    else if (u === '/api/webui/manifest') body = { protocolVersion: CONSOLE_PROTOCOL_VERSION, framework: {}, providers: over.pages ?? [] };
     else if (u === '/api/worlds/visibility') body = { driftedWorlds: over.driftedWorlds ?? [] };
     else if (u === '/api/providers') body = { scope: 'test-provider-tabs', active: over.active ?? '', providers: over.providers ?? [] };
     else if (u.startsWith('/api/providers/') && u.endsWith('/delete')) { over.onDelete?.(u); body = { ok: true }; }
@@ -262,7 +266,7 @@ describe('installation feedback', () => {
     expect(calls.find(c => c.url === '/api/extensions/install')?.body).toEqual({ name: 'found-mod', version: '3.1.0' });
     expect(calls.filter(c => c.url === '/api/extensions').length).toBe(2);
     // Like the card: no status line, the control itself reads installed afterwards.
-    expect(root.querySelector('.world-workspace-status').textContent).not.toContain('安装成功');
+    expect(root.querySelector('.world-list-feedback').textContent).not.toContain('安装成功');
     await vi.waitFor(() => expect(detailControl(box).getAttribute('aria-label')).toBe('已安装'));
   });
   it('a refused check stops before installing and shows the reason only in the originating section', async () => {
@@ -543,6 +547,7 @@ describe('restart', () => {
     stub({ restart: { ok: true, result: '本地关机完成', steps: [{ label: '按住事件投递', ok: true, elapsedMs: 2 }, { label: '外部直播平台', ok: false, elapsedMs: 5000, detail: '需手动结束' }] } });
     const { root } = mount();
     await flush();
+    button(root, '我的 World').click(); await vi.waitFor(() => expect(root.querySelector('.world-workspace').dataset.view).toBe('mine'));
     button(root.querySelector('.world-restart-footer'), '重启进程').click();
     await flush();
     expect(calls.some(c => c.url === '/api/run/restart')).toBe(false);
@@ -550,16 +555,23 @@ describe('restart', () => {
     await flush();
     expect(calls.find(c => c.url === '/api/run/restart')?.method).toBe('POST');
     expect(calls.some(c => c.url === '/api/run/lifecycle')).toBe(true);
-    expect(document.body.textContent).toContain('✗ 外部直播平台 · 需手动结束');
+    const dialog = document.querySelector('.modal');
+    expect(dialog.textContent).toContain(extensionStrings.doneRestartSupervised);
+    expect(dialog.textContent).toContain('✗ 外部直播平台 · 需手动结束');
+    expect(dialog.querySelectorAll('button')).toHaveLength(1);
+    expect(document.querySelector('.extension-problem:not(.hidden)')).toBeNull();
     expect(root.querySelector('.extension-restart').disabled).toBe(true);
+    expect(root.querySelector('.world-restart-status').textContent).toBe(extensionStrings.reloadWait);
   });
   it('allows retrying a rejected restart and removes its recovery marker', async () => {
     stub({ restart: { error: 'shutdown rejected' } });
     const { root } = mount(); await flush();
+    button(root, '我的 World').click(); await vi.waitFor(() => expect(root.querySelector('.world-workspace').dataset.view).toBe('mine'));
     button(root.querySelector('.world-restart-footer'), '重启进程').click(); await flush(); answer(true); await flush();
     expect(root.querySelector('.extension-restart').disabled).toBe(false);
-    expect(root.querySelector('.world-workspace-status').textContent).toContain('shutdown rejected');
+    expect(document.querySelector('.extension-problem:not(.hidden)').textContent).toContain('shutdown rejected');
     expect(sessionStorage.getItem('cortico.extensions.v3:' + location.origin + ':restart')).toBeNull();
+    button(root, '我的 World').click(); await vi.waitFor(() => expect(root.querySelector('.world-workspace').dataset.view).toBe('mine'));
     button(root.querySelector('.world-restart-footer'), '重启进程').click(); await flush();
     expect(document.querySelector('.modal')).not.toBeNull(); answer(false); await flush();
   });
@@ -567,6 +579,7 @@ describe('restart', () => {
     stub();
     const { root } = mount({ extensions: true, restart: true, supervised: false });
     await flush();
+    button(root, '我的 World').click(); await vi.waitFor(() => expect(root.querySelector('.world-workspace').dataset.view).toBe('mine'));
     button(root.querySelector('.world-restart-footer'), '重启进程').click();
     await flush();
     expect(document.querySelector('.modal')?.textContent).toContain('需要手动启动');
@@ -682,12 +695,13 @@ describe('extension card and history controls', () => {
     expect(installedRow.textContent).toContain('0.9.0');
     expect(document.querySelector('.world-pending-group').textContent).toContain('待生效');
   });
-  it('a failed release install keeps the error in the drawer and re-enables the row', async () => {
+  it('a failed release install uses the control popover and re-enables the row', async () => {
     const detail = await installedHistory({ installStatus: 400 });
+    detail.querySelector('details').open = true;
     button(historyRow(detail, '0.9.0'), '安装此版本').click();
     await flush();
     answer(true);
-    await vi.waitFor(() => expect(detail.querySelector('.extension-operation-feedback.bad')?.textContent).toContain('pnpm add 退出码 1'));
+    await vi.waitFor(() => expect(document.querySelector('.extension-problem:not(.hidden)')?.textContent).toContain('pnpm add 退出码 1'));
     expect(button(historyRow(detail, '0.9.0'), '安装此版本').disabled).toBe(false);
   });
   it('a package installed from a local link offers no npm release install', async () => {
@@ -801,9 +815,36 @@ describe('provider page tabs', () => {
     button(drawer, '删除扩展').click(); await flush(); answer(false); await flush();
     expect(market.querySelector('.extension-market-card')).not.toBeNull();
     button(drawer, '删除扩展').click(); await flush(); answer(true); await flush();
+    await vi.waitFor(() => expect(document.querySelector('.extension-detail')).toBeNull());
     expect(market.querySelector('.extension-market-card')).toBeNull();
-    expect(document.querySelector('.extension-detail')).toBeNull();
     expect(market.querySelector('.extension-restart').hidden).toBe(false);
+  });
+  it('disables uninstall in the details of a running provider', async () => {
+    stub({ list: { extensions: [{ ...LIST.extensions[2], state: 'loaded', enabled: true }] }, hits: { hits: [] } });
+    const { ctx, root } = await openProviders({ extensions: true });
+    await navigate(ctx, 'market');
+    root.querySelector('.extension-market-card .extension-get').click(); await flush();
+    const remove = button(document.querySelector('.extension-detail'), extensionStrings.remove);
+    expect(remove.disabled).toBe(true);
+    expect(remove.title).toBe(extensionStrings.removeInUseProvider);
+    remove.click(); await flush();
+    expect(document.querySelector('.confirm-card')).toBeNull();
+  });
+  it('rereads the list on returning to the market, so a provider whose connections were deleted can be uninstalled', async () => {
+    const list = { extensions: [{ ...LIST.extensions[2], state: 'loaded', enabled: true }] };
+    stub({ list, hits: { hits: [] }, onUninstall: () => { list.extensions[0].state = 'removed'; } });
+    const { ctx, root } = await openProviders({ extensions: true });
+    await navigate(ctx, 'market');
+    root.querySelector('.extension-market-card .extension-get').click(); await flush();
+    expect(button(document.querySelector('.extension-detail'), extensionStrings.remove).disabled).toBe(true);
+    list.extensions[0].enabled = false;
+    await navigate(ctx);
+    await navigate(ctx, 'market');
+    root.querySelector('.extension-market-card .extension-get').click(); await flush();
+    const remove = button(document.querySelector('.extension-detail'), extensionStrings.remove);
+    expect(remove.disabled).toBe(false);
+    remove.click(); await flush(); answer(true); await flush();
+    expect(calls.find(call => call.url === '/api/extensions/uninstall').body).toEqual({ name: list.extensions[0].name });
   });
   it('installs a provider from a catalog card and shows it under the installed filter', async () => {
     const hit = { ...HITS.hits[0], kind: 'provider', name: 'found-provider' };
@@ -854,6 +895,25 @@ describe('World library and catalog', () => {
     expect(items.map(item => item.key)).toEqual(['newest', 'delta-mod', 'older', 'alpha-mod', 'world:builtin', 'beta-mod', 'epsilon-mod']);
     expect(items.find(item => item.key === 'alpha-mod').world).toBe(worlds[0]);
     expect(items[0].world).toBeUndefined();
+  });
+  it('keeps a removed package separate from an older inactive World snapshot', () => {
+    const removed = LIST.extensions.find(item => item.state === 'removed');
+    const items = worldLibrary([{ id: removed.worldId, status: 'inactive' }], [removed]);
+    expect(items).toHaveLength(1);
+    expect(items[0].extension).toBe(removed);
+    expect(items[0].world).toBeUndefined();
+  });
+  it('does not attach an ID-conflicting failed package to the running World', () => {
+    const running = { id: 'alpha', status: 'active' };
+    const failed = { ...LIST.extensions[0], name: 'conflict', state: 'failed', loaded: false };
+    const items = worldLibrary([running], [failed, LIST.extensions[0]]);
+    expect(items.find(item => item.key === 'alpha-mod').world).toBe(running);
+    expect(items.find(item => item.key === 'conflict').world).toBeUndefined();
+  });
+  it('keeps a failed built-in definition attached to its missing World entry', () => {
+    const world = { id: 'builtin', status: 'missing' };
+    const extension = { name: 'builtin:world:builtin', worldId: 'builtin', kind: 'world', builtin: true, loaded: false, state: 'failed' };
+    expect(worldLibrary([world], [extension])).toEqual([{ key: extension.name, label: world.id, world, extension }]);
   });
   it('keeps the same avatars and scroll position when the library expands into management rows', async () => {
     const { root, ctx } = await openWorlds();
@@ -914,19 +974,68 @@ describe('World library and catalog', () => {
     const problem = document.querySelector('.extension-problem');
     expect(problem.classList.contains('hidden')).toBe(false);
     expect(problem.textContent).toContain('pnpm add 退出码 1');
-    expect(root.querySelector('.world-workspace-status').textContent).toBe('');
+    expect(root.querySelector('.world-list-feedback').textContent).toBe('');
     expect(root.querySelector('.world-catalog .extension-get').getAttribute('aria-label')).toBe('添加到我的 World');
     problem.querySelector('.extension-problem-close').click();
     expect(problem.classList.contains('hidden')).toBe(true);
   });
   it('uninstalls an inactive package from its World row after confirmation', async () => {
-    const { root, ctx } = await openWorlds();
+    const extension = { ...LIST.extensions[0], enabled: false };
+    const { root, ctx } = await openWorlds({
+      list: { extensions: [extension] }, worlds: [{ id: 'alpha', status: 'inactive' }],
+      onUninstall: () => { extension.state = 'removed'; },
+    });
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
-    const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'beta-mod');
+    const row = root.querySelector('.world-blade[data-world="alpha"]');
+    expect(row.querySelector('.iobtn-power')).not.toBeNull();
+    expect(row.classList.contains('is-configurable')).toBe(true);
     row.querySelector('.iobtn-remove').click(); await flush();
     expect(calls.some(call => call.url === '/api/extensions/uninstall')).toBe(false);
     answer(true); await flush(100);
-    expect(calls.find(call => call.url === '/api/extensions/uninstall').body).toEqual({ name: 'beta-mod' });
+    expect(calls.find(call => call.url === '/api/extensions/uninstall').body).toEqual({ name: 'alpha-mod' });
+    const removed = root.querySelector('.world-pending-list .world-blade');
+    expect(removed.dataset.state).toBe('removed');
+    expect(removed.querySelector('.world-blade-actions').childElementCount).toBe(0);
+    expect(removed.querySelector('.world-blade-signals').childElementCount).toBe(0);
+    removed.querySelector('.world-blade-identity code').click(); await flush();
+    expect(location.hash).not.toContain('/provider/');
+  });
+  it('uses current World status to block removal when the extension snapshot predates activation', async () => {
+    const list = structuredClone(LIST);
+    list.extensions[0].enabled = false;
+    const worlds = [{ id: 'alpha', status: 'active' }];
+    const { root } = await openWorlds({ list, worlds });
+    const active = root.querySelector('.world-blade[data-world="alpha"]');
+    expect(active.querySelector('.iobtn-remove').getAttribute('aria-disabled')).toBe('true');
+    active.querySelector('.iobtn-remove').click(); await flush();
+    expect(document.querySelector('.confirm-card')).toBeNull();
+  });
+  it('preserves known running state when the World list fails and keeps its delete control disabled', async () => {
+    const list = { extensions: [{ ...LIST.extensions[0], enabled: true }] };
+    const { root } = await openWorlds({ list, worldStatus: 500 });
+    const row = root.querySelector('.world-blade');
+    expect(row.dataset.state).toBe('attached');
+    expect(row.querySelector('.world-state').textContent).toBe('已接入');
+    expect(row.querySelector('.world-blade-note')).toBeNull();
+    expect(row.querySelector('.iobtn-remove').getAttribute('aria-disabled')).toBe('true');
+    expect(root.textContent).toContain('Environment file missing');
+  });
+  it('shows an environment read error without changing a running World to failed', async () => {
+    const { root } = await openWorlds({ worlds: [{ id: 'alpha', status: 'active', envPromptError: 'Environment file missing' }] });
+    button(root, '我的 World').click(); await vi.waitFor(() => expect(root.querySelector('.world-workspace').dataset.view).toBe('mine'));
+    const row = root.querySelector('.world-blade[data-world="alpha"]');
+    expect(row.dataset.state).toBe('attached');
+    row.querySelector('.world-state-problem').click(); await flush();
+    expect(document.querySelector('.extension-problem:not(.hidden)').textContent).toContain('Environment file missing');
+  });
+  it.each(['active', 'unavailable'])('does not uninstall when the confirmation-time status becomes %s', async status => {
+    const list = structuredClone(LIST), over = { list };
+    const { root } = await openWorlds(over);
+    root.querySelector('.world-blade[data-key="beta-mod"] .iobtn-remove').click(); await flush();
+    if (status === 'active') list.extensions[1].enabled = true;
+    else over.listStatus = 503;
+    answer(true); await flush(150);
+    expect(calls.some(call => call.url === '/api/extensions/uninstall')).toBe(false);
   });
   it('adds from the catalog without opening details, then exposes pending restart in management', async () => {
     const list = structuredClone(LIST);
@@ -934,7 +1043,7 @@ describe('World library and catalog', () => {
     const card = cardOf(root, 'found-mod');
     card.querySelector('.extension-get').click(); await flush(100);
     expect(document.querySelector('.modal')).toBeNull();
-    expect(root.querySelector('.world-workspace-status').textContent).toBe('');
+    expect(root.querySelector('.world-list-feedback').textContent).toBe('');
     expect(root.querySelector('.world-library-item').getAttribute('aria-label')).toBe('found-mod');
     const group = root.querySelector('.world-pending-group');
     expect(group.querySelectorAll('.world-library-entry')).toHaveLength(2);
@@ -944,7 +1053,7 @@ describe('World library and catalog', () => {
     button(root, '我的 World').click(); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     const pending = root.querySelector('.world-blade');
     expect(pending.dataset.state).toBe('pending');
-    expect(pending.textContent).toContain('待生效');
+    expect(pending.textContent).toContain(extensionStrings.stateInstalledPendingRestart);
     expect(buttons(pending).some(item => item.textContent === '激活 World')).toBe(false);
     root.querySelector('.world-blade button.world-name').click(); await flush();
     expect(document.querySelector('.extension-detail').textContent).toContain('found-mod');
@@ -968,7 +1077,7 @@ describe('World library and catalog', () => {
     root.querySelector('[aria-label="对 Coo 隐藏"]').click(); await flush();
     answer(true); await flush();
     expect(calls.find(call => call.url === '/api/worlds/visibility').body).toEqual({ id: 'alpha', visible: false });
-    expect(root.querySelector('.world-feedback').textContent).toBe('');
+    expect(root.querySelector('.world-list-feedback').textContent).toBe('');
   });
   it('applies a confirmed visibility change to the current conversation without asking again', async () => {
     const { root } = await openWorlds({ driftedWorlds: ['alpha'] }, { worlds: true, worldVisibility: true });
@@ -977,20 +1086,20 @@ describe('World library and catalog', () => {
     answer(true); await flush(100);
     expect(calls.some(call => call.url === '/api/session/reload-prefix')).toBe(true);
     expect(document.querySelector('.modal')).toBeNull();
-    expect(root.querySelector('.world-feedback').textContent).toBe('');
+    expect(root.querySelector('.world-list-feedback').textContent).toBe('');
     expect(root.querySelector('.world-management-toolbar')).toBeNull();
   });
   it('keeps runtime Worlds available when the extension list fails to load', async () => {
     const { root } = await openWorlds({ listStatus: 503 });
     expect(root.querySelectorAll('.world-blade')).toHaveLength(2);
-    expect(root.querySelector('.world-workspace-status').textContent).toContain('Unavailable');
+    expect(root.querySelector('.world-list-feedback').textContent).toContain('Unavailable');
   });
   it('puts packages new after a restart at the top of the list without replacing avatars', async () => {
     const list = { extensions: [{ name: 'last', worldId: 'last', kind: 'world', state: 'pending-restart' }] };
     const worlds = [{ id: 'builtin', status: 'active' }];
     const { root } = await openWorlds({ list, worlds });
     const pending = root.querySelector('.world-pending-list .world-library-item');
-    list.extensions[0].state = 'loaded'; worlds.push({ id: 'last', status: 'inactive' });
+    list.extensions[0].state = 'loaded'; list.extensions[0].loaded = true; worlds.push({ id: 'last', status: 'inactive' });
     root.querySelector('.world-market [aria-label="刷新"]').click(); await flush(100);
     expect(root.querySelector('.world-pending-group').hidden).toBe(true);
     expect(root.querySelector('.world-ready-list .world-library-item')).toBe(pending);
@@ -1102,13 +1211,13 @@ describe('World library and catalog', () => {
     answer(true); await flush(100);
     expect(root.querySelector('.world-restart-footer').classList.contains('is-restarting')).toBe(true);
     expect(root.querySelector('.world-restart-footer .extension-restart').disabled).toBe(true);
-    expect(root.querySelector('.world-workspace-status').textContent).toBe('');
+    expect(root.querySelector('.world-list-feedback').textContent).toBe('');
   });
   it('orders row controls from the sidebar switch to power and opens configuration on a row click', async () => {
     const { root, ctx } = await openWorlds({}, { worlds: true, extensions: true, worldActivation: true, worldVisibility: true, restart: true, supervised: true });
     ctx.router.navigate(['world']); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush();
     const row = [...root.querySelectorAll('.world-blade')].find(item => item.dataset.key === 'alpha-mod');
-    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.getAttribute('aria-label'))).toEqual(['左栏隐藏', '删除扩展', '对 Coo 隐藏', '停用 World']);
+    expect([...row.querySelectorAll('.world-blade-actions button')].map(item => item.dataset.slot)).toEqual(['sidebar', 'remove', 'visibility', 'power']);
     expect([...row.querySelectorAll('.world-blade-identity h3 button')].map(item => item.className)).toEqual(['world-name']);
     // Rows with fewer controls pack them to the right, with no gap at the end.
     const slots = (item) => [...item.querySelectorAll('.world-blade-actions button')].map(button => button.style.getPropertyValue('--slot'));
@@ -1242,7 +1351,7 @@ describe('World library and catalog', () => {
     root.querySelector('.world-blade[data-world="alpha"] [data-slot="power"]').click(); await flush(100);
     const problem = [...document.querySelectorAll('.extension-problem')].find(el => !el.classList.contains('hidden'));
     expect(problem.textContent).toContain('World 启动失败');
-    expect(root.querySelector('.world-feedback').textContent).toBe('');
+    expect(root.querySelector('.world-list-feedback').textContent).toBe('');
   });
   it('keeps a load failure to its state and opens the reason in the error popover', async () => {
     const { root, ctx } = await openWorlds();
@@ -1315,5 +1424,286 @@ describe('World library and catalog', () => {
     root.querySelector('[aria-label="激活 World"]').click(); await flush();
     expect(calls.find(call => call.url === '/api/worlds/activation').body).toEqual({ id: 'builtin', enabled: true });
     expect(calls.some(call => call.url.startsWith('/api/extensions'))).toBe(false);
+  });
+});
+
+
+describe('extension feedback ownership', () => {
+  const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  it('returns a late detail install failure to its market card after the drawer closes', async () => {
+    stub(); const original = globalThis.fetch; let fail;
+    vi.stubGlobal('fetch', (url, init) => String(url) === '/api/extensions/install'
+      ? new Promise(resolve => { fail = () => resolve(response({ error: 'download interrupted' }, 503)); })
+      : original(url, init));
+    const { root } = mount(); await flush();
+    cardOf(root, 'found-mod').click(); await flush();
+    document.querySelector('.extension-detail .extension-get').click(); await flush();
+    document.querySelector('.modalhead .btn').click();
+    fail(); await flush(100);
+    expect(document.querySelector('.modal')).toBeNull();
+    expect(document.querySelector('.extension-problem:not(.hidden)')?.textContent).toContain('download interrupted');
+    expect(cardOf(root, 'found-mod').querySelector('.extension-get').disabled).toBe(false);
+    expect(root.querySelector('.world-list-feedback').textContent).toBe('');
+  });
+  it('keeps the listed cards and paging when a search refresh fails, and retries the search above them', async () => {
+    stub(); const original = globalThis.fetch; let broken = false;
+    vi.stubGlobal('fetch', (url, init) => broken && String(url).startsWith('/api/extensions/search')
+      ? Promise.resolve(response({ error: 'catalog unavailable' }, 503)) : original(url, init));
+    const { root } = mount(); await flush();
+    const size = root.querySelector('.extension-size select'); size.value = '10'; size.dispatchEvent(new Event('change'));
+    button(root.querySelector('.extension-pager'), extensionStrings.nextPage).click();
+    const listed = () => [...marketCards(root).querySelectorAll('.extension-market-card')].map(card => card.dataset.name);
+    const before = listed();
+    broken = true; root.querySelector('[aria-label="刷新"]').click(); await flush(100);
+    const problem = () => root.querySelector('.world-catalog-scroll .extension-list-problem');
+    expect(problem().textContent).toContain('catalog unavailable');
+    expect(listed()).toEqual(before);
+    expect(marketCards(root).querySelector('.extension-empty')).toBeNull();
+    expect(root.querySelector('.extension-pager').hidden).toBe(false);
+    broken = false; problem().querySelector('button').click(); await flush(100);
+    expect(problem()).toBeNull();
+    expect(listed()).toEqual(before);
+  });
+  it('recovers World and extension list failures independently without losing existing rows', async () => {
+    const state = { listStatus: 503, worldStatus: 503 }; stub(state);
+    const { root } = mount(); await flush();
+    button(root, '我的 World').click(); await vi.waitFor(() => expect(root.querySelector('.world-workspace').dataset.view).toBe('mine'));
+    const feedback = root.querySelector('.world-list-feedback');
+    expect(feedback.querySelectorAll('.extension-list-problem')).toHaveLength(2);
+    state.worldStatus = 200;
+    [...feedback.querySelectorAll('.extension-list-problem')].find(node => node.textContent.includes('Environment')).querySelector('button').click(); await flush();
+    expect(feedback.querySelectorAll('.extension-list-problem')).toHaveLength(1);
+    expect(root.querySelectorAll('.world-blade')).toHaveLength(2);
+    state.listStatus = 200; feedback.querySelector('button').click(); await flush(100);
+    expect(feedback.textContent).toBe('');
+    expect(root.querySelectorAll('.world-blade').length).toBeGreaterThan(2);
+  });
+  it('preserves the real detail layout on metadata failure and retries when reopened', async () => {
+    const state = { detailStatus: 503 }; stub(state);
+    const { root } = mount(); await flush(); cardOf(root, 'found-mod').click(); await flush();
+    const detail = document.querySelector('.extension-detail');
+    expect(detail.querySelector('.extension-intro').textContent).toContain('搜到的');
+    expect(detail.querySelector('.extension-detail-information').textContent).toContain('npm 没有这个包');
+    expect(detail.querySelector('.extension-detail-information table')).toBeNull();
+    document.querySelector('.modalhead .btn').click(); state.detailStatus = 200;
+    cardOf(root, 'found-mod').click(); await flush();
+    expect(document.querySelector('.extension-detail-information').textContent).toContain('MIT');
+    expect(document.querySelector('.extension-detail-information').textContent).not.toContain('npm 没有这个包');
+  });
+  it.each(['world', 'provider'])('anchors manual validation failures inside the %s market', async kind => {
+    stub(); const { root, ctx } = mount(); await flush();
+    if (kind === 'provider') await switchTo(ctx, 'provider');
+    const fold = root.querySelector('.world-manual'); fold.open = true;
+    button(fold, extensionStrings.check).click(); await flush();
+    expect(document.querySelector('.extension-problem:not(.hidden)')?.textContent).toContain(extensionStrings.invalidInput);
+    expect(fold.querySelector('.msgline').textContent).toBe('');
+    const input = fold.querySelector('input'); input.value = 'sample-package'; input.dispatchEvent(new Event('input'));
+    button(fold, extensionStrings.check).click(); await flush();
+    expect(fold.querySelector('.msgline').textContent).toContain('sample-package');
+    expect(document.querySelector('.extension-problem:not(.hidden)')).toBeNull();
+    input.value = ''; input.dispatchEvent(new Event('input')); button(fold, extensionStrings.check).click(); await flush();
+    button(fold, extensionStrings.local).click(); await flush();
+    expect(document.querySelector('.extension-problem:not(.hidden)')).toBeNull();
+  });
+});
+
+
+describe('social feedback and popover boundaries', () => {
+  it('keeps vote, logout and comment failures with their detail controls and preserves the draft', async () => {
+    stub({ hits: { hits: [{ ...HITS.hits[0], rating: { up: 2, down: 0, comments: 0 } }], index: { tags: { sample: { label: 'Sample' } } } } });
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', (url, init) => {
+      const path = String(url), method = init?.method ?? 'GET';
+      const body = path === '/api/extensions/github' ? { login: 'example-account' }
+        : path === '/api/extensions/vote' ? { error: 'vote unavailable' }
+        : path === '/api/extensions/github/logout' ? { error: 'logout unavailable' }
+        : path.startsWith('/api/extensions/comments') ? method === 'GET' ? { comments: [] } : { error: 'comment unavailable' } : null;
+      return body ? Promise.resolve(new Response(JSON.stringify(body), { status: body.error ? 503 : 200 })) : original(url, init);
+    });
+    const { root } = mount(); await flush(); cardOf(root, 'found-mod').click(); await flush();
+    const detail = document.querySelector('.extension-detail');
+    detail.querySelector('[aria-label="喜欢"]').click(); await flush();
+    expect(document.querySelector('.extension-problem:not(.hidden)')?.textContent).toContain('vote unavailable');
+    expect(detail.querySelector('[aria-label="喜欢"]').getAttribute('aria-pressed')).toBe('false');
+    button(detail, extensionStrings.githubLogout).click(); await flush();
+    expect(document.querySelector('.extension-problem:not(.hidden)')?.textContent).toContain('logout unavailable');
+    const input = detail.querySelector('textarea'); input.value = 'A draft to keep';
+    button(detail, extensionStrings.commentSubmit).click(); await flush();
+    expect(input.value).toBe('A draft to keep');
+    expect(detail.querySelector('.extension-comments .msgline.bad').textContent).toContain('comment unavailable');
+    expect(root.querySelector('.world-list-feedback').textContent).toBe('');
+  });
+  it('keeps popovers within the content column and removes them when their control disappears', async () => {
+    const { problemPopover } = await import('../console/base/ui/problem.ts');
+    const life = new Lifecycle(() => {}); lives.push(life);
+    const content = document.createElement('section'); content.className = 'world-catalog-scroll';
+    const control = document.createElement('button'); content.append(control); document.body.append(content);
+    content.getBoundingClientRect = () => ({ left: 400, right: 900, width: 500 });
+    control.getBoundingClientRect = () => ({ left: 415, right: 445, top: 80, bottom: 110, width: 30, height: 30 });
+    const problems = problemPopover(document, life.signal);
+    const box = document.querySelector('.extension-problem');
+    box.getBoundingClientRect = () => ({ width: 300, height: 80 });
+    problems.show(control, 'A long error');
+    expect(parseFloat(box.style.left)).toBeGreaterThanOrEqual(400);
+    expect(parseFloat(box.style.left) + 300).toBeLessThanOrEqual(900);
+    content.hidden = true; await flush();
+    expect(box.classList.contains('hidden')).toBe(true);
+    content.hidden = false; problems.show(control, 'Another error'); control.remove(); await flush();
+    expect(box.classList.contains('hidden')).toBe(true);
+  });
+});
+
+
+describe('feedback across re-renders and background reads', () => {
+  const visibleProblem = () => document.querySelector('.extension-problem:not(.hidden)');
+  const toMine = async root => { button(root, worldStrings.myWorlds).click(); await vi.waitFor(() => expect(root.querySelector('.world-workspace').dataset.view).toBe('mine')); };
+  const refresh = root => root.querySelector(`.world-market [aria-label="${extensionStrings.refresh.replace(/^↻\s*/, '')}"]`);
+  /** Answers `path` only when the returned function is called. */
+  function hold(path) {
+    const original = globalThis.fetch; let release, held = false;
+    vi.stubGlobal('fetch', (url, init) => {
+      if (held || String(url) !== path) return original(url, init);
+      held = true; return new Promise(resolve => { release = () => resolve(original(url, init)); });
+    });
+    return () => release();
+  }
+  it('keeps a removal refusal beside its row while the World list re-renders', async () => {
+    const list = { dir: LIST.dir, extensions: [{ ...LIST.extensions[0], enabled: false }] };
+    const worlds = [{ id: 'alpha', label: '甲扩展', status: 'inactive' }];
+    stub({ list, worlds });
+    const { root } = mount(); await flush(); await toMine(root);
+    root.querySelector('.world-blade[data-key="alpha-mod"] .iobtn-remove').click(); await flush();
+    // The World becomes active while the confirmation is open; its list answers only after the refusal shows.
+    list.extensions[0].enabled = true; worlds[0].status = 'active';
+    const release = hold('/api/worlds');
+    answer(true); await flush(100);
+    expect(visibleProblem()?.textContent).toContain(extensionStrings.removeInUse);
+    release(); await flush(100);
+    expect(root.querySelector('.world-blade[data-key="alpha-mod"]').dataset.state).toBe('attached');
+    expect(visibleProblem()?.textContent).toContain(extensionStrings.removeInUse);
+    expect(calls.some(call => call.url === '/api/extensions/uninstall')).toBe(false);
+  });
+  it("keeps a failed World's reason open across a re-render and closes it once the World loads", async () => {
+    const list = structuredClone(LIST);
+    stub({ list, updates: { updates: [{ name: 'alpha-mod', installedVersion: '1.0.0', latestVersion: '1.1.0', problems: [] }], errors: [] } });
+    const release = hold('/api/extensions/updates');
+    const { root } = mount(); await flush(); await toMine(root);
+    root.querySelector('.world-blade[data-key="beta-mod"] .world-state-problem').click();
+    expect(visibleProblem()?.textContent).toContain('默认导出不是 WorldDefinition');
+    release(); await flush(100);
+    expect(root.querySelector('.world-name-update')).not.toBeNull();
+    expect(visibleProblem()?.textContent).toContain('默认导出不是 WorldDefinition');
+    // The extension list reloads with the package loaded.
+    Object.assign(list.extensions[1], { state: 'loaded', loaded: true, reason: undefined });
+    refresh(root).click(); await flush(100);
+    expect(root.querySelector('.world-blade[data-key="beta-mod"] .world-state-problem')).toBeNull();
+    expect(visibleProblem()).toBeNull();
+  });
+  it('restores positions after a reload when the World list answers before the extension list', async () => {
+    const key = `coopanion.world-layout:${window.location.origin}`;
+    window.sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), scroll: 12, positions: [['alpha-mod', 90]] }));
+    const animations = [];
+    const original = Element.prototype.animate;
+    Element.prototype.animate = function(frames) { animations.push({ element: this, frames }); return { cancel() {}, finished: Promise.resolve() }; };
+    try {
+      stub(); const release = hold('/api/extensions');
+      const { root } = mount(); await flush();
+      expect(calls.some(call => call.url === '/api/worlds')).toBe(true);
+      release(); await flush(100);
+      expect(root.querySelector('.world-library-list').scrollTop).toBe(12);
+      const entry = root.querySelector('.world-library-entry[data-key="alpha-mod"]');
+      expect(animations.some(a => a.element === entry && a.frames[0].transform === 'translateY(90px)')).toBe(true);
+    } finally { if (original) Element.prototype.animate = original; else delete Element.prototype.animate; }
+  });
+  it('keeps installed providers in the provider market when the search fails', async () => {
+    stub(); const original = globalThis.fetch;
+    vi.stubGlobal('fetch', (url, init) => String(url).startsWith('/api/extensions/search')
+      ? Promise.resolve(new Response(JSON.stringify({ error: 'registry unreachable' }), { status: 503 })) : original(url, init));
+    const { root, ctx } = mount(); await flush();
+    await switchTo(ctx, 'provider');
+    expect(root.querySelector('.world-catalog-scroll .extension-list-problem').textContent).toContain('registry unreachable');
+    cardOf(root, 'gamma-prov').click(); await flush();
+    expect(document.querySelector('.extension-detail')).not.toBeNull();
+  });
+  it('shows incomplete results and a missing index as a catalog line that stays', async () => {
+    stub({ hits: { ...HITS, partial: true, index: { tags: {}, error: 'index unreachable' } } });
+    const { root } = mount(); await flush();
+    const line = root.querySelector('.world-catalog > .msgline:not(.bad):not(:empty)');
+    expect(line.textContent).toBe([extensionStrings.partial, extensionStrings.indexFailed('index unreachable')].join('\n'));
+    expect(visibleProblem()).toBeNull();
+    document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    expect(line.isConnected && line.textContent).toContain(extensionStrings.partial);
+  });
+  it('shows a failed update check as a catalog line and clears it when a check succeeds', async () => {
+    const over = { updateStatus: 503 }; stub(over);
+    const { root } = mount(); await flush();
+    const line = () => root.querySelector('.world-catalog > .msgline.bad');
+    expect(line().textContent).toBe(extensionStrings.updateCheckFailed('npm unavailable'));
+    expect(visibleProblem()).toBeNull();
+    over.updateStatus = 200; refresh(root).click(); await flush(100);
+    expect(line().textContent).toBe('');
+  });
+  it('says the page waits for a manual start beside the restart control', async () => {
+    stub();
+    const { root } = mount({ extensions: true, restart: true, supervised: false }); await flush(); await toMine(root);
+    button(root.querySelector('.world-restart-footer'), extensionStrings.restartProcess).click(); await flush();
+    answer(true); await flush();
+    expect(root.querySelector('.world-restart-status').textContent).toBe(extensionStrings.restartManual);
+    expect(visibleProblem()).toBeNull();
+  });
+  it('shows the provider market waiting for the new process after a reload during a restart', async () => {
+    stub();
+    window.sessionStorage.setItem('cortico.extensions.v3:' + location.origin + ':restart', JSON.stringify(LIFE));
+    const { root, ctx } = mount(); await flush();
+    await switchTo(ctx, 'provider');
+    expect(root.querySelector('.world-catalog > .msgline:not(:empty)').textContent).toBe(extensionStrings.reloadWait);
+    expect(root.querySelector('.extension-restart').disabled).toBe(true);
+  });
+  it('shows a failed World list read above the catalog in the market view', async () => {
+    const over = { worldStatus: 503, listStatus: 503 }; stub(over);
+    const { root } = mount(); await flush();
+    const above = root.querySelector('.world-market > .world-list-feedback');
+    expect(above.closest('[inert], [hidden]')).toBeNull();
+    // The catalog shows the extension list's own failure; the World list's shows here once.
+    expect(above.querySelectorAll('.extension-list-problem')).toHaveLength(1);
+    expect(above.textContent).toContain(worldStrings.listLoadFailed('Environment file missing'));
+    over.worldStatus = 200; above.querySelector('button').click(); await flush();
+    expect(above.textContent).toBe('');
+  });
+  it('opens errors that come into view together one at a time, each beside its own card', async () => {
+    stub(); const original = globalThis.fetch; const held = [];
+    vi.stubGlobal('fetch', (url, init) => {
+      if (String(url) !== '/api/extensions/install') return original(url, init);
+      const { name } = JSON.parse(init.body);
+      return new Promise(resolve => held.push(() => resolve(new Response(JSON.stringify({ error: `${name} failed` }), { status: 503 }))));
+    });
+    const { root, ctx } = mount(); await flush();
+    const view = async query => { ctx.router.navigate(['world'], query); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush(); };
+    cardOf(root, 'found-mod').querySelector('.extension-get').click();
+    cardOf(root, 'filler-0').querySelector('.extension-get').click(); await flush();
+    await view();
+    held.forEach(release => release()); await flush(100);
+    expect(visibleProblem()).toBeNull();
+    await view({ view: 'market' });
+    expect(visibleProblem()?.textContent).toContain('found-mod failed');
+    expect(visibleProblem().textContent).not.toContain('filler-0 failed');
+    visibleProblem().querySelector('.extension-problem-close').click();
+    await view(); await view({ view: 'market' });
+    expect(visibleProblem()?.textContent).toContain('filler-0 failed');
+  });
+  it('names the GitHub account retry and reloads the account from it', async () => {
+    stub({ hits: { hits: [{ ...HITS.hits[0], rating: { up: 0, down: 0, comments: 0 } }], index: { tags: { sample: { label: 'Sample' } } } } });
+    const original = globalThis.fetch; let accountStatus = 503;
+    vi.stubGlobal('fetch', (url, init) => {
+      const path = String(url);
+      if (path === '/api/extensions/github') return Promise.resolve(new Response(JSON.stringify(accountStatus === 200 ? {} : { error: 'GitHub unreachable' }), { status: accountStatus }));
+      if (path.startsWith('/api/extensions/comments')) return Promise.resolve(new Response(JSON.stringify({ comments: [] })));
+      return original(url, init);
+    });
+    const { root } = mount(); await flush(); cardOf(root, 'found-mod').click(); await flush();
+    const retry = button(document.querySelector('.extension-detail'), extensionStrings.githubRetry);
+    expect(retry.getAttribute('aria-description')).toBe('GitHub unreachable');
+    accountStatus = 200; retry.click(); await flush();
+    expect(button(document.querySelector('.extension-detail'), extensionStrings.githubLogin)).toBeTruthy();
   });
 });

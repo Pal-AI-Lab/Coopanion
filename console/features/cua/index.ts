@@ -8,6 +8,8 @@
  * settings window does not ask again. Opened at `#/pet?cua=enable` (Coo's way to the switch, while it
  * is off), the section shows the dialog at once, confirmed before or not.
  */
+
+import { actionProblem } from '../../base/ui/problem.ts';
 import { get, setConfig } from '../../base/api.ts';
 import { createMemo } from '../../base/memo.ts';
 import type { PageContext } from '../../base/page.ts';
@@ -73,11 +75,7 @@ export function cuaSection(ctx: PageContext, row: Row): { el: HTMLElement; sync(
 
   // where the rest of its settings are: the section's note, under its title
   const sheet = ui.sheet({ title: S.title, desc: S.more });
-  const msg = ui.msgline('');
-  const say = (text: string, bad = false) => {
-    msg.textContent = text;
-    msg.classList.toggle('bad', bad);
-  };
+  const problem = actionProblem(ui, sheet.el.ownerDocument, signal);
 
   const doc = sheet.el.ownerDocument;
   const saved: Record<string, unknown> = {};
@@ -119,7 +117,6 @@ export function cuaSection(ctx: PageContext, row: Row): { el: HTMLElement; sync(
     row(S.controlLabel, control.el, S.controlHint),
     row(S.permission, level.el, levelHint),
     grantRow,
-    msg,
   );
 
   const showLevel = (v: Level) => {
@@ -127,18 +124,18 @@ export function cuaSection(ctx: PageContext, row: Row): { el: HTMLElement; sync(
     grantRow.hidden = v !== 'ask-once';
   };
 
+  const anchors: Record<string, HTMLElement> = { [KEYS.enabled]: enabled.el, [KEYS.control]: control.el, [KEYS.permission]: level.el, [KEYS.grantMinutes]: grant };
   const save = async (key: string, value: string | number | boolean) => {
     try {
       await setConfig(CUA_GROUP, { [key]: value }, opts);
       saved[key] = value;
-      say('');
     } catch (err) {
-      if (!signal.aborted) { sync(saved); say(S.saveFailed(errText(err)), true); }
+      if (!signal.aborted) { sync(saved); problem(anchors[key], S.saveFailed(errText(err))); }
     }
   };
   grant.addEventListener('change', () => {
     const n = Number(grant.value);
-    if (!Number.isInteger(n) || n < GRANT_MIN || n > GRANT_MAX) { say(S.grantBad(GRANT_MIN, GRANT_MAX), true); return; }
+    if (!Number.isInteger(n) || n < GRANT_MIN || n > GRANT_MAX) { problem(grant, S.grantBad(GRANT_MIN, GRANT_MAX)); return; }
     void save(KEYS.grantMinutes, n);
   }, { signal });
 

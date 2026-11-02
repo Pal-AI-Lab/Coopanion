@@ -8,7 +8,7 @@
 .ulabel { font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); white-space: nowrap; }
 
 /* 时间范围位于页头第二行，随页头吸顶；日期框常驻。 */
-.featureslot.featureslot-usage > .featureintro > :is(.urangebar, .unotice) { grid-column: 1 / -1; }
+.featureslot.featureslot-usage > .featureintro > .urangebar { grid-column: 1 / -1; }
 .urangebar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin-top: 16px; }
 /* 本页的下拉框与日期框与分段按钮同高 */
 .urangebar input.field, .uledger select.field { height: 30px; min-height: 30px; padding-block: 0; font-size: 12.5px; }
@@ -20,7 +20,7 @@
 .uledger > select.field { width: auto; min-width: 0; padding-inline: 10px 30px; }
 .uledger, .urate { flex-wrap: wrap; }
 .ursrc > a { color: inherit; }
-.unotice { margin: 10px 0 0; }
+.unotice { margin: 0 0 14px; }
 
 /* 总览 */
 .ukpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }

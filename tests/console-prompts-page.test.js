@@ -73,7 +73,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function mount() {
+async function mount(loaded = true) {
   const life = new Lifecycle((error) => { throw error; });
   mounted.push(life);
   const root = document.createElement('div');
@@ -82,6 +82,7 @@ async function mount() {
   const router = new Router({ win: window, confirmLeave: (body) => ui.confirm({ title: 'Leave', body }) });
   life.own(router.start());
   await mountPrompts({ root, ui, router, route: router.route, signal: life.signal, lifecycle: life, capabilities: { prompts: true, storage: true, sessionControl: true }, onError: (error) => { throw error; } });
+  if (!loaded) return { root };
   await vi.waitFor(() => expect(root.querySelector(`[data-source="${worldKey}"]`).textContent).toContain('Fixture World'));
   const view = EditorView.findFromDOM(root.querySelector('.cm-editor'));
   const button = (label) => [...root.querySelectorAll('.prompt-actions button')].find((el) => el.textContent === label);
@@ -290,7 +291,7 @@ it('keeps a failed source dirty after a partial save and retries only that sourc
   const from = view.state.doc.toString().indexOf('Environment');
   view.dispatch({ changes: { from, insert: 'New ' } });
   failures.add(worldKey); button(S.reloadSession).click();
-  await vi.waitFor(() => expect(root.querySelector('[role=status]').textContent).toContain('Revision conflict'));
+  await vi.waitFor(() => expect(document.querySelector('[role=alert]:not(.hidden)')?.textContent).toContain('Revision conflict'));
   expect(sessionWrites).toHaveLength(0);
   expect(root.querySelector('[data-source="constitution"] .is-dirty')).toBeNull();
   expect(root.querySelector(`[data-source="${worldKey}"] .is-dirty`)).not.toBeNull();
@@ -341,4 +342,35 @@ it('labels each section with its key and whether it is editable, and lists its t
   expect(root.querySelector('[data-source="WORKSPACE"] .prefix-flag-meta').textContent).toBe(`WORKSPACE${S.readOnly}`);
   expect([...label.querySelectorAll('.varchip')].map((chip) => chip.textContent)).toEqual(['fixture.name']);
   expect(label.querySelector('.prompt-vars-heading .prompt-preview-toggle').getAttribute('aria-label')).toBe(S.previewVariables);
+});
+
+
+it('replaces an initially unavailable prompt library with a retry card and restores the editor on recovery', async () => {
+  const fetchData = globalThis.fetch;
+  let offline = true;
+  vi.stubGlobal('fetch', (path, options) => path === '/api/prompts' && options.method === 'GET' && offline
+    ? Promise.resolve(json({ error: 'Library unavailable' }, 503)) : fetchData(path, options));
+  const { root } = await mount(false);
+  expect(root.querySelector('.prefix-stage').classList.contains('hidden')).toBe(true);
+  expect(root.querySelector('.prompt-toolbar').classList.contains('hidden')).toBe(true);
+  expect(root.querySelector('.extension-list-problem').textContent).toContain('Library unavailable');
+  offline = false;
+  root.querySelector('.extension-list-problem button').click();
+  await vi.waitFor(() => expect(root.querySelector('.extension-list-problem')).toBeNull());
+  expect(root.querySelector('.prefix-stage').classList.contains('hidden')).toBe(false);
+  expect(root.querySelector('.cm-editor').textContent).toContain('Hello');
+});
+
+it('preserves the mounted editor when refreshing after apply fails and reports it in a bottom notification', async () => {
+  const { root, view, button } = await mount();
+  const fetchData = globalThis.fetch;
+  vi.stubGlobal('fetch', (path, options) => path === '/api/prompts' && options.method === 'GET'
+    ? Promise.resolve(json({ error: 'Refresh unavailable' }, 503)) : fetchData(path, options));
+  const text = view.state.doc.toString();
+  button(S.reloadSession).click();
+  await vi.waitFor(() => expect(document.querySelector('.toast.bad')?.textContent).toContain('Refresh unavailable'));
+  expect(root.querySelector('.extension-list-problem')).toBeNull();
+  expect(EditorView.findFromDOM(root.querySelector('.cm-editor'))).toBe(view);
+  expect(view.state.doc.toString()).toBe(text);
+  expect(root.querySelector('.prompt-status').textContent).not.toBe(S.reloading);
 });
