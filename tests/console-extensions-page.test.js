@@ -16,6 +16,7 @@ const { worldLibrary } = await import('../console/advanced/features/worlds/libra
 const { mountProviders } = await import('../console/advanced/features/providers/index.ts');
 const { S: extensionStrings } = await import('../console/advanced/features/extensions/strings.ts');
 const { S: providerStrings } = await import('../console/advanced/features/providers/strings.ts');
+const { S: worldStrings } = await import('../console/advanced/features/worlds/strings.ts');
 const flush = async (n = 30) => { for (let i = 0; i < n; i++) await Promise.resolve(); };
 const LIST = {
   dir: 'C:/repo/extensions',
@@ -1424,21 +1425,24 @@ describe('extension feedback ownership', () => {
     expect(cardOf(root, 'found-mod').querySelector('.extension-get').disabled).toBe(false);
     expect(root.querySelector('.world-list-feedback').textContent).toBe('');
   });
-  it('replaces failed search results and paging with a list-local refresh, then recovers', async () => {
+  it('keeps the listed cards and paging when a search refresh fails, and retries the search above them', async () => {
     stub(); const original = globalThis.fetch; let broken = false;
     vi.stubGlobal('fetch', (url, init) => broken && String(url).startsWith('/api/extensions/search')
       ? Promise.resolve(response({ error: 'catalog unavailable' }, 503)) : original(url, init));
     const { root } = mount(); await flush();
     const size = root.querySelector('.extension-size select'); size.value = '10'; size.dispatchEvent(new Event('change'));
     button(root.querySelector('.extension-pager'), extensionStrings.nextPage).click();
+    const listed = () => [...marketCards(root).querySelectorAll('.extension-market-card')].map(card => card.dataset.name);
+    const before = listed();
     broken = true; root.querySelector('[aria-label="刷新"]').click(); await flush(100);
-    expect(marketCards(root).querySelector('.extension-list-problem').textContent).toContain('catalog unavailable');
+    const problem = () => root.querySelector('.world-catalog-scroll .extension-list-problem');
+    expect(problem().textContent).toContain('catalog unavailable');
+    expect(listed()).toEqual(before);
     expect(marketCards(root).querySelector('.extension-empty')).toBeNull();
-    expect(root.querySelector('.extension-pager').hidden).toBe(true);
-    broken = false; marketCards(root).querySelector('.extension-list-problem button').click(); await flush(100);
-    expect(marketCards(root).querySelector('.extension-list-problem')).toBeNull();
     expect(root.querySelector('.extension-pager').hidden).toBe(false);
-    expect(marketCards(root).querySelectorAll('.extension-market-card').length).toBeGreaterThan(0);
+    broken = false; problem().querySelector('button').click(); await flush(100);
+    expect(problem()).toBeNull();
+    expect(listed()).toEqual(before);
   });
   it('recovers World and extension list failures independently without losing existing rows', async () => {
     const state = { listStatus: 503, worldStatus: 503 }; stub(state);
@@ -1526,5 +1530,100 @@ describe('social feedback and popover boundaries', () => {
     expect(box.classList.contains('hidden')).toBe(true);
     content.hidden = false; problems.show(control, 'Another error'); control.remove(); await flush();
     expect(box.classList.contains('hidden')).toBe(true);
+  });
+});
+
+
+describe('feedback across re-renders and background reads', () => {
+  const visibleProblem = () => document.querySelector('.extension-problem:not(.hidden)');
+  const toMine = async root => { button(root, worldStrings.myWorlds).click(); await vi.waitFor(() => expect(root.querySelector('.world-workspace').dataset.view).toBe('mine')); };
+  const refresh = root => root.querySelector(`.world-market [aria-label="${extensionStrings.refresh.replace(/^↻\s*/, '')}"]`);
+  /** Answers `path` only when the returned function is called. */
+  function hold(path) {
+    const original = globalThis.fetch; let release, held = false;
+    vi.stubGlobal('fetch', (url, init) => {
+      if (held || String(url) !== path) return original(url, init);
+      held = true; return new Promise(resolve => { release = () => resolve(original(url, init)); });
+    });
+    return () => release();
+  }
+  it('keeps a removal refusal beside its row while the World list re-renders', async () => {
+    const list = { dir: LIST.dir, extensions: [{ ...LIST.extensions[0], enabled: false }] };
+    const worlds = [{ id: 'alpha', label: '甲扩展', status: 'inactive' }];
+    stub({ list, worlds });
+    const { root } = mount(); await flush(); await toMine(root);
+    root.querySelector('.world-blade[data-key="alpha-mod"] .iobtn-remove').click(); await flush();
+    // The World becomes active while the confirmation is open; its list answers only after the refusal shows.
+    list.extensions[0].enabled = true; worlds[0].status = 'active';
+    const release = hold('/api/worlds');
+    answer(true); await flush(100);
+    expect(visibleProblem()?.textContent).toContain(extensionStrings.removeInUse);
+    release(); await flush(100);
+    expect(root.querySelector('.world-blade[data-key="alpha-mod"]').dataset.state).toBe('attached');
+    expect(visibleProblem()?.textContent).toContain(extensionStrings.removeInUse);
+    expect(calls.some(call => call.url === '/api/extensions/uninstall')).toBe(false);
+  });
+  it("keeps a failed World's reason open across a re-render and closes it once the World loads", async () => {
+    const list = structuredClone(LIST);
+    stub({ list, updates: { updates: [{ name: 'alpha-mod', installedVersion: '1.0.0', latestVersion: '1.1.0', problems: [] }], errors: [] } });
+    const release = hold('/api/extensions/updates');
+    const { root } = mount(); await flush(); await toMine(root);
+    root.querySelector('.world-blade[data-key="beta-mod"] .world-state-problem').click();
+    expect(visibleProblem()?.textContent).toContain('默认导出不是 WorldDefinition');
+    release(); await flush(100);
+    expect(root.querySelector('.world-name-update')).not.toBeNull();
+    expect(visibleProblem()?.textContent).toContain('默认导出不是 WorldDefinition');
+    // The extension list reloads with the package loaded.
+    Object.assign(list.extensions[1], { state: 'loaded', loaded: true, reason: undefined });
+    refresh(root).click(); await flush(100);
+    expect(root.querySelector('.world-blade[data-key="beta-mod"] .world-state-problem')).toBeNull();
+    expect(visibleProblem()).toBeNull();
+  });
+  it('restores positions after a reload when the World list answers before the extension list', async () => {
+    const key = `coopanion.world-layout:${window.location.origin}`;
+    window.sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), scroll: 12, positions: [['alpha-mod', 90]] }));
+    const animations = [];
+    const original = Element.prototype.animate;
+    Element.prototype.animate = function(frames) { animations.push({ element: this, frames }); return { cancel() {}, finished: Promise.resolve() }; };
+    try {
+      stub(); const release = hold('/api/extensions');
+      const { root } = mount(); await flush();
+      expect(calls.some(call => call.url === '/api/worlds')).toBe(true);
+      release(); await flush(100);
+      expect(root.querySelector('.world-library-list').scrollTop).toBe(12);
+      const entry = root.querySelector('.world-library-entry[data-key="alpha-mod"]');
+      expect(animations.some(a => a.element === entry && a.frames[0].transform === 'translateY(90px)')).toBe(true);
+    } finally { if (original) Element.prototype.animate = original; else delete Element.prototype.animate; }
+  });
+  it('keeps installed providers in the provider market when the search fails', async () => {
+    stub(); const original = globalThis.fetch;
+    vi.stubGlobal('fetch', (url, init) => String(url).startsWith('/api/extensions/search')
+      ? Promise.resolve(new Response(JSON.stringify({ error: 'registry unreachable' }), { status: 503 })) : original(url, init));
+    const { root, ctx } = mount(); await flush();
+    await switchTo(ctx, 'provider');
+    expect(root.querySelector('.world-catalog-scroll .extension-list-problem').textContent).toContain('registry unreachable');
+    cardOf(root, 'gamma-prov').click(); await flush();
+    expect(document.querySelector('.extension-detail')).not.toBeNull();
+  });
+  it('opens errors that come into view together one at a time, each beside its own card', async () => {
+    stub(); const original = globalThis.fetch; const held = [];
+    vi.stubGlobal('fetch', (url, init) => {
+      if (String(url) !== '/api/extensions/install') return original(url, init);
+      const { name } = JSON.parse(init.body);
+      return new Promise(resolve => held.push(() => resolve(new Response(JSON.stringify({ error: `${name} failed` }), { status: 503 }))));
+    });
+    const { root, ctx } = mount(); await flush();
+    const view = async query => { ctx.router.navigate(['world'], query); window.dispatchEvent(new HashChangeEvent('hashchange')); await flush(); };
+    cardOf(root, 'found-mod').querySelector('.extension-get').click();
+    cardOf(root, 'filler-0').querySelector('.extension-get').click(); await flush();
+    await view();
+    held.forEach(release => release()); await flush(100);
+    expect(visibleProblem()).toBeNull();
+    await view({ view: 'market' });
+    expect(visibleProblem()?.textContent).toContain('found-mod failed');
+    expect(visibleProblem().textContent).not.toContain('filler-0 failed');
+    visibleProblem().querySelector('.extension-problem-close').click();
+    await view(); await view({ view: 'market' });
+    expect(visibleProblem()?.textContent).toContain('filler-0 failed');
   });
 });

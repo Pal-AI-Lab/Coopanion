@@ -430,6 +430,7 @@ const errorText = (error: unknown) => error instanceof Error ? error.message : S
 export interface ExtensionWorkspace {
   restartRoot: HTMLElement;
   beforeReload(): void;
+  /** The installed list failed to load; the next successful load arrives through `onChange`. */
   onLoadError(text: string): void;
   onChange(items: readonly ExtensionView[]): void;
   /** `from` is where the package's icon was on screen when the install started. */
@@ -684,29 +685,38 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   // Floating tips sit over the page; the wheel still scrolls what is under them.
   hintBox.addEventListener('wheel', event => { const target = scrollerOf(hintAnchor); hideHint(); if (target) { event.preventDefault(); target.scrollBy({ top: wheelDelta(event) }); } }, { passive: false, signal });
   const problems = problemPopover(doc, signal);
+  /** Operation errors whose control was out of view, by operation; each opens once its control is in view. */
   const pendingProblems = new Map<string, { anchor: Anchor; text: string }>();
+  /** Opens the first waiting error whose control is in view, unless another error is on show. */
   function showProblems() {
-    if (signal.aborted) return;
-    const groups = new Map<Element, string[]>();
+    if (signal.aborted || problems.open) return;
     for (const [key, note] of pendingProblems) {
-      const control = note.anchor();
-      if (!problemAnchorVisible(control)) continue;
-      const messages = groups.get(control) ?? []; messages.push(note.text); groups.set(control, messages);
-      pendingProblems.delete(key);
+      if (!problemAnchorVisible(note.anchor())) continue;
+      pendingProblems.delete(key); problems.show(note.anchor, note.text); return;
     }
-    for (const [control, messages] of groups) problems.show(control, messages.join('\n'));
   }
+  /** Opens an operation's error beside its control, or once the control comes into view; empty text withdraws a waiting one. */
   function controlProblem(key: string, anchor: Anchor, text: string) {
-    if (text) pendingProblems.set(key, { anchor, text }); else pendingProblems.delete(key);
-    showProblems();
+    pendingProblems.delete(key);
+    if (!text) return;
+    if (problemAnchorVisible(anchor())) problems.show(anchor, text); else pendingProblems.set(key, { anchor, text });
   }
   const marketControl = (name: string) => marketGrid.querySelector(`.extension-market-card[data-name="${CSS.escape(name)}"] .extension-get`);
   const restartControl = () => restartRoot.querySelector('.extension-restart');
+  /** Failed reads of the installed list and of the search, above the cards, each with its retry; the cards stay. */
+  function paintListProblems() {
+    const node = messageNodes.list, failed = states[kind].messages.market;
+    const lines: Array<[string, () => Promise<unknown>]> = [];
+    if (listErrorText) lines.push([listErrorText, load]);
+    if (failed?.bad) lines.push([failed.text, () => search(kind)]);
+    const shown = JSON.stringify(lines.map(([text]) => text));
+    if (!node || node.dataset.shown === shown) return;
+    node.dataset.shown = shown;
+    node.replaceChildren(...lines.map(([text, retry]) => listProblem(doc, text, S.refresh, retry)));
+  }
   function listFeedback(text: string) {
-    listErrorText = text;
-    const node = messageNodes.list;
-    node.replaceChildren(...text ? [listProblem(doc, text, S.refresh, load)] : []);
-    workspace?.onLoadError(text);
+    listErrorText = text; paintListProblems();
+    if (text) workspace?.onLoadError(text);
   }
   doc.addEventListener('scroll', hideHint, { capture: true, passive: true, signal });
   const HINT_LINK = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
@@ -1390,14 +1400,13 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) foldTags(row);
     renderInView();
     for (const [control, paint] of detailControls) if (control.isConnected) paint(); else detailControls.delete(control);
-    const searchError = state.messages.market;
-    if (searchError?.bad) {
-      marketGrid.replaceChildren(listProblem(doc, searchError.text, S.refresh, () => search(kind)));
-    } else if (!result.matched) marketGrid.append(emptyMarket(state));
+    // A failed search keeps the cards already listed, installed providers among them; its failure shows above them.
+    const searchFailed = !!state.messages.market?.bad;
+    if (!result.matched && !searchFailed) marketGrid.append(emptyMarket(state));
     // Another page starts at the top of the list at once, however many cards it has.
     pager(marketPager, result.matched, result.page, pageSize(), page => { state.page = page; renderMarket(true); save(); });
-    marketPager.hidden = !!state.messages.market?.bad;
-    showProblems();
+    marketPager.hidden = searchFailed && !result.matched;
+    paintListProblems(); showProblems();
     shown = { key, page: result.page, size: pageSize() };
     if (leaving) placeAt(back); else if (toTop) scrollRoot.scrollTop = 0;
     reflow?.play();
@@ -1585,11 +1594,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const item = installed.find(entry => entry.name === name);
     if (!item) return;
     const reason = removalBlockReason(item);
-    if (reason) {
-      const control = anchor();
-      if (control?.isConnected) problems.show(control, reason);
-      return;
-    }
+    if (reason) { controlProblem('operation:' + name, anchor, reason); return; }
     await operate('delete', { name }, kind, anchor);
   }
   /** The detail page's install control, repainted whenever the market's cards are. */
@@ -1913,7 +1918,6 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     syncSource();
     const row = ui.h('div', 'world-manual-source'); row.append(source.el, installHelp); manual.body.append(row, manualBar, manualActions);
     {
-      messageNodes.list.textContent = '';
       restartRoot.replaceChildren(...(restartButton ? [restartButton] : []));
       if (!workspace) panel.append(restartRoot);
       const body = ui.h('div', 'world-catalog-body');
@@ -1972,7 +1976,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       panel.append(filters, advanced, registryPanel, body);
     }
     for (const [area, value] of Object.entries(state.messages)) if (messageNodes[area]) { messageNodes[area].textContent = value.text; messageNodes[area].className = 'msgline' + (value.bad ? ' bad' : ''); }
-    messageNodes.list.replaceChildren(...listErrorText ? [listProblem(doc, listErrorText, S.refresh, load)] : []);
+    paintListProblems();
     renderRestart();
     if (!renderMarket()) scrollRoot.scrollTop = keptScroll;
     reflow?.play(marketGrid);

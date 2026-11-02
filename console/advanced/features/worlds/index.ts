@@ -221,19 +221,19 @@ export function mountWorlds(ctx: FeatureContext): void {
     beforeReload: () => {
       try { win.sessionStorage.setItem(layoutKey, JSON.stringify({ positions: [...railNodes].filter(([, node]) => node.parentElement!.dataset.state === 'pending').map(([key, node]) => [key, node.parentElement!.getBoundingClientRect().top]), scroll: railList.scrollTop, at: Date.now() })); } catch { /* Storage may be unavailable. */ }
     },
-    onChange: items => { extensions = items; extensionsReady = true; extensionsListed = true; render(); void load(); },
+    onChange: items => { extensions = items; extensionsReady = true; extensionsListed = true; listError('extensions', ''); render(); void load(); },
     onLoadError: text => { extensionsReady = true; listError('extensions', text); render(); },
     onUpdates: next => { updatable = next; render(); },
     reveal: name => { const item = worldLibrary(worlds, extensions, recent).find(entry => entry.key === name); if (item) reveal(item); },
     onAdded: (name, from) => { const previous = recent.indexOf(name); if (previous >= 0) recent.splice(previous, 1); recent.unshift(name); selected = name; arrival = { key: name, from }; railList.scrollTop = 0; },
   });
   function listError(source: 'worlds' | 'extensions', text: string): void {
+    if ((listErrors.get(source) ?? '') === text) return;
     if (text) listErrors.set(source, text); else listErrors.delete(source);
     feedback.replaceChildren(...[...listErrors].map(([source, text]) => listProblem(doc, text, E.refresh, () => source === 'worlds' ? load() : market!.refresh())));
   }
   function worldProblem(id: string, action: ActionSlot, text: string) {
-    const control = controlOf(id, action) ?? railList.querySelector(`.world-blade[data-world="${CSS.escape(id)}"] .world-name`);
-    if (control) problems.show(control, text);
+    problems.show(() => controlOf(id, action) ?? railList.querySelector(`.world-blade[data-world="${CSS.escape(id)}"] .world-name`), text);
   }
 
   async function reloadPrefix(id: string): Promise<void> {
@@ -677,7 +677,7 @@ export function mountWorlds(ctx: FeatureContext): void {
       const reason = m?.envPromptError || m?.reason || pack?.reason || S.missingReasonDefault;
       const button = ui.h('button', 'world-state world-state-problem') as HTMLButtonElement; button.type = 'button';
       button.append(icon(doc, 'alert'), ui.h('span', '', state)); button.setAttribute('aria-label', `${state}: ${reason}`);
-      button.addEventListener('click', event => { event.stopPropagation(); problems.show(button, reason); }, { signal });
+      button.addEventListener('click', event => { event.stopPropagation(); problems.show(() => railList.querySelector(`.world-blade[data-key="${CSS.escape(item.key)}"] .world-state-problem`), reason); }, { signal });
       stateNode = button;
     }
     row.append(identity, stateNode, signals, actions);

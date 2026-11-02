@@ -6,7 +6,18 @@
 import { icon } from './icons.ts';
 import { S as UI } from './strings.ts';
 
-export interface ProblemPopover { show(anchor: Element, text: string): void; hide(): void }
+/**
+ * The control a popover points at, or a function finding it. A function is asked again whenever the
+ * control it returned leaves the page, so the popover moves to a re-rendered control and closes when
+ * none is found.
+ */
+export type ProblemAnchor = Element | (() => Element | null | undefined);
+export interface ProblemPopover {
+  show(anchor: ProblemAnchor, text: string): void;
+  hide(): void;
+  /** Whether a problem is on show. */
+  readonly open: boolean;
+}
 
 /** A control can remain mounted while its page, drawer or disclosure is hidden. */
 export function problemAnchorVisible(anchor: Element | null | undefined): anchor is Element {
@@ -50,9 +61,10 @@ export function problemPopover(doc: Document, signal: AbortSignal): ProblemPopov
   const box = doc.createElement('div'); box.className = 'u-tip extension-problem hidden'; box.setAttribute('role', 'alert');
   doc.body.append(box);
   signal.addEventListener('abort', () => box.remove(), { once: true });
-  let anchor: Element | null = null;
-  const hide = () => { box.classList.add('hidden'); anchor = null; };
+  let anchor: Element | null = null, find: (() => Element | null | undefined) | null = null;
+  const hide = () => { box.classList.add('hidden'); anchor = find = null; };
   const place = () => {
+    if (find && !anchor?.isConnected) anchor = find() ?? null;
     if (!problemAnchorVisible(anchor)) { hide(); return; }
     const target = anchor.getBoundingClientRect(), view = doc.documentElement;
     const region = anchor.closest('.modalcard, .world-catalog-scroll, .world-workspace, .extension-category');
@@ -86,15 +98,18 @@ export function problemPopover(doc: Document, signal: AbortSignal): ProblemPopov
   signal.addEventListener('abort', () => observer.disconnect(), { once: true });
   return {
     hide,
+    get open() { return !!anchor; },
     show(target, text) {
       const close = doc.createElement('button'); close.type = 'button'; close.className = 'extension-problem-close';
       close.setAttribute('aria-label', UI.close); close.append(icon(doc, 'close'));
       close.addEventListener('click', hide, { signal });
       const message = doc.createElement('span'); message.className = 'extension-problem-text'; message.textContent = text;
       box.replaceChildren(icon(doc, 'alert', 'icon extension-problem-mark'), message, close);
-      anchor = target; box.classList.remove('hidden'); place();
+      if (typeof target === 'function') { find = target; anchor = target() ?? null; } else { find = null; anchor = target; }
+      box.classList.remove('hidden'); place();
+      if (!anchor) return;
       box.animate?.([{ opacity: 0, transform: 'translateY(-4px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 130, easing: 'ease-out' });
-      target.animate?.([0, -5, 5, -3, 2, 0].map(x => ({ transform: `translateX(${x}px)` })), { duration: 290, easing: 'ease-out' });
+      anchor.animate?.([0, -5, 5, -3, 2, 0].map(x => ({ transform: `translateX(${x}px)` })), { duration: 290, easing: 'ease-out' });
     },
   };
 }
