@@ -587,14 +587,6 @@ export class ConsolePageHost {
       return;
     }
 
-    const slot = this.ensurePanes().slot;
-    const existingNote = slot.querySelector<HTMLElement>(':scope > .provider-availability-note');
-    if (page.reason) {
-      const note = existingNote ?? this.ui().msgline('', true);
-      note.classList.add('provider-availability-note');
-      note.textContent = page.reason;
-      if (!existingNote) slot.prepend(note);
-    } else existingNote?.remove();
     const items = this.tabsOf(page);
     // 页头里画的字段与页签都没变时才复用整个页头。
     // The visit that came from the World list keeps its way back while it stays on this page.
@@ -666,7 +658,8 @@ export class ConsolePageHost {
       chrome.appendChild(bar.el);
       this.tabs = { pageId, key, bar };
     }
-
+    // The panel owns its root and may replace everything in it, so the note stays in the chrome.
+    if (page.reason) chrome.appendChild(ui.msgline(page.reason, true));
   }
 
   /** 重载前缀后重新读取 manifest 中的漂移状态。 */
