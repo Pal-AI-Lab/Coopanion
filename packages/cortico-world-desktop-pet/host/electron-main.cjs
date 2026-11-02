@@ -522,9 +522,10 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       await systemPreferences.askForMediaAccess('microphone').catch(() => false);
     }
     session.defaultSession.setPermissionRequestHandler((wc, permission, done) => {
-      done(permission === 'media' && wc.getURL().startsWith(origin));
+      done(permission === 'media' && ours(wc.getURL()));
     });
-    session.defaultSession.setPermissionCheckHandler((wc, permission, requestingOrigin) => permission === 'media' && requestingOrigin === origin);
+    // requestingOrigin ends with '/'; a check that fails leaves the page one input with no id or label
+    session.defaultSession.setPermissionCheckHandler((wc, permission, requestingOrigin) => permission === 'media' && ours(requestingOrigin));
     create();
     screen.on('display-metrics-changed', place);
     screen.on('display-added', place);
