@@ -132,7 +132,7 @@ export async function mountDetail(options: Options): Promise<DetailController> {
       try {
         const result = await post<{ ok: boolean; status: number | null; elapsedMs: number; model?: string; error?: string; hint?: string }>(connectionPath(identity) + '/test', draftBody(), opts);
         if (lifecycle.disposed) return;
-        if (result.ok) testResult.textContent = `${S.testOk} · HTTP ${result.status ?? '—'} · ${(result.elapsedMs / 1000).toFixed(1)}s`;
+        if (result.ok) testResult.textContent = `${S.testOk} · HTTP ${result.status ?? '—'} · ${(result.elapsedMs / 1000).toFixed(1)}s${result.model ? ` · ${result.model}` : ''}`;
         else problem(test, `${S.testFailed}: ${result.hint ?? result.error ?? ''}`);
       } catch (error) {
         if (lifecycle.disposed) return;
