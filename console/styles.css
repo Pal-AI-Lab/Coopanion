@@ -2159,6 +2159,10 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .extension-list-problem[hidden]{display:none}
 .extension-list-problem>span{min-width:0;max-height:240px;overflow-y:auto;overscroll-behavior:contain}
 .extension-list-problem>.btn{flex:none}
+/* Failed reads stacked above the cards or the World list, apart from each other and from what follows. */
+.extension-list-feedback,.world-list-feedback{display:grid;gap:10px}
+.extension-list-feedback{margin-bottom:10px}
+.world-list-feedback{margin-bottom:12px}
 .world-market>.world-list-feedback{flex:none;padding-right:var(--world-inset)}
 /* Error popover beside the control whose operation failed. */
 .extension-problem{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:8px;width:max-content;max-width:min(560px,var(--problem-available-width,calc(100vw - 16px)));padding:10px 8px 10px 11px;pointer-events:auto;line-height:1.55;border-color:color-mix(in srgb,var(--danger) 35%,var(--line-strong))}
