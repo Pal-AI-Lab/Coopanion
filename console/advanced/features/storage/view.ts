@@ -60,7 +60,6 @@ export function createStorageView(deps: StorageViewDeps): StorageView {
   el.append(body, bar);
   bar.classList.add('hidden');
 
-
   function row(p: StoragePartView): HTMLDivElement {
     const item = ui.h('div', 'strow');
     const info = ui.h('div', 'stinfo');

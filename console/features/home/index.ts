@@ -251,7 +251,6 @@ async function mount(ctx: PageContext): Promise<void> {
     renderStatus(await readStatus(signal));
   };
 
-
   const showTest = (r: ConnectResult, line = modelMsg) => {
     if (signal.aborted) return;
     line.textContent = r.ok ? S.testOk(r.ms) : '';

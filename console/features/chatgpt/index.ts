@@ -24,9 +24,9 @@ export const signOutBeforeDelete = (name: string, signal?: AbortSignal): Promise
 /** The account line of the saved `chatgpt` endpoint `name` with its sign-in and sign-out buttons, and the quota note. */
 export function accountRow(ui: WebUi, name: string, signal: AbortSignal): HTMLElement {
   const call = consoleCall(signal);
-  const problem = actionProblem(ui, document, signal);
   let current: SignInState | undefined;
   const line = ui.msgline('');
+  const problem = actionProblem(ui, line.ownerDocument, signal);
   const signIn = ui.button(S.go, { variant: 'primary' });
   const signOut = ui.button(S.signOut, { size: 'sm' });
   signOut.hidden = true;

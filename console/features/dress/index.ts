@@ -60,10 +60,10 @@ async function mount(ctx: PageContext): Promise<void> {
       if (signal.aborted) return;
       readError.replaceChildren();
     } catch (err) {
+      // State is read only until the frame gets its address, so a failed read has no frame to keep.
       if (!signal.aborted) {
-        const text = err instanceof Error ? err.message : String(err);
-        if (frame.dataset.src) ui.toast(text, 'bad');
-        else { note.hidden = true; readError.replaceChildren(listProblem(root.ownerDocument, text, COMMON.retry, refresh)); }
+        note.hidden = true;
+        readError.replaceChildren(listProblem(root.ownerDocument, err instanceof Error ? err.message : String(err), COMMON.retry, refresh));
       }
       return;
     }

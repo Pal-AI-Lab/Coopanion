@@ -129,7 +129,6 @@ export function cuaSection(ctx: PageContext, row: Row): { el: HTMLElement; sync(
     try {
       await setConfig(CUA_GROUP, { [key]: value }, opts);
       saved[key] = value;
-
     } catch (err) {
       if (!signal.aborted) { sync(saved); problem(anchors[key], S.saveFailed(errText(err))); }
     }

@@ -295,11 +295,11 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
       const data = await get<{ prompts?: PromptDoc[] }>('/api/prompts', { signal });
       if (signal.aborted) return;
       loaded = true;
-    for (const e of editors) e.dispose();
-    editors = [];
-    el.replaceChildren();
-    dirty.clear();
-    closePopup();
+      for (const e of editors) e.dispose();
+      editors = [];
+      el.replaceChildren();
+      dirty.clear();
+      closePopup();
       const docs = (data?.prompts ?? []).filter((p) => wanted.has(p.key));
       if (!docs.length) { el.appendChild(ui.placeholder(S.noTemplatesScoped)); return; }
       for (const source of docs) {
