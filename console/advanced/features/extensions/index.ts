@@ -1871,7 +1871,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     panel.replaceChildren(); messageNodes = {};
     const restartButton = canRestart ? ui.button(S.restartProcess, { onClick: () => void restart() }) : undefined;
     restartButton?.classList.add('extension-restart');
-    messageNodes.list = ui.msgline(); messageNodes.list.setAttribute('role', 'status');
+    messageNodes.list = ui.msgline(); messageNodes.list.classList.add('extension-list-feedback'); messageNodes.list.setAttribute('role', 'status');
     // Page state: the restart's wait beside the restart control (a World page has its own place for it); failed update checks and incomplete results above the catalog's body.
     for (const area of [...workspace ? [] : ['restart'], 'updates', 'index']) { messageNodes[area] = ui.msgline(); messageNodes[area].setAttribute('role', 'status'); }
     const filters = ui.rowbar(); filters.classList.add('extension-toolbar');

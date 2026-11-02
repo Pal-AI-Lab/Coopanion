@@ -11,6 +11,7 @@ export const S: Partial<typeof en> = {
   on: 'Activado',
   autoSaves: 'Los cambios se guardan automáticamente.',
   saved: 'Guardado.',
+  unsaved: '● Sin guardar',
   worldRestartPending: 'Algunos cambios surten efecto al reiniciar el World.',
   leaveBlank: 'Dejar vacío',
   saving: 'Guardando…',

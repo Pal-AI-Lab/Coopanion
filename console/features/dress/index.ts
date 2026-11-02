@@ -7,6 +7,9 @@
  * writes the deployment's theme.json); while this page is open it reads that record every
  * `THEME_POLL_MS` and applies it when the scheme or mode differs from what the window shows.
  */
+
+import { listProblem } from '../../base/ui/problem.ts';
+import { S as COMMON } from '../../base/ui/strings.ts';
 import { invokePanel } from '../../base/api.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { applyStoredTheme, disposeThemeStudio, getThemeStudio } from '../../base/theme/studio.ts';
@@ -29,7 +32,9 @@ async function mount(ctx: PageContext): Promise<void> {
   frame.title = S.nav;
   // shown only while the pet is not ready
   const note = ui.h('p', null, S.noPet);
-  root.append(intro(ui, S.nav, { desc: note }), frame);
+  const readError = ui.h('div');
+  frame.hidden = true;
+  root.append(intro(ui, S.nav), note, readError, frame);
 
   const doc = root.ownerDocument;
   const appearance = () => doc.documentElement.dataset.colorMode === 'dark' ? 'dark' : 'light';
@@ -52,7 +57,16 @@ async function mount(ctx: PageContext): Promise<void> {
     let url: string | null = null;
     try {
       url = (await invokePanel<{ dressUrl: string | null }>(PET_PAGE, 'pet', 'state', [], { signal }))?.dressUrl ?? null;
-    } catch { url = null; }
+      if (signal.aborted) return;
+      readError.replaceChildren();
+    } catch (err) {
+      // State is read only until the frame gets its address, so a failed read has no frame to keep.
+      if (!signal.aborted) {
+        note.hidden = true;
+        readError.replaceChildren(listProblem(root.ownerDocument, err instanceof Error ? err.message : String(err), COMMON.retry, refresh));
+      }
+      return;
+    }
     frame.hidden = !url;
     note.hidden = !!url;
     if (url && frame.dataset.src !== url) {

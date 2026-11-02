@@ -54,10 +54,26 @@ afterEach(async () => {
   life?.dispose();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   server.closeAllConnections();
   await new Promise((resolve) => server.close(resolve));
   document.body.replaceChildren();
 });
+
+/**
+ * Lays the computer-use section out on screen and everything else off it: an error then opens in
+ * the popover only when the control it is anchored to is in that section, and as a toast otherwise.
+ */
+function layOut(section) {
+  Object.defineProperty(document.documentElement, 'clientHeight', { configurable: true, value: 600 });
+  Object.defineProperty(document.documentElement, 'clientWidth', { configurable: true, value: 800 });
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function () {
+    const top = section.contains(this) ? 200 : -100;
+    return { left: 100, top, right: 300, bottom: top + 30, width: 200, height: 30 };
+  });
+}
+/** The text of the error popover anchored in the laid-out section; null when none is open. */
+const sectionProblem = () => (document.querySelector('.toast') ? null : document.querySelector('.extension-problem:not(.hidden)')?.textContent ?? null);
 
 /** The 「习惯」 page; `loaded` waits for the section to show Core's values. */
 async function mount(loaded = true) {
@@ -78,6 +94,7 @@ async function mount(loaded = true) {
 
 it('restores the last saved switches and permission after a rejected write', async () => {
   const { section, enabled, control, level } = await mount();
+  layOut(section);
   rejectWrites = true;
   enabled.click();
   await vi.waitFor(() => expect(enabled.checked).toBe(true));
@@ -85,7 +102,7 @@ it('restores the last saved switches and permission after a rejected write', asy
   await vi.waitFor(() => expect(control.checked).toBe(true));
   level('never-ask').click();
   await vi.waitFor(() => expect(level('ask-once').classList.contains('active')).toBe(true));
-  expect(section.textContent).toContain(S.saveFailed('write failed'));
+  expect(sectionProblem()).toContain(S.saveFailed('write failed'));
   expect(values[key('enabled')]).toBe(true);
 });
 
@@ -119,11 +136,12 @@ it('keeps a pending confirmation and a focused grant edit intact during polling'
   expect(enabled.checked).toBe(true);
   document.querySelector('.confirm-card button').click();
   await vi.waitFor(() => expect(enabled.checked).toBe(false));
+  layOut(section);
   grant.focus();
   grant.value = '75';
   rejectWrites = true;
   grant.dispatchEvent(new Event('change', { bubbles: true }));
-  await vi.waitFor(() => expect(section.textContent).toContain(S.saveFailed('write failed')));
+  await vi.waitFor(() => expect(sectionProblem()).toContain(S.saveFailed('write failed')));
   await vi.advanceTimersByTimeAsync(3000);
   expect(grant.value).toBe('75');
   grant.blur();

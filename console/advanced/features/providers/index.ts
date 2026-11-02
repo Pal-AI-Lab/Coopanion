@@ -1,3 +1,5 @@
+import { actionProblem, listProblem } from '../../../base/ui/problem.ts';
+import { S as COMMON } from '../../../base/ui/strings.ts';
 import { pageIntro } from '../../../base/ui/page.ts';
 import { pageTabs } from '../../../base/ui/page-tabs.ts';
 import { mountExtensionContent, type ExtensionController } from '../extensions/index.ts';
@@ -45,9 +47,16 @@ export function mountProviders(ctx: FeatureContext): void {
     started.add(next);
     const child = { ...ctx, root: panes[next], route: router.route };
     if (next === 'market') catalog = mountExtensionContent(child, 'provider');
-    else void mountConnections(child).catch(error => {
-      if (!signal.aborted) settings.replaceChildren(ui.msgline(String(error), true));
-    });
+    else {
+      const load = async (): Promise<void> => {
+        settings.replaceChildren();
+        try { await mountConnections(child); }
+        catch (error) {
+          if (!signal.aborted) settings.replaceChildren(listProblem(root.ownerDocument, error instanceof Error ? error.message : String(error), COMMON.retry, load));
+        }
+      };
+      void load();
+    }
   };
   ctx.lifecycle.own(router.onChange(show));
   show();
@@ -55,17 +64,18 @@ export function mountProviders(ctx: FeatureContext): void {
 
 async function mountConnections(ctx: FeatureContext): Promise<void> {
   const { ui, root } = ctx;
-  const report = ui.msgline();
+  const report = ui.msgline('', true);
   const layout = ui.h('div', 'connection-hub');
   const index = ui.h('div', 'connection-index');
   const cards = ui.h('div', 'connection-cards');
   const detailRoot = ui.h('div', 'connection-detail');
-  layout.append(index, detailRoot); root.append(report, layout);
+  layout.append(index, detailRoot); root.append(layout);
   const opts = { signal: ctx.signal };
   let state = await get<HubState>('/api/providers', opts);
   state.providers.sort((a, b) => Number(b.name === state.active) - Number(a.name === state.active));
   const modules = await get<Module[]>('/api/provider-modules', opts);
   if (ctx.signal.aborted) return;
+  const problem = actionProblem(ui, root.ownerDocument, ctx.signal);
   const drafts = providerDrafts(root.ownerDocument.defaultView!.localStorage, state.scope);
   let selected = '';
   let newDraft: Editing | null = drafts.get(NEW_DRAFT_ID);
@@ -79,7 +89,7 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
   const nodes = new Map<string, CardNode>();
   const rows = new Map<string, Connection>();
   const doc = root.ownerDocument;
-  const run = (work: () => Promise<unknown>) => { void work().catch(error => { if (!ctx.signal.aborted) report.textContent = String(error); }); };
+  const run = (work: () => Promise<unknown>, anchor?: HTMLElement) => { void work().catch(error => problem(anchor, (error instanceof Error ? error.message : String(error)))); };
   // 卡片的先后由用户拖动决定，按部署记在本机；没排过时沿用列表本来的顺序。
   const orderKey = `coopanion.provider-order.v1:${state.scope}`;
   const storage = root.ownerDocument.defaultView!.localStorage;
@@ -125,15 +135,15 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
           activate.disabled = true;
           try { await post(connectionPath(identity) + '/activate', {}, opts); state.active = identity; paint(); }
           finally { activate.disabled = false; }
-        }) });
+        }, activate) });
         activate.classList.add('connection-activate');
         activate.setAttribute('aria-label', S.activate); activate.title = S.activate;
         const connect = ui.h('div', 'connection-connect'); connect.append(activate, ui.h('span', 'connection-connect-label', S.connect));
         const erase = eraseButton(identity);
         el.append(erase, title, facts, status, secondary, connect);
         el.tabIndex = 0;
-        el.addEventListener('keydown', event => { if (event.target === el && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); run(() => select(identity)); } }, opts);
-        el.addEventListener('click', event => { if (!(event.target as Element).closest('button')) run(() => select(identity)); }, opts);
+        el.addEventListener('keydown', event => { if (event.target === el && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); run(() => select(identity), el); } }, opts);
+        el.addEventListener('click', event => { if (!(event.target as Element).closest('button')) run(() => select(identity), el); }, opts);
         if (identity === NEW_DRAFT_ID) cards.prepend(el); else cards.append(el);
         node = { el, title, kind, model, status, secondary, activate, erase }; nodes.set(identity, node);
       }
@@ -179,7 +189,7 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
         const current = await get<Detail>(connectionPath(identity), opts);
         if (current.references.length) { await notice(ui, { title: S.remove, body: S.referenced + current.references.join(', ') }); return; }
         if (await ui.confirm({ title: S.remove, body: S.deleteConfirm, danger: true })) await remove(identity);
-      });
+      }, el);
     }, opts);
     return el;
   }
@@ -199,7 +209,7 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
     await refresh();
     if (selected === identity) await select(fallback(), true);
   }
-  async function refresh() { state = await get<HubState>('/api/providers', opts); paint(); }
+  async function refresh() { state = await get<HubState>('/api/providers', opts); if (ctx.signal.aborted) return; paint(); }
   async function select(identity: string, force = false): Promise<void> {
     if (!force && identity === selected) return;
     const scrollTop = identity === selected ? detailRoot.scrollTop : 0;
@@ -214,8 +224,10 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
       return;
     }
     try { await openDetail(identity, gen, scrollTop); } catch (error) {
-      if (gen === renderId) { detailRoot.replaceChildren(); detailRoot.toggleAttribute('inert', false); }
-      throw error;
+      if (gen === renderId && !ctx.signal.aborted) {
+        detailRoot.toggleAttribute('inert', false);
+        detailRoot.replaceChildren(listProblem(doc, (error instanceof Error ? error.message : String(error)), COMMON.retry, () => select(identity, true)));
+      }
     }
   }
   async function openDetail(identity: string, gen: number, scrollTop: number): Promise<void> {
@@ -289,7 +301,7 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
   }, ctx.signal);
   const creator = ui.h('div', 'connection-create');
   creator.append(ui.button(S.create, { variant: 'primary', onClick: () => run(create) }), ui.h('p', 'connection-create-hint', S.createHint));
-  index.append(creator, cards);
+  index.append(creator, report, cards);
   ctx.lifecycle.own({ dispose: () => { renderId++; controller?.dispose(); } });
   let routeName = ctx.route.segments[1];
   ctx.lifecycle.own(ctx.router.onChange(route => {
@@ -300,10 +312,14 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
   }));
   // Other deployments' selections and liveness change without this page; the detail form is left alone.
   let refreshing = false;
+  let refreshFailed = false;
   ctx.lifecycle.interval(() => {
     if (refreshing) return;
     refreshing = true;
-    run(async () => { try { await refresh(); } finally { refreshing = false; } });
+    void refresh().then(() => { refreshFailed = false; }).catch(error => {
+      if (!ctx.signal.aborted && !refreshFailed) ui.toast(error instanceof Error ? error.message : String(error), 'bad');
+      refreshFailed = true;
+    }).finally(() => { refreshing = false; });
   }, USAGE_REFRESH_MS);
   paint();
   const wanted = ctx.route.segments[1] ?? (newDraft ? NEW_DRAFT_ID : undefined);

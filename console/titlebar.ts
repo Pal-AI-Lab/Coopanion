@@ -4,6 +4,8 @@ import { readThemeColor } from './base/theme/palette.ts';
 import { S as THEME } from './base/theme/strings.ts';
 import { mountRelease } from './features/release.ts';
 import { L } from './strings.ts';
+import { problemPopover } from './base/ui/problem.ts';
+import { S as SCHEMES } from './features/schemes/strings.ts';
 
 declare global {
   interface Window {
@@ -34,9 +36,10 @@ export function createTitlebar(doc: Document, toggle: HTMLButtonElement, signal:
   };
   const back = button(L.goBack, '<path d="m14.5 6-6 6 6 6"/>', () => win.history.back());
   const forward = button(L.goForward, '<path d="m9.5 6 6 6-6 6"/>', () => win.history.forward());
+  const problem = problemPopover(doc, signal);
   const appearance = button('', '', () => {
     const studio = getThemeStudio();
-    studio.setMode(studio.appearance === 'dark' ? 'light' : 'dark');
+    studio.setMode(studio.appearance === 'dark' ? 'light' : 'dark', text => problem.show(appearance, SCHEMES.saveFailed(text)));
   });
   actions.append(back, forward, toggle, appearance);
   const release = doc.createElement('div');

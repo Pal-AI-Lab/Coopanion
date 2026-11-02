@@ -1,6 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  retry: 'Erneut versuchen',
   copy: 'Kopieren',
   copyNothing: 'Nichts zu kopieren',
   copied: 'Kopiert',

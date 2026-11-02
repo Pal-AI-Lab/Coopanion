@@ -658,6 +658,7 @@ export class ConsolePageHost {
       chrome.appendChild(bar.el);
       this.tabs = { pageId, key, bar };
     }
+    // The panel owns its root and may replace everything in it, so the note stays in the chrome.
     if (page.reason) chrome.appendChild(ui.msgline(page.reason, true));
   }
 
