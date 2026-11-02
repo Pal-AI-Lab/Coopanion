@@ -1,7 +1,7 @@
 /**
  * 「习惯」: the everyday settings of the desktop pet, in sections: 通用 (language, what Coo calls you, Coo's
  * name, automatic updates and anonymous usage statistics in the `companion` group), 行为与互动, 显示,
- * 音效, 电脑操作 (features/cua) and 其他 (the OBS overlay, the Chat page's context ring). Every row names its
+ * 音效, 电脑操作 (features/cua), 表情决策 (features/decider) and 其他 (the OBS overlay, the Chat page's context ring). Every row names its
  * setting in the label column, except one that only refines the row above it. In each row the setting
  * comes first and what it means under it. An on/off setting is a switch; picks among several (sound
  * kinds, the popups) are checkboxes. Most are written to the desktop-pet World's config group through `/api/config` (only the keys shown here are sent). The pet's own menu
@@ -37,6 +37,7 @@ import { get, invokePanel, setConfig } from '../../base/api.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { intro } from '../intro.ts';
 import { CUA_GROUP, cuaSection } from '../cua/index.ts';
+import { DECIDER_GROUP, deciderSection, type DeciderState } from '../decider/index.ts';
 import { announceName } from '../bot-name.ts';
 import { scaleSlider } from './scale-slider.ts';
 import { S } from './strings.ts';
@@ -99,6 +100,7 @@ const SELF_DEFAULT: readonly string[] = ['figure', 'scheme', 'roam', 'snoreSecon
 
 /** What the pet panel's state says of the two rows and of the typing key. */
 interface HabitState {
+  decider?: DeciderState;
   wake?: { wakeOn: string; wakeKinds: string[] };
   selfAdjust?: { mode: string; custom: Record<string, boolean> };
   typeKey?: TypeKeyState;
@@ -524,7 +526,8 @@ async function mount(ctx: PageContext): Promise<void> {
     speedRow,
   );
   const cua = cuaSection(ctx, row);
-  root.append(sounds.el, speechSheet.el, cua.el);
+  const decider = deciderSection(ctx, row);
+  root.append(sounds.el, speechSheet.el, cua.el, decider.el);
 
   /* ---------- other: the OBS overlay, the context ring ---------- */
   const other = ui.sheet({ title: S.groupOther });
@@ -610,6 +613,7 @@ async function mount(ctx: PageContext): Promise<void> {
     let soundValues: Record<string, unknown> = {};
     let statsValues: Record<string, unknown> = {};
     let nameValues: Record<string, unknown> = {};
+    let deciderValues: Record<string, unknown> = {};
     try {
       const d = await get<{ groups?: ConfigEntry[] }>('/api/config', opts);
       values = d.groups?.find((g) => g.group.id === GROUP)?.values ?? {};
@@ -617,6 +621,7 @@ async function mount(ctx: PageContext): Promise<void> {
       statsValues = d.groups?.find((g) => g.group.id === STATS_GROUP)?.values ?? {};
       nameValues = d.groups?.find((g) => g.group.id === NAME_GROUP)?.values ?? {};
       cua.sync(d.groups?.find((g) => g.group.id === CUA_GROUP)?.values ?? {});
+      deciderValues = d.groups?.find((g) => g.group.id === DECIDER_GROUP)?.values ?? {};
     } catch { return; }
     if (typeof statsValues[STATS_KEY] === 'boolean') stats.setChecked(statsValues[STATS_KEY] as boolean);
     autoUpdateRow.hidden = typeof statsValues[AUTO_UPDATE_KEY] !== 'boolean';
@@ -668,6 +673,7 @@ async function mount(ctx: PageContext): Promise<void> {
     if (typeof values[KEYS.overlay] === 'boolean') overlay.setChecked(values[KEYS.overlay] as boolean);
     // a popup open over the page keeps the rows as they are until it is saved or closed
     const state = await habitState;
+    decider.sync(deciderValues, state?.decider);
     if (!root.ownerDocument.querySelector('.companion-popup')) takeHabits(state);
     overlayUrl.value = state?.overlayUrl ?? '';
     overlayUrlBox.hidden = !overlay.checked || !overlayUrl.value;
