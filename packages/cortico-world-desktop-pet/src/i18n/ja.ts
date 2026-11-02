@@ -143,7 +143,6 @@ const ja: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `読み込める zip ではありません：${why}`,
-    tooBig: (mb: number) => `展開後のサイズが ${mb} MB を超えています`,
     truncated: 'アップロードが不完全です',
     badPath: (path: string) => `使えないパスがあります：${path}`,
     builtinId: (id: string) => `id ${id} は内蔵アバターのものです。インポートするには id を変えてください`,
@@ -152,7 +151,6 @@ const ja: Translation<PetText> = {
     expired: 'このインポートは期限切れです。ファイルを選び直してください',
     noneChosen: 'パックが選ばれていません',
     zipOrFolder: 'インポートできるのは zip またはフォルダーだけです',
-    overLimit: (mb: number) => `${mb} MB を超えています`,
   },
 
   removing: {
@@ -199,7 +197,7 @@ const ja: Translation<PetText> = {
       pet: { title: 'デスクトップペット', description: 'ウィンドウ、着せ替え、ウィンドウのランタイム。' },
       voice: { title: '音声入力', description: '認識エンジン、入力レベル、聞き取った内容。' },
     },
-    envPrompt: { title: 'デスクトップペットの環境', description: 'ペットの体、4 つのツール、入力イベントの説明。' },
+    envPrompt: { title: 'デスクトップペットの環境', description: 'ペットの体、ツール、入力イベントの説明。' },
     vars: {
       'pet.user': 'ボットがユーザーを呼ぶ名前',
       'pet.vocab': '現在のアバターの表情と動作',
@@ -244,6 +242,7 @@ const ja: Translation<PetText> = {
     touchEnabled: { title: 'ふれあいをイベントにする', description: 'つつく、なでる、持ち上げて投げる。' },
     touchWakeOn: { title: '反応モード', description: 'poke：つついたときだけすぐに反応し、ほかのふれあいは次の反応時にまとめて届きます。all：すべてのふれあいにすぐ反応します。none：すべてのふれあいは次の反応時にまとめて届きます。custom：「ふるまい」ページでチェックしたふれあいにすぐ反応します。一度反応したあと、そのターンが終わるまでのふれあいは次の反応時にまとめて届きます。' },
     sound: { title: 'すべてのサウンド', description: 'ペットのメニューのサウンドボタンでこれを切り替えます。' },
+    volume: { title: '音量' },
     sounds: {
       move: { title: '動き', description: '歩く、走る、跳ぶ、着地、投げられる、うなずく、首を振る、回る、目を回す、震える、踊る、見回す。' },
       touch: { title: 'ふれあい', description: '持ち上げられる、振り回される、なでられる、つつかれる。' },
@@ -253,6 +252,7 @@ const ja: Translation<PetText> = {
       ui: { title: 'ボタンと合図', description: 'ボタンのクリック、吹き出しが開く音、選択、聞き取りの開始と終了。' },
     },
     snoreSeconds: { title: 'いびきの長さ', suffix: '秒', description: '眠るたびに、この時間いびきをかいたあと静かになります。z の文字は浮かび続けます。0 = 起きるまでいびきをかく。' },
+    panByPosition: { title: '位置に合わせて左右に振り分ける', description: 'Coo がいる側から音が聞こえます。オフにすると中央で鳴ります。' },
     speech: { title: 'おしゃべり声', description: '吹き出しに文字が出るたびに音節を読み上げ、「おしゃべり」の効果音の代わりに鳴らします。「おしゃべり」をオフにすると鳴りません。' },
     speechPitch: { title: 'おしゃべり声の高さ', description: (a: number, b: number, c: number) => `low、mid、high はそれぞれ ${a}、${b}、${c} Hz。custom はカスタムの高さを使います。` },
     speechPitchHz: { title: 'カスタムの高さ' },
@@ -271,13 +271,11 @@ const ja: Translation<PetText> = {
   },
 
   panel: {
-    pet: 'デスクトップペット',
     window: 'ペットのウィンドウ',
     openWindow: 'ウィンドウを開く',
     closeWindow: 'ウィンドウを閉じる',
     runtime: 'ウィンドウのランタイム',
     install: 'インストール',
-    viewInBrowser: 'ブラウザーで見る',
     dress: '着せ替え',
     dressHint: '変更はすぐに保存され、ペットのウィンドウに反映されます',
     connected: '接続済み',
@@ -292,7 +290,6 @@ const ja: Translation<PetText> = {
     noBuild: 'このプラットフォーム用のビルド済みパッケージがありません',
     electronSize: 'Electron 44.4.4、約 150 MB',
 
-    voice: '音声入力',
     enable: '音声入力をオンにする',
     enabledHint: 'マイクは開いたままで、話した内容は聞き取り方の設定どおり Coo に届きます',
     enabledHintOnPress: '発話キーを押している間だけマイクを開き、離すと閉じます',

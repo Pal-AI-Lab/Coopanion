@@ -143,7 +143,6 @@ const de: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Kein lesbares ZIP: ${why}`,
-    tooBig: (mb: number) => `Entpackt über ${mb} MB`,
     truncated: 'Der Upload ist unvollständig',
     badPath: (path: string) => `Ein Pfad ist nicht verwendbar: ${path}`,
     builtinId: (id: string) => `id ${id} gehört zu einer eingebauten Figur; ändere die id, um es zu importieren`,
@@ -152,7 +151,6 @@ const de: Translation<PetText> = {
     expired: 'Dieser Import ist abgelaufen; wähle die Dateien erneut',
     noneChosen: 'Kein Paket gewählt',
     zipOrFolder: 'Nur ein ZIP oder Ordner können importiert werden',
-    overLimit: (mb: number) => `Über ${mb} MB`,
   },
 
   removing: {
@@ -199,7 +197,7 @@ const de: Translation<PetText> = {
       pet: { title: 'Desktop-Haustier', description: 'Das Fenster, das Outfit und die Fenster-Laufzeit.' },
       voice: { title: 'Spracheingabe', description: 'Erkennungs-Engine, Eingangspegel und was gehört wurde.' },
     },
-    envPrompt: { title: 'Desktop-Haustier-Umgebung', description: 'Beschreibt den Körper des Haustiers, die vier Tools und die Eingabeereignisse.' },
+    envPrompt: { title: 'Desktop-Haustier-Umgebung', description: 'Beschreibt den Körper des Haustiers, die Tools und die Eingabeereignisse.' },
     vars: {
       'pet.user': 'Wie der Bot die Person nennt',
       'pet.vocab': 'Die Ausdrücke und Bewegungen der aktuellen Figur',
@@ -244,6 +242,7 @@ const de: Translation<PetText> = {
     touchEnabled: { title: 'Berührungen werden zu Ereignissen', description: 'Anstupsen, Streicheln, Hochheben und Werfen.' },
     touchWakeOn: { title: 'Reaktionsmodus', description: 'poke: Nur Anstupsen bekommt sofort eine Reaktion; andere Berührungen warten auf die nächste. all: Jede Berührung bekommt sofort eine. none: Jede Berührung wartet auf die nächste Reaktion. custom: Die auf der Seite „Gewohnheiten“ angehakten Berührungen bekommen sofort eine. Nach einer Reaktion warten die Berührungen bis zum Ende dieser Runde auf die nächste.' },
     sound: { title: 'Alle Töne', description: 'Die Ton-Schaltfläche im Menü des Haustiers schaltet das um.' },
+    volume: { title: 'Lautstärke' },
     sounds: {
       move: { title: 'Bewegung', description: 'Gehen, Rennen, Springen, Landen, Geworfenwerden, Nicken, Kopfschütteln, Drehen, Schwindel, Zittern, Tanzen, Umherschauen.' },
       touch: { title: 'Berührung', description: 'Hochgehoben, geschwungen, gestreichelt, angestupst werden.' },
@@ -253,6 +252,7 @@ const de: Translation<PetText> = {
       ui: { title: 'Schaltflächen und Signale', description: 'Schaltflächenklicks, sich öffnende Sprechblasen, Auswahlen sowie Beginn und Ende des Zuhörens.' },
     },
     snoreSeconds: { title: 'Schnarchdauer', suffix: 's', description: 'In jedem Schlaf wird das Haustier nach so langem Schnarchen still; die Zs schweben weiter. 0 = schnarchen bis zum Aufwachen.' },
+    panByPosition: { title: 'Nach Position verteilen', description: 'Töne kommen von der Seite, auf der Coo steht; aus, werden sie mittig abgespielt.' },
     speech: { title: 'Stimme', description: 'Spricht für jedes Zeichen, das in einer Sprechblase erscheint, eine Silbe statt des Plapperns von Sprechen; stumm, solange Sprechen-Töne aus sind.' },
     speechPitch: { title: 'Stimmhöhe', description: (a: number, b: number, c: number) => `low, mid und high sind ${a}, ${b} und ${c} Hz; custom nimmt die eigene Höhe.` },
     speechPitchHz: { title: 'Eigene Höhe' },
@@ -271,13 +271,11 @@ const de: Translation<PetText> = {
   },
 
   panel: {
-    pet: 'Desktop-Haustier',
     window: 'Haustier-Fenster',
     openWindow: 'Fenster öffnen',
     closeWindow: 'Fenster schließen',
     runtime: 'Fenster-Laufzeit',
     install: 'Installieren',
-    viewInBrowser: 'Im Browser ansehen',
     dress: 'Einkleiden',
     dressHint: 'Änderungen werden sofort gespeichert und erreichen das Haustier-Fenster',
     connected: 'Verbunden',
@@ -292,7 +290,6 @@ const de: Translation<PetText> = {
     noBuild: 'Kein vorgefertigtes Paket für diese Plattform',
     electronSize: 'Electron 44.4.4, etwa 150 MB',
 
-    voice: 'Spracheingabe',
     enable: 'Spracheingabe einschalten',
     enabledHint: 'Das Mikrofon bleibt offen; was du sagst, geht je nach Zuhörmodus an Coo',
     enabledHintOnPress: 'Das Mikrofon öffnet sich, solange die Sprechtaste gehalten wird, und schließt sich nach dem Loslassen',

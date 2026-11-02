@@ -27,9 +27,9 @@ const zhHant: Translation<CuaText> = {
     onDemand: '需要時啟動',
     exited: (code: number | null) => `引擎處理程序結束（結束代碼 ${code}）`,
     allowed: '允許',
-    viewOnly: '只看',
+    viewOnly: '只查看',
     asking: '詢問',
-    levels: { 'ask-each-turn': '每輪', 'ask-before-acting': '動手前', 'ask-once': (minutes: number) => `每 ${minutes} 分鐘一次`, 'never-ask': '不問' },
+    levels: { 'ask-each-turn': '每輪', 'ask-before-acting': '動手前', 'ask-once': (minutes: number) => `每 ${minutes} 分鐘一次`, 'never-ask': '不詢問' },
   },
 
   config: {
@@ -38,7 +38,7 @@ const zhHant: Translation<CuaText> = {
     control: { title: '允許操作滑鼠和鍵盤', description: '關閉後只能截圖和列出視窗。' },
     permission: { title: '詢問時機', description: 'ask-each-turn：每輪查看螢幕或操作前都詢問；ask-before-acting：查看螢幕不詢問，每輪操作滑鼠鍵盤前詢問；ask-once：查看螢幕不詢問，操作前詢問一次，同意後在「同意有效期」內不再詢問；never-ask：從不詢問。沒有開啟「關閉使用終端和執行前的詢問」時，無論選哪一檔，在命令列視窗裡輸入或按鍵、按 win+r 之前，都會單獨詢問一次，同意後在「同意有效期」內不再詢問。' },
     grantMinutes: { title: '同意有效期', suffix: '分鐘', description: '對 ask-once 和命令列視窗的單獨詢問有效。' },
-    skipTerminalAsk: { title: '關閉使用終端和執行前的詢問', description: '開啟後，在命令列視窗裡輸入或按鍵、按 win+r 之前不再單獨詢問，和其他操作一樣按「詢問時機」詢問。詢問時機是 never-ask 時，Coo 能不經詢問執行命令。' },
+    skipTerminalAsk: { title: '關閉使用命令列視窗和執行前的詢問', description: '開啟後，在命令列視窗裡輸入或按鍵、按 win+r 之前不再單獨詢問，和其他操作一樣按「詢問時機」詢問。詢問時機是 never-ask 時，Coo 能不經詢問執行命令。' },
     userIdleMs: { title: '讓位時長', description: '你操作滑鼠或鍵盤後，需靜止這麼久才繼續操作。' },
     maxYieldWaitMs: { title: '讓位最多等待' },
     maxWidth: { title: '截圖最大寬度' },

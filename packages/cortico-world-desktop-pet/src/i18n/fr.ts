@@ -143,7 +143,6 @@ const fr: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Zip illisible : ${why}`,
-    tooBig: (mb: number) => `Plus de ${mb} Mo une fois décompressé`,
     truncated: "L'envoi est incomplet",
     badPath: (path: string) => `Un chemin est inutilisable : ${path}`,
     builtinId: (id: string) => `l'id ${id} appartient à un personnage intégré ; changez l'id pour l'importer`,
@@ -152,7 +151,6 @@ const fr: Translation<PetText> = {
     expired: 'Cette importation a expiré ; choisissez à nouveau les fichiers',
     noneChosen: 'Aucun pack choisi',
     zipOrFolder: 'Seuls un zip ou des dossiers peuvent être importés',
-    overLimit: (mb: number) => `Plus de ${mb} Mo`,
   },
 
   removing: {
@@ -199,7 +197,7 @@ const fr: Translation<PetText> = {
       pet: { title: 'Compagnon de bureau', description: "La fenêtre, la tenue et l'environnement d'exécution de la fenêtre." },
       voice: { title: 'Saisie vocale', description: "Moteur de reconnaissance, niveau d'entrée et ce qui a été entendu." },
     },
-    envPrompt: { title: 'Environnement du compagnon de bureau', description: "Décrit le corps du compagnon, les quatre outils et les événements d'entrée." },
+    envPrompt: { title: 'Environnement du compagnon de bureau', description: "Décrit le corps du compagnon, les outils et les événements d'entrée." },
     vars: {
       'pet.user': 'Comment le bot appelle la personne',
       'pet.vocab': 'Les expressions et mouvements du personnage actuel',
@@ -244,6 +242,7 @@ const fr: Translation<PetText> = {
     touchEnabled: { title: 'Les contacts deviennent des événements', description: 'Petits coups, caresses, se faire soulever et lancer.' },
     touchWakeOn: { title: 'Mode de réponse', description: 'poke : seul un petit coup obtient une réponse immédiate ; les autres contacts attendent la prochaine réponse. all : chaque contact obtient une réponse immédiate. none : chaque contact attend la prochaine réponse. custom : les contacts cochés sur la page Habitudes obtiennent une réponse immédiate. Après une réponse, les contacts jusqu’à la fin de ce tour attendent la suivante.' },
     sound: { title: 'Tous les sons', description: 'Le bouton son du menu du compagnon bascule ce réglage.' },
+    volume: { title: 'Volume' },
     sounds: {
       move: { title: 'Mouvements', description: 'Marcher, courir, sauter, atterrir, se faire lancer, hocher la tête, la secouer, tourner, vertige, frissons, danser, regarder autour.' },
       touch: { title: 'Contact', description: 'Se faire soulever, balancer, caresser, tapoter.' },
@@ -253,6 +252,7 @@ const fr: Translation<PetText> = {
       ui: { title: 'Boutons et signaux', description: "Clics de boutons, ouverture des bulles, sélections, début et fin de l'écoute." },
     },
     snoreSeconds: { title: 'Durée des ronflements', suffix: 's', description: "À chaque sommeil, le compagnon se tait après avoir ronflé ce temps ; les z continuent de flotter. 0 = ronfler jusqu'au réveil." },
+    panByPosition: { title: 'Répartir selon la position', description: 'Les sons penchent du côté où se trouve Coo ; désactivé, ils sont joués au centre.' },
     speech: { title: 'Voix', description: 'Prononce une syllabe à chaque caractère qui apparaît dans une bulle, à la place du babil de Parole ; muette quand les sons Parole sont coupés.' },
     speechPitch: { title: 'Hauteur de la voix', description: (a: number, b: number, c: number) => `low, mid et high valent ${a}, ${b} et ${c} Hz ; custom utilise la hauteur personnalisée.` },
     speechPitchHz: { title: 'Hauteur personnalisée' },
@@ -271,13 +271,11 @@ const fr: Translation<PetText> = {
   },
 
   panel: {
-    pet: 'Compagnon de bureau',
     window: 'Fenêtre du compagnon',
     openWindow: 'Ouvrir la fenêtre',
     closeWindow: 'Fermer la fenêtre',
     runtime: "Environnement d'exécution",
     install: 'Installer',
-    viewInBrowser: 'Voir dans le navigateur',
     dress: 'Habiller',
     dressHint: 'Les modifications sont enregistrées aussitôt et transmises à la fenêtre du compagnon',
     connected: 'Connectée',
@@ -292,7 +290,6 @@ const fr: Translation<PetText> = {
     noBuild: 'Aucun paquet précompilé pour cette plateforme',
     electronSize: 'Electron 44.4.4, environ 150 Mo',
 
-    voice: 'Saisie vocale',
     enable: 'Activer la saisie vocale',
     enabledHint: "Le micro reste ouvert ; ce que vous dites va à Coo selon le mode d'écoute",
     enabledHintOnPress: "Le micro s'ouvre tant que la touche de parole est maintenue et se ferme au relâchement",

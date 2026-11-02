@@ -1,6 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  retry: 'Reintentar',
   copy: 'Copiar',
   copyNothing: 'No hay nada que copiar',
   copied: 'Copiado',
@@ -22,6 +23,7 @@ export const S: Partial<typeof en> = {
   cancel: 'Cancelar',
   proceedAnyway: 'Continuar de todos modos',
   confirm: 'Confirmar',
+  gotIt: 'Entendido',
   close: '✕ Cerrar (Esc)',
   tooManyImages: (max: number) => `Máximo ${max} ${max === 1 ? 'imagen' : 'imágenes'} por mensaje`,
   messageInput: 'Entrada de mensaje',

@@ -162,16 +162,14 @@ export default {
   /** 在装扮页导入形象包 */
   importing: {
     badZip: (why: string) => `这不是能读的 zip：${why}`,
-    tooBig: (mb: number) => `解开后超过 ${mb} MB`,
     truncated: '上传的内容不完整',
     badPath: (path: string) => `有一个路径不能用：${path}`,
-    builtinId: (id: string) => `id ${id} 是内置形象的，换个 id 才能导入`,
+    builtinId: (id: string) => `id ${id} 是内置形象的，更换 id 才能导入`,
     duplicateId: (id: string) => `id ${id} 和这次导入的另一个形象包重复`,
     unpackFailed: (why: string) => `没能解开：${why}`,
     expired: '这次导入已经过期，请重新选择',
-    noneChosen: '没有选要导入的形象包',
+    noneChosen: '没有选择要导入的形象包',
     zipOrFolder: '只收 zip 或文件夹',
-    overLimit: (mb: number) => `超过 ${mb} MB`,
   },
 
   /** 在装扮页卸载形象包 */
@@ -225,7 +223,7 @@ export default {
       pet: { title: '桌宠', description: '窗口、装扮与窗口运行时。' },
       voice: { title: '语音输入', description: '识别引擎、电平与识别结果。' },
     } as Record<'pet' | 'voice', { title: string; description: string }>,
-    envPrompt: { title: '桌宠环境', description: '描述桌宠的身体、四个工具与输入事件。' },
+    envPrompt: { title: '桌宠环境', description: '描述桌宠的身体、工具与输入事件。' },
     vars: {
       'pet.user': '对使用者的称呼',
       'pet.vocab': '当前形象的表情与动作词表',
@@ -233,7 +231,7 @@ export default {
       'pet.voice': '语音输入开着还是关着',
       'pet.body': '当前形象的样子',
       'pet.dress': 'pet_set 能选的形象与打扮',
-      'pet.self': '「自主配置权限」：哪些设置直接改、哪些先征得同意，或都不能改',
+      'pet.self': '「自主配置权限」：哪些设置直接修改、哪些先征得同意，或都不能修改',
       'pet.chat': '应用提供对话页时，对它的说明；没有时为空',
       'pet.reply': '应用语言既不是简体中文也不是英文时，让 bot 用那种语言说话的一句；否则为空',
       'pet.cua': '电脑操作一节：截图坐标、何时先询问使用者、让位规则；电脑操作关闭时为空',
@@ -255,7 +253,7 @@ export default {
     doubleClickChat: { title: '双击打开打字框', description: '双击桌宠打开打字框。' },
     statusBubble: { title: '状态气泡', description: '想事情、翻记忆、操作电脑时显示在做什么，会显示文件名。' },
     saidBubbles: { title: '输入气泡', description: '打字、语音和对话页发出的消息显示在桌宠头顶，回复后淡出。关闭时语音只在识别中显示。' },
-    selfAdjust: { title: '自主配置权限', description: 'off 禁止：不能自行改设置，也不能临时安静；default 默认：形象、配色、走动和打呼直接改，大小、气泡尺寸、字体尺寸、音效、夜间模式、悬停按钮和称呼先征得你同意；any 任意：都直接改；custom 自定义：按「习惯」页里的勾选，勾上的直接改，其余先征得你同意。' },
+    selfAdjust: { title: '自主配置权限', description: 'off 禁止：不能自行修改设置，也不能临时安静；default 默认：形象、配色、走动和打呼直接修改，大小、气泡尺寸、字体尺寸、音效、夜间模式、悬停按钮和称呼先征得你同意；any 任意：都直接修改；custom 自定义：按「习惯」页里的勾选，勾上的直接修改，其余先征得你同意。' },
     windowEnabled: { title: '启动时打开桌宠窗口' },
     scale: { title: '大小' },
     bubbleSize: { title: '气泡尺寸', description: '桌宠和你的气泡的宽度、留白、圆角和尾巴，1 为默认；字号不变。' },
@@ -271,6 +269,7 @@ export default {
     touchEnabled: { title: '互动发成事件', description: '戳、摸、拎起来甩出去。' },
     touchWakeOn: { title: '回应模式', description: 'poke：只有戳一下马上回应，其余互动等下次回应时一并送达；all：所有互动都马上回应；none：所有互动都等下次回应时一并送达；custom：按「习惯」页勾选的互动马上回应。一次互动得到回应之后、本轮结束之前的互动，都等下次回应时一并送达。' },
     sound: { title: '音效总开关', description: '桌宠菜单里的音效按钮切的就是这个。' },
+    volume: { title: '音量' },
     sounds: {
       move: { title: '动作', description: '走路、跑、跳、落地、被甩出去、点头、摇头、转圈、晕、发抖、跳舞、张望。' },
       touch: { title: '互动', description: '被拎起来、拎着晃、被摸、被戳。' },
@@ -280,6 +279,7 @@ export default {
       ui: { title: '按钮与提示', description: '点按钮、气泡弹出、选中、开始和结束听你说话。' },
     } as Record<'move' | 'touch' | 'face' | 'snore' | 'talk' | 'ui', { title: string; description: string }>,
     snoreSeconds: { title: '呼噜时长', suffix: '秒', description: '每次睡着后打这么久呼噜就安静下来，Z 照样飘；0 = 一直打到醒。' },
+    panByPosition: { title: '按位置分配左右声道', description: '声音偏向 Coo 所在的一侧，关闭后居中播放。' },
     speech: { title: '说话声', description: '开启后气泡逐字冒出时念出音节，代替「说话」类的叽咕声；「说话」类关掉时也不出声。' },
     speechPitch: { title: '说话声音高', description: (a: number, b: number, c: number) => `low、mid、high 依次为 ${a}、${b}、${c} Hz；custom 用自定义音高。` },
     speechPitchHz: { title: '自定义音高' },
@@ -299,13 +299,11 @@ export default {
 
   /** 控制台的「桌宠」「语音输入」面板 */
   panel: {
-    pet: '桌宠',
     window: '桌宠窗口',
     openWindow: '打开窗口',
     closeWindow: '关闭窗口',
     runtime: '窗口运行时',
     install: '安装',
-    viewInBrowser: '在浏览器中查看',
     dress: '装扮',
     dressHint: '改动会立刻保存，并同步到桌宠窗口',
     connected: '已连接',
@@ -320,7 +318,6 @@ export default {
     noBuild: '本平台没有预编译包',
     electronSize: 'Electron 44.4.4，约 150 MB',
 
-    voice: '语音输入',
     enable: '开启语音输入',
     enabledHint: '麦克风保持开启，按收音方式发送给 Coo',
     enabledHintOnPress: '按住说话键时打开麦克风，松开后关闭',
@@ -329,7 +326,7 @@ export default {
     funasr: 'FunASR（本机识别）',
     system: 'Windows 自带',
     whisper: 'Whisper（本机识别）',
-    systemHint: '不用下载，准确度一般；想要更准换成 FunASR 或 Whisper',
+    systemHint: '不用下载，准确度一般；想要更准确可以更换为 FunASR 或 Whisper',
     funasrHint: 'SenseVoiceSmall，在本机识别，支持中文、英文、日文、韩文和粤语',
     whisperHint: 'Whisper small，在本机识别，支持法语、德语、西班牙语、葡萄牙语、意大利语、俄语等；一句说完才出字',
     api: '转写接口（OpenAI 兼容）',

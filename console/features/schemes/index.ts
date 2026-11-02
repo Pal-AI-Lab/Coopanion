@@ -16,6 +16,7 @@ import {
 } from '../../base/theme/registry.ts';
 import { getThemeStudio, type ThemeSnapshot } from '../../base/theme/studio.ts';
 import { S } from './strings.ts';
+import { actionProblem } from '../../base/ui/problem.ts';
 
 /** "再点一次确认删除"的解除武装时限。 */
 const DELETE_ARM_MS = 4000;
@@ -42,6 +43,13 @@ function schemeIdAt(target: EventTarget | null, stop: HTMLElement): string | nul
 export function schemesCard(ctx: PageContext, title: string): HTMLElement {
   const { ui, signal } = ctx;
   const studio = getThemeStudio();
+  const doc = ctx.root.ownerDocument;
+  const problem = actionProblem(ui, doc, signal);
+  const failed = (anchor: Element | null) => (text: string) => {
+    if (signal.aborted) return;
+    setMsg('');
+    problem(anchor, S.saveFailed(text));
+  };
 
   // 最先登记 = 最后释放:等订阅摘掉之后再撤预览,免得回调打在一个正在拆的页面上。
   ctx.lifecycle.add(() => studio.resetPreview());
@@ -61,7 +69,7 @@ export function schemesCard(ctx: PageContext, title: string): HTMLElement {
       value: studio.mode,
       size: 'sm',
       onSelect: (value) => {
-        studio.setMode(value as ThemeMode);
+        studio.setMode(value as ThemeMode, failed(modes.el.querySelector('.seg.active')));
         setMsg(S.switchedMode(THEME_MODE_LABELS[value as ThemeMode]));
       },
     },
@@ -73,7 +81,10 @@ export function schemesCard(ctx: PageContext, title: string): HTMLElement {
     'click',
     (ev) => {
       const id = schemeIdAt(ev.target, schemesBox);
-      if (!id || !studio.select(id)) return;
+      if (!id || !studio.select(id, text => {
+        const card = [...schemesBox.querySelectorAll<HTMLElement>('[data-scheme-id]')].find(card => card.dataset.schemeId === id);
+        failed(card ?? null)(text);
+      })) return;
       setMsg(S.switchedScheme(studio.snapshot().scheme.name));
     },
     { signal },
@@ -87,7 +98,7 @@ export function schemesCard(ctx: PageContext, title: string): HTMLElement {
     en: 'palette',
     desc: S.paletteSheetDesc,
   });
-  paletteFold.el.classList.add('theme-palette-fold');
+  paletteFold.el.classList.add('fold-plain');
   const nameInput = ui.input({ cls: 'mono', placeholder: S.schemeName });
   nameInput.maxLength = 40;
   const paletteBox = ui.h('div', 'theme-palette');
@@ -157,7 +168,7 @@ export function schemesCard(ctx: PageContext, title: string): HTMLElement {
         return;
       }
       disarmDelete();
-      studio.removeCurrent();
+      studio.removeCurrent(failed(deleteBtn));
       setMsg(S.deleted(studio.snapshot().scheme.name));
     },
   });
@@ -165,7 +176,7 @@ export function schemesCard(ctx: PageContext, title: string): HTMLElement {
     onClick: () => {
       const snap = studio.snapshot();
       const base = nameInput.value.trim() || snap.scheme.name;
-      studio.saveAs(base + (snap.scheme.custom ? S.copySuffix : S.customSuffix), draft);
+      studio.saveAs(base + (snap.scheme.custom ? S.copySuffix : S.customSuffix), draft, failed(copyBtn));
       setMsg(S.copied);
     },
   });
@@ -175,10 +186,10 @@ export function schemesCard(ctx: PageContext, title: string): HTMLElement {
       const snap = studio.snapshot();
       const raw = nameInput.value.trim();
       if (snap.scheme.custom) {
-        studio.saveCurrent(raw || snap.scheme.name, draft);
+        studio.saveCurrent(raw || snap.scheme.name, draft, failed(saveBtn));
         setMsg(S.savedVariant(THEME_APPEARANCE_LABELS[snap.appearance]));
       } else {
-        studio.saveAs(raw === snap.scheme.name ? S.customName(raw) : raw, draft);
+        studio.saveAs(raw === snap.scheme.name ? S.customName(raw) : raw, draft, failed(saveBtn));
         setMsg(S.savedAsCustom);
       }
     },
@@ -251,8 +262,7 @@ export function schemesCard(ctx: PageContext, title: string): HTMLElement {
     saveBtn.textContent = snap.scheme.custom ? S.saveCurrent : S.saveAsCustom;
     renderSchemes(snap);
     syncPalette(snap.palette);
-    if (snap.saveError) setMsg(S.saveFailed(snap.saveError), true);
-    else setMsg(snap.scheme.builtin ? S.builtinHint : S.customHint);
+    setMsg(snap.scheme.builtin ? S.builtinHint : S.customHint);
   }
 
   // 预览那一串变化不重画自己:值就是这一页刚写进去的,回填只会打断正在打字的输入框。

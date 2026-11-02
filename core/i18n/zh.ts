@@ -7,6 +7,7 @@ const MAC = process.platform === 'darwin';
 export default {
   /** 「习惯」页与高级设置里 Coopanion 自己的设置项 */
   settings: {
+    autoUpdate: { title: "自动更新", description: "自动下载并在退出时安装更新。关闭后立即停止检查和下载，已下载的更新也不会自动安装。" },
     language: { title: '语言', description: '界面和 Coo 说话都使用这种语言，修改后立即生效。' },
     telemetry: { title: '匿名使用统计', description: '发送不含对话内容的使用次数与设置，帮助改进 Coopanion。字段见 docs/TELEMETRY.md。' },
     contextRing: { title: '上下文圆环', description: '在对话页输入框显示一个圆环，表示离整理之前的对话还有多远。' },
@@ -42,7 +43,6 @@ export default {
   quit: '退出应用',
   /** 左栏里应用通知这个 World 的名字 */
   noticeLabel: '应用通知',
-  /** 电脑操作征求同意时气泡里的两个按钮 */
 
   /** 状态气泡:Coo 正在用的工具 */
   status: {
@@ -59,7 +59,7 @@ export default {
   /** 设置窗口「开始」页「配色方案」里跟着桌宠形象的配色方案 */
   scheme: {
     name: (figure: string, preset: string) => `${figure} · ${preset}`,
-    note: (figure: string, preset: string) => `桌宠换成${figure}的「${preset}」时自动换上`,
+    note: (figure: string, preset: string) => `桌宠更换为${figure}的「${preset}」时自动换上`,
   },
 
   /** 启动引导:第一次启动时 Coo 在气泡里一步步说的话 */

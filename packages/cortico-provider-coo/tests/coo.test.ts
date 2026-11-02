@@ -158,6 +158,35 @@ describe('Coo Pet Provider', () => {
     expect(outputs[1].output).toContainEqual(expect.objectContaining({ type: 'input_image' }));
   });
 
+  it('sends a tool result image the model has not answered yet when a batch is delivered after it, and drops it once answered', async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const reply = { id: 'r', object: 'response', model: 'm', status: 'completed', created_at: 1, output: [], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } };
+    vi.stubGlobal('fetch', async (_url: string, init: { body: string }) => {
+      bodies.push(JSON.parse(init.body) as Record<string, unknown>);
+      return new Response(JSON.stringify(reply), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    const instance = COO.create('deepseek', entry(), { ...host(), readBlob: () => Buffer.from('jpeg') } as never);
+    const [frame] = RESERVED_FRAME_NAMES;
+    const shot = { handle: 'blob:a.jpg', mime: 'image/jpeg', name: 'screen.jpg', fallbackText: '屏幕截图' };
+    const delivered = [
+      message('user', '截图看看'),
+      functionCall('c1', 'look', '{}'), functionResult('c1', blobLine(shot), { blobs: [shot] }),
+      message('user', '[system] 1 new event.'),
+      functionCall('f1', frame!, '{}'), functionResult('f1', '[打字] 看到了吗'),
+    ];
+    const answered = [...delivered, functionCall('c2', 'wait', '{}'), functionResult('c2', 'ok')];
+    const shotOutput = async (context: typeof delivered) => {
+      await instance.client.respond({ model: 'deepseek-flash', input: context.map((r) => r.item) } as unknown as Request, { context });
+      return (bodies.at(-1)!.input as Array<{ type: string; call_id?: string; output?: unknown }>).find((i) => i.type === 'function_call_output' && i.call_id === 'c1')!.output;
+    };
+    try {
+      expect(await shotOutput(delivered)).toContainEqual(expect.objectContaining({ type: 'input_image' }));
+      expect(await shotOutput(answered)).toBe(blobLine(shot));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('gives DeepSeek over Chat placeholder reasoning on tool calls after the newest user message while thinking is on', async () => {
     const bodies: Array<Record<string, unknown>> = [];
     const reply = { id: 'c', model: 'deepseek-flash', choices: [{ index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' }],
@@ -261,7 +290,7 @@ describe('Coo Pet Provider', () => {
     }
   });
 
-  it('reads the reasoning streams of StepFun and Qwen, which the standard parser rejects (#94)', async () => {
+  it('reads the reasoning streams of StepFun and Qwen, which the standard parser rejects', async () => {
     const at = { output_index: 0, item_id: 'rs_1', content_index: 0 };
     const message = { id: 'msg_1', type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: '好', annotations: [] }] };
     const tail = [

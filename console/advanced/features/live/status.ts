@@ -54,9 +54,9 @@ export interface ConnectionButton {
 /** 当前模型供应商:名字与模型,悬停看模块与地址;点击打开它在「模型供应商」里的设置,没有选中的就打开列表。 */
 export function createConnectionButton(ui: WebUi, open: (name: string | null) => void): ConnectionButton {
   let name: string | null = null;
-  const el = ui.h('button', 'live-connection');
-  el.type = 'button';
-  el.addEventListener('click', () => open(name));
+  // ui.button binds its click to the page's signal, so the listener goes with the page
+  const el = ui.button('', { onClick: () => open(name) });
+  el.className = 'live-connection';
   const value = ui.h('span', 'live-connection-value');
   el.append(ui.h('span', 'live-connection-label', S.currentProvider), value);
   return {

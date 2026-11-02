@@ -1,6 +1,6 @@
 /**
  * Streamed reasoning from services whose Responses events stray from the standard in ways the
- * standard parser rejects (#94):
+ * standard parser rejects:
  * - StepFun sends vLLM's retired `response.reasoning_part.added` / `.done` where the standard has
  *   `response.content_part.added` / `.done`;
  * - Qwen sends reasoning text deltas without first adding the part they write into;

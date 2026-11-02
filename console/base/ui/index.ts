@@ -21,7 +21,7 @@ import {
   sheet,
 } from './sheet.ts';
 import type { Overlay, OverlayEnv } from './overlay.ts';
-import { busy, confirm, drawer, lightbox, noopDisposable, toast } from './overlay.ts';
+import { busy, confirm, drawer, lightbox, noopDisposable, notice as noticeDialog, toast } from './overlay.ts';
 
 export interface ConsoleUiDeps {
   /** 面板局部持久化。`foldSheet` 的展开状态存这儿。 */
@@ -37,6 +37,18 @@ export interface ConsoleUiDeps {
   doc?: Document;
 }
 
+/** Each console ui's overlay host, for the dialogs WebUi does not name (see notice). */
+const overlays = new WeakMap<WebUi, OverlayEnv>();
+
+/**
+ * Tells the user something with a single 知道了: a confirm with nothing to choose. A ui the console did not
+ * make (a test double) falls back to its confirm.
+ */
+export function notice(ui: WebUi, opts: { title: string; body?: string }): Promise<void> {
+  const env = overlays.get(ui);
+  return env ? noticeDialog(env, opts) : ui.confirm(opts).then(() => undefined);
+}
+
 export function createConsoleUi(deps: ConsoleUiDeps): WebUi {
   const doc = deps.doc ?? deps.overlayHost.ownerDocument;
   const signal = deps.signal;
@@ -50,7 +62,7 @@ export function createConsoleUi(deps: ConsoleUiDeps): WebUi {
     return liveToast ?? noopDisposable;
   };
 
-  return {
+  const ui: WebUi = {
     h: (tag, cls, text) => h(doc, tag, cls, text),
     esc,
     sheet: (opts) => sheet(doc, opts),
@@ -85,6 +97,8 @@ export function createConsoleUi(deps: ConsoleUiDeps): WebUi {
     disable: (...els) => disable(els),
     fmt: consoleFormat,
   };
+  overlays.set(ui, env);
+  return ui;
 }
 
 export { shouldStick } from './log.ts';

@@ -4,7 +4,8 @@
  * The child is `core/boot.ts` under the app's own runtime in Node mode, with `--import tsx`.
  * It reports `companion:ready` with the console port. It exits on purpose after asking for a
  * restart (`cortico:restart`, or `<dataDir>/.restart-request` written by the console), and is
- * started again; an unexpected exit is restarted after 3 s, at most 5 times in 5 minutes, except one that
+ * started again; the console's power button asks it to shut down (`expectStop`), which leaves it
+ * stopped; an unexpected exit is restarted after 3 s, at most 5 times in 5 minutes, except one that
  * said another process holds the data directory's lock (`companion:locked`) or every console port it tries
  * (`companion:ports-busy`), which a restart would meet again and so is not restarted, and one
  * before `companion:ready` with ERR_MODULE_NOT_FOUND on stderr, which waits longer each time (MISSING_MODULE_DELAYS_MS).
@@ -16,9 +17,10 @@
  *
  * Events: `ready` ({ port, keyMissing, language }), `language` (the app language after a change),
  * `state` (the state, and for an unexpected exit `{ kind: 'restarting', code }` or, once it stops
- * retrying, `{ kind: 'failed', times, code, logFile }`, for a lock held elsewhere `{ kind: 'locked', pid, file }`, or for
+ * retrying, `{ kind: 'failed', times, code, logFile }`, or `{ kind: 'incomplete', logFile }` when the exits were
+ * ERR_MODULE_NOT_FOUND and the entry or tsx is still missing, for a lock held elsewhere `{ kind: 'locked', pid, file }`, or for
  * the console ports `{ kind: 'ports-busy', from, to }`), and the Core's requests `open`, `hide`,
- * `quit`, `update-install` and `releases`.
+ * `quit`, `update-install`, `releases` and `auto-update` (the saved boolean preference).
  */
 const { fork } = require('node:child_process');
 const { coreEnvironment, lookupProxy, proxySource } = require('./core-env.cjs');
@@ -39,12 +41,13 @@ const MISSING_MODULE_DELAYS_MS = [3_000, 10_000, 30_000, 30_000, 30_000, 30_000,
 const TSX_ENTRY = ['node_modules', 'tsx', 'dist', 'loader.mjs'];
 const LOG_ROTATE_BYTES = 5 * 1024 * 1024;
 
+/** The Core's entry and the file `--import tsx` loads. */
+const startFiles = (appRoot) => [join(appRoot, 'core', 'boot.ts'), join(appRoot, ...TSX_ENTRY)];
+
 /** The app process's arguments and parent PID, and whether the Core's entry and tsx exist, as a line for core.log. */
 function startDiagnostics(appRoot) {
-  const entry = join(appRoot, 'core', 'boot.ts');
-  const tsx = join(appRoot, ...TSX_ENTRY);
   const on = (file) => `${file} ${existsSync(file) ? 'exists' : 'missing'}`;
-  return `exited before ready; app argv ${JSON.stringify(process.argv.slice(1))}, ppid ${process.ppid}; ${on(entry)}; ${on(tsx)}\n`;
+  return `exited before ready; app argv ${JSON.stringify(process.argv.slice(1))}, ppid ${process.ppid}; ${startFiles(appRoot).map(on).join('; ')}\n`;
 }
 
 class CoreHost extends EventEmitter {
@@ -58,6 +61,8 @@ class CoreHost extends EventEmitter {
     this.keyMissing = false;
     this.restartAsked = false;
     this.stopping = false;
+    /** The console asked for a shutdown through the WebUI: the child's exit is intentional. */
+    this.shutdownAsked = false;
     this.crashes = [];
     /** ERR_MODULE_NOT_FOUND exits before ready since the last ready child: the index into MISSING_MODULE_DELAYS_MS. */
     this.missingModuleExits = 0;
@@ -100,6 +105,7 @@ class CoreHost extends EventEmitter {
     this.child = child;
     this.state = 'starting';
     this.restartAsked = false;
+    this.shutdownAsked = false;
     this.emit('state', this.state);
     child.on('message', (msg) => {
       if (msg?.type === 'companion:ready') {
@@ -116,6 +122,8 @@ class CoreHost extends EventEmitter {
         });
       } else if (msg?.type === 'companion:language') {
         this.emit('language', msg.language);
+      } else if (msg?.type === 'companion:auto-update' && typeof msg.enabled === 'boolean') {
+        this.emit('auto-update', msg.enabled);
       } else if (msg?.type === 'cortico:ready') {
         this.dataDir = msg.dataDir;
       } else if (msg?.type === 'companion:locked') {
@@ -144,7 +152,12 @@ class CoreHost extends EventEmitter {
       if (this.child !== child) return;
       this.child = null;
       this.port = null;
-      if (this.stopping) { this.state = 'stopped'; this.emit('state', this.state); return; }
+      if (this.stopping || this.shutdownAsked) {
+        this.shutdownAsked = false;
+        this.state = 'stopped';
+        this.emit('state', this.state);
+        return;
+      }
       const flagged = this.dataDir && existsSync(join(this.dataDir, '.restart-request'));
       if (this.restartAsked || flagged) {
         this.state = 'restarting';
@@ -170,7 +183,9 @@ class CoreHost extends EventEmitter {
           return;
         }
         this.state = 'failed';
-        this.emit('state', this.state, { kind: 'failed', times: this.missingModuleExits + 1, code, logFile });
+        // app files still missing after every wait: the install was cut short, and only installing again restores them
+        const incomplete = startFiles(this.opts.appRoot).some((file) => !existsSync(file));
+        this.emit('state', this.state, incomplete ? { kind: 'incomplete', logFile } : { kind: 'failed', times: this.missingModuleExits + 1, code, logFile });
         return;
       }
       const now = Date.now();
@@ -194,6 +209,16 @@ class CoreHost extends EventEmitter {
       child.stderr.once('end', settle);
       setTimeout(settle, 1000);
     });
+  }
+
+  /** The console's power button asked the running child to shut down; its exit is not a crash. */
+  expectStop() {
+    if (this.child) this.shutdownAsked = true;
+  }
+
+  /** The shutdown request did not reach the child, so a later exit is a crash again. */
+  forgetStop() {
+    this.shutdownAsked = false;
   }
 
   /** Sends a message to the running child; dropped while there is none. */

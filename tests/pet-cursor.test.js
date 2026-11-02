@@ -19,7 +19,7 @@ function nativePointer() {
   return native;
 }
 
-// Electron's stale value from #119, whatever the pointer does.
+// Electron's cached value, which stays put whatever the pointer does.
 const screen = { getAllDisplays: () => [primary, secondary], getCursorScreenPoint: () => ({ x: 20, y: 50 }) };
 
 describe('pet cursor source', () => {

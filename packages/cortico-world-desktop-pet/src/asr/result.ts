@@ -12,11 +12,15 @@ export interface TranscribeResult {
  * high-frequency lines from their training subtitles, which cannot be told apart from real speech
  * by content, so they are blocked by list; Whisper also labels sounds in brackets, parentheses or
  * asterisks (`[Musik]`, `(звук пива)`, `*Bruit de la porte*`), sometimes cut off before the
- * closing mark. Letting one through means an event claims a sentence nobody said.
+ * closing mark. Letting one through means an event claims a sentence nobody said. Words a person
+ * also says (订阅, 转发, 字幕, 谢谢观看) block a line only in the credits' own phrasing or as the
+ * whole line, so a sentence that mentions them reaches the bot.
  */
 const HALLUCINATION_PATTERNS: readonly RegExp[] = [
   /^[\s。.,、!?!?…~-]*$/,
-  /字幕|谢谢观看|请不吝点赞|订阅|转发|打赏|明镜与点点栏目/,
+  /请不吝点赞|明镜与点点栏目|字幕(?:由|志愿者|组|制作|提供|翻译|by|[:：])/i,
+  /^[\s\p{P}]*谢谢观看[\s\p{P}]*$/u,
+  /^(?:[\s\p{P}]*(?:点赞|订阅|转发|打赏)){2,}[\s\p{P}]*$/u,
   /^(thank you|thanks for watching|subtitles by|you)[\s.!]*$/i,
   /^\s*(sous-titr|untertitel|subt[ií]tulos|legendas|sottotitoli|субтитр)/i,
   /^\s*[[(（【*♪]/,

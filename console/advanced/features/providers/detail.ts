@@ -1,4 +1,6 @@
+import { actionProblem } from '../../../base/ui/problem.ts';
 import type { FeatureContext } from '../feature.ts';
+import { notice } from '../../../base/ui/index.ts';
 import { get, post } from '../../../base/api.ts';
 import { Lifecycle } from '../../../base/lifecycle.ts';
 import { configField, type ConfigGroup } from '../config/view.ts';
@@ -40,7 +42,7 @@ export async function mountDetail(options: Options): Promise<DetailController> {
   editing.entry.spec ??= { model: '', thinking: false };
   if (persisted) (persisted.entry.spec ??= { model: '', thinking: false });
   const dirty = () => !persisted || snapshot(editing) !== snapshot(persisted);
-  const report = ui.msgline();
+  const problem = actionProblem(ui, root.ownerDocument, lifecycle.signal);
   const form = ui.h('div');
   root.append(form);
   const errors = new Map<string, () => boolean>();
@@ -57,10 +59,7 @@ export async function mountDetail(options: Options): Promise<DetailController> {
     options.changed(editing, !!form.querySelector('[aria-invalid="true"]'), dirty());
   };
   const run = (work: () => Promise<unknown>, source?: HTMLElement) => {
-    if (source) source.after(report);
-    report.textContent = '';
-    report.classList.remove('bad');
-    void work().catch(error => { if (!lifecycle.disposed) { report.textContent = String(error); report.classList.add('bad'); } });
+    void work().catch(error => { if (!lifecycle.disposed) problem(source, String(error)); });
   };
   /** Preview name for an unsaved connection; the server resolves secrets by it. */
   const identity = saved?.name ?? 'draft';
@@ -132,12 +131,12 @@ export async function mountDetail(options: Options): Promise<DetailController> {
       testResult.textContent = '';
       try {
         const result = await post<{ ok: boolean; status: number | null; elapsedMs: number; model?: string; error?: string; hint?: string }>(connectionPath(identity) + '/test', draftBody(), opts);
-        testResult.textContent = result.ok ? `${S.testOk} · HTTP ${result.status ?? '—'} · ${(result.elapsedMs / 1000).toFixed(1)}s · ${result.model ?? ''}` : `${S.testFailed}: ${result.hint ?? result.error ?? ''}`;
-        testResult.classList.toggle('bad', !result.ok);
+        if (lifecycle.disposed) return;
+        if (result.ok) testResult.textContent = `${S.testOk} · HTTP ${result.status ?? '—'} · ${(result.elapsedMs / 1000).toFixed(1)}s${result.model ? ` · ${result.model}` : ''}`;
+        else problem(test, `${S.testFailed}: ${result.hint ?? result.error ?? ''}`);
       } catch (error) {
         if (lifecycle.disposed) return;
-        testResult.textContent = `${S.testFailed}: ${String(error)}`;
-        testResult.classList.add('bad');
+        problem(test, `${S.testFailed}: ${String(error)}`);
       } finally { test.disabled = false; }
     })() });
     const testRow = ui.rowbar(); testRow.classList.add('connection-test'); testRow.append(test, testResult);
@@ -177,13 +176,14 @@ export async function mountDetail(options: Options): Promise<DetailController> {
       fetchResult.textContent = '';
       fetchResult.classList.remove('bad');
       try { const result = await post<{ models: ListedModel[] }>(connectionPath(identity) + '/models', draftBody(), opts);
+        if (lifecycle.disposed) return;
         listedModels = result.models;
         picker.replaceChildren(...[{ id: '', displayName: '—' }, ...listedModels].map(item => { const option = ui.h('option', null, item.displayName ?? item.id); option.value = item.id; return option; }));
         picker.hidden = !listedModels.length;
         fetchResult.textContent = S.modelsFetched(listedModels.length);
         noteCatalog();
       } catch (error) {
-        if (!lifecycle.disposed) { fetchResult.textContent = String(error); fetchResult.classList.add('bad'); }
+        if (!lifecycle.disposed) problem(fetch, String(error));
       } finally { fetch.disabled = false; }
     })() });
     const fetchRow = ui.rowbar(); fetchRow.classList.add('connection-test'); fetchRow.append(fetch, picker, fetchResult); body.append(fetchRow);
@@ -293,7 +293,7 @@ export async function mountDetail(options: Options): Promise<DetailController> {
     if (saved) {
       actions.append(ui.button(S.remove, { variant: 'danger', onClick: ev => run(async () => {
         const current = await get<Detail>(connectionPath(saved.name), opts);
-        if (current.references.length) { await ui.confirm({ title: S.remove, body: S.referenced + current.references.join(', ') }); return; }
+        if (current.references.length) { await notice(ui, { title: S.remove, body: S.referenced + current.references.join(', ') }); return; }
         if (!(await ui.confirm({ title: S.remove, body: S.deleteConfirm, danger: true }))) return;
         if (saved.entry.kind === CHATGPT_MODULE && current.revision === saved.revision) await signOutBeforeDelete(saved.name, lifecycle.signal);
         await post(connectionPath(saved.name) + '/delete', { expectedRevision: saved.revision }, opts); await options.deleted();
@@ -303,7 +303,7 @@ export async function mountDetail(options: Options): Promise<DetailController> {
     }
     cancel = ui.button(S.cancel, { onClick: () => run(() => options.cancelled()) });
     cancel.hidden = !!saved && !dirty();
-    actions.append(ui.h('span', 'grow'), cancel, ui.button(S.save, { variant: 'primary', onClick: ev => run(() => save(), ev.currentTarget as HTMLElement) }), report);
+    actions.append(ui.h('span', 'grow'), cancel, ui.button(S.save, { variant: 'primary', onClick: ev => run(() => save(ev.currentTarget as HTMLElement), ev.currentTarget as HTMLElement) }));
     form.append(actions, ui.h('div', 'connection-shared', S.shared), ui.h('div', 'connection-shared', S.draftNote));
     if (!selectedModule) return;
     const flow = ui.h('div', 'connection-flow');
@@ -359,20 +359,23 @@ export async function mountDetail(options: Options): Promise<DetailController> {
       panelHandles.push(handle);
     }
   }
-  async function save(select = true): Promise<boolean> {
+  async function save(source: HTMLElement, select = true): Promise<boolean> {
     if (saving) return false;
     const valid = [...errors.values()].map(check => check()).every(Boolean); change();
     if (!valid) {
       for (const input of form.querySelectorAll('[aria-invalid="true"]')) { const fold = input.closest('details'); if (fold) fold.open = true; }
-      report.textContent = S.readiness.invalid; report.classList.add('bad'); return false;
+      form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+      problem(source, S.readiness.invalid); return false;
     }
     saving = true;
     try {
       const result = await post<Detail>(saved ? connectionPath(saved.name) + '/save' : '/api/providers', { name: editing.name, entry: editing.entry, expectedRevision: editing.revision, copyFrom: editing.copyFrom, ...(editing.secretValue ? { secretValue: editing.secretValue } : {}) }, opts);
       await options.onSaved(result.name, select); return true;
-    } catch (error) { report.textContent = String(error); report.classList.add('bad'); return false; }
+    } catch (error) { problem(source, String(error)); return false; }
     finally { saving = false; }
   }
-  await render(); change();
-  return { dispose: () => { lifecycle.dispose(); disposePanels(); panelHost?.unmount(); } };
+  const dispose = () => { lifecycle.dispose(); disposePanels(); panelHost?.unmount(); };
+  try { await render(); change(); }
+  catch (error) { dispose(); throw error; }
+  return { dispose };
 }

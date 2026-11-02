@@ -3,6 +3,9 @@
  * variables beside it. Saving writes the deployment's copy, as on 系统提示词; 「恢复默认版本」 removes
  * that copy. A page with more than one template titles each.
  */
+
+import { S as COMMON } from '../../../base/ui/strings.ts';
+import { actionProblem, listProblem } from '../../../base/ui/problem.ts';
 import type { WebUi, Disposable } from 'cortico/web/shared/client-panel.ts';
 import { get, post } from '../../../base/api.ts';
 import type { Lifecycle } from '../../../base/lifecycle.ts';
@@ -32,6 +35,7 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
   const { ui, signal } = deps;
   const el = ui.h('div', 'template-library');
   const doc = el.ownerDocument;
+  const problem = actionProblem(ui, doc, signal);
   const wanted = new Set(deps.keys);
   /** Titles of the templates with unsaved edits. */
   const dirty = new Set<string>();
@@ -106,8 +110,8 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
       reset.hidden = source.origin !== 'deployment';
       if (changed()) dirty.add(source.title); else dirty.delete(source.title);
     }
-    function say(line: string, bad = false): void {
-      status.className = bad ? 'msgline bad prompt-status' : 'msgline prompt-status';
+    function say(line: string): void {
+      status.className = 'msgline prompt-status';
       status.textContent = line;
     }
 
@@ -128,7 +132,7 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
         preview.title = label;
         preview.setAttribute('aria-label', label);
         preview.setAttribute('aria-pressed', String(previewing));
-        if (previewing) void refreshVariables();
+        if (previewing) void refreshVariables(preview);
       });
       preview.setAttribute('aria-pressed', 'false');
       tools.append(preview);
@@ -233,8 +237,8 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
       } catch (err) {
         if (isAbort(err)) return;
         deps.onError(err);
-        say(S.saveFailed(String((err as Error)?.message ?? err)), true);
-        ui.toast(S.saveFailedToast, 'bad');
+        say(changed() ? S.unsaved : loadedText());
+        problem(save, S.saveFailed(String((err as Error)?.message ?? err)));
       } finally {
         saving = false;
         if (!signal.aborted) {
@@ -257,12 +261,12 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
       } catch (err) {
         if (isAbort(err)) return;
         deps.onError(err);
-        say(S.resetFailed(String((err as Error)?.message ?? err)), true);
-        ui.toast(S.resetFailedToast, 'bad');
+        say(changed() ? S.unsaved : loadedText());
+        problem(reset, S.resetFailed(String((err as Error)?.message ?? err)));
       }
     }
 
-    async function refreshVariables(): Promise<void> {
+    async function refreshVariables(anchor: HTMLElement): Promise<void> {
       try {
         const data = await get<{ prompts?: PromptDoc[] }>('/api/prompts', { signal });
         const current = data?.prompts?.find((p) => p.key === source.key);
@@ -272,7 +276,7 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
         editor.updateVariables(source.key, current.vars ?? []);
         updateVariables();
       } catch (err) {
-        if (!isAbort(err)) say(S.templatesLoadFailed(String((err as Error)?.message ?? err)), true);
+        if (!isAbort(err)) problem(anchor, S.templatesLoadFailed(String((err as Error)?.message ?? err)));
       }
     }
 
@@ -285,15 +289,17 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
     };
   }
 
+  let loaded = false;
   async function load(): Promise<void> {
-    for (const e of editors) e.dispose();
-    editors = [];
-    el.replaceChildren();
-    dirty.clear();
-    closePopup();
     try {
       const data = await get<{ prompts?: PromptDoc[] }>('/api/prompts', { signal });
       if (signal.aborted) return;
+      loaded = true;
+      for (const e of editors) e.dispose();
+      editors = [];
+      el.replaceChildren();
+      dirty.clear();
+      closePopup();
       const docs = (data?.prompts ?? []).filter((p) => wanted.has(p.key));
       if (!docs.length) { el.appendChild(ui.placeholder(S.noTemplatesScoped)); return; }
       for (const source of docs) {
@@ -304,7 +310,9 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
     } catch (err) {
       if (isAbort(err)) return;
       deps.onError(err);
-      el.appendChild(ui.placeholder(S.templatesLoadFailed(String((err as Error)?.message ?? err))));
+      const text = S.templatesLoadFailed(String((err as Error)?.message ?? err));
+      if (loaded) ui.toast(text, 'bad');
+      else el.replaceChildren(listProblem(el.ownerDocument, text, COMMON.retry, load));
     }
   }
 

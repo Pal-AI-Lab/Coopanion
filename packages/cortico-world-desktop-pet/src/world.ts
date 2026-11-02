@@ -44,7 +44,7 @@ import { SENSEVOICE, SherpaAsr, WHISPER, type SherpaModelKind, type SherpaModule
 import { SystemRecognizer, systemRecognizerSupported, type SystemRecognizerState, type SystemSentence } from './asr/system-recognizer.ts';
 import { TranscriptionApi, type TranscriptionState } from './asr/transcription-api.ts';
 import { Packer, Segmenter, rmsDb, type SegmentConfig, type SegmentSink, type Utterance } from './asr/segmenter.ts';
-import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, watchHotkey, type KeyWatcher } from './asr/hotkey.ts';
+import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, TAP_MAX_MS, watchHotkey, type HotkeyTrigger, type KeyWatcher } from './asr/hotkey.ts';
 import { joinSpeech, looksHallucinated } from './asr/result.ts';
 import { toSimplified } from './asr/simplify.ts';
 import { estimateSeconds, parseActions, parseScript, vocabChange, vocabTable, type VocabWord } from './script.ts';
@@ -84,7 +84,6 @@ const ENV_PROMPT_FILES: Record<ModelLanguage, string> = {
 /** Longest `pet_quiet`: a quiet that outlasts a day is a setting, which `pet_set` changes. */
 const QUIET_MAX_MIN = 24 * 60;
 const FRAME_MS = 20;
-const SAMPLE_RATE = 16_000;
 const WALK_TIMEOUT_MS = 30_000;
 /** Touches of one kind closer than this are reported as one event with a count. */
 const TOUCH_MERGE_MS = 2500;
@@ -101,6 +100,11 @@ const IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif
 const PREFS_SYNC_MS = 150;
 /** Talk-key polling interval: well under the shortest key tap. */
 const HOTKEY_POLL_MS = 30;
+/**
+ * Longest time from the physical press to hold activation, rounded up to whole audio frames: the
+ * press is seen up to one poll late, and TAP_MAX_MS being exceeded up to one more poll late.
+ */
+const HOLD_PRE_ROLL_FRAMES = Math.ceil((TAP_MAX_MS + 2 * HOTKEY_POLL_MS) / FRAME_MS);
 /**
  * A microphone the talk key opened (`asr.mic.openOnPress`) closes this long after the key goes up,
  * so a press right after a release finds it open. The end of speech does not wait on it: the
@@ -341,6 +345,8 @@ export class DesktopPetWorld implements World {
   /** The syllables of the pet page's speech; its dictionaries load the first time a text needs them. */
   private readonly speechText = new SpeechText(SPEECH_DATA, join(WEB_DIR, 'speech', 'zh.json'));
   private windowHost: WindowHost | null = null;
+  /** The tray's "click through": every click passes through the pet window. Not saved: it lasts until the Core stops. */
+  private clickThrough = false;
   private readonly store: RuntimeStore;
   private funasr: SherpaAsr | null = null;
   private whisper: SherpaAsr | null = null;
@@ -388,7 +394,9 @@ export class DesktopPetWorld implements World {
   private readonly dialogs = new Map<string, (a: PetDialogAnswer) => void>();
   /** The talk key is down (hold) or was switched on (toggle). */
   private talking = false;
-  /** With `micOnPress`: the page keeps the microphone open from the talk key's press until MIC_RELEASE_MS after its release. */
+  /** Recent microphone frames retained until a shared talk key is confirmed as held. */
+  private readonly holdPreRoll: Array<{ frame: Int16Array; atMs: number }> = [];
+  /** With `micOnPress`: the microphone stays open from talk-key activation until MIC_RELEASE_MS after release. */
   private micHeld = false;
   private micReleaseTimer: NodeJS.Timeout | null = null;
   /** Counts cancelled captures; a transcription begun before a cancel is dropped when it lands. */
@@ -693,6 +701,7 @@ export class DesktopPetWorld implements World {
     this.touchWoke = false;
     this.keyWatcher?.stop();
     this.keyWatcher = null;
+    this.holdPreRoll.length = 0;
     this.typeWatcher?.stop();
     this.typeWatcher = null;
     this.typeKeyKey = '';
@@ -908,6 +917,7 @@ export class DesktopPetWorld implements World {
       frameRate: this.cfg.window.frameRate,
       lockFrameRate: this.cfg.window.lockFrameRate,
       hideWhenFullscreen: this.cfg.window.hideWhenFullscreen,
+      clickThrough: this.clickThrough,
       language: this.appLanguage,
       user: this.userName,
       mic: this.micOpen(),
@@ -955,6 +965,7 @@ export class DesktopPetWorld implements World {
   /** Config is a live object edited by the console; changes reach the pages within PREFS_SYNC_MS. */
   private syncPrefs(): void {
     this.segmenter.configure(this.segmentConfig());
+    if (!this.holdPreRollEnabled()) this.holdPreRoll.length = 0;
     const turnedOn = this.cfg.asr.enabled && !this.voiceEnabled;
     this.voiceEnabled = this.cfg.asr.enabled;
     if (!this.cfg.asr.enabled && this.runningEngine) void this.stopVoiceBackend();
@@ -1124,6 +1135,7 @@ export class DesktopPetWorld implements World {
         this.micState = { state: String(msg.state), detail: typeof msg.detail === 'string' ? msg.detail : null };
         // a closed microphone sends no more frames: the meter drops to silence
         if (this.micState.state !== 'on') {
+          this.holdPreRoll.length = 0;
           this.level = -100;
           this.voiceFrame({ type: 'level', level: this.level, speaking: false, open: this.gateOpen() });
         }
@@ -1178,11 +1190,12 @@ export class DesktopPetWorld implements World {
 
   /**
    * Asks the person in a bubble with two choices, the first one meaning yes, or three, the middle one
-   * meaning yes and from now on. Answers never reach the bot as events; the caller gets them.
+   * meaning yes and from now on. Answers never reach the bot as events; the caller gets them. A hidden
+   * pet's bubble cannot be seen, so the caller gets 'unavailable' at once, as with no pet page.
    */
   confirm(question: string, choices: [yes: string, no: string] | [yes: string, always: string, no: string]): Promise<ConfirmResult> {
     const id = nextId('k');
-    if (!this.server.sendPet({ t: 'confirm', id, question, options: choices })) return Promise.resolve('unavailable');
+    if (this.petHidden || !this.server.sendPet({ t: 'confirm', id, question, options: choices })) return Promise.resolve('unavailable');
     return new Promise((resolve) => {
       const timer = setTimeout(() => { this.confirms.delete(id); resolve('timeout'); }, CONFIRM_TIMEOUT_MS);
       this.confirms.set(id, { resolve, timer, choices: choices.length });
@@ -1230,6 +1243,7 @@ export class DesktopPetWorld implements World {
 
   private onPageGone(): void {
     this.log?.info('桌宠页面断开');
+    this.holdPreRoll.length = 0;
     for (const [id, d] of this.dialogs) { d({ unavailable: true }); this.dialogs.delete(id); }
     for (const [id, w] of this.walks) { clearTimeout(w.timer); w.resolve(this.t.walkWindowGone); this.walks.delete(id); }
     for (const [id, c] of this.confirms) { clearTimeout(c.timer); c.resolve('unavailable'); this.confirms.delete(id); }
@@ -1415,6 +1429,7 @@ export class DesktopPetWorld implements World {
 
   private stopVoiceBackend(): Promise<void> {
     this.voiceGeneration++;
+    this.holdPreRoll.length = 0;
     if (this.voiceStopping) return this.voiceStopping;
     const engine = this.runningEngine;
     this.runningEngine = null;
@@ -1433,6 +1448,11 @@ export class DesktopPetWorld implements World {
     return this.cfg.asr.mic.mode === 'always' || this.talking;
   }
 
+  private holdPreRollEnabled(): boolean {
+    const { mode, hotkey, openOnPress } = this.cfg.asr.mic;
+    return this.micWanted() && mode === 'hold' && !openOnPress && this.typeKeyShares(hotkey);
+  }
+
   /**
    * While the talk key is held everything counts as speech: the segmenter never waits for a
    * loud onset or cuts at a pause, and releasing the key ends the utterance.
@@ -1442,10 +1462,14 @@ export class DesktopPetWorld implements World {
     return this.cfg.asr.mic.mode === 'hold' ? { ...seg, thresholdDb: -Infinity, minSpeechMs: 0 } : seg;
   }
 
-  /** Starts, restarts or stops the key watcher to match the configured mode and key. */
+  /**
+   * Starts, restarts or stops the key watcher to match the configured mode and key. Hold to talk
+   * waits out a tap only while the typing key is the same key, so that key's double tap only types.
+   */
   private async syncHotkey(): Promise<void> {
     const { mode, hotkey } = this.cfg.asr.mic;
-    const key = mode === 'always' || !this.host ? '' : `${mode}:${hotkey}`;
+    const trigger: HotkeyTrigger = mode === 'hold' && this.typeKeyShares(hotkey) ? 'hold' : 'press';
+    const key = mode === 'always' || !this.host ? '' : `${mode}:${hotkey}:${trigger}`;
     if (key === this.hotkeyKey) return;
     this.hotkeyKey = key;
     this.keyWatcher?.stop();
@@ -1455,7 +1479,8 @@ export class DesktopPetWorld implements World {
     if (!key) return;
     const parsed = parseHotkey(hotkey);
     const watch = this.opts.watchHotkey ?? watchHotkey;
-    const watcher = parsed ? await watch(parsed, (down) => this.onTalkKey(down), HOTKEY_POLL_MS, () => this.onTalkTap(), this.ui.hotkey) : this.ui.voice.badKey(hotkey);
+    const watcher = parsed ? await watch(parsed, (down) => this.onTalkKey(down), HOTKEY_POLL_MS, () => this.onTalkTap(), this.ui.hotkey, trigger,
+      () => { this.holdPreRoll.length = 0; }) : this.ui.voice.badKey(hotkey);
     if (key !== this.hotkeyKey) { if (typeof watcher !== 'string') watcher.stop(); return; }
     if (typeof watcher === 'string') {
       this.hotkeyProblem = watcher;
@@ -1463,7 +1488,16 @@ export class DesktopPetWorld implements World {
     } else this.keyWatcher = watcher;
   }
 
-  /** Starts, restarts or stops the typing key's watcher to match `typeKey`; a press opens the pet's typing box. */
+  /** The typing key is on and made of the same keys as `talk`, press counts aside. */
+  private typeKeyShares(talk: string): boolean {
+    const { enabled, hotkey } = this.cfg.typeKey;
+    const a = parseHotkey(talk), b = parseHotkey(hotkey);
+    if (!enabled || !a || !b) return false;
+    const keys = new Set(b.keys);
+    return new Set(a.keys).size === keys.size && a.keys.every((vk) => keys.has(vk));
+  }
+
+  /** Starts, restarts or stops the typing key's watcher; multi-press shortcuts require completed quick taps. */
   private async syncTypeKey(): Promise<void> {
     const { enabled, hotkey } = this.cfg.typeKey;
     const key = enabled && this.host ? hotkey : '';
@@ -1478,7 +1512,7 @@ export class DesktopPetWorld implements World {
     const text = { ...this.ui.hotkey, ...this.ui.typeKey };
     // a hidden pet stays hidden: its typing box would open out of sight
     const onPress = (down: boolean) => { if (down && !this.petHidden) this.server.sendPet({ t: 'type' }); };
-    const watcher = parsed ? await watch(parsed, onPress, HOTKEY_POLL_MS, undefined, text) : this.ui.voice.badKey(hotkey);
+    const watcher = parsed ? await watch(parsed, onPress, HOTKEY_POLL_MS, undefined, text, parsed.taps > 1 ? 'tap' : 'press') : this.ui.voice.badKey(hotkey);
     if (key !== this.typeKeyKey) { if (typeof watcher !== 'string') watcher.stop(); return; }
     if (typeof watcher === 'string') {
       this.typeKeyProblem = watcher;
@@ -1510,6 +1544,7 @@ export class DesktopPetWorld implements World {
   }
 
   private setTalking(on: boolean): void {
+    if (!on || !this.holdPreRollEnabled()) this.holdPreRoll.length = 0;
     if (this.talking === on) return;
     this.talking = on;
     this.voiceFrame({ type: 'gate', open: on });
@@ -1517,9 +1552,13 @@ export class DesktopPetWorld implements World {
     if (!this.cfg.asr.enabled || !this.micWanted()) return;
     if (on) {
       this.listenOpen = true;
-      // the microphone opens only now: the first frame that reaches the World starts the listening (onAudio)
+      // With openOnPress, the first microphone frame starts the listening bubble.
       if (this.micOnPress()) this.setMicHeld(true);
       else this.server.sendPet({ t: 'listen', phase: 'start' });
+      const since = performance.now() - HOLD_PRE_ROLL_FRAMES * FRAME_MS;
+      for (const { frame, atMs } of this.holdPreRoll.splice(0)) {
+        if (atMs >= since) this.onAudio(frame);
+      }
       return;
     }
     const tail = this.segmenter.flush();
@@ -1534,6 +1573,7 @@ export class DesktopPetWorld implements World {
    * nothing to send; a switched-on one is switched off.
    */
   private cancelSpeech(): void {
+    this.holdPreRoll.length = 0;
     if (this.cfg.asr.mic.mode === 'always' || (!this.talking && !this.listenOpen)) return;
     if (this.talking) {
       this.talking = false;
@@ -1579,9 +1619,13 @@ export class DesktopPetWorld implements World {
   }
 
   private onAudio(frame: Int16Array): void {
-    if (!this.cfg.asr.enabled || !this.micWanted()) return;
+    if (!this.cfg.asr.enabled || !this.micWanted()) { this.holdPreRoll.length = 0; return; }
     const open = this.gateOpen();
     if (open) for (const u of this.segmenter.push(frame)) this.enqueue(u);
+    else if (this.holdPreRollEnabled()) {
+      this.holdPreRoll.push({ frame, atMs: performance.now() });
+      while (this.holdPreRoll.length > HOLD_PRE_ROLL_FRAMES) this.holdPreRoll.shift();
+    } else this.holdPreRoll.length = 0;
     this.level = open ? this.segmenter.level : rmsDb(frame);
     const speaking = open && this.segmenter.active;
     if (speaking && !this.wasSpeaking) this.server.sendPet({ t: 'listen', phase: 'start' });
@@ -1695,7 +1739,9 @@ export class DesktopPetWorld implements World {
       this.listenOpen = false;
       this.counts.delivered++;
       this.server.sendPet({ t: 'listen', phase: 'heard', text });
-      void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.userName, text), 'flush', { meta: { text } });
+      // speech through the talk key stops the round; always listening also hears a TV or other people, so it only wakes
+      const trigger = this.cfg.asr.mic.mode === 'always' ? 'flush' : 'interrupt';
+      void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.userName, text), trigger, { meta: { text } });
       return;
     }
     if (this.segmenter.active || this.transcribing || this.queue.length > 0) this.listenOpen = true;
@@ -2005,6 +2051,8 @@ export class DesktopPetWorld implements World {
         case 'closeWindow': await this.windowHost?.stop(); return this.petState();
         // hides the window as the pet's menu does; it stays connected and comes back with openWindow
         case 'hideWindow': this.server.sendPet({ t: 'hide' }); return this.petState();
+        // the tray's "click through": kept for this run only, and sent again to a window that reconnects
+        case 'setClickThrough': this.clickThrough = args[0] === true; this.server.sendPet({ t: 'prefs', clickThrough: this.clickThrough }); return this.petState();
         case 'installElectron': void this.store.electron.install(); return this.petState();
         // the Habits page's custom picks (/api/config writes no list or map): `custom` and its picks in one write, as the person's change
         case 'setWakeKinds': {
@@ -2027,6 +2075,8 @@ export class DesktopPetWorld implements World {
           if (typeof raw.hotkey === 'string' && parseHotkey(raw.hotkey)) typeKey.hotkey = raw.hotkey;
           this.opts.persist({ typeKey });
           await this.syncTypeKey();
+          // the talk key's trigger depends on the typing key
+          await this.syncHotkey();
           return this.petState();
         }
         case 'guide': {
@@ -2091,6 +2141,7 @@ export class DesktopPetWorld implements World {
   petState(): Record<string, unknown> {
     return {
       connected: this.server.petConnected,
+      clickThrough: this.clickThrough,
       /** The connected pet page is the window's, not a browser page standing in for it. */
       inWindow: this.server.petInWindow,
       /** The pet window is connected and shown (hidden from its menu or the tray, it stays connected). */

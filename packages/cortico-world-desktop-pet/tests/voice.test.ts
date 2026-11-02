@@ -16,17 +16,17 @@ import type { MicMode } from '../src/config.ts';
 import type { Language } from 'cortico/core/language.ts';
 import type { SherpaModule } from '../src/asr/sherpa.ts';
 import type { ModelSpec } from '../src/runtime/store.ts';
-import { parseHotkey, type Hotkey } from '../src/asr/hotkey.ts';
+import { parseHotkey, tapTracker, TAP_MAX_MS, type Hotkey, type watchHotkey } from '../src/asr/hotkey.ts';
 import { rmsDb } from '../src/asr/segmenter.ts';
 import { FakeHost } from './helpers/fake-host.ts';
 import { FakePage } from './helpers/page.ts';
 import { fakeSapi } from './helpers/fake-sapi.ts';
 
 /** A recognizer that answers `reply(samples)`; `decodes` lists how many samples each decode got. */
-interface FakeFunAsr { sherpa: SherpaModule; decodes: number[]; configs: Array<Record<string, unknown>>; reply: (samples: number) => string; beforeLoad?: () => Promise<void> }
+interface FakeFunAsr { sherpa: SherpaModule; decodes: number[]; audio: Float32Array[]; configs: Array<Record<string, unknown>>; reply: (samples: number) => string; beforeLoad?: () => Promise<void> }
 
 function fakeFunAsr(text: string | ((samples: number) => string)): FakeFunAsr {
-  const fake = { decodes: [] as number[], configs: [] as Array<Record<string, unknown>>, reply: typeof text === 'string' ? () => text : text } as FakeFunAsr;
+  const fake = { decodes: [] as number[], audio: [] as Float32Array[], configs: [] as Array<Record<string, unknown>>, reply: typeof text === 'string' ? () => text : text } as FakeFunAsr;
   fake.sherpa = {
     OfflineRecognizer: {
       createAsync: async (config) => {
@@ -34,12 +34,21 @@ function fakeFunAsr(text: string | ((samples: number) => string)): FakeFunAsr {
         await fake.beforeLoad?.();
         return {
           createStream: () => {
-            const stream = { samples: 0, acceptWaveform: (w: { samples: Float32Array }) => { stream.samples += w.samples.length; } };
+            const stream = {
+              samples: 0, audio: new Float32Array(),
+              acceptWaveform: (w: { samples: Float32Array }) => {
+                const audio = new Float32Array(stream.samples + w.samples.length);
+                audio.set(stream.audio); audio.set(w.samples, stream.samples);
+                stream.audio = audio;
+                stream.samples += w.samples.length;
+              },
+            };
             return stream;
           },
           decodeAsync: async (stream) => {
-            const n = (stream as { samples: number }).samples;
+            const { samples: n, audio } = stream as { samples: number; audio: Float32Array };
             fake.decodes.push(n);
+            fake.audio.push(audio);
             return { text: fake.reply(n) };
           },
         };
@@ -81,6 +90,13 @@ const tone = (ms: number, amp: number) => {
   return frames;
 };
 
+const floatAudio = (frames: Int16Array[]) => Float32Array.from(frames.flatMap((frame) => [...frame]), (sample) => sample / 32768);
+
+async function sendAudio(world: DesktopPetWorld, page: FakePage, frames: Int16Array[]): Promise<void> {
+  for (const frame of frames) page.audio(frame);
+  await expect.poll(() => world.voiceState().level).toBe(rmsDb(frames.at(-1)!));
+}
+
 /** Writes a config patch into the live section, as Core does with a World's persist. */
 const merge = (to: Record<string, unknown>, patch: Record<string, unknown>) => {
   for (const [k, v] of Object.entries(patch)) {
@@ -108,6 +124,29 @@ function scriptedKey(problem?: string) {
     return { stop: () => {} };
   };
   return { key, watch };
+}
+
+/** Hardware key samples go through the production gesture tracker for every active watcher. */
+function sampledKeys() {
+  const held = new Set<number>();
+  const watchers = new Set<{ keys: number[]; step: ReturnType<typeof tapTracker> }>();
+  let pollMs = 0;
+  const watch: typeof watchHotkey = async (hotkey, onChange, intervalMs, onTap, _text, trigger, onRelease) => {
+    pollMs = intervalMs;
+    const watcher = { keys: hotkey.keys, step: tapTracker(hotkey.taps, onChange, onTap, trigger, onRelease) };
+    watchers.add(watcher);
+    return { stop: () => { watchers.delete(watcher); } };
+  };
+  const sample = (key: string, down: boolean, at: number) => {
+    for (const vk of parseHotkey(key)!.keys) {
+      if (down) held.add(vk); else held.delete(vk);
+    }
+    for (const watcher of watchers) {
+      const down = watcher.keys.every((vk) => held.has(vk));
+      watcher.step(down, at, down && [...held].some((vk) => !watcher.keys.includes(vk)));
+    }
+  };
+  return { watch, sample, get pollMs() { return pollMs; } };
 }
 
 async function setup(text: string | ((samples: number) => string), mode: MicMode = 'always', watch?: ReturnType<typeof scriptedKey>['watch'], language: Language = 'zh', openOnPress = false, loadGate?: Promise<void>) {
@@ -187,12 +226,13 @@ describe('voice input', () => {
     expect(world.voiceState().server).toMatchObject({ pid: null });
   });
 
-  it('turns a spoken utterance into one speech event that wakes', async () => {
+  it('turns a spoken utterance into one speech event that wakes without interrupting the round', async () => {
     const { asr, host, page } = await setup('今天天气怎么样');
     for (const fr of [...tone(900, .3), ...tone(900, 0)]) page.audio(fr);
     await page.next((m) => m.t === 'listen' && m.phase === 'start');
     await expect.poll(() => host.events.length, { timeout: 5000 }).toBe(1);
     expect(host.events[0]).toMatchObject({ type: 'desktop-pet.speech', senderKey: 'desktop-pet.voice', text: '[voice] 伙伴:今天天气怎么样' });
+    // always listening also hears a TV or other people
     expect(host.pushOpts[0]).toEqual({ trigger: 'flush' });
     expect((await page.next((m) => m.t === 'listen' && m.phase === 'heard')).text).toBe('今天天气怎么样');
     // the last decode is the whole utterance: at least the 900 ms spoken
@@ -221,7 +261,7 @@ describe('voice input', () => {
 
   it('hold: only audio while the talk key is down counts, and releasing the key ends the utterance', async () => {
     const { key, watch } = scriptedKey();
-    const { host, page, world } = await setup('帮我看看这个', 'hold', watch);
+    const { host, page, world, asr } = await setup('帮我看看这个', 'hold', watch);
     expect(key.hotkey).toEqual(parseHotkey(DESKTOP_PET_DEFAULTS.asr.mic.hotkey));
     for (const fr of tone(600, .3)) page.audio(fr);
     await new Promise((r) => setTimeout(r, 200));
@@ -232,12 +272,15 @@ describe('voice input', () => {
     key.press(true);
     await page.next((m) => m.t === 'listen' && m.phase === 'start');
     // quiet speech still counts while the key is held, pauses included
-    for (const fr of [...tone(500, .01), ...tone(800, 0), ...tone(300, .01)]) page.audio(fr);
+    const spoken = [...tone(500, .01), ...tone(800, 0), ...tone(300, .01)];
+    for (const fr of spoken) page.audio(fr);
     await new Promise((r) => setTimeout(r, 200));
     expect(host.events).toHaveLength(0);
     key.press(false);
     await expect.poll(() => host.events.length, { timeout: 5000 }).toBe(1);
     expect(host.events[0].text).toBe('[voice] 伙伴:帮我看看这个');
+    expect(host.pushOpts[0]).toEqual({ trigger: 'interrupt' });
+    expect(asr.audio.at(-1)).toEqual(floatAudio(spoken));
   });
 
   it('hold: the microphone stays open across a press and release unless it is set to open on press', async () => {
@@ -301,6 +344,255 @@ describe('voice input', () => {
     await page.next((m) => m.t === 'type');
   });
 
+  it.each([
+    ['RightCtrl', false], ['RightCtrl', true], ['RightCtrl*2', false], ['RightCtrl*2', true],
+  ] as const)('%s with openOnPress=%s: double-tap types without voice; holding speaks without typing', async (hotkey, openOnPress) => {
+    const { watch, sample } = sampledKeys();
+    const { world, page, asr, host } = await setup('听清楚了', 'hold', watch, 'zh', openOnPress);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey }]);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
+
+    sample('RightCtrl', true, 0);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+    sample('RightCtrl', false, 100);
+    sample('RightCtrl', true, 200);
+    sample('RightCtrl', true, 200 + TAP_MAX_MS);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+    for (const fr of tone(600, .3)) page.audio(fr);
+    const closedFrame = tone(20, .05)[0];
+    page.audio(closedFrame);
+    await expect.poll(() => world.voiceState().level).toBe(rmsDb(closedFrame));
+    sample('RightCtrl', false, 200 + TAP_MAX_MS);
+    await page.next((m) => m.t === 'type');
+    expect(page.messages.some((m) => m.t === 'listen' && m.phase === 'start')).toBe(false);
+    if (openOnPress) expect(page.messages.some((m) => m.t === 'prefs' && m.mic === true)).toBe(false);
+    expect(asr.decodes).toHaveLength(0);
+    expect(host.events).toHaveLength(0);
+
+    sample('RightCtrl', true, 1000);
+    sample('RightCtrl', false, 1100);
+    sample('RightCtrl', true, 1200);
+    sample('RightCtrl', true, 1200 + TAP_MAX_MS + 1);
+    expect(world.voiceState().input).toMatchObject({ open: true });
+    if (openOnPress) await page.next((m) => m.t === 'prefs' && m.mic === true);
+    for (const fr of tone(600, .3)) page.audio(fr);
+    const openFrame = tone(20, .1)[0];
+    page.audio(openFrame);
+    await page.next((m) => m.t === 'listen' && m.phase === 'start');
+    await expect.poll(() => world.voiceState().level).toBe(rmsDb(openFrame));
+    sample('RightCtrl', false, 2200);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+    await page.next((m) => m.t === 'listen' && m.phase === 'heard');
+    expect(host.events).toHaveLength(1);
+    expect(host.events[0].text).toBe('[voice] 伙伴:听清楚了');
+    expect(page.messages.some((m) => m.t === 'type')).toBe(false);
+    if (openOnPress) expect(asr.audio.at(-1)).toEqual(floatAudio([...tone(600, .3), openFrame]));
+  });
+
+  it('stopping a key watcher during a pending hold prevents it from opening voice later', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world, page } = await setup('', 'hold', watch, 'zh', true);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'RightCtrl' }]);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
+    sample('RightCtrl', true, 0);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'F8' }]);
+    sample('RightCtrl', true, TAP_MAX_MS + 1);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+    expect(page.messages.some((m) => m.t === 'listen' && m.phase === 'start')).toBe(false);
+  });
+
+  it('hold: a talk key apart from the typing key listens from the press', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world, page } = await setup('', 'hold', watch);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'RightCtrl' }]);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'F8*2' }]);
+    sample('RightCtrl', true, 0);
+    expect(world.voiceState().input).toMatchObject({ open: true });
+    await page.next((m) => m.t === 'listen' && m.phase === 'start');
+    sample('RightCtrl', false, 100);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+  });
+
+  it('hold: a talk key shared with the typing key listens only once held past a tap', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world } = await setup('', 'hold', watch);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'RightCtrl' }]);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
+    sample('RightCtrl', true, 0);
+    sample('RightCtrl', true, TAP_MAX_MS);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+    sample('RightCtrl', true, TAP_MAX_MS + 1);
+    expect(world.voiceState().input).toMatchObject({ open: true });
+  });
+
+  it.each(['RightCtrl', 'RightCtrl*2'])('shared %s preserves the speech captured during the hold delay', async (hotkey) => {
+    const { watch, sample } = sampledKeys();
+    const { world, page, asr } = await setup('听清楚了', 'hold', watch);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey }]);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
+    if (parseHotkey(hotkey)!.taps === 2) {
+      sample('RightCtrl', true, 0);
+      sample('RightCtrl', false, 100);
+    }
+    sample('RightCtrl', true, 200);
+    const before = [...tone(TAP_MAX_MS, .3), ...tone(20, .05)];
+    await sendAudio(world, page, before);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+    expect(asr.decodes).toHaveLength(0);
+    sample('RightCtrl', true, 200 + TAP_MAX_MS + 1);
+    const after = [...tone(700, .2), ...tone(20, .1)];
+    await sendAudio(world, page, after);
+    sample('RightCtrl', false, 1400);
+    await page.next((m) => m.t === 'listen' && m.phase === 'heard');
+    const expected = floatAudio([...before, ...after]);
+    expect(asr.decodes.at(-1)).toBe(expected.length);
+    expect(asr.audio.at(-1)).toEqual(expected);
+  });
+
+  it('shared hold key retains only the latest audio frames covering the hold delay and both key polls', async () => {
+    const keys = sampledKeys();
+    const { world, page, asr } = await setup('听清楚了', 'hold', keys.watch);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'RightCtrl' }]);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
+    const windowMs = Math.ceil((TAP_MAX_MS + 2 * keys.pollMs) / 20) * 20;
+    const recent = [...tone(windowMs - 20, .2), ...tone(20, .05)];
+    keys.sample('RightCtrl', true, 0);
+    await sendAudio(world, page, [...tone(1000, .4), ...recent]);
+    expect(asr.decodes).toHaveLength(0);
+    keys.sample('RightCtrl', true, TAP_MAX_MS + 1);
+    const tail = tone(40, .1);
+    await sendAudio(world, page, tail);
+    keys.sample('RightCtrl', false, TAP_MAX_MS + 100);
+    await page.next((m) => m.t === 'listen' && m.phase === 'heard');
+    expect(asr.decodes.at(-1)).toBe(floatAudio([...recent, ...tail]).length);
+    expect(asr.audio.at(-1)).toEqual(floatAudio([...recent, ...tail]));
+  });
+
+  it('releasing a shared key before activation discards its audio before the next hold', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world, page, asr } = await setup('听清楚了', 'hold', watch);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'RightCtrl' }]);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
+    sample('RightCtrl', true, 0);
+    await sendAudio(world, page, [...tone(TAP_MAX_MS, .3), ...tone(20, .05)]);
+    sample('RightCtrl', false, TAP_MAX_MS);
+    expect(asr.decodes).toHaveLength(0);
+    sample('RightCtrl', true, 1000);
+    sample('RightCtrl', true, 1000 + TAP_MAX_MS + 1);
+    const spoken = [...tone(700, .2), ...tone(20, .1)];
+    await sendAudio(world, page, spoken);
+    sample('RightCtrl', false, 2200);
+    await page.next((m) => m.t === 'listen' && m.phase === 'heard');
+    expect(asr.decodes.at(-1)).toBe(floatAudio(spoken).length);
+    expect(asr.audio.at(-1)).toEqual(floatAudio(spoken));
+  });
+
+  it.each(['rebind', 'disable', 'mic-off', 'expire'] as const)('%s discards pending hold audio before another recording', async (action) => {
+    const keys = sampledKeys();
+    const { world, page, asr } = await setup('听清楚了', 'hold', keys.watch);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'RightCtrl' }]);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
+    await sendAudio(world, page, [...tone(TAP_MAX_MS, .3), ...tone(20, .05)]);
+    if (action === 'rebind') {
+      await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'F8' }]);
+      await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'RightCtrl' }]);
+    } else if (action === 'disable') {
+      await world.webUi().invoke!('voice', 'setEnabled', [false]);
+      await expect.poll(() => (world.voiceState().server as { phase: string }).phase).toBe('stopped');
+      await world.webUi().invoke!('voice', 'setEnabled', [true]);
+      await expect.poll(() => (world.voiceState().server as { phase: string }).phase).toBe('running');
+    } else if (action === 'mic-off') {
+      page.send({ t: 'mic', state: 'off' });
+      await expect.poll(() => world.voiceState().level).toBe(-100);
+      page.send({ t: 'mic', state: 'on' });
+    } else await new Promise((r) => setTimeout(r, TAP_MAX_MS + 2 * keys.pollMs + 40));
+    keys.sample('RightCtrl', true, 1000);
+    keys.sample('RightCtrl', true, 1000 + TAP_MAX_MS + 1);
+    const spoken = [...tone(700, .2), ...tone(20, .1)];
+    await sendAudio(world, page, spoken);
+    keys.sample('RightCtrl', false, 2200);
+    await page.next((m) => m.t === 'listen' && m.phase === 'heard');
+    expect(asr.decodes.at(-1)).toBe(floatAudio(spoken).length);
+    expect(asr.audio.at(-1)).toEqual(floatAudio(spoken));
+  });
+
+  it('cancelling a shared hold and releasing it discards audio received after cancellation', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world, page, asr, host } = await setup('听清楚了', 'hold', watch);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'RightCtrl' }]);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
+    sample('RightCtrl', true, 0);
+    await sendAudio(world, page, [...tone(TAP_MAX_MS, .3), ...tone(20, .05)]);
+    sample('RightCtrl', true, TAP_MAX_MS + 1);
+    page.send({ t: 'cancel' });
+    await page.next((m) => m.t === 'listen' && m.phase === 'none');
+    await sendAudio(world, page, tone(160, .4));
+    sample('RightCtrl', false, 600);
+    expect(host.events).toHaveLength(0);
+    sample('RightCtrl', true, 1000);
+    sample('RightCtrl', true, 1000 + TAP_MAX_MS + 1);
+    const spoken = [...tone(700, .2), ...tone(20, .1)];
+    await sendAudio(world, page, spoken);
+    sample('RightCtrl', false, 2200);
+    await page.next((m) => m.t === 'listen' && m.phase === 'heard');
+    expect(host.events).toHaveLength(1);
+    expect(asr.decodes.at(-1)).toBe(floatAudio(spoken).length);
+    expect(asr.audio.at(-1)).toEqual(floatAudio(spoken));
+  });
+
+  it('hold: changing the typing key restarts the talk key watcher with the matching trigger', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world, cfg } = await setup('', 'hold', watch);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'RightCtrl' }]);
+    sample('RightCtrl', true, 0);
+    expect(world.voiceState().input).toMatchObject({ open: true });
+    sample('RightCtrl', false, 100);
+    // switched on through the pet panel with the same key: the press waits out a tap
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
+    sample('RightCtrl', true, 1000);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+    sample('RightCtrl', true, 1000 + TAP_MAX_MS + 1);
+    expect(world.voiceState().input).toMatchObject({ open: true });
+    sample('RightCtrl', false, 1500);
+    // switched off in the config directly: the next config sync goes back to listening from the press
+    cfg.typeKey.enabled = false;
+    await expect.poll(() => {
+      sample('RightCtrl', true, 2000);
+      const open = (world.voiceState().input as { open: boolean }).open;
+      sample('RightCtrl', false, 2050);
+      return open;
+    }).toBe(true);
+  });
+
+  it('a single-press typing shortcut opens the box before the key is released', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world, page } = await setup('', 'always', watch);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'F8' }]);
+    sample('F8', true, 0);
+    await page.next((m) => m.t === 'type');
+  });
+
+  it('Ctrl+C then Ctrl+V does not open the typing box; a double tap of Ctrl does', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world, page } = await setup('', 'always', watch);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'LeftCtrl*2' }]);
+    for (const [letter, at] of [['C', 0], ['V', 200]] as const) {
+      sample('LeftCtrl', true, at);
+      sample(letter, true, at + 30);
+      sample(letter, false, at + 90);
+      sample('LeftCtrl', false, at + 120);
+    }
+    // a later message on the same socket: a type sent for the shortcuts would have arrived before it
+    await world.webUi().invoke!('pet', 'setClickThrough', [true]);
+    await page.next((m) => m.t === 'prefs' && m.clickThrough === true);
+    expect(page.messages.some((m) => m.t === 'type')).toBe(false);
+    sample('LeftCtrl', true, 1000);
+    sample('LeftCtrl', false, 1080);
+    sample('LeftCtrl', true, 1200);
+    sample('LeftCtrl', false, 1280);
+    await page.next((m) => m.t === 'type');
+  });
+
   it('the microphone button held down sends the sentence without waiting for its closing pause', async () => {
     const { host, page } = await setup('帮我开灯');
     // speech with no pause after it: the segmenter is still inside the sentence
@@ -322,6 +614,7 @@ describe('voice input', () => {
     for (const fr of tone(600, .3)) page.audio(fr);
     page.send({ t: 'commit' });
     await expect.poll(() => host.events.length, { timeout: 5000 }).toBe(1);
+    expect(host.pushOpts[0]).toEqual({ trigger: 'interrupt' });
     expect((world.voiceState().input as { open: boolean }).open).toBe(false);
   });
 

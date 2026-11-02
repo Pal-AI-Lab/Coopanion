@@ -1,8 +1,9 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  retry: '重試',
   copy: '複製',
-  copyNothing: '取不到要複製的內容',
+  copyNothing: '沒有可複製的內容',
   copied: '已複製',
   copyFailed: '複製失敗，已展開文字供手動選取',
   imageReadFailed: '讀取圖片失敗',
@@ -22,6 +23,7 @@ export const S: Partial<typeof en> = {
   cancel: '取消',
   proceedAnyway: '仍要繼續',
   confirm: '確認',
+  gotIt: '知道了',
   close: '✕ 關閉 (Esc)',
   tooManyImages: (max: number) => `一則訊息最多 ${max} 張圖`,
   messageInput: '訊息輸入',

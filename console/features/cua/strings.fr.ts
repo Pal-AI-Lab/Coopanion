@@ -16,7 +16,7 @@ export const S: Partial<typeof en> = {
   grant: 'Un oui vaut',
   grantSuffix: 'minutes',
   grantBad: (min: number, max: number) => `Saisissez un nombre entier de ${min} à ${max}`,
-  more: "D'autres réglages se trouvent dans l'onglet Configuration de la page Compagnon de bureau du mode avancé.",
+  more: "D'autres réglages se trouvent dans l'onglet Configuration de la page Compagnon de bureau du mode avancé. Les fonctions ajoutées par d’autres extensions World ne dépendent pas de ces réglages ; réglez-les sur la page de chaque World.",
   saveFailed: (why: string) => `Non enregistré : ${why}`,
   enabledLabel: "Utiliser l'ordinateur",
   controlLabel: 'Souris et clavier',

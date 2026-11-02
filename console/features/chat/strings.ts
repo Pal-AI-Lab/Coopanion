@@ -21,7 +21,7 @@ const zh = {
   older: '更早的对话',
   voice: '语音',
   idle: '空闲',
-  thinking: (bot: string) => `${bot} 在想…`,
+  thinking: (bot: string) => `${bot} 正在思考…`,
   doing: (what: string) => `正在${what}`,
   retry: (at: string) => `模型没有应答，${at} 重试`,
   handoff: '正在整理之前的对话',

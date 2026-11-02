@@ -1,7 +1,7 @@
 /**
  * WebSocket addresses (ws or wss as the page is http or https, on the page's host, with the window's
  * language attached), and the JSON channels of `/ws/debug` and `/ws/sessions` over the stream client
- * (`stream.ts`): a frame that is not a JSON object is reported and dropped.
+ * (`stream.ts`): a frame that is not JSON is reported and dropped; JSON that is not an object is dropped.
  */
 import { withLanguage } from './language.ts';
 import type { WebUiStreamHandle } from 'cortico/web/shared/client-panel.ts';

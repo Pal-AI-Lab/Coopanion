@@ -5,6 +5,7 @@ const MAC = process.platform === 'darwin';
 
 const ja: Translation<CoreText> = {
   settings: {
+    autoUpdate: { title: "自動更新", description: "更新を自動でダウンロードし、アプリ終了時にインストールします。オフにすると確認とダウンロードが直ちに止まり、ダウンロード済みの更新も自動ではインストールされません。" },
     language: { title: '言語', description: '画面の表示と Coo の話す言葉にこの言語を使います。すぐに反映されます。' },
     telemetry: { title: '匿名の利用統計', description: '会話内容を含まない利用回数と設定を送信し、Coopanion の改善に役立てます。送信する項目は docs/TELEMETRY.md に記載されています。' },
     contextRing: { title: 'コンテキストリング', description: 'チャットページの入力欄に、以前の会話を整理するまでの残りを円で表示します。' },

@@ -82,11 +82,19 @@ describe('first-run seed', () => {
     expect(readFileSync(constitution, 'utf8')).toBe(edited);
   });
 
+  it('reads a config.json saved with a UTF-8 byte order mark and CRLF line ends', () => {
+    const home = mkdtempSync(join(tmpdir(), 'cc-seed-'));
+    mkdirSync(join(home, DEPLOYMENT));
+    writeFileSync(join(home, DEPLOYMENT, 'config.json'), `﻿${JSON.stringify({ language: 'ja' }, null, 2).replaceAll('\n', '\r\n')}`);
+    seed(home, 'zh');
+    expect(readFileSync(join(home, DEPLOYMENT, 'workspace', 'CONSTITUTION.md'), 'utf8')).toBe(readFileSync(personaFile('coo', 'ja'), 'utf8'));
+  });
+
   it('moves endpoints of the old deepseek module to coo and leaves other modules alone', () => {
     const home = mkdtempSync(join(tmpdir(), 'cc-seed-'));
     seed(home, 'zh');
     const endpoint = join(home, 'providers', endpointName(firstVendor('zh'), defaultRegion('zh')), 'config.json');
-    const old = { ...read(endpoint), kind: 'deepseek', spec: { model: 'deepseek-v4-pro' } };
+    const old = { ...read(endpoint), kind: 'deepseek', spec: { model: 'model-a' } };
     writeFileSync(endpoint, JSON.stringify(old));
     const other = join(home, 'providers', 'mine', 'config.json');
     mkdirSync(join(home, 'providers', 'mine'));

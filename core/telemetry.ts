@@ -18,11 +18,12 @@
  * uninstaller reads it to report the uninstall (installer/nsis.nsh).
  */
 import { randomUUID } from 'node:crypto';
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, rmSync, writeFileSync } from 'node:fs';
 import { cpus, release, totalmem } from 'node:os';
 import { isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { asRecord, field, isRecord, readState, writeState } from './state-file.ts';
+import { readTextFile } from 'cortico/core/util.ts';
 
 const TELEMETRY_URL = 'https://survey.palailab.org/v1/report';
 /** How often the day's record goes out while the app runs. */
@@ -200,7 +201,7 @@ export class Telemetry {
     this.firstRun = !existsSync(file);
     let installId: string = randomUUID();
     if (!this.firstRun) {
-      try { installId = readFileSync(join(opts.dir, ID_FILE), 'utf8').trim() || installId; }
+      try { installId = readTextFile(join(opts.dir, ID_FILE)).trim() || installId; }
       catch { /* the id is absent when statistics are disabled */ }
     }
     const fresh: State = {

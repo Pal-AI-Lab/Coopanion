@@ -17,7 +17,7 @@ describe('system proxy answers', () => {
     const lines: string[] = [];
     let answer: ProxyAnswer = { proxy: 'http://127.0.0.1:7897', rule: 'PROXY 127.0.0.1:7897' };
     const system = new SystemProxy(async (url) => { asked.push(url); return answer; }, (l) => lines.push(l), 1000, () => now);
-    const origin = 'https://api.deepseek.com';
+    const origin = 'https://api.test';
     expect(await Promise.all([system.lookup(origin), system.lookup(origin)])).toEqual(['http://127.0.0.1:7897', 'http://127.0.0.1:7897']);
     now = 999;
     expect(await system.lookup(origin)).toBe('http://127.0.0.1:7897');
@@ -36,8 +36,8 @@ describe('system proxy answers', () => {
     const system = new SystemProxy(async (url) => { asked.push(url); throw new Error('channel closed'); }, () => {});
     expect(await system.lookup('http://127.0.0.1:17790')).toBeNull();
     expect(await system.lookup('http://localhost:8080')).toBeNull();
-    expect(await system.lookup('https://api.deepseek.com')).toBeNull();
-    expect(asked).toEqual(['https://api.deepseek.com']);
+    expect(await system.lookup('https://api.test')).toBeNull();
+    expect(asked).toEqual(['https://api.test']);
   });
 });
 

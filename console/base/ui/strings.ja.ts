@@ -1,6 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  retry: '再試行',
   copy: 'コピー',
   copyNothing: 'コピーする内容がありません',
   copied: 'コピーしました',
@@ -22,6 +23,7 @@ export const S: Partial<typeof en> = {
   cancel: 'キャンセル',
   proceedAnyway: 'このまま続行',
   confirm: '確認',
+  gotIt: '了解',
   close: '✕ 閉じる (Esc)',
   tooManyImages: (max: number) => `1 件のメッセージに添付できる画像は最大 ${max} 枚です`,
   messageInput: 'メッセージ入力',

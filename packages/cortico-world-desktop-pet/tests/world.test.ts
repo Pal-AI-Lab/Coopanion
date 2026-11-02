@@ -64,8 +64,10 @@ async function windowPage(world: DesktopPetWorld): Promise<FakePage> {
     if (previous === undefined) delete process.env[HOST_ENV];
     else process.env[HOST_ENV] = previous;
   }
-  await expect.poll(() => existsSync(file)).toBe(true);
-  const url = new URL(readFileSync(file, 'utf8'));
+  // writeFileSync makes the file before it writes the URL into it: wait for the URL, not just the file.
+  const written = () => existsSync(file) ? readFileSync(file, 'utf8') : '';
+  await expect.poll(written).not.toBe('');
+  const url = new URL(written());
   const key = new URLSearchParams(url.hash.slice(1)).get('key');
   expect(key).toBeTruthy();
   expect(world.petUrl).toBe(`${url.origin}/pet`);
@@ -514,8 +516,15 @@ describe('with a pet page', () => {
     const closed = world.confirm('再问一次?', ['可以', '不行']);
     page.send({ t: 'confirmed', id: (await page.next((m) => m.t === 'confirm')).id, index: null });
     expect(await closed).toBe('dismissed');
+    // hidden from its menu or the tray, the pet is not asked
+    const hidden = () => (world as unknown as { petHidden: boolean }).petHidden;
+    page.send({ t: 'visibility', hidden: true });
+    await expect.poll(hidden).toBe(true);
+    expect(await world.confirm('看得见吗?', ['可以', '不行'])).toBe('unavailable');
+    page.send({ t: 'visibility', hidden: false });
+    await expect.poll(hidden).toBe(false);
     const gone = world.confirm('还在吗?', ['可以', '不行']);
-    await page.next((m) => m.t === 'confirm');
+    expect((await page.next((m) => m.t === 'confirm')).question).toBe('还在吗?');
     await page.close();
     expect(await gone).toBe('unavailable');
     expect(host.events).toHaveLength(0);

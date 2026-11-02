@@ -44,6 +44,7 @@ const { Readable } = require('node:stream');
 const { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, rmSync, symlinkSync, writeFileSync } = require('node:fs');
 const { delimiter, dirname, extname, join, resolve, sep } = require('node:path');
 const { dataDirIn, locateData, readRecord, writeRecord } = require('./data-dir.cjs');
+const { readTextFile } = require('./read-text.cjs');
 
 const { readSettingsSize, saveSettingsSize } = require('./settings-size.cjs');
 const { settingsChromeOptions, applySettingsTheme } = require('./settings-chrome.cjs');
@@ -61,9 +62,13 @@ const APP_ROOT = app.getAppPath();
 const ICONS = join(__dirname, 'icons');
 /** Window icon: on Windows the .ico, so the taskbar picks the size it draws instead of scaling a 512 px PNG. */
 const WINDOW_ICON = join(ICONS, process.platform === 'win32' ? 'icon.ico' : 'icon.png');
-const APP_ID = 'ai.pal.coopanion';
+/**
+ * The AppUserModelID, by which Windows groups taskbar buttons and picks their icon: electron-builder.yml's appId for
+ * a packaged build, an id of its own for a run from source, which would otherwise lend the installed app electron.exe's icon.
+ */
+const APP_ID = app.isPackaged ? 'ai.pal.coopanion' : 'ai.pal.coopanion.dev';
 /** The build's channel and, for `steam`, its Steam app id (see the module header). */
-const BUILD = JSON.parse(readFileSync(join(APP_ROOT, 'package.json'), 'utf8')).coopanion ?? {};
+const BUILD = JSON.parse(readTextFile(join(APP_ROOT, 'package.json'))).coopanion ?? {};
 const STEAM = BUILD.channel === 'steam';
 const PORTABLE = BUILD.channel === 'portable';
 const PET_HOST = process.argv.includes('--pet-host');
@@ -156,9 +161,9 @@ if (INSTALLED && !dataWritable()) {
 
 /**
  * An install made through the installer's pages sits in %LOCALAPPDATA%\Programs\Coopanion: the per-user
- * install mode (installer/nsis.nsh's customInstallMode) sets that after its customInit ran. From 0.1.14 to
- * 0.1.16 an update, which installs silently and so keeps customInit's choice, moved the program to %USERPROFILE%\Coopanion and left data\ behind
- * (#84). The first start in the new place takes that data\ back. When the app has run here since, this data\ may
+ * install mode (installer/nsis.nsh's customInstallMode) sets that after its customInit ran. Updates of 0.1.14 to
+ * 0.1.16, which install silently and so keep customInit's choice, put the program in %USERPROFILE%\Coopanion and
+ * left data\ in the old place. The first start in the new place takes that data\ back. When the app has run here since, this data\ may
  * be the one in use, so a dialog asks first (askRestoreStranded); taking the old one back then happens on the
  * next start, before anything here is open, and keeps this one beside it as data-replaced-<time>.
  */
@@ -172,7 +177,7 @@ function restoreStrandedData() {
   if (!STRANDED_DATA || STRANDED_DATA.toLowerCase() === DATA.toLowerCase()) return false;
   // an install still living there is its own install, not a leftover
   if (!existsSync(join(STRANDED_DATA, 'home')) || existsSync(join(STRANDED_DIR, 'Coopanion.exe'))) return false;
-  const choice = existsSync(STRANDED_CHOICE) ? readFileSync(STRANDED_CHOICE, 'utf8') : '';
+  const choice = existsSync(STRANDED_CHOICE) ? readTextFile(STRANDED_CHOICE) : '';
   if (choice === 'keep') return false;
   if (choice !== 'restore' && existsSync(join(DATA, 'home'))) return true;
   rmSync(STRANDED_CHOICE, { force: true });
@@ -271,7 +276,8 @@ const core = new CoreHost({
     // a portable folder is copied whole, which turns pnpm's links (absolute junctions on Windows) into plain folders an
     // extension no longer finds its dependencies through; hoisted node_modules hold the packages themselves
     ...PORTABLE || !LINKS ? { pnpm_config_node_linker: 'hoisted' } : {},
-    // extension installs call `corepack pnpm`; the shim (corepack.cmd, or corepack on macOS) runs the bundled pnpm on this runtime.
+    // extension installs call `corepack pnpm`, and the build scripts pnpm runs call `node`; the shims (.cmd on Windows) run
+    // the bundled pnpm and those scripts on this runtime.
     // The Windows build carries MinGit (scripts/pack.ts), ahead of any other git, for the history of Coo's workspace
     PATH: [shimDir, ...existsSync(MINGIT) ? [MINGIT] : [], process.env.PATH ?? ''].join(delimiter),
     CORTICO_NODE_EXE: process.execPath,
@@ -280,12 +286,18 @@ const core = new CoreHost({
     COOPANION_VERSION: app.getVersion(),
     // the introduction offers the whale's persona outside Steam (core/guide.ts)
     COOPANION_CHANNEL: STEAM ? 'steam' : 'github',
+    COOPANION_SELF_UPDATE: SELF_UPDATE ? '1' : '0',
   },
 });
 
 let settings = null;
 /** The route the settings window showed when it was last closed, where it opens next unless asked for another. */
 let settingsRoute = '';
+/** The hash route a settings window shows; the loading page, shown until the Core is up, has none. */
+function shownRoute(win) {
+  const page = win.webContents.getURL();
+  return page.startsWith('http://') ? new URL(page).hash : '';
+}
 let tray = null;
 let quitting = false;
 /** The quit was asked for from the pet's update bubble: the updated app starts once installed. */
@@ -350,7 +362,16 @@ async function serveWindow(request) {
   const from = request.referrer ? new URL(request.referrer).origin : null;
   if (url.origin === coreOrigin()) {
     if (url.pathname.startsWith(WINDOW_PREFIX)) return windowFile(url);
-    return from === coreOrigin() ? forward(request, url, from) : refused();
+    if (from !== coreOrigin()) return refused();
+    // a shutdown the console asked for is not a crash
+    if (request.method === 'POST' && url.pathname === '/api/run/shutdown') {
+      core.expectStop();
+      const response = await forward(request, url, from);
+      // a request Core refused leaves it running; a later exit is a crash again
+      if (!response.ok) core.forgetStop();
+      return response;
+    }
+    return forward(request, url, from);
   }
   if (url.origin !== petOrigin && url.origin !== await learnPetOrigin()) return refused();
   if (from === coreOrigin() || from === petOrigin) return forward(request, url, from);
@@ -395,7 +416,7 @@ function forward(request, url, origin) {
   });
 }
 
-/** The only remote address the settings page asks: the latest Coopanion release, for the hint under the wordmark. */
+/** The latest Coopanion release, for the update status in the settings window's title bar. */
 const RELEASE_CHECK = 'https://api.github.com/repos/Pal-AI-Lab/Coopanion/releases/latest';
 /** Images of the extension market: package icons and screenshots of the official index, and GitHub avatars. */
 const MARKET_IMAGES = ['https://raw.githubusercontent.com/Pal-AI-Lab/cortico-extensions/', 'https://avatars.githubusercontent.com/'];
@@ -483,9 +504,8 @@ function openSettings(path = '') {
     try { saveSettingsSize(join(userData, 'settings-size.json'), win.getNormalBounds()); }
     catch (err) { console.warn('[settings] could not save window size', err); }
     closing = true;
-    // the loading page, shown until the Core is up, has no route
-    const page = win.webContents.getURL();
-    if (page.startsWith('http://')) settingsRoute = new URL(page).hash;
+    const route = shownRoute(win);
+    if (route) settingsRoute = route;
   });
   // A page with unsaved edits (a leave guard, console/base/router.ts) refuses to unload: closing the window
   // then hides it with the edits kept. A load the app starts itself, and a quit, go ahead.
@@ -504,10 +524,10 @@ function openSettings(path = '') {
 }
 
 /** Calls a panel method of a World page through the WebUI API. */
-async function panel(pageId, panelId, method) {
+async function panel(pageId, panelId, method, args = []) {
   const url = consoleUrl(`api/webui/providers/${encodeURIComponent(pageId)}/panels/${panelId}/${method}`);
   if (!url) return null;
-  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args: [] }), signal: AbortSignal.timeout(5000) });
+  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args }), signal: AbortSignal.timeout(5000) });
   return res.ok ? res.json() : null;
 }
 
@@ -549,12 +569,25 @@ function noteAutostart() {
   core.opts.env.COOPANION_AUTOSTART = app.isPackaged && loginItem.get() ? '1' : '0';
 }
 
+/**
+ * The tray's "click through": every click passes through the pet, which still shows, walks and talks
+ * (for a game under it). It lasts for this run of the app and is sent again to a restarted Core.
+ */
+let clickThrough = false;
+function setClickThrough(on) {
+  clickThrough = on;
+  refreshTray();
+  return panel('world:desktop-pet', 'pet', 'setClickThrough', [on]).catch(() => { /* Core went away meanwhile; sent again when it is back */ });
+}
+
 function refreshTray() {
   if (!tray) return;
   const t = T(), login = loginItem.get();
+  tray.setToolTip(clickThrough ? t.trayClickThroughTip : 'Coopanion');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: t.trayOpenSettings, click: () => openSettings() },
     { label: t.trayShowPet, enabled: core.state === 'running', click: () => void showPet().catch(() => { /* Core went away meanwhile */ }) },
+    { label: t.trayClickThrough, type: 'checkbox', checked: clickThrough, enabled: core.state === 'running', click: (item) => void setClickThrough(item.checked) },
     { type: 'separator' },
     { label: t.trayLaunchAtLogin, type: 'checkbox', checked: login, enabled: app.isPackaged, click: (item) => { loginItem.set(item.checked); noteAutostart(); refreshTray(); } },
     { label: t.trayRestart, click: () => void core.restart() },
@@ -577,7 +610,6 @@ function buildTray() {
   icon.addRepresentation({ scaleFactor: 2, buffer: nativeImage.createFromPath(join(ICONS, `${name}@2x.png`)).toPNG() });
   if (MAC) icon.setTemplateImage(true);
   tray = new Tray(icon);
-  tray.setToolTip('Coopanion');
   refreshTray();
   core.on('state', refreshTray);
   // on macOS a click opens the menu, as every menu-bar icon does
@@ -586,10 +618,26 @@ function buildTray() {
 
 core.on('ready', ({ language: next }) => {
   followLanguage(next);
-  if (settings) settings.loadURL(settingsUrl());
-  if (updateStep) core.send(updateStep);
+  if (clickThrough) void setClickThrough(true);
+  // A restarted Core brings the window back to the page it showed (the World page it was restarted from).
+  if (settings) settings.loadURL(settingsUrl(shownRoute(settings)));
+  if (updateStep) core.send({ type: 'companion:update', step: updateStep });
 });
 core.on('language', followLanguage);
+// The saved preference reaches the main process before the first update check.
+core.on('auto-update', (enabled) => {
+  if (!SELF_UPDATE) return;
+  if (updater) { updater.setEnabled(enabled); return; }
+  updater = startUpdater({
+    logDir: join(userData, 'logs'),
+    enabled,
+    tell: (step) => {
+      updateStep = step;
+      core.send({ type: 'companion:update', step });
+      settings?.webContents.send('settings:update', updateLine());
+    },
+  });
+});
 // the quit stops the Core and takes the tray icon down before the installer runs; the installer kills a
 // Coopanion still running, which would leave its icon in the notification area
 core.on('update-install', () => {
@@ -604,7 +652,8 @@ core.on('state', (state, exit) => {
   if (!exit) return;
   const detail = exit.kind === 'locked' ? T().coreLocked(exit.pid, exit.file)
     : exit.kind === 'ports-busy' ? T().corePortsBusy(exit.from, exit.to)
-      : exit.kind === 'failed' ? T().coreFailed(exit.times, exit.code, exit.logFile) : T().coreRestarting(exit.code);
+      : exit.kind === 'incomplete' ? T().coreIncomplete(RELEASES_URL, exit.logFile)
+        : exit.kind === 'failed' ? T().coreFailed(exit.times, exit.code, exit.logFile) : T().coreRestarting(exit.code);
   if (Notification.isSupported()) new Notification({ title: 'Coopanion', body: detail, icon: WINDOW_ICON }).show();
   if (state === 'failed') dialog.showErrorBox('Coopanion', detail);
 });
@@ -673,12 +722,4 @@ app.whenReady().then(() => {
   buildTray();
   noteAutostart();
   void core.start();
-  if (SELF_UPDATE) updater = startUpdater({
-    logDir: join(userData, 'logs'),
-    tell: (step) => {
-      updateStep = { type: 'companion:update', ...step };
-      core.send(updateStep);
-      settings?.webContents.send('settings:update', updateLine());
-    },
-  });
 });

@@ -1,0 +1,182 @@
+// @vitest-environment jsdom
+/** Shared widgets: hover hints (`base/ui/hover-hint.ts`), dropdown lists (`base/ui/dropdown.ts`) and the extension info page's pictures (`extensions/gallery.ts`). */
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mountHoverHints } from '../console/base/ui/hover-hint.ts';
+import { gallery, takeImages } from '../console/advanced/features/extensions/gallery.ts';
+
+const lives = [];
+afterEach(() => { lives.splice(0).forEach(life => life.abort()); document.body.replaceChildren(); vi.useRealTimers(); });
+const mount = () => { const life = new AbortController(); lives.push(life); mountHoverHints(document, life.signal); return document.querySelector('.hover-hint'); };
+const enter = (el) => el.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }));
+
+describe('hover hints', () => {
+  it('shows a title in the console box instead of the system tooltip, a moment after the pointer arrives', () => {
+    vi.useFakeTimers();
+    const box = mount();
+    const button = document.createElement('button'); button.title = '刷新';
+    document.body.append(button);
+    enter(button);
+    expect(button.hasAttribute('title')).toBe(false);
+    expect(button.getAttribute('aria-label')).toBe('刷新');
+    expect(box.classList.contains('hidden')).toBe(true);
+    vi.advanceTimersByTime(500);
+    expect(box.classList.contains('hidden')).toBe(false);
+    expect(box.textContent).toBe('刷新');
+    document.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    expect(box.classList.contains('hidden')).toBe(true);
+  });
+
+  it('only takes titles away in the rail', () => {
+    vi.useFakeTimers();
+    const box = mount();
+    const rail = document.createElement('nav'); rail.id = 'rail';
+    const dot = document.createElement('span'); dot.title = '主链路 正常'; dot.setAttribute('aria-label', '主链路 正常');
+    rail.append(dot); document.body.append(rail);
+    enter(dot);
+    vi.advanceTimersByTime(500);
+    expect(dot.hasAttribute('title')).toBe(false);
+    expect(box.classList.contains('hidden')).toBe(true);
+  });
+});
+
+describe('extension pictures', () => {
+  it('takes https pictures out of a description and leaves the rest', () => {
+    const { text, images } = takeImages('上面是截图\n\n![主界面](https://example.com/a.png)\n\n![](http://example.com/b.png) 结尾');
+    expect(images).toEqual([{ src: 'https://example.com/a.png', alt: '主界面' }]);
+    expect(text).toBe('上面是截图\n\n![](http://example.com/b.png) 结尾');
+    expect(takeImages('没有图片').text).toBe('没有图片');
+  });
+
+  it('opens a picture in the lightbox and pages through them', () => {
+    const life = new AbortController(); lives.push(life);
+    HTMLDialogElement.prototype.showModal ??= function () { this.open = true; };
+    HTMLDialogElement.prototype.close ??= function () { this.open = false; this.dispatchEvent(new Event('close')); };
+    const row = gallery(document, [{ src: 'https://example.com/1.png', alt: '' }, { src: 'https://example.com/2.png', alt: '二' }], life.signal);
+    document.body.append(row);
+    const shots = row.querySelectorAll('.extension-gallery-shot');
+    expect(shots).toHaveLength(2);
+    shots[1].click();
+    const lightbox = document.querySelector('.extension-lightbox');
+    expect(lightbox.querySelector('img').alt).toBe('二');
+    expect(lightbox.querySelector('.extension-lightbox-count').textContent).toBe('2 / 2');
+    lightbox.querySelector('.extension-lightbox-nav.is-next').click();
+    expect(lightbox.querySelector('.extension-lightbox-count').textContent).toBe('1 / 2');
+    lightbox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(document.querySelector('.extension-lightbox')).toBeNull();
+  });
+});
+
+describe('dropdown lists', () => {
+  it('opens a field\'s datalist in the console list, filters it while typing, and picks with the keys or the pointer', async () => {
+    const { mountDropdowns } = await import('../console/base/ui/dropdown.ts');
+    const life = new AbortController(); lives.push(life);
+    mountDropdowns(document, life.signal);
+    const list = document.createElement('datalist'); list.id = 'models';
+    for (const value of ['deepseek-flash', 'deepseek-v4-pro', 'qwen-max']) list.append(Object.assign(document.createElement('option'), { value }));
+    const input = document.createElement('input'); input.setAttribute('list', 'models'); input.value = 'deepseek-flash';
+    document.body.append(list, input);
+    const box = document.querySelector('.combo-list');
+    const key = (k) => input.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+    const shown = () => [...box.querySelectorAll('.combo-option')].map(option => option.textContent);
+
+    input.focus(); input.click();
+    expect(input.hasAttribute('list')).toBe(false);
+    expect(box.hidden).toBe(false);
+    expect(shown()).toEqual(['deepseek-flash', 'deepseek-v4-pro', 'qwen-max']);
+    expect(box.querySelector('[aria-selected="true"]').textContent).toBe('deepseek-flash');
+
+    input.click(); expect(box.hidden).toBe(true); input.click();
+    key('ArrowDown'); key('ArrowDown'); key('Enter');
+    expect(input.value).toBe('deepseek-v4-pro');
+    expect(box.hidden).toBe(true);
+
+    input.value = 'qwen'; input.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(shown()).toEqual(['qwen-max']);
+    let changed = 0; input.addEventListener('change', () => changed++);
+    box.querySelector('.combo-option').dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true }));
+    expect([input.value, changed, box.hidden]).toEqual(['qwen-max', 1, true]);
+
+    // Esc closes the list and goes no further (a window around the field stays open).
+    key('ArrowDown');
+    let reached = false; document.addEventListener('keydown', () => { reached = true; }, { once: true });
+    key('Escape');
+    expect(box.hidden).toBe(true);
+    expect(reached).toBe(false);
+  });
+});
+
+describe('select dropdowns', () => {
+  it('opens a select in the console list instead of the system popup, from its value, and a second press closes it', async () => {
+    const { mountDropdowns } = await import('../console/base/ui/dropdown.ts');
+    const life = new AbortController(); lives.push(life);
+    mountDropdowns(document, life.signal);
+    const select = document.createElement('select'); select.className = 'field';
+    for (const [value, label] of [['zh', '简体中文'], ['en', 'English'], ['ja', '日本語']]) select.append(Object.assign(document.createElement('option'), { value, textContent: label }));
+    select.value = 'en';
+    document.body.append(select);
+    const box = document.querySelector('.combo-list');
+    const press = () => { const event = new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }); select.dispatchEvent(event); return event.defaultPrevented; };
+    const key = (k) => select.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+    let changes = 0; select.addEventListener('change', () => changes++);
+
+    expect(press()).toBe(true);
+    expect(box.hidden).toBe(false);
+    expect([...box.querySelectorAll('.combo-option')].map(row => row.textContent)).toEqual(['简体中文', 'English', '日本語']);
+    expect(box.querySelector('.is-active').textContent).toBe('English');
+    press();
+    expect(box.hidden).toBe(true);
+
+    key(' '); key('ArrowDown'); key('Enter');
+    expect([select.value, changes, box.hidden]).toEqual(['ja', 1, true]);
+    // A closed select's arrows are left to it.
+    key('ArrowUp');
+    expect(box.hidden).toBe(true);
+  });
+});
+
+describe('widget edge cases', () => {
+  it('drops a picture that fails to load, and the whole section once none is left', () => {
+    const life = new AbortController(); lives.push(life);
+    const section = gallery(document, [{ src: 'https://example.com/1.png', alt: '' }, { src: 'https://example.com/2.png', alt: '' }], life.signal);
+    document.body.append(section);
+    expect(section.querySelector('h4')).not.toBeNull();
+    const [one, two] = section.querySelectorAll('.extension-gallery-shot img');
+    one.dispatchEvent(new Event('error'));
+    expect(section.querySelectorAll('.extension-gallery-shot')).toHaveLength(1);
+    expect(section.isConnected).toBe(true);
+    two.dispatchEvent(new Event('error'));
+    expect(section.isConnected).toBe(false);
+  });
+
+  it('keeps an open select list in step with options the page replaces', async () => {
+    const { mountDropdowns } = await import('../console/base/ui/dropdown.ts');
+    const life = new AbortController(); lives.push(life);
+    mountDropdowns(document, life.signal);
+    const select = document.createElement('select'); select.className = 'field';
+    select.append(Object.assign(document.createElement('option'), { value: 'a', textContent: 'A' }));
+    document.body.append(select);
+    select.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }));
+    const rows = () => [...document.querySelectorAll('.combo-list .combo-option')].map(row => row.textContent);
+    expect(rows()).toEqual(['A']);
+    select.append(Object.assign(document.createElement('option'), { value: 'b', textContent: 'B' }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(rows()).toEqual(['A', 'B']);
+  });
+});
+
+describe('notice dialogs', () => {
+  it('tells with a single 知道了 and nothing to choose, where a confirm asks with two buttons', async () => {
+    const { createConsoleUi, notice } = await import('../console/base/ui/index.ts');
+    const { S } = await import('../console/base/ui/strings.ts');
+    const life = new AbortController(); lives.push(life);
+    const ui = createConsoleUi({ memo: { get: () => undefined, set: () => {} }, overlayHost: document.body, signal: life.signal, doc: document });
+    const done = notice(ui, { title: '删除供应商', body: '此供应商正在被以下 Bot 使用，不能删除：Coo' });
+    const buttons = () => [...document.querySelectorAll('.modal .confirm-card button')].map(button => button.textContent);
+    expect(buttons()).toEqual([S.gotIt]);
+    document.querySelector('.modal .confirm-card button').click();
+    await expect(done).resolves.toBeUndefined();
+    expect(document.querySelector('.modal')).toBeNull();
+    void ui.confirm({ title: '确认？' });
+    expect(buttons()).toEqual([S.cancel, S.confirm]);
+  });
+});

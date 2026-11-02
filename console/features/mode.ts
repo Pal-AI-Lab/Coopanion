@@ -1,6 +1,5 @@
 /**
- * 普通模式与高级模式。普通模式只有关于桌宠的几页(开始、桌宠、语音输入);高级模式再接上
- * Cortico WebUI 的全部页面。选择存在设置窗口的 localStorage 里,下次打开还是它;读不到就是普通模式。
+ * 普通模式与高级模式，各自列出哪些页面见 console/index.ts 的文件头。选择存在设置窗口的 localStorage 里,下次打开还是它;读不到就是普通模式。
  */
 
 export type ConsoleMode = 'normal' | 'advanced';
@@ -23,7 +22,7 @@ export function writeMode(mode: ConsoleMode): void {
 
 const REQUEST = 'companion-mode-request';
 
-/** 页面请求换模式(比如「开始」页的「用别的模型服务」):左栏的开关在 main.ts 里,由它重建左栏。 */
+/** 页面请求换模式(比如「开始」页的「没找到？手动设置其他模型」):console/index.ts 收到后显示或隐藏左栏条目。 */
 export function requestMode(mode: ConsoleMode): void {
   window.dispatchEvent(new CustomEvent<ConsoleMode>(REQUEST, { detail: mode }));
 }

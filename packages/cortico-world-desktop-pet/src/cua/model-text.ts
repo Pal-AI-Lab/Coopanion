@@ -6,6 +6,7 @@
  */
 import type { PermissionLevel } from './config.ts';
 import type { EngineErrorCode } from './engine/fail.ts';
+import type { YieldDiagnostics } from './engine-ipc.ts';
 
 export type ModelLanguage = 'zh' | 'en';
 
@@ -35,16 +36,16 @@ const zh = {
     linuxPixelFormat: (bits) => `截屏失败:不支持的像素格式(${bits} 位)`,
     linuxNoKey: (vk) => `这个键盘布局里没有这个键(虚拟键码 ${vk})`,
     linuxNoXdotool: () => '打字需要 xdotool:请先安装(Debian/Ubuntu: sudo apt install xdotool)',
-    winBitBlt: () => 'BitBlt 失败',
+    winBitBlt: () => 'BitBlt 失败(可能被更高权限的窗口挡住)',
     winGetDIBits: (lines, height) => `GetDIBits 只取到 ${lines}/${height} 行`,
     winSendInput: (sent, total) => `SendInput 只送出 ${sent}/${total} 个事件(可能被更高权限的窗口挡住)`,
-    winSetCursorPos: (x, y) => `SetCursorPos(${x}, ${y}) 失败`,
+    winSetCursorPos: (x, y) => `SetCursorPos(${x}, ${y}) 失败(可能被更高权限的窗口挡住)`,
     layoutChanged: () => '显示器变了(接上、拔掉、挪动或改了缩放),这次没有操作;先重新截图,再按新截图的坐标操作',
     noDisplay: (n, total) => `没有显示器 ${n},现在有 ${total} 块`,
   } as Record<EngineErrorCode, (...args: Array<string | number | undefined>) => string>,
 
   screenshot: (lead: string, w: number, h: number, view: string, cursor: string, foreground: string | null, seen: boolean) =>
-    `${lead}截图 ${w}×${h}(${view});鼠标${cursor};前台窗口「${foreground ?? '无'}」。` + (seen ? '' : '\n当前模型不接收图片,只能读到这段文字。'),
+    `${lead}截图 ${w}×${h}(${view});鼠标${cursor};前台窗口「${foreground === null ? '无' : foreground || '标题不可用'}」。` + (seen ? '' : '\n当前模型不接收图片,只能读到这段文字。'),
   screenshotFallback: (w: number, h: number) => `屏幕截图 ${w}×${h}`,
   /** What a screenshot shows when there is one display. */
   viewOne: (pw: number, ph: number) => `屏幕 ${pw}×${ph}`,
@@ -55,16 +56,24 @@ const zh = {
   cursorOn: (n: number) => `在显示器 ${n} 上`,
   cursorNowhere: '不在任何显示器上',
   displayBad: (n: unknown, total: number) => `没有显示器 ${String(n)};现在有 ${total} 块,编号 1–${total}。`,
-  zoomed: (w: number, h: number, x: number, y: number, rw: number, rh: number) => `放大图 ${w}×${h}:截图里 (${x}, ${y}) 起 ${rw}×${rh} 的一块,按原始分辨率重新截取。点击等操作仍用截图坐标。`,
+  zoomed: (w: number, h: number, x: number, y: number, rw: number, rh: number) => `放大图 ${w}×${h}:截图里 (${x}, ${y}) 起 ${rw}×${rh} 的一块,从屏幕重新截取,不大于截图尺寸上限时不缩小。点击等操作仍用截图坐标。`,
   zoomFallback: (w: number, h: number) => `局部放大图 ${w}×${h}`,
   zoomBad: 'x、y 要在截图范围内,width、height 要是正数',
   zoomNoShot: '还没有截图:先用 pet_cua_screenshot 截一张,放大的区域用那张截图的坐标',
   listSep: '、',
   viewOnly: '这台电脑的设置只允许看,不允许操作鼠标键盘(worlds.desktop-pet.cua.control 关着)。',
-  yielded: (seconds: number) => `等了 ${seconds} 秒,用户一直在用鼠标或键盘,没有和用户抢着操作。可以告诉对方你在等他停手,或者过一会儿再试。`,
+  yielded: (seconds: number) => `等了 ${seconds} 秒,输入信号仍未满静止时长,本次操作未执行。`,
+  yieldDetails: (activity: YieldDiagnostics, foreground: string | null, app: string | null) => {
+    const signals = activity.blockedBy.map((s) => s === 'systemInput' ? '系统最后输入时间' : '指针位移').join('、');
+    const source = activity.blockedBy.includes('systemInput') && activity.pointerMovement.count === 0
+      ? '未检测到近期指针位移,具体输入设备未知,可能是键盘、滚轮或其他输入设备。' : '';
+    return `阻挡信号:${signals}。${source}`
+      + `让位检查命中:系统输入 ${activity.systemInput.count} 次(最后 tick ${activity.systemInput.lastTick ?? '无'}),指针位移 ${activity.pointerMovement.count} 次(最后 tick ${activity.pointerMovement.lastTick ?? '无'});次数是采样检查次数。`
+      + `前台窗口「${foreground === null ? '无' : foreground || '标题不可用'}」,程序「${app ?? '未知'}」。`;
+  },
   cancelledWaiting: (seconds: string) => `等用户停手 ${seconds} 秒时收到打断,没有发出输入。`,
   waitedFirst: (seconds: string) => `(先等用户停手 ${seconds} 秒)`,
-  after: (line: string, cursor: string, foreground: string | null) => `${line} 鼠标${cursor};前台窗口「${foreground ?? '无'}」。`,
+  after: (line: string, cursor: string, foreground: string | null) => `${line} 鼠标${cursor};前台窗口「${foreground === null ? '无' : foreground || '标题不可用'}」。`,
   noForeground: '现在没有窗口在接收键盘输入;要打字先截图看看。',
   noShotInterrupted: '收到打断,没有截图。',
 
@@ -97,7 +106,7 @@ const zh = {
   focusMissing: (key: string) => `没有标题包含「${key}」的可见窗口。`,
   focused: (title: string) => `已把「${title}」切到前台。`,
   focusedElsewhere: (n: number) => `它在显示器 ${n},要看它就截那块显示器。`,
-  focusRefused: (title: string, foreground: string | null) => `尝试切换到「${title}」,系统没有让它到前台;现在前台是「${foreground ?? '无'}」。`,
+  focusRefused: (title: string, foreground: string | null) => `尝试切换到「${title}」,系统没有让它到前台;现在前台是「${foreground === null ? '无' : foreground || '标题不可用'}」。`,
   waitInterrupted: (waited: string, seconds: number) => `等了 ${waited}/${seconds} 秒时收到打断,没有截图。`,
   waited: (seconds: number) => `等了 ${seconds} 秒。`,
   waitNoLook: (seconds: number) => `等了 ${seconds} 秒。这一轮使用者还没允许看屏幕,所以没有截图;要看就用 pet_cua_screenshot,会先问使用者。`,
@@ -139,16 +148,16 @@ const en: typeof zh = {
     linuxPixelFormat: (bits) => `Screenshot failed: unsupported pixel format (${bits} bits)`,
     linuxNoKey: (vk) => `The keyboard layout has no such key (virtual-key code ${vk})`,
     linuxNoXdotool: () => 'Typing needs xdotool: install it first (Debian/Ubuntu: sudo apt install xdotool)',
-    winBitBlt: () => 'BitBlt failed',
+    winBitBlt: () => 'BitBlt failed (a window with higher privileges may be in the way)',
     winGetDIBits: (lines, height) => `GetDIBits returned only ${lines}/${height} lines`,
     winSendInput: (sent, total) => `SendInput sent only ${sent}/${total} events (a window with higher privileges may be in the way)`,
-    winSetCursorPos: (x, y) => `SetCursorPos(${x}, ${y}) failed`,
+    winSetCursorPos: (x, y) => `SetCursorPos(${x}, ${y}) failed (a window with higher privileges may be in the way)`,
     layoutChanged: () => 'The displays changed (one was connected, disconnected, moved or rescaled), so nothing was done; take a new screenshot and use its coordinates',
     noDisplay: (n, total) => `There is no display ${n}; there are ${total}`,
   },
 
   screenshot: (lead, w, h, view, cursor, foreground, seen) =>
-    `${lead}Screenshot ${w}×${h} (${view}); mouse ${cursor}; foreground window "${foreground ?? 'none'}".` + (seen ? '' : '\nThe current model does not take images; this text is all it gets.'),
+    `${lead}Screenshot ${w}×${h} (${view}); mouse ${cursor}; foreground window "${foreground === null ? 'none' : foreground || 'title unavailable'}".` + (seen ? '' : '\nThe current model does not take images; this text is all it gets.'),
   screenshotFallback: (w, h) => `screenshot ${w}×${h}`,
   viewOne: (pw, ph) => `screen ${pw}×${ph}`,
   viewOf: (n, total, pw, ph, primary, others) => `display ${n} of ${total}, ${pw}×${ph}${primary ? ', the main display' : ''}; other displays: ${others}`,
@@ -157,16 +166,24 @@ const en: typeof zh = {
   cursorOn: (n) => `on display ${n}`,
   cursorNowhere: 'on no display',
   displayBad: (n, total) => `There is no display ${String(n)}; there are ${total}, numbered 1–${total}.`,
-  zoomed: (w, h, x, y, rw, rh) => `Zoomed image ${w}×${h}: the ${rw}×${rh} block at (${x}, ${y}) of the screenshot, captured again at full resolution. Clicks and other actions still take screenshot coordinates.`,
+  zoomed: (w, h, x, y, rw, rh) => `Zoomed image ${w}×${h}: the ${rw}×${rh} block at (${x}, ${y}) of the screenshot, captured again from the screen, unscaled while no larger than the screenshot size limit. Clicks and other actions still take screenshot coordinates.`,
   zoomFallback: (w, h) => `zoomed image ${w}×${h}`,
   zoomBad: 'x and y must be inside the screenshot, width and height positive',
   zoomNoShot: 'No screenshot yet: take one with pet_cua_screenshot and give the region in its coordinates',
   listSep: ', ',
   viewOnly: 'This computer\'s settings allow looking only, no mouse or keyboard input (worlds.desktop-pet.cua.control is off).',
-  yielded: (seconds) => `Waited ${seconds} seconds and the person kept using the mouse or keyboard, so nothing was sent to compete with them. You can tell them you are waiting for them to stop, or try again in a while.`,
+  yielded: (seconds) => `Waited ${seconds} seconds; input signals were still within the idle period, so the action was not performed. `,
+  yieldDetails: (activity, foreground, app) => {
+    const signals = activity.blockedBy.map((s) => s === 'systemInput' ? 'system last-input time' : 'pointer displacement').join(' and ');
+    const source = activity.blockedBy.includes('systemInput') && activity.pointerMovement.count === 0
+      ? 'No recent pointer displacement was detected; the input device is unknown and may be the keyboard, wheel or another input device. ' : '';
+    return `Blocking signals: ${signals}. ${source}`
+      + `Blocking checks: system input ${activity.systemInput.count} (last tick ${activity.systemInput.lastTick ?? 'none'}), pointer displacement ${activity.pointerMovement.count} (last tick ${activity.pointerMovement.lastTick ?? 'none'}); counts are sampled checks. `
+      + `Foreground window "${foreground === null ? 'none' : foreground || 'title unavailable'}", program "${app ?? 'unknown'}".`;
+  },
   cancelledWaiting: (seconds) => `Interrupted after waiting ${seconds} seconds for the person to stop; no input was sent.`,
   waitedFirst: (seconds) => ` (after waiting ${seconds} seconds for the person to stop)`,
-  after: (line, cursor, foreground) => `${line} Mouse ${cursor}; foreground window "${foreground ?? 'none'}".`,
+  after: (line, cursor, foreground) => `${line} Mouse ${cursor}; foreground window "${foreground === null ? 'none' : foreground || 'title unavailable'}".`,
   noForeground: ' No window is taking keyboard input now; take a screenshot before typing.',
   noShotInterrupted: ' Interrupted, so no screenshot.',
 
@@ -199,7 +216,7 @@ const en: typeof zh = {
   focusMissing: (key) => `No visible window has "${key}" in its title.`,
   focused: (title) => `Brought "${title}" to the foreground.`,
   focusedElsewhere: (n) => ` It is on display ${n}; take a screenshot of that display to see it.`,
-  focusRefused: (title, foreground) => `Tried to switch to "${title}", but the system did not bring it to the foreground; the foreground window is "${foreground ?? 'none'}".`,
+  focusRefused: (title, foreground) => `Tried to switch to "${title}", but the system did not bring it to the foreground; the foreground window is "${foreground === null ? 'none' : foreground || 'title unavailable'}".`,
   waitInterrupted: (waited, seconds) => `Interrupted after waiting ${waited}/${seconds} seconds; no screenshot.`,
   waited: (seconds) => `Waited ${seconds} seconds.`,
   waitNoLook: (seconds) => `Waited ${seconds} seconds. The person has not allowed looking at the screen this turn, so there is no screenshot; pet_cua_screenshot asks them first.`,

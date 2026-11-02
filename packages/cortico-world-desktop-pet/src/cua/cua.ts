@@ -26,12 +26,13 @@
  * Receipts and the environment prompt's computer-use part are in the model-text language (`model-text.ts`).
  */
 import { fork, type ChildProcess } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import type { Logger, ToolCallContext, ToolDef, ToolOutcome, WorldHost, WorldLamp } from 'cortico/core/types.ts';
 import type { Language } from 'cortico/core/language.ts';
 import { renderTemplate } from 'cortico/core/template.ts';
+import { readTextFile } from 'cortico/core/util.ts';
 import { childExecArgv } from 'cortico/extensions/runtime.ts';
 import type { CuaConfig, PermissionLevel } from './config.ts';
 import { cuaText, type CuaText } from './i18n/index.ts';
@@ -434,7 +435,7 @@ export class Cua {
     return { text, blobs: [{ bytes: shot.jpeg, mime: 'image/jpeg', name: 'screen.jpg', fallbackText: t.screenshotFallback(shot.width, shot.height) }] };
   }
 
-  /** `pet_cua_zoom`: a region of the latest screenshot, captured again at full resolution. */
+  /** `pet_cua_zoom`: a region of the latest screenshot, captured again from the screen and scaled down only past the screenshot size limit. */
   private async zoom(args: Args, signal?: AbortSignal): Promise<ToolOutcome> {
     const t = this.t, v = this.view;
     if (!v) return { text: t.notRun('pet_cua_zoom', t.zoomNoShot), failed: true };
@@ -461,6 +462,14 @@ export class Cua {
     return { text: this.t.notRun(tool, this.t.viewOnly), failed: true };
   }
 
+  private logYield(tool: string, res: InputResult): void {
+    this.log?.debug('input yielded', {
+      tool, waitedMs: res.waitedMs, activity: res.activity,
+      foreground: res.foreground, foregroundApp: res.foregroundApp,
+      foregroundDisplay: res.foregroundDisplay, cursor: res.cursor,
+    });
+  }
+
   /**
    * Shared tail of every input tool: the yield report, then after the settle either a screenshot or the
    * pointer and foreground window as they stand by then, since a window or dialog an action opens takes
@@ -472,10 +481,13 @@ export class Cua {
     const t = this.t;
     const before = { title: this.screen?.foreground ?? null, display: this.screen?.foregroundDisplay ?? null };
     this.screen = screenOf(res);
-    if (res.yielded) return { text: t.notRun(tool, t.yielded(Math.round(res.waitedMs / 1000))), failed: true };
+    if (res.yielded) {
+      this.logYield(tool, res);
+      return { text: t.notRun(tool, t.yielded(Math.round(res.waitedMs / 1000)) + t.yieldDetails(res.activity, res.foreground, res.foregroundApp)), failed: true };
+    }
     if (res.cancelled) return { text: t.notRun(tool, t.cancelledWaiting((res.waitedMs / 1000).toFixed(1))) };
     const line = `${done}${res.waitedMs >= 300 ? t.waitedFirst((res.waitedMs / 1000).toFixed(1)) : ''}`;
-    const said = (s: ScreenInfo) => `${t.after(line, this.cursorText(s.cursor), s.foreground)}${s.foreground ? '' : t.noForeground}`;
+    const said = (s: ScreenInfo) => `${t.after(line, this.cursorText(s.cursor), s.foreground)}${s.foreground === null ? t.noForeground : ''}`;
     const want = typeof args.screenshot === 'boolean' ? args.screenshot : this.cfg.screenshot.afterAction;
     await pause(this.cfg.screenshot.settleMs, signal);
     if (signal?.aborted) return { text: `${said(res)}${want ? t.noShotInterrupted : ''}` };
@@ -539,7 +551,11 @@ export class Cua {
     await this.permitTerminal(signal, (window, terminal) => (terminal ? this.ui.ask.terminal.type(this.who, window, text, minutes) : null));
     const res = await this.call<TypeResult>({ op: 'type', text, chunkDelayMs: this.cfg.typeChunkDelayMs, yield: this.yieldCfg }, signal);
     const total = [...text].length;
-    const done = res.stoppedBy === 'cancel' || res.stoppedBy === 'user' ? this.t.typedPart(res.typed, total, res.stoppedBy) : this.t.typed(total);
+    let done = res.stoppedBy === 'cancel' || res.stoppedBy === 'user' ? this.t.typedPart(res.typed, total, res.stoppedBy) : this.t.typed(total);
+    if (res.stoppedBy === 'user') {
+      this.logYield('pet_cua_type', res);
+      done += this.t.yieldDetails(res.activity, res.foreground, res.foregroundApp);
+    }
     return this.after('pet_cua_type', res, signal, done, args);
   }
 
@@ -626,7 +642,7 @@ export class Cua {
       'cua.permission': t.permission(this.level, this.cfg.grantMinutes),
       'cua.terminal': this.cfg.skipTerminalAsk ? t.terminalSkipped : t.terminal(this.cfg.grantMinutes),
     };
-    return renderTemplate(readFileSync(this.envPromptFile(), 'utf8'), vars).trim();
+    return renderTemplate(readTextFile(this.envPromptFile()), vars).trim();
   }
 
   /** The environment prompt template of the model-text language. */

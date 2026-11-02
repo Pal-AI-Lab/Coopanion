@@ -1,6 +1,9 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  autoUpdateLabel: "自動更新",
+  autoUpdate: "更新を自動でダウンロードしてインストール",
+  autoUpdateHint: "更新を自動でダウンロードし、アプリ終了時にインストールします。オフにすると確認とダウンロードが直ちに止まり、ダウンロード済みの更新も自動ではインストールされません。",
   nav: 'ふるまい',
   language: '言語',
   languageHint: '画面の表示と Coo の話す言葉にこの言語を使います。',
@@ -27,6 +30,7 @@ export const S: Partial<typeof en> = {
   hideFullscreen: '自動で隠す',
   hideFullscreenHint: '全画面表示のあいだは隠れ、終わると再表示します。最大化したウィンドウは対象外です。',
   soundTitle: 'サウンド',
+  worldScope: "ほかの World 拡張が追加した機能はこのスイッチの影響を受けません。各 World のページで設定してください。",
   sound: 'サウンドを鳴らす',
   soundKinds: '種類ごと',
   soundKindsHint: 'ポインターを乗せると、含まれる音が表示されます。',
@@ -41,6 +45,10 @@ export const S: Partial<typeof en> = {
   snore: 'いびきの長さ',
   snoreUnit: '秒',
   snoreHint: '0 = 起きるまで。',
+  volume: '音量',
+  panLabel: 'ステレオ',
+  pan: '位置に合わせて左右に振り分ける',
+  panHint: 'Coo がいる側から音が聞こえます。オフにすると中央で鳴ります。',
   speechTitle: 'おしゃべり声',
   speech: '吹き出しを読み上げる',
   speechHint: '1 文字ずつ短い音節で読み、「おしゃべり」の効果音の代わりに鳴らします。「おしゃべり」がオフのときは鳴りません。',

@@ -16,7 +16,7 @@ export const S: Partial<typeof en> = {
   grant: 'Un sí dura',
   grantSuffix: 'minutos',
   grantBad: (min: number, max: number) => `Ingresa un número entero de ${min} a ${max}`,
-  more: 'Hay más ajustes en la pestaña Configuración de la página Mascota de escritorio del modo avanzado.',
+  more: 'Hay más ajustes en la pestaña Configuración de la página Mascota de escritorio del modo avanzado. Las funciones que agregan otras extensiones World no dependen de estos ajustes; configúralas en la página de cada World.',
   saveFailed: (why: string) => `No se guardó: ${why}`,
   enabledLabel: 'Usar la computadora',
   controlLabel: 'Mouse y teclado',

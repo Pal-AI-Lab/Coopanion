@@ -20,11 +20,8 @@ import { MANIFEST_FILE, readManifest, type FigurePack, type Names } from './pack
 import { petText, type PetText } from './i18n/index.ts';
 
 export const PACK_DEPTH = 3;
-/**
- * The most an import may hold, unpacked or not: the request and the unpacked files are in memory at once while it is
- * staged. The largest pack shipped, the whale, is 12 MB.
- */
-export const IMPORT_MAX = 128 * 1024 * 1024;
+/** An import bigger than this, as sent, gets a size warning on the page. The largest pack shipped, the whale, is 12 MB. */
+export const IMPORT_LARGE = 128 * 1024 * 1024;
 /** The page's own framing of a folder's files (`filesFromBundle`). */
 export const BUNDLE_TYPE = 'application/x-figure-files';
 /** A thumbnail bigger than this is left out of the list sent to the page, which shows the pack without one. */
@@ -69,20 +66,13 @@ function segments(path: string): string[] | null {
 
 /** The files of a zip, its directories left out; a string says why it cannot be read. */
 export function filesFromZip(bytes: Uint8Array, t: PetText['importing'] = petText().importing): ImportFile[] | string {
-  let total = 0;
   let entries: Record<string, Uint8Array>;
   try {
-    entries = unzipSync(bytes, {
-      // sizes as the zip states them; what was unpacked is counted again below
-      filter: (f) => { total += f.originalSize; return !f.name.endsWith('/') && total <= IMPORT_MAX; },
-    });
+    entries = unzipSync(bytes, { filter: (f) => !f.name.endsWith('/') });
   } catch (err) {
     return t.badZip((err as Error).message);
   }
-  if (total > IMPORT_MAX) return t.tooBig(IMPORT_MAX / 1048576);
-  const files = Object.entries(entries).map(([path, data]) => ({ path, bytes: data }));
-  if (files.reduce((n, f) => n + f.bytes.length, 0) > IMPORT_MAX) return t.tooBig(IMPORT_MAX / 1048576);
-  return files;
+  return Object.entries(entries).map(([path, data]) => ({ path, bytes: data }));
 }
 
 /**

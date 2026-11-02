@@ -143,7 +143,6 @@ const it: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Non è uno zip leggibile: ${why}`,
-    tooBig: (mb: number) => `Oltre ${mb} MB una volta estratto`,
     truncated: 'Il caricamento è incompleto',
     badPath: (path: string) => `Un percorso non può essere usato: ${path}`,
     builtinId: (id: string) => `l'id ${id} appartiene a un personaggio integrato; cambia l'id per importarlo`,
@@ -152,7 +151,6 @@ const it: Translation<PetText> = {
     expired: 'Questa importazione è scaduta; scegli di nuovo i file',
     noneChosen: 'Nessun pacchetto scelto',
     zipOrFolder: 'Si possono importare solo uno zip o delle cartelle',
-    overLimit: (mb: number) => `Oltre ${mb} MB`,
   },
 
   removing: {
@@ -199,7 +197,7 @@ const it: Translation<PetText> = {
       pet: { title: 'Animaletto da desktop', description: 'La finestra, il guardaroba e il runtime della finestra.' },
       voice: { title: 'Input vocale', description: 'Motore di riconoscimento, livello di ingresso e cosa è stato sentito.' },
     },
-    envPrompt: { title: "Ambiente dell'animaletto da desktop", description: "Descrive il corpo dell'animaletto, i quattro strumenti e gli eventi di input." },
+    envPrompt: { title: "Ambiente dell'animaletto da desktop", description: "Descrive il corpo dell'animaletto, gli strumenti e gli eventi di input." },
     vars: {
       'pet.user': 'Come il bot chiama la persona',
       'pet.vocab': 'Le espressioni e i movimenti del personaggio attuale',
@@ -244,6 +242,7 @@ const it: Translation<PetText> = {
     touchEnabled: { title: 'I tocchi diventano eventi', description: 'Colpetti, carezze, sollevamenti e lanci.' },
     touchWakeOn: { title: 'Modalità di risposta', description: 'poke: solo un colpetto riceve subito una risposta; gli altri tocchi attendono la risposta successiva. all: ogni tocco ne riceve una. none: ogni tocco attende la risposta successiva. custom: ricevono una risposta i tocchi spuntati nella pagina Abitudini. Dopo una risposta, i tocchi fino alla fine di quel turno attendono la successiva.' },
     sound: { title: 'Tutti i suoni', description: "Il pulsante dei suoni nel menu dell'animaletto attiva e disattiva questa opzione." },
+    volume: { title: 'Volume' },
     sounds: {
       move: { title: 'Movimento', description: 'Camminare, correre, saltare, atterrare, volare dopo un lancio, annuire, scuotere la testa, fare piroette, capogiro, brividi, ballare, guardarsi intorno.' },
       touch: { title: 'Tocco', description: 'Sollevamenti, dondolii, carezze, colpetti.' },
@@ -253,6 +252,7 @@ const it: Translation<PetText> = {
       ui: { title: 'Pulsanti e segnali', description: "Clic sui pulsanti, apertura dei fumetti, selezioni, inizio e fine dell'ascolto." },
     },
     snoreSeconds: { title: 'Durata del russare', suffix: 's', description: "In ogni sonno l'animaletto smette di russare dopo questo tempo; le z continuano a fluttuare. 0 = russa fino al risveglio." },
+    panByPosition: { title: 'Bilanciamento in base alla posizione', description: 'I suoni pendono verso il lato in cui si trova Coo; disattivato, suonano al centro.' },
     speech: { title: 'Voce', description: 'Pronuncia una sillaba per ogni carattere che appare in un fumetto, al posto del borbottio di Parlare; tace mentre i suoni Parlare sono spenti.' },
     speechPitch: { title: 'Altezza della voce', description: (a: number, b: number, c: number) => `low, mid e high sono ${a}, ${b} e ${c} Hz; custom usa l'altezza personalizzata.` },
     speechPitchHz: { title: 'Altezza personalizzata' },
@@ -271,13 +271,11 @@ const it: Translation<PetText> = {
   },
 
   panel: {
-    pet: 'Animaletto da desktop',
     window: "Finestra dell'animaletto",
     openWindow: 'Apri finestra',
     closeWindow: 'Chiudi finestra',
     runtime: 'Runtime della finestra',
     install: 'Installa',
-    viewInBrowser: 'Guarda nel browser',
     dress: 'Guardaroba',
     dressHint: "Le modifiche vengono salvate subito e arrivano alla finestra dell'animaletto",
     connected: 'Connessa',
@@ -292,7 +290,6 @@ const it: Translation<PetText> = {
     noBuild: 'Nessun pacchetto precompilato per questa piattaforma',
     electronSize: 'Electron 44.4.4, circa 150 MB',
 
-    voice: 'Input vocale',
     enable: "Attiva l'input vocale",
     enabledHint: 'Il microfono resta aperto; ciò che dici arriva a Coo secondo la modalità di ascolto',
     enabledHintOnPress: 'Il microfono si apre mentre tieni premuto il tasto per parlare e si chiude quando lo rilasci',

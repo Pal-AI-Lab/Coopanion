@@ -11,6 +11,7 @@
 import koffi from 'koffi';
 import { EngineFailure } from './fail.ts';
 import type { NativeDisplay } from './display.ts';
+import type { ForegroundWindow } from './foreground.ts';
 
 const user32 = koffi.load('user32.dll');
 const gdi32 = koffi.load('gdi32.dll');
@@ -131,11 +132,10 @@ export function cursor(): { x: number; y: number } {
   return p;
 }
 
-/** Tick (ms since boot, wraps at 2^32) of the last input from any source. */
-export function lastInputTick(): number {
+/** Tick (ms since boot, wraps at 2^32) of the last input from any source; null when the query fails. */
+export function lastInputTick(): number | null {
   const info = { cbSize: koffi.sizeof(LASTINPUTINFO), dwTime: 0 };
-  GetLastInputInfo(info);
-  return info.dwTime;
+  return GetLastInputInfo(info) ? info.dwTime : null;
 }
 
 export function tick(): number {
@@ -215,6 +215,16 @@ function frameRect(hwnd: unknown): Rect {
 
 /** Handles from the last enumeration; `focus` takes a handle string from it. */
 const known = new Map<string, unknown>();
+
+export function foregroundWindow(): ForegroundWindow | null {
+  const hwnd = GetForegroundWindow();
+  if (!hwnd) return null;
+  const buf = new Uint16Array(512);
+  const n = GetWindowTextW(hwnd, buf, buf.length);
+  const pid = [0];
+  GetWindowThreadProcessId(hwnd, pid);
+  return { title: String.fromCharCode(...buf.subarray(0, n)), app: processName(pid[0]), rect: frameRect(hwnd) };
+}
 
 /** Visible, titled, uncloaked top-level windows in z-order (topmost first). */
 export function windows(): WindowInfo[] {

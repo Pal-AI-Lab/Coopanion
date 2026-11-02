@@ -1,5 +1,8 @@
 /** 可编辑提示词模板的共享视图。统一管理页、core 与 provider 归属页复用同一实现。 */
 
+import { S as COMMON } from '../../../base/ui/strings.ts';
+import { actionProblem, listProblem } from '../../../base/ui/problem.ts';
+
 import type { WebUi, Disposable } from 'cortico/web/shared/client-panel.ts';
 import { get, post } from '../../../base/api.ts';
 import type { Lifecycle } from '../../../base/lifecycle.ts';
@@ -102,6 +105,7 @@ function renderVarPanel(ui: WebUi, vars: readonly PromptVar[], onInsert?: (name:
 export function createPromptsView(deps: PromptsViewDeps): PromptsView {
   const { ui } = deps;
   const el = ui.h('div', 'prompt-library');
+  const problem = actionProblem(ui, el.ownerDocument, deps.signal);
   const dirty = new Map<string, boolean>();
   const wanted = deps.keys ? new Set(deps.keys) : null;
 
@@ -177,8 +181,8 @@ export function createPromptsView(deps: PromptsViewDeps): PromptsView {
       } catch (err) {
         if ((err as { name?: string } | null)?.name === 'AbortError') return;
         deps.onError(err);
-        state.textContent = S.saveFailed(String((err as Error)?.message ?? err));
-        ui.toast(S.saveFailedToast, 'bad');
+        state.textContent = area.value !== doc.content ? S.unsaved : loadedText();
+        problem(saveBtn, S.saveFailed(String((err as Error)?.message ?? err)));
       } finally {
         off.dispose();
       }
@@ -207,8 +211,8 @@ export function createPromptsView(deps: PromptsViewDeps): PromptsView {
       } catch (err) {
         if ((err as { name?: string } | null)?.name === 'AbortError') return;
         deps.onError(err);
-        state.textContent = S.resetFailed(String((err as Error)?.message ?? err));
-        ui.toast(S.resetFailedToast, 'bad');
+        state.textContent = area.value !== doc.content ? S.unsaved : loadedText();
+        problem(resetBtn, S.resetFailed(String((err as Error)?.message ?? err)));
       } finally {
         off.dispose();
       }
@@ -229,11 +233,13 @@ export function createPromptsView(deps: PromptsViewDeps): PromptsView {
     return sheet.el;
   };
 
+  let loaded = false;
   async function load(): Promise<void> {
-    el.replaceChildren();
-    dirty.clear();
     try {
       const data = await get<{ prompts?: PromptDoc[] }>('/api/prompts', { signal: deps.signal });
+      if (deps.signal.aborted) return;
+      loaded = true;
+      el.replaceChildren(); dirty.clear();
       const docs = (data?.prompts ?? []).filter((doc) => !wanted || wanted.has(doc.key));
       if (!docs.length) {
         el.appendChild(ui.placeholder(wanted ? S.noTemplatesScoped : S.noTemplates));
@@ -243,7 +249,9 @@ export function createPromptsView(deps: PromptsViewDeps): PromptsView {
     } catch (err) {
       if ((err as { name?: string } | null)?.name === 'AbortError') return;
       deps.onError(err);
-      el.appendChild(ui.placeholder(S.templatesLoadFailed(String((err as Error)?.message ?? err))));
+      const text = S.templatesLoadFailed(String((err as Error)?.message ?? err));
+      if (loaded) ui.toast(text, 'bad');
+      else el.replaceChildren(listProblem(el.ownerDocument, text, COMMON.retry, load));
     }
   }
 

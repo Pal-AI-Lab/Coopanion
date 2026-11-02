@@ -5,8 +5,8 @@
  * typed, said or answered goes into these lines as it came. The vocabulary table and the dress list
  * have their own tables, in `script.ts` and `self.ts`.
  *
- * The question `pet_set` asks the person in the bubble follows the same choice: it is made of the
- * same change lines as the receipt.
+ * The question `pet_set` asks the person in the bubble is in the app language instead: the same
+ * changes, written by `show` in `self.ts`.
  */
 import type { SelfKey } from './config.ts';
 

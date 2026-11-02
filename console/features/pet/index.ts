@@ -1,6 +1,6 @@
 /**
  * 「习惯」: the everyday settings of the desktop pet, in sections: 通用 (language, what Coo calls you, Coo's
- * name, the app's anonymous usage statistics in the `companion` group, core/telemetry.ts), 行为与互动, 显示,
+ * name, automatic updates and anonymous usage statistics in the `companion` group), 行为与互动, 显示,
  * 音效, 电脑操作 (features/cua) and 其他 (the OBS overlay, the Chat page's context ring). Every row names its
  * setting in the label column, except one that only refines the row above it. In each row the setting
  * comes first and what it means under it. An on/off setting is a switch; picks among several (sound
@@ -29,6 +29,8 @@
  * keys are set as the talk key's on the 语音输入 page (key-capture.ts), and how they are pressed is
  * picked beside them. The state names the keys in the app language and says why they cannot be read.
  */
+
+import { actionProblem } from '../../base/ui/problem.ts';
 import { ICONS } from 'cortico-world-desktop-pet/web/ui.js';
 import { captureKey, PRESSES, splitTaps, withTaps } from 'cortico-world-desktop-pet/webui/key-capture.ts';
 import { get, invokePanel, setConfig } from '../../base/api.ts';
@@ -43,6 +45,7 @@ const GROUP = 'world:desktop-pet';
 const SOUND_GROUP = 'world:desktop-pet:sound';
 const STATS_GROUP = 'companion';
 const STATS_KEY = 'companion.telemetry';
+const AUTO_UPDATE_KEY = 'companion.autoUpdate';
 const STATS_DOC = 'https://github.com/Pal-AI-Lab/Coopanion/blob/main/docs/TELEMETRY.md';
 /** Whether the Chat page shows its context ring (features/chat/context.ts), in the `companion` group; off by default. */
 const RING_KEY = 'companion.contextRing';
@@ -69,7 +72,9 @@ const KEYS = {
   hideFullscreen: `${K}.window.hideWhenFullscreen`,
   overlay: `${K}.window.exportOverlay`,
   sound: `${K}.sound`,
+  volume: `${K}.sounds.volume`,
   snoreSeconds: `${K}.sounds.snoreSeconds`,
+  panByPosition: `${K}.sounds.panByPosition`,
   speech: `${K}.speech.enabled`,
   speechPitch: `${K}.speech.pitch`,
   speechPitchHz: `${K}.speech.pitchHz`,
@@ -138,11 +143,9 @@ async function mount(ctx: PageContext): Promise<void> {
 
   /* ---------- habits ---------- */
   const habits = ui.sheet({ title: S.groupGeneral });
-  const msg = ui.msgline('');
-  // a failure shows at the bottom of its own section
-  const behaviorMsg = ui.msgline(''), displayMsg = ui.msgline('');
+  const problem = actionProblem(ui, root.ownerDocument, signal);
 
-  const language = ui.select({ onChange: (v) => void save(LANGUAGE_KEY, v, STATS_GROUP) });
+  const language = ui.select({ onChange: (v) => void save(LANGUAGE_KEY, v, STATS_GROUP, language) });
   void get<{ options?: Array<{ value: string; label: string }> }>(LANGUAGE_OPTIONS, opts).then((d) => {
     const current = language.value;
     language.replaceChildren(...(d.options ?? []).map((o) => { const el = ui.h('option', null, o.label); el.value = o.value; return el; }));
@@ -152,9 +155,10 @@ async function mount(ctx: PageContext): Promise<void> {
   void invokePanel<{ defaultUser?: string }>(PET_PAGE, 'pet', 'state', [], opts).then((s) => { if (s?.defaultUser) user.placeholder = s.defaultUser; }).catch(() => {});
   const botName = ui.input();
   botName.placeholder = DEFAULT_NAME;
+  const autoUpdate = ui.checkbox(S.autoUpdate, { onChange: (on) => void save(AUTO_UPDATE_KEY, on, STATS_GROUP, autoUpdate.el) });
   const roam = ui.segmented([
     { value: 'free', label: S.roamFree }, { value: 'calm', label: S.roamCalm }, { value: 'off', label: S.roamOff },
-  ], { size: 'sm', onSelect: (v) => void save(KEYS.roam, v, GROUP, behaviorMsg) });
+  ], { size: 'sm', onSelect: (v) => void save(KEYS.roam, v, GROUP, roam.el) });
   const scaleText = ui.h('span', 'companion-rangeval');
   const scaleBox = ui.h('div', 'companion-rangebox');
   const scale = scaleSlider(root.ownerDocument, {
@@ -173,7 +177,7 @@ async function mount(ctx: PageContext): Promise<void> {
     min: 0, soft: GLOW_MAX, max: GLOW_MAX, step: 1, label: S.glow, format: glowLabel,
     room: () => glowBox.clientWidth - glowText.offsetWidth - 12,
     onInput: () => showGlow(),
-    onChange: () => { showGlow(); void save(KEYS.glow, glow.value, GROUP, displayMsg); },
+    onChange: () => { showGlow(); void save(KEYS.glow, glow.value, GROUP, glow.el); },
   });
   glowBox.append(glow.el, glowText);
   new ResizeObserver(() => glow.relayout()).observe(glowBox);
@@ -187,7 +191,7 @@ async function mount(ctx: PageContext): Promise<void> {
       min, soft: max, max, step: .05, label,
       room: () => box.clientWidth - text.offsetWidth - 12,
       onInput: () => show(),
-      onChange: () => { show(); void save(key, slider.value, GROUP, displayMsg); },
+      onChange: () => { show(); void save(key, slider.value, GROUP, slider.el); },
     });
     box.append(slider.el, text);
     new ResizeObserver(() => slider.relayout()).observe(box);
@@ -197,13 +201,13 @@ async function mount(ctx: PageContext): Promise<void> {
   const fontSize = percentSlider(S.fontSize, KEYS.fontSize, BUBBLE_SIZE_MIN, BUBBLE_SIZE_MAX);
   const bubbleSpeed = percentSlider(S.bubbleSpeed, KEYS.bubbleSpeed, BUBBLE_SPEED_MIN, BUBBLE_SPEED_MAX);
   const frameRate = ui.segmented(FRAME_RATES.map((n) => ({ value: String(n), label: n ? String(n) : S.frameUnlimited })),
-    { size: 'sm', onSelect: (v) => void save(KEYS.frameRate, Number(v), GROUP, displayMsg) });
-  const lockFps = ui.checkbox(S.lockFps, { onChange: (on) => void save(KEYS.lockFps, on, GROUP, displayMsg) });
-  const hideFullscreen = ui.checkbox(S.hideFullscreen, { onChange: (on) => void save(KEYS.hideFullscreen, on, GROUP, displayMsg) });
-  const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on, GROUP, displayMsg) });
-  const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on, GROUP, behaviorMsg) });
-  const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on, GROUP, behaviorMsg) });
-  const saidBubbles = ui.checkbox(S.saidBubble, { onChange: (on) => void save(KEYS.saidBubbles, on, GROUP, behaviorMsg) });
+    { size: 'sm', onSelect: (v) => void save(KEYS.frameRate, Number(v), GROUP, frameRate.el) });
+  const lockFps = ui.checkbox(S.lockFps, { onChange: (on) => void save(KEYS.lockFps, on, GROUP, lockFps.el) });
+  const hideFullscreen = ui.checkbox(S.hideFullscreen, { onChange: (on) => void save(KEYS.hideFullscreen, on, GROUP, hideFullscreen.el) });
+  const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on, GROUP, remember.el) });
+  const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on, GROUP, dblclick.el) });
+  const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on, GROUP, statusBubble.el) });
+  const saidBubbles = ui.checkbox(S.saidBubble, { onChange: (on) => void save(KEYS.saidBubbles, on, GROUP, saidBubbles.el) });
   // the two rows below follow the pet panel's state; 「自定义…」 is picked by saving its popup
   let habit: Habits = { wake: { wakeOn: 'poke', wakeKinds: ['poke'] }, selfAdjust: { mode: 'default', custom: {} } };
   const wakeHint = ui.h('p', 'home-note');
@@ -213,7 +217,7 @@ async function mount(ctx: PageContext): Promise<void> {
       if (v === 'custom') return;
       habit.wake.wakeOn = v;
       renderHabits();
-      void save(KEYS.wakeOn, v, GROUP, behaviorMsg);
+      void save(KEYS.wakeOn, v, GROUP, wake.el);
     },
   });
   const selfHint = ui.h('p', 'home-note');
@@ -223,7 +227,7 @@ async function mount(ctx: PageContext): Promise<void> {
       if (v === 'custom') return;
       habit.selfAdjust.mode = v;
       renderHabits();
-      void save(KEYS.selfAdjust, v, GROUP, behaviorMsg);
+      void save(KEYS.selfAdjust, v, GROUP, selfMode.el);
     },
   });
   // 「自定义…」 opens its popup each time, picked or not; the row shows it picked once the popup is saved
@@ -273,7 +277,7 @@ async function mount(ctx: PageContext): Promise<void> {
     popup(S.wakeTitle, null, TOUCH_KINDS.map((k) => [k, S.wakeKinds[k] ?? k, wakeKinds.includes(k)]), (kinds) => {
       habit.wake = { wakeOn: 'custom', wakeKinds: kinds };
       renderHabits();
-      void callPet('setWakeKinds', [kinds]);
+      void callPet('setWakeKinds', [kinds], wake.el);
     });
   }
   function openSelfPopup(): void {
@@ -283,15 +287,15 @@ async function mount(ctx: PageContext): Promise<void> {
       const custom = Object.fromEntries(SELF_KEYS.map((k) => [k, keys.includes(k)]));
       habit.selfAdjust = { mode: 'custom', custom };
       renderHabits();
-      void callPet('setSelfAdjustCustom', [custom]);
+      void callPet('setSelfAdjustCustom', [custom], selfMode.el);
     });
   }
   // 打字键: the switch, and while it is on the keys, a button to set others and how they are pressed
   let typeKey: TypeKeyState = { enabled: false, hotkey: '', keyLabel: '', problem: null };
-  const typeSwitch = ui.checkbox(S.typeKey, { onChange: (on) => void callPet('setTypeKey', [{ enabled: on }]) });
+  const typeSwitch = ui.checkbox(S.typeKey, { onChange: (on) => void callPet('setTypeKey', [{ enabled: on }], typeSwitch.el) });
   const typeKeyName = ui.h('span', 'companion-rangeval');
   const typeKeyBtn = ui.button(S.typeKeyChange, { size: 'sm' });
-  const typePress = ui.select({ onChange: (v) => void callPet('setTypeKey', [{ hotkey: withTaps(splitTaps(typeKey.hotkey).combo, Number(v)) }]) });
+  const typePress = ui.select({ onChange: (v) => void callPet('setTypeKey', [{ hotkey: withTaps(splitTaps(typeKey.hotkey).combo, Number(v)) }], typePress) });
   const typeKeyBox = ui.h('div', 'companion-rangebox');
   typeKeyBox.append(typeKeyName, typeKeyBtn, typePress);
   const typeBox = ui.h('div', 'companion-switchbox');
@@ -308,7 +312,7 @@ async function mount(ctx: PageContext): Promise<void> {
       capture = null;
       typeKeyBtn.textContent = S.typeKeyChange;
       // how the keys are pressed stays as picked
-      if (combo) void callPet('setTypeKey', [{ hotkey: withTaps(combo, splitTaps(typeKey.hotkey).taps) }]);
+      if (combo) void callPet('setTypeKey', [{ hotkey: withTaps(combo, splitTaps(typeKey.hotkey).taps) }], typeKeyBtn);
       else renderTypeKey();
     });
   }, { signal });
@@ -330,7 +334,7 @@ async function mount(ctx: PageContext): Promise<void> {
     typeHint.textContent = problem ?? S.typeKeyHint;
     typeHint.classList.toggle('bad', !!problem);
   }
-  const stats = ui.checkbox(S.stats, { onChange: (on) => void save(STATS_KEY, on, STATS_GROUP) });
+  const stats = ui.checkbox(S.stats, { onChange: (on) => void save(STATS_KEY, on, STATS_GROUP, stats.el) });
   const statsDoc = ui.h('a', 'home-link companion-statsdoc', S.statsDoc);
   statsDoc.href = STATS_DOC;
   statsDoc.target = '_blank';
@@ -353,7 +357,7 @@ async function mount(ctx: PageContext): Promise<void> {
       // kept in the menu's order, whatever order they were picked in
       picked = ACTIONS.map(([a]) => a).filter((a) => (a === id ? !on : picked.includes(a)));
       renderHover();
-      void save(KEYS.hover, picked.join(','), GROUP, behaviorMsg);
+      void save(KEYS.hover, picked.join(','), GROUP, b);
     });
     hoverBox.append(b);
     return [id, b] as const;
@@ -367,19 +371,21 @@ async function mount(ctx: PageContext): Promise<void> {
     }
   };
 
-  const row = (label: string, control: HTMLElement, hint?: string | HTMLElement) => {
+  const row = (label: string, control: HTMLElement, hint?: string | HTMLElement | readonly string[]) => {
     const r = ui.h('div', 'companion-row');
     const l = ui.h('div', 'companion-label', label);
     const c = ui.h('div', 'companion-control');
     // the setting first, what it means under it
     c.append(control);
-    if (hint) c.append(typeof hint === 'string' ? ui.h('p', 'home-note', hint) : hint);
+    if (hint) c.append(...typeof hint === 'string' ? [ui.h('p', 'home-note', hint)] : Array.isArray(hint) ? hint.map(text => ui.h('p', 'home-note', text)) : [hint as HTMLElement]);
     r.append(l, c);
     return r;
   };
   // the World declares this setting on Windows only; elsewhere its value never arrives and the row stays hidden
   const hideFullscreenRow = row(S.hideFullscreenLabel, hideFullscreen.el, S.hideFullscreenHint);
   hideFullscreenRow.hidden = true;
+  const autoUpdateRow = row(S.autoUpdateLabel, autoUpdate.el, S.autoUpdateHint);
+  autoUpdateRow.hidden = true;
 
   // sections: general, how Coo behaves and is reached, how it shows on the screen, sounds, computer use;
   // every row names its setting on the left, except one that only refines the row above it
@@ -387,8 +393,8 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.language, language, S.languageHint),
     row(S.user, user, S.userHint),
     row(S.botName, botName, S.botNameHint),
+    autoUpdateRow,
     row(S.statsLabel, statsBox, S.statsHint),
-    msg,
   );
   const behavior = ui.sheet({ title: S.groupBehavior });
   behavior.body.append(
@@ -400,7 +406,6 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.typeKeyLabel, typeBox, typeHint),
     row(S.statusBubbleLabel, statusBubble.el, S.statusBubbleHint),
     row(S.saidBubbleLabel, saidBubbles.el, S.saidBubbleHint),
-    behaviorMsg,
   );
   const display = ui.sheet({ title: S.groupDisplay });
   display.body.append(
@@ -413,37 +418,53 @@ async function mount(ctx: PageContext): Promise<void> {
     row('', lockFps.el, S.lockFpsHint),
     hideFullscreenRow,
     row(S.rememberLabel, remember.el, S.rememberHint),
-    displayMsg,
   );
   root.append(intro(ui, S.nav), habits.el, behavior.el, display.el);
 
   /* ---------- sounds ---------- */
   const sounds = ui.sheet({ title: S.soundTitle });
-  const soundMsg = ui.msgline('');
-  const sound = ui.checkbox(S.sound, { onChange: (on) => { void save(KEYS.sound, on, SOUND_GROUP, soundMsg); renderKinds(); renderSpeech(); } });
+  const sound = ui.checkbox(S.sound, { onChange: (on) => { void save(KEYS.sound, on, SOUND_GROUP, sound.el); renderKinds(); renderSpeech(); } });
   const kindBox = ui.h('div', 'companion-checks');
   const kinds = SOUND_KINDS.map((kind) => {
     const [label, what] = S.kinds[kind] ?? [kind, ''];
-    const c = ui.checkbox(label, { title: what, onChange: (on) => { void save(`${K}.sounds.${kind}`, on, SOUND_GROUP, soundMsg); renderSpeech(); } });
+    const c = ui.checkbox(label, { title: what, onChange: (on) => { void save(`${K}.sounds.${kind}`, on, SOUND_GROUP, c.el); renderSpeech(); } });
     kindBox.append(c.el);
     return [kind, c] as const;
   });
-  // the kinds only matter while sounds play at all
-  const renderKinds = () => { for (const [, c] of kinds) c.input.disabled = !sound.checked; };
+  const pan = ui.checkbox(S.pan, { onChange: (on) => { void save(KEYS.panByPosition, on, SOUND_GROUP, pan.el); } });
+  // 音量: the same slider in whole percent, 0 to 100; saved once a drag or a key press ends
+  const volumeText = ui.h('span', 'companion-rangeval');
+  const volumeBox = ui.h('div', 'companion-rangebox');
+  const volume = scaleSlider(root.ownerDocument, {
+    min: 0, soft: 100, max: 100, step: 1, label: S.volume, format: (v) => `${v}%`,
+    room: () => volumeBox.clientWidth - volumeText.offsetWidth - 12,
+    onInput: () => showVolume(),
+    onChange: () => { showVolume(); void save(KEYS.volume, volume.value, SOUND_GROUP, volume.el); },
+  });
+  volumeBox.append(volume.el, volumeText);
+  new ResizeObserver(() => volume.relayout()).observe(volumeBox);
+  const showVolume = () => { volumeText.textContent = `${volume.value}%`; };
+  const volumeRow = row(S.volume, volumeBox);
+  // the kinds, the volume and the panning only matter while sounds play at all
+  const renderKinds = () => {
+    for (const [, c] of kinds) c.input.disabled = !sound.checked;
+    pan.input.disabled = !sound.checked;
+    volumeRow.classList.toggle('is-off', !sound.checked);
+  };
   const snore = ui.input({ type: 'number' });
   snore.min = '0'; snore.max = '3600'; snore.step = '1';
   const snoreBox = ui.h('div', 'companion-rangebox');
   snoreBox.append(snore, ui.h('span', 'companion-rangeval', S.snoreUnit));
   sounds.body.append(
-    row(S.soundLabel, sound.el),
+    row(S.soundLabel, sound.el, S.worldScope),
+    volumeRow,
     row(S.soundKinds, kindBox, S.soundKindsHint),
     row(S.snore, snoreBox, S.snoreHint),
-    soundMsg,
+    row(S.panLabel, pan.el, S.panHint),
   );
   /* ---------- speech ---------- */
   const speechSheet = ui.sheet({ title: S.speechTitle });
-  const speechMsg = ui.msgline('');
-  const speech = ui.checkbox(S.speech, { onChange: (on) => { void save(KEYS.speech, on, SOUND_GROUP, speechMsg); renderSpeech(); } });
+  const speech = ui.checkbox(S.speech, { onChange: (on) => { void save(KEYS.speech, on, SOUND_GROUP, speech.el); renderSpeech(); } });
   /** A step picker with the custom number under it, shown while 自定义 is picked. */
   const stepPicker = (labels: Record<string, string>, levelKey: string, numKey: string, range: typeof SPEECH_PITCH, unit: string) => {
     let level = 'mid';
@@ -457,8 +478,8 @@ async function mount(ctx: PageContext): Promise<void> {
         if (v === 'custom') {
           // the custom number starts from the step it leaves
           num.value = num.dataset.saved = String(range.steps[level] ?? range.steps.mid);
-          void saveAll({ [levelKey]: v, [numKey]: Number(num.value) }, SOUND_GROUP, speechMsg);
-        } else void save(levelKey, v, SOUND_GROUP, speechMsg);
+          void saveAll({ [levelKey]: v, [numKey]: Number(num.value) }, SOUND_GROUP, seg.el);
+        } else void save(levelKey, v, SOUND_GROUP, seg.el);
         level = v;
         numBox.hidden = v !== 'custom';
       },
@@ -467,7 +488,7 @@ async function mount(ctx: PageContext): Promise<void> {
       const n = Math.round(Number(num.value));
       if (num.value === '' || !Number.isFinite(n) || n < range.min || n > range.max) { num.value = num.dataset.saved ?? ''; return; }
       num.value = String(n);
-      if (num.value !== num.dataset.saved) { num.dataset.saved = num.value; void save(numKey, n, SOUND_GROUP, speechMsg); }
+      if (num.value !== num.dataset.saved) { num.dataset.saved = num.value; void save(numKey, n, SOUND_GROUP, num); }
     }, { signal });
     num.addEventListener('keydown', (e) => { if (e.key === 'Enter') num.blur(); }, { signal });
     const box = ui.h('div', 'companion-switchbox companion-steps');
@@ -498,18 +519,16 @@ async function mount(ctx: PageContext): Promise<void> {
     }
   };
   speechSheet.body.append(
-    row(S.speechTitle, speech.el, S.speechHint),
+    row(S.speechTitle, speech.el, [S.speechHint, S.worldScope]),
     pitchRow,
     speedRow,
-    speechMsg,
   );
   const cua = cuaSection(ctx, row);
   root.append(sounds.el, speechSheet.el, cua.el);
 
   /* ---------- other: the OBS overlay, the context ring ---------- */
   const other = ui.sheet({ title: S.groupOther });
-  const otherMsg = ui.msgline('');
-  const overlay = ui.checkbox(S.overlay, { onChange: (on) => { overlayUrlBox.hidden = !on || !overlayUrl.value; void save(KEYS.overlay, on, GROUP, otherMsg); } });
+  const overlay = ui.checkbox(S.overlay, { onChange: (on) => { overlayUrlBox.hidden = !on || !overlayUrl.value; void save(KEYS.overlay, on, GROUP, overlay.el); } });
   // the address to paste into OBS, while the overlay is exported
   const overlayUrl = ui.input();
   overlayUrl.readOnly = true;
@@ -518,38 +537,31 @@ async function mount(ctx: PageContext): Promise<void> {
   overlayUrlBox.hidden = true;
   const overlayBox = ui.h('div', 'companion-switchbox');
   overlayBox.append(overlay.el, overlayUrlBox);
-  const ring = ui.checkbox(S.ring, { onChange: (on) => void save(RING_KEY, on, STATS_GROUP, otherMsg) });
-  other.body.append(row(S.overlayLabel, overlayBox, S.overlayHint), row(S.ringLabel, ring.el, S.ringHint), otherMsg);
+  const ring = ui.checkbox(S.ring, { onChange: (on) => void save(RING_KEY, on, STATS_GROUP, ring.el) });
+  other.body.append(row(S.overlayLabel, overlayBox, S.overlayHint), row(S.ringLabel, ring.el, S.ringHint));
   root.append(other.el);
 
   /* ---------- behaviour ---------- */
-  const save = (key: string, value: string | number | boolean, group = GROUP, line = msg) => saveAll({ [key]: value }, group, line);
+  const save = (key: string, value: string | number | boolean, group: string, anchor: HTMLElement) => saveAll({ [key]: value }, group, anchor);
   /** Whether the values were saved. */
-  async function saveAll(values: Record<string, string | number | boolean>, group = GROUP, line = msg): Promise<boolean> {
+  async function saveAll(values: Record<string, string | number | boolean>, group: string, anchor: HTMLElement): Promise<boolean> {
     try {
       await setConfig(group, values, opts);
-      // everything saves as it changes: only a failure is worth a line
-      line.textContent = '';
-      line.classList.remove('bad');
       return true;
     } catch (err) {
       if (signal.aborted) return false;
-      line.textContent = S.saveFailed(errText(err));
-      line.classList.add('bad');
+      problem(anchor, S.saveFailed(errText(err)));
       return false;
     }
   }
-  /** Calls a pet panel method (回应模式, 自主配置权限, 打字键); a failure shows under 行为与互动, and the rows follow the state it returns. */
-  const callPet = async (method: string, args: unknown[]) => {
+  /** The rows follow the state returned by the pet panel. */
+  const callPet = async (method: string, args: unknown[], anchor: HTMLElement) => {
     try {
       const state = await invokePanel<HabitState>(PET_PAGE, 'pet', method, args, opts);
       takeHabits(state);
-      behaviorMsg.textContent = '';
-      behaviorMsg.classList.remove('bad');
     } catch (err) {
       if (signal.aborted) return;
-      behaviorMsg.textContent = S.saveFailed(errText(err));
-      behaviorMsg.classList.add('bad');
+      problem(anchor, S.saveFailed(errText(err)));
     }
   };
   function takeHabits(state: HabitState | null | undefined): void {
@@ -566,12 +578,12 @@ async function mount(ctx: PageContext): Promise<void> {
     scaleTimer = null;
     if (scale.value === scaleSent) return;
     scaleSent = scale.value;
-    void save(KEYS.scale, scale.value, GROUP, displayMsg);
+    void save(KEYS.scale, scale.value, GROUP, scale.el);
   }
   signal.addEventListener('abort', () => { if (scaleTimer) clearTimeout(scaleTimer); });
   const saveUser = () => {
     const name = user.value.trim();
-    if (name && name !== user.dataset.saved) { user.dataset.saved = name; void save(KEYS.user, name); }
+    if (name && name !== user.dataset.saved) { user.dataset.saved = name; void save(KEYS.user, name, GROUP, user); }
   };
   user.addEventListener('change', saveUser);
   user.addEventListener('keydown', (e) => { if (e.key === 'Enter') user.blur(); });
@@ -580,14 +592,14 @@ async function mount(ctx: PageContext): Promise<void> {
     botName.value = name;
     if (name === botName.dataset.saved) return;
     botName.dataset.saved = name;
-    void save(NAME_KEY, name, NAME_GROUP).then((saved) => { if (saved) announceName(name); });
+    void save(NAME_KEY, name, NAME_GROUP, botName).then((saved) => { if (saved) announceName(name); });
   });
   botName.addEventListener('keydown', (e) => { if (e.key === 'Enter') botName.blur(); });
   snore.addEventListener('change', () => {
     const n = Math.round(Number(snore.value));
     if (snore.value === '' || !Number.isFinite(n) || n < 0 || n > 3600) { snore.value = snore.dataset.saved ?? '0'; return; }
     snore.value = String(n);
-    if (snore.value !== snore.dataset.saved) { snore.dataset.saved = snore.value; void save(KEYS.snoreSeconds, n, SOUND_GROUP, soundMsg); }
+    if (snore.value !== snore.dataset.saved) { snore.dataset.saved = snore.value; void save(KEYS.snoreSeconds, n, SOUND_GROUP, snore); }
   });
   snore.addEventListener('keydown', (e) => { if (e.key === 'Enter') snore.blur(); });
 
@@ -607,6 +619,8 @@ async function mount(ctx: PageContext): Promise<void> {
       cua.sync(d.groups?.find((g) => g.group.id === CUA_GROUP)?.values ?? {});
     } catch { return; }
     if (typeof statsValues[STATS_KEY] === 'boolean') stats.setChecked(statsValues[STATS_KEY] as boolean);
+    autoUpdateRow.hidden = typeof statsValues[AUTO_UPDATE_KEY] !== 'boolean';
+    if (!autoUpdateRow.hidden) autoUpdate.setChecked(statsValues[AUTO_UPDATE_KEY] as boolean);
     ring.setChecked(statsValues[RING_KEY] === true);
     if (typeof statsValues[LANGUAGE_KEY] === 'string' && document.activeElement !== language) {
       // before the choices arrive the select keeps the value as a lone option
@@ -634,6 +648,8 @@ async function mount(ctx: PageContext): Promise<void> {
       const v = soundValues[`${K}.sounds.${kind}`];
       if (typeof v === 'boolean') c.setChecked(v);
     }
+    if (typeof soundValues[KEYS.panByPosition] === 'boolean') pan.setChecked(soundValues[KEYS.panByPosition] as boolean);
+    if (typeof soundValues[KEYS.volume] === 'number' && !volume.active && active !== volume.el) { volume.set(soundValues[KEYS.volume] as number); showVolume(); }
     renderKinds();
     if (typeof soundValues[KEYS.speech] === 'boolean') speech.setChecked(soundValues[KEYS.speech] as boolean);
     pitch.sync(soundValues);

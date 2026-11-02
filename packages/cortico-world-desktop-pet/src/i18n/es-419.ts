@@ -143,7 +143,6 @@ const es419: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `No es un zip legible: ${why}`,
-    tooBig: (mb: number) => `Más de ${mb} MB descomprimido`,
     truncated: 'La carga está incompleta',
     badPath: (path: string) => `Una ruta no se puede usar: ${path}`,
     builtinId: (id: string) => `El id ${id} pertenece a un personaje integrado; cambia el id para importarlo`,
@@ -152,7 +151,6 @@ const es419: Translation<PetText> = {
     expired: 'Esta importación expiró; vuelve a elegir los archivos',
     noneChosen: 'No se eligió ningún paquete',
     zipOrFolder: 'Solo se puede importar un zip o carpetas',
-    overLimit: (mb: number) => `Más de ${mb} MB`,
   },
 
   removing: {
@@ -199,7 +197,7 @@ const es419: Translation<PetText> = {
       pet: { title: 'Mascota de escritorio', description: 'La ventana, el vestuario y el entorno de ejecución de la ventana.' },
       voice: { title: 'Entrada de voz', description: 'Motor de reconocimiento, nivel de entrada y lo que se escuchó.' },
     },
-    envPrompt: { title: 'Entorno de la mascota de escritorio', description: 'Describe el cuerpo de la mascota, las cuatro herramientas y los eventos de entrada.' },
+    envPrompt: { title: 'Entorno de la mascota de escritorio', description: 'Describe el cuerpo de la mascota, las herramientas y los eventos de entrada.' },
     vars: {
       'pet.user': 'Cómo llama el bot a la persona',
       'pet.vocab': 'Las expresiones y los movimientos del personaje actual',
@@ -244,6 +242,7 @@ const es419: Translation<PetText> = {
     touchEnabled: { title: 'Los toques se vuelven eventos', description: 'Toquecitos, caricias, levantadas y lanzamientos.' },
     touchWakeOn: { title: 'Modo de respuesta', description: 'poke: solo un toque recibe respuesta enseguida; los demás toques esperan a la siguiente respuesta. all: todos los toques reciben respuesta. none: todos los toques esperan a la siguiente respuesta. custom: reciben respuesta los toques marcados en la página Hábitos. Tras una respuesta, los toques hasta el final de ese turno esperan a la siguiente.' },
     sound: { title: 'Todos los sonidos', description: 'El botón de sonido del menú de la mascota cambia esto.' },
+    volume: { title: 'Volumen' },
     sounds: {
       move: { title: 'Movimientos', description: 'Caminar, correr, saltar, aterrizar, salir volando, asentir, negar con la cabeza, girar, marearse, temblar, bailar, mirar alrededor.' },
       touch: { title: 'Toque', description: 'Levantadas, balanceos, caricias, toquecitos.' },
@@ -253,6 +252,7 @@ const es419: Translation<PetText> = {
       ui: { title: 'Botones y avisos', description: 'Clics en botones, burbujas que se abren, selecciones, y el inicio y el fin de la escucha.' },
     },
     snoreSeconds: { title: 'Duración del ronquido', suffix: 's', description: 'En cada siesta la mascota se queda en silencio tras roncar este tiempo; las z siguen flotando. 0 = roncar hasta despertar.' },
+    panByPosition: { title: 'Panorama según la posición', description: 'Los sonidos se inclinan hacia el lado donde está Coo; desactivado, suenan al centro.' },
     speech: { title: 'Voz', description: 'Dice una sílaba por cada carácter que aparece en un globo, en lugar del balbuceo de Habla; calla mientras los sonidos de Habla están desactivados.' },
     speechPitch: { title: 'Tono de la voz', description: (a: number, b: number, c: number) => `low, mid y high son ${a}, ${b} y ${c} Hz; custom usa el tono personalizado.` },
     speechPitchHz: { title: 'Tono personalizado' },
@@ -271,13 +271,11 @@ const es419: Translation<PetText> = {
   },
 
   panel: {
-    pet: 'Mascota de escritorio',
     window: 'Ventana de la mascota',
     openWindow: 'Abrir ventana',
     closeWindow: 'Cerrar ventana',
     runtime: 'Entorno de la ventana',
     install: 'Instalar',
-    viewInBrowser: 'Ver en el navegador',
     dress: 'Vestuario',
     dressHint: 'Los cambios se guardan al instante y llegan a la ventana de la mascota',
     connected: 'Conectada',
@@ -292,7 +290,6 @@ const es419: Translation<PetText> = {
     noBuild: 'No hay paquete precompilado para esta plataforma',
     electronSize: 'Electron 44.4.4, unos 150 MB',
 
-    voice: 'Entrada de voz',
     enable: 'Activar la entrada de voz',
     enabledHint: 'El micrófono queda abierto; lo que dices llega a Coo según el modo de escucha',
     enabledHintOnPress: 'El micrófono se abre mientras mantienes la tecla para hablar y se cierra al soltarla',

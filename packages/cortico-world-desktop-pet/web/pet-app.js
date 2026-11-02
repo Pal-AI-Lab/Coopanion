@@ -18,6 +18,7 @@ import { COO_CSS, PALETTES, mini, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
 import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
+import { createMic } from './mic.js';
 
 const $ = (s) => document.querySelector(s);
 const host = window.petHost || null;
@@ -51,6 +52,8 @@ const prefs = {
   /** Frames a second while the body moves; 0 follows the display. */
   frameRate: 60,
   lockFrameRate: false,
+  /** Every click passes through the pet (the tray's "click through"): no hover buttons, and a bubble under the cursor does not wait. */
+  clickThrough: false,
 };
 // in a tab (the settings window's preview) the page is its own stage: a wall that answers the pointer, a floor with icons, a night/day button
 const modeBtn = host ? null : modeButton(document.body, () => prefs.theme, (theme) => applyPrefs({ theme }));
@@ -221,7 +224,7 @@ function restorePosition(startX, startY) {
   sentX = null;
   if (restored) return;
   restored = true;
-  // She starts facing the middle of the screen rather than always right (#59), so a pet
+  // She starts facing the middle of the screen, so a pet
   // resting on the right half is not turned away from the likely interaction area.
   if (host && typeof startX === 'number') {
     firstX = startX * innerWidth;
@@ -259,7 +262,7 @@ function applyPrefs(p) {
   if (p.skin) { if (worn) worn = normalizeSkin(p.skin); else putOn(normalizeSkin(p.skin)); }
   if (p.roam) { prefs.roam = p.roam; body?.set({ roam: p.roam }); }
   if (typeof p.sound === 'boolean') { prefs.sound = p.sound; sfx.set(p.sound); }
-  if (p.sounds && typeof p.sounds === 'object') sfx.configure({ kinds: p.sounds, snoreSeconds: p.sounds.snoreSeconds });
+  if (p.sounds && typeof p.sounds === 'object') sfx.configure({ kinds: p.sounds, snoreSeconds: p.sounds.snoreSeconds, panByPosition: p.sounds.panByPosition, volume: p.sounds.volume });
   if (p.speech && typeof p.speech === 'object') speech.configure(p.speech);
   if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); modeBtn?.show(p.theme); body?.set({ theme: p.theme }); }
   if (typeof p.glow === 'number') prefs.glow = p.glow;
@@ -279,6 +282,7 @@ function applyPrefs(p) {
   if (typeof p.frameRate === 'number' && p.frameRate >= 0) prefs.frameRate = p.frameRate;
   // the window process does the hiding; the page only passes the setting on
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
+  if (typeof p.clickThrough === 'boolean') { prefs.clickThrough = p.clickThrough; host?.clickThrough?.(p.clickThrough); }
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
   if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead(); }
   if (typeof p.language === 'string' && p.language !== language()) void switchLanguage(p.language);
@@ -451,8 +455,17 @@ function startItem(it) {
   }
 }
 
-/** The pointer is on Coo's bubble: a line's countdown stands still meanwhile, so it can be read to the end or its link clicked. */
-const pointedAt = () => !bubble.hidden && bubble.matches(':hover');
+/**
+ * The cursor is on Coo's bubble: a line's countdown stands still meanwhile, so it can be read to the end or its link
+ * clicked. Decided from where the cursor is now, as stepTools does: `:hover` stays with the last mouse event, and a
+ * click-through window stops getting them once the cursor has left.
+ */
+function pointedAt() {
+  const p = cursor.at;
+  if (prefs.clickThrough || bubble.hidden || !p) return false;
+  const r = bubble.getBoundingClientRect();
+  return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom;
+}
 
 function stepDialog(dt) {
   if (!item && queue.length && at() && !at().busy) startItem(queue.shift());
@@ -1123,50 +1136,7 @@ function stepStatus() {
 }
 
 /* ---------- microphone: open while `prefs.mic`, which the World turns on and off with a held talk key in hold mode ---------- */
-let mic = null;
-async function startMic() {
-  if (mic) return;
-  const opening = mic = { starting: true };
-  // 拿到一半就失败时也要停麦关声卡,否则录音指示灯常亮到页面刷新
-  let stream = null, ctx = null;
-  try {
-    const audio = { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true };
-    if (prefs.micDevice) audio.deviceId = { exact: prefs.micDevice };
-    stream = await navigator.mediaDevices.getUserMedia({ audio });
-    ctx = new AudioContext({ sampleRate: 16000 });
-    await ctx.audioWorklet.addModule('/web/mic-worklet.js');
-    const src = ctx.createMediaStreamSource(stream);
-    const node = new AudioWorkletNode(ctx, 'pet-mic');
-    node.port.onmessage = (e) => { if (ws && ws.readyState === 1) ws.send(e.data); };
-    src.connect(node);
-    // closed, or closed and opened again, while this one was opening
-    if (!prefs.mic || mic !== opening) { stream.getTracks().forEach((t) => t.stop()); ctx.close(); if (mic === opening) mic = null; return; }
-    mic = { stream, ctx, node };
-    send({ t: 'mic', state: 'on', detail: stream.getAudioTracks()[0]?.label || null });
-    void reportDevices();
-  } catch (err) {
-    if (stream) stream.getTracks().forEach((t) => t.stop());
-    if (ctx) ctx.close();
-    if (mic === opening) mic = null;
-    send({ t: 'mic', state: err && err.name === 'NotAllowedError' ? 'denied' : 'error', detail: String(err && err.message || err) });
-    // access was granted, so the labels are readable: list the devices, another one may open where this one did not
-    if (err?.name !== 'NotAllowedError') void reportDevices();
-  }
-}
-/** Device labels are readable only after microphone access was granted (an open that failed for another reason counts). */
-async function reportDevices() {
-  const all = await navigator.mediaDevices.enumerateDevices();
-  send({ t: 'devices', list: all.filter((d) => d.kind === 'audioinput' && d.deviceId !== 'default' && d.deviceId !== 'communications').map((d) => ({ id: d.deviceId, label: d.label })) });
-}
-navigator.mediaDevices?.addEventListener('devicechange', () => { if (mic && !mic.starting) void reportDevices(); });
-function stopMic() {
-  const m = mic;
-  mic = null;
-  if (!m || m.starting) return;
-  m.stream.getTracks().forEach((t) => t.stop());
-  m.ctx.close();
-  send({ t: 'mic', state: 'off' });
-}
+const { start: startMic, stop: stopMic } = createMic({ prefs, send, sendAudio: (data) => { if (ws && ws.readyState === 1) ws.send(data); } });
 
 /* ---------- actions: the menu's lower zone and the hover buttons draw from one list ---------- */
 const ROAM_ORDER = ['off', 'calm', 'free'];
@@ -1429,7 +1399,7 @@ function stepTools() {
   const p = cursor.at;
   const l = at();
   if (p && (body?.hit(p) || overTools(p))) toolsUntil = T + TOOLS_LINGER;
-  tools.hidden = !(T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && toolIds !== '');
+  tools.hidden = !(!prefs.clickThrough && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && toolIds !== '');
   if (tools.hidden) endHold();
   tools.querySelector('[data-action="voice"]')?.classList.toggle('live', listen.phase === 'hearing');
 }
@@ -1469,7 +1439,7 @@ const diag = { move: null, poll: null, type: '', types: new Set(), skipped: 0, l
 /**
  * Fewest milliseconds between two lines; the lines in between are counted into the next one, and
  * the last of them is written once the gap has passed. A flickering pointer flips the window at
- * the cursor report rate (10 a second) or faster; one line a second still names the check that
+ * the cursor report rate (up to 66 a second) or faster; one line a second still names the check that
  * flipped it, and an hour of flicker stays under 3600 lines.
  */
 const POINTER_LOG_EVERY_MS = 1000;
@@ -1524,17 +1494,27 @@ document.addEventListener('pointermove', (e) => {
   followDrag(p);
 });
 /**
- * The pet window also reports where the cursor is on its own, a few times a second: a click-through
+ * The pet window also reports where the cursor is on its own, several times a second: a click-through
  * window may miss the move that takes the cursor off the pet (onto the taskbar, another screen),
- * and the hover buttons would then stay.
+ * and the hover buttons would then stay. While the window passes the mouse through, the reports
+ * are also the body's pointer moves: on Windows such a window gets no moves at all.
  */
+let polled = null;
 host?.onCursor?.((p) => {
   cursor.at = p;
   if (!p) {
     diag.poll = { at: performance.now(), off: true };
     if (!pressing) setInteractive(false, 'poll');
+    if (polled && !pressing) body?.pointer('leave', {});
+    polled = null;
     return;
   }
+  if (!interactive && !pressing && (p.x !== polled?.x || p.y !== polled?.y)) {
+    pointerSeen = true;
+    lastPointer.x = p.x; lastPointer.y = p.y;
+    body?.pointer('move', { ...p, t: performance.now() });
+  }
+  polled = p;
   const el = document.elementFromPoint(p.x, p.y);
   const hit = !!body?.hit(p), ui = !!el?.closest?.(UI_SELECTOR);
   diag.poll = { at: performance.now(), x: p.x, y: p.y, hit, ui };
@@ -1638,7 +1618,7 @@ document.addEventListener('keydown', (e) => {
 /* ---------- layout ---------- */
 /**
  * Bubbles up to TAIL_CENTER wide (empty, or a word or two) point their tail from their middle; wider ones
- * move it over to Coo by TAIL_FOLLOW wide (#139). Between the two it slides, so a bubble growing as the line
+ * move it over to Coo by TAIL_FOLLOW wide. Between the two it slides, so a bubble growing as the line
  * types out carries its tail along with it.
  */
 const TAIL_CENTER = 70, TAIL_FOLLOW = 130;
@@ -1745,9 +1725,10 @@ function oklab(r, g, b) {
   const s = Math.cbrt(.0883024619 * r + .2817188376 * g + .6299787005 * b);
   return [.2104542553 * l + .793617785 * m - .0040720468 * s, 1.9779984951 * l - 2.428592205 * m + .4505937099 * s, .0259040371 * l + .7827717662 * m - .808675766 * s];
 }
-/** The body's color as [r, g, b], from `--skin-ink` (#rgb or #rrggbb). */
+/** The body's color as [r, g, b]: its palette's fixed body, else `--skin-ink` (#rgb or #rrggbb). */
 function inkRgb() {
-  let h = getComputedStyle(document.documentElement).getPropertyValue('--skin-ink').trim().replace('#', '');
+  const fixed = skin.figure === 'coo' ? PALETTES.find((p) => p.id === skin.palette)?.fixed?.body : null;
+  let h = (fixed ?? getComputedStyle(document.documentElement).getPropertyValue('--skin-ink')).trim().replace('#', '');
   if (h.length === 3) h = [...h].map((c) => c + c).join('');
   const n = parseInt(h, 16);
   return /^[0-9a-f]{6}$/i.test(h) ? [n >> 16, (n >> 8) & 255, n & 255] : null;
@@ -1810,8 +1791,7 @@ let last = performance.now(), dueAt = 0, gap = 0;
 let frameErr = null;
 /**
  * Frames whose timestamp was not past the one before (a zero or negative dt), and when that was last logged (ms):
- * one such frame used to leave the whale without hair, tail and skirt until restart (#87), and where these
- * timestamps come from is not known yet. Logged at most once a minute, with the count so far. The first frame is
+ * where these timestamps come from is not known yet. Logged at most once a minute, with the count so far. The first frame is
  * left out: `last` starts at the page's clock, which may be ahead of the first frame's timestamp.
  */
 let stalls = 0, stallLoggedAt = -Infinity, framed = false;

@@ -5,6 +5,7 @@ const MAC = process.platform === 'darwin';
 
 const fr: Translation<CoreText> = {
   settings: {
+    autoUpdate: { title: "Mises à jour automatiques", description: "Télécharge les mises à jour et les installe à la fermeture. Désactiver cette option arrête immédiatement les recherches et téléchargements et empêche l’installation automatique des mises à jour déjà téléchargées." },
     language: { title: 'Langue', description: "L'interface et Coo utilisent cette langue. Prend effet immédiatement." },
     telemetry: { title: "Statistiques d'utilisation anonymes", description: "Envoie des comptages d'utilisation et les réglages, jamais les conversations, pour aider à améliorer Coopanion. Les champs sont listés dans docs/TELEMETRY.md." },
     contextRing: { title: 'Anneau de contexte', description: 'Affiche dans la zone de saisie de la page Discussion un anneau indiquant combien il reste avant la mise en ordre de la conversation précédente.' },

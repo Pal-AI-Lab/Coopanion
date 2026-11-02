@@ -26,7 +26,7 @@ const zh = {
   composerLabel: '控制台消息输入',
   composerPlaceholder: "输入消息…",
   exportDiagnostics: '导出诊断',
-  exportFailed: '诊断包取不回来',
+  exportFailed: '无法获取诊断包',
   exportConfirmTitle: '导出诊断包',
   exportConfirmBody: '诊断包包含对话、提示词、事件、工具调用、用量和运行日志。配置里的密钥已脱敏，其余内容原样写出。分享前请检查其中的私人信息。',
   composerFork: '正在查看后台会话；这里发出的消息仍送到主会话',

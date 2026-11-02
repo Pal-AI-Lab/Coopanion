@@ -4,6 +4,7 @@ import type { Disposable } from 'cortico/web/shared/client-panel.ts';
 import { h } from './dom.ts';
 import { button, rowbar } from './sheet.ts';
 import { S } from './strings.ts';
+import { icon } from './icons.ts';
 
 /** 浮层的生存环境：文档、挂载点、面板生命周期。 */
 export interface OverlayEnv {
@@ -77,12 +78,14 @@ function openModal(env: OverlayEnv, onClose: () => void): Overlay {
   return layer;
 }
 
-/** toast 停留多久（与 `@keyframes toast` 的 1.9s 对齐，留一点余量再摘节点）。 */
-const TOAST_MS = 2000;
+/** How long a toast stays. */
+export const TOAST_MS = 2000;
+/** How long an error toast stays; hovering or focusing it pauses the countdown. */
+export const ERROR_TOAST_MS = 6000;
 
 /**
- * 瞬时提示。`prev` 是上一条 toast（同一个 ui 实例只留一条，后来的顶掉前面的，
- * 与既有前端 `sendToast` 的行为一致）。返回新的一层，面板 abort 后返回 `null`。
+ * 底部通知自动消失。每个 ui 实例只保留最新一条；面板 abort 后不显示。
+ * 焦点在错误通知里时，Esc 只关闭这条通知，不传给下面的弹窗。
  */
 export function toast(
   env: OverlayEnv,
@@ -92,18 +95,53 @@ export function toast(
 ): Overlay | null {
   prev?.close();
   if (env.signal.aborted) return null;
-  const el = h(env.doc, 'div', tone === 'bad' ? 'toast bad' : 'toast', text);
+  const el = h(env.doc, 'div', tone === 'bad' ? 'toast bad' : 'toast');
+  el.setAttribute('role', tone === 'bad' ? 'alert' : 'status');
+  el.append(h(env.doc, 'span', 'toast-text', text));
   const layer = openLayer(env, el);
-  const timer = setTimeout(() => layer.close(), TOAST_MS);
+  const duration = tone === 'bad' ? ERROR_TOAST_MS : TOAST_MS;
+  el.style.setProperty('--toast-duration', `${duration}ms`);
+  if (tone === 'bad') {
+    const close = button(env.doc, layer.signal, '', { size: 'sm', onClick: () => layer.close() });
+    close.className = 'extension-problem-close';
+    close.setAttribute('aria-label', S.close);
+    close.append(icon(env.doc, 'close'));
+    el.append(close);
+    el.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      layer.close();
+    }, { signal: layer.signal });
+  }
+  let timer = setTimeout(() => layer.close(), duration);
+  let remaining = duration, started = Date.now(), paused = false;
+  const pause = () => {
+    if (paused) return;
+    paused = true; remaining -= Date.now() - started;
+    clearTimeout(timer); el.style.animationPlayState = 'paused';
+  };
+  const resume = () => {
+    if (!paused || el.matches(':hover') || el.contains(env.doc.activeElement)) return;
+    paused = false; started = Date.now();
+    el.style.animationPlayState = 'running';
+    clearTimeout(timer); timer = setTimeout(() => layer.close(), remaining);
+  };
+  el.addEventListener('pointerenter', pause, { signal: layer.signal });
+  el.addEventListener('pointerleave', resume, { signal: layer.signal });
+  el.addEventListener('focusin', pause, { signal: layer.signal });
+  el.addEventListener('focusout', resume, { signal: layer.signal });
   // 提前关掉(被下一条顶掉、或面板卸载)时把定时器也撤了,免得留一个空转的回调
   layer.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
   return layer;
 }
 
-/** 模态确认。resolve 之后 DOM 与监听都已清干净。`body` 是节点时原样挂入;`ok` 换掉确认键的字。 */
+/**
+ * 模态确认。resolve 之后 DOM 与监听都已清干净。`body` 是节点时原样挂入;`ok` 换掉确认键的字。
+ * `notice`:只是告知,只有一个「知道了」(见 notice)。
+ */
 export function confirm(
   env: OverlayEnv,
-  opts: { title: string; body?: string | HTMLElement; danger?: boolean; ok?: string },
+  opts: { title: string; body?: string | HTMLElement; danger?: boolean; ok?: string; notice?: boolean },
 ): Promise<boolean> {
   // 面板已经卸了:不弹窗,直接按"没答应"收场
   if (env.signal.aborted) return Promise.resolve(false);
@@ -128,10 +166,10 @@ export function confirm(
 
     const bar = rowbar(doc);
     bar.appendChild(h(doc, 'span', 'grow'));
-    bar.appendChild(
+    if (!opts.notice) bar.appendChild(
       button(doc, modal.signal, S.cancel, { size: 'sm', onClick: () => settle(false) }),
     );
-    const ok = button(doc, modal.signal, opts.ok ?? (opts.danger ? S.proceedAnyway : S.confirm), {
+    const ok = button(doc, modal.signal, opts.ok ?? (opts.notice ? S.gotIt : opts.danger ? S.proceedAnyway : S.confirm), {
       size: 'sm',
       variant: opts.danger ? 'danger' : 'primary',
       onClick: () => settle(true),
@@ -143,6 +181,11 @@ export function confirm(
     modal.el.appendChild(card);
     ok.focus?.();
   });
+}
+
+/** 告知:与 confirm 同一张卡,只有一个「知道了」,没有要选的。 */
+export function notice(env: OverlayEnv, opts: { title: string; body?: string | HTMLElement }): Promise<void> {
+  return confirm(env, { ...opts, notice: true }).then(() => undefined);
 }
 
 /** busy 不响应 Esc、遮罩或关闭按钮；由返回的 Disposable 或面板 abort 关闭。 */

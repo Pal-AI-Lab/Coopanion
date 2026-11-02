@@ -27,7 +27,7 @@ const zh = {
   presetCustom: '自定义',
   metricCost: '成本',
   liveRefresh: '自动刷新',
-  liveRefreshTitle: (sec: number) => `每 ${sec} 秒重取一次；离开本页自动停`,
+  liveRefreshTitle: (sec: number) => `每 ${sec} 秒重新获取一次；离开本页自动停止`,
   refresh: '刷新',
   granularity: '粒度',
   autoCurrency: '自动币种',

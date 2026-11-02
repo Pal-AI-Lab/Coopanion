@@ -46,7 +46,9 @@ function eyePath(e, cx, cy) {
 /* ---------- accessories ----------
    Solid shapes first; lines only where a piece is a line (band, stalk, frame), never thinner than 10.
    Every part is painted through a color channel: c-<slot>-main / c-<slot>-acc. The names people see
-   are in figure.json (palettes and accessories) and the pages' tables (`color.<id>`). */
+   are in figure.json (palettes and accessories) and the pages' tables (`color.<id>`).
+   A palette is [ink, eyes] per theme; ink draws the body and the pages' lines and buttons. Its `fixed` colours are
+   the figure's alone and the same in both themes: `body` in place of ink, `inside` filling the C, `pupils` the eyes. */
 export const PALETTES = [
   { id: 'mint',      l: ['#1B1626', '#00A870'], d: ['#FFFFFF', '#2FD59B'] },
   { id: 'mono',      l: ['#1B1626', '#1B1626'], d: ['#FFFFFF', '#FFFFFF'] },
@@ -62,6 +64,8 @@ export const PALETTES = [
   { id: 'forge',     l: ['#2A1A10', '#E06A12'], d: ['#FFFFFF', '#FF8E3E'] },
   { id: 'heart',     l: ['#2A1420', '#D9506A'], d: ['#FFFFFF', '#FE7E8B'] },
   { id: 'winter',    l: ['#12202A', '#3A9DC4'], d: ['#FFFFFF', '#BEEEFF'] },
+  // the eyes sit on the yellow in both themes, so they keep the light theme's green
+  { id: 'naicoo',    l: ['#1B1626', '#00A870'], d: ['#FFFFFF', '#00A870'], fixed: { body: '#1B1626', inside: '#FCE44E', pupils: '#07060B' } },
 ];
 export const HEADS = ['none', 'cat', 'bear', 'bunny', 'antenna', 'halo', 'tophat', 'party', 'sailor'];
 export const SIDES = ['none', 'headphones', 'feather', 'earring', 'clip', 'bow'];
@@ -184,14 +188,25 @@ function neckD(id, sw) {
   return '';
 }
 
+/** A fixed body colour in place of the theme's ink, also on the accessory channels that follow the body. */
+function fixedBody(acc, body) {
+  let v = `--skin-ink:${body}`;
+  for (const slot of SLOTS) for (const ch of ['main', 'acc']) if (acc.colors[slot][ch] === 'body') v += `;--c-${slot}-${ch}:${body}`;
+  return v;
+}
+
 /** One frame of the figure as SVG markup, in logo units. */
 export function figure(fc, o) {
   const t = o.t, lx = o.look[0], ly = o.look[1], acc = o.acc, sw = o.swing || 0;
-  let s = `<g class="ink" fill="none" stroke-width="${LEG_W}" stroke-linecap="round">`;
+  const fixed = PALETTES.find(p => p.id === acc.palette)?.fixed;
+  let s = fixed?.body ? `<g style="${fixedBody(acc, fixed.body)}">` : '<g>';
+  s += `<g class="ink" fill="none" stroke-width="${LEG_W}" stroke-linecap="round">`;
   for (const l of o.legs) s += `<path d="M${f(l[0])} ${f(l[1])}L${f(l[2])} ${f(l[3])}"/>`;
   s += `</g><g transform="translate(0 ${f(o.low)})">`;
   s += sideBack(acc.side, sw);
   s += headBack(acc.head, sw);
+  // reaches 2 under the body's inner edge (84 - 36 / 2) so no seam shows; the mouth shows its rim
+  if (fixed?.inside) s += `<circle fill="${fixed.inside}" cx="128" cy="128" r="68"/>`;
   s += `<path class="ink" fill="none" stroke-width="${BODY_W}" stroke-linecap="round" d="${cPath(fc.gap[0], fc.gap[1])}"/>`;
   s += neckD(acc.neck, sw);
   if (fc.blush > .02) {
@@ -203,7 +218,9 @@ export function figure(fc, o) {
     if ((ee.shape === 'ring' || ee.shape === 'lid') && o.blink) ee.ry *= (1 - o.blink);
     const cx = EYES[i][0] + lx, cy = EYES[i][1] + ly;
     const tr = close > .01 ? ` transform="translate(0 ${f(cy)}) scale(1 ${f(Math.max(.08, 1 - close) * 100) / 100}) translate(0 ${f(-cy)})"` : '';
-    s += `<path class="eye" fill="none" stroke-width="${e.sw || 12}" stroke-linecap="round" stroke-linejoin="round"${tr} d="${eyePath(ee, cx, cy)}"/>`;
+    // rings and lids are the eye open and take the pupil
+    const pupil = fixed?.pupils && (ee.shape === 'ring' || ee.shape === 'lid') ? fixed.pupils : 'none';
+    s += `<path class="eye" fill="${pupil}" stroke-width="${e.sw || 12}" stroke-linecap="round" stroke-linejoin="round"${tr} d="${eyePath(ee, cx, cy)}"/>`;
   });
   s += glassesD(acc.glasses, lx * .4, ly * .3);
   if (fc.brows) {
@@ -258,7 +275,7 @@ export function figure(fc, o) {
     });
   }
   if (o.zmark) s += '<path class="eye" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M204 22H220L204 42H220M226 4H236L226 16H236"/>';
-  return s + '</g>';
+  return s + '</g></g>';
 }
 
 /** A static figure for previews and tiles. */

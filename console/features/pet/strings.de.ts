@@ -1,6 +1,9 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  autoUpdateLabel: "Automatische Updates",
+  autoUpdate: "Updates automatisch herunterladen und installieren",
+  autoUpdateHint: "Updates werden automatisch heruntergeladen und beim Beenden installiert. Ausschalten stoppt sofort die Suche und Downloads und verhindert die automatische Installation bereits heruntergeladener Updates.",
   nav: 'Gewohnheiten',
   language: 'Sprache',
   languageHint: 'Die Oberfläche und Coo verwenden diese Sprache.',
@@ -27,6 +30,7 @@ export const S: Partial<typeof en> = {
   hideFullscreen: 'Automatisch ausblenden',
   hideFullscreenHint: 'Blendet sich bei Vollbild aus und kommt danach zurück. Ein maximiertes Fenster zählt nicht.',
   soundTitle: 'Töne',
+  worldScope: "Von anderen World-Erweiterungen ergänzte Funktionen betrifft dieser Schalter nicht; stelle sie auf der Seite der jeweiligen World ein.",
   sound: 'Töne abspielen',
   soundKinds: 'Nach Art',
   soundKindsHint: 'Bleib mit dem Mauszeiger auf einer Art, um zu sehen, welche Töne dazugehören.',
@@ -41,6 +45,10 @@ export const S: Partial<typeof en> = {
   snore: 'Schnarchdauer',
   snoreUnit: 's',
   snoreHint: '0 = bis zum Aufwachen.',
+  volume: 'Lautstärke',
+  panLabel: 'Stereo',
+  pan: 'Nach Position verteilen',
+  panHint: 'Töne kommen von der Seite, auf der Coo steht; aus, werden sie mittig abgespielt.',
   speechTitle: 'Stimme',
   speech: 'Sprechblasen vorlesen',
   speechHint: 'Jedes Zeichen wird als kurze Silbe gesprochen, statt der Sprechen-Töne; stumm, solange Sprechen aus ist.',

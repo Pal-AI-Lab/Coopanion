@@ -1,8 +1,10 @@
-import type { ContextRecord } from 'cortico/protocol/open-responses/context.ts';
 /**
  * 页面状态由 /ws/debug 推送，保存在挂载闭包中，随 Lifecycle 释放。
  * 调试通道不可用时改用 /ws/sessions，只接收 session 列表。
  */
+
+import { actionProblem } from '../../../base/ui/problem.ts';
+import type { ContextRecord } from 'cortico/protocol/open-responses/context.ts';
 
 import type {
   WebUiStreamHandle,
@@ -196,10 +198,11 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
   sessions.append(ui.h('span', 'live-sessions-label', S.sessionsLabel), sessionBand.el);
   band.append(summary, sessions);
 
+  const problem = actionProblem(ui, ctx.root.ownerDocument, ctx.signal);
   const exportButton = ui.button('', {
     onClick: () => {
       void exportDiagnostics({ ui, doc, signal: ctx.signal }).catch((err: unknown) => {
-        ui.toast(S.exportFailed, 'bad');
+        problem(exportButton, S.exportFailed);
         ctx.onError(err);
       });
     },

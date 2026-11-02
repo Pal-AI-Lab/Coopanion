@@ -1,6 +1,9 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  autoUpdateLabel: "Atualizações automáticas",
+  autoUpdate: "Baixar e instalar atualizações automaticamente",
+  autoUpdateHint: "Baixa atualizações automaticamente e as instala ao sair. Desativar esta opção interrompe imediatamente a busca e os downloads e impede a instalação automática de atualizações já baixadas.",
   nav: 'Hábitos',
   language: 'Idioma',
   languageHint: 'A interface e Coo usam este idioma.',
@@ -27,6 +30,7 @@ export const S: Partial<typeof en> = {
   hideFullscreen: 'Ocultar automaticamente',
   hideFullscreenHint: 'Some enquanto algo está em tela cheia e volta depois. Uma janela maximizada não conta.',
   soundTitle: 'Sons',
+  worldScope: "Funções adicionadas por outras extensões World não dependem desta chave; configure-as na página de cada World.",
   sound: 'Tocar sons',
   soundKinds: 'Por tipo',
   soundKindsHint: 'Deixe o ponteiro sobre um para ver quais sons ele inclui.',
@@ -41,6 +45,10 @@ export const S: Partial<typeof en> = {
   snore: 'Duração do ronco',
   snoreUnit: 's',
   snoreHint: '0 = até acordar.',
+  volume: 'Volume',
+  panLabel: 'Estéreo',
+  pan: 'Panorama pela posição',
+  panHint: 'Os sons pendem para o lado onde o Coo está; desligado, tocam no centro.',
   speechTitle: 'Voz',
   speech: 'Ler os balões em voz alta',
   speechHint: 'Cada caractere é dito como uma sílaba curta, no lugar dos sons de Fala; fica muda enquanto Fala está desligado.',

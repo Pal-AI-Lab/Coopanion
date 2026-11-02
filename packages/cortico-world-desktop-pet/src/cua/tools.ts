@@ -35,7 +35,7 @@ export const CUA_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'pet_cua_zoom',
     tags: ['read', 'snapshot'],
-    description: 'Capture a region of the latest screenshot\'s display again at full resolution, for small text or icons the scaled screenshot blurs. The region is given in screenshot pixels; the zoomed image is for reading only.',
+    description: 'Capture a region of the latest screenshot\'s display again from the screen, for small text or icons the scaled screenshot blurs; the region is unscaled while no larger than the screenshot size limit. The region is given in screenshot pixels; the zoomed image is for reading only.',
     parameters: {
       type: 'object',
       properties: {

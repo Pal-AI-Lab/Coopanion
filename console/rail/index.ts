@@ -14,6 +14,7 @@ import { get, post, setConfig } from '../base/api.ts';
 import type { WebUiLamp } from 'cortico/web/shared/webui-protocol.ts';
 import { buildHash, type Route, type Router } from '../base/router.ts';
 import { icon, type ConsoleIconName } from '../base/ui/icons.ts';
+import { notice } from '../base/ui/index.ts';
 import { lampRow, paintLamps } from '../base/ui/lamp.ts';
 import type { ConsoleMode } from '../features/mode.ts';
 import { onNameSaved } from '../features/bot-name.ts';
@@ -21,6 +22,7 @@ import { sidebarBrand } from './brand.ts';
 import { L } from '../strings.ts';
 import { createAvatarControl } from './avatar.ts';
 import { S } from './strings.ts';
+import { fold, prefersStill, steadiest } from '../base/motion.ts';
 
 const COLLAPSED_KEY = 'companion.sidebar.collapsed';
 const DEFAULT_NAME = 'bot';
@@ -86,7 +88,7 @@ export function createRail(deps: RailDeps): Rail {
   toggle.type = 'button';
   toggle.setAttribute('aria-controls', 'companion-navigation');
   toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/><path class="companion-sidebar-chevron" d="m16 9-3 3 3 3"/></svg>';
-  brand.append(sidebarBrand(doc));
+  brand.append(sidebarBrand(doc, signal));
 
   /* ---------- pages ---------- */
   const nav = ui.h('nav', 'stack');
@@ -104,7 +106,6 @@ export function createRail(deps: RailDeps): Rail {
     const item = ui.h('a', 'navitem');
     item.href = buildHash(it.segments);
     item.setAttribute('aria-label', it.label);
-    item.title = it.label;
     item.dataset.basic = String(it.basic);
     // a World instance has no icon of its own: the folded rail shows a generic one
     item.append(icon(doc, it.icon ?? 'boxes', it.icon ? 'navicon' : 'navicon companion-module-icon'));
@@ -135,7 +136,35 @@ export function createRail(deps: RailDeps): Rail {
   };
 
   /** Draws the groups in order; entries the normal mode does not list are hidden at once. */
+  /** Pages listed by the last draw; a page new since then arrives with an animation. */
+  let listedPages: Set<string> | null = null;
+  /** How long a page takes to join or leave the sidebar. */
+  const DEPART_MS = 200, ARRIVE_MS = 220;
+  /** A page joining or leaving moves with its neighbours: its height, padding, a short slide and the fade together. */
+  const move = (item: HTMLElement, open: boolean, duration: number) => fold(item, open, { duration, easing: 'cubic-bezier(.4, 0, .2, 1)', shift: -8, hide: false, clip: false });
+  let departing: ReturnType<typeof setTimeout> | undefined;
+  signal.addEventListener('abort', () => clearTimeout(departing), { once: true });
+  /** Pages that leave the sidebar fold away first; the redraw follows. */
   const setNav = (groups: readonly NavGroup[]): void => {
+    clearTimeout(departing); departing = undefined;
+    const next = new Set(groups.flatMap((g) => [...g.items, ...(g.modules ?? [])]).flatMap((it) => it.pageId ? [it.pageId] : []));
+    const leaving = entries.filter((entry) => entry.pageId && !next.has(entry.pageId) && !entry.item.hidden && entry.item.isConnected);
+    const still = prefersStill(doc.defaultView);
+    if (!leaving.length || still) { drawNav(groups); return; }
+    for (const { item } of leaving) { item.classList.add('companion-depart'); move(item, false, DEPART_MS); }
+    departing = setTimeout(() => { departing = undefined; drawNav(groups); }, DEPART_MS);
+  };
+  /** Entries that change places slide from where they were; the ones that moved pass over the rest. */
+  const REORDER_MS = 240;
+  const drawNav = (groups: readonly NavGroup[]): void => {
+    const before = listedPages;
+    const still = prefersStill(doc.defaultView);
+    const was = new Map<string, number>();
+    if (!still) for (const { item, pageId } of entries) {
+      const rect = item.getBoundingClientRect();
+      if (pageId && rect.height) was.set(pageId, rect.top);
+    }
+    const scroll = nav.scrollTop;
     navLife?.abort();
     navLife = new AbortController();
     const itemSignal = navLife.signal;
@@ -147,7 +176,7 @@ export function createRail(deps: RailDeps): Rail {
         for (const it of g.items) addItem(group('navgroup-framework navgroup-primary', it.label, false), it, itemSignal);
         continue;
       }
-      const box = group(g.kind === 'persona' ? 'navgroup-persona navgroup-provider' : g.kind === 'world-tree' ? 'navgroup-world-tree' : 'navgroup-framework', g.label, true);
+      const box = group(g.kind === 'persona' ? 'navgroup-persona navgroup-provider' : g.kind === 'world-tree' ? 'navgroup-world-tree' : 'navgroup-framework', g.label, g.kind !== 'world-tree');
       for (const it of g.items) addItem(box, it, itemSignal);
       if (g.modules?.length) {
         const list = ui.h('div', 'navmodule-list');
@@ -159,6 +188,33 @@ export function createRail(deps: RailDeps): Rail {
     }
     applyRoute();
     filterNav(false);
+    // emptying the list scrolled it to the top; the same list stays where it was
+    nav.scrollTop = scroll;
+    listedPages = new Set(entries.flatMap((entry) => entry.pageId ? [entry.pageId] : []));
+    const arriving = !!before && [...listedPages].some((id) => !before.has(id));
+    if (!arriving && was.size) slide(was);
+    if (before && !still) for (const { item, pageId } of entries) if (pageId && !before.has(pageId) && !item.hidden) {
+      item.classList.add('companion-arrive');
+      move(item, true, ARRIVE_MS);
+      setTimeout(() => item.classList.remove('companion-arrive'), ARRIVE_MS);
+    }
+  };
+
+  const slide = (was: ReadonlyMap<string, number>): void => {
+    const order = new Map([...was.keys()].map((id, index) => [id, index]));
+    const now = entries.flatMap(({ item, pageId }) => {
+      const rect = item.getBoundingClientRect(), top = pageId ? was.get(pageId) : undefined;
+      return top === undefined || !rect.height ? [] : [{ item, dy: top - rect.top, rank: order.get(pageId!)! }];
+    });
+    if (!now.some(({ dy }) => Math.abs(dy) > .5)) return;
+    const kept = new Set(steadiest(now.map(({ rank }) => rank)));
+    for (const { item, dy, rank } of now) {
+      if (Math.abs(dy) <= .5) continue;
+      const mover = !kept.has(rank);
+      if (mover) item.classList.add('companion-reorder');
+      const motion = item.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: REORDER_MS, easing: 'cubic-bezier(.32, .72, 0, 1)' });
+      if (mover) void motion.finished.finally(() => item.classList.remove('companion-reorder')).catch(() => {});
+    }
   };
 
   const applyRoute = (): void => {
@@ -206,7 +262,7 @@ export function createRail(deps: RailDeps): Rail {
       const to = Math.max(0, Math.min(from, nav.scrollHeight - nav.clientHeight));
       for (const x of leaving) x.style.display = '';
       nav.scrollTop = from;
-      if (to < from && !win.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) {
+      if (to < from && !prefersStill(win)) {
         const start = performance.now();
         const step = (now: number): void => {
           const k = Math.min(1, (now - start) / FADE_MS);
@@ -230,7 +286,7 @@ export function createRail(deps: RailDeps): Rail {
   modeButton.addEventListener('animationend', () => modeButton.classList.remove('companion-pressed'), { signal });
   const renderMode = (animate: boolean): void => {
     const advanced = mode === 'advanced';
-    modeButton.title = advanced ? L.toNormalHint : L.toAdvancedHint;
+    modeButton.setAttribute('aria-description', advanced ? L.toNormalHint : L.toAdvancedHint);
     modeButton.setAttribute('aria-label', advanced ? L.toNormal : L.toAdvanced);
     modeButton.replaceChildren(icon(doc, advanced ? 'eye-off' : 'settings', 'navicon'), ui.h('span', 'lbl', advanced ? L.toNormal : L.toAdvanced));
     doc.body.classList.toggle('companion-normal', !advanced);
@@ -243,7 +299,7 @@ export function createRail(deps: RailDeps): Rail {
   const avatar = createAvatarControl({ doc, ui, signal, onError });
   const name = ui.h('button', 'rail-name');
   name.type = 'button';
-  name.title = S.renameTitle;
+  name.setAttribute('aria-description', S.renameTitle);
   const nameText = ui.h('span', 'rail-name-text', DEFAULT_NAME);
   const nameEdit = ui.h('span', 'rail-name-edit');
   nameEdit.setAttribute('aria-hidden', 'true');
@@ -275,7 +331,6 @@ export function createRail(deps: RailDeps): Rail {
     run.disabled = !available || runPending;
     run.replaceChildren(icon(doc, paused ? 'play' : 'pause'));
     run.setAttribute('aria-label', paused ? S.runResume : S.runPause);
-    run.title = paused ? S.runResume : S.runPause;
     run.classList.toggle('paused', paused);
     runState.textContent = paused ? L.paused : L.running;
     runState.classList.toggle('paused', paused);
@@ -307,7 +362,7 @@ export function createRail(deps: RailDeps): Rail {
     shutdown.hidden = !can;
     shutdown.disabled = !can || shuttingDown;
     shutdown.setAttribute('aria-label', S.shutdownAria);
-    shutdown.title = shuttingDown ? S.finishing : S.shutdownTitle;
+    shutdown.setAttribute('aria-description', shuttingDown ? S.finishing : S.shutdownTitle);
   };
   shutdown.addEventListener('click', () => void (async () => {
     if (shuttingDown || capabilities.shutdown !== true) return;
@@ -327,7 +382,7 @@ export function createRail(deps: RailDeps): Rail {
       const localComplete = out?.localComplete ?? steps.every((step) => step.ok);
       const externalUnverified = (out?.externalChecks ?? []).some((check) => check.status !== 'verified-ended');
       const lines = steps.map((s) => `${s.ok ? '✓' : '✗'} ${s.label} · ${(s.elapsedMs / 1000).toFixed(1)}s${s.ok ? '' : ` — ${s.detail ?? S.stepIncomplete}`}`);
-      void ui.confirm({
+      void notice(ui, {
         title: !localComplete ? S.resultLocalIncomplete
           : externalUnverified ? S.resultExternalUnverified
           : out?.ok === false ? S.resultUnverified : S.doneShutdown,
@@ -411,7 +466,7 @@ export function createRail(deps: RailDeps): Rail {
    * along with the pause key as they fade.
    */
   const flip = (change: () => void): void => {
-    const moving = typeof foot.animate === 'function' && !win.matchMedia('(prefers-reduced-motion: reduce)')?.matches
+    const moving = typeof foot.animate === 'function' && !prefersStill(win)
       ? Array.from(foot.querySelectorAll<HTMLElement>('.rail-who, .rail-action, .companion-runstate')).filter((x) => !x.hidden)
       : [];
     const before = moving.map((x) => x.getBoundingClientRect());
@@ -475,7 +530,7 @@ export function createRail(deps: RailDeps): Rail {
   const showTip = (event: Event): void => {
     const target = (event.target as Element).closest<HTMLElement>('a.navitem, .companion-mode, .rail-action, .rail-avatar');
     if (!collapsed || !target || target.hidden) return;
-    const label = target.getAttribute('aria-label') || target.title;
+    const label = target.getAttribute('aria-label');
     if (!label) return;
     tooltip.textContent = label;
     tooltip.hidden = false;

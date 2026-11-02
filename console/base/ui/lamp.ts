@@ -6,7 +6,7 @@ import type { WebUiLamp, WebUiLampsResponse } from 'cortico/web/shared/webui-pro
 import { h } from './dom.ts';
 import { S } from './strings.ts';
 
-/** 灯多久重取一次。它标的是"这一刻"，慢一拍就成了另一个时刻的事实。 */
+/** 灯多久重新获取一次，也就是灯最多落后的时长。 */
 const LAMP_POLL_MS = 500;
 
 /** state → class。`offline` 不加修饰，就是 `.navdot` 本体那个灰。 */
@@ -50,8 +50,8 @@ function makeDot(doc: Document, lamp: WebUiLamp): HTMLSpanElement {
 }
 
 /**
- * 把一排灯画进既有容器。**空数组就是藏起来的空容器**，不画占位灰点：灰是"这条
- * 链路关着"，拿它当"没报灯"讲，等于替 provider 说了一句它没说过的话。
+ * 把一排灯画进既有容器。**空数组就是藏起来的空容器**，不画占位灰点：灰点表示
+ * 这条链路关着。
  *
  * 数目没变就地改颜色，变了才重排子节点——这是每半秒一次的操作，没必要每次重建。
  */

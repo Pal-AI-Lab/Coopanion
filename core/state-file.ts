@@ -1,6 +1,7 @@
 /** JSON state owned by one process, with invalid content retained beside its replacement. */
-import { closeSync, fsyncSync, openSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { closeSync, fsyncSync, openSync, renameSync, writeFileSync } from 'node:fs';
 import { retryBusy } from 'cortico/core/fs-busy.ts';
+import { readTextFile } from 'cortico/core/util.ts';
 
 /** Thrown by a `readState` restore function when the content cannot be used. */
 export class InvalidState extends Error {}
@@ -35,7 +36,7 @@ export function field<T>(record: Record<string, unknown>, key: string, is: (valu
 export function readState<T>(file: string, restore: (value: unknown) => T): T | null {
   let text: string;
   try {
-    text = retryBusy(() => readFileSync(file, 'utf8'));
+    text = retryBusy(() => readTextFile(file));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
     throw error;

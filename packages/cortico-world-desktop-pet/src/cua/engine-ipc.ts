@@ -52,6 +52,7 @@ export interface ScreenInfo {
   layout: string;
   /** Physical pixels of the display it is on; null while it is on none. */
   cursor: { display: number; x: number; y: number } | null;
+  /** null when there is no foreground target; empty when its title is unavailable. */
   foreground: string | null;
   /** The program the foreground window belongs to: the executable's file name on Windows and Linux, the app's name on macOS. */
   foregroundApp: string | null;
@@ -74,6 +75,21 @@ export interface ZoomResult {
   height: number;
 }
 
+/** Counts blocking checks, not input events: several checks can see the same input tick. */
+export interface YieldSignal {
+  count: number;
+  lastTick: number | null;
+}
+
+export interface YieldDiagnostics {
+  /** Signals still inside the idle threshold at the last check. */
+  blockedBy: Array<'systemInput' | 'pointerMovement'>;
+  systemInput: YieldSignal;
+  pointerMovement: YieldSignal;
+  /** Raw ticks wrap at 2^32; absent before the first check. lastInputTick is null when the system cannot report input. */
+  lastSample: { now: number; lastInputTick: number | null; ownInputTick: number | null; pointerMoved: boolean } | null;
+}
+
 /** Every input op reports how long it waited for the user and where the pointer ended up. */
 export interface InputResult extends ScreenInfo {
   /** The user was not idle within `maxWaitMs`; nothing was sent. */
@@ -81,6 +97,8 @@ export interface InputResult extends ScreenInfo {
   /** A cancel arrived while waiting for the user; nothing was sent. */
   cancelled: boolean;
   waitedMs: number;
+  /** Checks while waiting, plus the stopping check if typing yields between chunks. */
+  activity: YieldDiagnostics;
 }
 
 /** `typed` counts code points sent; `stoppedBy` is null when the whole text went out. */

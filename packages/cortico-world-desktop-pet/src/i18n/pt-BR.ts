@@ -143,7 +143,6 @@ const ptBR: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `Não é um zip legível: ${why}`,
-    tooBig: (mb: number) => `Mais de ${mb} MB descompactado`,
     truncated: 'O envio está incompleto',
     badPath: (path: string) => `Um caminho não pode ser usado: ${path}`,
     builtinId: (id: string) => `O id ${id} pertence a um personagem integrado; mude o id para importá-lo`,
@@ -152,7 +151,6 @@ const ptBR: Translation<PetText> = {
     expired: 'Esta importação expirou; escolha os arquivos de novo',
     noneChosen: 'Nenhum pacote foi escolhido',
     zipOrFolder: 'Só é possível importar um zip ou pastas',
-    overLimit: (mb: number) => `Mais de ${mb} MB`,
   },
 
   removing: {
@@ -199,7 +197,7 @@ const ptBR: Translation<PetText> = {
       pet: { title: 'Pet de área de trabalho', description: 'A janela, o visual e o ambiente de execução da janela.' },
       voice: { title: 'Entrada de voz', description: 'Motor de reconhecimento, nível de entrada e o que foi ouvido.' },
     },
-    envPrompt: { title: 'Ambiente do pet de área de trabalho', description: 'Descreve o corpo do pet, as quatro ferramentas e os eventos de entrada.' },
+    envPrompt: { title: 'Ambiente do pet de área de trabalho', description: 'Descreve o corpo do pet, as ferramentas e os eventos de entrada.' },
     vars: {
       'pet.user': 'Como o bot chama a pessoa',
       'pet.vocab': 'As expressões e os movimentos do personagem atual',
@@ -244,6 +242,7 @@ const ptBR: Translation<PetText> = {
     touchEnabled: { title: 'Toques viram eventos', description: 'Cutucadas, carinho, e pegar e arremessar o pet.' },
     touchWakeOn: { title: 'Modo de resposta', description: 'poke: só um cutucão recebe resposta na hora; os outros toques esperam a próxima resposta. all: todo toque recebe resposta na hora. none: todo toque espera a próxima resposta. custom: os toques marcados na página Hábitos recebem resposta na hora. Depois de uma resposta, os toques até o fim desse turno esperam a próxima.' },
     sound: { title: 'Todos os sons', description: 'O botão de som no menu do pet alterna isto.' },
+    volume: { title: 'Volume' },
     sounds: {
       move: { title: 'Movimentos', description: 'Andar, correr, pular, aterrissar, arremesso, acenar com a cabeça, balançar a cabeça, girar, tontura, tremer, dançar, olhar em volta.' },
       touch: { title: 'Toque', description: 'Pegar, balançar, fazer carinho, cutucar.' },
@@ -253,6 +252,7 @@ const ptBR: Translation<PetText> = {
       ui: { title: 'Botões e avisos', description: 'Cliques em botões, balões abrindo, seleções, e o início e o fim da escuta.' },
     },
     snoreSeconds: { title: 'Duração do ronco', suffix: 's', description: 'Em cada soneca o pet para de roncar depois desse tempo; os z continuam flutuando. 0 = roncar até acordar.' },
+    panByPosition: { title: 'Panorama pela posição', description: 'Os sons pendem para o lado onde o Coo está; desligado, tocam no centro.' },
     speech: { title: 'Voz', description: 'Diz uma sílaba a cada caractere que aparece num balão, no lugar do balbucio de Fala; fica muda enquanto os sons de Fala estão desligados.' },
     speechPitch: { title: 'Tom da voz', description: (a: number, b: number, c: number) => `low, mid e high são ${a}, ${b} e ${c} Hz; custom usa o tom personalizado.` },
     speechPitchHz: { title: 'Tom personalizado' },
@@ -271,13 +271,11 @@ const ptBR: Translation<PetText> = {
   },
 
   panel: {
-    pet: 'Pet de área de trabalho',
     window: 'Janela do pet',
     openWindow: 'Abrir janela',
     closeWindow: 'Fechar janela',
     runtime: 'Ambiente da janela',
     install: 'Instalar',
-    viewInBrowser: 'Ver no navegador',
     dress: 'Guarda-roupa',
     dressHint: 'As mudanças são salvas na hora e chegam à janela do pet',
     connected: 'Conectada',
@@ -292,7 +290,6 @@ const ptBR: Translation<PetText> = {
     noBuild: 'Não há pacote pré-compilado para esta plataforma',
     electronSize: 'Electron 44.4.4, cerca de 150 MB',
 
-    voice: 'Entrada de voz',
     enable: 'Ligar a entrada de voz',
     enabledHint: 'O microfone fica aberto; a fala vai para Coo conforme o modo de escuta',
     enabledHintOnPress: 'O microfone abre enquanto a tecla para falar está pressionada e fecha ao soltar',

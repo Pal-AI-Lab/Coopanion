@@ -1,6 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  retry: 'Повторить',
   copy: 'Копировать',
   copyNothing: 'Нечего копировать',
   copied: 'Скопировано',
@@ -22,6 +23,7 @@ export const S: Partial<typeof en> = {
   cancel: 'Отмена',
   proceedAnyway: 'Всё равно продолжить',
   confirm: 'Подтвердить',
+  gotIt: 'Понятно',
   close: '✕ Закрыть (Esc)',
   tooManyImages: (max: number) => `Максимум изображений в одном сообщении: ${max}`,
   messageInput: 'Ввод сообщения',

@@ -1,9 +1,11 @@
 /**
  * Inside the sandboxed figure frame: loads a figure pack's module and runs its body.
  *
- * The frame is an opaque origin with no network access (the server's CSP for `/figure-frame`);
- * it gets scripts and images from the pet server and everything else from the page that holds
- * it (`body-host.js`), by postMessage. The body is the pack's own: it walks, falls, is carried,
+ * The frame is an opaque origin (the server's CSP for `/figure-frame`): it gets scripts and images
+ * from the pet server and everything else from the page that holds it (`body-host.js`), by
+ * postMessage. An installed pack may also `fetch` its own files, `fetch(asset('model.moc3'))`;
+ * every other connection is refused, as is every connection of a built-in pack. Coopanion 0.2.13
+ * and older refuse that fetch too (the README's 形象包 section has the fallback). The body is the pack's own: it walks, falls, is carried,
  * makes faces and draws itself; the page only hears what it reports and asks it to do things.
  *
  * The contract a pack implements (api 2): its module exports a factory, called as

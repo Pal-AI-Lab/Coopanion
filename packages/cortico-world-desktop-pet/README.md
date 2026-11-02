@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts, src/cua/cua.ts, src/world.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts -->
+<!-- Owner: src/definition.ts, src/webui/client.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/cua/engine/wait-idle.ts, src/cua/engine/foreground.ts, src/world.ts, src/asr/hotkey.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js, host/app-store.cjs -->
 
 <p align="center">
   <picture>
@@ -36,7 +36,7 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 
 | `type` | 正文 | 投递 |
 |---|---|---|
-| `desktop-pet.speech` | `[voice] 伙伴:…` | flush |
+| `desktop-pet.speech` | `[voice] 伙伴:…` | 说话键收音 interrupt,一直收音 flush |
 | `desktop-pet.message` | `[typed] 伙伴:…`(悬停按钮;`worlds.desktop-pet.doubleClickChat` 打开时也可双击,`typeKey.enabled` 打开时也可按打字键;或对话页,可附图片) | preempt |
 | `desktop-pet.answer` | `[answer] 伙伴回答「问题」:选了第 2 项「…」` / 自己写的 / 关掉没答 | flush,关掉没答为 debounce |
 | `desktop-pet.touch` | `[touch] 伙伴戳了你 3 下` / 摸了摸 / 拎起来甩了出去 / 摔晕 | `worlds.desktop-pet.touch.wakeOn` 让它唤醒的种类 debounce,其余 piggyback |
@@ -60,7 +60,9 @@ World 在 `127.0.0.1:7797`(被占向上顺延)起一个页面服务:`/pet` 是�
 (启动时是主显示器)。Windows 上任务栏在底边时,窗口再往下盖住任务栏,离显示器底边留 3 DIP;地面仍在工作区底边,
 形象画在地面以下的部分(比如坐在边沿时垂下的腿)显示在任务栏上。桌宠被拎着拖到另一块显示器上时,窗口当场挪到那块显示器,拖动中桌宠一直跟着光标,松手就在那块显示器上落下;
 走路只在当前这块显示器上。窗口所在的显示器被拔掉时回到主显示器。`pet_move_to` 的 0–1 和事件里的横向位置都按当前这块显示器算。
-鼠标只在身体、气泡、右键菜单和悬停按钮上时才接收点击,其余位置点击穿透。托盘图标可以显示、隐藏、关闭它。
+鼠标只在身体、气泡、右键菜单和悬停按钮上时才接收点击,其余位置点击穿透。托盘图标可以显示、隐藏、关闭它;托盘的「鼠标穿透」打开时窗口一概不接收点击，也不弹悬停按钮，由窗口进程的鼠标租约(`host/mouse-lease.cjs` 的 `lock`)执行。
+macOS 上 App Store 是当前应用时,窗口降到普通层级、排在所有窗口后面,换到别的应用后回到置顶(`host/app-store.cjs`):
+别的进程的窗口盖在 App Store 的付款弹窗上时,弹窗不接受触控 ID,透明、点击穿透的窗口也算。
 鼠标停在桌宠身上时,身旁出现两个按钮:打字说话;语音输入开关(点一下开关 `asr.enabled`,
 正在听时长按半秒把听到的这句话立刻送出,不等停顿;按 toggle 方式开着的说话键同时关上)。夜间模式在右键菜单里切换。窗口打开时桌宠从屏幕顶上掉到底边。
 右键菜单顶上一行是 bot 的头像(部署目录的 `avatar.png`,没有时画桌宠自己)和名字;内嵌应用借出运行控制时,
@@ -84,7 +86,9 @@ Windows 上每 0.8 秒用 GDI 取一小块身体周围的屏幕像素来比,其�
 气泡尺寸 `worlds.desktop-pet.window.bubbleSize` 缩放所有气泡的宽度、留白、圆角、尾巴、离头顶的距离和连到桌宠的小圆点,边框粗细不变;
 字体尺寸 `window.fontSize` 缩放气泡里的字和同一行的小图标,气泡的宽度不变。两项都是 0.8–1.6 倍,默认 1,不随桌宠的大小变。
 气泡速度 `window.bubbleSpeed` 是 0.5–2 倍,默认 1:Coo 的气泡每秒打 20 乘以它个字,打完后的停留时间除以它,`pet_say` 报的显示时长也按它算。
-桌宠页的音效和说话声按 Coo 在所在显示器上的左右位置分配左右声道(`web/sound.js` 的 `setPan`),没有 `StereoPannerNode` 的浏览器里居中。
+音量 `worlds.desktop-pet.sounds.volume`(声音组，整数 0–100,默认 100)按百分比调低桌宠页和装扮页的所有声音，说话声也在内，两页之间的响度比例不变。
+桌宠页的音效和说话声按 Coo 在所在显示器上的左右位置分配左右声道(`web/sound.js` 的 `setPan`),pan 值钳在 ±0.5 以内，贴着屏幕边时远侧也听得到;
+`worlds.desktop-pet.sounds.panByPosition`(声音组，默认开)关闭后居中播放，没有 `StereoPannerNode` 的浏览器里也居中。
 说话声 `worlds.desktop-pet.speech.*`(声音组，默认关)开启后，气泡逐字念成音节库 `web/speech/` 里的短音节，代替「说话」类的叽咕声(叽咕声的音色和音高由形象包的 `voice` 和 `talk` 音效定，见「形象包」)，随这一类音效开关;
 文字怎么念由 World 定(`src/speech`,经 `POST /api/speech`):各语言按读音规则和词典转成国际音标，再取最接近的音节。
 音高 `speech.pitch` 为 low/mid/high(300/400/500 Hz)或 custom(`speech.pitchHz`,200–700),语速 `speech.speed` 为每秒最多 10/13/16 个音节或 custom(`speech.unitsPerSecond`,6–20)。
@@ -97,6 +101,9 @@ Windows 上每 0.8 秒用 GDI 取一小块身体周围的屏幕像素来比,其�
 2. 配置 `worlds.desktop-pet.window.electronFile`;
 3. 「桌宠」面板安装的托管运行时(Electron 44.4.4,装到 `<运行时根>/electron/44.4.4/`);
 4. 本包能解析到的 `electron` 包。
+
+「桌宠」与「语音输入」面板的操作失败显示为宿主的错误通知；读取状态失败显示在面板的提示行，下次读取成功后清除。
+窗口、运行时、引擎、下载和麦克风的状态显示在各自的行内。
 
 没有窗口时,在浏览器里打开 `/pet` 也能看到桌宠;窗口连着时浏览器标签页只旁观,不接收指令,
 打字和偏好改动照样送到 World。World 页的「桌宠窗口」灯只看窗口：浏览器页面顶替窗口时灯不亮，说明里写一句浏览器页面已连接;
@@ -159,6 +166,7 @@ overlay 页按画出的时刻显示各帧，帧与帧隔开的时间和桌宠页
 
 桌宠窗口里的页面用麦克风收音,16 kHz 单声道 PCM 经 WebSocket 送到 World,按能量门限切句
 (`src/asr/segmenter.ts`),交给识别引擎,挡掉已知幻觉后作为 `desktop-pet.speech` 投递;应用语言是简体中文且 `asr.simplified` 开着时先把繁体转成简体。
+采集启用回声消除和降噪,关闭自动增益控制(AGC):Windows 上 Chromium 的 AGC 会调整系统麦克风音量。
 说话时桌宠歪头倾听,虚线气泡里边说边显示听到的字,还没定下来的部分是灰色的;用 Whisper 和转写接口时一句说完才出字。识别完成后这个气泡留在 Coo 旁边(见「桌宠窗口」)。
 按键收音(`hold`、`toggle`)时气泡里有「取消」按钮:桌宠页发 `cancel`,World 丢掉这次收音手上的音频、转写队列和已识别的文字,在途的转写落地后也丢掉,发 `listen` 的 `none`,不投递事件;`toggle` 下同时关掉收音。
 
@@ -217,31 +225,35 @@ API Key 不进 config:「语音输入」面板经 `storeSecret` 存进部署 `.e
 
 | `asr.mic.mode` | 行为 |
 |---|---|
-| `hold`(默认) | 按住说话键时收音,整段都算话,松开即一句结束;连按的键是最后一下按住时收音 |
+| `hold`(默认) | 按住说话键时收音,整段都算话,松开即一句结束;连按的键是最后一下按住时收音。说话键和打字键是同一个键时,最后一下按住超过 300 ms 才开始收音,短按和快速连按不收音 |
 | `toggle` | 按一下说话键开始,再按一下停;中间按停顿切句 |
 | `always` | 一直收音,按停顿切句 |
 
 不按住说话键的两种方式里,比说话门槛 `asr.segment.thresholdDb`(dBFS,默认 -42)响的声音才算说话。「语音输入」面板音量条上的竖线就是它,拖动或用方向键修改,经 voice 面板的 `setThreshold` 写进配置,下一帧起生效。门槛只看响度,和使用者一样响的别人说话照样会收进来。
 
-说话键 `asr.mic.hotkey` 用 `+` 连写组合键(`Ctrl+Space`、`F8`、`Mouse4`),结尾加 `*2` / `*3` 表示连按:前面几下是快速的一按一放(每下不超过 300 ms,两下之间隔不超过 400 ms),最后一下按住才算按下。
+说话键 `asr.mic.hotkey` 用 `+` 连写组合键(`Ctrl+Space`、`F8`、`Mouse4`),结尾加 `*2` / `*3` 表示连按:前面几下是快速的一按一放(每下不超过 300 ms,两下之间隔不超过 400 ms,按下到松开之间没有别的键或鼠标键按下)。最后一下按下时开始收音(`hold`)或开关收音(`toggle`);`hold` 的说话键和打字键是同一个键(`typeKey.enabled` 打开、两者按的键相同,连按次数不论)时,最后一下按住超过 300 ms 才开始收音。
+共用按键且 `asr.mic.openOnPress` 关闭时,World 在内存里保留最近 18 帧音频(360 ms,覆盖从实际按下到确认长按的最长间隔:300 ms 判定,加上发现按下和发现超时各最多晚一次 30 ms 轮询,按 20 ms 帧向上取整),确认长按后先把这些帧交给分句器,再接后续音频;快速双击不进入识别。松开、取消、改绑、关闭语音或麦克风断开时清空缓存,超过这段时限的帧也不补入下一句。
 默认 `LeftAlt*2`:快速按一下左 Alt(Mac 上是左 Option),紧接着按住说话。按完快速的那一下,World 给桌宠页发 `listen` 的 `ready`,Coo 先抬头看一眼,按住时立刻进入聆听。
 在哪个窗口里按都算;「语音输入」面板的说话键按钮录下组合键,旁边的下拉框选「双击再按住」(`*2`)或「直接按住」(不带 `*`),录键时保留当前的按法。桌宠麦克风按钮的角标显示说话键的简写(`Alt×2`、`F8`、`M4`),一直收音时显示 `AUTO`。
-Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 CoreGraphics 的 `CGEventSourceKeyState`,要在「系统设置 → 隐私与安全性 → 输入监控」里允许,第一次会弹出询问;Linux 上轮询 X11 的 `XQueryKeymap`(Wayland 下经 XWayland,只在 X11 窗口有键盘焦点时读得到;鼠标侧键读不到)。读不到时不识别说话,面板上写明原因。
-`asr.mic.deviceId` 选麦克风,留空用系统默认;设备列表由桌宠页在拿到麦克风权限后报上来。
+Windows 上经 koffi 轮询 Win32 `GetAsyncKeyState` 读取;macOS 上轮询 CoreGraphics 的 `CGEventSourceKeyState`,要在「系统设置 → 隐私与安全性 → 输入监控」里允许,第一次会弹出询问;Linux 上轮询 X11 的 `XQueryKeymap`(Wayland 下经 XWayland,只在 X11 窗口有键盘焦点时读得到;鼠标侧键读不到)。说话键或打字键按住期间,每次轮询还读一遍其余的键和鼠标键,判断这一下是不是组合键的一部分。读不到时不识别说话,面板上写明原因。
+`asr.mic.deviceId` 选麦克风,留空用系统默认;设备列表由桌宠页上报,设备名称需要麦克风权限。
+所选设备在列表里时用它收音,系统默认改变不影响;不在时用系统默认输入设备,回到列表后切回。拔掉设备,或者 World 换了端口(Chromium 按页面来源生成 deviceId),所选设备都会不在列表里。
+用系统默认收音时默认输入设备改变,或者所选设备拔掉、插回,桌宠页关闭旧音频流,在新的目标设备上重新收音。
+音轨结束时重新开麦,打开失败(权限被拒绝除外)时在下一次设备变化后重试。
 麦克风在「开启语音输入」总开关开着时一直打开,电平条随时显示音量,说话键只决定哪一段送去识别。
-打字键 `typeKey` 默认关(「习惯」页的「打字键」,经 pet 面板的 `setTypeKey` 修改)。打开后在哪个窗口里按下 `typeKey.hotkey` 都打开桌宠的打字框，和双击桌宠打开的是同一个：World 给桌宠页发 `type`,桌宠隐藏时不发。
-写法和说话键相同，默认 `LeftCtrl*2`(快速按两下左 Ctrl,Mac 上是左 Control),连按时最后一下按下就算;「习惯」页录键与选按法(按一下、双击)的做法同「语音输入」面板(`src/webui/key-capture.ts`)。
+打字键 `typeKey` 默认关(「习惯」页的「打字键」,经 pet 面板的 `setTypeKey` 修改)。打开后在哪个窗口里触发 `typeKey.hotkey` 都打开桌宠的打字框，和双击桌宠打开的是同一个：World 给桌宠页发 `type`,桌宠隐藏时不发。
+写法和说话键相同，默认 `LeftCtrl*2`(快速按两下左 Ctrl,Mac 上是左 Control)。单按键按下就打开;连按时每一下都必须在 300 ms 内松开,两下之间隔不超过 400 ms,最后一下松开才打开打字框。按住超过 300 ms 会取消这次连按,所以同一个键可以双击打字、按住说话;按住期间按下别的键或鼠标键(Ctrl+C、Ctrl+V 这类组合键)也会取消,连按从头计数。「习惯」页录键与选按法(按一下、双击)的做法同「语音输入」面板(`src/webui/key-capture.ts`)。
 Windows 上桌宠窗口从前台窗口拿走键盘，打字框关掉后还回去。读键的方式和读不到时的原因同说话键，原因写在「习惯」页这一行下面。
-`hold` 下开启 `asr.mic.openOnPress`(默认关,「语音输入」页的「按住时才打开麦克风」)后,桌宠页只在说话键按住时打开麦克风,松开 500 ms 后关掉;倾听气泡等第一帧音频到了才出现。给一打开麦克风就切到通话模式的耳机用,按下到麦克风打开之间说的话收不到。
+`hold` 下开启 `asr.mic.openOnPress`(默认关,「语音输入」页的「按住时才打开麦克风」)后,桌宠页在说话键触发收音时打开麦克风:不共用打字键时是最后一下按下时,共用时要等最后一下按住超过 300 ms。松开 500 ms 后关掉,倾听气泡等第一帧音频到了才出现。给一打开麦克风就切到通话模式的耳机用;按下到麦克风打开之间的话没有被采集,预录缓存也无法补回,应等倾听气泡出现再说话。
 
 ## 形象包
 
 桌宠的身体都来自形象包,Coo 也是一个。形象包是一个目录,根上有 `figure.json`;内置的 Coo 在 `web/coo/`、大肥鱼在 `web/whale/`,
 其余的从数据目录的 `figures/<目录>/` 和应用给的 `packRoots` 里找。`skin.figure` 是包的 id,`skin.scheme` 是它的打扮(Coo 的打扮存在 skin 自己的配色和配件字段里)。
 
-包里的代码只在沙箱里跑:桌宠页把它放进 `/figure-frame`,这个页面的 CSP 把它设成不透明源、禁止一切网络连接,
+包里的代码只在沙箱里跑:桌宠页把它放进 `/figure-frame?pack=<id>`,这个页面的 CSP 把它设成不透明源,网络连接只许 `fetch` 这个包自己目录下的文件(见下文「读包里的文件」;内置包哪里都连不了),
 脚本和图片只能从桌宠服务读,和桌宠页之间只有 postMessage(`web/figure-frame.js`、`web/body-host.js`)。
-视频、音频元素和字体在沙箱里加载不了,`fetch` 也读不到包里的文件;包要出声就在 `figure.json` 的 `sounds` 里声明,由桌宠页播放。
+视频、音频元素和字体在沙箱里加载不了;包要出声就在 `figure.json` 的 `sounds` 里声明,由桌宠页播放。
 它连不到桌宠的 socket,也没法替对方说话或改设置。身体整个归包管:走、跳、被拎、表情、动作、画法都是包的代码,
 桌宠页只转发指针、下指令,读回它报告的位置和发生的事。多数包用 `web/kit/body.js` 这套现成的身体,只自己画。
 
@@ -276,6 +288,33 @@ Windows 上桌宠窗口从前台窗口拿走键盘，打字框关掉后还回去
 工厂按 `factory(base, { model, scheme, kit, loadImage, asset, host })` 调用,返回一个身体;契约写在 `web/figure-frame.js` 开头。
 用 kit 的包只要 `kit.createBody(host, { figure, words })`:`figure` 每帧画一次,`words` 是 kit 本身没有的词怎么做。
 `examples/whale/README.md` 是写形象包的完整说明。20 秒内没准备好、或者跑的时候抛错,桌宠换回 Coo,并告诉 bot 词表的变化。
+
+### 读包里的文件
+
+Live2D 的 `.moc3`、大的 JSON 这类文件直接放在包目录里,在工厂里用 `fetch` 读。地址用工厂拿到的 `asset(路径)`:路径相对包目录,和 `figure.json` 里写的一样。
+
+```js
+export async function createMyBody(base, { asset, kit, host }) {
+  const moc = await (await fetch(asset('model/model.moc3'))).arrayBuffer();
+  const physics = await (await fetch(asset('model/model.physics.json'))).json();
+  // …
+}
+```
+
+只读得到本包目录(`/packs/<id>/`)以下的文件,别的包、桌宠服务的接口和外网都会被拒绝。
+Coopanion 0.2.13 及更早的版本不许任何 `fetch`。要让包在这些版本上也能用,把同一个文件再打一份成 JS 模块
+(例如 `model.moc3.js`,内容是 `export default '<文件的 base64>';`),`fetch` 失败时改读它:
+
+```js
+async function readBytes(asset, file) {
+  try {
+    const res = await fetch(asset(file));
+    if (res.ok) return await res.arrayBuffer();
+  } catch { /* 旧版本拒绝 fetch */ }
+  const { default: b64 } = await import(asset(`${file}.js`).href);
+  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)).buffer;
+}
+```
 
 ### 自己的移动目标
 
@@ -334,7 +373,7 @@ Coopanion 在 Linux 上固定跑在 X11 上;Wayland 会话里经 XWayland 只看
 找到的包先列出来:缩略图、名字、版本、作者、署名、打扮和词的数量、这一版用不上的部分;已经装了同 id 的包时,写明会换成哪一版。
 勾选的包装到数据目录的 `figures/<id>/`。同 id 的包或目标目录已存在时,服务返回 409 和冲突 id,本批文件均不改动;
 装扮页列出冲突包,确认替换后再安装,取消则保留原文件。替换同 id 的旧包时,旧包所在的文件夹叫别的名字也一样;和内置形象同 id 的包导入不了。
-一次最多 128 MB。装了但没加载成功的包列在形象那一行下面,写明原因。直接构造 `DesktopPetWorld` 时不给 `packDir`,装扮页就不显示导入,也没有包能卸载。
+不限体积，超过 128 MB 时确认框里提示体积。装了但没加载成功的包列在形象那一行下面,写明原因。直接构造 `DesktopPetWorld` 时不给 `packDir`,装扮页就不显示导入,也没有包能卸载。
 
 ### 卸载
 
@@ -430,14 +469,25 @@ macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)�
 ### 让位给使用者
 
 发出任何输入前,引擎先确认使用者已经静止 `cua.userIdleMs`(默认 2 秒)。「使用者动过」的依据是两条可以核实的事实:
-系统记录的最后一次输入晚于引擎自己的最后一次注入(Windows 的 `GetLastInputInfo`,macOS 的 `CGEventSourceSecondsSinceLastEventType`,Linux 的 MIT-SCREEN-SAVER 扩展),或者鼠标指针不在引擎上次放下的位置。
-等满 `cua.maxYieldWaitMs`(默认 15 秒)使用者还在用,这次操作不执行,回执照实说明。打字按 16 个字形一段发送
+系统记录的最后一次输入比引擎自己的最后一次注入晚 40ms 以上(Windows 的 `GetLastInputInfo`,macOS 的 `CGEventSourceSecondsSinceLastEventType`,Linux 的 MIT-SCREEN-SAVER 扩展),或者鼠标指针任一轴偏离引擎上次放下或上次发现位移的位置超过 2px。
+位移按系统记录的最后输入时间计;没有晚于引擎注入的记录时,按发现时间计。连续采样发现指针还在移动、但系统输入记录早于上一采样时,也按发现时间计。
+Linux 缺少 MIT-SCREEN-SAVER 扩展或系统输入查询失败时,最后输入时间为 `null`,位移按发现时间计。
+每 100ms 检查一次,已经停手的时间计入静止时长;tick 按 32 位无符号数处理回绕,按各时间距当前采样的时长比较先后,间隔超过半个 tick 周期也保持让位判定。判定在 `src/cua/engine/user-activity.ts`,引擎子进程只采样系统值。
+等满 `cua.maxYieldWaitMs`(默认 15 秒)输入信号仍未满静止时长,这次操作不执行。回执写明最后阻挡的是系统输入时间、指针位移或两者,两个信号各自命中检查的次数和最后 tick,以及当时的前台窗口和程序。
+次数是等待期间命中信号的采样检查次数,同一次输入可以命中多次;不表示按键或移动次数。没有近期指针位移而系统输入时间阻挡时,具体设备未知,可能是键盘、滚轮或其他输入设备。
+`cua.ts` 在放弃操作或打字中途让位时记一条 `input yielded` debug 日志,包含回执里的信号数据,以及最后采样时间、系统最后输入 tick、引擎上次注入 tick、该次采样是否发现位移、前台窗口、程序和光标位置。
+使用者在桌宠打字框或对话页给 bot 打字也触发让位;环境提示词要求等消息到了再操作。
+打字按 16 个字形一段发送
 (emoji 这类多码位的字不会被拆开),每段之间再检查一次,使用者一动就停,回执报告实际打出了几个字符。
+打字中途让位的信号统计还包含触发停止的那次段间检查。
 
 `cua.control` 关掉后只能截图和列窗口,所有输入工具返回拒绝原因。
 登录、密码、验证码、支付交还给使用者,以及发送、删除、提交、购买前先问,这些写在 `src/cua/ENV_PROMPT.md` 里。
 
 ### 打断
+
+用说话键(`asr.mic.mode` 为 `hold` 或 `toggle`)说的话在转写完成、合并为消息并投递时以 `interrupt` 停止当前轮:取消正在生成的回复,给执行中的可打断工具发送取消信号,跳过同轮尚未开始的工具。收音或转写尚未完成时不发送这个信号,已经发生的操作不回滚。
+一直收音(`always`)时听到的话照旧以 `flush` 投递,不打断当前轮:电视或旁人的声音也会收进来。
 
 十一个工具都声明为 `interruptible`。Core 投递 `interrupt` 事件时,执行中的调用停在下一个不留半截输入的地方,
 回执写明停下前做了什么:
@@ -458,6 +508,11 @@ macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)�
 操作系统调用都在引擎子进程(`src/cua/engine-child.ts`)里,经 [koffi](https://koffi.dev/) 直接调系统接口。请求和结果里的坐标是某块显示器的物理像素,
 各系统自己的全局坐标只在子进程里换算(`src/cua/engine/display.ts`)。
 引擎在第一次要用时拉起;子进程崩溃或请求超时让这个引擎的在途请求失败,超时的引擎被强制结束,下次调用重新拉起。World 页多一盏「操作引擎」灯。
+
+回执里的前台窗口和程序按系统当前键盘目标读取:Windows 用 `GetForegroundWindow`,macOS 用 `GetFrontProcess` 和辅助功能的 `AXFocusedWindow`,Linux 用 `_NET_ACTIVE_WINDOW`。
+桌宠打字框这类工具窗口、无标题窗口都保留;有前台目标但读不到标题时写「标题不可用」。macOS 未授予辅助功能权限时仍可读取前台程序,窗口标题和位置不可用。
+macOS 的辅助功能查询每次最多等待 200ms,超时后仍报告前台程序名;应用和窗口对象分别设置此时限。
+`pet_cua_windows`、`pet_cua_focus` 的候选列表仍按各系统原有规则过滤。
 
 - Windows(`src/cua/engine/win32.ts`):`EnumDisplayMonitors` 列显示器,GDI `BitBlt` 按显示器矩形截图(带 `CAPTUREBLT`,透明与分层窗口也截得到)、
   `SetCursorPos` 定位指针(`SendInput` 的绝对坐标要折算到 0–65535,在显示器接缝处会差一个像素)、`SendInput` 发按键和滚轮、`EnumWindows`、

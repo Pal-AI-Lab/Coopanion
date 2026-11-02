@@ -1,12 +1,12 @@
 /*
  * The settings window's own layer over styles.css (scripts/stage.ts adds it last): the rail (folding, the
  * logo, the two modes, the foot), one heading and one content width for every page, icon lines, the check
- * boxes, and what text can be selected. Only the theme's color variables are used.
+ * boxes, and what text can be selected.
  */
 
 /* ---------- compact navigation ---------- */
 body.companion-sidebar {
-  --titlebar-height: 36px; --rail-motion: 260ms cubic-bezier(.22, 1, .36, 1);
+  --titlebar-height: 36px; --rail-width: 248px; --rail-motion: 260ms cubic-bezier(.22, 1, .36, 1);
   display: flex; height: 100dvh; padding-top: var(--titlebar-height); overflow: hidden;
 }
 .companion-titlebar {
@@ -15,11 +15,12 @@ body.companion-sidebar {
   box-shadow: inset 0 -1px color-mix(in srgb, var(--border) 50%, transparent);
 }
 /* The overlay's available area also excludes left-side window controls on Linux. */
+.companion-titlebar { --titlebar-actions-left: max(8px, calc(env(titlebar-area-x, 0px) + 8px)); }
+.companion-titlebar[data-platform="darwin"] { --titlebar-actions-left: max(86px, calc(env(titlebar-area-x, 0px) + 8px)); }
 .companion-titlebar-actions {
-  position: absolute; inset: 0 max(64px, calc(100% - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px)) 0 max(8px, calc(env(titlebar-area-x, 0px) + 8px));
+  position: absolute; inset: 0 max(64px, calc(100% - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px)) 0 var(--titlebar-actions-left);
   display: flex; align-items: center; gap: 2px;
 }
-.companion-titlebar[data-platform="darwin"] .companion-titlebar-actions { left: max(86px, calc(env(titlebar-area-x, 0px) + 8px)); }
 .companion-titlebar button {
   display: grid; place-items: center; flex: none; width: 32px; height: 28px; padding: 5px; border: 0; border-radius: 6px;
   background: transparent; color: inherit; cursor: pointer; app-region: no-drag;
@@ -33,6 +34,10 @@ body.companion-sidebar {
   margin-left: 8px; padding-left: 10px; border-left: 1px solid var(--border);
   font-size: 11px; line-height: 16px; white-space: nowrap;
 }
+/* On macOS the divider lines up with the expanded sidebar's border. Where the buttons start depends on
+   the window controls, so the space before it is worked out from the same start: four 32px buttons and
+   their 2px gaps come first. */
+.companion-titlebar[data-platform="darwin"] .companion-titlebar-release { margin-left: max(8px, calc(var(--rail-width) - 1px - var(--titlebar-actions-left) - 4 * (32px + 2px))); }
 .companion-titlebar-release a { text-decoration: none; }
 .companion-titlebar-release a:hover { text-decoration: underline; }
 .companion-titlebar-release a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
@@ -45,16 +50,16 @@ body.companion-sidebar {
 .companion-sidebar-chevron { transform-origin: 15px 12px; transition: transform var(--rail-motion); }
 .companion-sidebar-toggle[aria-expanded="false"] .companion-sidebar-chevron { transform: rotate(180deg); }
 #rail {
-  width: 248px; height: 100%; flex: none; position: relative; z-index: 10;
+  width: var(--rail-width); height: 100%; flex: none; position: relative; z-index: 10;
   border-right: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
   transition: width var(--rail-motion);
 }
 #rail.is-collapsed { width: 72px; }
 #rail .brand { display: block; flex: none; min-width: 0; padding: 20px 18px 10px; overflow: hidden; }
 /* open, the C's left edge is on the nav icons'; collapsed, the small C is centred on them (the rail's middle, x=36) */
-.companion-lockup { margin-left: 11px; width: 174px; height: 39px; overflow: hidden; color: var(--foreground); transition: width var(--rail-motion), margin-left var(--rail-motion); }
+.companion-lockup { margin-left: 11px; width: 174px; height: 39px; overflow: visible; clip-path: inset(-16px 0 0 -8px); color: var(--foreground); transition: width var(--rail-motion), margin-left var(--rail-motion); }
 .is-collapsed .companion-lockup { width: 36px; margin-left: .5px; }
-.companion-brand { display: block; width: 174px; height: auto; }
+.companion-brand { display: block; width: 174px; height: auto; overflow: visible; }
 .companion-brand .accent { stroke: var(--accent); }
 .companion-brand-c, .companion-brand-o-first, .companion-brand-o-second { transition: transform var(--rail-motion); }
 .companion-brand-c { transform: translate(-22px, 28px) scale(.5); }
@@ -86,8 +91,17 @@ body.companion-sidebar {
 #rail nav.stack::-webkit-scrollbar-thumb:active,
 #kernel-root ::-webkit-scrollbar-thumb:hover,
 #kernel-root ::-webkit-scrollbar-thumb:active { background-color: var(--line-strong); }
+#kernel-root .connection-index:hover .connection-cards::-webkit-scrollbar-thumb { background-color: var(--line-2); }
+#kernel-root .connection-cards::-webkit-scrollbar-thumb:hover,
+#kernel-root .connection-cards::-webkit-scrollbar-thumb:active { background-color: var(--line-strong); }
+#kernel-root .connection-index:not(:hover) .connection-cards::-webkit-scrollbar-thumb { background-color: transparent; }
+#kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll) { --world-scroll-thumb: transparent; }
+#kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll):hover { --world-scroll-thumb: var(--line-2); }
+#kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll)::-webkit-scrollbar-thumb { background-color: var(--world-scroll-thumb); }
+#kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll)::-webkit-scrollbar-thumb:hover,
+#kernel-root :is(.world-library-list, .world-catalog-filters, .world-catalog-scroll)::-webkit-scrollbar-thumb:active { background-color: var(--line-strong); }
 #rail .navgroup { display: flex; }
-#rail .navgroup-primary + .navgroup-primary { margin-top: 4px; }
+#rail .navgroup-primary + :is(.navgroup-primary, .navgroup-world-tree) { margin-top: 4px; }
 #rail .stacklabel {
   display: block; height: 16px; margin: 6px 12px 8px; line-height: 16px; white-space: nowrap; overflow: hidden; background: transparent;
   transition: height var(--rail-motion), margin var(--rail-motion), color 120ms ease, background-color var(--rail-motion);
@@ -233,6 +247,11 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
 @keyframes companion-enter { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
 @keyframes companion-leave { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(-6px); } }
 #rail .companion-enter { animation: companion-enter 200ms cubic-bezier(.22, 1, .36, 1) both; }
+/* A page joining or leaving the sidebar (rail/index.ts `fold`): its label is clipped to the row as it
+   opens or closes, while the tree connector to its left stays drawn. */
+#rail :is(.companion-arrive, .companion-depart) { overflow: clip; overflow-clip-margin: 14px; }
+#rail .companion-depart { pointer-events: none; }
+#rail .companion-reorder { position: relative; z-index: 1; }
 #rail .companion-leave { animation: companion-leave 200ms ease both; pointer-events: none; }
 @keyframes companion-press { 0% { transform: scale(1); } 40% { transform: scale(.95); } 100% { transform: scale(1); } }
 @keyframes companion-turn { from { transform: rotate(-90deg); opacity: .3; } to { transform: none; opacity: 1; } }

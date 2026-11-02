@@ -8,8 +8,9 @@
  * answer binds the record to the new program directory. Data beside the program always wins: a folder copied
  * whole keeps its own data.
  */
-const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
+const { existsSync, mkdirSync, writeFileSync } = require('node:fs');
 const { dirname, join, resolve } = require('node:path');
+const { readTextFile } = require('./read-text.cjs');
 
 /**
  * @typedef {{ data: string, program: string, startedAt: string }} DataRecord
@@ -22,7 +23,7 @@ const samePath = (a, b) => resolve(a).toLowerCase() === resolve(b).toLowerCase()
 /** The record in `file`, or null when there is none or it is not one. */
 function readRecord(file) {
   try {
-    const record = JSON.parse(readFileSync(file, 'utf8'));
+    const record = JSON.parse(readTextFile(file));
     return typeof record?.data === 'string' && typeof record.program === 'string' && typeof record.startedAt === 'string' ? record : null;
   } catch {
     return null;

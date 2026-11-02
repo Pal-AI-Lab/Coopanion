@@ -12,7 +12,7 @@ export const S: Partial<typeof en> = {
   older: '更早的對話',
   voice: '語音',
   idle: '閒置',
-  thinking: (bot: string) => `${bot} 在想…`,
+  thinking: (bot: string) => `${bot} 正在思考…`,
   doing: (what: string) => `正在${what}`,
   retry: (at: string) => `模型沒有回應，${at} 重試`,
   handoff: '正在整理之前的對話',

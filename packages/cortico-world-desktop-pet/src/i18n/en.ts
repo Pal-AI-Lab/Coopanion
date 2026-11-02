@@ -165,7 +165,6 @@ const en: PetText = {
   /** Importing packs on the dressing page. */
   importing: {
     badZip: (why: string) => `Not a readable zip: ${why}`,
-    tooBig: (mb: number) => `Over ${mb} MB unpacked`,
     truncated: 'The upload is incomplete',
     badPath: (path: string) => `A path cannot be used: ${path}`,
     builtinId: (id: string) => `id ${id} belongs to a built-in figure; change the id to import it`,
@@ -174,7 +173,6 @@ const en: PetText = {
     expired: 'This import has expired; choose the files again',
     noneChosen: 'No pack is chosen',
     zipOrFolder: 'Only a zip or folders can be imported',
-    overLimit: (mb: number) => `Over ${mb} MB`,
   },
 
   /** Uninstalling packs on the dressing page. */
@@ -228,7 +226,7 @@ const en: PetText = {
       pet: { title: 'Desktop pet', description: 'The window, the dress and the window runtime.' },
       voice: { title: 'Voice input', description: 'Recognition engine, input level and what was heard.' },
     },
-    envPrompt: { title: 'Desktop pet environment', description: "Describes the pet's body, four tools and input events." },
+    envPrompt: { title: 'Desktop pet environment', description: "Describes the pet's body, tools and input events." },
     vars: {
       'pet.user': 'What the bot calls the person',
       'pet.vocab': "The current figure's expressions and motions",
@@ -274,6 +272,7 @@ const en: PetText = {
     touchEnabled: { title: 'Touches become events', description: 'Pokes, petting, and being picked up and thrown.' },
     touchWakeOn: { title: 'Response mode', description: 'poke: only a poke gets a response right away; other touches wait for the next response. all: every touch gets one. none: every touch waits for the next response. custom: the touches ticked on the Habits page get one. After a touch gets a response, the touches until that turn ends wait for the next one.' },
     sound: { title: 'All sounds', description: "The sound button in the pet's menu flips this." },
+    volume: { title: 'Volume' },
     sounds: {
       move: { title: 'Moving', description: 'Walking, running, jumping, landing, being thrown, nodding, shaking, spinning, dizziness, shivering, dancing, looking about.' },
       touch: { title: 'Touch', description: 'Being picked up, swung, petted, poked.' },
@@ -283,6 +282,7 @@ const en: PetText = {
       ui: { title: 'Buttons and cues', description: 'Button clicks, bubbles opening, picks, and listening starting and ending.' },
     },
     snoreSeconds: { title: 'Snore length', suffix: 's', description: "In each sleep the pet goes quiet after snoring this long; the z's keep floating. 0 = snore until waking." },
+    panByPosition: { title: 'Pan by position', description: 'Sounds lean toward the side Coo stands on; off, they play centered.' },
     speech: { title: 'Speech', description: 'Reads out a syllable as each character appears in a bubble, in place of the Talking babble; silent while Talking sounds are off.' },
     speechPitch: { title: 'Speech pitch', description: (a: number, b: number, c: number) => `low, mid and high are ${a}, ${b} and ${c} Hz; custom uses the custom pitch.` },
     speechPitchHz: { title: 'Custom pitch' },
@@ -302,13 +302,11 @@ const en: PetText = {
 
   /** The console's Desktop pet and Voice input panels. */
   panel: {
-    pet: 'Desktop pet',
     window: 'Pet window',
     openWindow: 'Open window',
     closeWindow: 'Close window',
     runtime: 'Window runtime',
     install: 'Install',
-    viewInBrowser: 'View in browser',
     dress: 'Dress up',
     dressHint: 'Changes are saved at once and reach the pet window',
     connected: 'Connected',
@@ -323,7 +321,6 @@ const en: PetText = {
     noBuild: 'No prebuilt package for this platform',
     electronSize: 'Electron 44.4.4, about 150 MB',
 
-    voice: 'Voice input',
     enable: 'Turn on voice input',
     enabledHint: 'The microphone stays open; speech goes to Coo by the listening mode',
     enabledHintOnPress: 'The microphone opens while the talk key is held and closes after release',

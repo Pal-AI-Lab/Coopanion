@@ -143,7 +143,6 @@ const ko: Translation<PetText> = {
 
   importing: {
     badZip: (why: string) => `읽을 수 있는 zip이 아닙니다: ${why}`,
-    tooBig: (mb: number) => `압축을 풀면 ${mb} MB를 넘습니다`,
     truncated: '업로드가 완전하지 않습니다',
     badPath: (path: string) => `쓸 수 없는 경로가 있습니다: ${path}`,
     builtinId: (id: string) => `id ${id}은(는) 내장 외형의 것입니다. 가져오려면 id를 바꾸세요`,
@@ -152,7 +151,6 @@ const ko: Translation<PetText> = {
     expired: '이 가져오기는 만료되었습니다. 파일을 다시 선택하세요',
     noneChosen: '선택한 팩이 없습니다',
     zipOrFolder: 'zip 파일이나 폴더만 가져올 수 있습니다',
-    overLimit: (mb: number) => `${mb} MB 초과`,
   },
 
   removing: {
@@ -199,7 +197,7 @@ const ko: Translation<PetText> = {
       pet: { title: '데스크톱 펫', description: '창, 꾸미기, 창 런타임.' },
       voice: { title: '음성 입력', description: '인식 엔진, 입력 레벨, 들은 내용.' },
     },
-    envPrompt: { title: '데스크톱 펫 환경', description: '펫의 몸, 도구 네 가지, 입력 이벤트를 설명합니다.' },
+    envPrompt: { title: '데스크톱 펫 환경', description: '펫의 몸, 도구, 입력 이벤트를 설명합니다.' },
     vars: {
       'pet.user': '봇이 사용자를 부르는 이름',
       'pet.vocab': '현재 외형의 표정과 동작',
@@ -244,6 +242,7 @@ const ko: Translation<PetText> = {
     touchEnabled: { title: '터치를 이벤트로 전달', description: '찌르기, 쓰다듬기, 들어 올려 던지기.' },
     touchWakeOn: { title: '반응 모드', description: 'poke: 찌를 때만 바로 반응하고, 나머지 터치는 다음 반응 때 함께 전달됩니다. all: 모든 터치에 바로 반응합니다. none: 모든 터치가 다음 반응 때 함께 전달됩니다. custom: 「습관」 페이지에서 체크한 터치에 바로 반응합니다. 한 번 반응한 뒤 그 차례가 끝날 때까지의 터치는 다음 반응 때 함께 전달됩니다.' },
     sound: { title: '모든 효과음', description: '펫 메뉴의 효과음 버튼이 이 설정을 켜고 끕니다.' },
+    volume: { title: '음량' },
     sounds: {
       move: { title: '움직임', description: '걷기, 달리기, 점프, 착지, 던져지기, 끄덕이기, 고개 젓기, 회전, 어지러움, 떨기, 춤, 두리번거리기.' },
       touch: { title: '터치', description: '들어 올려지기, 흔들리기, 쓰다듬어지기, 찔리기.' },
@@ -253,6 +252,7 @@ const ko: Translation<PetText> = {
       ui: { title: '버튼과 알림음', description: '버튼 클릭, 말풍선 열림, 선택, 듣기 시작과 끝.' },
     },
     snoreSeconds: { title: '코골이 시간', suffix: '초', description: '잠들 때마다 이만큼 코를 곤 뒤 조용해지며, z는 계속 떠오릅니다. 0 = 깰 때까지 코골이.' },
+    panByPosition: { title: '위치에 따라 좌우 배분', description: 'Coo가 있는 쪽으로 소리가 치우칩니다. 끄면 가운데에서 재생됩니다.' },
     speech: { title: '말소리', description: '말풍선에 글자가 나올 때마다 음절을 읽어 「말하기」 효과음 대신 냅니다. 「말하기」를 끄면 나지 않습니다.' },
     speechPitch: { title: '말소리 높이', description: (a: number, b: number, c: number) => `low, mid, high는 각각 ${a}, ${b}, ${c} Hz이며 custom은 사용자 지정 높이를 씁니다.` },
     speechPitchHz: { title: '사용자 지정 높이' },
@@ -271,13 +271,11 @@ const ko: Translation<PetText> = {
   },
 
   panel: {
-    pet: '데스크톱 펫',
     window: '펫 창',
     openWindow: '창 열기',
     closeWindow: '창 닫기',
     runtime: '창 런타임',
     install: '설치',
-    viewInBrowser: '브라우저에서 보기',
     dress: '꾸미기',
     dressHint: '변경 사항은 바로 저장되어 펫 창에 반영됩니다',
     connected: '연결됨',
@@ -292,7 +290,6 @@ const ko: Translation<PetText> = {
     noBuild: '이 플랫폼용 사전 빌드 패키지 없음',
     electronSize: 'Electron 44.4.4, 약 150 MB',
 
-    voice: '음성 입력',
     enable: '음성 입력 켜기',
     enabledHint: '마이크가 계속 열려 있고, 말한 내용은 듣는 방식에 따라 Coo에게 전달됩니다',
     enabledHintOnPress: '말하기 키를 누르는 동안만 마이크를 열고, 떼면 닫습니다',

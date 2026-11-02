@@ -30,3 +30,6 @@
 .pet-voicebody .mountrow .macts{flex:0 1 auto; min-width:0; flex-wrap:wrap; justify-content:flex-end}
 /* no rule above the first row (识别引擎); its spacing stays */
 .pet-voicebody > .mountrow:first-child{border-top-color:transparent}
+
+/* The untitled cards end with their last row; the next card's own margin is the room below, about what sits above. */
+.panelslot > .sheet.pet-untitled { padding-bottom: 0; }

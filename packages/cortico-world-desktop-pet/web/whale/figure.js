@@ -109,6 +109,8 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
       // an outfit's own part with a `src` is drawn in the outfit's colours
       ...partsOf(of).map(async p => { set.tex[p.tex] = await load(asset(p.src || `${dir}tex/${p.tex}.png`)); }),
       ...featNames.map(async n => { set.img[n] = await load(asset(`${dir}feat/${n}.png`)); }),
+      // a scheme with `eyeHighlights` has each eye's highlights as their own sprite and an iris without them
+      ...(schemeInfo(sc).eyeHighlights ? EYES.map(async k => { set.img[`${k}_hl`] = await load(asset(`${dir}feat/${k}_hl.png`)); }) : []),
     ]).then(() => (ready[key] = set));
     return loaded[key];
   }
@@ -215,6 +217,15 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     return [k, { ...e, travel: h + 2, cx, cy: poly2(e.lidFit, cx) }];
   }));
 
+  // the eye highlights' state this frame (master pixels), stepped once per frame in draw()
+  const hl = { dx: 0, dy: 0, scale: 1, quiver: 0, alpha: 1 };
+  // how each face changes the highlights: welling eyes quiver and shine bigger, a glare narrows them, drowsy eyes dull
+  const HL_MOOD = {
+    sad: { scale: 1.12, quiver: 1 }, worried: { scale: 1.1, quiver: .8 }, shy: { scale: 1.1, quiver: .6 }, pout: { scale: 1.06, quiver: .4 },
+    excited: { scale: 1.18 }, listening: { scale: 1.06 }, angry: { scale: .78 }, determined: { scale: .86 },
+    sleepy: { scale: .92, alpha: .7 }, content: { alpha: .8 }, waking: { alpha: .75 },
+  };
+
   /**
    * The neutral eye with its lid at `open` (0 shut, 1 rest), iris moved by ix/iy, lid tilted by tilt (rad);
    * `glint` (0..1) adds star highlights on the iris, which twinkle with `t`.
@@ -229,6 +240,22 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     g.drawImage(img[`${k}_ball`], bx0, by0);
     g.globalCompositeOperation = 'source-atop';
     g.drawImage(img[`${k}_iris`], e.iris[0] + ix, e.iris[1] + iy);
+    const d = (1 - clamp(open, 0, 1)) * e.travel, tn = Math.tan(tilt);
+    const hlImg = img[`${k}_hl`];
+    if (hlImg && e.hl) {
+      // the highlights ride on the iris, trail it on their spring, are pushed down by a closing lid as far as the
+      // iris's middle (so a half-shut eye still shines) and take the face's size, quiver and strength; the far
+      // eye's x is foreshortened
+      const gx = k === 'eyeL' ? 1 : .35, ph = k === 'eyeL' ? 0 : 1.7, q = hl.quiver;
+      const w = hlImg.width * hl.scale, h = hlImg.height * hl.scale;
+      const cx = (e.hl[0] + e.hl[2]) / 2 + ix + (hl.dx + q * .8 * Math.sin(t * 29 + ph)) * gx;
+      let cy = (e.hl[1] + e.hl[3]) / 2 + iy + hl.dy + q * .6 * Math.sin(t * 37 + ph);
+      const lid = poly2(e.lidFit, clamp(cx, bx0, bx1)) + d + tn * (cx - e.cx) + 2;
+      if (cy - h / 2 < lid) cy = Math.max(cy, Math.min(lid + h / 2, (e.iris[1] + e.iris[3]) / 2 + iy));
+      g.globalAlpha = hl.alpha;
+      g.drawImage(hlImg, cx - w / 2, cy - h / 2, w, h);
+      g.globalAlpha = 1;
+    }
     // the eye's outline over the iris, so a shifted iris tucks under it
     if (e.rim) { g.globalCompositeOperation = 'source-over'; g.drawImage(img[`${k}_rim`], e.rim[0], e.rim[1]); }
     if (glint > 0) {
@@ -245,7 +272,6 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
       });
     }
     // the lid hides everything above it
-    const d = (1 - clamp(open, 0, 1)) * e.travel, tn = Math.tan(tilt);
     g.globalCompositeOperation = 'destination-out';
     g.beginPath();
     g.moveTo(bx0 - 20, by0 - 20);
@@ -457,8 +483,10 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     hair: spring(55, 7, 1.8), hairY: spring(50, 8, 1.2), bangs: spring(110, 10, 1.6),
     skirt: spring(100, 9, 1.6), skirtY: spring(90, 10, 1.1), tail: spring(40, 5, 32), fins: spring(90, 9, 30),
     ahoge: spring(140, 6, 38), head: spring(70, 10, 16), armN: spring(60, 9, 125), armF: spring(60, 9, 95),
+    hlX: spring(160, 9, 3), hlY: spring(160, 9, 3),
   };
   let lastT = null, prevTilt = 0, prevYaw = 0, prevLow = 0, headTilt = 0, fx = '';
+  let prevLook = null, prevShut = 0;
   // the angle each hanging piece's root was last turned to (see the pendulums)
   let rootWas = {};
   // the kit tips Coo's whole round body to listen, nod, doze or wobble; she keeps her feet on the floor and
@@ -727,6 +755,16 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
       st[k] = { a: a + idle * d.gain - root * Math.min(1, d.gain) };
     }
 
+    // the highlights lag a gaze shift or a turn of the face and spring back; an opening lid flicks them up
+    const look = [clamp(o.look[0], -6, 6), clamp(o.look[1], -5, 5)], was = prevLook || look; prevLook = look;
+    const shut = Math.max(o.blink || 0, o.eyeClose || 0), shutV = (shut - prevShut) / Math.max(dt, 1e-3); prevShut = shut;
+    hl.dx = sp.hlX.step(-(look[0] - was[0]) / Math.max(dt, 1e-3) * .03 - yawVel * .8, dt);
+    hl.dy = sp.hlY.step(-(look[1] - was[1]) / Math.max(dt, 1e-3) * .03 + shutV * .12, dt);
+    const mood = HL_MOOD[face] || {};
+    hl.scale = lerp(hl.scale, mood.scale ?? 1, ease(6, dt));
+    hl.quiver = lerp(hl.quiver, mood.quiver ?? 0, ease(4, dt));
+    hl.alpha = lerp(hl.alpha, mood.alpha ?? 1, ease(4, dt));
+
     paintFace(fc, face, o, t);
     rig.upload('faceFx', faceCv);
     st.mix = 0;
@@ -821,6 +859,7 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
       endFade();
       for (const k in sp) { sp[k].x = 0; sp[k].v = 0; }
       lastT = null; rootWas = {}; prevTilt = 0; prevYaw = 0; prevLow = 0; headTilt = 0; wTilt = 0; wLean = 0; finMood = 0; tailMood = 0; wagAmp = 0; sitK = 0; walkK = 0; runK = 0; swingK = 0;
+      prevLook = null; prevShut = 0; Object.assign(hl, { dx: 0, dy: 0, scale: 1, quiver: 0, alpha: 1 });
     },
     /** Loads every scheme's and outfit's textures, so later switches are immediate. */
     preload: () => Promise.all(SCHEMES.flatMap(sc => OUTFITS.map(of => loadScheme(sc.id, of.id)))),

@@ -94,7 +94,7 @@ describe('MiniMax Responses fallback', () => {
     const loop = new MainLoop({
       cfg, llm: provider.client, persona, decl, spec: () => provider.spec,
       context: { hardTokens: () => null, estimateTokens: estimateMessagesTokens, contextOverflow: () => false },
-      blobs: { intern: () => undefined }, worlds: { all: () => [], visible: () => [] },
+      blobs: { intern: () => undefined }, worlds: { all: () => [], visible: () => [] }, onWorldFailed: () => {},
       bus: new WakeBus(cfg.batching), session, state,
       store: new JsonlEventStore({ dataDir: provider.dir, run: 'fixture' }), log: nullLogger(),
       resubmit: { maxConsecutive: 2, maxPerBatch: 4, backoffMs: [0, 0] },

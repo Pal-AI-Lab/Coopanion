@@ -1,6 +1,9 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  autoUpdateLabel: "自動更新",
+  autoUpdate: "自動下載和安裝更新",
+  autoUpdateHint: "自動下載並在結束應用程式時安裝更新。關閉後立即停止檢查和下載，已下載的更新也不會自動安裝。",
   nav: '習慣',
   language: '語言',
   languageHint: '介面和 Coo 說話都使用這種語言。',
@@ -27,6 +30,7 @@ export const S: Partial<typeof en> = {
   hideFullscreen: '自動隱藏',
   hideFullscreenHint: '全螢幕時隱藏，離開全螢幕後恢復顯示。最大化視窗不算全螢幕。',
   soundTitle: '音效',
+  worldScope: "由其他 World 擴充補充的功能不受此開關影響，請在對應 World 頁面設定。",
   sound: '播放音效',
   soundKinds: '分類',
   soundKindsHint: '滑鼠停在一項上可查看包含哪些聲音。',
@@ -41,6 +45,10 @@ export const S: Partial<typeof en> = {
   snore: '打呼時長',
   snoreUnit: '秒',
   snoreHint: '0 表示持續到醒來。',
+  volume: '音量',
+  panLabel: '聲道',
+  pan: '依位置分配左右聲道',
+  panHint: '聲音偏向 Coo 所在的一側，關閉後置中播放。',
   speechTitle: '說話聲',
   speech: '念出氣泡文字',
   speechHint: '每個字念成一個短音節，代替「說話」類音效；「說話」類關掉時不出聲。',

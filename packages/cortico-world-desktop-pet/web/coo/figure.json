@@ -214,6 +214,14 @@
             "it": "Principio: Inverno",
             "ru": "Принцип: Зима"
           }
+        },
+        {
+          "id": "naicoo",
+          "name": {
+            "zh": "奶Coo",
+            "zh-Hant": "奶Coo",
+            "en": "Nai Coo"
+          }
         }
       ]
     },

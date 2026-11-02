@@ -7,9 +7,11 @@
 
 import type { WebUi, WebUiSheet, Disposable } from 'cortico/web/shared/client-panel.ts';
 import { get } from '../../base/api.ts';
+import { listProblem } from '../../base/ui/problem.ts';
+import { S as COMMON } from '../../base/ui/strings.ts';
 import { createMemo } from '../../base/memo.ts';
 import { esc } from '../../base/ui/dom.ts';
-import { consoleFormat, formatMoney } from '../../base/ui/format.ts';
+import { consoleFormat, currencyName, currencySymbol, formatMoney } from '../../base/ui/format.ts';
 import { getThemeStudio } from '../../base/theme/studio.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { intro as pageIntro } from '../intro.ts';
@@ -81,7 +83,7 @@ function errText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-/** abort 不是失败，是"这一页已经不在了"。 */
+/** 离开页面引起的 abort,不当作失败显示。 */
 function isAbort(err: unknown): boolean {
   return (err as { name?: unknown } | null)?.name === 'AbortError';
 }
@@ -113,7 +115,7 @@ export function mountUsage(ctx: PageContext): void {
     title: S.liveRefreshTitle(LIVE_MS / 1000),
     onChange: (on) => setLive(on),
   });
-  const refreshBtn = ui.button(S.refresh, { size: 'sm', onClick: () => void load() });
+  const refreshBtn = ui.button(S.refresh, { size: 'sm', onClick: () => void load(true) });
   const intro = pageIntro(ui, S.pageTitle, { actions: [liveBox.el, refreshBtn] });
 
   // ---- 时间范围：页头第二行，随页头吸顶 --------------------------------------
@@ -127,7 +129,7 @@ export function mountUsage(ctx: PageContext): void {
         state.from = fromInput.value;
         state.to = toInput.value;
       }
-      void load();
+      void load(true);
     },
   });
   presets.el.classList.add('uswitch');
@@ -136,7 +138,7 @@ export function mountUsage(ctx: PageContext): void {
     state.from = fromInput.value;
     state.to = toInput.value;
     presets.setValue('0');
-    void load();
+    void load(true);
   };
   const fromInput = ui.input({ type: 'date', onChange: pickDate });
   const toInput = ui.input({ type: 'date', onChange: pickDate });
@@ -147,12 +149,14 @@ export function mountUsage(ctx: PageContext): void {
   timezone.classList.add('utz');
   const dates = ui.h('span', 'udates');
   dates.append(fromInput, ui.h('span', 'ulabel', '—'), toInput, timezone);
-  /** 取数失败与账目存储异常；没有时整行不占位。 */
-  const notice = ui.msgline('', true);
+  /** 刷新失败与账目存储异常，在结果之外，不随过期的结果变淡；没有时不占位。 */
+  const notice = ui.h('div', 'extension-list-problem');
+  notice.hidden = true;
+  notice.setAttribute('role', 'status');
   notice.classList.add('unotice');
   const rangeBar = ui.h('div', 'urangebar');
   rangeBar.append(presets.el, dates);
-  intro.append(rangeBar, notice);
+  intro.append(rangeBar);
 
   // ---- 总览：读数、成本构成与计费口径 -----------------------------------------
   const overview = ui.sheet({ title: S.sectionOverview });
@@ -160,20 +164,20 @@ export function mountUsage(ctx: PageContext): void {
   let currency = memo.get('currency', '');
   // 数据回来前先按记住的币种显示，免得选择框闪一下「自动」。
   const currencySelect = ui.select({
-    options: [{ value: '', label: S.autoCurrency }, ...(currency ? [{ value: currency, label: currency }] : [])],
-    onChange: value => { currency = value; memo.set('currency', value); void load(); },
+    options: [{ value: '', label: S.autoCurrency }, ...(currency ? [{ value: currency, label: currencyName(currency) }] : [])],
+    onChange: value => { currency = value; memo.set('currency', value); void load(true); },
   });
   currencySelect.value = currency;
-  const basisSelect = ui.select({ options: [{value:'marginal',label:S.basisMarginal},{value:'equivalent',label:S.basisEquivalent}], onChange: value => { basis = value; void load(); } });
+  const basisSelect = ui.select({ options: [{value:'marginal',label:S.basisMarginal},{value:'equivalent',label:S.basisEquivalent}], onChange: value => { basis = value; void load(true); } });
   basisSelect.setAttribute('aria-label', S.ledger);
-  // 换算币种的汇率与出处，只读
+  // 换算币种的汇率与出处，只读。放在「计费口径」左边：控件靠右排，它出现、变长只往左长，不推动选择框。
   const rateText = ui.h('span', 'ulabel');
   const rateSource = ui.h('span', 'ulabel ursrc');
   const rateBox = ui.h('span', 'urate');
   rateBox.append(rateText, rateSource);
   rateBox.hidden = true;
   const ledger = ui.h('span', 'uledger');
-  ledger.append(ui.h('span', 'ulabel', S.ledger), basisSelect, currencySelect, rateBox);
+  ledger.append(rateBox, ui.h('span', 'ulabel', S.ledger), basisSelect, currencySelect);
   headActions(ui, overview, ledger);
   const cards = ui.h('div', 'ukpis');
   const compBox = ui.h('div', 'ucomp');
@@ -199,7 +203,7 @@ export function mountUsage(ctx: PageContext): void {
   const bucketSeg = ui.segmented(BUCKETS, {
     size: 'sm',
     value: state.bucket,
-    onSelect: (v) => { state.bucket = v as UsageBucketOption; void load(); },
+    onSelect: (v) => { state.bucket = v as UsageBucketOption; void load(true); },
   });
   bucketSeg.el.classList.add('uswitch');
   // 拆分维度可多选：同一组按钮，按下的高亮。
@@ -267,7 +271,7 @@ export function mountUsage(ctx: PageContext): void {
 
   const results = ui.h('div', 'uresults');
   results.append(overview.el, activity.el, trend.el, breakdown.el);
-  root.append(intro, results);
+  root.append(intro, notice, results);
 
   // ---- 渲染 -----------------------------------------------------------------
 
@@ -416,7 +420,7 @@ export function mountUsage(ctx: PageContext): void {
     timezone.hidden = !timezone.value;
   }
 
-  /** 顶部提示行只放需要处理的问题；统计口径写在总览下方。 */
+  /** 最近一次刷新失败的原因与上次取回的时刻；刷新成功后清空。 */
   let staleNote = '';
   function renderRateSource(source: UsageRateSource | undefined): void {
     rateSource.textContent = '';
@@ -449,14 +453,14 @@ export function mountUsage(ctx: PageContext): void {
     currencySelect.replaceChildren(...['', ...currencies].map(value => {
       const option = doc.createElement('option');
       option.value = value;
-      option.textContent = value || S.autoCurrency;
+      option.textContent = value ? currencyName(value) : S.autoCurrency;
       return option;
     }));
     currencySelect.value = currency;
     const shown = d.currency || 'USD';
     const rate = shown === 'USD' ? undefined : d.rates?.[shown];
     rateBox.hidden = rate === undefined;
-    if (rate !== undefined) rateText.textContent = `1 USD = ${Number(rate.toPrecision(5))} ${shown}`;
+    if (rate !== undefined) rateText.textContent = `${currencySymbol('USD')}1 = ${currencySymbol(shown)}${Number(rate.toPrecision(5))}`;
     renderRateSource(d.rateSources?.[shown]);
     billingNote.textContent = S.billingHint +
       (d.totals?.unknownUsageCalls ? S.unknownUsage(d.totals.unknownUsageCalls) : '');
@@ -483,8 +487,11 @@ export function mountUsage(ctx: PageContext): void {
   let generation = 0;
   let loadedAt = '';
 
-  /** 主数据按所选粒度分桶;活跃度格子图的逐日 token 由同一次请求的 dailyTokenDays 带回。 */
-  async function load(): Promise<void> {
+  /**
+   * 主数据按所选粒度分桶;活跃度格子图的逐日 token 由同一次请求的 dailyTokenDays 带回。
+   * `asked`:这次取数由人操作控件发起，失败时一定弹出通知；自动刷新的失败只更新页上的提示。
+   */
+  async function load(asked = false): Promise<void> {
     const mine = ++generation;
     const extra = `&basis=${basis}&currency=${encodeURIComponent(currency)}&dailyTokenDays=${ACTIVITY_CONTEXT_DAYS}`;
     try {
@@ -501,13 +508,16 @@ export function mountUsage(ctx: PageContext): void {
     } catch (err) {
       if (isAbort(err) || ctx.signal.aborted || mine !== generation) return;
       if (!state.data) {
-        cards.replaceChildren(ui.placeholder(S.loadFailed(errText(err))));
+        const text = S.loadFailed(errText(err));
+        cards.replaceChildren(listProblem(doc, text, COMMON.retry, load));
+        if (asked) ui.toast(text, 'bad');
         return;
       }
       // 保留上一次的结果,整块标为过期,并写明取回时刻。
       staleNote = S.stale(errText(err), loadedAt);
       renderNotes();
       results.classList.add('u-stale');
+      if (asked) ui.toast(staleNote, 'bad');
     }
   }
 

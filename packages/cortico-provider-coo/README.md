@@ -1,6 +1,4 @@
-# cortico-provider-coo
-
-Owner: `src/index.ts`
+# cortico-provider-coo (`src/index.ts`)
 
 Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 provider 模块(`kind: "coo"`),
 接 Coopanion 列出的模型服务。按端点的 `baseUrl` 认出是哪一家、哪个平台,平台决定走哪种协议:

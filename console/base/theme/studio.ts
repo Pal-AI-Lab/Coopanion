@@ -47,8 +47,6 @@ export interface ThemeSnapshot {
   schemes: ThemeSchemeCard[];
   /** 当前生效的调色板；预览期间是那份草稿。 */
   palette: ThemePalette;
-  /** 最近一次回写部署的失败原因；成功后为 null。当前选择在本页仍然生效。 */
-  saveError: string | null;
 }
 
 export interface ThemeChange {
@@ -97,7 +95,6 @@ export class ThemeStudio {
   private readonly listeners = new Set<ThemeChangeListener>();
   private state: StoredTheme;
   private previewPalette: ThemePalette | null = null;
-  private saveError: string | null = null;
   private closed = false;
 
   /** 系统挡位下跟着系统走。方法引用存下来，`dispose()` 才摘得掉。 */
@@ -150,7 +147,6 @@ export class ThemeStudio {
       scheme: info(scheme),
       schemes: this.schemes().map((item) => ({ ...info(item), swatches: schemeSwatches(item, appearance) })),
       palette: clonePalette(this.previewPalette ?? scheme.palettes[appearance]),
-      saveError: this.saveError,
     };
   }
 
@@ -174,18 +170,18 @@ export class ThemeStudio {
     if (notify) this.emit(false);
   }
 
-  select(id: string): boolean {
+  select(id: string, onSaveError?: (message: string) => void): boolean {
     if (!this.schemes().some((s) => s.id === id)) return false;
     this.state.selectedId = id;
-    this.persist();
+    this.persist(onSaveError);
     this.apply();
     return true;
   }
 
-  setMode(mode: ThemeMode): boolean {
+  setMode(mode: ThemeMode, onSaveError?: (message: string) => void): boolean {
     if (!THEME_MODES.includes(mode)) return false;
     this.state.mode = mode;
-    this.persist();
+    this.persist(onSaveError);
     this.apply();
     return true;
   }
@@ -209,7 +205,7 @@ export class ThemeStudio {
    * **只覆盖当前明暗变体**，另一半从源方案原样拷过来：用户在浅色下调完色，黑夜
    * 变体不该跟着变成一份浅色配色的暗抄本。
    */
-  saveAs(name: string | null | undefined, palette: ThemePalette): string {
+  saveAs(name: string | null | undefined, palette: ThemePalette, onSaveError?: (message: string) => void): string {
     const source = this.currentScheme();
     const appearance = this.appearance;
     const copy: ThemeScheme = {
@@ -222,30 +218,30 @@ export class ThemeStudio {
     copy.palettes[appearance] = normalizePalette(palette, source.palettes[appearance]);
     this.state.custom.push(copy);
     this.state.selectedId = copy.id;
-    this.persist();
+    this.persist(onSaveError);
     this.apply();
     return copy.id;
   }
 
   /** 覆盖当前自定义方案。选中的是内置方案时返回 `false`（内置不可写）。 */
-  saveCurrent(name: string | null | undefined, palette: ThemePalette): boolean {
+  saveCurrent(name: string | null | undefined, palette: ThemePalette, onSaveError?: (message: string) => void): boolean {
     const scheme = this.state.custom.find((s) => s.id === this.state.selectedId);
     if (!scheme) return false;
     const appearance = this.appearance;
     scheme.name = String(name ?? '').trim().slice(0, 40) || scheme.name;
     scheme.palettes[appearance] = normalizePalette(palette, scheme.palettes[appearance]);
-    this.persist();
+    this.persist(onSaveError);
     this.apply();
     return true;
   }
 
   /** 删掉当前自定义方案并切回默认方案。选中内置方案时返回 `false`。 */
-  removeCurrent(): boolean {
+  removeCurrent(onSaveError?: (message: string) => void): boolean {
     const before = this.state.custom.length;
     this.state.custom = this.state.custom.filter((s) => s.id !== this.state.selectedId);
     if (this.state.custom.length === before) return false;
     this.state.selectedId = this.defaultSchemeId;
-    this.persist();
+    this.persist(onSaveError);
     this.apply();
     return true;
   }
@@ -265,7 +261,7 @@ export class ThemeStudio {
     });
   }
 
-  /** 摘掉系统深色监听并清空订阅。进程级实例通常活到页面关闭，测试与热重载用。 */
+  /** 摘掉系统深色监听并清空订阅。部署的主题记录换了时由 `disposeThemeStudio` 调用。 */
   dispose(): void {
     if (this.closed) return;
     this.closed = true;
@@ -273,20 +269,12 @@ export class ThemeStudio {
     this.listeners.clear();
   }
 
-  /** 回写部署。失败记在快照里,由外观页呈现;当前选择在本页仍然生效。 */
-  private persist(): void {
+  /** Persistence errors return to the initiating operation; the local selection remains applied. */
+  private persist(onSaveError?: (message: string) => void): void {
     const sending = JSON.parse(JSON.stringify(this.state)) as StoredTheme;
-    void this.save(sending).then(
-      () => {
-        if (this.saveError === null) return;
-        this.saveError = null;
-        this.emit(false);
-      },
-      (err: unknown) => {
-        this.saveError = err instanceof Error ? err.message : String(err);
-        this.emit(false);
-      },
-    );
+    void this.save(sending).catch((err: unknown) => {
+      onSaveError?.(err instanceof Error ? err.message : String(err));
+    });
   }
 
   /** 逐个通知订阅者；单个回调失败不阻止其他回调。 */
@@ -335,7 +323,7 @@ export function getThemeStudio(deps?: Partial<ThemeStudioDeps>): ThemeStudio {
 }
 
 /**
- * **首屏第一件事**：读服务端注入的部署主题记录、把颜色刷到 `documentElement`。
+ * **首屏第一件事**：读这个窗口缓存的主题记录(调用方传了 `injected` 就用它),把颜色刷到 `documentElement`。
  *
  * 同步执行、不等任何路由，所以内核入口可以在第一行直接调它。部署还没有记录且这台
  * 机器存过旧记录时，构造函数会把旧记录回写一次。
@@ -350,7 +338,7 @@ export function applyStoredTheme(
   return studio.snapshot();
 }
 
-/** 丢掉进程级实例（测试与热重载）。生产代码里没有它的用处。 */
+/** 丢掉进程级实例：部署的主题记录换了时，下一次 `getThemeStudio` 用新记录重建。 */
 export function disposeThemeStudio(): void {
   shared?.dispose();
   shared = null;

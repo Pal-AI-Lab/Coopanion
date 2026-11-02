@@ -26,12 +26,13 @@
  * The last version told is kept in `notice.json` in the deployment directory, written when the
  * event is delivered, so an update told while events are held (no key yet) is told on a later start.
  */
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { asRecord, field, readState, writeState } from './state-file.ts';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import type { ToolDef, World, WorldWebUiDecl, WorldHost } from 'cortico/core/types.ts';
 import type { Language } from 'cortico/core/language.ts';
+import { readTextFile } from 'cortico/core/util.ts';
 import { describeTools, type WorldDefinition, type WorldDescribe, type WorldSection } from 'cortico/world.ts';
 import { SELF_KEYS, selfAdjustMode } from 'cortico-world-desktop-pet';
 import { ALARM_TOOL_DECLS, Alarms, type Alarm } from './alarms.ts';
@@ -111,7 +112,7 @@ export function releaseNotes(dir: string, from: string | null, to: string, langu
     .map(({ name, v }) => {
       const english = name.replace(/\.md$/, '.en.md');
       const [file, written]: [string, ModelLanguage] = language === 'en' && existsSync(join(dir, english)) ? [english, 'en'] : [name, 'zh'];
-      const text = readFileSync(join(dir, file), 'utf8').replaceAll('\r\n', '\n');
+      const text = readTextFile(join(dir, file)).replaceAll('\r\n', '\n');
       const end = text.search(NOTES_END[written]);
       return { version: v.join('.'), text: (end < 0 ? text : text.slice(0, end)).trim() };
     });
@@ -129,7 +130,7 @@ export function releaseLetter(dir: string, from: string | null, to: string, lang
   const english = newest.name.replace(/\.md$/, '.en.md');
   const file = language === 'en' && existsSync(join(dir, english)) ? english : newest.name;
   const version = newest.v.join('.');
-  return { version, text: readFileSync(join(dir, file), 'utf8').replaceAll('\r\n', '\n').trim(), url: LETTER_URL(version, file) };
+  return { version, text: readTextFile(join(dir, file)).replaceAll('\r\n', '\n').trim(), url: LETTER_URL(version, file) };
 }
 
 interface Labels {
@@ -143,7 +144,7 @@ async function loadLabels(): Promise<Labels> {
   const labels: Labels = { palettes: {}, accessories: {} };
   const require = createRequire(import.meta.url);
   try {
-    const manifest = JSON.parse(readFileSync(require.resolve('cortico-world-desktop-pet/web/coo/figure.json'), 'utf8')) as {
+    const manifest = JSON.parse(readTextFile(require.resolve('cortico-world-desktop-pet/web/coo/figure.json'))) as {
       axes: Array<{ id: string; options: Array<{ id: string; name: Record<string, string> }> }>;
     };
     for (const axis of manifest.axes) {

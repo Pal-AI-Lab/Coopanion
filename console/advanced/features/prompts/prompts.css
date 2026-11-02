@@ -1,5 +1,6 @@
 .featureslot.featureslot-prompts > .featureintro { position:static; margin-bottom:0; }
 .featureslot-prompts > .featureintro .pagedesc { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.prefix-read-error:not(:empty) { margin-top:24px; }
 .prompt-toolbar { position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:8px 0; background:var(--background); border-bottom:1px solid var(--border); }
 .prompt-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-inline-start:auto; }
 .prompt-toolbar .prompt-status { min-height:0; margin:0; font-size:12px; color:var(--accent); }
@@ -123,6 +124,8 @@
   .prefix-vars .varchip[aria-expanded=true] { outline:none; box-shadow:inset 0 0 0 1px var(--section-color); opacity:1; }
 
 .prefix-full { margin:0; color:var(--ink); font:13px/1.7 var(--mono); white-space:pre-wrap; overflow-wrap:anywhere; }
+details.sheet.fold.fold-plain.prefix-preview > .foldbody { margin-top:16px; }
+.prefix-preview .prefix-full { padding:14px 16px; border:1px solid var(--border); border-radius:12px; background:var(--sheet); }
 .prefix-label { position:absolute; left:0; right:0; height:0; }
 .prefix-label.tone-persona .prefix-flag { background:color-mix(in srgb,var(--accent) 26%,var(--sheet)); }
 .prefix-label.tone-world .prefix-flag { background:color-mix(in srgb,var(--accent-2) 26%,var(--sheet)); }

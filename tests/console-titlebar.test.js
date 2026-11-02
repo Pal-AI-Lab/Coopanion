@@ -53,3 +53,23 @@ it('goes back and forward in the window history', async () => {
   await expect.poll(() => router.route.segments[0]).toBe('chat');
   stop.dispose();
 });
+
+
+it('reports a failed appearance save at the appearance button after focus moves', async () => {
+  disposeThemeStudio();
+  let rejectSave;
+  applyStoredTheme(document, { injected: { defaultScheme: 'mint', theme: null }, save: () => new Promise((_, reject) => { rejectSave = reject; }) });
+  Object.defineProperty(document.documentElement, 'clientWidth', { configurable: true, value: 800 });
+  Object.defineProperty(document.documentElement, 'clientHeight', { configurable: true, value: 600 });
+  const bar = createTitlebar(document, document.createElement('button'), life.signal);
+  document.body.append(bar);
+  const appearance = bar.querySelector('button:nth-of-type(4)');
+  const rect = { left: 120, right: 150, top: 0, bottom: 30, width: 30, height: 30 };
+  vi.spyOn(appearance, 'getBoundingClientRect').mockReturnValue(rect);
+  appearance.click();
+  bar.querySelector('button').focus();
+  rejectSave(new Error('Theme save unavailable'));
+  await vi.waitFor(() => expect(document.querySelector('.extension-problem:not(.hidden)')?.textContent).toContain('Theme save unavailable'));
+  // placed against the appearance button's rect, not the focused button's
+  expect(parseFloat(document.querySelector('.extension-problem').style.top)).toBeGreaterThan(rect.bottom);
+});

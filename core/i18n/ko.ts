@@ -5,6 +5,7 @@ const MAC = process.platform === 'darwin';
 
 const ko: Translation<CoreText> = {
   settings: {
+    autoUpdate: { title: "자동 업데이트", description: "업데이트를 자동으로 다운로드하고 앱 종료 시 설치합니다. 끄면 확인과 다운로드가 즉시 중지되며, 이미 다운로드한 업데이트도 자동 설치되지 않습니다." },
     language: { title: '언어', description: '인터페이스와 Coo가 이 언어를 사용합니다. 바로 적용됩니다.' },
     telemetry: { title: '익명 사용 통계', description: '대화 내용 없이 사용 횟수와 설정을 보내 Coopanion 개선에 도움을 줍니다. 보내는 항목은 docs/TELEMETRY.md에 있습니다.' },
     contextRing: { title: '컨텍스트 링', description: '대화 페이지 입력란에 이전 대화를 정리하기까지 얼마나 남았는지 원으로 표시합니다.' },
