@@ -456,7 +456,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
     el.classList.add('has-restart');
     const button = ui.button(restart.label, { size: 'sm', onClick: async () => {
       const lock = ui.disable(button);
-      try { if (await restart.run() && !signal.aborted) { for (const r of readers) if (r.cold) restart.applied.set(key(r), r.saved); paintPending(); setMsg(S.autoSaves); msg.classList.add('is-hint'); } }
+      try { if (await restart.run() && !signal.aborted) { for (const r of readers) if (r.cold) restart.applied.set(key(r), r.saved); paintPending(); if (!unsaved.size) setMsg(S.autoSaves, 'hint'); } }
       catch (err) { if (!isAbort(err) && !signal.aborted) problem(button, errText(err)); }
       finally { lock.dispose(); }
     } });
@@ -481,10 +481,14 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
   /** 已发出、尚未回复的保存请求数。 */
   let saving = 0;
   let refreshSeq = 0;
+  /** 最近一次保存失败的组：页上的取值 config.json 里没有，状态行显示未保存，直到该组保存成功或重新载入。 */
+  const unsaved = new Set<string>();
 
-  function setMsg(text: string): void {
+  function setMsg(text: string, tone?: 'hint' | 'bad'): void {
     msg.textContent = text;
     msg.className = 'msgline';
+    if (tone === 'hint') msg.classList.add('is-hint');
+    if (tone === 'bad') msg.classList.add('bad');
   }
 
   /** 提交一组：`/api/config` 一次收一组（校验按那一组的 schema 走）。 */
@@ -503,13 +507,16 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
       );
       if (signal.aborted) return;
       for (const r of sent) r.saved = values[r.path];
+      unsaved.delete(groupId);
       paintPending();
-      if (readers.every((r) => sameValue(r.saved, r.loaded))) { setMsg(S.autoSaves); msg.classList.add('is-hint'); }
+      if (unsaved.size) setMsg(S.unsaved, 'bad');
+      else if (readers.every((r) => sameValue(r.saved, r.loaded))) setMsg(S.autoSaves, 'hint');
       else setMsg('✓ ' + S.saved);
       void refresh(anchor);
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
-      setMsg(S.autoSaves); msg.classList.add('is-hint');
+      unsaved.add(groupId);
+      setMsg(S.unsaved, 'bad');
       problem(anchor, S.saveFailed(errText(err)));
     } finally {
       saving--;
@@ -564,6 +571,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
       const d = await get<{ groups?: ConfigGroupEntry[] }>('/api/config', { signal });
       if (signal.aborted) return;
       loaded = true;
+      if (unsaved.size) { unsaved.clear(); setMsg(S.autoSaves, 'hint'); }
       const all = Array.isArray(d.groups) ? d.groups : [];
       const groups = deps.filter ? all.filter((entry) => deps.filter!(entry.group)) : all;
       readers = [];
