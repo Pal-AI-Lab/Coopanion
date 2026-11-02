@@ -174,6 +174,7 @@ export const S: Partial<typeof en> = {
   githubOpen: 'GitHub を開く',
   githubWaiting: '承認を待っています…',
   githubExpired: 'コードの有効期限が切れました。閉じてからもう一度サインインしてください。',
+  githubRetry: 'GitHub アカウントを再読み込み',
   fieldPlatform: 'プラットフォーム',
   osAny: '指定なし',
   osOnly: (names: string) => `${names} のみ`,

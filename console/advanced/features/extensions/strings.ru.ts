@@ -180,6 +180,7 @@ export const S: Partial<typeof en> = {
   githubOpen: 'Открыть GitHub',
   githubWaiting: 'Ожидание подтверждения…',
   githubExpired: 'Срок действия кода истёк. Закройте окно и войдите снова.',
+  githubRetry: 'Загрузить аккаунт GitHub заново',
   fieldPlatform: 'Платформа',
   osAny: 'Любая',
   osOnly: (names: string) => `Только ${names}`,

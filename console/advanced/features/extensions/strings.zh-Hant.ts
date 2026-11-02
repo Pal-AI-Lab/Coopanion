@@ -174,6 +174,7 @@ export const S: Partial<typeof en> = {
   githubOpen: '開啟 GitHub',
   githubWaiting: '等待授權…',
   githubExpired: '登入碼已過期，關閉後重新登入。',
+  githubRetry: '重新讀取 GitHub 帳號',
   fieldPlatform: '平台',
   osAny: '不限',
   osOnly: (names: string) => `僅 ${names}`,

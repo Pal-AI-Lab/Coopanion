@@ -174,6 +174,7 @@ export const S: Partial<typeof en> = {
   githubOpen: 'GitHub öffnen',
   githubWaiting: 'Warte auf die Berechtigung…',
   githubExpired: 'Der Code ist abgelaufen. Schließe dieses Fenster und melde dich erneut an.',
+  githubRetry: 'GitHub-Konto neu laden',
   fieldPlatform: 'Plattform',
   osAny: 'Beliebig',
   osOnly: (names: string) => `Nur ${names}`,

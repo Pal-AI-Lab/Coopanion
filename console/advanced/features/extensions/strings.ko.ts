@@ -174,6 +174,7 @@ export const S: Partial<typeof en> = {
   githubOpen: 'GitHub 열기',
   githubWaiting: '승인을 기다리는 중…',
   githubExpired: '코드가 만료되었습니다. 닫은 뒤 다시 로그인하세요.',
+  githubRetry: 'GitHub 계정 다시 불러오기',
   fieldPlatform: '플랫폼',
   osAny: '제한 없음',
   osOnly: (names: string) => `${names} 전용`,
