@@ -367,6 +367,22 @@ const ru: Translation<PetText> = {
     notSent: 'Не удалось отправить',
     tooLate: 'Это сообщение уже доставлено, отозвать его нельзя.',
   },
+
+  decider: {
+    config: {
+      group: 'Выбор выражений',
+      enabled: { title: 'Выбор выражений', description: 'Если включено и есть API Key OpenRouter, Coo пишет к каждому облачку, что чувствует, а модель принятия решений на OpenRouter выбирает выражения и движения; таблицы слов в системном промпте больше нет. Каждое решение отправляет в OpenRouter текст облачка, чувство, а также имя, описание и наряд текущего облика и его список выражений и движений.' },
+      model: { title: 'Модель решений', description: 'id модели OpenRouter, которая выдаёт decisions.' },
+      timeoutMs: { title: 'Время на решение' },
+    },
+    failure: {
+      timeout: 'Время вышло',
+      breaker: 'Пауза после повторных ошибок',
+      bad: 'Не удалось прочитать ответ',
+      http: (detail: string) => `Ошибка: ${detail}`,
+      network: (detail: string) => `Нет соединения: ${detail}`,
+    },
+  },
 };
 
 export default ru;

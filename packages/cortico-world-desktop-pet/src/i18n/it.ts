@@ -361,6 +361,22 @@ const it: Translation<PetText> = {
     notSent: 'Invio non riuscito',
     tooLate: 'Questo messaggio è già stato consegnato e non può essere ritirato.',
   },
+
+  decider: {
+    config: {
+      group: 'Scelta delle espressioni',
+      enabled: { title: 'Scelta delle espressioni', description: "Attiva e con una API Key di OpenRouter, Coo scrive come si sente a ogni fumetto e un modello di decisione su OpenRouter sceglie espressioni e movimenti; il prompt di sistema non contiene più la tabella delle parole. Ogni decisione invia a OpenRouter il testo del fumetto, lo stato d'animo, e il nome, la descrizione e l'abbigliamento della figura attuale con il suo elenco di espressioni e movimenti." },
+      model: { title: 'Modello di decisione', description: "L'id di un modello OpenRouter il cui output è decisions." },
+      timeoutMs: { title: 'Tempo massimo per decidere' },
+    },
+    failure: {
+      timeout: 'Tempo scaduto',
+      breaker: 'In pausa dopo errori ripetuti',
+      bad: 'Risposta illeggibile',
+      http: (detail: string) => `Errore: ${detail}`,
+      network: (detail: string) => `Connessione non riuscita: ${detail}`,
+    },
+  },
 };
 
 export default it;

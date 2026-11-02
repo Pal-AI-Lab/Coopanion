@@ -36,6 +36,11 @@ interface AskReceipt {
 /** Why the changes `pet_set` asked about were not made. */
 type NotAsked = 'unavailable' | 'timeout' | 'no';
 
+/** (decider mode) Why the decision model picked no words (src/decider.ts `DecideFailure`), or `off`: decider mode ended while its tool was still bound. */
+type Failure = 'nokey' | 'timeout' | 'http' | 'bad' | 'network' | 'breaker' | 'aborted' | 'off';
+/** (decider mode) What the body did for a feeling: its words by their first names (none: it stayed as it was), why there are none, or null without a feeling. */
+type Felt = { words: string[] } | { why: string } | null;
+
 const zh = {
   /** Locale of the weekday in an event's time stamp. */
   dateLocale: 'zh-CN',
@@ -166,6 +171,19 @@ const zh = {
   cuaSettingsOpened: (user: string) => `设置窗口已打开到「电脑操作」,正弹着风险说明;${user}点「打开」之后,下一条消息起你就能用电脑操作的工具。`,
   /** `{{pet.reply}}`: the language to talk to the person in, named by the app. */
   reply: (user: string, language: string) => `对${user}说的话,气泡、提问和选项,都用${language}。`,
+
+  /* decider mode (src/decider.ts) */
+  failure: (reason: Failure, detail: string): string => ({
+    nokey: '没有 OpenRouter 的 API Key', timeout: '决策模型超时', http: `决策模型返回错误(${detail})`, bad: '决策模型的回答看不懂',
+    network: `连不上决策模型(${detail})`, breaker: '决策模型连续出错,暂停一分钟', aborted: '被打断了', off: '表情决策已关闭',
+  })[reason],
+  sayTextEmpty: '[pet_say 没执行] text 是空的,也没带图片。不想说话就不调用。',
+  felt: (f: Felt): string => (f === null ? '没带 feeling,身体没有表情动作。'
+    : 'why' in f ? `这次没有表情动作(${f.why})。`
+    : f.words.length ? `表情动作:${f.words.join(' → ')}。` : '这次表情动作没有变化。'),
+  /** Decider mode's `pet_say` receipt: the classic one, then what the body did. */
+  saidFelt: (r: SayReceipt, f: Felt): string => zh.sayReceipt(r) + zh.felt(f),
+  feelEmpty: '[pet_feel 没执行] feeling 是空的。',
 };
 
 const en: typeof zh = {
@@ -286,6 +304,18 @@ const en: typeof zh = {
     (canOpen ? ` If ${user} agrees to turn it on, \`pet_cua_open_settings\` opens the settings window right there.` : ''),
   cuaSettingsOpened: (user) => `The settings window is open at Computer use, showing what it risks; once ${user} clicks to turn it on, the computer-use tools are yours from the next message.`,
   reply: (user, language) => ` Talk to ${user} in ${language}: bubbles, questions and options alike.`,
+
+  failure: (reason, detail) => ({
+    nokey: 'no OpenRouter API Key', timeout: 'the decision model timed out', http: `the decision model returned an error (${detail})`,
+    bad: "the decision model's answer could not be read", network: `could not reach the decision model (${detail})`,
+    breaker: 'the decision model failed repeatedly and is paused for a minute', aborted: 'interrupted', off: 'expression decisions are off',
+  })[reason],
+  sayTextEmpty: '[pet_say not run] text is empty and there are no images. Do not call it when you have nothing to say.',
+  felt: (f) => (f === null ? 'No feeling given, so the body shows nothing.'
+    : 'why' in f ? `No expression or motion this time (${f.why}).`
+    : f.words.length ? `Expressions and motions: ${f.words.join(' → ')}.` : 'No change of expression or motion this time.'),
+  saidFelt: (r, f) => `${en.sayReceipt(r)} ${en.felt(f)}`,
+  feelEmpty: '[pet_feel not run] feeling is empty.',
 };
 
 export type ModelText = typeof zh;

@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts, src/webui/client.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/cua/engine/wait-idle.ts, src/cua/engine/foreground.ts, src/world.ts, src/asr/hotkey.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js, host/app-store.cjs -->
+<!-- Owner: src/definition.ts, src/webui/client.ts, src/decider.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/cua/engine/wait-idle.ts, src/cua/engine/foreground.ts, src/world.ts, src/asr/hotkey.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js, host/app-store.cjs -->
 
 <p align="center">
   <picture>
@@ -46,6 +46,30 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 表里是中文版;模型文本是英文时,标签是 `[voice]` `[typed]` `[answer]` `[touch]` `[figure]`,星期写 `Sun` 这样的英文缩写。
 
 同一种互动 2.5 秒内连着来,并成一条带次数的事件。`wakeOn`(「习惯」页的「回应模式」)默认 `poke`:只有戳唤醒,摸头、放下和甩出跟着下一批送;`all` 都唤醒;`none` 都跟着下一批送;`custom` 只有 `touch.wakeKinds` 里的种类(`poke` `pet` `throw` `drop`,摔晕算在它结束的那次甩出或放下里)唤醒。鼠标划过桌宠也算摸头,拖开挡路的桌宠也算放下。一条互动按 debounce 送出后,到 bot 下一次结束一轮前,其余互动都按 piggyback 送。「伙伴」取自 `worlds.desktop-pet.user`,空着时是应用语言的默认称呼(`src/i18n`)。
+
+## 表情决策
+
+可选的模式,默认关闭,给自带大词表的形象用:经典模式里词表越大,系统提示词越长,这个模式里 bot 看不到词表。内置的两个形象各 37 个词,用不上它。
+`worlds.desktop-pet.decider.enabled` 打开且部署有密钥 `DESKTOP_PET_DECIDER_API_KEY` 时,bot 不写标记,每个气泡带一句心情(`feeling`),
+OpenRouter 上的决策模型(`decider.model`,空着时用默认的 `typesafe/jev-1.14`)从当前形象的词里挑出表情和动作(`src/decider.ts`)。
+模型和超时只在高级模式 World 页的配置里改。
+
+| 经典模式 | 表情决策 |
+|---|---|
+| `pet_say(script, images?)` | `pet_say(text, feeling, images?)`:等挑好(最多 `decider.timeoutMs`,默认 1500 ms)再发气泡,词作为第一拍的动作,回执写明做了什么;`interruptible`,语音喊停时不再等,气泡不带动作发出 |
+| `pet_act(actions)` | `pet_feel(feeling)`:不说话时只流露心情,可以坐下、睡着 |
+| `pet_ask`、`pet_move_to`、`pet_set`、`pet_quiet` | 不变 |
+
+- 出题:表情、头、手、身体四道单选题,每题第一项是不动,其余是当前形象的词,带说明和别名;走、跑不出题,气泡的题里没有睡觉。
+- 挑词:每题最可能的一项过门槛才动(睡觉的门槛更高);除表情外一次最多动两个部位,占同一部位的词不同时做;`pet_feel` 里会保持的姿势排最前。页面按身体、手、头、表情的顺序做。
+- 发给 OpenRouter 的:模型 id;形象的名字、介绍和装扮;心情;气泡的话;各题的说明和选项(词的名字,没有时是 id,重名时附上 id;说明;别名;会一直保持的注明)。
+  请求头有 `Authorization`(密钥)和 `X-Title`(应用名 Coopanion);密钥只在 `Authorization` 头里,日志、事件、回执和面板状态里都没有。
+- 失败:超时、出错或回答看不懂时不做表情动作,气泡照常发,没有别的办法替它挑;连续 3 次失败(超时算,喊停和 World 停止不算)后 60 秒内不请求,
+  保存新密钥或模式变了就清零。`pet.state` 的 `decider` 给出模式、开关和 `failing`(应用语言写的原因:暂停中,否则是最近一次失败,下次成功后清空)。
+- 切换:开关每次同步时读;密钥在开关打开时和 `pet.setDeciderKey` 保存后读(手改部署的 `.env` 要等下次打开开关或重启)。
+  重启时 Core 接着用存下的前缀:数据目录里有 `desktop-pet-decider-prompt` 表示它是按表情决策写的,World 先按它的模式给工具,第一次同步时再换到现在的模式。模式变了 World 调 `onModeChange(mode)`,
+  应用重建前缀,工具和环境提示词(`src/ENV_PROMPT_DECIDER.md`,英文版 `.en.md`)一起换;环境提示词按前缀读取工具那一刻的模式写(`promptMode`),
+  和 `petMode` 不同时应用再重建一次。前缀重建前仍绑定的决策工具不请求。部署改过的环境提示词两种模式共用一份。
 
 ## 桌宠窗口
 
@@ -550,6 +574,7 @@ macOS 的辅助功能查询每次最多等待 200ms,超时后仍报告前台程�
 文本框(可以是密钥框,带一个外链和一个「以后再说」)、进度条(调用方用 `update({ progress })` 推进,`close()` 收起)。
 `step` 在气泡顶上画步骤点,`closable` 画一个关闭钮;页面不在时结果是 `{ unavailable: true }`,页面回来后调用方重发即可。
 `controls.guide` 借出后,控制台的 `pet.guide` 面板方法会调它,应用借此重放引导。
+`onModeChange` 在表情决策开始或结束时调用,应用这时重建前缀(见「表情决策」);`deciderUrl` 只给测试指向本地的替身。
 `/api/config` 写不了列表和对象,所以「习惯」页的两个自定义弹窗经 `pet` 面板方法保存:`setWakeKinds(种类数组)` 把 `touch.wakeOn` 设成 `custom` 并写 `touch.wakeKinds`,
 `setSelfAdjustCustom({ 项: true/false })` 把 `selfAdjust` 设成 `custom` 并写 `selfAdjustCustom`;`pet.state` 的 `wake`、`selfAdjust` 给出当前值(旧的布尔值已按新含义读出)。
 

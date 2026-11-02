@@ -17,9 +17,15 @@
  * snapshot carries it, so the pages follow a change within PREFS_SYNC_MS), status lines, voice
  * hints, the default name for the person, and which recognizer and recognition language voice
  * input uses by default. The console's text follows the console request's language.
+ *
+ * Decider mode (src/decider.ts, off by default) swaps what the bot gets: no word table and no markers, a feeling
+ * with each bubble that a decision model on OpenRouter turns into the body's words, and `pet_feel` for `pet_act`.
+ * The mode is latched in `refreshMode`, so the tools and the prompt change together when the app rebuilds the
+ * prefix (`onModeChange`). A restart keeps the stored prefix: the World starts in the mode it was built for
+ * (`promptModeFile`) and changes at its first sync.
  */
 import type { spawn } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type {
@@ -30,7 +36,7 @@ import { nowIso, shortTime } from 'cortico/core/util.ts';
 import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
 import {
-  DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, SELF_KEYS, THRESHOLD_DB_MAX, THRESHOLD_DB_MIN, TOUCH_KINDS, USER_MAX, asrEngineFor,
+  DESKTOP_PET_DEFAULTS, DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, SELF_KEYS, THRESHOLD_DB_MAX, THRESHOLD_DB_MIN, TOUCH_KINDS, USER_MAX, asrEngineFor,
   desktopPetConfigGroups, directSettings, hoverButtonList, selfAdjustMode, speechFor, touchWakes,
   type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type RoamMode, type SelfKey,
 } from './config.ts';
@@ -49,7 +55,8 @@ import { joinSpeech, looksHallucinated } from './asr/result.ts';
 import { toSimplified } from './asr/simplify.ts';
 import { estimateSeconds, parseActions, parseScript, vocabChange, vocabTable, type VocabWord } from './script.ts';
 import { ActivityGroup, ChatSockets, SELF_TYPE, chatHistory, chatItem, chatRefs, type ChatFigure } from './chat.ts';
-import { ASK_OPTION_MAX, petToolDecls } from './tools.ts';
+import { ASK_OPTION_MAX, deciderToolDecls, petToolDecls } from './tools.ts';
+import { DECIDER_DEFAULT_MODEL, DECIDER_URL, DeciderClient, FEELING_MAX, buildQuestions, buildRequest, buildState, firstName, pickGroup, stripMarkers } from './decider.ts';
 import { COO, figurePacks, lookOf, modelName, nameIn, packFor, type FigurePack, type MoveTarget, type PackScan } from './packs.ts';
 import { moveChange, moveTable, readMove } from './moves.ts';
 import { Cua } from './cua/cua.ts';
@@ -80,6 +87,13 @@ const ENV_PROMPT_FILES: Record<ModelLanguage, string> = {
   zh: fileURLToPath(new URL('./ENV_PROMPT.md', import.meta.url)),
   en: fileURLToPath(new URL('./ENV_PROMPT.en.md', import.meta.url)),
 };
+/** Decider mode's templates, as ENV_PROMPT_FILES. */
+const ENV_PROMPT_DECIDER_FILES: Record<ModelLanguage, string> = {
+  zh: fileURLToPath(new URL('./ENV_PROMPT_DECIDER.md', import.meta.url)),
+  en: fileURLToPath(new URL('./ENV_PROMPT_DECIDER.en.md', import.meta.url)),
+};
+/** What the bot writes for the body: words and markers, or a feeling a decision model turns into words. */
+export type PetMode = 'classic' | 'decider';
 
 /** Longest `pet_quiet`: a quiet that outlasts a day is a setting, which `pet_set` changes. */
 const QUIET_MAX_MIN = 24 * 60;
@@ -250,6 +264,15 @@ export interface DesktopPetWorldOptions {
   replyLanguage?: () => string | null;
   /** Called with each answer to computer use's question, asked in the pet's bubble. */
   onCuaAnswer?: (answer: Answer) => void;
+  /** Decider mode's OpenRouter key (a deployment secret), read at each use, and where the pet panel saves a new one. */
+  deciderApiKey?: () => string;
+  storeDeciderApiKey?: (key: string) => void;
+  /** Called after decider mode starts or ends, so the app rebuilds the prefix with that mode's tools and prompt. */
+  onModeChange?: (mode: PetMode) => void;
+  /** Where decisions are asked; tests point it at a local stand-in. */
+  deciderUrl?: string;
+  /** Present while the last environment prompt was built for decider mode (beside the session it is stored in). */
+  promptModeFile?: string;
 }
 
 type SherpaEngine = Exclude<AsrEngine, 'system' | 'api'>;
@@ -429,8 +452,30 @@ export class DesktopPetWorld implements World {
   /** Installs packs the dressing page sends, when the app named a directory for them. */
   private readonly importer: PackImporter | null;
 
+  /* decider mode (src/decider.ts) */
+  /** The mode the tools are built for; changed only by `refreshMode`. */
+  private mode: PetMode;
+  /**
+   * The mode the last environment prompt was built for, set when the prefix's build starts: the prefix's tools are
+   * read in the same tick, so its template and word table match them even when the mode changes while it is built.
+   */
+  private builtMode: PetMode;
+  /** Whether the key was set when last read: when the switch turns on and when the pet panel saves one; null while off. */
+  private hasKey: boolean | null = null;
+  /** `stop()` has begun: no decision starts after it. */
+  private stopping = false;
+  private readonly decider: DeciderClient;
+
   constructor(private readonly opts: DesktopPetWorldOptions) {
     this.cfg = opts.cfg;
+    this.decider = new DeciderClient({
+      url: () => opts.deciderUrl ?? DECIDER_URL,
+      key: () => opts.deciderApiKey?.() ?? '',
+      timeoutMs: () => this.deciderCfg().timeoutMs,
+      warn: (msg) => this.log?.warn(msg),
+    });
+    // tools() and envPromptVars() may be read before start; with a stored prefix, in the mode it was built for
+    this.mode = this.builtMode = opts.promptModeFile ? (existsSync(opts.promptModeFile) ? 'decider' : 'classic') : this.wantedMode();
     this.cua = new Cua({
       cfg: () => this.cfg.cua,
       botName: opts.botName,
@@ -564,7 +609,9 @@ export class DesktopPetWorld implements World {
    */
   private vocabNote(): string {
     const now = this.vocab(), moves = this.moves();
-    const notes = [vocabChange(this.toldVocab, now, this.language), moveChange(this.toldMoves, moves, this.language)];
+    // decider mode shows the bot no words, only the targets
+    const words = this.mode === 'decider' ? '' : vocabChange(this.toldVocab, now, this.language);
+    const notes = [words, moveChange(this.toldMoves, moves, this.language)];
     this.toldVocab = now;
     this.toldMoves = moves;
     return notes.filter(Boolean).join('\n\n');
@@ -640,6 +687,7 @@ export class DesktopPetWorld implements World {
 
   async start(host: WorldHost): Promise<void> {
     this.host = host;
+    this.stopping = false;
     this.startCursor = host.store.latestCursor() + 1;
     this.log = host.log;
     this.cua.start(host);
@@ -685,6 +733,7 @@ export class DesktopPetWorld implements World {
   }
 
   async stop(): Promise<void> {
+    this.stopping = true;
     this.voiceGeneration++;
     this.runningEngine = null;
     this.status.clear();
@@ -713,6 +762,7 @@ export class DesktopPetWorld implements World {
     this.dialogs.clear();
     for (const w of this.walks.values()) { clearTimeout(w.timer); w.resolve(this.t.walkWorldStopped); }
     this.walks.clear();
+    this.decider.abortAll();
     for (const s of this.voiceSockets) s.close('stopped');
     this.voiceSockets.clear();
     this.chat.closeAll('stopped');
@@ -964,6 +1014,7 @@ export class DesktopPetWorld implements World {
 
   /** Config is a live object edited by the console; changes reach the pages within PREFS_SYNC_MS. */
   private syncPrefs(): void {
+    this.refreshMode();
     this.segmenter.configure(this.segmentConfig());
     if (!this.holdPreRollEnabled()) this.holdPreRoll.length = 0;
     const turnedOn = this.cfg.asr.enabled && !this.voiceEnabled;
@@ -1781,7 +1832,15 @@ export class DesktopPetWorld implements World {
       pet_quiet: (args) => this.setQuiet(args),
       pet_cua_open_settings: async () => this.openCuaSettings(),
     };
-    const own = petToolDecls(this.appLanguage).map((decl) => ({ ...decl, handler: handlers[decl.name], ...(decl.name === 'pet_move_to' ? { interruptible: true } : {}) }));
+    const decider = this.mode === 'decider';
+    if (decider) {
+      handlers.pet_say = (args, ctx) => this.sayFelt(args, ctx);
+      handlers.pet_feel = (args, ctx) => this.feel(args, ctx);
+    }
+    // in decider mode a voice stop also ends the wait for a decision
+    const waits = decider ? ['pet_move_to', 'pet_say', 'pet_feel'] : ['pet_move_to'];
+    const own = (decider ? deciderToolDecls : petToolDecls)(this.appLanguage)
+      .map((decl) => ({ ...decl, handler: handlers[decl.name], ...(waits.includes(decl.name) ? { interruptible: true } : {}) }));
     if (this.cuaOn) return [...own, ...this.cua.tools()];
     return this.cuaCanOpen ? [...own, ...CUA_OFF_TOOL_DECLS.map((decl) => ({ ...decl, handler: handlers[decl.name] }))] : own;
   }
@@ -1962,16 +2021,149 @@ export class DesktopPetWorld implements World {
     return { text: this.t.actReceipt(actions, lasting, dropped) };
   }
 
+  /* ---------- decider mode ---------- */
+
+  /**
+   * Decider mode's `pet_say`: waits for the words the decision model picks from the feeling (at most `timeoutMs`; a
+   * voice stop ends the wait), then sends the bubble with them as its first beat's words, where a leading `【…】`
+   * puts them in classic mode. Markers written out of habit are taken out of the text, and a call that carries
+   * classic mode's `script` is read as its text. The receipt says what the body did.
+   */
+  private async sayFelt(args: Record<string, unknown>, ctx?: ToolCallContext): Promise<ToolOutcome> {
+    const t = this.t;
+    const shown = this.shownImages(args.images);
+    if (!shown.ok) return { text: shown.reason, failed: true };
+    const raw = args.text ?? args.script;
+    const text = stripMarkers(typeof raw === 'string' ? raw.trim() : '', this.vocab());
+    if (!text && shown.blobs.length === 0) return { text: t.sayTextEmpty, failed: true };
+    if (!text) {
+      void this.closeActivity();
+      void this.record({ kind: 'say', beats: [] }, '', shown.blobs);
+      return { text: t.imagesShown(shown.blobs.length, this.chat.size > 0) };
+    }
+    // no paid decision for a bubble no page would show
+    if (!this.server.petConnected) return this.notConnected('pet_say');
+    const feeling = typeof args.feeling === 'string' ? cutChars(args.feeling.trim(), FEELING_MAX) : '';
+    const felt = feeling ? await this.decideFor(feeling, text, ctx?.signal) : null;
+    const actions = felt && 'words' in felt ? felt.words : [];
+    const beats = [{ actions, text, anchors: [] }];
+    if (this.stopping || !this.server.sendPet({ t: 'say', id: nextId('s'), beats })) return this.notConnected('pet_say');
+    void this.closeActivity();
+    void this.record({ kind: 'say', beats: [{ text, ...moodOf(actions, this.vocab()) }] }, text, shown.blobs);
+    const now = Date.now();
+    const selfSec = estimateSeconds(beats, this.cfg.window.bubbleSpeed, this.cfg.speech.enabled ? speechTextSteps : undefined);
+    const waitSec = Math.max(0, (this.busyUntil - now) / 1000);
+    this.busyUntil = Math.max(now, this.busyUntil) + selfSec * 1000;
+    const replaced = this.ask?.question ?? null;
+    if (this.ask) this.setAsk(null);
+    const r = { waitSec, selfSec, chatOpen: this.chat.size > 0, replaced, dropped: [], images: shown.blobs.length };
+    return { text: t.saidFelt(r, felt && 'words' in felt ? { words: this.namesOf(felt.words) } : felt) };
+  }
+
+  /** Decider mode's `pet_feel`: the words the decision model picks for the feeling, sleep included, played at once (`act`). */
+  private async feel(args: Record<string, unknown>, ctx?: ToolCallContext): Promise<ToolOutcome> {
+    const t = this.t;
+    const feeling = typeof args.feeling === 'string' ? cutChars(args.feeling.trim(), FEELING_MAX) : '';
+    if (!feeling) return { text: t.feelEmpty, failed: true };
+    if (!this.server.petConnected) return this.notConnected('pet_feel');
+    const felt = await this.decideFor(feeling, null, ctx?.signal);
+    if (!('words' in felt) || !felt.words.length) return { text: t.felt(felt) };
+    if (this.stopping || !this.server.sendPet({ t: 'act', id: nextId('c'), actions: felt.words })) return this.notConnected('pet_feel');
+    const vocab = this.vocab();
+    return { text: t.actReceipt(this.namesOf(felt.words), this.namesOf(felt.words.filter((a) => vocab.find((v) => v.id === a)?.lasting)), []) };
+  }
+
+  /**
+   * The words the decision model picks for `feeling` on the body on screen, in play order, or why there are none.
+   * `text`: the bubble's line, which sleep is not offered for; null for `pet_feel`. Nothing is asked once `stop()`
+   * began, after decider mode ended (a tool bound before the switch went off), or for a body with no word to ask about.
+   */
+  private async decideFor(feeling: string, text: string | null, signal?: AbortSignal): Promise<{ words: string[] } | { why: string }> {
+    const t = this.t;
+    if (this.stopping) return { why: t.failure('aborted', '') };
+    if (this.mode !== 'decider') return { why: t.failure('off', '') };
+    const vocab = this.vocab();
+    const questions = buildQuestions(vocab, this.language, text !== null);
+    if (!questions.length) return { words: [] };
+    const state = buildState({ body: this.bodyText(this.currentPack()), feeling, text: text ?? undefined }, this.language);
+    const res = await this.decider.decide(buildRequest(this.deciderCfg().model || DECIDER_DEFAULT_MODEL, state, questions), signal);
+    if (!res.ok) {
+      this.log?.debug(`表情决策没成:${res.reason}${res.detail ? ` ${res.detail}` : ''}`);
+      return { why: t.failure(res.reason, res.detail) };
+    }
+    // the figure may have changed while the model answered: the body on screen does what it knows of them
+    return { words: parseActions(pickGroup(questions, res.answers, vocab, text === null), this.vocab()).actions };
+  }
+
+  /** Words by their first names in the model-text language. */
+  private namesOf(ids: readonly string[]): string[] {
+    const vocab = this.vocab();
+    return ids.map((id) => { const v = vocab.find((w) => w.id === id); return v ? firstName(v, this.language) : id; });
+  }
+
+  /** The decider settings, with the defaults under a config written before they existed. */
+  private deciderCfg(): DesktopPetConfigSection['decider'] {
+    return { ...DESKTOP_PET_DEFAULTS.decider, ...this.cfg.decider };
+  }
+
+  /** The mode the switch and the key give; the key is read again when the switch has turned on or `hasKey` was cleared. */
+  private wantedMode(): PetMode {
+    this.hasKey = this.deciderCfg().enabled ? this.hasKey ?? (this.opts.deciderApiKey?.() ?? '') !== '' : null;
+    return this.hasKey ? 'decider' : 'classic';
+  }
+
+  /** Latches the mode the switch and the key give (every sync); a change is told to the app. */
+  private refreshMode(): void {
+    const want = this.wantedMode();
+    if (want === this.mode) return;
+    this.mode = want;
+    this.decider.reset();
+    // the rebuilt prefix shows the words and targets of now (decider mode's no words)
+    this.toldVocab = this.vocab();
+    this.toldMoves = this.moves();
+    this.log?.info(want === 'decider' ? '表情动作改由决策模型挑选' : '表情动作改回由 bot 自己写标记');
+    this.opts.onModeChange?.(want);
+  }
+
+  /** The breaker while it is open, else the last failure until a decision is answered, in the app language. */
+  private failingText(): string | null {
+    const t = this.ui.decider.failure, f = this.decider.lastFailure;
+    if (this.decider.open) return t.breaker;
+    if (!f) return null;
+    return f.reason === 'http' ? t.http(f.detail) : f.reason === 'network' ? t.network(f.detail) : t[f.reason];
+  }
+
+  /** The mode the tools are built for. */
+  get petMode(): PetMode {
+    return this.mode;
+  }
+
+  /** The mode the last environment prompt was built for; it differs from `petMode` until a prefix is built after the change. */
+  get promptMode(): PetMode {
+    return this.builtMode;
+  }
+
   /* ---------- prompt ---------- */
 
   async envPromptVars(): Promise<Record<string, string>> {
+    // before the first await, in the tick the prefix's build read tools()
+    const before = this.builtMode;
+    this.builtMode = this.mode;
+    const file = this.opts.promptModeFile;
+    if (file && this.builtMode !== before) {
+      try {
+        if (this.builtMode === 'decider') writeFileSync(file, 'decider\n');
+        else rmSync(file, { force: true });
+      } catch (err) { this.log?.warn(`记不下环境提示词的模式:${(err as Error).message}`); }
+    }
     const { language, t } = this;
     const user = this.userName;
     const reply = this.opts.replyLanguage?.() ?? null;
     return {
       'pet.cua': this.cuaOn ? await this.cua.envPrompt() : this.cua.unsupported() === null ? t.cuaOff(user, this.cuaCanOpen) : '',
       'pet.user': user,
-      'pet.vocab': vocabTable(this.vocab(), language),
+      // decider mode's template has no word table; empty, a deployment's override of the classic one shows none either
+      'pet.vocab': this.builtMode === 'decider' ? '' : vocabTable(this.vocab(), language),
       'pet.moves': moveTable(this.moves(), language),
       'pet.voice': this.cfg.asr.enabled ? t.on : t.off,
       'pet.body': this.bodyText(this.currentPack()),
@@ -1990,10 +2182,11 @@ export class DesktopPetWorld implements World {
     return t.selfTiers(this.userName, SELF_KEYS.filter((k) => direct[k]).map((k) => t.settingNames[k]), SELF_KEYS.filter((k) => !direct[k]).map((k) => t.settingNames[k]));
   }
 
-  /** The environment prompt template of the model-text language. */
+  /** The environment prompt template of the mode the prompt is built for and of the model-text language. */
   private envPromptFile(): string {
-    const file = ENV_PROMPT_FILES[this.language];
-    return existsSync(file) ? file : ENV_PROMPT_FILES.zh;
+    const files = this.builtMode === 'decider' ? ENV_PROMPT_DECIDER_FILES : ENV_PROMPT_FILES;
+    const file = files[this.language];
+    return existsSync(file) ? file : files.zh;
   }
 
   /* ---------- WebUI ---------- */
@@ -2054,6 +2247,14 @@ export class DesktopPetWorld implements World {
         // the tray's "click through": kept for this run only, and sent again to a window that reconnects
         case 'setClickThrough': this.clickThrough = args[0] === true; this.server.sendPet({ t: 'prefs', clickThrough: this.clickThrough }); return this.petState();
         case 'installElectron': void this.store.electron.install(); return this.petState();
+        // decider mode's own key goes to the deployment's secrets and is never read back; the mode follows at once
+        case 'setDeciderKey': {
+          this.opts.storeDeciderApiKey?.(typeof args[0] === 'string' ? args[0].trim() : '');
+          this.decider.reset();
+          this.hasKey = null;
+          this.refreshMode();
+          return this.petState();
+        }
         // the Habits page's custom picks (/api/config writes no list or map): `custom` and its picks in one write, as the person's change
         case 'setWakeKinds': {
           const picked = Array.isArray(args[0]) ? args[0] as unknown[] : [];
@@ -2161,6 +2362,8 @@ export class DesktopPetWorld implements World {
       selfAdjust: { mode: selfAdjustMode(this.cfg.selfAdjust), custom: this.selfCustom() },
       /** The Habits page's typing key: the setting, the keys named in the app language, and why it cannot be read. */
       typeKey: { ...this.cfg.typeKey, keyLabel: comboLabel(this.cfg.typeKey.hotkey, process.platform, this.ui), problem: this.typeKeyProblem },
+      /** The Habits page's 表情决策: the mode, the switch, and why decisions fail (no key in it). */
+      decider: { mode: this.mode, enabled: this.deciderCfg().enabled, failing: this.failingText() },
     };
   }
 

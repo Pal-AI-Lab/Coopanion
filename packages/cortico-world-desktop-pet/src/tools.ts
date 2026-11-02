@@ -102,3 +102,46 @@ export const petToolDecls = (language: Language = 'zh'): Array<Omit<ToolDef, 'ha
     },
   },
 ];
+
+/**
+ * Decider mode's declarations (src/decider.ts), with the caps of the app language `language`: the bot names no
+ * word. `pet_say` takes a feeling beside its text and `pet_feel` takes the place of `pet_act`; `pet_ask`,
+ * `pet_move_to`, `pet_set` and `pet_quiet` are the classic ones.
+ */
+export const deciderToolDecls = (language: Language = 'zh'): Array<Omit<ToolDef, 'handler'>> => {
+  const classic = petToolDecls(language);
+  const same = (name: string) => classic.find((d) => d.name === name)!;
+  const images = (same('pet_say').parameters as { properties: Record<string, unknown> }).properties.images;
+  return [
+    {
+      name: 'pet_say',
+      tags: ['speak'],
+      description: 'Say something in a speech bubble above the pet, with how you feel. Your face, gestures and posture follow the feeling on their own, sitting down included. Returns once they are picked (about a second), with what the body did and roughly how long the bubble stays on screen. A non-empty text fails when the pet window is not connected.',
+      parameters: {
+        type: 'object',
+        properties: {
+          text: { type: 'string', description: 'What to say, plain text without markers: one or two sentences per bubble. May be empty when images carry the message. Do not call this when you have nothing to say.' },
+          feeling: { type: 'string', description: 'How you feel and what you are thinking at this moment, a sentence or two in your own words, for example "a little smug at the praise, trying to look calm" or "worried for them, want to sit down beside them". The person does not see it. Do not name expressions or motions.' },
+          images,
+        },
+        required: ['text', 'feeling'],
+      },
+    },
+    same('pet_ask'),
+    same('pet_move_to'),
+    same('pet_set'),
+    same('pet_quiet'),
+    {
+      name: 'pet_feel',
+      tags: ['act'],
+      description: 'For a turn in which you say nothing: show how you feel with the body alone. Write the feeling or what you mean to do, and the face, gestures and posture (sitting down, falling asleep) follow it. Returns in about a second with what the body did; a posture lasts until another one.',
+      parameters: {
+        type: 'object',
+        properties: {
+          feeling: { type: 'string', description: 'How you feel, what you think or mean to do, a sentence or two, for example "tired of chatting, want to sit and daydream nearby".' },
+        },
+        required: ['feeling'],
+      },
+    },
+  ];
+};

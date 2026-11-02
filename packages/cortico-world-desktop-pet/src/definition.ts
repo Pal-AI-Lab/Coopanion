@@ -3,27 +3,33 @@ import type { Language } from 'cortico/core/language.ts';
 import { runtimesRoot, modelsRoot } from 'cortico/paths.ts';
 import { describeTools, type WorldDefinition, type WorldDescribe } from 'cortico/world.ts';
 import { DESKTOP_PET_DEFAULTS, DESKTOP_PET_ID, DESKTOP_PET_SECRETS, type DesktopPetConfigSection, type PetSkin } from './config.ts';
-import { DesktopPetWorld, modelsDirFor, type PetBotControls } from './world.ts';
+import { DesktopPetWorld, modelsDirFor, type PetBotControls, type PetMode } from './world.ts';
 import type { DescribeTool } from './status.ts';
 import type { ModelLanguage } from './model-text.ts';
 import type { Answer } from './cua/engine-ipc.ts';
 import { CUA_OFF_TOOL_DECLS, CUA_TOOL_DECLS } from './cua/tools.ts';
-import { petToolDecls } from './tools.ts';
+import { deciderToolDecls, petToolDecls } from './tools.ts';
 import { SELF_TYPE } from './chat.ts';
 import { petText } from './i18n/index.ts';
 
 /** The console keeps the bot's avatar here, in the deployment directory. */
 const AVATAR_FILE = 'avatar.png';
+/** Beside the session in the data directory while its prefix was built for decider mode. */
+const PROMPT_MODE_FILE = 'desktop-pet-decider-prompt';
 
-/** Every tool the World can give (the computer-use ones while computer use is on, the way to its switch while it is off) and every event it pushes. */
+/**
+ * Every tool the World can give (the computer-use ones while computer use is on, the way to its switch while it is
+ * off, `pet_feel` in decider mode, whose `pet_say` takes a feeling) and every event it pushes.
+ */
 const DESCRIBE: WorldDescribe = {
-  tools: describeTools([...petToolDecls(), ...CUA_OFF_TOOL_DECLS, ...CUA_TOOL_DECLS], {
+  tools: describeTools([...petToolDecls(), ...deciderToolDecls().filter((d) => d.name === 'pet_feel'), ...CUA_OFF_TOOL_DECLS, ...CUA_TOOL_DECLS], {
     pet_say: { zh: '在桌宠头顶的气泡里说话,可在话里穿插表情与动作。', en: 'Speaks in a bubble above the pet, with expressions and motions in between.' },
     pet_ask: { zh: '弹出带至多 3 个选项的提问气泡,回答之后作为事件送回。', en: 'Asks a question in a bubble with up to 3 options; the answer comes back later as an event.' },
     pet_move_to: { zh: '沿屏幕底边走到或跑到某个位置,或去形象包自带的目标。', en: "Walks or runs along the bottom edge of the screen to a position, or goes to one of the figure pack's own targets." },
     pet_set: { zh: '修改桌宠自己的外观与习惯;按使用者的设置直接生效,或先在气泡里询问。', en: "Changes the pet's own looks and habits, at once or after asking in a bubble, as the person's settings say." },
     pet_quiet: { zh: '安静一段时间:关掉音效、停止走动,到时恢复。', en: 'Keeps quiet for a while: sound effects off and standing still until the time is up.' },
     pet_act: { zh: '不说话,播放一串表情或动作。', en: 'Plays a sequence of expressions or motions without speaking.' },
+    pet_feel: { zh: '表情决策模式下不说话时,写一句心情,由决策模型挑出表情和动作来做。', en: 'In decider mode, shows a feeling without speaking: a decision model picks the expressions and motions.' },
     pet_cua_open_settings: { zh: '电脑操作关着时,把设置窗口打开到它的开关,附风险说明。', en: 'While computer use is off, opens the settings window at its switch, with what it risks.' },
     pet_cua_screenshot: { zh: '截取一块显示器,附鼠标位置与前台窗口标题。', en: 'Captures one display, with the pointer position and the foreground window title.' },
     pet_cua_zoom: { zh: '从屏幕重新截取截图里的一块,读看不清的小字。', en: 'Captures a region of the screenshot again from the screen, for small text.' },
@@ -90,6 +96,10 @@ export interface DesktopPetAssembly {
   language?(): Language;
   /** Called with each answer to computer use's question in the pet's bubble. */
   onCuaAnswer?(answer: Answer): void;
+  /** Called after decider mode starts or ends; the app rebuilds the prefix then, so the tools and the prompt change together. */
+  onModeChange?(mode: PetMode): void;
+  /** Where decider mode asks for decisions; for tests, which point it at a local stand-in. */
+  deciderUrl?: string;
 }
 
 /** The definition, with what an embedding app lends the World. */
@@ -124,6 +134,11 @@ export function desktopPetDefinition(assembly: DesktopPetAssembly = {}): WorldDe
         replyLanguage: () => assembly.replyLanguage?.() ?? null,
         language: () => assembly.language?.() ?? 'zh',
         onCuaAnswer: (answer) => assembly.onCuaAnswer?.(answer),
+        deciderApiKey: () => ctx.secret(DESKTOP_PET_SECRETS.deciderApiKey),
+        storeDeciderApiKey: (key) => ctx.storeSecret(DESKTOP_PET_SECRETS.deciderApiKey, key),
+        onModeChange: (mode) => assembly.onModeChange?.(mode),
+        deciderUrl: assembly.deciderUrl,
+        promptModeFile: join(ctx.dataDir, PROMPT_MODE_FILE),
       });
       assembly.onCreate?.(world);
       return world;

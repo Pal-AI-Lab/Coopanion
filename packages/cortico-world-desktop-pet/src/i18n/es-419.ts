@@ -361,6 +361,22 @@ const es419: Translation<PetText> = {
     notSent: 'No se pudo enviar',
     tooLate: 'Ese mensaje ya se entregó y no se puede retirar.',
   },
+
+  decider: {
+    config: {
+      group: 'Elección de expresiones',
+      enabled: { title: 'Elección de expresiones', description: 'Activada y con una API Key de OpenRouter, Coo escribe cómo se siente en cada globo y un modelo de decisión de OpenRouter elige las expresiones y los movimientos; el prompt del sistema ya no lleva la tabla de palabras. Cada decisión envía a OpenRouter el texto del globo, el sentimiento, y el nombre, la descripción y el vestuario de la figura actual con su lista de expresiones y movimientos.' },
+      model: { title: 'Modelo de decisión', description: 'El id de un modelo de OpenRouter cuya salida es decisions.' },
+      timeoutMs: { title: 'Tiempo límite de decisión' },
+    },
+    failure: {
+      timeout: 'Tiempo agotado',
+      breaker: 'En pausa tras errores seguidos',
+      bad: 'No se pudo leer la respuesta',
+      http: (detail: string) => `Error: ${detail}`,
+      network: (detail: string) => `No se pudo conectar: ${detail}`,
+    },
+  },
 };
 
 export default es419;

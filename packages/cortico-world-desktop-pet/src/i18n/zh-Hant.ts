@@ -361,6 +361,22 @@ const zhHant: Translation<PetText> = {
     notSent: '傳送失敗',
     tooLate: '該訊息已送達，無法收回。',
   },
+
+  decider: {
+    config: {
+      group: '表情決策',
+      enabled: { title: '表情決策', description: '開啟並有 OpenRouter 的 API Key 時，Coo 每個氣泡寫一句心情，由 OpenRouter 上的決策模型挑選表情和動作，系統提示詞裡不再放詞表。每次決策會把氣泡的話、心情，以及目前形象的名字、介紹、裝扮和表情動作列表傳送給 OpenRouter。' },
+      model: { title: '決策模型', description: 'OpenRouter 上輸出 decisions 的模型 id。' },
+      timeoutMs: { title: '決策逾時' },
+    },
+    failure: {
+      timeout: '逾時',
+      breaker: '連續出錯，暫停中',
+      bad: '回答無法解析',
+      http: (detail: string) => `回傳錯誤：${detail}`,
+      network: (detail: string) => `連線失敗：${detail}`,
+    },
+  },
 };
 
 export default zhHant;

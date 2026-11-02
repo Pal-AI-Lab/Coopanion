@@ -6,6 +6,7 @@ import type { SegmentConfig } from './asr/segmenter.ts';
 import { DEFAULT_HOTKEY, DEFAULT_TYPE_KEY } from './asr/hotkey.ts';
 import { capFor, petText } from './i18n/index.ts';
 import { CUA_DEFAULTS, cuaConfigGroup, type CuaConfig } from './cua/config.ts';
+import { DECIDER_DEFAULT_MODEL } from './decider.ts';
 
 export const DESKTOP_PET_ID = 'desktop-pet';
 
@@ -142,7 +143,7 @@ export type MicMode = 'hold' | 'toggle' | 'always';
 export type AsrEngine = 'funasr' | 'whisper' | 'system' | 'api';
 
 /** The deployment secrets this World reads, by what they are for. */
-export const DESKTOP_PET_SECRETS = { asrApiKey: 'DESKTOP_PET_ASR_API_KEY' } as const;
+export const DESKTOP_PET_SECRETS = { asrApiKey: 'DESKTOP_PET_ASR_API_KEY', deciderApiKey: 'DESKTOP_PET_DECIDER_API_KEY' } as const;
 
 /** Languages SenseVoiceSmall hears, by the app language that speaks them; it also takes `yue` and `auto`. */
 export const SENSEVOICE_LANGUAGES: Readonly<Record<string, string>> = { zh: 'zh', 'zh-Hant': 'zh', en: 'en', ja: 'ja', ko: 'ko' };
@@ -220,6 +221,11 @@ export interface DesktopPetConfigSection extends WorldSection {
   skin: PetSkin;
   /** Computer use (src/cua/). */
   cua: CuaConfig;
+  /**
+   * Decider mode (src/decider.ts): in force while `enabled` and the secret `DESKTOP_PET_SECRETS.deciderApiKey` is
+   * set. `model` is an OpenRouter decision model (empty: the default); a decision not answered within `timeoutMs` is given up.
+   */
+  decider: { enabled: boolean; model: string; timeoutMs: number };
   touch: {
     /** Clicks, petting and throws become events. */
     enabled: boolean;
@@ -290,6 +296,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
     colors: { head: { main: 'body', acc: 'eye' }, side: { main: 'eye', acc: 'eye' }, glasses: { main: 'body', acc: 'eye' }, neck: { main: 'eye', acc: 'eye' } },
   },
   cua: CUA_DEFAULTS,
+  decider: { enabled: false, model: DECIDER_DEFAULT_MODEL, timeoutMs: 1500 },
   touch: { enabled: true, wakeOn: 'poke', wakeKinds: ['poke'] },
   asr: {
     enabled: true,
@@ -306,7 +313,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
 
 const K = `worlds.${DESKTOP_PET_ID}`;
 
-/** The console's config groups: the pet's own, its sounds and voice input, titled in `language` (the console's). */
+/** The console's config groups: the pet's own, its sounds, voice input, computer use and decider mode, titled in `language` (the console's). */
 export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[] {
   const c = petText(language).config;
   const userMax = capFor(USER_MAX, language);
@@ -388,5 +395,19 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
       },
     },
   };
-  return [pet, sound, asr, cuaConfigGroup(language)];
+  const d = petText(language).decider.config;
+  const decider: ConfigGroup = {
+    id: `world:${DESKTOP_PET_ID}:decider`,
+    owner: `world:${DESKTOP_PET_ID}`,
+    schema: {
+      type: 'object',
+      title: d.group,
+      properties: {
+        [`${K}.decider.enabled`]: { type: 'boolean', title: d.enabled.title, description: d.enabled.description, 'x-hot': true },
+        [`${K}.decider.model`]: { type: 'string', title: d.model.title, description: d.model.description, 'x-hot': true },
+        [`${K}.decider.timeoutMs`]: { type: 'integer', title: d.timeoutMs.title, minimum: 500, maximum: 10_000, 'x-suffix': 'ms', 'x-hot': true },
+      },
+    },
+  };
+  return [pet, sound, asr, cuaConfigGroup(language), decider];
 }

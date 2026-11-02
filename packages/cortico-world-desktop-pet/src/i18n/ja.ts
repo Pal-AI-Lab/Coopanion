@@ -361,6 +361,22 @@ const ja: Translation<PetText> = {
     notSent: '送信できませんでした',
     tooLate: 'そのメッセージはもう届いているため、取り消せません。',
   },
+
+  decider: {
+    config: {
+      group: '表情の決定',
+      enabled: { title: '表情の決定', description: 'オンで OpenRouter の API Key があるとき、Coo は吹き出しごとに気持ちを一文書き、OpenRouter の決定モデルが表情と動作を選びます。システムプロンプトに単語表は入りません。決定のたびに、吹き出しの言葉、気持ち、今の姿の名前・説明・着せ替えと表情と動作の一覧を OpenRouter に送信します。' },
+      model: { title: '決定モデル', description: 'OpenRouter で出力が decisions のモデルの id。' },
+      timeoutMs: { title: '決定のタイムアウト' },
+    },
+    failure: {
+      timeout: 'タイムアウト',
+      breaker: 'エラーが続いたため停止中',
+      bad: '回答を読み取れません',
+      http: (detail: string) => `エラー：${detail}`,
+      network: (detail: string) => `接続できません：${detail}`,
+    },
+  },
 };
 
 export default ja;

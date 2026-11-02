@@ -361,6 +361,22 @@ const de: Translation<PetText> = {
     notSent: 'Konnte nicht gesendet werden',
     tooLate: 'Diese Nachricht wurde schon zugestellt und lässt sich nicht zurückholen.',
   },
+
+  decider: {
+    config: {
+      group: 'Ausdrucksauswahl',
+      enabled: { title: 'Ausdrucksauswahl', description: 'Eingeschaltet und mit einem OpenRouter-API Key schreibt Coo zu jeder Sprechblase, wie es sich fühlt, und ein Entscheidungsmodell auf OpenRouter wählt Ausdrücke und Bewegungen; die Wortliste steht nicht mehr im System-Prompt. Jede Entscheidung sendet an OpenRouter den Text der Sprechblase, das Gefühl sowie Name, Beschreibung und Outfit der aktuellen Figur samt ihrer Liste von Ausdrücken und Bewegungen.' },
+      model: { title: 'Entscheidungsmodell', description: 'Die id eines OpenRouter-Modells, dessen Ausgabe decisions ist.' },
+      timeoutMs: { title: 'Zeitlimit der Entscheidung' },
+    },
+    failure: {
+      timeout: 'Zeitüberschreitung',
+      breaker: 'Nach wiederholten Fehlern pausiert',
+      bad: 'Antwort nicht lesbar',
+      http: (detail: string) => `Fehler: ${detail}`,
+      network: (detail: string) => `Keine Verbindung: ${detail}`,
+    },
+  },
 };
 
 export default de;

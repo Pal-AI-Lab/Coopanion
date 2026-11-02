@@ -106,8 +106,10 @@ export async function startBot(opts: {
   worlds: WorldDefinition<WorldSection>[];
   sections?: Record<string, unknown>;
   model: ScriptedModel;
+  /** The deployment root; another bot started on it restores the session. */
+  root?: string;
 }): Promise<Bot<CoreConfig>> {
-  const root = mkdtempSync(join(tmpdir(), 'cortico-e2e-'));
+  const root = opts.root ?? mkdtempSync(join(tmpdir(), 'cortico-e2e-'));
   const ids = opts.worlds.map((w) => w.id);
   const base: BotDefinition<CoreConfig> = {
     id: 'e2e',

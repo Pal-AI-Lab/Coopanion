@@ -361,6 +361,22 @@ const ko: Translation<PetText> = {
     notSent: '보내지 못했습니다',
     tooLate: '이미 전달된 메시지라 되돌릴 수 없습니다.',
   },
+
+  decider: {
+    config: {
+      group: '표정 결정',
+      enabled: { title: '표정 결정', description: '켜져 있고 OpenRouter API Key가 있으면 Coo는 말풍선마다 기분을 한 문장 쓰고, OpenRouter의 결정 모델이 표정과 동작을 고릅니다. 시스템 프롬프트에는 단어표가 들어가지 않습니다. 결정할 때마다 말풍선의 말, 기분, 현재 모습의 이름과 소개, 꾸미기, 표정과 동작 목록을 OpenRouter로 보냅니다.' },
+      model: { title: '결정 모델', description: 'OpenRouter에서 출력이 decisions인 모델의 id.' },
+      timeoutMs: { title: '결정 제한 시간' },
+    },
+    failure: {
+      timeout: '시간 초과',
+      breaker: '오류가 이어져 멈춤',
+      bad: '응답을 읽을 수 없음',
+      http: (detail: string) => `오류: ${detail}`,
+      network: (detail: string) => `연결 실패: ${detail}`,
+    },
+  },
 };
 
 export default ko;

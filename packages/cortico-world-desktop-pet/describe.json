@@ -267,6 +267,29 @@
       }
     },
     {
+      "name": "pet_feel",
+      "description": "For a turn in which you say nothing: show how you feel with the body alone. Write the feeling or what you mean to do, and the face, gestures and posture (sitting down, falling asleep) follow it. Returns in about a second with what the body did; a posture lasts until another one.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "feeling": {
+            "type": "string",
+            "description": "How you feel, what you think or mean to do, a sentence or two, for example \"tired of chatting, want to sit and daydream nearby\"."
+          }
+        },
+        "required": [
+          "feeling"
+        ]
+      },
+      "tags": [
+        "act"
+      ],
+      "summary": {
+        "zh": "表情决策模式下不说话时,写一句心情,由决策模型挑出表情和动作来做。",
+        "en": "In decider mode, shows a feeling without speaking: a decision model picks the expressions and motions."
+      }
+    },
+    {
       "name": "pet_cua_open_settings",
       "description": "Computer use is off. Open the settings window at its switch, where the person reads what turning it on risks and can turn it on. Only after the person has agreed to open it.",
       "parameters": {

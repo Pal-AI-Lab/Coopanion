@@ -394,6 +394,23 @@ const en: PetText = {
     notSent: 'Could not send it',
     tooLate: 'That one has already been delivered and cannot be taken back.',
   },
+
+  /** Decider mode's settings, and why decisions fail as the Habits page's status says it. */
+  decider: {
+    config: {
+      group: 'Expression decisions',
+      enabled: { title: 'Expression decisions', description: "On, with an OpenRouter API Key, Coo writes how it feels with each bubble and a decision model on OpenRouter picks the expressions and motions; the system prompt no longer carries the word table. Each decision sends OpenRouter the bubble's text, the feeling, and the current figure's name, description, dress and list of expressions and motions." },
+      model: { title: 'Decision model', description: 'The id of an OpenRouter model whose output is decisions.' },
+      timeoutMs: { title: 'Decision timeout' },
+    },
+    failure: {
+      timeout: 'Timed out',
+      breaker: 'Paused after repeated errors',
+      bad: 'The answer could not be read',
+      http: (detail: string) => `Error: ${detail}`,
+      network: (detail: string) => `Could not connect: ${detail}`,
+    },
+  },
 };
 
 export default en;

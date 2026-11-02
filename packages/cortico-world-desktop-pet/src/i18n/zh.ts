@@ -392,4 +392,21 @@ export default {
     notSent: '发送失败',
     tooLate: '该消息已送达，无法撤回。',
   },
+
+  /** 表情决策的配置项，和「习惯」页状态里决策失败的原因 */
+  decider: {
+    config: {
+      group: '表情决策',
+      enabled: { title: '表情决策', description: '开启并有 OpenRouter 的 API Key 时，Coo 每个气泡写一句心情，由 OpenRouter 上的决策模型挑选表情和动作，系统提示词里不再放词表。每次决策会把气泡的话、心情，以及当前形象的名字、介绍、装扮和表情动作列表发送给 OpenRouter。' },
+      model: { title: '决策模型', description: 'OpenRouter 上输出 decisions 的模型 id。' },
+      timeoutMs: { title: '决策超时' },
+    },
+    failure: {
+      timeout: '超时',
+      breaker: '连续出错，暂停中',
+      bad: '回答无法解析',
+      http: (detail: string) => `返回错误：${detail}`,
+      network: (detail: string) => `连接失败：${detail}`,
+    },
+  },
 };

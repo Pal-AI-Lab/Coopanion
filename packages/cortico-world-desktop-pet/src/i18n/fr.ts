@@ -361,6 +361,22 @@ const fr: Translation<PetText> = {
     notSent: 'Envoi impossible',
     tooLate: 'Ce message a déjà été remis et ne peut plus être repris.',
   },
+
+  decider: {
+    config: {
+      group: 'Choix des expressions',
+      enabled: { title: 'Choix des expressions', description: "Activé, avec une API Key OpenRouter, Coo écrit son ressenti à chaque bulle et un modèle de décision sur OpenRouter choisit les expressions et les mouvements ; le prompt système ne contient plus la table des mots. Chaque décision envoie à OpenRouter le texte de la bulle, le ressenti, ainsi que le nom, la description et l'habillage de l'apparence actuelle avec sa liste d'expressions et de mouvements." },
+      model: { title: 'Modèle de décision', description: "L'id d'un modèle OpenRouter dont la sortie est decisions." },
+      timeoutMs: { title: 'Délai de décision' },
+    },
+    failure: {
+      timeout: 'Délai dépassé',
+      breaker: 'En pause après des erreurs répétées',
+      bad: 'Réponse illisible',
+      http: (detail: string) => `Erreur : ${detail}`,
+      network: (detail: string) => `Connexion impossible : ${detail}`,
+    },
+  },
 };
 
 export default fr;

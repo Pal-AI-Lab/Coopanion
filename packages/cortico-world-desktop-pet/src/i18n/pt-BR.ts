@@ -361,6 +361,22 @@ const ptBR: Translation<PetText> = {
     notSent: 'Não foi possível enviar',
     tooLate: 'Essa mensagem já foi entregue e não pode ser retirada.',
   },
+
+  decider: {
+    config: {
+      group: 'Escolha de expressões',
+      enabled: { title: 'Escolha de expressões', description: 'Ligada e com uma API Key do OpenRouter, o Coo escreve como se sente em cada balão e um modelo de decisão do OpenRouter escolhe as expressões e os movimentos; o prompt do sistema deixa de trazer a tabela de palavras. Cada decisão envia ao OpenRouter o texto do balão, o sentimento, e o nome, a descrição e a roupa da figura atual com sua lista de expressões e movimentos.' },
+      model: { title: 'Modelo de decisão', description: 'O id de um modelo do OpenRouter cuja saída é decisions.' },
+      timeoutMs: { title: 'Tempo limite da decisão' },
+    },
+    failure: {
+      timeout: 'Tempo esgotado',
+      breaker: 'Pausada após erros seguidos',
+      bad: 'Não foi possível ler a resposta',
+      http: (detail: string) => `Erro: ${detail}`,
+      network: (detail: string) => `Não foi possível conectar: ${detail}`,
+    },
+  },
 };
 
 export default ptBR;
