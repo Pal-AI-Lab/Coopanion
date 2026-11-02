@@ -30,11 +30,18 @@ export function accountRow(ui: WebUi, name: string, signal: AbortSignal): HTMLEl
   const signIn = ui.button(S.go, { variant: 'primary' });
   const signOut = ui.button(S.signOut, { size: 'sm' });
   signOut.hidden = true;
-  const show = (state: SignInState) => {
+  /**
+   * `ran` marks the result of a sign-in started here; only its failure opens beside the sign-in button.
+   * Core keeps a failed outcome until the next sign-in, so an earlier failure shows in the line.
+   */
+  const show = (state: SignInState, ran = false) => {
     if (signal.aborted) return;
     current = state;
-    line.textContent = state.signedIn ? S.signedIn(state.email ?? '') : S.signedOut;
-    if (state.phase === 'failed') problem(signIn, S.failed(signInReason(state.reason ?? '', LANGUAGE)));
+    const failure = state.phase === 'failed' ? S.failed(signInReason(state.reason ?? '', LANGUAGE)) : null;
+    const inline = failure !== null && !ran && !state.signedIn;
+    line.textContent = state.signedIn ? S.signedIn(state.email ?? '') : inline ? failure : S.signedOut;
+    line.classList.toggle('bad', inline);
+    if (failure && ran) problem(signIn, failure);
     signOut.hidden = !state.signedIn;
   };
   signIn.addEventListener('click', async () => {
@@ -42,7 +49,7 @@ export function accountRow(ui: WebUi, name: string, signal: AbortSignal): HTMLEl
     line.textContent = S.waiting;
     line.classList.remove('bad');
     try {
-      show(await signInChatGPT(call, name, openInBrowser, { signal }));
+      show(await signInChatGPT(call, name, openInBrowser, { signal }), true);
     } catch (err) {
       if (signal.aborted) return;
       line.textContent = current?.signedIn ? S.signedIn(current.email ?? '') : S.signedOut;
@@ -54,7 +61,7 @@ export function accountRow(ui: WebUi, name: string, signal: AbortSignal): HTMLEl
   signOut.addEventListener('click', async () => {
     signOut.disabled = true;
     try { show(await signOutChatGPT(call, name)); }
-    catch (err) { problem(signOut, S.failed(err instanceof Error ? err.message : String(err))); } finally { signOut.disabled = false; }
+    catch (err) { problem(signOut, err instanceof Error ? err.message : String(err)); } finally { signOut.disabled = false; }
   }, { signal });
   void chatgptState(call, name).then(show, () => {});
   const row = ui.rowbar();
