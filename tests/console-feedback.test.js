@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createConsoleUi } from '../console/base/ui/index.ts';
 import { actionProblem, listProblem } from '../console/base/ui/problem.ts';
+import { ERROR_TOAST_MS, TOAST_MS } from '../console/base/ui/overlay.ts';
 
 let life;
 afterEach(() => { life?.abort(); document.body.replaceChildren(); vi.restoreAllMocks(); vi.useRealTimers(); });
@@ -38,15 +41,39 @@ it('pauses a timed error notification while hovered and expires it after reading
   vi.spyOn(button, 'getBoundingClientRect').mockReturnValue(bounds(250, -100, 100, 30));
   report(button, 'A long error that must remain readable');
   const toast = document.querySelector('.toast');
-  vi.advanceTimersByTime(1000);
+  const read = 1000;
+  vi.advanceTimersByTime(read);
   toast.dispatchEvent(new Event('pointerenter'));
-  vi.advanceTimersByTime(10000);
+  vi.advanceTimersByTime(ERROR_TOAST_MS * 2);
   expect(document.querySelector('[role=alert]:not(.hidden)')?.textContent).toContain('remain readable');
   toast.dispatchEvent(new Event('pointerleave'));
-  vi.advanceTimersByTime(5100);
+  vi.advanceTimersByTime(ERROR_TOAST_MS - read - 1);
+  expect(document.querySelector('[role=alert]:not(.hidden)')).not.toBeNull();
+  vi.advanceTimersByTime(1);
   expect(document.querySelector('[role=alert]:not(.hidden)')).toBeNull();
-  ui.toast('Saved', 'ok'); vi.advanceTimersByTime(2100);
+  ui.toast('Saved', 'ok'); vi.advanceTimersByTime(TOAST_MS);
   expect(document.querySelector('.toast')).toBeNull();
+});
+
+it('lets clicks through an ordinary toast, and Escape inside an error toast leaves the drawer beneath open', () => {
+  const { ui } = setup();
+  // the toast rules of the settings window's stylesheet
+  const style = document.createElement('style');
+  style.textContent = readFileSync(join(process.cwd(), 'console', 'styles.css'), 'utf8').match(/^\s*\.toast(\.bad)?\s*\{[^}]*\}/gm).join('\n');
+  document.head.append(style);
+  ui.toast('Saved', 'ok');
+  expect(getComputedStyle(document.querySelector('.toast')).pointerEvents).toBe('none');
+  ui.drawer('Details', 'Body');
+  ui.toast('Save failed', 'bad');
+  const close = document.querySelector('.toast.bad button');
+  expect(getComputedStyle(close.closest('.toast')).pointerEvents).toBe('auto');
+  close.focus();
+  close.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  expect(document.querySelector('.toast')).toBeNull();
+  expect(document.querySelector('.modal')).not.toBeNull();
+  document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  expect(document.querySelector('.modal')).toBeNull();
+  style.remove();
 });
 
 it('keeps a failed read retry available without an unhandled rejection', async () => {

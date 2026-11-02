@@ -436,11 +436,12 @@
     font-size: 12px; border-radius: 16px; padding: 5px 15px;
     display: flex; align-items: flex-start; gap: 8px; box-sizing: border-box; width: max-content;
     max-width: min(560px, calc(100vw - 32px)); white-space: normal; overflow-wrap: anywhere;
-    pointer-events: auto; animation: toast var(--toast-duration, 2000ms) ease forwards;
+    pointer-events: none; animation: toast var(--toast-duration, 2000ms) ease forwards;
     box-shadow: 0 12px 32px -16px var(--shadow-strong);
   }
   .toast-text { min-width: 0; max-height: min(300px, 50vh); overflow-y: auto; overscroll-behavior: contain; }
-  .toast.bad { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 42%, transparent); }
+  /* Only an error toast takes the pointer: it scrolls, pauses on hover and has a close button. */
+  .toast.bad { pointer-events: auto; color: var(--danger); border-color: color-mix(in srgb, var(--danger) 42%, transparent); }
 
 
   .treerow { padding: 4px 10px; cursor: pointer; border-radius: 7px; display: flex; justify-content: space-between; gap: 8px; white-space: nowrap; font-size: 13.5px; color: var(--ink); }

@@ -78,12 +78,14 @@ function openModal(env: OverlayEnv, onClose: () => void): Overlay {
   return layer;
 }
 
-/** Errors allow more reading time; hovering or focusing pauses dismissal. */
-const TOAST_MS = 2000;
-const ERROR_TOAST_MS = 6000;
+/** How long a toast stays. */
+export const TOAST_MS = 2000;
+/** How long an error toast stays; hovering or focusing it pauses the countdown. */
+export const ERROR_TOAST_MS = 6000;
 
 /**
  * 底部通知自动消失。每个 ui 实例只保留最新一条；面板 abort 后不显示。
+ * 焦点在错误通知里时，Esc 只关闭这条通知，不传给下面的弹窗。
  */
 export function toast(
   env: OverlayEnv,
@@ -105,7 +107,11 @@ export function toast(
     close.setAttribute('aria-label', S.close);
     close.append(icon(env.doc, 'close'));
     el.append(close);
-    env.doc.addEventListener('keydown', event => { if (event.key === 'Escape') layer.close(); }, { signal: layer.signal });
+    el.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      layer.close();
+    }, { signal: layer.signal });
   }
   let timer = setTimeout(() => layer.close(), duration);
   let remaining = duration, started = Date.now(), paused = false;

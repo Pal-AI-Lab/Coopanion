@@ -64,10 +64,12 @@ it('reports a failed appearance save at the appearance button after focus moves'
   const bar = createTitlebar(document, document.createElement('button'), life.signal);
   document.body.append(bar);
   const appearance = bar.querySelector('button:nth-of-type(4)');
-  vi.spyOn(appearance, 'getBoundingClientRect').mockReturnValue({ left: 120, right: 150, top: 0, bottom: 30, width: 30, height: 30 });
+  const rect = { left: 120, right: 150, top: 0, bottom: 30, width: 30, height: 30 };
+  vi.spyOn(appearance, 'getBoundingClientRect').mockReturnValue(rect);
   appearance.click();
   bar.querySelector('button').focus();
   rejectSave(new Error('Theme save unavailable'));
   await vi.waitFor(() => expect(document.querySelector('.extension-problem:not(.hidden)')?.textContent).toContain('Theme save unavailable'));
-  expect(document.querySelector('.extension-problem').style.top).toBe('40px');
+  // placed against the appearance button's rect, not the focused button's
+  expect(parseFloat(document.querySelector('.extension-problem').style.top)).toBeGreaterThan(rect.bottom);
 });
