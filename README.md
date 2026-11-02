@@ -176,6 +176,14 @@ There are four settings for when Coo asks you first:
 - Anything you say with the talk key interrupts Coo once it is transcribed: the reply being written and the steps not yet started are dropped, while a click, drag or key sequence already under way finishes first. When it listens **All the time**, what Coo hears does not interrupt it.
 - Do logins, passwords and payments yourself. One wake allows 40 model requests by default; when Coo hits that limit it stops, and you can tell it to keep going. The limit is **Requests per wake-up** in advanced mode.
 
+### Expression decisions
+
+An optional mode, off by default, for figures with large word tables of their own. Normally Coo writes expressions and motions into its lines from the word table in its system prompt, which grows with every word. With **Expression decisions** on in Habits and an OpenRouter API Key entered there, the system prompt carries no word table: Coo writes only a line on how it feels with each bubble, and a decision model on OpenRouter (`typesafe/jev-1.14` by default) picks the current figure's expressions and motions from it. The built-in Coo and whale have 37 words each and gain nothing from it.
+
+- Each bubble, and each time Coo shows a feeling without speaking, makes one OpenRouter call. Its cost shows only on your OpenRouter account, not on the Usage & cost page. A bubble appears once the pick is made, after at most the decision timeout (1.5 s by default).
+- When a decision times out or fails, that bubble shows no expression or motion; nothing picks one in its place. Three failures in a row pause decisions for a minute, and the status line in Habits says why.
+- Switched off, Coo goes back to the usual way; the system prompt and tools change from the next turn. The decision model and the timeout are on the desktop-pet World's page in advanced mode.
+
 ### Settings window
 
 Open the settings window from the tray icon or from Coo's right-click menu.
@@ -183,7 +191,7 @@ Open the settings window from the tray icon or from Coo's right-click menu.
 | Page | What's there |
 | --- | --- |
 | Start | Model connection, showing or hiding the pet, interface colors, the first-run guide |
-| Habits | Language and names, automatic updates, usage statistics, walking and touch responses, which settings Coo may change itself, shortcuts, display, sound, computer use, OBS overlay |
+| Habits | Language and names, automatic updates, usage statistics, walking and touch responses, which settings Coo may change itself, shortcuts, display, sound, computer use, expression decisions, OBS overlay |
 | Dress up | Figure, colors and accessories; import or uninstall figure packs |
 | Voice input | Recognition engine or transcription service, model download, talk key, microphone, listening mode, speech threshold |
 | System prompt | Persona and prompt templates; Ctrl+S saves, and **Apply now** puts the new prompt into the current conversation |
@@ -219,6 +227,7 @@ The Mac version, the deb and the Windows portable version do not update themselv
 
 - **Cost**: Coopanion is free. The model service you choose bills you for usage, which you can see on the Usage & cost page. DeepSeek, OpenAI, Anthropic, Gemini's paid tier and xAI have built-in prices, and amounts can be shown in another currency at the current exchange rate (or a built-in rate when it can't be fetched). When you sign in with ChatGPT, usage counts toward the plan and no cost is shown.
 - **Sent to the model service**: what you say and type, attached images, how you interact with Coo, and screenshots during computer use. Only the service you configured receives them.
+- **Expression decisions** (off by default): while on, each decision sends OpenRouter the decision model's id, fixed instructions, the current figure's name, description and dress, Coo's feeling, the bubble's text (none when Coo does not speak), and, for each of the figure's expressions and motions other than walking and running (and sleeping, for a bubble), its name (its id when it has none, with the id added when it shares a name), description, other names and whether it lasts. The request headers carry the API Key and the app name Coopanion, and go only to OpenRouter.
 - **Kept on your computer**: API keys and the ChatGPT sign-in, memory, conversation history, settings and logs. Speech is recognized locally and only the recognized text is sent; if you choose a transcription service on the Voice input page, each sentence's recording goes to that service.
 - **Anonymous usage statistics**: sent to `survey.palailab.org`. They contain the app version, an outline of the system and hardware, which model service and model you use, which extensions are installed, how often and how long you use the app, settings, where in the program a crash happened, and a randomly generated install ID; no conversations, screenshots, keys, error messages or files. Every field is listed in [docs/TELEMETRY.md](docs/TELEMETRY.md). Turn them off under **Habits → General → Usage statistics**.
 - **Other network access**: checking GitHub for new versions (the Windows installer build and the AppImage check at start and every 6 hours while automatic updates are on; the other builds check when the settings window opens); npm and the official extension index on GitHub for the extension market, and GitHub for votes and comments; ModelScope, falling back to Hugging Face, when downloading the speech model.
