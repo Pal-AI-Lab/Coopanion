@@ -419,7 +419,7 @@ Coopanion 在 Linux 上固定跑在 X11 上;Wayland 会话里经 XWayland 只看
 
 ## 电脑操作
 
-`worlds.desktop-pet.cua.enabled` 开着时(默认关),bot 还看得见这台电脑(Windows、macOS 或 Linux)的屏幕,接了几块显示器都能看、能操作,能移动和点击鼠标、滚动、打字、按组合键、
+`worlds.desktop-pet.cua.enabled` 开着时(默认关),bot 还看得见这台电脑(Windows、macOS 或 Linux)的屏幕,接了几块显示器都能看、能操作,能移动、点击和按住鼠标、滚动、打字、按下和按住组合键、
 列出和切换窗口;使用者一动鼠标键盘,操作就让位。代码在 `src/cua/`;关着时没有这些工具,环境提示词的 `{{pet.cua}}` 只说明功能存在、在应用设置里打开;内嵌应用给了 `controls.openCuaSettings` 时,
 bot 还有 `pet_cua_open_settings`,在使用者同意后把设置窗口打开到这个开关。
 开关和下面的配置都是热更新,下一轮起生效;内嵌应用要在开关改动后重载 session 前缀,工具表才跟着变。
@@ -437,15 +437,18 @@ bot 还有 `pet_cua_open_settings`,在使用者同意后把设置窗口打开到
 | `pet_cua_click(x, y, button, clicks)` | 左/右/中键,单击、双击、三击 |
 | `pet_cua_move(x, y)` | 只移动,用于悬停 |
 | `pet_cua_drag(from, to)` | 按住左键拖动,两点在同一块显示器上 |
+| `pet_cua_mouse_down(x, y, button)` | 在某处按下左/右/中键不松开,直到 `pet_cua_mouse_up` 或这一轮结束;按着时 `pet_cua_move` 就是拖动 |
+| `pet_cua_mouse_up(button)` | 在指针所在处松开鼠标键 |
 | `pet_cua_scroll(x, y, down, right)` | 在某处转滚轮,单位是格 |
 | `pet_cua_type(text)` | 按 Unicode 字符打字,与键盘布局和输入法状态无关;`\n` 按回车 |
-| `pet_cua_key(keys)` | `"ctrl+s"`、`"alt+f4"`、`"ctrl+a delete"`:`+` 同时按,空格分先后 |
+| `pet_cua_key(keys, hold)` | `"ctrl+s"`、`"alt+f4"`、`"ctrl+a delete"`:`+` 同时按,空格分先后;带 `hold` 时只能是一个键或一个组合键,按住这么多秒再松开,最多 30 秒(和 `pet_cua_wait` 的上限相同) |
 | `pet_cua_windows` | 可见顶层窗口的标题、在哪块显示器(在最近一张截图那块上的给出截图坐标)、是否最小化、前台 |
 | `pet_cua_focus(window)` | 按句柄或标题片段切到前台,最小化的先还原;窗口在另一块显示器上时,附带的截图截那块 |
 | `pet_cua_wait(seconds)` | 等一会儿再截图 |
 
 操作类工具默认做完等 `cua.screenshot.settleMs`(500 ms)再附一张截图;参数 `screenshot: false` 可以省掉,这时等完同样的时间再读一次指针和前台窗口,
 没有窗口接收键盘输入时回执提醒先截图。
+一轮结束时(World 的 `onTurnEnded`),引擎松开它按下后还没松开的键和鼠标键;引擎进程退出前(World 停止、电脑操作关掉)也一样。
 
 ### 什么时候先问
 
@@ -480,6 +483,7 @@ Linux 缺少 MIT-SCREEN-SAVER 扩展或系统输入查询失败时,最后输入�
 打字按 16 个字形一段发送
 (emoji 这类多码位的字不会被拆开),每段之间再检查一次,使用者一动就停,回执报告实际打出了几个字符。
 打字中途让位的信号统计还包含触发停止的那次段间检查。
+按住按键(`hold`)只在按下之前让位,按住期间不检查使用者的输入:Linux 上 X 服务器会自动重复按住的键,重复的按键也计入最后输入时间。
 
 `cua.control` 关掉后只能截图和列窗口,所有输入工具返回拒绝原因。
 登录、密码、验证码、支付交还给使用者,以及发送、删除、提交、购买前先问,这些写在 `src/cua/ENV_PROMPT.md` 里。
@@ -489,7 +493,7 @@ Linux 缺少 MIT-SCREEN-SAVER 扩展或系统输入查询失败时,最后输入�
 用说话键(`asr.mic.mode` 为 `hold` 或 `toggle`)说的话在转写完成、合并为消息并投递时以 `interrupt` 停止当前轮:取消正在生成的回复,给执行中的可打断工具发送取消信号,跳过同轮尚未开始的工具。收音或转写尚未完成时不发送这个信号,已经发生的操作不回滚。
 一直收音(`always`)时听到的话照旧以 `flush` 投递,不打断当前轮:电视或旁人的声音也会收进来。
 
-十一个工具都声明为 `interruptible`。Core 投递 `interrupt` 事件时,执行中的调用停在下一个不留半截输入的地方,
+十三个工具都声明为 `interruptible`。Core 投递 `interrupt` 事件时,执行中的调用停在下一个不留半截输入的地方,
 回执写明停下前做了什么:
 
 | 停下时在做什么 | 结果 |
@@ -497,11 +501,12 @@ Linux 缺少 MIT-SCREEN-SAVER 扩展或系统输入查询失败时,最后输入�
 | 等使用者回答能不能用电脑 | 不执行;问题仍然开着,回答对这一轮之后的调用有效 |
 | 等使用者停手 | 不发出任何输入,回执报告已等了多久 |
 | `pet_cua_type` 打字途中 | 停在两段之间,回执报告打出了几个字符 |
-| 点击、移动、拖动、滚动、按键序列、切窗口 | 已开始的输入发完(拖动会松开左键),之后不等 `settleMs`、不附截图 |
+| `pet_cua_key` 按住按键途中 | 立即松开,回执报告按住了几秒 |
+| 点击、移动、拖动、按下或松开鼠标键、滚动、按键序列、切窗口 | 已开始的输入发完(拖动会松开左键),之后不等 `settleMs`、不附截图 |
 | `pet_cua_wait` 等待中 | 立即结束,回执报告等了几秒,不截图 |
 | `pet_cua_screenshot`、`pet_cua_zoom`、`pet_cua_windows` 已发出请求 | 照常完成 |
 
-主进程在调用的 `signal` 触发时给引擎子进程发 `{ cancel: id }`,引擎只在等使用者停手和打字的段间响应它。
+主进程在调用的 `signal` 触发时给引擎子进程发 `{ cancel: id }`,引擎只在等使用者停手、打字的段间和按住按键时响应它。
 
 ### 实现
 
