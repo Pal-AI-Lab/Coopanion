@@ -129,6 +129,8 @@ const ptBR: Translation<CoreText> = {
         : 'Tudo pronto! Meu ícone também fica na bandeja, no canto inferior direito da barra de tarefas; clique nele para mudar as configurações.',
     go: 'Vamos lá',
     dress: 'Me vista primeiro',
+    back: 'Voltar',
+    next: 'Próximo',
     closed: 'Certo, vamos parar por aqui. Para ouvir minha apresentação de novo, abra as configurações e clique em “Guia” na página Início.',
 
     askFirst: 'Ainda não tenho um modelo conectado; consigo falar quando você adicionar uma API Key. Qual serviço eu uso?',

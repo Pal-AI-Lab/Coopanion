@@ -110,3 +110,27 @@ describe('the introduction asks who Coo is', () => {
     expect(shown.map((d) => d.text)).not.toContain(coreText('zh').guide.askPersona);
   }, 10_000);
 });
+
+describe('the introduction goes back a step', () => {
+  it('shows the step answered before as it was answered, and keeps what is answered next', async () => {
+    const S = coreText('zh').guide;
+    const { run, shown, workspace, dressed } = setup('zh', [
+      { index: LANGUAGES.indexOf('zh') }, { index: 0 }, { text: '小明' }, { done: true }, { index: 0 }, { done: true },
+      // back from the persona cards to the source, past the line after it; another source, then a persona
+      { back: true }, { index: 5 }, { done: true }, { index: PERSONAS.indexOf('winter') },
+      // back from how lively to the persona cards, and another persona
+      { back: true }, { index: PERSONAS.indexOf('heart') },
+    ]);
+    await run;
+    expect(shown[0]!.back).toBeUndefined();
+    const sources = shown.filter((d) => d.text === S.askSource);
+    expect(sources).toHaveLength(2);
+    expect(sources[1]!.back).toBe(S.back);
+    expect(sources[1]!.input?.kind === 'buttons' && sources[1]!.input.options.map((o) => !!o.primary)).toEqual(S.sources.map((_, i) => i === 0));
+    const personas = shown.filter((d) => d.text === S.askPersona);
+    expect(personas).toHaveLength(3);
+    expect(personas[2]!.input?.kind === 'choices' && personas[2]!.input.value).toBe(PERSONAS.indexOf('winter'));
+    expect(readFileSync(join(workspace, 'CONSTITUTION.md'), 'utf8')).toBe(readFileSync(personaFile('heart', 'zh'), 'utf8'));
+    expect(dressed).toEqual([{ figure: 'coo', palette: 'winter' }, { figure: 'coo', palette: 'heart' }]);
+  }, 10_000);
+});

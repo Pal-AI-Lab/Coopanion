@@ -129,6 +129,8 @@ const fr: Translation<CoreText> = {
         : 'Tout est prêt ! Mon icône est aussi dans la zone de notification, en bas à droite de la barre des tâches ; clique dessus si tu veux changer les réglages.',
     go: "C'est parti",
     dress: "Habille-moi d'abord",
+    back: 'Retour',
+    next: 'Suivant',
     closed: "D'accord, on s'arrête là pour l'instant. Pour réentendre ma présentation, ouvre les paramètres et clique sur « Guide » dans la page Accueil.",
 
     askFirst: "Je ne suis pas encore connecté à un modèle ; ajoute une API Key pour que je puisse te parler. On utilise quel service ?",

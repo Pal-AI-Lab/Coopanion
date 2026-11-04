@@ -145,6 +145,9 @@ const en: CoreText = {
         : 'All set! My icon is in the tray at the bottom right of the taskbar too; click it to change settings.',
     go: 'Let\'s go',
     dress: 'Dress me up first',
+    /** The back button atop each step; the button of the speech model page once the model was downloaded in the introduction. */
+    back: 'Back',
+    next: 'Next',
     closed: 'OK, let\'s stop here. To hear my introduction again, open settings and click "Guide" on the Start page.',
 
     askFirst: 'I\'m not connected to a model yet; I can talk once you add an API Key. Which service should I use?',

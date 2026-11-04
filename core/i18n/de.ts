@@ -129,6 +129,8 @@ const de: Translation<CoreText> = {
         : 'Alles bereit! Mein Symbol ist auch im Infobereich unten rechts in der Taskleiste; klick darauf, um Einstellungen zu ändern.',
     go: 'Los geht’s',
     dress: 'Zieh mich erst um',
+    back: 'Zurück',
+    next: 'Weiter',
     closed: 'Okay, hören wir hier auf. Um meine Einführung noch mal zu hören, öffne die Einstellungen und klick auf der Seite Start auf „Einführung“.',
 
     askFirst: 'Ich bin noch mit keinem Modell verbunden; sobald du einen API Key einträgst, kann ich reden. Welchen Dienst soll ich nutzen?',
