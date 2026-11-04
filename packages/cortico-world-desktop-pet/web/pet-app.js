@@ -19,6 +19,7 @@ import { loadBody } from './body-host.js';
 import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
+import { runFrames } from './frame-loop.js';
 
 const $ = (s) => document.querySelector(s);
 const host = window.petHost || null;
@@ -1787,28 +1788,23 @@ function stepBackdrop(dt) {
  * While the pet window is hidden, frames come at HIDDEN_FPS: the clock, the orders, the bubbles' text and the body's
  * motion go on, so a walk still arrives and a line still runs out, but the body is not drawn, nothing on the stage is
  * placed, the screen behind is not sampled and the streaming layer gets no frames.
+ *
+ * Each frame advances the clock by the time since the frame before, in steps (frame-loop.js); the page's orders and
+ * the body take every step, and only the last one is drawn.
  */
 const RESTING_FPS = 30;
-/** The longest step a frame advances the clock and the body, in seconds; a later frame is taken as this long. */
-const MAX_STEP = .05;
-/** One frame per MAX_STEP keeps the clock on time. */
-const HIDDEN_FPS = 1 / MAX_STEP;
-/** When the next frame is due (a rAF timestamp), and the gap between frames at the current rate. */
-let last = performance.now(), dueAt = 0, gap = 0;
+/** Frames a second while the window is hidden: the World hears of an arrival within a tenth of a second. */
+const HIDDEN_FPS = 10;
 /** The last error the frame loop logged, so one that keeps recurring is reported once, not per frame. */
 let frameErr = null;
 /**
- * Frames whose timestamp was not past the one before (a zero or negative dt), and when that was last logged (ms):
+ * Frames whose timestamp was not past the one before (no time to step), and when that was last logged (ms):
  * where these timestamps come from is not known yet. Logged at most once a minute, with the count so far. The first frame is
- * left out: `last` starts at the page's clock, which may be ahead of the first frame's timestamp.
+ * left out: the loop starts its count at the page's clock, which may be ahead of the first frame's timestamp.
  */
 let stalls = 0, stallLoggedAt = -Infinity, framed = false;
-function frame(now) {
+function frame(steps, now, last) {
   const drawn = windowShown;
-  // drawn frames stop while the window is hidden or occluded, which `rendering()` reads
-  if (drawn) lastFrameAt = performance.now();
-  // a display refresh up to a quarter gap early counts as on time, so the rate averages out over refresh rates it does not divide
-  if (now < dueAt - gap / 4) { requestAnimationFrame(frame); return; }
   if (framed && now <= last) {
     stalls++;
     if (performance.now() - stallLoggedAt > 60_000) {
@@ -1817,18 +1813,20 @@ function frame(now) {
     }
   }
   framed = true;
-  const dt = Math.min(MAX_STEP, (now - last) / 1000); last = now;
   try {
-    T += dt;
-    stepActs();
-    stepDialog(dt);
-    stepTalkRead(dt);
-    stepTalkMotion();
-    stepLines();
-    stepStatus();
-    setBody({ dialogOpen: !!item || !!listen.phase });
-    body?.tick(dt, drawn);
+    steps.forEach((dt, i) => {
+      T += dt;
+      stepActs();
+      stepDialog(dt);
+      stepTalkRead(dt);
+      stepTalkMotion();
+      stepLines();
+      stepStatus();
+      setBody({ dialogOpen: !!item || !!listen.phase });
+      body?.tick(dt, drawn && i === steps.length - 1);
+    });
     if (drawn) {
+      const dt = steps.reduce((a, b) => a + b, 0);
       stepBackdrop(dt);
       stepTools();
       layout(dt);
@@ -1836,19 +1834,15 @@ function frame(now) {
       if (overlayOn) host.overlayFrame(overlayRect(), performance.timeOrigin + now);
     }
   } catch (err) {
-    // a throwing step must not take the loop with it: the next frame is only asked for below, and
+    // a throwing step must not take the loop with it: the next frame is only asked for after this returns, and
     // without it the pet freezes for good (a broken figure throws again on every frame it draws)
     const msg = err?.message ?? String(err);
     if (msg !== frameErr) { frameErr = msg; console.error(err); }
   }
   const full = drawn && (prefs.lockFrameRate || !!at()?.moving);
   // a moving rate of 0 draws on every display refresh
-  gap = full ? (prefs.frameRate > 0 ? 1000 / prefs.frameRate : 0) : 1000 / (drawn ? RESTING_FPS : HIDDEN_FPS);
-  // a frame more than a gap late starts the count again instead of drawing the missed ones back to back
-  dueAt = now - dueAt > gap ? now + gap : dueAt + gap;
-  // moving frames wait on display refreshes: a timer can wake late, which a body at rest hides and a moving one shows as stutter
-  if (full) requestAnimationFrame(frame);
-  else setTimeout(() => requestAnimationFrame(frame), Math.max(0, dueAt - gap / 4 - performance.now()));
+  return { fps: full ? prefs.frameRate : drawn ? RESTING_FPS : HIDDEN_FPS, refresh: full };
 }
 addEventListener('pagehide', reportPosition);
-requestAnimationFrame(frame);
+// drawn frames stop while the window is hidden or occluded, which `rendering()` reads
+runFrames(frame, { refreshed: () => { if (windowShown) lastFrameAt = performance.now(); } });
