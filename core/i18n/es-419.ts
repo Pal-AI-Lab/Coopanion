@@ -129,6 +129,8 @@ const es419: Translation<CoreText> = {
         : '¡Todo listo! Mi ícono también está en la bandeja, abajo a la derecha de la barra de tareas; haz clic en él para cambiar la configuración.',
     go: '¡Vamos!',
     dress: 'Primero vísteme',
+    back: 'Atrás',
+    next: 'Siguiente',
     closed: 'Bueno, lo dejamos aquí. Para volver a escuchar mi presentación, abre la configuración y haz clic en “Guía” en la página Inicio.',
 
     askFirst: 'Todavía no tengo un modelo conectado; podré hablar cuando agregues una API Key. ¿Qué servicio uso?',

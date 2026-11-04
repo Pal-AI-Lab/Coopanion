@@ -129,6 +129,8 @@ const it: Translation<CoreText> = {
         : "Tutto pronto! La mia icona è anche nell'area di notifica, in basso a destra nella barra delle applicazioni; cliccala per cambiare le impostazioni.",
     go: 'Andiamo',
     dress: 'Prima vestimi',
+    back: 'Indietro',
+    next: 'Avanti',
     closed: 'Va bene, fermiamoci qui. Per riascoltare la mia presentazione, apri le impostazioni e clicca «Guida» nella pagina Inizio.',
 
     askFirst: 'Non ho ancora un modello collegato; potrò parlare quando aggiungerai una API Key. Quale servizio uso?',
