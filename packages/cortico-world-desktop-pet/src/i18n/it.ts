@@ -129,6 +129,7 @@ const it: Translation<PetText> = {
     soundType: (name: string, file: string) => `${file} di sounds.${name} non è un .ogg, .mp3 o .wav che questa versione riproduce; il suono resta muto`,
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind vale ${kind}; questa versione conosce solo ${kinds.join(', ')}, quindi il suono resta muto`,
     soundMissing: (name: string, file: string) => `${file} di sounds.${name} non esiste; il suono resta muto`,
+    soundRepeat: (name: string, got: string, values: readonly string[]) => `sounds.${name}.repeat vale ${got}; questa versione conosce solo ${values.join(', ')}, quindi il suono viene riprodotto come overlap`,
     badWalk: (got: string) => `can.walk vale ${got}, che questa versione non conosce; considerato in grado di camminare`,
     movesNotArray: 'moves deve essere un array',
     tooManyMoves: (max: number) => `moves contiene al massimo ${max} destinazioni`,

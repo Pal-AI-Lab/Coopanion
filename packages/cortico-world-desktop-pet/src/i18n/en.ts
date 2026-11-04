@@ -150,6 +150,7 @@ const en: PetText = {
     soundType: (name: string, file: string) => `${file} of sounds.${name} is not an .ogg, .mp3 or .wav this version plays; the sound stays silent`,
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind is ${kind}; this version knows ${kinds.join(', ')} only, so the sound stays silent`,
     soundMissing: (name: string, file: string) => `${file} of sounds.${name} does not exist; the sound stays silent`,
+    soundRepeat: (name: string, got: string, values: readonly string[]) => `sounds.${name}.repeat is ${got}; this version knows ${values.join(', ')} only, so the sound plays as overlap`,
     badWalk: (got: string) => `can.walk is ${got}, which this version does not know; taken as able to walk`,
     movesNotArray: 'moves must be an array',
     tooManyMoves: (max: number) => `moves holds at most ${max} targets`,
