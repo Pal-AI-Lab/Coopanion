@@ -40,6 +40,11 @@ const MISSING_MODULE_DELAYS_MS = [3_000, 10_000, 30_000, 30_000, 30_000, 30_000,
 /** The file `--import tsx` loads: tsx's `exports['.']`. */
 const TSX_ENTRY = ['node_modules', 'tsx', 'dist', 'loader.mjs'];
 const LOG_ROTATE_BYTES = 5 * 1024 * 1024;
+/**
+ * How long stop() waits while Core reports `waiting-extensions`: Core pauses delivery for up to 2 s and waits up to
+ * 60 s for an extension install or uninstall, plus 3 s to spare. After it the shutdown countdown starts.
+ */
+const EXTENSIONS_WAIT_MS = 65_000;
 
 /** The Core's entry and the file `--import tsx` loads. */
 const startFiles = (appRoot) => [join(appRoot, 'core', 'boot.ts'), join(appRoot, ...TSX_ENTRY)];
@@ -230,8 +235,11 @@ class CoreHost extends EventEmitter {
     try { this.child?.send(msg); } catch { /* channel closing */ }
   }
 
-  /** Waits for package mutations, then allows `graceMs` for shutdown and up to 5 s for forced exit. */
-  async stop(graceMs = 35_000) {
+  /**
+   * Waits up to `extensionsMs` while Core reports an extension install or uninstall, then allows `graceMs` for
+   * shutdown and up to 5 s for forced exit.
+   */
+  async stop(graceMs = 35_000, extensionsMs = EXTENSIONS_WAIT_MS) {
     this.stopping = true;
     const child = this.child;
     if (!child) return;
@@ -241,7 +249,9 @@ class CoreHost extends EventEmitter {
       let expired;
       const arm = () => {
         clearTimeout(timer);
-        if (!waitForExtensions || this.shutdownPhase !== 'waiting-extensions') timer = setTimeout(() => expired(false), ms);
+        if (waitForExtensions && this.shutdownPhase === 'waiting-extensions') {
+          timer = setTimeout(() => { timer = setTimeout(() => expired(false), ms); }, extensionsMs);
+        } else timer = setTimeout(() => expired(false), ms);
       };
       const phase = (msg) => {
         if (msg?.type === 'cortico:shutdown' && ['waiting-extensions', 'stopping'].includes(msg.phase)) arm();
