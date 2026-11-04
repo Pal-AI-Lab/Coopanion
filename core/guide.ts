@@ -352,6 +352,13 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
   let at = '';
   let name: string | null = null;
   const transcript: string[] = [];
+  /** The answers the statistics count, one of each type, sent when the introduction ends: answering again after the back button replaces it. */
+  const answers = new Map<string, Record<string, unknown>>();
+  const answer = (type: string, fields: Record<string, unknown>) => { answers.set(type, fields); };
+  const sendAnswers = () => {
+    for (const [type, fields] of answers) deps.track?.(type, fields);
+    answers.clear();
+  };
   const step = (n: number, line: string, d: PetDialog): Promise<PetDialogAnswer> => {
     if (n > reached) { reached = n; deps.track?.('guide_step', { step: n }); }
     at = line;
@@ -386,7 +393,7 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
     let dress = false;
     const connect = connectPages((d, line) => step(5, line, d), call, deps.pet,
       () => ({ text: S.askVendor(vendorName(vendorsFor(language).shown[0]!, language)), actions: ['thinking'], step: [6, STEPS] }),
-      () => S.keyLater, () => language, (vendor) => deps.track?.('model_connected', { via: 'guide', vendor: vendor.id }));
+      () => S.keyLater, () => language, (vendor) => answer('model_connected', { via: 'guide', vendor: vendor.id }));
     const keyAlready = (k: Connection) =>
       step(5, 'key-ready', { text: S.keyAlready([k.vendor ? vendorName(k.vendor, language) : '', k.model].filter(Boolean).join(' · ')), actions: ['happy'] });
 
@@ -429,7 +436,7 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
         });
         if ('back' in src) return 'back';
         source = S.sources['index' in src ? src.index : S.sources.length - 1]?.[1] ?? 'skip';
-        deps.track?.('source', { answer: source });
+        answer('source', { answer: source });
         if (source !== 'skip') await step(1, 'source-ok', { text: S.sourceThanks, actions: ['nod'] });
         return 'answered';
       },
@@ -450,7 +457,7 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
         });
         if ('back' in p) return 'back';
         const picked = ids['index' in p ? p.index : 0] ?? 'coo';
-        deps.track?.('persona', { id: picked });
+        answer('persona', { id: picked });
         deps.pet()?.dress(PERSONA_LOOKS[picked].skin);
         if (picked !== shipped) {
           applyPersona(deps.workspace, picked, language);
@@ -524,7 +531,7 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
         });
         if ('back' in d) return 'back';
         if (!('index' in d) || d.index !== 0) {
-          deps.track?.('voice_model', { result: 'later' });
+          answer('voice_model', { result: 'later' });
           await step(6, 'voice-later', { text: S.modelLater });
           return 'answered';
         }
@@ -539,7 +546,7 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
         }
         bar?.close();
         const ready = m?.phase === 'ready';
-        deps.track?.('voice_model', { result: ready ? 'ready' : 'failed' });
+        answer('voice_model', { result: ready ? 'ready' : 'failed' });
         if (ready) await step(6, 'voice-ready', { text: S.downloaded, actions: ['love', 'hop'] });
         else await step(6, 'voice-failed', { text: S.downloadFail(m?.detail ?? '?'), actions: ['sad'] });
         return 'answered';
@@ -567,11 +574,13 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
     ];
     await walk(pages, () => S.back);
     markDone(deps.doneFile);
+    sendAnswers();
     deps.track?.('guide_finished', {});
     deps.onEnd?.({ finished: true, name, step: reached, transcript });
     if (dress) deps.openDress();
   } catch (err) {
     if (!(err instanceof Closed)) throw err;
+    sendAnswers();
     deps.track?.('guide_closed', { step: reached, at });
     markDone(deps.doneFile);
     const closed = lines(deps.language()).closed;
@@ -579,6 +588,7 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
     transcript.push(RECORD_TEXT[deps.modelLanguage?.() ?? 'zh'].coo(closed));
     deps.onEnd?.({ finished: false, name, step: reached, transcript });
   } finally {
+    sendAnswers();
     running = false;
   }
 }

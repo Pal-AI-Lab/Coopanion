@@ -8,7 +8,7 @@ import { runGuide } from '../core/guide.ts';
 import { coreText } from '../core/i18n/index.ts';
 import { PERSONAS, applyPersona, personaFile } from '../core/seed.ts';
 
-/** A pet that answers each bubble from `answers` (then closes), and the app language the config API sets. */
+/** A pet that answers each bubble from `answers` (then closes), the app language the config API sets, and the statistics sent. */
 function setup(start: Language, answers: PetDialogAnswer[], done = false, whale = true) {
   const dir = mkdtempSync(join(tmpdir(), 'guide-language-'));
   const workspace = join(dir, 'workspace');
@@ -21,6 +21,7 @@ function setup(start: Language, answers: PetDialogAnswer[], done = false, whale 
   let language = start;
   const shown: PetDialog[] = [];
   const saved: unknown[] = [];
+  const tracked: Array<[string, Record<string, unknown>]> = [];
   const pet = {
     petState: () => ({ connected: true }),
     dress: (skin: unknown) => { dressed.push(skin); },
@@ -38,8 +39,9 @@ function setup(start: Language, answers: PetDialogAnswer[], done = false, whale 
     }
     return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
   });
-  const run = runGuide({ pet: () => pet, console: 'http://127.0.0.1:1', doneFile, openDress() {}, language: () => language, workspace, whale });
-  return { run, shown, saved, workspace, dressed, posted };
+  const run = runGuide({ pet: () => pet, console: 'http://127.0.0.1:1', doneFile, openDress() {}, language: () => language, workspace, whale,
+    track: (type, fields) => { tracked.push([type, fields]); } });
+  return { run, shown, saved, workspace, dressed, posted, tracked };
 }
 
 afterEach(() => { vi.unstubAllGlobals(); });
@@ -112,9 +114,9 @@ describe('the introduction asks who Coo is', () => {
 });
 
 describe('the introduction goes back a step', () => {
-  it('shows the step answered before as it was answered, and keeps what is answered next', async () => {
+  it('shows the step answered before as it was answered, and keeps and counts what is answered last', async () => {
     const S = coreText('zh').guide;
-    const { run, shown, workspace, dressed } = setup('zh', [
+    const { run, shown, workspace, dressed, tracked } = setup('zh', [
       { index: LANGUAGES.indexOf('zh') }, { index: 0 }, { text: '小明' }, { done: true }, { index: 0 }, { done: true },
       // back from the persona cards to the source, past the line after it; another source, then a persona
       { back: true }, { index: 5 }, { done: true }, { index: PERSONAS.indexOf('winter') },
@@ -132,5 +134,7 @@ describe('the introduction goes back a step', () => {
     expect(personas[2]!.input?.kind === 'choices' && personas[2]!.input.value).toBe(PERSONAS.indexOf('winter'));
     expect(readFileSync(join(workspace, 'CONSTITUTION.md'), 'utf8')).toBe(readFileSync(personaFile('heart', 'zh'), 'utf8'));
     expect(dressed).toEqual([{ figure: 'coo', palette: 'winter' }, { figure: 'coo', palette: 'heart' }]);
+    expect(tracked.filter(([type]) => type === 'source' || type === 'persona'))
+      .toEqual([['source', { answer: S.sources[5]![1] }], ['persona', { id: 'heart' }]]);
   }, 10_000);
 });
