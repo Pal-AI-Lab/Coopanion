@@ -1410,7 +1410,7 @@ const lastPointer = { x: 0, y: 0 };
 /** Whether the page is on screen and drawing; the mouse is not taken while it is not. */
 const FRAME_STALL_MS = 1000;
 let lastFrameAt = performance.now();
-const rendering = () => document.visibilityState === 'visible' && performance.now() - lastFrameAt < FRAME_STALL_MS;
+const rendering = () => windowShown && document.visibilityState === 'visible' && performance.now() - lastFrameAt < FRAME_STALL_MS;
 /** How often the wish for the mouse is renewed; the window process's lease is longer. */
 const MOUSE_RENEW_MS = 500;
 let interactive = null, renewedAt = -Infinity;
@@ -1783,8 +1783,16 @@ function stepBackdrop(dt) {
  * Frames per second: `prefs.frameRate` while the body moves (its layout's `moving`) and always while `lockFrameRate` is on,
  * RESTING_FPS otherwise; a frame rate of 0, or one above the display's, draws on every display refresh. Each frame
  * redraws the whole figure, so the window's CPU and GPU time grows with this rate.
+ *
+ * While the pet window is hidden, frames come at HIDDEN_FPS: the clock, the orders, the bubbles' text and the body's
+ * motion go on, so a walk still arrives and a line still runs out, but the body is not drawn, nothing on the stage is
+ * placed, the screen behind is not sampled and the streaming layer gets no frames.
  */
 const RESTING_FPS = 30;
+/** The longest step a frame advances the clock and the body, in seconds; a later frame is taken as this long. */
+const MAX_STEP = .05;
+/** One frame per MAX_STEP keeps the clock on time. */
+const HIDDEN_FPS = 1 / MAX_STEP;
 /** When the next frame is due (a rAF timestamp), and the gap between frames at the current rate. */
 let last = performance.now(), dueAt = 0, gap = 0;
 /** The last error the frame loop logged, so one that keeps recurring is reported once, not per frame. */
@@ -1796,8 +1804,9 @@ let frameErr = null;
  */
 let stalls = 0, stallLoggedAt = -Infinity, framed = false;
 function frame(now) {
-  // frames stop coming while the window is hidden or occluded, which `rendering()` reads
-  lastFrameAt = performance.now();
+  const drawn = windowShown;
+  // drawn frames stop while the window is hidden or occluded, which `rendering()` reads
+  if (drawn) lastFrameAt = performance.now();
   // a display refresh up to a quarter gap early counts as on time, so the rate averages out over refresh rates it does not divide
   if (now < dueAt - gap / 4) { requestAnimationFrame(frame); return; }
   if (framed && now <= last) {
@@ -1808,7 +1817,7 @@ function frame(now) {
     }
   }
   framed = true;
-  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  const dt = Math.min(MAX_STEP, (now - last) / 1000); last = now;
   try {
     T += dt;
     stepActs();
@@ -1818,21 +1827,23 @@ function frame(now) {
     stepLines();
     stepStatus();
     setBody({ dialogOpen: !!item || !!listen.phase });
-    body?.tick(dt);
-    stepBackdrop(dt);
-    stepTools();
-    layout(dt);
-    // the frame's own time, so the layer shows frames as far apart as they were drawn
-    if (overlayOn) host.overlayFrame(overlayRect(), performance.timeOrigin + now);
+    body?.tick(dt, drawn);
+    if (drawn) {
+      stepBackdrop(dt);
+      stepTools();
+      layout(dt);
+      // the frame's own time, so the layer shows frames as far apart as they were drawn
+      if (overlayOn) host.overlayFrame(overlayRect(), performance.timeOrigin + now);
+    }
   } catch (err) {
     // a throwing step must not take the loop with it: the next frame is only asked for below, and
     // without it the pet freezes for good (a broken figure throws again on every frame it draws)
     const msg = err?.message ?? String(err);
     if (msg !== frameErr) { frameErr = msg; console.error(err); }
   }
-  const full = prefs.lockFrameRate || !!at()?.moving;
+  const full = drawn && (prefs.lockFrameRate || !!at()?.moving);
   // a moving rate of 0 draws on every display refresh
-  gap = full ? (prefs.frameRate > 0 ? 1000 / prefs.frameRate : 0) : 1000 / RESTING_FPS;
+  gap = full ? (prefs.frameRate > 0 ? 1000 / prefs.frameRate : 0) : 1000 / (drawn ? RESTING_FPS : HIDDEN_FPS);
   // a frame more than a gap late starts the count again instead of drawing the missed ones back to back
   dueAt = now - dueAt > gap ? now + gap : dueAt + gap;
   // moving frames wait on display refreshes: a timer can wake late, which a body at rest hides and a moving one shows as stutter

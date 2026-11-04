@@ -662,7 +662,11 @@ export function createPet(els, opts) {
     else pet.nextAt = T + rnd(.8, 2);
   }
 
-  function render() {
+  /**
+   * Places the body for this frame (`pet.xf`, which `layout` and the hit tests read) and, unless `draw` is false,
+   * draws it: the figure into `petG`, the shadow and the particles.
+   */
+  function render(draw = true) {
     const fc = pet._fc || FACES.neutral.f(0), fname = pet._fname || 'neutral';
     const drag = pet.mode === 'drag';
     const br = Math.sin(T * (pet.mode === 'sleep' ? 1.7 : 2.4));
@@ -676,6 +680,7 @@ export function createPet(els, opts) {
     const kx = S * pet.faceVis * sx, ky = S * sy, lean = pet.lean * pet.faceVis;
     const rot = custom?.groupTilt ? custom.groupTilt(pet.mode, pet.tilt, lean) : pet.tilt + lean;
     pet.xf = { AX, AY, ax, ay, kx, ky, rot };
+    if (!draw) return fname;
     petG.setAttribute('transform', `translate(${f(AX)} ${f(AY)}) rotate(${f(rot)}) scale(${kx.toFixed(4)} ${ky.toFixed(4)}) translate(${-ax} ${-ay})`);
 
     const legs = pet.feet.map((ft, i) => [HIPS[i][0], HIPS[i][1] + pet.low, ft[0], ft[1]]);
@@ -927,7 +932,7 @@ const SVGNS = 'http://www.w3.org/2000/svg';
  * gives the stage point to walk to for those params (bounds as `bounds()` gives them, with `minX` `maxX` `minY`);
  * null, or a target it does not name, answers the move `busy`.
  *
- * The body takes these calls from the page: step(dt), layout(), do(word), walk(x, run, id), stopWalk(id), pointer(type, p),
+ * The body takes these calls from the page: step(dt, draw), layout(), do(word), walk(x, run, id), stopWalk(id), pointer(type, p),
  * drop(p), shift(dx, dy), place(x, facing, y), move(args, id), set({ roam, hold, dialogOpen, listening, thinking, thoughtShown, status, skin, theme }),
  * cue(kind), talk(), setScheme(id, o), dispose(); `words` lists every word its do() knows.
  */
@@ -957,7 +962,7 @@ export function createBody(host, opts) {
   });
   if (start.facing === 1 || start.facing === -1) ctl.pet.facing = ctl.pet.faceVis = start.facing;
   return {
-    step(dt) { ctl.step(dt); ctl.render(); },
+    step(dt, draw = true) { ctl.step(dt); ctl.render(draw); },
     layout: ctl.layout,
     resize: ctl.resize,
     do: ctl.doWord,
