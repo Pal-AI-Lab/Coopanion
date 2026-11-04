@@ -5,7 +5,7 @@
  * Yielding to the user: before sending input, the engine waits until the user has been idle
  * for `yield.idleMs`. User activity is input newer than the engine's own last injection
  * (GetLastInputInfo) or the pointer found away from where the engine left it. Typing checks
- * again between chunks and stops as soon as the user moves in.
+ * again between chunks and stops as soon as the user moves in; a hold waits only before pressing.
  *
  * Displays are numbered from 1, left to right and then top to bottom; positions in requests and
  * results are physical pixels of one display, and the global coordinates of each platform stay in
@@ -13,10 +13,13 @@
  * displays have changed since.
  *
  * A `cancel` message is honoured at the same points: the wait for the user ends with nothing
- * sent, and typing stops between chunks of whole graphemes. A click, drag, scroll, key sequence
- * or focus that has started is sent in full, so no button or key is left held.
+ * sent, typing stops between chunks of whole graphemes, and a hold releases its keys at once. A
+ * click, drag, scroll, key sequence or focus that has started is sent in full. A button pressed by
+ * `mouseDown` stays down until `mouseUp`; `release` and the disconnect before the process exits
+ * release every key and button still down.
  */
-import type { ChildToMain, EngineRequest, InputResult, MainToChild, ScreenInfo, ScreenshotResult, Target, TypeResult, WindowEntry, Yield, ZoomResult } from './engine-ipc.ts';
+import type { Button, ChildToMain, EngineRequest, HoldResult, InputResult, MainToChild, ScreenInfo, ScreenshotResult, Target, TypeResult, WindowEntry, Yield, ZoomResult } from './engine-ipc.ts';
+import type { KeyCode } from './engine/keys.ts';
 // the operating system's own calls: Win32 on Windows, CoreGraphics and AppleScript on macOS, X11 on Linux
 const os: typeof import('./engine/win32.ts') = process.platform === 'darwin' ? await import('./engine/darwin.ts')
   : process.platform === 'linux' ? await import('./engine/linux.ts') : await import('./engine/win32.ts');
@@ -24,7 +27,7 @@ import { downscale, drawCursor, encodeJpeg, fit } from './engine/image.ts';
 import { EngineFailure } from './engine/fail.ts';
 import { crop, displayAt, layoutOf, ordered, physicalSize, toLocal, toNative, type NativeDisplay } from './engine/display.ts';
 import { UserActivity } from './engine/user-activity.ts';
-import { recordActivity, waitIdle } from './engine/wait-idle.ts';
+import { INPUT_POLL_MS, recordActivity, waitIdle } from './engine/wait-idle.ts';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const activity = new UserActivity();
@@ -88,6 +91,29 @@ function moveOn(d: NativeDisplay, x: number, y: number): void {
   os.moveTo(p.x, p.y);
 }
 
+/** What the engine pressed and has not released: the keys of a hold, the buttons of clicks, drags and mouseDown. */
+const held = { keys: [] as KeyCode[], buttons: new Set<Button>() };
+
+function press(b: Button): void {
+  os.buttonDown(b);
+  held.buttons.add(b);
+}
+
+function lift(b: Button): void {
+  os.buttonUp(b);
+  held.buttons.delete(b);
+}
+
+function releaseKeys(): void {
+  if (held.keys.length) os.keysUp(held.keys);
+  held.keys = [];
+}
+
+function releaseAll(): void {
+  releaseKeys();
+  for (const b of [...held.buttons]) lift(b);
+}
+
 async function withInput(y: Yield, cancelled: Cancelled, act: () => Promise<void> | void): Promise<InputResult> {
   const w = await waitIdle(y, cancelled, userActivity);
   if (!w.yielded && !w.cancelled) {
@@ -129,24 +155,30 @@ async function handle(req: EngineRequest, cancelled: Cancelled): Promise<unknown
       moveOn(d, req.x, req.y);
       await sleep(40);
       for (let i = 0; i < req.count; i++) {
-        os.buttonDown(req.button);
+        press(req.button);
         await sleep(15);
-        os.buttonUp(req.button);
+        lift(req.button);
         if (i < req.count - 1) await sleep(60);
       }
     }); }
     case 'drag': { const d = target(req.at); return withInput(req.yield, cancelled, async () => {
       moveOn(d, req.x1, req.y1);
       await sleep(40);
-      os.buttonDown('left');
+      press('left');
       const steps = 16;
       for (let i = 1; i <= steps; i++) {
         await sleep(16);
         moveOn(d, req.x1 + (req.x2 - req.x1) * i / steps, req.y1 + (req.y2 - req.y1) * i / steps);
       }
       await sleep(40);
-      os.buttonUp('left');
+      lift('left');
     }); }
+    case 'mouseDown': { const d = target(req.at); return withInput(req.yield, cancelled, async () => {
+      moveOn(d, req.x, req.y);
+      await sleep(40);
+      press(req.button);
+    }); }
+    case 'mouseUp': return withInput(req.yield, cancelled, () => lift(req.button));
     case 'scroll': { const d = target(req.at); return withInput(req.yield, cancelled, async () => {
       moveOn(d, req.x, req.y);
       await sleep(30);
@@ -186,6 +218,21 @@ async function handle(req: EngineRequest, cancelled: Cancelled): Promise<unknown
         await sleep(40);
       }
     });
+    case 'hold': {
+      const w = await waitIdle(req.yield, cancelled, userActivity);
+      if (w.yielded || w.cancelled) return { ...info(), ...w, heldMs: 0 } satisfies HoldResult;
+      // the user is not watched while the keys are down: on Linux the X server repeats a held key,
+      // and the repeats count in the idle time read here as the user's own keys do
+      os.keysDown(req.keys);
+      held.keys = req.keys;
+      const start = Date.now();
+      while (Date.now() - start < req.holdMs && !cancelled()) await sleep(Math.min(INPUT_POLL_MS, req.holdMs - (Date.now() - start)));
+      const heldMs = Date.now() - start;
+      releaseKeys();
+      markOwn();
+      return { ...info(), ...w, heldMs } satisfies HoldResult;
+    }
+    case 'release': return releaseAll();
     case 'windows': {
       const { list } = current();
       return os.windows().map((w): WindowEntry => {
@@ -222,4 +269,6 @@ process.on('message', (msg: MainToChild) => {
     (err: Error) => process.send?.({ id, ok: false, error: err.message, ...(err instanceof EngineFailure ? { code: err.code, args: err.args } : {}) } satisfies ChildToMain),
   ).finally(() => inFlight.delete(id));
 });
-process.on('disconnect', () => process.exit(0));
+process.on('disconnect', () => {
+  try { releaseAll(); } finally { process.exit(0); }
+});

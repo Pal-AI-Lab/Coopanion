@@ -1,6 +1,6 @@
 /**
  * Computer use, a part of the desktop-pet World while `cua.enabled` is on. Tools take screenshots, move and click the mouse,
- * scroll, type, press keys, list and focus windows. All operating-system calls run in an
+ * hold a mouse button down, scroll, type, press and hold keys, list and focus windows. All operating-system calls run in an
  * engine child process (`engine-child.ts`). A crash or an unanswered request past its deadline
  * fails that engine's calls; a timed-out engine is killed and the next call starts a fresh one.
  *
@@ -20,8 +20,10 @@
  * Every tool is interruptible. When the call's signal aborts, the tool stops at the next point
  * where no input is left half-done and its receipt says what it did: a call waiting for the
  * person's answer returns without acting (the question stays open for the turn), the engine ends
- * its wait for the user with nothing sent or stops typing between chunks, `pet_cua_wait` ends its
- * wait, and an action already sent skips the settle and the screenshot after it.
+ * its wait for the user with nothing sent, stops typing between chunks or releases held keys,
+ * `pet_cua_wait` ends its wait, and an action already sent skips the settle and the screenshot after it.
+ *
+ * When the turn ends, the engine releases every key and mouse button it still holds down.
  *
  * Receipts and the environment prompt's computer-use part are in the model-text language (`model-text.ts`).
  */
@@ -36,12 +38,12 @@ import { readTextFile } from 'cortico/core/util.ts';
 import { childExecArgv } from 'cortico/extensions/runtime.ts';
 import type { CuaConfig, PermissionLevel } from './config.ts';
 import { cuaText, type CuaText } from './i18n/index.ts';
-import { CUA_TOOL_DECLS } from './tools.ts';
+import { CUA_TOOL_DECLS, MAX_HOLD_SECONDS } from './tools.ts';
 import { isTerminal, opensRunBox } from './terminal.ts';
 import { fit } from './engine/image.ts';
 import { parseKeys } from './engine/keys.ts';
 import { MODEL_TEXT, type ModelLanguage, type ModelText } from './model-text.ts';
-import type { Answer, Button, ChildToMain, EngineRequest, InputResult, MainToChild, ScreenInfo, ScreenshotResult, Target, TypeResult, WindowEntry, Yield, ZoomResult } from './engine-ipc.ts';
+import type { Answer, Button, ChildToMain, EngineRequest, HoldResult, InputResult, MainToChild, ScreenInfo, ScreenshotResult, Target, TypeResult, WindowEntry, Yield, ZoomResult } from './engine-ipc.ts';
 
 const ENGINE_FILE = fileURLToPath(new URL('./engine-child.ts', import.meta.url));
 /** The computer-use part of the environment prompt, for each model-text language; English falls back to Chinese while its file is missing. */
@@ -84,6 +86,9 @@ interface View extends Target {
   /** Screenshot pixels per physical pixel of the display. */
   scale: number;
 }
+
+/** The `button` argument; left when absent. */
+const buttonOf = (v: unknown): Button => (v === 'right' || v === 'middle' ? v : 'left');
 
 /** The display part of an engine result. */
 const screenOf = (r: ScreenInfo): ScreenInfo => ({ displays: r.displays, layout: r.layout, cursor: r.cursor, foreground: r.foreground, foregroundApp: r.foregroundApp ?? null, foregroundDisplay: r.foregroundDisplay });
@@ -161,6 +166,7 @@ export class Cua {
   onTurnEnded(): void {
     this.permission = null;
     this.terminalPermission = null;
+    if (this.engine) void this.call({ op: 'release' }).catch((err) => this.log?.warn('一轮结束时没能松开按着的键', { error: String(err) }));
   }
 
   start(host: WorldHost): void {
@@ -235,13 +241,13 @@ export class Cua {
    * gets a cancel and the call still resolves with what the engine reports it did.
    */
   private async call<T>(req: EngineRequest, signal?: AbortSignal): Promise<T> {
-    if (req.op !== 'info' && req.op !== 'confirm') await this.permit(req.op === 'screenshot' || req.op === 'zoom' || req.op === 'windows' ? 'see' : 'act', signal);
+    if (req.op !== 'info' && req.op !== 'confirm' && req.op !== 'release') await this.permit(req.op === 'screenshot' || req.op === 'zoom' || req.op === 'windows' ? 'see' : 'act', signal);
     if (signal?.aborted) throw new Interrupted(this.t.interruptedBeforeAct);
     if (!this.engine) { this.engine = this.spawn(); this.engineExit = null; }
     const id = ++this.seq;
     const engine = this.engine;
     return new Promise<T>((done, fail) => {
-      const wait = 'yield' in req ? req.yield.maxWaitMs : req.op === 'confirm' ? req.timeoutMs : 0;
+      const wait = 'yield' in req ? req.yield.maxWaitMs + (req.op === 'hold' ? req.holdMs : 0) : req.op === 'confirm' ? req.timeoutMs : 0;
       const cancel = () => { if (engine.connected) engine.send({ cancel: id } satisfies MainToChild); };
       const unlisten = () => signal?.removeEventListener('abort', cancel);
       const timer = setTimeout(() => {
@@ -375,6 +381,8 @@ export class Cua {
       pet_cua_click: (a, s) => this.click(a, s),
       pet_cua_move: (a, s) => this.move(a, s),
       pet_cua_drag: (a, s) => this.drag(a, s),
+      pet_cua_mouse_down: (a, s) => this.mouseDown(a, s),
+      pet_cua_mouse_up: (a, s) => this.mouseUp(a, s),
       pet_cua_scroll: (a, s) => this.scroll(a, s),
       pet_cua_type: (a, s) => this.type(a, s),
       pet_cua_key: (a, s) => this.key(a, s),
@@ -503,7 +511,7 @@ export class Cua {
     if (refused) return refused;
     const p = await this.toScreen(args.x, args.y);
     if (typeof p === 'string') return { text: this.t.notRun('pet_cua_click', p), failed: true };
-    const button = (args.button === 'right' || args.button === 'middle' ? args.button : 'left') as Button;
+    const button = buttonOf(args.button);
     const count = args.clicks === 2 || args.clicks === 3 ? args.clicks : 1;
     const res = await this.call<InputResult>({ op: 'click', ...p, button, count, yield: this.yieldCfg }, signal);
     return this.after('pet_cua_click', res, signal, this.t.clicked(args.x, args.y, button, count), args);
@@ -528,6 +536,24 @@ export class Cua {
     if (typeof a === 'string' || typeof b === 'string') return { text: this.t.notRun('pet_cua_drag', typeof a === 'string' ? this.t.dragStart(a) : this.t.dragEnd(b as string)), failed: true };
     const res = await this.call<InputResult>({ op: 'drag', at: a.at, x1: a.x, y1: a.y, x2: b.x, y2: b.y, yield: this.yieldCfg }, signal);
     return this.after('pet_cua_drag', res, signal, this.t.dragged(from, to), args);
+  }
+
+  private async mouseDown(args: Args, signal?: AbortSignal): Promise<ToolOutcome> {
+    const refused = this.refuseControl('pet_cua_mouse_down');
+    if (refused) return refused;
+    const p = await this.toScreen(args.x, args.y);
+    if (typeof p === 'string') return { text: this.t.notRun('pet_cua_mouse_down', p), failed: true };
+    const button = buttonOf(args.button);
+    const res = await this.call<InputResult>({ op: 'mouseDown', ...p, button, yield: this.yieldCfg }, signal);
+    return this.after('pet_cua_mouse_down', res, signal, this.t.mouseDown(args.x, args.y, button), args);
+  }
+
+  private async mouseUp(args: Args, signal?: AbortSignal): Promise<ToolOutcome> {
+    const refused = this.refuseControl('pet_cua_mouse_up');
+    if (refused) return refused;
+    const button = buttonOf(args.button);
+    const res = await this.call<InputResult>({ op: 'mouseUp', button, yield: this.yieldCfg }, signal);
+    return this.after('pet_cua_mouse_up', res, signal, this.t.mouseUp(button), args);
   }
 
   private async scroll(args: Args, signal?: AbortSignal): Promise<ToolOutcome> {
@@ -565,11 +591,19 @@ export class Cua {
     const spec = typeof args.keys === 'string' ? args.keys : '';
     const parsed = parseKeys(spec, this.language);
     if ('error' in parsed) return { text: this.t.notRun('pet_cua_key', this.t.keyBad(parsed.error)), failed: true };
+    const hold = typeof args.hold === 'number' && Number.isFinite(args.hold) ? Math.max(0, Math.min(MAX_HOLD_SECONDS, args.hold)) : 0;
+    if (hold && parsed.chords.length > 1) return { text: this.t.notRun('pet_cua_key', this.t.holdOneChord), failed: true };
     const keys = spec.trim(), minutes = this.cfg.grantMinutes, ask = this.ui.ask.terminal;
     await this.permitTerminal(signal, (window, terminal) => (opensRunBox(parsed.chords, process.platform) ? ask.runBox(this.who, keys, minutes)
       : terminal ? ask.key(this.who, window, keys, minutes) : null));
-    const res = await this.call<InputResult>({ op: 'key', chords: parsed.chords, yield: this.yieldCfg }, signal);
-    return this.after('pet_cua_key', res, signal, this.t.pressed(spec.trim()), args);
+    if (!hold) {
+      const res = await this.call<InputResult>({ op: 'key', chords: parsed.chords, yield: this.yieldCfg }, signal);
+      return this.after('pet_cua_key', res, signal, this.t.pressed(keys), args);
+    }
+    const holdMs = Math.round(hold * 1000);
+    const res = await this.call<HoldResult>({ op: 'hold', keys: parsed.chords[0]!, holdMs, yield: this.yieldCfg }, signal);
+    const done = res.heldMs < holdMs ? this.t.heldPart(keys, (res.heldMs / 1000).toFixed(1), hold) : this.t.held(keys, hold);
+    return this.after('pet_cua_key', res, signal, done, args);
   }
 
   private async listWindows(signal: AbortSignal | undefined): Promise<WindowEntry[]> {

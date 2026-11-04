@@ -30,6 +30,13 @@ export type EngineRequest =
   | { op: 'scroll'; at: Target; x: number; y: number; down: number; right: number; yield: Yield }
   | { op: 'type'; text: string; chunkDelayMs: number; yield: Yield }
   | { op: 'key'; chords: KeyCode[][]; yield: Yield }
+  /** Presses `keys` in order, keeps them down for `holdMs` or until a cancel, then releases them in reverse. */
+  | { op: 'hold'; keys: KeyCode[]; holdMs: number; yield: Yield }
+  /** Moves to the point and presses `button`, leaving it down. */
+  | { op: 'mouseDown'; at: Target; x: number; y: number; button: Button; yield: Yield }
+  | { op: 'mouseUp'; button: Button; yield: Yield }
+  /** Releases every key and button the engine pressed and has not released; no wait for the user. */
+  | { op: 'release' }
   | { op: 'windows' }
   | { op: 'focus'; handle: string; yield: Yield }
   /** `yes` and `no` label the dialog's buttons where the system lets them be named. */
@@ -107,6 +114,11 @@ export interface TypeResult extends InputResult {
   stoppedBy: 'user' | 'cancel' | null;
 }
 
+/** `heldMs` is how long the keys stayed down, less than the `holdMs` asked for when a cancel ended the hold. */
+export interface HoldResult extends InputResult {
+  heldMs: number;
+}
+
 export interface WindowEntry {
   handle: string;
   title: string;
@@ -119,8 +131,9 @@ export interface WindowEntry {
 }
 
 /**
- * `cancel` stops request `id` at its next safe point: during the wait for the user, or between
- * typed chunks. Every other step of an op runs to its end; a cancel for a finished request is dropped.
+ * `cancel` stops request `id` at its next safe point: during the wait for the user, between
+ * typed chunks, or while a hold keeps its keys down (they are released). Every other step of an op
+ * runs to its end; a cancel for a finished request is dropped.
  */
 export type MainToChild = { id: number; req: EngineRequest } | { cancel: number };
 /** A failure the World words itself carries `code` and `args` (engine/fail.ts); `error` is the message as thrown. */

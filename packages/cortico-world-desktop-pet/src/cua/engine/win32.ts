@@ -182,6 +182,16 @@ export function chord(vks: Array<{ vk: number; extended: boolean }>): void {
   send([...vks.map((k) => key(k.vk, false, k.extended)), ...[...vks].reverse().map((k) => key(k.vk, true, k.extended))]);
 }
 
+/** Presses `vks` in order and leaves them down. */
+export function keysDown(vks: Array<{ vk: number; extended: boolean }>): void {
+  send(vks.map((k) => key(k.vk, false, k.extended)));
+}
+
+/** Releases `vks` in reverse order. */
+export function keysUp(vks: Array<{ vk: number; extended: boolean }>): void {
+  send([...vks].reverse().map((k) => key(k.vk, true, k.extended)));
+}
+
 /** Types text as Unicode key events, independent of the keyboard layout and IME state. */
 export function typeUnicode(text: string): void {
   const inputs = [];
