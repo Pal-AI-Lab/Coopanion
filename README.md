@@ -57,7 +57,7 @@ What changed in each version is in [Releases](https://github.com/Pal-AI-Lab/Coop
 
 You need:
 
-- Windows 10 / 11 (64-bit), macOS 13 or later (Apple silicon or Intel), or a 64-bit Linux desktop (X11, or XWayland under Wayland; speech recognition needs glibc 2.32 or later, which means Ubuntu 22.04, Debian 12 or newer);
+- Windows 10 / 11 (64-bit), macOS 13 or later (Apple silicon or Intel), or a 64-bit Linux desktop (X11; in a Wayland session it runs through XWayland, with the limits under [Linux](#linux); speech recognition needs glibc 2.32 or later, which means Ubuntu 22.04, Debian 12 or newer);
 - an API key from one model service, billed by usage (see [Cost and privacy](#cost-and-privacy)), or a ChatGPT account with a plan.
 
 Every release page has a `SHA256SUMS.txt` for checking the downloads.
@@ -92,6 +92,8 @@ While the App Store is in front, Coo drops behind other windows so it doesn't co
 
 > [!NOTE]
 > The pet is a transparent always-on-top window, so the desktop needs compositing (on by default in GNOME and KDE). The tray icon needs status icon support (GNOME needs the AppIndicator extension); without a tray you can still right-click Coo to open the settings. Computer use needs `xdotool` and `zenity`, which the deb pulls in; under Wayland, screenshots also need one of `grim`, `spectacle`, `scrot` or ImageMagick.
+>
+> In a Wayland session Coopanion runs through XWayland, which sees the cursor only over X11 windows. While the cursor is over the desktop or a native Wayland window, Coo's eyes do not follow it, and the hover buttons show only once the cursor moves onto Coo.
 
 ## Getting started
 

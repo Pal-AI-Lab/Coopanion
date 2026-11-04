@@ -57,7 +57,7 @@ Coopanion 是一只住在屏幕底边的桌宠，名叫 Coo。它在底边走来
 
 你需要：
 
-- Windows 10 / 11（64 位）、macOS 13 及以上（Apple 芯片和 Intel 都行），或者 64 位 Linux 桌面（X11，或 Wayland 下的 XWayland；语音识别要 glibc 2.32 及以上，也就是 Ubuntu 22.04、Debian 12 及更新的版本）；
+- Windows 10 / 11（64 位）、macOS 13 及以上（Apple 芯片和 Intel 都行），或者 64 位 Linux 桌面（X11；Wayland 会话里经 XWayland 运行，有[Linux](#linux)一节写的限制；语音识别要 glibc 2.32 及以上，也就是 Ubuntu 22.04、Debian 12 及更新的版本）；
 - 一家模型服务的 API Key，按用量付费（见[费用与隐私](#费用与隐私)），或者一个开了套餐的 ChatGPT 账号。
 
 每个版本的发布页都附有 `SHA256SUMS.txt`，可以用来核对下载的文件。
@@ -92,6 +92,8 @@ App Store 在前台时，Coo 会退到其他窗口后面，免得挡住购买时
 
 > [!NOTE]
 > 桌宠是一个透明的置顶窗口，桌面要开着窗口合成（GNOME 和 KDE 默认开着）。托盘图标要桌面支持状态栏图标（GNOME 需要装 AppIndicator 扩展）；没有托盘也能右键 Coo 打开设置。操作电脑要用到 `xdotool` 和 `zenity`，deb 会自动装上；Wayland 下截屏还需要 `grim`、`spectacle`、`scrot` 或 ImageMagick 中的一个。
+>
+> Wayland 会话里 Coopanion 经 XWayland 运行，XWayland 只在光标停在 X11 窗口上时知道光标在哪。光标在桌面或原生 Wayland 窗口上时，Coo 的眼睛不跟着它转；悬停按钮要等光标移到 Coo 身上才出现。
 
 ## 快速上手
 

@@ -7,6 +7,10 @@ contextBridge.exposeInMainWorld('petHost', {
    * The wish is a lease the window process keeps for itself (`host/mouse-lease.cjs`).
    */
   setInteractive: (on) => ipcRenderer.send('pet:interactive', !!on),
+  /** Whether the window takes the mouse only over the rects the page reports with `setInputRects` (a Wayland session); the window process ignores `setInteractive` then. */
+  onInputShape: (cb) => ipcRenderer.on('pet:inputShape', (_e, on) => cb(!!on)),
+  /** The parts of the page that take the mouse, `{ x, y, width, height }` in page pixels; a lease like `setInteractive`'s. */
+  setInputRects: (rects) => ipcRenderer.send('pet:inputRects', rects),
   focus: () => ipcRenderer.send('pet:focus'),
   /** Takes the keyboard from whatever window has it (a question's number keys), and gives it back. */
   grabFocus: () => ipcRenderer.send('pet:grabFocus'),
