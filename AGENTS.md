@@ -28,6 +28,7 @@ given memory or handed context:
 | Core child process entry: assembly, seed files, the `coopanion` World, telemetry | `core/` | `core` |
 | Settings window: Coopanion's own front end over the WebUI HTTP API | `console/` | `console` |
 | Desktop pet World, computer use included (`src/cua/`) | `packages/cortico-world-desktop-pet/` | `desktop-pet` |
+| Bilibili dialogue-to-script World, an extension not bundled into the app | `packages/cortico-world-biliscript/` | `biliscript` |
 | Model provider | `packages/cortico-provider-coo/` | `provider-coo` |
 | Build, staging and packing | `scripts/`, `installer/`, `electron-builder.yml` | `scripts`, `installer` |
 | Telemetry service | `telemetry-server/` | `telemetry-server` |
