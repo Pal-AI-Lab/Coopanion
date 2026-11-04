@@ -129,6 +129,7 @@ const zhHant: Translation<PetText> = {
     soundType: (name: string, file: string) => `sounds.${name} 的 ${file} 不是這一版能播放的 .ogg、.mp3 或 .wav，這個聲音不會響`,
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind 是 ${kind}，這一版只認得 ${kinds.join('、')}，這個聲音不會響`,
     soundMissing: (name: string, file: string) => `sounds.${name} 的 ${file} 不存在，這個聲音不會響`,
+    soundRepeat: (name: string, got: string, values: readonly string[]) => `sounds.${name}.repeat 是 ${got}，這一版只認得 ${values.join('、')}，按 overlap 播放`,
     badWalk: (got: string) => `can.walk 是 ${got}，這一版不認得，當作會走路處理`,
     movesNotArray: 'moves 應為陣列',
     tooManyMoves: (max: number) => `moves 最多 ${max} 項`,

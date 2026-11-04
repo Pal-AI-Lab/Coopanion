@@ -129,6 +129,7 @@ const ko: Translation<PetText> = {
     soundType: (name: string, file: string) => `sounds.${name}의 ${file}은(는) 이 버전이 재생할 수 있는 .ogg, .mp3, .wav가 아니므로 소리가 나지 않습니다`,
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind가 ${kind}입니다. 이 버전은 ${kinds.join(', ')}만 알기 때문에 소리가 나지 않습니다`,
     soundMissing: (name: string, file: string) => `sounds.${name}의 ${file}이(가) 없으므로 소리가 나지 않습니다`,
+    soundRepeat: (name: string, got: string, values: readonly string[]) => `sounds.${name}.repeat가 ${got}입니다. 이 버전은 ${values.join(', ')}만 알기 때문에 overlap으로 재생합니다`,
     badWalk: (got: string) => `can.walk가 ${got}인데 이 버전은 알지 못하므로 걸을 수 있는 것으로 처리합니다`,
     movesNotArray: 'moves는 배열이어야 합니다',
     tooManyMoves: (max: number) => `moves는 최대 ${max}개입니다`,

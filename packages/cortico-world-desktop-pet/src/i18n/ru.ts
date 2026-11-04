@@ -135,6 +135,7 @@ const ru: Translation<PetText> = {
     soundType: (name: string, file: string) => `${file} в sounds.${name} не является файлом .ogg, .mp3 или .wav, который эта версия может воспроизвести; звук воспроизводиться не будет`,
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind равно ${kind}; эта версия знает только ${kinds.join(', ')}, поэтому звук воспроизводиться не будет`,
     soundMissing: (name: string, file: string) => `${file} в sounds.${name} не существует; звук воспроизводиться не будет`,
+    soundRepeat: (name: string, got: string, values: readonly string[]) => `sounds.${name}.repeat равно ${got}; эта версия знает только ${values.join(', ')}, поэтому звук воспроизводится как overlap`,
     badWalk: (got: string) => `can.walk равно ${got}; эта версия такого не знает и считает, что персонаж умеет ходить`,
     movesNotArray: 'moves должен быть массивом',
     tooManyMoves: (max: number) => `в moves не больше ${max} целей`,

@@ -44,6 +44,8 @@ export const FIGURE_API_OLDEST = 2;
 export const COO = 'coo';
 /** Kinds a pack's own sounds are filed under, as web/sound.js mutes them (BODY_SOUND_KINDS). */
 export const PACK_SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk'] as const;
+/** How a sound asked for while its last play has not ended plays (`repeat`, web/sound.js): over it, after fading it out, or not at all. */
+export const SOUND_REPEATS = ['overlap', 'restart', 'finish'] as const;
 /** Data about the desktop a pack may ask for: `windows`, the windows on the pet's display and their visible top edges. */
 export const PACK_NEEDS = ['windows'] as const;
 /** The range of `voice.pitch`, and of `effects.reach` in 256-unit squares. */
@@ -98,6 +100,8 @@ export interface PackSound {
   kind: typeof PACK_SOUND_KINDS[number];
   /** 0–1, times the page's volume. */
   volume: number;
+  /** Absent: `overlap`. Never on a `talk` sound, whose syllables always overlap. */
+  repeat?: Exclude<typeof SOUND_REPEATS[number], 'overlap'>;
 }
 
 /** A number a pack's target takes: `pet_move_to` refuses one outside min–max. */
@@ -223,7 +227,8 @@ function readVocab(raw: unknown, skipped: string[], t: PackText): VocabWord[] | 
 
 /**
  * The sounds in `raw`, checked; a string says what is wrong with them. A sound whose file is not there, or
- * whose file type or kind this version does not know, is left out and named in `skipped`.
+ * whose file type or kind this version does not know, is left out and named in `skipped`; a `repeat` it does
+ * not know is named there and the sound plays as `overlap`.
  */
 function readSounds(raw: unknown, dir: string, skipped: string[], t: PackText): Record<string, PackSound> | string {
   if (raw === undefined) return {};
@@ -236,7 +241,12 @@ function readSounds(raw: unknown, dir: string, skipped: string[], t: PackText): 
     if (!AUDIO.has(extname(d.file).toLowerCase())) { skipped.push(t.soundType(name, d.file)); continue; }
     if (!PACK_SOUND_KINDS.includes(d.kind as PackSound['kind'])) { skipped.push(t.soundKind(name, JSON.stringify(d.kind), PACK_SOUND_KINDS)); continue; }
     if (!existsSync(join(dir, d.file))) { skipped.push(t.soundMissing(name, d.file)); continue; }
-    out[name] = { file: d.file, kind: d.kind as PackSound['kind'], volume: (d.volume as number | undefined) ?? 1 };
+    let repeat: PackSound['repeat'];
+    if (d.kind !== 'talk' && d.repeat !== undefined) {
+      if (!(SOUND_REPEATS as readonly unknown[]).includes(d.repeat)) skipped.push(t.soundRepeat(name, JSON.stringify(d.repeat), SOUND_REPEATS));
+      else if (d.repeat !== 'overlap') repeat = d.repeat as PackSound['repeat'];
+    }
+    out[name] = { file: d.file, kind: d.kind as PackSound['kind'], volume: (d.volume as number | undefined) ?? 1, ...(repeat ? { repeat } : {}) };
   }
   return out;
 }
@@ -281,7 +291,7 @@ function readNeeds(raw: unknown, skipped: string[], t: PackText): FigureManifest
 /**
  * The manifest at `dir`, checked; a string says what is wrong with it. `builtin`: one of the package's own
  * (only those may be `coo`). What a newer version may add, and this one does not know (a word's kind, a sound's
- * kind or file type, a value of `can` or `needs`), is left out and named in `skipped` with the sound files that are not
+ * kind, repeat or file type, a value of `can` or `needs`), is left out and named in `skipped` with the sound files that are not
  * there; the pack loads without it. Unknown fields are not read at all. What is wrong is said in the words of `t`.
  */
 export function readManifest(dir: string, builtin = false, skipped: string[] = [], t: PackText = petText().packs): FigureManifest | string {

@@ -123,10 +123,13 @@ describe('the words the model can use', () => {
   });
 });
 
-/** Runs `fn(made)` over a Web Audio that counts the tones and clips started (`made.rates`: the clips' playback rates, `made.gains`: the gain nodes, the master first). */
+/**
+ * Runs `fn(made)` over a Web Audio that counts the tones and clips started (`made.rates`: the clips' playback rates,
+ * `made.gains`: the gain nodes, the master first, `made.sources`: the clips' sources with the times they start and stop at).
+ */
 async function withAudio(fn) {
-  const made = { tones: 0, clips: 0, rates: [], gains: [] };
-  const node = () => ({ connect() {}, start() {}, stop() {}, frequency: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, gain: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, Q: {} });
+  const made = { tones: 0, clips: 0, rates: [], gains: [], sources: [] };
+  const node = () => ({ connect() {}, start() {}, stop() {}, frequency: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, gain: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {}, linearRampToValueAtTime() {} }, Q: {} });
   class Ctx {
     constructor() { this.currentTime = 0; this.state = 'running'; this.sampleRate = 8; this.destination = {}; }
     createGain() { const g = node(); made.gains.push(g); return g; }
@@ -136,7 +139,9 @@ async function withAudio(fn) {
     createBufferSource() {
       made.clips++;
       const rate = { set value(v) { made.rates.push(v); } };
-      return { ...node(), playbackRate: rate };
+      const src = { ...node(), playbackRate: rate, start(t) { src.startsAt = t; }, stop(t) { src.stopsAt = t; } };
+      made.sources.push(src);
+      return src;
     }
     createBuffer() { return { getChannelData: () => new Float32Array(8) }; }
     decodeAudioData() { return Promise.resolve({}); }
@@ -203,6 +208,29 @@ describe('what the page holds a pack to', () => {
     sfx.usePack('/packs/robot/', {}, { pitch: 1.5 });
     sfx.babble('a');
     expect(made).toMatchObject({ tones: 1, clips: 1 });
+  }));
+
+  it("a pack's sound asked for before its last play ends: restart fades that play out and starts after it, finish is not played, overlap plays over it", () => withAudio(async (made) => {
+    const sfx = createSfx({ storageKey: 'test.sfx' });
+    sfx.unlock();
+    sfx.usePack('/packs/robot/', {
+      boing: { file: 'boing.ogg', kind: 'move', volume: 1, repeat: 'restart' },
+      purr: { file: 'purr.ogg', kind: 'touch', volume: 1, repeat: 'finish' },
+      hum: { file: 'hum.ogg', kind: 'face', volume: 1 },
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    sfx.play('boing'); sfx.play('boing');
+    const [first, second] = made.sources;
+    expect(first.stopsAt).toBeGreaterThan(first.startsAt);
+    expect(second.startsAt).toBe(first.stopsAt);
+    sfx.play('purr'); sfx.play('purr');
+    expect(made.clips).toBe(3);
+    made.sources[2].onended();
+    sfx.play('purr');
+    expect(made.clips).toBe(4);
+    sfx.play('hum'); sfx.play('hum');
+    expect(made.clips).toBe(6);
+    expect(made.sources.slice(4).map((s) => s.stopsAt)).toEqual([undefined, undefined]);
   }));
 
   it("a body's box is kept to the stage and to the most the kit stretches a body", () => {
