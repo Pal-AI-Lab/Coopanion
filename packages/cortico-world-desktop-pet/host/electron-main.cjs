@@ -6,7 +6,8 @@
  * the window closes once that process exits. The window covers the work area of one display
  * (the primary one at start), short of the edge an auto-hidden taskbar waits on, is transparent
  * and always on top, and ignores the mouse until the page reports the pointer is over the figure,
- * a bubble or the menu. When the pet is carried onto
+ * a bubble or the menu. On GNOME it is a dock window instead, which goes below every window while one
+ * is full screen on its display. When the pet is carried onto
  * another display, the window moves to that display mid-drag; when its display is unplugged, it
  * moves to the primary one. A tray icon shows, hides and closes it; an embedding app that has its
  * own tray passes `tray: false`.
@@ -49,6 +50,13 @@ const WINDOWS_EVERY_MS = 700;
 const FULLSCREEN_EVERY_MS = 200;
 /** Most pixels one backdrop sample returns. */
 const BACKDROP_SAMPLES = 1500;
+/**
+ * Whether the desktop is GNOME, by XDG_CURRENT_DESKTOP, XDG_SESSION_DESKTOP or DESKTOP_SESSION. There the pet
+ * window is a dock window: mutter's window_would_be_covered() refuses focus to every new window that an
+ * always-on-top window overlaps, and the pet window covers the work area.
+ */
+const GNOME = process.platform === 'linux'
+  && ['XDG_CURRENT_DESKTOP', 'XDG_SESSION_DESKTOP', 'DESKTOP_SESSION'].some((name) => /gnome/i.test(process.env[name] ?? ''));
 
 /**
  * GDI calls for copying a small patch of the screen, or null off Windows or when koffi does not
@@ -388,11 +396,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       x: wa.x, y: wa.y, width: wa.width, height: wa.height,
       transparent: true, frame: false, resizable: false, movable: false, minimizable: false, maximizable: false,
       fullscreenable: false, skipTaskbar: true, hasShadow: false, show: false,
-      // Linux: DOCK keeps the top layer without _NET_WM_STATE_ABOVE. An ABOVE window covering the
-      // work area makes mutter's window_would_be_covered() deny focus to every new window that
-      // overlaps it (any overlap in 46.x), so terminals and other windows stay behind the pet and
-      // never get focus. See meta_window_show() in mutter's src/core/window.c.
-      ...(process.platform === 'linux' ? { type: 'dock' } : { alwaysOnTop: true }),
+      ...(GNOME ? { type: 'dock' } : { alwaysOnTop: true }),
       backgroundColor: '#00000000', title: 'Cortico',
       // Windows: Chromium-based apps treat a topmost window without WS_EX_TOOLWINDOW as covering them and stop painting while the pet takes the mouse
       ...(process.platform === 'win32' ? { type: 'toolbar' } : {}),
@@ -405,9 +409,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     cover(d);
     // Native candidate windows and Chromium popups must remain above the pet.
     const level = process.platform === 'darwin' ? 'floating' : 'screen-saver';
-    // Linux (see above): the dock window is already in the top layer, and ABOVE would put it back
-    // into mutter's focus-denial path.
-    if (process.platform !== 'linux') win.setAlwaysOnTop(true, level);
+    if (!GNOME) win.setAlwaysOnTop(true, level);
     // macOS: behind the other windows while App Store is the active application
     const appStore = createAppStoreRule({ window: win, level });
     // on every Space, and over an app in full screen
