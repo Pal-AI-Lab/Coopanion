@@ -1,0 +1,54 @@
+{
+  "name": "cortico-world-biliscript",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Cortico World: turns the dialogue of a bilibili video into a script with speakers separated (yt-dlp, faster-whisper, pyannote.audio), with character names from the bot or from a model over the OpenAI, Anthropic or Gemini protocol",
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Pal-AI-Lab/Coopanion.git",
+    "directory": "packages/cortico-world-biliscript"
+  },
+  "keywords": [
+    "cortico-world",
+    "cortico",
+    "bilibili",
+    "whisper",
+    "diarization",
+    "transcription"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.28.6",
+  "main": "./src/index.ts",
+  "cortico": {
+    "kind": "world",
+    "api": 6,
+    "displayName": "Bilibili Script",
+    "locales": {
+      "zh": {
+        "displayName": "B 站对话剧本",
+        "description": "把 B 站视频里的对话转写成区分说话人的剧本"
+      },
+      "en": {
+        "displayName": "Bilibili Script",
+        "description": "Turns the dialogue of a bilibili video into a script with speakers separated"
+      }
+    },
+    "tags": [
+      "local",
+      "external-setup",
+      "requires-key",
+      "experimental"
+    ],
+    "describe": "describe.json"
+  },
+  "files": [
+    "src",
+    "python",
+    "README.md",
+    "CHANGELOG.md",
+    "describe.json"
+  ]
+}

@@ -1,0 +1,8 @@
+# Python environment for biliscript_worker.py (Python 3.10 or later).
+# For an NVIDIA GPU, install the CUDA build of torch first, following https://pytorch.org.
+yt-dlp>=2025.1.1
+faster-whisper>=1.1.0
+# faster-whisper 1.2.1 passes an argument that PyAV 16 and later removed.
+av>=11,<16
+pyannote.audio>=3.3
+torch>=2.1

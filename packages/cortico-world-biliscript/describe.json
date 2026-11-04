@@ -1,0 +1,191 @@
+{
+  "tools": [
+    {
+      "name": "biliscript_transcribe",
+      "description": "Queue a bilibili video for transcription into a dialogue script with speakers separated. Returns the job number at once; the result arrives later as a biliscript.finished or biliscript.failed event.",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "video": {
+            "type": "string",
+            "description": "BV id, av id, video page URL or b23.tv short link."
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Part number of a multi-part video. Default: the p in the URL, else 1."
+          },
+          "speakers": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "description": "Exact number of speakers, when known. Improves separation."
+          },
+          "minSpeakers": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "maxSpeakers": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "video"
+        ]
+      },
+      "tags": [
+        "act"
+      ],
+      "summary": {
+        "zh": "把一个 B 站视频的对话转写成区分说话人的剧本,在后台排队进行。",
+        "en": "Transcribes the dialogue of a bilibili video into a script with speakers separated, queued in the background."
+      }
+    },
+    {
+      "name": "biliscript_jobs",
+      "description": "List transcription jobs with their state, stage and progress, newest first.",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "description": "Default 10."
+          }
+        }
+      },
+      "tags": [
+        "read"
+      ],
+      "summary": {
+        "zh": "列出转写任务的状态与进度。",
+        "en": "Lists transcription jobs with state and progress."
+      }
+    },
+    {
+      "name": "biliscript_read",
+      "description": "Read lines of a finished script as \"[time] Name: line\", with the cast and its line counts.",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "job": {
+            "type": "integer",
+            "description": "Job number."
+          },
+          "from": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "First line, from 1. Default 1."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 300,
+            "description": "Default 80."
+          },
+          "speaker": {
+            "type": "string",
+            "description": "Only lines of this label (S1, S2, ...)."
+          }
+        },
+        "required": [
+          "job"
+        ]
+      },
+      "tags": [
+        "read"
+      ],
+      "summary": {
+        "zh": "分页读取剧本台词。",
+        "en": "Reads script lines page by page."
+      }
+    },
+    {
+      "name": "biliscript_name_speakers",
+      "description": "Give speaker labels character names and rewrite the script file. An empty string returns a label to unnamed. Labels not listed keep their names.",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "job": {
+            "type": "integer"
+          },
+          "names": {
+            "type": "object",
+            "description": "Label → name, e.g. {\"S1\": \"Name\", \"S2\": \"\"}.",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "job",
+          "names"
+        ]
+      },
+      "tags": [
+        "write"
+      ],
+      "summary": {
+        "zh": "给说话人标签起人物名并重写剧本文件。",
+        "en": "Gives speaker labels character names and rewrites the script file."
+      }
+    },
+    {
+      "name": "biliscript_cancel",
+      "description": "Cancel a queued or running job.",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "job": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "job"
+        ]
+      },
+      "tags": [
+        "act"
+      ],
+      "summary": {
+        "zh": "取消排队中或进行中的任务。",
+        "en": "Cancels a queued or running job."
+      }
+    }
+  ],
+  "events": [
+    {
+      "type": "biliscript.finished",
+      "description": {
+        "zh": "一个转写任务完成,附人物表与开头几句。",
+        "en": "A transcription job finished, with the cast and the opening lines."
+      },
+      "trigger": "flush"
+    },
+    {
+      "type": "biliscript.failed",
+      "description": {
+        "zh": "一个转写任务失败,附失败阶段与原因。",
+        "en": "A transcription job failed, with the stage and the reason."
+      },
+      "trigger": "flush"
+    }
+  ],
+  "prompts": [
+    {
+      "key": "worlds.biliscript.envPrompt",
+      "title": "B 站对话剧本 · 环境提示词",
+      "role": "envPrompt",
+      "content": "## Bilibili dialogue scripts\n\nYou can turn the dialogue of a bilibili video into a script: `biliscript_transcribe` downloads the video's audio, recognizes the speech with Whisper, separates speakers by voice, and writes the lines as a script file in the form \"[time] Character: line\". A video takes minutes to tens of minutes, and jobs run one at a time in order; you do not need to wait after the call: `biliscript.finished` arrives when a job completes, `biliscript.failed` if it fails. `biliscript_jobs` shows progress.\n\nSpeaker separation clusters voices only: the labels S1, S2, ... are numbered by first appearance and say nothing about who is who; now and then one person is split into two labels, or two similar voices are merged into one. {{biliscript.writer}} To name them, read the lines with `biliscript_read`, judge from forms of address, self-introductions, mentions in the dialogue and the video title, then write the names into the script with `biliscript_name_speakers`; a speaker with no evidence keeps its label, and names are never invented.\n\nRecognized text can contain homophone errors, especially in names and terms; keep that in mind when quoting lines.\n\nCurrent environment: {{biliscript.setup}}\n"
+    }
+  ]
+}
