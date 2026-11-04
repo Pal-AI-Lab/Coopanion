@@ -210,6 +210,8 @@ A running World can't be deleted; stop it first. A deleted World stays under **A
 
 Provider extensions are under **Advanced mode → Model connections → Extension market**; one that a connection still uses can't be deleted until you delete that connection. Installed extensions live in the data folder and survive a reinstall of the app.
 
+If you quit the app while an extension is being installed or uninstalled, it waits for that install or uninstall to finish before quitting.
+
 ### Updates
 
 The Windows installer build and the AppImage download new versions in the background, and Coo asks whether to restart and update when one is ready. Choose **Later** and it installs when you quit. To stop automatic updates, turn off **Habits → General → Automatic updates**: Coopanion then stops checking and downloading, and an update that was already downloaded is not installed.

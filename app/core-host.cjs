@@ -40,6 +40,11 @@ const MISSING_MODULE_DELAYS_MS = [3_000, 10_000, 30_000, 30_000, 30_000, 30_000,
 /** The file `--import tsx` loads: tsx's `exports['.']`. */
 const TSX_ENTRY = ['node_modules', 'tsx', 'dist', 'loader.mjs'];
 const LOG_ROTATE_BYTES = 5 * 1024 * 1024;
+/**
+ * How long stop() waits while Core reports `waiting-extensions`: Core pauses delivery for up to 2 s and waits up to
+ * 60 s for an extension install or uninstall, plus 3 s to spare. After it the shutdown countdown starts.
+ */
+const EXTENSIONS_WAIT_MS = 65_000;
 
 /** The Core's entry and the file `--import tsx` loads. */
 const startFiles = (appRoot) => [join(appRoot, 'core', 'boot.ts'), join(appRoot, ...TSX_ENTRY)];
@@ -63,6 +68,7 @@ class CoreHost extends EventEmitter {
     this.stopping = false;
     /** The console asked for a shutdown through the WebUI: the child's exit is intentional. */
     this.shutdownAsked = false;
+    this.shutdownPhase = null;
     this.crashes = [];
     /** ERR_MODULE_NOT_FOUND exits before ready since the last ready child: the index into MISSING_MODULE_DELAYS_MS. */
     this.missingModuleExits = 0;
@@ -106,6 +112,7 @@ class CoreHost extends EventEmitter {
     this.state = 'starting';
     this.restartAsked = false;
     this.shutdownAsked = false;
+    this.shutdownPhase = null;
     this.emit('state', this.state);
     child.on('message', (msg) => {
       if (msg?.type === 'companion:ready') {
@@ -132,6 +139,8 @@ class CoreHost extends EventEmitter {
         this.blocked = { kind: 'ports-busy', from: msg.from, to: msg.to };
       } else if (msg?.type === 'cortico:restart') {
         this.restartAsked = true;
+      } else if (msg?.type === 'cortico:shutdown' && ['waiting-extensions', 'stopping'].includes(msg.phase)) {
+        this.shutdownPhase = msg.phase;
       } else if (msg?.type === 'companion:open') {
         this.emit('open', typeof msg.path === 'string' ? msg.path : '');
       } else if (msg?.type === 'companion:hide') {
@@ -226,21 +235,36 @@ class CoreHost extends EventEmitter {
     try { this.child?.send(msg); } catch { /* channel closing */ }
   }
 
-  /** Asks for a clean shutdown, then forces termination after `graceMs` and waits up to 5 s for exit. */
-  async stop(graceMs = 12_000) {
+  /**
+   * Waits up to `extensionsMs` while Core reports an extension install or uninstall, then allows `graceMs` for
+   * shutdown and up to 5 s for forced exit.
+   */
+  async stop(graceMs = 35_000, extensionsMs = EXTENSIONS_WAIT_MS) {
     this.stopping = true;
     const child = this.child;
     if (!child) return;
     const exited = new Promise((r) => child.once('exit', r));
-    const within = (ms) => {
+    const within = (ms, waitForExtensions = false) => {
       let timer;
+      let expired;
+      const arm = () => {
+        clearTimeout(timer);
+        if (waitForExtensions && this.shutdownPhase === 'waiting-extensions') {
+          timer = setTimeout(() => { timer = setTimeout(() => expired(false), ms); }, extensionsMs);
+        } else timer = setTimeout(() => expired(false), ms);
+      };
+      const phase = (msg) => {
+        if (msg?.type === 'cortico:shutdown' && ['waiting-extensions', 'stopping'].includes(msg.phase)) arm();
+      };
+      if (waitForExtensions) child.on('message', phase);
       return Promise.race([
         exited.then(() => true),
-        new Promise((r) => { timer = setTimeout(() => r(false), ms); }),
-      ]).finally(() => clearTimeout(timer));
+        new Promise((r) => { expired = r; arm(); }),
+      ]).finally(() => { clearTimeout(timer); child.off('message', phase); });
     };
+    const stopping = within(graceMs, true);
     try { child.send({ type: 'companion:shutdown' }); } catch { /* channel already closed */ }
-    if (await within(graceMs)) return;
+    if (await stopping) return;
     // Core treats SIGTERM as another shutdown request and ignores it once shutdown is under way.
     child.kill('SIGKILL');
     if (await within(5000)) return;
