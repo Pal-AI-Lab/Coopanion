@@ -106,6 +106,8 @@ importers:
         specifier: 0.128.0
         version: 0.128.0
 
+  packages/cortico-world-biliscript: {}
+
   packages/cortico-world-desktop-pet:
     dependencies:
       cortico-provider-coo:

@@ -3,7 +3,9 @@
   "compilerOptions": { "lib": ["ES2022", "DOM", "DOM.Iterable"] },
   "include": [
     "packages/cortico-world-desktop-pet/src/**/*.ts",
-    "packages/cortico-world-desktop-pet/tests/**/*.ts"
+    "packages/cortico-world-desktop-pet/tests/**/*.ts",
+    "packages/cortico-world-biliscript/src/**/*.ts",
+    "packages/cortico-world-biliscript/tests/**/*.ts"
   ],
   "exclude": ["node_modules", "packages/cortico-world-desktop-pet/tests/cua/e2e"]
 }
