@@ -40,7 +40,7 @@ const it: Translation<CuaText> = {
     grantMinutes: { title: 'Un sì vale', suffix: 'min', description: 'Per ask-once e per la domanda a parte sui terminali.' },
     skipTerminalAsk: { title: 'Disattiva la domanda prima del terminale e di Esegui', description: 'Se attivo, scrivere o premere tasti in un terminale e win+r non hanno più una domanda a parte e seguono «Quando chiederti» come ogni altra azione. Con never-ask, Coo può eseguire comandi senza chiederti.' },
     userIdleMs: { title: 'Lasciarti il passo per', description: 'Dopo che hai usato mouse o tastiera, aspetta che restino inattivi per questo tempo.' },
-    maxYieldWaitMs: { title: 'Attesa massima per te' },
+    maxYieldWaitMs: { title: 'Attesa massima per te', description: "Se dopo questo tempo stai ancora usando mouse o tastiera, l'azione non viene eseguita. Con 0 non c'è attesa." },
     maxWidth: { title: 'Larghezza massima screenshot' },
     maxHeight: { title: 'Altezza massima screenshot' },
     quality: { title: 'Qualità screenshot' },
