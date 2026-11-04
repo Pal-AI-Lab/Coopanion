@@ -8,10 +8,16 @@ import { baseLanguage, systemLanguage } from 'cortico/core/language.ts';
 
 export type ModelLanguage = 'zh' | 'en';
 
+/** What `biliscript_worker.py check` reports. */
 export interface SetupFacts {
   python: string;
   modules: Record<string, string | null>;
-  cuda: boolean;
+  /** First GPU nvidia-smi lists; null without one. */
+  gpu: string | null;
+  asrDevice: 'cuda' | 'cpu';
+  diarizationDevice: 'cuda' | 'cpu';
+  /** Why a present GPU goes unused, in English. */
+  problems: string[];
 }
 
 export interface JobLine {
@@ -58,18 +64,27 @@ const zh = {
   opening: (n: number, total: number) => (n < total ? `开头 ${n} 句:` : '全部台词:'),
   failed: (id: number, ref: string, stage: string, message: string) =>
     `#${id} ${ref} 在${STAGE_ZH[stage] ?? stage}阶段失败:${message}`,
+  devices: (asr: string, diarization: string | null) =>
+    `运行设备:语音识别 ${asr}${diarization ? `,说话人区分 ${diarization}` : ''}。`,
   workerExited: (code: number | null, tail: string) => `转写进程退出(代码 ${code ?? '无'}),没有给出结果。${tail ? `最后的输出:\n${tail}` : ''}`,
   restarted: '进程重启时任务被中断。',
   pythonNotFound: (cmd: string, reason: string) => `无法启动 Python(${cmd}):${reason}`,
   setupChecking: '正在检查 Python 环境。',
   setupOk: (f: SetupFacts) =>
-    `Python ${f.python},${Object.entries(f.modules).map(([k, v]) => `${k} ${v}`).join(',')};${f.cuda ? '可以用 CUDA' : '没有可用的 CUDA,在 CPU 上转写,较慢'}。`,
+    `Python ${f.python},${Object.entries(f.modules).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(',')}。` +
+    `语音识别在${DEVICE_ZH(f.asrDevice, f.gpu)}上运行,说话人区分在${DEVICE_ZH(f.diarizationDevice, f.gpu)}上运行` +
+    `${f.asrDevice === 'cpu' ? ',CPU 上转写一个视频要比视频本身长得多' : ''}。` +
+    (f.problems.length ? `检查发现:${f.problems.join(';')}。` : ''),
   setupMissing: (f: SetupFacts, missing: string[]) =>
     `Python ${f.python} 缺少 ${missing.join('、')},转写会失败,需要操作者在这个 Python 里安装 python/requirements.txt。`,
   setupFailed: (reason: string) => `Python 环境检查失败:${reason}。转写会失败,需要操作者在设置里修改 Python 路径。`,
   writerBot: '转写完成后说话人只有 S1、S2 这样的标签,人物名由你判断。',
+  writerDeployment: '转写完成后,这个 World 用你当前所用的模型推断人物名、修订错字,依据写在事件里;你可以覆盖它给的名字。',
   writerEndpoint: (model: string) => `转写完成后由 ${model} 推断人物名并修订错字;你可以覆盖它给的名字。`,
 };
+
+const DEVICE_ZH = (device: 'cuda' | 'cpu', gpu: string | null): string =>
+  device === 'cuda' ? ` GPU(${gpu ?? 'CUDA'})` : ' CPU ';
 
 const STATE_ZH: Record<string, string> = { queued: '排队中', running: '进行中', done: '完成', failed: '失败', cancelled: '取消' };
 const STAGE_ZH: Record<string, string> = {
@@ -109,16 +124,23 @@ const en: typeof zh = {
   files: (md) => `Script file: ${md}`,
   opening: (n, total) => (n < total ? `First ${n} lines:` : 'All lines:'),
   failed: (id, ref, stage, message) => `#${id} ${ref} failed during ${stage}: ${message}`,
+  devices: (asr, diarization) => `Devices: speech recognition ${asr}${diarization ? `, speaker separation ${diarization}` : ''}.`,
   workerExited: (code, tail) => `The transcription process exited (code ${code ?? 'none'}) without a result.${tail ? ` Last output:\n${tail}` : ''}`,
   restarted: 'The job was interrupted by a process restart.',
   pythonNotFound: (cmd, reason) => `Cannot start Python (${cmd}): ${reason}`,
   setupChecking: 'The Python environment is being checked.',
   setupOk: (f) =>
-    `Python ${f.python}, ${Object.entries(f.modules).map(([k, v]) => `${k} ${v}`).join(', ')}; ${f.cuda ? 'CUDA is available' : 'no CUDA, transcription runs on the CPU and is slow'}.`,
+    `Python ${f.python}, ${Object.entries(f.modules).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(', ')}. ` +
+    `Speech recognition runs on ${f.asrDevice === 'cuda' ? `the GPU (${f.gpu ?? 'CUDA'})` : 'the CPU'}, ` +
+    `speaker separation on ${f.diarizationDevice === 'cuda' ? `the GPU (${f.gpu ?? 'CUDA'})` : 'the CPU'}` +
+    `${f.asrDevice === 'cpu' ? '; on the CPU a video takes much longer to transcribe than it lasts' : ''}.` +
+    (f.problems.length ? ` The check found: ${f.problems.join('; ')}.` : ''),
   setupMissing: (f, missing) =>
     `Python ${f.python} lacks ${missing.join(', ')}; transcription will fail until the operator installs python/requirements.txt into this Python.`,
   setupFailed: (reason) => `The Python environment check failed: ${reason}. Transcription will fail until the operator fixes the Python path in the settings.`,
   writerBot: 'Finished scripts label speakers S1, S2, ...; naming the characters is up to you.',
+  writerDeployment:
+    'Finished scripts get character names and text corrections from the model you are running on, with its evidence in the event; you can override its names.',
   writerEndpoint: (model) => `Finished scripts get character names and text corrections from ${model}; you can override its names.`,
 };
 

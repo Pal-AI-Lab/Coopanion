@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ToolCallContext, ToolDef } from 'cortico/core/types.ts';
 import { dryMountWorld } from 'cortico/extensions/dry-mount.ts';
+import { registerProviderModules } from 'cortico/providers/registry.ts';
 import { BILISCRIPT } from '../src/definition.ts';
 import { BILISCRIPT_DEFAULTS, BILISCRIPT_SECRETS, type BiliScriptConfigSection } from '../src/config.ts';
 import { modelText } from '../src/model-text.ts';
@@ -12,10 +13,20 @@ import type { Script } from '../src/script.ts';
 import { BiliScriptWorld, type BiliScriptWorldOptions } from '../src/world.ts';
 import { FakeHost } from './helpers/fake-host.ts';
 import { startChatServer } from './helpers/chat-server.ts';
+import { SCRIPTED_KIND, scriptedProvider } from './helpers/scripted-provider.ts';
 
 const FAKE_WORKER = fileURLToPath(new URL('./helpers/fake-worker.mjs', import.meta.url));
 const t = modelText('zh');
 const call = {} as ToolCallContext;
+
+/** Replies of the scripted deployment model: a cast for naming requests, one correction otherwise. */
+const scripted = scriptedProvider((request) => {
+  const user = JSON.stringify(request.input);
+  return user.includes('Speaker labels')
+    ? JSON.stringify({ S1: { name: '老王', evidence: '自我介绍' }, S2: { name: '主持人', evidence: '称呼对方王老师' } })
+    : '[{"n": 3, "text": "聊聊机器学习吧。"}]';
+});
+registerProviderModules([scripted.module]);
 
 let dataDir: string;
 let world: BiliScriptWorld | null = null;
@@ -30,12 +41,17 @@ afterEach(async () => {
   rmSync(dataDir, { recursive: true, force: true });
 });
 
-function makeWorld(over: Partial<BiliScriptWorldOptions> = {}, cfg: Partial<BiliScriptConfigSection> = {}) {
+const BOT_WRITER = { ...BILISCRIPT_DEFAULTS.writer, mode: 'bot' as const };
+
+function makeWorld(over: Partial<BiliScriptWorldOptions> = {}, cfg: Partial<BiliScriptConfigSection> = { writer: BOT_WRITER }) {
   const secrets: Record<string, string> = { [BILISCRIPT_SECRETS.hfToken]: 'hf-test', [BILISCRIPT_SECRETS.biliCookie]: 'abc' };
   world = new BiliScriptWorld({
     cfg: { ...structuredClone(BILISCRIPT_DEFAULTS), ...cfg },
     timezone: 'Asia/Shanghai',
     dataDir,
+    botDir: join(dataDir, 'bot'),
+    repoRoot: dataDir,
+    providersDirs: [join(dataDir, 'providers')],
     secret: (n) => secrets[n] ?? '',
     workerCommand: () => ({ command: process.execPath, args: [FAKE_WORKER] }),
     language: 'zh',
@@ -67,6 +83,8 @@ describe('BiliScript World', () => {
     const e = host.events[0];
     expect(e.type).toBe('biliscript.finished');
     expect(e.text).toContain('[00:01] S1：大家好,我是老王。');
+    expect(e.text).toContain(t.devices('cpu', null));
+    expect(e.text).toContain('GPU transcription failed (RuntimeError: test); ran on the CPU');
     const md = readFileSync(join(dataDir, 'biliscript', '1', 'script.md'), 'utf8');
     expect(md).toContain('[00:04] S2：王老师好,今天聊什么?');
     const seen = JSON.parse(readFileSync(join(dataDir, 'biliscript', '1', 'seen-env.json'), 'utf8'));
@@ -187,10 +205,51 @@ describe('BiliScript World', () => {
     expect(host.events[0].text).toContain(t.writerUnset);
   });
 
+  it('deployment mode names speakers and corrects text with the active endpoint, its key and its model', async () => {
+    mkdirSync(join(dataDir, 'bot'), { recursive: true });
+    writeFileSync(join(dataDir, 'bot', 'config.json'), JSON.stringify({ activeProvider: 'main' }));
+    mkdirSync(join(dataDir, 'providers', 'main'), { recursive: true });
+    writeFileSync(
+      join(dataDir, 'providers', 'main', 'config.json'),
+      JSON.stringify({ kind: SCRIPTED_KIND, baseUrl: 'http://127.0.0.1:9', secret: 'MAIN_KEY', spec: { model: 'scripted-model', thinking: false } }),
+    );
+    writeFileSync(join(dataDir, 'providers', 'main', '.env'), 'MAIN_KEY=sk-from-endpoint\n');
+    scripted.calls.length = 0;
+    const w = makeWorld({}, { writer: { ...BILISCRIPT_DEFAULTS.writer, mode: 'deployment' } });
+    const host = new FakeHost();
+    await w.start(host);
+    await tool(w, 'biliscript_transcribe').handler({ video: 'BV1xx411c7mD' }, call);
+    await expect.poll(() => host.events.length).toBe(1);
+    expect(scripted.calls).toHaveLength(2);
+    expect(scripted.calls.map((c) => c.apiKey)).toEqual(['sk-from-endpoint', 'sk-from-endpoint']);
+    expect(scripted.calls[0].request.model).toBe('scripted-model');
+    expect((scripted.calls[0].request.input as Array<{ role?: string }>).map((i) => i.role)).toEqual(['system', 'user']);
+    expect(host.usage.map((u) => u.model)).toEqual(['scripted-model', 'scripted-model']);
+    expect(host.usage[0].usage.promptTokens).toBe(100);
+    expect(host.events[0].text).toContain('S1=老王');
+    expect(host.events[0].text).toContain(t.polished(1, 'scripted-model (main)'));
+    const script = JSON.parse(readFileSync(join(dataDir, 'biliscript', '1', 'script.json'), 'utf8')) as Script;
+    expect(script.names).toEqual({ S1: '老王', S2: '主持人' });
+    expect(script.nameSource).toEqual({ S1: 'model', S2: 'model' });
+  });
+
+  it('deployment mode without an active endpoint finishes with labels and says why', async () => {
+    const w = makeWorld({}, { writer: { ...BILISCRIPT_DEFAULTS.writer, mode: 'deployment' } });
+    const host = new FakeHost();
+    await w.start(host);
+    await tool(w, 'biliscript_transcribe').handler({ video: 'BV1xx411c7mD' }, call);
+    await expect.poll(() => host.events.length).toBe(1);
+    expect(host.events[0].text).toContain(t.writerFailed(`${join(dataDir, 'bot', 'config.json')} names no active model endpoint (activeProvider)`));
+    expect(host.events[0].text).toContain('S1 (2 句, 未命名)');
+  });
+
   it('the environment prompt reports the Python check', async () => {
     const w = makeWorld();
     await w.checkSetup();
-    expect(w.envPromptVars()['biliscript.setup']).toContain('Python 3.11.0');
+    const setup = w.envPromptVars()['biliscript.setup'];
+    expect(setup).toContain('Python 3.11.0');
+    expect(setup).toContain('GPU(Test GPU)');
+    expect(setup).toContain('torch 2.0 is a CPU-only build');
     expect(existsSync(join(dataDir, 'biliscript'))).toBe(false);
   });
 });

@@ -23,7 +23,8 @@ export interface ScriptLine {
   asrText?: string;
 }
 
-export type NameSource = 'bot' | 'endpoint';
+/** Who gave a name: the bot through its tool, or the writer model. */
+export type NameSource = 'bot' | 'model';
 
 export interface Script {
   video: VideoInfo;

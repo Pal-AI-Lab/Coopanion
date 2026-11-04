@@ -8,7 +8,16 @@ const [cmd, jobFile] = process.argv.slice(2);
 const mode = process.env.FAKE_WORKER_MODE ?? 'ok';
 
 if (cmd === 'check') {
-  emit({ kind: 'check', python: '3.11.0', modules: { 'yt-dlp': '1', 'faster-whisper': '1', 'pyannote.audio': '3', torch: '2' }, cuda: false });
+  emit({
+    kind: 'check',
+    python: '3.11.0',
+    modules: { 'yt-dlp': '1', 'faster-whisper': '1', 'pyannote.audio': '3', torch: '2' },
+    cuda: true,
+    gpu: 'Test GPU',
+    asrDevice: 'cuda',
+    diarizationDevice: 'cpu',
+    problems: ['torch 2.0 is a CPU-only build; speaker separation runs on the CPU'],
+  });
   process.exit(0);
 }
 const job = JSON.parse(readFileSync(jobFile, 'utf8'));
@@ -28,6 +37,9 @@ if (mode === 'hang') {
   const video = { title: '测试视频', uploader: 'UP', durationSec: 75, webpageUrl: job.url, id: 'BV1xx411c7mD' };
   emit({ kind: 'video', video });
   emit({ kind: 'stage', stage: 'asr' });
+  emit({ kind: 'device', stage: 'asr', device: 'cuda' });
+  emit({ kind: 'notice', stage: 'asr', message: 'GPU transcription failed (RuntimeError: test); ran on the CPU' });
+  emit({ kind: 'device', stage: 'asr', device: 'cpu' });
   emit({ kind: 'progress', stage: 'asr', done: 40, total: 75 });
   emit({ kind: 'stage', stage: 'diarization' });
   const transcript = {

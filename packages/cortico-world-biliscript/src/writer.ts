@@ -1,9 +1,11 @@
 /**
- * The World's own model, used when `writer.mode` is `endpoint`: names speakers from what they say
- * and corrects recognition errors chunk by chunk. Three wire protocols cover most services:
+ * Character naming and text correction by a model: names speakers from what they say and corrects
+ * recognition errors chunk by chunk. Replies are parsed as JSON; anything that does not parse or
+ * names unknown lines is dropped, and the transcript keeps its recognized text.
+ *
+ * `createChatClient` speaks to a separately configured service over one of three wire protocols:
  * OpenAI Chat Completions (and every service compatible with it), Anthropic Messages and Gemini
- * generateContent. Replies are parsed as JSON; anything that does not parse or names unknown lines
- * is dropped, and the transcript keeps its recognized text.
+ * generateContent. `deployment-model.ts` supplies the client for the deployment's own endpoint.
  */
 import type { LLMUsage } from 'cortico/core/types.ts';
 import type { WriterProtocol } from './config.ts';
@@ -14,14 +16,10 @@ export interface ChatRequest {
   user: string;
 }
 
-export interface ChatReply {
-  text: string;
-  usage: LLMUsage;
-}
-
+/** One model; it reports the usage of every request itself. */
 export interface ChatClient {
   readonly model: string;
-  chat(req: ChatRequest): Promise<ChatReply>;
+  chat(req: ChatRequest, signal?: AbortSignal): Promise<string>;
 }
 
 export interface EndpointOptions {
@@ -31,7 +29,13 @@ export interface EndpointOptions {
   apiKey: string;
   maxTokens: number;
   timeoutMs: number;
+  onUsage(usage: LLMUsage): void;
   fetchImpl?: typeof fetch;
+}
+
+interface ChatReply {
+  text: string;
+  usage: LLMUsage;
 }
 
 const usage = (prompt: unknown, completion: unknown): LLMUsage => ({
@@ -104,17 +108,20 @@ export function createChatClient(o: EndpointOptions): ChatClient {
   const fetchImpl = o.fetchImpl ?? fetch;
   return {
     model: o.model,
-    async chat(req) {
+    async chat(req, signal) {
       const w = wire(o, req);
+      const timeout = AbortSignal.timeout(o.timeoutMs);
       const res = await fetchImpl(w.url, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...w.headers },
         body: JSON.stringify(w.body),
-        signal: AbortSignal.timeout(o.timeoutMs),
+        signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
       });
       const raw = await res.text();
       if (!res.ok) throw new Error(`${o.protocol} ${w.url} answered ${res.status}: ${raw.slice(0, 300)}`);
-      return w.read(JSON.parse(raw));
+      const reply = w.read(JSON.parse(raw));
+      o.onUsage(reply.usage);
+      return reply.text;
     },
   };
 }
@@ -162,7 +169,7 @@ export async function nameSpeakers(
   video: VideoInfo,
   speakers: readonly string[],
   lines: readonly ScriptLine[],
-  onUsage: (u: LLMUsage) => void,
+  signal?: AbortSignal,
 ): Promise<Naming> {
   const body: string[] = [];
   let size = 0;
@@ -179,9 +186,7 @@ export async function nameSpeakers(
     body.length < lines.length ? `Transcript (first ${body.length} of ${lines.length} lines):` : 'Transcript:',
     body.join('\n'),
   ].filter(Boolean).join('\n');
-  const reply = await client.chat({ system: NAMING_SYSTEM, user });
-  onUsage(reply.usage);
-  const parsed = parseJsonReply(reply.text);
+  const parsed = parseJsonReply(await client.chat({ system: NAMING_SYSTEM, user }, signal));
   const names: Record<string, string> = {};
   const evidence: Record<string, string> = {};
   if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
@@ -217,7 +222,6 @@ export async function polishLines(
   client: ChatClient,
   video: VideoInfo,
   lines: readonly ScriptLine[],
-  onUsage: (u: LLMUsage) => void,
   signal?: AbortSignal,
 ): Promise<PolishResult> {
   const texts = new Map<number, string>();
@@ -234,9 +238,8 @@ export async function polishLines(
       i++;
     }
     try {
-      const reply = await client.chat({ system: POLISH_SYSTEM, user: `Video: ${video.title}\n\n${rows.join('\n')}` });
-      onUsage(reply.usage);
-      const parsed = parseJsonReply(reply.text);
+      const reply = await client.chat({ system: POLISH_SYSTEM, user: `Video: ${video.title}\n\n${rows.join('\n')}` }, signal);
+      const parsed = parseJsonReply(reply);
       if (!Array.isArray(parsed)) throw new Error('reply is not a JSON array');
       for (const item of parsed) {
         const n = Number((item as { n?: unknown })?.n) - 1;

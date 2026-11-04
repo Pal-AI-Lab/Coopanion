@@ -4,7 +4,7 @@ import { uiText } from './strings.ts';
 
 export const BILISCRIPT_ID = 'biliscript';
 
-export type WriterMode = 'bot' | 'endpoint';
+export type WriterMode = 'deployment' | 'endpoint' | 'bot';
 export type WriterProtocol = 'openai' | 'anthropic' | 'gemini';
 
 /** config.json 的 worlds.biliscript 段。 */
@@ -33,13 +33,16 @@ export interface BiliScriptConfigSection {
     model: string;
   };
   writer: {
-    /** bot:说话人由 bot 命名;endpoint:由下面配置的模型命名并修订文字。 */
+    /**
+     * deployment:用部署当前选用的模型端点(activeProvider)命名并修订文字;endpoint:用下面单独配置的模型;
+     * bot:剧本交给 bot,由它命名。
+     */
     mode: WriterMode;
     protocol: WriterProtocol;
     baseUrl: string;
     model: string;
     maxTokens: number;
-    /** endpoint 模式下逐段修订错字与标点,原文保留在 script.json。 */
+    /** deployment 与 endpoint 模式下逐段修订错字与标点,原文保留在 script.json。 */
     polish: boolean;
     timeoutSec: number;
   };
@@ -63,7 +66,7 @@ export const BILISCRIPT_DEFAULTS: BiliScriptConfigSection = {
     model: 'pyannote/speaker-diarization-3.1',
   },
   writer: {
-    mode: 'bot',
+    mode: 'deployment',
     protocol: 'openai',
     baseUrl: '',
     model: '',
@@ -77,7 +80,7 @@ export const BILISCRIPT_DEFAULTS: BiliScriptConfigSection = {
 export const BILISCRIPT_SECRETS = {
   /** 说话人区分模型在 Hugging Face 上需要的访问令牌。 */
   hfToken: 'BILISCRIPT_HF_TOKEN',
-  /** writer.mode 为 endpoint 时模型服务的密钥。 */
+  /** writer.mode 为 endpoint 时单独配置的模型服务的密钥。 */
   llmApiKey: 'BILISCRIPT_LLM_API_KEY',
   /** 可选的 B 站 Cookie(整串,或只填 SESSDATA 的值),用于需要登录的视频。 */
   biliCookie: 'BILISCRIPT_BILI_COOKIE',
@@ -106,7 +109,7 @@ export function biliScriptConfigGroup(language: Language): ConfigGroup {
         [`${p}diarization.model`]: { type: 'string', title: t.diarizationModelTitle },
         [`${p}writer.mode`]: {
           type: 'string',
-          enum: ['bot', 'endpoint'],
+          enum: ['deployment', 'endpoint', 'bot'],
           title: t.writerModeTitle,
           description: t.writerModeDesc,
         },

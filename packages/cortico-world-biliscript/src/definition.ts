@@ -11,6 +11,8 @@ export const BILISCRIPT: WorldDefinition<BiliScriptConfigSection> = {
       cfg: ctx.cfg,
       timezone: ctx.timezone,
       dataDir: ctx.dataDir,
+      botDir: ctx.botDir,
+      repoRoot: ctx.repoRoot,
       secret: (name) => ctx.secret(name),
     }),
   describe: {

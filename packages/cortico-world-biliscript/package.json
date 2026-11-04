@@ -2,7 +2,7 @@
   "name": "cortico-world-biliscript",
   "version": "0.1.0",
   "type": "module",
-  "description": "Cortico World: turns the dialogue of a bilibili video into a script with speakers separated (yt-dlp, faster-whisper, pyannote.audio), with character names from the bot or from a model over the OpenAI, Anthropic or Gemini protocol",
+  "description": "Cortico World: turns the dialogue of a bilibili video into a script with speakers separated (yt-dlp, faster-whisper, pyannote.audio), with character names from the bot's own model endpoint, a separately configured model or the bot",
   "license": "AGPL-3.0-or-later",
   "repository": {
     "type": "git",

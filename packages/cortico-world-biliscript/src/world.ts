@@ -1,7 +1,8 @@
 /**
  * Bilibili video dialogue → script. A job runs `python/biliscript_worker.py` (yt-dlp download,
  * faster-whisper recognition, pyannote.audio diarization, word-level alignment) in a child process,
- * then optionally asks the World's own model to name speakers and correct the text. Jobs run one at
+ * then has a model name speakers and correct the text (`writer.mode`: the deployment's active endpoint,
+ * a separately configured one, or none, leaving names to the bot). Jobs run one at
  * a time; their records live in `<dataDir>/biliscript/jobs.json`, their files in
  * `<dataDir>/biliscript/<id>/` (transcript.json from the worker, script.json and script.md here).
  */
@@ -9,6 +10,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { Charge } from 'cortico/core/generation.ts';
 import type { LLMUsage, ToolDef, World, WorldHost, WorldWebUiDecl } from 'cortico/core/types.ts';
 import type { Language } from 'cortico/core/language.ts';
 import { nowIso } from 'cortico/core/util.ts';
@@ -32,6 +34,7 @@ import {
 } from './script.ts';
 import { uiText } from './strings.ts';
 import { isShortLink, parseVideoRef, resolveShortLink } from './video.ts';
+import { openDeploymentModel } from './deployment-model.ts';
 import { createChatClient, nameSpeakers, polishLines, type ChatClient } from './writer.ts';
 
 const WORKER_FILE = fileURLToPath(new URL('../python/biliscript_worker.py', import.meta.url));
@@ -63,6 +66,10 @@ export interface JobRecord {
   createdAt: string;
   finishedAt?: string;
   error?: { stage: string; message: string };
+  /** Device each worker step ran on, as the worker reported it. */
+  devices?: { asr?: string; diarization?: string };
+  /** Fallbacks the worker took, in English. */
+  notices?: string[];
 }
 
 interface JobsFile {
@@ -77,11 +84,14 @@ export interface BiliScriptWorldOptions {
   cfg: BiliScriptConfigSection;
   timezone: string;
   dataDir: string;
+  /** Deployment directory; its config.json names the endpoint `deployment` mode uses. */
+  botDir: string;
+  repoRoot: string;
   secret(name: string): string;
   /** Command and leading arguments that run the worker; the subcommand follows. Default: the configured Python on the bundled worker. */
   workerCommand?: () => { command: string; args: string[] };
-  /** The model used in endpoint mode; default built from `cfg.writer` and the API key secret. */
-  chatClient?: () => ChatClient | null;
+  /** Directories holding endpoint directories for `deployment` mode; default: Cortico's providers root, then `<botDir>/providers`. */
+  providersDirs?: readonly string[];
   language?: ModelLanguage;
 }
 
@@ -234,12 +244,14 @@ export class BiliScriptWorld implements World {
 
   envPromptVars(): Record<string, string> {
     const t = this.t;
-    const cfg = this.cfg;
-    const endpoint = cfg.writer.mode === 'endpoint' && cfg.writer.baseUrl && cfg.writer.model;
-    return {
-      'biliscript.setup': this.setupText(),
-      'biliscript.writer': endpoint ? t.writerEndpoint(cfg.writer.model) : t.writerBot,
-    };
+    const w = this.cfg.writer;
+    const writer =
+      w.mode === 'deployment'
+        ? t.writerDeployment
+        : w.mode === 'endpoint' && w.baseUrl && w.model
+          ? t.writerEndpoint(w.model)
+          : t.writerBot;
+    return { 'biliscript.setup': this.setupText(), 'biliscript.writer': writer };
   }
 
   webUi(language: Language = 'zh'): WorldWebUiDecl {
@@ -252,7 +264,11 @@ export class BiliScriptWorld implements World {
           ? { label: 'Python', value: u.pythonMissing, tone: 'off' as const }
           : this.missingModules().length
             ? { label: 'Python', value: u.modulesMissing(this.missingModules().join(', ')), tone: 'off' as const }
-            : { label: 'Python', value: u.ready, tone: 'on' as const };
+            : {
+                label: 'Python',
+                value: `${u.ready} · ${this.setup.facts.asrDevice === 'cuda' ? u.onGpu(this.setup.facts.gpu ?? 'CUDA') : u.onCpu}`,
+                tone: 'on' as const,
+              };
     return {
       label: u.label,
       badges: [setupBadge, { label: u.jobs, value: active, tone: 'plain' }],
@@ -564,6 +580,16 @@ export class BiliScriptWorld implements World {
         job.title = String(msg.video?.title ?? '') || undefined;
         this.save();
         return {};
+      case 'device':
+        if (msg.stage === 'asr' || msg.stage === 'diarization') {
+          job.devices = { ...job.devices, [msg.stage]: String(msg.device) };
+          this.save();
+        }
+        return {};
+      case 'notice':
+        job.notices = [...(job.notices ?? []), String(msg.message)];
+        this.save();
+        return {};
       case 'done':
         return { transcript: String(msg.transcript) };
       case 'error':
@@ -575,44 +601,65 @@ export class BiliScriptWorld implements World {
 
   // ---------------------------------------------------------------- writer
 
-  private defaultChatClient(): ChatClient | null {
+  private reportUsage(usage: LLMUsage, model: string, charges?: readonly Charge[]): void {
+    this.host?.reportUsage(usage, { model, label: BILISCRIPT_ID, ...(charges?.length ? { charges: [...charges] } : {}) });
+  }
+
+  /** The writer model for the configured mode: null in bot mode; throws with the reason when it cannot be opened. */
+  private writerClient(): ChatClient | null {
     const w = this.cfg.writer;
-    if (!w.baseUrl.trim() || !w.model.trim()) return null;
+    if (w.mode === 'deployment') {
+      return openDeploymentModel({
+        botDir: this.opts.botDir,
+        repoRoot: this.opts.repoRoot,
+        providersDirs: this.opts.providersDirs,
+        log: this.host!.log,
+        onUsage: (usage, model, charges) => this.reportUsage(usage, model, charges),
+      });
+    }
+    if (w.mode !== 'endpoint') return null;
+    if (!w.baseUrl.trim() || !w.model.trim()) throw new Error(this.t.writerUnset);
+    const model = w.model.trim();
     return createChatClient({
       protocol: w.protocol,
       baseUrl: w.baseUrl.trim(),
-      model: w.model.trim(),
+      model,
       apiKey: this.opts.secret(BILISCRIPT_SECRETS.llmApiKey).trim(),
       maxTokens: w.maxTokens,
       timeoutMs: w.timeoutSec * 1000,
+      onUsage: (usage) => this.reportUsage(usage, model),
     });
   }
 
-  /** Endpoint mode: names speakers and corrects text in place. Returns notes for the finished event. */
+  /** Names speakers and corrects text in place with the writer model. Returns notes for the finished event. */
   private async applyWriter(job: JobRecord, script: Script, signal: AbortSignal): Promise<string[]> {
     const t = this.t;
-    const w = this.cfg.writer;
-    if (w.mode !== 'endpoint' || !script.lines.length) return [];
-    const client = this.opts.chatClient ? this.opts.chatClient() : this.defaultChatClient();
-    if (!client) return [t.writerUnset];
-    const report = (u: LLMUsage) => this.host?.reportUsage(u, { model: client.model, label: BILISCRIPT_ID });
+    if (!script.lines.length) return [];
+    let client: ChatClient | null;
+    try {
+      client = this.writerClient();
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      return [reason === t.writerUnset ? reason : t.writerFailed(reason)];
+    }
+    if (!client) return [];
     const notes: string[] = [];
     job.stage = 'naming';
     this.save();
     try {
-      const naming = await nameSpeakers(client, script.video, script.speakers, script.lines, report);
+      const naming = await nameSpeakers(client, script.video, script.speakers, script.lines, signal);
       for (const [label, name] of Object.entries(naming.names)) {
         script.names[label] = name;
-        script.nameSource[label] = 'endpoint';
+        script.nameSource[label] = 'model';
       }
       Object.assign(script.evidence, naming.evidence);
     } catch (err) {
       notes.push(t.writerFailed(err instanceof Error ? err.message : String(err)));
     }
-    if (w.polish && !signal.aborted) {
+    if (this.cfg.writer.polish && !signal.aborted) {
       job.stage = 'polish';
       this.save();
-      const polished = await polishLines(client, script.video, script.lines, report, signal);
+      const polished = await polishLines(client, script.video, script.lines, signal);
       let changed = 0;
       for (const [i, text] of polished.texts) {
         const l = script.lines[i];
@@ -644,6 +691,8 @@ export class BiliScriptWorld implements World {
     const text = [
       t.finished(job.id, script.video.title || job.ref, job.page, duration, script.lines.length, script.speakers.length),
       this.castLine(script),
+      ...(job.devices?.asr ? [t.devices(job.devices.asr, job.devices.diarization ?? null)] : []),
+      ...(job.notices ?? []),
       ...notes,
       t.files(md),
       t.opening(preview.length, script.lines.length),
@@ -667,7 +716,7 @@ export class BiliScriptWorld implements World {
     const counts = lineCounts(script);
     const entries = script.speakers.map((s) => {
       const name = script.names[s];
-      const source = script.nameSource[s] === 'endpoint' && script.evidence[s] ? `; ${script.evidence[s]}` : '';
+      const source = script.nameSource[s] === 'model' && script.evidence[s] ? `; ${script.evidence[s]}` : '';
       return name
         ? `${s}=${displayName(script, s)} (${t.linesOf(counts[s] ?? 0)}${source})`
         : `${s} (${t.linesOf(counts[s] ?? 0)}, ${t.unnamed})`;
@@ -715,7 +764,17 @@ export class BiliScriptWorld implements World {
         const line = out.split('\n').find((l) => l.includes('"check"'));
         try {
           const msg = JSON.parse(line ?? '');
-          resolve({ kind: 'ok', facts: { python: msg.python, modules: msg.modules, cuda: !!msg.cuda } });
+          resolve({
+            kind: 'ok',
+            facts: {
+              python: String(msg.python),
+              modules: msg.modules ?? {},
+              gpu: typeof msg.gpu === 'string' ? msg.gpu : null,
+              asrDevice: msg.asrDevice === 'cuda' ? 'cuda' : 'cpu',
+              diarizationDevice: msg.diarizationDevice === 'cuda' ? 'cuda' : 'cpu',
+              problems: Array.isArray(msg.problems) ? msg.problems.map(String) : [],
+            },
+          });
         } catch {
           resolve({ kind: 'error', message: this.t.workerExited(code, out.trim().slice(-300)) });
         }
