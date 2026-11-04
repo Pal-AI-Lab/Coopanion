@@ -13,6 +13,7 @@ export const S: Partial<typeof en> = {
   deleteGroup: "Gruppe löschen (Erweiterungen bleiben)",
   pendingNote: "Der Status der obigen Erweiterungen wird nach dem Neustart des Prozesses wirksam.",
   updateAvailable: (from: string, to: string) => `Update verfügbar: ${from} → ${to}`,
+  updatePendingRestart: (from: string, to: string) => `Wirkt nach Neustart des Prozesses ${from} → ${to}`,
   hideFromSidebar: "Aus der Seitenleiste ausblenden",
   showInSidebar: "In der Seitenleiste zeigen",
   builtinAlwaysOn: "Integrierte Worlds sind immer an.",
