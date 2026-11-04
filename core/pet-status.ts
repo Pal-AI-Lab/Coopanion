@@ -54,6 +54,8 @@ export function petToolDescriber(language: () => Language): DescribeTool {
       }
       case 'pet_cua_move': return show('click', s.move);
       case 'pet_cua_drag': return show('click', s.drag);
+      case 'pet_cua_mouse_down': return show('click', s.mouseDown);
+      case 'pet_cua_mouse_up': return show('click', s.mouseUp);
       case 'pet_cua_scroll': return show('scroll', s.scroll);
       case 'pet_cua_focus': return show('click', s.focus);
       case 'pet_cua_type': return show('type', s.type);

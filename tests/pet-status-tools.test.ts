@@ -25,6 +25,8 @@ describe('the status bubble for each tool', () => {
     ['pet_cua_click', { button: 'right' }, { kind: 'click', text: T.rightClick }],
     ['pet_cua_move', { x: 123, y: 456 }, { kind: 'click', text: T.move }],
     ['pet_cua_drag', { from: [1, 2], to: [3, 4] }, { kind: 'click', text: T.drag }],
+    ['pet_cua_mouse_down', { x: 123, y: 456, button: 'right' }, { kind: 'click', text: T.mouseDown }],
+    ['pet_cua_mouse_up', { button: 'right' }, { kind: 'click', text: T.mouseUp }],
     ['pet_cua_scroll', { x: 123, y: 456, down: 3 }, { kind: 'scroll', text: T.scroll }],
     ['pet_cua_focus', { window: 'private' }, { kind: 'click', text: T.focus }],
     ['pet_cua_type', { text: 'private' }, { kind: 'type', text: T.type }],

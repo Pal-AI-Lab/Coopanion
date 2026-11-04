@@ -46,7 +46,7 @@ const ru: Translation<CoreText> = {
   status: {
     read: 'Читаю', browse: 'Просматриваю', memory: 'память', find: 'Ищу файлы', search: 'Ищу', write: 'Пишу', edit: 'Правлю', append: 'Дописываю',
     delete: 'Удаляю', moveFile: 'Перемещаю', save: 'Сохраняю', screen: 'Смотрю на экран', windows: 'Смотрю открытые окна', rightClick: 'Щёлкаю правой кнопкой', doubleClick: 'Щёлкаю дважды', click: 'Щёлкаю',
-    move: 'Двигаю мышь', drag: 'Перетаскиваю', scroll: 'Прокручиваю', focus: 'Переключаю окно', type: 'Печатаю', key: 'Нажимаю', wait: 'Жду',
+    move: 'Двигаю мышь', drag: 'Перетаскиваю', mouseDown: 'Зажимаю кнопку мыши', mouseUp: 'Отпускаю кнопку мыши', scroll: 'Прокручиваю', focus: 'Переключаю окно', type: 'Печатаю', key: 'Нажимаю', wait: 'Жду',
     alarmSet: 'Ставлю будильник', alarmList: 'Смотрю будильники', alarmCancel: 'Отменяю будильник',
     quoted: (text: string) => `«${text}»`,
     seconds: (n: number) => `${n} с`,
