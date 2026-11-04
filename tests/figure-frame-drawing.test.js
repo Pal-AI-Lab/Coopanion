@@ -1,6 +1,6 @@
-// What the figure frame (web/figure-frame.js) writes into its document as the pet page drives Coo's pack: a tick with
-// `draw` false (the pet window hidden) moves the body on and writes nothing.
-import { describe, expect, it, vi } from 'vitest';
+// What the figure frame (web/figure-frame.js) writes into its document as the pet page drives Coo's pack: a frame
+// writes only what changed, and a tick with `draw` false (the pet window hidden) moves the body on and writes nothing.
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 
 const PKG = new URL('../packages/cortico-world-desktop-pet/', import.meta.url);
@@ -38,6 +38,8 @@ async function cooFrame() {
   return { send, tick, shadow, petG, fxG };
 }
 
+afterEach(() => { vi.restoreAllMocks(); });
+
 describe('figure frame drawing', () => {
   it('moves a hidden body on without writing to its document, and draws it again once shown', async () => {
     const coo = await cooFrame();
@@ -58,4 +60,23 @@ describe('figure frame drawing', () => {
     expect(coo.tick().writes.length).toBeGreaterThan(0);
   });
 
+  it('rebuilds a resting body only on the frames where its drawing changes, and leaves its shadow and particles be', async () => {
+    // a blink every 3.7 s and the same glance each time
+    vi.spyOn(Math, 'random').mockReturnValue(.5);
+    const coo = await cooFrame();
+    for (let i = 0; i < 2 / DT; i++) coo.tick();
+    const frames = 10 / DT;
+    let markup = coo.petG.innerHTML, changed = 0, rebuilt = 0;
+    const elsewhere = [];
+    for (let i = 0; i < frames; i++) {
+      const { writes } = coo.tick();
+      if (coo.petG.innerHTML !== markup) { changed++; markup = coo.petG.innerHTML; }
+      if (writes.some((w) => w.type === 'childList' && coo.petG.contains(w.target))) rebuilt++;
+      elsewhere.push(...writes.filter((w) => w.target === coo.shadow || coo.fxG.contains(w.target)));
+    }
+    expect(rebuilt).toBe(changed);
+    expect(changed).toBeGreaterThan(0);
+    expect(changed).toBeLessThan(frames / 4);
+    expect(elsewhere).toEqual([]);
+  });
 });

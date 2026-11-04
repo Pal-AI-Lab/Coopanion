@@ -1782,7 +1782,7 @@ function stepBackdrop(dt) {
 /**
  * Frames per second: `prefs.frameRate` while the body moves (its layout's `moving`) and always while `lockFrameRate` is on,
  * RESTING_FPS otherwise; a frame rate of 0, or one above the display's, draws on every display refresh. Each frame
- * redraws the whole figure, so the window's CPU and GPU time grows with this rate.
+ * redraws what changed in the figure, so the window's CPU and GPU time grows with this rate.
  *
  * While the pet window is hidden, frames come at HIDDEN_FPS: the clock, the orders, the bubbles' text and the body's
  * motion go on, so a walk still arrives and a line still runs out, but the body is not drawn, nothing on the stage is
