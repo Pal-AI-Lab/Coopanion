@@ -40,7 +40,7 @@ const fr: Translation<CuaText> = {
     grantMinutes: { title: 'Un oui vaut', suffix: 'min', description: 'Pour ask-once et pour la question à part sur les terminaux.' },
     skipTerminalAsk: { title: 'Désactiver la question avant le terminal et Exécuter', description: "Activé, la saisie ou les touches dans un terminal et win+r n'ont plus de question à part et suivent « Quand vous demander » comme toute autre action. Avec never-ask, Coo peut alors lancer des commandes sans vous demander." },
     userIdleMs: { title: 'Vous laisser la main pendant', description: "Après que vous avez utilisé la souris ou le clavier, attend qu'ils soient restés immobiles aussi longtemps." },
-    maxYieldWaitMs: { title: 'Attente maximale pour vous' },
+    maxYieldWaitMs: { title: 'Attente maximale pour vous', description: "Si vous utilisez encore la souris ou le clavier après ce délai, l'action n'est pas effectuée. À 0, pas d'attente." },
     maxWidth: { title: 'Largeur max. des captures' },
     maxHeight: { title: 'Hauteur max. des captures' },
     quality: { title: 'Qualité des captures' },

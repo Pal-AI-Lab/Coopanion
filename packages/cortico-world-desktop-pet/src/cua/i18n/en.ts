@@ -50,7 +50,7 @@ const en: CuaText = {
     grantMinutes: { title: 'A yes lasts', suffix: 'min', description: 'For ask-once and for the separate question about terminal windows.' },
     skipTerminalAsk: { title: 'Turn off asking before terminals and the Run box', description: 'When on, typing or pressing keys in a terminal window and pressing win+r get no question of their own and are asked about as "When to ask you" says, like any other input. With never-ask, Coo can then run commands without asking you.' },
     userIdleMs: { title: 'Stay out of the way for', description: 'After you use the mouse or keyboard, Coo waits until they have been still this long.' },
-    maxYieldWaitMs: { title: 'Longest wait for you' },
+    maxYieldWaitMs: { title: 'Longest wait for you', description: 'If you are still using the mouse or keyboard after this long, the action is not carried out. At 0 there is no wait.' },
     maxWidth: { title: 'Screenshot max width' },
     maxHeight: { title: 'Screenshot max height' },
     quality: { title: 'Screenshot quality' },

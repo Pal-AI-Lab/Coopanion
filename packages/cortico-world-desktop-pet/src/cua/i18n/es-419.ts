@@ -40,7 +40,7 @@ const es419: Translation<CuaText> = {
     grantMinutes: { title: 'Un sí dura', suffix: 'min', description: 'Para ask-once y para la pregunta aparte sobre las terminales.' },
     skipTerminalAsk: { title: 'Desactivar la pregunta antes de la terminal y Ejecutar', description: 'Si está encendido, escribir o presionar teclas en una terminal y win+r ya no tienen pregunta aparte y siguen “Cuándo preguntarte” como cualquier otra acción. Con never-ask, Coo puede ejecutar comandos sin preguntarte.' },
     userIdleMs: { title: 'No estorbar durante', description: 'Después de que usas el mouse o el teclado, espera hasta que hayan estado quietos este tiempo.' },
-    maxYieldWaitMs: { title: 'Espera máxima por ti' },
+    maxYieldWaitMs: { title: 'Espera máxima por ti', description: 'Si sigues usando el mouse o el teclado después de este tiempo, la acción no se realiza. Con 0 no hay espera.' },
     maxWidth: { title: 'Ancho máximo de la captura' },
     maxHeight: { title: 'Alto máximo de la captura' },
     quality: { title: 'Calidad de la captura' },

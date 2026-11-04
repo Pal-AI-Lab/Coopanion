@@ -40,7 +40,7 @@ const zhHant: Translation<CuaText> = {
     grantMinutes: { title: '同意有效期', suffix: '分鐘', description: '對 ask-once 和命令列視窗的單獨詢問有效。' },
     skipTerminalAsk: { title: '關閉使用命令列視窗和執行前的詢問', description: '開啟後，在命令列視窗裡輸入或按鍵、按 win+r 之前不再單獨詢問，和其他操作一樣按「詢問時機」詢問。詢問時機是 never-ask 時，Coo 能不經詢問執行命令。' },
     userIdleMs: { title: '讓位時長', description: '你操作滑鼠或鍵盤後，需靜止這麼久才繼續操作。' },
-    maxYieldWaitMs: { title: '讓位最多等待' },
+    maxYieldWaitMs: { title: '讓位最多等待', description: '等這麼久你還沒停手，這次操作就不執行。設為 0 時不等待。' },
     maxWidth: { title: '截圖最大寬度' },
     maxHeight: { title: '截圖最大高度' },
     quality: { title: '截圖品質' },
