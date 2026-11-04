@@ -1,7 +1,6 @@
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
-import { pick } from '../../../../base/language.ts';
-import { currencyName } from '../../../../base/ui/format.ts';
-import { panel } from './strings.ts';
+import { currencyName } from '../../../base/ui/format.ts';
+import { S } from './strings.ts';
 
 interface Rule {
   meter: string;
@@ -72,7 +71,6 @@ export function pricingEditor(
   commit: (pricing: unknown[]) => void,
   draft?: { raw?: string; onRaw(value: string): void },
 ) {
-  const S = pick(panel);
   const card = ui.sheet({
     title: S.pricingTitle,
     desc: S.pricingDescription,
