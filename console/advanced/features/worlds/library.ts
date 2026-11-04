@@ -16,11 +16,14 @@ export function needsRestart(item: WorldLibraryItem): boolean {
 export function worldLibrary(worlds: readonly WorldView[], extensions: readonly ExtensionView[], recent: readonly string[] = []): WorldLibraryItem[] {
   const available = extensions.filter(item => item.kind === 'world' || !item.kind);
   const used = new Set<string>();
-  const items: WorldLibraryItem[] = worlds.map(world => {
-    const extension = available.find(item => item.worldId === world.id);
+  const items: WorldLibraryItem[] = [];
+  for (const world of worlds) {
+    const extension = available.find(item => item.worldId === world.id && (item.loaded || item.builtin));
+    // Package removal takes precedence over an older World snapshot.
+    if (extension?.state === 'removed') continue;
     if (extension) used.add(extension.name);
-    return { key: extension?.name ?? `world:${world.id}`, label: world.label || extension?.metadata?.displayName || world.id, world, extension };
-  });
+    items.push({ key: extension?.name ?? `world:${world.id}`, label: world.label || extension?.metadata?.displayName || world.id, world, extension });
+  }
   for (const extension of available) if (!used.has(extension.name)) {
     items.push({ key: extension.name, label: extension.metadata?.displayName || extension.label || extension.worldId || extension.name, extension });
   }

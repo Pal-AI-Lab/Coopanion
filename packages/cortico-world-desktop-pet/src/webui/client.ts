@@ -91,7 +91,7 @@ const petPanel: WebUiPanel = {
     const card = untitledSheet(ui);
     root.appendChild(card.el);
     const s = card.body;
-    const msg = ui.msgline('');
+    const msg = ui.msgline('', true);
 
     const win = statusRow(ctx, t.window);
     const btnOpen = ui.button(t.openWindow, { size: 'sm', variant: 'primary' });
@@ -134,9 +134,9 @@ const petPanel: WebUiPanel = {
         frame.src = next.dressUrl;
       }
     };
-    const refresh = async () => { try { render(await ctx.invoke<PetState>('state')); } catch (err) { msg.textContent = errText(err); } };
+    const refresh = async () => { try { render(await ctx.invoke<PetState>('state')); msg.textContent = ''; } catch (err) { if (!ctx.signal.aborted) msg.textContent = errText(err); } };
     const call = (method: string) => async () => {
-      try { render(await ctx.invoke<PetState>(method)); } catch (err) { msg.textContent = errText(err); }
+      try { render(await ctx.invoke<PetState>(method)); } catch (err) { if (!ctx.signal.aborted) ui.toast(errText(err), 'bad'); }
     };
     btnOpen.addEventListener('click', call('openWindow'));
     btnClose.addEventListener('click', call('closeWindow'));
@@ -163,7 +163,7 @@ const voicePanel: WebUiPanel = {
     const card = untitledSheet(ui);
     root.appendChild(card.el);
     const s = card.body;
-    const msg = ui.msgline('');
+    const msg = ui.msgline('', true);
 
     // The master switch: everything below only works while it is on.
     const master = ui.h('label', 'pet-master');
@@ -325,9 +325,9 @@ const voicePanel: WebUiPanel = {
         if (line.dropped) el.style.textDecoration = 'line-through';
       }
     };
-    const refresh = async () => { try { render(await ctx.invoke<VoiceState>('state')); } catch (err) { msg.textContent = errText(err); } };
+    const refresh = async () => { try { render(await ctx.invoke<VoiceState>('state')); msg.textContent = ''; } catch (err) { if (!ctx.signal.aborted) msg.textContent = errText(err); } };
     const call = (method: string, args: unknown[] = []) => async () => {
-      try { render(await ctx.invoke<VoiceState>(method, args)); msg.textContent = ''; } catch (err) { msg.textContent = errText(err); }
+      try { render(await ctx.invoke<VoiceState>(method, args)); } catch (err) { if (!ctx.signal.aborted) ui.toast(errText(err), 'bad'); }
     };
     btnStart.addEventListener('click', call('start'));
     engineSel.addEventListener('change', () => void call('setEngine', [engineSel.value])());

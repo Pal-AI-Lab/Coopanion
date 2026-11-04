@@ -11,6 +11,7 @@ export const S: Partial<typeof en> = {
   on: '開啟',
   autoSaves: '修改後自動儲存。',
   saved: '已儲存。',
+  unsaved: '● 未儲存',
   worldRestartPending: '有變更需重新啟動 World 後生效。',
   leaveBlank: '留空',
   saving: '儲存中…',

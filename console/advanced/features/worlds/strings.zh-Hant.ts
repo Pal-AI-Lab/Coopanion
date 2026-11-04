@@ -11,7 +11,7 @@ export const S: Partial<typeof en> = {
   groupDefaultName: "新分組",
   renameGroup: "重新命名分組",
   deleteGroup: "刪除分組（保留擴充）",
-  pendingNote: "以上擴充需重新啟動處理程序後生效。",
+  pendingNote: "以上擴充狀態需重新啟動處理程序後生效",
   updateAvailable: (from: string, to: string) => `有更新：${from} → ${to}`,
   hideFromSidebar: "側欄隱藏",
   showInSidebar: "側欄顯示",

@@ -6,6 +6,9 @@
  * x-options 动态获取候选；x-path 选择服务器本机路径；x-download 提供浏览器下载链接。
  */
 
+import { S as COMMON } from '../../../base/ui/strings.ts';
+import { actionProblem, listProblem } from '../../../base/ui/problem.ts';
+
 import type { WebUi, Disposable } from 'cortico/web/shared/client-panel.ts';
 import { get, pickPath, post } from '../../../base/api.ts';
 import { LANGUAGE } from '../../../base/language.ts';
@@ -435,6 +438,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
   const showOwner = deps.showOwner !== false;
 
   const el = ui.h('div', 'configview');
+  const problem = actionProblem(ui, el.ownerDocument, signal);
   const body = ui.h('div');
   const bar = ui.actions();
   // 保存之前这一行说明修改会自动保存,保存后换成结果。
@@ -452,8 +456,8 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
     el.classList.add('has-restart');
     const button = ui.button(restart.label, { size: 'sm', onClick: async () => {
       const lock = ui.disable(button);
-      try { if (await restart.run() && !signal.aborted) { for (const r of readers) if (r.cold) restart.applied.set(key(r), r.saved); paintPending(); setMsg(S.autoSaves); msg.classList.add('is-hint'); } }
-      catch (err) { if (!isAbort(err) && !signal.aborted) setMsg(errText(err), true); }
+      try { if (await restart.run() && !signal.aborted) { for (const r of readers) if (r.cold) restart.applied.set(key(r), r.saved); paintPending(); if (!unsaved.size) setMsg(S.autoSaves, 'hint'); } }
+      catch (err) { if (!isAbort(err) && !signal.aborted) problem(button, errText(err)); }
       finally { lock.dispose(); }
     } });
     bar.append(restartNote, button);
@@ -477,14 +481,18 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
   /** 已发出、尚未回复的保存请求数。 */
   let saving = 0;
   let refreshSeq = 0;
+  /** 最近一次保存失败的组：页上的取值 config.json 里没有，状态行显示未保存，直到该组保存成功或重新载入。 */
+  const unsaved = new Set<string>();
 
-  function setMsg(text: string, bad?: boolean): void {
+  function setMsg(text: string, tone?: 'hint' | 'bad'): void {
     msg.textContent = text;
-    msg.className = 'msgline' + (bad ? ' bad' : '');
+    msg.className = 'msgline';
+    if (tone === 'hint') msg.classList.add('is-hint');
+    if (tone === 'bad') msg.classList.add('bad');
   }
 
   /** 提交一组：`/api/config` 一次收一组（校验按那一组的 schema 走）。 */
-  async function persist(groupId: string): Promise<void> {
+  async function persist(groupId: string, anchor: HTMLElement): Promise<void> {
     if(signal.aborted)return;
     saving++;
     try {
@@ -499,13 +507,17 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
       );
       if (signal.aborted) return;
       for (const r of sent) r.saved = values[r.path];
+      unsaved.delete(groupId);
       paintPending();
-      if (readers.every((r) => sameValue(r.saved, r.loaded))) { setMsg(S.autoSaves); msg.classList.add('is-hint'); }
+      if (unsaved.size) setMsg(S.unsaved, 'bad');
+      else if (readers.every((r) => sameValue(r.saved, r.loaded))) setMsg(S.autoSaves, 'hint');
       else setMsg('✓ ' + S.saved);
-      void refresh();
+      void refresh(anchor);
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
-      setMsg(S.saveFailed(errText(err)), true);
+      unsaved.add(groupId);
+      setMsg(S.unsaved, 'bad');
+      problem(anchor, S.saveFailed(errText(err)));
     } finally {
       saving--;
     }
@@ -515,7 +527,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
    * 保存成功后重取一次 `/api/config`，就地更新取值：服务端随这次保存改了的其他项显示新值，
    * 改过未存的项保持原样。不重建节点，焦点与滚动位置不变。
    */
-  async function refresh(): Promise<void> {
+  async function refresh(anchor: HTMLElement): Promise<void> {
     const n = ++refreshSeq;
     try {
       const d = await get<{ groups?: ConfigGroupEntry[] }>('/api/config', { signal });
@@ -532,31 +544,34 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
       }
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
-      setMsg(S.loadFailed(errText(err)), true);
+      problem(anchor, S.loadFailed(errText(err)));
     }
   }
 
   const writes=new Map<string,Promise<void>>();
-  function save(groupId:string):Promise<void>{
-    const next=(writes.get(groupId) ?? Promise.resolve()).then(()=>persist(groupId));
+  function save(groupId:string, anchor: HTMLElement):Promise<void>{
+    const next=(writes.get(groupId) ?? Promise.resolve()).then(()=>persist(groupId, anchor));
     writes.set(groupId,next);
     void next.finally(()=>{if(writes.get(groupId)===next)writes.delete(groupId);});
     return next;
   }
 
   const pending = new Map<string, Disposable>();
-  function queueSave(groupId: string): void {
+  function queueSave(groupId: string, anchor: HTMLElement): void {
     pending.get(groupId)?.dispose();
     pending.set(groupId, lifecycle.timeout(() => {
       pending.delete(groupId);
-      void save(groupId);
+      void save(groupId, anchor);
     }, SAVE_DEBOUNCE_MS));
   }
 
+  let loaded = false;
   async function load(): Promise<void> {
     try {
       const d = await get<{ groups?: ConfigGroupEntry[] }>('/api/config', { signal });
       if (signal.aborted) return;
+      loaded = true;
+      if (unsaved.size) { unsaved.clear(); setMsg(S.autoSaves, 'hint'); }
       const all = Array.isArray(d.groups) ? d.groups : [];
       const groups = deps.filter ? all.filter((entry) => deps.filter!(entry.group)) : all;
       readers = [];
@@ -583,7 +598,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
               const cell = ui.h('label', 'configcell');
               const name = ui.h('span', 'configcell-name', keyName(key));
               if (name.textContent !== key) name.appendChild(ui.h('span', 'en', key));
-              const field = configField(ui, prop, (values || {})[path], () => queueSave(group.id), signal);
+              const field = configField(ui, prop, (values || {})[path], () => queueSave(group.id, field.node), signal);
               cell.append(name, field.node);
               if (prop['x-suffix']) cell.appendChild(ui.h('span', 'tunit', prop['x-suffix']));
               if (prop['x-hot'] === false) cell.appendChild(ui.h('span', 'ttag', group.owner.startsWith('world:') ? S.restartWorld : S.restartProcess));
@@ -602,7 +617,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
           let read: (() => ConfigValue) | null;
           let write: ((value: unknown) => void) | null;
           if (prop.type === 'boolean') {
-            const box = ui.checkbox('', { checked: !!(values || {})[path], onChange: () => queueSave(group.id) });
+            const box = ui.checkbox('', { checked: !!(values || {})[path], onChange: () => queueSave(group.id, line) });
             box.input.setAttribute('aria-label', prop.title || path);
             // companion-switchbox 把勾选框画成开关
             line.classList.add('companion-switchbox');
@@ -610,7 +625,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
             read = () => box.checked;
             write = (v) => box.setChecked(!!v);
           } else {
-            const field = configField(ui, prop, (values || {})[path], () => queueSave(group.id), signal);
+            const field = configField(ui, prop, (values || {})[path], () => queueSave(group.id, line), signal);
             const fieldWrap = ui.h('div', 'tfield');
             fieldWrap.appendChild(field.node);
             if (prop['x-suffix']) fieldWrap.appendChild(ui.h('span', 'tunit', prop['x-suffix']));
@@ -633,7 +648,9 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
       if (restart) { for (const r of readers) if (r.cold && !restart.applied.has(key(r))) restart.applied.set(key(r), r.saved); paintPending(); }
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
-      body.replaceChildren(ui.placeholder(S.loadFailed(errText(err))));
+      const text = S.loadFailed(errText(err));
+      if (loaded) ui.toast(text, 'bad');
+      else body.replaceChildren(listProblem(el.ownerDocument, text, COMMON.retry, load));
     }
   }
 

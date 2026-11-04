@@ -11,7 +11,7 @@ export const S: Partial<typeof en> = {
   groupDefaultName: "Новая группа",
   renameGroup: "Переименовать группу",
   deleteGroup: "Удалить группу (расширения останутся)",
-  pendingNote: "Расширения выше вступят в силу после перезапуска процесса.",
+  pendingNote: "Состояние расширений выше вступит в силу после перезапуска процесса.",
   updateAvailable: (from: string, to: string) => `Доступно обновление: ${from} → ${to}`,
   hideFromSidebar: "Скрыть из боковой панели",
   showInSidebar: "Показывать в боковой панели",

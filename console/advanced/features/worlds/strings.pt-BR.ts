@@ -11,7 +11,7 @@ export const S: Partial<typeof en> = {
   groupDefaultName: "Novo grupo",
   renameGroup: "Renomear grupo",
   deleteGroup: "Excluir grupo (mantém as extensões)",
-  pendingNote: "As extensões acima têm efeito após reiniciar o processo.",
+  pendingNote: "O estado das extensões acima entra em vigor após reiniciar o processo.",
   updateAvailable: (from: string, to: string) => `Atualização disponível: ${from} → ${to}`,
   hideFromSidebar: "Ocultar da barra lateral",
   showInSidebar: "Mostrar na barra lateral",

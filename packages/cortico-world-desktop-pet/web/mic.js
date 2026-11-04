@@ -1,7 +1,8 @@
 /**
  * The pet page's microphone: 16 kHz mono through web/mic-worklet.js while the World asks for it.
- * With no device chosen the capture follows the system default input: a device change that moves
- * the default closes the stream and opens the new default. A capture whose track ended is opened
+ * The capture opens on the chosen device while the inputs list it and on the system default input
+ * otherwise; a device change that moves this target (the default changing, the chosen device leaving
+ * or coming back) closes the stream and opens the new target. A capture whose track ended is opened
  * again, and an open that failed for any reason but a permission denial is tried again on the next
  * device change.
  *
@@ -10,20 +11,26 @@
  */
 export function createMic({ prefs, send, sendAudio }) {
   const media = navigator.mediaDevices;
-  /** null, `{ starting, devicesChanged }` while opening, or the open capture. */
+  /** null, `{ starting }` while opening, or the open capture. */
   let mic = null;
   let retry = false;
 
-  /** Reports the inputs to the World and returns the default input's identity, or undefined when they cannot be read. */
+  /**
+   * Reports the inputs to the World and returns the capture's target: `deviceId` is the chosen device,
+   * or '' for the system default, and `key` changes when the input behind the target changes.
+   * Undefined when the inputs cannot be read or, before microphone access, told apart.
+   */
   async function reportDevices() {
     try {
       const inputs = (await media.enumerateDevices()).filter((d) => d.kind === 'audioinput');
-      // Chromium's 'default' entry keeps its deviceId when the input behind it changes
-      const input = inputs.find((d) => d.deviceId === 'default') ?? inputs[0];
       // before microphone access is granted the entries have an empty deviceId
       const list = inputs.filter((d) => d.deviceId && d.deviceId !== 'default' && d.deviceId !== 'communications');
       send({ t: 'devices', list: list.map((d) => ({ id: d.deviceId, label: d.label })) });
-      return JSON.stringify(input ? [input.deviceId, input.groupId, input.label] : null);
+      if (!inputs.some((d) => d.deviceId)) return undefined;
+      if (prefs.micDevice && list.some((d) => d.deviceId === prefs.micDevice)) return { deviceId: prefs.micDevice, key: prefs.micDevice };
+      // Chromium's 'default' entry keeps its deviceId when the input behind it changes
+      const input = inputs.find((d) => d.deviceId === 'default') ?? inputs[0];
+      return { deviceId: '', key: JSON.stringify([input.deviceId, input.groupId, input.label]) };
     } catch (err) {
       console.error(err);
       return undefined;
@@ -33,22 +40,25 @@ export function createMic({ prefs, send, sendAudio }) {
   async function start() {
     if (mic) return;
     retry = false;
-    const opening = mic = { starting: true, devicesChanged: false };
+    const opening = mic = { starting: true };
     // 拿到一半就失败时也要停麦关声卡,否则录音指示灯常亮到页面刷新
     let stream = null, ctx = null;
     try {
       // read before opening: a report after it may already see the next default
-      const defaultInput = await reportDevices();
+      const target = await reportDevices();
       if (mic !== opening) return;
-      const audio = { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true };
-      if (prefs.micDevice) audio.deviceId = { exact: prefs.micDevice };
+      // AGC can change the system microphone volume on Windows.
+      const audio = { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: false };
+      // inputs that cannot be told apart yet: the chosen device is asked for by its id
+      const deviceId = target ? target.deviceId : prefs.micDevice;
+      if (deviceId) audio.deviceId = { exact: deviceId };
       stream = await media.getUserMedia({ audio });
       ctx = new AudioContext({ sampleRate: 16000 });
       await ctx.audioWorklet.addModule('/web/mic-worklet.js');
       // closed, or closed and opened again, while this one was opening
       if (mic !== opening) { stream.getTracks().forEach((t) => t.stop()); ctx.close(); return; }
       const node = new AudioWorkletNode(ctx, 'pet-mic');
-      const active = mic = { stream, ctx, node, defaultInput };
+      const active = mic = { stream, ctx, node, deviceId, key: target?.key };
       // chunks a replaced capture still had queued are dropped
       node.port.onmessage = (e) => { if (mic === active) sendAudio(e.data); };
       ctx.createMediaStreamSource(stream).connect(node);
@@ -60,8 +70,8 @@ export function createMic({ prefs, send, sendAudio }) {
         });
       }
       send({ t: 'mic', state: 'on', detail: stream.getAudioTracks()[0]?.label || null });
-      // the labels are readable now; a change while opening may have moved the default away from this capture
-      void (opening.devicesChanged ? followDefault() : reportDevices());
+      // the labels are readable now; a change while opening may have moved the target away from this capture
+      void follow();
     } catch (err) {
       stream?.getTracks().forEach((t) => t.stop());
       ctx?.close();
@@ -75,11 +85,14 @@ export function createMic({ prefs, send, sendAudio }) {
     }
   }
 
-  /** Reopens a capture on the default input when the default is no longer the one it opened on. */
-  async function followDefault() {
+  /** Reopens the capture when its target is no longer the input it opened on. */
+  async function follow() {
     const current = mic;
-    const input = await reportDevices();
-    if (mic === current && !prefs.micDevice && input !== undefined && input !== current.defaultInput) {
+    const target = await reportDevices();
+    if (mic !== current || target === undefined) return;
+    // opened before the inputs could be told apart: it is on the target when it asked for the same device
+    if (current.key === undefined && target.deviceId === current.deviceId) { current.key = target.key; return; }
+    if (target.key !== current.key) {
       stop();
       void start();
     }
@@ -97,8 +110,7 @@ export function createMic({ prefs, send, sendAudio }) {
 
   media?.addEventListener('devicechange', () => {
     if (!mic) { if (prefs.mic && retry) void start(); }
-    else if (mic.starting) mic.devicesChanged = true;
-    else void followDefault();
+    else if (!mic.starting) void follow();
   });
 
   return { start, stop };
