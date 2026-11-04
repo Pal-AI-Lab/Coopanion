@@ -1412,11 +1412,12 @@ function wireVoiceTool(b) {
 
 /** Where the cursor is, in page pixels, or null when it is off the page. */
 const cursor = { at: null };
+/** Pixels around the hover buttons that count as on them, as the gaps between them do. */
+const TOOLS_MARGIN = 6;
 function overTools(p) {
   if (tools.hidden) return false;
-  const r = tools.getBoundingClientRect();
-  // the gaps between the buttons and a little margin count too
-  return p.x >= r.left - 6 && p.x <= r.right + 6 && p.y >= r.top - 6 && p.y <= r.bottom + 6;
+  const r = tools.getBoundingClientRect(), m = TOOLS_MARGIN;
+  return p.x >= r.left - m && p.x <= r.right + m && p.y >= r.top - m && p.y <= r.bottom + m;
 }
 function stepTools() {
   // shown while the cursor is on the pet or on the buttons, and a moment after it leaves; decided
@@ -1499,6 +1500,46 @@ function writePointer(now) {
 
 const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]), .tools:not([hidden])';
 const overUi = (e) => e.target.closest && e.target.closest(UI_SELECTOR);
+
+/**
+ * In a Wayland session the window takes the mouse only over the rects reported here (host/input-shape.cjs),
+ * sent from the frames when they change and at least every MOUSE_RENEW_MS: the body's hit circles inside its
+ * box (body-host.js onBody), one strip per SHAPE_GRID row, and what UI_SELECTOR names, the hover buttons with
+ * TOOLS_MARGIN around them. Every rect is rounded out to SHAPE_GRID, so a body breathing in place leaves the
+ * shape as it is on most frames.
+ */
+let inputShape = false, shapeSent = '', shapeAt = -Infinity;
+host?.onInputShape?.((on) => { inputShape = on; shapeSent = ''; });
+const SHAPE_GRID = 8;
+const gridDown = (v) => Math.floor(v / SHAPE_GRID) * SHAPE_GRID, gridUp = (v) => Math.ceil(v / SHAPE_GRID) * SHAPE_GRID;
+function inputRects() {
+  const out = [];
+  const add = (x0, y0, x1, y1) => {
+    if (x1 > x0 && y1 > y0) out.push({ x: gridDown(x0), y: gridDown(y0), width: gridUp(x1) - gridDown(x0), height: gridUp(y1) - gridDown(y0) });
+  };
+  const l = at();
+  for (const c of l?.hit ?? []) {
+    const b = l.box, top = Math.max(b.y, c.y - c.r), bottom = Math.min(b.y + b.h, c.y + c.r);
+    for (let y0 = gridDown(top); y0 < bottom; y0 += SHAPE_GRID) {
+      // as wide as the circle's widest chord in the row: on the centre line when the row holds it, else at its edge nearer to it
+      const y1 = y0 + SHAPE_GRID, dy = Math.max(0, y0 - c.y, c.y - y1), half = Math.sqrt(c.r * c.r - dy * dy);
+      add(Math.max(b.x, c.x - half), Math.max(top, y0), Math.min(b.x + b.w, c.x + half), Math.min(bottom, y1));
+    }
+  }
+  for (const el of document.querySelectorAll(UI_SELECTOR)) {
+    const r = el.getBoundingClientRect(), m = el === tools ? TOOLS_MARGIN : 0;
+    add(r.left - m, r.top - m, r.right + m, r.bottom + m);
+  }
+  return out;
+}
+function stepInputShape() {
+  if (!inputShape) return;
+  const rects = inputRects(), key = JSON.stringify(rects), now = performance.now();
+  if (key === shapeSent && now - shapeAt < MOUSE_RENEW_MS) return;
+  shapeSent = key;
+  shapeAt = now;
+  host.setInputRects(rects);
+}
 document.addEventListener('pointermove', (e) => {
   pointerSeen = true;
   lastPointer.x = e.clientX; lastPointer.y = e.clientY;
@@ -1527,7 +1568,8 @@ document.addEventListener('pointermove', (e) => {
  */
 let polled = null;
 host?.onCursor?.((p) => {
-  cursor.at = p;
+  // in a Wayland session the reports keep the spot where the cursor left the last X11 window; there the page's own pointer events place it
+  if (!inputShape || !p) cursor.at = p;
   if (!p) {
     diag.poll = { at: performance.now(), off: true };
     if (!pressing) setInteractive(false, 'poll');
@@ -1855,6 +1897,7 @@ function frame(steps, now, last) {
       stepBackdrop(dt);
       stepTools();
       layout(dt);
+      stepInputShape();
       // the frame's own time, so the layer shows frames as far apart as they were drawn
       if (overlayOn) host.overlayFrame(overlayRect(), performance.timeOrigin + now);
     }
