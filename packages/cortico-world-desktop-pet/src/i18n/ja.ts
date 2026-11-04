@@ -129,6 +129,7 @@ const ja: Translation<PetText> = {
     soundType: (name: string, file: string) => `sounds.${name} の ${file} は、このバージョンで再生できる .ogg、.mp3、.wav ではないため、この音は鳴りません`,
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind は ${kind} ですが、このバージョンが扱えるのは ${kinds.join('、')} だけなので、この音は鳴りません`,
     soundMissing: (name: string, file: string) => `sounds.${name} の ${file} が存在しないため、この音は鳴りません`,
+    soundRepeat: (name: string, got: string, values: readonly string[]) => `sounds.${name}.repeat は ${got} ですが、このバージョンが扱えるのは ${values.join('、')} だけなので、overlap として再生します`,
     badWalk: (got: string) => `can.walk の ${got} はこのバージョンでは不明なため、歩けるものとして扱います`,
     movesNotArray: 'moves は配列でなければなりません',
     tooManyMoves: (max: number) => `moves は最大 ${max} 件です`,

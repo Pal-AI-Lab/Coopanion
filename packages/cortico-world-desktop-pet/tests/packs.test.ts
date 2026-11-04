@@ -77,6 +77,22 @@ describe('figure packs', () => {
     expect(skipped).toHaveLength(4);
   });
 
+  it("reads a sound's repeat, not a talk sound's, and takes one this version does not know as overlap, naming it", () => {
+    const skipped: string[] = [];
+    const m = readManifest(pack({
+      ...base,
+      sounds: {
+        boing: { file: 'boing.ogg', kind: 'move', repeat: 'restart' }, purr: { file: 'boing.ogg', kind: 'touch', repeat: 'finish' },
+        hum: { file: 'boing.ogg', kind: 'face', repeat: 'overlap' }, clunk: { file: 'boing.ogg', kind: 'touch', repeat: 'queue' },
+        la: { file: 'boing.ogg', kind: 'talk', repeat: 'restart' },
+      },
+    }, ['boing.ogg']), false, skipped);
+    if (typeof m === 'string') throw new Error(m);
+    expect(Object.fromEntries(Object.entries(m.sounds).map(([n, s]) => [n, s.repeat]))).toEqual({ boing: 'restart', purr: 'finish', hum: undefined, clunk: undefined, la: undefined });
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0]).toMatch(/clunk/);
+  });
+
   it('reads the frozen api 2 pack as it was published (tests/fixtures/api2-pack)', () => {
     const skipped: string[] = [];
     const m = readManifest(fileURLToPath(new URL('./fixtures/api2-pack/', import.meta.url)), false, skipped);

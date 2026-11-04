@@ -147,6 +147,7 @@ export default {
     soundType: (name: string, file: string) => `sounds.${name} 的 ${file} 不是这一版放得了的 .ogg、.mp3 或 .wav，这个声音不会响`,
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind 是 ${kind}，这一版只认 ${kinds.join('、')}，这个声音不会响`,
     soundMissing: (name: string, file: string) => `sounds.${name} 的 ${file} 不存在，这个声音不会响`,
+    soundRepeat: (name: string, got: string, values: readonly string[]) => `sounds.${name}.repeat 是 ${got}，这一版只认 ${values.join('、')}，按 overlap 播放`,
     badWalk: (got: string) => `can.walk 是 ${got}，这一版不认识，按会走处理`,
     movesNotArray: 'moves 应为数组',
     tooManyMoves: (max: number) => `moves 最多 ${max} 项`,
