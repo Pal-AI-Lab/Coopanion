@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { functionCall, functionResult, message, record, type ContextRecord } from 'cortico/protocol/open-responses/context.ts';
 import type { StreamEvent } from 'cortico/protocol/open-responses/index.ts';
-import { BYPASS_SIGNATURE, GeminiResponseAssembly, FILLER_USER_TEXT, geminiInput, geminiMeters, geminiRequest, thinkingConfig } from '../src/gemini/wire.ts';
+import { BYPASS_SIGNATURE, GeminiResponseAssembly, FILLER_USER_TEXT, INLINE_MAX_CHARS, geminiInput, geminiMeters, geminiRequest, thinkingConfig } from '../src/gemini/wire.ts';
 
 const origin = { instance: 'g', module: 'gemini', model: 'gemini-x-flash', compatibilityDomain: 'account-1' };
 const request = { model: origin.model };
@@ -142,5 +142,43 @@ describe('geminiMeters', () => {
   it('reads omitted cache and thought counts as zero only when the prompt count is present', () => {
     expect(geminiMeters({ promptTokenCount: 10, candidatesTokenCount: 2 })).toMatchObject({ input: 10, cachedInput: 0, uncachedInput: 10, output: 2, reasoning: 0, total: 12 });
     expect(geminiMeters({})).toMatchObject({ input: null, output: null });
+  });
+});
+
+describe('geminiInput attachments', () => {
+  const withBlobs = (text: string, blobs: Array<{ handle: string; mime: string }>) =>
+    ({ ...message('user', text), context: { blobs: blobs.map(b => ({ ...b, fallbackText: text })) } }) as ContextRecord;
+  const inline = (contents: ReturnType<typeof geminiInput>['contents']) =>
+    contents.flatMap(content => content.parts).flatMap(part => part.inlineData ? [part.inlineData] : []);
+
+  it('sends audio and video as inline data under the type Gemini documents, and leaves out types it cannot take', () => {
+    const bytes: Record<string, Buffer> = { wav: Buffer.from('RIFF-wav'), mp3: Buffer.from('ID3-mp3'), mp4: Buffer.from('mp4'), zip: Buffer.from('PK') };
+    const media = { enabled: () => true, read: (handle: string) => bytes[handle] ?? null };
+    const context = [withBlobs('heard', [
+      { handle: 'wav', mime: 'audio/x-wav' }, { handle: 'mp3', mime: 'audio/mpeg' }, { handle: 'mp4', mime: 'video/mp4' }, { handle: 'zip', mime: 'application/zip' },
+    ])];
+    const { contents } = geminiInput(request, { context, origin }, { media });
+    expect(inline(contents)).toEqual([
+      { mimeType: 'audio/wav', data: bytes.wav.toString('base64') },
+      { mimeType: 'audio/mp3', data: bytes.mp3.toString('base64') },
+      { mimeType: 'video/mp4', data: bytes.mp4.toString('base64') },
+    ]);
+    expect(contents[0].parts[0]).toEqual({ text: 'heard' });
+  });
+
+  it('sends no attachment while the endpoint is not multimodal', () => {
+    const media = { enabled: () => false, read: () => Buffer.from('RIFF') };
+    const { contents } = geminiInput(request, { context: [withBlobs('heard', [{ handle: 'a', mime: 'audio/wav' }])], origin }, { media });
+    expect(inline(contents)).toEqual([]);
+  });
+
+  it('leaves out an attachment that would take the request past the inline budget', () => {
+    const big = Buffer.alloc(Math.ceil(INLINE_MAX_CHARS * 3 / 4) - 3);
+    const small = Buffer.from('RIFF');
+    const media = { enabled: () => true, read: (handle: string) => handle === 'big' ? big : small };
+    const context = [withBlobs('first', [{ handle: 'big', mime: 'audio/wav' }]), withBlobs('second', [{ handle: 'big', mime: 'audio/wav' }, { handle: 'small', mime: 'audio/wav' }])];
+    const sent = inline(geminiInput(request, { context, origin }, { media }).contents);
+    expect(sent.map(part => part.data.length)).toEqual([big.toString('base64').length]);
+    expect(sent.reduce((n, part) => n + part.data.length, 0)).toBeLessThanOrEqual(INLINE_MAX_CHARS);
   });
 });

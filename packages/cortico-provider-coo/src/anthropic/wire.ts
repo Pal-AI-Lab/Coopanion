@@ -64,9 +64,11 @@ function dataUrl(url: string): { media_type: string; data: string } {
   return { media_type: match[1], data: match[2] };
 }
 
+const CLAUDE_MEDIA = /^(image\/(jpeg|png|gif|webp)|application\/pdf)$/;
+
 function mediaBlock(mime: string, data: string): ContentBlockParam {
   if (mime === 'application/pdf') return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data } };
-  if (!/^image\/(jpeg|png|gif|webp)$/.test(mime)) throw new ResponseProtocolError('Claude cannot take media of type ' + mime);
+  if (!CLAUDE_MEDIA.test(mime)) throw new ResponseProtocolError('Claude cannot take media of type ' + mime);
   return { type: 'image', source: { type: 'base64', media_type: mime as 'image/png', data } };
 }
 
@@ -141,7 +143,9 @@ export function claudeInput(request: Request, options: GenerateOptions, opts: { 
   const blobs = (entry: ContextRecord): ContentBlockParam[] => {
     if (!opts.media?.enabled() || !entry.context.blobs?.length) return [];
     const blocks: ContentBlockParam[] = [];
+    // an attachment of another type (audio, video) is left out; its text line stays
     for (const ref of entry.context.blobs) {
+      if (!CLAUDE_MEDIA.test(ref.mime)) continue;
       const bytes = opts.media.read(ref.handle);
       if (bytes) blocks.push(mediaBlock(ref.mime, bytes.toString('base64')));
     }
