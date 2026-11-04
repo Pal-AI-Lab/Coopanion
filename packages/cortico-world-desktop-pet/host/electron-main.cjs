@@ -387,7 +387,12 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     win = new BrowserWindow({
       x: wa.x, y: wa.y, width: wa.width, height: wa.height,
       transparent: true, frame: false, resizable: false, movable: false, minimizable: false, maximizable: false,
-      fullscreenable: false, skipTaskbar: true, hasShadow: false, alwaysOnTop: true, show: false,
+      fullscreenable: false, skipTaskbar: true, hasShadow: false, show: false,
+      // Linux: DOCK keeps the top layer without _NET_WM_STATE_ABOVE. An ABOVE window covering the
+      // work area makes mutter's window_would_be_covered() deny focus to every new window that
+      // overlaps it (any overlap in 46.x), so terminals and other windows stay behind the pet and
+      // never get focus. See meta_window_show() in mutter's src/core/window.c.
+      ...(process.platform === 'linux' ? { type: 'dock' } : { alwaysOnTop: true }),
       backgroundColor: '#00000000', title: 'Cortico',
       // Windows: Chromium-based apps treat a topmost window without WS_EX_TOOLWINDOW as covering them and stop painting while the pet takes the mouse
       ...(process.platform === 'win32' ? { type: 'toolbar' } : {}),
@@ -400,7 +405,9 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     cover(d);
     // Native candidate windows and Chromium popups must remain above the pet.
     const level = process.platform === 'darwin' ? 'floating' : 'screen-saver';
-    win.setAlwaysOnTop(true, level);
+    // Linux (see above): the dock window is already in the top layer, and ABOVE would put it back
+    // into mutter's focus-denial path.
+    if (process.platform !== 'linux') win.setAlwaysOnTop(true, level);
     // macOS: behind the other windows while App Store is the active application
     const appStore = createAppStoreRule({ window: win, level });
     // on every Space, and over an app in full screen
