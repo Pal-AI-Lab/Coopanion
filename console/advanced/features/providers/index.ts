@@ -4,6 +4,7 @@ import { pageIntro } from '../../../base/ui/page.ts';
 import { pageTabs } from '../../../base/ui/page-tabs.ts';
 import { mountExtensionContent, type ExtensionController } from '../extensions/index.ts';
 import { icon } from '../../../base/ui/icons.ts';
+import { fitColumn } from '../../../base/ui/fit-column.ts';
 import { notice } from '../../../base/ui/index.ts';
 import { NEW_DRAFT_ID, providerDrafts } from './drafts.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
@@ -100,7 +101,10 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
   const fallback = () => state.providers.find(item => item.name === state.active)?.name || state.providers[0]?.name || '';
   /** Cards that appear or go reflow like the World lists (see measureReflow); a card's lifted copy is not a card. */
   const cardKey = (el: HTMLElement) => el.classList.contains('connection-drag-copy') ? undefined : el.dataset.provider;
+  /** The connect label's column fits the label in this language; every card has the same one. */
+  let labelFitted = false;
   function paint() {
+    if (!labelFitted && cards.isConnected) { labelFitted = true; fitColumn(cards, '--connection-connect-width', () => [ui.h('span', 'connection-connect-label', S.connect)]); }
     const reflow = measureReflow(cards, ':scope > .connection-card', cardKey);
     paintCards(); placeCards();
     reflow.play();
