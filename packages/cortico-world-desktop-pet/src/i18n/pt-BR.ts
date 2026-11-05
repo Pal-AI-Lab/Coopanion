@@ -271,6 +271,15 @@ const ptBR: Translation<PetText> = {
     maxUtteranceMs: { title: 'Frase mais longa' },
   },
 
+  windowReason: {
+    badHostEnv: (env: string) => `${env} não é um array JSON de strings`,
+    noElectronFile: (file: string) => `O executável do Electron não existe: ${file}`,
+    noElectron: 'Nenhum Electron disponível: instale o ambiente de execução da janela no painel do pet ou indique o executável do Electron na configuração',
+    startFailed: (why: string) => `Falha ao iniciar: ${why}`,
+    closed: 'A janela foi fechada',
+    exited: (code: number | null) => `O processo da janela foi encerrado (código de saída ${code})`,
+  },
+
   panel: {
     window: 'Janela do pet',
     openWindow: 'Abrir janela',
