@@ -33,7 +33,7 @@ export const S: Partial<typeof en> = {
   updateAction: 'Aggiorna',
   updateCheckFailed: (detail: string) => `Controllo aggiornamenti non riuscito: ${detail}`,
   noteWebUiMissing: "Bundle del browser mancante. Esegui la build nella directory dell'estensione e riavvia il processo.",
-  listLoadFailed: (msg: string) => `Caricamento dell'elenco delle estensioni non riuscito: ${msg}`,
+  listLoadFailed: (msg: string) => `Impossibile leggere le estensioni installate; non è possibile confermare lo stato attuale di installazione. Motivo: ${msg}`,
   remove: 'Elimina estensione',
   removeInUse: 'In uso da Coo. Disattivala prima di eliminarla.',
   removeInUseProvider: 'Una connessione a un modello usa ancora questo provider. Elimina prima quella connessione.',
@@ -48,7 +48,6 @@ export const S: Partial<typeof en> = {
   completed: (action: string, name: string) => `Operazione completata: ${action.toLowerCase()} di ${name}.`,
   restartNeeded: 'Le estensioni hanno effetto dopo il riavvio del processo.',
   worldActivateHint: 'Se il World non è attivo, attivalo in Panoramica dei World.',
-  syncedFailed: "Operazione completata, ma l'elenco non è sincronizzato. Aggiorna per riprovare.",
 
   filterPlaceholder: 'Filtra: nome, descrizione, parole chiave',
   sortLabel: {

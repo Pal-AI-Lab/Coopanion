@@ -1589,7 +1589,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       onFeedback?.(`${S.completed(actionLabel, name)}${version ? ' ' + S.version(version) : ''} ${S.restartNeeded}${activateHint}`);
       updateGeneration++; if (updates.delete(name)) announceUpdates();
       if (action === 'install' && actionLabel === S.installedAction) workspace?.onAdded(name, anchor()?.closest('.extension-market-card')?.querySelector('.extension-avatar')?.getBoundingClientRect());
-      if (!await load()) listFeedback(S.completed(actionLabel, name) + ' ' + S.syncedFailed);
+      if (!await load()) listFeedback(S.completed(actionLabel, name) + ' ' + listErrorText);
     } catch (error) { if (!signal.aborted) problem = errorText(error); }
     finally { busy.delete(identity); if (!signal.aborted) { renderRestart(); renderMarket(); } }
     if (problem === undefined || signal.aborted) return;

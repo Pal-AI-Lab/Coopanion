@@ -1443,6 +1443,17 @@ describe('World library and catalog', () => {
 
 describe('extension feedback ownership', () => {
   const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  it('keeps installation success and the list read failure reason until refresh recovers', async () => {
+    const state = { onInstall: () => { state.listStatus = 503; } }; stub(state);
+    const { root } = mount(); await flush();
+    cardOf(root, 'found-mod').querySelector('.extension-get').click(); await flush(100);
+    const feedback = root.querySelector('.world-catalog-scroll > .msgline');
+    expect(feedback.textContent).toContain(extensionStrings.completed(extensionStrings.installedAction, 'found-mod'));
+    expect(feedback.textContent).toContain(extensionStrings.listLoadFailed('Unavailable'));
+    expect(cardOf(root, 'found-mod')).not.toBeNull();
+    state.listStatus = 200; feedback.querySelector('button').click(); await flush(100);
+    expect(feedback.textContent).toBe('');
+  });
   it('returns a late detail install failure to its market card after the drawer closes', async () => {
     stub(); const original = globalThis.fetch; let fail;
     vi.stubGlobal('fetch', (url, init) => String(url) === '/api/extensions/install'

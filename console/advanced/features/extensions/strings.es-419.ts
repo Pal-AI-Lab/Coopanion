@@ -33,7 +33,7 @@ export const S: Partial<typeof en> = {
   updateAction: 'Actualizar',
   updateCheckFailed: (detail: string) => `Falló la búsqueda de actualizaciones: ${detail}`,
   noteWebUiMissing: 'Falta el paquete del navegador. Compila en el directorio de la extensión y reinicia el proceso.',
-  listLoadFailed: (msg: string) => `No se pudo cargar la lista de extensiones: ${msg}`,
+  listLoadFailed: (msg: string) => `No se pudieron leer las extensiones instaladas; no se puede confirmar su estado de instalación actual. Motivo: ${msg}`,
   remove: 'Eliminar extensión',
   removeInUse: 'Coo la está usando. Desactívala antes de eliminarla.',
   removeInUseProvider: 'Una conexión de modelo todavía usa este proveedor. Elimina primero esa conexión.',
@@ -48,7 +48,6 @@ export const S: Partial<typeof en> = {
   completed: (action: string, name: string) => `${action} completada: ${name}.`,
   restartNeeded: 'Las extensiones surten efecto después de reiniciar el proceso.',
   worldActivateHint: 'Si el World no está activo, actívalo en Resumen de Worlds.',
-  syncedFailed: 'La operación se completó, pero la lista no está sincronizada. Actualiza para reintentar.',
 
   filterPlaceholder: 'Filtrar: nombre, descripción, palabras clave',
   sortLabel: {

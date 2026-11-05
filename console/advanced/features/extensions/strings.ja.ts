@@ -33,7 +33,7 @@ export const S: Partial<typeof en> = {
   updateAction: '更新',
   updateCheckFailed: (detail: string) => `更新の確認に失敗しました：${detail}`,
   noteWebUiMissing: 'ブラウザー用のビルド成果物がありません。拡張機能ディレクトリでビルドしてから、プロセスを再起動してください。',
-  listLoadFailed: (msg: string) => `拡張機能の一覧を読み込めませんでした：${msg}`,
+  listLoadFailed: (msg: string) => `インストール済み拡張機能の一覧を読み込めず、最新のインストール状態を確認できません。原因：${msg}`,
   remove: '拡張機能を削除',
   removeInUse: 'Coo が使用中です。無効にしてから削除してください。',
   removeInUseProvider: 'このプロバイダーを使うモデル接続が残っています。先にその接続を削除してください。',
@@ -48,7 +48,6 @@ export const S: Partial<typeof en> = {
   completed: (action: string, name: string) => `${action}が完了しました：${name}。`,
   restartNeeded: '拡張はプロセスの再起動後に反映されます。',
   worldActivateHint: '有効になっていない World は World 一覧で有効化してください。',
-  syncedFailed: '操作は完了しましたが、一覧が同期されていません。更新してください。',
 
   filterPlaceholder: '絞り込み：パッケージ名、説明、キーワード',
   sortLabel: {

@@ -48,7 +48,7 @@ const zh = {
   updateAction: '更新',
   updateCheckFailed: (detail: string) => `更新检查失败： ${detail}`,
   noteWebUiMissing: '缺少浏览器构建产物。请在扩展目录构建，再重启进程。',
-  listLoadFailed: (msg: string) => `扩展清单加载失败： ${msg}`,
+  listLoadFailed: (msg: string) => `已安装扩展列表读取失败，无法确认最新安装状态。原因：${msg}`,
   remove: '删除扩展',
   removeInUse: 'Coo 正在使用，停用后才能删除。',
   removeInUseProvider: '还有模型连接在用这个供应商，先删除这些连接。',
@@ -63,7 +63,6 @@ const zh = {
   completed: (action: string, name: string) => `${action}成功：${name}。`,
   restartNeeded: '扩展需重启进程后生效。',
   worldActivateHint: '未激活的 World 要到 World 总览里激活。',
-  syncedFailed: '操作已完成，但列表未同步；请刷新。',
 
   filterPlaceholder: '筛选：包名、描述、关键字',
   sortLabel: {
@@ -262,7 +261,7 @@ export const en: typeof zh = {
   updateAction: 'Update',
   updateCheckFailed: (detail: string) => `Update check failed: ${detail}`,
   noteWebUiMissing: 'Browser bundle missing. Build in the extension directory and restart the process.',
-  listLoadFailed: (msg: string) => `Extension list failed to load: ${msg}`,
+  listLoadFailed: (msg: string) => `Could not read installed extensions; the latest installation status is unavailable. Reason: ${msg}`,
   remove: 'Delete extension',
   removeInUse: 'In use by Coo. Disable it before deleting.',
   removeInUseProvider: 'A model connection still uses this provider. Delete that connection first.',
@@ -277,7 +276,6 @@ export const en: typeof zh = {
   completed: (action: string, name: string) => `${action} completed: ${name}.`,
   restartNeeded: 'Extensions take effect after the process restarts.',
   worldActivateHint: 'If the World is not active, activate it in World overview.',
-  syncedFailed: 'Operation completed, but the list is out of sync. Refresh to retry.',
 
   filterPlaceholder: 'Filter: name, description, keywords',
   sortLabel: {
