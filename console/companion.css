@@ -37,6 +37,13 @@ body.companion-sidebar {
 /* On macOS the divider lines up with the expanded sidebar's border. Where the buttons start depends on
    the window controls, so the space before it is worked out from the same start: four 32px buttons and
    their 2px gaps come first. */
+/* Dialogs and the picture viewer cover the page, not the title bar: the system's window controls sit over
+   the bar and no overlay reaches them, so the bar stays as it is, still dragging the window. Its own
+   buttons wait while one is open. */
+body.companion-sidebar .modal { top: var(--titlebar-height); }
+body.companion-sidebar .extension-lightbox { top: var(--titlebar-height); height: calc(100dvh - var(--titlebar-height)); }
+body.companion-sidebar .extension-lightbox::backdrop { top: var(--titlebar-height, 36px); }
+body.companion-sidebar:has(> .modal, > .extension-lightbox[open]) .companion-titlebar button { pointer-events: none; }
 .companion-titlebar[data-platform="darwin"] .companion-titlebar-release { margin-left: max(8px, calc(var(--rail-width) - 1px - var(--titlebar-actions-left) - 4 * (32px + 2px))); }
 .companion-titlebar-release a { text-decoration: none; }
 .companion-titlebar-release a:hover { text-decoration: underline; }

@@ -2303,13 +2303,13 @@ input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{disp
 .extension-lightbox[open]{display:grid;place-items:center}
 .extension-lightbox::backdrop{background:rgb(12 12 14 / .8)}
 .extension-lightbox-figure{display:grid;justify-items:center;gap:12px;margin:0;padding:56px 84px 24px}
-.extension-lightbox-figure img{display:block;max-width:calc(100vw - 168px);max-height:calc(100dvh - 120px);border-radius:10px;background:var(--sheet);box-shadow:0 20px 60px -20px rgb(0 0 0 / .6)}
+.extension-lightbox-figure img{display:block;max-width:calc(100vw - 168px);max-height:calc(100dvh - var(--titlebar-height, 0px) - 120px);border-radius:10px;background:var(--sheet);box-shadow:0 20px 60px -20px rgb(0 0 0 / .6)}
 .extension-lightbox-count{min-height:16px;font:12px var(--mono);opacity:.75}
 .extension-lightbox-button{position:fixed;display:grid;place-items:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:rgb(255 255 255 / .14);color:#fff;cursor:pointer;transition:background .15s}
 .extension-lightbox-button:hover{background:rgb(255 255 255 / .26)}
 .extension-lightbox-button .icon{width:20px;height:20px}
 .extension-lightbox-close{top:calc(var(--titlebar-height, 0px) + 16px);right:20px}
-.extension-lightbox-nav{top:50%;margin-top:-20px}
+.extension-lightbox-nav{top:calc(50% + var(--titlebar-height, 0px) / 2);margin-top:-20px}
 .extension-lightbox-nav.is-prev{left:24px}
 .extension-lightbox-nav.is-next{right:24px}
 @media (prefers-reduced-motion: reduce){.extension-gallery-shot,.extension-gallery-nav,.extension-lightbox-button{transition:none}}
