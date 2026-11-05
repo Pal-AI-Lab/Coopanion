@@ -271,6 +271,15 @@ const ja: Translation<PetText> = {
     maxUtteranceMs: { title: '1 文の最長' },
   },
 
+  windowReason: {
+    badHostEnv: (env: string) => `${env} が文字列の JSON 配列ではありません`,
+    noElectronFile: (file: string) => `Electron の実行ファイルがありません：${file}`,
+    noElectron: '使える Electron がありません：デスクトップペットのパネルでウィンドウのランタイムをインストールするか、設定で Electron の実行ファイルを指定してください',
+    startFailed: (why: string) => `起動に失敗しました：${why}`,
+    closed: 'ウィンドウは閉じられました',
+    exited: (code: number | null) => `ウィンドウのプロセスが終了しました（終了コード ${code}）`,
+  },
+
   panel: {
     window: 'ペットのウィンドウ',
     openWindow: 'ウィンドウを開く',

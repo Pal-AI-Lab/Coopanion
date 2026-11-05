@@ -8,7 +8,7 @@ const t = petText('zh').panel;
 /** The window open and connected, the managed runtime installed. */
 const STATE = {
   inWindow: true, url: null, dressUrl: null, screen: null,
-  window: { phase: 'running', pid: 1, source: null, detail: null },
+  window: { phase: 'running', pid: 1, source: null, reason: null },
   electron: { phase: 'ready', path: '/runtimes/electron', done: 0, total: null, detail: null, supported: true },
 };
 let life;
