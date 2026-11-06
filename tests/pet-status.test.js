@@ -177,6 +177,60 @@ describe('activity in the shared speech bubble', () => {
   });
 });
 
+describe("a World's confirmation in the bubble", () => {
+  const say = (p, id, ...texts) => p.onOrder({ t: 'say', id, beats: texts.map((text) => ({ text, actions: [], anchors: [] })) });
+  const confirm = (p, id, question) => p.onOrder({ t: 'confirm', id, question, options: ['可以', '这次不行'] });
+  const text = (p) => (p.bubble.hidden ? null : p.bubble.querySelector('.b-text')?.textContent ?? '');
+  const until = (p, done) => { for (let i = 0; i < 2000 && !done(); i++) p.step(.05); };
+  const asked = (p) => p.bubble.classList.contains('ask') && p.bubble.querySelectorAll('.b-opt').length > 0;
+
+  it('goes ahead of the queued lines and behind an earlier confirmation; the line it paused resumes from its beat', () => {
+    const p = page();
+    p.onOrder({ t: 'said', via: 'chat', text: '在吗', images: 0, cursor: 1 });
+    say(p, 's1', '早上好', '今天晴天');
+    say(p, 's2', '出门走走');
+    until(p, () => text(p) === '今');
+    confirm(p, 'k1', '能看屏幕吗');
+    p.step(.01);
+    expect(p.bubble.classList.contains('ask')).toBe(true);
+    until(p, () => asked(p));
+    expect(text(p)).toBe('能看屏幕吗');
+
+    confirm(p, 'k2', '能在终端里打字吗');
+    say(p, 's3', '好的');
+    p.step(p.REPLIED_FADE + 1);
+    expect(text(p)).toBe('能看屏幕吗');
+    // the person's line stays while the line answering it is paused
+    expect(p.lines().filter((l) => l.fadeAt === null)).toHaveLength(1);
+
+    p.bubble.querySelector('.b-close').click();
+    p.step(.01);
+    expect(p.bubble.classList.contains('ask')).toBe(true);
+    until(p, () => asked(p));
+    expect(text(p)).toBe('能在终端里打字吗');
+
+    p.bubble.querySelector('.b-close').click();
+    p.step(.01);
+    expect(p.bubble.classList.contains('say')).toBe(true);
+    until(p, () => ['早上好', '今天晴天'].includes(text(p)));
+    expect(text(p)).toBe('今天晴天');
+    until(p, () => ['出门走走', '好的'].includes(text(p)));
+    expect(text(p)).toBe('出门走走');
+  });
+
+  it('waits for a conversation step to end', () => {
+    const p = page();
+    p.onOrder({ t: 'dialog', id: 'd', text: '你好', input: { kind: 'text', submit: '好' } });
+    p.step(.01);
+    confirm(p, 'k', '能看屏幕吗');
+    p.step(1);
+    expect(p.bubble.classList.contains('talk')).toBe(true);
+    p.onOrder({ t: 'dialog-close', id: 'd' });
+    p.step(.01);
+    expect(p.bubble.classList.contains('ask')).toBe(true);
+  });
+});
+
 describe("the person's lines above Coo", () => {
   const up = (p) => p.lines().filter((l) => l.fadeAt === null);
   const said = (p, text, cursor) => p.onOrder({ t: 'said', via: 'chat', text, images: 0, cursor });
