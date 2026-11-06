@@ -16,6 +16,10 @@ contextBridge.exposeInMainWorld('petHost', {
   onShown: (cb) => ipcRenderer.on('pet:shown', (_e, shown) => cb(!!shown)),
   /** Whether the window hides itself while a fullscreen window covers its display. */
   hideWhenFullscreen: (on) => ipcRenderer.send('pet:hideWhenFullscreen', !!on),
+  /** Whether every click passes through the window while a fullscreen window covers its display. */
+  passWhenFullscreen: (on) => ipcRenderer.send('pet:passWhenFullscreen', !!on),
+  /** Whether clicks pass through right now because of that setting, each time it changes. */
+  onFullscreenThrough: (cb) => ipcRenderer.on('pet:fullscreenThrough', (_e, on) => cb(!!on)),
   /** Whether every click passes through the window (the tray's "click through"); the window process enforces it. */
   clickThrough: (on) => ipcRenderer.send('pet:clickThrough', !!on),
   openDress: () => ipcRenderer.send('pet:openDress'),

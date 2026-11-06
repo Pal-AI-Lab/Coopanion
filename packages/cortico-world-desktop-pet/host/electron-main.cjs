@@ -336,8 +336,11 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   app.once('will-quit', () => overlay.stop());
   /** Id of the display whose work area the window covers. */
   let displayId = null;
-  /** The setting, and whether it is what hid the window. */
-  let hideWhenFullscreen = false, autoHidden = false;
+  /** The settings, and whether the first is what hid the window. */
+  let hideWhenFullscreen = false, autoHidden = false, passWhenFullscreen = false;
+  /** Every click passes through while the tray says so or the second setting meets a fullscreen window. */
+  let trayThrough = false, fullscreenThrough = false;
+  const lockMouse = () => mouse.lock(trayThrough || fullscreenThrough);
   // the other windows, read only while the page asks (its body's pack needs them) and sent when they change:
   // their tops, and the whole windows with their ids, order and foreground flag
   const windows = createWindowSource({ screen });
@@ -428,7 +431,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       if ((input.control || input.meta) && (['-', '_', '=', '+', '0'].includes(input.key) || ['NumpadAdd', 'NumpadSubtract', 'Numpad0'].includes(input.code))) event.preventDefault();
     });
     // a page loaded afresh asks for the windows again once its body is on
-    win.webContents.on('did-finish-load', () => { win.webContents.setZoomLevel(0); overlay.pageLoaded(); watchWindows(false); win.webContents.send('pet:floor', coverArea(display()).below); });
+    win.webContents.on('did-finish-load', () => { win.webContents.setZoomLevel(0); overlay.pageLoaded(); watchWindows(false); win.webContents.send('pet:floor', coverArea(display()).below); win.webContents.send('pet:fullscreenThrough', fullscreenThrough); });
     // The page learns where the cursor is even when the click-through window misses its moves, and
     // it renews the mouse lease in its answer to every report: the report goes out on every tick,
     // not only when the pointer moved, so a cursor that rests still still gets a verdict.
@@ -445,12 +448,15 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       win.webContents.send('pet:cursor', at);
       mouse.tick();
     }, CURSOR_EVERY_MS);
-    // hidden while the setting is on and a window fills the pet's monitor; shown again once neither holds
+    // While a window fills the pet's monitor: hidden with the first setting on, shown again once it ends;
+    // with the second, every click passes through and the page is told so.
     const fullscreenTimer = fullscreen && setInterval(() => {
       if (!win) return;
-      const covered = hideWhenFullscreen && fullscreen(hwndOf(win));
-      if (covered && !autoHidden && win.isVisible()) { autoHidden = true; win.hide(); }
-      else if (!covered && autoHidden) { autoHidden = false; win.showInactive(); }
+      const covered = (hideWhenFullscreen || passWhenFullscreen) && fullscreen(hwndOf(win));
+      if (covered && hideWhenFullscreen && !autoHidden && win.isVisible()) { autoHidden = true; win.hide(); }
+      else if (!(covered && hideWhenFullscreen) && autoHidden) { autoHidden = false; win.showInactive(); }
+      const through = !!covered && passWhenFullscreen;
+      if (through !== fullscreenThrough) { fullscreenThrough = through; lockMouse(); win.webContents.send('pet:fullscreenThrough', through); }
     }, FULLSCREEN_EVERY_MS);
     win.on('closed', () => { appStore?.stop(); clearInterval(cursorTimer); clearInterval(fullscreenTimer); watchWindows(false); win = null; });
     // page console lines reach the World's log through stdout
@@ -495,7 +501,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   onPet('pet:hide', () => { releaseAutoHidden(); if (win) win.hide(); });
   onPet('pet:overlayFrame', (_e, rect, at) => overlay.frame(rect, at));
   onPet('pet:hideWhenFullscreen', (_e, on) => { hideWhenFullscreen = !!on; });
-  onPet('pet:clickThrough', (_e, on) => mouse.lock(on));
+  onPet('pet:passWhenFullscreen', (_e, on) => { passWhenFullscreen = !!on; });
+  onPet('pet:clickThrough', (_e, on) => { trayThrough = !!on; lockMouse(); });
   onPet('pet:watchWindows', (_e, on) => watchWindows(!!on));
   onPet('pet:openDress', () => openDress());
   let language = 'zh';

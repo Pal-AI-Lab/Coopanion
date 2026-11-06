@@ -127,6 +127,11 @@ let windowShown = true;
 function reportVisibility() { if (host) send({ t: 'visibility', hidden: !windowShown }); }
 // the page itself always reads as visible (its window does not throttle it): the window process says when it is hidden
 host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVisibility(); });
+/** Clicks pass through because a fullscreen window covers the pet's display and the setting says so; the window process decides. */
+let fullscreenThrough = false;
+host?.onFullscreenThrough?.((on) => { fullscreenThrough = on; });
+/** Every click passes through the pet right now, by the tray or the fullscreen setting. */
+const clicksPass = () => prefs.clickThrough || fullscreenThrough;
 
 /* ---------- OBS overlay: while the window streams, each frame drawn is reported with the part it sends, the pet and its bubbles ---------- */
 let overlayOn = false;
@@ -280,8 +285,9 @@ function applyPrefs(p) {
   if (typeof p.saidBubbles === 'boolean') { prefs.saidBubbles = p.saidBubbles; if (!p.saidBubbles) for (const line of lines) if (!line.live) fadeLine(line); }
   if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
   if (typeof p.frameRate === 'number' && p.frameRate >= 0) prefs.frameRate = p.frameRate;
-  // the window process does the hiding; the page only passes the setting on
+  // the window process does the hiding and the passing through; the page only passes the settings on
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
+  if (typeof p.passWhenFullscreen === 'boolean') host?.passWhenFullscreen?.(p.passWhenFullscreen);
   if (typeof p.clickThrough === 'boolean') { prefs.clickThrough = p.clickThrough; host?.clickThrough?.(p.clickThrough); }
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
   if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead(); }
@@ -462,7 +468,7 @@ function startItem(it) {
  */
 function pointedAt() {
   const p = cursor.at;
-  if (prefs.clickThrough || bubble.hidden || !p) return false;
+  if (clicksPass() || bubble.hidden || !p) return false;
   const r = bubble.getBoundingClientRect();
   return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom;
 }
@@ -1401,7 +1407,7 @@ function stepTools() {
   const p = cursor.at;
   const l = at();
   if (p && (body?.hit(p) || overTools(p))) toolsUntil = T + TOOLS_LINGER;
-  tools.hidden = !(!prefs.clickThrough && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && toolIds !== '');
+  tools.hidden = !(!clicksPass() && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && toolIds !== '');
   if (tools.hidden) endHold();
   tools.querySelector('[data-action="voice"]')?.classList.toggle('live', listen.phase === 'hearing');
 }

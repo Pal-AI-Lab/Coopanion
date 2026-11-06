@@ -918,6 +918,7 @@ export class DesktopPetWorld implements World {
       frameRate: this.cfg.window.frameRate,
       lockFrameRate: this.cfg.window.lockFrameRate,
       hideWhenFullscreen: this.cfg.window.hideWhenFullscreen,
+      passWhenFullscreen: this.cfg.window.passWhenFullscreen,
       clickThrough: this.clickThrough,
       language: this.appLanguage,
       user: this.userName,
