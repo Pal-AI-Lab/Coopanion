@@ -52,12 +52,15 @@ export function createStorageView(deps: StorageViewDeps): StorageView {
   const el = ui.h('div', 'storageview');
   const problem = actionProblem(ui, el.ownerDocument, signal);
   const body = ui.h('div');
+  const readError = ui.h('div', 'read-feedback');
   let loaded = false;
   const bar = ui.actions();
+  const result = ui.msgline();
+  bar.append(result);
   bar.append(ui.h('span', 'grow'));
   const nukeBtn = deps.clearAll ? ui.button(S.nukeAll, { variant: 'danger', onClick: () => void nuke() }) : null;
   if (nukeBtn) bar.appendChild(nukeBtn);
-  el.append(body, bar);
+  el.append(readError, body, bar);
   bar.classList.add('hidden');
 
   function row(p: StoragePartView): HTMLDivElement {
@@ -83,6 +86,7 @@ export function createStorageView(deps: StorageViewDeps): StorageView {
         : { title: S.clearTitle(p.label), body: p.note || '' },
     );
     if (!ok || signal.aborted) return;
+    result.textContent = '';
     const lock = ui.disable(btn);
     try {
       const out = await post<{ result?: string }>(
@@ -91,7 +95,7 @@ export function createStorageView(deps: StorageViewDeps): StorageView {
         { signal },
       );
       if (signal.aborted) return;
-      ui.toast(out.result || S.cleared, 'ok');
+      result.textContent = out.result || S.cleared;
       await load();
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
@@ -109,6 +113,7 @@ export function createStorageView(deps: StorageViewDeps): StorageView {
     const list = everything.map((p) => `· ${p.label} (${p.owner})`).join('\n');
     const ok = await ui.confirm({ title: S.nukeTitle, body: `${S.nukeBody}\n\n${list}`, danger: true });
     if (!ok || signal.aborted) return;
+    result.textContent = '';
     const lock = ui.disable(nukeBtn);
     try {
       const out = await post<{ results?: Array<{ owner: string; key: string; ok: boolean }> }>(
@@ -120,7 +125,7 @@ export function createStorageView(deps: StorageViewDeps): StorageView {
       const results = out.results || [];
       const bad = results.filter((x) => !x.ok);
       if (bad.length) problem(nukeBtn, S.partialFailed(bad.map((x) => `${x.owner} ${x.key}`).join(',')));
-      else ui.toast(S.nukedAll(results.length), 'ok');
+      else result.textContent = S.nukedAll(results.length);
       await load();
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
@@ -135,9 +140,10 @@ export function createStorageView(deps: StorageViewDeps): StorageView {
       const data = await get<{ parts?: StoragePartView[] }>('/api/storage', { signal });
       if (signal.aborted) return;
       loaded = true;
+      readError.replaceChildren();
       const all = data.parts || [];
       everything = all;
-      bar.classList.toggle('hidden', !nukeBtn || !all.length);
+      bar.classList.toggle('hidden', (!nukeBtn || !all.length) && !result.textContent);
       const parts = deps.filter ? all.filter((p) => deps.filter!(p)) : all;
       body.replaceChildren();
       if (!parts.length) {
@@ -154,8 +160,8 @@ export function createStorageView(deps: StorageViewDeps): StorageView {
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
       const text = S.loadFailed(errText(err));
-      if (loaded) ui.toast(text, 'bad');
-      else body.replaceChildren(listProblem(el.ownerDocument, text, COMMON.retry, load));
+      if (!loaded) body.replaceChildren();
+      readError.replaceChildren(listProblem(el.ownerDocument, text, COMMON.retry, load));
     }
   }
 

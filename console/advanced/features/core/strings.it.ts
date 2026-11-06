@@ -20,7 +20,7 @@ export const S: Partial<typeof en> = {
   chipRoundsPost: ' turni',
   subConfig: 'Configurazione',
   configEmpty: 'Il Core non ha impostazioni regolabili.',
-  netOffline: 'API non raggiungibile',
+  netOffline: "Diagnostica in tempo reale disconnessa; riconnessione…",
 
   // events.ts
   eventsDesc: "Record degli eventi, consultabili dall'agente.",

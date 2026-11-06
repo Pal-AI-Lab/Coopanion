@@ -180,11 +180,12 @@ function pathField(
   prop: ConfigProperty,
   current: string,
   onChange: () => void,
-  signal?: AbortSignal,
+  signal: AbortSignal,
 ): ConfigField {
   const spec = prop['x-path']!;
   const input = ui.input({ type: 'text', value: current, onChange });
   const controls = ui.h('div', 'pathfield-controls');
+  const problem = actionProblem(ui, controls.ownerDocument, signal);
   const choose = ui.button('', {
     size: 'sm',
     onClick: () => {
@@ -201,7 +202,7 @@ function pathField(
         onChange();
       }).catch((err: unknown) => {
         if (isAbort(err) || signal?.aborted) return;
-        ui.toast(errText(err), 'bad');
+        problem(choose, errText(err));
       }).finally(() => {
         choose.disabled = false;
       });
@@ -266,10 +267,10 @@ export function configField(
   ui: WebUi,
   prop: ConfigProperty,
   val: unknown,
-  onChange?: () => void,
-  signal?: AbortSignal,
+  onChange: () => void,
+  signal: AbortSignal,
 ): ConfigField {
-  const changed = (): void => onChange?.();
+  const changed = onChange;
   const text = (v: unknown): string => (v == null ? '' : String(v));
   if (prop.type === 'boolean') {
     const box = ui.checkbox(S.on, { checked: !!val, onChange: changed });
@@ -440,13 +441,14 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
   const el = ui.h('div', 'configview');
   const problem = actionProblem(ui, el.ownerDocument, signal);
   const body = ui.h('div');
+  const readError = ui.h('div', 'read-feedback');
   const bar = ui.actions();
   bar.classList.add('hidden');
   // 保存之前这一行说明修改会自动保存,保存后换成结果。
   const msg = ui.msgline(S.autoSaves);
   msg.classList.add('is-hint');
   bar.append(msg, ui.h('span', 'grow'));
-  el.append(body, bar);
+  el.append(readError, body, bar);
   const restart = deps.restart;
   const restartNote = ui.h('span', 'config-restart-note', S.worldRestartPending); restartNote.hidden = true;
   const key = (r: { groupId: string; path: string }) => `${r.groupId}\u0000${r.path}`;
@@ -573,6 +575,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
       if (signal.aborted) return;
       loaded = true;
       if (unsaved.size) { unsaved.clear(); setMsg(S.autoSaves, 'hint'); }
+      readError.replaceChildren();
       const all = Array.isArray(d.groups) ? d.groups : [];
       const groups = deps.filter ? all.filter((entry) => deps.filter!(entry.group)) : all;
       readers = [];
@@ -652,8 +655,8 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
     } catch (err) {
       if (isAbort(err) || signal.aborted) return;
       const text = S.loadFailed(errText(err));
-      if (loaded) ui.toast(text, 'bad');
-      else body.replaceChildren(listProblem(el.ownerDocument, text, COMMON.retry, load));
+      if (!loaded) body.replaceChildren();
+      readError.replaceChildren(listProblem(el.ownerDocument, text, COMMON.retry, load));
     }
   }
 

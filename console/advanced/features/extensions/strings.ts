@@ -29,7 +29,6 @@ const zh = {
   stateInstalledPendingRestart: "已安装，待重启",
   stateRemoved: '已卸载，待重启',
   disabled: '已安装，未加载',
-  worldNotLoaded: '已安装，前往 World 总览加载',
   template: '已安装，可创建实例',
 
   restartConfirmTitle: '重启进程？',
@@ -242,7 +241,6 @@ export const en: typeof zh = {
   stateInstalledPendingRestart: "Installed, restart required",
   stateRemoved: 'Uninstalled, restart pending',
   disabled: 'Installed, not loaded',
-  worldNotLoaded: 'Installed; load it in World overview',
   template: 'Installed; ready to create instances',
 
   restartConfirmTitle: 'Restart the process?',

@@ -147,7 +147,7 @@ export function mountWorlds(ctx: FeatureContext): void {
   /** The market view's rail shows avatars alone, so the World list's own failure shows above the catalog. */
   const marketFeedback = ui.h('div', 'world-list-feedback');
   const listErrors = new Map<'worlds' | 'extensions', string>();
-  readyHeading.after(feedback); catalog.append(marketFeedback);
+  tools.after(feedback); catalog.append(marketFeedback);
   rail.append(railList);
   workspace.append(rail, catalog); root.append(intro, workspace);
   /** Name tag beside a rail avatar in the market view, where the rail shows avatars alone. */
@@ -688,8 +688,6 @@ export function mountWorlds(ctx: FeatureContext): void {
       stateNode = button;
     }
     row.append(identity, stateNode, signals, actions);
-    if (!failed && m?.status === 'inactive' && !canActivate) row.append(ui.h('p', 'world-blade-note', S.inactiveNoteManual(m.id)));
-    else if (!failed && !m && !pending && !active) row.append(ui.h('p', 'world-blade-note', E.worldNotLoaded));
     return row;
   }
   function render(): void {

@@ -14,7 +14,6 @@ export const S: Partial<typeof en> = {
   stateInstalledPendingRestart: "已安裝，待重新啟動",
   stateRemoved: '已解除安裝，待重新啟動',
   disabled: '已安裝，未載入',
-  worldNotLoaded: '已安裝，前往 World 總覽載入',
   template: '已安裝，可建立實例',
 
   restartConfirmTitle: '重新啟動處理程序？',

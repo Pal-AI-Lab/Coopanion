@@ -18,6 +18,7 @@ import type { Page, PageContext } from '../../base/page.ts';
 import { panelStreamRoute } from '../../base/protocol.ts';
 import { openStream } from '../../base/stream.ts';
 import { promptInput } from '../../base/ui/prompt-input.tsx';
+import { actionProblem } from '../../base/ui/problem.ts';
 import { browserSocketEnv } from '../../base/websocket.ts';
 import { intro } from '../intro.ts';
 import { requestMode } from '../mode.ts';
@@ -120,6 +121,7 @@ async function mount(ctx: PageContext): Promise<void> {
 
   const dock = ui.h('div', 'chat-dock');
   const queueBox = ui.h('div', 'chat-queue');
+  const problem = actionProblem(ui, doc, ctx.signal);
   const ring = contextRing(ui, view, ctx.signal);
   const composer = promptInput(doc, ctx.signal, {
     label: S.title,
@@ -131,7 +133,6 @@ async function mount(ctx: PageContext): Promise<void> {
       const id = nextSend++;
       sentById.set(id, { text, images });
       stream.send(JSON.stringify({ t: 'send', id, text, images: images.map((i) => ({ mime: i.mime, base64: i.base64, name: i.name })) }));
-      if (images.length && !imagesSeen) ui.toast(S.imagesUnseen(bot));
       return true;
     },
   });
@@ -340,6 +341,7 @@ async function mount(ctx: PageContext): Promise<void> {
         const back = ui.h('button', 'pill', S.withdraw);
         back.type = 'button';
         back.title = S.withdrawHint;
+        back.dataset.withdrawCursor = String(it.cursor);
         back.addEventListener('click', () => { back.disabled = true; stream.send(JSON.stringify({ t: 'withdraw', cursor: it.cursor })); }, { signal: ctx.signal });
         row.append(now, back);
       }
@@ -383,6 +385,7 @@ async function mount(ctx: PageContext): Promise<void> {
             more = f.more === true;
             before = typeof f.before === 'number' ? f.before : null;
             imagesSeen = f.imagesSeen !== false;
+            composer.setImageWarning(imagesSeen ? null : S.imagesUnseen(bot));
             openAsk = typeof f.askId === 'string' ? f.askId : null;
             takeRefs(f.refs as Refs | undefined);
             const waiting = new Set(Array.isArray(f.pending) ? f.pending as number[] : []);
@@ -418,7 +421,7 @@ async function mount(ctx: PageContext): Promise<void> {
             const mine = sentById.get(f.id as number);
             sentById.delete(f.id as number);
             if (mine) composer.restore(mine.text, mine.images);
-            ui.toast(String(f.reason ?? ''), 'bad');
+            composer.setFeedback(String(f.reason ?? ''));
             return;
           }
           case 'settled': {
@@ -446,12 +449,17 @@ async function mount(ctx: PageContext): Promise<void> {
             refresh();
             return;
           }
-          case 'notice': ui.toast(String(f.text ?? '')); renderQueue(); return;
+          case 'notice': {
+            const anchor = queueBox.querySelector<HTMLElement>(`[data-withdraw-cursor="${Number(f.cursor)}"]`);
+            if (anchor) { (anchor as HTMLButtonElement).disabled = false; problem(anchor, String(f.text ?? '')); }
+            else composer.setFeedback(String(f.text ?? ''));
+            return;
+          }
           case 'ask': openAsk = typeof f.askId === 'string' ? f.askId : null; render(); return;
           case 'phase': phase = f.phase as RunPhase; refresh(); readContext(); return;
           case 'activity': live = Array.isArray(f.steps) ? { steps: f.steps as string[], startedAt: f.startedAt as number } : null; render(); return;
           case 'paused': paused = f.paused === true; refresh(); return;
-          case 'bot': bot = typeof f.bot === 'string' && f.bot ? f.bot : bot; composer.setPlaceholder(S.placeholder(bot)); refresh(); return;
+          case 'bot': bot = typeof f.bot === 'string' && f.bot ? f.bot : bot; composer.setPlaceholder(S.placeholder(bot)); composer.setImageWarning(imagesSeen ? null : S.imagesUnseen(bot)); refresh(); return;
           case 'draft': {
             const text = typeof f.text === 'string' ? f.text : '';
             const images = Array.isArray(f.images) ? f.images as WebUiImageAttachment[] : [];

@@ -14,7 +14,6 @@ export const S: Partial<typeof en> = {
   stateInstalledPendingRestart: "Installiert, Neustart ausstehend",
   stateRemoved: 'Deinstalliert, Neustart ausstehend',
   disabled: 'Installiert, nicht geladen',
-  worldNotLoaded: 'Installiert; in der World-Übersicht laden',
   template: 'Installiert; bereit zum Erstellen von Instanzen',
 
   restartConfirmTitle: 'Prozess neu starten?',

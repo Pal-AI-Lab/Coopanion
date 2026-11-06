@@ -20,7 +20,6 @@ export const S: Partial<typeof en> = {
   stateInstalledPendingRestart: "Установлено, ожидает перезапуска",
   stateRemoved: 'Удалено, ожидает перезапуска',
   disabled: 'Установлено, не загружено',
-  worldNotLoaded: 'Установлено; загрузите в обзоре World',
   template: 'Установлено; можно создавать экземпляры',
 
   restartConfirmTitle: 'Перезапустить процесс?',

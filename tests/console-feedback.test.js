@@ -7,7 +7,7 @@ import { actionProblem, listProblem } from '../console/base/ui/problem.ts';
 import { ERROR_TOAST_MS, TOAST_MS } from '../console/base/ui/overlay.ts';
 
 let life;
-afterEach(() => { life?.abort(); document.body.replaceChildren(); vi.restoreAllMocks(); vi.useRealTimers(); });
+afterEach(() => { life?.abort(); document.body.replaceChildren(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 function setup() {
   life = new AbortController();
   const ui = createConsoleUi({ doc: document, overlayHost: document.body, signal: life.signal, memo: { get: (_, fallback) => fallback, set() {} } });
@@ -16,6 +16,26 @@ function setup() {
   return { ui, report: actionProblem(ui, document, life.signal) };
 }
 const bounds = (left, top, width, height) => ({ left, top, right: left + width, bottom: top + height, width, height });
+
+it('offers selectable text without a second notification when clipboard access fails', async () => {
+  vi.stubGlobal('navigator', { clipboard: { writeText: async () => { throw Error('Clipboard unavailable'); } } });
+  const { ui } = setup();
+  const button = ui.copyButton('Example diagnostic detail'); document.body.append(button); button.click();
+  await vi.waitFor(() => expect(document.querySelector('.modalcard pre')?.textContent).toBe('Example diagnostic detail'));
+  expect(document.querySelector('.modalcard .extension-list-problem')).not.toBeNull();
+  expect(document.querySelector('.toast')).toBeNull();
+});
+
+it('does not open manual copy feedback after its page closes while the clipboard request is pending', async () => {
+  let reject;
+  const pending = new Promise((_, fail) => { reject = fail; });
+  vi.stubGlobal('navigator', { clipboard: { writeText: () => pending } });
+  const { ui } = setup();
+  const button = ui.copyButton('Example diagnostic detail'); document.body.append(button); button.click();
+  life.abort(); reject(Error('Clipboard unavailable'));
+  await pending.catch(() => {}); await Promise.resolve(); await Promise.resolve();
+  expect(document.querySelector('.modalcard')).toBeNull();
+});
 
 it('keeps an operation error at its captured control after focus moves and removes it with its page', () => {
   const { report } = setup();

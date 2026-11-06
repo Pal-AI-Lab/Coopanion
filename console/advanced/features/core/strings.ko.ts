@@ -20,7 +20,7 @@ export const S: Partial<typeof en> = {
   chipRoundsPost: '라운드',
   subConfig: '설정',
   configEmpty: 'Core에는 조정할 수 있는 설정이 없습니다.',
-  netOffline: 'API에 연결할 수 없음',
+  netOffline: "실시간 진단 연결 끊김. 다시 연결 중…",
 
   // events.ts
   eventsDesc: '이벤트 기록이며 에이전트가 조회할 수 있습니다.',

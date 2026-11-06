@@ -14,7 +14,6 @@ export const S: Partial<typeof en> = {
   stateInstalledPendingRestart: "Instalada, reinicio pendiente",
   stateRemoved: 'Desinstalada, reinicio pendiente',
   disabled: 'Instalada, sin cargar',
-  worldNotLoaded: 'Instalada; cárgala desde el Resumen de Worlds',
   template: 'Instalada; lista para crear instancias',
 
   restartConfirmTitle: '¿Reiniciar el proceso?',

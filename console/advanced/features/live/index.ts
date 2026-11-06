@@ -218,7 +218,7 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     tools: ctxAnchor,
     images: { max: 8 },
     onSubmit: (text, images) => {
-      if (!chatStream?.open) ui.toast(S.composerQueued);
+      if (!chatStream?.open) composer.setFeedback(S.composerQueued);
       // 首启时运行是停着的（见 launcher）；发话与按下那颗按钮同样是让它开始跑。
       if (onboarding) {
         void resumeRun();
@@ -467,6 +467,7 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     clearTimer: env.clearTimer,
     onError: (err) => ctx.onError(err),
     handlers: {
+      open: () => composer.setFeedback(null),
       // 时间线由调试通道画;这条流上只读控制台 World 对本连接所发帧的拒收与附带说明。
       message: (raw) => {
         let frame: unknown;
@@ -477,8 +478,7 @@ function mountLive(ctx: FeatureContext, env: SocketEnv): Disposable | void {
         }
         const { type, kind, text } = (frame ?? {}) as { type?: unknown; kind?: unknown; text?: unknown };
         if (type !== 'sys' || typeof text !== 'string') return;
-        if (kind === 'rejected') ui.toast(text, 'bad');
-        else if (kind === 'warning') ui.toast(text);
+        if (kind === 'rejected' || kind === 'warning') composer.setFeedback(text);
       },
       close: (willRetry) => {
         if (willRetry) chatStream?.send(hello);

@@ -30,11 +30,9 @@ async function mount(ctx: PageContext): Promise<void> {
   const frame = ui.h('iframe', 'companion-dressframe');
   const reveal = revealWhenPainted(frame, signal);
   frame.title = S.nav;
-  // shown only while the pet is not ready
-  const note = ui.h('p', null, S.noPet);
-  const readError = ui.h('div');
+  const readError = ui.h('div', 'read-feedback');
   frame.hidden = true;
-  root.append(intro(ui, S.nav), note, readError, frame);
+  root.append(intro(ui, S.nav), readError, frame);
 
   const doc = root.ownerDocument;
   const appearance = () => doc.documentElement.dataset.colorMode === 'dark' ? 'dark' : 'light';
@@ -62,13 +60,13 @@ async function mount(ctx: PageContext): Promise<void> {
     } catch (err) {
       // State is read only until the frame gets its address, so a failed read has no frame to keep.
       if (!signal.aborted) {
-        note.hidden = true;
-        readError.replaceChildren(listProblem(root.ownerDocument, err instanceof Error ? err.message : String(err), COMMON.retry, refresh));
+        const text = err instanceof Error ? err.message : String(err);
+        readError.replaceChildren(listProblem(root.ownerDocument, text, COMMON.retry, refresh));
       }
       return;
     }
     frame.hidden = !url;
-    note.hidden = !!url;
+    if (!url) readError.replaceChildren(listProblem(doc, S.noPet, COMMON.retry, refresh));
     if (url && frame.dataset.src !== url) {
       frame.dataset.src = url;
       const target = new URL(url);

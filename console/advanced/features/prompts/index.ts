@@ -170,8 +170,8 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     } catch (error) {
       if (!signal.aborted) {
         const text = S.loadFailed((error instanceof Error ? error.message : String(error)));
-        if (loaded) { state(); ui.toast(text, 'bad'); }
-        else readError.replaceChildren(listProblem(root.ownerDocument, text, COMMON.retry, refreshPreview));
+        if (loaded) state();
+        readError.replaceChildren(listProblem(root.ownerDocument, text, COMMON.retry, refreshPreview));
       }
       return false;
     }

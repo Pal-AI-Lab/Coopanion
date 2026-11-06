@@ -1554,7 +1554,8 @@ describe('social feedback and popover boundaries', () => {
     const input = detail.querySelector('textarea'); input.value = 'A draft to keep';
     button(detail, extensionStrings.commentSubmit).click(); await flush();
     expect(input.value).toBe('A draft to keep');
-    expect(detail.querySelector('.extension-comments .msgline.bad').textContent).toContain('comment unavailable');
+    expect(document.querySelector('.extension-problem:not(.hidden)')?.textContent).toContain('comment unavailable');
+    expect(detail.querySelector('.extension-comments .msgline.bad')).toBeNull();
     expect(root.querySelector('.world-list-feedback').textContent).toBe('');
   });
   it('keeps popovers within the content column and removes them when their control disappears', async () => {

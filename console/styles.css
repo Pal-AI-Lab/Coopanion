@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./advanced/features/prompts/prompts.css";
 @import "./features/cost/cost.css";
+@import "../shared/ui/problem.css";
 
 @theme inline {
   --color-background: var(--background);
@@ -1268,7 +1269,7 @@
   .avatar-canvas:active { cursor: grabbing; }
   .avatar-zoom-row { width: min(100%, 300px); display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; color: var(--muted-foreground); font-size: 13px; }
   .avatar-zoom { width: 100%; accent-color: var(--accent); }
-  .avatar-note { max-width: 42ch; margin: 0; color: var(--muted-foreground); font-size: 12.5px; text-align: center; }
+  .avatar-note { max-width: 100%; margin: 0; color: var(--muted-foreground); font-size: 12.5px; text-align: center; }
   .avatar-editor .actionbar { width: 100%; }
   .modalcard, .ctxpanel, .u-tip {
     border-color: var(--border);
@@ -2040,7 +2041,6 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-blade-actions .iobtn-power.is-on:hover:not(:disabled){color:#fff;background:color-mix(in srgb,var(--accent) 88%,var(--ink))}
 .world-blade-actions .iobtn-power:active:not(:disabled){transform:scale(.92)}
 .world-blade-actions .iobtn-power .icon{width:14px;height:14px;stroke-width:2.4}
-.world-blade-note{grid-column:1/-1;margin:-2px 0 0;font-size:12px;color:var(--ink-dim);overflow-wrap:anywhere}
 .world-catalog{display:flex;flex-direction:column;flex:1;height:100%;min-height:0;min-width:0}
 .world-catalog>.extension-toolbar{flex:none;gap:8px;margin:0;padding:0 var(--world-inset) 16px 0}
 .world-catalog>.extension-toolbar input[type=search]{flex:1 1 220px;min-width:120px}
@@ -2154,25 +2154,11 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .extension-get-ring .arc{stroke:var(--accent);stroke-linecap:round;stroke-dasharray:82;stroke-dashoffset:58;transform-origin:center;animation:extension-ring-arc 1.4s ease-in-out infinite}
 @keyframes extension-ring-spin{to{transform:rotate(360deg)}}
 @keyframes extension-ring-arc{50%{stroke-dashoffset:28}}
-/* A failed list read, where the list shows, with its retry. */
-.extension-list-problem{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--sheet);color:var(--danger);font-size:13px;min-width:0;box-sizing:border-box;overflow-wrap:anywhere}
-.extension-list-problem[hidden]{display:none}
-.extension-list-problem>span{min-width:0;max-height:240px;overflow-y:auto;overscroll-behavior:contain}
-.extension-list-problem>.btn{flex:none}
 /* Failed reads stacked above the cards or the World list, apart from each other and from what follows. */
 .extension-list-feedback,.world-list-feedback{display:grid;gap:10px}
 .extension-list-feedback{margin-bottom:10px}
 .world-list-feedback{margin-bottom:12px}
 .world-market>.world-list-feedback{flex:none;padding-right:var(--world-inset)}
-/* Error popover beside the control whose operation failed. */
-.extension-problem{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:8px;width:max-content;max-width:min(560px,var(--problem-available-width,calc(100vw - 16px)));padding:10px 8px 10px 11px;pointer-events:auto;line-height:1.55;border-color:color-mix(in srgb,var(--danger) 35%,var(--line-strong))}
-.extension-problem::before{content:"";position:absolute;left:var(--problem-arrow,50%);top:-5px;width:8px;height:8px;margin-left:-4px;background:inherit;border-left:1px solid color-mix(in srgb,var(--danger) 35%,var(--line-strong));border-top:1px solid color-mix(in srgb,var(--danger) 35%,var(--line-strong));transform:rotate(45deg)}
-.extension-problem.is-above::before{top:auto;bottom:-5px;transform:rotate(225deg)}
-.extension-problem-mark{width:16px;height:16px;margin-top:1px;color:var(--danger)}
-.extension-problem-text{max-height:min(300px,calc(100vh - 80px));overflow-y:auto;overscroll-behavior:contain;font-size:12px;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
-.extension-problem-close{flex:none;display:grid;place-items:center;width:22px;height:22px;margin:-2px 0 0;padding:0;border:0;border-radius:6px;background:transparent;color:var(--ink-dim);cursor:pointer}
-.extension-problem-close:hover{background:var(--hover);color:var(--ink)}
-.extension-problem-close .icon{width:13px;height:13px}
 /* Toolbar toggles for advanced search and the npm registry; their panels open under the toolbar. */
 .world-catalog-toggle{display:grid;place-items:center;flex:none;width:32px;height:32px;padding:0;border:1px solid var(--border);border-radius:8px;background:var(--sheet);color:var(--ink-soft);cursor:pointer}
 .world-catalog-toggle:hover{color:var(--ink);background:var(--hover)}
@@ -2313,3 +2299,6 @@ input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{disp
 .extension-lightbox-nav.is-prev{left:24px}
 .extension-lightbox-nav.is-next{right:24px}
 @media (prefers-reduced-motion: reduce){.extension-gallery-shot,.extension-gallery-nav,.extension-lightbox-button{transition:none}}
+
+.world-list-feedback:not(:empty){margin-block:12px}
+.rail-shutdown.is-working svg{animation:spin 1s linear infinite}

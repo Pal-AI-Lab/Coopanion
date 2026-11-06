@@ -14,7 +14,6 @@ export const S: Partial<typeof en> = {
   stateInstalledPendingRestart: "Installée, redémarrage requis",
   stateRemoved: 'Désinstallée, redémarrage requis',
   disabled: 'Installée, non chargée',
-  worldNotLoaded: 'Installée ; à charger depuis la vue d’ensemble des World',
   template: 'Installée ; prête à créer des instances',
 
   restartConfirmTitle: 'Redémarrer le processus ?',
