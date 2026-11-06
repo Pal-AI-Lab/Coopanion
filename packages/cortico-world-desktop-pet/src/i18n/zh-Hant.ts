@@ -237,6 +237,7 @@ const zhHant: Translation<PetText> = {
     frameRate: { title: '幀率', description: '走動、被拎著、跳起時每秒畫幾幀；0 跟隨螢幕更新率。超過螢幕更新率時以螢幕的為準。「習慣」頁可選 60、120、144 和不限。' },
     lockFrameRate: { title: '幀率鎖定', description: '靜止時也依「幀率」繪製桌寵。關閉時站著、坐著、睡著會降到每秒 30 幀。' },
     hideWhenFullscreen: { title: '全螢幕時自動隱藏', description: '開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕（遊戲、全螢幕影片、瀏覽器全螢幕）就把 Coo 藏起來，離開全螢幕後再放回來；最大化的視窗不算。關閉時一律浮在最上層。' },
+    passWhenFullscreen: { title: "全螢幕時滑鼠穿透", description: "開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕期間 Coo 照常顯示，點擊全部穿過 Coo 落到下方的視窗，離開全螢幕後恢復；最大化的視窗不算。與全螢幕時自動隱藏同時開啟時 Coo 會隱藏。" },
     exportOverlay: { title: 'OBS 畫面', description: '在 /overlay 提供桌寵視窗的透明畫面，供 OBS「瀏覽器」來源使用；關閉時不提供。' },
     electronFile: { title: 'Electron 程式', description: '留空時依序使用 CORTICO_DESKTOP_PET_HOST 和面板裡安裝的執行環境。' },
     port: { title: '頁面連接埠', description: '被佔用時往上順延到下一個空的連接埠。' },
