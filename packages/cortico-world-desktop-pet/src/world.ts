@@ -847,7 +847,7 @@ export class DesktopPetWorld implements World {
         const cursor = msg.cursor;
         if (!host?.withdrawPending || typeof cursor !== 'number') return;
         if (!await host.withdrawPending(cursor)) {
-          this.chat.send(socket, { t: 'notice', text: s.tooLate });
+          this.chat.send(socket, { t: 'notice', cursor, text: s.tooLate });
           return;
         }
         this.pendingChat.delete(cursor);
