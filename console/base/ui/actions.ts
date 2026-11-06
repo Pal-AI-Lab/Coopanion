@@ -105,7 +105,9 @@ export function copyButton(
     }
     // 两种复制方式均失败时展示文本，供手动选取。
     const content = h(env.doc, 'div');
-    content.append(listProblem(env.doc, S.copyFailed), h(env.doc, 'pre', 'mono', value));
+    const feedback = listProblem(env.doc, S.copyFailed);
+    feedback.classList.add('read-feedback');
+    content.append(feedback, h(env.doc, 'pre', 'mono', value));
     drawer(env, label, content);
   };
 

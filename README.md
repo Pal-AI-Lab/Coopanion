@@ -194,6 +194,8 @@ Open the settings window from the tray icon or from Coo's right-click menu.
 
 Pause / resume and the switch to **Advanced mode** are at the bottom of the sidebar. Advanced mode adds the **Model connections**, Persona, Memory, **Console** and **Diagnostics** pages. Model connections is where you change models, adjust reasoning effort, add other compatible services, enter prices for services without built-in ones and install provider extensions.
 
+Settings show operation errors beside the initiating control. If that control is no longer visible, the error uses a bottom notification. Read failures stay in the affected content region; refresh failures preserve loaded data and edits until a successful retry. Diagnostics report connection, event and log failures separately. Saving an avatar or name, pausing Coo and cancelling an alarm use the updated state as confirmation.
+
 ### World extensions
 
 In **World extensions → Extension market** you can search for Worlds, filter by category or tag, and install one with **Add to My Worlds** on its card, or open its details first. Packages in the [official index](https://github.com/Pal-AI-Lab/cortico-extensions) also show tags, votes and comments; commenting needs a GitHub sign-in. Caution tags can be excluded; packages with an excluded tag stay out of the results, and the exclusion is remembered next time.

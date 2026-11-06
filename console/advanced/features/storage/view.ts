@@ -51,7 +51,7 @@ export function createStorageView(deps: StorageViewDeps): StorageView {
   const { ui, signal } = deps;
   const el = ui.h('div', 'storageview');
   const problem = actionProblem(ui, el.ownerDocument, signal);
-  const body = ui.h('div');
+  const body = ui.h('div', 'settings-sections');
   const readError = ui.h('div', 'read-feedback');
   let loaded = false;
   const bar = ui.actions();

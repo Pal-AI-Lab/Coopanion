@@ -440,7 +440,7 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
 
   const el = ui.h('div', 'configview');
   const problem = actionProblem(ui, el.ownerDocument, signal);
-  const body = ui.h('div');
+  const body = ui.h('div', 'settings-sections');
   const readError = ui.h('div', 'read-feedback');
   const bar = ui.actions();
   bar.classList.add('hidden');

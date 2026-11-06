@@ -368,7 +368,7 @@ it('preserves the mounted editor when refreshing after apply fails and reports i
     ? Promise.resolve(json({ error: 'Refresh unavailable' }, 503)) : fetchData(path, options));
   const text = view.state.doc.toString();
   button(S.reloadSession).click();
-  await vi.waitFor(() => expect(root.querySelector('.prefix-read-error')?.textContent).toContain('Refresh unavailable'));
+  await vi.waitFor(() => expect(root.querySelector('.read-feedback')?.textContent).toContain('Refresh unavailable'));
   expect(document.querySelector('.toast.bad')).toBeNull();
   expect(EditorView.findFromDOM(root.querySelector('.cm-editor'))).toBe(view);
   expect(view.state.doc.toString()).toBe(text);

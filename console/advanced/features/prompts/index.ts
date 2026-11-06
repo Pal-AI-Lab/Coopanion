@@ -73,7 +73,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
   const actions = ui.h('div', 'prompt-actions');
   const status = ui.msgline('');
   status.setAttribute('role', 'status');
-  const readError = ui.h('div', 'prefix-read-error');
+  const readError = ui.h('div', 'read-feedback');
   const stage = ui.h('div', 'prefix-stage');
   const flags = ui.h('div', 'prefix-flags');
   const host = ui.h('div', 'prefix-host');

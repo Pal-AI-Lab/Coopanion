@@ -507,7 +507,6 @@ export function mountUsage(ctx: PageContext): void {
       if (!state.data) {
         const text = S.loadFailed(errText(err));
         cards.replaceChildren(listProblem(doc, text, COMMON.retry, load));
-        if (asked) ui.toast(text, 'bad');
         return;
       }
       // 保留上一次的结果,整块标为过期,并写明取回时刻。

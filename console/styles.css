@@ -882,6 +882,7 @@
   .rail-action.active { background: color-mix(in srgb, var(--foreground) 6%, transparent); color: var(--foreground); }
   .rail-action:disabled { opacity: .35; cursor: default; }
   .rail-action .icon { width: 17px; height: 17px; }
+  .rail-shutdown.is-working svg { animation:spin 1s linear infinite; }
   .rail-run:not(.paused) { color: var(--accent); }
   .rail-run.paused { color: var(--warn); }
   .rail-ident { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
@@ -1478,7 +1479,7 @@
 .featureslot > .featureintro + .sheet { margin-top:0; }
 /* 面板槽是滚动容器，吸顶元素贴在 padding 内沿，所以上方留白放在第一项的外边距上;World 页模板的工具条贴着栏目条 */
 .panelslot > :first-child:not(.template-library) { margin-top:24px; }
-.panelslot > .template-library:has(> :is(.placeholder,.extension-list-problem)) { margin-top:24px; }
+.panelslot > .template-library:has(> :is(.placeholder,.read-feedback:not(:empty))) { margin-top:24px; }
 .connection-detail > div > div:first-child > .sheet:first-child { padding-top:0; }
 .connection-hub .btn { border:1px solid var(--border-strong); }
 .connection-hub .btn:hover { border-color:var(--ink-soft); }
@@ -1880,7 +1881,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .coreview .core-filters > .btn { flex: none; }
 .coreview .core-run > .core-summary { padding-bottom: 14px; }
 .coreview .core-run > .sheet { margin-top: 0; }
-.coreview :is(.configview, .storageview) > :first-child > .sheet:first-child { padding-top: 0; }
+.settings-sections > .sheet:first-child { padding-top: 0; }
 .coreview .core-pager { flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; min-height: 32px; font-size: 12px; color: var(--ink-dim); }
 .coreview .core-pager-size { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .coreview .core-pager-size select.field { width: auto; min-width: 72px; height: 30px; min-height: 30px; padding-top: 0; padding-bottom: 0; font-size: 12.5px; }
@@ -2128,7 +2129,6 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .extension-active-item.is-excluded.is-notice{color:var(--extension-caution)}
 .extension-active-note{font-size:12px;line-height:24px;color:var(--ink-dim)}
 .world-catalog-scroll{flex:1;min-width:0;min-height:0;overflow:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding:0 calc(var(--world-inset) - 10px) 24px 10px}
-.world-catalog-scroll>.msgline:has(>.extension-list-problem){margin-bottom:10px}
 .world-catalog .extension-card-heading .extension-avatar{position:absolute;left:16px;top:16px;width:44px;height:44px}
 .world-catalog .extension-card-title{font-size:15px;overflow-wrap:anywhere}
 .world-catalog .extension-card-titleline{flex-wrap:wrap;gap:5px 12px}
@@ -2157,7 +2157,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 /* Failed reads stacked above the cards or the World list, apart from each other and from what follows. */
 .extension-list-feedback,.world-list-feedback{display:grid;gap:10px}
 .extension-list-feedback{margin-bottom:10px}
-.world-list-feedback{margin-bottom:12px}
+.world-list-feedback{margin-block:12px}
 .world-market>.world-list-feedback{flex:none;padding-right:var(--world-inset)}
 /* Toolbar toggles for advanced search and the npm registry; their panels open under the toolbar. */
 .world-catalog-toggle{display:grid;place-items:center;flex:none;width:32px;height:32px;padding:0;border:1px solid var(--border);border-radius:8px;background:var(--sheet);color:var(--ink-soft);cursor:pointer}
@@ -2299,6 +2299,3 @@ input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{disp
 .extension-lightbox-nav.is-prev{left:24px}
 .extension-lightbox-nav.is-next{right:24px}
 @media (prefers-reduced-motion: reduce){.extension-gallery-shot,.extension-gallery-nav,.extension-lightbox-button{transition:none}}
-
-.world-list-feedback:not(:empty){margin-block:12px}
-.rail-shutdown.is-working svg{animation:spin 1s linear infinite}

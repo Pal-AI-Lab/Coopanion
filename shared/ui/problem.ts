@@ -86,7 +86,7 @@ export function problemPopover(doc: Document, signal: AbortSignal, language = do
   const existing = pagePopovers.get(signal);
   if (existing) return existing;
   const win = doc.defaultView!;
-  const box = doc.createElement('div'); box.className = 'u-tip extension-problem hidden'; box.setAttribute('role', 'alert');
+  const box = doc.createElement('div'); box.className = 'extension-problem hidden'; box.setAttribute('role', 'alert');
   doc.body.append(box);
   signal.addEventListener('abort', () => box.remove(), { once: true });
   let anchor: Element | null = null, find: (() => Element | null | undefined) | null = null;
