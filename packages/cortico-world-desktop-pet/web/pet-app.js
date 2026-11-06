@@ -315,7 +315,7 @@ function onOrder(m) {
     case 'type': openTyping(); break;
     case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); holdRoam(20); break;
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
-    case 'confirm': dropAsks(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
+    case 'confirm': dropAsks(); queueConfirm({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
     case 'walk': walk(m); break;
     case 'move': walk(m); break;
     case 'walk-stop': body?.stopWalk(m.id); break;
@@ -393,6 +393,25 @@ const PAUSE = /[,.!?;:…，。！？；：、]/, SILENT = /[\s,.!?;:…，。�
 function dropAsks() {
   for (let i = queue.length - 1; i >= 0; i--) if (queue[i].kind === 'ask' && !queue[i].confirm) queue.splice(i, 1);
   if (item && item.kind === 'ask' && !item.answered && !item.confirm) closeBubble();
+}
+
+/**
+ * A World's confirmation waits on the person against a deadline, so it goes ahead of the lines in the queue, behind
+ * earlier confirmations, and takes the bubble from a line being spoken: that line comes back after it, from the beat
+ * it was on. A conversation step or the typing box keeps the bubble until it ends.
+ */
+function queueConfirm(it) {
+  let at = 0;
+  while (at < queue.length && queue[at].confirm) at++;
+  queue.splice(at, 0, it);
+  if (item?.kind !== 'say') return;
+  const paused = item;
+  closeBubble();
+  if (paused.i >= 0) paused.i--;
+  paused.beatDone = true; paused.holdUntil = 0; paused.spoken = null;
+  // the person's lines it answers stay up until it has really ended
+  delete paused.endedAt;
+  queue.splice(at + 1, 0, paused);
 }
 
 function openBubble(kind, html) {
