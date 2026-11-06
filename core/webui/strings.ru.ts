@@ -8,7 +8,6 @@ export const S: Partial<typeof en> = {
   empty: 'У Coo нет будильников.',
   remove: 'Удалить',
   confirmTitle: (when) => `Удалить будильник на ${when}?`,
-  removed: 'Удалён',
   failed: (msg) => `Не удалось удалить: ${msg}`,
   loadFailed: (msg) => `Не удалось загрузить: ${msg}`,
   search: 'Поиск по тексту или времени',
