@@ -115,7 +115,7 @@ export function mountUsage(ctx: PageContext): void {
     title: S.liveRefreshTitle(LIVE_MS / 1000),
     onChange: (on) => setLive(on),
   });
-  const refreshBtn = ui.button(S.refresh, { size: 'sm', onClick: () => void load(true) });
+  const refreshBtn = ui.button(S.refresh, { size: 'sm', onClick: () => void load() });
   const intro = pageIntro(ui, S.pageTitle, { actions: [liveBox.el, refreshBtn] });
 
   // ---- 时间范围：页头第二行，随页头吸顶 --------------------------------------
@@ -129,7 +129,7 @@ export function mountUsage(ctx: PageContext): void {
         state.from = fromInput.value;
         state.to = toInput.value;
       }
-      void load(true);
+      void load();
     },
   });
   presets.el.classList.add('uswitch');
@@ -138,7 +138,7 @@ export function mountUsage(ctx: PageContext): void {
     state.from = fromInput.value;
     state.to = toInput.value;
     presets.setValue('0');
-    void load(true);
+    void load();
   };
   const fromInput = ui.input({ type: 'date', onChange: pickDate });
   const toInput = ui.input({ type: 'date', onChange: pickDate });
@@ -165,10 +165,10 @@ export function mountUsage(ctx: PageContext): void {
   // 数据回来前先按记住的币种显示，免得选择框闪一下「自动」。
   const currencySelect = ui.select({
     options: [{ value: '', label: S.autoCurrency }, ...(currency ? [{ value: currency, label: currencyName(currency) }] : [])],
-    onChange: value => { currency = value; memo.set('currency', value); void load(true); },
+    onChange: value => { currency = value; memo.set('currency', value); void load(); },
   });
   currencySelect.value = currency;
-  const basisSelect = ui.select({ options: [{value:'marginal',label:S.basisMarginal},{value:'equivalent',label:S.basisEquivalent}], onChange: value => { basis = value; void load(true); } });
+  const basisSelect = ui.select({ options: [{value:'marginal',label:S.basisMarginal},{value:'equivalent',label:S.basisEquivalent}], onChange: value => { basis = value; void load(); } });
   basisSelect.setAttribute('aria-label', S.ledger);
   // 换算币种的汇率与出处，只读。放在「计费口径」左边：控件靠右排，它出现、变长只往左长，不推动选择框。
   const rateText = ui.h('span', 'ulabel');
@@ -203,7 +203,7 @@ export function mountUsage(ctx: PageContext): void {
   const bucketSeg = ui.segmented(BUCKETS, {
     size: 'sm',
     value: state.bucket,
-    onSelect: (v) => { state.bucket = v as UsageBucketOption; void load(true); },
+    onSelect: (v) => { state.bucket = v as UsageBucketOption; void load(); },
   });
   bucketSeg.el.classList.add('uswitch');
   // 拆分维度可多选：同一组按钮，按下的高亮。
@@ -420,8 +420,6 @@ export function mountUsage(ctx: PageContext): void {
     timezone.hidden = !timezone.value;
   }
 
-  /** 最近一次刷新失败的原因与上次取回的时刻；刷新成功后清空。 */
-  let staleNote = '';
   function renderRateSource(source: UsageRateSource | undefined): void {
     rateSource.textContent = '';
     if (source?.kind === 'builtin') rateSource.textContent = S.rateBuiltin(source.date);
@@ -437,7 +435,7 @@ export function mountUsage(ctx: PageContext): void {
   function renderNotes(): void {
     const d = state.data;
     const ledgerError = d?.ledger?.error ? S.ledgerError(d.ledger.pending, d.ledger.error).trim() : '';
-    notice.textContent = [staleNote, ledgerError].filter(Boolean).join(' ');
+    notice.textContent = ledgerError;
     notice.hidden = !notice.textContent;
   }
 
@@ -486,12 +484,11 @@ export function mountUsage(ctx: PageContext): void {
   /** 每次取数自增;只有最新一次的结果或失败能落到页面上。 */
   let generation = 0;
   let loadedAt = '';
+  const stale = ui.h('div', 'read-feedback');
+  results.before(stale);
 
-  /**
-   * 主数据按所选粒度分桶;活跃度格子图的逐日 token 由同一次请求的 dailyTokenDays 带回。
-   * `asked`:这次取数由人操作控件发起，失败时一定弹出通知；自动刷新的失败只更新页上的提示。
-   */
-  async function load(asked = false): Promise<void> {
+  /** 主数据按所选粒度分桶；dailyTokenDays 提供活跃度图的每日用量。 */
+  async function load(): Promise<void> {
     const mine = ++generation;
     const extra = `&basis=${basis}&currency=${encodeURIComponent(currency)}&dailyTokenDays=${ACTIVITY_CONTEXT_DAYS}`;
     try {
@@ -502,22 +499,19 @@ export function mountUsage(ctx: PageContext): void {
       if (ctx.signal.aborted || mine !== generation) return;
       state.data = d;
       loadedAt = ui.fmt.clock(new Date().toISOString());
-      staleNote = '';
       results.classList.remove('u-stale');
+      stale.replaceChildren();
       renderAll(d, d.dailyTokens ?? null);
     } catch (err) {
       if (isAbort(err) || ctx.signal.aborted || mine !== generation) return;
       if (!state.data) {
         const text = S.loadFailed(errText(err));
         cards.replaceChildren(listProblem(doc, text, COMMON.retry, load));
-        if (asked) ui.toast(text, 'bad');
         return;
       }
       // 保留上一次的结果,整块标为过期,并写明取回时刻。
-      staleNote = S.stale(errText(err), loadedAt);
-      renderNotes();
+      stale.replaceChildren(listProblem(doc, `${S.stale(errText(err), loadedAt)} ${state.data.from ?? ''} – ${state.data.to ?? ''}`, COMMON.retry, load));
       results.classList.add('u-stale');
-      if (asked) ui.toast(staleNote, 'bad');
     }
   }
 

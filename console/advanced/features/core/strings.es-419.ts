@@ -20,7 +20,7 @@ export const S: Partial<typeof en> = {
   chipRoundsPost: ' rondas',
   subConfig: 'Configuración',
   configEmpty: 'Core no tiene ajustes configurables.',
-  netOffline: 'No se puede acceder a la API',
+  netOffline: "Diagnóstico en vivo desconectado; reconectando…",
 
   // events.ts
   eventsDesc: 'Registros de eventos que el agente puede consultar.',

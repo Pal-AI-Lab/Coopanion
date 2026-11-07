@@ -34,7 +34,6 @@ export const S: Partial<typeof en> = {
   restartBody: 'World を停止して再構築し、「World の再起動後に反映」と表示された設定を適用します。管理しているプロセスと接続は停止した後に再起動します。',
   missingReasonDefault: 'この World を読み込めません。',
   activateWorld: 'World を有効化',
-  inactiveNoteManual: (id: string) => `ローカルに実装はありますが、構成に含まれていません。有効にするには config.json の worlds.${id}.enabled を true にして再起動してください。`,
   hideFromAgent: 'Cooから隠す',
   showToAgent: 'Cooに表示',
   restartWorld: 'World を再起動',

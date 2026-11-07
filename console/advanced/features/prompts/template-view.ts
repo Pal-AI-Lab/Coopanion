@@ -256,7 +256,9 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
         const out = await post<{ error?: string; result?: string }>('/api/prompts/reset', { key: source.key }, { signal });
         if (out?.error) throw new Error(out.error);
         dirty.delete(source.title);
-        ui.toast(out?.result ?? S.resetDone, 'ok');
+        const result = out?.result ?? S.resetDone;
+        resetResults.set(source.key, result);
+        say(result);
         await load();
       } catch (err) {
         if (isAbort(err)) return;
@@ -281,7 +283,8 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
     }
 
     controls();
-    say(loadedText());
+    say(resetResults.get(source.key) ?? loadedText());
+    resetResults.delete(source.key);
     updateVariables();
     return {
       el: wrap,
@@ -289,15 +292,19 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
     };
   }
 
+  const readError = ui.h('div', 'read-feedback');
+  const resetResults = new Map<string, string>();
   let loaded = false;
   async function load(): Promise<void> {
     try {
       const data = await get<{ prompts?: PromptDoc[] }>('/api/prompts', { signal });
       if (signal.aborted) return;
       loaded = true;
+      readError.replaceChildren();
       for (const e of editors) e.dispose();
       editors = [];
       el.replaceChildren();
+      el.append(readError);
       dirty.clear();
       closePopup();
       const docs = (data?.prompts ?? []).filter((p) => wanted.has(p.key));
@@ -311,8 +318,9 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
       if (isAbort(err)) return;
       deps.onError(err);
       const text = S.templatesLoadFailed(String((err as Error)?.message ?? err));
-      if (loaded) ui.toast(text, 'bad');
-      else el.replaceChildren(listProblem(el.ownerDocument, text, COMMON.retry, load));
+      if (!loaded) el.replaceChildren(readError);
+      else el.prepend(readError);
+      readError.replaceChildren(listProblem(el.ownerDocument, text, COMMON.retry, load));
     }
   }
 

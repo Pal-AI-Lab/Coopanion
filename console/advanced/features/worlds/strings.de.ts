@@ -34,7 +34,6 @@ export const S: Partial<typeof en> = {
   restartBody: 'Stoppt die World und baut sie neu auf, um Einstellungen anzuwenden, die einen World-Neustart erfordern. Verwaltete Prozesse und Verbindungen werden gestoppt und neu gestartet.',
   missingReasonDefault: 'Diese World konnte nicht geladen werden.',
   activateWorld: 'World aktivieren',
-  inactiveNoteManual: (id: string) => `Lokal implementiert, aber nicht assembliert. Zum Aktivieren setze worlds.${id}.enabled in config.json auf true und starte neu.`,
   hideFromAgent: 'Vor Coo verbergen',
   showToAgent: 'Coo zeigen',
   restartWorld: 'World neu starten',

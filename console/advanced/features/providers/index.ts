@@ -209,7 +209,7 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
     await refresh();
     if (selected === identity) await select(fallback(), true);
   }
-  async function refresh() { state = await get<HubState>('/api/providers', opts); if (ctx.signal.aborted) return; paint(); }
+  async function refresh() { state = await get<HubState>('/api/providers', opts); if (ctx.signal.aborted) return; refreshError.replaceChildren(); paint(); }
   async function select(identity: string, force = false): Promise<void> {
     if (!force && identity === selected) return;
     const scrollTop = identity === selected ? detailRoot.scrollTop : 0;
@@ -220,7 +220,7 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
     selected = identity; paint();
     if (!identity) {
       detailRoot.toggleAttribute('inert', false);
-      detailRoot.replaceChildren(ui.h('h3', '', S.empty), ui.msgline(S.emptyHint), ui.button(S.create, { onClick: () => run(create) }));
+      detailRoot.replaceChildren(ui.h('h3', '', S.empty), ui.msgline(S.emptyHint));
       return;
     }
     try { await openDetail(identity, gen, scrollTop); } catch (error) {
@@ -312,13 +312,12 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
   }));
   // Other deployments' selections and liveness change without this page; the detail form is left alone.
   let refreshing = false;
-  let refreshFailed = false;
+  const refreshError = ui.h('div', 'read-feedback'); index.insertBefore(refreshError, cards);
   ctx.lifecycle.interval(() => {
     if (refreshing) return;
     refreshing = true;
-    void refresh().then(() => { refreshFailed = false; }).catch(error => {
-      if (!ctx.signal.aborted && !refreshFailed) ui.toast(error instanceof Error ? error.message : String(error), 'bad');
-      refreshFailed = true;
+    void refresh().catch(error => {
+      if (!ctx.signal.aborted) refreshError.replaceChildren(listProblem(doc, error instanceof Error ? error.message : String(error), COMMON.retry, refresh));
     }).finally(() => { refreshing = false; });
   }, USAGE_REFRESH_MS);
   paint();

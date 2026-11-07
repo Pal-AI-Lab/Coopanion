@@ -20,7 +20,7 @@ export const S: Partial<typeof en> = {
   chipRoundsPost: ' раундов',
   subConfig: 'Конфигурация',
   configEmpty: 'У Core нет настраиваемых параметров.',
-  netOffline: 'API недоступен',
+  netOffline: "Соединение диагностики потеряно; переподключение…",
 
   // events.ts
   eventsDesc: 'Записи событий, доступные агенту для запросов.',

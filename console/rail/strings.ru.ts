@@ -15,7 +15,6 @@ export const S: Partial<typeof en> = {
   confirmShutdownTitle: '⚠ Выключение',
   confirmShutdownAgainTitle: '⚠⚠ Подтвердить выключение?',
   confirmShutdownAgainBody: 'Остановить работу и завершить процесс?',
-  finishingToast: 'Выключение…',
   stepIncomplete: 'не выполнен',
   doneShutdown: 'Выключено',
   resultLocalIncomplete: 'Локальные шаги выключения выполнены не полностью',
@@ -26,7 +25,6 @@ export const S: Partial<typeof en> = {
     `Результат выключения не получен (${msg}); возможно, процесс уже завершился.`,
   docTitle: (name: string) => `Настройки · ${name}`,
   renameTitle: 'Нажмите, чтобы переименовать',
-  renameSaved: 'Отображаемое имя сохранено',
   renameFailed: (msg: string) => `Отображаемое имя не сохранено: ${msg}`,
   // avatar.ts
   changeAvatar: 'Сменить аватар Coo',
@@ -35,10 +33,9 @@ export const S: Partial<typeof en> = {
   cropPreview: 'Предпросмотр обрезки аватара',
   zoomAria: 'Масштаб аватара',
   zoom: 'Масштаб',
-  note: 'Перетащите изображение, чтобы сдвинуть его; масштабируйте колесом мыши или ползунком. При сохранении avatar.png записывается в папку данных Coo.',
+  note: "Перетащите для перемещения; колесо или ползунок меняют масштаб.",
   cancel: 'Отмена',
   save: 'Сохранить аватар',
   cropTitle: 'Обрезка аватара',
   noCanvas: 'Браузеру не удалось создать холст для изображения',
-  saved: 'Аватар сохранён',
 };

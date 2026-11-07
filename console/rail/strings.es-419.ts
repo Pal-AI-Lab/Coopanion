@@ -15,7 +15,6 @@ export const S: Partial<typeof en> = {
   confirmShutdownTitle: '⚠ Apagar',
   confirmShutdownAgainTitle: '⚠⚠ ¿Confirmar apagado?',
   confirmShutdownAgainBody: '¿Detener la ejecución y salir del proceso?',
-  finishingToast: 'Apagando…',
   stepIncomplete: 'incompleto',
   doneShutdown: 'Apagado',
   resultLocalIncomplete: 'Pasos de apagado local incompletos',
@@ -26,7 +25,6 @@ export const S: Partial<typeof en> = {
     `No se recibió el resultado del apagado (${msg}); es posible que el proceso haya terminado.`,
   docTitle: (name: string) => `Configuración · ${name}`,
   renameTitle: 'Haz clic para cambiar el nombre',
-  renameSaved: 'Nombre visible guardado',
   renameFailed: (msg: string) => `No se guardó el nombre visible: ${msg}`,
   // avatar.ts
   changeAvatar: 'Cambiar el avatar de Coo',
@@ -35,10 +33,9 @@ export const S: Partial<typeof en> = {
   cropPreview: 'Vista previa del recorte del avatar',
   zoomAria: 'Zoom del avatar',
   zoom: 'Zoom',
-  note: 'Arrastra la imagen para reubicarla; usa la rueda del mouse o el control deslizante para hacer zoom. Al guardar se escribe avatar.png en el directorio de datos de Coo.',
+  note: "Arrastra para mover; usa la rueda o el control para ampliar.",
   cancel: 'Cancelar',
   save: 'Guardar avatar',
   cropTitle: 'Recortar avatar',
   noCanvas: 'El navegador no pudo crear un lienzo de imagen',
-  saved: 'Avatar guardado',
 };

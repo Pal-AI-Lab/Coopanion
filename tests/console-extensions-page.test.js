@@ -1416,6 +1416,19 @@ describe('World library and catalog', () => {
     expect([...root.querySelectorAll('.extension-active-row .extension-active-item')].map(item => item.textContent)).toEqual(['游戏']);
     expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(1);
   });
+  it('shows a filtered empty state when caution tags hide every package, and restores the cards when cleared', async () => {
+    const key = 'cortico.extensions.exclusions.v1:' + location.origin;
+    localStorage.removeItem(key);
+    try {
+      const index = { tags: { unsafe: { label: '不安全', style: 'warning' } } };
+      const { root } = await openWorlds({ hits: { hits: [{ ...HITS.hits[0], tags: ['unsafe'] }], index } });
+      root.querySelector('.world-market [aria-label="隐藏带警示标签的扩展"]').click(); await flush();
+      expect(marketCards(root).querySelector('.extension-empty-coo')).not.toBeNull();
+      expect(marketCards(root).textContent).not.toContain(extensionStrings.noPackages);
+      root.querySelector('.extension-active-item.is-excluded').click(); await flush();
+      expect(marketCards(root).querySelector('.extension-market-card').dataset.name).toBe(HITS.hits[0].name);
+    } finally { localStorage.removeItem(key); }
+  });
   it('keeps runtime controls available when the catalog capability is absent', async () => {
     const { root } = await openWorlds({}, { worlds: true, worldActivation: true });
     expect(root.querySelector('.world-workspace').dataset.view).toBe('mine');
@@ -1430,6 +1443,17 @@ describe('World library and catalog', () => {
 
 describe('extension feedback ownership', () => {
   const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  it('keeps installation success and the list read failure reason until refresh recovers', async () => {
+    const state = { onInstall: () => { state.listStatus = 503; } }; stub(state);
+    const { root } = mount(); await flush();
+    cardOf(root, 'found-mod').querySelector('.extension-get').click(); await flush(100);
+    const feedback = root.querySelector('.world-catalog-scroll > .msgline');
+    expect(feedback.textContent).toContain(extensionStrings.completed(extensionStrings.installedAction, 'found-mod'));
+    expect(feedback.textContent).toContain(extensionStrings.listLoadFailed('Unavailable'));
+    expect(cardOf(root, 'found-mod')).not.toBeNull();
+    state.listStatus = 200; feedback.querySelector('button').click(); await flush(100);
+    expect(feedback.textContent).toBe('');
+  });
   it('returns a late detail install failure to its market card after the drawer closes', async () => {
     stub(); const original = globalThis.fetch; let fail;
     vi.stubGlobal('fetch', (url, init) => String(url) === '/api/extensions/install'
@@ -1530,7 +1554,8 @@ describe('social feedback and popover boundaries', () => {
     const input = detail.querySelector('textarea'); input.value = 'A draft to keep';
     button(detail, extensionStrings.commentSubmit).click(); await flush();
     expect(input.value).toBe('A draft to keep');
-    expect(detail.querySelector('.extension-comments .msgline.bad').textContent).toContain('comment unavailable');
+    expect(document.querySelector('.extension-problem:not(.hidden)')?.textContent).toContain('comment unavailable');
+    expect(detail.querySelector('.extension-comments .msgline.bad')).toBeNull();
     expect(root.querySelector('.world-list-feedback').textContent).toBe('');
   });
   it('keeps popovers within the content column and removes them when their control disappears', async () => {

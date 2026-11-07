@@ -14,7 +14,6 @@ export const S: Partial<typeof en> = {
   stateInstalledPendingRestart: "Instalada, reinicialização pendente",
   stateRemoved: 'Desinstalada, reinício pendente',
   disabled: 'Instalada, não carregada',
-  worldNotLoaded: 'Instalada; carregue-a na Visão geral dos Worlds',
   template: 'Instalada; pronta para criar instâncias',
 
   restartConfirmTitle: 'Reiniciar o processo?',
@@ -33,7 +32,7 @@ export const S: Partial<typeof en> = {
   updateAction: 'Atualizar',
   updateCheckFailed: (detail: string) => `Falha ao verificar atualizações: ${detail}`,
   noteWebUiMissing: 'Pacote do navegador ausente. Compile no diretório da extensão e reinicie o processo.',
-  listLoadFailed: (msg: string) => `Falha ao carregar a lista de extensões: ${msg}`,
+  listLoadFailed: (msg: string) => `Não foi possível ler as extensões instaladas; o estado atual da instalação não pode ser confirmado. Motivo: ${msg}`,
   remove: 'Excluir extensão',
   removeInUse: 'Em uso pelo Coo. Desative-a antes de excluir.',
   removeInUseProvider: 'Uma conexão de modelo ainda usa este provedor. Exclua essa conexão primeiro.',
@@ -48,7 +47,6 @@ export const S: Partial<typeof en> = {
   completed: (action: string, name: string) => `${action} concluída: ${name}.`,
   restartNeeded: 'As extensões têm efeito após reiniciar o processo.',
   worldActivateHint: 'Se o World não estiver ativo, ative-o em Visão geral dos Worlds.',
-  syncedFailed: 'Operação concluída, mas a lista está dessincronizada. Atualize para tentar de novo.',
 
   filterPlaceholder: 'Filtrar: nome, descrição, palavras-chave',
   sortLabel: {

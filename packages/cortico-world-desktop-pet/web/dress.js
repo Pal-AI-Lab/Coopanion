@@ -24,8 +24,15 @@ import {
 import { loadBody } from './body-host.js';
 import { announcePainted, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 
-import { bindAppearance } from './appearance.js';
+import { bindAppearance, hostDressDialogs } from './appearance.js';
+import { localDressDialogs } from './dist/dress-dialog.js';
+import { mountHints } from './hints.js';
 bindAppearance(document, window);
+/** The settings window's dialog when the page is embedded in it; null when the page draws its own. */
+const dialogStop = new AbortController();
+window.addEventListener('pagehide', () => dialogStop.abort(), { once: true });
+const dialogs = hostDressDialogs(document, window) ?? localDressDialogs(document, dialogStop.signal);
+mountHints(document);
 
 const $ = (s) => document.querySelector(s);
 
@@ -306,97 +313,86 @@ async function droppedFiles(entry, path, depth) {
 }
 
 const importDialog = (() => {
-  const dlg = $('#importDialog');
-  let token = '';
-  const show = (html) => { dlg.innerHTML = html; applyText(dlg); if (!dlg.open) dlg.showModal(); };
-  const close = () => { if (token) fetch('/api/figures/import/cancel', { method: 'POST' }).catch(() => {}); token = ''; dlg.close(); };
-  dlg.addEventListener('cancel', (e) => { e.preventDefault(); close(); });
-  dlg.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) close(); });
-  const note = (title, text) => {
-    show('<h2 id="importTitle"></h2><p class="lead"></p><div class="actions"><button class="btn primary" type="button" data-close data-i18n="import.ok"></button></div>');
-    dlg.querySelector('h2').textContent = title;
-    dlg.querySelector('.lead').textContent = text;
+  let token = '', revision = 0, working = false;
+  const cancel = { key: 'cancel', label: t('import.cancel') };
+  const show = (view, answer = () => close()) => {
+    const current = ++revision;
+    dialogs.show(view, result => { if (current === revision && !dialogStop.signal.aborted) answer(result); });
   };
+  const close = () => {
+    revision++; dialogs.close();
+    if (token) void fetch('/api/figures/import/cancel', { method: 'POST', keepalive: true }).catch(() => {});
+    token = '';
+  };
+  dialogStop.signal.addEventListener('abort', close, { once: true });
+  const note = (title, text) => show({ title, body: text, actions: [{ key: 'cancel', label: t('import.ok'), kind: 'primary' }] });
   const none = () => note(t('import.noneTitle'), t('import.noneText', { depth: packStatus.depth }));
+  const busy = title => show({ title, busy: true, actions: [] });
 
   async function send(body, type) {
-    show('<h2 id="importTitle" data-i18n="import.reading"></h2>');
+    if (working || dialogStop.signal.aborted) return;
+    working = true; busy(t('import.reading'));
     let res;
     try {
-      res = await (await fetch('/api/figures/import', { method: 'POST', headers: { 'content-type': type }, body })).json();
-    } catch {
-      return note(t('import.failed'), t('import.offline'));
-    }
+      res = await (await fetch('/api/figures/import', { method: 'POST', headers: { 'content-type': type }, body, signal: dialogStop.signal })).json();
+    } catch (err) {
+      if (!dialogStop.signal.aborted) note(t('import.failed'), t('import.offline'));
+      return;
+    } finally { working = false; }
+    if (dialogStop.signal.aborted) return;
     if (res.error) return note(t('import.failed'), res.error);
-    if (!res.packs.length && !res.problems.length) return none();
     token = res.token;
+    if (!res.packs.length && !res.problems.length) return none();
     confirm(res, body.size);
   }
 
   function confirm({ packs: found, problems }, size) {
-    show(`<h2 id="importTitle"></h2><ul class="found"></ul><div class="cant"></div>
-      <div class="actions"><button class="btn" type="button" data-close data-i18n="import.cancel"></button><button class="btn primary" type="button" data-go data-i18n="import.button"></button></div>`);
-    dlg.querySelector('h2').textContent = found.length ? t('import.found', { n: found.length }) : t('import.allBad');
-    const ul = dlg.querySelector('.found');
-    for (const p of found) {
-      const label = ul.appendChild(el('li')).appendChild(el('label'));
-      const box = label.appendChild(el('input'));
-      box.type = 'checkbox'; box.checked = true; box.value = p.dir;
-      const pic = label.appendChild(p.thumb ? el('img') : el('span', 'nopic'));
-      if (p.thumb) { pic.src = p.thumb; pic.alt = ''; }
-      const info = label.appendChild(el('div', 'info'));
-      info.appendChild(el('b')).textContent = nameOf(p.name);
-      info.appendChild(el('span', 'meta')).textContent = [t('import.version', { version: p.version }), p.author].filter(Boolean).join(' · ');
-      info.appendChild(el('span', 'meta')).textContent = t('import.contents', { axes: p.axes, words: p.words, sounds: p.sounds });
-      if (p.credits.length) info.appendChild(el('span', 'meta')).textContent = p.credits.map((c) => t('import.credit', c)).join(t('import.creditSep'));
-      if (p.installed) info.appendChild(el('span', 'again')).textContent = p.installed === p.version ? t('import.reinstall', { version: p.version }) : t('import.upgrade', { installed: p.installed, version: p.version });
-      if (p.skipped.length) {
-        const d = info.appendChild(el('details'));
-        d.appendChild(el('summary')).textContent = t('import.skipped', { n: p.skipped.length });
-        for (const s of p.skipped) d.appendChild(el('p')).textContent = s;
-      }
-    }
-    const cant = dlg.querySelector('.cant');
-    if (found.length && size > packStatus.large) cant.appendChild(el('p', 'warn')).textContent = t('import.large', { size: MB(size) });
-    if (problems.length && found.length) cant.appendChild(el('p', 'meta')).textContent = t('import.someBad');
-    for (const p of problems) {
-      const line = cant.appendChild(el('p', 'warn'));
-      line.appendChild(el('b')).textContent = p.dir || t('import.pickedLevel');
-      line.append(t('import.reason', { reason: p.reason }));
-    }
-    const go = dlg.querySelector('[data-go]');
-    if (!found.length) { go.remove(); return; }
-    const boxes = [...ul.querySelectorAll('input')];
-    const sync = () => { go.disabled = !boxes.some((b) => b.checked); };
-    for (const b of boxes) b.addEventListener('change', sync);
-    go.addEventListener('click', () => {
-      const chosen = found.filter((p) => boxes.some((b) => b.checked && b.value === p.dir));
-      go.disabled = true;
-      void install(chosen);
+    const warnings = [];
+    if (found.length && size > packStatus.large) warnings.push(t('import.large', { size: MB(size) }));
+    if (problems.length && found.length) warnings.push(t('import.someBad'));
+    for (const p of problems) warnings.push((p.dir || t('import.pickedLevel')) + t('import.reason', { reason: p.reason }));
+    show({
+      title: found.length ? t('import.found', { n: found.length }) : t('import.allBad'),
+      selectable: true,
+      items: found.map(p => ({
+        key: p.dir, label: nameOf(p.name), image: p.thumb ? new URL(p.thumb, location.href).href : undefined,
+        meta: [
+          [t('import.version', { version: p.version }), p.author].filter(Boolean).join(' · '),
+          t('import.contents', { axes: p.axes, words: p.words, sounds: p.sounds }),
+          ...(p.credits.length ? [p.credits.map(c => t('import.credit', c)).join(t('import.creditSep'))] : []),
+        ],
+        notice: p.installed ? p.installed === p.version ? t('import.reinstall', { version: p.version }) : t('import.upgrade', { installed: p.installed, version: p.version }) : undefined,
+        details: p.skipped.length ? { title: t('import.skipped', { n: p.skipped.length }), lines: p.skipped } : undefined,
+      })),
+      warnings, actions: [cancel, ...(found.length ? [{ key: 'install', label: t('import.button'), kind: 'primary', selection: true }] : [])],
+    }, result => {
+      if (result.action !== 'install') { close(); return; }
+      const chosen = found.filter(p => result.selected.includes(p.dir));
+      if (chosen.length) void install(chosen);
     });
   }
 
-  async function install(chosen, replace = []) {
+  function replace(chosen, conflicts) {
+    show({ title: t('import.replaceTitle'), body: t('import.replaceText'),
+      items: chosen.filter(p => conflicts.includes(p.id)).map(p => ({ key: p.id, label: nameOf(p.name), meta: [p.id] })),
+      actions: [cancel, { key: 'replace', label: t('import.replace'), kind: 'danger' }],
+    }, result => { if (result.action === 'replace') void install(chosen, conflicts); else close(); });
+  }
+
+  async function install(chosen, replaceIds = []) {
+    if (working || dialogStop.signal.aborted) return;
+    working = true; busy(t('import.button') + '…');
     let res;
     try {
-      res = await (await fetch('/api/figures/import/install', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token, dirs: chosen.map((p) => p.dir), replace }) })).json();
-    } catch {
-      res = { error: t('import.offline') };
-    }
+      res = await (await fetch('/api/figures/import/install', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token, dirs: chosen.map(p => p.dir), replace: replaceIds }), signal: dialogStop.signal })).json();
+    } catch { res = { error: t('import.offline') }; }
+    finally { working = false; }
+    if (dialogStop.signal.aborted) return;
     if (res.error) return note(t('import.failed'), res.error);
-    if (res.conflicts) {
-      show(`<h2 id="importTitle" data-i18n="import.replaceTitle"></h2><p class="lead" data-i18n="import.replaceText"></p><ul></ul>
-        <div class="actions"><button class="btn" type="button" data-close data-i18n="import.cancel"></button><button class="btn primary" type="button" data-replace data-i18n="import.replace"></button></div>`);
-      const list = dlg.querySelector('ul');
-      for (const p of chosen.filter((p) => res.conflicts.includes(p.id))) list.appendChild(el('li')).textContent = `${nameOf(p.name)} (${p.id})`;
-      const go = dlg.querySelector('[data-replace]');
-      go.addEventListener('click', () => { go.disabled = true; void install(chosen, res.conflicts); });
-      return;
-    }
-    token = '';
-    dlg.close();
-    const replacing = chosen.some((p) => p.id === skin.figure);
-    $('#saved').textContent = t('import.done', { names: chosen.map((p) => nameOf(p.name)).join(t('import.nameSep')) }) + (replacing ? t('import.replacing') : '');
+    if (res.conflicts) return replace(chosen, res.conflicts);
+    token = ''; close();
+    const replacing = chosen.some(p => p.id === skin.figure);
+    $('#saved').textContent = t('import.done', { names: chosen.map(p => nameOf(p.name)).join(t('import.nameSep')) }) + (replacing ? t('import.replacing') : '');
     sfx.sparkle();
     if (replacing) { body?.dispose(); body = null; }
     await loadPacks();
@@ -404,64 +400,61 @@ const importDialog = (() => {
   }
 
   async function uninstall(pack) {
+    working = true; busy(t('remove.go') + '…');
     let res;
     try {
-      res = await (await fetch('/api/figures/remove', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: pack.id }) })).json();
-    } catch {
-      res = { error: t('import.offline') };
-    }
+      res = await (await fetch('/api/figures/remove', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: pack.id }), signal: dialogStop.signal })).json();
+    } catch { res = { error: t('import.offline') }; }
+    finally { working = false; }
+    if (dialogStop.signal.aborted) return;
     if (res.error) return note(t('remove.failed'), res.error);
-    dlg.close();
-    // the saved look's own message would cover this one
+    close();
     if (skin.figure === pack.id) await apply({ ...skin, figure: 'coo' }, true);
     $('#saved').textContent = t('remove.done', { name: nameOf(pack.name) });
     await loadPacks();
   }
 
-  $('#importZip').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) void send(f, 'application/zip'); });
-  $('#importDir').addEventListener('change', (e) => {
-    const files = [...e.target.files].map((file) => ({ path: file.webkitRelativePath, file }));
-    e.target.value = '';
-    const found = packFiles(files, packStatus.depth);
-    if (!found.length) return none();
-    void send(bundle(found), 'application/x-figure-files');
-  });
-
   return {
-    /** Asks before deleting an installed pack; the pet wearing it changes to Coo. */
     remove(pack) {
-      show(`<h2 id="importTitle"></h2><p class="lead" data-i18n="remove.lead"></p>
-        <div class="actions"><button class="btn" type="button" data-close data-i18n="import.cancel"></button><button class="btn danger" type="button" data-remove data-i18n="remove.go"></button></div>`);
-      dlg.querySelector('h2').textContent = t('remove.title', { name: nameOf(pack.name) });
-      const go = dlg.querySelector('[data-remove]');
-      go.addEventListener('click', () => { go.disabled = true; void uninstall(pack); });
+      if (working) return;
+      close();
+      show({ title: t('remove.title', { name: nameOf(pack.name) }), body: t('remove.lead'),
+        actions: [cancel, { key: 'remove', label: t('remove.go'), kind: 'danger' }],
+      }, result => { if (result.action === 'remove') void uninstall(pack); else close(); });
     },
-    /** Asks what to import. */
     choose() {
-      show(`<h2 id="importTitle" data-i18n="import.title"></h2>
-        <p class="lead"></p>
-        <div class="choices"><button class="btn primary" type="button" data-pick="zip" data-i18n="import.pickZip"></button><button class="btn" type="button" data-pick="dir" data-i18n="import.pickDir"></button></div>
-        <p class="meta" data-i18n="import.dropNote"></p>
-        <div class="actions"><button class="btn" type="button" data-close data-i18n="import.cancel"></button></div>`);
-      dlg.querySelector('.lead').textContent = t('import.lead', { depth: packStatus.depth });
-      for (const b of dlg.querySelectorAll('[data-pick]')) b.addEventListener('click', () => $(b.dataset.pick === 'zip' ? '#importZip' : '#importDir').click());
+      if (working) return;
+      close();
+      show({ title: t('import.title'), body: t('import.lead', { depth: packStatus.depth }) + '\n' + t('import.dropNote'),
+        actions: [cancel, { key: 'directory', label: t('import.pickDir'), file: 'directory' }, { key: 'zip', label: t('import.pickZip'), kind: 'primary', file: 'zip' }],
+      }, result => {
+        if (result.action === 'zip' && result.files?.length === 1) void send(result.files[0].file, 'application/zip');
+        else if (result.action === 'directory' && result.files?.length) {
+          const found = packFiles(result.files, packStatus.depth);
+          if (!found.length) none(); else void send(bundle(found), 'application/x-figure-files');
+        } else close();
+      });
     },
-    /** A drop on the page: one zip, or folders. */
     async drop(items) {
-      const entries = [...items].map((i) => i.webkitGetAsEntry?.()).filter(Boolean);
-      const zips = entries.filter((e) => e.isFile && /\.zip$/i.test(e.name)), dirs = entries.filter((e) => e.isDirectory);
-      if (zips.length === 1 && !dirs.length) return send(await new Promise((ok, bad) => zips[0].file(ok, bad)), 'application/zip');
-      if (!dirs.length) return note(t('import.cannot'), t('import.dropOne'));
-      show('<h2 id="importTitle" data-i18n="import.reading"></h2>');
-      const files = [];
+      if (working) return;
+      close();
+      const entries = [...items].map(i => i.webkitGetAsEntry?.()).filter(Boolean);
+      const zips = entries.filter(e => e.isFile && /\.zip$/i.test(e.name)), dirs = entries.filter(e => e.isDirectory);
+      working = true; busy(t('import.reading'));
+      let upload;
       try {
-        for (const d of dirs) files.push(...await droppedFiles(d, d.name, packStatus.depth));
-      } catch (err) {
-        return note(t('import.readFailed'), String(err?.message ?? err));
-      }
-      const found = packFiles(files, packStatus.depth);
-      if (!found.length) return none();
-      return send(bundle(found), 'application/x-figure-files');
+        if (zips.length === 1 && !dirs.length) upload = { body: await new Promise((ok, bad) => zips[0].file(ok, bad)), type: 'application/zip' };
+        else if (!dirs.length) { note(t('import.cannot'), t('import.dropOne')); return; }
+        else {
+          const files = [];
+          for (const d of dirs) files.push(...await droppedFiles(d, d.name, packStatus.depth));
+          const found = packFiles(files, packStatus.depth);
+          if (!found.length) { none(); return; }
+          upload = { body: bundle(found), type: 'application/x-figure-files' };
+        }
+      } catch (err) { if (!dialogStop.signal.aborted) note(t('import.readFailed'), String(err?.message ?? err)); return; }
+      finally { working = false; }
+      return send(upload.body, upload.type);
     },
   };
 })();

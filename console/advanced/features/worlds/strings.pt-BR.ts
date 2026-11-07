@@ -34,7 +34,6 @@ export const S: Partial<typeof en> = {
   restartBody: 'Para e reconstrói o World para aplicar as configurações marcadas para reinício do World. Processos e conexões gerenciados param e reiniciam.',
   missingReasonDefault: 'Não foi possível carregar este World.',
   activateWorld: 'Ativar World',
-  inactiveNoteManual: (id: string) => `Implementado localmente, mas não montado. Para ativá-lo, defina worlds.${id}.enabled como true em config.json e reinicie.`,
   hideFromAgent: 'Ocultar do Coo',
   showToAgent: 'Mostrar ao Coo',
   restartWorld: 'Reiniciar World',
