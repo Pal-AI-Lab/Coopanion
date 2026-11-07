@@ -28,7 +28,50 @@ body.dress-page{
 /* only the preview takes the pet's night/day (dress.js puts it on #preview); the page around it follows the settings window */
 .preview{--wall:#E8E6EE; --dot:#CFCBD9; --surface:#FFFFFF; --text:#1B1626; --muted:#6A6577; --line:#E2DFE8; --shadow:rgba(27,22,38,.12)}
 .preview[data-theme="dark"]{--wall:#10151C; --dot:#232B37; --surface:#151A22; --text:#E9EDF2; --muted:#8C95A3; --line:#252C37; --shadow:rgba(0,0,0,.32)}
-.preview .saved{position:absolute; top:16px; right:14px; margin:0; font-size:12.5px; color:var(--muted)}
+/* the preview's top right corner: what happened, then saving the changes to the look picked, then saving a new look */
+.preview .corner{position:absolute; top:12px; right:12px; display:flex; align-items:center; gap:8px}
+.preview .saved{margin:0; font-size:12.5px; color:var(--muted)}
+.save-look{display:grid; place-items:center; width:34px; height:34px; padding:0; border-radius:50%; cursor:pointer;
+  border:1px solid var(--line); background:var(--surface); color:var(--text); transition:border-color .15s, color .15s}
+.save-look:hover{border-color:var(--accent); color:var(--accent)}
+.save-look[hidden]{display:none}
+.save-look svg{width:18px; height:18px; display:block}
+/* the look picked, changed since it was saved: a dot in its corner */
+.opt.look.changed{position:relative}
+.opt.look.changed::after{content:""; position:absolute; top:6px; left:6px; width:8px; height:8px; border-radius:50%; background:var(--accent)}
+.save-look.done{animation:look-saved .5s cubic-bezier(.3,1.5,.5,1)}
+@keyframes look-saved{40%{transform:scale(1.18)}}
+/* saved looks: rename and remove in the tile's corner on hover or focus; renaming puts a field over the name */
+.look-tile{position:relative; display:flex}
+/* section headings as the settings window draws them on a page: a line above each but the first (console/styles.css .sheet h3) */
+.section-head{grid-column:1 / -1; margin:10px 0 0; padding-top:22px; border-top:1px solid var(--line); font-size:15px; font-weight:600; line-height:1.4; letter-spacing:-.01em; color:var(--text)}
+.section-head.first{margin-top:4px; padding-top:0; border-top:0}
+/* favourites: one row; arrows move it a page at a time when it holds more than fit */
+.looks-gallery{display:flex; align-items:center; gap:6px; min-width:0}
+.looks-strip{display:flex; gap:8px; flex:1; min-width:0; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding:2px}
+.looks-strip::-webkit-scrollbar{display:none}
+.looks-strip > *{flex:none}
+.g-arrow{flex:none; display:grid; place-items:center; width:28px; height:28px; padding:0; border-radius:50%; cursor:pointer;
+  border:1px solid var(--line); background:var(--surface); color:var(--text)}
+.g-arrow:hover:not(:disabled){border-color:var(--accent); color:var(--accent)}
+.g-arrow:disabled{opacity:.35; cursor:default}
+.g-arrow[hidden]{display:none}
+.g-arrow svg{width:16px; height:16px; display:block}
+.looks-empty{margin:0; font-size:13px; line-height:1.5; color:var(--muted)}
+.slot.looks{grid-column:1 / -1}
+.opt.look{gap:7px}
+/* a favourite whose pack was uninstalled */
+.opt.look.gone{opacity:.45; cursor:default}
+.opt.look span{max-width:84px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.look-acts{position:absolute; top:4px; right:4px; display:flex; gap:2px; opacity:0; pointer-events:none; transition:opacity .14s ease}
+.look-tile:hover .look-acts, .look-tile:focus-within .look-acts{opacity:1; pointer-events:auto}
+.look-act{display:grid; place-items:center; width:22px; height:22px; padding:0; border:0; border-radius:6px; cursor:pointer;
+  background:color-mix(in srgb, var(--surface) 85%, transparent); color:var(--muted)}
+.look-act:hover{color:var(--text)}
+.look-act.danger:hover{color:var(--anger)}
+.look-act svg{width:14px; height:14px; display:block}
+.look-name{position:absolute; left:4px; right:4px; bottom:4px; min-width:0; padding:1px 2px; font:inherit; font-size:11.5px; text-align:center;
+  border:1px solid var(--accent); border-radius:4px; background:var(--surface); color:var(--text)}
 .dress{display:grid; grid-template-columns:minmax(4.5em, max-content) 1fr; gap:12px 14px; align-items:start}
 .dress .row-label{font-size:14px; color:var(--muted); padding-top:18px}
 .opts{display:flex; flex-wrap:wrap; gap:8px}
@@ -123,3 +166,10 @@ dialog.import .cant{margin-top:10px}
 .pack-erase:hover{color:var(--anger)}
 .pack-erase svg{width:16px; height:16px; display:block}
 .btn.danger{background:var(--anger); border-color:var(--anger); color:#fff}
+/* dragging a favourite (drag-row.js), as the settings window drags its lists: an empty place where it would land,
+   a lifted copy following the pointer, the pointer itself hidden */
+.look-tile.is-dragging{border:1px dashed var(--line); border-radius:10px}
+.look-tile.is-dragging > *{visibility:hidden}
+html.is-list-dragging, html.is-list-dragging *{cursor:none !important; user-select:none}
+.look-drag-copy{position:fixed; z-index:20; margin:0; pointer-events:none; border-radius:10px; box-shadow:0 0 0 1px var(--line), 0 14px 30px -14px rgba(0,0,0,.45)}
+.look-drag-copy .look-acts{display:none}

@@ -134,7 +134,7 @@ describe('uninstalling figure packs', () => {
     const server = new PetServer({
       port: () => 0, webDir: fileURLToPath(new URL('../web/', import.meta.url)), snapshot: () => ({}),
       packs, importer: new PackImporter({ packDir: () => packDir, packs }),
-      onPetMessage() {}, onAudio() {}, onPetConnect() {}, onPetDisconnect() {}, onSkin() {}, onPrefs() {},
+      onPetMessage() {}, onAudio() {}, onPetConnect() {}, onPetDisconnect() {}, onSkin() {}, onPrefs() {}, looks: () => [], onLooks() {},
     });
     await server.start();
     cleanup.push(async () => { await server.stop(); rmSync(root, { recursive: true, force: true }); });

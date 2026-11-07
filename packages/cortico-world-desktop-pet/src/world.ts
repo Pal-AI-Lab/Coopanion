@@ -30,9 +30,9 @@ import { nowIso, shortTime } from 'cortico/core/util.ts';
 import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
 import {
-  DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, SELF_KEYS, THRESHOLD_DB_MAX, THRESHOLD_DB_MIN, TOUCH_KINDS, USER_MAX, asrEngineFor,
+  DESKTOP_PET_ID, MAX_HOVER_BUTTONS, MAX_LOOK_NAME, MAX_SAVED_LOOKS, PET_ACTIONS, SELF_KEYS, THRESHOLD_DB_MAX, THRESHOLD_DB_MIN, TOUCH_KINDS, USER_MAX, asrEngineFor,
   desktopPetConfigGroups, directSettings, hoverButtonList, selfAdjustMode, speechFor, touchWakes,
-  type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type RoamMode, type SelfKey,
+  type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type SavedLook, type RoamMode, type SelfKey,
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
 import { SpeechText, speechTextSteps } from './speech/index.ts';
@@ -460,6 +460,8 @@ export class DesktopPetWorld implements World {
       onPetDisconnect: () => this.onPageGone(),
       onSkin: (skin) => this.saveSkin(skin),
       onPrefs: (prefs) => this.savePrefs(prefs),
+      looks: () => this.cfg.looks,
+      onLooks: (looks) => this.saveLooks(looks),
       avatarFile: opts.avatarFile,
       packs: () => this.packs(),
       packProblems: () => this.packScan().problems,
@@ -1042,6 +1044,22 @@ export class DesktopPetWorld implements World {
     const skin = raw as PetSkin;
     this.opts.persist({ skin });
     this.syncPrefs();
+  }
+
+  /** Keeps the entries that have an id, a name and a skin; names are trimmed to MAX_LOOK_NAME (an empty one becomes the id), the list to MAX_SAVED_LOOKS. */
+  private saveLooks(raw: unknown): void {
+    if (!Array.isArray(raw)) return;
+    const seen = new Set<string>();
+    const looks: SavedLook[] = [];
+    for (const l of raw) {
+      if (!l || typeof l !== 'object') continue;
+      const { id, name, skin } = l as Record<string, unknown>;
+      if (typeof id !== 'string' || !id || seen.has(id) || typeof name !== 'string' || !skin || typeof skin !== 'object') continue;
+      seen.add(id);
+      looks.push({ id, name: name.trim().slice(0, MAX_LOOK_NAME) || id, skin: skin as PetSkin });
+      if (looks.length === MAX_SAVED_LOOKS) break;
+    }
+    this.opts.persist({ looks });
   }
 
   private savePrefs(prefs: Record<string, unknown>): void {
