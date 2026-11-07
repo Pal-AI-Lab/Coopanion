@@ -50,6 +50,7 @@ export default {
   'action.soundOn': 'Sounds: on · click to turn off',
   'action.soundOff': 'Sounds: off · click to turn on',
   'action.dress': 'Dress up',
+  'action.worlds': 'My Worlds',
   'action.hide': 'Hide the pet (show Coo again from the tray icon)',
   'menu.cancel': 'Cancel',
   'menu.resume': 'Resume',

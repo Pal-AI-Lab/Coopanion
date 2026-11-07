@@ -1209,6 +1209,13 @@ const ACTIONS = {
       else window.open('/dress', '_blank');
     },
   },
+  worlds: {
+    // only where the embedding app has a World list to show
+    hoverOnly: true, available: () => !!prefs.bot?.buttons?.worlds,
+    icon: () => ICONS.boxes,
+    state: () => t('action.worlds'),
+    run: () => send({ t: 'control', action: 'worlds' }),
+  },
 };
 const available = (id) => ACTIONS[id] && (ACTIONS[id].available?.() ?? true);
 

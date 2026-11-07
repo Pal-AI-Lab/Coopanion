@@ -87,7 +87,7 @@ export const S: Partial<typeof en> = {
   selfItems: { figure: '외형', scheme: '꾸미기', roam: '걷기', snoreSeconds: '코골이 시간', sound: '효과음', scale: '크기', bubbleSize: '말풍선 크기', fontSize: '글자 크기', theme: '야간 모드', hoverButtons: '호버 버튼', user: '부를 이름' },
   popupSave: '저장',
   popupCancel: '취소',
-  actions: { chat: '입력', voice: '음성 입력', roam: '걷기', theme: '야간 모드', sound: '효과음', dress: '꾸미기', hide: '펫 숨기기' },
+  actions: { chat: '입력', voice: '음성 입력', roam: '걷기', theme: '야간 모드', sound: '효과음', dress: '꾸미기', hide: '펫 숨기기', worlds: '내 World' },
   saveFailed: (why: string) => `저장하지 못했습니다: ${why}`,
   stats: '익명 사용 통계',
   statsHint: '사용 횟수, 사용 시간, 설정을 보내며 대화, Key, 파일은 보내지 않습니다.',

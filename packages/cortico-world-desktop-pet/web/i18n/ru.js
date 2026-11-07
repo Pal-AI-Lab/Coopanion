@@ -45,6 +45,7 @@ export default {
   'action.soundOn': 'Звуки: вкл. · нажмите, чтобы выключить',
   'action.soundOff': 'Звуки: выкл. · нажмите, чтобы включить',
   'action.dress': 'Гардероб',
+  'action.worlds': 'Мои World',
   'action.hide': 'Спрятать меня на время (значок в трее вернёт меня)',
   'menu.cancel': 'Отмена',
   'menu.resume': 'Продолжить',

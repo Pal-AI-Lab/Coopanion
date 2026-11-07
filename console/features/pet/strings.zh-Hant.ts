@@ -87,7 +87,7 @@ export const S: Partial<typeof en> = {
   selfItems: { figure: '形象', scheme: '配色', roam: '走動', snoreSeconds: '打呼時長', sound: '音效', scale: '大小', bubbleSize: '氣泡尺寸', fontSize: '字體尺寸', theme: '夜間模式', hoverButtons: '懸停按鈕', user: '稱呼' },
   popupSave: '儲存',
   popupCancel: '取消',
-  actions: { chat: '打字', voice: '語音輸入', roam: '走動', theme: '夜間模式', sound: '音效', dress: '裝扮', hide: '隱藏桌寵' },
+  actions: { chat: '打字', voice: '語音輸入', roam: '走動', theme: '夜間模式', sound: '音效', dress: '裝扮', hide: '隱藏桌寵', worlds: '我的 World' },
   saveFailed: (why: string) => `沒有儲存：${why}`,
   stats: '傳送匿名使用統計',
   statsHint: '傳送使用次數、時長和設定，不含對話內容、Key 和檔案。',
