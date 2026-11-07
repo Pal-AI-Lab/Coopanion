@@ -530,6 +530,21 @@ describe('with a pet page', () => {
     expect(host.events).toHaveLength(0);
   });
 
+  it('onDesktopChange: told once each time the pet window comes onto the desktop or leaves it', async () => {
+    const told: boolean[] = [];
+    const { world } = await mounted(undefined, { onDesktopChange: (on) => { told.push(on); } });
+    const win = await windowPage(world);
+    await expect.poll(() => told).toEqual([true]);
+    win.send({ t: 'visibility', hidden: true });
+    await expect.poll(() => told).toEqual([true, false]);
+    // the same state again tells nothing
+    win.send({ t: 'visibility', hidden: true });
+    win.send({ t: 'visibility', hidden: false });
+    await expect.poll(() => told).toEqual([true, false, true]);
+    await win.close();
+    await expect.poll(() => told).toEqual([true, false, true, false]);
+  });
+
   it('pet_set: 「以后都可以」 applies the change and stops asking about it, as the bot\'s own change', async () => {
     let botChanges = 0;
     const { world, persisted } = await mounted(undefined, { onBotChange: () => { botChanges++; } });
