@@ -11,24 +11,24 @@ function hostOrigin(doc, win) {
   } catch { return null; }
 }
 
-/**
- * The embedding settings window's own dialog (`companion:confirm`, answered by `companion:confirmed`): it covers
- * the whole window and sits in the middle of the page shown. `{ title, body?, danger?, notice? }` resolves to
- * whether the person agreed. Null for a page opened on its own, which draws its own dialog.
- */
-export function hostDialog(doc, win) {
+/** The host renders the same structured dialog as the standalone page. Files retain their relative paths. */
+export function hostDressDialogs(doc, win) {
   const origin = win.parent === win ? null : hostOrigin(doc, win);
   if (!origin) return null;
-  return (opts) => new Promise((resolve) => {
-    const id = Math.random().toString(36).slice(2);
-    const onAnswer = (e) => {
-      if (e.source !== win.parent || e.origin !== origin || e.data?.type !== 'companion:confirmed' || e.data.id !== id) return;
-      win.removeEventListener('message', onAnswer);
-      resolve(e.data.ok === true);
-    };
-    win.addEventListener('message', onAnswer);
-    win.parent.postMessage({ type: 'companion:confirm', id, ...opts }, origin);
-  });
+  let sequence = 0, current = null;
+  const receive = (e) => {
+    if (!current || e.source !== win.parent || e.origin !== origin || e.data?.type !== 'companion:dialog-action' || e.data.id !== current?.id) return;
+    const answer = current.answer; current = null; answer(e.data.result);
+  };
+  win.addEventListener('message', receive);
+  win.addEventListener('pagehide', () => { current = null; win.removeEventListener('message', receive); }, { once: true });
+  return {
+    show(view, answer) {
+      current = { id: ++sequence, answer };
+      win.parent.postMessage({ type: 'companion:dialog', id: current.id, view }, origin);
+    },
+    close() { current = null; win.parent.postMessage({ type: 'companion:dialog-close' }, origin); },
+  };
 }
 
 export function bindAppearance(doc, win) {

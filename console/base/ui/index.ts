@@ -41,6 +41,9 @@ export interface ConsoleUiDeps {
 /** Each console ui's overlay host, for the dialogs WebUi does not name (see notice). */
 const overlays = new WeakMap<WebUi, OverlayEnv>();
 
+/** Environment for app-owned dialogs outside the public panel contract. */
+export function dialogEnvironment(ui: WebUi): OverlayEnv { return overlays.get(ui)!; }
+
 /**
  * Tells the user something with a single 知道了: a confirm with nothing to choose. A ui the console did not
  * make (a test double) falls back to its confirm.

@@ -144,7 +144,7 @@ Right-click Coo to open settings, the typing box or dress up, to switch voice in
 
 ### Appearance and sound
 
-Change the figure, colors and accessories on the **Dress up** page, including the accessories' main and accent colors; changes apply right away. Figure packs can be imported from a zip or a folder, or dragged onto the page, and imported packs are uninstalled there too.
+Change the figure, colors and accessories on the **Dress up** page, including the accessories' main and accent colors; changes apply right away. Figure packs can be imported from a zip or a folder, or dragged onto the page, and imported packs are uninstalled there too. Import, replacement and uninstall confirmations, progress and errors use the settings window’s shared dialogs.
 
 You can also just ask Coo to change its look. By default it changes its figure, colors, walking and snoring on its own, and asks you first before changing sizes, sounds, night mode or names; **Habits → Self-adjustment** loosens or tightens this.
 

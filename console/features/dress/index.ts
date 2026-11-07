@@ -7,14 +7,16 @@
  * writes the deployment's theme.json); while this page is open it reads that record every
  * `THEME_POLL_MS` and applies it when the scheme or mode differs from what the window shows.
  *
- * The page asks for a dialog with `companion:confirm` ({ id, title, body, danger, notice }); the window shows its
- * own (`ui.confirm`, or `notice` for a message with one button) and answers `companion:confirmed` ({ id, ok }).
+ * Structured `companion:dialog` messages use the shared modal shell. Choices and selected files return
+ * through `companion:dialog-action`; dialogs close when the page unmounts.
  */
 
 import { listProblem } from '../../base/ui/problem.ts';
 import { S as COMMON } from '../../base/ui/strings.ts';
 import { invokePanel } from '../../base/api.ts';
-import { notice } from '../../base/ui/index.ts';
+import { dialogEnvironment } from '../../base/ui/index.ts';
+import { isDressDialog, showDressDialog } from '../../../packages/cortico-world-desktop-pet/src/webui/dress-dialog.ts';
+import type { Overlay } from '../../../shared/ui/modal.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { applyStoredTheme, disposeThemeStudio, getThemeStudio } from '../../base/theme/studio.ts';
 import { fetchTheme } from '../../base/theme/storage.ts';
@@ -46,22 +48,19 @@ async function mount(ctx: PageContext): Promise<void> {
   };
   frame.addEventListener('load', syncAppearance, { signal });
   // the page says how tall it is: the frame takes that height, so the window scrolls it and the frame shows no scrollbar
+  let dialog: Overlay | undefined;
   window.addEventListener('message', (e) => {
     if (e.source !== frame.contentWindow || e.origin !== frame.dataset.origin) return;
     if (e.data?.type === 'companion:height') {
       const height = Number(e.data.height);
       if (Number.isFinite(height) && height > 0) frame.style.height = `${height}px`;
-    } else if (e.data?.type === 'companion:confirm') void answer(e.data, e.origin);
+    } else if (e.data?.type === 'companion:dialog' && isDressDialog(e.data.view)) {
+      dialog?.close();
+      dialog = showDressDialog(dialogEnvironment(ui), e.data.view, result => {
+        frame.contentWindow?.postMessage({ type: 'companion:dialog-action', id: e.data.id, result }, e.origin);
+      });
+    } else if (e.data?.type === 'companion:dialog-close') { dialog?.close(); dialog = undefined; }
   }, { signal });
-  const text = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
-  const answer = async (ask: Record<string, unknown>, origin: string): Promise<void> => {
-    const title = text(ask.title) ?? '';
-    const body = text(ask.body);
-    const ok = ask.notice === true
-      ? await notice(ui, { title, body }).then(() => true)
-      : await ui.confirm({ title, body, danger: ask.danger === true });
-    frame.contentWindow?.postMessage({ type: 'companion:confirmed', id: ask.id, ok }, origin);
-  };
   const observer = new MutationObserver(syncAppearance);
   observer.observe(doc.documentElement, { attributes: true, attributeFilter: ['data-color-mode', 'data-theme-scheme'] });
   ctx.lifecycle.add(() => observer.disconnect());

@@ -2,6 +2,8 @@
 @import "./advanced/features/prompts/prompts.css";
 @import "./features/cost/cost.css";
 @import "../shared/ui/problem.css";
+@import "../shared/ui/modal.css";
+@import "../packages/cortico-world-desktop-pet/src/webui/dress-dialog.css";
 
 @theme inline {
   --color-background: var(--background);
@@ -532,19 +534,8 @@
 
 
   /* 层级:页面内的元素不超过 60,窄屏的 #rail 100,弹窗 120,toast 与 .u-tip 130。 */
-  .modal { position: fixed; inset: 0; background: var(--overlay); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 120; animation: fadein .14s ease-out; }
   .lightbox { cursor: zoom-out; }
   .lightbox-image { max-width: 94vw; max-height: 92vh; object-fit: contain; border-radius: 8px; box-shadow: 0 20px 50px -24px var(--shadow-strong); }
-  .modalcard { background: var(--paper); border: 1px solid var(--line-strong); border-radius: 14px; width: min(880px, 92vw); max-height: min(84vh, 920px); display: flex; flex-direction: column; box-shadow: 0 20px 50px -24px var(--shadow-strong); }
-  .modalhead { flex: none; display: flex; align-items: center; gap: 10px; padding: 13px 18px; border-bottom: 1px solid var(--line); }
-  .modaltitle { font: 600 15px var(--sans); color: var(--ink); flex: 1; }
-  /* The scrollbar has its place from the start (10px each side, as on the pages), so its appearing changes no
-     width; the side padding gives those 10px back, keeping the content 20px in. */
-  .modalbody { flex: 1; min-height: 0; overflow: auto; padding: 16px 10px; scrollbar-gutter: stable both-edges; }
-  /* A confirm or notice: its buttons stand clear of the text above them, the card's padding below. */
-  .confirm-card .modalbody > .rowbar:last-child { margin: 20px 0 0; }
-
-
   .segwrap { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
   .seg { background: var(--sheet); border: none; border-right: 1px solid var(--line-2); color: var(--ink-soft); font: 12.5px var(--sans); padding: 5px 12px; cursor: pointer; }
   .seg:last-child { border-right: none; }
@@ -594,10 +585,6 @@
   input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible, [tabindex]:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 2px;
   }
-  .modal { background: var(--overlay); animation: modalFade .15s ease-out; }
-  .modalcard { background: var(--sheet); animation: modalPaperIn .16s ease-out; }
-  @keyframes modalFade { from { opacity: 0; } }
-  @keyframes modalPaperIn { from { opacity: 0; transform: translateY(6px); } }
 
 
   .treerow { min-height: 34px; align-items: center; border-radius: 3px 8px 4px 2px; transition: background .14s, transform .14s; }
@@ -668,7 +655,6 @@
     .navitem { flex: none; padding: 7px 11px; margin: 0; min-height: 38px; }
     .navitem .tag { display: none; }
     .railfoot { display: none; }
-    .modalcard { width: 96vw; max-height: 92dvh; }
     .theme-color-grid { grid-template-columns: repeat(auto-fill, minmax(144px, 1fr)); }
   }
 
@@ -1272,7 +1258,7 @@
   .avatar-zoom { width: 100%; accent-color: var(--accent); }
   .avatar-note { max-width: 100%; margin: 0; color: var(--muted-foreground); font-size: 12.5px; text-align: center; }
   .avatar-editor .actionbar { width: 100%; }
-  .modalcard, .ctxpanel, .u-tip {
+  .ctxpanel, .u-tip {
     border-color: var(--border);
     border-radius: var(--radius-lg);
     box-shadow: 0 18px 48px -28px var(--shadow-strong);
