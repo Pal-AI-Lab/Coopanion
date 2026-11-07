@@ -10,6 +10,8 @@ import { S as it } from './strings.it.ts';
 import { S as ru } from './strings.ru.ts';
 
 const zh = {
+  launchAtLoginLabel: "开机启动",
+  launchAtLogin: "开机时自动启动 Coopanion",
   autoUpdateLabel: "自动更新",
   autoUpdate: "自动下载和安装更新",
   autoUpdateHint: "自动下载并在退出时安装更新。关闭后立即停止检查和下载，已下载的更新也不会自动安装。",
@@ -126,6 +128,8 @@ const zh = {
 };
 
 export const en: typeof zh = {
+  launchAtLoginLabel: "Start at login",
+  launchAtLogin: "Start Coopanion when you sign in",
   autoUpdateLabel: "Automatic updates",
   autoUpdate: "Download and install updates automatically",
   autoUpdateHint: "Download updates automatically and install them when you quit. Turning this off stops checks and downloads immediately and prevents downloaded updates from installing automatically.",

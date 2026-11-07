@@ -1,6 +1,6 @@
 /**
  * 「习惯」: the everyday settings of the desktop pet, in sections: 通用 (language, what Coo calls you, Coo's
- * name, automatic updates and anonymous usage statistics in the `companion` group), 行为与互动, 显示,
+ * name, start at login (the app's login item, through the window's preload), automatic updates and anonymous usage statistics in the `companion` group), 行为与互动, 显示,
  * 音效, 电脑操作 (features/cua) and 其他 (the OBS overlay, the Chat page's context ring). Every row names its
  * setting in the label column, except one that only refines the row above it. In each row the setting
  * comes first and what it means under it. An on/off setting is a switch; picks among several (sound
@@ -386,6 +386,11 @@ async function mount(ctx: PageContext): Promise<void> {
   hideFullscreenRow.hidden = true;
   const autoUpdateRow = row(S.autoUpdateLabel, autoUpdate.el, S.autoUpdateHint);
   autoUpdateRow.hidden = true;
+  // the app's login item, read and written through the window's preload; absent in a browser and in a build that is not packaged
+  const loginItem = root.ownerDocument.defaultView?.coopanionWindow?.loginItem;
+  const launchAtLogin = ui.checkbox(S.launchAtLogin, { checked: loginItem?.get() ?? false, onChange: (on) => loginItem?.set(on) });
+  const launchAtLoginRow = row(S.launchAtLoginLabel, launchAtLogin.el);
+  launchAtLoginRow.hidden = !loginItem;
 
   // sections: general, how Coo behaves and is reached, how it shows on the screen, sounds, computer use;
   // every row names its setting on the left, except one that only refines the row above it
@@ -393,6 +398,7 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.language, language, S.languageHint),
     row(S.user, user, S.userHint),
     row(S.botName, botName, S.botNameHint),
+    launchAtLoginRow,
     autoUpdateRow,
     row(S.statsLabel, statsBox, S.statsHint),
   );
