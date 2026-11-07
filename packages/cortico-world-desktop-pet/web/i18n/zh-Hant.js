@@ -45,6 +45,7 @@ export default {
   'action.soundOn': '音效：已開啟 · 點一下關閉',
   'action.soundOff': '音效：已關閉 · 點一下開啟',
   'action.dress': '裝扮',
+  'action.worlds': '我的 World',
   'action.hide': '先把我藏起來（系統匣裡可以叫我回來）',
   'menu.cancel': '取消',
   'menu.resume': '繼續',

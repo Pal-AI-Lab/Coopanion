@@ -45,6 +45,7 @@ export default {
   'action.soundOn': 'Sons : activés · cliquez pour désactiver',
   'action.soundOff': 'Sons : désactivés · cliquez pour activer',
   'action.dress': 'Habiller',
+  'action.worlds': 'Mes Worlds',
   'action.hide': "Me cacher pour l'instant (l'icône de la zone de notification me fait revenir)",
   'menu.cancel': 'Annuler',
   'menu.resume': 'Reprendre',
