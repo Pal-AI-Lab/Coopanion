@@ -14,7 +14,7 @@ import { applyTheme, clamp, f, ICONS, linked } from './ui.js';
 import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
-import { COO_CSS, PALETTES, mini, normalizeSkin, skinCss } from './coo/coo.js';
+import { COO_CSS, PALETTES, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
 import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
@@ -28,7 +28,7 @@ document.body.classList.add(host ? 'desk' : 'tab');
 const stage = $('#stage');
 const bubble = $('#bubble'), menu = $('#menu');
 const tools = $('#tools');
-// Coo's drawing classes for the menu's avatar; the bubbles and buttons take their colours from Coo's palette
+// Coo's palette and drawing classes; the bubbles and buttons take their colours from Coo's palette
 // another pack's body sets the theme color instead (accentStyle, after skinStyle so it wins)
 const cooStyle = document.createElement('style'), skinStyle = document.createElement('style'), accentStyle = document.createElement('style');
 // the bubbles' colours of a pack that names its own (bubbleCss)
@@ -90,7 +90,7 @@ let body = null, words = new Map(), T = 0;
 /** Where the body last said it is (body-host.js `layout`), or null. */
 const at = () => body?.layout ?? null;
 /** What the body is told of the page: talking orders hold its roaming off, and these states. */
-const bodyState = { listening: false, thinking: false, thoughtShown: true, dialogOpen: false, status: null };
+const bodyState = { listening: false, thinking: false, thoughtShown: true, dialogOpen: false, still: false, status: null };
 const holdRoam = (seconds) => body?.set({ hold: seconds });
 host?.onFloor?.((px) => { below = px; body?.set({ bounds: bounds() }); });
 // the window reads the windows on its display only while the body on screen asks for them (`watchWindows`)
@@ -284,7 +284,7 @@ function applyPrefs(p) {
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
   if (typeof p.clickThrough === 'boolean') { prefs.clickThrough = p.clickThrough; host?.clickThrough?.(p.clickThrough); }
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
-  if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead(); }
+  if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-rail.confirm')) renderMenuRail(); }
   if (typeof p.language === 'string' && p.language !== language()) void switchLanguage(p.language);
   if ('status' in p) setStatus(p.status);
   refreshButtons();
@@ -301,7 +301,7 @@ async function switchLanguage(code) {
   await useLanguage(code);
   document.title = t('pet.title');
   host?.setLanguage?.(code);
-  if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead();
+  if (!menu.hidden && !menu.querySelector('.m-rail.confirm')) renderMenuRail();
   refreshButtons();
 }
 
@@ -1152,8 +1152,7 @@ const MAX_HOVER = 6;
  * Every button the menu and the hover buttons can show, in the menu's order. `icon`, `state` and
  * `on` read the current prefs: `state` is the line that says what the button does and where it
  * stands, `on` lights a switch that is on (undefined for plain actions). `keep` leaves the menu
- * open after a click, so a switch shows its new state there. `hoverOnly` keeps a button out of the
- * menu.
+ * open after a click, so a switch shows its new state there.
  */
 const ACTIONS = {
   chat: {
@@ -1172,7 +1171,7 @@ const ACTIONS = {
     run: () => toggleVoice(),
   },
   roam: {
-    keep: true, hoverOnly: true,
+    keep: true,
     icon: () => ICONS[`roam_${prefs.roam}`] ?? ICONS.roam_calm,
     state: () => {
       const next = ROAM_ORDER[(ROAM_ORDER.indexOf(prefs.roam) + 1) % ROAM_ORDER.length];
@@ -1200,7 +1199,7 @@ const ACTIONS = {
     run: () => host.hide(),
   },
   dress: {
-    icon: () => ICONS.shirt, cls: 'dress',
+    icon: () => ICONS.shirt,
     state: () => t('action.dress'),
     // an embedding app that lends dressing shows its own dress page; otherwise the pet's dress window
     run: () => {
@@ -1219,8 +1218,8 @@ function drawAction(b, id) {
   b.querySelector('.ic').innerHTML = a.icon() + (badge ? `<b class="badge">${badge}</b>` : '');
   b.classList.toggle('on', on === true);
   b.classList.toggle('off', on === false);
-  b.title = a.state();
-  b.setAttribute('aria-label', b.title);
+  // no tooltip: hovering these buttons is kept for other uses
+  b.setAttribute('aria-label', a.state());
   if (on !== undefined) b.setAttribute('aria-pressed', String(on));
 }
 
@@ -1244,18 +1243,28 @@ function toggleVoice() {
   send({ t: 'prefs', mic: on });
 }
 
-/* ---------- menu: the bot and its run controls on top, the actions below; every entry is a round icon button ---------- */
-function openMenu(x, y) {
+/* ---------- menu: the run controls as round buttons on Coo's left, every action in columns on its right ---------- */
+/** Most action buttons in one column, of the menu as of the hover buttons. */
+const MENU_ROWS = 3;
+/** Every action the menu shows: the hover buttons chosen in settings first, then the rest in ACTIONS order. */
+function menuActions() {
+  const ids = prefs.hoverButtons.filter(available);
+  for (const id of Object.keys(ACTIONS)) if (available(id) && !ids.includes(id)) ids.push(id);
+  return ids;
+}
+
+function openMenu() {
+  menuAt = null;
   menu.innerHTML = '';
-  menu.appendChild(Object.assign(document.createElement('div'), { className: 'm-head' }));
-  renderMenuHead();
+  const rail = Object.assign(document.createElement('div'), { className: 'm-rail' });
   const grid = Object.assign(document.createElement('div'), { className: 'm-grid' });
-  for (const id of Object.keys(ACTIONS)) {
+  const ids = menuActions();
+  grid.style.gridTemplateRows = `repeat(${Math.min(MENU_ROWS, Math.max(1, ids.length))}, auto)`;
+  for (const id of ids) {
     const a = ACTIONS[id];
-    if (!available(id) || a.hoverOnly) continue;
     const b = document.createElement('button');
     b.type = 'button'; b.setAttribute('role', 'menuitem');
-    b.className = `m-tile${a.cls ? ' ' + a.cls : ''}`;
+    b.className = 'tool m-tile';
     b.dataset.action = id;
     b.innerHTML = '<span class="ic"></span>';
     drawAction(b, id);
@@ -1267,54 +1276,99 @@ function openMenu(x, y) {
     });
     grid.appendChild(b);
   }
-  menu.append(grid);
-  menu.style.width = '';
+  menu.append(rail, grid);
+  renderMenuRail();
   menu.hidden = false;
   // focused, so a click anywhere else blurs the window and folds the menu
   host?.focus?.();
-  // held at its opening width: the quit confirmation in the header must not widen the menu
-  menu.style.width = getComputedStyle(menu).width;
-  // layout size: the opening animation scales the box, so its bounding rect is still shrunk here
-  const w = menu.offsetWidth, h = menu.offsetHeight;
-  menu.style.left = f(clamp(x, 8, innerWidth - w - 8)) + 'px';
-  menu.style.top = f(clamp(y - h, 8, innerHeight - h - 8)) + 'px';
+  const l = at();
+  if (l) placeMenu(l);
+}
+
+/** The run controls on the body's left and the actions on its right; the two swap when the right runs off the screen. */
+let menuAt = null;
+function placeMenu(l) {
+  const rail = menu.querySelector('.m-rail'), grid = menu.querySelector('.m-grid');
+  if (!rail || !grid) return;
+  // the same gap on both sides of the body's box
+  // left and right of the body's box as it was when the menu opened: it stands still meanwhile, and the box narrows and shifts as it turns round
+  menuAt ??= { ...l.box };
+  const c = l.side, b = menuAt, gap = 12;
+  const onRight = b.x + b.w + gap + grid.offsetWidth <= innerWidth - 8;
+  // whole pixels: the menu rides up and down with the body, and text at a fraction of a pixel snaps on its own, apart from its frame
+  const y = (el) => { el.style.top = Math.round(clamp(c.y - el.offsetHeight / 2, 8, innerHeight - el.offsetHeight - 8)) + 'px'; };
+  grid.style.left = f(clamp(onRight ? b.x + b.w + gap : b.x - gap - grid.offsetWidth, 8, innerWidth - grid.offsetWidth - 8)) + 'px';
+  y(grid);
+  // the run controls hold their edge next to the body, so the quit question grows away from it
+  // a long quit question (Japanese, Russian) that would run off the left edge stays on the screen
+  if (onRight) { rail.style.left = 'auto'; rail.style.right = f(Math.min(innerWidth - rail.offsetWidth - 8, Math.max(8, innerWidth - (b.x - gap)))) + 'px'; }
+  else { rail.style.right = 'auto'; rail.style.left = f(Math.min(innerWidth - rail.offsetWidth - 8, b.x + b.w + gap)) + 'px'; }
+  // the buttons line up on the edge next to the body
+  rail.style.alignItems = onRight ? 'flex-end' : 'flex-start';
+  y(rail);
+  grid.style.direction = onRight ? '' : 'rtl';
 }
 
 /**
- * Avatar and name, then the run controls the embedding app lends, as in the console's rail foot:
- * pause/resume, settings and the power button (which asks first). Without a bot the name is Coo's.
+ * The run controls the embedding app lends, as in the console's rail foot: settings, pause/resume,
+ * and the power button at the bottom, which asks first.
  */
-function renderMenuHead(confirmQuit = false) {
-  const head = menu.querySelector('.m-head'), bot = prefs.bot || {};
-  if (!head) return;
-  head.classList.toggle('confirm', confirmQuit);
-  head.innerHTML = '<span class="m-avatar"></span><span class="m-name"></span><span class="m-acts"></span>';
-  head.querySelector('.m-avatar').innerHTML = bot.avatar
-    ? `<img alt="" src="/api/avatar?v=${encodeURIComponent(bot.avatar)}">`
-    : `<svg viewBox="18 18 220 220" aria-hidden="true">${mini('neutral', skin)}</svg>`;
-  const name = head.querySelector('.m-name');
-  name.textContent = name.title = confirmQuit ? bot.quitPrompt : (bot.name || 'Coo');
-  const acts = head.querySelector('.m-acts');
-  const act = (iconHtml, label, fn, cls = 'm-act') => {
+function renderMenuRail(confirmQuit = false) {
+  const rail = menu.querySelector('.m-rail'), bot = prefs.bot || {};
+  if (!rail) return;
+  // the power button grows into the quit question and the question shrinks back into it
+  const last = rail.lastElementChild;
+  const was = last && !menu.hidden && rail.classList.contains('confirm') !== confirmQuit
+    ? { w: last.offsetWidth, h: last.offsetHeight } : null;
+  fillMenuRail(rail, bot, confirmQuit);
+  if (was && rail.lastElementChild) resizeFrom(rail.lastElementChild, was);
+}
+
+/** Grows or shrinks an element from its old size to the one its new content takes. */
+function resizeFrom(el, was) {
+  el.style.transition = 'none';
+  el.style.width = '';
+  el.style.height = '';
+  const w = el.offsetWidth, h = el.offsetHeight;
+  el.style.width = was.w + 'px'; el.style.height = was.h + 'px';
+  void el.offsetWidth;
+  el.style.transition = '';
+  el.style.width = w + 'px'; el.style.height = h + 'px';
+  el.addEventListener('transitionend', () => { el.style.width = el.style.height = ''; }, { once: true });
+}
+
+function fillMenuRail(rail, bot, confirmQuit) {
+  rail.classList.toggle('confirm', confirmQuit);
+  rail.innerHTML = '';
+  rail.hidden = !bot.controls;
+  const act = (iconHtml, label, fn, cls = 'tool', into = rail) => {
     const b = document.createElement('button');
-    b.type = 'button'; b.className = cls; b.title = label; b.setAttribute('aria-label', label);
+    b.type = 'button'; b.className = cls; b.setAttribute('aria-label', label);
     b.innerHTML = iconHtml;
     b.addEventListener('click', (e) => { e.stopPropagation(); sfx.tick(); fn(); });
-    acts.appendChild(b);
+    into.appendChild(b);
   };
   if (!bot.controls) return;
-  if (confirmQuit) {
-    act(ICONS.power, bot.quitLabel, () => { closeMenu(); send({ t: 'control', action: 'quit' }); }, 'm-act danger');
-    act(`<span>${esc(t('menu.cancel'))}</span>`, t('menu.cancel'), () => renderMenuHead(), 'm-act text');
-    return;
-  }
   // only the controls the embedding app lent; a server without `buttons` lends all three
   const has = bot.buttons ?? { pause: true, settings: true, quit: true };
-  if (has.pause) act(bot.paused ? ICONS.play : ICONS.pause, t(bot.paused ? 'menu.resume' : 'menu.pause'), () => send({ t: 'control', action: bot.paused ? 'resume' : 'pause' }), `m-act run${bot.paused ? ' paused' : ''}`);
   if (has.settings) act(ICONS.settings, t('menu.settings'), () => { closeMenu(); send({ t: 'control', action: 'settings' }); });
-  if (has.quit) act(ICONS.power, bot.quitLabel, () => renderMenuHead(true), 'm-act power');
+  if (has.pause) act(bot.paused ? ICONS.play : ICONS.pause, t(bot.paused ? 'menu.resume' : 'menu.pause'), () => send({ t: 'control', action: bot.paused ? 'resume' : 'pause' }), `tool run${bot.paused ? ' paused' : ''}`);
+  if (!has.quit) return;
+  if (!confirmQuit) { act(ICONS.power, bot.quitLabel, () => renderMenuRail(true), 'tool power'); return; }
+  const ask = Object.assign(document.createElement('div'), { className: 'm-quit' });
+  ask.appendChild(Object.assign(document.createElement('span'), { className: 'm-ask', textContent: bot.quitPrompt || '' }));
+  act(ICONS.power, bot.quitLabel, () => { closeMenu(); send({ t: 'control', action: 'quit' }); }, 'q-act danger', ask);
+  act(`<span>${esc(t('menu.cancel'))}</span>`, t('menu.cancel'), () => renderMenuRail(), 'q-act text', ask);
+  rail.appendChild(ask);
 }
-function closeMenu() { menu.hidden = true; }
+function closeMenu() {
+  if (menu.hidden) return;
+  menu.hidden = true;
+  menuAt = null;
+  // the hover buttons stay away until the pointer has left the body and them, and comes back
+  toolsMuted = true;
+  toolsUntil = 0;
+}
 
 /** Redraws whatever shows an action: the open menu's tiles and the hover buttons. */
 function refreshButtons() {
@@ -1328,6 +1382,8 @@ const TOOLS_LINGER = .8;
 /** Milliseconds the voice button is held before what was heard goes out. */
 const HOLD_TO_SEND = 500;
 let toolsUntil = 0;
+/** Set when the menu closes; cleared once the pointer is off the body and the hover buttons. */
+let toolsMuted = false;
 let toolIds = '';
 
 function renderTools() {
@@ -1337,7 +1393,7 @@ function renderTools() {
     endHold();
     tools.innerHTML = '';
     // up to three in a column, then a second column
-    tools.style.gridTemplateRows = `repeat(${Math.min(3, Math.max(1, ids.length))}, auto)`;
+    tools.style.gridTemplateRows = `repeat(${Math.min(MENU_ROWS, Math.max(1, ids.length))}, auto)`;
     for (const id of ids) {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'tool'; b.dataset.action = id;
@@ -1400,7 +1456,9 @@ function stepTools() {
   // from where the cursor is now, not from the last move event, which may be stale
   const p = cursor.at;
   const l = at();
-  if (p && (body?.hit(p) || overTools(p))) toolsUntil = T + TOOLS_LINGER;
+  const near = !!p && (body?.hit(p) || overTools(p));
+  if (!near) toolsMuted = false;
+  if (near && !toolsMuted) toolsUntil = T + TOOLS_LINGER;
   tools.hidden = !(!prefs.clickThrough && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && toolIds !== '');
   if (tools.hidden) endHold();
   tools.querySelector('[data-action="voice"]')?.classList.toggle('live', listen.phase === 'hearing');
@@ -1590,7 +1648,7 @@ document.addEventListener('pointerleave', () => { cursor.at = null; body?.pointe
 stage.addEventListener('dblclick', (e) => { if (prefs.doubleClickChat && body?.hit({ x: e.clientX, y: e.clientY })) openInput(); });
 document.addEventListener('contextmenu', (e) => {
   e.preventDefault();
-  if (body?.hit({ x: e.clientX, y: e.clientY })) openMenu(e.clientX, e.clientY);
+  if (body?.hit({ x: e.clientX, y: e.clientY })) openMenu();
 });
 document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.menu')) closeMenu(); }, { capture: true });
 // clicks off the figure pass through the window to what is underneath; the window losing focus is how they show here
@@ -1670,6 +1728,7 @@ function layout(dt = 0) {
   // covers) count from the same origin across all displays
   sfx.setPan(((screenX - screen.availLeft + l.x) / (screen.availWidth || innerWidth)) * 2 - 1);
   if (!tools.hidden) placeTools(l);
+  if (!menu.hidden) placeMenu(l);
   const a = l.bubble;
   let sayBox = null;
   // choice cards keep their bubble where it was; its tail follows Coo along the bottom edge
@@ -1751,7 +1810,7 @@ async function probeBackdrop() {
   const near = inflate({ x: b.x, y: b.y, width: b.w, height: b.h }, Math.max(4 + 34 * S, 4 + 2 * prefs.glow)), far = inflate(near, 8 + 40 * S);
   const x = Math.max(0, far.x), y = Math.max(0, far.y);
   const rect = { x, y, width: Math.min(innerWidth, far.x + far.width) - x, height: Math.min(innerHeight, far.y + far.height) - y };
-  const covers = [bubble, menu, tools, ...lines.map((l) => l.el)].filter((el) => !el.hidden).map((el) => shadowed(rectOf(el)));
+  const covers = [bubble, ...(menu.hidden ? [] : menu.children), tools, ...lines.map((l) => l.el)].filter((el) => !el.hidden).map((el) => shadowed(rectOf(el)));
   const px = await host.sampleBackdrop(rect, [near, ...covers]);
   // this platform cannot read the screen cheaply: the halo just stays
   if (px === null) { backdrop.on = true; backdrop.fixed = true; return; }
@@ -1819,7 +1878,7 @@ function frame(now) {
     stepTalkMotion();
     stepLines();
     stepStatus();
-    setBody({ dialogOpen: !!item || !!listen.phase });
+    setBody({ dialogOpen: !!item || !!listen.phase, still: !menu.hidden });
     body?.tick(dt);
     stepBackdrop(dt);
     stepTools();
