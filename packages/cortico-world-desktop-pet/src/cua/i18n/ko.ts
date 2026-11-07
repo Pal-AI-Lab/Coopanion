@@ -40,7 +40,7 @@ const ko: Translation<CuaText> = {
     grantMinutes: { title: '허용 유지 시간', suffix: '분', description: 'ask-once와 터미널 창에 대한 별도 질문에 적용됩니다.' },
     skipTerminalAsk: { title: '터미널과 실행 창 사용 전 질문 끄기', description: '켜면 터미널 창에서 입력하거나 키를 누르기 전, win+r을 누르기 전에 따로 묻지 않고 다른 조작처럼 "먼저 물어볼 때" 설정을 따릅니다. never-ask이면 Coo가 묻지 않고 명령을 실행할 수 있습니다.' },
     userIdleMs: { title: '비켜 주는 시간', description: '마우스나 키보드를 사용한 뒤 이만큼 움직임이 없을 때까지 기다립니다.' },
-    maxYieldWaitMs: { title: '최대 대기 시간' },
+    maxYieldWaitMs: { title: '최대 대기 시간', description: '이만큼 기다려도 마우스나 키보드 사용이 멈추지 않으면 이번 작업은 실행하지 않습니다. 0으로 두면 기다리지 않습니다.' },
     maxWidth: { title: '스크린샷 최대 너비' },
     maxHeight: { title: '스크린샷 최대 높이' },
     quality: { title: '스크린샷 품질' },

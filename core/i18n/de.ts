@@ -40,7 +40,7 @@ const de: Translation<CoreText> = {
   status: {
     read: 'Liest', browse: 'Stöbert', memory: 'Gedächtnis', find: 'Sucht', search: 'Durchsucht', write: 'Schreibt', edit: 'Bearbeitet', append: 'Ergänzt',
     delete: 'Löscht', moveFile: 'Verschiebt', save: 'Speichert', screen: 'Schaut auf den Bildschirm', windows: 'Schaut auf die offenen Fenster', rightClick: 'Rechtsklickt', doubleClick: 'Doppelklickt', click: 'Klickt',
-    move: 'Bewegt die Maus', drag: 'Zieht', scroll: 'Scrollt', focus: 'Wechselt das Fenster', type: 'Tippt', key: 'Drückt', wait: 'Wartet',
+    move: 'Bewegt die Maus', drag: 'Zieht', mouseDown: 'Drückt die Maustaste', mouseUp: 'Lässt die Maustaste los', scroll: 'Scrollt', focus: 'Wechselt das Fenster', type: 'Tippt', key: 'Drückt', wait: 'Wartet',
     alarmSet: 'Stellt einen Wecker', alarmList: 'Prüft die Wecker', alarmCancel: 'Löscht einen Wecker',
     quoted: (text: string) => `„${text}“`,
     seconds: (n: number) => `${n} s`,
@@ -129,6 +129,8 @@ const de: Translation<CoreText> = {
         : 'Alles bereit! Mein Symbol ist auch im Infobereich unten rechts in der Taskleiste; klick darauf, um Einstellungen zu ändern.',
     go: 'Los geht’s',
     dress: 'Zieh mich erst um',
+    back: 'Zurück',
+    next: 'Weiter',
     closed: 'Okay, hören wir hier auf. Um meine Einführung noch mal zu hören, öffne die Einstellungen und klick auf der Seite Start auf „Einführung“.',
 
     askFirst: 'Ich bin noch mit keinem Modell verbunden; sobald du einen API Key einträgst, kann ich reden. Welchen Dienst soll ich nutzen?',

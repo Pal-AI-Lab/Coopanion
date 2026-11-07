@@ -40,7 +40,7 @@ const fr: Translation<CoreText> = {
   status: {
     read: 'Lit', browse: 'Parcourt', memory: 'mémoire', find: 'Cherche', search: 'Recherche', write: 'Écrit', edit: 'Modifie', append: 'Complète',
     delete: 'Supprime', moveFile: 'Déplace', save: 'Enregistre', screen: "Regarde l'écran", windows: 'Regarde les fenêtres ouvertes', rightClick: 'Fait un clic droit', doubleClick: 'Double-clique', click: 'Clique',
-    move: 'Déplace la souris', drag: 'Fait glisser', scroll: 'Fait défiler', focus: 'Change de fenêtre', type: 'Tape', key: 'Appuie sur', wait: 'Attend',
+    move: 'Déplace la souris', drag: 'Fait glisser', mouseDown: 'Enfonce le bouton de la souris', mouseUp: 'Relâche le bouton de la souris', scroll: 'Fait défiler', focus: 'Change de fenêtre', type: 'Tape', key: 'Appuie sur', wait: 'Attend',
     alarmSet: 'Règle une alarme', alarmList: 'Consulte les alarmes', alarmCancel: 'Annule une alarme',
     quoted: (text: string) => `« ${text} »`,
     seconds: (n: number) => `${n} s`,
@@ -129,6 +129,8 @@ const fr: Translation<CoreText> = {
         : 'Tout est prêt ! Mon icône est aussi dans la zone de notification, en bas à droite de la barre des tâches ; clique dessus si tu veux changer les réglages.',
     go: "C'est parti",
     dress: "Habille-moi d'abord",
+    back: 'Retour',
+    next: 'Suivant',
     closed: "D'accord, on s'arrête là pour l'instant. Pour réentendre ma présentation, ouvre les paramètres et clique sur « Guide » dans la page Accueil.",
 
     askFirst: "Je ne suis pas encore connecté à un modèle ; ajoute une API Key pour que je puisse te parler. On utilise quel service ?",

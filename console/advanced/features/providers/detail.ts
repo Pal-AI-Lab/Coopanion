@@ -6,7 +6,7 @@ import { Lifecycle } from '../../../base/lifecycle.ts';
 import { configField, type ConfigGroup } from '../config/view.ts';
 import { validateProviderName } from '../../lib/providers/name.ts';
 import { connectionPath, type Detail, type Editing, type ListedModel, type Module } from './types.ts';
-import { pricingEditor } from '../../console-pages/builtins/llm-settings/pricing-panel.ts';
+import { pricingEditor } from './pricing.ts';
 import type { Disposable } from 'cortico/web/shared/client-panel.ts';
 import { S } from './strings.ts';
 import { CHATGPT_TEXT, accountRow, signOutBeforeDelete } from '../../../features/chatgpt/index.ts';

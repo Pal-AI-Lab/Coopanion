@@ -12,6 +12,8 @@ export type ModelLanguage = 'zh' | 'en';
 
 type Button = 'left' | 'right' | 'middle';
 
+const BUTTON_ZH: Record<Button, string> = { left: '左键', right: '右键', middle: '中键' };
+
 const zh = {
   notRun: (tool: string, why: string) => `[${tool} 没执行] ${why}`,
   failed: (tool: string, why: string) => `[${tool} 失败] ${why}`,
@@ -80,11 +82,13 @@ const zh = {
   notNumbers: 'x、y 要是数字',
   offShot: (x: number, y: number, maxX: number, maxY: number) => `(${x}, ${y}) 不在截图范围内(0–${maxX}, 0–${maxY})`,
   clicked: (x: unknown, y: unknown, button: Button, count: 1 | 2 | 3) =>
-    `已在 (${x}, ${y}) ${{ left: '左键', right: '右键', middle: '中键' }[button]}${{ 1: '单击', 2: '双击', 3: '三击' }[count]}。`,
+    `已在 (${x}, ${y}) ${BUTTON_ZH[button]}${{ 1: '单击', 2: '双击', 3: '三击' }[count]}。`,
   moved: (x: unknown, y: unknown) => `鼠标已移到 (${x}, ${y})。`,
   dragStart: (why: string) => `起点${why}`,
   dragEnd: (why: string) => `终点${why}`,
   dragged: (from: unknown[], to: unknown[]) => `已从 (${from[0]}, ${from[1]}) 拖到 (${to[0]}, ${to[1]})。`,
+  mouseDown: (x: unknown, y: unknown, button: Button) => `已在 (${x}, ${y}) 按下${BUTTON_ZH[button]},没有松开。`,
+  mouseUp: (button: Button) => `已松开${BUTTON_ZH[button]}。`,
   scrollNone: 'down 和 right 都是 0。',
   scrolled: (x: unknown, y: unknown, down: number, right: number) => {
     const parts = [down ? `${down > 0 ? '向下' : '向上'} ${Math.abs(down)} 格` : '', right ? `${right > 0 ? '向右' : '向左'} ${Math.abs(right)} 格` : ''].filter(Boolean);
@@ -97,6 +101,9 @@ const zh = {
   keyUnknown: (name: string) => `不认识的键「${name}」`,
   keyNone: '没有给出按键',
   pressed: (spec: string) => `已按 ${spec}。`,
+  holdOneChord: 'hold 只配一个键或一个组合键(用 + 连接),不能用空格分成几步。',
+  held: (spec: string, seconds: number) => `已按住 ${spec} ${seconds} 秒后松开。`,
+  heldPart: (spec: string, held: string, seconds: number) => `按住 ${spec} ${held}/${seconds} 秒时收到打断,已松开。`,
   minimized: '最小化',
   offScreen: '不在任何显示器上',
   onDisplay: (n: number) => `在显示器 ${n}`,
@@ -194,6 +201,8 @@ const en: typeof zh = {
   dragStart: (why) => `start: ${why}`,
   dragEnd: (why) => `end: ${why}`,
   dragged: (from, to) => `Dragged from (${from[0]}, ${from[1]}) to (${to[0]}, ${to[1]}).`,
+  mouseDown: (x, y, button) => `Pressed the ${button} button at (${x}, ${y}) and left it down.`,
+  mouseUp: (button) => `Released the ${button} button.`,
   scrollNone: 'down and right are both 0.',
   scrolled: (x, y, down, right) => {
     const notches = (n: number) => `${Math.abs(n)} notch${Math.abs(n) === 1 ? '' : 'es'}`;
@@ -207,6 +216,9 @@ const en: typeof zh = {
   keyUnknown: (name) => `unknown key "${name}"`,
   keyNone: 'no keys given',
   pressed: (spec) => `Pressed ${spec}.`,
+  holdOneChord: 'With hold, keys must be one key or one combination joined with +, not steps separated by spaces.',
+  held: (spec, seconds) => `Held ${spec} down for ${seconds} seconds, then released the keys.`,
+  heldPart: (spec, held, seconds) => `Interrupted after holding ${spec} down for ${held}/${seconds} seconds; the keys are released.`,
   minimized: 'minimized',
   offScreen: 'on no display',
   onDisplay: (n) => `on display ${n}`,

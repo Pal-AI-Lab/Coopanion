@@ -6,10 +6,14 @@
 import type { ToolDef } from 'cortico/core/types.ts';
 
 const shot = { type: 'boolean', description: 'Attach a screenshot afterwards; defaults to the configuration (attach). Leave it out only for a step whose result you do not need to see; after a step that may open a window or dialog, look before typing.' };
+const button = { type: 'string', enum: ['left', 'right', 'middle'], description: 'Default left' };
 const xy = {
   x: { type: 'integer', minimum: 0, description: 'Horizontal position, in pixels of the latest screenshot' },
   y: { type: 'integer', minimum: 0, description: 'Vertical position, in pixels of the latest screenshot' },
 };
+
+/** The longest hold of `pet_cua_key`, in seconds: the longest wait of `pet_cua_wait`. */
+export const MAX_HOLD_SECONDS = 30;
 
 /** While computer use is off: the way to its switch. */
 export const CUA_OFF_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
@@ -54,7 +58,7 @@ export const CUA_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
       type: 'object',
       properties: {
         ...xy,
-        button: { type: 'string', enum: ['left', 'right', 'middle'], description: 'Default left' },
+        button,
         clicks: { type: 'integer', minimum: 1, maximum: 3, description: '1 single click (default), 2 double click, 3 triple click' },
         screenshot: shot,
       },
@@ -82,6 +86,18 @@ export const CUA_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
     },
   },
   {
+    name: 'pet_cua_mouse_down',
+    tags: ['act'],
+    description: 'Move the mouse to (x, y) and press a button, leaving it down. It stays down until pet_cua_mouse_up or the end of the turn; pet_cua_move meanwhile drags with it.',
+    parameters: { type: 'object', properties: { ...xy, button, screenshot: shot }, required: ['x', 'y'] },
+  },
+  {
+    name: 'pet_cua_mouse_up',
+    tags: ['act'],
+    description: 'Release a mouse button where the pointer is.',
+    parameters: { type: 'object', properties: { button, screenshot: shot }, required: [] },
+  },
+  {
     name: 'pet_cua_scroll',
     tags: ['act'],
     description: 'Move the mouse to (x, y) and turn the wheel. Positive down scrolls down, negative up; positive right scrolls right. Units are wheel notches.',
@@ -105,8 +121,16 @@ export const CUA_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'pet_cua_key',
     tags: ['act'],
-    description: 'Press a key or a key combination. Join keys pressed together with +, and separate keys pressed one after another with spaces: "ctrl+s", "alt+f4", "ctrl+a delete", "enter", "win".',
-    parameters: { type: 'object', properties: { keys: { type: 'string' }, screenshot: shot }, required: ['keys'] },
+    description: 'Press a key or a key combination. Join keys pressed together with +, and separate keys pressed one after another with spaces: "ctrl+s", "alt+f4", "ctrl+a delete", "enter", "win". With hold, keys is one key or one combination, kept down that many seconds and then released.',
+    parameters: {
+      type: 'object',
+      properties: {
+        keys: { type: 'string' },
+        hold: { type: 'number', minimum: 0, maximum: MAX_HOLD_SECONDS, description: `Seconds to keep the keys down, ${MAX_HOLD_SECONDS} at most; omitted: press and release at once` },
+        screenshot: shot,
+      },
+      required: ['keys'],
+    },
   },
   {
     name: 'pet_cua_windows',

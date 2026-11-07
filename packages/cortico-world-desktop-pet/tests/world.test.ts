@@ -566,6 +566,10 @@ describe('with a pet page', () => {
     page.send({ t: 'dialog', id: (await page.next((m) => m.t === 'dialog')).id, closed: true });
     expect(await closed.answer).toEqual({ closed: true });
 
+    const back = world.dialog({ text: '叫什么?', back: '上一步', input: { kind: 'text', submit: '好' } });
+    page.send({ t: 'dialog', id: (await page.next((m) => m.t === 'dialog')).id, back: true });
+    expect(await back.answer).toEqual({ back: true });
+
     // a progress step moves with update and ends when the app closes it
     const bar = world.dialog({ text: '下载中', input: { kind: 'progress' } });
     const d4 = await page.next((m) => m.t === 'dialog');

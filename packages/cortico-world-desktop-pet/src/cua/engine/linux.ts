@@ -193,17 +193,32 @@ export function wheel(down: number, right: number): void {
   XFlush(dpy);
 }
 
-/** Presses `vks` (Windows virtual-key codes) in order with their modifiers held, then releases them in reverse. */
-export function chord(vks: Array<{ vk: number; extended: boolean }>): void {
-  const codes = vks.map((k) => {
+/** The keycodes of `vks` (Windows virtual-key codes); throws before anything is sent when one is missing. */
+function keycodes(vks: Array<{ vk: number; extended: boolean }>): number[] {
+  return vks.map((k) => {
     const sym = linuxKeysym(k.vk);
     const code = sym === null ? 0 : XKeysymToKeycode(dpy, sym);
     if (!code) throw new EngineFailure('linuxNoKey', [`0x${k.vk.toString(16)}`]);
     return code;
   });
-  for (const c of codes) XTestFakeKeyEvent(dpy, c, 1, 0);
-  for (const c of [...codes].reverse()) XTestFakeKeyEvent(dpy, c, 0, 0);
+}
+
+/** Presses `vks` in order and leaves them down. The X server repeats a held key as a hardware key would. */
+export function keysDown(vks: Array<{ vk: number; extended: boolean }>): void {
+  for (const c of keycodes(vks)) XTestFakeKeyEvent(dpy, c, 1, 0);
   XSync(dpy, 0);
+}
+
+/** Releases `vks` in reverse order. */
+export function keysUp(vks: Array<{ vk: number; extended: boolean }>): void {
+  for (const c of keycodes(vks).reverse()) XTestFakeKeyEvent(dpy, c, 0, 0);
+  XSync(dpy, 0);
+}
+
+/** Presses `vks` in order with their modifiers held, then releases them in reverse. */
+export function chord(vks: Array<{ vk: number; extended: boolean }>): void {
+  keysDown(vks);
+  keysUp(vks);
 }
 
 /** Types text independent of the keyboard layout: xdotool maps each character to a spare keycode. */

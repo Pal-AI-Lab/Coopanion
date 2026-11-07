@@ -19,6 +19,8 @@ export const BODY_SOUND_KINDS = ['move', 'touch', 'face', 'snore'];
 const PAN_STEP = .01;
 /** The farthest a sound leans to one side; at ±1 the far channel all but falls silent. */
 const PAN_MAX = .5;
+/** Seconds the fade of a pack's `restart` sound takes (playOwn). */
+const RESTART_FADE = .03;
 const KIND_OF = Object.fromEntries(Object.entries(SOUND_KINDS).flatMap(([kind, names]) => names.map((n) => [n, kind])));
 /** `volume`: the master gain at 100%; the setting (`configure`) scales it. */
 export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } = {}) {
@@ -92,7 +94,10 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     s.connect(bq); bq.connect(g); g.connect(master);
     s.start(t0, Math.random() * .5); s.stop(t0 + dur + .03);
   }
-  /** The pack's own sounds by name: kind, volume, the file's bytes, and the buffer once an audio context decoded them. */
+  /**
+   * The pack's own sounds by name: kind, volume, `repeat` (the manifest's, absent for overlap), the file's bytes,
+   * the buffer once an audio context decoded them, and the plays of it not yet ended (`playing`: source and gain).
+   */
   let own = new Map();
   /** The pack's voice: its `talk` sounds, which babble in place of the tone, and the pitch both are played at. */
   let voice = { talk: [], pitch: 1 };
@@ -100,14 +105,28 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     if (o.buffer || o.decoding || !ctx) return;
     o.decoding = o.bytes.then((b) => ctx.decodeAudioData(b.slice(0))).then((buf) => { o.buffer = buf; }, (err) => console.error(`音效 ${o.name} 没能解码:`, err));
   }
+  /** While the last play of `o` has not ended, a `finish` sound is not played and a `restart` sound fades that play out and starts after it. */
   function playOwn(o, rate = 1) {
     const c = ready(); if (!c) return;
     // the first ask before the file is decoded goes unheard; the decode starts with the audio context
     if (!o.buffer) { decode(o); return; }
-    const src = c.createBufferSource(), g = c.createGain();
+    if (o.repeat === 'finish' && o.playing.size) return;
+    let at = c.currentTime;
+    if (o.repeat === 'restart' && o.playing.size) {
+      for (const p of o.playing) {
+        p.g.gain.setValueAtTime(o.volume, at);
+        p.g.gain.linearRampToValueAtTime(0, at + RESTART_FADE);
+        p.src.stop(at + RESTART_FADE);
+      }
+      o.playing.clear();
+      at += RESTART_FADE;
+    }
+    const src = c.createBufferSource(), g = c.createGain(), p = { src, g };
     src.buffer = o.buffer; src.playbackRate.value = rate; g.gain.value = o.volume;
     src.connect(g); g.connect(master);
-    src.start();
+    o.playing.add(p);
+    src.onended = () => o.playing.delete(p);
+    src.start(at);
   }
   const tones = {
     step(run, i) {
@@ -197,7 +216,7 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
       own = new Map(Object.entries(sounds ?? {}).map(([name, d]) => {
         const bytes = fetch(new URL(d.file, new URL(base, location.href))).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`HTTP ${r.status}`))));
         bytes.catch((err) => console.error(`音效 ${name}(${d.file})没能载入:`, err));
-        return [name, { name, kind: d.kind, volume: d.volume ?? 1, bytes }];
+        return [name, { name, kind: d.kind, volume: d.volume ?? 1, repeat: d.repeat, bytes, playing: new Set() }];
       }));
       if (ctx) for (const o of own.values()) decode(o);
       const pitch = typeof v?.pitch === 'number' && v.pitch >= .5 && v.pitch <= 2 ? v.pitch : 1;

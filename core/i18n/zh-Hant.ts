@@ -40,7 +40,7 @@ const zhHant: Translation<CoreText> = {
   status: {
     read: '在查看', browse: '在翻閱', memory: '記憶', find: '在尋找', search: '在搜尋', write: '在寫入', edit: '在修改', append: '在附加',
     delete: '在刪除', moveFile: '在移動', save: '在儲存', screen: '在查看螢幕', windows: '在查看開啟的視窗', rightClick: '在按右鍵', doubleClick: '在點兩下', click: '在點選',
-    move: '在移動滑鼠', drag: '在拖曳', scroll: '在捲動', focus: '在切換視窗', type: '在打字', key: '在按鍵', wait: '在等待',
+    move: '在移動滑鼠', drag: '在拖曳', mouseDown: '在按下滑鼠', mouseUp: '在放開滑鼠', scroll: '在捲動', focus: '在切換視窗', type: '在打字', key: '在按鍵', wait: '在等待',
     alarmSet: '在設定鬧鐘', alarmList: '在查看鬧鐘', alarmCancel: '在取消鬧鐘',
     quoted: (text: string) => `「${text}」`,
     seconds: (n: number) => `${n} 秒`,
@@ -129,6 +129,8 @@ const zhHant: Translation<CoreText> = {
         : '都準備好囉！工作列右下角的系統匣裡也有我的圖示，想改設定點它就好。',
     go: '開始吧',
     dress: '先幫我換身衣服',
+    back: '上一步',
+    next: '下一步',
     closed: '好，那先到這裡。想再聽我介紹，開啟設定，在「開始」頁點「使用導覽」。',
 
     askFirst: '我還沒連上模型，填好 API Key 我才能和你說話。用哪一家的？',

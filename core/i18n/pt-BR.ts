@@ -40,7 +40,7 @@ const ptBR: Translation<CoreText> = {
   status: {
     read: 'Lendo', browse: 'Consultando', memory: 'memória', find: 'Procurando', search: 'Pesquisando', write: 'Escrevendo', edit: 'Editando', append: 'Acrescentando a',
     delete: 'Excluindo', moveFile: 'Movendo', save: 'Salvando', screen: 'Olhando a tela', windows: 'Olhando as janelas abertas', rightClick: 'Clicando com o botão direito', doubleClick: 'Clicando duas vezes', click: 'Clicando',
-    move: 'Movendo o mouse', drag: 'Arrastando', scroll: 'Rolando', focus: 'Trocando de janela', type: 'Digitando', key: 'Pressionando', wait: 'Esperando',
+    move: 'Movendo o mouse', drag: 'Arrastando', mouseDown: 'Pressionando o botão do mouse', mouseUp: 'Soltando o botão do mouse', scroll: 'Rolando', focus: 'Trocando de janela', type: 'Digitando', key: 'Pressionando', wait: 'Esperando',
     alarmSet: 'Definindo um alarme', alarmList: 'Conferindo os alarmes', alarmCancel: 'Cancelando um alarme',
     quoted: (text: string) => `“${text}”`,
     seconds: (n: number) => `${n} s`,
@@ -129,6 +129,8 @@ const ptBR: Translation<CoreText> = {
         : 'Tudo pronto! Meu ícone também fica na bandeja, no canto inferior direito da barra de tarefas; clique nele para mudar as configurações.',
     go: 'Vamos lá',
     dress: 'Me vista primeiro',
+    back: 'Voltar',
+    next: 'Próximo',
     closed: 'Certo, vamos parar por aqui. Para ouvir minha apresentação de novo, abra as configurações e clique em “Guia” na página Início.',
 
     askFirst: 'Ainda não tenho um modelo conectado; consigo falar quando você adicionar uma API Key. Qual serviço eu uso?',

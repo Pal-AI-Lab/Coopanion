@@ -26,7 +26,6 @@ import { mountHoverHints } from './base/ui/hover-hint.ts';
 import { mountDropdowns } from './base/ui/dropdown.ts';
 import type { ConsoleIconName } from './base/ui/icons.ts';
 import { subscribeLamps } from './base/ui/lamp.ts';
-import { BUILTIN_PANELS } from './advanced/console-pages/builtins.ts';
 import { ConsolePageHost, PROVIDER_ROUTE } from './advanced/console-pages/host.ts';
 import { ConsolePageLoader } from './advanced/console-pages/loader.ts';
 import { featureAvailable, type FeatureContext, type FrameworkFeature } from './advanced/features/feature.ts';
@@ -106,7 +105,7 @@ export function boot(doc: Document = document): Disposable {
     log: (msg: string, detail?: unknown) => console.warn('[console]', msg, detail ?? ''),
   });
   const hostDeps = {
-    doc, overlayHost: doc.body, loader, builtins: BUILTIN_PANELS, router, memo, onError,
+    doc, overlayHost: doc.body, loader, router, memo, onError,
     fetchManifest: () => fetchManifest(),
     createSocket: (url: string) => new WebSocket(url) as unknown as SocketLike,
     wsUrl: (path: string) => wsUrlOf(location, withLanguage(path)),

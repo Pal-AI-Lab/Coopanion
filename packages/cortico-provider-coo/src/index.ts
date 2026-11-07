@@ -11,12 +11,13 @@
  * Messages and Gemini APIs get the levels in their own form. Images are sent only when the endpoint
  * is marked multimodal, and on the Gemini API so are audio, video and documents; tool results may carry images too, which move to a user message after the
  * results on Chat and for `toolOutputText` services on Responses. Media go out only from the newest delivered batch of events on
- * (`sinceLastDelivery`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
+ * (`sinceLastDelivery`); a request the service rejects for its images is sent again without them
+ * (`ImageFallback`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
  * Streamed reasoning from services marked `lenientReasoning` is rewritten into standard events
  * (`LenientReasoningAssembly`). `nonStreamingResponses` services use a non-streaming fallback so
  * tools execute only after the complete response has been read and validated.
  */
-import type { ProviderModule, ProviderInstance } from 'cortico/providers/base.ts';
+import type { BaseProvider, ProviderModule, ProviderInstance } from 'cortico/providers/base.ts';
 import type { LLMProviderEntry, ReasoningTier } from 'cortico/core/types.ts';
 import type { ConfigGroup } from 'cortico/core/config-schema.ts';
 import type { Language } from 'cortico/core/language.ts';
@@ -26,6 +27,7 @@ import { ClaudeProvider } from './anthropic/client.ts';
 import { VendorChat } from './chat.ts';
 import { GeminiProvider, listGeminiModels } from './gemini/client.ts';
 import { geminiInlineMime } from './gemini/wire.ts';
+import { ImageFallback } from './image-fallback.ts';
 import { vendorPrices } from './pricing.ts';
 import { VendorResponses } from './responses.ts';
 import { cooText } from './strings.ts';
@@ -124,6 +126,7 @@ export const COO = {
     const vendor = located?.vendor ?? null;
     const protocol = protocolOf(entry);
     const media = { enabled: () => current().multimodal === true, read: host.readBlob };
+    const withFallback = (client: BaseProvider) => new ImageFallback(client, media, contextOverflow, host.log);
     const compatibilityKey = () => [vendor?.id ?? 'coo', name, ...(protocol === 'responses' ? [] : [protocol])];
     const stated = (model: string) => vendor?.contextWindows?.[model];
     // the listing carries the windows the vendor table states, so the console fills them in instead of asking
@@ -134,7 +137,7 @@ export const COO = {
       const client = new ClaudeProvider({ baseUrl: entry.baseUrl, apiKey, keepThinking: host.keepThinking, log: host.log, media });
       const windows = new Map<string, number | undefined>();
       return {
-        client, compatibilityKey,
+        client: withFallback(client), compatibilityKey,
         contextWindow: (model) => stated(model) ?? windows.get(model),
         listModels: async () => {
           const models = [];
@@ -153,7 +156,7 @@ export const COO = {
     if (protocol === 'gemini') {
       const windows = new Map<string, number | undefined>();
       return {
-        client: new GeminiProvider({ baseUrl: entry.baseUrl, apiKey, media, keepThinking: host.keepThinking, log: host.log }),
+        client: withFallback(new GeminiProvider({ baseUrl: entry.baseUrl, apiKey, media, keepThinking: host.keepThinking, log: host.log })),
         compatibilityKey,
         contextWindow: (model) => stated(model) ?? windows.get(model),
         listModels: async () => {
@@ -170,7 +173,7 @@ export const COO = {
       listModels: async () => withStated(await catalog.list()),
       contextWindow: (model) => stated(model) ?? catalog.contextWindow(model),
       compatibilityKey,
-      client: protocol === 'chat'
+      client: withFallback(protocol === 'chat'
         ? new VendorChat({ baseUrl: entry.baseUrl, apiKey, media, keepThinking: host.keepThinking, log: host.log, effort, syntheticReasoning: vendor?.syntheticReasoning })
         : new VendorResponses({
           baseUrl: entry.baseUrl,
@@ -180,7 +183,7 @@ export const COO = {
           keepThinking: host.keepThinking,
           reasoningReplay: vendor?.encryptedReasoning ? 'encrypted' : 'plaintext',
           sendSyntheticReasoning: vendor?.syntheticReasoning,
-        }, { effort, lenientReasoning: vendor?.lenientReasoning, nonStreamingResponses: vendor?.nonStreamingResponses, toolOutputText: vendor?.toolOutputText }),
+        }, { effort, lenientReasoning: vendor?.lenientReasoning, nonStreamingResponses: vendor?.nonStreamingResponses, toolOutputText: vendor?.toolOutputText })),
     };
   },
 } satisfies ProviderModule;

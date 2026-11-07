@@ -48,7 +48,7 @@ export default {
     grantMinutes: { title: '同意有效期', suffix: '分钟', description: '对 ask-once 和命令行窗口的单独询问有效。' },
     skipTerminalAsk: { title: '关闭使用命令行窗口和运行前的询问', description: '打开后，在命令行窗口里输入或按键、按 win+r 之前不再单独询问，和其他操作一样按「询问时机」询问。询问时机是 never-ask 时，Coo 能不经询问执行命令。' },
     userIdleMs: { title: '让位时长', description: '你操作鼠标或键盘后，需静止这么久才继续操作。' },
-    maxYieldWaitMs: { title: '让位最多等待' },
+    maxYieldWaitMs: { title: '让位最多等待', description: '等这么久你还没停手，这次操作就不执行。设为 0 时不等待。' },
     maxWidth: { title: '截图最大宽' },
     maxHeight: { title: '截图最大高' },
     quality: { title: '截图质量' },
