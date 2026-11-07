@@ -48,6 +48,12 @@ const CURSOR_EVERY_MS = process.platform === 'win32' ? 15 : 100;
 const WINDOWS_EVERY_MS = 700;
 /** Milliseconds between the checks for a fullscreen window covering the pet's display. */
 const FULLSCREEN_EVERY_MS = 200;
+/**
+ * Milliseconds between the reads of the foreground window on Windows. Every topmost window shares one
+ * band ordered by activation, so a topmost window that takes the foreground (a borderless full screen
+ * game) goes over the pet until the pet asserts topmost again.
+ */
+const TOPMOST_EVERY_MS = 250;
 /** Most pixels one backdrop sample returns. */
 const BACKDROP_SAMPLES = 1500;
 /**
@@ -452,7 +458,17 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       if (covered && !autoHidden && win.isVisible()) { autoHidden = true; win.hide(); }
       else if (!covered && autoHidden) { autoHidden = false; win.showInactive(); }
     }, FULLSCREEN_EVERY_MS);
-    win.on('closed', () => { appStore?.stop(); clearInterval(cursorTimer); clearInterval(fullscreenTimer); watchWindows(false); win = null; });
+    // topmost again each time another window takes the foreground, and on the first tick shown
+    let lastForeground = null;
+    const topmostTimer = foreground && setInterval(() => {
+      if (!win) return;
+      if (!win.isVisible()) { lastForeground = null; return; }
+      const cur = foreground.current();
+      if (cur === lastForeground) return;
+      lastForeground = cur;
+      if (cur !== hwndOf(win)) win.setAlwaysOnTop(true, level);
+    }, TOPMOST_EVERY_MS);
+    win.on('closed', () => { appStore?.stop(); clearInterval(cursorTimer); clearInterval(fullscreenTimer); clearInterval(topmostTimer); watchWindows(false); win = null; });
     // page console lines reach the World's log through stdout
     win.webContents.on('console-message', (e) => { if (e.level !== 'debug') console.log(`[page:${e.level}] ${e.message}`); });
     win.webContents.on('did-fail-load', (_e, code, desc, failedUrl) => console.log(`[page:error] 加载失败 ${code} ${desc} ${failedUrl}`));
