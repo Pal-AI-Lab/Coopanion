@@ -140,7 +140,7 @@ These are the defaults from the app's [vendor table](packages/cortico-provider-c
 
 Speech is recognized locally by default: FunASR for Chinese, English, Japanese and Korean, Whisper for French, German, Spanish, Portuguese, Italian and Russian, and on Windows you can also use the system recognizer. You can switch to an **OpenAI-compatible** transcription service on the Voice input page instead; each sentence you say is then sent to that service as audio.
 
-Right-click Coo to open settings, the typing box or dress up, to switch voice input, sounds and night mode on or off, and to pause / resume, hide or quit. Closing the settings window does not quit the app. The tray menu (the menu bar icon on Mac) also has **Start at login**, **Restart** and **Let clicks pass through Coo**. With click-through on, every click goes through Coo to the window below while Coo keeps walking and talking, which helps while gaming. It only lasts for the current run: click it again or quit to turn it off.
+Right-click Coo to open settings, the typing box or dress up, to switch voice input, sounds and night mode on or off, and to pause / resume, hide or quit. Hovering the dress button shows your favourite looks in a row over Coo's head; scroll or click to switch. Closing the settings window does not quit the app. The tray menu (the menu bar icon on Mac) also has **Start at login**, **Restart** and **Let clicks pass through Coo**. With click-through on, every click goes through Coo to the window below while Coo keeps walking and talking, which helps while gaming. It only lasts for the current run: click it again or quit to turn it off.
 
 ### Appearance and sound
 
