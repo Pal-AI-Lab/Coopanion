@@ -425,3 +425,24 @@ body.desk .floor{display:none}
 @media (prefers-reduced-motion: reduce){.wall-glow, .wall-lens, .bubble.said{transition:none}}
 @media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .d-pill.chosen, .caret, .menu, .tools, .tool.holding::after, .tool.sent, .m-tile, .m-tile::before, .m-tile::after, .m-tile .ic, .m-tile .ic::before{animation:none}}
 @media (prefers-reduced-motion: reduce){.d-cards .d-card.on .d-cardic[class*="ic-persona_"], .d-cards .d-card.on .d-cardic .spout{animation:none}}
+/* pointed at: every round button grows a little and its icon moves once in a way that fits it
+   (the dress button keeps its own colours and sparkles above) */
+.tool, .m-tile{transition:background .15s, border-color .15s, color .15s, scale .15s ease}
+.tool:hover, .m-tile:hover{scale:1.15}
+.tool:hover .ic svg, .m-tile:hover .ic svg{transform-origin:center; animation:var(--ic-hover, ic-bob) .5s ease-in-out}
+[data-action="chat"]{--ic-hover:ic-bob}
+[data-action="voice"]{--ic-hover:ic-pulse}
+[data-action="roam"]{--ic-hover:ic-step}
+[data-action="theme"]{--ic-hover:ic-turn}
+[data-action="sound"]{--ic-hover:ic-shake}
+[data-action="hide"]{--ic-hover:ic-blink}
+[data-action="worlds"]{--ic-hover:ic-lift}
+[data-action="dress"]{--ic-hover:none}
+@keyframes ic-bob{40%{transform:translateY(-3px)} 70%{transform:translateY(1px)}}
+@keyframes ic-pulse{35%{transform:scale(1.18)} 70%{transform:scale(.94)}}
+@keyframes ic-step{25%{transform:translateX(-2px) rotate(-6deg)} 75%{transform:translateX(2px) rotate(6deg)}}
+@keyframes ic-turn{to{transform:rotate(360deg)}}
+@keyframes ic-shake{20%,60%{transform:rotate(-10deg)} 40%,80%{transform:rotate(10deg)}}
+@keyframes ic-blink{45%{transform:scaleY(.15)}}
+@keyframes ic-lift{40%{transform:translateY(-3px) scale(1.06)} 70%{transform:translateY(1px)}}
+@media (prefers-reduced-motion: reduce){.tool:hover .ic svg, .m-tile:hover .ic svg{animation:none}}
