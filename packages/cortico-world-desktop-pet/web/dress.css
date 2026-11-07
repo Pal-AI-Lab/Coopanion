@@ -123,3 +123,8 @@ dialog.import .cant{margin-top:10px}
 .pack-erase:hover{color:var(--anger)}
 .pack-erase svg{width:16px; height:16px; display:block}
 .btn.danger{background:var(--anger); border-color:var(--anger); color:#fff}
+/* hover hints, as the settings window's `.u-tip` */
+.hint{position:fixed; z-index:130; pointer-events:none; box-sizing:border-box; width:max-content; max-width:min(268px, calc(100vw - 16px));
+  background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:9px 11px; box-shadow:0 6px 22px var(--shadow, rgba(0,0,0,.14));
+  font-size:12px; color:var(--text); overflow-wrap:anywhere}
+.hint[hidden]{display:none}

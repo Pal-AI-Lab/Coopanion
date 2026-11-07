@@ -3,6 +3,34 @@
  * A console that asks for it (`?fit=1`) is told how tall the page is (`companion:height`), sizes the frame to it and
  * scrolls it with the window instead of a scrollbar of the frame's own (dress.css `[data-embedded]`).
  */
+/** The origin of the settings window that opened the page (its referrer, on this host), or null. */
+function hostOrigin(doc, win) {
+  try {
+    const ref = new URL(doc.referrer);
+    return ref.protocol === win.location.protocol && ref.hostname === win.location.hostname ? ref.origin : null;
+  } catch { return null; }
+}
+
+/**
+ * The embedding settings window's own dialog (`companion:confirm`, answered by `companion:confirmed`): it covers
+ * the whole window and sits in the middle of the page shown. `{ title, body?, danger?, notice? }` resolves to
+ * whether the person agreed. Null for a page opened on its own, which draws its own dialog.
+ */
+export function hostDialog(doc, win) {
+  const origin = win.parent === win ? null : hostOrigin(doc, win);
+  if (!origin) return null;
+  return (opts) => new Promise((resolve) => {
+    const id = Math.random().toString(36).slice(2);
+    const onAnswer = (e) => {
+      if (e.source !== win.parent || e.origin !== origin || e.data?.type !== 'companion:confirmed' || e.data.id !== id) return;
+      win.removeEventListener('message', onAnswer);
+      resolve(e.data.ok === true);
+    };
+    win.addEventListener('message', onAnswer);
+    win.parent.postMessage({ type: 'companion:confirm', id, ...opts }, origin);
+  });
+}
+
 export function bindAppearance(doc, win) {
   const params = new URLSearchParams(win.location.search);
   const initial = params.get('appearance');
@@ -10,11 +38,7 @@ export function bindAppearance(doc, win) {
     if (mode === 'light' || mode === 'dark') doc.documentElement.dataset.uiTheme = mode;
   };
   apply(initial);
-  let parentOrigin = null;
-  try {
-    const ref = new URL(doc.referrer);
-    if (ref.protocol === win.location.protocol && ref.hostname === win.location.hostname) parentOrigin = ref.origin;
-  } catch { /* A standalone dressing window has no embedding console. */ }
+  const parentOrigin = hostOrigin(doc, win);
   const applyAccent = (accent) => {
     if (/^#[0-9a-f]{6}$/i.test(String(accent ?? ''))) doc.documentElement.style.setProperty('--host-accent', accent);
   };

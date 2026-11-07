@@ -24,8 +24,12 @@ import {
 import { loadBody } from './body-host.js';
 import { announcePainted, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 
-import { bindAppearance } from './appearance.js';
+import { bindAppearance, hostDialog } from './appearance.js';
+import { mountHints } from './hints.js';
 bindAppearance(document, window);
+/** The settings window's dialog when the page is embedded in it; null when the page draws its own. */
+const askHost = hostDialog(document, window);
+mountHints(document);
 
 const $ = (s) => document.querySelector(s);
 
@@ -313,6 +317,7 @@ const importDialog = (() => {
   dlg.addEventListener('cancel', (e) => { e.preventDefault(); close(); });
   dlg.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) close(); });
   const note = (title, text) => {
+    if (askHost && !dlg.open) { void askHost({ title, body: text, notice: true }); return; }
     show('<h2 id="importTitle"></h2><p class="lead"></p><div class="actions"><button class="btn primary" type="button" data-close data-i18n="import.ok"></button></div>');
     dlg.querySelector('h2').textContent = title;
     dlg.querySelector('.lead').textContent = text;
@@ -411,7 +416,7 @@ const importDialog = (() => {
       res = { error: t('import.offline') };
     }
     if (res.error) return note(t('remove.failed'), res.error);
-    dlg.close();
+    if (dlg.open) dlg.close();
     // the saved look's own message would cover this one
     if (skin.figure === pack.id) await apply({ ...skin, figure: 'coo' }, true);
     $('#saved').textContent = t('remove.done', { name: nameOf(pack.name) });
@@ -430,6 +435,10 @@ const importDialog = (() => {
   return {
     /** Asks before deleting an installed pack; the pet wearing it changes to Coo. */
     remove(pack) {
+      if (askHost) {
+        void askHost({ title: t('remove.title', { name: nameOf(pack.name) }), body: t('remove.lead'), danger: true }).then((ok) => { if (ok) void uninstall(pack); });
+        return;
+      }
       show(`<h2 id="importTitle"></h2><p class="lead" data-i18n="remove.lead"></p>
         <div class="actions"><button class="btn" type="button" data-close data-i18n="import.cancel"></button><button class="btn danger" type="button" data-remove data-i18n="remove.go"></button></div>`);
       dlg.querySelector('h2').textContent = t('remove.title', { name: nameOf(pack.name) });
