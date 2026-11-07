@@ -1295,11 +1295,13 @@ function placeMenu(l) {
   menuAt ??= { ...l.box };
   const c = l.side, b = menuAt, gap = 12;
   const onRight = b.x + b.w + gap + grid.offsetWidth <= innerWidth - 8;
-  const y = (el) => { el.style.top = f(clamp(c.y - el.offsetHeight / 2, 8, innerHeight - el.offsetHeight - 8)) + 'px'; };
+  // whole pixels: the menu rides up and down with the body, and text at a fraction of a pixel snaps on its own, apart from its frame
+  const y = (el) => { el.style.top = Math.round(clamp(c.y - el.offsetHeight / 2, 8, innerHeight - el.offsetHeight - 8)) + 'px'; };
   grid.style.left = f(clamp(onRight ? b.x + b.w + gap : b.x - gap - grid.offsetWidth, 8, innerWidth - grid.offsetWidth - 8)) + 'px';
   y(grid);
   // the run controls hold their edge next to the body, so the quit question grows away from it
-  if (onRight) { rail.style.left = 'auto'; rail.style.right = f(Math.max(8, innerWidth - (b.x - gap))) + 'px'; }
+  // a long quit question (Japanese, Russian) that would run off the left edge stays on the screen
+  if (onRight) { rail.style.left = 'auto'; rail.style.right = f(Math.min(innerWidth - rail.offsetWidth - 8, Math.max(8, innerWidth - (b.x - gap)))) + 'px'; }
   else { rail.style.right = 'auto'; rail.style.left = f(Math.min(innerWidth - rail.offsetWidth - 8, b.x + b.w + gap)) + 'px'; }
   // the buttons line up on the edge next to the body
   rail.style.alignItems = onRight ? 'flex-end' : 'flex-start';
