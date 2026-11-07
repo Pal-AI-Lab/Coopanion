@@ -19,7 +19,7 @@
  * input uses by default. The console's text follows the console request's language.
  */
 import type { spawn } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type {
@@ -30,9 +30,9 @@ import { nowIso, shortTime } from 'cortico/core/util.ts';
 import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
 import {
-  DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, SELF_KEYS, THRESHOLD_DB_MAX, THRESHOLD_DB_MIN, TOUCH_KINDS, USER_MAX, asrEngineFor,
+  DESKTOP_PET_ID, MAX_HOVER_BUTTONS, MAX_LOOK_NAME, MAX_SAVED_LOOKS, PET_ACTIONS, SELF_KEYS, THRESHOLD_DB_MAX, THRESHOLD_DB_MIN, TOUCH_KINDS, USER_MAX, asrEngineFor,
   desktopPetConfigGroups, directSettings, hoverButtonList, selfAdjustMode, speechFor, touchWakes,
-  type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type RoamMode, type SelfKey,
+  type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type SavedLook, type RoamMode, type SelfKey,
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
 import { SpeechText, speechTextSteps } from './speech/index.ts';
@@ -115,7 +115,7 @@ const MIC_RELEASE_MS = 500;
 /**
  * Run controls an embedding app lends the pet's menu. Each button shows only when its control is
  * lent: pause/resume needs `isPaused` and `setPaused`, settings `openSettings`, the power button
- * `quit`. Without any the menu header shows only the avatar and the name.
+ * `quit`. Without any the menu shows the actions alone.
  */
 export interface PetBotControls {
   isPaused?(): boolean;
@@ -224,8 +224,6 @@ export interface DesktopPetWorldOptions {
   storeAsrApiKey?: (key: string) => void;
   /** The bot's name for the menu header, the chat page and computer use's question; read at each use. */
   botName?: () => string;
-  /** PNG shown as the avatar in the menu header, when it exists. */
-  avatarFile?: string;
   controls?: PetBotControls;
   /** Reads the talk key; tests pass a scripted one. */
   watchHotkey?: typeof watchHotkey;
@@ -460,7 +458,8 @@ export class DesktopPetWorld implements World {
       onPetDisconnect: () => this.onPageGone(),
       onSkin: (skin) => this.saveSkin(skin),
       onPrefs: (prefs) => this.savePrefs(prefs),
-      avatarFile: opts.avatarFile,
+      looks: () => this.cfg.looks,
+      onLooks: (looks) => this.saveLooks(looks),
       packs: () => this.packs(),
       packProblems: () => this.packScan().problems,
       importer: this.importer ?? undefined,
@@ -937,14 +936,11 @@ export class DesktopPetWorld implements World {
 
   private botInfo(): Record<string, unknown> {
     const c = this.opts.controls;
-    let avatar: string | null = null;
-    try { if (this.opts.avatarFile) avatar = String(statSync(this.opts.avatarFile).mtimeMs); } catch { /* no avatar yet */ }
     const pause = !!(c?.isPaused && c.setPaused);
     const label = typeof c?.quitLabel === 'function' ? c.quitLabel() : c?.quitLabel;
     const quitLabel = c?.quit ? label || this.ui.menu.quit : '';
     return {
       name: this.botName(),
-      avatar,
       controls: !!c,
       buttons: { pause, settings: !!c?.openSettings, dress: !!c?.openDress, quit: !!c?.quit, chat: !!c?.openChat },
       // the typing box warns, as the chat page does, that the model gets only the count of pasted images
@@ -1042,6 +1038,22 @@ export class DesktopPetWorld implements World {
     const skin = raw as PetSkin;
     this.opts.persist({ skin });
     this.syncPrefs();
+  }
+
+  /** Keeps the entries that have an id, a name and a skin; names are trimmed to MAX_LOOK_NAME (an empty one becomes the id), the list to MAX_SAVED_LOOKS. */
+  private saveLooks(raw: unknown): void {
+    if (!Array.isArray(raw)) return;
+    const seen = new Set<string>();
+    const looks: SavedLook[] = [];
+    for (const l of raw) {
+      if (!l || typeof l !== 'object') continue;
+      const { id, name, skin } = l as Record<string, unknown>;
+      if (typeof id !== 'string' || !id || seen.has(id) || typeof name !== 'string' || !skin || typeof skin !== 'object') continue;
+      seen.add(id);
+      looks.push({ id, name: name.trim().slice(0, MAX_LOOK_NAME) || id, skin: skin as PetSkin });
+      if (looks.length === MAX_SAVED_LOOKS) break;
+    }
+    this.opts.persist({ looks });
   }
 
   private savePrefs(prefs: Record<string, unknown>): void {

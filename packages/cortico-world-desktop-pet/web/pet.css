@@ -5,6 +5,8 @@
   --wall:#E8E6EE; --dot:#CFCBD9; --shadow:rgba(27,22,38,.12);
   --said-bg:#E6E9E7; --said-ink:#1F2221;
   --blush:#FF8FA8; --tear:#5AAEF0; --anger:#E5484D; --heart:#F0567A; --dust:#A39DB0;
+  /* paused, as the settings window's rail shows it */
+  --warn:#96743B;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -14,7 +16,7 @@
     --skin-ink:#FFFFFF; --skin-eye:#2FD59B;
     --wall:#10151C; --dot:#232B37; --shadow:rgba(0,0,0,.32);
     --said-bg:#2C3230; --said-ink:#E6EAE8;
-    --blush:#FF7F9E; --tear:#6BBDF7; --anger:#FF6369; --heart:#FF6F93; --dust:#5B6472;
+    --blush:#FF7F9E; --tear:#6BBDF7; --anger:#FF6369; --heart:#FF6F93; --dust:#5B6472; --warn:#C4A372;
   }
 }
 :root[data-theme="dark"]{
@@ -24,7 +26,7 @@
   --skin-ink:#FFFFFF; --skin-eye:#2FD59B;
   --wall:#10151C; --dot:#232B37; --shadow:rgba(0,0,0,.32);
   --said-bg:#2C3230; --said-ink:#E6EAE8;
-  --blush:#FF7F9E; --tear:#6BBDF7; --anger:#FF6369; --heart:#FF6F93; --dust:#5B6472;
+  --blush:#FF7F9E; --tear:#6BBDF7; --anger:#FF6369; --heart:#FF6F93; --dust:#5B6472; --warn:#C4A372;
 }
 *{box-sizing:border-box}
 html,body{margin:0; height:100%; overflow:hidden}
@@ -339,74 +341,80 @@ body.desk .floor{display:none}
 .d-barlbl{display:flex; justify-content:space-between; gap:8px; font-size:calc(12px * var(--bubble-font, 1)); color:var(--muted)}
 .d-barlbl b{font-weight:600; font-variant-numeric:tabular-nums; color:var(--text)}
 
-/* context menu: the bot and its run controls on top, the actions as icon tiles below */
-.menu{
-  position:fixed; z-index:5; width:max-content; padding:6px; border-radius:16px;
-  background:var(--surface); border:2px solid var(--skin-ink); box-shadow:0 10px 26px var(--shadow);
-  font-size:14px; animation:bubble-in .18s cubic-bezier(.3,1.5,.5,1);
-}
+/* context menu: the run controls as round buttons on one side of the body, the actions in columns on the other */
+.menu{position:fixed; inset:0; z-index:5; pointer-events:none}
+.menu > *{position:fixed; pointer-events:auto; animation:bubble-in .18s cubic-bezier(.3,1.5,.5,1)}
+.menu [hidden]{display:none}
 .menu button{font:inherit; cursor:pointer}
-.menu .m-head{display:flex; align-items:center; gap:8px; min-height:40px; padding:3px 2px 7px 4px; margin-bottom:4px; border-bottom:1px solid var(--line)}
-.m-avatar{flex:none; width:30px; height:30px; border-radius:50%; overflow:hidden; background:var(--bg); border:1.5px solid var(--line)}
-.m-avatar img, .m-avatar svg{width:100%; height:100%; display:block; object-fit:cover}
-/* the name takes what room the buttons leave and does not widen the menu: a long one ends in … (its title has it all) */
-.m-name{flex:1 1 0; width:0; min-width:4em; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.m-acts{flex:none; display:flex; gap:2px}
-/* asking to quit: the prompt takes the avatar's room, so the fixed-width menu keeps it readable */
-.m-head.confirm .m-avatar{display:none}
-/* the question wraps rather than ending in …: the menu keeps its opening width (pet-app openMenu) */
-.m-head.confirm .m-name{white-space:normal; overflow-wrap:anywhere; line-height:1.3}
-.menu .m-act{display:grid; place-items:center; width:30px; height:30px; padding:0; border:0; border-radius:50%; background:none; color:var(--muted)}
-.menu .m-act:hover{background:var(--bg); color:var(--text)}
-.menu .m-act svg{width:17px; height:17px; display:block}
-/* running: the pause button in the accent color, as the console's rail shows the live run */
-.menu .m-act.run:not(.paused){color:var(--skin-eye)}
-.menu .m-act.power:hover, .menu .m-act.danger{color:var(--anger)}
-.menu .m-act.text{width:auto; padding:0 10px; border-radius:15px; font-size:12.5px; white-space:nowrap}
-/* six actions in three columns spread over the menu's width (the header no longer widens it: see .m-name) */
-.m-grid{display:grid; grid-template-columns:repeat(3, 1fr); justify-items:center; gap:8px 10px; padding:4px 2px 2px}
-/* every entry is a round icon button; a switch that is on is lit in the eye color, one that is off keeps its crossed-out icon on a dashed ring */
-.m-tile{
-  position:relative; display:grid; place-items:center; width:46px; height:46px; padding:0; border-radius:50%;
-  border:1.5px solid var(--line); background:none; color:var(--text); transition:background .15s, border-color .15s, color .15s;
+.m-rail{display:flex; flex-direction:column; gap:8px}
+.m-rail > *{flex:none}
+/* the run controls are hover buttons; only their icons take color, as in the settings window's rail:
+   power red, pause in the accent while running, resume amber while paused */
+.m-rail > .tool.power, .m-rail > .tool.power:hover{color:var(--anger); border-color:var(--skin-ink)}
+.m-rail > .tool.run, .m-rail > .tool.run:hover{color:var(--skin-eye); border-color:var(--skin-ink)}
+.m-rail > .tool.run.paused, .m-rail > .tool.run.paused:hover{color:var(--warn)}
+.m-rail > .tool.power{transition:width .2s ease, height .2s ease}
+/* the quit question: the power button grown into a row of the prompt and the two answers */
+.m-quit{
+  display:flex; align-items:center; gap:2px; box-sizing:border-box; height:38px; padding:0 0 0 10px; border-radius:19px; overflow:hidden; white-space:nowrap;
+  background:var(--surface); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow); font-size:13px;
+  transition:width .2s ease, height .2s ease;
 }
-.m-tile:hover, .m-tile:focus-visible{background:var(--bg); border-color:var(--skin-ink); outline:none}
-.m-tile .ic{position:relative; display:grid; place-items:center}
-.m-tile .ic svg{width:22px; height:22px; display:block}
-.m-tile.on{background:color-mix(in srgb, var(--skin-eye) 16%, transparent); border-color:var(--skin-eye); color:var(--skin-eye)}
+.m-quit > *{flex:none}
+.m-ask{padding-right:4px; line-height:1.3}
+.q-act{display:grid; place-items:center; width:34px; height:34px; padding:0; border:0; border-radius:50%; background:none; color:var(--muted)}
+.q-act:hover{background:var(--bg); color:var(--text)}
+.q-act svg{width:20px; height:20px; display:block}
+.q-act.danger{color:var(--anger)}
+.q-act.text{width:auto; padding:0 10px; border-radius:15px; font-size:12.5px; white-space:nowrap}
+/* the actions as the hover buttons draw them, filled column by column */
+.m-grid{display:grid; grid-auto-flow:column; gap:8px}
+/* a switch that is off keeps its crossed-out icon on a dashed ring */
 .m-tile.off{color:var(--muted); border-style:dashed}
 .badge{
   position:absolute; right:-9px; bottom:-8px; padding:0 3px; border-radius:6px; border:1.5px solid var(--surface);
   background:var(--skin-eye); color:var(--surface); font:700 8.5px/12px ui-monospace,Consolas,monospace; letter-spacing:.02em; text-transform:uppercase;
 }
 /* dressing up: on hover the shirt wiggles through the palettes and three dots of color pop out */
-.m-tile.dress:hover, .tool[data-action="dress"]:hover{animation:dress-hue 1.6s linear infinite}
-.m-tile.dress:hover .ic, .tool[data-action="dress"]:hover .ic{animation:dress-wiggle .5s ease-in-out}
-.m-tile.dress::before, .m-tile.dress::after, .m-tile.dress .ic::before{
+.tool[data-action="dress"]:hover{animation:dress-hue 1.6s linear infinite}
+.tool[data-action="dress"]:hover .ic{animation:dress-wiggle .5s ease-in-out}
+.tool[data-action="dress"]::before, .tool[data-action="dress"]::after, .tool[data-action="dress"] .ic::before{
   content:""; position:absolute; width:6px; height:6px; border-radius:50%; opacity:0; pointer-events:none;
 }
-.m-tile.dress::before{left:-2px; top:4px; background:#FF6B8B}
-.m-tile.dress::after{right:-3px; top:0; background:#FFC43D}
-.m-tile.dress .ic::before{left:7px; top:-19px; background:#4CC9F0}
-.m-tile.dress:hover::before{animation:dress-pop .7s ease-out infinite}
-.m-tile.dress:hover::after{animation:dress-pop .7s .23s ease-out infinite}
-.m-tile.dress:hover .ic::before{animation:dress-pop .7s .46s ease-out infinite}
+.tool[data-action="dress"]::before{left:-2px; top:4px; background:#FF6B8B}
+.tool[data-action="dress"]::after{right:-3px; top:0; background:#FFC43D}
+.tool[data-action="dress"] .ic::before{left:7px; top:-19px; background:#4CC9F0}
+.tool[data-action="dress"]:hover::before{animation:dress-pop .7s ease-out infinite}
+.tool[data-action="dress"]:hover::after{animation:dress-pop .7s .23s ease-out infinite}
+.tool[data-action="dress"]:hover .ic::before{animation:dress-pop .7s .46s ease-out infinite}
 @keyframes dress-hue{
   0%{color:#FF6B8B; border-color:#FF6B8B} 20%{color:#FF9F43; border-color:#FF9F43} 40%{color:#FFC43D; border-color:#FFC43D}
   60%{color:#2FD59B; border-color:#2FD59B} 80%{color:#4CC9F0; border-color:#4CC9F0} 100%{color:#B388FF; border-color:#B388FF}
 }
 @keyframes dress-wiggle{25%{transform:rotate(-12deg)} 75%{transform:rotate(12deg)}}
 @keyframes dress-pop{0%{opacity:0; transform:scale(.3) translate(0, 0)} 30%{opacity:1} 100%{opacity:0; transform:scale(1.1) translate(0, -8px)}}
+/* look wheel: the looks in a row over the body; the farther from the middle, the smaller and fainter */
+.wheel{position:fixed; z-index:6; height:62px; animation:bubble-in .18s cubic-bezier(.3,1.5,.5,1)}
+.wheel[hidden]{display:none}
+.w-item{
+  position:absolute; left:50%; top:50%; width:50px; height:50px; padding:0; border-radius:50%; overflow:hidden; cursor:pointer;
+  background:var(--surface); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
+  transition:transform .24s cubic-bezier(.3,1.3,.5,1), opacity .24s;
+}
+.w-item img, .w-item svg{display:block; width:100%; height:100%; object-fit:cover}
+/* the look worn that is not a favourite: kept for the row to turn back to */
+.w-item.worn{border-style:dashed}
+.w-item.on{border-color:var(--skin-eye); box-shadow:0 0 0 3px color-mix(in srgb, var(--skin-eye) 30%, transparent), 0 6px 16px var(--shadow)}
 /* hover buttons: the actions chosen in settings, in columns of up to three beside the pet */
 .tools{position:fixed; left:0; top:0; z-index:4; display:grid; grid-auto-flow:column; gap:8px; animation:bubble-in .18s cubic-bezier(.3,1.5,.5,1)}
 .tools[hidden]{display:none}
 .tool{
-  position:relative; display:grid; place-items:center; width:34px; height:34px; padding:0; border-radius:50%; cursor:pointer;
+  position:relative; display:grid; place-items:center; width:38px; height:38px; padding:0; border-radius:50%; cursor:pointer;
   background:var(--surface); color:var(--text); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
 }
 .tool .ic{position:relative; display:grid; place-items:center}
 .tool:hover{color:var(--skin-eye); border-color:var(--skin-eye)}
-.tool svg{width:20px; height:20px; display:block}
+.tool svg{width:22px; height:22px; display:block}
 /* the key badge sits off the button's lower right, clear of the icon */
 .tool .badge{right:-14px; bottom:-9px}
 /* the voice switch: struck through when off, muted while the recognizer is not ready, lit while hearing */
@@ -423,5 +431,5 @@ body.desk .floor{display:none}
 .tool.sent{animation:tool-sent .36s cubic-bezier(.3,1.5,.5,1)}
 @keyframes tool-sent{45%{transform:scale(1.2)}}
 @media (prefers-reduced-motion: reduce){.wall-glow, .wall-lens, .bubble.said{transition:none}}
-@media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .d-pill.chosen, .caret, .menu, .tools, .tool.holding::after, .tool.sent, .m-tile, .m-tile::before, .m-tile::after, .m-tile .ic, .m-tile .ic::before{animation:none}}
+@media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .d-pill.chosen, .caret, .menu > *, .tools, .tool.holding::after, .tool.sent, .tool::before, .tool::after, .tool .ic, .tool .ic::before{animation:none}}
 @media (prefers-reduced-motion: reduce){.d-cards .d-card.on .d-cardic[class*="ic-persona_"], .d-cards .d-card.on .d-cardic .spout{animation:none}}

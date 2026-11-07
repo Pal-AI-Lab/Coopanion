@@ -45,6 +45,16 @@ export interface PetSkin {
   colors: Record<string, { main: string; acc: string }>;
 }
 
+/** A look the person saved on the dressing page, to switch back to from there or from the look wheel over the pet. */
+export interface SavedLook {
+  /** Unique within the list; the dressing page makes it. */
+  id: string;
+  name: string;
+  skin: PetSkin;
+}
+/** Most saved looks kept, and the longest name. */
+export const MAX_SAVED_LOOKS = 60, MAX_LOOK_NAME = 40;
+
 /** Kinds of the pet's sounds, the keys of `SOUND_KINDS` in web/sound.js; a pack's own sounds are filed under these too. */
 export const SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk', 'ui'] as const;
 export type SoundKind = typeof SOUND_KINDS[number];
@@ -218,6 +228,8 @@ export interface DesktopPetConfigSection extends WorldSection {
   /** Under `custom`: per item, true = changed at once, false = asked first. */
   selfAdjustCustom: Record<SelfKey, boolean>;
   skin: PetSkin;
+  /** Saved looks, in the order the person saved them. */
+  looks: SavedLook[];
   /** Computer use (src/cua/). */
   cua: CuaConfig;
   touch: {
@@ -289,6 +301,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
     figure: 'coo', scheme: 'deepseek', palette: 'mint', head: 'none', side: 'none', glasses: 'none', neck: 'none',
     colors: { head: { main: 'body', acc: 'eye' }, side: { main: 'eye', acc: 'eye' }, glasses: { main: 'body', acc: 'eye' }, neck: { main: 'eye', acc: 'eye' } },
   },
+  looks: [],
   cua: CUA_DEFAULTS,
   touch: { enabled: true, wakeOn: 'poke', wakeKinds: ['poke'] },
   asr: {
