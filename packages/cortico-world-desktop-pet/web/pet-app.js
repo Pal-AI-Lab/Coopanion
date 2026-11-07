@@ -1254,6 +1254,7 @@ function menuActions() {
 }
 
 function openMenu() {
+  menuAt = null;
   menu.innerHTML = '';
   const rail = Object.assign(document.createElement('div'), { className: 'm-rail' });
   const grid = Object.assign(document.createElement('div'), { className: 'm-grid' });
@@ -1285,11 +1286,14 @@ function openMenu() {
 }
 
 /** The run controls on the body's left and the actions on its right; the two swap when the right runs off the screen. */
+let menuAt = null;
 function placeMenu(l) {
   const rail = menu.querySelector('.m-rail'), grid = menu.querySelector('.m-grid');
   if (!rail || !grid) return;
   // the same gap on both sides of the body's box
-  const c = l.side, b = l.box, gap = 12;
+  // left and right of the body's box as it was when the menu opened: it stands still meanwhile, and the box narrows and shifts as it turns round
+  menuAt ??= { ...l.box };
+  const c = l.side, b = menuAt, gap = 12;
   const onRight = b.x + b.w + gap + grid.offsetWidth <= innerWidth - 8;
   const y = (el) => { el.style.top = f(clamp(c.y - el.offsetHeight / 2, 8, innerHeight - el.offsetHeight - 8)) + 'px'; };
   grid.style.left = f(clamp(onRight ? b.x + b.w + gap : b.x - gap - grid.offsetWidth, 8, innerWidth - grid.offsetWidth - 8)) + 'px';
@@ -1358,6 +1362,7 @@ function fillMenuRail(rail, bot, confirmQuit) {
 function closeMenu() {
   if (menu.hidden) return;
   menu.hidden = true;
+  menuAt = null;
   // the hover buttons stay away until the pointer has left the body and them, and comes back
   toolsMuted = true;
   toolsUntil = 0;
