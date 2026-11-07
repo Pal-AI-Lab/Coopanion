@@ -46,14 +46,11 @@ async function pageText(code) {
 const CURSOR_EVERY_MS = process.platform === 'win32' ? 15 : 100;
 /** Milliseconds between the reads of the other windows, while the page asks for them. */
 const WINDOWS_EVERY_MS = 700;
-/** Milliseconds between the checks for a fullscreen window covering the pet's display. */
-const FULLSCREEN_EVERY_MS = 200;
 /**
- * Milliseconds between the reads of the foreground window on Windows. Every topmost window shares one
- * band ordered by activation, so a topmost window that takes the foreground (a borderless full screen
- * game) goes over the pet until the pet asserts topmost again.
+ * Milliseconds between the reads of the foreground window on Windows, for the topmost assertion and the
+ * check for a fullscreen window covering the pet's display.
  */
-const TOPMOST_EVERY_MS = 250;
+const FOREGROUND_EVERY_MS = 200;
 /** Most pixels one backdrop sample returns. */
 const BACKDROP_SAMPLES = 1500;
 /**
@@ -91,9 +88,9 @@ const gdi = (() => {
 })();
 
 /**
- * Moving the keyboard between windows while the pet asks something. Windows keeps a background
- * process from bringing its window forward (`win.focus()` alone does nothing), unless its thread
- * shares input with the foreground one for the call. Null off Windows or when koffi does not load.
+ * The window with the keyboard, and moving the keyboard between windows while the pet asks
+ * something. Windows keeps a background process from bringing its window forward (`win.focus()`
+ * alone does nothing), unless its thread shares input with the foreground one for the call. Null off Windows or when koffi does not load.
  */
 const foreground = (() => {
   if (process.platform !== 'win32') return null;
@@ -195,7 +192,7 @@ function hwndOf(win) {
 }
 
 /**
- * Whether the foreground window fills the whole monitor the window `own` is on, as a game, a video
+ * Whether the foreground window `hwnd` fills the whole monitor the window `own` is on, as a game, a video
  * or a browser in full screen does. A window still carrying a title bar never counts: a maximized
  * window reaches past the monitor's edges where no taskbar reserves a strip (an auto-hidden one, or
  * none on that monitor), and what tells it apart from a full screen window is that going full screen
@@ -208,7 +205,6 @@ const fullscreen = (() => {
   try {
     const koffi = require('koffi');
     const user32 = koffi.load('user32.dll');
-    const GetForegroundWindow = user32.func('intptr_t __stdcall GetForegroundWindow()');
     const GetWindowLongW = user32.func('int32_t __stdcall GetWindowLongW(intptr_t hwnd, int index)');
     const GetClassNameW = user32.func('int __stdcall GetClassNameW(intptr_t hwnd, void *buf, int max)');
     const GetWindowRect = user32.func('int __stdcall GetWindowRect(intptr_t hwnd, void *rect)');
@@ -220,8 +216,7 @@ const fullscreen = (() => {
     const GWL_STYLE = -16, WS_CAPTION = 0x00c00000;
     // the desktop's own windows: they cover the monitor but are not an application
     const DESKTOP_CLASSES = new Set(['Progman', 'WorkerW']);
-    return (own) => {
-      const hwnd = BigInt(GetForegroundWindow());
+    return (hwnd, own) => {
       if (hwnd === 0n || hwnd === own) return false;
       // a title bar means an ordinary window that happens to reach the monitor's edges, always on top or not
       if ((GetWindowLongW(hwnd, GWL_STYLE) & WS_CAPTION) !== 0) return false;
@@ -451,24 +446,23 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       win.webContents.send('pet:cursor', at);
       mouse.tick();
     }, CURSOR_EVERY_MS);
-    // hidden while the setting is on and a window fills the pet's monitor; shown again once neither holds
-    const fullscreenTimer = fullscreen && setInterval(() => {
+    // Windows: every topmost window shares one band ordered by activation, so a topmost window that takes
+    // the foreground (a borderless full screen game) goes over the pet. The pet asserts topmost again each
+    // time another window takes the foreground, and on the first tick it is shown. With the setting on, it
+    // is hidden while the foreground window fills the pet's monitor and shown again once that ends.
+    let lastForeground = null;
+    const foregroundTimer = foreground && setInterval(() => {
       if (!win) return;
-      const covered = hideWhenFullscreen && fullscreen(hwndOf(win));
+      const own = hwndOf(win), cur = foreground.current();
+      const covered = hideWhenFullscreen && !!fullscreen?.(cur, own);
       if (covered && !autoHidden && win.isVisible()) { autoHidden = true; win.hide(); }
       else if (!covered && autoHidden) { autoHidden = false; win.showInactive(); }
-    }, FULLSCREEN_EVERY_MS);
-    // topmost again each time another window takes the foreground, and on the first tick shown
-    let lastForeground = null;
-    const topmostTimer = foreground && setInterval(() => {
-      if (!win) return;
       if (!win.isVisible()) { lastForeground = null; return; }
-      const cur = foreground.current();
       if (cur === lastForeground) return;
       lastForeground = cur;
-      if (cur !== hwndOf(win)) win.setAlwaysOnTop(true, level);
-    }, TOPMOST_EVERY_MS);
-    win.on('closed', () => { appStore?.stop(); clearInterval(cursorTimer); clearInterval(fullscreenTimer); clearInterval(topmostTimer); watchWindows(false); win = null; });
+      if (cur !== own) win.setAlwaysOnTop(true, level);
+    }, FOREGROUND_EVERY_MS);
+    win.on('closed', () => { appStore?.stop(); clearInterval(cursorTimer); clearInterval(foregroundTimer); watchWindows(false); win = null; });
     // page console lines reach the World's log through stdout
     win.webContents.on('console-message', (e) => { if (e.level !== 'debug') console.log(`[page:${e.level}] ${e.message}`); });
     win.webContents.on('did-fail-load', (_e, code, desc, failedUrl) => console.log(`[page:error] 加载失败 ${code} ${desc} ${failedUrl}`));
