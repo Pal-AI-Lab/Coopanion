@@ -1,6 +1,8 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  launchAtLoginLabel: "Lancement au démarrage",
+  launchAtLogin: "Lancer Coopanion à l’ouverture de session",
   autoUpdateLabel: "Mises à jour automatiques",
   autoUpdate: "Télécharger et installer les mises à jour automatiquement",
   autoUpdateHint: "Télécharge les mises à jour et les installe à la fermeture. Désactiver cette option arrête immédiatement les recherches et téléchargements et empêche l’installation automatique des mises à jour déjà téléchargées.",

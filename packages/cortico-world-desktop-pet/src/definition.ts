@@ -79,6 +79,8 @@ export interface DesktopPetAssembly {
   packRoots?(): string[];
   /** Called after the bot changed its own settings (`pet_set`). */
   onBotChange?(): void;
+  /** Called when the pet window comes onto the desktop or leaves it (`onDesktop` of the pet panel's state). */
+  onDesktopChange?(onDesktop: boolean): void;
   /** What the status bubble shows for a tool call; see `DescribeTool`. */
   describeTool?: DescribeTool;
   /** The language of what the bot reads from this World, read at each use; Chinese when absent. */
@@ -117,6 +119,7 @@ export function desktopPetDefinition(assembly: DesktopPetAssembly = {}): WorldDe
         packRoots: () => [join(ctx.dataDir, 'figures'), ...assembly.packRoots?.() ?? []],
         packDir: () => join(ctx.dataDir, 'figures'),
         onBotChange: () => assembly.onBotChange?.(),
+        onDesktopChange: (on) => assembly.onDesktopChange?.(on),
         describeTool: assembly.describeTool,
         modelLanguage: () => assembly.modelLanguage?.() ?? 'zh',
         replyLanguage: () => assembly.replyLanguage?.() ?? null,

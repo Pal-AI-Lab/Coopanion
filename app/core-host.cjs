@@ -145,6 +145,8 @@ class CoreHost extends EventEmitter {
         this.emit('open', typeof msg.path === 'string' ? msg.path : '');
       } else if (msg?.type === 'companion:hide') {
         this.emit('hide');
+      } else if (msg?.type === 'companion:pet-shown' && typeof msg.shown === 'boolean') {
+        this.emit('pet-shown', msg.shown);
       } else if (msg?.type === 'companion:quit') {
         this.emit('quit');
       } else if (msg?.type === 'companion:update-install') {
