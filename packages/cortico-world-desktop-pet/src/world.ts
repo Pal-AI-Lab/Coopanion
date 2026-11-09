@@ -240,6 +240,8 @@ export interface DesktopPetWorldOptions {
   packDir?: () => string;
   /** Called after the bot changed settings itself (`pet_set`), so an app watching the config knows it was not the person. */
   onBotChange?: () => void;
+  /** Called when the pet window comes onto the desktop or leaves it: shown or hidden, opened or closed. */
+  onDesktopChange?: (onDesktop: boolean) => void;
   /** What the status bubble shows for a tool call. */
   describeTool?: DescribeTool;
   /** The language of what the bot reads from this World (`model-text.ts`), read at each use; Chinese when absent. */
@@ -376,6 +378,8 @@ export class DesktopPetWorld implements World {
   private screen: { w: number; h: number } | null = null;
   /** The pet window said it is hidden (its menu's or the tray's 「隐藏」); reset when a page connects. */
   private petHidden = false;
+  /** `onDesktop` as last told to `onDesktopChange`, null before the first time. */
+  private desktopTold: boolean | null = null;
   private busyUntil = 0;
   private readonly walks = new Map<string, PendingWalk>();
   private ask: PendingAsk | null = null;
@@ -461,7 +465,7 @@ export class DesktopPetWorld implements World {
       snapshot: () => this.snapshot(),
       onPetMessage: (msg) => this.onPage(msg),
       onAudio: (frame) => this.onAudio(frame),
-      onPetConnect: () => { this.petHidden = false; this.bodyMissing = null; this.log?.info('桌宠页面已连接'); },
+      onPetConnect: () => { this.petHidden = false; this.bodyMissing = null; this.log?.info('桌宠页面已连接'); this.tellDesktop(); },
       onPetDisconnect: () => this.onPageGone(),
       onSkin: (skin) => this.saveSkin(skin),
       onPrefs: (prefs) => this.savePrefs(prefs),
@@ -1119,7 +1123,7 @@ export class DesktopPetWorld implements World {
         return;
       }
       case 'answer': return this.onAnswer(msg, 'pet');
-      case 'visibility': this.petHidden = msg.hidden === true; return;
+      case 'visibility': this.petHidden = msg.hidden === true; this.tellDesktop(); return;
       case 'text': {
         const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 500) : '';
         const images = parseChatImages(msg.images, this.userName, petText(this.appLanguage).chat, this.t);
@@ -1266,9 +1270,18 @@ export class DesktopPetWorld implements World {
     this.saveSkin({ ...this.cfg.skin, ...patch });
   }
 
+  /** Tells `onDesktopChange` when the pet window's place on the desktop changed since it was last told. */
+  private tellDesktop(): void {
+    const on = this.server.petInWindow && !this.petHidden;
+    if (on === this.desktopTold) return;
+    this.desktopTold = on;
+    this.opts.onDesktopChange?.(on);
+  }
+
   private onPageGone(): void {
     this.log?.info('桌宠页面断开');
     this.holdPreRoll.length = 0;
+    this.tellDesktop();
     for (const [id, d] of this.dialogs) { d({ unavailable: true }); this.dialogs.delete(id); }
     for (const [id, w] of this.walks) { clearTimeout(w.timer); w.resolve(this.t.walkWindowGone); this.walks.delete(id); }
     for (const [id, c] of this.confirms) { clearTimeout(c.timer); c.resolve('unavailable'); this.confirms.delete(id); }

@@ -3,10 +3,11 @@ module.exports = {
   starting: '시작하는 중…',
 
   trayOpenSettings: '설정 열기',
-  trayShowPet: '펫 표시',
-  trayClickThrough: '클릭이 Coo를 통과',
+  trayShowPet: "펫 표시",
+  trayHidePet: "펫 숨기기",
+  trayClickThroughOn: "클릭이 Coo를 통과하게 하기",
+  trayClickThroughOff: "클릭이 Coo를 통과하지 않게 하기",
   trayClickThroughTip: 'Coopanion (클릭이 Coo를 통과하는 중)',
-  trayLaunchAtLogin: '로그인 시 자동 시작',
   trayRestart: '다시 시작',
   trayQuit: '종료',
 
