@@ -3,10 +3,11 @@ module.exports = {
   starting: 'Iniciando…',
 
   trayOpenSettings: 'Abrir configuración',
-  trayShowPet: 'Mostrar mascota',
-  trayClickThrough: 'Dejar pasar los clics a través de Coo',
+  trayShowPet: "Mostrar mascota",
+  trayHidePet: "Ocultar mascota",
+  trayClickThroughOn: "Dejar pasar los clics a través de Coo",
+  trayClickThroughOff: "Dejar de pasar los clics a través de Coo",
   trayClickThroughTip: 'Coopanion (los clics atraviesan a Coo)',
-  trayLaunchAtLogin: 'Abrir al iniciar sesión',
   trayRestart: 'Reiniciar',
   trayQuit: 'Salir',
 

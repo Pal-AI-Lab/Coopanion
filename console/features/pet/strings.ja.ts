@@ -1,6 +1,8 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  launchAtLoginLabel: "自動起動",
+  launchAtLogin: "ログイン時に Coopanion を起動",
   autoUpdateLabel: "自動更新",
   autoUpdate: "更新を自動でダウンロードしてインストール",
   autoUpdateHint: "更新を自動でダウンロードし、アプリ終了時にインストールします。オフにすると確認とダウンロードが直ちに止まり、ダウンロード済みの更新も自動ではインストールされません。",
