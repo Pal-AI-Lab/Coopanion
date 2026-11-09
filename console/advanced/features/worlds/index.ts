@@ -9,10 +9,11 @@ import { brandMark, icon, type ConsoleIconName } from '../../../base/ui/icons.ts
 import { lampRow, subscribeLamps } from '../../../base/ui/lamp.ts';
 import { pageIntro } from '../../../base/ui/page.ts';
 import { pageTabs } from '../../../base/ui/page-tabs.ts';
+import { fitColumn } from '../../../base/ui/fit-column.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { mountExtensionContent, iconUrl, removalBlockReason, type ExtensionView, type ExtensionController } from '../extensions/index.ts';
 import { S as E } from '../extensions/strings.ts';
-import { worldLibrary, needsRestart, type WorldLibraryItem } from './library.ts';
+import { worldLibrary, needsRestart, updatePending, type WorldLibraryItem } from './library.ts';
 import { addGroup, arrangeLayout, groupToken, moveGroup, moveItem, readLayout, removeGroup, writeLayout, type WorldGroup, type WorldLayout } from './groups.ts';
 import { S } from './strings.ts';
 import { S as UI } from '../../../base/ui/strings.ts';
@@ -147,7 +148,7 @@ export function mountWorlds(ctx: FeatureContext): void {
   /** The market view's rail shows avatars alone, so the World list's own failure shows above the catalog. */
   const marketFeedback = ui.h('div', 'world-list-feedback');
   const listErrors = new Map<'worlds' | 'extensions', string>();
-  readyHeading.after(feedback); catalog.append(marketFeedback);
+  tools.after(feedback); catalog.append(marketFeedback);
   rail.append(railList);
   workspace.append(rail, catalog); root.append(intro, workspace);
   /** Name tag beside a rail avatar in the market view, where the rail shows avatars alone. */
@@ -624,8 +625,12 @@ export function mountWorlds(ctx: FeatureContext): void {
       const owner = market, details = ui.h('button', 'world-name', item.label) as HTMLButtonElement; details.type = 'button';
       details.addEventListener('click', () => owner.details(pack.name), { signal }); heading.append(details);
     } else heading.append(ui.h('span', 'world-name', item.label));
-    // An available update shows beside the name and opens the same page, where the update is.
-    if (pack && market) {
+    // An installed update waits for the restart, which its icon offers; an available one shows beside
+    // the name and opens the same page, where the update is.
+    if (pack && market && updatePending(item)) {
+      const owner = market;
+      heading.append(iconButton('refresh', S.updatePendingRestart(pack.version ?? '?', pack.installedVersion ?? '?'), 'world-name-update world-name-pending', () => void owner.restart()));
+    } else if (pack && market) {
       const owner = market, update = updatable.get(pack.name);
       if (update) heading.append(iconButton('update', S.updateAvailable(update.installedVersion, update.latestVersion), 'world-name-update', () => owner.details(pack.name)));
     }
@@ -688,9 +693,18 @@ export function mountWorlds(ctx: FeatureContext): void {
       stateNode = button;
     }
     row.append(identity, stateNode, signals, actions);
-    if (!failed && m?.status === 'inactive' && !canActivate) row.append(ui.h('p', 'world-blade-note', S.inactiveNoteManual(m.id)));
-    else if (!failed && !m && !pending && !active) row.append(ui.h('p', 'world-blade-note', E.worldNotLoaded));
     return row;
+  }
+  /** The state column fits the widest state shown, so every row keeps the same columns. */
+  let fitStates: (() => void) | undefined;
+  function fitStateColumn(): void {
+    if (fitStates) { fitStates(); return; }
+    if (!workspace.isConnected) return;
+    fitStates = fitColumn(workspace, '--world-state-width', () => {
+      const shown = new Map<string, HTMLElement>();
+      for (const node of railList.querySelectorAll<HTMLElement>('.world-blade .world-state')) if (!shown.has(node.textContent ?? '')) shown.set(node.textContent ?? '', node.cloneNode(true) as HTMLElement);
+      return [...shown.values()];
+    });
   }
   function render(): void {
     if (!worldsReady || !extensionsReady || signal.aborted) return;
@@ -698,7 +712,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     if (readyList.querySelector('.is-dragging')) return;
     const items = worldLibrary(worlds, extensions, recent);
     readyList.querySelector('.placeholder')?.remove();
-    lampNodes.clear(); renderRail(items);
+    lampNodes.clear(); renderRail(items); fitStateColumn();
     if (!items.length) readyList.replaceChildren(...listErrors.size ? [] : [ui.placeholder(S.noWorlds)]);
     readyGroup.hidden = !listErrors.size && !!items.length && !items.some(item => !needsRestart(item));
   }

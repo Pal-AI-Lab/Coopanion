@@ -19,7 +19,7 @@
  * input uses by default. The console's text follows the console request's language.
  */
 import type { spawn } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type {
@@ -30,15 +30,16 @@ import { nowIso, shortTime } from 'cortico/core/util.ts';
 import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
 import {
-  DESKTOP_PET_ID, MAX_HOVER_BUTTONS, PET_ACTIONS, SELF_KEYS, THRESHOLD_DB_MAX, THRESHOLD_DB_MIN, TOUCH_KINDS, USER_MAX, asrEngineFor,
+  DESKTOP_PET_ID, MAX_HOVER_BUTTONS, MAX_LOOK_NAME, MAX_SAVED_LOOKS, PET_ACTIONS, SELF_KEYS, THRESHOLD_DB_MAX, THRESHOLD_DB_MIN, TOUCH_KINDS, USER_MAX, asrEngineFor,
   desktopPetConfigGroups, directSettings, hoverButtonList, selfAdjustMode, speechFor, touchWakes,
-  type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type RoamMode, type SelfKey,
+  type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type SavedLook, type RoamMode, type SelfKey,
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
 import { SpeechText, speechTextSteps } from './speech/index.ts';
 import { PetServer, type PageMessage } from './server.ts';
 import { StatusTracker, type DescribeTool } from './status.ts';
 import { WindowHost, resolveHostCommand } from './window-host.ts';
+import { describeHostReason } from './host-reason.ts';
 import { RuntimeStore, type ModelSpec } from './runtime/store.ts';
 import { SENSEVOICE, SherpaAsr, WHISPER, type SherpaModelKind, type SherpaModule, type SherpaState } from './asr/sherpa.ts';
 import { SystemRecognizer, systemRecognizerSupported, type SystemRecognizerState, type SystemSentence } from './asr/system-recognizer.ts';
@@ -117,7 +118,7 @@ const MIC_RELEASE_MS = 500;
 /**
  * Run controls an embedding app lends the pet's menu. Each button shows only when its control is
  * lent: pause/resume needs `isPaused` and `setPaused`, settings `openSettings`, the power button
- * `quit`. Without any the menu header shows only the avatar and the name.
+ * `quit`. Without any the menu shows the actions alone.
  */
 export interface PetBotControls {
   isPaused?(): boolean;
@@ -129,6 +130,8 @@ export interface PetBotControls {
   openChat?(): void;
   /** Shows the embedding app's own dress page; the menu's 「装扮」 then opens it instead of the pet's dress window. */
   openDress?(): void;
+  /** Shows the embedding app's list of its Worlds; the hover button 「我的 World」 shows only when this is lent. */
+  openWorlds?(): void;
   quit?(): void;
   /** The power button's label, e.g. "Quit Coopanion", read when the menu opens. */
   quitLabel?: string | (() => string);
@@ -226,8 +229,6 @@ export interface DesktopPetWorldOptions {
   storeAsrApiKey?: (key: string) => void;
   /** The bot's name for the menu header, the chat page and computer use's question; read at each use. */
   botName?: () => string;
-  /** PNG shown as the avatar in the menu header, when it exists. */
-  avatarFile?: string;
   controls?: PetBotControls;
   /** Reads the talk key; tests pass a scripted one. */
   watchHotkey?: typeof watchHotkey;
@@ -239,6 +240,8 @@ export interface DesktopPetWorldOptions {
   packDir?: () => string;
   /** Called after the bot changed settings itself (`pet_set`), so an app watching the config knows it was not the person. */
   onBotChange?: () => void;
+  /** Called when the pet window comes onto the desktop or leaves it: shown or hidden, opened or closed. */
+  onDesktopChange?: (onDesktop: boolean) => void;
   /** What the status bubble shows for a tool call. */
   describeTool?: DescribeTool;
   /** The language of what the bot reads from this World (`model-text.ts`), read at each use; Chinese when absent. */
@@ -375,6 +378,8 @@ export class DesktopPetWorld implements World {
   private screen: { w: number; h: number } | null = null;
   /** The pet window said it is hidden (its menu's or the tray's 「隐藏」); reset when a page connects. */
   private petHidden = false;
+  /** `onDesktop` as last told to `onDesktopChange`, null before the first time. */
+  private desktopTold: boolean | null = null;
   private busyUntil = 0;
   private readonly walks = new Map<string, PendingWalk>();
   private ask: PendingAsk | null = null;
@@ -460,11 +465,12 @@ export class DesktopPetWorld implements World {
       snapshot: () => this.snapshot(),
       onPetMessage: (msg) => this.onPage(msg),
       onAudio: (frame) => this.onAudio(frame),
-      onPetConnect: () => { this.petHidden = false; this.bodyMissing = null; this.log?.info('桌宠页面已连接'); },
+      onPetConnect: () => { this.petHidden = false; this.bodyMissing = null; this.log?.info('桌宠页面已连接'); this.tellDesktop(); },
       onPetDisconnect: () => this.onPageGone(),
       onSkin: (skin) => this.saveSkin(skin),
       onPrefs: (prefs) => this.savePrefs(prefs),
-      avatarFile: opts.avatarFile,
+      looks: () => this.cfg.looks,
+      onLooks: (looks) => this.saveLooks(looks),
       packs: () => this.packs(),
       packProblems: () => this.packScan().problems,
       importer: this.importer ?? undefined,
@@ -652,7 +658,7 @@ export class DesktopPetWorld implements World {
     this.toldVocab = this.vocab();
     this.toldMoves = this.moves();
     await this.server.start();
-    this.windowHost = new WindowHost(host.log, () => this.t.window);
+    this.windowHost = new WindowHost(host.log);
     if (this.cfg.window.enabled) this.openWindow();
     const sherpa = (engine: SherpaEngine, kind: SherpaModelKind) => new SherpaAsr({
       kind,
@@ -851,7 +857,7 @@ export class DesktopPetWorld implements World {
         const cursor = msg.cursor;
         if (!host?.withdrawPending || typeof cursor !== 'number') return;
         if (!await host.withdrawPending(cursor)) {
-          this.chat.send(socket, { t: 'notice', text: s.tooLate });
+          this.chat.send(socket, { t: 'notice', cursor, text: s.tooLate });
           return;
         }
         this.pendingChat.delete(cursor);
@@ -895,7 +901,7 @@ export class DesktopPetWorld implements World {
   openWindow(): void {
     if (!this.windowHost || !this.server.port) return;
     const managed = this.store.electron.executable();
-    this.windowHost.start(resolveHostCommand(this.server.windowUrl, this.cfg.window.electronFile, managed, this.t.window));
+    this.windowHost.start(resolveHostCommand(this.server.windowUrl, this.cfg.window.electronFile, managed));
   }
 
   /* ---------- page protocol ---------- */
@@ -922,6 +928,7 @@ export class DesktopPetWorld implements World {
       frameRate: this.cfg.window.frameRate,
       lockFrameRate: this.cfg.window.lockFrameRate,
       hideWhenFullscreen: this.cfg.window.hideWhenFullscreen,
+      passWhenFullscreen: this.cfg.window.passWhenFullscreen,
       clickThrough: this.clickThrough,
       language: this.appLanguage,
       user: this.userName,
@@ -941,16 +948,13 @@ export class DesktopPetWorld implements World {
 
   private botInfo(): Record<string, unknown> {
     const c = this.opts.controls;
-    let avatar: string | null = null;
-    try { if (this.opts.avatarFile) avatar = String(statSync(this.opts.avatarFile).mtimeMs); } catch { /* no avatar yet */ }
     const pause = !!(c?.isPaused && c.setPaused);
     const label = typeof c?.quitLabel === 'function' ? c.quitLabel() : c?.quitLabel;
     const quitLabel = c?.quit ? label || this.ui.menu.quit : '';
     return {
       name: this.botName(),
-      avatar,
       controls: !!c,
-      buttons: { pause, settings: !!c?.openSettings, dress: !!c?.openDress, quit: !!c?.quit, chat: !!c?.openChat },
+      buttons: { pause, settings: !!c?.openSettings, dress: !!c?.openDress, worlds: !!c?.openWorlds, quit: !!c?.quit, chat: !!c?.openChat },
       // the typing box warns, as the chat page does, that the model gets only the count of pasted images
       imagesSeen: this.host?.modelFacts.accepts('image/jpeg') ?? false,
       paused: pause && c?.isPaused ? c.isPaused() : null,
@@ -1048,6 +1052,22 @@ export class DesktopPetWorld implements World {
     this.syncPrefs();
   }
 
+  /** Keeps the entries that have an id, a name and a skin; names are trimmed to MAX_LOOK_NAME (an empty one becomes the id), the list to MAX_SAVED_LOOKS. */
+  private saveLooks(raw: unknown): void {
+    if (!Array.isArray(raw)) return;
+    const seen = new Set<string>();
+    const looks: SavedLook[] = [];
+    for (const l of raw) {
+      if (!l || typeof l !== 'object') continue;
+      const { id, name, skin } = l as Record<string, unknown>;
+      if (typeof id !== 'string' || !id || seen.has(id) || typeof name !== 'string' || !skin || typeof skin !== 'object') continue;
+      seen.add(id);
+      looks.push({ id, name: name.trim().slice(0, MAX_LOOK_NAME) || id, skin: skin as PetSkin });
+      if (looks.length === MAX_SAVED_LOOKS) break;
+    }
+    this.opts.persist({ looks });
+  }
+
   private savePrefs(prefs: Record<string, unknown>): void {
     const patch: DeepPartial<DesktopPetConfigSection> = {};
     if (prefs.roam === 'free' || prefs.roam === 'calm' || prefs.roam === 'off') patch.roam = prefs.roam as RoamMode;
@@ -1117,7 +1137,7 @@ export class DesktopPetWorld implements World {
         return;
       }
       case 'answer': return this.onAnswer(msg, 'pet');
-      case 'visibility': this.petHidden = msg.hidden === true; return;
+      case 'visibility': this.petHidden = msg.hidden === true; this.tellDesktop(); return;
       case 'text': {
         const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 500) : '';
         const images = parseChatImages(msg.images, this.userName, petText(this.appLanguage).chat, this.t);
@@ -1197,6 +1217,7 @@ export class DesktopPetWorld implements World {
     if (action === 'pause' || action === 'resume') c.setPaused?.(action === 'pause');
     else if (action === 'settings') c.openSettings?.();
     else if (action === 'dress') c.openDress?.();
+    else if (action === 'worlds') c.openWorlds?.();
     else if (action === 'quit') c.quit?.();
     this.syncPrefs();
   }
@@ -1264,9 +1285,18 @@ export class DesktopPetWorld implements World {
     this.saveSkin({ ...this.cfg.skin, ...patch });
   }
 
+  /** Tells `onDesktopChange` when the pet window's place on the desktop changed since it was last told. */
+  private tellDesktop(): void {
+    const on = this.server.petInWindow && !this.petHidden;
+    if (on === this.desktopTold) return;
+    this.desktopTold = on;
+    this.opts.onDesktopChange?.(on);
+  }
+
   private onPageGone(): void {
     this.log?.info('桌宠页面断开');
     this.holdPreRoll.length = 0;
+    this.tellDesktop();
     for (const [id, d] of this.dialogs) { d({ unavailable: true }); this.dialogs.delete(id); }
     for (const [id, w] of this.walks) { clearTimeout(w.timer); w.resolve(this.t.walkWindowGone); this.walks.delete(id); }
     for (const [id, c] of this.confirms) { clearTimeout(c.timer); c.resolve('unavailable'); this.confirms.delete(id); }
@@ -1811,7 +1841,7 @@ export class DesktopPetWorld implements World {
 
   private notConnected(tool: string): ToolOutcome {
     const w = this.windowHost?.state();
-    const detail = w && w.phase !== 'running' && w.detail ? w.detail : null;
+    const detail = w && w.phase !== 'running' && w.reason ? describeHostReason(this.t.window, w.reason) : null;
     return { text: this.t.notConnected(tool, detail, this.userName), failed: true };
   }
 
@@ -2027,7 +2057,7 @@ export class DesktopPetWorld implements World {
     const c = petText(language).console;
     // the lamp is the window's: a browser page standing in for it is only mentioned
     const inWindow = this.server.petInWindow;
-    const hint = w?.detail ?? c.notOpen;
+    const hint = w?.reason ? describeHostReason(petText(language).windowReason, w.reason) : c.notOpen;
     const lamps: WorldLamp[] = [
       {
         label: c.window,

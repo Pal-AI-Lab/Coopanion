@@ -5,7 +5,7 @@ export const S: Partial<typeof en> = {
   pageTitle: 'Connexions de modèles', navLabel: 'Connexions de modèles', navGroup: 'Core', create: '+ Nouvelle instance de connexion', newName: 'Instance sans nom',
   createHint: 'Une instance est un ensemble de réglages de fournisseur enregistré sous forme de carte.',
   empty: 'Aucune connexion de modèle', emptyHint: "Ajoutez une connexion de modèle pour activer l'inférence.",
-  connect: 'Connecter', activate: 'Définir comme connexion actuelle', active: 'Modèle actuel', missing: 'Connexion de modèle actuelle introuvable : ',
+  activate: 'Définir comme connexion actuelle', active: 'Modèle actuel', missing: 'Connexion de modèle actuelle introuvable : ',
   inUse: (names: string) => `Utilisée par : ${names}`, selectedBy: (names: string) => `Sélectionnée par ${names} (non lancé)`,
   names: (list: string[]) => list.join(', '),
   readiness: { ready: 'Prête à connecter', 'needs-setup': 'Configuration requise', 'runtime-unavailable': "Environnement d'exécution indisponible", invalid: 'Configuration invalide', 'module-missing': 'Module indisponible', draft: 'Brouillon' },

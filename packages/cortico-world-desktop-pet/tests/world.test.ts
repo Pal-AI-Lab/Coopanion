@@ -530,6 +530,21 @@ describe('with a pet page', () => {
     expect(host.events).toHaveLength(0);
   });
 
+  it('onDesktopChange: told once each time the pet window comes onto the desktop or leaves it', async () => {
+    const told: boolean[] = [];
+    const { world } = await mounted(undefined, { onDesktopChange: (on) => { told.push(on); } });
+    const win = await windowPage(world);
+    await expect.poll(() => told).toEqual([true]);
+    win.send({ t: 'visibility', hidden: true });
+    await expect.poll(() => told).toEqual([true, false]);
+    // the same state again tells nothing
+    win.send({ t: 'visibility', hidden: true });
+    win.send({ t: 'visibility', hidden: false });
+    await expect.poll(() => told).toEqual([true, false, true]);
+    await win.close();
+    await expect.poll(() => told).toEqual([true, false, true, false]);
+  });
+
   it('confirm waits a minute from when the page shows it, and three minutes in all while it is not shown', async () => {
     const { world } = await mounted();
     const page = await FakePage.open(origin(world));
@@ -640,20 +655,14 @@ describe('with a pet page', () => {
       quit: () => calls.push('quit'),
       quitLabel: '退出 App',
     };
-    const dir = mkdtempSync(join(tmpdir(), 'pet-avatar-'));
-    const avatarFile = join(dir, 'avatar.png');
-    writeFileSync(avatarFile, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
-    const { world } = await mounted(undefined, { botName: () => 'Bot', avatarFile, controls });
-    const res = await fetch(`${origin(world)}/api/avatar`);
-    expect(res.headers.get('content-type')).toBe('image/png');
-    expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+    const { world } = await mounted(undefined, { botName: () => 'Bot', controls });
     const win = await windowPage(world);
     cleanup.push(() => win.close());
     const tab = await FakePage.open(origin(world), 'role=pet&host=tab');
     cleanup.push(() => tab.close());
     const state = await (await fetch(`${origin(world)}/api/state`)).json() as { bot: Record<string, unknown> };
     expect(state.bot).toMatchObject({
-      name: 'Bot', controls: true, buttons: { pause: true, settings: true, dress: false, quit: true }, paused: false, quitLabel: '退出 App', avatar: expect.any(String),
+      name: 'Bot', controls: true, buttons: { pause: true, settings: true, dress: false, quit: true }, paused: false, quitLabel: '退出 App',
     });
     win.send({ t: 'control', action: 'pause' });
     expect((await win.next((m) => m.t === 'prefs')).bot).toMatchObject({ paused: true });
@@ -727,6 +736,11 @@ describe('chat page', () => {
     chat.send({ t: 'withdraw', cursor: second });
     await expect.poll(() => chat.last('withdrawn')).toEqual({ t: 'withdrawn', cursor: second });
     expect(host.withdrawn).toEqual([second]);
+
+    host.withdrawable = false;
+    chat.send({ t: 'withdraw', cursor: sent.cursor });
+    await expect.poll(() => chat.last('notice')?.cursor).toBe(sent.cursor);
+    expect(chat.last('notice')?.text).toBeTruthy();
 
     chat.send({ t: 'hello' });
     await expect.poll(() => chat.last('init')).toBeDefined();

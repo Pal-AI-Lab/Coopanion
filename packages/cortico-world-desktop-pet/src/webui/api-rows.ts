@@ -11,7 +11,7 @@ export interface ApiState { baseUrl: string; model: string; keySaved: boolean }
 export interface ApiPatch { baseUrl?: string; model?: string; key?: string }
 interface Row { row: HTMLElement; acts: HTMLElement; set(text: string, tone: 'on' | 'off' | 'busy' | 'bad', more?: string): void }
 
-export function apiRows(ctx: WebUiPanelContext, t: PetText['panel'], statusRow: (name: string) => Row, save: (patch: ApiPatch) => void) {
+export function apiRows(ctx: WebUiPanelContext, t: PetText['panel'], statusRow: (name: string) => Row, save: (patch: ApiPatch, anchor: HTMLElement) => void) {
   const { ui } = ctx;
   const field = (row: Row, opts: Pick<WebUiInputOptions, 'type' | 'placeholder'>, change: (value: string) => void) => {
     const input = ui.input({ ...opts, cls: 'pet-apifield', onChange: change });
@@ -19,14 +19,14 @@ export function apiRows(ctx: WebUiPanelContext, t: PetText['panel'], statusRow: 
     return input;
   };
   const url = statusRow(t.apiUrl);
-  const urlInput = field(url, { placeholder: 'https://…/v1' }, (baseUrl) => save({ baseUrl }));
+  const urlInput = field(url, { placeholder: 'https://…/v1' }, (baseUrl) => save({ baseUrl }, urlInput));
   const model = statusRow(t.apiModel);
-  const modelInput = field(model, {}, (value) => save({ model: value }));
+  const modelInput = field(model, {}, (value) => save({ model: value }, modelInput));
   const key = statusRow(t.apiKey);
   const keyInput = field(key, { type: 'password' }, (value) => {
     if (!value.trim()) return;
     keyInput.value = '';
-    save({ key: value });
+    save({ key: value }, keyInput);
   });
   keyInput.autocomplete = 'off';
   const rows = [url.row, model.row, key.row];

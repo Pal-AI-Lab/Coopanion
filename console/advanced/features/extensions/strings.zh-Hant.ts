@@ -14,7 +14,6 @@ export const S: Partial<typeof en> = {
   stateInstalledPendingRestart: "已安裝，待重新啟動",
   stateRemoved: '已解除安裝，待重新啟動',
   disabled: '已安裝，未載入',
-  worldNotLoaded: '已安裝，前往 World 總覽載入',
   template: '已安裝，可建立實例',
 
   restartConfirmTitle: '重新啟動處理程序？',
@@ -33,7 +32,7 @@ export const S: Partial<typeof en> = {
   updateAction: '更新',
   updateCheckFailed: (detail: string) => `更新檢查失敗： ${detail}`,
   noteWebUiMissing: '缺少瀏覽器建置產物。請在擴充功能目錄建置，再重新啟動處理程序。',
-  listLoadFailed: (msg: string) => `擴充功能清單載入失敗： ${msg}`,
+  listLoadFailed: (msg: string) => `已安裝擴充功能清單讀取失敗，無法確認最新安裝狀態。原因：${msg}`,
   remove: '刪除擴充功能',
   removeInUse: 'Coo 正在使用，停用後才能刪除。',
   removeInUseProvider: '還有模型連線在用這個供應商，先刪除這些連線。',
@@ -48,7 +47,6 @@ export const S: Partial<typeof en> = {
   completed: (action: string, name: string) => `${action}成功：${name}。`,
   restartNeeded: '擴充需重新啟動處理程序後生效。',
   worldActivateHint: '未啟用的 World 請到 World 總覽啟用。',
-  syncedFailed: '操作已完成，但清單未同步；請重新整理。',
 
   filterPlaceholder: '篩選：套件名稱、描述、關鍵字',
   sortLabel: {

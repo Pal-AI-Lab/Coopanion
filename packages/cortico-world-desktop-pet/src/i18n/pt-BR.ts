@@ -237,6 +237,7 @@ const ptBR: Translation<PetText> = {
     frameRate: { title: 'Taxa de quadros', description: 'Quadros por segundo enquanto o pet anda ou pula, ou enquanto você carrega o pet; 0 segue a tela. Acima da taxa de atualização da tela, vale a da tela. A página Hábitos oferece 60, 120, 144 e Sem limite.' },
     lockFrameRate: { title: 'Travar taxa de quadros', description: 'Desenha o pet nessa taxa também em repouso. Desligado, cai para 30 quadros por segundo quando está em pé, na posição sentada ou dormindo.' },
     hideWhenFullscreen: { title: 'Ocultar em tela cheia', description: 'Ligado, o pet se esconde enquanto a janela em primeiro plano ocupa toda a tela onde o pet está (um jogo, um vídeo em tela cheia, um navegador em tela cheia) e volta quando a tela cheia termina; uma janela maximizada não conta. Desligado, fica sempre por cima.' },
+    passWhenFullscreen: { title: "Deixar os cliques atravessarem em tela cheia", description: "Ligado, enquanto a janela em primeiro plano ocupa toda a tela do Coo, o Coo continua visível e cada clique o atravessa até a janela de baixo, até a tela cheia terminar; uma janela maximizada não conta. Com \"Ocultar em tela cheia\" também ligado, o Coo se esconde." },
     exportOverlay: { title: 'Overlay do OBS', description: 'Serve a imagem da janela do pet com fundo transparente em /overlay para uma fonte “Navegador” do OBS; desligado, nada é servido.' },
     electronFile: { title: 'Executável do Electron', description: 'Vazio usa CORTICO_DESKTOP_PET_HOST e depois o ambiente instalado pelo painel.' },
     port: { title: 'Porta da página', description: 'Se estiver ocupada, passa para a próxima porta livre.' },
@@ -269,6 +270,15 @@ const ptBR: Translation<PetText> = {
     thresholdDb: { title: 'Limiar de fala' },
     silenceMs: { title: 'Silêncio que encerra uma frase' },
     maxUtteranceMs: { title: 'Frase mais longa' },
+  },
+
+  windowReason: {
+    badHostEnv: (env: string) => `${env} não é um array JSON de strings`,
+    noElectronFile: (file: string) => `O executável do Electron não existe: ${file}`,
+    noElectron: 'Nenhum Electron disponível: instale o ambiente de execução da janela no painel do pet ou indique o executável do Electron na configuração',
+    startFailed: (why: string) => `Falha ao iniciar: ${why}`,
+    closed: 'A janela foi fechada',
+    exited: (code: number | null) => `O processo da janela foi encerrado (código de saída ${code})`,
   },
 
   panel: {

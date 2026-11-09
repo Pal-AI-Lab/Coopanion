@@ -133,7 +133,8 @@ export function createPromptsView(deps: PromptsViewDeps): PromptsView {
         : doc.origin === 'module'
           ? S.loadedFromWorld
           : S.loadedFromSource;
-    const state = ui.msgline(loadedText());
+    const state = ui.msgline(resetResults.get(doc.key) ?? loadedText());
+    resetResults.delete(doc.key);
     state.className += ' prompt-state';
     const warn = ui.msgline('');
     warn.className += ' prompt-warn';
@@ -206,7 +207,9 @@ export function createPromptsView(deps: PromptsViewDeps): PromptsView {
         );
         if (out?.error) throw new Error(out.error);
         dirty.set(doc.title, false);
-        ui.toast(out?.result ?? S.resetDone, 'ok');
+        const result = out?.result ?? S.resetDone;
+        resetResults.set(doc.key, result);
+        state.textContent = result;
         await load();
       } catch (err) {
         if ((err as { name?: string } | null)?.name === 'AbortError') return;
@@ -233,13 +236,17 @@ export function createPromptsView(deps: PromptsViewDeps): PromptsView {
     return sheet.el;
   };
 
+  const readError = ui.h('div', 'read-feedback');
+  const resetResults = new Map<string, string>();
   let loaded = false;
   async function load(): Promise<void> {
     try {
       const data = await get<{ prompts?: PromptDoc[] }>('/api/prompts', { signal: deps.signal });
       if (deps.signal.aborted) return;
       loaded = true;
-      el.replaceChildren(); dirty.clear();
+      readError.replaceChildren();
+      el.replaceChildren();
+      el.append(readError); dirty.clear();
       const docs = (data?.prompts ?? []).filter((doc) => !wanted || wanted.has(doc.key));
       if (!docs.length) {
         el.appendChild(ui.placeholder(wanted ? S.noTemplatesScoped : S.noTemplates));
@@ -250,8 +257,9 @@ export function createPromptsView(deps: PromptsViewDeps): PromptsView {
       if ((err as { name?: string } | null)?.name === 'AbortError') return;
       deps.onError(err);
       const text = S.templatesLoadFailed(String((err as Error)?.message ?? err));
-      if (loaded) ui.toast(text, 'bad');
-      else el.replaceChildren(listProblem(el.ownerDocument, text, COMMON.retry, load));
+      if (!loaded) el.replaceChildren(readError);
+      else el.prepend(readError);
+      readError.replaceChildren(listProblem(el.ownerDocument, text, COMMON.retry, load));
     }
   }
 

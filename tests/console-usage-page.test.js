@@ -39,30 +39,30 @@ function mount() {
   return { root, ui };
 }
 
-it('keeps a refresh failure beside the stale results and reports every refresh the person asks for', async () => {
+it('keeps refresh failures and their range beside stale results until retry succeeds, without duplicate notifications', async () => {
   const { root, ui } = mount();
   await vi.waitFor(() => expect(root.textContent).toContain(S.noCalls));
   const stale = S.stale(OFFLINE, ui.fmt.clock(new Date().toISOString()));
   const refresh = [...root.querySelectorAll('button')].find((el) => el.textContent === S.refresh);
-  const notice = root.querySelector('.unotice');
+  const notice = root.querySelector('.read-feedback');
   const results = root.querySelector('.uresults');
 
   available = false;
   refresh.click();
-  await vi.waitFor(() => expect(notice.textContent).toBe(stale));
-  expect(notice.hidden).toBe(false);
+  await vi.waitFor(() => expect(notice.textContent).toContain(stale));
+  expect(notice.textContent).toContain(aggregate.from);
+  expect(notice.textContent).toContain(aggregate.to);
   expect(results.contains(notice)).toBe(false);
   expect(results.classList.contains('u-stale')).toBe(true);
-  expect(document.querySelector('.toast.bad').textContent).toBe(stale);
+  expect(document.querySelector('.toast')).toBeNull();
 
-  // a second refresh while the results are already stale is reported too
-  document.querySelector('.toast.bad button').click();
+  // Repeated failures update the same region without adding notifications.
   refresh.click();
-  await vi.waitFor(() => expect(document.querySelector('.toast.bad')?.textContent).toBe(stale));
-  expect(notice.textContent).toBe(stale);
+  await vi.waitFor(() => expect(notice.textContent).toContain(stale));
+  expect(document.querySelector('.toast')).toBeNull();
 
   available = true;
-  refresh.click();
+  notice.querySelector('button').click();
   await vi.waitFor(() => expect(results.classList.contains('u-stale')).toBe(false));
-  expect(notice.hidden).toBe(true);
+  expect(notice.textContent).toBe('');
 });

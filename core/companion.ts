@@ -34,7 +34,8 @@
  * The parent (Electron main) gets `{ type: 'companion:ready', port, dataDir, keyMissing, language }` once the
  * console listens, `{ type: 'companion:language', language }` after the app language changes, `{ type: 'companion:open', path }` to show the settings window at a console
  * route, `{ type: 'companion:browse', url }` to open the ChatGPT sign-in page in the system browser,
- * `{ type: 'companion:hide' }` to put it away (the introduction runs again on the desktop)
+ * `{ type: 'companion:hide' }` to put it away (the introduction runs again on the desktop),
+ * `{ type: 'companion:pet-shown', shown }` when the pet window comes onto the desktop or leaves it,
  * and `{ type: 'companion:quit' }` to quit the whole app; it asks for a clean stop with
  * `{ type: 'companion:shutdown' }`. A start that cannot go on says why before it exits:
  * `{ type: 'companion:locked', pid, file }` when another process holds the data directory, and
@@ -450,13 +451,14 @@ export async function main(): Promise<void> {
     botName: () => config?.displayName ?? DISPLAY_NAME,
     packRoots: () => packRoots,
     describeTool: petToolDescriber(language),
-    // the menu's header lends pause/resume, settings and quit; its dress tile opens the settings window's dress page, the typing bubble's expand button its chat page
+    // the menu's header lends pause/resume, settings and quit; its dress tile opens the settings window's dress page, the 「我的 World」 hover button its World list, the typing bubble's expand button its chat page
     controls: {
       isPaused: () => bus?.isPaused() ?? false,
       setPaused: (paused) => bus?.setPaused(paused),
       openSettings: () => process.send?.({ type: 'companion:open', path: '' }),
       openChat: () => process.send?.({ type: 'companion:open', path: '#/chat' }),
       openDress: () => process.send?.({ type: 'companion:open', path: '#/dress' }),
+      openWorlds: () => process.send?.({ type: 'companion:open', path: '#/world' }),
       openCuaSettings: () => process.send?.({ type: 'companion:open', path: '#/pet?cua=enable' }),
       quit: () => process.send?.({ type: 'companion:quit' }),
       quitLabel: () => coreText(language()).quit,
@@ -470,6 +472,7 @@ export async function main(): Promise<void> {
     replyLanguage: () => replyLanguage(config?.language),
     language,
     onCreate: (world) => { pet = world; },
+    onDesktopChange: (shown) => process.send?.({ type: 'companion:pet-shown', shown }),
     onCuaAnswer: (answer) => {
       telemetry?.count('cuaAsked');
       if (answer === 'yes') telemetry?.count('cuaGranted');

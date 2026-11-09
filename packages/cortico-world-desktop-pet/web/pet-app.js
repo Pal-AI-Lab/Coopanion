@@ -14,11 +14,13 @@ import { applyTheme, clamp, f, ICONS, linked } from './ui.js';
 import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
-import { COO_CSS, PALETTES, mini, normalizeSkin, skinCss } from './coo/coo.js';
+import { COO_CSS, PALETTES, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
+import { fetchLooks, lookAvailable, lookPicture, sameLook } from './looks.js';
 import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
+import { runFrames } from './frame-loop.js';
 
 const $ = (s) => document.querySelector(s);
 const host = window.petHost || null;
@@ -27,8 +29,8 @@ document.body.classList.add(host ? 'desk' : 'tab');
 
 const stage = $('#stage');
 const bubble = $('#bubble'), menu = $('#menu');
-const tools = $('#tools');
-// Coo's drawing classes for the menu's avatar; the bubbles and buttons take their colours from Coo's palette
+const tools = $('#tools'), wheel = $('#wheel');
+// Coo's drawing classes for the look wheel's pictures; the bubbles and buttons take their colours from Coo's palette
 // another pack's body sets the theme color instead (accentStyle, after skinStyle so it wins)
 const cooStyle = document.createElement('style'), skinStyle = document.createElement('style'), accentStyle = document.createElement('style');
 // the bubbles' colours of a pack that names its own (bubbleCss)
@@ -90,7 +92,7 @@ let body = null, words = new Map(), T = 0;
 /** Where the body last said it is (body-host.js `layout`), or null. */
 const at = () => body?.layout ?? null;
 /** What the body is told of the page: talking orders hold its roaming off, and these states. */
-const bodyState = { listening: false, thinking: false, thoughtShown: true, dialogOpen: false, status: null };
+const bodyState = { listening: false, thinking: false, thoughtShown: true, dialogOpen: false, still: false, status: null };
 const holdRoam = (seconds) => body?.set({ hold: seconds });
 host?.onFloor?.((px) => { below = px; body?.set({ bounds: bounds() }); });
 // the window reads the windows on its display only while the body on screen asks for them (`watchWindows`)
@@ -127,6 +129,11 @@ let windowShown = true;
 function reportVisibility() { if (host) send({ t: 'visibility', hidden: !windowShown }); }
 // the page itself always reads as visible (its window does not throttle it): the window process says when it is hidden
 host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVisibility(); });
+/** Clicks pass through because a fullscreen window covers the pet's display and the setting says so; the window process decides. */
+let fullscreenThrough = false;
+host?.onFullscreenThrough?.((on) => { fullscreenThrough = on; });
+/** Every click passes through the pet right now, by the tray or the fullscreen setting. */
+const clicksPass = () => prefs.clickThrough || fullscreenThrough;
 
 /* ---------- OBS overlay: while the window streams, each frame drawn is reported with the part it sends, the pet and its bubbles ---------- */
 let overlayOn = false;
@@ -280,11 +287,12 @@ function applyPrefs(p) {
   if (typeof p.saidBubbles === 'boolean') { prefs.saidBubbles = p.saidBubbles; if (!p.saidBubbles) for (const line of lines) if (!line.live) fadeLine(line); }
   if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
   if (typeof p.frameRate === 'number' && p.frameRate >= 0) prefs.frameRate = p.frameRate;
-  // the window process does the hiding; the page only passes the setting on
+  // the window process does the hiding and the passing through; the page only passes the settings on
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
+  if (typeof p.passWhenFullscreen === 'boolean') host?.passWhenFullscreen?.(p.passWhenFullscreen);
   if (typeof p.clickThrough === 'boolean') { prefs.clickThrough = p.clickThrough; host?.clickThrough?.(p.clickThrough); }
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
-  if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead(); }
+  if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-rail.confirm')) renderMenuRail(); }
   if (typeof p.language === 'string' && p.language !== language()) void switchLanguage(p.language);
   if ('status' in p) setStatus(p.status);
   refreshButtons();
@@ -301,7 +309,7 @@ async function switchLanguage(code) {
   await useLanguage(code);
   document.title = t('pet.title');
   host?.setLanguage?.(code);
-  if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead();
+  if (!menu.hidden && !menu.querySelector('.m-rail.confirm')) renderMenuRail();
   refreshButtons();
 }
 
@@ -478,7 +486,7 @@ function startItem(it) {
  */
 function pointedAt() {
   const p = cursor.at;
-  if (prefs.clickThrough || bubble.hidden || !p) return false;
+  if (clicksPass() || bubble.hidden || !p) return false;
   const r = bubble.getBoundingClientRect();
   return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom;
 }
@@ -1168,8 +1176,7 @@ const MAX_HOVER = 6;
  * Every button the menu and the hover buttons can show, in the menu's order. `icon`, `state` and
  * `on` read the current prefs: `state` is the line that says what the button does and where it
  * stands, `on` lights a switch that is on (undefined for plain actions). `keep` leaves the menu
- * open after a click, so a switch shows its new state there. `hoverOnly` keeps a button out of the
- * menu.
+ * open after a click, so a switch shows its new state there.
  */
 const ACTIONS = {
   chat: {
@@ -1188,7 +1195,7 @@ const ACTIONS = {
     run: () => toggleVoice(),
   },
   roam: {
-    keep: true, hoverOnly: true,
+    keep: true,
     icon: () => ICONS[`roam_${prefs.roam}`] ?? ICONS.roam_calm,
     state: () => {
       const next = ROAM_ORDER[(ROAM_ORDER.indexOf(prefs.roam) + 1) % ROAM_ORDER.length];
@@ -1216,7 +1223,7 @@ const ACTIONS = {
     run: () => host.hide(),
   },
   dress: {
-    icon: () => ICONS.shirt, cls: 'dress',
+    icon: () => ICONS.shirt,
     state: () => t('action.dress'),
     // an embedding app that lends dressing shows its own dress page; otherwise the pet's dress window
     run: () => {
@@ -1224,6 +1231,13 @@ const ACTIONS = {
       else if (host?.openDress) host.openDress();
       else window.open('/dress', '_blank');
     },
+  },
+  worlds: {
+    // only where the embedding app has a World list to show
+    available: () => !!prefs.bot?.buttons?.worlds,
+    icon: () => ICONS.boxes,
+    state: () => t('action.worlds'),
+    run: () => send({ t: 'control', action: 'worlds' }),
   },
 };
 const available = (id) => ACTIONS[id] && (ACTIONS[id].available?.() ?? true);
@@ -1235,8 +1249,8 @@ function drawAction(b, id) {
   b.querySelector('.ic').innerHTML = a.icon() + (badge ? `<b class="badge">${badge}</b>` : '');
   b.classList.toggle('on', on === true);
   b.classList.toggle('off', on === false);
-  b.title = a.state();
-  b.setAttribute('aria-label', b.title);
+  // no tooltip: hovering these buttons is kept for other uses
+  b.setAttribute('aria-label', a.state());
   if (on !== undefined) b.setAttribute('aria-pressed', String(on));
 }
 
@@ -1260,18 +1274,28 @@ function toggleVoice() {
   send({ t: 'prefs', mic: on });
 }
 
-/* ---------- menu: the bot and its run controls on top, the actions below; every entry is a round icon button ---------- */
-function openMenu(x, y) {
+/* ---------- menu: the run controls as round buttons on Coo's left, every action in columns on its right ---------- */
+/** Most action buttons in one column, of the menu as of the hover buttons. */
+const MENU_ROWS = 3;
+/** Every action the menu shows: the hover buttons chosen in settings first, then the rest in ACTIONS order. */
+function menuActions() {
+  const ids = prefs.hoverButtons.filter(available);
+  for (const id of Object.keys(ACTIONS)) if (available(id) && !ids.includes(id)) ids.push(id);
+  return ids;
+}
+
+function openMenu() {
+  menuAt = null;
   menu.innerHTML = '';
-  menu.appendChild(Object.assign(document.createElement('div'), { className: 'm-head' }));
-  renderMenuHead();
+  const rail = Object.assign(document.createElement('div'), { className: 'm-rail' });
   const grid = Object.assign(document.createElement('div'), { className: 'm-grid' });
-  for (const id of Object.keys(ACTIONS)) {
+  const ids = menuActions();
+  grid.style.gridTemplateRows = `repeat(${Math.min(MENU_ROWS, Math.max(1, ids.length))}, auto)`;
+  for (const id of ids) {
     const a = ACTIONS[id];
-    if (!available(id) || a.hoverOnly) continue;
     const b = document.createElement('button');
     b.type = 'button'; b.setAttribute('role', 'menuitem');
-    b.className = `m-tile${a.cls ? ' ' + a.cls : ''}`;
+    b.className = 'tool m-tile';
     b.dataset.action = id;
     b.innerHTML = '<span class="ic"></span>';
     drawAction(b, id);
@@ -1283,54 +1307,99 @@ function openMenu(x, y) {
     });
     grid.appendChild(b);
   }
-  menu.append(grid);
-  menu.style.width = '';
+  menu.append(rail, grid);
+  renderMenuRail();
   menu.hidden = false;
   // focused, so a click anywhere else blurs the window and folds the menu
   host?.focus?.();
-  // held at its opening width: the quit confirmation in the header must not widen the menu
-  menu.style.width = getComputedStyle(menu).width;
-  // layout size: the opening animation scales the box, so its bounding rect is still shrunk here
-  const w = menu.offsetWidth, h = menu.offsetHeight;
-  menu.style.left = f(clamp(x, 8, innerWidth - w - 8)) + 'px';
-  menu.style.top = f(clamp(y - h, 8, innerHeight - h - 8)) + 'px';
+  const l = at();
+  if (l) placeMenu(l);
+}
+
+/** The run controls on the body's left and the actions on its right; the two swap when the right runs off the screen. */
+let menuAt = null;
+function placeMenu(l) {
+  const rail = menu.querySelector('.m-rail'), grid = menu.querySelector('.m-grid');
+  if (!rail || !grid) return;
+  // the same gap on both sides of the body's box
+  // left and right of the body's box as it was when the menu opened: it stands still meanwhile, and the box narrows and shifts as it turns round
+  menuAt ??= { ...l.box };
+  const c = l.side, b = menuAt, gap = 12;
+  const onRight = b.x + b.w + gap + grid.offsetWidth <= innerWidth - 8;
+  // whole pixels: the menu rides up and down with the body, and text at a fraction of a pixel snaps on its own, apart from its frame
+  const y = (el) => { el.style.top = Math.round(clamp(c.y - el.offsetHeight / 2, 8, innerHeight - el.offsetHeight - 8)) + 'px'; };
+  grid.style.left = f(clamp(onRight ? b.x + b.w + gap : b.x - gap - grid.offsetWidth, 8, innerWidth - grid.offsetWidth - 8)) + 'px';
+  y(grid);
+  // the run controls hold their edge next to the body, so the quit question grows away from it
+  // a long quit question (Japanese, Russian) that would run off the left edge stays on the screen
+  if (onRight) { rail.style.left = 'auto'; rail.style.right = f(Math.min(innerWidth - rail.offsetWidth - 8, Math.max(8, innerWidth - (b.x - gap)))) + 'px'; }
+  else { rail.style.right = 'auto'; rail.style.left = f(Math.min(innerWidth - rail.offsetWidth - 8, b.x + b.w + gap)) + 'px'; }
+  // the buttons line up on the edge next to the body
+  rail.style.alignItems = onRight ? 'flex-end' : 'flex-start';
+  y(rail);
+  grid.style.direction = onRight ? '' : 'rtl';
 }
 
 /**
- * Avatar and name, then the run controls the embedding app lends, as in the console's rail foot:
- * pause/resume, settings and the power button (which asks first). Without a bot the name is Coo's.
+ * The run controls the embedding app lends, as in the console's rail foot: settings, pause/resume,
+ * and the power button at the bottom, which asks first.
  */
-function renderMenuHead(confirmQuit = false) {
-  const head = menu.querySelector('.m-head'), bot = prefs.bot || {};
-  if (!head) return;
-  head.classList.toggle('confirm', confirmQuit);
-  head.innerHTML = '<span class="m-avatar"></span><span class="m-name"></span><span class="m-acts"></span>';
-  head.querySelector('.m-avatar').innerHTML = bot.avatar
-    ? `<img alt="" src="/api/avatar?v=${encodeURIComponent(bot.avatar)}">`
-    : `<svg viewBox="18 18 220 220" aria-hidden="true">${mini('neutral', skin)}</svg>`;
-  const name = head.querySelector('.m-name');
-  name.textContent = name.title = confirmQuit ? bot.quitPrompt : (bot.name || 'Coo');
-  const acts = head.querySelector('.m-acts');
-  const act = (iconHtml, label, fn, cls = 'm-act') => {
+function renderMenuRail(confirmQuit = false) {
+  const rail = menu.querySelector('.m-rail'), bot = prefs.bot || {};
+  if (!rail) return;
+  // the power button grows into the quit question and the question shrinks back into it
+  const last = rail.lastElementChild;
+  const was = last && !menu.hidden && rail.classList.contains('confirm') !== confirmQuit
+    ? { w: last.offsetWidth, h: last.offsetHeight } : null;
+  fillMenuRail(rail, bot, confirmQuit);
+  if (was && rail.lastElementChild) resizeFrom(rail.lastElementChild, was);
+}
+
+/** Grows or shrinks an element from its old size to the one its new content takes. */
+function resizeFrom(el, was) {
+  el.style.transition = 'none';
+  el.style.width = '';
+  el.style.height = '';
+  const w = el.offsetWidth, h = el.offsetHeight;
+  el.style.width = was.w + 'px'; el.style.height = was.h + 'px';
+  void el.offsetWidth;
+  el.style.transition = '';
+  el.style.width = w + 'px'; el.style.height = h + 'px';
+  el.addEventListener('transitionend', () => { el.style.width = el.style.height = ''; }, { once: true });
+}
+
+function fillMenuRail(rail, bot, confirmQuit) {
+  rail.classList.toggle('confirm', confirmQuit);
+  rail.innerHTML = '';
+  rail.hidden = !bot.controls;
+  const act = (iconHtml, label, fn, cls = 'tool', into = rail) => {
     const b = document.createElement('button');
-    b.type = 'button'; b.className = cls; b.title = label; b.setAttribute('aria-label', label);
+    b.type = 'button'; b.className = cls; b.setAttribute('aria-label', label);
     b.innerHTML = iconHtml;
     b.addEventListener('click', (e) => { e.stopPropagation(); sfx.tick(); fn(); });
-    acts.appendChild(b);
+    into.appendChild(b);
   };
   if (!bot.controls) return;
-  if (confirmQuit) {
-    act(ICONS.power, bot.quitLabel, () => { closeMenu(); send({ t: 'control', action: 'quit' }); }, 'm-act danger');
-    act(`<span>${esc(t('menu.cancel'))}</span>`, t('menu.cancel'), () => renderMenuHead(), 'm-act text');
-    return;
-  }
   // only the controls the embedding app lent; a server without `buttons` lends all three
   const has = bot.buttons ?? { pause: true, settings: true, quit: true };
-  if (has.pause) act(bot.paused ? ICONS.play : ICONS.pause, t(bot.paused ? 'menu.resume' : 'menu.pause'), () => send({ t: 'control', action: bot.paused ? 'resume' : 'pause' }), `m-act run${bot.paused ? ' paused' : ''}`);
   if (has.settings) act(ICONS.settings, t('menu.settings'), () => { closeMenu(); send({ t: 'control', action: 'settings' }); });
-  if (has.quit) act(ICONS.power, bot.quitLabel, () => renderMenuHead(true), 'm-act power');
+  if (has.pause) act(bot.paused ? ICONS.play : ICONS.pause, t(bot.paused ? 'menu.resume' : 'menu.pause'), () => send({ t: 'control', action: bot.paused ? 'resume' : 'pause' }), `tool run${bot.paused ? ' paused' : ''}`);
+  if (!has.quit) return;
+  if (!confirmQuit) { act(ICONS.power, bot.quitLabel, () => renderMenuRail(true), 'tool power'); return; }
+  const ask = Object.assign(document.createElement('div'), { className: 'm-quit' });
+  ask.appendChild(Object.assign(document.createElement('span'), { className: 'm-ask', textContent: bot.quitPrompt || '' }));
+  act(ICONS.power, bot.quitLabel, () => { closeMenu(); send({ t: 'control', action: 'quit' }); }, 'q-act danger', ask);
+  act(`<span>${esc(t('menu.cancel'))}</span>`, t('menu.cancel'), () => renderMenuRail(), 'q-act text', ask);
+  rail.appendChild(ask);
 }
-function closeMenu() { menu.hidden = true; }
+function closeMenu() {
+  if (menu.hidden) return;
+  menu.hidden = true;
+  menuAt = null;
+  // the hover buttons stay away until the pointer has left the body and them, and comes back
+  toolsMuted = true;
+  toolsUntil = 0;
+}
 
 /** Redraws whatever shows an action: the open menu's tiles and the hover buttons. */
 function refreshButtons() {
@@ -1344,6 +1413,8 @@ const TOOLS_LINGER = .8;
 /** Milliseconds the voice button is held before what was heard goes out. */
 const HOLD_TO_SEND = 500;
 let toolsUntil = 0;
+/** Set when the menu closes; cleared once the pointer is off the body and the hover buttons. */
+let toolsMuted = false;
 let toolIds = '';
 
 function renderTools() {
@@ -1353,7 +1424,7 @@ function renderTools() {
     endHold();
     tools.innerHTML = '';
     // up to three in a column, then a second column
-    tools.style.gridTemplateRows = `repeat(${Math.min(3, Math.max(1, ids.length))}, auto)`;
+    tools.style.gridTemplateRows = `repeat(${Math.min(MENU_ROWS, Math.max(1, ids.length))}, auto)`;
     for (const id of ids) {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'tool'; b.dataset.action = id;
@@ -1405,23 +1476,155 @@ function wireVoiceTool(b) {
 
 /** Where the cursor is, in page pixels, or null when it is off the page. */
 const cursor = { at: null };
+/** Pixels around the hover buttons that count as on them, as the gaps between them do. */
+const TOOLS_MARGIN = 6;
 function overTools(p) {
   if (tools.hidden) return false;
-  const r = tools.getBoundingClientRect();
-  // the gaps between the buttons and a little margin count too
-  return p.x >= r.left - 6 && p.x <= r.right + 6 && p.y >= r.top - 6 && p.y <= r.bottom + 6;
+  const r = tools.getBoundingClientRect(), m = TOOLS_MARGIN;
+  return p.x >= r.left - m && p.x <= r.right + m && p.y >= r.top - m && p.y <= r.bottom + m;
 }
 function stepTools() {
   // shown while the cursor is on the pet or on the buttons, and a moment after it leaves; decided
   // from where the cursor is now, not from the last move event, which may be stale
   const p = cursor.at;
   const l = at();
-  if (p && (body?.hit(p) || overTools(p))) toolsUntil = T + TOOLS_LINGER;
+  const near = !!p && (body?.hit(p) || overTools(p) || overWheel(p));
+  if (!near) toolsMuted = false;
+  if (near && !toolsMuted) toolsUntil = T + TOOLS_LINGER;
   const confirming = item?.kind === 'ask' && item.confirm && !item.answered;
-  tools.hidden = !(!prefs.clickThrough && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && !confirming && toolIds !== '');
+  tools.hidden = !(!clicksPass() && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && !confirming && toolIds !== '');
   if (tools.hidden) endHold();
   tools.querySelector('[data-action="voice"]')?.classList.toggle('live', listen.phase === 'hearing');
 }
+
+/* ---------- look wheel: hovering a dress button shows the looks in a row over the body, the one worn in the middle ---------- */
+/** Seconds the wheel stays after the pointer leaves it and every dress button. */
+const WHEEL_LINGER = .5;
+/** Pixels between two looks in the row, and how many show on each side of the middle one. */
+const WHEEL_STEP = 54, WHEEL_SIDE = 3;
+/** Opacity of a look by its distance from the middle. */
+const WHEEL_FADE = [1, .55, .3, .12];
+/** Milliseconds the row rests on a look before Coo puts it on. */
+const WHEEL_APPLY_MS = 300;
+/** Wheel delta that turns the row one look (a mouse notch is about 100; a touchpad sends many small ones). */
+const WHEEL_NOTCH = 40;
+const wheelState = { items: [], at: 0, until: 0, timer: 0, acc: 0, opening: false };
+
+/**
+ * The favourite looks to switch between (looks.js), leaving out those whose pack was uninstalled; none, none shown.
+ * A look worn that is not among them leads the row, so turning the row away from it can turn back to it.
+ */
+async function wheelItems() {
+  const [saved, figures] = await Promise.all([fetchLooks(), fetch('/api/figures').then((r) => r.json()).catch(() => null)]);
+  const list = Array.isArray(figures) ? figures : [], dark = prefs.theme === 'dark';
+  const items = saved.filter((l) => lookAvailable(l.skin, list))
+    .map((l) => ({ skin: l.skin, on: sameLook(l.skin, skin), html: lookPicture(l.skin, list, dark) }));
+  if (!items.length) return [];
+  if (!items.some((i) => i.on)) items.unshift({ skin, on: true, worn: true, html: lookPicture(skin, list, dark) });
+  return items;
+}
+
+async function openWheel() {
+  if (!wheel.hidden || wheelState.opening) return;
+  wheelState.opening = true;
+  const items = await wheelItems().catch(() => []);
+  wheelState.opening = false;
+  if (!items.length) return;
+  wheelState.items = items;
+  wheelState.at = Math.max(0, items.findIndex((i) => i.on));
+  wheelState.acc = 0;
+  wheel.innerHTML = '';
+  items.forEach((item, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = item.worn ? 'w-item worn' : 'w-item';
+    b.innerHTML = item.html;
+    // a press puts the look on at once, the one in the middle too (it may be the only one saved)
+    b.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault(); e.stopPropagation();
+      spinTo(i, true);
+    });
+    wheel.appendChild(b);
+  });
+  wheel.style.width = (2 * WHEEL_SIDE + 1) * WHEEL_STEP + 'px';
+  wheel.hidden = false;
+  drawWheel();
+  const l = at();
+  if (l) placeWheel(l);
+}
+
+function closeWheel() {
+  wheel.hidden = true;
+  clearTimeout(wheelState.timer);
+  wheelState.timer = 0;
+}
+
+function drawWheel() {
+  [...wheel.children].forEach((b, i) => {
+    const d = i - wheelState.at, n = Math.abs(d);
+    b.style.transform = `translate(-50%, -50%) translateX(${d * WHEEL_STEP}px) scale(${Math.max(.6, 1 - .14 * n)})`;
+    b.style.opacity = String(WHEEL_FADE[n] ?? 0);
+    b.style.zIndex = String(10 - n);
+    b.style.pointerEvents = n > WHEEL_SIDE ? 'none' : '';
+    b.classList.toggle('on', d === 0);
+  });
+}
+
+/** Puts on the look in the middle of the row, unless Coo wears it already. */
+function wearWheel() {
+  clearTimeout(wheelState.timer);
+  wheelState.timer = 0;
+  const item = wheelState.items[wheelState.at];
+  if (!item || sameLook(item.skin, skin)) return;
+  void fetch('/api/skin', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ skin: item.skin }) }).catch(() => {});
+}
+
+/** Turns the row to look `i`; Coo puts it on at once (`now`, a click), or once the row rests there (the mouse wheel). */
+function spinTo(i, now = false) {
+  const n = clamp(i, 0, wheelState.items.length - 1);
+  if (n === wheelState.at && !now) return;
+  if (n !== wheelState.at) { wheelState.at = n; drawWheel(); }
+  sfx.tick();
+  clearTimeout(wheelState.timer);
+  if (now) { wearWheel(); return; }
+  wheelState.timer = setTimeout(wearWheel, WHEEL_APPLY_MS);
+}
+
+/** Centred over the body, just above its head. */
+function placeWheel(l) {
+  const b = l.box, w = wheel.offsetWidth, h = wheel.offsetHeight;
+  wheel.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
+  wheel.style.top = f(clamp(b.y - h - 22, 8, innerHeight - h - 8)) + 'px';
+}
+
+const inRect = (p, r, m = 0) => p.x >= r.left - m && p.x <= r.right + m && p.y >= r.top - m && p.y <= r.bottom + m;
+function overWheel(p) { return !wheel.hidden && inRect(p, wheel.getBoundingClientRect(), 6); }
+/** A dress button on screen, in the menu or among the hover buttons, is under the pointer. */
+function overDress(p) {
+  for (const b of document.querySelectorAll('.menu [data-action="dress"], .tools [data-action="dress"]')) {
+    if (b.offsetParent && inRect(p, b.getBoundingClientRect(), 4)) return true;
+  }
+  return false;
+}
+function stepWheel() {
+  // a bubble over the pet (the typing box, a reply, a question) takes the wheel's place until it closes
+  if (!bubble.hidden && !bubble.classList.contains('status')) { if (!wheel.hidden) closeWheel(); return; }
+  const p = cursor.at;
+  const dress = !!p && overDress(p);
+  if (dress || (p && overWheel(p))) wheelState.until = T + WHEEL_LINGER;
+  if (dress && wheel.hidden && !clicksPass()) void openWheel();
+  if (!wheel.hidden && T > wheelState.until) closeWheel();
+}
+// the mouse wheel turns the row while it shows, over the row or over a dress button
+document.addEventListener('wheel', (e) => {
+  if (wheel.hidden || !e.target.closest?.('.wheel, [data-action="dress"]')) return;
+  e.preventDefault();
+  wheelState.acc += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+  if (Math.abs(wheelState.acc) < WHEEL_NOTCH) return;
+  spinTo(wheelState.at + Math.sign(wheelState.acc));
+  wheelState.acc = 0;
+  wheelState.until = T + WHEEL_LINGER;
+}, { passive: false });
 
 /* ---------- pointer ---------- */
 let pointerSeen = false;
@@ -1429,7 +1632,7 @@ const lastPointer = { x: 0, y: 0 };
 /** Whether the page is on screen and drawing; the mouse is not taken while it is not. */
 const FRAME_STALL_MS = 1000;
 let lastFrameAt = performance.now();
-const rendering = () => document.visibilityState === 'visible' && performance.now() - lastFrameAt < FRAME_STALL_MS;
+const rendering = () => windowShown && document.visibilityState === 'visible' && performance.now() - lastFrameAt < FRAME_STALL_MS;
 /** How often the wish for the mouse is renewed; the window process's lease is longer. */
 const MOUSE_RENEW_MS = 500;
 let interactive = null, renewedAt = -Infinity;
@@ -1490,8 +1693,49 @@ function writePointer(now) {
   diag.types.clear();
 }
 
-const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]), .tools:not([hidden])';
+// the menu itself covers the whole page without taking clicks; its two columns are what can be pointed at
+const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]) > *, .tools:not([hidden]), .wheel:not([hidden])';
 const overUi = (e) => e.target.closest && e.target.closest(UI_SELECTOR);
+
+/**
+ * In a Wayland session the window takes the mouse only over the rects reported here (host/input-shape.cjs),
+ * sent from the frames when they change and at least every MOUSE_RENEW_MS: the body's hit circles inside its
+ * box (body-host.js onBody), one strip per SHAPE_GRID row, and what UI_SELECTOR names, the hover buttons with
+ * TOOLS_MARGIN around them. Every rect is rounded out to SHAPE_GRID, so a body breathing in place leaves the
+ * shape as it is on most frames.
+ */
+let inputShape = false, shapeSent = '', shapeAt = -Infinity;
+host?.onInputShape?.((on) => { inputShape = on; shapeSent = ''; });
+const SHAPE_GRID = 8;
+const gridDown = (v) => Math.floor(v / SHAPE_GRID) * SHAPE_GRID, gridUp = (v) => Math.ceil(v / SHAPE_GRID) * SHAPE_GRID;
+function inputRects() {
+  const out = [];
+  const add = (x0, y0, x1, y1) => {
+    if (x1 > x0 && y1 > y0) out.push({ x: gridDown(x0), y: gridDown(y0), width: gridUp(x1) - gridDown(x0), height: gridUp(y1) - gridDown(y0) });
+  };
+  const l = at();
+  for (const c of l?.hit ?? []) {
+    const b = l.box, top = Math.max(b.y, c.y - c.r), bottom = Math.min(b.y + b.h, c.y + c.r);
+    for (let y0 = gridDown(top); y0 < bottom; y0 += SHAPE_GRID) {
+      // as wide as the circle's widest chord in the row: on the centre line when the row holds it, else at its edge nearer to it
+      const y1 = y0 + SHAPE_GRID, dy = Math.max(0, y0 - c.y, c.y - y1), half = Math.sqrt(c.r * c.r - dy * dy);
+      add(Math.max(b.x, c.x - half), Math.max(top, y0), Math.min(b.x + b.w, c.x + half), Math.min(bottom, y1));
+    }
+  }
+  for (const el of document.querySelectorAll(UI_SELECTOR)) {
+    const r = el.getBoundingClientRect(), m = el === tools ? TOOLS_MARGIN : 0;
+    add(r.left - m, r.top - m, r.right + m, r.bottom + m);
+  }
+  return out;
+}
+function stepInputShape() {
+  if (!inputShape) return;
+  const rects = inputRects(), key = JSON.stringify(rects), now = performance.now();
+  if (key === shapeSent && now - shapeAt < MOUSE_RENEW_MS) return;
+  shapeSent = key;
+  shapeAt = now;
+  host.setInputRects(rects);
+}
 document.addEventListener('pointermove', (e) => {
   pointerSeen = true;
   lastPointer.x = e.clientX; lastPointer.y = e.clientY;
@@ -1520,7 +1764,8 @@ document.addEventListener('pointermove', (e) => {
  */
 let polled = null;
 host?.onCursor?.((p) => {
-  cursor.at = p;
+  // in a Wayland session the reports keep the spot where the cursor left the last X11 window; there the page's own pointer events place it
+  if (!inputShape || !p) cursor.at = p;
   if (!p) {
     diag.poll = { at: performance.now(), off: true };
     if (!pressing) setInteractive(false, 'poll');
@@ -1607,9 +1852,9 @@ document.addEventListener('pointerleave', () => { cursor.at = null; body?.pointe
 stage.addEventListener('dblclick', (e) => { if (prefs.doubleClickChat && body?.hit({ x: e.clientX, y: e.clientY })) openInput(); });
 document.addEventListener('contextmenu', (e) => {
   e.preventDefault();
-  if (body?.hit({ x: e.clientX, y: e.clientY })) openMenu(e.clientX, e.clientY);
+  if (body?.hit({ x: e.clientX, y: e.clientY })) openMenu();
 });
-document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.menu')) closeMenu(); }, { capture: true });
+document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.menu, .wheel')) closeMenu(); }, { capture: true });
 // clicks off the figure pass through the window to what is underneath; the window losing focus is how they show here
 window.addEventListener('blur', closeMenu);
 document.addEventListener('focusin', (e) => {
@@ -1673,7 +1918,8 @@ function placeTalk(it, a) {
 
 /** Beside the body, on the right unless that runs off the screen. */
 function placeTools(l) {
-  const c = l.side, reach = l.side.reach + 10;
+  // across from where the body stands, not from its middle: a figure's middle swings sideways as it turns round
+  const c = { x: l.x, y: l.side.y }, reach = l.side.reach + 10;
   const w = tools.offsetWidth, h = tools.offsetHeight;
   const left = c.x + reach + w <= innerWidth - 8 ? c.x + reach : c.x - reach - w;
   tools.style.left = f(clamp(left, 8, innerWidth - w - 8)) + 'px';
@@ -1687,6 +1933,8 @@ function layout(dt = 0) {
   // covers) count from the same origin across all displays
   sfx.setPan(((screenX - screen.availLeft + l.x) / (screen.availWidth || innerWidth)) * 2 - 1);
   if (!tools.hidden) placeTools(l);
+  if (!menu.hidden) placeMenu(l);
+  if (!wheel.hidden) placeWheel(l);
   const a = l.bubble;
   let sayBox = null;
   // choice cards and a World's confirmation keep their bubble where it was; its tail follows Coo along the bottom edge
@@ -1768,7 +2016,7 @@ async function probeBackdrop() {
   const near = inflate({ x: b.x, y: b.y, width: b.w, height: b.h }, Math.max(4 + 34 * S, 4 + 2 * prefs.glow)), far = inflate(near, 8 + 40 * S);
   const x = Math.max(0, far.x), y = Math.max(0, far.y);
   const rect = { x, y, width: Math.min(innerWidth, far.x + far.width) - x, height: Math.min(innerHeight, far.y + far.height) - y };
-  const covers = [bubble, menu, tools, ...lines.map((l) => l.el)].filter((el) => !el.hidden).map((el) => shadowed(rectOf(el)));
+  const covers = [bubble, ...(menu.hidden ? [] : menu.children), tools, wheel, ...lines.map((l) => l.el)].filter((el) => !el.hidden).map((el) => shadowed(rectOf(el)));
   const px = await host.sampleBackdrop(rect, [near, ...covers]);
   // this platform cannot read the screen cheaply: the halo just stays
   if (px === null) { backdrop.on = true; backdrop.fixed = true; return; }
@@ -1801,24 +2049,28 @@ function stepBackdrop(dt) {
 /**
  * Frames per second: `prefs.frameRate` while the body moves (its layout's `moving`) and always while `lockFrameRate` is on,
  * RESTING_FPS otherwise; a frame rate of 0, or one above the display's, draws on every display refresh. Each frame
- * redraws the whole figure, so the window's CPU and GPU time grows with this rate.
+ * redraws what changed in the figure, so the window's CPU and GPU time grows with this rate.
+ *
+ * While the pet window is hidden, frames come at HIDDEN_FPS: the clock, the orders, the bubbles' text and the body's
+ * motion go on, so a walk still arrives and a line still runs out, but the body is not drawn, nothing on the stage is
+ * placed, the screen behind is not sampled and the streaming layer gets no frames.
+ *
+ * Each frame advances the clock by the time since the frame before, in steps (frame-loop.js); the page's orders and
+ * the body take every step, and only the last one is drawn.
  */
 const RESTING_FPS = 30;
-/** When the next frame is due (a rAF timestamp), and the gap between frames at the current rate. */
-let last = performance.now(), dueAt = 0, gap = 0;
+/** Frames a second while the window is hidden: the World hears of an arrival within a tenth of a second. */
+const HIDDEN_FPS = 10;
 /** The last error the frame loop logged, so one that keeps recurring is reported once, not per frame. */
 let frameErr = null;
 /**
- * Frames whose timestamp was not past the one before (a zero or negative dt), and when that was last logged (ms):
+ * Frames whose timestamp was not past the one before (no time to step), and when that was last logged (ms):
  * where these timestamps come from is not known yet. Logged at most once a minute, with the count so far. The first frame is
- * left out: `last` starts at the page's clock, which may be ahead of the first frame's timestamp.
+ * left out: the loop starts its count at the page's clock, which may be ahead of the first frame's timestamp.
  */
 let stalls = 0, stallLoggedAt = -Infinity, framed = false;
-function frame(now) {
-  // frames stop coming while the window is hidden or occluded, which `rendering()` reads
-  lastFrameAt = performance.now();
-  // a display refresh up to a quarter gap early counts as on time, so the rate averages out over refresh rates it does not divide
-  if (now < dueAt - gap / 4) { requestAnimationFrame(frame); return; }
+function frame(steps, now, last) {
+  const drawn = windowShown;
   if (framed && now <= last) {
     stalls++;
     if (performance.now() - stallLoggedAt > 60_000) {
@@ -1827,36 +2079,38 @@ function frame(now) {
     }
   }
   framed = true;
-  const dt = Math.min(.05, (now - last) / 1000); last = now;
   try {
-    T += dt;
-    stepActs();
-    stepDialog(dt);
-    stepTalkRead(dt);
-    stepTalkMotion();
-    stepLines();
-    stepStatus();
-    setBody({ dialogOpen: !!item || !!listen.phase });
-    body?.tick(dt);
-    stepBackdrop(dt);
-    stepTools();
-    layout(dt);
-    // the frame's own time, so the layer shows frames as far apart as they were drawn
-    if (overlayOn) host.overlayFrame(overlayRect(), performance.timeOrigin + now);
+    steps.forEach((dt, i) => {
+      T += dt;
+      stepActs();
+      stepDialog(dt);
+      stepTalkRead(dt);
+      stepTalkMotion();
+      stepLines();
+      stepStatus();
+      setBody({ dialogOpen: !!item || !!listen.phase, still: !menu.hidden });
+      body?.tick(dt, drawn && i === steps.length - 1);
+    });
+    if (drawn) {
+      const dt = steps.reduce((a, b) => a + b, 0);
+      stepBackdrop(dt);
+      stepTools();
+      stepWheel();
+      layout(dt);
+      stepInputShape();
+      // the frame's own time, so the layer shows frames as far apart as they were drawn
+      if (overlayOn) host.overlayFrame(overlayRect(), performance.timeOrigin + now);
+    }
   } catch (err) {
-    // a throwing step must not take the loop with it: the next frame is only asked for below, and
+    // a throwing step must not take the loop with it: the next frame is only asked for after this returns, and
     // without it the pet freezes for good (a broken figure throws again on every frame it draws)
     const msg = err?.message ?? String(err);
     if (msg !== frameErr) { frameErr = msg; console.error(err); }
   }
-  const full = prefs.lockFrameRate || !!at()?.moving;
+  const full = drawn && (prefs.lockFrameRate || !!at()?.moving);
   // a moving rate of 0 draws on every display refresh
-  gap = full ? (prefs.frameRate > 0 ? 1000 / prefs.frameRate : 0) : 1000 / RESTING_FPS;
-  // a frame more than a gap late starts the count again instead of drawing the missed ones back to back
-  dueAt = now - dueAt > gap ? now + gap : dueAt + gap;
-  // moving frames wait on display refreshes: a timer can wake late, which a body at rest hides and a moving one shows as stutter
-  if (full) requestAnimationFrame(frame);
-  else setTimeout(() => requestAnimationFrame(frame), Math.max(0, dueAt - gap / 4 - performance.now()));
+  return { fps: full ? prefs.frameRate : drawn ? RESTING_FPS : HIDDEN_FPS, refresh: full };
 }
 addEventListener('pagehide', reportPosition);
-requestAnimationFrame(frame);
+// drawn frames stop while the window is hidden or occluded, which `rendering()` reads
+runFrames(frame, { refreshed: () => { if (windowShown) lastFrameAt = performance.now(); } });

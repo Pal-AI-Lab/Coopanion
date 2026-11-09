@@ -15,7 +15,6 @@ export const S: Partial<typeof en> = {
   confirmShutdownTitle: '⚠ 종료',
   confirmShutdownAgainTitle: '⚠⚠ 종료하시겠습니까?',
   confirmShutdownAgainBody: '실행을 중지하고 프로세스를 종료하시겠습니까?',
-  finishingToast: '종료하는 중…',
   stepIncomplete: '미완료',
   doneShutdown: '종료됨',
   resultLocalIncomplete: '로컬 종료 단계 중 일부가 완료되지 않음',
@@ -26,7 +25,6 @@ export const S: Partial<typeof en> = {
     `종료 결과를 받지 못했습니다(${msg}). 프로세스가 이미 종료되었을 수 있습니다.`,
   docTitle: (name: string) => `설정 · ${name}`,
   renameTitle: '클릭하여 이름 변경',
-  renameSaved: '표시 이름을 저장했습니다',
   renameFailed: (msg: string) => `표시 이름을 저장하지 못했습니다: ${msg}`,
   // avatar.ts
   changeAvatar: 'Coo 아바타 변경',
@@ -35,10 +33,9 @@ export const S: Partial<typeof en> = {
   cropPreview: '아바타 자르기 미리 보기',
   zoomAria: '아바타 확대/축소',
   zoom: '확대/축소',
-  note: '이미지를 드래그해 위치를 조정하고, 마우스 휠이나 슬라이더로 확대/축소하세요. 저장하면 Coo 데이터 디렉터리의 avatar.png에 기록됩니다.',
+  note: "드래그로 위치 조정, 휠이나 슬라이더로 확대·축소.",
   cancel: '취소',
   save: '아바타 저장',
   cropTitle: '아바타 자르기',
   noCanvas: '브라우저에서 이미지 캔버스를 만들 수 없습니다',
-  saved: '아바타를 저장했습니다',
 };

@@ -20,7 +20,7 @@ export const S: Partial<typeof en> = {
   chipRoundsPost: ' tours',
   subConfig: 'Configuration',
   configEmpty: "Le Core n'a aucun réglage ajustable.",
-  netOffline: 'API injoignable',
+  netOffline: "Diagnostic en direct déconnecté ; reconnexion…",
 
   // events.ts
   eventsDesc: "Enregistrements d'événements, consultables par l'agent.",

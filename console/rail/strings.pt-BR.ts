@@ -15,7 +15,6 @@ export const S: Partial<typeof en> = {
   confirmShutdownTitle: '⚠ Desligar',
   confirmShutdownAgainTitle: '⚠⚠ Confirmar desligamento?',
   confirmShutdownAgainBody: 'Parar a execução e encerrar o processo?',
-  finishingToast: 'Desligando…',
   stepIncomplete: 'não concluída',
   doneShutdown: 'Desligado',
   resultLocalIncomplete: 'Etapas de desligamento local incompletas',
@@ -26,7 +25,6 @@ export const S: Partial<typeof en> = {
     `Nenhum resultado de desligamento recebido (${msg}); o processo pode ter sido encerrado.`,
   docTitle: (name: string) => `Configurações · ${name}`,
   renameTitle: 'Clique para renomear',
-  renameSaved: 'Nome de exibição salvo',
   renameFailed: (msg: string) => `Nome de exibição não salvo: ${msg}`,
   // avatar.ts
   changeAvatar: 'Trocar o avatar do Coo',
@@ -35,10 +33,9 @@ export const S: Partial<typeof en> = {
   cropPreview: 'Prévia do recorte do avatar',
   zoomAria: 'Zoom do avatar',
   zoom: 'Zoom',
-  note: 'Arraste a imagem para reposicioná-la; use a roda do mouse ou o controle deslizante para dar zoom. Salvar grava avatar.png no diretório de dados do Coo.',
+  note: "Arraste para mover; use a roda ou o controle para ampliar.",
   cancel: 'Cancelar',
   save: 'Salvar avatar',
   cropTitle: 'Recortar avatar',
   noCanvas: 'O navegador não conseguiu criar um canvas de imagem',
-  saved: 'Avatar salvo',
 };

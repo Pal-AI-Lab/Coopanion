@@ -1,6 +1,8 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  launchAtLoginLabel: "Inicio automático",
+  launchAtLogin: "Iniciar Coopanion al iniciar sesión",
   autoUpdateLabel: "Actualizaciones automáticas",
   autoUpdate: "Descargar e instalar actualizaciones automáticamente",
   autoUpdateHint: "Descarga actualizaciones automáticamente y las instala al salir. Al desactivar esta opción, se detienen de inmediato las búsquedas y descargas, y las actualizaciones ya descargadas no se instalan automáticamente.",
@@ -29,6 +31,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: 'También dibuja a la velocidad de arriba en reposo; si está desactivado, en reposo baja a 30 fotogramas por segundo.',
   hideFullscreen: 'Ocultar automáticamente',
   hideFullscreenHint: 'Se oculta mientras algo está en pantalla completa y vuelve después. Una ventana maximizada no cuenta.',
+  passFullscreen: "Dejar pasar los clics a través de Coo",
+  passFullscreenHint: "Cuando los clics pasan a través, Coo sigue visible y los clics llegan a la ventana de abajo.",
   soundTitle: 'Sonidos',
   worldScope: "Las funciones que agregan otras extensiones World no dependen de este interruptor; configúralas en la página de cada World.",
   sound: 'Reproducir sonidos',
@@ -87,7 +91,7 @@ export const S: Partial<typeof en> = {
   selfItems: { figure: 'Personaje', scheme: 'Atuendo', roam: 'Paseos', snoreSeconds: 'Duración del ronquido', sound: 'Sonidos', scale: 'Tamaño', bubbleSize: 'Tamaño de las burbujas', fontSize: 'Tamaño del texto', theme: 'Modo nocturno', hoverButtons: 'Botones al pasar el cursor', user: 'Cómo llamarte' },
   popupSave: 'Guardar',
   popupCancel: 'Cancelar',
-  actions: { chat: 'Escribir', voice: 'Entrada de voz', roam: 'Paseos', theme: 'Modo nocturno', sound: 'Sonidos', dress: 'Vestuario', hide: 'Ocultar mascota' },
+  actions: { chat: 'Escribir', voice: 'Entrada de voz', roam: 'Paseos', theme: 'Modo nocturno', sound: 'Sonidos', dress: 'Vestuario', hide: 'Ocultar mascota', worlds: 'Mis Worlds' },
   saveFailed: (why: string) => `No se guardó: ${why}`,
   stats: 'Estadísticas de uso anónimas',
   statsHint: 'Envía conteos, tiempo de uso y configuración; nunca conversaciones, API Keys ni archivos.',

@@ -6,8 +6,9 @@
  * the window closes once that process exits. The window covers the work area of one display
  * (the primary one at start), short of the edge an auto-hidden taskbar waits on, is transparent
  * and always on top, and ignores the mouse until the page reports the pointer is over the figure,
- * a bubble or the menu. On GNOME it is a dock window instead, which goes below every window while one
- * is full screen on its display. When the pet is carried onto
+ * a bubble or the menu; in a Wayland session it takes the mouse only over the parts of the page
+ * the page reports (input-shape.cjs). On GNOME it is a dock window instead, which goes below every
+ * window while one is full screen on its display. When the pet is carried onto
  * another display, the window moves to that display mid-drag; when its display is unplugged, it
  * moves to the primary one. A tray icon shows, hides and closes it; an embedding app that has its
  * own tray passes `tray: false`.
@@ -24,6 +25,7 @@ const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen, session, s
 const { join } = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { createCursorSource } = require('./cursor.cjs');
+const { createInputShape } = require('./input-shape.cjs');
 const { createMouseLease, FORWARD_MOVES } = require('./mouse-lease.cjs');
 const { createOverlaySource } = require('./overlay.cjs');
 const { createWindowSource, ledgesFrom, windowsFrom } = require('./windows.cjs');
@@ -329,16 +331,22 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   const onPet = (channel, fn) => ipcMain.on(channel, (e, ...args) => { if (fromPet(e)) fn(e, ...args); });
   const handlePet = (channel, fn) => ipcMain.handle(channel, (e, ...args) => (fromPet(e) ? fn(e, ...args) : null));
   let win = null, tray = null, dress = null, cursor;
+  // in a Wayland session the window takes the mouse over the rects the page reports, elsewhere as a whole
+  const shape = createInputShape({ screen });
+  app.once('will-quit', () => shape?.close());
   // who holds the mouse, and when it is given back
-  const mouse = createMouseLease({ getWindow: () => win });
+  const mouse = createMouseLease({ getWindow: () => win, shape });
   // the window as an OBS layer, while the World asks for it
   const key = new URLSearchParams(new URL(url).hash.slice(1)).get('key');
   const overlay = createOverlaySource({ origin, key, getWindow: () => win });
   app.once('will-quit', () => overlay.stop());
   /** Id of the display whose work area the window covers. */
   let displayId = null;
-  /** The setting, and whether it is what hid the window. */
-  let hideWhenFullscreen = false, autoHidden = false;
+  /** The settings, and whether the first is what hid the window. */
+  let hideWhenFullscreen = false, autoHidden = false, passWhenFullscreen = false;
+  /** Every click passes through while the tray says so or the second setting meets a fullscreen window. */
+  let trayThrough = false, fullscreenThrough = false;
+  const lockMouse = () => mouse.lock(trayThrough || fullscreenThrough);
   // the other windows, read only while the page asks (its body's pack needs them) and sent when they change:
   // their tops, and the whole windows with their ids, order and foreground flag
   const windows = createWindowSource({ screen });
@@ -419,7 +427,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     guard(win.webContents);
     win.once('ready-to-show', () => win.showInactive());
     // The page cannot tell for itself that it is hidden (background throttling is off, so it always reads as
-    // visible): the window tells it, for the settings window's 「在桌面上 / 已隐藏」.
+    // visible and keeps getting frames): the window tells it, so it stops drawing, and for the settings window's
+    // 「在桌面上 / 已隐藏」.
     win.on('show', () => win?.webContents.send('pet:shown', true));
     win.on('hide', () => { win?.webContents.send('pet:shown', false); mouse.release(); });
     // Zoom stays at 1: the cursor below is sent in DIPs and the page hit-tests with them as CSS pixels,
@@ -429,7 +438,11 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       if ((input.control || input.meta) && (['-', '_', '=', '+', '0'].includes(input.key) || ['NumpadAdd', 'NumpadSubtract', 'Numpad0'].includes(input.code))) event.preventDefault();
     });
     // a page loaded afresh asks for the windows again once its body is on
-    win.webContents.on('did-finish-load', () => { win.webContents.setZoomLevel(0); overlay.pageLoaded(); watchWindows(false); win.webContents.send('pet:floor', coverArea(display()).below); });
+    win.webContents.on('did-finish-load', () => {
+      win.webContents.setZoomLevel(0); overlay.pageLoaded(); watchWindows(false); win.webContents.send('pet:floor', coverArea(display()).below);
+      win.webContents.send('pet:fullscreenThrough', fullscreenThrough);
+      if (shape) win.webContents.send('pet:inputShape', true);
+    });
     // The page learns where the cursor is even when the click-through window misses its moves, and
     // it renews the mouse lease in its answer to every report: the report goes out on every tick,
     // not only when the pointer moved, so a cursor that rests still still gets a verdict.
@@ -448,15 +461,18 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     }, CURSOR_EVERY_MS);
     // Windows: every topmost window shares one band ordered by activation, so a topmost window that takes
     // the foreground (a borderless full screen game) goes over the pet. The pet asserts topmost again each
-    // time another window takes the foreground, and on the first tick it is shown. With the setting on, it
-    // is hidden while the foreground window fills the pet's monitor and shown again once that ends.
+    // time another window takes the foreground, and on the first tick it is shown. While the foreground
+    // window fills the pet's monitor: hidden with the first setting on, shown again once that ends; with the
+    // second, every click passes through and the page is told so.
     let lastForeground = null;
     const foregroundTimer = foreground && setInterval(() => {
       if (!win) return;
       const own = hwndOf(win), cur = foreground.current();
-      const covered = hideWhenFullscreen && !!fullscreen?.(cur, own);
-      if (covered && !autoHidden && win.isVisible()) { autoHidden = true; win.hide(); }
-      else if (!covered && autoHidden) { autoHidden = false; win.showInactive(); }
+      const covered = (hideWhenFullscreen || passWhenFullscreen) && !!fullscreen?.(cur, own);
+      if (covered && hideWhenFullscreen && !autoHidden && win.isVisible()) { autoHidden = true; win.hide(); }
+      else if (!(covered && hideWhenFullscreen) && autoHidden) { autoHidden = false; win.showInactive(); }
+      const through = covered && passWhenFullscreen;
+      if (through !== fullscreenThrough) { fullscreenThrough = through; lockMouse(); win.webContents.send('pet:fullscreenThrough', through); }
       if (!win.isVisible()) { lastForeground = null; return; }
       if (cur === lastForeground) return;
       lastForeground = cur;
@@ -477,7 +493,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     dress.loadURL(target);
   };
 
-  onPet('pet:interactive', (_e, on) => mouse.ask(on));
+  onPet('pet:interactive', (_e, on) => { if (!shape) mouse.ask(on); });
+  onPet('pet:inputRects', (_e, rects) => { if (shape && Array.isArray(rects)) mouse.ask(rects); });
   onPet('pet:focus', () => {
     if (!win) return;
     // Explicit text input activates this menu-bar process as well as its window.
@@ -505,7 +522,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   onPet('pet:hide', () => { releaseAutoHidden(); if (win) win.hide(); });
   onPet('pet:overlayFrame', (_e, rect, at) => overlay.frame(rect, at));
   onPet('pet:hideWhenFullscreen', (_e, on) => { hideWhenFullscreen = !!on; });
-  onPet('pet:clickThrough', (_e, on) => mouse.lock(on));
+  onPet('pet:passWhenFullscreen', (_e, on) => { passWhenFullscreen = !!on; });
+  onPet('pet:clickThrough', (_e, on) => { trayThrough = !!on; lockMouse(); });
   onPet('pet:watchWindows', (_e, on) => watchWindows(!!on));
   onPet('pet:openDress', () => openDress());
   let language = 'zh';
