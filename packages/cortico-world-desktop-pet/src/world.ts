@@ -414,6 +414,8 @@ export class DesktopPetWorld implements World {
   private keyWatcher: KeyWatcher | null = null;
   /** Why the talk key cannot be read; the gate then stays closed. */
   private hotkeyProblem: string | null = null;
+  /** The talk-key problem the bubble last said. */
+  private hotkeyProblemTold: string | null = null;
   private hotkeyKey = '';
   /** The typing key's watcher while `typeKey.enabled`, and why it cannot be read. */
   private typeWatcher: KeyWatcher | null = null;
@@ -1117,6 +1119,7 @@ export class DesktopPetWorld implements World {
       case 'hello': {
         const s = msg.screen as { w?: unknown; h?: unknown } | undefined;
         if (s && typeof s.w === 'number' && typeof s.h === 'number') this.screen = { w: s.w, h: s.h };
+        this.tellHotkeyProblem();
         return;
       }
       case 'arrived':
@@ -1523,7 +1526,7 @@ export class DesktopPetWorld implements World {
     const { mode, hotkey } = this.cfg.asr.mic;
     const trigger: HotkeyTrigger = mode === 'hold' && this.typeKeyShares(hotkey) ? 'hold' : 'press';
     const key = mode === 'always' || !this.host ? '' : `${mode}:${hotkey}:${trigger}`;
-    if (key === this.hotkeyKey) return;
+    if (key === this.hotkeyKey) { this.tellHotkeyProblem(); return; }
     this.hotkeyKey = key;
     this.keyWatcher?.stop();
     this.keyWatcher = null;
@@ -1538,7 +1541,18 @@ export class DesktopPetWorld implements World {
     if (typeof watcher === 'string') {
       this.hotkeyProblem = watcher;
       this.log?.warn(`说话键不可用,暂不识别说话:${watcher}`);
+      this.tellHotkeyProblem();
     } else this.keyWatcher = watcher;
+  }
+
+  /** A key that cannot be read shows nothing when pressed, so the bubble says why: each problem once a run, while voice input is on. */
+  private tellHotkeyProblem(): void {
+    const problem = this.hotkeyProblem;
+    if (!problem || problem === this.hotkeyProblemTold || !this.cfg.asr.enabled || this.petHidden) return;
+    this.hotkeyProblemTold = problem;
+    void this.dialog({ text: this.ui.voice.keyProblem(problem), closable: true }).answer.then((a) => {
+      if ('unavailable' in a) this.hotkeyProblemTold = null;
+    });
   }
 
   /** The typing key is on and made of the same keys as `talk`, press counts aside. */
