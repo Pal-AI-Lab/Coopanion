@@ -91,7 +91,7 @@ export const S: Partial<typeof en> = {
   selfItems: { figure: 'Персонаж', scheme: 'Наряд', roam: 'Активность', snoreSeconds: 'Длительность храпа', sound: 'Звуки', scale: 'Размер', bubbleSize: 'Размер облачков', fontSize: 'Размер текста', theme: 'Ночной режим', hoverButtons: 'Кнопки при наведении', user: 'Как к вам обращаться' },
   popupSave: 'Сохранить',
   popupCancel: 'Отмена',
-  actions: { chat: 'Написать', voice: 'Голосовой ввод', roam: 'Активность', theme: 'Ночной режим', sound: 'Звуки', dress: 'Гардероб', hide: 'Скрыть питомца' },
+  actions: { chat: 'Написать', voice: 'Голосовой ввод', roam: 'Активность', theme: 'Ночной режим', sound: 'Звуки', dress: 'Гардероб', hide: 'Скрыть питомца', worlds: 'Мои World' },
   saveFailed: (why: string) => `Не сохранено: ${why}`,
   stats: 'Анонимная статистика использования',
   statsHint: 'Отправляет счётчики, время использования и настройки; никогда не отправляет разговоры, API Key и файлы.',

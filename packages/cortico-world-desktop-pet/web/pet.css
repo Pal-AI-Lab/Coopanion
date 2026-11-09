@@ -353,7 +353,6 @@ body.desk .floor{display:none}
 .m-rail > .tool.power, .m-rail > .tool.power:hover{color:var(--anger); border-color:var(--skin-ink)}
 .m-rail > .tool.run, .m-rail > .tool.run:hover{color:var(--skin-eye); border-color:var(--skin-ink)}
 .m-rail > .tool.run.paused, .m-rail > .tool.run.paused:hover{color:var(--warn)}
-.m-rail > .tool.power{transition:width .2s ease, height .2s ease}
 /* the quit question: the power button grown into a row of the prompt and the two answers */
 .m-quit{
   display:flex; align-items:center; gap:2px; box-sizing:border-box; height:38px; padding:0 0 0 10px; border-radius:19px; overflow:hidden; white-space:nowrap;
@@ -433,11 +432,31 @@ body.desk .floor{display:none}
 @media (prefers-reduced-motion: reduce){.wall-glow, .wall-lens, .bubble.said{transition:none}}
 @media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .d-pill.chosen, .caret, .menu > *, .tools, .tool.holding::after, .tool.sent, .tool::before, .tool::after, .tool .ic, .tool .ic::before{animation:none}}
 @media (prefers-reduced-motion: reduce){.d-cards .d-card.on .d-cardic[class*="ic-persona_"], .d-cards .d-card.on .d-cardic .spout{animation:none}}
-/* the run controls on the menu's left (settings, pause/resume, power), pointed at: the gear turns, the pause swells, the power button is pressed */
+/* pointed at: every round button grows a little and its icon moves once in a way that fits it (the dress button
+   keeps its own colours and sparkles above); the run controls on the menu's left: the gear turns, the pause swells,
+   the power button is pressed */
+.tool{transition:background .15s, border-color .15s, color .15s, scale .15s ease}
+.m-rail > .tool.power{transition:width .2s ease, height .2s ease, scale .15s ease}
+.tool:hover{scale:1.15}
+.tool:hover .ic svg{transform-origin:center; animation:var(--ic-hover, ic-bob) .5s ease-in-out}
+[data-action="chat"]{--ic-hover:ic-bob}
+[data-action="voice"]{--ic-hover:ic-pulse}
+[data-action="roam"]{--ic-hover:ic-step}
+[data-action="theme"]{--ic-hover:ic-turn}
+[data-action="sound"]{--ic-hover:ic-shake}
+[data-action="hide"]{--ic-hover:ic-blink}
+[data-action="worlds"]{--ic-hover:ic-lift}
+[data-action="dress"]{--ic-hover:none}
 .m-rail .tool:hover svg{transform-origin:center; animation:rail-gear .6s ease-in-out}
-.m-rail .tool.run:hover svg{animation-name:rail-pulse}
+.m-rail .tool.run:hover svg{animation-name:ic-pulse}
 .m-rail .tool.power:hover svg{animation-name:rail-press}
+@keyframes ic-bob{40%{transform:translateY(-3px)} 70%{transform:translateY(1px)}}
+@keyframes ic-pulse{35%{transform:scale(1.18)} 70%{transform:scale(.94)}}
+@keyframes ic-step{25%{transform:translateX(-2px) rotate(-6deg)} 75%{transform:translateX(2px) rotate(6deg)}}
+@keyframes ic-turn{to{transform:rotate(360deg)}}
+@keyframes ic-shake{20%,60%{transform:rotate(-10deg)} 40%,80%{transform:rotate(10deg)}}
+@keyframes ic-blink{45%{transform:scaleY(.15)}}
+@keyframes ic-lift{40%{transform:translateY(-3px) scale(1.06)} 70%{transform:translateY(1px)}}
 @keyframes rail-gear{to{transform:rotate(180deg)}}
-@keyframes rail-pulse{35%{transform:scale(1.18)} 70%{transform:scale(.94)}}
 @keyframes rail-press{40%{transform:translateY(2px) scale(.9)}}
-@media (prefers-reduced-motion: reduce){.m-rail .tool:hover svg{animation:none}}
+@media (prefers-reduced-motion: reduce){.tool:hover .ic svg, .m-rail .tool:hover svg{animation:none}}

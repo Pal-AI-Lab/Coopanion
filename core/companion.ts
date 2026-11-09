@@ -451,13 +451,14 @@ export async function main(): Promise<void> {
     botName: () => config?.displayName ?? DISPLAY_NAME,
     packRoots: () => packRoots,
     describeTool: petToolDescriber(language),
-    // the menu's header lends pause/resume, settings and quit; its dress tile opens the settings window's dress page, the typing bubble's expand button its chat page
+    // the menu's header lends pause/resume, settings and quit; its dress tile opens the settings window's dress page, the 「我的 World」 hover button its World list, the typing bubble's expand button its chat page
     controls: {
       isPaused: () => bus?.isPaused() ?? false,
       setPaused: (paused) => bus?.setPaused(paused),
       openSettings: () => process.send?.({ type: 'companion:open', path: '' }),
       openChat: () => process.send?.({ type: 'companion:open', path: '#/chat' }),
       openDress: () => process.send?.({ type: 'companion:open', path: '#/dress' }),
+      openWorlds: () => process.send?.({ type: 'companion:open', path: '#/world' }),
       openCuaSettings: () => process.send?.({ type: 'companion:open', path: '#/pet?cua=enable' }),
       quit: () => process.send?.({ type: 'companion:quit' }),
       quitLabel: () => coreText(language()).quit,

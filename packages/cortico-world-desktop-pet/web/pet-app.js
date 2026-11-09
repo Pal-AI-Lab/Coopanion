@@ -1232,6 +1232,13 @@ const ACTIONS = {
       else window.open('/dress', '_blank');
     },
   },
+  worlds: {
+    // only where the embedding app has a World list to show
+    available: () => !!prefs.bot?.buttons?.worlds,
+    icon: () => ICONS.boxes,
+    state: () => t('action.worlds'),
+    run: () => send({ t: 'control', action: 'worlds' }),
+  },
 };
 const available = (id) => ACTIONS[id] && (ACTIONS[id].available?.() ?? true);
 
@@ -1911,7 +1918,8 @@ function placeTalk(it, a) {
 
 /** Beside the body, on the right unless that runs off the screen. */
 function placeTools(l) {
-  const c = l.side, reach = l.side.reach + 10;
+  // across from where the body stands, not from its middle: a figure's middle swings sideways as it turns round
+  const c = { x: l.x, y: l.side.y }, reach = l.side.reach + 10;
   const w = tools.offsetWidth, h = tools.offsetHeight;
   const left = c.x + reach + w <= innerWidth - 8 ? c.x + reach : c.x - reach - w;
   tools.style.left = f(clamp(left, 8, innerWidth - w - 8)) + 'px';

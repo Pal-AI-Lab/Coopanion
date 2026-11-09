@@ -91,7 +91,7 @@ export const S: Partial<typeof en> = {
   selfItems: { figure: 'Personaggio', scheme: 'Abiti', roam: 'Movimento', snoreSeconds: 'Durata del russare', sound: 'Suoni', scale: 'Dimensione', bubbleSize: 'Dimensione dei fumetti', fontSize: 'Dimensione del testo', theme: 'Modalità notte', hoverButtons: 'Pulsanti al passaggio', user: 'Come chiamarti' },
   popupSave: 'Salva',
   popupCancel: 'Annulla',
-  actions: { chat: 'Scrivi', voice: 'Input vocale', roam: 'Movimento', theme: 'Modalità notte', sound: 'Suoni', dress: 'Guardaroba', hide: "Nascondi l'animaletto" },
+  actions: { chat: 'Scrivi', voice: 'Input vocale', roam: 'Movimento', theme: 'Modalità notte', sound: 'Suoni', dress: 'Guardaroba', hide: "Nascondi l'animaletto", worlds: 'I miei World' },
   saveFailed: (why: string) => `Non salvato: ${why}`,
   stats: "Statistiche d'uso anonime",
   statsHint: "Invia conteggi, tempo d'uso e impostazioni; mai conversazioni, chiavi o file.",

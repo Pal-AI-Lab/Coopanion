@@ -45,6 +45,7 @@ export default {
   'action.soundOn': 'Sons: ligados · clique para desligar',
   'action.soundOff': 'Sons: desligados · clique para ligar',
   'action.dress': 'Guarda-roupa',
+  'action.worlds': 'Meus Worlds',
   'action.hide': 'Me esconda por enquanto (o ícone da bandeja me traz de volta)',
   'menu.cancel': 'Cancelar',
   'menu.resume': 'Retomar',

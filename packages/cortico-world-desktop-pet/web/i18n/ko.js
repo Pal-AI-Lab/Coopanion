@@ -45,6 +45,7 @@ export default {
   'action.soundOn': '효과음: 켜짐 · 클릭하여 끄기',
   'action.soundOff': '효과음: 꺼짐 · 클릭하여 켜기',
   'action.dress': '꾸미기',
+  'action.worlds': '내 World',
   'action.hide': '저를 잠시 숨기기(트레이 아이콘으로 다시 불러낼 수 있습니다)',
   'menu.cancel': '취소',
   'menu.resume': '재개',
