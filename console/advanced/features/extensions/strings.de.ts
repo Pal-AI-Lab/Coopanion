@@ -14,7 +14,6 @@ export const S: Partial<typeof en> = {
   stateInstalledPendingRestart: "Installiert, Neustart ausstehend",
   stateRemoved: 'Deinstalliert, Neustart ausstehend',
   disabled: 'Installiert, nicht geladen',
-  worldNotLoaded: 'Installiert; in der World-Übersicht laden',
   template: 'Installiert; bereit zum Erstellen von Instanzen',
 
   restartConfirmTitle: 'Prozess neu starten?',
@@ -33,7 +32,7 @@ export const S: Partial<typeof en> = {
   updateAction: 'Aktualisieren',
   updateCheckFailed: (detail: string) => `Update-Prüfung fehlgeschlagen: ${detail}`,
   noteWebUiMissing: 'Browser-Bundle fehlt. Baue im Erweiterungsverzeichnis und starte den Prozess neu.',
-  listLoadFailed: (msg: string) => `Erweiterungsliste konnte nicht geladen werden: ${msg}`,
+  listLoadFailed: (msg: string) => `Installierte Erweiterungen konnten nicht gelesen werden; der aktuelle Installationsstatus ist unbekannt. Grund: ${msg}`,
   remove: 'Erweiterung löschen',
   removeInUse: 'Wird von Coo verwendet. Vor dem Löschen deaktivieren.',
   removeInUseProvider: 'Eine Modellverbindung verwendet diesen Anbieter noch. Zuerst diese Verbindung löschen.',
@@ -48,7 +47,6 @@ export const S: Partial<typeof en> = {
   completed: (action: string, name: string) => `${action} von ${name} abgeschlossen.`,
   restartNeeded: 'Erweiterungen wirken erst nach dem Neustart des Prozesses.',
   worldActivateHint: 'Ist die World nicht aktiv, aktiviere sie in der World-Übersicht.',
-  syncedFailed: 'Vorgang abgeschlossen, aber die Liste ist nicht synchron. Aktualisiere, um es erneut zu versuchen.',
 
   filterPlaceholder: 'Filter: Name, Beschreibung, Stichwörter',
   sortLabel: {

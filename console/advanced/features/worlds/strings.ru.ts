@@ -35,7 +35,6 @@ export const S: Partial<typeof en> = {
   restartBody: 'Останавливает и пересобирает World, чтобы применить параметры с пометкой о перезапуске World. Управляемые процессы и подключения останавливаются и запускаются заново.',
   missingReasonDefault: 'Не удалось загрузить этот World.',
   activateWorld: 'Активировать World',
-  inactiveNoteManual: (id: string) => `Реализация есть локально, но World не собран. Чтобы включить его, задайте worlds.${id}.enabled значение true в config.json и перезапустите.`,
   hideFromAgent: 'Скрыть от Coo',
   showToAgent: 'Показать Coo',
   restartWorld: 'Перезапустить World',

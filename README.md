@@ -146,7 +146,7 @@ Right-click Coo to open settings, the typing box or dress up, to switch voice in
 
 ### Appearance and sound
 
-Change the figure, colors and accessories on the **Dress up** page, including the accessories' main and accent colors; changes apply right away. Figure packs can be imported from a zip or a folder, or dragged onto the page, and imported packs are uninstalled there too.
+Change the figure, colors and accessories on the **Dress up** page, including the accessories' main and accent colors; changes apply right away. Figure packs can be imported from a zip or a folder, or dragged onto the page, and imported packs are uninstalled there too. Import, replacement and uninstall confirmations, progress and errors use the settings window’s shared dialogs.
 
 The star at the top right of the preview adds the look Coo wears to **Favourite looks**, listed in one row at the top of the page: click one to put it on, drag it to reorder, or rename and delete it. After you pick a favourite and change it, a save button next to the star writes the change back to it.
 
@@ -197,6 +197,8 @@ Open the settings window from the tray icon or from Coo's right-click menu.
 | World extensions | Installed Worlds, groups and order, the extension market |
 
 Pause / resume and the switch to **Advanced mode** are at the bottom of the sidebar. Advanced mode adds the **Model connections**, Persona, Memory, **Console** and **Diagnostics** pages. Model connections is where you change models, adjust reasoning effort, add other compatible services, enter prices for services without built-in ones and install provider extensions.
+
+Settings show operation errors beside the initiating control. If that control is no longer visible, the error uses a bottom notification. Read failures stay in the affected content region; refresh failures preserve loaded data and edits until a successful retry. Diagnostics report connection, event and log failures separately. Saving an avatar or name, pausing Coo and cancelling an alarm use the updated state as confirmation.
 
 ### World extensions
 

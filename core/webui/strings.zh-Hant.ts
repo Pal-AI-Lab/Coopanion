@@ -8,7 +8,6 @@ export const S: Partial<typeof en> = {
   empty: 'Coo 現在沒有設鬧鐘。',
   remove: '刪除',
   confirmTitle: (when) => `刪除 ${when} 的鬧鐘？`,
-  removed: '已刪除',
   failed: (msg) => `刪除失敗：${msg}`,
   loadFailed: (msg) => `讀取失敗：${msg}`,
   search: '搜尋內容或時間',

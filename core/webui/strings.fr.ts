@@ -8,7 +8,6 @@ export const S: Partial<typeof en> = {
   empty: "Coo n'a aucune alarme.",
   remove: 'Supprimer',
   confirmTitle: (when) => `Supprimer l'alarme de ${when} ?`,
-  removed: 'Supprimée',
   failed: (msg) => `Suppression impossible : ${msg}`,
   loadFailed: (msg) => `Chargement impossible : ${msg}`,
   search: 'Rechercher une note ou une heure',

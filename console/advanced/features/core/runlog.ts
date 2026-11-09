@@ -1,3 +1,5 @@
+import { listProblem } from '../../../base/ui/problem.ts';
+import { S as COMMON } from '../../../base/ui/strings.ts';
 /**
  * 运行日志不进入 agent 上下文。/api/log?run&level&area&grep&round&limit 按条件从
  * log.jsonl 尾部查满 limit 条；run 默认当前运行，清单取自 /api/runs。
@@ -46,7 +48,6 @@ function truncate(s: string, n: number): string {
 export interface RunlogViewDeps {
   ui: WebUi;
   signal: AbortSignal;
-  onNet(online: boolean): void;
   onError(err: unknown): void;
 }
 
@@ -89,6 +90,7 @@ export function createRunlogView(deps: RunlogViewDeps): RunlogView {
   };
   deps.signal.addEventListener('abort', cancel, { once: true });
 
+  const readError = ui.h('div', 'read-feedback');
   const bar = ui.rowbar();
   const runSel = ui.select({
     cls: 'mono',
@@ -170,7 +172,7 @@ export function createRunlogView(deps: RunlogViewDeps): RunlogView {
     },
   });
   const el = ui.h('div');
-  el.append(bar, table.el, pager.el);
+  el.append(bar, readError, table.el, pager.el);
 
   /** 画当前页:新的在前。 */
   function paint(): void {
@@ -225,7 +227,7 @@ export function createRunlogView(deps: RunlogViewDeps): RunlogView {
     if (en.data !== undefined) {
       line.appendChild(ui.h('span', 'data-extra', ` ${truncate(JSON.stringify(en.data), DATA_MAX)}`));
     }
-    if (en.err) line.appendChild(ui.h('span', 'lv-error', ` ${en.err.message}`));
+    if (en.err && en.err.message.trim() !== en.msg.trim()) line.appendChild(ui.h('span', 'lv-error', ` ${en.err.message}`));
     if (en.data === undefined && !en.err) return line;
     const box = ui.h('details', 'logdetail');
     const key = rowKey(en);
@@ -258,10 +260,10 @@ export function createRunlogView(deps: RunlogViewDeps): RunlogView {
           rows = Array.isArray(entries) ? entries : [];
           paint();
         }
-        deps.onNet(true);
+        readError.replaceChildren();
       } catch (err) {
-        if ((err as { name?: string } | null)?.name === 'AbortError') return;
-        deps.onNet(false);
+        if (mine !== generation || deps.signal.aborted) return;
+        readError.replaceChildren(listProblem(readError.ownerDocument, `${S.subRunlog}: ${err instanceof Error ? err.message : String(err)}`, COMMON.retry, () => view.refresh()));
         deps.onError(err);
       } finally {
         if (mine === generation) {

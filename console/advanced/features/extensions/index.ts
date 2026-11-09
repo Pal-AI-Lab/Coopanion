@@ -816,7 +816,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   function emptyMarket(state: CategoryState): HTMLElement {
     if (!state.fetched) return ui.placeholder(S.searching);
     const all = catalogHits(state).map(named);
-    if (!all.length) return ui.placeholder(registry ? S.noPackagesAt(registry) : S.noPackages);
+    if (!catalogHits(state, true).length) return ui.placeholder(registry ? S.noPackagesAt(registry) : S.noPackages);
     const elsewhere = state.filter.trim() ? arrangeHits(all, { filter: state.filter, tagLabel, sort: state.sort, hideInstalled: false, page: 0, pageSize: 1 }).matched : 0;
     if (!elsewhere) return noResult();
     const box = noResult(ui.h('p', 'extension-empty-note', S.hitsElsewhere(elsewhere)), ui.button(S.clearOtherFilters, { onClick: () => clearFilters(true) }));
@@ -1128,25 +1128,24 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const section = ui.h('section', 'extension-comments');
     const heading = ui.h('h4', '', S.comments); if (rating) { const counts = ui.h('span', 'extension-rating'); counts.append(votes(name, rating), commentCount(name, rating)); heading.append(counts); }
     const input = ui.textarea({ placeholder: S.commentPlaceholder, rows: 3 }); input.setAttribute('aria-label', S.commentPlaceholder);
-    const feedback = ui.msgline(); feedback.setAttribute('role', 'status');
     const list = ui.h('div', 'extension-comment-list');
     const listStatus = ui.msgline(); listStatus.setAttribute('role', 'status');
     const submit = ui.button(S.commentSubmit, { variant: 'primary', size: 'sm', onClick: async () => {
       const body = input.value.trim(); if (!body) return;
-      const lock = ui.disable(submit, input); feedback.textContent = ''; feedback.classList.remove('bad');
+      const lock = ui.disable(submit, input);
       try {
         const posted = await withGithub(() => post<CommentView>('/api/extensions/comments', { name, body }, { signal }));
         if (signal.aborted) return;
         input.value = ''; list.querySelector('.extension-comment-empty')?.remove(); list.prepend(thread(posted));
         countOne();
-      } catch (error) { if (!signal.aborted && !needsLogin(error)) { feedback.textContent = S.commentFailed(errorText(error)); feedback.classList.add('bad'); } }
+      } catch (error) { if (!signal.aborted && !needsLogin(error)) problems.show(submit, S.commentFailed(errorText(error))); }
       finally { lock.dispose(); }
     } });
     const actions = ui.h('div', 'extension-comment-actions'); actions.append(accountSlot(), textBlockButton(input), submit);
     const composer = ui.h('div', 'extension-comment-composer'); composer.append(input, actions);
     const more = ui.button(S.loadMore, { size: 'sm', onClick: () => void page() }); more.classList.add('extension-comment-more'); more.hidden = true;
     const link = ui.h('a', 'extension-discussion-link', S.openDiscussion); link.target = '_blank'; link.rel = 'noopener noreferrer'; link.hidden = true;
-    section.append(heading, composer, feedback, list, listStatus, more, link);
+    section.append(heading, composer, list, listStatus, more, link);
     const countOne = () => { if (rating) { rating.comments++; for (const node of doc.querySelectorAll<HTMLElement>('[data-comments-for]')) if (node.dataset.commentsFor === name) node.lastElementChild!.textContent = ui.fmt.count(rating.comments); } };
     /** 顶层评论与它的回复;回复只有一层,都以顶层评论为 `replyTo`。 */
     function thread(top: CommentView) {
@@ -1156,7 +1155,6 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
         box?.remove();
         const field = ui.textarea({ placeholder: S.replyPlaceholder(to.author), rows: 2 }); field.setAttribute('aria-label', S.replyPlaceholder(to.author));
         if (to !== top) field.value = '@' + to.author + ' ';
-        const note = ui.msgline(); note.setAttribute('role', 'status');
         const cancel = ui.button(S.cancelReply, { size: 'sm', onClick: () => { box?.remove(); box = null; } });
         const send = ui.button(S.commentSubmit, { variant: 'primary', size: 'sm', onClick: async () => {
           const body = field.value.trim(); if (!body) return;
@@ -1165,11 +1163,11 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
             const posted = await withGithub(() => post<CommentView>('/api/extensions/comments', { name, body, replyTo: top.id }, { signal }));
             if (signal.aborted) return;
             replies.append(commentItem(posted, open)); box?.remove(); box = null; countOne();
-          } catch (error) { if (!signal.aborted && !needsLogin(error)) { note.textContent = S.commentFailed(errorText(error)); note.classList.add('bad'); } }
+          } catch (error) { if (!signal.aborted && !needsLogin(error)) problems.show(send, S.commentFailed(errorText(error))); }
           finally { lock.dispose(); }
         } });
         const row = ui.h('div', 'extension-comment-actions'); row.append(textBlockButton(field), cancel, send);
-        box = ui.h('div', 'extension-comment-composer extension-reply-composer'); box.append(field, row, note);
+        box = ui.h('div', 'extension-comment-composer extension-reply-composer'); box.append(field, row);
         replies.after(box); field.focus();
       };
       const el = commentItem(top, open);
@@ -1591,7 +1589,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       onFeedback?.(`${S.completed(actionLabel, name)}${version ? ' ' + S.version(version) : ''} ${S.restartNeeded}${activateHint}`);
       updateGeneration++; if (updates.delete(name)) announceUpdates();
       if (action === 'install' && actionLabel === S.installedAction) workspace?.onAdded(name, anchor()?.closest('.extension-market-card')?.querySelector('.extension-avatar')?.getBoundingClientRect());
-      if (!await load()) listFeedback(S.completed(actionLabel, name) + ' ' + S.syncedFailed);
+      if (!await load()) listFeedback(S.completed(actionLabel, name) + ' ' + listErrorText);
     } catch (error) { if (!signal.aborted) problem = errorText(error); }
     finally { busy.delete(identity); if (!signal.aborted) { renderRestart(); renderMarket(); } }
     if (problem === undefined || signal.aborted) return;

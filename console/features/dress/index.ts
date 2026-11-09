@@ -6,11 +6,17 @@
  * few seconds. Saving a look recolours the settings window (core/console-theme.ts
  * writes the deployment's theme.json); while this page is open it reads that record every
  * `THEME_POLL_MS` and applies it when the scheme or mode differs from what the window shows.
+ *
+ * Structured `companion:dialog` messages use the shared modal shell. Choices and selected files return
+ * through `companion:dialog-action`; dialogs close when the page unmounts.
  */
 
 import { listProblem } from '../../base/ui/problem.ts';
 import { S as COMMON } from '../../base/ui/strings.ts';
 import { invokePanel } from '../../base/api.ts';
+import { dialogEnvironment } from '../../base/ui/index.ts';
+import { isDressDialog, showDressDialog } from '../../../packages/cortico-world-desktop-pet/src/webui/dress-dialog.ts';
+import type { Overlay } from '../../../shared/ui/modal.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { applyStoredTheme, disposeThemeStudio, getThemeStudio } from '../../base/theme/studio.ts';
 import { fetchTheme } from '../../base/theme/storage.ts';
@@ -30,11 +36,9 @@ async function mount(ctx: PageContext): Promise<void> {
   const frame = ui.h('iframe', 'companion-dressframe');
   const reveal = revealWhenPainted(frame, signal);
   frame.title = S.nav;
-  // shown only while the pet is not ready
-  const note = ui.h('p', null, S.noPet);
-  const readError = ui.h('div');
+  const readError = ui.h('div', 'read-feedback');
   frame.hidden = true;
-  root.append(intro(ui, S.nav), note, readError, frame);
+  root.append(intro(ui, S.nav), readError, frame);
 
   const doc = root.ownerDocument;
   const appearance = () => doc.documentElement.dataset.colorMode === 'dark' ? 'dark' : 'light';
@@ -44,10 +48,18 @@ async function mount(ctx: PageContext): Promise<void> {
   };
   frame.addEventListener('load', syncAppearance, { signal });
   // the page says how tall it is: the frame takes that height, so the window scrolls it and the frame shows no scrollbar
+  let dialog: Overlay | undefined;
   window.addEventListener('message', (e) => {
-    if (e.source !== frame.contentWindow || e.origin !== frame.dataset.origin || e.data?.type !== 'companion:height') return;
-    const height = Number(e.data.height);
-    if (Number.isFinite(height) && height > 0) frame.style.height = `${height}px`;
+    if (e.source !== frame.contentWindow || e.origin !== frame.dataset.origin) return;
+    if (e.data?.type === 'companion:height') {
+      const height = Number(e.data.height);
+      if (Number.isFinite(height) && height > 0) frame.style.height = `${height}px`;
+    } else if (e.data?.type === 'companion:dialog' && isDressDialog(e.data.view)) {
+      dialog?.close();
+      dialog = showDressDialog(dialogEnvironment(ui), e.data.view, result => {
+        frame.contentWindow?.postMessage({ type: 'companion:dialog-action', id: e.data.id, result }, e.origin);
+      });
+    } else if (e.data?.type === 'companion:dialog-close') { dialog?.close(); dialog = undefined; }
   }, { signal });
   const observer = new MutationObserver(syncAppearance);
   observer.observe(doc.documentElement, { attributes: true, attributeFilter: ['data-color-mode', 'data-theme-scheme'] });
@@ -62,13 +74,13 @@ async function mount(ctx: PageContext): Promise<void> {
     } catch (err) {
       // State is read only until the frame gets its address, so a failed read has no frame to keep.
       if (!signal.aborted) {
-        note.hidden = true;
-        readError.replaceChildren(listProblem(root.ownerDocument, err instanceof Error ? err.message : String(err), COMMON.retry, refresh));
+        const text = err instanceof Error ? err.message : String(err);
+        readError.replaceChildren(listProblem(root.ownerDocument, text, COMMON.retry, refresh));
       }
       return;
     }
     frame.hidden = !url;
-    note.hidden = !!url;
+    if (!url) readError.replaceChildren(listProblem(doc, S.noPet, COMMON.retry, refresh));
     if (url && frame.dataset.src !== url) {
       frame.dataset.src = url;
       const target = new URL(url);

@@ -35,7 +35,6 @@ export const S: Partial<typeof en> = {
   restartBody: "Arrête et reconstruit le World pour appliquer les réglages marqués pour un redémarrage du World. Les processus et connexions gérés s'arrêtent puis redémarrent.",
   missingReasonDefault: 'Impossible de charger ce World.',
   activateWorld: 'Activer le World',
-  inactiveNoteManual: (id: string) => `Implémenté localement mais non assemblé. Pour l'activer, mettez worlds.${id}.enabled à true dans config.json et redémarrez.`,
   hideFromAgent: 'Masquer pour Coo',
   showToAgent: 'Afficher pour Coo',
   restartWorld: 'Redémarrer le World',

@@ -35,7 +35,6 @@ export const S: Partial<typeof en> = {
   restartBody: 'World를 중지하고 다시 만들어 "World 재시작 후 적용"으로 표시된 설정을 적용합니다. 관리하는 프로세스와 연결은 중지된 뒤 다시 시작됩니다.',
   missingReasonDefault: '이 World를 불러올 수 없습니다.',
   activateWorld: 'World 활성화',
-  inactiveNoteManual: (id: string) => `로컬에 구현은 있지만 구성되지 않았습니다. 사용하려면 config.json에서 worlds.${id}.enabled를 true로 바꾸고 재시작하세요.`,
   hideFromAgent: 'Coo에게서 숨기기',
   showToAgent: 'Coo에게 표시',
   restartWorld: 'World 재시작',

@@ -1,3 +1,4 @@
+import { actionProblem, listProblem } from '../../../../shared/ui/problem.ts';
 /**
  * Console panels for the desktop pet: `pet` (window, dressing, window runtime) and `voice`
  * (recognition engine, the FunASR or Whisper model download or the transcription service's settings (api-rows.ts),
@@ -88,11 +89,14 @@ function untitledSheet(ui: WebUiPanelContext['ui']): { el: HTMLElement; body: HT
 const petPanel: WebUiPanel = {
   mount(ctx) {
     const { ui, root } = ctx;
+    const problem = actionProblem(ui, root.ownerDocument, ctx.signal, ctx.language);
     const t = petText(ctx.language).panel;
     const card = untitledSheet(ui);
     root.appendChild(card.el);
     const s = card.body;
-    const msg = ui.msgline('', true);
+    const msg = ui.h('div', 'read-feedback');
+    root.prepend(msg);
+    card.el.hidden = true;
 
     const win = statusRow(ctx, t.window);
     const btnOpen = ui.button(t.openWindow, { size: 'sm', variant: 'primary' });
@@ -111,11 +115,14 @@ const petPanel: WebUiPanel = {
     frameWrap.append(frame);
     dress.body.append(frameWrap);
 
-    s.append(win.row, rt.row, msg);
+    s.append(win.row, rt.row);
+    dress.el.hidden = true;
 
     let st: PetState | null = null;
     const render = (next: PetState) => {
       st = next;
+      card.el.hidden = dress.el.hidden = false;
+      msg.replaceChildren();
       const w = next.window;
       if (next.inWindow) win.set(t.connected, 'on');
       else if (w?.phase === 'running') win.set(t.starting, 'busy');
@@ -135,13 +142,13 @@ const petPanel: WebUiPanel = {
         frame.src = next.dressUrl;
       }
     };
-    const refresh = async () => { try { render(await ctx.invoke<PetState>('state')); msg.textContent = ''; } catch (err) { if (!ctx.signal.aborted) msg.textContent = errText(err); } };
-    const call = (method: string) => async () => {
-      try { render(await ctx.invoke<PetState>(method)); } catch (err) { if (!ctx.signal.aborted) ui.toast(errText(err), 'bad'); }
+    const refresh = async () => { try { render(await ctx.invoke<PetState>('state')); } catch (err) { if (!ctx.signal.aborted) msg.replaceChildren(listProblem(root.ownerDocument, errText(err))); } };
+    const call = (method: string, anchor: HTMLElement) => async () => {
+      try { render(await ctx.invoke<PetState>(method)); } catch (err) { if (!ctx.signal.aborted) problem(anchor, errText(err)); }
     };
-    btnOpen.addEventListener('click', call('openWindow'));
-    btnClose.addEventListener('click', call('closeWindow'));
-    btnInstall.addEventListener('click', call('installElectron'));
+    btnOpen.addEventListener('click', call('openWindow', btnOpen));
+    btnClose.addEventListener('click', call('closeWindow', btnClose));
+    btnInstall.addEventListener('click', call('installElectron', btnInstall));
     void refresh();
     ctx.interval(() => void refresh(), 1500);
   },
@@ -159,12 +166,15 @@ const ARROW_STEPS: Record<string, number> = { ArrowRight: 1, ArrowUp: 1, ArrowLe
 const voicePanel: WebUiPanel = {
   mount(ctx) {
     const { ui, root } = ctx;
+    const problem = actionProblem(ui, root.ownerDocument, ctx.signal, ctx.language);
     const text = petText(ctx.language);
     const t = text.panel;
     const card = untitledSheet(ui);
     root.appendChild(card.el);
     const s = card.body;
-    const msg = ui.msgline('', true);
+    const msg = ui.h('div', 'read-feedback');
+    root.prepend(msg);
+    card.el.hidden = true;
 
     // The master switch: everything below only works while it is on.
     const master = ui.h('label', 'pet-master');
@@ -175,7 +185,7 @@ const voicePanel: WebUiPanel = {
     const enabled = ui.h('input', 'pet-switch');
     enabled.type = 'checkbox';
     enabled.setAttribute('role', 'switch');
-    enabled.addEventListener('change', () => void call('setEnabled', [enabled.checked])());
+    enabled.addEventListener('change', () => void call('setEnabled', enabled, [enabled.checked])());
     master.append(masterText, enabled);
     const settings = ui.h('div', 'pet-voicebody');
 
@@ -191,7 +201,7 @@ const voicePanel: WebUiPanel = {
     const rt = statusRow(ctx, t.model);
     const btnInstall = ui.button(t.download, { size: 'sm', variant: 'primary' });
     rt.acts.append(btnInstall);
-    const api = apiRows(ctx, t, (name) => statusRow(ctx, name), (patch) => void call('setApi', [patch])());
+    const api = apiRows(ctx, t, (name) => statusRow(ctx, name), (patch, anchor) => void call('setApi', anchor, [patch])());
 
     const micRow = statusRow(ctx, t.mic);
     const deviceSel = ui.select();
@@ -207,7 +217,7 @@ const voicePanel: WebUiPanel = {
     const onPress = ui.h('input', 'pet-switch');
     onPress.type = 'checkbox';
     onPress.setAttribute('role', 'switch');
-    onPress.addEventListener('change', () => void call('setMic', [{ openOnPress: onPress.checked }])());
+    onPress.addEventListener('change', () => void call('setMic', onPress, [{ openOnPress: onPress.checked }])());
     onPressRow.acts.append(onPress);
     // the talk key has a row of its own above how it listens: the key, and a button to set another
     const keyRow = statusRow(ctx, t.talkKeyName);
@@ -235,10 +245,11 @@ const voicePanel: WebUiPanel = {
 
     const log = ui.log({ max: 100, empty: t.noResults });
     settings.append(eng.row, srv.row, rt.row, ...api.rows, micRow.row, keyRow.row, modeRow.row, onPressRow.row, meterRow);
-    s.append(master, msg, settings);
+    s.append(master, settings);
     const results = ui.sheet({ title: t.results, desc: t.resultsHint });
     results.body.append(log.el);
     root.appendChild(results.el);
+    results.el.hidden = true;
 
     let st: VoiceState | null = null;
     let seen = 0;
@@ -251,6 +262,8 @@ const voicePanel: WebUiPanel = {
     };
     const render = (next: VoiceState) => {
       st = next;
+      card.el.hidden = results.el.hidden = false;
+      msg.replaceChildren();
       enabled.checked = next.enabled;
       master.classList.toggle('on', next.enabled);
       const onPressOn = next.input.mode === 'hold' && next.input.openOnPress;
@@ -326,16 +339,16 @@ const voicePanel: WebUiPanel = {
         if (line.dropped) el.style.textDecoration = 'line-through';
       }
     };
-    const refresh = async () => { try { render(await ctx.invoke<VoiceState>('state')); msg.textContent = ''; } catch (err) { if (!ctx.signal.aborted) msg.textContent = errText(err); } };
-    const call = (method: string, args: unknown[] = []) => async () => {
-      try { render(await ctx.invoke<VoiceState>(method, args)); } catch (err) { if (!ctx.signal.aborted) ui.toast(errText(err), 'bad'); }
+    const refresh = async () => { try { render(await ctx.invoke<VoiceState>('state')); } catch (err) { if (!ctx.signal.aborted) msg.replaceChildren(listProblem(root.ownerDocument, errText(err))); } };
+    const call = (method: string, anchor: HTMLElement, args: unknown[] = []) => async () => {
+      try { render(await ctx.invoke<VoiceState>(method, args)); } catch (err) { if (!ctx.signal.aborted) problem(anchor, errText(err)); }
     };
-    btnStart.addEventListener('click', call('start'));
-    engineSel.addEventListener('change', () => void call('setEngine', [engineSel.value])());
-    btnStop.addEventListener('click', call('stop'));
-    btnInstall.addEventListener('click', call('install'));
-    modeSel.addEventListener('change', () => void call('setMic', [{ mode: modeSel.value }])());
-    deviceSel.addEventListener('change', () => void call('setMic', [{ deviceId: deviceSel.value }])());
+    btnStart.addEventListener('click', call('start', btnStart));
+    engineSel.addEventListener('change', () => void call('setEngine', engineSel, [engineSel.value])());
+    btnStop.addEventListener('click', call('stop', btnStop));
+    btnInstall.addEventListener('click', call('install', btnInstall));
+    modeSel.addEventListener('change', () => void call('setMic', modeSel, [{ mode: modeSel.value }])());
+    deviceSel.addEventListener('change', () => void call('setMic', deviceSel, [{ deviceId: deviceSel.value }])());
     const dbAt = (x: number) => {
       const r = meter.getBoundingClientRect();
       return markDb(FLOOR_DB + ((x - r.left) / r.width) * -FLOOR_DB);
@@ -356,7 +369,7 @@ const voicePanel: WebUiPanel = {
       if (held === null) return;
       const db = held;
       held = null;
-      void call('setThreshold', [db])();
+      void call('setThreshold', mark, [db])();
     });
     mark.addEventListener('pointercancel', () => {
       held = null;
@@ -368,10 +381,10 @@ const voicePanel: WebUiPanel = {
       e.preventDefault();
       const db = markDb(Number(mark.getAttribute('aria-valuenow')) + step);
       placeMark(db);
-      void call('setThreshold', [db])();
+      void call('setThreshold', mark, [db])();
     });
     pressSel.addEventListener('change', () => {
-      if (st) void call('setMic', [{ hotkey: withTaps(splitTaps(st.input.hotkey).combo, Number(pressSel.value)) }])();
+      if (st) void call('setMic', pressSel, [{ hotkey: withTaps(splitTaps(st.input.hotkey).combo, Number(pressSel.value)) }])();
     });
 
     // The talk key is a new combination (key-capture.ts); how it is pressed (`*2`) stays as chosen beside it.
@@ -379,7 +392,7 @@ const voicePanel: WebUiPanel = {
     const finishCapture = (combo: string | null) => {
       capture = null;
       keyBtn.textContent = t.changeKey;
-      if (combo && st) void call('setMic', [{ hotkey: withTaps(combo, splitTaps(st.input.hotkey).taps) }])();
+      if (combo && st) void call('setMic', keyBtn, [{ hotkey: withTaps(combo, splitTaps(st.input.hotkey).taps) }])();
       else void refresh();
     };
     keyBtn.addEventListener('click', () => {

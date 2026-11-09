@@ -10,6 +10,7 @@
  * through `/api/run/*` and `/api/config`.
  */
 import type { WebUiMemo, WebUi } from 'cortico/web/shared/client-panel.ts';
+import { actionProblem } from '../base/ui/problem.ts';
 import { get, post, setConfig } from '../base/api.ts';
 import type { WebUiLamp } from 'cortico/web/shared/webui-protocol.ts';
 import { buildHash, type Route, type Router } from '../base/router.ts';
@@ -76,6 +77,7 @@ export interface Rail {
 
 export function createRail(deps: RailDeps): Rail {
   const { doc, ui, router, signal, onError } = deps;
+  const problem = actionProblem(ui, doc, signal);
   const win = doc.defaultView!;
   let capabilities: Record<string, boolean> = {};
 
@@ -345,12 +347,11 @@ export function createRail(deps: RailDeps): Rail {
     void post<{ paused?: boolean; result?: string }>(paused ? '/api/run/resume' : '/api/run/pause', undefined, { signal })
       .then((out) => {
         paused = out.paused === true;
-        if (out.result) ui.toast(out.result);
       })
       .catch((err: unknown) => {
         if ((err as { name?: string } | null)?.name === 'AbortError') return;
         onError(err);
-        ui.toast(err instanceof Error ? err.message : String(err), 'bad');
+        problem(run, err instanceof Error ? err.message : String(err));
       })
       .finally(() => {
         runPending = false;
@@ -372,7 +373,7 @@ export function createRail(deps: RailDeps): Rail {
     if (!await ui.confirm({ title: S.confirmShutdownAgainTitle, body: S.confirmShutdownAgainBody, danger: true }) || signal.aborted) return;
     shuttingDown = true;
     renderPower();
-    const hold = ui.toast(S.finishingToast);
+    shutdown.classList.add('is-working');
     try {
       const out = await post<{
         ok?: boolean; localComplete?: boolean; result?: string; error?: string;
@@ -394,9 +395,9 @@ export function createRail(deps: RailDeps): Rail {
       if ((err as { name?: string } | null)?.name === 'AbortError') return;
       // the process can exit before its answer arrives: the result is unknown, not a failure
       onError(err);
-      ui.toast(S.noReceipt(String((err as Error)?.message ?? err)), 'bad');
+      problem(shutdown, S.noReceipt(String((err as Error)?.message ?? err)));
     } finally {
-      hold.dispose();
+      shutdown.classList.remove('is-working');
       shuttingDown = false;
       renderPower();
     }
@@ -424,14 +425,14 @@ export function createRail(deps: RailDeps): Rail {
       const next = field.value.trim();
       field.replaceWith(name);
       if (!save || !next || next === shownName) return;
+      const previous = shownName;
       setName(next);
-      void setConfig('core', { displayName: next }).then(
-        () => ui.toast(S.renameSaved),
-        (err) => {
-          ui.toast(S.renameFailed(String((err as Error)?.message ?? err)), 'bad');
+      name.disabled = true;
+      void setConfig('core', { displayName: next }).catch((err) => {
+          if (shownName === next) setName(previous);
+          problem(name, S.renameFailed(String((err as Error)?.message ?? err)));
           onError(err);
-        },
-      );
+        }).finally(() => { name.disabled = false; });
     };
     field.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') finish(true);

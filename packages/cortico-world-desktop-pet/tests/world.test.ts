@@ -737,6 +737,11 @@ describe('chat page', () => {
     await expect.poll(() => chat.last('withdrawn')).toEqual({ t: 'withdrawn', cursor: second });
     expect(host.withdrawn).toEqual([second]);
 
+    host.withdrawable = false;
+    chat.send({ t: 'withdraw', cursor: sent.cursor });
+    await expect.poll(() => chat.last('notice')?.cursor).toBe(sent.cursor);
+    expect(chat.last('notice')?.text).toBeTruthy();
+
     chat.send({ t: 'hello' });
     await expect.poll(() => chat.last('init')).toBeDefined();
     expect((chat.last('init')!.items as Array<Record<string, unknown>>).map((i) => i.kind === 'say' ? i.beats : i.text))

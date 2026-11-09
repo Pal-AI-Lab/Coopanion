@@ -29,7 +29,7 @@ const zh = {
   chipRoundsPost: ' 轮',
   subConfig: '配置',
   configEmpty: 'Core 没有可调配置。',
-  netOffline: '接口不可达',
+  netOffline: "实时调试连接已断开，正在重连…",
 
   // events.ts
   eventsDesc: '事件记录，agent 可查询。',
@@ -90,7 +90,7 @@ export const en: typeof zh = {
   chipRoundsPost: ' rounds',
   subConfig: 'Config',
   configEmpty: 'Core has no tunable settings.',
-  netOffline: 'API unreachable',
+  netOffline: "Live diagnostics disconnected; reconnecting…",
 
   // events.ts
   eventsDesc: 'Event records, queryable by the agent.',

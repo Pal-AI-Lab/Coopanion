@@ -35,7 +35,6 @@ export const S: Partial<typeof en> = {
   restartBody: 'Arresta e ricostruisce il World per applicare le impostazioni che richiedono il riavvio del World. I processi e le connessioni gestiti si arrestano e ripartono.',
   missingReasonDefault: 'Impossibile caricare questo World.',
   activateWorld: 'Attiva World',
-  inactiveNoteManual: (id: string) => `Implementato in locale ma non assemblato. Per attivarlo, imposta worlds.${id}.enabled a true in config.json e riavvia.`,
   hideFromAgent: 'Nascondi a Coo',
   showToAgent: 'Mostra a Coo',
   restartWorld: 'Riavvia World',

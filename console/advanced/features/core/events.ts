@@ -1,3 +1,5 @@
+import { listProblem } from '../../../base/ui/problem.ts';
+import { S as COMMON } from '../../../base/ui/strings.ts';
 /**
  * 事件库翻查界面，按 from/to 游标区间取：追新从已载入的最后一条之后按批往后取，直到服务端说没有更多；
  * 取更早的用 earliest−1。调试通道可用时由 event 帧触发追新，不可用时回落轮询。
@@ -39,8 +41,6 @@ export interface EventsViewDeps {
   ui: WebUi;
   lifecycle: Lifecycle;
   signal: AbortSignal;
-  /** 网络状态回报(与调试通道共用同一处显示) */
-  onNet(online: boolean): void;
   onError(err: unknown): void;
 }
 
@@ -74,6 +74,7 @@ export function createEventsView(deps: EventsViewDeps): EventsView {
   let poller: Disposable | null = null;
 
   const sheet = ui.sheet({ title: S.sectionEvents, desc: S.eventsDesc });
+  const readError = ui.h('div', 'read-feedback');
   const bar = ui.rowbar();
   bar.classList.add('core-filters');
   // 下拉的候选取自已载入的事件:原生 `<datalist>` 的弹层在 Electron 里会画离输入框,这里不用它。
@@ -107,7 +108,7 @@ export function createEventsView(deps: EventsViewDeps): EventsView {
     defaultSize: 20,
     onChange: (beyond) => { if (beyond) void loadEarlier(); else paint(); },
   });
-  sheet.body.append(bar, table.el, pager.el);
+  sheet.body.append(bar, readError, table.el, pager.el);
 
   const rowCells = (e: EventRow): Parameters<WebUiTable['addRow']>[0] => [
     { text: `#${e.cursor}`, cls: 'mono' },
@@ -122,6 +123,7 @@ export function createEventsView(deps: EventsViewDeps): EventsView {
 
   /** 画当前页:新的在前。 */
   function paint(): void {
+    table.el.hidden = pager.el.hidden = !inited;
     if (pager.page === 0) shown = rows.length;
     pager.render(shown, hasEarlier());
     const [from, to] = pager.slice(shown);
@@ -147,7 +149,7 @@ export function createEventsView(deps: EventsViewDeps): EventsView {
 
   const failed = (err: unknown): void => {
     if ((err as { name?: string } | null)?.name === 'AbortError') return;
-    deps.onNet(false);
+    readError.replaceChildren(listProblem(readError.ownerDocument, `${S.sectionEvents}: ${err instanceof Error ? err.message : String(err)}`, COMMON.retry, () => view.init()));
     deps.onError(err);
   };
 
@@ -169,9 +171,10 @@ export function createEventsView(deps: EventsViewDeps): EventsView {
         // 更早的都被过滤条件排除了:当作到头
         earliest = 1;
       }
+      readError.replaceChildren();
       paint();
     } catch (err) {
-      failed(err);
+      if (mine === generation) failed(err);
       paint();
     }
   }
@@ -186,7 +189,9 @@ export function createEventsView(deps: EventsViewDeps): EventsView {
       earliest = null;
       latest = 0;
       rows = [];
+      readError.replaceChildren();
       pager.reset();
+      paint();
       try {
         const d = await get<EventPage>(query(`limit=${BATCH}`), { signal: deps.signal });
         if (mine !== generation) return;
@@ -196,10 +201,10 @@ export function createEventsView(deps: EventsViewDeps): EventsView {
         latest = Math.max(d?.latest ?? 0, events.length ? events[events.length - 1].cursor : 0);
         inited = true;
         noteSources(events);
-        deps.onNet(true);
+        readError.replaceChildren();
         paint();
       } catch (err) {
-        failed(err);
+        if (mine === generation) failed(err);
       }
     },
     async poll() {
@@ -223,12 +228,13 @@ export function createEventsView(deps: EventsViewDeps): EventsView {
             noteSources(events);
             paint();
           }
+          readError.replaceChildren();
           // 还有下一页时只推进到本页末条;否则区间内剩下的都被过滤条件排除,推进到库尾。
           latest = d?.hasMore && events.length ? events[events.length - 1].cursor : Math.max(d?.latest ?? 0, latest);
           more = (d?.hasMore === true && events.length > 0) || pollAgain;
         }
       } catch (err) {
-        failed(err);
+        if (mine === generation) failed(err);
       } finally {
         if (mine === generation) polling = false;
       }

@@ -8,7 +8,6 @@ export const S: Partial<typeof en> = {
   empty: 'Coo non ha sveglie impostate.',
   remove: 'Elimina',
   confirmTitle: (when) => `Eliminare la sveglia delle ${when}?`,
-  removed: 'Eliminata',
   failed: (msg) => `Impossibile eliminare: ${msg}`,
   loadFailed: (msg) => `Impossibile caricare: ${msg}`,
   search: 'Cerca note o orari',

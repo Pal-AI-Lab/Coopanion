@@ -73,7 +73,7 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
   const actions = ui.h('div', 'prompt-actions');
   const status = ui.msgline('');
   status.setAttribute('role', 'status');
-  const readError = ui.h('div', 'prefix-read-error');
+  const readError = ui.h('div', 'read-feedback');
   const stage = ui.h('div', 'prefix-stage');
   const flags = ui.h('div', 'prefix-flags');
   const host = ui.h('div', 'prefix-host');
@@ -170,8 +170,8 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
     } catch (error) {
       if (!signal.aborted) {
         const text = S.loadFailed((error instanceof Error ? error.message : String(error)));
-        if (loaded) { state(); ui.toast(text, 'bad'); }
-        else readError.replaceChildren(listProblem(root.ownerDocument, text, COMMON.retry, refreshPreview));
+        if (loaded) state();
+        readError.replaceChildren(listProblem(root.ownerDocument, text, COMMON.retry, refreshPreview));
       }
       return false;
     }
