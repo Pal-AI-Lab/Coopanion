@@ -154,6 +154,7 @@ export function field(doc: Document, label: string, control: HTMLElement): HTMLL
  * 选中底色是外框的 `::before` 滑块，换选中项时从旧位置滑到新位置：外框带 `data-thumb` 时显示，
  * 位置与尺寸写在 `--seg-x/--seg-y/--seg-w/--seg-h`，颜色取 `--seg-thumb`。结构仍是
  * `.segwrap > button.seg`。没有选中项或还没布局时不显示，第一次落位不播动画。
+ * 按钮被压窄、文字放不下时外框带 `data-stack`,选项改为竖排。
  */
 export function segmented(
   doc: Document,
@@ -186,11 +187,15 @@ export function segmented(
     for (const k of keys) k.btn.className = k.value === current ? 'seg active' : 'seg';
     place();
   };
+  const stack = (): void => {
+    el.removeAttribute('data-stack');
+    if (keys.some(({ btn }) => btn.scrollWidth > btn.clientWidth + 1)) el.setAttribute('data-stack', '');
+  };
   // 挂到页面、换行或改字号后按钮的位置会变；滑块跟着重新落位。没有 ResizeObserver 的环境（jsdom）
   // 只在选中项变化时落位。
   const view = doc.defaultView;
   if (view?.ResizeObserver) {
-    const size = new view.ResizeObserver(place);
+    const size = new view.ResizeObserver(() => { stack(); place(); });
     size.observe(el);
     signal.addEventListener('abort', () => size.disconnect(), { once: true });
   }

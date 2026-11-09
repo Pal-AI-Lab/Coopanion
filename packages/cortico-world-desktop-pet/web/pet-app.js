@@ -19,6 +19,7 @@ import { loadBody } from './body-host.js';
 import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
+import { runFrames } from './frame-loop.js';
 
 const $ = (s) => document.querySelector(s);
 const host = window.petHost || null;
@@ -315,7 +316,7 @@ function onOrder(m) {
     case 'type': openTyping(); break;
     case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); holdRoam(20); break;
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
-    case 'confirm': dropAsks(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
+    case 'confirm': dropAsks(); rushLines(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
     case 'walk': walk(m); break;
     case 'move': walk(m); break;
     case 'walk-stop': body?.stopWalk(m.id); break;
@@ -389,6 +390,16 @@ let item = null;
 /** Where typing pauses: sentence and clause marks, Latin and full-width (Chinese and Japanese share 。、). */
 const PAUSE = /[,.!?;:…，。！？；：、]/, SILENT = /[\s,.!?;:…，。！？；：、「」『』()（）]/;
 
+/** Lines queued ahead of a World's confirmation type at RUSH times the speed without voice or babble, and stay RUSH_HOLD seconds a beat. */
+const RUSH = 6, RUSH_HOLD = 1;
+function rushLines() {
+  for (const q of [item, ...queue]) {
+    if (q?.kind !== 'say' || q.rush) continue;
+    q.rush = true;
+    if (q === item) { speech.stop(); if (q.beatDone) q.holdUntil = Math.min(q.holdUntil, T + RUSH_HOLD); }
+  }
+}
+
 /** A newer question replaces the bot's open one; a World's confirmation stays until answered. */
 function dropAsks() {
   for (let i = queue.length - 1; i >= 0; i--) if (queue[i].kind === 'ask' && !queue[i].confirm) queue.splice(i, 1);
@@ -452,6 +463,12 @@ function startItem(it) {
     bubble.querySelector('.b-close').addEventListener('click', () => dismissAsk());
     it.text = it.question; it.shown = 0; it.acc = 0; it.optsShown = false;
     sfx.pop();
+    if (it.confirm) {
+      // the bubble stays where it opened while Coo moves; the World counts the wait from now
+      const a = at()?.bubble ?? { x: innerWidth / 2, y: innerHeight };
+      it.pinX = a.x; it.pinY = a.y;
+      send({ t: 'confirm-shown', id: it.id });
+    }
   }
 }
 
@@ -492,7 +509,7 @@ function stepDialog(dt) {
     if (it.shown >= b.text.length && !it.beatDone) {
       it.beatDone = true;
       const last = it.i === it.beats.length - 1;
-      it.holdUntil = T + (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03) / prefs.bubbleSpeed;
+      it.holdUntil = T + (it.rush ? RUSH_HOLD : (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03) / prefs.bubbleSpeed);
     }
     return;
   }
@@ -506,16 +523,16 @@ function stepDialog(dt) {
 function typeText(it, text, dt, anchors) {
   const p = bubble.querySelector('.b-text');
   if (!p || it.shown >= text.length) return;
-  if (it.spoken !== text) { it.spoken = text; speech.begin(text); }
+  if (it.spoken !== text && !it.rush) { it.spoken = text; speech.begin(text); }
   // with speech, each pause mark waits its own time, letters type faster, and the voice makes the sound;
   // estimateSeconds in src/script.ts mirrors these steps, this rate and the holds in stepDialog
   const spoken = speech.active;
-  it.acc += dt * 20 * prefs.bubbleSpeed;
+  it.acc += dt * 20 * prefs.bubbleSpeed * (it.rush ? RUSH : 1);
   while (it.acc >= 1 && it.shown < text.length) {
     const ch = text[it.shown++];
     it.acc -= spoken ? textSteps(ch) : PAUSE.test(ch) ? 5 : 1;
     if (spoken) speech.reveal(it.shown - 1);
-    else if (!SILENT.test(ch)) { sfx.babble(ch); body?.talk(); }
+    else if (!SILENT.test(ch) && !it.rush) { sfx.babble(ch); body?.talk(); }
     while (it.fired < anchors.length && anchors[it.fired].at <= it.shown) acts.push(...anchors[it.fired++].actions);
   }
   if (it.marks?.length) p.innerHTML = marked(text, it.shown, it.marks);
@@ -1401,7 +1418,8 @@ function stepTools() {
   const p = cursor.at;
   const l = at();
   if (p && (body?.hit(p) || overTools(p))) toolsUntil = T + TOOLS_LINGER;
-  tools.hidden = !(!prefs.clickThrough && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && toolIds !== '');
+  const confirming = item?.kind === 'ask' && item.confirm && !item.answered;
+  tools.hidden = !(!prefs.clickThrough && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && !confirming && toolIds !== '');
   if (tools.hidden) endHold();
   tools.querySelector('[data-action="voice"]')?.classList.toggle('live', listen.phase === 'hearing');
 }
@@ -1412,7 +1430,7 @@ const lastPointer = { x: 0, y: 0 };
 /** Whether the page is on screen and drawing; the mouse is not taken while it is not. */
 const FRAME_STALL_MS = 1000;
 let lastFrameAt = performance.now();
-const rendering = () => document.visibilityState === 'visible' && performance.now() - lastFrameAt < FRAME_STALL_MS;
+const rendering = () => windowShown && document.visibilityState === 'visible' && performance.now() - lastFrameAt < FRAME_STALL_MS;
 /** How often the wish for the mouse is renewed; the window process's lease is longer. */
 const MOUSE_RENEW_MS = 500;
 let interactive = null, renewedAt = -Infinity;
@@ -1672,8 +1690,8 @@ function layout(dt = 0) {
   if (!tools.hidden) placeTools(l);
   const a = l.bubble;
   let sayBox = null;
-  // choice cards keep their bubble where it was; its tail follows Coo along the bottom edge
-  if (!bubble.hidden && item?.kind === 'dialog' && item.pinX !== undefined) sayBox = placeTalk(item, a);
+  // choice cards and a World's confirmation keep their bubble where it was; its tail follows Coo along the bottom edge
+  if (!bubble.hidden && item?.pinX !== undefined) sayBox = placeTalk(item, a);
   else if (!bubble.hidden) sayBox = place(bubble, a, 18 * prefs.bubbleSize);
   placeLines(a, sayBox, dt);
 }
@@ -1784,24 +1802,28 @@ function stepBackdrop(dt) {
 /**
  * Frames per second: `prefs.frameRate` while the body moves (its layout's `moving`) and always while `lockFrameRate` is on,
  * RESTING_FPS otherwise; a frame rate of 0, or one above the display's, draws on every display refresh. Each frame
- * redraws the whole figure, so the window's CPU and GPU time grows with this rate.
+ * redraws what changed in the figure, so the window's CPU and GPU time grows with this rate.
+ *
+ * While the pet window is hidden, frames come at HIDDEN_FPS: the clock, the orders, the bubbles' text and the body's
+ * motion go on, so a walk still arrives and a line still runs out, but the body is not drawn, nothing on the stage is
+ * placed, the screen behind is not sampled and the streaming layer gets no frames.
+ *
+ * Each frame advances the clock by the time since the frame before, in steps (frame-loop.js); the page's orders and
+ * the body take every step, and only the last one is drawn.
  */
 const RESTING_FPS = 30;
-/** When the next frame is due (a rAF timestamp), and the gap between frames at the current rate. */
-let last = performance.now(), dueAt = 0, gap = 0;
+/** Frames a second while the window is hidden: the World hears of an arrival within a tenth of a second. */
+const HIDDEN_FPS = 10;
 /** The last error the frame loop logged, so one that keeps recurring is reported once, not per frame. */
 let frameErr = null;
 /**
- * Frames whose timestamp was not past the one before (a zero or negative dt), and when that was last logged (ms):
+ * Frames whose timestamp was not past the one before (no time to step), and when that was last logged (ms):
  * where these timestamps come from is not known yet. Logged at most once a minute, with the count so far. The first frame is
- * left out: `last` starts at the page's clock, which may be ahead of the first frame's timestamp.
+ * left out: the loop starts its count at the page's clock, which may be ahead of the first frame's timestamp.
  */
 let stalls = 0, stallLoggedAt = -Infinity, framed = false;
-function frame(now) {
-  // frames stop coming while the window is hidden or occluded, which `rendering()` reads
-  lastFrameAt = performance.now();
-  // a display refresh up to a quarter gap early counts as on time, so the rate averages out over refresh rates it does not divide
-  if (now < dueAt - gap / 4) { requestAnimationFrame(frame); return; }
+function frame(steps, now, last) {
+  const drawn = windowShown;
   if (framed && now <= last) {
     stalls++;
     if (performance.now() - stallLoggedAt > 60_000) {
@@ -1810,36 +1832,36 @@ function frame(now) {
     }
   }
   framed = true;
-  const dt = Math.min(.05, (now - last) / 1000); last = now;
   try {
-    T += dt;
-    stepActs();
-    stepDialog(dt);
-    stepTalkRead(dt);
-    stepTalkMotion();
-    stepLines();
-    stepStatus();
-    setBody({ dialogOpen: !!item || !!listen.phase });
-    body?.tick(dt);
-    stepBackdrop(dt);
-    stepTools();
-    layout(dt);
-    // the frame's own time, so the layer shows frames as far apart as they were drawn
-    if (overlayOn) host.overlayFrame(overlayRect(), performance.timeOrigin + now);
+    steps.forEach((dt, i) => {
+      T += dt;
+      stepActs();
+      stepDialog(dt);
+      stepTalkRead(dt);
+      stepTalkMotion();
+      stepLines();
+      stepStatus();
+      setBody({ dialogOpen: !!item || !!listen.phase });
+      body?.tick(dt, drawn && i === steps.length - 1);
+    });
+    if (drawn) {
+      const dt = steps.reduce((a, b) => a + b, 0);
+      stepBackdrop(dt);
+      stepTools();
+      layout(dt);
+      // the frame's own time, so the layer shows frames as far apart as they were drawn
+      if (overlayOn) host.overlayFrame(overlayRect(), performance.timeOrigin + now);
+    }
   } catch (err) {
-    // a throwing step must not take the loop with it: the next frame is only asked for below, and
+    // a throwing step must not take the loop with it: the next frame is only asked for after this returns, and
     // without it the pet freezes for good (a broken figure throws again on every frame it draws)
     const msg = err?.message ?? String(err);
     if (msg !== frameErr) { frameErr = msg; console.error(err); }
   }
-  const full = prefs.lockFrameRate || !!at()?.moving;
+  const full = drawn && (prefs.lockFrameRate || !!at()?.moving);
   // a moving rate of 0 draws on every display refresh
-  gap = full ? (prefs.frameRate > 0 ? 1000 / prefs.frameRate : 0) : 1000 / RESTING_FPS;
-  // a frame more than a gap late starts the count again instead of drawing the missed ones back to back
-  dueAt = now - dueAt > gap ? now + gap : dueAt + gap;
-  // moving frames wait on display refreshes: a timer can wake late, which a body at rest hides and a moving one shows as stutter
-  if (full) requestAnimationFrame(frame);
-  else setTimeout(() => requestAnimationFrame(frame), Math.max(0, dueAt - gap / 4 - performance.now()));
+  return { fps: full ? prefs.frameRate : drawn ? RESTING_FPS : HIDDEN_FPS, refresh: full };
 }
 addEventListener('pagehide', reportPosition);
-requestAnimationFrame(frame);
+// drawn frames stop while the window is hidden or occluded, which `rendering()` reads
+runFrames(frame, { refreshed: () => { if (windowShown) lastFrameAt = performance.now(); } });

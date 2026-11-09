@@ -301,6 +301,16 @@ const en: PetText = {
     maxUtteranceMs: { title: 'Longest sentence' },
   },
 
+  /** Why the pet window is not open, on its lamp and the pet panel. */
+  windowReason: {
+    badHostEnv: (env: string) => `${env} is not a JSON array of strings`,
+    noElectronFile: (file: string) => `The Electron executable does not exist: ${file}`,
+    noElectron: 'No Electron to run: install the window runtime on the pet panel, or set the Electron executable in the config',
+    startFailed: (why: string) => `Failed to start: ${why}`,
+    closed: 'The window was closed',
+    exited: (code: number | null) => `The window process exited (exit code ${code})`,
+  },
+
   /** The console's Desktop pet and Voice input panels. */
   panel: {
     window: 'Pet window',
