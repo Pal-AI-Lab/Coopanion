@@ -8,7 +8,6 @@ export const S: Partial<typeof en> = {
   empty: 'Coo が設定しているアラームはありません。',
   remove: '削除',
   confirmTitle: (when) => `${when} のアラームを削除しますか？`,
-  removed: '削除しました',
   failed: (msg) => `削除できませんでした：${msg}`,
   loadFailed: (msg) => `読み込めませんでした：${msg}`,
   search: '内容や時刻で検索',

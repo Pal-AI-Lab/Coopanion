@@ -4,7 +4,7 @@
  * 子页状态由路由表达；未挂载的能力不显示页签。仅当前子页运行轮询，状态保存在挂载闭包，由调试帧或一次性 GET 填充。
  */
 
-import { actionProblem } from '../../../base/ui/problem.ts';
+import { actionProblem, listProblem } from '../../../base/ui/problem.ts';
 
 import type { Disposable } from 'cortico/web/shared/client-panel.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
@@ -119,13 +119,11 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     ui,
     lifecycle: ctx.lifecycle,
     signal: ctx.signal,
-    onNet: setNet,
     onError: (err) => ctx.onError(err),
   });
   const runlog = createRunlogView({
     ui,
     signal: ctx.signal,
-    onNet: setNet,
     onError: (err) => ctx.onError(err),
   });
   // Core 自己的存储项与配置组:按 owner 取,World / Persona / Memory 的各在自己页上。
@@ -139,8 +137,10 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     emptyText: S.configEmpty,
   });
 
+  const statusError = ui.h('div', 'read-feedback');
+  const sessionsError = ui.h('div', 'read-feedback');
   const runPane = ui.h('div', 'core-run');
-  runPane.append(run.el, ...(hasSessions ? [sessions.el] : []), events.el);
+  runPane.append(statusError, run.el, ...(hasSessions ? [sessionsError, sessions.el] : []), events.el);
 
   const panes: Record<string, HTMLElement> = {
     run: runPane,
@@ -202,11 +202,11 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     try {
       const st = await get<StatusSnapshot>('/api/status', { signal: ctx.signal });
       state.status = st;
-      setNet(true);
+      statusError.replaceChildren();
       if (current === 'run') run.render(st, state.sessions);
     } catch (err) {
       if ((err as { name?: string } | null)?.name === 'AbortError') return;
-      setNet(false);
+      statusError.replaceChildren(listProblem(view.ownerDocument, `${S.subRun}: ${err instanceof Error ? err.message : String(err)}`, undefined, refreshStatus));
       ctx.onError(err);
     }
   }
@@ -215,12 +215,14 @@ function mountHarness(ctx: FeatureContext, env: SocketEnv): Disposable | void {
     try {
       const d = await get<{ sessions?: SessionStat[] }>('/api/sessions', { signal: ctx.signal });
       state.sessions = d?.sessions ?? [];
+      sessionsError.replaceChildren();
       if (current === 'run') {
         sessions.render(state.sessions);
         run.render(state.status, state.sessions);
       }
     } catch (err) {
       if ((err as { name?: string } | null)?.name === 'AbortError') return;
+      sessionsError.replaceChildren(listProblem(view.ownerDocument, `${S.sectionSessions}: ${err instanceof Error ? err.message : String(err)}`, undefined, refreshSessions));
       ctx.onError(err);
     }
   }

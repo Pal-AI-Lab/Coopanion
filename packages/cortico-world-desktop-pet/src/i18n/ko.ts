@@ -237,6 +237,7 @@ const ko: Translation<PetText> = {
     frameRate: { title: '프레임 레이트', description: '펫이 걷거나, 들려 있거나, 점프할 때 초당 그리는 프레임 수입니다. 0이면 디스플레이를 따릅니다. 디스플레이 주사율보다 높으면 디스플레이 주사율이 적용됩니다. 습관 페이지에서는 60, 120, 144, 무제한 중에서 고를 수 있습니다.' },
     lockFrameRate: { title: '프레임 레이트 고정', description: '가만히 있을 때도 프레임 레이트대로 펫을 그립니다. 끄면 서 있거나, 앉아 있거나, 잠든 동안 초당 30프레임으로 낮춥니다.' },
     hideWhenFullscreen: { title: '전체 화면일 때 숨기기', description: '켜면 앞에 있는 창이 펫이 있는 화면을 가득 채우는 동안(게임, 전체 화면 동영상, 전체 화면 브라우저) 펫을 숨기고, 전체 화면이 끝나면 다시 보여 줍니다. 최대화된 창은 해당하지 않습니다. 끄면 항상 맨 위에 떠 있습니다.' },
+    passWhenFullscreen: { title: "전체 화면일 때 클릭이 Coo를 통과", description: "켜면 앞에 있는 창이 Coo가 있는 화면을 가득 채우는 동안 Coo는 그대로 보이고 모든 클릭은 Coo를 지나 아래 창으로 전달되며, 전체 화면이 끝나면 원래대로 돌아옵니다. 최대화된 창은 해당하지 않습니다. 전체 화면일 때 숨기기도 켜져 있으면 Coo는 숨습니다." },
     exportOverlay: { title: 'OBS 오버레이', description: '펫 창의 화면을 투명 배경으로 /overlay에 제공해 OBS의 「브라우저」 소스에서 쓸 수 있게 합니다. 끄면 제공하지 않습니다.' },
     electronFile: { title: 'Electron 실행 파일', description: '비워 두면 CORTICO_DESKTOP_PET_HOST를 쓰고, 없으면 패널에서 설치한 런타임을 씁니다.' },
     port: { title: '페이지 포트', description: '사용 중이면 다음 빈 포트로 올라갑니다.' },
@@ -269,6 +270,15 @@ const ko: Translation<PetText> = {
     thresholdDb: { title: '말소리 임계값' },
     silenceMs: { title: '문장을 끝내는 침묵' },
     maxUtteranceMs: { title: '최대 문장 길이' },
+  },
+
+  windowReason: {
+    badHostEnv: (env: string) => `${env}이(가) 문자열 JSON 배열이 아닙니다`,
+    noElectronFile: (file: string) => `Electron 실행 파일이 없습니다: ${file}`,
+    noElectron: '사용할 Electron이 없습니다. 데스크톱 펫 패널에서 창 런타임을 설치하거나 설정에서 Electron 실행 파일을 지정하세요',
+    startFailed: (why: string) => `시작하지 못했습니다: ${why}`,
+    closed: '창이 닫혔습니다',
+    exited: (code: number | null) => `창 프로세스가 종료되었습니다(종료 코드 ${code})`,
   },
 
   panel: {

@@ -33,3 +33,8 @@ for (const [path, info] of Object.entries(result.metafile.outputs)) {
   if (path.endsWith('.map')) continue;
   console.log(`${path.replace(/\\/g, '/')}  ${(info.bytes / 1024).toFixed(1)} KB`);
 }
+
+await esbuild.build({
+  entryPoints: [`${root}src/webui/dress-dialog.ts`],
+  outdir: `${root}web/dist`, bundle: true, format: 'esm', target: 'es2022', platform: 'browser', minify: true,
+});

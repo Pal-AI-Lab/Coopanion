@@ -5,7 +5,7 @@ export const S: Partial<typeof en> = {
   pageTitle: 'Modellverbindungen', navLabel: 'Modellverbindungen', navGroup: 'Core', create: '+ Neue Verbindungsinstanz', newName: 'Unbenannte Instanz',
   createHint: 'Eine Instanz ist ein Satz Anbieter-Einstellungen, gespeichert als Karte.',
   empty: 'Noch keine Modellverbindungen', emptyHint: 'Füge eine Modellverbindung hinzu, um Inferenz zu ermöglichen.',
-  connect: 'Verbinden', activate: 'Als aktuelle Verbindung festlegen', active: 'Aktuelles Modell', missing: 'Aktuelle Modellverbindung fehlt: ',
+  activate: 'Als aktuelle Verbindung festlegen', active: 'Aktuelles Modell', missing: 'Aktuelle Modellverbindung fehlt: ',
   inUse: (names: string) => `Verwendet von: ${names}`, selectedBy: (names: string) => `Ausgewählt von ${names} (läuft nicht)`,
   names: (list: string[]) => list.join(', '),
   readiness: { ready: 'Verbindungsbereit', 'needs-setup': 'Einrichtung nötig', 'runtime-unavailable': 'Laufzeitumgebung nicht verfügbar', invalid: 'Ungültige Konfiguration', 'module-missing': 'Modul nicht verfügbar', draft: 'Entwurf' },

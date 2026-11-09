@@ -1,6 +1,6 @@
 /**
  * 「习惯」: the everyday settings of the desktop pet, in sections: 通用 (language, what Coo calls you, Coo's
- * name, automatic updates and anonymous usage statistics in the `companion` group), 行为与互动, 显示,
+ * name, start at login (the app's login item, through the window's preload), automatic updates and anonymous usage statistics in the `companion` group), 行为与互动, 显示,
  * 音效, 电脑操作 (features/cua) and 其他 (the OBS overlay, the Chat page's context ring). Every row names its
  * setting in the label column, except one that only refines the row above it. In each row the setting
  * comes first and what it means under it. An on/off setting is a switch; picks among several (sound
@@ -70,6 +70,7 @@ const KEYS = {
   lockFps: `${K}.window.lockFrameRate`,
   frameRate: `${K}.window.frameRate`,
   hideFullscreen: `${K}.window.hideWhenFullscreen`,
+  passFullscreen: `${K}.window.passWhenFullscreen`,
   overlay: `${K}.window.exportOverlay`,
   sound: `${K}.sound`,
   volume: `${K}.sounds.volume`,
@@ -108,7 +109,7 @@ interface TypeKeyState { enabled: boolean; hotkey: string; keyLabel: string; pro
 
 /** The pet's actions in the menu's order (the World's PET_ACTIONS), with the icon each shows. */
 const ACTIONS: ReadonlyArray<[id: string, icon: string]> = [
-  ['chat', 'chat'], ['voice', 'mic'], ['roam', 'roam_calm'], ['theme', 'moon'], ['sound', 'sound'], ['hide', 'eyeOff'], ['dress', 'shirt'],
+  ['chat', 'chat'], ['voice', 'mic'], ['roam', 'roam_calm'], ['theme', 'moon'], ['sound', 'sound'], ['hide', 'eyeOff'], ['dress', 'shirt'], ['worlds', 'boxes'],
 ];
 /** Kinds of sound (the World's SOUND_KINDS), each under `worlds.desktop-pet.sounds.<kind>`. */
 const SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk', 'ui'] as const;
@@ -204,6 +205,9 @@ async function mount(ctx: PageContext): Promise<void> {
     { size: 'sm', onSelect: (v) => void save(KEYS.frameRate, Number(v), GROUP, frameRate.el) });
   const lockFps = ui.checkbox(S.lockFps, { onChange: (on) => void save(KEYS.lockFps, on, GROUP, lockFps.el) });
   const hideFullscreen = ui.checkbox(S.hideFullscreen, { onChange: (on) => void save(KEYS.hideFullscreen, on, GROUP, hideFullscreen.el) });
+  const passFullscreen = ui.checkbox(S.passFullscreen, { onChange: (on) => void save(KEYS.passFullscreen, on, GROUP, passFullscreen.el) });
+  const fullscreenBox = ui.h('div', 'companion-checks');
+  fullscreenBox.append(hideFullscreen.el, passFullscreen.el);
   const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on, GROUP, remember.el) });
   const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on, GROUP, dblclick.el) });
   const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on, GROUP, statusBubble.el) });
@@ -381,11 +385,16 @@ async function mount(ctx: PageContext): Promise<void> {
     r.append(l, c);
     return r;
   };
-  // the World declares this setting on Windows only; elsewhere its value never arrives and the row stays hidden
-  const hideFullscreenRow = row(S.hideFullscreenLabel, hideFullscreen.el, S.hideFullscreenHint);
+  // the World declares these settings on Windows only; elsewhere their values never arrive and the row stays hidden
+  const hideFullscreenRow = row(S.hideFullscreenLabel, fullscreenBox, [S.hideFullscreenHint, S.passFullscreenHint]);
   hideFullscreenRow.hidden = true;
   const autoUpdateRow = row(S.autoUpdateLabel, autoUpdate.el, S.autoUpdateHint);
   autoUpdateRow.hidden = true;
+  // the app's login item, read and written through the window's preload; absent in a browser and in a build that is not packaged
+  const loginItem = root.ownerDocument.defaultView?.coopanionWindow?.loginItem;
+  const launchAtLogin = ui.checkbox(S.launchAtLogin, { checked: loginItem?.get() ?? false, onChange: (on) => loginItem?.set(on) });
+  const launchAtLoginRow = row(S.launchAtLoginLabel, launchAtLogin.el);
+  launchAtLoginRow.hidden = !loginItem;
 
   // sections: general, how Coo behaves and is reached, how it shows on the screen, sounds, computer use;
   // every row names its setting on the left, except one that only refines the row above it
@@ -393,6 +402,7 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.language, language, S.languageHint),
     row(S.user, user, S.userHint),
     row(S.botName, botName, S.botNameHint),
+    launchAtLoginRow,
     autoUpdateRow,
     row(S.statsLabel, statsBox, S.statsHint),
   );
@@ -661,6 +671,7 @@ async function mount(ctx: PageContext): Promise<void> {
     }
     if (typeof values[KEYS.lockFps] === 'boolean') lockFps.setChecked(values[KEYS.lockFps] as boolean);
     if (typeof values[KEYS.hideFullscreen] === 'boolean') { hideFullscreen.setChecked(values[KEYS.hideFullscreen] as boolean); hideFullscreenRow.hidden = false; }
+    if (typeof values[KEYS.passFullscreen] === 'boolean') passFullscreen.setChecked(values[KEYS.passFullscreen] as boolean);
     if (typeof values[KEYS.remember] === 'boolean') remember.setChecked(values[KEYS.remember] as boolean);
     if (typeof values[KEYS.dblclick] === 'boolean') dblclick.setChecked(values[KEYS.dblclick] as boolean);
     if (typeof values[KEYS.statusBubble] === 'boolean') statusBubble.setChecked(values[KEYS.statusBubble] as boolean);

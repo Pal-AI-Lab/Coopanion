@@ -8,7 +8,6 @@ export const S: Partial<typeof en> = {
   empty: 'Coo hat keine Wecker gestellt.',
   remove: 'Löschen',
   confirmTitle: (when) => `Wecker für ${when} löschen?`,
-  removed: 'Gelöscht',
   failed: (msg) => `Löschen fehlgeschlagen: ${msg}`,
   loadFailed: (msg) => `Laden fehlgeschlagen: ${msg}`,
   search: 'Notiz oder Uhrzeit suchen',

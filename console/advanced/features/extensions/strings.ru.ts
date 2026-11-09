@@ -20,7 +20,6 @@ export const S: Partial<typeof en> = {
   stateInstalledPendingRestart: "Установлено, ожидает перезапуска",
   stateRemoved: 'Удалено, ожидает перезапуска',
   disabled: 'Установлено, не загружено',
-  worldNotLoaded: 'Установлено; загрузите в обзоре World',
   template: 'Установлено; можно создавать экземпляры',
 
   restartConfirmTitle: 'Перезапустить процесс?',
@@ -39,7 +38,7 @@ export const S: Partial<typeof en> = {
   updateAction: 'Обновить',
   updateCheckFailed: (detail: string) => `Не удалось проверить обновления: ${detail}`,
   noteWebUiMissing: 'Нет сборки для браузера. Соберите её в папке расширения и перезапустите процесс.',
-  listLoadFailed: (msg: string) => `Не удалось загрузить список расширений: ${msg}`,
+  listLoadFailed: (msg: string) => `Не удалось прочитать список установленных расширений; актуальный статус установки неизвестен. Причина: ${msg}`,
   remove: 'Удалить расширение',
   removeInUse: 'Используется Coo. Отключите перед удалением.',
   removeInUseProvider: 'Этот провайдер ещё использует подключение к модели. Сначала удалите это подключение.',
@@ -54,7 +53,6 @@ export const S: Partial<typeof en> = {
   completed: (action: string, name: string) => `${action} ${name}: готово.`,
   restartNeeded: 'Расширения вступят в силу после перезапуска процесса.',
   worldActivateHint: 'Если World не активен, активируйте его на странице «Обзор World».',
-  syncedFailed: 'Операция выполнена, но список не синхронизирован. Обновите, чтобы повторить.',
 
   filterPlaceholder: 'Фильтр: имя, описание, ключевые слова',
   sortLabel: {

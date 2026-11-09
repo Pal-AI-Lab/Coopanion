@@ -1,6 +1,8 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  launchAtLoginLabel: "Avvio automatico",
+  launchAtLogin: "Avvia Coopanion all’accesso",
   autoUpdateLabel: "Aggiornamenti automatici",
   autoUpdate: "Scarica e installa gli aggiornamenti automaticamente",
   autoUpdateHint: "Scarica gli aggiornamenti automaticamente e li installa alla chiusura. Disattivando questa opzione, ricerca e download si interrompono subito e gli aggiornamenti già scaricati non vengono installati automaticamente.",
@@ -29,6 +31,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: 'Disegna alla frequenza qui sopra anche da fermo; se disattivato, da fermo scende a 30 fotogrammi al secondo.',
   hideFullscreen: 'Nascondi automaticamente',
   hideFullscreenHint: "Si nasconde a schermo intero e ricompare all'uscita. Una finestra ingrandita non conta.",
+  passFullscreen: "Lascia passare i clic attraverso Coo",
+  passFullscreenHint: "Quando i clic passano attraverso, Coo resta visibile e i clic arrivano alla finestra sotto.",
   soundTitle: 'Suoni',
   worldScope: "Le funzioni aggiunte da altre estensioni World non dipendono da questo interruttore; impostale nella pagina di ogni World.",
   sound: 'Riproduci suoni',
@@ -87,7 +91,7 @@ export const S: Partial<typeof en> = {
   selfItems: { figure: 'Personaggio', scheme: 'Abiti', roam: 'Movimento', snoreSeconds: 'Durata del russare', sound: 'Suoni', scale: 'Dimensione', bubbleSize: 'Dimensione dei fumetti', fontSize: 'Dimensione del testo', theme: 'Modalità notte', hoverButtons: 'Pulsanti al passaggio', user: 'Come chiamarti' },
   popupSave: 'Salva',
   popupCancel: 'Annulla',
-  actions: { chat: 'Scrivi', voice: 'Input vocale', roam: 'Movimento', theme: 'Modalità notte', sound: 'Suoni', dress: 'Guardaroba', hide: "Nascondi l'animaletto" },
+  actions: { chat: 'Scrivi', voice: 'Input vocale', roam: 'Movimento', theme: 'Modalità notte', sound: 'Suoni', dress: 'Guardaroba', hide: "Nascondi l'animaletto", worlds: 'I miei World' },
   saveFailed: (why: string) => `Non salvato: ${why}`,
   stats: "Statistiche d'uso anonime",
   statsHint: "Invia conteggi, tempo d'uso e impostazioni; mai conversazioni, chiavi o file.",

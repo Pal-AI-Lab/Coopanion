@@ -117,8 +117,9 @@ const HITS = [[128, 128, 108]];
  *   face `like` (the figure gets the word as `frame.face` and may draw it its own way);
  *   `{ id: { motion: { seconds, face?, sound? } } }` is a gesture the figure draws from `frame.gesture`.
  * `opts.figure` draws the body: `figure.draw(petG, face, frame)` keeps its own elements inside `petG` (logo space,
- * feet at y=256). Its frame adds the face's name, the mode, how long the mode has run, the talk level,
- * drowsiness, how far the body sits, and `status`: the kind of work the page's status bubble shows (src/status.ts), or null.
+ * feet at y=256), once for every frame drawn, rest included, so it should write only what changed. Its frame adds
+ * the face's name, the mode, how long the mode has run, the talk level, drowsiness, how far the body sits, and
+ * `status`: the kind of work the page's status bubble shows (src/status.ts), or null.
  * `figure.groupTilt(mode, tilt, lean)`, if present, returns the rotation (degrees) the whole group gets
  * instead of tilt + lean; the frame carries tilt, lean and that rotation (groupRot) so the figure can bend the rest.
  * `figure.colors.z`, if present, colours the sleep z's (otherwise they take the `eye` class).
@@ -372,7 +373,8 @@ export function createPet(els, opts) {
     const m = pet.mode, mt = pet.modeT;
     let sqT = 0, strideT = 0, liftT = 0, leanT = 0, sitT = 0, bobT = 0, rate = 0, lookT = [0, 0], tiltT = 0;
     let tk = 160, tc = 12, drowseT = 0;
-    const free = roam !== 'off' && T > hold && !opts.dialogOpen?.();
+    const still = !!opts.still?.();
+    const free = roam !== 'off' && T > hold && !opts.dialogOpen?.() && !still;
 
     pet.blinkT -= dt; pet.blinkAge += dt;
     if (pet.blinkT <= 0) { pet.blinkAge = 0; pet.blinkT = Math.random() < .2 ? .28 : rnd(2.2, 5.2); }
@@ -400,6 +402,8 @@ export function createPet(els, opts) {
         break;
       }
       case 'walk': case 'run': {
+        // held still: the walk waits where it is, standing, and goes on once released
+        if (still) { pet.speed = 0; lookT = track(); break; }
         const run = m === 'run', d = pet.target - pet.x, dy = pet.targetY - pet.gy, dist = Math.hypot(d, dy), dir = Math.sign(d) || pet.facing;
         // a free body walking up or down the stage keeps the way it faces
         if (!freeGround || Math.abs(d) > 2) pet.facing = dir;
@@ -662,7 +666,13 @@ export function createPet(els, opts) {
     else pet.nextAt = T + rnd(.8, 2);
   }
 
-  function render() {
+  /** What render last wrote into the group's transform, the shadow and the particles; the same value is not written again. */
+  const drawn = { xf: '', shadow: '', fx: '' };
+  /**
+   * Places the body for this frame (`pet.xf`, which `layout` and the hit tests read) and, unless `draw` is false,
+   * draws it: the figure into `petG`, the shadow and the particles.
+   */
+  function render(draw = true) {
     const fc = pet._fc || FACES.neutral.f(0), fname = pet._fname || 'neutral';
     const drag = pet.mode === 'drag';
     const br = Math.sin(T * (pet.mode === 'sleep' ? 1.7 : 2.4));
@@ -676,7 +686,9 @@ export function createPet(els, opts) {
     const kx = S * pet.faceVis * sx, ky = S * sy, lean = pet.lean * pet.faceVis;
     const rot = custom?.groupTilt ? custom.groupTilt(pet.mode, pet.tilt, lean) : pet.tilt + lean;
     pet.xf = { AX, AY, ax, ay, kx, ky, rot };
-    petG.setAttribute('transform', `translate(${f(AX)} ${f(AY)}) rotate(${f(rot)}) scale(${kx.toFixed(4)} ${ky.toFixed(4)}) translate(${-ax} ${-ay})`);
+    if (!draw) return fname;
+    const xf = `translate(${f(AX)} ${f(AY)}) rotate(${f(rot)}) scale(${kx.toFixed(4)} ${ky.toFixed(4)}) translate(${-ax} ${-ay})`;
+    if (xf !== drawn.xf) { petG.setAttribute('transform', xf); drawn.xf = xf; }
 
     const legs = pet.feet.map((ft, i) => [HIPS[i][0], HIPS[i][1] + pet.low, ft[0], ft[1]]);
     // drowsy blinks are slower
@@ -695,9 +707,11 @@ export function createPet(els, opts) {
     // a free body held up casts its shadow just under it, there being no floor below it to fall to
     const shadowY = freeGround && drag ? footY + 40 * S : groundY();
     const k = clamp(1 - (shadowY - footY) / 420, .3, 1);
-    shadowEl.setAttribute('cx', f(AX)); shadowEl.setAttribute('cy', f(shadowY - 2));
-    shadowEl.setAttribute('rx', f(72 * S * k * (1 + pet.sq * .5))); shadowEl.setAttribute('ry', f(10 * S * k + 1));
-    shadowEl.setAttribute('opacity', f(k));
+    const shadow = [f(AX), f(shadowY - 2), f(72 * S * k * (1 + pet.sq * .5)), f(10 * S * k + 1), f(k)];
+    if (shadow.join() !== drawn.shadow) {
+      ['cx', 'cy', 'rx', 'ry', 'opacity'].forEach((name, i) => shadowEl.setAttribute(name, shadow[i]));
+      drawn.shadow = shadow.join();
+    }
 
     let s = '';
     const sc = S / .48;
@@ -719,7 +733,7 @@ export function createPet(els, opts) {
         s += `<path class="tearf" transform="translate(${f(p.x)} ${f(p.y)}) scale(${f(.9 * sc)})" d="${DROP}"/>`;
       }
     }
-    fxG.innerHTML = s;
+    if (s !== drawn.fx) { fxG.innerHTML = s; drawn.fx = s; }
     return fname;
   }
 
@@ -927,8 +941,8 @@ const SVGNS = 'http://www.w3.org/2000/svg';
  * gives the stage point to walk to for those params (bounds as `bounds()` gives them, with `minX` `maxX` `minY`);
  * null, or a target it does not name, answers the move `busy`.
  *
- * The body takes these calls from the page: step(dt), layout(), do(word), walk(x, run, id), stopWalk(id), pointer(type, p),
- * drop(p), shift(dx, dy), place(x, facing, y), move(args, id), set({ roam, hold, dialogOpen, listening, thinking, thoughtShown, status, skin, theme }),
+ * The body takes these calls from the page: step(dt, draw), layout(), do(word), walk(x, run, id), stopWalk(id), pointer(type, p),
+ * drop(p), shift(dx, dy), place(x, facing, y), move(args, id), set({ roam, hold, dialogOpen, still, listening, thinking, thoughtShown, status, skin, theme }),
  * cue(kind), talk(), setScheme(id, o), dispose(); `words` lists every word its do() knows.
  */
 export function createBody(host, opts) {
@@ -946,7 +960,7 @@ export function createBody(host, opts) {
   doc.head.appendChild(skinStyle);
   const start = host.start ?? {};
   if (opts.skinCss && start.skin) skinStyle.textContent = opts.skinCss(start.skin);
-  let dialogOpen = false;
+  let dialogOpen = false, still = false;
   const ctl = createPet({ petG, shadowEl, fxG }, {
     ...opts,
     skin: start.skin ?? null, startX: start.x, startY: start.y, enter: start.enter,
@@ -954,10 +968,11 @@ export function createBody(host, opts) {
     onEvent: host.emit,
     sfx: { play: host.sound },
     dialogOpen: () => dialogOpen,
+    still: () => still,
   });
   if (start.facing === 1 || start.facing === -1) ctl.pet.facing = ctl.pet.faceVis = start.facing;
   return {
-    step(dt) { ctl.step(dt); ctl.render(); },
+    step(dt, draw = true) { ctl.step(dt); ctl.render(draw); },
     layout: ctl.layout,
     resize: ctl.resize,
     do: ctl.doWord,
@@ -989,6 +1004,7 @@ export function createBody(host, opts) {
       if (s.roam) ctl.setRoam(s.roam);
       if (typeof s.hold === 'number') ctl.holdRoam(s.hold);
       if (typeof s.dialogOpen === 'boolean') dialogOpen = s.dialogOpen;
+      if (typeof s.still === 'boolean') still = s.still;
       if (typeof s.listening === 'boolean') ctl.setListening(s.listening);
       if (typeof s.thinking === 'boolean') ctl.setThinking(s.thinking);
       if (typeof s.thoughtShown === 'boolean') ctl.setThoughtShown(s.thoughtShown);

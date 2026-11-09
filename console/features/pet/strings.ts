@@ -10,6 +10,8 @@ import { S as it } from './strings.it.ts';
 import { S as ru } from './strings.ru.ts';
 
 const zh = {
+  launchAtLoginLabel: "开机启动",
+  launchAtLogin: "开机时自动启动 Coopanion",
   autoUpdateLabel: "自动更新",
   autoUpdate: "自动下载和安装更新",
   autoUpdateHint: "自动下载并在退出时安装更新。关闭后立即停止检查和下载，已下载的更新也不会自动安装。",
@@ -38,6 +40,8 @@ const zh = {
   lockFpsHint: '静止时也按上方帧率绘制；关闭时静止状态降至 30 帧。',
   hideFullscreen: '自动隐藏',
   hideFullscreenHint: '全屏时隐藏，退出全屏后恢复显示。最大化窗口不算全屏。',
+  passFullscreen: "鼠标穿透",
+  passFullscreenHint: "鼠标穿透时 Coo 照常显示，点击落到下面的窗口。",
   soundTitle: '音效',
   worldScope: "由其他 World 扩展补充的功能不受此开关影响，请在对应 World 页面设置。",
   sound: '播放音效',
@@ -96,7 +100,7 @@ const zh = {
   selfItems: { figure: '形象', scheme: '配色', roam: '走动', snoreSeconds: '呼噜时长', sound: '音效', scale: '大小', bubbleSize: '气泡尺寸', fontSize: '字体尺寸', theme: '夜间模式', hoverButtons: '悬停按钮', user: '称呼' } as Record<string, string>,
   popupSave: '保存',
   popupCancel: '取消',
-  actions: { chat: '打字', voice: '语音输入', roam: '走动', theme: '夜间模式', sound: '音效', dress: '装扮', hide: '隐藏桌宠' } as Record<string, string>,
+  actions: { chat: '打字', voice: '语音输入', roam: '走动', theme: '夜间模式', sound: '音效', dress: '装扮', hide: '隐藏桌宠', worlds: '我的 World' } as Record<string, string>,
   saveFailed: (why: string) => `保存失败：${why}`,
   stats: '发送匿名使用统计',
   statsHint: '发送使用次数、时长和设置，不含对话内容、Key 和文件。',
@@ -126,6 +130,8 @@ const zh = {
 };
 
 export const en: typeof zh = {
+  launchAtLoginLabel: "Start at login",
+  launchAtLogin: "Start Coopanion when you sign in",
   autoUpdateLabel: "Automatic updates",
   autoUpdate: "Download and install updates automatically",
   autoUpdateHint: "Download updates automatically and install them when you quit. Turning this off stops checks and downloads immediately and prevents downloaded updates from installing automatically.",
@@ -154,6 +160,8 @@ export const en: typeof zh = {
   lockFpsHint: 'Draws at the rate above at rest too; when off, rest drops to 30 frames a second.',
   hideFullscreen: 'Hide automatically',
   hideFullscreenHint: 'Hides while something is full screen and comes back after. A maximized window does not count.',
+  passFullscreen: "Let clicks pass through Coo",
+  passFullscreenHint: "With clicks passing through, Coo stays visible and clicks go to the window below.",
   soundTitle: 'Sounds',
   worldScope: "Features added by other World extensions are not affected by this switch; set them on that World's page.",
   sound: 'Play sounds',
@@ -212,7 +220,7 @@ export const en: typeof zh = {
   selfItems: { figure: 'Figure', scheme: 'Dress', roam: 'Walking', snoreSeconds: 'Snore length', sound: 'Sounds', scale: 'Size', bubbleSize: 'Bubble size', fontSize: 'Text size', theme: 'Night mode', hoverButtons: 'Hover buttons', user: 'Your name' },
   popupSave: 'Save',
   popupCancel: 'Cancel',
-  actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', dress: 'Dress up', hide: 'Hide pet' } as Record<string, string>,
+  actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', dress: 'Dress up', hide: 'Hide pet', worlds: 'My Worlds' } as Record<string, string>,
   saveFailed: (why: string) => `Not saved: ${why}`,
   stats: 'Send anonymous usage statistics',
   statsHint: 'Sends counts, time used and settings; never conversations, keys or files.',

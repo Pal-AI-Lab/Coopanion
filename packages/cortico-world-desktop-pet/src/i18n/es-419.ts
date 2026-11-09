@@ -237,6 +237,7 @@ const es419: Translation<PetText> = {
     frameRate: { title: 'Velocidad de fotogramas', description: 'Fotogramas por segundo mientras la mascota camina, cuelga del puntero o salta; 0 sigue a la pantalla. Por encima de la frecuencia de actualización de la pantalla, se usa la de la pantalla. La página Hábitos ofrece 60, 120, 144 y Sin límite.' },
     lockFrameRate: { title: 'Fijar velocidad de fotogramas', description: 'También dibuja la mascota a esa velocidad en reposo. Si está desactivado, baja a 30 fotogramas por segundo mientras está de pie, se sienta o duerme.' },
     hideWhenFullscreen: { title: 'Ocultar en pantalla completa', description: 'Si está activado, la mascota se oculta mientras la ventana del frente ocupa toda la pantalla donde está (un juego, un video en pantalla completa, un navegador en pantalla completa) y vuelve cuando termina la pantalla completa; una ventana maximizada no cuenta. Si está desactivado, siempre queda encima.' },
+    passWhenFullscreen: { title: "Dejar pasar los clics en pantalla completa", description: "Si está activado, mientras la ventana del frente ocupa toda la pantalla de Coo, Coo sigue visible y cada clic pasa a través de él a la ventana de abajo, hasta que termina la pantalla completa; una ventana maximizada no cuenta. Si «Ocultar en pantalla completa» también está activado, Coo se oculta." },
     exportOverlay: { title: 'Overlay de OBS', description: 'Sirve la imagen de la ventana de la mascota con fondo transparente en /overlay para una fuente «Navegador» de OBS; si está desactivado, no se sirve nada.' },
     electronFile: { title: 'Ejecutable de Electron', description: 'Si está vacío, se usa CORTICO_DESKTOP_PET_HOST y luego el entorno instalado desde el panel.' },
     port: { title: 'Puerto de la página', description: 'Si está ocupado, pasa al siguiente puerto libre.' },
@@ -269,6 +270,15 @@ const es419: Translation<PetText> = {
     thresholdDb: { title: 'Umbral de voz' },
     silenceMs: { title: 'Silencio que termina una frase' },
     maxUtteranceMs: { title: 'Frase más larga' },
+  },
+
+  windowReason: {
+    badHostEnv: (env: string) => `${env} no es un arreglo JSON de cadenas`,
+    noElectronFile: (file: string) => `El ejecutable de Electron no existe: ${file}`,
+    noElectron: 'No hay Electron disponible: instala el entorno de ejecución de la ventana en el panel de la mascota o indica el ejecutable de Electron en la configuración',
+    startFailed: (why: string) => `No se pudo iniciar: ${why}`,
+    closed: 'La ventana se cerró',
+    exited: (code: number | null) => `El proceso de la ventana terminó (código de salida ${code})`,
   },
 
   panel: {
