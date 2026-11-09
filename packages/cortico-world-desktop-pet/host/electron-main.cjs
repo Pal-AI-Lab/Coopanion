@@ -6,8 +6,9 @@
  * the window closes once that process exits. The window covers the work area of one display
  * (the primary one at start), short of the edge an auto-hidden taskbar waits on, is transparent
  * and always on top, and ignores the mouse until the page reports the pointer is over the figure,
- * a bubble or the menu. On GNOME it is a dock window instead, which goes below every window while one
- * is full screen on its display. When the pet is carried onto
+ * a bubble or the menu; in a Wayland session it takes the mouse only over the parts of the page
+ * the page reports (input-shape.cjs). On GNOME it is a dock window instead, which goes below every
+ * window while one is full screen on its display. When the pet is carried onto
  * another display, the window moves to that display mid-drag; when its display is unplugged, it
  * moves to the primary one. A tray icon shows, hides and closes it; an embedding app that has its
  * own tray passes `tray: false`.
@@ -24,6 +25,7 @@ const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen, session, s
 const { join } = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { createCursorSource } = require('./cursor.cjs');
+const { createInputShape } = require('./input-shape.cjs');
 const { createMouseLease, FORWARD_MOVES } = require('./mouse-lease.cjs');
 const { createOverlaySource } = require('./overlay.cjs');
 const { createWindowSource, ledgesFrom, windowsFrom } = require('./windows.cjs');
@@ -329,8 +331,11 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   const onPet = (channel, fn) => ipcMain.on(channel, (e, ...args) => { if (fromPet(e)) fn(e, ...args); });
   const handlePet = (channel, fn) => ipcMain.handle(channel, (e, ...args) => (fromPet(e) ? fn(e, ...args) : null));
   let win = null, tray = null, dress = null, cursor;
+  // in a Wayland session the window takes the mouse over the rects the page reports, elsewhere as a whole
+  const shape = createInputShape({ screen });
+  app.once('will-quit', () => shape?.close());
   // who holds the mouse, and when it is given back
-  const mouse = createMouseLease({ getWindow: () => win });
+  const mouse = createMouseLease({ getWindow: () => win, shape });
   // the window as an OBS layer, while the World asks for it
   const key = new URLSearchParams(new URL(url).hash.slice(1)).get('key');
   const overlay = createOverlaySource({ origin, key, getWindow: () => win });
@@ -433,7 +438,11 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       if ((input.control || input.meta) && (['-', '_', '=', '+', '0'].includes(input.key) || ['NumpadAdd', 'NumpadSubtract', 'Numpad0'].includes(input.code))) event.preventDefault();
     });
     // a page loaded afresh asks for the windows again once its body is on
-    win.webContents.on('did-finish-load', () => { win.webContents.setZoomLevel(0); overlay.pageLoaded(); watchWindows(false); win.webContents.send('pet:floor', coverArea(display()).below); win.webContents.send('pet:fullscreenThrough', fullscreenThrough); });
+    win.webContents.on('did-finish-load', () => {
+      win.webContents.setZoomLevel(0); overlay.pageLoaded(); watchWindows(false); win.webContents.send('pet:floor', coverArea(display()).below);
+      win.webContents.send('pet:fullscreenThrough', fullscreenThrough);
+      if (shape) win.webContents.send('pet:inputShape', true);
+    });
     // The page learns where the cursor is even when the click-through window misses its moves, and
     // it renews the mouse lease in its answer to every report: the report goes out on every tick,
     // not only when the pointer moved, so a cursor that rests still still gets a verdict.
@@ -484,7 +493,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     dress.loadURL(target);
   };
 
-  onPet('pet:interactive', (_e, on) => mouse.ask(on));
+  onPet('pet:interactive', (_e, on) => { if (!shape) mouse.ask(on); });
+  onPet('pet:inputRects', (_e, rects) => { if (shape && Array.isArray(rects)) mouse.ask(rects); });
   onPet('pet:focus', () => {
     if (!win) return;
     // Explicit text input activates this menu-bar process as well as its window.
