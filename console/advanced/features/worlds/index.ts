@@ -13,7 +13,7 @@ import { fitColumn } from '../../../base/ui/fit-column.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { mountExtensionContent, iconUrl, removalBlockReason, type ExtensionView, type ExtensionController } from '../extensions/index.ts';
 import { S as E } from '../extensions/strings.ts';
-import { worldLibrary, needsRestart, type WorldLibraryItem } from './library.ts';
+import { worldLibrary, needsRestart, updatePending, type WorldLibraryItem } from './library.ts';
 import { addGroup, arrangeLayout, groupToken, moveGroup, moveItem, readLayout, removeGroup, writeLayout, type WorldGroup, type WorldLayout } from './groups.ts';
 import { S } from './strings.ts';
 import { S as UI } from '../../../base/ui/strings.ts';
@@ -625,8 +625,12 @@ export function mountWorlds(ctx: FeatureContext): void {
       const owner = market, details = ui.h('button', 'world-name', item.label) as HTMLButtonElement; details.type = 'button';
       details.addEventListener('click', () => owner.details(pack.name), { signal }); heading.append(details);
     } else heading.append(ui.h('span', 'world-name', item.label));
-    // An available update shows beside the name and opens the same page, where the update is.
-    if (pack && market) {
+    // An installed update waits for the restart, which its icon offers; an available one shows beside
+    // the name and opens the same page, where the update is.
+    if (pack && market && updatePending(item)) {
+      const owner = market;
+      heading.append(iconButton('refresh', S.updatePendingRestart(pack.version ?? '?', pack.installedVersion ?? '?'), 'world-name-update world-name-pending', () => void owner.restart()));
+    } else if (pack && market) {
       const owner = market, update = updatable.get(pack.name);
       if (update) heading.append(iconButton('update', S.updateAvailable(update.installedVersion, update.latestVersion), 'world-name-update', () => owner.details(pack.name)));
     }

@@ -458,6 +458,8 @@ export interface ExtensionController {
   /** Opens the package's install information: installed version, location and releases. */
   details(name: string): void;
   remove(name: string, anchor: Anchor): Promise<void>;
+  /** Restarts the process, as the restart control does: asks first, then reloads the page once it is back. */
+  restart(): Promise<void>;
 }
 
 export function mountExtensionContent(ctx: FeatureContext, kind: Category, workspace?: ExtensionWorkspace): ExtensionController {
@@ -2016,5 +2018,5 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     // Whether a provider is in use depends on the connections under Settings, which may have changed.
     if (kind === 'provider') void load();
   };
-  return { details, remove, activate, refresh: load };
+  return { details, remove, activate, restart, refresh: load };
 }
