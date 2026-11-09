@@ -8,6 +8,7 @@ import { actionProblem, listProblem } from '../../../../shared/ui/problem.ts';
  */
 import type { WebUiClientBundle, WebUiPanel, WebUiPanelContext } from 'cortico/web/shared/client-panel.ts';
 import { petText } from '../i18n/index.ts';
+import { describeHostReason, type HostReason } from '../host-reason.ts';
 import { captureKey, PRESSES, splitTaps, withTaps } from './key-capture.ts';
 import { apiRows, type ApiState } from './api-rows.ts';
 import './style.css';
@@ -17,7 +18,7 @@ interface PetState {
   inWindow: boolean;
   url: string | null;
   dressUrl: string | null;
-  window: { phase: string; pid: number | null; source: string | null; detail: string | null } | null;
+  window: { phase: string; pid: number | null; source: string | null; reason: HostReason | null } | null;
   electron: Artifact & { supported: boolean };
   screen: { w: number; h: number } | null;
 }
@@ -125,7 +126,7 @@ const petPanel: WebUiPanel = {
       const w = next.window;
       if (next.inWindow) win.set(t.connected, 'on');
       else if (w?.phase === 'running') win.set(t.starting, 'busy');
-      else win.set(w?.phase === 'missing' || w?.phase === 'error' ? t.cannotOpen : t.notOpen, w?.phase === 'missing' || w?.phase === 'error' ? 'bad' : 'off', w?.detail ?? '');
+      else win.set(w?.phase === 'missing' || w?.phase === 'error' ? t.cannotOpen : t.notOpen, w?.phase === 'missing' || w?.phase === 'error' ? 'bad' : 'off', w?.reason ? describeHostReason(petText(ctx.language).windowReason, w.reason) : '');
       btnOpen.disabled = w?.phase === 'running';
       btnClose.disabled = w?.phase !== 'running';
       const e = next.electron;

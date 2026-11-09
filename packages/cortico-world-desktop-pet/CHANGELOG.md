@@ -1,5 +1,6 @@
 ## Unreleased
 
+- While the pet window is hidden the page ticks the body with `draw` false (`tick { dt, draw }`, `step(dt, draw)`): the body moves on without drawing, so walks still arrive. `kit.createBody` honours it; a pack that ignores it draws as before.
 - `kit.createBody(host, { ground: 'free' })` builds a body that stands anywhere on the stage above the floor, seen from above: it walks to any point, is set down where it is let go of, and a throw tosses it across the stage. Such a body reports `y` (the stage y its feet stand on) in `layout()`, in `arrived` and `interrupted`; the World keeps it with the remembered position (`petY`, hands it back as `start.y` and `init.startY`) and names it in `pet_move_to`'s receipt. `place(x, facing, y)` takes an optional `y`. Bodies without `y` behave as before.
 - `kit.createBody` answers the pack's own targets through `opts.moves`: `{ id: (params, bounds) => ({ x, y? }) | null }`.
 - Every body hears `set({ status })`, the kind of work the status bubble shows (or null); the kit hands it to the figure as `frame.status`.

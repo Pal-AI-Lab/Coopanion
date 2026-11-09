@@ -38,6 +38,13 @@ body.companion-sidebar {
    the window controls, so the space before it is worked out from the same start: four 32px buttons and
    their 2px gaps come first. */
 .companion-titlebar[data-platform="darwin"] .companion-titlebar-release { margin-left: max(8px, calc(var(--rail-width) - 1px - var(--titlebar-actions-left) - 4 * (32px + 2px))); }
+/* Dialogs and the picture viewer cover the page, not the title bar: the system's window controls sit over
+   the bar and no overlay reaches them, so the bar stays as it is, still dragging the window. Its own
+   buttons wait while one is open. */
+body.companion-sidebar .modal { top: var(--titlebar-height); }
+body.companion-sidebar .extension-lightbox { top: var(--titlebar-height); height: calc(100dvh - var(--titlebar-height)); }
+body.companion-sidebar .extension-lightbox::backdrop { top: var(--titlebar-height, 36px); }
+body.companion-sidebar:has(> .modal, > .extension-lightbox[open]) .companion-titlebar button { pointer-events: none; }
 .companion-titlebar-release a { text-decoration: none; }
 .companion-titlebar-release a:hover { text-decoration: underline; }
 .companion-titlebar-release a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
@@ -114,6 +121,16 @@ body.companion-sidebar {
 }
 #rail .navitem .navicon, #rail .companion-mode .navicon { width: 20px; height: 20px; }
 #rail .navitem .lbl, #rail .companion-mode .lbl { white-space: nowrap; }
+/* Item names take up to two lines. The label keeps at least its width in the expanded rail, so its lines stay put
+   while the rail folds and unfolds: the inset is the rail's width minus the label's, 37px more for three lamps. */
+#rail .navitem { --label-inset: 84px; }
+#rail .navmodule-list .navitem { --label-inset: 77px; }
+#rail .navitem:has(> .navlamps:not([hidden])) { --label-lamps: 37px; }
+#rail .navitem .lbl {
+  flex: 1 1 auto; min-width: calc(var(--rail-width) - var(--label-inset) - var(--label-lamps, 0px));
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow: hidden; overflow-wrap: anywhere;
+}
+#rail.is-collapsed .navitem .lbl { position: absolute; }
 #rail .navitem:hover, #rail .companion-mode:hover { background: var(--hover); color: var(--foreground); }
 #rail .navitem.active { background: color-mix(in srgb, var(--accent) 11%, transparent); color: var(--foreground); }
 #rail .navitem.active::after {

@@ -13,9 +13,15 @@
   <div class="preview" id="preview" data-i18n-label="dress.preview">
     <div class="floor" id="floor" aria-hidden="true"></div>
     <div class="figure-layer" id="figureLayer"></div>
-    <p class="saved" id="saved" aria-live="polite"></p>
+    <div class="corner">
+      <p class="saved" id="saved" aria-live="polite"></p>
+      <button type="button" class="save-look" id="updateLook" hidden></button>
+      <button type="button" class="save-look" id="saveLook"></button>
+    </div>
   </div>
   <div class="dress" id="dress">
+    <h2 class="section-head first" id="lbLooks" data-i18n="looks.title"></h2><div class="slot looks" id="optLooks" role="group" aria-labelledby="lbLooks"></div>
+    <h2 class="section-head" data-i18n="dress.custom"></h2>
     <div class="row-label" id="lbFigure" data-i18n="dress.figure"></div><div class="slot" id="optFigure" role="group" aria-labelledby="lbFigure"></div>
     <div class="row-label coo-only" id="lbPalette" data-i18n="dress.palette"></div><div class="slot coo-only" id="optPalette" role="group" aria-labelledby="lbPalette"></div>
     <div class="row-label coo-only" id="lbHead" data-i18n="dress.head"></div><div class="slot coo-only" id="optHead" role="group" aria-labelledby="lbHead"></div>

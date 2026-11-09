@@ -83,6 +83,8 @@ export function createRail(deps: RailDeps): Rail {
 
   const el = ui.h('div');
   el.id = 'rail';
+  // Its entries are links and its avatar a picture: the browser would let them be dragged out of the window.
+  el.addEventListener('dragstart', (event) => event.preventDefault(), { signal });
 
   /* ---------- brand ---------- */
   const brand = ui.h('div', 'brand');

@@ -7,6 +7,10 @@ contextBridge.exposeInMainWorld('petHost', {
    * The wish is a lease the window process keeps for itself (`host/mouse-lease.cjs`).
    */
   setInteractive: (on) => ipcRenderer.send('pet:interactive', !!on),
+  /** Whether the window takes the mouse only over the rects the page reports with `setInputRects` (a Wayland session); the window process ignores `setInteractive` then. */
+  onInputShape: (cb) => ipcRenderer.on('pet:inputShape', (_e, on) => cb(!!on)),
+  /** The parts of the page that take the mouse, `{ x, y, width, height }` in page pixels; a lease like `setInteractive`'s. */
+  setInputRects: (rects) => ipcRenderer.send('pet:inputRects', rects),
   focus: () => ipcRenderer.send('pet:focus'),
   /** Takes the keyboard from whatever window has it (a question's number keys), and gives it back. */
   grabFocus: () => ipcRenderer.send('pet:grabFocus'),
@@ -16,6 +20,10 @@ contextBridge.exposeInMainWorld('petHost', {
   onShown: (cb) => ipcRenderer.on('pet:shown', (_e, shown) => cb(!!shown)),
   /** Whether the window hides itself while a fullscreen window covers its display. */
   hideWhenFullscreen: (on) => ipcRenderer.send('pet:hideWhenFullscreen', !!on),
+  /** Whether every click passes through the window while a fullscreen window covers its display. */
+  passWhenFullscreen: (on) => ipcRenderer.send('pet:passWhenFullscreen', !!on),
+  /** Whether clicks pass through right now because of that setting, each time it changes. */
+  onFullscreenThrough: (cb) => ipcRenderer.on('pet:fullscreenThrough', (_e, on) => cb(!!on)),
   /** Whether every click passes through the window (the tray's "click through"); the window process enforces it. */
   clickThrough: (on) => ipcRenderer.send('pet:clickThrough', !!on),
   openDress: () => ipcRenderer.send('pet:openDress'),

@@ -57,7 +57,7 @@ What changed in each version is in [Releases](https://github.com/Pal-AI-Lab/Coop
 
 You need:
 
-- Windows 10 / 11 (64-bit), macOS 13 or later (Apple silicon or Intel), or a 64-bit Linux desktop (X11, or XWayland under Wayland; speech recognition needs glibc 2.32 or later, which means Ubuntu 22.04, Debian 12 or newer);
+- Windows 10 / 11 (64-bit), macOS 13 or later (Apple silicon or Intel), or a 64-bit Linux desktop (X11; in a Wayland session it runs through XWayland, with the limits under [Linux](#linux); speech recognition needs glibc 2.32 or later, which means Ubuntu 22.04, Debian 12 or newer);
 - an API key from one model service, billed by usage (see [Cost and privacy](#cost-and-privacy)), or a ChatGPT account with a plan.
 
 Every release page has a `SHA256SUMS.txt` for checking the downloads.
@@ -92,6 +92,8 @@ While the App Store is in front, Coo drops behind other windows so it doesn't co
 
 > [!NOTE]
 > The pet is a transparent always-on-top window, so the desktop needs compositing (on by default in GNOME and KDE). The tray icon needs status icon support (GNOME needs the AppIndicator extension); without a tray you can still right-click Coo to open the settings. Computer use needs `xdotool` and `zenity`, which the deb pulls in; under Wayland, screenshots also need one of `grim`, `spectacle`, `scrot` or ImageMagick.
+>
+> In a Wayland session Coopanion runs through XWayland, which sees the cursor only over X11 windows. While the cursor is over the desktop or a native Wayland window, Coo's eyes do not follow it, and the hover buttons show only once the cursor moves onto Coo.
 
 ## Getting started
 
@@ -140,11 +142,13 @@ These are the defaults from the app's [vendor table](packages/cortico-provider-c
 
 Speech is recognized locally by default: FunASR for Chinese, English, Japanese and Korean, Whisper for French, German, Spanish, Portuguese, Italian and Russian, and on Windows you can also use the system recognizer. You can switch to an **OpenAI-compatible** transcription service on the Voice input page instead; each sentence you say is then sent to that service as audio.
 
-Right-click Coo to open settings, the typing box or dress up, to switch voice input, sounds and night mode on or off, and to pause / resume, hide or quit. Closing the settings window does not quit the app. The tray menu (the menu bar icon on Mac) also has **Start at login**, **Restart** and **Let clicks pass through Coo**. With click-through on, every click goes through Coo to the window below while Coo keeps walking and talking, which helps while gaming. It only lasts for the current run: click it again or quit to turn it off.
+Right-click Coo to open settings, the typing box or dress up, to switch voice input, sounds and night mode on or off, and to pause / resume, hide or quit. Hovering the dress button shows your favourite looks in a row over Coo's head; scroll or click to switch. Closing the settings window does not quit the app. The tray menu (the menu bar icon on Mac) also has **Start at login**, **Restart** and **Let clicks pass through Coo**. With click-through on, every click goes through Coo to the window below while Coo keeps walking and talking, which helps while gaming. It only lasts for the current run: click it again or quit to turn it off.
 
 ### Appearance and sound
 
 Change the figure, colors and accessories on the **Dress up** page, including the accessories' main and accent colors; changes apply right away. Figure packs can be imported from a zip or a folder, or dragged onto the page, and imported packs are uninstalled there too. Import, replacement and uninstall confirmations, progress and errors use the settings window’s shared dialogs.
+
+The star at the top right of the preview adds the look Coo wears to **Favourite looks**, listed in one row at the top of the page: click one to put it on, drag it to reorder, or rename and delete it. After you pick a favourite and change it, a save button next to the star writes the change back to it.
 
 You can also just ask Coo to change its look. By default it changes its figure, colors, walking and snoring on its own, and asks you first before changing sizes, sounds, night mode or names; **Habits → Self-adjustment** loosens or tightens this.
 

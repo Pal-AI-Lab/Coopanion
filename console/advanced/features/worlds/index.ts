@@ -9,6 +9,7 @@ import { brandMark, icon, type ConsoleIconName } from '../../../base/ui/icons.ts
 import { lampRow, subscribeLamps } from '../../../base/ui/lamp.ts';
 import { pageIntro } from '../../../base/ui/page.ts';
 import { pageTabs } from '../../../base/ui/page-tabs.ts';
+import { fitColumn } from '../../../base/ui/fit-column.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { mountExtensionContent, iconUrl, removalBlockReason, type ExtensionView, type ExtensionController } from '../extensions/index.ts';
 import { S as E } from '../extensions/strings.ts';
@@ -690,13 +691,24 @@ export function mountWorlds(ctx: FeatureContext): void {
     row.append(identity, stateNode, signals, actions);
     return row;
   }
+  /** The state column fits the widest state shown, so every row keeps the same columns. */
+  let fitStates: (() => void) | undefined;
+  function fitStateColumn(): void {
+    if (fitStates) { fitStates(); return; }
+    if (!workspace.isConnected) return;
+    fitStates = fitColumn(workspace, '--world-state-width', () => {
+      const shown = new Map<string, HTMLElement>();
+      for (const node of railList.querySelectorAll<HTMLElement>('.world-blade .world-state')) if (!shown.has(node.textContent ?? '')) shown.set(node.textContent ?? '', node.cloneNode(true) as HTMLElement);
+      return [...shown.values()];
+    });
+  }
   function render(): void {
     if (!worldsReady || !extensionsReady || signal.aborted) return;
     // A row or group being dragged keeps the list as it is; the drop renders it again.
     if (readyList.querySelector('.is-dragging')) return;
     const items = worldLibrary(worlds, extensions, recent);
     readyList.querySelector('.placeholder')?.remove();
-    lampNodes.clear(); renderRail(items);
+    lampNodes.clear(); renderRail(items); fitStateColumn();
     if (!items.length) readyList.replaceChildren(...listErrors.size ? [] : [ui.placeholder(S.noWorlds)]);
     readyGroup.hidden = !listErrors.size && !!items.length && !items.some(item => !needsRestart(item));
   }
