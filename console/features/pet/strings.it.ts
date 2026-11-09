@@ -29,6 +29,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: 'Disegna alla frequenza qui sopra anche da fermo; se disattivato, da fermo scende a 30 fotogrammi al secondo.',
   hideFullscreen: 'Nascondi automaticamente',
   hideFullscreenHint: "Si nasconde a schermo intero e ricompare all'uscita. Una finestra ingrandita non conta.",
+  passFullscreen: "Lascia passare i clic attraverso Coo",
+  passFullscreenHint: "Quando i clic passano attraverso, Coo resta visibile e i clic arrivano alla finestra sotto.",
   soundTitle: 'Suoni',
   worldScope: "Le funzioni aggiunte da altre estensioni World non dipendono da questo interruttore; impostale nella pagina di ogni World.",
   sound: 'Riproduci suoni',
