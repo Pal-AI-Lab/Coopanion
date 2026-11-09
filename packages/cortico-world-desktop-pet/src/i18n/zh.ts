@@ -298,6 +298,16 @@ export default {
     maxUtteranceMs: { title: '一句最长' },
   },
 
+  /** 桌宠窗口没有打开的原因，显示在状态灯和桌宠面板上 */
+  windowReason: {
+    badHostEnv: (env: string) => `${env} 不是 JSON 字符串数组`,
+    noElectronFile: (file: string) => `Electron 程序不存在：${file}`,
+    noElectron: '没有可用的 Electron：在桌宠面板安装窗口运行时，或在配置里指定 Electron 程序',
+    startFailed: (why: string) => `启动失败：${why}`,
+    closed: '窗口已关闭',
+    exited: (code: number | null) => `窗口进程退出（退出码 ${code}）`,
+  },
+
   /** 控制台的「桌宠」「语音输入」面板 */
   panel: {
     window: '桌宠窗口',

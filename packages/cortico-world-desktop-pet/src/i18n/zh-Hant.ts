@@ -271,6 +271,15 @@ const zhHant: Translation<PetText> = {
     maxUtteranceMs: { title: '一句最長' },
   },
 
+  windowReason: {
+    badHostEnv: (env: string) => `${env} 不是 JSON 字串陣列`,
+    noElectronFile: (file: string) => `Electron 程式不存在：${file}`,
+    noElectron: '沒有可用的 Electron：在桌寵面板安裝視窗執行環境，或在設定裡指定 Electron 程式',
+    startFailed: (why: string) => `啟動失敗：${why}`,
+    closed: '視窗已關閉',
+    exited: (code: number | null) => `視窗處理程序結束（結束代碼 ${code}）`,
+  },
+
   panel: {
     window: '桌寵視窗',
     openWindow: '開啟視窗',

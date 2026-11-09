@@ -271,6 +271,15 @@ const de: Translation<PetText> = {
     maxUtteranceMs: { title: 'Längster Satz' },
   },
 
+  windowReason: {
+    badHostEnv: (env: string) => `${env} ist kein JSON-Array aus Zeichenketten`,
+    noElectronFile: (file: string) => `Die Electron-Programmdatei existiert nicht: ${file}`,
+    noElectron: 'Kein Electron verfügbar: Installiere die Fenster-Laufzeit im Panel des Desktop-Haustiers oder gib die Electron-Programmdatei in der Konfiguration an',
+    startFailed: (why: string) => `Start fehlgeschlagen: ${why}`,
+    closed: 'Das Fenster wurde geschlossen',
+    exited: (code: number | null) => `Der Fensterprozess wurde beendet (Exit-Code ${code})`,
+  },
+
   panel: {
     window: 'Haustier-Fenster',
     openWindow: 'Fenster öffnen',

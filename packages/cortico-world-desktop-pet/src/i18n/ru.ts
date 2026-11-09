@@ -277,6 +277,15 @@ const ru: Translation<PetText> = {
     maxUtteranceMs: { title: 'Самая длинная фраза' },
   },
 
+  windowReason: {
+    badHostEnv: (env: string) => `${env} — не JSON-массив строк`,
+    noElectronFile: (file: string) => `Исполняемый файл Electron не найден: ${file}`,
+    noElectron: 'Нет доступного Electron: установите среду выполнения окна на панели питомца или укажите исполняемый файл Electron в конфигурации',
+    startFailed: (why: string) => `Не удалось запустить: ${why}`,
+    closed: 'Окно закрыто',
+    exited: (code: number | null) => `Процесс окна завершился (код выхода ${code})`,
+  },
+
   panel: {
     window: 'Окно питомца',
     openWindow: 'Открыть окно',

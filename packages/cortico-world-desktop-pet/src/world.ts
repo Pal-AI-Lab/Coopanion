@@ -39,6 +39,7 @@ import { SpeechText, speechTextSteps } from './speech/index.ts';
 import { PetServer, type PageMessage } from './server.ts';
 import { StatusTracker, type DescribeTool } from './status.ts';
 import { WindowHost, resolveHostCommand } from './window-host.ts';
+import { describeHostReason } from './host-reason.ts';
 import { RuntimeStore, type ModelSpec } from './runtime/store.ts';
 import { SENSEVOICE, SherpaAsr, WHISPER, type SherpaModelKind, type SherpaModule, type SherpaState } from './asr/sherpa.ts';
 import { SystemRecognizer, systemRecognizerSupported, type SystemRecognizerState, type SystemSentence } from './asr/system-recognizer.ts';
@@ -652,7 +653,7 @@ export class DesktopPetWorld implements World {
     this.toldVocab = this.vocab();
     this.toldMoves = this.moves();
     await this.server.start();
-    this.windowHost = new WindowHost(host.log, () => this.t.window);
+    this.windowHost = new WindowHost(host.log);
     if (this.cfg.window.enabled) this.openWindow();
     const sherpa = (engine: SherpaEngine, kind: SherpaModelKind) => new SherpaAsr({
       kind,
@@ -895,7 +896,7 @@ export class DesktopPetWorld implements World {
   openWindow(): void {
     if (!this.windowHost || !this.server.port) return;
     const managed = this.store.electron.executable();
-    this.windowHost.start(resolveHostCommand(this.server.windowUrl, this.cfg.window.electronFile, managed, this.t.window));
+    this.windowHost.start(resolveHostCommand(this.server.windowUrl, this.cfg.window.electronFile, managed));
   }
 
   /* ---------- page protocol ---------- */
@@ -1811,7 +1812,7 @@ export class DesktopPetWorld implements World {
 
   private notConnected(tool: string): ToolOutcome {
     const w = this.windowHost?.state();
-    const detail = w && w.phase !== 'running' && w.detail ? w.detail : null;
+    const detail = w && w.phase !== 'running' && w.reason ? describeHostReason(this.t.window, w.reason) : null;
     return { text: this.t.notConnected(tool, detail, this.userName), failed: true };
   }
 
@@ -2027,7 +2028,7 @@ export class DesktopPetWorld implements World {
     const c = petText(language).console;
     // the lamp is the window's: a browser page standing in for it is only mentioned
     const inWindow = this.server.petInWindow;
-    const hint = w?.detail ?? c.notOpen;
+    const hint = w?.reason ? describeHostReason(petText(language).windowReason, w.reason) : c.notOpen;
     const lamps: WorldLamp[] = [
       {
         label: c.window,
