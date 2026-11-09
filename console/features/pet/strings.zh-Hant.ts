@@ -1,6 +1,8 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  launchAtLoginLabel: "開機啟動",
+  launchAtLogin: "開機時自動啟動 Coopanion",
   autoUpdateLabel: "自動更新",
   autoUpdate: "自動下載和安裝更新",
   autoUpdateHint: "自動下載並在結束應用程式時安裝更新。關閉後立即停止檢查和下載，已下載的更新也不會自動安裝。",
