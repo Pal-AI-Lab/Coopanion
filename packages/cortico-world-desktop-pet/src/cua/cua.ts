@@ -52,7 +52,7 @@ const ENV_PROMPT_FILES: Record<ModelLanguage, string> = {
   en: fileURLToPath(new URL('./ENV_PROMPT.en.md', import.meta.url)),
 };
 const ENGINE_TIMEOUT_MS = 30_000;
-/** How long a permission question waits for the person. */
+/** How long the system dialog waits for the person; the pet's bubble keeps its own time (`DesktopPetWorld.confirm`). */
 const PERMISSION_TIMEOUT_MS = 60_000;
 
 export interface CuaOptions {
@@ -287,7 +287,7 @@ export class Cua {
       if (level === 'ask-once') { this.grantedUntil = Date.now() + this.cfg.grantMinutes * 60_000; this.permission = null; }
       return;
     }
-    throw new NotPermitted(answer === 'timeout' ? this.t.askTimedOut(PERMISSION_TIMEOUT_MS / 1000) : this.t.refused(level));
+    throw new NotPermitted(answer === 'timeout' ? this.t.askTimedOut : this.t.refused(level));
   }
 
   private async askPermission(level: PermissionLevel): Promise<Answer> {
@@ -327,7 +327,7 @@ export class Cua {
       this.terminalPermission = null;
       return;
     }
-    throw new NotPermitted(answer === 'timeout' ? this.t.askTimedOut(PERMISSION_TIMEOUT_MS / 1000) : this.t.terminalRefused);
+    throw new NotPermitted(answer === 'timeout' ? this.t.askTimedOut : this.t.terminalRefused);
   }
 
   /* ---------- coordinates ---------- */
