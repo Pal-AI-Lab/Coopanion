@@ -1602,6 +1602,7 @@ export class DesktopPetWorld implements World {
     this.talking = on;
     this.voiceFrame({ type: 'gate', open: on });
     if (!on) this.releaseMicSoon();
+    this.server.sendPet({ t: 'talk-key', down: on && this.cfg.asr.enabled && this.micWanted() });
     if (!this.cfg.asr.enabled || !this.micWanted()) return;
     if (on) {
       this.listenOpen = true;
@@ -1632,6 +1633,7 @@ export class DesktopPetWorld implements World {
       this.talking = false;
       this.voiceFrame({ type: 'gate', open: false });
       this.releaseMicSoon();
+      this.server.sendPet({ t: 'talk-key', down: false });
     }
     this.segmenter.flush();
     this.queue.length = 0;

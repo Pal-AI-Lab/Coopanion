@@ -77,6 +77,8 @@ const lightFor = (s) => {
 const sfx = createSfx();
 // Coo's speech stands in for the babble while it is on; its units move the mouth
 const speech = createSpeech(sfx, { onUnit: () => body?.talk() });
+/** The talk key is listening: no line makes a sound until it lets go. */
+let talkKeyDown = false;
 if (host) sfx.unlock();
 else ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => sfx.unlock(), { capture: true }));
 
@@ -116,6 +118,7 @@ function connect() {
   ws.onclose = (e) => {
     ws = null;
     stopMic();
+    talkKeyDown = false;
     // the World gave up on these steps when the page went; it asks again once the page is back
     dropDialogs();
     setStatus(null);
@@ -330,6 +333,7 @@ function onOrder(m) {
     case 'ask-close': closeAsk(m.id); break;
     case 'act': acts.push(...m.actions); holdRoam(20); break;
     case 'listen': onListen(m); break;
+    case 'talk-key': hushForTalkKey(m.down === true); break;
     // a message sent from the chat page, once the bot has it, and one taken back before delivery
     case 'said': if (prefs.saidBubbles) addLine('chat', typeof m.text === 'string' ? m.text : '', false, { images: Number(m.images) || 0, cursor: m.cursor ?? null }); break;
     case 'said-withdrawn': withdrawLine(m.cursor); break;
@@ -527,19 +531,28 @@ function stepDialog(dt) {
   if (it.kind === 'dialog') stepTalk(it, dt);
 }
 
+/** The talk key starts listening: the sound stops at once, and the lines up or waiting go on without it. */
+function hushForTalkKey(down) {
+  talkKeyDown = down;
+  if (!down) return;
+  speech.stop();
+  for (const q of [item, ...queue]) if (q) q.hushed = true;
+}
+
 function typeText(it, text, dt, anchors) {
   const p = bubble.querySelector('.b-text');
   if (!p || it.shown >= text.length) return;
-  if (it.spoken !== text && !it.rush) { it.spoken = text; speech.begin(text); }
+  if (talkKeyDown) it.hushed = true;
+  if (it.spoken !== text && !it.rush && !it.hushed) { it.spoken = text; speech.begin(text); }
   // with speech, each pause mark waits its own time, letters type faster, and the voice makes the sound;
   // estimateSeconds in src/script.ts mirrors these steps, this rate and the holds in stepDialog
-  const spoken = speech.active;
+  const spoken = speech.active && !it.hushed;
   it.acc += dt * 20 * prefs.bubbleSpeed * (it.rush ? RUSH : 1);
   while (it.acc >= 1 && it.shown < text.length) {
     const ch = text[it.shown++];
     it.acc -= spoken ? textSteps(ch) : PAUSE.test(ch) ? 5 : 1;
     if (spoken) speech.reveal(it.shown - 1);
-    else if (!SILENT.test(ch) && !it.rush) { sfx.babble(ch); body?.talk(); }
+    else if (!SILENT.test(ch) && !it.rush && !it.hushed) { sfx.babble(ch); body?.talk(); }
     while (it.fired < anchors.length && anchors[it.fired].at <= it.shown) acts.push(...anchors[it.fired++].actions);
   }
   if (it.marks?.length) p.innerHTML = marked(text, it.shown, it.marks);

@@ -178,7 +178,7 @@ There are four settings for when Coo asks you first:
 - Only what you say, type or choose on the desktop pet's side can make Coo act. When another World asks it to use the computer, Coo checks with you in a bubble first.
 - Coo can hold keys down for up to 30 seconds, without pausing for your mouse or keyboard meanwhile, and keep a mouse button down across several steps. Whatever it still holds down is released when its turn ends.
 - As soon as you move the mouse or use the keyboard, Coo pauses and waits until you have been idle for two seconds (by default); if you keep going for 15 seconds, it gives up on that step. It also holds off while you are typing to it.
-- Anything you say with the talk key interrupts Coo once it is transcribed: the reply being written and the steps not yet started are dropped, while a click, drag or key sequence already under way finishes first and a held key is released at once. When it listens **All the time**, what Coo hears does not interrupt it.
+- Anything you say with the talk key interrupts Coo once it is transcribed: the reply being written and the steps not yet started are dropped, while a click, drag or key sequence already under way finishes first and a held key is released at once. When it listens **All the time**, what Coo hears does not interrupt it. Pressing the talk key stops **Read bubbles aloud** at once, and lines that appear before you let go stay silent.
 - Do logins, passwords and payments yourself. One wake allows 40 model requests by default; when Coo hits that limit it stops, and you can tell it to keep going. The limit is **Requests per wake-up** in advanced mode.
 
 ### Settings window
