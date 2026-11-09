@@ -16,6 +16,7 @@ import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
 import { COO_CSS, PALETTES, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
+import { fetchLooks, lookAvailable, lookPicture, sameLook } from './looks.js';
 import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
@@ -28,8 +29,8 @@ document.body.classList.add(host ? 'desk' : 'tab');
 
 const stage = $('#stage');
 const bubble = $('#bubble'), menu = $('#menu');
-const tools = $('#tools');
-// Coo's palette and drawing classes; the bubbles and buttons take their colours from Coo's palette
+const tools = $('#tools'), wheel = $('#wheel');
+// Coo's drawing classes for the look wheel's pictures; the bubbles and buttons take their colours from Coo's palette
 // another pack's body sets the theme color instead (accentStyle, after skinStyle so it wins)
 const cooStyle = document.createElement('style'), skinStyle = document.createElement('style'), accentStyle = document.createElement('style');
 // the bubbles' colours of a pack that names its own (bubbleCss)
@@ -1480,7 +1481,7 @@ function stepTools() {
   // from where the cursor is now, not from the last move event, which may be stale
   const p = cursor.at;
   const l = at();
-  const near = !!p && (body?.hit(p) || overTools(p));
+  const near = !!p && (body?.hit(p) || overTools(p) || overWheel(p));
   if (!near) toolsMuted = false;
   if (near && !toolsMuted) toolsUntil = T + TOOLS_LINGER;
   const confirming = item?.kind === 'ask' && item.confirm && !item.answered;
@@ -1488,6 +1489,135 @@ function stepTools() {
   if (tools.hidden) endHold();
   tools.querySelector('[data-action="voice"]')?.classList.toggle('live', listen.phase === 'hearing');
 }
+
+/* ---------- look wheel: hovering a dress button shows the looks in a row over the body, the one worn in the middle ---------- */
+/** Seconds the wheel stays after the pointer leaves it and every dress button. */
+const WHEEL_LINGER = .5;
+/** Pixels between two looks in the row, and how many show on each side of the middle one. */
+const WHEEL_STEP = 54, WHEEL_SIDE = 3;
+/** Opacity of a look by its distance from the middle. */
+const WHEEL_FADE = [1, .55, .3, .12];
+/** Milliseconds the row rests on a look before Coo puts it on. */
+const WHEEL_APPLY_MS = 300;
+/** Wheel delta that turns the row one look (a mouse notch is about 100; a touchpad sends many small ones). */
+const WHEEL_NOTCH = 40;
+const wheelState = { items: [], at: 0, until: 0, timer: 0, acc: 0, opening: false };
+
+/**
+ * The favourite looks to switch between (looks.js), leaving out those whose pack was uninstalled; none, none shown.
+ * A look worn that is not among them leads the row, so turning the row away from it can turn back to it.
+ */
+async function wheelItems() {
+  const [saved, figures] = await Promise.all([fetchLooks(), fetch('/api/figures').then((r) => r.json()).catch(() => null)]);
+  const list = Array.isArray(figures) ? figures : [], dark = prefs.theme === 'dark';
+  const items = saved.filter((l) => lookAvailable(l.skin, list))
+    .map((l) => ({ skin: l.skin, on: sameLook(l.skin, skin), html: lookPicture(l.skin, list, dark) }));
+  if (!items.length) return [];
+  if (!items.some((i) => i.on)) items.unshift({ skin, on: true, worn: true, html: lookPicture(skin, list, dark) });
+  return items;
+}
+
+async function openWheel() {
+  if (!wheel.hidden || wheelState.opening) return;
+  wheelState.opening = true;
+  const items = await wheelItems().catch(() => []);
+  wheelState.opening = false;
+  if (!items.length) return;
+  wheelState.items = items;
+  wheelState.at = Math.max(0, items.findIndex((i) => i.on));
+  wheelState.acc = 0;
+  wheel.innerHTML = '';
+  items.forEach((item, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = item.worn ? 'w-item worn' : 'w-item';
+    b.innerHTML = item.html;
+    // a press puts the look on at once, the one in the middle too (it may be the only one saved)
+    b.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault(); e.stopPropagation();
+      spinTo(i, true);
+    });
+    wheel.appendChild(b);
+  });
+  wheel.style.width = (2 * WHEEL_SIDE + 1) * WHEEL_STEP + 'px';
+  wheel.hidden = false;
+  drawWheel();
+  const l = at();
+  if (l) placeWheel(l);
+}
+
+function closeWheel() {
+  wheel.hidden = true;
+  clearTimeout(wheelState.timer);
+  wheelState.timer = 0;
+}
+
+function drawWheel() {
+  [...wheel.children].forEach((b, i) => {
+    const d = i - wheelState.at, n = Math.abs(d);
+    b.style.transform = `translate(-50%, -50%) translateX(${d * WHEEL_STEP}px) scale(${Math.max(.6, 1 - .14 * n)})`;
+    b.style.opacity = String(WHEEL_FADE[n] ?? 0);
+    b.style.zIndex = String(10 - n);
+    b.style.pointerEvents = n > WHEEL_SIDE ? 'none' : '';
+    b.classList.toggle('on', d === 0);
+  });
+}
+
+/** Puts on the look in the middle of the row, unless Coo wears it already. */
+function wearWheel() {
+  clearTimeout(wheelState.timer);
+  wheelState.timer = 0;
+  const item = wheelState.items[wheelState.at];
+  if (!item || sameLook(item.skin, skin)) return;
+  void fetch('/api/skin', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ skin: item.skin }) }).catch(() => {});
+}
+
+/** Turns the row to look `i`; Coo puts it on at once (`now`, a click), or once the row rests there (the mouse wheel). */
+function spinTo(i, now = false) {
+  const n = clamp(i, 0, wheelState.items.length - 1);
+  if (n === wheelState.at && !now) return;
+  if (n !== wheelState.at) { wheelState.at = n; drawWheel(); }
+  sfx.tick();
+  clearTimeout(wheelState.timer);
+  if (now) { wearWheel(); return; }
+  wheelState.timer = setTimeout(wearWheel, WHEEL_APPLY_MS);
+}
+
+/** Centred over the body, just above its head. */
+function placeWheel(l) {
+  const b = l.box, w = wheel.offsetWidth, h = wheel.offsetHeight;
+  wheel.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
+  wheel.style.top = f(clamp(b.y - h - 22, 8, innerHeight - h - 8)) + 'px';
+}
+
+const inRect = (p, r, m = 0) => p.x >= r.left - m && p.x <= r.right + m && p.y >= r.top - m && p.y <= r.bottom + m;
+function overWheel(p) { return !wheel.hidden && inRect(p, wheel.getBoundingClientRect(), 6); }
+/** A dress button on screen, in the menu or among the hover buttons, is under the pointer. */
+function overDress(p) {
+  for (const b of document.querySelectorAll('.menu [data-action="dress"], .tools [data-action="dress"]')) {
+    if (b.offsetParent && inRect(p, b.getBoundingClientRect(), 4)) return true;
+  }
+  return false;
+}
+function stepWheel() {
+  // a bubble over the pet (the typing box, a reply, a question) takes the wheel's place until it closes
+  if (!bubble.hidden && !bubble.classList.contains('status')) { if (!wheel.hidden) closeWheel(); return; }
+  const p = cursor.at;
+  const dress = !!p && overDress(p);
+  if (dress || (p && overWheel(p))) wheelState.until = T + WHEEL_LINGER;
+  if (dress && wheel.hidden && !clicksPass()) void openWheel();
+  if (!wheel.hidden && T > wheelState.until) closeWheel();
+}
+// the mouse wheel turns the row while it shows, over the row or over a dress button
+document.addEventListener('wheel', (e) => {
+  if (wheel.hidden || !e.target.closest?.('.wheel, [data-action="dress"]')) return;
+  e.preventDefault();
+  wheelState.acc += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+  if (Math.abs(wheelState.acc) < WHEEL_NOTCH) return;
+  spinTo(wheelState.at + Math.sign(wheelState.acc));
+  wheelState.acc = 0;
+  wheelState.until = T + WHEEL_LINGER;
+}, { passive: false });
 
 /* ---------- pointer ---------- */
 let pointerSeen = false;
@@ -1557,7 +1687,7 @@ function writePointer(now) {
 }
 
 // the menu itself covers the whole page without taking clicks; its two columns are what can be pointed at
-const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]) > *, .tools:not([hidden])';
+const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]) > *, .tools:not([hidden]), .wheel:not([hidden])';
 const overUi = (e) => e.target.closest && e.target.closest(UI_SELECTOR);
 
 /**
@@ -1717,7 +1847,7 @@ document.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   if (body?.hit({ x: e.clientX, y: e.clientY })) openMenu();
 });
-document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.menu')) closeMenu(); }, { capture: true });
+document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.menu, .wheel')) closeMenu(); }, { capture: true });
 // clicks off the figure pass through the window to what is underneath; the window losing focus is how they show here
 window.addEventListener('blur', closeMenu);
 document.addEventListener('focusin', (e) => {
@@ -1796,6 +1926,7 @@ function layout(dt = 0) {
   sfx.setPan(((screenX - screen.availLeft + l.x) / (screen.availWidth || innerWidth)) * 2 - 1);
   if (!tools.hidden) placeTools(l);
   if (!menu.hidden) placeMenu(l);
+  if (!wheel.hidden) placeWheel(l);
   const a = l.bubble;
   let sayBox = null;
   // choice cards and a World's confirmation keep their bubble where it was; its tail follows Coo along the bottom edge
@@ -1877,7 +2008,7 @@ async function probeBackdrop() {
   const near = inflate({ x: b.x, y: b.y, width: b.w, height: b.h }, Math.max(4 + 34 * S, 4 + 2 * prefs.glow)), far = inflate(near, 8 + 40 * S);
   const x = Math.max(0, far.x), y = Math.max(0, far.y);
   const rect = { x, y, width: Math.min(innerWidth, far.x + far.width) - x, height: Math.min(innerHeight, far.y + far.height) - y };
-  const covers = [bubble, ...(menu.hidden ? [] : menu.children), tools, ...lines.map((l) => l.el)].filter((el) => !el.hidden).map((el) => shadowed(rectOf(el)));
+  const covers = [bubble, ...(menu.hidden ? [] : menu.children), tools, wheel, ...lines.map((l) => l.el)].filter((el) => !el.hidden).map((el) => shadowed(rectOf(el)));
   const px = await host.sampleBackdrop(rect, [near, ...covers]);
   // this platform cannot read the screen cheaply: the halo just stays
   if (px === null) { backdrop.on = true; backdrop.fixed = true; return; }
@@ -1956,6 +2087,7 @@ function frame(steps, now, last) {
       const dt = steps.reduce((a, b) => a + b, 0);
       stepBackdrop(dt);
       stepTools();
+      stepWheel();
       layout(dt);
       stepInputShape();
       // the frame's own time, so the layer shows frames as far apart as they were drawn

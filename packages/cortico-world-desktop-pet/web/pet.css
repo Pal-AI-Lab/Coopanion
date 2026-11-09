@@ -393,6 +393,18 @@ body.desk .floor{display:none}
 }
 @keyframes dress-wiggle{25%{transform:rotate(-12deg)} 75%{transform:rotate(12deg)}}
 @keyframes dress-pop{0%{opacity:0; transform:scale(.3) translate(0, 0)} 30%{opacity:1} 100%{opacity:0; transform:scale(1.1) translate(0, -8px)}}
+/* look wheel: the looks in a row over the body; the farther from the middle, the smaller and fainter */
+.wheel{position:fixed; z-index:6; height:62px; animation:bubble-in .18s cubic-bezier(.3,1.5,.5,1)}
+.wheel[hidden]{display:none}
+.w-item{
+  position:absolute; left:50%; top:50%; width:50px; height:50px; padding:0; border-radius:50%; overflow:hidden; cursor:pointer;
+  background:var(--surface); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
+  transition:transform .24s cubic-bezier(.3,1.3,.5,1), opacity .24s;
+}
+.w-item img, .w-item svg{display:block; width:100%; height:100%; object-fit:cover}
+/* the look worn that is not a favourite: kept for the row to turn back to */
+.w-item.worn{border-style:dashed}
+.w-item.on{border-color:var(--skin-eye); box-shadow:0 0 0 3px color-mix(in srgb, var(--skin-eye) 30%, transparent), 0 6px 16px var(--shadow)}
 /* hover buttons: the actions chosen in settings, in columns of up to three beside the pet */
 .tools{position:fixed; left:0; top:0; z-index:4; display:grid; grid-auto-flow:column; gap:8px; animation:bubble-in .18s cubic-bezier(.3,1.5,.5,1)}
 .tools[hidden]{display:none}

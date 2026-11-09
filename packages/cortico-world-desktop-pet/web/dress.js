@@ -11,6 +11,9 @@
  * as the server reads them (`bundle`). The server says what it found; the person picks what to install.
  * A pack the server lists as `removable` is uninstalled from its tile (`POST /api/figures/remove`).
  *
+ * The round buttons on the preview save the look worn as a new one (looks.js), and, once the look picked from the saved
+ * ones has changed, save the changes to it; the favourites are listed first in one row, to put on with a click, rename, remove or drag to another place.
+ *
  * Text follows the app language (i18n.js): the page's own from its tables, the names of figures, Coo's
  * palettes and accessories, and other packs' picks from the packs' manifests.
  */
@@ -22,6 +25,8 @@ import {
   PALETTES, HEADS, SIDES, GLASSES, NECKS, ACC_COLORS, LINKED, NO_BODY, ROLES,
 } from './coo/coo.js';
 import { loadBody } from './body-host.js';
+import { fetchLooks, lookAvailable, lookPicture, sameLook, writeLooks } from './looks.js';
+import { dragRow } from './drag-row.js';
 import { announcePainted, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 
 import { bindAppearance } from './appearance.js';
@@ -48,7 +53,7 @@ const preview = $('#preview');
 const showTheme = () => { preview.dataset.theme = theme; root.dataset.theme = root.dataset.uiTheme ?? theme; };
 new MutationObserver(showTheme).observe(root, { attributes: true, attributeFilter: ['data-ui-theme'] });
 // the stage as on the 开始 page's preview (stage.js): a wall that answers the pointer, a floor with icons, the night/day button
-const modeBtn = modeButton(preview, () => theme, (next) => { theme = next; showTheme(); body?.set({ theme }); sfx.tick(); }, (next) => save('/api/prefs', { theme: next }), themeButton);
+const modeBtn = modeButton(preview, () => theme, (next) => { theme = next; showTheme(); body?.set({ theme }); renderLooks(); sfx.tick(); }, (next) => save('/api/prefs', { theme: next }), themeButton);
 lightWall(preview);
 dressFloor($('#floor'));
 /** The page's own text in the app language; the theme button's title is part of it. */
@@ -69,7 +74,7 @@ preview.addEventListener('pointerleave', () => body?.pointer('leave', {}));
 
 function save(path, body) {
   return fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-    .then((r) => { $('#saved').textContent = t(r.ok ? 'dress.saved' : 'dress.notSaved'); })
+    .then((r) => { $('#saved').textContent = r.ok ? '' : t('dress.notSaved'); })
     .catch(() => { $('#saved').textContent = t('dress.offline'); });
 }
 
@@ -268,6 +273,170 @@ function removeButton(pack) {
   return b;
 }
 
+/* ---------- saved looks ---------- */
+
+let looks = [];
+/** The saved look picked last, whose changes the update button saves; null when none is picked. */
+let activeLook = null;
+const loadLooks = () => fetchLooks().then((list) => {
+  looks = list;
+  if (!looks.some((l) => l.id === activeLook)) activeLook = looks.find((l) => sameLook(l.skin, skin))?.id ?? null;
+  renderLooks();
+});
+const lookId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+/** A new look's name: the pack and its preset, or Coo and its palette. */
+function lookName(s) {
+  const pack = s.figure && s.figure !== 'coo' ? packs.find((p) => p.id === s.figure) : null;
+  if (!pack) return `Coo · ${cooName('palette', s.palette)}`;
+  const preset = pack.presets.find((p) => p.id === s.scheme);
+  return preset ? `${nameOf(pack.name)} · ${nameOf(preset.name)}` : nameOf(pack.name);
+}
+
+const saveLookBtn = $('#saveLook'), updateLookBtn = $('#updateLook');
+saveLookBtn.innerHTML = ICONS.addLook;
+updateLookBtn.innerHTML = ICONS.saveLook;
+const bump = (btn) => { btn.classList.remove('done'); void btn.offsetWidth; btn.classList.add('done'); };
+saveLookBtn.addEventListener('click', async () => {
+  sfx.tick();
+  const had = looks.find((l) => sameLook(l.skin, skin));
+  if (had) { $('#saved').textContent = t('looks.exists', { name: had.name }); return; }
+  const id = lookId();
+  const next = await writeLooks([...looks, { id, name: lookName(skin), skin }]);
+  if (!next) { $('#saved').textContent = t('dress.notSaved'); return; }
+  $('#saved').textContent = '';
+  looks = next;
+  activeLook = id;
+  renderLooks();
+  sfx.sparkle(); body?.cue('cheer');
+  bump(saveLookBtn);
+});
+updateLookBtn.addEventListener('click', async () => {
+  sfx.tick();
+  const next = await writeLooks(looks.map((l) => (l.id === activeLook ? { ...l, skin } : l)));
+  if (!next) { $('#saved').textContent = t('dress.notSaved'); return; }
+  $('#saved').textContent = '';
+  looks = next;
+  renderLooks();
+  sfx.sparkle(); body?.cue('cheer');
+});
+
+function renderLooks() {
+  const box = $('#optLooks');
+  const active = looks.find((l) => l.id === activeLook);
+  const changed = !!active && !sameLook(active.skin, skin);
+  saveLookBtn.title = t('looks.save');
+  saveLookBtn.setAttribute('aria-label', saveLookBtn.title);
+  updateLookBtn.hidden = !changed;
+  if (changed) { updateLookBtn.title = t('looks.update', { name: active.name }); updateLookBtn.setAttribute('aria-label', updateLookBtn.title); }
+  box.textContent = '';
+  if (!looks.length) { box.appendChild(el('p', 'looks-empty')).textContent = t('looks.empty'); return; }
+  const opts = el('div', 'looks-strip');
+  for (const look of looks) {
+    const tile = el('span', 'look-tile');
+    tile.dataset.id = look.id;
+    const b = el('button', 'opt wide look', lookPicture(look.skin, packs, theme === 'dark'));
+    b.type = 'button';
+    const gone = packs.length > 0 && !lookAvailable(look.skin, packs);
+    b.disabled = gone;
+    b.classList.toggle('gone', gone);
+    b.setAttribute('aria-pressed', String(look.id === activeLook));
+    b.classList.toggle('changed', changed && look.id === activeLook);
+    b.appendChild(el('span')).textContent = b.title = look.name;
+    // picking a look again lets it go: the save button then saves a new one
+    b.addEventListener('click', () => {
+      if (look.id === activeLook) { activeLook = null; renderLooks(); sfx.tick(); return; }
+      activeLook = look.id;
+      if (sameLook(look.skin, skin)) { renderLooks(); sfx.tick(); return; }
+      apply(normalizeSkin(look.skin), true);
+      sfx.sparkle(); body?.cue('cheer');
+    });
+    const acts = el('span', 'look-acts');
+    const act = (icon, label, cls, fn) => {
+      const a = acts.appendChild(el('button', cls, icon));
+      a.type = 'button'; a.title = label; a.setAttribute('aria-label', label);
+      a.addEventListener('click', (e) => { e.stopPropagation(); sfx.tick(); fn(); });
+    };
+    act(ICONS.pencil, t('looks.rename'), 'look-act', () => renameLook(tile, look));
+    act(ICONS.trash, t('looks.delete', { name: look.name }), 'look-act danger', () => importDialog.forget(look, async () => {
+      const next = await writeLooks(looks.filter((l) => l.id !== look.id));
+      if (next) { looks = next; if (activeLook === look.id) activeLook = null; renderLooks(); } else $('#saved').textContent = t('dress.notSaved');
+    }));
+    tile.append(b, acts);
+    opts.appendChild(tile);
+  }
+  box.appendChild(gallery(opts));
+}
+
+// a favourite is dragged to another place in the row; the row scrolls when it is held near an end
+dragRow($('#optLooks'), {
+  item: (target) => (target.closest('.look-act, .look-name') ? null : target.closest('.looks-strip > .look-tile')),
+  key: (tile) => tile.dataset.id,
+  copyClass: 'look-drag-copy',
+  drop: async (order) => {
+    const byId = new Map(looks.map((l) => [l.id, l]));
+    const next = await writeLooks(order.map((id) => byId.get(id)).filter(Boolean));
+    if (next) looks = next;
+    else { $('#saved').textContent = t('dress.notSaved'); renderLooks(); }
+  },
+});
+
+/** A row with an arrow at each end, shown once it holds more than fit; each moves it by what shows. */
+function gallery(strip) {
+  const row = el('div', 'looks-gallery');
+  const arrow = (dir) => {
+    const b = el('button', 'g-arrow', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${dir < 0 ? 'M14.5 6l-6 6 6 6' : 'M9.5 6l6 6-6 6'}"/></svg>`);
+    b.type = 'button';
+    b.setAttribute('aria-label', t(dir < 0 ? 'looks.prev' : 'looks.next'));
+    b.addEventListener('click', () => { sfx.tick(); strip.scrollBy({ left: dir * strip.clientWidth * .8 }); });
+    return b;
+  };
+  const prev = arrow(-1), next = arrow(1);
+  const sync = () => {
+    const more = strip.scrollWidth > strip.clientWidth + 1;
+    prev.hidden = next.hidden = !more;
+    prev.disabled = strip.scrollLeft <= 1;
+    next.disabled = strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 1;
+  };
+  strip.addEventListener('scroll', sync, { passive: true });
+  new ResizeObserver(sync).observe(strip);
+  row.append(prev, strip, next);
+  // the look worn comes into view
+  requestAnimationFrame(() => {
+    const on = strip.querySelector('[aria-pressed="true"]')?.parentElement;
+    if (on && on.offsetLeft + on.offsetWidth > strip.clientWidth) { strip.style.scrollBehavior = 'auto'; strip.scrollLeft = on.offsetLeft; strip.style.scrollBehavior = ''; }
+    sync();
+  });
+  return row;
+}
+
+/** A field over the name; Enter or leaving it keeps the new name, Escape keeps the old one. */
+function renameLook(tile, look) {
+  const input = el('input', 'look-name');
+  input.value = look.name;
+  input.maxLength = 40;
+  input.setAttribute('aria-label', t('looks.rename'));
+  tile.appendChild(input);
+  input.focus();
+  input.select();
+  let done = false;
+  const finish = async (keep) => {
+    if (done) return;
+    done = true;
+    const name = input.value.trim();
+    if (keep && name && name !== look.name) {
+      const next = await writeLooks(looks.map((l) => (l.id === look.id ? { ...l, name } : l)));
+      if (next) looks = next; else $('#saved').textContent = t('dress.notSaved');
+    }
+    renderLooks();
+  };
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') void finish(true);
+    else if (e.key === 'Escape') void finish(false);
+  });
+  input.addEventListener('blur', () => void finish(true));
+}
+
 /* ---------- importing packs ---------- */
 
 const MB = (n) => `${Math.round(n / 1048576)} MB`;
@@ -428,6 +597,13 @@ const importDialog = (() => {
   });
 
   return {
+    /** Asks before a saved look is deleted; `go` deletes it. */
+    forget(look, go) {
+      show(`<h2 id="importTitle"></h2><p class="lead" data-i18n="looks.deleteLead"></p>
+        <div class="actions"><button class="btn" type="button" data-close data-i18n="import.cancel"></button><button class="btn danger" type="button" data-forget data-i18n="looks.deleteGo"></button></div>`);
+      dlg.querySelector('h2').textContent = t('looks.deleteTitle', { name: look.name });
+      dlg.querySelector('[data-forget]').addEventListener('click', () => { close(); void go(); });
+    },
     /** Asks before deleting an installed pack; the pet wearing it changes to Coo. */
     remove(pack) {
       show(`<h2 id="importTitle"></h2><p class="lead" data-i18n="remove.lead"></p>
@@ -482,6 +658,7 @@ document.addEventListener('drop', (e) => {
 
 function render() {
   renderFigure();
+  renderLooks();
   const pal = $('#optPalette');
   pal.textContent = '';
   const palOpts = el('div', 'opts');
@@ -519,9 +696,13 @@ function connect() {
   const ws = new WebSocket(`ws://${location.host}/socket?role=dress`);
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
-    if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; showTheme(); modeBtn.show(theme); body?.set({ theme }); }
-    if (m.t === 'init') { loadPacks(); announcePainted(); }
-    if ((m.t === 'init' || m.t === 'prefs') && m.skin && JSON.stringify(normalizeSkin(m.skin)) !== JSON.stringify(skin)) apply(normalizeSkin(m.skin), false);
+    if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; showTheme(); modeBtn.show(theme); body?.set({ theme }); renderLooks(); }
+    if (m.t === 'init') { loadPacks(); void loadLooks(); announcePainted(); }
+    if ((m.t === 'init' || m.t === 'prefs') && m.skin && JSON.stringify(normalizeSkin(m.skin)) !== JSON.stringify(skin)) {
+      const worn = looks.find((l) => sameLook(l.skin, m.skin));
+      if (worn) activeLook = worn.id;
+      apply(normalizeSkin(m.skin), false);
+    }
     if ((m.t === 'init' || m.t === 'prefs') && m.sounds && typeof m.sounds === 'object') sfx.configure({ volume: m.sounds.volume });
     if ((m.t === 'init' || m.t === 'prefs') && typeof m.language === 'string' && m.language !== language()) void useLanguage(m.language).then(() => { showText(); render(); });
   };
