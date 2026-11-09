@@ -1556,7 +1556,8 @@ function writePointer(now) {
   diag.types.clear();
 }
 
-const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]), .tools:not([hidden])';
+// the menu itself covers the whole page without taking clicks; its two columns are what can be pointed at
+const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]) > *, .tools:not([hidden])';
 const overUi = (e) => e.target.closest && e.target.closest(UI_SELECTOR);
 
 /**
