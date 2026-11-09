@@ -19,7 +19,7 @@
  * input uses by default. The console's text follows the console request's language.
  */
 import type { spawn } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type {
@@ -118,7 +118,7 @@ const MIC_RELEASE_MS = 500;
 /**
  * Run controls an embedding app lends the pet's menu. Each button shows only when its control is
  * lent: pause/resume needs `isPaused` and `setPaused`, settings `openSettings`, the power button
- * `quit`. Without any the menu header shows only the avatar and the name.
+ * `quit`. Without any the menu shows the actions alone.
  */
 export interface PetBotControls {
   isPaused?(): boolean;
@@ -227,8 +227,6 @@ export interface DesktopPetWorldOptions {
   storeAsrApiKey?: (key: string) => void;
   /** The bot's name for the menu header, the chat page and computer use's question; read at each use. */
   botName?: () => string;
-  /** PNG shown as the avatar in the menu header, when it exists. */
-  avatarFile?: string;
   controls?: PetBotControls;
   /** Reads the talk key; tests pass a scripted one. */
   watchHotkey?: typeof watchHotkey;
@@ -469,7 +467,6 @@ export class DesktopPetWorld implements World {
       onPetDisconnect: () => this.onPageGone(),
       onSkin: (skin) => this.saveSkin(skin),
       onPrefs: (prefs) => this.savePrefs(prefs),
-      avatarFile: opts.avatarFile,
       packs: () => this.packs(),
       packProblems: () => this.packScan().problems,
       importer: this.importer ?? undefined,
@@ -947,14 +944,11 @@ export class DesktopPetWorld implements World {
 
   private botInfo(): Record<string, unknown> {
     const c = this.opts.controls;
-    let avatar: string | null = null;
-    try { if (this.opts.avatarFile) avatar = String(statSync(this.opts.avatarFile).mtimeMs); } catch { /* no avatar yet */ }
     const pause = !!(c?.isPaused && c.setPaused);
     const label = typeof c?.quitLabel === 'function' ? c.quitLabel() : c?.quitLabel;
     const quitLabel = c?.quit ? label || this.ui.menu.quit : '';
     return {
       name: this.botName(),
-      avatar,
       controls: !!c,
       buttons: { pause, settings: !!c?.openSettings, dress: !!c?.openDress, quit: !!c?.quit, chat: !!c?.openChat },
       // the typing box warns, as the chat page does, that the model gets only the count of pasted images

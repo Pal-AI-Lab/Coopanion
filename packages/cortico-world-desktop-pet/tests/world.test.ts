@@ -655,20 +655,14 @@ describe('with a pet page', () => {
       quit: () => calls.push('quit'),
       quitLabel: '退出 App',
     };
-    const dir = mkdtempSync(join(tmpdir(), 'pet-avatar-'));
-    const avatarFile = join(dir, 'avatar.png');
-    writeFileSync(avatarFile, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
-    const { world } = await mounted(undefined, { botName: () => 'Bot', avatarFile, controls });
-    const res = await fetch(`${origin(world)}/api/avatar`);
-    expect(res.headers.get('content-type')).toBe('image/png');
-    expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+    const { world } = await mounted(undefined, { botName: () => 'Bot', controls });
     const win = await windowPage(world);
     cleanup.push(() => win.close());
     const tab = await FakePage.open(origin(world), 'role=pet&host=tab');
     cleanup.push(() => tab.close());
     const state = await (await fetch(`${origin(world)}/api/state`)).json() as { bot: Record<string, unknown> };
     expect(state.bot).toMatchObject({
-      name: 'Bot', controls: true, buttons: { pause: true, settings: true, dress: false, quit: true }, paused: false, quitLabel: '退出 App', avatar: expect.any(String),
+      name: 'Bot', controls: true, buttons: { pause: true, settings: true, dress: false, quit: true }, paused: false, quitLabel: '退出 App',
     });
     win.send({ t: 'control', action: 'pause' });
     expect((await win.next((m) => m.t === 'prefs')).bot).toMatchObject({ paused: true });

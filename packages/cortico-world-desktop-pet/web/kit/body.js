@@ -373,7 +373,8 @@ export function createPet(els, opts) {
     const m = pet.mode, mt = pet.modeT;
     let sqT = 0, strideT = 0, liftT = 0, leanT = 0, sitT = 0, bobT = 0, rate = 0, lookT = [0, 0], tiltT = 0;
     let tk = 160, tc = 12, drowseT = 0;
-    const free = roam !== 'off' && T > hold && !opts.dialogOpen?.();
+    const still = !!opts.still?.();
+    const free = roam !== 'off' && T > hold && !opts.dialogOpen?.() && !still;
 
     pet.blinkT -= dt; pet.blinkAge += dt;
     if (pet.blinkT <= 0) { pet.blinkAge = 0; pet.blinkT = Math.random() < .2 ? .28 : rnd(2.2, 5.2); }
@@ -401,6 +402,8 @@ export function createPet(els, opts) {
         break;
       }
       case 'walk': case 'run': {
+        // held still: the walk waits where it is, standing, and goes on once released
+        if (still) { pet.speed = 0; lookT = track(); break; }
         const run = m === 'run', d = pet.target - pet.x, dy = pet.targetY - pet.gy, dist = Math.hypot(d, dy), dir = Math.sign(d) || pet.facing;
         // a free body walking up or down the stage keeps the way it faces
         if (!freeGround || Math.abs(d) > 2) pet.facing = dir;
@@ -939,7 +942,7 @@ const SVGNS = 'http://www.w3.org/2000/svg';
  * null, or a target it does not name, answers the move `busy`.
  *
  * The body takes these calls from the page: step(dt, draw), layout(), do(word), walk(x, run, id), stopWalk(id), pointer(type, p),
- * drop(p), shift(dx, dy), place(x, facing, y), move(args, id), set({ roam, hold, dialogOpen, listening, thinking, thoughtShown, status, skin, theme }),
+ * drop(p), shift(dx, dy), place(x, facing, y), move(args, id), set({ roam, hold, dialogOpen, still, listening, thinking, thoughtShown, status, skin, theme }),
  * cue(kind), talk(), setScheme(id, o), dispose(); `words` lists every word its do() knows.
  */
 export function createBody(host, opts) {
@@ -957,7 +960,7 @@ export function createBody(host, opts) {
   doc.head.appendChild(skinStyle);
   const start = host.start ?? {};
   if (opts.skinCss && start.skin) skinStyle.textContent = opts.skinCss(start.skin);
-  let dialogOpen = false;
+  let dialogOpen = false, still = false;
   const ctl = createPet({ petG, shadowEl, fxG }, {
     ...opts,
     skin: start.skin ?? null, startX: start.x, startY: start.y, enter: start.enter,
@@ -965,6 +968,7 @@ export function createBody(host, opts) {
     onEvent: host.emit,
     sfx: { play: host.sound },
     dialogOpen: () => dialogOpen,
+    still: () => still,
   });
   if (start.facing === 1 || start.facing === -1) ctl.pet.facing = ctl.pet.faceVis = start.facing;
   return {
@@ -1000,6 +1004,7 @@ export function createBody(host, opts) {
       if (s.roam) ctl.setRoam(s.roam);
       if (typeof s.hold === 'number') ctl.holdRoam(s.hold);
       if (typeof s.dialogOpen === 'boolean') dialogOpen = s.dialogOpen;
+      if (typeof s.still === 'boolean') still = s.still;
       if (typeof s.listening === 'boolean') ctl.setListening(s.listening);
       if (typeof s.thinking === 'boolean') ctl.setThinking(s.thinking);
       if (typeof s.thoughtShown === 'boolean') ctl.setThoughtShown(s.thoughtShown);

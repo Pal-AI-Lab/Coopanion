@@ -5,7 +5,6 @@
  * - `/pet`: the pet itself. In the pet window it is transparent and click-through outside
  *   the figure; in a browser tab it draws a floor.
  * - `/dress`: the dressing page; changes go through `POST /api/skin` and `POST /api/prefs`.
- * - `/api/avatar`: the bot's avatar for the menu header, 404 until one exists.
  * - `POST /api/speech` (`{ text }`): the syllables the pet page's speech plays for a bubble's text (src/speech).
  * - `/api/figures`: the figure packs (src/packs.ts) the pages may load, Coo's first, each with whether it
  *   can be uninstalled (`removable`); `/packs/<id>/…`: an installed pack's files (a built-in one is under
@@ -78,8 +77,6 @@ export interface PetServerOptions {
   /** A dressing page saved a skin. */
   onSkin(skin: unknown): void;
   onPrefs(prefs: Record<string, unknown>): void;
-  /** PNG served at `/api/avatar`. */
-  avatarFile?: string;
   /** The figure packs, looked up again for each request. */
   packs?(): FigurePack[];
   /** What was wrong in the pack directories, looked up again for each request. */
@@ -349,12 +346,6 @@ export class PetServer {
       return this.sendFile(res, full, PACK_CSP, req.headers.origin === 'null');
     }
     if (req.method === 'GET' && path === '/api/state') return json(res, 200, this.opts.snapshot());
-    if (req.method === 'GET' && path === '/api/avatar') {
-      const bytes = this.opts.avatarFile ? await readFile(this.opts.avatarFile).catch(() => null) : null;
-      if (!bytes) { res.writeHead(404).end(); return; }
-      res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-cache' }).end(bytes);
-      return;
-    }
     if (req.method === 'POST' && path === '/api/speech') {
       const msg = parse(await readBody(req) ?? '');
       if (!this.opts.speech) { res.writeHead(404).end(); return; }

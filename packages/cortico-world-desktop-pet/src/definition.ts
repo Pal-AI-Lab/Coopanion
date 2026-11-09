@@ -12,9 +12,6 @@ import { petToolDecls } from './tools.ts';
 import { SELF_TYPE } from './chat.ts';
 import { petText } from './i18n/index.ts';
 
-/** The console keeps the bot's avatar here, in the deployment directory. */
-const AVATAR_FILE = 'avatar.png';
-
 /** Every tool the World can give (the computer-use ones while computer use is on, the way to its switch while it is off) and every event it pushes. */
 const DESCRIBE: WorldDescribe = {
   tools: describeTools([...petToolDecls(), ...CUA_OFF_TOOL_DECLS, ...CUA_TOOL_DECLS], {
@@ -118,7 +115,6 @@ export function desktopPetDefinition(assembly: DesktopPetAssembly = {}): WorldDe
         asrApiKey: () => ctx.secret(DESKTOP_PET_SECRETS.asrApiKey),
         storeAsrApiKey: (key) => ctx.storeSecret(DESKTOP_PET_SECRETS.asrApiKey, key),
         botName: () => assembly.botName?.() ?? ctx.botName,
-        avatarFile: join(ctx.botDir, AVATAR_FILE),
         controls: assembly.controls,
         packRoots: () => [join(ctx.dataDir, 'figures'), ...assembly.packRoots?.() ?? []],
         packDir: () => join(ctx.dataDir, 'figures'),
