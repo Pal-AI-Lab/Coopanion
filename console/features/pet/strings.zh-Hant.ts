@@ -29,6 +29,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: '靜止時也依上方幀率繪製；關閉時靜止狀態降至每秒 30 幀。',
   hideFullscreen: '自動隱藏',
   hideFullscreenHint: '全螢幕時隱藏，離開全螢幕後恢復顯示。最大化視窗不算全螢幕。',
+  passFullscreen: "滑鼠穿透",
+  passFullscreenHint: "滑鼠穿透時 Coo 照常顯示，點擊落到下方的視窗。",
   soundTitle: '音效',
   worldScope: "由其他 World 擴充補充的功能不受此開關影響，請在對應 World 頁面設定。",
   sound: '播放音效',

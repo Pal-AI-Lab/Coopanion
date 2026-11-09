@@ -2,7 +2,8 @@
  * Hover hints. A plain `title` would bring up the system's own tooltip; instead the hint moves to
  * `data-tip` the first time the pointer reaches it and shows a moment later in the console's box
  * (`.u-tip`): under the element, or above it when there is no room below. A title set again later
- * replaces the hint the next time. The rail has no hints: its folded tooltip names its items, and a
+ * replaces the hint the next time. Text an ellipsis or a line clamp cuts short, with no title of its own,
+ * has its full text as the hint. The rail has no hints: its folded tooltip names its items, and a
  * title there, such as a World status dot's, is only taken away.
  */
 const DELAY_MS = 450;
@@ -44,12 +45,22 @@ export function mountHoverHints(doc: Document, signal: AbortSignal): void {
     box.style.left = `${Math.max(EDGE, Math.min(win.innerWidth - width - EDGE, rect.left + rect.width / 2 - width / 2))}px`;
   };
 
+  const cutText = (el: HTMLElement): string => {
+    const style = win.getComputedStyle(el);
+    if (style.textOverflow !== 'ellipsis' && (style.webkitLineClamp || 'none') === 'none') return '';
+    const cut = el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
+    return cut ? el.textContent?.trim() ?? '' : '';
+  };
+
   doc.addEventListener('pointerover', (event) => {
-    const el = (event.target as Element).closest?.<HTMLElement>('[title], [data-tip]');
+    const target = event.target as Element;
+    const titled = target.closest?.<HTMLElement>('[title], [data-tip]');
+    const cut = !titled && target instanceof win.HTMLElement ? cutText(target) : '';
+    const el = titled ?? (cut ? target as HTMLElement : null);
     if (el === current) return;
     hide();
     if (!el || el instanceof HTMLIFrameElement) return;
-    const text = takeTitle(el);
+    const text = titled ? takeTitle(el) : cut;
     // In the rail a title (a World's status dot) is only taken away: the rail shows no hints.
     if (!text || el.closest('#rail')) return;
     current = el;
