@@ -286,7 +286,8 @@ Windows 上桌宠窗口从前台窗口拿走键盘，打字框关掉后还回去
 `【】<>`、逗号、顿号或空白,也不能长过行内标记能装下的长度,不然脚本里写不出来。
 
 工厂按 `factory(base, { model, scheme, kit, loadImage, asset, host })` 调用,返回一个身体;契约写在 `web/figure-frame.js` 开头。
-用 kit 的包只要 `kit.createBody(host, { figure, words })`:`figure` 每帧画一次,`words` 是 kit 本身没有的词怎么做。
+用 kit 的包只要 `kit.createBody(host, { figure, words })`:`figure` 每画一帧调一次,`words` 是 kit 本身没有的词怎么做。
+桌宠窗口隐藏时页面照常推进身体(走路照常走到、词照常做完),但不画。
 `examples/whale/README.md` 是写形象包的完整说明。20 秒内没准备好、或者跑的时候抛错,桌宠换回 Coo,并告诉 bot 词表的变化。
 
 ### 读包里的文件
