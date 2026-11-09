@@ -88,6 +88,8 @@
 | `telemetry_disabled` / `telemetry_enabled` | | 关掉或重新打开统计 |
 | `uninstalled` | | Windows 上卸载（升级时不算）；由卸载程序发出，统计关着时不发 |
 
+`source`、`persona`、`voice_model` 和引导里的 `model_connected` 在引导走完或被关掉时发，每种最多一条；点「上一步」回去重新回答的，发最后一次的回答。
+
 `crash` 的其余字段。错误消息不发送：消息里可能有文件路径、Key 的片段或你说过的话。
 
 | 字段 | 例子 | 说明 |

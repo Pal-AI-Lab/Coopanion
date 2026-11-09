@@ -176,14 +176,15 @@ const BUTTON: Record<Button, { down: number; up: number; drag: number; n: number
   middle: { down: EV.otherDown, up: EV.otherUp, drag: EV.otherDrag, n: 2 },
 };
 
-/** The button held down (moves become drags), and the last press, for counting double clicks. */
-let held: Button | null = null;
+/** The buttons held down (moves become drags of the first), and the last press, for counting double clicks. */
+const held = new Set<Button>();
 let lastPress: { button: Button; at: number; x: number; y: number; count: number } | null = null;
 
 /** Absolute move to a point of the global display space. */
 export function moveTo(x: number, y: number): void {
   needInput();
-  const b = held ? BUTTON[held] : null;
+  const down = held.values().next().value;
+  const b = down ? BUTTON[down] : null;
   post(CGEventCreateMouseEvent(null, b ? b.drag : EV.move, { x, y }, b ? b.n : 0));
 }
 
@@ -201,7 +202,8 @@ function mouseEvent(button: Button, down: boolean): void {
   // macOS tells a double click by this count, not by the timing of two clicks
   CGEventSetIntegerValueField(ev, CLICK_STATE_FIELD, lastPress?.count ?? 1);
   post(ev);
-  held = down ? button : null;
+  if (down) held.add(button);
+  else held.delete(button);
 }
 
 export function buttonDown(b: Button): void { mouseEvent(b, true); }
@@ -224,17 +226,34 @@ function key(code: number, down: boolean, flags: number): void {
   post(ev);
 }
 
-/** Presses `vks` (Windows virtual-key codes) in order with their modifiers held, then releases them in reverse. */
-export function chord(vks: Array<{ vk: number; extended: boolean }>): void {
-  needInput();
-  const keys = vks.map((k) => {
+/** Modifier flags of the keys down now; every key event carries them. */
+let heldFlags = 0;
+
+/** The Mac keys of `vks` (Windows virtual-key codes); throws before anything is posted when one is missing. */
+function macKeys(vks: Array<{ vk: number; extended: boolean }>): Array<{ key: number; flag: number }> {
+  return vks.map((k) => {
     const m = macKey(k.vk);
     if (!m) throw new EngineFailure('macNoKey', [`0x${k.vk.toString(16)}`]);
     return m;
   });
-  let flags = 0;
-  for (const k of keys) { flags |= k.flag; key(k.key, true, flags); }
-  for (const k of [...keys].reverse()) { flags &= ~k.flag; key(k.key, false, flags); }
+}
+
+/** Presses `vks` in order and leaves them down, their modifiers held. */
+export function keysDown(vks: Array<{ vk: number; extended: boolean }>): void {
+  needInput();
+  for (const k of macKeys(vks)) { heldFlags |= k.flag; key(k.key, true, heldFlags); }
+}
+
+/** Releases `vks` in reverse order. */
+export function keysUp(vks: Array<{ vk: number; extended: boolean }>): void {
+  needInput();
+  for (const k of macKeys(vks).reverse()) { heldFlags &= ~k.flag; key(k.key, false, heldFlags); }
+}
+
+/** Presses `vks` in order with their modifiers held, then releases them in reverse. */
+export function chord(vks: Array<{ vk: number; extended: boolean }>): void {
+  keysDown(vks);
+  keysUp(vks);
 }
 
 /** Types text as Unicode key events, independent of the keyboard layout and input method. */

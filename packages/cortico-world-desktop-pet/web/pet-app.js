@@ -316,7 +316,7 @@ function onOrder(m) {
     case 'type': openTyping(); break;
     case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); holdRoam(20); break;
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
-    case 'confirm': dropAsks(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
+    case 'confirm': dropAsks(); rushLines(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
     case 'walk': walk(m); break;
     case 'move': walk(m); break;
     case 'walk-stop': body?.stopWalk(m.id); break;
@@ -390,6 +390,16 @@ let item = null;
 /** Where typing pauses: sentence and clause marks, Latin and full-width (Chinese and Japanese share 。、). */
 const PAUSE = /[,.!?;:…，。！？；：、]/, SILENT = /[\s,.!?;:…，。！？；：、「」『』()（）]/;
 
+/** Lines queued ahead of a World's confirmation type at RUSH times the speed without voice or babble, and stay RUSH_HOLD seconds a beat. */
+const RUSH = 6, RUSH_HOLD = 1;
+function rushLines() {
+  for (const q of [item, ...queue]) {
+    if (q?.kind !== 'say' || q.rush) continue;
+    q.rush = true;
+    if (q === item) { speech.stop(); if (q.beatDone) q.holdUntil = Math.min(q.holdUntil, T + RUSH_HOLD); }
+  }
+}
+
 /** A newer question replaces the bot's open one; a World's confirmation stays until answered. */
 function dropAsks() {
   for (let i = queue.length - 1; i >= 0; i--) if (queue[i].kind === 'ask' && !queue[i].confirm) queue.splice(i, 1);
@@ -453,6 +463,12 @@ function startItem(it) {
     bubble.querySelector('.b-close').addEventListener('click', () => dismissAsk());
     it.text = it.question; it.shown = 0; it.acc = 0; it.optsShown = false;
     sfx.pop();
+    if (it.confirm) {
+      // the bubble stays where it opened while Coo moves; the World counts the wait from now
+      const a = at()?.bubble ?? { x: innerWidth / 2, y: innerHeight };
+      it.pinX = a.x; it.pinY = a.y;
+      send({ t: 'confirm-shown', id: it.id });
+    }
   }
 }
 
@@ -493,7 +509,7 @@ function stepDialog(dt) {
     if (it.shown >= b.text.length && !it.beatDone) {
       it.beatDone = true;
       const last = it.i === it.beats.length - 1;
-      it.holdUntil = T + (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03) / prefs.bubbleSpeed;
+      it.holdUntil = T + (it.rush ? RUSH_HOLD : (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03) / prefs.bubbleSpeed);
     }
     return;
   }
@@ -507,16 +523,16 @@ function stepDialog(dt) {
 function typeText(it, text, dt, anchors) {
   const p = bubble.querySelector('.b-text');
   if (!p || it.shown >= text.length) return;
-  if (it.spoken !== text) { it.spoken = text; speech.begin(text); }
+  if (it.spoken !== text && !it.rush) { it.spoken = text; speech.begin(text); }
   // with speech, each pause mark waits its own time, letters type faster, and the voice makes the sound;
   // estimateSeconds in src/script.ts mirrors these steps, this rate and the holds in stepDialog
   const spoken = speech.active;
-  it.acc += dt * 20 * prefs.bubbleSpeed;
+  it.acc += dt * 20 * prefs.bubbleSpeed * (it.rush ? RUSH : 1);
   while (it.acc >= 1 && it.shown < text.length) {
     const ch = text[it.shown++];
     it.acc -= spoken ? textSteps(ch) : PAUSE.test(ch) ? 5 : 1;
     if (spoken) speech.reveal(it.shown - 1);
-    else if (!SILENT.test(ch)) { sfx.babble(ch); body?.talk(); }
+    else if (!SILENT.test(ch) && !it.rush) { sfx.babble(ch); body?.talk(); }
     while (it.fired < anchors.length && anchors[it.fired].at <= it.shown) acts.push(...anchors[it.fired++].actions);
   }
   if (it.marks?.length) p.innerHTML = marked(text, it.shown, it.marks);
@@ -608,8 +624,10 @@ function dropDialogs() {
 function openDialog(it) {
   const d = it.d;
   const dots = Array.isArray(d.step) ? Array.from({ length: d.step[1] }, (_, i) => `<i class="${i + 1 < d.step[0] ? 'past' : i + 1 === d.step[0] ? 'on' : ''}"></i>`).join('') : '';
-  openBubble('talk', `${dots || d.closable ? `<div class="d-top"><span class="d-dots">${dots}</span>${d.closable ? `<button class="b-close" type="button" aria-label="${esc(t('bubble.skip'))}" title="${esc(t('bubble.skip'))}">×</button>` : ''}</div>` : ''}<p class="b-text"></p><div class="d-body" hidden></div>`);
+  const back = typeof d.back === 'string' && d.back ? `<button class="d-back" type="button">${esc(d.back)}</button>` : '';
+  openBubble('talk', `${dots || d.closable || back ? `<div class="d-top">${back}<span class="d-dots">${dots}</span>${d.closable ? `<button class="b-close" type="button" aria-label="${esc(t('bubble.skip'))}" title="${esc(t('bubble.skip'))}">×</button>` : ''}</div>` : ''}<p class="b-text"></p><div class="d-body" hidden></div>`);
   bubble.querySelector('.b-close')?.addEventListener('click', () => settleDialog(it, { closed: true }));
+  bubble.querySelector('.d-back')?.addEventListener('click', () => settleDialog(it, { back: true }));
   for (const a of d.actions || []) acts.push(a);
   it.text = d.text || ''; it.shown = 0; it.acc = 0; it.bodyShown = false; it.readUntil = 0;
   it.marks = Array.isArray(d.marks) ? d.marks.filter((w) => typeof w === 'string') : [];
@@ -1400,7 +1418,8 @@ function stepTools() {
   const p = cursor.at;
   const l = at();
   if (p && (body?.hit(p) || overTools(p))) toolsUntil = T + TOOLS_LINGER;
-  tools.hidden = !(!prefs.clickThrough && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && toolIds !== '');
+  const confirming = item?.kind === 'ask' && item.confirm && !item.answered;
+  tools.hidden = !(!prefs.clickThrough && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && !confirming && toolIds !== '');
   if (tools.hidden) endHold();
   tools.querySelector('[data-action="voice"]')?.classList.toggle('live', listen.phase === 'hearing');
 }
@@ -1671,8 +1690,8 @@ function layout(dt = 0) {
   if (!tools.hidden) placeTools(l);
   const a = l.bubble;
   let sayBox = null;
-  // choice cards keep their bubble where it was; its tail follows Coo along the bottom edge
-  if (!bubble.hidden && item?.kind === 'dialog' && item.pinX !== undefined) sayBox = placeTalk(item, a);
+  // choice cards and a World's confirmation keep their bubble where it was; its tail follows Coo along the bottom edge
+  if (!bubble.hidden && item?.pinX !== undefined) sayBox = placeTalk(item, a);
   else if (!bubble.hidden) sayBox = place(bubble, a, 18 * prefs.bubbleSize);
   placeLines(a, sayBox, dt);
 }

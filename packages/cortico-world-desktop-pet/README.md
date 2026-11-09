@@ -272,7 +272,7 @@ Windows 上桌宠窗口从前台窗口拿走键盘，打字框关掉后还回去
 | `axes` | 打扮的维度,每维一组选项(`id`、`name`、`thumb`);装扮页每维一行 |
 | `presets` | 维度组合的命名,可带 `accent`、设置窗口配色 `console` 和气泡配色 `bubble`(同下) |
 | `vocab` | 这个身体做的全部表情和动作,也就是它在场时 bot 的整张词表:每个词 `id`、`kind`(`expression` / `motion`)、`names`(按语言的名字列表)、`about`(它做这个词的样子)、`seconds`(连着做时等多久再做下一个),`lasting: true` 表示保持到下一个动作;`kind` 是这一版不认识的值时跳过那个词 |
-| `sounds` | 包自带的音频:名字 → `{ file, kind, volume }`,文件是包里的 `.ogg` `.mp3` `.wav`,`kind` 是 `move` `touch` `face` `snore` `talk` 之一;`talk` 的声音在气泡打字时逐字轮流响，代替页面合成的叽咕声，同一个字总是同一个声音;不存在的文件、这一版不认识的 `kind` 或文件类型,在扫描时记一条问题,那个声音不响 |
+| `sounds` | 包自带的音频:名字 → `{ file, kind, volume, repeat }`,文件是包里的 `.ogg` `.mp3` `.wav`,`kind` 是 `move` `touch` `face` `snore` `talk` 之一;`talk` 的声音在气泡打字时逐字轮流响，代替页面合成的叽咕声，同一个字总是同一个声音;`repeat` 是同一个声音上一次还没放完时又要放的做法:`restart` 让上一次在 30 ms 内淡出后从头放,`finish` 不放这一次,`overlap`(默认)叠着放,`talk` 的声音不看它;不存在的文件、这一版不认识的 `kind` 或文件类型,在扫描时记一条问题,那个声音不响;不认识的 `repeat` 值也记一条问题,按 `overlap` 放 |
 | `voice` | `{ pitch }`:叽咕声的音高倍数,0.5–2,默认 1;有 `talk` 声音时是它们的播放速度。说话声(音节库)开着时按设置里的音高，不看它 |
 | `effects` | `{ reach }`:特效画到框外多远，以身体所在的 256 单位方格计,0–2,默认 0;柔光亮着时的可见范围和 OBS 截取范围按它放大 |
 | `bubble` | bot 气泡的配色:`{ light, dark }`,各是 `{ fill, text, line }`(底色、字色、边框和尾巴，十六进制颜色),按桌宠的夜间模式取一套;预设里的 `bubble` 优先。人说的话的气泡不变。缺一套或颜色写错时整项不用 |
@@ -393,7 +393,7 @@ Coopanion 在 Linux 上固定跑在 X11 上;Wayland 会话里经 XWayland 只看
 2. **同一个 api 里只做加法。** 新字段、新的可选方法和消息、kit 新的导出和词,都不升 api,旧写法照常工作。比如 api 2 里后加的身体 `words`。
 3. **kit 跟着 api 冻结。** api 2 期间,kit 的导出名、函数签名和交给 `figure.draw` 的 `frame` 字段只增不改;修 bug 照常对所有包生效。
    哪天必须不兼容地改,就升 api,把当时的 kit 原样留一份,旧 api 的包继续拿到它。
-4. **旧应用碰到不认识的东西,跳过那一项。** 不认识的字段不读;不认识的词 `kind`、音效 `kind` 或文件类型、`can` 或 `needs` 的值,跳过那一项并记一条问题,
+4. **旧应用碰到不认识的东西,跳过那一项。** 不认识的字段不读;不认识的词 `kind`、音效的 `kind`、`repeat` 或文件类型、`can` 或 `needs` 的值,跳过那一项并记一条问题,
    包照常加载。只有缺了必需字段、字段的类型不对、路径出了包,才拒绝整个包。
 5. **用户存的打扮不失效。** 包更新后 `skin.scheme` 指的选项没了,就退回那一维的第一个选项(`web/body-host.js` 的 `knownScheme`:包的代码只拿到它认得的打扮)。
    给作者的规矩:发布过的选项 id 和词 id 不删、不改名。
@@ -420,7 +420,7 @@ Coopanion 在 Linux 上固定跑在 X11 上;Wayland 会话里经 XWayland 只看
 
 ## 电脑操作
 
-`worlds.desktop-pet.cua.enabled` 开着时(默认关),bot 还看得见这台电脑(Windows、macOS 或 Linux)的屏幕,接了几块显示器都能看、能操作,能移动和点击鼠标、滚动、打字、按组合键、
+`worlds.desktop-pet.cua.enabled` 开着时(默认关),bot 还看得见这台电脑(Windows、macOS 或 Linux)的屏幕,接了几块显示器都能看、能操作,能移动、点击和按住鼠标、滚动、打字、按下和按住组合键、
 列出和切换窗口;使用者一动鼠标键盘,操作就让位。代码在 `src/cua/`;关着时没有这些工具,环境提示词的 `{{pet.cua}}` 只说明功能存在、在应用设置里打开;内嵌应用给了 `controls.openCuaSettings` 时,
 bot 还有 `pet_cua_open_settings`,在使用者同意后把设置窗口打开到这个开关。
 开关和下面的配置都是热更新,下一轮起生效;内嵌应用要在开关改动后重载 session 前缀,工具表才跟着变。
@@ -438,15 +438,18 @@ bot 还有 `pet_cua_open_settings`,在使用者同意后把设置窗口打开到
 | `pet_cua_click(x, y, button, clicks)` | 左/右/中键,单击、双击、三击 |
 | `pet_cua_move(x, y)` | 只移动,用于悬停 |
 | `pet_cua_drag(from, to)` | 按住左键拖动,两点在同一块显示器上 |
+| `pet_cua_mouse_down(x, y, button)` | 在某处按下左/右/中键不松开,直到 `pet_cua_mouse_up` 或这一轮结束;按着时 `pet_cua_move` 就是拖动 |
+| `pet_cua_mouse_up(button)` | 在指针所在处松开鼠标键 |
 | `pet_cua_scroll(x, y, down, right)` | 在某处转滚轮,单位是格 |
 | `pet_cua_type(text)` | 按 Unicode 字符打字,与键盘布局和输入法状态无关;`\n` 按回车 |
-| `pet_cua_key(keys)` | `"ctrl+s"`、`"alt+f4"`、`"ctrl+a delete"`:`+` 同时按,空格分先后 |
+| `pet_cua_key(keys, hold)` | `"ctrl+s"`、`"alt+f4"`、`"ctrl+a delete"`:`+` 同时按,空格分先后;带 `hold` 时只能是一个键或一个组合键,按住这么多秒再松开,最多 30 秒(和 `pet_cua_wait` 的上限相同) |
 | `pet_cua_windows` | 可见顶层窗口的标题、在哪块显示器(在最近一张截图那块上的给出截图坐标)、是否最小化、前台 |
 | `pet_cua_focus(window)` | 按句柄或标题片段切到前台,最小化的先还原;窗口在另一块显示器上时,附带的截图截那块 |
 | `pet_cua_wait(seconds)` | 等一会儿再截图 |
 
 操作类工具默认做完等 `cua.screenshot.settleMs`(500 ms)再附一张截图;参数 `screenshot: false` 可以省掉,这时等完同样的时间再读一次指针和前台窗口,
 没有窗口接收键盘输入时回执提醒先截图。
+一轮结束时(World 的 `onTurnEnded`),引擎松开它按下后还没松开的键和鼠标键;引擎进程退出前(World 停止、电脑操作关掉)也一样。
 
 ### 什么时候先问
 
@@ -461,7 +464,7 @@ bot 还有 `pet_cua_open_settings`,在使用者同意后把设置窗口打开到
 
 问句在桌宠的气泡里出(两个按钮:可以、这次不行,按应用语言);桌宠页不在时,弹一个置顶的系统对话框(Windows 上是 `MessageBoxTimeoutW`,
 macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)。每次气泡里的回答经 `desktopPetDefinition({ onCuaAnswer })` 告诉内嵌应用。
-没同意(拒绝、关掉或 60 秒没回应)时,这一轮剩下要问的调用都不执行,回执写明原因,下一轮再用时重新问。
+没同意(拒绝、关掉,或没回应:气泡的等待见「给内嵌应用」,系统对话框等 60 秒)时,这一轮剩下要问的调用都不执行,回执写明原因,下一轮再用时重新问。
 参数不合法的调用在问之前就被拒掉。`pet_cua_wait` 的等待从不问;`ask-each-turn` 下这一轮还没同意看屏幕时,它只等不截图。
 
 回执和环境提示词的这一节有中文、英文两版(`src/cua/model-text.ts`,`src/cua/ENV_PROMPT.md` 与 `src/cua/ENV_PROMPT.en.md`),跟桌宠的模型文本同一种语言;
@@ -481,6 +484,7 @@ Linux 缺少 MIT-SCREEN-SAVER 扩展或系统输入查询失败时,最后输入�
 打字按 16 个字形一段发送
 (emoji 这类多码位的字不会被拆开),每段之间再检查一次,使用者一动就停,回执报告实际打出了几个字符。
 打字中途让位的信号统计还包含触发停止的那次段间检查。
+按住按键(`hold`)只在按下之前让位,按住期间不检查使用者的输入:Linux 上 X 服务器会自动重复按住的键,重复的按键也计入最后输入时间。
 
 `cua.control` 关掉后只能截图和列窗口,所有输入工具返回拒绝原因。
 登录、密码、验证码、支付交还给使用者,以及发送、删除、提交、购买前先问,这些写在 `src/cua/ENV_PROMPT.md` 里。
@@ -490,7 +494,7 @@ Linux 缺少 MIT-SCREEN-SAVER 扩展或系统输入查询失败时,最后输入�
 用说话键(`asr.mic.mode` 为 `hold` 或 `toggle`)说的话在转写完成、合并为消息并投递时以 `interrupt` 停止当前轮:取消正在生成的回复,给执行中的可打断工具发送取消信号,跳过同轮尚未开始的工具。收音或转写尚未完成时不发送这个信号,已经发生的操作不回滚。
 一直收音(`always`)时听到的话照旧以 `flush` 投递,不打断当前轮:电视或旁人的声音也会收进来。
 
-十一个工具都声明为 `interruptible`。Core 投递 `interrupt` 事件时,执行中的调用停在下一个不留半截输入的地方,
+十三个工具都声明为 `interruptible`。Core 投递 `interrupt` 事件时,执行中的调用停在下一个不留半截输入的地方,
 回执写明停下前做了什么:
 
 | 停下时在做什么 | 结果 |
@@ -498,11 +502,12 @@ Linux 缺少 MIT-SCREEN-SAVER 扩展或系统输入查询失败时,最后输入�
 | 等使用者回答能不能用电脑 | 不执行;问题仍然开着,回答对这一轮之后的调用有效 |
 | 等使用者停手 | 不发出任何输入,回执报告已等了多久 |
 | `pet_cua_type` 打字途中 | 停在两段之间,回执报告打出了几个字符 |
-| 点击、移动、拖动、滚动、按键序列、切窗口 | 已开始的输入发完(拖动会松开左键),之后不等 `settleMs`、不附截图 |
+| `pet_cua_key` 按住按键途中 | 立即松开,回执报告按住了几秒 |
+| 点击、移动、拖动、按下或松开鼠标键、滚动、按键序列、切窗口 | 已开始的输入发完(拖动会松开左键),之后不等 `settleMs`、不附截图 |
 | `pet_cua_wait` 等待中 | 立即结束,回执报告等了几秒,不截图 |
 | `pet_cua_screenshot`、`pet_cua_zoom`、`pet_cua_windows` 已发出请求 | 照常完成 |
 
-主进程在调用的 `signal` 触发时给引擎子进程发 `{ cancel: id }`,引擎只在等使用者停手和打字的段间响应它。
+主进程在调用的 `signal` 触发时给引擎子进程发 `{ cancel: id }`,引擎只在等使用者停手、打字的段间和按住按键时响应它。
 
 ### 实现
 
@@ -544,12 +549,14 @@ macOS 的辅助功能查询每次最多等待 200ms,超时后仍报告前台程�
 `desktopPetDefinition({ controls, onCreate, onSkin, packRoots, onBotChange, language })` 生成定义(`packRoots` 是更多形象包目录,`onBotChange` 在 bot 用 `pet_set` 改了设置之后调用,`language` 见下面「文字」一节):`controls`(`PetBotControls`)给右键菜单借出暂停、设置、退出,
 借了哪个就只画哪个按钮或菜单行(暂停要 `isPaused` 和 `setPaused`,设置要 `openSettings`,退出要 `quit` 与可选的 `quitLabel`,可以是每次开菜单时调用的函数);
 `onCreate` 拿到 World 实例,应用可以调 `world.confirm(问题, [同意, 不同意])` 弹一个两选项气泡(或 `[同意, 以后都同意, 不同意]` 三选项,中间那项答 `always`),
-结果是 `yes` / `no` / `dismissed` / `timeout`(60 秒没人答) / `unavailable`(没有桌宠页),不会作为事件送给 bot。
+结果是 `yes` / `no` / `dismissed` / `timeout` / `unavailable`(没有桌宠页),不会作为事件送给 bot。
+确认排在还没放完的台词后面,这些台词改成六倍速打字、不出声、每拍停 1 秒;气泡露面时页面回报 `confirm-shown`,从这时起 60 秒没人答就是 `timeout`,
+一直没露面时从发出起 3 分钟算 `timeout`;超时时 World 发 `ask-close`,页面把这条确认从队列或气泡上收掉。确认气泡停在露面的位置,Coo 走开时不跟着走,确认期间不弹悬停按钮。
 
 应用自己的一问一答(比如首次启动的引导)用 `world.dialog(步骤)`:Coo 在气泡里说一句,下面接一个输入组件,
 回答同样只交给调用方。组件有按钮行(可带一个反复演示按法的按键帽)、可试选的卡片(可带图标或一张 `data:image/…` 图,比如服务的标志,名字下可带一行小字 `note`;选中时 Coo 当场演示对应动作:站着、溜达、跑来跑去)、
 文本框(可以是密钥框,带一个外链和一个「以后再说」)、进度条(调用方用 `update({ progress })` 推进,`close()` 收起)。
-`step` 在气泡顶上画步骤点,`closable` 画一个关闭钮;页面不在时结果是 `{ unavailable: true }`,页面回来后调用方重发即可。
+`step` 在气泡顶上画步骤点,`closable` 画一个关闭钮,`back` 在步骤点前画一个以它为文字的按钮，点了结果是 `{ back: true }`;页面不在时结果是 `{ unavailable: true }`,页面回来后调用方重发即可。
 `controls.guide` 借出后,控制台的 `pet.guide` 面板方法会调它,应用借此重放引导。
 `/api/config` 写不了列表和对象,所以「习惯」页的两个自定义弹窗经 `pet` 面板方法保存:`setWakeKinds(种类数组)` 把 `touch.wakeOn` 设成 `custom` 并写 `touch.wakeKinds`,
 `setSelfAdjustCustom({ 项: true/false })` 把 `selfAdjust` 设成 `custom` 并写 `selfAdjustCustom`;`pet.state` 的 `wake`、`selfAdjust` 给出当前值(旧的布尔值已按新含义读出)。

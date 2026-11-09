@@ -40,7 +40,7 @@ const de: Translation<CuaText> = {
     grantMinutes: { title: 'Ein Ja gilt', suffix: 'Min.', description: 'Für ask-once und für die gesonderte Frage zu Terminalfenstern.' },
     skipTerminalAsk: { title: 'Rückfrage vor Terminal und Ausführen abschalten', description: 'Wenn an, wird vor Eingaben oder Tasten in einem Terminalfenster und vor win+r nicht mehr gesondert gefragt; es gilt „Wann du gefragt wirst“ wie für jede andere Eingabe. Mit never-ask kann Coo dann Befehle ausführen, ohne dich zu fragen.' },
     userIdleMs: { title: 'Dir den Vortritt lassen für', description: 'Nachdem du Maus oder Tastatur benutzt hast, wartet Coo, bis sie so lange unberührt waren.' },
-    maxYieldWaitMs: { title: 'Längste Wartezeit auf dich' },
+    maxYieldWaitMs: { title: 'Längste Wartezeit auf dich', description: 'Benutzt du Maus oder Tastatur nach dieser Zeit noch, wird die Aktion nicht ausgeführt. Bei 0 wird nicht gewartet.' },
     maxWidth: { title: 'Maximale Screenshot-Breite' },
     maxHeight: { title: 'Maximale Screenshot-Höhe' },
     quality: { title: 'Screenshot-Qualität' },

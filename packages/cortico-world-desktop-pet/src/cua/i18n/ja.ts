@@ -40,7 +40,7 @@ const ja: Translation<CuaText> = {
     grantMinutes: { title: '許可の有効時間', suffix: '分', description: 'ask-once と、ターミナルウィンドウについての個別の確認に使われます。' },
     skipTerminalAsk: { title: 'ターミナルと「ファイル名を指定して実行」の前の確認をオフにする', description: 'オンにすると、ターミナルウィンドウでの入力・キー操作と win+r の前に個別の確認をせず、ほかの操作と同じく「いつ確認するか」に従います。never-ask のときは、Coo が確認なしでコマンドを実行できます。' },
     userIdleMs: { title: 'ユーザーに譲る時間', description: 'あなたがマウスやキーボードを使ったあと、操作がこの時間止まるまで待ちます。' },
-    maxYieldWaitMs: { title: 'ユーザーを待つ最長時間' },
+    maxYieldWaitMs: { title: 'ユーザーを待つ最長時間', description: 'この時間待ってもマウスやキーボードの操作が止まらなければ、今回の操作は実行しません。0 にすると待ちません。' },
     maxWidth: { title: 'スクリーンショットの最大幅' },
     maxHeight: { title: 'スクリーンショットの最大高さ' },
     quality: { title: 'スクリーンショットの画質' },

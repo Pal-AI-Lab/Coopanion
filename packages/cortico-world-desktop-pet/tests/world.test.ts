@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -530,6 +530,41 @@ describe('with a pet page', () => {
     expect(host.events).toHaveLength(0);
   });
 
+  it('confirm waits a minute from when the page shows it, and three minutes in all while it is not shown', async () => {
+    const { world } = await mounted();
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const confirms = (world as unknown as { confirms: Map<string, { shown: boolean }> }).confirms;
+    let settled: string | null = null;
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      // queued behind lines: the page has not shown it yet
+      void world.confirm('可以吗?', ['可以', '不行']).then((r) => { settled = r; });
+      const { id } = await page.next((m) => m.t === 'confirm');
+      vi.advanceTimersByTime(170_000);
+      await Promise.resolve();
+      expect(settled).toBeNull();
+      page.send({ t: 'confirm-shown', id });
+      while (!confirms.get(String(id))?.shown) await new Promise((r) => setImmediate(r));
+      vi.advanceTimersByTime(59_000);
+      await Promise.resolve();
+      expect(settled).toBeNull();
+      vi.advanceTimersByTime(1_000);
+      await Promise.resolve();
+      expect(settled).toBe('timeout');
+      // the page takes the timed-out bubble down, so the lines after it are shown
+      await page.next((m) => m.t === 'ask-close' && m.id === id);
+      settled = null;
+      void world.confirm('还在吗?', ['可以', '不行']).then((r) => { settled = r; });
+      await page.next((m) => m.t === 'confirm');
+      vi.advanceTimersByTime(180_000);
+      await Promise.resolve();
+      expect(settled).toBe('timeout');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('pet_set: 「以后都可以」 applies the change and stops asking about it, as the bot\'s own change', async () => {
     let botChanges = 0;
     const { world, persisted } = await mounted(undefined, { onBotChange: () => { botChanges++; } });
@@ -565,6 +600,10 @@ describe('with a pet page', () => {
     const closed = world.dialog({ text: '跳过?', closable: true, input: { kind: 'text', submit: '好', alt: '算了' } });
     page.send({ t: 'dialog', id: (await page.next((m) => m.t === 'dialog')).id, closed: true });
     expect(await closed.answer).toEqual({ closed: true });
+
+    const back = world.dialog({ text: '叫什么?', back: '上一步', input: { kind: 'text', submit: '好' } });
+    page.send({ t: 'dialog', id: (await page.next((m) => m.t === 'dialog')).id, back: true });
+    expect(await back.answer).toEqual({ back: true });
 
     // a progress step moves with update and ends when the app closes it
     const bar = world.dialog({ text: '下载中', input: { kind: 'progress' } });

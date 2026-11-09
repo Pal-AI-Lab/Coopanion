@@ -40,7 +40,7 @@ const it: Translation<CoreText> = {
   status: {
     read: 'Legge', browse: 'Sfoglia', memory: 'memoria', find: 'Trova', search: 'Cerca', write: 'Scrive', edit: 'Modifica', append: 'Aggiunge a',
     delete: 'Elimina', moveFile: 'Sposta', save: 'Salva', screen: 'Guarda lo schermo', windows: 'Guarda le finestre aperte', rightClick: 'Fa clic destro', doubleClick: 'Fa doppio clic', click: 'Fa clic',
-    move: 'Muove il mouse', drag: 'Trascina', scroll: 'Scorre', focus: 'Cambia finestra', type: 'Digita', key: 'Preme', wait: 'Aspetta',
+    move: 'Muove il mouse', drag: 'Trascina', mouseDown: 'Preme il tasto del mouse', mouseUp: 'Rilascia il tasto del mouse', scroll: 'Scorre', focus: 'Cambia finestra', type: 'Digita', key: 'Preme', wait: 'Aspetta',
     alarmSet: 'Imposta una sveglia', alarmList: 'Controlla le sveglie', alarmCancel: 'Annulla una sveglia',
     quoted: (text: string) => `«${text}»`,
     seconds: (n: number) => `${n} s`,
@@ -129,6 +129,8 @@ const it: Translation<CoreText> = {
         : "Tutto pronto! La mia icona è anche nell'area di notifica, in basso a destra nella barra delle applicazioni; cliccala per cambiare le impostazioni.",
     go: 'Andiamo',
     dress: 'Prima vestimi',
+    back: 'Indietro',
+    next: 'Avanti',
     closed: 'Va bene, fermiamoci qui. Per riascoltare la mia presentazione, apri le impostazioni e clicca «Guida» nella pagina Inizio.',
 
     askFirst: 'Non ho ancora un modello collegato; potrò parlare quando aggiungerai una API Key. Quale servizio uso?',

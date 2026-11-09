@@ -96,7 +96,7 @@ While the App Store is in front, Coo drops behind other windows so it doesn't co
 ## Getting started
 
 1. **Start**: Coo drops to the bottom of the screen and an icon appears in the tray (the menu bar on Mac, the status bar on Linux). No window opens.
-2. **Follow the guide**: in its bubbles, Coo asks for the interface language, where you heard about it (you can skip this), what it should call you, what Coo is like, how often it walks around, which touches it should answer and which model service to use. Then it downloads the speech model: FunASR, about 230 MB, or Whisper, about 360 MB, when the interface language is French, German, Spanish, Portuguese, Italian or Russian. The download comes from ModelScope and falls back to Hugging Face. The × on the bubble ends the guide, and **Guide** on the Start page runs it again. To change Coo's personality or the way it talks afterwards, just tell it; it writes the persona into its prompt itself.
+2. **Follow the guide**: in its bubbles, Coo asks for the interface language, where you heard about it (you can skip this), what it should call you, what Coo is like, how often it walks around, which touches it should answer and which model service to use. Then it downloads the speech model: FunASR, about 230 MB, or Whisper, about 360 MB, when the interface language is French, German, Spanish, Portuguese, Italian or Russian. The download comes from ModelScope and falls back to Hugging Face. **Back** at the top left of the bubble returns to the step before, with your earlier answer in place. The × ends the guide, and **Guide** on the Start page runs it again. To change Coo's personality or the way it talks afterwards, just tell it; it writes the persona into its prompt itself.
 3. **Say hello**: tap **Left Alt** (**Left Option** on Mac), then press and hold it, say "hello", and let go to send. Allow microphone access when asked.
 
 <details>
@@ -172,8 +172,9 @@ There are four settings for when Coo asks you first:
 - Coo asks in a bubble, or in a system dialog while the pet is hidden.
 - Before typing into a terminal or pressing Win+R, Coo asks separately, and that consent also lasts for the consent period. To skip this question, turn it off in advanced mode under **Desktop pet → Config**.
 - Only what you say, type or choose on the desktop pet's side can make Coo act. When another World asks it to use the computer, Coo checks with you in a bubble first.
+- Coo can hold keys down for up to 30 seconds, without pausing for your mouse or keyboard meanwhile, and keep a mouse button down across several steps. Whatever it still holds down is released when its turn ends.
 - As soon as you move the mouse or use the keyboard, Coo pauses and waits until you have been idle for two seconds (by default); if you keep going for 15 seconds, it gives up on that step. It also holds off while you are typing to it.
-- Anything you say with the talk key interrupts Coo once it is transcribed: the reply being written and the steps not yet started are dropped, while a click, drag or key sequence already under way finishes first. When it listens **All the time**, what Coo hears does not interrupt it.
+- Anything you say with the talk key interrupts Coo once it is transcribed: the reply being written and the steps not yet started are dropped, while a click, drag or key sequence already under way finishes first and a held key is released at once. When it listens **All the time**, what Coo hears does not interrupt it.
 - Do logins, passwords and payments yourself. One wake allows 40 model requests by default; when Coo hits that limit it stops, and you can tell it to keep going. The limit is **Requests per wake-up** in advanced mode.
 
 ### Settings window
@@ -208,6 +209,8 @@ A running World can't be deleted; stop it first. A deleted World stays under **A
 <p align="center"><img src="image/README/worlds-en.png" alt="World extensions: installed Worlds, status and grouping controls" width="960"></p>
 
 Provider extensions are under **Advanced mode → Model connections → Extension market**; one that a connection still uses can't be deleted until you delete that connection. Installed extensions live in the data folder and survive a reinstall of the app.
+
+If you quit the app while an extension is being installed or uninstalled, it waits for that install or uninstall to finish before quitting.
 
 ### Updates
 

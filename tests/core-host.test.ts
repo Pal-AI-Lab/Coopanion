@@ -10,8 +10,10 @@ const require = createRequire(import.meta.url);
 const repo = fileURLToPath(new URL('../', import.meta.url));
 const roots: string[] = [];
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
+/** stop()'s wait for extensions in the `installing-stuck` run; its shutdown countdown is 100 ms. */
+const STUCK_EXTENSIONS_MS = 300;
 
-async function exercise(mode: 'clean' | 'hung' | 'console') {
+async function exercise(mode: 'clean' | 'hung' | 'console' | 'installing' | 'installing-hung' | 'installing-stuck') {
   const root = mkdtempSync(join(tmpdir(), 'coo-core-host-'));
   roots.push(root);
   mkdirSync(join(root, 'core'));
@@ -20,7 +22,16 @@ async function exercise(mode: 'clean' | 'hung' | 'console') {
     process.on('SIGTERM', () => {});
     process.on('disconnect', () => process.exit(0));
     process.on('message', (msg) => {
-      if (msg.type === 'companion:shutdown' && process.env.COOPANION_TEST_STOP !== 'hung') process.exit(0);
+      if (msg.type === 'companion:shutdown') {
+        if (process.env.COOPANION_TEST_STOP.startsWith('installing')) {
+          process.send({ type: 'cortico:shutdown', phase: 'waiting-extensions' });
+          if (process.env.COOPANION_TEST_STOP !== 'installing-stuck') setTimeout(() => {
+            require('node:fs').writeFileSync('settled', 'done');
+            process.send({ type: 'cortico:shutdown', phase: 'stopping' });
+            if (process.env.COOPANION_TEST_STOP === 'installing') process.exit(0);
+          }, 250);
+        } else if (process.env.COOPANION_TEST_STOP !== 'hung') process.exit(0);
+      }
       if (msg.type === 'test:exit') process.exit(0);
     });
     process.send({ type: 'companion:ready', port: 1, dataDir: process.cwd() });
@@ -54,10 +65,14 @@ async function exercise(mode: 'clean' | 'hung' | 'console') {
         await new Promise((done) => setTimeout(done, 3500));
         replacement = host.child?.pid ?? null;
       }
-      await host.stop();
+      const began = Date.now();
+      await host.stop(process.env.COOPANION_TEST_STOP.startsWith('installing') ? 100 : undefined,
+        process.env.COOPANION_TEST_STOP === 'installing-stuck' ? ${STUCK_EXTENSIONS_MS} : undefined);
+      const elapsed = Date.now() - began;
       const [code, signal] = await exited;
-      console.log(JSON.stringify({ code, signal, original: original.pid, replacement,
-        child: host.child, port: host.port, state: host.state, crashes: host.crashes, states, exits }));
+      console.log(JSON.stringify({ code, signal, elapsed, original: original.pid, replacement,
+        child: host.child, port: host.port, state: host.state, crashes: host.crashes, states, exits,
+        settled: require('node:fs').existsSync('settled') }));
     })().catch((err) => { console.error(err); process.exitCode = 1; host.child?.kill('SIGKILL'); });
   `);
   const child = spawn(require('electron'), [join(root, 'drive.cjs')], {
@@ -76,6 +91,18 @@ async function exercise(mode: 'clean' | 'hung' | 'console') {
 }
 
 describe('Core shutdown', () => {
+  it.each(['installing', 'installing-hung'] as const)('waits past the grace period for mutations, then resumes the shutdown deadline (%s)', async mode => {
+    const result = await exercise(mode);
+    expect(result).toMatchObject({ settled: true, child: null, state: 'stopped', crashes: [] });
+    if (mode === 'installing') expect(result.code).toBe(0);
+    else expect(result.code !== 0 || result.signal !== null).toBe(true);
+  });
+  it('starts the shutdown countdown when the wait for extensions runs out without Core reporting stopping', async () => {
+    const result = await exercise('installing-stuck');
+    expect(result).toMatchObject({ settled: false, child: null, state: 'stopped', crashes: [] });
+    expect(result.code !== 0 || result.signal !== null).toBe(true);
+    expect(result.elapsed).toBeGreaterThanOrEqual(STUCK_EXTENSIONS_MS);
+  });
   it('exits promptly after a cooperative shutdown without keeping the grace timer alive', async () => {
     const result = await exercise('clean');
     expect(result).toMatchObject({ code: 0, child: null, port: null, state: 'stopped', crashes: [] });

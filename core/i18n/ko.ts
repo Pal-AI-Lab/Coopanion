@@ -40,7 +40,7 @@ const ko: Translation<CoreText> = {
   status: {
     read: '읽는 중', browse: '둘러보는 중', memory: '기억', find: '찾는 중', search: '검색 중', write: '쓰는 중', edit: '고치는 중', append: '덧붙이는 중',
     delete: '삭제 중', moveFile: '옮기는 중', save: '저장 중', screen: '화면 보는 중', windows: '열린 창 보는 중', rightClick: '오른쪽 클릭 중', doubleClick: '더블클릭 중', click: '클릭 중',
-    move: '마우스 옮기는 중', drag: '드래그 중', scroll: '스크롤 중', focus: '창 전환 중', type: '입력 중', key: '키 누르는 중', wait: '기다리는 중',
+    move: '마우스 옮기는 중', drag: '드래그 중', mouseDown: '마우스 버튼 누르는 중', mouseUp: '마우스 버튼 떼는 중', scroll: '스크롤 중', focus: '창 전환 중', type: '입력 중', key: '키 누르는 중', wait: '기다리는 중',
     alarmSet: '알람 맞추는 중', alarmList: '알람 확인 중', alarmCancel: '알람 취소 중',
     quoted: (text: string) => `"${text}"`,
     seconds: (n: number) => `${n}초`,
@@ -129,6 +129,8 @@ const ko: Translation<CoreText> = {
         : '다 준비됐어! 작업 표시줄 오른쪽 아래 트레이에도 내 아이콘이 있으니까, 설정을 바꾸고 싶으면 그걸 클릭해.',
     go: '시작하자',
     dress: '먼저 꾸밀래',
+    back: '이전',
+    next: '다음',
     closed: '응, 그럼 일단 여기까지 하자. 내 소개를 다시 듣고 싶으면 설정을 열고 시작 페이지에서 "사용 안내"를 클릭해.',
 
     askFirst: '아직 모델에 연결이 안 됐어. API Key를 넣어 줘야 너랑 얘기할 수 있거든. 어느 서비스를 쓸까?',

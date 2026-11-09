@@ -40,7 +40,7 @@ const ptBR: Translation<CuaText> = {
     grantMinutes: { title: 'Um sim dura', suffix: 'min', description: 'Para ask-once e para a pergunta à parte sobre terminais.' },
     skipTerminalAsk: { title: 'Desativar a pergunta antes do terminal e do Executar', description: 'Ligado, digitar ou pressionar teclas em um terminal e win+r não têm mais pergunta à parte e seguem “Quando perguntar a você” como qualquer outra ação. Com never-ask, Coo pode executar comandos sem perguntar a você.' },
     userIdleMs: { title: 'Não atrapalhar por', description: 'Depois que você usa o mouse ou o teclado, espera até que fiquem parados por esse tempo.' },
-    maxYieldWaitMs: { title: 'Espera máxima por você' },
+    maxYieldWaitMs: { title: 'Espera máxima por você', description: 'Se você ainda estiver usando o mouse ou o teclado depois desse tempo, a ação não é feita. Com 0 não há espera.' },
     maxWidth: { title: 'Largura máxima da captura' },
     maxHeight: { title: 'Altura máxima da captura' },
     quality: { title: 'Qualidade da captura' },

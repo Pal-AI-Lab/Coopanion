@@ -129,6 +129,7 @@ const ptBR: Translation<PetText> = {
     soundType: (name: string, file: string) => `${file} de sounds.${name} não é um .ogg, .mp3 ou .wav que esta versão reproduza; o som fica mudo`,
     soundKind: (name: string, kind: string, kinds: readonly string[]) => `sounds.${name}.kind é ${kind}; esta versão só conhece ${kinds.join(', ')}, então o som fica mudo`,
     soundMissing: (name: string, file: string) => `${file} de sounds.${name} não existe; o som fica mudo`,
+    soundRepeat: (name: string, got: string, values: readonly string[]) => `sounds.${name}.repeat é ${got}; esta versão só conhece ${values.join(', ')}, então o som toca como overlap`,
     badWalk: (got: string) => `can.walk é ${got}, que esta versão não conhece; considerado capaz de andar`,
     movesNotArray: 'moves deve ser uma lista',
     tooManyMoves: (max: number) => `moves aceita no máximo ${max} destinos`,

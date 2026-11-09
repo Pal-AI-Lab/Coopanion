@@ -48,7 +48,7 @@ const en: CoreText = {
   status: {
     read: 'Reading', browse: 'Browsing', memory: 'memory', find: 'Looking for', search: 'Searching', write: 'Writing', edit: 'Editing', append: 'Adding to',
     delete: 'Deleting', moveFile: 'Moving', save: 'Saving', screen: 'Looking at the screen', windows: 'Looking at the open windows', rightClick: 'Right-clicking', doubleClick: 'Double-clicking', click: 'Clicking',
-    move: 'Moving the mouse', drag: 'Dragging', scroll: 'Scrolling', focus: 'Switching windows', type: 'Typing', key: 'Pressing', wait: 'Waiting',
+    move: 'Moving the mouse', drag: 'Dragging', mouseDown: 'Pressing the mouse button', mouseUp: 'Releasing the mouse button', scroll: 'Scrolling', focus: 'Switching windows', type: 'Typing', key: 'Pressing', wait: 'Waiting',
     alarmSet: 'Setting an alarm', alarmList: 'Checking alarms', alarmCancel: 'Cancelling an alarm',
     /** The words being searched for. */
     quoted: (text: string) => `"${text}"`,
@@ -145,6 +145,9 @@ const en: CoreText = {
         : 'All set! My icon is in the tray at the bottom right of the taskbar too; click it to change settings.',
     go: 'Let\'s go',
     dress: 'Dress me up first',
+    /** The back button atop each step; the button of the speech model page once the model was downloaded in the introduction. */
+    back: 'Back',
+    next: 'Next',
     closed: 'OK, let\'s stop here. To hear my introduction again, open settings and click "Guide" on the Start page.',
 
     askFirst: 'I\'m not connected to a model yet; I can talk once you add an API Key. Which service should I use?',

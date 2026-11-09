@@ -100,7 +100,7 @@ describe('computer use without the engine', () => {
     w.onTurnEnded();
     answer = 'timeout';
     name = 'Mochi';
-    expect((await call(w, 'pet_cua_windows', {})).text).toContain('没有回应');
+    expect((await call(w, 'pet_cua_windows', {})).text).toContain('没有等到回应');
     expect(asked).toHaveLength(2);
     expect(asked[1]).toContain('Mochi');
   });
@@ -259,6 +259,34 @@ describe('computer use without the engine', () => {
       expect(out.text).toContain('只输入了 16/40 个字符:收到打断');
       expect(out.blobs).toBeUndefined();
     });
+  });
+
+  it('releases a mouse button left down when the turn ends, without asking again', async () => {
+    const cfg = { ...structuredClone(CUA_DEFAULTS), permission: 'ask-before-acting' as const };
+    cfg.screenshot.afterAction = false;
+    cfg.screenshot.settleMs = 0;
+    const answers: Array<'yes' | 'no'> = ['yes'];
+    const w = new Cua({ cfg: () => cfg, askPermission: async () => answers.shift() ?? 'no' });
+    // stands in for the engine child: keeps what is held as the engine does
+    const down = new Set<string>();
+    const inner = w as unknown as { spawn: () => unknown; pending: Map<number, { done: (v: unknown) => void; timer: NodeJS.Timeout }> };
+    inner.spawn = () => ({
+      exitCode: null,
+      send({ id, req }: { id: number; req: { op: string; button?: string } }) {
+        if (req.op === 'mouseDown') down.add(req.button!);
+        if (req.op === 'mouseUp') down.delete(req.button!);
+        if (req.op === 'release') down.clear();
+        const value = req.op === 'release' ? undefined : { ...ONE_DISPLAY, yielded: false, cancelled: false, waitedMs: 0 };
+        const p = inner.pending.get(id)!;
+        inner.pending.delete(id);
+        clearTimeout(p.timer);
+        p.done(value);
+      },
+    });
+    expect((await call(w, 'pet_cua_mouse_down', { x: 1, y: 1, button: 'right' })).failed).toBeUndefined();
+    expect([...down]).toEqual(['right']);
+    w.onTurnEnded();
+    await expect.poll(() => down.size).toBe(0);
   });
 
   it('gives the bot no Chinese of its own when the model text is English: environment prompt, tool declarations, receipts', async () => {

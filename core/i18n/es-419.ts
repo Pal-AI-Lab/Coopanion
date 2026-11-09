@@ -40,7 +40,7 @@ const es419: Translation<CoreText> = {
   status: {
     read: 'Leyendo', browse: 'Revisando', memory: 'memoria', find: 'Localizando', search: 'Buscando', write: 'Escribiendo', edit: 'Editando', append: 'Agregando a',
     delete: 'Borrando', moveFile: 'Moviendo', save: 'Guardando', screen: 'Mirando la pantalla', windows: 'Mirando las ventanas abiertas', rightClick: 'Haciendo clic derecho', doubleClick: 'Haciendo doble clic', click: 'Haciendo clic',
-    move: 'Moviendo el mouse', drag: 'Arrastrando', scroll: 'Desplazando', focus: 'Cambiando de ventana', type: 'Tecleando', key: 'Presionando', wait: 'Esperando',
+    move: 'Moviendo el mouse', drag: 'Arrastrando', mouseDown: 'Presionando el botón del mouse', mouseUp: 'Soltando el botón del mouse', scroll: 'Desplazando', focus: 'Cambiando de ventana', type: 'Tecleando', key: 'Presionando', wait: 'Esperando',
     alarmSet: 'Poniendo una alarma', alarmList: 'Revisando las alarmas', alarmCancel: 'Cancelando una alarma',
     quoted: (text: string) => `“${text}”`,
     seconds: (n: number) => `${n} s`,
@@ -129,6 +129,8 @@ const es419: Translation<CoreText> = {
         : '¡Todo listo! Mi ícono también está en la bandeja, abajo a la derecha de la barra de tareas; haz clic en él para cambiar la configuración.',
     go: '¡Vamos!',
     dress: 'Primero vísteme',
+    back: 'Atrás',
+    next: 'Siguiente',
     closed: 'Bueno, lo dejamos aquí. Para volver a escuchar mi presentación, abre la configuración y haz clic en “Guía” en la página Inicio.',
 
     askFirst: 'Todavía no tengo un modelo conectado; podré hablar cuando agregues una API Key. ¿Qué servicio uso?',
