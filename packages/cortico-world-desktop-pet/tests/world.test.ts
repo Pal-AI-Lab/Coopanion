@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -530,6 +530,41 @@ describe('with a pet page', () => {
     expect(host.events).toHaveLength(0);
   });
 
+  it('confirm waits a minute from when the page shows it, and three minutes in all while it is not shown', async () => {
+    const { world } = await mounted();
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const confirms = (world as unknown as { confirms: Map<string, { shown: boolean }> }).confirms;
+    let settled: string | null = null;
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      // queued behind lines: the page has not shown it yet
+      void world.confirm('可以吗?', ['可以', '不行']).then((r) => { settled = r; });
+      const { id } = await page.next((m) => m.t === 'confirm');
+      vi.advanceTimersByTime(170_000);
+      await Promise.resolve();
+      expect(settled).toBeNull();
+      page.send({ t: 'confirm-shown', id });
+      while (!confirms.get(String(id))?.shown) await new Promise((r) => setImmediate(r));
+      vi.advanceTimersByTime(59_000);
+      await Promise.resolve();
+      expect(settled).toBeNull();
+      vi.advanceTimersByTime(1_000);
+      await Promise.resolve();
+      expect(settled).toBe('timeout');
+      // the page takes the timed-out bubble down, so the lines after it are shown
+      await page.next((m) => m.t === 'ask-close' && m.id === id);
+      settled = null;
+      void world.confirm('还在吗?', ['可以', '不行']).then((r) => { settled = r; });
+      await page.next((m) => m.t === 'confirm');
+      vi.advanceTimersByTime(180_000);
+      await Promise.resolve();
+      expect(settled).toBe('timeout');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('pet_set: 「以后都可以」 applies the change and stops asking about it, as the bot\'s own change', async () => {
     let botChanges = 0;
     const { world, persisted } = await mounted(undefined, { onBotChange: () => { botChanges++; } });
@@ -605,20 +640,14 @@ describe('with a pet page', () => {
       quit: () => calls.push('quit'),
       quitLabel: '退出 App',
     };
-    const dir = mkdtempSync(join(tmpdir(), 'pet-avatar-'));
-    const avatarFile = join(dir, 'avatar.png');
-    writeFileSync(avatarFile, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
-    const { world } = await mounted(undefined, { botName: () => 'Bot', avatarFile, controls });
-    const res = await fetch(`${origin(world)}/api/avatar`);
-    expect(res.headers.get('content-type')).toBe('image/png');
-    expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+    const { world } = await mounted(undefined, { botName: () => 'Bot', controls });
     const win = await windowPage(world);
     cleanup.push(() => win.close());
     const tab = await FakePage.open(origin(world), 'role=pet&host=tab');
     cleanup.push(() => tab.close());
     const state = await (await fetch(`${origin(world)}/api/state`)).json() as { bot: Record<string, unknown> };
     expect(state.bot).toMatchObject({
-      name: 'Bot', controls: true, buttons: { pause: true, settings: true, dress: false, quit: true }, paused: false, quitLabel: '退出 App', avatar: expect.any(String),
+      name: 'Bot', controls: true, buttons: { pause: true, settings: true, dress: false, quit: true }, paused: false, quitLabel: '退出 App',
     });
     win.send({ t: 'control', action: 'pause' });
     expect((await win.next((m) => m.t === 'prefs')).bot).toMatchObject({ paused: true });

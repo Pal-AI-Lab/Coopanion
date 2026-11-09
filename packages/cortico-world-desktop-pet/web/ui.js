@@ -95,6 +95,11 @@ export const ICONS = {
   status_wait: icon('<path d="M5 3h14M5 21h14M7 3v4l10 10v4M17 3v4L7 17v4M9 6h6M9 19h6"/>'),
   status_alarm: icon('<circle cx="12" cy="13" r="7"/><path d="M12 9v4l3 2M3 5l3-3M18 2l3 3M7 20l-2 2M17 20l2 2"/>'),
   status_work: gear,
+  pencil: icon('<path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5zM13.5 7l3 3"/>'),
+  /** A five-pointed star: save the look worn as a new one. */
+  addLook: icon('<path d="M12 3.5l2.6 5.3 5.9.9-4.25 4.1 1 5.8L12 16.9l-5.25 2.7 1-5.8L3.5 9.7l5.9-.9z"/>'),
+  /** A floppy disk: save the changes to the look picked. */
+  saveLook: icon('<path d="M5 3.5h11l3 3V20.5H5z"/><path d="M8.5 3.5v5h6v-5M8 20.5v-6.5h8v6.5"/>'),
   trash: icon('<path d="M4 6.5h16M9.5 6.5V4.5h5v2M6.5 6.5l1 13.5h9l1-13.5M10 10.5v6M14 10.5v6"/>'),
 };
 /** Sets `theme` ('dark' | 'light') on the page; `button`, when given, shows the mode a click switches to. */

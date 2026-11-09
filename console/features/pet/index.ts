@@ -70,6 +70,7 @@ const KEYS = {
   lockFps: `${K}.window.lockFrameRate`,
   frameRate: `${K}.window.frameRate`,
   hideFullscreen: `${K}.window.hideWhenFullscreen`,
+  passFullscreen: `${K}.window.passWhenFullscreen`,
   overlay: `${K}.window.exportOverlay`,
   sound: `${K}.sound`,
   volume: `${K}.sounds.volume`,
@@ -204,6 +205,9 @@ async function mount(ctx: PageContext): Promise<void> {
     { size: 'sm', onSelect: (v) => void save(KEYS.frameRate, Number(v), GROUP, frameRate.el) });
   const lockFps = ui.checkbox(S.lockFps, { onChange: (on) => void save(KEYS.lockFps, on, GROUP, lockFps.el) });
   const hideFullscreen = ui.checkbox(S.hideFullscreen, { onChange: (on) => void save(KEYS.hideFullscreen, on, GROUP, hideFullscreen.el) });
+  const passFullscreen = ui.checkbox(S.passFullscreen, { onChange: (on) => void save(KEYS.passFullscreen, on, GROUP, passFullscreen.el) });
+  const fullscreenBox = ui.h('div', 'companion-checks');
+  fullscreenBox.append(hideFullscreen.el, passFullscreen.el);
   const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on, GROUP, remember.el) });
   const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on, GROUP, dblclick.el) });
   const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on, GROUP, statusBubble.el) });
@@ -381,8 +385,8 @@ async function mount(ctx: PageContext): Promise<void> {
     r.append(l, c);
     return r;
   };
-  // the World declares this setting on Windows only; elsewhere its value never arrives and the row stays hidden
-  const hideFullscreenRow = row(S.hideFullscreenLabel, hideFullscreen.el, S.hideFullscreenHint);
+  // the World declares these settings on Windows only; elsewhere their values never arrive and the row stays hidden
+  const hideFullscreenRow = row(S.hideFullscreenLabel, fullscreenBox, [S.hideFullscreenHint, S.passFullscreenHint]);
   hideFullscreenRow.hidden = true;
   const autoUpdateRow = row(S.autoUpdateLabel, autoUpdate.el, S.autoUpdateHint);
   autoUpdateRow.hidden = true;
@@ -661,6 +665,7 @@ async function mount(ctx: PageContext): Promise<void> {
     }
     if (typeof values[KEYS.lockFps] === 'boolean') lockFps.setChecked(values[KEYS.lockFps] as boolean);
     if (typeof values[KEYS.hideFullscreen] === 'boolean') { hideFullscreen.setChecked(values[KEYS.hideFullscreen] as boolean); hideFullscreenRow.hidden = false; }
+    if (typeof values[KEYS.passFullscreen] === 'boolean') passFullscreen.setChecked(values[KEYS.passFullscreen] as boolean);
     if (typeof values[KEYS.remember] === 'boolean') remember.setChecked(values[KEYS.remember] as boolean);
     if (typeof values[KEYS.dblclick] === 'boolean') dblclick.setChecked(values[KEYS.dblclick] as boolean);
     if (typeof values[KEYS.statusBubble] === 'boolean') statusBubble.setChecked(values[KEYS.statusBubble] as boolean);

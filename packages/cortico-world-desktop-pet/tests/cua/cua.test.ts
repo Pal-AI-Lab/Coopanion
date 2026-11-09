@@ -100,7 +100,7 @@ describe('computer use without the engine', () => {
     w.onTurnEnded();
     answer = 'timeout';
     name = 'Mochi';
-    expect((await call(w, 'pet_cua_windows', {})).text).toContain('没有回应');
+    expect((await call(w, 'pet_cua_windows', {})).text).toContain('没有等到回应');
     expect(asked).toHaveLength(2);
     expect(asked[1]).toContain('Mochi');
   });

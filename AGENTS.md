@@ -139,6 +139,8 @@ keep it; the checklist still applies to what they say.
 - A settings-window change is shown with `pnpm run console:test`: the real page from
   `build/console` with this checkout's Core behind it, on ports of its own. Mock pages of the
   settings window are not used.
+- After a change to the settings window's layout or UI text, `pnpm run console:layout` lists what
+  overflows, is cut or wraps in some language and not in Simplified Chinese.
 
 ## 7. Scratch
 

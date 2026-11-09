@@ -23,7 +23,8 @@
  *   most 64. `id` is an opaque string that stays the window's while it is open and may go to another window after
  *   it closes; `active` is true for the foreground window and false for the others, and absent on macOS.
  * - `kit`: web/kit/body.js (createBody builds a whole body around a figure that only draws; createRig).
- * - the body: `step(dt)` advances and draws one frame; `layout()` says where it is ({ x, y, facing, mode,
+ * - the body: `step(dt, draw)` advances one frame and draws it, unless `draw` is false (the pet window is hidden;
+ *   a body that draws anyway only spends the time); `layout()` says where it is ({ x, y, facing, mode,
  *   busy, moving, pressing, cursor, box, hit, bubble, side }, see the kit's `layout`; `y`, the stage y its feet stand on, only
  *   for a body that stands off the floor, which the World then keeps with its position and hands back as `start.y`); `resize()` takes new
  *   bounds (`set({ bounds })` from the page changes what `host.bounds()` returns, then calls it); `do(word)`, `walk(x, run, id)`,
@@ -37,7 +38,7 @@
  *   that ends on its own, `touch` ({ kind: poke | pet | grab | drop | throw | crash, ... }), `mode` ({ mode }).
  *
  * Messages in: `init { entry, export, base, model, scheme, start, theme, bounds, language }` (the app language,
- * for the frame's own error messages), then `tick { dt }`
+ * for the frame's own error messages), then `tick { dt, draw }`
  * once a frame, `windows { ledges, windows }` (null when there are none to read) and the calls above by name. Out: `loaded`, `ready { z, words }`, `frame { layout, events: [{ kind,
  * detail }], sounds: [{ name, kind, args }], z }` after each tick, `scheme { seq, z }`, and `error { message }`
  * once, after which it stops.
@@ -98,7 +99,7 @@ addEventListener('message', async (e) => {
     } else if (!body) {
       // calls that come before the body is ready have nothing to act on
     } else if (m.t === 'tick') {
-      body.step(m.dt);
+      body.step(m.dt, m.draw);
       post({ t: 'frame', layout: body.layout(), events, sounds, z: body.z ?? null });
       events = []; sounds = [];
     } else if (m.t === 'scheme') {

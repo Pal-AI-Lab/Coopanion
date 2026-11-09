@@ -29,6 +29,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: 'Garde la fréquence ci-dessus aussi au repos ; désactivé, le repos passe à 30 images par seconde.',
   hideFullscreen: 'Masquer automatiquement',
   hideFullscreenHint: 'Se masque pendant le plein écran et réapparaît ensuite. Une fenêtre agrandie ne compte pas.',
+  passFullscreen: "Laisser passer les clics à travers Coo",
+  passFullscreenHint: "Quand les clics passent à travers, Coo reste visible et les clics vont à la fenêtre en dessous.",
   soundTitle: 'Sons',
   worldScope: "Les fonctions ajoutées par d’autres extensions World ne dépendent pas de cet interrupteur ; réglez-les sur la page de chaque World.",
   sound: 'Jouer les sons',
