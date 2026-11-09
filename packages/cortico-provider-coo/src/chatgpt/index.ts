@@ -15,6 +15,7 @@ import type { ReasoningTier } from 'cortico/core/types.ts';
 import { isContextOverflow } from 'cortico/providers/transport/errors.ts';
 import { providersRoot } from 'cortico/paths.ts';
 import { SIGN_IN_PANEL } from '../connect.ts';
+import { ImageFallback } from '../image-fallback.ts';
 import { cooText } from '../strings.ts';
 import { CHATGPT, CHATGPT_MODULE, effortOf, siteOf } from '../vendors.ts';
 import { CHATGPT_SERVICE, accountAt, signedIn, type ChatGPTAccount, type ChatGPTService, type SignInStatus } from './auth.ts';
@@ -85,19 +86,20 @@ export function chatgptModule(service: ChatGPTService = CHATGPT_SERVICE, stateRo
     create(name, entry, host): ProviderInstance {
       const account = accountAt(host.stateDir, service, fetchImpl);
       const stated = (model: string) => CHATGPT.contextWindows?.[model];
+      const media = { enabled: () => (host.currentEntry?.() ?? entry).multimodal === true, read: host.readBlob };
       return {
         control: account,
         compatibilityKey: () => [CHATGPT_MODULE, name],
         contextWindow: stated,
         listModels: async () => (await listPlanModels(service.api, await account.accessToken(), fetchImpl))
           .map((m) => (stated(m.id) ? { ...m, contextWindow: stated(m.id) } : m)),
-        client: new ChatGPTResponses({
+        client: new ImageFallback(new ChatGPTResponses({
           baseUrl: service.api,
           log: host.log,
-          media: { enabled: () => (host.currentEntry?.() ?? entry).multimodal === true, read: host.readBlob },
+          media,
           keepThinking: host.keepThinking,
           reasoningReplay: 'encrypted',
-        }, { effort: (model) => effortOf(CHATGPT, site, model) }, account, host.log),
+        }, { effort: (model) => effortOf(CHATGPT, site, model) }, account, host.log), media, isContextOverflow, host.log),
       };
     },
   };

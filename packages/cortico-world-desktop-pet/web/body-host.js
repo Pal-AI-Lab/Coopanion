@@ -163,7 +163,8 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
       get words() { return words; },
       /** Whether stage point `p` is on the body. */
       hit: (p) => onBody(layout, p),
-      tick(dt) { if (ready) post({ t: 'tick', dt }); },
+      /** Advances the body `dt` seconds; with `draw` false (the pet window is hidden) it need not draw. */
+      tick(dt, draw = true) { if (ready) post({ t: 'tick', dt, draw }); },
       do: (word) => post({ t: 'do', word }),
       walk: (x, run, id) => post({ t: 'walk', x, run, id }),
       /** One of the pack's own targets, `{ to, run, params }` as the World checked it. */

@@ -433,3 +433,11 @@ body.desk .floor{display:none}
 @media (prefers-reduced-motion: reduce){.wall-glow, .wall-lens, .bubble.said{transition:none}}
 @media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .d-pill.chosen, .caret, .menu > *, .tools, .tool.holding::after, .tool.sent, .tool::before, .tool::after, .tool .ic, .tool .ic::before{animation:none}}
 @media (prefers-reduced-motion: reduce){.d-cards .d-card.on .d-cardic[class*="ic-persona_"], .d-cards .d-card.on .d-cardic .spout{animation:none}}
+/* the run controls on the menu's left (settings, pause/resume, power), pointed at: the gear turns, the pause swells, the power button is pressed */
+.m-rail .tool:hover svg{transform-origin:center; animation:rail-gear .6s ease-in-out}
+.m-rail .tool.run:hover svg{animation-name:rail-pulse}
+.m-rail .tool.power:hover svg{animation-name:rail-press}
+@keyframes rail-gear{to{transform:rotate(180deg)}}
+@keyframes rail-pulse{35%{transform:scale(1.18)} 70%{transform:scale(.94)}}
+@keyframes rail-press{40%{transform:translateY(2px) scale(.9)}}
+@media (prefers-reduced-motion: reduce){.m-rail .tool:hover svg{animation:none}}

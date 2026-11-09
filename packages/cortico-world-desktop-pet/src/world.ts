@@ -39,6 +39,7 @@ import { SpeechText, speechTextSteps } from './speech/index.ts';
 import { PetServer, type PageMessage } from './server.ts';
 import { StatusTracker, type DescribeTool } from './status.ts';
 import { WindowHost, resolveHostCommand } from './window-host.ts';
+import { describeHostReason } from './host-reason.ts';
 import { RuntimeStore, type ModelSpec } from './runtime/store.ts';
 import { SENSEVOICE, SherpaAsr, WHISPER, type SherpaModelKind, type SherpaModule, type SherpaState } from './asr/sherpa.ts';
 import { SystemRecognizer, systemRecognizerSupported, type SystemRecognizerState, type SystemSentence } from './asr/system-recognizer.ts';
@@ -87,8 +88,10 @@ const FRAME_MS = 20;
 const WALK_TIMEOUT_MS = 30_000;
 /** Touches of one kind closer than this are reported as one event with a count. */
 const TOUCH_MERGE_MS = 2500;
-/** How long a confirmation bubble waits for an answer. */
+/** How long a confirmation bubble waits for an answer, counted from when the page shows it. */
 const CONFIRM_TIMEOUT_MS = 60_000;
+/** How long a confirmation waits in all, while the page has not shown it (lines ahead of it in the queue). */
+const CONFIRM_UNSHOWN_MS = 180_000;
 /** History events read per chat page load; the page asks for the ones before by cursor. */
 const CHAT_PAGE_EVENTS = 300;
 /** A message from the chat page: text cut to this, up to IMAGES_MAX images of at most IMAGE_MAX_BYTES each, as the console World takes them. */
@@ -285,7 +288,9 @@ interface PendingConfirm {
   resolve: (result: ConfirmResult) => void;
   /** How many choices the bubble shows: the last one is no. */
   choices: number;
+  /** Ends the wait with 'timeout': CONFIRM_UNSHOWN_MS from the ask, then CONFIRM_TIMEOUT_MS from when it was shown. */
   timer: NodeJS.Timeout;
+  shown: boolean;
 }
 
 /** Characters a step's line is shown for per second (typing, then reading), for its time limit. */
@@ -647,7 +652,7 @@ export class DesktopPetWorld implements World {
     this.toldVocab = this.vocab();
     this.toldMoves = this.moves();
     await this.server.start();
-    this.windowHost = new WindowHost(host.log, () => this.t.window);
+    this.windowHost = new WindowHost(host.log);
     if (this.cfg.window.enabled) this.openWindow();
     const sherpa = (engine: SherpaEngine, kind: SherpaModelKind) => new SherpaAsr({
       kind,
@@ -890,7 +895,7 @@ export class DesktopPetWorld implements World {
   openWindow(): void {
     if (!this.windowHost || !this.server.port) return;
     const managed = this.store.electron.executable();
-    this.windowHost.start(resolveHostCommand(this.server.windowUrl, this.cfg.window.electronFile, managed, this.t.window));
+    this.windowHost.start(resolveHostCommand(this.server.windowUrl, this.cfg.window.electronFile, managed));
   }
 
   /* ---------- page protocol ---------- */
@@ -917,6 +922,7 @@ export class DesktopPetWorld implements World {
       frameRate: this.cfg.window.frameRate,
       lockFrameRate: this.cfg.window.lockFrameRate,
       hideWhenFullscreen: this.cfg.window.hideWhenFullscreen,
+      passWhenFullscreen: this.cfg.window.passWhenFullscreen,
       clickThrough: this.clickThrough,
       language: this.appLanguage,
       user: this.userName,
@@ -1168,6 +1174,14 @@ export class DesktopPetWorld implements World {
           .map((d) => ({ id: d.id, label: typeof d.label === 'string' ? d.label : '' }));
         return;
       }
+      case 'confirm-shown': {
+        const id = String(msg.id), c = this.confirms.get(id);
+        if (!c || c.shown) return;
+        c.shown = true;
+        clearTimeout(c.timer);
+        c.timer = this.confirmTimer(id, CONFIRM_TIMEOUT_MS);
+        return;
+      }
       case 'confirmed': {
         const c = this.confirms.get(String(msg.id));
         if (!c) return;
@@ -1201,17 +1215,27 @@ export class DesktopPetWorld implements World {
     this.syncPrefs();
   }
 
+  /** Ends the wait with 'timeout' after `ms`, and takes the confirmation off the page, queued or shown. */
+  private confirmTimer(id: string, ms: number): NodeJS.Timeout {
+    return setTimeout(() => {
+      const c = this.confirms.get(id);
+      this.confirms.delete(id);
+      this.server.sendPet({ t: 'ask-close', id });
+      c?.resolve('timeout');
+    }, ms);
+  }
+
   /**
    * Asks the person in a bubble with two choices, the first one meaning yes, or three, the middle one
    * meaning yes and from now on. Answers never reach the bot as events; the caller gets them. A hidden
-   * pet's bubble cannot be seen, so the caller gets 'unavailable' at once, as with no pet page.
+   * pet's bubble cannot be seen, so the caller gets 'unavailable' at once, as with no pet page. The answer
+   * is awaited CONFIRM_TIMEOUT_MS from when the page shows the bubble, which may queue it behind lines.
    */
   confirm(question: string, choices: [yes: string, no: string] | [yes: string, always: string, no: string]): Promise<ConfirmResult> {
     const id = nextId('k');
     if (this.petHidden || !this.server.sendPet({ t: 'confirm', id, question, options: choices })) return Promise.resolve('unavailable');
     return new Promise((resolve) => {
-      const timer = setTimeout(() => { this.confirms.delete(id); resolve('timeout'); }, CONFIRM_TIMEOUT_MS);
-      this.confirms.set(id, { resolve, timer, choices: choices.length });
+      this.confirms.set(id, { resolve, timer: this.confirmTimer(id, CONFIRM_UNSHOWN_MS), choices: choices.length, shown: false });
     });
   }
 
@@ -1801,7 +1825,7 @@ export class DesktopPetWorld implements World {
 
   private notConnected(tool: string): ToolOutcome {
     const w = this.windowHost?.state();
-    const detail = w && w.phase !== 'running' && w.detail ? w.detail : null;
+    const detail = w && w.phase !== 'running' && w.reason ? describeHostReason(this.t.window, w.reason) : null;
     return { text: this.t.notConnected(tool, detail, this.userName), failed: true };
   }
 
@@ -2017,7 +2041,7 @@ export class DesktopPetWorld implements World {
     const c = petText(language).console;
     // the lamp is the window's: a browser page standing in for it is only mentioned
     const inWindow = this.server.petInWindow;
-    const hint = w?.detail ?? c.notOpen;
+    const hint = w?.reason ? describeHostReason(petText(language).windowReason, w.reason) : c.notOpen;
     const lamps: WorldLamp[] = [
       {
         label: c.window,

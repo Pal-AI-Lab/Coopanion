@@ -264,6 +264,7 @@ export default {
     frameRate: { title: '帧率', description: '走动、被拎着、跳起时每秒画多少帧；0 跟随显示器刷新率。超过显示器刷新率时按显示器的。「习惯」页可选 60、120、144 和不限。' },
     lockFrameRate: { title: '帧率锁定', description: '静止时也按「帧率」画桌宠。关着时站着、坐着、睡着降到每秒 30 帧。' },
     hideWhenFullscreen: { title: '全屏时自动隐藏', description: '开着时，前台窗口全屏铺满桌宠所在的那块屏（游戏、全屏视频、浏览器全屏）就把 Coo 藏起来，退出全屏放回来；最大化的窗口不算。关着时一直浮在上面。' },
+    passWhenFullscreen: { title: "全屏时鼠标穿透", description: "开着时，前台窗口全屏铺满桌宠所在的那块屏期间 Coo 照常显示，点击全部穿过 Coo 落到下面的窗口，退出全屏后恢复；最大化的窗口不算。和全屏时自动隐藏同时开着时 Coo 会隐藏。" },
     exportOverlay: { title: 'OBS 画面', description: '在 /overlay 提供桌宠窗口的透明画面，供 OBS「浏览器」来源使用；关闭时不提供。' },
     electronFile: { title: 'Electron 程序', description: '留空时依次用 CORTICO_DESKTOP_PET_HOST 和面板里安装的运行时。' },
     port: { title: '页面端口', description: '被占用时向上顺延。' },
@@ -296,6 +297,16 @@ export default {
     thresholdDb: { title: '说话门槛' },
     silenceMs: { title: '一句结束的静音' },
     maxUtteranceMs: { title: '一句最长' },
+  },
+
+  /** 桌宠窗口没有打开的原因，显示在状态灯和桌宠面板上 */
+  windowReason: {
+    badHostEnv: (env: string) => `${env} 不是 JSON 字符串数组`,
+    noElectronFile: (file: string) => `Electron 程序不存在：${file}`,
+    noElectron: '没有可用的 Electron：在桌宠面板安装窗口运行时，或在配置里指定 Electron 程序',
+    startFailed: (why: string) => `启动失败：${why}`,
+    closed: '窗口已关闭',
+    exited: (code: number | null) => `窗口进程退出（退出码 ${code}）`,
   },
 
   /** 控制台的「桌宠」「语音输入」面板 */

@@ -20,6 +20,7 @@ import { fetchLooks, lookAvailable, lookPicture, sameLook } from './looks.js';
 import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
+import { runFrames } from './frame-loop.js';
 
 const $ = (s) => document.querySelector(s);
 const host = window.petHost || null;
@@ -128,6 +129,11 @@ let windowShown = true;
 function reportVisibility() { if (host) send({ t: 'visibility', hidden: !windowShown }); }
 // the page itself always reads as visible (its window does not throttle it): the window process says when it is hidden
 host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVisibility(); });
+/** Clicks pass through because a fullscreen window covers the pet's display and the setting says so; the window process decides. */
+let fullscreenThrough = false;
+host?.onFullscreenThrough?.((on) => { fullscreenThrough = on; });
+/** Every click passes through the pet right now, by the tray or the fullscreen setting. */
+const clicksPass = () => prefs.clickThrough || fullscreenThrough;
 
 /* ---------- OBS overlay: while the window streams, each frame drawn is reported with the part it sends, the pet and its bubbles ---------- */
 let overlayOn = false;
@@ -281,8 +287,9 @@ function applyPrefs(p) {
   if (typeof p.saidBubbles === 'boolean') { prefs.saidBubbles = p.saidBubbles; if (!p.saidBubbles) for (const line of lines) if (!line.live) fadeLine(line); }
   if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
   if (typeof p.frameRate === 'number' && p.frameRate >= 0) prefs.frameRate = p.frameRate;
-  // the window process does the hiding; the page only passes the setting on
+  // the window process does the hiding and the passing through; the page only passes the settings on
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
+  if (typeof p.passWhenFullscreen === 'boolean') host?.passWhenFullscreen?.(p.passWhenFullscreen);
   if (typeof p.clickThrough === 'boolean') { prefs.clickThrough = p.clickThrough; host?.clickThrough?.(p.clickThrough); }
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
   if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-rail.confirm')) renderMenuRail(); }
@@ -316,7 +323,7 @@ function onOrder(m) {
     case 'type': openTyping(); break;
     case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); holdRoam(20); break;
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
-    case 'confirm': dropAsks(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
+    case 'confirm': dropAsks(); rushLines(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
     case 'walk': walk(m); break;
     case 'move': walk(m); break;
     case 'walk-stop': body?.stopWalk(m.id); break;
@@ -390,6 +397,16 @@ let item = null;
 /** Where typing pauses: sentence and clause marks, Latin and full-width (Chinese and Japanese share 。、). */
 const PAUSE = /[,.!?;:…，。！？；：、]/, SILENT = /[\s,.!?;:…，。！？；：、「」『』()（）]/;
 
+/** Lines queued ahead of a World's confirmation type at RUSH times the speed without voice or babble, and stay RUSH_HOLD seconds a beat. */
+const RUSH = 6, RUSH_HOLD = 1;
+function rushLines() {
+  for (const q of [item, ...queue]) {
+    if (q?.kind !== 'say' || q.rush) continue;
+    q.rush = true;
+    if (q === item) { speech.stop(); if (q.beatDone) q.holdUntil = Math.min(q.holdUntil, T + RUSH_HOLD); }
+  }
+}
+
 /** A newer question replaces the bot's open one; a World's confirmation stays until answered. */
 function dropAsks() {
   for (let i = queue.length - 1; i >= 0; i--) if (queue[i].kind === 'ask' && !queue[i].confirm) queue.splice(i, 1);
@@ -453,6 +470,12 @@ function startItem(it) {
     bubble.querySelector('.b-close').addEventListener('click', () => dismissAsk());
     it.text = it.question; it.shown = 0; it.acc = 0; it.optsShown = false;
     sfx.pop();
+    if (it.confirm) {
+      // the bubble stays where it opened while Coo moves; the World counts the wait from now
+      const a = at()?.bubble ?? { x: innerWidth / 2, y: innerHeight };
+      it.pinX = a.x; it.pinY = a.y;
+      send({ t: 'confirm-shown', id: it.id });
+    }
   }
 }
 
@@ -463,7 +486,7 @@ function startItem(it) {
  */
 function pointedAt() {
   const p = cursor.at;
-  if (prefs.clickThrough || bubble.hidden || !p) return false;
+  if (clicksPass() || bubble.hidden || !p) return false;
   const r = bubble.getBoundingClientRect();
   return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom;
 }
@@ -493,7 +516,7 @@ function stepDialog(dt) {
     if (it.shown >= b.text.length && !it.beatDone) {
       it.beatDone = true;
       const last = it.i === it.beats.length - 1;
-      it.holdUntil = T + (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03) / prefs.bubbleSpeed;
+      it.holdUntil = T + (it.rush ? RUSH_HOLD : (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03) / prefs.bubbleSpeed);
     }
     return;
   }
@@ -507,16 +530,16 @@ function stepDialog(dt) {
 function typeText(it, text, dt, anchors) {
   const p = bubble.querySelector('.b-text');
   if (!p || it.shown >= text.length) return;
-  if (it.spoken !== text) { it.spoken = text; speech.begin(text); }
+  if (it.spoken !== text && !it.rush) { it.spoken = text; speech.begin(text); }
   // with speech, each pause mark waits its own time, letters type faster, and the voice makes the sound;
   // estimateSeconds in src/script.ts mirrors these steps, this rate and the holds in stepDialog
   const spoken = speech.active;
-  it.acc += dt * 20 * prefs.bubbleSpeed;
+  it.acc += dt * 20 * prefs.bubbleSpeed * (it.rush ? RUSH : 1);
   while (it.acc >= 1 && it.shown < text.length) {
     const ch = text[it.shown++];
     it.acc -= spoken ? textSteps(ch) : PAUSE.test(ch) ? 5 : 1;
     if (spoken) speech.reveal(it.shown - 1);
-    else if (!SILENT.test(ch)) { sfx.babble(ch); body?.talk(); }
+    else if (!SILENT.test(ch) && !it.rush) { sfx.babble(ch); body?.talk(); }
     while (it.fired < anchors.length && anchors[it.fired].at <= it.shown) acts.push(...anchors[it.fired++].actions);
   }
   if (it.marks?.length) p.innerHTML = marked(text, it.shown, it.marks);
@@ -1255,6 +1278,7 @@ function menuActions() {
 }
 
 function openMenu() {
+  menuAt = null;
   menu.innerHTML = '';
   const rail = Object.assign(document.createElement('div'), { className: 'm-rail' });
   const grid = Object.assign(document.createElement('div'), { className: 'm-grid' });
@@ -1286,17 +1310,22 @@ function openMenu() {
 }
 
 /** The run controls on the body's left and the actions on its right; the two swap when the right runs off the screen. */
+let menuAt = null;
 function placeMenu(l) {
   const rail = menu.querySelector('.m-rail'), grid = menu.querySelector('.m-grid');
   if (!rail || !grid) return;
   // the same gap on both sides of the body's box
-  const c = l.side, b = l.box, gap = 12;
+  // left and right of the body's box as it was when the menu opened: it stands still meanwhile, and the box narrows and shifts as it turns round
+  menuAt ??= { ...l.box };
+  const c = l.side, b = menuAt, gap = 12;
   const onRight = b.x + b.w + gap + grid.offsetWidth <= innerWidth - 8;
-  const y = (el) => { el.style.top = f(clamp(c.y - el.offsetHeight / 2, 8, innerHeight - el.offsetHeight - 8)) + 'px'; };
+  // whole pixels: the menu rides up and down with the body, and text at a fraction of a pixel snaps on its own, apart from its frame
+  const y = (el) => { el.style.top = Math.round(clamp(c.y - el.offsetHeight / 2, 8, innerHeight - el.offsetHeight - 8)) + 'px'; };
   grid.style.left = f(clamp(onRight ? b.x + b.w + gap : b.x - gap - grid.offsetWidth, 8, innerWidth - grid.offsetWidth - 8)) + 'px';
   y(grid);
   // the run controls hold their edge next to the body, so the quit question grows away from it
-  if (onRight) { rail.style.left = 'auto'; rail.style.right = f(Math.max(8, innerWidth - (b.x - gap))) + 'px'; }
+  // a long quit question (Japanese, Russian) that would run off the left edge stays on the screen
+  if (onRight) { rail.style.left = 'auto'; rail.style.right = f(Math.min(innerWidth - rail.offsetWidth - 8, Math.max(8, innerWidth - (b.x - gap)))) + 'px'; }
   else { rail.style.right = 'auto'; rail.style.left = f(Math.min(innerWidth - rail.offsetWidth - 8, b.x + b.w + gap)) + 'px'; }
   // the buttons line up on the edge next to the body
   rail.style.alignItems = onRight ? 'flex-end' : 'flex-start';
@@ -1359,6 +1388,7 @@ function fillMenuRail(rail, bot, confirmQuit) {
 function closeMenu() {
   if (menu.hidden) return;
   menu.hidden = true;
+  menuAt = null;
   // the hover buttons stay away until the pointer has left the body and them, and comes back
   toolsMuted = true;
   toolsUntil = 0;
@@ -1439,11 +1469,12 @@ function wireVoiceTool(b) {
 
 /** Where the cursor is, in page pixels, or null when it is off the page. */
 const cursor = { at: null };
+/** Pixels around the hover buttons that count as on them, as the gaps between them do. */
+const TOOLS_MARGIN = 6;
 function overTools(p) {
   if (tools.hidden) return false;
-  const r = tools.getBoundingClientRect();
-  // the gaps between the buttons and a little margin count too
-  return p.x >= r.left - 6 && p.x <= r.right + 6 && p.y >= r.top - 6 && p.y <= r.bottom + 6;
+  const r = tools.getBoundingClientRect(), m = TOOLS_MARGIN;
+  return p.x >= r.left - m && p.x <= r.right + m && p.y >= r.top - m && p.y <= r.bottom + m;
 }
 function stepTools() {
   // shown while the cursor is on the pet or on the buttons, and a moment after it leaves; decided
@@ -1453,7 +1484,8 @@ function stepTools() {
   const near = !!p && (body?.hit(p) || overTools(p) || overWheel(p));
   if (!near) toolsMuted = false;
   if (near && !toolsMuted) toolsUntil = T + TOOLS_LINGER;
-  tools.hidden = !(!prefs.clickThrough && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && toolIds !== '');
+  const confirming = item?.kind === 'ask' && item.confirm && !item.answered;
+  tools.hidden = !(!clicksPass() && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && !confirming && toolIds !== '');
   if (tools.hidden) endHold();
   tools.querySelector('[data-action="voice"]')?.classList.toggle('live', listen.phase === 'hearing');
 }
@@ -1573,7 +1605,7 @@ function stepWheel() {
   const p = cursor.at;
   const dress = !!p && overDress(p);
   if (dress || (p && overWheel(p))) wheelState.until = T + WHEEL_LINGER;
-  if (dress && wheel.hidden && !prefs.clickThrough) void openWheel();
+  if (dress && wheel.hidden && !clicksPass()) void openWheel();
   if (!wheel.hidden && T > wheelState.until) closeWheel();
 }
 // the mouse wheel turns the row while it shows, over the row or over a dress button
@@ -1593,7 +1625,7 @@ const lastPointer = { x: 0, y: 0 };
 /** Whether the page is on screen and drawing; the mouse is not taken while it is not. */
 const FRAME_STALL_MS = 1000;
 let lastFrameAt = performance.now();
-const rendering = () => document.visibilityState === 'visible' && performance.now() - lastFrameAt < FRAME_STALL_MS;
+const rendering = () => windowShown && document.visibilityState === 'visible' && performance.now() - lastFrameAt < FRAME_STALL_MS;
 /** How often the wish for the mouse is renewed; the window process's lease is longer. */
 const MOUSE_RENEW_MS = 500;
 let interactive = null, renewedAt = -Infinity;
@@ -1654,8 +1686,49 @@ function writePointer(now) {
   diag.types.clear();
 }
 
-const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]), .tools:not([hidden]), .wheel:not([hidden])';
+// the menu itself covers the whole page without taking clicks; its two columns are what can be pointed at
+const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]) > *, .tools:not([hidden]), .wheel:not([hidden])';
 const overUi = (e) => e.target.closest && e.target.closest(UI_SELECTOR);
+
+/**
+ * In a Wayland session the window takes the mouse only over the rects reported here (host/input-shape.cjs),
+ * sent from the frames when they change and at least every MOUSE_RENEW_MS: the body's hit circles inside its
+ * box (body-host.js onBody), one strip per SHAPE_GRID row, and what UI_SELECTOR names, the hover buttons with
+ * TOOLS_MARGIN around them. Every rect is rounded out to SHAPE_GRID, so a body breathing in place leaves the
+ * shape as it is on most frames.
+ */
+let inputShape = false, shapeSent = '', shapeAt = -Infinity;
+host?.onInputShape?.((on) => { inputShape = on; shapeSent = ''; });
+const SHAPE_GRID = 8;
+const gridDown = (v) => Math.floor(v / SHAPE_GRID) * SHAPE_GRID, gridUp = (v) => Math.ceil(v / SHAPE_GRID) * SHAPE_GRID;
+function inputRects() {
+  const out = [];
+  const add = (x0, y0, x1, y1) => {
+    if (x1 > x0 && y1 > y0) out.push({ x: gridDown(x0), y: gridDown(y0), width: gridUp(x1) - gridDown(x0), height: gridUp(y1) - gridDown(y0) });
+  };
+  const l = at();
+  for (const c of l?.hit ?? []) {
+    const b = l.box, top = Math.max(b.y, c.y - c.r), bottom = Math.min(b.y + b.h, c.y + c.r);
+    for (let y0 = gridDown(top); y0 < bottom; y0 += SHAPE_GRID) {
+      // as wide as the circle's widest chord in the row: on the centre line when the row holds it, else at its edge nearer to it
+      const y1 = y0 + SHAPE_GRID, dy = Math.max(0, y0 - c.y, c.y - y1), half = Math.sqrt(c.r * c.r - dy * dy);
+      add(Math.max(b.x, c.x - half), Math.max(top, y0), Math.min(b.x + b.w, c.x + half), Math.min(bottom, y1));
+    }
+  }
+  for (const el of document.querySelectorAll(UI_SELECTOR)) {
+    const r = el.getBoundingClientRect(), m = el === tools ? TOOLS_MARGIN : 0;
+    add(r.left - m, r.top - m, r.right + m, r.bottom + m);
+  }
+  return out;
+}
+function stepInputShape() {
+  if (!inputShape) return;
+  const rects = inputRects(), key = JSON.stringify(rects), now = performance.now();
+  if (key === shapeSent && now - shapeAt < MOUSE_RENEW_MS) return;
+  shapeSent = key;
+  shapeAt = now;
+  host.setInputRects(rects);
+}
 document.addEventListener('pointermove', (e) => {
   pointerSeen = true;
   lastPointer.x = e.clientX; lastPointer.y = e.clientY;
@@ -1684,7 +1757,8 @@ document.addEventListener('pointermove', (e) => {
  */
 let polled = null;
 host?.onCursor?.((p) => {
-  cursor.at = p;
+  // in a Wayland session the reports keep the spot where the cursor left the last X11 window; there the page's own pointer events place it
+  if (!inputShape || !p) cursor.at = p;
   if (!p) {
     diag.poll = { at: performance.now(), off: true };
     if (!pressing) setInteractive(false, 'poll');
@@ -1855,8 +1929,8 @@ function layout(dt = 0) {
   if (!wheel.hidden) placeWheel(l);
   const a = l.bubble;
   let sayBox = null;
-  // choice cards keep their bubble where it was; its tail follows Coo along the bottom edge
-  if (!bubble.hidden && item?.kind === 'dialog' && item.pinX !== undefined) sayBox = placeTalk(item, a);
+  // choice cards and a World's confirmation keep their bubble where it was; its tail follows Coo along the bottom edge
+  if (!bubble.hidden && item?.pinX !== undefined) sayBox = placeTalk(item, a);
   else if (!bubble.hidden) sayBox = place(bubble, a, 18 * prefs.bubbleSize);
   placeLines(a, sayBox, dt);
 }
@@ -1967,24 +2041,28 @@ function stepBackdrop(dt) {
 /**
  * Frames per second: `prefs.frameRate` while the body moves (its layout's `moving`) and always while `lockFrameRate` is on,
  * RESTING_FPS otherwise; a frame rate of 0, or one above the display's, draws on every display refresh. Each frame
- * redraws the whole figure, so the window's CPU and GPU time grows with this rate.
+ * redraws what changed in the figure, so the window's CPU and GPU time grows with this rate.
+ *
+ * While the pet window is hidden, frames come at HIDDEN_FPS: the clock, the orders, the bubbles' text and the body's
+ * motion go on, so a walk still arrives and a line still runs out, but the body is not drawn, nothing on the stage is
+ * placed, the screen behind is not sampled and the streaming layer gets no frames.
+ *
+ * Each frame advances the clock by the time since the frame before, in steps (frame-loop.js); the page's orders and
+ * the body take every step, and only the last one is drawn.
  */
 const RESTING_FPS = 30;
-/** When the next frame is due (a rAF timestamp), and the gap between frames at the current rate. */
-let last = performance.now(), dueAt = 0, gap = 0;
+/** Frames a second while the window is hidden: the World hears of an arrival within a tenth of a second. */
+const HIDDEN_FPS = 10;
 /** The last error the frame loop logged, so one that keeps recurring is reported once, not per frame. */
 let frameErr = null;
 /**
- * Frames whose timestamp was not past the one before (a zero or negative dt), and when that was last logged (ms):
+ * Frames whose timestamp was not past the one before (no time to step), and when that was last logged (ms):
  * where these timestamps come from is not known yet. Logged at most once a minute, with the count so far. The first frame is
- * left out: `last` starts at the page's clock, which may be ahead of the first frame's timestamp.
+ * left out: the loop starts its count at the page's clock, which may be ahead of the first frame's timestamp.
  */
 let stalls = 0, stallLoggedAt = -Infinity, framed = false;
-function frame(now) {
-  // frames stop coming while the window is hidden or occluded, which `rendering()` reads
-  lastFrameAt = performance.now();
-  // a display refresh up to a quarter gap early counts as on time, so the rate averages out over refresh rates it does not divide
-  if (now < dueAt - gap / 4) { requestAnimationFrame(frame); return; }
+function frame(steps, now, last) {
+  const drawn = windowShown;
   if (framed && now <= last) {
     stalls++;
     if (performance.now() - stallLoggedAt > 60_000) {
@@ -1993,37 +2071,38 @@ function frame(now) {
     }
   }
   framed = true;
-  const dt = Math.min(.05, (now - last) / 1000); last = now;
   try {
-    T += dt;
-    stepActs();
-    stepDialog(dt);
-    stepTalkRead(dt);
-    stepTalkMotion();
-    stepLines();
-    stepStatus();
-    setBody({ dialogOpen: !!item || !!listen.phase, still: !menu.hidden });
-    body?.tick(dt);
-    stepBackdrop(dt);
-    stepTools();
-    stepWheel();
-    layout(dt);
-    // the frame's own time, so the layer shows frames as far apart as they were drawn
-    if (overlayOn) host.overlayFrame(overlayRect(), performance.timeOrigin + now);
+    steps.forEach((dt, i) => {
+      T += dt;
+      stepActs();
+      stepDialog(dt);
+      stepTalkRead(dt);
+      stepTalkMotion();
+      stepLines();
+      stepStatus();
+      setBody({ dialogOpen: !!item || !!listen.phase, still: !menu.hidden });
+      body?.tick(dt, drawn && i === steps.length - 1);
+    });
+    if (drawn) {
+      const dt = steps.reduce((a, b) => a + b, 0);
+      stepBackdrop(dt);
+      stepTools();
+      stepWheel();
+      layout(dt);
+      stepInputShape();
+      // the frame's own time, so the layer shows frames as far apart as they were drawn
+      if (overlayOn) host.overlayFrame(overlayRect(), performance.timeOrigin + now);
+    }
   } catch (err) {
-    // a throwing step must not take the loop with it: the next frame is only asked for below, and
+    // a throwing step must not take the loop with it: the next frame is only asked for after this returns, and
     // without it the pet freezes for good (a broken figure throws again on every frame it draws)
     const msg = err?.message ?? String(err);
     if (msg !== frameErr) { frameErr = msg; console.error(err); }
   }
-  const full = prefs.lockFrameRate || !!at()?.moving;
+  const full = drawn && (prefs.lockFrameRate || !!at()?.moving);
   // a moving rate of 0 draws on every display refresh
-  gap = full ? (prefs.frameRate > 0 ? 1000 / prefs.frameRate : 0) : 1000 / RESTING_FPS;
-  // a frame more than a gap late starts the count again instead of drawing the missed ones back to back
-  dueAt = now - dueAt > gap ? now + gap : dueAt + gap;
-  // moving frames wait on display refreshes: a timer can wake late, which a body at rest hides and a moving one shows as stutter
-  if (full) requestAnimationFrame(frame);
-  else setTimeout(() => requestAnimationFrame(frame), Math.max(0, dueAt - gap / 4 - performance.now()));
+  return { fps: full ? prefs.frameRate : drawn ? RESTING_FPS : HIDDEN_FPS, refresh: full };
 }
 addEventListener('pagehide', reportPosition);
-requestAnimationFrame(frame);
+// drawn frames stop while the window is hidden or occluded, which `rendering()` reads
+runFrames(frame, { refreshed: () => { if (windowShown) lastFrameAt = performance.now(); } });
