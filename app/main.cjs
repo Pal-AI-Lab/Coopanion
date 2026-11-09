@@ -48,7 +48,6 @@ const { readTextFile } = require('./read-text.cjs');
 
 const { readSettingsSize, saveSettingsSize } = require('./settings-size.cjs');
 const { settingsChromeOptions, applySettingsTheme } = require('./settings-chrome.cjs');
-const { popupTrayMenu } = require('./tray-menu.cjs');
 
 const MAC = process.platform === 'darwin';
 const LINUX = process.platform === 'linux';
@@ -615,14 +614,13 @@ function trayItems() {
 }
 
 /**
- * Windows draws the menu itself (tray-menu.cjs) and macOS pops the native one, each on a click after
- * reading whether the pet shows; Linux keeps a native menu set beforehand, rebuilt on every change.
+ * Windows and macOS pop the native menu on a click, after reading whether the pet shows; Linux keeps a
+ * native menu set beforehand, rebuilt on every change.
  */
 async function popupTray() {
   await readPetOnDesktop();
   if (!tray) return;
-  if (WIN) await popupTrayMenu(trayItems(), WINDOW_ICON);
-  else tray.popUpContextMenu(Menu.buildFromTemplate(trayItems()));
+  tray.popUpContextMenu(Menu.buildFromTemplate(trayItems()));
 }
 
 function refreshTray() {
