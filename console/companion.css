@@ -121,11 +121,15 @@ body.companion-sidebar:has(> .modal, > .extension-lightbox[open]) .companion-tit
 }
 #rail .navitem .navicon, #rail .companion-mode .navicon { width: 20px; height: 20px; }
 #rail .navitem .lbl, #rail .companion-mode .lbl { white-space: nowrap; }
-/* Item names take up to two lines. The label keeps at least its width in the expanded rail, so its lines stay put
-   while the rail folds and unfolds: the inset is the rail's width minus the label's, 37px more for three lamps. */
+/* Item names take up to two lines; one cut short shows in full in a hover hint (base/ui/hover-hint.ts). The label keeps
+   at least its width in the expanded rail, so its lines stay put while the rail folds and unfolds: the inset is the
+   rail's width minus the label's, and the lamps' row more, as wide as the lamps the item has (`--lamps`, set by
+   base/ui/lamp.ts): 8px before them, 7px a lamp and 4px between two. The row does not shrink (styles.css), so the
+   lamps always show; past six, they go on in a second row under the first. */
 #rail .navitem { --label-inset: 84px; }
 #rail .navmodule-list .navitem { --label-inset: 77px; }
-#rail .navitem:has(> .navlamps:not([hidden])) { --label-lamps: 37px; }
+#rail .navitem:has(> .navlamps:not([hidden])) { --label-lamps: calc(min(var(--lamps, 3), 6) * 11px + 4px); }
+#rail .navitem > .navlamps { flex-wrap: wrap; justify-content: flex-end; max-width: 70px; row-gap: 4px; }
 #rail .navitem .lbl {
   flex: 1 1 auto; min-width: calc(var(--rail-width) - var(--label-inset) - var(--label-lamps, 0px));
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow: hidden; overflow-wrap: anywhere;
