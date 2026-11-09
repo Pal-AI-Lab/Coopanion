@@ -31,6 +31,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: '가만히 있을 때도 위의 프레임 레이트로 그리며, 끄면 이때 초당 30프레임으로 낮춥니다.',
   hideFullscreen: '자동으로 숨기기',
   hideFullscreenHint: '전체 화면일 때 숨었다가 전체 화면이 끝나면 다시 나타납니다. 최대화된 창은 해당하지 않습니다.',
+  passFullscreen: "클릭이 Coo를 통과",
+  passFullscreenHint: "클릭이 Coo를 통과하면 Coo는 그대로 보이고 클릭은 아래 창으로 전달됩니다.",
   soundTitle: '효과음',
   worldScope: "다른 World 확장이 추가한 기능은 이 스위치의 영향을 받지 않습니다. 해당 World 페이지에서 설정하세요.",
   sound: '효과음 재생',

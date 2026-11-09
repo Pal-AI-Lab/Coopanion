@@ -31,6 +31,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: 'También dibuja a la velocidad de arriba en reposo; si está desactivado, en reposo baja a 30 fotogramas por segundo.',
   hideFullscreen: 'Ocultar automáticamente',
   hideFullscreenHint: 'Se oculta mientras algo está en pantalla completa y vuelve después. Una ventana maximizada no cuenta.',
+  passFullscreen: "Dejar pasar los clics a través de Coo",
+  passFullscreenHint: "Cuando los clics pasan a través, Coo sigue visible y los clics llegan a la ventana de abajo.",
   soundTitle: 'Sonidos',
   worldScope: "Las funciones que agregan otras extensiones World no dependen de este interruptor; configúralas en la página de cada World.",
   sound: 'Reproducir sonidos',

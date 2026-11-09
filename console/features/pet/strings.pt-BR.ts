@@ -31,6 +31,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: 'Desenha na taxa acima também em repouso; desligado, o repouso cai para 30 quadros por segundo.',
   hideFullscreen: 'Ocultar automaticamente',
   hideFullscreenHint: 'Some enquanto algo está em tela cheia e volta depois. Uma janela maximizada não conta.',
+  passFullscreen: "Deixar os cliques atravessarem o Coo",
+  passFullscreenHint: "Quando os cliques atravessam, o Coo continua visível e os cliques vão para a janela de baixo.",
   soundTitle: 'Sons',
   worldScope: "Funções adicionadas por outras extensões World não dependem desta chave; configure-as na página de cada World.",
   sound: 'Tocar sons',

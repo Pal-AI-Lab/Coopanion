@@ -31,6 +31,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: '静止中も上のレートで描画します。オフのときは静止中 1 秒 30 フレームに下がります。',
   hideFullscreen: '自動で隠す',
   hideFullscreenHint: '全画面表示のあいだは隠れ、終わると再表示します。最大化したウィンドウは対象外です。',
+  passFullscreen: "クリックを Coo に通さない",
+  passFullscreenHint: "クリックを Coo に通さないあいだも Coo は表示されたままで、クリックは下のウィンドウに届きます。",
   soundTitle: 'サウンド',
   worldScope: "ほかの World 拡張が追加した機能はこのスイッチの影響を受けません。各 World のページで設定してください。",
   sound: 'サウンドを鳴らす',

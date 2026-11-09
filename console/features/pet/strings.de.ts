@@ -31,6 +31,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: 'Zeichnet auch im Ruhezustand mit der eingestellten Rate; wenn aus, sinkt sie im Ruhezustand auf 30 Bilder pro Sekunde.',
   hideFullscreen: 'Automatisch ausblenden',
   hideFullscreenHint: 'Blendet sich bei Vollbild aus und kommt danach zurück. Ein maximiertes Fenster zählt nicht.',
+  passFullscreen: "Klicks durch Coo durchlassen",
+  passFullscreenHint: "Werden Klicks durchgelassen, bleibt Coo sichtbar und Klicks gehen an das Fenster darunter.",
   soundTitle: 'Töne',
   worldScope: "Von anderen World-Erweiterungen ergänzte Funktionen betrifft dieser Schalter nicht; stelle sie auf der Seite der jeweiligen World ein.",
   sound: 'Töne abspielen',
