@@ -1201,8 +1201,14 @@ export class DesktopPetWorld implements World {
     this.syncPrefs();
   }
 
+  /** Ends the wait with 'timeout' after `ms`, and takes the confirmation off the page, queued or shown. */
   private confirmTimer(id: string, ms: number): NodeJS.Timeout {
-    return setTimeout(() => { const c = this.confirms.get(id); this.confirms.delete(id); c?.resolve('timeout'); }, ms);
+    return setTimeout(() => {
+      const c = this.confirms.get(id);
+      this.confirms.delete(id);
+      this.server.sendPet({ t: 'ask-close', id });
+      c?.resolve('timeout');
+    }, ms);
   }
 
   /**

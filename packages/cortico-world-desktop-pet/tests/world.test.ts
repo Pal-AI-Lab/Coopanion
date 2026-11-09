@@ -552,6 +552,8 @@ describe('with a pet page', () => {
       vi.advanceTimersByTime(1_000);
       await Promise.resolve();
       expect(settled).toBe('timeout');
+      // the page takes the timed-out bubble down, so the lines after it are shown
+      await page.next((m) => m.t === 'ask-close' && m.id === id);
       settled = null;
       void world.confirm('还在吗?', ['可以', '不行']).then((r) => { settled = r; });
       await page.next((m) => m.t === 'confirm');
