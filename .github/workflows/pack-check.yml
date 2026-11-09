@@ -1,0 +1,94 @@
+name: pack-check
+
+# Temporary: builds every release download on this branch without publishing, to check which node_modules
+# electron-builder packs. Removed before the pull request is merged.
+on:
+  push:
+    branches: [fix/mac-x64-native-packages]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            arch: x64
+            app: dist/win-unpacked
+            exe: dist/win-unpacked/Coopanion.exe
+          - os: windows-latest
+            arch: x64
+            channel: portable
+            app: dist/win-unpacked
+            exe: dist/win-unpacked/Coopanion.exe
+          - os: windows-latest
+            arch: x64
+            channel: steam
+            app: dist/win-unpacked
+            exe: dist/win-unpacked/Coopanion.exe
+          - os: macos-latest
+            arch: arm64
+            app: dist/mac-arm64/Coopanion.app/Contents/Resources/app
+            exe: dist/mac-arm64/Coopanion.app/Contents/MacOS/Coopanion
+          - os: macos-latest
+            arch: x64
+            app: dist/mac/Coopanion.app/Contents/Resources/app
+            exe: dist/mac/Coopanion.app/Contents/MacOS/Coopanion
+          - os: ubuntu-latest
+            arch: x64
+            app: dist/linux-unpacked/resources/app
+            exe: dist/linux-unpacked/coopanion
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - run: corepack enable
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: build:installer
+        shell: bash
+        run: set -o pipefail; pnpm run build:installer 2>&1 | tee "$RUNNER_TEMP/pack.log"
+        env:
+          PACK_ARCH: ${{ matrix.arch }}
+          COOPANION_CHANNEL: ${{ matrix.channel }}
+          STEAM_APP_ID: ${{ matrix.channel == 'steam' && '480' || '' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: node module collection
+        shell: bash
+        run: grep -E "searching for node modules|no node modules|not bundled|not found on disk|native packages in" "$RUNNER_TEMP/pack.log" || true
+      - name: packed native packages
+        shell: bash
+        run: |
+          app="${{ matrix.app }}"
+          [ -d "$app/resources/app" ] && app="$app/resources/app"
+          ls "$app/node_modules" "$app/node_modules/@esbuild" "$app/node_modules/@koromix"
+          ls -d "$app"/node_modules/sherpa-onnx-*
+          du -sh "$app/node_modules"
+          ls "$app/node_modules/cortico-world-desktop-pet" "$app/node_modules/cortico-provider-coo"
+          if [ "${{ runner.os }}" = macOS ]; then file "$app"/node_modules/@esbuild/*/bin/esbuild "$app"/node_modules/@koromix/*/*.node; fi
+      - name: load the native packages with the packed Electron
+        shell: bash
+        run: |
+          app="${{ matrix.app }}"
+          [ -d "$app/resources/app" ] && app="$app/resources/app"
+          cat > "$RUNNER_TEMP/smoke.cjs" <<'EOF'
+          const { createRequire } = require('node:module');
+          const { join, resolve } = require('node:path');
+          const req = createRequire(join(resolve(process.argv[2]), 'package.json'));
+          const esbuild = req('esbuild');
+          console.log(process.platform, process.arch);
+          console.log('esbuild', esbuild.version, esbuild.transformSync('let a: number = 1', { loader: 'ts' }).code.trim());
+          console.log('koffi', req('koffi').version);
+          console.log('sherpa-onnx-node exports', Object.keys(req('sherpa-onnx-node')).length);
+          EOF
+          run=()
+          if [ "${{ runner.os }}" = macOS ] && [ "${{ matrix.arch }}" = x64 ]; then run=(arch -x86_64); fi
+          ELECTRON_RUN_AS_NODE=1 "${run[@]}" "${{ matrix.exe }}" "$RUNNER_TEMP/smoke.cjs" "$app"
