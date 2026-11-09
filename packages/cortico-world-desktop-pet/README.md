@@ -60,7 +60,7 @@ World 在 `127.0.0.1:7797`(被占向上顺延)起一个页面服务:`/pet` 是�
 (启动时是主显示器)。Windows 上任务栏在底边时,窗口再往下盖住任务栏,离显示器底边留 3 DIP;地面仍在工作区底边,
 形象画在地面以下的部分(比如坐在边沿时垂下的腿)显示在任务栏上。桌宠被拎着拖到另一块显示器上时,窗口当场挪到那块显示器,拖动中桌宠一直跟着光标,松手就在那块显示器上落下;
 走路只在当前这块显示器上。窗口所在的显示器被拔掉时回到主显示器。`pet_move_to` 的 0–1 和事件里的横向位置都按当前这块显示器算。
-鼠标只在身体、气泡、右键菜单和悬停按钮上时才接收点击,其余位置点击穿透。托盘图标可以显示、隐藏、关闭它;托盘的「鼠标穿透」打开时窗口一概不接收点击，也不弹悬停按钮，由窗口进程的鼠标租约(`host/mouse-lease.cjs` 的 `lock`)执行。
+鼠标只在身体、气泡、右键菜单和悬停按钮上时才接收点击,其余位置点击穿透。Wayland 会话里窗口的 X 输入形状只留这几块(`host/input-shape.cjs`),合成器把落在上面的点击交给窗口。托盘图标可以显示、隐藏、关闭它;托盘的「鼠标穿透」打开时窗口一概不接收点击，也不弹悬停按钮，由窗口进程的鼠标租约(`host/mouse-lease.cjs` 的 `lock`)执行。
 macOS 上 App Store 是当前应用时,窗口降到普通层级、排在所有窗口后面,换到别的应用后回到置顶(`host/app-store.cjs`):
 别的进程的窗口盖在 App Store 的付款弹窗上时,弹窗不接受触控 ID,透明、点击穿透的窗口也算。
 鼠标停在桌宠身上时,身旁出现两个按钮:打字说话;语音输入开关(点一下开关 `asr.enabled`,
@@ -286,7 +286,8 @@ Windows 上桌宠窗口从前台窗口拿走键盘，打字框关掉后还回去
 `【】<>`、逗号、顿号或空白,也不能长过行内标记能装下的长度,不然脚本里写不出来。
 
 工厂按 `factory(base, { model, scheme, kit, loadImage, asset, host })` 调用,返回一个身体;契约写在 `web/figure-frame.js` 开头。
-用 kit 的包只要 `kit.createBody(host, { figure, words })`:`figure` 每帧画一次,`words` 是 kit 本身没有的词怎么做。
+用 kit 的包只要 `kit.createBody(host, { figure, words })`:`figure` 每画一帧调一次,`words` 是 kit 本身没有的词怎么做。
+桌宠窗口隐藏时页面照常推进身体(走路照常走到、词照常做完),但不画。
 `examples/whale/README.md` 是写形象包的完整说明。20 秒内没准备好、或者跑的时候抛错,桌宠换回 Coo,并告诉 bot 词表的变化。
 
 ### 读包里的文件
@@ -463,7 +464,7 @@ bot 还有 `pet_cua_open_settings`,在使用者同意后把设置窗口打开到
 
 问句在桌宠的气泡里出(两个按钮:可以、这次不行,按应用语言);桌宠页不在时,弹一个置顶的系统对话框(Windows 上是 `MessageBoxTimeoutW`,
 macOS 上是 AppleScript 的 `display dialog`,Linux 上是 `zenity --question`)。每次气泡里的回答经 `desktopPetDefinition({ onCuaAnswer })` 告诉内嵌应用。
-没同意(拒绝、关掉或 60 秒没回应)时,这一轮剩下要问的调用都不执行,回执写明原因,下一轮再用时重新问。
+没同意(拒绝、关掉,或没回应:气泡的等待见「给内嵌应用」,系统对话框等 60 秒)时,这一轮剩下要问的调用都不执行,回执写明原因,下一轮再用时重新问。
 参数不合法的调用在问之前就被拒掉。`pet_cua_wait` 的等待从不问;`ask-each-turn` 下这一轮还没同意看屏幕时,它只等不截图。
 
 回执和环境提示词的这一节有中文、英文两版(`src/cua/model-text.ts`,`src/cua/ENV_PROMPT.md` 与 `src/cua/ENV_PROMPT.en.md`),跟桌宠的模型文本同一种语言;
@@ -548,7 +549,9 @@ macOS 的辅助功能查询每次最多等待 200ms,超时后仍报告前台程�
 `desktopPetDefinition({ controls, onCreate, onSkin, packRoots, onBotChange, language })` 生成定义(`packRoots` 是更多形象包目录,`onBotChange` 在 bot 用 `pet_set` 改了设置之后调用,`language` 见下面「文字」一节):`controls`(`PetBotControls`)给右键菜单借出暂停、设置、退出,
 借了哪个就只画哪个按钮或菜单行(暂停要 `isPaused` 和 `setPaused`,设置要 `openSettings`,退出要 `quit` 与可选的 `quitLabel`,可以是每次开菜单时调用的函数);
 `onCreate` 拿到 World 实例,应用可以调 `world.confirm(问题, [同意, 不同意])` 弹一个两选项气泡(或 `[同意, 以后都同意, 不同意]` 三选项,中间那项答 `always`),
-结果是 `yes` / `no` / `dismissed` / `timeout`(60 秒没人答) / `unavailable`(没有桌宠页),不会作为事件送给 bot。
+结果是 `yes` / `no` / `dismissed` / `timeout` / `unavailable`(没有桌宠页),不会作为事件送给 bot。
+确认排在还没放完的台词后面,这些台词改成六倍速打字、不出声、每拍停 1 秒;气泡露面时页面回报 `confirm-shown`,从这时起 60 秒没人答就是 `timeout`,
+一直没露面时从发出起 3 分钟算 `timeout`;超时时 World 发 `ask-close`,页面把这条确认从队列或气泡上收掉。确认气泡停在露面的位置,Coo 走开时不跟着走,确认期间不弹悬停按钮。
 
 应用自己的一问一答(比如首次启动的引导)用 `world.dialog(步骤)`:Coo 在气泡里说一句,下面接一个输入组件,
 回答同样只交给调用方。组件有按钮行(可带一个反复演示按法的按键帽)、可试选的卡片(可带图标或一张 `data:image/…` 图,比如服务的标志,名字下可带一行小字 `note`;选中时 Coo 当场演示对应动作:站着、溜达、跑来跑去)、

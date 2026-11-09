@@ -138,7 +138,7 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
         }, activate) });
         activate.classList.add('connection-activate');
         activate.setAttribute('aria-label', S.activate); activate.title = S.activate;
-        const connect = ui.h('div', 'connection-connect'); connect.append(activate, ui.h('span', 'connection-connect-label', S.connect));
+        const connect = ui.h('div', 'connection-connect'); connect.append(activate);
         const erase = eraseButton(identity);
         el.append(erase, title, facts, status, secondary, connect);
         el.tabIndex = 0;
