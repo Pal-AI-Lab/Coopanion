@@ -413,7 +413,7 @@ async function introduce(deps: GuideDeps, run: (deps: GuideDeps) => Promise<void
   await askForKey(deps, keySet, talked, first ? ASK_AFTER_GUIDE_MS : 0);
 }
 
-/** Cormini's bot definition, its Persona class and its context config group, from the staged Cortico. */
+/** Cormini's bot definition, its Persona class and its context config group by language, from the staged Cortico. */
 async function cormini() {
   const load = <T>(...path: string[]) => import(pathToFileURL(join(repoRoot(), 'bots', 'cormini', ...path)).href) as Promise<T>;
   const [definition, persona, config] = await Promise.all([
@@ -421,7 +421,11 @@ async function cormini() {
     load<{ Cormini: typeof Cormini }>('persona', 'persona.ts'),
     load<{ contextStageConfigGroup: typeof contextStageConfigGroup }>('persona', 'config.ts'),
   ]);
-  return { definition: definition.default, Persona: coopanionPersona(persona.Cormini), contextGroup: config.contextStageConfigGroup('cormini') };
+  return {
+    definition: definition.default,
+    Persona: coopanionPersona(persona.Cormini),
+    contextGroup: (language: Language) => config.contextStageConfigGroup('cormini', language),
+  };
 }
 
 export async function main(): Promise<void> {
@@ -545,7 +549,7 @@ export async function main(): Promise<void> {
         onStart: () => persona.startRhythm(),
         onStop: () => persona.stopRhythm(),
         webUi: {
-          configGroups: [base.contextGroup, settingsGroup],
+          configGroups: (language) => [base.contextGroup(language), settingsGroup],
           status: () => ({ context: { maxTokens: cfg.context.maxTokens, softRatio: cfg.context.softRatio } }),
           configOptions: (kind) => (kind === LANGUAGE_OPTIONS ? LANGUAGES.map((value) => ({ value, label: LANGUAGE_NAMES[value] })) : []),
         },
