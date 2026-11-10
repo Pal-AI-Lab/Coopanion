@@ -414,7 +414,7 @@ export class DesktopPetWorld implements World {
   private keyWatcher: KeyWatcher | null = null;
   /** Why the talk key cannot be read; the gate then stays closed. */
   private hotkeyProblem: string | null = null;
-  /** The talk-key problem the bubble last said. */
+  /** The talk-key problem last delivered to the bot. */
   private hotkeyProblemTold: string | null = null;
   private hotkeyKey = '';
   /** The typing key's watcher while `typeKey.enabled`, and why it cannot be read. */
@@ -1119,7 +1119,6 @@ export class DesktopPetWorld implements World {
       case 'hello': {
         const s = msg.screen as { w?: unknown; h?: unknown } | undefined;
         if (s && typeof s.w === 'number' && typeof s.h === 'number') this.screen = { w: s.w, h: s.h };
-        this.tellHotkeyProblem();
         return;
       }
       case 'arrived':
@@ -1545,13 +1544,13 @@ export class DesktopPetWorld implements World {
     } else this.keyWatcher = watcher;
   }
 
-  /** A key that cannot be read shows nothing when pressed, so the bubble says why: each problem once a run, while voice input is on. */
+  /** A key that cannot be read shows nothing when pressed, so the bot is told why: each problem once a run, while voice input is on. */
   private tellHotkeyProblem(): void {
     const problem = this.hotkeyProblem;
-    if (!problem || problem === this.hotkeyProblemTold || !this.cfg.asr.enabled || this.petHidden) return;
+    if (!problem || problem === this.hotkeyProblemTold || !this.cfg.asr.enabled) return;
     this.hotkeyProblemTold = problem;
-    void this.dialog({ text: this.ui.voice.keyProblem(problem), closable: true }).answer.then((a) => {
-      if ('unavailable' in a) this.hotkeyProblemTold = null;
+    void this.push('desktop-pet.talk-key', 'desktop-pet.talk-key', this.t.talkKeyUnreadable(this.userName, problem), 'flush').then((e) => {
+      if (!e) this.hotkeyProblemTold = null;
     });
   }
 

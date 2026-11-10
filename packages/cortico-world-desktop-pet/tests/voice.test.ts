@@ -333,28 +333,19 @@ describe('voice input', () => {
     expect((world.voiceState().counts as { utterances: number }).utterances).toBe(0);
   });
 
-  const SCREEN = { t: 'hello', screen: { w: 1920, h: 1080 } };
-
-  it('a talk key that cannot be read is said in the bubble once, however often the page connects', async () => {
+  it('a talk key that cannot be read is delivered to the bot once a run, never shown in the bubble', async () => {
     const { watch } = scriptedKey('no keyboard here');
-    const { page } = await setup('不该听见', 'toggle', watch);
-    page.send(SCREEN);
-    expect((await page.next((m) => m.t === 'dialog')).text).toContain('no keyboard here');
-    page.send(SCREEN);
-    await new Promise((r) => setTimeout(r, 100));
-    expect(page.messages.some((m) => m.t === 'dialog')).toBe(false);
-  });
-
-  it('an unreadable talk key waits to be said until voice input is on', async () => {
-    const { watch } = scriptedKey('no keyboard here');
-    const { cfg, page } = await setup('不该听见', 'toggle', watch);
+    const { cfg, host, page } = await setup('不该听见', 'toggle', watch);
+    const told = () => host.events.filter((e) => e.type === 'desktop-pet.talk-key');
+    await expect.poll(() => told()).toHaveLength(1);
+    expect(told()[0].text).toContain('no keyboard here');
     cfg.asr.enabled = false;
     await page.next((m) => m.t === 'prefs' && m.mic === false);
-    page.send(SCREEN);
-    await new Promise((r) => setTimeout(r, 100));
-    expect(page.messages.some((m) => m.t === 'dialog')).toBe(false);
     cfg.asr.enabled = true;
-    expect((await page.next((m) => m.t === 'dialog')).text).toContain('no keyboard here');
+    await page.next((m) => m.t === 'prefs' && m.mic === true);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(told()).toHaveLength(1);
+    expect(page.messages.some((m) => m.t === 'dialog')).toBe(false);
   });
 
   it('hold: the page goes quiet from the press to the release', async () => {
