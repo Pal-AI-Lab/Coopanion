@@ -40,6 +40,12 @@ const STOP_TIMEOUT_MS = 5000;
 const FIRST_RUN_SEND_MS = 5000;
 /** Upper edges, in seconds, of the buckets a completed try's duration is counted in (`ModelUse.durations`); longer goes under `more`. */
 const DURATION_EDGES = [2, 5, 10, 20, 40] as const;
+/** Upper edges, in seconds, of the buckets the time from opening the pet's menu to its first click is counted in (`MenuDay.firstClickSec`). */
+const FIRST_CLICK_EDGES = [1, 2, 4] as const;
+/** The pet's buttons counted by id (`MenuDay`): its actions, then the menu's run controls; any other id is left out. */
+export const PET_BUTTONS: ReadonlyArray<string> = ['chat', 'voice', 'roam', 'theme', 'sound', 'dress', 'hide', 'worlds', 'settings', 'pause', 'quit'];
+/** Places in the menu's action grid counted (`MenuDay.slot`); a later one is left out. */
+const SLOT_MAX = 20;
 const STATE_FILE = 'telemetry.json';
 const ID_FILE = 'telemetry-id';
 
@@ -83,6 +89,33 @@ export interface ModelTry {
 
 interface TelemetryEvent { type: string; ts: string; [field: string]: unknown }
 
+/** How the pet's right-click menu and hover buttons were used in a day (docs/TELEMETRY.md, `menu`). */
+export interface MenuDay {
+  /** Times the menu was opened. */
+  opens: number;
+  /** Opens that closed without a click. */
+  openedIdle: number;
+  /** Opens with the hover buttons showing. */
+  fromHover: number;
+  /** Opens with two clicks or more. */
+  multiClick: number;
+  /** Opens with a click, by the seconds to the first: `<=1`, `<=2`, `<=4`, `more`. */
+  firstClickSec: Record<string, number>;
+  /** Clicks on the menu's actions by their place in its grid, from 0. */
+  slot: Record<string, number>;
+  /** Clicks in the menu by button: `pinned` for a button that is also one of the hover buttons, `unpinned` for the rest. */
+  clicks: { pinned: Record<string, number>; unpinned: Record<string, number> };
+  /** Clicks in `clicks.pinned` made while that open had the hover buttons showing. */
+  pinnedShown: number;
+  /** Hover buttons pressed beside the pet, without the menu, by button. */
+  hoverClicks: Record<string, number>;
+}
+
+/** One use of the pet's buttons, as the desktop-pet World reports it (its `PetStat`). */
+export type MenuStat =
+  | { menu: { fromHover: boolean; firstClickMs: number | null; clicks: Array<{ id: string; pinned: boolean; slot: number | null }> } }
+  | { hover: string };
+
 interface Day {
   date: string;
   runningMinutes: number;
@@ -90,6 +123,7 @@ interface Day {
   minutes: number[];
   counts: Record<Counter, number>;
   models: Record<string, ModelUse>;
+  menu: MenuDay;
   /** Filled in when the day is closed or sent. */
   snapshot?: Record<string, unknown>;
 }
@@ -124,6 +158,25 @@ function restoreModel(value: unknown): ModelUse {
   };
 }
 
+const newMenu = (): MenuDay => ({
+  opens: 0, openedIdle: 0, fromHover: 0, multiClick: 0, firstClickSec: {}, slot: {},
+  clicks: { pinned: {}, unpinned: {} }, pinnedShown: 0, hoverClicks: {},
+});
+
+function restoreMenu(value: unknown): MenuDay {
+  const m = asRecord(value);
+  const n = (key: string) => field(m, key, finite, 0);
+  const clicks = field(m, 'clicks', isRecord, {});
+  return {
+    opens: n('opens'), openedIdle: n('openedIdle'), fromHover: n('fromHover'), multiClick: n('multiClick'),
+    firstClickSec: field(m, 'firstClickSec', isTally, {}), slot: field(m, 'slot', isTally, {}),
+    clicks: { pinned: field(clicks, 'pinned', isTally, {}), unpinned: field(clicks, 'unpinned', isTally, {}) },
+    pinnedShown: n('pinnedShown'), hoverClicks: field(m, 'hoverClicks', isTally, {}),
+  };
+}
+
+const bump = (tally: Record<string, number>, key: string) => { tally[key] = (tally[key] ?? 0) + 1; };
+
 function restoreDay(value: unknown): Day {
   const d = asRecord(value);
   const counts = field(d, 'counts', isRecord, {});
@@ -133,6 +186,7 @@ function restoreDay(value: unknown): Day {
     minutes: field(d, 'minutes', (v): v is number[] => Array.isArray(v) && v.every(finite), []),
     counts: Object.fromEntries(COUNTERS.map((c) => [c, field(counts, c, finite, 0)])) as Record<Counter, number>,
     models: Object.fromEntries(Object.entries(field(d, 'models', isRecord, {})).map(([key, m]) => [key, restoreModel(m)])),
+    menu: d.menu === undefined ? newMenu() : restoreMenu(d.menu),
   };
   if (d.snapshot !== undefined) day.snapshot = field(d, 'snapshot', isRecord);
   return day;
@@ -174,7 +228,7 @@ export interface TelemetryOptions {
 
 const localDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const emptyCounts = () => Object.fromEntries(COUNTERS.map((c) => [c, 0])) as Record<Counter, number>;
-const newDay = (date: string): Day => ({ date, runningMinutes: 0, minutes: [], counts: emptyCounts(), models: {} });
+const newDay = (date: string): Day => ({ date, runningMinutes: 0, minutes: [], counts: emptyCounts(), models: {}, menu: newMenu() });
 
 export class Telemetry {
   private state: State;
@@ -282,6 +336,32 @@ export class Telemetry {
     this.lastTries.set(a.generationId, { m, try: a });
   }
 
+  /** One use of the pet's right-click menu or hover buttons; buttons outside `PET_BUTTONS` are left out. */
+  menuUse(stat: MenuStat): void {
+    if (!this.on()) return;
+    this.rollDay();
+    const m = this.state.day.menu;
+    if ('hover' in stat) {
+      if (PET_BUTTONS.includes(stat.hover)) bump(m.hoverClicks, stat.hover);
+      return;
+    }
+    const { fromHover, firstClickMs, clicks } = stat.menu;
+    m.opens += 1;
+    if (fromHover) m.fromHover += 1;
+    if (!clicks.length) m.openedIdle += 1;
+    if (clicks.length > 1) m.multiClick += 1;
+    if (clicks.length && firstClickMs !== null) {
+      const edge = FIRST_CLICK_EDGES.find((e) => firstClickMs <= e * 1000);
+      bump(m.firstClickSec, edge === undefined ? 'more' : `<=${edge}`);
+    }
+    for (const c of clicks) {
+      if (!PET_BUTTONS.includes(c.id)) continue;
+      bump(c.pinned ? m.clicks.pinned : m.clicks.unpinned, c.id);
+      if (c.pinned && fromHover) m.pinnedShown += 1;
+      if (c.slot !== null && c.slot <= SLOT_MAX) bump(m.slot, String(c.slot));
+    }
+  }
+
   private settle(generationId: string): void {
     const last = this.lastTries.get(generationId);
     this.lastTries.delete(generationId);
@@ -381,6 +461,7 @@ export class Telemetry {
       interactedMinutes: day.minutes.length,
       ...day.counts,
       models: Object.values(day.models),
+      menu: day.menu,
       ...(day.snapshot ?? this.snapshot()),
     };
   }

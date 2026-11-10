@@ -256,6 +256,38 @@ export interface DesktopPetWorldOptions {
   replyLanguage?: () => string | null;
   /** Called with each answer to computer use's question, asked in the pet's bubble. */
   onCuaAnswer?: (answer: Answer) => void;
+  /** Called with how the person used the menu and the hover buttons, for the embedding app's statistics; never the bot's. */
+  onStats?: (stat: PetStat) => void;
+}
+
+/**
+ * One use of the pet's buttons, as the page reports it: a menu that closed, with whether the hover
+ * buttons were showing when it opened, the milliseconds to its first click and every click (the
+ * button, whether it is one of the hover buttons, its place in the action grid or null for the run
+ * controls); or a hover button pressed.
+ */
+export type PetStat =
+  | { menu: { fromHover: boolean; firstClickMs: number | null; clicks: Array<{ id: string; pinned: boolean; slot: number | null }> } }
+  | { hover: string };
+
+/** The page's `stats` message as a PetStat, or null when it is not one. Ids are passed on as they are; the receiver keeps those it knows. */
+export function petStat(msg: Record<string, unknown>): PetStat | null {
+  if (typeof msg.hover === 'string') return { hover: msg.hover.slice(0, 40) };
+  const m = msg.menu;
+  if (!m || typeof m !== 'object') return null;
+  const { fromHover, firstClickMs, clicks } = m as Record<string, unknown>;
+  if (!Array.isArray(clicks)) return null;
+  return {
+    menu: {
+      fromHover: fromHover === true,
+      firstClickMs: typeof firstClickMs === 'number' && Number.isFinite(firstClickMs) && firstClickMs >= 0 ? firstClickMs : null,
+      clicks: clicks.slice(0, 50).flatMap((c: unknown) => {
+        const { id, pinned, slot } = (c ?? {}) as Record<string, unknown>;
+        if (typeof id !== 'string') return [];
+        return [{ id: id.slice(0, 40), pinned: pinned === true, slot: Number.isInteger(slot) && (slot as number) >= 0 ? slot as number : null }];
+      }),
+    },
+  };
 }
 
 type SherpaEngine = Exclude<AsrEngine, 'system' | 'api'>;
@@ -1199,6 +1231,11 @@ export class DesktopPetWorld implements World {
         return;
       }
       case 'control': return this.onControl(String(msg.action));
+      case 'stats': {
+        const stat = petStat(msg);
+        if (stat) this.opts.onStats?.(stat);
+        return;
+      }
       case 'dialog': {
         const settle = this.dialogs.get(String(msg.id));
         if (!settle) return;

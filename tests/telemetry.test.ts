@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { COUNTERS, crashFields, Telemetry, type ModelTry, type ModelUse } from '../core/telemetry.ts';
+import { COUNTERS, crashFields, Telemetry, type MenuDay, type ModelTry, type ModelUse } from '../core/telemetry.ts';
 
 const ENDPOINT = { vendor: 'vendor-a', model: 'model-a', endpointKind: 'builtin' } as const;
 
@@ -38,6 +38,32 @@ describe('telemetry model failures', () => {
     });
     expect(day.models).toEqual([expect.objectContaining({ calls: 8, failed: 2, failedStatus: { 502: 1, none: 1 }, aborted: 1 })]);
     expect(day.providerErrors).toBe(2);
+  });
+});
+
+describe('pet menu use', () => {
+  it('counts opens, clicks by source and pinning, places, the time to the first click and hover presses, leaving out unknown buttons', async () => {
+    let body: { days: Array<{ menu: MenuDay }> } | null = null;
+    const t = new Telemetry({
+      dir: mkdtempSync(join(tmpdir(), 'coo-telemetry-')), version: 'test', enabled: () => true, snapshot: () => ({}), extensions: () => [],
+      fetchImpl: (async (_url: string, init: RequestInit) => { body = JSON.parse(String(init.body)); return new Response(null, { status: 204 }); }) as typeof fetch,
+    });
+    // opened over the hover buttons: a pinned one, then an unpinned one, the first after 1.5 s
+    t.menuUse({ menu: { fromHover: true, firstClickMs: 1500, clicks: [{ id: 'theme', pinned: true, slot: 0 }, { id: 'dress', pinned: false, slot: 3 }] } });
+    // opened without them: the same pinned one, then a run control; an unknown button is left out
+    t.menuUse({ menu: { fromHover: false, firstClickMs: 6000, clicks: [{ id: 'theme', pinned: true, slot: 0 }, { id: 'settings', pinned: false, slot: null }, { id: 'evil', pinned: false, slot: 1 }] } });
+    // opened and closed without a click
+    t.menuUse({ menu: { fromHover: false, firstClickMs: null, clicks: [] } });
+    t.menuUse({ hover: 'chat' });
+    t.menuUse({ hover: 'chat' });
+    t.menuUse({ hover: 'nope' });
+    await t.send();
+    expect(body!.days[0]!.menu).toEqual({
+      opens: 3, openedIdle: 1, fromHover: 1, multiClick: 2,
+      firstClickSec: { '<=2': 1, more: 1 }, slot: { 0: 2, 3: 1 },
+      clicks: { pinned: { theme: 2 }, unpinned: { dress: 1, settings: 1 } },
+      pinnedShown: 1, hoverClicks: { chat: 2 },
+    });
   });
 });
 
@@ -118,5 +144,6 @@ describe('telemetry state recovery', () => {
     expect(saved.day.counts[missing]).toBe(0);
     expect(saved.day.counts.messagesText).toBe(3);
     expect(saved.day.models.key).toMatchObject({ calls: 2, tokensIn: 10, tokensCached: 0, aborted: 0 });
+    expect(saved.day.menu).toMatchObject({ opens: 0, clicks: { pinned: {}, unpinned: {} }, hoverClicks: {} });
   });
 });

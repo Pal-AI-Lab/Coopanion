@@ -8,7 +8,7 @@ export { desktopPetDefinition, type DesktopPetAssembly } from './definition.ts';
 export { DESKTOP_PET_DEFAULTS, SELF_KEYS, TOUCH_KINDS, USER_MAX, desktopPetConfigGroups, selfAdjustMode } from './config.ts';
 export { capFor, charCount, cutChars, petText, type PetText } from './i18n/index.ts';
 export type { DesktopPetConfigSection, PetSkin } from './config.ts';
-export { DesktopPetWorld, type ConfirmResult, type PetBotControls, type PetDialog, type PetDialogAnswer, type PetDialogHandle, type PetDialogInput, type PetDialogUpdate } from './world.ts';
+export { DesktopPetWorld, type ConfirmResult, type PetBotControls, type PetDialog, type PetDialogAnswer, type PetDialogHandle, type PetDialogInput, type PetDialogUpdate, type PetStat } from './world.ts';
 export { numberArg, stringArg, type DescribeTool, type PetStatus, type ToolArgs } from './status.ts';
 export { figurePacks, nameIn, type FigureManifest, type FigurePack, type FigurePreset } from './packs.ts';
 export type { ModelLanguage } from './model-text.ts';

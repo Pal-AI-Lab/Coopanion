@@ -1303,12 +1303,13 @@ function openMenu() {
   if (!tools.hidden && !leaving(tools)) for (const b of tools.children) was.set(b.dataset.action, laidAt(b));
   hideNow(tools, toolsAnim);
   endHold();
+  noteMenuOpen(was.size > 0);
   menu.innerHTML = '';
   const rail = Object.assign(document.createElement('div'), { className: 'm-rail' });
   const grid = Object.assign(document.createElement('div'), { className: 'm-grid' });
   const ids = menuActions();
   grid.style.gridTemplateRows = `repeat(${Math.min(MENU_ROWS, Math.max(1, ids.length))}, auto)`;
-  for (const id of ids) {
+  ids.forEach((id, slot) => {
     const a = ACTIONS[id];
     const b = document.createElement('button');
     b.type = 'button'; b.setAttribute('role', 'menuitem');
@@ -1318,12 +1319,13 @@ function openMenu() {
     drawAction(b, id);
     b.addEventListener('click', () => {
       sfx.tick();
+      noteMenuClick(id, slot);
       if (!a.keep) closeMenu();
       a.run();
       if (a.keep) drawAction(b, id);
     });
     grid.appendChild(b);
-  }
+  });
   menu.append(rail, grid);
   renderMenuRail();
   stagger(grid);
@@ -1415,10 +1417,11 @@ function fillMenuRail(rail, bot, confirmQuit) {
   if (!bot.controls) return;
   // only the controls the embedding app lent; a server without `buttons` lends all three
   const has = bot.buttons ?? { pause: true, settings: true, quit: true };
-  if (has.settings) act(ICONS.settings, t('menu.settings'), () => { closeMenu(); send({ t: 'control', action: 'settings' }); });
-  if (has.pause) act(bot.paused ? ICONS.play : ICONS.pause, t(bot.paused ? 'menu.resume' : 'menu.pause'), () => send({ t: 'control', action: bot.paused ? 'resume' : 'pause' }), `tool run${bot.paused ? ' paused' : ''}`);
+  if (has.settings) act(ICONS.settings, t('menu.settings'), () => { noteMenuClick('settings'); closeMenu(); send({ t: 'control', action: 'settings' }); });
+  if (has.pause) act(bot.paused ? ICONS.play : ICONS.pause, t(bot.paused ? 'menu.resume' : 'menu.pause'), () => { noteMenuClick('pause'); send({ t: 'control', action: bot.paused ? 'resume' : 'pause' }); }, `tool run${bot.paused ? ' paused' : ''}`);
   if (!has.quit) return;
-  if (!confirmQuit) { act(ICONS.power, bot.quitLabel, () => renderMenuRail(true), 'tool power'); return; }
+  // the power button counts when pressed, before its question is answered
+  if (!confirmQuit) { act(ICONS.power, bot.quitLabel, () => { noteMenuClick('quit'); renderMenuRail(true); }, 'tool power'); return; }
   const ask = Object.assign(document.createElement('div'), { className: 'm-quit' });
   ask.appendChild(Object.assign(document.createElement('span'), { className: 'm-ask', textContent: bot.quitPrompt || '' }));
   act(ICONS.power, bot.quitLabel, () => { closeMenu(); send({ t: 'control', action: 'quit' }); }, 'q-act danger', ask);
@@ -1429,6 +1432,7 @@ function fillMenuRail(rail, bot, confirmQuit) {
 const menuAnim = { enter: 0, leave: 0 };
 function closeMenu() {
   if (menu.hidden || leaving(menu)) return;
+  noteMenuClose();
   popOut(menu, menuAnim, POP_OUT_MS);
   // the hover buttons stay away until the pointer has left the body and them, and comes back
   toolsMuted = true;
@@ -1440,6 +1444,33 @@ function refreshButtons() {
   for (const b of menu.querySelectorAll('.m-tile')) drawAction(b, b.dataset.action);
   renderTools();
 }
+
+/*
+ * ---------- usage statistics: how the menu and the hover buttons are used, for the app's anonymous
+ * statistics (Coopanion's docs/TELEMETRY.md, `menu`). Only button ids, whether they were hover
+ * buttons, places and a time go out; the World passes them on and the Core keeps the day's counts.
+ */
+/** The open menu's record: whether the hover buttons were showing, its clicks, the milliseconds to the first. */
+let menuUse = null;
+function noteMenuOpen(fromHover) {
+  // a menu opened again over one still open ends that one first
+  noteMenuClose();
+  menuUse = { at: performance.now(), fromHover, firstClickMs: null, clicks: [] };
+}
+/** A button pressed in the menu; `slot` is an action's place in the grid, none for the run controls. */
+function noteMenuClick(id, slot = null) {
+  if (!menuUse) return;
+  menuUse.firstClickMs ??= Math.round(performance.now() - menuUse.at);
+  // pinned: one of the hover buttons this pet shows, as chosen in settings
+  menuUse.clicks.push({ id, pinned: toolIds.split(',').includes(id), slot });
+}
+function noteMenuClose() {
+  if (!menuUse) return;
+  const { fromHover, firstClickMs, clicks } = menuUse;
+  menuUse = null;
+  send({ t: 'stats', menu: { fromHover, firstClickMs, clicks } });
+}
+const noteHover = (id) => send({ t: 'stats', hover: id });
 
 /* ---------- hover buttons: the actions chosen in settings (chat and voice by default), beside the pet ---------- */
 /** Seconds the buttons stay after the pointer leaves both the pet and them. */
@@ -1464,7 +1495,7 @@ function renderTools() {
       b.type = 'button'; b.className = 'tool'; b.dataset.action = id;
       b.innerHTML = '<span class="ic"></span>';
       if (id === 'voice') wireVoiceTool(b);
-      else b.addEventListener('click', () => { sfx.tick(); if (!ACTIONS[id].keep) toolsUntil = 0; ACTIONS[id].run(); refreshButtons(); });
+      else b.addEventListener('click', () => { sfx.tick(); noteHover(id); if (!ACTIONS[id].keep) toolsUntil = 0; ACTIONS[id].run(); refreshButtons(); });
       tools.appendChild(b);
     }
     stagger(tools);
@@ -1491,6 +1522,7 @@ function wireVoiceTool(b) {
     hold.timer = setTimeout(() => {
       endHold();
       hold.sent = true;
+      noteHover('voice');
       send({ t: 'commit' });
       sfx.select();
       b.classList.remove('sent'); void b.offsetWidth; b.classList.add('sent');
@@ -1501,12 +1533,12 @@ function wireVoiceTool(b) {
     const sent = hold.sent;
     endHold();
     hold.sent = false;
-    if (!sent) { toggleVoice(); sfx.tick(); }
+    if (!sent) { noteHover('voice'); toggleVoice(); sfx.tick(); }
   });
   b.addEventListener('pointerleave', () => { endHold(); hold.sent = true; });
   b.addEventListener('pointercancel', () => { endHold(); hold.sent = true; });
   // the pointer handlers act on mouse and touch; a click with no pointer is the keyboard
-  b.addEventListener('click', (e) => { if (e.detail === 0) { toggleVoice(); sfx.tick(); } });
+  b.addEventListener('click', (e) => { if (e.detail === 0) { noteHover('voice'); toggleVoice(); sfx.tick(); } });
 }
 
 /** Where the cursor is, in page pixels, or null when it is off the page. */

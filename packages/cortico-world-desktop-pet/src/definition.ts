@@ -3,7 +3,7 @@ import type { Language } from 'cortico/core/language.ts';
 import { runtimesRoot, modelsRoot } from 'cortico/paths.ts';
 import { describeTools, type WorldDefinition, type WorldDescribe } from 'cortico/world.ts';
 import { DESKTOP_PET_DEFAULTS, DESKTOP_PET_ID, DESKTOP_PET_SECRETS, type DesktopPetConfigSection, type PetSkin } from './config.ts';
-import { DesktopPetWorld, modelsDirFor, type PetBotControls } from './world.ts';
+import { DesktopPetWorld, modelsDirFor, type PetBotControls, type PetStat } from './world.ts';
 import type { DescribeTool } from './status.ts';
 import type { ModelLanguage } from './model-text.ts';
 import type { Answer } from './cua/engine-ipc.ts';
@@ -95,6 +95,8 @@ export interface DesktopPetAssembly {
   language?(): Language;
   /** Called with each answer to computer use's question in the pet's bubble. */
   onCuaAnswer?(answer: Answer): void;
+  /** Called with how the person used the menu and the hover buttons; see `DesktopPetWorldOptions.onStats`. */
+  onStats?(stat: PetStat): void;
 }
 
 /** The definition, with what an embedding app lends the World. */
@@ -129,6 +131,7 @@ export function desktopPetDefinition(assembly: DesktopPetAssembly = {}): WorldDe
         replyLanguage: () => assembly.replyLanguage?.() ?? null,
         language: () => assembly.language?.() ?? 'zh',
         onCuaAnswer: (answer) => assembly.onCuaAnswer?.(answer),
+        onStats: (stat) => assembly.onStats?.(stat),
       });
       assembly.onCreate?.(world);
       return world;
