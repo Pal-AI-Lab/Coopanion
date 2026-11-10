@@ -121,11 +121,15 @@ body.companion-sidebar:has(> .modal, > .extension-lightbox[open]) .companion-tit
 }
 #rail .navitem .navicon, #rail .companion-mode .navicon { width: 20px; height: 20px; }
 #rail .navitem .lbl, #rail .companion-mode .lbl { white-space: nowrap; }
-/* Item names take up to two lines. The label keeps at least its width in the expanded rail, so its lines stay put
-   while the rail folds and unfolds: the inset is the rail's width minus the label's, 37px more for three lamps. */
+/* Item names take up to two lines; one cut short shows in full in a hover hint (base/ui/hover-hint.ts). The label keeps
+   at least its width in the expanded rail, so its lines stay put while the rail folds and unfolds: the inset is the
+   rail's width minus the label's, and the lamps' row more, as wide as the lamps the item has (`--lamps`, set by
+   base/ui/lamp.ts): 8px before them, 7px a lamp and 4px between two. The row does not shrink (styles.css), so the
+   lamps always show; four to a row, so the most a World has (seven, MODULE_LAMP_MAX in Cortico) take two rows. */
 #rail .navitem { --label-inset: 84px; }
 #rail .navmodule-list .navitem { --label-inset: 77px; }
-#rail .navitem:has(> .navlamps:not([hidden])) { --label-lamps: 37px; }
+#rail .navitem:has(> .navlamps:not([hidden])) { --label-lamps: calc(min(var(--lamps, 3), 4) * 11px + 4px); }
+#rail .navitem > .navlamps { flex-wrap: wrap; justify-content: flex-end; max-width: 48px; row-gap: 4px; }
 #rail .navitem .lbl {
   flex: 1 1 auto; min-width: calc(var(--rail-width) - var(--label-inset) - var(--label-lamps, 0px));
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow: hidden; overflow-wrap: anywhere;
@@ -164,7 +168,16 @@ body.companion-sidebar:has(> .modal, > .extension-lightbox[open]) .companion-tit
 #rail.is-collapsed .navmodule-list::before, #rail.is-collapsed .navmodule-list .navitem::before { display: none; }
 #rail.is-collapsed .companion-module-icon { display: block; }
 #rail.is-collapsed .navmodule-list .navitem { padding-left: 14px; }
-#rail.is-collapsed .navlamps { position: absolute; right: 5px; bottom: 5px; padding: 0; gap: 2px; }
+/* folded, the lamps sit in one row centred under the icon, clear of it: seven, the most a World has, are 40px wide
+   at 4px each and 2px apart, inside the 47px item. Folding or unfolding, they come back in at their new place once
+   the rail has mostly moved, as the names do: the two animations' names differ, so each switch plays one afresh. */
+#rail.is-collapsed .navlamps {
+  position: absolute; left: 50%; bottom: 4px; padding: 0; gap: 2px; transform: translateX(-50%);
+  flex-wrap: nowrap; max-width: none; animation: lamps-in-folded 160ms ease 140ms backwards;
+}
+#rail:not(.is-collapsed) .navitem > .navlamps { animation: lamps-in-open 160ms ease 120ms backwards; }
+@keyframes lamps-in-folded { from { opacity: 0; scale: .6; } }
+@keyframes lamps-in-open { from { opacity: 0; scale: .6; } }
 #rail.is-collapsed .navdot { width: 4px; height: 4px; }
 #rail.is-collapsed .railfoot { flex-direction: column; flex-wrap: nowrap; justify-content: flex-end; align-items: flex-start; }
 /* folded, the line over the avatar spans the column */
@@ -280,6 +293,7 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
   #rail .companion-enter, #rail .companion-leave, #rail .companion-mode.companion-pressed, #rail .companion-mode.companion-pressed .navicon { animation: none; }
   body.companion-sidebar { --rail-motion: 0s linear; }
   #rail .lbl, #rail .rail-name, #rail .rail-rename, #rail .companion-runstate, #rail .stacklabel { transition: none; }
+  #rail .navlamps { animation: none; }
 }
 
 /* 换模式时只藏起普通模式不列的项(rail/index.ts),导航项自带 display,要显式让 hidden 生效 */
