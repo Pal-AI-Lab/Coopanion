@@ -7,8 +7,9 @@
  *
  * X11 coordinates are physical pixels of the whole screen; XRandR names the displays in it (without
  * libXrandr the whole screen is one display). Under a Wayland session this runs
- * through XWayland and sees only X11 clients; a session without an X server (no DISPLAY) is not
- * supported. This module runs only inside the engine child.
+ * through XWayland and sees only X11 clients, and the compositor has the last word on a pointer move
+ * (`warp.ts`); a session without an X server (no DISPLAY) is not supported. This module runs only
+ * inside the engine child.
  */
 import koffi from 'koffi';
 import jpeg from 'jpeg-js';
@@ -20,6 +21,7 @@ import { linuxKeysym, zenityAnswer } from './linux-keys.ts';
 import { EngineFailure } from './fail.ts';
 import { crop, type NativeDisplay } from './display.ts';
 import type { ForegroundWindow } from './foreground.ts';
+import { createWarp } from './warp.ts';
 
 const x11 = koffi.load('libX11.so.6');
 const xtst = koffi.load('libXtst.so.6');
@@ -174,10 +176,19 @@ export function lastInputTick(): number | null {
 
 export type Button = 'left' | 'right' | 'middle';
 
+function warp(x: number, y: number): void {
+  XTestFakeMotionEvent(dpy, -1, x, y, 0);
+  XFlush(dpy);
+}
+
+const waitCell = new Int32Array(new SharedArrayBuffer(4));
+const pointerTo = process.env.XDG_SESSION_TYPE === 'wayland' || process.env.WAYLAND_DISPLAY
+  ? createWarp({ warp, cursor, wait: (ms) => { Atomics.wait(waitCell, 0, 0, ms); }, now: () => performance.now() })
+  : warp;
+
 /** Absolute move in pixels of the screen. */
 export function moveTo(x: number, y: number): void {
-  XTestFakeMotionEvent(dpy, -1, Math.round(x), Math.round(y), 0);
-  XFlush(dpy);
+  pointerTo(Math.round(x), Math.round(y));
 }
 
 export function buttonDown(b: Button): void { XTestFakeButtonEvent(dpy, BUTTON[b], 1, 0); XFlush(dpy); }
