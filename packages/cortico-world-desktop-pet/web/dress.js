@@ -283,11 +283,19 @@ function removeButton(pack) {
 /* ---------- saved looks ---------- */
 
 let looks = [];
+/**
+ * Whether `looks` is the list the World keeps: null until the first read answers, false when no read has succeeded.
+ * `POST /api/looks` replaces the whole list, so nothing is written unless this is true.
+ */
+let looksRead = null;
 /** The saved look picked last, whose changes the update button saves; null when none is picked. */
 let activeLook = null;
 const loadLooks = () => fetchLooks().then((list) => {
-  looks = list;
-  if (!looks.some((l) => l.id === activeLook)) activeLook = looks.find((l) => sameLook(l.skin, skin))?.id ?? null;
+  if (list) {
+    looks = list;
+    looksRead = true;
+    if (!looks.some((l) => l.id === activeLook)) activeLook = looks.find((l) => sameLook(l.skin, skin))?.id ?? null;
+  } else looksRead ||= false;
   renderLooks();
 });
 const lookId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -306,6 +314,8 @@ updateLookBtn.innerHTML = ICONS.saveLook;
 const bump = (btn) => { btn.classList.remove('done'); void btn.offsetWidth; btn.classList.add('done'); };
 saveLookBtn.addEventListener('click', async () => {
   sfx.tick();
+  if (!looksRead) await loadLooks();
+  if (!looksRead) { $('#saved').textContent = t('dress.notSaved'); return; }
   const had = looks.find((l) => sameLook(l.skin, skin));
   if (had) { $('#saved').textContent = t('looks.exists', { name: had.name }); return; }
   const id = lookId();
@@ -337,6 +347,15 @@ function renderLooks() {
   updateLookBtn.hidden = !changed;
   if (changed) { updateLookBtn.title = t('looks.update', { name: active.name }); updateLookBtn.setAttribute('aria-label', updateLookBtn.title); }
   box.textContent = '';
+  if (looksRead === false) {
+    const note = box.appendChild(el('p', 'looks-empty'));
+    note.textContent = t('looks.readFailed');
+    const retry = note.appendChild(el('button', 'looks-retry'));
+    retry.type = 'button';
+    retry.textContent = t('looks.retry');
+    retry.addEventListener('click', () => { sfx.tick(); void loadLooks(); });
+    return;
+  }
   if (!looks.length) { box.appendChild(el('p', 'looks-empty')).textContent = t('looks.empty'); return; }
   const opts = el('div', 'looks-strip');
   for (const look of looks) {

@@ -148,6 +148,8 @@ export default {
   'looks.delete': "{name} 삭제",
   'looks.exists': "{name}은(는) 이미 즐겨찾기에 있습니다",
   'looks.empty': "즐겨찾는 모습이 아직 없습니다.",
+  'looks.readFailed': "즐겨찾는 모습을 읽지 못했습니다.",
+  'looks.retry': "다시 시도",
   'looks.deleteTitle': "{name}을(를) 즐겨찾기에서 삭제할까요?",
   'looks.deleteLead': "삭제하면 되돌릴 수 없습니다.",
   'looks.deleteGo': "삭제",
