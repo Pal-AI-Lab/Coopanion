@@ -3,8 +3,8 @@
  * `data-tip` the first time the pointer reaches it and shows a moment later in the console's box
  * (`.u-tip`): under the element, or above it when there is no room below. A title set again later
  * replaces the hint the next time. Text an ellipsis or a line clamp cuts short, with no title of its own,
- * has its full text as the hint. In the rail, only an item's name cut short has one, in the open rail: folded, the
- * rail's own tooltip names its items, and a title there, such as a World status dot's, is only taken away.
+ * has its full text as the hint. The rail has no hints: its folded tooltip names its items, and a
+ * title there, such as a World status dot's, is only taken away.
  */
 const DELAY_MS = 450;
 const EDGE = 8;
@@ -54,20 +54,6 @@ export function mountHoverHints(doc: Document, signal: AbortSignal): void {
 
   doc.addEventListener('pointerover', (event) => {
     const target = event.target as Element;
-    // anywhere on an item of the open rail stands for its name
-    const name = target.closest?.('#rail:not(.is-collapsed) a.navitem')?.querySelector<HTMLElement>('.lbl');
-    if (name) {
-      // a title in it (a World's status dot) is only taken away, as elsewhere in the rail
-      const titled = target.closest<HTMLElement>('[title]');
-      if (titled) takeTitle(titled);
-      const text = cutText(name);
-      if (name === current) return;
-      hide();
-      if (!text) return;
-      current = name;
-      timer = win.setTimeout(() => show(name, text), DELAY_MS);
-      return;
-    }
     const titled = target.closest?.<HTMLElement>('[title], [data-tip]');
     const cut = !titled && target instanceof win.HTMLElement ? cutText(target) : '';
     const el = titled ?? (cut ? target as HTMLElement : null);
@@ -81,9 +67,7 @@ export function mountHoverHints(doc: Document, signal: AbortSignal): void {
     timer = win.setTimeout(() => show(el, text), DELAY_MS);
   }, { signal });
   doc.addEventListener('pointerout', (event) => {
-    const to = event.relatedTarget as Node | null;
-    // a rail name's hint stays while the pointer moves about its item
-    if (current && !current.contains(to) && !(current.closest('a.navitem')?.contains(to))) hide();
+    if (current && !current.contains(event.relatedTarget as Node | null)) hide();
   }, { signal });
   for (const type of ['pointerdown', 'keydown', 'wheel'] as const) doc.addEventListener(type, hide, { capture: true, signal });
   doc.addEventListener('scroll', hide, { capture: true, passive: true, signal });
