@@ -1252,8 +1252,8 @@ function drawAction(b, id) {
   b.classList.toggle('on', on === true);
   b.classList.toggle('off', on === false);
   b.setAttribute('aria-label', a.state());
-  // the same line as a hover hint (hints.js); dressing's hover opens the favourite looks instead
-  if (id === 'dress') delete b.dataset.tip; else b.dataset.tip = a.state();
+  // a hover hint (hints.js) names the button and where it stands, without the line's part after ' · ' on what a click does
+  b.dataset.tip = a.state().split('·')[0].trim();
   if (on !== undefined) b.setAttribute('aria-pressed', String(on));
 }
 
