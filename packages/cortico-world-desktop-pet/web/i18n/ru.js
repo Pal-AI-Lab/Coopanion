@@ -148,8 +148,6 @@ export default {
   'looks.delete': "Удалить «{name}»",
   'looks.exists': "«{name}» уже в избранном",
   'looks.empty': "Избранных образов пока нет.",
-  'looks.readFailed': "Не удалось прочитать избранные образы.",
-  'looks.retry': "Повторить",
   'looks.deleteTitle': "Убрать «{name}» из избранного?",
   'looks.deleteLead': "Это действие нельзя отменить.",
   'looks.deleteGo': "Удалить",

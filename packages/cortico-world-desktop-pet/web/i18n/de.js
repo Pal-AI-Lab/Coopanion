@@ -148,8 +148,6 @@ export default {
   'looks.delete': "{name} löschen",
   'looks.exists': "{name} ist schon ein Favorit",
   'looks.empty': "Noch keine Lieblingslooks.",
-  'looks.readFailed': "Lieblingslooks konnten nicht gelesen werden.",
-  'looks.retry': "Erneut versuchen",
   'looks.deleteTitle': "{name} aus den Favoriten entfernen?",
   'looks.deleteLead': "Das lässt sich nicht rückgängig machen.",
   'looks.deleteGo': "Löschen",

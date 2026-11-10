@@ -148,8 +148,6 @@ export default {
   'looks.delete': "Excluir {name}",
   'looks.exists': "{name} já está nos favoritos",
   'looks.empty': "Nenhum visual favorito ainda.",
-  'looks.readFailed': "Não foi possível ler os visuais favoritos.",
-  'looks.retry': "Tentar novamente",
   'looks.deleteTitle': "Remover {name} dos favoritos?",
   'looks.deleteLead': "Não é possível desfazer.",
   'looks.deleteGo': "Excluir",

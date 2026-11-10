@@ -148,8 +148,6 @@ export default {
   'looks.delete': "Supprimer {name}",
   'looks.exists': "{name} est déjà dans les favoris",
   'looks.empty': "Aucune apparence favorite.",
-  'looks.readFailed': "Impossible de lire les apparences favorites.",
-  'looks.retry': "Réessayer",
   'looks.deleteTitle': "Retirer {name} des favoris ?",
   'looks.deleteLead': "Cette action est définitive.",
   'looks.deleteGo': "Supprimer",

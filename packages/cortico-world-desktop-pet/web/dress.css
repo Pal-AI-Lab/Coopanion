@@ -58,7 +58,6 @@ body.dress-page{
 .g-arrow[hidden]{display:none}
 .g-arrow svg{width:16px; height:16px; display:block}
 .looks-empty{margin:0; font-size:13px; line-height:1.5; color:var(--muted)}
-.looks-retry{margin-left:8px; padding:0; border:0; background:none; font:inherit; color:var(--accent); cursor:pointer; text-decoration:underline}
 .slot.looks{grid-column:1 / -1}
 .opt.look{gap:7px}
 /* a favourite whose pack was uninstalled */
