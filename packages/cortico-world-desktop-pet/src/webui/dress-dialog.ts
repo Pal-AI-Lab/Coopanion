@@ -90,6 +90,23 @@ export function showDressDialog(env: OverlayEnv, view: DressDialogView, answer: 
   return layer;
 }
 
+/**
+ * Shows the dialogs of the dressing page in `frame` (web/appearance.js `hostDressDialogs`) until `env.signal` aborts, and
+ * sends each answer back through `companion:dialog-action`. Messages count only from that frame at `frame.dataset.origin`.
+ */
+export function hostFrameDressDialogs(env: OverlayEnv, frame: HTMLIFrameElement): void {
+  let dialog: Overlay | undefined;
+  env.doc.defaultView!.addEventListener('message', (e) => {
+    if (e.source !== frame.contentWindow || e.origin !== frame.dataset.origin) return;
+    if (e.data?.type === 'companion:dialog' && isDressDialog(e.data.view)) {
+      dialog?.close();
+      dialog = showDressDialog(env, e.data.view, (result) => {
+        frame.contentWindow?.postMessage({ type: 'companion:dialog-action', id: e.data.id, result }, e.origin);
+      });
+    } else if (e.data?.type === 'companion:dialog-close') { dialog?.close(); dialog = undefined; }
+  }, { signal: env.signal });
+}
+
 /** Standalone dressing pages use the same renderer as the embedding settings window. */
 export function localDressDialogs(doc: Document, signal: AbortSignal) {
   let current: Overlay | undefined;

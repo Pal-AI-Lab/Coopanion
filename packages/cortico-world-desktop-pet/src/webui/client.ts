@@ -11,6 +11,7 @@ import { petText } from '../i18n/index.ts';
 import { describeHostReason, type HostReason } from '../host-reason.ts';
 import { captureKey, PRESSES, splitTaps, withTaps } from './key-capture.ts';
 import { apiRows, type ApiState } from './api-rows.ts';
+import { hostFrameDressDialogs } from './dress-dialog.ts';
 import './style.css';
 
 interface Artifact { phase: 'absent' | 'working' | 'ready' | 'error'; path: string; done: number; total: number | null; detail: string | null }
@@ -112,6 +113,7 @@ const petPanel: WebUiPanel = {
     const frameWrap = ui.h('div', 'pet-dressframe');
     const frame = ui.h('iframe');
     frame.title = t.dress;
+    hostFrameDressDialogs({ doc: root.ownerDocument, host: root.ownerDocument.body, signal: ctx.signal }, frame);
     frameWrap.append(frame);
     dress.body.append(frameWrap);
 
@@ -139,6 +141,7 @@ const petPanel: WebUiPanel = {
       btnInstall.disabled = e.phase === 'working';
       if (next.dressUrl && frame.dataset.src !== next.dressUrl) {
         frame.dataset.src = next.dressUrl;
+        frame.dataset.origin = new URL(next.dressUrl).origin;
         frame.src = next.dressUrl;
       }
     };
