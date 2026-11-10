@@ -12,7 +12,7 @@ const pages = [];
 afterEach(() => { for (const p of pages.splice(0)) p.close(); });
 
 /** Run the actual page with a quiet socket and body; the test advances the page's frame clock. */
-function page({ host = false, hash = '', speech = {}, sfx = {} } = {}) {
+function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = async () => [] } = {}) {
   const dom = new JSDOM(html, { url: `http://127.0.0.1/pet${hash}`, runScripts: 'outside-only' });
   const win = dom.window;
   pages.push(win);
@@ -20,10 +20,11 @@ function page({ host = false, hash = '', speech = {}, sfx = {} } = {}) {
   const sockets = [];
   const bodyChanges = [];
   const body = {
-    layout: { busy: false, facing: 1, cursor: '', bubble: { x: 500, y: 400 } },
+    layout: { busy: false, facing: 1, cursor: '', bubble: { x: 500, y: 400 }, box: { x: 400, y: 300, w: 100, h: 100 } },
     set: (change) => bodyChanges.push(change), cue() {}, talk() {},
   };
   win.requestAnimationFrame = () => 0;
+  win.fetch = async () => ({ json: async () => [] });
   win.WebSocket = class {
     readyState = 1;
     constructor(url) { this.url = new URL(url); sockets.push(this); }
@@ -42,8 +43,9 @@ function page({ host = false, hash = '', speech = {}, sfx = {} } = {}) {
     createMic: () => ({ start() {}, stop() {} }),
     // the test advances the page's clock itself (`step`)
     runFrames() {},
+    fetchLooks, lookAvailable: () => true, lookPicture: () => '', sameLook: (a, b) => a === b,
   };
-  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
+  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, stepWheel, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
@@ -310,5 +312,62 @@ describe("the person's lines above Coo", () => {
     expect(up(p)).toHaveLength(1);
     p.onOrder({ t: 'listen', phase: 'heard', text: '今天天气怎么样' });
     expect(up(p)).toHaveLength(0);
+  });
+});
+
+describe('look wheel over the dress button', () => {
+  /** A dress button on the page at (0, 0), which jsdom lays out with no size. */
+  function dressButton(p) {
+    const b = p.doc.querySelector('.menu').appendChild(p.doc.createElement('button'));
+    b.dataset.action = 'dress';
+    Object.defineProperty(b, 'offsetParent', { value: p.doc.body });
+  }
+  const flush = () => new Promise((resolve) => setTimeout(resolve));
+  async function frames(p, n = 5) { for (let i = 0; i < n; i++) { p.stepWheel(); await flush(); } }
+  const over = (p) => { p.cursor.at = { x: 0, y: 0 }; };
+  const off = (p) => { p.cursor.at = { x: 900, y: 900 }; };
+  const wheel = (p) => p.doc.querySelector('#wheel');
+
+  it.each([
+    ['an empty list', async () => []],
+    ['a failed read', async () => { throw new Error('read failed'); }],
+  ])('reads the favourites once per hover after %s (the number of reads is the behavior)', async (_, answer) => {
+    let reads = 0;
+    const p = page({ fetchLooks: () => { reads++; return answer(); } });
+    dressButton(p);
+    over(p);
+    await frames(p);
+    expect(reads).toBe(1);
+    expect(wheel(p).hidden).toBe(true);
+    off(p);
+    await frames(p, 1);
+    over(p);
+    await frames(p);
+    expect(reads).toBe(2);
+  });
+
+  it('reads again when the pointer left while a bubble was showing', async () => {
+    let reads = 0;
+    const p = page({ fetchLooks: async () => { reads++; return []; } });
+    dressButton(p);
+    over(p);
+    await frames(p);
+    p.bubble.hidden = false;
+    off(p);
+    await frames(p, 1);
+    over(p);
+    p.bubble.hidden = true;
+    await frames(p);
+    expect(reads).toBe(2);
+  });
+
+  it('opens the row with one read when there are favourites', async () => {
+    let reads = 0;
+    const p = page({ fetchLooks: async () => { reads++; return [{ skin: {} }]; } });
+    dressButton(p);
+    over(p);
+    await frames(p);
+    expect(reads).toBe(1);
+    expect(wheel(p).hidden).toBe(false);
   });
 });
