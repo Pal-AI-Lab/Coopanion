@@ -1517,7 +1517,7 @@ const wheelState = { items: [], at: 0, until: 0, timer: 0, acc: 0, opening: fals
 async function wheelItems() {
   const [saved, figures] = await Promise.all([fetchLooks(), fetch('/api/figures').then((r) => r.json()).catch(() => null)]);
   const list = Array.isArray(figures) ? figures : [], dark = prefs.theme === 'dark';
-  const items = saved.filter((l) => lookAvailable(l.skin, list))
+  const items = (saved ?? []).filter((l) => lookAvailable(l.skin, list))
     .map((l) => ({ skin: l.skin, on: sameLook(l.skin, skin), html: lookPicture(l.skin, list, dark) }));
   if (!items.length) return [];
   if (!items.some((i) => i.on)) items.unshift({ skin, on: true, worn: true, html: lookPicture(skin, list, dark) });

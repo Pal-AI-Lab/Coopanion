@@ -4,7 +4,8 @@
  */
 import { PALETTES, mini, normalizeSkin } from './coo/coo.js';
 
-export const fetchLooks = () => fetch('/api/looks').then((r) => (r.ok ? r.json() : [])).then((l) => (Array.isArray(l) ? l : [])).catch(() => []);
+/** Resolves to the saved looks, or null when they could not be read. */
+export const fetchLooks = () => fetch('/api/looks').then((r) => (r.ok ? r.json() : null)).then((l) => (Array.isArray(l) ? l : null)).catch(() => null);
 
 /** Writes the whole list; resolves to the list the World kept, or null when the write failed. */
 export const writeLooks = (looks) => fetch('/api/looks', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ looks }) })

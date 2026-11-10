@@ -148,6 +148,8 @@ export default {
   'looks.delete': "Elimina {name}",
   'looks.exists': "{name} è già tra i preferiti",
   'looks.empty': "Nessun look preferito.",
+  'looks.readFailed': "Impossibile leggere i look preferiti.",
+  'looks.retry': "Riprova",
   'looks.deleteTitle': "Rimuovere {name} dai preferiti?",
   'looks.deleteLead': "L'operazione non si può annullare.",
   'looks.deleteGo': "Elimina",
