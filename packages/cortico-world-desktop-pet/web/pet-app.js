@@ -21,6 +21,7 @@ import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightW
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
 import { runFrames } from './frame-loop.js';
+import { mountHints } from './hints.js';
 
 const $ = (s) => document.querySelector(s);
 const host = window.petHost || null;
@@ -75,6 +76,7 @@ const lightFor = (s) => {
 };
 
 const sfx = createSfx();
+mountHints(document);
 // Coo's speech stands in for the babble while it is on; its units move the mouth
 const speech = createSpeech(sfx, { onUnit: () => body?.talk() });
 if (host) sfx.unlock();
@@ -1203,10 +1205,10 @@ const ACTIONS = {
     },
     run: () => cycleRoam(),
   },
+  // a choice of two looks, not a switch: light is no "off", so its button keeps a solid ring
   theme: {
     keep: true,
     icon: () => (prefs.theme === 'dark' ? ICONS.moon : ICONS.sun),
-    on: () => prefs.theme === 'dark',
     state: () => t(prefs.theme === 'dark' ? 'action.themeDark' : 'action.themeLight'),
     run: () => toggleTheme(),
   },
@@ -1249,8 +1251,9 @@ function drawAction(b, id) {
   b.querySelector('.ic').innerHTML = a.icon() + (badge ? `<b class="badge">${badge}</b>` : '');
   b.classList.toggle('on', on === true);
   b.classList.toggle('off', on === false);
-  // no tooltip: hovering these buttons is kept for other uses
   b.setAttribute('aria-label', a.state());
+  // the same line as a hover hint (hints.js); dressing's hover opens the favourite looks instead
+  if (id === 'dress') delete b.dataset.tip; else b.dataset.tip = a.state();
   if (on !== undefined) b.setAttribute('aria-pressed', String(on));
 }
 
@@ -1375,6 +1378,7 @@ function fillMenuRail(rail, bot, confirmQuit) {
   const act = (iconHtml, label, fn, cls = 'tool', into = rail) => {
     const b = document.createElement('button');
     b.type = 'button'; b.className = cls; b.setAttribute('aria-label', label);
+    if (cls === 'tool' || cls.startsWith('tool ')) b.dataset.tip = label;
     b.innerHTML = iconHtml;
     b.addEventListener('click', (e) => { e.stopPropagation(); sfx.tick(); fn(); });
     into.appendChild(b);

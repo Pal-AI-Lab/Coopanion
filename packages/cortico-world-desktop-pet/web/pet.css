@@ -460,3 +460,8 @@ body.desk .floor{display:none}
 @keyframes rail-gear{to{transform:rotate(180deg)}}
 @keyframes rail-press{40%{transform:translateY(2px) scale(.9)}}
 @media (prefers-reduced-motion: reduce){.tool:hover .ic svg, .m-rail .tool:hover svg{animation:none}}
+/* hover hints on the hover buttons and the menu (hints.js), as the dress window and the settings window draw theirs */
+.hint{position:fixed; z-index:10; pointer-events:none; box-sizing:border-box; width:max-content; max-width:min(240px, calc(100vw - 16px));
+  background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:7px 10px; box-shadow:0 6px 22px rgba(0,0,0,.14);
+  font-size:12px; line-height:1.4; color:var(--text); overflow-wrap:anywhere}
+.hint[hidden]{display:none}
