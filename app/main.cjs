@@ -589,10 +589,12 @@ async function readPetOnDesktop() {
   if (state) petOnDesktop = state.onDesktop === true;
   return petOnDesktop;
 }
-/** Shows or hides the pet by what it says now: it may have been hidden from its own menu or the settings window. The entry changes on `pet-shown`. */
+/** Shows or hides the pet by what it says now: it may have been hidden from its own menu or the settings window. */
 async function togglePet() {
   if (await readPetOnDesktop()) await panel('world:desktop-pet', 'pet', 'hideWindow');
   else await showPet();
+  petOnDesktop = !petOnDesktop;
+  refreshTray();
 }
 
 // the Core says when the pet window comes onto the desktop or leaves it, from wherever (its menu, the settings
