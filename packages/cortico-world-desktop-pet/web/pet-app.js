@@ -1579,7 +1579,8 @@ const WHEEL_FADE = [1, .55, .3, .12];
 const WHEEL_APPLY_MS = 300;
 /** Wheel delta that turns the row one look (a mouse notch is about 100; a touchpad sends many small ones). */
 const WHEEL_NOTCH = 40;
-const wheelState = { items: [], at: 0, until: 0, timer: 0, acc: 0, opening: false };
+/** `empty`: the last read found no looks to show; set until the pointer has left the dress buttons, so a hover reads them once. */
+const wheelState = { items: [], at: 0, until: 0, timer: 0, acc: 0, opening: false, empty: false };
 const wheelAnim = { enter: 0, leave: 0 };
 
 /**
@@ -1589,7 +1590,7 @@ const wheelAnim = { enter: 0, leave: 0 };
 async function wheelItems() {
   const [saved, figures] = await Promise.all([fetchLooks(), fetch('/api/figures').then((r) => r.json()).catch(() => null)]);
   const list = Array.isArray(figures) ? figures : [], dark = prefs.theme === 'dark';
-  const items = saved.filter((l) => lookAvailable(l.skin, list))
+  const items = (saved ?? []).filter((l) => lookAvailable(l.skin, list))
     .map((l) => ({ skin: l.skin, on: sameLook(l.skin, skin), html: lookPicture(l.skin, list, dark) }));
   if (!items.length) return [];
   if (!items.some((i) => i.on)) items.unshift({ skin, on: true, worn: true, html: lookPicture(skin, list, dark) });
@@ -1603,7 +1604,7 @@ async function openWheel() {
   wheelState.opening = true;
   const items = await wheelItems().catch(() => []);
   wheelState.opening = false;
-  if (!items.length) return;
+  if (!items.length) { wheelState.empty = true; return; }
   wheelState.items = items;
   wheelState.at = Math.max(0, items.findIndex((i) => i.on));
   wheelState.acc = 0;
@@ -1696,12 +1697,13 @@ function overDress(p) {
   return false;
 }
 function stepWheel() {
-  // a bubble over the pet (the typing box, a reply, a question) takes the wheel's place until it closes
-  if (!bubble.hidden && !bubble.classList.contains('status')) { if (!wheel.hidden) closeWheel(); return; }
   const p = cursor.at;
   const dress = !!p && overDress(p);
+  if (!dress) wheelState.empty = false;
+  // a bubble over the pet (the typing box, a reply, a question) takes the wheel's place until it closes
+  if (!bubble.hidden && !bubble.classList.contains('status')) { if (!wheel.hidden) closeWheel(); return; }
   if (dress || (p && overWheel(p))) wheelState.until = T + WHEEL_LINGER;
-  if (dress && wheel.hidden && !clicksPass()) void openWheel();
+  if (dress && wheel.hidden && !wheelState.empty && !clicksPass()) void openWheel();
   if (!wheel.hidden && T > wheelState.until) closeWheel();
 }
 // the mouse wheel turns the row while it shows, over the row or over a dress button
