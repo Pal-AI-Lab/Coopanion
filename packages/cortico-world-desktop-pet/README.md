@@ -538,9 +538,7 @@ macOS 的辅助功能查询每次最多等待 200ms,超时后仍报告前台程�
   第一次用时系统会问,没给之前工具回执写明去哪里打开。切换应用时 System Events 还会问一次能不能被控制。
 - Linux(`src/cua/engine/linux.ts`,X11 或 Wayland 下的 XWayland):XRandR 的 `XRRGetMonitors` 列显示器(没有 libXrandr 时整块 X 屏当一块),根窗口的 `XGetImage` 按显示器矩形截图(无根的 XWayland 给不出画面时,
   改用 `grim`、`spectacle`、`scrot` 或 ImageMagick 的 `import`);鼠标键盘是 XTest;窗口表和前台窗口来自窗口管理器的 EWMH 属性;
-  打字和切窗口用 `xdotool`,确认框用 `zenity`。XWayland 下只看得到 X11 程序的窗口。Wayland 会话里指针落点由合成器决定:
-  KWin 开小数缩放时把坐标再乘上缩放比,结果不在 X11 窗口上就丢弃这次移动。移动后读回指针位置得出这个倍率,之后的坐标先除以它
-  (`src/cua/engine/warp.ts`);倍率来自第一次落到 X11 窗口上的移动,在那之前被丢弃的移动指针不动。
+  打字和切窗口用 `xdotool`,确认框用 `zenity`。XWayland 下只看得到 X11 程序的窗口。
 
 只支持 Windows、macOS 和 Linux(X11);多显示器在 macOS 和 Linux 上还没有真机验证过;在别的系统上、或 Linux 上没有 `DISPLAY` 时,开着也没有这些工具,灯显示原因。
 
