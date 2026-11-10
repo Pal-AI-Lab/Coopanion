@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { LANGUAGES } from 'cortico/core/language.ts';
+import { MAX_WAIT_SECONDS } from 'cortico-world-desktop-pet';
 import { petToolDescriber } from '../core/pet-status.ts';
+import { coreText } from '../core/i18n/index.ts';
 import zh from '../core/i18n/zh.ts';
 
 const describePetTool = petToolDescriber(() => 'zh');
@@ -62,7 +65,16 @@ describe('the status bubble for each tool', () => {
     for (const args of ['{"seconds":1', '{"seconds":1.', '{"seconds":1e']) expect(describePetTool('pet_cua_wait', args, false)?.detail).toBeUndefined();
     expect(describePetTool('pet_cua_wait', '{"seconds":1.5,', false)?.detail).toBe('1.5 秒');
     expect(describePetTool('pet_cua_wait', '{"seconds":0}', true)?.detail).toBe('0 秒');
+    expect(describePetTool('pet_cua_wait', { seconds: MAX_WAIT_SECONDS + 30 }, true)?.detail).toBe(T.seconds(MAX_WAIT_SECONDS));
+    expect(describePetTool('pet_cua_wait', { seconds: -1 }, true)?.detail).toBe(T.seconds(0));
     expect(describePetTool('alarm_set', '{"in_minutes":12, "note":"private', false)?.detail).toBe('12 分钟后');
+  });
+
+  it('counts a running wait down on the page in the words the bubble shows before it starts, in every language', async () => {
+    for (const language of LANGUAGES) {
+      const page = (await import(`../packages/cortico-world-desktop-pet/web/i18n/${language}.js`)).default as Record<string, string>;
+      expect(page['status.seconds'].replace('{n}', '7'), language).toBe(coreText(language).status.seconds(7));
+    }
   });
 
   it('says nothing an unfinished call may contradict', () => {

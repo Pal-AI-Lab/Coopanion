@@ -12,8 +12,11 @@ const xy = {
   y: { type: 'integer', minimum: 0, description: 'Vertical position, in pixels of the latest screenshot' },
 };
 
-/** The longest hold of `pet_cua_key`, in seconds: the longest wait of `pet_cua_wait`. */
-export const MAX_HOLD_SECONDS = 30;
+/** The longest wait of `pet_cua_wait`, in seconds. */
+export const MAX_WAIT_SECONDS = 30;
+
+/** The longest hold of `pet_cua_key`, in seconds. */
+export const MAX_HOLD_SECONDS = MAX_WAIT_SECONDS;
 
 /** While computer use is off: the way to its switch. */
 export const CUA_OFF_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
@@ -147,7 +150,7 @@ export const CUA_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'pet_cua_wait',
     tags: ['read'],
-    description: 'Wait a number of seconds (30 at most) for the screen to load, then take a screenshot. Waiting needs no permission from the person; while looking at the screen is not yet allowed this turn, it waits without a screenshot.',
-    parameters: { type: 'object', properties: { seconds: { type: 'number', minimum: 0, maximum: 30 } }, required: ['seconds'] },
+    description: `Wait a number of seconds (${MAX_WAIT_SECONDS} at most) for the screen to load, then take a screenshot. Waiting needs no permission from the person; while looking at the screen is not yet allowed this turn, it waits without a screenshot.`,
+    parameters: { type: 'object', properties: { seconds: { type: 'number', minimum: 0, maximum: MAX_WAIT_SECONDS } }, required: ['seconds'] },
   },
 ];

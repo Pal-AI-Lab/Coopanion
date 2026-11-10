@@ -38,7 +38,7 @@ import { readTextFile } from 'cortico/core/util.ts';
 import { childExecArgv } from 'cortico/extensions/runtime.ts';
 import type { CuaConfig, PermissionLevel } from './config.ts';
 import { cuaText, type CuaText } from './i18n/index.ts';
-import { CUA_TOOL_DECLS, MAX_HOLD_SECONDS } from './tools.ts';
+import { CUA_TOOL_DECLS, MAX_HOLD_SECONDS, MAX_WAIT_SECONDS } from './tools.ts';
 import { isTerminal, opensRunBox } from './terminal.ts';
 import { fit } from './engine/image.ts';
 import { parseKeys } from './engine/keys.ts';
@@ -69,8 +69,8 @@ export interface CuaOptions {
   modelLanguage?: () => ModelLanguage;
   /** The app language: the permission question and the system dialog's words. Read at each use; `zh` when absent. */
   language?: () => Language;
-  /** A `pet_cua_wait` has started and ends at this time (ms since epoch). */
-  onWait?: (endsAt: number) => void;
+  /** The `pet_cua_wait` call `callId` has started and ends at `endsAt` (ms since epoch); again with the time it ended when it is interrupted. */
+  onWait?: (callId: string, endsAt: number) => void;
 }
 
 /** The person did not allow this turn's computer use. */
@@ -377,7 +377,7 @@ export class Cua {
   /* ---------- tools ---------- */
 
   tools(): ToolDef[] {
-    const handlers: Record<string, (args: Args, signal?: AbortSignal) => Promise<ToolOutcome>> = {
+    const handlers: Record<string, (args: Args, signal?: AbortSignal, callId?: string) => Promise<ToolOutcome>> = {
       pet_cua_screenshot: (a, s) => this.screenshotTool(a, s),
       pet_cua_zoom: (a, s) => this.zoom(a, s),
       pet_cua_click: (a, s) => this.click(a, s),
@@ -390,14 +390,14 @@ export class Cua {
       pet_cua_key: (a, s) => this.key(a, s),
       pet_cua_windows: (_, s) => this.windows(s),
       pet_cua_focus: (a, s) => this.focus(a, s),
-      pet_cua_wait: (a, s) => this.wait(a, s),
+      pet_cua_wait: (a, s, id) => this.wait(a, s, id),
     };
     return CUA_TOOL_DECLS.map((decl) => ({
       ...decl,
       interruptible: true,
       handler: async (args: Args, ctx: ToolCallContext) => {
         try {
-          return await handlers[decl.name](args, ctx.signal);
+          return await handlers[decl.name](args, ctx.signal, ctx.callId);
         } catch (err) {
           const t = this.t;
           if (err instanceof Interrupted) return { text: t.notRun(decl.name, err.message) };
@@ -644,12 +644,15 @@ export class Cua {
   }
 
   /** Waiting asks nobody; the screenshot after it is taken only when looking needs no new question. */
-  private async wait(args: Args, signal?: AbortSignal): Promise<ToolOutcome> {
-    const seconds = typeof args.seconds === 'number' && Number.isFinite(args.seconds) ? Math.max(0, Math.min(30, args.seconds)) : 1;
-    this.opts.onWait?.(Date.now() + seconds * 1000);
+  private async wait(args: Args, signal?: AbortSignal, callId?: string): Promise<ToolOutcome> {
+    const seconds = typeof args.seconds === 'number' && Number.isFinite(args.seconds) ? Math.max(0, Math.min(MAX_WAIT_SECONDS, args.seconds)) : 1;
+    if (callId) this.opts.onWait?.(callId, Date.now() + seconds * 1000);
     const waitedMs = await pause(seconds * 1000, signal);
     const t = this.t;
-    if (signal?.aborted) return { text: t.waitInterrupted((waitedMs / 1000).toFixed(1), seconds) };
+    if (signal?.aborted) {
+      if (callId) this.opts.onWait?.(callId, Date.now());
+      return { text: t.waitInterrupted((waitedMs / 1000).toFixed(1), seconds) };
+    }
     const look = await this.mayLook(signal);
     if (signal?.aborted) return { text: `${t.waited(seconds)}${t.noShotInterrupted}` };
     if (!look) return { text: t.waitNoLook(seconds) };

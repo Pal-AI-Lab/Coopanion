@@ -7,7 +7,7 @@ import { downscale, drawCursor, encodeJpeg, fit } from '../../src/cua/engine/ima
 import { displayAt, ordered, toLocal, toNative } from '../../src/cua/engine/display.ts';
 import { CUA_DEFAULTS, type CuaConfig } from '../../src/cua/config.ts';
 import { Cua } from '../../src/cua/cua.ts';
-import { MAX_HOLD_SECONDS } from '../../src/cua/tools.ts';
+import { MAX_WAIT_SECONDS } from '../../src/cua/tools.ts';
 import { FakeHost } from '../helpers/fake-host.ts';
 
 describe('parseKeys', () => {
@@ -243,10 +243,10 @@ describe('computer use without the engine', () => {
       });
       return w;
     };
-    const callAborted = (w: Cua, name: string, args: Record<string, unknown>) => {
+    const callAborted = (w: Cua, name: string, args: Record<string, unknown>, callId?: string) => {
       const ac = new AbortController();
       setTimeout(() => ac.abort(), 50);
-      return w.tools().find((t) => t.name === name)!.handler(args, { role: 'main', log: new FakeHost().log, signal: ac.signal }) as Promise<{ text: string; blobs?: unknown[] }>;
+      return w.tools().find((t) => t.name === name)!.handler(args, { role: 'main', log: new FakeHost().log, signal: ac.signal, ...(callId ? { callId } : {}) }) as Promise<{ text: string; blobs?: unknown[] }>;
     };
 
     it('pet_cua_wait ends at the abort, reports the time waited and takes no screenshot', async () => {
@@ -255,15 +255,25 @@ describe('computer use without the engine', () => {
       expect(out.blobs).toBeUndefined();
     });
 
-    it('pet_cua_wait reports when it will end, within the longest wait', async () => {
-      const ends: number[] = [];
-      const w = new Cua({ cfg: () => structuredClone(CUA_DEFAULTS), onWait: (endsAt) => ends.push(endsAt) });
+    it('pet_cua_wait reports for its call when it will end, within the longest wait, and then when the interrupt ended it', async () => {
+      const ends: Array<{ callId: string; endsAt: number }> = [];
+      const w = new Cua({ cfg: () => structuredClone(CUA_DEFAULTS), onWait: (callId, endsAt) => ends.push({ callId, endsAt }) });
       const before = Date.now();
-      await callAborted(w, 'pet_cua_wait', { seconds: MAX_HOLD_SECONDS + 1 });
+      await callAborted(w, 'pet_cua_wait', { seconds: MAX_WAIT_SECONDS + 1 }, 'call-1');
       const after = Date.now();
-      expect(ends).toHaveLength(1);
-      expect(ends[0]).toBeGreaterThanOrEqual(before + MAX_HOLD_SECONDS * 1000);
-      expect(ends[0]).toBeLessThanOrEqual(after + MAX_HOLD_SECONDS * 1000);
+      expect(ends.map((e) => e.callId)).toEqual(['call-1', 'call-1']);
+      expect(ends[0].endsAt).toBeGreaterThanOrEqual(before + MAX_WAIT_SECONDS * 1000);
+      expect(ends[0].endsAt).toBeLessThanOrEqual(after + MAX_WAIT_SECONDS * 1000);
+      expect(ends[1].endsAt).toBeGreaterThanOrEqual(before);
+      expect(ends[1].endsAt).toBeLessThanOrEqual(after);
+    });
+
+    it('pet_cua_wait called without a call id or with an empty one reports no end', async () => {
+      const ends: number[] = [];
+      const w = new Cua({ cfg: () => structuredClone(CUA_DEFAULTS), onWait: (_, endsAt) => ends.push(endsAt) });
+      await callAborted(w, 'pet_cua_wait', { seconds: 1 });
+      await w.tools().find((t) => t.name === 'pet_cua_wait')!.handler({ seconds: 0 }, { role: 'main', log: new FakeHost().log, callId: '' });
+      expect(ends).toEqual([]);
     });
 
     it('pet_cua_type sends the engine a cancel on abort and reports how much of the text went out', async () => {

@@ -15,7 +15,7 @@ export interface PetStatus {
   text: string;
   detail?: string;
   count?: number;
-  /** A wait that has started: when it ends (ms since epoch). The page shows the time left in place of `detail`. */
+  /** A call that has started and runs for a set time: when it ends (ms since epoch). The page shows the time left in place of `detail`. */
   endsAt?: number;
 }
 
@@ -48,14 +48,13 @@ export function numberArg(args: ToolArgs, key: string): number | undefined {
 
 const defaultStatus = (name: string, busy: string): PetStatus | null => (name.startsWith('pet_') ? null : { kind: 'work', text: busy });
 
-interface Call { name: string; args: string; done: boolean; status: PetStatus | null }
+interface Call { name: string; callId: string; args: string; done: boolean; status: PetStatus | null; endsAt?: number }
 
 export class StatusTracker {
   private readonly calls = new Map<string, Call>();
   private state: RunPhase['state'] = 'idle';
   private round: number | undefined;
   private current: PetStatus | null = null;
-  private waitEndsAt: number | undefined;
 
   /** `busy`: what a call without a description shows, in the app language at the time. */
   constructor(private readonly changed: (status: PetStatus | null) => void, private readonly describe?: DescribeTool, private readonly busy: () => string = () => petText().busy) {}
@@ -74,14 +73,14 @@ export class StatusTracker {
         return;
       default:
         // a new round's request starts from thinking; the calls of the round before are done with
-        if (phase.round !== this.round) { this.round = phase.round; this.calls.clear(); this.waitEndsAt = undefined; }
+        if (phase.round !== this.round) { this.round = phase.round; this.calls.clear(); }
         this.update();
     }
   }
 
-  /** A wait has started and ends at `endsAt` (ms since epoch). */
-  onWait(endsAt: number): void {
-    this.waitEndsAt = endsAt;
+  /** The call `callId` has started a wait that ends at `endsAt` (ms since epoch); again when it ends at another time. */
+  onWait(callId: string, endsAt: number): void {
+    for (const call of this.calls.values()) if (call.callId === callId) call.endsAt = endsAt;
     if (this.state === 'model' || this.state === 'tools') this.update();
   }
 
@@ -90,8 +89,9 @@ export class StatusTracker {
     if (event.type === 'response.output_item.added' || event.type === 'response.output_item.done') {
       const item = event.item;
       if (item?.type !== 'function_call') return;
-      const call = this.calls.get(item.id) ?? { name: item.name, args: '', done: false, status: null };
+      const call: Call = this.calls.get(item.id) ?? { name: item.name, callId: item.call_id, args: '', done: false, status: null };
       call.name = item.name;
+      call.callId = item.call_id;
       call.args = item.arguments;
       call.done = event.type === 'response.output_item.done';
       call.status = this.describeCall(call);
@@ -109,7 +109,6 @@ export class StatusTracker {
   clear(): void {
     this.calls.clear();
     this.round = undefined;
-    this.waitEndsAt = undefined;
     this.set(null);
   }
 
@@ -118,19 +117,20 @@ export class StatusTracker {
     return described === undefined ? defaultStatus(call.name, this.busy()) : described;
   }
 
-  /** The latest run of calls of one kind: its last wording, its first detail and how many. */
+  /** The latest run of calls of one kind: its last wording, its first detail, how many, and the end of the one that started last. */
   private update(): void {
     const calls = [...this.calls.values()];
-    let last: PetStatus | null = null, first: PetStatus | null = null, count = 0;
+    let last: PetStatus | null = null, first: PetStatus | null = null, count = 0, endsAt: number | undefined;
     for (let i = calls.length - 1; i >= 0; i--) {
       const s = calls[i].status;
       if (!s) continue;
       if (last && s.kind !== last.kind) break;
       last ??= s;
       first = s;
+      endsAt ??= calls[i].endsAt;
       count++;
     }
-    if (last && first) this.set({ kind: last.kind, text: last.text, ...(first.detail ? { detail: first.detail } : {}), ...(count > 1 ? { count } : {}), ...(last.kind === 'wait' && this.waitEndsAt !== undefined ? { endsAt: this.waitEndsAt } : {}) });
+    if (last && first) this.set({ kind: last.kind, text: last.text, ...(first.detail ? { detail: first.detail } : {}), ...(count > 1 ? { count } : {}), ...(endsAt !== undefined ? { endsAt } : {}) });
     else this.set(calls.at(-1)?.done ? null : THINK);
   }
 

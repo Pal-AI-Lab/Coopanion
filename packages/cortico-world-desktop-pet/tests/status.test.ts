@@ -88,7 +88,7 @@ describe('StatusTracker', () => {
     tracker.onPhase(phase('model', 1));
     tracker.onEvent(call('w', 'wait_tool', '{"seconds":5}', true));
     expect(tracker.status).toEqual({ kind: 'wait', text: '在等', detail: '5 秒' });
-    tracker.onWait(endsAt);
+    tracker.onWait('w', endsAt);
     expect(tracker.status).toEqual({ kind: 'wait', text: '在等', detail: '5 秒', endsAt });
     expect(changed).toHaveBeenLastCalledWith(tracker.status);
     tracker.onPhase(phase('tools', 1, ['wait_tool']));
@@ -103,9 +103,35 @@ describe('StatusTracker', () => {
     tracker.onPhase(phase('model', 1));
     tracker.onEvent(call('a', 'wait_tool', '{"seconds":5}', true));
     tracker.onEvent(call('b', 'wait_tool', '{"seconds":5}', true));
-    tracker.onWait(1000);
-    tracker.onWait(2000);
+    tracker.onWait('a', 1000);
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等', detail: '5 秒', count: 2, endsAt: 1000 });
+    tracker.onWait('b', 2000);
     expect(tracker.status).toEqual({ kind: 'wait', text: '在等', detail: '5 秒', count: 2, endsAt: 2000 });
+  });
+
+  it('shows a wait that has not started without the end of an earlier wait in the round', () => {
+    const { tracker } = setup();
+    tracker.onPhase(phase('model', 1));
+    tracker.onEvent(call('a', 'wait_tool', '{"seconds":5}', true));
+    tracker.onWait('a', 1000);
+    tracker.onEvent(call('r', 'read_file', '{"path":"a.md"}', true));
+    tracker.onEvent(call('b', 'wait_tool', '{"seconds":5}', true));
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等', detail: '5 秒' });
+    tracker.onWait('b', 3000);
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等', detail: '5 秒', endsAt: 3000 });
+  });
+
+  it('takes the time an interrupted wait ended in place of its planned end', () => {
+    const { tracker, changed } = setup();
+    tracker.onPhase(phase('model', 1));
+    tracker.onEvent(call('w', 'wait_tool', '{"seconds":5}', true));
+    tracker.onPhase(phase('tools', 1, ['wait_tool']));
+    tracker.onWait('w', 30_000);
+    tracker.onWait('w', 6000);
+    tracker.onPhase(phase('tools', 1));
+    tracker.onPhase(phase('delivering', 1));
+    expect(tracker.status?.endsAt).toBe(6000);
+    expect(changed).toHaveBeenLastCalledWith({ kind: 'wait', text: '在等', detail: '5 秒', endsAt: 6000 });
   });
 
   it('keeps a wait end off every other kind of work', () => {
@@ -113,7 +139,7 @@ describe('StatusTracker', () => {
     tracker.onPhase(phase('model', 1));
     tracker.onEvent(call('w', 'wait_tool', '{"seconds":5}', true));
     tracker.onEvent(call('r', 'read_file', '{"path":"a.md"}', true));
-    tracker.onWait(1000);
+    tracker.onWait('w', 1000);
     expect(tracker.status).toEqual({ kind: 'read', text: '在看', detail: 'a.md' });
   });
 
@@ -121,7 +147,7 @@ describe('StatusTracker', () => {
     const { tracker } = setup();
     tracker.onPhase(phase('model', 1));
     tracker.onEvent(call('w', 'wait_tool', '{"seconds":5}', true));
-    tracker.onWait(1000);
+    tracker.onWait('w', 1000);
     tracker.onPhase(phase('idle'));
     tracker.onPhase(phase('model', 1));
     tracker.onEvent(call('w', 'wait_tool', '{"seconds":5}', true));
@@ -132,7 +158,7 @@ describe('StatusTracker', () => {
     const { tracker } = setup();
     tracker.onEvent(call('a', 'read_file'));
     expect(tracker.status).toBeNull();
-    tracker.onWait(1000);
+    tracker.onWait('a', 1000);
     expect(tracker.status).toBeNull();
   });
 

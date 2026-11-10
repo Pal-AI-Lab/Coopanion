@@ -173,7 +173,7 @@ describe('with a pet page', () => {
     expect(await next.next((m) => m.t === 'status')).toEqual({ t: 'status', status: null });
   });
 
-  it('tells the page and a page that opens later when a running wait ends', async () => {
+  it('tells the page and a page that opens later when a running wait ends, and when an interrupt ended it', async () => {
     const seconds = 20;
     const { world } = await mounted(undefined, { describeTool: (name) => (name === 'pet_cua_wait' ? { kind: 'wait', text: '在等', detail: `${seconds} 秒` } : undefined) });
     const page = await FakePage.open(origin(world));
@@ -185,12 +185,18 @@ describe('with a pet page', () => {
     });
     const before = Date.now();
     const wait = (world as unknown as { cua: Cua }).cua.tools().find((t) => t.name === 'pet_cua_wait')!;
-    await wait.handler({ seconds }, { ...ctx, signal: AbortSignal.timeout(10) });
-    const { status } = await page.next((m) => (m.status as { endsAt?: number } | null | undefined)?.endsAt !== undefined) as { status: { endsAt: number } };
+    const interrupt = new AbortController();
+    const waiting = wait.handler({ seconds }, { ...ctx, callId: 'w', signal: interrupt.signal });
+    const counting = (m: Record<string, unknown>) => (m.status as { endsAt?: number } | null | undefined)?.endsAt !== undefined;
+    const { status } = await page.next(counting) as { status: { endsAt: number } };
     expect(status.endsAt).toBeGreaterThanOrEqual(before + seconds * 1000);
     const next = await FakePage.open(origin(world));
     cleanup.push(() => next.close());
     expect(next.init).toMatchObject({ status: { kind: 'wait', endsAt: status.endsAt } });
+    interrupt.abort();
+    await waiting;
+    const { status: ended } = await next.next(counting) as { status: { endsAt: number } };
+    expect(ended.endsAt).toBeLessThanOrEqual(Date.now());
   });
 
   it('pet_say sends parsed beats and reports dropped markers', async () => {

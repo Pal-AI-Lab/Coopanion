@@ -10,5 +10,6 @@ export { capFor, charCount, cutChars, petText, type PetText } from './i18n/index
 export type { DesktopPetConfigSection, PetSkin } from './config.ts';
 export { DesktopPetWorld, type ConfirmResult, type PetBotControls, type PetDialog, type PetDialogAnswer, type PetDialogHandle, type PetDialogInput, type PetDialogUpdate } from './world.ts';
 export { numberArg, stringArg, type DescribeTool, type PetStatus, type ToolArgs } from './status.ts';
+export { MAX_WAIT_SECONDS } from './cua/tools.ts';
 export { figurePacks, nameIn, type FigureManifest, type FigurePack, type FigurePreset } from './packs.ts';
 export type { ModelLanguage } from './model-text.ts';
