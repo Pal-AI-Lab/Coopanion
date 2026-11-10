@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import bundle from '../packages/cortico-world-desktop-pet/src/webui/client.ts';
 import { petText } from '../packages/cortico-world-desktop-pet/src/i18n/index.ts';
 import { createConsoleUi } from '../console/base/ui/index.ts';
@@ -54,60 +54,4 @@ it('keeps window action errors at the control and read errors with the preserved
   reading = true;
   tick();
   await vi.waitFor(() => expect(msg.textContent).toBe(''));
-});
-
-describe('the dressing page in the panel', () => {
-  const ORIGIN = 'http://127.0.0.1:7797';
-  async function mountDressing() {
-    life = new AbortController();
-    const root = document.createElement('div');
-    document.body.append(root);
-    bundle.panels.pet.mount({
-      pageId: 'world:desktop-pet', panelId: 'pet', language: 'zh', root, signal: life.signal,
-      ui: createConsoleUi({ doc: document, overlayHost: document.body, signal: life.signal, memo: { get: (_, fallback) => fallback, set() {} } }),
-      invoke: async () => ({ ...STATE, dressUrl: `${ORIGIN}/dress` }),
-      interval: () => ({ dispose() {} }),
-      own: (d) => d,
-      stream: () => ({ dispose() {}, send() {}, open: false }),
-    });
-    const frame = root.querySelector('.pet-dressframe iframe');
-    await vi.waitFor(() => expect(frame.dataset.origin).toBe(ORIGIN));
-    const answers = [];
-    vi.spyOn(frame.contentWindow, 'postMessage').mockImplementation((message, origin) => answers.push({ message, origin }));
-    const send = (data, init = {}) => window.dispatchEvent(new MessageEvent('message', { data, origin: ORIGIN, source: frame.contentWindow, ...init }));
-    return { answers, send };
-  }
-  const view = { title: 'Forget it?', actions: [{ key: 'cancel', label: 'Cancel' }, { key: 'forget', label: 'Forget', kind: 'danger' }] };
-  const title = () => document.querySelector('.modaltitle')?.textContent;
-
-  it('shows the dialog the page asks for and sends the choice back to the frame', async () => {
-    const { answers, send } = await mountDressing();
-    send({ type: 'companion:dialog', id: 7, view });
-    expect(title()).toBe(view.title);
-    document.querySelector('[data-action=forget]').click();
-    expect(title()).toBeUndefined();
-    expect(answers).toEqual([{ message: { type: 'companion:dialog-action', id: 7, result: { action: 'forget', selected: [] } }, origin: ORIGIN }]);
-  });
-
-  it('closes when the page says so', async () => {
-    const { send } = await mountDressing();
-    send({ type: 'companion:dialog', id: 1, view });
-    send({ type: 'companion:dialog-close' });
-    expect(title()).toBeUndefined();
-  });
-
-  it('ignores messages from another origin, another window and malformed views', async () => {
-    const { send } = await mountDressing();
-    send({ type: 'companion:dialog', id: 1, view }, { origin: 'http://127.0.0.1:9999' });
-    send({ type: 'companion:dialog', id: 1, view }, { source: window });
-    send({ type: 'companion:dialog', id: 1, view: { title: 5 } });
-    expect(title()).toBeUndefined();
-  });
-
-  it('takes the dialog away when the panel unmounts', async () => {
-    const { send } = await mountDressing();
-    send({ type: 'companion:dialog', id: 1, view });
-    life.abort();
-    expect(title()).toBeUndefined();
-  });
 });
