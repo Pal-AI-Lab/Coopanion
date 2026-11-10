@@ -56,6 +56,10 @@ const DESCRIBE: WorldDescribe = {
       description: { zh: '使用者戳、摸、扔出或拎起放下了桌宠。', en: 'The person poked, patted, threw or dropped the pet.' },
     },
     {
+      type: 'desktop-pet.talk-key',
+      description: { zh: '说话键读不到,语音输入开着时每次运行每种原因一条。', en: 'The talk key cannot be read; once a run for each reason, while voice input is on.' },
+    },
+    {
       type: 'desktop-pet.figure',
       description: { zh: '使用者换了形象或装扮,或形象没能加载。', en: 'The person switched the figure or its dress, or a figure failed to load.' },
     },

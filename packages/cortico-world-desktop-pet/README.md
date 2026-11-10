@@ -42,6 +42,7 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 | `desktop-pet.message` | `[typed] 伙伴:…`(悬停按钮;`worlds.desktop-pet.doubleClickChat` 打开时也可双击,`typeKey.enabled` 打开时也可按打字键;或对话页,可附图片) | preempt |
 | `desktop-pet.answer` | `[answer] 伙伴回答「问题」:选了第 2 项「…」` / 自己写的 / 关掉没答 | flush,关掉没答为 debounce |
 | `desktop-pet.touch` | `[touch] 伙伴戳了你 3 下` / 摸了摸 / 拎起来甩了出去 / 摔晕 | `worlds.desktop-pet.touch.wakeOn` 让它唤醒的种类 debounce,其余 piggyback |
+| `desktop-pet.talk-key` | `[talk-key] 说话键读不到,伙伴按说话键说的话收不到:原因`(语音输入开着时，每次运行每种原因一条) | flush |
 | `desktop-pet.figure` | `[figure] 你现在的样子:…`(对方换了形象或打扮;bot 用 `pet_set` 自己换的不报) / `[figure] …没能显示出来(原因),你现在是 Coo 的样子` / `[figure] 词表变了。…`;词表或形象自己的目标有变化时都附上 | 换装 debounce,显示失败 flush |
 
 每条事件的正文前是对方那边的本地时间 `[HH:MM]`;一次运行的第一条、换了日期后的第一条带日期和星期 `[MM-DD 周X HH:MM]`。
@@ -234,6 +235,8 @@ API Key 不进 config:「语音输入」面板经 `storeSecret` 存进部署 `.e
 | `hold`(默认) | 按住说话键时收音,整段都算话,松开即一句结束;连按的键是最后一下按住时收音。说话键和打字键是同一个键时,最后一下按住超过 300 ms 才开始收音,短按和快速连按不收音 |
 | `toggle` | 按一下说话键开始,再按一下停;中间按停顿切句 |
 | `always` | 一直收音,按停顿切句 |
+
+说话键开始收音时 World 给桌宠页发 `talk-key`,页面立刻停掉念气泡的声音和叽咕声,正在显示和排队的台词继续出字但不再出声,键松开之前新出现的台词也一样;一直收音时不受影响。说话键读不了时(比如更新后没有了输入监控权限),语音输入开着就投递一条 `desktop-pet.talk-key`。
 
 不按住说话键的两种方式里,比说话门槛 `asr.segment.thresholdDb`(dBFS,默认 -42)响的声音才算说话。「语音输入」面板音量条上的竖线就是它,拖动或用方向键修改,经 voice 面板的 `setThreshold` 写进配置,下一帧起生效。门槛只看响度,和使用者一样响的别人说话照样会收进来。
 
