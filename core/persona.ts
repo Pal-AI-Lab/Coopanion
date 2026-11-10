@@ -5,8 +5,8 @@
  *   standing line asking Coo to keep it short and put details under `partner/`, and cannot be deleted with
  *   `delete_file`, as `CONSTITUTION.md` cannot.
  * - The prefix says how Coo keeps its workspace (`MEMORY_NOTE`, Cormini's memory segment, before the workspace
- *   listing): files named for what they hold, dated when tied to a time, older parts moved into `archive/`,
- *   which the listing shows as one line.
+ *   listing): files named for what they hold, duplicates merged when found, promises and unfinished things in
+ *   `todo.md`, dated when tied to a time, older parts moved into `archive/`, which the listing shows as one line.
  * - Every write Coo makes to its workspace is committed to the workspace's Git repository, one commit
  *   per tool call, so the workspace has a history to look back on and go back to. `blobs/` is left out
  *   of the repository. Without Git (`gitInstalled`) the files are written all the same.
@@ -33,6 +33,8 @@ export const PARTNER_DIR = 'partner';
 export const PARTNER_NOTE = `${PARTNER_FILE} in your workspace, below, is read in full on every request. Keep it a short, distilled portrait `
   + `of the person: merge or drop what is outdated. Put stories, logs and longer notes in files under ${PARTNER_DIR}/ and read them `
   + 'when needed.';
+/** The workspace file for what Coo promised and what it left unfinished. */
+export const TODO_FILE = 'todo.md';
 /** The workspace directory for what Coo has set aside; the prefix listing shows it as one line. */
 export const ARCHIVE_DIR = 'archive';
 /** Goes into the prefix right before the workspace listing, where the file names are all Coo sees of its files. */
@@ -42,6 +44,9 @@ export const MEMORY_NOTE = [
     + '(partner/food-likes-and-dislikes.md, not partner/notes2.md).',
   '- Before starting a file, look for one on the same subject with glob_files or grep_files and change that one. '
     + 'When a fact changes, rewrite it where it stands; delete what is no longer true.',
+  '- When two files turn out to hold the same thing, merge them into one there and then and delete the other.',
+  `- What you promised the person and what you left unfinished go in ${TODO_FILE}, each with the date it came up; `
+    + 'for one due at a set time, also set an alarm. Take an entry out once it is done.',
   '- Anything tied to a time has its date in the name: a running log one file per month (log/2026-10.md), one day\'s events by the day.',
   `- When a file grows long, move its older lines into ${ARCHIVE_DIR}/ with move_file (offset and limit); move finished files `
     + `and folders there whole. ${ARCHIVE_DIR}/ shows below as one line, and grep_files still searches it.`,
