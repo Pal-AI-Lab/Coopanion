@@ -26,6 +26,7 @@ export default {
   // the status bubble: added when the same kind of thing was done several times
   'status.more': ' и ещё {others}',
   'status.thinking': 'Думаю',
+  'status.seconds': '{n} с',
 
   // the menu and the hover buttons
   'roam.off': 'На месте',

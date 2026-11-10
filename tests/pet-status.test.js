@@ -141,6 +141,40 @@ const think = { kind: 'think', text: '' };
 const show = (p, status) => p.onOrder({ t: 'status', status });
 
 describe('activity in the shared speech bubble', () => {
+  it('counts a running wait down by the clock and shows no number once it is over', () => {
+    const p = page();
+    let now = 1_000_000;
+    p.win.Date.now = () => now;
+    const wait = { kind: 'wait', text: '在等待', detail: '2.5 秒' };
+    const label = () => p.bubble.querySelector('.status-text');
+    const left = (n) => `${wait.text} · ${t('status.seconds', { n })}`;
+    show(p, wait); p.step(.01);
+    expect(label().textContent).toBe(`${wait.text} · ${wait.detail}`);
+    show(p, { ...wait, endsAt: now + 2500 }); p.step(.01);
+    expect(label().textContent).toBe(left(3));
+    const drawn = label().firstChild;
+    now += 499; p.step(.01);
+    expect(label().firstChild).toBe(drawn);
+    now += 1; p.step(.01);
+    expect(label().textContent).toBe(left(2));
+    now += 1999; p.step(.01);
+    expect(label().textContent).toBe(left(1));
+    now += 1; p.step(.01);
+    expect(label().textContent).toBe(wait.text);
+  });
+
+  it('keeps the seconds out of what a screen reader announces while counting', () => {
+    const p = page();
+    const wait = { kind: 'wait', text: '在等待', detail: '5 秒', count: 2 };
+    const more = t('status.more', { others: 1 });
+    show(p, { ...wait, endsAt: Date.now() + 5000 }); p.step(.01);
+    expect(p.bubble.getAttribute('aria-label')).toBe(`${wait.text}${more}`);
+    expect(p.bubble.querySelector('.status-text').getAttribute('aria-hidden')).toBe('true');
+    show(p, wait); p.step(.01);
+    expect(p.bubble.getAttribute('aria-label')).toBe(`${wait.text} · ${wait.detail}${more}`);
+    expect(p.bubble.querySelector('.status-text').getAttribute('aria-hidden')).toBe('false');
+  });
+
   it('shows activity by default and applies the switch without changing the thinking face', () => {
     const p = page();
     show(p, think); p.step(1);

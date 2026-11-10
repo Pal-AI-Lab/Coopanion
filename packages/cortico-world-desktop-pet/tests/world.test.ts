@@ -10,6 +10,7 @@ import { DESKTOP_PET, desktopPetDefinition } from '../src/definition.ts';
 import { DESKTOP_PET_DEFAULTS, SELF_DEFAULT, type DesktopPetConfigSection } from '../src/config.ts';
 import { DesktopPetWorld, type DesktopPetWorldOptions, type PetBotControls } from '../src/world.ts';
 import { chatItem } from '../src/chat.ts';
+import type { Cua } from '../src/cua/cua.ts';
 import { FakeHost } from './helpers/fake-host.ts';
 import { FakePage } from './helpers/page.ts';
 import { HOST_ENV } from '../src/window-host.ts';
@@ -170,6 +171,26 @@ describe('with a pet page', () => {
     expect(next.init).toMatchObject({ statusBubble: false, status: { kind: 'work', text: '在忙' } });
     world.onRunPhase({ state: 'idle', running: [], enteredAt: new Date().toISOString() });
     expect(await next.next((m) => m.t === 'status')).toEqual({ t: 'status', status: null });
+  });
+
+  it('tells the page and a page that opens later when a running wait ends', async () => {
+    const seconds = 20;
+    const { world } = await mounted(undefined, { describeTool: (name) => (name === 'pet_cua_wait' ? { kind: 'wait', text: '在等', detail: `${seconds} 秒` } : undefined) });
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    world.onRunPhase({ state: 'model', round: 1, running: [], enteredAt: new Date().toISOString() });
+    world.outputTap()!.onEvent({
+      type: 'response.output_item.done', sequence_number: 1, output_index: 0,
+      item: { type: 'function_call', id: 'w', call_id: 'w', name: 'pet_cua_wait', arguments: JSON.stringify({ seconds }), status: 'completed' },
+    });
+    const before = Date.now();
+    const wait = (world as unknown as { cua: Cua }).cua.tools().find((t) => t.name === 'pet_cua_wait')!;
+    await wait.handler({ seconds }, { ...ctx, signal: AbortSignal.timeout(10) });
+    const { status } = await page.next((m) => (m.status as { endsAt?: number } | null | undefined)?.endsAt !== undefined) as { status: { endsAt: number } };
+    expect(status.endsAt).toBeGreaterThanOrEqual(before + seconds * 1000);
+    const next = await FakePage.open(origin(world));
+    cleanup.push(() => next.close());
+    expect(next.init).toMatchObject({ status: { kind: 'wait', endsAt: status.endsAt } });
   });
 
   it('pet_say sends parsed beats and reports dropped markers', async () => {

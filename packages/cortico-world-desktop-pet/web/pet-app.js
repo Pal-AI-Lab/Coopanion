@@ -1124,11 +1124,17 @@ function stepLines() {
 }
 
 /* ---------- activity: the same bubble, with conversation always taking priority ---------- */
-const status = { wanted: null, since: 0, shown: null, shownAt: 0, fadeAt: null };
+const status = { wanted: null, since: 0, shown: null, shownAt: 0, fadeAt: null, drawnDetail: undefined };
+/** The status's detail; for a wait that has started, the whole seconds left, and nothing once it is over. */
+function statusDetail(s) {
+  if (s.endsAt === undefined) return s.detail;
+  const left = Math.ceil((s.endsAt - Date.now()) / 1000);
+  return left > 0 ? t('status.seconds', { n: left }) : undefined;
+}
 function setStatus(next) {
   setBody({ thinking: next?.kind === 'think', status: next?.kind ?? null });
   const prev = status.wanted;
-  if (prev?.kind === next?.kind && prev?.text === next?.text && prev?.detail === next?.detail && prev?.count === next?.count) return;
+  if (prev?.kind === next?.kind && prev?.text === next?.text && prev?.detail === next?.detail && prev?.count === next?.count && prev?.endsAt === next?.endsAt) return;
   if (prev?.kind !== next?.kind) status.since = T;
   status.wanted = next;
 }
@@ -1140,9 +1146,15 @@ function drawStatus(next, pop) {
     bubble.innerHTML = `<span class="status-icon">${ICONS[`status_${icon}`] || ICONS.status_work}</span><span class="status-text"></span>`;
   }
   bubble.dataset.kind = next.kind;
-  const label = next.text + (next.detail ? ` · ${next.detail}` : '') + (next.count > 1 ? t('status.more', { others: next.count - 1 }) : '');
-  bubble.querySelector('.status-text').textContent = label;
-  bubble.setAttribute('aria-label', next.kind === 'think' ? t('status.thinking') : label);
+  status.drawnDetail = statusDetail(next);
+  const more = next.count > 1 ? t('status.more', { others: next.count - 1 }) : '';
+  const label = next.text + (status.drawnDetail ? ` · ${status.drawnDetail}` : '') + more;
+  const counting = next.endsAt !== undefined;
+  const text = bubble.querySelector('.status-text');
+  text.textContent = label;
+  // the bubble is a live region: the seconds change too often to be announced
+  text.setAttribute('aria-hidden', String(counting));
+  bubble.setAttribute('aria-label', next.kind === 'think' ? t('status.thinking') : counting ? next.text + more : label);
   bubble.classList.remove('fading');
   bubble.hidden = false;
   if (pop) { bubble.classList.remove('pop'); void bubble.offsetWidth; bubble.classList.add('pop'); }
@@ -1161,7 +1173,7 @@ function stepStatus() {
   const next = status.wanted, shown = status.shown;
   if (next?.kind === 'think' && T - status.since < .6) return;
   if (shown && next && shown.kind === next.kind && shown.text === next.text) {
-    if (shown !== next || status.fadeAt !== null) drawStatus(next, false);
+    if (shown !== next || status.fadeAt !== null || statusDetail(next) !== status.drawnDetail) drawStatus(next, false);
     status.shown = next; status.fadeAt = null;
   } else if (!shown || T - status.shownAt >= 1.2) {
     if (next) {

@@ -15,6 +15,8 @@ export interface PetStatus {
   text: string;
   detail?: string;
   count?: number;
+  /** A wait that has started: when it ends (ms since epoch). The page shows the time left in place of `detail`. */
+  endsAt?: number;
 }
 
 /** A call's arguments: the parsed object, or the JSON text streamed so far. */
@@ -53,6 +55,7 @@ export class StatusTracker {
   private state: RunPhase['state'] = 'idle';
   private round: number | undefined;
   private current: PetStatus | null = null;
+  private waitEndsAt: number | undefined;
 
   /** `busy`: what a call without a description shows, in the app language at the time. */
   constructor(private readonly changed: (status: PetStatus | null) => void, private readonly describe?: DescribeTool, private readonly busy: () => string = () => petText().busy) {}
@@ -63,9 +66,7 @@ export class StatusTracker {
     this.state = phase.state;
     switch (phase.state) {
       case 'idle':
-        this.calls.clear();
-        this.round = undefined;
-        this.set(null);
+        this.clear();
         return;
       case 'backoff':
       case 'handoff':
@@ -73,9 +74,15 @@ export class StatusTracker {
         return;
       default:
         // a new round's request starts from thinking; the calls of the round before are done with
-        if (phase.round !== this.round) { this.round = phase.round; this.calls.clear(); }
+        if (phase.round !== this.round) { this.round = phase.round; this.calls.clear(); this.waitEndsAt = undefined; }
         this.update();
     }
+  }
+
+  /** A wait has started and ends at `endsAt` (ms since epoch). */
+  onWait(endsAt: number): void {
+    this.waitEndsAt = endsAt;
+    if (this.state === 'model' || this.state === 'tools') this.update();
   }
 
   /** Tool calls and their arguments as the model writes them; item ids keep calls apart where output_index repeats. */
@@ -102,6 +109,7 @@ export class StatusTracker {
   clear(): void {
     this.calls.clear();
     this.round = undefined;
+    this.waitEndsAt = undefined;
     this.set(null);
   }
 
@@ -122,13 +130,13 @@ export class StatusTracker {
       first = s;
       count++;
     }
-    if (last && first) this.set({ kind: last.kind, text: last.text, ...(first.detail ? { detail: first.detail } : {}), ...(count > 1 ? { count } : {}) });
+    if (last && first) this.set({ kind: last.kind, text: last.text, ...(first.detail ? { detail: first.detail } : {}), ...(count > 1 ? { count } : {}), ...(last.kind === 'wait' && this.waitEndsAt !== undefined ? { endsAt: this.waitEndsAt } : {}) });
     else this.set(calls.at(-1)?.done ? null : THINK);
   }
 
   private set(status: PetStatus | null): void {
     const c = this.current;
-    if (c?.kind === status?.kind && c?.text === status?.text && c?.detail === status?.detail && c?.count === status?.count) return;
+    if (c?.kind === status?.kind && c?.text === status?.text && c?.detail === status?.detail && c?.count === status?.count && c?.endsAt === status?.endsAt) return;
     this.current = status;
     this.changed(status);
   }

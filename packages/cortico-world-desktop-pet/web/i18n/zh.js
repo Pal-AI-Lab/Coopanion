@@ -29,6 +29,7 @@ export default {
   // 状态气泡:同一类事做了好几次时接在后面
   'status.more': ' 和另外 {others} 个',
   'status.thinking': '思考中',
+  'status.seconds': '{n} 秒',
 
   // 菜单与悬停按钮的说明
   'roam.off': '不乱动',

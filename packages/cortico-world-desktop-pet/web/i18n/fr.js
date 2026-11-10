@@ -26,6 +26,7 @@ export default {
   // the status bubble
   'status.more': ' et {others} de plus',
   'status.thinking': 'Réfléchit',
+  'status.seconds': '{n} s',
 
   // the menu and the hover buttons
   'roam.off': 'Reste sur place',

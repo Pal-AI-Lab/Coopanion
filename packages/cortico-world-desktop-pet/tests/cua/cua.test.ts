@@ -7,6 +7,7 @@ import { downscale, drawCursor, encodeJpeg, fit } from '../../src/cua/engine/ima
 import { displayAt, ordered, toLocal, toNative } from '../../src/cua/engine/display.ts';
 import { CUA_DEFAULTS, type CuaConfig } from '../../src/cua/config.ts';
 import { Cua } from '../../src/cua/cua.ts';
+import { MAX_HOLD_SECONDS } from '../../src/cua/tools.ts';
 import { FakeHost } from '../helpers/fake-host.ts';
 
 describe('parseKeys', () => {
@@ -252,6 +253,17 @@ describe('computer use without the engine', () => {
       const out = await callAborted(interruptWorld(), 'pet_cua_wait', { seconds: 30 });
       expect(out.text).toMatch(/^等了 0\.\d\/30 秒时收到打断/);
       expect(out.blobs).toBeUndefined();
+    });
+
+    it('pet_cua_wait reports when it will end, within the longest wait', async () => {
+      const ends: number[] = [];
+      const w = new Cua({ cfg: () => structuredClone(CUA_DEFAULTS), onWait: (endsAt) => ends.push(endsAt) });
+      const before = Date.now();
+      await callAborted(w, 'pet_cua_wait', { seconds: MAX_HOLD_SECONDS + 1 });
+      const after = Date.now();
+      expect(ends).toHaveLength(1);
+      expect(ends[0]).toBeGreaterThanOrEqual(before + MAX_HOLD_SECONDS * 1000);
+      expect(ends[0]).toBeLessThanOrEqual(after + MAX_HOLD_SECONDS * 1000);
     });
 
     it('pet_cua_type sends the engine a cancel on abort and reports how much of the text went out', async () => {

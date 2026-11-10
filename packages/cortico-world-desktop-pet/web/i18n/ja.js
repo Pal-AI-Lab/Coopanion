@@ -26,6 +26,7 @@ export default {
   // the status bubble
   'status.more': ' ほか {others} 件',
   'status.thinking': '考え中',
+  'status.seconds': '{n} 秒',
 
   // the menu and the hover buttons
   'roam.off': 'じっとする',

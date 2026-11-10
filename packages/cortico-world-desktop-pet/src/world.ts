@@ -455,6 +455,7 @@ export class DesktopPetWorld implements World {
         opts.onCuaAnswer?.(said);
         return said;
       },
+      onWait: (endsAt) => this.status.onWait(endsAt),
     });
     this.importer = opts.packDir ? new PackImporter({ packDir: opts.packDir, packs: () => this.packs(), text: () => this.ui }) : null;
     this.status = new StatusTracker((status) => this.server.sendPet({ t: 'status', status }), opts.describeTool, () => this.ui.busy);

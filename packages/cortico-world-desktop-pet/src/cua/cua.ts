@@ -69,6 +69,8 @@ export interface CuaOptions {
   modelLanguage?: () => ModelLanguage;
   /** The app language: the permission question and the system dialog's words. Read at each use; `zh` when absent. */
   language?: () => Language;
+  /** A `pet_cua_wait` has started and ends at this time (ms since epoch). */
+  onWait?: (endsAt: number) => void;
 }
 
 /** The person did not allow this turn's computer use. */
@@ -644,6 +646,7 @@ export class Cua {
   /** Waiting asks nobody; the screenshot after it is taken only when looking needs no new question. */
   private async wait(args: Args, signal?: AbortSignal): Promise<ToolOutcome> {
     const seconds = typeof args.seconds === 'number' && Number.isFinite(args.seconds) ? Math.max(0, Math.min(30, args.seconds)) : 1;
+    this.opts.onWait?.(Date.now() + seconds * 1000);
     const waitedMs = await pause(seconds * 1000, signal);
     const t = this.t;
     if (signal?.aborted) return { text: t.waitInterrupted((waitedMs / 1000).toFixed(1), seconds) };

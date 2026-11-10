@@ -18,6 +18,7 @@ const describe_: DescribeTool = (name, args) => {
   if (name === 'read_file') return { kind: 'read', text: '在看', ...(stringArg(args, 'path') ? { detail: stringArg(args, 'path') } : {}) };
   if (name === 'write_file') return { kind: 'write', text: '在写', ...(stringArg(args, 'path') ? { detail: stringArg(args, 'path') } : {}) };
   if (name === 'append_file') return { kind: 'write', text: '在补记', ...(stringArg(args, 'path') ? { detail: stringArg(args, 'path') } : {}) };
+  if (name === 'wait_tool') return { kind: 'wait', text: '在等', detail: '5 秒' };
   if (name === 'end_turn') return null;
   return undefined;
 };
@@ -81,9 +82,57 @@ describe('StatusTracker', () => {
     expect(tracker.status).toEqual({ kind: 'work', text: '在忙' });
   });
 
+  it('carries the end of a running wait until the round is over', () => {
+    const { tracker, changed } = setup();
+    const endsAt = Date.now() + 5000;
+    tracker.onPhase(phase('model', 1));
+    tracker.onEvent(call('w', 'wait_tool', '{"seconds":5}', true));
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等', detail: '5 秒' });
+    tracker.onWait(endsAt);
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等', detail: '5 秒', endsAt });
+    expect(changed).toHaveBeenLastCalledWith(tracker.status);
+    tracker.onPhase(phase('tools', 1, ['wait_tool']));
+    expect(tracker.status?.endsAt).toBe(endsAt);
+    tracker.onPhase(phase('model', 2));
+    tracker.onEvent(call('w2', 'wait_tool', '{"seconds":5}', true));
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等', detail: '5 秒' });
+  });
+
+  it('shows the end of the wait that started last in a run of waits', () => {
+    const { tracker } = setup();
+    tracker.onPhase(phase('model', 1));
+    tracker.onEvent(call('a', 'wait_tool', '{"seconds":5}', true));
+    tracker.onEvent(call('b', 'wait_tool', '{"seconds":5}', true));
+    tracker.onWait(1000);
+    tracker.onWait(2000);
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等', detail: '5 秒', count: 2, endsAt: 2000 });
+  });
+
+  it('keeps a wait end off every other kind of work', () => {
+    const { tracker } = setup();
+    tracker.onPhase(phase('model', 1));
+    tracker.onEvent(call('w', 'wait_tool', '{"seconds":5}', true));
+    tracker.onEvent(call('r', 'read_file', '{"path":"a.md"}', true));
+    tracker.onWait(1000);
+    expect(tracker.status).toEqual({ kind: 'read', text: '在看', detail: 'a.md' });
+  });
+
+  it('forgets a wait end when the batch ends', () => {
+    const { tracker } = setup();
+    tracker.onPhase(phase('model', 1));
+    tracker.onEvent(call('w', 'wait_tool', '{"seconds":5}', true));
+    tracker.onWait(1000);
+    tracker.onPhase(phase('idle'));
+    tracker.onPhase(phase('model', 1));
+    tracker.onEvent(call('w', 'wait_tool', '{"seconds":5}', true));
+    expect(tracker.status?.endsAt).toBeUndefined();
+  });
+
   it('reads the stream only while the model writes or tools run', () => {
     const { tracker } = setup();
     tracker.onEvent(call('a', 'read_file'));
+    expect(tracker.status).toBeNull();
+    tracker.onWait(1000);
     expect(tracker.status).toBeNull();
   });
 

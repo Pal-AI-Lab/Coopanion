@@ -31,6 +31,7 @@ export default {
   // the status bubble: added when the same kind of thing was done several times
   'status.more': ' and {others} more',
   'status.thinking': 'Thinking',
+  'status.seconds': '{n} s',
 
   // the menu and the hover buttons
   'roam.off': 'Stay put',

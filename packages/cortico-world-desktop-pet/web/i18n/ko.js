@@ -26,6 +26,7 @@ export default {
   // the status bubble: added when the same kind of thing was done several times
   'status.more': ' 외 {others}개',
   'status.thinking': '생각 중',
+  'status.seconds': '{n}초',
 
   // the menu and the hover buttons
   'roam.off': '제자리',
