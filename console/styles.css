@@ -246,7 +246,8 @@
   table.data td { padding: 6px 12px; border-top: 1px solid var(--line); vertical-align: top; }
   td.mono { font-family: var(--mono); font-size: var(--text-detail); color: var(--ink-soft); white-space: nowrap; }
   td.txt { word-break: break-word; white-space: pre-wrap; }
-  .lv { font: 600 11.5px var(--mono); }
+  /* the level as its neighbours draw theirs (td.mono), only bold: a `font` shorthand would reset the line height, and the word would sit above the row */
+  .lv { font-family: var(--mono); font-size: var(--text-detail); font-weight: 600; white-space: nowrap; }
   .lv-error { color: var(--danger); } .lv-warn { color: var(--warn); }
   .lv-info { color: var(--ok); } .lv-debug { color: var(--ink-dim); }
   .data-extra { color: var(--ink-dim); font: 11.5px var(--mono); word-break: break-all; }
