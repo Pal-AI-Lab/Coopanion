@@ -1380,7 +1380,8 @@ function fillMenuRail(rail, bot, confirmQuit) {
   const act = (iconHtml, label, fn, cls = 'tool', into = rail) => {
     const b = document.createElement('button');
     b.type = 'button'; b.className = cls; b.setAttribute('aria-label', label);
-    if (cls === 'tool' || cls.startsWith('tool ')) b.dataset.tip = label;
+    // the rail's round buttons have only an icon; the quit question's buttons say what they do
+    if (into === rail) b.dataset.tip = label;
     b.innerHTML = iconHtml;
     b.addEventListener('click', (e) => { e.stopPropagation(); sfx.tick(); fn(); });
     into.appendChild(b);
