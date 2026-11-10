@@ -343,7 +343,17 @@ body.desk .floor{display:none}
 
 /* context menu: the run controls as round buttons on one side of the body, the actions in columns on the other */
 .menu{position:fixed; inset:0; z-index:5; pointer-events:none}
-.menu > *{position:fixed; pointer-events:auto; animation:bubble-in .18s cubic-bezier(.3,1.5,.5,1)}
+.menu > *{position:fixed; pointer-events:auto}
+/* the menu's buttons and the hover buttons: opening, each pops out of the body's side (`--dx`) one after another (`--i`);
+   closing, all fold back into it at once (POP_OUT_MS in pet-app.js), taking no clicks meanwhile */
+.menu.entering :is(.m-grid, .m-rail) > *, .tools.entering > *{animation:m-in .28s cubic-bezier(.3,1.5,.5,1) backwards; animation-delay:calc(var(--i, 0) * 22ms)}
+.menu.leaving :is(.m-grid, .m-rail) > *, .tools.leaving > *{animation:m-out .16s ease-in forwards}
+.menu.leaving, .menu.leaving > *, .tools.leaving, .tools.leaving > *, .wheel.leaving{pointer-events:none}
+/* a hover button that was showing slides into its tile instead of popping out again */
+.menu.entering .m-grid > .from-tool{animation:m-move .26s cubic-bezier(.2,.8,.3,1) backwards; animation-delay:0s}
+@keyframes m-move{from{transform:translate(var(--fx, 0), var(--fy, 0))}}
+@keyframes m-in{from{transform:translateX(var(--dx, 0)) scale(.3); opacity:0}}
+@keyframes m-out{to{transform:translateX(var(--dx, 0)) scale(.4); opacity:0}}
 .menu [hidden]{display:none}
 .menu button{font:inherit; cursor:pointer}
 .m-rail{display:flex; flex-direction:column; gap:8px}
@@ -368,8 +378,6 @@ body.desk .floor{display:none}
 .q-act.text{width:auto; padding:0 10px; border-radius:15px; font-size:12.5px; white-space:nowrap}
 /* the actions as the hover buttons draw them, filled column by column */
 .m-grid{display:grid; grid-auto-flow:column; gap:8px}
-/* a switch that is off keeps its crossed-out icon on a dashed ring */
-.m-tile.off{color:var(--muted); border-style:dashed}
 .badge{
   position:absolute; right:-9px; bottom:-8px; padding:0 3px; border-radius:6px; border:1.5px solid var(--surface);
   background:var(--skin-eye); color:var(--surface); font:700 8.5px/12px ui-monospace,Consolas,monospace; letter-spacing:.02em; text-transform:uppercase;
@@ -393,19 +401,21 @@ body.desk .floor{display:none}
 @keyframes dress-wiggle{25%{transform:rotate(-12deg)} 75%{transform:rotate(12deg)}}
 @keyframes dress-pop{0%{opacity:0; transform:scale(.3) translate(0, 0)} 30%{opacity:1} 100%{opacity:0; transform:scale(1.1) translate(0, -8px)}}
 /* look wheel: the looks in a row over the body; the farther from the middle, the smaller and fainter */
-.wheel{position:fixed; z-index:6; height:62px; animation:bubble-in .18s cubic-bezier(.3,1.5,.5,1)}
+.wheel{position:fixed; z-index:6; height:62px}
+/* folding into the middle (WHEEL_OUT_MS in pet-app.js) */
+.wheel.leaving .w-item{transition-timing-function:ease-in; transition-duration:.13s}
 .wheel[hidden]{display:none}
 .w-item{
   position:absolute; left:50%; top:50%; width:50px; height:50px; padding:0; border-radius:50%; overflow:hidden; cursor:pointer;
   background:var(--surface); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
-  transition:transform .24s cubic-bezier(.3,1.3,.5,1), opacity .24s;
+  transition:transform .16s cubic-bezier(.3,1.3,.5,1), opacity .16s;
 }
 .w-item img, .w-item svg{display:block; width:100%; height:100%; object-fit:cover}
 /* the look worn that is not a favourite: kept for the row to turn back to */
 .w-item.worn{border-style:dashed}
 .w-item.on{border-color:var(--skin-eye); box-shadow:0 0 0 3px color-mix(in srgb, var(--skin-eye) 30%, transparent), 0 6px 16px var(--shadow)}
 /* hover buttons: the actions chosen in settings, in columns of up to three beside the pet */
-.tools{position:fixed; left:0; top:0; z-index:4; display:grid; grid-auto-flow:column; gap:8px; animation:bubble-in .18s cubic-bezier(.3,1.5,.5,1)}
+.tools{position:fixed; left:0; top:0; z-index:4; display:grid; grid-auto-flow:column; gap:8px}
 .tools[hidden]{display:none}
 .tool{
   position:relative; display:grid; place-items:center; width:38px; height:38px; padding:0; border-radius:50%; cursor:pointer;
@@ -416,8 +426,9 @@ body.desk .floor{display:none}
 .tool svg{width:22px; height:22px; display:block}
 /* the key badge sits off the button's lower right, clear of the icon */
 .tool .badge{right:-14px; bottom:-9px}
-/* the voice switch: struck through when off, muted while the recognizer is not ready, lit while hearing */
-.tool.off{color:var(--muted)}
+/* a switch that is off, as a hover button and in the menu alike: its crossed-out icon muted on a dashed ring;
+   the voice switch is also muted while the recognizer is not ready, and lit while hearing */
+.tool.off{color:var(--muted); border-style:dashed}
 /* not ready yet: muted, at the same line weight (a faded icon reads as a thinner one) */
 .tool.waiting{color:var(--muted)}
 .tool.live{color:var(--skin-eye); border-color:var(--skin-eye)}
@@ -429,8 +440,8 @@ body.desk .floor{display:none}
 @keyframes hold-ring{from{transform:scale(.72); opacity:0} to{transform:scale(1); opacity:1}}
 .tool.sent{animation:tool-sent .36s cubic-bezier(.3,1.5,.5,1)}
 @keyframes tool-sent{45%{transform:scale(1.2)}}
-@media (prefers-reduced-motion: reduce){.wall-glow, .wall-lens, .bubble.said{transition:none}}
-@media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .d-pill.chosen, .caret, .menu > *, .tools, .tool.holding::after, .tool.sent, .tool::before, .tool::after, .tool .ic, .tool .ic::before{animation:none}}
+@media (prefers-reduced-motion: reduce){.wall-glow, .wall-lens, .bubble.said, .w-item{transition:none}}
+@media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .d-pill.chosen, .caret, .menu :is(.m-grid, .m-rail) > *, .tools > *, .tool.holding::after, .tool.sent, .tool::before, .tool::after, .tool .ic, .tool .ic::before{animation:none}}
 @media (prefers-reduced-motion: reduce){.d-cards .d-card.on .d-cardic[class*="ic-persona_"], .d-cards .d-card.on .d-cardic .spout{animation:none}}
 /* pointed at: every round button grows a little and its icon moves once in a way that fits it (the dress button
    keeps its own colours and sparkles above); the run controls on the menu's left: the gear turns, the pause swells,
