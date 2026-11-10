@@ -1222,6 +1222,8 @@ const ACTIONS = {
   hide: {
     icon: () => ICONS.eyeOff, available: () => !!host?.hide,
     state: () => t('action.hide'),
+    // the hint leaves out the note in brackets on bringing it back from the tray
+    tip: () => t('action.hide').replace(/\s*[（(][^（(]*[）)]\s*$/, ''),
     run: () => host.hide(),
   },
   dress: {
@@ -1253,7 +1255,7 @@ function drawAction(b, id) {
   b.classList.toggle('off', on === false);
   b.setAttribute('aria-label', a.state());
   // a hover hint (hints.js) names the button and where it stands, without the line's part after ' · ' on what a click does
-  b.dataset.tip = a.state().split('·')[0].trim();
+  b.dataset.tip = a.tip?.() ?? a.state().split('·')[0].trim();
   if (on !== undefined) b.setAttribute('aria-pressed', String(on));
 }
 
