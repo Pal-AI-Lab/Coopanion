@@ -208,6 +208,8 @@ let shownLook = null;
 /** Until when (performance.now(), ms) the page draws at the moving rate though the body stands: a switch is under way. */
 let smoothUntil = -Infinity;
 const smoothFor = (ms) => { smoothUntil = Math.max(smoothUntil, performance.now() + ms); };
+/** Until when (performance.now(), ms) the body has no halo: a figure switch is under way. */
+let haloAfter = -Infinity;
 async function swapBody(s) {
   const pack = (await (await fetch('/api/figures')).json()).find((p) => p.id === s.figure);
   if (!pack) throw new Error(t('figure.notInstalled'));
@@ -229,9 +231,14 @@ async function swapBody(s) {
   const old = body;
   body = next;
   shownLook = JSON.stringify(s);
+  // the new body comes in at the size it is put on at; the switch carries the change of size (swap-motion.js)
+  const ratio = prefs.scale / drawnScale.value;
+  if (drawnScale.value !== prefs.scale) { drawnScale.jump(prefs.scale); next.set({ bounds: bounds() }); }
   if (old) {
-    swapOut(old, stage);
-    swapIn(next, stage, next.layout ?? was);
+    haloAfter = performance.now() + SWAP_MS;
+    next.setHalo(0, 0);
+    swapOut(old, stage, ratio);
+    swapIn(next, stage, next.layout ?? was, ratio);
     smoothFor(SWAP_MS);
   }
   host?.watchWindows?.(next.needsWindows);
@@ -241,8 +248,12 @@ async function swapBody(s) {
   sfx.usePack(pack.base, pack.sounds, pack.voice);
   reportFigure(s.figure, true, null, s.figure === 'coo' ? null : s.scheme, next.words);
 }
+/** Whether another figure is on its way to the screen. */
+const switching = () => !!body && !!wanted && body.pack !== wanted;
 async function applyFigure(s) {
   try { await showFigure(s); } catch (err) { bodyFailed(s.figure, err); }
+  // a size that waited for a figure that did not come
+  if (!switching() && drawnScale.target !== prefs.scale) drawnScale.set(prefs.scale);
 }
 
 /**
@@ -299,7 +310,8 @@ function applyPrefs(p) {
   if (typeof p.glow === 'number') prefs.glow = p.glow;
   if (typeof p.scale === 'number' && takesScale(p.scale)) {
     prefs.scale = p.scale;
-    if (scaleSeen) drawnScale.set(p.scale); else { drawnScale.jump(p.scale); body?.set({ bounds: bounds() }); }
+    // with another figure on its way the size waits for it: the switch changes both at once (swapBody)
+    if (!scaleSeen) { drawnScale.jump(p.scale); body?.set({ bounds: bounds() }); } else if (!switching()) drawnScale.set(p.scale);
     scaleSeen = true;
     refreshSize();
   }
@@ -2301,7 +2313,9 @@ function stepBackdrop(dt) {
   const k = backdrop.k + ((backdrop.on ? 1 : 0) - backdrop.k) * Math.min(1, dt * 6);
   backdrop.k = k < .005 ? 0 : k;
   // the body is in its own frame: it takes the halo as a CSS filter
-  body?.setHalo(backdrop.k * HALO_STRENGTH, prefs.glow);
+  // none during a figure switch: the halo cuts the body's frame window down to its surroundings, and a window that moves
+  // with the new body's size would move the point the switch scales it from
+  body?.setHalo(performance.now() < haloAfter ? 0 : backdrop.k * HALO_STRENGTH, prefs.glow);
 }
 
 /* ---------- loop ---------- */

@@ -1,7 +1,8 @@
 /**
  * How a body changes on a stage, shared by the pet window and the dressing page's preview:
- * - another figure: the old body fades out shrinking a little toward its feet (`swapOut`, disposed after it), and the
- *   new one fades in from a little smaller and settles (`swapIn`);
+ * - another figure: the old body fades out as the new one fades in (`swapOut`, disposed after it, and `swapIn`), both
+ *   on one course of sizes with a small dip; put on at another size (`ratio`, the new size over the old), that course
+ *   runs from the old size to the new, so the size and the figure change in one movement;
  * - another look of the same figure: the body dips and rises once (`restyle`);
  * - a new size: the drawn size follows the asked one on a spring (`springSize`) instead of jumping.
  *
@@ -13,7 +14,7 @@
  * for a page that draws fewer frames at rest to draw every one meanwhile.
  */
 /** How long the new body draws hidden before the switch shows it, and the whole switch, in milliseconds. */
-export const WARM_MS = 90, SWAP_MS = WARM_MS + 340;
+export const WARM_MS = 90, SWAP_MS = WARM_MS + 340 + 40;
 
 const still = (win) => !!win?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -26,36 +27,44 @@ function originIn(el, p, stage) {
 /** Where a body stands: its feet, the bottom middle of its box. */
 function feet(l) { return { x: l.box.x + l.box.w / 2, y: l.box.y + l.box.h }; }
 
+/** A size ratio as the switch draws it: past these bounds the bodies would cover the screen or vanish mid-fade. */
+const drawnRatio = (ratio) => Math.min(4, Math.max(.25, ratio));
+
+/** When in the switch each step of its course falls, and the opacities of the body going and the body coming there. */
+const OFFSETS = [0, .55, .85, 1], OUT_OPACITY = [1, .35, 0, 0], IN_OPACITY = [0, .65, 1, 1];
+/** A small dip and rise over the course, so a switch at one size still moves. */
+const DIP = [1, .97, 1.015, 1];
+const SWAP_EASE = 'ease-in-out', SWAP_RUN_MS = 340;
+
 /**
- * Fades `body` out, shrinking a little toward its feet, then disposes of it. Its halo goes at once: two blurred halos
- * drawn over each other for the length of the fade cost more than the fade.
+ * The switch's course of sizes in the old body's units: from 1 to `r`, most of the way by the middle. The old body is drawn
+ * at it and the new one, drawn at its own size, at it over `r`, so both show the same size at every moment.
  */
-export function swapOut(body, stage) {
+function course(el, l, stage, ratio, of, opacity) {
+  const r = drawnRatio(ratio), transformOrigin = originIn(el, feet(l), stage);
+  const sizes = [1, r ** .75, r, r];
+  return OFFSETS.map((offset, i) => ({ offset, opacity: opacity[i], transformOrigin, transform: `scale(${(sizes[i] * DIP[i] / of(r)).toFixed(4)})` }));
+}
+
+/**
+ * Fades `body` out along the switch's course, then disposes of it. Its halo goes at once: two blurred halos drawn over
+ * each other for the length of the fade cost more than the fade.
+ */
+export function swapOut(body, stage, ratio = 1) {
   const el = body?.el, l = body?.layout;
   if (!el || !l || still(stage.ownerDocument.defaultView)) { body?.dispose(); return; }
   body.setHalo(0, 0);
-  const transformOrigin = originIn(el, feet(l), stage);
-  const a = el.animate([
-    { transform: 'scale(1)', opacity: 1, transformOrigin },
-    { transform: 'scale(.88)', opacity: 0, transformOrigin },
-  ], { duration: 200, delay: WARM_MS, easing: 'ease-in', fill: 'forwards' });
+  const a = el.animate(course(el, l, stage, ratio, () => 1, OUT_OPACITY), { duration: SWAP_RUN_MS, delay: WARM_MS, easing: SWAP_EASE, fill: 'forwards' });
   a.finished.then(() => body.dispose(), () => body.dispose());
 }
 
 /**
- * Fades `body` in from a little smaller and lets it settle, after WARM_MS hidden; `l` is where it stands when it has
- * not said yet.
+ * Fades `body` in along the switch's course, after WARM_MS hidden; `l` is where it stands when it has not said yet.
  */
-export function swapIn(body, stage, l = body?.layout) {
+export function swapIn(body, stage, l = body?.layout, ratio = 1) {
   const el = body?.el;
   if (!el || !l || still(stage.ownerDocument.defaultView)) return;
-  const transformOrigin = originIn(el, feet(l), stage);
-  el.animate([
-    { transform: 'scale(.88)', opacity: 0, transformOrigin },
-    { transform: 'scale(.88)', opacity: 0, transformOrigin, offset: .3 },
-    { transform: 'scale(1.02)', opacity: 1, transformOrigin, offset: .8 },
-    { transform: 'scale(1)', opacity: 1, transformOrigin },
-  ], { duration: 340, delay: WARM_MS, easing: 'ease-out', fill: 'backwards' });
+  el.animate(course(el, l, stage, ratio, (r) => r, IN_OPACITY), { duration: SWAP_RUN_MS, delay: WARM_MS, easing: SWAP_EASE, fill: 'backwards' });
 }
 
 /** A dip toward the feet and back: the same figure in another look; RESTYLE_MS long. */
