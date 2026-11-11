@@ -18,6 +18,7 @@ import { COO_CSS, PALETTES, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
 import { fetchLooks, lookAvailable, lookPicture, sameLook } from './looks.js';
 import { SIZE, scaleSlider } from './scale-slider.js';
+import { restyle, springSize, swapIn, swapOut } from './swap-motion.js';
 import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
@@ -86,7 +87,11 @@ else ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, ()
 /** Page pixels the window reaches below the floor, over a taskbar (the window process says how many); a figure may draw there. */
 let below = 0;
 const floorGap = () => (host ? 2 + below : 48);
-const bounds = () => ({ W: innerWidth, H: innerHeight, floorY: innerHeight - floorGap(), S: .42 * prefs.scale });
+/** The size the body is drawn at: `prefs.scale` reached on a spring (swap-motion.js), so a new size grows or shrinks into place. */
+const drawnScale = springSize(1);
+/** Whether a size has come from the World yet: the first one is taken at once, without the spring. */
+let scaleSeen = false;
+const bounds = () => ({ W: innerWidth, H: innerHeight, floorY: innerHeight - floorGap(), S: .42 * drawnScale.value });
 /**
  * The body on screen (body-host.js), null until the first one is ready, and the words it does (its pack's
  * vocab, by id). `T` is the page's clock, in seconds of frames drawn.
@@ -182,9 +187,12 @@ let loading = null;
 async function showFigure(s) {
   wanted = s.figure;
   if (loading === s.figure) return;
-  // a pick changed while the same pack is on screen fades in; Coo's picks are its skin
+  // a pick changed while the same pack is on screen fades in, with a dip; Coo's picks are its skin
   if (body?.pack === s.figure) {
     body.set({ skin: s });
+    const look = JSON.stringify(s);
+    if (shownLook && look !== shownLook) restyle(body, stage);
+    shownLook = look;
     if (s.figure !== 'coo') await body.setScheme(s.scheme, { fade: .45 });
     lightFor(s);
     reportFigure(s.figure, true, null, s.figure === 'coo' ? null : s.scheme);
@@ -195,6 +203,8 @@ async function showFigure(s) {
   // a pick that came while the body was loading
   if (body?.pack === skin.figure && skin !== s) await showFigure(skin);
 }
+/** The look last put on the body on screen, so a look that comes again (a reconnect's `init`) is not animated. */
+let shownLook = null;
 async function swapBody(s) {
   const pack = (await (await fetch('/api/figures')).json()).find((p) => p.id === s.figure);
   if (!pack) throw new Error(t('figure.notInstalled'));
@@ -212,8 +222,14 @@ async function swapBody(s) {
   if (wanted !== s.figure) { next.dispose(); return; }
   holder.body = next;
   next.set({ roam: prefs.roam, ...bodyState });
-  body?.dispose();
+  // the old body fades out as the new one fades in; the first one drops in as it is
+  const old = body;
   body = next;
+  shownLook = JSON.stringify(s);
+  if (old) {
+    swapOut(old, stage);
+    swapIn(next, stage, next.layout ?? was);
+  }
   host?.watchWindows?.(next.needsWindows);
   words = new Map(pack.vocab.map((w) => [w.id, w]));
   shownPack = pack;
@@ -277,7 +293,12 @@ function applyPrefs(p) {
   if (p.speech && typeof p.speech === 'object') speech.configure(p.speech);
   if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); modeBtn?.show(p.theme); body?.set({ theme: p.theme }); }
   if (typeof p.glow === 'number') prefs.glow = p.glow;
-  if (typeof p.scale === 'number' && takesScale(p.scale)) { prefs.scale = p.scale; body?.set({ bounds: bounds() }); refreshSize(); }
+  if (typeof p.scale === 'number' && takesScale(p.scale)) {
+    prefs.scale = p.scale;
+    if (scaleSeen) drawnScale.set(p.scale); else { drawnScale.jump(p.scale); body?.set({ bounds: bounds() }); }
+    scaleSeen = true;
+    refreshSize();
+  }
   if (typeof p.bubbleSize === 'number') { prefs.bubbleSize = p.bubbleSize; sizeVar('--bubble-size', p.bubbleSize); }
   if (typeof p.fontSize === 'number') { prefs.fontSize = p.fontSize; sizeVar('--bubble-font', p.fontSize); }
   if (typeof p.bubbleSpeed === 'number') prefs.bubbleSpeed = p.bubbleSpeed;
@@ -1770,14 +1791,16 @@ const sizer = scaleSlider(document, {
   onInput: (v) => setSize(v),
   onChange: () => sendSize(),
 });
-sizerEl.append(sizer.el, sizerText);
+// the percentage rides on the knob
+sizerEl.append(sizer.el);
+sizer.el.querySelector('.ps-thumb').append(sizerText);
 const sizerState = { until: 0, timer: 0, sent: NaN, sentAt: -Infinity, acc: 0 };
 const sizerAnim = { enter: 0, leave: 0 };
 
 /** Draws the body at `v` now and sends it within SIZE_SEND_MS. */
 function setSize(v) {
   prefs.scale = v;
-  body?.set({ bounds: bounds() });
+  drawnScale.set(v);
   refreshSize();
   sizerState.timer ||= setTimeout(sendSize, SIZE_SEND_MS);
 }
@@ -1822,7 +1845,8 @@ function closeSizer() {
 function placeSizer(l) {
   const b = l.box, w = sizerEl.offsetWidth, h = sizerEl.offsetHeight;
   if (!sizer.active) sizerEl.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
-  sizerEl.style.top = f(clamp(b.y - h - 22, 8, innerHeight - h - 8)) + 'px';
+  // the slider's box holds the percentage's bubble over the knob: its bottom sits just over the head
+  sizerEl.style.top = f(clamp(b.y - h - 10, 8, innerHeight - h - 8)) + 'px';
 }
 function overSizer(p) { return !sizerEl.hidden && !leaving(sizerEl) && inRect(p, sizerEl.getBoundingClientRect(), 6); }
 /** A size button on screen, in the menu or among the hover buttons, is under the pointer. */
@@ -2320,6 +2344,7 @@ function frame(steps, now, last) {
       stepLines();
       stepStatus();
       setBody({ dialogOpen: !!item || !!listen.phase, still: !menu.hidden });
+      if (drawnScale.step(dt)) body?.set({ bounds: bounds() });
       body?.tick(dt, drawn && i === steps.length - 1);
     });
     if (drawn) {

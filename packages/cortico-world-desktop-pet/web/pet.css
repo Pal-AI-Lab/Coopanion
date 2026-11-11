@@ -485,27 +485,40 @@ body.desk .floor{display:none}
 .pet-scale > .ps-thumb{position:absolute; top:3px; width:16px; height:16px; margin-left:-8px; border-radius:50%; background:var(--host-accent, var(--accent))}
 .pet-scale:focus-visible > .ps-thumb{outline:2px solid var(--host-accent, var(--accent)); outline-offset:2px}
 .pet-scale.past > .ps-divider{background:var(--host-accent, var(--accent))}
-/* the size slider over the body (pet-app.js stepSizer): no backdrop, as the look wheel; the bar, its knob and the
-   percentage are drawn in the body's colours like the wheel's looks, so they read over any window */
-.sizer{position:fixed; z-index:6; display:flex; align-items:center; gap:10px; padding:6px 4px}
+/* the size slider over the body (pet-app.js stepSizer): no backdrop, as the look wheel. The bar is drawn as the hover
+   buttons are (the surface, the body's 2px outline, their shadow), the fill and the knob in the body's accent; the
+   percentage is a small button-like label over the knob */
+.sizer{position:fixed; z-index:6; display:flex; align-items:center; padding:32px 8px 10px}
 .sizer[hidden]{display:none}
 .sizer .pet-scale{height:28px}
-.sizer .pet-scale > .ps-main, .sizer .pet-scale > .ps-tail, .sizer .pet-scale > .ps-fill{top:11px; height:6px; border-radius:3px}
-.sizer .pet-scale > .ps-main{background:var(--surface); box-shadow:0 0 0 2px var(--skin-ink), 0 4px 12px var(--shadow)}
-.sizer .pet-scale > .ps-tail{background:repeating-linear-gradient(90deg, var(--skin-ink) 0 4px, transparent 4px 8px); filter:drop-shadow(0 0 1.5px var(--surface))}
-.sizer .pet-scale > .ps-fill{background:var(--skin-ink)}
-.sizer .pet-scale > .ps-divider{top:5px; height:18px; width:3px; margin-left:-1.5px; background:var(--skin-ink); box-shadow:0 0 0 1.5px var(--surface)}
-.sizer .pet-scale > .ps-thumb{
-  top:2px; width:24px; height:24px; margin-left:-12px; background:var(--surface); border:2px solid var(--skin-ink); box-sizing:border-box;
-  box-shadow:0 4px 12px var(--shadow); transition:scale .15s ease;
+.sizer .pet-scale > .ps-main, .sizer .pet-scale > .ps-tail{
+  top:6px; height:16px; box-sizing:border-box; background-color:var(--surface); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
 }
-.sizer .pet-scale:active > .ps-thumb{scale:1.12}
+.sizer .pet-scale > .ps-main{border-radius:8px 0 0 8px; border-right:0}
+/* past the divider: the same bar with a dashed middle, as the settings window's slider marks it */
+.sizer .pet-scale > .ps-tail{
+  border-radius:0 8px 8px 0; border-left:0;
+  background-image:repeating-linear-gradient(90deg, color-mix(in srgb, var(--skin-ink) 45%, transparent) 0 4px, transparent 4px 8px);
+  background-size:100% 4px; background-position:0 50%; background-repeat:no-repeat;
+}
+.sizer .pet-scale > .ps-fill{left:4px; top:11px; height:6px; border-radius:3px; background:var(--skin-eye)}
+.sizer .pet-scale > .ps-divider{top:3px; height:22px; width:3px; margin-left:-1.5px; border-radius:2px; background:var(--skin-ink)}
+.sizer .pet-scale.past > .ps-divider{background:var(--skin-eye)}
+.sizer .pet-scale > .ps-thumb{
+  top:3px; width:22px; height:22px; margin-left:-11px; box-sizing:border-box;
+  background:var(--skin-eye); border:3px solid var(--surface); box-shadow:0 0 0 2px var(--skin-ink), 0 6px 16px var(--shadow);
+  transition:scale .15s ease;
+}
+.sizer .pet-scale:hover > .ps-thumb{scale:1.1}
+.sizer .pet-scale:active > .ps-thumb{scale:1.2}
+.sizer .pet-scale:focus-visible > .ps-thumb{outline:none}
 .sizer .sz-value{
-  min-width:50px; padding:4px 8px; border-radius:999px; box-sizing:border-box; text-align:center;
-  font-size:12.5px; font-weight:600; font-variant-numeric:tabular-nums;
+  position:absolute; left:50%; bottom:calc(100% + 8px); translate:-50% 0; min-width:44px; padding:2px 8px; box-sizing:border-box;
+  border-radius:999px; text-align:center; white-space:nowrap; pointer-events:none;
+  font-size:12px; font-weight:600; line-height:16px; font-variant-numeric:tabular-nums;
   background:var(--surface); color:var(--text); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
 }
-.sizer.entering{animation:sz-in .2s cubic-bezier(.3,1.5,.5,1) backwards}
+.sizer.entering{animation:sz-in .24s cubic-bezier(.3,1.4,.5,1) backwards}
 /* SIZER_OUT_MS in pet-app.js */
 .sizer.leaving{animation:sz-out .14s ease-in forwards; pointer-events:none}
 @keyframes sz-in{from{transform:translateY(8px) scale(.6); opacity:0}}

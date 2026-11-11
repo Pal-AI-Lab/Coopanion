@@ -32,6 +32,7 @@ import { loadBody } from './body-host.js';
 import { fetchLooks, lookAvailable, lookPicture, sameLook, writeLooks } from './looks.js';
 import { dragRow } from './drag-row.js';
 import { SIZE, scaleSlider } from './scale-slider.js';
+import { restyle, swapIn, swapOut } from './swap-motion.js';
 import { announcePainted, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 
 import { bindAppearance, hostDressDialogs } from './appearance.js';
@@ -99,6 +100,8 @@ const loadPacks = () => Promise.all([fetch('/api/figures').then((r) => r.json())
 const lightFor = (s) => setGlow(preview, glowColor(packs.find((p) => p.id === s.figure), s));
 loadPacks();
 let wanted = null, loading = null;
+/** The look last put on the preview's body, so only a change is animated. */
+let shownLook = null;
 // a pack that will not load or breaks previews as Coo, as on the desktop
 function previewFailed(id, err) {
   console.error(err);
@@ -110,6 +113,10 @@ async function showFigure(s) {
   try {
     if (body?.pack === s.figure) {
       body.set({ skin: s });
+      // another look of the figure shown: a dip, as on the desktop
+      const look = JSON.stringify(s);
+      if (shownLook && look !== shownLook) restyle(body, preview);
+      shownLook = look;
       if (s.figure !== 'coo') await body.setScheme(s.scheme, { fade: .4 });
       return;
     }
@@ -129,8 +136,13 @@ async function showFigure(s) {
     holder.body = next;
     // the theme may have arrived while the body was loading
     next.set({ roam: 'calm', theme });
-    body?.dispose();
+    const old = body;
     body = next;
+    shownLook = JSON.stringify(s);
+    if (old) {
+      swapOut(old, preview);
+      swapIn(next, preview, next.layout ?? was);
+    }
     sfx.usePack(pack.base, pack.sounds);
   } catch (err) {
     previewFailed(s.figure, err);
@@ -398,7 +410,7 @@ function renderLooks() {
     const tile = el('span', 'look-tile');
     tile.dataset.id = look.id;
     const b = el('button', 'opt wide look', lookPicture(look.skin, packs, theme === 'dark', look.scale));
-    if (typeof look.scale === 'number') b.appendChild(el('b', 'look-size')).textContent = `${Math.round(look.scale * 100)}%`;
+    if (typeof look.scale === 'number') b.appendChild(el('b', 'look-size')).append(`${Math.round(look.scale * 100)}%`);
     b.type = 'button';
     const gone = packs.length > 0 && !lookAvailable(look.skin, packs);
     b.disabled = gone;

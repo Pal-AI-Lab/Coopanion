@@ -64,9 +64,12 @@ body.dress-page{
 /* the picture stands on the tile's floor at the share of it its size gives (looks.js pictureFill); the size in the corner */
 .look-pic{display:flex; align-items:flex-end; justify-content:center; width:52px; height:52px; overflow:hidden; background:var(--swatch-bg); border-radius:6px}
 .opt .look-pic > svg, .opt .look-pic > img{width:calc(100% * var(--look-fill)); height:calc(100% * var(--look-fill)); background:none; border-radius:0}
-.look-size{position:absolute; top:6px; left:8px; padding:0 4px; border-radius:4px; font-size:10.5px; font-weight:600; line-height:16px;
-  font-variant-numeric:tabular-nums; color:var(--muted); background:color-mix(in srgb, var(--surface) 80%, transparent)}
-.opt.look.changed .look-size{left:18px}
+/* the size in the tile's top left, clear of the rename and remove buttons on its right; on a changed favourite it takes the
+   accent in place of the dot, which would push it under those buttons */
+.look-size{position:absolute; top:4px; left:4px; padding:0 3px; border-radius:4px; font-size:9px; font-weight:600; line-height:13px;
+  font-variant-numeric:tabular-nums; color:var(--muted); background:color-mix(in srgb, var(--surface) 82%, transparent)}
+.opt.look.changed:has(.look-size)::after{display:none}
+.opt.look.changed .look-size{color:#fff; background:var(--accent)}
 /* a favourite whose pack was uninstalled */
 .opt.look.gone{opacity:.45; cursor:default}
 .opt.look span{max-width:84px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}

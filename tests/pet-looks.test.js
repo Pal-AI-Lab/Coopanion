@@ -86,7 +86,8 @@ describe('saved looks on the dressing page', () => {
     await p.save();
     expect(p.stored().map((l) => l.id).slice(0, 2)).toEqual(['a', 'b']);
     expect(p.stored()).toHaveLength(3);
-    expect(p.tiles()).toBe(3);
+    // the server keeps the list before its answer reaches the page, which then draws the tiles
+    await expect.poll(() => p.tiles()).toBe(3);
   });
 
   it('shows the stored list after the retry button reads it', async () => {
