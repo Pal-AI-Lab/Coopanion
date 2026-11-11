@@ -7,7 +7,13 @@
  *
  * The body's frame window (body-host.js `el`) is animated with the Web Animations API: its inline style belongs to the
  * halo (body-host.js setHalo), which rewrites it every frame. With reduced motion nothing moves: the change is immediate.
+ *
+ * A figure switch starts WARM_MS late: the new body, hidden meanwhile, draws its first frames (its textures, its first
+ * layout) before it is shown, so that work does not fall on the fade's frames. SWAP_MS is how long a switch takes in all,
+ * for a page that draws fewer frames at rest to draw every one meanwhile.
  */
+/** How long the new body draws hidden before the switch shows it, and the whole switch, in milliseconds. */
+export const WARM_MS = 90, SWAP_MS = WARM_MS + 340;
 
 const still = (win) => !!win?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -20,19 +26,26 @@ function originIn(el, p, stage) {
 /** Where a body stands: its feet, the bottom middle of its box. */
 function feet(l) { return { x: l.box.x + l.box.w / 2, y: l.box.y + l.box.h }; }
 
-/** Fades `body` out, shrinking a little toward its feet, then disposes of it. */
+/**
+ * Fades `body` out, shrinking a little toward its feet, then disposes of it. Its halo goes at once: two blurred halos
+ * drawn over each other for the length of the fade cost more than the fade.
+ */
 export function swapOut(body, stage) {
   const el = body?.el, l = body?.layout;
   if (!el || !l || still(stage.ownerDocument.defaultView)) { body?.dispose(); return; }
+  body.setHalo(0, 0);
   const transformOrigin = originIn(el, feet(l), stage);
   const a = el.animate([
     { transform: 'scale(1)', opacity: 1, transformOrigin },
     { transform: 'scale(.88)', opacity: 0, transformOrigin },
-  ], { duration: 200, easing: 'ease-in', fill: 'forwards' });
+  ], { duration: 200, delay: WARM_MS, easing: 'ease-in', fill: 'forwards' });
   a.finished.then(() => body.dispose(), () => body.dispose());
 }
 
-/** Fades `body` in from a little smaller and lets it settle; `l` is where it stands when it has not said yet. */
+/**
+ * Fades `body` in from a little smaller and lets it settle, after WARM_MS hidden; `l` is where it stands when it has
+ * not said yet.
+ */
 export function swapIn(body, stage, l = body?.layout) {
   const el = body?.el;
   if (!el || !l || still(stage.ownerDocument.defaultView)) return;
@@ -42,10 +55,11 @@ export function swapIn(body, stage, l = body?.layout) {
     { transform: 'scale(.88)', opacity: 0, transformOrigin, offset: .3 },
     { transform: 'scale(1.02)', opacity: 1, transformOrigin, offset: .8 },
     { transform: 'scale(1)', opacity: 1, transformOrigin },
-  ], { duration: 340, easing: 'ease-out' });
+  ], { duration: 340, delay: WARM_MS, easing: 'ease-out', fill: 'backwards' });
 }
 
-/** A dip toward the feet and back: the same figure in another look. */
+/** A dip toward the feet and back: the same figure in another look; RESTYLE_MS long. */
+export const RESTYLE_MS = 280;
 export function restyle(body, stage) {
   const el = body?.el, l = body?.layout;
   if (!el || !l || still(stage.ownerDocument.defaultView)) return;
@@ -54,7 +68,7 @@ export function restyle(body, stage) {
     { transform: 'scale(1)', transformOrigin },
     { transform: 'scale(1.03, .96)', transformOrigin, offset: .35 },
     { transform: 'scale(1)', transformOrigin },
-  ], { duration: 280, easing: 'ease-out' });
+  ], { duration: RESTYLE_MS, easing: 'ease-out' });
 }
 
 /**
@@ -67,6 +81,8 @@ export function springSize(start) {
   return {
     get value() { return x; },
     get target() { return to; },
+    /** Whether it is still on its way. */
+    get moving() { return x !== to || v !== 0; },
     set(next) { to = next; },
     /** Puts it at `next` at once. */
     jump(next) { x = to = next; v = 0; },

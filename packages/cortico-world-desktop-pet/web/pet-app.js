@@ -18,7 +18,7 @@ import { COO_CSS, PALETTES, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
 import { fetchLooks, lookAvailable, lookPicture, sameLook } from './looks.js';
 import { SIZE, scaleSlider } from './scale-slider.js';
-import { restyle, springSize, swapIn, swapOut } from './swap-motion.js';
+import { RESTYLE_MS, SWAP_MS, restyle, springSize, swapIn, swapOut } from './swap-motion.js';
 import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
@@ -191,7 +191,7 @@ async function showFigure(s) {
   if (body?.pack === s.figure) {
     body.set({ skin: s });
     const look = JSON.stringify(s);
-    if (shownLook && look !== shownLook) restyle(body, stage);
+    if (shownLook && look !== shownLook) { restyle(body, stage); smoothFor(RESTYLE_MS); }
     shownLook = look;
     if (s.figure !== 'coo') await body.setScheme(s.scheme, { fade: .45 });
     lightFor(s);
@@ -205,6 +205,9 @@ async function showFigure(s) {
 }
 /** The look last put on the body on screen, so a look that comes again (a reconnect's `init`) is not animated. */
 let shownLook = null;
+/** Until when (performance.now(), ms) the page draws at the moving rate though the body stands: a switch is under way. */
+let smoothUntil = -Infinity;
+const smoothFor = (ms) => { smoothUntil = Math.max(smoothUntil, performance.now() + ms); };
 async function swapBody(s) {
   const pack = (await (await fetch('/api/figures')).json()).find((p) => p.id === s.figure);
   if (!pack) throw new Error(t('figure.notInstalled'));
@@ -229,6 +232,7 @@ async function swapBody(s) {
   if (old) {
     swapOut(old, stage);
     swapIn(next, stage, next.layout ?? was);
+    smoothFor(SWAP_MS);
   }
   host?.watchWindows?.(next.needsWindows);
   words = new Map(pack.vocab.map((w) => [w.id, w]));
@@ -2302,8 +2306,8 @@ function stepBackdrop(dt) {
 
 /* ---------- loop ---------- */
 /**
- * Frames per second: `prefs.frameRate` while the body moves (its layout's `moving`) and always while `lockFrameRate` is on,
- * RESTING_FPS otherwise; a frame rate of 0, or one above the display's, draws on every display refresh. Each frame
+ * Frames per second: `prefs.frameRate` while the body moves (its layout's `moving`), changes figure, look or size, and
+ * always while `lockFrameRate` is on, RESTING_FPS otherwise; a frame rate of 0, or one above the display's, draws on every display refresh. Each frame
  * redraws what changed in the figure, so the window's CPU and GPU time grows with this rate.
  *
  * While the pet window is hidden, frames come at HIDDEN_FPS: the clock, the orders, the bubbles' text and the body's
@@ -2364,7 +2368,8 @@ function frame(steps, now, last) {
     const msg = err?.message ?? String(err);
     if (msg !== frameErr) { frameErr = msg; console.error(err); }
   }
-  const full = drawn && (prefs.lockFrameRate || !!at()?.moving);
+  // a switch of figure or look, or a size on its way, is motion too: at the resting rate it would show as stutter
+  const full = drawn && (prefs.lockFrameRate || !!at()?.moving || drawnScale.moving || performance.now() < smoothUntil);
   // a moving rate of 0 draws on every display refresh
   return { fps: full ? prefs.frameRate : drawn ? RESTING_FPS : HIDDEN_FPS, refresh: full };
 }
