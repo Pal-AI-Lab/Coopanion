@@ -1778,39 +1778,35 @@ function placeWheel(l) {
 
 const inRect = (p, r, m = 0) => p.x >= r.left - m && p.x <= r.right + m && p.y >= r.top - m && p.y <= r.bottom + m;
 function overWheel(p) { return !wheel.hidden && !leaving(wheel) && inRect(p, wheel.getBoundingClientRect(), 6); }
-/** A dress button on screen, in the menu or among the hover buttons, is under the pointer; not one folding away after a click. */
-function overDress(p) {
-  for (const b of document.querySelectorAll('.menu:not(.leaving) [data-action="dress"], .tools:not(.leaving) [data-action="dress"]')) {
+/** A button for action `id` on screen, in the menu or among the hover buttons, is under the pointer; not one folding away after a click. */
+function overAction(p, id) {
+  for (const b of document.querySelectorAll(`.menu:not(.leaving) [data-action="${id}"], .tools:not(.leaving) [data-action="${id}"]`)) {
     if (b.offsetParent && inRect(p, b.getBoundingClientRect(), 4)) return true;
   }
   return false;
 }
 /**
- * Whether `p` is still on its way to `el`, a control shown over the body's head: in the column the body's box and `el`
- * span together. Going from a button beside a large body to the control over its head crosses the body, which takes
- * longer than the control waits for a pointer that has left it; while the pointer is in that column, it waits on.
+ * Whether a control a hover opened over the head (`el`, the look wheel or the size slider) waits on: the pointer is still
+ * among the pet's controls, that is on the hover buttons, on the menu, or in the column the body's box and `el` span
+ * together, `el` itself included. Its short linger counts only once the pointer has left them all, so going from one
+ * button to another, or across a large body to the control over its head, does not close it.
  */
-function onTheWay(p, el) {
+function amongControls(p, el) {
+  if (!p) return false;
+  if (overTools(p) || overMenu(p)) return true;
   const l = at();
-  if (!p || !l || el.hidden || leaving(el)) return false;
+  if (!l || el.hidden || leaving(el)) return false;
   const r = el.getBoundingClientRect(), b = l.box;
   return inRect(p, { left: Math.min(r.left, b.x), right: Math.max(r.right, b.x + b.w), top: Math.min(r.top, b.y), bottom: Math.max(r.bottom, b.y + b.h) }, 6);
 }
 
-/**
- * Whether a control a hover opened over the head waits on: the pointer is still among the pet's controls, on the way to
- * it (`onTheWay`), on the hover buttons or on the menu. Its short linger counts only once the pointer has left them all,
- * so going from one button to another, or across a large body, does not close it.
- */
-const amongControls = (p, el) => !!p && (onTheWay(p, el) || overTools(p) || overMenu(p));
-
 function stepWheel() {
   const p = cursor.at;
-  const dress = !!p && overDress(p);
+  const dress = !!p && overAction(p, 'dress');
   if (!dress) wheelState.empty = false;
   // a bubble over the pet (the typing box, a reply, a question) takes the wheel's place until it closes
   if (!bubble.hidden && !bubble.classList.contains('status')) { if (!wheel.hidden) closeWheel(); return; }
-  if (dress || (p && overWheel(p)) || amongControls(p, wheel)) wheelState.until = T + WHEEL_LINGER;
+  if (amongControls(p, wheel)) wheelState.until = T + WHEEL_LINGER;
   if (dress && wheel.hidden && !wheelState.empty && !clicksPass()) void openWheel();
   if (!wheel.hidden && T > wheelState.until) closeWheel();
 }
@@ -1904,20 +1900,13 @@ function placeSizer(l) {
   sizerEl.style.top = f(clamp(b.y - h - 10, 8, innerHeight - h - 8)) + 'px';
 }
 function overSizer(p) { return !sizerEl.hidden && !leaving(sizerEl) && inRect(p, sizerEl.getBoundingClientRect(), 6); }
-/** A size button on screen, in the menu or among the hover buttons, is under the pointer. */
-function overSizeButton(p) {
-  for (const b of document.querySelectorAll('.menu:not(.leaving) [data-action="size"], .tools:not(.leaving) [data-action="size"]')) {
-    if (b.offsetParent && inRect(p, b.getBoundingClientRect(), 4)) return true;
-  }
-  return false;
-}
 function stepSizer() {
   const p = cursor.at;
-  const button = !!p && overSizeButton(p);
+  const button = !!p && overAction(p, 'size');
   // a bubble over the pet (the typing box, a reply, a question) takes the slider's place until it closes; with every
   // click passing through the window it could not be used
   if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { pinSizer(false); closeSizer(); return; }
-  if (button || sizer.active || sizerPinned || (p && overSizer(p)) || amongControls(p, sizerEl)) sizerState.until = T + SIZER_LINGER;
+  if (sizer.active || sizerPinned || amongControls(p, sizerEl)) sizerState.until = T + SIZER_LINGER;
   if (button && sizerEl.hidden && !clicksPass()) openSizer();
   if (!sizerEl.hidden && T > sizerState.until) closeSizer();
 }

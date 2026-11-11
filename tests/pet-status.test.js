@@ -435,41 +435,31 @@ describe('the size slider pinned by a click on its button', () => {
 });
 
 describe('the size slider opened by hovering its button', () => {
-  it('stays while the pointer crosses the body on its way up, and goes once the pointer is off both', async () => {
-    const p = page({ host: true });
-    p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
-    const button = p.doc.querySelector('#tools [data-action="size"]');
-    // jsdom lays nothing out: the button is at the page's top left
-    Object.defineProperty(button, 'offsetParent', { value: p.doc.body });
-    const sizerEl = p.doc.querySelector('#sizer');
-    p.cursor.at = { x: 0, y: 0 };
-    p.stepSizer();
-    expect(sizerEl.hidden).toBe(false);
-    // on the body (its box is 400–500 × 300–400) for longer than the slider waits off it
-    p.cursor.at = { x: 450, y: 350 };
-    for (let i = 0; i < 4; i++) { p.step(.5); p.stepSizer(); }
-    expect(sizerEl.hidden || sizerEl.classList.contains('leaving')).toBe(false);
-    p.cursor.at = { x: 900, y: 900 };
-    p.step(.5);
-    p.stepSizer();
-    expect(sizerEl.classList.contains('leaving') || sizerEl.hidden).toBe(true);
-  });
-
-  it('stays while the pointer is on another hover button, away from the body', () => {
+  it('stays while the pointer is among the pet\'s controls, on the body or another hover button, and goes once it is off them', () => {
     const p = page({ host: true });
     p.onOrder({ t: 'prefs', hoverButtons: ['size', 'chat'] });
     const tools = p.doc.querySelector('#tools'), button = tools.querySelector('[data-action="size"]');
+    // jsdom lays nothing out: the size button is at the page's top left
     Object.defineProperty(button, 'offsetParent', { value: p.doc.body });
     const sizerEl = p.doc.querySelector('#sizer');
+    const shown = () => !sizerEl.hidden && !sizerEl.classList.contains('leaving');
+    /** The pointer at `at` for two seconds, longer than the slider waits once the pointer is off the controls. */
+    const rest = (at) => { p.cursor.at = at; for (let i = 0; i < 4; i++) { p.step(.5); p.stepSizer(); } };
     p.cursor.at = { x: 0, y: 0 };
     p.stepSizer();
-    expect(sizerEl.hidden).toBe(false);
-    // the hover buttons beside the body, right of its box (400–500 × 300–400)
+    expect(shown()).toBe(true);
+    // on the body (its box is 400–500 × 300–400), on the way up to the slider
+    rest({ x: 450, y: 350 });
+    expect(shown()).toBe(true);
+    // on the hover buttons, right of the body
     tools.hidden = false;
     tools.getBoundingClientRect = () => ({ left: 600, right: 650, top: 300, bottom: 400 });
-    p.cursor.at = { x: 625, y: 380 };
-    for (let i = 0; i < 4; i++) { p.step(.5); p.stepSizer(); }
-    expect(sizerEl.hidden || sizerEl.classList.contains('leaving')).toBe(false);
+    rest({ x: 625, y: 380 });
+    expect(shown()).toBe(true);
+    p.cursor.at = { x: 900, y: 900 };
+    p.step(.5);
+    p.stepSizer();
+    expect(shown()).toBe(false);
   });
 });
 

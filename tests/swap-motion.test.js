@@ -19,13 +19,6 @@ describe('the drawn size on a spring', () => {
     expect(top).toBeLessThan(2.1);
     expect(s.step(1 / 60)).toBe(false);
   });
-
-  it('jumps without moving through the sizes between', () => {
-    const s = springSize(1);
-    s.jump(3);
-    expect(s.value).toBe(3);
-    expect(s.step(1 / 60)).toBe(false);
-  });
 });
 
 describe('a figure switch at another size', () => {

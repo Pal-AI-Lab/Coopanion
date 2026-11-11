@@ -10,12 +10,6 @@ describe('sizes heard back from the World', () => {
     return { taken, e: sizeEcho((v) => taken.push(v), 1000) };
   }
 
-  it('takes a size set elsewhere at once when the page sent none', () => {
-    const { taken, e } = echo();
-    e.heard(1.5);
-    expect(taken).toEqual([1.5]);
-  });
-
   it('holds an older size heard after a send, and drops it when the echo of the send comes', () => {
     const { taken, e } = echo();
     e.sent(2);
@@ -26,8 +20,11 @@ describe('sizes heard back from the World', () => {
     expect(taken).toEqual([2]);
   });
 
-  it('takes a size set elsewhere once the window after a send passes without its echo', () => {
+  it('takes a size set elsewhere: at once when the page sent none, else once the window after its send passes without an echo', () => {
     const { taken, e } = echo();
+    e.heard(1.5);
+    expect(taken).toEqual([1.5]);
+    taken.length = 0;
     e.sent(2);
     e.heard(3);
     expect(taken).toEqual([]);
