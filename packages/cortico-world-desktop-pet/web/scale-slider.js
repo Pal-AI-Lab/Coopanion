@@ -13,6 +13,29 @@ const FINE = .05, COARSE = .1;
 /** The size range on screen (src/config.ts SCALE_MIN, SCALE_MAX) and the divider, as on the settings window's slider. */
 export const SIZE = { min: .5, soft: 2, max: 10 };
 
+/**
+ * A page that sends sizes to the World and hears the World's back: `sent(v)` when it sends one; `heard(v, busy)` for each
+ * size the World pushes, `busy` while the page's own slider is held or a send is pending. A size heard while busy, or within
+ * `ms` of a send and unlike it, is older than that send and is held; the size held when the window ends without an echo
+ * is taken then (`take(v)`), so a size set elsewhere meanwhile is not lost.
+ */
+export function sizeEcho(take, ms = 1000) {
+  let sent = NaN, at = -Infinity, held = null, timer = 0;
+  const settle = () => { timer = 0; if (held === null) return; const v = held; held = null; take(v); };
+  return {
+    sent(v) {
+      sent = v; at = performance.now(); held = null;
+      clearTimeout(timer);
+      timer = setTimeout(settle, ms);
+    },
+    heard(v, busy = false) {
+      if (busy || (v !== sent && performance.now() - at < ms)) { held = v; return; }
+      held = null;
+      take(v);
+    },
+  };
+}
+
 const ease = (k) => (k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2);
 const still = (doc) => !!doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 

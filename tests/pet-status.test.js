@@ -4,7 +4,7 @@ import { JSDOM } from 'jsdom';
 import { clamp, f, ICONS, linked } from '../packages/cortico-world-desktop-pet/web/ui.js';
 import { COO_CSS, mini, normalizeSkin, skinCss } from '../packages/cortico-world-desktop-pet/web/coo/coo.js';
 import { t } from '../packages/cortico-world-desktop-pet/web/i18n.js';
-import { SIZE, scaleSlider } from '../packages/cortico-world-desktop-pet/web/scale-slider.js';
+import { SIZE, scaleSlider, sizeEcho } from '../packages/cortico-world-desktop-pet/web/scale-slider.js';
 import { sameLook as realSameLook } from '../packages/cortico-world-desktop-pet/web/looks.js';
 import { restyle, springSize, swapIn, swapOut } from '../packages/cortico-world-desktop-pet/web/swap-motion.js';
 
@@ -47,9 +47,9 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     // the test advances the page's clock itself (`step`)
     runFrames() {},
     fetchLooks, lookAvailable: () => true, lookPicture: () => '', sameLook,
-    SIZE, scaleSlider, restyle, springSize, swapIn, swapOut,
+    SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut,
   };
-  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, restyle, springSize, swapIn, swapOut } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, stepWheel, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
+  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, stepWheel, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 

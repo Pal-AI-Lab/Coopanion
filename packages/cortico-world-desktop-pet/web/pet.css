@@ -511,7 +511,6 @@ body.desk .floor{display:none}
 }
 .sizer .pet-scale:hover > .ps-thumb{scale:1.1}
 .sizer .pet-scale:active > .ps-thumb{scale:1.2}
-.sizer .pet-scale:focus-visible > .ps-thumb{outline:none}
 .sizer .sz-value{
   position:absolute; left:50%; bottom:calc(100% + 8px); translate:-50% 0; min-width:44px; padding:2px 8px; box-sizing:border-box;
   border-radius:999px; text-align:center; white-space:nowrap; pointer-events:none;

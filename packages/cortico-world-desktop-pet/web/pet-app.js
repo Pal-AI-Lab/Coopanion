@@ -17,7 +17,7 @@ import { createSpeech, textSteps } from './speech.js';
 import { COO_CSS, PALETTES, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
 import { fetchLooks, lookAvailable, lookPicture, sameLook } from './looks.js';
-import { SIZE, scaleSlider } from './scale-slider.js';
+import { SIZE, scaleSlider, sizeEcho } from './scale-slider.js';
 import { RESTYLE_MS, SWAP_MS, restyle, springSize, swapIn, swapOut } from './swap-motion.js';
 import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
@@ -253,7 +253,13 @@ const switching = () => !!body && !!wanted && body.pack !== wanted;
 async function applyFigure(s) {
   try { await showFigure(s); } catch (err) { bodyFailed(s.figure, err); }
   // a size that waited for a figure that did not come
-  if (!switching() && drawnScale.target !== prefs.scale) drawnScale.set(prefs.scale);
+  if (!switching() && drawnScale.target !== prefs.scale) toSize(prefs.scale);
+}
+/** Draws the body at `v`: on the spring, or at once when the system asks for reduced motion. */
+function toSize(v) {
+  if (!reducedMotion?.matches) { drawnScale.set(v); return; }
+  drawnScale.jump(v);
+  body?.set({ bounds: bounds() });
 }
 
 /**
@@ -308,12 +314,9 @@ function applyPrefs(p) {
   if (p.speech && typeof p.speech === 'object') speech.configure(p.speech);
   if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); modeBtn?.show(p.theme); body?.set({ theme: p.theme }); }
   if (typeof p.glow === 'number') prefs.glow = p.glow;
-  if (typeof p.scale === 'number' && takesScale(p.scale)) {
-    prefs.scale = p.scale;
-    // with another figure on its way the size waits for it: the switch changes both at once (swapBody)
-    if (!scaleSeen) { drawnScale.jump(p.scale); body?.set({ bounds: bounds() }); } else if (!switching()) drawnScale.set(p.scale);
-    scaleSeen = true;
-    refreshSize();
+  if (typeof p.scale === 'number') {
+    if (!scaleSeen) { scaleSeen = true; prefs.scale = p.scale; drawnScale.jump(p.scale); body?.set({ bounds: bounds() }); refreshSize(); }
+    else sizeHeard.heard(p.scale, sizer.active || !!sizerState.timer);
   }
   if (typeof p.bubbleSize === 'number') { prefs.bubbleSize = p.bubbleSize; sizeVar('--bubble-size', p.bubbleSize); }
   if (typeof p.fontSize === 'number') { prefs.fontSize = p.fontSize; sizeVar('--bubble-font', p.fontSize); }
@@ -1274,11 +1277,11 @@ const ACTIONS = {
     run: () => host.hide(),
   },
   size: {
-    // hovering it shows the size slider (stepSizer); a click keeps the menu open, so the slider stays there
+    // hovering it shows the size slider (stepSizer); a tap, where nothing hovers, shows it for SIZER_TAP seconds
     keep: true,
     icon: () => ICONS.resize,
     state: () => t('action.size', { pct: Math.round(prefs.scale * 100) }),
-    run: () => {},
+    run: () => { if (sizerEl.hidden || leaving(sizerEl)) openSizer(); sizerState.until = Math.max(sizerState.until, T + SIZER_TAP); },
   },
   dress: {
     icon: () => ICONS.shirt,
@@ -1660,6 +1663,8 @@ async function wheelItems() {
   if (!items.length) return [];
   if (!items.some((i) => i.on)) stash = { skin, scale: prefs.scale };
   else if (stash && items.some((i) => sameLook(i.skin, stash.skin) && (i.scale ?? stash.scale) === stash.scale)) stash = null;
+  // a pack uninstalled since: the look can no longer be put on
+  if (stash && !lookAvailable(stash.skin, list)) stash = null;
   if (stash) items.unshift({ ...stash, on: wearing(stash), worn: true, html: lookPicture(stash.skin, list, dark, stash.scale) });
   return items;
 }
@@ -1790,14 +1795,12 @@ document.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 /* ---------- size slider: hovering a size button shows a slider over the body; the body takes each size at once ---------- */
-/** Seconds the slider stays after the pointer leaves it and every size button. */
-const SIZER_LINGER = .35;
+/** Seconds the slider stays after the pointer leaves it and every size button, and after a tap on one. */
+const SIZER_LINGER = .35, SIZER_TAP = 3;
 /** Milliseconds the slider takes to fold away (`.sizer.leaving` in pet.css). */
 const SIZER_OUT_MS = 140;
 /** Milliseconds between the sizes sent to the World while the slider moves. */
 const SIZE_SEND_MS = 120;
-/** Milliseconds after a size went out in which a different size from the World is taken as older than it. */
-const SIZE_ECHO_MS = 1000;
 const sizerText = document.createElement('span');
 sizerText.className = 'sz-value';
 const sizer = scaleSlider(document, {
@@ -1810,28 +1813,23 @@ const sizer = scaleSlider(document, {
 // the percentage rides on the knob
 sizerEl.append(sizer.el);
 sizer.el.querySelector('.ps-thumb').append(sizerText);
-const sizerState = { until: 0, timer: 0, sent: NaN, sentAt: -Infinity, acc: 0 };
+const sizerState = { until: 0, timer: 0, acc: 0 };
+/** Sizes the World pushes, held while the slider is in use or newer sizes from it are on their way (scale-slider.js sizeEcho). */
+const sizeHeard = sizeEcho((v) => { if (v === prefs.scale) return; prefs.scale = v; if (!switching()) toSize(v); refreshSize(); });
 const sizerAnim = { enter: 0, leave: 0 };
 
 /** Draws the body at `v` now and sends it within SIZE_SEND_MS. */
 function setSize(v) {
   prefs.scale = v;
-  drawnScale.set(v);
+  toSize(v);
   refreshSize();
   sizerState.timer ||= setTimeout(sendSize, SIZE_SEND_MS);
 }
 function sendSize() {
   clearTimeout(sizerState.timer);
   sizerState.timer = 0;
-  if (prefs.scale === sizerState.sent) return;
-  sizerState.sent = prefs.scale;
-  sizerState.sentAt = performance.now();
+  sizeHeard.sent(prefs.scale);
   send({ t: 'prefs', scale: prefs.scale });
-}
-/** Whether a size from the World is taken: not while the slider is held or a size waits to go out, nor one older than the last sent. */
-function takesScale(v) {
-  if (sizer.active || sizerState.timer) return false;
-  return v === sizerState.sent || performance.now() - sizerState.sentAt > SIZE_ECHO_MS;
 }
 function refreshSize() {
   sizerText.textContent = `${Math.round(prefs.scale * 100)}%`;
@@ -1875,8 +1873,9 @@ function overSizeButton(p) {
 function stepSizer() {
   const p = cursor.at;
   const button = !!p && overSizeButton(p);
-  // a bubble over the pet (the typing box, a reply, a question) takes the slider's place until it closes
-  if (!bubble.hidden && !bubble.classList.contains('status')) { closeSizer(); return; }
+  // a bubble over the pet (the typing box, a reply, a question) takes the slider's place until it closes; with every
+  // click passing through the window it could not be used
+  if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { closeSizer(); return; }
   if (button || sizer.active || (p && overSizer(p))) sizerState.until = T + SIZER_LINGER;
   if (button && sizerEl.hidden && !clicksPass()) openSizer();
   if (!sizerEl.hidden && T > sizerState.until) closeSizer();
@@ -2201,8 +2200,9 @@ function layout(dt = 0) {
   // the sounds come from where Coo is on its display: screenX and availLeft (the left of the work area the pet window
   // covers) count from the same origin across all displays
   sfx.setPan(((screenX - screen.availLeft + l.x) / (screen.availWidth || innerWidth)) * 2 - 1);
-  // the buttons hold still under the pointer: a look or size put on from them moves the body, not the button pointed at
-  if (!tools.hidden && !(cursor.at && overTools(cursor.at))) placeTools(l);
+  // while a look or size put on from them changes the body, the buttons hold still under the pointer: the body moves, not the button pointed at
+  const changing = !wheel.hidden || !sizerEl.hidden || drawnScale.moving || performance.now() < smoothUntil;
+  if (!tools.hidden && !(changing && cursor.at && overTools(cursor.at))) placeTools(l);
   if (!menu.hidden) placeMenu(l);
   if (!wheel.hidden) placeWheel(l);
   if (!sizerEl.hidden) placeSizer(l);

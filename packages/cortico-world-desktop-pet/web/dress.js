@@ -31,7 +31,7 @@ import {
 import { loadBody } from './body-host.js';
 import { fetchLooks, lookAvailable, lookPicture, sameLook, writeLooks } from './looks.js';
 import { dragRow } from './drag-row.js';
-import { SIZE, scaleSlider } from './scale-slider.js';
+import { SIZE, scaleSlider, sizeEcho } from './scale-slider.js';
 import { restyle, swapIn, swapOut } from './swap-motion.js';
 import { announcePainted, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 
@@ -311,18 +311,19 @@ const sizer = scaleSlider(document, {
   ...SIZE, label: '',
   room: () => scaleRow.clientWidth - scaleText.offsetWidth - 14,
   onInput: (v) => { scale = v; showScale(); scaleTimer ??= setTimeout(sendScale, SCALE_SEND_MS); },
-  onChange: () => { clearTimeout(scaleTimer); sendScale(); },
+  // the favourites' changed marks follow the size once the drag ends, not on every send
+  onChange: () => { clearTimeout(scaleTimer); sendScale(); renderLooks(); },
 });
 scaleRow.append(sizer.el, scaleText);
 new ResizeObserver(() => sizer.relayout()).observe(scaleRow);
-let scaleTimer = null, scaleSent = NaN;
+let scaleTimer = null;
+/** Sizes the World pushes, held while the slider is in use or this page's newer size is on its way (scale-slider.js sizeEcho). */
+const scaleHeard = sizeEcho((v) => { if (v === scale) return; scale = v; sizer.set(v); showScale(); renderLooks(); });
 function showScale() { scaleText.textContent = `${Math.round(scale * 100)}%`; sizer.el.setAttribute('aria-label', t('dress.size')); }
 function sendScale() {
   scaleTimer = null;
-  if (scale === scaleSent) return;
-  scaleSent = scale;
+  scaleHeard.sent(scale);
   void save('/api/prefs', { scale });
-  renderLooks();
 }
 showScale();
 
@@ -423,7 +424,7 @@ function renderLooks() {
       if (look.id === activeLook) { activeLook = null; renderLooks(); sfx.tick(); return; }
       activeLook = look.id;
       if (isWorn(look)) { renderLooks(); sfx.tick(); return; }
-      if (typeof look.scale === 'number') { scale = look.scale; sizer.set(scale); showScale(); scaleSent = scale; }
+      if (typeof look.scale === 'number') { scale = look.scale; sizer.set(scale); showScale(); scaleHeard.sent(scale); }
       apply(normalizeSkin(look.skin), typeof look.scale === 'number' ? look.scale : true);
       sfx.sparkle(); body?.cue('cheer');
     });
@@ -762,9 +763,7 @@ function connect() {
     const m = JSON.parse(e.data);
     if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; showTheme(); modeBtn.show(theme); body?.set({ theme }); renderLooks(); }
     if (m.t === 'init') { loadPacks(); void loadLooks(); announcePainted(); }
-    if ((m.t === 'init' || m.t === 'prefs') && typeof m.scale === 'number' && m.scale !== scale && !sizer.active && !scaleTimer) {
-      scale = scaleSent = m.scale; sizer.set(scale); showScale(); renderLooks();
-    }
+    if ((m.t === 'init' || m.t === 'prefs') && typeof m.scale === 'number') scaleHeard.heard(m.scale, sizer.active || !!scaleTimer);
     if ((m.t === 'init' || m.t === 'prefs') && m.skin && JSON.stringify(normalizeSkin(m.skin)) !== JSON.stringify(skin)) {
       const worn = looks.find((l) => sameLook(l.skin, m.skin) && (l.scale ?? scale) === scale);
       if (worn) activeLook = worn.id;

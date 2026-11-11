@@ -48,7 +48,7 @@ export const lookAvailable = (skin, packs) => { const f = normalizeSkin(skin).fi
  * How much of its tile a look's picture fills for the size on screen it keeps: by the square root of the size, 72% at
  * 100%, the whole tile from about 2× up, 40% at the least; a look without a size is drawn as at 100%.
  */
-export const pictureFill = (scale) => Math.min(1, Math.max(.4, .72 * Math.sqrt(typeof scale === 'number' ? scale : 1)));
+const pictureFill = (scale) => Math.min(1, Math.max(.4, .72 * Math.sqrt(typeof scale === 'number' ? scale : 1)));
 
 /**
  * A look's picture as HTML: Coo drawn in its palette, or the pack's thumbnail, standing on the tile's bottom edge at

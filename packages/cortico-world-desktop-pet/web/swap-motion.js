@@ -14,7 +14,9 @@
  * for a page that draws fewer frames at rest to draw every one meanwhile.
  */
 /** How long the new body draws hidden before the switch shows it, and the whole switch, in milliseconds. */
-export const WARM_MS = 90, SWAP_MS = WARM_MS + 340 + 40;
+const WARM_MS = 90, SWAP_RUN_MS = 340;
+/** The whole switch, with a frame's margin for the last frames to land. */
+export const SWAP_MS = WARM_MS + SWAP_RUN_MS + 40;
 
 const still = (win) => !!win?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -34,7 +36,7 @@ const drawnRatio = (ratio) => Math.min(4, Math.max(.25, ratio));
 const OFFSETS = [0, .55, .85, 1], OUT_OPACITY = [1, .35, 0, 0], IN_OPACITY = [0, .65, 1, 1];
 /** A small dip and rise over the course, so a switch at one size still moves. */
 const DIP = [1, .97, 1.015, 1];
-const SWAP_EASE = 'ease-in-out', SWAP_RUN_MS = 340;
+const SWAP_EASE = 'ease-in-out';
 
 /**
  * The switch's course of sizes in the old body's units: from 1 to `r`, most of the way by the middle. The old body is drawn
@@ -54,7 +56,15 @@ export function swapOut(body, stage, ratio = 1) {
   const el = body?.el, l = body?.layout;
   if (!el || !l || still(stage.ownerDocument.defaultView)) { body?.dispose(); return; }
   body.setHalo(0, 0);
-  const a = el.animate(course(el, l, stage, ratio, () => 1, OUT_OPACITY), { duration: SWAP_RUN_MS, delay: WARM_MS, easing: SWAP_EASE, fill: 'forwards' });
+  const frames = course(el, l, stage, ratio, () => 1, OUT_OPACITY);
+  // a body still fading in from a switch a moment ago fades out from where it is, not from fully shown
+  const running = el.getAnimations?.() ?? [];
+  if (running.length) {
+    const now = getComputedStyle(el);
+    frames[0] = { ...frames[0], opacity: Number(now.opacity), transform: now.transform === 'none' ? frames[0].transform : now.transform };
+    for (const a of running) a.cancel();
+  }
+  const a = el.animate(frames, { duration: SWAP_RUN_MS, delay: WARM_MS, easing: SWAP_EASE, fill: 'forwards' });
   a.finished.then(() => body.dispose(), () => body.dispose());
 }
 
