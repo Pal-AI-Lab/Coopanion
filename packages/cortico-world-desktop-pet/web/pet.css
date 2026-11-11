@@ -518,6 +518,10 @@ body.desk .floor{display:none}
   background:var(--surface); color:var(--text); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
 }
 .sizer.entering{animation:sz-in .24s cubic-bezier(.3,1.4,.5,1) backwards}
+/* a group of controls let go of glides back beside the body (pet-app.js follow, RETURN_MS) */
+:is(.tools, .wheel, .sizer, .m-grid, .m-rail).returning{transition:left .26s cubic-bezier(.2,.7,.3,1), top .26s cubic-bezier(.2,.7,.3,1), right .26s cubic-bezier(.2,.7,.3,1)}
+/* the size button while it holds the slider open (pet-app.js pinSizer) */
+.tool[data-action="size"].on{color:var(--skin-eye); border-color:var(--skin-eye)}
 /* SIZER_OUT_MS in pet-app.js */
 .sizer.leaving{animation:sz-out .14s ease-in forwards; pointer-events:none}
 @keyframes sz-in{from{transform:translateY(8px) scale(.6); opacity:0}}

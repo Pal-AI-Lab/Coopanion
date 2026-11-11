@@ -141,7 +141,7 @@ function connect() {
 let windowShown = true;
 function reportVisibility() { if (host) send({ t: 'visibility', hidden: !windowShown }); }
 // the page itself always reads as visible (its window does not throttle it): the window process says when it is hidden
-host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVisibility(); });
+host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVisibility(); if (!shown) pinSizer(false); });
 /** Clicks pass through because a fullscreen window covers the pet's display and the setting says so; the window process decides. */
 let fullscreenThrough = false;
 host?.onFullscreenThrough?.((on) => { fullscreenThrough = on; });
@@ -1281,13 +1281,15 @@ const ACTIONS = {
     run: () => host.hide(),
   },
   size: {
-    // hovering it shows the size slider (stepSizer); a tap, where nothing hovers, shows it for SIZER_TAP seconds;
+    // hovering it shows the size slider for a moment (stepSizer); a click, or a tap where nothing hovers, pins it (pinSizer);
     // only on the desktop: a tab draws the body at one size
     available: () => !!host,
     keep: true,
     icon: () => ICONS.resize,
+    // lit while pinned; no switch state otherwise, so it is not drawn as a switch turned off
+    on: () => sizerPinned || undefined,
     state: () => t('action.size', { pct: Math.round(prefs.scale * 100) }),
-    run: () => { if (sizerEl.hidden || leaving(sizerEl)) openSizer(); sizerState.until = Math.max(sizerState.until, T + SIZER_TAP); },
+    run: () => pinSizer(!sizerPinned),
   },
   dress: {
     icon: () => ICONS.shirt,
@@ -1319,6 +1321,7 @@ function drawAction(b, id) {
   // no tooltip: hovering these buttons is kept for other uses
   b.setAttribute('aria-label', a.state());
   if (on !== undefined) b.setAttribute('aria-pressed', String(on));
+  else b.removeAttribute('aria-pressed');
 }
 
 function cycleRoam() {
@@ -1352,6 +1355,7 @@ function menuActions() {
 }
 
 function openMenu() {
+  pinSizer(false);
   // the hover buttons showing become the menu's: each slides from where it stood to its tile, and only the rest pop out
   const was = new Map();
   if (!tools.hidden && !leaving(tools)) for (const b of tools.children) was.set(b.dataset.action, laidAt(b));
@@ -1682,6 +1686,7 @@ async function openWheel() {
   // back over a dress button while the row folds away: it fans out again
   if (leaving(wheel)) { clearTimeout(wheelAnim.leave); wheel.classList.remove('leaving'); drawWheel(); return; }
   if (!wheel.hidden || wheelState.opening) return;
+  pinSizer(false);
   closeSizer();
   wheelState.opening = true;
   const items = await wheelItems().catch(() => []);
@@ -1801,8 +1806,21 @@ document.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 /* ---------- size slider: hovering a size button shows a slider over the body; the body takes each size at once ---------- */
-/** Seconds the slider stays after the pointer leaves it and every size button, and after a tap on one. */
-const SIZER_LINGER = .35, SIZER_TAP = 3;
+/** Seconds the slider stays after the pointer leaves it and every size button. */
+const SIZER_LINGER = .35;
+/**
+ * Whether a click on a size button pinned the slider. It stays until that button is clicked again, the pointer goes down
+ * anywhere else, the window loses focus (a click in another program), Escape, or the menu, the look wheel or a bubble
+ * takes the place.
+ */
+let sizerPinned = false;
+function pinSizer(on) {
+  if (sizerPinned === on) return;
+  sizerPinned = on;
+  if (on && (sizerEl.hidden || leaving(sizerEl))) openSizer();
+  if (!on) closeSizer();
+  refreshButtons();
+}
 /** Milliseconds the slider takes to fold away (`.sizer.leaving` in pet.css). */
 const SIZER_OUT_MS = 140;
 /** Milliseconds between the sizes sent to the World while the slider moves. */
@@ -1858,13 +1876,10 @@ function closeSizer() {
   if (sizerEl.hidden || leaving(sizerEl) || sizer.active) return;
   popOut(sizerEl, sizerAnim, SIZER_OUT_MS);
 }
-/**
- * Centred over the body, just above its head, where the look wheel opens, following the head as the body grows or
- * shrinks. While the slider is dragged only its height follows: a bar moving sideways would move the value under the pointer.
- */
+/** Centred over the body, just above its head, where the look wheel opens; it follows the head as other controls do (`follow`). */
 function placeSizer(l) {
   const b = l.box, w = sizerEl.offsetWidth, h = sizerEl.offsetHeight;
-  if (!sizer.active) sizerEl.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
+  sizerEl.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
   // the slider's box holds the percentage's bubble over the knob: its bottom sits just over the head
   sizerEl.style.top = f(clamp(b.y - h - 10, 8, innerHeight - h - 8)) + 'px';
 }
@@ -1881,8 +1896,8 @@ function stepSizer() {
   const button = !!p && overSizeButton(p);
   // a bubble over the pet (the typing box, a reply, a question) takes the slider's place until it closes; with every
   // click passing through the window it could not be used
-  if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { closeSizer(); return; }
-  if (button || sizer.active || (p && overSizer(p))) sizerState.until = T + SIZER_LINGER;
+  if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { pinSizer(false); closeSizer(); return; }
+  if (button || sizer.active || sizerPinned || (p && overSizer(p))) sizerState.until = T + SIZER_LINGER;
   if (button && sizerEl.hidden && !clicksPass()) openSizer();
   if (!sizerEl.hidden && T > sizerState.until) closeSizer();
 }
@@ -2126,9 +2141,12 @@ document.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   if (body?.hit({ x: e.clientX, y: e.clientY })) openMenu();
 });
-document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.menu, .wheel')) closeMenu(); }, { capture: true });
+document.addEventListener('pointerdown', (e) => {
+  if (!e.target.closest('.menu, .wheel')) closeMenu();
+  if (!e.target.closest('.sizer, [data-action="size"]')) pinSizer(false);
+}, { capture: true });
 // clicks off the figure pass through the window to what is underneath; the window losing focus is how they show here
-window.addEventListener('blur', closeMenu);
+window.addEventListener('blur', () => { closeMenu(); pinSizer(false); });
 document.addEventListener('focusin', (e) => {
   if (e.target.matches?.('input, textarea')) host?.focus?.();
 });
@@ -2137,6 +2155,7 @@ document.addEventListener('keydown', (e) => {
   if (e.isComposing || e.keyCode === 229) return;
   if (e.key === 'Escape') {
     closeMenu();
+    pinSizer(false);
     if (item && item.kind === 'ask') dismissAsk();
     else if (item && item.kind === 'input') closeBubble();
     return;
@@ -2188,6 +2207,33 @@ function placeTalk(it, a) {
   return { left, top, bw, bh };
 }
 
+/** Milliseconds a group of controls let go of glides back to its place (`.returning` in pet.css), and a margin. */
+const RETURN_MS = 260;
+/** Whether each group of controls was held last frame, and the timers that end its glide back. */
+const heldGroups = new WeakMap(), returning = new WeakMap();
+/**
+ * One rule for every group of controls placed by the body (the hover buttons, the menu's two sides, the look wheel, the
+ * size slider): while the pointer is on the group, or its slider is held, it holds still, so a look or a size put on from
+ * it moves the body and not the control pointed at; let go, it glides back to its place, and follows the body again.
+ */
+function follow(els, pointed, place) {
+  if (!els.length) { place(); return; }
+  const was = heldGroups.get(els[0]) ?? false;
+  heldGroups.set(els[0], pointed);
+  if (pointed) return;
+  if (was && !reducedMotion?.matches) {
+    for (const el of els) {
+      el.classList.add('returning');
+      clearTimeout(returning.get(el));
+      returning.set(el, setTimeout(() => el.classList.remove('returning'), RETURN_MS + 60));
+    }
+  }
+  place();
+}
+const menuParts = () => [menu.querySelector('.m-grid'), menu.querySelector('.m-rail')].filter(Boolean);
+/** The pointer is on one of the menu's two sides (the menu itself covers the page without taking the pointer). */
+function overMenu(p) { return !menu.hidden && !leaving(menu) && menuParts().some((el) => inRect(p, el.getBoundingClientRect(), 6)); }
+
 /** Beside the body, on the right unless that runs off the screen. */
 function placeTools(l) {
   // across from where the body stands, not from its middle: a figure's middle swings sideways as it turns round
@@ -2206,12 +2252,11 @@ function layout(dt = 0) {
   // the sounds come from where Coo is on its display: screenX and availLeft (the left of the work area the pet window
   // covers) count from the same origin across all displays
   sfx.setPan(((screenX - screen.availLeft + l.x) / (screen.availWidth || innerWidth)) * 2 - 1);
-  // while a look or size put on from them changes the body, the buttons hold still under the pointer: the body moves, not the button pointed at
-  const changing = !wheel.hidden || !sizerEl.hidden || drawnScale.moving || performance.now() < smoothUntil;
-  if (!tools.hidden && !(changing && cursor.at && overTools(cursor.at))) placeTools(l);
-  if (!menu.hidden) placeMenu(l);
-  if (!wheel.hidden) placeWheel(l);
-  if (!sizerEl.hidden) placeSizer(l);
+  const p = cursor.at;
+  if (!tools.hidden) follow([tools], !!p && overTools(p), () => placeTools(l));
+  if (!menu.hidden) follow(menuParts(), !!p && overMenu(p), () => placeMenu(l));
+  if (!wheel.hidden) follow([wheel], !!p && overWheel(p), () => placeWheel(l));
+  if (!sizerEl.hidden) follow([sizerEl], sizer.active || (!!p && overSizer(p)), () => placeSizer(l));
   const a = l.bubble;
   let sayBox = null;
   // choice cards and a World's confirmation keep their bubble where it was; its tail follows Coo along the bottom edge

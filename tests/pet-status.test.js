@@ -49,7 +49,7 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     fetchLooks, lookAvailable: () => true, lookPicture: () => '', sameLook,
     SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut,
   };
-  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, stepWheel, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
+  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
@@ -406,5 +406,30 @@ describe('the size the body is drawn at', () => {
     tab.onOrder({ t: 'prefs', scale: 3 });
     tab.step(1);
     expect(drawnS(tab)).toBeCloseTo(.42);
+  });
+});
+
+describe('the size slider pinned by a click on its button', () => {
+  const sizerEl = (p) => p.doc.querySelector('#sizer');
+  const shown = (p) => !sizerEl(p).hidden && !sizerEl(p).classList.contains('leaving');
+
+  it('stays open with the pointer away until a press elsewhere, and a second click closes it', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
+    const button = p.doc.querySelector('#tools [data-action="size"]');
+    button.click();
+    expect(shown(p)).toBe(true);
+    expect(button.classList.contains('on')).toBe(true);
+    p.cursor.at = null;
+    for (let i = 0; i < 6; i++) { p.step(.5); p.stepSizer(); }
+    expect(shown(p)).toBe(true);
+    p.doc.body.dispatchEvent(new p.win.MouseEvent('pointerdown', { bubbles: true }));
+    expect(shown(p)).toBe(false);
+    expect(button.classList.contains('on')).toBe(false);
+    expect(button.classList.contains('off')).toBe(false);
+    button.click();
+    expect(shown(p)).toBe(true);
+    button.click();
+    expect(shown(p)).toBe(false);
   });
 });
