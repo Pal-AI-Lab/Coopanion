@@ -79,6 +79,8 @@ const sfx = createSfx();
 mountHints(document);
 // Coo's speech stands in for the babble while it is on; its units move the mouth
 const speech = createSpeech(sfx, { onUnit: () => body?.talk() });
+/** The talk key is listening: no line makes a sound until it lets go. */
+let talkKeyDown = false;
 if (host) sfx.unlock();
 else ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => sfx.unlock(), { capture: true }));
 
@@ -118,6 +120,7 @@ function connect() {
   ws.onclose = (e) => {
     ws = null;
     stopMic();
+    talkKeyDown = false;
     // the World gave up on these steps when the page went; it asks again once the page is back
     dropDialogs();
     setStatus(null);
@@ -332,6 +335,7 @@ function onOrder(m) {
     case 'ask-close': closeAsk(m.id); break;
     case 'act': acts.push(...m.actions); holdRoam(20); break;
     case 'listen': onListen(m); break;
+    case 'talk-key': hushForTalkKey(m.down === true); break;
     // a message sent from the chat page, once the bot has it, and one taken back before delivery
     case 'said': if (prefs.saidBubbles) addLine('chat', typeof m.text === 'string' ? m.text : '', false, { images: Number(m.images) || 0, cursor: m.cursor ?? null }); break;
     case 'said-withdrawn': withdrawLine(m.cursor); break;
@@ -529,19 +533,28 @@ function stepDialog(dt) {
   if (it.kind === 'dialog') stepTalk(it, dt);
 }
 
+/** The talk key starts listening: the sound stops at once, and the lines up or waiting go on without it. */
+function hushForTalkKey(down) {
+  talkKeyDown = down;
+  if (!down) return;
+  speech.stop();
+  for (const q of [item, ...queue]) if (q) q.hushed = true;
+}
+
 function typeText(it, text, dt, anchors) {
   const p = bubble.querySelector('.b-text');
   if (!p || it.shown >= text.length) return;
-  if (it.spoken !== text && !it.rush) { it.spoken = text; speech.begin(text); }
+  if (talkKeyDown) it.hushed = true;
+  if (it.spoken !== text && !it.rush && !it.hushed) { it.spoken = text; speech.begin(text); }
   // with speech, each pause mark waits its own time, letters type faster, and the voice makes the sound;
   // estimateSeconds in src/script.ts mirrors these steps, this rate and the holds in stepDialog
-  const spoken = speech.active;
+  const spoken = speech.active && !it.hushed;
   it.acc += dt * 20 * prefs.bubbleSpeed * (it.rush ? RUSH : 1);
   while (it.acc >= 1 && it.shown < text.length) {
     const ch = text[it.shown++];
     it.acc -= spoken ? textSteps(ch) : PAUSE.test(ch) ? 5 : 1;
     if (spoken) speech.reveal(it.shown - 1);
-    else if (!SILENT.test(ch) && !it.rush) { sfx.babble(ch); body?.talk(); }
+    else if (!SILENT.test(ch) && !it.rush && !it.hushed) { sfx.babble(ch); body?.talk(); }
     while (it.fired < anchors.length && anchors[it.fired].at <= it.shown) acts.push(...anchors[it.fired++].actions);
   }
   if (it.marks?.length) p.innerHTML = marked(text, it.shown, it.marks);
@@ -1290,7 +1303,11 @@ function menuActions() {
 }
 
 function openMenu() {
-  menuAt = null;
+  // the hover buttons showing become the menu's: each slides from where it stood to its tile, and only the rest pop out
+  const was = new Map();
+  if (!tools.hidden && !leaving(tools)) for (const b of tools.children) was.set(b.dataset.action, laidAt(b));
+  hideNow(tools, toolsAnim);
+  endHold();
   menu.innerHTML = '';
   const rail = Object.assign(document.createElement('div'), { className: 'm-rail' });
   const grid = Object.assign(document.createElement('div'), { className: 'm-grid' });
@@ -1314,35 +1331,51 @@ function openMenu() {
   }
   menu.append(rail, grid);
   renderMenuRail();
-  menu.hidden = false;
+  stagger(grid);
+  // the buttons grow out of the body one after another; a rail redrawn later (settings, the quit question) does not replay it
+  popIn(menu, menuAnim);
   // focused, so a click anywhere else blurs the window and folds the menu
   host?.focus?.();
   const l = at();
   if (l) placeMenu(l);
+  for (const b of menu.querySelectorAll('.m-tile')) {
+    const r = was.get(b.dataset.action);
+    if (!r) continue;
+    const n = laidAt(b);
+    b.classList.add('from-tool');
+    b.style.setProperty('--fx', r.x - n.x + 'px');
+    b.style.setProperty('--fy', r.y - n.y + 'px');
+  }
+}
+/** Where a button is laid out, in page pixels, leaving out the transforms and scale an animation or hover puts on it. */
+function laidAt(b) {
+  const p = b.offsetParent;
+  return { x: (p?.offsetLeft ?? 0) + b.offsetLeft, y: (p?.offsetTop ?? 0) + b.offsetTop };
 }
 
 /** The run controls on the body's left and the actions on its right; the two swap when the right runs off the screen. */
-let menuAt = null;
 function placeMenu(l) {
   const rail = menu.querySelector('.m-rail'), grid = menu.querySelector('.m-grid');
   if (!rail || !grid) return;
-  // the same gap on both sides of the body's box
-  // left and right of the body's box as it was when the menu opened: it stands still meanwhile, and the box narrows and shifts as it turns round
-  menuAt ??= { ...l.box };
-  const c = l.side, b = menuAt, gap = 12;
-  const onRight = b.x + b.w + gap + grid.offsetWidth <= innerWidth - 8;
+  // as far out from where the body stands as the hover buttons, so those that were showing stay where they were;
+  // from where it stands, not from its box, which narrows and shifts as it turns round
+  const c = l.side, reach = c.reach + 10, R = l.x + reach, L = l.x - reach;
+  const onRight = R + grid.offsetWidth <= innerWidth - 8;
   // whole pixels: the menu rides up and down with the body, and text at a fraction of a pixel snaps on its own, apart from its frame
   const y = (el) => { el.style.top = Math.round(clamp(c.y - el.offsetHeight / 2, 8, innerHeight - el.offsetHeight - 8)) + 'px'; };
-  grid.style.left = f(clamp(onRight ? b.x + b.w + gap : b.x - gap - grid.offsetWidth, 8, innerWidth - grid.offsetWidth - 8)) + 'px';
+  grid.style.left = f(clamp(onRight ? R : L - grid.offsetWidth, 8, innerWidth - grid.offsetWidth - 8)) + 'px';
   y(grid);
   // the run controls hold their edge next to the body, so the quit question grows away from it
   // a long quit question (Japanese, Russian) that would run off the left edge stays on the screen
-  if (onRight) { rail.style.left = 'auto'; rail.style.right = f(Math.min(innerWidth - rail.offsetWidth - 8, Math.max(8, innerWidth - (b.x - gap)))) + 'px'; }
-  else { rail.style.right = 'auto'; rail.style.left = f(Math.min(innerWidth - rail.offsetWidth - 8, b.x + b.w + gap)) + 'px'; }
+  if (onRight) { rail.style.left = 'auto'; rail.style.right = f(Math.min(innerWidth - rail.offsetWidth - 8, Math.max(8, innerWidth - L))) + 'px'; }
+  else { rail.style.right = 'auto'; rail.style.left = f(Math.min(innerWidth - rail.offsetWidth - 8, R)) + 'px'; }
   // the buttons line up on the edge next to the body
   rail.style.alignItems = onRight ? 'flex-end' : 'flex-start';
   y(rail);
   grid.style.direction = onRight ? '' : 'rtl';
+  // each side grows out of the body and folds back into it
+  grid.style.setProperty('--dx', onRight ? '-16px' : '16px');
+  rail.style.setProperty('--dx', onRight ? '16px' : '-16px');
 }
 
 /**
@@ -1398,11 +1431,12 @@ function fillMenuRail(rail, bot, confirmQuit) {
   act(ICONS.power, bot.quitLabel, () => { closeMenu(); send({ t: 'control', action: 'quit' }); }, 'q-act danger', ask);
   act(`<span>${esc(t('menu.cancel'))}</span>`, t('menu.cancel'), () => renderMenuRail(), 'q-act text', ask);
   rail.appendChild(ask);
+  stagger(rail);
 }
+const menuAnim = { enter: 0, leave: 0 };
 function closeMenu() {
-  if (menu.hidden) return;
-  menu.hidden = true;
-  menuAt = null;
+  if (menu.hidden || leaving(menu)) return;
+  popOut(menu, menuAnim, POP_OUT_MS);
   // the hover buttons stay away until the pointer has left the body and them, and comes back
   toolsMuted = true;
   toolsUntil = 0;
@@ -1440,6 +1474,7 @@ function renderTools() {
       else b.addEventListener('click', () => { sfx.tick(); if (!ACTIONS[id].keep) toolsUntil = 0; ACTIONS[id].run(); refreshButtons(); });
       tools.appendChild(b);
     }
+    stagger(tools);
   }
   for (const b of tools.children) drawAction(b, b.dataset.action);
   const mic = tools.querySelector('[data-action="voice"]');
@@ -1486,9 +1521,57 @@ const cursor = { at: null };
 /** Pixels around the hover buttons that count as on them, as the gaps between them do. */
 const TOOLS_MARGIN = 6;
 function overTools(p) {
-  if (tools.hidden) return false;
+  if (tools.hidden || leaving(tools)) return false;
   const r = tools.getBoundingClientRect(), m = TOOLS_MARGIN;
   return p.x >= r.left - m && p.x <= r.right + m && p.y >= r.top - m && p.y <= r.bottom + m;
+}
+/** Pops the hover buttons out of the body one after another, as the menu does, and folds them back into it before they go. */
+const toolsAnim = { enter: 0, leave: 0 };
+function showTools(on) {
+  if (on) {
+    // back over them while they fold: they stay, without popping out again
+    if (leaving(tools)) { clearTimeout(toolsAnim.leave); tools.classList.remove('leaving'); }
+    if (!tools.hidden) return;
+    popIn(tools, toolsAnim);
+    const l = at();
+    if (l) placeTools(l);
+    return;
+  }
+  if (tools.hidden || leaving(tools)) return;
+  endHold();
+  popOut(tools, toolsAnim, POP_OUT_MS);
+}
+
+/* ---------- popping in and out: the menu, the hover buttons and the look wheel ---------- */
+/** Milliseconds the menu's buttons and the hover buttons take to fold back into the body (`m-out` in pet.css). */
+const POP_OUT_MS = 160;
+/** Longer than the last of the staggered `m-in`s, after which `entering` comes off. */
+const POP_IN_MS = 600;
+// absent where the page runs without a window (the tests)
+const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
+const leaving = (el) => el.classList.contains('leaving');
+/** Numbers an element's buttons (`--i`), so they pop out one after another. */
+function stagger(el) { [...el.children].forEach((b, i) => b.style.setProperty('--i', String(i))); }
+/** Shows `el` with its `entering` animation; `anim` holds its timers. */
+function popIn(el, anim) {
+  hideNow(el, anim);
+  el.hidden = false;
+  el.classList.add('entering');
+  anim.enter = setTimeout(() => el.classList.remove('entering'), POP_IN_MS);
+}
+/** Plays `el`'s `leaving` animation, taking no clicks meanwhile, then hides it; at once when motion is reduced. */
+function popOut(el, anim, ms) {
+  clearTimeout(anim.enter);
+  el.classList.remove('entering');
+  if (reducedMotion?.matches) { el.hidden = true; return; }
+  el.classList.add('leaving');
+  anim.leave = setTimeout(() => { el.hidden = true; el.classList.remove('leaving'); }, ms);
+}
+/** Hides `el` at once, cancelling an animation under way. */
+function hideNow(el, anim) {
+  clearTimeout(anim.enter); clearTimeout(anim.leave);
+  el.classList.remove('entering', 'leaving');
+  el.hidden = true;
 }
 function stepTools() {
   // shown while the cursor is on the pet or on the buttons, and a moment after it leaves; decided
@@ -1499,14 +1582,15 @@ function stepTools() {
   if (!near) toolsMuted = false;
   if (near && !toolsMuted) toolsUntil = T + TOOLS_LINGER;
   const confirming = item?.kind === 'ask' && item.confirm && !item.answered;
-  tools.hidden = !(!clicksPass() && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && !confirming && toolIds !== '');
-  if (tools.hidden) endHold();
+  showTools(!clicksPass() && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && !confirming && toolIds !== '');
   tools.querySelector('[data-action="voice"]')?.classList.toggle('live', listen.phase === 'hearing');
 }
 
 /* ---------- look wheel: hovering a dress button shows the looks in a row over the body, the one worn in the middle ---------- */
 /** Seconds the wheel stays after the pointer leaves it and every dress button. */
-const WHEEL_LINGER = .5;
+const WHEEL_LINGER = .25;
+/** Milliseconds the looks take to fold back into the middle (`.wheel.leaving` in pet.css). */
+const WHEEL_OUT_MS = 140;
 /** Pixels between two looks in the row, and how many show on each side of the middle one. */
 const WHEEL_STEP = 54, WHEEL_SIDE = 3;
 /** Opacity of a look by its distance from the middle. */
@@ -1515,7 +1599,9 @@ const WHEEL_FADE = [1, .55, .3, .12];
 const WHEEL_APPLY_MS = 300;
 /** Wheel delta that turns the row one look (a mouse notch is about 100; a touchpad sends many small ones). */
 const WHEEL_NOTCH = 40;
-const wheelState = { items: [], at: 0, until: 0, timer: 0, acc: 0, opening: false };
+/** `empty`: the last read found no looks to show; set until the pointer has left the dress buttons, so a hover reads them once. */
+const wheelState = { items: [], at: 0, until: 0, timer: 0, acc: 0, opening: false, empty: false };
+const wheelAnim = { enter: 0, leave: 0 };
 
 /**
  * The favourite looks to switch between (looks.js), leaving out those whose pack was uninstalled; none, none shown.
@@ -1524,7 +1610,7 @@ const wheelState = { items: [], at: 0, until: 0, timer: 0, acc: 0, opening: fals
 async function wheelItems() {
   const [saved, figures] = await Promise.all([fetchLooks(), fetch('/api/figures').then((r) => r.json()).catch(() => null)]);
   const list = Array.isArray(figures) ? figures : [], dark = prefs.theme === 'dark';
-  const items = saved.filter((l) => lookAvailable(l.skin, list))
+  const items = (saved ?? []).filter((l) => lookAvailable(l.skin, list))
     .map((l) => ({ skin: l.skin, on: sameLook(l.skin, skin), html: lookPicture(l.skin, list, dark) }));
   if (!items.length) return [];
   if (!items.some((i) => i.on)) items.unshift({ skin, on: true, worn: true, html: lookPicture(skin, list, dark) });
@@ -1532,11 +1618,13 @@ async function wheelItems() {
 }
 
 async function openWheel() {
+  // back over a dress button while the row folds away: it fans out again
+  if (leaving(wheel)) { clearTimeout(wheelAnim.leave); wheel.classList.remove('leaving'); drawWheel(); return; }
   if (!wheel.hidden || wheelState.opening) return;
   wheelState.opening = true;
   const items = await wheelItems().catch(() => []);
   wheelState.opening = false;
-  if (!items.length) return;
+  if (!items.length) { wheelState.empty = true; return; }
   wheelState.items = items;
   wheelState.at = Math.max(0, items.findIndex((i) => i.on));
   wheelState.acc = 0;
@@ -1555,15 +1643,30 @@ async function openWheel() {
   });
   wheel.style.width = (2 * WHEEL_SIDE + 1) * WHEEL_STEP + 'px';
   wheel.hidden = false;
+  // the looks fan out from the middle one: drawn folded first, then let go to their places
+  foldWheel();
+  void wheel.offsetWidth;
   drawWheel();
   const l = at();
   if (l) placeWheel(l);
 }
 
 function closeWheel() {
-  wheel.hidden = true;
   clearTimeout(wheelState.timer);
   wheelState.timer = 0;
+  if (wheel.hidden || leaving(wheel)) return;
+  // the looks fold back into the middle, then the row goes
+  foldWheel();
+  popOut(wheel, wheelAnim, WHEEL_OUT_MS);
+}
+
+/** Every look gathered small and faint in the middle of the row: where it fans out from and folds back into. */
+function foldWheel() {
+  for (const b of wheel.children) {
+    b.style.transform = 'translate(-50%, -50%) scale(.3)';
+    b.style.opacity = '0';
+    b.style.pointerEvents = 'none';
+  }
 }
 
 function drawWheel() {
@@ -1605,21 +1708,22 @@ function placeWheel(l) {
 }
 
 const inRect = (p, r, m = 0) => p.x >= r.left - m && p.x <= r.right + m && p.y >= r.top - m && p.y <= r.bottom + m;
-function overWheel(p) { return !wheel.hidden && inRect(p, wheel.getBoundingClientRect(), 6); }
-/** A dress button on screen, in the menu or among the hover buttons, is under the pointer. */
+function overWheel(p) { return !wheel.hidden && !leaving(wheel) && inRect(p, wheel.getBoundingClientRect(), 6); }
+/** A dress button on screen, in the menu or among the hover buttons, is under the pointer; not one folding away after a click. */
 function overDress(p) {
-  for (const b of document.querySelectorAll('.menu [data-action="dress"], .tools [data-action="dress"]')) {
+  for (const b of document.querySelectorAll('.menu:not(.leaving) [data-action="dress"], .tools:not(.leaving) [data-action="dress"]')) {
     if (b.offsetParent && inRect(p, b.getBoundingClientRect(), 4)) return true;
   }
   return false;
 }
 function stepWheel() {
-  // a bubble over the pet (the typing box, a reply, a question) takes the wheel's place until it closes
-  if (!bubble.hidden && !bubble.classList.contains('status')) { if (!wheel.hidden) closeWheel(); return; }
   const p = cursor.at;
   const dress = !!p && overDress(p);
+  if (!dress) wheelState.empty = false;
+  // a bubble over the pet (the typing box, a reply, a question) takes the wheel's place until it closes
+  if (!bubble.hidden && !bubble.classList.contains('status')) { if (!wheel.hidden) closeWheel(); return; }
   if (dress || (p && overWheel(p))) wheelState.until = T + WHEEL_LINGER;
-  if (dress && wheel.hidden && !clicksPass()) void openWheel();
+  if (dress && wheel.hidden && !wheelState.empty && !clicksPass()) void openWheel();
   if (!wheel.hidden && T > wheelState.until) closeWheel();
 }
 // the mouse wheel turns the row while it shows, over the row or over a dress button
@@ -1701,7 +1805,7 @@ function writePointer(now) {
 }
 
 // the menu itself covers the whole page without taking clicks; its two columns are what can be pointed at
-const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]) > *, .tools:not([hidden]), .wheel:not([hidden])';
+const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]):not(.leaving) > *, .tools:not([hidden]):not(.leaving), .wheel:not([hidden]):not(.leaving)';
 const overUi = (e) => e.target.closest && e.target.closest(UI_SELECTOR);
 
 /**
@@ -1930,6 +2034,8 @@ function placeTools(l) {
   const w = tools.offsetWidth, h = tools.offsetHeight;
   const left = c.x + reach + w <= innerWidth - 8 ? c.x + reach : c.x - reach - w;
   tools.style.left = f(clamp(left, 8, innerWidth - w - 8)) + 'px';
+  // they grow out of the body's side and fold back into it
+  tools.style.setProperty('--dx', left > c.x ? '-16px' : '16px');
   tools.style.top = f(clamp(c.y - h / 2, 8, innerHeight - h - 8)) + 'px';
 }
 function layout(dt = 0) {

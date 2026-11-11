@@ -39,6 +39,7 @@
  * console in the app language (`settings-preload.cjs`).
  */
 const { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
+const { spawn } = require('node:child_process');
 const http = require('node:http');
 const { Readable } = require('node:stream');
 const { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, rmSync, symlinkSync, writeFileSync } = require('node:fs');
@@ -48,13 +49,17 @@ const { readTextFile } = require('./read-text.cjs');
 
 const { readSettingsSize, saveSettingsSize } = require('./settings-size.cjs');
 const { settingsChromeOptions, applySettingsTheme } = require('./settings-chrome.cjs');
+const { x11RestartCommand } = require('./x11-restart.cjs');
 
 const MAC = process.platform === 'darwin';
 const LINUX = process.platform === 'linux';
 const WIN = process.platform === 'win32';
-// Linux: X11 (XWayland under a Wayland session). On Wayland a window cannot place itself or stay on top,
-// and the cursor position outside the app's own windows is unknown, which the pet needs.
-if (LINUX) app.commandLine.appendSwitch('ozone-platform', 'x11');
+const x11Restart = x11RestartCommand({ platform: process.platform, picked: app.commandLine.getSwitchValue('ozone-platform'), argv: process.argv, execPath: process.execPath, env: process.env });
+if (x11Restart) {
+  spawn(x11Restart.file, x11Restart.args, { detached: true, stdio: 'inherit' }).unref();
+  app.exit(0);
+  return;
+}
 // Without a usable GPU (virtual machines, blocklisted drivers) Chromium no longer
 // falls back to software WebGL on its own, and the whale figure draws with WebGL: allow SwiftShader. It
 // only renders the app's own pages.

@@ -12,7 +12,7 @@ const pages = [];
 afterEach(() => { for (const p of pages.splice(0)) p.close(); });
 
 /** Run the actual page with a quiet socket and body; the test advances the page's frame clock. */
-function page({ host = false, hash = '' } = {}) {
+function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = async () => [] } = {}) {
   const dom = new JSDOM(html, { url: `http://127.0.0.1/pet${hash}`, runScripts: 'outside-only' });
   const win = dom.window;
   pages.push(win);
@@ -20,10 +20,11 @@ function page({ host = false, hash = '' } = {}) {
   const sockets = [];
   const bodyChanges = [];
   const body = {
-    layout: { busy: false, facing: 1, cursor: '', bubble: { x: 500, y: 400 } },
+    layout: { busy: false, facing: 1, cursor: '', bubble: { x: 500, y: 400 }, box: { x: 400, y: 300, w: 100, h: 100 } },
     set: (change) => bodyChanges.push(change), cue() {}, talk() {},
   };
   win.requestAnimationFrame = () => 0;
+  win.fetch = async () => ({ json: async () => [] });
   win.WebSocket = class {
     readyState = 1;
     constructor(url) { this.url = new URL(url); sockets.push(this); }
@@ -32,8 +33,8 @@ function page({ host = false, hash = '' } = {}) {
   win.deps = {
     applyTheme: (theme) => { win.document.documentElement.dataset.theme = theme; }, clamp, f, ICONS, linked: (text, n) => linked(text, n, win.document),
     COO_CSS, mini, normalizeSkin, skinCss,
-    createSfx: () => ({ unlock() {}, pop() {}, babble() {}, blub() {}, configure() {}, set() {}, setPan() {}, listenStart() {}, listenEnd() {}, select() {}, tick() {} }),
-    createSpeech: () => ({ configure() {}, begin() {}, reveal() { return false; }, stop() {}, active: false }),
+    createSfx: () => ({ unlock() {}, pop() {}, babble() {}, blub() {}, configure() {}, set() {}, setPan() {}, listenStart() {}, listenEnd() {}, select() {}, tick() {}, ...sfx }),
+    createSpeech: () => ({ configure() {}, begin() {}, reveal() { return false; }, stop() {}, active: false, ...speech }),
     textSteps: () => 1,
     loadBody: async () => body, body,
     t, language: () => 'zh', useLanguage: async () => {},
@@ -42,10 +43,11 @@ function page({ host = false, hash = '' } = {}) {
     createMic: () => ({ start() {}, stop() {} }),
     // the test advances the page's clock itself (`step`)
     runFrames() {},
+    fetchLooks, lookAvailable: () => true, lookPicture: () => '', sameLook: (a, b) => a === b,
     // hover hints (hints.js) are not what these tests look at
     mountHints() {},
   };
-  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, mountHints } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
+  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, mountHints } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, stepWheel, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
@@ -73,6 +75,69 @@ describe('pet page connection', () => {
     expect(p.sockets).toHaveLength(1);
   });
 });
+describe('the talk key and the voice reading a bubble', () => {
+  const LINE = '一二三四五六七八九十一二三四五六七八九十';
+  const reading = () => {
+    const heard = { begun: [], revealed: 0, stopped: 0, babbled: 0 };
+    return {
+      heard,
+      sfx: { babble: () => { heard.babbled++; } },
+      speech: { active: true, begin: (text) => heard.begun.push(text), reveal: () => { heard.revealed++; return true; }, stop: () => { heard.stopped++; } },
+    };
+  };
+  const say = (p, id, text) => p.onOrder({ t: 'say', id, beats: [{ text }] });
+  const typed = (p) => p.bubble.querySelector('.b-text').textContent.length;
+
+  it('stops the voice at the press and types the rest of the line without sound', () => {
+    const { heard, ...voice } = reading();
+    const p = page(voice);
+    say(p, 'a', LINE); p.step(.01); p.step(.2);
+    const revealed = heard.revealed, shown = typed(p);
+    expect(revealed).toBeGreaterThan(0);
+    p.onOrder({ t: 'talk-key', down: true });
+    expect(heard.stopped).toBe(1);
+    p.step(.2);
+    expect(heard.revealed).toBe(revealed);
+    expect(heard.babbled).toBe(0);
+    expect(typed(p)).toBeGreaterThan(shown);
+  });
+
+  it('keeps a line silent that starts while the key is down, and reads the next one after it lets go', () => {
+    const { heard, ...voice } = reading();
+    const p = page(voice);
+    p.onOrder({ t: 'talk-key', down: true });
+    say(p, 'a', '一二三');
+    for (let i = 0; i < 12; i++) p.step(1);
+    expect(heard.begun).toEqual([]);
+    expect(heard.babbled).toBe(0);
+    p.onOrder({ t: 'talk-key', down: false });
+    say(p, 'b', '四五六'); p.step(.01); p.step(.2);
+    expect(heard.begun).toEqual(['四五六']);
+  });
+
+  it('keeps a line waiting at the press silent after the key lets go', () => {
+    const { heard, ...voice } = reading();
+    const p = page(voice);
+    say(p, 'a', LINE); p.step(.01); p.step(.2);
+    say(p, 'b', '四五六');
+    p.onOrder({ t: 'talk-key', down: true });
+    p.onOrder({ t: 'talk-key', down: false });
+    for (let i = 0; i < 12; i++) p.step(1);
+    expect(heard.begun).toEqual([LINE]);
+    expect(heard.babbled).toBe(0);
+  });
+
+  it('forgets a held key when the socket closes, since its release can no longer arrive', async () => {
+    const { heard, ...voice } = reading();
+    const p = page(voice);
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.onOrder({ t: 'talk-key', down: true });
+    p.sockets[0].onclose({ code: 1006 });
+    say(p, 'a', LINE); p.step(.01); p.step(.2);
+    expect(heard.begun).toEqual([LINE]);
+  });
+});
+
 const read = { kind: 'read', text: '在看', detail: '日记.md' };
 const think = { kind: 'think', text: '' };
 const show = (p, status) => p.onOrder({ t: 'status', status });
@@ -249,5 +314,62 @@ describe("the person's lines above Coo", () => {
     expect(up(p)).toHaveLength(1);
     p.onOrder({ t: 'listen', phase: 'heard', text: '今天天气怎么样' });
     expect(up(p)).toHaveLength(0);
+  });
+});
+
+describe('look wheel over the dress button', () => {
+  /** A dress button on the page at (0, 0), which jsdom lays out with no size. */
+  function dressButton(p) {
+    const b = p.doc.querySelector('.menu').appendChild(p.doc.createElement('button'));
+    b.dataset.action = 'dress';
+    Object.defineProperty(b, 'offsetParent', { value: p.doc.body });
+  }
+  const flush = () => new Promise((resolve) => setTimeout(resolve));
+  async function frames(p, n = 5) { for (let i = 0; i < n; i++) { p.stepWheel(); await flush(); } }
+  const over = (p) => { p.cursor.at = { x: 0, y: 0 }; };
+  const off = (p) => { p.cursor.at = { x: 900, y: 900 }; };
+  const wheel = (p) => p.doc.querySelector('#wheel');
+
+  it.each([
+    ['an empty list', async () => []],
+    ['a failed read', async () => { throw new Error('read failed'); }],
+  ])('reads the favourites once per hover after %s (the number of reads is the behavior)', async (_, answer) => {
+    let reads = 0;
+    const p = page({ fetchLooks: () => { reads++; return answer(); } });
+    dressButton(p);
+    over(p);
+    await frames(p);
+    expect(reads).toBe(1);
+    expect(wheel(p).hidden).toBe(true);
+    off(p);
+    await frames(p, 1);
+    over(p);
+    await frames(p);
+    expect(reads).toBe(2);
+  });
+
+  it('reads again when the pointer left while a bubble was showing', async () => {
+    let reads = 0;
+    const p = page({ fetchLooks: async () => { reads++; return []; } });
+    dressButton(p);
+    over(p);
+    await frames(p);
+    p.bubble.hidden = false;
+    off(p);
+    await frames(p, 1);
+    over(p);
+    p.bubble.hidden = true;
+    await frames(p);
+    expect(reads).toBe(2);
+  });
+
+  it('opens the row with one read when there are favourites', async () => {
+    let reads = 0;
+    const p = page({ fetchLooks: async () => { reads++; return [{ skin: {} }]; } });
+    dressButton(p);
+    over(p);
+    await frames(p);
+    expect(reads).toBe(1);
+    expect(wheel(p).hidden).toBe(false);
   });
 });

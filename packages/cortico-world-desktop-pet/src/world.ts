@@ -414,6 +414,8 @@ export class DesktopPetWorld implements World {
   private keyWatcher: KeyWatcher | null = null;
   /** Why the talk key cannot be read; the gate then stays closed. */
   private hotkeyProblem: string | null = null;
+  /** The talk-key problem last delivered to the bot. */
+  private hotkeyProblemTold: string | null = null;
   private hotkeyKey = '';
   /** The typing key's watcher while `typeKey.enabled`, and why it cannot be read. */
   private typeWatcher: KeyWatcher | null = null;
@@ -1523,7 +1525,7 @@ export class DesktopPetWorld implements World {
     const { mode, hotkey } = this.cfg.asr.mic;
     const trigger: HotkeyTrigger = mode === 'hold' && this.typeKeyShares(hotkey) ? 'hold' : 'press';
     const key = mode === 'always' || !this.host ? '' : `${mode}:${hotkey}:${trigger}`;
-    if (key === this.hotkeyKey) return;
+    if (key === this.hotkeyKey) { this.tellHotkeyProblem(); return; }
     this.hotkeyKey = key;
     this.keyWatcher?.stop();
     this.keyWatcher = null;
@@ -1538,7 +1540,18 @@ export class DesktopPetWorld implements World {
     if (typeof watcher === 'string') {
       this.hotkeyProblem = watcher;
       this.log?.warn(`说话键不可用,暂不识别说话:${watcher}`);
+      this.tellHotkeyProblem();
     } else this.keyWatcher = watcher;
+  }
+
+  /** A key that cannot be read shows nothing when pressed, so the bot is told why: each problem once a run, while voice input is on. */
+  private tellHotkeyProblem(): void {
+    const problem = this.hotkeyProblem;
+    if (!problem || problem === this.hotkeyProblemTold || !this.cfg.asr.enabled) return;
+    this.hotkeyProblemTold = problem;
+    void this.push('desktop-pet.talk-key', 'desktop-pet.talk-key', this.t.talkKeyUnreadable(this.userName, problem), 'flush').then((e) => {
+      if (!e) this.hotkeyProblemTold = null;
+    });
   }
 
   /** The typing key is on and made of the same keys as `talk`, press counts aside. */
@@ -1602,6 +1615,7 @@ export class DesktopPetWorld implements World {
     this.talking = on;
     this.voiceFrame({ type: 'gate', open: on });
     if (!on) this.releaseMicSoon();
+    this.server.sendPet({ t: 'talk-key', down: on && this.cfg.asr.enabled && this.micWanted() });
     if (!this.cfg.asr.enabled || !this.micWanted()) return;
     if (on) {
       this.listenOpen = true;
@@ -1632,6 +1646,7 @@ export class DesktopPetWorld implements World {
       this.talking = false;
       this.voiceFrame({ type: 'gate', open: false });
       this.releaseMicSoon();
+      this.server.sendPet({ t: 'talk-key', down: false });
     }
     this.segmenter.flush();
     this.queue.length = 0;

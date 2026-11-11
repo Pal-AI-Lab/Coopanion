@@ -246,7 +246,8 @@
   table.data td { padding: 6px 12px; border-top: 1px solid var(--line); vertical-align: top; }
   td.mono { font-family: var(--mono); font-size: var(--text-detail); color: var(--ink-soft); white-space: nowrap; }
   td.txt { word-break: break-word; white-space: pre-wrap; }
-  .lv { font: 600 11.5px var(--mono); }
+  /* the level as its neighbours draw theirs (td.mono), only bold: a `font` shorthand would reset the line height, and the word would sit above the row */
+  .lv { font-family: var(--mono); font-size: var(--text-detail); font-weight: 600; white-space: nowrap; }
   .lv-error { color: var(--danger); } .lv-warn { color: var(--warn); }
   .lv-info { color: var(--ok); } .lv-debug { color: var(--ink-dim); }
   .data-extra { color: var(--ink-dim); font: 11.5px var(--mono); word-break: break-all; }
@@ -959,7 +960,8 @@
     border-radius: 0;
     box-shadow: none;
   }
-  .sheet:first-child { border-top: 0; }
+  /* 第一张卡不要上边线。读取失败的提示条空着时不显示，排在它后面的卡也算第一张。 */
+  .sheet:is(:first-child, .read-feedback:empty:first-child + *) { border-top: 0; }
   .sheet.tabbed::before { display: none; }
   .sheet h3 { font: 600 15px/1.4 var(--sans); letter-spacing: -.01em; }
   .sheet h3 .en { font-size: 11.5px; }
@@ -1466,7 +1468,7 @@
 .featureslot > .featureintro + * { margin-top:0; }
 .featureslot > .featureintro + .sheet { margin-top:0; }
 /* 面板槽是滚动容器，吸顶元素贴在 padding 内沿，所以上方留白放在第一项的外边距上;World 页模板的工具条贴着栏目条 */
-.panelslot > :first-child:not(.template-library) { margin-top:24px; }
+.panelslot > :is(:first-child, .read-feedback:empty:first-child + *):not(.template-library) { margin-top:24px; }
 .panelslot > .template-library:has(> :is(.placeholder,.read-feedback:not(:empty))) { margin-top:24px; }
 .connection-detail > div > div:first-child > .sheet:first-child { padding-top:0; }
 .connection-hub .btn { border:1px solid var(--border-strong); }
@@ -1534,7 +1536,7 @@
 .configrow .configline > .ttag { flex: none; }
 .coreview > .scroll { margin-inline: -10px; scrollbar-gutter: stable both-edges; }
 /* 页内第一节贴着面板槽的上内边距（与其他页面页头下 24px 一致），节可以包在一两层容器里 */
-.panelslot > .sheet:first-child, .panelslot > :first-child > .sheet:first-child, .panelslot > :first-child > :first-child > .sheet:first-child { padding-top: 0; }
+.panelslot > .sheet:is(:first-child, .read-feedback:empty:first-child + *), .panelslot > :first-child > .sheet:is(:first-child, .read-feedback:empty:first-child + *), .panelslot > :first-child > :first-child > .sheet:is(:first-child, .read-feedback:empty:first-child + *) { padding-top: 0; }
 
 /* 卡片:连接在右上,删除在右下,图标底边对齐状态行。 */
 .connection-create { flex:none; margin-bottom:16px; }
