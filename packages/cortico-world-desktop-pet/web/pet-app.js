@@ -1797,13 +1797,20 @@ function onTheWay(p, el) {
   return inRect(p, { left: Math.min(r.left, b.x), right: Math.max(r.right, b.x + b.w), top: Math.min(r.top, b.y), bottom: Math.max(r.bottom, b.y + b.h) }, 6);
 }
 
+/**
+ * Whether a control a hover opened over the head waits on: the pointer is still among the pet's controls, on the way to
+ * it (`onTheWay`), on the hover buttons or on the menu. Its short linger counts only once the pointer has left them all,
+ * so going from one button to another, or across a large body, does not close it.
+ */
+const amongControls = (p, el) => !!p && (onTheWay(p, el) || overTools(p) || overMenu(p));
+
 function stepWheel() {
   const p = cursor.at;
   const dress = !!p && overDress(p);
   if (!dress) wheelState.empty = false;
   // a bubble over the pet (the typing box, a reply, a question) takes the wheel's place until it closes
   if (!bubble.hidden && !bubble.classList.contains('status')) { if (!wheel.hidden) closeWheel(); return; }
-  if (dress || (p && overWheel(p)) || onTheWay(p, wheel)) wheelState.until = T + WHEEL_LINGER;
+  if (dress || (p && overWheel(p)) || amongControls(p, wheel)) wheelState.until = T + WHEEL_LINGER;
   if (dress && wheel.hidden && !wheelState.empty && !clicksPass()) void openWheel();
   if (!wheel.hidden && T > wheelState.until) closeWheel();
 }
@@ -1910,7 +1917,7 @@ function stepSizer() {
   // a bubble over the pet (the typing box, a reply, a question) takes the slider's place until it closes; with every
   // click passing through the window it could not be used
   if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { pinSizer(false); closeSizer(); return; }
-  if (button || sizer.active || sizerPinned || (p && overSizer(p)) || onTheWay(p, sizerEl)) sizerState.until = T + SIZER_LINGER;
+  if (button || sizer.active || sizerPinned || (p && overSizer(p)) || amongControls(p, sizerEl)) sizerState.until = T + SIZER_LINGER;
   if (button && sizerEl.hidden && !clicksPass()) openSizer();
   if (!sizerEl.hidden && T > sizerState.until) closeSizer();
 }

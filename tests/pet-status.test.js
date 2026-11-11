@@ -454,6 +454,23 @@ describe('the size slider opened by hovering its button', () => {
     p.stepSizer();
     expect(sizerEl.classList.contains('leaving') || sizerEl.hidden).toBe(true);
   });
+
+  it('stays while the pointer is on another hover button, away from the body', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size', 'chat'] });
+    const tools = p.doc.querySelector('#tools'), button = tools.querySelector('[data-action="size"]');
+    Object.defineProperty(button, 'offsetParent', { value: p.doc.body });
+    const sizerEl = p.doc.querySelector('#sizer');
+    p.cursor.at = { x: 0, y: 0 };
+    p.stepSizer();
+    expect(sizerEl.hidden).toBe(false);
+    // the hover buttons beside the body, right of its box (400–500 × 300–400)
+    tools.hidden = false;
+    tools.getBoundingClientRect = () => ({ left: 600, right: 650, top: 300, bottom: 400 });
+    p.cursor.at = { x: 625, y: 380 };
+    for (let i = 0; i < 4; i++) { p.step(.5); p.stepSizer(); }
+    expect(sizerEl.hidden || sizerEl.classList.contains('leaving')).toBe(false);
+  });
 });
 
 describe('the voice button', () => {
