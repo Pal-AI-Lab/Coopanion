@@ -1528,8 +1528,6 @@ function renderTools() {
     stagger(tools);
   }
   for (const b of tools.children) drawAction(b, b.dataset.action);
-  const mic = tools.querySelector('[data-action="voice"]');
-  if (mic) mic.classList.toggle('waiting', prefs.voice.enabled && !prefs.voice.ready);
 }
 
 /** A press shorter than HOLD_TO_SEND switches voice input; a longer one sends what was heard so far. */

@@ -430,10 +430,8 @@ body.desk .floor{display:none}
 /* the key badge sits off the button's lower right, clear of the icon */
 .tool .badge{right:-14px; bottom:-9px}
 /* a switch that is off, as a hover button and in the menu alike: its crossed-out icon muted on a dashed ring;
-   the voice switch is also muted while the recognizer is not ready, and lit while hearing */
+   the voice hover button is lit while hearing */
 .tool.off{color:var(--muted); border-style:dashed}
-/* not ready yet: muted, at the same line weight (a faded icon reads as a thinner one) */
-.tool.waiting{color:var(--muted)}
 .tool.live{color:var(--skin-eye); border-color:var(--skin-eye)}
 /* held down: a ring closes in; when it is full the sentence is sent */
 .tool.holding::after{
