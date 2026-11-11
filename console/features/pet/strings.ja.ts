@@ -91,7 +91,7 @@ export const S: Partial<typeof en> = {
   selfItems: { figure: 'アバター', scheme: '着せ替え', roam: '歩き回り', snoreSeconds: 'いびきの長さ', sound: 'サウンド', scale: 'サイズ', bubbleSize: '吹き出しのサイズ', fontSize: '文字サイズ', theme: 'ナイトモード', hoverButtons: 'ホバーボタン', user: 'あなたの呼び名' },
   popupSave: '保存',
   popupCancel: 'キャンセル',
-  actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', dress: '着せ替え', hide: 'ペットを隠す', worlds: '自分の World' },
+  actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', size: 'サイズ', dress: '着せ替え', hide: 'ペットを隠す', worlds: '自分の World' },
   saveFailed: (why: string) => `保存できませんでした：${why}`,
   stats: '匿名の利用統計を送信',
   statsHint: '回数、利用時間、設定を送信します。会話、Key、ファイルは送信しません。',
