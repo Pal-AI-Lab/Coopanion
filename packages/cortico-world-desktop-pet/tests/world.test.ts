@@ -913,6 +913,16 @@ describe('size on screen', () => {
     expect(cfg.figureScales).toEqual({ coo: 1.5, whale: .8 });
   });
 
+  it('a size set elsewhere just before a figure is put on stays with the figure it was set for', async () => {
+    const { cfg, post } = await sized();
+    cfg.figureScales = { whale: .8 };
+    // the settings window writes the config directly, between two of the World's syncs
+    cfg.window.scale = 1.7;
+    await post('/api/skin', { skin: whale });
+    expect(cfg.figureScales.coo).toBe(1.7);
+    expect(cfg.window.scale).toBe(.8);
+  });
+
   it('a figure put on together with a size takes that size', async () => {
     const { cfg, post } = await sized();
     cfg.figureScales = { whale: .8 };

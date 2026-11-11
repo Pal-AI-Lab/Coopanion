@@ -1054,6 +1054,8 @@ export class DesktopPetWorld implements World {
   /** Puts on `raw`; with `scale` (a saved look's) at that size, else at the size the figure last had (`followFigure`). */
   private saveSkin(raw: unknown, scale?: unknown): void {
     if (!raw || typeof raw !== 'object') return;
+    // a size set elsewhere since the last sync (the settings window) belongs to the figure on screen, not to this one
+    this.followFigure();
     const skin = raw as PetSkin;
     const size = scaleOf(scale);
     this.opts.persist(size === null ? { skin } : { skin, window: { scale: size } });
@@ -1985,6 +1987,7 @@ export class DesktopPetWorld implements World {
     if (!changes.length) return { text: t.setNothing };
     const lines: string[] = [];
     const apply = (list: SettingChange[]) => {
+      this.followFigure();
       for (const c of list) this.opts.persist(c.patch);
       const skin = this.cfg.skin;
       if (list.some((c) => c.key === 'figure' || c.key === 'scheme')) this.botLook = (skin.figure ?? COO) === COO ? COO : `${skin.figure}:${skin.scheme ?? ''}`;
