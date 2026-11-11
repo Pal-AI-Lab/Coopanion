@@ -1247,6 +1247,8 @@ const ACTIONS = {
     icon: () => (prefs.voice.enabled ? ICONS.mic : ICONS.micOff),
     badge: () => (prefs.voice.enabled ? micBadge() : ''),
     on: () => prefs.voice.enabled,
+    // on, but the recognizer is not ready yet
+    waiting: () => prefs.voice.enabled && !prefs.voice.ready,
     state: () => (!prefs.voice.enabled ? t('action.voiceOff')
       : !prefs.voice.ready ? t('action.voiceNotReady', { detail: prefs.voice.detail || t('action.voiceNoService') })
       : t('action.voiceOn', { mode: t(prefs.voice.mode === 'always' ? 'action.voiceAlways' : 'action.voiceKey'), hint: prefs.voice.hint || '' })),
@@ -1311,13 +1313,14 @@ const ACTIONS = {
 };
 const available = (id) => ACTIONS[id] && (ACTIONS[id].available?.() ?? true);
 
-/** One action as a button: its icon, the badge, and whether a switch is on. */
+/** One action as a button, as a hover button and in the menu alike: its icon, the badge, whether a switch is on, and whether it waits for something not ready. */
 function drawAction(b, id) {
   const a = ACTIONS[id], on = a.on?.();
   const badge = a.badge?.() ?? '';
   b.querySelector('.ic').innerHTML = a.icon() + (badge ? `<b class="badge">${badge}</b>` : '');
   b.classList.toggle('on', on === true);
   b.classList.toggle('off', on === false);
+  b.classList.toggle('waiting', !!a.waiting?.());
   // no tooltip: hovering these buttons is kept for other uses
   b.setAttribute('aria-label', a.state());
   if (on !== undefined) b.setAttribute('aria-pressed', String(on));

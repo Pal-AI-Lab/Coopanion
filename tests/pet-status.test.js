@@ -23,7 +23,7 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
   const sockets = [];
   const bodyChanges = [];
   const body = {
-    layout: { busy: false, facing: 1, cursor: '', bubble: { x: 500, y: 400 }, box: { x: 400, y: 300, w: 100, h: 100 } },
+    layout: { busy: false, facing: 1, cursor: '', x: 450, side: { x: 450, y: 350, reach: 40 }, bubble: { x: 500, y: 400 }, box: { x: 400, y: 300, w: 100, h: 100 } },
     set: (change) => bodyChanges.push(change), cue() {}, talk() {},
   };
   win.requestAnimationFrame = () => 0;
@@ -49,7 +49,7 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     fetchLooks, lookAvailable: () => true, lookPicture: () => '', sameLook,
     SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut,
   };
-  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
+  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
@@ -453,5 +453,17 @@ describe('the size slider opened by hovering its button', () => {
     p.step(.5);
     p.stepSizer();
     expect(sizerEl.classList.contains('leaving') || sizerEl.hidden).toBe(true);
+  });
+});
+
+describe('the voice button', () => {
+  it('is muted while voice input is on and the recognizer is not ready, as a hover button and in the menu alike', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['voice'], voice: { enabled: true, ready: false } });
+    p.openMenu();
+    const hover = p.doc.querySelector('#tools [data-action="voice"]'), tile = p.doc.querySelector('.menu [data-action="voice"]');
+    expect([hover.classList.contains('waiting'), tile.classList.contains('waiting')]).toEqual([true, true]);
+    p.onOrder({ t: 'prefs', voice: { enabled: true, ready: true } });
+    expect([hover.classList.contains('waiting'), tile.classList.contains('waiting')]).toEqual([false, false]);
   });
 });
