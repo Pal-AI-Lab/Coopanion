@@ -58,6 +58,8 @@ export const ICONS = {
   micOff: icon('<rect x="8.5" y="3" width="7" height="11.5" rx="3.5"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16"/>'),
   sound: icon('<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>'),
   soundOff: icon('<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>'),
+  // a small square with an arrow out to a larger one's corner: the size on screen
+  resize: icon('<rect x="3.5" y="12.5" width="8" height="8" rx="2"/><path d="M12.5 3.5h6a2 2 0 0 1 2 2v6"/><path d="M11 13l7-7M13 6h5v5"/>'),
   // a T-shirt: the dressing page
   shirt: icon('<path d="M8.5 3.5 4 6l-1.5 4.5L6 12v8.5h12V12l3.5-1.5L20 6l-4.5-2.5a3.5 3.5 0 0 1-7 0z"/>'),
   eye: icon('<path d="M3 12s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="3"/>'),

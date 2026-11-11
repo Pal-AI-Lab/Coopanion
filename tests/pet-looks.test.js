@@ -45,6 +45,8 @@ async function page(stored) {
     let skin = normalizeSkin({ figure: 'coo', palette: 'purple' });
     const packs = [], theme = 'dark', body = null, sfx = { tick() {}, sparkle() {} }, importDialog = {};
     const cooName = (kind, id) => id, nameOf = (n) => n, apply = () => {};
+    let scale = 1, scaleSent = 1;
+    const sizer = { set() {} }, showScale = () => {};
     ${section}
     window.page = { loadLooks };
   `);

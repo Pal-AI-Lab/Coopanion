@@ -471,3 +471,27 @@ body.desk .floor{display:none}
 @keyframes rail-gear{to{transform:rotate(180deg)}}
 @keyframes rail-press{40%{transform:translateY(2px) scale(.9)}}
 @media (prefers-reduced-motion: reduce){.tool:hover .ic svg, .m-rail .tool:hover svg{animation:none}}
+
+/* the size slider (scale-slider.js), on the dressing page and over the pet */
+.pet-scale{position:relative; flex:none; height:22px; cursor:pointer; touch-action:none; outline:none}
+.pet-scale > .ps-main, .pet-scale > .ps-tail, .pet-scale > .ps-fill{position:absolute; top:9px; height:4px; border-radius:2px}
+.pet-scale > .ps-main{left:0; background:color-mix(in srgb, var(--muted) 35%, transparent)}
+.pet-scale > .ps-tail{background:repeating-linear-gradient(90deg, color-mix(in srgb, var(--muted) 35%, transparent) 0 4px, transparent 4px 7px)}
+.pet-scale > .ps-fill{left:0; background:var(--host-accent, var(--accent))}
+.pet-scale > .ps-divider{position:absolute; top:4px; width:2px; height:14px; margin-left:-1px; border-radius:1px; background:var(--muted)}
+.pet-scale > .ps-thumb{position:absolute; top:3px; width:16px; height:16px; margin-left:-8px; border-radius:50%; background:var(--host-accent, var(--accent))}
+.pet-scale:focus-visible > .ps-thumb{outline:2px solid var(--host-accent, var(--accent)); outline-offset:2px}
+.pet-scale.past > .ps-divider{background:var(--host-accent, var(--accent))}
+/* the size slider over the body (pet-app.js stepSizer): a pill with the slider and its percentage */
+.sizer{
+  position:fixed; z-index:6; display:flex; align-items:center; gap:12px; padding:8px 14px 8px 18px; border-radius:999px;
+  background:var(--surface); color:var(--text); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
+}
+.sizer[hidden]{display:none}
+.sizer .sz-value{min-width:42px; font-size:13px; font-variant-numeric:tabular-nums; color:var(--muted)}
+.sizer.entering{animation:sz-in .2s cubic-bezier(.3,1.5,.5,1) backwards}
+/* SIZER_OUT_MS in pet-app.js */
+.sizer.leaving{animation:sz-out .14s ease-in forwards; pointer-events:none}
+@keyframes sz-in{from{transform:translateY(8px) scale(.6); opacity:0}}
+@keyframes sz-out{to{transform:translateY(8px) scale(.6); opacity:0}}
+@media (prefers-reduced-motion: reduce){.sizer{animation:none}}

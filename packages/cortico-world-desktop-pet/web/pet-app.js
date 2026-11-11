@@ -17,6 +17,7 @@ import { createSpeech, textSteps } from './speech.js';
 import { COO_CSS, PALETTES, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
 import { fetchLooks, lookAvailable, lookPicture, sameLook } from './looks.js';
+import { SIZE, scaleSlider } from './scale-slider.js';
 import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
@@ -29,7 +30,7 @@ document.body.classList.add(host ? 'desk' : 'tab');
 
 const stage = $('#stage');
 const bubble = $('#bubble'), menu = $('#menu');
-const tools = $('#tools'), wheel = $('#wheel');
+const tools = $('#tools'), wheel = $('#wheel'), sizerEl = $('#sizer');
 // Coo's drawing classes for the look wheel's pictures; the bubbles and buttons take their colours from Coo's palette
 // another pack's body sets the theme color instead (accentStyle, after skinStyle so it wins)
 const cooStyle = document.createElement('style'), skinStyle = document.createElement('style'), accentStyle = document.createElement('style');
@@ -276,7 +277,7 @@ function applyPrefs(p) {
   if (p.speech && typeof p.speech === 'object') speech.configure(p.speech);
   if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); modeBtn?.show(p.theme); body?.set({ theme: p.theme }); }
   if (typeof p.glow === 'number') prefs.glow = p.glow;
-  if (typeof p.scale === 'number') { prefs.scale = p.scale; body?.set({ bounds: bounds() }); }
+  if (typeof p.scale === 'number' && takesScale(p.scale)) { prefs.scale = p.scale; body?.set({ bounds: bounds() }); refreshSize(); }
   if (typeof p.bubbleSize === 'number') { prefs.bubbleSize = p.bubbleSize; sizeVar('--bubble-size', p.bubbleSize); }
   if (typeof p.fontSize === 'number') { prefs.fontSize = p.fontSize; sizeVar('--bubble-font', p.fontSize); }
   if (typeof p.bubbleSpeed === 'number') prefs.bubbleSpeed = p.bubbleSpeed;
@@ -1235,6 +1236,13 @@ const ACTIONS = {
     state: () => t('action.hide'),
     run: () => host.hide(),
   },
+  size: {
+    // hovering it shows the size slider (stepSizer); a click keeps the menu open, so the slider stays there
+    keep: true,
+    icon: () => ICONS.resize,
+    state: () => t('action.size', { pct: Math.round(prefs.scale * 100) }),
+    run: () => {},
+  },
   dress: {
     icon: () => ICONS.shirt,
     state: () => t('action.dress'),
@@ -1571,7 +1579,7 @@ function stepTools() {
   // from where the cursor is now, not from the last move event, which may be stale
   const p = cursor.at;
   const l = at();
-  const near = !!p && (body?.hit(p) || overTools(p) || overWheel(p));
+  const near = sizer.active || (!!p && (body?.hit(p) || overTools(p) || overWheel(p) || overSizer(p)));
   if (!near) toolsMuted = false;
   if (near && !toolsMuted) toolsUntil = T + TOOLS_LINGER;
   const confirming = item?.kind === 'ask' && item.confirm && !item.answered;
@@ -1604,16 +1612,20 @@ async function wheelItems() {
   const [saved, figures] = await Promise.all([fetchLooks(), fetch('/api/figures').then((r) => r.json()).catch(() => null)]);
   const list = Array.isArray(figures) ? figures : [], dark = prefs.theme === 'dark';
   const items = (saved ?? []).filter((l) => lookAvailable(l.skin, list))
-    .map((l) => ({ skin: l.skin, on: sameLook(l.skin, skin), html: lookPicture(l.skin, list, dark) }));
+    .map((l) => ({ skin: l.skin, scale: l.scale, on: wearing(l), html: lookPicture(l.skin, list, dark) }));
   if (!items.length) return [];
   if (!items.some((i) => i.on)) items.unshift({ skin, on: true, worn: true, html: lookPicture(skin, list, dark) });
   return items;
 }
 
+/** Whether the pet wears `look` now: its skin, at its size when it keeps one. */
+const wearing = (look) => sameLook(look.skin, skin) && (typeof look.scale !== 'number' || look.scale === prefs.scale);
+
 async function openWheel() {
   // back over a dress button while the row folds away: it fans out again
   if (leaving(wheel)) { clearTimeout(wheelAnim.leave); wheel.classList.remove('leaving'); drawWheel(); return; }
   if (!wheel.hidden || wheelState.opening) return;
+  closeSizer();
   wheelState.opening = true;
   const items = await wheelItems().catch(() => []);
   wheelState.opening = false;
@@ -1678,8 +1690,9 @@ function wearWheel() {
   clearTimeout(wheelState.timer);
   wheelState.timer = 0;
   const item = wheelState.items[wheelState.at];
-  if (!item || sameLook(item.skin, skin)) return;
-  void fetch('/api/skin', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ skin: item.skin }) }).catch(() => {});
+  if (!item || item.worn || wearing(item)) return;
+  const look = typeof item.scale === 'number' ? { skin: item.skin, scale: item.scale } : { skin: item.skin };
+  void fetch('/api/skin', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(look) }).catch(() => {});
 }
 
 /** Turns the row to look `i`; Coo puts it on at once (`now`, a click), or once the row rests there (the mouse wheel). */
@@ -1728,6 +1741,107 @@ document.addEventListener('wheel', (e) => {
   spinTo(wheelState.at + Math.sign(wheelState.acc));
   wheelState.acc = 0;
   wheelState.until = T + WHEEL_LINGER;
+}, { passive: false });
+
+/* ---------- size slider: hovering a size button shows a slider over the body; the body takes each size at once ---------- */
+/** Seconds the slider stays after the pointer leaves it and every size button. */
+const SIZER_LINGER = .35;
+/** Milliseconds the slider takes to fold away (`.sizer.leaving` in pet.css). */
+const SIZER_OUT_MS = 140;
+/** Milliseconds between the sizes sent to the World while the slider moves. */
+const SIZE_SEND_MS = 120;
+/** Milliseconds after a size went out in which a different size from the World is taken as older than it. */
+const SIZE_ECHO_MS = 1000;
+const sizerText = document.createElement('span');
+sizerText.className = 'sz-value';
+const sizer = scaleSlider(document, {
+  ...SIZE, label: '',
+  widths: { collapsed: { width: 160, main: .86 }, expanded: { width: 240, main: .45 } },
+  room: () => innerWidth - 120,
+  onInput: (v) => setSize(v),
+  onChange: () => sendSize(),
+});
+sizerEl.append(sizer.el, sizerText);
+const sizerState = { until: 0, timer: 0, sent: NaN, sentAt: -Infinity, acc: 0 };
+const sizerAnim = { enter: 0, leave: 0 };
+
+/** Draws the body at `v` now and sends it within SIZE_SEND_MS. */
+function setSize(v) {
+  prefs.scale = v;
+  body?.set({ bounds: bounds() });
+  refreshSize();
+  sizerState.timer ||= setTimeout(sendSize, SIZE_SEND_MS);
+}
+function sendSize() {
+  clearTimeout(sizerState.timer);
+  sizerState.timer = 0;
+  if (prefs.scale === sizerState.sent) return;
+  sizerState.sent = prefs.scale;
+  sizerState.sentAt = performance.now();
+  send({ t: 'prefs', scale: prefs.scale });
+}
+/** Whether a size from the World is taken: not while the slider is held or a size waits to go out, nor one older than the last sent. */
+function takesScale(v) {
+  if (sizer.active || sizerState.timer) return false;
+  return v === sizerState.sent || performance.now() - sizerState.sentAt > SIZE_ECHO_MS;
+}
+function refreshSize() {
+  sizerText.textContent = `${Math.round(prefs.scale * 100)}%`;
+  sizer.el.setAttribute('aria-label', t('action.sizeLabel'));
+  if (!sizer.active) sizer.set(prefs.scale);
+  for (const b of document.querySelectorAll('[data-action="size"]')) drawAction(b, 'size');
+}
+
+function openSizer() {
+  // back over a size button while the slider folds away: it stays
+  if (leaving(sizerEl)) { clearTimeout(sizerAnim.leave); sizerEl.classList.remove('leaving'); return; }
+  closeWheel();
+  refreshSize();
+  popIn(sizerEl, sizerAnim);
+  sizer.relayout();
+  const l = at();
+  if (l) placeSizer(l);
+}
+function closeSizer() {
+  if (sizerEl.hidden || leaving(sizerEl) || sizer.active) return;
+  popOut(sizerEl, sizerAnim, SIZER_OUT_MS);
+}
+/**
+ * Centred over the body, just above its head, where the look wheel opens. Placed once as it opens, it stays put while
+ * the body grows or shrinks under it, so the slider does not move away from the pointer.
+ */
+function placeSizer(l) {
+  const b = l.box, w = sizerEl.offsetWidth, h = sizerEl.offsetHeight;
+  sizerEl.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
+  sizerEl.style.top = f(clamp(b.y - h - 22, 8, innerHeight - h - 8)) + 'px';
+}
+function overSizer(p) { return !sizerEl.hidden && !leaving(sizerEl) && inRect(p, sizerEl.getBoundingClientRect(), 6); }
+/** A size button on screen, in the menu or among the hover buttons, is under the pointer. */
+function overSizeButton(p) {
+  for (const b of document.querySelectorAll('.menu:not(.leaving) [data-action="size"], .tools:not(.leaving) [data-action="size"]')) {
+    if (b.offsetParent && inRect(p, b.getBoundingClientRect(), 4)) return true;
+  }
+  return false;
+}
+function stepSizer() {
+  const p = cursor.at;
+  const button = !!p && overSizeButton(p);
+  // a bubble over the pet (the typing box, a reply, a question) takes the slider's place until it closes
+  if (!bubble.hidden && !bubble.classList.contains('status')) { closeSizer(); return; }
+  if (button || sizer.active || (p && overSizer(p))) sizerState.until = T + SIZER_LINGER;
+  if (button && sizerEl.hidden && !clicksPass()) openSizer();
+  if (!sizerEl.hidden && T > sizerState.until) closeSizer();
+}
+// the mouse wheel steps the size over the slider or over a size button: up is larger
+document.addEventListener('wheel', (e) => {
+  if (!e.target.closest?.('.sizer, [data-action="size"]')) return;
+  e.preventDefault();
+  sizerState.acc += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+  if (Math.abs(sizerState.acc) < WHEEL_NOTCH) return;
+  sizer.nudge(-Math.sign(sizerState.acc));
+  sizerState.acc = 0;
+  sizerState.until = T + SIZER_LINGER;
+  sfx.tick();
 }, { passive: false });
 
 /* ---------- pointer ---------- */
@@ -1798,7 +1912,7 @@ function writePointer(now) {
 }
 
 // the menu itself covers the whole page without taking clicks; its two columns are what can be pointed at
-const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]):not(.leaving) > *, .tools:not([hidden]):not(.leaving), .wheel:not([hidden]):not(.leaving)';
+const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]):not(.leaving) > *, .tools:not([hidden]):not(.leaving), .wheel:not([hidden]):not(.leaving), .sizer:not([hidden]):not(.leaving)';
 const overUi = (e) => e.target.closest && e.target.closest(UI_SELECTOR);
 
 /**
@@ -1857,7 +1971,7 @@ document.addEventListener('pointermove', (e) => {
     diag.type = e.pointerType;
     if (!first) logPointer('type', 'move');
   }
-  setInteractive(rendering() && (pressing || hit || ui), 'move');
+  setInteractive(rendering() && (pressing || sizer.active || hit || ui), 'move');
   followDrag(p);
 });
 /**
@@ -1872,7 +1986,7 @@ host?.onCursor?.((p) => {
   if (!inputShape || !p) cursor.at = p;
   if (!p) {
     diag.poll = { at: performance.now(), off: true };
-    if (!pressing) setInteractive(false, 'poll');
+    if (!pressing && !sizer.active) setInteractive(false, 'poll');
     if (polled && !pressing) body?.pointer('leave', {});
     polled = null;
     return;
@@ -1886,7 +2000,7 @@ host?.onCursor?.((p) => {
   const el = document.elementFromPoint(p.x, p.y);
   const hit = !!body?.hit(p), ui = !!el?.closest?.(UI_SELECTOR);
   diag.poll = { at: performance.now(), x: p.x, y: p.y, hit, ui };
-  setInteractive(rendering() && (pressing || hit || ui), 'poll');
+  setInteractive(rendering() && (pressing || sizer.active || hit || ui), 'poll');
 });
 /** A press that began on the body and has not been let go of: the window keeps the mouse meanwhile. */
 let pressing = false;
@@ -2202,6 +2316,7 @@ function frame(steps, now, last) {
       stepBackdrop(dt);
       stepTools();
       stepWheel();
+      stepSizer();
       layout(dt);
       stepInputShape();
       // the frame's own time, so the layer shows frames as far apart as they were drawn
