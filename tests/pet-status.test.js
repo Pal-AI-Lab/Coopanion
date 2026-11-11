@@ -5,6 +5,7 @@ import { clamp, f, ICONS, linked } from '../packages/cortico-world-desktop-pet/w
 import { COO_CSS, mini, normalizeSkin, skinCss } from '../packages/cortico-world-desktop-pet/web/coo/coo.js';
 import { t } from '../packages/cortico-world-desktop-pet/web/i18n.js';
 import { SIZE, scaleSlider } from '../packages/cortico-world-desktop-pet/web/scale-slider.js';
+import { sameLook as realSameLook } from '../packages/cortico-world-desktop-pet/web/looks.js';
 
 const WEB = new URL('../packages/cortico-world-desktop-pet/web/', import.meta.url);
 const source = readFileSync(new URL('pet-app.js', WEB), 'utf8').replace(/^import .*;$/gm, '');
@@ -13,7 +14,7 @@ const pages = [];
 afterEach(() => { for (const p of pages.splice(0)) p.close(); });
 
 /** Run the actual page with a quiet socket and body; the test advances the page's frame clock. */
-function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = async () => [] } = {}) {
+function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = async () => [], sameLook = (a, b) => a === b } = {}) {
   const dom = new JSDOM(html, { url: `http://127.0.0.1/pet${hash}`, runScripts: 'outside-only' });
   const win = dom.window;
   pages.push(win);
@@ -44,7 +45,7 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     createMic: () => ({ start() {}, stop() {} }),
     // the test advances the page's clock itself (`step`)
     runFrames() {},
-    fetchLooks, lookAvailable: () => true, lookPicture: () => '', sameLook: (a, b) => a === b,
+    fetchLooks, lookAvailable: () => true, lookPicture: () => '', sameLook,
     SIZE, scaleSlider,
   };
   win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, stepWheel, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
@@ -361,6 +362,25 @@ describe('look wheel over the dress button', () => {
     p.bubble.hidden = true;
     await frames(p);
     expect(reads).toBe(2);
+  });
+
+  it('keeps the look it opened on at the head of the row after a favourite of another size is put on', async () => {
+    const fox = { figure: 'coo', palette: 'fox' };
+    const p = page({ fetchLooks: async () => [{ id: 'a', name: 'a', skin: fox, scale: 2 }], sameLook: realSameLook });
+    dressButton(p);
+    over(p);
+    await frames(p);
+    expect([...wheel(p).children].map((b) => b.classList.contains('worn'))).toEqual([true, false]);
+    // the favourite goes on at its size and the row closes, as when the dress button moved from under the pointer
+    p.onOrder({ t: 'prefs', skin: fox, scale: 2 });
+    off(p);
+    p.step(1);
+    await frames(p, 1);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(wheel(p).hidden).toBe(true);
+    over(p);
+    await frames(p);
+    expect([...wheel(p).children].map((b) => [b.classList.contains('worn'), b.classList.contains('on')])).toEqual([[true, false], [false, true]]);
   });
 
   it('opens the row with one read when there are favourites', async () => {

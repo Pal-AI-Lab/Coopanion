@@ -60,7 +60,13 @@ body.dress-page{
 .looks-empty{margin:0; font-size:13px; line-height:1.5; color:var(--muted)}
 .looks-retry{margin-left:8px; padding:0; border:0; background:none; font:inherit; color:var(--accent); cursor:pointer; text-decoration:underline}
 .slot.looks{grid-column:1 / -1}
-.opt.look{gap:7px}
+.opt.look{gap:7px; position:relative}
+/* the picture stands on the tile's floor at the share of it its size gives (looks.js pictureFill); the size in the corner */
+.look-pic{display:flex; align-items:flex-end; justify-content:center; width:52px; height:52px; overflow:hidden; background:var(--swatch-bg); border-radius:6px}
+.opt .look-pic > svg, .opt .look-pic > img{width:calc(100% * var(--look-fill)); height:calc(100% * var(--look-fill)); background:none; border-radius:0}
+.look-size{position:absolute; top:6px; left:8px; padding:0 4px; border-radius:4px; font-size:10.5px; font-weight:600; line-height:16px;
+  font-variant-numeric:tabular-nums; color:var(--muted); background:color-mix(in srgb, var(--surface) 80%, transparent)}
+.opt.look.changed .look-size{left:18px}
 /* a favourite whose pack was uninstalled */
 .opt.look.gone{opacity:.45; cursor:default}
 .opt.look span{max-width:84px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
@@ -116,6 +122,7 @@ button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
   .dress .row-label{padding-top:6px}
   .opt{min-width:64px}
   .opt svg, .opt img{width:46px; height:46px}
+  .look-pic{width:46px; height:46px}
 }
 /* importing packs: the tile after the figures, the problems under them, the dialog, the drop hint */
 .opt.import{border-style:dashed}
@@ -156,7 +163,8 @@ button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 html.is-list-dragging, html.is-list-dragging *{cursor:none !important; user-select:none}
 .look-drag-copy{position:fixed; z-index:20; margin:0; pointer-events:none; border-radius:10px; box-shadow:0 0 0 1px var(--line), 0 14px 30px -14px rgba(0,0,0,.45)}
 .look-drag-copy .look-acts{display:none}
-/* the size row: the slider and its percentage, as tall as a row of tiles' label line */
-.slot.size{padding-top:12px}
+/* the size row: its label and the slider with its percentage centred on one line */
+.dress #lbSize, .slot.size{align-self:center; padding-top:0}
+@media (max-width:640px){ .dress #lbSize{padding-top:6px} }
 .size-row{display:flex; align-items:center; gap:14px; min-width:0}
 .size-value{min-width:44px; font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums}

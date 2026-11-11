@@ -148,7 +148,7 @@ Right-click Coo to open settings, the typing box or dress up, to switch voice in
 
 Change the figure, colors and accessories on the **Dress up** page, including the accessories' main and accent colors; changes apply right away. Figure packs can be imported from a zip or a folder, or dragged onto the page, and imported packs are uninstalled there too. Import, replacement and uninstall confirmations, progress and errors use the settings window’s shared dialogs. **Size**, under the figures, sets how large Coo is on the desktop; each figure keeps its own size and gets it back when you switch to it again. The preview keeps one size.
 
-The star at the top right of the preview adds the look Coo wears to **Favourite looks**, listed in one row at the top of the page: click one to put it on, drag it to reorder, or rename and delete it. A favourite keeps the size it was saved at and puts it back on with the look. After you pick a favourite and change it, its size included, a save button next to the star writes the change back to it.
+The star at the top right of the preview adds the look Coo wears to **Favourite looks**, listed in one row at the top of the page: click one to put it on, drag it to reorder, or rename and delete it. A favourite keeps the size it was saved at and puts it back on with the look; its picture is drawn at that size, with the percentage in its corner. After you pick a favourite and change it, its size included, a save button next to the star writes the change back to it.
 
 You can also just ask Coo to change its look. By default it changes its figure, colors, walking and snoring on its own, and asks you first before changing sizes, sounds, night mode or names; **Habits → Self-adjustment** loosens or tightens this.
 

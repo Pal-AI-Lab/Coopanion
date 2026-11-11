@@ -397,7 +397,8 @@ function renderLooks() {
   for (const look of looks) {
     const tile = el('span', 'look-tile');
     tile.dataset.id = look.id;
-    const b = el('button', 'opt wide look', lookPicture(look.skin, packs, theme === 'dark'));
+    const b = el('button', 'opt wide look', lookPicture(look.skin, packs, theme === 'dark', look.scale));
+    if (typeof look.scale === 'number') b.appendChild(el('b', 'look-size')).textContent = `${Math.round(look.scale * 100)}%`;
     b.type = 'button';
     const gone = packs.length > 0 && !lookAvailable(look.skin, packs);
     b.disabled = gone;

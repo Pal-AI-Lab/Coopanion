@@ -1605,16 +1605,25 @@ const wheelState = { items: [], at: 0, until: 0, timer: 0, acc: 0, opening: fals
 const wheelAnim = { enter: 0, leave: 0 };
 
 /**
+ * The look worn, with its size, when the row last opened on one that is not a favourite. It leads the row until a look
+ * outside the favourites is worn again, so the row can always turn back to it: also after the row closed because a
+ * favourite of another size moved the dress button from under the pointer.
+ */
+let stash = null;
+
+/**
  * The favourite looks to switch between (looks.js), leaving out those whose pack was uninstalled; none, none shown.
- * A look worn that is not among them leads the row, so turning the row away from it can turn back to it.
+ * `stash` leads the row (dashed) while it is not among them.
  */
 async function wheelItems() {
   const [saved, figures] = await Promise.all([fetchLooks(), fetch('/api/figures').then((r) => r.json()).catch(() => null)]);
   const list = Array.isArray(figures) ? figures : [], dark = prefs.theme === 'dark';
   const items = (saved ?? []).filter((l) => lookAvailable(l.skin, list))
-    .map((l) => ({ skin: l.skin, scale: l.scale, on: wearing(l), html: lookPicture(l.skin, list, dark) }));
+    .map((l) => ({ skin: l.skin, scale: l.scale, on: wearing(l), html: lookPicture(l.skin, list, dark, l.scale) }));
   if (!items.length) return [];
-  if (!items.some((i) => i.on)) items.unshift({ skin, on: true, worn: true, html: lookPicture(skin, list, dark) });
+  if (!items.some((i) => i.on)) stash = { skin, scale: prefs.scale };
+  else if (stash && items.some((i) => sameLook(i.skin, stash.skin) && (i.scale ?? stash.scale) === stash.scale)) stash = null;
+  if (stash) items.unshift({ ...stash, on: wearing(stash), worn: true, html: lookPicture(stash.skin, list, dark, stash.scale) });
   return items;
 }
 
@@ -1690,7 +1699,7 @@ function wearWheel() {
   clearTimeout(wheelState.timer);
   wheelState.timer = 0;
   const item = wheelState.items[wheelState.at];
-  if (!item || item.worn || wearing(item)) return;
+  if (!item || wearing(item)) return;
   const look = typeof item.scale === 'number' ? { skin: item.skin, scale: item.scale } : { skin: item.skin };
   void fetch('/api/skin', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(look) }).catch(() => {});
 }
@@ -1807,12 +1816,12 @@ function closeSizer() {
   popOut(sizerEl, sizerAnim, SIZER_OUT_MS);
 }
 /**
- * Centred over the body, just above its head, where the look wheel opens. Placed once as it opens, it stays put while
- * the body grows or shrinks under it, so the slider does not move away from the pointer.
+ * Centred over the body, just above its head, where the look wheel opens, following the head as the body grows or
+ * shrinks. While the slider is dragged only its height follows: a bar moving sideways would move the value under the pointer.
  */
 function placeSizer(l) {
   const b = l.box, w = sizerEl.offsetWidth, h = sizerEl.offsetHeight;
-  sizerEl.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
+  if (!sizer.active) sizerEl.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
   sizerEl.style.top = f(clamp(b.y - h - 22, 8, innerHeight - h - 8)) + 'px';
 }
 function overSizer(p) { return !sizerEl.hidden && !leaving(sizerEl) && inRect(p, sizerEl.getBoundingClientRect(), 6); }
@@ -2152,9 +2161,11 @@ function layout(dt = 0) {
   // the sounds come from where Coo is on its display: screenX and availLeft (the left of the work area the pet window
   // covers) count from the same origin across all displays
   sfx.setPan(((screenX - screen.availLeft + l.x) / (screen.availWidth || innerWidth)) * 2 - 1);
-  if (!tools.hidden) placeTools(l);
+  // the buttons hold still under the pointer: a look or size put on from them moves the body, not the button pointed at
+  if (!tools.hidden && !(cursor.at && overTools(cursor.at))) placeTools(l);
   if (!menu.hidden) placeMenu(l);
   if (!wheel.hidden) placeWheel(l);
+  if (!sizerEl.hidden) placeSizer(l);
   const a = l.bubble;
   let sayBox = null;
   // choice cards and a World's confirmation keep their bubble where it was; its tail follows Coo along the bottom edge
