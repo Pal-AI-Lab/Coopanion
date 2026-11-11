@@ -91,7 +91,11 @@ const floorGap = () => (host ? 2 + below : 48);
 const drawnScale = springSize(1);
 /** Whether a size has come from the World yet: the first one is taken at once, without the spring. */
 let scaleSeen = false;
-const bounds = () => ({ W: innerWidth, H: innerHeight, floorY: innerHeight - floorGap(), S: .42 * drawnScale.value });
+/**
+ * In a tab (the settings window's 开始 preview, or the page opened in a browser) the body is drawn at size 1 whatever the
+ * size setting, as the dressing page's preview is: the setting is the desktop window's, and a large one would not fit.
+ */
+const bounds = () => ({ W: innerWidth, H: innerHeight, floorY: innerHeight - floorGap(), S: .42 * (host ? drawnScale.value : 1) });
 /**
  * The body on screen (body-host.js), null until the first one is ready, and the words it does (its pack's
  * vocab, by id). `T` is the page's clock, in seconds of frames drawn.
@@ -232,7 +236,7 @@ async function swapBody(s) {
   body = next;
   shownLook = JSON.stringify(s);
   // the new body comes in at the size it is put on at; the switch carries the change of size (swap-motion.js)
-  const ratio = prefs.scale / drawnScale.value;
+  const ratio = host ? prefs.scale / drawnScale.value : 1;
   if (drawnScale.value !== prefs.scale) { drawnScale.jump(prefs.scale); next.set({ bounds: bounds() }); }
   if (old) {
     haloAfter = performance.now() + SWAP_MS;
@@ -1277,7 +1281,9 @@ const ACTIONS = {
     run: () => host.hide(),
   },
   size: {
-    // hovering it shows the size slider (stepSizer); a tap, where nothing hovers, shows it for SIZER_TAP seconds
+    // hovering it shows the size slider (stepSizer); a tap, where nothing hovers, shows it for SIZER_TAP seconds;
+    // only on the desktop: a tab draws the body at one size
+    available: () => !!host,
     keep: true,
     icon: () => ICONS.resize,
     state: () => t('action.size', { pct: Math.round(prefs.scale * 100) }),
@@ -2383,7 +2389,7 @@ function frame(steps, now, last) {
     if (msg !== frameErr) { frameErr = msg; console.error(err); }
   }
   // a switch of figure or look, or a size on its way, is motion too: at the resting rate it would show as stutter
-  const full = drawn && (prefs.lockFrameRate || !!at()?.moving || drawnScale.moving || performance.now() < smoothUntil);
+  const full = drawn && (prefs.lockFrameRate || !!at()?.moving || (!!host && drawnScale.moving) || performance.now() < smoothUntil);
   // a moving rate of 0 draws on every display refresh
   return { fps: full ? prefs.frameRate : drawn ? RESTING_FPS : HIDDEN_FPS, refresh: full };
 }

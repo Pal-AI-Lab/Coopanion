@@ -394,3 +394,17 @@ describe('look wheel over the dress button', () => {
     expect(wheel(p).hidden).toBe(false);
   });
 });
+
+describe('the size the body is drawn at', () => {
+  const drawnS = (p) => p.bodyChanges.filter((c) => c.bounds).at(-1)?.bounds.S;
+
+  it('follows the size setting on the desktop and stays at size 1 in a tab, as a preview', () => {
+    const desk = page({ host: true });
+    desk.onOrder({ t: 'prefs', scale: 3 });
+    expect(drawnS(desk)).toBeCloseTo(.42 * 3);
+    const tab = page();
+    tab.onOrder({ t: 'prefs', scale: 3 });
+    tab.step(1);
+    expect(drawnS(tab)).toBeCloseTo(.42);
+  });
+});
