@@ -23,7 +23,8 @@ function setup(make) {
   s.el.getBoundingClientRect = () => ({ left: 0, top: 0 });
   s.el.setPointerCapture = () => {};
   win.document.body.append(s.el);
-  const pointer = (type, x) => s.el.dispatchEvent(new win.MouseEvent(type, { clientX: x, button: 0, bubbles: true }));
+  // as a real drag: the button is held from the press until the release
+  const pointer = (type, x) => s.el.dispatchEvent(new win.MouseEvent(type, { clientX: x, button: 0, buttons: type === 'pointerup' ? 0 : 1, bubbles: true }));
   return { s, pointer };
 }
 const widthOf = (el) => parseFloat(el.style.width);
@@ -44,5 +45,18 @@ describe.each(copies)('$name, dragged past the divider', ({ make, thumb, main })
     expect(widthOf(s.el.querySelector(main))).toBeCloseTo(mainBefore, 5);
     pointer('pointerup', mainBefore + 150);
     expect(s.active).toBe(false);
+  });
+});
+
+describe.each(copies)('$name, let go where the page does not hear it', ({ make }) => {
+  it('ends the drag when the page loses the pointer, or a move comes with no button down', () => {
+    for (const how of ['lostpointercapture', 'move']) {
+      const { s, pointer } = setup(make);
+      pointer('pointerdown', 100);
+      expect(s.active).toBe(true);
+      if (how === 'lostpointercapture') pointer('lostpointercapture', 100);
+      else s.el.dispatchEvent(new s.el.ownerDocument.defaultView.MouseEvent('pointermove', { clientX: 120, buttons: 0, bubbles: true }));
+      expect(s.active).toBe(false);
+    }
   });
 });

@@ -177,7 +177,6 @@ export function scaleSlider(doc, o) {
     left = null;
     dragTo(localX(e));
   });
-  el.addEventListener('pointermove', (e) => { if (held) dragTo(localX(e)); });
   // the bar as the drag left it settles into the rest layout for the value let go at
   const end = () => {
     if (!held) return;
@@ -189,8 +188,16 @@ export function scaleSlider(doc, o) {
     draw();
     o.onChange(value);
   };
+  el.addEventListener('pointermove', (e) => {
+    if (!held) return;
+    // a move with no button down: the release was missed (let go over another window), and the drag is over
+    if (e.buttons === 0) { end(); return; }
+    dragTo(localX(e));
+  });
   el.addEventListener('pointerup', end);
   el.addEventListener('pointercancel', end);
+  // the page lost the pointer without a release reaching it: a drag left held would keep the pet window taking the mouse
+  el.addEventListener('lostpointercapture', end);
   el.addEventListener('keydown', (e) => {
     const keys = {
       ArrowRight: () => value + step(value, true), ArrowUp: () => value + step(value, true),
