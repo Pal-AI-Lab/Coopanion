@@ -1784,13 +1784,25 @@ function overDress(p) {
   }
   return false;
 }
+/**
+ * Whether `p` is still on its way to `el`, a control shown over the body's head: in the column the body's box and `el`
+ * span together. Going from a button beside a large body to the control over its head crosses the body, which takes
+ * longer than the control waits for a pointer that has left it; while the pointer is in that column, it waits on.
+ */
+function onTheWay(p, el) {
+  const l = at();
+  if (!p || !l || el.hidden || leaving(el)) return false;
+  const r = el.getBoundingClientRect(), b = l.box;
+  return inRect(p, { left: Math.min(r.left, b.x), right: Math.max(r.right, b.x + b.w), top: Math.min(r.top, b.y), bottom: Math.max(r.bottom, b.y + b.h) }, 6);
+}
+
 function stepWheel() {
   const p = cursor.at;
   const dress = !!p && overDress(p);
   if (!dress) wheelState.empty = false;
   // a bubble over the pet (the typing box, a reply, a question) takes the wheel's place until it closes
   if (!bubble.hidden && !bubble.classList.contains('status')) { if (!wheel.hidden) closeWheel(); return; }
-  if (dress || (p && overWheel(p))) wheelState.until = T + WHEEL_LINGER;
+  if (dress || (p && overWheel(p)) || onTheWay(p, wheel)) wheelState.until = T + WHEEL_LINGER;
   if (dress && wheel.hidden && !wheelState.empty && !clicksPass()) void openWheel();
   if (!wheel.hidden && T > wheelState.until) closeWheel();
 }
@@ -1897,7 +1909,7 @@ function stepSizer() {
   // a bubble over the pet (the typing box, a reply, a question) takes the slider's place until it closes; with every
   // click passing through the window it could not be used
   if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { pinSizer(false); closeSizer(); return; }
-  if (button || sizer.active || sizerPinned || (p && overSizer(p))) sizerState.until = T + SIZER_LINGER;
+  if (button || sizer.active || sizerPinned || (p && overSizer(p)) || onTheWay(p, sizerEl)) sizerState.until = T + SIZER_LINGER;
   if (button && sizerEl.hidden && !clicksPass()) openSizer();
   if (!sizerEl.hidden && T > sizerState.until) closeSizer();
 }

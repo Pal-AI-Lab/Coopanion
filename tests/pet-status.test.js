@@ -433,3 +433,25 @@ describe('the size slider pinned by a click on its button', () => {
     expect(shown(p)).toBe(false);
   });
 });
+
+describe('the size slider opened by hovering its button', () => {
+  it('stays while the pointer crosses the body on its way up, and goes once the pointer is off both', async () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
+    const button = p.doc.querySelector('#tools [data-action="size"]');
+    // jsdom lays nothing out: the button is at the page's top left
+    Object.defineProperty(button, 'offsetParent', { value: p.doc.body });
+    const sizerEl = p.doc.querySelector('#sizer');
+    p.cursor.at = { x: 0, y: 0 };
+    p.stepSizer();
+    expect(sizerEl.hidden).toBe(false);
+    // on the body (its box is 400–500 × 300–400) for longer than the slider waits off it
+    p.cursor.at = { x: 450, y: 350 };
+    for (let i = 0; i < 4; i++) { p.step(.5); p.stepSizer(); }
+    expect(sizerEl.hidden || sizerEl.classList.contains('leaving')).toBe(false);
+    p.cursor.at = { x: 900, y: 900 };
+    p.step(.5);
+    p.stepSizer();
+    expect(sizerEl.classList.contains('leaving') || sizerEl.hidden).toBe(true);
+  });
+});
