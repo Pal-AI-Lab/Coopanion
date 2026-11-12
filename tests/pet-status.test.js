@@ -27,6 +27,8 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     set: (change) => bodyChanges.push(change), cue() {}, talk() {},
   };
   win.requestAnimationFrame = () => 0;
+  // scale-slider.js is imported here, in the test's own globals: its frames come from there
+  globalThis.requestAnimationFrame ??= () => 0;
   win.fetch = async () => ({ json: async () => [] });
   win.WebSocket = class {
     readyState = 1;

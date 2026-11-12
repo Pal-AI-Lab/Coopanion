@@ -232,7 +232,8 @@ export function scaleSlider(doc, o) {
     el,
     get value() { return value; },
     get active() { return !!held; },
-    set(v) { value = snap(v); k = from = target = value > o.soft ? 1 : 0; left = null; draw(); },
+    /** A size set from outside: the knob moves there, and the bar widens or narrows as a step makes it. */
+    set(v) { const next = snap(v); if (next === value) return; value = next; if (!held) settle(); draw(); },
     /** One step up (`dir` 1) or down (-1), as an arrow key moves it; reported through onInput. */
     nudge(dir) { stepTo(value + (dir > 0 ? step(value, true) : -step(value, false))); },
     relayout: () => draw(),

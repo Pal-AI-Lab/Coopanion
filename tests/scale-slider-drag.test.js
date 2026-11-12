@@ -77,3 +77,16 @@ describe('the pet pages’ slider, stepped by the wheel', () => {
     expect(s.value).toBeCloseTo(1.1, 5);
   });
 });
+
+describe('the pet pages’ slider, stepped past the divider by the wheel', () => {
+  it('widens over time even when the page sets the size it just stepped to', () => {
+    const { s } = setup(petSlider);
+    s.set(2);
+    const before = widthOf(s.el);
+    s.nudge(1);
+    // the pet page echoes each step back through set()
+    s.set(s.value);
+    expect(s.value).toBeCloseTo(2.1, 5);
+    expect(widthOf(s.el)).toBeCloseTo(before, 0);
+  });
+});
