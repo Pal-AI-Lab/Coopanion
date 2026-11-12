@@ -548,6 +548,7 @@ function pointedAt() {
 bubble.addEventListener('click', (e) => {
   if (item?.kind !== 'say' || item.skippedAt !== undefined || bubble.hidden || e.target.closest('a')) return;
   item.skippedAt = T;
+  send({ t: 'skipped', id: item.id });
   speech.stop();
   sfx.tick();
   bubble.classList.add('fading');

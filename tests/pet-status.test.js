@@ -33,8 +33,9 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
   win.fetch = async () => ({ json: async () => [] });
   win.WebSocket = class {
     readyState = 1;
+    sent = [];
     constructor(url) { this.url = new URL(url); sockets.push(this); }
-    send() {}
+    send(data) { this.sent.push(JSON.parse(data)); }
   };
   win.deps = {
     applyTheme: (theme) => { win.document.documentElement.dataset.theme = theme; }, clamp, f, ICONS, linked: (text, n) => linked(text, n, win.document),
@@ -484,9 +485,10 @@ describe("closing Coo's line with a click", () => {
   const beat = (text) => ({ text, actions: [], anchors: [] });
   const click = (p, el = p.bubble) => el.dispatchEvent(new p.win.MouseEvent('click', { bubbles: true }));
 
-  it('ends the whole line: the voice stops, the later beats never show, and the next line follows', () => {
+  it('ends the whole line: the voice stops, the later beats never show, and the next line follows', async () => {
     let stopped = 0;
     const p = page({ speech: { stop: () => { stopped++; } } });
+    await expect.poll(() => p.sockets.length).toBe(1);
     p.onOrder({ t: 'say', id: 'a', beats: [beat('第一段'), beat('第二段')] });
     p.onOrder({ t: 'say', id: 'b', beats: [beat('下一句')] });
     p.step(.01); p.step(.5);
@@ -498,6 +500,8 @@ describe("closing Coo's line with a click", () => {
     // a second click while it fades changes nothing
     click(p);
     expect(stopped).toBe(before + 1);
+    // the World hears of it once, so its queue counts from now
+    expect(p.sockets.flatMap((s) => s.sent).filter((m) => m.t === 'skipped')).toEqual([{ t: 'skipped', id: 'a' }]);
     p.step(p.LINE_FADE); p.step(.01); p.step(1);
     expect(p.bubble.textContent).toBe('下一句');
     expect(p.bubble.classList.contains('fading')).toBe(false);
