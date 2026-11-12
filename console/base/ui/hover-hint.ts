@@ -7,6 +7,8 @@
  * title there, such as a World status dot's, is only taken away.
  */
 const DELAY_MS = 450;
+/** How long a hint takes to fade out (`.hover-hint.leaving`, styles.css), as the pet's pages' (hints.js). */
+const LEAVE_MS = 120;
 const EDGE = 8;
 
 /** Moves the element's title into `data-tip`, keeping what it told a screen reader; returns the hint. */
@@ -32,10 +34,21 @@ export function mountHoverHints(doc: Document, signal: AbortSignal): void {
   doc.body.append(box);
   let current: HTMLElement | null = null;
   let timer = 0;
+  let leave = 0;
 
-  const hide = (): void => { win.clearTimeout(timer); current = null; box.classList.add('hidden'); };
+  const hideNow = (): void => { win.clearTimeout(leave); box.classList.remove('leaving'); box.classList.add('hidden'); };
+  /** Leaving one element for another, or for none: the hint fades out; a press, a key or a scroll hides it at once. */
+  const hide = (soft = false): void => {
+    win.clearTimeout(timer);
+    current = null;
+    if (!soft) { hideNow(); return; }
+    if (box.classList.contains('hidden') || box.classList.contains('leaving')) return;
+    box.classList.add('leaving');
+    leave = win.setTimeout(hideNow, LEAVE_MS);
+  };
   const show = (el: HTMLElement, text: string): void => {
     if (!el.isConnected) return;
+    hideNow();
     box.textContent = text;
     box.classList.remove('hidden');
     const rect = el.getBoundingClientRect();
@@ -58,7 +71,7 @@ export function mountHoverHints(doc: Document, signal: AbortSignal): void {
     const cut = !titled && target instanceof win.HTMLElement ? cutText(target) : '';
     const el = titled ?? (cut ? target as HTMLElement : null);
     if (el === current) return;
-    hide();
+    hide(true);
     if (!el || el instanceof HTMLIFrameElement) return;
     const text = titled ? takeTitle(el) : cut;
     // In the rail a title (a World's status dot) is only taken away: the rail shows no hints.
@@ -67,10 +80,10 @@ export function mountHoverHints(doc: Document, signal: AbortSignal): void {
     timer = win.setTimeout(() => show(el, text), DELAY_MS);
   }, { signal });
   doc.addEventListener('pointerout', (event) => {
-    if (current && !current.contains(event.relatedTarget as Node | null)) hide();
+    if (current && !current.contains(event.relatedTarget as Node | null)) hide(true);
   }, { signal });
-  for (const type of ['pointerdown', 'keydown', 'wheel'] as const) doc.addEventListener(type, hide, { capture: true, signal });
-  doc.addEventListener('scroll', hide, { capture: true, passive: true, signal });
-  win.addEventListener('blur', hide, { signal });
-  signal.addEventListener('abort', () => { win.clearTimeout(timer); box.remove(); }, { once: true });
+  for (const type of ['pointerdown', 'keydown', 'wheel'] as const) doc.addEventListener(type, () => hide(), { capture: true, signal });
+  doc.addEventListener('scroll', () => hide(), { capture: true, passive: true, signal });
+  win.addEventListener('blur', () => hide(), { signal });
+  signal.addEventListener('abort', () => { win.clearTimeout(timer); win.clearTimeout(leave); box.remove(); }, { once: true });
 }

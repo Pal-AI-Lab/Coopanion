@@ -76,7 +76,8 @@ const lightFor = (s) => {
 };
 
 const sfx = createSfx();
-mountHints(document);
+// on the desktop the hints name the hover buttons, over whatever lies behind: they close on their own
+mountHints(document, { autoClose: !!host });
 // Coo's speech stands in for the babble while it is on; its units move the mouth
 const speech = createSpeech(sfx, { onUnit: () => body?.talk() });
 /** The talk key is listening: no line makes a sound until it lets go. */

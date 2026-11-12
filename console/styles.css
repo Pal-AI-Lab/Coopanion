@@ -547,6 +547,12 @@
 
   .u-tip { position: fixed; z-index: 130; pointer-events: none; box-sizing: border-box; width: max-content; max-width: min(268px, calc(100vw - 16px)); background: var(--sheet); border: 1px solid var(--line-strong); border-radius: 9px; padding: 9px 11px; box-shadow: 0 6px 22px var(--shadow-soft); font: 12px var(--sans); color: var(--ink); overflow-wrap: anywhere; }
   .u-tip.hidden { display: none; }
+  /* every hint box fades in a little under its place; the hover hints also fade out (hover-hint.ts), as the pet's (pet.css .hint) */
+  .u-tip { animation: tip-in .16s ease-out; }
+  .u-tip.leaving { animation: tip-out .12s ease-in forwards; }
+  @keyframes tip-in { from { opacity: 0; transform: translateY(-3px); } }
+  @keyframes tip-out { to { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .u-tip, .u-tip.leaving { animation: none; } }
   .u-tip .tt-h { font: 600 12.5px var(--mono); color: var(--accent); margin-bottom: 3px; }
   .u-tip .tt-tot { font: 12px var(--mono); color: var(--ink-soft); margin-bottom: 4px; }
   .u-tip .tt-row { display: grid; grid-template-columns: 9px minmax(0, 1fr) auto; align-items: start; gap: 6px; margin: 2px 0; }

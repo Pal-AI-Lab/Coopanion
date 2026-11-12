@@ -7,11 +7,11 @@ describe('hover hints on the pet pages', () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); win?.close(); });
 
-  function page() {
+  function page(options = { autoClose: true }) {
     win = new JSDOM('<!doctype html><body><button data-tip="大小"><span class="ic"></span></button><button data-tip="装扮"></button></body>').window;
     // jsdom's timers are the window's: the fake clock drives them through the page's own setTimeout
     win.setTimeout = setTimeout; win.clearTimeout = clearTimeout;
-    mountHints(win.document);
+    mountHints(win.document, options);
     const [size, dress] = win.document.querySelectorAll('button');
     const box = win.document.querySelector('.hint');
     const over = (el, from = null) => el.dispatchEvent(new win.MouseEvent('pointerover', { bubbles: true, relatedTarget: from }));
@@ -61,5 +61,12 @@ describe('hover hints on the pet pages', () => {
     vi.advanceTimersByTime(DELAY_MS);
     dress.dispatchEvent(new win.MouseEvent('pointerdown', { bubbles: true }));
     expect(box.hidden).toBe(true);
+  });
+
+  it('stays while the pointer does without autoClose, as in the dress window', () => {
+    const { size, box, over } = page({});
+    over(size);
+    vi.advanceTimersByTime(DELAY_MS + 3 * SHOW_MS);
+    expect(box.hidden).toBe(false);
   });
 });

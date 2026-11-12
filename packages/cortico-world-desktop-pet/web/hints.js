@@ -1,11 +1,13 @@
 /**
  * Hover hints, drawn as the settings window draws its own (`console/base/ui/hover-hint.ts`, `.u-tip`): a title
  * moves to `data-tip` the first time the pointer reaches it, and shows a moment later in a box under the
- * element, or above it when there is no room below, for SHOW_MS: it closes on its own and does not come back until
- * the pointer has left the element. A title set again later replaces the hint the next time.
+ * element, or above it when there is no room below. With `autoClose` (the desktop pet's own window, where the hints
+ * name its hover buttons) it closes on its own after SHOW_MS and does not come back until the pointer has left the
+ * element; elsewhere it stays while the pointer does. A title set again later replaces the hint the next time.
+ * It fades in and out as the settings window's does (`.hint`, pet.css; `.u-tip`, console/styles.css).
  */
 export const DELAY_MS = 450;
-/** How long a hint stays up while the pointer rests on its element. */
+/** How long a hint stays up while the pointer rests on its element, with `autoClose`. */
 export const SHOW_MS = 1000;
 /** How long a hint takes to fade out (`.hint.leaving`, pet.css). */
 export const LEAVE_MS = 120;
@@ -23,7 +25,7 @@ function takeTitle(el) {
   return el.dataset.tip ?? '';
 }
 
-export function mountHints(doc) {
+export function mountHints(doc, { autoClose = false } = {}) {
   const win = doc.defaultView;
   const box = doc.createElement('div');
   box.className = 'hint';
@@ -45,7 +47,7 @@ export function mountHints(doc) {
     box.textContent = text;
     box.hidden = false;
     // `current` stays the element, so moving within it does not bring the hint back
-    timer = win.setTimeout(fade, SHOW_MS);
+    if (autoClose) timer = win.setTimeout(fade, SHOW_MS);
     const r = el.getBoundingClientRect();
     const { offsetWidth: w, offsetHeight: h } = box;
     const below = r.bottom + 6;
