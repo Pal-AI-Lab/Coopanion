@@ -252,7 +252,7 @@ const de: Translation<PetText> = {
       snore: { title: 'Schnarchen', description: '' },
       talk: { title: 'Sprechen', description: 'Das Geplapper, während Sprechblasentext erscheint, und aufpoppende Auswahlkarten.' },
       ui: { title: 'Schaltflächen und Signale', description: 'Schaltflächenklicks, sich öffnende Sprechblasen, Auswahlen sowie Beginn und Ende des Zuhörens.' },
-      alert: { title: 'Hinweise', description: 'Ein Signal, wenn Coo vor der Nutzung des Computers um Erlaubnis fragt.' },
+      alert: { title: 'Hinweise', description: 'Ein Signal, wenn Coo um eine Bestätigung bittet.' },
     },
     snoreSeconds: { title: 'Schnarchdauer', suffix: 's', description: 'In jedem Schlaf wird das Haustier nach so langem Schnarchen still; die Zs schweben weiter. 0 = schnarchen bis zum Aufwachen.' },
     panByPosition: { title: 'Nach Position verteilen', description: 'Töne kommen von der Seite, auf der Coo steht; aus, werden sie mittig abgespielt.' },

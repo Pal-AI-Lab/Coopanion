@@ -252,7 +252,7 @@ const it: Translation<PetText> = {
       snore: { title: 'Russare', description: '' },
       talk: { title: 'Parlare', description: 'Il borbottio mentre appare il testo del fumetto, e le schede di scelta che spuntano.' },
       ui: { title: 'Pulsanti e segnali', description: "Clic sui pulsanti, apertura dei fumetti, selezioni, inizio e fine dell'ascolto." },
-      alert: { title: 'Avvisi', description: 'Un segnale quando Coo ti chiede il permesso prima di usare il computer.' },
+      alert: { title: 'Avvisi', description: 'Un segnale quando Coo ti chiede una conferma.' },
     },
     snoreSeconds: { title: 'Durata del russare', suffix: 's', description: "In ogni sonno l'animaletto smette di russare dopo questo tempo; le z continuano a fluttuare. 0 = russa fino al risveglio." },
     panByPosition: { title: 'Bilanciamento in base alla posizione', description: 'I suoni pendono verso il lato in cui si trova Coo; disattivato, suonano al centro.' },
