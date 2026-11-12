@@ -1523,8 +1523,9 @@
 .pagetabs[data-line="appear"]::after { animation: tab-line-appear 160ms ease-out; }
 @keyframes tab-line-appear { from { opacity: 0; clip-path: inset(0 50%); } to { opacity: 1; clip-path: inset(0); } }
 @media (prefers-reduced-motion: reduce) { .pagetabs[data-line]::after { transition: none; animation: none; } }
-/* a page's section names in one row down to the smallest settings window (880 px), in every language */
-@media (max-width: 960px) { .pagetabs.sectiontabs { column-gap: 18px; } }
+/* a page's section names: under 760 px of content width the longest row (Russian, about 750 px at the full gap) no
+   longer fits, so the gap narrows, with the rail open or folded; a row still too long wraps, as every page's tabs do */
+@container console-content (max-width: 760px) { .pagetabs.sectiontabs { column-gap: 18px; } }
 
 .schema-toolbar > input.field { width: 70%; min-width: 0; }
 .toolgroup-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
