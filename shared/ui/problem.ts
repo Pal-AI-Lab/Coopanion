@@ -79,15 +79,14 @@ export function wheelDelta(event: WheelEvent): number {
   return event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? (event.view?.innerHeight ?? 800) : 1);
 }
 
-/** How quickly a forwarded wheel glides: the distance left shrinks by e every this many milliseconds, as a wheel over the scroller itself glides. */
+/** Time constant of a forwarded wheel's glide: the distance left falls to 1/e every this many milliseconds. */
 const WHEEL_GLIDE_MS = 36;
 const glides = new WeakMap<HTMLElement, { to: number; at: number; frame: number; wrote: number }>();
 /**
- * Scrolls `target` for a wheel turned over something on top of it or beside it (a floating box, a header): the same
- * distance as over `target` itself, and gliding there as the browser's own wheel scrolling does instead of jumping.
- * Steps that come while it glides add to where it is going, so a quick spin goes as far as over `target`. Ctrl with
- * the wheel (zooming) and a wheel turned sideways are left to the browser; anything else moving `target` meanwhile (its
- * scrollbar, a key, the page putting it back where it was) stops the glide.
+ * Scrolls `target` by a wheel turned over something on top of it or beside it (a floating box, a header): the same
+ * distance, eased. Steps that come while it glides extend where it is going. Ctrl with the wheel (zooming) and a wheel
+ * turned sideways are left to the browser; any other change to `target.scrollTop` meanwhile (its scrollbar, a key, the
+ * page putting it back where it was) ends the glide.
  */
 export function wheelInto(target: HTMLElement, event: WheelEvent): void {
   if (event.ctrlKey || !event.deltaY) return;
@@ -108,7 +107,8 @@ export function wheelInto(target: HTMLElement, event: WheelEvent): void {
     // moved some other way since the last frame: that wins
     if (Math.abs(target.scrollTop - g.wrote) > 1) { g.frame = 0; return; }
     const left = g.to - g.at;
-    g.at += left * (1 - Math.exp(-(now - last) / WHEEL_GLIDE_MS));
+    // a frame's time is when the frame began, which can be before the wheel's handler ran
+    g.at += left * (1 - Math.exp(-Math.max(0, now - last) / WHEEL_GLIDE_MS));
     last = now;
     if (Math.abs(g.to - g.at) < .5) g.at = g.to;
     target.scrollTop = g.at;

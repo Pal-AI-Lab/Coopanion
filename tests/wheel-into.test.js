@@ -28,6 +28,17 @@ describe('a wheel turned over a box on top of a scroller (shared/ui/problem.ts w
     expect(el.scrollTop).toBe(300);
   });
 
+  it('never moves back first when the frame began before the wheel arrived', () => {
+    const { el, wheel } = scroller();
+    el.scrollTop = 500;
+    const frames = [];
+    win.requestAnimationFrame = (step) => { frames.push(step); return frames.length; };
+    const arrived = win.performance.now();
+    wheel(100);
+    frames.shift()(arrived - 1.5);
+    expect(el.scrollTop).toBeGreaterThanOrEqual(500);
+  });
+
   it('stops at the ends', async () => {
     const { el, wheel, settle } = scroller();
     for (let i = 0; i < 30; i++) wheel(100);
