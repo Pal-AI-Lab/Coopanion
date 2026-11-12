@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Needs Cortico 0.2.15: a request refused for its images is sent again through Cortico's `ImageFallback` (`cortico/providers/transport/image-fallback.ts`), and every instance declares `handlesRefusedImages`. A 422 is no longer sent again without its images. A 413 is sent again without them whatever its body says, and one that is still refused then counts as a context overflow.
 - Package-root exports no longer include `anthropicPrices`, `deepseekPrices`, `vendorPrices`, `CHATGPT_MODULE`, `chatgptEntry`, `connectionVendor`, `endpointName`, `firstVendor`, `locate`, `regionsOf`, `vendorById` or `SignInStatus`. Use `vendorPrices` from `src/pricing.ts` for price tables and look ids up in `VENDORS` (`vendorById` is gone). `CHATGPT_MODULE`, `chatgptEntry`, `connectionVendor`, `endpointName`, `firstVendor`, `locate` and `regionsOf` live in `src/vendors.ts`, and `SignInStatus` in `src/chatgpt/auth.ts`.
 
 ## 0.3.1
