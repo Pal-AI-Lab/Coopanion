@@ -1996,7 +1996,8 @@ export class DesktopPetWorld implements World {
     const t = this.t;
     if (selfAdjustMode(this.cfg.selfAdjust) === 'off') return { text: t.selfAdjustOff('pet_set', this.userName), failed: true };
     const packs = this.packs();
-    const { changes, errors } = planSettings(args, { ...this.cfg, user: this.userName }, packs, this.language, capFor(USER_MAX, this.appLanguage), this.appLanguage);
+    const plan = (a: Record<string, unknown>) => planSettings(a, { ...this.cfg, user: this.userName }, packs, this.language, capFor(USER_MAX, this.appLanguage), this.appLanguage);
+    const { changes, errors } = plan(args);
     if (errors.length) return { text: t.setErrors(errors), failed: true };
     if (!changes.length) return { text: t.setNothing };
     const lines: string[] = [];
@@ -2017,7 +2018,8 @@ export class DesktopPetWorld implements World {
     const says = (list: SettingChange[]) => list.map((c) => c.say);
     const mine = changes.filter((c) => c.tier === 'self');
     if (mine.length) { const also = apply(mine); lines.push(t.setDone([...says(mine), ...also])); }
-    const asked = changes.filter((c) => c.tier === 'ask');
+    // a figure put on above may have taken back its own size: a size still to be asked for is measured from the one on screen now
+    const asked = changes.filter((c) => c.tier === 'ask').flatMap((c) => (c.key === 'scale' && mine.length ? plan({ scale: args.scale }).changes : [c]));
     if (asked.length) {
       const c = this.ui.consent;
       const answer = await this.confirm(c.question(asked.map((x) => x.show)), c.choices);

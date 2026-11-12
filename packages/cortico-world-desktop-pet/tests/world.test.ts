@@ -958,17 +958,49 @@ describe('size on screen', () => {
     expect(cfg.figureScales).toEqual({ whale: .8, coo: 1.5 });
   });
 
-  it('pet_set says the size changed when a figure it puts on takes back its own', async () => {
+  function robotPacks() {
     const root = mkdtempSync(join(tmpdir(), 'packs-'));
     mkdirSync(join(root, 'robot'));
     writeFileSync(join(root, 'robot', 'figure.json'), JSON.stringify({
       manifest: 2, api: 2, id: 'robot', name: { zh: '机器人' }, about: { zh: '一个机器人' }, entry: 'figure.js', export: 'createBody', axes: [], presets: [], vocab: [],
     }));
-    const { world, cfg } = await sized({ packRoots: () => [root] });
+    return () => [root];
+  }
+
+  it('pet_set says the size changed when a figure it puts on takes back its own', async () => {
+    const { world, cfg } = await sized({ packRoots: robotPacks() });
     cfg.figureScales = { robot: .8 };
     const receipt = (await tool(world, 'pet_set').handler({ figure: 'robot' }, ctx) as { text: string }).text;
     expect(cfg.window.scale).toBe(.8);
     expect(receipt).toContain(`${DESKTOP_PET_DEFAULTS.window.scale} 倍 → 0.8 倍`);
+  });
+
+  it('pet_set asks for a size from the one on screen after the figure it put on took back its own', async () => {
+    const { world, cfg } = await sized({ packRoots: robotPacks() });
+    cfg.figureScales = { robot: .8 };
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const set = tool(world, 'pet_set').handler({ figure: 'robot', scale: 1.5 }, ctx) as Promise<{ text: string }>;
+    const c = await page.next((m) => m.t === 'confirm');
+    expect(c.question).toContain('把大小从 0.8 倍改成 1.5 倍');
+    page.send({ t: 'confirmed', id: c.id, index: 2 });
+    const receipt = (await set).text;
+    expect(cfg.window.scale).toBe(.8);
+    expect(receipt).toContain('0.8 倍 → 1.5 倍');
+    expect(receipt).not.toContain(`${DESKTOP_PET_DEFAULTS.window.scale} 倍 → 1.5 倍`);
+  });
+
+  it('pet_set does not ask for a size the figure it put on already took back', async () => {
+    const { world, cfg } = await sized({ packRoots: robotPacks() });
+    cfg.figureScales = { robot: .8 };
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const set = tool(world, 'pet_set').handler({ figure: 'robot', scale: .8 }, ctx) as Promise<{ text: string }>;
+    const asked = await Promise.race([set.then(() => null), page.next((m) => m.t === 'confirm')]);
+    if (asked) page.send({ t: 'confirmed', id: asked.id, index: 2 });
+    expect(asked).toBeNull();
+    expect(cfg.window.scale).toBe(.8);
+    expect((await set).text).not.toContain('没改');
   });
 
   it('sizes from the pages are kept in range and in steps, and others are ignored', async () => {
