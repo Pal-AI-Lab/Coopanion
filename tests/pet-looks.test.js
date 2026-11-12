@@ -52,10 +52,13 @@ async function page(stored) {
   return {
     state, stored: () => kept, doc,
     load: () => win.page.loadLooks(),
+    /** Clicks save and resolves once the page shows the outcome: the button's saved mark, or a notice. */
     save: async () => {
-      const before = kept;
-      doc.querySelector('#saveLook').click();
-      await expect.poll(() => kept !== before || doc.querySelector('#saved').textContent !== '').toBe(true);
+      const button = doc.querySelector('#saveLook'), notice = doc.querySelector('#saved');
+      button.classList.remove('done');
+      notice.textContent = '';
+      button.click();
+      await expect.poll(() => button.classList.contains('done') || notice.textContent !== '').toBe(true);
     },
     tiles: () => doc.querySelectorAll('.look-tile').length,
     row: () => doc.querySelector('#optLooks').textContent,
