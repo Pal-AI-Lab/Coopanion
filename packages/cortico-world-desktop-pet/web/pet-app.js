@@ -1142,7 +1142,8 @@ function setStatus(next) {
   const prev = status.wanted;
   if (prev?.kind === next?.kind && prev?.text === next?.text && prev?.detail === next?.detail && prev?.count === next?.count && prev?.countdown === next?.countdown) return;
   if (prev?.kind !== next?.kind) status.since = T;
-  if (next?.countdown !== undefined) status.countFrom = performance.now();
+  // a countdown starts when it arrives; a later count of calls beside it leaves it running
+  if (next?.countdown !== undefined && next.countdown !== prev?.countdown) status.countFrom = performance.now();
   status.wanted = next;
 }
 function drawStatus(next, pop) {

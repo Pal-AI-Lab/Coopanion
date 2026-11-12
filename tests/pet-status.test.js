@@ -449,6 +449,15 @@ describe('a countdown in the activity bubble', () => {
     expect(p.bubble.textContent).toBe('在等待');
   });
 
+  it('keeps counting when only the number of calls beside it changes', () => {
+    const p = page();
+    const pass = clock(p);
+    show(p, wait); pass(0);
+    pass(1.2);
+    show(p, { ...wait, count: 2 }); pass(0);
+    expect(p.bubble.textContent).toBe(`在等待 · ${t('status.seconds', { seconds: 2 })}${t('status.more', { others: 1 })}`);
+  });
+
   it('keeps the seconds out of what a screen reader hears, so it is read once', () => {
     const p = page();
     const pass = clock(p);

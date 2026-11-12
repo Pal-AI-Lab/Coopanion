@@ -1,5 +1,8 @@
 ## Unreleased
 
+- `PetStatus` may carry `countdown`, the seconds a call lasts. `StatusTracker` passes it on only while that call runs (RunPhase `running`), and the page shows the whole seconds left after `text`, out of what screen readers read. A describer that sets no `countdown` behaves as before. `waitSeconds(seconds)` is exported: how long `pet_cua_wait` waits for an argument, 0–30, 1 when absent.
+- Sound kind `alert` (`worlds.desktop-pet.sounds.alert`, on by default) plays once as a confirmation bubble shows. Packs cannot file sounds under it.
+- A click on a line's bubble, away from its links, ends the whole line; questions and confirmations still close only by their × or an answer.
 - While the pet window is hidden the page ticks the body with `draw` false (`tick { dt, draw }`, `step(dt, draw)`): the body moves on without drawing, so walks still arrive. `kit.createBody` honours it; a pack that ignores it draws as before.
 - `kit.createBody(host, { ground: 'free' })` builds a body that stands anywhere on the stage above the floor, seen from above: it walks to any point, is set down where it is let go of, and a throw tosses it across the stage. Such a body reports `y` (the stage y its feet stand on) in `layout()`, in `arrived` and `interrupted`; the World keeps it with the remembered position (`petY`, hands it back as `start.y` and `init.startY`) and names it in `pet_move_to`'s receipt. `place(x, facing, y)` takes an optional `y`. Bodies without `y` behave as before.
 - `kit.createBody` answers the pack's own targets through `opts.moves`: `{ id: (params, bounds) => ({ x, y? }) | null }`.
