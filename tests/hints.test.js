@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { DELAY_MS, SHOW_MS, mountHints } from '../packages/cortico-world-desktop-pet/web/hints.js';
+import { DELAY_MS, LEAVE_MS, SHOW_MS, mountHints } from '../packages/cortico-world-desktop-pet/web/hints.js';
 
 describe('hover hints on the pet pages', () => {
   let win;
@@ -27,8 +27,12 @@ describe('hover hints on the pet pages', () => {
     expect(box.textContent).toBe('大小');
     vi.advanceTimersByTime(SHOW_MS - 1);
     expect(box.hidden).toBe(false);
+    // fading out, then gone
     vi.advanceTimersByTime(1);
+    expect(box.classList.contains('leaving')).toBe(true);
+    vi.advanceTimersByTime(LEAVE_MS);
     expect(box.hidden).toBe(true);
+    expect(box.classList.contains('leaving')).toBe(false);
     // moving within the button does not bring it back
     over(size.querySelector('.ic'), size);
     vi.advanceTimersByTime(2 * SHOW_MS);
@@ -38,10 +42,24 @@ describe('hover hints on the pet pages', () => {
   it('shows again once the pointer has left the button and come back', () => {
     const { size, dress, box, over, out } = page();
     over(size);
-    vi.advanceTimersByTime(DELAY_MS + SHOW_MS);
+    vi.advanceTimersByTime(DELAY_MS + SHOW_MS + LEAVE_MS);
     out(size, dress);
     over(size, dress);
     vi.advanceTimersByTime(DELAY_MS);
     expect(box.hidden).toBe(false);
+  });
+
+  it('fades out when the pointer leaves, and goes at once on a press', () => {
+    const { size, dress, box, over, out } = page();
+    over(size);
+    vi.advanceTimersByTime(DELAY_MS);
+    out(size, null);
+    expect(box.classList.contains('leaving')).toBe(true);
+    vi.advanceTimersByTime(LEAVE_MS);
+    expect(box.hidden).toBe(true);
+    over(dress);
+    vi.advanceTimersByTime(DELAY_MS);
+    dress.dispatchEvent(new win.MouseEvent('pointerdown', { bubbles: true }));
+    expect(box.hidden).toBe(true);
   });
 });
