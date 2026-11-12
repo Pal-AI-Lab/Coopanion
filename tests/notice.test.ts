@@ -1,8 +1,9 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WorldHost } from 'cortico/core/types.ts';
+import { DESKTOP_PET_DEFAULTS } from 'cortico-world-desktop-pet';
 import { noticeDefinition, releaseLetter, releaseNotes, type AlarmsState } from '../core/notice.ts';
 
 /** A releases directory with one file per version, each `## 下载` section after its body. */
@@ -113,7 +114,48 @@ describe('notice state recovery', () => {
     await world.start({ pushDeferred: () => {} } as unknown as WorldHost);
     try {
       expect(readFileSync(`${stateFile}.bad`, 'utf8')).toBe(content);
-      expect(JSON.parse(readFileSync(stateFile, 'utf8'))).toEqual({ version: '0.2.6' });
+      expect(JSON.parse(readFileSync(stateFile, 'utf8'))).toMatchObject({ version: '0.2.6' });
     } finally { await world.stop(); }
+  });
+});
+
+describe('the right-click menu showing the hover buttons alone', () => {
+  const dirs: string[] = [];
+  afterEach(() => { vi.useRealTimers(); for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
+
+  /** A deployment directory, with the state an earlier version left when `last` is given. */
+  function deployment(last?: string): string {
+    const dir = mkdtempSync(join(tmpdir(), 'coo-notice-menu-'));
+    dirs.push(dir);
+    if (last) writeFileSync(join(dir, 'notice.json'), JSON.stringify({ version: last }));
+    return dir;
+  }
+
+  /** One run of the app over `dir` with the pet page connected: how many times Coo is told the menu changed. */
+  async function told(dir: string, opts: { newInstall?: boolean; hover?: string } = {}): Promise<number> {
+    vi.useFakeTimers();
+    const world = noticeDefinition({
+      version: '0.2.20', notesDir: dir, stateFile: join(dir, 'notice.json'), alarmsFile: join(dir, 'alarms.json'),
+      newInstall: () => opts.newInstall === true,
+      read: (path) => (path === 'worlds.desktop-pet.hoverButtons' ? opts.hover ?? DESKTOP_PET_DEFAULTS.hoverButtons : undefined),
+      petConnected: () => true, guiding: () => false, refreshTools: async () => {}, label: () => 'notice',
+    }).create({ timezone: 'UTC' } as never);
+    const pushed: Array<{ type: string; render: () => string | null }> = [];
+    await world.start({ pushDeferred: (e: { type: string; render: () => string | null }) => pushed.push(e) } as unknown as WorldHost);
+    try {
+      vi.advanceTimersByTime(3000);
+      return pushed.filter((e) => e.render() !== null && e.type === 'coopanion.menu-changed').length;
+    } finally { await world.stop(); }
+  }
+
+  it('is told once to an install from an earlier version with the default hover buttons, and never to a new install', async () => {
+    const earlier = deployment('0.2.19');
+    expect(await told(earlier)).toBe(1);
+    expect(await told(earlier)).toBe(0);
+    expect(await told(deployment('0.2.19'), { hover: 'chat,voice,dress' })).toBe(0);
+    const fresh = deployment();
+    expect(await told(fresh, { newInstall: true })).toBe(0);
+    // the introduction is over and left the default hover buttons
+    expect(await told(fresh)).toBe(0);
   });
 });
