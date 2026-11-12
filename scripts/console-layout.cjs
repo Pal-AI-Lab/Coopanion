@@ -74,6 +74,7 @@ async function startServer() {
   server = spawn(process.env.npm_node_execpath || 'node', ['--import', 'tsx', join(ROOT, 'scripts', 'console-test.ts'), '--port', String(PORT), '--data', DATA], {
     cwd: ROOT,
     stdio: ['ignore', log, log, 'ipc'],
+    windowsHide: true,
   });
   server.on('exit', (code) => fail(`console-test exited (${code}); see ${LOG}`));
 }

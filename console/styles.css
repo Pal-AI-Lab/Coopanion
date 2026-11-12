@@ -1478,6 +1478,10 @@
 .featureintro > .pagetabs { margin-top:16px; border-bottom:0; }
 .featureintro:has(+ .pagetabs) { border-bottom:0; }
 .featureslot > .featureintro { position:sticky; top:0; z-index:20; padding-top:30px; margin-bottom:24px; background:var(--background); }
+/* the held heading is the slot's scroll-padding itself: what is in it is always in view, so focusing it scrolls nothing */
+.featureslot > .featureintro * { scroll-margin-top:calc(-1 * var(--page-scroll-inset, 0px)); }
+/* a section that a jump focused shows no ring; the control the next Tab reaches does */
+.featureslot > [tabindex="-1"]:focus { outline:none; }
 .featureslot > .featureintro + * { margin-top:0; }
 .featureslot > .featureintro + .sheet { margin-top:0; }
 /* 面板槽是滚动容器，吸顶元素贴在 padding 内沿，所以上方留白放在第一项的外边距上;World 页模板的工具条贴着栏目条 */
@@ -1519,6 +1523,9 @@
 .pagetabs[data-line="appear"]::after { animation: tab-line-appear 160ms ease-out; }
 @keyframes tab-line-appear { from { opacity: 0; clip-path: inset(0 50%); } to { opacity: 1; clip-path: inset(0); } }
 @media (prefers-reduced-motion: reduce) { .pagetabs[data-line]::after { transition: none; animation: none; } }
+/* a page's section names: under 760 px of content width the longest row (Russian, about 750 px at the full gap) no
+   longer fits, so the gap narrows, with the rail open or folded; a row still too long wraps, as every page's tabs do */
+@container console-content (max-width: 760px) { .pagetabs.sectiontabs { column-gap: 18px; } }
 
 .schema-toolbar > input.field { width: 70%; min-width: 0; }
 .toolgroup-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }

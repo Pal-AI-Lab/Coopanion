@@ -42,7 +42,7 @@ import { sectionTabs } from '../../base/ui/section-tabs.ts';
 import { CUA_GROUP, cuaSection } from '../cua/index.ts';
 import { S as CUA } from '../cua/strings.ts';
 import { announceName } from '../bot-name.ts';
-import { scaleSlider } from './scale-slider.ts';
+import { scaleSlider } from 'cortico-world-desktop-pet/web/scale-slider.js';
 import { S } from './strings.ts';
 
 const GROUP = 'world:desktop-pet';
@@ -167,6 +167,7 @@ async function mount(ctx: PageContext): Promise<void> {
   const scaleText = ui.h('span', 'companion-rangeval');
   const scaleBox = ui.h('div', 'companion-rangebox');
   const scale = scaleSlider(root.ownerDocument, {
+    className: 'companion-scale',
     min: SCALE_MIN, soft: SCALE_SOFT_MAX, max: SCALE_MAX, label: S.scale,
     room: () => scaleBox.clientWidth - scaleText.offsetWidth - 12,
     onInput: () => { showScale(); scaleTimer ??= setTimeout(sendScale, SCALE_SEND_MS); },
@@ -179,6 +180,7 @@ async function mount(ctx: PageContext): Promise<void> {
   const glowText = ui.h('span', 'companion-rangeval');
   const glowBox = ui.h('div', 'companion-rangebox');
   const glow = scaleSlider(root.ownerDocument, {
+    className: 'companion-scale',
     min: 0, soft: GLOW_MAX, max: GLOW_MAX, step: 1, label: S.glow, format: glowLabel,
     room: () => glowBox.clientWidth - glowText.offsetWidth - 12,
     onInput: () => showGlow(),
@@ -193,6 +195,7 @@ async function mount(ctx: PageContext): Promise<void> {
     const box = ui.h('div', 'companion-rangebox');
     const show = () => { text.textContent = `${Math.round(slider.value * 100)}%`; };
     const slider = scaleSlider(root.ownerDocument, {
+      className: 'companion-scale',
       min, soft: max, max, step: .05, label,
       room: () => box.clientWidth - text.offsetWidth - 12,
       onInput: () => show(),
@@ -451,6 +454,7 @@ async function mount(ctx: PageContext): Promise<void> {
   const volumeText = ui.h('span', 'companion-rangeval');
   const volumeBox = ui.h('div', 'companion-rangebox');
   const volume = scaleSlider(root.ownerDocument, {
+    className: 'companion-scale',
     min: 0, soft: 100, max: 100, step: 1, label: S.volume, format: (v) => `${v}%`,
     room: () => volumeBox.clientWidth - volumeText.offsetWidth - 12,
     onInput: () => showVolume(),
