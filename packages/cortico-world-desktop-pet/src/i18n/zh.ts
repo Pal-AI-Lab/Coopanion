@@ -279,7 +279,7 @@ export default {
       snore: { title: '打呼噜', description: '' },
       talk: { title: '说话', description: '气泡里逐字冒出的叽咕声、选项卡片弹出的声音。' },
       ui: { title: '按钮与提示', description: '点按钮、气泡弹出、选中、开始和结束听你说话。' },
-      alert: { title: '提醒', description: '请你确认时响一声。' },
+      alert: { title: '提醒', description: 'Coo 请你确认时的提示音。' },
     } as Record<'move' | 'touch' | 'face' | 'snore' | 'talk' | 'ui' | 'alert', { title: string; description: string }>,
     snoreSeconds: { title: '呼噜时长', suffix: '秒', description: '每次睡着后打这么久呼噜就安静下来，Z 照样飘；0 = 一直打到醒。' },
     panByPosition: { title: '按位置分配左右声道', description: '声音偏向 Coo 所在的一侧，关闭后居中播放。' },
