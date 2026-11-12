@@ -101,4 +101,10 @@ export const petToolDecls = (language: Language = 'zh'): Array<Omit<ToolDef, 'ha
       required: ['actions'],
     },
   },
+  {
+    name: 'pet_see_self',
+    tags: ['read', 'snapshot'],
+    description: 'See yourself as you are drawn on screen at the moment of the call. Returns one picture of the body alone, the figure in its dress, pose and expression on a plain grey backdrop, without bubbles or the desktop, and a line naming the figure and its dress. Fails while the pet window is hidden or not connected: nothing is drawn then.',
+    parameters: { type: 'object', properties: {}, required: [] },
+  },
 ];
