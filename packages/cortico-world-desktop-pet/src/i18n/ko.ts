@@ -252,6 +252,7 @@ const ko: Translation<PetText> = {
       snore: { title: '코골이', description: '' },
       talk: { title: '말하기', description: '말풍선 글자가 나타날 때의 옹알이 소리와 선택 카드가 튀어나오는 소리.' },
       ui: { title: '버튼과 알림음', description: '버튼 클릭, 말풍선 열림, 선택, 듣기 시작과 끝.' },
+      alert: { title: '알림', description: '확인을 요청할 때 한 번 울립니다.' },
     },
     snoreSeconds: { title: '코골이 시간', suffix: '초', description: '잠들 때마다 이만큼 코를 곤 뒤 조용해지며, z는 계속 떠오릅니다. 0 = 깰 때까지 코골이.' },
     panByPosition: { title: '위치에 따라 좌우 배분', description: 'Coo가 있는 쪽으로 소리가 치우칩니다. 끄면 가운데에서 재생됩니다.' },

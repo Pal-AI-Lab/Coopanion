@@ -32,6 +32,7 @@
 
 import { actionProblem } from '../../base/ui/problem.ts';
 import { ICONS } from 'cortico-world-desktop-pet/web/ui.js';
+import { SOUND_KINDS as PAGE_SOUND_KINDS } from 'cortico-world-desktop-pet/web/sound.js';
 import { captureKey, PRESSES, splitTaps, withTaps } from 'cortico-world-desktop-pet/webui/key-capture.ts';
 import { get, invokePanel, setConfig } from '../../base/api.ts';
 import type { Page, PageContext } from '../../base/page.ts';
@@ -111,8 +112,8 @@ interface TypeKeyState { enabled: boolean; hotkey: string; keyLabel: string; pro
 const ACTIONS: ReadonlyArray<[id: string, icon: string]> = [
   ['chat', 'chat'], ['voice', 'mic'], ['roam', 'roam_calm'], ['theme', 'moon'], ['sound', 'sound'], ['hide', 'eyeOff'], ['size', 'resize'], ['dress', 'shirt'], ['worlds', 'boxes'],
 ];
-/** Kinds of sound (the World's SOUND_KINDS), each under `worlds.desktop-pet.sounds.<kind>`. */
-const SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk', 'ui'] as const;
+/** Kinds of sound, each a switch under `worlds.desktop-pet.sounds.<kind>`: the kinds the pet page mutes by. */
+const SOUND_KINDS = Object.keys(PAGE_SOUND_KINDS);
 /** The speech's steps, their numbers and the range of a custom one (SPEECH_LEVELS, SPEECH_PITCH_HZ, SPEECH_RATE in the World's config.ts). */
 const SPEECH_LEVELS = ['low', 'mid', 'high', 'custom'] as const;
 const SPEECH_PITCH = { steps: { low: 300, mid: 400, high: 500 } as Record<string, number>, min: 200, max: 700 };

@@ -95,6 +95,7 @@ Windows 上每 0.8 秒用 GDI 取一小块身体周围的屏幕像素来比,其�
 气泡尺寸 `worlds.desktop-pet.window.bubbleSize` 缩放所有气泡的宽度、留白、圆角、尾巴、离头顶的距离和连到桌宠的小圆点,边框粗细不变;
 字体尺寸 `window.fontSize` 缩放气泡里的字和同一行的小图标,气泡的宽度不变。两项都是 0.8–1.6 倍,默认 1,不随桌宠的大小变。
 气泡速度 `window.bubbleSpeed` 是 0.5–2 倍,默认 1:Coo 的气泡每秒打 20 乘以它个字,打完后的停留时间除以它,`pet_say` 报的显示时长也按它算。
+点一下台词气泡(链接除外)结束整句:声音停下,这句后面的段不再显示,队列里的下一条接着出;页面回报 `skipped`,之后 `pet_say` 回执里的排队时间从这时起算;提问和确认气泡只能用 × 或回答关掉。
 音量 `worlds.desktop-pet.sounds.volume`(声音组，整数 0–100,默认 100)按百分比调低桌宠页和装扮页的所有声音，说话声也在内，两页之间的响度比例不变。
 桌宠页的音效和说话声按 Coo 在所在显示器上的左右位置分配左右声道(`web/sound.js` 的 `setPan`),pan 值钳在 ±0.5 以内，贴着屏幕边时远侧也听得到;
 `worlds.desktop-pet.sounds.panByPosition`(声音组，默认开)关闭后居中播放，没有 `StereoPannerNode` 的浏览器里也居中。
@@ -140,7 +141,7 @@ Windows 上每 0.8 秒用 GDI 取一小块身体周围的屏幕像素来比,其�
 | 看屏幕 | 眼睛左右扫,「在看屏幕 / 在看开着的窗口」 |
 | 鼠标与切窗口 | 指针加波纹,「在点 / 在双击 / 在右键 / 在挪鼠标 / 在拖 / 在切窗口」;「在滚动」用滚轮动画 |
 | 键盘 | 键帽起落,「在打字」或「在按 · 按键」 |
-| 等待 | 沙漏翻转,「等 · N 秒」 |
+| 等待 | 沙漏翻转,「在等待 · N 秒」:等待真正开始时起按剩下的整秒倒数,连着几个等待各按自己的秒数重新倒数,数完只留「在等待」;读屏软件只念「在等待」,不念秒数 |
 | 闹钟 | 闹钟摇动,「在定闹钟 · 时间或 N 分钟后 / 在看闹钟 / 在取消闹钟」 |
 | 其他扩展工具 | 齿轮转动,只写「在忙」 |
 
@@ -152,7 +153,7 @@ Windows 上每 0.8 秒用 GDI 取一小块身体周围的屏幕像素来比,其�
 
 `worlds.desktop-pet.statusBubble` 默认开启,可在「习惯」页关闭「显示 Coo 在忙什么」。关闭时不画状态气泡,
 身体的思考表情和思考小圆泡照常。这个开关不在 `pet_set` 的可改项中,也不进入统计。
-页面协议新增 `{ t: 'status', status: { kind, text, detail?, count? } | null }`;`init` 和 `prefs` 同样带
+页面协议新增 `{ t: 'status', status: { kind, text, detail?, count?, endsAt? } | null }`(`endsAt`:正在运行的等待结束的时刻,Date.now() 毫秒,页面按它倒数);`init` 和 `prefs` 同样带
 `status`、`statusBubble`,供重连时恢复。`status` 变化只发状态消息,不会触发整份偏好广播;原来的 `thinking` 消息由它替代,
 kit 的身体(`web/kit/body.js`)另收 `set({ thoughtShown })`,表示页面正在气泡里显示思考。
 每个身体还收 `set({ status })`:状态气泡此刻的类别(上表的 `kind`,如 `read`、`type`),没有状态时为 null;kit 把它放进交给 `figure.draw` 的 `frame.status`,
@@ -563,7 +564,7 @@ macOS 的辅助功能查询每次最多等待 200ms,超时后仍报告前台程�
 借了哪个就只画哪个按钮或菜单行(暂停要 `isPaused` 和 `setPaused`,设置要 `openSettings`,退出要 `quit` 与可选的 `quitLabel`,可以是每次开菜单时调用的函数);
 `onCreate` 拿到 World 实例,应用可以调 `world.confirm(问题, [同意, 不同意])` 弹一个两选项气泡(或 `[同意, 以后都同意, 不同意]` 三选项,中间那项答 `always`),
 结果是 `yes` / `no` / `dismissed` / `timeout` / `unavailable`(没有桌宠页),不会作为事件送给 bot。
-确认排在还没放完的台词后面,这些台词改成六倍速打字、不出声、每拍停 1 秒;气泡露面时页面回报 `confirm-shown`,从这时起 60 秒没人答就是 `timeout`,
+确认排在还没放完的台词后面,这些台词改成六倍速打字、不出声、每拍停 1 秒;气泡露面时响一声提醒(`sounds.alert`,只响一次),页面回报 `confirm-shown`,从这时起 60 秒没人答就是 `timeout`,
 一直没露面时从发出起 3 分钟算 `timeout`;超时时 World 发 `ask-close`,页面把这条确认从队列或气泡上收掉。确认气泡停在露面的位置,Coo 走开时不跟着走,确认期间不弹悬停按钮。
 
 应用自己的一问一答(比如首次启动的引导)用 `world.dialog(步骤)`:Coo 在气泡里说一句,下面接一个输入组件,

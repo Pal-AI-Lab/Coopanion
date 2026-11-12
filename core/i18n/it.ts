@@ -43,7 +43,6 @@ const it: Translation<CoreText> = {
     move: 'Muove il mouse', drag: 'Trascina', mouseDown: 'Preme il tasto del mouse', mouseUp: 'Rilascia il tasto del mouse', scroll: 'Scorre', focus: 'Cambia finestra', type: 'Digita', key: 'Preme', wait: 'Aspetta',
     alarmSet: 'Imposta una sveglia', alarmList: 'Controlla le sveglie', alarmCancel: 'Annulla una sveglia',
     quoted: (text: string) => `«${text}»`,
-    seconds: (n: number) => `${n} s`,
     minutesLater: (n: number) => `tra ${n} min`,
   },
 

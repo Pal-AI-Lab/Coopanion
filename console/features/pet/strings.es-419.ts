@@ -45,6 +45,7 @@ export const S: Partial<typeof en> = {
     snore: ['Ronquidos', 'Ronquidos mientras duerme'],
     talk: ['Habla', 'El balbuceo mientras aparece el texto de la burbuja, las tarjetas de opciones al aparecer'],
     ui: ['Botones y avisos', 'Clics en botones, burbujas que se abren, selecciones, inicio y fin de la escucha'],
+    alert: ['Avisos', 'El aviso sonoro cuando Coo te pide una confirmación'],
   },
   snore: 'Duración del ronquido',
   snoreUnit: 's',

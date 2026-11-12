@@ -252,6 +252,7 @@ const fr: Translation<PetText> = {
       snore: { title: 'Ronflements', description: '' },
       talk: { title: 'Parole', description: "Le babillage à l'apparition du texte des bulles, et les cartes de choix qui surgissent." },
       ui: { title: 'Boutons et signaux', description: "Clics de boutons, ouverture des bulles, sélections, début et fin de l'écoute." },
+      alert: { title: 'Alertes', description: 'Un carillon quand Coo vous demande une confirmation.' },
     },
     snoreSeconds: { title: 'Durée des ronflements', suffix: 's', description: "À chaque sommeil, le compagnon se tait après avoir ronflé ce temps ; les z continuent de flotter. 0 = ronfler jusqu'au réveil." },
     panByPosition: { title: 'Répartir selon la position', description: 'Les sons penchent du côté où se trouve Coo ; désactivé, ils sont joués au centre.' },

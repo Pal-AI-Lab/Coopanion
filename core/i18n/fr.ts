@@ -43,7 +43,6 @@ const fr: Translation<CoreText> = {
     move: 'Déplace la souris', drag: 'Fait glisser', mouseDown: 'Enfonce le bouton de la souris', mouseUp: 'Relâche le bouton de la souris', scroll: 'Fait défiler', focus: 'Change de fenêtre', type: 'Tape', key: 'Appuie sur', wait: 'Attend',
     alarmSet: 'Règle une alarme', alarmList: 'Consulte les alarmes', alarmCancel: 'Annule une alarme',
     quoted: (text: string) => `« ${text} »`,
-    seconds: (n: number) => `${n} s`,
     minutesLater: (n: number) => `dans ${n} min`,
   },
 

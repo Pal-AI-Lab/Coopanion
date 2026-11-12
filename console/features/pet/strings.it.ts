@@ -45,6 +45,7 @@ export const S: Partial<typeof en> = {
     snore: ['Russare', 'Russa mentre dorme'],
     talk: ['Parlare', 'Il borbottio mentre appare il testo del fumetto, le schede di scelta che spuntano'],
     ui: ['Pulsanti e segnali', "Clic sui pulsanti, apertura dei fumetti, selezioni, inizio e fine dell'ascolto"],
+    alert: ['Avvisi', 'Il segnale quando Coo ti chiede una conferma'],
   },
   snore: 'Durata del russare',
   snoreUnit: 's',

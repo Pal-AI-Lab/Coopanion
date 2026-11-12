@@ -380,7 +380,8 @@ export class DesktopPetWorld implements World {
   private petHidden = false;
   /** `onDesktop` as last told to `onDesktopChange`, null before the first time. */
   private desktopTold: boolean | null = null;
-  private busyUntil = 0;
+  /** When each line sent by `pet_say` is estimated to be over, in sending order; the last one is when the bubble is free. */
+  private sayEnds: Array<{ id: string; at: number }> = [];
   private readonly walks = new Map<string, PendingWalk>();
   private ask: PendingAsk | null = null;
   private touch: TouchBatch | null = null;
@@ -1236,6 +1237,14 @@ export class DesktopPetWorld implements World {
       }
       case 'commit': return this.commitSpeech();
       case 'cancel': return this.cancelSpeech();
+      case 'skipped': {
+        // the person ended a line early: the lines after it start now rather than when it was estimated to end
+        const i = this.sayEnds.findIndex((l) => l.id === String(msg.id));
+        if (i < 0) return;
+        const shift = Date.now() - this.sayEnds[i]!.at;
+        this.sayEnds = this.sayEnds.slice(i + 1).map((l) => ({ ...l, at: l.at + shift }));
+        return;
+      }
     }
   }
 
@@ -1893,14 +1902,17 @@ export class DesktopPetWorld implements World {
     const { beats, dropped } = parseScript(script, this.vocab());
     const spoken = beats.some((b) => b.text || b.actions.length || b.anchors.length);
     if (!spoken && shown.blobs.length === 0) return { text: this.t.sayEmpty, failed: true };
-    if (spoken && !this.server.sendPet({ t: 'say', id: nextId('s'), beats })) return this.notConnected('pet_say');
+    const id = nextId('s');
+    if (spoken && !this.server.sendPet({ t: 'say', id, beats })) return this.notConnected('pet_say');
     void this.closeActivity();
     void this.record({ kind: 'say', beats: beats.map((b) => ({ text: b.text, ...moodOf(b.actions, this.vocab()) })) }, beats.map((b) => b.text).join(''), shown.blobs);
     if (!spoken) return { text: this.t.imagesShown(shown.blobs.length, this.chat.size > 0) };
     const now = Date.now();
     const selfSec = estimateSeconds(beats, this.cfg.window.bubbleSpeed, this.cfg.speech.enabled ? speechTextSteps : undefined);
-    const waitSec = Math.max(0, (this.busyUntil - now) / 1000);
-    this.busyUntil = Math.max(now, this.busyUntil) + selfSec * 1000;
+    this.sayEnds = this.sayEnds.filter((l) => l.at > now);
+    const free = this.sayEnds.at(-1)?.at ?? now;
+    const waitSec = (free - now) / 1000;
+    this.sayEnds.push({ id, at: free + selfSec * 1000 });
     const replaced = this.ask?.question ?? null;
     if (this.ask) this.setAsk(null);
     return { text: this.t.sayReceipt({ waitSec, selfSec, chatOpen: this.chat.size > 0, replaced, dropped, images: shown.blobs.length }) };
@@ -1984,7 +1996,8 @@ export class DesktopPetWorld implements World {
     const t = this.t;
     if (selfAdjustMode(this.cfg.selfAdjust) === 'off') return { text: t.selfAdjustOff('pet_set', this.userName), failed: true };
     const packs = this.packs();
-    const { changes, errors } = planSettings(args, { ...this.cfg, user: this.userName }, packs, this.language, capFor(USER_MAX, this.appLanguage), this.appLanguage);
+    const plan = (a: Record<string, unknown>) => planSettings(a, { ...this.cfg, user: this.userName }, packs, this.language, capFor(USER_MAX, this.appLanguage), this.appLanguage);
+    const { changes, errors } = plan(args);
     if (errors.length) return { text: t.setErrors(errors), failed: true };
     if (!changes.length) return { text: t.setNothing };
     const lines: string[] = [];
@@ -2005,7 +2018,8 @@ export class DesktopPetWorld implements World {
     const says = (list: SettingChange[]) => list.map((c) => c.say);
     const mine = changes.filter((c) => c.tier === 'self');
     if (mine.length) { const also = apply(mine); lines.push(t.setDone([...says(mine), ...also])); }
-    const asked = changes.filter((c) => c.tier === 'ask');
+    // a figure put on above may have taken back its own size: a size still to be asked for is measured from the one on screen now
+    const asked = changes.filter((c) => c.tier === 'ask').flatMap((c) => (c.key === 'scale' && mine.length ? plan({ scale: args.scale }).changes : [c]));
     if (asked.length) {
       const c = this.ui.consent;
       const answer = await this.confirm(c.question(asked.map((x) => x.show)), c.choices);

@@ -58,7 +58,7 @@ export interface SavedLook {
 export const MAX_SAVED_LOOKS = 60, MAX_LOOK_NAME = 40;
 
 /** Kinds of the pet's sounds, the keys of `SOUND_KINDS` in web/sound.js; a pack's own sounds are filed under these too. */
-export const SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk', 'ui'] as const;
+export const SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk', 'ui', 'alert'] as const;
 export type SoundKind = typeof SOUND_KINDS[number];
 export type SoundSettings = Record<SoundKind, boolean> & {
   /** Snoring stops this many seconds into each sleep; the z's keep floating. 0 = snore the whole sleep. */
@@ -297,7 +297,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   window: { enabled: true, electronFile: '', scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, glow: GLOW_DEFAULT, frameRate: 60, lockFrameRate: false, hideWhenFullscreen: false, passWhenFullscreen: false, exportOverlay: false },
   roam: 'calm',
   sound: true,
-  sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, snoreSeconds: 0, panByPosition: true, volume: 100 },
+  sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, alert: true, snoreSeconds: 0, panByPosition: true, volume: 100 },
   speech: { enabled: false, pitch: 'mid', pitchHz: SPEECH_PITCH_HZ.mid, speed: 'mid', unitsPerSecond: SPEECH_RATE.mid },
   theme: 'dark',
   rememberPosition: false,
