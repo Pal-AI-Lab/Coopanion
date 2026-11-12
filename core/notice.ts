@@ -266,7 +266,7 @@ const zh = {
     '- 走动:「习惯」页「行为与互动」里的「走动」',
     '- 音效:「习惯」页的「音效」',
     '- 隐藏:托盘菜单的「隐藏桌宠」',
-    '- 我的 World:设置窗口 World 页的「我的 World」',
+    '- 我的 World:设置窗口「World 扩展」页的「我的 World」',
     `悬停按钮在「习惯」页「行为与互动」里的「悬停按钮」选择,最多 ${max} 个,选进去的动作右键菜单里也有。`,
   ].join('\n'),
 
@@ -340,7 +340,7 @@ const en: typeof zh = {
     '- Walking: "Walking" under Behavior on the Habits page',
     '- Sounds: "Sounds" on the Habits page',
     '- Hide: "Hide pet" in the tray menu',
-    '- My Worlds: "My Worlds" on the World page of the settings window',
+    '- My Worlds: "My Worlds" on the World extensions page of the settings window',
     `Hover buttons are picked under "Hover buttons" in Behavior on the Habits page, up to ${max}; the right-click menu shows the ones picked.`,
   ].join('\n'),
 
