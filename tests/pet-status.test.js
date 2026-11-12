@@ -356,6 +356,23 @@ describe('look wheel over the dress button', () => {
     expect(reads).toBe(2);
   });
 
+  it('never shows with the size slider, also when the slider opened while the favourites were being read', async () => {
+    let answer;
+    const p = page({ host: true, fetchLooks: () => new Promise((resolve) => { answer = resolve; }) });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
+    dressButton(p);
+    over(p);
+    await frames(p, 1);
+    p.doc.querySelector('#tools [data-action="size"]').click();
+    answer([{ id: 'a', name: 'a', skin: {} }]);
+    const sizer = p.doc.querySelector('#sizer');
+    const open = (el) => !el.hidden && !el.classList.contains('leaving');
+    for (let i = 0; i < 5; i++) {
+      await frames(p, 1);
+      expect(open(sizer) && open(wheel(p))).toBe(false);
+    }
+  });
+
   it('reads again when the pointer left while a bubble was showing', async () => {
     let reads = 0;
     const p = page({ fetchLooks: async () => { reads++; return []; } });
