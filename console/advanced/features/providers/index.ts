@@ -31,7 +31,6 @@ export function mountProviders(ctx: FeatureContext): void {
     { value: 'settings', label: S.settingsTab },
     ...(ctx.capabilities.extensions ? [{ value: 'market', label: S.marketTab }] : []),
   ], { onSelect: value => router.navigate(router.route.segments, value === 'market' ? { view: 'market' } : undefined) });
-  intro.classList.add('provider-intro');
   intro.append(tabs.el);
   root.append(intro, settings, market);
   const show = () => {
