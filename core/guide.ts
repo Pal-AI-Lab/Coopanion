@@ -574,14 +574,13 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
         const a = await step(7, 'buttons', {
           text: S.buttons, actions: ['wink'], back,
           input: {
-            kind: 'pick', confirm: S.ok, max: MAX_HOVER_BUTTONS, value: saved.map((id) => PET_ACTIONS.indexOf(id)),
+            kind: 'pick', confirm: S.ok, min: 0, max: MAX_HOVER_BUTTONS, value: saved.map((id) => PET_ACTIONS.indexOf(id)),
             options: PET_ACTIONS.map((id) => ({ label: names[id] ?? id, icon: ACTION_ICONS[id] })),
           },
         });
         if ('back' in a) return 'back';
-        // in the actions' order, as the Habits page keeps them; an empty answer leaves them as they were
-        const ids = 'picked' in a ? a.picked.map((i) => PET_ACTIONS[i]).filter((id): id is PetAction => !!id).slice(0, MAX_HOVER_BUTTONS) : [];
-        const picked = ids.length ? ids : saved;
+        // in the actions' order, as the Habits page keeps them; none picked is an answer too: no hover buttons
+        const picked = 'picked' in a ? a.picked.map((i) => PET_ACTIONS[i]).filter((id): id is PetAction => !!id).slice(0, MAX_HOVER_BUTTONS) : saved;
         answer('hover_buttons', { ids: picked });
         if (picked.join(',') !== values[HOVER_KEY]) await setPet(HOVER_KEY, picked.join(','));
         return 'answered';

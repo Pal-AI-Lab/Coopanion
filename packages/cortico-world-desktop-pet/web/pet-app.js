@@ -1420,17 +1420,15 @@ function toggleVoice() {
 /* ---------- menu: the run controls as round buttons on Coo's left, the hover buttons in columns on its right ---------- */
 /** Most action buttons in one column, of the menu as of the hover buttons. */
 const MENU_ROWS = 3;
-/**
- * The actions the menu shows: the hover buttons chosen in settings, the same ones the pointer brings up. With none of
- * them there to show (none picked, as an older settings page allowed, or only ones this window cannot do), every action
- * is, so the menu never leaves nothing to reach them by.
- */
+/** The actions the menu shows: the hover buttons chosen in settings, the same ones the pointer brings up; none when none are. */
 function menuActions() {
-  const ids = prefs.hoverButtons.filter(available).slice(0, MAX_HOVER);
-  return ids.length ? ids : Object.keys(ACTIONS).filter(available);
+  return prefs.hoverButtons.filter(available).slice(0, MAX_HOVER);
 }
 
 function openMenu() {
+  const ids = menuActions();
+  // nothing to show: no hover buttons picked, and no run controls lent
+  if (!ids.length && !prefs.bot?.controls) return;
   pinSizer(false);
   // the hover buttons showing become the menu's: each slides from where it stood to its tile, and only the rest pop out
   const was = new Map();
@@ -1440,7 +1438,6 @@ function openMenu() {
   menu.innerHTML = '';
   const rail = Object.assign(document.createElement('div'), { className: 'm-rail' });
   const grid = Object.assign(document.createElement('div'), { className: 'm-grid' });
-  const ids = menuActions();
   grid.style.gridTemplateRows = `repeat(${Math.min(MENU_ROWS, Math.max(1, ids.length))}, auto)`;
   for (const id of ids) {
     const a = ACTIONS[id];
@@ -1458,6 +1455,7 @@ function openMenu() {
     });
     grid.appendChild(b);
   }
+  grid.hidden = !ids.length;
   menu.append(rail, grid);
   renderMenuRail();
   stagger(grid);

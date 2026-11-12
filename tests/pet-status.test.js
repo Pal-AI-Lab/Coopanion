@@ -604,15 +604,17 @@ describe('the right-click menu', () => {
     expect(p.doc.querySelectorAll('.menu .m-rail .tool').length).toBe(3);
   });
 
-  it('holds every action when none of the picked ones can show, so nothing is out of reach', () => {
+  it('holds only the run controls with no hover buttons picked, and does not open with nothing to show', () => {
     const p = page({ host: true });
-    p.onOrder({ t: 'prefs', hoverButtons: [] });
+    p.onOrder({ t: 'prefs', hoverButtons: [], bot: { controls: true } });
     p.openMenu();
-    expect(tiles(p)).toEqual(expect.arrayContaining(['chat', 'voice', 'roam', 'theme', 'sound', 'dress']));
-    // `worlds` needs an app that lends its World list
-    p.onOrder({ t: 'prefs', hoverButtons: ['worlds'] });
-    p.openMenu();
-    expect(tiles(p)).toContain('chat');
+    expect(tiles(p)).toEqual([]);
+    expect(p.doc.querySelector('.menu .m-grid').hidden).toBe(true);
+    expect(p.doc.querySelectorAll('.menu .m-rail .tool').length).toBe(3);
+    const bare = page({ host: true });
+    bare.onOrder({ t: 'prefs', hoverButtons: [] });
+    bare.openMenu();
+    expect(bare.doc.querySelector('#menu').hidden).toBe(true);
   });
 });
 

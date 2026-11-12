@@ -357,8 +357,7 @@ async function mount(ctx: PageContext): Promise<void> {
     b.append(ui.h('span', 'companion-hoverlbl', S.actions[id] ?? id));
     b.addEventListener('click', () => {
       const on = picked.includes(id);
-      // at least one stays: the right-click menu shows the same ones, and with none it would have no actions
-      if (on ? picked.length <= 1 : picked.length >= MAX_HOVER) return;
+      if (!on && picked.length >= MAX_HOVER) return;
       // kept in the menu's order, whatever order they were picked in
       picked = ACTIONS.map(([a]) => a).filter((a) => (a === id ? !on : picked.includes(a)));
       renderHover();
@@ -372,7 +371,7 @@ async function mount(ctx: PageContext): Promise<void> {
       const on = picked.includes(id);
       b.classList.toggle('on', on);
       b.setAttribute('aria-pressed', String(on));
-      b.disabled = on ? picked.length <= 1 : picked.length >= MAX_HOVER;
+      b.disabled = !on && picked.length >= MAX_HOVER;
     }
   };
 
