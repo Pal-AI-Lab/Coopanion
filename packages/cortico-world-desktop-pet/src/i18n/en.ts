@@ -202,7 +202,7 @@ const en: PetText = {
     fontSize: (from: number, to: number) => `change the text size from ${from}× to ${to}×`,
     theme: { dark: 'switch to the night look', light: 'switch to the day look' } as Record<'dark' | 'light', string>,
     hover: (list: string) => `change the hover buttons to ${list}`,
-    actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', dress: 'Dress up', hide: 'Hide pet', worlds: 'My Worlds' } as Record<string, string>,
+    actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', size: 'Size', dress: 'Dress up', hide: 'Hide pet', worlds: 'My Worlds' } as Record<string, string>,
     user: (to: string) => `call you "${to}"`,
   },
 
@@ -282,6 +282,7 @@ const en: PetText = {
       snore: { title: 'Snoring', description: '' },
       talk: { title: 'Talking', description: 'The babble as bubble text appears, and choice cards popping up.' },
       ui: { title: 'Buttons and cues', description: 'Button clicks, bubbles opening, picks, and listening starting and ending.' },
+      alert: { title: 'Alerts', description: 'A chime when Coo asks you before using the computer.' },
     },
     snoreSeconds: { title: 'Snore length', suffix: 's', description: "In each sleep the pet goes quiet after snoring this long; the z's keep floating. 0 = snore until waking." },
     panByPosition: { title: 'Pan by position', description: 'Sounds lean toward the side Coo stands on; off, they play centered.' },

@@ -177,7 +177,7 @@ const fr: Translation<PetText> = {
     fontSize: (from: number, to: number) => `passer la taille du texte de ${from}× à ${to}×`,
     theme: { dark: "passer à l'aspect nuit", light: "passer à l'aspect jour" },
     hover: (list: string) => `mettre comme boutons au survol : ${list}`,
-    actions: { chat: 'Écrire', voice: 'Saisie vocale', roam: 'Déplacements', theme: 'Mode nuit', sound: 'Sons', dress: 'Habiller', hide: 'Masquer le compagnon', worlds: 'Mes Worlds' },
+    actions: { chat: 'Écrire', voice: 'Saisie vocale', roam: 'Déplacements', theme: 'Mode nuit', sound: 'Sons', size: 'Taille', dress: 'Habiller', hide: 'Masquer le compagnon', worlds: 'Mes Worlds' },
     user: (to: string) => `vous appeler « ${to} »`,
   },
 
@@ -252,6 +252,7 @@ const fr: Translation<PetText> = {
       snore: { title: 'Ronflements', description: '' },
       talk: { title: 'Parole', description: "Le babillage à l'apparition du texte des bulles, et les cartes de choix qui surgissent." },
       ui: { title: 'Boutons et signaux', description: "Clics de boutons, ouverture des bulles, sélections, début et fin de l'écoute." },
+      alert: { title: 'Alertes', description: "Un carillon quand Coo vous demande la permission avant d'utiliser l'ordinateur." },
     },
     snoreSeconds: { title: 'Durée des ronflements', suffix: 's', description: "À chaque sommeil, le compagnon se tait après avoir ronflé ce temps ; les z continuent de flotter. 0 = ronfler jusqu'au réveil." },
     panByPosition: { title: 'Répartir selon la position', description: 'Les sons penchent du côté où se trouve Coo ; désactivé, ils sont joués au centre.' },

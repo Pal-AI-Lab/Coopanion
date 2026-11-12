@@ -13,7 +13,7 @@ export const DESKTOP_PET_ID = 'desktop-pet';
 export const USER_MAX = 20;
 
 /** The actions that can show as buttons beside the pet on hover, in their order; the right-click menu shows the same ones. */
-export const PET_ACTIONS = ['chat', 'voice', 'roam', 'theme', 'sound', 'hide', 'dress', 'worlds'] as const;
+export const PET_ACTIONS = ['chat', 'voice', 'roam', 'theme', 'sound', 'hide', 'size', 'dress', 'worlds'] as const;
 export type PetAction = typeof PET_ACTIONS[number];
 /** Most hover buttons. */
 export const MAX_HOVER_BUTTONS = 6;
@@ -51,12 +51,14 @@ export interface SavedLook {
   id: string;
   name: string;
   skin: PetSkin;
+  /** `window.scale` to put on with the look; a look without one keeps the size on screen. */
+  scale?: number;
 }
 /** Most saved looks kept, and the longest name. */
 export const MAX_SAVED_LOOKS = 60, MAX_LOOK_NAME = 40;
 
 /** Kinds of the pet's sounds, the keys of `SOUND_KINDS` in web/sound.js; a pack's own sounds are filed under these too. */
-export const SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk', 'ui'] as const;
+export const SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk', 'ui', 'alert'] as const;
 export type SoundKind = typeof SOUND_KINDS[number];
 export type SoundSettings = Record<SoundKind, boolean> & {
   /** Snoring stops this many seconds into each sleep; the z's keep floating. 0 = snore the whole sleep. */
@@ -232,6 +234,11 @@ export interface DesktopPetConfigSection extends WorldSection {
   skin: PetSkin;
   /** Saved looks, in the order the person saved them. */
   looks: SavedLook[];
+  /**
+   * `window.scale` each figure (a pack id) last had while it was on screen, written when another figure replaces it.
+   * A figure put on takes its own back, unless the size changed along with it.
+   */
+  figureScales: Record<string, number>;
   /** Computer use (src/cua/). */
   cua: CuaConfig;
   touch: {
@@ -270,6 +277,10 @@ export interface DesktopPetConfigSection extends WorldSection {
 
 /** The pet's size range on screen. */
 export const SCALE_MIN = .5, SCALE_MAX = 10;
+/** A size on screen as it is kept: in SCALE_MIN..SCALE_MAX, in steps of .05; null for anything but a number in range. */
+export function scaleOf(v: unknown): number | null {
+  return typeof v === 'number' && v >= SCALE_MIN && v <= SCALE_MAX ? Math.round(v * 20) / 20 : null;
+}
 /** The range of `window.bubbleSize` and `window.fontSize`. */
 export const BUBBLE_SIZE_MIN = .8, BUBBLE_SIZE_MAX = 1.6;
 /** The range of `window.bubbleSpeed`. */
@@ -286,7 +297,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   window: { enabled: true, electronFile: '', scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, glow: GLOW_DEFAULT, frameRate: 60, lockFrameRate: false, hideWhenFullscreen: false, passWhenFullscreen: false, exportOverlay: false },
   roam: 'calm',
   sound: true,
-  sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, snoreSeconds: 0, panByPosition: true, volume: 100 },
+  sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, alert: true, snoreSeconds: 0, panByPosition: true, volume: 100 },
   speech: { enabled: false, pitch: 'mid', pitchHz: SPEECH_PITCH_HZ.mid, speed: 'mid', unitsPerSecond: SPEECH_RATE.mid },
   theme: 'dark',
   rememberPosition: false,
@@ -304,6 +315,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
     colors: { head: { main: 'body', acc: 'eye' }, side: { main: 'eye', acc: 'eye' }, glasses: { main: 'body', acc: 'eye' }, neck: { main: 'eye', acc: 'eye' } },
   },
   looks: [],
+  figureScales: {},
   cua: CUA_DEFAULTS,
   touch: { enabled: true, wakeOn: 'poke', wakeKinds: ['poke'] },
   asr: {

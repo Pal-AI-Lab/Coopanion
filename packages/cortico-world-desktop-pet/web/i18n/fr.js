@@ -26,6 +26,7 @@ export default {
   // the status bubble
   'status.more': ' et {others} de plus',
   'status.thinking': 'Réfléchit',
+  'status.seconds': '{seconds} s',
 
   // the menu and the hover buttons
   'roam.off': 'Reste sur place',
@@ -44,6 +45,8 @@ export default {
   'action.themeLight': 'Mode nuit : désactivé · cliquez pour activer',
   'action.soundOn': 'Sons : activés · cliquez pour désactiver',
   'action.soundOff': 'Sons : désactivés · cliquez pour activer',
+  'action.size': 'Taille : {pct} %',
+  'action.sizeLabel': 'Taille du compagnon',
   'action.dress': 'Habiller',
   'action.worlds': 'Mes Worlds',
   'action.hide': "Me cacher pour l'instant (l'icône de la zone de notification me fait revenir)",
@@ -71,6 +74,7 @@ export default {
   'dress.title': 'Habillage',
   'dress.preview': 'Aperçu',
   'dress.figure': 'Personnage',
+  'dress.size': 'Taille',
   'dress.palette': 'Couleurs',
   'dress.head': 'Tête',
   'dress.side': 'Accessoire',

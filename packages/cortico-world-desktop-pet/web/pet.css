@@ -173,6 +173,11 @@ body.desk .floor{display:none}
 .said-mark{display:inline-flex; vertical-align:-2px; margin-right:5px; color:color-mix(in srgb, var(--skin-eye) 78%, var(--skin-ink))}
 .said-mark svg{width:calc(15px * var(--bubble-font, 1)); height:calc(15px * var(--bubble-font, 1))}
 .b-hint .said-mark{vertical-align:-3px; margin-right:4px}
+/* a line closes on a click, lit in the eye color on hover as the person's own lines are */
+.bubble.say{cursor:pointer; transition:opacity .4s ease, border-color .15s}
+.bubble.say:hover{border-color:var(--skin-eye)}
+.bubble.say:hover::before{background:var(--skin-eye)}
+.bubble.say.fading{opacity:0; pointer-events:none}
 .bubble.ask{min-width:min(calc(236px * var(--bubble-size, 1)), calc(100vw - 20px)); padding-right:calc(32px * var(--bubble-size, 1))}
 .bubble.pop{animation:bubble-in .26s cubic-bezier(.3,1.5,.5,1)}
 @keyframes bubble-in{from{transform:scale(.5); opacity:0}}
@@ -415,6 +420,9 @@ body.desk .floor{display:none}
   transition:transform .16s cubic-bezier(.3,1.3,.5,1), opacity .16s;
 }
 .w-item img, .w-item svg{display:block; width:100%; height:100%; object-fit:cover}
+/* a look's picture at the share of the circle its size gives (looks.js pictureFill), standing on the circle's bottom */
+.w-item .look-pic{display:flex; align-items:flex-end; justify-content:center; width:100%; height:100%}
+.w-item .look-pic > svg, .w-item .look-pic > img{width:calc(100% * var(--look-fill)); height:calc(100% * var(--look-fill))}
 /* the look worn that is not a favourite: kept for the row to turn back to */
 .w-item.worn{border-style:dashed}
 .w-item.on{border-color:var(--skin-eye); box-shadow:0 0 0 3px color-mix(in srgb, var(--skin-eye) 30%, transparent), 0 6px 16px var(--shadow)}
@@ -431,7 +439,7 @@ body.desk .floor{display:none}
 /* the key badge sits off the button's lower right, clear of the icon */
 .tool .badge{right:-14px; bottom:-9px}
 /* a switch that is off, as a hover button and in the menu alike: its crossed-out icon muted on a dashed ring;
-   the voice switch is also muted while the recognizer is not ready, and lit while hearing */
+   the voice switch is also muted while the recognizer is not ready, and its hover button lit while hearing */
 .tool.off{color:var(--muted); border-style:dashed}
 /* not ready yet: muted, at the same line weight (a faded icon reads as a thinner one) */
 .tool.waiting{color:var(--muted)}
@@ -475,3 +483,71 @@ body.desk .floor{display:none}
 @keyframes rail-gear{to{transform:rotate(180deg)}}
 @keyframes rail-press{40%{transform:translateY(2px) scale(.9)}}
 @media (prefers-reduced-motion: reduce){.tool:hover .ic svg, .m-rail .tool:hover svg{animation:none}}
+/* hover hints (hints.js) in the pet window and the dress window, which takes this sheet too: drawn and animated as the
+   settings window's (console/styles.css .u-tip.hover-hint): fading in over 120 ms and out over 120 ms (hints.js LEAVE_MS) */
+.hint{position:fixed; z-index:130; pointer-events:none; box-sizing:border-box; width:max-content; max-width:min(280px, calc(100vw - 16px));
+  background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:5px 9px; box-shadow:0 6px 18px -8px var(--shadow, rgba(0,0,0,.3));
+  font-size:12px; line-height:1.45; color:var(--text); overflow-wrap:anywhere; animation:hint-in 120ms ease-out}
+.hint[hidden]{display:none}
+.hint.leaving{animation:hint-out 120ms ease-in forwards}
+@keyframes hint-in{from{opacity:0}}
+@keyframes hint-out{to{opacity:0}}
+@media (prefers-reduced-motion: reduce){.hint, .hint.leaving{animation:none}}
+
+/* the size slider (scale-slider.js), on the dressing page and over the pet */
+.pet-scale{position:relative; flex:none; height:22px; cursor:pointer; touch-action:none; outline:none}
+.pet-scale > .ps-main, .pet-scale > .ps-tail, .pet-scale > .ps-fill{position:absolute; top:9px; height:4px; border-radius:2px}
+.pet-scale > .ps-main{left:0; background:color-mix(in srgb, var(--muted) 35%, transparent)}
+.pet-scale > .ps-tail{background:repeating-linear-gradient(90deg, color-mix(in srgb, var(--muted) 35%, transparent) 0 4px, transparent 4px 7px)}
+.pet-scale > .ps-fill{left:0; background:var(--host-accent, var(--accent))}
+.pet-scale > .ps-divider{position:absolute; top:4px; width:2px; height:14px; margin-left:-1px; border-radius:1px; background:var(--muted)}
+.pet-scale > .ps-thumb{position:absolute; top:3px; width:16px; height:16px; margin-left:-8px; border-radius:50%; background:var(--host-accent, var(--accent))}
+.pet-scale:focus-visible > .ps-thumb{outline:2px solid var(--host-accent, var(--accent)); outline-offset:2px}
+.pet-scale.past > .ps-divider{background:var(--host-accent, var(--accent))}
+/* stepped by key or wheel (scale-slider.js stepTo): the knob and the fill glide to each step, as they follow a drag */
+.pet-scale.stepping > .ps-thumb{transition:left .12s ease-out, scale .15s ease}
+.pet-scale.stepping > .ps-fill{transition:width .12s ease-out}
+@media (prefers-reduced-motion: reduce){.pet-scale.stepping > .ps-thumb, .pet-scale.stepping > .ps-fill{transition:none}}
+/* the size slider over the body (pet-app.js stepSizer): no backdrop, as the look wheel. The bar is drawn as the hover
+   buttons are (the surface, the body's 2px outline, their shadow), the fill and the knob in the body's accent; the
+   percentage is a small button-like label over the knob */
+.sizer{position:fixed; z-index:6; display:flex; align-items:center; padding:32px 8px 10px}
+.sizer[hidden]{display:none}
+.sizer .pet-scale{height:28px}
+.sizer .pet-scale > .ps-main, .sizer .pet-scale > .ps-tail{
+  top:6px; height:16px; box-sizing:border-box; background-color:var(--surface); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
+}
+.sizer .pet-scale > .ps-main{border-radius:8px 0 0 8px; border-right:0}
+/* past the divider: the same bar with a dashed middle, as the settings window's slider marks it */
+.sizer .pet-scale > .ps-tail{
+  border-radius:0 8px 8px 0; border-left:0;
+  background-image:repeating-linear-gradient(90deg, color-mix(in srgb, var(--skin-ink) 45%, transparent) 0 4px, transparent 4px 8px);
+  background-size:100% 4px; background-position:0 50%; background-repeat:no-repeat;
+}
+.sizer .pet-scale > .ps-fill{left:4px; top:11px; height:6px; border-radius:3px; background:var(--skin-eye)}
+.sizer .pet-scale > .ps-divider{top:3px; height:22px; width:3px; margin-left:-1.5px; border-radius:2px; background:var(--skin-ink)}
+.sizer .pet-scale.past > .ps-divider{background:var(--skin-eye)}
+.sizer .pet-scale > .ps-thumb{
+  top:3px; width:22px; height:22px; margin-left:-11px; box-sizing:border-box;
+  background:var(--skin-eye); border:3px solid var(--surface); box-shadow:0 0 0 2px var(--skin-ink), 0 6px 16px var(--shadow);
+  transition:scale .15s ease;
+}
+.sizer .pet-scale:hover > .ps-thumb{scale:1.1}
+/* held: dragged, or stepped by the wheel a moment ago */
+.sizer .pet-scale:is(:active, .stepping) > .ps-thumb{scale:1.2}
+.sizer .sz-value{
+  position:absolute; left:50%; bottom:calc(100% + 8px); translate:-50% 0; min-width:44px; padding:2px 8px; box-sizing:border-box;
+  border-radius:999px; text-align:center; white-space:nowrap; pointer-events:none;
+  font-size:12px; font-weight:600; line-height:16px; font-variant-numeric:tabular-nums;
+  background:var(--surface); color:var(--text); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
+}
+.sizer.entering{animation:sz-in .24s cubic-bezier(.3,1.4,.5,1) backwards}
+/* a group of controls let go of glides back beside the body (pet-app.js follow, RETURN_MS) */
+:is(.tools, .wheel, .sizer, .m-grid, .m-rail).returning{transition:left .26s cubic-bezier(.2,.7,.3,1), top .26s cubic-bezier(.2,.7,.3,1), right .26s cubic-bezier(.2,.7,.3,1)}
+/* the size button while it holds the slider open (pet-app.js pinSizer) */
+.tool[data-action="size"].on{color:var(--skin-eye); border-color:var(--skin-eye)}
+/* SIZER_OUT_MS in pet-app.js */
+.sizer.leaving{animation:sz-out .14s ease-in forwards; pointer-events:none}
+@keyframes sz-in{from{transform:translateY(8px) scale(.6); opacity:0}}
+@keyframes sz-out{to{transform:translateY(8px) scale(.6); opacity:0}}
+@media (prefers-reduced-motion: reduce){.sizer{animation:none}}

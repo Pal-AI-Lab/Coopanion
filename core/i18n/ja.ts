@@ -43,7 +43,6 @@ const ja: Translation<CoreText> = {
     move: 'マウスを移動中', drag: 'ドラッグ中', mouseDown: 'マウスボタンを押下中', mouseUp: 'マウスボタンを解放中', scroll: 'スクロール中', focus: 'ウィンドウを切り替え中', type: '入力中', key: 'キー入力中', wait: '待機中',
     alarmSet: 'アラームを設定中', alarmList: 'アラームを確認中', alarmCancel: 'アラームを取り消し中',
     quoted: (text: string) => `「${text}」`,
-    seconds: (n: number) => `${n} 秒`,
     minutesLater: (n: number) => `${n} 分後`,
   },
 

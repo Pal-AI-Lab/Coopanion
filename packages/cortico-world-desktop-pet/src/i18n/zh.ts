@@ -199,7 +199,7 @@ export default {
     fontSize: (from: number, to: number) => `把字体尺寸从 ${from} 倍改成 ${to} 倍`,
     theme: { dark: '换成夜间模式', light: '换成白天模式' } as Record<'dark' | 'light', string>,
     hover: (list: string) => `把悬停按钮换成${list}`,
-    actions: { chat: '打字', voice: '语音输入', roam: '走动', theme: '夜间模式', sound: '音效', dress: '装扮', hide: '隐藏桌宠', worlds: '我的 World' } as Record<string, string>,
+    actions: { chat: '打字', voice: '语音输入', roam: '走动', theme: '夜间模式', sound: '音效', size: '大小', dress: '装扮', hide: '隐藏桌宠', worlds: '我的 World' } as Record<string, string>,
     user: (to: string) => `改叫你「${to}」`,
   },
 
@@ -279,7 +279,8 @@ export default {
       snore: { title: '打呼噜', description: '' },
       talk: { title: '说话', description: '气泡里逐字冒出的叽咕声、选项卡片弹出的声音。' },
       ui: { title: '按钮与提示', description: '点按钮、气泡弹出、选中、开始和结束听你说话。' },
-    } as Record<'move' | 'touch' | 'face' | 'snore' | 'talk' | 'ui', { title: string; description: string }>,
+      alert: { title: '提醒', description: '操作电脑前请你确认时响一声。' },
+    } as Record<'move' | 'touch' | 'face' | 'snore' | 'talk' | 'ui' | 'alert', { title: string; description: string }>,
     snoreSeconds: { title: '呼噜时长', suffix: '秒', description: '每次睡着后打这么久呼噜就安静下来，Z 照样飘；0 = 一直打到醒。' },
     panByPosition: { title: '按位置分配左右声道', description: '声音偏向 Coo 所在的一侧，关闭后居中播放。' },
     speech: { title: '说话声', description: '开启后气泡逐字冒出时念出音节，代替「说话」类的叽咕声；「说话」类关掉时也不出声。' },

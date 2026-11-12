@@ -43,7 +43,6 @@ const es419: Translation<CoreText> = {
     move: 'Moviendo el mouse', drag: 'Arrastrando', mouseDown: 'Presionando el botón del mouse', mouseUp: 'Soltando el botón del mouse', scroll: 'Desplazando', focus: 'Cambiando de ventana', type: 'Tecleando', key: 'Presionando', wait: 'Esperando',
     alarmSet: 'Poniendo una alarma', alarmList: 'Revisando las alarmas', alarmCancel: 'Cancelando una alarma',
     quoted: (text: string) => `“${text}”`,
-    seconds: (n: number) => `${n} s`,
     minutesLater: (n: number) => `en ${n} min`,
   },
 

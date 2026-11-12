@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { RunPhase } from 'cortico/core/types.ts';
 import type { StreamEvent } from 'cortico/protocol/open-responses/index.ts';
-import { StatusTracker, stringArg, type DescribeTool } from '../src/status.ts';
+import { StatusTracker, numberArg, stringArg, type DescribeTool } from '../src/status.ts';
 
 const phase = (state: RunPhase['state'], round?: number, running: string[] = []): RunPhase =>
   ({ state, ...(round !== undefined ? { round } : {}), running, enteredAt: '2026-10-07T10:00:00+08:00' });
@@ -18,6 +18,7 @@ const describe_: DescribeTool = (name, args) => {
   if (name === 'read_file') return { kind: 'read', text: '在看', ...(stringArg(args, 'path') ? { detail: stringArg(args, 'path') } : {}) };
   if (name === 'write_file') return { kind: 'write', text: '在写', ...(stringArg(args, 'path') ? { detail: stringArg(args, 'path') } : {}) };
   if (name === 'append_file') return { kind: 'write', text: '在补记', ...(stringArg(args, 'path') ? { detail: stringArg(args, 'path') } : {}) };
+  if (name === 'pet_cua_wait') return { kind: 'wait', text: '在等待', countdown: numberArg(args, 'seconds') ?? 1 };
   if (name === 'end_turn') return null;
   return undefined;
 };
@@ -42,6 +43,37 @@ describe('StatusTracker', () => {
     tracker.onPhase(phase('tools', 1, ['read_file']));
     expect(tracker.status?.count).toBe(2);
     expect(changed).toHaveBeenCalledTimes(4);
+  });
+
+  it('passes a countdown on only while its call runs, so a question before it does not use up the seconds', () => {
+    const { tracker } = setup();
+    tracker.onPhase(phase('model', 1));
+    tracker.onEvent(call('a', 'pet_cua_click', '{}', true));
+    tracker.onEvent(call('b', 'pet_cua_wait', '{"seconds":5}', true));
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等待' });
+    // the click waits for the person's answer first
+    tracker.onPhase(phase('tools', 1, ['pet_cua_click']));
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等待' });
+    tracker.onPhase(phase('tools', 1, ['pet_cua_wait']));
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等待', countdown: 5 });
+  });
+
+  it('counts down each of several waits in a row with its own seconds as it starts', () => {
+    const { tracker } = setup();
+    tracker.onPhase(phase('model', 1));
+    tracker.onEvent(call('a', 'pet_cua_wait', '{"seconds":5}', true));
+    tracker.onEvent(call('b', 'pet_cua_wait', '{"seconds":8}', true));
+    tracker.onPhase(phase('tools', 1, ['pet_cua_wait']));
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等待', countdown: 5, count: 2 });
+    tracker.onPhase(phase('tools', 1, []));
+    expect(tracker.status?.countdown).toBeUndefined();
+    tracker.onPhase(phase('tools', 1, ['pet_cua_wait']));
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等待', countdown: 8, count: 2 });
+    // the next round counts its own starts
+    tracker.onPhase(phase('model', 2));
+    tracker.onEvent(call('c', 'pet_cua_wait', '{"seconds":3}', true));
+    tracker.onPhase(phase('tools', 2, ['pet_cua_wait']));
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等待', countdown: 3 });
   });
 
   it('starts the next round from thinking and ends with the batch', () => {

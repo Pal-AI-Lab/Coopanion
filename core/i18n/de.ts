@@ -43,7 +43,6 @@ const de: Translation<CoreText> = {
     move: 'Bewegt die Maus', drag: 'Zieht', mouseDown: 'Drückt die Maustaste', mouseUp: 'Lässt die Maustaste los', scroll: 'Scrollt', focus: 'Wechselt das Fenster', type: 'Tippt', key: 'Drückt', wait: 'Wartet',
     alarmSet: 'Stellt einen Wecker', alarmList: 'Prüft die Wecker', alarmCancel: 'Löscht einen Wecker',
     quoted: (text: string) => `„${text}“`,
-    seconds: (n: number) => `${n} s`,
     minutesLater: (n: number) => `in ${n} Min.`,
   },
 

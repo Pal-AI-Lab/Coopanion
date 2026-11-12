@@ -15,6 +15,8 @@ export interface PetStatus {
   text: string;
   detail?: string;
   count?: number;
+  /** Seconds the call lasts. StatusTracker passes it on only while the call runs; the page counts down from when it arrives. */
+  countdown?: number;
 }
 
 /** A call's arguments: the parsed object, or the JSON text streamed so far. */
@@ -52,6 +54,9 @@ export class StatusTracker {
   private readonly calls = new Map<string, Call>();
   private state: RunPhase['state'] = 'idle';
   private round: number | undefined;
+  /** The tools running now, as RunPhase `running` names them, and how many times each name started this round. */
+  private running: readonly string[] = [];
+  private readonly started = new Map<string, number>();
   private current: PetStatus | null = null;
 
   /** `busy`: what a call without a description shows, in the app language at the time. */
@@ -64,18 +69,31 @@ export class StatusTracker {
     switch (phase.state) {
       case 'idle':
         this.calls.clear();
+        this.started.clear();
+        this.running = [];
         this.round = undefined;
         this.set(null);
         return;
       case 'backoff':
       case 'handoff':
+        this.noteRunning(phase.running);
         this.set(THINK);
         return;
       default:
         // a new round's request starts from thinking; the calls of the round before are done with
-        if (phase.round !== this.round) { this.round = phase.round; this.calls.clear(); }
+        if (phase.round !== this.round) { this.round = phase.round; this.calls.clear(); this.started.clear(); }
+        this.noteRunning(phase.running);
         this.update();
     }
+  }
+
+  /** Counts the starts in `running`: a name listed more times than before started that many more calls. */
+  private noteRunning(running: readonly string[]): void {
+    for (const name of new Set(running)) {
+      const more = running.filter((n) => n === name).length - this.running.filter((n) => n === name).length;
+      if (more > 0) this.started.set(name, (this.started.get(name) ?? 0) + more);
+    }
+    this.running = running;
   }
 
   /** Tool calls and their arguments as the model writes them; item ids keep calls apart where output_index repeats. */
@@ -110,25 +128,31 @@ export class StatusTracker {
     return described === undefined ? defaultStatus(call.name, this.busy()) : described;
   }
 
-  /** The latest run of calls of one kind: its last wording, its first detail and how many. */
+  /**
+   * The latest run of calls of one kind: its last wording, its first detail, and how many; and the countdown of the
+   * call in it that runs now, the calls of one name running in the order they were written.
+   */
   private update(): void {
     const calls = [...this.calls.values()];
-    let last: PetStatus | null = null, first: PetStatus | null = null, count = 0;
+    const run: Call[] = [];
+    let last: PetStatus | null = null;
     for (let i = calls.length - 1; i >= 0; i--) {
       const s = calls[i].status;
       if (!s) continue;
       if (last && s.kind !== last.kind) break;
       last ??= s;
-      first = s;
-      count++;
+      run.unshift(calls[i]);
     }
-    if (last && first) this.set({ kind: last.kind, text: last.text, ...(first.detail ? { detail: first.detail } : {}), ...(count > 1 ? { count } : {}) });
-    else this.set(calls.at(-1)?.done ? null : THINK);
+    const lead = run[0]?.status;
+    if (!last || !lead) { this.set(calls.at(-1)?.done ? null : THINK); return; }
+    const runs = (c: Call) => this.running.includes(c.name) && calls.filter((o) => o.name === c.name).indexOf(c) === (this.started.get(c.name) ?? 0) - 1;
+    const countdown = run.find((c) => c.status?.countdown !== undefined && runs(c))?.status?.countdown;
+    this.set({ kind: last.kind, text: last.text, ...(lead.detail ? { detail: lead.detail } : {}), ...(countdown !== undefined ? { countdown } : {}), ...(run.length > 1 ? { count: run.length } : {}) });
   }
 
   private set(status: PetStatus | null): void {
     const c = this.current;
-    if (c?.kind === status?.kind && c?.text === status?.text && c?.detail === status?.detail && c?.count === status?.count) return;
+    if (c?.kind === status?.kind && c?.text === status?.text && c?.detail === status?.detail && c?.countdown === status?.countdown && c?.count === status?.count) return;
     this.current = status;
     this.changed(status);
   }

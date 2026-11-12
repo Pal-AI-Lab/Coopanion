@@ -177,7 +177,7 @@ const it: Translation<PetText> = {
     fontSize: (from: number, to: number) => `cambiare la dimensione del testo da ${from}× a ${to}×`,
     theme: { dark: "passare all'aspetto notte", light: "passare all'aspetto giorno" },
     hover: (list: string) => `cambiare i pulsanti al passaggio in ${list}`,
-    actions: { chat: 'Scrivi', voice: 'Input vocale', roam: 'Movimento', theme: 'Modalità notte', sound: 'Suoni', dress: 'Guardaroba', hide: "Nascondi l'animaletto", worlds: 'I miei World' },
+    actions: { chat: 'Scrivi', voice: 'Input vocale', roam: 'Movimento', theme: 'Modalità notte', sound: 'Suoni', size: 'Dimensione', dress: 'Guardaroba', hide: "Nascondi l'animaletto", worlds: 'I miei World' },
     user: (to: string) => `chiamarti «${to}»`,
   },
 
@@ -252,6 +252,7 @@ const it: Translation<PetText> = {
       snore: { title: 'Russare', description: '' },
       talk: { title: 'Parlare', description: 'Il borbottio mentre appare il testo del fumetto, e le schede di scelta che spuntano.' },
       ui: { title: 'Pulsanti e segnali', description: "Clic sui pulsanti, apertura dei fumetti, selezioni, inizio e fine dell'ascolto." },
+      alert: { title: 'Avvisi', description: 'Un segnale quando Coo ti chiede il permesso prima di usare il computer.' },
     },
     snoreSeconds: { title: 'Durata del russare', suffix: 's', description: "In ogni sonno l'animaletto smette di russare dopo questo tempo; le z continuano a fluttuare. 0 = russa fino al risveglio." },
     panByPosition: { title: 'Bilanciamento in base alla posizione', description: 'I suoni pendono verso il lato in cui si trova Coo; disattivato, suonano al centro.' },
