@@ -177,7 +177,7 @@ const es419: Translation<PetText> = {
     fontSize: (from: number, to: number) => `cambiar el tamaño del texto de ${from}× a ${to}×`,
     theme: { dark: 'cambiar al aspecto de noche', light: 'cambiar al aspecto de día' },
     hover: (list: string) => `cambiar los botones al pasar el cursor a ${list}`,
-    actions: { chat: 'Escribir', voice: 'Entrada de voz', roam: 'Paseos', theme: 'Modo nocturno', sound: 'Sonidos', dress: 'Vestuario', hide: 'Ocultar mascota' },
+    actions: { chat: 'Escribir', voice: 'Entrada de voz', roam: 'Paseos', theme: 'Modo nocturno', sound: 'Sonidos', size: 'Tamaño', dress: 'Vestuario', hide: 'Ocultar mascota', worlds: 'Mis Worlds' },
     user: (to: string) => `llamarte «${to}»`,
   },
 

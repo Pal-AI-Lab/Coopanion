@@ -883,7 +883,7 @@ describe("the bot's name", () => {
 
 describe('size on screen', () => {
   /** The World as it runs: its patches deep-merged into the live config, arrays replaced. */
-  async function sized() {
+  async function sized(extra?: Partial<DesktopPetWorldOptions>) {
     const merge = (target: Record<string, unknown>, patch: Record<string, unknown>) => {
       for (const [k, v] of Object.entries(patch)) {
         if (v && typeof v === 'object' && !Array.isArray(v) && target[k] && typeof target[k] === 'object') merge(target[k] as Record<string, unknown>, v as Record<string, unknown>);
@@ -891,7 +891,7 @@ describe('size on screen', () => {
       }
     };
     let cfg: DesktopPetConfigSection | null = null;
-    const made = await mounted(undefined, { persist: (p) => merge(cfg as unknown as Record<string, unknown>, p as Record<string, unknown>) });
+    const made = await mounted(undefined, { ...extra, persist: (p) => merge(cfg as unknown as Record<string, unknown>, p as Record<string, unknown>) });
     cfg = made.cfg;
     const post = (path: string, body: unknown) => fetch(`${origin(made.world)}${path}`, { method: 'POST', body: JSON.stringify(body) });
     return { ...made, post };
@@ -929,6 +929,28 @@ describe('size on screen', () => {
     await post('/api/skin', { skin: whale, scale: 2.5 });
     expect(cfg.window.scale).toBe(2.5);
     expect(cfg.figureScales).toEqual({ whale: .8, coo: DESKTOP_PET_DEFAULTS.window.scale });
+  });
+
+  it('a size given with a figure is the one it goes on at, the size on screen included', async () => {
+    const { cfg, post } = await sized();
+    cfg.figureScales = { whale: .8 };
+    await post('/api/prefs', { scale: 1.5 });
+    await post('/api/skin', { skin: whale, scale: 1.5 });
+    expect(cfg.window.scale).toBe(1.5);
+    expect(cfg.figureScales).toEqual({ whale: .8, coo: 1.5 });
+  });
+
+  it('pet_set says the size changed when a figure it puts on takes back its own', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'packs-'));
+    mkdirSync(join(root, 'robot'));
+    writeFileSync(join(root, 'robot', 'figure.json'), JSON.stringify({
+      manifest: 2, api: 2, id: 'robot', name: { zh: '机器人' }, about: { zh: '一个机器人' }, entry: 'figure.js', export: 'createBody', axes: [], presets: [], vocab: [],
+    }));
+    const { world, cfg } = await sized({ packRoots: () => [root] });
+    cfg.figureScales = { robot: .8 };
+    const receipt = (await tool(world, 'pet_set').handler({ figure: 'robot' }, ctx) as { text: string }).text;
+    expect(cfg.window.scale).toBe(.8);
+    expect(receipt).toContain(`${DESKTOP_PET_DEFAULTS.window.scale} 倍 → 0.8 倍`);
   });
 
   it('sizes from the pages are kept in range and in steps, and others are ignored', async () => {

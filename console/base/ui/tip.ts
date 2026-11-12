@@ -15,6 +15,8 @@ export function showTip(el: HTMLElement): void {
 /** Fades `el` out, or hides it at once (`now`, a press or a scroll, or reduced motion). */
 export function hideTip(el: HTMLElement, now = false): void {
   const win = el.ownerDocument.defaultView;
+  // already fading out: calling again (a hint hidden on every wheel step) does not put the end off
+  if (!now && el.classList.contains('leaving')) return;
   const timer = leaving.get(el);
   if (timer !== undefined) win?.clearTimeout(timer);
   leaving.delete(el);

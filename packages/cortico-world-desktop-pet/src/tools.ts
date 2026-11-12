@@ -61,7 +61,7 @@ export const petToolDecls = (language: Language = 'zh'): Array<Omit<ToolDef, 'ha
     parameters: {
       type: 'object',
       properties: {
-        figure: { type: 'string', description: 'Figure: coo, or the id of an installed figure. Switching to a figure pack without a scheme puts on its first one.' },
+        figure: { type: 'string', description: 'Figure: coo, or the id of an installed figure. Switching to a figure pack without a scheme puts on its first one. A figure goes on at the size it last had on screen, unless scale is given too.' },
         scheme: { type: 'string', description: 'The dress of the current figure (or of the one being switched to): a preset id, or one option per axis joined with - in axis order (for Coo: palette-head-side-glasses-neck).' },
         roam: { type: 'string', enum: ['free', 'calm', 'off'], description: 'Walking about: free walks often, calm mostly stays put, off does not wander.' },
         snoreSeconds: { type: 'integer', minimum: 0, maximum: 3600, description: 'Seconds of snoring each time you fall asleep; 0 snores until you wake.' },

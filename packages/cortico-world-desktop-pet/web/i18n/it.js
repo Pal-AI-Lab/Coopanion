@@ -46,7 +46,7 @@ export default {
   'action.soundOn': 'Suoni: attivi · clicca per disattivarli',
   'action.soundOff': 'Suoni: disattivati · clicca per attivarli',
   'action.size': 'Dimensione: {pct}%',
-  'action.sizeLabel': 'Dimensione del compagno',
+  'action.sizeLabel': "Dimensione dell'animaletto",
   'action.dress': 'Guardaroba',
   'action.worlds': 'I miei World',
   'action.hide': "Nascondimi per ora (l'icona nell'area di notifica mi riporta qui)",

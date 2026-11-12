@@ -23,7 +23,7 @@ import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightW
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
 import { runFrames } from './frame-loop.js';
-import { mountHints } from './hints.js';
+import { mountHints, tipOf, tipWithoutNote } from './hints.js';
 
 const $ = (s) => document.querySelector(s);
 const host = window.petHost || null;
@@ -1294,7 +1294,7 @@ const ACTIONS = {
     },
     run: () => cycleRoam(),
   },
-  // a choice of two looks, not a switch: light is no "off", so its button keeps a solid ring
+  // no `on`: both night and day draw a solid ring
   theme: {
     keep: true,
     icon: () => (prefs.theme === 'dark' ? ICONS.moon : ICONS.sun),
@@ -1312,7 +1312,7 @@ const ACTIONS = {
     icon: () => ICONS.eyeOff, available: () => !!host?.hide,
     state: () => t('action.hide'),
     // the hint leaves out the note in brackets on bringing it back from the tray
-    tip: () => t('action.hide').replace(/\s*[（(][^（(]*[）)]\s*$/, ''),
+    tip: () => tipWithoutNote(t('action.hide')),
     run: () => host.hide(),
   },
   size: {
@@ -1355,8 +1355,7 @@ function drawAction(b, id) {
   b.classList.toggle('off', on === false);
   b.classList.toggle('waiting', !!a.waiting?.());
   b.setAttribute('aria-label', a.state());
-  // a hover hint (hints.js) names the button and where it stands, without the line's part after ' · ' on what a click does
-  b.dataset.tip = a.tip?.() ?? a.state().split('·')[0].trim();
+  b.dataset.tip = a.tip?.() ?? tipOf(a.state());
   if (on !== undefined) b.setAttribute('aria-pressed', String(on));
   else b.removeAttribute('aria-pressed');
 }
