@@ -64,7 +64,7 @@ export const S: Partial<typeof en> = {
   remember: 'Position merken',
   rememberHint: 'Startet beim nächsten Mal an der letzten waagerechten Position; bei mehreren Bildschirmen auf dem Hauptbildschirm.',
   hover: 'Hover-Schaltflächen',
-  hoverHint: (n: number) => `Bis zu ${n}.`,
+  hoverHint: (n: number) => `Bis zu ${n}; das Rechtsklickmenü zeigt dieselben.`,
   dblclick: 'Doppelklick auf Coo öffnet das Eingabefeld',
   typeKeyLabel: 'Tipptaste',
   typeKey: 'Eingabefeld öffnen',

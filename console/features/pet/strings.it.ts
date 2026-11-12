@@ -64,7 +64,7 @@ export const S: Partial<typeof en> = {
   remember: 'Ricorda la posizione',
   rememberHint: 'Al prossimo avvio torna all’ultima posizione orizzontale; con più schermi, su quello principale.',
   hover: 'Pulsanti al passaggio',
-  hoverHint: (n: number) => `Fino a ${n}.`,
+  hoverHint: (n: number) => `Fino a ${n}; il menu del clic destro mostra gli stessi.`,
   dblclick: 'Doppio clic su Coo per aprire la casella di testo',
   typeKeyLabel: 'Tasto per scrivere',
   typeKey: 'Apri la casella di testo',

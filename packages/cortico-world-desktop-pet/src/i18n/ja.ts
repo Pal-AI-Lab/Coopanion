@@ -177,7 +177,7 @@ const ja: Translation<PetText> = {
     fontSize: (from: number, to: number) => `文字サイズを ${from} 倍から ${to} 倍にする`,
     theme: { dark: '夜の見た目にする', light: '昼の見た目にする' },
     hover: (list: string) => `ホバーボタンを${list}にする`,
-    actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', dress: '着せ替え', hide: 'ペットを隠す' },
+    actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', dress: '着せ替え', hide: 'ペットを隠す', worlds: '自分の World' },
     user: (to: string) => `あなたを「${to}」と呼ぶ`,
   },
 

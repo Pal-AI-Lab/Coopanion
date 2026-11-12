@@ -737,6 +737,42 @@ function showDialogInput(it) {
     row.appendChild(pill(input.confirm, true, () => settleDialog(it, { index: it.value ?? 0 })));
     body.appendChild(row);
     pick(start, false);
+  } else if (input.kind === 'pick') {
+    // any number of cards lit, from min to max; at max the cards not lit wait until one is put out
+    const cards = Object.assign(document.createElement('div'), { className: 'd-cards pick' });
+    const max = Math.max(1, Number(input.max) || 1), min = Math.max(0, Math.min(max, Number(input.min ?? 1)));
+    const on = new Set((Array.isArray(input.value) ? input.value : []).filter((i) => Number.isInteger(i) && i >= 0 && i < input.options.length).slice(0, max));
+    const row = Object.assign(document.createElement('div'), { className: 'd-row d-foot-row' });
+    const count = Object.assign(document.createElement('span'), { className: 'd-hint d-count' });
+    const ok = pill(input.confirm, true, () => settleDialog(it, { picked: [...on].sort((a, b) => a - b) }));
+    const paint = () => {
+      cards.querySelectorAll('.d-card').forEach((c) => {
+        const lit = on.has(Number(c.dataset.i));
+        c.classList.toggle('on', lit);
+        c.setAttribute('aria-pressed', String(lit));
+        c.disabled = !lit && on.size >= max;
+      });
+      count.textContent = `${input.hint ? input.hint + ' ' : ''}${on.size}/${max}`;
+      ok.disabled = on.size < min;
+      ok.classList.toggle('need', on.size < min);
+    };
+    input.options.forEach((o, i) => {
+      const c = document.createElement('button');
+      c.type = 'button'; c.className = 'd-card'; c.dataset.i = String(i);
+      c.style.animationDelay = (i * .05) + 's';
+      c.innerHTML = `${o.icon && ICONS[o.icon] ? `<span class="d-cardic ic-${esc(o.icon)}">${ICONS[o.icon]}</span>` : ''}<span class="d-cardlbl">${esc(o.label)}</span>`;
+      c.addEventListener('click', () => {
+        sfx.tick();
+        if (on.has(i)) on.delete(i); else if (on.size < max) on.add(i);
+        paint();
+      });
+      cards.appendChild(c);
+      setTimeout(() => sfx.blub(), i * 50);
+    });
+    body.appendChild(cards);
+    row.append(count, ok);
+    body.appendChild(row);
+    paint();
   } else if (input.kind === 'text') {
     const form = Object.assign(document.createElement('form'), { className: 'd-field' });
     form.innerHTML = `<input type="${input.secret ? 'password' : 'text'}" autocomplete="off" spellcheck="false" maxlength="${Number(input.maxLength) || 200}">${input.secret ? `<button class="d-peek" type="button" aria-label="${esc(t('bubble.peek'))}" title="${esc(t('bubble.peek'))}">${ICONS.eye}</button>` : ''}<button class="d-send" type="submit"></button>`;
@@ -1287,14 +1323,12 @@ function toggleVoice() {
   send({ t: 'prefs', mic: on });
 }
 
-/* ---------- menu: the run controls as round buttons on Coo's left, every action in columns on its right ---------- */
+/* ---------- menu: the run controls as round buttons on Coo's left, the hover buttons in columns on its right ---------- */
 /** Most action buttons in one column, of the menu as of the hover buttons. */
 const MENU_ROWS = 3;
-/** Every action the menu shows: the hover buttons chosen in settings first, then the rest in ACTIONS order. */
+/** The actions the menu shows: the hover buttons chosen in settings, the same ones the pointer brings up. */
 function menuActions() {
-  const ids = prefs.hoverButtons.filter(available);
-  for (const id of Object.keys(ACTIONS)) if (available(id) && !ids.includes(id)) ids.push(id);
-  return ids;
+  return prefs.hoverButtons.filter(available).slice(0, MAX_HOVER);
 }
 
 function openMenu() {
@@ -1324,6 +1358,7 @@ function openMenu() {
     });
     grid.appendChild(b);
   }
+  grid.hidden = !ids.length;
   menu.append(rail, grid);
   renderMenuRail();
   stagger(grid);

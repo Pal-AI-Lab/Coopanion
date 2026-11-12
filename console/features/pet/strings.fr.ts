@@ -64,7 +64,7 @@ export const S: Partial<typeof en> = {
   remember: 'Mémoriser la position',
   rememberHint: 'Au prochain démarrage, Coo reprend la dernière position horizontale ; avec plusieurs écrans, sur l’écran principal.',
   hover: 'Boutons au survol',
-  hoverHint: (n: number) => `Jusqu'à ${n}.`,
+  hoverHint: (n: number) => `Jusqu'à ${n} ; le menu du clic droit montre les mêmes.`,
   dblclick: 'Double-cliquer sur Coo pour ouvrir la zone de saisie',
   typeKeyLabel: 'Touche de saisie',
   typeKey: 'Ouvrir la zone de saisie',

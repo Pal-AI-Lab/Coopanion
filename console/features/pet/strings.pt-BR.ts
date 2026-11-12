@@ -64,7 +64,7 @@ export const S: Partial<typeof en> = {
   remember: 'Lembrar a posição',
   rememberHint: 'Na próxima abertura volta à última posição horizontal; com várias telas, na principal.',
   hover: 'Botões ao passar o mouse',
-  hoverHint: (n: number) => `Até ${n}.`,
+  hoverHint: (n: number) => `Até ${n}; o menu do botão direito mostra os mesmos.`,
   dblclick: 'Clique duplo em Coo para abrir a caixa de texto',
   typeKeyLabel: 'Tecla para digitar',
   typeKey: 'Abrir a caixa de texto',

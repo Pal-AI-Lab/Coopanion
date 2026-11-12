@@ -64,7 +64,7 @@ export const S: Partial<typeof en> = {
   remember: 'Recordar posición',
   rememberHint: 'Al iniciar de nuevo vuelve a la última posición horizontal; con varias pantallas, en la principal.',
   hover: 'Botones al pasar el cursor',
-  hoverHint: (n: number) => `Hasta ${n}.`,
+  hoverHint: (n: number) => `Hasta ${n}; el menú del clic derecho muestra los mismos.`,
   dblclick: 'Doble clic en Coo para abrir el cuadro de texto',
   typeKeyLabel: 'Tecla para escribir',
   typeKey: 'Abrir el cuadro de texto',

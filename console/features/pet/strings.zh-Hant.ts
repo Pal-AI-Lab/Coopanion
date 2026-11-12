@@ -64,7 +64,7 @@ export const S: Partial<typeof en> = {
   remember: '記住位置',
   rememberHint: '下次啟動時回到上次的橫向位置；有多個螢幕時在主螢幕上啟動。',
   hover: '懸停按鈕',
-  hoverHint: (n: number) => `最多 ${n} 個。`,
+  hoverHint: (n: number) => `最多 ${n} 個，右鍵選單裡也是這幾個。`,
   dblclick: '開啟打字框',
   typeKeyLabel: '打字鍵',
   typeKey: '開啟打字框',

@@ -177,7 +177,7 @@ const ko: Translation<PetText> = {
     fontSize: (from: number, to: number) => `글자 크기를 ${from}배에서 ${to}배로 바꾸기`,
     theme: { dark: '야간 모습으로 바꾸기', light: '주간 모습으로 바꾸기' },
     hover: (list: string) => `호버 버튼을 ${list}(으)로 바꾸기`,
-    actions: { chat: '입력', voice: '음성 입력', roam: '걷기', theme: '야간 모드', sound: '효과음', dress: '꾸미기', hide: '펫 숨기기' },
+    actions: { chat: '입력', voice: '음성 입력', roam: '걷기', theme: '야간 모드', sound: '효과음', dress: '꾸미기', hide: '펫 숨기기', worlds: '내 World' },
     user: (to: string) => `'${to}'(이)라고 부르기`,
   },
 

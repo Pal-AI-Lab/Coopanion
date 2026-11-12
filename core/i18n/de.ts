@@ -117,7 +117,7 @@ const de: Translation<CoreText> = {
     talkOff: 'Die Spracheingabe ist gerade aus; du kannst sie auf der Seite Spracheingabe in den Einstellungen einschalten. ',
     talkType: 'Du kannst auch mit dem Mauszeiger auf mir bleiben und auf die Sprechblasen-Schaltfläche neben mir klicken, um zu tippen.',
     gotIt: 'Verstanden',
-    buttons: 'Bleib mit dem Mauszeiger auf mir, dann erscheinen ein paar Schaltflächen neben mir; ein Rechtsklick auf mich öffnet das Menü mit Pause, Einstellungen und Beenden.',
+    buttons: 'Bleib mit dem Mauszeiger auf mir, dann erscheinen ein paar Schaltflächen neben mir; ein Rechtsklick zeigt dieselben, dazu Einstellungen, Pause und Beenden. Such dir die aus, die du am meisten brauchst; in den Einstellungen kannst du sie später ändern.',
     ok: 'OK',
     persona: 'Wie ich bin und wie ich rede, steht auf der Seite System-Prompt im Einstellungsfenster. Um mich zu ändern, bearbeite es dort, oder sag es mir einfach, dann ändere ich es selbst.',
     personaMark: 'System-Prompt',

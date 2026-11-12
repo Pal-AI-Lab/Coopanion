@@ -117,7 +117,7 @@ const ptBR: Translation<CoreText> = {
     talkOff: 'A entrada de voz está desligada agora; você pode ligá-la na página Entrada de voz das configurações. ',
     talkType: 'Você também pode deixar o ponteiro sobre mim e clicar no botão de balão ao meu lado para digitar.',
     gotIt: 'Entendi',
-    buttons: 'Deixe o ponteiro sobre mim e alguns botões aparecem ao meu lado; clique com o botão direito em mim para abrir o menu, com pausar, configurações e sair.',
+    buttons: 'Deixe o ponteiro sobre mim e alguns botões aparecem ao meu lado; com o botão direito você vê os mesmos, mais configurações, pausar e sair. Escolha os que você mais usa; depois dá para mudar nas configurações.',
     ok: 'OK',
     persona: 'Como eu sou e como eu falo está escrito na página Prompt de sistema da janela de configurações. Para me mudar, edite lá, ou é só me dizer e eu mudo por conta própria.',
     personaMark: 'Prompt de sistema',

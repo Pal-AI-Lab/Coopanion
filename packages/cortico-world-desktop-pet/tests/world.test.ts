@@ -612,6 +612,11 @@ describe('with a pet page', () => {
     page.send({ t: 'dialog', id: (await page.next((m) => m.t === 'dialog')).id, index: 1 });
     expect(await pick.answer).toEqual({ index: 1 });
 
+    // several cards: the indices come back once each, in order, and anything else in the list is left out
+    const several = world.dialog({ text: '挑几个', input: { kind: 'pick', confirm: '好', max: 3, options: [{ label: 'A' }, { label: 'B' }, { label: 'C' }] } });
+    page.send({ t: 'dialog', id: (await page.next((m) => m.t === 'dialog')).id, picked: [2, 0, 2, -1, 1.5, 'x'] });
+    expect(await several.answer).toEqual({ picked: [0, 2] });
+
     const closed = world.dialog({ text: '跳过?', closable: true, input: { kind: 'text', submit: '好', alt: '算了' } });
     page.send({ t: 'dialog', id: (await page.next((m) => m.t === 'dialog')).id, closed: true });
     expect(await closed.answer).toEqual({ closed: true });
