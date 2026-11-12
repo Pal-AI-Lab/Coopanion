@@ -69,7 +69,7 @@
 .companion-rangebox { display: flex; align-items: center; gap: 12px; padding-top: 4px; }
 .companion-rangeval { min-width: 44px; font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .companion-rangebox > input[type=number] { width: 96px; }
-/* 大小:200% 以内是主段,分界线右边一小段到 1000%,越过分界线时这段拉长(scale-slider.ts) */
+/* 大小:200% 以内是主段,分界线右边一小段到 1000%,越过分界线时这段拉长(桌宠 World 的 web/scale-slider.js) */
 .companion-scale { position: relative; flex: none; height: 22px; cursor: pointer; touch-action: none; outline: none; }
 .companion-scale > .ps-main, .companion-scale > .ps-tail, .companion-scale > .ps-fill { position: absolute; top: 9px; height: 4px; border-radius: 2px; }
 .companion-scale > .ps-main { left: 0; background: var(--line-2); }

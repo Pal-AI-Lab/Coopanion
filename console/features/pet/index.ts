@@ -195,7 +195,7 @@ async function mount(ctx: PageContext): Promise<void> {
     const box = ui.h('div', 'companion-rangebox');
     const show = () => { text.textContent = `${Math.round(slider.value * 100)}%`; };
     const slider = scaleSlider(root.ownerDocument, {
-    className: 'companion-scale',
+      className: 'companion-scale',
       min, soft: max, max, step: .05, label,
       room: () => box.clientWidth - text.offsetWidth - 12,
       onInput: () => show(),
