@@ -262,8 +262,14 @@ ${super.partnerDoc() || `(${PARTNER_FILE} is empty.)`}`;
       this.core?.injectInternal(`[system] The World "${event.label}" ${what}.`, 'notice');
     }
 
-    /** Cormini's delivery: the heartbeat's quiet time starts over, and one line counts the events and dates them. */
+    /**
+     * Cormini's delivery: the batch's opening moment is kept, the heartbeat's quiet time starts over, and one line
+     * counts the events and dates them.
+     */
     override onDelivery(ctx: { events: EventEnvelope[] }): void {
+      // The handoff note splits at the moment the batch that crossed the soft threshold opened, so what Coo said in
+      // that batch stays in the latest stretch. Deliveries between turns of one batch come here too; the first counts.
+      this.batchOpenedAt ??= Date.now();
       const externals = ctx.events.filter((e) => e.origin === 'external');
       if (externals.length === 0) return;
       // Cormini keeps its heartbeat private; the bracket access is TypeScript's way in for a subclass
