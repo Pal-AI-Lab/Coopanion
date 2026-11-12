@@ -45,7 +45,7 @@ export default {
   'action.soundOn': 'Töne: an · klicken zum Ausschalten',
   'action.soundOff': 'Töne: aus · klicken zum Einschalten',
   'action.size': 'Größe: {pct} %',
-  'action.sizeLabel': 'Größe des Begleiters',
+  'action.sizeLabel': 'Größe des Haustiers',
   'action.dress': 'Outfit',
   'action.worlds': 'Meine Worlds',
   'action.hide': 'Versteck mich erst mal (das Symbol im Infobereich holt mich zurück)',

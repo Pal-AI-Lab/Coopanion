@@ -57,7 +57,7 @@ import { Cua } from './cua/cua.ts';
 import { CUA_OFF_TOOL_DECLS } from './cua/tools.ts';
 import type { Answer } from './cua/engine-ipc.ts';
 import { PackImporter } from './pack-import.ts';
-import { dressTable, planSettings, type SettingChange } from './self.ts';
+import { dressTable, planSettings, sayScale, type SettingChange } from './self.ts';
 import { MODEL_TEXT, type ModelLanguage, type ModelText } from './model-text.ts';
 
 /** The console panels, titled in `language`. */
@@ -1059,18 +1059,20 @@ export class DesktopPetWorld implements World {
     const skin = raw as PetSkin;
     const size = scaleOf(scale);
     this.opts.persist(size === null ? { skin } : { skin, window: { scale: size } });
+    this.followFigure(size !== null);
     this.syncPrefs();
   }
 
   /**
    * Each figure keeps its own size: when the figure on screen changes, the one replaced keeps the size it had in
-   * `figureScales`, and the new one takes its own back from there, unless the size changed along with it.
+   * `figureScales`, and the new one takes its own back from there, unless the size changed along with it or was
+   * `given` with it (a saved look's, or `pet_set`'s, the size on screen included).
    */
-  private followFigure(): void {
+  private followFigure(given = false): void {
     const figure = this.cfg.skin.figure ?? COO, scale = this.cfg.window.scale;
     const was = this.sized;
     if (figure === was.figure) { was.scale = scale; return; }
-    const own = scale === was.scale ? scaleOf(this.cfg.figureScales[figure]) : null;
+    const own = !given && scale === was.scale ? scaleOf(this.cfg.figureScales[figure]) : null;
     this.opts.persist({ figureScales: { [was.figure]: was.scale }, ...(own !== null && own !== scale ? { window: { scale: own } } : {}) });
     this.sized = { figure, scale: own ?? scale };
   }
@@ -1986,17 +1988,23 @@ export class DesktopPetWorld implements World {
     if (errors.length) return { text: t.setErrors(errors), failed: true };
     if (!changes.length) return { text: t.setNothing };
     const lines: string[] = [];
-    const apply = (list: SettingChange[]) => {
+    /** Applies `list`; when a figure put on takes back the size it last had, that change is said too. */
+    const apply = (list: SettingChange[]): string[] => {
       this.followFigure();
+      const before = this.cfg.window.scale;
+      const given = list.some((c) => c.key === 'scale') || scaleOf(args.scale) === before;
       for (const c of list) this.opts.persist(c.patch);
+      this.followFigure(given);
       const skin = this.cfg.skin;
       if (list.some((c) => c.key === 'figure' || c.key === 'scheme')) this.botLook = (skin.figure ?? COO) === COO ? COO : `${skin.figure}:${skin.scheme ?? ''}`;
       this.syncPrefs();
       this.opts.onBotChange?.();
+      const after = this.cfg.window.scale;
+      return !given && after !== before ? [sayScale(before, after, this.language)] : [];
     };
     const says = (list: SettingChange[]) => list.map((c) => c.say);
     const mine = changes.filter((c) => c.tier === 'self');
-    if (mine.length) { apply(mine); lines.push(t.setDone(says(mine))); }
+    if (mine.length) { const also = apply(mine); lines.push(t.setDone([...says(mine), ...also])); }
     const asked = changes.filter((c) => c.tier === 'ask');
     if (asked.length) {
       const c = this.ui.consent;
@@ -2005,9 +2013,9 @@ export class DesktopPetWorld implements World {
         // these items stop being asked: the rest stay as they were, under `custom`; told to the app with the changes as the bot's own
         const keys = [...new Set(asked.map((x) => x.key))];
         this.opts.persist({ selfAdjust: 'custom', selfAdjustCustom: { ...directSettings(this.cfg), ...Object.fromEntries(keys.map((k) => [k, true])) } });
-        apply(asked);
-        lines.push(t.setAlways(this.userName, says(asked), keys.map((k) => t.settingNames[k])));
-      } else if (answer === 'yes') { apply(asked); lines.push(t.setAgreed(this.userName, says(asked))); }
+        const also = apply(asked);
+        lines.push(t.setAlways(this.userName, [...says(asked), ...also], keys.map((k) => t.settingNames[k])));
+      } else if (answer === 'yes') { const also = apply(asked); lines.push(t.setAgreed(this.userName, [...says(asked), ...also])); }
       else lines.push(t.setNotChanged(answer === 'unavailable' || answer === 'timeout' ? answer : 'no', this.userName, says(asked)));
     }
     if (mine.some((c) => c.key === 'figure' || c.key === 'scheme')) {

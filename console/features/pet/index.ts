@@ -647,7 +647,7 @@ async function mount(ctx: PageContext): Promise<void> {
       botName.dataset.saved = botName.value;
     }
     if (typeof values[KEYS.roam] === 'string') roam.setValue(values[KEYS.roam] as string);
-    if (typeof values[KEYS.scale] === 'number' && !scale.active && active !== scale.el) { scale.set(values[KEYS.scale] as number); showScale(); }
+    if (typeof values[KEYS.scale] === 'number' && !scale.active && active !== scale.el) { scale.set(values[KEYS.scale] as number); scaleSent = scale.value; showScale(); }
     if (!glow.active && active !== glow.el) { glow.set(typeof values[KEYS.glow] === 'number' ? values[KEYS.glow] as number : GLOW_DEFAULT); showGlow(); }
     for (const [s, key] of [[bubbleSize, KEYS.bubbleSize], [fontSize, KEYS.fontSize], [bubbleSpeed, KEYS.bubbleSpeed]] as const) {
       if (!s.slider.active && active !== s.slider.el) { s.slider.set(typeof values[key] === 'number' ? values[key] as number : 1); s.show(); }

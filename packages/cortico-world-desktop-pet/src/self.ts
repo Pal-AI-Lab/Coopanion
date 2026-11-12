@@ -110,6 +110,9 @@ const en: typeof zh = {
 
 const SELF_TEXT: Record<ModelLanguage, typeof zh> = { zh, en };
 
+/** A size change as `pet_set`'s receipt says it. */
+export const sayScale = (from: number, to: number, language: ModelLanguage = 'zh'): string => SELF_TEXT[language].scale(from, to);
+
 /** The pack's pick named by `scheme`, as `axis:option` words; null when it picks nothing of the pack. */
 export function pickWords(pack: FigurePack, scheme: string, language: ModelLanguage = 'zh'): string | null {
   const t = SELF_TEXT[language];
