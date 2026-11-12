@@ -13,9 +13,10 @@ import { join } from 'node:path';
 import { dryMountProvider } from 'cortico/extensions/dry-mount.ts';
 import { GenerationError } from 'cortico/core/generation.ts';
 import { nullLogger } from 'cortico/core/util.ts';
-import type { LLMProviderEntry, Logger } from 'cortico/core/types.ts';
+import type { BlobRef, LLMProviderEntry, Logger } from 'cortico/core/types.ts';
 import type { Request } from 'cortico/protocol/open-responses/index.ts';
 import { functionCall, functionResult, message } from 'cortico/protocol/open-responses/context.ts';
+import { ProviderRegistry } from 'cortico/providers/registry.ts';
 import { CHATGPT_PROVIDER, SIGN_IN_PANEL, chatgptModule, usageLimited, USAGE_LIMIT } from '../src/index.ts';
 import { CHATGPT_RESOURCE, CHATGPT_SCOPES, PLAN_SCOPE, accountAt, readStored, type ChatGPTService } from '../src/chatgpt/auth.ts';
 import { TOOL_NAMESPACE } from '../src/chatgpt/client.ts';
@@ -317,6 +318,28 @@ describe('requests billed to a ChatGPT plan', () => {
     const input = body.input as Array<Record<string, unknown>>;
     expect(input.some((item) => item.role === 'system' || item.role === 'developer')).toBe(false);
     expect(input.find((item) => item.type === 'function_call')).toMatchObject({ name: 'say', namespace: TOOL_NAMESPACE.name });
+  });
+
+  it('through the registry, a refused request is sent again only without an image it carried: one request for an image older than the newest batch, two for a new one', async () => {
+    const image = Buffer.from('an image the service cannot decode');
+    const picture: BlobRef = { handle: 'log:0123456789abcdef0123.png', mime: 'image/png', name: 'big.png', fallbackText: 'Image' };
+    const withPicture = message('user', 'look', { blobs: [picture] });
+    const carried: boolean[] = [];
+    let refuseAll = true;
+    const { root, module, entry: e } = await signedInEndpoint((_req, res, body) => {
+      const carries = JSON.stringify(body).includes(image.toString('base64'));
+      carried.push(carries);
+      if (carries || refuseAll) return res.writeHead(400, { 'content-type': 'application/json' }).end('{"detail":"invalid parameter"}');
+      stream(res, COMPLETED);
+    });
+    const registry = new ProviderRegistry(() => ({ chatgpt: e }), { stateRoot: root, readBlob: () => image, keepThinking: () => true, log: nullLogger() }, [module]);
+    const ask = (context: Array<typeof withPicture>) => registry.bind('chatgpt').respond({ model: 'm' } as unknown as Request, { context });
+    await expect(ask([withPicture, message('assistant', 'seen'), message('user', 'and now')])).rejects.toMatchObject({ status: 400 });
+    expect(carried).toEqual([false]);
+    carried.length = 0;
+    refuseAll = false;
+    await ask([withPicture]);
+    expect(carried).toEqual([true, false]);
   });
 
   it('completes text and usage when plan metadata arrives between text deltas and done events', async () => {
