@@ -545,8 +545,15 @@
 
   .segwrap.sm .seg { padding: 4px 10px; font-size: var(--text-detail); }
 
-  .u-tip { position: fixed; z-index: 130; pointer-events: none; box-sizing: border-box; width: max-content; max-width: min(268px, calc(100vw - 16px)); background: var(--sheet); border: 1px solid var(--line-strong); border-radius: 9px; padding: 9px 11px; box-shadow: 0 6px 22px var(--shadow-soft); font: 12px var(--sans); color: var(--ink); overflow-wrap: anywhere; }
+  /* Every hint box (.u-tip) fades in over 120 ms. Hover hints (base/ui/hover-hint.ts) are the smaller kind and also fade
+     out over 120 ms (hover-hint.ts LEAVE_MS); the pet's pages draw theirs the same (pet.css .hint). */
+  .u-tip { position: fixed; z-index: 130; pointer-events: none; box-sizing: border-box; width: max-content; max-width: min(268px, calc(100vw - 16px)); background: var(--sheet); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 9px 11px; box-shadow: 0 18px 48px -28px var(--shadow-strong); font: 12px var(--sans); color: var(--ink); overflow-wrap: anywhere; animation: hover-hint-in 120ms ease-out; }
   .u-tip.hidden { display: none; }
+  .u-tip.hover-hint { max-width: min(280px, calc(100vw - 16px)); padding: 5px 9px; border-radius: 8px; font: 12px/1.45 var(--sans); box-shadow: 0 6px 18px -8px var(--shadow-strong); }
+  .u-tip.hover-hint.leaving { animation: hover-hint-out 120ms ease-in forwards; }
+  @keyframes hover-hint-in { from { opacity: 0; } }
+  @keyframes hover-hint-out { to { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .u-tip, .u-tip.hover-hint.leaving { animation: none; } }
   .u-tip .tt-h { font: 600 12.5px var(--mono); color: var(--accent); margin-bottom: 3px; }
   .u-tip .tt-tot { font: 12px var(--mono); color: var(--ink-soft); margin-bottom: 4px; }
   .u-tip .tt-row { display: grid; grid-template-columns: 9px minmax(0, 1fr) auto; align-items: start; gap: 6px; margin: 2px 0; }
@@ -1262,7 +1269,7 @@
   .avatar-zoom { width: 100%; accent-color: var(--accent); }
   .avatar-note { max-width: 100%; margin: 0; color: var(--muted-foreground); font-size: 12.5px; text-align: center; }
   .avatar-editor .actionbar { width: 100%; }
-  .ctxpanel, .u-tip {
+  .ctxpanel {
     border-color: var(--border);
     border-radius: var(--radius-lg);
     box-shadow: 0 18px 48px -28px var(--shadow-strong);
@@ -2240,14 +2247,6 @@ html.is-list-dragging,html.is-list-dragging *{cursor:none!important;user-select:
 .world-no-matches{margin:4px 0 0;padding:20px 0;font-size:12.5px;color:var(--ink-dim);text-align:center}
 .world-workspace[data-view=market] .world-no-matches{display:none}
 
-/* Hover hints (base/ui/hover-hint.ts): the shared .u-tip box, smaller. Every .u-tip fades in over 120 ms; a hover hint
-   also fades out over 120 ms (hover-hint.ts LEAVE_MS). The pet's pages draw theirs the same (pet.css .hint). */
-.u-tip{animation:hover-hint-in 120ms ease-out}
-.u-tip.hover-hint{max-width:min(280px,calc(100vw - 16px));padding:5px 9px;border-radius:8px;font:12px/1.45 var(--sans);color:var(--ink);box-shadow:0 6px 18px -8px var(--shadow-strong)}
-.u-tip.hover-hint.leaving{animation:hover-hint-out 120ms ease-in forwards}
-@keyframes hover-hint-in{from{opacity:0}}
-@keyframes hover-hint-out{to{opacity:0}}
-
 /* Dropdowns (base/ui/dropdown.ts): every select, and every text field with suggestions, opens its list in one white rounded box, the row under the pointer highlighted and the chosen
    one bold. It fades in as it opens and is gone at once when it closes. */
 input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{display:none!important}
@@ -2262,7 +2261,7 @@ input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{disp
 .combo-option[aria-selected=true]{font-weight:600}
 .combo-option[aria-selected=true]::after{content:"";flex:none;width:9px;height:5px;margin-left:auto;border:solid var(--ink-dim);border-width:0 0 1.5px 1.5px;transform:translateY(-2px) rotate(-45deg)}
 .combo-option[aria-disabled=true]{color:var(--ink-dim);cursor:default}
-@media (prefers-reduced-motion: reduce){.u-tip, .u-tip.hover-hint.leaving{animation:none}.combo-list{transition:none}}
+@media (prefers-reduced-motion: reduce){.combo-list{transition:none}}
 
 /* The extension info page's pictures (extensions/gallery.ts): a row that pages sideways, and a lightbox. */
 .extension-gallery-section{display:contents}
