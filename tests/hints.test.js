@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { mountHints } from '../packages/cortico-world-desktop-pet/web/hints.js';
+import { DELAY_MS, SHOW_MS, mountHints } from '../packages/cortico-world-desktop-pet/web/hints.js';
 
 describe('hover hints on the pet pages', () => {
   let win;
@@ -22,24 +22,26 @@ describe('hover hints on the pet pages', () => {
   it('shows a moment after the pointer arrives and closes on its own while the pointer stays', () => {
     const { size, box, over } = page();
     over(size);
-    vi.advanceTimersByTime(450);
+    vi.advanceTimersByTime(DELAY_MS);
     expect(box.hidden).toBe(false);
     expect(box.textContent).toBe('大小');
-    vi.advanceTimersByTime(2500);
+    vi.advanceTimersByTime(SHOW_MS - 1);
+    expect(box.hidden).toBe(false);
+    vi.advanceTimersByTime(1);
     expect(box.hidden).toBe(true);
     // moving within the button does not bring it back
     over(size.querySelector('.ic'), size);
-    vi.advanceTimersByTime(3000);
+    vi.advanceTimersByTime(2 * SHOW_MS);
     expect(box.hidden).toBe(true);
   });
 
   it('shows again once the pointer has left the button and come back', () => {
     const { size, dress, box, over, out } = page();
     over(size);
-    vi.advanceTimersByTime(450 + 2500);
+    vi.advanceTimersByTime(DELAY_MS + SHOW_MS);
     out(size, dress);
     over(size, dress);
-    vi.advanceTimersByTime(450);
+    vi.advanceTimersByTime(DELAY_MS);
     expect(box.hidden).toBe(false);
   });
 });

@@ -4,9 +4,9 @@
  * element, or above it when there is no room below, for SHOW_MS: it closes on its own and does not come back until
  * the pointer has left the element. A title set again later replaces the hint the next time.
  */
-const DELAY_MS = 450;
+export const DELAY_MS = 450;
 /** How long a hint stays up while the pointer rests on its element. */
-const SHOW_MS = 2500;
+export const SHOW_MS = 1500;
 const EDGE = 8;
 
 function takeTitle(el) {
