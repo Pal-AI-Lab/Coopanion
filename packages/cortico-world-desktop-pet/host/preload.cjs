@@ -45,4 +45,6 @@ contextBridge.exposeInMainWorld('petHost', {
   onOverlay: (cb) => ipcRenderer.on('pet:overlay', (_e, on) => cb(!!on)),
   /** A frame drawn: the part of the page the overlay shows (the pet and its bubbles) in page pixels or null, and when it was drawn (ms since the epoch). */
   overlayFrame: (rect, at) => ipcRenderer.send('pet:overlayFrame', rect, at),
+  /** A picture of `rect` (page pixels) as the window draws it, over a plain backdrop: `{ png, width, height }` (base64, pixels), or null when none could be taken. */
+  portrait: (rect) => ipcRenderer.invoke('pet:portrait', rect),
 });

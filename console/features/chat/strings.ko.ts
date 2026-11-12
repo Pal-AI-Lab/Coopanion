@@ -52,5 +52,5 @@ export const S: Partial<typeof en> = {
 export const STEP: Partial<typeof stepEn> = {
   pet_cua_screenshot: '스크린샷', pet_cua_click: '클릭', pet_cua_move: '마우스 이동', pet_cua_drag: '드래그', pet_cua_mouse_down: '마우스 버튼 누르기', pet_cua_mouse_up: '마우스 버튼 떼기', pet_cua_scroll: '스크롤', pet_cua_type: '입력',
   pet_cua_key: '키 누르기', pet_cua_windows: '창 목록 보기', pet_cua_focus: '창 전환', pet_cua_wait: '대기',
-  pet_move_to: '걷기', pet_act: '동작하기', pet_set: '설정 조정', pet_quiet: '잠시 조용히',
+  pet_move_to: '걷기', pet_act: '동작하기', pet_set: '설정 조정', pet_quiet: '잠시 조용히', pet_see_self: '모습 확인',
 };
