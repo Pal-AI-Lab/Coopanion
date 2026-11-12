@@ -14,10 +14,13 @@ afterEach(() => { life.abort(); document.body.replaceChildren(); vi.restoreAllMo
 /** The held heading's bottom, the scroller's `scroll-padding-top`. */
 const INSET = 60;
 
+/** The page's end: the last section is 200 px tall, so its top is still 200 px down there, below the heading. */
+const END = 800;
+
 /**
- * A page 400 px tall scrolling over three 500 px sections. Scrolling moves the page and fires `scroll` as a browser
- * does: `scrollIntoView` puts the section's top at the scroll padding, `scrollTo` goes where it is told, both held
- * within the page's ends.
+ * A page 400 px tall scrolling over two 500 px sections and a last one of 200 px. Scrolling moves the page and fires
+ * `scroll` as a browser does: `scrollIntoView` puts the section's top at the scroll padding, `scrollTo` goes where
+ * it is told, both held within the page's ends.
  */
 function page() {
   const scroller = document.createElement('div');
@@ -25,10 +28,10 @@ function page() {
   let top = 0;
   Object.defineProperties(scroller, {
     scrollTop: { get: () => top, set: (v) => { top = v; } },
-    clientHeight: { value: 400 }, scrollHeight: { value: 1500 },
+    clientHeight: { value: 400 }, scrollHeight: { value: END + 400 },
   });
   scroller.getBoundingClientRect = () => ({ top: 0 });
-  const scrollTo = (y) => { top = Math.max(0, Math.min(1500 - 400, y)); scroller.dispatchEvent(new Event('scroll')); };
+  const scrollTo = (y) => { top = Math.max(0, Math.min(END, y)); scroller.dispatchEvent(new Event('scroll')); };
   scroller.scrollTo = ({ top: y }) => scrollTo(y);
   const items = ['a', 'b', 'c'].map((value, i) => {
     const el = document.createElement('section');
@@ -77,7 +80,7 @@ it('follows the section being read while the page is scrolled by hand, its top c
   scrollTo(400);
   expect(current()).toBe('A');
   // at the end, the last section, even when its top cannot reach the heading
-  scrollTo(1100);
+  scrollTo(END);
   expect(current()).toBe('C');
 });
 
@@ -85,9 +88,9 @@ it('keeps a clicked section that cannot reach the top until the page is scrolled
   const { scroller, current, click, scrollTo } = page();
   click(1);
   // the glide passes other sections and may end at the page's end, where the last one counts as read
-  scrollTo(1100);
+  scrollTo(END);
   expect(current()).toBe('B');
   scroller.dispatchEvent(new Event('wheel'));
-  scrollTo(1100);
+  scrollTo(END);
   expect(current()).toBe('C');
 });
