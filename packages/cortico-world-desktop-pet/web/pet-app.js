@@ -21,6 +21,7 @@ import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightW
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
 import { runFrames } from './frame-loop.js';
+import { mountHints, tipOf, tipWithoutNote } from './hints.js';
 
 const $ = (s) => document.querySelector(s);
 const host = window.petHost || null;
@@ -75,6 +76,8 @@ const lightFor = (s) => {
 };
 
 const sfx = createSfx();
+// on the desktop the hints name the hover buttons, over whatever lies behind: they close on their own
+mountHints(document, { autoClose: !!host });
 // Coo's speech stands in for the babble while it is on; its units move the mouth
 const speech = createSpeech(sfx, { onUnit: () => body?.talk() });
 /** The talk key is listening: no line makes a sound until it lets go. */
@@ -1216,10 +1219,10 @@ const ACTIONS = {
     },
     run: () => cycleRoam(),
   },
+  // no `on`: both night and day draw a solid ring
   theme: {
     keep: true,
     icon: () => (prefs.theme === 'dark' ? ICONS.moon : ICONS.sun),
-    on: () => prefs.theme === 'dark',
     state: () => t(prefs.theme === 'dark' ? 'action.themeDark' : 'action.themeLight'),
     run: () => toggleTheme(),
   },
@@ -1233,6 +1236,8 @@ const ACTIONS = {
   hide: {
     icon: () => ICONS.eyeOff, available: () => !!host?.hide,
     state: () => t('action.hide'),
+    // the hint leaves out the note in brackets on bringing it back from the tray
+    tip: () => tipWithoutNote(t('action.hide')),
     run: () => host.hide(),
   },
   dress: {
@@ -1262,8 +1267,8 @@ function drawAction(b, id) {
   b.querySelector('.ic').innerHTML = a.icon() + (badge ? `<b class="badge">${badge}</b>` : '');
   b.classList.toggle('on', on === true);
   b.classList.toggle('off', on === false);
-  // no tooltip: hovering these buttons is kept for other uses
   b.setAttribute('aria-label', a.state());
+  b.dataset.tip = a.tip?.() ?? tipOf(a.state());
   if (on !== undefined) b.setAttribute('aria-pressed', String(on));
 }
 
@@ -1408,6 +1413,8 @@ function fillMenuRail(rail, bot, confirmQuit) {
   const act = (iconHtml, label, fn, cls = 'tool', into = rail) => {
     const b = document.createElement('button');
     b.type = 'button'; b.className = cls; b.setAttribute('aria-label', label);
+    // the rail's round buttons have only an icon; the quit question's buttons say what they do
+    if (into === rail) b.dataset.tip = label;
     b.innerHTML = iconHtml;
     b.addEventListener('click', (e) => { e.stopPropagation(); sfx.tick(); fn(); });
     into.appendChild(b);

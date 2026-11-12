@@ -471,3 +471,13 @@ body.desk .floor{display:none}
 @keyframes rail-gear{to{transform:rotate(180deg)}}
 @keyframes rail-press{40%{transform:translateY(2px) scale(.9)}}
 @media (prefers-reduced-motion: reduce){.tool:hover .ic svg, .m-rail .tool:hover svg{animation:none}}
+/* hover hints (hints.js) in the pet window and the dress window, which takes this sheet too: drawn and animated as the
+   settings window's (console/styles.css .u-tip.hover-hint): fading in over 120 ms and out over 120 ms (hints.js LEAVE_MS) */
+.hint{position:fixed; z-index:130; pointer-events:none; box-sizing:border-box; width:max-content; max-width:min(280px, calc(100vw - 16px));
+  background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:5px 9px; box-shadow:0 6px 18px -8px var(--shadow, rgba(0,0,0,.3));
+  font-size:12px; line-height:1.45; color:var(--text); overflow-wrap:anywhere; animation:hint-in 120ms ease-out}
+.hint[hidden]{display:none}
+.hint.leaving{animation:hint-out 120ms ease-in forwards}
+@keyframes hint-in{from{opacity:0}}
+@keyframes hint-out{to{opacity:0}}
+@media (prefers-reduced-motion: reduce){.hint, .hint.leaving{animation:none}}

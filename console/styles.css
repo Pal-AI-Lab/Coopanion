@@ -545,8 +545,15 @@
 
   .segwrap.sm .seg { padding: 4px 10px; font-size: var(--text-detail); }
 
-  .u-tip { position: fixed; z-index: 130; pointer-events: none; box-sizing: border-box; width: max-content; max-width: min(268px, calc(100vw - 16px)); background: var(--sheet); border: 1px solid var(--line-strong); border-radius: 9px; padding: 9px 11px; box-shadow: 0 6px 22px var(--shadow-soft); font: 12px var(--sans); color: var(--ink); overflow-wrap: anywhere; }
+  /* Every hint box (.u-tip) fades in and out over 120 ms (base/ui/tip.ts LEAVE_MS). Hover hints
+     (base/ui/hover-hint.ts) are the smaller kind; the pet's pages draw theirs the same (pet.css .hint). */
+  .u-tip { position: fixed; z-index: 130; pointer-events: none; box-sizing: border-box; width: max-content; max-width: min(268px, calc(100vw - 16px)); background: var(--sheet); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 9px 11px; box-shadow: 0 18px 48px -28px var(--shadow-strong); font: 12px var(--sans); color: var(--ink); overflow-wrap: anywhere; animation: hover-hint-in 120ms ease-out; }
   .u-tip.hidden { display: none; }
+  .u-tip.hover-hint { max-width: min(280px, calc(100vw - 16px)); padding: 5px 9px; border-radius: 8px; font: 12px/1.45 var(--sans); box-shadow: 0 6px 18px -8px var(--shadow-strong); }
+  .u-tip.leaving { animation: hover-hint-out 120ms ease-in forwards; pointer-events: none; }
+  @keyframes hover-hint-in { from { opacity: 0; } }
+  @keyframes hover-hint-out { to { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .u-tip, .u-tip.leaving { animation: none; } }
   .u-tip .tt-h { font: 600 12.5px var(--mono); color: var(--accent); margin-bottom: 3px; }
   .u-tip .tt-tot { font: 12px var(--mono); color: var(--ink-soft); margin-bottom: 4px; }
   .u-tip .tt-row { display: grid; grid-template-columns: 9px minmax(0, 1fr) auto; align-items: start; gap: 6px; margin: 2px 0; }
@@ -1262,7 +1269,7 @@
   .avatar-zoom { width: 100%; accent-color: var(--accent); }
   .avatar-note { max-width: 100%; margin: 0; color: var(--muted-foreground); font-size: 12.5px; text-align: center; }
   .avatar-editor .actionbar { width: 100%; }
-  .ctxpanel, .u-tip {
+  .ctxpanel {
     border-color: var(--border);
     border-radius: var(--radius-lg);
     box-shadow: 0 18px 48px -28px var(--shadow-strong);
@@ -1784,10 +1791,9 @@ button.extension-tag { cursor: pointer; }
 .extension-login-code { display: flex; align-items: center; gap: 12px; }
 .extension-login-code code { font-size: 22px; font-weight: 600; letter-spacing: .12em; }
 .extension-login > .msgline { margin: 0; font-size: 12.5px; }
-.extension-hint { display: grid; gap: 4px; width: max-content; min-width: 200px; max-width: min(360px, calc(100vw - 16px)); padding: 10px 13px; line-height: 1.6; white-space: normal; }
-.extension-hint.hidden { display: none; }
+/* .u-tip (shown and hidden by base/ui/tip.ts) with links to click: it takes the pointer */
+.extension-hint { display: grid; gap: 4px; min-width: 200px; max-width: min(360px, calc(100vw - 16px)); padding: 10px 13px; line-height: 1.6; white-space: normal; pointer-events: auto; }
 .extension-hint.is-title-only { min-width: 0; }
-.extension-hint { pointer-events: auto; }
 .extension-hint a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 .extension-hint b { font-weight: 600; color: var(--ink); }
 .extension-hint span { color: var(--ink-soft); white-space: pre-line; }
@@ -1961,11 +1967,10 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 :is(.world-library-entry,.world-dock-tip):is([data-state=failed],[data-state=removed]){--world-state-color:var(--danger)}
 .world-library-entry .world-avatar{outline:1.5px solid var(--world-ring);outline-offset:2px}
 .world-avatar-ghost{position:fixed;z-index:140;margin:0;pointer-events:none;will-change:transform}
-.world-dock-tip{display:grid;gap:2px;max-width:220px;padding:7px 11px;line-height:1.45;animation:world-tip-in 110ms var(--world-easing,ease-out)}
+.world-dock-tip{display:grid;gap:2px;max-width:220px;padding:7px 11px;line-height:1.45}
 .world-dock-tip b{font-weight:600;color:var(--ink);overflow-wrap:anywhere}
 .world-dock-tip span{font-size:11.5px;font-weight:550;color:var(--world-state-color)}
 .world-dock-tip::before{content:"";position:absolute;left:-5px;top:50%;width:8px;height:8px;margin-top:-4px;background:inherit;border-left:1px solid var(--line-strong);border-bottom:1px solid var(--line-strong);transform:rotate(45deg)}
-@keyframes world-tip-in{from{opacity:0;transform:translateX(-4px)}}
 @media(hover:hover){
   .world-library-item:hover .world-avatar{transform:scale(1.06)}
   .world-workspace[data-view=market] .world-library-item:hover .world-library-label{color:var(--ink)}
@@ -2194,7 +2199,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
   .world-blade-actions{grid-column:1/-1;grid-row:3;justify-content:start}
   .world-blade-actions>button{grid-column:auto}
 }
-@media(prefers-reduced-motion:reduce){.extension-get-ring,.extension-get-ring .arc,.world-dock-tip{animation:none}.world-library-entry,.world-library-list,.world-library-heading,.world-library-label,.world-pending-group,.world-avatar{transition:none}.world-library-item:is(:hover,:focus-visible,:active) .world-avatar{transform:none}}
+@media(prefers-reduced-motion:reduce){.extension-get-ring,.extension-get-ring .arc{animation:none}.world-library-entry,.world-library-list,.world-library-heading,.world-library-label,.world-pending-group,.world-avatar{transition:none}.world-library-item:is(:hover,:focus-visible,:active) .world-avatar{transform:none}}
 /* My World's filter row folds away in the market view. */
 /* Its fields fill it edge to edge; the clip leaves room for their focus ring. */
 .world-library-tools{flex:none;display:flex;align-items:center;gap:8px;width:var(--world-entry-width);height:auto;margin:0 0 12px;overflow:clip;overflow-clip-margin:4px;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 140ms}
@@ -2240,10 +2245,6 @@ html.is-list-dragging,html.is-list-dragging *{cursor:none!important;user-select:
 .world-no-matches{margin:4px 0 0;padding:20px 0;font-size:12.5px;color:var(--ink-dim);text-align:center}
 .world-workspace[data-view=market] .world-no-matches{display:none}
 
-/* Hover hints (base/ui/hover-hint.ts): the shared .u-tip box, smaller, fading in. */
-.u-tip.hover-hint{max-width:min(280px,calc(100vw - 16px));padding:5px 9px;border-radius:8px;font:12px/1.45 var(--sans);color:var(--ink);box-shadow:0 6px 18px -8px var(--shadow-strong);animation:hover-hint-in 120ms ease-out}
-@keyframes hover-hint-in{from{opacity:0}}
-
 /* Dropdowns (base/ui/dropdown.ts): every select, and every text field with suggestions, opens its list in one white rounded box, the row under the pointer highlighted and the chosen
    one bold. It fades in as it opens and is gone at once when it closes. */
 input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{display:none!important}
@@ -2258,7 +2259,7 @@ input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{disp
 .combo-option[aria-selected=true]{font-weight:600}
 .combo-option[aria-selected=true]::after{content:"";flex:none;width:9px;height:5px;margin-left:auto;border:solid var(--ink-dim);border-width:0 0 1.5px 1.5px;transform:translateY(-2px) rotate(-45deg)}
 .combo-option[aria-disabled=true]{color:var(--ink-dim);cursor:default}
-@media (prefers-reduced-motion: reduce){.u-tip.hover-hint{animation:none}.combo-list{transition:none}}
+@media (prefers-reduced-motion: reduce){.combo-list{transition:none}}
 
 /* The extension info page's pictures (extensions/gallery.ts): a row that pages sideways, and a lightbox. */
 .extension-gallery-section{display:contents}
