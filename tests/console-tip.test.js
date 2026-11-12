@@ -33,4 +33,11 @@ describe('hint boxes in the settings window (base/ui/tip.ts)', () => {
     hideTip(el, true);
     expect(el.classList.contains('hidden')).toBe(true);
   });
+
+  it('hides on time when asked again and again while fading out', () => {
+    const el = box();
+    showTip(el);
+    for (let i = 0; i < 10; i++) { hideTip(el); vi.advanceTimersByTime(LEAVE_MS / 4); }
+    expect(el.classList.contains('hidden')).toBe(true);
+  });
 });
