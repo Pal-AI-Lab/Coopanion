@@ -54,7 +54,7 @@ const zh = {
     snore: ['打呼噜', '睡着时的呼噜声'],
     talk: ['说话', '气泡里逐字冒出的叽咕声、选项卡片弹出'],
     ui: ['按钮与提示', '点按钮、气泡弹出、选中、开始和结束听你说话'],
-    alert: ['提醒', '请你确认时的提示音'],
+    alert: ['提醒', 'Coo 请你确认时的提示音'],
   } as Record<string, [string, string]>,
   snore: '呼噜时长',
   snoreUnit: '秒',
