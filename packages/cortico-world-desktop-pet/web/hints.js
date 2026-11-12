@@ -1,9 +1,12 @@
 /**
  * Hover hints, drawn as the settings window draws its own (`console/base/ui/hover-hint.ts`, `.u-tip`): a title
  * moves to `data-tip` the first time the pointer reaches it, and shows a moment later in a box under the
- * element, or above it when there is no room below. A title set again later replaces the hint the next time.
+ * element, or above it when there is no room below, for SHOW_MS: it closes on its own and does not come back until
+ * the pointer has left the element. A title set again later replaces the hint the next time.
  */
 const DELAY_MS = 450;
+/** How long a hint stays up while the pointer rests on its element. */
+const SHOW_MS = 2500;
 const EDGE = 8;
 
 function takeTitle(el) {
@@ -31,6 +34,8 @@ export function mountHints(doc) {
     if (!el.isConnected) return;
     box.textContent = text;
     box.hidden = false;
+    // `current` stays the element, so moving within it does not bring the hint back
+    timer = win.setTimeout(() => { box.hidden = true; }, SHOW_MS);
     const r = el.getBoundingClientRect();
     const { offsetWidth: w, offsetHeight: h } = box;
     const below = r.bottom + 6;
