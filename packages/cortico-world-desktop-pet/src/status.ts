@@ -15,6 +15,10 @@ export interface PetStatus {
   text: string;
   detail?: string;
   count?: number;
+  /** Seconds the call lasts, from a DescribeTool; StatusTracker turns it into `endsAt` once the call runs. */
+  countdown?: number;
+  /** When the running call's countdown ends, in Date.now() milliseconds, the same however late a page connects. */
+  endsAt?: number;
 }
 
 /** A call's arguments: the parsed object, or the JSON text streamed so far. */
@@ -46,12 +50,16 @@ export function numberArg(args: ToolArgs, key: string): number | undefined {
 
 const defaultStatus = (name: string, busy: string): PetStatus | null => (name.startsWith('pet_') ? null : { kind: 'work', text: busy });
 
-interface Call { name: string; args: string; done: boolean; status: PetStatus | null }
+/** `endsAt`: set from the status's countdown when the call starts running. */
+interface Call { name: string; args: string; done: boolean; status: PetStatus | null; endsAt?: number }
 
 export class StatusTracker {
   private readonly calls = new Map<string, Call>();
   private state: RunPhase['state'] = 'idle';
   private round: number | undefined;
+  /** The tools running now, as RunPhase `running` names them, and how many times each name started this round. */
+  private running: readonly string[] = [];
+  private readonly started = new Map<string, number>();
   private current: PetStatus | null = null;
 
   /** `busy`: what a call without a description shows, in the app language at the time. */
@@ -64,18 +72,31 @@ export class StatusTracker {
     switch (phase.state) {
       case 'idle':
         this.calls.clear();
+        this.started.clear();
+        this.running = [];
         this.round = undefined;
         this.set(null);
         return;
       case 'backoff':
       case 'handoff':
+        this.noteRunning(phase.running);
         this.set(THINK);
         return;
       default:
         // a new round's request starts from thinking; the calls of the round before are done with
-        if (phase.round !== this.round) { this.round = phase.round; this.calls.clear(); }
+        if (phase.round !== this.round) { this.round = phase.round; this.calls.clear(); this.started.clear(); }
+        this.noteRunning(phase.running);
         this.update();
     }
+  }
+
+  /** Counts the starts in `running`: a name listed more times than before started that many more calls. */
+  private noteRunning(running: readonly string[]): void {
+    for (const name of new Set(running)) {
+      const more = running.filter((n) => n === name).length - this.running.filter((n) => n === name).length;
+      if (more > 0) this.started.set(name, (this.started.get(name) ?? 0) + more);
+    }
+    this.running = running;
   }
 
   /** Tool calls and their arguments as the model writes them; item ids keep calls apart where output_index repeats. */
@@ -110,25 +131,33 @@ export class StatusTracker {
     return described === undefined ? defaultStatus(call.name, this.busy()) : described;
   }
 
-  /** The latest run of calls of one kind: its last wording, its first detail and how many. */
+  /**
+   * The latest run of calls of one kind: its last wording, its first detail, and how many; and when the countdown of the
+   * call in it that runs now ends, the calls of one name running in the order they were written.
+   */
   private update(): void {
     const calls = [...this.calls.values()];
-    let last: PetStatus | null = null, first: PetStatus | null = null, count = 0;
+    const run: Call[] = [];
+    let last: PetStatus | null = null;
     for (let i = calls.length - 1; i >= 0; i--) {
       const s = calls[i].status;
       if (!s) continue;
       if (last && s.kind !== last.kind) break;
       last ??= s;
-      first = s;
-      count++;
+      run.unshift(calls[i]);
     }
-    if (last && first) this.set({ kind: last.kind, text: last.text, ...(first.detail ? { detail: first.detail } : {}), ...(count > 1 ? { count } : {}) });
-    else this.set(calls.at(-1)?.done ? null : THINK);
+    const lead = run[0]?.status;
+    if (!last || !lead) { this.set(calls.at(-1)?.done ? null : THINK); return; }
+    const runs = (c: Call) => this.running.includes(c.name) && calls.filter((o) => o.name === c.name).indexOf(c) === (this.started.get(c.name) ?? 0) - 1;
+    const counting = run.find((c) => c.status?.countdown !== undefined && runs(c));
+    if (counting) counting.endsAt ??= Date.now() + counting.status!.countdown! * 1000;
+    const endsAt = counting?.endsAt;
+    this.set({ kind: last.kind, text: last.text, ...(lead.detail ? { detail: lead.detail } : {}), ...(endsAt !== undefined ? { endsAt } : {}), ...(run.length > 1 ? { count: run.length } : {}) });
   }
 
   private set(status: PetStatus | null): void {
     const c = this.current;
-    if (c?.kind === status?.kind && c?.text === status?.text && c?.detail === status?.detail && c?.count === status?.count) return;
+    if (c?.kind === status?.kind && c?.text === status?.text && c?.detail === status?.detail && c?.endsAt === status?.endsAt && c?.count === status?.count) return;
     this.current = status;
     this.changed(status);
   }

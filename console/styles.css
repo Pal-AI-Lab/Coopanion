@@ -246,7 +246,8 @@
   table.data td { padding: 6px 12px; border-top: 1px solid var(--line); vertical-align: top; }
   td.mono { font-family: var(--mono); font-size: var(--text-detail); color: var(--ink-soft); white-space: nowrap; }
   td.txt { word-break: break-word; white-space: pre-wrap; }
-  .lv { font: 600 11.5px var(--mono); }
+  /* the level as its neighbours draw theirs (td.mono), only bold: a `font` shorthand would reset the line height, and the word would sit above the row */
+  .lv { font-family: var(--mono); font-size: var(--text-detail); font-weight: 600; white-space: nowrap; }
   .lv-error { color: var(--danger); } .lv-warn { color: var(--warn); }
   .lv-info { color: var(--ok); } .lv-debug { color: var(--ink-dim); }
   .data-extra { color: var(--ink-dim); font: 11.5px var(--mono); word-break: break-all; }
@@ -544,8 +545,15 @@
 
   .segwrap.sm .seg { padding: 4px 10px; font-size: var(--text-detail); }
 
-  .u-tip { position: fixed; z-index: 130; pointer-events: none; box-sizing: border-box; width: max-content; max-width: min(268px, calc(100vw - 16px)); background: var(--sheet); border: 1px solid var(--line-strong); border-radius: 9px; padding: 9px 11px; box-shadow: 0 6px 22px var(--shadow-soft); font: 12px var(--sans); color: var(--ink); overflow-wrap: anywhere; }
+  /* Every hint box (.u-tip) fades in and out over 120 ms (base/ui/tip.ts LEAVE_MS). Hover hints
+     (base/ui/hover-hint.ts) are the smaller kind; the pet's pages draw theirs the same (pet.css .hint). */
+  .u-tip { position: fixed; z-index: 130; pointer-events: none; box-sizing: border-box; width: max-content; max-width: min(268px, calc(100vw - 16px)); background: var(--sheet); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 9px 11px; box-shadow: 0 18px 48px -28px var(--shadow-strong); font: 12px var(--sans); color: var(--ink); overflow-wrap: anywhere; animation: hover-hint-in 120ms ease-out; }
   .u-tip.hidden { display: none; }
+  .u-tip.hover-hint { max-width: min(280px, calc(100vw - 16px)); padding: 5px 9px; border-radius: 8px; font: 12px/1.45 var(--sans); box-shadow: 0 6px 18px -8px var(--shadow-strong); }
+  .u-tip.leaving { animation: hover-hint-out 120ms ease-in forwards; pointer-events: none; }
+  @keyframes hover-hint-in { from { opacity: 0; } }
+  @keyframes hover-hint-out { to { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .u-tip, .u-tip.leaving { animation: none; } }
   .u-tip .tt-h { font: 600 12.5px var(--mono); color: var(--accent); margin-bottom: 3px; }
   .u-tip .tt-tot { font: 12px var(--mono); color: var(--ink-soft); margin-bottom: 4px; }
   .u-tip .tt-row { display: grid; grid-template-columns: 9px minmax(0, 1fr) auto; align-items: start; gap: 6px; margin: 2px 0; }
@@ -959,7 +967,8 @@
     border-radius: 0;
     box-shadow: none;
   }
-  .sheet:first-child { border-top: 0; }
+  /* 第一张卡不要上边线。读取失败的提示条空着时不显示，排在它后面的卡也算第一张。 */
+  .sheet:is(:first-child, .read-feedback:empty:first-child + *) { border-top: 0; }
   .sheet.tabbed::before { display: none; }
   .sheet h3 { font: 600 15px/1.4 var(--sans); letter-spacing: -.01em; }
   .sheet h3 .en { font-size: 11.5px; }
@@ -1260,7 +1269,7 @@
   .avatar-zoom { width: 100%; accent-color: var(--accent); }
   .avatar-note { max-width: 100%; margin: 0; color: var(--muted-foreground); font-size: 12.5px; text-align: center; }
   .avatar-editor .actionbar { width: 100%; }
-  .ctxpanel, .u-tip {
+  .ctxpanel {
     border-color: var(--border);
     border-radius: var(--radius-lg);
     box-shadow: 0 18px 48px -28px var(--shadow-strong);
@@ -1462,11 +1471,17 @@
 .featureslot:has(> .featureintro) { padding-top:0; scroll-padding-top:var(--page-scroll-inset, 0px); }
 .featureslot::-webkit-scrollbar-track { margin-top:var(--page-scroll-inset, 0px); }
 .featureintro { padding-bottom:16px; border-bottom:1px solid var(--border); }
+/* Page tabs (pageTabs, sectionTabs) draw their own lines above and below, so a heading that has them drops its own
+   rule's double: inside it, 16px under the title, the heading's rule is their bottom line; right after it, their top
+   line is the heading's rule. */
+.featureintro:has(> .pagetabs) { padding-bottom:0; }
+.featureintro > .pagetabs { margin-top:16px; border-bottom:0; }
+.featureintro:has(+ .pagetabs) { border-bottom:0; }
 .featureslot > .featureintro { position:sticky; top:0; z-index:20; padding-top:30px; margin-bottom:24px; background:var(--background); }
 .featureslot > .featureintro + * { margin-top:0; }
 .featureslot > .featureintro + .sheet { margin-top:0; }
 /* 面板槽是滚动容器，吸顶元素贴在 padding 内沿，所以上方留白放在第一项的外边距上;World 页模板的工具条贴着栏目条 */
-.panelslot > :first-child:not(.template-library) { margin-top:24px; }
+.panelslot > :is(:first-child, .read-feedback:empty:first-child + *):not(.template-library) { margin-top:24px; }
 .panelslot > .template-library:has(> :is(.placeholder,.read-feedback:not(:empty))) { margin-top:24px; }
 .connection-detail > div > div:first-child > .sheet:first-child { padding-top:0; }
 .connection-hub .btn { border:1px solid var(--border-strong); }
@@ -1483,7 +1498,6 @@
 .pricing-rules, .pricing-snapshot { margin-top:16px; }
 .pricing-rules > textarea, .pricing-snapshot > pre { margin-top:10px; }
 
-.coreview > .pagehead { border-bottom:0; }
 .coreview > .pagetabs { flex: none; width: calc(100% - 2 * var(--page-gutter)); max-width: var(--content-width); margin: 0 auto; }
 
 .providerchrome > .msgline { margin-top: 12px; }
@@ -1491,7 +1505,6 @@
 .pagetitle-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .pagetitle-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin-left: auto; }
 .pagetitle .pagetitle-name { margin-left: 10px; font: 400 13px var(--sans); color: var(--ink-dim); }
-.providerchrome > .featureintro:has(~ .pagetabs) { border-bottom: 0; }
 .prompt-card h3 > .chip { margin-left: 10px; vertical-align: 1px; }
 .prompt-card .actionbar { margin-top: 10px; padding-top: 0; border-top: 0; }
 /* 页内栏目条(base/ui/page-tabs.ts)。每项按当前项的字号与字重预留宽度,切换时其余项不移位。 */
@@ -1534,7 +1547,7 @@
 .configrow .configline > .ttag { flex: none; }
 .coreview > .scroll { margin-inline: -10px; scrollbar-gutter: stable both-edges; }
 /* 页内第一节贴着面板槽的上内边距（与其他页面页头下 24px 一致），节可以包在一两层容器里 */
-.panelslot > .sheet:first-child, .panelslot > :first-child > .sheet:first-child, .panelslot > :first-child > :first-child > .sheet:first-child { padding-top: 0; }
+.panelslot > .sheet:is(:first-child, .read-feedback:empty:first-child + *), .panelslot > :first-child > .sheet:is(:first-child, .read-feedback:empty:first-child + *), .panelslot > :first-child > :first-child > .sheet:is(:first-child, .read-feedback:empty:first-child + *) { padding-top: 0; }
 
 /* 卡片:连接在右上,删除在右下,图标底边对齐状态行。 */
 .connection-create { flex:none; margin-bottom:16px; }
@@ -1782,10 +1795,9 @@ button.extension-tag { cursor: pointer; }
 .extension-login-code { display: flex; align-items: center; gap: 12px; }
 .extension-login-code code { font-size: 22px; font-weight: 600; letter-spacing: .12em; }
 .extension-login > .msgline { margin: 0; font-size: 12.5px; }
-.extension-hint { display: grid; gap: 4px; width: max-content; min-width: 200px; max-width: min(360px, calc(100vw - 16px)); padding: 10px 13px; line-height: 1.6; white-space: normal; }
-.extension-hint.hidden { display: none; }
+/* .u-tip (shown and hidden by base/ui/tip.ts) with links to click: it takes the pointer */
+.extension-hint { display: grid; gap: 4px; min-width: 200px; max-width: min(360px, calc(100vw - 16px)); padding: 10px 13px; line-height: 1.6; white-space: normal; pointer-events: auto; }
 .extension-hint.is-title-only { min-width: 0; }
-.extension-hint { pointer-events: auto; }
 .extension-hint a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 .extension-hint b { font-weight: 600; color: var(--ink); }
 .extension-hint span { color: var(--ink-soft); white-space: pre-line; }
@@ -1896,14 +1908,9 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .page-badge-pop[hidden] { display: none; }
 .page-badge-pop > .pill { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
 
-.provider-intro { padding-bottom: 0; }
-.provider-intro > .pagetabs { margin-top: 16px; border-bottom: 0; }
-
 /* Shared library entries retain their geometry beneath the catalog overlay. */
 .featureslot-world{overflow:hidden;scrollbar-gutter:auto;padding:0}
 .featureslot-world>.featureintro{width:calc(100% - 2 * (var(--page-gutter) + 10px));margin-bottom:16px}
-.world-intro{padding-bottom:0}
-.world-intro>.pagetabs{margin-top:16px;border-bottom:0}
 /* The compact field of the World pages' toolbars, filter row, panels and group names: 32px; its focus is
    every other page's. */
 :is(.world-catalog,.world-library-tools,.world-group-head) :is(input:not([type=checkbox]):not([type=radio]),select){height:32px;min-height:32px;padding-block:0;font-size:12.5px}
@@ -1959,11 +1966,10 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 :is(.world-library-entry,.world-dock-tip):is([data-state=failed],[data-state=removed]){--world-state-color:var(--danger)}
 .world-library-entry .world-avatar{outline:1.5px solid var(--world-ring);outline-offset:2px}
 .world-avatar-ghost{position:fixed;z-index:140;margin:0;pointer-events:none;will-change:transform}
-.world-dock-tip{display:grid;gap:2px;max-width:220px;padding:7px 11px;line-height:1.45;animation:world-tip-in 110ms var(--world-easing,ease-out)}
+.world-dock-tip{display:grid;gap:2px;max-width:220px;padding:7px 11px;line-height:1.45}
 .world-dock-tip b{font-weight:600;color:var(--ink);overflow-wrap:anywhere}
 .world-dock-tip span{font-size:11.5px;font-weight:550;color:var(--world-state-color)}
 .world-dock-tip::before{content:"";position:absolute;left:-5px;top:50%;width:8px;height:8px;margin-top:-4px;background:inherit;border-left:1px solid var(--line-strong);border-bottom:1px solid var(--line-strong);transform:rotate(45deg)}
-@keyframes world-tip-in{from{opacity:0;transform:translateX(-4px)}}
 @media(hover:hover){
   .world-library-item:hover .world-avatar{transform:scale(1.06)}
   .world-workspace[data-view=market] .world-library-item:hover .world-library-label{color:var(--ink)}
@@ -2192,7 +2198,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
   .world-blade-actions{grid-column:1/-1;grid-row:3;justify-content:start}
   .world-blade-actions>button{grid-column:auto}
 }
-@media(prefers-reduced-motion:reduce){.extension-get-ring,.extension-get-ring .arc,.world-dock-tip{animation:none}.world-library-entry,.world-library-list,.world-library-heading,.world-library-label,.world-pending-group,.world-avatar{transition:none}.world-library-item:is(:hover,:focus-visible,:active) .world-avatar{transform:none}}
+@media(prefers-reduced-motion:reduce){.extension-get-ring,.extension-get-ring .arc{animation:none}.world-library-entry,.world-library-list,.world-library-heading,.world-library-label,.world-pending-group,.world-avatar{transition:none}.world-library-item:is(:hover,:focus-visible,:active) .world-avatar{transform:none}}
 /* My World's filter row folds away in the market view. */
 /* Its fields fill it edge to edge; the clip leaves room for their focus ring. */
 .world-library-tools{flex:none;display:flex;align-items:center;gap:8px;width:var(--world-entry-width);height:auto;margin:0 0 12px;overflow:clip;overflow-clip-margin:4px;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 140ms}
@@ -2238,10 +2244,6 @@ html.is-list-dragging,html.is-list-dragging *{cursor:none!important;user-select:
 .world-no-matches{margin:4px 0 0;padding:20px 0;font-size:12.5px;color:var(--ink-dim);text-align:center}
 .world-workspace[data-view=market] .world-no-matches{display:none}
 
-/* Hover hints (base/ui/hover-hint.ts): the shared .u-tip box, smaller, fading in. */
-.u-tip.hover-hint{max-width:min(280px,calc(100vw - 16px));padding:5px 9px;border-radius:8px;font:12px/1.45 var(--sans);color:var(--ink);box-shadow:0 6px 18px -8px var(--shadow-strong);animation:hover-hint-in 120ms ease-out}
-@keyframes hover-hint-in{from{opacity:0}}
-
 /* Dropdowns (base/ui/dropdown.ts): every select, and every text field with suggestions, opens its list in one white rounded box, the row under the pointer highlighted and the chosen
    one bold. It fades in as it opens and is gone at once when it closes. */
 input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{display:none!important}
@@ -2256,7 +2258,7 @@ input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{disp
 .combo-option[aria-selected=true]{font-weight:600}
 .combo-option[aria-selected=true]::after{content:"";flex:none;width:9px;height:5px;margin-left:auto;border:solid var(--ink-dim);border-width:0 0 1.5px 1.5px;transform:translateY(-2px) rotate(-45deg)}
 .combo-option[aria-disabled=true]{color:var(--ink-dim);cursor:default}
-@media (prefers-reduced-motion: reduce){.u-tip.hover-hint{animation:none}.combo-list{transition:none}}
+@media (prefers-reduced-motion: reduce){.combo-list{transition:none}}
 
 /* The extension info page's pictures (extensions/gallery.ts): a row that pages sideways, and a lightbox. */
 .extension-gallery-section{display:contents}

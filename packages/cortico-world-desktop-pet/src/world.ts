@@ -31,7 +31,7 @@ import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
 import {
   DESKTOP_PET_ID, MAX_HOVER_BUTTONS, MAX_LOOK_NAME, MAX_SAVED_LOOKS, PET_ACTIONS, SELF_KEYS, THRESHOLD_DB_MAX, THRESHOLD_DB_MIN, TOUCH_KINDS, USER_MAX, asrEngineFor,
-  desktopPetConfigGroups, directSettings, hoverButtonList, selfAdjustMode, speechFor, touchWakes,
+  desktopPetConfigGroups, directSettings, hoverButtonList, scaleOf, selfAdjustMode, speechFor, touchWakes,
   type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type SavedLook, type RoamMode, type SelfKey,
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
@@ -57,7 +57,7 @@ import { Cua } from './cua/cua.ts';
 import { CUA_OFF_TOOL_DECLS } from './cua/tools.ts';
 import type { Answer } from './cua/engine-ipc.ts';
 import { PackImporter } from './pack-import.ts';
-import { dressTable, planSettings, type SettingChange } from './self.ts';
+import { dressTable, planSettings, sayScale, type SettingChange } from './self.ts';
 import { MODEL_TEXT, type ModelLanguage, type ModelText } from './model-text.ts';
 
 /** The console panels, titled in `language`. */
@@ -380,7 +380,8 @@ export class DesktopPetWorld implements World {
   private petHidden = false;
   /** `onDesktop` as last told to `onDesktopChange`, null before the first time. */
   private desktopTold: boolean | null = null;
-  private busyUntil = 0;
+  /** When each line sent by `pet_say` is estimated to be over, in sending order; the last one is when the bubble is free. */
+  private sayEnds: Array<{ id: string; at: number }> = [];
   private readonly walks = new Map<string, PendingWalk>();
   private ask: PendingAsk | null = null;
   private touch: TouchBatch | null = null;
@@ -414,6 +415,8 @@ export class DesktopPetWorld implements World {
   private keyWatcher: KeyWatcher | null = null;
   /** Why the talk key cannot be read; the gate then stays closed. */
   private hotkeyProblem: string | null = null;
+  /** The talk-key problem last delivered to the bot. */
+  private hotkeyProblemTold: string | null = null;
   private hotkeyKey = '';
   /** The typing key's watcher while `typeKey.enabled`, and why it cannot be read. */
   private typeWatcher: KeyWatcher | null = null;
@@ -441,6 +444,7 @@ export class DesktopPetWorld implements World {
 
   constructor(private readonly opts: DesktopPetWorldOptions) {
     this.cfg = opts.cfg;
+    this.sized = { figure: this.cfg.skin.figure ?? COO, scale: this.cfg.window.scale };
     this.cua = new Cua({
       cfg: () => this.cfg.cua,
       botName: opts.botName,
@@ -467,7 +471,7 @@ export class DesktopPetWorld implements World {
       onAudio: (frame) => this.onAudio(frame),
       onPetConnect: () => { this.petHidden = false; this.bodyMissing = null; this.log?.info('桌宠页面已连接'); this.tellDesktop(); },
       onPetDisconnect: () => this.onPageGone(),
-      onSkin: (skin) => this.saveSkin(skin),
+      onSkin: (skin, scale) => this.saveSkin(skin, scale),
       onPrefs: (prefs) => this.savePrefs(prefs),
       looks: () => this.cfg.looks,
       onLooks: (looks) => this.saveLooks(looks),
@@ -499,6 +503,8 @@ export class DesktopPetWorld implements World {
   private toldMoves: readonly MoveTarget[] = [];
   /** A look the bot put on itself: the pet page's report of it is not told back (the receipt said it). */
   private botLook: string | null = null;
+  /** The figure on screen and its size as `followFigure` last saw them. */
+  private sized: { figure: string; scale: number };
   /** `pet_quiet` in force: what it overrides, until when, and the settings it found (a change to them ends it). */
   private quiet: { sound: boolean; roam: RoamMode; until: number; base: { sound: boolean; roam: RoamMode }; timer: NodeJS.Timeout } | null = null;
 
@@ -973,6 +979,7 @@ export class DesktopPetWorld implements World {
 
   /** Config is a live object edited by the console; changes reach the pages within PREFS_SYNC_MS. */
   private syncPrefs(): void {
+    this.followFigure();
     this.segmenter.configure(this.segmentConfig());
     if (!this.holdPreRollEnabled()) this.holdPreRoll.length = 0;
     const turnedOn = this.cfg.asr.enabled && !this.voiceEnabled;
@@ -1045,11 +1052,30 @@ export class DesktopPetWorld implements World {
     };
   }
 
-  private saveSkin(raw: unknown): void {
+  /** Puts on `raw`; with `scale` (a saved look's) at that size, else at the size the figure last had (`followFigure`). */
+  private saveSkin(raw: unknown, scale?: unknown): void {
     if (!raw || typeof raw !== 'object') return;
+    // a size set elsewhere since the last sync (the settings window) belongs to the figure on screen, not to this one
+    this.followFigure();
     const skin = raw as PetSkin;
-    this.opts.persist({ skin });
+    const size = scaleOf(scale);
+    this.opts.persist(size === null ? { skin } : { skin, window: { scale: size } });
+    this.followFigure(size !== null);
     this.syncPrefs();
+  }
+
+  /**
+   * Each figure keeps its own size: when the figure on screen changes, the one replaced keeps the size it had in
+   * `figureScales`, and the new one takes its own back from there, unless the size changed along with it or was
+   * `given` with it (a saved look's, or `pet_set`'s, the size on screen included).
+   */
+  private followFigure(given = false): void {
+    const figure = this.cfg.skin.figure ?? COO, scale = this.cfg.window.scale;
+    const was = this.sized;
+    if (figure === was.figure) { was.scale = scale; return; }
+    const own = !given && scale === was.scale ? scaleOf(this.cfg.figureScales[figure]) : null;
+    this.opts.persist({ figureScales: { [was.figure]: was.scale }, ...(own !== null && own !== scale ? { window: { scale: own } } : {}) });
+    this.sized = { figure, scale: own ?? scale };
   }
 
   /** Keeps the entries that have an id, a name and a skin; names are trimmed to MAX_LOOK_NAME (an empty one becomes the id), the list to MAX_SAVED_LOOKS. */
@@ -1059,10 +1085,11 @@ export class DesktopPetWorld implements World {
     const looks: SavedLook[] = [];
     for (const l of raw) {
       if (!l || typeof l !== 'object') continue;
-      const { id, name, skin } = l as Record<string, unknown>;
+      const { id, name, skin, scale } = l as Record<string, unknown>;
       if (typeof id !== 'string' || !id || seen.has(id) || typeof name !== 'string' || !skin || typeof skin !== 'object') continue;
       seen.add(id);
-      looks.push({ id, name: name.trim().slice(0, MAX_LOOK_NAME) || id, skin: skin as PetSkin });
+      const size = scaleOf(scale);
+      looks.push({ id, name: name.trim().slice(0, MAX_LOOK_NAME) || id, skin: skin as PetSkin, ...(size === null ? {} : { scale: size }) });
       if (looks.length === MAX_SAVED_LOOKS) break;
     }
     this.opts.persist({ looks });
@@ -1075,6 +1102,8 @@ export class DesktopPetWorld implements World {
     // the menu's sound or roam button during a quiet: the person's choice, kept, and the quiet is over
     if (this.quiet && (patch.roam !== undefined || patch.sound !== undefined)) this.endQuiet();
     if (prefs.theme === 'dark' || prefs.theme === 'light') patch.theme = prefs.theme as PetTheme;
+    const scale = scaleOf(prefs.scale);
+    if (scale !== null) patch.window = { scale };
     if (typeof prefs.mic === 'boolean') patch.asr = { enabled: prefs.mic };
     if (Array.isArray(prefs.hoverButtons)) {
       const ids = prefs.hoverButtons.filter((id): id is string => typeof id === 'string' && (PET_ACTIONS as readonly string[]).includes(id));
@@ -1208,6 +1237,14 @@ export class DesktopPetWorld implements World {
       }
       case 'commit': return this.commitSpeech();
       case 'cancel': return this.cancelSpeech();
+      case 'skipped': {
+        // the person ended a line early: the lines after it start now rather than when it was estimated to end
+        const i = this.sayEnds.findIndex((l) => l.id === String(msg.id));
+        if (i < 0) return;
+        const shift = Date.now() - this.sayEnds[i]!.at;
+        this.sayEnds = this.sayEnds.slice(i + 1).map((l) => ({ ...l, at: l.at + shift }));
+        return;
+      }
     }
   }
 
@@ -1523,7 +1560,7 @@ export class DesktopPetWorld implements World {
     const { mode, hotkey } = this.cfg.asr.mic;
     const trigger: HotkeyTrigger = mode === 'hold' && this.typeKeyShares(hotkey) ? 'hold' : 'press';
     const key = mode === 'always' || !this.host ? '' : `${mode}:${hotkey}:${trigger}`;
-    if (key === this.hotkeyKey) return;
+    if (key === this.hotkeyKey) { this.tellHotkeyProblem(); return; }
     this.hotkeyKey = key;
     this.keyWatcher?.stop();
     this.keyWatcher = null;
@@ -1538,7 +1575,18 @@ export class DesktopPetWorld implements World {
     if (typeof watcher === 'string') {
       this.hotkeyProblem = watcher;
       this.log?.warn(`说话键不可用,暂不识别说话:${watcher}`);
+      this.tellHotkeyProblem();
     } else this.keyWatcher = watcher;
+  }
+
+  /** A key that cannot be read shows nothing when pressed, so the bot is told why: each problem once a run, while voice input is on. */
+  private tellHotkeyProblem(): void {
+    const problem = this.hotkeyProblem;
+    if (!problem || problem === this.hotkeyProblemTold || !this.cfg.asr.enabled) return;
+    this.hotkeyProblemTold = problem;
+    void this.push('desktop-pet.talk-key', 'desktop-pet.talk-key', this.t.talkKeyUnreadable(this.userName, problem), 'flush').then((e) => {
+      if (!e) this.hotkeyProblemTold = null;
+    });
   }
 
   /** The typing key is on and made of the same keys as `talk`, press counts aside. */
@@ -1602,6 +1650,7 @@ export class DesktopPetWorld implements World {
     this.talking = on;
     this.voiceFrame({ type: 'gate', open: on });
     if (!on) this.releaseMicSoon();
+    this.server.sendPet({ t: 'talk-key', down: on && this.cfg.asr.enabled && this.micWanted() });
     if (!this.cfg.asr.enabled || !this.micWanted()) return;
     if (on) {
       this.listenOpen = true;
@@ -1632,6 +1681,7 @@ export class DesktopPetWorld implements World {
       this.talking = false;
       this.voiceFrame({ type: 'gate', open: false });
       this.releaseMicSoon();
+      this.server.sendPet({ t: 'talk-key', down: false });
     }
     this.segmenter.flush();
     this.queue.length = 0;
@@ -1852,14 +1902,17 @@ export class DesktopPetWorld implements World {
     const { beats, dropped } = parseScript(script, this.vocab());
     const spoken = beats.some((b) => b.text || b.actions.length || b.anchors.length);
     if (!spoken && shown.blobs.length === 0) return { text: this.t.sayEmpty, failed: true };
-    if (spoken && !this.server.sendPet({ t: 'say', id: nextId('s'), beats })) return this.notConnected('pet_say');
+    const id = nextId('s');
+    if (spoken && !this.server.sendPet({ t: 'say', id, beats })) return this.notConnected('pet_say');
     void this.closeActivity();
     void this.record({ kind: 'say', beats: beats.map((b) => ({ text: b.text, ...moodOf(b.actions, this.vocab()) })) }, beats.map((b) => b.text).join(''), shown.blobs);
     if (!spoken) return { text: this.t.imagesShown(shown.blobs.length, this.chat.size > 0) };
     const now = Date.now();
     const selfSec = estimateSeconds(beats, this.cfg.window.bubbleSpeed, this.cfg.speech.enabled ? speechTextSteps : undefined);
-    const waitSec = Math.max(0, (this.busyUntil - now) / 1000);
-    this.busyUntil = Math.max(now, this.busyUntil) + selfSec * 1000;
+    this.sayEnds = this.sayEnds.filter((l) => l.at > now);
+    const free = this.sayEnds.at(-1)?.at ?? now;
+    const waitSec = (free - now) / 1000;
+    this.sayEnds.push({ id, at: free + selfSec * 1000 });
     const replaced = this.ask?.question ?? null;
     if (this.ask) this.setAsk(null);
     return { text: this.t.sayReceipt({ waitSec, selfSec, chatOpen: this.chat.size > 0, replaced, dropped, images: shown.blobs.length }) };
@@ -1943,21 +1996,30 @@ export class DesktopPetWorld implements World {
     const t = this.t;
     if (selfAdjustMode(this.cfg.selfAdjust) === 'off') return { text: t.selfAdjustOff('pet_set', this.userName), failed: true };
     const packs = this.packs();
-    const { changes, errors } = planSettings(args, { ...this.cfg, user: this.userName }, packs, this.language, capFor(USER_MAX, this.appLanguage), this.appLanguage);
+    const plan = (a: Record<string, unknown>) => planSettings(a, { ...this.cfg, user: this.userName }, packs, this.language, capFor(USER_MAX, this.appLanguage), this.appLanguage);
+    const { changes, errors } = plan(args);
     if (errors.length) return { text: t.setErrors(errors), failed: true };
     if (!changes.length) return { text: t.setNothing };
     const lines: string[] = [];
-    const apply = (list: SettingChange[]) => {
+    /** Applies `list`; when a figure put on takes back the size it last had, that change is said too. */
+    const apply = (list: SettingChange[]): string[] => {
+      this.followFigure();
+      const before = this.cfg.window.scale;
+      const given = list.some((c) => c.key === 'scale') || scaleOf(args.scale) === before;
       for (const c of list) this.opts.persist(c.patch);
+      this.followFigure(given);
       const skin = this.cfg.skin;
       if (list.some((c) => c.key === 'figure' || c.key === 'scheme')) this.botLook = (skin.figure ?? COO) === COO ? COO : `${skin.figure}:${skin.scheme ?? ''}`;
       this.syncPrefs();
       this.opts.onBotChange?.();
+      const after = this.cfg.window.scale;
+      return !given && after !== before ? [sayScale(before, after, this.language)] : [];
     };
     const says = (list: SettingChange[]) => list.map((c) => c.say);
     const mine = changes.filter((c) => c.tier === 'self');
-    if (mine.length) { apply(mine); lines.push(t.setDone(says(mine))); }
-    const asked = changes.filter((c) => c.tier === 'ask');
+    if (mine.length) { const also = apply(mine); lines.push(t.setDone([...says(mine), ...also])); }
+    // a figure put on above may have taken back its own size: a size still to be asked for is measured from the one on screen now
+    const asked = changes.filter((c) => c.tier === 'ask').flatMap((c) => (c.key === 'scale' && mine.length ? plan({ scale: args.scale }).changes : [c]));
     if (asked.length) {
       const c = this.ui.consent;
       const answer = await this.confirm(c.question(asked.map((x) => x.show)), c.choices);
@@ -1965,9 +2027,9 @@ export class DesktopPetWorld implements World {
         // these items stop being asked: the rest stay as they were, under `custom`; told to the app with the changes as the bot's own
         const keys = [...new Set(asked.map((x) => x.key))];
         this.opts.persist({ selfAdjust: 'custom', selfAdjustCustom: { ...directSettings(this.cfg), ...Object.fromEntries(keys.map((k) => [k, true])) } });
-        apply(asked);
-        lines.push(t.setAlways(this.userName, says(asked), keys.map((k) => t.settingNames[k])));
-      } else if (answer === 'yes') { apply(asked); lines.push(t.setAgreed(this.userName, says(asked))); }
+        const also = apply(asked);
+        lines.push(t.setAlways(this.userName, [...says(asked), ...also], keys.map((k) => t.settingNames[k])));
+      } else if (answer === 'yes') { const also = apply(asked); lines.push(t.setAgreed(this.userName, [...says(asked), ...also])); }
       else lines.push(t.setNotChanged(answer === 'unavailable' || answer === 'timeout' ? answer : 'no', this.userName, says(asked)));
     }
     if (mine.some((c) => c.key === 'figure' || c.key === 'scheme')) {

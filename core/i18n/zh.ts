@@ -52,7 +52,6 @@ export default {
     alarmSet: '在设定闹钟', alarmList: '在查看闹钟', alarmCancel: '在取消闹钟',
     /** 在搜的关键词 */
     quoted: (text: string) => `「${text}」`,
-    seconds: (n: number) => `${n} 秒`,
     minutesLater: (n: number) => `${n} 分钟后`,
   },
 

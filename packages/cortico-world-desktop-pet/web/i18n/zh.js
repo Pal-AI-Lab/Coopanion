@@ -29,6 +29,7 @@ export default {
   // 状态气泡:同一类事做了好几次时接在后面
   'status.more': ' 和另外 {others} 个',
   'status.thinking': '思考中',
+  'status.seconds': '{seconds} 秒',
 
   // 菜单与悬停按钮的说明
   'roam.off': '不乱动',
@@ -47,6 +48,8 @@ export default {
   'action.themeLight': '夜间模式：已关闭 · 点击开启',
   'action.soundOn': '音效：已开启 · 点击关闭',
   'action.soundOff': '音效：已关闭 · 点击开启',
+  'action.size': '大小：{pct}%',
+  'action.sizeLabel': '桌宠大小',
   'action.dress': '装扮',
   'action.worlds': '我的 World',
   'action.hide': '隐藏桌宠（可从托盘图标重新显示）',
@@ -74,6 +77,7 @@ export default {
   'dress.title': '桌宠装扮',
   'dress.preview': '预览',
   'dress.figure': '形象',
+  'dress.size': '大小',
   'dress.palette': '配色',
   'dress.head': '头顶',
   'dress.side': '配件',

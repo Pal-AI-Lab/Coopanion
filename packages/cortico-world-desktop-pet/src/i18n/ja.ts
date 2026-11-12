@@ -177,7 +177,7 @@ const ja: Translation<PetText> = {
     fontSize: (from: number, to: number) => `文字サイズを ${from} 倍から ${to} 倍にする`,
     theme: { dark: '夜の見た目にする', light: '昼の見た目にする' },
     hover: (list: string) => `ホバーボタンを${list}にする`,
-    actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', dress: '着せ替え', hide: 'ペットを隠す' },
+    actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', size: 'サイズ', dress: '着せ替え', hide: 'ペットを隠す', worlds: '自分の World' },
     user: (to: string) => `あなたを「${to}」と呼ぶ`,
   },
 
@@ -252,6 +252,7 @@ const ja: Translation<PetText> = {
       snore: { title: 'いびき', description: '' },
       talk: { title: 'おしゃべり', description: '吹き出しの文字が出るときのおしゃべり音と、選択カードが出る音。' },
       ui: { title: 'ボタンと合図', description: 'ボタンのクリック、吹き出しが開く音、選択、聞き取りの開始と終了。' },
+      alert: { title: 'お知らせ', description: '確認を求めるときに一度鳴ります。' },
     },
     snoreSeconds: { title: 'いびきの長さ', suffix: '秒', description: '眠るたびに、この時間いびきをかいたあと静かになります。z の文字は浮かび続けます。0 = 起きるまでいびきをかく。' },
     panByPosition: { title: '位置に合わせて左右に振り分ける', description: 'Coo がいる側から音が聞こえます。オフにすると中央で鳴ります。' },

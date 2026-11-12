@@ -333,6 +333,55 @@ describe('voice input', () => {
     expect((world.voiceState().counts as { utterances: number }).utterances).toBe(0);
   });
 
+  it('a talk key that cannot be read is delivered to the bot once a run, never shown in the bubble', async () => {
+    const { watch } = scriptedKey('no keyboard here');
+    const { cfg, host, page } = await setup('不该听见', 'toggle', watch);
+    const told = () => host.events.filter((e) => e.type === 'desktop-pet.talk-key');
+    await expect.poll(() => told()).toHaveLength(1);
+    expect(told()[0].text).toContain('no keyboard here');
+    cfg.asr.enabled = false;
+    await page.next((m) => m.t === 'prefs' && m.mic === false);
+    cfg.asr.enabled = true;
+    await page.next((m) => m.t === 'prefs' && m.mic === true);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(told()).toHaveLength(1);
+    expect(page.messages.some((m) => m.t === 'dialog')).toBe(false);
+  });
+
+  it('hold: the page goes quiet from the press to the release', async () => {
+    const { key, watch } = scriptedKey();
+    const { page } = await setup('帮我看看这个', 'hold', watch);
+    key.press(true);
+    expect((await page.next((m) => m.t === 'talk-key')).down).toBe(true);
+    key.press(false);
+    expect((await page.next((m) => m.t === 'talk-key')).down).toBe(false);
+  });
+
+  it('toggle: cancelling the listening bubble lets the page speak again', async () => {
+    const { key, watch } = scriptedKey();
+    const { page } = await setup('帮我看看这个', 'toggle', watch);
+    key.press(true);
+    expect((await page.next((m) => m.t === 'talk-key')).down).toBe(true);
+    page.send({ t: 'cancel' });
+    expect((await page.next((m) => m.t === 'talk-key')).down).toBe(false);
+  });
+
+  it('a talk key pressed while voice input is off does not quiet the page', async () => {
+    const { key, watch } = scriptedKey();
+    const { cfg, page } = await setup('帮我看看这个', 'hold', watch);
+    cfg.asr.enabled = false;
+    await page.next((m) => m.t === 'prefs' && m.mic === false);
+    key.press(true);
+    expect((await page.next((m) => m.t === 'talk-key')).down).toBe(false);
+  });
+
+  it('always listening never quiets the page: what it hears may be a TV', async () => {
+    const { page } = await setup('帮我看看这个', 'always');
+    for (const fr of tone(600, .3)) page.audio(fr);
+    await page.next((m) => m.t === 'listen' && m.phase === 'start');
+    expect(page.messages.some((m) => m.t === 'talk-key')).toBe(false);
+  });
+
   it('the typing key is watched only once switched on, and its press opens the typing box', async () => {
     const { key, watch } = scriptedKey();
     // listening without a key: any key watched is the typing key

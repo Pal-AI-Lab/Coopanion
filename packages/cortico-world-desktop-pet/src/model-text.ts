@@ -41,6 +41,7 @@ const zh = {
   dateLocale: 'zh-CN',
   typed: (user: string, text: string) => `[typed] ${user}:${text}`,
   heard: (user: string, text: string) => `[voice] ${user}:${text}`,
+  talkKeyUnreadable: (user: string, problem: string) => `[talk-key] 说话键读不到,${user}按说话键说的话收不到:${problem}`,
   image: (user: string, i: number, total: number) => `[${user}发来的图片 ${i}/${total}]`,
 
   answerClosed: (user: string, question: string) => `[answer] ${user}关掉了提问「${question}」,没有作答。`,
@@ -172,6 +173,7 @@ const en: typeof zh = {
   dateLocale: 'en-US',
   typed: (user, text) => `[typed] ${user}: ${text}`,
   heard: (user, text) => `[voice] ${user}: ${text}`,
+  talkKeyUnreadable: (user, problem) => `[talk-key] The talk key cannot be read, so what ${user} says with it is not heard: ${problem}`,
   image: (user, i, total) => `[image ${i}/${total} from ${user}]`,
 
   answerClosed: (user, question) => `[answer] ${user} closed the question "${question}" without answering.`,

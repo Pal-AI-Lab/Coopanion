@@ -43,7 +43,6 @@ const ptBR: Translation<CoreText> = {
     move: 'Movendo o mouse', drag: 'Arrastando', mouseDown: 'Pressionando o botão do mouse', mouseUp: 'Soltando o botão do mouse', scroll: 'Rolando', focus: 'Trocando de janela', type: 'Digitando', key: 'Pressionando', wait: 'Esperando',
     alarmSet: 'Definindo um alarme', alarmList: 'Conferindo os alarmes', alarmCancel: 'Cancelando um alarme',
     quoted: (text: string) => `“${text}”`,
-    seconds: (n: number) => `${n} s`,
     minutesLater: (n: number) => `em ${n} min`,
   },
 

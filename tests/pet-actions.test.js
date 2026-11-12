@@ -179,6 +179,17 @@ describe('what the page holds a pack to', () => {
     expect(made).toEqual(before);
   }));
 
+  it('the confirmation chime has its own switch: the alert kind silences it, the interface sounds do not', () => withAudio(async (made) => {
+    const sfx = createSfx({ storageKey: 'test.sfx' });
+    sfx.unlock();
+    sfx.configure({ kinds: { alert: false } });
+    sfx.alert();
+    expect(made.tones).toBe(0);
+    sfx.configure({ kinds: { alert: true, ui: false } });
+    sfx.alert();
+    expect(made.tones).toBeGreaterThan(0);
+  }));
+
   it('the volume setting scales the master gain the page starts from, before and after the audio starts', () => withAudio(async (made) => {
     const sfx = createSfx({ storageKey: 'test.sfx', volume: .4 });
     sfx.configure({ volume: 50 });

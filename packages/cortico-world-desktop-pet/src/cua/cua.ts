@@ -111,6 +111,11 @@ async function pause(ms: number, signal: AbortSignal | undefined): Promise<numbe
   return Date.now() - start;
 }
 
+/** How long `pet_cua_wait` waits for its `seconds` argument: 0 to 30, 1 when absent or not a number. */
+export function waitSeconds(arg: unknown): number {
+  return typeof arg === 'number' && Number.isFinite(arg) ? Math.max(0, Math.min(30, arg)) : 1;
+}
+
 export class Cua {
   private host: WorldHost | null = null;
   private log: Logger | null = null;
@@ -643,7 +648,7 @@ export class Cua {
 
   /** Waiting asks nobody; the screenshot after it is taken only when looking needs no new question. */
   private async wait(args: Args, signal?: AbortSignal): Promise<ToolOutcome> {
-    const seconds = typeof args.seconds === 'number' && Number.isFinite(args.seconds) ? Math.max(0, Math.min(30, args.seconds)) : 1;
+    const seconds = waitSeconds(args.seconds);
     const waitedMs = await pause(seconds * 1000, signal);
     const t = this.t;
     if (signal?.aborted) return { text: t.waitInterrupted((waitedMs / 1000).toFixed(1), seconds) };
