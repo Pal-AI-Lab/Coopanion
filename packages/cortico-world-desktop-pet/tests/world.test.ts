@@ -395,6 +395,15 @@ describe('with a pet page', () => {
     expect(host.events.map((e) => e.type)).toEqual(['desktop-pet.message']);
   });
 
+  it('the sound switches reach the page: in init, and pushed again when one changes', async () => {
+    const { world, cfg } = await mounted((c) => { c.sounds.alert = false; });
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    expect(page.init.sounds).toMatchObject({ alert: false, ui: true });
+    cfg.sounds = { ...cfg.sounds, alert: true };
+    expect((await page.next((m) => m.t === 'prefs')).sounds).toMatchObject({ alert: true });
+  });
+
   it('a skin saved from the dressing page is persisted and pushed to the pet', async () => {
     const { world, persisted } = await mounted();
     const page = await FakePage.open(origin(world));
