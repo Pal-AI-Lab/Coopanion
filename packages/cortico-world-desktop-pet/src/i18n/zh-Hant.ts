@@ -252,6 +252,7 @@ const zhHant: Translation<PetText> = {
       snore: { title: '打呼', description: '' },
       talk: { title: '說話', description: '氣泡文字逐字冒出時的嘰咕聲、選項卡片彈出的聲音。' },
       ui: { title: '按鈕與提示', description: '點按鈕、氣泡彈出、選取、開始和結束聽你說話。' },
+      alert: { title: '提醒', description: '操作電腦前請你確認時響一聲。' },
     },
     snoreSeconds: { title: '打呼時長', suffix: '秒', description: '每次睡著後打呼這麼久就安靜下來，Z 照樣飄；0 = 一直打到醒來。' },
     panByPosition: { title: '依位置分配左右聲道', description: '聲音偏向 Coo 所在的一側，關閉後置中播放。' },

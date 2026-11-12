@@ -473,8 +473,9 @@ function startItem(it) {
     openBubble('ask', `<button class="b-close" type="button" aria-label="${esc(t('bubble.close'))}">×</button><p class="b-text"></p><div class="b-opts" hidden></div>`);
     bubble.querySelector('.b-close').addEventListener('click', () => dismissAsk());
     it.text = it.question; it.shown = 0; it.acc = 0; it.optsShown = false;
-    sfx.pop();
-    if (it.confirm) {
+    if (!it.confirm) sfx.pop();
+    else {
+      sfx.alert();
       // the bubble stays where it opened while Coo moves; the World counts the wait from now
       const a = at()?.bubble ?? { x: innerWidth / 2, y: innerHeight };
       it.pinX = a.x; it.pinY = a.y;
@@ -495,11 +496,21 @@ function pointedAt() {
   return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom;
 }
 
+/** A click on a line's bubble, away from its links, ends the whole line as the person's own lines close: its voice stops and its later beats are dropped. */
+bubble.addEventListener('click', (e) => {
+  if (item?.kind !== 'say' || item.skippedAt !== undefined || bubble.hidden || e.target.closest('a')) return;
+  item.skippedAt = T;
+  speech.stop();
+  sfx.tick();
+  bubble.classList.add('fading');
+});
+
 function stepDialog(dt) {
   if (!item && queue.length && at() && !at().busy) startItem(queue.shift());
   const it = item;
   if (!it) return;
   if (it.kind === 'say') {
+    if (it.skippedAt !== undefined) { if (T - it.skippedAt >= LINE_FADE) closeBubble(); return; }
     if (it.i < 0 || it.beatDone) {
       if (it.beatDone && pointedAt()) it.holdUntil += dt;
       if (it.beatDone && T < it.holdUntil) return;
@@ -1124,12 +1135,14 @@ function stepLines() {
 }
 
 /* ---------- activity: the same bubble, with conversation always taking priority ---------- */
-const status = { wanted: null, since: 0, shown: null, shownAt: 0, fadeAt: null };
+/** `countFrom`: when the wanted status's countdown started, in performance.now() milliseconds; the frames stop while the window is hidden. */
+const status = { wanted: null, since: 0, shown: null, shownAt: 0, fadeAt: null, countFrom: 0 };
 function setStatus(next) {
   setBody({ thinking: next?.kind === 'think', status: next?.kind ?? null });
   const prev = status.wanted;
-  if (prev?.kind === next?.kind && prev?.text === next?.text && prev?.detail === next?.detail && prev?.count === next?.count) return;
+  if (prev?.kind === next?.kind && prev?.text === next?.text && prev?.detail === next?.detail && prev?.count === next?.count && prev?.countdown === next?.countdown) return;
   if (prev?.kind !== next?.kind) status.since = T;
+  if (next?.countdown !== undefined) status.countFrom = performance.now();
   status.wanted = next;
 }
 function drawStatus(next, pop) {
@@ -1140,12 +1153,18 @@ function drawStatus(next, pop) {
     bubble.innerHTML = `<span class="status-icon">${ICONS[`status_${icon}`] || ICONS.status_work}</span><span class="status-text"></span>`;
   }
   bubble.dataset.kind = next.kind;
-  const label = next.text + (next.detail ? ` · ${next.detail}` : '') + (next.count > 1 ? t('status.more', { others: next.count - 1 }) : '');
+  const label = statusLabel(next);
   bubble.querySelector('.status-text').textContent = label;
   bubble.setAttribute('aria-label', next.kind === 'think' ? t('status.thinking') : label);
   bubble.classList.remove('fading');
   bubble.hidden = false;
   if (pop) { bubble.classList.remove('pop'); void bubble.offsetWidth; bubble.classList.add('pop'); }
+}
+/** The status's words; a countdown shows the whole seconds left, and nothing once they run out. */
+function statusLabel(s) {
+  const left = s.countdown === undefined ? 0 : Math.ceil(s.countdown - (performance.now() - status.countFrom) / 1000);
+  const detail = s.countdown === undefined ? s.detail : left > 0 ? t('status.seconds', { seconds: left }) : '';
+  return s.text + (detail ? ` · ${detail}` : '') + (s.count > 1 ? t('status.more', { others: s.count - 1 }) : '');
 }
 function stepStatus() {
   // Never replace dialogue with activity, including while a queued line waits for the body.
@@ -1161,7 +1180,7 @@ function stepStatus() {
   const next = status.wanted, shown = status.shown;
   if (next?.kind === 'think' && T - status.since < .6) return;
   if (shown && next && shown.kind === next.kind && shown.text === next.text) {
-    if (shown !== next || status.fadeAt !== null) drawStatus(next, false);
+    if (shown !== next || status.fadeAt !== null || (next.countdown !== undefined && bubble.querySelector('.status-text')?.textContent !== statusLabel(next))) drawStatus(next, false);
     status.shown = next; status.fadeAt = null;
   } else if (!shown || T - status.shownAt >= 1.2) {
     if (next) {

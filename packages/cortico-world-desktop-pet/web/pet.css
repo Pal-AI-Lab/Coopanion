@@ -173,6 +173,11 @@ body.desk .floor{display:none}
 .said-mark{display:inline-flex; vertical-align:-2px; margin-right:5px; color:color-mix(in srgb, var(--skin-eye) 78%, var(--skin-ink))}
 .said-mark svg{width:calc(15px * var(--bubble-font, 1)); height:calc(15px * var(--bubble-font, 1))}
 .b-hint .said-mark{vertical-align:-3px; margin-right:4px}
+/* a line closes on a click, lit in the eye color on hover as the person's own lines are */
+.bubble.say{cursor:pointer; transition:opacity .4s ease, border-color .15s}
+.bubble.say:hover{border-color:var(--skin-eye)}
+.bubble.say:hover::before{background:var(--skin-eye)}
+.bubble.say.fading{opacity:0; pointer-events:none}
 .bubble.ask{min-width:min(calc(236px * var(--bubble-size, 1)), calc(100vw - 20px)); padding-right:calc(32px * var(--bubble-size, 1))}
 .bubble.pop{animation:bubble-in .26s cubic-bezier(.3,1.5,.5,1)}
 @keyframes bubble-in{from{transform:scale(.5); opacity:0}}

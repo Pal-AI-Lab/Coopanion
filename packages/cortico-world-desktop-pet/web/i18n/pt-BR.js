@@ -26,6 +26,7 @@ export default {
   // the status bubble: added when the same kind of thing was done several times
   'status.more': ' e mais {others}',
   'status.thinking': 'Pensando',
+  'status.seconds': '{seconds} s',
 
   // the menu and the hover buttons
   'roam.off': 'Sem se mexer',

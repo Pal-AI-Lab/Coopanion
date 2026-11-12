@@ -33,7 +33,7 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
   win.deps = {
     applyTheme: (theme) => { win.document.documentElement.dataset.theme = theme; }, clamp, f, ICONS, linked: (text, n) => linked(text, n, win.document),
     COO_CSS, mini, normalizeSkin, skinCss,
-    createSfx: () => ({ unlock() {}, pop() {}, babble() {}, blub() {}, configure() {}, set() {}, setPan() {}, listenStart() {}, listenEnd() {}, select() {}, tick() {}, ...sfx }),
+    createSfx: () => ({ unlock() {}, pop() {}, alert() {}, babble() {}, blub() {}, configure() {}, set() {}, setPan() {}, listenStart() {}, listenEnd() {}, select() {}, tick() {}, ...sfx }),
     createSpeech: () => ({ configure() {}, begin() {}, reveal() { return false; }, stop() {}, active: false, ...speech }),
     textSteps: () => 1,
     loadBody: async () => body, body,
@@ -45,7 +45,7 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     runFrames() {},
     fetchLooks, lookAvailable: () => true, lookPicture: () => '', sameLook: (a, b) => a === b,
   };
-  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, stepWheel, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
+  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, stepWheel, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
@@ -369,5 +369,94 @@ describe('look wheel over the dress button', () => {
     await frames(p);
     expect(reads).toBe(1);
     expect(wheel(p).hidden).toBe(false);
+  });
+});
+
+describe("closing Coo's line with a click", () => {
+  const beat = (text) => ({ text, actions: [], anchors: [] });
+  const click = (p, el = p.bubble) => el.dispatchEvent(new p.win.MouseEvent('click', { bubbles: true }));
+
+  it('ends the whole line: the voice stops, the later beats never show, and the next line follows', () => {
+    let stopped = 0;
+    const p = page({ speech: { stop: () => { stopped++; } } });
+    p.onOrder({ t: 'say', id: 'a', beats: [beat('第一段'), beat('第二段')] });
+    p.onOrder({ t: 'say', id: 'b', beats: [beat('下一句')] });
+    p.step(.01); p.step(.5);
+    expect(p.bubble.textContent).toBe('第一段');
+    const before = stopped;
+    click(p);
+    expect(stopped).toBe(before + 1);
+    expect(p.bubble.classList.contains('fading')).toBe(true);
+    // a second click while it fades changes nothing
+    click(p);
+    expect(stopped).toBe(before + 1);
+    p.step(p.LINE_FADE); p.step(.01); p.step(1);
+    expect(p.bubble.textContent).toBe('下一句');
+    expect(p.bubble.classList.contains('fading')).toBe(false);
+  });
+
+  it('opens a link in the line without closing it', () => {
+    const p = page();
+    p.onOrder({ t: 'say', id: 's', beats: [beat('来 https://example.com 看看')] });
+    p.step(.01); p.step(3);
+    click(p, p.bubble.querySelector('a'));
+    p.step(p.LINE_FADE);
+    expect(p.bubble.hidden).toBe(false);
+    expect(p.bubble.classList.contains('fading')).toBe(false);
+  });
+
+  it('leaves a question alone: only its close button or an answer ends it', () => {
+    const p = page();
+    p.onOrder({ t: 'ask', id: 'q', question: '继续吗', options: ['继续'] });
+    p.step(.01); p.step(1);
+    click(p);
+    p.step(p.LINE_FADE);
+    expect(p.bubble.classList.contains('ask')).toBe(true);
+    expect(p.bubble.hidden).toBe(false);
+  });
+});
+
+describe('the alert for a confirmation', () => {
+  it('plays once when a confirmation shows, and a question opens with the plain pop', () => {
+    const played = [];
+    const p = page({ sfx: { alert: () => played.push('alert'), pop: () => played.push('pop') } });
+    p.onOrder({ t: 'confirm', id: 'k', question: '可以吗', options: ['可以', '不行'] });
+    p.step(.01); p.step(2);
+    expect(played).toEqual(['alert']);
+    p.bubble.querySelector('.b-close').click();
+    p.onOrder({ t: 'ask', id: 'q', question: '继续吗', options: ['继续'] });
+    p.step(.01); p.step(2);
+    expect(played).toEqual(['alert', 'pop']);
+  });
+});
+
+describe('a countdown in the activity bubble', () => {
+  const clock = (p) => {
+    let now = 0;
+    p.win.performance.now = () => now;
+    return (seconds) => { now += seconds * 1000; p.step(.01); };
+  };
+  const wait = { kind: 'wait', text: '在等待', countdown: 3 };
+
+  it('shows the whole seconds left and drops the number when they run out', () => {
+    const p = page();
+    const pass = clock(p);
+    show(p, wait); pass(0);
+    expect(p.bubble.textContent).toBe(`在等待 · ${t('status.seconds', { seconds: 3 })}`);
+    pass(1.2);
+    expect(p.bubble.textContent).toBe(`在等待 · ${t('status.seconds', { seconds: 2 })}`);
+    pass(2);
+    expect(p.bubble.textContent).toBe('在等待');
+  });
+
+  it('counts from when the status arrives, also while a line holds the bubble', () => {
+    const p = page();
+    const pass = clock(p);
+    p.onOrder({ t: 'say', id: 's', beats: [{ text: '好', actions: [], anchors: [] }] });
+    pass(0);
+    show(p, wait);
+    pass(1.5);
+    p.closeBubble(); pass(0);
+    expect(p.bubble.textContent).toBe(`在等待 · ${t('status.seconds', { seconds: 2 })}`);
   });
 });

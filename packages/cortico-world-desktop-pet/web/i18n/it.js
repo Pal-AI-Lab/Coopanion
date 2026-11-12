@@ -26,6 +26,7 @@ export default {
   // the status bubble
   'status.more': ' e altri {others}',
   'status.thinking': 'Sta pensando',
+  'status.seconds': '{seconds} s',
 
   // the menu and the hover buttons
   'roam.off': 'Resta sul posto',

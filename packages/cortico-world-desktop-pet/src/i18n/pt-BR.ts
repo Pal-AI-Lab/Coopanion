@@ -252,6 +252,7 @@ const ptBR: Translation<PetText> = {
       snore: { title: 'Ronco', description: '' },
       talk: { title: 'Fala', description: 'O balbucio enquanto o texto do balão aparece, e os cartões de opção surgindo.' },
       ui: { title: 'Botões e avisos', description: 'Cliques em botões, balões abrindo, seleções, e o início e o fim da escuta.' },
+      alert: { title: 'Alertas', description: 'Um aviso sonoro quando Coo pede permissão antes de usar o computador.' },
     },
     snoreSeconds: { title: 'Duração do ronco', suffix: 's', description: 'Em cada soneca o pet para de roncar depois desse tempo; os z continuam flutuando. 0 = roncar até acordar.' },
     panByPosition: { title: 'Panorama pela posição', description: 'Os sons pendem para o lado onde o Coo está; desligado, tocam no centro.' },

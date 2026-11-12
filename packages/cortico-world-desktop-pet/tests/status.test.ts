@@ -18,6 +18,7 @@ const describe_: DescribeTool = (name, args) => {
   if (name === 'read_file') return { kind: 'read', text: '在看', ...(stringArg(args, 'path') ? { detail: stringArg(args, 'path') } : {}) };
   if (name === 'write_file') return { kind: 'write', text: '在写', ...(stringArg(args, 'path') ? { detail: stringArg(args, 'path') } : {}) };
   if (name === 'append_file') return { kind: 'write', text: '在补记', ...(stringArg(args, 'path') ? { detail: stringArg(args, 'path') } : {}) };
+  if (name === 'pet_cua_wait') return { kind: 'wait', text: '在等待', countdown: 5 };
   if (name === 'end_turn') return null;
   return undefined;
 };
@@ -42,6 +43,19 @@ describe('StatusTracker', () => {
     tracker.onPhase(phase('tools', 1, ['read_file']));
     expect(tracker.status?.count).toBe(2);
     expect(changed).toHaveBeenCalledTimes(4);
+  });
+
+  it('passes a countdown on only while its call runs, so a question before it does not use up the seconds', () => {
+    const { tracker } = setup();
+    tracker.onPhase(phase('model', 1));
+    tracker.onEvent(call('a', 'pet_cua_click', '{}', true));
+    tracker.onEvent(call('b', 'pet_cua_wait', '{"seconds":5}', true));
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等待' });
+    // the click waits for the person's answer first
+    tracker.onPhase(phase('tools', 1, ['pet_cua_click']));
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等待' });
+    tracker.onPhase(phase('tools', 1, ['pet_cua_wait']));
+    expect(tracker.status).toEqual({ kind: 'wait', text: '在等待', countdown: 5 });
   });
 
   it('starts the next round from thinking and ends with the batch', () => {

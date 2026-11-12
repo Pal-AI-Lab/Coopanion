@@ -15,6 +15,8 @@ export interface PetStatus {
   text: string;
   detail?: string;
   count?: number;
+  /** Seconds the call lasts. StatusTracker passes it on only while the call runs; the page counts down from when it arrives. */
+  countdown?: number;
 }
 
 /** A call's arguments: the parsed object, or the JSON text streamed so far. */
@@ -52,6 +54,8 @@ export class StatusTracker {
   private readonly calls = new Map<string, Call>();
   private state: RunPhase['state'] = 'idle';
   private round: number | undefined;
+  /** The tools running now, as RunPhase `running` names them. */
+  private running: readonly string[] = [];
   private current: PetStatus | null = null;
 
   /** `busy`: what a call without a description shows, in the app language at the time. */
@@ -61,6 +65,7 @@ export class StatusTracker {
 
   onPhase(phase: RunPhase): void {
     this.state = phase.state;
+    this.running = phase.running;
     switch (phase.state) {
       case 'idle':
         this.calls.clear();
@@ -110,25 +115,28 @@ export class StatusTracker {
     return described === undefined ? defaultStatus(call.name, this.busy()) : described;
   }
 
-  /** The latest run of calls of one kind: its last wording, its first detail and how many. */
+  /** The latest run of calls of one kind: its last wording, its first detail and countdown, and how many. */
   private update(): void {
     const calls = [...this.calls.values()];
-    let last: PetStatus | null = null, first: PetStatus | null = null, count = 0;
+    let last: PetStatus | null = null, first: Call | null = null, count = 0;
     for (let i = calls.length - 1; i >= 0; i--) {
       const s = calls[i].status;
       if (!s) continue;
       if (last && s.kind !== last.kind) break;
       last ??= s;
-      first = s;
+      first = calls[i];
       count++;
     }
-    if (last && first) this.set({ kind: last.kind, text: last.text, ...(first.detail ? { detail: first.detail } : {}), ...(count > 1 ? { count } : {}) });
-    else this.set(calls.at(-1)?.done ? null : THINK);
+    const lead = first?.status;
+    if (last && first && lead) {
+      const countdown = lead.countdown !== undefined && this.running.includes(first.name) ? { countdown: lead.countdown } : {};
+      this.set({ kind: last.kind, text: last.text, ...(lead.detail ? { detail: lead.detail } : {}), ...countdown, ...(count > 1 ? { count } : {}) });
+    } else this.set(calls.at(-1)?.done ? null : THINK);
   }
 
   private set(status: PetStatus | null): void {
     const c = this.current;
-    if (c?.kind === status?.kind && c?.text === status?.text && c?.detail === status?.detail && c?.count === status?.count) return;
+    if (c?.kind === status?.kind && c?.text === status?.text && c?.detail === status?.detail && c?.countdown === status?.countdown && c?.count === status?.count) return;
     this.current = status;
     this.changed(status);
   }
