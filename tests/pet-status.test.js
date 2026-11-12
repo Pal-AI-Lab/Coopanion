@@ -4,6 +4,9 @@ import { JSDOM } from 'jsdom';
 import { clamp, f, ICONS, linked } from '../packages/cortico-world-desktop-pet/web/ui.js';
 import { COO_CSS, mini, normalizeSkin, skinCss } from '../packages/cortico-world-desktop-pet/web/coo/coo.js';
 import { t } from '../packages/cortico-world-desktop-pet/web/i18n.js';
+import { SIZE, scaleSlider, sizeEcho } from '../packages/cortico-world-desktop-pet/web/scale-slider.js';
+import { sameLook as realSameLook } from '../packages/cortico-world-desktop-pet/web/looks.js';
+import { restyle, springSize, swapIn, swapOut } from '../packages/cortico-world-desktop-pet/web/swap-motion.js';
 import { tipOf, tipWithoutNote } from '../packages/cortico-world-desktop-pet/web/hints.js';
 
 const WEB = new URL('../packages/cortico-world-desktop-pet/web/', import.meta.url);
@@ -13,7 +16,7 @@ const pages = [];
 afterEach(() => { for (const p of pages.splice(0)) p.close(); });
 
 /** Run the actual page with a quiet socket and body; the test advances the page's frame clock. */
-function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = async () => [] } = {}) {
+function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = async () => [], sameLook = (a, b) => a === b } = {}) {
   const dom = new JSDOM(html, { url: `http://127.0.0.1/pet${hash}`, runScripts: 'outside-only' });
   const win = dom.window;
   pages.push(win);
@@ -21,10 +24,12 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
   const sockets = [];
   const bodyChanges = [];
   const body = {
-    layout: { busy: false, facing: 1, cursor: '', bubble: { x: 500, y: 400 }, box: { x: 400, y: 300, w: 100, h: 100 } },
+    layout: { busy: false, facing: 1, cursor: '', x: 450, side: { x: 450, y: 350, reach: 40 }, bubble: { x: 500, y: 400 }, box: { x: 400, y: 300, w: 100, h: 100 } },
     set: (change) => bodyChanges.push(change), cue() {}, talk() {},
   };
   win.requestAnimationFrame = () => 0;
+  // scale-slider.js is imported here, in the test's own globals: its frames come from there
+  globalThis.requestAnimationFrame ??= () => 0;
   win.fetch = async () => ({ json: async () => [] });
   win.WebSocket = class {
     readyState = 1;
@@ -44,11 +49,12 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     createMic: () => ({ start() {}, stop() {} }),
     // the test advances the page's clock itself (`step`)
     runFrames() {},
-    fetchLooks, lookAvailable: () => true, lookPicture: () => '', sameLook: (a, b) => a === b,
+    fetchLooks, lookAvailable: () => true, lookPicture: () => '', sameLook,
+    SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut,
     // hover hints (hints.js) are not what these tests look at
     mountHints() {}, tipOf, tipWithoutNote,
   };
-  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, mountHints, tipOf, tipWithoutNote } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, stepWheel, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
+  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints, tipOf, tipWithoutNote } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
@@ -364,6 +370,25 @@ describe('look wheel over the dress button', () => {
     expect(reads).toBe(2);
   });
 
+  it('keeps the look it opened on at the head of the row after a favourite of another size is put on', async () => {
+    const fox = { figure: 'coo', palette: 'fox' };
+    const p = page({ fetchLooks: async () => [{ id: 'a', name: 'a', skin: fox, scale: 2 }], sameLook: realSameLook });
+    dressButton(p);
+    over(p);
+    await frames(p);
+    expect([...wheel(p).children].map((b) => b.classList.contains('worn'))).toEqual([true, false]);
+    // the favourite goes on at its size and the row closes, as when the dress button moved from under the pointer
+    p.onOrder({ t: 'prefs', skin: fox, scale: 2 });
+    off(p);
+    p.step(1);
+    await frames(p, 1);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(wheel(p).hidden).toBe(true);
+    over(p);
+    await frames(p);
+    expect([...wheel(p).children].map((b) => [b.classList.contains('worn'), b.classList.contains('on')])).toEqual([[true, false], [false, true]]);
+  });
+
   it('opens the row with one read when there are favourites', async () => {
     let reads = 0;
     const p = page({ fetchLooks: async () => { reads++; return [{ skin: {} }]; } });
@@ -372,5 +397,85 @@ describe('look wheel over the dress button', () => {
     await frames(p);
     expect(reads).toBe(1);
     expect(wheel(p).hidden).toBe(false);
+  });
+});
+
+describe('the size the body is drawn at', () => {
+  const drawnS = (p) => p.bodyChanges.filter((c) => c.bounds).at(-1)?.bounds.S;
+
+  it('follows the size setting on the desktop and stays at size 1 in a tab, as a preview', () => {
+    const desk = page({ host: true });
+    desk.onOrder({ t: 'prefs', scale: 3 });
+    expect(drawnS(desk)).toBeCloseTo(.42 * 3);
+    const tab = page();
+    tab.onOrder({ t: 'prefs', scale: 3 });
+    tab.step(1);
+    expect(drawnS(tab)).toBeCloseTo(.42);
+  });
+});
+
+describe('the size slider pinned by a click on its button', () => {
+  const sizerEl = (p) => p.doc.querySelector('#sizer');
+  const shown = (p) => !sizerEl(p).hidden && !sizerEl(p).classList.contains('leaving');
+
+  it('stays open with the pointer away until a press elsewhere, and a second click closes it', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
+    const button = p.doc.querySelector('#tools [data-action="size"]');
+    button.click();
+    expect(shown(p)).toBe(true);
+    expect(button.classList.contains('on')).toBe(true);
+    p.cursor.at = null;
+    for (let i = 0; i < 6; i++) { p.step(.5); p.stepSizer(); }
+    expect(shown(p)).toBe(true);
+    p.doc.body.dispatchEvent(new p.win.MouseEvent('pointerdown', { bubbles: true }));
+    expect(shown(p)).toBe(false);
+    expect(button.classList.contains('on')).toBe(false);
+    expect(button.classList.contains('off')).toBe(false);
+    button.click();
+    expect(shown(p)).toBe(true);
+    button.click();
+    expect(shown(p)).toBe(false);
+  });
+});
+
+describe('the size slider opened by hovering its button', () => {
+  it('stays while the pointer is among the pet\'s controls, on the body or another hover button, and goes once it is off them', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size', 'chat'] });
+    const tools = p.doc.querySelector('#tools'), button = tools.querySelector('[data-action="size"]');
+    // jsdom lays nothing out: the size button is at the page's top left
+    Object.defineProperty(button, 'offsetParent', { value: p.doc.body });
+    const sizerEl = p.doc.querySelector('#sizer');
+    const shown = () => !sizerEl.hidden && !sizerEl.classList.contains('leaving');
+    /** The pointer at `at` for two seconds, longer than the slider waits once the pointer is off the controls. */
+    const rest = (at) => { p.cursor.at = at; for (let i = 0; i < 4; i++) { p.step(.5); p.stepSizer(); } };
+    p.cursor.at = { x: 0, y: 0 };
+    p.stepSizer();
+    expect(shown()).toBe(true);
+    // on the body (its box is 400–500 × 300–400), on the way up to the slider
+    rest({ x: 450, y: 350 });
+    expect(shown()).toBe(true);
+    // on the hover buttons, right of the body
+    tools.hidden = false;
+    tools.getBoundingClientRect = () => ({ left: 600, right: 650, top: 300, bottom: 400 });
+    rest({ x: 625, y: 380 });
+    expect(shown()).toBe(true);
+    p.cursor.at = { x: 900, y: 900 };
+    p.step(.5);
+    p.stepSizer();
+    expect(shown()).toBe(false);
+  });
+});
+
+describe('the voice button', () => {
+  it('is muted while voice input is on and the recognizer is not ready, as a hover button and in the menu alike', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['voice'], voice: { enabled: true, ready: false } });
+    p.openMenu();
+    const hover = p.doc.querySelector('#tools [data-action="voice"]'), tile = p.doc.querySelector('.menu [data-action="voice"]');
+    expect([hover.classList.contains('waiting'), tile.classList.contains('waiting')]).toEqual([true, true]);
+    p.onOrder({ t: 'prefs', voice: { enabled: true, ready: true } });
+    expect([hover.classList.contains('waiting'), tile.classList.contains('waiting')]).toEqual([false, false]);
   });
 });

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { DESKTOP_PET_DEFAULTS } from '../src/config.ts';
+import { DESKTOP_PET_DEFAULTS, PET_ACTIONS } from '../src/config.ts';
+import { PET_TEXT, petText } from '../src/i18n/index.ts';
+import type { Language } from 'cortico/core/language.ts';
 import { figurePacks } from '../src/packs.ts';
 import { planSettings } from '../src/self.ts';
 
@@ -7,6 +9,11 @@ const cfg = () => structuredClone(DESKTOP_PET_DEFAULTS);
 const packs = figurePacks([]).packs;
 
 describe('pet_set', () => {
+  it('names every hover button in the consent bubble, in every language', () => {
+    // a language's file holds each group whole, so its consent names are its own
+    for (const language of Object.keys(PET_TEXT) as Language[]) for (const id of PET_ACTIONS) expect(petText(language).consent.actions[id], `${language} ${id}`).toBeTruthy();
+  });
+
   it('changes what reaches the person only after asking them', () => {
     const { changes } = planSettings({ roam: 'free', sound: false, scale: 1.5, bubbleSize: 1.2, fontSize: 1.2, theme: 'light', user: '小明', hoverButtons: ['chat'] }, cfg(), packs);
     expect(Object.fromEntries(changes.map((c) => [c.key, c.tier]))).toEqual({ roam: 'self', sound: 'ask', scale: 'ask', bubbleSize: 'ask', fontSize: 'ask', theme: 'ask', user: 'ask', hoverButtons: 'ask' });
