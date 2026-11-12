@@ -1,10 +1,12 @@
 /**
- * The pet's size slider, as the settings window draws it (console/features/pet/scale-slider.ts): `min`–`soft` on the
- * main stretch, then a short stretch past a divider for `soft`–`max`. While the value is past the divider the short
- * stretch widens (and the whole bar, as far as `room()` allows); back at `soft` or below it shrinks again, animated.
- * A drag leaves what is left of the pointer as it is and grows the bar to the right only (`dragTo`), so the thumb stays
- * under the pointer; the bar settles into its rest layout once let go. Steps are .05 up to `soft` and .1 past it.
- * Styled by `.pet-scale` (pet.css).
+ * The slider of the pet's pages and of the settings window (console/features/pet/index.ts, through pet-ui.d.ts):
+ * `min`–`soft` on the main stretch, then a short stretch past a divider for `soft`–`max`; with `soft` at `max` it is one
+ * plain stretch (the 外发光 and 音量 sliders). While the value is past the divider the short stretch widens (and the
+ * whole bar, as far as `room()` allows); back at `soft` or below it shrinks again, animated. A drag leaves what is left
+ * of the pointer as it is and grows the bar to the right only (`dragTo`), so the thumb stays under the pointer; the bar
+ * settles into its rest layout once let go. Steps are `step`, or .05 up to `soft` and .1 past it.
+ * Each page styles it by its root class: `.pet-scale` (pet.css, dress.css) or the settings window's `.companion-scale`
+ * (home.css); the parts are `.ps-main`, `.ps-tail`, `.ps-fill`, `.ps-divider` and `.ps-thumb` on both.
  */
 
 /** The bar's width and its main stretch's share: at rest, and while the value is past the divider. */
@@ -44,13 +46,14 @@ const still = (doc) => !!doc.defaultView?.matchMedia?.('(prefers-reduced-motion:
 
 /**
  * `o`: { min, soft, max, label, room() (pixels the bar may take), onInput(value) while it moves, onChange(value) once a
- * drag or key press ends, widths? (as WIDTHS) }. Returns { el, value, active (being dragged), set(value), nudge(dir),
- * relayout() }.
+ * drag or key press ends, step? (one step of the value), format?(value) (the value read aloud, a percentage by default),
+ * widths? (as WIDTHS), className? (the root's, `pet-scale` by default) }. Returns { el, value, active (being dragged),
+ * set(value), nudge(dir), relayout() }.
  */
 export function scaleSlider(doc, o) {
   const widths = o.widths ?? WIDTHS;
   const el = doc.createElement('div');
-  el.className = 'pet-scale';
+  el.className = o.className ?? 'pet-scale';
   el.tabIndex = 0;
   el.setAttribute('role', 'slider');
   el.setAttribute('aria-label', o.label);
@@ -71,10 +74,14 @@ export function scaleSlider(doc, o) {
   let left = null;
   let raf = 0;
 
-  const step = (v, up) => (v > o.soft || (up && v >= o.soft) ? COARSE : FINE);
+  /** No stretch past a divider: `soft` is the end. */
+  const single = o.soft >= o.max;
+  if (single) { tail.hidden = true; divider.hidden = true; }
+  const fine = o.step ?? FINE, coarse = o.step ?? COARSE;
+  const step = (v, up) => (v > o.soft || (up && v >= o.soft) ? coarse : fine);
   const snap = (v) => {
     const c = Math.min(o.max, Math.max(o.min, v));
-    const by = c <= o.soft ? FINE : COARSE;
+    const by = c <= o.soft ? fine : coarse;
     return Number((Math.round(c / by) * by).toFixed(4));
   };
 
@@ -82,6 +89,7 @@ export function scaleSlider(doc, o) {
   function rest(kk) {
     const room = o.room() || widths.expanded.width;
     const cw = Math.min(widths.collapsed.width, room), ew = Math.min(widths.expanded.width, room);
+    if (single) return { mainW: cw, tailW: 0 };
     const e = ease(kk);
     const width = cw + (ew - cw) * e;
     const mainW = cw * widths.collapsed.main + (ew * widths.expanded.main - cw * widths.collapsed.main) * e;
@@ -106,7 +114,8 @@ export function scaleSlider(doc, o) {
     : l.mainW + ((v - o.soft) / (o.max - o.soft)) * l.tailW);
   const valueAt = (x, l) => (x <= l.mainW
     ? o.min + (Math.max(0, x) / l.mainW) * (o.soft - o.min)
-    : o.soft + (Math.min(l.tailW, x - l.mainW) / l.tailW) * (o.max - o.soft));
+    // with no stretch past the divider (tailW 0), beyond the bar's end is its end, not 0/0
+    : l.tailW > 0 ? o.soft + (Math.min(l.tailW, x - l.mainW) / l.tailW) * (o.max - o.soft) : o.soft);
 
   function draw(l = layout()) {
     el.style.width = `${l.mainW + l.drawn}px`;
@@ -118,7 +127,7 @@ export function scaleSlider(doc, o) {
     thumb.style.left = `${x}px`;
     el.classList.toggle('past', value > o.soft);
     el.setAttribute('aria-valuenow', String(value));
-    el.setAttribute('aria-valuetext', `${Math.round(value * 100)}%`);
+    el.setAttribute('aria-valuetext', o.format?.(value) ?? `${Math.round(value * 100)}%`);
   }
 
   /** Whether any of the bar's changes is still under way at `now`. */
@@ -168,7 +177,7 @@ export function scaleSlider(doc, o) {
    * so the thumb stays under the pointer.
    */
   function dragTo(x) {
-    if (x > held.mainW) {
+    if (!single && x > held.mainW) {
       const room = o.room() || widths.expanded.width;
       const want = Math.max(held.tail, Math.min(rest(1).tailW, room - held.mainW));
       if (want > held.tail) {
@@ -219,7 +228,7 @@ export function scaleSlider(doc, o) {
     const keys = {
       ArrowRight: () => value + step(value, true), ArrowUp: () => value + step(value, true),
       ArrowLeft: () => value - step(value, false), ArrowDown: () => value - step(value, false),
-      PageUp: () => value + COARSE * 5, PageDown: () => value - COARSE * 5, Home: () => o.min, End: () => o.max,
+      PageUp: () => value + coarse * 5, PageDown: () => value - coarse * 5, Home: () => o.min, End: () => o.max,
     };
     const next = keys[e.key];
     if (!next) return;
@@ -228,12 +237,21 @@ export function scaleSlider(doc, o) {
     o.onChange(value);
   });
   draw();
+  /** Whether a value was set from outside yet: the first one, the value the page opens with, is drawn at rest at once. */
+  let placed = false;
   return {
     el,
     get value() { return value; },
     get active() { return !!held; },
-    /** A size set from outside: the knob moves there, and the bar widens or narrows as a step makes it. */
-    set(v) { const next = snap(v); if (next === value) return; value = next; if (!held) settle(); draw(); },
+    /** A value set from outside: the knob moves there, and the bar widens or narrows as a step makes it. */
+    set(v) {
+      const next = snap(v);
+      if (!placed) { placed = true; value = next; k = from = target = value > o.soft ? 1 : 0; left = null; draw(); return; }
+      if (next === value) return;
+      value = next;
+      if (!held) settle();
+      draw();
+    },
     /** One step up (`dir` 1) or down (-1), as an arrow key moves it; reported through onInput. */
     nudge(dir) { stepTo(value + (dir > 0 ? step(value, true) : -step(value, false))); },
     relayout: () => draw(),
