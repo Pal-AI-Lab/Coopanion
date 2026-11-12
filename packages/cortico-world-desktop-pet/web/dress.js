@@ -11,8 +11,12 @@
  * as the server reads them (`bundle`). The server says what it found; the person picks what to install.
  * A pack the server lists as `removable` is uninstalled from its tile (`POST /api/figures/remove`).
  *
- * The round buttons on the preview save the look worn as a new one (looks.js), and, once the look picked from the saved
- * ones has changed, save the changes to it; the favourites are listed first in one row, to put on with a click, rename, remove or drag to another place.
+ * The size row under the figures sets the size on screen (`POST /api/prefs` `scale`) while its slider moves; the World
+ * keeps a size per figure, so picking another figure puts it on at its own. The preview keeps its one size.
+ *
+ * The round buttons on the preview save the look worn, with the size on screen, as a new one (looks.js), and, once the
+ * look picked from the saved ones has changed, save the changes to it; the favourites are listed first in one row, to put
+ * on with a click (at their size, when they have one), rename, remove or drag to another place.
  *
  * Text follows the app language (i18n.js): the page's own from its tables, the names of figures, Coo's
  * palettes and accessories, and other packs' picks from the packs' manifests.
@@ -27,6 +31,8 @@ import {
 import { loadBody } from './body-host.js';
 import { fetchLooks, lookAvailable, lookPicture, sameLook, writeLooks } from './looks.js';
 import { dragRow } from './drag-row.js';
+import { SIZE, scaleSlider, sizeEcho } from './scale-slider.js';
+import { restyle, swapIn, swapOut } from './swap-motion.js';
 import { announcePainted, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 
 import { bindAppearance, hostDressDialogs } from './appearance.js';
@@ -64,7 +70,7 @@ const modeBtn = modeButton(preview, () => theme, (next) => { theme = next; showT
 lightWall(preview);
 dressFloor($('#floor'));
 /** The page's own text in the app language; the theme button's title is part of it. */
-const showText = () => { applyText(); document.title = t('dress.title'); modeBtn.show(theme); };
+const showText = () => { applyText(); document.title = t('dress.title'); modeBtn.show(theme); showScale(); };
 const ready = useLanguage().then(showText);
 showTheme();
 /** The floor is the stage's bottom 48 pixels, as in a tab (pet.css .floor). */
@@ -94,6 +100,8 @@ const loadPacks = () => Promise.all([fetch('/api/figures').then((r) => r.json())
 const lightFor = (s) => setGlow(preview, glowColor(packs.find((p) => p.id === s.figure), s));
 loadPacks();
 let wanted = null, loading = null;
+/** The look last put on the preview's body, so only a change is animated. */
+let shownLook = null;
 // a pack that will not load or breaks previews as Coo, as on the desktop
 function previewFailed(id, err) {
   console.error(err);
@@ -105,6 +113,10 @@ async function showFigure(s) {
   try {
     if (body?.pack === s.figure) {
       body.set({ skin: s });
+      // another look of the figure shown: a dip, as on the desktop
+      const look = JSON.stringify(s);
+      if (shownLook && look !== shownLook) restyle(body, preview);
+      shownLook = look;
       if (s.figure !== 'coo') await body.setScheme(s.scheme, { fade: .4 });
       return;
     }
@@ -124,8 +136,13 @@ async function showFigure(s) {
     holder.body = next;
     // the theme may have arrived while the body was loading
     next.set({ roam: 'calm', theme });
-    body?.dispose();
+    const old = body;
     body = next;
+    shownLook = JSON.stringify(s);
+    if (old) {
+      swapOut(old, preview);
+      swapIn(next, preview, next.layout ?? was);
+    }
     sfx.usePack(pack.base, pack.sounds);
   } catch (err) {
     previewFailed(s.figure, err);
@@ -136,6 +153,7 @@ async function showFigure(s) {
   if (body?.pack === skin.figure && skin !== s) await showFigure(skin);
 }
 
+/** Shows `next`; `persist` saves it, a number saves it at that size on screen. */
 function apply(next, persist) {
   skin = next;
   // the page's tiles follow the page's light/dark, the preview the pet's
@@ -143,7 +161,7 @@ function apply(next, persist) {
   lightFor(skin);
   showFigure(skin).catch((err) => console.error(err));
   render();
-  if (persist) return save('/api/skin', { skin });
+  if (persist) return save('/api/skin', typeof persist === 'number' ? { skin, scale: persist } : { skin });
 }
 
 const CROP = { palette: '18 18 220 220', head: '18 -72 220 220', side: '-52 -4 220 220', glasses: '28 7 220 220', neck: '32 84 220 220' };
@@ -242,7 +260,7 @@ function renderFigure() {
   const pack = skin.figure === 'coo' ? null : packs.find((p) => p.id === skin.figure);
   if (!pack) return;
   const picks = picksOf(pack, skin.scheme);
-  let after = box;
+  let after = $('#optSize');
   for (const axis of pack.axes) {
     const label = el('div', 'row-label pack-axis');
     label.id = `lbAxis-${axis.id}`;
@@ -280,6 +298,35 @@ function removeButton(pack) {
   return b;
 }
 
+/* ---------- size on screen ---------- */
+
+/** Milliseconds between the sizes sent while the slider moves, so the pet on the desktop follows it. */
+const SCALE_SEND_MS = 120;
+/** The size on screen, as the World last said or this page last set it. */
+let scale = 1;
+const scaleText = el('span', 'size-value');
+const scaleBox = $('#optSize');
+const scaleRow = scaleBox.appendChild(el('div', 'size-row'));
+const sizer = scaleSlider(document, {
+  ...SIZE, label: '',
+  room: () => scaleRow.clientWidth - scaleText.offsetWidth - 14,
+  onInput: (v) => { scale = v; showScale(); scaleTimer ??= setTimeout(sendScale, SCALE_SEND_MS); },
+  // the favourites' changed marks follow the size once the drag ends, not on every send
+  onChange: () => { clearTimeout(scaleTimer); sendScale(); renderLooks(); },
+});
+scaleRow.append(sizer.el, scaleText);
+new ResizeObserver(() => sizer.relayout()).observe(scaleRow);
+let scaleTimer = null;
+/** Sizes the World pushes, held while the slider is in use or this page's newer size is on its way (scale-slider.js sizeEcho). */
+const scaleHeard = sizeEcho((v) => { if (v === scale) return; scale = v; sizer.set(v); showScale(); renderLooks(); });
+function showScale() { scaleText.textContent = `${Math.round(scale * 100)}%`; sizer.el.setAttribute('aria-label', t('dress.size')); }
+function sendScale() {
+  scaleTimer = null;
+  scaleHeard.sent(scale);
+  void save('/api/prefs', { scale });
+}
+showScale();
+
 /* ---------- saved looks ---------- */
 
 let looks = [];
@@ -294,10 +341,12 @@ const loadLooks = () => fetchLooks().then((list) => {
   if (list) {
     looks = list;
     looksRead = true;
-    if (!looks.some((l) => l.id === activeLook)) activeLook = looks.find((l) => sameLook(l.skin, skin))?.id ?? null;
+    if (!looks.some((l) => l.id === activeLook)) activeLook = looks.find(isWorn)?.id ?? null;
   } else looksRead ||= false;
   renderLooks();
 });
+/** Whether `look` is what the pet wears now: its skin, at its size when it keeps one. */
+const isWorn = (look) => sameLook(look.skin, skin) && (look.scale ?? scale) === scale;
 const lookId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 /** A new look's name: the pack and its preset, or Coo and its palette. */
@@ -316,10 +365,10 @@ saveLookBtn.addEventListener('click', async () => {
   sfx.tick();
   if (!looksRead) await loadLooks();
   if (!looksRead) { $('#saved').textContent = t('dress.notSaved'); return; }
-  const had = looks.find((l) => sameLook(l.skin, skin));
+  const had = looks.find((l) => sameLook(l.skin, skin) && l.scale === scale);
   if (had) { $('#saved').textContent = t('looks.exists', { name: had.name }); return; }
   const id = lookId();
-  const next = await writeLooks([...looks, { id, name: lookName(skin), skin }]);
+  const next = await writeLooks([...looks, { id, name: lookName(skin), skin, scale }]);
   if (!next) { $('#saved').textContent = t('dress.notSaved'); return; }
   $('#saved').textContent = '';
   looks = next;
@@ -330,7 +379,7 @@ saveLookBtn.addEventListener('click', async () => {
 });
 updateLookBtn.addEventListener('click', async () => {
   sfx.tick();
-  const next = await writeLooks(looks.map((l) => (l.id === activeLook ? { ...l, skin } : l)));
+  const next = await writeLooks(looks.map((l) => (l.id === activeLook ? { ...l, skin, scale } : l)));
   if (!next) { $('#saved').textContent = t('dress.notSaved'); return; }
   $('#saved').textContent = '';
   looks = next;
@@ -341,7 +390,7 @@ updateLookBtn.addEventListener('click', async () => {
 function renderLooks() {
   const box = $('#optLooks');
   const active = looks.find((l) => l.id === activeLook);
-  const changed = !!active && !sameLook(active.skin, skin);
+  const changed = !!active && !isWorn(active);
   saveLookBtn.title = t('looks.save');
   saveLookBtn.setAttribute('aria-label', saveLookBtn.title);
   updateLookBtn.hidden = !changed;
@@ -361,7 +410,8 @@ function renderLooks() {
   for (const look of looks) {
     const tile = el('span', 'look-tile');
     tile.dataset.id = look.id;
-    const b = el('button', 'opt wide look', lookPicture(look.skin, packs, theme === 'dark'));
+    const b = el('button', 'opt wide look', lookPicture(look.skin, packs, theme === 'dark', look.scale));
+    if (typeof look.scale === 'number') b.appendChild(el('b', 'look-size')).append(`${Math.round(look.scale * 100)}%`);
     b.type = 'button';
     const gone = packs.length > 0 && !lookAvailable(look.skin, packs);
     b.disabled = gone;
@@ -373,8 +423,9 @@ function renderLooks() {
     b.addEventListener('click', () => {
       if (look.id === activeLook) { activeLook = null; renderLooks(); sfx.tick(); return; }
       activeLook = look.id;
-      if (sameLook(look.skin, skin)) { renderLooks(); sfx.tick(); return; }
-      apply(normalizeSkin(look.skin), true);
+      if (isWorn(look)) { renderLooks(); sfx.tick(); return; }
+      if (typeof look.scale === 'number') { scale = look.scale; sizer.set(scale); showScale(); scaleHeard.sent(scale); }
+      apply(normalizeSkin(look.skin), typeof look.scale === 'number' ? look.scale : true);
       sfx.sparkle(); body?.cue('cheer');
     });
     const acts = el('span', 'look-acts');
@@ -712,8 +763,9 @@ function connect() {
     const m = JSON.parse(e.data);
     if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; showTheme(); modeBtn.show(theme); body?.set({ theme }); renderLooks(); }
     if (m.t === 'init') { loadPacks(); void loadLooks(); announcePainted(); }
+    if ((m.t === 'init' || m.t === 'prefs') && typeof m.scale === 'number') scaleHeard.heard(m.scale, sizer.active || !!scaleTimer);
     if ((m.t === 'init' || m.t === 'prefs') && m.skin && JSON.stringify(normalizeSkin(m.skin)) !== JSON.stringify(skin)) {
-      const worn = looks.find((l) => sameLook(l.skin, m.skin));
+      const worn = looks.find((l) => sameLook(l.skin, m.skin) && (l.scale ?? scale) === scale);
       if (worn) activeLook = worn.id;
       apply(normalizeSkin(m.skin), false);
     }

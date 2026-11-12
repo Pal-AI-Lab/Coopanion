@@ -6,6 +6,7 @@
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import { LANGUAGE } from '../../base/language.ts';
 import { S } from './strings.ts';
+import { hideTip, showTip } from '../../base/ui/tip.ts';
 
 /** The fields of `/api/status` the ring reads: Core's loop, and the Persona's context config at the top level. */
 export interface ContextStatus {
@@ -77,8 +78,8 @@ export function contextRing(ui: WebUi, host: HTMLElement, signal: AbortSignal): 
     tip.style.left = `${Math.max(8, Math.min(r.left + r.width / 2 - t.width / 2, width - t.width - 8))}px`;
     tip.style.top = `${Math.max(8, r.top - t.height - 8)}px`;
   };
-  const show = (): void => { shown = true; tip.classList.remove('hidden'); place(); };
-  const hide = (): void => { shown = false; tip.classList.add('hidden'); };
+  const show = (): void => { shown = true; showTip(tip); place(); };
+  const hide = (): void => { shown = false; hideTip(tip); };
   for (const [type, fn] of [['pointerenter', show], ['focus', show], ['pointerleave', hide], ['blur', hide]] as const) {
     el.addEventListener(type, fn, { signal });
   }

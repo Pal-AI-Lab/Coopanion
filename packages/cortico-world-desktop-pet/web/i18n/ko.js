@@ -26,6 +26,7 @@ export default {
   // the status bubble: added when the same kind of thing was done several times
   'status.more': ' 외 {others}개',
   'status.thinking': '생각 중',
+  'status.seconds': '{seconds}초',
 
   // the menu and the hover buttons
   'roam.off': '제자리',
@@ -44,6 +45,8 @@ export default {
   'action.themeLight': '야간 모드: 꺼짐 · 클릭하여 켜기',
   'action.soundOn': '효과음: 켜짐 · 클릭하여 끄기',
   'action.soundOff': '효과음: 꺼짐 · 클릭하여 켜기',
+  'action.size': '크기: {pct}%',
+  'action.sizeLabel': '펫 크기',
   'action.dress': '꾸미기',
   'action.worlds': '내 World',
   'action.hide': '저를 잠시 숨기기(트레이 아이콘으로 다시 불러낼 수 있습니다)',
@@ -71,6 +74,7 @@ export default {
   'dress.title': '꾸미기',
   'dress.preview': '미리 보기',
   'dress.figure': '외형',
+  'dress.size': '크기',
   'dress.palette': '색상',
   'dress.head': '머리 위',
   'dress.side': '액세서리',

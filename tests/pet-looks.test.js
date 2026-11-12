@@ -45,6 +45,8 @@ async function page(stored) {
     let skin = normalizeSkin({ figure: 'coo', palette: 'purple' });
     const packs = [], theme = 'dark', body = null, sfx = { tick() {}, sparkle() {} }, importDialog = {};
     const cooName = (kind, id) => id, nameOf = (n) => n, apply = () => {};
+    let scale = 1;
+    const sizer = { set() {} }, showScale = () => {}, scaleHeard = { sent() {} };
     ${section}
     window.page = { loadLooks };
   `);
@@ -52,10 +54,13 @@ async function page(stored) {
   return {
     state, stored: () => kept, doc,
     load: () => win.page.loadLooks(),
+    /** Clicks save and resolves once the page shows the outcome: the button's saved mark, or a notice. */
     save: async () => {
-      const before = kept;
-      doc.querySelector('#saveLook').click();
-      await expect.poll(() => kept !== before || doc.querySelector('#saved').textContent !== '').toBe(true);
+      const button = doc.querySelector('#saveLook'), notice = doc.querySelector('#saved');
+      button.classList.remove('done');
+      notice.textContent = '';
+      button.click();
+      await expect.poll(() => button.classList.contains('done') || notice.textContent !== '').toBe(true);
     },
     tiles: () => doc.querySelectorAll('.look-tile').length,
     row: () => doc.querySelector('#optLooks').textContent,
@@ -84,7 +89,8 @@ describe('saved looks on the dressing page', () => {
     await p.save();
     expect(p.stored().map((l) => l.id).slice(0, 2)).toEqual(['a', 'b']);
     expect(p.stored()).toHaveLength(3);
-    expect(p.tiles()).toBe(3);
+    // the server keeps the list before its answer reaches the page, which then draws the tiles
+    await expect.poll(() => p.tiles()).toBe(3);
   });
 
   it('shows the stored list after the retry button reads it', async () => {

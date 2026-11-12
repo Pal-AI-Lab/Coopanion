@@ -43,7 +43,6 @@ const zhHant: Translation<CoreText> = {
     move: '在移動滑鼠', drag: '在拖曳', mouseDown: '在按下滑鼠', mouseUp: '在放開滑鼠', scroll: '在捲動', focus: '在切換視窗', type: '在打字', key: '在按鍵', wait: '在等待',
     alarmSet: '在設定鬧鐘', alarmList: '在查看鬧鐘', alarmCancel: '在取消鬧鐘',
     quoted: (text: string) => `「${text}」`,
-    seconds: (n: number) => `${n} 秒`,
     minutesLater: (n: number) => `${n} 分鐘後`,
   },
 

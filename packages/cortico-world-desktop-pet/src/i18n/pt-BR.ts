@@ -177,7 +177,7 @@ const ptBR: Translation<PetText> = {
     fontSize: (from: number, to: number) => `mudar o tamanho do texto de ${from}× para ${to}×`,
     theme: { dark: 'mudar para a aparência de noite', light: 'mudar para a aparência de dia' },
     hover: (list: string) => `trocar os botões ao passar o mouse para ${list}`,
-    actions: { chat: 'Digitar', voice: 'Entrada de voz', roam: 'Passeios', theme: 'Modo noturno', sound: 'Sons', dress: 'Guarda-roupa', hide: 'Ocultar o pet' },
+    actions: { chat: 'Digitar', voice: 'Entrada de voz', roam: 'Passeios', theme: 'Modo noturno', sound: 'Sons', size: 'Tamanho', dress: 'Guarda-roupa', hide: 'Ocultar o pet', worlds: 'Meus Worlds' },
     user: (to: string) => `chamar você de “${to}”`,
   },
 
@@ -252,6 +252,7 @@ const ptBR: Translation<PetText> = {
       snore: { title: 'Ronco', description: '' },
       talk: { title: 'Fala', description: 'O balbucio enquanto o texto do balão aparece, e os cartões de opção surgindo.' },
       ui: { title: 'Botões e avisos', description: 'Cliques em botões, balões abrindo, seleções, e o início e o fim da escuta.' },
+      alert: { title: 'Alertas', description: 'Um aviso sonoro quando Coo pede uma confirmação.' },
     },
     snoreSeconds: { title: 'Duração do ronco', suffix: 's', description: 'Em cada soneca o pet para de roncar depois desse tempo; os z continuam flutuando. 0 = roncar até acordar.' },
     panByPosition: { title: 'Panorama pela posição', description: 'Os sons pendem para o lado onde o Coo está; desligado, tocam no centro.' },

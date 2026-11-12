@@ -158,6 +158,8 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
     const body = {
       pack: pack.id,
       get layout() { return layout; },
+      /** The frame's window on the stage, for animating the body as a whole (swap-motion.js); its inline style is the halo's. */
+      get el() { return clip; },
       get z() { return z; },
       /** The words of the pack's vocabulary its body said it knows, or null when it did not say. */
       get words() { return words; },
