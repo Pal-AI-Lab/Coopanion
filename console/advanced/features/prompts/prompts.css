@@ -131,7 +131,8 @@ details.sheet.fold.fold-plain.prefix-preview > .foldbody { margin-top:16px; }
 .prefix-flag-title { color:var(--ink); font-size:11px; line-height:1.4; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; white-space:normal; overflow-wrap:anywhere; }
 .prefix-flag-meta { display:flex; align-items:center; column-gap:5px; min-width:0; font-size:9px; line-height:1.4; }
 .prefix-flag-key { flex:0 100 auto; min-width:0; font-size:9px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-.prompt-section-badge { flex:0 1 auto; min-width:0; font-size:9px; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; white-space:normal; overflow-wrap:anywhere; }
+/* one line that keeps its width: the key gives way to it, and only a flag too narrow for the badge alone cuts it short; the flag's tooltip has both whole */
+.prompt-section-badge { flex:none; max-width:100%; font-size:9px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .prompt-section-badge.is-dirty { color:var(--ink); font-weight:600; }
 .tone-persona,.cm-block-persona { --section-color:var(--accent); }
 .tone-world,.cm-block-world { --section-color:var(--accent-2); }
