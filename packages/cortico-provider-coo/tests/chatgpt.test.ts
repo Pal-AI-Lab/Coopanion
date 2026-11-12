@@ -320,6 +320,21 @@ describe('requests billed to a ChatGPT plan', () => {
     expect(input.find((item) => item.type === 'function_call')).toMatchObject({ name: 'say', namespace: TOOL_NAMESPACE.name });
   });
 
+  it('replays a past call whose recorded name the route rejects under a name it takes, still paired with its output', async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    const { create } = await signedInEndpoint((_req, res, body) => { seen.push(body!); stream(res, COMPLETED); });
+    const tool = { type: 'function', name: 'pet_say', description: 'Says a line', parameters: { type: 'object', properties: {} } };
+    await create().client.respond({ model: 'm', tools: [tool] } as unknown as Request, {
+      context: [message('user', 'hi'), functionCall('call_1', `${TOOL_NAMESPACE.name}::pet_say`, '{}'), functionResult('call_1', '[unknown tool]'), message('user', 'again')],
+    });
+    const input = seen[0]!.input as Array<Record<string, unknown>>;
+    const call = input.find((item) => item.type === 'function_call')!;
+    expect(call).toMatchObject({ name: `${TOOL_NAMESPACE.name}__pet_say`, call_id: 'call_1' });
+    // the pattern the route states when it rejects a name
+    expect(call.name).toMatch(/^[a-zA-Z0-9_.-]+$/);
+    expect(input.find((item) => item.type === 'function_call_output')).toMatchObject({ call_id: 'call_1' });
+  });
+
   it('through the registry, a refused request is sent again only without an image it carried: one request for an image older than the newest batch, two for a new one', async () => {
     const image = Buffer.from('an image the service cannot decode');
     const picture: BlobRef = { handle: 'log:0123456789abcdef0123.png', mime: 'image/png', name: 'big.png', fallbackText: 'Image' };
