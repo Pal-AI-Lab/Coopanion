@@ -485,6 +485,10 @@ body.desk .floor{display:none}
 .pet-scale > .ps-thumb{position:absolute; top:3px; width:16px; height:16px; margin-left:-8px; border-radius:50%; background:var(--host-accent, var(--accent))}
 .pet-scale:focus-visible > .ps-thumb{outline:2px solid var(--host-accent, var(--accent)); outline-offset:2px}
 .pet-scale.past > .ps-divider{background:var(--host-accent, var(--accent))}
+/* stepped by key or wheel (scale-slider.js stepTo): the knob and the fill glide to each step, as they follow a drag */
+.pet-scale.stepping > .ps-thumb{transition:left .12s ease-out, scale .15s ease}
+.pet-scale.stepping > .ps-fill{transition:width .12s ease-out}
+@media (prefers-reduced-motion: reduce){.pet-scale.stepping > .ps-thumb, .pet-scale.stepping > .ps-fill{transition:none}}
 /* the size slider over the body (pet-app.js stepSizer): no backdrop, as the look wheel. The bar is drawn as the hover
    buttons are (the surface, the body's 2px outline, their shadow), the fill and the knob in the body's accent; the
    percentage is a small button-like label over the knob */
@@ -510,7 +514,8 @@ body.desk .floor{display:none}
   transition:scale .15s ease;
 }
 .sizer .pet-scale:hover > .ps-thumb{scale:1.1}
-.sizer .pet-scale:active > .ps-thumb{scale:1.2}
+/* held: dragged, or stepped by the wheel a moment ago */
+.sizer .pet-scale:is(:active, .stepping) > .ps-thumb{scale:1.2}
 .sizer .sz-value{
   position:absolute; left:50%; bottom:calc(100% + 8px); translate:-50% 0; min-width:44px; padding:2px 8px; box-sizing:border-box;
   border-radius:999px; text-align:center; white-space:nowrap; pointer-events:none;

@@ -60,3 +60,20 @@ describe.each(copies)('$name, let go where the page does not hear it', ({ make }
     }
   });
 });
+
+describe('the pet pages’ slider, stepped by the wheel', () => {
+  it('shows the knob held while the steps come, as a drag does, and lets it go a moment after the last', async () => {
+    const { s } = setup(petSlider);
+    s.set(1);
+    s.nudge(1);
+    expect(s.el.classList.contains('stepping')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    s.nudge(1);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    // 400 ms after the first step, 200 after the last: still held
+    expect(s.el.classList.contains('stepping')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(s.el.classList.contains('stepping')).toBe(false);
+    expect(s.value).toBeCloseTo(1.1, 5);
+  });
+});

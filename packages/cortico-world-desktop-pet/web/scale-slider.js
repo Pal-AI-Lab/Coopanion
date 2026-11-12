@@ -10,6 +10,8 @@
 /** The bar's width and its main stretch's share: at rest, and while the value is past the divider. */
 const WIDTHS = { collapsed: { width: 280, main: .88 }, expanded: { width: 440, main: .45 } };
 const ANIMATE_MS = 240;
+/** Milliseconds after the last step by key or wheel that the knob still shows as held (`.stepping`, pet.css). */
+const STEP_HOLD_MS = 300;
 const FINE = .05, COARSE = .1;
 /** The size range on screen (src/config.ts SCALE_MIN, SCALE_MAX) and the divider, as on the settings window's slider. */
 export const SIZE = { min: .5, soft: 2, max: 10 };
@@ -149,6 +151,18 @@ export function scaleSlider(doc, o) {
   }
 
   /**
+   * A step by key or wheel moves the knob as a drag does: held (`.stepping`) until a moment after the last step, and
+   * gliding to each new place instead of jumping.
+   */
+  let stepTimer = 0;
+  function stepTo(v) {
+    el.classList.add('stepping');
+    clearTimeout(stepTimer);
+    stepTimer = setTimeout(() => el.classList.remove('stepping'), STEP_HOLD_MS);
+    update(v, true);
+  }
+
+  /**
    * A drag keeps what lies left of the pointer as it is: the main stretch keeps its width, and the tail grows to the
    * right, once, when the pointer first goes past the divider; values past it map on the grown tail from that moment on,
    * so the thumb stays under the pointer.
@@ -172,6 +186,9 @@ export function scaleSlider(doc, o) {
     if (e.button !== 0) return;
     el.setPointerCapture(e.pointerId);
     el.focus({ preventScroll: true });
+    // a drag follows the pointer at once: no glide left over from a step a moment ago
+    clearTimeout(stepTimer);
+    el.classList.remove('stepping');
     const l = layout();
     held = { mainW: l.mainW, tail: l.tailW, grownFrom: l.drawn, grownAt: -Infinity };
     left = null;
@@ -207,7 +224,7 @@ export function scaleSlider(doc, o) {
     const next = keys[e.key];
     if (!next) return;
     e.preventDefault();
-    update(next(), true);
+    stepTo(next());
     o.onChange(value);
   });
   draw();
@@ -217,7 +234,7 @@ export function scaleSlider(doc, o) {
     get active() { return !!held; },
     set(v) { value = snap(v); k = from = target = value > o.soft ? 1 : 0; left = null; draw(); },
     /** One step up (`dir` 1) or down (-1), as an arrow key moves it; reported through onInput. */
-    nudge(dir) { update(value + (dir > 0 ? step(value, true) : -step(value, false)), true); },
+    nudge(dir) { stepTo(value + (dir > 0 ? step(value, true) : -step(value, false))); },
     relayout: () => draw(),
   };
 }
