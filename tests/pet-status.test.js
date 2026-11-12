@@ -50,8 +50,10 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     runFrames() {},
     fetchLooks, lookAvailable: () => true, lookPicture: () => '', sameLook,
     SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut,
+    // hover hints (hints.js) are not what these tests look at
+    mountHints() {},
   };
-  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
+  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
