@@ -96,9 +96,11 @@ describe('a value set from outside', () => {
   it('opens at rest with the first, and moves the bar as a step does for a later one, on every page', () => {
     for (const { extra } of pages) {
       const { s } = setup(extra);
+      const narrow = widthOf(s.el);
       // the value the page opens with, past the divider: the bar is drawn widened at once
       s.set(3);
       const wide = widthOf(s.el);
+      expect(wide).not.toBeCloseTo(narrow, 0);
       // a size set elsewhere later, back under the divider: the bar narrows over time, not at once
       s.set(1);
       expect(s.value).toBe(1);
