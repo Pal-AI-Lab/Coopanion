@@ -87,11 +87,11 @@ const QUIET_MAX_MIN = 24 * 60;
 const FRAME_MS = 20;
 const WALK_TIMEOUT_MS = 30_000;
 /**
- * How long `pet_see_self` waits for the pet page's picture. The page waits up to 200 ms for a frame, the window
- * takes about 50 ms to copy one (host/overlay.cjs) and less than that to encode a picture of at most a megapixel:
- * ten times the sum.
+ * How long `pet_see_self` waits for the pet page's picture. The page waits up to 400 ms for its frame and the
+ * display's (web/pet-app.js), the window takes about 50 ms to copy a frame (host/overlay.cjs) and less than that
+ * to encode a picture of at most a megapixel: ten times the sum.
  */
-const PORTRAIT_TIMEOUT_MS = 3000;
+const PORTRAIT_TIMEOUT_MS = 5000;
 /** Touches of one kind closer than this are reported as one event with a count. */
 const TOUCH_MERGE_MS = 2500;
 /** How long a confirmation bubble waits for an answer, counted from when the page shows it. */

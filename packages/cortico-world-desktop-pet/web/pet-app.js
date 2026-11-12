@@ -182,28 +182,36 @@ host?.onOverlay?.((on) => { overlayOn = on; });
 /** What the page draws over the stage: the bubbles, the menu's two sides, the hover buttons, the look wheel, the size slider and the hover hint. */
 const OVER_STAGE = '.bubble, .menu > *, .tools, .wheel, .sizer, .hint';
 /**
- * The longest the picture waits for the frame drawn without what was over the body, in milliseconds: a dozen
- * display refreshes at 60 a second. A page that gets no refresh (its window wholly covered) answers after it.
+ * The longest the picture waits for the page's next frame, and then for the display, in milliseconds each: a dozen
+ * display refreshes at 60 a second. A page that gets no refresh (its window wholly covered) goes on after it.
  */
 const PORTRAIT_FRAME_MS = 200;
+/** Waiting for the page's next frame (the frame loop calls them once it has stepped the orders and the body). */
+const afterFrame = [];
+/** Resolves when `wait` calls back, after PORTRAIT_FRAME_MS at the latest. */
+const soon = (wait) => new Promise((done) => { const timer = setTimeout(done, PORTRAIT_FRAME_MS); wait(() => { clearTimeout(timer); done(); }); });
 const overlaps = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 /**
- * Answers the World's `portrait` order with the body's room as the window draws it right now, `{ png, width, height }`,
+ * Answers the World's `portrait` order with the body's room as the window draws it, `{ png, width, height }`,
  * or with `failed` and why: `tab` (a browser tab has no window to take it from), `hidden` (the window is hidden, so
- * the body is not drawn), `no-body` (no figure is on the page) or `capture`. What the page draws over the stage and
- * reaches into the room is not drawn in the frame taken, and is back in the next.
+ * the body is not drawn), `no-body` (no figure is on the page) or `capture`.
+ *
+ * Orders reach the body on the page's frames, so the picture is of the page's next frame: an action ordered just
+ * before it is in the picture once the body has started it. What the page draws over the stage and reaches into
+ * the room is not drawn in the frame taken, and is back in the next.
  */
 async function takePortrait(id) {
   const fail = (failed) => send({ t: 'portrait', id, failed });
   if (!host?.portrait) return fail('tab');
   if (!windowShown) return fail('hidden');
+  await soon((done) => afterFrame.push(done));
   const room = bodyRoom(), rect = room && onPage([room]);
   if (!rect) return fail('no-body');
   const over = [...document.querySelectorAll(OVER_STAGE)].filter((el) => !el.closest('[hidden]') && overlaps(shadowed(rectOf(el)), rect));
   for (const el of over) el.style.visibility = 'hidden';
   try {
-    // the second refresh comes once the frame without them is drawn
-    if (over.length) await new Promise((done) => { const timer = setTimeout(done, PORTRAIT_FRAME_MS); requestAnimationFrame(() => requestAnimationFrame(() => { clearTimeout(timer); done(); })); });
+    // by the second refresh the display has what the body drew for that frame, without what was over it
+    await soon((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
     const shot = await host.portrait(rect);
     if (shot) send({ t: 'portrait', id, ...shot }); else fail('capture');
   } catch {
@@ -2523,6 +2531,7 @@ function frame(steps, now, last) {
     const msg = err?.message ?? String(err);
     if (msg !== frameErr) { frameErr = msg; console.error(err); }
   }
+  for (const done of afterFrame.splice(0)) done();
   // a switch of figure or look, or a size on its way, is motion too: at the resting rate it would show as stutter
   const full = drawn && (prefs.lockFrameRate || !!at()?.moving || (!!host && drawnScale.moving) || performance.now() < smoothUntil);
   // a moving rate of 0 draws on every display refresh
