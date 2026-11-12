@@ -4,6 +4,7 @@
  */
 
 import type { Disposable } from 'cortico/web/shared/client-panel.ts';
+import { hideTip, showTip } from '../../base/ui/tip.ts';
 
 /** 鼠标与浮层之间留的空隙，也是碰到视口边缘时翻转的余量。 */
 const TIP_PAD = 14;
@@ -50,7 +51,7 @@ export function createUsageTip(doc: Document, host: HTMLElement): UsageTip {
         el.innerHTML = html;
         curKey = key;
       }
-      el.classList.remove('hidden');
+      showTip(el);
     },
     move(ev) {
       if (disposed) return;
@@ -66,7 +67,7 @@ export function createUsageTip(doc: Document, host: HTMLElement): UsageTip {
       el.style.top = Math.max(4, y) + 'px';
     },
     hide() {
-      el.classList.add('hidden');
+      hideTip(el);
       clearHi();
     },
     setHi(rect) {

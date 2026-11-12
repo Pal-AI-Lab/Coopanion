@@ -11,6 +11,7 @@ import { CATALOG_CATEGORY_IDS, inCatalogCategory, isFunctionTag, type CatalogCat
 import { problemPopover, problemAnchorVisible, listProblem, scrollerOf, wheelInto } from '../../../base/ui/problem.ts';
 import { fold, measureReflow, prefersStill } from '../../../base/motion.ts';
 import { matchRanges, matchRank, prepareFields, searchTerms, type MatchRank, type PreparedFields } from './search.ts';
+import { hideTip, showTip } from '../../../base/ui/tip.ts';
 
 /** 扩展类别。与 `ExtensionKind` 同形;这一页只用它分组与选关键字。 */
 export type ExtensionKindView = 'world' | 'provider' | 'bot';
@@ -684,7 +685,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   doc.body.append(hintBox); lifecycle.add(() => hintBox.remove());
   let hideTimer: { dispose(): void } | null = null;
   const keepHint = () => { hideTimer?.dispose(); hideTimer = null; };
-  const hideHint = () => { keepHint(); hintBox.classList.add('hidden'); };
+  const hideHint = () => { keepHint(); hideTip(hintBox); };
   const hideSoon = () => { keepHint(); hideTimer = lifecycle.timeout(hideHint, 150); };
   hintBox.addEventListener('pointerenter', keepHint, { signal });
   hintBox.addEventListener('pointerleave', hideSoon, { signal });
@@ -742,7 +743,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const show = () => {
       keepHint(); hintAnchor = el;
       const heading = typeof title === 'string' ? title : title(); if (!heading) return;
-      hintBox.replaceChildren(ui.h('b', '', heading), ...(text ? [hintBody(text)] : [])); hintBox.classList.toggle('is-title-only', !text); hintBox.classList.remove('hidden');
+      hintBox.replaceChildren(ui.h('b', '', heading), ...(text ? [hintBody(text)] : [])); hintBox.classList.toggle('is-title-only', !text); showTip(hintBox);
       const target = el.getBoundingClientRect(), tip = hintBox.getBoundingClientRect(), view = doc.documentElement;
       const below = target.bottom + 8, above = target.top - tip.height - 8;
       hintBox.style.top = `${below + tip.height > view.clientHeight - 8 && above > 8 ? above : below}px`;

@@ -10,6 +10,7 @@ import { lampRow, subscribeLamps } from '../../../base/ui/lamp.ts';
 import { pageIntro } from '../../../base/ui/page.ts';
 import { pageTabs } from '../../../base/ui/page-tabs.ts';
 import { fitColumn } from '../../../base/ui/fit-column.ts';
+import { hideTip as fadeTip, showTip as revealTip } from '../../../base/ui/tip.ts';
 import type { FeatureContext, FrameworkFeature } from '../feature.ts';
 import { mountExtensionContent, iconUrl, removalBlockReason, type ExtensionView, type ExtensionController } from '../extensions/index.ts';
 import { S as E } from '../extensions/strings.ts';
@@ -106,7 +107,7 @@ export function mountWorlds(ctx: FeatureContext): void {
   lifecycle.own(subscribeLamps(doc, lamps => {
     for (const [id, el] of lampNodes) paintSignals(el, lamps[id] ?? []);
   }));
-  const intro = pageIntro(ui, S.introTitle); intro.classList.add('world-intro');
+  const intro = pageIntro(ui, S.introTitle);
   const tabs = pageTabs(doc, signal, [
     { value: 'mine', label: S.myWorlds },
     ...(canBrowse ? [{ value: 'market', label: S.marketTab }] : []),
@@ -154,12 +155,12 @@ export function mountWorlds(ctx: FeatureContext): void {
   /** Name tag beside a rail avatar in the market view, where the rail shows avatars alone. */
   const dockTip = ui.h('div', 'u-tip world-dock-tip hidden'); dockTip.setAttribute('role', 'tooltip');
   doc.body.append(dockTip); lifecycle.add(() => dockTip.remove());
-  const hideTip = () => dockTip.classList.add('hidden');
+  const hideTip = () => fadeTip(dockTip);
   function showTip(node: HTMLElement, item: WorldLibraryItem) {
     if (current !== 'market') return;
     dockTip.dataset.state = node.parentElement?.dataset.state ?? '';
     dockTip.replaceChildren(ui.h('b', '', item.label), ui.h('span', '', node.parentElement?.querySelector('.world-state')?.textContent ?? ''));
-    dockTip.classList.remove('hidden');
+    revealTip(dockTip);
     const target = node.querySelector('.world-avatar')!.getBoundingClientRect(), tip = dockTip.getBoundingClientRect();
     dockTip.style.left = `${target.right + 16}px`;
     dockTip.style.top = `${Math.max(8, Math.min(target.top + target.height / 2 - tip.height / 2, doc.documentElement.clientHeight - tip.height - 8))}px`;

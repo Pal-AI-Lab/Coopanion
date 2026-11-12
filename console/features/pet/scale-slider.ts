@@ -2,9 +2,9 @@
  * The pet's size slider: `min`–`soft` on the main stretch, then a short stretch past a divider for `soft`–`max`.
  * With `soft` at `max` it is one plain stretch in whole `step`s (the 外发光 slider), drawn the same way.
  * While the value is past the divider the short stretch widens (and the whole bar a little, as far as the row
- * allows), the main stretch gives way; back at `soft` or below it shrinks again. Both are animated. The value
- * stays where it is while the bar changes under it: a drag goes on from the thumb, not from where the pointer
- * would land on the new scale.
+ * allows), the main stretch gives way; back at `soft` or below it shrinks again. Both are animated. A drag leaves what
+ * is left of the pointer as it is and grows the bar to the right only (`dragTo`), so the thumb stays under the pointer;
+ * the bar settles into its rest layout once let go.
  */
 import { prefersStill } from '../../base/motion.ts';
 
@@ -43,6 +43,9 @@ export interface ScaleSlider {
 
 const ease = (k: number) => (k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2);
 
+/** The bar's main stretch and the tail values past the divider are mapped on, and the tail's drawn width, in pixels. */
+interface Layout { mainW: number; tailW: number; drawn: number }
+
 export function scaleSlider(doc: Document, o: ScaleSliderOptions): ScaleSlider {
   const el = doc.createElement('div');
   el.className = 'companion-scale';
@@ -55,10 +58,17 @@ export function scaleSlider(doc: Document, o: ScaleSliderOptions): ScaleSlider {
   const main = part('cs-main'), tail = part('cs-tail'), fill = part('cs-fill'), divider = part('cs-divider'), thumb = part('cs-thumb');
 
   let value = 1;
-  /** 0 at rest, 1 widened; eased toward `target`. */
+  /** The bar at rest: 0 collapsed, 1 widened; eased from `from` toward `target` since `startedAt`. */
   let k = 0, from = 0, target = 0, startedAt = 0, raf = 0;
-  let dragging = false, lastX = 0, offset = 0;
+  /**
+   * While a drag holds the bar: the main stretch's width at the press, kept; the tail values past the divider are mapped
+   * on (`tail`), which only grows; and the tail as drawn, catching up with it from `grownFrom` since `grownAt`.
+   */
+  let held: { mainW: number; tail: number; grownFrom: number; grownAt: number } | null = null;
+  /** After a drag: the bar as it left it, shown less and less over the rest layout since `at`. */
+  let left: { mainW: number; tailW: number; at: number } | null = null;
   const reduced = () => prefersStill(doc.defaultView);
+  const share = (since: number, now: number) => (reduced() ? 1 : Math.min(1, (now - since) / ANIMATE_MS));
 
   /** No stretch past a divider: `soft` is the end. */
   const single = o.soft >= o.max;
@@ -71,30 +81,38 @@ export function scaleSlider(doc: Document, o: ScaleSliderOptions): ScaleSlider {
   };
   if (single) { tail.hidden = true; divider.hidden = true; }
 
-  /** The bar's width and its main stretch, in pixels, for the current `k`. */
-  function layout(): { width: number; mainW: number; tailW: number } {
+  /** The bar at rest for `kk`, in pixels. */
+  function rest(kk: number): { mainW: number; tailW: number } {
     const room = o.room() || EXPANDED.width;
     const cw = Math.min(COLLAPSED.width, room), ew = Math.min(EXPANDED.width, room);
-    if (single) return { width: cw, mainW: cw, tailW: 0 };
-    const e = ease(k);
+    if (single) return { mainW: cw, tailW: 0 };
+    const e = ease(kk);
     const width = cw + (ew - cw) * e;
     const mainW = cw * COLLAPSED.main + (ew * EXPANDED.main - cw * COLLAPSED.main) * e;
-    return { width, mainW, tailW: width - mainW };
+    return { mainW, tailW: width - mainW };
   }
-  const xOf = (v: number, l = layout()) => (v <= o.soft
+  function layout(now = performance.now()): Layout {
+    if (held) return { mainW: held.mainW, tailW: held.tail, drawn: held.grownFrom + (held.tail - held.grownFrom) * ease(share(held.grownAt, now)) };
+    k = from + (target - from) * share(startedAt, now);
+    const r = rest(k);
+    if (!left) return { ...r, drawn: r.tailW };
+    const b = 1 - ease(share(left.at, now));
+    const mainW = r.mainW + (left.mainW - r.mainW) * b, tailW = r.tailW + (left.tailW - r.tailW) * b;
+    return { mainW, tailW, drawn: tailW };
+  }
+  const xOf = (v: number, l: Layout) => (v <= o.soft
     ? ((v - o.min) / (o.soft - o.min)) * l.mainW
     : l.mainW + ((v - o.soft) / (o.max - o.soft)) * l.tailW);
-  const valueAt = (x: number, l = layout()) => (x <= l.mainW
+  const valueAt = (x: number, l: Layout) => (x <= l.mainW
     ? o.min + (Math.max(0, x) / l.mainW) * (o.soft - o.min)
     // with no stretch past the divider (tailW 0), beyond the bar's end is its end, not 0/0
     : l.tailW > 0 ? o.soft + (Math.min(l.tailW, x - l.mainW) / l.tailW) * (o.max - o.soft) : o.soft);
 
-  function draw(): void {
-    const l = layout();
-    el.style.width = `${l.width}px`;
+  function draw(l = layout()): void {
+    el.style.width = `${l.mainW + l.drawn}px`;
     main.style.width = `${l.mainW}px`;
     tail.style.left = divider.style.left = `${l.mainW}px`;
-    tail.style.width = `${l.tailW}px`;
+    tail.style.width = `${l.drawn}px`;
     const x = xOf(value, l);
     fill.style.width = `${x}px`;
     thumb.style.left = `${x}px`;
@@ -103,48 +121,86 @@ export function scaleSlider(doc: Document, o: ScaleSliderOptions): ScaleSlider {
     el.setAttribute('aria-valuetext', o.format?.(value) ?? `${Math.round(value * 100)}%`);
   }
 
-  function tick(now: number): void {
-    const t = reduced() ? 1 : Math.min(1, (now - startedAt) / ANIMATE_MS);
-    k = from + (target - from) * t;
-    // the bar changed under a held thumb: the pointer now stands that far from it
-    if (dragging) offset = xOf(value) - lastX;
-    draw();
-    raf = t < 1 ? requestAnimationFrame(tick) : 0;
+  /** Whether any of the bar's changes is still under way at `now`. */
+  function moving(now: number): boolean {
+    if (reduced()) return false;
+    if (held) return now - held.grownAt < ANIMATE_MS;
+    return now - startedAt < ANIMATE_MS || (!!left && now - left.at < ANIMATE_MS);
   }
+  function tick(now: number): void {
+    draw(layout(now));
+    if (left && !held && now - left.at >= ANIMATE_MS) left = null;
+    raf = moving(now) ? requestAnimationFrame(tick) : 0;
+  }
+  const animate = () => { if (!raf) raf = requestAnimationFrame(tick); };
+  /** At rest (no drag): the bar widens past the divider and narrows back at it. */
   function settle(): void {
     const want = value > o.soft ? 1 : 0;
     if (want === target) return;
+    layout();
     from = k; target = want; startedAt = performance.now();
-    if (!raf) raf = requestAnimationFrame(tick);
+    animate();
   }
-
   function update(v: number, notify: boolean): void {
     const next = snap(v);
     if (next === value) return;
     value = next;
-    settle();
+    if (!held) settle();
     draw();
     if (notify) o.onInput(value);
   }
 
+  /**
+   * A drag keeps what lies left of the pointer as it is: the main stretch keeps its width, and the tail grows to the
+   * right, once, when the pointer first goes past the divider; values past it map on the grown tail from that moment on,
+   * so the thumb stays under the pointer.
+   */
+  function dragTo(x: number): void {
+    const h = held!;
+    if (!single && x > h.mainW) {
+      const room = o.room() || EXPANDED.width;
+      const want = Math.max(h.tail, Math.min(rest(1).tailW, room - h.mainW));
+      if (want > h.tail) {
+        const now = performance.now();
+        h.grownFrom = layout(now).drawn;
+        h.grownAt = now;
+        h.tail = want;
+        animate();
+      }
+    }
+    update(valueAt(x, layout()), true);
+  }
   const localX = (e: PointerEvent) => e.clientX - el.getBoundingClientRect().left;
   el.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     el.setPointerCapture(e.pointerId);
     el.focus();
-    dragging = true;
-    lastX = localX(e);
-    offset = 0;
-    update(valueAt(lastX), true);
+    const l = layout();
+    held = { mainW: l.mainW, tail: l.tailW, grownFrom: l.drawn, grownAt: -Infinity };
+    left = null;
+    dragTo(localX(e));
   });
+  // the bar as the drag left it settles into the rest layout for the value let go at
+  const end = () => {
+    if (!held) return;
+    const l = layout();
+    held = null;
+    left = { mainW: l.mainW, tailW: l.drawn, at: performance.now() };
+    k = from = target = value > o.soft ? 1 : 0;
+    animate();
+    draw();
+    o.onChange(value);
+  };
   el.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
-    lastX = localX(e);
-    update(valueAt(lastX + offset), true);
+    if (!held) return;
+    // a move with no button down: the release was missed (let go over another window), and the drag is over
+    if (e.buttons === 0) { end(); return; }
+    dragTo(localX(e));
   });
-  const end = () => { if (!dragging) return; dragging = false; o.onChange(value); };
   el.addEventListener('pointerup', end);
   el.addEventListener('pointercancel', end);
+  // the page lost the pointer without a release reaching it: a drag left held would keep the pet window taking the mouse
+  el.addEventListener('lostpointercapture', end);
   el.addEventListener('keydown', (e) => {
     const keys: Record<string, () => number> = {
       ArrowRight: () => value + step(value, true), ArrowUp: () => value + step(value, true),
@@ -161,8 +217,8 @@ export function scaleSlider(doc: Document, o: ScaleSliderOptions): ScaleSlider {
   return {
     el,
     get value() { return value; },
-    get active() { return dragging; },
-    set(v: number) { value = snap(v); k = from = target = value > o.soft ? 1 : 0; draw(); },
-    relayout: draw,
+    get active() { return !!held; },
+    set(v: number) { value = snap(v); k = from = target = value > o.soft ? 1 : 0; left = null; draw(); },
+    relayout: () => draw(),
   };
 }

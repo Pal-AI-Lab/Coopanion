@@ -43,7 +43,6 @@ const ko: Translation<CoreText> = {
     move: '마우스 옮기는 중', drag: '드래그 중', mouseDown: '마우스 버튼 누르는 중', mouseUp: '마우스 버튼 떼는 중', scroll: '스크롤 중', focus: '창 전환 중', type: '입력 중', key: '키 누르는 중', wait: '기다리는 중',
     alarmSet: '알람 맞추는 중', alarmList: '알람 확인 중', alarmCancel: '알람 취소 중',
     quoted: (text: string) => `"${text}"`,
-    seconds: (n: number) => `${n}초`,
     minutesLater: (n: number) => `${n}분 후`,
   },
 

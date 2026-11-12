@@ -44,15 +44,27 @@ const escAttr = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<':
 /** Whether the look's figure is on hand: Coo always, a pack while it is installed. */
 export const lookAvailable = (skin, packs) => { const f = normalizeSkin(skin).figure; return !f || f === 'coo' || !!packs?.some((p) => p.id === f); };
 
-/** A look's picture as HTML: Coo drawn in its palette, or the pack's thumbnail; empty when the pack is gone. */
-export function lookPicture(skin, packs, dark) {
+/**
+ * How much of its tile a look's picture fills for the size on screen it keeps: by the square root of the size, 72% at
+ * 100%, the whole tile from about 2× up, 40% at the least; a look without a size is drawn as at 100%.
+ */
+const pictureFill = (scale) => Math.min(1, Math.max(.4, .72 * Math.sqrt(typeof scale === 'number' ? scale : 1)));
+
+/**
+ * A look's picture as HTML: Coo drawn in its palette, or the pack's thumbnail, standing on the tile's bottom edge at
+ * `pictureFill(scale)` of it (`.look-pic`, drawn by the page); empty when the pack is gone.
+ */
+export function lookPicture(skin, packs, dark, scale) {
   const s = normalizeSkin(skin);
+  let pic = '';
   if (!s.figure || s.figure === 'coo') {
     const p = PALETTES.find((x) => x.id === s.palette) ?? PALETTES[0];
     const [ink, eye] = dark ? p.d : p.l;
-    return `<svg viewBox="18 18 220 220" aria-hidden="true" style="--skin-ink:${ink};--skin-eye:${eye}">${mini('neutral', s)}</svg>`;
+    pic = `<svg viewBox="18 18 220 220" aria-hidden="true" style="--skin-ink:${ink};--skin-eye:${eye}">${mini('neutral', s)}</svg>`;
+  } else {
+    const pack = packs?.find((p) => p.id === s.figure);
+    const thumb = pack && packThumb(pack, s.scheme);
+    if (thumb) pic = `<img alt="" src="${escAttr(pack.base + thumb)}">`;
   }
-  const pack = packs?.find((p) => p.id === s.figure);
-  const thumb = pack && packThumb(pack, s.scheme);
-  return thumb ? `<img alt="" src="${escAttr(pack.base + thumb)}">` : '';
+  return pic && `<span class="look-pic" style="--look-fill:${pictureFill(scale).toFixed(3)}">${pic}</span>`;
 }

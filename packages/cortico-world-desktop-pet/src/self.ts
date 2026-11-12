@@ -18,7 +18,7 @@
  */
 import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
-import { BUBBLE_SIZE_MAX, BUBBLE_SIZE_MIN, MAX_HOVER_BUTTONS, PET_ACTIONS, SCALE_MAX, SCALE_MIN, SELF_KEYS, USER_MAX, directSettings, hoverButtonList, type DesktopPetConfigSection, type SelfKey } from './config.ts';
+import { BUBBLE_SIZE_MAX, BUBBLE_SIZE_MIN, MAX_HOVER_BUTTONS, PET_ACTIONS, SCALE_MAX, SCALE_MIN, SELF_KEYS, USER_MAX, directSettings, hoverButtonList, scaleOf, type DesktopPetConfigSection, type SelfKey } from './config.ts';
 import { charCount, petText } from './i18n/index.ts';
 import type { ModelLanguage } from './model-text.ts';
 import { COO, lookOf, lookPatch, modelName, nameIn, type FigurePack } from './packs.ts';
@@ -110,6 +110,9 @@ const en: typeof zh = {
 
 const SELF_TEXT: Record<ModelLanguage, typeof zh> = { zh, en };
 
+/** A size change as `pet_set`'s receipt says it. */
+export const sayScale = (from: number, to: number, language: ModelLanguage = 'zh'): string => SELF_TEXT[language].scale(from, to);
+
 /** The pack's pick named by `scheme`, as `axis:option` words; null when it picks nothing of the pack. */
 export function pickWords(pack: FigurePack, scheme: string, language: ModelLanguage = 'zh'): string | null {
   const t = SELF_TEXT[language];
@@ -194,10 +197,9 @@ export function planSettings(args: Record<string, unknown>, cfg: DesktopPetConfi
     else if (v !== cfg.sound) changes.push({ key: 'sound', tier: tier('sound'), say: t.sound(v), show: a.sound(v), patch: { sound: v } });
   }
   if ('scale' in args) {
-    const v = args.scale;
-    if (typeof v !== 'number' || !(v >= SCALE_MIN && v <= SCALE_MAX)) errors.push(t.badScale);
+    const s = scaleOf(args.scale);
+    if (s === null) errors.push(t.badScale);
     else {
-      const s = Math.round(v * 20) / 20;
       if (s !== cfg.window.scale) changes.push({ key: 'scale', tier: tier('scale'), say: t.scale(cfg.window.scale, s), show: a.scale(cfg.window.scale, s), patch: { window: { scale: s } } });
     }
   }

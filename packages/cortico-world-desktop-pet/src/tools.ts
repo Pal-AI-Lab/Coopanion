@@ -61,7 +61,7 @@ export const petToolDecls = (language: Language = 'zh'): Array<Omit<ToolDef, 'ha
     parameters: {
       type: 'object',
       properties: {
-        figure: { type: 'string', description: 'Figure: coo, or the id of an installed figure. Switching to a figure pack without a scheme puts on its first one.' },
+        figure: { type: 'string', description: 'Figure: coo, or the id of an installed figure. Switching to a figure pack without a scheme puts on its first one. A figure goes on at the size it last had on screen, unless scale is given too.' },
         scheme: { type: 'string', description: 'The dress of the current figure (or of the one being switched to): a preset id, or one option per axis joined with - in axis order (for Coo: palette-head-side-glasses-neck).' },
         roam: { type: 'string', enum: ['free', 'calm', 'off'], description: 'Walking about: free walks often, calm mostly stays put, off does not wander.' },
         snoreSeconds: { type: 'integer', minimum: 0, maximum: 3600, description: 'Seconds of snoring each time you fall asleep; 0 snores until you wake.' },
@@ -70,7 +70,7 @@ export const petToolDecls = (language: Language = 'zh'): Array<Omit<ToolDef, 'ha
         bubbleSize: { type: 'number', minimum: BUBBLE_SIZE_MIN, maximum: BUBBLE_SIZE_MAX, description: "Width, padding, corners and tail of the speech bubbles (yours and the person's), 1 being the default; the text keeps its size." },
         fontSize: { type: 'number', minimum: BUBBLE_SIZE_MIN, maximum: BUBBLE_SIZE_MAX, description: 'Size of the text in the speech bubbles, 1 being the default; the bubbles keep their width.' },
         theme: { type: 'string', enum: ['dark', 'light'], description: 'dark is night (light body), light is day (dark body).' },
-        hoverButtons: { type: 'array', items: { type: 'string', enum: ['chat', 'voice', 'roam', 'theme', 'sound', 'dress', 'hide', 'worlds'] }, maxItems: 6, description: 'The buttons beside you while the mouse pointer rests on you.' },
+        hoverButtons: { type: 'array', items: { type: 'string', enum: ['chat', 'voice', 'roam', 'theme', 'sound', 'size', 'dress', 'hide', 'worlds'] }, maxItems: 6, description: 'The buttons beside you while the mouse pointer rests on you.' },
         user: { type: 'string', maxLength: capFor(USER_MAX, language), description: `What you call the person, at most ${capFor(USER_MAX, language)} characters.` },
       },
     },
