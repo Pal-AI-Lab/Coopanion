@@ -152,8 +152,6 @@ export default {
   'looks.delete': "刪除「{name}」",
   'looks.exists': "「{name}」已經收藏過",
   'looks.empty': "目前沒有已收藏的形象。",
-  'looks.readFailed': "讀取收藏失敗。",
-  'looks.retry': "重試",
   'looks.deleteTitle': "刪除收藏「{name}」？",
   'looks.deleteLead': "刪除後無法復原。",
   'looks.deleteGo': "刪除",
