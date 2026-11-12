@@ -6,9 +6,8 @@
  * has its full text as the hint. The rail has no hints: its folded tooltip names its items, and a
  * title there, such as a World status dot's, is only taken away.
  */
+import { hideTip, showTip } from './tip.ts';
 const DELAY_MS = 450;
-/** How long a hint takes to fade out (`.hover-hint.leaving`, styles.css), as the pet's pages' (hints.js). */
-const LEAVE_MS = 120;
 const EDGE = 8;
 
 /** Moves the element's title into `data-tip`, keeping what it told a screen reader; returns the hint. */
@@ -34,23 +33,14 @@ export function mountHoverHints(doc: Document, signal: AbortSignal): void {
   doc.body.append(box);
   let current: HTMLElement | null = null;
   let timer = 0;
-  let leave = 0;
 
-  const hideNow = (): void => { win.clearTimeout(leave); box.classList.remove('leaving'); box.classList.add('hidden'); };
   /** Leaving one element for another, or for none: the hint fades out; a press, a key or a scroll hides it at once. */
-  const hide = (soft = false): void => {
-    win.clearTimeout(timer);
-    current = null;
-    if (!soft) { hideNow(); return; }
-    if (box.classList.contains('hidden') || box.classList.contains('leaving')) return;
-    box.classList.add('leaving');
-    leave = win.setTimeout(hideNow, LEAVE_MS);
-  };
+  const hide = (soft = false): void => { win.clearTimeout(timer); current = null; hideTip(box, !soft); };
   const show = (el: HTMLElement, text: string): void => {
     if (!el.isConnected) return;
-    hideNow();
+    hideTip(box, true);
     box.textContent = text;
-    box.classList.remove('hidden');
+    showTip(box);
     const rect = el.getBoundingClientRect();
     const { offsetWidth: width, offsetHeight: height } = box;
     const below = rect.bottom + 6;
@@ -85,5 +75,5 @@ export function mountHoverHints(doc: Document, signal: AbortSignal): void {
   for (const type of ['pointerdown', 'keydown', 'wheel'] as const) doc.addEventListener(type, () => hide(), { capture: true, signal });
   doc.addEventListener('scroll', () => hide(), { capture: true, passive: true, signal });
   win.addEventListener('blur', () => hide(), { signal });
-  signal.addEventListener('abort', () => { win.clearTimeout(timer); win.clearTimeout(leave); box.remove(); }, { once: true });
+  signal.addEventListener('abort', () => { win.clearTimeout(timer); hideTip(box, true); box.remove(); }, { once: true });
 }
