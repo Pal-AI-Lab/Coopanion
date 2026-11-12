@@ -8,7 +8,7 @@ import { gallery, takeImages } from './gallery.ts';
 import type { FeatureContext } from '../feature.ts';
 import { S } from './strings.ts';
 import { CATALOG_CATEGORY_IDS, inCatalogCategory, isFunctionTag, type CatalogCategory } from './catalog.ts';
-import { problemPopover, problemAnchorVisible, listProblem, scrollerOf, wheelDelta } from '../../../base/ui/problem.ts';
+import { problemPopover, problemAnchorVisible, listProblem, scrollerOf, wheelInto } from '../../../base/ui/problem.ts';
 import { fold, measureReflow, prefersStill } from '../../../base/motion.ts';
 import { matchRanges, matchRank, prepareFields, searchTerms, type MatchRank, type PreparedFields } from './search.ts';
 import { hideTip, showTip } from '../../../base/ui/tip.ts';
@@ -570,7 +570,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const target = event.target as Element;
     if (target.closest('.world-catalog-scroll, .world-catalog-filters, select, textarea')) return;
     const own = scrollerOf(target); if (own && root.contains(own) && own !== root) return;
-    event.preventDefault(); scrollRoot.scrollBy({ top: wheelDelta(event) });
+    wheelInto(scrollRoot, event);
   }, { passive: false, signal });
   const narrowFilters = win.matchMedia?.('(max-width: 760px)');
   let narrowFiltersOpen = false;
@@ -691,7 +691,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   hintBox.addEventListener('pointerleave', hideSoon, { signal });
   let hintAnchor: Element | null = null;
   // Floating tips sit over the page; the wheel still scrolls what is under them.
-  hintBox.addEventListener('wheel', event => { const target = scrollerOf(hintAnchor); hideHint(); if (target) { event.preventDefault(); target.scrollBy({ top: wheelDelta(event) }); } }, { passive: false, signal });
+  hintBox.addEventListener('wheel', event => { const target = scrollerOf(hintAnchor); hideHint(); if (target) wheelInto(target, event); }, { passive: false, signal });
   const problems = problemPopover(doc, signal);
   /** Operation errors whose control was out of view, by operation; each opens once its control is in view. */
   const pendingProblems = new Map<string, { anchor: Anchor; text: string }>();

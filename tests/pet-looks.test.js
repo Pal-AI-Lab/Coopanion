@@ -64,7 +64,6 @@ async function page(stored) {
     },
     tiles: () => doc.querySelectorAll('.look-tile').length,
     row: () => doc.querySelector('#optLooks').textContent,
-    retry: () => doc.querySelector('.looks-retry'),
     notice: () => doc.querySelector('#saved').textContent,
   };
 }
@@ -75,8 +74,6 @@ describe('saved looks on the dressing page', () => {
     const p = await page(stored);
     p.state.failReads = 2;
     await p.load();
-    expect(p.row()).toContain(t('looks.readFailed'));
-    expect(p.row()).not.toContain(t('looks.empty'));
     await p.save();
     expect(p.stored()).toBe(stored);
     expect(p.notice()).toBe(t('dress.notSaved'));
@@ -93,15 +90,6 @@ describe('saved looks on the dressing page', () => {
     await expect.poll(() => p.tiles()).toBe(3);
   });
 
-  it('shows the stored list after the retry button reads it', async () => {
-    const p = await page([look('a', 'mint')]);
-    p.state.failReads = 1;
-    await p.load();
-    p.retry().click();
-    await expect.poll(() => p.tiles()).toBe(1);
-    expect(p.retry()).toBeNull();
-  });
-
   it('keeps the list it has when a later read fails', async () => {
     const p = await page([look('a', 'mint'), look('b', 'fox')]);
     await p.load();
@@ -116,6 +104,5 @@ describe('saved looks on the dressing page', () => {
     const p = await page([]);
     await p.load();
     expect(p.row()).toContain(t('looks.empty'));
-    expect(p.retry()).toBeNull();
   });
 });

@@ -330,11 +330,8 @@ showScale();
 /* ---------- saved looks ---------- */
 
 let looks = [];
-/**
- * Whether `looks` is the list the World keeps: null until the first read answers, false when no read has succeeded.
- * `POST /api/looks` replaces the whole list, so nothing is written unless this is true.
- */
-let looksRead = null;
+/** Whether a read of the saved looks has succeeded: `POST /api/looks` replaces the whole list, so nothing is written before. */
+let looksRead = false;
 /** The saved look picked last, whose changes the update button saves; null when none is picked. */
 let activeLook = null;
 const loadLooks = () => fetchLooks().then((list) => {
@@ -342,7 +339,7 @@ const loadLooks = () => fetchLooks().then((list) => {
     looks = list;
     looksRead = true;
     if (!looks.some((l) => l.id === activeLook)) activeLook = looks.find(isWorn)?.id ?? null;
-  } else looksRead ||= false;
+  }
   renderLooks();
 });
 /** Whether `look` is what the pet wears now: its skin, at its size when it keeps one. */
@@ -396,15 +393,6 @@ function renderLooks() {
   updateLookBtn.hidden = !changed;
   if (changed) { updateLookBtn.title = t('looks.update', { name: active.name }); updateLookBtn.setAttribute('aria-label', updateLookBtn.title); }
   box.textContent = '';
-  if (looksRead === false) {
-    const note = box.appendChild(el('p', 'looks-empty'));
-    note.textContent = t('looks.readFailed');
-    const retry = note.appendChild(el('button', 'looks-retry'));
-    retry.type = 'button';
-    retry.textContent = t('looks.retry');
-    retry.addEventListener('click', () => { sfx.tick(); void loadLooks(); });
-    return;
-  }
   if (!looks.length) { box.appendChild(el('p', 'looks-empty')).textContent = t('looks.empty'); return; }
   const opts = el('div', 'looks-strip');
   for (const look of looks) {
