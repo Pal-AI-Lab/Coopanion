@@ -1153,19 +1153,27 @@ function drawStatus(next, pop) {
     bubble.innerHTML = `<span class="status-icon">${ICONS[`status_${icon}`] || ICONS.status_work}</span><span class="status-text"></span>`;
   }
   bubble.dataset.kind = next.kind;
-  const label = statusLabel(next);
-  bubble.querySelector('.status-text').textContent = label;
-  bubble.setAttribute('aria-label', next.kind === 'think' ? t('status.thinking') : label);
+  const { head, left, tail } = statusParts(next);
+  // the seconds left change every second; hidden from screen readers, the status is read once
+  const seconds = document.createElement('span');
+  seconds.setAttribute('aria-hidden', 'true');
+  seconds.textContent = left;
+  bubble.querySelector('.status-text').replaceChildren(head, seconds, tail);
+  bubble.setAttribute('aria-label', next.kind === 'think' ? t('status.thinking') : head + tail);
   bubble.classList.remove('fading');
   bubble.hidden = false;
   if (pop) { bubble.classList.remove('pop'); void bubble.offsetWidth; bubble.classList.add('pop'); }
 }
-/** The status's words; a countdown shows the whole seconds left, and nothing once they run out. */
-function statusLabel(s) {
-  const left = s.countdown === undefined ? 0 : Math.ceil(s.countdown - (performance.now() - status.countFrom) / 1000);
-  const detail = s.countdown === undefined ? s.detail : left > 0 ? t('status.seconds', { seconds: left }) : '';
-  return s.text + (detail ? ` · ${detail}` : '') + (s.count > 1 ? t('status.more', { others: s.count - 1 }) : '');
+/** The status's words around the seconds left: a countdown shows the whole seconds left, and nothing once they run out. */
+function statusParts(s) {
+  const seconds = s.countdown === undefined ? 0 : Math.ceil(s.countdown - (performance.now() - status.countFrom) / 1000);
+  return {
+    head: s.text + (s.countdown === undefined && s.detail ? ` · ${s.detail}` : ''),
+    left: seconds > 0 ? ` · ${t('status.seconds', { seconds })}` : '',
+    tail: s.count > 1 ? t('status.more', { others: s.count - 1 }) : '',
+  };
 }
+const statusLabel = (s) => Object.values(statusParts(s)).join('');
 function stepStatus() {
   // Never replace dialogue with activity, including while a queued line waits for the body.
   if (!prefs.statusBubble || listen.phase || item || queue.length) {

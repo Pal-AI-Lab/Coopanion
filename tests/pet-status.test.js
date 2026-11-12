@@ -449,6 +449,21 @@ describe('a countdown in the activity bubble', () => {
     expect(p.bubble.textContent).toBe('在等待');
   });
 
+  it('keeps the seconds out of what a screen reader hears, so it is read once', () => {
+    const p = page();
+    const pass = clock(p);
+    show(p, wait); pass(0);
+    const read = () => {
+      const text = p.bubble.querySelector('.status-text').cloneNode(true);
+      for (const hidden of text.querySelectorAll('[aria-hidden="true"]')) hidden.remove();
+      return [p.bubble.getAttribute('aria-label'), text.textContent];
+    };
+    const first = read();
+    pass(1.2);
+    expect(read()).toEqual(first);
+    expect(first).toEqual(['在等待', '在等待']);
+  });
+
   it('counts from when the status arrives, also while a line holds the bubble', () => {
     const p = page();
     const pass = clock(p);
