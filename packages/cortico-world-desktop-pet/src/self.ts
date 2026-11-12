@@ -59,8 +59,8 @@ const zh = {
   fontSize: (from: number, to: number) => `字体尺寸 ${from} 倍 → ${to} 倍`,
   badTheme: 'theme 应为 dark 或 light',
   themeTo: (to: string) => `换成${to}`,
-  badHover: `hoverButtons 应为 1–${MAX_HOVER_BUTTONS} 个不重复的 ${PET_ACTIONS.join('、')}`,
-  hover: (list: string[]) => `悬停按钮换成 ${list.join('、')}`,
+  badHover: `hoverButtons 应为 0–${MAX_HOVER_BUTTONS} 个不重复的 ${PET_ACTIONS.join('、')}`,
+  hover: (list: string[]) => (list.length ? `悬停按钮换成 ${list.join('、')}` : '去掉全部悬停按钮,右键菜单只剩设置、暂停和退出'),
   badUser: (max: number) => `user 应为 1–${max} 个字`,
   user: (from: string, to: string) => `对你的称呼「${from}」→「${to}」`,
   unknown: (key: string) => `${key} 不是你能改的设置`,
@@ -96,8 +96,8 @@ const en: typeof zh = {
   fontSize: (from, to) => `text size ${from}× → ${to}×`,
   badTheme: 'theme must be dark or light',
   themeTo: (to) => `theme → ${to}`,
-  badHover: `hoverButtons must be 1–${MAX_HOVER_BUTTONS} distinct items of ${PET_ACTIONS.join(', ')}`,
-  hover: (list) => `hover buttons → ${list.join(', ')}`,
+  badHover: `hoverButtons must be 0–${MAX_HOVER_BUTTONS} distinct items of ${PET_ACTIONS.join(', ')}`,
+  hover: (list) => (list.length ? `hover buttons → ${list.join(', ')}` : 'hover buttons → none; the right-click menu keeps only settings, pause and quit'),
   badUser: (max) => `user must be 1–${max} characters`,
   user: (from, to) => `what I call you "${from}" → "${to}"`,
   unknown: (key) => `${key} is not a setting you can change`,
@@ -216,8 +216,9 @@ export function planSettings(args: Record<string, unknown>, cfg: DesktopPetConfi
     const v = args.hoverButtons;
     const ids = Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
     const list = hoverButtonList(ids.join(','));
-    if (!Array.isArray(v) || !list.length || list.length !== ids.length) errors.push(t.badHover);
-    else if (list.join(',') !== cfg.hoverButtons) changes.push({ key: 'hoverButtons', tier: tier('hoverButtons'), say: t.hover(list), show: a.hover(a.list(list.map((id) => a.actions[id]))), patch: { hoverButtons: list.join(',') } });
+    // an empty list is an answer too: no hover buttons, and a right-click menu of the run controls alone
+    if (!Array.isArray(v) || list.length !== ids.length) errors.push(t.badHover);
+    else if (list.join(',') !== cfg.hoverButtons) changes.push({ key: 'hoverButtons', tier: tier('hoverButtons'), say: t.hover(list), show: list.length ? a.hover(a.list(list.map((id) => a.actions[id]))) : a.hoverNone, patch: { hoverButtons: list.join(',') } });
   }
   if ('user' in args) {
     const v = typeof args.user === 'string' ? args.user.trim() : '';
