@@ -7,6 +7,7 @@ import { t } from '../packages/cortico-world-desktop-pet/web/i18n.js';
 import { SIZE, scaleSlider, sizeEcho } from '../packages/cortico-world-desktop-pet/web/scale-slider.js';
 import { sameLook as realSameLook } from '../packages/cortico-world-desktop-pet/web/looks.js';
 import { restyle, springSize, swapIn, swapOut } from '../packages/cortico-world-desktop-pet/web/swap-motion.js';
+import { tipOf, tipWithoutNote } from '../packages/cortico-world-desktop-pet/web/hints.js';
 
 const WEB = new URL('../packages/cortico-world-desktop-pet/web/', import.meta.url);
 const source = readFileSync(new URL('pet-app.js', WEB), 'utf8').replace(/^import .*;$/gm, '');
@@ -34,7 +35,7 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     readyState = 1;
     sent = [];
     constructor(url) { this.url = new URL(url); sockets.push(this); }
-    send(text) { this.sent.push(JSON.parse(text)); }
+    send(data) { this.sent.push(JSON.parse(data)); }
   };
   win.deps = {
     applyTheme: (theme) => { win.document.documentElement.dataset.theme = theme; }, clamp, f, ICONS, linked: (text, n) => linked(text, n, win.document),
@@ -52,9 +53,9 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     fetchLooks, lookAvailable: () => true, lookPicture: () => '', sameLook,
     SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut,
     // hover hints (hints.js) are not what these tests look at
-    mountHints() {},
+    mountHints() {}, tipOf, tipWithoutNote,
   };
-  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
+  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints, tipOf, tipWithoutNote } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
@@ -484,9 +485,10 @@ describe("closing Coo's line with a click", () => {
   const beat = (text) => ({ text, actions: [], anchors: [] });
   const click = (p, el = p.bubble) => el.dispatchEvent(new p.win.MouseEvent('click', { bubbles: true }));
 
-  it('ends the whole line: the voice stops, the later beats never show, and the next line follows', () => {
+  it('ends the whole line: the voice stops, the later beats never show, and the next line follows', async () => {
     let stopped = 0;
     const p = page({ speech: { stop: () => { stopped++; } } });
+    await expect.poll(() => p.sockets.length).toBe(1);
     p.onOrder({ t: 'say', id: 'a', beats: [beat('第一段'), beat('第二段')] });
     p.onOrder({ t: 'say', id: 'b', beats: [beat('下一句')] });
     p.step(.01); p.step(.5);
@@ -498,6 +500,8 @@ describe("closing Coo's line with a click", () => {
     // a second click while it fades changes nothing
     click(p);
     expect(stopped).toBe(before + 1);
+    // the World hears of it once, so its queue counts from now
+    expect(p.sockets.flatMap((s) => s.sent).filter((m) => m.t === 'skipped')).toEqual([{ t: 'skipped', id: 'a' }]);
     p.step(p.LINE_FADE); p.step(.01); p.step(1);
     expect(p.bubble.textContent).toBe('下一句');
     expect(p.bubble.classList.contains('fading')).toBe(false);
@@ -541,10 +545,10 @@ describe('the alert for a confirmation', () => {
 describe('a countdown in the activity bubble', () => {
   const clock = (p) => {
     let now = 0;
-    p.win.performance.now = () => now;
+    p.win.Date.now = () => now;
     return (seconds) => { now += seconds * 1000; p.step(.01); };
   };
-  const wait = { kind: 'wait', text: '在等待', countdown: 3 };
+  const wait = { kind: 'wait', text: '在等待', endsAt: 3000 };
 
   it('shows the whole seconds left and drops the number when they run out', () => {
     const p = page();
@@ -581,7 +585,15 @@ describe('a countdown in the activity bubble', () => {
     expect(first).toEqual(['在等待', '在等待']);
   });
 
-  it('counts from when the status arrives, also while a line holds the bubble', () => {
+  it('counts to the end it was given, however late the status arrives', () => {
+    const p = page();
+    const pass = clock(p);
+    pass(1.5);
+    show(p, wait); pass(0);
+    expect(p.bubble.textContent).toBe(`在等待 · ${t('status.seconds', { seconds: 2 })}`);
+  });
+
+  it('keeps counting while a line holds the bubble', () => {
     const p = page();
     const pass = clock(p);
     p.onOrder({ t: 'say', id: 's', beats: [{ text: '好', actions: [], anchors: [] }] });

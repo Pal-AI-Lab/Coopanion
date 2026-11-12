@@ -118,7 +118,7 @@
         "properties": {
           "figure": {
             "type": "string",
-            "description": "Figure: coo, or the id of an installed figure. Switching to a figure pack without a scheme puts on its first one."
+            "description": "Figure: coo, or the id of an installed figure. Switching to a figure pack without a scheme puts on its first one. A figure goes on at the size it last had on screen, unless scale is given too."
           },
           "scheme": {
             "type": "string",
@@ -179,8 +179,10 @@
                 "roam",
                 "theme",
                 "sound",
+                "size",
                 "dress",
-                "hide"
+                "hide",
+                "worlds"
               ]
             },
             "maxItems": 6,
@@ -745,6 +747,13 @@
       "description": {
         "zh": "使用者戳、摸、扔出或拎起放下了桌宠。",
         "en": "The person poked, patted, threw or dropped the pet."
+      }
+    },
+    {
+      "type": "desktop-pet.talk-key",
+      "description": {
+        "zh": "说话键读不到,语音输入开着时每次运行每种原因一条。",
+        "en": "The talk key cannot be read; once a run for each reason, while voice input is on."
       }
     },
     {

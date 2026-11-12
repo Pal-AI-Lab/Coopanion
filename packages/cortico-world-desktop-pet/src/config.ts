@@ -51,7 +51,7 @@ export interface SavedLook {
   id: string;
   name: string;
   skin: PetSkin;
-  /** `window.scale` to put on with the look; a look without one keeps the size on screen. */
+  /** `window.scale` to put on with the look; a look without one goes on at its figure's own size (`figureScales`). */
   scale?: number;
 }
 /** Most saved looks kept, and the longest name. */

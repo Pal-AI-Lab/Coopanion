@@ -13,6 +13,11 @@ export const SHOW_MS = 1000;
 export const LEAVE_MS = 120;
 const EDGE = 8;
 
+/** A button's hint from its spoken label: the part before ' · ', its name and where it stands; what a click does follows the dot. */
+export const tipOf = (label) => label.split('·')[0].trim();
+/** `tipOf` without the note in brackets that closes the label. */
+export const tipWithoutNote = (label) => tipOf(label).replace(/\s*[（(][^（(]*[）)]$/, '');
+
 function takeTitle(el) {
   const title = el.getAttribute('title');
   if (title !== null) {
@@ -42,7 +47,8 @@ export function mountHints(doc, { autoClose = false } = {}) {
   };
   const hide = (soft) => { win.clearTimeout(timer); current = null; if (soft) fade(); else hideNow(); };
   const show = (el, text) => {
-    if (!el.isConnected) return;
+    // an element hidden or fading out since the pointer reached it has no place to show a hint beside
+    if (!el.isConnected || el.closest('[hidden], .leaving')) return;
     hideNow();
     box.textContent = text;
     box.hidden = false;

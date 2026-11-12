@@ -45,7 +45,7 @@ export const S: Partial<typeof en> = {
     snore: ['Ronflements', 'Ronfle en dormant'],
     talk: ['Parole', "Le babillage à l'apparition du texte des bulles, les cartes de choix qui surgissent"],
     ui: ['Boutons et signaux', "Clics de boutons, ouverture des bulles, sélections, début et fin de l'écoute"],
-    alert: ['Alertes', "Le carillon quand Coo vous demande la permission avant d'utiliser l'ordinateur"],
+    alert: ['Alertes', 'Le carillon quand Coo vous demande une confirmation'],
   },
   snore: 'Durée des ronflements',
   snoreUnit: 's',

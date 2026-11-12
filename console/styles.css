@@ -550,7 +550,7 @@
   .u-tip { position: fixed; z-index: 130; pointer-events: none; box-sizing: border-box; width: max-content; max-width: min(268px, calc(100vw - 16px)); background: var(--sheet); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 9px 11px; box-shadow: 0 18px 48px -28px var(--shadow-strong); font: 12px var(--sans); color: var(--ink); overflow-wrap: anywhere; animation: hover-hint-in 120ms ease-out; }
   .u-tip.hidden { display: none; }
   .u-tip.hover-hint { max-width: min(280px, calc(100vw - 16px)); padding: 5px 9px; border-radius: 8px; font: 12px/1.45 var(--sans); box-shadow: 0 6px 18px -8px var(--shadow-strong); }
-  .u-tip.leaving { animation: hover-hint-out 120ms ease-in forwards; }
+  .u-tip.leaving { animation: hover-hint-out 120ms ease-in forwards; pointer-events: none; }
   @keyframes hover-hint-in { from { opacity: 0; } }
   @keyframes hover-hint-out { to { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .u-tip, .u-tip.leaving { animation: none; } }
@@ -1471,6 +1471,12 @@
 .featureslot:has(> .featureintro) { padding-top:0; scroll-padding-top:var(--page-scroll-inset, 0px); }
 .featureslot::-webkit-scrollbar-track { margin-top:var(--page-scroll-inset, 0px); }
 .featureintro { padding-bottom:16px; border-bottom:1px solid var(--border); }
+/* Page tabs (pageTabs, sectionTabs) draw their own lines above and below, so a heading that has them drops its own
+   rule's double: inside it, 16px under the title, the heading's rule is their bottom line; right after it, their top
+   line is the heading's rule. */
+.featureintro:has(> .pagetabs) { padding-bottom:0; }
+.featureintro > .pagetabs { margin-top:16px; border-bottom:0; }
+.featureintro:has(+ .pagetabs) { border-bottom:0; }
 .featureslot > .featureintro { position:sticky; top:0; z-index:20; padding-top:30px; margin-bottom:24px; background:var(--background); }
 .featureslot > .featureintro + * { margin-top:0; }
 .featureslot > .featureintro + .sheet { margin-top:0; }
@@ -1492,7 +1498,6 @@
 .pricing-rules, .pricing-snapshot { margin-top:16px; }
 .pricing-rules > textarea, .pricing-snapshot > pre { margin-top:10px; }
 
-.coreview > .pagehead { border-bottom:0; }
 .coreview > .pagetabs { flex: none; width: calc(100% - 2 * var(--page-gutter)); max-width: var(--content-width); margin: 0 auto; }
 
 .providerchrome > .msgline { margin-top: 12px; }
@@ -1500,7 +1505,6 @@
 .pagetitle-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .pagetitle-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin-left: auto; }
 .pagetitle .pagetitle-name { margin-left: 10px; font: 400 13px var(--sans); color: var(--ink-dim); }
-.providerchrome > .featureintro:has(~ .pagetabs) { border-bottom: 0; }
 .prompt-card h3 > .chip { margin-left: 10px; vertical-align: 1px; }
 .prompt-card .actionbar { margin-top: 10px; padding-top: 0; border-top: 0; }
 /* 页内栏目条(base/ui/page-tabs.ts)。每项按当前项的字号与字重预留宽度,切换时其余项不移位。 */
@@ -1904,14 +1908,9 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .page-badge-pop[hidden] { display: none; }
 .page-badge-pop > .pill { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
 
-.provider-intro { padding-bottom: 0; }
-.provider-intro > .pagetabs { margin-top: 16px; border-bottom: 0; }
-
 /* Shared library entries retain their geometry beneath the catalog overlay. */
 .featureslot-world{overflow:hidden;scrollbar-gutter:auto;padding:0}
 .featureslot-world>.featureintro{width:calc(100% - 2 * (var(--page-gutter) + 10px));margin-bottom:16px}
-.world-intro{padding-bottom:0}
-.world-intro>.pagetabs{margin-top:16px;border-bottom:0}
 /* The compact field of the World pages' toolbars, filter row, panels and group names: 32px; its focus is
    every other page's. */
 :is(.world-catalog,.world-library-tools,.world-group-head) :is(input:not([type=checkbox]):not([type=radio]),select){height:32px;min-height:32px;padding-block:0;font-size:12.5px}

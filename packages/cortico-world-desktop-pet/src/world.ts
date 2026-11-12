@@ -57,7 +57,7 @@ import { Cua } from './cua/cua.ts';
 import { CUA_OFF_TOOL_DECLS } from './cua/tools.ts';
 import type { Answer } from './cua/engine-ipc.ts';
 import { PackImporter } from './pack-import.ts';
-import { dressTable, planSettings, type SettingChange } from './self.ts';
+import { dressTable, planSettings, sayScale, type SettingChange } from './self.ts';
 import { MODEL_TEXT, type ModelLanguage, type ModelText } from './model-text.ts';
 
 /** The console panels, titled in `language`. */
@@ -384,7 +384,8 @@ export class DesktopPetWorld implements World {
   private petHidden = false;
   /** `onDesktop` as last told to `onDesktopChange`, null before the first time. */
   private desktopTold: boolean | null = null;
-  private busyUntil = 0;
+  /** When each line sent by `pet_say` is estimated to be over, in sending order; the last one is when the bubble is free. */
+  private sayEnds: Array<{ id: string; at: number }> = [];
   private readonly walks = new Map<string, PendingWalk>();
   private ask: PendingAsk | null = null;
   private touch: TouchBatch | null = null;
@@ -1063,18 +1064,20 @@ export class DesktopPetWorld implements World {
     const skin = raw as PetSkin;
     const size = scaleOf(scale);
     this.opts.persist(size === null ? { skin } : { skin, window: { scale: size } });
+    this.followFigure(size !== null);
     this.syncPrefs();
   }
 
   /**
    * Each figure keeps its own size: when the figure on screen changes, the one replaced keeps the size it had in
-   * `figureScales`, and the new one takes its own back from there, unless the size changed along with it.
+   * `figureScales`, and the new one takes its own back from there, unless the size changed along with it or was
+   * `given` with it (a saved look's, or `pet_set`'s, the size on screen included).
    */
-  private followFigure(): void {
+  private followFigure(given = false): void {
     const figure = this.cfg.skin.figure ?? COO, scale = this.cfg.window.scale;
     const was = this.sized;
     if (figure === was.figure) { was.scale = scale; return; }
-    const own = scale === was.scale ? scaleOf(this.cfg.figureScales[figure]) : null;
+    const own = !given && scale === was.scale ? scaleOf(this.cfg.figureScales[figure]) : null;
     this.opts.persist({ figureScales: { [was.figure]: was.scale }, ...(own !== null && own !== scale ? { window: { scale: own } } : {}) });
     this.sized = { figure, scale: own ?? scale };
   }
@@ -1239,6 +1242,14 @@ export class DesktopPetWorld implements World {
       }
       case 'commit': return this.commitSpeech();
       case 'cancel': return this.cancelSpeech();
+      case 'skipped': {
+        // the person ended a line early: the lines after it start now rather than when it was estimated to end
+        const i = this.sayEnds.findIndex((l) => l.id === String(msg.id));
+        if (i < 0) return;
+        const shift = Date.now() - this.sayEnds[i]!.at;
+        this.sayEnds = this.sayEnds.slice(i + 1).map((l) => ({ ...l, at: l.at + shift }));
+        return;
+      }
     }
   }
 
@@ -1896,14 +1907,17 @@ export class DesktopPetWorld implements World {
     const { beats, dropped } = parseScript(script, this.vocab());
     const spoken = beats.some((b) => b.text || b.actions.length || b.anchors.length);
     if (!spoken && shown.blobs.length === 0) return { text: this.t.sayEmpty, failed: true };
-    if (spoken && !this.server.sendPet({ t: 'say', id: nextId('s'), beats })) return this.notConnected('pet_say');
+    const id = nextId('s');
+    if (spoken && !this.server.sendPet({ t: 'say', id, beats })) return this.notConnected('pet_say');
     void this.closeActivity();
     void this.record({ kind: 'say', beats: beats.map((b) => ({ text: b.text, ...moodOf(b.actions, this.vocab()) })) }, beats.map((b) => b.text).join(''), shown.blobs);
     if (!spoken) return { text: this.t.imagesShown(shown.blobs.length, this.chat.size > 0) };
     const now = Date.now();
     const selfSec = estimateSeconds(beats, this.cfg.window.bubbleSpeed, this.cfg.speech.enabled ? speechTextSteps : undefined);
-    const waitSec = Math.max(0, (this.busyUntil - now) / 1000);
-    this.busyUntil = Math.max(now, this.busyUntil) + selfSec * 1000;
+    this.sayEnds = this.sayEnds.filter((l) => l.at > now);
+    const free = this.sayEnds.at(-1)?.at ?? now;
+    const waitSec = (free - now) / 1000;
+    this.sayEnds.push({ id, at: free + selfSec * 1000 });
     const replaced = this.ask?.question ?? null;
     if (this.ask) this.setAsk(null);
     return { text: this.t.sayReceipt({ waitSec, selfSec, chatOpen: this.chat.size > 0, replaced, dropped, images: shown.blobs.length }) };
@@ -1987,22 +2001,30 @@ export class DesktopPetWorld implements World {
     const t = this.t;
     if (selfAdjustMode(this.cfg.selfAdjust) === 'off') return { text: t.selfAdjustOff('pet_set', this.userName), failed: true };
     const packs = this.packs();
-    const { changes, errors } = planSettings(args, { ...this.cfg, user: this.userName }, packs, this.language, capFor(USER_MAX, this.appLanguage), this.appLanguage);
+    const plan = (a: Record<string, unknown>) => planSettings(a, { ...this.cfg, user: this.userName }, packs, this.language, capFor(USER_MAX, this.appLanguage), this.appLanguage);
+    const { changes, errors } = plan(args);
     if (errors.length) return { text: t.setErrors(errors), failed: true };
     if (!changes.length) return { text: t.setNothing };
     const lines: string[] = [];
-    const apply = (list: SettingChange[]) => {
+    /** Applies `list`; when a figure put on takes back the size it last had, that change is said too. */
+    const apply = (list: SettingChange[]): string[] => {
       this.followFigure();
+      const before = this.cfg.window.scale;
+      const given = list.some((c) => c.key === 'scale') || scaleOf(args.scale) === before;
       for (const c of list) this.opts.persist(c.patch);
+      this.followFigure(given);
       const skin = this.cfg.skin;
       if (list.some((c) => c.key === 'figure' || c.key === 'scheme')) this.botLook = (skin.figure ?? COO) === COO ? COO : `${skin.figure}:${skin.scheme ?? ''}`;
       this.syncPrefs();
       this.opts.onBotChange?.();
+      const after = this.cfg.window.scale;
+      return !given && after !== before ? [sayScale(before, after, this.language)] : [];
     };
     const says = (list: SettingChange[]) => list.map((c) => c.say);
     const mine = changes.filter((c) => c.tier === 'self');
-    if (mine.length) { apply(mine); lines.push(t.setDone(says(mine))); }
-    const asked = changes.filter((c) => c.tier === 'ask');
+    if (mine.length) { const also = apply(mine); lines.push(t.setDone([...says(mine), ...also])); }
+    // a figure put on above may have taken back its own size: a size still to be asked for is measured from the one on screen now
+    const asked = changes.filter((c) => c.tier === 'ask').flatMap((c) => (c.key === 'scale' && mine.length ? plan({ scale: args.scale }).changes : [c]));
     if (asked.length) {
       const c = this.ui.consent;
       const answer = await this.confirm(c.question(asked.map((x) => x.show)), c.choices);
@@ -2010,9 +2032,9 @@ export class DesktopPetWorld implements World {
         // these items stop being asked: the rest stay as they were, under `custom`; told to the app with the changes as the bot's own
         const keys = [...new Set(asked.map((x) => x.key))];
         this.opts.persist({ selfAdjust: 'custom', selfAdjustCustom: { ...directSettings(this.cfg), ...Object.fromEntries(keys.map((k) => [k, true])) } });
-        apply(asked);
-        lines.push(t.setAlways(this.userName, says(asked), keys.map((k) => t.settingNames[k])));
-      } else if (answer === 'yes') { apply(asked); lines.push(t.setAgreed(this.userName, says(asked))); }
+        const also = apply(asked);
+        lines.push(t.setAlways(this.userName, [...says(asked), ...also], keys.map((k) => t.settingNames[k])));
+      } else if (answer === 'yes') { const also = apply(asked); lines.push(t.setAgreed(this.userName, [...says(asked), ...also])); }
       else lines.push(t.setNotChanged(answer === 'unavailable' || answer === 'timeout' ? answer : 'no', this.userName, says(asked)));
     }
     if (mine.some((c) => c.key === 'figure' || c.key === 'scheme')) {

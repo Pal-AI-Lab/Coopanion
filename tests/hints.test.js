@@ -1,6 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readdirSync } from 'node:fs';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { DELAY_MS, LEAVE_MS, SHOW_MS, mountHints } from '../packages/cortico-world-desktop-pet/web/hints.js';
+import { DELAY_MS, LEAVE_MS, SHOW_MS, mountHints, tipOf, tipWithoutNote } from '../packages/cortico-world-desktop-pet/web/hints.js';
 
 describe('hover hints on the pet pages', () => {
   let win;
@@ -68,5 +69,52 @@ describe('hover hints on the pet pages', () => {
     over(size);
     vi.advanceTimersByTime(DELAY_MS + 3 * SHOW_MS);
     expect(box.hidden).toBe(false);
+  });
+
+  it('does not show beside a button hidden or fading out before the delay ends', () => {
+    const { size, dress, box, over } = page();
+    over(size);
+    size.hidden = true;
+    vi.advanceTimersByTime(DELAY_MS);
+    expect(box.hidden).toBe(true);
+    over(dress);
+    dress.classList.add('leaving');
+    vi.advanceTimersByTime(DELAY_MS);
+    expect(box.hidden).toBe(true);
+  });
+});
+
+describe('hint text of the pet buttons in every language', () => {
+  const dir = new URL('../packages/cortico-world-desktop-pet/web/i18n/', import.meta.url);
+  const codes = readdirSync(dir).filter((f) => f.endsWith('.js')).map((f) => f.slice(0, -3));
+  const tables = {};
+  beforeAll(async () => {
+    const zh = (await import(new URL('zh.js', dir).href)).default, en = (await import(new URL('en.js', dir).href)).default;
+    for (const c of codes) tables[c] = { ...(c === 'zh-Hant' ? zh : en), ...(await import(new URL(`${c}.js`, dir).href)).default };
+  });
+  // the labels whose part after ' · ' says what a click does; the hint keeps what comes before
+  const SWITCHES = ['action.voiceOff', 'action.voiceNotReady', 'action.voiceOn', 'action.roam', 'action.themeDark', 'action.themeLight', 'action.soundOn', 'action.soundOff'];
+  const PLAIN = ['action.chat', 'action.chatDoubleClick', 'action.dress', 'action.worlds'];
+
+  it('covers the eleven app languages', () => { expect(codes).toHaveLength(11); });
+
+  it('cuts a switch label at its one dot, keeping the name and the state', () => {
+    for (const c of codes) for (const key of SWITCHES) {
+      const label = tables[c][key];
+      expect(label.split('·'), `${c} ${key}`).toHaveLength(2);
+      const tip = tipOf(label);
+      expect(tip.length, `${c} ${key}`).toBeGreaterThan(0);
+      expect(label.startsWith(tip), `${c} ${key}`).toBe(true);
+    }
+  });
+
+  it('keeps a label with no dot whole, and the hide button without its closing note', () => {
+    for (const c of codes) {
+      for (const key of PLAIN) expect(tipOf(tables[c][key]), `${c} ${key}`).toBe(tables[c][key].trim());
+      const hide = tables[c]['action.hide'], tip = tipWithoutNote(hide);
+      expect(tip.length, c).toBeGreaterThan(0);
+      expect(tip.length, c).toBeLessThan(hide.length);
+      expect(tip, c).not.toMatch(/[（()）]/);
+    }
   });
 });

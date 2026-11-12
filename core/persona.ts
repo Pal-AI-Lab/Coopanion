@@ -1,15 +1,17 @@
 /**
- * Coo's Persona: Cortico's Cormini with four changes for the desktop pet.
+ * Coo's Persona: Cortico's Cormini with five changes for the desktop pet.
  *
  * - `PARTNER.md` in the workspace goes into the system prefix whole (Cormini's partner segment), after a
  *   standing line asking Coo to keep it short and put details under `partner/`, and cannot be deleted with
  *   `delete_file`, as `CONSTITUTION.md` cannot.
  * - The prefix says how Coo keeps its workspace (`MEMORY_NOTE`, Cormini's memory segment, before the workspace
- *   listing): files named for what they hold, dated when tied to a time, older parts moved into `archive/`,
- *   which the listing shows as one line.
+ *   listing): files named for what they hold, duplicates merged when found, promises and unfinished things in
+ *   `todo.md`, dated when tied to a time, older parts moved into `archive/`, which the listing shows as one line.
  * - Every write Coo makes to its workspace is committed to the workspace's Git repository, one commit
  *   per tool call, so the workspace has a history to look back on and go back to. `blobs/` is left out
  *   of the repository. Without Git (`gitInstalled`) the files are written all the same.
+ * - Each delivered batch opens with a line counting its events and giving their date and time span, so the date
+ *   is in the context after a handoff too.
  * - The lines the Persona itself puts into the context (a session opening, new events, a World
  *   switched, context pressure, the handoff, the round cap, stalls) and its workspace listing are in
  *   English whatever the app language; Coo is told which language to talk in by the desktop-pet World.
@@ -33,6 +35,8 @@ export const PARTNER_DIR = 'partner';
 export const PARTNER_NOTE = `${PARTNER_FILE} in your workspace, below, is read in full on every request. Keep it a short, distilled portrait `
   + `of the person: merge or drop what is outdated. Put stories, logs and longer notes in files under ${PARTNER_DIR}/ and read them `
   + 'when needed.';
+/** The workspace file for what Coo promised and what it left unfinished. */
+export const TODO_FILE = 'todo.md';
 /** The workspace directory for what Coo has set aside; the prefix listing shows it as one line. */
 export const ARCHIVE_DIR = 'archive';
 /** Goes into the prefix right before the workspace listing, where the file names are all Coo sees of its files. */
@@ -42,7 +46,12 @@ export const MEMORY_NOTE = [
     + '(partner/food-likes-and-dislikes.md, not partner/notes2.md).',
   '- Before starting a file, look for one on the same subject with glob_files or grep_files and change that one. '
     + 'When a fact changes, rewrite it where it stands; delete what is no longer true.',
-  '- Anything tied to a time has its date in the name: a running log one file per month (log/2026-10.md), one day\'s events by the day.',
+  '- When two files turn out to hold the same thing, merge them into one there and then and delete the other.',
+  `- What you promised the person and what you left unfinished go in ${TODO_FILE}, each with the date it came up; `
+    + 'for one due at a set time, also set an alarm. Take an entry out once it is done.',
+  '- Anything tied to a time has its date in the name: a running log one file per month (log/2026-10.md), one day\'s events by the day. '
+    + 'Inside files, write dates as dates (2026-11-09), not "today" or "tomorrow": you will read them on another day. '
+    + 'Each batch of new events comes with its date.',
   `- When a file grows long, move its older lines into ${ARCHIVE_DIR}/ with move_file (offset and limit); move finished files `
     + `and folders there whole. ${ARCHIVE_DIR}/ shows below as one line, and grep_files still searches it.`,
 ].join('\n');
@@ -122,6 +131,28 @@ ${readTextFile(join(dir, name))}`, 'utf8');
   }
   mkdirSync(target, { recursive: true });
   return moved;
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** `YYYY-MM-DD Ddd` and `HH:MM` of an event's `ts`, in the offset it carries: the deployment's local time. */
+function wallClock(ts: string): { day: string; time: string } {
+  const day = ts.slice(0, 10);
+  const [y, m, d] = day.split('-').map(Number);
+  return { day: `${day} ${WEEKDAYS[new Date(Date.UTC(y!, m! - 1, d!)).getUTCDay()]}`, time: ts.slice(11, 16) };
+}
+
+/**
+ * The line that opens a delivered batch: how many external events it holds and when they happened, from the
+ * earliest to the latest `ts` (delivery order is not time order), with the date on every batch.
+ */
+export function deliveryLine(events: readonly EventEnvelope[]): string {
+  const times = events.map((e) => e.ts).sort((a, b) => Date.parse(a) - Date.parse(b));
+  const first = wallClock(times[0]!);
+  const last = wallClock(times[times.length - 1]!);
+  const when = first.day !== last.day ? `${first.day} ${first.time} – ${last.day} ${last.time}`
+    : first.time === last.time ? `${first.day} ${first.time}` : `${first.day} ${first.time}–${last.time}`;
+  return `[system] ${events.length} new event${events.length === 1 ? '' : 's'}, ${when}.`;
 }
 
 /** Coo's Persona class on `Base`, Cormini as the staged Cortico has it. */
@@ -231,13 +262,13 @@ ${super.partnerDoc() || `(${PARTNER_FILE} is empty.)`}`;
       this.core?.injectInternal(`[system] The World "${event.label}" ${what}.`, 'notice');
     }
 
-    /** Cormini's delivery: the heartbeat's quiet time starts over, and one line counts the events. */
+    /** Cormini's delivery: the heartbeat's quiet time starts over, and one line counts the events and dates them. */
     override onDelivery(ctx: { events: EventEnvelope[] }): void {
-      const n = ctx.events.filter((e) => e.origin === 'external').length;
-      if (n === 0) return;
+      const externals = ctx.events.filter((e) => e.origin === 'external');
+      if (externals.length === 0) return;
       // Cormini keeps its heartbeat private; the bracket access is TypeScript's way in for a subclass
       this['heartbeat'].noteActivity();
-      this.core?.injectInternal(`[system] ${n} new event${n === 1 ? '' : 's'}.`, 'notice');
+      this.core?.injectInternal(deliveryLine(externals), 'notice');
     }
 
     protected override pressureNote(): string {
