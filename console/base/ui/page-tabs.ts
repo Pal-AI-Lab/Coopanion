@@ -20,8 +20,11 @@ export function pageTabs(
   doc: Document,
   signal: AbortSignal,
   items: readonly PageTabItem[],
-  /** `reselect`: a click on the current tab is reported too (tabs that jump within a page, base/ui/section-tabs.ts). */
-  opts: { value?: string; reselect?: boolean; onSelect?(value: string): void } = {},
+  /**
+   * `reselect`: a click on the current tab is reported too. `current`: what the current tab is to a screen reader, the
+   * page shown (the default) or, for tabs that jump within a page (base/ui/section-tabs.ts), the place in it.
+   */
+  opts: { value?: string; reselect?: boolean; current?: 'page' | 'location'; onSelect?(value: string): void } = {},
 ): PageTabs {
   const el = doc.createElement('nav');
   el.className = 'pagetabs';
@@ -80,7 +83,7 @@ export function pageTabs(
     for (const t of tabs) {
       const on = t.value === current;
       t.btn.classList.toggle('active', on);
-      if (on) t.btn.setAttribute('aria-current', 'page');
+      if (on) t.btn.setAttribute('aria-current', opts.current ?? 'page');
       else t.btn.removeAttribute('aria-current');
     }
     place();

@@ -41,6 +41,8 @@ it('jumps to a section on a click, keeping the page one page', () => {
   tabs.el.querySelectorAll('button')[1].click();
   expect(items[1].el.scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' });
   expect(current()).toBe('B');
+  // a place in the page, not another page
+  expect(tabs.el.querySelector('.pagetab.active').getAttribute('aria-current')).toBe('location');
 });
 
 it('goes back to the very top for the first section', () => {

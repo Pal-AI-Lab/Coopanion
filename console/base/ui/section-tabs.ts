@@ -23,6 +23,7 @@ export function sectionTabs(doc: Document, signal: AbortSignal, scroller: HTMLEl
     value: items[0]?.value,
     // a click on the section the line is on still goes to its top
     reselect: true,
+    current: 'location',
     onSelect: (value) => {
       const item = items.find((i) => i.value === value);
       if (!item) return;
