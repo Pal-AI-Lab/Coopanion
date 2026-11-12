@@ -49,7 +49,6 @@ const ru: Translation<CoreText> = {
     move: 'Двигаю мышь', drag: 'Перетаскиваю', mouseDown: 'Зажимаю кнопку мыши', mouseUp: 'Отпускаю кнопку мыши', scroll: 'Прокручиваю', focus: 'Переключаю окно', type: 'Печатаю', key: 'Нажимаю', wait: 'Жду',
     alarmSet: 'Ставлю будильник', alarmList: 'Смотрю будильники', alarmCancel: 'Отменяю будильник',
     quoted: (text: string) => `«${text}»`,
-    seconds: (n: number) => `${n} с`,
     minutesLater: (n: number) => `через ${n} мин`,
   },
 

@@ -52,7 +52,6 @@ const en: CoreText = {
     alarmSet: 'Setting an alarm', alarmList: 'Checking alarms', alarmCancel: 'Cancelling an alarm',
     /** The words being searched for. */
     quoted: (text: string) => `"${text}"`,
-    seconds: (n: number) => `${n} s`,
     minutesLater: (n: number) => `in ${n} min`,
   },
 
