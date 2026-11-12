@@ -373,6 +373,27 @@ describe('look wheel over the dress button', () => {
     }
   });
 
+  it('leaves a slider being dragged over a dress button in place, without reading the favourites (the number of reads is the behavior)', async () => {
+    let reads = 0;
+    const p = page({ host: true, fetchLooks: async () => { reads++; return [{ id: 'a', name: 'a', skin: {} }]; } });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
+    dressButton(p);
+    p.doc.querySelector('#tools [data-action="size"]').click();
+    const bar = p.doc.querySelector('#sizer .pet-scale');
+    bar.setPointerCapture = () => {};
+    bar.dispatchEvent(new p.win.MouseEvent('pointerdown', { clientX: 10, button: 0, buttons: 1, bubbles: true }));
+    over(p);
+    await frames(p);
+    expect(reads).toBe(0);
+    expect(wheel(p).hidden).toBe(true);
+    // let go with the pointer still on the dress button: the row takes the slider's place
+    bar.dispatchEvent(new p.win.MouseEvent('pointerup', { clientX: 10, button: 0, bubbles: true }));
+    await frames(p);
+    expect(reads).toBe(1);
+    expect(wheel(p).hidden).toBe(false);
+    expect(p.doc.querySelector('#sizer').classList.contains('leaving')).toBe(true);
+  });
+
   it('reads again when the pointer left while a bubble was showing', async () => {
     let reads = 0;
     const p = page({ fetchLooks: async () => { reads++; return []; } });

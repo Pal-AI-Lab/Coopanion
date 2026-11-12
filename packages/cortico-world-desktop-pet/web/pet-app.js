@@ -1776,6 +1776,8 @@ async function openWheel() {
   // back over a dress button while the row folds away: it fans out again
   if (leaving(wheel)) { clearTimeout(wheelAnim.leave); wheel.classList.remove('leaving'); drawWheel(); return; }
   if (!wheel.hidden || wheelState.opening) return;
+  // a slider being dragged keeps its place over the head: the row opens once it is let go
+  if (sizer.active) return;
   pinSizer(false);
   closeSizer();
   wheelState.opening = true;
