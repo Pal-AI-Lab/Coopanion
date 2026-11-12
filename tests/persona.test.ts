@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import type { ToolDef } from 'cortico/core/types.ts';
 import { Cormini } from '../vendor/cortico/bots/cormini/persona/persona.ts';
 import { gitInstalled } from '../vendor/cortico/bots/cormini/persona/workspaceGit.ts';
-import { ARCHIVE_DIR, AUTHOR_COO, PARTNER_DIR, PARTNER_FILE, PARTNER_NOTE, SNAPSHOT_TAG, arrangePartner, coopanionPersona } from '../core/persona.ts';
+import { ARCHIVE_DIR, AUTHOR_COO, PARTNER_DIR, PARTNER_FILE, PARTNER_NOTE, SNAPSHOT_TAG, arrangePartner, coopanionPersona, deliveryLine } from '../core/persona.ts';
 
 const CoopanionPersona = coopanionPersona(Cormini);
 const ctx = { role: 'main', log: { emit: () => {}, warn: () => {}, error: () => {}, info: () => {}, debug: () => {} } } as never;
@@ -147,5 +147,16 @@ describe('arranging the partner notes', () => {
     expect(git(dir, 'show', `${SNAPSHOT_TAG('2.0.0')}:${PARTNER_DIR}`)).toBe('old notes');
     expect(git(dir, 'show', `HEAD:${PARTNER_DIR}/${PARTNER_DIR}`)).toBe('old notes');
     expect(git(dir, 'status', '--porcelain')).toBe('');
+  });
+});
+
+describe('the delivery line', () => {
+  it('dates every batch, spanning the earliest to the latest event whatever the delivery order', () => {
+    const at = (ts: string) => ({ ts }) as never;
+    expect(deliveryLine([at('2026-11-09T21:30:05.000+08:00')])).toBe('[system] 1 new event, 2026-11-09 Mon 21:30.');
+    expect(deliveryLine([at('2026-11-09T21:42:00.000+08:00'), at('2026-11-09T21:30:00.000+08:00')]))
+      .toBe('[system] 2 new events, 2026-11-09 Mon 21:30–21:42.');
+    expect(deliveryLine([at('2026-11-10T00:03:00.000+08:00'), at('2026-11-09T23:58:00.000+08:00')]))
+      .toBe('[system] 2 new events, 2026-11-09 Mon 23:58 – 2026-11-10 Tue 00:03.');
   });
 });
