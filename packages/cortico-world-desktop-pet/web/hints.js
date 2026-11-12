@@ -4,7 +4,7 @@
  * element, or above it when there is no room below. With `autoClose` (the desktop pet's own window, where the hints
  * name its hover buttons) it closes on its own after SHOW_MS and does not come back until the pointer has left the
  * element; elsewhere it stays while the pointer does. A title set again later replaces the hint the next time.
- * It fades in and out as the settings window's does (`.hint`, pet.css; `.u-tip`, console/styles.css).
+ * It fades in and out as the settings window's hover hints do (`.hint`, pet.css; `.u-tip`, console/styles.css).
  */
 export const DELAY_MS = 450;
 /** How long a hint stays up while the pointer rests on its element, with `autoClose`. */
