@@ -20,15 +20,16 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
   const sockets = [];
   const bodyChanges = [];
   const body = {
-    layout: { busy: false, facing: 1, cursor: '', bubble: { x: 500, y: 400 }, box: { x: 400, y: 300, w: 100, h: 100 } },
+    layout: { busy: false, facing: 1, cursor: '', x: 450, side: { x: 450, y: 350, reach: 60 }, bubble: { x: 500, y: 400 }, box: { x: 400, y: 300, w: 100, h: 100 } },
     set: (change) => bodyChanges.push(change), cue() {}, talk() {},
   };
   win.requestAnimationFrame = () => 0;
   win.fetch = async () => ({ json: async () => [] });
   win.WebSocket = class {
     readyState = 1;
+    sent = [];
     constructor(url) { this.url = new URL(url); sockets.push(this); }
-    send() {}
+    send(text) { this.sent.push(JSON.parse(text)); }
   };
   win.deps = {
     applyTheme: (theme) => { win.document.documentElement.dataset.theme = theme; }, clamp, f, ICONS, linked: (text, n) => linked(text, n, win.document),
@@ -45,7 +46,7 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     runFrames() {},
     fetchLooks, lookAvailable: () => true, lookPicture: () => '', sameLook: (a, b) => a === b,
   };
-  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, closeBubble, stepWheel, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
+  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
@@ -369,5 +370,49 @@ describe('look wheel over the dress button', () => {
     await frames(p);
     expect(reads).toBe(1);
     expect(wheel(p).hidden).toBe(false);
+  });
+});
+
+describe('the right-click menu', () => {
+  const tiles = (p) => [...p.doc.querySelectorAll('.menu .m-tile')].map((b) => b.dataset.action);
+
+  it('holds the hover buttons picked, the same ones the pointer brings up, beside the run controls', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['chat', 'theme'], bot: { controls: true } });
+    p.openMenu();
+    expect(tiles(p)).toEqual(['chat', 'theme']);
+    expect(p.doc.querySelectorAll('.menu .m-rail .tool').length).toBe(3);
+  });
+
+  it('holds every action when none of the picked ones can show, so nothing is out of reach', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: [] });
+    p.openMenu();
+    expect(tiles(p)).toEqual(expect.arrayContaining(['chat', 'voice', 'roam', 'theme', 'sound', 'dress']));
+    // `worlds` needs an app that lends its World list
+    p.onOrder({ t: 'prefs', hoverButtons: ['worlds'] });
+    p.openMenu();
+    expect(tiles(p)).toContain('chat');
+  });
+});
+
+describe('a step that picks several cards', () => {
+  it('lights cards up to the most, waits for one before it can be confirmed, and answers with them in order', async () => {
+    const p = page();
+    p.onOrder({ t: 'dialog', id: 'd', text: '挑几个', input: { kind: 'pick', confirm: '好', max: 2, value: [2, 9], options: [{ label: 'A' }, { label: 'B' }, { label: 'C' }] } });
+    p.step(.01); p.step(3); p.step(.1);
+    const cards = [...p.bubble.querySelectorAll('.d-card')], ok = p.bubble.querySelector('.d-pill.primary');
+    const lit = () => cards.map((c) => c.classList.contains('on'));
+    expect(lit()).toEqual([false, false, true]);
+    cards[0].click();
+    expect(lit()).toEqual([true, false, true]);
+    // at the most: the card not lit waits
+    expect(cards[1].disabled).toBe(true);
+    cards[0].click(); cards[2].click();
+    expect(ok.disabled).toBe(true);
+    cards[2].click(); cards[0].click();
+    await expect.poll(() => p.sockets.length).toBe(1);
+    ok.click();
+    expect(p.sockets.at(-1).sent.find((m) => m.t === 'dialog')).toMatchObject({ id: 'd', picked: [0, 2] });
   });
 });

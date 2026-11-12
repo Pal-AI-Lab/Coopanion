@@ -743,7 +743,7 @@ function showDialogInput(it) {
     const max = Math.max(1, Number(input.max) || 1), min = Math.max(0, Math.min(max, Number(input.min ?? 1)));
     const on = new Set((Array.isArray(input.value) ? input.value : []).filter((i) => Number.isInteger(i) && i >= 0 && i < input.options.length).slice(0, max));
     const row = Object.assign(document.createElement('div'), { className: 'd-row d-foot-row' });
-    const count = Object.assign(document.createElement('span'), { className: 'd-hint d-count' });
+    const count = Object.assign(document.createElement('span'), { className: 'd-hint' });
     const ok = pill(input.confirm, true, () => settleDialog(it, { picked: [...on].sort((a, b) => a - b) }));
     const paint = () => {
       cards.querySelectorAll('.d-card').forEach((c) => {
@@ -752,7 +752,7 @@ function showDialogInput(it) {
         c.setAttribute('aria-pressed', String(lit));
         c.disabled = !lit && on.size >= max;
       });
-      count.textContent = `${input.hint ? input.hint + ' ' : ''}${on.size}/${max}`;
+      count.textContent = `${on.size}/${max}`;
       ok.disabled = on.size < min;
       ok.classList.toggle('need', on.size < min);
     };
@@ -1326,9 +1326,14 @@ function toggleVoice() {
 /* ---------- menu: the run controls as round buttons on Coo's left, the hover buttons in columns on its right ---------- */
 /** Most action buttons in one column, of the menu as of the hover buttons. */
 const MENU_ROWS = 3;
-/** The actions the menu shows: the hover buttons chosen in settings, the same ones the pointer brings up. */
+/**
+ * The actions the menu shows: the hover buttons chosen in settings, the same ones the pointer brings up. With none of
+ * them there to show (none picked, as an older settings page allowed, or only ones this window cannot do), every action
+ * is, so the menu never leaves nothing to reach them by.
+ */
 function menuActions() {
-  return prefs.hoverButtons.filter(available).slice(0, MAX_HOVER);
+  const ids = prefs.hoverButtons.filter(available).slice(0, MAX_HOVER);
+  return ids.length ? ids : Object.keys(ACTIONS).filter(available);
 }
 
 function openMenu() {
@@ -1358,7 +1363,6 @@ function openMenu() {
     });
     grid.appendChild(b);
   }
-  grid.hidden = !ids.length;
   menu.append(rail, grid);
   renderMenuRail();
   stagger(grid);

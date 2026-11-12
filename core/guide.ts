@@ -579,9 +579,9 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
           },
         });
         if ('back' in a) return 'back';
-        const ids = 'picked' in a ? a.picked.map((i) => PET_ACTIONS[i]).filter((id): id is PetAction => !!id) : [];
-        // the same ones as before keep their order; an empty answer leaves them as they were
-        const picked = !ids.length || (ids.length === saved.length && ids.every((id) => saved.includes(id))) ? saved : ids;
+        // in the actions' order, as the Habits page keeps them; an empty answer leaves them as they were
+        const ids = 'picked' in a ? a.picked.map((i) => PET_ACTIONS[i]).filter((id): id is PetAction => !!id).slice(0, MAX_HOVER_BUTTONS) : [];
+        const picked = ids.length ? ids : saved;
         answer('hover_buttons', { ids: picked });
         if (picked.join(',') !== values[HOVER_KEY]) await setPet(HOVER_KEY, picked.join(','));
         return 'answered';

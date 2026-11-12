@@ -171,8 +171,8 @@ export interface PetDialog {
  *   clicked, unfolds its `options` after the others in place; the answer's index counts on through them, and a `value`
  *   among them shows them from the start.
  * - `pick`: cards like `choices`, any number of them picked, from `min` (1 when absent) to `max`, answered with
- *   the indices picked (`picked`), in the cards' order; `value` are the ones picked from the start. `hint` is a line beside
- *   the confirm button.
+ *   the indices picked (`picked`), in the cards' order; `value` are the ones picked from the start. How many are picked
+ *   shows beside the confirm button, which waits for `min`.
  * - `text`: a text box answered with the text; `secret` hides what is typed, `suggestions` are offered
  *   as the person types, `link` opens a page in the browser, `alt` is a second way out, answered as `{ alt: true }`.
  * - `progress`: a bar the app moves with `update({ progress })`; it ends when the app closes it.
@@ -180,7 +180,7 @@ export interface PetDialog {
 export type PetDialogInput =
   | { kind: 'buttons'; options: Array<{ label: string; primary?: boolean; hover?: string }>; keys?: string; taps?: number }
   | { kind: 'choices'; options: PetDialogChoice[]; more?: { label: string; icon?: string; image?: string; options: PetDialogChoice[] }; value?: number; confirm: string; list?: boolean; hint?: { text: string; mark: string; icon: string } }
-  | { kind: 'pick'; options: PetDialogChoice[]; value?: number[]; min?: number; max: number; confirm: string; hint?: string }
+  | { kind: 'pick'; options: PetDialogChoice[]; value?: number[]; min?: number; max: number; confirm: string }
   | { kind: 'text'; submit: string; placeholder?: string; value?: string; secret?: boolean; maxLength?: number; suggestions?: string[]; link?: { label: string; url: string }; alt?: string }
   | { kind: 'progress'; label?: string };
 export type PetDialogChoice = {
