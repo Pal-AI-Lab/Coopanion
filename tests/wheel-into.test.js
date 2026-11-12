@@ -28,6 +28,18 @@ describe('a wheel turned over a box on top of a scroller (shared/ui/problem.ts w
     expect(el.scrollTop).toBe(300);
   });
 
+  it('moves at once by a step smaller than a wheel notch, also while a glide is under way', async () => {
+    const { el, wheel, settle } = scroller();
+    // a touchpad: a few pixels every frame
+    for (let i = 0; i < 40; i++) wheel(4);
+    expect(el.scrollTop).toBe(160);
+    wheel(100);
+    wheel(4);
+    expect(el.scrollTop).toBe(164);
+    await settle();
+    expect(el.scrollTop).toBe(264);
+  });
+
   it('never moves back first when the frame began before the wheel arrived', () => {
     const { el, wheel } = scroller();
     el.scrollTop = 500;

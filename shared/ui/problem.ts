@@ -74,32 +74,56 @@ export function scrollerOf(el: Element | null): HTMLElement | null {
   return null;
 }
 
+/** One line of a wheel that counts in lines, in pixels. */
+const WHEEL_LINE_PX = 16;
+
 /** A wheel event's vertical distance in pixels. */
 export function wheelDelta(event: WheelEvent): number {
-  return event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? (event.view?.innerHeight ?? 800) : 1);
+  return event.deltaY * (event.deltaMode === 1 ? WHEEL_LINE_PX : event.deltaMode === 2 ? (event.view?.innerHeight ?? 800) : 1);
 }
 
 /** Time constant of a forwarded wheel's glide: the distance left falls to 1/e every this many milliseconds. */
 const WHEEL_GLIDE_MS = 36;
+/**
+ * The smallest wheel step that glides, in pixels: three lines, the least one notch of a mouse wheel scrolls at the
+ * usual three lines a notch (Chromium on Windows sends 100 px for it). A touchpad or a fine-stepped wheel sends smaller
+ * steps every frame, and those already move the scroller evenly. Eased, the scroller would run behind them by
+ * e^-k / (1 - e^-k) steps with k = 16 / WHEEL_GLIDE_MS, 1.8 steps at one step per 16 ms frame, and would go on moving
+ * after the fingers stop.
+ */
+const WHEEL_NOTCH_PX = 3 * WHEEL_LINE_PX;
 const glides = new WeakMap<HTMLElement, { to: number; at: number; frame: number; wrote: number }>();
 /**
  * Scrolls `target` by a wheel turned over something on top of it or beside it (a floating box, a header): the same
- * distance, eased. Steps that come while it glides extend where it is going. Ctrl with the wheel (zooming) and a wheel
- * turned sideways are left to the browser; any other change to `target.scrollTop` meanwhile (its scrollbar, a key, the
- * page putting it back where it was) ends the glide.
+ * distance, eased for a step of WHEEL_NOTCH_PX or more and at once for a smaller one. Steps that come while it glides
+ * extend where it is going. Ctrl with the wheel (zooming) and a wheel turned sideways are left to the browser; any other
+ * change to `target.scrollTop` meanwhile (its scrollbar, a key, the page putting it back where it was) ends the glide.
  */
 export function wheelInto(target: HTMLElement, event: WheelEvent): void {
   if (event.ctrlKey || !event.deltaY) return;
   event.preventDefault();
   const win = target.ownerDocument.defaultView;
   const max = target.scrollHeight - target.clientHeight;
-  if (!win || win.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { target.scrollBy({ top: wheelDelta(event) }); return; }
+  const pixels = wheelDelta(event);
+  if (!win || win.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { target.scrollBy({ top: pixels }); return; }
   let glide = glides.get(target);
   if (!glide) { glide = { to: 0, at: 0, frame: 0, wrote: 0 }; glides.set(target, glide); }
   const g = glide;
+  if (Math.abs(pixels) < WHEEL_NOTCH_PX) {
+    const from = target.scrollTop;
+    target.scrollTop = from + pixels;
+    // a glide under way keeps the distance it has left
+    if (g.frame && Math.abs(from - g.wrote) <= 1) {
+      const moved = target.scrollTop - from;
+      g.at += moved;
+      g.to = Math.max(0, Math.min(max, g.to + moved));
+      g.wrote = target.scrollTop;
+    }
+    return;
+  }
   // the scroller moved some other way since (its own wheel, its scrollbar): go on from where it is
   if (!g.frame) g.at = g.to = target.scrollTop;
-  g.to = Math.max(0, Math.min(max, g.to + wheelDelta(event)));
+  g.to = Math.max(0, Math.min(max, g.to + pixels));
   if (g.frame) return;
   g.wrote = target.scrollTop;
   let last = win.performance.now();
