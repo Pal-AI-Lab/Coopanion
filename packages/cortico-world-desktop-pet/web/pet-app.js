@@ -1184,15 +1184,12 @@ function stepLines() {
 }
 
 /* ---------- activity: the same bubble, with conversation always taking priority ---------- */
-/** `countFrom`: when the wanted status's countdown started, in performance.now() milliseconds; the frames stop while the window is hidden. */
-const status = { wanted: null, since: 0, shown: null, shownAt: 0, fadeAt: null, countFrom: 0 };
+const status = { wanted: null, since: 0, shown: null, shownAt: 0, fadeAt: null };
 function setStatus(next) {
   setBody({ thinking: next?.kind === 'think', status: next?.kind ?? null });
   const prev = status.wanted;
-  if (prev?.kind === next?.kind && prev?.text === next?.text && prev?.detail === next?.detail && prev?.count === next?.count && prev?.countdown === next?.countdown) return;
+  if (prev?.kind === next?.kind && prev?.text === next?.text && prev?.detail === next?.detail && prev?.count === next?.count && prev?.endsAt === next?.endsAt) return;
   if (prev?.kind !== next?.kind) status.since = T;
-  // a countdown starts when it arrives; a later count of calls beside it leaves it running
-  if (next?.countdown !== undefined && next.countdown !== prev?.countdown) status.countFrom = performance.now();
   status.wanted = next;
 }
 function drawStatus(next, pop) {
@@ -1214,11 +1211,11 @@ function drawStatus(next, pop) {
   bubble.hidden = false;
   if (pop) { bubble.classList.remove('pop'); void bubble.offsetWidth; bubble.classList.add('pop'); }
 }
-/** The status's words around the seconds left: a countdown shows the whole seconds left, and nothing once they run out. */
+/** The status's words around the seconds left: a countdown shows the whole seconds left to `endsAt`, and nothing once they run out. */
 function statusParts(s) {
-  const seconds = s.countdown === undefined ? 0 : Math.ceil(s.countdown - (performance.now() - status.countFrom) / 1000);
+  const seconds = s.endsAt === undefined ? 0 : Math.ceil((s.endsAt - Date.now()) / 1000);
   return {
-    head: s.text + (s.countdown === undefined && s.detail ? ` · ${s.detail}` : ''),
+    head: s.text + (s.endsAt === undefined && s.detail ? ` · ${s.detail}` : ''),
     left: seconds > 0 ? ` · ${t('status.seconds', { seconds })}` : '',
     tail: s.count > 1 ? t('status.more', { others: s.count - 1 }) : '',
   };
@@ -1238,7 +1235,7 @@ function stepStatus() {
   const next = status.wanted, shown = status.shown;
   if (next?.kind === 'think' && T - status.since < .6) return;
   if (shown && next && shown.kind === next.kind && shown.text === next.text) {
-    if (shown !== next || status.fadeAt !== null || (next.countdown !== undefined && bubble.querySelector('.status-text')?.textContent !== statusLabel(next))) drawStatus(next, false);
+    if (shown !== next || status.fadeAt !== null || (next.endsAt !== undefined && bubble.querySelector('.status-text')?.textContent !== statusLabel(next))) drawStatus(next, false);
     status.shown = next; status.fadeAt = null;
   } else if (!shown || T - status.shownAt >= 1.2) {
     if (next) {

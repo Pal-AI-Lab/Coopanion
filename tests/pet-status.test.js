@@ -545,10 +545,10 @@ describe('the alert for a confirmation', () => {
 describe('a countdown in the activity bubble', () => {
   const clock = (p) => {
     let now = 0;
-    p.win.performance.now = () => now;
+    p.win.Date.now = () => now;
     return (seconds) => { now += seconds * 1000; p.step(.01); };
   };
-  const wait = { kind: 'wait', text: '在等待', countdown: 3 };
+  const wait = { kind: 'wait', text: '在等待', endsAt: 3000 };
 
   it('shows the whole seconds left and drops the number when they run out', () => {
     const p = page();
@@ -585,7 +585,15 @@ describe('a countdown in the activity bubble', () => {
     expect(first).toEqual(['在等待', '在等待']);
   });
 
-  it('counts from when the status arrives, also while a line holds the bubble', () => {
+  it('counts to the end it was given, however late the status arrives', () => {
+    const p = page();
+    const pass = clock(p);
+    pass(1.5);
+    show(p, wait); pass(0);
+    expect(p.bubble.textContent).toBe(`在等待 · ${t('status.seconds', { seconds: 2 })}`);
+  });
+
+  it('keeps counting while a line holds the bubble', () => {
     const p = page();
     const pass = clock(p);
     p.onOrder({ t: 'say', id: 's', beats: [{ text: '好', actions: [], anchors: [] }] });

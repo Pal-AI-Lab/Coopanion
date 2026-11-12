@@ -15,8 +15,10 @@ export interface PetStatus {
   text: string;
   detail?: string;
   count?: number;
-  /** Seconds the call lasts. StatusTracker passes it on only while the call runs; the page counts down from when it arrives. */
+  /** Seconds the call lasts, from a DescribeTool; StatusTracker turns it into `endsAt` once the call runs. */
   countdown?: number;
+  /** When the running call's countdown ends, in Date.now() milliseconds, the same however late a page connects. */
+  endsAt?: number;
 }
 
 /** A call's arguments: the parsed object, or the JSON text streamed so far. */
@@ -48,7 +50,8 @@ export function numberArg(args: ToolArgs, key: string): number | undefined {
 
 const defaultStatus = (name: string, busy: string): PetStatus | null => (name.startsWith('pet_') ? null : { kind: 'work', text: busy });
 
-interface Call { name: string; args: string; done: boolean; status: PetStatus | null }
+/** `endsAt`: set from the status's countdown when the call starts running. */
+interface Call { name: string; args: string; done: boolean; status: PetStatus | null; endsAt?: number }
 
 export class StatusTracker {
   private readonly calls = new Map<string, Call>();
@@ -129,8 +132,8 @@ export class StatusTracker {
   }
 
   /**
-   * The latest run of calls of one kind: its last wording, its first detail, and how many; and the countdown of the
-   * call in it that runs now, the calls of one name running in the order they were written.
+   * The latest run of calls of one kind: its last wording, its first detail, and how many; and when the countdown of the
+   * call in it that runs now ends, the calls of one name running in the order they were written.
    */
   private update(): void {
     const calls = [...this.calls.values()];
@@ -146,13 +149,15 @@ export class StatusTracker {
     const lead = run[0]?.status;
     if (!last || !lead) { this.set(calls.at(-1)?.done ? null : THINK); return; }
     const runs = (c: Call) => this.running.includes(c.name) && calls.filter((o) => o.name === c.name).indexOf(c) === (this.started.get(c.name) ?? 0) - 1;
-    const countdown = run.find((c) => c.status?.countdown !== undefined && runs(c))?.status?.countdown;
-    this.set({ kind: last.kind, text: last.text, ...(lead.detail ? { detail: lead.detail } : {}), ...(countdown !== undefined ? { countdown } : {}), ...(run.length > 1 ? { count: run.length } : {}) });
+    const counting = run.find((c) => c.status?.countdown !== undefined && runs(c));
+    if (counting) counting.endsAt ??= Date.now() + counting.status!.countdown! * 1000;
+    const endsAt = counting?.endsAt;
+    this.set({ kind: last.kind, text: last.text, ...(lead.detail ? { detail: lead.detail } : {}), ...(endsAt !== undefined ? { endsAt } : {}), ...(run.length > 1 ? { count: run.length } : {}) });
   }
 
   private set(status: PetStatus | null): void {
     const c = this.current;
-    if (c?.kind === status?.kind && c?.text === status?.text && c?.detail === status?.detail && c?.countdown === status?.countdown && c?.count === status?.count) return;
+    if (c?.kind === status?.kind && c?.text === status?.text && c?.detail === status?.detail && c?.endsAt === status?.endsAt && c?.count === status?.count) return;
     this.current = status;
     this.changed(status);
   }
