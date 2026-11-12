@@ -550,7 +550,7 @@
   .u-tip { position: fixed; z-index: 130; pointer-events: none; box-sizing: border-box; width: max-content; max-width: min(268px, calc(100vw - 16px)); background: var(--sheet); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 9px 11px; box-shadow: 0 18px 48px -28px var(--shadow-strong); font: 12px var(--sans); color: var(--ink); overflow-wrap: anywhere; animation: hover-hint-in 120ms ease-out; }
   .u-tip.hidden { display: none; }
   .u-tip.hover-hint { max-width: min(280px, calc(100vw - 16px)); padding: 5px 9px; border-radius: 8px; font: 12px/1.45 var(--sans); box-shadow: 0 6px 18px -8px var(--shadow-strong); }
-  .u-tip.leaving { animation: hover-hint-out 120ms ease-in forwards; }
+  .u-tip.leaving { animation: hover-hint-out 120ms ease-in forwards; pointer-events: none; }
   @keyframes hover-hint-in { from { opacity: 0; } }
   @keyframes hover-hint-out { to { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .u-tip, .u-tip.leaving { animation: none; } }
