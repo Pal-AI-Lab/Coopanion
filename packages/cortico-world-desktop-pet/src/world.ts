@@ -1235,7 +1235,7 @@ export class DesktopPetWorld implements World {
         if (!settle) return;
         this.dialogs.delete(String(msg.id));
         settle(typeof msg.index === 'number' ? { index: msg.index }
-          : Array.isArray(msg.picked) ? { picked: [...new Set(msg.picked.filter((i): i is number => Number.isInteger(i) && i >= 0 && i < 100))].sort((a, b) => a - b) }
+          : Array.isArray(msg.picked) ? { picked: [...new Set(msg.picked.filter((i): i is number => Number.isInteger(i) && i >= 0))].sort((a, b) => a - b) }
           : typeof msg.text === 'string' ? { text: msg.text.slice(0, 2000) }
           : msg.alt ? { alt: true } : msg.closed ? { closed: true } : msg.back ? { back: true } : { done: true });
         return;
@@ -1304,7 +1304,8 @@ export class DesktopPetWorld implements World {
     let settle: (a: PetDialogAnswer) => void = () => {};
     const answer = new Promise<PetDialogAnswer>((resolve) => { settle = resolve; });
     if (!this.server.sendPet({ t: 'dialog', id, ...d, input, actions })) settle({ unavailable: true });
-    else this.dialogs.set(id, settle);
+    // a pick is answered with indices of its own cards
+    else this.dialogs.set(id, input?.kind === 'pick' ? (a) => settle('picked' in a ? { picked: a.picked.filter((i) => i < input.options.length) } : a) : settle);
     // a page that never reports back (a tab put to sleep) does not hold a line with nothing to answer forever
     if (!d.input && this.dialogs.has(id)) {
       const timer = setTimeout(() => this.dialogs.get(id)?.({ done: true }), 5000 + d.text.length / DIALOG_CPS * 1000);
