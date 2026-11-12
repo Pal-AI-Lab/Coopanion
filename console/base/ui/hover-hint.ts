@@ -6,6 +6,7 @@
  * has its full text as the hint. The rail has no hints: its folded tooltip names its items, and a
  * title there, such as a World status dot's, is only taken away.
  */
+import { hideTip, showTip } from './tip.ts';
 const DELAY_MS = 450;
 const EDGE = 8;
 
@@ -33,11 +34,13 @@ export function mountHoverHints(doc: Document, signal: AbortSignal): void {
   let current: HTMLElement | null = null;
   let timer = 0;
 
-  const hide = (): void => { win.clearTimeout(timer); current = null; box.classList.add('hidden'); };
+  /** Leaving one element for another, or for none: the hint fades out; a press, a key or a scroll hides it at once. */
+  const hide = (soft = false): void => { win.clearTimeout(timer); current = null; hideTip(box, !soft); };
   const show = (el: HTMLElement, text: string): void => {
     if (!el.isConnected) return;
+    hideTip(box, true);
     box.textContent = text;
-    box.classList.remove('hidden');
+    showTip(box);
     const rect = el.getBoundingClientRect();
     const { offsetWidth: width, offsetHeight: height } = box;
     const below = rect.bottom + 6;
@@ -58,7 +61,7 @@ export function mountHoverHints(doc: Document, signal: AbortSignal): void {
     const cut = !titled && target instanceof win.HTMLElement ? cutText(target) : '';
     const el = titled ?? (cut ? target as HTMLElement : null);
     if (el === current) return;
-    hide();
+    hide(true);
     if (!el || el instanceof HTMLIFrameElement) return;
     const text = titled ? takeTitle(el) : cut;
     // In the rail a title (a World's status dot) is only taken away: the rail shows no hints.
@@ -67,10 +70,10 @@ export function mountHoverHints(doc: Document, signal: AbortSignal): void {
     timer = win.setTimeout(() => show(el, text), DELAY_MS);
   }, { signal });
   doc.addEventListener('pointerout', (event) => {
-    if (current && !current.contains(event.relatedTarget as Node | null)) hide();
+    if (current && !current.contains(event.relatedTarget as Node | null)) hide(true);
   }, { signal });
-  for (const type of ['pointerdown', 'keydown', 'wheel'] as const) doc.addEventListener(type, hide, { capture: true, signal });
-  doc.addEventListener('scroll', hide, { capture: true, passive: true, signal });
-  win.addEventListener('blur', hide, { signal });
-  signal.addEventListener('abort', () => { win.clearTimeout(timer); box.remove(); }, { once: true });
+  for (const type of ['pointerdown', 'keydown', 'wheel'] as const) doc.addEventListener(type, () => hide(), { capture: true, signal });
+  doc.addEventListener('scroll', () => hide(), { capture: true, passive: true, signal });
+  win.addEventListener('blur', () => hide(), { signal });
+  signal.addEventListener('abort', () => { win.clearTimeout(timer); hideTip(box, true); box.remove(); }, { once: true });
 }

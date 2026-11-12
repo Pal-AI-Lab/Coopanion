@@ -880,3 +880,71 @@ describe("the bot's name", () => {
     await expect.poll(() => chat.last('init')?.bot).toBe('Mochi');
   });
 });
+
+describe('size on screen', () => {
+  /** The World as it runs: its patches deep-merged into the live config, arrays replaced. */
+  async function sized() {
+    const merge = (target: Record<string, unknown>, patch: Record<string, unknown>) => {
+      for (const [k, v] of Object.entries(patch)) {
+        if (v && typeof v === 'object' && !Array.isArray(v) && target[k] && typeof target[k] === 'object') merge(target[k] as Record<string, unknown>, v as Record<string, unknown>);
+        else target[k] = v;
+      }
+    };
+    let cfg: DesktopPetConfigSection | null = null;
+    const made = await mounted(undefined, { persist: (p) => merge(cfg as unknown as Record<string, unknown>, p as Record<string, unknown>) });
+    cfg = made.cfg;
+    const post = (path: string, body: unknown) => fetch(`${origin(made.world)}${path}`, { method: 'POST', body: JSON.stringify(body) });
+    return { ...made, post };
+  }
+  const coo = DESKTOP_PET_DEFAULTS.skin;
+  const whale = { ...DESKTOP_PET_DEFAULTS.skin, figure: 'whale', scheme: '' };
+
+  it('each figure keeps the size it had, and takes it back when put on again', async () => {
+    const { cfg, post } = await sized();
+    await post('/api/prefs', { scale: 1.5 });
+    expect(cfg.window.scale).toBe(1.5);
+    await post('/api/skin', { skin: whale });
+    // a figure with no size of its own keeps the one on screen
+    expect(cfg.window.scale).toBe(1.5);
+    expect(cfg.figureScales).toEqual({ coo: 1.5 });
+    await post('/api/prefs', { scale: .8 });
+    await post('/api/skin', { skin: coo });
+    expect(cfg.window.scale).toBe(1.5);
+    expect(cfg.figureScales).toEqual({ coo: 1.5, whale: .8 });
+  });
+
+  it('a size set elsewhere just before a figure is put on stays with the figure it was set for', async () => {
+    const { cfg, post } = await sized();
+    cfg.figureScales = { whale: .8 };
+    // the settings window writes the config directly, between two of the World's syncs
+    cfg.window.scale = 1.7;
+    await post('/api/skin', { skin: whale });
+    expect(cfg.figureScales.coo).toBe(1.7);
+    expect(cfg.window.scale).toBe(.8);
+  });
+
+  it('a figure put on together with a size takes that size', async () => {
+    const { cfg, post } = await sized();
+    cfg.figureScales = { whale: .8 };
+    await post('/api/skin', { skin: whale, scale: 2.5 });
+    expect(cfg.window.scale).toBe(2.5);
+    expect(cfg.figureScales).toEqual({ whale: .8, coo: DESKTOP_PET_DEFAULTS.window.scale });
+  });
+
+  it('sizes from the pages are kept in range and in steps, and others are ignored', async () => {
+    const { cfg, post } = await sized();
+    await post('/api/prefs', { scale: 1.234 });
+    expect(cfg.window.scale).toBe(1.25);
+    await post('/api/prefs', { scale: 99 });
+    await post('/api/skin', { skin: coo, scale: 'big' });
+    expect(cfg.window.scale).toBe(1.25);
+  });
+
+  it('a saved look keeps its size when it has one in range', async () => {
+    const { post } = await sized();
+    const looks = [{ id: 'a', name: 'A', skin: coo, scale: 3 }, { id: 'b', name: 'B', skin: whale, scale: 99 }, { id: 'c', name: 'C', skin: coo }];
+    expect(await (await post('/api/looks', { looks })).json()).toEqual([
+      { id: 'a', name: 'A', skin: coo, scale: 3 }, { id: 'b', name: 'B', skin: whale }, { id: 'c', name: 'C', skin: coo },
+    ]);
+  });
+});

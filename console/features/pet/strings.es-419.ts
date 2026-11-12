@@ -92,7 +92,7 @@ export const S: Partial<typeof en> = {
   selfItems: { figure: 'Personaje', scheme: 'Atuendo', roam: 'Paseos', snoreSeconds: 'Duración del ronquido', sound: 'Sonidos', scale: 'Tamaño', bubbleSize: 'Tamaño de las burbujas', fontSize: 'Tamaño del texto', theme: 'Modo nocturno', hoverButtons: 'Botones al pasar el cursor', user: 'Cómo llamarte' },
   popupSave: 'Guardar',
   popupCancel: 'Cancelar',
-  actions: { chat: 'Escribir', voice: 'Entrada de voz', roam: 'Paseos', theme: 'Modo nocturno', sound: 'Sonidos', dress: 'Vestuario', hide: 'Ocultar mascota', worlds: 'Mis Worlds' },
+  actions: { chat: 'Escribir', voice: 'Entrada de voz', roam: 'Paseos', theme: 'Modo nocturno', sound: 'Sonidos', size: 'Tamaño', dress: 'Vestuario', hide: 'Ocultar mascota', worlds: 'Mis Worlds' },
   saveFailed: (why: string) => `No se guardó: ${why}`,
   stats: 'Estadísticas de uso anónimas',
   statsHint: 'Envía conteos, tiempo de uso y configuración; nunca conversaciones, API Keys ni archivos.',

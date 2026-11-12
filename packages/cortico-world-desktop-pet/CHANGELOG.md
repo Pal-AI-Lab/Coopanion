@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Each figure keeps its own size: the config's `figureScales` holds, per pack id, the `window.scale` a figure had when another replaced it, and a figure put on takes its own back unless the size changed with it. `POST /api/prefs` takes `scale`, and `POST /api/skin` an optional `scale` to put the look on at. Saved looks keep an optional `scale` (`SavedLook.scale`); one without it is put on at the size on screen.
+- `size` is a pet action (`PET_ACTIONS`, `hoverButtons`): hovering its button shows a size slider over the body. The dressing page has a size row under the figures. Both draw the slider of `web/scale-slider.js`.
 - `PetStatus` may carry `countdown`, the seconds a call lasts. `StatusTracker` passes it on only while that call runs (RunPhase `running`), and the page shows the whole seconds left after `text`, out of what screen readers read. A describer that sets no `countdown` behaves as before. `waitSeconds(seconds)` is exported: how long `pet_cua_wait` waits for an argument, 0–30, 1 when absent.
 - Sound kind `alert` (`worlds.desktop-pet.sounds.alert`, on by default) plays once as a confirmation bubble shows. Packs cannot file sounds under it.
 - A click on a line's bubble, away from its links, ends the whole line; questions and confirmations still close only by their × or an answer.

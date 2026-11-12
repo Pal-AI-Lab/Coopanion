@@ -31,7 +31,7 @@ import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
 import {
   DESKTOP_PET_ID, MAX_HOVER_BUTTONS, MAX_LOOK_NAME, MAX_SAVED_LOOKS, PET_ACTIONS, SELF_KEYS, THRESHOLD_DB_MAX, THRESHOLD_DB_MIN, TOUCH_KINDS, USER_MAX, asrEngineFor,
-  desktopPetConfigGroups, directSettings, hoverButtonList, selfAdjustMode, speechFor, touchWakes,
+  desktopPetConfigGroups, directSettings, hoverButtonList, scaleOf, selfAdjustMode, speechFor, touchWakes,
   type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type SavedLook, type RoamMode, type SelfKey,
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
@@ -443,6 +443,7 @@ export class DesktopPetWorld implements World {
 
   constructor(private readonly opts: DesktopPetWorldOptions) {
     this.cfg = opts.cfg;
+    this.sized = { figure: this.cfg.skin.figure ?? COO, scale: this.cfg.window.scale };
     this.cua = new Cua({
       cfg: () => this.cfg.cua,
       botName: opts.botName,
@@ -469,7 +470,7 @@ export class DesktopPetWorld implements World {
       onAudio: (frame) => this.onAudio(frame),
       onPetConnect: () => { this.petHidden = false; this.bodyMissing = null; this.log?.info('桌宠页面已连接'); this.tellDesktop(); },
       onPetDisconnect: () => this.onPageGone(),
-      onSkin: (skin) => this.saveSkin(skin),
+      onSkin: (skin, scale) => this.saveSkin(skin, scale),
       onPrefs: (prefs) => this.savePrefs(prefs),
       looks: () => this.cfg.looks,
       onLooks: (looks) => this.saveLooks(looks),
@@ -501,6 +502,8 @@ export class DesktopPetWorld implements World {
   private toldMoves: readonly MoveTarget[] = [];
   /** A look the bot put on itself: the pet page's report of it is not told back (the receipt said it). */
   private botLook: string | null = null;
+  /** The figure on screen and its size as `followFigure` last saw them. */
+  private sized: { figure: string; scale: number };
   /** `pet_quiet` in force: what it overrides, until when, and the settings it found (a change to them ends it). */
   private quiet: { sound: boolean; roam: RoamMode; until: number; base: { sound: boolean; roam: RoamMode }; timer: NodeJS.Timeout } | null = null;
 
@@ -975,6 +978,7 @@ export class DesktopPetWorld implements World {
 
   /** Config is a live object edited by the console; changes reach the pages within PREFS_SYNC_MS. */
   private syncPrefs(): void {
+    this.followFigure();
     this.segmenter.configure(this.segmentConfig());
     if (!this.holdPreRollEnabled()) this.holdPreRoll.length = 0;
     const turnedOn = this.cfg.asr.enabled && !this.voiceEnabled;
@@ -1047,11 +1051,28 @@ export class DesktopPetWorld implements World {
     };
   }
 
-  private saveSkin(raw: unknown): void {
+  /** Puts on `raw`; with `scale` (a saved look's) at that size, else at the size the figure last had (`followFigure`). */
+  private saveSkin(raw: unknown, scale?: unknown): void {
     if (!raw || typeof raw !== 'object') return;
+    // a size set elsewhere since the last sync (the settings window) belongs to the figure on screen, not to this one
+    this.followFigure();
     const skin = raw as PetSkin;
-    this.opts.persist({ skin });
+    const size = scaleOf(scale);
+    this.opts.persist(size === null ? { skin } : { skin, window: { scale: size } });
     this.syncPrefs();
+  }
+
+  /**
+   * Each figure keeps its own size: when the figure on screen changes, the one replaced keeps the size it had in
+   * `figureScales`, and the new one takes its own back from there, unless the size changed along with it.
+   */
+  private followFigure(): void {
+    const figure = this.cfg.skin.figure ?? COO, scale = this.cfg.window.scale;
+    const was = this.sized;
+    if (figure === was.figure) { was.scale = scale; return; }
+    const own = scale === was.scale ? scaleOf(this.cfg.figureScales[figure]) : null;
+    this.opts.persist({ figureScales: { [was.figure]: was.scale }, ...(own !== null && own !== scale ? { window: { scale: own } } : {}) });
+    this.sized = { figure, scale: own ?? scale };
   }
 
   /** Keeps the entries that have an id, a name and a skin; names are trimmed to MAX_LOOK_NAME (an empty one becomes the id), the list to MAX_SAVED_LOOKS. */
@@ -1061,10 +1082,11 @@ export class DesktopPetWorld implements World {
     const looks: SavedLook[] = [];
     for (const l of raw) {
       if (!l || typeof l !== 'object') continue;
-      const { id, name, skin } = l as Record<string, unknown>;
+      const { id, name, skin, scale } = l as Record<string, unknown>;
       if (typeof id !== 'string' || !id || seen.has(id) || typeof name !== 'string' || !skin || typeof skin !== 'object') continue;
       seen.add(id);
-      looks.push({ id, name: name.trim().slice(0, MAX_LOOK_NAME) || id, skin: skin as PetSkin });
+      const size = scaleOf(scale);
+      looks.push({ id, name: name.trim().slice(0, MAX_LOOK_NAME) || id, skin: skin as PetSkin, ...(size === null ? {} : { scale: size }) });
       if (looks.length === MAX_SAVED_LOOKS) break;
     }
     this.opts.persist({ looks });
@@ -1077,6 +1099,8 @@ export class DesktopPetWorld implements World {
     // the menu's sound or roam button during a quiet: the person's choice, kept, and the quiet is over
     if (this.quiet && (patch.roam !== undefined || patch.sound !== undefined)) this.endQuiet();
     if (prefs.theme === 'dark' || prefs.theme === 'light') patch.theme = prefs.theme as PetTheme;
+    const scale = scaleOf(prefs.scale);
+    if (scale !== null) patch.window = { scale };
     if (typeof prefs.mic === 'boolean') patch.asr = { enabled: prefs.mic };
     if (Array.isArray(prefs.hoverButtons)) {
       const ids = prefs.hoverButtons.filter((id): id is string => typeof id === 'string' && (PET_ACTIONS as readonly string[]).includes(id));
@@ -1963,6 +1987,7 @@ export class DesktopPetWorld implements World {
     if (!changes.length) return { text: t.setNothing };
     const lines: string[] = [];
     const apply = (list: SettingChange[]) => {
+      this.followFigure();
       for (const c of list) this.opts.persist(c.patch);
       const skin = this.cfg.skin;
       if (list.some((c) => c.key === 'figure' || c.key === 'scheme')) this.botLook = (skin.figure ?? COO) === COO ? COO : `${skin.figure}:${skin.scheme ?? ''}`;
