@@ -45,6 +45,7 @@ export const S: Partial<typeof en> = {
     snore: ['Schnarchen', 'Schnarcht im Schlaf'],
     talk: ['Sprechen', 'Das Geplapper, während Sprechblasentext erscheint, aufpoppende Auswahlkarten'],
     ui: ['Schaltflächen und Signale', 'Schaltflächenklicks, sich öffnende Sprechblasen, Auswahlen, Beginn und Ende des Zuhörens'],
+    alert: ['Hinweise', 'Das Signal, wenn Coo vor der Nutzung des Computers um Erlaubnis fragt'],
   },
   snore: 'Schnarchdauer',
   snoreUnit: 's',

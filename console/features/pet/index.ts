@@ -112,7 +112,7 @@ const ACTIONS: ReadonlyArray<[id: string, icon: string]> = [
   ['chat', 'chat'], ['voice', 'mic'], ['roam', 'roam_calm'], ['theme', 'moon'], ['sound', 'sound'], ['hide', 'eyeOff'], ['dress', 'shirt'], ['worlds', 'boxes'],
 ];
 /** Kinds of sound (the World's SOUND_KINDS), each under `worlds.desktop-pet.sounds.<kind>`. */
-const SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk', 'ui'] as const;
+const SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk', 'ui', 'alert'] as const;
 /** The speech's steps, their numbers and the range of a custom one (SPEECH_LEVELS, SPEECH_PITCH_HZ, SPEECH_RATE in the World's config.ts). */
 const SPEECH_LEVELS = ['low', 'mid', 'high', 'custom'] as const;
 const SPEECH_PITCH = { steps: { low: 300, mid: 400, high: 500 } as Record<string, number>, min: 200, max: 700 };
