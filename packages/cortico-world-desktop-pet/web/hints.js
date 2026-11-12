@@ -6,7 +6,7 @@
  */
 export const DELAY_MS = 450;
 /** How long a hint stays up while the pointer rests on its element. */
-export const SHOW_MS = 1500;
+export const SHOW_MS = 1000;
 const EDGE = 8;
 
 function takeTitle(el) {
