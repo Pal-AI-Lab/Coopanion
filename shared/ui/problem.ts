@@ -79,6 +79,38 @@ export function wheelDelta(event: WheelEvent): number {
   return event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? (event.view?.innerHeight ?? 800) : 1);
 }
 
+/** How quickly a forwarded wheel glides: the distance left shrinks by e every this many milliseconds, as a wheel over the scroller itself glides. */
+const WHEEL_GLIDE_MS = 36;
+const glides = new WeakMap<HTMLElement, { to: number; at: number; frame: number }>();
+/**
+ * Scrolls `target` for a wheel turned over something on top of it or beside it (a floating box, a header): the same
+ * distance as over `target` itself, and gliding there as the browser's own wheel scrolling does instead of jumping.
+ * Steps that come while it glides add to where it is going, so a quick spin goes as far as over `target`.
+ */
+export function wheelInto(target: HTMLElement, event: WheelEvent): void {
+  event.preventDefault();
+  const win = target.ownerDocument.defaultView;
+  const max = target.scrollHeight - target.clientHeight;
+  if (!win || win.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { target.scrollBy({ top: wheelDelta(event) }); return; }
+  let glide = glides.get(target);
+  if (!glide) { glide = { to: target.scrollTop, at: target.scrollTop, frame: 0 }; glides.set(target, glide); }
+  const g = glide;
+  // the scroller moved some other way since (its own wheel, its scrollbar): go on from where it is
+  if (!g.frame) g.at = g.to = target.scrollTop;
+  g.to = Math.max(0, Math.min(max, g.to + wheelDelta(event)));
+  if (g.frame) return;
+  let last = win.performance.now();
+  const step = (now: number) => {
+    const left = g.to - g.at;
+    g.at += left * (1 - Math.exp(-(now - last) / WHEEL_GLIDE_MS));
+    last = now;
+    if (Math.abs(g.to - g.at) < .5) g.at = g.to;
+    target.scrollTop = g.at;
+    g.frame = g.at === g.to ? 0 : win.requestAnimationFrame(step);
+  };
+  g.frame = win.requestAnimationFrame(step);
+}
+
 export function problemPopover(doc: Document, signal: AbortSignal, language = doc.documentElement.lang): ProblemPopover {
   if (signal.aborted) return { show() {}, hide() {}, open: false };
   let pagePopovers = popovers.get(doc);
@@ -118,7 +150,7 @@ export function problemPopover(doc: Document, signal: AbortSignal, language = do
     const message = (event.target as Element).closest('.extension-problem-text');
     if (message && message.scrollHeight > message.clientHeight) return;
     const target = scrollerOf(anchor);
-    if (target) { event.preventDefault(); target.scrollBy({ top: wheelDelta(event) }); }
+    if (target) wheelInto(target, event);
   }, { passive: false, signal });
   doc.addEventListener('pointerdown', event => { if (anchor && !box.contains(event.target as Node)) hide(); }, { signal });
   doc.addEventListener('click', event => { if (anchor?.contains(event.target as Node)) hide(); }, { capture: true, signal });
