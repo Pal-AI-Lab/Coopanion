@@ -16,7 +16,7 @@ import type { WebUiLamp } from 'cortico/web/shared/webui-protocol.ts';
 import { buildHash, type Route, type Router } from '../base/router.ts';
 import { icon, type ConsoleIconName } from '../base/ui/icons.ts';
 import { notice } from '../base/ui/index.ts';
-import { lampRow, paintLamps } from '../base/ui/lamp.ts';
+import { countLamps, lampRow, paintLamps } from '../base/ui/lamp.ts';
 import type { ConsoleMode } from '../features/mode.ts';
 import { onNameSaved } from '../features/bot-name.ts';
 import { sidebarBrand } from './brand.ts';
@@ -119,6 +119,7 @@ export function createRail(deps: RailDeps): Rail {
       entry.pageId = it.pageId;
       entry.lamps = lampRow(doc, lamps[it.pageId] ?? it.lamps ?? []);
       item.append(entry.lamps);
+      countLamps(entry.lamps);
     }
     // a modified or middle click keeps the browser's own behaviour
     item.addEventListener('click', (ev) => {
