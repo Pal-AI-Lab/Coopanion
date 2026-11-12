@@ -269,6 +269,23 @@
       }
     },
     {
+      "name": "pet_see_self",
+      "description": "See yourself as you are drawn on screen at the moment of the call. Returns one picture of the body alone, the figure in its dress, pose and expression on a plain grey backdrop, without bubbles or the desktop, and a line naming the figure and its dress. Fails while the pet window is hidden or not connected: nothing is drawn then.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "tags": [
+        "read",
+        "snapshot"
+      ],
+      "summary": {
+        "zh": "取一张桌宠身体此刻在屏幕上的图,不含气泡和桌面。",
+        "en": "Takes a picture of the pet's body as it is on screen right now, without bubbles or the desktop."
+      }
+    },
+    {
       "name": "pet_cua_open_settings",
       "description": "Computer use is off. Open the settings window at its switch, where the person reads what turning it on risks and can turn it on. Only after the person has agreed to open it.",
       "parameters": {

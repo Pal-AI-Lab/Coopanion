@@ -153,20 +153,67 @@ const clicksPass = () => prefs.clickThrough || fullscreenThrough;
 
 /* ---------- OBS overlay: while the window streams, each frame drawn is reported with the part it sends, the pet and its bubbles ---------- */
 let overlayOn = false;
-/** The body's box with room for its halo and what floats above its head, joined with the bubbles shown; null with no body. */
-function overlayRect() {
+/** The body's box with room for its halo and what floats above its head; null with no body. */
+function bodyRoom() {
   const b = at()?.box;
   if (!b) return null;
   // the halo reaches about 40% of the body's width out; emotes and z's float up to its height above; a pack's effects as far as it says
   const reach = (shownPack?.effects?.reach ?? 0) * 256 * bounds().S;
   const side = Math.max(24, .4 * b.w, reach), top = Math.max(48, b.h, reach);
-  const parts = [{ x: b.x - side, y: b.y - top, width: b.w + 2 * side, height: b.h + top + side }];
-  for (const el of [bubble, ...lines.map((l) => l.el)]) if (!el.hidden) parts.push(rectOf(el));
+  return { x: b.x - side, y: b.y - top, width: b.w + 2 * side, height: b.h + top + side };
+}
+/** The rect that holds all of `parts`, cut to the page; null when none of it is on the page. */
+function onPage(parts) {
   const x = Math.max(0, Math.min(...parts.map((r) => r.x))), y = Math.max(0, Math.min(...parts.map((r) => r.y)));
   const right = Math.min(innerWidth, Math.max(...parts.map((r) => r.x + r.width))), bottom = Math.min(innerHeight, Math.max(...parts.map((r) => r.y + r.height)));
   return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : null;
 }
+/** The body's room joined with the bubbles shown; null with no body. */
+function overlayRect() {
+  const room = bodyRoom();
+  if (!room) return null;
+  const parts = [room];
+  for (const el of [bubble, ...lines.map((l) => l.el)]) if (!el.hidden) parts.push(rectOf(el));
+  return onPage(parts);
+}
 host?.onOverlay?.((on) => { overlayOn = on; });
+
+/* ---------- portrait: a picture of the body alone, which the World asks for when the bot looks at itself ---------- */
+/** What the page draws over the stage: the bubbles, the menu's two sides, the hover buttons, the look wheel, the size slider and the hover hint. */
+const OVER_STAGE = '.bubble, .menu > *, .tools, .wheel, .sizer, .hint';
+/**
+ * The longest the picture waits for the frame drawn without what was over the body, in milliseconds: a dozen
+ * display refreshes at 60 a second. A page that gets no refresh (its window wholly covered) answers after it.
+ */
+const PORTRAIT_FRAME_MS = 200;
+const overlaps = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+/**
+ * Answers the World's `portrait` order with the body's room as the window draws it right now, `{ png, width, height }`,
+ * or with `failed` and why: `tab` (a browser tab has no window to take it from), `hidden` (the window is hidden, so
+ * the body is not drawn), `no-body` (no figure is on the page) or `capture`. What the page draws over the stage and
+ * reaches into the room is not drawn in the frame taken, and is back in the next.
+ */
+async function takePortrait(id) {
+  const fail = (failed) => send({ t: 'portrait', id, failed });
+  if (!host?.portrait) return fail('tab');
+  if (!windowShown) return fail('hidden');
+  const room = bodyRoom(), rect = room && onPage([room]);
+  if (!rect) return fail('no-body');
+  const over = [...document.querySelectorAll(OVER_STAGE)].filter((el) => !el.closest('[hidden]') && overlaps(shadowed(rectOf(el)), rect));
+  for (const el of over) el.style.visibility = 'hidden';
+  try {
+    // the second refresh comes once the frame without them is drawn
+    if (over.length) await new Promise((done) => { const timer = setTimeout(done, PORTRAIT_FRAME_MS); requestAnimationFrame(() => requestAnimationFrame(() => { clearTimeout(timer); done(); })); });
+    const shot = await host.portrait(rect);
+    if (shot) send({ t: 'portrait', id, ...shot }); else fail('capture');
+  } catch {
+    fail('capture');
+  } finally {
+    for (const el of over) el.style.visibility = '';
+  }
+}
+/** One picture at a time: a second order waits until the first has put back what it left out. */
+let portraits = Promise.resolve();
 // the text is in before anything is shown
 void useLanguage().then(() => { document.title = t('pet.title'); host?.setLanguage?.(language()); connect(); });
 
@@ -380,6 +427,7 @@ function onOrder(m) {
     case 'walk-stop': body?.stopWalk(m.id); break;
     case 'ask-close': closeAsk(m.id); break;
     case 'act': acts.push(...m.actions); holdRoam(20); break;
+    case 'portrait': portraits = portraits.then(() => takePortrait(m.id)); break;
     case 'listen': onListen(m); break;
     case 'talk-key': hushForTalkKey(m.down === true); break;
     // a message sent from the chat page, once the bot has it, and one taken back before delivery
