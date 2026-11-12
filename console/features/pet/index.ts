@@ -1,7 +1,8 @@
 /**
  * 「习惯」: the everyday settings of the desktop pet, in sections: 通用 (language, what Coo calls you, Coo's
  * name, start at login (the app's login item, through the window's preload), automatic updates and anonymous usage statistics in the `companion` group), 行为与互动, 显示,
- * 音效, 电脑操作 (features/cua) and 其他 (the OBS overlay, the Chat page's context ring). Every row names its
+ * 音效, 电脑操作 (features/cua) and 其他 (the OBS overlay, the Chat page's context ring). Tabs under the title jump to each section
+ * (base/ui/section-tabs.ts), the page staying one page. Every row names its
  * setting in the label column, except one that only refines the row above it. In each row the setting
  * comes first and what it means under it. An on/off setting is a switch; picks among several (sound
  * kinds, the popups) are checkboxes. Most are written to the desktop-pet World's config group through `/api/config` (only the keys shown here are sent). The pet's own menu
@@ -36,7 +37,9 @@ import { captureKey, PRESSES, splitTaps, withTaps } from 'cortico-world-desktop-
 import { get, invokePanel, setConfig } from '../../base/api.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { intro } from '../intro.ts';
+import { sectionTabs } from '../../base/ui/section-tabs.ts';
 import { CUA_GROUP, cuaSection } from '../cua/index.ts';
+import { S as CUA } from '../cua/strings.ts';
 import { announceName } from '../bot-name.ts';
 import { scaleSlider } from './scale-slider.ts';
 import { S } from './strings.ts';
@@ -429,7 +432,8 @@ async function mount(ctx: PageContext): Promise<void> {
     hideFullscreenRow,
     row(S.rememberLabel, remember.el, S.rememberHint),
   );
-  root.append(intro(ui, S.nav), habits.el, behavior.el, display.el);
+  const heading = intro(ui, S.nav);
+  root.append(heading, habits.el, behavior.el, display.el);
 
   /* ---------- sounds ---------- */
   const sounds = ui.sheet({ title: S.soundTitle });
@@ -550,6 +554,17 @@ async function mount(ctx: PageContext): Promise<void> {
   const ring = ui.checkbox(S.ring, { onChange: (on) => void save(RING_KEY, on, STATS_GROUP, ring.el) });
   other.body.append(row(S.overlayLabel, overlayBox, S.overlayHint), row(S.ringLabel, ring.el, S.ringHint));
   root.append(other.el);
+
+  // the page is long: tabs under its title jump to each section, as other pages' tabs switch their views
+  heading.append(sectionTabs(root.ownerDocument, signal, root, [
+    { value: 'general', label: S.groupGeneral, el: habits.el },
+    { value: 'behavior', label: S.groupBehavior, el: behavior.el },
+    { value: 'display', label: S.groupDisplay, el: display.el },
+    { value: 'sounds', label: S.soundTitle, el: sounds.el },
+    { value: 'speech', label: S.speechTitle, el: speechSheet.el },
+    { value: 'cua', label: CUA.title, el: cua.el },
+    { value: 'other', label: S.groupOther, el: other.el },
+  ]).el);
 
   /* ---------- behaviour ---------- */
   const save = (key: string, value: string | number | boolean, group: string, anchor: HTMLElement) => saveAll({ [key]: value }, group, anchor);

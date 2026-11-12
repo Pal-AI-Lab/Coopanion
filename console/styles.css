@@ -1464,6 +1464,9 @@
 .featureslot:has(> .featureintro) { padding-top:0; scroll-padding-top:var(--page-scroll-inset, 0px); }
 .featureslot::-webkit-scrollbar-track { margin-top:var(--page-scroll-inset, 0px); }
 .featureintro { padding-bottom:16px; border-bottom:1px solid var(--border); }
+/* Page tabs in a page's heading (pageTabs, sectionTabs): 16px under the title, and the heading's rule is their bottom line, so they draw only the top one. */
+.featureintro:has(> .pagetabs) { padding-bottom:0; }
+.featureintro > .pagetabs { margin-top:16px; border-bottom:0; }
 .featureslot > .featureintro { position:sticky; top:0; z-index:20; padding-top:30px; margin-bottom:24px; background:var(--background); }
 .featureslot > .featureintro + * { margin-top:0; }
 .featureslot > .featureintro + .sheet { margin-top:0; }
@@ -1898,14 +1901,9 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .page-badge-pop[hidden] { display: none; }
 .page-badge-pop > .pill { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
 
-.provider-intro { padding-bottom: 0; }
-.provider-intro > .pagetabs { margin-top: 16px; border-bottom: 0; }
-
 /* Shared library entries retain their geometry beneath the catalog overlay. */
 .featureslot-world{overflow:hidden;scrollbar-gutter:auto;padding:0}
 .featureslot-world>.featureintro{width:calc(100% - 2 * (var(--page-gutter) + 10px));margin-bottom:16px}
-.world-intro{padding-bottom:0}
-.world-intro>.pagetabs{margin-top:16px;border-bottom:0}
 /* The compact field of the World pages' toolbars, filter row, panels and group names: 32px; its focus is
    every other page's. */
 :is(.world-catalog,.world-library-tools,.world-group-head) :is(input:not([type=checkbox]):not([type=radio]),select){height:32px;min-height:32px;padding-block:0;font-size:12.5px}

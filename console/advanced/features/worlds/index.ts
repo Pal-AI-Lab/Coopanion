@@ -106,7 +106,7 @@ export function mountWorlds(ctx: FeatureContext): void {
   lifecycle.own(subscribeLamps(doc, lamps => {
     for (const [id, el] of lampNodes) paintSignals(el, lamps[id] ?? []);
   }));
-  const intro = pageIntro(ui, S.introTitle); intro.classList.add('world-intro');
+  const intro = pageIntro(ui, S.introTitle);
   const tabs = pageTabs(doc, signal, [
     { value: 'mine', label: S.myWorlds },
     ...(canBrowse ? [{ value: 'market', label: S.marketTab }] : []),

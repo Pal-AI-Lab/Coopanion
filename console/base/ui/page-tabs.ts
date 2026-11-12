@@ -20,7 +20,8 @@ export function pageTabs(
   doc: Document,
   signal: AbortSignal,
   items: readonly PageTabItem[],
-  opts: { value?: string; onSelect?(value: string): void } = {},
+  /** `reselect`: a click on the current tab is reported too (tabs that jump within a page, base/ui/section-tabs.ts). */
+  opts: { value?: string; reselect?: boolean; onSelect?(value: string): void } = {},
 ): PageTabs {
   const el = doc.createElement('nav');
   el.className = 'pagetabs';
@@ -37,7 +38,7 @@ export function pageTabs(
     btn.appendChild(text);
     // the caller moves the highlight with setValue once the switch went through: a leave guard may refuse it
     btn.addEventListener('click', () => {
-      if (current !== item.value) opts.onSelect?.(item.value);
+      if (current !== item.value || opts.reselect) opts.onSelect?.(item.value);
     }, { signal });
     el.appendChild(btn);
     tabs.push({ value: item.value, btn, text });
