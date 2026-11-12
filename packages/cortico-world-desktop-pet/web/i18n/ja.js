@@ -152,8 +152,6 @@ export default {
   'looks.delete': "「{name}」を削除",
   'looks.exists': "「{name}」はお気に入り済みです",
   'looks.empty': "お気に入りの姿はまだありません。",
-  'looks.readFailed': "お気に入りの姿を読み込めませんでした。",
-  'looks.retry': "再試行",
   'looks.deleteTitle': "「{name}」をお気に入りから削除しますか？",
   'looks.deleteLead': "削除すると元に戻せません。",
   'looks.deleteGo': "削除",

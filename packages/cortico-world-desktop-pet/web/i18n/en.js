@@ -159,8 +159,6 @@ export default {
   'looks.delete': "Delete {name}",
   'looks.exists': "{name} is already a favourite",
   'looks.empty': "No favourite looks yet.",
-  'looks.readFailed': "Couldn't read your favourite looks.",
-  'looks.retry': "Try again",
   'looks.deleteTitle': "Remove {name} from favourites?",
   'looks.deleteLead': "This cannot be undone.",
   'looks.deleteGo': "Delete",
