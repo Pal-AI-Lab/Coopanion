@@ -55,7 +55,7 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     // hover hints (hints.js) are not what these tests look at
     mountHints() {}, tipOf, tipWithoutNote,
   };
-  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints, tipOf, tipWithoutNote } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
+  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints, tipOf, tipWithoutNote } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepTalkRead(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
@@ -143,6 +143,41 @@ describe('the talk key and the voice reading a bubble', () => {
     p.sockets[0].onclose({ code: 1006 });
     say(p, 'a', LINE); p.step(.01); p.step(.2);
     expect(heard.begun).toEqual([LINE]);
+  });
+});
+
+describe('hovering a timed bubble', () => {
+  const show = (p, kind) => p.onOrder(kind === 'say'
+    ? { t: 'say', id: 's', beats: [{ text: 'Read this' }] }
+    : { t: 'dialog', id: 'd', text: 'Read this' });
+  const advance = (p, frames) => { for (let i = 0; i < frames; i++) p.step(.05); };
+
+  it.each(['say', 'dialog'])('lets a %s bubble close when it grows under a stationary pointer', (kind) => {
+    const p = page();
+    let left = 60;
+    p.bubble.getBoundingClientRect = () => ({ left, right: 100, top: 10, bottom: 40 });
+    p.cursor.at = { x: 30, y: 20 };
+    show(p, kind);
+    advance(p, 4);
+    expect(p.bubble.hidden).toBe(false);
+    left = 10;
+    p.cursor.at = { x: 30, y: 20 };
+    advance(p, 80);
+    expect(p.bubble.hidden).toBe(true);
+  });
+
+  it.each(['say', 'dialog'])('holds a %s bubble after the pointer enters until it leaves', (kind) => {
+    const p = page();
+    p.bubble.getBoundingClientRect = () => ({ left: 10, right: 100, top: 10, bottom: 40 });
+    p.cursor.at = { x: 5, y: 20 };
+    show(p, kind);
+    advance(p, 4);
+    p.cursor.at = { x: 30, y: 20 };
+    advance(p, 80);
+    expect(p.bubble.hidden).toBe(false);
+    p.cursor.at = { x: 110, y: 20 };
+    advance(p, 80);
+    expect(p.bubble.hidden).toBe(true);
   });
 });
 
