@@ -12,7 +12,7 @@ export const DESKTOP_PET_ID = 'desktop-pet';
 /** Longest name for the person, in characters as seen, for Chinese, Japanese and Korean (`capFor` doubles it elsewhere). */
 export const USER_MAX = 20;
 
-/** What the pet's menu offers, in its order, all but `roam` and `worlds`; any of them can also show as a button beside the pet on hover. */
+/** The actions that can show as buttons beside the pet on hover, in their order; the right-click menu shows the same ones. */
 export const PET_ACTIONS = ['chat', 'voice', 'roam', 'theme', 'sound', 'hide', 'size', 'dress', 'worlds'] as const;
 export type PetAction = typeof PET_ACTIONS[number];
 /** Most hover buttons. */

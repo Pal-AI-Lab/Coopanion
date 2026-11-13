@@ -177,6 +177,7 @@ const it: Translation<PetText> = {
     fontSize: (from: number, to: number) => `cambiare la dimensione del testo da ${from}× a ${to}×`,
     theme: { dark: "passare all'aspetto notte", light: "passare all'aspetto giorno" },
     hover: (list: string) => `cambiare i pulsanti al passaggio in ${list}`,
+    hoverNone: 'togliere tutti i pulsanti al passaggio',
     actions: { chat: 'Scrivi', voice: 'Input vocale', roam: 'Movimento', theme: 'Modalità notte', sound: 'Suoni', size: 'Dimensione', dress: 'Guardaroba', hide: "Nascondi l'animaletto", worlds: 'I miei World' },
     user: (to: string) => `chiamarti «${to}»`,
   },

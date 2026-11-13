@@ -294,6 +294,10 @@ body.desk .floor{display:none}
 @keyframes card-bob{40%{transform:translateY(-4px) rotate(-8deg)}}
 /* cards one per row, the icon before the label */
 .d-cards.list{grid-template-columns:1fr}
+/* a pick: four small cards to a row; at the most, the ones not picked fade until one is put out */
+.d-cards.pick{grid-template-columns:repeat(4, minmax(0, 1fr))}
+.d-cards.pick .d-card:disabled{opacity:.4; transform:none; border-color:var(--line); cursor:default}
+.d-pill.need{opacity:.45; cursor:default}
 .d-cards.list .d-card{flex-direction:row; justify-content:center; gap:8px; padding:8px 12px; border-radius:12px}
 .d-cards.list .d-cardlbl{font-size:calc(14px * var(--bubble-font, 1))}
 .d-cards.list .d-cardic svg{width:18px; height:18px}

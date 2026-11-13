@@ -8,6 +8,9 @@
  *   version's `v<version>.en.md` is read instead, when it exists. With the notes goes the newest
  *   letter from the developers among those versions (`v<version>.letter.md`, `.letter.en.md` in
  *   English), whole, with its link on GitHub; the GitHub release does not carry letters.
+ * - Once, to an install from before the right-click menu showed the hover buttons alone, while its hover buttons
+ *   are still the default ones: that the menu changed, where the actions it no longer lists are, and where
+ *   hover buttons are picked. A new install is never told.
  * - When the person changes a setting Coo shows or works by (what it calls them, Coo's dress, size,
  *   colours, walking, sounds, which touches wake it, what it may change itself, voice input, computer
  *   use), what changed, from what to what. A switch of
@@ -25,6 +28,7 @@
  *
  * The last version told is kept in `notice.json` in the deployment directory, written when the
  * event is delivered, so an update told while events are held (no key yet) is told on a later start.
+ * `menuTold` beside it says the menu's change needs no telling any more, and is written the same way.
  */
 import { existsSync, readdirSync } from 'node:fs';
 import { asRecord, field, readState, writeState } from './state-file.ts';
@@ -34,7 +38,7 @@ import type { ToolDef, World, WorldWebUiDecl, WorldHost } from 'cortico/core/typ
 import type { Language } from 'cortico/core/language.ts';
 import { readTextFile } from 'cortico/core/util.ts';
 import { describeTools, type WorldDefinition, type WorldDescribe, type WorldSection } from 'cortico/world.ts';
-import { SELF_KEYS, selfAdjustMode } from 'cortico-world-desktop-pet';
+import { DESKTOP_PET_DEFAULTS, MAX_HOVER_BUTTONS, SELF_KEYS, hoverButtonList, petText, selfAdjustMode } from 'cortico-world-desktop-pet';
 import { ALARM_TOOL_DECLS, Alarms, type Alarm } from './alarms.ts';
 import type { GuideEnd } from './guide.ts';
 import { coreText } from './i18n/index.ts';
@@ -253,6 +257,19 @@ const zh = {
   letterIntro: (version: string, url: string) => `开发者还随 ${version} 写了一封信,全文在下面,原文链接是 ${url}`,
   letterOutro: '\n要不要转达、怎么转达由你决定:可以用自己的话讲,可以念原文,可以给对方原文链接,也可以先问对方想不想听。',
 
+  menuChanged: (hover: string, max: number) => [
+    `[右键菜单] 这个版本起,你的右键菜单右侧只放「悬停按钮」里选的动作,和鼠标停在你身上时旁边出现的是同一组;左侧的设置、暂停/继续和退出照旧。之前的版本会把其余动作也列在右键菜单里。对方的悬停按钮是默认的${hover}。`,
+    '没选进悬停按钮的动作,入口在这些地方:',
+    '- 装扮:设置窗口的「装扮」页',
+    '- 夜间模式:「装扮」页预览上的按钮',
+    '- 大小:「装扮」页的「大小」,或「习惯」页「显示」里的「大小」',
+    '- 走动:「习惯」页「行为与互动」里的「走动」',
+    '- 音效:「习惯」页的「音效」',
+    '- 隐藏:托盘菜单的「隐藏桌宠」',
+    '- 我的 World:设置窗口「World 扩展」页的「我的 World」',
+    `悬停按钮在「习惯」页「行为与互动」里的「悬停按钮」选择,最多 ${max} 个,选进去的动作右键菜单里也有。`,
+  ].join('\n'),
+
   someone: '对方',
   guideFinished: (name: string) => `[启动引导] ${name}刚在你的气泡里走完了启动引导:定了你怎么称呼对方(「${name}」)、你平时活泼到什么程度、互动时你什么时候回应、用哪家模型服务,也看过了怎么语音输入、按钮和菜单在哪。`,
   guideClosed: (name: string, step: number) => `[启动引导] ${name}在第 ${step} 步关掉了启动引导,后面的步骤没有走。`,
@@ -314,6 +331,19 @@ const en: typeof zh = {
   letterIntro: (version, url) => `The developers also wrote a letter with ${version}, in full below; its link is ${url}`,
   letterOutro: '\nWhether and how to pass it on is yours to decide: tell it in your own words, read it out, give them the link, or first ask whether they want to hear it.',
 
+  menuChanged: (hover, max) => [
+    `[right-click menu] From this version on, the right side of your right-click menu shows only the actions picked as hover buttons, the same ones that appear beside you while the pointer rests on you; settings, pause/resume and quit on its left are as before. Earlier versions listed every other action there too. The person's hover buttons are the default ones: ${hover}.`,
+    'Where the actions not picked as hover buttons are:',
+    '- Dress up: the Dress up page of the settings window',
+    '- Night mode: the button on the preview of the Dress up page',
+    '- Size: "Size" on the Dress up page, or "Size" under Display on the Habits page',
+    '- Walking: "Walking" under Behavior on the Habits page',
+    '- Sounds: "Sounds" on the Habits page',
+    '- Hide: "Hide pet" in the tray menu',
+    '- My Worlds: "My Worlds" on the World extensions page of the settings window',
+    `Hover buttons are picked under "Hover buttons" in Behavior on the Habits page, up to ${max}; the right-click menu shows the ones picked.`,
+  ].join('\n'),
+
   someone: 'the person',
   guideFinished: (name) => `[introduction] ${name} just walked through the introduction in your bubble: settled what you call them ("${name}"), how lively you are day to day, when you respond to touches, and which model service to use, and saw how voice input works and where the buttons and the menu are.`,
   guideClosed: (name, step) => `[introduction] ${name} closed the introduction at step ${step}; the steps after it were not walked through.`,
@@ -370,6 +400,19 @@ function guideText(end: GuideEnd, language: ModelLanguage = 'zh'): string {
   ].join('\n');
 }
 
+/** `notice.json`: the last version told, and whether the right-click menu's change needs no telling any more. */
+interface NoticeState { version: string; menuTold: boolean }
+
+function restoreState(value: unknown): NoticeState {
+  const record = asRecord(value);
+  return {
+    version: field(record, 'version', (v): v is string => typeof v === 'string'),
+    menuTold: field(record, 'menuTold', (v): v is boolean => typeof v === 'boolean', false),
+  };
+}
+
+const HOVER = `${PET}.hoverButtons`;
+
 function changedText(lines: string[], language: ModelLanguage = 'zh'): string {
   return [NOTICE_TEXT[language].changed, ...lines].join('\n');
 }
@@ -385,6 +428,10 @@ export class NoticeWorld implements World {
   private wasGuiding = false;
   /** The version Coo is to hear about, until the pet page connects. */
   private update: { from: string | null; to: string } | null = null;
+  /** `notice.json` as read and as last written; `version` is null before the first one is told. */
+  private state: { version: string | null; menuTold: boolean } = { version: null, menuTold: false };
+  /** Coo is to hear that the right-click menu changed, until the pet page connects. */
+  private menuNews = false;
 
   private readonly alarms: Alarms;
 
@@ -423,7 +470,7 @@ export class NoticeWorld implements World {
     this.host = host;
     this.labels = await loadLabels();
     this.told = this.seen = look(this.a.read);
-    this.update = this.pendingUpdate();
+    this.readPending();
     this.timer = setInterval(() => this.tick(), LOOK_EVERY_MS);
   }
 
@@ -433,11 +480,34 @@ export class NoticeWorld implements World {
     this.host = null;
   }
 
+  /** Reads `notice.json` and sets what there is to tell: the update, and the right-click menu's change. */
+  private readPending(): void {
+    if (!parseVersion(this.a.version)) return;
+    const state = readState(this.a.stateFile, restoreState);
+    this.state = { version: state?.version ?? null, menuTold: state?.menuTold ?? false };
+    // the menu is news to an install from before it whose hover buttons are still the default ones
+    if (!this.state.menuTold) {
+      if (this.a.newInstall() || !this.defaultHover()) this.menuSettled();
+      else this.menuNews = true;
+    }
+    this.update = this.pendingUpdate();
+  }
+
+  private defaultHover(): boolean {
+    const hover = this.a.read(HOVER);
+    return hover === undefined || hover === DESKTOP_PET_DEFAULTS.hoverButtons;
+  }
+
+  /** The menu's change needs no telling from here on; kept once there is a version to keep it beside. */
+  private menuSettled(): void {
+    this.state.menuTold = true;
+    if (this.state.version !== null) this.record(this.state.version);
+  }
+
   /** The update to tell, or null; a version that is not news is recorded at once. */
   private pendingUpdate(): { from: string | null; to: string } | null {
     const to = this.a.version;
-    if (!parseVersion(to)) return null;
-    const last = readState(this.a.stateFile, (value) => field(asRecord(value), 'version', (v): v is string => typeof v === 'string'));
+    const last = this.state.version;
     if (last === null && this.a.newInstall()) { this.record(to); return null; }
     if (last === null) return { from: null, to };
     const from = parseVersion(last);
@@ -457,7 +527,8 @@ export class NoticeWorld implements World {
   }
 
   private record(version: string): void {
-    writeState(this.a.stateFile, `${JSON.stringify({ version }, null, 2)}\n`);
+    this.state.version = version;
+    writeState(this.a.stateFile, `${JSON.stringify({ version, ...(this.state.menuTold ? { menuTold: true } : {}) }, null, 2)}\n`);
   }
 
   private tick(): void {
@@ -483,6 +554,22 @@ export class NoticeWorld implements World {
           this.record(to);
           const language = this.language;
           return updatedText(from, to, releaseNotes(this.a.notesDir, from, to, language), releaseLetter(this.a.notesDir, from, to, language), language);
+        },
+      }, { trigger: 'flush' });
+    }
+    if (this.menuNews && this.a.petConnected()) {
+      this.menuNews = false;
+      host.pushDeferred({
+        type: 'coopanion.menu-changed', origin: 'internal',
+        render: () => {
+          // hover buttons picked meanwhile: the person has been where they are picked
+          const news = this.defaultHover();
+          this.menuSettled();
+          if (!news) return null;
+          const language = this.language;
+          const names = petText(language).consent.actions;
+          const hover = hoverButtonList(DESKTOP_PET_DEFAULTS.hoverButtons).map((id) => names[id] ?? id).join(language === 'zh' ? '、' : ', ');
+          return NOTICE_TEXT[language].menuChanged(hover, MAX_HOVER_BUTTONS);
         },
       }, { trigger: 'flush' });
     }
@@ -517,6 +604,7 @@ const DESCRIBE: WorldDescribe = {
     { type: 'coopanion.alarm', description: { zh: '自己定的唤醒到时间了。', en: 'A wake-up it set is due.' }, trigger: 'flush' },
     { type: 'coopanion.alarm-cancelled', description: { zh: '使用者在设置窗口取消了它定的一个唤醒。', en: 'The person cancelled one of its wake-ups in the settings window.' }, trigger: 'debounce' },
     { type: 'coopanion.updated', description: { zh: '应用升级了,附新版本的更新说明;有开发者的信时附最新一封。', en: 'The app was updated, with the release notes of the new version and the newest letter from the developers, if any.' }, trigger: 'flush' },
+    { type: 'coopanion.menu-changed', description: { zh: '右键菜单改成只放悬停按钮,对悬停按钮还是默认的旧安装说一次。', en: 'The right-click menu now shows the hover buttons alone; told once to an earlier install whose hover buttons are the default ones.' }, trigger: 'flush' },
     { type: 'coopanion.settings-changed', description: { zh: '使用者改了桌宠的外观或习惯。', en: "The person changed the pet's looks or habits." }, trigger: 'debounce' },
   ],
 };

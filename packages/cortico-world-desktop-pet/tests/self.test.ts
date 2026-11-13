@@ -30,6 +30,20 @@ describe('pet_set', () => {
     expect(planSettings({ scheme: 'claude' }, cfg(), packs).errors).toHaveLength(1);
   });
 
+  it('takes every hover button away with an empty list, and still refuses unknown or repeated ones', () => {
+    const { changes, errors } = planSettings({ hoverButtons: [] }, cfg(), packs);
+    expect(errors).toEqual([]);
+    expect(changes.map((c) => [c.tier, c.patch])).toEqual([['ask', { hoverButtons: '' }]]);
+    expect(changes[0]!.show).toBe('去掉所有悬停按钮');
+    expect(planSettings({ hoverButtons: ['chat', 'chat'] }, cfg(), packs).errors).toHaveLength(1);
+    expect(planSettings({ hoverButtons: ['menu'] }, cfg(), packs).errors).toHaveLength(1);
+    expect(planSettings({ hoverButtons: 'chat' }, cfg(), packs).errors).toHaveLength(1);
+    // a list with nothing but non-strings is not an empty answer
+    for (const hoverButtons of [[3], [null], ['chat', 3]]) expect(planSettings({ hoverButtons }, cfg(), packs).errors).toHaveLength(1);
+    // already none: nothing to change
+    expect(planSettings({ hoverButtons: [] }, { ...cfg(), hoverButtons: '' }, packs).changes).toEqual([]);
+  });
+
   it('dresses Coo through its skin\'s own fields', () => {
     const { changes, errors } = planSettings({ scheme: 'fox-cat-none-none-none' }, cfg(), packs);
     expect(errors).toEqual([]);

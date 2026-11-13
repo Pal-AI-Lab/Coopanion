@@ -176,6 +176,9 @@ export interface PetDialog {
  *   after the `icon` of that name. `more` is a last card that,
  *   clicked, unfolds its `options` after the others in place; the answer's index counts on through them, and a `value`
  *   among them shows them from the start.
+ * - `pick`: cards like `choices`, any number of them picked, from `min` (1 when absent) to `max`, answered with
+ *   the indices picked (`picked`), in the cards' order; `value` are the ones picked from the start. How many are picked
+ *   shows beside the confirm button, which waits for `min`.
  * - `text`: a text box answered with the text; `secret` hides what is typed, `suggestions` are offered
  *   as the person types, `link` opens a page in the browser, `alt` is a second way out, answered as `{ alt: true }`.
  * - `progress`: a bar the app moves with `update({ progress })`; it ends when the app closes it.
@@ -183,6 +186,7 @@ export interface PetDialog {
 export type PetDialogInput =
   | { kind: 'buttons'; options: Array<{ label: string; primary?: boolean; hover?: string }>; keys?: string; taps?: number }
   | { kind: 'choices'; options: PetDialogChoice[]; more?: { label: string; icon?: string; image?: string; options: PetDialogChoice[] }; value?: number; confirm: string; list?: boolean; hint?: { text: string; mark: string; icon: string } }
+  | { kind: 'pick'; options: PetDialogChoice[]; value?: number[]; min?: number; max: number; confirm: string }
   | { kind: 'text'; submit: string; placeholder?: string; value?: string; secret?: boolean; maxLength?: number; suggestions?: string[]; link?: { label: string; url: string }; alt?: string }
   | { kind: 'progress'; label?: string };
 export type PetDialogChoice = {
@@ -191,12 +195,12 @@ export type PetDialogChoice = {
 };
 
 /**
- * How a step ended: a button or card (`index`), typed text, the text box's `alt`, the close
+ * How a step ended: a button or card (`index`), the cards of a `pick` (`picked`), typed text, the text box's `alt`, the close
  * button, the back button, the line read to the end with nothing to answer (`done`, also a progress step the app
  * closed), or no pet page to show it on.
  */
 export type PetDialogAnswer =
-  | { index: number } | { text: string } | { alt: true } | { closed: true } | { back: true } | { done: true } | { unavailable: true };
+  | { index: number } | { picked: number[] } | { text: string } | { alt: true } | { closed: true } | { back: true } | { done: true } | { unavailable: true };
 
 /** What the app changes on a step while it is up: the line, and a progress step's bar (0–1, or null while there is no telling). */
 export interface PetDialogUpdate {
@@ -1252,6 +1256,7 @@ export class DesktopPetWorld implements World {
         if (!settle) return;
         this.dialogs.delete(String(msg.id));
         settle(typeof msg.index === 'number' ? { index: msg.index }
+          : Array.isArray(msg.picked) ? { picked: [...new Set(msg.picked.filter((i): i is number => Number.isInteger(i) && i >= 0))].sort((a, b) => a - b) }
           : typeof msg.text === 'string' ? { text: msg.text.slice(0, 2000) }
           : msg.alt ? { alt: true } : msg.closed ? { closed: true } : msg.back ? { back: true } : { done: true });
         return;
@@ -1320,7 +1325,8 @@ export class DesktopPetWorld implements World {
     let settle: (a: PetDialogAnswer) => void = () => {};
     const answer = new Promise<PetDialogAnswer>((resolve) => { settle = resolve; });
     if (!this.server.sendPet({ t: 'dialog', id, ...d, input, actions })) settle({ unavailable: true });
-    else this.dialogs.set(id, settle);
+    // a pick is answered with indices of its own cards
+    else this.dialogs.set(id, input?.kind === 'pick' ? (a) => settle('picked' in a ? { picked: a.picked.filter((i) => i < input.options.length) } : a) : settle);
     // a page that never reports back (a tab put to sleep) does not hold a line with nothing to answer forever
     if (!d.input && this.dialogs.has(id)) {
       const timer = setTimeout(() => this.dialogs.get(id)?.({ done: true }), 5000 + d.text.length / DIALOG_CPS * 1000);

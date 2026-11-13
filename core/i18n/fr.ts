@@ -116,7 +116,7 @@ const fr: Translation<CoreText> = {
     talkOff: "La saisie vocale est désactivée ; tu peux l'activer sur la page Saisie vocale des paramètres. ",
     talkType: "Tu peux aussi poser le pointeur sur moi et cliquer sur le bouton bulle à côté pour m'écrire.",
     gotIt: 'Compris',
-    buttons: 'Pose le pointeur sur moi et quelques boutons apparaissent à côté ; fais un clic droit sur moi pour ouvrir le menu, avec pause, paramètres et quitter.',
+    buttons: 'Pose le pointeur sur moi et quelques boutons apparaissent à côté ; un clic droit montre les mêmes, plus paramètres, pause et quitter. Choisis ceux que tu utilises le plus ; tu pourras les changer plus tard dans les paramètres.',
     ok: 'OK',
     persona: 'Mon caractère et ma façon de parler sont écrits sur la page Prompt système des paramètres. Pour me changer, modifie-la là-bas, ou dis-le-moi directement et je le ferai moi-même.',
     personaMark: 'Prompt système',

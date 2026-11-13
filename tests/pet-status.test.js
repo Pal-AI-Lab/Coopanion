@@ -642,3 +642,49 @@ describe('a countdown in the activity bubble', () => {
     expect(p.bubble.textContent).toBe(`在等待 · ${t('status.seconds', { seconds: 2 })}`);
   });
 });
+
+describe('the right-click menu', () => {
+  const tiles = (p) => [...p.doc.querySelectorAll('.menu .m-tile')].map((b) => b.dataset.action);
+
+  it('holds the hover buttons picked, the same ones the pointer brings up, beside the run controls', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['chat', 'theme'], bot: { controls: true } });
+    p.openMenu();
+    expect(tiles(p)).toEqual(['chat', 'theme']);
+    expect(p.doc.querySelectorAll('.menu .m-rail .tool').length).toBe(3);
+  });
+
+  it('holds only the run controls with no hover buttons picked, and does not open with nothing to show', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: [], bot: { controls: true } });
+    p.openMenu();
+    expect(tiles(p)).toEqual([]);
+    expect(p.doc.querySelector('.menu .m-grid').hidden).toBe(true);
+    expect(p.doc.querySelectorAll('.menu .m-rail .tool').length).toBe(3);
+    const bare = page({ host: true });
+    bare.onOrder({ t: 'prefs', hoverButtons: [] });
+    bare.openMenu();
+    expect(bare.doc.querySelector('#menu').hidden).toBe(true);
+  });
+});
+
+describe('a step that picks several cards', () => {
+  it('lights cards up to the most, waits for one before it can be confirmed, and answers with them in order', async () => {
+    const p = page();
+    p.onOrder({ t: 'dialog', id: 'd', text: '挑几个', input: { kind: 'pick', confirm: '好', max: 2, value: [2, 9], options: [{ label: 'A' }, { label: 'B' }, { label: 'C' }] } });
+    p.step(.01); p.step(3); p.step(.1);
+    const cards = [...p.bubble.querySelectorAll('.d-card')], ok = p.bubble.querySelector('.d-pill.primary');
+    const lit = () => cards.map((c) => c.classList.contains('on'));
+    expect(lit()).toEqual([false, false, true]);
+    cards[0].click();
+    expect(lit()).toEqual([true, false, true]);
+    // at the most: the card not lit waits
+    expect(cards[1].disabled).toBe(true);
+    cards[0].click(); cards[2].click();
+    expect(ok.disabled).toBe(true);
+    cards[2].click(); cards[0].click();
+    await expect.poll(() => p.sockets.length).toBe(1);
+    ok.click();
+    expect(p.sockets.at(-1).sent.find((m) => m.t === 'dialog')).toMatchObject({ id: 'd', picked: [0, 2] });
+  });
+});

@@ -65,7 +65,7 @@ export const S: Partial<typeof en> = {
   remember: '位置を覚える',
   rememberHint: '次回起動時に前回の横方向の位置に戻ります。画面が複数あるときはメイン画面で起動します。',
   hover: 'ホバーボタン',
-  hoverHint: (n: number) => `最大 ${n} 個。`,
+  hoverHint: (n: number) => `最大 ${n} 個。右クリックメニューにも同じボタンが出ます。`,
   dblclick: '入力欄を開く',
   typeKeyLabel: 'タイピングキー',
   typeKey: '入力欄を開く',

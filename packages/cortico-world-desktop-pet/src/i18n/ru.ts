@@ -183,6 +183,7 @@ const ru: Translation<PetText> = {
     fontSize: (from: number, to: number) => `изменить размер текста с ${from}× на ${to}×`,
     theme: { dark: 'перейти на ночной вид', light: 'перейти на дневной вид' },
     hover: (list: string) => `поставить кнопки при наведении: ${list}`,
+    hoverNone: 'убрать все кнопки при наведении',
     actions: { chat: 'Написать', voice: 'Голосовой ввод', roam: 'Активность', theme: 'Ночной режим', sound: 'Звуки', size: 'Размер', dress: 'Гардероб', hide: 'Скрыть питомца', worlds: 'Мои World' },
     user: (to: string) => `называть вас «${to}»`,
   },
