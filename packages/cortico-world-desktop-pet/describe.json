@@ -186,7 +186,7 @@
               ]
             },
             "maxItems": 6,
-            "description": "The buttons beside you while the mouse pointer rests on you; your right-click menu shows the same ones, beside settings, pause and quit. An empty list takes them all away."
+            "description": "The buttons beside you while the mouse pointer rests on you; your right-click menu shows the same ones, beside the settings, pause and quit the app provides. An empty list takes every hover button away, from the menu too."
           },
           "user": {
             "type": "string",

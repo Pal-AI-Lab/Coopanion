@@ -70,7 +70,7 @@ export const petToolDecls = (language: Language = 'zh'): Array<Omit<ToolDef, 'ha
         bubbleSize: { type: 'number', minimum: BUBBLE_SIZE_MIN, maximum: BUBBLE_SIZE_MAX, description: "Width, padding, corners and tail of the speech bubbles (yours and the person's), 1 being the default; the text keeps its size." },
         fontSize: { type: 'number', minimum: BUBBLE_SIZE_MIN, maximum: BUBBLE_SIZE_MAX, description: 'Size of the text in the speech bubbles, 1 being the default; the bubbles keep their width.' },
         theme: { type: 'string', enum: ['dark', 'light'], description: 'dark is night (light body), light is day (dark body).' },
-        hoverButtons: { type: 'array', items: { type: 'string', enum: ['chat', 'voice', 'roam', 'theme', 'sound', 'size', 'dress', 'hide', 'worlds'] }, maxItems: 6, description: 'The buttons beside you while the mouse pointer rests on you; your right-click menu shows the same ones, beside settings, pause and quit. An empty list takes them all away.' },
+        hoverButtons: { type: 'array', items: { type: 'string', enum: ['chat', 'voice', 'roam', 'theme', 'sound', 'size', 'dress', 'hide', 'worlds'] }, maxItems: 6, description: 'The buttons beside you while the mouse pointer rests on you; your right-click menu shows the same ones, beside the settings, pause and quit the app provides. An empty list takes every hover button away, from the menu too.' },
         user: { type: 'string', maxLength: capFor(USER_MAX, language), description: `What you call the person, at most ${capFor(USER_MAX, language)} characters.` },
       },
     },

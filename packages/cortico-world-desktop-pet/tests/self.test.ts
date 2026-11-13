@@ -38,6 +38,8 @@ describe('pet_set', () => {
     expect(planSettings({ hoverButtons: ['chat', 'chat'] }, cfg(), packs).errors).toHaveLength(1);
     expect(planSettings({ hoverButtons: ['menu'] }, cfg(), packs).errors).toHaveLength(1);
     expect(planSettings({ hoverButtons: 'chat' }, cfg(), packs).errors).toHaveLength(1);
+    // a list with nothing but non-strings is not an empty answer
+    for (const hoverButtons of [[3], [null], ['chat', 3]]) expect(planSettings({ hoverButtons }, cfg(), packs).errors).toHaveLength(1);
     // already none: nothing to change
     expect(planSettings({ hoverButtons: [] }, { ...cfg(), hoverButtons: '' }, packs).changes).toEqual([]);
   });
