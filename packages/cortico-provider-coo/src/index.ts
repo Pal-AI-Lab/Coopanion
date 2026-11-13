@@ -12,7 +12,7 @@
  * is marked multimodal; tool results may carry images too, which move to a user message after the
  * results on Chat and for `toolOutputText` services on Responses. Images go out only from the newest delivered batch of events on
  * (`sinceLastDelivery`); a request the service rejects for its images is sent again without them
- * (`ImageFallback`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
+ * (Cortico's `ImageFallback`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
  * Streamed reasoning from services marked `lenientReasoning` is rewritten into standard events
  * (`LenientReasoningAssembly`). `nonStreamingResponses` services use a non-streaming fallback so
  * tools execute only after the complete response has been read and validated.
@@ -22,11 +22,12 @@ import type { LLMProviderEntry, ReasoningTier } from 'cortico/core/types.ts';
 import type { ConfigGroup } from 'cortico/core/config-schema.ts';
 import type { Language } from 'cortico/core/language.ts';
 import { isContextOverflow } from 'cortico/providers/transport/errors.ts';
+import { ImageFallback } from 'cortico/providers/transport/image-fallback.ts';
 import { ModelCatalog } from 'cortico/providers/openai-responses-compat/native.ts';
 import { ClaudeProvider } from './anthropic/client.ts';
+import { sinceLastDelivery } from './context.ts';
 import { VendorChat } from './chat.ts';
 import { GeminiProvider, listGeminiModels } from './gemini/client.ts';
-import { ImageFallback } from './image-fallback.ts';
 import { vendorPrices } from './pricing.ts';
 import { VendorResponses } from './responses.ts';
 import { cooText } from './strings.ts';
@@ -123,7 +124,11 @@ export const COO = {
     const vendor = located?.vendor ?? null;
     const protocol = protocolOf(entry);
     const media = { enabled: () => current().multimodal === true, read: host.readBlob };
-    const withFallback = (client: BaseProvider) => new ImageFallback(client, media, contextOverflow, host.log);
+    /** `client` behind the image fallback, declared so that `ProviderRegistry.bind` adds no second one. */
+    const withFallback = (client: BaseProvider) => ({
+      client: new ImageFallback(client, { media, contextOverflow, attached: sinceLastDelivery, log: host.log }),
+      handlesRefusedImages: true,
+    });
     const compatibilityKey = () => [vendor?.id ?? 'coo', name, ...(protocol === 'responses' ? [] : [protocol])];
     const stated = (model: string) => vendor?.contextWindows?.[model];
     // the listing carries the windows the vendor table states, so the console fills them in instead of asking
@@ -134,7 +139,7 @@ export const COO = {
       const client = new ClaudeProvider({ baseUrl: entry.baseUrl, apiKey, keepThinking: host.keepThinking, log: host.log, media });
       const windows = new Map<string, number | undefined>();
       return {
-        client: withFallback(client), compatibilityKey,
+        ...withFallback(client), compatibilityKey,
         contextWindow: (model) => stated(model) ?? windows.get(model),
         listModels: async () => {
           const models = [];
@@ -153,7 +158,7 @@ export const COO = {
     if (protocol === 'gemini') {
       const windows = new Map<string, number | undefined>();
       return {
-        client: withFallback(new GeminiProvider({ baseUrl: entry.baseUrl, apiKey, media, keepThinking: host.keepThinking, log: host.log })),
+        ...withFallback(new GeminiProvider({ baseUrl: entry.baseUrl, apiKey, media, keepThinking: host.keepThinking, log: host.log })),
         compatibilityKey,
         contextWindow: (model) => stated(model) ?? windows.get(model),
         listModels: async () => {
@@ -170,7 +175,7 @@ export const COO = {
       listModels: async () => withStated(await catalog.list()),
       contextWindow: (model) => stated(model) ?? catalog.contextWindow(model),
       compatibilityKey,
-      client: withFallback(protocol === 'chat'
+      ...withFallback(protocol === 'chat'
         ? new VendorChat({ baseUrl: entry.baseUrl, apiKey, media, keepThinking: host.keepThinking, log: host.log, effort, syntheticReasoning: vendor?.syntheticReasoning })
         : new VendorResponses({
           baseUrl: entry.baseUrl,

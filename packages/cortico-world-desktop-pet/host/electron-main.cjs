@@ -28,6 +28,7 @@ const { createCursorSource } = require('./cursor.cjs');
 const { createInputShape } = require('./input-shape.cjs');
 const { createMouseLease, FORWARD_MOVES } = require('./mouse-lease.cjs');
 const { createOverlaySource } = require('./overlay.cjs');
+const { capturePortrait } = require('./portrait.cjs');
 const { createWindowSource, ledgesFrom, windowsFrom } = require('./windows.cjs');
 const { createAppStoreRule } = require('./app-store.cjs');
 
@@ -534,6 +535,10 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   });
   handlePet('pet:sampleBackdrop', (_e, query) => {
     try { return win ? sampleBackdrop(win, query || {}) : []; } catch { return []; }
+  });
+  // a hidden window is not drawn: there is nothing to take a picture of
+  handlePet('pet:portrait', async (_e, rect) => {
+    try { return win && win.isVisible() ? await capturePortrait(win, rect, nativeImage) : null; } catch { return null; }
   });
   /**
    * A drag carried or let go of outside the window: when the cursor is over another display, the

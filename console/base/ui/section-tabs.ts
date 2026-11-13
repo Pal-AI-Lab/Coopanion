@@ -2,7 +2,7 @@
  * Page tabs (`pageTabs`) that jump within one long page instead of switching views: each names a section, a click glides
  * the page there (the section's top just under the page's held heading, through the slot's `scroll-padding-top`), and
  * scrolling by hand moves the line to the section being read. Put `el` in the page's heading (`pageIntro`), which is
- * held at the top, so the tabs stay at hand.
+ * held at the top, so the tabs stay at hand. A jump also moves the focus to the section (focusable by script only).
  */
 import { pageTabs, type PageTabs } from './page-tabs.ts';
 
@@ -34,8 +34,12 @@ export function sectionTabs(doc: Document, signal: AbortSignal, scroller: HTMLEl
       // the first section: back to the page's very top, as it was opened
       if (item === items[0]) scroller.scrollTo({ top: 0, behavior });
       else item.el.scrollIntoView({ block: 'start', behavior });
+      // the next Tab goes on inside the section, not back to the controls at the page's top
+      item.el.focus({ preventScroll: true });
     },
   });
+  tabs.el.classList.add('sectiontabs');
+  for (const i of items) if (!i.el.hasAttribute('tabindex')) i.el.tabIndex = -1;
 
   /** The section being read: the last one whose top is above the heading's bottom; the last one once the page is at its end. */
   function reading(): string | undefined {

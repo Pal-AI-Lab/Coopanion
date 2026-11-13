@@ -58,7 +58,7 @@ import { CUA_OFF_TOOL_DECLS } from './cua/tools.ts';
 import type { Answer } from './cua/engine-ipc.ts';
 import { PackImporter } from './pack-import.ts';
 import { dressTable, planSettings, sayScale, type SettingChange } from './self.ts';
-import { MODEL_TEXT, type ModelLanguage, type ModelText } from './model-text.ts';
+import { MODEL_TEXT, type ModelLanguage, type ModelText, type NoPortrait } from './model-text.ts';
 
 /** The console panels, titled in `language`. */
 function desktopPetPanelDecls(language: Language = 'zh'): WorldPanelDecl[] {
@@ -86,6 +86,12 @@ const ENV_PROMPT_FILES: Record<ModelLanguage, string> = {
 const QUIET_MAX_MIN = 24 * 60;
 const FRAME_MS = 20;
 const WALK_TIMEOUT_MS = 30_000;
+/**
+ * How long `pet_see_self` waits for the pet page's picture. The page waits up to 400 ms for its frame and the
+ * display's (web/pet-app.js), the window takes about 50 ms to copy a frame (host/overlay.cjs) and less than that
+ * to encode a picture of at most a megapixel: ten times the sum.
+ */
+const PORTRAIT_TIMEOUT_MS = 5000;
 /** Touches of one kind closer than this are reported as one event with a count. */
 const TOUCH_MERGE_MS = 2500;
 /** How long a confirmation bubble waits for an answer, counted from when the page shows it. */
@@ -274,6 +280,11 @@ interface PendingWalk {
   stopping?: boolean;
 }
 
+/** What the pet page answered a `portrait` order with: the PNG and its size in pixels, or why there is none. */
+type Portrait = { png: Buffer; width: number; height: number } | NoPortrait;
+/** The reasons the page itself gives. */
+const PAGE_NO_PORTRAIT: readonly string[] = ['tab', 'hidden', 'no-body', 'capture'] satisfies NoPortrait[];
+
 interface PendingAsk {
   id: string;
   question: string;
@@ -387,6 +398,8 @@ export class DesktopPetWorld implements World {
   /** When each line sent by `pet_say` is estimated to be over, in sending order; the last one is when the bubble is free. */
   private sayEnds: Array<{ id: string; at: number }> = [];
   private readonly walks = new Map<string, PendingWalk>();
+  /** The `portrait` orders the page has not answered, by id. */
+  private readonly portraits = new Map<string, (portrait: Portrait) => void>();
   private ask: PendingAsk | null = null;
   private touch: TouchBatch | null = null;
   /** A touch has woken the bot and no turn has ended since; touches until then wait for the next wake. */
@@ -734,6 +747,7 @@ export class DesktopPetWorld implements World {
     this.dialogs.clear();
     for (const w of this.walks.values()) { clearTimeout(w.timer); w.resolve(this.t.walkWorldStopped); }
     this.walks.clear();
+    for (const done of [...this.portraits.values()]) done('gone');
     for (const s of this.voiceSockets) s.close('stopped');
     this.voiceSockets.clear();
     this.chat.closeAll('stopped');
@@ -1170,6 +1184,13 @@ export class DesktopPetWorld implements World {
         return;
       }
       case 'answer': return this.onAnswer(msg, 'pet');
+      case 'portrait': {
+        const png = typeof msg.png === 'string' ? Buffer.from(msg.png, 'base64') : null;
+        const sized = [msg.width, msg.height].every((n) => typeof n === 'number' && n > 0);
+        this.portraits.get(String(msg.id))?.(png?.length && sized ? { png, width: msg.width as number, height: msg.height as number }
+          : PAGE_NO_PORTRAIT.includes(String(msg.failed)) ? msg.failed as NoPortrait : 'capture');
+        return;
+      }
       case 'visibility': this.petHidden = msg.hidden === true; this.tellDesktop(); return;
       case 'text': {
         const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 500) : '';
@@ -1342,6 +1363,7 @@ export class DesktopPetWorld implements World {
     this.tellDesktop();
     for (const [id, d] of this.dialogs) { d({ unavailable: true }); this.dialogs.delete(id); }
     for (const [id, w] of this.walks) { clearTimeout(w.timer); w.resolve(this.t.walkWindowGone); this.walks.delete(id); }
+    for (const done of [...this.portraits.values()]) done('gone');
     for (const [id, c] of this.confirms) { clearTimeout(c.timer); c.resolve('unavailable'); this.confirms.delete(id); }
     this.segmenter.flush();
     if (this.wasSpeaking) this.wasSpeaking = false;
@@ -1886,6 +1908,7 @@ export class DesktopPetWorld implements World {
       pet_ask: (args) => this.askUser(args),
       pet_move_to: (args, ctx) => this.moveTo(args, ctx),
       pet_act: (args) => this.act(args),
+      pet_see_self: () => this.seeSelf(),
       pet_set: (args) => this.setSettings(args),
       pet_quiet: (args) => this.setQuiet(args),
       pet_cua_open_settings: async () => this.openCuaSettings(),
@@ -2081,6 +2104,32 @@ export class DesktopPetWorld implements World {
     if (!this.server.sendPet({ t: 'act', id: nextId('c'), actions })) return this.notConnected('pet_act');
     const lasting = actions.filter((a) => vocab.find((v) => v.id === a)?.lasting);
     return { text: this.t.actReceipt(actions, lasting, dropped) };
+  }
+
+  /**
+   * The picture is the pet window's: the page names the body's room and the window process copies it from what it
+   * draws (host/portrait.cjs). A browser tab has no such window and is not asked.
+   */
+  private async seeSelf(): Promise<ToolOutcome> {
+    const t = this.t;
+    if (!this.server.petConnected) return this.notConnected('pet_see_self');
+    const id = nextId('p');
+    const portrait = !this.server.petInWindow ? 'tab' : await new Promise<Portrait>((resolve) => {
+      const done = (p: Portrait): void => {
+        clearTimeout(timer);
+        this.portraits.delete(id);
+        resolve(p);
+      };
+      const timer = setTimeout(() => done('timeout'), PORTRAIT_TIMEOUT_MS);
+      this.portraits.set(id, done);
+      this.server.sendPet({ t: 'portrait', id });
+    });
+    if (typeof portrait === 'string') return { text: t.selfNot(portrait, PORTRAIT_TIMEOUT_MS / 1000), failed: true };
+    const { png, width, height } = portrait;
+    return {
+      text: t.selfSeen(width, height, this.bodyText(this.currentPack())),
+      blobs: [{ bytes: png, mime: 'image/png', name: 'self.png', fallbackText: t.selfFallback(width, height) }],
+    };
   }
 
   /* ---------- prompt ---------- */

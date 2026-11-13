@@ -153,20 +153,75 @@ const clicksPass = () => prefs.clickThrough || fullscreenThrough;
 
 /* ---------- OBS overlay: while the window streams, each frame drawn is reported with the part it sends, the pet and its bubbles ---------- */
 let overlayOn = false;
-/** The body's box with room for its halo and what floats above its head, joined with the bubbles shown; null with no body. */
-function overlayRect() {
+/** The body's box with room for its halo and what floats above its head; null with no body. */
+function bodyRoom() {
   const b = at()?.box;
   if (!b) return null;
   // the halo reaches about 40% of the body's width out; emotes and z's float up to its height above; a pack's effects as far as it says
   const reach = (shownPack?.effects?.reach ?? 0) * 256 * bounds().S;
   const side = Math.max(24, .4 * b.w, reach), top = Math.max(48, b.h, reach);
-  const parts = [{ x: b.x - side, y: b.y - top, width: b.w + 2 * side, height: b.h + top + side }];
-  for (const el of [bubble, ...lines.map((l) => l.el)]) if (!el.hidden) parts.push(rectOf(el));
+  return { x: b.x - side, y: b.y - top, width: b.w + 2 * side, height: b.h + top + side };
+}
+/** The rect that holds all of `parts`, cut to the page; null when none of it is on the page. */
+function onPage(parts) {
   const x = Math.max(0, Math.min(...parts.map((r) => r.x))), y = Math.max(0, Math.min(...parts.map((r) => r.y)));
   const right = Math.min(innerWidth, Math.max(...parts.map((r) => r.x + r.width))), bottom = Math.min(innerHeight, Math.max(...parts.map((r) => r.y + r.height)));
   return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : null;
 }
+/** The body's room joined with the bubbles shown; null with no body. */
+function overlayRect() {
+  const room = bodyRoom();
+  if (!room) return null;
+  const parts = [room];
+  for (const el of [bubble, ...lines.map((l) => l.el)]) if (!el.hidden) parts.push(rectOf(el));
+  return onPage(parts);
+}
 host?.onOverlay?.((on) => { overlayOn = on; });
+
+/* ---------- portrait: a picture of the body alone, which the World asks for when the bot looks at itself ---------- */
+/** What the page draws over the stage: the bubbles, the menu's two sides, the hover buttons, the look wheel, the size slider and the hover hint. */
+const OVER_STAGE = '.bubble, .menu > *, .tools, .wheel, .sizer, .hint';
+/**
+ * The longest the picture waits for the page's next frame, and then for the display, in milliseconds each: a dozen
+ * display refreshes at 60 a second. A page that gets no refresh (its window wholly covered) goes on after it.
+ */
+const PORTRAIT_FRAME_MS = 200;
+/** Waiting for the page's next frame (the frame loop calls them once it has stepped the orders and the body). */
+const afterFrame = [];
+/** Resolves when `wait` calls back, after PORTRAIT_FRAME_MS at the latest. */
+const soon = (wait) => new Promise((done) => { const timer = setTimeout(done, PORTRAIT_FRAME_MS); wait(() => { clearTimeout(timer); done(); }); });
+const overlaps = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+/**
+ * Answers the World's `portrait` order with the body's room as the window draws it, `{ png, width, height }`,
+ * or with `failed` and why: `tab` (a browser tab has no window to take it from), `hidden` (the window is hidden, so
+ * the body is not drawn), `no-body` (no figure is on the page) or `capture`.
+ *
+ * Orders reach the body on the page's frames, so the picture is of the page's next frame: an action ordered just
+ * before it is in the picture once the body has started it. What the page draws over the stage and reaches into
+ * the room is not drawn in the frame taken, and is back in the next.
+ */
+async function takePortrait(id) {
+  const fail = (failed) => send({ t: 'portrait', id, failed });
+  if (!host?.portrait) return fail('tab');
+  if (!windowShown) return fail('hidden');
+  await soon((done) => afterFrame.push(done));
+  const room = bodyRoom(), rect = room && onPage([room]);
+  if (!rect) return fail('no-body');
+  const over = [...document.querySelectorAll(OVER_STAGE)].filter((el) => !el.closest('[hidden]') && overlaps(shadowed(rectOf(el)), rect));
+  for (const el of over) el.style.visibility = 'hidden';
+  try {
+    // by the second refresh the display has what the body drew for that frame, without what was over it
+    await soon((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+    const shot = await host.portrait(rect);
+    if (shot) send({ t: 'portrait', id, ...shot }); else fail('capture');
+  } catch {
+    fail('capture');
+  } finally {
+    for (const el of over) el.style.visibility = '';
+  }
+}
+/** One picture at a time: a second order waits until the first has put back what it left out. */
+let portraits = Promise.resolve();
 // the text is in before anything is shown
 void useLanguage().then(() => { document.title = t('pet.title'); host?.setLanguage?.(language()); connect(); });
 
@@ -380,6 +435,7 @@ function onOrder(m) {
     case 'walk-stop': body?.stopWalk(m.id); break;
     case 'ask-close': closeAsk(m.id); break;
     case 'act': acts.push(...m.actions); holdRoam(20); break;
+    case 'portrait': portraits = portraits.then(() => takePortrait(m.id)); break;
     case 'listen': onListen(m); break;
     case 'talk-key': hushForTalkKey(m.down === true); break;
     // a message sent from the chat page, once the bot has it, and one taken back before delivery
@@ -1757,11 +1813,15 @@ async function openWheel() {
   // back over a dress button while the row folds away: it fans out again
   if (leaving(wheel)) { clearTimeout(wheelAnim.leave); wheel.classList.remove('leaving'); drawWheel(); return; }
   if (!wheel.hidden || wheelState.opening) return;
+  // a slider being dragged keeps its place over the head: the row opens once it is let go
+  if (sizer.active) return;
   pinSizer(false);
   closeSizer();
   wheelState.opening = true;
   const items = await wheelItems().catch(() => []);
   wheelState.opening = false;
+  // the size slider opened while the favourites were read: one of the two at a time
+  if (!sizerEl.hidden && !leaving(sizerEl)) return;
   if (!items.length) { wheelState.empty = true; return; }
   wheelState.items = items;
   wheelState.at = Math.max(0, items.findIndex((i) => i.on));
@@ -2512,6 +2572,7 @@ function frame(steps, now, last) {
     const msg = err?.message ?? String(err);
     if (msg !== frameErr) { frameErr = msg; console.error(err); }
   }
+  for (const done of afterFrame.splice(0)) done();
   // a switch of figure or look, or a size on its way, is motion too: at the resting rate it would show as stutter
   const full = drawn && (prefs.lockFrameRate || !!at()?.moving || (!!host && drawnScale.moving) || performance.now() < smoothUntil);
   // a moving rate of 0 draws on every display refresh

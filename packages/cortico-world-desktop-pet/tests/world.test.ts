@@ -305,6 +305,33 @@ describe('with a pet page', () => {
     expect(out.text).toContain('fly');
   });
 
+  it('pet_see_self attaches the picture the pet window hands back, and ends at once when none can come', async () => {
+    const { world } = await mounted();
+    const see = () => tool(world, 'pet_see_self').handler({}, ctx) as Promise<{ text: string; failed?: true; blobs?: Array<{ bytes: Uint8Array; mime: string }> }>;
+    // a browser tab has no window to take the picture from: it is not asked
+    const tab = await FakePage.open(origin(world));
+    cleanup.push(() => tab.close());
+    expect(await see()).toMatchObject({ failed: true });
+    expect(tab.messages.some((m) => m.t === 'portrait')).toBe(false);
+    const win = await windowPage(world);
+    cleanup.push(() => win.close());
+    const png = Buffer.from('89504e470d0a1a0a', 'hex');
+    const seen = see();
+    win.send({ t: 'portrait', id: (await win.next((m) => m.t === 'portrait')).id, png: png.toString('base64'), width: 120, height: 160 });
+    const out = await seen;
+    expect(out.failed).toBeUndefined();
+    expect(out.blobs).toEqual([expect.objectContaining({ bytes: png, mime: 'image/png' })]);
+    expect(out.text).toContain('120×160');
+    const hidden = see();
+    win.send({ t: 'portrait', id: (await win.next((m) => m.t === 'portrait')).id, failed: 'hidden' });
+    expect(await hidden).toMatchObject({ failed: true });
+    // the window goes while the picture is awaited: the call does not wait out its time limit
+    const gone = see();
+    await win.next((m) => m.t === 'portrait');
+    await win.close();
+    expect(await gone).toMatchObject({ failed: true });
+  });
+
   it('takes the words of the body on screen: a pack\'s own, and Coo\'s once the page says the pack would not run', async () => {
     const root = mkdtempSync(join(tmpdir(), 'packs-'));
     mkdirSync(join(root, 'robot'));

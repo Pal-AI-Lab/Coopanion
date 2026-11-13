@@ -36,6 +36,12 @@ interface AskReceipt {
 /** Why the changes `pet_set` asked about were not made. */
 type NotAsked = 'unavailable' | 'timeout' | 'no';
 
+/**
+ * Why `pet_see_self` has no picture: the pet page is in a browser tab, the pet window is hidden, no figure is on the
+ * page, the window gave no pixels, the page did not answer in time, or it disconnected.
+ */
+export type NoPortrait = 'tab' | 'hidden' | 'no-body' | 'capture' | 'timeout' | 'gone';
+
 const zh = {
   /** Locale of the weekday in an event's time stamp. */
   dateLocale: 'zh-CN',
@@ -144,6 +150,19 @@ const zh = {
   actReceipt: (actions: string[], lasting: string[], dropped: string[]) => `开始依次做:${actions.join(' → ')}。`
     + (lasting.length ? `${lasting.join('、')} 会一直保持到下一个动作。` : '')
     + (dropped.length ? `\n[执行参数] 当前形象的词表里没有这些,已略过:${dropped.join('、')}。` : ''),
+
+  /** `body`: the figure and its dress, as `body` words them. */
+  selfSeen: (width: number, height: number, body: string) => `附图是这次调用时屏幕上画出的你,${width}×${height} 像素:只有身体,灰色底不是桌面,气泡不在图里。形象与打扮:${body}。`,
+  selfFallback: (width: number, height: number) => `你当时的样子 ${width}×${height}`,
+  /** `seconds`: how long the page was waited for, for `timeout`. */
+  selfNot: (why: NoPortrait, seconds: number) => `[pet_see_self 没执行] ${{
+    tab: '桌宠现在显示在浏览器页面里,那里取不到图。',
+    hidden: '桌宠窗口现在隐藏着,身体没有画出来。',
+    'no-body': '屏幕上还没有形象。',
+    capture: '桌宠窗口没有给出图。',
+    timeout: `桌宠窗口 ${seconds} 秒内没有交回图。`,
+    gone: '桌宠窗口断开了。',
+  }[why]}`,
 
   on: '开着',
   off: '关着',
@@ -271,6 +290,17 @@ const en: typeof zh = {
   actReceipt: (actions, lasting, dropped) => `Doing in order: ${actions.join(' → ')}.`
     + (lasting.length ? ` ${lasting.join(', ')} ${lasting.length > 1 ? 'are' : 'is'} held until the next action.` : '')
     + (dropped.length ? `\n[arguments] Not in the current figure's vocabulary, skipped: ${dropped.join(', ')}.` : ''),
+
+  selfSeen: (width, height, body) => `The picture attached is you as drawn on screen at the time of this call, ${width}×${height} px: the body alone, on a grey backdrop that is not the desktop, with no bubbles in it. Figure and dress: ${body}.`,
+  selfFallback: (width, height) => `how you looked then ${width}×${height}`,
+  selfNot: (why, seconds) => `[pet_see_self not run] ${{
+    tab: 'The pet is shown in a browser page, which gives no picture.',
+    hidden: 'The pet window is hidden, so the body is not drawn.',
+    'no-body': 'No figure is on screen yet.',
+    capture: 'The pet window gave no picture.',
+    timeout: `The pet window did not hand back a picture within ${seconds} seconds.`,
+    gone: 'The pet window disconnected.',
+  }[why]}`,
 
   on: 'on',
   off: 'off',
