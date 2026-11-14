@@ -522,6 +522,8 @@ function dropAsks() {
 }
 
 function openBubble(kind, html) {
+  item.cursorAt = cursor.at;
+  item.cursorHolding = false;
   bubble.className = 'bubble ' + kind;
   bubble.removeAttribute('aria-label');
   delete bubble.dataset.kind; delete bubble.dataset.icon;
@@ -588,16 +590,18 @@ function startItem(it) {
   }
 }
 
-/**
- * The cursor is on Coo's bubble: a line's countdown stands still meanwhile, so it can be read to the end or its link
- * clicked. Decided from where the cursor is now, as stepTools does: `:hover` stays with the last mouse event, and a
- * click-through window stops getting them once the cursor has left.
- */
-function pointedAt() {
+/** Compare both cursor positions with the same rectangle so the bubble's animation cannot start a hover. */
+function heldByCursor(it) {
   const p = cursor.at;
-  if (clicksPass() || bubble.hidden || !p) return false;
+  const previous = it.cursorAt;
+  it.cursorAt = p;
+  if (!p || bubble.hidden || clicksPass()) {
+    it.cursorHolding = false;
+    return false;
+  }
   const r = bubble.getBoundingClientRect();
-  return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom;
+  it.cursorHolding = inRect(p, r) && (it.cursorHolding || !previous || !inRect(previous, r));
+  return it.cursorHolding;
 }
 
 /** A click on a line's bubble, away from its links, ends the whole line as the person's own lines close: its voice stops and its later beats are dropped. */
@@ -616,8 +620,9 @@ function stepDialog(dt) {
   if (!it) return;
   if (it.kind === 'say') {
     if (it.skippedAt !== undefined) { if (T - it.skippedAt >= LINE_FADE) closeBubble(); return; }
+    const held = heldByCursor(it);
     if (it.i < 0 || it.beatDone) {
-      if (it.beatDone && pointedAt()) it.holdUntil += dt;
+      if (it.beatDone && held) it.holdUntil += dt;
       if (it.beatDone && T < it.holdUntil) return;
       it.i++;
       it.beatDone = false;
@@ -781,8 +786,10 @@ function stepTalk(it, dt) {
 /** A step with nothing to answer ends once its line has been read. */
 function stepTalkRead(dt) {
   const it = item;
-  if (it?.kind !== 'dialog' || !it.readUntil) return;
-  if (pointedAt()) it.readUntil += dt;
+  if (it?.kind !== 'dialog' || it.d.input) return;
+  const held = heldByCursor(it);
+  if (!it.readUntil) return;
+  if (held) it.readUntil += dt;
   if (T > it.readUntil) settleDialog(it, { done: true });
 }
 
