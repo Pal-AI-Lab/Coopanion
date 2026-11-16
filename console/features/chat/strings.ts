@@ -57,6 +57,8 @@ const zh = {
   },
   /** A figure switch (`figure`), a dress switch (`dress`), or a figure that did not load. */
   figure: (kind: string, name: string, b: string): string => (kind === 'figure' ? `你将 ${b} 更换为「${name}」` : kind === 'dress' ? `你为 ${b} 更换了装扮` : `「${name}」显示失败，已切换为 Coo`),
+  /** A figure's failure line with the reason its page gave. */
+  figureWhy: (line: string, reason: string): string => `${line}：${reason}`,
 };
 
 export const en: typeof zh = {
@@ -105,6 +107,8 @@ export const en: typeof zh = {
     }
   },
   figure: (kind: string, name: string, b: string): string => (kind === 'figure' ? `You changed ${b} to ${name}` : kind === 'dress' ? `You changed ${b}'s outfit` : `${name} failed to show; switched to Coo`),
+  /** A figure's failure line with the reason its page gave. */
+  figureWhy: (line: string, reason: string): string => `${line}: ${reason}`,
 };
 
 export const S = pick({
