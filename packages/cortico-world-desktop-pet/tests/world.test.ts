@@ -895,7 +895,24 @@ describe('chat page', () => {
     page.send({ t: 'figure', id: 'robot', ok: false, reason: 'broken' });
     await expect.poll(figures).toHaveLength(3);
     const robot = { zh: '机器人', id: 'robot' };
-    expect(figures()).toEqual([{ kind: 'dress', name: robot }, { kind: 'figure', name: expect.objectContaining({ id: 'coo' }) }, { kind: 'failed', name: robot }]);
+    expect(figures()).toEqual([{ kind: 'dress', name: robot }, { kind: 'figure', name: expect.objectContaining({ id: 'coo' }) }, { kind: 'failed', name: robot, reason: 'broken' }]);
+  });
+
+  it('lists a pack that would not run on the pet page among the figure problems until the page shows it', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'packs-'));
+    mkdirSync(join(root, 'robot'));
+    writeFileSync(join(root, 'robot', 'figure.json'), JSON.stringify({
+      manifest: 2, api: 2, id: 'robot', name: { zh: '机器人' }, about: { zh: '一个机器人' }, entry: 'figure.js', export: 'createBody', axes: [], presets: [], vocab: [],
+    }));
+    const { world } = await mounted(undefined, { packRoots: () => [root] });
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const problems = async () => (await (await fetch(`${origin(world)}/api/figures/status`)).json() as { problems: unknown[] }).problems;
+
+    page.send({ t: 'figure', id: 'robot', ok: false, reason: 'broken' });
+    await expect.poll(problems).toEqual([{ dir: 'robot', reason: 'broken' }]);
+    page.send({ t: 'figure', id: 'robot', scheme: '', ok: true });
+    await expect.poll(problems).toEqual([]);
   });
 
   it('an interrupt stops pet_move_to where the pet stands', async () => {

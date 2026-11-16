@@ -51,7 +51,7 @@ import { toSimplified } from './asr/simplify.ts';
 import { estimateSeconds, parseActions, parseScript, vocabChange, vocabTable, type VocabWord } from './script.ts';
 import { ActivityGroup, ChatSockets, SELF_TYPE, chatHistory, chatItem, chatRefs, type ChatFigure } from './chat.ts';
 import { ASK_OPTION_MAX, petToolDecls } from './tools.ts';
-import { COO, figurePacks, lookOf, modelName, nameIn, packFor, type FigurePack, type MoveTarget, type PackScan } from './packs.ts';
+import { COO, figurePacks, lookOf, modelName, nameIn, packFor, type FigurePack, type MoveTarget, type PackProblem, type PackScan } from './packs.ts';
 import { moveChange, moveTable, readMove } from './moves.ts';
 import { Cua } from './cua/cua.ts';
 import { CUA_OFF_TOOL_DECLS } from './cua/tools.ts';
@@ -493,7 +493,7 @@ export class DesktopPetWorld implements World {
       looks: () => this.cfg.looks,
       onLooks: (looks) => this.saveLooks(looks),
       packs: () => this.packs(),
-      packProblems: () => this.packScan().problems,
+      packProblems: () => this.packProblemsNow(),
       importer: this.importer ?? undefined,
       language: () => this.appLanguage,
       text: () => this.ui,
@@ -510,6 +510,8 @@ export class DesktopPetWorld implements World {
   private figureShown: string | null = null;
   /** The figure the page said would not run, while the skin still names it: the page shows Coo meanwhile. */
   private figureFailed: string | null = null;
+  /** Why each pack would not run when the pet page last loaded it, by pack id; a pack leaves when the page shows it. */
+  private readonly runFailures = new Map<string, string>();
   /** Why Coo, the last stand-in, would not run on the connected page, which then shows no figure at all. */
   private bodyMissing: string | null = null;
   /** The words each pack's body said it knows when the page last loaded it; a body that did not say is taken at its manifest's word. */
@@ -538,6 +540,12 @@ export class DesktopPetWorld implements World {
       if (!this.packProblems.has(line)) { this.packProblems.add(line); this.log?.warn(line); }
     }
     return scan;
+  }
+
+  /** What the scan found wrong, then the packs that scanned well and would not run on the pet page. */
+  private packProblemsNow(): PackProblem[] {
+    const { packs, problems } = this.packScan();
+    return [...problems, ...packs.flatMap((p) => { const reason = this.runFailures.get(p.id); return reason === undefined ? [] : [{ dir: p.dir, reason, loaded: false }]; })];
   }
 
   /** The pack of the figure the skin asks for (Coo for one that is not installed); null only when even Coo's would not load. */
@@ -634,13 +642,15 @@ export class DesktopPetWorld implements World {
       this.figureShown = COO;
       this.figureFailed = id;
       const reason = typeof msg.reason === 'string' ? msg.reason.slice(0, 200) : this.t.reasonUnknown;
+      this.runFailures.set(id, reason);
+      this.log?.warn(`形象包 ${id} 没能显示:${reason}`);
       if (id === COO) this.bodyMissing = reason;
       // the page shows Coo instead, whose words then hold too
       const coo = packs.find((p) => p.id === COO) ?? null;
       const note = this.vocabNote();
       const name = modelName(pack?.manifest.name, id, this.language);
       void this.push('desktop-pet.figure', 'desktop-pet.figure', this.t.figureFailed(name, reason, this.bodyText(coo), note), 'flush',
-        { meta: { figure: { kind: 'failed', name: { ...pack?.manifest.name, id } } } });
+        { meta: { figure: { kind: 'failed', name: { ...pack?.manifest.name, id }, reason } } });
       return;
     }
     if ('words' in msg) {
@@ -651,6 +661,7 @@ export class DesktopPetWorld implements World {
     const unknown = pack && known ? pack.manifest.vocab.filter((w) => !known.has(w.id)).map((w) => w.id) : [];
     const problem = `形象包 ${id} 的词表里有身体不认得的词,没给 bot 用:${unknown.join('、')}`;
     if (unknown.length && !this.packProblems.has(problem)) { this.packProblems.add(problem); this.log?.warn(problem); }
+    this.runFailures.delete(id);
     if (id === this.cfg.skin.figure) this.figureFailed = null;
     this.bodyMissing = null;
     const shown = id === COO ? COO : `${id}:${typeof msg.scheme === 'string' ? msg.scheme : ''}`;

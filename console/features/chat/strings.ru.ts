@@ -53,6 +53,8 @@ export const S: Partial<typeof en> = {
     }
   },
   figure: (kind: string, name: string, b: string): string => (kind === 'figure' ? `Вы заменили ${b} на ${name}` : kind === 'dress' ? `Вы сменили наряд ${b}` : `Не удалось показать ${name}; выбран Coo`),
+  /** A figure's failure line with the reason its page gave. */
+  figureWhy: (line: string, reason: string): string => `${line}: ${reason}`,
 };
 
 export const STEP: Partial<typeof stepEn> = {
