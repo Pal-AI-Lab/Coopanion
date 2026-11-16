@@ -965,6 +965,7 @@ export class DesktopPetWorld implements World {
       hideWhenFullscreen: this.cfg.window.hideWhenFullscreen,
       passWhenFullscreen: this.cfg.window.passWhenFullscreen,
       overTaskbar: this.cfg.window.overTaskbar,
+      hideFromCapture: this.cfg.window.hideFromCapture,
       clickThrough: this.clickThrough,
       language: this.appLanguage,
       user: this.userName,

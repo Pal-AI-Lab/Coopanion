@@ -267,6 +267,7 @@ export default {
     hideWhenFullscreen: { title: '全屏时自动隐藏', description: '开着时，前台窗口全屏铺满桌宠所在的那块屏（游戏、全屏视频、浏览器全屏）就把 Coo 藏起来，退出全屏放回来；最大化的窗口不算。关着时一直浮在上面。' },
     passWhenFullscreen: { title: "全屏时鼠标穿透", description: "开着时，前台窗口全屏铺满桌宠所在的那块屏期间 Coo 照常显示，点击全部穿过 Coo 落到下面的窗口，退出全屏后恢复；最大化的窗口不算。和全屏时自动隐藏同时开着时 Coo 会隐藏。" },
     overTaskbar: { title: "显示在任务栏上", description: "开着时桌宠窗口向下盖住屏幕底部的任务栏，形象绘制在地面以下的部分（坐下时垂下的腿）显示在任务栏上；关着时窗口到任务栏上沿为止。" },
+    hideFromCapture: { title: "不出现在截图和录屏里", description: "开着时 Coo 不出现在截图、录屏、直播和 Coo 自己的截屏里。开着时 NVIDIA 即时重放的桌面捕获可能无法开启。" },
     exportOverlay: { title: 'OBS 画面', description: '在 /overlay 提供桌宠窗口的透明画面，供 OBS「浏览器」来源使用；关闭时不提供。' },
     electronFile: { title: 'Electron 程序', description: '留空时依次用 CORTICO_DESKTOP_PET_HOST 和面板里安装的运行时。' },
     port: { title: '页面端口', description: '被占用时向上顺延。' },

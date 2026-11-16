@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Config `window.hideFromCapture` (Windows, off by default): on, the pet window is left out of screenshots and screen recordings (`setContentProtection`), those of `pet_cua_screenshot` included.
 - Config `window.overTaskbar` (Windows, on by default): off, the pet window ends at the work area's bottom and no longer reaches down over the taskbar.
 - A pack the pet page could not run is logged at WARN with its id and the reason, and listed in `GET /api/figures/status` `problems` until the page shows it. The `desktop-pet.figure` event of the failure carries the reason in `meta.figure.reason`, which the chat page shows.
 - The right-click menu shows only the actions picked as hover buttons (`hoverButtons`), beside the run controls the app lends; the actions not picked are no longer listed there. `hoverButtons` may be empty (0–6, it was 1–6), from the settings window and from `pet_set`: no buttons on hover, and a menu of the run controls alone, or none without them.
