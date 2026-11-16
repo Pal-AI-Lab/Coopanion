@@ -41,6 +41,33 @@ export const FILLER_USER_TEXT = '-';
 
 type Item = Record<string, any>;
 
+/**
+ * Attachment types other than images that Gemini takes as `inlineData`, keyed by the type an
+ * attachment may carry and mapped to the name Gemini documents. Images pass as they are.
+ */
+const INLINE_MIMES: Record<string, string> = {
+  'audio/wav': 'audio/wav', 'audio/x-wav': 'audio/wav', 'audio/wave': 'audio/wav',
+  'audio/mp3': 'audio/mp3', 'audio/mpeg': 'audio/mp3',
+  'audio/aiff': 'audio/aiff', 'audio/x-aiff': 'audio/aiff',
+  'audio/aac': 'audio/aac', 'audio/ogg': 'audio/ogg', 'audio/flac': 'audio/flac', 'audio/x-flac': 'audio/flac',
+  'video/mp4': 'video/mp4', 'video/mpeg': 'video/mpeg', 'video/quicktime': 'video/mov', 'video/mov': 'video/mov',
+  'video/avi': 'video/avi', 'video/x-flv': 'video/x-flv', 'video/mpg': 'video/mpg', 'video/webm': 'video/webm',
+  'video/wmv': 'video/wmv', 'video/3gpp': 'video/3gpp',
+  'application/pdf': 'application/pdf', 'text/plain': 'text/plain',
+};
+
+/** The type an attachment goes out as, or null when Gemini cannot take it inline. */
+export function geminiInlineMime(mime: string): string | null {
+  const type = mime.toLowerCase().split(';')[0].trim();
+  return type.startsWith('image/') ? type : INLINE_MIMES[type] ?? null;
+}
+
+/**
+ * Base64 characters of attachments one request carries at most, under Gemini's 20 MB limit on a
+ * request with inline data. An attachment past the budget is left out; its text line stays.
+ */
+export const INLINE_MAX_CHARS = 18 * 1024 * 1024;
+
 function dataUrl(url: string): { mimeType: string; data: string } {
   const match = /^data:([^;,]+);base64,(.*)$/s.exec(url);
   if (!match) throw new ResponseProtocolError('Gemini inline media requires a base64 data URL');
@@ -119,12 +146,19 @@ export function geminiInput(request: Request, options: GenerateOptions, opts: { 
     if (last?.role === 'user') last.parts.push(...parts);
     else contents.push({ role: 'user', parts });
   };
+  let inlineChars = 0;
   const blobs = (entry: ContextRecord): GeminiPart[] => {
     if (!opts.media?.enabled() || !entry.context.blobs?.length) return [];
     const parts: GeminiPart[] = [];
     for (const ref of entry.context.blobs) {
+      const mimeType = geminiInlineMime(ref.mime);
+      if (!mimeType) continue;
       const bytes = opts.media.read(ref.handle);
-      if (bytes) parts.push({ inlineData: { mimeType: ref.mime, data: bytes.toString('base64') } });
+      if (!bytes) continue;
+      const data = bytes.toString('base64');
+      if (inlineChars + data.length > INLINE_MAX_CHARS) continue;
+      inlineChars += data.length;
+      parts.push({ inlineData: { mimeType, data } });
     }
     return parts;
   };

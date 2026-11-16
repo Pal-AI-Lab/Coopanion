@@ -70,3 +70,15 @@ describe('ClaudeResponseAssembly', () => {
     expect(assembly.meters()).toMatchObject({ input: 100, cachedInput: 90, uncachedInput: 10, output: 40, reasoning: 0 });
   });
 });
+
+describe('claudeInput attachments', () => {
+  it('leaves out audio attachments the Messages API cannot take and keeps their text line', () => {
+    const heard = { ...message('user', '[blob log:a.wav audio/wav] heard'), context: { blobs: [
+      { handle: 'a', mime: 'audio/wav', fallbackText: 'heard' }, { handle: 'b', mime: 'image/png', fallbackText: 'shot' }] } } as ContextRecord;
+    const media = { enabled: () => true, read: () => Buffer.from('bytes') };
+    const { messages } = claudeInput(request, { context: [heard], origin }, { media });
+    const blocks = messages[0].content as Array<{ type: string; text?: string }>;
+    expect(blocks.map(block => block.type)).toEqual(['text', 'image']);
+    expect(blocks[0].text).toContain('audio/wav');
+  });
+});
