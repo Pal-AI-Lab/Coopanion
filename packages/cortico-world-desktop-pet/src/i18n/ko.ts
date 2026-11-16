@@ -240,6 +240,7 @@ const ko: Translation<PetText> = {
     hideWhenFullscreen: { title: '전체 화면일 때 숨기기', description: '켜면 앞에 있는 창이 펫이 있는 화면을 가득 채우는 동안(게임, 전체 화면 동영상, 전체 화면 브라우저) 펫을 숨기고, 전체 화면이 끝나면 다시 보여 줍니다. 최대화된 창은 해당하지 않습니다. 끄면 항상 맨 위에 떠 있습니다.' },
     passWhenFullscreen: { title: "전체 화면일 때 클릭이 Coo를 통과", description: "켜면 앞에 있는 창이 Coo가 있는 화면을 가득 채우는 동안 Coo는 그대로 보이고 모든 클릭은 Coo를 지나 아래 창으로 전달되며, 전체 화면이 끝나면 원래대로 돌아옵니다. 최대화된 창은 해당하지 않습니다. 전체 화면일 때 숨기기도 켜져 있으면 Coo는 숨습니다." },
     overTaskbar: { title: "작업 표시줄 위에 표시", description: "켜면 펫 창이 화면 아래쪽 작업 표시줄 위까지 내려가, 피규어가 바닥 아래에 그리는 부분(앉았을 때 늘어뜨린 다리)이 작업 표시줄 위에 표시됩니다. 끄면 창이 작업 표시줄 위쪽 가장자리에서 끝납니다." },
+    hideFromCapture: { title: "스크린샷과 녹화에 나오지 않기", description: "켜져 있는 동안 Coo는 스크린샷, 화면 녹화, 방송, Coo가 찍는 스크린샷에 나오지 않습니다. 켜져 있는 동안 NVIDIA 인스턴트 리플레이의 데스크톱 캡처가 켜지지 않을 수 있습니다." },
     exportOverlay: { title: 'OBS 오버레이', description: '펫 창의 화면을 투명 배경으로 /overlay에 제공해 OBS의 「브라우저」 소스에서 쓸 수 있게 합니다. 끄면 제공하지 않습니다.' },
     electronFile: { title: 'Electron 실행 파일', description: '비워 두면 CORTICO_DESKTOP_PET_HOST를 쓰고, 없으면 패널에서 설치한 런타임을 씁니다.' },
     port: { title: '페이지 포트', description: '사용 중이면 다음 빈 포트로 올라갑니다.' },
