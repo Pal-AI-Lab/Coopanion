@@ -953,6 +953,7 @@ export class DesktopPetWorld implements World {
       lockFrameRate: this.cfg.window.lockFrameRate,
       hideWhenFullscreen: this.cfg.window.hideWhenFullscreen,
       passWhenFullscreen: this.cfg.window.passWhenFullscreen,
+      overTaskbar: this.cfg.window.overTaskbar,
       clickThrough: this.clickThrough,
       language: this.appLanguage,
       user: this.userName,

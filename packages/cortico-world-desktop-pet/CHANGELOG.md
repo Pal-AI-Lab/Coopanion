@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Config `window.overTaskbar` (Windows, on by default): off, the pet window ends at the work area's bottom and no longer reaches down over the taskbar.
 - The right-click menu shows only the actions picked as hover buttons (`hoverButtons`), beside the run controls the app lends; the actions not picked are no longer listed there. `hoverButtons` may be empty (0–6, it was 1–6), from the settings window and from `pet_set`: no buttons on hover, and a menu of the run controls alone, or none without them.
 - A pet dialog takes `{ kind: 'pick', options, value?, min?, max, confirm }`: cards of which `min` (1 when absent) to `max` are picked, answered as `{ picked: [index, …] }` in the cards' order, holding only indices of its own cards.
 - `PET_ACTIONS`, `MAX_HOVER_BUTTONS`, `hoverButtonList` and the type `PetAction` are exported.
