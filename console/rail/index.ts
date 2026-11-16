@@ -191,6 +191,8 @@ export function createRail(deps: RailDeps): Rail {
         for (const it of g.modules) addItem(list, it, itemSignal);
       }
     }
+    // the lamps' entrance (companion.css) plays on folding and unfolding only, not when a redraw rebuilds them
+    for (const { lamps: row } of entries) for (const motion of row?.getAnimations() ?? []) motion.finish();
     applyRoute();
     filterNav(false);
     // emptying the list scrolled it to the top; the same list stays where it was
