@@ -75,6 +75,7 @@ const KEYS = {
   frameRate: `${K}.window.frameRate`,
   hideFullscreen: `${K}.window.hideWhenFullscreen`,
   passFullscreen: `${K}.window.passWhenFullscreen`,
+  overTaskbar: `${K}.window.overTaskbar`,
   overlay: `${K}.window.exportOverlay`,
   sound: `${K}.sound`,
   volume: `${K}.sounds.volume`,
@@ -215,6 +216,7 @@ async function mount(ctx: PageContext): Promise<void> {
   const passFullscreen = ui.checkbox(S.passFullscreen, { onChange: (on) => void save(KEYS.passFullscreen, on, GROUP, passFullscreen.el) });
   const fullscreenBox = ui.h('div', 'companion-checks');
   fullscreenBox.append(hideFullscreen.el, passFullscreen.el);
+  const overTaskbar = ui.checkbox(S.overTaskbar, { onChange: (on) => void save(KEYS.overTaskbar, on, GROUP, overTaskbar.el) });
   const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on, GROUP, remember.el) });
   const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on, GROUP, dblclick.el) });
   const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on, GROUP, statusBubble.el) });
@@ -395,6 +397,8 @@ async function mount(ctx: PageContext): Promise<void> {
   // the World declares these settings on Windows only; elsewhere their values never arrive and the row stays hidden
   const hideFullscreenRow = row(S.hideFullscreenLabel, fullscreenBox, [S.hideFullscreenHint, S.passFullscreenHint]);
   hideFullscreenRow.hidden = true;
+  const overTaskbarRow = row(S.overTaskbarLabel, overTaskbar.el, S.overTaskbarHint);
+  overTaskbarRow.hidden = true;
   const autoUpdateRow = row(S.autoUpdateLabel, autoUpdate.el, S.autoUpdateHint);
   autoUpdateRow.hidden = true;
   // the app's login item, read and written through the window's preload; absent in a browser and in a build that is not packaged
@@ -434,6 +438,7 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.frameRate, frameRate.el, S.frameRateHint),
     row('', lockFps.el, S.lockFpsHint),
     hideFullscreenRow,
+    overTaskbarRow,
     row(S.rememberLabel, remember.el, S.rememberHint),
   );
   const heading = intro(ui, S.nav);
@@ -692,6 +697,7 @@ async function mount(ctx: PageContext): Promise<void> {
     if (typeof values[KEYS.lockFps] === 'boolean') lockFps.setChecked(values[KEYS.lockFps] as boolean);
     if (typeof values[KEYS.hideFullscreen] === 'boolean') { hideFullscreen.setChecked(values[KEYS.hideFullscreen] as boolean); hideFullscreenRow.hidden = false; }
     if (typeof values[KEYS.passFullscreen] === 'boolean') passFullscreen.setChecked(values[KEYS.passFullscreen] as boolean);
+    if (typeof values[KEYS.overTaskbar] === 'boolean') { overTaskbar.setChecked(values[KEYS.overTaskbar] as boolean); overTaskbarRow.hidden = false; }
     if (typeof values[KEYS.remember] === 'boolean') remember.setChecked(values[KEYS.remember] as boolean);
     if (typeof values[KEYS.dblclick] === 'boolean') dblclick.setChecked(values[KEYS.dblclick] as boolean);
     if (typeof values[KEYS.statusBubble] === 'boolean') statusBubble.setChecked(values[KEYS.statusBubble] as boolean);
