@@ -240,6 +240,7 @@ const zhHant: Translation<PetText> = {
     hideWhenFullscreen: { title: '全螢幕時自動隱藏', description: '開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕（遊戲、全螢幕影片、瀏覽器全螢幕）就把 Coo 藏起來，離開全螢幕後再放回來；最大化的視窗不算。關閉時一律浮在最上層。' },
     passWhenFullscreen: { title: "全螢幕時滑鼠穿透", description: "開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕期間 Coo 照常顯示，點擊全部穿過 Coo 落到下方的視窗，離開全螢幕後恢復；最大化的視窗不算。與全螢幕時自動隱藏同時開啟時 Coo 會隱藏。" },
     overTaskbar: { title: "顯示在工作列上", description: "開啟時桌寵視窗向下蓋住螢幕底部的工作列，形象繪製在地面以下的部分（坐下時垂下的腿）顯示在工作列上；關閉時視窗到工作列上緣為止。" },
+    hideFromCapture: { title: "不出現在截圖和錄影裡", description: "開啟時 Coo 不出現在截圖、螢幕錄影、直播和 Coo 自己的截圖裡。開啟時 NVIDIA 即時重播的桌面擷取可能無法開啟。" },
     exportOverlay: { title: 'OBS 畫面', description: '在 /overlay 提供桌寵視窗的透明畫面，供 OBS「瀏覽器」來源使用；關閉時不提供。' },
     electronFile: { title: 'Electron 程式', description: '留空時依序使用 CORTICO_DESKTOP_PET_HOST 和面板裡安裝的執行環境。' },
     port: { title: '頁面連接埠', description: '被佔用時往上順延到下一個空的連接埠。' },

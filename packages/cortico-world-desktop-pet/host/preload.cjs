@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld('petHost', {
   passWhenFullscreen: (on) => ipcRenderer.send('pet:passWhenFullscreen', !!on),
   /** Whether the window reaches down over a taskbar at the bottom of its display. */
   overTaskbar: (on) => ipcRenderer.send('pet:overTaskbar', !!on),
+  /** Whether the window is left out of screenshots and screen recordings. */
+  hideFromCapture: (on) => ipcRenderer.send('pet:hideFromCapture', !!on),
   /** Whether clicks pass through right now because of that setting, each time it changes. */
   onFullscreenThrough: (cb) => ipcRenderer.on('pet:fullscreenThrough', (_e, on) => cb(!!on)),
   /** Whether every click passes through the window (the tray's "click through"); the window process enforces it. */

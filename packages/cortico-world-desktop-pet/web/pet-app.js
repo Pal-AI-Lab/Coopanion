@@ -397,6 +397,7 @@ function applyPrefs(p) {
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
   if (typeof p.passWhenFullscreen === 'boolean') host?.passWhenFullscreen?.(p.passWhenFullscreen);
   if (typeof p.overTaskbar === 'boolean') host?.overTaskbar?.(p.overTaskbar);
+  if (typeof p.hideFromCapture === 'boolean') host?.hideFromCapture?.(p.hideFromCapture);
   if (typeof p.clickThrough === 'boolean') { prefs.clickThrough = p.clickThrough; host?.clickThrough?.(p.clickThrough); }
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
   if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-rail.confirm')) renderMenuRail(); }

@@ -527,6 +527,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   onPet('pet:hideWhenFullscreen', (_e, on) => { hideWhenFullscreen = !!on; });
   onPet('pet:passWhenFullscreen', (_e, on) => { passWhenFullscreen = !!on; });
   onPet('pet:overTaskbar', (_e, on) => { if (overTaskbar !== !!on) { overTaskbar = !!on; place(); } });
+  // Windows: WDA_EXCLUDEFROMCAPTURE, which leaves the window out of what other programs capture of the screen
+  onPet('pet:hideFromCapture', (_e, on) => win.setContentProtection(!!on));
   onPet('pet:clickThrough', (_e, on) => { trayThrough = !!on; lockMouse(); });
   onPet('pet:watchWindows', (_e, on) => watchWindows(!!on));
   onPet('pet:openDress', () => openDress());
