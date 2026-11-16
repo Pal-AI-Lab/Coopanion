@@ -26,8 +26,8 @@ export interface WireImage { ref: string; mime: string; name?: string }
 /** A touch as the chat page tells it: `poke`, `pet`, `throw`, `drop` or `crash`, how many times, and whether it woke the pet or the pet crashed. */
 export interface ChatTouch { kind: string; count: number; woke: boolean; crashed: boolean }
 
-/** A figure switch: to another figure, to another dress of the same one, or a figure that did not load (Coo shows instead); `name` by language, with its `id`. */
-export interface ChatFigure { kind: 'figure' | 'dress' | 'failed'; name: Record<string, string> }
+/** A figure switch: to another figure, to another dress of the same one, or a figure that did not load (Coo shows instead) with the page's `reason`; `name` by language, with its `id`. */
+export interface ChatFigure { kind: 'figure' | 'dress' | 'failed'; name: Record<string, string>; reason?: string }
 
 /** One beat of a `pet_say`: its text and the first expression played in it, by its id and its name in each language. */
 export interface SayBeat { text: string; mood?: Record<string, string> }
@@ -83,7 +83,7 @@ export function chatItem(e: EventEnvelope): ChatItem | null {
     case 'desktop-pet.figure': {
       const f = (m.figure ?? null) as Meta | null;
       if (!f || !['figure', 'dress', 'failed'].includes(f.kind as string) || !f.name || typeof f.name !== 'object') return null;
-      return { kind: 'figure', ...base, figure: { kind: f.kind as ChatFigure['kind'], name: f.name as Record<string, string> } };
+      return { kind: 'figure', ...base, figure: { kind: f.kind as ChatFigure['kind'], name: f.name as Record<string, string>, ...(typeof f.reason === 'string' ? { reason: f.reason } : {}) } };
     }
     default: {
       if (m.kind === 'say' && Array.isArray(m.beats)) {
