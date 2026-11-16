@@ -100,8 +100,19 @@ export function boot(doc: Document = document): Disposable {
   const router = new Router({ win: window, confirmLeave: async (message) => window.confirm(message), onError });
   const loader = new ConsolePageLoader({
     importModule: (url: string) => import(/* @vite-ignore */ url),
-    styleHost: doc.head,
-    createLink: () => doc.createElement('link'),
+    fetchText: async (url: string) => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.text();
+    },
+    createStyle: (css: string, baseUrl: string) => {
+      const sheet = new CSSStyleSheet({ baseURL: new URL(baseUrl, location.href).href });
+      sheet.replaceSync(css);
+      return {
+        attach: () => { if (!doc.adoptedStyleSheets.includes(sheet)) doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet]; },
+        detach: () => { doc.adoptedStyleSheets = doc.adoptedStyleSheets.filter((s) => s !== sheet); },
+      };
+    },
     log: (msg: string, detail?: unknown) => console.warn('[console]', msg, detail ?? ''),
   });
   const hostDeps = {

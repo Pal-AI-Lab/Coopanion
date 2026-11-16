@@ -23,6 +23,7 @@ import { createToolsView } from './tools/view.ts';
 import { resolveConsoleLinkHref } from '../../base/theme/handoff.ts';
 import { createPanelContext, namespacedMemo } from './context.ts';
 import { ConsolePageLoader } from './loader.ts';
+import { EXTENSION_PAGE_ATTR, HOST_VIEW_ATTR } from './scope-css.ts';
 import { S } from './strings.ts';
 import { S as WORLD } from '../features/worlds/strings.ts';
 import { takeReturn } from '../../base/world-nav.ts';
@@ -45,6 +46,15 @@ function asArray<T>(v: readonly T[] | undefined): readonly T[] {
 function tabbed(page: WebUiPageManifest): readonly WebUiPanelManifest[] {
   return asArray(page.panels).filter((p) => p.slot === undefined);
 }
+
+/** 标记宿主自己画在面板槽里的内容：扩展样式碰不到它，只能经变量影响它。 */
+function hostView<T extends HTMLElement>(el: T): T {
+  el.setAttribute(HOST_VIEW_ATTR, '');
+  return el;
+}
+
+/** 宿主在页头标题行开出的插槽名。声明到这里的面板随页头挂载，同页换页签时保留。 */
+export const HEADER_SLOT = 'header';
 
 export interface ConsolePageHostDeps {
   doc: Document;
@@ -72,10 +82,16 @@ interface MountedPanel {
   lifecycle: Lifecycle;
 }
 
-/** 页头与面板使用独立容器，刷新页头不重挂面板。 */
+/**
+ * 页头与面板使用独立容器，刷新页头不重挂面板。显示扩展页时，页根与浮层层带页面标记，扩展样式只在这期间生效；
+ * 浮层层里的宿主浮层继承页面改写的变量，扩展选择器碰不到。
+ */
 interface Panes {
   chrome: HTMLElement;
   slot: HTMLElement;
+  /** 这一页的浮层宿主，不能是 `root`：那个 unmount 时会被清空。 */
+  overlays: HTMLElement;
+  leave(): void;
 }
 
 export class ConsolePageHost {
@@ -95,6 +111,8 @@ export class ConsolePageHost {
    */
   private generation = 0;
   private chromeStop: AbortController | null = null;
+  /** 页头插槽里面板的生命周期，与页头同生同灭。 */
+  private chromeLife: Lifecycle | null = null;
   private readonly navListeners = new Set<() => void>();
 
   constructor(deps: ConsolePageHostDeps) {
@@ -133,12 +151,15 @@ export class ConsolePageHost {
     const lifecycle = new Lifecycle(this.deps.onError);
     const page = this.find(pageId);
     const panel = asArray(page?.panels).find(candidate => candidate.id === panelId);
+    root.setAttribute(EXTENSION_PAGE_ATTR, pageId);
+    const style = this.deps.loader.useStyle(pageId, page?.client);
+    lifecycle.own({ dispose: () => { style.dispose(); root.removeAttribute(EXTENSION_PAGE_ATTR); } });
     try {
       if (!panel) throw new Error(S.noSuchPanel(page?.label ?? pageId, panelId));
       if (panel.builtin !== undefined) throw new Error(S.noBuiltinPanel(panel.builtin));
       const impl = await this.deps.loader.resolvePanel(pageId, panel.id, page?.client);
       if (!lifecycle.disposed) {
-        const result = await impl.mount(adapt(this.panelContext(pageId, panel.id, root, lifecycle, this.generation, scope)));
+        const result = await impl.mount(adapt(this.panelContext(pageId, panel.id, root, lifecycle, () => !lifecycle.disposed, scope, this.deps.overlayHost)));
         if (result) lifecycle.own(result);
       }
     } catch (error) { root.textContent = String(error); }
@@ -178,15 +199,23 @@ export class ConsolePageHost {
   /** 卸载当前面板：abort → dispose → 清空 root。顺序见 client-panel.ts 的说明。 */
   unmount(): void {
     const cur = this.mounted;
+    const panes = this.panes;
     this.backFor = null;
     this.mounted = null;
     this.panes = null;
-    this.chromeStop?.abort();
-    this.chromeStop = null;
+    this.stopChrome();
     this.tabs = null;
     this.generation++;
     if (cur) cur.lifecycle.dispose();
     this.deps.root.replaceChildren();
+    panes?.leave();
+  }
+
+  private stopChrome(): void {
+    this.chromeStop?.abort();
+    this.chromeStop = null;
+    this.chromeLife?.dispose();
+    this.chromeLife = null;
   }
 
   /** 同一页内换页签：只卸面板、清面板槽，页头留着，页签的选中滑块才能滑过去。 */
@@ -198,16 +227,38 @@ export class ConsolePageHost {
     this.panes?.slot.replaceChildren();
   }
 
-  /** 建（或复用）页头与面板槽两个容器。 */
-  private ensurePanes(): Panes {
+  /** 建（或复用）页头、面板槽与浮层层；给了页面时为它标记页根、挂上它的样式，直到 unmount。 */
+  private ensurePanes(page?: WebUiPageManifest): Panes {
     if (this.panes) return this.panes;
     const doc = this.deps.doc;
+    const root = this.deps.root;
     const chrome = doc.createElement('div');
     chrome.className = 'providerchrome';
     const slot = doc.createElement('div');
     slot.className = 'panelslot';
-    this.deps.root.replaceChildren(chrome, slot);
-    this.panes = { chrome, slot };
+    root.replaceChildren(chrome, slot);
+    if (!page) {
+      this.panes = { chrome, slot, overlays: this.deps.overlayHost, leave() {} };
+      return this.panes;
+    }
+    const layer = doc.createElement('div');
+    layer.className = 'page-overlays';
+    layer.setAttribute(EXTENSION_PAGE_ATTR, page.id);
+    const overlays = doc.createElement('div');
+    overlays.className = 'page-overlays';
+    overlays.setAttribute(HOST_VIEW_ATTR, '');
+    layer.append(overlays);
+    this.deps.overlayHost.append(layer);
+    root.setAttribute(EXTENSION_PAGE_ATTR, page.id);
+    const style = this.deps.loader.useStyle(page.id, page.client);
+    this.panes = {
+      chrome, slot, overlays,
+      leave: () => {
+        style.dispose();
+        layer.remove();
+        if (root.getAttribute(EXTENSION_PAGE_ATTR) === page.id) root.removeAttribute(EXTENSION_PAGE_ATTR);
+      },
+    };
     return this.panes;
   }
 
@@ -236,6 +287,7 @@ export class ConsolePageHost {
       this.renderError(S.noPage(pageId), S.noPageHint);
       return;
     }
+    this.ensurePanes(page);
     const panels = tabbed(page);
     const prompts = asArray(page.prompts);
     const configGroups = this.configGroupsOf(page);
@@ -279,7 +331,7 @@ export class ConsolePageHost {
     }
 
     this.renderChrome(pageId, panel.id);
-    const { slot } = this.ensurePanes();
+    const { slot, overlays } = this.ensurePanes();
 
     const lifecycle = new Lifecycle(this.deps.onError);
     this.mounted = { pageId, panelId: panel.id, lifecycle };
@@ -290,7 +342,7 @@ export class ConsolePageHost {
       if (gen !== this.generation) return; // 等 import 的工夫用户已经走了
 
       const out = await impl.mount(
-        this.panelContext(pageId, panel.id, slot, lifecycle, gen, {}),
+        this.panelContext(pageId, panel.id, slot, lifecycle, () => gen === this.generation, {}, overlays),
       );
       if (gen !== this.generation) {
         // mount 返回时已卸载，立即释放其 Disposable。
@@ -311,14 +363,18 @@ export class ConsolePageHost {
     }
   }
 
-  /** 面板上下文。插槽里的面板与页签面板走同一条路，区别只在 root、生命周期与 scope。 */
+  /**
+   * 面板上下文。插槽里的面板与页签面板走同一条路，区别只在 root、生命周期、scope 与浮层宿主。
+   * `alive` 在这块面板所属的挂载结束后返回 false，子插槽据此丢弃迟到的 mount。
+   */
   private panelContext(
     pageId: string,
     panelId: string,
     root: HTMLElement,
     lifecycle: Lifecycle,
-    gen: number,
+    alive: () => boolean,
     scope: Readonly<Record<string, string>>,
+    overlayHost: HTMLElement,
   ) {
     return createPanelContext({
       pageId,
@@ -327,8 +383,8 @@ export class ConsolePageHost {
       lifecycle,
       scope,
       mountSlot: (name, host, childScope) =>
-        this.mountSlot(pageId, gen, lifecycle, name, host, childScope),
-      overlayHost: this.deps.overlayHost,
+        this.mountSlot(pageId, alive, lifecycle, name, host, childScope, overlayHost),
+      overlayHost,
       refresh: () => this.refresh(),
       addLeaveGuard: (fn) => this.deps.router.addLeaveGuard(fn),
       memo: namespacedMemo(this.deps.memo, pageId, panelId),
@@ -345,11 +401,12 @@ export class ConsolePageHost {
    */
   private async mountSlot(
     pageId: string,
-    gen: number,
+    alive: () => boolean,
     parent: Lifecycle,
     slot: string,
     host: HTMLElement,
     scope: Readonly<Record<string, string>>,
+    overlayHost: HTMLElement,
   ): Promise<Disposable> {
     const lifecycle = parent.own(new Lifecycle(this.deps.onError));
     const page = this.find(pageId);
@@ -359,12 +416,12 @@ export class ConsolePageHost {
       try {
         if (decl.builtin !== undefined) throw new Error(S.noBuiltinPanel(decl.builtin));
         const impl = await this.deps.loader.resolvePanel(pageId, decl.id, page?.client);
-        if (gen !== this.generation || lifecycle.disposed) break;
+        if (!alive() || lifecycle.disposed) break;
         const out = await impl.mount(
-          this.panelContext(pageId, decl.id, box, lifecycle, gen, scope),
+          this.panelContext(pageId, decl.id, box, lifecycle, alive, scope, overlayHost),
         );
         if (out && typeof out.dispose === 'function') {
-          if (gen !== this.generation || lifecycle.disposed) out.dispose();
+          if (!alive() || lifecycle.disposed) out.dispose();
           else lifecycle.own(out);
         }
       } catch (err) {
@@ -412,17 +469,17 @@ export class ConsolePageHost {
 
   /** 工具表是整份装配结果,不按页筛:模型看见的那一张表就是这一张。 */
   private async showTools(pageId: string, gen: number): Promise<void> {
-    const { slot } = this.ensurePanes();
+    const { slot, overlays } = this.ensurePanes();
     const lifecycle = new Lifecycle(this.deps.onError);
     this.mounted = { pageId, panelId: PROVIDER_TOOLS_ROUTE, lifecycle };
     const ui = createConsoleUi({
       memo: namespacedMemo(this.deps.memo, pageId, PROVIDER_TOOLS_ROUTE),
-      overlayHost: this.deps.overlayHost,
+      overlayHost: overlays,
       signal: lifecycle.signal,
       doc: this.deps.doc,
     });
     const view = createToolsView(ui);
-    slot.appendChild(view.el);
+    slot.appendChild(hostView(view.el));
     try {
       const out = await get<{ tools?: ToolSchemaDoc[] }>('/api/tool-schemas', { signal: lifecycle.signal });
       view.render(out?.tools ?? []);
@@ -438,12 +495,12 @@ export class ConsolePageHost {
 
   /** 这一页声明的存储项走同一张 /api/storage 清单;这里按归属与 key 挑出自己的。 */
   private async showStorage(pageId: string, refs: readonly WebUiStorageRef[], gen: number): Promise<void> {
-    const { slot } = this.ensurePanes();
+    const { slot, overlays } = this.ensurePanes();
     const lifecycle = new Lifecycle(this.deps.onError);
     this.mounted = { pageId, panelId: PROVIDER_STORAGE_ROUTE, lifecycle };
     const ui = createConsoleUi({
       memo: namespacedMemo(this.deps.memo, pageId, PROVIDER_STORAGE_ROUTE),
-      overlayHost: this.deps.overlayHost,
+      overlayHost: overlays,
       signal: lifecycle.signal,
       doc: this.deps.doc,
     });
@@ -452,19 +509,19 @@ export class ConsolePageHost {
       signal: lifecycle.signal,
       filter: (part) => refs.some((r) => r.owner === part.owner && r.key === part.key),
     });
-    slot.appendChild(view.el);
+    slot.appendChild(hostView(view.el));
     await view.load();
     if (gen !== this.generation) lifecycle.dispose();
   }
 
   /** manifest 提供组 id，schema 与当前值取自 /api/config；页内省略重复 owner 标签。 */
   private async showConfig(pageId: string, groupIds: readonly string[], gen: number): Promise<void> {
-    const { slot } = this.ensurePanes();
+    const { slot, overlays } = this.ensurePanes();
     const lifecycle = new Lifecycle(this.deps.onError);
     this.mounted = { pageId, panelId: PROVIDER_CONFIG_ROUTE, lifecycle };
     const ui = createConsoleUi({
       memo: namespacedMemo(this.deps.memo, pageId, PROVIDER_CONFIG_ROUTE),
-      overlayHost: this.deps.overlayHost,
+      overlayHost: overlays,
       signal: lifecycle.signal,
       doc: this.deps.doc,
     });
@@ -488,19 +545,19 @@ export class ConsolePageHost {
         },
       } } : {}),
     });
-    slot.appendChild(view.el);
+    slot.appendChild(hostView(view.el));
     await view.load();
     if (gen !== this.generation) lifecycle.dispose();
   }
 
   /** 这一页声明的提示词模板仍由框架通用编辑器承载，扩展无需重复文件读写 UI。 */
   private async showPrompts(pageId: string, keys: readonly string[], gen: number): Promise<void> {
-    const { slot } = this.ensurePanes();
+    const { slot, overlays } = this.ensurePanes();
     const lifecycle = new Lifecycle(this.deps.onError);
     this.mounted = { pageId, panelId: PROVIDER_PROMPTS_ROUTE, lifecycle };
     const ui = createConsoleUi({
       memo: namespacedMemo(this.deps.memo, pageId, PROVIDER_PROMPTS_ROUTE),
-      overlayHost: this.deps.overlayHost,
+      overlayHost: overlays,
       signal: lifecycle.signal,
       doc: this.deps.doc,
     });
@@ -517,7 +574,7 @@ export class ConsolePageHost {
         keys,
         ...(configured ? { openConfig: () => this.deps.router.navigate(this.routeOf(pageId, PROVIDER_CONFIG_ROUTE)) } : {}),
       });
-      slot.appendChild(view.el);
+      slot.appendChild(hostView(view.el));
       await view.load();
       if (gen !== this.generation) lifecycle.dispose();
       return;
@@ -541,7 +598,7 @@ export class ConsolePageHost {
       keys,
       shared: inPrefix,
     });
-    slot.appendChild(view.el);
+    slot.appendChild(hostView(view.el));
     await view.load();
     if (gen !== this.generation) lifecycle.dispose();
   }
@@ -554,7 +611,7 @@ export class ConsolePageHost {
     // 页头是 host 自己的 DOM，生命周期跟 host 走，不绑任何面板。
     return createConsoleUi({
       memo: this.deps.memo,
-      overlayHost: this.deps.overlayHost,
+      overlayHost: this.panes?.overlays ?? this.deps.overlayHost,
       signal: new AbortController().signal,
       doc: this.deps.doc,
     });
@@ -565,8 +622,7 @@ export class ConsolePageHost {
     const { chrome } = this.ensurePanes();
     if (!page) {
       chrome.replaceChildren();
-      this.chromeStop?.abort();
-      this.chromeStop = null;
+      this.stopChrome();
       this.tabs = null;
       return;
     }
@@ -582,7 +638,7 @@ export class ConsolePageHost {
       return;
     }
     chrome.replaceChildren();
-    this.chromeStop?.abort();
+    this.stopChrome();
     this.chromeStop = new AbortController();
     this.tabs = null;
     const ui = this.ui();
@@ -626,9 +682,10 @@ export class ConsolePageHost {
       }));
     }
     if (actions.children.length) row.appendChild(actions);
+    if (asArray(page.panels).some((p) => p.slot === HEADER_SLOT)) row.appendChild(this.headerSlot(page.id));
     head.appendChild(row);
     if (page.kind === 'world' && badges.children.length) {
-      head.append(pageBadges(this.deps.doc, this.deps.overlayHost, this.chromeStop.signal, Array.from(badges.children) as HTMLElement[]));
+      head.append(pageBadges(this.deps.doc, this.ensurePanes().overlays, this.chromeStop.signal, Array.from(badges.children) as HTMLElement[]));
     }
     if (page.kind === 'memory') head.appendChild(ui.h('p', 'pagedesc', S.memoryDesc));
     chrome.append(head);
@@ -644,6 +701,20 @@ export class ConsolePageHost {
     }
     // The panel owns its root and may replace everything in it, so the note stays in the chrome.
     if (page.reason) chrome.appendChild(listProblem(this.deps.doc, page.reason));
+  }
+
+  /**
+   * 页头插槽：标题行里的一块扩展区域，自成扩展样式的作用范围。里面的面板随页头挂载，页头重建或离开这一页时卸载。
+   */
+  private headerSlot(pageId: string): HTMLElement {
+    const box = this.deps.doc.createElement('div');
+    box.className = 'pagetitle-slot';
+    box.setAttribute(EXTENSION_PAGE_ATTR, pageId);
+    const life = new Lifecycle(this.deps.onError);
+    this.chromeLife = life;
+    const { overlays } = this.ensurePanes();
+    void this.mountSlot(pageId, () => !life.disposed, life, HEADER_SLOT, box, {}, overlays);
+    return box;
   }
 
   /** 重载前缀后重新读取 manifest 中的漂移状态。 */
@@ -666,7 +737,7 @@ export class ConsolePageHost {
   }
 
   private appendNote(text: string): void {
-    this.ensurePanes().slot.appendChild(this.ui().placeholder(text));
+    this.ensurePanes().slot.appendChild(hostView(this.ui().placeholder(text)));
   }
 
   private renderError(title: string, detail: string): void {
@@ -674,6 +745,6 @@ export class ConsolePageHost {
   }
 
   private renderErrorInto(target: HTMLElement, title: string, detail: string): void {
-    target.appendChild(listProblem(this.deps.doc, `${title}: ${detail}`));
+    target.appendChild(hostView(listProblem(this.deps.doc, `${title}: ${detail}`)));
   }
 }

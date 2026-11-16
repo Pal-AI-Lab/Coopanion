@@ -11,7 +11,10 @@ it('keeps a page\'s availability note when its panel replaces everything in its 
   const reason = 'Fixture World is not signed in.';
   const host = new ConsolePageHost({
     doc: document, root, overlayHost: document.body,
-    loader: { resolvePanel: async () => ({ mount: (ctx) => { ctx.root.replaceChildren(ctx.ui.h('div', 'fixture-panel', 'Fixture panel')); } }) },
+    loader: {
+      resolvePanel: async () => ({ mount: (ctx) => { ctx.root.replaceChildren(ctx.ui.h('div', 'fixture-panel', 'Fixture panel')); } }),
+      useStyle: () => ({ dispose() {} }),
+    },
     router: { navigate() {}, addLeaveGuard: () => ({ dispose() {} }) },
     fetchManifest: async () => ({
       protocolVersion: CONSOLE_PROTOCOL_VERSION,

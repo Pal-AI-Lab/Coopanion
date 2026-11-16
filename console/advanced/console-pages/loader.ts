@@ -1,7 +1,7 @@
 /**
  * 按 manifest URL 懒加载扩展；进行中的加载去重，成功模块缓存，失败允许重试。
  * 浏览器仍可能缓存失败的 ESM URL；重新构建后的内容 hash URL 可避开该缓存。
- * JS 与 CSS URL 均校验清单规定的路径和字符。
+ * JS 与 CSS URL 均校验清单规定的路径和字符。样式与 JS 分开加载，只在该页显示期间生效（见 scope-css.ts）。
  */
 
 import {
@@ -11,20 +11,27 @@ import {
   type WebUiPanel,
 } from '../../base/protocol.ts';
 import type { WebUiAssetEntry } from 'cortico/web/shared/webui-protocol.ts';
+import type { Disposable } from 'cortico/web/shared/client-panel.ts';
+import { scopeExtensionCss } from './scope-css.ts';
 import { S } from './strings.ts';
 
-export interface StyleLink {
-  rel: string;
-  href: string;
-  dataset: { [key: string]: string | undefined };
+/** 一份已建好的页面样式表；attach 后对文档生效，detach 后撤下。 */
+export interface PageStyle {
+  attach(): void;
+  detach(): void;
 }
 
 export interface LoaderDeps {
   importModule(url: string): Promise<unknown>;
-  /** 注入 `<link rel=stylesheet>` 的宿主（一般是 document.head）。 */
-  styleHost: { appendChild(node: unknown): void };
-  createLink(): StyleLink;
+  fetchText(url: string): Promise<string>;
+  /** 建一份样式表，`url()` 按 `baseUrl` 解析。 */
+  createStyle(css: string, baseUrl: string): PageStyle;
   log?(message: string, detail?: Record<string, unknown>): void;
+}
+
+interface StyleEntry {
+  users: number;
+  style: PageStyle | null;
 }
 
 export class PanelBundleError extends Error {
@@ -41,7 +48,7 @@ export class ConsolePageLoader {
   private readonly deps: LoaderDeps;
   private readonly loaded = new Map<string, WebUiClientBundle>();
   private readonly inFlight = new Map<string, Promise<WebUiClientBundle>>();
-  private readonly styled = new Set<string>();
+  private readonly styles = new Map<string, StyleEntry>();
 
   constructor(deps: LoaderDeps) {
     this.deps = deps;
@@ -92,24 +99,45 @@ export class ConsolePageLoader {
     if (!isConsoleClientBundle(candidate)) {
       throw new PanelBundleError(pageId, S.badDefaultExport(pageId));
     }
-    // 样式在 js 装成之后再注入:装不上的页不该在页面里留下一个 404 的 link。
-    this.injectStyle(pageId, asset);
     return candidate;
   }
 
-  /** 每页样式只注入一次，面板卸载时保留。 */
-  private injectStyle(pageId: string, asset: WebUiAssetEntry): void {
-    if (!asset.css || this.styled.has(pageId)) return;
-    if (!isSafeAssetUrl(asset.css)) {
-      this.deps.log?.(`「${pageId}」的样式地址不合法，已跳过`, { href: String(asset.css) });
-      return;
+  /**
+   * 让该页的样式在返回的句柄释放前生效。页头与宿主视图也跟随页面改写的变量，所以样式不等 JS 装成。
+   * 同页的多次使用共用一份样式表，按使用计数挂上与撤下；首次使用时下载，下载失败的下次使用时重试。
+   */
+  useStyle(pageId: string, asset: WebUiAssetEntry | undefined): Disposable {
+    const href = asset?.css;
+    if (!href) return { dispose() {} };
+    if (!isSafeAssetUrl(href)) {
+      this.deps.log?.(`「${pageId}」的样式地址不合法，已跳过`, { href: String(href) });
+      return { dispose() {} };
     }
-    this.styled.add(pageId);
-    const link = this.deps.createLink();
-    link.rel = 'stylesheet';
-    link.href = asset.css;
-    link.dataset.provider = pageId;
-    this.deps.styleHost.appendChild(link);
+    let entry = this.styles.get(pageId);
+    if (!entry) {
+      const created: StyleEntry = { users: 0, style: null };
+      entry = created;
+      this.styles.set(pageId, created);
+      void this.deps.fetchText(href).then((text) => {
+        const { css, droppedImports } = scopeExtensionCss(text, pageId);
+        if (droppedImports) this.deps.log?.(`「${pageId}」的样式含 @import，已忽略`, { href, count: droppedImports });
+        created.style = this.deps.createStyle(css, href);
+        if (created.users > 0) created.style.attach();
+      }, (err: unknown) => {
+        this.styles.delete(pageId);
+        this.deps.log?.(`「${pageId}」的样式加载失败`, { href, error: String(err) });
+      });
+    }
+    const current = entry;
+    if (current.users++ === 0) current.style?.attach();
+    let done = false;
+    return {
+      dispose() {
+        if (done) return;
+        done = true;
+        if (--current.users === 0) current.style?.detach();
+      },
+    };
   }
 
   /** 获取声明的面板实现；缺失时错误列出扩展提供的面板键。 */
