@@ -12,8 +12,9 @@ export const SOUND_KINDS = {
   snore: ['snore'],
   talk: ['babble', 'blub'],
   ui: ['tick', 'pop', 'sparkle', 'select', 'listenStart', 'listenEnd'],
+  alert: ['alert'],
 };
-/** The kinds a body's sounds are filed under; the rest belong to the page (talk, ui). */
+/** The kinds a body's sounds are filed under; the rest belong to the page (talk, ui, alert). */
 export const BODY_SOUND_KINDS = ['move', 'touch', 'face', 'snore'];
 /** The smallest change of pan worth passing to the audio graph. */
 const PAN_STEP = .01;
@@ -179,6 +180,8 @@ export function createSfx({ storageKey = 'cortico-pet.sound.v1', volume = .55 } 
     },
     blub() { tone({ f0: R(500, 700), f1: R(900, 1200), dur: .05, vol: .05 }); },
     listenStart() { tone({ f0: 880, dur: .12, vol: .1 }); tone({ f0: 1320, dur: .16, vol: .1, at: .1 }); },
+    // a two-note chime, louder and longer than the other cues, for a question that needs the person
+    alert() { tone({ type: 'triangle', f0: 1319, dur: .3, vol: .2 }); tone({ type: 'triangle', f0: 1047, dur: .55, vol: .2, at: .16 }); },
     listenEnd() { tone({ f0: 1320, dur: .1, vol: .09 }); tone({ f0: 990, dur: .16, vol: .09, at: .09 }); },
   };
   const api = {

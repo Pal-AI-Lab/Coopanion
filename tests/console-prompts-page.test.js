@@ -361,15 +361,15 @@ it('replaces an initially unavailable prompt library with a retry card and resto
   expect(root.querySelector('.cm-editor').textContent).toContain('Hello');
 });
 
-it('preserves the mounted editor when refreshing after apply fails and reports it in a bottom notification', async () => {
+it('preserves the mounted editor when refreshing after apply fails and reports it beside the retained content', async () => {
   const { root, view, button } = await mount();
   const fetchData = globalThis.fetch;
   vi.stubGlobal('fetch', (path, options) => path === '/api/prompts' && options.method === 'GET'
     ? Promise.resolve(json({ error: 'Refresh unavailable' }, 503)) : fetchData(path, options));
   const text = view.state.doc.toString();
   button(S.reloadSession).click();
-  await vi.waitFor(() => expect(document.querySelector('.toast.bad')?.textContent).toContain('Refresh unavailable'));
-  expect(root.querySelector('.extension-list-problem')).toBeNull();
+  await vi.waitFor(() => expect(root.querySelector('.read-feedback')?.textContent).toContain('Refresh unavailable'));
+  expect(document.querySelector('.toast.bad')).toBeNull();
   expect(EditorView.findFromDOM(root.querySelector('.cm-editor'))).toBe(view);
   expect(view.state.doc.toString()).toBe(text);
   expect(root.querySelector('.prompt-status').textContent).not.toBe(S.reloading);

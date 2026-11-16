@@ -49,7 +49,14 @@ function writeDraft(key: string, value: string | null): void {
   }
 }
 
+export interface ConsolePromptInput extends WebUiPromptInput {
+  setFeedback(text: string | null): void;
+  setImageWarning(text: string | null): void;
+}
+
 interface ComposerHandle {
+  setFeedback(text: string | null): void;
+  setImageWarning(text: string | null): void;
   focus(): void;
   setDisabled(disabled: boolean): void;
   setPlaceholder(text: string | null): void;
@@ -155,6 +162,8 @@ const PromptComposer = React.forwardRef<ComposerHandle, { opts: PromptInputOptio
     const [pending, setPending] = React.useState(0);
     /** 最近一次拒收的理由。下一次成功入托盘或用户改动文本时清掉。 */
     const [note, setNote] = React.useState<string | null>(null);
+    const [feedback, setFeedback] = React.useState<string | null>(null);
+    const [imageWarning, setImageWarning] = React.useState<string | null>(null);
     const [dragging, setDragging] = React.useState(false);
     /** 盖住 `opts.placeholder` 的那一句;`null` 就是不盖。 */
     const [placeholder, setPlaceholder] = React.useState<string | null>(null);
@@ -194,6 +203,8 @@ const PromptComposer = React.forwardRef<ComposerHandle, { opts: PromptInputOptio
       focus: () => textarea.current?.focus(),
       setDisabled,
       setPlaceholder,
+      setFeedback,
+      setImageWarning,
       restore: (text, images) => {
         if (text) setValue((now) => (now ? `${text}
 
@@ -238,6 +249,7 @@ ${now}` : text));
 
     const submit = (): void => {
       if (!canSubmit) return;
+      setFeedback(null);
       const images = attached.map((a) => a.image);
       if (opts.onSubmit(value.trim(), images) !== false) {
         setValue('');
@@ -285,7 +297,7 @@ ${now}` : text));
             disabled={disabled}
             placeholder={placeholder ?? opts.placeholder ?? S.typeMessage}
             className={TEXTAREA_CLASS}
-            onChange={(event) => { setValue(event.currentTarget.value); setNote(null); }}
+            onChange={(event) => { setValue(event.currentTarget.value); setNote(null); setFeedback(null); }}
             onKeyDown={(event) => {
               // Enter 发送;Shift+Enter 换行;输入法组合中的 Enter 是选字,不是发送
               if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
@@ -304,8 +316,10 @@ ${now}` : text));
         <div className="flex min-h-9 items-center justify-between gap-2 px-1">
           <span className="flex min-w-0 items-center gap-1">
             <span ref={leading} className="flex items-center" />
-            <span className="truncate px-1 text-xs text-muted-foreground">
-              {note ? <span className="text-danger">{note}</span>
+            <span className={(note || feedback || (attached.length > 0 && imageWarning))
+              ? 'max-h-24 overflow-y-auto whitespace-normal break-words px-1 text-xs text-muted-foreground'
+              : 'truncate px-1 text-xs text-muted-foreground'}>
+              {(note || feedback || (attached.length > 0 && imageWarning)) ? <span role="status" className="text-danger">{note || feedback || imageWarning}</span>
                 : pending > 0 ? S.processingImages(pending)
                 : opts.hint}
             </span>
@@ -359,7 +373,7 @@ export function promptInput(
   doc: Document,
   signal: AbortSignal,
   opts: PromptInputOptions,
-): WebUiPromptInput {
+): ConsolePromptInput {
   const el = doc.createElement('div');
   el.className = 'prompt-input-host';
   const handle = React.createRef<ComposerHandle>();
@@ -372,6 +386,8 @@ export function promptInput(
 
   return {
     el,
+    setFeedback: (text) => handle.current?.setFeedback(text),
+    setImageWarning: (text) => handle.current?.setImageWarning(text),
     focus: () => handle.current?.focus(),
     setDisabled: (disabled) => handle.current?.setDisabled(disabled),
     setPlaceholder: (text) => handle.current?.setPlaceholder(text),

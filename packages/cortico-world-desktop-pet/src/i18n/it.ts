@@ -177,7 +177,8 @@ const it: Translation<PetText> = {
     fontSize: (from: number, to: number) => `cambiare la dimensione del testo da ${from}× a ${to}×`,
     theme: { dark: "passare all'aspetto notte", light: "passare all'aspetto giorno" },
     hover: (list: string) => `cambiare i pulsanti al passaggio in ${list}`,
-    actions: { chat: 'Scrivi', voice: 'Input vocale', roam: 'Movimento', theme: 'Modalità notte', sound: 'Suoni', dress: 'Guardaroba', hide: "Nascondi l'animaletto" },
+    hoverNone: 'togliere tutti i pulsanti al passaggio',
+    actions: { chat: 'Scrivi', voice: 'Input vocale', roam: 'Movimento', theme: 'Modalità notte', sound: 'Suoni', size: 'Dimensione', dress: 'Guardaroba', hide: "Nascondi l'animaletto", worlds: 'I miei World' },
     user: (to: string) => `chiamarti «${to}»`,
   },
 
@@ -237,6 +238,7 @@ const it: Translation<PetText> = {
     frameRate: { title: 'Frequenza fotogrammi', description: "Fotogrammi al secondo mentre l'animaletto cammina, si fa portare o salta; 0 segue lo schermo. Oltre la frequenza di aggiornamento dello schermo vale quella dello schermo. La pagina Abitudini offre 60, 120, 144 e Illimitata." },
     lockFrameRate: { title: 'Blocca la frequenza', description: "Disegna l'animaletto a questa frequenza anche quando non si muove. Se disattivato, scende a 30 fotogrammi al secondo quando sta in piedi, sta a sedere o dorme." },
     hideWhenFullscreen: { title: 'Nascondi a schermo intero', description: "Se attivo, l'animaletto si nasconde mentre la finestra in primo piano riempie lo schermo di Coo (un gioco, un video a schermo intero, un browser a schermo intero) e torna quando lo schermo intero finisce; una finestra ingrandita non conta. Se disattivato, resta sempre in primo piano." },
+    passWhenFullscreen: { title: "Lascia passare i clic a schermo intero", description: "Se attivo, mentre la finestra in primo piano riempie lo schermo di Coo, Coo resta visibile e ogni clic lo attraversa fino alla finestra sotto, finché lo schermo intero non finisce; una finestra ingrandita non conta. Se è attivo anche «Nascondi a schermo intero», Coo si nasconde." },
     exportOverlay: { title: 'Overlay OBS', description: "Fornisce l'immagine della finestra dell'animaletto su sfondo trasparente in /overlay per una sorgente «Browser» di OBS; se disattivato non fornisce nulla." },
     electronFile: { title: 'Eseguibile Electron', description: 'Vuoto usa CORTICO_DESKTOP_PET_HOST, poi il runtime installato dal pannello.' },
     port: { title: 'Porta della pagina', description: 'Passa alla porta libera successiva se è occupata.' },
@@ -251,6 +253,7 @@ const it: Translation<PetText> = {
       snore: { title: 'Russare', description: '' },
       talk: { title: 'Parlare', description: 'Il borbottio mentre appare il testo del fumetto, e le schede di scelta che spuntano.' },
       ui: { title: 'Pulsanti e segnali', description: "Clic sui pulsanti, apertura dei fumetti, selezioni, inizio e fine dell'ascolto." },
+      alert: { title: 'Avvisi', description: 'Un segnale quando Coo ti chiede una conferma.' },
     },
     snoreSeconds: { title: 'Durata del russare', suffix: 's', description: "In ogni sonno l'animaletto smette di russare dopo questo tempo; le z continuano a fluttuare. 0 = russa fino al risveglio." },
     panByPosition: { title: 'Bilanciamento in base alla posizione', description: 'I suoni pendono verso il lato in cui si trova Coo; disattivato, suonano al centro.' },
@@ -269,6 +272,15 @@ const it: Translation<PetText> = {
     thresholdDb: { title: 'Soglia del parlato' },
     silenceMs: { title: 'Silenzio che chiude una frase' },
     maxUtteranceMs: { title: 'Frase più lunga' },
+  },
+
+  windowReason: {
+    badHostEnv: (env: string) => `${env} non è un array JSON di stringhe`,
+    noElectronFile: (file: string) => `L'eseguibile di Electron non esiste: ${file}`,
+    noElectron: "Nessun Electron disponibile: installa il runtime della finestra dal pannello dell'animaletto o indica l'eseguibile di Electron nella configurazione",
+    startFailed: (why: string) => `Avvio non riuscito: ${why}`,
+    closed: 'La finestra è stata chiusa',
+    exited: (code: number | null) => `Il processo della finestra è terminato (codice di uscita ${code})`,
   },
 
   panel: {

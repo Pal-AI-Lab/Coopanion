@@ -43,7 +43,6 @@ const zhHant: Translation<CoreText> = {
     move: '在移動滑鼠', drag: '在拖曳', mouseDown: '在按下滑鼠', mouseUp: '在放開滑鼠', scroll: '在捲動', focus: '在切換視窗', type: '在打字', key: '在按鍵', wait: '在等待',
     alarmSet: '在設定鬧鐘', alarmList: '在查看鬧鐘', alarmCancel: '在取消鬧鐘',
     quoted: (text: string) => `「${text}」`,
-    seconds: (n: number) => `${n} 秒`,
     minutesLater: (n: number) => `${n} 分鐘後`,
   },
 
@@ -117,7 +116,7 @@ const zhHant: Translation<CoreText> = {
     talkOff: '語音輸入現在關著，可以在設定的「語音輸入」頁開啟。',
     talkType: '也可以把滑鼠停在我身上，點旁邊的氣泡按鈕打字。',
     gotIt: '知道了',
-    buttons: '滑鼠停在我身上，旁邊會冒出幾個按鈕；在我身上按右鍵能開啟選單，暫停、設定和結束都在裡面。',
+    buttons: '滑鼠停在我身上，旁邊會冒出幾個按鈕；在我身上按右鍵也是這幾個，再加上設定、暫停和結束。挑幾個你常用的吧，之後在設定裡也能改。',
     ok: '好',
     persona: '我是什麼個性、怎麼說話，都寫在設定視窗的「系統提示詞」頁裡。想讓我換個樣子，可以去那裡改；直接告訴我也行，我自己來改。',
     personaMark: '系統提示詞',

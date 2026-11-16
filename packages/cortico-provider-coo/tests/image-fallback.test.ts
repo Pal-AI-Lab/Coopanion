@@ -1,26 +1,26 @@
 /**
- * Requests the model service rejects for their images, against a local fake service on every
- * protocol: it answers 400 to any request whose body carries the image's bytes.
+ * The `coo` module's clients behind Cortico's `ImageFallback`, called through `ProviderRegistry.bind`
+ * as Core calls them, on every protocol against a local fake service that refuses a request by its body.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { createServer, type Server } from 'node:http';
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { GenerationError } from 'cortico/core/generation.ts';
 import { nullLogger } from 'cortico/core/util.ts';
 import type { BlobRef, LLMProviderEntry } from 'cortico/core/types.ts';
 import type { Request } from 'cortico/protocol/open-responses/index.ts';
-import { message } from 'cortico/protocol/open-responses/context.ts';
+import { message, type ContextRecord } from 'cortico/protocol/open-responses/context.ts';
 import { blobLine } from 'cortico/core/blobs.ts';
+import { ProviderRegistry } from 'cortico/providers/registry.ts';
+import { imageLeftOut } from 'cortico/providers/transport/image-fallback.ts';
 import COO from '../src/index.ts';
 import { PROTOCOLS, type Protocol } from '../src/vendors.ts';
-import { imageLeftOut } from '../src/model-text.ts';
 
 const IMAGE = Buffer.from('an image the service cannot decode');
 const IMAGE_DATA = IMAGE.toString('base64');
 const picture: BlobRef = { handle: 'log:0123456789abcdef0123.png', mime: 'image/png', name: 'big.png', fallbackText: 'Image' };
-const context = [message('user', `看这张\n${blobLine(picture)}`, { blobs: [picture] })];
+const withPicture = message('user', `看这张\n${blobLine(picture)}`, { blobs: [picture] });
 
 const REPLIES: Record<string, object> = {
   '/responses': { id: 'r1', object: 'response', model: 'm', status: 'completed', created_at: 1, usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
@@ -36,14 +36,14 @@ const REPLIES: Record<string, object> = {
 let server: Server | null = null;
 afterEach(() => { server?.close(); server = null; });
 
-/** A fake service; `refuse` picks the requests it answers 400 with `error`. */
-async function service(refuse: (body: string) => boolean, error = 'unsupported image'): Promise<{ url: string; bodies: string[] }> {
+/** A fake service that answers 400 to the requests `refuse` picks. */
+async function service(refuse: (body: string) => boolean): Promise<{ url: string; bodies: string[] }> {
   const bodies: string[] = [];
   server = createServer(async (req, res) => {
     let body = '';
     for await (const chunk of req) body += chunk;
     bodies.push(body);
-    if (refuse(body)) return res.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ error: { message: error } }));
+    if (refuse(body)) return res.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ error: { message: 'invalid parameter' } }));
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(REPLIES[(req.url ?? '').split('?')[0]!] ?? {}));
   });
   await new Promise<void>((r) => server!.listen(0, '127.0.0.1', () => r()));
@@ -52,51 +52,37 @@ async function service(refuse: (body: string) => boolean, error = 'unsupported i
 
 const carriesImage = (body: string) => body.includes(IMAGE_DATA);
 
-function endpoint(url: string, protocol: Protocol, patch: Partial<LLMProviderEntry> = {}) {
-  const entry: LLMProviderEntry = { kind: 'coo', baseUrl: url, secret: 'KEY', options: { protocol }, spec: { model: 'm', thinking: false }, multimodal: true, ...patch };
-  return COO.create('x', entry, {
-    stateDir: mkdtempSync(join(tmpdir(), 'coo-image-')), secret: () => 'sk-test', keepThinking: () => true, log: nullLogger(),
-    readBlob: (handle: string) => (handle === picture.handle ? IMAGE : null),
-  } as never).client;
+/** Sends `context` through the registry's client for an endpoint of `protocol`. */
+function ask(url: string, protocol: Protocol, context: ContextRecord[]) {
+  const root = mkdtempSync(join(tmpdir(), 'coo-image-'));
+  mkdirSync(join(root, 'x'));
+  writeFileSync(join(root, 'x', '.env'), 'COO_TEST_KEY=sk-test\n');
+  const entry: LLMProviderEntry = { kind: 'coo', baseUrl: url, secret: 'COO_TEST_KEY', options: { protocol }, spec: { model: 'm', thinking: false }, multimodal: true };
+  const registry = new ProviderRegistry(() => ({ x: entry }), {
+    stateRoot: root, keepThinking: () => true, log: nullLogger(),
+    readBlob: (handle) => (handle === picture.handle ? IMAGE : null),
+  }, [COO]);
+  return registry.bind('x').respond({ model: 'm', input: [] } as unknown as Request, { context });
 }
 
-const ask = (client: ReturnType<typeof endpoint>) => client.respond({ model: 'm', input: [] } as unknown as Request, { context });
-
-describe('a request the model service rejects for its images', () => {
-  it('is sent once more without them on every protocol, and later requests leave them out: one request each', async () => {
+describe('a request the model service refuses, sent through the registry', () => {
+  it('goes out once more without its images on every protocol, each with its left-out line', async () => {
     const { url, bodies } = await service(carriesImage);
     for (const protocol of PROTOCOLS) {
       bodies.length = 0;
-      const client = endpoint(url, protocol);
-      const first = await ask(client);
-      expect(first.attempts.map((a) => a.status), protocol).toEqual([400, 200]);
+      const out = await ask(url, protocol, [withPicture]);
+      expect(out.attempts.map((a) => a.status), protocol).toEqual([400, 200]);
       expect(bodies.map(carriesImage), protocol).toEqual([true, false]);
       expect(bodies[1], protocol).toContain(imageLeftOut(picture.handle));
-      await ask(client);
-      expect(bodies.map(carriesImage), protocol).toEqual([true, false, false]);
-      expect(bodies[2], protocol).toBe(bodies[1]);
     }
   });
 
-  it('keeps both attempts on the error when the request without the images is refused too, and sends the images next time', async () => {
-    const { url, bodies } = await service(() => true, 'invalid parameter');
-    const client = endpoint(url, 'responses');
-    const error = await ask(client).catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(GenerationError);
-    expect((error as GenerationError).attempts.map((a) => a.status)).toEqual([400, 400]);
-    await ask(client).catch(() => {});
-    expect(bodies.map(carriesImage)).toEqual([true, false, true, false]);
-  });
-
-  it('is not sent again when it is a context overflow, which Core hands off: one request', async () => {
-    const { url, bodies } = await service(carriesImage, 'context_length_exceeded');
-    await expect(ask(endpoint(url, 'responses'))).rejects.toMatchObject({ status: 400 });
-    expect(bodies).toHaveLength(1);
-  });
-
-  it('is not sent again when the endpoint sends no images: one request', async () => {
+  it('is not sent again when its only images are older than the newest delivered batch, which no client attaches: one request', async () => {
     const { url, bodies } = await service(() => true);
-    await expect(ask(endpoint(url, 'responses', { multimodal: false }))).rejects.toMatchObject({ status: 400 });
-    expect(bodies).toHaveLength(1);
+    for (const protocol of PROTOCOLS) {
+      bodies.length = 0;
+      await expect(ask(url, protocol, [withPicture, message('assistant', '看到了'), message('user', '再看一眼')]), protocol).rejects.toMatchObject({ status: 400 });
+      expect(bodies.map(carriesImage), protocol).toEqual([false]);
+    }
   });
 });

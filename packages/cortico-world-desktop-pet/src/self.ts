@@ -18,7 +18,7 @@
  */
 import type { Language } from 'cortico/core/language.ts';
 import type { DeepPartial } from 'cortico/world.ts';
-import { BUBBLE_SIZE_MAX, BUBBLE_SIZE_MIN, MAX_HOVER_BUTTONS, PET_ACTIONS, SCALE_MAX, SCALE_MIN, SELF_KEYS, USER_MAX, directSettings, hoverButtonList, type DesktopPetConfigSection, type SelfKey } from './config.ts';
+import { BUBBLE_SIZE_MAX, BUBBLE_SIZE_MIN, MAX_HOVER_BUTTONS, PET_ACTIONS, SCALE_MAX, SCALE_MIN, SELF_KEYS, USER_MAX, directSettings, hoverButtonList, scaleOf, type DesktopPetConfigSection, type SelfKey } from './config.ts';
 import { charCount, petText } from './i18n/index.ts';
 import type { ModelLanguage } from './model-text.ts';
 import { COO, lookOf, lookPatch, modelName, nameIn, type FigurePack } from './packs.ts';
@@ -59,8 +59,8 @@ const zh = {
   fontSize: (from: number, to: number) => `字体尺寸 ${from} 倍 → ${to} 倍`,
   badTheme: 'theme 应为 dark 或 light',
   themeTo: (to: string) => `换成${to}`,
-  badHover: `hoverButtons 应为 1–${MAX_HOVER_BUTTONS} 个不重复的 ${PET_ACTIONS.join('、')}`,
-  hover: (list: string[]) => `悬停按钮换成 ${list.join('、')}`,
+  badHover: `hoverButtons 应为 0–${MAX_HOVER_BUTTONS} 个不重复的 ${PET_ACTIONS.join('、')}`,
+  hover: (list: string[]) => (list.length ? `悬停按钮换成 ${list.join('、')}` : '去掉全部悬停按钮,右键菜单里也不再有这些动作,只剩应用提供的设置、暂停和退出'),
   badUser: (max: number) => `user 应为 1–${max} 个字`,
   user: (from: string, to: string) => `对你的称呼「${from}」→「${to}」`,
   unknown: (key: string) => `${key} 不是你能改的设置`,
@@ -96,8 +96,8 @@ const en: typeof zh = {
   fontSize: (from, to) => `text size ${from}× → ${to}×`,
   badTheme: 'theme must be dark or light',
   themeTo: (to) => `theme → ${to}`,
-  badHover: `hoverButtons must be 1–${MAX_HOVER_BUTTONS} distinct items of ${PET_ACTIONS.join(', ')}`,
-  hover: (list) => `hover buttons → ${list.join(', ')}`,
+  badHover: `hoverButtons must be 0–${MAX_HOVER_BUTTONS} distinct items of ${PET_ACTIONS.join(', ')}`,
+  hover: (list) => (list.length ? `hover buttons → ${list.join(', ')}` : 'hover buttons → none; the right-click menu loses them too, keeping only the settings, pause and quit the app provides'),
   badUser: (max) => `user must be 1–${max} characters`,
   user: (from, to) => `what I call you "${from}" → "${to}"`,
   unknown: (key) => `${key} is not a setting you can change`,
@@ -109,6 +109,9 @@ const en: typeof zh = {
 };
 
 const SELF_TEXT: Record<ModelLanguage, typeof zh> = { zh, en };
+
+/** A size change as `pet_set`'s receipt says it. */
+export const sayScale = (from: number, to: number, language: ModelLanguage = 'zh'): string => SELF_TEXT[language].scale(from, to);
 
 /** The pack's pick named by `scheme`, as `axis:option` words; null when it picks nothing of the pack. */
 export function pickWords(pack: FigurePack, scheme: string, language: ModelLanguage = 'zh'): string | null {
@@ -194,10 +197,9 @@ export function planSettings(args: Record<string, unknown>, cfg: DesktopPetConfi
     else if (v !== cfg.sound) changes.push({ key: 'sound', tier: tier('sound'), say: t.sound(v), show: a.sound(v), patch: { sound: v } });
   }
   if ('scale' in args) {
-    const v = args.scale;
-    if (typeof v !== 'number' || !(v >= SCALE_MIN && v <= SCALE_MAX)) errors.push(t.badScale);
+    const s = scaleOf(args.scale);
+    if (s === null) errors.push(t.badScale);
     else {
-      const s = Math.round(v * 20) / 20;
       if (s !== cfg.window.scale) changes.push({ key: 'scale', tier: tier('scale'), say: t.scale(cfg.window.scale, s), show: a.scale(cfg.window.scale, s), patch: { window: { scale: s } } });
     }
   }
@@ -217,8 +219,9 @@ export function planSettings(args: Record<string, unknown>, cfg: DesktopPetConfi
     const v = args.hoverButtons;
     const ids = Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
     const list = hoverButtonList(ids.join(','));
-    if (!Array.isArray(v) || !list.length || list.length !== ids.length) errors.push(t.badHover);
-    else if (list.join(',') !== cfg.hoverButtons) changes.push({ key: 'hoverButtons', tier: tier('hoverButtons'), say: t.hover(list), show: a.hover(a.list(list.map((id) => a.actions[id]))), patch: { hoverButtons: list.join(',') } });
+    // an empty list is an answer too: no hover buttons, and a right-click menu of the run controls alone
+    if (!Array.isArray(v) || list.length !== v.length) errors.push(t.badHover);
+    else if (list.join(',') !== cfg.hoverButtons) changes.push({ key: 'hoverButtons', tier: tier('hoverButtons'), say: t.hover(list), show: list.length ? a.hover(a.list(list.map((id) => a.actions[id]))) : a.hoverNone, patch: { hoverButtons: list.join(',') } });
   }
   if ('user' in args) {
     const v = typeof args.user === 'string' ? args.user.trim() : '';

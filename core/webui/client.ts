@@ -1,3 +1,4 @@
+import { actionProblem } from '../../shared/ui/problem.ts';
 /**
  * Console panel of the coopanion World: `alarms`, the alarms Coo has set for itself, soonest first,
  * each with a button that deletes it (the World tells Coo). Times are shown in the deployment's
@@ -36,6 +37,7 @@ function relative(format: Intl.RelativeTimeFormat, ms: number): string {
 const alarmsPanel: WebUiPanel = {
   mount(ctx) {
     const { ui, root } = ctx;
+    const problem = actionProblem(ui, root.ownerDocument, ctx.signal, ctx.language);
     const t = panelText(ctx.language);
     const card = ui.sheet({ title: t.title, desc: t.desc });
     root.appendChild(card.el);
@@ -117,10 +119,9 @@ const alarmsPanel: WebUiPanel = {
       try {
         render(await ctx.invoke<AlarmsState>('cancel', [alarm.id]));
         msg.textContent = '';
-        ui.toast(t.removed);
       } catch (err) {
         lock.dispose();
-        ui.toast(t.failed(errText(err)), 'bad');
+        problem(btn, t.failed(errText(err)));
       }
     };
     const refresh = async () => {

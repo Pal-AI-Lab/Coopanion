@@ -29,7 +29,6 @@
 .ukpis .stat .k { margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ukpis .stat .v { font-size: 20px; }
 .ukpis .stat .v small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.ukpis > .placeholder { grid-column: 1 / -1; }
 .ucomp { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 18px; }
 .ucomp .compbar { display: flex; flex: 1 1 160px; height: 8px; }
 .ucomp .compseg { min-width: 2px; transform-origin: center; transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1), opacity 200ms ease-out, box-shadow 200ms ease-out; }

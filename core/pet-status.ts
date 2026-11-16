@@ -5,7 +5,7 @@
  * to be written out, so the bubble does not say something the call turns out not to do. A detail (a file name, a
  * pattern) is cut to 20 characters as seen for Chinese, Japanese and Korean, twice that for other languages.
  */
-import { capFor, charCount, cutChars, numberArg, stringArg, type DescribeTool, type PetStatus, type ToolArgs } from 'cortico-world-desktop-pet';
+import { capFor, charCount, cutChars, numberArg, stringArg, waitSeconds, type DescribeTool, type PetStatus, type ToolArgs } from 'cortico-world-desktop-pet';
 import { coreText, type CoreText } from './i18n/index.ts';
 import type { Language } from 'cortico/core/language.ts';
 
@@ -62,7 +62,7 @@ export function petToolDescriber(language: () => Language): DescribeTool {
       case 'pet_cua_key': return show('type', s.key, stringArg(args, 'keys'));
       case 'pet_cua_wait': {
         const seconds = numberArg(args, 'seconds');
-        return show('wait', s.wait, seconds === undefined ? undefined : s.seconds(seconds));
+        return seconds === undefined && !done ? show('wait', s.wait) : { ...show('wait', s.wait), countdown: waitSeconds(seconds) };
       }
       case 'alarm_set': {
         const minutes = numberArg(args, 'in_minutes');

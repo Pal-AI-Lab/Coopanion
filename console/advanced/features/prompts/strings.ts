@@ -10,7 +10,7 @@ import { S as it } from './strings.it.ts';
 import { S as ru } from './strings.ru.ts';
 
 const zh = {
-  outsidePrefix: "未纳入当前前缀",
+  outsidePrefix: "未纳入前缀",
   editable: "可编辑",
   readOnly: "只读",
   constitutionTitle: "人设与行为原则",
@@ -95,7 +95,7 @@ const zh = {
 };
 
 export const en: typeof zh = {
-  outsidePrefix: "Outside the current prefix",
+  outsidePrefix: "Outside the prefix",
   editable: "Editable",
   readOnly: "Read-only",
   constitutionTitle: "Identity & behavior",

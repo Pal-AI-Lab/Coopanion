@@ -5,14 +5,18 @@
  * to it, and the page is the only side that can hand it back. The window process keeps the last
  * word instead:
  *
- * - `ask(on)` is the page's wish, a lease of `leaseMs`, renewed by the page on every cursor report
- *   while it holds the mouse, so a page that stops reporting loses the mouse;
+ * - `ask(wish)` is the page's wish, a lease of `leaseMs` the page renews while it holds the mouse,
+ *   so a page that stops reporting loses the mouse;
  * - the mouse is held only while the window is visible, and never while it is locked (`lock(on)`,
  *   the tray's "click through"), whatever the page asks;
  * - a verdict stands for `reassertMs` and is then applied again, because the X input shape does
  *   not survive the window being mapped and the shape set while the window is still off screen
  *   does not stick. `forget()` drops the memory of the last verdict, for a caller that knows the
  *   shape was reset.
+ *
+ * The wish is whether the whole window takes the mouse. With `shape` (input-shape.cjs, a Wayland
+ * session) it is the list of rects that take it, and the verdict sets the window's input shape to
+ * them, or to none.
  *
  * The window is read through `getWindow`, so the lease can be exercised without Electron.
  */
@@ -25,26 +29,29 @@
  */
 const FORWARD_MOVES = process.platform !== 'win32';
 
-function createMouseLease({ getWindow, leaseMs = 1500, reassertMs = 2000, now = () => Date.now() }) {
-  let wanted = false, askedAt = 0, locked = false;
+function createMouseLease({ getWindow, shape = null, leaseMs = 1500, reassertMs = 2000, now = () => Date.now() }) {
+  const none = shape ? [] : false;
+  let wanted = none, askedAt = 0, locked = false;
   /** The last verdict, or null while it is not known to be in force. */
   let held = null, appliedAt = 0;
 
   const apply = () => {
     const win = getWindow();
     if (!win) return;
-    const hold = !locked && wanted && now() - askedAt < leaseMs && win.isVisible();
+    const hold = !locked && now() - askedAt < leaseMs && win.isVisible() ? wanted : none;
+    const verdict = shape ? JSON.stringify(hold) : hold;
     const stamp = now();
-    if (hold === held && stamp - appliedAt < reassertMs) return;
-    held = hold;
+    if (verdict === held && stamp - appliedAt < reassertMs) return;
+    held = verdict;
     appliedAt = stamp;
-    win.setIgnoreMouseEvents(!hold, { forward: FORWARD_MOVES });
+    if (shape) shape.set(win, hold);
+    else win.setIgnoreMouseEvents(!hold, { forward: FORWARD_MOVES });
   };
 
   return {
     /** The page's wish; called where the page asks. */
-    ask(on) {
-      wanted = !!on;
+    ask(wish) {
+      wanted = shape ? wish : !!wish;
       askedAt = now();
       apply();
     },
@@ -57,7 +64,7 @@ function createMouseLease({ getWindow, leaseMs = 1500, reassertMs = 2000, now = 
     tick: apply,
     /** The window is going away: the mouse is not held any more. */
     release() {
-      wanted = false;
+      wanted = none;
       apply();
     },
     /** The next verdict is applied from scratch, whatever was told to the window before. */

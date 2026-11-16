@@ -177,7 +177,8 @@ const zhHant: Translation<PetText> = {
     fontSize: (from: number, to: number) => `把字體尺寸從 ${from} 倍改成 ${to} 倍`,
     theme: { dark: '換成夜間模式', light: '換成白天模式' },
     hover: (list: string) => `把懸停按鈕換成${list}`,
-    actions: { chat: '打字', voice: '語音輸入', roam: '走動', theme: '夜間模式', sound: '音效', dress: '裝扮', hide: '隱藏桌寵' },
+    hoverNone: '拿掉所有懸停按鈕',
+    actions: { chat: '打字', voice: '語音輸入', roam: '走動', theme: '夜間模式', sound: '音效', size: '大小', dress: '裝扮', hide: '隱藏桌寵', worlds: '我的 World' },
     user: (to: string) => `改叫你「${to}」`,
   },
 
@@ -237,6 +238,7 @@ const zhHant: Translation<PetText> = {
     frameRate: { title: '幀率', description: '走動、被拎著、跳起時每秒畫幾幀；0 跟隨螢幕更新率。超過螢幕更新率時以螢幕的為準。「習慣」頁可選 60、120、144 和不限。' },
     lockFrameRate: { title: '幀率鎖定', description: '靜止時也依「幀率」繪製桌寵。關閉時站著、坐著、睡著會降到每秒 30 幀。' },
     hideWhenFullscreen: { title: '全螢幕時自動隱藏', description: '開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕（遊戲、全螢幕影片、瀏覽器全螢幕）就把 Coo 藏起來，離開全螢幕後再放回來；最大化的視窗不算。關閉時一律浮在最上層。' },
+    passWhenFullscreen: { title: "全螢幕時滑鼠穿透", description: "開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕期間 Coo 照常顯示，點擊全部穿過 Coo 落到下方的視窗，離開全螢幕後恢復；最大化的視窗不算。與全螢幕時自動隱藏同時開啟時 Coo 會隱藏。" },
     exportOverlay: { title: 'OBS 畫面', description: '在 /overlay 提供桌寵視窗的透明畫面，供 OBS「瀏覽器」來源使用；關閉時不提供。' },
     electronFile: { title: 'Electron 程式', description: '留空時依序使用 CORTICO_DESKTOP_PET_HOST 和面板裡安裝的執行環境。' },
     port: { title: '頁面連接埠', description: '被佔用時往上順延到下一個空的連接埠。' },
@@ -251,6 +253,7 @@ const zhHant: Translation<PetText> = {
       snore: { title: '打呼', description: '' },
       talk: { title: '說話', description: '氣泡文字逐字冒出時的嘰咕聲、選項卡片彈出的聲音。' },
       ui: { title: '按鈕與提示', description: '點按鈕、氣泡彈出、選取、開始和結束聽你說話。' },
+      alert: { title: '提醒', description: '請你確認時響一聲。' },
     },
     snoreSeconds: { title: '打呼時長', suffix: '秒', description: '每次睡著後打呼這麼久就安靜下來，Z 照樣飄；0 = 一直打到醒來。' },
     panByPosition: { title: '依位置分配左右聲道', description: '聲音偏向 Coo 所在的一側，關閉後置中播放。' },
@@ -269,6 +272,15 @@ const zhHant: Translation<PetText> = {
     thresholdDb: { title: '說話門檻' },
     silenceMs: { title: '一句結束的靜音' },
     maxUtteranceMs: { title: '一句最長' },
+  },
+
+  windowReason: {
+    badHostEnv: (env: string) => `${env} 不是 JSON 字串陣列`,
+    noElectronFile: (file: string) => `Electron 程式不存在：${file}`,
+    noElectron: '沒有可用的 Electron：在桌寵面板安裝視窗執行環境，或在設定裡指定 Electron 程式',
+    startFailed: (why: string) => `啟動失敗：${why}`,
+    closed: '視窗已關閉',
+    exited: (code: number | null) => `視窗處理程序結束（結束代碼 ${code}）`,
   },
 
   panel: {

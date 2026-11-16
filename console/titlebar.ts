@@ -12,6 +12,8 @@ declare global {
     coopanionWindow?: {
       platform: string;
       setTheme(theme: { color: string; symbolColor: string }): void;
+      /** Start at login; only in a packaged app. */
+      loginItem?: { get(): boolean; set(on: boolean): void };
     };
   }
 }

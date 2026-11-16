@@ -15,7 +15,6 @@ export const S: Partial<typeof en> = {
   confirmShutdownTitle: '⚠ Arresta',
   confirmShutdownAgainTitle: "⚠⚠ Confermare l'arresto?",
   confirmShutdownAgainBody: "Fermare l'esecuzione e uscire dal processo?",
-  finishingToast: 'Arresto in corso…',
   stepIncomplete: 'incompleto',
   doneShutdown: 'Arrestato',
   resultLocalIncomplete: 'Passaggi di arresto locale incompleti',
@@ -26,7 +25,6 @@ export const S: Partial<typeof en> = {
     `Nessun risultato di arresto ricevuto (${msg}); il processo potrebbe essere terminato.`,
   docTitle: (name: string) => `Impostazioni · ${name}`,
   renameTitle: 'Clicca per rinominare',
-  renameSaved: 'Nome visualizzato salvato',
   renameFailed: (msg: string) => `Nome visualizzato non salvato: ${msg}`,
   // avatar.ts
   changeAvatar: "Cambia l'avatar di Coo",
@@ -35,10 +33,9 @@ export const S: Partial<typeof en> = {
   cropPreview: "Anteprima del ritaglio dell'avatar",
   zoomAria: "Zoom dell'avatar",
   zoom: 'Zoom',
-  note: "Trascina l'immagine per riposizionarla; usa la rotella del mouse o il cursore per lo zoom. Il salvataggio scrive avatar.png nella directory dei dati di Coo.",
+  note: "Trascina per spostare; usa la rotella o il cursore per lo zoom.",
   cancel: 'Annulla',
   save: 'Salva avatar',
   cropTitle: 'Ritaglia avatar',
   noCanvas: 'Il browser non è riuscito a creare un canvas per immagini',
-  saved: 'Avatar salvato',
 };

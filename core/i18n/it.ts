@@ -43,7 +43,6 @@ const it: Translation<CoreText> = {
     move: 'Muove il mouse', drag: 'Trascina', mouseDown: 'Preme il tasto del mouse', mouseUp: 'Rilascia il tasto del mouse', scroll: 'Scorre', focus: 'Cambia finestra', type: 'Digita', key: 'Preme', wait: 'Aspetta',
     alarmSet: 'Imposta una sveglia', alarmList: 'Controlla le sveglie', alarmCancel: 'Annulla una sveglia',
     quoted: (text: string) => `«${text}»`,
-    seconds: (n: number) => `${n} s`,
     minutesLater: (n: number) => `tra ${n} min`,
   },
 
@@ -117,7 +116,7 @@ const it: Translation<CoreText> = {
     talkOff: "L'input vocale ora è spento; puoi accenderlo nella pagina Input vocale delle impostazioni. ",
     talkType: 'Puoi anche tenere il puntatore su di me e cliccare il pulsante del fumetto accanto a me per scrivere.',
     gotIt: 'Capito',
-    buttons: 'Tieni il puntatore su di me e accanto spuntano alcuni pulsanti; fai clic destro su di me per il menu, con pausa, impostazioni ed esci.',
+    buttons: 'Tieni il puntatore su di me e accanto spuntano alcuni pulsanti; con il clic destro vedi gli stessi, più impostazioni, pausa ed esci. Scegli quelli che usi di più; potrai cambiarli dopo nelle impostazioni.',
     ok: 'OK',
     persona: 'Come sono e come parlo è scritto nella pagina Prompt di sistema della finestra delle impostazioni. Per cambiarmi, modificalo lì, oppure dimmelo e lo cambio io.',
     personaMark: 'Prompt di sistema',

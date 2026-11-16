@@ -175,6 +175,15 @@ describe('settings window rail', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
   });
 
+  it('keeps its entries and avatar from being dragged out of the window', () => {
+    const { rail } = mount();
+    for (const target of [rail.el.querySelector('a[href="#/chat"]'), rail.el.querySelector('.rail-avatar-image')]) {
+      const drag = new Event('dragstart', { bubbles: true, cancelable: true });
+      target.dispatchEvent(drag);
+      expect(drag.defaultPrevented).toBe(true);
+    }
+  });
+
   it('names its entries in the folded rail and marks the current page', async () => {
     const { rail, toggle } = mount();
     toggle.click();

@@ -3,10 +3,11 @@ module.exports = {
   starting: '正在啟動…',
 
   trayOpenSettings: '開啟設定',
-  trayShowPet: '顯示桌寵',
-  trayClickThrough: '滑鼠穿透',
+  trayShowPet: "顯示桌寵",
+  trayHidePet: "隱藏桌寵",
+  trayClickThroughOn: "啟用滑鼠穿透",
+  trayClickThroughOff: "停用滑鼠穿透",
   trayClickThroughTip: 'Coopanion（滑鼠穿透中）',
-  trayLaunchAtLogin: '開機時自動啟動',
   trayRestart: '重新啟動',
   trayQuit: '結束',
 

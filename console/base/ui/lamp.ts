@@ -63,6 +63,13 @@ export function paintLamps(host: HTMLElement, lamps: readonly WebUiLamp[]): void
     host.replaceChildren(...lamps.map((lamp) => makeDot(host.ownerDocument, lamp)));
   }
   host.hidden = lamps.length === 0;
+  countLamps(host);
+}
+
+/** Tells the rail item holding `host` how many lamps it has, so its name leaves room for them all (companion.css). */
+export function countLamps(host: HTMLElement): void {
+  const item = host.parentElement;
+  if (item?.classList.contains('navitem')) item.style.setProperty('--lamps', String(host.children.length));
 }
 
 /** 新造一排灯。给不出灯就得到一个藏起来的空容器（之后轮询可以点亮它）。 */

@@ -1,6 +1,8 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  launchAtLoginLabel: "開機啟動",
+  launchAtLogin: "開機時自動啟動 Coopanion",
   autoUpdateLabel: "自動更新",
   autoUpdate: "自動下載和安裝更新",
   autoUpdateHint: "自動下載並在結束應用程式時安裝更新。關閉後立即停止檢查和下載，已下載的更新也不會自動安裝。",
@@ -29,6 +31,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: '靜止時也依上方幀率繪製；關閉時靜止狀態降至每秒 30 幀。',
   hideFullscreen: '自動隱藏',
   hideFullscreenHint: '全螢幕時隱藏，離開全螢幕後恢復顯示。最大化視窗不算全螢幕。',
+  passFullscreen: "滑鼠穿透",
+  passFullscreenHint: "滑鼠穿透時 Coo 照常顯示，點擊落到下方的視窗。",
   soundTitle: '音效',
   worldScope: "由其他 World 擴充補充的功能不受此開關影響，請在對應 World 頁面設定。",
   sound: '播放音效',
@@ -41,6 +45,7 @@ export const S: Partial<typeof en> = {
     snore: ['打呼', '睡著時的打呼聲'],
     talk: ['說話', '氣泡文字逐字冒出時的嘰咕聲、選項卡片彈出'],
     ui: ['按鈕與提示', '點按鈕、氣泡彈出、選取、開始和結束聽你說話'],
+    alert: ['提醒', '請你確認時的提示音'],
   },
   snore: '打呼時長',
   snoreUnit: '秒',
@@ -60,7 +65,7 @@ export const S: Partial<typeof en> = {
   remember: '記住位置',
   rememberHint: '下次啟動時回到上次的橫向位置；有多個螢幕時在主螢幕上啟動。',
   hover: '懸停按鈕',
-  hoverHint: (n: number) => `最多 ${n} 個。`,
+  hoverHint: (n: number) => `最多 ${n} 個，右鍵選單裡也是這幾個。`,
   dblclick: '開啟打字框',
   typeKeyLabel: '打字鍵',
   typeKey: '開啟打字框',
@@ -87,7 +92,7 @@ export const S: Partial<typeof en> = {
   selfItems: { figure: '形象', scheme: '配色', roam: '走動', snoreSeconds: '打呼時長', sound: '音效', scale: '大小', bubbleSize: '氣泡尺寸', fontSize: '字體尺寸', theme: '夜間模式', hoverButtons: '懸停按鈕', user: '稱呼' },
   popupSave: '儲存',
   popupCancel: '取消',
-  actions: { chat: '打字', voice: '語音輸入', roam: '走動', theme: '夜間模式', sound: '音效', dress: '裝扮', hide: '隱藏桌寵' },
+  actions: { chat: '打字', voice: '語音輸入', roam: '走動', theme: '夜間模式', sound: '音效', size: '大小', dress: '裝扮', hide: '隱藏桌寵', worlds: '我的 World' },
   saveFailed: (why: string) => `沒有儲存：${why}`,
   stats: '傳送匿名使用統計',
   statsHint: '傳送使用次數、時長和設定，不含對話內容、Key 和檔案。',

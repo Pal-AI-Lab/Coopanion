@@ -26,11 +26,7 @@ export function bundledWebUiAssets(worlds: ReadonlyArray<{ id: string; packageNa
     const jsFile = extensionPackageFile(dir, parsed.manifest.webUiClient);
     if (!jsFile) continue;
     const cssFile = parsed.manifest.webUiStyle === undefined ? null : extensionPackageFile(dir, parsed.manifest.webUiStyle);
-    // the WebUI server lets browsers cache a bundle by its URL for a year; a rebuild changes the hash in it
-    const hash = createHash('sha256').update(readFileSync(jsFile));
-    if (cssFile) hash.update(readFileSync(cssFile));
-    const version = `${pkg.version}-${hash.digest('hex').slice(0, 10)}`;
-    out.push({ pageId: pageIdFor('world', id), packageName, version, jsFile, ...(cssFile ? { cssFile } : {}) });
+    out.push(asset(pageIdFor('world', id), packageName, pkg.version, jsFile, cssFile));
   }
   return out;
 }
@@ -43,8 +39,20 @@ export function appWebUiAsset(id: string, dir: string, version: string): Extensi
   const jsFile = join(dir, 'webui.js');
   if (!existsSync(jsFile)) return [];
   const cssFile = join(dir, 'webui.css');
-  const css = existsSync(cssFile);
-  const hash = createHash('sha256').update(readFileSync(jsFile));
-  if (css) hash.update(readFileSync(cssFile));
-  return [{ pageId: pageIdFor('world', id), packageName: id, version: `${version}-${hash.digest('hex').slice(0, 10)}`, jsFile, ...(css ? { cssFile } : {}) }];
+  return [asset(pageIdFor('world', id), id, version, jsFile, existsSync(cssFile) ? cssFile : null)];
+}
+
+/**
+ * One asset table entry. The server sends the bytes read here until the process restarts; the
+ * browser caches them by URL for a year, so the version carries the bundle's hash.
+ */
+function asset(pageId: string, packageName: string, version: string, jsFile: string, cssFile: string | null): ExtensionWebUiAsset {
+  const jsBytes = readFileSync(jsFile);
+  const cssBytes = cssFile ? readFileSync(cssFile) : null;
+  const hash = createHash('sha256').update(jsBytes);
+  if (cssBytes) hash.update(cssBytes);
+  return {
+    pageId, packageName, version: `${version}-${hash.digest('hex').slice(0, 10)}`, jsFile, jsBytes,
+    ...(cssFile && cssBytes ? { cssFile, cssBytes } : {}),
+  };
 }

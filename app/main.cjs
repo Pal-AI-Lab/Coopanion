@@ -39,6 +39,7 @@
  * console in the app language (`settings-preload.cjs`).
  */
 const { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
+const { spawn } = require('node:child_process');
 const http = require('node:http');
 const { Readable } = require('node:stream');
 const { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, rmSync, symlinkSync, writeFileSync } = require('node:fs');
@@ -48,12 +49,17 @@ const { readTextFile } = require('./read-text.cjs');
 
 const { readSettingsSize, saveSettingsSize } = require('./settings-size.cjs');
 const { settingsChromeOptions, applySettingsTheme } = require('./settings-chrome.cjs');
+const { x11RestartCommand } = require('./x11-restart.cjs');
 
 const MAC = process.platform === 'darwin';
 const LINUX = process.platform === 'linux';
-// Linux: X11 (XWayland under a Wayland session). On Wayland a window cannot place itself or stay on top,
-// and the cursor position outside the app's own windows is unknown, which the pet needs.
-if (LINUX) app.commandLine.appendSwitch('ozone-platform', 'x11');
+const WIN = process.platform === 'win32';
+const x11Restart = x11RestartCommand({ platform: process.platform, picked: app.commandLine.getSwitchValue('ozone-platform'), argv: process.argv, execPath: process.execPath, env: process.env });
+if (x11Restart) {
+  spawn(x11Restart.file, x11Restart.args, { detached: true, stdio: 'inherit' }).unref();
+  app.exit(0);
+  return;
+}
 // Without a usable GPU (virtual machines, blocklisted drivers) Chromium no longer
 // falls back to software WebGL on its own, and the whale figure draws with WebGL: allow SwiftShader. It
 // only renders the app's own pages.
@@ -580,19 +586,50 @@ function setClickThrough(on) {
   return panel('world:desktop-pet', 'pet', 'setClickThrough', [on]).catch(() => { /* Core went away meanwhile; sent again when it is back */ });
 }
 
-function refreshTray() {
-  if (!tray) return;
-  const t = T(), login = loginItem.get();
-  tray.setToolTip(clickThrough ? t.trayClickThroughTip : 'Coopanion');
-  tray.setContextMenu(Menu.buildFromTemplate([
+/** Whether the pet is on the desktop, as last read; the tray's show/hide entry follows it. */
+let petOnDesktop = true;
+async function readPetOnDesktop() {
+  if (core.state !== 'running') return petOnDesktop;
+  const state = await panel('world:desktop-pet', 'pet', 'state').catch(() => null);
+  if (state) petOnDesktop = state.onDesktop === true;
+  return petOnDesktop;
+}
+/** Shows or hides the pet by what it says now: it may have been hidden from its own menu or the settings window. The entry changes on `pet-shown`. */
+async function togglePet() {
+  if (await readPetOnDesktop()) await panel('world:desktop-pet', 'pet', 'hideWindow');
+  else await showPet();
+}
+
+// the Core says when the pet window comes onto the desktop or leaves it, from wherever (its menu, the settings
+// window, the tray): the show/hide entry follows, which matters on Linux, where the menu is set beforehand
+core.on('pet-shown', (shown) => { petOnDesktop = shown; refreshTray(); });
+
+function trayItems() {
+  const t = T(), running = core.state === 'running';
+  return [
     { label: t.trayOpenSettings, click: () => openSettings() },
-    { label: t.trayShowPet, enabled: core.state === 'running', click: () => void showPet().catch(() => { /* Core went away meanwhile */ }) },
-    { label: t.trayClickThrough, type: 'checkbox', checked: clickThrough, enabled: core.state === 'running', click: (item) => void setClickThrough(item.checked) },
+    { label: petOnDesktop ? t.trayHidePet : t.trayShowPet, enabled: running, click: () => void togglePet().catch(() => { /* Core went away meanwhile */ }) },
+    { label: clickThrough ? t.trayClickThroughOff : t.trayClickThroughOn, enabled: running, click: () => void setClickThrough(!clickThrough) },
     { type: 'separator' },
-    { label: t.trayLaunchAtLogin, type: 'checkbox', checked: login, enabled: app.isPackaged, click: (item) => { loginItem.set(item.checked); noteAutostart(); refreshTray(); } },
     { label: t.trayRestart, click: () => void core.restart() },
     { label: t.trayQuit, click: () => app.quit() },
-  ]));
+  ];
+}
+
+/**
+ * Windows and macOS pop the native menu on a click, after reading whether the pet shows; Linux keeps a
+ * native menu set beforehand, rebuilt on every change.
+ */
+async function popupTray() {
+  await readPetOnDesktop();
+  if (!tray) return;
+  tray.popUpContextMenu(Menu.buildFromTemplate(trayItems()));
+}
+
+function refreshTray() {
+  if (!tray) return;
+  tray.setToolTip(clickThrough ? T().trayClickThroughTip : 'Coopanion');
+  if (LINUX) tray.setContextMenu(Menu.buildFromTemplate(trayItems()));
 }
 
 /** A language the Core reports: the tray menu is rebuilt, and the settings window reloads to show the console in it. */
@@ -611,9 +648,11 @@ function buildTray() {
   if (MAC) icon.setTemplateImage(true);
   tray = new Tray(icon);
   refreshTray();
-  core.on('state', refreshTray);
+  core.on('state', () => { if (LINUX) void readPetOnDesktop().then(refreshTray); else refreshTray(); });
   // on macOS a click opens the menu, as every menu-bar icon does
-  if (!MAC) tray.on('click', () => openSettings());
+  if (MAC) tray.on('click', () => void popupTray());
+  else tray.on('click', () => openSettings());
+  if (WIN) tray.on('right-click', () => void popupTray());
 }
 
 core.on('ready', ({ language: next }) => {
@@ -706,6 +745,12 @@ function askRestoreStranded() {
 ipcMain.on('settings:theme', (_e, theme) => applySettingsTheme(settings, theme));
 
 ipcMain.on('settings:language', (e) => { e.returnValue = language; });
+// start at login, shown in the settings window's 通用 section of a packaged app; null where it cannot be set
+ipcMain.on('settings:login-item', (e, on) => {
+  if (!app.isPackaged) { e.returnValue = null; return; }
+  if (typeof on === 'boolean') { loginItem.set(on); noteAutostart(); return; }
+  e.returnValue = loginItem.get();
+});
 ipcMain.on('settings:update', (e) => { e.returnValue = { auto: SELF_UPDATE, step: updateLine() }; });
 
 app.whenReady().then(() => {

@@ -57,7 +57,7 @@ What changed in each version is in [Releases](https://github.com/Pal-AI-Lab/Coop
 
 You need:
 
-- Windows 10 / 11 (64-bit), macOS 13 or later (Apple silicon or Intel), or a 64-bit Linux desktop (X11, or XWayland under Wayland; speech recognition needs glibc 2.32 or later, which means Ubuntu 22.04, Debian 12 or newer);
+- Windows 10 / 11 (64-bit), macOS 13 or later (Apple silicon or Intel), or a 64-bit Linux desktop (X11; in a Wayland session it runs through XWayland, with the limits under [Linux](#linux); speech recognition needs glibc 2.32 or later, which means Ubuntu 22.04, Debian 12 or newer);
 - an API key from one model service, billed by usage (see [Cost and privacy](#cost-and-privacy)), or a ChatGPT account with a plan.
 
 Every release page has a `SHA256SUMS.txt` for checking the downloads.
@@ -92,6 +92,8 @@ While the App Store is in front, Coo drops behind other windows so it doesn't co
 
 > [!NOTE]
 > The pet is a transparent always-on-top window, so the desktop needs compositing (on by default in GNOME and KDE). The tray icon needs status icon support (GNOME needs the AppIndicator extension); without a tray you can still right-click Coo to open the settings. Computer use needs `xdotool` and `zenity`, which the deb pulls in; under Wayland, screenshots also need one of `grim`, `spectacle`, `scrot` or ImageMagick.
+>
+> In a Wayland session Coopanion runs through XWayland, which sees the cursor only over X11 windows. While the cursor is over the desktop or a native Wayland window, Coo's eyes do not follow it, and the hover buttons show only once the cursor moves onto Coo.
 
 ## Getting started
 
@@ -134,19 +136,21 @@ These are the defaults from the app's [vendor table](packages/cortico-provider-c
 - **Talk**: tap **Left Alt** (**Left Option** on Mac), then hold it and speak; let go to send. The talk key, microphone, speech threshold and listening mode (**While the talk key is held**, **The talk key switches it on and off**, **All the time**) are on the Voice input page. With the system default microphone selected, Coo switches along when you change the system's default input device. If the chosen microphone is unplugged or can't be found, Coo listens through the system default input and switches back when it returns. Voice input uses echo cancellation and noise suppression but not automatic gain control, so Coo leaves the system's microphone volume alone; if your voice comes through too quiet, raise the input volume in the system settings.
 - **Type**: hover over Coo and click the bubble button next to it, or type on the Chat page. Turn on **Habits → Typing key** to open the typing box from any window (double-press Left Ctrl by default). A message can carry up to four pasted images from the typing box, or eight from the Chat page.
 - **Changing keys**: the talk key and the typing key can each be another key, a key combination or a mouse side button, pressed one to three times. When both use the same key, a quick double tap opens the typing box; holding the last press for more than 300 ms starts listening instead and does not open the box. What you say during those 300 ms is kept; with **Open the microphone only while held** on, the microphone opens only at that point, so wait for the listening bubble before speaking.
-- **Bubbles**: a bubble stays open while the mouse is over it. Activity bubbles, input bubbles, bubble and text size, and how fast the text appears are on the Habits page.
+- **Bubbles**: move the pointer into an open bubble to keep it open until the pointer leaves. Click what Coo is saying to skip the rest of that line. Coo plays a chime when it asks you to confirm something, such as using your computer; clear **Alerts** under **Habits → Sounds** to silence it. Activity bubbles, input bubbles, bubble and text size, and how fast the text appears are on the Habits page.
 - **Alarms**: the alarms Coo has set are listed under **Alarms** on the App notifications page, where you can delete them; Coo is told when you do. Daily alarms keep ringing at the same local time across daylight-saving changes. Alarms missed while the app was closed go off the next time it starts.
 - **Touch**: click to poke Coo, rub back and forth over its head to pat it, or drag to pick it up. Let go mid-swing to throw it; drop it on another display and it stays there. **Habits → Response mode** decides which touches Coo answers right away.
 
 Speech is recognized locally by default: FunASR for Chinese, English, Japanese and Korean, Whisper for French, German, Spanish, Portuguese, Italian and Russian, and on Windows you can also use the system recognizer. You can switch to an **OpenAI-compatible** transcription service on the Voice input page instead; each sentence you say is then sent to that service as audio.
 
-Right-click Coo to open settings, the typing box or dress up, to switch voice input, sounds and night mode on or off, and to pause / resume, hide or quit. Closing the settings window does not quit the app. The tray menu (the menu bar icon on Mac) also has **Start at login**, **Restart** and **Let clicks pass through Coo**. With click-through on, every click goes through Coo to the window below while Coo keeps walking and talking, which helps while gaming. It only lasts for the current run: click it again or quit to turn it off.
+Rest the pointer on Coo and the buttons you picked pop up beside it: up to 6 of typing, voice input, walking, night mode, sounds, hide, size, dress up and My Worlds (picked in the first-run introduction, changed later under **Habits**). Right-clicking Coo shows the same ones, plus settings, pause / resume and quit. Hovering the dress button shows your favourite looks in a row over Coo's head; scroll or click to switch. A **Size** hover button can be added too: hovering it shows a size slider over Coo's head; drag it, or scroll over the button. Clicking **Size** keeps the slider open until you click it again or click elsewhere. While the size or the look changes, the button under the pointer stays put and moves back beside Coo once the pointer leaves. Closing the settings window does not quit the app. The tray menu (the menu bar icon on Mac) has **Show pet** or **Hide pet**, **Let clicks pass through Coo**, **Restart** and **Quit**; **Start at login** is under **Habits → General**. With click-through on, every click goes through Coo to the window below while Coo keeps walking and talking, which helps while gaming. It only lasts for the current run: choose **Stop clicks passing through Coo** or quit to turn it off.
 
 ### Appearance and sound
 
-Change the figure, colors and accessories on the **Dress up** page, including the accessories' main and accent colors; changes apply right away. Figure packs can be imported from a zip or a folder, or dragged onto the page, and imported packs are uninstalled there too.
+Change the figure, colors and accessories on the **Dress up** page, including the accessories' main and accent colors; changes apply right away. Figure packs can be imported from a zip or a folder, or dragged onto the page, and imported packs are uninstalled there too. Import, replacement and uninstall confirmations, progress and errors use the settings window’s shared dialogs. **Size**, under the figures, sets how large Coo is on the desktop; each figure keeps its own size and gets it back when you switch to it again. The previews on **Dress up** and **Start** keep one size.
 
-You can also just ask Coo to change its look. By default it changes its figure, colors, walking and snoring on its own, and asks you first before changing sizes, sounds, night mode or names; **Habits → Self-adjustment** loosens or tightens this.
+The star at the top right of the preview adds the look Coo wears to **Favourite looks**, listed in one row at the top of the page: click one to put it on, drag it to reorder, or rename and delete it. A favourite keeps the size it was saved at and puts it back on with the look; its picture is drawn at that size, with the percentage in its corner. After you pick a favourite and change it, its size included, a save button next to the star writes the change back to it.
+
+You can also just ask Coo to change its look. By default it changes its figure, colors, walking and snoring on its own, and asks you first before changing sizes, sounds, night mode or names; **Habits → Self-adjustment** loosens or tightens this. Asked what it looks like right now, Coo can take a picture of its body as it is on the desktop at that moment, without bubbles or the desktop behind it; while the pet is hidden there is none to take.
 
 <p align="center"><img src="image/README/dress-en.png" alt="Dress up: Coo palettes, hats and accessories" width="960"></p>
 
@@ -174,7 +178,7 @@ There are four settings for when Coo asks you first:
 - Only what you say, type or choose on the desktop pet's side can make Coo act. When another World asks it to use the computer, Coo checks with you in a bubble first.
 - Coo can hold keys down for up to 30 seconds, without pausing for your mouse or keyboard meanwhile, and keep a mouse button down across several steps. Whatever it still holds down is released when its turn ends.
 - As soon as you move the mouse or use the keyboard, Coo pauses and waits until you have been idle for two seconds (by default); if you keep going for 15 seconds, it gives up on that step. It also holds off while you are typing to it.
-- Anything you say with the talk key interrupts Coo once it is transcribed: the reply being written and the steps not yet started are dropped, while a click, drag or key sequence already under way finishes first and a held key is released at once. When it listens **All the time**, what Coo hears does not interrupt it.
+- Anything you say with the talk key interrupts Coo once it is transcribed: the reply being written and the steps not yet started are dropped, while a click, drag or key sequence already under way finishes first and a held key is released at once. When it listens **All the time**, what Coo hears does not interrupt it. Pressing the talk key stops **Read bubbles aloud** at once, and lines that appear before you let go stay silent.
 - Do logins, passwords and payments yourself. One wake allows 40 model requests by default; when Coo hits that limit it stops, and you can tell it to keep going. The limit is **Requests per wake-up** in advanced mode.
 
 ### Settings window
@@ -193,6 +197,8 @@ Open the settings window from the tray icon or from Coo's right-click menu.
 | World extensions | Installed Worlds, groups and order, the extension market |
 
 Pause / resume and the switch to **Advanced mode** are at the bottom of the sidebar. Advanced mode adds the **Model connections**, Persona, Memory, **Console** and **Diagnostics** pages. Model connections is where you change models, adjust reasoning effort, add other compatible services, enter prices for services without built-in ones and install provider extensions.
+
+Settings show operation errors beside the initiating control. If that control is no longer visible, the error uses a bottom notification. Read failures stay in the affected content region; refresh failures preserve loaded data and edits until a successful retry. Diagnostics report connection, event and log failures separately. Saving an avatar or name, pausing Coo and cancelling an alarm use the updated state as confirmation.
 
 ### World extensions
 
@@ -230,7 +236,7 @@ The Mac version, the deb and the Windows portable version do not update themselv
 
 | System | Data folder | Uninstall |
 | --- | --- | --- |
-| Windows | `data` in the install folder; for the portable version, `data` in its folder | Settings → Apps; for the portable version, turn off **Start at login** in the tray menu, then delete the folder |
+| Windows | `data` in the install folder; for the portable version, `data` in its folder | Settings → Apps; for the portable version, turn off **Start at login** under **Habits → General**, then delete the folder |
 | macOS | `~/Library/Application Support/Coopanion` | Drag Coopanion from Applications to the Trash |
 | Linux | `~/.config/Coopanion` | deb: `sudo apt remove coopanion`; AppImage: delete the file |
 

@@ -49,8 +49,9 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
   只发最近一批送达的事件(user 消息或事件帧)及其后的图片,更早的只留 Core 给每份附件写的 `[blob …]` 那行文字。
   每次送达新的一批,请求里从上一批的第一张图起前缀缓存失效。Chat 的工具结果不带图片,图片挪到紧跟其后的一条 user 消息里;
   千问、智谱国内、阶跃星辰、千帆的 Responses 文档写明 `function_call_output.output` 只收字符串(`toolOutputText`),也这样挪。
-  带图的请求被回 400、413 或 422(上下文超限除外)时，去掉这些图片再发一次(`src/image-fallback.ts`,四种协议和 ChatGPT 套餐都经过它);
-  这次被接受，就记下这些图片，之后经这个端点的请求都不带，每张的 `[blob …]` 行后补一行 `model-text.ts` 的 `imageLeftOut`。
+  带图的请求被回 413,或被回 400 且不是上下文超限时，去掉这些图片再发一次(Cortico 的 `ImageFallback`,四种协议和 ChatGPT 套餐的 client 都套着它，
+  实例声明 `handlesRefusedImages`;带的图只算最近一批起实际附上的那些);这次被接受，就记下这些图片，之后经这个端点的请求都不带，
+  每张的 `[blob …]` 行后补一行 Cortico 的 `imageLeftOut`;去掉图片后仍被回 413 的按上下文超限交接。
   记录只在内存里，重启后第一次带上这些图片的请求还会被拒一次。
 - **价目**:`src/pricing.ts` 内置 DeepSeek(错峰价,两个高峰时段按两倍计)、OpenAI、Anthropic、Gemini(付费档)、xAI;别家没有内置价目。
   长提示的第二档价格按 `inputBands` 计;`gemini-3.8-flash` 的现价到 2026-12-31,之后开始的请求按页面列的新价。

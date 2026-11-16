@@ -1,6 +1,8 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  launchAtLoginLabel: "Iniciar com o sistema",
+  launchAtLogin: "Iniciar o Coopanion ao entrar na sessão",
   autoUpdateLabel: "Atualizações automáticas",
   autoUpdate: "Baixar e instalar atualizações automaticamente",
   autoUpdateHint: "Baixa atualizações automaticamente e as instala ao sair. Desativar esta opção interrompe imediatamente a busca e os downloads e impede a instalação automática de atualizações já baixadas.",
@@ -29,6 +31,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: 'Desenha na taxa acima também em repouso; desligado, o repouso cai para 30 quadros por segundo.',
   hideFullscreen: 'Ocultar automaticamente',
   hideFullscreenHint: 'Some enquanto algo está em tela cheia e volta depois. Uma janela maximizada não conta.',
+  passFullscreen: "Deixar os cliques atravessarem o Coo",
+  passFullscreenHint: "Quando os cliques atravessam, o Coo continua visível e os cliques vão para a janela de baixo.",
   soundTitle: 'Sons',
   worldScope: "Funções adicionadas por outras extensões World não dependem desta chave; configure-as na página de cada World.",
   sound: 'Tocar sons',
@@ -41,6 +45,7 @@ export const S: Partial<typeof en> = {
     snore: ['Ronco', 'Roncos durante o sono'],
     talk: ['Fala', 'O balbucio enquanto o texto do balão aparece, cartões de opção surgindo'],
     ui: ['Botões e avisos', 'Cliques em botões, balões abrindo, seleções, início e fim da escuta'],
+    alert: ['Alertas', 'O aviso sonoro quando Coo pede uma confirmação'],
   },
   snore: 'Duração do ronco',
   snoreUnit: 's',
@@ -60,7 +65,7 @@ export const S: Partial<typeof en> = {
   remember: 'Lembrar a posição',
   rememberHint: 'Na próxima abertura volta à última posição horizontal; com várias telas, na principal.',
   hover: 'Botões ao passar o mouse',
-  hoverHint: (n: number) => `Até ${n}.`,
+  hoverHint: (n: number) => `Até ${n}; o menu do botão direito mostra os mesmos.`,
   dblclick: 'Clique duplo em Coo para abrir a caixa de texto',
   typeKeyLabel: 'Tecla para digitar',
   typeKey: 'Abrir a caixa de texto',
@@ -87,7 +92,7 @@ export const S: Partial<typeof en> = {
   selfItems: { figure: 'Personagem', scheme: 'Visual', roam: 'Passeios', snoreSeconds: 'Duração do ronco', sound: 'Sons', scale: 'Tamanho', bubbleSize: 'Tamanho dos balões', fontSize: 'Tamanho do texto', theme: 'Modo noturno', hoverButtons: 'Botões ao passar o mouse', user: 'Como chamar você' },
   popupSave: 'Salvar',
   popupCancel: 'Cancelar',
-  actions: { chat: 'Digitar', voice: 'Entrada de voz', roam: 'Passeios', theme: 'Modo noturno', sound: 'Sons', dress: 'Guarda-roupa', hide: 'Ocultar o pet' },
+  actions: { chat: 'Digitar', voice: 'Entrada de voz', roam: 'Passeios', theme: 'Modo noturno', sound: 'Sons', size: 'Tamanho', dress: 'Guarda-roupa', hide: 'Ocultar o pet', worlds: 'Meus Worlds' },
   saveFailed: (why: string) => `Não foi salvo: ${why}`,
   stats: 'Estatísticas de uso anônimas',
   statsHint: 'Envia contagens, tempo de uso e configurações; nunca conversas, API Keys ou arquivos.',

@@ -12,9 +12,6 @@ import { petToolDecls } from './tools.ts';
 import { SELF_TYPE } from './chat.ts';
 import { petText } from './i18n/index.ts';
 
-/** The console keeps the bot's avatar here, in the deployment directory. */
-const AVATAR_FILE = 'avatar.png';
-
 /** Every tool the World can give (the computer-use ones while computer use is on, the way to its switch while it is off) and every event it pushes. */
 const DESCRIBE: WorldDescribe = {
   tools: describeTools([...petToolDecls(), ...CUA_OFF_TOOL_DECLS, ...CUA_TOOL_DECLS], {
@@ -24,6 +21,7 @@ const DESCRIBE: WorldDescribe = {
     pet_set: { zh: '修改桌宠自己的外观与习惯;按使用者的设置直接生效,或先在气泡里询问。', en: "Changes the pet's own looks and habits, at once or after asking in a bubble, as the person's settings say." },
     pet_quiet: { zh: '安静一段时间:关掉音效、停止走动,到时恢复。', en: 'Keeps quiet for a while: sound effects off and standing still until the time is up.' },
     pet_act: { zh: '不说话,播放一串表情或动作。', en: 'Plays a sequence of expressions or motions without speaking.' },
+    pet_see_self: { zh: '取一张桌宠身体此刻在屏幕上的图,不含气泡和桌面。', en: "Takes a picture of the pet's body as it is on screen right now, without bubbles or the desktop." },
     pet_cua_open_settings: { zh: '电脑操作关着时,把设置窗口打开到它的开关,附风险说明。', en: 'While computer use is off, opens the settings window at its switch, with what it risks.' },
     pet_cua_screenshot: { zh: '截取一块显示器,附鼠标位置与前台窗口标题。', en: 'Captures one display, with the pointer position and the foreground window title.' },
     pet_cua_zoom: { zh: '从屏幕重新截取截图里的一块,读看不清的小字。', en: 'Captures a region of the screenshot again from the screen, for small text.' },
@@ -59,6 +57,10 @@ const DESCRIBE: WorldDescribe = {
       description: { zh: '使用者戳、摸、扔出或拎起放下了桌宠。', en: 'The person poked, patted, threw or dropped the pet.' },
     },
     {
+      type: 'desktop-pet.talk-key',
+      description: { zh: '说话键读不到,语音输入开着时每次运行每种原因一条。', en: 'The talk key cannot be read; once a run for each reason, while voice input is on.' },
+    },
+    {
       type: 'desktop-pet.figure',
       description: { zh: '使用者换了形象或装扮,或形象没能加载。', en: 'The person switched the figure or its dress, or a figure failed to load.' },
     },
@@ -82,6 +84,8 @@ export interface DesktopPetAssembly {
   packRoots?(): string[];
   /** Called after the bot changed its own settings (`pet_set`). */
   onBotChange?(): void;
+  /** Called when the pet window comes onto the desktop or leaves it (`onDesktop` of the pet panel's state). */
+  onDesktopChange?(onDesktop: boolean): void;
   /** What the status bubble shows for a tool call; see `DescribeTool`. */
   describeTool?: DescribeTool;
   /** The language of what the bot reads from this World, read at each use; Chinese when absent. */
@@ -116,11 +120,11 @@ export function desktopPetDefinition(assembly: DesktopPetAssembly = {}): WorldDe
         asrApiKey: () => ctx.secret(DESKTOP_PET_SECRETS.asrApiKey),
         storeAsrApiKey: (key) => ctx.storeSecret(DESKTOP_PET_SECRETS.asrApiKey, key),
         botName: () => assembly.botName?.() ?? ctx.botName,
-        avatarFile: join(ctx.botDir, AVATAR_FILE),
         controls: assembly.controls,
         packRoots: () => [join(ctx.dataDir, 'figures'), ...assembly.packRoots?.() ?? []],
         packDir: () => join(ctx.dataDir, 'figures'),
         onBotChange: () => assembly.onBotChange?.(),
+        onDesktopChange: (on) => assembly.onDesktopChange?.(on),
         describeTool: assembly.describeTool,
         modelLanguage: () => assembly.modelLanguage?.() ?? 'zh',
         replyLanguage: () => assembly.replyLanguage?.() ?? null,

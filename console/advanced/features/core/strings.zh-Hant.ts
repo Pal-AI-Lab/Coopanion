@@ -20,7 +20,7 @@ export const S: Partial<typeof en> = {
   chipRoundsPost: ' 輪',
   subConfig: '設定',
   configEmpty: 'Core 沒有可調設定。',
-  netOffline: '介面無法連線',
+  netOffline: "即時偵錯連線已中斷，正在重新連線…",
 
   // events.ts
   eventsDesc: '事件記錄，agent 可查詢。',

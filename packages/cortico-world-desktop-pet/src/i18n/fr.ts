@@ -177,7 +177,8 @@ const fr: Translation<PetText> = {
     fontSize: (from: number, to: number) => `passer la taille du texte de ${from}× à ${to}×`,
     theme: { dark: "passer à l'aspect nuit", light: "passer à l'aspect jour" },
     hover: (list: string) => `mettre comme boutons au survol : ${list}`,
-    actions: { chat: 'Écrire', voice: 'Saisie vocale', roam: 'Déplacements', theme: 'Mode nuit', sound: 'Sons', dress: 'Habiller', hide: 'Masquer le compagnon' },
+    hoverNone: 'retirer tous les boutons au survol',
+    actions: { chat: 'Écrire', voice: 'Saisie vocale', roam: 'Déplacements', theme: 'Mode nuit', sound: 'Sons', size: 'Taille', dress: 'Habiller', hide: 'Masquer le compagnon', worlds: 'Mes Worlds' },
     user: (to: string) => `vous appeler « ${to} »`,
   },
 
@@ -237,6 +238,7 @@ const fr: Translation<PetText> = {
     frameRate: { title: "Fréquence d'images", description: "Images par seconde quand le compagnon marche, saute ou se fait porter ; 0 suit l'écran. Au-delà de la fréquence de rafraîchissement de l'écran, celle de l'écran s'applique. La page Habitudes propose 60, 120, 144 et Illimitée." },
     lockFrameRate: { title: 'Verrouiller la fréquence', description: "Dessine aussi le compagnon à cette fréquence au repos. Désactivé, elle descend à 30 images par seconde quand le compagnon se tient debout, s'assoit ou dort." },
     hideWhenFullscreen: { title: 'Masquer en plein écran', description: 'Activé, le compagnon se cache quand la fenêtre au premier plan remplit l\'écran de Coo (un jeu, une vidéo en plein écran, un navigateur en plein écran) et revient à la fin du plein écran ; une fenêtre agrandie ne compte pas. Désactivé, le compagnon reste toujours au premier plan.' },
+    passWhenFullscreen: { title: "Laisser passer les clics en plein écran", description: "Activé, tant que la fenêtre au premier plan remplit l'écran de Coo, Coo reste visible et chaque clic passe à travers lui vers la fenêtre en dessous, jusqu'à la fin du plein écran ; une fenêtre agrandie ne compte pas. Si « Masquer en plein écran » est aussi activé, Coo se cache." },
     exportOverlay: { title: 'Overlay OBS', description: "Sert l'image de la fenêtre du compagnon sur fond transparent à /overlay pour une source « Navigateur » d'OBS ; désactivé, rien n'est servi." },
     electronFile: { title: 'Exécutable Electron', description: "Vide : CORTICO_DESKTOP_PET_HOST, puis l'environnement d'exécution installé depuis le panneau." },
     port: { title: 'Port de la page', description: "Passe au port libre suivant s'il est occupé." },
@@ -251,6 +253,7 @@ const fr: Translation<PetText> = {
       snore: { title: 'Ronflements', description: '' },
       talk: { title: 'Parole', description: "Le babillage à l'apparition du texte des bulles, et les cartes de choix qui surgissent." },
       ui: { title: 'Boutons et signaux', description: "Clics de boutons, ouverture des bulles, sélections, début et fin de l'écoute." },
+      alert: { title: 'Alertes', description: 'Un carillon quand Coo vous demande une confirmation.' },
     },
     snoreSeconds: { title: 'Durée des ronflements', suffix: 's', description: "À chaque sommeil, le compagnon se tait après avoir ronflé ce temps ; les z continuent de flotter. 0 = ronfler jusqu'au réveil." },
     panByPosition: { title: 'Répartir selon la position', description: 'Les sons penchent du côté où se trouve Coo ; désactivé, ils sont joués au centre.' },
@@ -269,6 +272,15 @@ const fr: Translation<PetText> = {
     thresholdDb: { title: 'Seuil de parole' },
     silenceMs: { title: 'Silence qui termine une phrase' },
     maxUtteranceMs: { title: 'Phrase la plus longue' },
+  },
+
+  windowReason: {
+    badHostEnv: (env: string) => `${env} n'est pas un tableau JSON de chaînes`,
+    noElectronFile: (file: string) => `L'exécutable Electron n'existe pas : ${file}`,
+    noElectron: "Aucun Electron disponible : installez l'environnement d'exécution de la fenêtre depuis le panneau du compagnon, ou indiquez l'exécutable Electron dans la configuration",
+    startFailed: (why: string) => `Échec du démarrage : ${why}`,
+    closed: 'La fenêtre a été fermée',
+    exited: (code: number | null) => `Le processus de la fenêtre s'est arrêté (code de sortie ${code})`,
   },
 
   panel: {

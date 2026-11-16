@@ -1,6 +1,8 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  launchAtLoginLabel: "Lancement au démarrage",
+  launchAtLogin: "Lancer Coopanion à l’ouverture de session",
   autoUpdateLabel: "Mises à jour automatiques",
   autoUpdate: "Télécharger et installer les mises à jour automatiquement",
   autoUpdateHint: "Télécharge les mises à jour et les installe à la fermeture. Désactiver cette option arrête immédiatement les recherches et téléchargements et empêche l’installation automatique des mises à jour déjà téléchargées.",
@@ -29,6 +31,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: 'Garde la fréquence ci-dessus aussi au repos ; désactivé, le repos passe à 30 images par seconde.',
   hideFullscreen: 'Masquer automatiquement',
   hideFullscreenHint: 'Se masque pendant le plein écran et réapparaît ensuite. Une fenêtre agrandie ne compte pas.',
+  passFullscreen: "Laisser passer les clics à travers Coo",
+  passFullscreenHint: "Quand les clics passent à travers, Coo reste visible et les clics vont à la fenêtre en dessous.",
   soundTitle: 'Sons',
   worldScope: "Les fonctions ajoutées par d’autres extensions World ne dépendent pas de cet interrupteur ; réglez-les sur la page de chaque World.",
   sound: 'Jouer les sons',
@@ -41,6 +45,7 @@ export const S: Partial<typeof en> = {
     snore: ['Ronflements', 'Ronfle en dormant'],
     talk: ['Parole', "Le babillage à l'apparition du texte des bulles, les cartes de choix qui surgissent"],
     ui: ['Boutons et signaux', "Clics de boutons, ouverture des bulles, sélections, début et fin de l'écoute"],
+    alert: ['Alertes', 'Le carillon quand Coo vous demande une confirmation'],
   },
   snore: 'Durée des ronflements',
   snoreUnit: 's',
@@ -60,7 +65,7 @@ export const S: Partial<typeof en> = {
   remember: 'Mémoriser la position',
   rememberHint: 'Au prochain démarrage, Coo reprend la dernière position horizontale ; avec plusieurs écrans, sur l’écran principal.',
   hover: 'Boutons au survol',
-  hoverHint: (n: number) => `Jusqu'à ${n}.`,
+  hoverHint: (n: number) => `Jusqu'à ${n} ; le menu du clic droit montre les mêmes.`,
   dblclick: 'Double-cliquer sur Coo pour ouvrir la zone de saisie',
   typeKeyLabel: 'Touche de saisie',
   typeKey: 'Ouvrir la zone de saisie',
@@ -87,7 +92,7 @@ export const S: Partial<typeof en> = {
   selfItems: { figure: 'Personnage', scheme: 'Tenue', roam: 'Déplacements', snoreSeconds: 'Durée des ronflements', sound: 'Sons', scale: 'Taille', bubbleSize: 'Taille des bulles', fontSize: 'Taille du texte', theme: 'Mode nuit', hoverButtons: 'Boutons au survol', user: 'Comment vous appeler' },
   popupSave: 'Enregistrer',
   popupCancel: 'Annuler',
-  actions: { chat: 'Écrire', voice: 'Saisie vocale', roam: 'Déplacements', theme: 'Mode nuit', sound: 'Sons', dress: 'Habiller', hide: 'Masquer le compagnon' },
+  actions: { chat: 'Écrire', voice: 'Saisie vocale', roam: 'Déplacements', theme: 'Mode nuit', sound: 'Sons', size: 'Taille', dress: 'Habiller', hide: 'Masquer le compagnon', worlds: 'Mes Worlds' },
   saveFailed: (why: string) => `Non enregistré : ${why}`,
   stats: "Statistiques d'utilisation anonymes",
   statsHint: "Envoie des comptages, le temps d'utilisation et les réglages ; jamais les conversations, les clés ni les fichiers.",

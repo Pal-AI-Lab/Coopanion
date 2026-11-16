@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -182,6 +182,24 @@ describe('with a pet page', () => {
     expect(out.text).toContain('飞');
   });
 
+  it('pet_say counts the queue from a line the person skipped, not from when it was estimated to end', async () => {
+    const { world, host } = await mounted();
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const say = async (script: string) => (await tool(world, 'pet_say').handler({ script }, ctx) as { text: string }).text;
+    const seconds = (text: string, pattern: RegExp) => Number(text.match(pattern)?.[1]);
+    await say('今天天气很好，我们去公园散步吧，那边的花都开了，还有很多小鸟在树上唱歌。'.repeat(4));
+    const long = await page.next((m) => m.t === 'say');
+    const second = await say('好呀，等你。');
+    expect(seconds(second, /前面还有约 (\d+) 秒/)).toBeGreaterThan(seconds(second, /这段约 (\d+) 秒/));
+    page.send({ t: 'skipped', id: long.id });
+    // the page's messages are handled in order: once the typed line after it has arrived, so has the skip
+    page.send({ t: 'text', text: '好' });
+    await expect.poll(() => host.events.length).toBe(1);
+    const third = await say('嗯。');
+    expect(seconds(third, /前面还有约 (\d+) 秒/) || 0).toBeLessThanOrEqual(seconds(second, /这段约 (\d+) 秒/));
+  });
+
   it('pet_ask delivers the chosen option as an answer event that wakes', async () => {
     const { world, host } = await mounted();
     const page = await FakePage.open(origin(world));
@@ -287,6 +305,33 @@ describe('with a pet page', () => {
     expect(out.text).toContain('fly');
   });
 
+  it('pet_see_self attaches the picture the pet window hands back, and ends at once when none can come', async () => {
+    const { world } = await mounted();
+    const see = () => tool(world, 'pet_see_self').handler({}, ctx) as Promise<{ text: string; failed?: true; blobs?: Array<{ bytes: Uint8Array; mime: string }> }>;
+    // a browser tab has no window to take the picture from: it is not asked
+    const tab = await FakePage.open(origin(world));
+    cleanup.push(() => tab.close());
+    expect(await see()).toMatchObject({ failed: true });
+    expect(tab.messages.some((m) => m.t === 'portrait')).toBe(false);
+    const win = await windowPage(world);
+    cleanup.push(() => win.close());
+    const png = Buffer.from('89504e470d0a1a0a', 'hex');
+    const seen = see();
+    win.send({ t: 'portrait', id: (await win.next((m) => m.t === 'portrait')).id, png: png.toString('base64'), width: 120, height: 160 });
+    const out = await seen;
+    expect(out.failed).toBeUndefined();
+    expect(out.blobs).toEqual([expect.objectContaining({ bytes: png, mime: 'image/png' })]);
+    expect(out.text).toContain('120×160');
+    const hidden = see();
+    win.send({ t: 'portrait', id: (await win.next((m) => m.t === 'portrait')).id, failed: 'hidden' });
+    expect(await hidden).toMatchObject({ failed: true });
+    // the window goes while the picture is awaited: the call does not wait out its time limit
+    const gone = see();
+    await win.next((m) => m.t === 'portrait');
+    await win.close();
+    expect(await gone).toMatchObject({ failed: true });
+  });
+
   it('takes the words of the body on screen: a pack\'s own, and Coo\'s once the page says the pack would not run', async () => {
     const root = mkdtempSync(join(tmpdir(), 'packs-'));
     mkdirSync(join(root, 'robot'));
@@ -375,6 +420,15 @@ describe('with a pet page', () => {
     await expect.poll(() => host.events.length).toBe(1);
     await new Promise((r) => setTimeout(r, 2800));
     expect(host.events.map((e) => e.type)).toEqual(['desktop-pet.message']);
+  });
+
+  it('the sound switches reach the page: in init, and pushed again when one changes', async () => {
+    const { world, cfg } = await mounted((c) => { c.sounds.alert = false; });
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    expect(page.init.sounds).toMatchObject({ alert: false, ui: true });
+    cfg.sounds = { ...cfg.sounds, alert: true };
+    expect((await page.next((m) => m.t === 'prefs')).sounds).toMatchObject({ alert: true });
   });
 
   it('a skin saved from the dressing page is persisted and pushed to the pet', async () => {
@@ -530,6 +584,56 @@ describe('with a pet page', () => {
     expect(host.events).toHaveLength(0);
   });
 
+  it('onDesktopChange: told once each time the pet window comes onto the desktop or leaves it', async () => {
+    const told: boolean[] = [];
+    const { world } = await mounted(undefined, { onDesktopChange: (on) => { told.push(on); } });
+    const win = await windowPage(world);
+    await expect.poll(() => told).toEqual([true]);
+    win.send({ t: 'visibility', hidden: true });
+    await expect.poll(() => told).toEqual([true, false]);
+    // the same state again tells nothing
+    win.send({ t: 'visibility', hidden: true });
+    win.send({ t: 'visibility', hidden: false });
+    await expect.poll(() => told).toEqual([true, false, true]);
+    await win.close();
+    await expect.poll(() => told).toEqual([true, false, true, false]);
+  });
+
+  it('confirm waits a minute from when the page shows it, and three minutes in all while it is not shown', async () => {
+    const { world } = await mounted();
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const confirms = (world as unknown as { confirms: Map<string, { shown: boolean }> }).confirms;
+    let settled: string | null = null;
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      // queued behind lines: the page has not shown it yet
+      void world.confirm('可以吗?', ['可以', '不行']).then((r) => { settled = r; });
+      const { id } = await page.next((m) => m.t === 'confirm');
+      vi.advanceTimersByTime(170_000);
+      await Promise.resolve();
+      expect(settled).toBeNull();
+      page.send({ t: 'confirm-shown', id });
+      while (!confirms.get(String(id))?.shown) await new Promise((r) => setImmediate(r));
+      vi.advanceTimersByTime(59_000);
+      await Promise.resolve();
+      expect(settled).toBeNull();
+      vi.advanceTimersByTime(1_000);
+      await Promise.resolve();
+      expect(settled).toBe('timeout');
+      // the page takes the timed-out bubble down, so the lines after it are shown
+      await page.next((m) => m.t === 'ask-close' && m.id === id);
+      settled = null;
+      void world.confirm('还在吗?', ['可以', '不行']).then((r) => { settled = r; });
+      await page.next((m) => m.t === 'confirm');
+      vi.advanceTimersByTime(180_000);
+      await Promise.resolve();
+      expect(settled).toBe('timeout');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('pet_set: 「以后都可以」 applies the change and stops asking about it, as the bot\'s own change', async () => {
     let botChanges = 0;
     const { world, persisted } = await mounted(undefined, { onBotChange: () => { botChanges++; } });
@@ -561,6 +665,11 @@ describe('with a pet page', () => {
     const pick = world.dialog({ text: '选一个', input: { kind: 'buttons', options: [{ label: 'A' }, { label: 'B' }] } });
     page.send({ t: 'dialog', id: (await page.next((m) => m.t === 'dialog')).id, index: 1 });
     expect(await pick.answer).toEqual({ index: 1 });
+
+    // several cards: the indices come back once each, in order, and anything else in the list is left out
+    const several = world.dialog({ text: '挑几个', input: { kind: 'pick', confirm: '好', max: 3, options: [{ label: 'A' }, { label: 'B' }, { label: 'C' }] } });
+    page.send({ t: 'dialog', id: (await page.next((m) => m.t === 'dialog')).id, picked: [2, 0, 2, -1, 1.5, 'x', 3] });
+    expect(await several.answer).toEqual({ picked: [0, 2] });
 
     const closed = world.dialog({ text: '跳过?', closable: true, input: { kind: 'text', submit: '好', alt: '算了' } });
     page.send({ t: 'dialog', id: (await page.next((m) => m.t === 'dialog')).id, closed: true });
@@ -605,20 +714,14 @@ describe('with a pet page', () => {
       quit: () => calls.push('quit'),
       quitLabel: '退出 App',
     };
-    const dir = mkdtempSync(join(tmpdir(), 'pet-avatar-'));
-    const avatarFile = join(dir, 'avatar.png');
-    writeFileSync(avatarFile, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
-    const { world } = await mounted(undefined, { botName: () => 'Bot', avatarFile, controls });
-    const res = await fetch(`${origin(world)}/api/avatar`);
-    expect(res.headers.get('content-type')).toBe('image/png');
-    expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+    const { world } = await mounted(undefined, { botName: () => 'Bot', controls });
     const win = await windowPage(world);
     cleanup.push(() => win.close());
     const tab = await FakePage.open(origin(world), 'role=pet&host=tab');
     cleanup.push(() => tab.close());
     const state = await (await fetch(`${origin(world)}/api/state`)).json() as { bot: Record<string, unknown> };
     expect(state.bot).toMatchObject({
-      name: 'Bot', controls: true, buttons: { pause: true, settings: true, dress: false, quit: true }, paused: false, quitLabel: '退出 App', avatar: expect.any(String),
+      name: 'Bot', controls: true, buttons: { pause: true, settings: true, dress: false, quit: true }, paused: false, quitLabel: '退出 App',
     });
     win.send({ t: 'control', action: 'pause' });
     expect((await win.next((m) => m.t === 'prefs')).bot).toMatchObject({ paused: true });
@@ -692,6 +795,11 @@ describe('chat page', () => {
     chat.send({ t: 'withdraw', cursor: second });
     await expect.poll(() => chat.last('withdrawn')).toEqual({ t: 'withdrawn', cursor: second });
     expect(host.withdrawn).toEqual([second]);
+
+    host.withdrawable = false;
+    chat.send({ t: 'withdraw', cursor: sent.cursor });
+    await expect.poll(() => chat.last('notice')?.cursor).toBe(sent.cursor);
+    expect(chat.last('notice')?.text).toBeTruthy();
 
     chat.send({ t: 'hello' });
     await expect.poll(() => chat.last('init')).toBeDefined();
@@ -829,5 +937,127 @@ describe("the bot's name", () => {
     await expect.poll(() => chat.last('bot')).toEqual({ t: 'bot', bot: 'Mochi' });
     chat.send({ t: 'hello' });
     await expect.poll(() => chat.last('init')?.bot).toBe('Mochi');
+  });
+});
+
+describe('size on screen', () => {
+  /** The World as it runs: its patches deep-merged into the live config, arrays replaced. */
+  async function sized(extra?: Partial<DesktopPetWorldOptions>) {
+    const merge = (target: Record<string, unknown>, patch: Record<string, unknown>) => {
+      for (const [k, v] of Object.entries(patch)) {
+        if (v && typeof v === 'object' && !Array.isArray(v) && target[k] && typeof target[k] === 'object') merge(target[k] as Record<string, unknown>, v as Record<string, unknown>);
+        else target[k] = v;
+      }
+    };
+    let cfg: DesktopPetConfigSection | null = null;
+    const made = await mounted(undefined, { ...extra, persist: (p) => merge(cfg as unknown as Record<string, unknown>, p as Record<string, unknown>) });
+    cfg = made.cfg;
+    const post = (path: string, body: unknown) => fetch(`${origin(made.world)}${path}`, { method: 'POST', body: JSON.stringify(body) });
+    return { ...made, post };
+  }
+  const coo = DESKTOP_PET_DEFAULTS.skin;
+  const whale = { ...DESKTOP_PET_DEFAULTS.skin, figure: 'whale', scheme: '' };
+
+  it('each figure keeps the size it had, and takes it back when put on again', async () => {
+    const { cfg, post } = await sized();
+    await post('/api/prefs', { scale: 1.5 });
+    expect(cfg.window.scale).toBe(1.5);
+    await post('/api/skin', { skin: whale });
+    // a figure with no size of its own keeps the one on screen
+    expect(cfg.window.scale).toBe(1.5);
+    expect(cfg.figureScales).toEqual({ coo: 1.5 });
+    await post('/api/prefs', { scale: .8 });
+    await post('/api/skin', { skin: coo });
+    expect(cfg.window.scale).toBe(1.5);
+    expect(cfg.figureScales).toEqual({ coo: 1.5, whale: .8 });
+  });
+
+  it('a size set elsewhere just before a figure is put on stays with the figure it was set for', async () => {
+    const { cfg, post } = await sized();
+    cfg.figureScales = { whale: .8 };
+    // the settings window writes the config directly, between two of the World's syncs
+    cfg.window.scale = 1.7;
+    await post('/api/skin', { skin: whale });
+    expect(cfg.figureScales.coo).toBe(1.7);
+    expect(cfg.window.scale).toBe(.8);
+  });
+
+  it('a figure put on together with a size takes that size', async () => {
+    const { cfg, post } = await sized();
+    cfg.figureScales = { whale: .8 };
+    await post('/api/skin', { skin: whale, scale: 2.5 });
+    expect(cfg.window.scale).toBe(2.5);
+    expect(cfg.figureScales).toEqual({ whale: .8, coo: DESKTOP_PET_DEFAULTS.window.scale });
+  });
+
+  it('a size given with a figure is the one it goes on at, the size on screen included', async () => {
+    const { cfg, post } = await sized();
+    cfg.figureScales = { whale: .8 };
+    await post('/api/prefs', { scale: 1.5 });
+    await post('/api/skin', { skin: whale, scale: 1.5 });
+    expect(cfg.window.scale).toBe(1.5);
+    expect(cfg.figureScales).toEqual({ whale: .8, coo: 1.5 });
+  });
+
+  function robotPacks() {
+    const root = mkdtempSync(join(tmpdir(), 'packs-'));
+    mkdirSync(join(root, 'robot'));
+    writeFileSync(join(root, 'robot', 'figure.json'), JSON.stringify({
+      manifest: 2, api: 2, id: 'robot', name: { zh: '机器人' }, about: { zh: '一个机器人' }, entry: 'figure.js', export: 'createBody', axes: [], presets: [], vocab: [],
+    }));
+    return () => [root];
+  }
+
+  it('pet_set says the size changed when a figure it puts on takes back its own', async () => {
+    const { world, cfg } = await sized({ packRoots: robotPacks() });
+    cfg.figureScales = { robot: .8 };
+    const receipt = (await tool(world, 'pet_set').handler({ figure: 'robot' }, ctx) as { text: string }).text;
+    expect(cfg.window.scale).toBe(.8);
+    expect(receipt).toContain(`${DESKTOP_PET_DEFAULTS.window.scale} 倍 → 0.8 倍`);
+  });
+
+  it('pet_set asks for a size from the one on screen after the figure it put on took back its own', async () => {
+    const { world, cfg } = await sized({ packRoots: robotPacks() });
+    cfg.figureScales = { robot: .8 };
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const set = tool(world, 'pet_set').handler({ figure: 'robot', scale: 1.5 }, ctx) as Promise<{ text: string }>;
+    const c = await page.next((m) => m.t === 'confirm');
+    expect(c.question).toContain('把大小从 0.8 倍改成 1.5 倍');
+    page.send({ t: 'confirmed', id: c.id, index: 2 });
+    const receipt = (await set).text;
+    expect(cfg.window.scale).toBe(.8);
+    expect(receipt).toContain('0.8 倍 → 1.5 倍');
+    expect(receipt).not.toContain(`${DESKTOP_PET_DEFAULTS.window.scale} 倍 → 1.5 倍`);
+  });
+
+  it('pet_set does not ask for a size the figure it put on already took back', async () => {
+    const { world, cfg } = await sized({ packRoots: robotPacks() });
+    cfg.figureScales = { robot: .8 };
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const set = tool(world, 'pet_set').handler({ figure: 'robot', scale: .8 }, ctx) as Promise<{ text: string }>;
+    const asked = await Promise.race([set.then(() => null), page.next((m) => m.t === 'confirm')]);
+    if (asked) page.send({ t: 'confirmed', id: asked.id, index: 2 });
+    expect(asked).toBeNull();
+    expect(cfg.window.scale).toBe(.8);
+    expect((await set).text).not.toContain('没改');
+  });
+
+  it('sizes from the pages are kept in range and in steps, and others are ignored', async () => {
+    const { cfg, post } = await sized();
+    await post('/api/prefs', { scale: 1.234 });
+    expect(cfg.window.scale).toBe(1.25);
+    await post('/api/prefs', { scale: 99 });
+    await post('/api/skin', { skin: coo, scale: 'big' });
+    expect(cfg.window.scale).toBe(1.25);
+  });
+
+  it('a saved look keeps its size when it has one in range', async () => {
+    const { post } = await sized();
+    const looks = [{ id: 'a', name: 'A', skin: coo, scale: 3 }, { id: 'b', name: 'B', skin: whale, scale: 99 }, { id: 'c', name: 'C', skin: coo }];
+    expect(await (await post('/api/looks', { looks })).json()).toEqual([
+      { id: 'a', name: 'A', skin: coo, scale: 3 }, { id: 'b', name: 'B', skin: whale }, { id: 'c', name: 'C', skin: coo },
+    ]);
   });
 });

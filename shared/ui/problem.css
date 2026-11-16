@@ -1,0 +1,15 @@
+.extension-problem{position:fixed;z-index:130;box-sizing:border-box;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:8px;width:max-content;max-width:min(560px,var(--problem-available-width,calc(100vw - 16px)));padding:10px 8px 10px 11px;background:var(--sheet,#fff);border:1px solid color-mix(in srgb,var(--danger,#c33) 35%,var(--line-strong,#ddd));border-radius:var(--radius-lg,9px);box-shadow:0 18px 48px -28px var(--shadow-strong,#0004);font:12px/1.55 var(--sans,sans-serif);color:var(--ink,#222);overflow-wrap:anywhere;pointer-events:auto}
+.extension-problem.hidden{display:none}
+.read-feedback:empty{display:none}
+.read-feedback:not(:empty){margin-block:12px}
+.extension-list-problem{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:1px solid var(--line,#ddd);border-radius:12px;background:var(--sheet,#fff);color:var(--danger,#c33);font-size:13px;min-width:0;box-sizing:border-box;overflow-wrap:anywhere}
+.extension-list-problem[hidden]{display:none}
+.extension-list-problem>span{min-width:0;max-height:240px;overflow-y:auto;overscroll-behavior:contain}
+.extension-list-problem>.btn{flex:none}
+.extension-problem::before{content:"";position:absolute;left:var(--problem-arrow,50%);top:-5px;width:8px;height:8px;margin-left:-4px;background:inherit;border-left:1px solid color-mix(in srgb,var(--danger,#c33) 35%,var(--line-strong,#ddd));border-top:1px solid color-mix(in srgb,var(--danger,#c33) 35%,var(--line-strong,#ddd));transform:rotate(45deg)}
+.extension-problem.is-above::before{top:auto;bottom:-5px;transform:rotate(225deg)}
+.extension-problem-mark{width:16px;height:16px;margin-top:1px;color:var(--danger,#c33)}
+.extension-problem-text{max-height:min(300px,calc(100vh - 80px));overflow-y:auto;overscroll-behavior:contain;font-size:12px;color:var(--ink,#222);white-space:pre-wrap;overflow-wrap:anywhere}
+.extension-problem-close{flex:none;display:grid;place-items:center;width:22px;height:22px;margin:-2px 0 0;padding:0;border:0;border-radius:6px;background:transparent;color:var(--ink-dim,#777);cursor:pointer}
+.extension-problem-close:hover{background:var(--hover,#eee);color:var(--ink,#222)}
+.extension-problem-close .icon{width:13px;height:13px}

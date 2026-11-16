@@ -14,11 +14,16 @@ import { applyTheme, clamp, f, ICONS, linked } from './ui.js';
 import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
-import { COO_CSS, PALETTES, mini, normalizeSkin, skinCss } from './coo/coo.js';
+import { COO_CSS, PALETTES, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
+import { fetchLooks, lookAvailable, lookPicture, sameLook } from './looks.js';
+import { SIZE, scaleSlider, sizeEcho } from './scale-slider.js';
+import { RESTYLE_MS, SWAP_MS, restyle, springSize, swapIn, swapOut } from './swap-motion.js';
 import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
+import { runFrames } from './frame-loop.js';
+import { mountHints, tipOf, tipWithoutNote } from './hints.js';
 
 const $ = (s) => document.querySelector(s);
 const host = window.petHost || null;
@@ -27,8 +32,8 @@ document.body.classList.add(host ? 'desk' : 'tab');
 
 const stage = $('#stage');
 const bubble = $('#bubble'), menu = $('#menu');
-const tools = $('#tools');
-// Coo's drawing classes for the menu's avatar; the bubbles and buttons take their colours from Coo's palette
+const tools = $('#tools'), wheel = $('#wheel'), sizerEl = $('#sizer');
+// Coo's drawing classes for the look wheel's pictures; the bubbles and buttons take their colours from Coo's palette
 // another pack's body sets the theme color instead (accentStyle, after skinStyle so it wins)
 const cooStyle = document.createElement('style'), skinStyle = document.createElement('style'), accentStyle = document.createElement('style');
 // the bubbles' colours of a pack that names its own (bubbleCss)
@@ -73,15 +78,27 @@ const lightFor = (s) => {
 };
 
 const sfx = createSfx();
+// on the desktop the hints name the hover buttons, over whatever lies behind: they close on their own
+mountHints(document, { autoClose: !!host });
 // Coo's speech stands in for the babble while it is on; its units move the mouth
 const speech = createSpeech(sfx, { onUnit: () => body?.talk() });
+/** The talk key is listening: no line makes a sound until it lets go. */
+let talkKeyDown = false;
 if (host) sfx.unlock();
 else ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => sfx.unlock(), { capture: true }));
 
 /** Page pixels the window reaches below the floor, over a taskbar (the window process says how many); a figure may draw there. */
 let below = 0;
 const floorGap = () => (host ? 2 + below : 48);
-const bounds = () => ({ W: innerWidth, H: innerHeight, floorY: innerHeight - floorGap(), S: .42 * prefs.scale });
+/** The size the body is drawn at: `prefs.scale` reached on a spring (swap-motion.js), so a new size grows or shrinks into place. */
+const drawnScale = springSize(1);
+/** Whether a size has come from the World yet: the first one is taken at once, without the spring. */
+let scaleSeen = false;
+/**
+ * In a tab (the settings window's 开始 preview, or the page opened in a browser) the body is drawn at size 1 whatever the
+ * size setting, as the dressing page's preview is: the setting is the desktop window's, and a large one would not fit.
+ */
+const bounds = () => ({ W: innerWidth, H: innerHeight, floorY: innerHeight - floorGap(), S: .42 * (host ? drawnScale.value : 1) });
 /**
  * The body on screen (body-host.js), null until the first one is ready, and the words it does (its pack's
  * vocab, by id). `T` is the page's clock, in seconds of frames drawn.
@@ -90,7 +107,7 @@ let body = null, words = new Map(), T = 0;
 /** Where the body last said it is (body-host.js `layout`), or null. */
 const at = () => body?.layout ?? null;
 /** What the body is told of the page: talking orders hold its roaming off, and these states. */
-const bodyState = { listening: false, thinking: false, thoughtShown: true, dialogOpen: false, status: null };
+const bodyState = { listening: false, thinking: false, thoughtShown: true, dialogOpen: false, still: false, status: null };
 const holdRoam = (seconds) => body?.set({ hold: seconds });
 host?.onFloor?.((px) => { below = px; body?.set({ bounds: bounds() }); });
 // the window reads the windows on its display only while the body on screen asks for them (`watchWindows`)
@@ -114,6 +131,7 @@ function connect() {
   ws.onclose = (e) => {
     ws = null;
     stopMic();
+    talkKeyDown = false;
     // the World gave up on these steps when the page went; it asks again once the page is back
     dropDialogs();
     setStatus(null);
@@ -126,24 +144,84 @@ function connect() {
 let windowShown = true;
 function reportVisibility() { if (host) send({ t: 'visibility', hidden: !windowShown }); }
 // the page itself always reads as visible (its window does not throttle it): the window process says when it is hidden
-host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVisibility(); });
+host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVisibility(); if (!shown) pinSizer(false); });
+/** Clicks pass through because a fullscreen window covers the pet's display and the setting says so; the window process decides. */
+let fullscreenThrough = false;
+host?.onFullscreenThrough?.((on) => { fullscreenThrough = on; });
+/** Every click passes through the pet right now, by the tray or the fullscreen setting. */
+const clicksPass = () => prefs.clickThrough || fullscreenThrough;
 
 /* ---------- OBS overlay: while the window streams, each frame drawn is reported with the part it sends, the pet and its bubbles ---------- */
 let overlayOn = false;
-/** The body's box with room for its halo and what floats above its head, joined with the bubbles shown; null with no body. */
-function overlayRect() {
+/** The body's box with room for its halo and what floats above its head; null with no body. */
+function bodyRoom() {
   const b = at()?.box;
   if (!b) return null;
   // the halo reaches about 40% of the body's width out; emotes and z's float up to its height above; a pack's effects as far as it says
   const reach = (shownPack?.effects?.reach ?? 0) * 256 * bounds().S;
   const side = Math.max(24, .4 * b.w, reach), top = Math.max(48, b.h, reach);
-  const parts = [{ x: b.x - side, y: b.y - top, width: b.w + 2 * side, height: b.h + top + side }];
-  for (const el of [bubble, ...lines.map((l) => l.el)]) if (!el.hidden) parts.push(rectOf(el));
+  return { x: b.x - side, y: b.y - top, width: b.w + 2 * side, height: b.h + top + side };
+}
+/** The rect that holds all of `parts`, cut to the page; null when none of it is on the page. */
+function onPage(parts) {
   const x = Math.max(0, Math.min(...parts.map((r) => r.x))), y = Math.max(0, Math.min(...parts.map((r) => r.y)));
   const right = Math.min(innerWidth, Math.max(...parts.map((r) => r.x + r.width))), bottom = Math.min(innerHeight, Math.max(...parts.map((r) => r.y + r.height)));
   return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : null;
 }
+/** The body's room joined with the bubbles shown; null with no body. */
+function overlayRect() {
+  const room = bodyRoom();
+  if (!room) return null;
+  const parts = [room];
+  for (const el of [bubble, ...lines.map((l) => l.el)]) if (!el.hidden) parts.push(rectOf(el));
+  return onPage(parts);
+}
 host?.onOverlay?.((on) => { overlayOn = on; });
+
+/* ---------- portrait: a picture of the body alone, which the World asks for when the bot looks at itself ---------- */
+/** What the page draws over the stage: the bubbles, the menu's two sides, the hover buttons, the look wheel, the size slider and the hover hint. */
+const OVER_STAGE = '.bubble, .menu > *, .tools, .wheel, .sizer, .hint';
+/**
+ * The longest the picture waits for the page's next frame, and then for the display, in milliseconds each: a dozen
+ * display refreshes at 60 a second. A page that gets no refresh (its window wholly covered) goes on after it.
+ */
+const PORTRAIT_FRAME_MS = 200;
+/** Waiting for the page's next frame (the frame loop calls them once it has stepped the orders and the body). */
+const afterFrame = [];
+/** Resolves when `wait` calls back, after PORTRAIT_FRAME_MS at the latest. */
+const soon = (wait) => new Promise((done) => { const timer = setTimeout(done, PORTRAIT_FRAME_MS); wait(() => { clearTimeout(timer); done(); }); });
+const overlaps = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+/**
+ * Answers the World's `portrait` order with the body's room as the window draws it, `{ png, width, height }`,
+ * or with `failed` and why: `tab` (a browser tab has no window to take it from), `hidden` (the window is hidden, so
+ * the body is not drawn), `no-body` (no figure is on the page) or `capture`.
+ *
+ * Orders reach the body on the page's frames, so the picture is of the page's next frame: an action ordered just
+ * before it is in the picture once the body has started it. What the page draws over the stage and reaches into
+ * the room is not drawn in the frame taken, and is back in the next.
+ */
+async function takePortrait(id) {
+  const fail = (failed) => send({ t: 'portrait', id, failed });
+  if (!host?.portrait) return fail('tab');
+  if (!windowShown) return fail('hidden');
+  await soon((done) => afterFrame.push(done));
+  const room = bodyRoom(), rect = room && onPage([room]);
+  if (!rect) return fail('no-body');
+  const over = [...document.querySelectorAll(OVER_STAGE)].filter((el) => !el.closest('[hidden]') && overlaps(shadowed(rectOf(el)), rect));
+  for (const el of over) el.style.visibility = 'hidden';
+  try {
+    // by the second refresh the display has what the body drew for that frame, without what was over it
+    await soon((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+    const shot = await host.portrait(rect);
+    if (shot) send({ t: 'portrait', id, ...shot }); else fail('capture');
+  } catch {
+    fail('capture');
+  } finally {
+    for (const el of over) el.style.visibility = '';
+  }
+}
+/** One picture at a time: a second order waits until the first has put back what it left out. */
+let portraits = Promise.resolve();
 // the text is in before anything is shown
 void useLanguage().then(() => { document.title = t('pet.title'); host?.setLanguage?.(language()); connect(); });
 
@@ -171,9 +249,12 @@ let loading = null;
 async function showFigure(s) {
   wanted = s.figure;
   if (loading === s.figure) return;
-  // a pick changed while the same pack is on screen fades in; Coo's picks are its skin
+  // a pick changed while the same pack is on screen fades in, with a dip; Coo's picks are its skin
   if (body?.pack === s.figure) {
     body.set({ skin: s });
+    const look = JSON.stringify(s);
+    if (shownLook && look !== shownLook) { restyle(body, stage); smoothFor(RESTYLE_MS); }
+    shownLook = look;
     if (s.figure !== 'coo') await body.setScheme(s.scheme, { fade: .45 });
     lightFor(s);
     reportFigure(s.figure, true, null, s.figure === 'coo' ? null : s.scheme);
@@ -184,6 +265,13 @@ async function showFigure(s) {
   // a pick that came while the body was loading
   if (body?.pack === skin.figure && skin !== s) await showFigure(skin);
 }
+/** The look last put on the body on screen, so a look that comes again (a reconnect's `init`) is not animated. */
+let shownLook = null;
+/** Until when (performance.now(), ms) the page draws at the moving rate though the body stands: a switch is under way. */
+let smoothUntil = -Infinity;
+const smoothFor = (ms) => { smoothUntil = Math.max(smoothUntil, performance.now() + ms); };
+/** Until when (performance.now(), ms) the body has no halo: a figure switch is under way. */
+let haloAfter = -Infinity;
 async function swapBody(s) {
   const pack = (await (await fetch('/api/figures')).json()).find((p) => p.id === s.figure);
   if (!pack) throw new Error(t('figure.notInstalled'));
@@ -201,8 +289,20 @@ async function swapBody(s) {
   if (wanted !== s.figure) { next.dispose(); return; }
   holder.body = next;
   next.set({ roam: prefs.roam, ...bodyState });
-  body?.dispose();
+  // the old body fades out as the new one fades in; the first one drops in as it is
+  const old = body;
   body = next;
+  shownLook = JSON.stringify(s);
+  // the new body comes in at the size it is put on at; the switch carries the change of size (swap-motion.js)
+  const ratio = host ? prefs.scale / drawnScale.value : 1;
+  if (drawnScale.value !== prefs.scale) { drawnScale.jump(prefs.scale); next.set({ bounds: bounds() }); }
+  if (old) {
+    haloAfter = performance.now() + SWAP_MS;
+    next.setHalo(0, 0);
+    swapOut(old, stage, ratio);
+    swapIn(next, stage, next.layout ?? was, ratio);
+    smoothFor(SWAP_MS);
+  }
   host?.watchWindows?.(next.needsWindows);
   words = new Map(pack.vocab.map((w) => [w.id, w]));
   shownPack = pack;
@@ -210,8 +310,18 @@ async function swapBody(s) {
   sfx.usePack(pack.base, pack.sounds, pack.voice);
   reportFigure(s.figure, true, null, s.figure === 'coo' ? null : s.scheme, next.words);
 }
+/** Whether another figure is on its way to the screen. */
+const switching = () => !!body && !!wanted && body.pack !== wanted;
 async function applyFigure(s) {
   try { await showFigure(s); } catch (err) { bodyFailed(s.figure, err); }
+  // a size that waited for a figure that did not come
+  if (!switching() && drawnScale.target !== prefs.scale) toSize(prefs.scale);
+}
+/** Draws the body at `v`: on the spring, or at once when the system asks for reduced motion. */
+function toSize(v) {
+  if (!reducedMotion?.matches) { drawnScale.set(v); return; }
+  drawnScale.jump(v);
+  body?.set({ bounds: bounds() });
 }
 
 /**
@@ -266,7 +376,10 @@ function applyPrefs(p) {
   if (p.speech && typeof p.speech === 'object') speech.configure(p.speech);
   if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); modeBtn?.show(p.theme); body?.set({ theme: p.theme }); }
   if (typeof p.glow === 'number') prefs.glow = p.glow;
-  if (typeof p.scale === 'number') { prefs.scale = p.scale; body?.set({ bounds: bounds() }); }
+  if (typeof p.scale === 'number') {
+    if (!scaleSeen) { scaleSeen = true; prefs.scale = p.scale; drawnScale.jump(p.scale); body?.set({ bounds: bounds() }); refreshSize(); }
+    else sizeHeard.heard(p.scale, sizer.active || !!sizerState.timer);
+  }
   if (typeof p.bubbleSize === 'number') { prefs.bubbleSize = p.bubbleSize; sizeVar('--bubble-size', p.bubbleSize); }
   if (typeof p.fontSize === 'number') { prefs.fontSize = p.fontSize; sizeVar('--bubble-font', p.fontSize); }
   if (typeof p.bubbleSpeed === 'number') prefs.bubbleSpeed = p.bubbleSpeed;
@@ -280,11 +393,12 @@ function applyPrefs(p) {
   if (typeof p.saidBubbles === 'boolean') { prefs.saidBubbles = p.saidBubbles; if (!p.saidBubbles) for (const line of lines) if (!line.live) fadeLine(line); }
   if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
   if (typeof p.frameRate === 'number' && p.frameRate >= 0) prefs.frameRate = p.frameRate;
-  // the window process does the hiding; the page only passes the setting on
+  // the window process does the hiding and the passing through; the page only passes the settings on
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
+  if (typeof p.passWhenFullscreen === 'boolean') host?.passWhenFullscreen?.(p.passWhenFullscreen);
   if (typeof p.clickThrough === 'boolean') { prefs.clickThrough = p.clickThrough; host?.clickThrough?.(p.clickThrough); }
   if (Array.isArray(p.hoverButtons)) prefs.hoverButtons = p.hoverButtons.filter((id) => typeof id === 'string' && id in ACTIONS);
-  if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead(); }
+  if (p.bot) { prefs.bot = p.bot; if (!menu.hidden && !menu.querySelector('.m-rail.confirm')) renderMenuRail(); }
   if (typeof p.language === 'string' && p.language !== language()) void switchLanguage(p.language);
   if ('status' in p) setStatus(p.status);
   refreshButtons();
@@ -301,7 +415,7 @@ async function switchLanguage(code) {
   await useLanguage(code);
   document.title = t('pet.title');
   host?.setLanguage?.(code);
-  if (!menu.hidden && !menu.querySelector('.m-head.confirm')) renderMenuHead();
+  if (!menu.hidden && !menu.querySelector('.m-rail.confirm')) renderMenuRail();
   refreshButtons();
 }
 
@@ -315,13 +429,15 @@ function onOrder(m) {
     case 'type': openTyping(); break;
     case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); holdRoam(20); break;
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
-    case 'confirm': dropAsks(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
+    case 'confirm': dropAsks(); rushLines(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
     case 'walk': walk(m); break;
     case 'move': walk(m); break;
     case 'walk-stop': body?.stopWalk(m.id); break;
     case 'ask-close': closeAsk(m.id); break;
     case 'act': acts.push(...m.actions); holdRoam(20); break;
+    case 'portrait': portraits = portraits.then(() => takePortrait(m.id)); break;
     case 'listen': onListen(m); break;
+    case 'talk-key': hushForTalkKey(m.down === true); break;
     // a message sent from the chat page, once the bot has it, and one taken back before delivery
     case 'said': if (prefs.saidBubbles) addLine('chat', typeof m.text === 'string' ? m.text : '', false, { images: Number(m.images) || 0, cursor: m.cursor ?? null }); break;
     case 'said-withdrawn': withdrawLine(m.cursor); break;
@@ -389,6 +505,16 @@ let item = null;
 /** Where typing pauses: sentence and clause marks, Latin and full-width (Chinese and Japanese share 。、). */
 const PAUSE = /[,.!?;:…，。！？；：、]/, SILENT = /[\s,.!?;:…，。！？；：、「」『』()（）]/;
 
+/** Lines queued ahead of a World's confirmation type at RUSH times the speed without voice or babble, and stay RUSH_HOLD seconds a beat. */
+const RUSH = 6, RUSH_HOLD = 1;
+function rushLines() {
+  for (const q of [item, ...queue]) {
+    if (q?.kind !== 'say' || q.rush) continue;
+    q.rush = true;
+    if (q === item) { speech.stop(); if (q.beatDone) q.holdUntil = Math.min(q.holdUntil, T + RUSH_HOLD); }
+  }
+}
+
 /** A newer question replaces the bot's open one; a World's confirmation stays until answered. */
 function dropAsks() {
   for (let i = queue.length - 1; i >= 0; i--) if (queue[i].kind === 'ask' && !queue[i].confirm) queue.splice(i, 1);
@@ -396,6 +522,8 @@ function dropAsks() {
 }
 
 function openBubble(kind, html) {
+  item.cursorAt = cursor.at;
+  item.cursorHolding = false;
   bubble.className = 'bubble ' + kind;
   bubble.removeAttribute('aria-label');
   delete bubble.dataset.kind; delete bubble.dataset.icon;
@@ -451,29 +579,50 @@ function startItem(it) {
     openBubble('ask', `<button class="b-close" type="button" aria-label="${esc(t('bubble.close'))}">×</button><p class="b-text"></p><div class="b-opts" hidden></div>`);
     bubble.querySelector('.b-close').addEventListener('click', () => dismissAsk());
     it.text = it.question; it.shown = 0; it.acc = 0; it.optsShown = false;
-    sfx.pop();
+    if (!it.confirm) sfx.pop();
+    else {
+      sfx.alert();
+      // the bubble stays where it opened while Coo moves; the World counts the wait from now
+      const a = at()?.bubble ?? { x: innerWidth / 2, y: innerHeight };
+      it.pinX = a.x; it.pinY = a.y;
+      send({ t: 'confirm-shown', id: it.id });
+    }
   }
 }
 
-/**
- * The cursor is on Coo's bubble: a line's countdown stands still meanwhile, so it can be read to the end or its link
- * clicked. Decided from where the cursor is now, as stepTools does: `:hover` stays with the last mouse event, and a
- * click-through window stops getting them once the cursor has left.
- */
-function pointedAt() {
+/** Compare both cursor positions with the same rectangle so the bubble's animation cannot start a hover. */
+function heldByCursor(it) {
   const p = cursor.at;
-  if (prefs.clickThrough || bubble.hidden || !p) return false;
+  const previous = it.cursorAt;
+  it.cursorAt = p;
+  if (!p || bubble.hidden || clicksPass()) {
+    it.cursorHolding = false;
+    return false;
+  }
   const r = bubble.getBoundingClientRect();
-  return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom;
+  it.cursorHolding = inRect(p, r) && (it.cursorHolding || !previous || !inRect(previous, r));
+  return it.cursorHolding;
 }
+
+/** A click on a line's bubble, away from its links, ends the whole line as the person's own lines close: its voice stops and its later beats are dropped. */
+bubble.addEventListener('click', (e) => {
+  if (item?.kind !== 'say' || item.skippedAt !== undefined || bubble.hidden || e.target.closest('a')) return;
+  item.skippedAt = T;
+  send({ t: 'skipped', id: item.id });
+  speech.stop();
+  sfx.tick();
+  bubble.classList.add('fading');
+});
 
 function stepDialog(dt) {
   if (!item && queue.length && at() && !at().busy) startItem(queue.shift());
   const it = item;
   if (!it) return;
   if (it.kind === 'say') {
+    if (it.skippedAt !== undefined) { if (T - it.skippedAt >= LINE_FADE) closeBubble(); return; }
+    const held = heldByCursor(it);
     if (it.i < 0 || it.beatDone) {
-      if (it.beatDone && pointedAt()) it.holdUntil += dt;
+      if (it.beatDone && held) it.holdUntil += dt;
       if (it.beatDone && T < it.holdUntil) return;
       it.i++;
       it.beatDone = false;
@@ -492,7 +641,7 @@ function stepDialog(dt) {
     if (it.shown >= b.text.length && !it.beatDone) {
       it.beatDone = true;
       const last = it.i === it.beats.length - 1;
-      it.holdUntil = T + (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03) / prefs.bubbleSpeed;
+      it.holdUntil = T + (it.rush ? RUSH_HOLD : (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03) / prefs.bubbleSpeed);
     }
     return;
   }
@@ -503,19 +652,28 @@ function stepDialog(dt) {
   if (it.kind === 'dialog') stepTalk(it, dt);
 }
 
+/** The talk key starts listening: the sound stops at once, and the lines up or waiting go on without it. */
+function hushForTalkKey(down) {
+  talkKeyDown = down;
+  if (!down) return;
+  speech.stop();
+  for (const q of [item, ...queue]) if (q) q.hushed = true;
+}
+
 function typeText(it, text, dt, anchors) {
   const p = bubble.querySelector('.b-text');
   if (!p || it.shown >= text.length) return;
-  if (it.spoken !== text) { it.spoken = text; speech.begin(text); }
+  if (talkKeyDown) it.hushed = true;
+  if (it.spoken !== text && !it.rush && !it.hushed) { it.spoken = text; speech.begin(text); }
   // with speech, each pause mark waits its own time, letters type faster, and the voice makes the sound;
   // estimateSeconds in src/script.ts mirrors these steps, this rate and the holds in stepDialog
-  const spoken = speech.active;
-  it.acc += dt * 20 * prefs.bubbleSpeed;
+  const spoken = speech.active && !it.hushed;
+  it.acc += dt * 20 * prefs.bubbleSpeed * (it.rush ? RUSH : 1);
   while (it.acc >= 1 && it.shown < text.length) {
     const ch = text[it.shown++];
     it.acc -= spoken ? textSteps(ch) : PAUSE.test(ch) ? 5 : 1;
     if (spoken) speech.reveal(it.shown - 1);
-    else if (!SILENT.test(ch)) { sfx.babble(ch); body?.talk(); }
+    else if (!SILENT.test(ch) && !it.rush && !it.hushed) { sfx.babble(ch); body?.talk(); }
     while (it.fired < anchors.length && anchors[it.fired].at <= it.shown) acts.push(...anchors[it.fired++].actions);
   }
   if (it.marks?.length) p.innerHTML = marked(text, it.shown, it.marks);
@@ -628,8 +786,10 @@ function stepTalk(it, dt) {
 /** A step with nothing to answer ends once its line has been read. */
 function stepTalkRead(dt) {
   const it = item;
-  if (it?.kind !== 'dialog' || !it.readUntil) return;
-  if (pointedAt()) it.readUntil += dt;
+  if (it?.kind !== 'dialog' || it.d.input) return;
+  const held = heldByCursor(it);
+  if (!it.readUntil) return;
+  if (held) it.readUntil += dt;
   if (T > it.readUntil) settleDialog(it, { done: true });
 }
 
@@ -700,6 +860,42 @@ function showDialogInput(it) {
     row.appendChild(pill(input.confirm, true, () => settleDialog(it, { index: it.value ?? 0 })));
     body.appendChild(row);
     pick(start, false);
+  } else if (input.kind === 'pick') {
+    // any number of cards lit, from min to max; at max the cards not lit wait until one is put out
+    const cards = Object.assign(document.createElement('div'), { className: 'd-cards pick' });
+    const max = Math.max(1, Number(input.max) || 1), min = Math.max(0, Math.min(max, Number(input.min ?? 1)));
+    const on = new Set((Array.isArray(input.value) ? input.value : []).filter((i) => Number.isInteger(i) && i >= 0 && i < input.options.length).slice(0, max));
+    const row = Object.assign(document.createElement('div'), { className: 'd-row d-foot-row' });
+    const count = Object.assign(document.createElement('span'), { className: 'd-hint' });
+    const ok = pill(input.confirm, true, () => settleDialog(it, { picked: [...on].sort((a, b) => a - b) }));
+    const paint = () => {
+      cards.querySelectorAll('.d-card').forEach((c) => {
+        const lit = on.has(Number(c.dataset.i));
+        c.classList.toggle('on', lit);
+        c.setAttribute('aria-pressed', String(lit));
+        c.disabled = !lit && on.size >= max;
+      });
+      count.textContent = `${on.size}/${max}`;
+      ok.disabled = on.size < min;
+      ok.classList.toggle('need', on.size < min);
+    };
+    input.options.forEach((o, i) => {
+      const c = document.createElement('button');
+      c.type = 'button'; c.className = 'd-card'; c.dataset.i = String(i);
+      c.style.animationDelay = (i * .05) + 's';
+      c.innerHTML = `${o.icon && ICONS[o.icon] ? `<span class="d-cardic ic-${esc(o.icon)}">${ICONS[o.icon]}</span>` : ''}<span class="d-cardlbl">${esc(o.label)}</span>`;
+      c.addEventListener('click', () => {
+        sfx.tick();
+        if (on.has(i)) on.delete(i); else if (on.size < max) on.add(i);
+        paint();
+      });
+      cards.appendChild(c);
+      setTimeout(() => sfx.blub(), i * 50);
+    });
+    body.appendChild(cards);
+    row.append(count, ok);
+    body.appendChild(row);
+    paint();
   } else if (input.kind === 'text') {
     const form = Object.assign(document.createElement('form'), { className: 'd-field' });
     form.innerHTML = `<input type="${input.secret ? 'password' : 'text'}" autocomplete="off" spellcheck="false" maxlength="${Number(input.maxLength) || 200}">${input.secret ? `<button class="d-peek" type="button" aria-label="${esc(t('bubble.peek'))}" title="${esc(t('bubble.peek'))}">${ICONS.eye}</button>` : ''}<button class="d-send" type="submit"></button>`;
@@ -1091,7 +1287,7 @@ const status = { wanted: null, since: 0, shown: null, shownAt: 0, fadeAt: null }
 function setStatus(next) {
   setBody({ thinking: next?.kind === 'think', status: next?.kind ?? null });
   const prev = status.wanted;
-  if (prev?.kind === next?.kind && prev?.text === next?.text && prev?.detail === next?.detail && prev?.count === next?.count) return;
+  if (prev?.kind === next?.kind && prev?.text === next?.text && prev?.detail === next?.detail && prev?.count === next?.count && prev?.endsAt === next?.endsAt) return;
   if (prev?.kind !== next?.kind) status.since = T;
   status.wanted = next;
 }
@@ -1103,13 +1299,27 @@ function drawStatus(next, pop) {
     bubble.innerHTML = `<span class="status-icon">${ICONS[`status_${icon}`] || ICONS.status_work}</span><span class="status-text"></span>`;
   }
   bubble.dataset.kind = next.kind;
-  const label = next.text + (next.detail ? ` · ${next.detail}` : '') + (next.count > 1 ? t('status.more', { others: next.count - 1 }) : '');
-  bubble.querySelector('.status-text').textContent = label;
-  bubble.setAttribute('aria-label', next.kind === 'think' ? t('status.thinking') : label);
+  const { head, left, tail } = statusParts(next);
+  // the seconds left change every second; hidden from screen readers, the status is read once
+  const seconds = document.createElement('span');
+  seconds.setAttribute('aria-hidden', 'true');
+  seconds.textContent = left;
+  bubble.querySelector('.status-text').replaceChildren(head, seconds, tail);
+  bubble.setAttribute('aria-label', next.kind === 'think' ? t('status.thinking') : head + tail);
   bubble.classList.remove('fading');
   bubble.hidden = false;
   if (pop) { bubble.classList.remove('pop'); void bubble.offsetWidth; bubble.classList.add('pop'); }
 }
+/** The status's words around the seconds left: a countdown shows the whole seconds left to `endsAt`, and nothing once they run out. */
+function statusParts(s) {
+  const seconds = s.endsAt === undefined ? 0 : Math.ceil((s.endsAt - Date.now()) / 1000);
+  return {
+    head: s.text + (s.endsAt === undefined && s.detail ? ` · ${s.detail}` : ''),
+    left: seconds > 0 ? ` · ${t('status.seconds', { seconds })}` : '',
+    tail: s.count > 1 ? t('status.more', { others: s.count - 1 }) : '',
+  };
+}
+const statusLabel = (s) => Object.values(statusParts(s)).join('');
 function stepStatus() {
   // Never replace dialogue with activity, including while a queued line waits for the body.
   if (!prefs.statusBubble || listen.phase || item || queue.length) {
@@ -1124,7 +1334,7 @@ function stepStatus() {
   const next = status.wanted, shown = status.shown;
   if (next?.kind === 'think' && T - status.since < .6) return;
   if (shown && next && shown.kind === next.kind && shown.text === next.text) {
-    if (shown !== next || status.fadeAt !== null) drawStatus(next, false);
+    if (shown !== next || status.fadeAt !== null || (next.endsAt !== undefined && bubble.querySelector('.status-text')?.textContent !== statusLabel(next))) drawStatus(next, false);
     status.shown = next; status.fadeAt = null;
   } else if (!shown || T - status.shownAt >= 1.2) {
     if (next) {
@@ -1152,8 +1362,7 @@ const MAX_HOVER = 6;
  * Every button the menu and the hover buttons can show, in the menu's order. `icon`, `state` and
  * `on` read the current prefs: `state` is the line that says what the button does and where it
  * stands, `on` lights a switch that is on (undefined for plain actions). `keep` leaves the menu
- * open after a click, so a switch shows its new state there. `hoverOnly` keeps a button out of the
- * menu.
+ * open after a click, so a switch shows its new state there.
  */
 const ACTIONS = {
   chat: {
@@ -1166,13 +1375,15 @@ const ACTIONS = {
     icon: () => (prefs.voice.enabled ? ICONS.mic : ICONS.micOff),
     badge: () => (prefs.voice.enabled ? micBadge() : ''),
     on: () => prefs.voice.enabled,
+    // on, but the recognizer is not ready yet
+    waiting: () => prefs.voice.enabled && !prefs.voice.ready,
     state: () => (!prefs.voice.enabled ? t('action.voiceOff')
       : !prefs.voice.ready ? t('action.voiceNotReady', { detail: prefs.voice.detail || t('action.voiceNoService') })
       : t('action.voiceOn', { mode: t(prefs.voice.mode === 'always' ? 'action.voiceAlways' : 'action.voiceKey'), hint: prefs.voice.hint || '' })),
     run: () => toggleVoice(),
   },
   roam: {
-    keep: true, hoverOnly: true,
+    keep: true,
     icon: () => ICONS[`roam_${prefs.roam}`] ?? ICONS.roam_calm,
     state: () => {
       const next = ROAM_ORDER[(ROAM_ORDER.indexOf(prefs.roam) + 1) % ROAM_ORDER.length];
@@ -1180,10 +1391,10 @@ const ACTIONS = {
     },
     run: () => cycleRoam(),
   },
+  // no `on`: both night and day draw a solid ring
   theme: {
     keep: true,
     icon: () => (prefs.theme === 'dark' ? ICONS.moon : ICONS.sun),
-    on: () => prefs.theme === 'dark',
     state: () => t(prefs.theme === 'dark' ? 'action.themeDark' : 'action.themeLight'),
     run: () => toggleTheme(),
   },
@@ -1197,10 +1408,23 @@ const ACTIONS = {
   hide: {
     icon: () => ICONS.eyeOff, available: () => !!host?.hide,
     state: () => t('action.hide'),
+    // the hint leaves out the note in brackets on bringing it back from the tray
+    tip: () => tipWithoutNote(t('action.hide')),
     run: () => host.hide(),
   },
+  size: {
+    // hovering it shows the size slider for a moment (stepSizer); a click, or a tap where nothing hovers, pins it (pinSizer);
+    // only on the desktop: a tab draws the body at one size
+    available: () => !!host,
+    keep: true,
+    icon: () => ICONS.resize,
+    // lit while pinned; no switch state otherwise, so it is not drawn as a switch turned off
+    on: () => sizerPinned || undefined,
+    state: () => t('action.size', { pct: Math.round(prefs.scale * 100) }),
+    run: () => pinSizer(!sizerPinned),
+  },
   dress: {
-    icon: () => ICONS.shirt, cls: 'dress',
+    icon: () => ICONS.shirt,
     state: () => t('action.dress'),
     // an embedding app that lends dressing shows its own dress page; otherwise the pet's dress window
     run: () => {
@@ -1209,19 +1433,28 @@ const ACTIONS = {
       else window.open('/dress', '_blank');
     },
   },
+  worlds: {
+    // only where the embedding app has a World list to show
+    available: () => !!prefs.bot?.buttons?.worlds,
+    icon: () => ICONS.boxes,
+    state: () => t('action.worlds'),
+    run: () => send({ t: 'control', action: 'worlds' }),
+  },
 };
 const available = (id) => ACTIONS[id] && (ACTIONS[id].available?.() ?? true);
 
-/** One action as a button: its icon, the badge, and whether a switch is on. */
+/** One action as a button, as a hover button and in the menu alike: its icon, the badge, whether a switch is on, and whether it waits for something not ready. */
 function drawAction(b, id) {
   const a = ACTIONS[id], on = a.on?.();
   const badge = a.badge?.() ?? '';
   b.querySelector('.ic').innerHTML = a.icon() + (badge ? `<b class="badge">${badge}</b>` : '');
   b.classList.toggle('on', on === true);
   b.classList.toggle('off', on === false);
-  b.title = a.state();
-  b.setAttribute('aria-label', b.title);
+  b.classList.toggle('waiting', !!a.waiting?.());
+  b.setAttribute('aria-label', a.state());
+  b.dataset.tip = a.tip?.() ?? tipOf(a.state());
   if (on !== undefined) b.setAttribute('aria-pressed', String(on));
+  else b.removeAttribute('aria-pressed');
 }
 
 function cycleRoam() {
@@ -1244,18 +1477,33 @@ function toggleVoice() {
   send({ t: 'prefs', mic: on });
 }
 
-/* ---------- menu: the bot and its run controls on top, the actions below; every entry is a round icon button ---------- */
-function openMenu(x, y) {
+/* ---------- menu: the run controls as round buttons on Coo's left, the hover buttons in columns on its right ---------- */
+/** Most action buttons in one column, of the menu as of the hover buttons. */
+const MENU_ROWS = 3;
+/** The actions the menu shows: the hover buttons chosen in settings, the same ones the pointer brings up; none when none are. */
+function menuActions() {
+  return prefs.hoverButtons.filter(available).slice(0, MAX_HOVER);
+}
+
+function openMenu() {
+  const ids = menuActions();
+  // nothing to show: no hover buttons picked, and no run controls lent
+  if (!ids.length && !prefs.bot?.controls) return;
+  pinSizer(false);
+  // the hover buttons showing become the menu's: each slides from where it stood to its tile, and only the rest pop out
+  const was = new Map();
+  if (!tools.hidden && !leaving(tools)) for (const b of tools.children) was.set(b.dataset.action, laidAt(b));
+  hideNow(tools, toolsAnim);
+  endHold();
   menu.innerHTML = '';
-  menu.appendChild(Object.assign(document.createElement('div'), { className: 'm-head' }));
-  renderMenuHead();
+  const rail = Object.assign(document.createElement('div'), { className: 'm-rail' });
   const grid = Object.assign(document.createElement('div'), { className: 'm-grid' });
-  for (const id of Object.keys(ACTIONS)) {
+  grid.style.gridTemplateRows = `repeat(${Math.min(MENU_ROWS, Math.max(1, ids.length))}, auto)`;
+  for (const id of ids) {
     const a = ACTIONS[id];
-    if (!available(id) || a.hoverOnly) continue;
     const b = document.createElement('button');
     b.type = 'button'; b.setAttribute('role', 'menuitem');
-    b.className = `m-tile${a.cls ? ' ' + a.cls : ''}`;
+    b.className = 'tool m-tile';
     b.dataset.action = id;
     b.innerHTML = '<span class="ic"></span>';
     drawAction(b, id);
@@ -1267,54 +1515,119 @@ function openMenu(x, y) {
     });
     grid.appendChild(b);
   }
-  menu.append(grid);
-  menu.style.width = '';
-  menu.hidden = false;
+  grid.hidden = !ids.length;
+  menu.append(rail, grid);
+  renderMenuRail();
+  stagger(grid);
+  // the buttons grow out of the body one after another; a rail redrawn later (settings, the quit question) does not replay it
+  popIn(menu, menuAnim);
   // focused, so a click anywhere else blurs the window and folds the menu
   host?.focus?.();
-  // held at its opening width: the quit confirmation in the header must not widen the menu
-  menu.style.width = getComputedStyle(menu).width;
-  // layout size: the opening animation scales the box, so its bounding rect is still shrunk here
-  const w = menu.offsetWidth, h = menu.offsetHeight;
-  menu.style.left = f(clamp(x, 8, innerWidth - w - 8)) + 'px';
-  menu.style.top = f(clamp(y - h, 8, innerHeight - h - 8)) + 'px';
+  const l = at();
+  if (l) placeMenu(l);
+  for (const b of menu.querySelectorAll('.m-tile')) {
+    const r = was.get(b.dataset.action);
+    if (!r) continue;
+    const n = laidAt(b);
+    b.classList.add('from-tool');
+    b.style.setProperty('--fx', r.x - n.x + 'px');
+    b.style.setProperty('--fy', r.y - n.y + 'px');
+  }
+}
+/** Where a button is laid out, in page pixels, leaving out the transforms and scale an animation or hover puts on it. */
+function laidAt(b) {
+  const p = b.offsetParent;
+  return { x: (p?.offsetLeft ?? 0) + b.offsetLeft, y: (p?.offsetTop ?? 0) + b.offsetTop };
+}
+
+/** The run controls on the body's left and the actions on its right; the two swap when the right runs off the screen. */
+function placeMenu(l) {
+  const rail = menu.querySelector('.m-rail'), grid = menu.querySelector('.m-grid');
+  if (!rail || !grid) return;
+  // as far out from where the body stands as the hover buttons, so those that were showing stay where they were;
+  // from where it stands, not from its box, which narrows and shifts as it turns round
+  const c = l.side, reach = c.reach + 10, R = l.x + reach, L = l.x - reach;
+  const onRight = R + grid.offsetWidth <= innerWidth - 8;
+  // whole pixels: the menu rides up and down with the body, and text at a fraction of a pixel snaps on its own, apart from its frame
+  const y = (el) => { el.style.top = Math.round(clamp(c.y - el.offsetHeight / 2, 8, innerHeight - el.offsetHeight - 8)) + 'px'; };
+  grid.style.left = f(clamp(onRight ? R : L - grid.offsetWidth, 8, innerWidth - grid.offsetWidth - 8)) + 'px';
+  y(grid);
+  // the run controls hold their edge next to the body, so the quit question grows away from it
+  // a long quit question (Japanese, Russian) that would run off the left edge stays on the screen
+  if (onRight) { rail.style.left = 'auto'; rail.style.right = f(Math.min(innerWidth - rail.offsetWidth - 8, Math.max(8, innerWidth - L))) + 'px'; }
+  else { rail.style.right = 'auto'; rail.style.left = f(Math.min(innerWidth - rail.offsetWidth - 8, R)) + 'px'; }
+  // the buttons line up on the edge next to the body
+  rail.style.alignItems = onRight ? 'flex-end' : 'flex-start';
+  y(rail);
+  grid.style.direction = onRight ? '' : 'rtl';
+  // each side grows out of the body and folds back into it
+  grid.style.setProperty('--dx', onRight ? '-16px' : '16px');
+  rail.style.setProperty('--dx', onRight ? '16px' : '-16px');
 }
 
 /**
- * Avatar and name, then the run controls the embedding app lends, as in the console's rail foot:
- * pause/resume, settings and the power button (which asks first). Without a bot the name is Coo's.
+ * The run controls the embedding app lends, as in the console's rail foot: settings, pause/resume,
+ * and the power button at the bottom, which asks first.
  */
-function renderMenuHead(confirmQuit = false) {
-  const head = menu.querySelector('.m-head'), bot = prefs.bot || {};
-  if (!head) return;
-  head.classList.toggle('confirm', confirmQuit);
-  head.innerHTML = '<span class="m-avatar"></span><span class="m-name"></span><span class="m-acts"></span>';
-  head.querySelector('.m-avatar').innerHTML = bot.avatar
-    ? `<img alt="" src="/api/avatar?v=${encodeURIComponent(bot.avatar)}">`
-    : `<svg viewBox="18 18 220 220" aria-hidden="true">${mini('neutral', skin)}</svg>`;
-  const name = head.querySelector('.m-name');
-  name.textContent = name.title = confirmQuit ? bot.quitPrompt : (bot.name || 'Coo');
-  const acts = head.querySelector('.m-acts');
-  const act = (iconHtml, label, fn, cls = 'm-act') => {
+function renderMenuRail(confirmQuit = false) {
+  const rail = menu.querySelector('.m-rail'), bot = prefs.bot || {};
+  if (!rail) return;
+  // the power button grows into the quit question and the question shrinks back into it
+  const last = rail.lastElementChild;
+  const was = last && !menu.hidden && rail.classList.contains('confirm') !== confirmQuit
+    ? { w: last.offsetWidth, h: last.offsetHeight } : null;
+  fillMenuRail(rail, bot, confirmQuit);
+  if (was && rail.lastElementChild) resizeFrom(rail.lastElementChild, was);
+}
+
+/** Grows or shrinks an element from its old size to the one its new content takes. */
+function resizeFrom(el, was) {
+  el.style.transition = 'none';
+  el.style.width = '';
+  el.style.height = '';
+  const w = el.offsetWidth, h = el.offsetHeight;
+  el.style.width = was.w + 'px'; el.style.height = was.h + 'px';
+  void el.offsetWidth;
+  el.style.transition = '';
+  el.style.width = w + 'px'; el.style.height = h + 'px';
+  el.addEventListener('transitionend', () => { el.style.width = el.style.height = ''; }, { once: true });
+}
+
+function fillMenuRail(rail, bot, confirmQuit) {
+  rail.classList.toggle('confirm', confirmQuit);
+  rail.innerHTML = '';
+  rail.hidden = !bot.controls;
+  const act = (iconHtml, label, fn, cls = 'tool', into = rail) => {
     const b = document.createElement('button');
-    b.type = 'button'; b.className = cls; b.title = label; b.setAttribute('aria-label', label);
+    b.type = 'button'; b.className = cls; b.setAttribute('aria-label', label);
+    // the rail's round buttons have only an icon; the quit question's buttons say what they do
+    if (into === rail) b.dataset.tip = label;
     b.innerHTML = iconHtml;
     b.addEventListener('click', (e) => { e.stopPropagation(); sfx.tick(); fn(); });
-    acts.appendChild(b);
+    into.appendChild(b);
   };
   if (!bot.controls) return;
-  if (confirmQuit) {
-    act(ICONS.power, bot.quitLabel, () => { closeMenu(); send({ t: 'control', action: 'quit' }); }, 'm-act danger');
-    act(`<span>${esc(t('menu.cancel'))}</span>`, t('menu.cancel'), () => renderMenuHead(), 'm-act text');
-    return;
-  }
   // only the controls the embedding app lent; a server without `buttons` lends all three
   const has = bot.buttons ?? { pause: true, settings: true, quit: true };
-  if (has.pause) act(bot.paused ? ICONS.play : ICONS.pause, t(bot.paused ? 'menu.resume' : 'menu.pause'), () => send({ t: 'control', action: bot.paused ? 'resume' : 'pause' }), `m-act run${bot.paused ? ' paused' : ''}`);
   if (has.settings) act(ICONS.settings, t('menu.settings'), () => { closeMenu(); send({ t: 'control', action: 'settings' }); });
-  if (has.quit) act(ICONS.power, bot.quitLabel, () => renderMenuHead(true), 'm-act power');
+  if (has.pause) act(bot.paused ? ICONS.play : ICONS.pause, t(bot.paused ? 'menu.resume' : 'menu.pause'), () => send({ t: 'control', action: bot.paused ? 'resume' : 'pause' }), `tool run${bot.paused ? ' paused' : ''}`);
+  if (!has.quit) return;
+  if (!confirmQuit) { act(ICONS.power, bot.quitLabel, () => renderMenuRail(true), 'tool power'); return; }
+  const ask = Object.assign(document.createElement('div'), { className: 'm-quit' });
+  ask.appendChild(Object.assign(document.createElement('span'), { className: 'm-ask', textContent: bot.quitPrompt || '' }));
+  act(ICONS.power, bot.quitLabel, () => { closeMenu(); send({ t: 'control', action: 'quit' }); }, 'q-act danger', ask);
+  act(`<span>${esc(t('menu.cancel'))}</span>`, t('menu.cancel'), () => renderMenuRail(), 'q-act text', ask);
+  rail.appendChild(ask);
+  stagger(rail);
 }
-function closeMenu() { menu.hidden = true; }
+const menuAnim = { enter: 0, leave: 0 };
+function closeMenu() {
+  if (menu.hidden || leaving(menu)) return;
+  popOut(menu, menuAnim, POP_OUT_MS);
+  // the hover buttons stay away until the pointer has left the body and them, and comes back
+  toolsMuted = true;
+  toolsUntil = 0;
+}
 
 /** Redraws whatever shows an action: the open menu's tiles and the hover buttons. */
 function refreshButtons() {
@@ -1328,6 +1641,8 @@ const TOOLS_LINGER = .8;
 /** Milliseconds the voice button is held before what was heard goes out. */
 const HOLD_TO_SEND = 500;
 let toolsUntil = 0;
+/** Set when the menu closes; cleared once the pointer is off the body and the hover buttons. */
+let toolsMuted = false;
 let toolIds = '';
 
 function renderTools() {
@@ -1337,7 +1652,7 @@ function renderTools() {
     endHold();
     tools.innerHTML = '';
     // up to three in a column, then a second column
-    tools.style.gridTemplateRows = `repeat(${Math.min(3, Math.max(1, ids.length))}, auto)`;
+    tools.style.gridTemplateRows = `repeat(${Math.min(MENU_ROWS, Math.max(1, ids.length))}, auto)`;
     for (const id of ids) {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'tool'; b.dataset.action = id;
@@ -1346,10 +1661,9 @@ function renderTools() {
       else b.addEventListener('click', () => { sfx.tick(); if (!ACTIONS[id].keep) toolsUntil = 0; ACTIONS[id].run(); refreshButtons(); });
       tools.appendChild(b);
     }
+    stagger(tools);
   }
   for (const b of tools.children) drawAction(b, b.dataset.action);
-  const mic = tools.querySelector('[data-action="voice"]');
-  if (mic) mic.classList.toggle('waiting', prefs.voice.enabled && !prefs.voice.ready);
 }
 
 /** A press shorter than HOLD_TO_SEND switches voice input; a longer one sends what was heard so far. */
@@ -1389,22 +1703,361 @@ function wireVoiceTool(b) {
 
 /** Where the cursor is, in page pixels, or null when it is off the page. */
 const cursor = { at: null };
+/** Pixels around the hover buttons that count as on them, as the gaps between them do. */
+const TOOLS_MARGIN = 6;
 function overTools(p) {
-  if (tools.hidden) return false;
-  const r = tools.getBoundingClientRect();
-  // the gaps between the buttons and a little margin count too
-  return p.x >= r.left - 6 && p.x <= r.right + 6 && p.y >= r.top - 6 && p.y <= r.bottom + 6;
+  if (tools.hidden || leaving(tools)) return false;
+  const r = tools.getBoundingClientRect(), m = TOOLS_MARGIN;
+  return p.x >= r.left - m && p.x <= r.right + m && p.y >= r.top - m && p.y <= r.bottom + m;
+}
+/** Pops the hover buttons out of the body one after another, as the menu does, and folds them back into it before they go. */
+const toolsAnim = { enter: 0, leave: 0 };
+function showTools(on) {
+  if (on) {
+    // back over them while they fold: they stay, without popping out again
+    if (leaving(tools)) { clearTimeout(toolsAnim.leave); tools.classList.remove('leaving'); }
+    if (!tools.hidden) return;
+    popIn(tools, toolsAnim);
+    const l = at();
+    if (l) placeTools(l);
+    return;
+  }
+  if (tools.hidden || leaving(tools)) return;
+  endHold();
+  popOut(tools, toolsAnim, POP_OUT_MS);
+}
+
+/* ---------- popping in and out: the menu, the hover buttons and the look wheel ---------- */
+/** Milliseconds the menu's buttons and the hover buttons take to fold back into the body (`m-out` in pet.css). */
+const POP_OUT_MS = 160;
+/** Longer than the last of the staggered `m-in`s, after which `entering` comes off. */
+const POP_IN_MS = 600;
+// absent where the page runs without a window (the tests)
+const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
+const leaving = (el) => el.classList.contains('leaving');
+/** Numbers an element's buttons (`--i`), so they pop out one after another. */
+function stagger(el) { [...el.children].forEach((b, i) => b.style.setProperty('--i', String(i))); }
+/** Shows `el` with its `entering` animation; `anim` holds its timers. */
+function popIn(el, anim) {
+  hideNow(el, anim);
+  el.hidden = false;
+  el.classList.add('entering');
+  anim.enter = setTimeout(() => el.classList.remove('entering'), POP_IN_MS);
+}
+/** Plays `el`'s `leaving` animation, taking no clicks meanwhile, then hides it; at once when motion is reduced. */
+function popOut(el, anim, ms) {
+  clearTimeout(anim.enter);
+  el.classList.remove('entering');
+  if (reducedMotion?.matches) { el.hidden = true; return; }
+  el.classList.add('leaving');
+  anim.leave = setTimeout(() => { el.hidden = true; el.classList.remove('leaving'); }, ms);
+}
+/** Hides `el` at once, cancelling an animation under way. */
+function hideNow(el, anim) {
+  clearTimeout(anim.enter); clearTimeout(anim.leave);
+  el.classList.remove('entering', 'leaving');
+  el.hidden = true;
 }
 function stepTools() {
   // shown while the cursor is on the pet or on the buttons, and a moment after it leaves; decided
   // from where the cursor is now, not from the last move event, which may be stale
   const p = cursor.at;
   const l = at();
-  if (p && (body?.hit(p) || overTools(p))) toolsUntil = T + TOOLS_LINGER;
-  tools.hidden = !(!prefs.clickThrough && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && toolIds !== '');
-  if (tools.hidden) endHold();
+  const near = sizer.active || (!!p && (body?.hit(p) || overTools(p) || overWheel(p) || overSizer(p)));
+  if (!near) toolsMuted = false;
+  if (near && !toolsMuted) toolsUntil = T + TOOLS_LINGER;
+  const confirming = item?.kind === 'ask' && item.confirm && !item.answered;
+  showTools(!clicksPass() && T < toolsUntil && l && !l.pressing && !l.busy && menu.hidden && !confirming && toolIds !== '');
   tools.querySelector('[data-action="voice"]')?.classList.toggle('live', listen.phase === 'hearing');
 }
+
+/* ---------- look wheel: hovering a dress button shows the looks in a row over the body, the one worn in the middle ---------- */
+/** Seconds the wheel stays after the pointer leaves it and every dress button. */
+const WHEEL_LINGER = .25;
+/** Milliseconds the looks take to fold back into the middle (`.wheel.leaving` in pet.css). */
+const WHEEL_OUT_MS = 140;
+/** Pixels between two looks in the row, and how many show on each side of the middle one. */
+const WHEEL_STEP = 54, WHEEL_SIDE = 3;
+/** Opacity of a look by its distance from the middle. */
+const WHEEL_FADE = [1, .55, .3, .12];
+/** Milliseconds the row rests on a look before Coo puts it on. */
+const WHEEL_APPLY_MS = 300;
+/** Wheel delta that turns the row one look (a mouse notch is about 100; a touchpad sends many small ones). */
+const WHEEL_NOTCH = 40;
+/** `empty`: the last read found no looks to show; set until the pointer has left the dress buttons, so a hover reads them once. */
+const wheelState = { items: [], at: 0, until: 0, timer: 0, acc: 0, opening: false, empty: false };
+const wheelAnim = { enter: 0, leave: 0 };
+
+/**
+ * The look worn, with its size, when the row last opened on one that is not a favourite. It leads the row until a look
+ * outside the favourites is worn again, so the row can always turn back to it: also after the row closed because a
+ * favourite of another size moved the dress button from under the pointer.
+ */
+let stash = null;
+
+/**
+ * The favourite looks to switch between (looks.js), leaving out those whose pack was uninstalled; none, none shown.
+ * `stash` leads the row (dashed) while it is not among them.
+ */
+async function wheelItems() {
+  const [saved, figures] = await Promise.all([fetchLooks(), fetch('/api/figures').then((r) => r.json()).catch(() => null)]);
+  const list = Array.isArray(figures) ? figures : [], dark = prefs.theme === 'dark';
+  const items = (saved ?? []).filter((l) => lookAvailable(l.skin, list))
+    .map((l) => ({ skin: l.skin, scale: l.scale, on: wearing(l), html: lookPicture(l.skin, list, dark, l.scale) }));
+  if (!items.length) return [];
+  if (!items.some((i) => i.on)) stash = { skin, scale: prefs.scale };
+  else if (stash && items.some((i) => sameLook(i.skin, stash.skin) && (i.scale ?? stash.scale) === stash.scale)) stash = null;
+  // a pack uninstalled since: the look can no longer be put on
+  if (stash && !lookAvailable(stash.skin, list)) stash = null;
+  if (stash) items.unshift({ ...stash, on: wearing(stash), worn: true, html: lookPicture(stash.skin, list, dark, stash.scale) });
+  return items;
+}
+
+/** Whether the pet wears `look` now: its skin, at its size when it keeps one. */
+const wearing = (look) => sameLook(look.skin, skin) && (typeof look.scale !== 'number' || look.scale === prefs.scale);
+
+async function openWheel() {
+  // back over a dress button while the row folds away: it fans out again
+  if (leaving(wheel)) { clearTimeout(wheelAnim.leave); wheel.classList.remove('leaving'); drawWheel(); return; }
+  if (!wheel.hidden || wheelState.opening) return;
+  // a slider being dragged keeps its place over the head: the row opens once it is let go
+  if (sizer.active) return;
+  pinSizer(false);
+  closeSizer();
+  wheelState.opening = true;
+  const items = await wheelItems().catch(() => []);
+  wheelState.opening = false;
+  // the size slider opened while the favourites were read: one of the two at a time
+  if (!sizerEl.hidden && !leaving(sizerEl)) return;
+  if (!items.length) { wheelState.empty = true; return; }
+  wheelState.items = items;
+  wheelState.at = Math.max(0, items.findIndex((i) => i.on));
+  wheelState.acc = 0;
+  wheel.innerHTML = '';
+  items.forEach((item, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = item.worn ? 'w-item worn' : 'w-item';
+    b.innerHTML = item.html;
+    // a press puts the look on at once, the one in the middle too (it may be the only one saved)
+    b.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault(); e.stopPropagation();
+      spinTo(i, true);
+    });
+    wheel.appendChild(b);
+  });
+  wheel.style.width = (2 * WHEEL_SIDE + 1) * WHEEL_STEP + 'px';
+  wheel.hidden = false;
+  // the looks fan out from the middle one: drawn folded first, then let go to their places
+  foldWheel();
+  void wheel.offsetWidth;
+  drawWheel();
+  const l = at();
+  if (l) placeWheel(l);
+}
+
+function closeWheel() {
+  clearTimeout(wheelState.timer);
+  wheelState.timer = 0;
+  if (wheel.hidden || leaving(wheel)) return;
+  // the looks fold back into the middle, then the row goes
+  foldWheel();
+  popOut(wheel, wheelAnim, WHEEL_OUT_MS);
+}
+
+/** Every look gathered small and faint in the middle of the row: where it fans out from and folds back into. */
+function foldWheel() {
+  for (const b of wheel.children) {
+    b.style.transform = 'translate(-50%, -50%) scale(.3)';
+    b.style.opacity = '0';
+    b.style.pointerEvents = 'none';
+  }
+}
+
+function drawWheel() {
+  [...wheel.children].forEach((b, i) => {
+    const d = i - wheelState.at, n = Math.abs(d);
+    b.style.transform = `translate(-50%, -50%) translateX(${d * WHEEL_STEP}px) scale(${Math.max(.6, 1 - .14 * n)})`;
+    b.style.opacity = String(WHEEL_FADE[n] ?? 0);
+    b.style.zIndex = String(10 - n);
+    b.style.pointerEvents = n > WHEEL_SIDE ? 'none' : '';
+    b.classList.toggle('on', d === 0);
+  });
+}
+
+/** Puts on the look in the middle of the row, unless Coo wears it already. */
+function wearWheel() {
+  clearTimeout(wheelState.timer);
+  wheelState.timer = 0;
+  const item = wheelState.items[wheelState.at];
+  if (!item || wearing(item)) return;
+  const look = typeof item.scale === 'number' ? { skin: item.skin, scale: item.scale } : { skin: item.skin };
+  void fetch('/api/skin', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(look) }).catch(() => {});
+}
+
+/** Turns the row to look `i`; Coo puts it on at once (`now`, a click), or once the row rests there (the mouse wheel). */
+function spinTo(i, now = false) {
+  const n = clamp(i, 0, wheelState.items.length - 1);
+  if (n === wheelState.at && !now) return;
+  if (n !== wheelState.at) { wheelState.at = n; drawWheel(); }
+  sfx.tick();
+  clearTimeout(wheelState.timer);
+  if (now) { wearWheel(); return; }
+  wheelState.timer = setTimeout(wearWheel, WHEEL_APPLY_MS);
+}
+
+/** Centred over the body, just above its head. */
+function placeWheel(l) {
+  const b = l.box, w = wheel.offsetWidth, h = wheel.offsetHeight;
+  wheel.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
+  wheel.style.top = f(clamp(b.y - h - 22, 8, innerHeight - h - 8)) + 'px';
+}
+
+const inRect = (p, r, m = 0) => p.x >= r.left - m && p.x <= r.right + m && p.y >= r.top - m && p.y <= r.bottom + m;
+function overWheel(p) { return !wheel.hidden && !leaving(wheel) && inRect(p, wheel.getBoundingClientRect(), 6); }
+/** A button for action `id` on screen, in the menu or among the hover buttons, is under the pointer; not one folding away after a click. */
+function overAction(p, id) {
+  for (const b of document.querySelectorAll(`.menu:not(.leaving) [data-action="${id}"], .tools:not(.leaving) [data-action="${id}"]`)) {
+    if (b.offsetParent && inRect(p, b.getBoundingClientRect(), 4)) return true;
+  }
+  return false;
+}
+/**
+ * Whether a control a hover opened over the head (`el`, the look wheel or the size slider) waits on: the pointer is still
+ * among the pet's controls, that is on the hover buttons, on the menu, or in the column the body's box and `el` span
+ * together, `el` itself included. Its short linger counts only once the pointer has left them all, so going from one
+ * button to another, or across a large body to the control over its head, does not close it.
+ */
+function amongControls(p, el) {
+  if (!p) return false;
+  if (overTools(p) || overMenu(p)) return true;
+  const l = at();
+  if (!l || el.hidden || leaving(el)) return false;
+  const r = el.getBoundingClientRect(), b = l.box;
+  return inRect(p, { left: Math.min(r.left, b.x), right: Math.max(r.right, b.x + b.w), top: Math.min(r.top, b.y), bottom: Math.max(r.bottom, b.y + b.h) }, 6);
+}
+
+function stepWheel() {
+  const p = cursor.at;
+  const dress = !!p && overAction(p, 'dress');
+  if (!dress) wheelState.empty = false;
+  // a bubble over the pet (the typing box, a reply, a question) takes the wheel's place until it closes
+  if (!bubble.hidden && !bubble.classList.contains('status')) { if (!wheel.hidden) closeWheel(); return; }
+  if (amongControls(p, wheel)) wheelState.until = T + WHEEL_LINGER;
+  if (dress && wheel.hidden && !wheelState.empty && !clicksPass()) void openWheel();
+  if (!wheel.hidden && T > wheelState.until) closeWheel();
+}
+// the mouse wheel turns the row while it shows, over the row or over a dress button
+document.addEventListener('wheel', (e) => {
+  if (wheel.hidden || !e.target.closest?.('.wheel, [data-action="dress"]')) return;
+  e.preventDefault();
+  wheelState.acc += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+  if (Math.abs(wheelState.acc) < WHEEL_NOTCH) return;
+  spinTo(wheelState.at + Math.sign(wheelState.acc));
+  wheelState.acc = 0;
+  wheelState.until = T + WHEEL_LINGER;
+}, { passive: false });
+
+/* ---------- size slider: hovering a size button shows a slider over the body; the body takes each size at once ---------- */
+/** Seconds the slider stays after the pointer leaves it and every size button. */
+const SIZER_LINGER = .35;
+/**
+ * Whether a click on a size button pinned the slider. It stays until that button is clicked again, the pointer goes down
+ * anywhere else, the window loses focus (a click in another program), Escape, or the menu, the look wheel or a bubble
+ * takes the place.
+ */
+let sizerPinned = false;
+function pinSizer(on) {
+  if (sizerPinned === on) return;
+  sizerPinned = on;
+  if (on && (sizerEl.hidden || leaving(sizerEl))) openSizer();
+  if (!on) closeSizer();
+  refreshButtons();
+}
+/** Milliseconds the slider takes to fold away (`.sizer.leaving` in pet.css). */
+const SIZER_OUT_MS = 140;
+/** Milliseconds between the sizes sent to the World while the slider moves. */
+const SIZE_SEND_MS = 120;
+const sizerText = document.createElement('span');
+sizerText.className = 'sz-value';
+const sizer = scaleSlider(document, {
+  ...SIZE, label: '',
+  widths: { collapsed: { width: 160, main: .86 }, expanded: { width: 240, main: .45 } },
+  room: () => innerWidth - 120,
+  onInput: (v) => setSize(v),
+  onChange: () => sendSize(),
+});
+// the percentage rides on the knob
+sizerEl.append(sizer.el);
+sizer.el.querySelector('.ps-thumb').append(sizerText);
+const sizerState = { until: 0, timer: 0, acc: 0 };
+/** Sizes the World pushes, held while the slider is in use or newer sizes from it are on their way (scale-slider.js sizeEcho). */
+const sizeHeard = sizeEcho((v) => { if (v === prefs.scale) return; prefs.scale = v; if (!switching()) toSize(v); refreshSize(); });
+const sizerAnim = { enter: 0, leave: 0 };
+
+/** Draws the body at `v` now and sends it within SIZE_SEND_MS. */
+function setSize(v) {
+  prefs.scale = v;
+  toSize(v);
+  refreshSize();
+  sizerState.timer ||= setTimeout(sendSize, SIZE_SEND_MS);
+}
+function sendSize() {
+  clearTimeout(sizerState.timer);
+  sizerState.timer = 0;
+  sizeHeard.sent(prefs.scale);
+  send({ t: 'prefs', scale: prefs.scale });
+}
+function refreshSize() {
+  sizerText.textContent = `${Math.round(prefs.scale * 100)}%`;
+  sizer.el.setAttribute('aria-label', t('action.sizeLabel'));
+  if (!sizer.active) sizer.set(prefs.scale);
+  for (const b of document.querySelectorAll('[data-action="size"]')) drawAction(b, 'size');
+}
+
+function openSizer() {
+  // back over a size button while the slider folds away: it stays
+  if (leaving(sizerEl)) { clearTimeout(sizerAnim.leave); sizerEl.classList.remove('leaving'); return; }
+  closeWheel();
+  refreshSize();
+  popIn(sizerEl, sizerAnim);
+  sizer.relayout();
+  const l = at();
+  if (l) placeSizer(l);
+}
+function closeSizer() {
+  if (sizerEl.hidden || leaving(sizerEl) || sizer.active) return;
+  popOut(sizerEl, sizerAnim, SIZER_OUT_MS);
+}
+/** Centred over the body, just above its head, where the look wheel opens; it follows the head as other controls do (`follow`). */
+function placeSizer(l) {
+  const b = l.box, w = sizerEl.offsetWidth, h = sizerEl.offsetHeight;
+  sizerEl.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
+  // the slider's box holds the percentage's bubble over the knob: its bottom sits just over the head
+  sizerEl.style.top = f(clamp(b.y - h - 10, 8, innerHeight - h - 8)) + 'px';
+}
+function overSizer(p) { return !sizerEl.hidden && !leaving(sizerEl) && inRect(p, sizerEl.getBoundingClientRect(), 6); }
+function stepSizer() {
+  const p = cursor.at;
+  const button = !!p && overAction(p, 'size');
+  // a bubble over the pet (the typing box, a reply, a question) takes the slider's place until it closes; with every
+  // click passing through the window it could not be used
+  if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { pinSizer(false); closeSizer(); return; }
+  if (sizer.active || sizerPinned || amongControls(p, sizerEl)) sizerState.until = T + SIZER_LINGER;
+  if (button && sizerEl.hidden && !clicksPass()) openSizer();
+  if (!sizerEl.hidden && T > sizerState.until) closeSizer();
+}
+// the mouse wheel steps the size over the slider or over a size button: up is larger
+document.addEventListener('wheel', (e) => {
+  if (!e.target.closest?.('.sizer, [data-action="size"]')) return;
+  e.preventDefault();
+  sizerState.acc += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+  if (Math.abs(sizerState.acc) < WHEEL_NOTCH) return;
+  sizer.nudge(-Math.sign(sizerState.acc));
+  sizerState.acc = 0;
+  sizerState.until = T + SIZER_LINGER;
+  sfx.tick();
+}, { passive: false });
 
 /* ---------- pointer ---------- */
 let pointerSeen = false;
@@ -1412,7 +2065,7 @@ const lastPointer = { x: 0, y: 0 };
 /** Whether the page is on screen and drawing; the mouse is not taken while it is not. */
 const FRAME_STALL_MS = 1000;
 let lastFrameAt = performance.now();
-const rendering = () => document.visibilityState === 'visible' && performance.now() - lastFrameAt < FRAME_STALL_MS;
+const rendering = () => windowShown && document.visibilityState === 'visible' && performance.now() - lastFrameAt < FRAME_STALL_MS;
 /** How often the wish for the mouse is renewed; the window process's lease is longer. */
 const MOUSE_RENEW_MS = 500;
 let interactive = null, renewedAt = -Infinity;
@@ -1473,8 +2126,49 @@ function writePointer(now) {
   diag.types.clear();
 }
 
-const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]), .tools:not([hidden])';
+// the menu itself covers the whole page without taking clicks; its two columns are what can be pointed at
+const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]):not(.leaving) > *, .tools:not([hidden]):not(.leaving), .wheel:not([hidden]):not(.leaving), .sizer:not([hidden]):not(.leaving)';
 const overUi = (e) => e.target.closest && e.target.closest(UI_SELECTOR);
+
+/**
+ * In a Wayland session the window takes the mouse only over the rects reported here (host/input-shape.cjs),
+ * sent from the frames when they change and at least every MOUSE_RENEW_MS: the body's hit circles inside its
+ * box (body-host.js onBody), one strip per SHAPE_GRID row, and what UI_SELECTOR names, the hover buttons with
+ * TOOLS_MARGIN around them. Every rect is rounded out to SHAPE_GRID, so a body breathing in place leaves the
+ * shape as it is on most frames.
+ */
+let inputShape = false, shapeSent = '', shapeAt = -Infinity;
+host?.onInputShape?.((on) => { inputShape = on; shapeSent = ''; });
+const SHAPE_GRID = 8;
+const gridDown = (v) => Math.floor(v / SHAPE_GRID) * SHAPE_GRID, gridUp = (v) => Math.ceil(v / SHAPE_GRID) * SHAPE_GRID;
+function inputRects() {
+  const out = [];
+  const add = (x0, y0, x1, y1) => {
+    if (x1 > x0 && y1 > y0) out.push({ x: gridDown(x0), y: gridDown(y0), width: gridUp(x1) - gridDown(x0), height: gridUp(y1) - gridDown(y0) });
+  };
+  const l = at();
+  for (const c of l?.hit ?? []) {
+    const b = l.box, top = Math.max(b.y, c.y - c.r), bottom = Math.min(b.y + b.h, c.y + c.r);
+    for (let y0 = gridDown(top); y0 < bottom; y0 += SHAPE_GRID) {
+      // as wide as the circle's widest chord in the row: on the centre line when the row holds it, else at its edge nearer to it
+      const y1 = y0 + SHAPE_GRID, dy = Math.max(0, y0 - c.y, c.y - y1), half = Math.sqrt(c.r * c.r - dy * dy);
+      add(Math.max(b.x, c.x - half), Math.max(top, y0), Math.min(b.x + b.w, c.x + half), Math.min(bottom, y1));
+    }
+  }
+  for (const el of document.querySelectorAll(UI_SELECTOR)) {
+    const r = el.getBoundingClientRect(), m = el === tools ? TOOLS_MARGIN : 0;
+    add(r.left - m, r.top - m, r.right + m, r.bottom + m);
+  }
+  return out;
+}
+function stepInputShape() {
+  if (!inputShape) return;
+  const rects = inputRects(), key = JSON.stringify(rects), now = performance.now();
+  if (key === shapeSent && now - shapeAt < MOUSE_RENEW_MS) return;
+  shapeSent = key;
+  shapeAt = now;
+  host.setInputRects(rects);
+}
 document.addEventListener('pointermove', (e) => {
   pointerSeen = true;
   lastPointer.x = e.clientX; lastPointer.y = e.clientY;
@@ -1492,7 +2186,7 @@ document.addEventListener('pointermove', (e) => {
     diag.type = e.pointerType;
     if (!first) logPointer('type', 'move');
   }
-  setInteractive(rendering() && (pressing || hit || ui), 'move');
+  setInteractive(rendering() && (pressing || sizer.active || hit || ui), 'move');
   followDrag(p);
 });
 /**
@@ -1503,10 +2197,11 @@ document.addEventListener('pointermove', (e) => {
  */
 let polled = null;
 host?.onCursor?.((p) => {
-  cursor.at = p;
+  // in a Wayland session the reports keep the spot where the cursor left the last X11 window; there the page's own pointer events place it
+  if (!inputShape || !p) cursor.at = p;
   if (!p) {
     diag.poll = { at: performance.now(), off: true };
-    if (!pressing) setInteractive(false, 'poll');
+    if (!pressing && !sizer.active) setInteractive(false, 'poll');
     if (polled && !pressing) body?.pointer('leave', {});
     polled = null;
     return;
@@ -1520,7 +2215,7 @@ host?.onCursor?.((p) => {
   const el = document.elementFromPoint(p.x, p.y);
   const hit = !!body?.hit(p), ui = !!el?.closest?.(UI_SELECTOR);
   diag.poll = { at: performance.now(), x: p.x, y: p.y, hit, ui };
-  setInteractive(rendering() && (pressing || hit || ui), 'poll');
+  setInteractive(rendering() && (pressing || sizer.active || hit || ui), 'poll');
 });
 /** A press that began on the body and has not been let go of: the window keeps the mouse meanwhile. */
 let pressing = false;
@@ -1590,11 +2285,14 @@ document.addEventListener('pointerleave', () => { cursor.at = null; body?.pointe
 stage.addEventListener('dblclick', (e) => { if (prefs.doubleClickChat && body?.hit({ x: e.clientX, y: e.clientY })) openInput(); });
 document.addEventListener('contextmenu', (e) => {
   e.preventDefault();
-  if (body?.hit({ x: e.clientX, y: e.clientY })) openMenu(e.clientX, e.clientY);
+  if (body?.hit({ x: e.clientX, y: e.clientY })) openMenu();
 });
-document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.menu')) closeMenu(); }, { capture: true });
+document.addEventListener('pointerdown', (e) => {
+  if (!e.target.closest('.menu, .wheel')) closeMenu();
+  if (!e.target.closest('.sizer, [data-action="size"]')) pinSizer(false);
+}, { capture: true });
 // clicks off the figure pass through the window to what is underneath; the window losing focus is how they show here
-window.addEventListener('blur', closeMenu);
+window.addEventListener('blur', () => { closeMenu(); pinSizer(false); });
 document.addEventListener('focusin', (e) => {
   if (e.target.matches?.('input, textarea')) host?.focus?.();
 });
@@ -1603,6 +2301,7 @@ document.addEventListener('keydown', (e) => {
   if (e.isComposing || e.keyCode === 229) return;
   if (e.key === 'Escape') {
     closeMenu();
+    pinSizer(false);
     if (item && item.kind === 'ask') dismissAsk();
     else if (item && item.kind === 'input') closeBubble();
     return;
@@ -1654,12 +2353,42 @@ function placeTalk(it, a) {
   return { left, top, bw, bh };
 }
 
+/** Milliseconds a group of controls let go of glides back to its place (`.returning` in pet.css), and a margin. */
+const RETURN_MS = 260;
+/** Whether each group of controls was held last frame, and the timers that end its glide back. */
+const heldGroups = new WeakMap(), returning = new WeakMap();
+/**
+ * One rule for every group of controls placed by the body (the hover buttons, the menu's two sides, the look wheel, the
+ * size slider): while the pointer is on the group, or its slider is held, it holds still, so a look or a size put on from
+ * it moves the body and not the control pointed at; let go, it glides back to its place, and follows the body again.
+ */
+function follow(els, pointed, place) {
+  if (!els.length) { place(); return; }
+  const was = heldGroups.get(els[0]) ?? false;
+  heldGroups.set(els[0], pointed);
+  if (pointed) return;
+  if (was && !reducedMotion?.matches) {
+    for (const el of els) {
+      el.classList.add('returning');
+      clearTimeout(returning.get(el));
+      returning.set(el, setTimeout(() => el.classList.remove('returning'), RETURN_MS + 60));
+    }
+  }
+  place();
+}
+const menuParts = () => [menu.querySelector('.m-grid'), menu.querySelector('.m-rail')].filter(Boolean);
+/** The pointer is on one of the menu's two sides (the menu itself covers the page without taking the pointer). */
+function overMenu(p) { return !menu.hidden && !leaving(menu) && menuParts().some((el) => inRect(p, el.getBoundingClientRect(), 6)); }
+
 /** Beside the body, on the right unless that runs off the screen. */
 function placeTools(l) {
-  const c = l.side, reach = l.side.reach + 10;
+  // across from where the body stands, not from its middle: a figure's middle swings sideways as it turns round
+  const c = { x: l.x, y: l.side.y }, reach = l.side.reach + 10;
   const w = tools.offsetWidth, h = tools.offsetHeight;
   const left = c.x + reach + w <= innerWidth - 8 ? c.x + reach : c.x - reach - w;
   tools.style.left = f(clamp(left, 8, innerWidth - w - 8)) + 'px';
+  // they grow out of the body's side and fold back into it
+  tools.style.setProperty('--dx', left > c.x ? '-16px' : '16px');
   tools.style.top = f(clamp(c.y - h / 2, 8, innerHeight - h - 8)) + 'px';
 }
 function layout(dt = 0) {
@@ -1669,11 +2398,15 @@ function layout(dt = 0) {
   // the sounds come from where Coo is on its display: screenX and availLeft (the left of the work area the pet window
   // covers) count from the same origin across all displays
   sfx.setPan(((screenX - screen.availLeft + l.x) / (screen.availWidth || innerWidth)) * 2 - 1);
-  if (!tools.hidden) placeTools(l);
+  const p = cursor.at;
+  if (!tools.hidden) follow([tools], !!p && overTools(p), () => placeTools(l));
+  if (!menu.hidden) follow(menuParts(), !!p && overMenu(p), () => placeMenu(l));
+  if (!wheel.hidden) follow([wheel], !!p && overWheel(p), () => placeWheel(l));
+  if (!sizerEl.hidden) follow([sizerEl], sizer.active || (!!p && overSizer(p)), () => placeSizer(l));
   const a = l.bubble;
   let sayBox = null;
-  // choice cards keep their bubble where it was; its tail follows Coo along the bottom edge
-  if (!bubble.hidden && item?.kind === 'dialog' && item.pinX !== undefined) sayBox = placeTalk(item, a);
+  // choice cards and a World's confirmation keep their bubble where it was; its tail follows Coo along the bottom edge
+  if (!bubble.hidden && item?.pinX !== undefined) sayBox = placeTalk(item, a);
   else if (!bubble.hidden) sayBox = place(bubble, a, 18 * prefs.bubbleSize);
   placeLines(a, sayBox, dt);
 }
@@ -1751,7 +2484,7 @@ async function probeBackdrop() {
   const near = inflate({ x: b.x, y: b.y, width: b.w, height: b.h }, Math.max(4 + 34 * S, 4 + 2 * prefs.glow)), far = inflate(near, 8 + 40 * S);
   const x = Math.max(0, far.x), y = Math.max(0, far.y);
   const rect = { x, y, width: Math.min(innerWidth, far.x + far.width) - x, height: Math.min(innerHeight, far.y + far.height) - y };
-  const covers = [bubble, menu, tools, ...lines.map((l) => l.el)].filter((el) => !el.hidden).map((el) => shadowed(rectOf(el)));
+  const covers = [bubble, ...(menu.hidden ? [] : menu.children), tools, wheel, ...lines.map((l) => l.el)].filter((el) => !el.hidden).map((el) => shadowed(rectOf(el)));
   const px = await host.sampleBackdrop(rect, [near, ...covers]);
   // this platform cannot read the screen cheaply: the halo just stays
   if (px === null) { backdrop.on = true; backdrop.fixed = true; return; }
@@ -1777,31 +2510,37 @@ function stepBackdrop(dt) {
   const k = backdrop.k + ((backdrop.on ? 1 : 0) - backdrop.k) * Math.min(1, dt * 6);
   backdrop.k = k < .005 ? 0 : k;
   // the body is in its own frame: it takes the halo as a CSS filter
-  body?.setHalo(backdrop.k * HALO_STRENGTH, prefs.glow);
+  // none during a figure switch: the halo cuts the body's frame window down to its surroundings, and a window that moves
+  // with the new body's size would move the point the switch scales it from
+  body?.setHalo(performance.now() < haloAfter ? 0 : backdrop.k * HALO_STRENGTH, prefs.glow);
 }
 
 /* ---------- loop ---------- */
 /**
- * Frames per second: `prefs.frameRate` while the body moves (its layout's `moving`) and always while `lockFrameRate` is on,
- * RESTING_FPS otherwise; a frame rate of 0, or one above the display's, draws on every display refresh. Each frame
- * redraws the whole figure, so the window's CPU and GPU time grows with this rate.
+ * Frames per second: `prefs.frameRate` while the body moves (its layout's `moving`), changes figure, look or size, and
+ * always while `lockFrameRate` is on, RESTING_FPS otherwise; a frame rate of 0, or one above the display's, draws on every display refresh. Each frame
+ * redraws what changed in the figure, so the window's CPU and GPU time grows with this rate.
+ *
+ * While the pet window is hidden, frames come at HIDDEN_FPS: the clock, the orders, the bubbles' text and the body's
+ * motion go on, so a walk still arrives and a line still runs out, but the body is not drawn, nothing on the stage is
+ * placed, the screen behind is not sampled and the streaming layer gets no frames.
+ *
+ * Each frame advances the clock by the time since the frame before, in steps (frame-loop.js); the page's orders and
+ * the body take every step, and only the last one is drawn.
  */
 const RESTING_FPS = 30;
-/** When the next frame is due (a rAF timestamp), and the gap between frames at the current rate. */
-let last = performance.now(), dueAt = 0, gap = 0;
+/** Frames a second while the window is hidden: the World hears of an arrival within a tenth of a second. */
+const HIDDEN_FPS = 10;
 /** The last error the frame loop logged, so one that keeps recurring is reported once, not per frame. */
 let frameErr = null;
 /**
- * Frames whose timestamp was not past the one before (a zero or negative dt), and when that was last logged (ms):
+ * Frames whose timestamp was not past the one before (no time to step), and when that was last logged (ms):
  * where these timestamps come from is not known yet. Logged at most once a minute, with the count so far. The first frame is
- * left out: `last` starts at the page's clock, which may be ahead of the first frame's timestamp.
+ * left out: the loop starts its count at the page's clock, which may be ahead of the first frame's timestamp.
  */
 let stalls = 0, stallLoggedAt = -Infinity, framed = false;
-function frame(now) {
-  // frames stop coming while the window is hidden or occluded, which `rendering()` reads
-  lastFrameAt = performance.now();
-  // a display refresh up to a quarter gap early counts as on time, so the rate averages out over refresh rates it does not divide
-  if (now < dueAt - gap / 4) { requestAnimationFrame(frame); return; }
+function frame(steps, now, last) {
+  const drawn = windowShown;
   if (framed && now <= last) {
     stalls++;
     if (performance.now() - stallLoggedAt > 60_000) {
@@ -1810,36 +2549,42 @@ function frame(now) {
     }
   }
   framed = true;
-  const dt = Math.min(.05, (now - last) / 1000); last = now;
   try {
-    T += dt;
-    stepActs();
-    stepDialog(dt);
-    stepTalkRead(dt);
-    stepTalkMotion();
-    stepLines();
-    stepStatus();
-    setBody({ dialogOpen: !!item || !!listen.phase });
-    body?.tick(dt);
-    stepBackdrop(dt);
-    stepTools();
-    layout(dt);
-    // the frame's own time, so the layer shows frames as far apart as they were drawn
-    if (overlayOn) host.overlayFrame(overlayRect(), performance.timeOrigin + now);
+    steps.forEach((dt, i) => {
+      T += dt;
+      stepActs();
+      stepDialog(dt);
+      stepTalkRead(dt);
+      stepTalkMotion();
+      stepLines();
+      stepStatus();
+      setBody({ dialogOpen: !!item || !!listen.phase, still: !menu.hidden });
+      if (drawnScale.step(dt)) body?.set({ bounds: bounds() });
+      body?.tick(dt, drawn && i === steps.length - 1);
+    });
+    if (drawn) {
+      const dt = steps.reduce((a, b) => a + b, 0);
+      stepBackdrop(dt);
+      stepTools();
+      stepWheel();
+      stepSizer();
+      layout(dt);
+      stepInputShape();
+      // the frame's own time, so the layer shows frames as far apart as they were drawn
+      if (overlayOn) host.overlayFrame(overlayRect(), performance.timeOrigin + now);
+    }
   } catch (err) {
-    // a throwing step must not take the loop with it: the next frame is only asked for below, and
+    // a throwing step must not take the loop with it: the next frame is only asked for after this returns, and
     // without it the pet freezes for good (a broken figure throws again on every frame it draws)
     const msg = err?.message ?? String(err);
     if (msg !== frameErr) { frameErr = msg; console.error(err); }
   }
-  const full = prefs.lockFrameRate || !!at()?.moving;
+  for (const done of afterFrame.splice(0)) done();
+  // a switch of figure or look, or a size on its way, is motion too: at the resting rate it would show as stutter
+  const full = drawn && (prefs.lockFrameRate || !!at()?.moving || (!!host && drawnScale.moving) || performance.now() < smoothUntil);
   // a moving rate of 0 draws on every display refresh
-  gap = full ? (prefs.frameRate > 0 ? 1000 / prefs.frameRate : 0) : 1000 / RESTING_FPS;
-  // a frame more than a gap late starts the count again instead of drawing the missed ones back to back
-  dueAt = now - dueAt > gap ? now + gap : dueAt + gap;
-  // moving frames wait on display refreshes: a timer can wake late, which a body at rest hides and a moving one shows as stutter
-  if (full) requestAnimationFrame(frame);
-  else setTimeout(() => requestAnimationFrame(frame), Math.max(0, dueAt - gap / 4 - performance.now()));
+  return { fps: full ? prefs.frameRate : drawn ? RESTING_FPS : HIDDEN_FPS, refresh: full };
 }
 addEventListener('pagehide', reportPosition);
-requestAnimationFrame(frame);
+// drawn frames stop while the window is hidden or occluded, which `rendering()` reads
+runFrames(frame, { refreshed: () => { if (windowShown) lastFrameAt = performance.now(); } });

@@ -15,7 +15,6 @@ export const S: Partial<typeof en> = {
   confirmShutdownTitle: '⚠ Herunterfahren',
   confirmShutdownAgainTitle: '⚠⚠ Herunterfahren bestätigen?',
   confirmShutdownAgainBody: 'Lauf stoppen und Prozess beenden?',
-  finishingToast: 'Wird heruntergefahren…',
   stepIncomplete: 'unvollständig',
   doneShutdown: 'Heruntergefahren',
   resultLocalIncomplete: 'Lokale Schritte zum Herunterfahren unvollständig',
@@ -26,7 +25,6 @@ export const S: Partial<typeof en> = {
     `Kein Ergebnis des Herunterfahrens erhalten (${msg}); der Prozess ist möglicherweise beendet.`,
   docTitle: (name: string) => `Einstellungen · ${name}`,
   renameTitle: 'Zum Umbenennen klicken',
-  renameSaved: 'Anzeigename gespeichert',
   renameFailed: (msg: string) => `Anzeigename nicht gespeichert: ${msg}`,
   // avatar.ts
   changeAvatar: 'Avatar von Coo ändern',
@@ -35,10 +33,9 @@ export const S: Partial<typeof en> = {
   cropPreview: 'Vorschau des Avatar-Zuschnitts',
   zoomAria: 'Avatar-Zoom',
   zoom: 'Zoom',
-  note: 'Ziehe das Bild, um es zu verschieben; zoome mit dem Mausrad oder dem Schieberegler. Speichern schreibt avatar.png ins Datenverzeichnis von Coo.',
+  note: "Ziehen zum Verschieben; Mausrad oder Regler zum Zoomen.",
   cancel: 'Abbrechen',
   save: 'Avatar speichern',
   cropTitle: 'Avatar zuschneiden',
   noCanvas: 'Der Browser konnte keine Bild-Canvas erstellen',
-  saved: 'Avatar gespeichert',
 };

@@ -21,7 +21,8 @@
  *    the other one; a ChatGPT plan is signed in in the system browser instead of the model and key;
  * 6. voice input: the speech model of the engine in force (FunASR or Whisper, by the app language)
  *    is downloaded with one click when it is missing, then how to talk, with the talk key as a key cap;
- * 7. where the buttons and the menu are, that Coo's persona is in the settings window's
+ * 7. the hover buttons, picked on cards (up to the World's MAX_HOVER_BUTTONS): the right-click menu shows the same ones
+ *    and the run controls; that Coo's persona is in the settings window's
  *    「系统提示词」 page, and where settings live.
  *
  * However it ends, walked through or closed, it calls `onEnd` with the record of what was said in
@@ -36,7 +37,7 @@
 import { existsSync, writeFileSync } from 'node:fs';
 import { LANGUAGES, LANGUAGE_NAMES, type Language } from 'cortico/core/language.ts';
 import type { DesktopPetWorld, PetDialog, PetDialogAnswer, PetDialogHandle, PetDialogInput } from 'cortico-world-desktop-pet';
-import { USER_MAX, capFor, petText } from 'cortico-world-desktop-pet';
+import { MAX_HOVER_BUTTONS, PET_ACTIONS, USER_MAX, capFor, hoverButtonList, petText, type PetAction } from 'cortico-world-desktop-pet';
 import { VENDOR_ICONS, defaultRegion, localized, siteOf, vendorName, vendorsFor, type Vendor } from 'cortico-provider-coo';
 import { connectChatGPT, connectVendor, currentConnection, type Connection, type WebUiCall } from 'cortico-provider-coo/src/connect.ts';
 import { signInReason } from 'cortico-provider-coo/src/strings.ts';
@@ -50,6 +51,9 @@ const APP_GROUP = 'companion';
 const USER_KEY = 'worlds.desktop-pet.user';
 const ROAM_KEY = 'worlds.desktop-pet.roam';
 const WAKE_KEY = 'worlds.desktop-pet.touch.wakeOn';
+const HOVER_KEY = 'worlds.desktop-pet.hoverButtons';
+/** Each action's card icon on the hover-button page, the icon its button wears (web/ui.js `ICONS`). */
+const ACTION_ICONS: Record<PetAction, string> = { chat: 'chat', voice: 'mic', roam: 'roam_calm', theme: 'moon', sound: 'sound', hide: 'eyeOff', size: 'resize', dress: 'shirt', worlds: 'boxes' };
 /**
  * The default names of earlier versions (「主人」 up to 0.1.1, 「伙伴」 up to 0.1.19): the name box starts empty
  * for them, with the app language's default name (the desktop-pet World's) as its placeholder.
@@ -151,6 +155,7 @@ export function noteStep(d: PetDialog, a: PetDialogAnswer, language: ModelLangua
   if ('closed' in a) lines.push(r.closed);
   else if ('back' in a) lines.push(r.back);
   else if ('index' in a && (input?.kind === 'buttons' || input?.kind === 'choices')) lines.push(r.person(String(input.options[a.index]?.label ?? a.index)));
+  else if ('picked' in a && input?.kind === 'pick') lines.push(r.person(a.picked.map((i) => input.options[i]?.label ?? i).join(', ')));
   else if ('text' in a) lines.push(r.person(input?.kind === 'text' && input.secret ? r.key : a.text));
   else if ('alt' in a && input?.kind === 'text' && input.alt) lines.push(r.person(input.alt));
   return lines;
@@ -562,8 +567,24 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
         }));
       },
 
-      // 7 the buttons, the menu, and where settings live
-      async (back) => answered(await step(7, 'buttons', { text: S.buttons, actions: ['wink'], back, input: { kind: 'buttons', options: [{ label: S.ok, primary: true }] } })),
+      // 7 the hover buttons, which the right-click menu shows too, and where settings live
+      async (back) => {
+        const saved = hoverButtonList(typeof values[HOVER_KEY] === 'string' ? values[HOVER_KEY] as string : 'chat,voice');
+        const names = petText(language).consent.actions;
+        const a = await step(7, 'buttons', {
+          text: S.buttons, actions: ['wink'], back,
+          input: {
+            kind: 'pick', confirm: S.ok, min: 0, max: MAX_HOVER_BUTTONS, value: saved.map((id) => PET_ACTIONS.indexOf(id)),
+            options: PET_ACTIONS.map((id) => ({ label: names[id] ?? id, icon: ACTION_ICONS[id] })),
+          },
+        });
+        if ('back' in a) return 'back';
+        // in the actions' order, as the Habits page keeps them; none picked is an answer too: no hover buttons
+        const picked = 'picked' in a ? a.picked.map((i) => PET_ACTIONS[i]).filter((id): id is PetAction => !!id).slice(0, MAX_HOVER_BUTTONS) : saved;
+        answer('hover_buttons', { ids: picked });
+        if (picked.join(',') !== values[HOVER_KEY]) await setPet(HOVER_KEY, picked.join(','));
+        return 'answered';
+      },
       async (back) => answered(await step(7, 'persona', { text: S.persona, marks: [S.personaMark], actions: ['happy'], back, input: { kind: 'buttons', options: [{ label: S.personaOk, primary: true }] } })),
       async (back) => {
         const end = await step(7, 'finish', { text: S.finish, actions: ['happy'], back, input: { kind: 'buttons', options: [{ label: S.go, primary: true }, { label: S.dress }] } });

@@ -9,7 +9,8 @@ import { LANGUAGES } from 'cortico/core/language.ts';
 import { PetServer } from '../packages/cortico-world-desktop-pet/src/server.ts';
 import { PackImporter } from '../packages/cortico-world-desktop-pet/src/pack-import.ts';
 import { figurePacks } from '../packages/cortico-world-desktop-pet/src/packs.ts';
-import { applyText, nameIn, t } from '../packages/cortico-world-desktop-pet/web/i18n.js';
+import { localDressDialogs } from '../packages/cortico-world-desktop-pet/src/webui/dress-dialog.ts';
+import { nameIn, t } from '../packages/cortico-world-desktop-pet/web/i18n.js';
 
 const PKG = new URL('../packages/cortico-world-desktop-pet/', import.meta.url);
 const FIXTURE = fileURLToPath(new URL('tests/fixtures/api2-pack/', PKG));
@@ -41,58 +42,62 @@ async function page(installed = true) {
   const inFlight = new Set();
   cleanup.push(() => Promise.allSettled(inFlight));
   win.fetch = (path, options = {}) => {
-    const request = fetch(new URL(path, server.origin), { ...options, headers: { ...options.headers, origin: server.origin } })
+    const controller = new AbortController();
+    if (options.signal?.aborted) controller.abort();
+    else options.signal?.addEventListener('abort', () => controller.abort(), { once: true });
+    const request = fetch(new URL(path, server.origin), { ...options, signal: controller.signal, headers: { ...options.headers, origin: server.origin } })
       .then((res) => { responses.push({ path, status: res.status }); return res; });
     inFlight.add(request);
     void request.finally(() => inFlight.delete(request)).catch(() => {});
     return request;
   };
-  win.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
-  win.HTMLDialogElement.prototype.close = function () { this.open = false; };
-  win.deps = { applyText, nameOf: nameIn, t, packStatus: await (await fetch(`${server.origin}/api/figures/status`)).json() };
+  const dialogStop = new win.AbortController();
+  cleanup.push(() => dialogStop.abort());
+  win.deps = { dialogs: localDressDialogs(win.document, dialogStop.signal), dialogStop, nameOf: nameIn, t, packStatus: await (await fetch(`${server.origin}/api/figures/status`)).json() };
   win.eval(`
-    const { applyText, nameOf, t, packStatus } = window.deps;
+    const { dialogs, dialogStop, nameOf, t, packStatus } = window.deps;
     const $ = (s) => document.querySelector(s);
-    const el = (tag, cls, html) => { const node = document.createElement(tag); if (cls) node.className = cls; if (html) node.innerHTML = html; return node; };
     const skin = { figure: 'coo' }, sfx = { sparkle() {} };
     let body = null;
     const loadPacks = () => fetch('/api/figures');
     ${importing}
+    window.importDialog = importDialog;
   `);
   const manifest = JSON.parse(readFileSync(join(FIXTURE, 'figure.json'), 'utf8'));
   const files = Object.fromEntries(readdirSync(FIXTURE).map((name) => [name, new Uint8Array(readFileSync(join(FIXTURE, name)))]));
   files['figure.json'] = strToU8(JSON.stringify({ ...manifest, version: '2.0.0' }));
-  const zip = new Blob([zipSync(files)], { type: 'application/zip' });
-  const input = win.document.querySelector('#importZip');
+  const zip = new File([zipSync(files)], 'fixture.zip', { type: 'application/zip' });
+  win.importDialog.choose();
+  const input = win.document.querySelector('input[accept]');
   Object.defineProperty(input, 'files', { value: [zip] });
   input.dispatchEvent(new win.Event('change'));
-  await expect.poll(() => !!win.document.querySelector('[data-go]')).toBe(true);
-  return { root, old, server, responses, doc: win.document, dialog: win.document.querySelector('#importDialog') };
+  await expect.poll(() => !!win.document.querySelector('[data-action=install]')).toBe(true);
+  return { root, old, server, responses, doc: win.document };
 }
 
 describe('figure import confirmation', () => {
   it('keeps the existing files when the person cancels the replacement', async () => {
     const p = await page();
-    p.doc.querySelector('[data-go]').click();
-    await expect.poll(() => !!p.doc.querySelector('[data-replace]')).toBe(true);
+    p.doc.querySelector('[data-action=install]').click();
+    await expect.poll(() => !!p.doc.querySelector('[data-action=replace]')).toBe(true);
     expect(p.responses).toContainEqual({ path: '/api/figures/import/install', status: 409 });
-    expect(p.dialog.querySelector('h2').textContent).toBe(t('import.replaceTitle'));
-    expect(p.dialog.querySelector('li').textContent).toContain('fixture-api2');
+    expect(p.doc.querySelector('.modaltitle').textContent).toBe(t('import.replaceTitle'));
+    expect(p.doc.querySelector('.figure-dialog-item').textContent).toContain('fixture-api2');
     expect(readFileSync(join(p.old, 'kept.txt'), 'utf8')).toBe('original');
     expect(readdirSync(p.root)).toEqual(['old-name']);
-    p.doc.querySelector('[data-close]').click();
+    p.doc.querySelector('[data-action=cancel]').click();
     await expect.poll(() => p.responses).toContainEqual({ path: '/api/figures/import/cancel', status: 200 });
-    expect(p.dialog.open).toBe(false);
+    expect(!!p.doc.querySelector('.modal')).toBe(false);
     expect(readFileSync(join(p.old, 'kept.txt'), 'utf8')).toBe('original');
   });
 
   it('replaces the pack only after the person confirms the listed conflict', async () => {
     const p = await page();
-    p.doc.querySelector('[data-go]').click();
-    await expect.poll(() => !!p.doc.querySelector('[data-replace]')).toBe(true);
+    p.doc.querySelector('[data-action=install]').click();
+    await expect.poll(() => !!p.doc.querySelector('[data-action=replace]')).toBe(true);
     expect(readFileSync(join(p.old, 'kept.txt'), 'utf8')).toBe('original');
-    p.doc.querySelector('[data-replace]').click();
-    await expect.poll(() => p.dialog.open).toBe(false);
+    p.doc.querySelector('[data-action=replace]').click();
+    await expect.poll(() => !!p.doc.querySelector('.modal')).toBe(false);
     expect(p.responses.filter((r) => r.path.endsWith('/install')).map((r) => r.status)).toEqual([409, 200]);
     expect(existsSync(p.old)).toBe(false);
     expect(JSON.parse(readFileSync(join(p.root, 'fixture-api2', 'figure.json'), 'utf8')).version).toBe('2.0.0');
@@ -102,10 +107,23 @@ describe('figure import confirmation', () => {
     const p = await page(false);
     const res = await fetch(`${p.server.origin}/api/figures/import`, { method: 'POST', headers: { origin: 'http://localhost', 'content-type': 'application/zip' }, body: new Uint8Array() });
     expect(res.status).toBe(421);
-    p.doc.querySelector('[data-go]').click();
-    await expect.poll(() => p.dialog.open).toBe(false);
+    p.doc.querySelector('[data-action=install]').click();
+    await expect.poll(() => !!p.doc.querySelector('.modal')).toBe(false);
     expect(p.responses.filter((r) => r.path.endsWith('/install')).map((r) => r.status)).toEqual([200]);
     expect(figurePacks([p.root]).packs.some((pack) => pack.id === 'fixture-api2')).toBe(true);
+  });
+
+  it('requires a selected pack and cleans staged files when dismissed with Escape', async () => {
+    const p = await page(false);
+    const checkbox = p.doc.querySelector('input[type=checkbox]');
+    checkbox.click();
+    expect(p.doc.querySelector('[data-action=install]').disabled).toBe(true);
+    checkbox.click();
+    expect(p.doc.querySelector('[data-action=install]').disabled).toBe(false);
+    p.doc.dispatchEvent(new p.doc.defaultView.KeyboardEvent('keydown', { key: 'Escape' }));
+    await expect.poll(() => p.responses).toContainEqual({ path: '/api/figures/import/cancel', status: 200 });
+    expect(p.doc.querySelector('.modal')).toBeNull();
+    expect(readdirSync(p.root)).toEqual([]);
   });
 
   it('provides the replacement and uninstall prompts in every app language', async () => {

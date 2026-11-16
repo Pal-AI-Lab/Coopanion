@@ -9,10 +9,11 @@ module.exports = {
   starting: 'Запуск…',
 
   trayOpenSettings: 'Открыть настройки',
-  trayShowPet: 'Показать питомца',
-  trayClickThrough: 'Пропускать клики сквозь Coo',
+  trayShowPet: "Показать питомца",
+  trayHidePet: "Скрыть питомца",
+  trayClickThroughOn: "Пропускать клики сквозь Coo",
+  trayClickThroughOff: "Не пропускать клики сквозь Coo",
   trayClickThroughTip: 'Coopanion (клики проходят сквозь Coo)',
-  trayLaunchAtLogin: 'Запускать при входе в систему',
   trayRestart: 'Перезапустить',
   trayQuit: 'Выйти',
 

@@ -1,7 +1,7 @@
 {
   "name": "coopanion",
   "productName": "Coopanion",
-  "version": "0.2.18",
+  "version": "0.2.20",
   "private": true,
   "description": "A desktop companion built on Cortico: a pet on your screen that talks, listens and can operate the computer",
   "license": "AGPL-3.0-or-later",
@@ -18,6 +18,7 @@
     "start": "electron .",
     "build:cortico": "tsx scripts/stage.ts",
     "console:test": "tsx scripts/console-test.ts",
+    "console:layout": "electron scripts/console-layout.cjs",
     "build:installer": "tsx scripts/stage.ts && tsx scripts/pack.ts",
     "build:icons": "electron scripts/make-icons.cjs",
     "test": "vitest run",

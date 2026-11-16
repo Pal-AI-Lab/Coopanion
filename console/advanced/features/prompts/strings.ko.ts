@@ -1,7 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  outsidePrefix: "현재 프리픽스에 포함되지 않음",
+  outsidePrefix: "프리픽스 미포함",
   editable: "편집 가능",
   readOnly: "읽기 전용",
   constitutionTitle: "정체성과 행동 원칙",

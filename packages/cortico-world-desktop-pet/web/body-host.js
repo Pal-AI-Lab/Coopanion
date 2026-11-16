@@ -158,12 +158,15 @@ export function loadBody({ layer, pack, start, theme, bounds, onEvent, onSound, 
     const body = {
       pack: pack.id,
       get layout() { return layout; },
+      /** The frame's window on the stage, for animating the body as a whole (swap-motion.js); its inline style is the halo's. */
+      get el() { return clip; },
       get z() { return z; },
       /** The words of the pack's vocabulary its body said it knows, or null when it did not say. */
       get words() { return words; },
       /** Whether stage point `p` is on the body. */
       hit: (p) => onBody(layout, p),
-      tick(dt) { if (ready) post({ t: 'tick', dt }); },
+      /** Advances the body `dt` seconds; with `draw` false (the pet window is hidden) it need not draw. */
+      tick(dt, draw = true) { if (ready) post({ t: 'tick', dt, draw }); },
       do: (word) => post({ t: 'do', word }),
       walk: (x, run, id) => post({ t: 'walk', x, run, id }),
       /** One of the pack's own targets, `{ to, run, params }` as the World checked it. */

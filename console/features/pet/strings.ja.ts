@@ -1,6 +1,8 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  launchAtLoginLabel: "自動起動",
+  launchAtLogin: "ログイン時に Coopanion を起動",
   autoUpdateLabel: "自動更新",
   autoUpdate: "更新を自動でダウンロードしてインストール",
   autoUpdateHint: "更新を自動でダウンロードし、アプリ終了時にインストールします。オフにすると確認とダウンロードが直ちに止まり、ダウンロード済みの更新も自動ではインストールされません。",
@@ -29,6 +31,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: '静止中も上のレートで描画します。オフのときは静止中 1 秒 30 フレームに下がります。',
   hideFullscreen: '自動で隠す',
   hideFullscreenHint: '全画面表示のあいだは隠れ、終わると再表示します。最大化したウィンドウは対象外です。',
+  passFullscreen: "クリックを Coo に通さない",
+  passFullscreenHint: "クリックを Coo に通さないあいだも Coo は表示されたままで、クリックは下のウィンドウに届きます。",
   soundTitle: 'サウンド',
   worldScope: "ほかの World 拡張が追加した機能はこのスイッチの影響を受けません。各 World のページで設定してください。",
   sound: 'サウンドを鳴らす',
@@ -41,6 +45,7 @@ export const S: Partial<typeof en> = {
     snore: ['いびき', '眠っているときのいびき'],
     talk: ['おしゃべり', '吹き出しの文字が出るときのおしゃべり音、選択カードが出る音'],
     ui: ['ボタンと合図', 'ボタンのクリック、吹き出しが開く音、選択、聞き取りの開始と終了'],
+    alert: ['お知らせ', '確認を求めるときの音'],
   },
   snore: 'いびきの長さ',
   snoreUnit: '秒',
@@ -60,7 +65,7 @@ export const S: Partial<typeof en> = {
   remember: '位置を覚える',
   rememberHint: '次回起動時に前回の横方向の位置に戻ります。画面が複数あるときはメイン画面で起動します。',
   hover: 'ホバーボタン',
-  hoverHint: (n: number) => `最大 ${n} 個。`,
+  hoverHint: (n: number) => `最大 ${n} 個。右クリックメニューにも同じボタンが出ます。`,
   dblclick: '入力欄を開く',
   typeKeyLabel: 'タイピングキー',
   typeKey: '入力欄を開く',
@@ -87,7 +92,7 @@ export const S: Partial<typeof en> = {
   selfItems: { figure: 'アバター', scheme: '着せ替え', roam: '歩き回り', snoreSeconds: 'いびきの長さ', sound: 'サウンド', scale: 'サイズ', bubbleSize: '吹き出しのサイズ', fontSize: '文字サイズ', theme: 'ナイトモード', hoverButtons: 'ホバーボタン', user: 'あなたの呼び名' },
   popupSave: '保存',
   popupCancel: 'キャンセル',
-  actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', dress: '着せ替え', hide: 'ペットを隠す' },
+  actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', size: 'サイズ', dress: '着せ替え', hide: 'ペットを隠す', worlds: '自分の World' },
   saveFailed: (why: string) => `保存できませんでした：${why}`,
   stats: '匿名の利用統計を送信',
   statsHint: '回数、利用時間、設定を送信します。会話、Key、ファイルは送信しません。',

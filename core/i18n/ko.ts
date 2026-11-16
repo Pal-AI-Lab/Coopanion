@@ -43,7 +43,6 @@ const ko: Translation<CoreText> = {
     move: '마우스 옮기는 중', drag: '드래그 중', mouseDown: '마우스 버튼 누르는 중', mouseUp: '마우스 버튼 떼는 중', scroll: '스크롤 중', focus: '창 전환 중', type: '입력 중', key: '키 누르는 중', wait: '기다리는 중',
     alarmSet: '알람 맞추는 중', alarmList: '알람 확인 중', alarmCancel: '알람 취소 중',
     quoted: (text: string) => `"${text}"`,
-    seconds: (n: number) => `${n}초`,
     minutesLater: (n: number) => `${n}분 후`,
   },
 
@@ -117,7 +116,7 @@ const ko: Translation<CoreText> = {
     talkOff: '지금은 음성 입력이 꺼져 있어. 설정의 음성 입력 페이지에서 켤 수 있어. ',
     talkType: '내 위에 마우스를 올리고 옆에 뜨는 말풍선 버튼을 눌러서 글자로 쳐도 돼.',
     gotIt: '알겠어',
-    buttons: '내 위에 마우스를 올리면 옆에 버튼이 몇 개 나타나. 나를 오른쪽 클릭하면 일시 중지, 설정, 종료가 있는 메뉴가 열려.',
+    buttons: '내 위에 마우스를 올리면 옆에 버튼이 몇 개 나타나. 오른쪽 클릭해도 같은 버튼에 설정, 일시 중지, 종료가 더해질 뿐이야. 자주 쓰는 걸 골라 줘. 나중에 설정에서 바꿀 수도 있어.',
     ok: '응',
     persona: '내 성격이랑 말투는 설정 창의 시스템 프롬프트 페이지에 적혀 있어. 내 모습을 바꾸고 싶으면 거기서 고쳐도 되고, 그냥 나한테 말해주면 내가 직접 바꿀게.',
     personaMark: '시스템 프롬프트',

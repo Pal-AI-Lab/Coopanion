@@ -14,7 +14,6 @@ export const S: Partial<typeof en> = {
   stateInstalledPendingRestart: "설치됨, 재시작 대기",
   stateRemoved: '제거됨, 재시작 대기',
   disabled: '설치됨, 로드 안 됨',
-  worldNotLoaded: '설치됨. World 개요에서 로드하세요',
   template: '설치됨, 인스턴스 생성 가능',
 
   restartConfirmTitle: '프로세스를 재시작하시겠습니까?',
@@ -33,7 +32,7 @@ export const S: Partial<typeof en> = {
   updateAction: '업데이트',
   updateCheckFailed: (detail: string) => `업데이트 확인 실패: ${detail}`,
   noteWebUiMissing: '브라우저 빌드 결과물이 없습니다. 확장 디렉터리에서 빌드한 뒤 프로세스를 재시작하세요.',
-  listLoadFailed: (msg: string) => `확장 목록을 불러오지 못했습니다: ${msg}`,
+  listLoadFailed: (msg: string) => `설치된 확장 목록을 읽을 수 없어 최신 설치 상태를 확인할 수 없습니다. 원인: ${msg}`,
   remove: '확장 삭제',
   removeInUse: 'Coo가 사용 중입니다. 비활성화한 뒤 삭제하세요.',
   removeInUseProvider: '이 공급자를 쓰는 모델 연결이 남아 있습니다. 먼저 그 연결을 삭제하세요.',
@@ -48,7 +47,6 @@ export const S: Partial<typeof en> = {
   completed: (action: string, name: string) => `${action} 완료: ${name}.`,
   restartNeeded: '확장은 프로세스를 재시작한 뒤 적용됩니다.',
   worldActivateHint: '활성화되지 않은 World는 World 개요에서 활성화하세요.',
-  syncedFailed: '작업은 끝났지만 목록이 동기화되지 않았습니다. 새로 고치세요.',
 
   filterPlaceholder: '필터: 패키지 이름, 설명, 키워드',
   sortLabel: {

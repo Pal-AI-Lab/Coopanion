@@ -14,7 +14,6 @@ export const S: Partial<typeof en> = {
   stateInstalledPendingRestart: "Installée, redémarrage requis",
   stateRemoved: 'Désinstallée, redémarrage requis',
   disabled: 'Installée, non chargée',
-  worldNotLoaded: 'Installée ; à charger depuis la vue d’ensemble des World',
   template: 'Installée ; prête à créer des instances',
 
   restartConfirmTitle: 'Redémarrer le processus ?',
@@ -33,7 +32,7 @@ export const S: Partial<typeof en> = {
   updateAction: 'Mettre à jour',
   updateCheckFailed: (detail: string) => `Échec de la vérification des mises à jour : ${detail}`,
   noteWebUiMissing: "Bundle navigateur manquant. Compilez dans le répertoire de l'extension et redémarrez le processus.",
-  listLoadFailed: (msg: string) => `Échec du chargement de la liste des extensions : ${msg}`,
+  listLoadFailed: (msg: string) => `Impossible de lire les extensions installées ; leur état d’installation actuel ne peut pas être confirmé. Motif : ${msg}`,
   remove: "Supprimer l'extension",
   removeInUse: 'Utilisée par Coo. Désactivez-la avant de la supprimer.',
   removeInUseProvider: 'Une connexion de modèle utilise encore ce fournisseur. Supprimez d’abord cette connexion.',
@@ -48,7 +47,6 @@ export const S: Partial<typeof en> = {
   completed: (action: string, name: string) => `${action} de ${name} réussie.`,
   restartNeeded: 'Les extensions prennent effet après le redémarrage du processus.',
   worldActivateHint: "Si le World n'est pas actif, activez-le dans Vue d'ensemble des World.",
-  syncedFailed: "Opération terminée, mais la liste n'est pas synchronisée. Actualisez pour réessayer.",
 
   filterPlaceholder: 'Filtrer : nom, description, mots-clés',
   sortLabel: {

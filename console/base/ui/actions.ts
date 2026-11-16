@@ -11,6 +11,7 @@ import { button } from './sheet.ts';
 import type { OverlayEnv } from './overlay.ts';
 import { drawer } from './overlay.ts';
 import { S } from './strings.ts';
+import { listProblem } from './problem.ts';
 
 /** 临时禁用控件；dispose 恢复各自原值。重复控件只记录第一次的值。 */
 export function disable(els: readonly WebUiDisablable[]): Disposable {
@@ -74,36 +75,46 @@ async function writeClipboard(env: OverlayEnv, value: string): Promise<boolean> 
   return execCopy(env, value);
 }
 
-/** 函数形式的文本在点击时读取；show 使用所属 UI 实例的单条 toast。 */
+/** Copy feedback stays with the button; unavailable clipboard access opens selectable text. */
 export function copyButton(
   env: OverlayEnv,
-  show: (text: string, tone?: 'ok' | 'bad') => void,
+  problem: (anchor: Element, text: string) => void,
   text: string | (() => string),
   opts?: WebUiCopyOptions,
 ): HTMLButtonElement {
   const o = opts ?? {};
   const label = o.label ?? S.copy;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  env.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
   const run = async (): Promise<void> => {
     let value: string;
     try {
       value = typeof text === 'function' ? text() : text;
     } catch {
       // 惰性取值自己炸了(那串值背后的对象已经没了):照样出声,别静默
-      show(S.copyNothing, 'bad');
+      problem(control, S.copyNothing);
       return;
     }
-    if (await writeClipboard(env, value)) {
-      show(o.okText ?? S.copied, 'ok');
+    const copied = await writeClipboard(env, value);
+    if (env.signal.aborted) return;
+    if (copied) {
+      control.textContent = o.okText ?? S.copied;
+      clearTimeout(timer);
+      timer = setTimeout(() => { control.textContent = label; }, 1600);
       return;
     }
     // 两种复制方式均失败时展示文本，供手动选取。
-    show(S.copyFailed, 'bad');
-    drawer(env, label, value);
+    const content = h(env.doc, 'div');
+    const feedback = listProblem(env.doc, S.copyFailed);
+    feedback.classList.add('read-feedback');
+    content.append(feedback, h(env.doc, 'pre', 'mono', value));
+    drawer(env, label, content);
   };
 
-  return button(env.doc, env.signal, label, {
+  const control = button(env.doc, env.signal, label, {
     size: o.size ?? 'sm',
     variant: o.variant,
     onClick: () => void run(),
   });
+  return control;
 }

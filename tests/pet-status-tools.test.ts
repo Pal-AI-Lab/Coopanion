@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { waitSeconds } from 'cortico-world-desktop-pet';
 import { petToolDescriber } from '../core/pet-status.ts';
 import zh from '../core/i18n/zh.ts';
 
@@ -31,7 +32,7 @@ describe('the status bubble for each tool', () => {
     ['pet_cua_focus', { window: 'private' }, { kind: 'click', text: T.focus }],
     ['pet_cua_type', { text: 'private' }, { kind: 'type', text: T.type }],
     ['pet_cua_key', { keys: 'ctrl+s' }, { kind: 'type', text: T.key, detail: 'ctrl+s' }],
-    ['pet_cua_wait', { seconds: 2.5 }, { kind: 'wait', text: T.wait, detail: '2.5 秒' }],
+    ['pet_cua_wait', { seconds: 2.5 }, { kind: 'wait', text: T.wait, countdown: 2.5 }],
     ['alarm_set', { at: '18:30', note: 'private' }, { kind: 'alarm', text: T.alarmSet, detail: '18:30' }],
     ['alarm_set', { in_minutes: 5, note: 'private' }, { kind: 'alarm', text: T.alarmSet, detail: '5 分钟后' }],
     ['alarm_list', {}, { kind: 'alarm', text: T.alarmList }],
@@ -59,10 +60,16 @@ describe('the status bubble for each tool', () => {
   it('waits for a closed string or a number followed by a delimiter', () => {
     expect(describePetTool('write_file', '{"path":"notes/da', false)).toEqual({ kind: 'write', text: T.write });
     expect(describePetTool('write_file', '{"path":"notes/day\\u0020\\"one\\".md","content":"still streaming', false)).toEqual({ kind: 'write', text: T.write, detail: 'day "one".md' });
-    for (const args of ['{"seconds":1', '{"seconds":1.', '{"seconds":1e']) expect(describePetTool('pet_cua_wait', args, false)?.detail).toBeUndefined();
-    expect(describePetTool('pet_cua_wait', '{"seconds":1.5,', false)?.detail).toBe('1.5 秒');
-    expect(describePetTool('pet_cua_wait', '{"seconds":0}', true)?.detail).toBe('0 秒');
+    for (const args of ['{"seconds":1', '{"seconds":1.', '{"seconds":1e']) expect(describePetTool('pet_cua_wait', args, false)?.countdown).toBeUndefined();
+    expect(describePetTool('pet_cua_wait', '{"seconds":1.5,', false)?.countdown).toBe(1.5);
+    expect(describePetTool('pet_cua_wait', '{"seconds":0}', true)?.countdown).toBe(0);
     expect(describePetTool('alarm_set', '{"in_minutes":12, "note":"private', false)?.detail).toBe('12 分钟后');
+  });
+
+  it('counts down as long as the wait lasts', () => {
+    for (const args of [{ seconds: 120 }, { seconds: -3 }, {}, { seconds: 'soon' }]) {
+      expect(describePetTool('pet_cua_wait', args, true)?.countdown).toBe(waitSeconds(args.seconds));
+    }
   });
 
   it('says nothing an unfinished call may contradict', () => {

@@ -2,6 +2,7 @@
  * Console Page Host 根据 manifest 渲染导航与面板，并管理挂载和卸载；不依赖具体页的名称。扩展加载、mount 或面板解析失败仅将对应面板替换为错误卡，不影响其他页与框架。
  */
 
+import { actionProblem, listProblem } from '../../base/ui/problem.ts';
 import { CONSOLE_PROTOCOL_VERSION } from '../../base/protocol.ts';
 import type { WebUiManifest, WebUiPageManifest, WebUiStorageRef, WebUiPanelManifest } from 'cortico/web/shared/webui-protocol.ts';
 import type { WebUiMemo, WebUiPanelContext, Disposable } from 'cortico/web/shared/client-panel.ts';
@@ -618,7 +619,7 @@ export class ConsolePageHost {
       button.addEventListener('click', onClick);
       return button;
     };
-    if (page.prefixDrifted) actions.appendChild(textButton(S.reloadPrefix, () => { void this.reloadPrefix(ui); }));
+    if (page.prefixDrifted) { const reload = textButton(S.reloadPrefix, () => { void this.reloadPrefix(ui, reload); }); actions.appendChild(reload); }
     for (const link of asArray(page.links)) {
       actions.appendChild(textButton(link.label || S.open, () => {
         this.deps.doc.defaultView?.open(resolveConsoleLinkHref(this.deps.doc, link), '_blank', 'noopener');
@@ -642,23 +643,26 @@ export class ConsolePageHost {
       this.tabs = { pageId, key, bar };
     }
     // The panel owns its root and may replace everything in it, so the note stays in the chrome.
-    if (page.reason) chrome.appendChild(ui.msgline(page.reason, true));
+    if (page.reason) chrome.appendChild(listProblem(this.deps.doc, page.reason));
   }
 
   /** 重载前缀后重新读取 manifest 中的漂移状态。 */
-  private async reloadPrefix(ui: ReturnType<typeof createConsoleUi>): Promise<void> {
+  private async reloadPrefix(ui: ReturnType<typeof createConsoleUi>, anchor: HTMLElement): Promise<void> {
+    const signal = this.chromeStop!.signal;
+    const problem = actionProblem(ui, this.deps.doc, signal);
     const ok = await ui.confirm({
       title: S.reloadTitle,
       body: S.reloadBody,
     });
-    if (!ok) return;
+    if (!ok || signal.aborted) return;
+    const lock = ui.disable(anchor as HTMLButtonElement);
     try {
       const out = await post<{ result?: string }>('/api/session/reload-prefix');
-      ui.toast(out?.result || S.prefixReloaded, 'ok');
+      anchor.textContent = out?.result || S.prefixReloaded;
       await this.refresh();
     } catch (err) {
-      ui.toast(err instanceof Error ? err.message : String(err), 'bad');
-    }
+      problem(anchor, err instanceof Error ? err.message : String(err));
+    } finally { lock.dispose(); }
   }
 
   private appendNote(text: string): void {
@@ -670,9 +674,6 @@ export class ConsolePageHost {
   }
 
   private renderErrorInto(target: HTMLElement, title: string, detail: string): void {
-    const ui = this.ui();
-    const card = ui.sheet({ title });
-    card.body.appendChild(ui.msgline(detail, true));
-    target.appendChild(card.el);
+    target.appendChild(listProblem(this.deps.doc, `${title}: ${detail}`));
   }
 }

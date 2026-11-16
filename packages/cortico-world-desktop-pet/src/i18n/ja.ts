@@ -177,7 +177,8 @@ const ja: Translation<PetText> = {
     fontSize: (from: number, to: number) => `文字サイズを ${from} 倍から ${to} 倍にする`,
     theme: { dark: '夜の見た目にする', light: '昼の見た目にする' },
     hover: (list: string) => `ホバーボタンを${list}にする`,
-    actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', dress: '着せ替え', hide: 'ペットを隠す' },
+    hoverNone: 'ホバーボタンをすべて外す',
+    actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', size: 'サイズ', dress: '着せ替え', hide: 'ペットを隠す', worlds: '自分の World' },
     user: (to: string) => `あなたを「${to}」と呼ぶ`,
   },
 
@@ -237,6 +238,7 @@ const ja: Translation<PetText> = {
     frameRate: { title: 'フレームレート', description: 'ペットが歩く、運ばれる、ジャンプするときの 1 秒あたりのフレーム数。0 はディスプレイに合わせます。ディスプレイのリフレッシュレートを超える分はディスプレイのレートになります。「ふるまい」ページでは 60、120、144、無制限を選べます。' },
     lockFrameRate: { title: 'フレームレート固定', description: '静止中もフレームレートでペットを描画します。オフのときは、立っている、座っている、眠っているあいだは 1 秒 30 フレームに下がります。' },
     hideWhenFullscreen: { title: '全画面表示中は隠れる', description: 'オンのときは、手前のウィンドウがペットのいる画面いっぱいに表示されているあいだ（ゲーム、全画面の動画、全画面表示のブラウザー）ペットが隠れ、全画面表示が終わると戻ってきます。最大化したウィンドウは対象外です。オフのときは常に最前面に表示されます。' },
+    passWhenFullscreen: { title: "全画面表示中はクリックを Coo に通さない", description: "オンのときは、手前のウィンドウが Coo のいる画面いっぱいに表示されているあいだ、Coo は表示されたままで、クリックはすべて Coo を通り抜けて下のウィンドウに届きます。全画面表示が終わると元に戻ります。最大化したウィンドウは対象外です。全画面表示中は隠れるもオンなら Coo は隠れます。" },
     exportOverlay: { title: 'OBS オーバーレイ', description: 'ペットのウィンドウの画面を透明な背景で /overlay に出し、OBS の「ブラウザ」ソースで使えるようにします。オフのときは出しません。' },
     electronFile: { title: 'Electron 実行ファイル', description: '空欄なら CORTICO_DESKTOP_PET_HOST、次にパネルからインストールしたランタイムを使います。' },
     port: { title: 'ページのポート', description: '使用中のときは次の空きポートに繰り上げます。' },
@@ -251,6 +253,7 @@ const ja: Translation<PetText> = {
       snore: { title: 'いびき', description: '' },
       talk: { title: 'おしゃべり', description: '吹き出しの文字が出るときのおしゃべり音と、選択カードが出る音。' },
       ui: { title: 'ボタンと合図', description: 'ボタンのクリック、吹き出しが開く音、選択、聞き取りの開始と終了。' },
+      alert: { title: 'お知らせ', description: '確認を求めるときに一度鳴ります。' },
     },
     snoreSeconds: { title: 'いびきの長さ', suffix: '秒', description: '眠るたびに、この時間いびきをかいたあと静かになります。z の文字は浮かび続けます。0 = 起きるまでいびきをかく。' },
     panByPosition: { title: '位置に合わせて左右に振り分ける', description: 'Coo がいる側から音が聞こえます。オフにすると中央で鳴ります。' },
@@ -269,6 +272,15 @@ const ja: Translation<PetText> = {
     thresholdDb: { title: '発話のしきい値' },
     silenceMs: { title: '文の終わりとみなす無音' },
     maxUtteranceMs: { title: '1 文の最長' },
+  },
+
+  windowReason: {
+    badHostEnv: (env: string) => `${env} が文字列の JSON 配列ではありません`,
+    noElectronFile: (file: string) => `Electron の実行ファイルがありません：${file}`,
+    noElectron: '使える Electron がありません：デスクトップペットのパネルでウィンドウのランタイムをインストールするか、設定で Electron の実行ファイルを指定してください',
+    startFailed: (why: string) => `起動に失敗しました：${why}`,
+    closed: 'ウィンドウは閉じられました',
+    exited: (code: number | null) => `ウィンドウのプロセスが終了しました（終了コード ${code}）`,
   },
 
   panel: {

@@ -20,7 +20,7 @@ export const S: Partial<typeof en> = {
   chipRoundsPost: ' Runden',
   subConfig: 'Konfiguration',
   configEmpty: 'Der Core hat keine einstellbaren Werte.',
-  netOffline: 'API nicht erreichbar',
+  netOffline: "Live-Diagnose getrennt; Verbindung wird wiederhergestellt…",
 
   // events.ts
   eventsDesc: 'Ereignisdatensätze, vom Agenten abfragbar.',

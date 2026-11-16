@@ -52,7 +52,6 @@ const en: CoreText = {
     alarmSet: 'Setting an alarm', alarmList: 'Checking alarms', alarmCancel: 'Cancelling an alarm',
     /** The words being searched for. */
     quoted: (text: string) => `"${text}"`,
-    seconds: (n: number) => `${n} s`,
     minutesLater: (n: number) => `in ${n} min`,
   },
 
@@ -132,7 +131,7 @@ const en: CoreText = {
     talkOff: 'Voice input is off now; you can turn it on on the Voice input page in settings. ',
     talkType: 'You can also rest the pointer on me and click the bubble button beside me to type.',
     gotIt: 'Got it',
-    buttons: 'Rest the pointer on me and a few buttons pop up beside me; right-click me for the menu, with pause, settings and quit.',
+    buttons: 'Rest the pointer on me and a few buttons pop up beside me; right-click me and you get the same ones, plus settings, pause and quit. Pick the ones you use most; you can change them later in settings.',
     ok: 'OK',
     persona: 'What I\'m like and how I talk is written on the System prompt page in the settings window. To change me, edit it there, or just tell me and I\'ll change it myself.',
     /** The word in the persona line drawn in the theme colour. */

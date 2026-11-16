@@ -55,7 +55,7 @@
 | `figure` / `scheme` / `roam` | 形象（Coo 或大肥鱼）、配色、走动程度 |
 | `voiceInput` | 语音输入是否打开 |
 | `asrEngine` / `micMode` / `talkKey` | 识别引擎（`funasr` / `whisper` / `system` / `api`）、收音方式（按住说 / 按一下开关 / 一直听）、说话键（键名，`*2` 表示先按一下再按住） |
-| `sound` / `sounds` | 音效总开关；按类的开关（动作、互动、表情、打呼噜、说话、按钮与提示）和呼噜时长 |
+| `sound` / `sounds` | 音效总开关；按类的开关（动作、互动、表情、打呼噜、说话、按钮与提示、提醒）和呼噜时长 |
 | `theme` / `scale` / `lockFrameRate` | 夜间模式、桌宠大小、静止时是否也按设定的帧率画 |
 | `hoverButtons` / `doubleClickChat` / `rememberPosition` | 悬停按钮、双击打字是否打开、是否记住位置 |
 | `userNamed` | 「称呼」是否改过默认值，只报是或否，不报名字 |
@@ -78,8 +78,9 @@
 | `guide_step` | `step` | 启动引导走到第几步（1–7；0.1.27 及之前是 1–6，第 2 步「选人设」之后的步号各加了 1；0.1.20 及之前是 1–5，第 3 步「回应模式」之后的步号各加了 1；开头选语言的那一页不计步，步号不变） |
 | `source` | `answer` | 引导里「你是从哪里认识我的？」的回答：`bilibili` / `xiaohongshu` / `douyin`(仅中文)、`youtube` / `reddit` / `x` / `instagram` / `tiktok`(中文以外)、`steam` / `github` / `friend` / `other` / `skip` |
 | `persona` | `id` | 引导里选定的人设：`coo`、`grail`、`forge`、`heart`、`winter`、`whale` |
+| `hover_buttons` | `ids` | 引导里选定的悬停按钮（右键菜单里也是这几个），按显示顺序：`chat`、`voice`、`roam`、`theme`、`sound`、`hide`、`size`、`dress`、`worlds` 中的 0–6 个，一个都没选时为空列表 |
 | `guide_finished` | | 引导走完 |
-| `guide_closed` | `step`、`at` | 引导在第几步被关掉；`at` 是关掉时气泡里那一句的名字，如 `language`（开头选语言的那页，此时 `step` 为 0）、`hello`、`name`、`source`、`persona-pick`、`roam`、`wake`、`vendor`、`model`、`key`、`sign-in`、`voice-download`、`talk`、`persona`、`finish` |
+| `guide_closed` | `step`、`at` | 引导在第几步被关掉；`at` 是关掉时气泡里那一句的名字，如 `language`（开头选语言的那页，此时 `step` 为 0）、`hello`、`name`、`source`、`persona-pick`、`roam`、`wake`、`vendor`、`model`、`key`、`sign-in`、`voice-download`、`talk`、`buttons`（选悬停按钮）、`persona`、`finish` |
 | `model_connected` | `via`、`vendor` | 在气泡里连上了模型。`via`：`guide`（引导里）、`prompt`（没连模型时说话后弹的询问里）、`ask`（定时来问 Key 时）；`vendor` 是选的内置服务的 id |
 | `key_prompt` | `answer` | 没连模型时跟 Coo 说话，它问「要去接通模型吗？」的回答：`connect` / `later` |
 | `voice_model` | `result` | 引导里语音识别模型的下载：`ready`（下好了）、`failed`（没下下来）、`later`（选了先不用） |
@@ -88,7 +89,7 @@
 | `telemetry_disabled` / `telemetry_enabled` | | 关掉或重新打开统计 |
 | `uninstalled` | | Windows 上卸载（升级时不算）；由卸载程序发出，统计关着时不发 |
 
-`source`、`persona`、`voice_model` 和引导里的 `model_connected` 在引导走完或被关掉时发，每种最多一条；点「上一步」回去重新回答的，发最后一次的回答。
+`source`、`persona`、`voice_model`、`hover_buttons` 和引导里的 `model_connected` 在引导走完或被关掉时发，每种最多一条；点「上一步」回去重新回答的，发最后一次的回答。
 
 `crash` 的其余字段。错误消息不发送：消息里可能有文件路径、Key 的片段或你说过的话。
 

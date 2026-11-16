@@ -4,7 +4,10 @@
  * The workspace's pnpm layout (symlinked packages) is not what an installed app should carry, so
  * the app directory is built flat: the app code, the release notes, the staged Cortico copy, a `package.json` with
  * only the runtime dependencies installed by npm, and the workspace packages (`WORKSPACE`) copied into
- * `node_modules/` as real directories.
+ * `node_modules/` as real directories. electron-builder runs with `build/app` as its project directory: its
+ * `package-lock.json` makes electron-builder list the shipped node_modules with npm there, instead of taking the
+ * pnpm workspace's, which hold the native packages of the build machine's architecture only. After packing, the
+ * packed app must hold the target architecture's native packages (`NATIVE`), or the build fails.
  *
  * Run: `pnpm run build:installer` (builds build/cortico first). Output: `dist/Coopanion-Setup-<version>.exe` on
  * Windows, `dist/Coopanion-<version>-mac-<arch>.dmg` and `.zip` on a Mac, `dist/Coopanion-<version>-linux-x64.AppImage`
@@ -124,7 +127,7 @@ writeFileSync(join(OUT, 'package.json'), JSON.stringify({
   dependencies: DEPS,
   coopanion: STEAM ? { channel: 'steam', steamAppId: STEAM_APP_ID } : { channel: PORTABLE ? 'portable' : 'github' },
 }, null, 2));
-run('npm', ['install', '--omit=dev', '--no-package-lock', '--no-audit', '--no-fund', '--loglevel=error', `--os=${process.platform}`, `--cpu=${ARCH}`], OUT);
+run('npm', ['install', '--omit=dev', '--no-audit', '--no-fund', '--loglevel=error', `--os=${process.platform}`, `--cpu=${ARCH}`], OUT);
 if (STEAM) {
   // steamworks.js carries the Steam library of every platform; this build loads its own platform's
   const own = process.platform === 'win32' ? 'win64' : 'linux64';
@@ -143,13 +146,17 @@ if (process.platform === 'win32') await addMinGit(join(OUT, 'mingit'));
 console.log(`app directory ready: ${relative(ROOT, OUT)}`);
 
 const target = process.platform === 'darwin' ? '--mac' : process.platform === 'linux' ? '--linux' : '--win';
-run(join(ROOT, 'node_modules', '.bin', process.platform === 'win32' ? 'electron-builder.cmd' : 'electron-builder'), [target, ...PORTABLE ? ['zip'] : [], `--${ARCH}`, ...STEAM ? ['--dir'] : [], '--publish', 'never', ...process.argv.slice(2)], ROOT);
+run(join(ROOT, 'node_modules', '.bin', process.platform === 'win32' ? 'electron-builder.cmd' : 'electron-builder'), [target, ...PORTABLE ? ['zip'] : [], `--${ARCH}`, ...STEAM ? ['--dir'] : [], '--publish', 'never', '--projectDir', OUT, '--config', join(ROOT, 'electron-builder.yml'), ...process.argv.slice(2)], ROOT);
 
-if (STEAM) {
-  // electron-builder takes node_modules from the pnpm workspace's dependency graph, which has no steamworks.js and
-  // has the workspace packages as they are in packages/ (the whale included): the Steam build ships build/app's
-  const shipped = join(ROOT, 'dist', `${process.platform === 'win32' ? 'win' : 'linux'}-unpacked`, 'resources', 'app', 'node_modules');
-  rmSync(shipped, { recursive: true, force: true });
-  cpSync(join(OUT, 'node_modules'), shipped, { recursive: true });
-  console.log(`node_modules of ${relative(ROOT, OUT)} copied into ${relative(ROOT, shipped)}`);
+/** The native packages the Core loads, for the target platform and architecture: esbuild (tsx), koffi (computer use), sherpa-onnx (speech). */
+const NATIVE = [`@esbuild/${process.platform}-${ARCH}`, `@koromix/koffi-${process.platform}-${ARCH}`, `sherpa-onnx-${process.platform === 'win32' ? 'win' : process.platform}-${ARCH}`];
+// the app directory electron-builder packed: dist/mac, dist/win-unpacked, dist/linux-unpacked for x64, with -<arch> otherwise
+const packed = process.platform === 'darwin'
+  ? join(ROOT, 'dist', ARCH === 'x64' ? 'mac' : `mac-${ARCH}`, `${rootPkg.productName as string}.app`, 'Contents', 'Resources', 'app')
+  : join(ROOT, 'dist', `${process.platform === 'win32' ? 'win' : 'linux'}${ARCH === 'x64' ? '' : `-${ARCH}`}-unpacked`, 'resources', 'app');
+const missing = NATIVE.filter((name) => !existsSync(join(packed, 'node_modules', name, 'package.json')));
+if (missing.length > 0) {
+  console.error(`打包出的应用缺少 ${process.platform}-${ARCH} 的原生包:${missing.join('、')}(${relative(ROOT, packed)})`);
+  process.exit(1);
 }
+console.log(`native packages in ${relative(ROOT, packed)}: ${NATIVE.join(', ')}`);

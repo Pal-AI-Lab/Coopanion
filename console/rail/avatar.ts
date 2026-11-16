@@ -1,5 +1,6 @@
 /** The bot's avatar at the rail's foot: GET `/api/avatar` shows it, a click picks an image, crops it to a square and POSTs it as PNG. */
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
+import { actionProblem } from '../base/ui/problem.ts';
 import { postBlob } from '../base/api.ts';
 import { icon } from '../base/ui/icons.ts';
 import { S } from './strings.ts';
@@ -20,6 +21,7 @@ export function createAvatarControl(opts: {
 }): AvatarControl {
   const { doc, ui, signal } = opts;
   const el = ui.h('div', 'rail-avatar-wrap');
+  const problem = actionProblem(ui, doc, signal);
   const button = ui.h('button', 'rail-avatar');
   button.type = 'button';
   button.setAttribute('aria-label', S.changeAvatar);
@@ -62,7 +64,7 @@ export function createAvatarControl(opts: {
     };
     source.onerror = () => {
       URL.revokeObjectURL(sourceUrl);
-      ui.toast(S.unreadable, 'bad');
+      problem(button, S.unreadable);
     };
     source.src = sourceUrl;
   }
@@ -93,7 +95,7 @@ export function createAvatarControl(opts: {
     const ctx = canvas.getContext('2d');
     if (!ctx) {
       drawer.dispose();
-      ui.toast(S.noCanvas, 'bad');
+      problem(button, S.noCanvas);
       return;
     }
     const cover = Math.max(EDITOR_SIZE / source.naturalWidth, EDITOR_SIZE / source.naturalHeight);
@@ -182,12 +184,11 @@ export function createAvatarControl(opts: {
             image.src = `/api/avatar?v=${Date.now()}`;
             showImage(true);
             drawer.dispose();
-            ui.toast(S.saved);
           },
           (err) => {
             if ((err as { name?: string } | null)?.name === 'AbortError') return;
             opts.onError(err);
-            ui.toast(err instanceof Error ? err.message : String(err), 'bad');
+            problem(save, err instanceof Error ? err.message : String(err));
           },
         ).finally(() => lock.dispose());
       }, 'image/png');

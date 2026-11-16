@@ -202,7 +202,8 @@ const en: PetText = {
     fontSize: (from: number, to: number) => `change the text size from ${from}× to ${to}×`,
     theme: { dark: 'switch to the night look', light: 'switch to the day look' } as Record<'dark' | 'light', string>,
     hover: (list: string) => `change the hover buttons to ${list}`,
-    actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', dress: 'Dress up', hide: 'Hide pet' } as Record<string, string>,
+    hoverNone: 'remove all the hover buttons',
+    actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', size: 'Size', dress: 'Dress up', hide: 'Hide pet', worlds: 'My Worlds' } as Record<string, string>,
     user: (to: string) => `call you "${to}"`,
   },
 
@@ -267,6 +268,7 @@ const en: PetText = {
     frameRate: { title: 'Frame rate', description: 'Frames a second while the pet walks, is carried or jumps; 0 follows the display. Above the display\'s refresh rate the display\'s rate applies. The Habits page offers 60, 120, 144 and Unlimited.' },
     lockFrameRate: { title: 'Lock frame rate', description: 'Draws the pet at the frame rate at rest too. When off, it drops to 30 frames a second while standing, sitting or asleep.' },
     hideWhenFullscreen: { title: 'Hide during full screen', description: 'When on, the pet hides while the window in front fills the screen Coo is on (a game, a full-screen video, a browser in full screen) and comes back when full screen ends; a maximized window does not count. When off, Coo always stays on top.' },
+    passWhenFullscreen: { title: "Let clicks pass through during full screen", description: "When on, while the window in front fills the screen Coo is on, Coo stays visible and every click passes through it to the window below, until full screen ends; a maximized window does not count. With hide during full screen also on, Coo hides." },
     exportOverlay: { title: 'OBS overlay', description: "Serves the pet window's picture on a transparent background at /overlay for an OBS Browser source; off, nothing is served." },
     electronFile: { title: 'Electron executable', description: 'Empty uses CORTICO_DESKTOP_PET_HOST, then the runtime installed from the panel.' },
     port: { title: 'Page port', description: 'Moves up to the next free port when taken.' },
@@ -281,6 +283,7 @@ const en: PetText = {
       snore: { title: 'Snoring', description: '' },
       talk: { title: 'Talking', description: 'The babble as bubble text appears, and choice cards popping up.' },
       ui: { title: 'Buttons and cues', description: 'Button clicks, bubbles opening, picks, and listening starting and ending.' },
+      alert: { title: 'Alerts', description: 'A chime when Coo asks you to confirm.' },
     },
     snoreSeconds: { title: 'Snore length', suffix: 's', description: "In each sleep the pet goes quiet after snoring this long; the z's keep floating. 0 = snore until waking." },
     panByPosition: { title: 'Pan by position', description: 'Sounds lean toward the side Coo stands on; off, they play centered.' },
@@ -299,6 +302,16 @@ const en: PetText = {
     thresholdDb: { title: 'Speech threshold' },
     silenceMs: { title: 'Silence that ends a sentence' },
     maxUtteranceMs: { title: 'Longest sentence' },
+  },
+
+  /** Why the pet window is not open, on its lamp and the pet panel. */
+  windowReason: {
+    badHostEnv: (env: string) => `${env} is not a JSON array of strings`,
+    noElectronFile: (file: string) => `The Electron executable does not exist: ${file}`,
+    noElectron: 'No Electron to run: install the window runtime on the pet panel, or set the Electron executable in the config',
+    startFailed: (why: string) => `Failed to start: ${why}`,
+    closed: 'The window was closed',
+    exited: (code: number | null) => `The window process exited (exit code ${code})`,
   },
 
   /** The console's Desktop pet and Voice input panels. */

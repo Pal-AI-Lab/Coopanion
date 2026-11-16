@@ -1,6 +1,8 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  launchAtLoginLabel: "Inicio automático",
+  launchAtLogin: "Iniciar Coopanion al iniciar sesión",
   autoUpdateLabel: "Actualizaciones automáticas",
   autoUpdate: "Descargar e instalar actualizaciones automáticamente",
   autoUpdateHint: "Descarga actualizaciones automáticamente y las instala al salir. Al desactivar esta opción, se detienen de inmediato las búsquedas y descargas, y las actualizaciones ya descargadas no se instalan automáticamente.",
@@ -29,6 +31,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: 'También dibuja a la velocidad de arriba en reposo; si está desactivado, en reposo baja a 30 fotogramas por segundo.',
   hideFullscreen: 'Ocultar automáticamente',
   hideFullscreenHint: 'Se oculta mientras algo está en pantalla completa y vuelve después. Una ventana maximizada no cuenta.',
+  passFullscreen: "Dejar pasar los clics a través de Coo",
+  passFullscreenHint: "Cuando los clics pasan a través, Coo sigue visible y los clics llegan a la ventana de abajo.",
   soundTitle: 'Sonidos',
   worldScope: "Las funciones que agregan otras extensiones World no dependen de este interruptor; configúralas en la página de cada World.",
   sound: 'Reproducir sonidos',
@@ -41,6 +45,7 @@ export const S: Partial<typeof en> = {
     snore: ['Ronquidos', 'Ronquidos mientras duerme'],
     talk: ['Habla', 'El balbuceo mientras aparece el texto de la burbuja, las tarjetas de opciones al aparecer'],
     ui: ['Botones y avisos', 'Clics en botones, burbujas que se abren, selecciones, inicio y fin de la escucha'],
+    alert: ['Avisos', 'El aviso sonoro cuando Coo te pide una confirmación'],
   },
   snore: 'Duración del ronquido',
   snoreUnit: 's',
@@ -60,7 +65,7 @@ export const S: Partial<typeof en> = {
   remember: 'Recordar posición',
   rememberHint: 'Al iniciar de nuevo vuelve a la última posición horizontal; con varias pantallas, en la principal.',
   hover: 'Botones al pasar el cursor',
-  hoverHint: (n: number) => `Hasta ${n}.`,
+  hoverHint: (n: number) => `Hasta ${n}; el menú del clic derecho muestra los mismos.`,
   dblclick: 'Doble clic en Coo para abrir el cuadro de texto',
   typeKeyLabel: 'Tecla para escribir',
   typeKey: 'Abrir el cuadro de texto',
@@ -87,7 +92,7 @@ export const S: Partial<typeof en> = {
   selfItems: { figure: 'Personaje', scheme: 'Atuendo', roam: 'Paseos', snoreSeconds: 'Duración del ronquido', sound: 'Sonidos', scale: 'Tamaño', bubbleSize: 'Tamaño de las burbujas', fontSize: 'Tamaño del texto', theme: 'Modo nocturno', hoverButtons: 'Botones al pasar el cursor', user: 'Cómo llamarte' },
   popupSave: 'Guardar',
   popupCancel: 'Cancelar',
-  actions: { chat: 'Escribir', voice: 'Entrada de voz', roam: 'Paseos', theme: 'Modo nocturno', sound: 'Sonidos', dress: 'Vestuario', hide: 'Ocultar mascota' },
+  actions: { chat: 'Escribir', voice: 'Entrada de voz', roam: 'Paseos', theme: 'Modo nocturno', sound: 'Sonidos', size: 'Tamaño', dress: 'Vestuario', hide: 'Ocultar mascota', worlds: 'Mis Worlds' },
   saveFailed: (why: string) => `No se guardó: ${why}`,
   stats: 'Estadísticas de uso anónimas',
   statsHint: 'Envía conteos, tiempo de uso y configuración; nunca conversaciones, API Keys ni archivos.',

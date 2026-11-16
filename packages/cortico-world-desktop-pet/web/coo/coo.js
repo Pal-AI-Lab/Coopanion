@@ -361,8 +361,16 @@ export const COO_CSS = `
 export function cooFigure() {
   let skin = defaultSkin();
   const top = () => HEAD_TOP[skin.head] ?? 12;
+  /** The markup last put in the group: a body at rest gives the same markup frame after frame. */
+  let drawn = '';
   return {
-    draw(petG, face, frame) { petG.innerHTML = figure(face, frame); },
+    draw(petG, face, frame) {
+      const s = figure(face, frame);
+      // an emptied group (the kit's setFigure swapping this figure back in) is filled again
+      if (s === drawn && petG.firstChild) return;
+      petG.innerHTML = s;
+      drawn = s;
+    },
     setSkin(s) { if (s) skin = s; },
     get anchors() { return { tears: [[116, 136], [166, 136]], bubble: [146, top() - 8] }; },
     get extent() { return [20, Math.min(20, top()), 236, 256]; },

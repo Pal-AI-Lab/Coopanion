@@ -1,0 +1,14 @@
+/* Pack details and choices; the modal shell comes from shared/ui/modal.css. */
+.figure-dialog-lead{margin:0 0 14px;font-size:13px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.figure-dialog-items{display:grid;gap:8px}
+.figure-dialog-item{display:flex;align-items:flex-start;gap:10px;padding:10px;border:1px solid var(--line);border-radius:8px;min-width:0}
+label.figure-dialog-item{cursor:pointer}
+.figure-dialog-item>input{flex:none;margin:4px 0 0;accent-color:var(--accent)}
+.figure-dialog-item>img{flex:none;width:52px;height:52px;object-fit:cover;border-radius:6px}
+.figure-dialog-info{display:flex;flex-direction:column;gap:3px;min-width:0;overflow-wrap:anywhere}
+.figure-dialog-info>b{font-size:14px}
+.figure-dialog-meta{font-size:12px;color:var(--ink-dim,var(--muted));line-height:1.5}
+.figure-dialog-meta p{margin:3px 0}
+.figure-dialog-note{font-size:12px;color:var(--accent)}
+.figure-dialog-warning{font-size:12px;color:var(--danger,var(--anger));margin:10px 0 0;overflow-wrap:anywhere;white-space:pre-wrap}
+.figure-dialog-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:20px}

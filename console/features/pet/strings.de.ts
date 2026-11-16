@@ -1,6 +1,8 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
+  launchAtLoginLabel: "Autostart",
+  launchAtLogin: "Coopanion bei der Anmeldung starten",
   autoUpdateLabel: "Automatische Updates",
   autoUpdate: "Updates automatisch herunterladen und installieren",
   autoUpdateHint: "Updates werden automatisch heruntergeladen und beim Beenden installiert. Ausschalten stoppt sofort die Suche und Downloads und verhindert die automatische Installation bereits heruntergeladener Updates.",
@@ -29,6 +31,8 @@ export const S: Partial<typeof en> = {
   lockFpsHint: 'Zeichnet auch im Ruhezustand mit der eingestellten Rate; wenn aus, sinkt sie im Ruhezustand auf 30 Bilder pro Sekunde.',
   hideFullscreen: 'Automatisch ausblenden',
   hideFullscreenHint: 'Blendet sich bei Vollbild aus und kommt danach zurück. Ein maximiertes Fenster zählt nicht.',
+  passFullscreen: "Klicks durch Coo durchlassen",
+  passFullscreenHint: "Werden Klicks durchgelassen, bleibt Coo sichtbar und Klicks gehen an das Fenster darunter.",
   soundTitle: 'Töne',
   worldScope: "Von anderen World-Erweiterungen ergänzte Funktionen betrifft dieser Schalter nicht; stelle sie auf der Seite der jeweiligen World ein.",
   sound: 'Töne abspielen',
@@ -41,6 +45,7 @@ export const S: Partial<typeof en> = {
     snore: ['Schnarchen', 'Schnarcht im Schlaf'],
     talk: ['Sprechen', 'Das Geplapper, während Sprechblasentext erscheint, aufpoppende Auswahlkarten'],
     ui: ['Schaltflächen und Signale', 'Schaltflächenklicks, sich öffnende Sprechblasen, Auswahlen, Beginn und Ende des Zuhörens'],
+    alert: ['Hinweise', 'Das Signal, wenn Coo um eine Bestätigung bittet'],
   },
   snore: 'Schnarchdauer',
   snoreUnit: 's',
@@ -60,7 +65,7 @@ export const S: Partial<typeof en> = {
   remember: 'Position merken',
   rememberHint: 'Startet beim nächsten Mal an der letzten waagerechten Position; bei mehreren Bildschirmen auf dem Hauptbildschirm.',
   hover: 'Hover-Schaltflächen',
-  hoverHint: (n: number) => `Bis zu ${n}.`,
+  hoverHint: (n: number) => `Bis zu ${n}; das Rechtsklickmenü zeigt dieselben.`,
   dblclick: 'Doppelklick auf Coo öffnet das Eingabefeld',
   typeKeyLabel: 'Tipptaste',
   typeKey: 'Eingabefeld öffnen',
@@ -87,7 +92,7 @@ export const S: Partial<typeof en> = {
   selfItems: { figure: 'Figur', scheme: 'Outfit', roam: 'Herumlaufen', snoreSeconds: 'Schnarchdauer', sound: 'Töne', scale: 'Größe', bubbleSize: 'Blasengröße', fontSize: 'Schriftgröße', theme: 'Nachtmodus', hoverButtons: 'Hover-Schaltflächen', user: 'Wie du genannt wirst' },
   popupSave: 'Speichern',
   popupCancel: 'Abbrechen',
-  actions: { chat: 'Tippen', voice: 'Spracheingabe', roam: 'Herumlaufen', theme: 'Nachtmodus', sound: 'Töne', dress: 'Outfit', hide: 'Haustier ausblenden' },
+  actions: { chat: 'Tippen', voice: 'Spracheingabe', roam: 'Herumlaufen', theme: 'Nachtmodus', sound: 'Töne', size: 'Größe', dress: 'Outfit', hide: 'Haustier ausblenden', worlds: 'Meine Worlds' },
   saveFailed: (why: string) => `Nicht gespeichert: ${why}`,
   stats: 'Anonyme Nutzungsstatistik',
   statsHint: 'Sendet Zähler, Nutzungsdauer und Einstellungen; nie Unterhaltungen, Schlüssel oder Dateien.',

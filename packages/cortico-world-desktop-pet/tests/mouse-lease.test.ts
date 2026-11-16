@@ -6,8 +6,9 @@ import { describe, expect, it } from 'vitest';
  * project: the lease is reached through this facade.
  */
 const require_ = createRequire(import.meta.url);
+interface Rect { x: number; y: number; width: number; height: number }
 interface Lease {
-  ask(on: boolean): void;
+  ask(wish: boolean | Rect[]): void;
   lock(on: boolean): void;
   tick(): void;
   release(): void;
@@ -16,6 +17,7 @@ interface Lease {
 const { createMouseLease } = require_('../host/mouse-lease.cjs') as {
   createMouseLease: (options: {
     getWindow: () => unknown;
+    shape?: { set(win: unknown, rects: Rect[]): void };
     leaseMs?: number;
     reassertMs?: number;
     now?: () => number;
@@ -143,5 +145,26 @@ describe('createMouseLease', () => {
 
     lease.lock(false);
     expect(win.holding()).toBe(true);
+  });
+
+  it('with an input shape, gives the window the rects the page asks for, and none while locked or once the lease runs out', () => {
+    const win = fakeWindow();
+    const shaped: Rect[][] = [];
+    let clock = 1_000;
+    const lease = createMouseLease({ getWindow: () => win, shape: { set: (_w, rects) => { shaped.push(rects); } }, leaseMs: 1500, now: () => clock });
+    const body = [{ x: 10, y: 20, width: 30, height: 40 }];
+
+    lease.ask(body);
+    expect(shaped.at(-1)).toEqual(body);
+
+    lease.lock(true);
+    expect(shaped.at(-1)).toEqual([]);
+    lease.lock(false);
+    expect(shaped.at(-1)).toEqual(body);
+
+    clock += 1500;
+    lease.tick();
+    expect(shaped.at(-1)).toEqual([]);
+    expect(win.told).toEqual([]);
   });
 });

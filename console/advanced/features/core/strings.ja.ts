@@ -20,7 +20,7 @@ export const S: Partial<typeof en> = {
   chipRoundsPost: ' ラウンド',
   subConfig: '設定',
   configEmpty: 'Core に調整できる設定はありません。',
-  netOffline: 'API に接続できません',
+  netOffline: "診断接続が切断されました。再接続中…",
 
   // events.ts
   eventsDesc: 'イベントの記録です。エージェントが検索できます。',

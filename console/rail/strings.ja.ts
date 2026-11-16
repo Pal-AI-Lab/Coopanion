@@ -15,7 +15,6 @@ export const S: Partial<typeof en> = {
   confirmShutdownTitle: '⚠ シャットダウン',
   confirmShutdownAgainTitle: '⚠⚠ シャットダウンしますか？',
   confirmShutdownAgainBody: '実行を停止してプロセスを終了しますか？',
-  finishingToast: 'シャットダウン中…',
   stepIncomplete: '未完了',
   doneShutdown: 'シャットダウン完了',
   resultLocalIncomplete: 'ローカルのシャットダウン手順が一部完了していません',
@@ -26,7 +25,6 @@ export const S: Partial<typeof en> = {
     `シャットダウンの結果を受信できませんでした（${msg}）。プロセスは既に終了している可能性があります。`,
   docTitle: (name: string) => `設定 · ${name}`,
   renameTitle: 'クリックして名前を変更',
-  renameSaved: '表示名を保存しました',
   renameFailed: (msg: string) => `表示名を保存できませんでした：${msg}`,
   // avatar.ts
   changeAvatar: 'Coo のアバターを変更',
@@ -35,10 +33,9 @@ export const S: Partial<typeof en> = {
   cropPreview: 'アバターの切り抜きプレビュー',
   zoomAria: 'アバターの拡大縮小',
   zoom: '拡大縮小',
-  note: '画像をドラッグして位置を調整し、マウスホイールかスライダーで拡大縮小します。保存すると Coo のデータディレクトリの avatar.png に書き込みます。',
+  note: "ドラッグで位置を調整、ホイールやスライダーで拡大縮小。",
   cancel: 'キャンセル',
   save: 'アバターを保存',
   cropTitle: 'アバターの切り抜き',
   noCanvas: 'ブラウザーで画像キャンバスを作成できません',
-  saved: 'アバターを保存しました',
 };

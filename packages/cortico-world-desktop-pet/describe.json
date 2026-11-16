@@ -118,7 +118,7 @@
         "properties": {
           "figure": {
             "type": "string",
-            "description": "Figure: coo, or the id of an installed figure. Switching to a figure pack without a scheme puts on its first one."
+            "description": "Figure: coo, or the id of an installed figure. Switching to a figure pack without a scheme puts on its first one. A figure goes on at the size it last had on screen, unless scale is given too."
           },
           "scheme": {
             "type": "string",
@@ -179,12 +179,14 @@
                 "roam",
                 "theme",
                 "sound",
+                "size",
                 "dress",
-                "hide"
+                "hide",
+                "worlds"
               ]
             },
             "maxItems": 6,
-            "description": "The buttons beside you while the mouse pointer rests on you."
+            "description": "The buttons beside you while the mouse pointer rests on you; your right-click menu shows the same ones, beside the settings, pause and quit the app provides. An empty list takes every hover button away, from the menu too."
           },
           "user": {
             "type": "string",
@@ -264,6 +266,23 @@
       "summary": {
         "zh": "不说话,播放一串表情或动作。",
         "en": "Plays a sequence of expressions or motions without speaking."
+      }
+    },
+    {
+      "name": "pet_see_self",
+      "description": "See yourself as you are drawn on screen at the moment of the call. Returns one picture of the body alone, the figure in its dress, pose and expression on a plain grey backdrop, without bubbles or the desktop, and a line naming the figure and its dress. Fails while the pet window is hidden or not connected: nothing is drawn then.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "tags": [
+        "read",
+        "snapshot"
+      ],
+      "summary": {
+        "zh": "取一张桌宠身体此刻在屏幕上的图,不含气泡和桌面。",
+        "en": "Takes a picture of the pet's body as it is on screen right now, without bubbles or the desktop."
       }
     },
     {
@@ -745,6 +764,13 @@
       "description": {
         "zh": "使用者戳、摸、扔出或拎起放下了桌宠。",
         "en": "The person poked, patted, threw or dropped the pet."
+      }
+    },
+    {
+      "type": "desktop-pet.talk-key",
+      "description": {
+        "zh": "说话键读不到,语音输入开着时每次运行每种原因一条。",
+        "en": "The talk key cannot be read; once a run for each reason, while voice input is on."
       }
     },
     {

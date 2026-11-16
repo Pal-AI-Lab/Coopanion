@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import type { ToolDef } from 'cortico/core/types.ts';
 import { Cormini } from '../vendor/cortico/bots/cormini/persona/persona.ts';
 import { gitInstalled } from '../vendor/cortico/bots/cormini/persona/workspaceGit.ts';
-import { ARCHIVE_DIR, AUTHOR_COO, PARTNER_DIR, PARTNER_FILE, PARTNER_NOTE, SNAPSHOT_TAG, arrangePartner, coopanionPersona } from '../core/persona.ts';
+import { ARCHIVE_DIR, AUTHOR_COO, PARTNER_DIR, PARTNER_FILE, PARTNER_NOTE, SNAPSHOT_TAG, arrangePartner, coopanionPersona, deliveryLine } from '../core/persona.ts';
 
 const CoopanionPersona = coopanionPersona(Cormini);
 const ctx = { role: 'main', log: { emit: () => {}, warn: () => {}, error: () => {}, info: () => {}, debug: () => {} } } as never;
@@ -147,5 +147,34 @@ describe('arranging the partner notes', () => {
     expect(git(dir, 'show', `${SNAPSHOT_TAG('2.0.0')}:${PARTNER_DIR}`)).toBe('old notes');
     expect(git(dir, 'show', `HEAD:${PARTNER_DIR}/${PARTNER_DIR}`)).toBe('old notes');
     expect(git(dir, 'status', '--porcelain')).toBe('');
+  });
+});
+
+describe('the delivery line', () => {
+  it('dates every batch, spanning the earliest to the latest event whatever the delivery order', () => {
+    const at = (ts: string) => ({ ts }) as never;
+    expect(deliveryLine([at('2026-11-09T21:30:05.000+08:00')])).toBe('[system] 1 new event, 2026-11-09 Mon 21:30.');
+    expect(deliveryLine([at('2026-11-09T21:42:00.000+08:00'), at('2026-11-09T21:30:00.000+08:00')]))
+      .toBe('[system] 2 new events, 2026-11-09 Mon 21:30–21:42.');
+    expect(deliveryLine([at('2026-11-10T00:03:00.000+08:00'), at('2026-11-09T23:58:00.000+08:00')]))
+      .toBe('[system] 2 new events, 2026-11-09 Mon 23:58 – 2026-11-10 Tue 00:03.');
+  });
+});
+
+describe('the handoff note split', () => {
+  it('keeps the moment a batch opened, so the note splits there and not at the batch end', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      const { p } = persona();
+      const opened = new Date('2026-11-08T03:06:31.051+08:00').getTime();
+      vi.setSystemTime(opened);
+      p.onDelivery({ events: [] });
+      // a delivery between two turns of the same batch
+      vi.setSystemTime(opened + 4000);
+      p.onDelivery({ events: [] });
+      expect(p['batchOpenedAt']).toBe(opened);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

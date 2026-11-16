@@ -227,10 +227,11 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
   };
 
   /**
-   * The neutral eye with its lid at `open` (0 shut, 1 rest), iris moved by ix/iy, lid tilted by tilt (rad);
-   * `glint` (0..1) adds star highlights on the iris, which twinkle with `t`.
+   * The neutral eye with its lid at `open` (0 shut, 1 rest), iris moved by ix/iy, lid tilted by tilt (rad), its
+   * highlights as `hl` (the state above) has them; `glint` (0..1) adds star highlights on the iris, which twinkle
+   * with `t`, as the highlights quiver with it.
    */
-  function paintOpenEye(k, open, ix, iy, tilt, glint = 0, t = 0) {
+  function paintOpenEye(k, open, ix, iy, tilt, glint, hl, t) {
     const e = EYE[k], [bx0, by0, bx1, by1] = e.ball, w = bx1 - bx0, h = by1 - by0;
     if (eyeCv.width !== w + 40 || eyeCv.height !== h + 40) { eyeCv.width = w + 40; eyeCv.height = h + 40; }
     const g = eyeCv.getContext('2d');
@@ -311,7 +312,6 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
 
   const CHEEKS = [[618, 770, 40, 20], [852, 762, 22, 15]];
   function paintBlush(a) {
-    if (a < .02) return;
     for (const [x, y, rx, ry] of CHEEKS) {
       fg.save();
       fg.translate(x - FACE.x, y - FACE.y); fg.scale(1, ry / rx);
@@ -363,18 +363,24 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     fg.restore();
   }
 
-  function paintFace(fc, face, o, t) {
-    fg.setTransform(1, 0, 0, 1, 0, 0);
-    fg.clearRect(0, 0, FACE.w, FACE.h);
-    paintBlush(fc.blush || 0);
-    if (fc.streams) paintStreams(t);
+  /**
+   * The face for this frame as a list of paint calls, `[what, ...arguments]` (PAINT): the same list paints the same
+   * face, so the texture is painted and uploaded again only when the list changes. Everything the face shows is in
+   * the arguments, the clock only where it moves something.
+   */
+  function faceOps(fc, face, o, t) {
+    const ops = [];
+    if ((fc.blush || 0) >= .02) ops.push(['blush', fc.blush]);
+    if (fc.streams) ops.push(['streams', t]);
     const shut = Math.max(o.blink || 0, o.eyeClose || 0);
     const lx = clamp(o.look[0], -6, 6), ly = clamp(o.look[1], -5, 5);
     const tilt = fc.brows === 'angry' ? .2 : fc.brows === 'sad' ? -.16 : 0;
+    // a quiver that has died down to under a hundredth of a pixel is still
+    const h = { ...hl, quiver: hl.quiver < .01 ? 0 : hl.quiver };
     fc.eyes.forEach((e, i) => {
       const k = EYES[i], side = k === 'eyeL' ? 1 : -1;  // the near eye's inner corner is to its right
       const squash = { sy: 1 - .85 * (o.eyeClose || 0) };
-      if ((face === 'surprised' || fc.wide) && e.shape === 'ring') { sprite(`surprised_${k}`, squash); return; }
+      if ((face === 'surprised' || fc.wide) && e.shape === 'ring') { ops.push(['sprite', `surprised_${k}`, squash]); return; }
       switch (e.shape) {
         case 'ring': case 'lid': {
           const open = (e.shape === 'ring' ? clamp(e.ry / e.rx, 0, 1) * (tilt ? .8 : 1) : clamp(e.ry / 16, 0, 1)) * (1 - shut);
@@ -382,14 +388,15 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
           // so the white never shows past the eye's outline
           const gx = k === 'eyeL' ? 1 : .35;
           const ix = clamp((lx + (e.dx || 0)) * gx, -6 * gx, 6 * gx), iy = clamp(ly * .7 + (e.dy || 0) * .7, -3.5, 3.5);
-          paintOpenEye(k, open, ix, iy + (e.shape === 'lid' ? 3 : 0), tilt * side, fc.sparkle ? 1 : 0, t);
+          const glint = fc.sparkle ? 1 : 0;
+          ops.push(['eye', k, open, ix, iy + (e.shape === 'lid' ? 3 : 0), tilt * side, glint, h, glint || h.quiver ? t : 0]);
           break;
         }
-        case 'up': sprite(`happy_${k}`, squash); break;
-        case 'down': sprite(`sleep_${k}`, squash); break;
-        case 'gt': case 'lt': sprite(`drag_${k}`, { s: 1 + .03 * Math.sin(t * 22 + i) }); break;
-        case 'heart': sprite(`love_${k}`, { s: .94 + .06 * (e.s ?? 1) / .8 }); break;
-        case 'spiral': sprite(`dizzy_${k}`, { rot: (e.rot || 0) * .6 }); break;
+        case 'up': ops.push(['sprite', `happy_${k}`, squash]); break;
+        case 'down': ops.push(['sprite', `sleep_${k}`, squash]); break;
+        case 'gt': case 'lt': ops.push(['sprite', `drag_${k}`, { s: 1 + .03 * Math.sin(t * 22 + i) }]); break;
+        case 'heart': ops.push(['sprite', `love_${k}`, { s: .94 + .06 * (e.s ?? 1) / .8 }]); break;
+        case 'spiral': ops.push(['sprite', `dizzy_${k}`, { rot: (e.rot || 0) * .6 }]); break;
       }
     });
     // mouth: talking opens the happy mouth about its middle, which stays on the mouth line; otherwise the face's own
@@ -397,10 +404,19 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     const gapOpen = clamp((Math.max(fc.gap[0], fc.gap[1]) - 50) / 14, 0, 1);
     const m = MOUTH[face] ?? 'neutral_mouth';
     const open = Math.max(talk * (.45 + .45 * Math.abs(Math.sin(t * 17))), face === 'sleepy' || face === 'waking' ? gapOpen : 0);
-    if (open > .12) sprite(face === 'surprised' ? 'surprised_mouth' : 'happy_mouth', { sy: .35 + .65 * open, sx: .85 + .15 * open });
-    else if (typeof m === 'number') lineMouth(m);
-    else if (Array.isArray(m)) sprite(m[0], { s: m[1] });
-    else sprite(m);
+    if (open > .12) ops.push(['sprite', face === 'surprised' ? 'surprised_mouth' : 'happy_mouth', { sy: .35 + .65 * open, sx: .85 + .15 * open }]);
+    else if (typeof m === 'number') ops.push(['line', m]);
+    else if (Array.isArray(m)) ops.push(['sprite', m[0], { s: m[1] }]);
+    else ops.push(['sprite', m]);
+    return ops;
+  }
+  const PAINT = { blush: paintBlush, streams: paintStreams, eye: paintOpenEye, sprite, line: lineMouth };
+  /** A paint list as text, its numbers to the hundredth: lists that paint the same face read the same. */
+  const opsKey = (ops) => JSON.stringify(ops, (k, v) => (typeof v === 'number' ? f1(v) : v));
+  function paintFace(ops) {
+    fg.setTransform(1, 0, 0, 1, 0, 0);
+    fg.clearRect(0, 0, FACE.w, FACE.h);
+    for (const [what, ...args] of ops) PAINT[what](...args);
   }
 
   /* ---------- mounting inside the pet's SVG group ---------- */
@@ -487,6 +503,8 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
   };
   let lastT = null, prevTilt = 0, prevYaw = 0, prevLow = 0, headTilt = 0, fx = '';
   let prevLook = null, prevShut = 0;
+  /** The face texture as last painted: its paint list (opsKey), from which sprites (`img`), into which rig. */
+  let painted = { key: '', img: null, rig: null };
   // the angle each hanging piece's root was last turned to (see the pendulums)
   let rootWas = {};
   // the kit tips Coo's whole round body to listen, nod, doze or wobble; she keeps her feet on the floor and
@@ -765,15 +783,19 @@ export async function createWhaleFigure(base = new URL('./', import.meta.url), o
     hl.quiver = lerp(hl.quiver, mood.quiver ?? 0, ease(4, dt));
     hl.alpha = lerp(hl.alpha, mood.alpha ?? 1, ease(4, dt));
 
-    paintFace(fc, face, o, t);
-    rig.upload('faceFx', faceCv);
+    const ops = faceOps(fc, face, o, t), key = opsKey(ops);
+    if (key !== painted.key || img !== painted.img || rig !== painted.rig) {
+      paintFace(ops);
+      rig.upload('faceFx', faceCv);
+      painted = { key, img, rig };
+    }
     st.mix = 0;
     if (fade) {
       if (fade.t0 == null) fade.t0 = t;
       st.mix = smooth(0, 1, (t - fade.t0) / fade.dur);
       const own = img;
       img = fade.set.img; fg = fg2;
-      paintFace(fc, face, o, t);
+      paintFace(ops);
       img = own; fg = fg1;
       rig.upload('faceFx@mix', faceCv2);
     }

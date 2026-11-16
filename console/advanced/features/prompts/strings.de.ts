@@ -1,7 +1,7 @@
 import type { en } from './strings.ts';
 
 export const S: Partial<typeof en> = {
-  outsidePrefix: "Nicht im aktuellen Präfix",
+  outsidePrefix: "Nicht im Präfix",
   editable: "Bearbeitbar",
   readOnly: "Schreibgeschützt",
   constitutionTitle: "Identität und Verhalten",

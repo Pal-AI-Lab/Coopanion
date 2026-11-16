@@ -177,7 +177,8 @@ const de: Translation<PetText> = {
     fontSize: (from: number, to: number) => `die Schriftgröße von ${from}× auf ${to}× ändern`,
     theme: { dark: 'zum Nacht-Look wechseln', light: 'zum Tag-Look wechseln' },
     hover: (list: string) => `die Hover-Schaltflächen auf ${list} ändern`,
-    actions: { chat: 'Tippen', voice: 'Spracheingabe', roam: 'Herumlaufen', theme: 'Nachtmodus', sound: 'Töne', dress: 'Outfit', hide: 'Haustier ausblenden' },
+    hoverNone: 'alle Hover-Schaltflächen entfernen',
+    actions: { chat: 'Tippen', voice: 'Spracheingabe', roam: 'Herumlaufen', theme: 'Nachtmodus', sound: 'Töne', size: 'Größe', dress: 'Outfit', hide: 'Haustier ausblenden', worlds: 'Meine Worlds' },
     user: (to: string) => `dich „${to}“ nennen`,
   },
 
@@ -237,6 +238,7 @@ const de: Translation<PetText> = {
     frameRate: { title: 'Bildrate', description: 'Bilder pro Sekunde, während das Haustier läuft, getragen wird oder springt; 0 folgt dem Bildschirm. Über der Bildwiederholrate des Bildschirms gilt die des Bildschirms. Die Seite Gewohnheiten bietet 60, 120, 144 und Unbegrenzt.' },
     lockFrameRate: { title: 'Bildrate fixieren', description: 'Zeichnet das Haustier auch im Ruhezustand mit der Bildrate. Wenn aus, sinkt sie im Stehen, Sitzen oder Schlafen auf 30 Bilder pro Sekunde.' },
     hideWhenFullscreen: { title: 'Bei Vollbild ausblenden', description: 'Wenn an, versteckt sich das Haustier, solange das Fenster im Vordergrund Coos Bildschirm füllt (ein Spiel, ein Vollbildvideo, ein Browser im Vollbild), und kommt zurück, wenn das Vollbild endet; ein maximiertes Fenster zählt nicht. Wenn aus, bleibt Coo immer im Vordergrund.' },
+    passWhenFullscreen: { title: "Bei Vollbild Klicks durch Coo durchlassen", description: "Wenn an, bleibt Coo sichtbar, solange das Fenster im Vordergrund Coos Bildschirm füllt, und jeder Klick geht durch Coo an das Fenster darunter, bis das Vollbild endet; ein maximiertes Fenster zählt nicht. Ist „Bei Vollbild ausblenden“ auch an, versteckt sich Coo." },
     exportOverlay: { title: 'OBS-Overlay', description: 'Stellt das Bild des Haustierfensters mit transparentem Hintergrund unter /overlay für eine OBS-„Browser“-Quelle bereit; aus, wird nichts bereitgestellt.' },
     electronFile: { title: 'Electron-Programmdatei', description: 'Leer verwendet CORTICO_DESKTOP_PET_HOST, dann die im Panel installierte Laufzeit.' },
     port: { title: 'Seiten-Port', description: 'Weicht auf den nächsten freien Port aus, wenn er belegt ist.' },
@@ -251,6 +253,7 @@ const de: Translation<PetText> = {
       snore: { title: 'Schnarchen', description: '' },
       talk: { title: 'Sprechen', description: 'Das Geplapper, während Sprechblasentext erscheint, und aufpoppende Auswahlkarten.' },
       ui: { title: 'Schaltflächen und Signale', description: 'Schaltflächenklicks, sich öffnende Sprechblasen, Auswahlen sowie Beginn und Ende des Zuhörens.' },
+      alert: { title: 'Hinweise', description: 'Ein Signal, wenn Coo um eine Bestätigung bittet.' },
     },
     snoreSeconds: { title: 'Schnarchdauer', suffix: 's', description: 'In jedem Schlaf wird das Haustier nach so langem Schnarchen still; die Zs schweben weiter. 0 = schnarchen bis zum Aufwachen.' },
     panByPosition: { title: 'Nach Position verteilen', description: 'Töne kommen von der Seite, auf der Coo steht; aus, werden sie mittig abgespielt.' },
@@ -269,6 +272,15 @@ const de: Translation<PetText> = {
     thresholdDb: { title: 'Sprechschwelle' },
     silenceMs: { title: 'Stille, die einen Satz beendet' },
     maxUtteranceMs: { title: 'Längster Satz' },
+  },
+
+  windowReason: {
+    badHostEnv: (env: string) => `${env} ist kein JSON-Array aus Zeichenketten`,
+    noElectronFile: (file: string) => `Die Electron-Programmdatei existiert nicht: ${file}`,
+    noElectron: 'Kein Electron verfügbar: Installiere die Fenster-Laufzeit im Panel des Desktop-Haustiers oder gib die Electron-Programmdatei in der Konfiguration an',
+    startFailed: (why: string) => `Start fehlgeschlagen: ${why}`,
+    closed: 'Das Fenster wurde geschlossen',
+    exited: (code: number | null) => `Der Fensterprozess wurde beendet (Exit-Code ${code})`,
   },
 
   panel: {

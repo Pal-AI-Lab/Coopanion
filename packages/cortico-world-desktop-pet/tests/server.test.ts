@@ -12,9 +12,11 @@ const servers: PetServer[] = [];
 afterEach(async () => { await Promise.all(servers.splice(0).map((s) => s.stop())); });
 
 async function serve(overlay: { on: boolean } = { on: false }, opts: Partial<PetServerOptions> = {}) {
+  let looks: unknown[] = [];
   const server = new PetServer({
     port: () => 0, webDir: WEB_DIR, snapshot: () => ({}),
     onPetMessage: () => {}, onAudio: () => {}, onPetConnect: () => {}, onPetDisconnect: () => {}, onSkin: () => {}, onPrefs: () => {},
+    looks: () => looks, onLooks: (next) => { looks = next as unknown[]; },
     overlay: () => overlay.on,
     ...opts,
   });
@@ -55,7 +57,7 @@ describe('local access', () => {
       `https://127.0.0.1:${server.port}`, `ws://127.0.0.1:${server.port}`, `${server.origin}/path`,
       'http://example.test', 'null', 'invalid'];
     for (const origin of origins) {
-      for (const path of ['/api/prefs', '/api/skin', '/api/speech', '/api/figures/import', '/api/figures/import/install', '/api/figures/import/cancel', '/api/figures/remove']) {
+      for (const path of ['/api/prefs', '/api/skin', '/api/looks', '/api/speech', '/api/figures/import', '/api/figures/import/install', '/api/figures/import/cancel', '/api/figures/remove']) {
         expect((await fetch(`${server.origin}${path}`, { method: 'POST', headers: { origin }, body: '{}' })).status, `${origin} ${path}`).toBe(421);
       }
       expect(await refused(server, { role: 'pet' }, origin), origin).toBe(421);
@@ -198,5 +200,17 @@ describe('installed pack files', () => {
     const connect = async (query: string) => (await fetch(`${server.origin}/figure-frame${query}`)).headers.get('content-security-policy')!.match(/connect-src ([^;]*)/)![1];
     expect(await connect('?pack=p')).toBe(`${server.origin}/packs/p/`);
     for (const query of ['?pack=other', '?pack=coo', '']) expect(await connect(query)).toBe("'none'");
+  });
+});
+
+describe('saved looks', () => {
+  it('writes the list whole and reads it back; a body without a list is refused', async () => {
+    const server = await serve();
+    const look = { id: 'a', name: 'Maid', skin: { figure: 'whale', scheme: 'deepseek' } };
+    const post = (body: unknown) => fetch(`${server.origin}/api/looks`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    expect(await (await post({ looks: [look] })).json()).toEqual([look]);
+    expect(await (await fetch(`${server.origin}/api/looks`)).json()).toEqual([look]);
+    expect((await post({ looks: 'no' })).status).toBe(400);
+    expect(await (await post({ looks: [] })).json()).toEqual([]);
   });
 });

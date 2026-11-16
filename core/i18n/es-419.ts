@@ -43,7 +43,6 @@ const es419: Translation<CoreText> = {
     move: 'Moviendo el mouse', drag: 'Arrastrando', mouseDown: 'Presionando el botón del mouse', mouseUp: 'Soltando el botón del mouse', scroll: 'Desplazando', focus: 'Cambiando de ventana', type: 'Tecleando', key: 'Presionando', wait: 'Esperando',
     alarmSet: 'Poniendo una alarma', alarmList: 'Revisando las alarmas', alarmCancel: 'Cancelando una alarma',
     quoted: (text: string) => `“${text}”`,
-    seconds: (n: number) => `${n} s`,
     minutesLater: (n: number) => `en ${n} min`,
   },
 
@@ -117,7 +116,7 @@ const es419: Translation<CoreText> = {
     talkOff: 'La entrada de voz está desactivada; puedes activarla en la página Entrada de voz de la configuración. ',
     talkType: 'También puedes dejar el puntero sobre mí y hacer clic en el botón de burbuja a mi lado para escribir.',
     gotIt: 'Entendido',
-    buttons: 'Deja el puntero sobre mí y aparecen unos botones a mi lado; haz clic derecho sobre mí para abrir el menú, con pausa, configuración y salir.',
+    buttons: 'Deja el puntero sobre mí y aparecen unos botones a mi lado; con clic derecho ves los mismos, más configuración, pausa y salir. Elige los que más uses; luego puedes cambiarlos en la configuración.',
     ok: 'De acuerdo',
     persona: 'Cómo soy y cómo hablo está escrito en la página Prompt del sistema de la ventana de configuración. Para cambiarme, edítalo ahí, o simplemente dímelo y lo cambio yo.',
     personaMark: 'Prompt del sistema',
