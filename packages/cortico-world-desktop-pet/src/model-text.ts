@@ -13,10 +13,8 @@ import type { SelfKey } from './config.ts';
 export type ModelLanguage = 'zh' | 'en';
 
 interface SayReceipt {
-  /** Seconds of earlier lines still ahead of this one. */
-  waitSec: number;
-  /** Seconds this one stays on screen. */
-  selfSec: number;
+  /** Estimated time to type and read the sent line. */
+  estimatedSec: number;
   chatOpen: boolean;
   /** The unanswered question this one replaced. */
   replaced: string | null;
@@ -108,7 +106,7 @@ const zh = {
   },
 
   sayEmpty: '[pet_say 没执行] 脚本是空的,也没带图片。不想说话就不调用。',
-  sayReceipt: (r: SayReceipt) => `${r.waitSec > .5 ? `已排队,前面还有约 ${Math.round(r.waitSec)} 秒` : '已开始显示'},这段约 ${Math.round(r.selfSec)} 秒。`
+  sayReceipt: (r: SayReceipt) => `已发送到桌宠。预计显示 ${Math.round(r.estimatedSec)} 秒。`
     + (r.chatOpen ? '对话页开着,这段也显示在那里。' : '')
     + (r.images ? `附带的 ${r.images} 张图片只显示在对话页。` : '')
     + (r.replaced !== null ? `替换了还没回答的提问「${r.replaced}」。` : '')
@@ -246,9 +244,7 @@ const en: typeof zh = {
 
   sayEmpty: '[pet_say not run] The script is empty and there are no images. Do not call it when you have nothing to say.',
   sayReceipt: (r) => [
-    r.waitSec > .5
-      ? `Queued behind about ${Math.round(r.waitSec)} s of earlier lines; this one takes about ${Math.round(r.selfSec)} s.`
-      : `Showing now; this one takes about ${Math.round(r.selfSec)} s.`,
+    `Sent to the desktop pet. Estimated display time is ${Math.round(r.estimatedSec)} s.`,
     r.chatOpen ? 'The chat page is open and shows it too.' : '',
     r.images ? `The ${r.images} image${r.images > 1 ? 's' : ''} with it show only on the chat page.` : '',
     r.replaced !== null ? `Replaced the unanswered question "${r.replaced}".` : '',
