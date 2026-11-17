@@ -1,4 +1,4 @@
-# Coopanion one-line installer for Windows 10/11 (x64).
+# Coopanion one-line installer for Windows 10/11 (x64 and Arm).
 #
 #   irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/install.ps1 | iex
 #
@@ -11,7 +11,12 @@ $ErrorActionPreference = 'Stop'
 $repo = 'Pal-AI-Lab/Coopanion'
 Write-Host 'Looking for the latest version...'
 $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" -Headers @{ 'User-Agent' = 'Coopanion-installer' }
-$asset = $release.assets | Where-Object { $_.name -like 'Coopanion-Setup-*.exe' } | Select-Object -First 1
+$installers = $release.assets | Where-Object { $_.name -like 'Coopanion-Setup-*.exe' }
+# the machine's processor, whatever this PowerShell was built for; a release without an Arm installer
+# gives the x64 one, which Windows on Arm runs under emulation
+$arm = (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment').PROCESSOR_ARCHITECTURE -eq 'ARM64'
+$asset = $installers | Where-Object { $arm -and $_.name -like '*-arm64.exe' } | Select-Object -First 1
+if (-not $asset) { $asset = $installers | Where-Object { $_.name -notlike '*-arm64.exe' } | Select-Object -First 1 }
 if (-not $asset) { throw "The latest release $($release.tag_name) has no installer." }
 
 $target = Join-Path $env:TEMP $asset.name
