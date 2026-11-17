@@ -4,7 +4,7 @@
  * Output goes through four tools that drive the pet page (bubble, options, going somewhere,
  * expressions and motions). Input arrives as events: speech heard through the pet window's
  * microphone (transcribed in this process by FunASR's SenseVoice or by Whisper, by Windows' own recognizer, or by an
- * OpenAI-compatible transcription service), typed text, answers to `pet_ask`, and touches
+ * OpenAI-compatible transcription service; the recording goes along when the endpoint takes audio), typed text, answers to `pet_ask`, and touches
  * (poke, petting, being thrown). The page reports what actually happened; receipts and
  * events state only that.
  *
@@ -43,7 +43,7 @@ import { describeHostReason } from './host-reason.ts';
 import { RuntimeStore, type ModelSpec } from './runtime/store.ts';
 import { SENSEVOICE, SherpaAsr, WHISPER, type SherpaModelKind, type SherpaModule, type SherpaState } from './asr/sherpa.ts';
 import { SystemRecognizer, systemRecognizerSupported, type SystemRecognizerState, type SystemSentence } from './asr/system-recognizer.ts';
-import { TranscriptionApi, type TranscriptionState } from './asr/transcription-api.ts';
+import { TranscriptionApi, wavFile, type TranscriptionState } from './asr/transcription-api.ts';
 import { Packer, Segmenter, rmsDb, type SegmentConfig, type SegmentSink, type Utterance } from './asr/segmenter.ts';
 import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, TAP_MAX_MS, watchHotkey, type HotkeyTrigger, type KeyWatcher } from './asr/hotkey.ts';
 import { joinSpeech, looksHallucinated } from './asr/result.ts';
@@ -386,6 +386,8 @@ export class DesktopPetWorld implements World {
   private committing = false;
   private readonly segmenter: Segmenter;
   private readonly packer = new Packer({ minChars: 1 });
+  /** The audio of the sentences the packer holds, delivered with their text when the endpoint takes audio. */
+  private heardPcm: Int16Array[] = [];
   private readonly queue: Utterance[] = [];
   private transcribing = false;
   private packTimer: NodeJS.Timeout | null = null;
@@ -1728,6 +1730,7 @@ export class DesktopPetWorld implements World {
     this.queue.length = 0;
     this.cancels++;
     this.packer.take();
+    this.heardPcm = [];
     this.committing = false;
     this.partial = '';
     this.wasSpeaking = false;
@@ -1806,7 +1809,7 @@ export class DesktopPetWorld implements World {
           if (u.result) this.showHeard();
           continue;
         }
-        this.packer.add(text);
+        if (this.packer.add(text)) this.heardPcm.push(u.pcm);
         this.remember({ text, at: Date.now(), ms: res.ms });
         this.voiceFrame({ type: 'text', text, ms: res.ms });
         this.pendingText(text);
@@ -1862,6 +1865,18 @@ export class DesktopPetWorld implements World {
     this.server.sendPet({ t: 'listen', phase: 'partial', text: this.partial, interim: this.interim });
   }
 
+  /** Takes the audio of the delivered sentences: one WAV when the endpoint takes audio, else nothing. */
+  private recording(): BlobInput[] {
+    const parts = this.heardPcm;
+    this.heardPcm = [];
+    if (parts.length === 0 || !this.host?.modelFacts.accepts('audio/wav')) return [];
+    const pcm = new Int16Array(parts.reduce((n, p) => n + p.length, 0));
+    let at = 0;
+    for (const p of parts) { pcm.set(p, at); at += p.length; }
+    const seconds = Math.round(pcm.length / 1600) / 10;
+    return [{ bytes: wavFile(pcm), mime: 'audio/wav', name: 'speech.wav', fallbackText: this.t.recording(this.userName, seconds) }];
+  }
+
   /** Delivers the packed text once nothing upstream is still open. */
   private schedulePack(): void {
     const upstream = this.transcribing || this.queue.length > 0;
@@ -1885,7 +1900,8 @@ export class DesktopPetWorld implements World {
       this.server.sendPet({ t: 'listen', phase: 'heard', text });
       // speech through the talk key stops the round; always listening also hears a TV or other people, so it only wakes
       const trigger = this.cfg.asr.mic.mode === 'always' ? 'flush' : 'interrupt';
-      void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.userName, text), trigger, { meta: { text } });
+      const blobs = this.recording();
+      void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.userName, text), trigger, { meta: { text }, ...(blobs.length ? { blobs } : {}) });
       return;
     }
     if (this.segmenter.active || this.transcribing || this.queue.length > 0) this.listenOpen = true;

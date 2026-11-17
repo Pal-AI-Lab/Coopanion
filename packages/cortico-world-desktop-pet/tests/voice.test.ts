@@ -240,6 +240,23 @@ describe('voice input', () => {
     expect(asr.configs[0]).toMatchObject({ modelConfig: { senseVoice: { language: 'zh' }, numThreads: 2 } });
   });
 
+  it.each([true, false])('the speech event carries the recording as WAV exactly when the endpoint takes audio (%s)', async (takesAudio) => {
+    const { host, page } = await setup('今天天气怎么样');
+    host.modelFacts.accepts = (mime: string) => takesAudio && mime === 'audio/wav';
+    for (const fr of [...tone(900, .3), ...tone(900, 0)]) page.audio(fr);
+    await expect.poll(() => host.events.length, { timeout: 5000 }).toBe(1);
+    const e = host.events[0]!;
+    expect(e.text).toBe('[voice] 伙伴:今天天气怎么样');
+    if (!takesAudio) return expect(e.blobs).toBeUndefined();
+    const blob = e.blobs![0]!;
+    expect(blob.mime).toBe('audio/wav');
+    const bytes = host.blob(blob.handle)!.bytes;
+    expect(Buffer.from(bytes.subarray(0, 4)).toString('ascii')).toBe('RIFF');
+    // at least the 900 ms spoken, 16-bit at 16 kHz after the 44-byte header
+    expect(bytes.length - 44).toBeGreaterThanOrEqual(900 * 32);
+    expect(blob.fallbackText).toMatch(/^\[伙伴说这段话的录音,[\d.]+ 秒;/);
+  });
+
   it('a threshold set from the meter applies to the next frame: speech below it is not heard', async () => {
     const { world, host, page } = await setup('不该听见');
     const speech = tone(900, .3);
