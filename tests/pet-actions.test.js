@@ -291,6 +291,52 @@ describe('what the page holds a pack to', () => {
   });
 });
 
+describe('how near the screen edges the body goes', () => {
+  const W = 1200, S = .42;
+  /** Where the body stops when sent to stage x; a walk ends within a couple of pixels of its target. */
+  /** Where the body stops when sent to stage x: a walk ends a pixel or two short of its target, hence the 5-pixel checks. */
+  const walkFar = (pet, x) => { pet.walkTo(x); run(pet, 20); return pet.pet.x; };
+
+  it('a figure narrower than the square walks up to its own extent from either edge, and the hover buttons sit by it', () => {
+    const pet = barePet();
+    // 40 units each side of the middle line on the right, 30 on the left: it turns, so the wider side counts both ways
+    pet.setFigure({ draw() {}, extent: [98, 0, 168, 256] });
+    pet.resize();
+    expect(walkFar(pet, W + 500)).toBeCloseTo(W - 40 * S - 8, -1);
+    expect(walkFar(pet, -500)).toBeCloseTo(40 * S + 8, -1);
+    expect(pet.layout().side.reach).toBeCloseTo(40 * S);
+  });
+
+  it('a figure that widens where it stands is moved back onto the screen, and one wider than the stage stands in its middle', () => {
+    const fig = { draw() {}, extent: [98, 0, 168, 256] };
+    const pet = barePet();
+    pet.setFigure(fig);
+    pet.resize();
+    walkFar(pet, W + 500);
+    fig.extent = [0, 0, 256, 256];
+    run(pet, .1);
+    expect(pet.pet.x).toBeCloseTo(W - 128 * S - 8);
+    fig.extent = [-5000, 0, 5000, 256];
+    run(pet, .1);
+    expect(pet.pet.x).toBe(W / 2);
+  });
+
+  it('an extent that is not numbers counts as none', () => {
+    const pet = barePet();
+    pet.setFigure({ draw() {}, extent: ['a', 0, null, 256] });
+    pet.resize();
+    expect(walkFar(pet, W + 500)).toBeCloseTo(W - 104 * S - 8, -1);
+  });
+
+  it('a figure that names no extent keeps the margin it had', () => {
+    const pet = barePet();
+    pet.setFigure({ draw() {} });
+    pet.resize();
+    expect(walkFar(pet, W + 500)).toBeCloseTo(W - 104 * S - 8, -1);
+    expect(pet.layout().side.reach).toBeCloseTo(104 * S);
+  });
+});
+
 describe('a body that stands anywhere on the stage (ground: free)', () => {
   it('walks to a point above the floor, says how far down it got, and stays there through a jump', () => {
     const events = [];

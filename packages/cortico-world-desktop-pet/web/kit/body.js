@@ -159,7 +159,17 @@ export function createPet(els, opts) {
   const P = [];
   const anchors = () => ({ ...ANCHORS, ...custom?.anchors });
   let A = anchors();
-  const minX = () => 104 * S + 8, maxX = () => W - 104 * S - 8;
+  /**
+   * How far the body reaches either way from its middle line (x=128, the line it turns about), in logo units:
+   * the wider side of `figure.extent`, else 104, Coo's own. An extent that is not numbers counts as none.
+   */
+  const halfWidth = () => {
+    const e = custom?.extent;
+    const h = e ? Math.max(128 - e[0], e[2] - 128) : NaN;
+    return Number.isFinite(h) && h >= 0 ? h : 104;
+  };
+  /** Where the body's middle may stand; a body wider than the stage stands in its middle. */
+  const minX = () => Math.min(W / 2, halfWidth() * S + 8), maxX = () => Math.max(W / 2, W - halfWidth() * S - 8);
   /** The highest ground line a free body stands on: its head stays on the stage. */
   const minY = () => Math.min(floorY, 250 * S + 8);
   /** Where the feet rest: the floor, or a free body's own ground line. */
@@ -371,6 +381,8 @@ export function createPet(els, opts) {
     T += dt; pet.modeT += dt;
     A = anchors();
     const m = pet.mode, mt = pet.modeT;
+    // an extent that follows the skin can widen the body where it stands; carried and flying bodies keep to the edges on their own
+    if (m !== 'drag' && m !== 'air') { pet.x = clamp(pet.x, minX(), maxX()); pet.target = clamp(pet.target, minX(), maxX()); }
     let sqT = 0, strideT = 0, liftT = 0, leanT = 0, sitT = 0, bobT = 0, rate = 0, lookT = [0, 0], tiltT = 0;
     let tk = 160, tc = 12, drowseT = 0;
     const still = !!opts.still?.();
@@ -871,7 +883,7 @@ export function createPet(els, opts) {
       x: pet.x, ...(freeGround ? { y: pet.gy } : {}), facing: pet.facing, mode: pet.mode, busy: busy(), pressing: !!press, cursor: pet.cursor,
       moving: !!press || MOVING_MODES.has(pet.mode) || !!pet.pulse || Math.abs(pet.faceVis - pet.facing) > .05,
       box: { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) },
-      hit: hits(), bubble: anchor(), side: { x: side.x, y: side.y, reach: 104 * S },
+      hit: hits(), bubble: anchor(), side: { x: side.x, y: side.y, reach: halfWidth() * S },
     };
   }
 
