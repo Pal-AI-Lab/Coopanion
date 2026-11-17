@@ -10,17 +10,20 @@
  * packed app must hold the target architecture's native packages (`NATIVE`), or the build fails.
  *
  * Run: `pnpm run build:installer` (builds build/cortico first). Output: `dist/Coopanion-Setup-<version>.exe` on
- * Windows, `dist/Coopanion-<version>-mac-<arch>.dmg` and `.zip` on a Mac, `dist/Coopanion-<version>-linux-x64.AppImage`
- * and `.deb` on Linux. `PACK_ARCH` (x64 or arm64) builds for
- * another architecture than the machine's: npm installs that architecture's native packages (esbuild, sherpa-onnx) and
- * electron-builder packs that Electron, so one Apple silicon Mac builds both Mac downloads.
+ * Windows (`Coopanion-Setup-<version>-arm64.exe` for Windows on Arm), `dist/Coopanion-<version>-mac-<arch>.dmg` and
+ * `.zip` on a Mac, `dist/Coopanion-<version>-linux-x64.AppImage` and `.deb` on Linux. `PACK_ARCH` (x64 or arm64)
+ * builds for another architecture than the machine's: npm installs that architecture's native packages (esbuild,
+ * koffi, sherpa-onnx), electron-builder packs that Electron and the Windows build takes that MinGit, so one Apple
+ * silicon Mac builds both Mac downloads and one x64 Windows machine both Windows ones. In such a build koffi's
+ * install script, which loads koffi on the build machine, finds the workspace's own through the NODE_PATH that
+ * pnpm's `tsx` shim sets.
  *
  * `COOPANION_CHANNEL=steam` with `STEAM_APP_ID` builds for Steam instead: the app directory without an
  * installer (`dist/win-unpacked`, `dist/linux-unpacked`), which Steam installs and updates, carrying
  * steamworks.js for the Workshop (app/steam.cjs) and without the whale pack, which goes out through the Workshop.
- * `COOPANION_CHANNEL=portable` (Windows) builds the portable zip, `dist/Coopanion-<version>-win-x64-portable.zip`:
- * the app directory to unpack anywhere, without the updater. The channel and app id go into the app's package.json
- * as `coopanion` (app/main.cjs).
+ * steamworks.js has x64 libraries only. `COOPANION_CHANNEL=portable` (Windows) builds the portable zip,
+ * `dist/Coopanion-<version>-win-<arch>-portable.zip`: the app directory to unpack anywhere, without the updater.
+ * The channel and app id go into the app's package.json as `coopanion` (app/main.cjs).
  */
 import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -47,6 +50,10 @@ if (STEAM && process.platform !== 'win32' && process.platform !== 'linux') {
   console.error('Steam 版只在 Windows 和 Linux 上构建');
   process.exit(1);
 }
+if (STEAM && ARCH !== 'x64') {
+  console.error('Steam 版只有 x64:steamworks.js 没有其他架构的库');
+  process.exit(1);
+}
 const PORTABLE = process.env.COOPANION_CHANNEL === 'portable';
 if (PORTABLE && process.platform !== 'win32') {
   console.error('便携版只在 Windows 上构建');
@@ -67,30 +74,43 @@ for (const name of WORKSPACE) {
   // a workspace package one of them depends on is copied in below; npm cannot fetch a `workspace:` version
   for (const [dep, version] of Object.entries(pkg.dependencies ?? {})) if (!WORKSPACE.includes(dep)) DEPS[dep] = version;
 }
+/**
+ * sherpa-onnx-node loads its Windows on Arm binary from the package beside it and, at this version, does not
+ * depend on that package. As an optional dependency npm installs it for that target alone.
+ */
+const OPTIONAL_DEPS = { 'sherpa-onnx-win-arm64': DEPS['sherpa-onnx-node'] };
 
 /**
  * Git for Windows' MinGit, which the Windows build carries for the history of Coo's workspace (core/persona.ts;
- * app/main.cjs puts its cmd\ first on the Core's PATH). Pinned by version and SHA-256; the download is kept in
- * build/cache/.
+ * app/main.cjs puts its cmd\ first on the Core's PATH). Pinned by version and SHA-256 for each architecture; the
+ * download is kept in build/cache/.
  */
-const MINGIT = {
-  url: 'https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.1/MinGit-2.56.0-64-bit.zip',
-  sha256: '064b440ff870ed5198527e8f3a92cdf5bd2fd0fedf5e718af95e3fdaddeff718',
+const MINGIT: Record<string, { url: string; sha256: string }> = {
+  x64: {
+    url: 'https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.1/MinGit-2.56.0-64-bit.zip',
+    sha256: '064b440ff870ed5198527e8f3a92cdf5bd2fd0fedf5e718af95e3fdaddeff718',
+  },
+  arm64: {
+    url: 'https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.1/MinGit-2.56.0-arm64.zip',
+    sha256: 'cb3b0f2d486ea52673227151a5baf5bc13861ff80e74e94e46d614d1bfcd5c06',
+  },
 };
 
 async function addMinGit(dir: string): Promise<void> {
-  const cached = join(ROOT, 'build', 'cache', MINGIT.url.split('/').pop()!);
+  const mingit = MINGIT[ARCH];
+  if (!mingit) throw new Error(`没有 ${ARCH} 的 MinGit`);
+  const cached = join(ROOT, 'build', 'cache', mingit.url.split('/').pop()!);
   if (!existsSync(cached)) {
-    const res = await fetch(MINGIT.url);
-    if (!res.ok) throw new Error(`MinGit 下载失败:HTTP ${res.status} ${MINGIT.url}`);
+    const res = await fetch(mingit.url);
+    if (!res.ok) throw new Error(`MinGit 下载失败:HTTP ${res.status} ${mingit.url}`);
     mkdirSync(dirname(cached), { recursive: true });
     writeFileSync(cached, Buffer.from(await res.arrayBuffer()));
   }
   const zip = readFileSync(cached);
   const sum = createHash('sha256').update(zip).digest('hex');
-  if (sum !== MINGIT.sha256) {
+  if (sum !== mingit.sha256) {
     rmSync(cached);
-    throw new Error(`MinGit 校验不符:得到 ${sum},应为 ${MINGIT.sha256}`);
+    throw new Error(`MinGit 校验不符:得到 ${sum},应为 ${mingit.sha256}`);
   }
   for (const [name, data] of Object.entries(unzipSync(zip))) {
     if (name.endsWith('/')) continue;
@@ -125,6 +145,7 @@ writeFileSync(join(OUT, 'package.json'), JSON.stringify({
   name: rootPkg.name, productName: rootPkg.productName, version: rootPkg.version, description: rootPkg.description,
   license: rootPkg.license, author: rootPkg.author, homepage: rootPkg.homepage, type: 'module', main: 'app/main.cjs',
   dependencies: DEPS,
+  optionalDependencies: OPTIONAL_DEPS,
   coopanion: STEAM ? { channel: 'steam', steamAppId: STEAM_APP_ID } : { channel: PORTABLE ? 'portable' : 'github' },
 }, null, 2));
 run('npm', ['install', '--omit=dev', '--no-audit', '--no-fund', '--loglevel=error', `--os=${process.platform}`, `--cpu=${ARCH}`], OUT);
@@ -146,7 +167,14 @@ if (process.platform === 'win32') await addMinGit(join(OUT, 'mingit'));
 console.log(`app directory ready: ${relative(ROOT, OUT)}`);
 
 const target = process.platform === 'darwin' ? '--mac' : process.platform === 'linux' ? '--linux' : '--win';
-run(join(ROOT, 'node_modules', '.bin', process.platform === 'win32' ? 'electron-builder.cmd' : 'electron-builder'), [target, ...PORTABLE ? ['zip'] : [], `--${ARCH}`, ...STEAM ? ['--dir'] : [], '--publish', 'never', '--projectDir', OUT, '--config', join(ROOT, 'electron-builder.yml'), ...process.argv.slice(2)], ROOT);
+/**
+ * The Windows on Arm installer has its own file name and its own update file, `latest-arm64.yml`: the channel goes
+ * into the app's app-update.yml, where electron-updater reads which file to fetch. The x64 installer keeps the
+ * names in electron-builder.yml, which the installed x64 copies update from.
+ */
+const WIN_ARM64 = process.platform === 'win32' && ARCH === 'arm64'
+  ? [`-c.nsis.artifactName=Coopanion-Setup-${rootPkg.version}-arm64.exe`, '-c.publish.channel=latest-arm64'] : [];
+run(join(ROOT, 'node_modules', '.bin', process.platform === 'win32' ? 'electron-builder.cmd' : 'electron-builder'), [target, ...PORTABLE ? ['zip'] : [], `--${ARCH}`, ...STEAM ? ['--dir'] : [], '--publish', 'never', '--projectDir', OUT, '--config', join(ROOT, 'electron-builder.yml'), ...WIN_ARM64, ...process.argv.slice(2)], ROOT);
 
 /** The native packages the Core loads, for the target platform and architecture: esbuild (tsx), koffi (computer use), sherpa-onnx (speech). */
 const NATIVE = [`@esbuild/${process.platform}-${ARCH}`, `@koromix/koffi-${process.platform}-${ARCH}`, `sherpa-onnx-${process.platform === 'win32' ? 'win' : process.platform}-${ARCH}`];
