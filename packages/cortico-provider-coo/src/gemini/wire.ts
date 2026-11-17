@@ -15,6 +15,7 @@ import { standardUsage, unknownMeters, type GenerateOptions, type TokenMeters } 
 import type { ModelSpec } from 'cortico/core/types.ts';
 import { requestContext, requestSpec } from 'cortico/providers/transport/native-input.ts';
 import type { CompatMediaOptions } from 'cortico/providers/transport/history.ts';
+import { inputBoundaries } from '../context.ts';
 
 export interface GeminiPart {
   text?: string;
@@ -67,6 +68,37 @@ export function geminiInlineMime(mime: string): string | null {
  * request with inline data. An attachment past the budget is left out; its text line stays.
  */
 export const INLINE_MAX_CHARS = 18 * 1024 * 1024;
+
+/** Budget unsent attachments first, then replay the newest delivery before considering older ones. */
+function selectInlineBlobs(context: readonly ContextRecord[], media: CompatMediaOptions | undefined): Map<number, GeminiPart[]> {
+  const selected = new Map<number, GeminiPart[]>();
+  if (!media?.enabled()) return selected;
+  let remaining = INLINE_MAX_CHARS;
+  const select = (start: number, end: number): void => {
+    for (let index = start; index < end; index++) {
+      const { item, context: { blobs } } = context[index];
+      if (!blobs?.length) continue;
+      if (item.type !== 'function_call_output' && (item.type !== 'message' || item.role !== 'user')) continue;
+      const parts: GeminiPart[] = [];
+      for (const ref of blobs) {
+        const mimeType = geminiInlineMime(ref.mime);
+        if (!mimeType) continue;
+        const bytes = media.read(ref.handle);
+        if (!bytes) continue;
+        const chars = Math.ceil(bytes.length / 3) * 4;
+        if (chars > remaining) continue;
+        remaining -= chars;
+        parts.push({ inlineData: { mimeType, data: bytes.toString('base64') } });
+      }
+      if (parts.length) selected.set(index, parts);
+    }
+  };
+  const { currentStart, unsentStart } = inputBoundaries(context);
+  select(unsentStart, context.length);
+  select(currentStart, unsentStart);
+  select(0, currentStart);
+  return selected;
+}
 
 function dataUrl(url: string): { mimeType: string; data: string } {
   const match = /^data:([^;,]+);base64,(.*)$/s.exec(url);
@@ -146,23 +178,9 @@ export function geminiInput(request: Request, options: GenerateOptions, opts: { 
     if (last?.role === 'user') last.parts.push(...parts);
     else contents.push({ role: 'user', parts });
   };
-  let inlineChars = 0;
-  const blobs = (entry: ContextRecord): GeminiPart[] => {
-    if (!opts.media?.enabled() || !entry.context.blobs?.length) return [];
-    const parts: GeminiPart[] = [];
-    for (const ref of entry.context.blobs) {
-      const mimeType = geminiInlineMime(ref.mime);
-      if (!mimeType) continue;
-      const bytes = opts.media.read(ref.handle);
-      if (!bytes) continue;
-      const data = bytes.toString('base64');
-      if (inlineChars + data.length > INLINE_MAX_CHARS) continue;
-      inlineChars += data.length;
-      parts.push({ inlineData: { mimeType, data } });
-    }
-    return parts;
-  };
-  for (const entry of requestContext(request, options)) {
+  const context = requestContext(request, options);
+  const inline = selectInlineBlobs(context, opts.media);
+  for (const [index, entry] of context.entries()) {
     const item = entry.item as Item;
     if (item.type === 'reasoning') {
       const target = modelTurn(entry);
@@ -180,7 +198,7 @@ export function geminiInput(request: Request, options: GenerateOptions, opts: { 
       const name = names.get(item.call_id);
       if (!name) throw new ResponseProtocolError(`Gemini function output ${item.call_id} has no preceding call`);
       const media = userParts(item.output).filter(part => part.inlineData);
-      userTurn([{ functionResponse: { name, id: item.call_id, response: { output: itemText(item as any) } } }, ...media, ...blobs(entry)]);
+      userTurn([{ functionResponse: { name, id: item.call_id, response: { output: itemText(item as any) } } }, ...media, ...(inline.get(index) ?? [])]);
     } else if (item.type === 'message') {
       if (item.role === 'system' || item.role === 'developer') {
         systems.push(typeof item.content === 'string' ? item.content : item.content.map((part: Item) => part.text ?? '').join(''));
@@ -188,7 +206,7 @@ export function geminiInput(request: Request, options: GenerateOptions, opts: { 
         const text = itemText(item as any);
         const target = modelTurn(entry);
         if (text) target.content.parts.push({ text });
-      } else userTurn([...userParts(item.content), ...blobs(entry)]);
+      } else userTurn([...userParts(item.content), ...(inline.get(index) ?? [])]);
     } else throw new ResponseProtocolError(`Gemini provider cannot replay ${item.type}`);
   }
   closeTurn();

@@ -1,8 +1,8 @@
 /**
  * Gemini API client on the framework transport, API key only:
  * `POST <baseUrl>/models/<model>:generateContent`, or `:streamGenerateContent?alt=sse` when
- * streaming, with the key in `x-goog-api-key`. Attachments are limited to the newest delivered batch
- * (`sinceLastDelivery`).
+ * streaming, with the key in `x-goog-api-key`. `sinceLastDelivery` removes earlier image, audio
+ * and video bytes from the context.
  */
 import type { Logger } from 'cortico/core/types.ts';
 import { nullLogger } from 'cortico/core/util.ts';

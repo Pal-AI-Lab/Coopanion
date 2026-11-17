@@ -125,6 +125,8 @@ Choose a service in Coo's bubble or on the Start page, create an API key on its 
 
 These are the defaults from the app's [vendor table](packages/cortico-provider-coo/src/vendors.ts). To use another model, change the Model field on the Start page; for computer use the model has to accept images. Kimi, Qwen, MiniMax and Zhipu GLM each have a mainland China and an international platform with separate accounts and keys. A new connection uses the mainland platform when the interface language is Simplified Chinese and the international one otherwise; switch on the Start page. Doubao, Baidu Qianfan, StepFun and StepFun Step Plan only take mainland China accounts. We have only tested DeepSeek, Anthropic and StepFun Step Plan with real keys, so please open an issue if another one fails.
 
+Multimodal Gemini endpoints give new attachments priority within the inline size limit. Earlier attachments use the remaining space.
+
 **ChatGPT** needs no key: choose it, press **Continue with ChatGPT** and sign in in the browser that opens. Coo then uses that account's ChatGPT plan. When the plan's usage limit is reached, Coo goes quiet and tries again every 5 minutes.
 
 </details>

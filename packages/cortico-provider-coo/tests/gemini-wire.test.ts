@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { RESERVED_FRAME_NAMES } from 'cortico/core/loop.ts';
 import { functionCall, functionResult, message, record, type ContextRecord } from 'cortico/protocol/open-responses/context.ts';
 import type { StreamEvent } from 'cortico/protocol/open-responses/index.ts';
+import { sinceLastDelivery } from '../src/context.ts';
 import { BYPASS_SIGNATURE, GeminiResponseAssembly, FILLER_USER_TEXT, INLINE_MAX_CHARS, geminiInput, geminiMeters, geminiRequest, thinkingConfig } from '../src/gemini/wire.ts';
 
 const origin = { instance: 'g', module: 'gemini', model: 'gemini-x-flash', compatibilityDomain: 'account-1' };
@@ -180,5 +182,47 @@ describe('geminiInput attachments', () => {
     const sent = inline(geminiInput(request, { context, origin }, { media }).contents);
     expect(sent.map(part => part.data.length)).toEqual([big.toString('base64').length]);
     expect(sent.reduce((n, part) => n + part.data.length, 0)).toBeLessThanOrEqual(INLINE_MAX_CHARS);
+  });
+
+  it('keeps a new screenshot ahead of an old PDF when both would exceed the budget', () => {
+    const bytes = new Map([
+      ['pdf', Buffer.alloc(INLINE_MAX_CHARS * 3 / 4 - 3)],
+      ['notes', Buffer.from('abc')],
+      ['shot', Buffer.from([0x89, 0x50, 0x4e, 0x47])],
+    ]);
+    const media = { enabled: () => true, read: (handle: string) => bytes.get(handle) ?? null };
+    const context = sinceLastDelivery([
+      withBlobs('Report PDF', [{ handle: 'pdf', mime: 'application/pdf' }]),
+      withBlobs('Report notes', [{ handle: 'notes', mime: 'text/plain' }]),
+      message('assistant', 'Opening the report'),
+      withBlobs('Current screenshot', [{ handle: 'shot', mime: 'image/png' }]),
+    ]);
+    const { contents } = geminiInput(request, { context, origin }, { media });
+    expect(inline(contents).map(part => part.mimeType)).toEqual(['text/plain', 'image/png']);
+    expect(contents.flatMap(turn => turn.parts.flatMap(part => part.text ?? [])))
+      .toEqual(['Report PDF', 'Report notes', 'Opening the report', 'Current screenshot']);
+  });
+
+  it('keeps a new tool screenshot after the model has received the PDF in the same batch', () => {
+    const bytes = new Map([
+      ['pdf', Buffer.alloc(INLINE_MAX_CHARS * 3 / 4 - 3)],
+      ['shot', Buffer.from([0x89, 0x50, 0x4e, 0x47])],
+    ]);
+    const media = { enabled: () => true, read: (handle: string) => bytes.get(handle) ?? null };
+    const [frameName] = RESERVED_FRAME_NAMES;
+    const pdf = functionResult('delivery', 'Report PDF');
+    pdf.context.blobs = [{ handle: 'pdf', mime: 'application/pdf', fallbackText: 'Report PDF' }];
+    const shot = functionResult('capture', 'Current screenshot');
+    shot.context.blobs = [{ handle: 'shot', mime: 'image/png', fallbackText: 'Current screenshot' }];
+    const context = sinceLastDelivery([
+      functionCall('delivery', frameName, '{}'),
+      pdf,
+      functionCall('capture', 'capture_screen', '{}'),
+      shot,
+    ]);
+    const { contents } = geminiInput(request, { context, origin }, { media });
+    const parts = contents.flatMap(turn => turn.parts).filter(part => part.functionResponse || part.inlineData);
+    expect(parts.map(part => part.functionResponse?.response.output ?? part.inlineData?.mimeType))
+      .toEqual(['Report PDF', 'Current screenshot', 'image/png']);
   });
 });
