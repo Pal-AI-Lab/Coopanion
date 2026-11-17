@@ -12,10 +12,10 @@ import { createResponse, type OutputItem, type Request, type Response, type Stre
 import { ResponseAccumulator, ResponseProtocolError } from 'cortico/protocol/open-responses/stream.ts';
 import { itemText, type ContextRecord } from 'cortico/protocol/open-responses/context.ts';
 import { standardUsage, unknownMeters, type GenerateOptions, type TokenMeters } from 'cortico/core/generation.ts';
-import type { ModelSpec } from 'cortico/core/types.ts';
+import type { BlobRef, ModelSpec } from 'cortico/core/types.ts';
 import { requestContext, requestSpec } from 'cortico/providers/transport/native-input.ts';
 import type { CompatMediaOptions } from 'cortico/providers/transport/history.ts';
-import { inputBoundaries } from '../context.ts';
+import { inputBoundaries, lastSuccessfulOutputEnd, sinceLastDelivery } from '../context.ts';
 
 export interface GeminiPart {
   text?: string;
@@ -63,41 +63,84 @@ export function geminiInlineMime(mime: string): string | null {
   return type.startsWith('image/') ? type : INLINE_MIMES[type] ?? null;
 }
 
-/**
- * Base64 characters of attachments one request carries at most, under Gemini's 20 MB limit on a
- * request with inline data. An attachment past the budget is left out; its text line stays.
- */
+/** Budget for base64 data from context blobs. Attachments over the budget keep their text line. */
 export const INLINE_MAX_CHARS = 18 * 1024 * 1024;
 
-/** Budget unsent attachments first, then replay the newest delivery before considering older ones. */
-function selectInlineBlobs(context: readonly ContextRecord[], media: CompatMediaOptions | undefined): Map<number, GeminiPart[]> {
-  const selected = new Map<number, GeminiPart[]>();
-  if (!media?.enabled()) return selected;
-  let remaining = INLINE_MAX_CHARS;
-  const select = (start: number, end: number): void => {
-    for (let index = start; index < end; index++) {
-      const { item, context: { blobs } } = context[index];
-      if (!blobs?.length) continue;
-      if (item.type !== 'function_call_output' && (item.type !== 'message' || item.role !== 'user')) continue;
-      const parts: GeminiPart[] = [];
-      for (const ref of blobs) {
-        const mimeType = geminiInlineMime(ref.mime);
-        if (!mimeType) continue;
-        const bytes = media.read(ref.handle);
-        if (!bytes) continue;
-        const chars = Math.ceil(bytes.length / 3) * 4;
-        if (chars > remaining) continue;
-        remaining -= chars;
-        parts.push({ inlineData: { mimeType, data: bytes.toString('base64') } });
-      }
-      if (parts.length) selected.set(index, parts);
+export interface InlineAttachmentReplay {
+  previous?: { pendingStart: number; keys: ReadonlySet<string> };
+  sent?: { keys: ReadonlySet<string>; images: ReadonlySet<BlobRef> };
+}
+
+interface InlineAttachment {
+  index: number;
+  ref: BlobRef;
+  mimeType: string;
+  key: string;
+}
+
+function inlineAttachments(context: readonly ContextRecord[]): InlineAttachment[] {
+  const attachments: InlineAttachment[] = [];
+  const occurrences = new Map<string, number>();
+  for (const [index, { item, context: { blobs } }] of context.entries()) {
+    if (!blobs?.length) continue;
+    if (item.type !== 'function_call_output' && (item.type !== 'message' || item.role !== 'user')) continue;
+    for (const ref of blobs) {
+      const mimeType = geminiInlineMime(ref.mime);
+      if (!mimeType) continue;
+      const reference = JSON.stringify([item.id ?? index, ref.handle, ref.mime]);
+      const occurrence = occurrences.get(reference) ?? 0;
+      occurrences.set(reference, occurrence + 1);
+      attachments.push({ index, ref, mimeType, key: `${reference}#${occurrence}` });
     }
+  }
+  return attachments;
+}
+
+/** Budget new images first and replay earlier attachments in context order. */
+function selectInlineBlobs(
+  context: readonly ContextRecord[],
+  media: CompatMediaOptions | undefined,
+  replay: InlineAttachmentReplay | undefined,
+): Map<number, GeminiPart[]> {
+  const parts = new Map<number, GeminiPart[]>();
+  const sent = replay && { keys: new Set<string>(), images: new Set<BlobRef>() };
+  if (replay) replay.sent = sent;
+  if (!media?.enabled()) return parts;
+  const previous = replay?.previous;
+  const pendingStart = previous?.pendingStart ?? lastSuccessfulOutputEnd(context);
+  const { currentStart } = inputBoundaries(context, pendingStart);
+  const attachments = inlineAttachments(previous ? context : sinceLastDelivery(context, currentStart));
+  const selected = new Map<InlineAttachment, GeminiPart>();
+  let remaining = INLINE_MAX_CHARS;
+  const include = (attachment: InlineAttachment): void => {
+    const bytes = media.read(attachment.ref.handle);
+    if (!bytes) return;
+    const chars = Math.ceil(bytes.length / 3) * 4;
+    if (chars > remaining) return;
+    remaining -= chars;
+    selected.set(attachment, { inlineData: { mimeType: attachment.mimeType, data: bytes.toString('base64') } });
   };
-  const { currentStart, unsentStart } = inputBoundaries(context);
-  select(unsentStart, context.length);
-  select(currentStart, unsentStart);
-  select(0, currentStart);
-  return selected;
+  const unsent = attachments.filter(({ index }) => index >= pendingStart);
+  const history = attachments.filter(({ index }) => index < pendingStart);
+  for (const attachment of unsent) if (attachment.mimeType.startsWith('image/')) include(attachment);
+  for (const attachment of unsent) if (!attachment.mimeType.startsWith('image/')) include(attachment);
+  if (previous) {
+    for (const attachment of history) if (previous.keys.has(attachment.key)) include(attachment);
+  } else {
+    for (const attachment of history) if (attachment.index >= currentStart) include(attachment);
+    for (const attachment of history) if (attachment.index < currentStart) include(attachment);
+  }
+
+  for (const attachment of attachments) {
+    const part = selected.get(attachment);
+    if (!part) continue;
+    const at = parts.get(attachment.index) ?? [];
+    at.push(part);
+    parts.set(attachment.index, at);
+    sent?.keys.add(attachment.key);
+    if (attachment.mimeType.startsWith('image/')) sent?.images.add(attachment.ref);
+  }
+  return parts;
 }
 
 function dataUrl(url: string): { mimeType: string; data: string } {
@@ -147,13 +190,19 @@ export interface GeminiInput {
   systemInstruction?: { role: 'user'; parts: [{ text: string }] };
 }
 
+interface GeminiInputOptions {
+  media?: CompatMediaOptions;
+  keepThinking?: () => boolean;
+  attachmentReplay?: InlineAttachmentReplay;
+}
+
 /**
  * The whole context as Gemini contents. Model-side Items (reasoning, assistant text, function
  * calls) with the same `responseId` form one model turn; adjacent user-side Items merge into one
  * user turn. A reasoning Item contributes only its signature, and only when its recorded origin
  * matches this request.
  */
-export function geminiInput(request: Request, options: GenerateOptions, opts: { media?: CompatMediaOptions; keepThinking?: () => boolean } = {}): GeminiInput {
+export function geminiInput(request: Request, options: GenerateOptions, opts: GeminiInputOptions = {}): GeminiInput {
   const systems = request.instructions ? [request.instructions] : [];
   const contents: GeminiContent[] = [];
   const names = new Map<string, string>();
@@ -179,7 +228,7 @@ export function geminiInput(request: Request, options: GenerateOptions, opts: { 
     else contents.push({ role: 'user', parts });
   };
   const context = requestContext(request, options);
-  const inline = selectInlineBlobs(context, opts.media);
+  const inline = selectInlineBlobs(context, opts.media, opts.attachmentReplay);
   for (const [index, entry] of context.entries()) {
     const item = entry.item as Item;
     if (item.type === 'reasoning') {
@@ -243,7 +292,7 @@ function toolConfig(choice: Request['tool_choice']): Record<string, unknown> | u
 }
 
 /** The inner `GenerateContentRequest`; function parameters pass through as JSON Schema. */
-export function geminiRequest(request: Request, options: GenerateOptions, opts: { media?: CompatMediaOptions; keepThinking?: () => boolean } = {}): Record<string, unknown> {
+export function geminiRequest(request: Request, options: GenerateOptions, opts: GeminiInputOptions = {}): Record<string, unknown> {
   const spec = requestSpec(request, options);
   const generationConfig: Record<string, unknown> = { thinkingConfig: thinkingConfig(spec) };
   // Gemini 3 deprecates the sampling parameters; only 2.x models receive them.

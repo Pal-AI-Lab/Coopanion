@@ -1,19 +1,22 @@
 /**
  * Gemini API client on the framework transport, API key only:
  * `POST <baseUrl>/models/<model>:generateContent`, or `:streamGenerateContent?alt=sse` when
- * streaming, with the key in `x-goog-api-key`. `sinceLastDelivery` removes earlier image, audio
- * and video bytes from the context.
+ * streaming, with the key in `x-goog-api-key`. Recent accepted requests supply the attachment
+ * selection for continued sessions.
  */
-import type { Logger } from 'cortico/core/types.ts';
+import type { BlobRef, Logger } from 'cortico/core/types.ts';
 import { nullLogger } from 'cortico/core/util.ts';
 import type { GenerateOptions, Generation } from 'cortico/core/generation.ts';
 import type { Request } from 'cortico/protocol/open-responses/index.ts';
+import type { BaseProvider } from 'cortico/providers/base.ts';
 import { OpenAIHttpClient } from 'cortico/providers/transport/chat.ts';
 import { LLMError } from 'cortico/providers/transport/errors.ts';
 import type { CompatMediaOptions } from 'cortico/providers/transport/history.ts';
+import { ImageFallback, type ImageFallbackOptions } from 'cortico/providers/transport/image-fallback.ts';
 import type { ResponseAssembly } from 'cortico/providers/transport/response-assembly.ts';
-import { sinceLastDelivery } from '../context.ts';
-import { GeminiResponseAssembly, geminiRequest, parseGeminiResponse } from './wire.ts';
+import type { ContextRecord } from 'cortico/protocol/open-responses/context.ts';
+import { isModelOutput, lastSuccessfulOutputEnd } from '../context.ts';
+import { GeminiResponseAssembly, geminiRequest, parseGeminiResponse, type InlineAttachmentReplay } from './wire.ts';
 
 export interface GeminiProviderOptions {
   baseUrl: string;
@@ -23,8 +26,17 @@ export interface GeminiProviderOptions {
   log?: Logger;
 }
 
+interface GeminiGenerateOptions extends GenerateOptions {
+  attachmentReplay?: InlineAttachmentReplay;
+}
+
+/** Only recent accepted requests need attachment lookups. */
+const ATTACHMENT_REPLAY_LIMIT = 32;
+
 export class GeminiProvider extends OpenAIHttpClient {
   private readonly opts: GeminiProviderOptions;
+  private readonly sentAttachments = new Map<string, ReadonlySet<string>>();
+  private readonly rejectedImages = new WeakMap<readonly ContextRecord[], ReadonlySet<BlobRef>>();
 
   constructor(opts: GeminiProviderOptions) {
     super(opts.baseUrl, opts.log ?? nullLogger());
@@ -39,12 +51,78 @@ export class GeminiProvider extends OpenAIHttpClient {
   override respond(request: Request, options: GenerateOptions = {}): Promise<Generation> {
     const method = options.onEvent ? 'streamGenerateContent?alt=sse' : 'generateContent';
     this.chatPath = `/models/${encodeURIComponent(request.model ?? '')}:${method}`;
-    return super.respond(request, options);
+    const { sessionId, context, diagnostic } = options;
+    const scope = sessionId && context && !diagnostic ? [sessionId, request.model] as const : undefined;
+    const replay: InlineAttachmentReplay | undefined = context && !diagnostic
+      ? { previous: scope && this.previousAttachments(scope, context) } : undefined;
+    const call: GeminiGenerateOptions = { ...options, attachmentReplay: replay };
+    const generation = super.respond(request, call);
+    if (!context || !replay) return generation;
+    return generation.then(result => {
+      const { id, output } = result.response;
+      const outcome = result.attempts.at(-1)?.outcome;
+      if (scope && replay.sent && !options.signal?.aborted && (outcome === 'completed' || outcome === 'incomplete')) {
+        if (output.some(isModelOutput)) this.rememberAttachments(JSON.stringify([...scope, id]), replay.sent.keys);
+        else {
+          const tailId = context.at(-1)?.item.id;
+          const previousId = context[lastSuccessfulOutputEnd(context) - 1]?.context.responseId;
+          if (tailId) this.rememberAttachments(JSON.stringify([...scope, previousId, tailId]), replay.sent.keys);
+        }
+      }
+      return result;
+    }, (error: unknown) => {
+      if (replay.sent?.images.size) this.rejectedImages.set(context, replay.sent.images);
+      throw error;
+    });
   }
 
-  protected override buildResponseBody(request: Request, options: GenerateOptions): Record<string, unknown> {
-    const limited = options.context ? { ...options, context: sinceLastDelivery(options.context) } : options;
-    return geminiRequest(request, limited, { media: this.opts.media, keepThinking: this.opts.keepThinking });
+  withImageFallback(options: Omit<ImageFallbackOptions, 'attached'>): BaseProvider {
+    const fallback = new ImageFallback(this, {
+      ...options,
+      attached: context => {
+        const images = this.rejectedImages.get(context);
+        if (!images) return [];
+        return context.flatMap(entry => {
+          const blobs = entry.context.blobs?.filter(ref => images.has(ref));
+          return blobs?.length ? [{ ...entry, context: { ...entry.context, blobs } }] : [];
+        });
+      },
+    });
+    return {
+      // Each call has its own context even when callers share an input array.
+      respond: (request, opts) => opts?.context
+        ? fallback.respond(request, { ...opts, context: opts.context.slice() }) : fallback.respond(request, opts),
+    };
+  }
+
+  private previousAttachments(
+    scope: readonly [string, Request['model']],
+    context: readonly ContextRecord[],
+  ): InlineAttachmentReplay['previous'] {
+    const responseEnd = lastSuccessfulOutputEnd(context);
+    const responseId = context[responseEnd - 1]?.context.responseId;
+    // An accepted request with no model output leaves its last input as the available anchor.
+    for (let index = context.length - 1; index >= Math.max(0, responseEnd - 1); index--) {
+      const tailId = context[index].item.id;
+      if (!tailId) continue;
+      const keys = this.sentAttachments.get(JSON.stringify([...scope, responseId, tailId]));
+      if (keys) return { pendingStart: index + 1, keys };
+    }
+    const keys = responseId ? this.sentAttachments.get(JSON.stringify([...scope, responseId])) : undefined;
+    return keys ? { pendingStart: responseEnd, keys } : undefined;
+  }
+
+  private rememberAttachments(key: string, sent: ReadonlySet<string>): void {
+    this.sentAttachments.delete(key);
+    this.sentAttachments.set(key, sent);
+    if (this.sentAttachments.size > ATTACHMENT_REPLAY_LIMIT)
+      this.sentAttachments.delete(this.sentAttachments.keys().next().value!);
+  }
+
+  protected override buildResponseBody(request: Request, options: GeminiGenerateOptions): Record<string, unknown> {
+    return geminiRequest(request, options, {
+      media: this.opts.media, keepThinking: this.opts.keepThinking, attachmentReplay: options.attachmentReplay,
+    });
   }
 
   /** The body is built whole in `buildResponseBody`. */

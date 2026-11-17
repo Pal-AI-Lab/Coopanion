@@ -45,15 +45,14 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
   Anthropic 回传 thinking 块和签名,Gemini 回传 `thoughtSignature`,都只回给写出它的端点和模型。
   明文回传时，没记下推理的工具调用前默认补一条占位推理(`syntheticReasoning`,即 Cortico 的 `sendSyntheticReasoning`):
   DeepSeek 不补会回 400;OpenRouter 不补。端点因此回 400 时，桌宠的失败气泡请使用者反馈给开发者。
-- **图片**:端点勾了「多模态」才发。新建端点和选模型时，按那一家列明能看图的模型(`Vendor.vision`)自动勾上或去掉「多模态」。
-  只发最近一批送达的事件(user 消息或事件帧)及其后的图片,更早的只留 Core 给每份附件写的 `[blob …]` 那行文字。
-  每次送达新的一批,请求里从上一批的第一张图起前缀缓存失效。Chat 的工具结果不带图片,图片挪到紧跟其后的一条 user 消息里;
-  千问、智谱国内、阶跃星辰、千帆的 Responses 文档写明 `function_call_output.output` 只收字符串(`toolOutputText`),也这样挪。
-  带图的请求被回 413,或被回 400 且不是上下文超限时，去掉这些图片再发一次(Cortico 的 `ImageFallback`,四种协议和 ChatGPT 套餐的 client 都套着它，
-  实例声明 `handlesRefusedImages`;带的图只算最近一批起实际附上的那些);这次被接受，就记下这些图片，之后经这个端点的请求都不带，
-  每张的 `[blob …]` 行后补一行 Cortico 的 `imageLeftOut`;去掉图片后仍被回 413 的按上下文超限交接。
-  记录只在内存里，重启后第一次带上这些图片的请求还会被拒一次。
-- **Gemini 内联附件**：尚未发给模型的附件优先占用预算，然后是最近一批已发送的附件，更早的附件使用剩余空间。超出预算的附件保留文字行。
+- **图片**：端点勾了「多模态」才发。新建端点和选择模型时，按供应商的 `Vendor.vision` 设置「多模态」。
+  Chat、Responses、Anthropic 只发最近一批事件（user 消息或事件帧）及之后的图片，更早的图片保留 Core 写的 `[blob …]` 行。
+  新一批事件送达时，请求的公共前缀到上一批首张图片之前为止。Chat 和千问、智谱国内、阶跃星辰、千帆的 Responses 端点（`toolOutputText`）
+  把工具结果的图片放在紧随其后的 user 消息。
+  带图请求收到 413，或收到与上下文上限无关的 400 时，Cortico 的 `ImageFallback` 去掉已附上的图片，重试一次。
+  四种协议和 ChatGPT 套餐的实例都声明 `handlesRefusedImages`。重试成功后，当前端点在内存中记住这些图片，
+  后续请求在对应的 `[blob …]` 行下补 `imageLeftOut`。重试仍收到 413 时，按上下文超限交接。
+- **Gemini 内联附件**：先给新图片留空间，再放其他新附件。接续同一会话的成功响应时，剩余预算按原顺序保留上一次实际发送过的旧附件。找不到对应响应时，按最近一批筛选旧图片、音频和视频。超出预算的附件保留文字行。
 - **价目**:`src/pricing.ts` 内置 DeepSeek(错峰价,两个高峰时段按两倍计)、OpenAI、Anthropic、Gemini(付费档)、xAI;别家没有内置价目。
   长提示的第二档价格按 `inputBands` 计;`gemini-3.8-flash` 的现价到 2026-12-31,之后开始的请求按页面列的新价。
 - **标志**:`src/icons.ts`,取自 [@lobehub/icons-static-svg](https://github.com/lobehub/lobe-icons)(MIT)。标志归各自的公司所有,只用来标明是哪一家。

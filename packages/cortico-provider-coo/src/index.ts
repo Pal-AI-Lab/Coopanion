@@ -9,10 +9,11 @@
  * Thinking is a four-step choice: off sends `reasoning.effort = none`, the others low / high /
  * max, each rewritten to the value a service documents where it takes other ones (`effortOf`); the
  * Messages and Gemini APIs get the levels in their own form. Images are sent only when the endpoint
- * is marked multimodal, and on the Gemini API so are audio, video and documents; tool results may carry images too, which move to a user message after the
- * results on Chat and for `toolOutputText` services on Responses. Media go out only from the newest delivered batch of events on
- * (`sinceLastDelivery`); a request the service rejects for its images is sent again without them
- * (Cortico's `ImageFallback`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
+ * is marked multimodal. Tool result images move to a user message on Chat and `toolOutputText`
+ * Responses services. Gemini also sends audio, video and documents and reuses prior attachments
+ * within its inline budget. The other clients take media from the newest delivery
+ * (`sinceLastDelivery`). Cortico's `ImageFallback` retries requests refused for their images
+ * without those images. Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
  * Streamed reasoning from services marked `lenientReasoning` is rewritten into standard events
  * (`LenientReasoningAssembly`). `nonStreamingResponses` services use a non-streaming fallback so
  * tools execute only after the complete response has been read and validated.
@@ -159,9 +160,11 @@ export const COO = {
       };
     }
     if (protocol === 'gemini') {
+      const gemini = new GeminiProvider({ baseUrl: entry.baseUrl, apiKey, media, keepThinking: host.keepThinking, log: host.log });
       const windows = new Map<string, number | undefined>();
       return {
-        ...withFallback(new GeminiProvider({ baseUrl: entry.baseUrl, apiKey, media, keepThinking: host.keepThinking, log: host.log })),
+        client: gemini.withImageFallback({ media, contextOverflow, log: host.log }),
+        handlesRefusedImages: true,
         compatibilityKey,
         contextWindow: (model) => stated(model) ?? windows.get(model),
         listModels: async () => {

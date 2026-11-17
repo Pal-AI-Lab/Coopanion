@@ -225,4 +225,18 @@ describe('geminiInput attachments', () => {
     expect(parts.map(part => part.functionResponse?.response.output ?? part.inlineData?.mimeType))
       .toEqual(['Report PDF', 'Current screenshot', 'image/png']);
   });
+
+  it('reserves space for a new screenshot alongside another unsent attachment', () => {
+    const bytes = new Map([
+      ['pdf', Buffer.alloc(INLINE_MAX_CHARS * 3 / 4)],
+      ['shot', Buffer.from([0x89, 0x50, 0x4e, 0x47])],
+    ]);
+    const media = { enabled: () => true, read: (handle: string) => bytes.get(handle) ?? null };
+    const context = [withBlobs('New attachments', [
+      { handle: 'pdf', mime: 'application/pdf' }, { handle: 'shot', mime: 'image/png' },
+    ])];
+    const { contents } = geminiInput(request, { context, origin }, { media });
+    expect(inline(contents).map(part => part.mimeType)).toEqual(['image/png']);
+    expect(contents[0].parts[0].text).toBe('New attachments');
+  });
 });
