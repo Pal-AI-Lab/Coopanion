@@ -47,6 +47,7 @@ The interface comes in 11 languages: 简体中文, 繁體中文, English, 日本
 - An icon over Coo's head shows when it is thinking, reading files, searching, writing or using the computer.
 - Pick Coo or **DeepSeek Chan**, an animated whale girl with eight vendor color schemes and three outfits. Other figure packs are imported on the Dress up page; see the [figure pack compatibility promise](packages/cortico-world-desktop-pet/README.md#形象包兼容承诺).
 - Coo comes in several colors, including Nai Coo and five Cultist Simulator principles, and can wear a hat, animal ears or a halo, headphones, an earring or a bow, glasses and neckwear. The size of the pet, its bubbles and the text can each be adjusted.
+- Move the mouse back and forth over Coo or the crown of its top hat to pet it.
 - Ask Coo to remind you at a time of day or in a few minutes, and it sets an alarm.
 - Install Worlds such as a QQ bot, a drawing room and small games from **World extensions → Extension market**.
 - Export Coo and its bubbles as an OBS Browser source with a transparent background, to put it on a stream.
