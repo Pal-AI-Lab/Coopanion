@@ -36,7 +36,6 @@ import { ICONS } from 'cortico-world-desktop-pet/web/ui.js';
 import { SOUND_KINDS as PAGE_SOUND_KINDS } from 'cortico-world-desktop-pet/web/sound.js';
 import { captureKey, PRESSES, splitTaps, withTaps } from 'cortico-world-desktop-pet/webui/key-capture.ts';
 import { get, invokePanel, setConfig } from '../../base/api.ts';
-import { LANGUAGE } from '../../base/language.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { intro } from '../intro.ts';
 import { sectionTabs } from '../../base/ui/section-tabs.ts';
@@ -44,7 +43,7 @@ import { CUA_GROUP, cuaSection } from '../cua/index.ts';
 import { S as CUA } from '../cua/strings.ts';
 import { announceName } from '../bot-name.ts';
 import { scaleSlider } from 'cortico-world-desktop-pet/web/scale-slider.js';
-import { BUBBLE_HOLD_MAX_SEC } from 'cortico-world-desktop-pet/web/bubble-timing.js';
+import { BUBBLE_HOLD_AUTO_SEC, BUBBLE_HOLD_MIN_SEC, BUBBLE_HOLD_MAX_SEC } from 'cortico-world-desktop-pet/web/bubble-timing.js';
 import { S } from './strings.ts';
 
 const GROUP = 'world:desktop-pet';
@@ -140,8 +139,8 @@ const GLOW_MAX = 16, GLOW_DEFAULT = 7;
 const BUBBLE_SIZE_MIN = .8, BUBBLE_SIZE_MAX = 1.6;
 /** The range of Coo's bubble speed, as BUBBLE_SPEED_MIN and BUBBLE_SPEED_MAX in the World's config.ts; at 1 a bubble types 20 characters a second. */
 const BUBBLE_SPEED_MIN = .5, BUBBLE_SPEED_MAX = 2;
-const BUBBLE_HOLD_OFF = -1;
-const bubbleSeconds = new Intl.NumberFormat(LANGUAGE, { style: 'unit', unit: 'second', unitDisplay: 'short' });
+/** Initial value when choosing Fixed without a saved duration. */
+const DEFAULT_FIXED_BUBBLE_HOLD_SEC = 5;
 const FRAME_RATES = [60, 120, 144, 0];
 
 /** While the size slider moves, at most one save per this many milliseconds. */
@@ -216,58 +215,84 @@ async function mount(ctx: PageContext): Promise<void> {
   const bubbleSize = percentSlider(S.bubbleSize, KEYS.bubbleSize, BUBBLE_SIZE_MIN, BUBBLE_SIZE_MAX);
   const fontSize = percentSlider(S.fontSize, KEYS.fontSize, BUBBLE_SIZE_MIN, BUBBLE_SIZE_MAX);
   const bubbleSpeed = percentSlider(S.bubbleSpeed, KEYS.bubbleSpeed, BUBBLE_SPEED_MIN, BUBBLE_SPEED_MAX);
-  const durationSlider = (label: string, canTurnOff: boolean, patch: (v: number) => Record<string, number | boolean>) => {
-    const box = ui.h('div', 'companion-rangebox companion-duration');
-    const text = ui.h('span', 'companion-rangeval');
-    const format = (v: number) => v === BUBBLE_HOLD_OFF ? S.glowOff : v === 0 ? S.bubbleHoldAuto : bubbleSeconds.format(v);
-    const show = (v: number) => { text.textContent = format(v); };
-    let saved: number | undefined;
-    let pending: number | undefined;
+  let bubbleHoldRevision = 0;
+  const durationControl = (label: string, key: string) => {
+    let saved = BUBBLE_HOLD_AUTO_SEC;
+    let enabled = true;
     let saving = false;
-    const slider = scaleSlider(root.ownerDocument, {
-      className: 'companion-scale',
-      min: canTurnOff ? BUBBLE_HOLD_OFF : 0,
-      soft: BUBBLE_HOLD_MAX_SEC, max: BUBBLE_HOLD_MAX_SEC,
-      step: 1, label, format,
-      startLabels: canTurnOff ? [S.glowOff, S.bubbleHoldAuto] : [S.bubbleHoldAuto],
-      room: () => Math.max(1, box.clientWidth - text.offsetWidth - 12),
-      onInput: show,
-      onChange: (v) => void write(v),
+    const mode = ui.select({
+      options: [{ value: 'auto', label: S.bubbleHoldAuto }, { value: 'fixed', label: S.bubbleHoldFixed }],
+      onChange: (v) => {
+        const fixed = seconds.validity.valid ? seconds.valueAsNumber : DEFAULT_FIXED_BUBBLE_HOLD_SEC;
+        void write(v === 'auto' ? BUBBLE_HOLD_AUTO_SEC : fixed, mode);
+      },
     });
-    const place = (v: number) => { slider.set(v); show(slider.value); };
-    async function write(v: number): Promise<void> {
-      pending = v;
-      if (saving) return;
-      saving = true;
-      while (pending !== undefined && !signal.aborted) {
-        const next = pending;
-        pending = undefined;
-        if (next !== saved && await saveAll(patch(next), GROUP, slider.el)) saved = next;
-      }
-      saving = false;
-      if (!slider.active && !signal.aborted) place(saved ?? 0);
+    mode.setAttribute('aria-label', label);
+    const seconds = ui.input({
+      type: 'number',
+      value: String(DEFAULT_FIXED_BUBBLE_HOLD_SEC),
+      onChange: () => {
+        if (mode.value !== 'fixed') return;
+        if (seconds.validity.valid) void write(seconds.valueAsNumber, seconds);
+        else show(saved);
+      },
+      onCommit: () => seconds.blur(),
+    });
+    seconds.required = true;
+    seconds.min = String(BUBBLE_HOLD_MIN_SEC);
+    seconds.max = String(BUBBLE_HOLD_MAX_SEC);
+    seconds.step = '1';
+    seconds.setAttribute('aria-label', `${label} (${S.secondsUnit})`);
+    const numberBox = ui.h('div', 'companion-rangebox');
+    numberBox.append(seconds, ui.h('span', 'companion-rangeval', S.secondsUnit));
+    const box = ui.h('div', 'companion-switchbox companion-steps');
+    box.append(mode, numberBox);
+
+    function show(v: number, keepDraft = false): void {
+      const fixed = v > BUBBLE_HOLD_AUTO_SEC;
+      mode.value = fixed ? 'fixed' : 'auto';
+      numberBox.hidden = !fixed;
+      if (fixed && !keepDraft) seconds.value = String(v);
     }
-    box.append(slider.el, text);
-    const observer = new ResizeObserver(() => slider.relayout());
-    observer.observe(box);
-    signal.addEventListener('abort', () => observer.disconnect(), { once: true });
-    place(0);
+    const updateDisabled = () => { mode.disabled = seconds.disabled = !enabled || saving; };
+    async function write(v: number, anchor: HTMLElement): Promise<void> {
+      if (v === saved) { show(saved); return; }
+      saving = true;
+      bubbleHoldRevision++;
+      show(v);
+      updateDisabled();
+      if (await save(key, v, GROUP, anchor)) saved = v;
+      saving = false;
+      bubbleHoldRevision++;
+      if (signal.aborted) return;
+      show(saved);
+      updateDisabled();
+    }
+    show(saved);
     return {
       box,
-      sync(v: number) {
-        if (saving || slider.active || root.ownerDocument.activeElement === slider.el) return;
-        place(v);
-        saved = slider.value;
+      setEnabled(on: boolean) { enabled = on; updateDisabled(); },
+      sync(v: unknown) {
+        if (saving) return;
+        saved = typeof v === 'number' ? v : BUBBLE_HOLD_AUTO_SEC;
+        show(saved, root.ownerDocument.activeElement === seconds);
       },
     };
   };
-  const sayBubbleHold = durationSlider(S.sayBubbleHold, false, (v) => ({ [KEYS.sayBubbleHoldSec]: v }));
-  const saidBubbleHold = durationSlider(S.saidBubbleLabel, true, (v) => {
-    const on = v !== BUBBLE_HOLD_OFF;
-    const values: Record<string, number | boolean> = { [KEYS.saidBubbles]: on };
-    if (on) values[KEYS.saidBubbleHoldSec] = v;
-    return values;
-  });
+  const sayBubbleHold = durationControl(S.sayBubbleHold, KEYS.sayBubbleHoldSec);
+  const saidBubbleHold = durationControl(S.saidBubbleHold, KEYS.saidBubbleHoldSec);
+  const saidBubbles = ui.checkbox(S.saidBubble, { checked: true, onChange: (on) => void toggleSaidBubbles(on) });
+  async function toggleSaidBubbles(on: boolean): Promise<void> {
+    bubbleHoldRevision++;
+    saidBubbles.input.disabled = true;
+    saidBubbleHold.setEnabled(on);
+    const saved = await save(KEYS.saidBubbles, on, GROUP, saidBubbles.el);
+    bubbleHoldRevision++;
+    if (signal.aborted) return;
+    if (!saved) saidBubbles.setChecked(!on);
+    saidBubbles.input.disabled = false;
+    saidBubbleHold.setEnabled(saidBubbles.checked);
+  }
   const frameRate = ui.segmented(FRAME_RATES.map((n) => ({ value: String(n), label: n ? String(n) : S.frameUnlimited })),
     { size: 'sm', onSelect: (v) => void save(KEYS.frameRate, Number(v), GROUP, frameRate.el) });
   const lockFps = ui.checkbox(S.lockFps, { onChange: (on) => void save(KEYS.lockFps, on, GROUP, lockFps.el) });
@@ -487,7 +512,8 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.dblclickLabel, dblclick.el),
     row(S.typeKeyLabel, typeBox, typeHint),
     row(S.statusBubbleLabel, statusBubble.el, S.statusBubbleHint),
-    row(S.saidBubbleLabel, saidBubbleHold.box, S.saidBubbleHint),
+    row(S.saidBubbleLabel, saidBubbles.el),
+    row(S.saidBubbleHold, saidBubbleHold.box, S.saidBubbleHint),
   );
   const display = ui.sheet({ title: S.groupDisplay });
   display.body.append(
@@ -541,7 +567,7 @@ async function mount(ctx: PageContext): Promise<void> {
   const snore = ui.input({ type: 'number' });
   snore.min = '0'; snore.max = '3600'; snore.step = '1';
   const snoreBox = ui.h('div', 'companion-rangebox');
-  snoreBox.append(snore, ui.h('span', 'companion-rangeval', S.snoreUnit));
+  snoreBox.append(snore, ui.h('span', 'companion-rangeval', S.secondsUnit));
   sounds.body.append(
     row(S.soundLabel, sound.el, S.worldScope),
     volumeRow,
@@ -702,6 +728,7 @@ async function mount(ctx: PageContext): Promise<void> {
   snore.addEventListener('keydown', (e) => { if (e.key === 'Enter') snore.blur(); });
 
   const refreshValues = async () => {
+    const holdRevision = bubbleHoldRevision;
     // with the OBS overlay page while it is exported
     const habitState = invokePanel<HabitState & { overlayUrl?: string | null }>(PET_PAGE, 'pet', 'state', [], opts).catch(() => null);
     let values: Record<string, unknown> = {};
@@ -740,10 +767,14 @@ async function mount(ctx: PageContext): Promise<void> {
     for (const [s, key] of [[bubbleSize, KEYS.bubbleSize], [fontSize, KEYS.fontSize], [bubbleSpeed, KEYS.bubbleSpeed]] as const) {
       if (!s.slider.active && active !== s.slider.el) { s.slider.set(typeof values[key] === 'number' ? values[key] as number : 1); s.show(); }
     }
-    const sayHold = values[KEYS.sayBubbleHoldSec];
-    const saidHold = values[KEYS.saidBubbleHoldSec];
-    sayBubbleHold.sync(typeof sayHold === 'number' ? sayHold : 0);
-    saidBubbleHold.sync(values[KEYS.saidBubbles] === false ? BUBBLE_HOLD_OFF : typeof saidHold === 'number' ? saidHold : 0);
+    if (holdRevision === bubbleHoldRevision) {
+      if (!saidBubbles.input.disabled && typeof values[KEYS.saidBubbles] === 'boolean') {
+        saidBubbles.setChecked(values[KEYS.saidBubbles] as boolean);
+        saidBubbleHold.setEnabled(saidBubbles.checked);
+      }
+      sayBubbleHold.sync(values[KEYS.sayBubbleHoldSec]);
+      saidBubbleHold.sync(values[KEYS.saidBubbleHoldSec]);
+    }
     if (typeof values[KEYS.frameRate] === 'number') frameRate.setValue(String(values[KEYS.frameRate]));
     if (typeof soundValues[KEYS.sound] === 'boolean') sound.setChecked(soundValues[KEYS.sound] as boolean);
     for (const [kind, c] of kinds) {

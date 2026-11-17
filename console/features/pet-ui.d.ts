@@ -22,8 +22,6 @@ declare module 'cortico-world-desktop-pet/web/scale-slider.js' {
     step?: number;
     /** The value as read aloud; a percentage by default. */
     format?(value: number): string;
-    /** Labels for the first steps of a plain bar, each separated by a snap boundary. */
-    startLabels?: readonly string[];
     /** The root's class, which the page styles it by (`.companion-scale` in the settings window). */
     className?: string;
     /** Pixels the bar may take in its row. */
