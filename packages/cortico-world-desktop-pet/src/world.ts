@@ -975,6 +975,7 @@ export class DesktopPetWorld implements World {
       status: this.status.status,
       statusBubble: this.cfg.statusBubble,
       saidBubbles: this.cfg.saidBubbles,
+      saidBubbleHoldSec: this.cfg.saidBubbleHoldSec,
       bot: this.botInfo(),
     };
   }
@@ -1276,8 +1277,9 @@ export class DesktopPetWorld implements World {
       }
       case 'commit': return this.commitSpeech();
       case 'cancel': return this.cancelSpeech();
-      case 'skipped': {
-        // the person ended a line early: the lines after it start now rather than when it was estimated to end
+      case 'skipped':
+      case 'say-ended': {
+        // A page report replaces the estimated end of that line.
         const i = this.sayEnds.findIndex((l) => l.id === String(msg.id));
         if (i < 0) return;
         const shift = Date.now() - this.sayEnds[i]!.at;
@@ -1945,12 +1947,13 @@ export class DesktopPetWorld implements World {
     const spoken = beats.some((b) => b.text || b.actions.length || b.anchors.length);
     if (!spoken && shown.blobs.length === 0) return { text: this.t.sayEmpty, failed: true };
     const id = nextId('s');
-    if (spoken && !this.server.sendPet({ t: 'say', id, beats })) return this.notConnected('pet_say');
+    const holdSec = this.cfg.window.sayBubbleHoldSec;
+    if (spoken && !this.server.sendPet({ t: 'say', id, beats, holdSec })) return this.notConnected('pet_say');
     void this.closeActivity();
     void this.record({ kind: 'say', beats: beats.map((b) => ({ text: b.text, ...moodOf(b.actions, this.vocab()) })) }, beats.map((b) => b.text).join(''), shown.blobs);
     if (!spoken) return { text: this.t.imagesShown(shown.blobs.length, this.chat.size > 0) };
     const now = Date.now();
-    const selfSec = estimateSeconds(beats, this.cfg.window.bubbleSpeed, this.cfg.speech.enabled ? speechTextSteps : undefined);
+    const selfSec = estimateSeconds(beats, this.cfg.window.bubbleSpeed, this.cfg.speech.enabled ? speechTextSteps : undefined, holdSec);
     this.sayEnds = this.sayEnds.filter((l) => l.at > now);
     const free = this.sayEnds.at(-1)?.at ?? now;
     const waitSec = (free - now) / 1000;

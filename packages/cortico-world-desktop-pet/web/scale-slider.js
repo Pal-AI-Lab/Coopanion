@@ -6,7 +6,7 @@
  * of the pointer as it is and grows the bar to the right only (`dragTo`), so the thumb stays under the pointer; the bar
  * settles into its rest layout once let go. Steps are `step`, or .05 up to `soft` and .1 past it.
  * Each page styles it by its root class: `.pet-scale` (pet.css, dress.css) or the settings window's `.companion-scale`
- * (home.css); the parts are `.ps-main`, `.ps-tail`, `.ps-fill`, `.ps-divider` and `.ps-thumb` on both.
+ * (home.css). A plain bar can reserve its first steps for labeled choices, with a divider at each snap boundary.
  */
 
 /** The bar's width and its main stretch's share: at rest, and while the value is past the divider. */
@@ -47,6 +47,7 @@ const still = (doc) => !!doc.defaultView?.matchMedia?.('(prefers-reduced-motion:
 /**
  * `o`: { min, soft, max, label, room() (pixels the bar may take), onInput(value) while it moves, onChange(value) once a
  * drag or key press ends, step? (one step of the value), format?(value) (the value read aloud, a percentage by default),
+ * startLabels? (labels for the first choices on a plain bar in steps of `step`),
  * widths? (as WIDTHS), className? (the root's, `pet-scale` by default) }. Returns { el, value, active (being dragged),
  * set(value), nudge(dir), relayout() }.
  */
@@ -60,7 +61,16 @@ export function scaleSlider(doc, o) {
   el.setAttribute('aria-valuemin', String(o.min));
   el.setAttribute('aria-valuemax', String(o.max));
   const part = (cls) => { const d = doc.createElement('div'); d.className = cls; el.append(d); return d; };
-  const main = part('ps-main'), tail = part('ps-tail'), fill = part('ps-fill'), divider = part('ps-divider'), thumb = part('ps-thumb');
+  const main = part('ps-main'), tail = part('ps-tail'), fill = part('ps-fill'), divider = part('ps-divider');
+  const single = o.soft >= o.max;
+  if (single) { tail.hidden = true; divider.hidden = true; }
+  const stops = (single ? o.startLabels ?? [] : []).map((label) => {
+    const text = part('ps-stop-label');
+    text.textContent = label;
+    text.setAttribute('aria-hidden', 'true');
+    return { text, divider: part('ps-divider') };
+  });
+  const thumb = part('ps-thumb');
 
   let value = 1;
   /** The bar at rest: 0 collapsed, 1 widened; eased from `from` toward `target` since `startedAt`. */
@@ -74,10 +84,9 @@ export function scaleSlider(doc, o) {
   let left = null;
   let raf = 0;
 
-  /** No stretch past a divider: `soft` is the end. */
-  const single = o.soft >= o.max;
-  if (single) { tail.hidden = true; divider.hidden = true; }
   const fine = o.step ?? FINE, coarse = o.step ?? COARSE;
+  const first = o.min + fine * stops.length;
+  const stopWidth = (l) => Math.min(44, l.mainW / (2 * stops.length));
   const step = (v, up) => (v > o.soft || (up && v >= o.soft) ? coarse : fine);
   const snap = (v) => {
     const c = Math.min(o.max, Math.max(o.min, v));
@@ -109,19 +118,37 @@ export function scaleSlider(doc, o) {
     const mainW = r.mainW + (left.mainW - r.mainW) * b, tailW = r.tailW + (left.tailW - r.tailW) * b;
     return { mainW, tailW, drawn: tailW };
   }
-  const xOf = (v, l) => (v <= o.soft
-    ? ((v - o.min) / (o.soft - o.min)) * l.mainW
-    : l.mainW + ((v - o.soft) / (o.max - o.soft)) * l.tailW);
-  const valueAt = (x, l) => (x <= l.mainW
-    ? o.min + (Math.max(0, x) / l.mainW) * (o.soft - o.min)
-    // with no stretch past the divider (tailW 0), beyond the bar's end is its end, not 0/0
-    : l.tailW > 0 ? o.soft + (Math.min(l.tailW, x - l.mainW) / l.tailW) * (o.max - o.soft) : o.soft);
+  function xOf(v, l) {
+    if (stops.length) {
+      const width = stopWidth(l), split = width * stops.length;
+      if (v < first) return ((v - o.min) / fine) * width;
+      return split + ((v - first) / (o.max - first)) * (l.mainW - split);
+    }
+    return v <= o.soft
+      ? ((v - o.min) / (o.soft - o.min)) * l.mainW
+      : l.mainW + ((v - o.soft) / (o.max - o.soft)) * l.tailW;
+  }
+  function valueAt(x, l) {
+    if (stops.length) {
+      const width = stopWidth(l), split = width * stops.length;
+      if (x < split) return o.min + (x / width) * fine;
+      return first + ((x - split) / (l.mainW - split)) * (o.max - first);
+    }
+    if (x <= l.mainW) return o.min + (Math.max(0, x) / l.mainW) * (o.soft - o.min);
+    if (l.tailW <= 0) return o.soft;
+    return o.soft + (Math.min(l.tailW, x - l.mainW) / l.tailW) * (o.max - o.soft);
+  }
 
   function draw(l = layout()) {
     el.style.width = `${l.mainW + l.drawn}px`;
     main.style.width = `${l.mainW}px`;
     tail.style.left = divider.style.left = `${l.mainW}px`;
     tail.style.width = `${l.drawn}px`;
+    stops.forEach(({ text, divider }, i) => {
+      const width = stopWidth(l);
+      text.style.left = `${i * width}px`;
+      divider.style.left = `${(i + .5) * width}px`;
+    });
     const x = xOf(value, l);
     fill.style.width = `${x}px`;
     thumb.style.left = `${x}px`;

@@ -5,6 +5,7 @@ import { clamp, f, ICONS, linked } from '../packages/cortico-world-desktop-pet/w
 import { COO_CSS, mini, normalizeSkin, skinCss } from '../packages/cortico-world-desktop-pet/web/coo/coo.js';
 import { t } from '../packages/cortico-world-desktop-pet/web/i18n.js';
 import { SIZE, scaleSlider, sizeEcho } from '../packages/cortico-world-desktop-pet/web/scale-slider.js';
+import { sayHoldSeconds } from '../packages/cortico-world-desktop-pet/web/bubble-timing.js';
 import { sameLook as realSameLook } from '../packages/cortico-world-desktop-pet/web/looks.js';
 import { restyle, springSize, swapIn, swapOut } from '../packages/cortico-world-desktop-pet/web/swap-motion.js';
 import { tipOf, tipWithoutNote } from '../packages/cortico-world-desktop-pet/web/hints.js';
@@ -19,6 +20,7 @@ afterEach(() => { for (const p of pages.splice(0)) p.close(); });
 function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = async () => [], sameLook = (a, b) => a === b } = {}) {
   const dom = new JSDOM(html, { url: `http://127.0.0.1/pet${hash}`, runScripts: 'outside-only' });
   const win = dom.window;
+  win.sayHoldSeconds = sayHoldSeconds;
   pages.push(win);
   if (host) win.petHost = {};
   const sockets = [];
@@ -110,6 +112,21 @@ describe('the talk key and the voice reading a bubble', () => {
     expect(typed(p)).toBeGreaterThan(shown);
   });
 
+  it('lets the voice finish when a fixed timer closes the bubble', async () => {
+    const { heard, ...voice } = reading();
+    const p = page(voice);
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.onOrder({ t: 'say', id: 'a', holdSec: 1, beats: [{ text: LINE }] });
+    p.step(.01); p.step(1.1);
+    expect(heard.revealed).toBe(LINE.length);
+    p.step(1.1);
+    expect(p.bubble.hidden).toBe(true);
+    expect(heard.stopped).toBe(0);
+    expect(p.sockets[0].sent).toContainEqual({ t: 'say-ended', id: 'a' });
+    p.onOrder({ t: 'talk-key', down: true });
+    expect(heard.stopped).toBe(1);
+  });
+
   it('keeps a line silent that starts while the key is down, and reads the next one after it lets go', () => {
     const { heard, ...voice } = reading();
     const p = page(voice);
@@ -179,6 +196,24 @@ describe('hovering a timed bubble', () => {
     advance(p, 80);
     expect(p.bubble.hidden).toBe(true);
   });
+});
+
+it('starts the fixed hold after each segment of speech finishes typing', () => {
+  const p = page();
+  p.onOrder({ t: 'prefs', bubbleSpeed: .5 });
+  p.onOrder({ t: 'say', id: 's', holdSec: 3, beats: [{ text: 'First segment' }, { text: 'Next' }] });
+  p.step(.01); p.step(.5);
+  expect(p.bubble.textContent).toBe('First');
+  p.step(2);
+  expect(p.bubble.textContent).toBe('First segment');
+  p.step(2.9);
+  expect(p.bubble.textContent).toBe('First segment');
+  p.step(.2); p.step(.5);
+  expect(p.bubble.textContent).toBe('Next');
+  p.step(2.9);
+  expect(p.bubble.hidden).toBe(false);
+  p.step(.2);
+  expect(p.bubble.hidden).toBe(true);
 });
 
 const read = { kind: 'read', text: '在看', detail: '日记.md' };
@@ -356,6 +391,44 @@ describe("the person's lines above Coo", () => {
     p.onOrder({ t: 'listen', phase: 'start' });
     expect(up(p)).toHaveLength(1);
     p.onOrder({ t: 'listen', phase: 'heard', text: '今天天气怎么样' });
+    expect(up(p)).toHaveLength(0);
+  });
+
+  it.each(['type', 'voice', 'chat'])('uses the fixed hold for settled %s input while Coo is busy', (source) => {
+    const p = page();
+    const holdSec = 2;
+    p.onOrder({ t: 'prefs', saidBubbleHoldSec: holdSec });
+    show(p, think);
+    if (source === 'type') {
+      p.openInput();
+      p.bubble.querySelector('textarea').value = 'A message';
+      p.bubble.querySelector('form').dispatchEvent(new p.win.Event('submit', { cancelable: true }));
+    } else if (source === 'voice') {
+      p.onOrder({ t: 'listen', phase: 'start' });
+      p.step(holdSec + 1);
+      expect(up(p)).toHaveLength(1);
+      p.onOrder({ t: 'listen', phase: 'heard', text: 'A message' });
+    } else {
+      said(p, 'A message', 1);
+    }
+    p.step(holdSec - .1);
+    expect(up(p)).toHaveLength(1);
+    p.onOrder({ t: 'prefs', saidBubbleHoldSec: holdSec + 10 });
+    p.step(.2);
+    expect(up(p)).toHaveLength(0);
+  });
+
+  it('a fixed input bubble stays up after an early reply closes', () => {
+    const p = page();
+    const holdSec = 8;
+    p.onOrder({ t: 'prefs', saidBubbleHoldSec: holdSec });
+    said(p, 'A message', 1);
+    p.onOrder({ t: 'say', id: 's', holdSec: 1, beats: [{ text: 'OK' }] });
+    p.step(.01); p.step(.2); p.step(1.1);
+    expect(p.bubble.hidden).toBe(true);
+    p.step(p.REPLIED_FADE + .1);
+    expect(up(p)).toHaveLength(1);
+    p.step(holdSec);
     expect(up(p)).toHaveLength(0);
   });
 });

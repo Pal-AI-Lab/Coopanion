@@ -14,6 +14,7 @@ import { FakeHost } from './helpers/fake-host.ts';
 import { FakePage } from './helpers/page.ts';
 import { HOST_ENV } from '../src/window-host.ts';
 import { petText } from '../src/i18n/index.ts';
+import { BUBBLE_HOLD_MAX_SEC } from '../web/bubble-timing.js';
 
 const ctx = { role: 'main', log: new FakeHost().log };
 
@@ -182,18 +183,20 @@ describe('with a pet page', () => {
     expect(out.text).toContain('飞');
   });
 
-  it('pet_say counts the queue from a line the person skipped, not from when it was estimated to end', async () => {
-    const { world, host } = await mounted();
+  it.each(['skipped', 'say-ended'])('pet_say advances the queue when the page reports %s', async (ended) => {
+    const { world, host, cfg } = await mounted((c) => { c.window.sayBubbleHoldSec = BUBBLE_HOLD_MAX_SEC; });
     const page = await FakePage.open(origin(world));
     cleanup.push(() => page.close());
     const say = async (script: string) => (await tool(world, 'pet_say').handler({ script }, ctx) as { text: string }).text;
     const seconds = (text: string, pattern: RegExp) => Number(text.match(pattern)?.[1]);
-    await say('今天天气很好，我们去公园散步吧，那边的花都开了，还有很多小鸟在树上唱歌。'.repeat(4));
+    await say('今天天气很好。');
     const long = await page.next((m) => m.t === 'say');
+    expect(long.holdSec).toBe(cfg.window.sayBubbleHoldSec);
+    cfg.window.sayBubbleHoldSec = DESKTOP_PET_DEFAULTS.window.sayBubbleHoldSec;
     const second = await say('好呀，等你。');
     expect(seconds(second, /前面还有约 (\d+) 秒/)).toBeGreaterThan(seconds(second, /这段约 (\d+) 秒/));
-    page.send({ t: 'skipped', id: long.id });
-    // the page's messages are handled in order: once the typed line after it has arrived, so has the skip
+    page.send({ t: ended, id: long.id });
+    // The typed line arrives after the end report on the same socket.
     page.send({ t: 'text', text: '好' });
     await expect.poll(() => host.events.length).toBe(1);
     const third = await say('嗯。');

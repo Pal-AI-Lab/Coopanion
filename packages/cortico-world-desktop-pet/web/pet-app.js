@@ -18,6 +18,7 @@ import { COO_CSS, PALETTES, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
 import { fetchLooks, lookAvailable, lookPicture, sameLook } from './looks.js';
 import { SIZE, scaleSlider, sizeEcho } from './scale-slider.js';
+import { sayHoldSeconds } from './bubble-timing.js';
 import { RESTYLE_MS, SWAP_MS, restyle, springSize, swapIn, swapOut } from './swap-motion.js';
 import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
@@ -53,6 +54,7 @@ const prefs = {
   statusBubble: true,
   /** What the person typed, said or sent from the chat page stays above Coo (see lines); off, speech shows only while it is heard. */
   saidBubbles: true,
+  saidBubbleHoldSec: 0,
   /** Draw at the moving frame rate while the body rests too. */
   /** Frames a second while the body moves; 0 follows the display. */
   frameRate: 60,
@@ -391,6 +393,7 @@ function applyPrefs(p) {
   if (typeof p.doubleClickChat === 'boolean') prefs.doubleClickChat = p.doubleClickChat;
   if (typeof p.statusBubble === 'boolean') { prefs.statusBubble = p.statusBubble; setBody({ thoughtShown: p.statusBubble }); }
   if (typeof p.saidBubbles === 'boolean') { prefs.saidBubbles = p.saidBubbles; if (!p.saidBubbles) for (const line of lines) if (!line.live) fadeLine(line); }
+  if (typeof p.saidBubbleHoldSec === 'number') prefs.saidBubbleHoldSec = p.saidBubbleHoldSec;
   if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
   if (typeof p.frameRate === 'number' && p.frameRate >= 0) prefs.frameRate = p.frameRate;
   // the window process does the hiding and the passing through; the page only passes the settings on
@@ -429,7 +432,7 @@ function onOrder(m) {
     // the settings window's 「在桌面上隐藏」: the same as the menu's 「隐藏」
     case 'hide': host?.hide?.(); break;
     case 'type': openTyping(); break;
-    case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); holdRoam(20); break;
+    case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, holdSec: m.holdSec, i: -1 }); holdRoam(20); break;
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
     case 'confirm': dropAsks(); rushLines(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
     case 'walk': walk(m); break;
@@ -510,6 +513,7 @@ const PAUSE = /[,.!?;:…，。！？；：、]/, SILENT = /[\s,.!?;:…，。�
 /** Lines queued ahead of a World's confirmation type at RUSH times the speed without voice or babble, and stay RUSH_HOLD seconds a beat. */
 const RUSH = 6, RUSH_HOLD = 1;
 function rushLines() {
+  if (!item) speech.stop();
   for (const q of [item, ...queue]) {
     if (q?.kind !== 'say' || q.rush) continue;
     q.rush = true;
@@ -534,15 +538,18 @@ function openBubble(kind, html) {
   void bubble.offsetWidth;
   bubble.classList.add('pop');
 }
-function closeBubble() {
+function closeBubble({ keepSpeech = false } = {}) {
   releaseKeys(item);
   // a step taken off the bubble unanswered puts back the skin a card tried on
   if (item?.kind === 'dialog') { talk.motion = null; takeOff(false); }
   bubble.hidden = true; bubble.innerHTML = '';
   // the lines it answered fade a moment after (stepLines)
-  if (item) item.endedAt = T;
+  if (item) {
+    item.endedAt = T;
+    if (item.kind === 'say' && item.holdSec > 0 && item.skippedAt === undefined) send({ t: 'say-ended', id: item.id });
+  }
   item = null;
-  speech.stop();
+  if (!keepSpeech) speech.stop();
 }
 
 /**
@@ -628,7 +635,7 @@ function stepDialog(dt) {
       if (it.beatDone && T < it.holdUntil) return;
       it.i++;
       it.beatDone = false;
-      if (it.i >= it.beats.length) { closeBubble(); return; }
+      if (it.i >= it.beats.length) { closeBubble({ keepSpeech: it.holdSec > 0 && !it.rush }); return; }
       const b = it.beats[it.i];
       let lead = 0;
       for (const a of b.actions || []) { acts.push(a); lead = .45; }
@@ -643,7 +650,7 @@ function stepDialog(dt) {
     if (it.shown >= b.text.length && !it.beatDone) {
       it.beatDone = true;
       const last = it.i === it.beats.length - 1;
-      it.holdUntil = T + (it.rush ? RUSH_HOLD : (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03) / prefs.bubbleSpeed);
+      it.holdUntil = T + (it.rush ? RUSH_HOLD : sayHoldSeconds(b.text.length, last, prefs.bubbleSpeed, it.holdSec));
     }
     return;
   }
@@ -1189,12 +1196,9 @@ function showHeard() {
 
 /*
  * ---------- what the person said: typed in the box, heard, or sent from the chat page ----------
- * Each line stays above Coo as a bubble of the heard kind (grey, no tail), the newest at the bottom. A line is
- * answered by the first speech or question Coo starts after it settled; until that reply's bubble has closed (and,
- * for a line not answered yet, while Coo works or has speech queued) the line and those before it stay, and they
- * fade REPLIED_FADE seconds after it closes. A line Coo does not answer fades UNANSWERED_FADE seconds after it was
- * said. The stack holds at most MAX_LINES bubbles and MAX_ROWS rows of text: past either the oldest fades, answered
- * or not, and the newest always stays. A click fades a settled line at once; one still being heard has its cancel button.
+ * A fixed hold runs from the time a line settles. In automatic mode the line and those before it stay while the
+ * bot works or replies. They fade REPLIED_FADE seconds after the reply closes, or UNANSWERED_FADE seconds after
+ * settling if there is no reply and the bot is idle. The oldest line fades if the stack exceeds its line or row limit.
  */
 const REPLIED_FADE = 1, UNANSWERED_FADE = 8;
 const MAX_LINES = 3, MAX_ROWS = 6;
@@ -1213,7 +1217,10 @@ function addLine(src, text, live = false, extra = {}) {
   el.className = 'bubble heard said pop';
   el.setAttribute('role', 'status');
   document.body.append(el);
-  const line = { el, src, text, live, settledAt: live ? null : T, reply: null, fadeAt: null, ox: null, oy: null, images: 0, cursor: null, ...extra };
+  const line = {
+    el, src, text, live, settledAt: live ? null : T, holdSec: live ? 0 : prefs.saidBubbleHoldSec,
+    reply: null, fadeAt: null, ox: null, oy: null, images: 0, cursor: null, ...extra,
+  };
   el.addEventListener('click', () => { if (!line.live && line.fadeAt === null) { sfx.tick(); fadeLine(line); } });
   if (live) {
     el.innerHTML = '<p class="b-text"><span class="fin"></span><span class="interim"></span><span class="caret" aria-hidden="true"></span></p><div class="b-foot"><span class="b-hint"></span><button class="b-cancel" type="button"></button></div>';
@@ -1232,6 +1239,7 @@ function drawLine(line) {
 }
 function settleLine(line, text) {
   line.live = false; line.text = text; line.settledAt = T;
+  line.holdSec = prefs.saidBubbleHoldSec;
   drawLine(line);
 }
 function fadeLine(line) {
@@ -1248,9 +1256,9 @@ function withdrawLine(cursor) {
   const line = lines.find((l) => l.cursor === cursor);
   if (line) fadeLine(line);
 }
-/** Coo starts speaking or asking (`it`): the settled lines not answered yet are answered by it. */
+/** Link automatic lines to the first reply that follows them. */
 function answerLines(it) {
-  for (const line of lines) if (!line.live && !line.reply) line.reply = it;
+  for (const line of lines) if (!line.live && !line.holdSec && !line.reply) line.reply = it;
 }
 /** Rows of text a line shows: its text (pet.css clamps it at MAX_ROWS), plus the image line. */
 function rowsOf(line) {
@@ -1265,14 +1273,18 @@ function stepLines() {
   const busy = !!status.wanted || queue.some((q) => q.kind === 'say' || q.kind === 'ask');
   let held = -1, answered = -1;
   lines.forEach((line, i) => {
-    if (line.live) return;
+    if (line.live || line.holdSec) return;
     const r = line.reply;
     if (r ? r.endedAt === undefined : busy) held = i;
     else if (r && T >= r.endedAt + REPLIED_FADE) answered = i;
   });
   lines.forEach((line, i) => {
-    if (line.fadeAt !== null || line.live || i <= held) return;
-    if (i <= answered || (!line.reply && T >= line.settledAt + UNANSWERED_FADE)) fadeLine(line);
+    if (line.fadeAt !== null || line.live) return;
+    if (line.holdSec) {
+      if (T >= line.settledAt + line.holdSec) fadeLine(line);
+    } else if (i > held && (i <= answered || (!line.reply && T >= line.settledAt + UNANSWERED_FADE))) {
+      fadeLine(line);
+    }
   });
   const up = lines.filter((l) => l.fadeAt === null);
   let rows = up.reduce((n, l) => n + rowsOf(l), 0);

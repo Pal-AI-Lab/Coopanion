@@ -130,3 +130,19 @@ describe('one plain stretch (soft at max), as the settings window’s 外发光 
     pointer('pointerup', 5000);
   });
 });
+
+it('snaps across the labeled stops before the range of seconds', () => {
+  const { s, pointer } = setup(pages[1].extra, {
+    min: -1, soft: 60, max: 60, step: 1, startLabels: ['Off', 'Auto'],
+  });
+  const [offEdge, autoEdge] = [...s.el.querySelectorAll('.ps-divider:not([hidden])')].map((el) => parseFloat(el.style.left));
+  pointer('pointerdown', offEdge - 1);
+  expect(s.value).toBe(-1);
+  pointer('pointermove', offEdge + 1);
+  expect(s.value).toBe(0);
+  pointer('pointermove', autoEdge + 1);
+  expect(s.value).toBe(1);
+  pointer('pointerup', autoEdge + 1);
+  s.el.dispatchEvent(new s.el.ownerDocument.defaultView.KeyboardEvent('keydown', { key: 'Home' }));
+  expect(s.value).toBe(-1);
+});

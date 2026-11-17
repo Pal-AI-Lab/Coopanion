@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts, src/webui/client.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/cua/engine/wait-idle.ts, src/cua/engine/foreground.ts, src/world.ts, src/asr/hotkey.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js, host/app-store.cjs -->
+<!-- Owner: src/definition.ts, src/config.ts, src/webui/client.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/cua/engine/wait-idle.ts, src/cua/engine/foreground.ts, src/world.ts, src/asr/hotkey.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js, web/pet-app.js, host/app-store.cjs -->
 
 <p align="center">
   <picture>
@@ -57,6 +57,7 @@ World 在 `127.0.0.1:7797`(被占向上顺延)起一个页面服务:`/pet` 是�
 浏览器的写请求和 WebSocket 只接受本服务的 HTTP 源(含端口);不带 Origin 的本机客户端可以连接。
 宿主启动地址的 fragment 带随机凭据,桌宠窗口和 OBS 画面来源连接时必须提供;公开地址和状态不含凭据。
 桌宠窗口连接被替换后会重新连接。窗口在线时,浏览器预览只接收外观和偏好更新,仍可发送文字、修改偏好和使用运行控制。
+`saidBubbleHoldSec` 从发送消息或识别完成开始计时，`window.sayBubbleHoldSec` 从每段台词完全显示后开始计时。两项都以秒为单位，0 使用自动停留时间。
 桌宠内置两个形象,和导入的形象包(见「形象包」)一起在装扮页最上面一行选,存在配置 `skin.figure` 里:`coo` 是 Coo,`whale` 是 DeepSeek 大肥鱼
 (鲸鱼女仆,`web/whale`,用 `web/rig` 画的 Live2D 式分件模型,八套配色存在 `skin.scheme`,见 [examples/whale](examples/whale/README.md))。
 选大肥鱼时装扮页的配色和配件换成大肥鱼的八套配色;桌宠页第一次用到大肥鱼时才加载这套贴图,只加载选中的那套。
