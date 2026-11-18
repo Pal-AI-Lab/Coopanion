@@ -166,11 +166,17 @@ async function handle(req: EngineRequest, cancelled: Cancelled): Promise<unknown
       await sleep(40);
       press('left');
       const steps = 16;
-      for (let i = 1; i <= steps; i++) {
-        await sleep(16);
-        moveOn(d, req.x1 + (req.x2 - req.x1) * i / steps, req.y1 + (req.y2 - req.y1) * i / steps);
+      try {
+        for (let i = 1; i <= steps; i++) {
+          await sleep(16);
+          moveOn(d, req.x1 + (req.x2 - req.x1) * i / steps, req.y1 + (req.y2 - req.y1) * i / steps);
+        }
+        await sleep(40);
+      } catch (error) {
+        lift('left');
+        markOwn();
+        throw error;
       }
-      await sleep(40);
       lift('left');
     }); }
     case 'mouseDown': { const d = target(req.at); return withInput(req.yield, cancelled, async () => {
