@@ -191,6 +191,8 @@ export function createRail(deps: RailDeps): Rail {
         for (const it of g.modules) addItem(list, it, itemSignal);
       }
     }
+    // the lamps' and the folded icons' entrance (companion.css) plays on folding and unfolding only, not when a redraw rebuilds them
+    for (const { item } of entries) for (const x of item.querySelectorAll('.navlamps, .companion-module-icon')) for (const motion of x.getAnimations()) motion.finish();
     applyRoute();
     filterNav(false);
     // emptying the list scrolled it to the top; the same list stays where it was
@@ -467,19 +469,36 @@ export function createRail(deps: RailDeps): Rail {
   /**
    * The foot changes layout when the rail folds (a row of keys over the avatar, or one column), which CSS can't
    * animate: grow or shrink its height and slide the keys from where they were (FLIP), the run state's words riding
-   * along with the pause key as they fade.
+   * along with the pause key as they fade. What fades out with the old layout (the names when folding, a World's own
+   * items' icons when unfolding) is held where it stood: the new layout (companion.css) takes it out of the row and
+   * would move it for the length of its fade.
    */
   const flip = (change: () => void): void => {
-    const moving = typeof foot.animate === 'function' && !prefersStill(win)
+    const motion = typeof foot.animate === 'function' && !prefersStill(win);
+    const moving = motion
       ? Array.from(foot.querySelectorAll<HTMLElement>('.rail-who, .rail-action, .companion-runstate')).filter((x) => !x.hidden)
       : [];
+    const fading = motion
+      ? Array.from(nav.querySelectorAll<HTMLElement>(`.navitem:not([hidden]) > ${collapsed ? '.companion-module-icon' : '.lbl'}`))
+      : [];
     const before = moving.map((x) => x.getBoundingClientRect());
+    const fadingBefore = fading.map((x) => x.getBoundingClientRect());
     const height = foot.getBoundingClientRect().height;
     // clicked again mid-way: start from where things are on screen now, and measure the new layout without the old animations
-    for (const x of moving.length ? [foot, ...moving] : []) for (const a of x.getAnimations()) a.cancel();
+    for (const x of motion ? [foot, ...moving] : []) for (const a of x.getAnimations()) a.cancel();
+    // a hold from a switch made mid-way ends; the fades themselves (CSS) turn back from where they are
+    if (motion) for (const x of nav.querySelectorAll<HTMLElement>('.navitem > :is(.lbl, .companion-module-icon)')) {
+      for (const a of x.getAnimations()) if (!('transitionProperty' in a) && !('animationName' in a)) a.cancel();
+    }
     change();
-    if (!moving.length) return;
+    if (!motion) return;
     const options: KeyframeAnimationOptions = { duration: 260, easing: 'cubic-bezier(.22, 1, .36, 1)' };
+    fading.forEach((x, i) => {
+      const now = x.getBoundingClientRect();
+      // `translate` applies outside the fade's `scale`, which would otherwise shrink the hold too
+      const held = { translate: `${fadingBefore[i]!.left - now.left}px ${fadingBefore[i]!.top - now.top}px` };
+      x.animate([held, held], options);
+    });
     foot.animate([{ height: `${height}px`, boxSizing: 'border-box' }, { height: `${foot.getBoundingClientRect().height}px`, boxSizing: 'border-box' }], options);
     const at = moving.indexOf(run);
     const runMove = at < 0 ? null : { x: run.getBoundingClientRect().left - before[at]!.left, y: run.getBoundingClientRect().top - before[at]!.top };
@@ -510,7 +529,8 @@ export function createRail(deps: RailDeps): Rail {
     deps.content.inert = !backdrop.hidden;
     hideTip();
   };
-  const resize = (): void => render(compact.matches || preference);
+  // a window narrowed or widened past a breakpoint folds or unfolds the rail as a click does
+  const resize = (animate = false): void => render(compact.matches || preference, animate);
   toggle.addEventListener('click', () => {
     if (!narrow.matches) {
       preference = !collapsed;
@@ -528,8 +548,8 @@ export function createRail(deps: RailDeps): Rail {
   nav.addEventListener('click', (event) => {
     if (narrow.matches && (event.target as Element).closest('a.navitem')) render(true, true);
   }, { signal });
-  compact.addEventListener('change', resize, { signal });
-  narrow.addEventListener('change', resize, { signal });
+  compact.addEventListener('change', () => resize(true), { signal });
+  narrow.addEventListener('change', () => resize(true), { signal });
 
   const showTip = (event: Event): void => {
     const target = (event.target as Element).closest<HTMLElement>('a.navitem, .companion-mode, .rail-action, .rail-avatar');
