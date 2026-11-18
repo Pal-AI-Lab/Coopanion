@@ -88,7 +88,13 @@ function display(list: NativeDisplay[], n: number): NativeDisplay {
 /** Moves the pointer to a physical pixel of `d`. */
 function moveOn(d: NativeDisplay, x: number, y: number): void {
   const p = toNative(d, x, y);
-  os.moveTo(p.x, p.y);
+  try {
+    os.moveTo(p.x, p.y);
+  } catch (error) {
+    // Win32 has already moved the pointer when its follow-up input event fails.
+    if (error instanceof EngineFailure && error.code === 'winSendInput') markOwn();
+    throw error;
+  }
 }
 
 /** What the engine pressed and has not released: the keys of a hold, the buttons of clicks, drags and mouseDown. */
