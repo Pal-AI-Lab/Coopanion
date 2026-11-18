@@ -5,6 +5,21 @@ export const f = n => Math.round(n * 10) / 10;
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 /**
+ * Lays a grid of buttons (`grid-auto-flow: column`) `reach` out from a body standing at `x`, on the right unless that
+ * runs off a page `pageWidth` wide. On the left its columns run right to left, so the first column is next to the body
+ * on either side and a button keeps its place relative to the body whichever side the grid takes. `--dx` points the
+ * pop-in back at the body. Returns whether the grid went on the right.
+ */
+export function layBeside(el, x, reach, pageWidth) {
+  const w = el.offsetWidth;
+  const onRight = x + reach + w <= pageWidth - 8;
+  el.style.left = f(clamp(onRight ? x + reach : x - reach - w, 8, pageWidth - w - 8)) + 'px';
+  el.style.direction = onRight ? '' : 'rtl';
+  el.style.setProperty('--dx', onRight ? '-16px' : '16px');
+  return onRight;
+}
+
+/**
  * The http(s) addresses written out in `text`, as [start, end) pairs. An address runs to the first
  * space or non-ASCII character, so one written straight into Chinese prose ends there; a sentence's
  * closing punctuation is left out. Only written-out addresses become links: the text of a link is
