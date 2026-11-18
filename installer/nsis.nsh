@@ -1,6 +1,12 @@
 ; electron-builder NSIS hooks. The app keeps every file under its install directory, its data in
 ; $INSTDIR\data, so the default location stays out of AppData and uninstalling keeps data\.
 
+!ifdef APP_ARM64
+  !ifndef APP_64
+    !include /CHARSET=UTF8 "${__FILEDIR__}/i18n/arm64.nsh"
+  !endif
+!endif
+
 !macro checkExtracted
   ; the installer template never checks whether Nsis7z::Extract succeeded: an extraction that
   ; antivirus software or a full disk emptied read as success, and the wizard registers, shortcuts to
@@ -38,7 +44,7 @@
   !ifdef APP_ARM64
     !ifndef APP_64
       ${IfNot} ${IsNativeARM64}
-        MessageBox MB_OK|MB_ICONSTOP "This installer is for PCs with an Arm processor. Please download Coopanion-Setup-${VERSION}.exe instead." /SD IDOK
+        MessageBox MB_OK|MB_ICONSTOP "$(arm64Required)" /SD IDOK
         Quit
       ${EndIf}
     !endif
