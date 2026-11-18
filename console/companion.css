@@ -299,7 +299,8 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
   body.companion-sidebar { --rail-motion: 0s linear; }
   #rail .lbl, #rail .rail-name, #rail .rail-rename, #rail .companion-runstate, #rail .stacklabel { transition: none; }
   #rail .navlamps { animation: none; }
-  #rail .companion-module-icon { transition: none; animation: none; }
+  #rail .companion-module-icon { transition: none; }
+  #rail.is-collapsed .companion-module-icon { animation: none; }
 }
 
 /* 换模式时只藏起普通模式不列的项(rail/index.ts),导航项自带 display,要显式让 hidden 生效 */
