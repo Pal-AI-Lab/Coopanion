@@ -110,7 +110,7 @@ export async function createMyBody(base, opts) {
 `face` 是 kit 的表情参数（眼睛形状、腮红、头顶符号等，见 `FACES`），`frame` 带表情名（`frame.face`，包自己的词就是词的 id）、模式、模式时长、
 说话幅度、困意、坐下程度、朝向、视线、腿和正在做的短手势 `frame.gesture`（`{ kind, k }`，`k` 从 0 到 1，没有时为 `null`）。
 可选的字段：`anchors`（视线原点、泪滴，`tears` 是大哭时两只眼睛下各自的起点、睡眠 z、爱心、气泡的位置）、
-`extent`（身体的框）、`hits`（接收鼠标的圆）、`gestures`（自己画、kit 不再整组倾斜的手势）、`groupTilt(mode, tilt, lean)`（整组转多少度）、
+`extent`（身体的框，`[x0, y0, x1, y1]`；身体离屏幕左右边缘多近、悬停按钮离身体多远都按它算，比方格窄的身体要写上，不写按 Coo 的宽度算）、`hits`（接收鼠标的圆）、`gestures`（自己画、kit 不再整组倾斜的手势）、`groupTilt(mode, tilt, lean)`（整组转多少度）、
 `colors.z`（睡眠 z 和音符的颜色）、`setScheme(id, { fade, at })`（换打扮）、`setSkin(skin)`、`dispose()`。坐标都是逻辑单位，每帧都会重新读，可以写成 getter。
 
 **音效**：`figure.json` 的 `sounds` 声明包里的音频文件和它的类别（`move` `touch` `face` `snore`）。身体按名字要声音，
