@@ -174,6 +174,12 @@ const target = process.platform === 'darwin' ? '--mac' : process.platform === 'l
  */
 const WIN_ARM64 = process.platform === 'win32' && ARCH === 'arm64'
   ? [`-c.nsis.artifactName=Coopanion-Setup-${rootPkg.version}-arm64.exe`, '-c.publish.channel=latest-arm64'] : [];
+/**
+ * 7za compresses Arm64 executables through its ARM64 filter, which the installer's unpacker (nsis7z.dll) does not
+ * know: it leaves those files out, and the install directory has no Coopanion.exe and no DLL. BCJ is a filter it
+ * decodes. Only the installer's package is a 7z; the portable zip is not affected.
+ */
+if (WIN_ARM64.length) process.env.ELECTRON_BUILDER_7Z_FILTER = 'BCJ';
 run(join(ROOT, 'node_modules', '.bin', process.platform === 'win32' ? 'electron-builder.cmd' : 'electron-builder'), [target, ...PORTABLE ? ['zip'] : [], `--${ARCH}`, ...STEAM ? ['--dir'] : [], '--publish', 'never', '--projectDir', OUT, '--config', join(ROOT, 'electron-builder.yml'), ...WIN_ARM64, ...process.argv.slice(2)], ROOT);
 
 /** The native packages the Core loads, for the target platform and architecture: esbuild (tsx), koffi (computer use), sherpa-onnx (speech). */
