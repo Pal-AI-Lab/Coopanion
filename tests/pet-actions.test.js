@@ -341,6 +341,31 @@ describe('how near the screen edges the body goes', () => {
     expect(x + side.reach).toBeGreaterThanOrEqual(box.x + box.w - .01);
   });
 
+  it('a narrow figure stays visible while thrown toward an edge', () => {
+    const pet = barePet(undefined, {
+      figure: { draw() {}, extent: [108, 0, 148, 256], hits: [[128, 110, 18]] },
+      startX: 350,
+      bounds: () => ({ W, H: 1000, floorY: 970, S: 2.2 }),
+    });
+    run(pet, 1.5);
+    const point = pet.layout().hit[0];
+    expect(pet.pointerDown({ ...point, t: 1500 })).toBe(true);
+    for (let i = 1; i <= 8; i++) {
+      pet.pointerMove({ x: point.x - 40 * i, y: point.y - 25, t: 1500 + 20 * i });
+      run(pet, 1 / 60);
+    }
+    expect(pet.layout().mode).toBe('drag');
+    pet.pointerUp({ x: point.x - 320, y: point.y - 25, t: 1670 });
+    expect(pet.layout().mode).toBe('air');
+    for (let i = 0; i < 120; i++) {
+      run(pet, 1 / 60);
+      const { box } = pet.layout();
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.w).toBeLessThanOrEqual(W);
+    }
+    expect(pet.layout().mode).not.toBe('air');
+  });
+
   it.each([
     { extent: ['a', 0, null, 256] },
     { extent: [null, 0, 168, 256] },

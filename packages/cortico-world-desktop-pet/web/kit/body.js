@@ -707,8 +707,8 @@ export function createPet(els, opts) {
     const rot = custom?.groupTilt ? custom.groupTilt(pet.mode, pet.tilt, lean) : pet.tilt + lean;
     pet.xf = { AX, AY, ax, ay, kx, ky, rot };
     const extent = figureExtent();
-    if (!drag && pet.mode !== 'air' && extent && halfWidth(extent) < DEFAULT_HALF_WIDTH) {
-      // Narrow extents can stand closer to an edge. Keep tilted poses inside it without moving the walk target.
+    if (!drag && extent && halfWidth(extent) < DEFAULT_HALF_WIDTH) {
+      // A narrow figure can travel closer to the edge. Fit its transformed outline in the stage.
       const box = stageBox(extent);
       const inset = Math.min(EDGE_INSET, (W - box.w) / 2);
       AX += clamp(0, inset - box.x, W - inset - box.x - box.w);
@@ -895,7 +895,7 @@ export function createPet(els, opts) {
     const box = stageBox(extent ?? EXTENT);
     const side = toStage(128, 128 + pet.low);
     const half = halfWidth(extent);
-    const reach = half < DEFAULT_HALF_WIDTH && pet.mode !== 'drag' && pet.mode !== 'air'
+    const reach = half < DEFAULT_HALF_WIDTH && pet.mode !== 'drag'
       ? Math.max(half * S, pet.x - box.x, box.x + box.w - pet.x)
       : half * S;
     return {
