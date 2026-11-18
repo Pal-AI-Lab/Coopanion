@@ -25,7 +25,7 @@
 |---|---|---|
 | `installId` | `945c528f-…` | 安装编号 |
 | `version` | `0.1.10` | Coopanion 版本 |
-| `os` / `osRelease` / `arch` | `win32` / `10.0.26200` / `x64` | 系统和架构 |
+| `os` / `osRelease` / `arch` | `win32` / `10.0.26200` / `x64` | 系统，和应用自身的架构(`x64` 或 `arm64`;x64 版在 Arm 电脑上运行时是 `x64`) |
 | `locale` / `timeZone` | `zh-CN` / `Asia/Shanghai` | 系统语言和时区 |
 | `firstDate` | `2026-09-30` | 第一次启动的日期 |
 | `sentAt` | ISO 时间 | 发送时间 |
