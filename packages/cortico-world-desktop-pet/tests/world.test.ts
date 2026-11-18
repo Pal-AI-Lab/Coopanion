@@ -12,6 +12,7 @@ import { DesktopPetWorld, type DesktopPetWorldOptions, type PetBotControls } fro
 import { chatItem } from '../src/chat.ts';
 import { FakeHost } from './helpers/fake-host.ts';
 import { FakePage } from './helpers/page.ts';
+import { ScriptedModel, startBot } from './helpers/harness.ts';
 import { HOST_ENV } from '../src/window-host.ts';
 import { petText } from '../src/i18n/index.ts';
 
@@ -1076,5 +1077,138 @@ describe('size on screen', () => {
     expect(await (await post('/api/looks', { looks })).json()).toEqual([
       { id: 'a', name: 'A', skin: coo, scale: 3 }, { id: 'b', name: 'B', skin: whale }, { id: 'c', name: 'C', skin: coo },
     ]);
+  });
+});
+
+describe('holiday events', () => {
+  afterEach(() => vi.useRealTimers());
+
+  async function holidayBot(model = new ScriptedModel(() => ({ text: 'done' }))) {
+    const bot = await startBot({
+      worlds: [DESKTOP_PET as never], model,
+      sections: { 'desktop-pet': { port: 0, window: { ...DESKTOP_PET_DEFAULTS.window, enabled: false },
+        asr: { ...DESKTOP_PET_DEFAULTS.asr, enabled: false } } },
+    });
+    cleanup.push(() => bot.stop());
+    const world = bot.assembly.mounted.find(w => w.id === 'desktop-pet') as DesktopPetWorld;
+    const page = await windowPage(world);
+    cleanup.push(() => page.close());
+    const holidays = () => bot.core.store.range({ source: world.id }).filter(e => e.type === 'desktop-pet.holiday');
+    const received = (text: string) => model.turns.some(turn => turn.records.some(({ item }) =>
+      typeof item.output === 'string' && item.output.includes(text)));
+    return { bot, world, page, holidays, received };
+  }
+
+  const visible = { t: 'visibility', hidden: false, ready: true };
+  const fireworks = { name: 'pet_act', args: { actions: ['fireworks_2027'] } };
+
+  it('offers the New Year action for the event turn without changing the tool schemas', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2027, 0, 1, 10));
+    const model = new ScriptedModel(turn => {
+      if (turn.n === 1 || turn.n === 2) return { calls: [fireworks] };
+      return { calls: [{ name: 'end_turn' }] };
+    });
+    const requests = vi.spyOn(model, 'respond');
+    const { page, world, received } = await holidayBot(model);
+    expect((await tool(world, 'pet_act').handler(fireworks.args, ctx) as { failed?: boolean }).failed).toBe(true);
+    page.send({ t: 'text', text: 'before the event' });
+    await expect.poll(() => received('before the event')).toBe(true);
+    page.send(visible);
+    const order = await page.next(m => m.t === 'pet-holiday-effect');
+    expect(order.egg).toBe('newYear2027');
+    expect(received('fireworks_2027')).toBe(true);
+    page.send({ t: 'holiday-result', id: order.id, result: 'started' });
+    await expect.poll(() => model.turns.length).toBe(4);
+    expect(page.messages.some(m => m.t === 'pet-holiday-effect')).toBe(false);
+    page.send({ t: 'text', text: 'next conversation' });
+    await expect.poll(() => received('next conversation')).toBe(true);
+    expect((await tool(world, 'pet_act').handler(fireworks.args, ctx) as { failed?: boolean }).failed).toBe(true);
+    const first = requests.mock.calls[0]![0];
+    expect(JSON.stringify(first.tools)).not.toContain('fireworks_2027');
+    expect(first.input?.[0]).toBeDefined();
+    for (const [request] of requests.mock.calls.slice(1)) {
+      expect(request.tools).toEqual(first.tools);
+      expect(request.input?.[0]).toEqual(first.input?.[0]);
+    }
+  });
+
+  it('expires an unused offer when the bot ends the event turn', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2027, 0, 1, 12));
+    const { page, received, world } = await holidayBot();
+    page.send(visible);
+    await expect.poll(() => received('fireworks_2027')).toBe(true);
+    page.send({ t: 'text', text: 'a later conversation' });
+    await expect.poll(() => received('a later conversation')).toBe(true);
+    expect(await tool(world, 'pet_act').handler(fireworks.args, ctx)).toMatchObject({ failed: true });
+    expect(page.messages.some(m => m.t === 'pet-holiday-effect')).toBe(false);
+  });
+
+  it('expires the action at midnight even if the event turn is still running', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2027, 0, 1, 23));
+    const model = new ScriptedModel(turn => {
+      if (turn.n > 0) return { calls: [{ name: 'end_turn' }] };
+      vi.setSystemTime(new Date(2027, 0, 2));
+      return { calls: [fireworks] };
+    });
+    const { page, received } = await holidayBot(model);
+    page.send(visible);
+    await expect.poll(() => model.turns.length).toBe(2);
+    expect(received('fireworks_2027')).toBe(true);
+    expect(page.messages.some(m => m.t === 'pet-holiday-effect')).toBe(false);
+  });
+
+  it('drops a queued holiday when delivery resumes the next day', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2027, 0, 1, 12));
+    const { page, bot, received, holidays } = await holidayBot();
+    bot.core.bus.setPaused(true);
+    page.send(visible);
+    await expect.poll(() => bot.core.bus.pending()).toBeGreaterThan(0);
+    vi.setSystemTime(new Date(2027, 0, 2, 12));
+    page.send({ t: 'text', text: 'next day' });
+    bot.core.bus.setPaused(false);
+    await expect.poll(() => received('next day')).toBe(true);
+    expect(received('fireworks_2027')).toBe(false);
+    expect(holidays()).toHaveLength(0);
+  });
+
+  it('delivers Christmas once at midnight and keeps that record across a World restart', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 11, 24, 12));
+    const { page, bot, received, holidays } = await holidayBot();
+    vi.setSystemTime(new Date(2026, 11, 24, 23, 59, 59, 500));
+    page.send(visible);
+    page.send({ t: 'text', text: 'Christmas Eve' });
+    await expect.poll(() => received('Christmas Eve')).toBe(true);
+    expect(holidays()).toHaveLength(0);
+    bot.core.bus.setPaused(true);
+    vi.setSystemTime(new Date(2026, 11, 25));
+    await expect.poll(() => bot.core.bus.pending()).toBeGreaterThan(0);
+
+    async function restart(previous: FakePage) {
+      await previous.close();
+      await bot.core.unmountWorld('desktop-pet');
+      const { world } = makeWorld();
+      await bot.core.mountWorld(world);
+      const next = await windowPage(world);
+      cleanup.push(() => next.close());
+      next.send(visible);
+      return next;
+    }
+
+    const replacement = await restart(page);
+    replacement.send({ t: 'text', text: 'first Christmas morning' });
+    await expect.poll(() => bot.core.store.range({ source: 'desktop-pet', limit: 1 })[0]?.text).toContain('first Christmas morning');
+    bot.core.bus.setPaused(false);
+    await expect.poll(() => received('first Christmas morning')).toBe(true);
+    expect(holidays().map(e => e.meta?.egg)).toEqual(['christmas']);
+    const reopened = await restart(replacement);
+    reopened.send(visible);
+    reopened.send({ t: 'text', text: 'reopened' });
+    await expect.poll(() => received('reopened')).toBe(true);
+    expect(holidays()).toHaveLength(1);
   });
 });

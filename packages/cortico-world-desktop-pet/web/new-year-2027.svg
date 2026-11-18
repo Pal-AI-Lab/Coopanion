@@ -1,0 +1,238 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 310" fill="none">
+  <defs>
+    <linearGradient id="foil" x2=".32" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#fff9d3"/><stop offset=".27" stop-color="#ffcf7b"/>
+      <stop offset=".54" stop-color="#fff5ce"/><stop offset=".82" stop-color="#f2aa65"/><stop offset="1" stop-color="#ffe6a3"/>
+    </linearGradient>
+    <radialGradient id="glint"><stop stop-color="#fff7cd"/><stop offset=".18" stop-color="#ffe49c"/><stop offset=".46" stop-color="#ffba69" stop-opacity=".45"/><stop offset="1" stop-color="#ffae68" stop-opacity="0"/></radialGradient>
+    <g id="star"><circle r="9" fill="url(#glint)"/><path d="M0-8 Q.7-1 6 0 Q.7.9 0 8 Q-.7 1-6 0 Q-.7-1 0-8Z" fill="#fff8dc"/></g>
+    <path id="two" pathLength="1" d="M3 43 C-1 31 13 11 32 9 C51 7 55 22 48 36 C42 48 20 59 3 78 C18 65 37 83 56 66"/>
+    <path id="zero" pathLength="1" d="M42 12 C28 4 11 24 5 46 C-3 73 8 83 22 75 C39 65 53 36 49 20 C47 10 41 8 36 12"/>
+    <path id="seven" pathLength="1" d="M0 22 C14 2 36 25 58 9 C38 31 18 61 13 81"/>
+    <path id="comet" pathLength="1" d="M260 302 Q175 150 97 101"/>
+    <path id="comet2" pathLength="1" d="M266 302 Q310 162 407 82"/>
+    <path id="comet3" pathLength="1" d="M260 300 Q264 117 252 57"/>
+  </defs>
+  <style>
+    .show { animation: curtain 6.3s linear both; }
+    @keyframes curtain { 0%,88% {opacity:1} 100% {opacity:0} }
+    .rocket { stroke-dasharray:.1 1; animation: rise .85s cubic-bezier(.18,.5,.35,1) var(--launch) both; }
+    @keyframes rise { from {stroke-dashoffset:.11;opacity:0} 10% {opacity:1} 89% {opacity:1} to {stroke-dashoffset:-1;opacity:0} }
+    .bloom { animation: drift 2.75s ease-in var(--burst) both; }
+    @keyframes drift { from {transform:translateY(0)} to {transform:translateY(18px)} }
+    .rays { stroke-dasharray:1 1; animation: scatter 2.45s var(--burst) both; }
+    @keyframes scatter { 0% {stroke-dashoffset:1;opacity:0} 4% {opacity:1} 40% {stroke-dashoffset:.05} 76% {opacity:.8} 100% {stroke-dashoffset:-1;opacity:0} }
+    .flash { animation: flash .85s var(--burst) both; }
+    @keyframes flash { 0%,100% {opacity:0} 12% {opacity:.85} 48% {opacity:.29} }
+    .pen { animation: pen .83s var(--write) both; }
+    @keyframes pen { 0%,100% {opacity:0} 15%,85% {opacity:1} }
+    .embers { animation: embers 1.95s calc(var(--burst) + .68s) both; }
+    @keyframes embers { 0%,100% {opacity:0} 30% {opacity:.9} 62% {opacity:.45} 75% {opacity:.68} }
+    .ink { stroke-dasharray:1 1; animation: write .83s cubic-bezier(.26,.52,.45,1) var(--write) both; }
+    @keyframes write { from {stroke-dashoffset:1;opacity:0} 3% {opacity:1} to {stroke-dashoffset:0;opacity:1} }
+    .spark { animation: twinkle 2s var(--when) both; }
+    @keyframes twinkle { 0%,100% {opacity:0;transform:scale(.25)} 32% {opacity:1;transform:scale(1)} 65% {opacity:.7;transform:scale(.65)} }
+    @media (prefers-reduced-motion: reduce) {
+      .rocket,.spark,.pen,.flash {display:none}
+      .bloom,.rays,.embers,.ink {animation:none}
+      .rays {opacity:.65} .embers {opacity:.8}
+    }
+  </style>
+  <g class="show" stroke-linecap="round" stroke-linejoin="round">
+    <g class="rocket" style="--launch:.04s"><use href="#comet" stroke="#bf794d" stroke-width="3" opacity=".44"/><use href="#comet" stroke="#ffe2aa" stroke-width="1.2"/></g>
+    <g class="rocket" style="--launch:.49s"><use href="#comet2" stroke="#bf794d" stroke-width="3" opacity=".44"/><use href="#comet2" stroke="#ffe2aa" stroke-width="1.2"/></g>
+    <g class="rocket" style="--launch:1.39s"><use href="#comet3" stroke="#bf794d" stroke-width="3" opacity=".44"/><use href="#comet3" stroke="#ffe2aa" stroke-width="1.2"/></g>
+    <g transform="translate(97 101)" style="--burst:.84s"><g class="bloom">
+      <g class="flash"><circle r="23" fill="url(#glint)"/><use href="#star"/></g>
+      <path class="rays" pathLength="1" d="M0 0Q40.2 -4.0 69.4 4.7" stroke="#e7a166" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q32.9 16.9 51.5 42.6" stroke="#e7a166" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q9.1 25.1 16.8 63.1" stroke="#e7a166" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-15.1 24.3 -24.0 65.7" stroke="#e7a166" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-33.6 15.0 -53.3 35.7" stroke="#e7a166" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-43.9 -8.5 -73.3 8.4" stroke="#e7a166" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-32.8 -29.8 -56.6 -33.0" stroke="#e7a166" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-2.3 -41.8 -10.3 -43.1" stroke="#e7a166" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q22.9 -36.7 33.7 -39.6" stroke="#e7a166" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q31.7 -20.3 58.1 -10.9" stroke="#e7a166" stroke-width="1.25"/>
+      <path class="embers" d="M69.4 4.7l.35 .55M74.2 7.6l.35 .55M51.5 42.6l.35 .55M55.1 48.0l.35 .55M16.8 63.1l.35 .55M17.9 69.6l.35 .55M-24.0 65.7l.35 .55M-25.7 72.3l.35 .55M-53.3 35.7l.35 .55M-57.0 40.8l.35 .55M-73.3 8.4l.35 .55M-78.5 11.1l.35 .55M-56.6 -33.0l.35 .55M-60.5 -33.0l.35 .55M-10.3 -43.1l.35 .55M-11.0 -44.2l.35 .55M33.7 -39.6l.35 .55M36.0 -40.2l.35 .55M58.1 -10.9l.35 .55M62.2 -9.6l.35 .55" stroke="#e7a166" stroke-width="1.7"/>
+      <path class="rays" pathLength="1" d="M0 0Q44.7 4.4 78.7 23.6" stroke="#ffd99d" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q27.4 26.6 49.2 64.9" stroke="#ffd99d" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q3.6 27.7 2.3 69.5" stroke="#ffd99d" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-29.5 28.1 -43.4 64.0" stroke="#ffd99d" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-44.0 7.9 -67.0 26.0" stroke="#ffd99d" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-42.0 -18.2 -74.3 -9.4" stroke="#ffd99d" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-19.2 -30.1 -34.2 -35.2" stroke="#ffd99d" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q0.8 -41.7 4.8 -43.6" stroke="#ffd99d" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q22.3 -28.2 41.1 -28.7" stroke="#ffd99d" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q37.0 -11.3 58.3 -2.8" stroke="#ffd99d" stroke-width="1.25"/>
+      <path class="embers" d="M78.7 23.6l.35 .55M84.2 27.6l.35 .55M49.2 64.9l.35 .55M52.7 71.6l.35 .55M2.3 69.5l.35 .55M2.5 76.4l.35 .55M-43.4 64.0l.35 .55M-46.5 70.8l.35 .55M-67.0 26.0l.35 .55M-71.7 30.3l.35 .55M-74.3 -9.4l.35 .55M-79.5 -7.9l.35 .55M-34.2 -35.2l.35 .55M-36.6 -35.3l.35 .55M4.8 -43.6l.35 .55M5.2 -44.7l.35 .55M41.1 -28.7l.35 .55M44.0 -28.4l.35 .55M58.3 -2.8l.35 .55M62.3 -0.6l.35 .55" stroke="#ffd99d" stroke-width="1.7"/>
+      <path class="rays" pathLength="1" d="M0 0Q31.7 8.9 58.5 35.4" stroke="#fff1bf" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q15.7 26.2 29.9 59.6" stroke="#fff1bf" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-9.3 36.4 -15.2 74.6" stroke="#fff1bf" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-32.5 18.9 -54.3 55.8" stroke="#fff1bf" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-47.5 -0.8 -72.7 16.1" stroke="#fff1bf" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-34.3 -20.6 -53.8 -17.4" stroke="#fff1bf" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-18.7 -41.2 -30.2 -50.7" stroke="#fff1bf" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q14.1 -39.1 18.6 -43.9" stroke="#fff1bf" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q32.3 -28.4 57.1 -25.5" stroke="#fff1bf" stroke-width="1.25"/>
+      <path class="embers" d="M58.5 35.4l.35 .55M62.6 40.1l.35 .55M29.9 59.6l.35 .55M32.0 66.2l.35 .55M-15.2 74.6l.35 .55M-16.2 82.2l.35 .55M-54.3 55.8l.35 .55M-58.1 61.8l.35 .55M-72.7 16.1l.35 .55M-77.8 19.5l.35 .55M-53.8 -17.4l.35 .55M-57.5 -16.3l.35 .55M-30.2 -50.7l.35 .55M-32.3 -51.9l.35 .55M18.6 -43.9l.35 .55M19.9 -44.8l.35 .55M57.1 -25.5l.35 .55M61.1 -25.2l.35 .55" stroke="#fff1bf" stroke-width="1.7"/>
+      <path class="rays" pathLength="1" d="M0 0Q23.3 -4.2 41.3 5.3" stroke="#e7a166" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q9.2 16.5 20.1 41.1" stroke="#e7a166" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-20.5 16.6 -30.2 41.3" stroke="#e7a166" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-26.2 -8.0 -42.1 -1.4" stroke="#e7a166" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-5.1 -21.2 -9.3 -23.5" stroke="#e7a166" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q23.3 -17.7 33.3 -17.8" stroke="#e7a166" stroke-width="0.85"/>
+      <path class="embers" d="M41.3 5.3l.35 .55M44.2 8.2l.35 .55M20.1 41.1l.35 .55M21.5 46.4l.35 .55M-30.2 41.3l.35 .55M-32.3 46.7l.35 .55M-42.1 -1.4l.35 .55M-45.1 1.1l.35 .55M-9.3 -23.5l.35 .55M-10.0 -22.7l.35 .55M33.3 -17.8l.35 .55M35.7 -16.5l.35 .55" stroke="#e7a166" stroke-width="1.7"/>
+      <path class="rays" pathLength="1" d="M0 0Q20.4 6.9 39.6 19.8" stroke="#ffd99d" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q4.9 18.7 3.5 48.6" stroke="#ffd99d" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-17.5 6.8 -31.8 21.2" stroke="#ffd99d" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-24.6 -15.8 -35.1 -14.1" stroke="#ffd99d" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q5.4 -24.1 2.8 -32.5" stroke="#ffd99d" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q18.1 -10.6 34.7 -8.1" stroke="#ffd99d" stroke-width="0.85"/>
+      <path class="embers" d="M39.6 19.8l.35 .55M42.4 23.9l.35 .55M3.5 48.6l.35 .55M3.7 54.3l.35 .55M-31.8 21.2l.35 .55M-34.1 25.3l.35 .55M-35.1 -14.1l.35 .55M-37.6 -12.6l.35 .55M2.8 -32.5l.35 .55M3.0 -32.0l.35 .55M34.7 -8.1l.35 .55M37.2 -6.1l.35 .55" stroke="#ffd99d" stroke-width="1.7"/>
+      <path class="rays" pathLength="1" d="M0 0Q13.9 12.6 27.2 27.9" stroke="#fff1bf" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-10.1 20.0 -12.5 48.9" stroke="#fff1bf" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-21.7 2.7 -37.1 12.3" stroke="#fff1bf" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-17.0 -23.5 -28.1 -29.2" stroke="#fff1bf" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q8.9 -21.1 19.2 -28.2" stroke="#fff1bf" stroke-width="0.85"/>
+      <path class="embers" d="M27.2 27.9l.35 .55M29.1 32.6l.35 .55M-12.5 48.9l.35 .55M-13.4 54.7l.35 .55M-37.1 12.3l.35 .55M-39.7 15.8l.35 .55M-28.1 -29.2l.35 .55M-30.1 -28.7l.35 .55M19.2 -28.2l.35 .55M20.5 -27.5l.35 .55" stroke="#fff1bf" stroke-width="1.7"/>
+    </g></g>
+    <g transform="translate(407 82)" style="--burst:1.29s"><g class="bloom">
+      <g class="flash"><circle r="23" fill="url(#glint)"/><use href="#star"/></g>
+      <path class="rays" pathLength="1" d="M0 0Q38.6 -3.4 65.2 8.4" stroke="#cd88ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q25.3 13.2 46.6 43.9" stroke="#cd88ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q13.5 32.8 20.6 70.3" stroke="#cd88ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-15.4 25.5 -24.5 64.2" stroke="#cd88ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-31.3 9.3 -51.4 37.4" stroke="#cd88ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-45.4 -10.0 -74.4 8.7" stroke="#cd88ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-37.4 -35.0 -56.2 -32.7" stroke="#cd88ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-10.0 -40.4 -11.3 -43.5" stroke="#cd88ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q15.5 -36.7 32.4 -34.9" stroke="#cd88ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q42.6 -18.9 65.9 -12.1" stroke="#cd88ae" stroke-width="1.25"/>
+      <path class="embers" d="M65.2 8.4l.35 .55M69.8 11.5l.35 .55M46.6 43.9l.35 .55M49.9 49.1l.35 .55M20.6 70.3l.35 .55M22.1 77.6l.35 .55M-24.5 64.2l.35 .55M-26.2 70.9l.35 .55M-51.4 37.4l.35 .55M-55.0 42.1l.35 .55M-74.4 8.7l.35 .55M-79.6 11.3l.35 .55M-56.2 -32.7l.35 .55M-60.2 -33.0l.35 .55M-11.3 -43.5l.35 .55M-12.0 -44.5l.35 .55M32.4 -34.9l.35 .55M34.7 -35.3l.35 .55M65.9 -12.1l.35 .55M70.5 -10.7l.35 .55" stroke="#cd88ae" stroke-width="1.7"/>
+      <path class="rays" pathLength="1" d="M0 0Q44.2 4.7 71.7 24.2" stroke="#ffc9d2" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q31.5 24.7 50.4 62.9" stroke="#ffc9d2" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q3.4 33.0 2.8 81.7" stroke="#ffc9d2" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-28.6 28.6 -46.4 69.3" stroke="#ffc9d2" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-40.6 8.2 -71.2 29.0" stroke="#ffc9d2" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-46.9 -18.7 -76.5 -12.4" stroke="#ffc9d2" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-28.2 -34.4 -41.6 -35.4" stroke="#ffc9d2" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-1.1 -40.0 1.7 -52.2" stroke="#ffc9d2" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q33.3 -36.8 51.6 -36.2" stroke="#ffc9d2" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q44.8 -14.0 68.0 2.6" stroke="#ffc9d2" stroke-width="1.25"/>
+      <path class="embers" d="M71.7 24.2l.35 .55M76.7 28.2l.35 .55M50.4 62.9l.35 .55M54.0 69.4l.35 .55M2.8 81.7l.35 .55M3.0 89.4l.35 .55M-46.4 69.3l.35 .55M-49.7 76.3l.35 .55M-71.2 29.0l.35 .55M-76.2 33.4l.35 .55M-76.5 -12.4l.35 .55M-81.9 -11.0l.35 .55M-41.6 -35.4l.35 .55M-44.5 -35.8l.35 .55M1.7 -52.2l.35 .55M1.8 -53.4l.35 .55M51.6 -36.2l.35 .55M55.2 -36.7l.35 .55M68.0 2.6l.35 .55M72.7 4.8l.35 .55" stroke="#ffc9d2" stroke-width="1.7"/>
+      <path class="rays" pathLength="1" d="M0 0Q35.4 6.9 57.3 34.0" stroke="#fff2b9" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q19.2 30.0 36.3 66.8" stroke="#fff2b9" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-5.8 26.4 -9.1 57.0" stroke="#fff2b9" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-27.8 18.4 -47.5 46.5" stroke="#fff2b9" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-31.5 -0.6 -58.6 9.4" stroke="#fff2b9" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-38.3 -23.1 -62.5 -19.9" stroke="#fff2b9" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-14.4 -41.0 -28.1 -41.6" stroke="#fff2b9" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q7.2 -34.1 17.3 -38.8" stroke="#fff2b9" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q36.9 -27.3 56.3 -18.9" stroke="#fff2b9" stroke-width="1.25"/>
+      <path class="embers" d="M57.3 34.0l.35 .55M61.3 38.5l.35 .55M36.3 66.8l.35 .55M38.8 73.8l.35 .55M-9.1 57.0l.35 .55M-9.8 63.5l.35 .55M-47.5 46.5l.35 .55M-50.8 52.1l.35 .55M-58.6 9.4l.35 .55M-62.7 12.7l.35 .55M-62.5 -19.9l.35 .55M-66.8 -19.0l.35 .55M-28.1 -41.6l.35 .55M-30.1 -42.5l.35 .55M17.3 -38.8l.35 .55M18.5 -39.2l.35 .55M56.3 -18.9l.35 .55M60.2 -18.3l.35 .55" stroke="#fff2b9" stroke-width="1.7"/>
+      <path class="rays" pathLength="1" d="M0 0Q27.7 -3.7 43.7 7.9" stroke="#cd88ae" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q10.5 15.4 19.9 40.7" stroke="#cd88ae" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-15.2 15.3 -31.3 43.7" stroke="#cd88ae" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-22.4 -4.1 -35.8 -1.0" stroke="#cd88ae" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-10.5 -21.0 -11.9 -26.1" stroke="#cd88ae" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q21.0 -19.1 32.9 -18.5" stroke="#cd88ae" stroke-width="0.85"/>
+      <path class="embers" d="M43.7 7.9l.35 .55M46.8 10.9l.35 .55M19.9 40.7l.35 .55M21.3 45.9l.35 .55M-31.3 43.7l.35 .55M-33.5 49.0l.35 .55M-35.8 -1.0l.35 .55M-38.3 1.7l.35 .55M-11.9 -26.1l.35 .55M-12.8 -25.3l.35 .55M32.9 -18.5l.35 .55M35.2 -17.3l.35 .55" stroke="#cd88ae" stroke-width="1.7"/>
+      <path class="rays" pathLength="1" d="M0 0Q28.9 5.3 44.2 26.7" stroke="#ffc9d2" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q1.9 19.8 1.3 41.7" stroke="#ffc9d2" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-23.9 9.5 -40.0 27.4" stroke="#ffc9d2" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-18.6 -15.9 -37.4 -10.6" stroke="#ffc9d2" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q7.0 -21.5 5.3 -26.7" stroke="#ffc9d2" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q28.9 -12.4 47.8 -5.1" stroke="#ffc9d2" stroke-width="0.85"/>
+      <path class="embers" d="M44.2 26.7l.35 .55M47.3 30.8l.35 .55M1.3 41.7l.35 .55M1.4 47.2l.35 .55M-40.0 27.4l.35 .55M-42.8 31.8l.35 .55M-37.4 -10.6l.35 .55M-40.0 -9.0l.35 .55M5.3 -26.7l.35 .55M5.7 -26.0l.35 .55M47.8 -5.1l.35 .55M51.1 -3.1l.35 .55" stroke="#ffc9d2" stroke-width="1.7"/>
+      <path class="rays" pathLength="1" d="M0 0Q18.7 11.0 26.9 29.5" stroke="#fff2b9" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-10.8 19.4 -14.1 51.9" stroke="#fff2b9" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-20.5 0.5 -35.4 10.6" stroke="#fff2b9" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-15.8 -22.6 -30.3 -27.9" stroke="#fff2b9" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q12.6 -20.8 20.7 -24.5" stroke="#fff2b9" stroke-width="0.85"/>
+      <path class="embers" d="M26.9 29.5l.35 .55M28.8 34.1l.35 .55M-14.1 51.9l.35 .55M-15.1 57.7l.35 .55M-35.4 10.6l.35 .55M-37.9 14.0l.35 .55M-30.3 -27.9l.35 .55M-32.5 -27.3l.35 .55M20.7 -24.5l.35 .55M22.2 -23.6l.35 .55" stroke="#fff2b9" stroke-width="1.7"/>
+    </g></g>
+    <g transform="translate(252 57)" style="--burst:2.19s"><g class="bloom">
+      <g class="flash"><circle r="23" fill="url(#glint)"/><use href="#star"/></g>
+      <path class="rays" pathLength="1" d="M0 0Q19.0 -4.9 29.9 11.0" stroke="#83bdbc" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q17.2 9.0 26.0 25.8" stroke="#83bdbc" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q5.6 15.9 9.2 41.9" stroke="#83bdbc" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-3.6 15.5 -12.3 40.1" stroke="#83bdbc" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-18.6 5.6 -30.8 32.5" stroke="#83bdbc" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-22.8 -7.0 -31.8 5.9" stroke="#83bdbc" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-17.2 -20.0 -25.4 -16.8" stroke="#83bdbc" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-5.3 -27.0 -5.1 -29.0" stroke="#83bdbc" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q6.4 -21.9 14.6 -19.8" stroke="#83bdbc" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q18.1 -15.2 32.7 -1.3" stroke="#83bdbc" stroke-width="1.25"/>
+      <path class="embers" d="M29.9 11.0l.35 .55M32.0 14.0l.35 .55M26.0 25.8l.35 .55M27.8 30.2l.35 .55M9.2 41.9l.35 .55M9.8 47.3l.35 .55M-12.3 40.1l.35 .55M-13.2 45.4l.35 .55M-30.8 32.5l.35 .55M-33.0 36.8l.35 .55M-31.8 5.9l.35 .55M-34.0 8.6l.35 .55M-25.4 -16.8l.35 .55M-27.2 -15.6l.35 .55M-5.1 -29.0l.35 .55M-5.5 -28.7l.35 .55M14.6 -19.8l.35 .55M15.6 -18.8l.35 .55M32.7 -1.3l.35 .55M35.0 0.6l.35 .55" stroke="#83bdbc" stroke-width="1.7"/>
+      <path class="rays" pathLength="1" d="M0 0Q15.8 -0.5 30.6 18.4" stroke="#b2e4d5" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q8.9 10.1 21.0 37.7" stroke="#b2e4d5" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q4.2 19.7 1.8 52.7" stroke="#b2e4d5" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-8.7 11.2 -19.7 44.0" stroke="#b2e4d5" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-25.5 4.5 -36.0 19.9" stroke="#b2e4d5" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-27.1 -14.8 -39.5 0.8" stroke="#b2e4d5" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-15.9 -28.8 -24.2 -19.1" stroke="#b2e4d5" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q4.5 -33.0 1.9 -24.7" stroke="#b2e4d5" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q12.4 -18.5 20.6 -14.6" stroke="#b2e4d5" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q20.3 -7.9 33.1 3.2" stroke="#b2e4d5" stroke-width="1.25"/>
+      <path class="embers" d="M30.6 18.4l.35 .55M32.7 21.9l.35 .55M21.0 37.7l.35 .55M22.5 42.5l.35 .55M1.8 52.7l.35 .55M1.9 58.6l.35 .55M-19.7 44.0l.35 .55M-21.1 49.1l.35 .55M-36.0 19.9l.35 .55M-38.5 23.8l.35 .55M-39.5 0.8l.35 .55M-42.3 2.8l.35 .55M-24.2 -19.1l.35 .55M-25.9 -18.6l.35 .55M1.9 -24.7l.35 .55M2.1 -24.6l.35 .55M20.6 -14.6l.35 .55M22.0 -13.2l.35 .55M33.1 3.2l.35 .55M35.5 5.8l.35 .55" stroke="#b2e4d5" stroke-width="1.7"/>
+      <path class="rays" pathLength="1" d="M0 0Q18.6 4.0 28.7 21.5" stroke="#ffe7ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q9.6 15.0 20.8 53.5" stroke="#ffe7ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-0.1 19.6 -5.4 54.6" stroke="#ffe7ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-15.2 9.7 -23.8 36.1" stroke="#ffe7ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-18.6 -4.0 -37.5 21.8" stroke="#ffe7ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-21.8 -17.9 -34.3 -8.0" stroke="#ffe7ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q-11.0 -29.3 -15.7 -27.9" stroke="#ffe7ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q2.7 -29.0 9.5 -24.9" stroke="#ffe7ae" stroke-width="1.25"/>
+      <path class="rays" pathLength="1" d="M0 0Q12.7 -17.0 24.0 -7.7" stroke="#ffe7ae" stroke-width="1.25"/>
+      <path class="embers" d="M28.7 21.5l.35 .55M30.7 25.4l.35 .55M20.8 53.5l.35 .55M22.3 59.1l.35 .55M-5.4 54.6l.35 .55M-5.7 60.5l.35 .55M-23.8 36.1l.35 .55M-25.5 40.8l.35 .55M-37.5 21.8l.35 .55M-40.1 25.2l.35 .55M-34.3 -8.0l.35 .55M-36.7 -6.5l.35 .55M-15.7 -27.9l.35 .55M-16.8 -27.7l.35 .55M9.5 -24.9l.35 .55M10.2 -24.5l.35 .55M24.0 -7.7l.35 .55M25.7 -6.1l.35 .55" stroke="#ffe7ae" stroke-width="1.7"/>
+      <path class="rays" pathLength="1" d="M0 0Q12.5 -3.7 20.2 8.4" stroke="#83bdbc" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q2.9 11.3 9.6 27.0" stroke="#83bdbc" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-4.5 6.3 -11.7 24.8" stroke="#83bdbc" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-14.1 -7.4 -24.6 1.7" stroke="#83bdbc" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-6.3 -14.1 -6.2 -13.7" stroke="#83bdbc" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q7.1 -13.5 16.9 -10.7" stroke="#83bdbc" stroke-width="0.85"/>
+      <path class="embers" d="M20.2 8.4l.35 .55M21.6 11.4l.35 .55M9.6 27.0l.35 .55M10.3 31.6l.35 .55M-11.7 24.8l.35 .55M-12.5 29.0l.35 .55M-24.6 1.7l.35 .55M-26.3 4.2l.35 .55M-6.2 -13.7l.35 .55M-6.6 -12.1l.35 .55M16.9 -10.7l.35 .55M18.1 -8.9l.35 .55" stroke="#83bdbc" stroke-width="1.7"/>
+      <path class="rays" pathLength="1" d="M0 0Q12.6 2.1 20.3 15.2" stroke="#b2e4d5" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q3.1 13.1 2.2 31.9" stroke="#b2e4d5" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-12.9 4.7 -20.0 20.0" stroke="#b2e4d5" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-12.5 -10.0 -19.0 -7.9" stroke="#b2e4d5" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-1.8 -15.0 1.5 -13.4" stroke="#b2e4d5" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q13.1 -7.7 18.6 -0.7" stroke="#b2e4d5" stroke-width="0.85"/>
+      <path class="embers" d="M20.3 15.2l.35 .55M21.7 18.8l.35 .55M2.2 31.9l.35 .55M2.3 36.7l.35 .55M-20.0 20.0l.35 .55M-21.4 24.0l.35 .55M-19.0 -7.9l.35 .55M-20.3 -5.8l.35 .55M1.5 -13.4l.35 .55M1.6 -11.8l.35 .55M18.6 -0.7l.35 .55M19.9 1.7l.35 .55" stroke="#b2e4d5" stroke-width="1.7"/>
+      <path class="rays" pathLength="1" d="M0 0Q9.4 4.7 14.0 18.2" stroke="#ffe7ae" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-5.5 10.9 -5.4 25.2" stroke="#ffe7ae" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-10.3 -1.0 -23.6 13.0" stroke="#ffe7ae" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q-10.8 -16.7 -15.9 -9.1" stroke="#ffe7ae" stroke-width="0.85"/>
+      <path class="rays" pathLength="1" d="M0 0Q6.9 -14.8 9.0 -15.2" stroke="#ffe7ae" stroke-width="0.85"/>
+      <path class="embers" d="M14.0 18.2l.35 .55M15.0 22.0l.35 .55M-5.4 25.2l.35 .55M-5.7 29.7l.35 .55M-23.6 13.0l.35 .55M-25.3 16.3l.35 .55M-15.9 -9.1l.35 .55M-17.0 -7.5l.35 .55M9.0 -15.2l.35 .55M9.7 -13.7l.35 .55" stroke="#ffe7ae" stroke-width="1.7"/>
+    </g></g>
+    <defs>
+      <g id="satellite" stroke="#ffce99">
+        <path class="rays" pathLength="1" d="M0 0 Q-11 -14 -20 -13 M0 0 Q-4 -17 -4 -22 M0 0 Q8 -17 14 -20 M0 0 Q13 -8 21 -6 M0 0 Q10 3 15 11 M0 0 Q-5 5 -12 13" stroke-width="1.4"/>
+        <g class="embers" fill="#ffdbad" stroke="none"><circle cx="-20" cy="-13" r="1.4"/><circle cx="14" cy="-20" r="1.7"/><circle cx="21" cy="-6" r="1.2"/><circle cx="15" cy="11" r="1.4"/><circle cx="-12" cy="13" r="1.2"/></g>
+        <use class="flash" href="#star"/>
+      </g>
+    </defs>
+    <g transform="translate(76 167)" style="--burst:3.25s"><use href="#satellite"/></g>
+    <g transform="translate(444 140) rotate(24) scale(.76)" style="--burst:3.68s"><use href="#satellite"/></g>
+    <g transform="translate(124 109) skewX(-8)">
+      <g transform="translate(0)" class="ink" style="--write:1.48s"><use href="#two" stroke="#774759" stroke-width="7.4" opacity=".65"/><use href="#two" stroke="url(#foil)" stroke-width="5.2"/><use href="#two" stroke="#fff7d4" stroke-width="1.15"/></g>
+      <g transform="translate(0)" style="--write:1.48s"><g class="pen"><animateMotion dur=".83s" begin="1.48s" fill="freeze" calcMode="spline" keyPoints="0;1" keyTimes="0;1" keySplines=".26 .52 .45 1"><mpath href="#two"/></animateMotion><use href="#star"/></g></g>
+      <g transform="translate(66)" class="ink" style="--write:1.84s"><use href="#zero" stroke="#774759" stroke-width="7.4" opacity=".65"/><use href="#zero" stroke="url(#foil)" stroke-width="5.2"/><use href="#zero" stroke="#fff7d4" stroke-width="1.15"/></g>
+      <g transform="translate(66)" style="--write:1.84s"><g class="pen"><animateMotion dur=".83s" begin="1.84s" fill="freeze" calcMode="spline" keyPoints="0;1" keyTimes="0;1" keySplines=".26 .52 .45 1"><mpath href="#zero"/></animateMotion><use href="#star"/></g></g>
+      <g transform="translate(128)" class="ink" style="--write:2.2s"><use href="#two" stroke="#774759" stroke-width="7.4" opacity=".65"/><use href="#two" stroke="url(#foil)" stroke-width="5.2"/><use href="#two" stroke="#fff7d4" stroke-width="1.15"/></g>
+      <g transform="translate(128)" style="--write:2.2s"><g class="pen"><animateMotion dur=".83s" begin="2.2s" fill="freeze" calcMode="spline" keyPoints="0;1" keyTimes="0;1" keySplines=".26 .52 .45 1"><mpath href="#two"/></animateMotion><use href="#star"/></g></g>
+      <g transform="translate(195)" class="ink" style="--write:2.56s"><use href="#seven" stroke="#774759" stroke-width="7.4" opacity=".65"/><use href="#seven" stroke="url(#foil)" stroke-width="5.2"/><use href="#seven" stroke="#fff7d4" stroke-width="1.15"/></g>
+      <g transform="translate(195)" style="--write:2.56s"><g class="pen"><animateMotion dur=".83s" begin="2.56s" fill="freeze" calcMode="spline" keyPoints="0;1" keyTimes="0;1" keySplines=".26 .52 .45 1"><mpath href="#seven"/></animateMotion><use href="#star"/></g></g>
+    </g>
+    <g transform="translate(142 121) scale(0.9)"><use class="spark" href="#star" style="--when:1.83s"/></g>
+    <g transform="translate(201 182) scale(0.68)"><use class="spark" href="#star" style="--when:2.48s"/></g>
+    <g transform="translate(281 120) scale(0.85)"><use class="spark" href="#star" style="--when:3.05s"/></g>
+    <g transform="translate(366 119) scale(1.15)"><use class="spark" href="#star" style="--when:3.43s"/></g>
+    <g transform="translate(319 188) scale(0.72)"><use class="spark" href="#star" style="--when:4.1s"/></g>
+    <g transform="translate(179 164) scale(0.48)"><use class="spark" href="#star" style="--when:4.62s"/></g>
+    <g transform="translate(97 101) scale(1)"><use class="spark" href="#star" style="--when:0.8s"/></g>
+    <g transform="translate(407 82) scale(0.95)"><use class="spark" href="#star" style="--when:1.28s"/></g>
+  </g>
+</svg>

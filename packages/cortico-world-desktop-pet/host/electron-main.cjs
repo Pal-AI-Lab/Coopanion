@@ -442,6 +442,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     });
     // a page loaded afresh asks for the windows again once its body is on
     win.webContents.on('did-finish-load', () => {
+      win.webContents.send('pet:shown', win.isVisible());
       win.webContents.setZoomLevel(0); overlay.pageLoaded(); watchWindows(false); win.webContents.send('pet:floor', coverArea(display(), overTaskbar).below);
       win.webContents.send('pet:fullscreenThrough', fullscreenThrough);
       if (shape) win.webContents.send('pet:inputShape', true);

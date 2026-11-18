@@ -551,3 +551,5 @@ body.desk .floor{display:none}
 @keyframes sz-in{from{transform:translateY(8px) scale(.6); opacity:0}}
 @keyframes sz-out{to{transform:translateY(8px) scale(.6); opacity:0}}
 @media (prefers-reduced-motion: reduce){.sizer{animation:none}}
+
+.pet-holiday-effect{position:absolute; height:auto; pointer-events:none; user-select:none}

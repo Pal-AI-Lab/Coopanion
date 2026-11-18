@@ -8,6 +8,7 @@
  * The question `pet_set` asks the person in the bubble is in the app language instead: the same
  * changes, written by `show` in `self.ts`.
  */
+import { FIREWORKS_2027 } from './easter-eggs.ts';
 import type { SelfKey } from './config.ts';
 
 export type ModelLanguage = 'zh' | 'en';
@@ -42,7 +43,18 @@ type NotAsked = 'unavailable' | 'timeout' | 'no';
  */
 export type NoPortrait = 'tab' | 'hidden' | 'no-body' | 'capture' | 'timeout' | 'gone';
 
+export const EFFECT_TOOL_TEXT = {
+  started: 'The effect has started behind you.',
+  unavailable: 'The effect did not start. It needs a visible desktop figure and can play only once during the offer.',
+  unconfirmed: 'The desktop window did not confirm playback.',
+};
+
 const zh = {
+  holiday: {
+    christmas: '今天是本地时间 12 月 25 日，圣诞节。',
+    newYear2027: `今天是本地时间 2027 年 1 月 1 日。如果想和对方庆祝，可以用你们熟悉的方式说声新年快乐，也可以继续眼前的事。这一轮可以调用 pet_act({"actions":["${FIREWORKS_2027}"]})，让身后升起烟花，写出「2027」。烟花只能放一次，最晚在本地午夜失效。`,
+  },
+
   /** Locale of the weekday in an event's time stamp. */
   dateLocale: 'zh-CN',
   typed: (user: string, text: string) => `[typed] ${user}:${text}`,
@@ -189,6 +201,11 @@ const zh = {
 };
 
 const en: typeof zh = {
+  holiday: {
+    christmas: 'It is December 25 here, Christmas Day.',
+    newYear2027: `It is January 1, 2027 here. If you feel like celebrating with the person, wish them a happy New Year in your own way, or carry on with what you were doing. During this turn, pet_act({"actions":["${FIREWORKS_2027}"]}) can light fireworks behind you that spell out 2027. They can play once, until local midnight at the latest.`,
+  },
+
   dateLocale: 'en-US',
   typed: (user, text) => `[typed] ${user}: ${text}`,
   heard: (user, text) => `[voice] ${user}: ${text}`,

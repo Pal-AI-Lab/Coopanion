@@ -15,6 +15,7 @@ import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
 import { COO_CSS, PALETTES, normalizeSkin, skinCss } from './coo/coo.js';
+import { playEgg } from './easter-eggs.js';
 import { loadBody } from './body-host.js';
 import { fetchLooks, lookAvailable, lookPicture, sameLook } from './looks.js';
 import { SIZE, scaleSlider, sizeEcho } from './scale-slider.js';
@@ -141,10 +142,10 @@ function connect() {
   };
 }
 /** The pet window says whether it is shown: hidden from its menu or the tray, it stays connected. */
-let windowShown = true;
-function reportVisibility() { if (host) send({ t: 'visibility', hidden: !windowShown }); }
+let windowShown = true, visibilityKnown = false, figureReady = false;
+function reportVisibility() { if (host) send({ t: 'visibility', hidden: !windowShown, ready: visibilityKnown && figureReady }); }
 // the page itself always reads as visible (its window does not throttle it): the window process says when it is hidden
-host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVisibility(); if (!shown) pinSizer(false); });
+host?.onShown?.((shown) => { windowShown = shown; visibilityKnown = true; sfx.setShown(shown); reportVisibility(); if (!shown) pinSizer(false); });
 /** Clicks pass through because a fullscreen window covers the pet's display and the setting says so; the window process decides. */
 let fullscreenThrough = false;
 host?.onFullscreenThrough?.((on) => { fullscreenThrough = on; });
@@ -180,7 +181,7 @@ host?.onOverlay?.((on) => { overlayOn = on; });
 
 /* ---------- portrait: a picture of the body alone, which the World asks for when the bot looks at itself ---------- */
 /** What the page draws over the stage: the bubbles, the menu's two sides, the hover buttons, the look wheel, the size slider and the hover hint. */
-const OVER_STAGE = '.bubble, .menu > *, .tools, .wheel, .sizer, .hint';
+const OVER_STAGE = '.pet-holiday-effect, .bubble, .menu > *, .tools, .wheel, .sizer, .hint';
 /**
  * The longest the picture waits for the page's next frame, and then for the display, in milliseconds each: a dozen
  * display refreshes at 60 a second. A page that gets no refresh (its window wholly covered) goes on after it.
@@ -425,6 +426,16 @@ function onOrder(m) {
   switch (m.t) {
     case 'init': restorePosition(m.startX, m.startY); applyPrefs(m); if (!host) announcePainted(); break;
     case 'prefs': applyPrefs(m); break;
+    case 'pet-holiday-effect':
+      if (host) {
+        const socket = ws;
+        const visible = () => windowShown && socket.readyState === WebSocket.OPEN;
+        const reply = (result) => {
+          if (ws === socket) send({ t: 'holiday-result', id: m.id, result });
+        };
+        playEgg(stage, at, visible, m.action, m.expiresAt).then(reply, () => reply('unavailable'));
+      }
+      break;
     case 'watching': watching = true; stopMic(); break;
     // the settings window's 「在桌面上隐藏」: the same as the menu's 「隐藏」
     case 'hide': host?.hide?.(); break;
@@ -2396,6 +2407,10 @@ function placeTools(l) {
 function layout(dt = 0) {
   const l = at();
   if (!l) return;
+  if (host && !figureReady && l.box.h > 0) {
+    figureReady = true;
+    reportVisibility();
+  }
   stage.style.cursor = l.cursor;
   // the sounds come from where Coo is on its display: screenX and availLeft (the left of the work area the pet window
   // covers) count from the same origin across all displays

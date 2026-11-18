@@ -58,7 +58,8 @@ import { CUA_OFF_TOOL_DECLS } from './cua/tools.ts';
 import type { Answer } from './cua/engine-ipc.ts';
 import { PackImporter } from './pack-import.ts';
 import { dressTable, planSettings, sayScale, type SettingChange } from './self.ts';
-import { MODEL_TEXT, type ModelLanguage, type ModelText, type NoPortrait } from './model-text.ts';
+import { EASTER_EGGS, isEggDay, nextLocalMidnight, type EasterEgg } from './easter-eggs.ts';
+import { EFFECT_TOOL_TEXT, MODEL_TEXT, type ModelLanguage, type ModelText, type NoPortrait } from './model-text.ts';
 
 /** The console panels, titled in `language`. */
 function desktopPetPanelDecls(language: Language = 'zh'): WorldPanelDecl[] {
@@ -451,6 +452,11 @@ export class DesktopPetWorld implements World {
   private readonly pendingChat = new Set<number>();
   /** The first cursor of this run: Core queues this World's undelivered events from before it again at start. */
   private startCursor = 0;
+  private readonly holidayReports = new Set<string>();
+  private readonly holidayOffers = new Set<EasterEgg>();
+  private holidayVisible = false;
+  private holidayTimer: ReturnType<typeof setTimeout> | undefined;
+  private effectReply: { id: string; finish(started?: boolean): void } | null = null;
   /** Text the bubble's expand button carried, until a chat page takes it. */
   private draft: { text: string; images: DraftImage[] } | null = null;
   private pausedShown: boolean | null = null;
@@ -486,7 +492,14 @@ export class DesktopPetWorld implements World {
       snapshot: () => this.snapshot(),
       onPetMessage: (msg) => this.onPage(msg),
       onAudio: (frame) => this.onAudio(frame),
-      onPetConnect: () => { this.petHidden = false; this.bodyMissing = null; this.log?.info('桌宠页面已连接'); this.tellDesktop(); },
+      onPetConnect: () => {
+        this.checkHoliday(false);
+        this.effectReply?.finish();
+        this.petHidden = false;
+        this.bodyMissing = null;
+        this.log?.info('桌宠页面已连接');
+        this.tellDesktop();
+      },
       onPetDisconnect: () => this.onPageGone(),
       onSkin: (skin, scale) => this.saveSkin(skin, scale),
       onPrefs: (prefs) => this.savePrefs(prefs),
@@ -685,6 +698,7 @@ export class DesktopPetWorld implements World {
 
   async start(host: WorldHost): Promise<void> {
     this.host = host;
+    this.holidayReports.clear();
     this.startCursor = host.store.latestCursor() + 1;
     this.log = host.log;
     this.cua.start(host);
@@ -730,6 +744,9 @@ export class DesktopPetWorld implements World {
   }
 
   async stop(): Promise<void> {
+    this.checkHoliday(false);
+    this.holidayOffers.clear();
+    this.effectReply?.finish();
     this.voiceGeneration++;
     this.runningEngine = null;
     this.status.clear();
@@ -773,6 +790,7 @@ export class DesktopPetWorld implements World {
   }
 
   onTurnEnded(): void {
+    this.holidayOffers.clear();
     this.touchWoke = false;
     this.cua.onTurnEnded();
   }
@@ -814,6 +832,14 @@ export class DesktopPetWorld implements World {
    * first, then a `delivered` record the history places the message at.
    */
   onEventsSettled(events: readonly EventEnvelope[], outcome: 'delivered' | 'discarded'): void {
+    if (outcome === 'delivered') {
+      const today = new Date();
+      for (const egg of EASTER_EGGS) {
+        if (egg.action && isEggDay(egg, today) && events.some(e => e.type === 'desktop-pet.holiday' && e.meta?.egg === egg.id)) {
+          this.holidayOffers.add(egg);
+        }
+      }
+    }
     const cursors = events
       .filter((e) => this.pendingChat.delete(e.cursor) || (e.cursor < this.startCursor && chatItem(e)?.kind === 'user'))
       .map((e) => e.cursor);
@@ -1204,7 +1230,16 @@ export class DesktopPetWorld implements World {
           : PAGE_NO_PORTRAIT.includes(String(msg.failed)) ? msg.failed as NoPortrait : 'capture');
         return;
       }
-      case 'visibility': this.petHidden = msg.hidden === true; this.tellDesktop(); return;
+      case 'visibility':
+        this.petHidden = msg.hidden === true;
+        this.checkHoliday(this.server.petInWindow && msg.hidden === false && msg.ready === true);
+        this.tellDesktop();
+        return;
+      case 'holiday-result':
+        if (this.server.petInWindow && this.effectReply?.id === msg.id) {
+          this.effectReply?.finish(msg.result === 'started');
+        }
+        return;
       case 'text': {
         const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 500) : '';
         const images = parseChatImages(msg.images, this.userName, petText(this.appLanguage).chat, this.t);
@@ -1370,7 +1405,37 @@ export class DesktopPetWorld implements World {
     this.opts.onDesktopChange?.(on);
   }
 
+  /** The stored event identifies the holiday across window reconnects and Core restarts. */
+  private checkHoliday(visible: boolean): void {
+    this.holidayVisible = visible;
+    clearTimeout(this.holidayTimer);
+    const host = this.host;
+    if (!visible || !host) return;
+    const now = new Date();
+    this.holidayTimer = setTimeout(() => this.checkHoliday(this.holidayVisible), nextLocalMidnight(now).getTime() - now.getTime());
+    for (const egg of EASTER_EGGS) {
+      if (!isEggDay(egg, now)) continue;
+      const year = now.getFullYear();
+      const senderKey = `desktop-pet.${egg.id}-${year}`;
+      if (this.holidayReports.has(senderKey)) continue;
+      this.holidayReports.add(senderKey);
+      // The same local holiday can start on the previous UTC day if the desktop changes time zones.
+      const fromTs = new Date(Date.UTC(year, now.getMonth(), now.getDate() - 1)).toISOString();
+      if (host.store.range({ source: this.id, senderKey, fromTs, limit: 1 }).length) continue;
+      host.pushDeferred({
+        type: 'desktop-pet.holiday', senderKey, meta: { egg: egg.id },
+        render: () => {
+          const today = new Date();
+          if (this.host !== host || today.getFullYear() !== year || !isEggDay(egg, today)) return null;
+          return this.stamp() + this.t.holiday[egg.id];
+        },
+      }, { trigger: 'debounce' });
+    }
+  }
+
   private onPageGone(): void {
+    this.checkHoliday(false);
+    this.effectReply?.finish();
     this.log?.info('桌宠页面断开');
     this.holdPreRoll.length = 0;
     this.tellDesktop();
@@ -1920,7 +1985,7 @@ export class DesktopPetWorld implements World {
       pet_say: (args) => this.say(args),
       pet_ask: (args) => this.askUser(args),
       pet_move_to: (args, ctx) => this.moveTo(args, ctx),
-      pet_act: (args) => this.act(args),
+      pet_act: (args, ctx) => this.act(args, ctx),
       pet_see_self: () => this.seeSelf(),
       pet_set: (args) => this.setSettings(args),
       pet_quiet: (args) => this.setQuiet(args),
@@ -1929,6 +1994,30 @@ export class DesktopPetWorld implements World {
     const own = petToolDecls(this.appLanguage).map((decl) => ({ ...decl, handler: handlers[decl.name], ...(decl.name === 'pet_move_to' ? { interruptible: true } : {}) }));
     if (this.cuaOn) return [...own, ...this.cua.tools()];
     return this.cuaCanOpen ? [...own, ...CUA_OFF_TOOL_DECLS.map((decl) => ({ ...decl, handler: handlers[decl.name] }))] : own;
+  }
+
+  private async playHolidayEffect(egg: EasterEgg): Promise<ToolOutcome> {
+    if (!this.holidayVisible || !this.server.petInWindow || this.effectReply) {
+      return { text: EFFECT_TOOL_TEXT.unavailable, failed: true };
+    }
+    const id = nextId('effect');
+    return new Promise(resolve => {
+      const finish = (started?: boolean) => {
+        clearTimeout(timer);
+        this.effectReply = null;
+        resolve(started ? { text: EFFECT_TOOL_TEXT.started }
+          : { text: started === false ? EFFECT_TOOL_TEXT.unavailable : EFFECT_TOOL_TEXT.unconfirmed, failed: true });
+      };
+      const now = new Date();
+      const expiresAt = Math.min(now.getTime() + 5000, nextLocalMidnight(now).getTime());
+      const timer = setTimeout(finish, expiresAt - now.getTime());
+      this.effectReply = { id, finish };
+      if (this.server.sendPet({ t: 'pet-holiday-effect', egg: egg.id, action: egg.action, id, expiresAt })) {
+        this.holidayOffers.delete(egg);
+      } else {
+        finish(false);
+      }
+    });
   }
 
   private notConnected(tool: string): ToolOutcome {
@@ -2109,8 +2198,12 @@ export class DesktopPetWorld implements World {
     this.syncPrefs();
   }
 
-  private async act(args: Record<string, unknown>): Promise<ToolOutcome> {
+  private async act(args: Record<string, unknown>, ctx: ToolCallContext): Promise<ToolOutcome> {
     const list = Array.isArray(args.actions) ? args.actions : typeof args.actions === 'string' ? [args.actions] : [];
+    if (ctx.role === 'main' && list.length === 1 && this.holidayOffers.size) {
+      const offer = [...this.holidayOffers].find(egg => egg.action?.word === list[0] && isEggDay(egg, new Date()));
+      if (offer) return this.playHolidayEffect(offer);
+    }
     const vocab = this.vocab();
     const { actions, dropped } = parseActions(list, vocab);
     if (!actions.length) return { text: this.t.actNone(dropped), failed: true };

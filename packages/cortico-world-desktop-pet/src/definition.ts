@@ -39,6 +39,11 @@ const DESCRIBE: WorldDescribe = {
   }),
   events: [
     {
+      type: 'desktop-pet.holiday',
+      description: { zh: '节日当天首次显示桌宠时送达的节日事件。', en: 'A calendar event on the first appearance of the desktop pet that holiday.' },
+      trigger: 'debounce',
+    },
+    {
       type: 'desktop-pet.message',
       description: { zh: '使用者在气泡里或对话页上打了字,对话页上的可带图片。', en: 'The person typed a message in the bubble or on the chat page; one from the chat page may carry images.' },
       trigger: 'preempt',
