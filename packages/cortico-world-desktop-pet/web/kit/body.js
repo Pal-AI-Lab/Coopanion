@@ -161,12 +161,13 @@ export function createPet(els, opts) {
   let A = anchors();
   /**
    * How far the body reaches either way from its middle line (x=128, the line it turns about), in logo units:
-   * the wider side of `figure.extent`, else 104, Coo's own. An extent that is not numbers counts as none.
+   * the wider side of a valid `figure.extent`. Missing or invalid extents use the default of 104.
    */
   const halfWidth = () => {
     const e = custom?.extent;
-    const h = e ? Math.max(128 - e[0], e[2] - 128) : NaN;
-    return Number.isFinite(h) && h >= 0 ? h : 104;
+    if (!e || !Number.isFinite(e[0]) || !Number.isFinite(e[1]) || !Number.isFinite(e[2]) || !Number.isFinite(e[3])
+      || e[0] > e[2] || e[1] > e[3]) return 104;
+    return Math.max(128 - e[0], e[2] - 128);
   };
   /** Where the body's middle may stand; a body wider than the stage stands in its middle. */
   const minX = () => Math.min(W / 2, halfWidth() * S + 8), maxX = () => Math.max(W / 2, W - halfWidth() * S - 8);

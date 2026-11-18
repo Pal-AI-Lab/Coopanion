@@ -321,11 +321,19 @@ describe('how near the screen edges the body goes', () => {
     expect(pet.pet.x).toBe(W / 2);
   });
 
-  it('an extent that is not numbers counts as none', () => {
+  it.each([
+    { extent: ['a', 0, null, 256] },
+    { extent: [null, 0, 168, 256] },
+    { extent: ['98', 0, '168', 256] },
+    { extent: [98, '0', 168, 256] },
+    { extent: [168, 0, 155, 256] },
+  ])('an invalid extent $extent keeps the default margin and reach', ({ extent }) => {
+    const defaultPet = barePet(undefined, { figure: { draw() {} } });
     const pet = barePet();
-    pet.setFigure({ draw() {}, extent: ['a', 0, null, 256] });
+    pet.setFigure({ draw() {}, extent });
     pet.resize();
-    expect(walkFar(pet, W + 500)).toBeCloseTo(W - 104 * S - 8, -1);
+    expect(walkFar(pet, W + 500)).toBeCloseTo(walkFar(defaultPet, W + 500), -1);
+    expect(pet.layout().side.reach).toBe(defaultPet.layout().side.reach);
   });
 
   it('a figure that names no extent keeps the margin it had', () => {
