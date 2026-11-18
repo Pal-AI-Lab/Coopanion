@@ -1,3 +1,4 @@
+import { EASTER_EGGS, isEggDay, nextLocalMidnight } from '../../packages/cortico-world-desktop-pet/src/easter-eggs.ts';
 import { coopanionLettering } from '../branding.ts';
 import { brandMark, christmasHat } from '../base/ui/icons.ts';
 
@@ -32,9 +33,9 @@ export function sidebarBrand(doc: Document, signal: AbortSignal): HTMLDivElement
   const refresh = (): void => {
     clearTimeout(midnightTimer);
     const now = new Date();
-    if (now.getMonth() === 11 && (now.getDate() === 24 || now.getDate() === 25)) mark.append(hat);
+    if (EASTER_EGGS.some(egg => egg.decoration?.kind === 'christmasHat' && isEggDay(egg, now, egg.decoration.fromDay))) mark.append(hat);
     else hat.remove();
-    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const midnight = nextLocalMidnight(now);
     midnightTimer = setTimeout(refresh, midnight.getTime() - now.getTime());
   };
   refresh();
