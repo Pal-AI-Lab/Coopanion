@@ -257,6 +257,24 @@ describe('voice input', () => {
     expect(blob.fallbackText).toMatch(/^\[伙伴说这段话的录音,[\d.]+ 秒;/);
   });
 
+  it('keeps a pending text-only batch as text when the endpoint starts accepting audio', async () => {
+    const transcript = '今天天气怎么样';
+    const { cfg, host, page } = await setup(transcript);
+    for (const frame of tone(cfg.asr.segment.maxUtteranceMs, .3)) page.audio(frame);
+    await page.next((m) => m.t === 'listen' && m.phase === 'partial' && m.text === transcript);
+    expect(host.events).toHaveLength(0);
+
+    host.modelFacts.accepts = (mime) => mime === 'audio/wav';
+    for (const frame of tone(900, 0)) page.audio(frame);
+    await expect.poll(() => host.events.length).toBe(1);
+    expect(host.events[0]?.text).toContain(transcript);
+    expect(host.events[0]?.blobs).toBeUndefined();
+
+    for (const frame of [...tone(900, .3), ...tone(900, 0)]) page.audio(frame);
+    await expect.poll(() => host.events.length).toBe(2);
+    expect(host.events[1]?.blobs?.[0]?.mime).toBe('audio/wav');
+  });
+
   it('a threshold set from the meter applies to the next frame: speech below it is not heard', async () => {
     const { world, host, page } = await setup('不该听见');
     const speech = tone(900, .3);

@@ -386,8 +386,8 @@ export class DesktopPetWorld implements World {
   private committing = false;
   private readonly segmenter: Segmenter;
   private readonly packer = new Packer({ minChars: 1 });
-  /** The audio of the sentences the packer holds, delivered with their text when the endpoint takes audio. */
-  private heardPcm: Int16Array[] = [];
+  /** PCM for the pending batch. Null keeps a batch text-only if any sentence was transcribed without audio support. */
+  private heardPcm: Int16Array[] | null = [];
   private readonly queue: Utterance[] = [];
   private transcribing = false;
   private packTimer: NodeJS.Timeout | null = null;
@@ -1809,7 +1809,10 @@ export class DesktopPetWorld implements World {
           if (u.result) this.showHeard();
           continue;
         }
-        if (this.packer.add(text)) this.heardPcm.push(u.pcm);
+        if (this.packer.add(text) && this.heardPcm !== null) {
+          if (this.host?.modelFacts.accepts('audio/wav')) this.heardPcm.push(u.pcm);
+          else this.heardPcm = null;
+        }
         this.remember({ text, at: Date.now(), ms: res.ms });
         this.voiceFrame({ type: 'text', text, ms: res.ms });
         this.pendingText(text);
@@ -1869,7 +1872,7 @@ export class DesktopPetWorld implements World {
   private recording(): BlobInput[] {
     const parts = this.heardPcm;
     this.heardPcm = [];
-    if (parts.length === 0 || !this.host?.modelFacts.accepts('audio/wav')) return [];
+    if (!parts?.length || !this.host?.modelFacts.accepts('audio/wav')) return [];
     const pcm = new Int16Array(parts.reduce((n, p) => n + p.length, 0));
     let at = 0;
     for (const p of parts) { pcm.set(p, at); at += p.length; }
