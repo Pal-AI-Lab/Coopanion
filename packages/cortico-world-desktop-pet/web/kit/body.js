@@ -100,6 +100,8 @@ const ANCHORS = { gaze: [140, 117], tear: [166, 136], z: [196, 40], hearts: [90,
 /** The body's box in logo units, for a figure that names none (`figure.extent`), and its hit circles (`figure.hits`). */
 const EXTENT = [20, 12, 236, 256];
 const HITS = [[128, 128, 108]];
+const DEFAULT_HALF_WIDTH = 104;
+const EDGE_INSET = 8;
 
 /* ---------- the live pet: simulation, rendering, pointer ---------- */
 /**
@@ -159,18 +161,16 @@ export function createPet(els, opts) {
   const P = [];
   const anchors = () => ({ ...ANCHORS, ...custom?.anchors });
   let A = anchors();
-  /**
-   * How far the body reaches either way from its middle line (x=128, the line it turns about), in logo units:
-   * the wider side of a valid `figure.extent`. Missing or invalid extents use the default of 104.
-   */
-  const halfWidth = () => {
+  const figureExtent = () => {
     const e = custom?.extent;
     if (!e || !Number.isFinite(e[0]) || !Number.isFinite(e[1]) || !Number.isFinite(e[2]) || !Number.isFinite(e[3])
-      || e[0] > e[2] || e[1] > e[3]) return 104;
-    return Math.max(128 - e[0], e[2] - 128);
+      || e[0] > e[2] || e[1] > e[3]) return null;
+    return e;
   };
+  /** How far the body reaches from the line it turns about (x=128), in logo units. */
+  const halfWidth = (e = figureExtent()) => e ? Math.max(128 - e[0], e[2] - 128) : DEFAULT_HALF_WIDTH;
   /** Where the body's middle may stand; a body wider than the stage stands in its middle. */
-  const minX = () => Math.min(W / 2, halfWidth() * S + 8), maxX = () => Math.max(W / 2, W - halfWidth() * S - 8);
+  const minX = () => Math.min(W / 2, halfWidth() * S + EDGE_INSET), maxX = () => Math.max(W / 2, W - halfWidth() * S - EDGE_INSET);
   /** The highest ground line a free body stands on: its head stays on the stage. */
   const minY = () => Math.min(floorY, 250 * S + 8);
   /** Where the feet rest: the floor, or a free body's own ground line. */
@@ -199,6 +199,13 @@ export function createPet(els, opts) {
     if (!c) return { x: pet.x, y: groundY() };
     const x = (lx - c.ax) * c.kx, y = (ly - c.ay) * c.ky, r = c.rot * Math.PI / 180;
     return { x: c.AX + x * Math.cos(r) - y * Math.sin(r), y: c.AY + x * Math.sin(r) + y * Math.cos(r) };
+  }
+  function stageBox(e) {
+    const x0 = e[0], y0 = e[1], x1 = e[2], y1 = e[3];
+    const corners = [[x0, y0], [x1, y0], [x0, y1], [x1, y1]].map(([x, y]) => toStage(x, y));
+    const xs = corners.map((p) => p.x), ys = corners.map((p) => p.y);
+    const x = Math.min(...xs), y = Math.min(...ys);
+    return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
   }
   /** The hit circles in stage pixels. */
   function hits() {
@@ -699,6 +706,14 @@ export function createPet(els, opts) {
     const kx = S * pet.faceVis * sx, ky = S * sy, lean = pet.lean * pet.faceVis;
     const rot = custom?.groupTilt ? custom.groupTilt(pet.mode, pet.tilt, lean) : pet.tilt + lean;
     pet.xf = { AX, AY, ax, ay, kx, ky, rot };
+    const extent = figureExtent();
+    if (!drag && pet.mode !== 'air' && extent && halfWidth(extent) < DEFAULT_HALF_WIDTH) {
+      // Narrow extents can stand closer to an edge. Keep tilted poses inside it without moving the walk target.
+      const box = stageBox(extent);
+      const inset = Math.min(EDGE_INSET, (W - box.w) / 2);
+      AX += clamp(0, inset - box.x, W - inset - box.x - box.w);
+      pet.xf.AX = AX;
+    }
     if (!draw) return fname;
     const xf = `translate(${f(AX)} ${f(AY)}) rotate(${f(rot)}) scale(${kx.toFixed(4)} ${ky.toFixed(4)}) translate(${-ax} ${-ay})`;
     if (xf !== drawn.xf) { petG.setAttribute('transform', xf); drawn.xf = xf; }
@@ -876,15 +891,17 @@ export function createPet(els, opts) {
    * the body's edge), and the cursor to show.
    */
   function layout() {
-    const [x0, y0, x1, y1] = custom?.extent ?? EXTENT;
-    const corners = [[x0, y0], [x1, y0], [x0, y1], [x1, y1]].map(([x, y]) => toStage(x, y));
-    const xs = corners.map((p) => p.x), ys = corners.map((p) => p.y);
+    const extent = figureExtent();
+    const box = stageBox(extent ?? EXTENT);
     const side = toStage(128, 128 + pet.low);
+    const half = halfWidth(extent);
+    const reach = half < DEFAULT_HALF_WIDTH && pet.mode !== 'drag' && pet.mode !== 'air'
+      ? Math.max(half * S, pet.x - box.x, box.x + box.w - pet.x)
+      : half * S;
     return {
       x: pet.x, ...(freeGround ? { y: pet.gy } : {}), facing: pet.facing, mode: pet.mode, busy: busy(), pressing: !!press, cursor: pet.cursor,
       moving: !!press || MOVING_MODES.has(pet.mode) || !!pet.pulse || Math.abs(pet.faceVis - pet.facing) > .05,
-      box: { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) },
-      hit: hits(), bubble: anchor(), side: { x: side.x, y: side.y, reach: halfWidth() * S },
+      box, hit: hits(), bubble: anchor(), side: { x: side.x, y: side.y, reach },
     };
   }
 

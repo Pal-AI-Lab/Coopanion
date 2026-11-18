@@ -322,6 +322,26 @@ describe('how near the screen edges the body goes', () => {
   });
 
   it.each([
+    { target: 0, pose: 'listening' },
+    { target: W, pose: 'sleep' },
+  ])('a narrow figure stays visible at stage x=$target while $pose', ({ target, pose }) => {
+    const pet = barePet(undefined, {
+      figure: { draw() {}, extent: [108, 0, 148, 256] },
+      bounds: () => ({ W, H: 980, floorY: 930, S: 2.2 }),
+    });
+    const standingX = walkFar(pet, target);
+    if (pose === 'listening') pet.setListening(true);
+    else pet.act(pose);
+    run(pet, 3);
+    const { x, box, side } = pet.layout();
+    expect(x).toBe(standingX);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.w).toBeLessThanOrEqual(W);
+    expect(x - side.reach).toBeLessThanOrEqual(box.x + .01);
+    expect(x + side.reach).toBeGreaterThanOrEqual(box.x + box.w - .01);
+  });
+
+  it.each([
     { extent: ['a', 0, null, 256] },
     { extent: [null, 0, 168, 256] },
     { extent: ['98', 0, '168', 256] },
@@ -334,6 +354,7 @@ describe('how near the screen edges the body goes', () => {
     pet.resize();
     expect(walkFar(pet, W + 500)).toBeCloseTo(walkFar(defaultPet, W + 500), -1);
     expect(pet.layout().side.reach).toBe(defaultPet.layout().side.reach);
+    expect(pet.layout().box.w).toBeCloseTo(defaultPet.layout().box.w, 0);
   });
 
   it('a figure that names no extent keeps the margin it had', () => {
