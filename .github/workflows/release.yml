@@ -71,8 +71,10 @@ jobs:
           path: release-artifacts/*
           if-no-files-found: error
 
-  # Runs scripts/check-native.cjs under the Arm build's own Coopanion.exe in Node mode. The exe is a GUI program,
-  # so its output goes to files and Start-Process waits for it.
+  # Runs scripts/check-native.cjs under the Arm build's own Coopanion.exe in Node mode, once from the unpacked
+  # portable zip and once from a silent install: the installer unpacks with its own 7z code and stops with a
+  # non-zero exit when Coopanion.exe did not land (installer/nsis.nsh). The exe is a GUI program, so its output
+  # goes to files and Start-Process waits for it.
   check-win-arm64:
     needs: build
     runs-on: windows-11-arm
@@ -82,20 +84,28 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: installers-windows-latest-arm64-portable
+          pattern: installers-windows-latest-arm64-*
           path: packed
+          merge-multiple: true
       - name: Load the native parts on Arm
         shell: pwsh
         run: |
+          function Test-Native([string]$dir) {
+            $env:ELECTRON_RUN_AS_NODE = '1'
+            $run = Start-Process -FilePath "$dir\Coopanion.exe" -ArgumentList 'scripts/check-native.cjs', "$dir\resources\app", 'arm64' -Wait -PassThru -RedirectStandardOutput packed/out.txt -RedirectStandardError packed/err.txt
+            Remove-Item Env:ELECTRON_RUN_AS_NODE
+            Get-Content packed/out.txt, packed/err.txt
+            if ($run.ExitCode -ne 0) { exit $run.ExitCode }
+          }
           New-Item -ItemType Directory packed/app | Out-Null
           # Windows' own tar reads zip
           & "$env:SystemRoot\System32\tar.exe" -xf (Get-Item packed/Coopanion-*-win-arm64-portable.zip).FullName -C packed/app
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:ELECTRON_RUN_AS_NODE = '1'
-          $exe = (Resolve-Path packed/app/Coopanion.exe).Path
-          $run = Start-Process -FilePath $exe -ArgumentList 'scripts/check-native.cjs', 'packed/app/resources/app', 'arm64' -Wait -PassThru -RedirectStandardOutput packed/out.txt -RedirectStandardError packed/err.txt
-          Get-Content packed/out.txt, packed/err.txt
-          exit $run.ExitCode
+          Test-Native (Resolve-Path packed/app).Path
+          $setup = Start-Process -FilePath (Get-Item packed/Coopanion-Setup-*-arm64.exe).FullName -ArgumentList '/S' -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { Write-Host "the installer exited with $($setup.ExitCode)"; exit 1 }
+          # a first install goes to the profile directory (customInit in installer/nsis.nsh)
+          Test-Native "$env:USERPROFILE\Coopanion"
 
   publish:
     needs: [build, check-win-arm64]
