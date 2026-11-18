@@ -1,4 +1,4 @@
-# Coopanion one-line installer for Windows 10/11 (x64 and Arm).
+# Coopanion one-line installer for Windows 10 or 11 (x64) and Windows 11 (Arm64).
 #
 #   irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/install.ps1 | iex
 #
