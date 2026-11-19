@@ -47,6 +47,7 @@ Coopanion 是一只住在屏幕底边的桌宠，名叫 Coo。它在底边走来
 - Coo 在想事情、看文件、搜索、写东西或操作电脑时，头顶会冒出对应的小图标。
 - 形象可以选 Coo，或者 **DeepSeek 大肥鱼**（会动的鲸鱼娘，八套厂商配色，三套衣服）；别的形象包在「装扮」页导入，见[形象包兼容承诺](packages/cortico-world-desktop-pet/README.md#形象包兼容承诺)。
 - Coo 有奶Coo、灯、杯、铸、心、冬等配色，头顶可以戴帽子、兽耳或光环，耳侧可以挂耳机、耳环或蝴蝶结，还有眼镜和颈饰。桌宠、气泡和字的大小分开调。
+- 在 Coo 身上或礼帽顶部来回移动鼠标，可以摸摸它。
 - 跟 Coo 说几点或者几分钟后提醒你，它会定好闹钟。
 - 在「World 扩展 → 扩展市场」装 World，比如 QQ 机器人、画室和小游戏。
 - 可以把 Coo 和气泡导出成 OBS 的「浏览器」来源，背景透明，直播时能叠在画面上。
@@ -57,22 +58,22 @@ Coopanion 是一只住在屏幕底边的桌宠，名叫 Coo。它在底边走来
 
 你需要：
 
-- Windows 10 / 11（64 位）、macOS 13 及以上（Apple 芯片和 Intel 都行），或者 64 位 Linux 桌面（X11；Wayland 会话里经 XWayland 运行，有[Linux](#linux)一节写的限制；语音识别要 glibc 2.32 及以上，也就是 Ubuntu 22.04、Debian 12 及更新的版本）；
+- Windows 10 或 11（x64）、Windows 11（Arm64）、macOS 13 及以上（Apple 芯片和 Intel 都行），或者 64 位 Linux 桌面（X11；Wayland 会话里经 XWayland 运行，有[Linux](#linux)一节写的限制；语音识别要 glibc 2.32 及以上，也就是 Ubuntu 22.04、Debian 12 及更新的版本）；
 - 一家模型服务的 API Key，按用量付费（见[费用与隐私](#费用与隐私)），或者一个开了套餐的 ChatGPT 账号。
 
 每个版本的发布页都附有 `SHA256SUMS.txt`，可以用来核对下载的文件。
 
 ### Windows
 
-- **安装包**：从[最新发布](https://github.com/Pal-AI-Lab/Coopanion/releases/latest)下载 `Coopanion-Setup-版本号.exe` 并运行。安装包没有数字签名，Windows 可能提示「Windows 已保护你的电脑」，点「更多信息」→「仍要运行」。默认装在 `%LOCALAPPDATA%\Programs\Coopanion`，程序和数据都在这个目录里。别装进 Program Files 这类要管理员权限的目录，Coopanion 在那里写不了数据，会提示后退出。开始菜单里没有它，从桌面图标打开。
+- **安装包**：从[最新发布](https://github.com/Pal-AI-Lab/Coopanion/releases/latest)下载 `Coopanion-Setup-版本号.exe` 并运行；Arm 处理器的电脑下载 `Coopanion-Setup-版本号-arm64.exe`。安装包没有数字签名，Windows 可能提示「Windows 已保护你的电脑」，点「更多信息」→「仍要运行」。默认装在 `%LOCALAPPDATA%\Programs\Coopanion`，程序和数据都在这个目录里。别装进 Program Files 这类要管理员权限的目录，Coopanion 在那里写不了数据，会提示后退出。开始菜单里没有它，从桌面图标打开。
 - **一行命令**：在 PowerShell 里运行
 
   ```powershell
   irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/install.ps1 | iex
   ```
 
-  如果杀毒软件拦下了图形界面的安装，脚本会保留下载好的安装包并打印路径。可以用 `Coopanion-Setup-版本号.exe /S` 静默安装，或者先把 Coopanion 加进杀毒软件的白名单再装。
-- **便携版**：从[最新发布](https://github.com/Pal-AI-Lab/Coopanion/releases/latest)下载 `Coopanion-版本号-win-x64-portable.zip`，解压到任意文件夹，运行 `Coopanion.exe`。数据放在这个文件夹的 `data` 里。整个文件夹复制一份就是另一只 Coo，记忆和设置互不影响；安装版和便携版加起来最多同时开 5 只。便携版不会自动更新，升级时把新版解压到新文件夹，再把旧的 `data` 拷过去。
+  脚本按处理器下载对应的安装包。如果杀毒软件拦下了图形界面的安装，脚本会保留下载好的安装包并打印路径。可以用已下载的安装包加 `/S` 静默安装，或者先把 Coopanion 加进杀毒软件的白名单再装。
+- **便携版**：从[最新发布](https://github.com/Pal-AI-Lab/Coopanion/releases/latest)下载 `Coopanion-版本号-win-x64-portable.zip`（Arm 处理器下载 `…-win-arm64-portable.zip`），解压到任意文件夹，运行 `Coopanion.exe`。数据放在这个文件夹的 `data` 里。整个文件夹复制一份就是另一只 Coo，记忆和设置互不影响；安装版和便携版加起来最多同时开 5 只。便携版不会自动更新，升级时把新版解压到新文件夹，再把旧的 `data` 拷过去。
 
 ### macOS
 

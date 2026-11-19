@@ -47,6 +47,7 @@ The interface comes in 11 languages: 简体中文, 繁體中文, English, 日本
 - An icon over Coo's head shows when it is thinking, reading files, searching, writing or using the computer.
 - Pick Coo or **DeepSeek Chan**, an animated whale girl with eight vendor color schemes and three outfits. Other figure packs are imported on the Dress up page; see the [figure pack compatibility promise](packages/cortico-world-desktop-pet/README.md#形象包兼容承诺).
 - Coo comes in several colors, including Nai Coo and five Cultist Simulator principles, and can wear a hat, animal ears or a halo, headphones, an earring or a bow, glasses and neckwear. The size of the pet, its bubbles and the text can each be adjusted.
+- Move the mouse back and forth over Coo or the crown of its top hat to pet it.
 - Ask Coo to remind you at a time of day or in a few minutes, and it sets an alarm.
 - Install Worlds such as a QQ bot, a drawing room and small games from **World extensions → Extension market**.
 - Export Coo and its bubbles as an OBS Browser source with a transparent background, to put it on a stream.
@@ -57,22 +58,22 @@ What changed in each version is in [Releases](https://github.com/Pal-AI-Lab/Coop
 
 You need:
 
-- Windows 10 / 11 (64-bit), macOS 13 or later (Apple silicon or Intel), or a 64-bit Linux desktop (X11; in a Wayland session it runs through XWayland, with the limits under [Linux](#linux); speech recognition needs glibc 2.32 or later, which means Ubuntu 22.04, Debian 12 or newer);
+- Windows 10 or 11 (x64), Windows 11 (Arm64), macOS 13 or later (Apple silicon or Intel), or a 64-bit Linux desktop (X11; in a Wayland session it runs through XWayland, with the limits under [Linux](#linux); speech recognition needs glibc 2.32 or later, which means Ubuntu 22.04, Debian 12 or newer);
 - an API key from one model service, billed by usage (see [Cost and privacy](#cost-and-privacy)), or a ChatGPT account with a plan.
 
 Every release page has a `SHA256SUMS.txt` for checking the downloads.
 
 ### Windows
 
-- **Installer**: download `Coopanion-Setup-<version>.exe` from the [latest release](https://github.com/Pal-AI-Lab/Coopanion/releases/latest) and run it. The installer is not code-signed, so Windows may say "Windows protected your PC": click **More info** → **Run anyway**. It installs to `%LOCALAPPDATA%\Programs\Coopanion` by default, and the program and its data both live in that folder. Don't install it into Program Files or another folder that needs administrator rights: Coopanion can't write its data there and quits with an error. There is no Start menu entry; open it from the desktop icon.
+- **Installer**: download `Coopanion-Setup-<version>.exe` from the [latest release](https://github.com/Pal-AI-Lab/Coopanion/releases/latest) and run it; on a PC with an Arm processor, download `Coopanion-Setup-<version>-arm64.exe`. The installer is not code-signed, so Windows may say "Windows protected your PC": click **More info** → **Run anyway**. It installs to `%LOCALAPPDATA%\Programs\Coopanion` by default, and the program and its data both live in that folder. Don't install it into Program Files or another folder that needs administrator rights: Coopanion can't write its data there and quits with an error. There is no Start menu entry; open it from the desktop icon.
 - **One command**: in PowerShell, run
 
   ```powershell
   irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/install.ps1 | iex
   ```
 
-  If antivirus software blocks the graphical installer, the script keeps the downloaded installer and prints its path. Run it silently with `Coopanion-Setup-<version>.exe /S`, or add Coopanion to your antivirus's allowed list and try again.
-- **Portable**: download `Coopanion-<version>-win-x64-portable.zip` from the [latest release](https://github.com/Pal-AI-Lab/Coopanion/releases/latest), unpack it anywhere and run `Coopanion.exe`. Its data is kept in the folder's `data`. Copy the whole folder and you have a second Coo with its own memory and settings; up to 5 can run at once, installed and portable together. The portable version does not update itself: unpack the new version into a new folder and copy the old `data` over.
+  The script downloads the installer for your processor. If antivirus software blocks the graphical installer, the script keeps the downloaded installer and prints its path. Run the downloaded installer with `/S` for a silent install, or add Coopanion to your antivirus's allowed list and try again.
+- **Portable**: download `Coopanion-<version>-win-x64-portable.zip` (`…-win-arm64-portable.zip` for an Arm processor) from the [latest release](https://github.com/Pal-AI-Lab/Coopanion/releases/latest), unpack it anywhere and run `Coopanion.exe`. Its data is kept in the folder's `data`. Copy the whole folder and you have a second Coo with its own memory and settings; up to 5 can run at once, installed and portable together. The portable version does not update itself: unpack the new version into a new folder and copy the old `data` over.
 
 ### macOS
 

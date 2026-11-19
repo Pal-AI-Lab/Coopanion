@@ -2,6 +2,7 @@
 // writes only what changed, and a tick with `draw` false (the pet window hidden) moves the body on and writes nothing.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
+import { onBody } from '../packages/cortico-world-desktop-pet/web/body-host.js';
 
 const PKG = new URL('../packages/cortico-world-desktop-pet/', import.meta.url);
 const COO = new URL('web/coo/', PKG);
@@ -41,6 +42,30 @@ async function cooFrame() {
 afterEach(() => { vi.restoreAllMocks(); });
 
 describe('figure frame drawing', () => {
+  it('registers strokes across the crown only while Coo wears the top hat', async () => {
+    const coo = await cooFrame();
+    const center = { x: 187.4, y: 274.6 };
+    const hatStroke = (t) => {
+      for (let i = 0; i < 80; i++) {
+        const x = center.x + (i % 2 ? 3 : -3);
+        coo.send({ t: 'pointer', type: 'move', p: { x, y: center.y, t: t + i * 4 } });
+      }
+      return coo.tick().report.events.filter((event) => event.kind === 'touch');
+    };
+
+    expect(onBody(coo.tick().report.layout, center)).toBe(false);
+    expect(hatStroke(0)).toEqual([]);
+
+    coo.send({ t: 'set', state: { skin: { head: 'tophat' } } });
+    const { layout } = coo.tick().report;
+    expect(onBody(layout, { x: center.x + 20, y: center.y })).toBe(false);
+    expect(hatStroke(400)).toEqual([{ kind: 'touch', detail: { kind: 'pet', asleep: false } }]);
+    expect(onBody(layout, center)).toBe(true);
+
+    coo.send({ t: 'set', state: { skin: { head: 'none' } } });
+    expect(onBody(coo.tick().report.layout, center)).toBe(false);
+  });
+
   it('moves a hidden body on without writing to its document, and draws it again once shown', async () => {
     const coo = await cooFrame();
     const from = coo.tick().report.layout;
