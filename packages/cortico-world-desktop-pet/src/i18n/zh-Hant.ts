@@ -274,6 +274,9 @@ const zhHant: Translation<PetText> = {
     thresholdDb: { title: '說話門檻' },
     silenceMs: { title: '一句結束的靜音' },
     maxUtteranceMs: { title: '一句最長' },
+    recording: { title: '把錄音傳給模型', description: '目前的模型收音訊（audio/wav）時，每批語音的錄音作為附件傳給模型服務，並保存在部署的資料目錄；模型不收音訊時只傳送文字，這一項不起作用。' },
+    recordingTranscript: { title: '投遞轉寫', description: '錄音傳出時一併附上辨識出的文字；關閉後只傳錄音。錄音沒有傳出時照常傳送文字。' },
+    recordingMaxMinutes: { title: '錄音上限', description: '一批語音的錄音超過這個時長時只傳送文字。', suffix: '分鐘' },
   },
 
   windowReason: {
@@ -346,6 +349,14 @@ const zhHant: Translation<PetText> = {
     modes: { hold: '按住說話鍵時收音', toggle: '用說話鍵切換收音', always: '持續收音' },
     openOnPress: '按住時才開啟麥克風',
     openOnPressHint: '使用藍牙耳機等一開啟麥克風就切到通話模式的耳機時開啟；按下後稍等再說話，否則開頭的字可能聽不到',
+    recording: '把錄音傳給模型',
+    recordingHint: '每批語音的錄音作為附件傳給目前的模型服務，並保存在本機的資料目錄',
+    recordingNoAudio: '目前的模型不收音訊，只傳送辨識出的文字，這一項不起作用',
+    transcript: '投遞轉寫',
+    transcriptHint: '錄音傳出時一併附上辨識出的文字；關閉後只傳錄音。錄音沒有傳出時照常傳送文字',
+    recordingMax: '錄音上限',
+    recordingMaxHint: '一批語音的錄音超過這個時長時只傳送文字',
+    minutes: '分鐘',
     switchOn: '已開啟',
     switchOff: '已關閉',
     presses: {

@@ -9,7 +9,8 @@
  * Thinking is a four-step choice: off sends `reasoning.effort = none`, the others low / high /
  * max, each rewritten to the value a service documents where it takes other ones (`effortOf`); the
  * Messages and Gemini APIs get the levels in their own form. Images are sent only when the endpoint
- * is marked multimodal, and on the Gemini API so are audio, video and documents; tool results may carry images too, which move to a user message after the
+ * is marked multimodal, and on the Gemini API so are audio, video and documents, on Responses services marked `audioInput` audio,
+ * which stays in the message or tool result that carries it; tool results may carry images too, which move to a user message after the
  * results on Chat and for `toolOutputText` services on Responses. Media go out only from the newest delivered batch of events on
  * (`sinceLastDelivery`); a request the service rejects for its images is sent again without them
  * (Cortico's `ImageFallback`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
@@ -30,7 +31,7 @@ import { VendorChat } from './chat.ts';
 import { GeminiProvider, listGeminiModels } from './gemini/client.ts';
 import { geminiInlineMime } from './gemini/wire.ts';
 import { vendorPrices } from './pricing.ts';
-import { VendorResponses } from './responses.ts';
+import { VendorResponses, responsesAudioMime } from './responses.ts';
 import { cooText } from './strings.ts';
 import { plainRemote } from './address.ts';
 import { PROTOCOLS, VENDORS, effortOf, locate, siteOf, vendorOf, vendorName, type Language as VendorLanguage, type Protocol } from './vendors.ts';
@@ -109,9 +110,10 @@ export const COO = {
       throw new Error(cooText(language).badProtocol(PROTOCOLS.join(' / ')));
     if (plainRemote(entry.baseUrl)) throw new Error(cooText(language).httpRemote);
   },
-  // a Gemini endpoint marked multimodal also takes audio, video and documents
+  // a Gemini endpoint marked multimodal also takes audio, video and documents; a Responses service with `audioInput` also takes audio
   accepts: (entry, _spec, mime) => entry.multimodal === true
-    && (mime.startsWith('image/') || (protocolOf(entry) === 'gemini' && geminiInlineMime(mime) !== null)),
+    && (mime.startsWith('image/') || (protocolOf(entry) === 'gemini' && geminiInlineMime(mime) !== null)
+      || (protocolOf(entry) === 'responses' && vendorOf(entry.baseUrl)?.audioInput === true && responsesAudioMime(mime) !== null)),
   prices: (entry, _request, at) => vendorPrices(vendorOf(entry.baseUrl)?.id, at.startedAt),
   contextOverflow,
   create(name: string, entry: LLMProviderEntry, host): ProviderInstance {
@@ -188,7 +190,8 @@ export const COO = {
           keepThinking: host.keepThinking,
           reasoningReplay: vendor?.encryptedReasoning ? 'encrypted' : 'plaintext',
           sendSyntheticReasoning: vendor?.syntheticReasoning,
-        }, { effort, lenientReasoning: vendor?.lenientReasoning, nonStreamingResponses: vendor?.nonStreamingResponses, toolOutputText: vendor?.toolOutputText })),
+        }, { effort, lenientReasoning: vendor?.lenientReasoning, nonStreamingResponses: vendor?.nonStreamingResponses, toolOutputText: vendor?.toolOutputText,
+          ...(vendor?.audioInput ? { audio: media } : {}) })),
     };
   },
 } satisfies ProviderModule;

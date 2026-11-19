@@ -77,6 +77,11 @@ export interface Vendor {
   nonStreamingResponses?: true;
   /** Responses: `function_call_output.output` takes a string only, so images in tool results go in a user message after them. */
   toolOutputText?: true;
+  /**
+   * Responses: audio attachments go as `input_audio` parts (`withAudio` in responses.ts) to an endpoint
+   * marked multimodal, which decides it as it does for a Gemini endpoint; there is no per-model list.
+   */
+  audioInput?: true;
   /** Responses: past reasoning goes back as the signed blocks the service returned, not as text. */
   encryptedReasoning?: true;
   /**
@@ -174,6 +179,7 @@ export const VENDORS: readonly Vendor[] = [
     sites: { global: { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', protocol: 'responses', keyUrl: 'https://ark.volcengine.com/region:cn-beijing/apikey' } },
     model: 'doubao-seed-2-1-lite-260915', models: ['doubao-seed-2-0-mini-260428'],
     vision: ['doubao-seed-2-1-lite-260915', 'doubao-seed-2-0-mini-260428'],
+    audioInput: true,
   },
   {
     // takes none / minimal / low / medium / high; on MiniMax-M3 any level but none turns reasoning on without setting its depth
