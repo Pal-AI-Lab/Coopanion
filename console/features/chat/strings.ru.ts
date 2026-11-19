@@ -16,6 +16,7 @@ export const S: Partial<typeof en> = {
   connecting: 'Подключение…',
   empty: (bot: string) => `Разговоров с ${bot} пока нет.`,
   older: 'Ранее',
+  jumpBottom: '↓ Вниз',
   voice: 'Голос',
   idle: 'Ожидание',
   thinking: (bot: string) => `${bot} думает…`,
