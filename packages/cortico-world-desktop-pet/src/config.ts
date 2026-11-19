@@ -6,6 +6,7 @@ import type { SegmentConfig } from './asr/segmenter.ts';
 import { DEFAULT_HOTKEY, DEFAULT_TYPE_KEY } from './asr/hotkey.ts';
 import { capFor, petText } from './i18n/index.ts';
 import { CUA_DEFAULTS, cuaConfigGroup, type CuaConfig } from './cua/config.ts';
+import { BUBBLE_HOLD_AUTO_SEC, BUBBLE_HOLD_MAX_SEC } from '../web/bubble-timing.js';
 
 export const DESKTOP_PET_ID = 'desktop-pet';
 
@@ -186,8 +187,10 @@ export interface DesktopPetConfigSection extends WorldSection {
     bubbleSize: number;
     /** The text in the bubbles and the icons on its line, 1 = as drawn by pet.css; the bubbles keep their widths. */
     fontSize: number;
-    /** How fast the bot's bubbles type and how long they stay, as a multiplier: typing runs at 20 × this characters a second and every hold is divided by it. */
+    /** Multiplier for typing speed and the inverse of automatic reading time. */
     bubbleSpeed: number;
+    /** Seconds a speech bubble stays after typing. 0 uses the automatic reading time. */
+    sayBubbleHoldSec: number;
     /** How far the light halo reaches out from the body, in pixels (its outer blur); 0 turns it off. */
     glow: number;
     /** The pet page draws 60 frames a second at rest too; off, it drops to 30 while the body stands, sits or sleeps. */
@@ -229,8 +232,10 @@ export interface DesktopPetConfigSection extends WorldSection {
   typeKey: { enabled: boolean; hotkey: string };
   /** Show the current activity above the pet, including file names. */
   statusBubble: boolean;
-  /** Keep what the person typed, said or sent from the chat page above the pet until it replies. */
+  /** Show what the person typed, said or sent from the chat page above the pet. */
   saidBubbles: boolean;
+  /** Seconds from sending or finishing recognition. 0 keeps the bubble up according to the reply. */
+  saidBubbleHoldSec: number;
   /** How far the bot may change its own looks and habits (src/self.ts); read through `selfAdjustMode`. */
   selfAdjust: SelfAdjust;
   /** Under `custom`: per item, true = changed at once, false = asked first. */
@@ -298,7 +303,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   enabled: false,
   port: 7797,
   user: '',
-  window: { enabled: true, electronFile: '', scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, glow: GLOW_DEFAULT, frameRate: 60, lockFrameRate: false, hideWhenFullscreen: false, passWhenFullscreen: false, overTaskbar: true, hideFromCapture: false, exportOverlay: false },
+  window: { enabled: true, electronFile: '', scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, sayBubbleHoldSec: BUBBLE_HOLD_AUTO_SEC, glow: GLOW_DEFAULT, frameRate: 60, lockFrameRate: false, hideWhenFullscreen: false, passWhenFullscreen: false, overTaskbar: true, hideFromCapture: false, exportOverlay: false },
   roam: 'calm',
   sound: true,
   sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, alert: true, snoreSeconds: 0, panByPosition: true, volume: 100 },
@@ -312,6 +317,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   typeKey: { enabled: false, hotkey: DEFAULT_TYPE_KEY },
   statusBubble: true,
   saidBubbles: true,
+  saidBubbleHoldSec: BUBBLE_HOLD_AUTO_SEC,
   selfAdjust: 'default',
   selfAdjustCustom: { ...SELF_DEFAULT },
   skin: {
@@ -356,12 +362,14 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
         [`${K}.doubleClickChat`]: { type: 'boolean', title: c.doubleClickChat.title, description: c.doubleClickChat.description, 'x-hot': true },
         [`${K}.statusBubble`]: { type: 'boolean', title: c.statusBubble.title, description: c.statusBubble.description, 'x-hot': true },
         [`${K}.saidBubbles`]: { type: 'boolean', title: c.saidBubbles.title, description: c.saidBubbles.description, 'x-hot': true },
+        [`${K}.saidBubbleHoldSec`]: { type: 'integer', title: c.saidBubbleHoldSec.title, description: c.saidBubbleHoldSec.description, minimum: BUBBLE_HOLD_AUTO_SEC, maximum: BUBBLE_HOLD_MAX_SEC, 'x-hot': true },
         [`${K}.selfAdjust`]: { type: 'string', title: c.selfAdjust.title, enum: [...SELF_ADJUST], description: c.selfAdjust.description, 'x-hot': true },
         [`${K}.window.enabled`]: { type: 'boolean', title: c.windowEnabled.title, 'x-hot': false },
         [`${K}.window.scale`]: { type: 'number', title: c.scale.title, minimum: SCALE_MIN, maximum: SCALE_MAX, multipleOf: .05, 'x-hot': true },
         [`${K}.window.bubbleSize`]: { type: 'number', title: c.bubbleSize.title, description: c.bubbleSize.description, minimum: BUBBLE_SIZE_MIN, maximum: BUBBLE_SIZE_MAX, multipleOf: .05, 'x-hot': true },
         [`${K}.window.fontSize`]: { type: 'number', title: c.fontSize.title, description: c.fontSize.description, minimum: BUBBLE_SIZE_MIN, maximum: BUBBLE_SIZE_MAX, multipleOf: .05, 'x-hot': true },
         [`${K}.window.bubbleSpeed`]: { type: 'number', title: c.bubbleSpeed.title, description: c.bubbleSpeed.description, minimum: BUBBLE_SPEED_MIN, maximum: BUBBLE_SPEED_MAX, multipleOf: .05, 'x-hot': true },
+        [`${K}.window.sayBubbleHoldSec`]: { type: 'integer', title: c.sayBubbleHoldSec.title, description: c.sayBubbleHoldSec.description, minimum: BUBBLE_HOLD_AUTO_SEC, maximum: BUBBLE_HOLD_MAX_SEC, 'x-hot': true },
         [`${K}.window.glow`]: { type: 'number', title: c.glow.title, description: c.glow.description, minimum: 0, maximum: GLOW_MAX, multipleOf: 1, 'x-hot': true },
         [`${K}.window.frameRate`]: { type: 'integer', title: c.frameRate.title, minimum: 0, description: c.frameRate.description, 'x-hot': true },
         [`${K}.window.lockFrameRate`]: { type: 'boolean', title: c.lockFrameRate.title, description: c.lockFrameRate.description, 'x-hot': true },
