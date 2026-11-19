@@ -276,6 +276,9 @@ const de: Translation<PetText> = {
     thresholdDb: { title: 'Sprechschwelle' },
     silenceMs: { title: 'Stille, die einen Satz beendet' },
     maxUtteranceMs: { title: 'Längster Satz' },
+    recording: { title: 'Aufnahme an das Modell senden', description: 'Nimmt das aktuelle Modell Audio an (audio/wav), geht jeder Sprachabschnitt mit seiner Aufnahme als Anhang an den Modelldienst, und die Aufnahme wird im Datenordner der Bereitstellung gespeichert. Bei einem Modell ohne Audio wird nur der Text gesendet, und diese Einstellung wirkt nicht.' },
+    recordingTranscript: { title: 'Transkript senden', description: 'Der erkannte Text geht mit der Aufnahme mit; ausgeschaltet geht die Aufnahme allein. Geht keine Aufnahme mit, wird der Text wie gewohnt gesendet.' },
+    recordingMaxMinutes: { title: 'Aufnahmegrenze', description: 'Ein Sprachabschnitt mit längerer Aufnahme wird nur als Text gesendet.', suffix: 'Min.' },
   },
 
   windowReason: {
@@ -348,6 +351,14 @@ const de: Translation<PetText> = {
     modes: { hold: 'Solange die Sprechtaste gehalten wird', toggle: 'Die Sprechtaste schaltet es ein und aus', always: 'Die ganze Zeit' },
     openOnPress: 'Mikrofon nur beim Halten öffnen',
     openOnPressHint: 'Für Headsets, etwa Bluetooth, die bei offenem Mikrofon in den Anrufmodus wechseln; nach dem Drücken kurz warten und dann sprechen, sonst können die ersten Wörter fehlen',
+    recording: 'Aufnahme an das Modell senden',
+    recordingHint: 'Jeder Sprachabschnitt geht mit seiner Aufnahme als Anhang an den aktuellen Modelldienst, und die Aufnahme wird im Datenordner auf diesem Computer gespeichert',
+    recordingNoAudio: 'Das aktuelle Modell nimmt kein Audio an: Es wird nur der erkannte Text gesendet, und diese Einstellung wirkt nicht',
+    transcript: 'Transkript senden',
+    transcriptHint: 'Der erkannte Text geht mit der Aufnahme mit; ausgeschaltet geht die Aufnahme allein. Geht keine Aufnahme mit, wird der Text wie gewohnt gesendet',
+    recordingMax: 'Aufnahmegrenze',
+    recordingMaxHint: 'Ein Sprachabschnitt mit längerer Aufnahme wird nur als Text gesendet',
+    minutes: 'Min.',
     switchOn: 'An',
     switchOff: 'Aus',
     presses: {

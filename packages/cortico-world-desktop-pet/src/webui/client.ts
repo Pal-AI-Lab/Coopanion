@@ -46,6 +46,8 @@ interface VoiceState {
     open: boolean;
     devices: Array<{ id: string; label: string }>;
   };
+  /** `asr.recording`; `range` is the allowed `maxMinutes`. */
+  recording: { enabled: boolean; transcript: boolean; maxMinutes: number; range: [number, number]; endpointTakesAudio: boolean };
   level: number;
   thresholdDb: number;
   recent: Array<{ text: string; at: number; ms: number; dropped?: boolean }>;
@@ -222,6 +224,26 @@ const voicePanel: WebUiPanel = {
     onPress.setAttribute('role', 'switch');
     onPress.addEventListener('change', () => void call('setMic', onPress, [{ openOnPress: onPress.checked }])());
     onPressRow.acts.append(onPress);
+    const switchIn = (row: ReturnType<typeof statusRow>, change: (on: boolean) => void) => {
+      const input = ui.h('input', 'pet-switch');
+      input.type = 'checkbox';
+      input.setAttribute('role', 'switch');
+      input.addEventListener('change', () => change(input.checked));
+      row.acts.append(input);
+      return input;
+    };
+    const recRow = statusRow(ctx, t.recording);
+    const rec = switchIn(recRow, (enabled) => void call('setRecording', rec, [{ enabled }])());
+    // the transcript and the limit only matter while a recording goes along
+    const transcriptRow = statusRow(ctx, t.transcript);
+    const transcript = switchIn(transcriptRow, (on) => void call('setRecording', transcript, [{ transcript: on }])());
+    const maxRow = statusRow(ctx, t.recordingMax);
+    const maxInput = ui.input({
+      type: 'number', cls: 'pet-minutes',
+      onChange: (value) => void call('setRecording', maxInput, [{ maxMinutes: Number(value) }])(),
+    });
+    maxInput.step = '1';
+    maxRow.acts.append(maxInput, ui.h('span', 'pet-unit', t.minutes));
     // the talk key has a row of its own above how it listens: the key, and a button to set another
     const keyRow = statusRow(ctx, t.talkKeyName);
     const keyBtn = ui.button(t.changeKey, { size: 'sm' });
@@ -247,7 +269,7 @@ const voicePanel: WebUiPanel = {
     meterRow.append(meterDot, ui.h('span', 'mname', t.level), meterWrap);
 
     const log = ui.log({ max: 100, empty: t.noResults });
-    settings.append(eng.row, srv.row, rt.row, ...api.rows, micRow.row, keyRow.row, modeRow.row, onPressRow.row, meterRow);
+    settings.append(eng.row, srv.row, rt.row, ...api.rows, micRow.row, keyRow.row, modeRow.row, onPressRow.row, meterRow, recRow.row, transcriptRow.row, maxRow.row);
     s.append(master, settings);
     const results = ui.sheet({ title: t.results, desc: t.resultsHint });
     results.body.append(log.el);
@@ -332,6 +354,16 @@ const voicePanel: WebUiPanel = {
       onPressRow.row.style.display = input.mode === 'hold' ? '' : 'none';
       onPress.checked = input.openOnPress;
       onPressRow.set(input.openOnPress ? t.switchOn : t.switchOff, input.openOnPress ? 'on' : 'off', t.openOnPressHint);
+      const r = next.recording;
+      const goes = r.enabled && r.endpointTakesAudio;
+      rec.checked = r.enabled;
+      recRow.set(r.enabled ? t.switchOn : t.switchOff, goes ? 'on' : 'off', r.endpointTakesAudio ? t.recordingHint : t.recordingNoAudio);
+      transcriptRow.row.style.display = maxRow.row.style.display = goes ? '' : 'none';
+      transcript.checked = r.transcript;
+      transcriptRow.set(r.transcript ? t.switchOn : t.switchOff, r.transcript ? 'on' : 'off', t.transcriptHint);
+      [maxInput.min, maxInput.max] = r.range.map(String) as [string, string];
+      if (document.activeElement !== maxInput) maxInput.value = String(r.maxMinutes);
+      maxRow.set('', 'on', t.recordingMaxHint);
       // the loudness threshold only decides where speech starts when the key is not held down
       mark.hidden = input.mode === 'hold';
       if (document.activeElement !== mark) placeMark(next.thresholdDb);

@@ -276,6 +276,9 @@ const ptBR: Translation<PetText> = {
     thresholdDb: { title: 'Limiar de fala' },
     silenceMs: { title: 'Silêncio que encerra uma frase' },
     maxUtteranceMs: { title: 'Frase mais longa' },
+    recording: { title: 'Enviar a gravação ao modelo', description: 'Quando o modelo atual aceita áudio (audio/wav), cada lote de fala vai para o serviço do modelo com a gravação anexada, e a gravação fica salva na pasta de dados da implantação. Com um modelo que não aceita áudio, só o texto é enviado e esta opção não tem efeito.' },
+    recordingTranscript: { title: 'Enviar a transcrição', description: 'O texto reconhecido vai junto com a gravação; desligado, a gravação vai sozinha. Quando nenhuma gravação vai, o texto é enviado como sempre.' },
+    recordingMaxMinutes: { title: 'Limite de gravação', description: 'Um lote de fala com gravação mais longa é enviado só como texto.', suffix: 'min' },
   },
 
   windowReason: {
@@ -348,6 +351,14 @@ const ptBR: Translation<PetText> = {
     modes: { hold: 'Enquanto a tecla para falar está pressionada', toggle: 'A tecla para falar liga e desliga', always: 'O tempo todo' },
     openOnPress: 'Abrir o microfone só enquanto segura',
     openOnPressHint: 'Para fones, como os Bluetooth, que mudam para o modo de chamada com o microfone aberto; depois de pressionar, espere um momento antes de falar, ou as primeiras palavras podem se perder',
+    recording: 'Enviar a gravação ao modelo',
+    recordingHint: 'Cada lote de fala vai para o serviço do modelo atual com a gravação anexada, e a gravação fica salva na pasta de dados deste computador',
+    recordingNoAudio: 'O modelo atual não aceita áudio: só o texto reconhecido é enviado, e esta opção não tem efeito',
+    transcript: 'Enviar a transcrição',
+    transcriptHint: 'O texto reconhecido vai junto com a gravação; desligado, a gravação vai sozinha. Quando nenhuma gravação vai, o texto é enviado como sempre',
+    recordingMax: 'Limite de gravação',
+    recordingMaxHint: 'Um lote de fala com gravação mais longa é enviado só como texto',
+    minutes: 'min',
     switchOn: 'Ligado',
     switchOff: 'Desligado',
     presses: {

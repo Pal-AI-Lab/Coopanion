@@ -280,6 +280,15 @@ export interface DesktopPetConfigSection extends WorldSection {
       /** Hold mode: the microphone opens when the talk key goes down and closes after it goes up; off keeps it open while voice input is on. */
       openOnPress: boolean;
     };
+    /** A speech batch's recording, for an endpoint that takes `audio/wav` (`modelFacts.accepts`); with any other endpoint the batch goes as text. */
+    recording: {
+      /** Attach the batch's recording to the speech event. */
+      enabled: boolean;
+      /** With the recording attached, the recognized text goes too; off, the recording goes alone. */
+      transcript: boolean;
+      /** A batch with a longer recording goes as text alone. */
+      maxMinutes: number;
+    };
   };
 }
 
@@ -297,6 +306,13 @@ export const BUBBLE_SPEED_MIN = .5, BUBBLE_SPEED_MAX = 2;
 export const BUBBLE_HOLD_MAX = 60;
 /** The halo's reach in pixels: 0 is off; past GLOW_MAX it reads as a gray cloud rather than an outline. */
 export const GLOW_MAX = 16, GLOW_DEFAULT = 7;
+/**
+ * The range and default of `asr.recording.maxMinutes`. A minute of the 16 kHz mono 16-bit recording is 1.92 MB of
+ * WAV, 2.56 MB as Base64. A Gemini request carries at most 18 MiB of Base64 attachments (provider-coo
+ * `INLINE_MAX_CHARS`), 7.37 minutes of recording: a longer one is left out of the request. The default 5 minutes
+ * (12.8 MB) leaves about 6 MB of that budget for the images sent with it.
+ */
+export const RECORDING_MINUTES_MIN = 1, RECORDING_MINUTES_MAX = 7, RECORDING_MINUTES_DEFAULT = 5;
 /** The range of `asr.segment.thresholdDb`, in dBFS. */
 export const THRESHOLD_DB_MIN = -80, THRESHOLD_DB_MAX = 0;
 
@@ -339,6 +355,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
     api: { baseUrl: '', model: '' },
     segment: { thresholdDb: -42, minSpeechMs: 180, dispatchSilenceMs: 250, silenceMs: 600, maxUtteranceMs: 15_000, preRollMs: 320, minUtteranceMs: 350 },
     mic: { mode: 'hold', hotkey: DEFAULT_HOTKEY, deviceId: '', openOnPress: false },
+    recording: { enabled: true, transcript: true, maxMinutes: RECORDING_MINUTES_DEFAULT },
   },
 };
 
@@ -428,6 +445,9 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
         [`${K}.asr.segment.thresholdDb`]: { type: 'number', title: c.thresholdDb.title, minimum: THRESHOLD_DB_MIN, maximum: THRESHOLD_DB_MAX, 'x-suffix': 'dBFS', 'x-hot': true },
         [`${K}.asr.segment.silenceMs`]: { type: 'integer', title: c.silenceMs.title, minimum: 200, maximum: 5000, 'x-suffix': 'ms', 'x-hot': true },
         [`${K}.asr.segment.maxUtteranceMs`]: { type: 'integer', title: c.maxUtteranceMs.title, minimum: 2000, maximum: 60000, 'x-suffix': 'ms', 'x-hot': true },
+        [`${K}.asr.recording.enabled`]: { type: 'boolean', title: c.recording.title, description: c.recording.description, 'x-hot': true },
+        [`${K}.asr.recording.transcript`]: { type: 'boolean', title: c.recordingTranscript.title, description: c.recordingTranscript.description, 'x-hot': true },
+        [`${K}.asr.recording.maxMinutes`]: { type: 'integer', title: c.recordingMaxMinutes.title, description: c.recordingMaxMinutes.description, minimum: RECORDING_MINUTES_MIN, maximum: RECORDING_MINUTES_MAX, 'x-suffix': c.recordingMaxMinutes.suffix, 'x-hot': true },
       },
     },
   };

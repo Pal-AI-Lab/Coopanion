@@ -276,6 +276,9 @@ const ja: Translation<PetText> = {
     thresholdDb: { title: '発話のしきい値' },
     silenceMs: { title: '文の終わりとみなす無音' },
     maxUtteranceMs: { title: '1 文の最長' },
+    recording: { title: '録音をモデルに送る', description: '今のモデルが音声（audio/wav）を受け付けるとき、話した内容をまとまりごとに録音付きでモデルサービスに送り、録音はデプロイのデータフォルダーに保存します。音声を受け付けないモデルでは文字だけを送り、この設定は効きません。' },
+    recordingTranscript: { title: '文字起こしを送る', description: '録音を送るときに認識した文字も付けます。オフにすると録音だけを送ります。録音を送らないときは文字をいつもどおり送ります。' },
+    recordingMaxMinutes: { title: '録音の上限', description: 'まとまりの録音がこの長さを超えると文字だけを送ります。', suffix: '分' },
   },
 
   windowReason: {
@@ -348,6 +351,14 @@ const ja: Translation<PetText> = {
     modes: { hold: '発話キーを押しているあいだ', toggle: '発話キーでオン／オフ', always: '常に' },
     openOnPress: '押している間だけマイクを開く',
     openOnPressHint: 'マイクを開くと通話モードに切り替わる Bluetooth イヤホンなど向けで、押してから少し待って話さないと最初の言葉が入らないことがあります',
+    recording: '録音をモデルに送る',
+    recordingHint: '話した内容をまとまりごとに録音付きで今のモデルサービスに送り、録音はこのパソコンのデータフォルダーに保存します',
+    recordingNoAudio: '今のモデルは音声を受け付けないため、認識した文字だけを送ります。この設定は効きません',
+    transcript: '文字起こしを送る',
+    transcriptHint: '録音を送るときに認識した文字も付けます。オフにすると録音だけを送ります。録音を送らないときは文字をいつもどおり送ります',
+    recordingMax: '録音の上限',
+    recordingMaxHint: 'まとまりの録音がこの長さを超えると文字だけを送ります',
+    minutes: '分',
     switchOn: 'オン',
     switchOff: 'オフ',
     presses: {

@@ -276,6 +276,9 @@ const es419: Translation<PetText> = {
     thresholdDb: { title: 'Umbral de voz' },
     silenceMs: { title: 'Silencio que termina una frase' },
     maxUtteranceMs: { title: 'Frase más larga' },
+    recording: { title: 'Enviar la grabación al modelo', description: 'Cuando el modelo actual acepta audio (audio/wav), cada tanda de voz va al servicio del modelo con su grabación adjunta, y la grabación se guarda en la carpeta de datos de la implementación. Con un modelo que no acepta audio solo se envía el texto, y este ajuste no tiene efecto.' },
+    recordingTranscript: { title: 'Enviar la transcripción', description: 'El texto reconocido va junto con la grabación; desactivado, la grabación va sola. Cuando no va ninguna grabación, el texto se envía como siempre.' },
+    recordingMaxMinutes: { title: 'Límite de grabación', description: 'Una tanda de voz con una grabación más larga se envía solo como texto.', suffix: 'min' },
   },
 
   windowReason: {
@@ -348,6 +351,14 @@ const es419: Translation<PetText> = {
     modes: { hold: 'Mientras se mantiene la tecla para hablar', toggle: 'La tecla para hablar lo activa y desactiva', always: 'Todo el tiempo' },
     openOnPress: 'Abrir el micrófono solo al mantener la tecla',
     openOnPressHint: 'Para auriculares, como los Bluetooth, que pasan al modo llamada con el micrófono abierto; después de presionar, espera un momento antes de hablar o se pueden perder las primeras palabras',
+    recording: 'Enviar la grabación al modelo',
+    recordingHint: 'Cada tanda de voz va al servicio del modelo actual con su grabación adjunta, y la grabación se guarda en la carpeta de datos de esta computadora',
+    recordingNoAudio: 'El modelo actual no acepta audio: solo se envía el texto reconocido, y este ajuste no tiene efecto',
+    transcript: 'Enviar la transcripción',
+    transcriptHint: 'El texto reconocido va junto con la grabación; desactivado, la grabación va sola. Cuando no va ninguna grabación, el texto se envía como siempre',
+    recordingMax: 'Límite de grabación',
+    recordingMaxHint: 'Una tanda de voz con una grabación más larga se envía solo como texto',
+    minutes: 'min',
     switchOn: 'Activado',
     switchOff: 'Desactivado',
     presses: {
