@@ -555,7 +555,8 @@ macOS 的辅助功能查询每次最多等待 200ms,超时后仍报告前台程�
   macOS 要在「系统设置 → 隐私与安全性」里给应用两项权限:「录屏与系统录音」(截图、读窗口标题)和「辅助功能」(鼠标键盘);
   第一次用时系统会问,没给之前工具回执写明去哪里打开。切换应用时 System Events 还会问一次能不能被控制。
 - Linux(`src/cua/engine/linux.ts`,X11 或 Wayland 下的 XWayland):XRandR 的 `XRRGetMonitors` 列显示器(没有 libXrandr 时整块 X 屏当一块),根窗口的 `XGetImage` 按显示器矩形截图(无根的 XWayland 给不出画面时,
-  改用 `grim`、`spectacle`、`scrot` 或 ImageMagick 的 `import`);鼠标键盘是 XTest;窗口表和前台窗口来自窗口管理器的 EWMH 属性;
+  改用 `grim`、`spectacle`、`scrot` 或 ImageMagick 的 `import`);鼠标键盘是 XTest,Wayland 会话里移动指针改用 `XWarpPointer`(XTest 的移动在小数缩放下会按缩放比偏出去,
+  也移不到原生 Wayland 窗口上;鼠标键、滚轮和键盘仍是 XTest,点不到合成器自己的面板和菜单);窗口表和前台窗口来自窗口管理器的 EWMH 属性;
   打字和切窗口用 `xdotool`,确认框用 `zenity`。XWayland 下只看得到 X11 程序的窗口。
 
 只支持 Windows、macOS 和 Linux(X11);多显示器在 macOS 和 Linux 上还没有真机验证过;在别的系统上、或 Linux 上没有 `DISPLAY` 时,开着也没有这些工具,灯显示原因。
