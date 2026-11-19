@@ -62,12 +62,6 @@ export function geminiInlineMime(mime: string): string | null {
   return type.startsWith('image/') ? type : INLINE_MIMES[type] ?? null;
 }
 
-/**
- * Base64 characters of attachments one request carries at most, under Gemini's 20 MB limit on a
- * request with inline data. An attachment past the budget is left out; its text line stays.
- */
-export const INLINE_MAX_CHARS = 18 * 1024 * 1024;
-
 function dataUrl(url: string): { mimeType: string; data: string } {
   const match = /^data:([^;,]+);base64,(.*)$/s.exec(url);
   if (!match) throw new ResponseProtocolError('Gemini inline media requires a base64 data URL');
@@ -146,7 +140,6 @@ export function geminiInput(request: Request, options: GenerateOptions, opts: { 
     if (last?.role === 'user') last.parts.push(...parts);
     else contents.push({ role: 'user', parts });
   };
-  let inlineChars = 0;
   const blobs = (entry: ContextRecord): GeminiPart[] => {
     if (!opts.media?.enabled() || !entry.context.blobs?.length) return [];
     const parts: GeminiPart[] = [];
@@ -155,10 +148,7 @@ export function geminiInput(request: Request, options: GenerateOptions, opts: { 
       if (!mimeType) continue;
       const bytes = opts.media.read(ref.handle);
       if (!bytes) continue;
-      const data = bytes.toString('base64');
-      if (inlineChars + data.length > INLINE_MAX_CHARS) continue;
-      inlineChars += data.length;
-      parts.push({ inlineData: { mimeType, data } });
+      parts.push({ inlineData: { mimeType, data: bytes.toString('base64') } });
     }
     return parts;
   };

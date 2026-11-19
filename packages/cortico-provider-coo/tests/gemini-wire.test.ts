@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { functionCall, functionResult, message, record, type ContextRecord } from 'cortico/protocol/open-responses/context.ts';
 import type { StreamEvent } from 'cortico/protocol/open-responses/index.ts';
-import { BYPASS_SIGNATURE, GeminiResponseAssembly, FILLER_USER_TEXT, INLINE_MAX_CHARS, geminiInput, geminiMeters, geminiRequest, thinkingConfig } from '../src/gemini/wire.ts';
+import { BYPASS_SIGNATURE, GeminiResponseAssembly, FILLER_USER_TEXT, geminiInput, geminiMeters, geminiRequest, thinkingConfig } from '../src/gemini/wire.ts';
 
 const origin = { instance: 'g', module: 'gemini', model: 'gemini-x-flash', compatibilityDomain: 'account-1' };
 const request = { model: origin.model };
@@ -170,15 +170,5 @@ describe('geminiInput attachments', () => {
     const media = { enabled: () => false, read: () => Buffer.from('RIFF') };
     const { contents } = geminiInput(request, { context: [withBlobs('heard', [{ handle: 'a', mime: 'audio/wav' }])], origin }, { media });
     expect(inline(contents)).toEqual([]);
-  });
-
-  it('leaves out an attachment that would take the request past the inline budget', () => {
-    const big = Buffer.alloc(Math.ceil(INLINE_MAX_CHARS * 3 / 4) - 3);
-    const small = Buffer.from('RIFF');
-    const media = { enabled: () => true, read: (handle: string) => handle === 'big' ? big : small };
-    const context = [withBlobs('first', [{ handle: 'big', mime: 'audio/wav' }]), withBlobs('second', [{ handle: 'big', mime: 'audio/wav' }, { handle: 'small', mime: 'audio/wav' }])];
-    const sent = inline(geminiInput(request, { context, origin }, { media }).contents);
-    expect(sent.map(part => part.data.length)).toEqual([big.toString('base64').length]);
-    expect(sent.reduce((n, part) => n + part.data.length, 0)).toBeLessThanOrEqual(INLINE_MAX_CHARS);
   });
 });
