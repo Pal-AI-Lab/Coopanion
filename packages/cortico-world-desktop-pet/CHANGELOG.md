@@ -1,8 +1,10 @@
 ## Unreleased
 
+- The managed Electron runtime that hosts the pet window outside an app has a Windows arm64 build (`win32-arm64`).
 - Config `window.hideFromCapture` (Windows, off by default): on, the pet window is left out of screenshots and screen recordings (`setContentProtection`), those of `pet_cua_screenshot` included.
 - Config `window.overTaskbar` (Windows, on by default): off, the pet window ends at the work area's bottom and no longer reaches down over the taskbar.
 - A pack the pet page could not run is logged at WARN with its id and the reason, and listed in `GET /api/figures/status` `problems` until the page shows it. The `desktop-pet.figure` event of the failure carries the reason in `meta.figure.reason`, which the chat page shows.
+- A kit body walks up to the screen edges as far as its figure's `extent` allows, and its hover buttons sit by that edge (`side.reach`): the wider side of `extent` from x=128 counts both ways. A figure without `extent` keeps the 104-unit margin.
 - The right-click menu shows only the actions picked as hover buttons (`hoverButtons`), beside the run controls the app lends; the actions not picked are no longer listed there. `hoverButtons` may be empty (0–6, it was 1–6), from the settings window and from `pet_set`: no buttons on hover, and a menu of the run controls alone, or none without them.
 - A pet dialog takes `{ kind: 'pick', options, value?, min?, max, confirm }`: cards of which `min` (1 when absent) to `max` are picked, answered as `{ picked: [index, …] }` in the cards' order, holding only indices of its own cards.
 - `PET_ACTIONS`, `MAX_HOVER_BUTTONS`, `hoverButtonList` and the type `PetAction` are exported.
@@ -11,7 +13,8 @@
 - `size` is a pet action (`PET_ACTIONS`, `hoverButtons`): hovering its button shows a size slider over the body. The dressing page has a size row under the figures. Both draw the slider of `web/scale-slider.js`.
 - A describer's `PetStatus` may carry `countdown`, the seconds a call lasts. When that call starts running (RunPhase `running`), `StatusTracker` sends `endsAt` in its place, the Date.now() milliseconds the countdown ends, and only while the call runs; the page shows the whole seconds left after `text`, out of what screen readers read. A describer that sets no `countdown` behaves as before. `waitSeconds(seconds)` is exported: how long `pet_cua_wait` waits for an argument, 0–30, 1 when absent.
 - Sound kind `alert` (`worlds.desktop-pet.sounds.alert`, on by default) plays once as a confirmation bubble shows. Packs cannot file sounds under it.
-- A click on a line's bubble, away from its links, ends the whole line and the page reports `skipped` with the line's id; questions and confirmations still close only by their × or an answer.
+- A click on a line's bubble, away from its links, stops the voice and skips the rest of the line, and the page reports `skipped` with the line's id. Questions and confirmations close by their × or an answer.
+- Input bubbles and speech bubbles have separate hold durations. The `pet_say` receipt estimates the sent line and the lines queued ahead of it with the speech hold in force. The page reports an informational dialog as done after it displays the line for reading.
 - While the pet window is hidden the page ticks the body with `draw` false (`tick { dt, draw }`, `step(dt, draw)`): the body moves on without drawing, so walks still arrive. `kit.createBody` honours it; a pack that ignores it draws as before.
 - `kit.createBody(host, { ground: 'free' })` builds a body that stands anywhere on the stage above the floor, seen from above: it walks to any point, is set down where it is let go of, and a throw tosses it across the stage. Such a body reports `y` (the stage y its feet stand on) in `layout()`, in `arrived` and `interrupted`; the World keeps it with the remembered position (`petY`, hands it back as `start.y` and `init.startY`) and names it in `pet_move_to`'s receipt. `place(x, facing, y)` takes an optional `y`. Bodies without `y` behave as before.
 - `kit.createBody` answers the pack's own targets through `opts.moves`: `{ id: (params, bounds) => ({ x, y? }) | null }`.

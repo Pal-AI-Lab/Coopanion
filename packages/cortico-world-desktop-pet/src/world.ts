@@ -97,8 +97,8 @@ const PORTRAIT_TIMEOUT_MS = 5000;
 const TOUCH_MERGE_MS = 2500;
 /** How long a confirmation bubble waits for an answer, counted from when the page shows it. */
 const CONFIRM_TIMEOUT_MS = 60_000;
-/** How long a confirmation waits in all, while the page has not shown it (lines ahead of it in the queue). */
-const CONFIRM_UNSHOWN_MS = 180_000;
+/** How long a confirmation or an informational card can wait to appear. */
+const BUBBLE_UNSHOWN_MS = 180_000;
 /** History events read per chat page load; the page asks for the ones before by cursor. */
 const CHAT_PAGE_EVENTS = 300;
 /** A message from the chat page: text cut to this, up to IMAGES_MAX images of at most IMAGE_MAX_BYTES each, as the console World takes them. */
@@ -198,7 +198,7 @@ export type PetDialogChoice = {
 /**
  * How a step ended: a button or card (`index`), the cards of a `pick` (`picked`), typed text, the text box's `alt`, the close
  * button, the back button, the line read to the end with nothing to answer (`done`, also a progress step the app
- * closed), or no pet page to show it on.
+ * closed), or the pet page could not show the step.
  */
 export type PetDialogAnswer =
   | { index: number } | { picked: number[] } | { text: string } | { alt: true } | { closed: true } | { back: true } | { done: true } | { unavailable: true };
@@ -308,13 +308,15 @@ interface PendingConfirm {
   resolve: (result: ConfirmResult) => void;
   /** How many choices the bubble shows: the last one is no. */
   choices: number;
-  /** Ends the wait with 'timeout': CONFIRM_UNSHOWN_MS from the ask, then CONFIRM_TIMEOUT_MS from when it was shown. */
+  /** Limits the time waiting to appear or, once shown, the time waiting for an answer. */
   timer: NodeJS.Timeout;
   shown: boolean;
 }
 
-/** Characters a step's line is shown for per second (typing, then reading), for its time limit. */
-const DIALOG_CPS = 4;
+interface PendingDialog {
+  resolve: (answer: PetDialogAnswer) => void;
+  unshown: NodeJS.Timeout | undefined;
+}
 
 let seq = 0;
 const nextId = (p: string) => `${p}${Date.now().toString(36)}${(seq++).toString(36)}`;
@@ -420,7 +422,7 @@ export class DesktopPetWorld implements World {
   private micState: { state: string; detail: string | null } = { state: 'off', detail: null };
   private devices: Array<{ id: string; label: string }> = [];
   private readonly confirms = new Map<string, PendingConfirm>();
-  private readonly dialogs = new Map<string, (a: PetDialogAnswer) => void>();
+  private readonly dialogs = new Map<string, PendingDialog>();
   /** The talk key is down (hold) or was switched on (toggle). */
   private talking = false;
   /** Recent microphone frames retained until a shared talk key is confirmed as held. */
@@ -495,6 +497,7 @@ export class DesktopPetWorld implements World {
       onPetConnect: () => {
         this.checkHoliday(false);
         this.effectReply?.finish();
+        this.clearDialogs();
         this.petHidden = false;
         this.bodyMissing = null;
         this.log?.info('桌宠页面已连接');
@@ -771,8 +774,7 @@ export class DesktopPetWorld implements World {
     this.micReleaseTimer = null;
     for (const c of this.confirms.values()) { clearTimeout(c.timer); c.resolve('unavailable'); }
     this.confirms.clear();
-    for (const d of this.dialogs.values()) d({ unavailable: true });
-    this.dialogs.clear();
+    this.clearDialogs();
     for (const w of this.walks.values()) { clearTimeout(w.timer); w.resolve(this.t.walkWorldStopped); }
     this.walks.clear();
     for (const done of [...this.portraits.values()]) done('gone');
@@ -1001,6 +1003,7 @@ export class DesktopPetWorld implements World {
       status: this.status.status,
       statusBubble: this.cfg.statusBubble,
       saidBubbles: this.cfg.saidBubbles,
+      saidBubbleHoldSec: this.cfg.saidBubbleHoldSec,
       bot: this.botInfo(),
     };
   }
@@ -1299,11 +1302,13 @@ export class DesktopPetWorld implements World {
         return;
       }
       case 'control': return this.onControl(String(msg.action));
+      case 'dialog-shown': {
+        const dialog = this.dialogs.get(String(msg.id));
+        if (dialog) { clearTimeout(dialog.unshown); dialog.unshown = undefined; }
+        return;
+      }
       case 'dialog': {
-        const settle = this.dialogs.get(String(msg.id));
-        if (!settle) return;
-        this.dialogs.delete(String(msg.id));
-        settle(typeof msg.index === 'number' ? { index: msg.index }
+        this.finishDialog(String(msg.id), typeof msg.index === 'number' ? { index: msg.index }
           : Array.isArray(msg.picked) ? { picked: [...new Set(msg.picked.filter((i): i is number => Number.isInteger(i) && i >= 0))].sort((a, b) => a - b) }
           : typeof msg.text === 'string' ? { text: msg.text.slice(0, 2000) }
           : msg.alt ? { alt: true } : msg.closed ? { closed: true } : msg.back ? { back: true } : { done: true });
@@ -1353,14 +1358,14 @@ export class DesktopPetWorld implements World {
     const id = nextId('k');
     if (this.petHidden || !this.server.sendPet({ t: 'confirm', id, question, options: choices })) return Promise.resolve('unavailable');
     return new Promise((resolve) => {
-      this.confirms.set(id, { resolve, timer: this.confirmTimer(id, CONFIRM_UNSHOWN_MS), choices: choices.length, shown: false });
+      this.confirms.set(id, { resolve, timer: this.confirmTimer(id, BUBBLE_UNSHOWN_MS), choices: choices.length, shown: false });
     });
   }
 
   /**
    * Shows one step of a conversation in the bubble; see `PetDialog`. Nothing reaches the bot: the
-   * caller gets the answer. Steps wait for as long as the person takes; a step with nothing to
-   * answer ends once its line has been read.
+   * caller gets the answer. Steps wait for as long as the person takes. An informational step
+   * ends when the page reports it was read or becomes unavailable if it never appears.
    */
   dialog(d: PetDialog): PetDialogHandle {
     const id = nextId('d');
@@ -1374,22 +1379,35 @@ export class DesktopPetWorld implements World {
     const answer = new Promise<PetDialogAnswer>((resolve) => { settle = resolve; });
     if (!this.server.sendPet({ t: 'dialog', id, ...d, input, actions })) settle({ unavailable: true });
     // a pick is answered with indices of its own cards
-    else this.dialogs.set(id, input?.kind === 'pick' ? (a) => settle('picked' in a ? { picked: a.picked.filter((i) => i < input.options.length) } : a) : settle);
-    // a page that never reports back (a tab put to sleep) does not hold a line with nothing to answer forever
-    if (!d.input && this.dialogs.has(id)) {
-      const timer = setTimeout(() => this.dialogs.get(id)?.({ done: true }), 5000 + d.text.length / DIALOG_CPS * 1000);
-      void answer.finally(() => { clearTimeout(timer); this.dialogs.delete(id); });
+    else {
+      const resolve = input?.kind === 'pick'
+        ? (a: PetDialogAnswer) => settle('picked' in a ? { picked: a.picked.filter((i) => i < input.options.length) } : a)
+        : settle;
+      const unshown = d.input ? undefined : setTimeout(() => {
+        if (this.finishDialog(id, { unavailable: true })) this.server.sendPet({ t: 'dialog-close', id });
+      }, BUBBLE_UNSHOWN_MS);
+      this.dialogs.set(id, { resolve, unshown });
     }
     return {
       answer,
       update: (patch) => { if (this.dialogs.has(id)) this.server.sendPet({ t: 'dialog-update', id, ...patch }); },
       close: () => {
-        const s = this.dialogs.get(id);
-        this.dialogs.delete(id);
-        this.server.sendPet({ t: 'dialog-close', id });
-        s?.({ done: true });
+        if (this.finishDialog(id, { done: true })) this.server.sendPet({ t: 'dialog-close', id });
       },
     };
+  }
+
+  private finishDialog(id: string, answer: PetDialogAnswer): boolean {
+    const dialog = this.dialogs.get(id);
+    if (!dialog) return false;
+    this.dialogs.delete(id);
+    clearTimeout(dialog.unshown);
+    dialog.resolve(answer);
+    return true;
+  }
+
+  private clearDialogs(): void {
+    for (const id of this.dialogs.keys()) this.finishDialog(id, { unavailable: true });
   }
 
   /** Dresses the body in `patch` over the skin as it is, and saves it, as a pick on the dressing page does. */
@@ -1439,7 +1457,7 @@ export class DesktopPetWorld implements World {
     this.log?.info('桌宠页面断开');
     this.holdPreRoll.length = 0;
     this.tellDesktop();
-    for (const [id, d] of this.dialogs) { d({ unavailable: true }); this.dialogs.delete(id); }
+    this.clearDialogs();
     for (const [id, w] of this.walks) { clearTimeout(w.timer); w.resolve(this.t.walkWindowGone); this.walks.delete(id); }
     for (const done of [...this.portraits.values()]) done('gone');
     for (const [id, c] of this.confirms) { clearTimeout(c.timer); c.resolve('unavailable'); this.confirms.delete(id); }
@@ -2034,12 +2052,13 @@ export class DesktopPetWorld implements World {
     const spoken = beats.some((b) => b.text || b.actions.length || b.anchors.length);
     if (!spoken && shown.blobs.length === 0) return { text: this.t.sayEmpty, failed: true };
     const id = nextId('s');
-    if (spoken && !this.server.sendPet({ t: 'say', id, beats })) return this.notConnected('pet_say');
+    const holdSec = this.cfg.window.sayBubbleHoldSec;
+    if (spoken && !this.server.sendPet({ t: 'say', id, beats, holdSec })) return this.notConnected('pet_say');
     void this.closeActivity();
     void this.record({ kind: 'say', beats: beats.map((b) => ({ text: b.text, ...moodOf(b.actions, this.vocab()) })) }, beats.map((b) => b.text).join(''), shown.blobs);
     if (!spoken) return { text: this.t.imagesShown(shown.blobs.length, this.chat.size > 0) };
     const now = Date.now();
-    const selfSec = estimateSeconds(beats, this.cfg.window.bubbleSpeed, this.cfg.speech.enabled ? speechTextSteps : undefined);
+    const selfSec = estimateSeconds(beats, this.cfg.window.bubbleSpeed, this.cfg.speech.enabled ? speechTextSteps : undefined, holdSec);
     this.sayEnds = this.sayEnds.filter((l) => l.at > now);
     const free = this.sayEnds.at(-1)?.at ?? now;
     const waitSec = (free - now) / 1000;

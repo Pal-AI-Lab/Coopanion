@@ -1,4 +1,4 @@
-<!-- Owner: src/definition.ts, src/webui/client.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/cua/engine/wait-idle.ts, src/cua/engine/foreground.ts, src/world.ts, src/asr/hotkey.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js, host/app-store.cjs -->
+<!-- Owner: src/definition.ts, src/config.ts, src/webui/client.ts, src/cua/cua.ts, src/cua/engine/user-activity.ts, src/cua/engine/wait-idle.ts, src/cua/engine/foreground.ts, src/world.ts, src/asr/hotkey.ts, src/asr/system-recognizer.ts, src/asr/transcription-api.ts, web/mic.js, web/pet-app.js, host/app-store.cjs -->
 
 <p align="center">
   <picture>
@@ -93,13 +93,16 @@ Windows 上每 0.8 秒用 GDI 取一小块身体周围的屏幕像素来比,其�
 
 人说的话留在 Coo 旁边(`web/pet-app.js`):打字框发出的、识别完成的语音、对话页发来的消息各成一个虚线气泡,最新的在最下面,
 放在 Coo 背朝的一侧并让开 Coo 的气泡;那侧放不下换到另一侧,两侧都放不下就放到 Coo 的气泡上方。识别完成的语音前面画话筒,对话页来的画双向箭头。
-一条话由它之后 Coo 开始的第一句说话或提问回答:回答的气泡还在时,或者还没回答而 Coo 在忙(有状态)、有说话在排队时,这条和更早的都不淡出;
-回答的气泡关掉 1 秒后淡出,没有回答的 8 秒后淡出。最多 3 条、合计 6 行,超出时最早的先淡出,即使还在等回答。点一下关掉一条,识别中的那条用「取消」。
+`saidBubbles` 关闭时只显示识别中的语音。`saidBubbleHoldSec` 为 0 时，一条话由它之后 Coo 开始的第一句说话或提问回答。
+回答的气泡关掉 1 秒后淡出。Coo 空闲且没有回答时，8 秒后淡出。固定时长从发送消息或识别完成开始计时。
+最多 3 条、合计 6 行，超出时最早的先淡出。点一下关闭一条，识别中的那条用「取消」。
 
 气泡尺寸 `worlds.desktop-pet.window.bubbleSize` 缩放所有气泡的宽度、留白、圆角、尾巴、离头顶的距离和连到桌宠的小圆点,边框粗细不变;
 字体尺寸 `window.fontSize` 缩放气泡里的字和同一行的小图标,气泡的宽度不变。两项都是 0.8–1.6 倍,默认 1,不随桌宠的大小变。
-气泡速度 `window.bubbleSpeed` 是 0.5–2 倍,默认 1:Coo 的气泡每秒打 20 乘以它个字,打完后的停留时间除以它,`pet_say` 报的显示时长也按它算。
-点一下台词气泡(链接除外)结束整句:声音停下,这句后面的段不再显示,队列里的下一条接着出;页面回报 `skipped`,之后 `pet_say` 回执里的排队时间从这时起算;提问和确认气泡只能用 × 或回答关掉。
+气泡速度 `window.bubbleSpeed` 是 0.5–2 倍，默认 1。基础出字速度是每秒 20 个字。气泡速度提高时，出字加快，自动停留缩短。
+`window.sayBubbleHoldSec` 为 0 时按每段字数自动停留。固定时长从每段出完字开始计时，有提问或应用对话在等待时可缩短至自动停留时间。
+两项时长都以秒为单位，固定值为 1–60 秒，对新消息生效。`pet_say` 回执里本条的显示时长和前面排队的秒数都按这两项估算。
+固定停留结束后，念词可继续到下一气泡出现。点一下台词气泡（链接除外）会停止念词并跳过本条剩下的段落，页面回报 `skipped`，之后 `pet_say` 回执里的排队时间从这时起算。提问和确认气泡通过 × 或回答关闭。
 音量 `worlds.desktop-pet.sounds.volume`(声音组，整数 0–100,默认 100)按百分比调低桌宠页和装扮页的所有声音，说话声也在内，两页之间的响度比例不变。
 桌宠页的音效和说话声按 Coo 在所在显示器上的左右位置分配左右声道(`web/sound.js` 的 `setPan`),pan 值钳在 ±0.5 以内，贴着屏幕边时远侧也听得到;
 `worlds.desktop-pet.sounds.panByPosition`(声音组，默认开)关闭后居中播放，没有 `StereoPannerNode` 的浏览器里也居中。
@@ -209,6 +212,7 @@ Coo、精灵图和 Live2D 式分件模型都画在页面的沙箱 frame 里,截�
 
 `sherpa-onnx-node` 是本包的依赖,随包安装(Windows 约 24 MB,macOS 约 35 MB,Linux x64 约 33 MB),不在运行时下载;
 Windows x64、macOS arm64 / x64、Linux x64 / arm64 都有预编译包,Linux 上要 glibc 2.32 与 GCC 11 的 libstdc++ 以上(Ubuntu 22.04、Debian 12 起)。
+Windows arm64 的预编译包(`sherpa-onnx-win-arm64`)不在这一版 `sherpa-onnx-node` 的依赖里:Coopanion 的 Windows arm64 安装包自己带上它;本包单独装进 Cortico 时,`funasr` 和 `whisper` 在 Windows arm64 上载入不了。
 只有模型要下载:「语音输入」面板(或应用的新手引导)点一下「下载」,下的是当前引擎的模型;当前是 `system` 时下应用语言对应的那个,下完就换过去。
 文件依次从 ModelScope 取(国内可直接访问),取不到再从 Hugging Face 取,逐个按固定的 SHA-256 校验:
 

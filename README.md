@@ -47,6 +47,7 @@ The interface comes in 11 languages: 简体中文, 繁體中文, English, 日本
 - An icon over Coo's head shows when it is thinking, reading files, searching, writing or using the computer.
 - Pick Coo or **DeepSeek Chan**, an animated whale girl with eight vendor color schemes and three outfits. Other figure packs are imported on the Dress up page; see the [figure pack compatibility promise](packages/cortico-world-desktop-pet/README.md#形象包兼容承诺).
 - Coo comes in several colors, including Nai Coo and five Cultist Simulator principles, and can wear a hat, animal ears or a halo, headphones, an earring or a bow, glasses and neckwear. The size of the pet, its bubbles and the text can each be adjusted.
+- Move the mouse back and forth over Coo or the crown of its top hat to pet it.
 - Ask Coo to remind you at a time of day or in a few minutes, and it sets an alarm.
 - Install Worlds such as a QQ bot, a drawing room and small games from **World extensions → Extension market**.
 - Export Coo and its bubbles as an OBS Browser source with a transparent background, to put it on a stream.
@@ -57,22 +58,22 @@ What changed in each version is in [Releases](https://github.com/Pal-AI-Lab/Coop
 
 You need:
 
-- Windows 10 / 11 (64-bit), macOS 13 or later (Apple silicon or Intel), or a 64-bit Linux desktop (X11; in a Wayland session it runs through XWayland, with the limits under [Linux](#linux); speech recognition needs glibc 2.32 or later, which means Ubuntu 22.04, Debian 12 or newer);
+- Windows 10 or 11 (x64), Windows 11 (Arm64), macOS 13 or later (Apple silicon or Intel), or a 64-bit Linux desktop (X11; in a Wayland session it runs through XWayland, with the limits under [Linux](#linux); speech recognition needs glibc 2.32 or later, which means Ubuntu 22.04, Debian 12 or newer);
 - an API key from one model service, billed by usage (see [Cost and privacy](#cost-and-privacy)), or a ChatGPT account with a plan.
 
 Every release page has a `SHA256SUMS.txt` for checking the downloads.
 
 ### Windows
 
-- **Installer**: download `Coopanion-Setup-<version>.exe` from the [latest release](https://github.com/Pal-AI-Lab/Coopanion/releases/latest) and run it. The installer is not code-signed, so Windows may say "Windows protected your PC": click **More info** → **Run anyway**. It installs to `%LOCALAPPDATA%\Programs\Coopanion` by default, and the program and its data both live in that folder. Don't install it into Program Files or another folder that needs administrator rights: Coopanion can't write its data there and quits with an error. There is no Start menu entry; open it from the desktop icon.
+- **Installer**: download `Coopanion-Setup-<version>.exe` from the [latest release](https://github.com/Pal-AI-Lab/Coopanion/releases/latest) and run it; on a PC with an Arm processor, download `Coopanion-Setup-<version>-arm64.exe`. The installer is not code-signed, so Windows may say "Windows protected your PC": click **More info** → **Run anyway**. It installs to `%LOCALAPPDATA%\Programs\Coopanion` by default, and the program and its data both live in that folder. Don't install it into Program Files or another folder that needs administrator rights: Coopanion can't write its data there and quits with an error. There is no Start menu entry; open it from the desktop icon.
 - **One command**: in PowerShell, run
 
   ```powershell
   irm https://raw.githubusercontent.com/Pal-AI-Lab/Coopanion/main/installer/install.ps1 | iex
   ```
 
-  If antivirus software blocks the graphical installer, the script keeps the downloaded installer and prints its path. Run it silently with `Coopanion-Setup-<version>.exe /S`, or add Coopanion to your antivirus's allowed list and try again.
-- **Portable**: download `Coopanion-<version>-win-x64-portable.zip` from the [latest release](https://github.com/Pal-AI-Lab/Coopanion/releases/latest), unpack it anywhere and run `Coopanion.exe`. Its data is kept in the folder's `data`. Copy the whole folder and you have a second Coo with its own memory and settings; up to 5 can run at once, installed and portable together. The portable version does not update itself: unpack the new version into a new folder and copy the old `data` over.
+  The script downloads the installer for your processor. If antivirus software blocks the graphical installer, the script keeps the downloaded installer and prints its path. Run the downloaded installer with `/S` for a silent install, or add Coopanion to your antivirus's allowed list and try again.
+- **Portable**: download `Coopanion-<version>-win-x64-portable.zip` (`…-win-arm64-portable.zip` for an Arm processor) from the [latest release](https://github.com/Pal-AI-Lab/Coopanion/releases/latest), unpack it anywhere and run `Coopanion.exe`. Its data is kept in the folder's `data`. Copy the whole folder and you have a second Coo with its own memory and settings; up to 5 can run at once, installed and portable together. The portable version does not update itself: unpack the new version into a new folder and copy the old `data` over.
 
 ### macOS
 
@@ -136,7 +137,7 @@ These are the defaults from the app's [vendor table](packages/cortico-provider-c
 - **Talk**: tap **Left Alt** (**Left Option** on Mac), then hold it and speak; let go to send. The talk key, microphone, speech threshold and listening mode (**While the talk key is held**, **The talk key switches it on and off**, **All the time**) are on the Voice input page. With the system default microphone selected, Coo switches along when you change the system's default input device. If the chosen microphone is unplugged or can't be found, Coo listens through the system default input and switches back when it returns. Voice input uses echo cancellation and noise suppression but not automatic gain control, so Coo leaves the system's microphone volume alone; if your voice comes through too quiet, raise the input volume in the system settings.
 - **Type**: hover over Coo and click the bubble button next to it, or type on the Chat page. Turn on **Habits → Typing key** to open the typing box from any window (double-press Left Ctrl by default). A message can carry up to four pasted images from the typing box, or eight from the Chat page.
 - **Changing keys**: the talk key and the typing key can each be another key, a key combination or a mouse side button, pressed one to three times. When both use the same key, a quick double tap opens the typing box; holding the last press for more than 300 ms starts listening instead and does not open the box. What you say during those 300 ms is kept; with **Open the microphone only while held** on, the microphone opens only at that point, so wait for the listening bubble before speaking.
-- **Bubbles**: move the pointer into an open bubble to keep it open until the pointer leaves. Click what Coo is saying to skip the rest of that line. Coo plays a chime when it asks you to confirm something, such as using your computer; clear **Alerts** under **Habits → Sounds** to silence it. Activity bubbles, input bubbles, bubble and text size, and how fast the text appears are on the Habits page.
+- **Bubbles**: move the pointer into an open speech bubble to keep it open until the pointer leaves. Click what Coo is saying to skip the rest of that line. Coo plays a chime when it asks you to confirm something, such as using your computer. Clear **Alerts** under **Habits → Sounds** to silence it. On the Habits page, **Input bubbles** switches sent-message bubbles on or off. Set either duration to **Auto** or **Fixed** (1–60 seconds). Fixed input time starts after sending or speech recognition, and fixed speech time starts after the text finishes typing. A queued question or guide card can shorten the speech hold. The same page has the activity bubble switch, bubble and text size, and typing speed.
 - **Alarms**: the alarms Coo has set are listed under **Alarms** on the App notifications page, where you can delete them; Coo is told when you do. Daily alarms keep ringing at the same local time across daylight-saving changes. Alarms missed while the app was closed go off the next time it starts.
 - **Touch**: click to poke Coo, rub back and forth over its head to pat it, or drag to pick it up. Let go mid-swing to throw it; drop it on another display and it stays there. **Habits → Response mode** decides which touches Coo answers right away.
 
