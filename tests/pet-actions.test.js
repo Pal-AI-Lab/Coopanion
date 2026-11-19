@@ -291,6 +291,106 @@ describe('what the page holds a pack to', () => {
   });
 });
 
+describe('how near the screen edges the body goes', () => {
+  const W = 1200, S = .42;
+  /** Where the body stops when sent to stage x; a walk ends within a couple of pixels of its target. */
+  /** Where the body stops when sent to stage x: a walk ends a pixel or two short of its target, hence the 5-pixel checks. */
+  const walkFar = (pet, x) => { pet.walkTo(x); run(pet, 20); return pet.pet.x; };
+
+  it('a figure narrower than the square walks up to its own extent from either edge, and the hover buttons sit by it', () => {
+    const pet = barePet();
+    // 40 units each side of the middle line on the right, 30 on the left: it turns, so the wider side counts both ways
+    pet.setFigure({ draw() {}, extent: [98, 0, 168, 256] });
+    pet.resize();
+    expect(walkFar(pet, W + 500)).toBeCloseTo(W - 40 * S - 8, -1);
+    expect(walkFar(pet, -500)).toBeCloseTo(40 * S + 8, -1);
+    expect(pet.layout().side.reach).toBeCloseTo(40 * S);
+  });
+
+  it('a figure that widens where it stands is moved back onto the screen, and one wider than the stage stands in its middle', () => {
+    const fig = { draw() {}, extent: [98, 0, 168, 256] };
+    const pet = barePet();
+    pet.setFigure(fig);
+    pet.resize();
+    walkFar(pet, W + 500);
+    fig.extent = [0, 0, 256, 256];
+    run(pet, .1);
+    expect(pet.pet.x).toBeCloseTo(W - 128 * S - 8);
+    fig.extent = [-5000, 0, 5000, 256];
+    run(pet, .1);
+    expect(pet.pet.x).toBe(W / 2);
+  });
+
+  it.each([
+    { target: 0, pose: 'listening' },
+    { target: W, pose: 'sleep' },
+  ])('a narrow figure stays visible at stage x=$target while $pose', ({ target, pose }) => {
+    const pet = barePet(undefined, {
+      figure: { draw() {}, extent: [108, 0, 148, 256] },
+      bounds: () => ({ W, H: 980, floorY: 930, S: 2.2 }),
+    });
+    const standingX = walkFar(pet, target);
+    if (pose === 'listening') pet.setListening(true);
+    else pet.act(pose);
+    run(pet, 3);
+    const { x, box, side } = pet.layout();
+    expect(x).toBe(standingX);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.w).toBeLessThanOrEqual(W);
+    expect(x - side.reach).toBeLessThanOrEqual(box.x + .01);
+    expect(x + side.reach).toBeGreaterThanOrEqual(box.x + box.w - .01);
+  });
+
+  it('a narrow figure stays visible while thrown toward an edge', () => {
+    const pet = barePet(undefined, {
+      figure: { draw() {}, extent: [108, 0, 148, 256], hits: [[128, 110, 18]] },
+      startX: 350,
+      bounds: () => ({ W, H: 1000, floorY: 970, S: 2.2 }),
+    });
+    run(pet, 1.5);
+    const point = pet.layout().hit[0];
+    expect(pet.pointerDown({ ...point, t: 1500 })).toBe(true);
+    for (let i = 1; i <= 8; i++) {
+      pet.pointerMove({ x: point.x - 40 * i, y: point.y - 25, t: 1500 + 20 * i });
+      run(pet, 1 / 60);
+    }
+    expect(pet.layout().mode).toBe('drag');
+    pet.pointerUp({ x: point.x - 320, y: point.y - 25, t: 1670 });
+    expect(pet.layout().mode).toBe('air');
+    for (let i = 0; i < 120; i++) {
+      run(pet, 1 / 60);
+      const { box } = pet.layout();
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.w).toBeLessThanOrEqual(W);
+    }
+    expect(pet.layout().mode).not.toBe('air');
+  });
+
+  it.each([
+    { extent: ['a', 0, null, 256] },
+    { extent: [null, 0, 168, 256] },
+    { extent: ['98', 0, '168', 256] },
+    { extent: [98, '0', 168, 256] },
+    { extent: [168, 0, 155, 256] },
+  ])('an invalid extent $extent keeps the default margin and reach', ({ extent }) => {
+    const defaultPet = barePet(undefined, { figure: { draw() {} } });
+    const pet = barePet();
+    pet.setFigure({ draw() {}, extent });
+    pet.resize();
+    expect(walkFar(pet, W + 500)).toBeCloseTo(walkFar(defaultPet, W + 500), -1);
+    expect(pet.layout().side.reach).toBe(defaultPet.layout().side.reach);
+    expect(pet.layout().box.w).toBeCloseTo(defaultPet.layout().box.w, 0);
+  });
+
+  it('a figure that names no extent keeps the margin it had', () => {
+    const pet = barePet();
+    pet.setFigure({ draw() {} });
+    pet.resize();
+    expect(walkFar(pet, W + 500)).toBeCloseTo(W - 104 * S - 8, -1);
+    expect(pet.layout().side.reach).toBeCloseTo(104 * S);
+  });
+});
+
 describe('a body that stands anywhere on the stage (ground: free)', () => {
   it('walks to a point above the floor, says how far down it got, and stays there through a jump', () => {
     const events = [];
@@ -365,5 +465,15 @@ describe('picking the body up', () => {
     expect(pet.pet.mode).toBe('air');
     run(pet, 3);
     expect(['idle', 'look', 'dizzy']).toContain(pet.pet.mode);
+  });
+
+  it("a press on the crown of Coo's top hat lands on the body while Coo wears it", () => {
+    const pet = barePet();
+    run(pet, .1);
+    // the crown's middle, 121 units out from the middle of Coo at 104° (coo.js): past the body circle's 108
+    const crown = { ...pet.toStage(98.7, 10.6), t: 0 };
+    expect(pet.pointerDown(crown)).toBe(false);
+    pet.setSkin({ ...defaultSkin(), head: 'tophat' });
+    expect(pet.pointerDown(crown)).toBe(true);
   });
 });

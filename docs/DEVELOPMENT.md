@@ -31,7 +31,7 @@ git submodule update --init --recursive
 | `pnpm run typecheck:worlds` | 桌宠 World(含电脑操作)的类型检查 |
 | `pnpm run typecheck` | 检查 Core 与 Electron 部分的类型 |
 | `pnpm run typecheck:web` | 检查设置窗口(`console/`)的类型 |
-| `pnpm run build:installer` | Windows 上打出 `dist/Coopanion-Setup-<版本>.exe`,设 `COOPANION_CHANNEL=portable` 时打出便携版 `dist/Coopanion-<版本>-win-x64-portable.zip`;Mac 上打出 `dist/Coopanion-<版本>-mac-<架构>.dmg` 和 `.zip`(`PACK_ARCH=x64` 在 Apple 芯片上打 Intel 版) |
+| `pnpm run build:installer` | Windows 上打出 `dist/Coopanion-Setup-<版本>.exe`,设 `COOPANION_CHANNEL=portable` 时打出便携版 `dist/Coopanion-<版本>-win-<架构>-portable.zip`(`PACK_ARCH=arm64` 在 x64 机器上打 Arm 版,安装包名为 `Coopanion-Setup-<版本>-arm64.exe`);Mac 上打出 `dist/Coopanion-<版本>-mac-<架构>.dmg` 和 `.zip`(`PACK_ARCH=x64` 在 Apple 芯片上打 Intel 版) |
 | `pnpm run build:icons` | 用桌宠的造型重画应用图标和默认头像 |
 
 想用一份干净的数据测试(比如看首次启动、引导、没填 Key 时的提醒),把 `CORTICO_COMPANION_DATA` 指向一个空目录再启动:
@@ -78,7 +78,7 @@ Cortico 是内核,Coopanion 是用它做的一个产品。使用者看到的界�
    要给用户写更长的话，写成开发者的信 `docs/releases/v<版本>.letter.md`(英文版 `.letter.en.md`):不进 GitHub Release,随安装包分发，跟更新说明一起整封交给 Coo,附 GitHub 上该版本标签下的原文链接，由 Coo 决定转不转达、怎么转达;跨了几个版本更新时只给其中最新的一封;
 3. 提交后打 `v<版本>` 标签并推送。
 
-GitHub Actions 会构建 Windows 安装包和两个 Mac 包(Apple 芯片、Intel,都在 Apple 芯片的 runner 上打),附到对应的 Release 上,连同自动更新读的 `latest.yml`(Windows)和 `latest-linux.yml`(AppImage)。Windows 安装版和 AppImage 由 `app/updater.cjs`(electron-updater)检查、下载新版本，并在退出时安装。`companion.autoUpdate` 默认开启，可在「习惯 → 通用」关闭；Core 通过 `companion:auto-update` 将初始值和修改后的值交给主进程，主进程收到初始值后才开始检查。关闭时取消下载、清除更新提示并阻止退出安装。Mac(临时签名装不了自动更新)、deb 和 Windows 便携版仍靠标题栏版本号右侧的提示手动下载。仓库配好 Steam 的变量和密钥后，同一个标签还会构建 Steam 版并上传到 Steam,见 [STEAM.md](STEAM.md)。
+GitHub Actions 会构建 Windows 的 x64 和 Arm 安装包(都在 x64 的 runner 上打)和两个 Mac 包(Apple 芯片、Intel,都在 Apple 芯片的 runner 上打),附到对应的 Release 上,连同自动更新读的 `latest.yml`(Windows x64)、`latest-arm64.yml`(Windows Arm)和 `latest-linux.yml`(AppImage)。Windows 安装版和 AppImage 由 `app/updater.cjs`(electron-updater)检查、下载新版本，并在退出时安装。`companion.autoUpdate` 默认开启，可在「习惯 → 通用」关闭；Core 通过 `companion:auto-update` 将初始值和修改后的值交给主进程，主进程收到初始值后才开始检查。关闭时取消下载、清除更新提示并阻止退出安装。Mac(临时签名装不了自动更新)、deb 和 Windows 便携版仍靠标题栏版本号右侧的提示手动下载。仓库配好 Steam 的变量和密钥后，同一个标签还会构建 Steam 版并上传到 Steam,见 [STEAM.md](STEAM.md)。
 
 ## 提交改动
 

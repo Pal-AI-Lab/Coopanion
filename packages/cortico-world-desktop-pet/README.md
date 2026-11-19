@@ -187,6 +187,9 @@ Coo、精灵图和 Live2D 式分件模型都画在页面的沙箱 frame 里,截�
 
 桌宠窗口里的页面用麦克风收音,16 kHz 单声道 PCM 经 WebSocket 送到 World,按能量门限切句
 (`src/asr/segmenter.ts`),交给识别引擎,挡掉已知幻觉后作为 `desktop-pet.speech` 投递;应用语言是简体中文且 `asr.simplified` 开着时先把繁体转成简体。
+`asr.recording.enabled`(默认开)开着且当前端点收 `audio/wav`(`modelFacts.accepts`)时,一批里几句话的原声拼成一个 16 kHz 单声道 WAV,作为附件随事件投递,由 Core 存进部署数据目录;
+`asr.recording.transcript`(默认开)关掉时事件正文不带识别出的文字,只附录音。一批里有一句识别时录音不随发(开关关着或端点不收音频),或录音超过 `asr.recording.maxMinutes`(1–7,默认 5),整批只发文字;
+上限的推导见 `src/config.ts` 的 `RECORDING_MINUTES_MAX`。
 采集启用回声消除和降噪,关闭自动增益控制(AGC):Windows 上 Chromium 的 AGC 会调整系统麦克风音量。
 说话时桌宠歪头倾听,虚线气泡里边说边显示听到的字,还没定下来的部分是灰色的;用 Whisper 和转写接口时一句说完才出字。识别完成后这个气泡留在 Coo 旁边(见「桌宠窗口」)。
 按键收音(`hold`、`toggle`)时气泡里有「取消」按钮:桌宠页发 `cancel`,World 丢掉这次收音手上的音频、转写队列和已识别的文字,在途的转写落地后也丢掉,发 `listen` 的 `none`,不投递事件;`toggle` 下同时关掉收音。
@@ -207,6 +210,7 @@ Coo、精灵图和 Live2D 式分件模型都画在页面的沙箱 frame 里,截�
 
 `sherpa-onnx-node` 是本包的依赖,随包安装(Windows 约 24 MB,macOS 约 35 MB,Linux x64 约 33 MB),不在运行时下载;
 Windows x64、macOS arm64 / x64、Linux x64 / arm64 都有预编译包,Linux 上要 glibc 2.32 与 GCC 11 的 libstdc++ 以上(Ubuntu 22.04、Debian 12 起)。
+Windows arm64 的预编译包(`sherpa-onnx-win-arm64`)不在这一版 `sherpa-onnx-node` 的依赖里:Coopanion 的 Windows arm64 安装包自己带上它;本包单独装进 Cortico 时,`funasr` 和 `whisper` 在 Windows arm64 上载入不了。
 只有模型要下载:「语音输入」面板(或应用的新手引导)点一下「下载」,下的是当前引擎的模型;当前是 `system` 时下应用语言对应的那个,下完就换过去。
 文件依次从 ModelScope 取(国内可直接访问),取不到再从 Hugging Face 取,逐个按固定的 SHA-256 校验:
 

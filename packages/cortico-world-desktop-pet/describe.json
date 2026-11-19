@@ -747,8 +747,8 @@
     {
       "type": "desktop-pet.speech",
       "description": {
-        "zh": "使用者说的话,识别成的文字。用说话键说的话打断当前一轮;一直收音时听到的话以 flush 投递,不打断。",
-        "en": "What the person said, as recognized text. Speech through the talk key interrupts the current round; speech heard while always listening is delivered with flush and does not interrupt."
+        "zh": "使用者说的话,识别成的文字。`asr.recording.enabled` 开着且当前端点收音频时附上这段话的录音(audio/wav);`asr.recording.transcript` 关掉时只附录音、不带文字。用说话键说的话打断当前一轮;一直收音时听到的话以 flush 投递,不打断。",
+        "en": "What the person said, as recognized text. With `asr.recording.enabled` on and a current endpoint that takes audio, the recording of it (audio/wav) is attached; with `asr.recording.transcript` off, the recording goes without the text. Speech through the talk key interrupts the current round; speech heard while always listening is delivered with flush and does not interrupt."
       },
       "trigger": "interrupt"
     },

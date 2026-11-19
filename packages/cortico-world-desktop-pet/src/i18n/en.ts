@@ -304,6 +304,9 @@ const en: PetText = {
     thresholdDb: { title: 'Speech threshold' },
     silenceMs: { title: 'Silence that ends a sentence' },
     maxUtteranceMs: { title: 'Longest sentence' },
+    recording: { title: 'Send the recording to the model', description: "When the current model takes audio (audio/wav), each batch of speech goes to the model service with its recording attached, and the recording is kept in the deployment's data folder. With a model that does not take audio only the text is sent, and this has no effect." },
+    recordingTranscript: { title: 'Send the transcript', description: 'The recognized text goes along with the recording; when off, the recording goes alone. When no recording goes, the text is sent as usual.' },
+    recordingMaxMinutes: { title: 'Recording limit', description: 'A batch of speech with a longer recording is sent as text only.', suffix: 'min' },
   },
 
   /** Why the pet window is not open, on its lamp and the pet panel. */
@@ -378,6 +381,14 @@ const en: PetText = {
     modes: { hold: 'While the talk key is held', toggle: 'The talk key switches it on and off', always: 'All the time' },
     openOnPress: 'Open the microphone only while held',
     openOnPressHint: 'Turn on for headsets, such as Bluetooth ones, that switch to call mode while the microphone is open; after pressing, wait a moment before speaking, or the first words may be missed',
+    recording: 'Send the recording to the model',
+    recordingHint: 'Each batch of speech goes to the current model service with its recording attached, and the recording is kept in the data folder on this computer',
+    recordingNoAudio: 'The current model does not take audio: only the recognized text is sent, and this has no effect',
+    transcript: 'Send the transcript',
+    transcriptHint: 'The recognized text goes along with the recording; when off, the recording goes alone. When no recording goes, the text is sent as usual',
+    recordingMax: 'Recording limit',
+    recordingMaxHint: 'A batch of speech with a longer recording is sent as text only',
+    minutes: 'min',
     switchOn: 'On',
     switchOff: 'Off',
     /** How the talk key is pressed, for holding and for switching, by the number of presses. */

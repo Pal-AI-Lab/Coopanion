@@ -1,9 +1,10 @@
 /**
  * Speech models run in this process through sherpa-onnx's Node addon (`sherpa-onnx-node`, N-API,
  * one prebuilt package per platform: Windows x64, macOS arm64 and x64, Linux x64 and arm64 with
- * glibc 2.32 or later). Which model and how it is configured is a `SherpaModelKind`: FunASR's
- * SenseVoiceSmall or OpenAI's Whisper. The model files come from the runtime store
- * (`src/runtime/store.ts`); nothing else is downloaded.
+ * glibc 2.32 or later). The Windows arm64 package is not among its dependencies at this version;
+ * the app's build installs it beside the addon (`scripts/pack.ts`). Which model and how it is
+ * configured is a `SherpaModelKind`: FunASR's SenseVoiceSmall or OpenAI's Whisper. The model files
+ * come from the runtime store (`src/runtime/store.ts`); nothing else is downloaded.
  *
  * The models recognize a whole utterance at a time. While a sentence is being spoken the audio so
  * far is decoded again every `partialEveryMs` of the kind, one decode at a time, so the pet shows
