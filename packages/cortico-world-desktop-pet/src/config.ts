@@ -302,9 +302,8 @@ export const BUBBLE_SPEED_MIN = .5, BUBBLE_SPEED_MAX = 2;
 export const GLOW_MAX = 16, GLOW_DEFAULT = 7;
 /**
  * The range and default of `asr.recording.maxMinutes`. A minute of the 16 kHz mono 16-bit recording is 1.92 MB of
- * WAV, 2.56 MB as Base64. A Gemini request carries at most 18 MiB of Base64 attachments (provider-coo
- * `INLINE_MAX_CHARS`), 7.37 minutes of recording: a longer one is left out of the request. The default 5 minutes
- * (12.8 MB) leaves about 6 MB of that budget for the images sent with it.
+ * WAV, 2.56 MB as Base64, so the maximum 7 minutes is 17.9 MB. Of the endpoints that take audio, Doubao's Ark
+ * docs allow one Base64 audio of up to 25 MB (9.7 minutes) and the Gemini API docs a request of up to 100 MB.
  */
 export const RECORDING_MINUTES_MIN = 1, RECORDING_MINUTES_MAX = 7, RECORDING_MINUTES_DEFAULT = 5;
 /** The range of `asr.segment.thresholdDb`, in dBFS. */
