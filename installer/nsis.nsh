@@ -3,7 +3,8 @@
 
 !ifdef APP_ARM64
   !ifndef APP_64
-    !include /CHARSET=UTF8 "${__FILEDIR__}/i18n/arm64.nsh"
+    ; makensis does not find an !include path written with forward slashes
+    !include /CHARSET=UTF8 "${__FILEDIR__}\i18n\arm64.nsh"
   !endif
 !endif
 
