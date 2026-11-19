@@ -56,7 +56,7 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
   记录只在内存里，重启后第一次带上这些附件的请求还会被拒一次。
 - **音频**:端点勾了「多模态」时，标了 `audioInput` 的 Responses 服务(豆包)把 wav、mp3、aac、m4a 作为 `input_audio` 发出(`audio_url` 里是 data URL)。录音和 Gemini 一样留在带它的那一项里:user 消息放进 `content`,工具结果放进 `output`,
   排在这一项的图片前面(方舟「创建 Response」两处都收 `input_audio`)。豆包和 Gemini 一样只看「多模态」开关，不按型号列;方舟的音频理解型号是
-  doubao-seed-2-1-lite、2-0-lite、2-0-mini,换成不收音频的型号要关掉「多模态」。和别的附件一样只发最近一批，被拒后去掉重发。
+  doubao-seed-2-1-lite、2-0-lite、2-0-mini,换成不收音频的型号时关掉「语音输入」页的「投递录音」。和别的附件一样只发最近一批，被拒后去掉重发。
 - **价目**:`src/pricing.ts` 内置 DeepSeek(错峰价,两个高峰时段按两倍计)、OpenAI、Anthropic、Gemini(付费档)、xAI;别家没有内置价目。
   长提示的第二档价格按 `inputBands` 计;`gemini-3.8-flash` 的现价到 2026-12-31,之后开始的请求按页面列的新价。
 - **标志**:`src/icons.ts`,取自 [@lobehub/icons-static-svg](https://github.com/lobehub/lobe-icons)(MIT)。标志归各自的公司所有,只用来标明是哪一家。
