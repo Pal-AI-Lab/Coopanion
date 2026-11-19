@@ -274,6 +274,9 @@ const fr: Translation<PetText> = {
     thresholdDb: { title: 'Seuil de parole' },
     silenceMs: { title: 'Silence qui termine une phrase' },
     maxUtteranceMs: { title: 'Phrase la plus longue' },
+    recording: { title: "Envoyer l'enregistrement au modèle", description: "Quand le modèle actuel prend l'audio (audio/wav), chaque lot de paroles part au service du modèle avec son enregistrement en pièce jointe, et l'enregistrement est gardé dans le dossier de données du déploiement. Avec un modèle qui ne prend pas l'audio, seul le texte part et ce réglage n'a pas d'effet." },
+    recordingTranscript: { title: 'Envoyer la transcription', description: "Le texte reconnu accompagne l'enregistrement ; désactivé, l'enregistrement part seul. Quand aucun enregistrement ne part, le texte part comme d'habitude." },
+    recordingMaxMinutes: { title: "Durée maximale d'enregistrement", description: "Un lot de paroles dont l'enregistrement est plus long part en texte seul.", suffix: 'min' },
   },
 
   windowReason: {
@@ -346,6 +349,14 @@ const fr: Translation<PetText> = {
     modes: { hold: 'Tant que la touche de parole est maintenue', toggle: "La touche de parole l'active et la désactive", always: 'En continu' },
     openOnPress: "N'ouvrir le micro que pendant l'appui",
     openOnPressHint: "Pour les casques, Bluetooth par exemple, qui passent en mode appel quand le micro est ouvert ; après l'appui, attendez un instant avant de parler, sinon les premiers mots peuvent manquer",
+    recording: "Envoyer l'enregistrement au modèle",
+    recordingHint: "Chaque lot de paroles part au service du modèle actuel avec son enregistrement en pièce jointe, et l'enregistrement est gardé dans le dossier de données de cet ordinateur",
+    recordingNoAudio: "Le modèle actuel ne prend pas l'audio : seul le texte reconnu part, et ce réglage n'a pas d'effet",
+    transcript: 'Envoyer la transcription',
+    transcriptHint: "Le texte reconnu accompagne l'enregistrement ; désactivé, l'enregistrement part seul. Quand aucun enregistrement ne part, le texte part comme d'habitude",
+    recordingMax: "Durée maximale d'enregistrement",
+    recordingMaxHint: "Un lot de paroles dont l'enregistrement est plus long part en texte seul",
+    minutes: 'min',
     switchOn: 'Activé',
     switchOff: 'Désactivé',
     presses: {

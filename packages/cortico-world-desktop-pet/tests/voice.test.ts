@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { DESKTOP_PET_DEFAULTS } from '../src/config.ts';
+import { DESKTOP_PET_DEFAULTS, RECORDING_MINUTES_MIN } from '../src/config.ts';
 import { DesktopPetWorld } from '../src/world.ts';
 import { petText } from '../src/i18n/index.ts';
 import type { MicMode } from '../src/config.ts';
@@ -240,13 +240,14 @@ describe('voice input', () => {
     expect(asr.configs[0]).toMatchObject({ modelConfig: { senseVoice: { language: 'zh' }, numThreads: 2 } });
   });
 
-  it.each([true, false])('the speech event carries the recording as WAV exactly when the endpoint takes audio (%s)', async (takesAudio) => {
-    const { host, page } = await setup('今天天气怎么样');
+  it.each([[true, true], [true, false], [false, false]])('the speech event carries the recording as WAV exactly when the endpoint takes audio (%s), and leaves out the text only beside it (transcript %s)', async (takesAudio, transcript) => {
+    const { cfg, host, page } = await setup('今天天气怎么样');
+    cfg.asr.recording.transcript = transcript;
     host.modelFacts.accepts = (mime: string) => takesAudio && mime === 'audio/wav';
     for (const fr of [...tone(900, .3), ...tone(900, 0)]) page.audio(fr);
     await expect.poll(() => host.events.length, { timeout: 5000 }).toBe(1);
     const e = host.events[0]!;
-    expect(e.text).toBe('[voice] 伙伴:今天天气怎么样');
+    expect(e.text.includes('今天天气怎么样')).toBe(transcript || !takesAudio);
     if (!takesAudio) return expect(e.blobs).toBeUndefined();
     const blob = e.blobs![0]!;
     expect(blob.mime).toBe('audio/wav');
@@ -254,7 +255,22 @@ describe('voice input', () => {
     expect(Buffer.from(bytes.subarray(0, 4)).toString('ascii')).toBe('RIFF');
     // at least the 900 ms spoken, 16-bit at 16 kHz after the 44-byte header
     expect(bytes.length - 44).toBeGreaterThanOrEqual(900 * 32);
-    expect(blob.fallbackText).toMatch(/^\[伙伴说这段话的录音,[\d.]+ 秒;/);
+    expect(blob.fallbackText).toMatch(transcript ? /^\[伙伴说这段话的录音,[\d.]+ 秒;/ : /^\[伙伴说这段话的录音,[\d.]+ 秒\]$/);
+  });
+
+  it('sends a batch whose recording runs past asr.recording.maxMinutes as text alone, and the next one with its recording', async () => {
+    const { cfg, host, page } = await setup('今天天气怎么样');
+    cfg.asr.recording.maxMinutes = RECORDING_MINUTES_MIN;
+    host.modelFacts.accepts = (mime: string) => mime === 'audio/wav';
+    // one second past the limit, cut into sentences at maxUtteranceMs and held as one batch until the pause
+    for (const fr of [...tone(RECORDING_MINUTES_MIN * 60_000 + 1000, .3), ...tone(900, 0)]) page.audio(fr);
+    await expect.poll(() => host.events.length, { timeout: 5000 }).toBe(1);
+    expect(host.events[0]?.text).toContain('今天天气怎么样');
+    expect(host.events[0]?.blobs).toBeUndefined();
+
+    for (const fr of [...tone(900, .3), ...tone(900, 0)]) page.audio(fr);
+    await expect.poll(() => host.events.length).toBe(2);
+    expect(host.events[1]?.blobs?.[0]?.mime).toBe('audio/wav');
   });
 
   it('keeps a pending text-only batch as text when the endpoint starts accepting audio', async () => {
