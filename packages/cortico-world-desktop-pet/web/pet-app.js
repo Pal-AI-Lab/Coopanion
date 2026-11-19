@@ -588,11 +588,14 @@ function grabKeys(it) {
   // on the bubble), and goes back as soon as they point elsewhere.
   if (!bubbleHovered && !document.hasFocus()) return;
   it.grabbed = true;
+  // taken only because the pointer rests on the bubble: leaving it must give the keyboard back
+  it.grabbedByHover = !document.hasFocus();
   host.grabFocus();
 }
 function releaseKeys(it) {
   if (!it?.grabbed) return;
   it.grabbed = false;
+  it.grabbedByHover = false;
   host.releaseFocus();
 }
 
@@ -647,7 +650,8 @@ bubble.addEventListener('pointerenter', () => {
 });
 bubble.addEventListener('pointerleave', () => {
   bubbleHovered = false;
-  if (item && item.grabbed) releaseKeys(item);
+  // only a question the pointer itself pulled the keyboard for: an open typing box keeps it
+  if (item && item.kind === 'ask' && item.grabbedByHover) releaseKeys(item);
 });
 
 function stepDialog(dt) {
