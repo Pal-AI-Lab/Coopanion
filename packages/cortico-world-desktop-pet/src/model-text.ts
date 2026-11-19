@@ -52,7 +52,7 @@ export const EFFECT_TOOL_TEXT = {
 const zh = {
   holiday: {
     christmas: '今天是本地时间 12 月 25 日，圣诞节。',
-    newYear2027: `今天是本地时间 2027 年 1 月 1 日。如果想和对方庆祝，可以用你们熟悉的方式说声新年快乐，也可以继续眼前的事。这一轮可以调用 pet_act({"actions":["${FIREWORKS_2027}"]})，让身后升起烟花，写出「2027」。烟花只能放一次，最晚在本地午夜失效。`,
+    newYear2027: `今天是本地时间 2027 年 1 月 1 日。如果想和对方庆祝，可以用你们熟悉的方式说声新年快乐，也可以继续眼前的事。这一轮可以让身后升起写着「2027」的烟花，动作词是 ${FIREWORKS_2027}，不和别的动作词一起用。烟花只能放一次，最晚在本地午夜失效。`,
   },
 
   /** Locale of the weekday in an event's time stamp. */
@@ -203,7 +203,7 @@ const zh = {
 const en: typeof zh = {
   holiday: {
     christmas: 'It is December 25 here, Christmas Day.',
-    newYear2027: `It is January 1, 2027 here. If you feel like celebrating with the person, wish them a happy New Year in your own way, or carry on with what you were doing. During this turn, pet_act({"actions":["${FIREWORKS_2027}"]}) can light fireworks behind you that spell out 2027. They can play once, until local midnight at the latest.`,
+    newYear2027: `It is January 1, 2027 here. If you feel like celebrating with the person, wish them a happy New Year in your own way, or carry on with what you were doing. During this turn you can light fireworks behind you that spell out 2027, with the action word ${FIREWORKS_2027} on its own. They can play once, until local midnight at the latest.`,
   },
 
   dateLocale: 'en-US',
