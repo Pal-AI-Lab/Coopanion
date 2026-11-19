@@ -70,6 +70,7 @@ const KEYS = {
   bubbleSize: `${K}.window.bubbleSize`,
   fontSize: `${K}.window.fontSize`,
   bubbleSpeed: `${K}.window.bubbleSpeed`,
+  sayBubbleHoldSec: `${K}.window.sayBubbleHoldSec`,
   glow: `${K}.window.glow`,
   lockFps: `${K}.window.lockFrameRate`,
   frameRate: `${K}.window.frameRate`,
@@ -92,6 +93,7 @@ const KEYS = {
   dblclick: `${K}.doubleClickChat`,
   statusBubble: `${K}.statusBubble`,
   saidBubbles: `${K}.saidBubbles`,
+  saidBubbleHoldSec: `${K}.saidBubbleHoldSec`,
   wakeOn: `${K}.touch.wakeOn`,
   selfAdjust: `${K}.selfAdjust`,
 } as const;
@@ -136,6 +138,8 @@ const GLOW_MAX = 16, GLOW_DEFAULT = 7;
 const BUBBLE_SIZE_MIN = .8, BUBBLE_SIZE_MAX = 1.6;
 /** The range of Coo's bubble speed, as BUBBLE_SPEED_MIN and BUBBLE_SPEED_MAX in the World's config.ts; at 1 a bubble types 20 characters a second. */
 const BUBBLE_SPEED_MIN = .5, BUBBLE_SPEED_MAX = 2;
+/** The longest fixed bubble hold in seconds, as BUBBLE_HOLD_MAX in the World's config.ts; 固定 first shows HOLD_START, about the automatic hold of a 50-character line at bubble speed 1 (1.6 + 50 × .07). */
+const BUBBLE_HOLD_MAX = 60, HOLD_START = 5;
 const FRAME_RATES = [60, 120, 144, 0];
 
 /** While the size slider moves, at most one save per this many milliseconds. */
@@ -210,6 +214,42 @@ async function mount(ctx: PageContext): Promise<void> {
   const bubbleSize = percentSlider(S.bubbleSize, KEYS.bubbleSize, BUBBLE_SIZE_MIN, BUBBLE_SIZE_MAX);
   const fontSize = percentSlider(S.fontSize, KEYS.fontSize, BUBBLE_SIZE_MIN, BUBBLE_SIZE_MAX);
   const bubbleSpeed = percentSlider(S.bubbleSpeed, KEYS.bubbleSpeed, BUBBLE_SPEED_MIN, BUBBLE_SPEED_MAX);
+  /** 自动, saved as 0, or 固定 with its seconds under it; 固定 starts from the seconds shown last. */
+  const holdPicker = (label: string, key: string) => {
+    const num = ui.input({ type: 'number' });
+    num.min = '1'; num.max = String(BUBBLE_HOLD_MAX); num.step = '1'; num.value = String(HOLD_START);
+    num.setAttribute('aria-label', label);
+    const numBox = ui.h('div', 'companion-rangebox');
+    numBox.append(num, ui.h('span', 'companion-rangeval', S.secondsUnit));
+    numBox.hidden = true;
+    const mode = ui.select({
+      options: [{ value: 'auto', label: S.bubbleHoldAuto }, { value: 'fixed', label: S.bubbleHoldFixed }],
+      onChange: (v) => {
+        numBox.hidden = v === 'auto';
+        if (v === 'fixed') num.dataset.saved = num.value;
+        void save(key, v === 'auto' ? 0 : Number(num.value), GROUP, mode);
+      },
+    });
+    mode.setAttribute('aria-label', label);
+    num.addEventListener('change', () => {
+      const n = Math.round(Number(num.value));
+      if (num.value === '' || !Number.isFinite(n) || n < 1 || n > BUBBLE_HOLD_MAX) { num.value = num.dataset.saved ?? String(HOLD_START); return; }
+      num.value = String(n);
+      if (num.value !== num.dataset.saved) { num.dataset.saved = num.value; void save(key, n, GROUP, num); }
+    }, { signal });
+    num.addEventListener('keydown', (e) => { if (e.key === 'Enter') num.blur(); }, { signal });
+    const box = ui.h('div', 'companion-switchbox companion-steps');
+    box.append(mode, numBox);
+    const sync = (v: unknown) => {
+      if (typeof v !== 'number') return;
+      if (document.activeElement !== mode) { mode.value = v ? 'fixed' : 'auto'; numBox.hidden = !v; }
+      if (v && document.activeElement !== num) num.value = num.dataset.saved = String(v);
+    };
+    const setEnabled = (on: boolean) => { mode.disabled = num.disabled = !on; };
+    return { box, sync, setEnabled };
+  };
+  const sayHold = holdPicker(S.sayBubbleHold, KEYS.sayBubbleHoldSec);
+  const saidHold = holdPicker(S.saidBubbleHold, KEYS.saidBubbleHoldSec);
   const frameRate = ui.segmented(FRAME_RATES.map((n) => ({ value: String(n), label: n ? String(n) : S.frameUnlimited })),
     { size: 'sm', onSelect: (v) => void save(KEYS.frameRate, Number(v), GROUP, frameRate.el) });
   const lockFps = ui.checkbox(S.lockFps, { onChange: (on) => void save(KEYS.lockFps, on, GROUP, lockFps.el) });
@@ -222,7 +262,7 @@ async function mount(ctx: PageContext): Promise<void> {
   const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on, GROUP, remember.el) });
   const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on, GROUP, dblclick.el) });
   const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on, GROUP, statusBubble.el) });
-  const saidBubbles = ui.checkbox(S.saidBubble, { onChange: (on) => void save(KEYS.saidBubbles, on, GROUP, saidBubbles.el) });
+  const saidBubbles = ui.checkbox(S.saidBubble, { onChange: (on) => { saidHold.setEnabled(on); void save(KEYS.saidBubbles, on, GROUP, saidBubbles.el); } });
   // the two rows below follow the pet panel's state; 「自定义…」 is picked by saving its popup
   let habit: Habits = { wake: { wakeOn: 'poke', wakeKinds: ['poke'] }, selfAdjust: { mode: 'default', custom: {} } };
   const wakeHint = ui.h('p', 'home-note');
@@ -430,7 +470,8 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.dblclickLabel, dblclick.el),
     row(S.typeKeyLabel, typeBox, typeHint),
     row(S.statusBubbleLabel, statusBubble.el, S.statusBubbleHint),
-    row(S.saidBubbleLabel, saidBubbles.el, S.saidBubbleHint),
+    row(S.saidBubbleLabel, saidBubbles.el),
+    row(S.saidBubbleHold, saidHold.box, S.saidBubbleHint),
   );
   const display = ui.sheet({ title: S.groupDisplay });
   display.body.append(
@@ -438,6 +479,7 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.bubbleSize, bubbleSize.box, S.bubbleSizeHint),
     row(S.fontSize, fontSize.box, S.fontSizeHint),
     row(S.bubbleSpeed, bubbleSpeed.box, S.bubbleSpeedHint),
+    row(S.sayBubbleHold, sayHold.box, S.sayBubbleHoldHint),
     row(S.glow, glowBox, S.glowHint),
     row(S.frameRate, frameRate.el, S.frameRateHint),
     row('', lockFps.el, S.lockFpsHint),
@@ -483,7 +525,7 @@ async function mount(ctx: PageContext): Promise<void> {
   const snore = ui.input({ type: 'number' });
   snore.min = '0'; snore.max = '3600'; snore.step = '1';
   const snoreBox = ui.h('div', 'companion-rangebox');
-  snoreBox.append(snore, ui.h('span', 'companion-rangeval', S.snoreUnit));
+  snoreBox.append(snore, ui.h('span', 'companion-rangeval', S.secondsUnit));
   sounds.body.append(
     row(S.soundLabel, sound.el, S.worldScope),
     volumeRow,
@@ -708,6 +750,9 @@ async function mount(ctx: PageContext): Promise<void> {
     if (typeof values[KEYS.dblclick] === 'boolean') dblclick.setChecked(values[KEYS.dblclick] as boolean);
     if (typeof values[KEYS.statusBubble] === 'boolean') statusBubble.setChecked(values[KEYS.statusBubble] as boolean);
     if (typeof values[KEYS.saidBubbles] === 'boolean') saidBubbles.setChecked(values[KEYS.saidBubbles] as boolean);
+    saidHold.setEnabled(saidBubbles.checked);
+    sayHold.sync(values[KEYS.sayBubbleHoldSec]);
+    saidHold.sync(values[KEYS.saidBubbleHoldSec]);
     if (typeof values[KEYS.overlay] === 'boolean') overlay.setChecked(values[KEYS.overlay] as boolean);
     // a popup open over the page keeps the rows as they are until it is saved or closed
     const state = await habitState;

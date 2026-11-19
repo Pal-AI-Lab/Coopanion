@@ -1,5 +1,5 @@
 /**
- * The `coo` module's clients behind Cortico's `ImageFallback`, called through `ProviderRegistry.bind`
+ * The `coo` module's clients behind Cortico's `AttachmentFallback`, called through `ProviderRegistry.bind`
  * as Core calls them, on every protocol against a local fake service that refuses a request by its body.
  */
 import { afterEach, describe, expect, it } from 'vitest';
@@ -13,7 +13,7 @@ import type { Request } from 'cortico/protocol/open-responses/index.ts';
 import { message, type ContextRecord } from 'cortico/protocol/open-responses/context.ts';
 import { blobLine } from 'cortico/core/blobs.ts';
 import { ProviderRegistry } from 'cortico/providers/registry.ts';
-import { imageLeftOut } from 'cortico/providers/transport/image-fallback.ts';
+import { attachmentLeftOut } from 'cortico/providers/transport/attachment-fallback.ts';
 import COO from '../src/index.ts';
 import { PROTOCOLS, type Protocol } from '../src/vendors.ts';
 
@@ -21,6 +21,9 @@ const IMAGE = Buffer.from('an image the service cannot decode');
 const IMAGE_DATA = IMAGE.toString('base64');
 const picture: BlobRef = { handle: 'log:0123456789abcdef0123.png', mime: 'image/png', name: 'big.png', fallbackText: 'Image' };
 const withPicture = message('user', `看这张\n${blobLine(picture)}`, { blobs: [picture] });
+const PDF = Buffer.from('%PDF a document the service will not take');
+const document: BlobRef = { handle: 'log:0123456789abcdef0124.pdf', mime: 'application/pdf', name: 'big.pdf', fallbackText: 'PDF' };
+const withDocument = message('user', `看这份\n${blobLine(document)}`, { blobs: [document] });
 
 const REPLIES: Record<string, object> = {
   '/responses': { id: 'r1', object: 'response', model: 'm', status: 'completed', created_at: 1, usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
@@ -60,7 +63,7 @@ function ask(url: string, protocol: Protocol, context: ContextRecord[]) {
   const entry: LLMProviderEntry = { kind: 'coo', baseUrl: url, secret: 'COO_TEST_KEY', options: { protocol }, spec: { model: 'm', thinking: false }, multimodal: true };
   const registry = new ProviderRegistry(() => ({ x: entry }), {
     stateRoot: root, keepThinking: () => true, log: nullLogger(),
-    readBlob: (handle) => (handle === picture.handle ? IMAGE : null),
+    readBlob: (handle) => (handle === picture.handle ? IMAGE : handle === document.handle ? PDF : null),
   }, [COO]);
   return registry.bind('x').respond({ model: 'm', input: [] } as unknown as Request, { context });
 }
@@ -73,8 +76,17 @@ describe('a request the model service refuses, sent through the registry', () =>
       const out = await ask(url, protocol, [withPicture]);
       expect(out.attempts.map((a) => a.status), protocol).toEqual([400, 200]);
       expect(bodies.map(carriesImage), protocol).toEqual([true, false]);
-      expect(bodies[1], protocol).toContain(imageLeftOut(picture.handle));
+      expect(bodies[1], protocol).toContain(attachmentLeftOut(picture.handle));
     }
+  });
+
+  it('goes out once more without a PDF on the Gemini API, which sends PDFs inline', async () => {
+    const carriesPdf = (body: string) => body.includes(PDF.toString('base64'));
+    const { url, bodies } = await service(carriesPdf);
+    const out = await ask(url, 'gemini', [withDocument]);
+    expect(out.attempts.map((a) => a.status)).toEqual([400, 200]);
+    expect(bodies.map(carriesPdf)).toEqual([true, false]);
+    expect(bodies[1]).toContain(attachmentLeftOut(document.handle));
   });
 
   it('is not sent again when its only images are older than the newest delivered batch, which no client attaches: one request', async () => {

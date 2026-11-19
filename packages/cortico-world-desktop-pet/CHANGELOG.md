@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Config `window.sayBubbleHoldSec` and `saidBubbleHoldSec` (integer seconds, 0–60, 0 by default): 1–60 holds each part of a line that long once typed out, or an input bubble that long from when it was sent or recognized; 0 keeps the automatic holds. `pet_say` receipts count a fixed speech hold, for the line and for those queued ahead of it.
+- Config `asr.recording` (`enabled` and `transcript` on, `maxMinutes` 5 by default, 1–7): while `enabled` is on and the endpoint takes `audio/wav`, a `desktop-pet.speech` event carries the batch's recording as a WAV attachment; with `transcript` off its text leaves out what was recognized. A batch whose recording runs past `maxMinutes` goes as text alone. The voice panel has a row for each, and its `state` carries `recording` with `range` and `endpointTakesAudio`; panel method `setRecording`.
 - The managed Electron runtime that hosts the pet window outside an app has a Windows arm64 build (`win32-arm64`).
 - Config `window.hideFromCapture` (Windows, off by default): on, the pet window is left out of screenshots and screen recordings (`setContentProtection`), those of `pet_cua_screenshot` included.
 - Config `window.overTaskbar` (Windows, on by default): off, the pet window ends at the work area's bottom and no longer reaches down over the taskbar.

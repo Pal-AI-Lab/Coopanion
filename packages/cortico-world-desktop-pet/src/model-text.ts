@@ -52,6 +52,10 @@ const zh = {
   heard: (user: string, text: string) => `[voice] ${user}:${text}`,
   talkKeyUnreadable: (user: string, problem: string) => `[talk-key] 说话键读不到,${user}按说话键说的话收不到:${problem}`,
   image: (user: string, i: number, total: number) => `[${user}发来的图片 ${i}/${total}]`,
+  recording: (user: string, seconds: number) => `[${user}说这段话的录音,${seconds} 秒;上面的文字是从它识别出来的]`,
+  /** A speech batch sent as its recording alone (`asr.recording.transcript` off). */
+  heardRecorded: (user: string) => `[voice] ${user}说了一段话,内容在下面的录音里`,
+  recordingAlone: (user: string, seconds: number) => `[${user}说这段话的录音,${seconds} 秒]`,
 
   answerClosed: (user: string, question: string) => `[answer] ${user}关掉了提问「${question}」,没有作答。`,
   answerPicked: (user: string, question: string, n: number, option: string) => `[answer] ${user}回答「${question}」:选了第 ${n} 项「${option}」`,
@@ -203,6 +207,9 @@ const en: typeof zh = {
   heard: (user, text) => `[voice] ${user}: ${text}`,
   talkKeyUnreadable: (user, problem) => `[talk-key] The talk key cannot be read, so what ${user} says with it is not heard: ${problem}`,
   image: (user, i, total) => `[image ${i}/${total} from ${user}]`,
+  recording: (user, seconds) => `[recording of what ${user} said, ${seconds} s; the text above was recognized from it]`,
+  heardRecorded: (user) => `[voice] ${user} said something; it is in the recording below`,
+  recordingAlone: (user, seconds) => `[recording of what ${user} said, ${seconds} s]`,
 
   answerClosed: (user, question) => `[answer] ${user} closed the question "${question}" without answering.`,
   answerPicked: (user, question, n, option) => `[answer] ${user} answered "${question}": picked option ${n}, "${option}"`,

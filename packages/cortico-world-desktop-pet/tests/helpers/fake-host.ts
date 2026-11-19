@@ -31,7 +31,7 @@ export class FakeHost implements WorldHost {
   mem = new Map<string, { bytes: Uint8Array; mime: string }>();
   blob = (handle: string): { bytes: Uint8Array; mime: string } | null =>
     handle.startsWith('mem:') ? this.mem.get(handle) ?? null : this.logBlobs.read(handle);
-  modelFacts = { model: () => 'test', accepts: () => false, contextWindow: () => 128000 };
+  modelFacts: WorldHost['modelFacts'] = { model: () => 'test', accepts: () => false, contextWindow: () => 128000 };
   log = {
     child() {
       return this;
