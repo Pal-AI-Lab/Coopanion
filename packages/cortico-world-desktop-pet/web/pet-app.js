@@ -650,8 +650,16 @@ bubble.addEventListener('pointerenter', () => {
 });
 bubble.addEventListener('pointerleave', () => {
   bubbleHovered = false;
-  // only a question the pointer itself pulled the keyboard for: an open typing box keeps it
-  if (item && item.kind === 'ask' && item.grabbedByHover) releaseKeys(item);
+  // only a question the pointer itself pulled the keyboard for, and only while nobody is typing in
+  // it: an open typing box, or the question's own answer field, keeps the keyboard where it is
+  if (item && item.kind === 'ask' && item.grabbedByHover && !bubble.contains(document.activeElement)) releaseKeys(item);
+});
+// Another app took the keyboard on its own (Alt+Tab, a click elsewhere): the claim recorded here is
+// stale, and only dropping it lets a pointer-enter on the question still up take the keyboard back.
+window.addEventListener('blur', () => {
+  if (document.hasFocus() || !item?.grabbed) return;
+  item.grabbed = false;
+  item.grabbedByHover = false;
 });
 
 function stepDialog(dt) {
