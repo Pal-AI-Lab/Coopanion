@@ -12,6 +12,7 @@ import { problemPopover, problemAnchorVisible, listProblem, scrollerOf, wheelInt
 import { fold, measureReflow, prefersStill } from '../../../base/motion.ts';
 import { matchRanges, matchRank, prepareFields, searchTerms, type MatchRank, type PreparedFields } from './search.ts';
 import { hideTip, showTip } from '../../../base/ui/tip.ts';
+import { extensionForWorld } from '../worlds/library.ts';
 
 /** 扩展类别。与 `ExtensionKind` 同形;这一页只用它分组与选关键字。 */
 export type ExtensionKindView = 'world' | 'provider' | 'bot';
@@ -463,7 +464,17 @@ export interface ExtensionController {
   restart(): Promise<void>;
 }
 
+type ExtensionContext = Pick<FeatureContext, 'root' | 'ui' | 'lifecycle' | 'signal' | 'capabilities'>;
+
 export function mountExtensionContent(ctx: FeatureContext, kind: Category, workspace?: ExtensionWorkspace): ExtensionController {
+  return createExtensionContent(ctx, kind, true, workspace);
+}
+
+export function mountWorldExtensionDetails(ctx: ExtensionContext): (id: string, anchor: HTMLButtonElement) => Promise<void> {
+  return createExtensionContent(ctx, 'world', false).worldDetails;
+}
+
+function createExtensionContent(ctx: ExtensionContext, kind: Category, catalog: boolean, workspace?: ExtensionWorkspace) {
   const { root, ui, lifecycle, signal } = ctx;
   const win = root.ownerDocument.defaultView!;
   const restartRoot = workspace?.restartRoot ?? ui.h('div', 'extension-catalog-restart');
@@ -558,7 +569,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   let installedFetched = false;
   let restoringScroll = true;
   const restoreScroll = () => {
-    if (root.hidden || !restoringScroll || !installedFetched || !states[kind].fetched) return;
+    if (!catalog || root.hidden || !restoringScroll || !installedFetched || !states[kind].fetched) return;
     scrollRoot.scrollTop = states[kind].scroll;
     restoringScroll = false;
   };
@@ -566,20 +577,12 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   const busy = new Set<string>();
   const doc = root.ownerDocument;
   const scrollRoot = ui.h('div', 'world-catalog-scroll');
-  root.addEventListener('wheel', event => {
-    const target = event.target as Element;
-    if (target.closest('.world-catalog-scroll, .world-catalog-filters, select, textarea')) return;
-    const own = scrollerOf(target); if (own && root.contains(own) && own !== root) return;
-    wheelInto(scrollRoot, event);
-  }, { passive: false, signal });
   const narrowFilters = win.matchMedia?.('(max-width: 760px)');
   let narrowFiltersOpen = false;
   let syncFilterLayout: (() => void) | undefined;
-  narrowFilters?.addEventListener('change', () => syncFilterLayout?.(), { signal });
   // 历史版本下拉:在同一个抽屉里点别处就收起;确认框等别的浮层里的点击不算
   doc.addEventListener('click', event => { for (const open of doc.querySelectorAll<HTMLDetailsElement>('.extension-releases[open]')) if (!open.contains(event.target as Node) && open.closest('.modalcard')?.contains(event.target as Node)) open.open = false; }, { signal });
   const panel = ui.h('div', 'extension-category world-catalog');
-  root.append(panel);
   let marketGrid: HTMLElement, marketPager: HTMLElement;
   let tagBar: HTMLElement | undefined, activeBar: HTMLElement | undefined, warningControl: HTMLElement | undefined, clearButton: HTMLButtonElement | undefined, licenseList: HTMLElement | undefined;
   let messageNodes: Record<string, HTMLElement> = {};
@@ -591,8 +594,6 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
       win.sessionStorage.setItem(storageKey, JSON.stringify({ ...JSON.parse(win.sessionStorage.getItem(storageKey) ?? '{}'), [kind]: saved }));
     } catch { /* Optional browser state. */ }
   };
-  scrollRoot.addEventListener('scroll', save, { signal, passive: true }); lifecycle.add(save);
-  for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) root.addEventListener(event, () => { restoringScroll = false; }, { signal, passive: true });
   function message(owner: Category, area: string, text: string, bad = false) {
     states[owner].messages[area] = { text, bad };
     if (owner === kind && messageNodes[area]) { messageNodes[area].textContent = text; messageNodes[area].className = 'msgline' + (bad ? ' bad' : ''); }
@@ -637,20 +638,24 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     }
     return request;
   }
-  function showLocal(item: ExtensionView) {
+  function showLocal(item: ExtensionView, catalogReady?: Promise<void>) {
     const box = ui.h('div', 'extension-detail');
     detailDrawer?.dispose(); detailDrawer = ui.drawer(item.metadata?.displayName ?? item.label ?? item.name, box);
-    // 内建 World 也以 cortico-world-<id> 发布在 npm 上,讨论帖与标签跟那个包
-    const hit = states[kind].hits.find(hit => hit.name === item.name || (item.builtin && !!item.worldId && hit.name === 'cortico-world-' + item.worldId));
     const local: PackageDetailView = { name: item.name, version: item.installedVersion ?? item.version ?? '—', versionCount: 0, history: [], warnings: [], frameworkApi: item.api ?? 0, dependencies: [], maintainers: [], links: {}, installed: true, ...item.metadata, description: item.description ?? item.metadata?.description, author: item.author };
-    renderDetail(box, local, kind, hit, item);
+    let data = local, failure: string | undefined;
+    const paint = () => {
+      if (signal.aborted || !box.isConnected) return;
+      // 内建 World 也以 cortico-world-<id> 发布在 npm 上,讨论帖与标签跟那个包
+      const hit = states[kind].hits.find(hit => hit.name === item.name || (item.builtin && !!item.worldId && hit.name === 'cortico-world-' + item.worldId));
+      renderDetail(box, data, kind, hit, item);
+      if (failure !== undefined) detailLoadError(box, failure);
+    };
+    paint();
+    void catalogReady?.then(paint);
     if (!item.builtin && !/^(link:|file:)/.test(item.spec) && item.state !== 'removed') {
-      void fetchDetail(item.name, undefined, true).then(data => {
-        if (!signal.aborted && box.isConnected) renderDetail(box, data, kind, hit, item);
-      }).catch(error => {
-        if (!signal.aborted && box.isConnected) {
-          detailLoadError(box, errorText(error));
-        }
+      void fetchDetail(item.name, undefined, true).then(next => { data = next; paint(); }, error => {
+        failure = errorText(error);
+        if (!signal.aborted && box.isConnected) detailLoadError(box, failure);
       });
     }
   }
@@ -708,7 +713,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     pendingProblems.delete(key);
     if (problemAnchorVisible(anchor())) problems.show(anchor, text); else pendingProblems.set(key, { anchor, text });
   }
-  const marketControl = (name: string) => marketGrid.querySelector(`.extension-market-card[data-name="${CSS.escape(name)}"] .extension-get`);
+  const marketControl = (name: string) => marketGrid?.querySelector(`.extension-market-card[data-name="${CSS.escape(name)}"] .extension-get`);
   const restartControl = () => restartRoot.querySelector('.extension-restart');
   /** Failed reads of the installed list and of the search, above the cards, each with its retry; the cards stay. */
   function paintListProblems() {
@@ -1198,6 +1203,21 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const hit = states[kind].hits.find(hit => hit.name === name);
     if (hit) openDetail(hit, kind);
   }
+  async function worldDetails(id: string, anchor: HTMLButtonElement): Promise<void> {
+    if (anchor.getAttribute('aria-busy') === 'true') return;
+    anchor.setAttribute('aria-busy', 'true');
+    try {
+      const loaded = await load();
+      if (signal.aborted) return;
+      if (!loaded) { problems.show(anchor, listErrorText); return; }
+      const item = extensionForWorld(id, installed);
+      if (!item) { problems.show(anchor, S.notInstalled); return; }
+      showLocal(item, search(kind));
+      void checkUpdates();
+    } finally {
+      anchor.removeAttribute('aria-busy');
+    }
+  }
   function renderRestart() {
     const pending = installed.some(item => (item.kind === kind || !item.kind) && (item.state === 'pending-restart' || item.state === 'removed'));
     const button = restartRoot.querySelector<HTMLButtonElement>('.extension-restart');
@@ -1315,6 +1335,11 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
    * Returns whether the list moved to a combination's place (see places), which a caller keeping its scroll leaves.
    */
   function renderMarket(toTop = false): boolean {
+    if (!catalog) {
+      paintDetailControls();
+      showProblems();
+      return false;
+    }
     const reflow = measureCards();
     const state = states[kind];
     paintCategories?.();
@@ -1404,7 +1429,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     }
     for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) foldTags(row);
     renderInView();
-    for (const [control, paint] of detailControls) if (control.isConnected) paint(); else detailControls.delete(control);
+    paintDetailControls();
     // A failed search keeps the cards already listed, installed providers among them; its failure shows above them.
     const searchFailed = !!state.messages.market?.bad;
     if (!result.matched && !searchFailed) marketGrid.append(emptyMarket(state));
@@ -1611,6 +1636,9 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   }
   /** The detail page's install control, repainted whenever the market's cards are. */
   const detailControls = new Map<HTMLElement, () => void>();
+  function paintDetailControls() {
+    for (const [control, paint] of detailControls) if (control.isConnected) paint(); else detailControls.delete(control);
+  }
   function renderDetail(box: HTMLElement, data: PackageDetailView, owner: Category, hit?: SearchHitView, item?: ExtensionView) {
       const title = box.closest('.modalcard')?.querySelector('.modaltitle');
       if (title) title.textContent = data.displayName ?? item?.metadata?.displayName ?? item?.label ?? data.name;
@@ -2001,16 +2029,28 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     if (!renderMarket()) scrollRoot.scrollTop = keptScroll;
     reflow?.play(marketGrid);
   }
-  // 只看宽度变化
-  let panelWidth = panel.clientWidth;
-  if (typeof win.ResizeObserver === 'function') { const observer = new win.ResizeObserver(() => {
-    if (!panel.clientWidth || panel.clientWidth === panelWidth) return;
-    panelWidth = panel.clientWidth;
-    for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) if (!row.classList.contains('is-open')) foldTags(row);
-  }); observer.observe(panel); lifecycle.add(() => observer.disconnect()); }
-  render();
-  void load(); void checkUpdates(); void search(kind); void loadRegistry();
-  try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { showRestarting(true); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
+  if (catalog) {
+    root.append(panel);
+    root.addEventListener('wheel', event => {
+      const target = event.target as Element;
+      if (target.closest('.world-catalog-scroll, .world-catalog-filters, select, textarea')) return;
+      const own = scrollerOf(target); if (own && root.contains(own) && own !== root) return;
+      wheelInto(scrollRoot, event);
+    }, { passive: false, signal });
+    narrowFilters?.addEventListener('change', () => syncFilterLayout?.(), { signal });
+    scrollRoot.addEventListener('scroll', save, { signal, passive: true }); lifecycle.add(save);
+    for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) root.addEventListener(event, () => { restoringScroll = false; }, { signal, passive: true });
+    // 只看宽度变化
+    let panelWidth = panel.clientWidth;
+    if (typeof win.ResizeObserver === 'function') { const observer = new win.ResizeObserver(() => {
+      if (!panel.clientWidth || panel.clientWidth === panelWidth) return;
+      panelWidth = panel.clientWidth;
+      for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) if (!row.classList.contains('is-open')) foldTags(row);
+    }); observer.observe(panel); lifecycle.add(() => observer.disconnect()); }
+    render();
+    void load(); void checkUpdates(); void search(kind); void loadRegistry();
+    try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { showRestarting(true); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
+  }
   const activate = (until?: Promise<unknown>) => {
     const own = revealEnd = until;
     const over = () => { if (revealEnd === own) revealEnd = undefined; };
@@ -2019,5 +2059,5 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     // Whether a provider is in use depends on the connections under Settings, which may have changed.
     if (kind === 'provider') void load();
   };
-  return { details, remove, activate, restart, refresh: load };
+  return { details, remove, activate, restart, refresh: load, worldDetails };
 }

@@ -211,6 +211,8 @@ App Store 在前台时，Coo 会退到其他窗口后面，免得挡住购买时
 - 点名字或头像看扩展详情，进入它的配置；
 - 把 World 从侧栏藏起来，或者让它照常运行、但不让 Coo 看到它的工具和消息，也可以停用、单独重启或删除它。
 
+在 World 设置页，点击标题旁带圆圈的 **i** 即可打开扩展详情。
+
 运行中的 World 不能删除，要先停用。删除的 World 会标红留在「待生效」里，重启进程后才消失。
 
 <p align="center"><img src="image/README/worlds-zh.png" alt="World 扩展：已安装的 World、状态与分组入口" width="960"></p>
