@@ -19,16 +19,17 @@ npmRebuild: false
 nodeGypRebuild: false
 files:
   - "**/*"
-# where app/updater.cjs looks for releases; with --publish never this only writes latest.yml and
-# latest-linux.yml next to the installers (and app-update.yml into the app), which the release workflow uploads
+# where app/updater.cjs looks for releases; with --publish never this only writes latest.yml (latest-arm64.yml
+# for Windows on Arm, scripts/pack.ts) and latest-linux.yml next to the installers (and app-update.yml into the
+# app), which the release workflow uploads
 publish:
   provider: github
   owner: Pal-AI-Lab
   repo: Coopanion
 win:
+  # x64 or arm64, whichever scripts/pack.ts asks for
   target:
     - target: nsis
-      arch: [x64]
   icon: app/icons/icon.ico
   # the portable zip (COOPANION_CHANNEL=portable, scripts/pack.ts asks for the zip target); the installer is named under nsis
   artifactName: Coopanion-${version}-win-${arch}-portable.${ext}
@@ -49,6 +50,7 @@ nsis:
   displayLanguageSelector: false
   runAfterFinish: true
   deleteAppDataOnUninstall: false
+  # the x64 installer; scripts/pack.ts names the Windows on Arm one Coopanion-Setup-<version>-arm64.exe
   artifactName: Coopanion-Setup-${version}.exe
 # No Developer ID: the app is signed ad hoc ("-"), which Apple silicon needs to launch it at all;
 # the first open goes through Privacy & Security → Open Anyway (see the README). It lives in the

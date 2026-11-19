@@ -207,6 +207,7 @@ Coo、精灵图和 Live2D 式分件模型都画在页面的沙箱 frame 里,截�
 
 `sherpa-onnx-node` 是本包的依赖,随包安装(Windows 约 24 MB,macOS 约 35 MB,Linux x64 约 33 MB),不在运行时下载;
 Windows x64、macOS arm64 / x64、Linux x64 / arm64 都有预编译包,Linux 上要 glibc 2.32 与 GCC 11 的 libstdc++ 以上(Ubuntu 22.04、Debian 12 起)。
+Windows arm64 的预编译包(`sherpa-onnx-win-arm64`)不在这一版 `sherpa-onnx-node` 的依赖里:Coopanion 的 Windows arm64 安装包自己带上它;本包单独装进 Cortico 时,`funasr` 和 `whisper` 在 Windows arm64 上载入不了。
 只有模型要下载:「语音输入」面板(或应用的新手引导)点一下「下载」,下的是当前引擎的模型;当前是 `system` 时下应用语言对应的那个,下完就换过去。
 文件依次从 ModelScope 取(国内可直接访问),取不到再从 Hugging Face 取,逐个按固定的 SHA-256 校验:
 

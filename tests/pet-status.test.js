@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { clamp, f, ICONS, linked } from '../packages/cortico-world-desktop-pet/web/ui.js';
+import { clamp, f, ICONS, layBeside, linked } from '../packages/cortico-world-desktop-pet/web/ui.js';
 import { COO_CSS, mini, normalizeSkin, skinCss } from '../packages/cortico-world-desktop-pet/web/coo/coo.js';
 import { t } from '../packages/cortico-world-desktop-pet/web/i18n.js';
 import { SIZE, scaleSlider, sizeEcho } from '../packages/cortico-world-desktop-pet/web/scale-slider.js';
@@ -38,7 +38,7 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     send(data) { this.sent.push(JSON.parse(data)); }
   };
   win.deps = {
-    applyTheme: (theme) => { win.document.documentElement.dataset.theme = theme; }, clamp, f, ICONS, linked: (text, n) => linked(text, n, win.document),
+    applyTheme: (theme) => { win.document.documentElement.dataset.theme = theme; }, clamp, f, ICONS, layBeside, linked: (text, n) => linked(text, n, win.document),
     COO_CSS, mini, normalizeSkin, skinCss,
     createSfx: () => ({ unlock() {}, pop() {}, alert() {}, babble() {}, blub() {}, configure() {}, set() {}, setPan() {}, listenStart() {}, listenEnd() {}, select() {}, tick() {}, ...sfx }),
     createSpeech: () => ({ configure() {}, begin() {}, reveal() { return false; }, stop() {}, active: false, ...speech }),
@@ -55,7 +55,7 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     // hover hints (hints.js) are not what these tests look at
     mountHints() {}, tipOf, tipWithoutNote,
   };
-  win.eval(`const { applyTheme, clamp, f, ICONS, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints, tipOf, tipWithoutNote } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepTalkRead(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
+  win.eval(`const { applyTheme, clamp, f, ICONS, layBeside, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints, tipOf, tipWithoutNote } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepTalkRead(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
@@ -700,6 +700,22 @@ describe('the right-click menu', () => {
     bare.onOrder({ t: 'prefs', hoverButtons: [] });
     bare.openMenu();
     expect(bare.doc.querySelector('#menu').hidden).toBe(true);
+  });
+
+  it('lays its buttons out as the hover buttons are, mirrored alike when the body is near the right edge', () => {
+    for (const x of [450, 1000]) {
+      const p = page({ host: true });
+      p.win.deps.body.layout.x = x;
+      p.onOrder({ t: 'prefs', hoverButtons: ['chat', 'voice', 'theme', 'roam'] });
+      const tools = p.doc.querySelector('#tools');
+      tools.hidden = false;
+      p.step(.1);
+      const hover = { direction: tools.style.direction, dx: tools.style.getPropertyValue('--dx') };
+      p.openMenu();
+      const grid = p.doc.querySelector('.menu .m-grid');
+      expect({ direction: grid.style.direction, dx: grid.style.getPropertyValue('--dx') }, `body at ${x}`).toEqual(hover);
+      expect(hover.direction, `body at ${x}`).toBe(x > 900 ? 'rtl' : '');
+    }
   });
 });
 

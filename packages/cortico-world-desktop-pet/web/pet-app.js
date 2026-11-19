@@ -10,7 +10,7 @@
  * Colors follow the World's `theme` through `data-theme` on the root element, and text the app
  * language (i18n.js): the one stamped on the page, then the one the World's prefs carry.
  */
-import { applyTheme, clamp, f, ICONS, linked } from './ui.js';
+import { applyTheme, clamp, f, ICONS, layBeside, linked } from './ui.js';
 import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
@@ -1549,10 +1549,9 @@ function placeMenu(l) {
   // as far out from where the body stands as the hover buttons, so those that were showing stay where they were;
   // from where it stands, not from its box, which narrows and shifts as it turns round
   const c = l.side, reach = c.reach + 10, R = l.x + reach, L = l.x - reach;
-  const onRight = R + grid.offsetWidth <= innerWidth - 8;
+  const onRight = layBeside(grid, l.x, reach, innerWidth);
   // whole pixels: the menu rides up and down with the body, and text at a fraction of a pixel snaps on its own, apart from its frame
   const y = (el) => { el.style.top = Math.round(clamp(c.y - el.offsetHeight / 2, 8, innerHeight - el.offsetHeight - 8)) + 'px'; };
-  grid.style.left = f(clamp(onRight ? R : L - grid.offsetWidth, 8, innerWidth - grid.offsetWidth - 8)) + 'px';
   y(grid);
   // the run controls hold their edge next to the body, so the quit question grows away from it
   // a long quit question (Japanese, Russian) that would run off the left edge stays on the screen
@@ -1561,9 +1560,7 @@ function placeMenu(l) {
   // the buttons line up on the edge next to the body
   rail.style.alignItems = onRight ? 'flex-end' : 'flex-start';
   y(rail);
-  grid.style.direction = onRight ? '' : 'rtl';
-  // each side grows out of the body and folds back into it
-  grid.style.setProperty('--dx', onRight ? '-16px' : '16px');
+  // the run controls grow out of the body and fold back into it, as the grid does
   rail.style.setProperty('--dx', onRight ? '16px' : '-16px');
 }
 
@@ -2382,16 +2379,11 @@ const menuParts = () => [menu.querySelector('.m-grid'), menu.querySelector('.m-r
 /** The pointer is on one of the menu's two sides (the menu itself covers the page without taking the pointer). */
 function overMenu(p) { return !menu.hidden && !leaving(menu) && menuParts().some((el) => inRect(p, el.getBoundingClientRect(), 6)); }
 
-/** Beside the body, on the right unless that runs off the screen. */
+/** Beside the body as the menu's buttons are, so opening the menu leaves each button where it was. */
 function placeTools(l) {
   // across from where the body stands, not from its middle: a figure's middle swings sideways as it turns round
-  const c = { x: l.x, y: l.side.y }, reach = l.side.reach + 10;
-  const w = tools.offsetWidth, h = tools.offsetHeight;
-  const left = c.x + reach + w <= innerWidth - 8 ? c.x + reach : c.x - reach - w;
-  tools.style.left = f(clamp(left, 8, innerWidth - w - 8)) + 'px';
-  // they grow out of the body's side and fold back into it
-  tools.style.setProperty('--dx', left > c.x ? '-16px' : '16px');
-  tools.style.top = f(clamp(c.y - h / 2, 8, innerHeight - h - 8)) + 'px';
+  layBeside(tools, l.x, l.side.reach + 10, innerWidth);
+  tools.style.top = f(clamp(l.side.y - tools.offsetHeight / 2, 8, innerHeight - tools.offsetHeight - 8)) + 'px';
 }
 function layout(dt = 0) {
   const l = at();

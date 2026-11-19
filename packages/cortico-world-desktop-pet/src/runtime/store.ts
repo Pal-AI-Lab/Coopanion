@@ -75,6 +75,7 @@ export const ELECTRON_RUNTIME = {
   version: '44.4.4',
   assets: {
     'win32-x64': { file: 'electron-v44.4.4-win32-x64.zip', bytes: 158_149_795 },
+    'win32-arm64': { file: 'electron-v44.4.4-win32-arm64.zip', bytes: 156_416_869 },
     'darwin-arm64': { file: 'electron-v44.4.4-darwin-arm64.zip', bytes: 130_390_806 },
     'darwin-x64': { file: 'electron-v44.4.4-darwin-x64.zip', bytes: 134_174_708 },
     'linux-x64': { file: 'electron-v44.4.4-linux-x64.zip', bytes: 122_970_570 },
