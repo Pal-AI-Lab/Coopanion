@@ -99,7 +99,7 @@ const MOVING_MODES = new Set(['drag', 'air', 'crouch', 'land', 'walk', 'run', 'd
 const ANCHORS = { gaze: [140, 117], tear: [166, 136], z: [196, 40], hearts: [90, 175, 34], bubble: [128, 0] };
 /** The body's box in logo units, for a figure that names none (`figure.extent`), and its hit circles (`figure.hits`). */
 const EXTENT = [20, 12, 236, 256];
-export const DEFAULT_HITS = [[128, 128, 108]];
+const HITS = [[128, 128, 108]];
 const DEFAULT_HALF_WIDTH = 104;
 const EDGE_INSET = 8;
 
@@ -209,7 +209,7 @@ export function createPet(els, opts) {
   }
   /** The hit circles in stage pixels. */
   function hits() {
-    return (custom?.hits ?? DEFAULT_HITS).map(([x, y, r]) => ({ ...toStage(x, y), r: r * S }));
+    return (custom?.hits ?? HITS).map(([x, y, r]) => ({ ...toStage(x, y), r: r * S }));
   }
   function hitPet(p) {
     return hits().some((c) => Math.hypot(p.x - c.x, p.y - c.y) < c.r);
