@@ -46,8 +46,8 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
   明文回传时，没记下推理的工具调用前默认补一条占位推理(`syntheticReasoning`,即 Cortico 的 `sendSyntheticReasoning`):
   DeepSeek 不补会回 400;OpenRouter 不补。端点因此回 400 时，桌宠的失败气泡请使用者反馈给开发者。
 - **图片**:端点勾了「多模态」才发。新建端点和选模型时，按那一家列明能看图的模型(`Vendor.vision`)自动勾上或去掉「多模态」。
-  只发最近一批送达的事件(user 消息或事件帧)及其后的图片,更早的只留 Core 给每份附件写的 `[blob …]` 那行文字。
-  每次送达新的一批,请求里从上一批的第一张图起前缀缓存失效。Chat 的工具结果不带图片,图片挪到紧跟其后的一条 user 消息里;
+  只发最近一批送达的事件(user 消息或事件帧)及其后的附件,更早的不分类型，只留 Core 给每份附件写的 `[blob …]` 那行文字。
+  每次送达新的一批,请求里从上一批的第一份附件起前缀缓存失效。Chat 的工具结果不带图片,图片挪到紧跟其后的一条 user 消息里;
   千问、智谱国内、阶跃星辰、千帆的 Responses 文档写明 `function_call_output.output` 只收字符串(`toolOutputText`),也这样挪。
   带图的请求被回 413,或被回 400 且不是上下文超限时，去掉这些图片再发一次(Cortico 的 `ImageFallback`,四种协议和 ChatGPT 套餐的 client 都套着它，
   实例声明 `handlesRefusedImages`;带的图只算最近一批起实际附上的那些);这次被接受，就记下这些图片，之后经这个端点的请求都不带，
