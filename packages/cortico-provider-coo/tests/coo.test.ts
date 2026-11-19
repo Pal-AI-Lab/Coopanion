@@ -489,3 +489,48 @@ describe('audio on a Gemini endpoint', () => {
     expect(parts.some((p) => typeof p.text === 'string' && p.text.includes('traffic'))).toBe(true);
   });
 });
+
+describe('audio on a Doubao endpoint', () => {
+  const doubao = () => entry({ baseUrl: siteOf(VENDORS.find((v) => v.id === 'doubao')!, 'cn').baseUrl, spec: { model: 'doubao-seed-x', thinking: false } });
+  const spec = { model: 'doubao-seed-x', thinking: false };
+
+  it('accepts the audio types the service takes on a multimodal Doubao endpoint only', () => {
+    expect(COO.accepts!(doubao(), spec, 'audio/wav')).toBe(true);
+    expect(COO.accepts!(doubao(), spec, 'audio/mpeg')).toBe(true);
+    expect(COO.accepts!(doubao(), spec, 'audio/ogg')).toBe(false);
+    expect(COO.accepts!(doubao(), spec, 'video/mp4')).toBe(false);
+    expect(COO.accepts!({ ...doubao(), multimodal: false }, spec, 'audio/wav')).toBe(false);
+    expect(COO.accepts!(entry(), spec, 'audio/wav')).toBe(false);
+  });
+
+  it('sends the newest audio as input_audio in the item that carries it, in a tool result before its images', async () => {
+    const bodies: Array<{ input: Array<Record<string, any>> }> = [];
+    const reply = { id: 'r', object: 'response', model: 'm', status: 'completed', created_at: 1, output: [], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } };
+    vi.stubGlobal('fetch', async (_url: string, init: { body: string }) => {
+      bodies.push(JSON.parse(init.body));
+      return new Response(JSON.stringify(reply), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    const bytes: Record<string, Buffer> = { 'log:old.wav': Buffer.from('RIFF-old'), 'log:new.wav': Buffer.from('RIFF-new'), 'log:tool.mp3': Buffer.from('ID3'), 'log:a.jpg': Buffer.from('jpeg') };
+    const instance = COO.create('doubao', doubao(), { ...host(), readBlob: (handle: string) => bytes[handle] ?? null } as never);
+    const ref = (handle: string, mime: string) => ({ handle, mime, fallbackText: handle });
+    const heard = (handle: string) => ({ ...message('user', blobLine(ref(handle, 'audio/wav'))), context: { blobs: [ref(handle, 'audio/wav')] } });
+    const both = [ref('log:tool.mp3', 'audio/mpeg'), ref('log:a.jpg', 'image/jpeg')];
+    const audio = (handle: string, mime: string) => ({ type: 'input_audio', audio_url: `data:${mime};base64,${bytes[handle]!.toString('base64')}` });
+    const ask = [heard('log:old.wav'), message('assistant', 'heard it'), heard('log:new.wav')];
+    const tool = [...ask, functionCall('c1', 'listen', '{}'), functionResult('c1', 'clip', { blobs: both })];
+    try {
+      await instance.client.respond({ model: 'doubao-seed-x', input: ask.map((r) => r.item) } as unknown as Request, { context: ask });
+      await instance.client.respond({ model: 'doubao-seed-x', input: tool.map((r) => r.item) } as unknown as Request, { context: tool });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    const audioParts = (input: Array<Record<string, any>>) => input.flatMap((i) => (Array.isArray(i.content) ? i.content : []).filter((p: any) => p.type === 'input_audio'));
+    expect(audioParts(bodies[0].input)).toEqual([audio('log:new.wav', 'audio/wav')]);
+    const input = bodies[1].input;
+    const at = input.findIndex((i) => i.type === 'function_call_output' && i.call_id === 'c1');
+    // the tool result keeps its audio and its image, audio first; nothing follows it
+    expect(input[at].output.map((p: any) => p.type).filter((t: string) => t !== 'input_text')).toEqual(['input_audio', 'input_image']);
+    expect(input[at].output).toContainEqual(audio('log:tool.mp3', 'audio/mpeg'));
+    expect(input.slice(at + 1)).toEqual([]);
+  });
+});
