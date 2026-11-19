@@ -495,10 +495,25 @@ function stepActs() {
   const l = at();
   if (!l || l.busy) return;
   const a = acts.shift();
-  body.do(a);
+  if (a === FIREWORKS) lightFireworks(l); else body.do(a);
   actWord = a;
   actUntil = T + (words.get(a)?.seconds ?? 1);
   holdRoam(15);
+}
+/** The New Year fireworks, a word `act` orders carry only while the World offers it: a picture above and behind Coo, kept inside the window. */
+const FIREWORKS = 'fireworks_2027', FIREWORKS_W = 520, FIREWORKS_H = 310;
+/** A little past the 6.3 s the picture takes to fade out on its own. */
+const FIREWORKS_MS = 6500;
+function lightFireworks(l) {
+  const img = document.createElement('img');
+  img.className = 'fireworks';
+  img.src = '/web/new-year-2027.svg';
+  img.width = FIREWORKS_W;
+  img.height = FIREWORKS_H;
+  img.style.left = clamp(l.x - FIREWORKS_W / 2, 0, innerWidth - FIREWORKS_W) + 'px';
+  img.style.top = clamp(l.box.y + l.box.h / 2 - FIREWORKS_H, 0, innerHeight - FIREWORKS_H) + 'px';
+  stage.prepend(img);
+  setTimeout(() => img.remove(), FIREWORKS_MS);
 }
 
 /* ---------- say / ask ---------- */

@@ -45,9 +45,12 @@ bot 在屏幕底边有一个小身体,由一个形象包提供(见下文):内置
 | `desktop-pet.touch` | `[touch] 伙伴戳了你 3 下` / 摸了摸 / 拎起来甩了出去 / 摔晕 | `worlds.desktop-pet.touch.wakeOn` 让它唤醒的种类 debounce,其余 piggyback |
 | `desktop-pet.talk-key` | `[talk-key] 说话键读不到,伙伴按说话键说的话收不到:原因`(语音输入开着时，每次运行每种原因一条) | flush |
 | `desktop-pet.figure` | `[figure] 你现在的样子:…`(对方换了形象或打扮;bot 用 `pet_set` 自己换的不报) / `[figure] …没能显示出来(原因),你现在是 Coo 的样子` / `[figure] 词表变了。…`;词表或形象自己的目标有变化时都附上 | 换装 debounce,显示失败 flush |
+| `desktop-pet.holiday` | `[holiday] 今天是圣诞节。` / 2027 年元旦那条另写烟花和动作词 `fireworks_2027` | debounce |
 
 每条事件的正文前是对方那边的本地时间 `[HH:MM]`;一次运行的第一条、换了日期后的第一条带日期和星期 `[MM-DD 周X HH:MM]`。
 表里是中文版;模型文本是英文时,标签是 `[voice]` `[typed]` `[answer]` `[touch]` `[figure]`,星期写 `Sun` 这样的英文缩写。
+
+节日事件按对方的本地日期(12 月 25 日、2027 年 1 月 1 日),在当天桌宠第一次出现在桌面上时发,桌宠开着跨过零点的一分钟内也发;事件库里当天已有这条就不再发,重连和重启都一样。收到元旦事件的那一轮,`pet_act` 认 `fireworks_2027`,桌宠页在身后放 6.5 秒烟花(`web/new-year-2027.svg`);放过一次或这一轮结束就不再认。
 
 同一种互动 2.5 秒内连着来,并成一条带次数的事件。`wakeOn`(「习惯」页的「回应模式」)默认 `poke`:只有戳唤醒,摸头、放下和甩出跟着下一批送;`all` 都唤醒;`none` 都跟着下一批送;`custom` 只有 `touch.wakeKinds` 里的种类(`poke` `pet` `throw` `drop`,摔晕算在它结束的那次甩出或放下里)唤醒。鼠标划过桌宠也算摸头,拖开挡路的桌宠也算放下。一条互动按 debounce 送出后,到 bot 下一次结束一轮前,其余互动都按 piggyback 送。「伙伴」取自 `worlds.desktop-pet.user`,空着时是应用语言的默认称呼(`src/i18n`)。
 
