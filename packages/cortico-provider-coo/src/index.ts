@@ -9,10 +9,11 @@
  * Thinking is a four-step choice: off sends `reasoning.effort = none`, the others low / high /
  * max, each rewritten to the value a service documents where it takes other ones (`effortOf`); the
  * Messages and Gemini APIs get the levels in their own form. Images are sent only when the endpoint
- * is marked multimodal, and on the Gemini API so are audio, video and documents; tool results may carry images too, which move to a user message after the
- * results on Chat and for `toolOutputText` services on Responses. Media go out only from the newest delivered batch of events on
- * (`sinceLastDelivery`); a request the service rejects for its images is sent again without them
- * (Cortico's `ImageFallback`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
+ * is marked multimodal, and on the Gemini API so are audio, video and documents, on Responses services marked `audioInput` audio,
+ * which stays in the message or tool result that carries it; tool results may carry images too, which move to a user message after the
+ * results on Chat and for `toolOutputText` services on Responses. Attachments go out only from the newest delivered batch of events on
+ * (`sinceLastDelivery`); a request the service rejects for its attachments is sent again without them
+ * (Cortico's `AttachmentFallback`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
  * Streamed reasoning from services marked `lenientReasoning` is rewritten into standard events
  * (`LenientReasoningAssembly`). `nonStreamingResponses` services use a non-streaming fallback so
  * tools execute only after the complete response has been read and validated.
@@ -22,7 +23,7 @@ import type { LLMProviderEntry, ReasoningTier } from 'cortico/core/types.ts';
 import type { ConfigGroup } from 'cortico/core/config-schema.ts';
 import type { Language } from 'cortico/core/language.ts';
 import { isContextOverflow } from 'cortico/providers/transport/errors.ts';
-import { ImageFallback } from 'cortico/providers/transport/image-fallback.ts';
+import { AttachmentFallback } from 'cortico/providers/transport/attachment-fallback.ts';
 import { ModelCatalog } from 'cortico/providers/openai-responses-compat/native.ts';
 import { ClaudeProvider } from './anthropic/client.ts';
 import { sinceLastDelivery } from './context.ts';
@@ -30,7 +31,7 @@ import { VendorChat } from './chat.ts';
 import { GeminiProvider, listGeminiModels } from './gemini/client.ts';
 import { geminiInlineMime } from './gemini/wire.ts';
 import { vendorPrices } from './pricing.ts';
-import { VendorResponses } from './responses.ts';
+import { VendorResponses, responsesAudioMime } from './responses.ts';
 import { cooText } from './strings.ts';
 import { plainRemote } from './address.ts';
 import { PROTOCOLS, VENDORS, effortOf, locate, siteOf, vendorOf, vendorName, type Language as VendorLanguage, type Protocol } from './vendors.ts';
@@ -88,6 +89,16 @@ function normalize(entry: LLMProviderEntry): LLMProviderEntry {
   return { ...entry, options };
 }
 
+/**
+ * Attachment types an endpoint takes: images when it is marked multimodal, on the Gemini API also audio, video and documents,
+ * and on a Responses service with `audioInput` also audio.
+ */
+function takes(entry: LLMProviderEntry, mime: string): boolean {
+  return entry.multimodal === true && (mime.startsWith('image/')
+    || (protocolOf(entry) === 'gemini' && geminiInlineMime(mime) !== null)
+    || (protocolOf(entry) === 'responses' && vendorOf(entry.baseUrl)?.audioInput === true && responsesAudioMime(mime) !== null));
+}
+
 export const COO = {
   id: 'coo',
   title: 'Coo Pet Provider',
@@ -109,9 +120,7 @@ export const COO = {
       throw new Error(cooText(language).badProtocol(PROTOCOLS.join(' / ')));
     if (plainRemote(entry.baseUrl)) throw new Error(cooText(language).httpRemote);
   },
-  // a Gemini endpoint marked multimodal also takes audio, video and documents
-  accepts: (entry, _spec, mime) => entry.multimodal === true
-    && (mime.startsWith('image/') || (protocolOf(entry) === 'gemini' && geminiInlineMime(mime) !== null)),
+  accepts: (entry, _spec, mime) => takes(entry, mime),
   prices: (entry, _request, at) => vendorPrices(vendorOf(entry.baseUrl)?.id, at.startedAt),
   contextOverflow,
   create(name: string, entry: LLMProviderEntry, host): ProviderInstance {
@@ -127,10 +136,12 @@ export const COO = {
     const vendor = located?.vendor ?? null;
     const protocol = protocolOf(entry);
     const media = { enabled: () => current().multimodal === true, read: host.readBlob };
-    /** `client` behind the image fallback, declared so that `ProviderRegistry.bind` adds no second one. */
+    /** `client` behind the attachment fallback, declared so that `ProviderRegistry.bind` adds no second one. */
     const withFallback = (client: BaseProvider) => ({
-      client: new ImageFallback(client, { media, contextOverflow, attached: sinceLastDelivery, log: host.log }),
-      handlesRefusedImages: true,
+      client: new AttachmentFallback(client, {
+        media, contextOverflow, attached: sinceLastDelivery, accepts: (mime) => takes(current(), mime), log: host.log,
+      }),
+      handlesRefusedAttachments: true,
     });
     const compatibilityKey = () => [vendor?.id ?? 'coo', name, ...(protocol === 'responses' ? [] : [protocol])];
     const stated = (model: string) => vendor?.contextWindows?.[model];
@@ -188,7 +199,8 @@ export const COO = {
           keepThinking: host.keepThinking,
           reasoningReplay: vendor?.encryptedReasoning ? 'encrypted' : 'plaintext',
           sendSyntheticReasoning: vendor?.syntheticReasoning,
-        }, { effort, lenientReasoning: vendor?.lenientReasoning, nonStreamingResponses: vendor?.nonStreamingResponses, toolOutputText: vendor?.toolOutputText })),
+        }, { effort, lenientReasoning: vendor?.lenientReasoning, nonStreamingResponses: vendor?.nonStreamingResponses, toolOutputText: vendor?.toolOutputText,
+          ...(vendor?.audioInput ? { audio: media } : {}) })),
     };
   },
 } satisfies ProviderModule;

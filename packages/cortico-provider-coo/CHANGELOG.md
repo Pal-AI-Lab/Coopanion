@@ -1,7 +1,9 @@
 ## Unreleased
 
-- Needs Cortico 0.2.15: a request refused for its images is sent again through Cortico's `ImageFallback` (`cortico/providers/transport/image-fallback.ts`), and every instance declares `handlesRefusedImages`. A 422 is no longer sent again without its images. A 413 is sent again without them whatever its body says, and one that is still refused then counts as a context overflow.
+- Needs Cortico 0.2.17: a request refused for its attachments is sent again without them through Cortico's `AttachmentFallback` (`cortico/providers/transport/attachment-fallback.ts`), and every instance declares `handlesRefusedAttachments`. On the Gemini API this covers audio, video and documents as well as images. A 422 is no longer sent again without its attachments. A 413 is sent again without them whatever its body says, and one that is still refused then counts as a context overflow.
+- The Gemini API no longer holds a request's inline attachments to 18 MiB: a request the service refuses for them goes through `AttachmentFallback`, as on the other protocols.
 - Package-root exports no longer include `anthropicPrices`, `deepseekPrices`, `vendorPrices`, `CHATGPT_MODULE`, `chatgptEntry`, `connectionVendor`, `endpointName`, `firstVendor`, `locate`, `regionsOf`, `vendorById` or `SignInStatus`. Use `vendorPrices` from `src/pricing.ts` for price tables and look ids up in `VENDORS` (`vendorById` is gone). `CHATGPT_MODULE`, `chatgptEntry`, `connectionVendor`, `endpointName`, `firstVendor`, `locate` and `regionsOf` live in `src/vendors.ts`, and `SignInStatus` in `src/chatgpt/auth.ts`.
+- Attachments of every type before the newest delivered batch keep only their text line. Earlier PDFs and plain text used to go out with every request on the Gemini API and could leave a new screenshot as its text line alone.
 
 ## 0.3.1
 

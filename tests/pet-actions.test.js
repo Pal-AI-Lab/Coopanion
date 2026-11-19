@@ -466,4 +466,14 @@ describe('picking the body up', () => {
     run(pet, 3);
     expect(['idle', 'look', 'dizzy']).toContain(pet.pet.mode);
   });
+
+  it("a press on the crown of Coo's top hat lands on the body while Coo wears it", () => {
+    const pet = barePet();
+    run(pet, .1);
+    // the crown's middle, 121 units out from the middle of Coo at 104° (coo.js): past the body circle's 108
+    const crown = { ...pet.toStage(98.7, 10.6), t: 0 };
+    expect(pet.pointerDown(crown)).toBe(false);
+    pet.setSkin({ ...defaultSkin(), head: 'tophat' });
+    expect(pet.pointerDown(crown)).toBe(true);
+  });
 });

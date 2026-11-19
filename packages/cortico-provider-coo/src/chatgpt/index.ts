@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import type { ProviderModule, ProviderInstance } from 'cortico/providers/base.ts';
 import type { ReasoningTier } from 'cortico/core/types.ts';
 import { isContextOverflow } from 'cortico/providers/transport/errors.ts';
-import { ImageFallback } from 'cortico/providers/transport/image-fallback.ts';
+import { AttachmentFallback } from 'cortico/providers/transport/attachment-fallback.ts';
 import { providersRoot } from 'cortico/paths.ts';
 import { SIGN_IN_PANEL } from '../connect.ts';
 import { sinceLastDelivery } from '../context.ts';
@@ -94,14 +94,14 @@ export function chatgptModule(service: ChatGPTService = CHATGPT_SERVICE, stateRo
         contextWindow: stated,
         listModels: async () => (await listPlanModels(service.api, await account.accessToken(), fetchImpl))
           .map((m) => (stated(m.id) ? { ...m, contextWindow: stated(m.id) } : m)),
-        client: new ImageFallback(new ChatGPTResponses({
+        client: new AttachmentFallback(new ChatGPTResponses({
           baseUrl: service.api,
           log: host.log,
           media,
           keepThinking: host.keepThinking,
           reasoningReplay: 'encrypted',
         }, { effort: (model) => effortOf(CHATGPT, site, model) }, account, host.log), { media, contextOverflow: isContextOverflow, attached: sinceLastDelivery, log: host.log }),
-        handlesRefusedImages: true,
+        handlesRefusedAttachments: true,
       };
     },
   };
