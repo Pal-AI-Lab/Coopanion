@@ -17,6 +17,7 @@ import { baseLanguage, LANGUAGE } from '../../base/language.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { panelStreamRoute } from '../../base/protocol.ts';
 import { openStream } from '../../base/stream.ts';
+import { shouldStick } from '../../base/ui/index.ts';
 import { promptInput } from '../../base/ui/prompt-input.tsx';
 import { actionProblem } from '../../base/ui/problem.ts';
 import { browserSocketEnv } from '../../base/websocket.ts';
@@ -136,8 +137,20 @@ async function mount(ctx: PageContext): Promise<void> {
       return true;
     },
   });
-  dock.append(queueBox, composer.el);
+  // ---- back to the bottom: in the dock above the input, so it covers no message; appears while the
+  // thread is more than 60 px from its end.
+  const STICK_PX = 60;
+  const jump = ui.button(S.jumpBottom, {
+    size: 'sm',
+    onClick: () => { scroll.scrollTop = scroll.scrollHeight; toggleJump(); },
+  });
+  jump.className = 'btn sm chat-jump hidden';
+  const jumpWrap = ui.h('div', 'chat-jump-wrap');
+  jumpWrap.append(jump);
+  dock.append(jumpWrap, queueBox, composer.el);
   view.append(top, scroll, dock);
+  const toggleJump = (): void => { jump.classList.toggle('hidden', shouldStick(scroll.scrollTop, scroll.scrollHeight, scroll.clientHeight, STICK_PX)); };
+  scroll.addEventListener('scroll', toggleJump, { signal: ctx.signal });
 
   // ---- phase line
   const syncPhase = (): void => {
