@@ -488,4 +488,28 @@ describe('audio on a Gemini endpoint', () => {
     expect(parts.filter((p) => p.inlineData)).toEqual([{ inlineData: { mimeType: 'audio/wav', data: wav['log:new.wav'].toString('base64') } }]);
     expect(parts.some((p) => typeof p.text === 'string' && p.text.includes('traffic'))).toBe(true);
   });
+
+  it('sends an earlier PDF as its text line only, as it does an earlier image: the newest batch carries just its screenshot', async () => {
+    const bodies: Array<{ contents: Array<{ parts: Array<Record<string, any>> }> }> = [];
+    vi.stubGlobal('fetch', async (_url: string, init: { body: string }) => {
+      bodies.push(JSON.parse(init.body));
+      return new Response(JSON.stringify({ candidates: [{ content: { role: 'model', parts: [{ text: 'ok' }] }, finishReason: 'STOP' }],
+        usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1, totalTokenCount: 2 } }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    const files: Record<string, Buffer> = { 'log:old.pdf': Buffer.from('%PDF-old'), 'log:new.png': Buffer.from('PNG-new') };
+    const instance = COO.create('gemini', gemini(), { ...host(), readBlob: (handle: string) => files[handle] ?? null } as never);
+    const sent = (handle: string, mime: string, text: string) => {
+      const ref = { handle, mime, fallbackText: text };
+      return { ...message('user', blobLine(ref)), context: { blobs: [ref] } };
+    };
+    const context = [sent('log:old.pdf', 'application/pdf', 'report'), message('assistant', 'read it'), sent('log:new.png', 'image/png', 'screen')];
+    try {
+      await instance.client.respond({ model: 'gemini-x-flash', input: context.map((r) => r.item) } as unknown as Request, { context });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    const parts = bodies[0].contents.flatMap((c) => c.parts);
+    expect(parts.filter((p) => p.inlineData)).toEqual([{ inlineData: { mimeType: 'image/png', data: files['log:new.png'].toString('base64') } }]);
+    expect(parts.some((p) => typeof p.text === 'string' && p.text.includes('report'))).toBe(true);
+  });
 });
