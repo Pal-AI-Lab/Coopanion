@@ -9,7 +9,6 @@
  * `INLINE_TAG_MAX` or spanning a line is text.
  */
 import type { ModelLanguage } from './model-text.ts';
-import { BUBBLE_TYPING_CPS, SAY_ACTION_LEAD_SEC, SAY_ACTION_ONLY_HOLD_SEC, sayHoldSeconds } from '../web/bubble-timing.js';
 
 /** One word of a body's vocabulary. */
 export interface VocabWord {
@@ -114,16 +113,16 @@ export function parseScript(script: string, vocab: readonly VocabWord[]): Parsed
 }
 
 /**
- * Estimated typing and reading time in seconds. `steps` gives a character's typing steps at 20 steps/s
- * before the speed multiplier. `holdSec` fixes the reading time per visible bubble when positive.
+ * Seconds a script stays on screen: typing at ~20 × `speed` chars/s, plus reading time per bubble divided by `speed`
+ * (`window.bubbleSpeed`). `steps` gives each character's typing steps (1/20 s) when they are not one each (the pet's
+ * speech, src/speech).
  */
-export function estimateSeconds(beats: readonly Beat[], speed: number, steps?: (ch: string) => number, holdSec?: number): number {
+export function estimateSeconds(beats: readonly Beat[], speed: number, steps?: (ch: string) => number): number {
   let s = 0;
-  for (const [i, b] of beats.entries()) {
-    if (b.actions.length) s += SAY_ACTION_LEAD_SEC;
-    if (!b.text) { s += SAY_ACTION_ONLY_HOLD_SEC / speed; continue; }
+  for (const b of beats) {
+    if (b.actions.length) s += .5;
     const typed = steps ? [...b.text].reduce((n, ch) => n + steps(ch), 0) : b.text.length;
-    s += typed / (BUBBLE_TYPING_CPS * speed) + sayHoldSeconds(b.text.length, i === beats.length - 1, speed, holdSec);
+    if (b.text) s += (typed / 20 + 1.6 + b.text.length * .07) / speed;
   }
   return Math.round(s * 10) / 10;
 }

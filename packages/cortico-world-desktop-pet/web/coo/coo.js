@@ -6,7 +6,7 @@
  *
  * Coordinates: logo units, facing right, ground at y=256 (the kit's space, web/kit/body.js).
  */
-import { DEFAULT_HITS, DROP, FACES, LEG_W, STAND, f, heartD } from '../kit/body.js';
+import { DROP, FACES, LEG_W, STAND, f, heartD } from '../kit/body.js';
 
 const EYES = [[113, 117], [163, 117]];
 const BODY_W = 36;
@@ -105,9 +105,6 @@ export const ROLES = {
 };
 
 const mount = (a, r = 96) => `translate(${pt(pol(a, r))}) rotate(${f(90 - a)})`;
-const TOPHAT_MOUNT = 104;
-const CROWN = { top: -48, halfWidth: 22, height: 46 };
-const tophatSwing = sw => f(sw * .2);
 const stroke = (cls, w) => `class="${cls}" fill="none" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"`;
 // solid shape with rounded corners: filled and stroked in the same channel color
 const blob = (slot, ch, w) => `class="f-${slot}-${ch} c-${slot}-${ch}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
@@ -133,10 +130,7 @@ function headFront(id, sw, t) {
     case 'halo':
       return `<g transform="${mount(98)}"><ellipse ${stroke('c-head-acc', 12)} cx="0" cy="${f(-28 + 3 * Math.sin(t * 2.2))}" rx="36" ry="9"/></g>`;
     case 'tophat':
-      return `<g transform="${mount(TOPHAT_MOUNT)} rotate(${tophatSwing(sw)})">`
-        + '<rect class="f-head-main" x="-40" y="-7" width="80" height="12" rx="6"/>'
-        + `<rect class="f-head-main" x="${-CROWN.halfWidth}" y="${CROWN.top}" width="${CROWN.halfWidth * 2}" height="${CROWN.height}" rx="7"/>`
-        + '<rect class="f-head-acc" x="-22" y="-20" width="44" height="10"/></g>';
+      return `<g transform="${mount(104)} rotate(${f(sw * .2)})"><rect class="f-head-main" x="-40" y="-7" width="80" height="12" rx="6"/><rect class="f-head-main" x="-22" y="-48" width="44" height="46" rx="7"/><rect class="f-head-acc" x="-22" y="-20" width="44" height="10"/></g>`;
     case 'party':
       return `<g transform="${mount(110)} rotate(${f(sw * .3)})"><path ${blob('head', 'main', 8)} d="M-24 2L0 -46L24 2Z"/><circle class="f-head-acc" cx="0" cy="-55" r="11"/></g>`;
   }
@@ -366,14 +360,11 @@ export const COO_CSS = `
  */
 export function cooFigure() {
   let skin = defaultSkin();
-  let low = 0, swing = 0;
   const top = () => HEAD_TOP[skin.head] ?? 12;
   /** The markup last put in the group: a body at rest gives the same markup frame after frame. */
   let drawn = '';
   return {
     draw(petG, face, frame) {
-      low = frame.low;
-      swing = frame.swing;
       const s = figure(face, frame);
       // an emptied group (the kit's setFigure swapping this figure back in) is filled again
       if (s === drawn && petG.firstChild) return;
@@ -383,13 +374,5 @@ export function cooFigure() {
     setSkin(s) { if (s) skin = s; },
     get anchors() { return { tears: [[116, 136], [166, 136]], bubble: [146, top() - 8] }; },
     get extent() { return [20, Math.min(20, top()), 236, 256]; },
-    get hits() {
-      if (skin.head !== 'tophat') return DEFAULT_HITS;
-      const [x, y] = pol(TOPHAT_MOUNT, 96);
-      const tilt = (90 - TOPHAT_MOUNT + tophatSwing(swing)) * Math.PI / 180;
-      const rise = -CROWN.top - CROWN.height / 2;
-      const radius = Math.hypot(CROWN.halfWidth, CROWN.height / 2);
-      return [...DEFAULT_HITS, [x + rise * Math.sin(tilt), y + low - rise * Math.cos(tilt), radius]];
-    },
   };
 }
