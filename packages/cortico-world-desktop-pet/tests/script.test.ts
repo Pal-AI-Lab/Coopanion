@@ -60,14 +60,4 @@ describe('vocabulary', () => {
     const { beats } = parseScript('这是一段明显更长的话,要多打一会儿字才能说完,再多说几句让它停得久一些。');
     expect(estimateSeconds(beats, DESKTOP_PET_DEFAULTS.window.bubbleSpeed) / estimateSeconds(beats, BUBBLE_SPEED_MAX)).toBeCloseTo(BUBBLE_SPEED_MAX / DESKTOP_PET_DEFAULTS.window.bubbleSpeed, 1);
   });
-
-  it('adds the fixed hold for each visible bubble at any typing speed', () => {
-    const { beats } = parseScript('第一段【开心】第二段【sleep】');
-    const holdSec = 3;
-    for (const speed of [DESKTOP_PET_DEFAULTS.window.bubbleSpeed, BUBBLE_SPEED_MAX]) {
-      const total = estimateSeconds(beats, speed, undefined, holdSec);
-      const longer = estimateSeconds(beats, speed, undefined, holdSec + 2);
-      expect(longer - total).toBeCloseTo(4);
-    }
-  });
 });

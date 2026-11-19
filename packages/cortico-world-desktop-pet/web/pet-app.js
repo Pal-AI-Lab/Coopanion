@@ -18,7 +18,6 @@ import { COO_CSS, PALETTES, normalizeSkin, skinCss } from './coo/coo.js';
 import { loadBody } from './body-host.js';
 import { fetchLooks, lookAvailable, lookPicture, sameLook } from './looks.js';
 import { SIZE, scaleSlider, sizeEcho } from './scale-slider.js';
-import { BUBBLE_HOLD_AUTO_SEC, BUBBLE_TYPING_CPS, SAY_ACTION_LEAD_SEC, SAY_ACTION_ONLY_HOLD_SEC, sayHoldSeconds } from './bubble-timing.js';
 import { RESTYLE_MS, SWAP_MS, restyle, springSize, swapIn, swapOut } from './swap-motion.js';
 import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightWall, modeButton, setGlow } from './stage.js';
 import { bindAppearance } from './appearance.js';
@@ -54,7 +53,6 @@ const prefs = {
   statusBubble: true,
   /** What the person typed, said or sent from the chat page stays above Coo (see lines); off, speech shows only while it is heard. */
   saidBubbles: true,
-  saidBubbleHoldSec: BUBBLE_HOLD_AUTO_SEC,
   /** Draw at the moving frame rate while the body rests too. */
   /** Frames a second while the body moves; 0 follows the display. */
   frameRate: 60,
@@ -393,7 +391,6 @@ function applyPrefs(p) {
   if (typeof p.doubleClickChat === 'boolean') prefs.doubleClickChat = p.doubleClickChat;
   if (typeof p.statusBubble === 'boolean') { prefs.statusBubble = p.statusBubble; setBody({ thoughtShown: p.statusBubble }); }
   if (typeof p.saidBubbles === 'boolean') { prefs.saidBubbles = p.saidBubbles; if (!p.saidBubbles) for (const line of lines) if (!line.live) fadeLine(line); }
-  if (typeof p.saidBubbleHoldSec === 'number') prefs.saidBubbleHoldSec = p.saidBubbleHoldSec;
   if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
   if (typeof p.frameRate === 'number' && p.frameRate >= 0) prefs.frameRate = p.frameRate;
   // the window process does the hiding and the passing through; the page only passes the settings on
@@ -432,7 +429,7 @@ function onOrder(m) {
     // the settings window's 「在桌面上隐藏」: the same as the menu's 「隐藏」
     case 'hide': host?.hide?.(); break;
     case 'type': openTyping(); break;
-    case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, holdSec: m.holdSec, i: -1 }); holdRoam(20); break;
+    case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); holdRoam(20); break;
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
     case 'confirm': dropAsks(); rushLines(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
     case 'walk': walk(m); break;
@@ -507,23 +504,16 @@ function stepActs() {
 /* ---------- say / ask ---------- */
 const queue = [];
 let item = null;
-/** A voice whose bubble closed while its audio was still allowed to play. */
-let speechTail = false;
-function stopSpeech() {
-  speech.stop();
-  speechTail = false;
-}
 /** Where typing pauses: sentence and clause marks, Latin and full-width (Chinese and Japanese share 。、). */
 const PAUSE = /[,.!?;:…，。！？；：、]/, SILENT = /[\s,.!?;:…，。！？；：、「」『』()（）]/;
 
 /** Lines queued ahead of a World's confirmation type at RUSH times the speed without voice or babble, and stay RUSH_HOLD seconds a beat. */
 const RUSH = 6, RUSH_HOLD = 1;
 function rushLines() {
-  if (speechTail) stopSpeech();
   for (const q of [item, ...queue]) {
     if (q?.kind !== 'say' || q.rush) continue;
     q.rush = true;
-    if (q === item) { stopSpeech(); if (q.beatDone) q.holdUntil = Math.min(q.holdUntil, T + RUSH_HOLD); }
+    if (q === item) { speech.stop(); if (q.beatDone) q.holdUntil = Math.min(q.holdUntil, T + RUSH_HOLD); }
   }
 }
 
@@ -544,7 +534,7 @@ function openBubble(kind, html) {
   void bubble.offsetWidth;
   bubble.classList.add('pop');
 }
-function closeBubble({ keepSpeech = false } = {}) {
+function closeBubble() {
   releaseKeys(item);
   // a step taken off the bubble unanswered puts back the skin a card tried on
   if (item?.kind === 'dialog') { talk.motion = null; takeOff(false); }
@@ -552,8 +542,7 @@ function closeBubble({ keepSpeech = false } = {}) {
   // the lines it answered fade a moment after (stepLines)
   if (item) item.endedAt = T;
   item = null;
-  if (keepSpeech) speechTail = true;
-  else stopSpeech();
+  speech.stop();
 }
 
 /**
@@ -585,7 +574,6 @@ function releaseKeys(it) {
 }
 
 function startItem(it) {
-  if (speechTail) stopSpeech();
   item = it;
   if (it.kind === 'say' || it.kind === 'ask') answerLines(it);
   if (it.kind === 'dialog') { openDialog(it); return; }
@@ -623,60 +611,39 @@ bubble.addEventListener('click', (e) => {
   if (item?.kind !== 'say' || item.skippedAt !== undefined || bubble.hidden || e.target.closest('a')) return;
   item.skippedAt = T;
   send({ t: 'skipped', id: item.id });
-  stopSpeech();
+  speech.stop();
   sfx.tick();
   bubble.classList.add('fading');
 });
 
 function stepDialog(dt) {
-  if (!item && queue.length && at() && !at().busy) {
-    const next = queue[0];
-    if (windowShown || next.kind !== 'dialog' || next.d.input) startItem(queue.shift());
-  }
+  if (!item && queue.length && at() && !at().busy) startItem(queue.shift());
   const it = item;
   if (!it) return;
   if (it.kind === 'say') {
     if (it.skippedAt !== undefined) { if (T - it.skippedAt >= LINE_FADE) closeBubble(); return; }
-    const fixed = it.holdSec > BUBBLE_HOLD_AUTO_SEC;
     const held = heldByCursor(it);
     if (it.i < 0 || it.beatDone) {
-      if (it.beatDone) {
-        if (held) it.holdUntil += dt;
-        // Interaction keeps the automatic reading time and can cut the extra fixed hold.
-        const yieldHold = it.extraHold && !it.rush && queue.some((q) => q.kind === 'ask' || q.kind === 'dialog');
-        if (T < it.holdUntil - (yieldHold ? it.extraHold : 0)) return;
-      }
+      if (it.beatDone && held) it.holdUntil += dt;
+      if (it.beatDone && T < it.holdUntil) return;
       it.i++;
       it.beatDone = false;
-      it.extraHold = 0;
-      if (it.i >= it.beats.length) { closeBubble({ keepSpeech: fixed && !it.rush }); return; }
+      if (it.i >= it.beats.length) { closeBubble(); return; }
       const b = it.beats[it.i];
-      const actions = b.actions || [];
-      acts.push(...actions);
-      const lead = actions.length ? SAY_ACTION_LEAD_SEC : 0;
+      let lead = 0;
+      for (const a of b.actions || []) { acts.push(a); lead = .45; }
       it.shown = 0; it.acc = 0; it.fired = 0; it.startAt = T + lead;
-      if (b.text) {
-        if (fixed && !it.rush && it.i > 0) {
-          stopSpeech();
-          it.spoken = undefined;
-        }
-        openBubble('say', '<p class="b-text"></p>');
-        sfx.pop();
-      } else {
-        bubble.hidden = true;
-      }
+      if (b.text) { openBubble('say', '<p class="b-text"></p>'); sfx.pop(); } else { bubble.hidden = true; }
       return;
     }
     const b = it.beats[it.i];
     if (T < it.startAt) return;
-    if (!b.text) { it.beatDone = true; it.holdUntil = T + SAY_ACTION_ONLY_HOLD_SEC / prefs.bubbleSpeed; return; }
+    if (!b.text) { it.beatDone = true; it.holdUntil = T + .8 / prefs.bubbleSpeed; return; }
     typeText(it, b.text, dt, b.anchors || []);
     if (it.shown >= b.text.length && !it.beatDone) {
       it.beatDone = true;
-      const automatic = sayHoldSeconds(b.text.length, it.i === it.beats.length - 1, prefs.bubbleSpeed);
-      const hold = it.rush ? RUSH_HOLD : fixed ? it.holdSec : automatic;
-      it.holdUntil = T + hold;
-      it.extraHold = it.rush ? 0 : Math.max(0, hold - automatic);
+      const last = it.i === it.beats.length - 1;
+      it.holdUntil = T + (it.rush ? RUSH_HOLD : (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03) / prefs.bubbleSpeed);
     }
     return;
   }
@@ -684,14 +651,14 @@ function stepDialog(dt) {
     if (it.shown < it.text.length) { typeText(it, it.text, dt, []); return; }
     if (!it.optsShown) { it.optsShown = true; showOptions(it); }
   }
-  if (it.kind === 'dialog' && (windowShown || it.d.input)) stepTalk(it, dt);
+  if (it.kind === 'dialog') stepTalk(it, dt);
 }
 
 /** The talk key starts listening: the sound stops at once, and the lines up or waiting go on without it. */
 function hushForTalkKey(down) {
   talkKeyDown = down;
   if (!down) return;
-  stopSpeech();
+  speech.stop();
   for (const q of [item, ...queue]) if (q) q.hushed = true;
 }
 
@@ -703,7 +670,7 @@ function typeText(it, text, dt, anchors) {
   // with speech, each pause mark waits its own time, letters type faster, and the voice makes the sound;
   // estimateSeconds in src/script.ts mirrors these steps, this rate and the holds in stepDialog
   const spoken = speech.active && !it.hushed;
-  it.acc += dt * BUBBLE_TYPING_CPS * prefs.bubbleSpeed * (it.rush ? RUSH : 1);
+  it.acc += dt * 20 * prefs.bubbleSpeed * (it.rush ? RUSH : 1);
   while (it.acc >= 1 && it.shown < text.length) {
     const ch = text[it.shown++];
     it.acc -= spoken ? textSteps(ch) : PAUSE.test(ch) ? 5 : 1;
@@ -807,7 +774,6 @@ function openDialog(it) {
   for (const a of d.actions || []) acts.push(a);
   it.text = d.text || ''; it.shown = 0; it.acc = 0; it.bodyShown = false; it.readUntil = 0;
   it.marks = Array.isArray(d.marks) ? d.marks.filter((w) => typeof w === 'string') : [];
-  if (!d.input) send({ t: 'dialog-shown', id: it.id });
   sfx.pop();
 }
 
@@ -823,10 +789,6 @@ function stepTalk(it, dt) {
 function stepTalkRead(dt) {
   const it = item;
   if (it?.kind !== 'dialog' || it.d.input) return;
-  if (!windowShown) {
-    if (it.readUntil) it.readUntil += dt;
-    return;
-  }
   const held = heldByCursor(it);
   if (!it.readUntil) return;
   if (held) it.readUntil += dt;
@@ -1108,12 +1070,7 @@ function base64Of(blob) {
 function openInput() {
   closeMenu();
   if (item && item.kind === 'ask' && !item.answered) return;
-  if (item?.kind === 'dialog' && !item.answered) {
-    const { id, d, progress } = item;
-    queue.unshift({ kind: 'dialog', id, d, progress });
-  }
   if (item) closeBubble();
-  else if (speechTail) stopSpeech();
   const it = item = { kind: 'input', images: [], pending: 0, pasted: 0 };
   const expand = prefs.bot?.buttons?.chat
     ? `<button class="b-expand" type="button" aria-label="${esc(t('bubble.expand'))}" title="${esc(t('bubble.expand'))}">${ICONS.expand}</button>`
@@ -1232,9 +1189,12 @@ function showHeard() {
 
 /*
  * ---------- what the person said: typed in the box, heard, or sent from the chat page ----------
- * A fixed hold runs from the time a line settles. In automatic mode the line and those before it stay while the
- * bot works or replies. They fade REPLIED_FADE seconds after the reply closes, or UNANSWERED_FADE seconds after
- * settling if there is no reply and the bot is idle. The oldest line fades if the stack exceeds its line or row limit.
+ * Each line stays above Coo as a bubble of the heard kind (grey, no tail), the newest at the bottom. A line is
+ * answered by the first speech or question Coo starts after it settled; until that reply's bubble has closed (and,
+ * for a line not answered yet, while Coo works or has speech queued) the line and those before it stay, and they
+ * fade REPLIED_FADE seconds after it closes. A line Coo does not answer fades UNANSWERED_FADE seconds after it was
+ * said. The stack holds at most MAX_LINES bubbles and MAX_ROWS rows of text: past either the oldest fades, answered
+ * or not, and the newest always stays. A click fades a settled line at once; one still being heard has its cancel button.
  */
 const REPLIED_FADE = 1, UNANSWERED_FADE = 8;
 const MAX_LINES = 3, MAX_ROWS = 6;
@@ -1253,10 +1213,7 @@ function addLine(src, text, live = false, extra = {}) {
   el.className = 'bubble heard said pop';
   el.setAttribute('role', 'status');
   document.body.append(el);
-  const line = {
-    el, src, text, live, settledAt: live ? null : T, holdSec: live ? BUBBLE_HOLD_AUTO_SEC : prefs.saidBubbleHoldSec,
-    reply: null, fadeAt: null, ox: null, oy: null, images: 0, cursor: null, ...extra,
-  };
+  const line = { el, src, text, live, settledAt: live ? null : T, reply: null, fadeAt: null, ox: null, oy: null, images: 0, cursor: null, ...extra };
   el.addEventListener('click', () => { if (!line.live && line.fadeAt === null) { sfx.tick(); fadeLine(line); } });
   if (live) {
     el.innerHTML = '<p class="b-text"><span class="fin"></span><span class="interim"></span><span class="caret" aria-hidden="true"></span></p><div class="b-foot"><span class="b-hint"></span><button class="b-cancel" type="button"></button></div>';
@@ -1275,7 +1232,6 @@ function drawLine(line) {
 }
 function settleLine(line, text) {
   line.live = false; line.text = text; line.settledAt = T;
-  line.holdSec = prefs.saidBubbleHoldSec;
   drawLine(line);
 }
 function fadeLine(line) {
@@ -1292,9 +1248,9 @@ function withdrawLine(cursor) {
   const line = lines.find((l) => l.cursor === cursor);
   if (line) fadeLine(line);
 }
-/** Link automatic lines to the first reply that follows them. */
+/** Coo starts speaking or asking (`it`): the settled lines not answered yet are answered by it. */
 function answerLines(it) {
-  for (const line of lines) if (!line.live && !line.holdSec && !line.reply) line.reply = it;
+  for (const line of lines) if (!line.live && !line.reply) line.reply = it;
 }
 /** Rows of text a line shows: its text (pet.css clamps it at MAX_ROWS), plus the image line. */
 function rowsOf(line) {
@@ -1309,18 +1265,14 @@ function stepLines() {
   const busy = !!status.wanted || queue.some((q) => q.kind === 'say' || q.kind === 'ask');
   let held = -1, answered = -1;
   lines.forEach((line, i) => {
-    if (line.live || line.holdSec) return;
+    if (line.live) return;
     const r = line.reply;
     if (r ? r.endedAt === undefined : busy) held = i;
     else if (r && T >= r.endedAt + REPLIED_FADE) answered = i;
   });
   lines.forEach((line, i) => {
-    if (line.fadeAt !== null || line.live) return;
-    if (line.holdSec) {
-      if (T >= line.settledAt + line.holdSec) fadeLine(line);
-    } else if (i > held && (i <= answered || (!line.reply && T >= line.settledAt + UNANSWERED_FADE))) {
-      fadeLine(line);
-    }
+    if (line.fadeAt !== null || line.live || i <= held) return;
+    if (i <= answered || (!line.reply && T >= line.settledAt + UNANSWERED_FADE)) fadeLine(line);
   });
   const up = lines.filter((l) => l.fadeAt === null);
   let rows = up.reduce((n, l) => n + rowsOf(l), 0);
@@ -2564,8 +2516,8 @@ function stepBackdrop(dt) {
  * redraws what changed in the figure, so the window's CPU and GPU time grows with this rate.
  *
  * While the pet window is hidden, frames come at HIDDEN_FPS: the clock, the orders, the bubbles' text and the body's
- * motion go on, so a walk still arrives and a line still runs out. Informational cards wait for the window to be shown.
- * The body, the stage and the streaming layer get no drawn frames, and the screen behind is not sampled.
+ * motion go on, so a walk still arrives and a line still runs out, but the body is not drawn, nothing on the stage is
+ * placed, the screen behind is not sampled and the streaming layer gets no frames.
  *
  * Each frame advances the clock by the time since the frame before, in steps (frame-loop.js); the page's orders and
  * the body take every step, and only the last one is drawn.
