@@ -9,7 +9,8 @@
  * Thinking is a four-step choice: off sends `reasoning.effort = none`, the others low / high /
  * max, each rewritten to the value a service documents where it takes other ones (`effortOf`); the
  * Messages and Gemini APIs get the levels in their own form. Images are sent only when the endpoint
- * is marked multimodal, and on the Gemini API so are audio, video and documents, on Responses services marked `audioInput` audio; tool results may carry images too, which move to a user message after the
+ * is marked multimodal, and on the Gemini API so are audio, video and documents, on Responses services marked `audioInput` audio,
+ * which stays in the message or tool result that carries it; tool results may carry images too, which move to a user message after the
  * results on Chat and for `toolOutputText` services on Responses. Media go out only from the newest delivered batch of events on
  * (`sinceLastDelivery`); a request the service rejects for its images is sent again without them
  * (Cortico's `ImageFallback`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.

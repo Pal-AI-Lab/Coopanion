@@ -35,13 +35,13 @@ type Part = Record<string, unknown>;
 
 /**
  * Audio attachments as `input_audio` parts, the bytes inline in a data URL in `audio_url`
- * (Cortico's Responses input adds only images). A user message carries its own in its content; a
- * tool result's go in a user message after its run of results, keyed here by `call_id`.
+ * (Cortico's Responses input adds only images). Each goes into the item that carries it, a user
+ * message's `content` or a tool result's `output`, as audio does in a Gemini turn; Cortico then
+ * adds the item's images after them.
  */
-function withAudio(context: readonly ContextRecord[], media: CompatMediaOptions): { context: readonly ContextRecord[]; results: Map<string, Part[]> } {
-  const results = new Map<string, Part[]>();
-  if (!media.enabled()) return { context, results };
-  const out = context.map((entry) => {
+function withAudio(context: readonly ContextRecord[], media: CompatMediaOptions): readonly ContextRecord[] {
+  if (!media.enabled()) return context;
+  return context.map((entry) => {
     const { item } = entry;
     if (item.type !== 'message' && item.type !== 'function_call_output') return entry;
     const parts: Part[] = [];
@@ -51,32 +51,11 @@ function withAudio(context: readonly ContextRecord[], media: CompatMediaOptions)
       if (bytes) parts.push({ type: 'input_audio', audio_url: `data:${mime};base64,${bytes.toString('base64')}` });
     }
     if (!parts.length) return entry;
-    if (item.type === 'function_call_output') {
-      results.set(item.call_id, parts);
-      return entry;
-    }
-    const text = typeof item.content === 'string' ? [{ type: 'input_text', text: item.content }] : [...item.content as Part[]];
-    return { ...entry, item: { ...item, content: [...text, ...parts] } as typeof item };
+    const field = item.type === 'message' ? 'content' : 'output';
+    const value = (item as unknown as Record<string, unknown>)[field];
+    const before = typeof value === 'string' ? [{ type: 'input_text', text: value }] : [...value as Part[]];
+    return { ...entry, item: { ...item, [field]: [...before, ...parts] } as typeof item };
   });
-  return { context: out, results };
-}
-
-/** `input` with each run of tool results followed by a user message holding their audio. */
-function audioAfterResults(input: readonly Part[], results: Map<string, Part[]>): Part[] {
-  if (!results.size) return [...input];
-  const out: Part[] = [];
-  let audio: Part[] = [];
-  const flush = () => {
-    if (audio.length) out.push({ type: 'message', role: 'user', content: audio });
-    audio = [];
-  };
-  for (const item of input) {
-    if (item.type !== 'function_call_output') flush();
-    out.push(item);
-    if (item.type === 'function_call_output') audio.push(...results.get(String(item.call_id)) ?? []);
-  }
-  flush();
-  return out;
 }
 
 const RESPONSES_RESULTS: ResultFormat = {
@@ -102,10 +81,9 @@ export class VendorResponses extends ResponsesProvider {
 
   protected override buildResponseBody(request: Request, options: GenerateOptions): Record<string, unknown> {
     const recent = options.context && sinceLastDelivery(options.context);
-    const audio = recent && this.quirks.audio ? withAudio(recent, this.quirks.audio) : null;
-    const body = super.buildResponseBody(request, recent ? { ...options, context: audio?.context ?? recent } : options);
+    const context = recent && this.quirks.audio ? withAudio(recent, this.quirks.audio) : recent;
+    const body = super.buildResponseBody(request, context ? { ...options, context } : options);
     if (this.quirks.toolOutputText) body.input = imagesAfterResults(body.input as Message[], RESPONSES_RESULTS);
-    if (audio) body.input = audioAfterResults(body.input as Part[], audio.results);
     const reasoning = body.reasoning as { effort?: string } | undefined;
     const level = reasoning?.effort;
     const effort = this.quirks.effort?.(request.model ?? '');

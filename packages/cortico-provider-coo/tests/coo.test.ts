@@ -503,7 +503,7 @@ describe('audio on a Doubao endpoint', () => {
     expect(COO.accepts!(entry(), spec, 'audio/wav')).toBe(false);
   });
 
-  it('sends the newest audio as input_audio: in a user message itself, after the run of tool results for a tool result', async () => {
+  it('sends the newest audio as input_audio in the item that carries it, in a tool result before its images', async () => {
     const bodies: Array<{ input: Array<Record<string, any>> }> = [];
     const reply = { id: 'r', object: 'response', model: 'm', status: 'completed', created_at: 1, output: [], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } };
     vi.stubGlobal('fetch', async (_url: string, init: { body: string }) => {
@@ -528,9 +528,9 @@ describe('audio on a Doubao endpoint', () => {
     expect(audioParts(bodies[0].input)).toEqual([audio('log:new.wav', 'audio/wav')]);
     const input = bodies[1].input;
     const at = input.findIndex((i) => i.type === 'function_call_output' && i.call_id === 'c1');
-    // the tool result keeps its image; its audio follows in a user message
-    expect(input[at].output).toContainEqual(expect.objectContaining({ type: 'input_image' }));
-    expect(JSON.stringify(input[at].output)).not.toContain('input_audio');
-    expect(input[at + 1]).toEqual({ type: 'message', role: 'user', content: [audio('log:tool.mp3', 'audio/mpeg')] });
+    // the tool result keeps its audio and its image, audio first; nothing follows it
+    expect(input[at].output.map((p: any) => p.type).filter((t: string) => t !== 'input_text')).toEqual(['input_audio', 'input_image']);
+    expect(input[at].output).toContainEqual(audio('log:tool.mp3', 'audio/mpeg'));
+    expect(input.slice(at + 1)).toEqual([]);
   });
 });

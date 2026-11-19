@@ -77,7 +77,10 @@ export interface Vendor {
   nonStreamingResponses?: true;
   /** Responses: `function_call_output.output` takes a string only, so images in tool results go in a user message after them. */
   toolOutputText?: true;
-  /** Responses: audio attachments go as `input_audio` parts (`audioPart` in responses.ts) to an endpoint marked multimodal. */
+  /**
+   * Responses: audio attachments go as `input_audio` parts (`withAudio` in responses.ts) to an endpoint
+   * marked multimodal, which decides it as it does for a Gemini endpoint; there is no per-model list.
+   */
   audioInput?: true;
   /** Responses: past reasoning goes back as the signed blocks the service returned, not as text. */
   encryptedReasoning?: true;
