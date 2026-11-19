@@ -582,7 +582,10 @@ function openTyping() {
  * away, and gives it back to the window that had it once the question is answered or gone.
  */
 function grabKeys(it) {
-  if (!host?.grabFocus || !it.options.length || it.grabbed) return;
+  if (!host?.grabFocus || !it.options.length) return;
+  // Holding the claim is not the same as holding the keyboard: another app may have taken it meanwhile
+  // (Alt+Tab, a click elsewhere). Only skip when the keyboard is really still here.
+  if (it.grabbed && document.hasFocus()) return;
   // A question that merely shows up must not take the keyboard out of the window the person is typing
   // in: it comes only when they are already here (the pet window has the keyboard, or the pointer rests
   // on the bubble), and goes back as soon as they point elsewhere.
@@ -653,13 +656,6 @@ bubble.addEventListener('pointerleave', () => {
   // only a question the pointer itself pulled the keyboard for, and only while nobody is typing in
   // it: an open typing box, or the question's own answer field, keeps the keyboard where it is
   if (item && item.kind === 'ask' && item.grabbedByHover && !bubble.contains(document.activeElement)) releaseKeys(item);
-});
-// Another app took the keyboard on its own (Alt+Tab, a click elsewhere): the claim recorded here is
-// stale, and only dropping it lets a pointer-enter on the question still up take the keyboard back.
-window.addEventListener('blur', () => {
-  if (document.hasFocus() || !item?.grabbed) return;
-  item.grabbed = false;
-  item.grabbedByHover = false;
 });
 
 function stepDialog(dt) {
