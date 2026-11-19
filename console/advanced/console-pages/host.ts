@@ -552,12 +552,12 @@ export class ConsolePageHost {
   // 页头与错误卡。都只吃 manifest 的通用字段。
   // -------------------------------------------------------------------------
 
-  private ui(signal = new AbortController().signal): ReturnType<typeof createConsoleUi> {
+  private ui(): ReturnType<typeof createConsoleUi> {
     // 页头是 host 自己的 DOM，生命周期跟 host 走，不绑任何面板。
     return createConsoleUi({
       memo: this.deps.memo,
       overlayHost: this.deps.overlayHost,
-      signal,
+      signal: this.chromeLife?.signal ?? new AbortController().signal,
       doc: this.deps.doc,
     });
   }
@@ -590,7 +590,7 @@ export class ConsolePageHost {
     const lifecycle = this.chromeLife = new Lifecycle(this.deps.onError);
     const { signal } = lifecycle;
     this.tabs = null;
-    const ui = this.ui(signal);
+    const ui = this.ui();
     const head = ui.h('header', 'featureintro providerintro');
     head.classList.toggle('is-world', page.kind === 'world');
     const row = ui.h('div', 'pagetitle-row');
@@ -615,8 +615,8 @@ export class ConsolePageHost {
       button.append(icon(this.deps.doc, 'info'));
       let showDetails: ReturnType<typeof mountWorldExtensionDetails> | undefined;
       button.addEventListener('click', () => {
-        showDetails ??= mountWorldExtensionDetails({ ui, root: chrome, lifecycle, signal, capabilities });
-        void showDetails(pageId.slice('world:'.length), button).catch(this.deps.onError);
+        showDetails ??= mountWorldExtensionDetails({ ui, doc: this.deps.doc, lifecycle, capabilities });
+        void showDetails(pageId.slice('world:'.length), page.label, button).catch(this.deps.onError);
       }, { signal });
       identity.append(title, button);
       row.appendChild(identity);

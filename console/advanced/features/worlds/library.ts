@@ -28,7 +28,7 @@ export function worldLibrary(worlds: readonly WorldView[], extensions: readonly 
   const used = new Set<string>();
   const items: WorldLibraryItem[] = [];
   for (const world of worlds) {
-    const extension = extensionForWorld(world.id, available);
+    const extension = extensionForWorld(world.id, extensions);
     // Package removal takes precedence over an older World snapshot.
     if (extension?.state === 'removed') continue;
     if (extension) used.add(extension.name);

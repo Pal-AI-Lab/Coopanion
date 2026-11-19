@@ -180,8 +180,11 @@ const switchTo = async (ctx, kind) => {
 };
 const filterMarket = (root, value) => { const input = root.querySelector('.world-catalog input[type=search]'); input.value = value; input.dispatchEvent(new Event('input')); };
 
-it('opens the installed World package from its settings title and keeps the panel mounted', async () => {
+it('cancels a loading World details drawer and preserves settings when reopened', async () => {
   stub({ detail: { name: 'alpha-mod', description: 'Fixture package details' } });
+  const fetch = globalThis.fetch;
+  const { promise: listReady, resolve: finishList } = Promise.withResolvers();
+  vi.stubGlobal('fetch', (url, init) => String(url) === '/api/extensions' ? listReady.then(() => fetch(url, init)) : fetch(url, init));
   const { ctx, root, lifecycle } = mkCtx();
   lives.push(lifecycle);
   const host = new ConsolePageHost({
@@ -201,15 +204,24 @@ it('opens the installed World package from its settings title and keeps the pane
   const input = root.querySelector('.panelslot input');
   input.value = 'Unsubmitted settings';
   const info = root.querySelector('.pagetitle-identity button');
-  expect(info.getAttribute('aria-label')).toBe(extensionStrings.detailInfoTab);
+  const escape = () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+  info.click();
+  info.click();
+  expect(document.querySelectorAll('.extension-detail')).toHaveLength(1);
+  expect(document.activeElement.closest('[role=dialog]')).toBeTruthy();
+  escape(); finishList(); await flush();
   expect(document.querySelector('.extension-detail')).toBeNull();
+  expect(document.activeElement).toBe(info);
+
   info.click();
   await vi.waitFor(() => expect(document.querySelector('.extension-intro')?.textContent).toBe('Fixture package details'));
-  expect(document.querySelector('.extension-detail-sub').textContent).toContain('alpha-mod@');
-  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+  const confirmation = ctx.ui.confirm({ title: 'Confirm update' });
+  escape();
+  expect(await confirmation).toBe(false);
+  expect(document.querySelector('.extension-detail')).toBeTruthy();
+  escape();
   expect(document.querySelector('.extension-detail')).toBeNull();
-  expect(root.querySelector('.panelslot input')).toBe(input);
-  expect(input.value).toBe('Unsubmitted settings');
+  expect(root.querySelector('.panelslot input').value).toBe('Unsubmitted settings');
 });
 
 describe('package authors', () => {
