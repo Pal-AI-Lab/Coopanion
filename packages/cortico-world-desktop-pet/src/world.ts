@@ -59,7 +59,7 @@ import { CUA_OFF_TOOL_DECLS } from './cua/tools.ts';
 import type { Answer } from './cua/engine-ipc.ts';
 import { PackImporter } from './pack-import.ts';
 import { dressTable, planSettings, sayScale, type SettingChange } from './self.ts';
-import { MODEL_TEXT, type ModelLanguage, type ModelText, type NoPortrait } from './model-text.ts';
+import { FIREWORKS_WORD, MODEL_TEXT, type ModelLanguage, type ModelText, type NoPortrait } from './model-text.ts';
 
 /** The console panels, titled in `language`. */
 function desktopPetPanelDecls(language: Language = 'zh'): WorldPanelDecl[] {
@@ -121,6 +121,13 @@ const HOLD_PRE_ROLL_FRAMES = Math.ceil((TAP_MAX_MS + 2 * HOTKEY_POLL_MS) / FRAME
  * segmenter is flushed when the key goes up, and frames that arrive later are not used.
  */
 const MIC_RELEASE_MS = 500;
+/** Holidays the bot is told of, by the person's local date: `MM-DD` every year, `YYYY-MM-DD` once. */
+const HOLIDAYS: Record<keyof ModelText['holiday'], string> = { christmas: '12-25', newYear2027: '2027-01-01' };
+const HOLIDAY_TYPE = 'desktop-pet.holiday';
+/** How often the World looks for a holiday that began while the pet is on the desktop. */
+const HOLIDAY_CHECK_MS = 60_000;
+/** The New Year fireworks as `pet_act` takes them while they are offered; the pet page draws them. */
+const FIREWORKS: VocabWord = { id: FIREWORKS_WORD, kind: 'motion', names: {}, about: {}, seconds: 0 };
 
 /**
  * Run controls an embedding app lends the pet's menu. Each button shows only when its control is
@@ -411,6 +418,9 @@ export class DesktopPetWorld implements World {
   private touch: TouchBatch | null = null;
   /** A touch has woken the bot and no turn has ended since; touches until then wait for the next wake. */
   private touchWoke = false;
+  /** The New Year event reached the bot in this turn and the fireworks are not lit yet. */
+  private fireworksOffered = false;
+  private holidayTimer: NodeJS.Timeout | null = null;
   /** The local date of the last event's time stamp; the next event on another date names its date again. */
   private stampDay = '';
   private prefsKey = '';
@@ -734,6 +744,7 @@ export class DesktopPetWorld implements World {
     await this.syncTypeKey();
     this.prefsKey = this.prefsSignature();
     this.prefsTimer = setInterval(() => this.syncPrefs(), PREFS_SYNC_MS);
+    this.holidayTimer = setInterval(() => { if (this.desktopTold) this.tellHoliday(); }, HOLIDAY_CHECK_MS);
   }
 
   async stop(): Promise<void> {
@@ -744,6 +755,8 @@ export class DesktopPetWorld implements World {
     this.quiet = null;
     if (this.prefsTimer) clearInterval(this.prefsTimer);
     this.prefsTimer = null;
+    if (this.holidayTimer) clearInterval(this.holidayTimer);
+    this.holidayTimer = null;
     this.savePosition();
     await this.importer?.cancel();
     if (this.packTimer) clearTimeout(this.packTimer);
@@ -781,6 +794,7 @@ export class DesktopPetWorld implements World {
 
   onTurnEnded(): void {
     this.touchWoke = false;
+    this.fireworksOffered = false;
     this.cua.onTurnEnded();
   }
 
@@ -821,6 +835,7 @@ export class DesktopPetWorld implements World {
    * first, then a `delivered` record the history places the message at.
    */
   onEventsSettled(events: readonly EventEnvelope[], outcome: 'delivered' | 'discarded'): void {
+    if (outcome === 'delivered' && events.some((e) => e.senderKey === `${HOLIDAY_TYPE}.newYear2027`)) this.fireworksOffered = true;
     const cursors = events
       .filter((e) => this.pendingChat.delete(e.cursor) || (e.cursor < this.startCursor && chatItem(e)?.kind === 'user'))
       .map((e) => e.cursor);
@@ -1377,6 +1392,21 @@ export class DesktopPetWorld implements World {
     if (on === this.desktopTold) return;
     this.desktopTold = on;
     this.opts.onDesktopChange?.(on);
+    if (on) this.tellHoliday();
+  }
+
+  /** Tells the bot of today's holiday once that day; a reconnect or a restart finds the event already stored. */
+  private tellHoliday(): void {
+    const host = this.host;
+    if (!host) return;
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: this.opts.timezone }).format(new Date());
+    const id = (Object.keys(HOLIDAYS) as Array<keyof typeof HOLIDAYS>).find((h) => today.endsWith(HOLIDAYS[h]));
+    if (!id) return;
+    const senderKey = `${HOLIDAY_TYPE}.${id}`;
+    // today's event is less than a day old: the bound keeps the lookup off the older history
+    const since = new Date(Date.now() - 86_400_000).toISOString();
+    if (host.store.range({ source: this.id, senderKey, fromTs: since, limit: 1 }).length) return;
+    void this.push(HOLIDAY_TYPE, senderKey, this.t.holiday[id], 'debounce');
   }
 
   private onPageGone(): void {
@@ -2147,10 +2177,11 @@ export class DesktopPetWorld implements World {
 
   private async act(args: Record<string, unknown>): Promise<ToolOutcome> {
     const list = Array.isArray(args.actions) ? args.actions : typeof args.actions === 'string' ? [args.actions] : [];
-    const vocab = this.vocab();
+    const vocab = this.fireworksOffered ? [...this.vocab(), FIREWORKS] : this.vocab();
     const { actions, dropped } = parseActions(list, vocab);
     if (!actions.length) return { text: this.t.actNone(dropped), failed: true };
     if (!this.server.sendPet({ t: 'act', id: nextId('c'), actions })) return this.notConnected('pet_act');
+    if (actions.includes(FIREWORKS.id)) this.fireworksOffered = false;
     const lasting = actions.filter((a) => vocab.find((v) => v.id === a)?.lasting);
     return { text: this.t.actReceipt(actions, lasting, dropped) };
   }

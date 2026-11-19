@@ -65,6 +65,10 @@ const DESCRIBE: WorldDescribe = {
       description: { zh: '使用者换了形象或装扮,或形象没能加载。', en: 'The person switched the figure or its dress, or a figure failed to load.' },
     },
     {
+      type: 'desktop-pet.holiday',
+      description: { zh: '今天是节日:当天桌宠第一次出现在桌面上时,或开着跨过零点时,一天一条。', en: 'Today is a holiday: once that day, when the pet first shows on the desktop or at midnight while it is shown.' },
+    },
+    {
       type: SELF_TYPE,
       description: { zh: '桌宠自己说的话与做的事,只给对话页显示,不送给 bot。', en: 'What the pet said and did, kept for the chat page and never delivered to the bot.' },
     },
