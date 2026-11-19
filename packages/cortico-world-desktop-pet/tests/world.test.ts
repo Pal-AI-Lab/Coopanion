@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { dryMountWorld, fakeWorldContext } from 'cortico/extensions/dry-mount.ts';
 import { renderTemplate } from 'cortico/core/template.ts';
 import { DESKTOP_PET, desktopPetDefinition } from '../src/definition.ts';
-import { DESKTOP_PET_DEFAULTS, SELF_DEFAULT, type DesktopPetConfigSection } from '../src/config.ts';
+import { BUBBLE_HOLD_MAX, DESKTOP_PET_DEFAULTS, SELF_DEFAULT, type DesktopPetConfigSection } from '../src/config.ts';
 import { DesktopPetWorld, type DesktopPetWorldOptions, type PetBotControls } from '../src/world.ts';
 import { chatItem } from '../src/chat.ts';
 import { FakeHost } from './helpers/fake-host.ts';
@@ -198,6 +198,17 @@ describe('with a pet page', () => {
     await expect.poll(() => host.events.length).toBe(1);
     const third = await say('嗯。');
     expect(seconds(third, /前面还有约 (\d+) 秒/) || 0).toBeLessThanOrEqual(seconds(second, /这段约 (\d+) 秒/));
+  });
+
+  it('pet_say counts a fixed speech hold into its own seconds and into the queue the next line waits behind', async () => {
+    const { world } = await mounted((c) => { c.window.sayBubbleHoldSec = BUBBLE_HOLD_MAX; });
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const say = async (script: string) => (await tool(world, 'pet_say').handler({ script }, ctx) as { text: string }).text;
+    const seconds = (text: string, pattern: RegExp) => Number(text.match(pattern)?.[1]);
+    expect(seconds(await say('你好。'), /这段约 (\d+) 秒/)).toBeGreaterThanOrEqual(BUBBLE_HOLD_MAX);
+    // whole seconds, and the first line has run for the moment between the two calls
+    expect(seconds(await say('你好。'), /前面还有约 (\d+) 秒/)).toBeGreaterThanOrEqual(BUBBLE_HOLD_MAX - 1);
   });
 
   it('pet_ask delivers the chosen option as an answer event that wakes', async () => {

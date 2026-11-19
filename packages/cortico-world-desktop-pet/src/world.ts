@@ -966,6 +966,7 @@ export class DesktopPetWorld implements World {
       bubbleSize: this.cfg.window.bubbleSize,
       fontSize: this.cfg.window.fontSize,
       bubbleSpeed: this.cfg.window.bubbleSpeed,
+      sayBubbleHoldSec: this.cfg.window.sayBubbleHoldSec,
       glow: this.cfg.window.glow,
       frameRate: this.cfg.window.frameRate,
       lockFrameRate: this.cfg.window.lockFrameRate,
@@ -982,6 +983,7 @@ export class DesktopPetWorld implements World {
       status: this.status.status,
       statusBubble: this.cfg.statusBubble,
       saidBubbles: this.cfg.saidBubbles,
+      saidBubbleHoldSec: this.cfg.saidBubbleHoldSec,
       bot: this.botInfo(),
     };
   }
@@ -1984,7 +1986,7 @@ export class DesktopPetWorld implements World {
     void this.record({ kind: 'say', beats: beats.map((b) => ({ text: b.text, ...moodOf(b.actions, this.vocab()) })) }, beats.map((b) => b.text).join(''), shown.blobs);
     if (!spoken) return { text: this.t.imagesShown(shown.blobs.length, this.chat.size > 0) };
     const now = Date.now();
-    const selfSec = estimateSeconds(beats, this.cfg.window.bubbleSpeed, this.cfg.speech.enabled ? speechTextSteps : undefined);
+    const selfSec = estimateSeconds(beats, this.cfg.window.bubbleSpeed, this.cfg.speech.enabled ? speechTextSteps : undefined, this.cfg.window.sayBubbleHoldSec);
     this.sayEnds = this.sayEnds.filter((l) => l.at > now);
     const free = this.sayEnds.at(-1)?.at ?? now;
     const waitSec = (free - now) / 1000;

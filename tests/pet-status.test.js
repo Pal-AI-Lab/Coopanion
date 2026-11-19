@@ -181,6 +181,28 @@ describe('hovering a timed bubble', () => {
   });
 });
 
+describe('a fixed speech hold', () => {
+  it('holds each typed-out part of a line for its seconds, and only for the automatic hold with a question waiting behind', () => {
+    const p = page();
+    const holdSec = 3;
+    p.onOrder({ t: 'prefs', sayBubbleHoldSec: holdSec });
+    p.onOrder({ t: 'say', id: 's', beats: [{ text: 'First' }, { text: 'Next' }] });
+    // the part types out within the second step, where its hold starts
+    p.step(.01); p.step(1);
+    p.step(holdSec - .1);
+    expect(p.bubble.textContent).toBe('First');
+    p.step(.2); p.step(1);
+    expect(p.bubble.textContent).toBe('Next');
+    p.onOrder({ t: 'ask', id: 'q', question: 'Go on?', options: ['Yes'] });
+    // the automatic hold of a line's last part at bubble speed 1, as stepDialog sets it
+    const auto = 1.6 + 'Next'.length * .07;
+    p.step(auto - .1);
+    expect(p.bubble.textContent).toBe('Next');
+    p.step(.2); p.step(.01);
+    expect(p.bubble.classList.contains('ask')).toBe(true);
+  });
+});
+
 const read = { kind: 'read', text: '在看', detail: '日记.md' };
 const think = { kind: 'think', text: '' };
 const show = (p, status) => p.onOrder({ t: 'status', status });
@@ -344,6 +366,18 @@ describe("the person's lines above Coo", () => {
     // centred over Coo's head (the body's layout.bubble.x; jsdom lays everything out zero wide)
     expect(p.lines().map((l) => l.el.style.left)).toEqual(['500px', '500px', '500px']);
     expect(p.doc.querySelector('#trail')).toBeNull();
+  });
+
+  it('with a fixed hold a line fades that many seconds after it settled, even while Coo still works on it', () => {
+    const p = page();
+    const holdSec = 3;
+    p.onOrder({ t: 'prefs', saidBubbleHoldSec: holdSec });
+    show(p, think);
+    said(p, '在吗', 1);
+    p.step(holdSec - .1);
+    expect(up(p)).toHaveLength(1);
+    p.step(.2);
+    expect(up(p)).toHaveLength(0);
   });
 
   it('with the switch off nothing typed or sent stays, and a heard line fades once it is settled', () => {
