@@ -582,7 +582,11 @@ function openTyping() {
  * away, and gives it back to the window that had it once the question is answered or gone.
  */
 function grabKeys(it) {
-  if (!host?.grabFocus || !it.options.length) return;
+  if (!host?.grabFocus || !it.options.length || it.grabbed) return;
+  // A question that merely shows up must not take the keyboard out of the window the person is typing
+  // in: it comes only when they are already here (the pet window has the keyboard, or the pointer rests
+  // on the bubble), and goes back as soon as they point elsewhere.
+  if (!bubbleHovered && !document.hasFocus()) return;
   it.grabbed = true;
   host.grabFocus();
 }
@@ -633,6 +637,17 @@ bubble.addEventListener('click', (e) => {
   speech.stop();
   sfx.tick();
   bubble.classList.add('fading');
+});
+
+/** Whether the pointer rests on the bubble: only then may a question's 1-9 keys take the keyboard. */
+let bubbleHovered = false;
+bubble.addEventListener('pointerenter', () => {
+  bubbleHovered = true;
+  if (item && item.kind === 'ask' && item.optsShown && !item.answered) grabKeys(item);
+});
+bubble.addEventListener('pointerleave', () => {
+  bubbleHovered = false;
+  if (item && item.grabbed) releaseKeys(item);
 });
 
 function stepDialog(dt) {
