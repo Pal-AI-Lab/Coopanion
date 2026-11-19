@@ -183,16 +183,35 @@ describe('with a pet page', () => {
     expect(out.text).toContain('飞');
   });
 
-  it('pet_say reports the estimated duration of the sent line even while another line is waiting', async () => {
+  it('pet_say counts the queue from a line the person skipped, not from when it was estimated to end', async () => {
+    const { world, host } = await mounted();
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    const say = async (script: string) => (await tool(world, 'pet_say').handler({ script }, ctx) as { text: string }).text;
+    const seconds = (text: string, pattern: RegExp) => Number(text.match(pattern)?.[1]);
+    await say('今天天气很好，我们去公园散步吧，那边的花都开了，还有很多小鸟在树上唱歌。'.repeat(4));
+    const long = await page.next((m) => m.t === 'say');
+    const second = await say('好呀，等你。');
+    expect(seconds(second, /前面还有约 (\d+) 秒/)).toBeGreaterThan(seconds(second, /这段约 (\d+) 秒/));
+    page.send({ t: 'skipped', id: long.id });
+    // the page's messages are handled in order: once the typed line after it has arrived, so has the skip
+    page.send({ t: 'text', text: '好' });
+    await expect.poll(() => host.events.length).toBe(1);
+    const third = await say('嗯。');
+    expect(seconds(third, /前面还有约 (\d+) 秒/) || 0).toBeLessThanOrEqual(seconds(second, /这段约 (\d+) 秒/));
+  });
+
+  it('pet_say counts a fixed speech hold into the receipt and into the queue ahead of the next line', async () => {
     const { world } = await mounted((c) => { c.window.sayBubbleHoldSec = BUBBLE_HOLD_MAX_SEC; });
     const page = await FakePage.open(origin(world));
     cleanup.push(() => page.close());
     const say = async (script: string) => (await tool(world, 'pet_say').handler({ script }, ctx) as { text: string }).text;
+    const seconds = (text: string, pattern: RegExp) => Number(text.match(pattern)?.[1]);
     const first = await say('你好。');
+    expect(seconds(first, /这段约 (\d+) 秒/)).toBeGreaterThanOrEqual(BUBBLE_HOLD_MAX_SEC);
     const second = await say('你好。');
-    expect(first).toMatch(/^已发送到桌宠。预计显示 \d+ 秒。/);
-    expect(second).toBe(first);
-    expect(await page.next((m) => m.t === 'say')).toMatchObject({ holdSec: BUBBLE_HOLD_MAX_SEC });
+    // both are rounded to whole seconds, and the first line has run for the moment between the two calls
+    expect(seconds(second, /前面还有约 (\d+) 秒/)).toBeGreaterThanOrEqual(seconds(first, /这段约 (\d+) 秒/) - 1);
     expect(await page.next((m) => m.t === 'say')).toMatchObject({ holdSec: BUBBLE_HOLD_MAX_SEC });
   });
 

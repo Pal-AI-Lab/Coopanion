@@ -432,7 +432,7 @@ function onOrder(m) {
     // the settings window's 「在桌面上隐藏」: the same as the menu's 「隐藏」
     case 'hide': host?.hide?.(); break;
     case 'type': openTyping(); break;
-    case 'say': dropAsks(); queue.push({ kind: 'say', beats: m.beats, holdSec: m.holdSec, i: -1 }); holdRoam(20); break;
+    case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, holdSec: m.holdSec, i: -1 }); holdRoam(20); break;
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
     case 'confirm': dropAsks(); rushLines(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
     case 'walk': walk(m); break;
@@ -622,6 +622,7 @@ function heldByCursor(it) {
 bubble.addEventListener('click', (e) => {
   if (item?.kind !== 'say' || item.skippedAt !== undefined || bubble.hidden || e.target.closest('a')) return;
   item.skippedAt = T;
+  send({ t: 'skipped', id: item.id });
   stopSpeech();
   sfx.tick();
   bubble.classList.add('fading');

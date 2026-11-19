@@ -397,6 +397,8 @@ export class DesktopPetWorld implements World {
   private petHidden = false;
   /** `onDesktop` as last told to `onDesktopChange`, null before the first time. */
   private desktopTold: boolean | null = null;
+  /** When each line sent by `pet_say` is estimated to be over, in sending order; the last one is when the bubble is free. */
+  private sayEnds: Array<{ id: string; at: number }> = [];
   private readonly walks = new Map<string, PendingWalk>();
   /** The `portrait` orders the page has not answered, by id. */
   private readonly portraits = new Map<string, (portrait: Portrait) => void>();
@@ -1284,6 +1286,14 @@ export class DesktopPetWorld implements World {
       }
       case 'commit': return this.commitSpeech();
       case 'cancel': return this.cancelSpeech();
+      case 'skipped': {
+        // the person ended a line early: the lines after it start now rather than when it was estimated to end
+        const i = this.sayEnds.findIndex((l) => l.id === String(msg.id));
+        if (i < 0) return;
+        const shift = Date.now() - this.sayEnds[i]!.at;
+        this.sayEnds = this.sayEnds.slice(i + 1).map((l) => ({ ...l, at: l.at + shift }));
+        return;
+      }
     }
   }
 
@@ -1957,15 +1967,21 @@ export class DesktopPetWorld implements World {
     const { beats, dropped } = parseScript(script, this.vocab());
     const spoken = beats.some((b) => b.text || b.actions.length || b.anchors.length);
     if (!spoken && shown.blobs.length === 0) return { text: this.t.sayEmpty, failed: true };
+    const id = nextId('s');
     const holdSec = this.cfg.window.sayBubbleHoldSec;
-    if (spoken && !this.server.sendPet({ t: 'say', beats, holdSec })) return this.notConnected('pet_say');
+    if (spoken && !this.server.sendPet({ t: 'say', id, beats, holdSec })) return this.notConnected('pet_say');
     void this.closeActivity();
     void this.record({ kind: 'say', beats: beats.map((b) => ({ text: b.text, ...moodOf(b.actions, this.vocab()) })) }, beats.map((b) => b.text).join(''), shown.blobs);
     if (!spoken) return { text: this.t.imagesShown(shown.blobs.length, this.chat.size > 0) };
-    const estimatedSec = estimateSeconds(beats, this.cfg.window.bubbleSpeed, this.cfg.speech.enabled ? speechTextSteps : undefined, holdSec);
+    const now = Date.now();
+    const selfSec = estimateSeconds(beats, this.cfg.window.bubbleSpeed, this.cfg.speech.enabled ? speechTextSteps : undefined, holdSec);
+    this.sayEnds = this.sayEnds.filter((l) => l.at > now);
+    const free = this.sayEnds.at(-1)?.at ?? now;
+    const waitSec = (free - now) / 1000;
+    this.sayEnds.push({ id, at: free + selfSec * 1000 });
     const replaced = this.ask?.question ?? null;
     if (this.ask) this.setAsk(null);
-    return { text: this.t.sayReceipt({ estimatedSec, chatOpen: this.chat.size > 0, replaced, dropped, images: shown.blobs.length }) };
+    return { text: this.t.sayReceipt({ waitSec, selfSec, chatOpen: this.chat.size > 0, replaced, dropped, images: shown.blobs.length }) };
   }
 
   /**
