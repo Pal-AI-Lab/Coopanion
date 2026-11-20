@@ -20,7 +20,6 @@ function Install([switch]$QuoteDirectory) {
 
 function Assert-Exit([int]$Code, [bool]$Success) {
     if (($Code -eq 0) -ne $Success) {
-        Get-Content -LiteralPath "$data\logs\installer.log" -ErrorAction SilentlyContinue
         throw "Unexpected installer exit code $Code"
     }
 }
@@ -66,6 +65,9 @@ try {
         $locked.Dispose()
     }
     if (Test-Path -LiteralPath $state) { throw 'The rollback did not finish.' }
+    if ((Get-Content -LiteralPath "$data\logs\installer.log" -Tail 1) -notmatch 'stage=back up previous files file=icudtl.dat result=rollback complete') {
+        throw 'The expected sharing violation did not cause the rollback.'
+    }
 
     # Disk state after an interruption between moving the old files and publishing
     # the whole new version. Lock one backup to interrupt the recovery itself.
@@ -84,9 +86,11 @@ try {
     $locked = [IO.File]::Open("$old\icudtl.dat", 'Open', 'Read', 'Read')
     try {
         Assert-Exit (Install) $false
-        if (-not (Test-Path -LiteralPath "$state\restore") -or
-            (Get-FileHash -LiteralPath "$old\Coopanion.exe").Hash -ne $exeHash) {
-            throw 'The interrupted recovery did not preserve the previous version.'
+        if (-not (Test-Path -LiteralPath "$state\restore")) {
+            throw 'The installer did not finish moving the partial new version out of the way.'
+        }
+        if ((Get-FileHash -LiteralPath "$old\Coopanion.exe").Hash -ne $exeHash) {
+            throw 'The interrupted recovery changed the executable in the backup.'
         }
         Assert-Preserved
     } finally {
@@ -109,6 +113,15 @@ try {
     $uninstall = Start-Process -FilePath "$install\Uninstall Coopanion.exe" -ArgumentList '/S /KEEP_APP_DATA' -Wait -PassThru
     if ($uninstall.ExitCode -ne 0 -or (Test-Path -LiteralPath $exe)) { throw 'Uninstall failed.' }
     Assert-Preserved
+} catch {
+    Get-Content -LiteralPath "$data\logs\installer.log" -ErrorAction SilentlyContinue
+    foreach ($path in @($install, $state, $old, $new, "$install\.coopanion-update-cleanup")) {
+        if ($path -and (Test-Path -LiteralPath $path -PathType Container)) {
+            Write-Host "$path"
+            Get-ChildItem -LiteralPath $path -Force -Name
+        }
+    }
+    throw
 } finally {
     Remove-Item -LiteralPath $root -Recurse -Force
 }
