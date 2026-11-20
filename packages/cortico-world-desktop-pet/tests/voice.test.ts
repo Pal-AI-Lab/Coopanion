@@ -298,6 +298,72 @@ describe('voice input', () => {
     } finally { release(); }
   });
 
+  it('shows recognition only after the audio batch is delivered even when recognition finishes early', async () => {
+    const { cfg, world, host, page, asr } = await setup('early result');
+    cfg.asr.recording.transcript = false;
+    host.modelFacts.accepts = (mime) => mime === 'audio/wav';
+    for (const fr of [...tone(900, .3), ...tone(300, 0)]) page.audio(fr);
+    await expect.poll(() => asr.decodes.length).toBe(1);
+    expect(host.events).toHaveLength(0);
+    expect(world.voiceState().recent).toEqual([]);
+    for (const fr of tone(600, 0)) page.audio(fr);
+    await expect.poll(() => host.events.length).toBe(1);
+    await expect.poll(() => (world.voiceState().recent as unknown[]).length).toBe(1);
+  });
+
+  it('delivers two recordings while the first recognition is still pending, without stale bubble text', async () => {
+    const { cfg, host, page, asr, world } = await setup('unused');
+    cfg.asr.recording.transcript = false;
+    host.modelFacts.accepts = (mime) => mime === 'audio/wav';
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    asr.beforeDecode = () => gate;
+    asr.reply = () => asr.decodes.length === 1 ? 'first result' : 'second result';
+    try {
+      for (let i = 1; i <= 2; i++) {
+        for (const fr of [...tone(900, .3), ...tone(900, 0)]) page.audio(fr);
+        await expect.poll(() => host.events.length).toBe(i);
+      }
+      expect(asr.decodes).toHaveLength(1);
+      release();
+      await expect.poll(() => (world.voiceState().recent as unknown[]).length).toBe(2);
+      await page.next((m) => m.t === 'listen' && m.phase === 'heard' && m.text === 'second result');
+      expect(page.messages.some((m) => m.t === 'listen' && m.phase === 'heard' && m.text === 'first result')).toBe(false);
+      expect(host.events).toHaveLength(2);
+    } finally { release(); }
+  });
+
+  it('sends audio even when the recognizer fails', async () => {
+    const { cfg, host, page, asr, world } = await setup('unused');
+    cfg.asr.recording.transcript = false;
+    host.modelFacts.accepts = (mime) => mime === 'audio/wav';
+    asr.beforeDecode = async () => { throw new Error('recognition failed'); };
+    for (const fr of [...tone(900, .3), ...tone(900, 0)]) page.audio(fr);
+    await expect.poll(() => host.events.length).toBe(1);
+    expect(host.events[0]?.blobs?.[0]?.mime).toBe('audio/wav');
+    await expect.poll(() => (world.voiceState().recent as unknown[]).length).toBe(1);
+    expect(world.voiceState().recent).toMatchObject([{ dropped: true }]);
+    expect(host.events).toHaveLength(1);
+  });
+
+  it.each([true, false])('audio-only mode over the recording limit reports failure or falls back to text (ASR %s)', async (serviceEnabled) => {
+    const { cfg, host, page, world } = await setup('fallback text', 'always', undefined, 'zh', false, undefined, serviceEnabled);
+    cfg.asr.recording.transcript = false;
+    cfg.asr.recording.maxMinutes = RECORDING_MINUTES_MIN;
+    host.modelFacts.accepts = (mime) => mime === 'audio/wav';
+    if (!serviceEnabled) await page.next((m) => m.t === 'prefs' && m.mic === true);
+    for (const fr of [...tone(RECORDING_MINUTES_MIN * 60_000 + 1000, .3), ...tone(900, 0)]) page.audio(fr);
+    if (serviceEnabled) {
+      await expect.poll(() => host.events.length, { timeout: 5000 }).toBe(1);
+      expect(host.events[0]?.text).toContain('fallback text');
+      expect(host.events[0]?.blobs).toBeUndefined();
+    } else {
+      await expect.poll(() => (world.voiceState().recent as unknown[]).length).toBe(1);
+      expect(host.events).toHaveLength(0);
+      expect(world.voiceState().recent).toMatchObject([{ dropped: true }]);
+    }
+  });
+
   it('sends a batch whose recording runs past asr.recording.maxMinutes as text alone, and the next one with its recording', async () => {
     const { cfg, host, page } = await setup('今天天气怎么样');
     cfg.asr.recording.maxMinutes = RECORDING_MINUTES_MIN;

@@ -371,6 +371,7 @@ function draftImages(raw: unknown): DraftImage[] {
 interface AudioSpeechBatch {
   parts: Int16Array[] | null;
   text: string[];
+  reports: { text: string; ms: number; error?: string; dropped?: boolean }[];
   pending: number;
   closed: boolean;
   sent: boolean;
@@ -1063,6 +1064,11 @@ export class DesktopPetWorld implements World {
     if (!this.holdPreRollEnabled()) this.holdPreRoll.length = 0;
     if (this.captureEnabled && !this.cfg.asr.enabled) this.discardSpeech();
     this.captureEnabled = this.cfg.asr.enabled;
+    if (this.cfg.asr.enabled && this.audioBatch && !this.micWanted()) {
+      this.segmenter.flush();
+      this.committing = true;
+      this.schedulePack();
+    }
     const wanted = this.recognitionWanted();
     const turnedOn = wanted && !this.voiceEnabled;
     this.voiceEnabled = wanted;
@@ -1134,7 +1140,7 @@ export class DesktopPetWorld implements World {
     return {
       enabled: this.cfg.asr.enabled,
       ready,
-      detail: ready ? null : b?.phase === 'starting' ? this.ui.voice.starting : b?.detail ?? this.ui.voice.notRunning,
+      detail: ready ? null : this.cfg.asr.serviceEnabled === false ? this.ui.voice.recordingUnavailable : b?.phase === 'starting' ? this.ui.voice.starting : b?.detail ?? this.ui.voice.notRunning,
       hint: this.talkHint(),
       mode: this.cfg.asr.mic.mode,
       key: hotkeyBadge(this.cfg.asr.mic.hotkey),
@@ -1804,6 +1810,9 @@ export class DesktopPetWorld implements World {
 
   private discardSpeech(): void {
     this.segmenter.flush();
+    if (this.packTimer) clearTimeout(this.packTimer);
+    this.packTimer = null;
+    this.interim = '';
     this.audioBatch = null;
     this.audioDisplay = null;
     this.queue.length = 0;
@@ -1845,8 +1854,8 @@ export class DesktopPetWorld implements World {
     if (this.audioBatch || (this.audioOnly() && !this.textWork() && !this.packer.pending)) {
       // Hold mode does not apply the speech onset threshold. Do not send a silent recording.
       if (!u.pcm.some((sample) => Math.abs(sample) > 104)) return;
-      const batch = this.audioBatch ??= {
-        parts: [], text: [], pending: 0, closed: false, sent: false, cancels: this.cancels,
+      const batch: AudioSpeechBatch = this.audioBatch ??= {
+        parts: [], text: [], reports: [], pending: 0, closed: false, sent: false, cancels: this.cancels,
         trigger: this.cfg.asr.mic.mode === 'always' ? 'flush' : 'interrupt',
       };
       if (batch.parts) {
@@ -1908,19 +1917,21 @@ export class DesktopPetWorld implements World {
           if (!valid()) continue;
           let text = res.text;
           if (this.simplifies) text = toSimplified(text);
-          if (res.error || looksHallucinated(text)) {
+          const dropped = !!res.error || looksHallucinated(text);
+          if (audio) {
+            audio.reports.push({ text, ms: res.ms, ...(res.error ? { error: res.error } : {}), dropped });
+            if (!dropped) audio.text.push(text);
+            continue;
+          }
+          if (dropped) {
             this.counts.dropped++;
             this.remember({ text: res.error ? this.ui.voice.failedLine(res.error) : text, at: Date.now(), ms: res.ms, dropped: true });
             this.voiceFrame({ type: 'dropped', text: res.error ?? text, ms: res.ms });
-            if (!audio && u.result) this.showHeard();
+            if (u.result) this.showHeard();
             continue;
           }
           this.remember({ text, at: Date.now(), ms: res.ms });
           this.voiceFrame({ type: 'text', text, ms: res.ms });
-          if (audio) {
-            audio.text.push(text);
-            continue;
-          }
           if (this.packer.add(text) && this.heardPcm !== null) {
             const parts = this.recordingGoes() ? [...this.heardPcm, u.pcm] : null;
             this.heardPcm = parts && samplesIn(parts) <= this.cfg.asr.recording.maxMinutes * 60 * SAMPLE_RATE ? parts : null;
@@ -2029,6 +2040,12 @@ export class DesktopPetWorld implements World {
 
   private finishAudioTranscript(batch: AudioSpeechBatch): void {
     if (!batch.closed || batch.pending || batch.cancels !== this.cancels || !this.cfg.asr.enabled) return;
+    for (const result of batch.reports.splice(0)) {
+      if (result.dropped) this.counts.dropped++;
+      const text = result.error ? this.ui.voice.failedLine(result.error) : result.text;
+      this.remember({ text, at: Date.now(), ms: result.ms, ...(result.dropped ? { dropped: true } : {}) });
+      this.voiceFrame({ type: result.dropped ? 'dropped' : 'text', text: result.error ?? result.text, ms: result.ms });
+    }
     const text = joinSpeech(batch.text);
     if (batch.sent) {
       if (text && this.audioDisplay === batch) this.server.sendPet({ t: 'listen', phase: 'heard', text });
@@ -2106,7 +2123,7 @@ export class DesktopPetWorld implements World {
   private listenOpen = false;
 
   private remember(line: HeardLine): void {
-    this.heard.push(line);
+    this.heard.push({ ...line, at: Math.max(line.at, (this.heard.at(-1)?.at ?? 0) + 1) });
     if (this.heard.length > 50) this.heard.shift();
   }
 

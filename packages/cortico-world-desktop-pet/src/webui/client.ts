@@ -293,7 +293,10 @@ const voicePanel: WebUiPanel = {
       enabled.checked = next.enabled;
       master.classList.toggle('on', next.enabled);
       const onPressOn = next.input.mode === 'hold' && next.input.openOnPress;
-      masterHint.textContent = !next.enabled ? t.disabledHint : onPressOn ? t.enabledHintOnPress : t.enabledHint;
+      const audioOnly = next.recording.enabled && next.recording.endpointTakesAudio && !next.recording.transcript;
+      masterHint.textContent = !next.enabled ? t.disabledHint
+        : !next.serviceEnabled && !audioOnly ? text.voice.recordingUnavailable
+          : onPressOn ? t.enabledHintOnPress : t.enabledHint;
       settings.classList.toggle('off', !next.enabled);
       const engines: Partial<Record<Engine, string>> = { funasr: t.funasr, whisper: t.whisper };
       // Windows' own recognizer exists only there
