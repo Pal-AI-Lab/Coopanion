@@ -2,7 +2,8 @@
  * Types for the parts of the desktop-pet World's web modules the console uses: from `web/ui.js` the
  * icons of the pet's menu, for the 「习惯」 page's hover-button picker, and the links in Coo's words on
  * the chat page; from `web/sound.js` the kinds of the pet's sounds, for the 「习惯」 page's sound
- * switches; from `web/scale-slider.js` the slider of the 「习惯」 page's sizes, 外发光 and 音量. The
+ * switches; from `web/scale-slider.js` the slider of the 「习惯」 page's sizes, 外发光 and 音量; from
+ * `web/coo/coo.js` Coo's drawing, for the bubble sample on the 「习惯」 page. The
  * modules are plain browser JavaScript; esbuild bundles them into the console from the workspace package.
  */
 declare module 'cortico-world-desktop-pet/web/ui.js' {
@@ -42,6 +43,15 @@ declare module 'cortico-world-desktop-pet/web/scale-slider.js' {
     relayout(): void;
   }
   export function scaleSlider(doc: Document, o: ScaleSliderOptions): ScaleSlider;
+}
+
+declare module 'cortico-world-desktop-pet/web/coo/coo.js' {
+  /** A skin read from anything: unknown fields take the default dress. */
+  export function normalizeSkin(raw: unknown): object;
+  /** Coo standing with `face` (a FACES key of web/kit/body.js) in `skin`, as SVG markup in Coo's drawing space. */
+  export function mini(face: string, skin: object): string;
+  /** The CSS variables that color `skin`, light or dark. */
+  export function skinVars(skin: object, dark: boolean): string;
 }
 
 declare module 'cortico-world-desktop-pet/web/sound.js' {
