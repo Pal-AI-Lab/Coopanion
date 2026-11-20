@@ -777,7 +777,6 @@ async function mount(ctx: PageContext): Promise<void> {
     overlayUrl.value = state?.overlayUrl ?? '';
     overlayUrlBox.hidden = !overlay.checked || !overlayUrl.value;
     preview.refresh();
-    if (state?.skin) preview.setSkin(state.skin);
     if (typeof values[KEYS.hover] === 'string') {
       picked = (values[KEYS.hover] as string).split(',').map((x) => x.trim()).filter((x) => ACTIONS.some(([a]) => a === x));
       renderHover();

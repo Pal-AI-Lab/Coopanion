@@ -1,17 +1,17 @@
 /**
- * The 气泡 section's sample: Coo in its current dress (coo/coo.js `mini`) with its bubbles, drawn, placed and
- * handled as the pet page does (pet.css `.bubble`, `.heard`, `.status`; pet-app.js `place`, `tailAt`,
- * `placeLines`, `stepDialog`, `stepLines`) in the settings window's colors. A figure from a pack shows as Coo.
- * At rest it shows a line of yours and Coo's reply; 「播放示例」 plays one exchange: your line, what Coo is doing,
- * then the reply typed and held line by line, each bubble leaving when its hold runs out. As on the pet, a click
- * closes a bubble (Coo's whole reply, or your line) and the pointer on Coo's line holds it once it is written.
+ * The 气泡 section's sample: Coo's bubbles without the figure, drawn, placed and handled as the pet page does
+ * (pet.css `.bubble`, `.heard`, `.status`; pet-app.js `place`, `tailAt`, `placeLines`, `stepDialog`, `stepLines`)
+ * in the settings window's colors, Coo's tail pointing down to where its head would be. Without the figure the frame
+ * keeps one height in every language. At rest it shows a line of yours and Coo's reply; 「播放示例」 plays one
+ * exchange: your line, what Coo is doing, then the reply typed and held line by line, each bubble leaving when its
+ * hold runs out. As on the pet, a click closes a bubble (Coo's whole reply, or your line) and the pointer on Coo's line
+ * holds it once it is written.
  * A wrapped line takes the narrowest bubble that holds it in as many lines, and a tail's line is as wide as the border
  * is drawn, as on the pet (ui.js balancedWidth, tailLine). Size and text size follow the sliders at once; speed and
  * holds are read when the sample plays.
  */
 
 import { balancedWidth, clamp, ICONS, tailLine } from 'cortico-world-desktop-pet/web/ui.js';
-import { HEAD_TOP, mini, normalizeSkin, skinVars } from 'cortico-world-desktop-pet/web/coo/coo.js';
 import { prefersStill } from '../../base/motion.ts';
 import { icon } from '../../base/ui/icons.ts';
 import { S } from './strings.ts';
@@ -49,18 +49,17 @@ const TAIL_CENTER = 70, TAIL_FOLLOW = 130;
 /** The width the sample is laid out at before it is scaled to the panel (as wide as the panel at most, .bubble-preview in home.css). */
 const STAGE_PX = 440;
 /**
- * The stage's height: the sample lines are kept short enough in every language for their tallest bubbles to fit,
- * so the frame is this high in all of them; it grows, once, only if a language's lines do not fit (see `measure`).
+ * The stage's height: the sample lines are kept short enough in every language for their tallest bubbles to fit
+ * (293px in de and es-419, at the largest text size), so the frame is this high in all of them; it grows, once, only
+ * if a language's lines do not fit (see `measure`).
  */
-const STAGE_MIN_H = 400;
+const STAGE_MIN_H = 296;
 /** Room kept above the topmost bubble, under 播放示例. */
 const PLAY_ROOM = 44;
 /** The bubble size slider's steps, and the largest text size (BUBBLE_SIZE_MIN, BUBBLE_SIZE_MAX in the World's config.ts; 5% steps). */
 const SIZE_STEPS = Array.from({ length: 17 }, (_, i) => .8 + i * .05), FONT_MAX = 1.6;
-/** Coo's box on the stage and the drawing space in it, with room above for the tallest head piece (HEAD_TOP in coo.js). */
-const COO_W = 76, COO_H = 100, COO_BOTTOM = 12, COO_VIEWBOX = [14, -40, 228, 300] as const;
-/** Where the bubble points, in Coo's drawing units: over the head, above what it wears there (coo.js `anchors.bubble`). */
-const BUBBLE_ANCHOR_X = 146;
+/** Where Coo's head would be, from the stage's bottom: Coo's bubble sits above it, centred on the stage, so its tail leans as on the pet. */
+const HEAD_BOTTOM = 4, HEAD_X = STAGE_PX / 2 - FACING_SHIFT;
 const READ_FILE = 'weather.md';
 
 /** Where the tail's tip sits along a bubble `bw` wide whose left edge is `x` left of Coo (pet-app.js tailAt). */
@@ -70,8 +69,6 @@ export interface BubblePreview {
   el: HTMLElement;
   /** Draws the size, text size and which bubbles show again from the settings. */
   refresh(): void;
-  /** Dresses Coo as the pet panel's state says (`skin`). */
-  setSkin(skin: unknown): void;
 }
 
 export function bubblePreview(doc: Document, signal: AbortSignal, read: () => BubbleSettings): BubblePreview {
@@ -95,19 +92,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   const say = h('div', 'pv-bubble pv-say');
   const sayText = h('p', 'pv-text');
   say.append(sayText);
-  const coo = h('div', 'bubble-preview-coo');
-  coo.setAttribute('aria-hidden', 'true');
-  stage.append(coo, said, status, say);
-  let skin = normalizeSkin(null) as { head?: string }, face = '', drawn = '';
-  /** Draws Coo with `next` face in the current dress, in the window's light or dark colors; the same drawing is not redone. */
-  const pose = (next: string) => {
-    face = next;
-    const dark = doc.documentElement.dataset.colorMode === 'dark';
-    const key = `${next}|${dark}|${JSON.stringify(skin)}`;
-    if (key === drawn) return;
-    drawn = key;
-    coo.innerHTML = `<svg viewBox="${COO_VIEWBOX.join(' ')}" style="${skinVars(skin, dark)}">${mini(next, skin)}</svg>`;
-  };
+  stage.append(said, status, say);
   const play = h('button', 'btn sm bubble-preview-play');
   play.type = 'button';
   play.append(icon(doc, 'play'), h('span', '', S.previewPlay));
@@ -151,17 +136,14 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   /** Your line's place relative to Coo's head, eased toward where it belongs as the pet eases it (pet-app.js placeLines). */
   let saidAt: { x: number; y: number } | null = null;
   /**
-   * Places Coo at the bottom of a stage `height` high and the bubbles as the pet does: Coo's bubble (or the status,
-   * the same bubble on the pet) above the head, moved toward the side Coo faces, its tail pointing at the head; your
-   * line centred above it, or above the head when Coo's bubble is down. `dt` eases your line; 0 puts it in place.
-   * Returns the top of the highest bubble shown.
+   * Places the bubbles on a stage `height` high as the pet does over a head at its bottom: Coo's bubble (or the
+   * status, the same bubble on the pet) above the head, moved toward the side Coo faces, its tail pointing at the
+   * head; your line centred above it, or above the head when Coo's bubble is down. `dt` eases your line; 0 puts it in
+   * place. Returns the top of the highest bubble shown.
    */
   const lay = (height: number, dt: number): number => {
     const size = Number(stage.style.getPropertyValue('--bubble-size')) || 1;
-    const k = COO_H / COO_VIEWBOX[3];
-    const cooLeft = (STAGE_PX - COO_W) / 2, cooTop = height - COO_BOTTOM - COO_H;
-    coo.style.left = `${cooLeft}px`; coo.style.top = `${cooTop}px`;
-    const a = { x: cooLeft + (BUBBLE_ANCHOR_X - COO_VIEWBOX[0]) * k, y: cooTop + ((HEAD_TOP[skin.head ?? 'none'] ?? 12) - 8 - COO_VIEWBOX[1]) * k };
+    const a = { x: HEAD_X, y: height - HEAD_BOTTOM };
     let highest = height;
     let box: { left: number; top: number; bw: number } | null = null;
     for (const bubble of [say, status]) {
@@ -248,7 +230,6 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     sayText.textContent = S.previewReply[0] ?? '';
     show(say, true);
     saidAt = null;
-    pose('neutral');
     sizes();
   };
 
@@ -296,7 +277,6 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     const t = r.t;
     clock.textContent = `${t.toFixed(1)} s`;
     if (s.said && r.saidAt === undefined && t >= SENT_AT) { r.saidAt = t; show(said, true, true); fitSaid(); }
-    pose(t >= SENT_AT && t < r.speakAt ? 'thinking' : 'neutral');
     if (s.status && t >= SENT_AT && t < r.speakAt && r.endedAt === undefined) {
       const reading = t >= SENT_AT + THINK_SEC;
       const kind = reading ? 'read' : 'think';
@@ -368,20 +348,13 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     observer.observe(frame);
     signal.addEventListener('abort', () => observer.disconnect(), { once: true });
   }
-  // Coo is drawn in the window's light or dark colors: a theme switched at rest draws it again, as the 开始 and 装扮 pages follow it
-  if (view?.MutationObserver) {
-    const themeWatch = new view.MutationObserver(() => pose(face));
-    themeWatch.observe(doc.documentElement, { attributes: true, attributeFilter: ['data-color-mode', 'data-theme-scheme'] });
-    signal.addEventListener('abort', () => themeWatch.disconnect(), { once: true });
-  }
   rest();
   return {
     el,
     refresh() {
       // the 输入气泡 switch shows or hides your line at rest; shown, it is fitted with the sizes
       if (!run && read().said !== saidAtRest) { saidAtRest = read().said; show(said, saidAtRest); }
-      sizes(); pose(face);
+      sizes();
     },
-    setSkin(raw) { skin = normalizeSkin(raw) as { head?: string }; pose(face); lay(stageH, 0); },
   };
 }

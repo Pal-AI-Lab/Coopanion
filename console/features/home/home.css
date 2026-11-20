@@ -182,16 +182,4 @@
 .pv-status[data-kind="think"] circle:nth-child(3) { animation-delay: .32s; }
 @keyframes pv-think { 0%, 60%, 100% { transform: none; opacity: .45; } 30% { transform: translateY(-3px); opacity: 1; } }
 .pv-status-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 示例里的 Coo:穿着当前的装扮(coo.js mini),颜色类同 coo.js 的 COO_CSS,只在示例里生效 */
-.bubble-preview-coo { position: absolute; width: 76px; height: 100px; }
-.bubble-preview-coo svg { display: block; width: 100%; height: 100%; overflow: visible; --blush: #FF8FA8; --tear: #5AAEF0; --anger: #E5484D; }
-.bubble-preview-coo .ink { stroke: var(--skin-ink); } .bubble-preview-coo .inkf { fill: var(--skin-ink); } .bubble-preview-coo .eye { stroke: var(--skin-eye); }
-.bubble-preview-coo .blush { fill: var(--blush); } .bubble-preview-coo .tearf { fill: var(--tear); } .bubble-preview-coo .angry { stroke: var(--anger); }
-.bubble-preview-coo .c-head-main { stroke: var(--c-head-main, var(--skin-ink)); } .bubble-preview-coo .c-head-acc { stroke: var(--c-head-acc, var(--skin-eye)); }
-.bubble-preview-coo .c-glasses-main { stroke: var(--c-glasses-main, var(--skin-ink)); } .bubble-preview-coo .c-glasses-acc { stroke: var(--c-glasses-acc, var(--skin-eye)); }
-.bubble-preview-coo .c-side-main { stroke: var(--c-side-main, var(--skin-eye)); } .bubble-preview-coo .c-side-acc { stroke: var(--c-side-acc, var(--skin-eye)); }
-.bubble-preview-coo .c-neck-main { stroke: var(--c-neck-main, var(--skin-eye)); } .bubble-preview-coo .c-neck-acc { stroke: var(--c-neck-acc, var(--skin-eye)); }
-.bubble-preview-coo .f-head-main { fill: var(--c-head-main, var(--skin-ink)); } .bubble-preview-coo .f-head-acc { fill: var(--c-head-acc, var(--skin-eye)); }
-.bubble-preview-coo .f-side-main { fill: var(--c-side-main, var(--skin-eye)); } .bubble-preview-coo .f-side-acc { fill: var(--c-side-acc, var(--skin-eye)); }
-.bubble-preview-coo .f-neck-main { fill: var(--c-neck-main, var(--skin-eye)); } .bubble-preview-coo .f-neck-acc { fill: var(--c-neck-acc, var(--skin-eye)); }
 @media (prefers-reduced-motion: reduce) { .pv-bubble { transition: none; } .pv-status circle { animation: none; } }
