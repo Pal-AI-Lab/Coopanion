@@ -12,6 +12,8 @@ declare module 'cortico-world-desktop-pet/web/ui.js' {
   export function balancedWidth(el: HTMLElement): number;
   /** The width a bubble tail's line is drawn at on a display of `dpr` device pixels per pixel. */
   export function tailLine(dpr: number): number;
+  /** Where a bubble tail's tip sits along a bubble `bw` wide whose left edge is `x` left of Coo, at bubble size `size`. */
+  export function tailAt(bw: number, x: number, size?: number): number;
   /** `v` held between `lo` and `hi`. */
   export function clamp(v: number, lo: number, hi: number): number;
   /** The first `n` characters of `text` (all of it by default) as nodes, written-out http(s) addresses as links. */

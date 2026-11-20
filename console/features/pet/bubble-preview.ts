@@ -1,8 +1,8 @@
 /**
  * The 气泡 section's sample: Coo's bubbles without the figure, drawn, placed and handled as the pet page does
- * (pet.css `.bubble`, `.heard`, `.status`; pet-app.js `place`, `tailAt`, `placeLines`, `stepDialog`, `stepLines`)
+ * (pet.css `.bubble`, `.heard`, `.status`; pet-app.js `place`, `placeLines`, `stepDialog`, `stepLines`; ui.js `tailAt`)
  * in the settings window's colors, Coo's tail pointing down to where its head would be. 播放示例 and the clock sit
- * above the frame; the frame has one height for every size and language, the bubbles centred in it.
+ * under the frame; the frame has one height for every size and language, the bubbles centred in it.
  * At rest it shows a line of yours and Coo's reply; 「播放示例」 plays one exchange: your line, what Coo is doing,
  * then the reply typed and held line by line, each bubble leaving when its hold runs out. As on the pet, a click
  * closes a bubble (Coo's whole reply, or your line) and the pointer on Coo's line holds it once it is written.
@@ -11,7 +11,7 @@
  * holds are read when the sample plays.
  */
 
-import { balancedWidth, clamp, ICONS, tailLine } from 'cortico-world-desktop-pet/web/ui.js';
+import { balancedWidth, clamp, ICONS, tailAt, tailLine } from 'cortico-world-desktop-pet/web/ui.js';
 import { prefersStill } from '../../base/motion.ts';
 import { icon } from '../../base/ui/icons.ts';
 import { S } from './strings.ts';
@@ -44,8 +44,6 @@ const SAY_UP = 18, FACING_SHIFT = 26, LINES_UP = 46, LINES_GAP = 8;
 const EDGE = 20;
 /** At rest a bubble clicked away fades and comes back after this many seconds. */
 const BACK_SEC = 1.2;
-/** Bubbles up to TAIL_CENTER wide point their tail from their middle, wider ones toward Coo by TAIL_FOLLOW (pet-app.js tailAt). */
-const TAIL_CENTER = 70, TAIL_FOLLOW = 130;
 /**
  * The width the sample is laid out at before it is scaled to the panel (as wide as the panel at most, .bubble-preview in
  * home.css): Coo's bubble at its widest (300px at bubble size 1.6) and EDGE on each side, so no bubble is narrowed by
@@ -54,18 +52,18 @@ const TAIL_CENTER = 70, TAIL_FOLLOW = 130;
 const STAGE_PX = 300 * 1.6 + 2 * EDGE;
 /**
  * The stage's height, one for every size and language: the tallest picture the sample shows, at any bubble and text
- * size in any of the 11 languages, centred, with 12px above and below it (236 for en at bubble size 1.05 and text
- * size 1.6). The sample lines take two lines at most, so this does not grow.
+ * size in any of the 11 languages, centred, with ROOM above and below it (236 for en at bubble size 1.05 and text
+ * size 1.6, in Windows' fonts). The sample lines take two lines at most there; where another system's fonts wrap one
+ * into a third, the stage grows once to hold it (`stageHeight`).
  */
-const STAGE_H = 236;
+const STAGE_H = 236, ROOM = 12;
+/** The bubble and text size sliders' range and step (BUBBLE_SIZE_MIN and BUBBLE_SIZE_MAX in the World's config.ts). */
+const SIZE_MIN = .8, SIZE_MAX = 1.6, SIZE_STEP = .05;
 /** Where Coo's head would be across the stage: Coo's bubble sits above it centred on the stage, so its tail leans as on the pet. */
 const HEAD_X = STAGE_PX / 2 - FACING_SHIFT;
 /** How far a tail's tip reaches below its bubble at bubble size `size` (pet.css: 11.5px drawn from 0.5px inside the 2.5px border). */
 const tailBelow = (size: number) => 11.5 * size - 3;
 const READ_FILE = 'weather.md';
-
-/** Where the tail's tip sits along a bubble `bw` wide whose left edge is `x` left of Coo (pet-app.js tailAt). */
-const tailAt = (bw: number, x: number) => bw / 2 + (clamp(x, 22, bw - 22) - bw / 2) * clamp((bw - TAIL_CENTER) / (TAIL_FOLLOW - TAIL_CENTER), 0, 1);
 
 export interface BubblePreview {
   el: HTMLElement;
@@ -84,9 +82,9 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   el.style.setProperty('--pv-stage', `${STAGE_PX}px`);
   stage.style.setProperty('--pv-edge', `${EDGE}px`);
   stage.setAttribute('aria-hidden', 'true');
-  stage.style.height = `${STAGE_H}px`;
-  /** How far down Coo's head would be, for the current sizes (`centre`). */
-  let headY = 0;
+  /** The stage's height in this window (`stageHeight`), and how far down Coo's head would be for the current sizes (`centre`). */
+  let stageH = STAGE_H, headY = 0;
+  stage.style.height = `${stageH}px`;
   /** Whether your line shows at rest: it follows the 输入气泡 switch. */
   let saidAtRest = true;
   const clock = h('span', 'bubble-preview-clock');
@@ -106,7 +104,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   const bar = h('div', 'bubble-preview-bar');
   bar.append(play, clock);
   frame.append(stage);
-  el.append(bar, frame);
+  el.append(frame, bar);
 
   /** Shows or hides a bubble at once; `pop` plays its entrance (pet.css `bubble-in`). */
   const show = (bubble: HTMLElement, on: boolean, pop = false) => {
@@ -144,18 +142,15 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
 
   /** Your line's place relative to Coo's head, eased toward where it belongs as the pet eases it (pet-app.js placeLines). */
   let saidAt: { x: number; y: number } | null = null;
-  interface Box { left: number; right: number; top: number; bottom: number }
   const sizeNow = () => Number(stage.style.getPropertyValue('--bubble-size')) || 1;
   /**
    * Places the bubbles as the pet does over a head `headY` down the stage: Coo's bubble (or the status, the same bubble
    * on the pet) above the head, moved toward the side Coo faces, its tail pointing at the head; your line centred above
-   * it, or above the head when Coo's bubble is down. `dt` eases your line; 0 puts it in place. Returns the boxes of the
-   * bubbles shown, Coo's to its tail's tip.
+   * it, or above the head when Coo's bubble is down. `dt` eases your line; 0 puts it in place.
    */
-  const lay = (dt: number): Box[] => {
+  const lay = (dt: number) => {
     const size = sizeNow();
     const a = { x: HEAD_X, y: headY };
-    const boxes: Box[] = [];
     let box: { left: number; top: number; bw: number } | null = null;
     for (const bubble of [say, status]) {
       if (bubble.hidden) continue;
@@ -163,9 +158,8 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
       const left = clamp(a.x - bw / 2 + FACING_SHIFT, EDGE, Math.max(EDGE, STAGE_PX - bw - EDGE));
       const top = a.y - bh - SAY_UP * size;
       bubble.style.left = `${left}px`; bubble.style.top = `${top}px`;
-      bubble.style.setProperty('--tail', `${tailAt(bw, a.x - left)}px`);
+      bubble.style.setProperty('--tail', `${tailAt(bw, a.x - left, size)}px`);
       box = { left, top, bw };
-      boxes.push({ left, right: left + bw, top, bottom: top + bh + tailBelow(size) });
     }
     if (!said.hidden) {
       const bw = said.offsetWidth, bh = said.offsetHeight;
@@ -176,9 +170,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
       if (!saidAt || dt <= 0) saidAt = target;
       else if (!fading(said)) { const e = Math.min(1, dt * 12); saidAt = { x: saidAt.x + (target.x - saidAt.x) * e, y: saidAt.y + (target.y - saidAt.y) * e }; }
       said.style.left = `${a.x + saidAt.x}px`; said.style.top = `${a.y + saidAt.y}px`;
-      boxes.push({ left: a.x + saidAt.x, right: a.x + saidAt.x + bw, top: a.y + saidAt.y, bottom: a.y + saidAt.y + bh });
     }
-    return boxes;
   };
 
   /**
@@ -194,6 +186,33 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     return { bubble, text };
   };
   const saidProbe = probe('pv-heard'), sayProbe = probe('pv-say');
+  /** The probes' heights for your line and for Coo's line `line`, with its caret, at the sizes set on the stage. */
+  const saidHeight = () => { saidProbe.text.textContent = S.previewSaid; return saidProbe.bubble.offsetHeight; };
+  const sayHeight = (line: string) => {
+    sayProbe.text.textContent = line;
+    sayProbe.text.append(h('span', 'pv-caret'));
+    return sayProbe.bubble.offsetHeight;
+  };
+  /**
+   * The stage's height in this window: STAGE_H, or more where its fonts make the tallest picture need it. Every picture
+   * has the resting one's bottom (the tail's tip) and is centred as it is (`centre`), so one `p` high needs
+   * 2 × ROOM + 2p − rest. Measured once, at the largest text size and every bubble size, so it never follows the sliders.
+   */
+  const stageHeight = () => {
+    const keep = ['--bubble-size', '--bubble-font'].map((name) => stage.style.getPropertyValue(name));
+    stage.style.setProperty('--bubble-font', String(SIZE_MAX));
+    let need = 0;
+    for (let size = SIZE_MIN; size <= SIZE_MAX + 1e-9; size += SIZE_STEP) {
+      stage.style.setProperty('--bubble-size', String(size));
+      const saidRoom = saidHeight() + LINES_GAP * size, says = S.previewReply.map(sayHeight), tail = tailBelow(size);
+      for (const above of [saidRoom, 0]) {
+        const rest = above + (says[0] ?? 0) + tail;
+        for (const tall of says) need = Math.max(need, 2 * ROOM + 2 * (above + tall + tail) - rest);
+      }
+    }
+    ['--bubble-size', '--bubble-font'].forEach((name, i) => stage.style.setProperty(name, keep[i]!));
+    return Math.max(STAGE_H, Math.ceil(need));
+  };
   /**
    * Puts the head where the resting picture (your line, if 输入气泡 is on, over Coo's first line, to its tail's tip)
    * comes out centred on the stage, so a size change grows the picture about the middle. Its height does not depend
@@ -201,11 +220,8 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
    */
   const centre = () => {
     const size = sizeNow();
-    saidProbe.text.textContent = S.previewSaid;
-    sayProbe.text.textContent = S.previewReply[0] ?? '';
-    sayProbe.text.append(h('span', 'pv-caret'));
-    const rest = (read().said ? saidProbe.bubble.offsetHeight + LINES_GAP * size : 0) + sayProbe.bubble.offsetHeight + tailBelow(size);
-    headY = STAGE_H / 2 + rest / 2 - tailBelow(size) + SAY_UP * size;
+    const rest = (read().said ? saidHeight() + LINES_GAP * size : 0) + sayHeight(S.previewReply[0] ?? '') + tailBelow(size);
+    headY = stageH / 2 + rest / 2 - tailBelow(size) + SAY_UP * size;
   };
   /** The stage keeps its layout size and scales to the panel, so the bubbles keep their proportions to each other. */
   let fitted = false;
@@ -213,11 +229,11 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     // laid out only once the page shows it: before that the panel has no width and the text no lines
     if (!frame.clientWidth) return;
     const scale = Math.min(1, frame.clientWidth / STAGE_PX);
+    // mounted hidden, the stage is measured and the bubbles fitted here, the first time they have lines
+    if (!fitted) { fitted = true; stageH = stageHeight(); stage.style.height = `${stageH}px`; refit(); }
     centre();
-    // mounted hidden, the bubbles are fitted here, the first time they have lines
-    if (!fitted) { fitted = true; refit(); }
     stage.style.setProperty('--pv-scale', String(scale));
-    frame.style.height = `${Math.ceil(STAGE_H * scale)}px`;
+    frame.style.height = `${Math.ceil(stageH * scale)}px`;
     lay(0);
   };
   const sizes = () => {
