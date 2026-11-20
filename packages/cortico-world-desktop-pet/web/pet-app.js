@@ -384,6 +384,7 @@ function applyPrefs(p) {
   }
   if (typeof p.bubbleSize === 'number') { prefs.bubbleSize = p.bubbleSize; sizeVar('--bubble-size', p.bubbleSize); }
   if (typeof p.fontSize === 'number') { prefs.fontSize = p.fontSize; sizeVar('--bubble-font', p.fontSize); }
+  if (item?.kind === 'input') item.fitHint?.();
   if (typeof p.bubbleSpeed === 'number') prefs.bubbleSpeed = p.bubbleSpeed;
   if (typeof p.sayBubbleHoldSec === 'number') prefs.sayBubbleHoldSec = p.sayBubbleHoldSec;
   if (typeof p.rememberPosition === 'boolean') { prefs.rememberPosition = p.rememberPosition; reportPosition(); }
@@ -546,6 +547,7 @@ function openBubble(kind, html) {
   item.cursorAt = cursor.at;
   item.cursorHolding = false;
   bubble.className = 'bubble ' + kind;
+  bubble.style.removeProperty('max-width');
   bubble.removeAttribute('aria-label');
   delete bubble.dataset.kind; delete bubble.dataset.icon;
   bubble.innerHTML = html;
@@ -1108,6 +1110,26 @@ function openInput() {
   openBubble('ask', `<button class="b-close" type="button" aria-label="${esc(t('bubble.close'))}">×</button><div class="b-imgs" hidden></div><form class="b-own"><textarea rows="1" maxlength="500" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}"></textarea>${expand}<button type="submit">${esc(t('bubble.send'))}</button></form><span class="b-hint b-note" hidden></span>`);
   const form = bubble.querySelector('form'), input = form.querySelector('textarea');
   const tray = bubble.querySelector('.b-imgs'), note = bubble.querySelector('.b-note');
+  // the hint keeps to one row in every language, so the box does not shrink by a row at the first key: the field is
+  // as wide as the hint, and the bubble goes past its usual widest when the hint needs it (sizes that change while
+  // the box is open fit it again, applyPrefs)
+  it.fitHint = () => {
+    // measured on one row: past it the textarea reaches out of the row on purpose, toward its scrollbar
+    const tall = form.classList.contains('tall');
+    form.classList.remove('tall');
+    const probe = document.createElement('span');
+    probe.style.cssText = `position:absolute; visibility:hidden; white-space:pre; font:${getComputedStyle(input).font}`;
+    probe.textContent = input.placeholder;
+    document.body.append(probe);
+    input.style.minWidth = `${Math.ceil(probe.getBoundingClientRect().width) + 1}px`;
+    probe.remove();
+    bubble.style.removeProperty('max-width');
+    // the row's own overflow: what sticks out of it into the bubble's padding does not widen the bubble's scroll width
+    const over = form.scrollWidth - form.clientWidth;
+    if (over > 0) bubble.style.maxWidth = `min(${bubble.offsetWidth + over}px, calc(100vw - 20px))`;
+    form.classList.toggle('tall', tall);
+  };
+  it.fitHint();
   const say = (text) => { note.textContent = text || ''; note.hidden = !text; };
   const draw = () => {
     tray.hidden = !it.images.length;

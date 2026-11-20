@@ -212,11 +212,12 @@ body.desk .floor{display:none}
 /* the typed line grows with its text up to six rows, then scrolls */
 .b-own textarea{resize:none; field-sizing:content; line-height:1.4; max-height:calc(6 * 1.4em + 8px); overflow-y:auto; overflow-wrap:anywhere}
 /* once the text takes a second row (pet-app.js `tall`) it gets the field's whole width, the buttons go under it, and its
-   scrollbar lies outside the field, in the bubble's right margin: the textarea reaches 4px + a 10px gutter past the
-   field's 3px padding and 1.5px border, and keeps its text 10px inside the border, as on the left. The track starts
-   below the close button. */
-.b-own.tall{flex-wrap:wrap; justify-content:flex-end; row-gap:2px}
-.b-own.tall textarea{flex:0 0 calc(100% + 18.5px); margin-right:-18.5px; padding-right:15.5px; scrollbar-gutter:stable}
+   scrollbar lies outside the field, in the bubble's right margin, under the close button and centred on it: the
+   button's middle is 18px in from the bubble's padding edge (right 6px, 24px wide), so the textarea's 10px gutter ends
+   13px in, past the field's 3px padding and 1.5px border by --gutter-out; its text keeps 10px inside the border, as on
+   the left. The track starts below the close button. */
+.b-own.tall{--gutter-out:calc(32px * var(--bubble-size, 1) - 8.5px); flex-wrap:wrap; justify-content:flex-end; row-gap:2px}
+.b-own.tall textarea{flex:0 0 calc(100% + var(--gutter-out)); margin-right:calc(-1 * var(--gutter-out)); padding-right:calc(var(--gutter-out) - 3px); scrollbar-gutter:stable}
 .b-own textarea::-webkit-scrollbar{width:10px}
 .b-own textarea::-webkit-scrollbar-track{background:transparent; margin-top:18px}
 .b-own textarea::-webkit-scrollbar-thumb{background:var(--line); border-radius:6px; border:3px solid transparent; background-clip:padding-box}
