@@ -219,11 +219,12 @@ body.desk .floor{display:none}
 .b-own textarea::-webkit-scrollbar{display:none}
 .b-side{position:absolute; left:calc(100% + 8.5px); top:-2.5px; display:flex; flex-direction:column; align-items:center; gap:6px; width:26px}
 .b-close{
-  display:grid; place-items:center; width:26px; height:26px; padding:0; border-radius:50%; font-family:inherit; font-size:17px; line-height:1; cursor:pointer;
+  display:grid; place-items:center; width:26px; height:26px; padding:0; border-radius:50%; cursor:pointer;
   background:var(--surface); color:var(--text); border:2px solid var(--skin-ink); box-shadow:0 4px 12px var(--shadow);
   transition:border-color .15s, color .15s, scale .15s ease;
 }
 .b-close:hover{color:var(--skin-eye); border-color:var(--skin-eye); scale:1.1}
+.b-close svg{display:block; width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:2px; stroke-linecap:round}
 .b-track{position:relative; width:6px; border-radius:3px; background:color-mix(in srgb, var(--line) 60%, transparent); cursor:pointer; touch-action:none}
 .b-track[hidden]{display:none}
 .b-thumb{position:absolute; left:0; width:6px; min-height:16px; border-radius:3px; background:var(--muted); opacity:.75; transition:opacity .15s}

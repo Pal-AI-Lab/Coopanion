@@ -175,7 +175,7 @@ function overlayRect() {
   const room = bodyRoom();
   if (!room) return null;
   const parts = [room];
-  for (const el of [bubble, ...lines.map((l) => l.el)]) if (!el.hidden) parts.push(rectOf(el));
+  for (const el of [bubble, ...lines.map((l) => l.el)]) if (!el.hidden) parts.push(partRect(el));
   return onPage(parts);
 }
 host?.onOverlay?.((on) => { overlayOn = on; });
@@ -209,7 +209,7 @@ async function takePortrait(id) {
   await soon((done) => afterFrame.push(done));
   const room = bodyRoom(), rect = room && onPage([room]);
   if (!rect) return fail('no-body');
-  const over = [...document.querySelectorAll(OVER_STAGE)].filter((el) => !el.closest('[hidden]') && overlaps(shadowed(rectOf(el)), rect));
+  const over = [...document.querySelectorAll(OVER_STAGE)].filter((el) => !el.closest('[hidden]') && overlaps(shadowed(partRect(el)), rect));
   for (const el of over) el.style.visibility = 'hidden';
   try {
     // by the second refresh the display has what the body drew for that frame, without what was over it
@@ -596,11 +596,13 @@ function releaseKeys(it) {
 
 /**
  * The column that hangs off the right side of a bubble with a close button (pet.css .b-side): a small round × drawn as
- * the hover buttons are, and for the typing box, under it, the text's scrollbar. Every bubble with a × has it.
+ * the hover buttons are, and for the typing box, under it, the text's scrollbar. Every bubble with a × has it. The ×
+ * is drawn, not typed: a font's × sits off its line's middle, and so off the button's.
  */
+const CROSS = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6"/></svg>';
 function sideColumn(label, titled = false, scrollbar = false) {
   const l = esc(label);
-  return `<div class="b-side"><button class="b-close" type="button" aria-label="${l}"${titled ? ` title="${l}"` : ''}>×</button>${scrollbar ? '<div class="b-track" hidden><i class="b-thumb"></i></div>' : ''}</div>`;
+  return `<div class="b-side"><button class="b-close" type="button" aria-label="${l}"${titled ? ` title="${l}"` : ''}>${CROSS}</button>${scrollbar ? '<div class="b-track" hidden><i class="b-thumb"></i></div>' : ''}</div>`;
 }
 /** Pixels a bubble's side column (sideColumn) takes past its right edge, with the margin kept from the screen's side. */
 function sideRoom(el) {
@@ -1187,7 +1189,7 @@ function openInput() {
     bubble.style.removeProperty('max-width');
     // the row's own overflow: what sticks out of it into the bubble's padding does not widen the bubble's scroll width
     const over = form.scrollWidth - form.clientWidth;
-    if (over > 0) bubble.style.maxWidth = `min(${bubble.offsetWidth + over}px, calc(100vw - 20px))`;
+    if (over > 0) bubble.style.maxWidth = `min(${bubble.offsetWidth + over}px, calc(100vw - 20px - ${sideRoom(bubble)}px))`;
     form.classList.toggle('tall', tall);
     drawBar();
   };
@@ -2592,6 +2594,8 @@ function inkRgb() {
 }
 const inflate = (r, d) => ({ x: r.x - d, y: r.y - d, width: r.width + 2 * d, height: r.height + 2 * d });
 const rectOf = (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; };
+/** An element's rect, Coo's bubble's with its close button outside it (bubbleRect). */
+const partRect = (el) => { if (el !== bubble) return rectOf(el); const r = bubbleRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; };
 /** A bubble's rect with its shadow (0 8px 22px) and its tail below it, none of which is the screen behind. */
 const shadowed = (r) => ({ x: r.x - 14, y: r.y - 14, width: r.width + 28, height: r.height + 14 + 36 });
 /** Modes in which the body flies or is carried: a screen copy taken now would be of where it was a moment ago. */
@@ -2606,7 +2610,7 @@ async function probeBackdrop() {
   const near = inflate({ x: b.x, y: b.y, width: b.w, height: b.h }, Math.max(4 + 34 * S, 4 + 2 * prefs.glow)), far = inflate(near, 8 + 40 * S);
   const x = Math.max(0, far.x), y = Math.max(0, far.y);
   const rect = { x, y, width: Math.min(innerWidth, far.x + far.width) - x, height: Math.min(innerHeight, far.y + far.height) - y };
-  const covers = [bubble, ...(menu.hidden ? [] : menu.children), tools, wheel, ...lines.map((l) => l.el)].filter((el) => !el.hidden).map((el) => shadowed(el === bubble ? bubbleRect() : rectOf(el)));
+  const covers = [bubble, ...(menu.hidden ? [] : menu.children), tools, wheel, ...lines.map((l) => l.el)].filter((el) => !el.hidden).map((el) => shadowed(partRect(el)));
   const px = await host.sampleBackdrop(rect, [near, ...covers]);
   // this platform cannot read the screen cheaply: the halo just stays
   if (px === null) { backdrop.on = true; backdrop.fixed = true; return; }
