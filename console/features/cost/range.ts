@@ -35,7 +35,12 @@ export function rangeDays(days: number, custom: UsageRange): number {
   return Number.isFinite(from) && Number.isFinite(to) ? Math.max(1, Math.round((to - from) / DAY_MS) + 1) : NaN;
 }
 
-/** Whether `bucket` keeps `span` days within MAX_BUCKETS; `auto` always does, and an unknown span is not refused. */
+/**
+ * Whether `bucket` keeps `span` days within MAX_BUCKETS. `auto` always does; over an unknown span (an open custom
+ * range, which may reach back to the first record) only a day or coarser is offered.
+ */
 export function bucketFits(bucket: UsageBucketOption, span: number): boolean {
-  return bucket === 'auto' || !Number.isFinite(span) || Math.ceil(span * 1440 / UNIT_MINUTES[bucket]) <= MAX_BUCKETS;
+  if (bucket === 'auto') return true;
+  if (!Number.isFinite(span)) return UNIT_MINUTES[bucket] >= UNIT_MINUTES.day;
+  return Math.ceil(span * 1440 / UNIT_MINUTES[bucket]) <= MAX_BUCKETS;
 }

@@ -208,11 +208,10 @@ export function mountUsage(ctx: PageContext): void {
   bucketSeg.el.classList.add('uswitch');
   /**
    * Greys the granularities that would draw more than MAX_BUCKETS bars over the range. A pick that no longer
-   * fits moves to the finest one that does. An open custom range is measured by the range last returned.
+   * fits moves to the finest one that does.
    */
   function fitBuckets(): void {
-    let span = rangeDays(state.days, { from: state.from, to: state.to });
-    if (Number.isNaN(span) && state.data?.from && state.data.to) span = rangeDays(0, { from: state.data.from, to: state.data.to });
+    const span = rangeDays(state.days, { from: state.from, to: state.to });
     BUCKETS.forEach(({ value }, i) => {
       const button = bucketSeg.el.children[i] as HTMLButtonElement;
       const fits = bucketFits(value, span);
@@ -516,10 +515,6 @@ export function mountUsage(ctx: PageContext): void {
       );
       if (ctx.signal.aborted || mine !== generation) return;
       state.data = d;
-      // an open custom range is measured only now; a pick too fine for it is fetched again at a granularity that fits
-      const picked = state.bucket;
-      fitBuckets();
-      if (state.bucket !== picked) { void load(); return; }
       loadedAt = ui.fmt.clock(new Date().toISOString());
       results.classList.remove('u-stale');
       stale.replaceChildren();

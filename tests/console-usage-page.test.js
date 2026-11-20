@@ -4,7 +4,7 @@ import { mountUsage } from '../console/features/cost/index.ts';
 import { S } from '../console/features/cost/strings.ts';
 import { createConsoleUi } from '../console/base/ui/index.ts';
 import { Lifecycle } from '../console/base/lifecycle.ts';
-import { MAX_BUCKETS } from '../console/features/cost/range.ts';
+import { bucketFits, MAX_BUCKETS } from '../console/features/cost/range.ts';
 
 /** A range with no calls in it. */
 const aggregate = { from: '2026-11-01', to: '2026-11-02', timezone: 'UTC', bucket: 'day', currency: 'USD', currencies: [], totals: { calls: 0 }, series: [], byRole: [], byModel: [], byInstance: [] };
@@ -92,4 +92,8 @@ it('offers no granularity that splits the range into more than MAX_BUCKETS bars,
   await vi.waitFor(() => expect(requested.at(-1).get('days')).toBe('90'));
   expect(requested.at(-1).get('bucket')).toBe('hour');
   expect(hour.classList.contains('active')).toBe(true);
+});
+
+it('offers only a day or coarser over a custom range with an open end, which may reach back to the first record', () => {
+  expect(['minute', 'hour', 'day', 'week', 'month', 'auto'].filter((unit) => bucketFits(unit, NaN))).toEqual(['day', 'week', 'month', 'auto']);
 });
