@@ -5,6 +5,26 @@ export const f = n => Math.round(n * 10) / 10;
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 /**
+ * The narrowest width `el` can take without its text wrapping into more lines than at its widest: a wrapped line no
+ * longer leaves its bubble as wide as the widest it may be with blank space after the shorter lines, and the lines come
+ * out about as long as each other (the search react-wrap-balancer runs). `el` is laid out with its whole text and
+ * nothing clamping its height; its own width is left as it was. Returns the width in pixels, border and padding in.
+ */
+export function balancedWidth(el) {
+  const keep = el.style.width;
+  el.style.width = '';
+  const widest = el.offsetWidth, height = el.offsetHeight;
+  let lo = 0, hi = widest;
+  for (let i = 0; i < 9 && hi - lo > 1; i++) {
+    const mid = (lo + hi) / 2;
+    el.style.width = mid + 'px';
+    if (el.offsetHeight > height) lo = mid; else hi = mid;
+  }
+  el.style.width = keep;
+  return Math.ceil(hi);
+}
+
+/**
  * Lays a grid of buttons (`grid-auto-flow: column`) `reach` out from a body standing at `x`, on the right unless that
  * runs off a page `pageWidth` wide. On the left its columns run right to left, so the first column is next to the body
  * on either side and a button keeps its place relative to the body whichever side the grid takes. `--dx` points the
