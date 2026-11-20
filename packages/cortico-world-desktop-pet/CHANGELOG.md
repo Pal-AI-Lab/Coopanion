@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Once its text runs past one row, the typing box's text takes the field's whole width, with the expand and send buttons under it, until the box is cleared; its scrollbar, thin and rounded, sits outside the field in the bubble's right margin, under the close button. Before, the text kept to the part of the field the buttons left and scrolled with the system's scrollbar inside it.
 - Config `window.sayBubbleHoldSec` and `saidBubbleHoldSec` (integer seconds, 0–60, 0 by default): 1–60 holds each part of a line that long once typed out, or an input bubble that long from when it was sent or recognized; 0 keeps the automatic holds. `pet_say` receipts count a fixed speech hold, for the line and for those queued ahead of it.
 - Config `asr.recording` (`enabled` and `transcript` on, `maxMinutes` 5 by default, 1–7): while `enabled` is on and the endpoint takes `audio/wav`, a `desktop-pet.speech` event carries the batch's recording as a WAV attachment; with `transcript` off its text leaves out what was recognized. A batch whose recording runs past `maxMinutes` goes as text alone. The voice panel has a row for each, and its `state` carries `recording` with `range` and `endpointTakesAudio`; panel method `setRecording`.
 - The managed Electron runtime that hosts the pet window outside an app has a Windows arm64 build (`win32-arm64`).

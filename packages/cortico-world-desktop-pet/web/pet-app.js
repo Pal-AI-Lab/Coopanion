@@ -1119,6 +1119,12 @@ function openInput() {
       return cell;
     }));
   };
+  // text past one row takes the field's whole width (pet.css `.b-own.tall`), until it is cleared: going back to one row
+  // as soon as it fits beside the buttons would swing the layout to and fro at the edge
+  input.addEventListener('input', () => {
+    if (!input.value) form.classList.remove('tall');
+    else if (input.scrollHeight > parseFloat(getComputedStyle(input).lineHeight) * 1.5 + 8) form.classList.add('tall');
+  });
   // Enter sends, Shift+Enter starts a new line; Enter that confirms an input method's text does neither
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
