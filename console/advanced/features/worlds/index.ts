@@ -485,7 +485,12 @@ export function mountWorlds(ctx: FeatureContext): void {
   let dropAt: { group: string | null; before: string | null; head?: HTMLElement } | undefined;
   let gap: HTMLElement | undefined;
   const tokenOf = (el: Element | null): string | null => !el ? null : el.classList.contains('world-group') ? groupToken((el as HTMLElement).dataset.group!) : (el as HTMLElement).dataset.key ?? null;
-  const nextToken = (el: Element) => tokenOf(el.nextElementSibling);
+  /** The row or group after `el`, past the dragged element's own empty place and any ghost or placeholder. */
+  const nextToken = (el: Element) => {
+    let next = el.nextElementSibling;
+    while (next && (next.classList.contains('is-dragging') || next.classList.contains('motion-ghost') || next.classList.contains('placeholder'))) next = next.nextElementSibling;
+    return tokenOf(next);
+  };
   const elementOf = (token: string): HTMLElement | undefined => token.startsWith('group:') ? groupNodes.get(token.slice('group:'.length))?.el : railNodes.get(token)?.parentElement ?? undefined;
   function clearDrop() {
     dropAt = undefined;
@@ -494,6 +499,9 @@ export function mountWorlds(ctx: FeatureContext): void {
   /** Where a drop at `y` would land; the empty place moves there. */
   function locateDrop(y: number) {
     if (!dragging) return;
+    // Over its own empty place the target stays: the place sits where the last target put it, and reading
+    // what is beside it again moved it back and forth while the pointer stayed between a row and a group.
+    if (gap?.offsetParent && dropAt) { const r = settledBox(gap); if (y >= r.top && y <= r.bottom) return; }
     clearDrop();
     const shown = (el: Element): el is HTMLElement => (el as HTMLElement).offsetParent !== null && !el.classList.contains('is-dragging');
     if (dragging.kind === 'item') {
