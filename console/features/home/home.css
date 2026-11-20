@@ -142,26 +142,31 @@
 .bubble-preview-stage {
   --pv-surface: var(--sheet); --pv-ink: var(--foreground); --pv-eye: var(--accent);
   --pv-said: color-mix(in srgb, var(--foreground) 9%, var(--sheet)); --pv-shadow: rgb(0 0 0 / .12);
-  position: absolute; left: 0; top: 0; overflow: hidden; box-sizing: border-box; padding: 40px 10px 12px;
-  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 14px;
+  position: absolute; left: 0; top: 0; overflow: hidden;
   transform: scale(var(--pv-scale, 1)); transform-origin: 0 0; font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans", sans-serif; color: var(--pv-ink);
 }
 .bubble-preview-play { position: absolute; top: 6px; left: 6px; display: inline-flex; align-items: center; gap: 6px; background: var(--sheet); }
 .bubble-preview-play svg { width: 14px; height: 14px; }
 .bubble-preview-clock { position: absolute; top: 8px; right: 10px; font: 11px/1 var(--mono); color: var(--ink-dim); font-variant-numeric: tabular-nums; }
 .bubble-preview-clock[hidden] { display: none; }
-.pv-bubble { position: relative; box-sizing: border-box; width: max-content; min-width: calc(46px * var(--bubble-size, 1)); max-width: min(calc(300px * var(--bubble-size, 1)), calc(100% - 20px));
+/* 气泡的位置由 bubble-preview.ts 按桌宠的摆法算(pet-app.js place、placeLines) */
+.pv-bubble { position: absolute; box-sizing: border-box; width: max-content; min-width: calc(46px * var(--bubble-size, 1)); max-width: min(calc(300px * var(--bubble-size, 1)), calc(100% - 20px));
   padding: calc(10px * var(--bubble-size, 1)) calc(14px * var(--bubble-size, 1)); border-radius: calc(18px * var(--bubble-size, 1));
   background: var(--pv-surface); border: 2.5px solid var(--pv-ink); box-shadow: 0 8px 22px var(--pv-shadow);
-  font-size: calc(14.5px * var(--bubble-font, 1)); line-height: 1.55; transition: opacity .4s ease; transform-origin: 50% calc(100% + 10px * var(--bubble-size, 1)); }
+  font-size: calc(14.5px * var(--bubble-font, 1)); line-height: 1.55; transition: opacity .4s ease, border-color .15s; transform-origin: var(--tail, 50%) calc(100% + 10px * var(--bubble-size, 1)); }
 .pv-bubble[hidden] { display: none; }
-.pv-bubble.is-fading { opacity: 0; }
+.pv-bubble.is-fading { opacity: 0; pointer-events: none; }
 .pv-bubble.pop { animation: pv-bubble-in .26s cubic-bezier(.3, 1.5, .5, 1); }
 @keyframes pv-bubble-in { from { transform: scale(.5); opacity: 0; } }
-.pv-say::before, .pv-say::after { content: ""; position: absolute; left: calc(50% - 13.5px); bottom: -11px; width: 22px; height: 11.5px; scale: var(--bubble-size, none); transform-origin: 11px 0; }
-.pv-say::before { background: var(--pv-ink); clip-path: path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z'); }
-.pv-say::after { background: var(--pv-surface); clip-path: path('M3.04 0 L10.53 7.49 Q11 7.96 11.47 7.49 L18.96 0 Z'); }
-.pv-heard { align-self: flex-end; background: var(--pv-said); border-color: transparent; box-shadow: 0 4px 14px var(--pv-shadow); max-width: min(calc(260px * var(--bubble-size, 1)), calc(100% - 20px)); }
+.pv-say::before, .pv-say::after, .pv-status::before, .pv-status::after { content: ""; position: absolute; left: calc(var(--tail, 50%) - 13.5px); bottom: -11px; width: 22px; height: 11.5px; scale: var(--bubble-size, none); transform-origin: 11px 0; }
+.pv-say::before, .pv-status::before { background: var(--pv-ink); clip-path: path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z'); }
+.pv-say::after, .pv-status::after { background: var(--pv-surface); clip-path: path('M3.04 0 L10.53 7.49 Q11 7.96 11.47 7.49 L18.96 0 Z'); }
+/* 和桌宠一样:点一下关掉(Coo 的话整句跳过);指着时描边换成眼睛的颜色;状态气泡不接收指针 */
+.pv-say, .pv-heard { cursor: pointer; }
+.pv-say:hover, .pv-heard:hover { border-color: var(--pv-eye); }
+.pv-say:hover::before { background: var(--pv-eye); }
+.pv-status { pointer-events: none; }
+.pv-heard { background: var(--pv-said); border-color: transparent; box-shadow: 0 4px 14px var(--pv-shadow); max-width: min(calc(260px * var(--bubble-size, 1)), calc(100% - 20px)); }
 .pv-text { margin: 0; min-height: 1.55em; white-space: pre-wrap; overflow-wrap: break-word; }
 .pv-caret { display: inline-block; width: 2px; height: 1.05em; margin-left: 2px; vertical-align: -2px; background: var(--pv-eye); }
 .pv-status { display: flex; align-items: center; gap: 6px; max-width: min(calc(220px * var(--bubble-size, 1)), calc(100% - 20px));
@@ -177,7 +182,7 @@
 @keyframes pv-think { 0%, 60%, 100% { transform: none; opacity: .45; } 30% { transform: translateY(-3px); opacity: 1; } }
 .pv-status-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 示例里的 Coo:穿着当前的装扮(coo.js mini),颜色类同 coo.js 的 COO_CSS,只在示例里生效 */
-.bubble-preview-coo { flex: none; width: 76px; height: 100px; margin-top: -4px; }
+.bubble-preview-coo { position: absolute; width: 76px; height: 100px; }
 .bubble-preview-coo svg { display: block; width: 100%; height: 100%; overflow: visible; --blush: #FF8FA8; --tear: #5AAEF0; --anger: #E5484D; }
 .bubble-preview-coo .ink { stroke: var(--skin-ink); } .bubble-preview-coo .inkf { fill: var(--skin-ink); } .bubble-preview-coo .eye { stroke: var(--skin-eye); }
 .bubble-preview-coo .blush { fill: var(--blush); } .bubble-preview-coo .tearf { fill: var(--tear); } .bubble-preview-coo .angry { stroke: var(--anger); }

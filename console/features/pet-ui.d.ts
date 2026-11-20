@@ -52,6 +52,8 @@ declare module 'cortico-world-desktop-pet/web/coo/coo.js' {
   export function mini(face: string, skin: object): string;
   /** The CSS variables that color `skin`, light or dark. */
   export function skinVars(skin: object, dark: boolean): string;
+  /** How far above the body each head piece reaches, in Coo's drawing units; the bubble points above it. */
+  export const HEAD_TOP: Record<string, number>;
 }
 
 declare module 'cortico-world-desktop-pet/web/sound.js' {
