@@ -547,7 +547,7 @@ function openBubble(kind, html) {
   item.cursorAt = cursor.at;
   item.cursorHolding = false;
   bubble.className = 'bubble ' + kind;
-  bubble.style.removeProperty('max-width');
+  bubble.style.maxWidth = '';
   bubble.removeAttribute('aria-label');
   delete bubble.dataset.kind; delete bubble.dataset.icon;
   bubble.innerHTML = html;
@@ -557,6 +557,7 @@ function openBubble(kind, html) {
 }
 function closeBubble() {
   releaseKeys(item);
+  barHeld = false;
   // a step taken off the bubble unanswered puts back the skin a card tried on
   if (item?.kind === 'dialog') { talk.motion = null; takeOff(false); }
   bubble.hidden = true; bubble.innerHTML = '';
@@ -602,18 +603,16 @@ function releaseKeys(it) {
 const CROSS = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6"/></svg>';
 function sideColumn(label, titled = false, scrollbar = false) {
   const l = esc(label);
-  return `<div class="b-side"><button class="b-close" type="button" aria-label="${l}"${titled ? ` title="${l}"` : ''}>${CROSS}</button>${scrollbar ? '<div class="b-track" hidden><i class="b-thumb"></i></div>' : ''}</div>`;
+  return `<div class="b-side"><button class="b-close" type="button" aria-label="${l}"${titled ? ` title="${l}"` : ''}>${CROSS}</button>${scrollbar ? '<div class="b-track" aria-hidden="true" hidden><i class="b-thumb"></i></div>' : ''}</div>`;
 }
 /** Pixels a bubble's side column (sideColumn) takes past its right edge, with the margin kept from the screen's side. */
 function sideRoom(el) {
   const side = el.querySelector(':scope > .b-side');
   return side ? side.offsetWidth + 11 : 0;
 }
-/** The bubble's rect together with its side column's, which hangs outside it. */
+/** The bubble's rect together with its side column's, which hangs outside it, as a plain object. */
 function bubbleRect() {
-  const r = bubble.getBoundingClientRect(), side = bubble.querySelector(':scope > .b-side');
-  if (!side) return r;
-  const s = side.getBoundingClientRect();
+  const r = bubble.getBoundingClientRect(), s = bubble.querySelector(':scope > .b-side')?.getBoundingClientRect() ?? r;
   const left = Math.min(r.left, s.left), top = Math.min(r.top, s.top), right = Math.max(r.right, s.right), bottom = Math.max(r.bottom, s.bottom);
   return { left, top, right, bottom, x: left, y: top, width: right - left, height: bottom - top };
 }
@@ -1140,14 +1139,18 @@ function openInput() {
     const over = input.scrollHeight - input.clientHeight;
     track.hidden = over <= 1;
     if (track.hidden) return;
-    const h = Math.max(24, input.getBoundingClientRect().bottom - track.getBoundingClientRect().top);
+    // the rects are scaled while the bubble pops in (pet.css bubble-in): the gap between them is turned back into pixels
+    const scale = bubble.getBoundingClientRect().width / bubble.offsetWidth || 1;
+    const h = Math.max(24, (input.getBoundingClientRect().bottom - track.getBoundingClientRect().top) / scale);
     const th = Math.max(16, h * input.clientHeight / input.scrollHeight);
     track.style.height = `${h}px`;
     thumb.style.height = `${th}px`;
     thumb.style.top = `${(h - th) * input.scrollTop / over}px`;
   };
-  it.drawBar = drawBar;
   input.addEventListener('scroll', drawBar);
+  bubble.addEventListener('animationend', drawBar, { once: true });
+  // the wheel over the scrollbar scrolls the text, as over the system's own
+  track.addEventListener('wheel', (e) => { e.preventDefault(); input.scrollTop += e.deltaY; }, { passive: false });
   // dragged, the thumb moves the text with it; a press on the track pages toward it. The window keeps the mouse
   // while the thumb is held (barHeld), though the pointer leaves the bubble.
   track.addEventListener('pointerdown', (e) => {
@@ -1163,21 +1166,20 @@ function openInput() {
     barHeld = true; track.classList.add('held');
     track.setPointerCapture(e.pointerId);
     const move = (m) => { input.scrollTop = top0 + (m.clientY - y0) * (h > 0 ? over / h : 0); };
+    // let go, or the capture lost (the bubble closed under the pointer: closeBubble lets the mouse go as well)
     const end = () => {
       barHeld = false; track.classList.remove('held');
       track.removeEventListener('pointermove', move);
-      track.removeEventListener('pointerup', end);
-      track.removeEventListener('pointercancel', end);
+      track.removeEventListener('lostpointercapture', end);
     };
     track.addEventListener('pointermove', move);
-    track.addEventListener('pointerup', end);
-    track.addEventListener('pointercancel', end);
+    track.addEventListener('lostpointercapture', end);
   });
   // the hint keeps to one row in every language, so the box does not shrink by a row at the first key: the field is
   // as wide as the hint, and the bubble goes past its usual widest when the hint needs it (sizes that change while
   // the box is open fit it again, applyPrefs)
   it.fitHint = () => {
-    // measured on one row: past it the textarea reaches out of the row on purpose, toward its scrollbar
+    // measured on one row, as the empty box shows it: past it the row wraps and has no overflow to read
     const tall = form.classList.contains('tall');
     form.classList.remove('tall');
     const probe = document.createElement('span');
@@ -1204,6 +1206,7 @@ function openInput() {
       cell.querySelector('button').addEventListener('click', () => { it.images.splice(it.images.indexOf(img), 1); say(''); draw(); input.focus(); });
       return cell;
     }));
+    drawBar();
   };
   // text past one row takes the field's whole width (pet.css `.b-own.tall`), until it is cleared: going back to one row
   // as soon as it fits beside the buttons would swing the layout to and fro at the edge
@@ -2595,7 +2598,7 @@ function inkRgb() {
 const inflate = (r, d) => ({ x: r.x - d, y: r.y - d, width: r.width + 2 * d, height: r.height + 2 * d });
 const rectOf = (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; };
 /** An element's rect, Coo's bubble's with its close button outside it (bubbleRect). */
-const partRect = (el) => { if (el !== bubble) return rectOf(el); const r = bubbleRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; };
+const partRect = (el) => (el === bubble ? bubbleRect() : rectOf(el));
 /** A bubble's rect with its shadow (0 8px 22px) and its tail below it, none of which is the screen behind. */
 const shadowed = (r) => ({ x: r.x - 14, y: r.y - 14, width: r.width + 28, height: r.height + 14 + 36 });
 /** Modes in which the body flies or is carried: a screen copy taken now would be of where it was a moment ago. */
