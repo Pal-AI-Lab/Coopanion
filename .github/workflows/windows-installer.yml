@@ -2,7 +2,7 @@ name: windows installer
 
 on:
   pull_request:
-    paths: ['installer/**', 'scripts/pack.ts', 'scripts/windows-installer-manifest.cjs', 'tests/windows-installer.ps1', 'electron-builder.yml', '.github/workflows/windows-installer.yml']
+    paths: ['installer/**', 'scripts/pack.ts', 'scripts/windows-installer-manifest.cjs', 'tests/windows-installer.ps1', 'tests/boot-installed-core.cjs', 'electron-builder.yml', '.github/workflows/windows-installer.yml']
 
 permissions:
   contents: read
