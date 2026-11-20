@@ -1,6 +1,7 @@
 /**
  * 「习惯」: the everyday settings of the desktop pet, in sections: 通用 (language, what Coo calls you, Coo's
- * name, start at login (the app's login item, through the window's preload), automatic updates and anonymous usage statistics in the `companion` group), 行为与互动, 显示,
+ * name, start at login (the app's login item, through the window's preload), automatic updates and anonymous usage statistics in the `companion` group), 行为与互动,
+ * 气泡 (the bubbles' size, text size, speed and holds, the status and input bubbles, and a sample under them: bubble-preview.ts), 显示,
  * 音效, 电脑操作 (features/cua) and 其他 (the OBS overlay, the Chat page's context ring). Tabs under the title jump to each section
  * (base/ui/section-tabs.ts), the page staying one page. Every row names its
  * setting in the label column, except one that only refines the row above it. In each row the setting
@@ -44,6 +45,7 @@ import { S as CUA } from '../cua/strings.ts';
 import { announceName } from '../bot-name.ts';
 import { scaleSlider } from 'cortico-world-desktop-pet/web/scale-slider.js';
 import { S } from './strings.ts';
+import { bubblePreview } from './bubble-preview.ts';
 
 const GROUP = 'world:desktop-pet';
 const SOUND_GROUP = 'world:desktop-pet:sound';
@@ -108,6 +110,8 @@ const SELF_DEFAULT: readonly string[] = ['figure', 'scheme', 'roam', 'snoreSecon
 
 /** What the pet panel's state says of the two rows and of the typing key. */
 interface HabitState {
+  /** What Coo wears; the bubble sample draws it. */
+  skin?: unknown;
   wake?: { wakeOn: string; wakeKinds: string[] };
   selfAdjust?: { mode: string; custom: Record<string, boolean> };
   typeKey?: TypeKeyState;
@@ -204,8 +208,8 @@ async function mount(ctx: PageContext): Promise<void> {
       className: 'companion-scale',
       min, soft: max, max, step: .05, label,
       room: () => box.clientWidth - text.offsetWidth - 12,
-      onInput: () => show(),
-      onChange: () => { show(); void save(key, slider.value, GROUP, slider.el); },
+      onInput: () => { show(); preview.refresh(); },
+      onChange: () => { show(); preview.refresh(); void save(key, slider.value, GROUP, slider.el); },
     });
     box.append(slider.el, text);
     new ResizeObserver(() => slider.relayout()).observe(box);
@@ -246,7 +250,9 @@ async function mount(ctx: PageContext): Promise<void> {
       if (v && document.activeElement !== num) num.value = num.dataset.saved = String(v);
     };
     const setEnabled = (on: boolean) => { mode.disabled = num.disabled = !on; };
-    return { box, sync, setEnabled };
+    /** The hold shown: 0 for 自动, else the seconds last saved. */
+    const value = () => (mode.value === 'auto' ? 0 : Number(num.dataset.saved ?? num.value) || 0);
+    return { box, sync, setEnabled, value };
   };
   const sayHold = holdPicker(S.sayBubbleHold, KEYS.sayBubbleHoldSec);
   const saidHold = holdPicker(S.saidBubbleHold, KEYS.saidBubbleHoldSec);
@@ -262,7 +268,7 @@ async function mount(ctx: PageContext): Promise<void> {
   const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on, GROUP, remember.el) });
   const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on, GROUP, dblclick.el) });
   const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on, GROUP, statusBubble.el) });
-  const saidBubbles = ui.checkbox(S.saidBubble, { onChange: (on) => { saidHold.setEnabled(on); void save(KEYS.saidBubbles, on, GROUP, saidBubbles.el); } });
+  const saidBubbles = ui.checkbox(S.saidBubble, { onChange: (on) => { saidHold.setEnabled(on); preview.refresh(); void save(KEYS.saidBubbles, on, GROUP, saidBubbles.el); } });
   // the two rows below follow the pet panel's state; 「自定义…」 is picked by saving its popup
   let habit: Habits = { wake: { wakeOn: 'poke', wakeKinds: ['poke'] }, selfAdjust: { mode: 'default', custom: {} } };
   const wakeHint = ui.h('p', 'home-note');
@@ -469,17 +475,27 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
     row(S.dblclickLabel, dblclick.el),
     row(S.typeKeyLabel, typeBox, typeHint),
-    row(S.statusBubbleLabel, statusBubble.el, S.statusBubbleHint),
-    row(S.saidBubbleLabel, saidBubbles.el),
-    row(S.saidBubbleHold, saidHold.box, S.saidBubbleHint),
   );
-  const display = ui.sheet({ title: S.groupDisplay });
-  display.body.append(
-    row(S.scale, scaleBox),
+  // 气泡: how Coo's bubbles and yours look and how long they stay, with a sample at the end
+  const bubbles = ui.sheet({ title: S.groupBubbles });
+  const preview = bubblePreview(root.ownerDocument, signal, () => ({
+    size: bubbleSize.slider.value, font: fontSize.slider.value, speed: bubbleSpeed.slider.value,
+    sayHoldSec: sayHold.value(), saidHoldSec: saidHold.value(),
+    status: statusBubble.checked, said: saidBubbles.checked,
+  }));
+  bubbles.body.append(
     row(S.bubbleSize, bubbleSize.box, S.bubbleSizeHint),
     row(S.fontSize, fontSize.box, S.fontSizeHint),
     row(S.bubbleSpeed, bubbleSpeed.box, S.bubbleSpeedHint),
     row(S.sayBubbleHold, sayHold.box, S.sayBubbleHoldHint),
+    row(S.statusBubbleLabel, statusBubble.el, S.statusBubbleHint),
+    row(S.saidBubbleLabel, saidBubbles.el),
+    row(S.saidBubbleHold, saidHold.box, S.saidBubbleHint),
+    row(S.previewLabel, preview.el),
+  );
+  const display = ui.sheet({ title: S.groupDisplay });
+  display.body.append(
+    row(S.scale, scaleBox),
     row(S.glow, glowBox, S.glowHint),
     row(S.frameRate, frameRate.el, S.frameRateHint),
     row('', lockFps.el, S.lockFpsHint),
@@ -489,7 +505,7 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.rememberLabel, remember.el, S.rememberHint),
   );
   const heading = intro(ui, S.nav);
-  root.append(heading, habits.el, behavior.el, display.el);
+  root.append(heading, habits.el, behavior.el, bubbles.el, display.el);
 
   /* ---------- sounds ---------- */
   const sounds = ui.sheet({ title: S.soundTitle });
@@ -616,6 +632,7 @@ async function mount(ctx: PageContext): Promise<void> {
   heading.append(sectionTabs(root.ownerDocument, signal, root, [
     { value: 'general', label: S.groupGeneral, el: habits.el },
     { value: 'behavior', label: S.groupBehavior, el: behavior.el },
+    { value: 'bubbles', label: S.groupBubbles, el: bubbles.el },
     { value: 'display', label: S.groupDisplay, el: display.el },
     { value: 'sounds', label: S.soundTitle, el: sounds.el },
     { value: 'speech', label: S.speechTitle, el: speechSheet.el },
@@ -759,6 +776,7 @@ async function mount(ctx: PageContext): Promise<void> {
     if (!root.ownerDocument.querySelector('.companion-popup')) takeHabits(state);
     overlayUrl.value = state?.overlayUrl ?? '';
     overlayUrlBox.hidden = !overlay.checked || !overlayUrl.value;
+    preview.refresh();
     if (typeof values[KEYS.hover] === 'string') {
       picked = (values[KEYS.hover] as string).split(',').map((x) => x.trim()).filter((x) => ACTIONS.some(([a]) => a === x));
       renderHover();
