@@ -1740,6 +1740,8 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
       feedback.classList.add('extension-operation-feedback'); feedback.setAttribute('role', 'status');
       const comments = box.querySelector<HTMLElement>('.extension-detail-side');
       const activeComment = comments?.contains(doc.activeElement) ? doc.activeElement as HTMLElement : null;
+      // Side by side, each column scrolls on its own; a repaint keeps where both were.
+      const scrolled = [box.querySelector('.extension-detail-main')?.scrollTop ?? 0, comments?.scrollTop ?? 0];
       const columns = ui.h('div', 'extension-detail-columns');
       const main = ui.h('div', 'extension-detail-main'); columns.append(main);
       box.replaceChildren(header, ...(links.hasChildNodes() ? [links] : []), feedback, columns);
@@ -1826,6 +1828,7 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
         if (!comments) side.append(commentsSection(listed?.name ?? data.name, listed?.rating));
         columns.append(side);
         activeComment?.focus({ preventScroll: true });
+        main.scrollTop = scrolled[0]!; side.scrollTop = scrolled[1]!;
       }
   }
   function detailLoadError(box: HTMLElement, text: string, unavailable = false) {
