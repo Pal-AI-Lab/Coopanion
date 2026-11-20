@@ -243,12 +243,16 @@ export const VENDORS: readonly Vendor[] = [
     vision: ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5'],
   },
   {
-    // thinking is sent in the Gemini API's own form (`thinkingConfig` in gemini/wire.ts); the Pro model is a preview
+    // thinking is sent in the Gemini API's own form (`thinkingConfig` in gemini/wire.ts); the Pro model is a preview;
+    // the four Gemini 4 models read 2026-11-19: all stable, input text, image, video, audio and PDF
     id: 'gemini', names: brand('Gemini'), keyHint: PASTE_KEY, secret: 'GEMINI_API_KEY',
     sites: { global: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta', protocol: 'gemini', keyUrl: 'https://aistudio.google.com/apikey' } },
-    model: 'gemini-3.5-flash-lite', models: ['gemini-3.8-flash', 'gemini-3.1-pro-preview'],
-    vision: ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.1-pro-preview'],
-    contextWindows: { 'gemini-3.5-flash-lite': 1_048_576, 'gemini-3.8-flash': 1_048_576, 'gemini-3.1-pro-preview': 1_048_576 },
+    model: 'gemini-4-hydrogen', models: ['gemini-4-argon', 'gemini-4-carbon', 'gemini-4-neon', 'gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-pro-preview'],
+    vision: ['gemini-4-hydrogen', 'gemini-4-argon', 'gemini-4-carbon', 'gemini-4-neon', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.1-pro-preview'],
+    contextWindows: {
+      'gemini-4-hydrogen': 1_048_576, 'gemini-4-argon': 1_048_576, 'gemini-4-carbon': 1_048_576, 'gemini-4-neon': 1_048_576,
+      'gemini-3.5-flash-lite': 1_048_576, 'gemini-3.8-flash': 1_048_576, 'gemini-3.1-pro-preview': 1_048_576,
+    },
   },
   {
     // grok-4.3 takes none / low / medium / high / xhigh; grok-4.7 always reasons and takes low / medium / high / xhigh

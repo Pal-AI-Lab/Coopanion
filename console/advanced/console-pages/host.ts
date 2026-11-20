@@ -25,6 +25,8 @@ import { createPanelContext, namespacedMemo } from './context.ts';
 import { ConsolePageLoader } from './loader.ts';
 import { S } from './strings.ts';
 import { S as WORLD } from '../features/worlds/strings.ts';
+import { mountWorldExtensionDetails } from '../features/extensions/index.ts';
+import { S as EXTENSIONS } from '../features/extensions/strings.ts';
 import { takeReturn } from '../../base/world-nav.ts';
 import { icon } from '../../base/ui/icons.ts';
 
@@ -94,7 +96,7 @@ export class ConsolePageHost {
    * 免得把一个已经不该存在的面板贴进 DOM。
    */
   private generation = 0;
-  private chromeStop: AbortController | null = null;
+  private chromeLife: Lifecycle | null = null;
   private readonly navListeners = new Set<() => void>();
 
   constructor(deps: ConsolePageHostDeps) {
@@ -181,8 +183,8 @@ export class ConsolePageHost {
     this.backFor = null;
     this.mounted = null;
     this.panes = null;
-    this.chromeStop?.abort();
-    this.chromeStop = null;
+    this.chromeLife?.dispose();
+    this.chromeLife = null;
     this.tabs = null;
     this.generation++;
     if (cur) cur.lifecycle.dispose();
@@ -555,7 +557,7 @@ export class ConsolePageHost {
     return createConsoleUi({
       memo: this.deps.memo,
       overlayHost: this.deps.overlayHost,
-      signal: new AbortController().signal,
+      signal: this.chromeLife?.signal ?? new AbortController().signal,
       doc: this.deps.doc,
     });
   }
@@ -565,8 +567,8 @@ export class ConsolePageHost {
     const { chrome } = this.ensurePanes();
     if (!page) {
       chrome.replaceChildren();
-      this.chromeStop?.abort();
-      this.chromeStop = null;
+      this.chromeLife?.dispose();
+      this.chromeLife = null;
       this.tabs = null;
       return;
     }
@@ -576,14 +578,17 @@ export class ConsolePageHost {
     // The visit that came from the World list keeps its way back while it stays on this page.
     if (this.backFor !== pageId) this.backFor = page.kind === 'world' && takeReturn(this.deps.doc.defaultView!, pageId) ? pageId : null;
     const back = this.backFor === pageId;
-    const key = JSON.stringify([items, page.label, page.kind, page.availability, page.badges, page.agentVisible, page.prefixDrifted, page.reason, page.links, back]);
+    const capabilities = this.snapshot?.framework?.capabilities ?? {};
+    const extensionDetails = page.kind === 'world' && capabilities.extensions === true;
+    const key = JSON.stringify([items, page.label, page.kind, page.availability, page.badges, page.agentVisible, page.prefixDrifted, page.reason, page.links, back, extensionDetails]);
     if (this.tabs && this.tabs.pageId === pageId && this.tabs.key === key) {
       this.tabs.bar.setValue(activePanel ?? '');
       return;
     }
     chrome.replaceChildren();
-    this.chromeStop?.abort();
-    this.chromeStop = new AbortController();
+    this.chromeLife?.dispose();
+    const lifecycle = this.chromeLife = new Lifecycle(this.deps.onError);
+    const { signal } = lifecycle;
     this.tabs = null;
     const ui = this.ui();
     const head = ui.h('header', 'featureintro providerintro');
@@ -597,10 +602,25 @@ export class ConsolePageHost {
     if (back) {
       const button = ui.h('button', 'pagetitle-back') as HTMLButtonElement; button.type = 'button';
       button.title = S.backToWorlds; button.setAttribute('aria-label', S.backToWorlds); button.append(icon(this.deps.doc, 'arrow-left'));
-      button.addEventListener('click', () => { this.backFor = null; this.deps.router.navigate(['world']); }, { signal: this.chromeStop.signal });
+      button.addEventListener('click', () => { this.backFor = null; this.deps.router.navigate(['world']); }, { signal });
       row.appendChild(button);
     }
-    row.appendChild(title);
+    if (extensionDetails) {
+      const identity = ui.h('div', 'pagetitle-identity');
+      const button = ui.h('button', 'iobtn') as HTMLButtonElement;
+      button.type = 'button';
+      button.title = EXTENSIONS.detailInfoTab;
+      button.setAttribute('aria-label', EXTENSIONS.detailInfoTab);
+      button.setAttribute('aria-haspopup', 'dialog');
+      button.append(icon(this.deps.doc, 'info'));
+      let showDetails: ReturnType<typeof mountWorldExtensionDetails> | undefined;
+      button.addEventListener('click', () => {
+        showDetails ??= mountWorldExtensionDetails({ ui, doc: this.deps.doc, lifecycle, capabilities });
+        void showDetails(pageId.slice('world:'.length), page.label, button).catch(this.deps.onError);
+      }, { signal });
+      identity.append(title, button);
+      row.appendChild(identity);
+    } else row.appendChild(title);
 
     const badges = ui.h('div', 'pagetitle-badges');
     for (const badge of asArray(page.badges)) {
@@ -628,13 +648,13 @@ export class ConsolePageHost {
     if (actions.children.length) row.appendChild(actions);
     head.appendChild(row);
     if (page.kind === 'world' && badges.children.length) {
-      head.append(pageBadges(this.deps.doc, this.deps.overlayHost, this.chromeStop.signal, Array.from(badges.children) as HTMLElement[]));
+      head.append(pageBadges(this.deps.doc, this.deps.overlayHost, signal, Array.from(badges.children) as HTMLElement[]));
     }
     if (page.kind === 'memory') head.appendChild(ui.h('p', 'pagedesc', S.memoryDesc));
     chrome.append(head);
 
     if (items.length > 1) {
-      const bar = pageTabs(this.deps.doc, this.chromeStop.signal, items, {
+      const bar = pageTabs(this.deps.doc, signal, items, {
         value: activePanel ?? '',
         onSelect: (panelId) => this.deps.router.navigate(this.routeOf(page.id, panelId)),
       });
@@ -648,7 +668,7 @@ export class ConsolePageHost {
 
   /** 重载前缀后重新读取 manifest 中的漂移状态。 */
   private async reloadPrefix(ui: ReturnType<typeof createConsoleUi>, anchor: HTMLElement): Promise<void> {
-    const signal = this.chromeStop!.signal;
+    const signal = this.chromeLife!.signal;
     const problem = actionProblem(ui, this.deps.doc, signal);
     const ok = await ui.confirm({
       title: S.reloadTitle,

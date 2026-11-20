@@ -10,6 +10,7 @@ export const S: Partial<typeof en> = {
   connecting: '正在連線…',
   empty: (bot: string) => `還沒有和 ${bot} 說過話。`,
   older: '更早的對話',
+  jumpBottom: '↓ 回到底部',
   voice: '語音',
   idle: '閒置',
   thinking: (bot: string) => `${bot} 正在思考…`,
