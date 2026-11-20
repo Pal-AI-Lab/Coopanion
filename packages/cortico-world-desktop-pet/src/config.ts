@@ -258,6 +258,8 @@ export interface DesktopPetConfigSection extends WorldSection {
   };
   asr: {
     enabled: boolean;
+    /** Whether the recognition service starts while voice input is enabled. */
+    serviceEnabled: boolean;
     /** Empty: by the app language (`asrEngineFor`). Earlier versions wrote `auto` here, which reads as empty. */
     engine: AsrEngine | '';
     /** An ISO 639-1 code or `auto`; empty follows the app language. FunASR and Whisper read a code they do not take as `auto`. */
@@ -346,6 +348,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   touch: { enabled: true, wakeOn: 'poke', wakeKinds: ['poke'] },
   asr: {
     enabled: true,
+    serviceEnabled: true,
     engine: '',
     language: '',
     threads: 0,
@@ -435,6 +438,7 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
       title: c.asrGroup,
       properties: {
         [`${K}.asr.enabled`]: { type: 'boolean', title: c.asrEnabled.title, 'x-hot': true },
+        [`${K}.asr.serviceEnabled`]: { type: 'boolean', title: c.asrServiceEnabled.title, description: c.asrServiceEnabled.description, 'x-hot': true },
         [`${K}.asr.engine`]: { type: 'string', title: c.asrEngine.title, enum: ['', 'funasr', 'whisper', 'system', 'api'], description: c.asrEngine.description, 'x-hot': true },
         [`${K}.asr.api.baseUrl`]: { type: 'string', title: c.asrApiUrl.title, description: c.asrApiUrl.description, 'x-hot': true },
         [`${K}.asr.api.model`]: { type: 'string', title: c.asrApiModel.title, description: c.asrApiModel.description, 'x-hot': true },

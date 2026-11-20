@@ -409,6 +409,41 @@ describe("the person's lines above Coo", () => {
   });
 });
 
+describe('recording transcript bubbles', () => {
+  it('updates only the original visible settled line without completing twice or reviving dismissed lines', () => {
+    let completed = 0;
+    const p = page({ sfx: { listenEnd: () => { completed++; } } });
+    p.onOrder({ t: 'prefs', saidBubbles: true });
+    const heard = (id) => p.onOrder({ t: 'listen', phase: 'heard', recordingId: id, text: 'Recording sent' });
+    const update = (id, text) => p.onOrder({ t: 'listen', phase: 'recording-text', recordingId: id, text });
+    p.onOrder({ t: 'listen', phase: 'start' });
+    heard('first');
+    const first = p.lines()[0], settledAt = first.settledAt;
+    p.step(.1);
+    p.onOrder({ t: 'listen', phase: 'start' });
+    const second = p.lines()[1];
+    update('first', 'first words');
+    expect(p.lines()).toHaveLength(2);
+    expect(first.text).toBe('first words');
+    expect(first.el.textContent).toContain('first words');
+    expect(first.settledAt).toBe(settledAt);
+    expect(second.live).toBe(true);
+    expect(completed).toBe(1);
+    heard('second');
+    expect(p.lines()[1]).toBe(second);
+    update('second', 'second words');
+    expect(second.text).toBe('second words');
+    expect(completed).toBe(2);
+    first.el.click();
+    expect(first.fadeAt).not.toBeNull();
+    update('first', 'dismissed');
+    update('unknown', 'never received');
+    expect(first.text).toBe('first words');
+    expect(p.lines()).toHaveLength(2);
+    expect(completed).toBe(2);
+  });
+});
+
 describe('look wheel over the dress button', () => {
   /** A dress button on the page at (0, 0), which jsdom lays out with no size. */
   function dressButton(p) {

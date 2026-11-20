@@ -12,6 +12,9 @@ const ptBR: Translation<PetText> = {
   busy: 'Trabalhando',
 
   voice: {
+    serviceStopped: "Serviço de reconhecimento parado; entrada de voz indisponível",
+    recorded: "Gravação enviada",
+    recordingUnavailable: "Não foi possível enviar a gravação e não há transcrição disponível",
     starting: 'O reconhecimento de voz está iniciando',
     notRunning: 'O reconhecimento de voz não está em execução',
     modelMissing: (mb: number) => `O modelo de voz ainda não foi baixado (cerca de ${mb} MB): baixe-o na página Entrada de voz`,
@@ -267,6 +270,7 @@ const ptBR: Translation<PetText> = {
     speechSpeed: { title: 'Velocidade da voz', description: (a: number, b: number, c: number) => `Sílabas por segundo no máximo: low, mid e high são ${a}, ${b} e ${c}; custom usa a velocidade personalizada. Mais lenta que o texto, a voz termina depois dele.` },
     speechRate: { title: 'Velocidade personalizada', suffix: 'sílabas/s' },
     asrEnabled: { title: 'Entrada de voz' },
+    asrServiceEnabled: { title: "Serviço de reconhecimento", description: "Iniciar o reconhecimento com a entrada de voz ativada; ao desativá-lo, modelos que aceitam áudio ainda podem receber apenas gravações." },
     asrEngine: { title: 'Motor de reconhecimento', description: 'funasr roda o SenseVoiceSmall do FunASR, para chinês, inglês, japonês, coreano e cantonês, depois de um download único de cerca de 240 MB; whisper roda o Whisper small da OpenAI, para francês, alemão, espanhol, português, italiano, russo e cerca de 90 outros idiomas, depois de um download único de cerca de 360 MB, e mostra o texto quando a frase termina; os dois reconhecem neste computador. system usa o reconhecimento de fala do próprio Windows, sem download e com menos precisão (só no Windows). api envia a gravação de cada frase a um serviço de transcrição compatível com a OpenAI e mostra o texto quando a frase termina; o endereço e o modelo ficam abaixo, e a API Key na página Entrada de voz. Vazio escolhe pelo idioma do app: funasr para chinês, inglês, japonês e coreano, whisper para os demais.' },
     asrLanguage: { title: 'Idioma', description: 'Um código ISO 639-1, ou auto para o modelo identificar; vazio segue o idioma do app. O FunASR aceita zh, en, ja, ko e yue, e o Whisper cerca de cem códigos, como fr, de, es, pt, it e ru; um código que o modelo não aceita vale como auto. O serviço de transcrição só recebe o código quando ele tem duas letras.' },
     asrApiUrl: { title: 'Endereço do serviço de transcrição', description: 'Com o motor api, cada frase vai para /audio/transcriptions sob este endereço, por exemplo https://api.example.com/v1. Um endereço remoto precisa usar https; endereços deste computador ou da rede local podem usar http.' },

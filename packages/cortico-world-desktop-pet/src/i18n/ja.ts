@@ -12,6 +12,9 @@ const ja: Translation<PetText> = {
   busy: '作業中',
 
   voice: {
+    serviceStopped: "音声認識サービスが停止中のため、音声入力は利用できません",
+    recorded: "録音を送信しました",
+    recordingUnavailable: "録音を送信できず、文字起こしもありません",
     starting: '音声認識を起動しています',
     notRunning: '音声認識が動作していません',
     modelMissing: (mb: number) => `音声モデルがまだダウンロードされていません（約 ${mb} MB）：「音声入力」ページでダウンロードしてください`,
@@ -267,6 +270,7 @@ const ja: Translation<PetText> = {
     speechSpeed: { title: 'おしゃべり声の速さ', description: (a: number, b: number, c: number) => `1 秒に読む音節の上限：low、mid、high はそれぞれ ${a}、${b}、${c}。custom はカスタムの速さを使います。文字より遅いと、文字が出終わってから読み終えます。` },
     speechRate: { title: 'カスタムの速さ', suffix: '音節/秒' },
     asrEnabled: { title: '音声入力' },
+    asrServiceEnabled: { title: "音声認識サービス", description: "音声入力がオンのときに認識を開始します。オフでも音声対応モデルには録音のみ送信できます。" },
     asrEngine: { title: '認識エンジン', description: 'funasr は FunASR の SenseVoiceSmall を動かし、中国語、英語、日本語、韓国語、広東語に対応します（初回のみ約 240 MB のダウンロードが必要）。whisper は OpenAI の Whisper small を動かし、フランス語、ドイツ語、スペイン語、ポルトガル語、イタリア語、ロシア語のほか約 90 の言語に対応し（初回のみ約 360 MB のダウンロードが必要）、文を言い終えてから文字が出ます。どちらもこのコンピューター上で認識します。system は Windows 内蔵の音声認識を使い、ダウンロード不要ですが精度は低めです（Windows のみ）。api は文ごとの録音を OpenAI 互換の文字起こし API に送って認識し、文を言い終えてから文字が出ます。アドレスとモデルは下で、API Key は「音声入力」ページで入力します。空欄ならアプリの言語で選びます：中国語、英語、日本語、韓国語は funasr、それ以外は whisper。' },
     asrLanguage: { title: '言語', description: 'ISO 639-1 の言語コード、またはモデルに判定させる auto。空欄ならアプリの言語に従います。FunASR は zh、en、ja、ko、yue、Whisper は fr、de、es、pt、it、ru など約 100 のコードを受け付け、受け付けないコードは auto として扱います。文字起こし API には 2 文字のコードのときだけ言語を付けます。' },
     asrApiUrl: { title: '文字起こし API のアドレス', description: 'エンジンが api のとき、文ごとの録音をこのアドレスの後ろの /audio/transcriptions に送ります（例：https://api.example.com/v1）。リモートのアドレスは https のみ、このコンピューターやローカルネットワークのアドレスは http でもかまいません。' },

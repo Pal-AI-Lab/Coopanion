@@ -12,6 +12,9 @@ const ko: Translation<PetText> = {
   busy: '작업 중',
 
   voice: {
+    serviceStopped: "음성 인식 서비스가 중지되어 음성 입력을 사용할 수 없습니다",
+    recorded: "녹음 전송 완료",
+    recordingUnavailable: "녹음을 전송할 수 없으며 전사 결과가 없습니다",
     starting: '음성 인식을 시작하는 중',
     notRunning: '음성 인식이 실행되고 있지 않습니다',
     modelMissing: (mb: number) => `음성 모델을 아직 다운로드하지 않았습니다(약 ${mb} MB). 음성 입력 페이지에서 다운로드하세요`,
@@ -267,6 +270,7 @@ const ko: Translation<PetText> = {
     speechSpeed: { title: '말소리 속도', description: (a: number, b: number, c: number) => `1초에 읽는 음절 수의 상한: low, mid, high는 각각 ${a}, ${b}, ${c}이며 custom은 사용자 지정 속도를 씁니다. 글자보다 느리면 글자가 다 나온 뒤에 다 읽습니다.` },
     speechRate: { title: '사용자 지정 속도', suffix: '음절/초' },
     asrEnabled: { title: '음성 입력' },
+    asrServiceEnabled: { title: "음성 인식 서비스", description: "음성 입력이 켜져 있을 때 인식을 시작합니다. 꺼도 오디오 지원 모델에는 녹음만 보낼 수 있습니다." },
     asrEngine: { title: '인식 엔진', description: 'funasr는 FunASR의 SenseVoiceSmall을 실행해 중국어, 영어, 일본어, 한국어, 광둥어를 인식하며, 처음 한 번 약 240 MB를 다운로드합니다. whisper는 OpenAI의 Whisper small을 실행해 프랑스어, 독일어, 스페인어, 포르투갈어, 이탈리아어, 러시아어 외 약 90개 언어를 인식하며, 처음 한 번 약 360 MB를 다운로드하고 한 문장을 마쳐야 글자가 나옵니다. 둘 다 이 컴퓨터에서 인식합니다. system은 Windows 자체 음성 인식을 쓰며 다운로드가 필요 없지만 정확도가 낮습니다(Windows 전용). api는 문장마다 녹음을 OpenAI 호환 전사 API로 보내 인식하며, 한 문장을 마쳐야 글자가 나옵니다. 주소와 모델은 아래에, API Key는 「음성 입력」 페이지에 입력합니다. 비워 두면 앱 언어에 따라 고릅니다. 중국어, 영어, 일본어, 한국어는 funasr를, 나머지는 whisper를 씁니다.' },
     asrLanguage: { title: '언어', description: 'ISO 639-1 언어 코드 또는 모델이 판단하게 하는 auto. 비워 두면 앱 언어를 따릅니다. FunASR는 zh, en, ja, ko, yue를, Whisper는 fr, de, es, pt, it, ru 등 약 100개 코드를 받으며, 모델이 받지 않는 코드는 auto로 처리합니다. 전사 API에는 코드가 두 글자일 때만 언어를 보냅니다.' },
     asrApiUrl: { title: '전사 API 주소', description: '엔진이 api일 때 문장마다 녹음을 이 주소 뒤의 /audio/transcriptions로 보냅니다(예: https://api.example.com/v1). 원격 주소는 https만 쓸 수 있고, 이 컴퓨터나 로컬 네트워크의 주소는 http를 써도 됩니다.' },

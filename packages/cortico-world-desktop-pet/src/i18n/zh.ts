@@ -20,6 +20,9 @@ export default {
 
   /** 语音输入:菜单里麦克风按钮的状态、引导和设置页的说明 */
   voice: {
+    serviceStopped: "识别服务已停止，当前无法语音输入",
+    recorded: "录音已投递",
+    recordingUnavailable: "录音无法投递，且没有可用的转写",
     starting: '识别服务启动中',
     notRunning: '识别服务没有运行',
     modelMissing: (mb: number) => `识别模型尚未下载（约 ${mb} MB），请在「语音输入」页下载`,
@@ -294,6 +297,7 @@ export default {
     speechSpeed: { title: '说话声语速', description: (a: number, b: number, c: number) => `每秒最多念几个音节：low、mid、high 依次为 ${a}、${b}、${c}；custom 用自定义语速。比文字慢时，声音在文字打完后才念完。` },
     speechRate: { title: '自定义语速', suffix: '音节/秒' },
     asrEnabled: { title: '语音输入总开关' },
+    asrServiceEnabled: { title: "开启识别服务", description: "语音输入开启时启动识别服务；关闭后，支持音频的模型仍可接收仅录音输入。" },
     asrEngine: { title: '识别引擎', description: 'funasr 用 FunASR 的 SenseVoiceSmall，支持中文、英文、日文、韩文和粤语，首次要下载约 240 MB 的模型；whisper 用 OpenAI 的 Whisper small，支持法语、德语、西班牙语、葡萄牙语、意大利语、俄语等近百种语言，首次要下载约 360 MB 的模型，一句说完才出字；这两个都在本机识别。system 用 Windows 自带的语音识别，不用下载，准确度低一些（只在 Windows 上有）。api 把每句录音发送给 OpenAI 兼容的转写接口识别，一句说完才出字；地址和模型在下面填写，API Key 在「语音输入」页填写。留空时按应用语言选：中文、英文、日文、韩文用 funasr，其余用 whisper。' },
     asrLanguage: { title: '语言', description: 'ISO 639-1 语言代码，或 auto 让模型自己判断；留空时跟随应用语言。FunASR 认 zh、en、ja、ko、yue，Whisper 认 fr、de、es、pt、it、ru 等近百种，不认的代码按 auto。转写接口只在代码是两个字母时带上语言。' },
     asrApiUrl: { title: '转写接口地址', description: '引擎为 api 时，每句录音发送到这个地址后面的 /audio/transcriptions，例如 https://api.example.com/v1。远程地址只能用 https，本机和局域网的地址可以用 http。' },
