@@ -12,6 +12,7 @@ const de: Translation<PetText> = {
   busy: 'Arbeitet',
 
   voice: {
+    serviceStopped: "Spracherkennungsdienst gestoppt; Spracheingabe nicht verfügbar",
     recorded: "Aufnahme gesendet",
     recordingUnavailable: "Aufnahme konnte nicht gesendet werden; kein Transkript verfügbar",
     starting: 'Spracherkennung startet',
@@ -269,6 +270,7 @@ const de: Translation<PetText> = {
     speechSpeed: { title: 'Sprechtempo', description: (a: number, b: number, c: number) => `Höchstens so viele Silben pro Sekunde: low, mid und high sind ${a}, ${b} und ${c}; custom nimmt das eigene Tempo. Langsamer als der Text, endet die Stimme nach ihm.` },
     speechRate: { title: 'Eigenes Tempo', suffix: 'Silben/s' },
     asrEnabled: { title: 'Spracheingabe' },
+    asrServiceEnabled: { title: "Spracherkennungsdienst", description: "Die Erkennung bei aktiver Spracheingabe starten; bei deaktiviertem Dienst können audiofähige Modelle weiterhin nur Aufnahmen empfangen." },
     asrEngine: { title: 'Erkennungs-Engine', description: 'funasr führt SenseVoiceSmall von FunASR aus, für Chinesisch, Englisch, Japanisch, Koreanisch und Kantonesisch, nach einem einmaligen Download von etwa 240 MB; whisper führt Whisper small von OpenAI aus, für Französisch, Deutsch, Spanisch, Portugiesisch, Italienisch, Russisch und etwa 90 weitere Sprachen, nach einem einmaligen Download von etwa 360 MB, und zeigt den Text, sobald ein Satz endet; beide erkennen auf diesem Computer. system nutzt die Spracherkennung von Windows, ohne Download und weniger genau (nur Windows). api schickt die Aufnahme jedes Satzes an einen OpenAI-kompatiblen Transkriptionsdienst und zeigt den Text, sobald der Satz endet; Adresse und Modell werden unten eingetragen, der API Key auf der Seite Spracheingabe. Leer wählt nach der App-Sprache: funasr für Chinesisch, Englisch, Japanisch und Koreanisch, whisper für die übrigen.' },
     asrLanguage: { title: 'Sprache', description: 'Ein ISO-639-1-Code oder auto, damit das Modell selbst entscheidet; leer folgt der App-Sprache. FunASR nimmt zh, en, ja, ko und yue, Whisper etwa hundert Codes wie fr, de, es, pt, it und ru; ein Code, den das Modell nicht nimmt, gilt als auto. Der Transkriptionsdienst bekommt den Code nur, wenn er zwei Buchstaben hat.' },
     asrApiUrl: { title: 'Adresse des Transkriptionsdiensts', description: 'Mit der Engine api geht jeder Satz an /audio/transcriptions unter dieser Adresse, etwa https://api.example.com/v1. Eine entfernte Adresse muss https verwenden; Adressen auf diesem Computer oder im lokalen Netz dürfen http verwenden.' },

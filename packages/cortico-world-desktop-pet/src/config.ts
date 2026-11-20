@@ -438,6 +438,7 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
       title: c.asrGroup,
       properties: {
         [`${K}.asr.enabled`]: { type: 'boolean', title: c.asrEnabled.title, 'x-hot': true },
+        [`${K}.asr.serviceEnabled`]: { type: 'boolean', title: c.asrServiceEnabled.title, description: c.asrServiceEnabled.description, 'x-hot': true },
         [`${K}.asr.engine`]: { type: 'string', title: c.asrEngine.title, enum: ['', 'funasr', 'whisper', 'system', 'api'], description: c.asrEngine.description, 'x-hot': true },
         [`${K}.asr.api.baseUrl`]: { type: 'string', title: c.asrApiUrl.title, description: c.asrApiUrl.description, 'x-hot': true },
         [`${K}.asr.api.model`]: { type: 'string', title: c.asrApiModel.title, description: c.asrApiModel.description, 'x-hot': true },

@@ -406,6 +406,8 @@ export class DesktopPetWorld implements World {
   private runningEngine: AsrEngine | null = null;
   private voiceGeneration = 0;
   private voiceStopping: Promise<void> | null = null;
+  private voiceStarting: { generation: number; engine: AsrEngine; done: Promise<BackendState | null> } | null = null;
+  private voiceClosing = false;
   private voiceEnabled = false;
   /** `cua.enabled` as syncPrefs last saw it: switching it off ends the engine process. */
   private cuaSeen = false;
@@ -425,6 +427,7 @@ export class DesktopPetWorld implements World {
   private audioDisplay: AudioSpeechBatch | null = null;
   private captureEnabled = false;
   private packTimer: NodeJS.Timeout | null = null;
+  private audioSettleTimer: NodeJS.Timeout | null = null;
   private wasSpeaking = false;
   private screen: { w: number; h: number } | null = null;
   /** The pet window said it is hidden (its menu's or the tray's 「隐藏」); reset when a page connects. */
@@ -761,6 +764,7 @@ export class DesktopPetWorld implements World {
       log: host.log,
     });
     this.cuaSeen = this.cfg.cua.enabled;
+    this.voiceClosing = false;
     this.captureEnabled = this.cfg.asr.enabled;
     this.voiceEnabled = this.recognitionWanted();
     if (this.voiceEnabled) void this.startVoiceBackend();
@@ -772,6 +776,7 @@ export class DesktopPetWorld implements World {
   }
 
   async stop(): Promise<void> {
+    this.voiceClosing = true;
     this.discardSpeech();
     this.voiceGeneration++;
     this.runningEngine = null;
@@ -1059,20 +1064,22 @@ export class DesktopPetWorld implements World {
 
   /** Config is a live object edited by the console; changes reach the pages within PREFS_SYNC_MS. */
   private syncPrefs(): void {
+    if (this.voiceClosing) return;
     this.followFigure();
     this.segmenter.configure(this.segmentConfig());
     if (!this.holdPreRollEnabled()) this.holdPreRoll.length = 0;
     if (this.captureEnabled && !this.cfg.asr.enabled) this.discardSpeech();
     this.captureEnabled = this.cfg.asr.enabled;
     if (this.cfg.asr.enabled && this.audioBatch && !this.micWanted()) {
-      this.segmenter.flush();
+      const tail = this.segmenter.flush();
+      if (tail) this.enqueue(tail);
       this.committing = true;
       this.schedulePack();
     }
     const wanted = this.recognitionWanted();
     const turnedOn = wanted && !this.voiceEnabled;
     this.voiceEnabled = wanted;
-    if (!wanted && this.runningEngine) void this.stopVoiceBackend();
+    if (!wanted && (this.runningEngine || this.voiceStarting?.generation === this.voiceGeneration)) void this.stopVoiceBackend();
     else if (turnedOn || (wanted && this.runningEngine && this.runningEngine !== this.engine())) void this.startVoiceBackend();
     // the system recognizer serves one language; a new one needs a new helper
     else if (wanted && this.runningEngine === 'system' && this.system?.languageChanged) void this.startVoiceBackend();
@@ -1140,7 +1147,7 @@ export class DesktopPetWorld implements World {
     return {
       enabled: this.cfg.asr.enabled,
       ready,
-      detail: ready ? null : this.cfg.asr.serviceEnabled === false ? this.ui.voice.recordingUnavailable : b?.phase === 'starting' ? this.ui.voice.starting : b?.detail ?? this.ui.voice.notRunning,
+      detail: ready ? null : this.cfg.asr.serviceEnabled === false ? this.ui.voice.serviceStopped : b?.phase === 'starting' ? this.ui.voice.starting : b?.detail ?? this.ui.voice.notRunning,
       hint: this.talkHint(),
       mode: this.cfg.asr.mic.mode,
       key: hotkeyBadge(this.cfg.asr.mic.hotkey),
@@ -1619,25 +1626,42 @@ export class DesktopPetWorld implements World {
     return this.recognizer()?.state() ?? null;
   }
 
-  /** Starts the engine in force and stops the one that ran before. */
-  async startVoiceBackend(): Promise<BackendState | null> {
+  /** Starts the engine in force. RPC and preference polling share one operation per generation and engine. */
+  startVoiceBackend(): Promise<BackendState | null> {
+    if (this.voiceClosing || !this.recognitionWanted()) return Promise.resolve(this.backendState());
+    this.voiceEnabled = true;
     const generation = this.voiceGeneration;
-    await this.voiceStopping;
-    if (generation !== this.voiceGeneration || !this.recognitionWanted()) return this.backendState();
     const engine = this.engine();
-    const recognizer = this.recognizer(engine);
-    if (!recognizer) return null;
-    if (this.runningEngine !== engine) {
-      if (this.runningEngine) await this.recognizer(this.runningEngine)?.stop();
-      if (generation !== this.voiceGeneration || !this.recognitionWanted() || engine !== this.engine()) return this.backendState();
-      this.runningEngine = engine;
-    }
-    await recognizer.start();
-    if (generation === this.voiceGeneration) this.syncPrefs();
-    return this.backendState();
+    const previous = this.voiceStarting;
+    if (previous?.generation === generation && previous.engine === engine) return previous.done;
+    const valid = () => !this.voiceClosing && generation === this.voiceGeneration && this.recognitionWanted() && engine === this.engine();
+    const done = (async () => {
+      if (previous) await previous.done;
+      await this.voiceStopping;
+      if (!valid()) return this.backendState();
+      const recognizer = this.recognizer(engine);
+      if (!recognizer) return null;
+      if (this.runningEngine !== engine) {
+        if (this.runningEngine) await this.recognizer(this.runningEngine)?.stop();
+        if (!valid()) return this.backendState();
+        this.runningEngine = engine;
+      }
+      await recognizer.start();
+      return this.backendState();
+    })().finally(() => {
+      if (this.voiceStarting?.done === done) {
+        this.voiceStarting = null;
+        if (valid()) this.syncPrefs();
+      }
+    });
+    this.voiceStarting = { generation, engine, done };
+    return done;
   }
 
   private stopVoiceBackend(): Promise<void> {
+    this.voiceEnabled = false;
+    // A duplicate stop shares the unload unless a new start has queued in the meantime.
+    if (this.voiceStopping && this.voiceStarting?.generation !== this.voiceGeneration) return this.voiceStopping;
     this.voiceGeneration++;
     this.holdPreRoll.length = 0;
     if (this.voiceStopping) return this.voiceStopping;
@@ -1809,6 +1833,7 @@ export class DesktopPetWorld implements World {
   }
 
   private discardSpeech(): void {
+    this.clearAudioSettleTimer();
     this.segmenter.flush();
     if (this.packTimer) clearTimeout(this.packTimer);
     this.packTimer = null;
@@ -1878,6 +1903,7 @@ export class DesktopPetWorld implements World {
   private onAudio(frame: Int16Array): void {
     if (!this.cfg.asr.enabled || !this.micWanted()) { this.holdPreRoll.length = 0; return; }
     const open = this.gateOpen();
+    if (open) this.clearAudioSettleTimer();
     if (open) for (const u of this.segmenter.push(frame)) this.enqueue(u);
     else if (this.holdPreRollEnabled()) {
       this.holdPreRoll.push({ frame, atMs: performance.now() });
@@ -2024,6 +2050,7 @@ export class DesktopPetWorld implements World {
 
   /** Audio dispatch follows the capture boundary; ASR can finish after that event. */
   private closeAudioBatch(batch: AudioSpeechBatch): void {
+    this.clearAudioSettleTimer();
     batch.closed = true;
     this.audioDisplay = batch;
     const blobs = this.recordingBlobs(batch.parts, false);
@@ -2034,6 +2061,9 @@ export class DesktopPetWorld implements World {
       const label = this.ui.voice.recorded;
       this.server.sendPet({ t: 'listen', phase: 'heard', text: label });
       void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heardRecorded(this.userName), batch.trigger, { meta: { text: label }, blobs });
+    } else if (batch.pending) {
+      this.listenOpen = true;
+      this.server.sendPet({ t: 'listen', phase: 'transcribing' });
     }
     this.finishAudioTranscript(batch);
   }
@@ -2053,6 +2083,7 @@ export class DesktopPetWorld implements World {
     }
     // A recording over the limit or rejected by the endpoint can only fall back to recognized text.
     batch.sent = true;
+    if (this.audioDisplay === batch) this.listenOpen = false;
     if (text) {
       this.counts.delivered++;
       if (this.audioDisplay === batch) this.server.sendPet({ t: 'listen', phase: 'heard', text });
@@ -2065,10 +2096,27 @@ export class DesktopPetWorld implements World {
     }
   }
 
+  private clearAudioSettleTimer(): void {
+    if (this.audioSettleTimer) clearTimeout(this.audioSettleTimer);
+    this.audioSettleTimer = null;
+  }
+
   /** Delivers at the capture boundary, waiting for ASR only for a text batch. */
   private schedulePack(): void {
     if (this.audioBatch) {
-      const hold = !this.committing && (this.segmenter.active || this.segmenter.settleRemainingMs > 0);
+      const remaining = this.segmenter.settleRemainingMs;
+      const hold = !this.committing && (this.segmenter.active || remaining > 0);
+      // The segmenter's silence clock advances only with frames. Each new frame resets this
+      // deadline; if frames stop during the closing pause, finish the inactive segment once.
+      if (hold && !this.segmenter.active && remaining > 0 && !this.audioSettleTimer) {
+        const batch = this.audioBatch;
+        this.audioSettleTimer = setTimeout(() => {
+          this.audioSettleTimer = null;
+          if (this.audioBatch !== batch || this.segmenter.active) return;
+          this.segmenter.flush();
+          this.schedulePack();
+        }, remaining);
+      }
       if (!hold) {
         const batch = this.audioBatch;
         this.audioBatch = null;
@@ -2080,6 +2128,8 @@ export class DesktopPetWorld implements World {
       return;
     }
     const upstream = this.textWork();
+    // An over-limit audio batch may be waiting for its text fallback. Keep its bubble cancellable.
+    if (!upstream && !this.packer.pending && !this.segmenter.active && this.audioDisplay?.closed && !this.audioDisplay.sent && this.audioDisplay.pending) return;
     // a commit does not wait for the closing pause, nor for speech begun after it
     const hold = upstream || (!this.committing && (this.segmenter.active || this.segmenter.settleRemainingMs > 0));
     const text = this.committing && !upstream ? this.packer.take() : this.packer.due(hold);

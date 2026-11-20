@@ -295,7 +295,7 @@ const voicePanel: WebUiPanel = {
       const onPressOn = next.input.mode === 'hold' && next.input.openOnPress;
       const audioOnly = next.recording.enabled && next.recording.endpointTakesAudio && !next.recording.transcript;
       masterHint.textContent = !next.enabled ? t.disabledHint
-        : !next.serviceEnabled && !audioOnly ? text.voice.recordingUnavailable
+        : !next.serviceEnabled && !audioOnly ? text.voice.serviceStopped
           : onPressOn ? t.enabledHintOnPress : t.enabledHint;
       settings.classList.toggle('off', !next.enabled);
       const engines: Partial<Record<Engine, string>> = { funasr: t.funasr, whisper: t.whisper };
@@ -315,7 +315,7 @@ const voicePanel: WebUiPanel = {
       else if (sv.phase === 'starting') srv.set(t.starting, 'busy', sv.url);
       else if (sv.phase === 'error') srv.set(t.error, 'bad', sv.detail ?? '');
       else srv.set(t.stopped, 'off', sv.url);
-      btnStart.disabled = !next.enabled || sv?.phase === 'running' || sv?.phase === 'starting';
+      btnStart.disabled = !next.enabled || (next.serviceEnabled && (sv?.phase === 'running' || sv?.phase === 'starting'));
       btnStop.disabled = !next.enabled || !next.serviceEnabled;
 
       const m = next.model;

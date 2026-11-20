@@ -185,6 +185,28 @@ describe('voice input', () => {
     expect(asr.configs).toHaveLength(2);
   });
 
+  it('shares one in-flight start between the panel and preference synchronization', async () => {
+    const { cfg, world, asr } = await setup('hello', 'always', undefined, 'zh', false, undefined, false);
+    let loaded!: () => void;
+    const gate = new Promise<void>((resolve) => { loaded = resolve; });
+    asr.beforeLoad = () => gate;
+    try {
+      const first = world.webUi().invoke!('voice', 'start', []);
+      const joined = world.startVoiceBackend();
+      expect(joined).toBe(world.startVoiceBackend());
+      await expect.poll(() => asr.configs.length).toBe(1);
+      expect(cfg.asr.serviceEnabled).toBe(true);
+      const second = world.webUi().invoke!('voice', 'start', []);
+      loaded();
+      await Promise.all([first, second, joined]);
+      expect(world.voiceState().server).toMatchObject({ phase: 'running' });
+      expect(asr.configs).toHaveLength(1);
+      await Promise.all([world.webUi().invoke!('voice', 'stop', []), world.webUi().invoke!('voice', 'stop', [])]);
+      expect(cfg.asr.serviceEnabled).toBe(false);
+      expect(world.voiceState().server).toMatchObject({ phase: 'stopped' });
+    } finally { loaded(); }
+  });
+
   it('stops the active engine when the configured engine changes before the stop request', async () => {
     const { cfg, world } = await setup('hello');
     cfg.asr.engine = 'whisper';
@@ -309,6 +331,52 @@ describe('voice input', () => {
     for (const fr of tone(600, 0)) page.audio(fr);
     await expect.poll(() => host.events.length).toBe(1);
     await expect.poll(() => (world.voiceState().recent as unknown[]).length).toBe(1);
+  });
+
+  it('finishes an audio batch once when microphone frames stop during the closing pause', async () => {
+    const { cfg, host, page, world, asr } = await setup('unused', 'always', undefined, 'zh', false, undefined, false);
+    cfg.asr.recording.transcript = false;
+    cfg.asr.segment.silenceMs = 900;
+    host.modelFacts.accepts = (mime) => mime === 'audio/wav';
+    await page.next((m) => m.t === 'prefs' && m.mic === true);
+    for (const fr of [...tone(900, .3), ...tone(300, 0)]) page.audio(fr);
+    await expect.poll(() => (world.voiceState().counts as { utterances: number }).utterances).toBe(1);
+    expect(host.events).toHaveLength(0);
+    await expect.poll(() => host.events.length).toBe(1);
+    expect(host.events[0]?.blobs?.[0]?.mime).toBe('audio/wav');
+    for (const fr of tone(900, 0)) page.audio(fr);
+    expect(asr.decodes).toHaveLength(0);
+    expect(host.events).toHaveLength(1);
+  });
+
+  it('shows transcribing while an over-limit recording awaits its text fallback', async () => {
+    const { cfg, host, page, asr } = await setup('fallback text');
+    cfg.asr.recording.transcript = false;
+    cfg.asr.recording.maxMinutes = RECORDING_MINUTES_MIN;
+    host.modelFacts.accepts = (mime) => mime === 'audio/wav';
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    asr.beforeDecode = () => gate;
+    try {
+      for (const fr of [...tone(RECORDING_MINUTES_MIN * 60_000 + 1000, .3), ...tone(900, 0)]) page.audio(fr);
+      await page.next((m) => m.t === 'listen' && m.phase === 'transcribing');
+      expect(host.events).toHaveLength(0);
+      release();
+      await expect.poll(() => host.events.length).toBe(1);
+      expect(host.events[0]?.text).toContain('fallback text');
+      expect(host.events[0]?.blobs).toBeUndefined();
+    } finally { release(); }
+  });
+
+  it('distinguishes a stopped service from a recording delivery error', async () => {
+    const { page, cfg, host } = await setup('unused', 'always', undefined, 'zh', false, undefined, false);
+    expect(page.init.voice).toMatchObject({ enabled: true, ready: false, detail: '识别服务已停止，当前无法语音输入' });
+    host.modelFacts.accepts = (mime) => mime === 'audio/wav';
+    cfg.asr.recording.transcript = false;
+    await page.next((m) => m.t === 'prefs' && m.mic === true);
+    cfg.asr.recording.enabled = false;
+    const stopped = await page.next((m) => m.t === 'prefs' && m.mic === false);
+    expect(stopped.voice).toMatchObject({ ready: false, detail: '识别服务已停止，当前无法语音输入' });
   });
 
   it('delivers two recordings while the first recognition is still pending, without stale bubble text', async () => {
