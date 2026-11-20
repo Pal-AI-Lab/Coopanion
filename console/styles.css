@@ -1506,6 +1506,8 @@
 
 .providerchrome > .msgline { margin-top: 12px; }
 .pagetitle-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.pagetitle-identity { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px; min-width: 0; }
+.pagetitle-identity > .iobtn > .icon { width: 20px; height: 20px; transform: translateY(1px); }
 .pagetitle-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .pagetitle-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin-left: auto; }
 .pagetitle .pagetitle-name { margin-left: 10px; font: 400 13px var(--sans); color: var(--ink-dim); }

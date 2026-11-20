@@ -2,7 +2,8 @@
 
 import { get, post, pickPath } from '../../../base/api.ts';
 import { icon, brandMark, cooFigure, COO_FACE_NAMES } from '../../../base/ui/icons.ts';
-import { notice } from '../../../base/ui/index.ts';
+import { dialogEnvironment, notice } from '../../../base/ui/index.ts';
+import { drawer } from '../../../base/ui/overlay.ts';
 import { renderMarkdown } from './markdown.ts';
 import { gallery, takeImages } from './gallery.ts';
 import type { FeatureContext } from '../feature.ts';
@@ -12,6 +13,7 @@ import { problemPopover, problemAnchorVisible, listProblem, scrollerOf, wheelInt
 import { fold, measureReflow, prefersStill } from '../../../base/motion.ts';
 import { matchRanges, matchRank, prepareFields, searchTerms, type MatchRank, type PreparedFields } from './search.ts';
 import { hideTip, showTip } from '../../../base/ui/tip.ts';
+import { extensionForWorld } from '../worlds/library.ts';
 
 /** 扩展类别。与 `ExtensionKind` 同形;这一页只用它分组与选关键字。 */
 export type ExtensionKindView = 'world' | 'provider' | 'bot';
@@ -463,19 +465,29 @@ export interface ExtensionController {
   restart(): Promise<void>;
 }
 
+type ExtensionContext = Pick<FeatureContext, 'ui' | 'lifecycle' | 'capabilities'> & { doc: Document };
+
 export function mountExtensionContent(ctx: FeatureContext, kind: Category, workspace?: ExtensionWorkspace): ExtensionController {
-  const { root, ui, lifecycle, signal } = ctx;
-  const win = root.ownerDocument.defaultView!;
-  const restartRoot = workspace?.restartRoot ?? ui.h('div', 'extension-catalog-restart');
-  const canRestart = ctx.capabilities.restart === true;
-  const supervised = ctx.capabilities.supervised === true;
+  return createExtensionContent({ ...ctx, doc: ctx.root.ownerDocument }, kind, ctx.root, workspace);
+}
+
+export function mountWorldExtensionDetails(ctx: ExtensionContext) {
+  return createExtensionContent(ctx, 'world').worldDetails;
+}
+
+function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionContext, kind: Category, root?: HTMLElement, workspace?: ExtensionWorkspace) {
+  const { signal } = lifecycle;
+  const win = doc.defaultView!;
+  let restartRoot: HTMLElement;
+  const canRestart = capabilities.restart === true;
+  const supervised = capabilities.supervised === true;
   const storageKey = 'cortico.extensions.v3:' + win.location.origin;
   const states = Object.fromEntries(categories.map(kind => [kind, {
     marketSize: 0,
     filter: '', sort: 'certified', page: 0, scroll: 0, tags: [], officialOnly: false, certifiedOnly: false, newOnly: false, advanced: false, author: '', keyword: '', license: '', sinceDays: 0, minDownloads: 0, hits: [], fetched: false, generation: 0,
     messages: {}, source: 'npm', input: '', catalogCategory: 'all', filtersFolded: false, installation: 'all',
   } satisfies CategoryState])) as unknown as Record<Category, CategoryState>;
-  try {
+  if (root) try {
     const saved = JSON.parse(win.sessionStorage.getItem(storageKey) ?? '{}');
     for (const kind of categories) if (saved[kind]) Object.assign(states[kind], saved[kind], { hits: [], fetched: false, generation: 0, messages: {} });
     for (const kind of categories) if (!HIT_SORTS.includes(states[kind].sort)) states[kind].sort = 'certified';
@@ -493,7 +505,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   /** 服务端的 `process.platform`;列表回来之前是空串,这时不按平台拦安装。 */
   let platform = '';
   /** 当前打开的包详情抽屉;从详情里点开另一个包时先关掉它。 */
-  let detailDrawer: { dispose(): void } | null = null;
+  let detailDrawer: { box: HTMLElement; handle: ReturnType<typeof ui.drawer> } | undefined;
   /** 最近一次搜索用的 registry;市场为空时提示里写出它。 */
   let registry = '';
   /** 最近一次搜索带回的官方索引;读不到时是空词表,标签、徽标与评论区都不显示。 */
@@ -558,41 +570,29 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   let installedFetched = false;
   let restoringScroll = true;
   const restoreScroll = () => {
-    if (root.hidden || !restoringScroll || !installedFetched || !states[kind].fetched) return;
+    if (!root || root.hidden || !restoringScroll || !installedFetched || !states[kind].fetched) return;
     scrollRoot.scrollTop = states[kind].scroll;
     restoringScroll = false;
   };
   /** 正在安装或删除的包;同一个包的第二次操作等前一次回来。 */
   const busy = new Set<string>();
-  const doc = root.ownerDocument;
-  const scrollRoot = ui.h('div', 'world-catalog-scroll');
-  root.addEventListener('wheel', event => {
-    const target = event.target as Element;
-    if (target.closest('.world-catalog-scroll, .world-catalog-filters, select, textarea')) return;
-    const own = scrollerOf(target); if (own && root.contains(own) && own !== root) return;
-    wheelInto(scrollRoot, event);
-  }, { passive: false, signal });
-  const narrowFilters = win.matchMedia?.('(max-width: 760px)');
+  let scrollRoot: HTMLElement, panel: HTMLElement;
+  const narrowFilters = root && win.matchMedia?.('(max-width: 760px)');
   let narrowFiltersOpen = false;
   let syncFilterLayout: (() => void) | undefined;
-  narrowFilters?.addEventListener('change', () => syncFilterLayout?.(), { signal });
   // 历史版本下拉:在同一个抽屉里点别处就收起;确认框等别的浮层里的点击不算
   doc.addEventListener('click', event => { for (const open of doc.querySelectorAll<HTMLDetailsElement>('.extension-releases[open]')) if (!open.contains(event.target as Node) && open.closest('.modalcard')?.contains(event.target as Node)) open.open = false; }, { signal });
-  const panel = ui.h('div', 'extension-category world-catalog');
-  root.append(panel);
   let marketGrid: HTMLElement, marketPager: HTMLElement;
   let tagBar: HTMLElement | undefined, activeBar: HTMLElement | undefined, warningControl: HTMLElement | undefined, clearButton: HTMLButtonElement | undefined, licenseList: HTMLElement | undefined;
   let messageNodes: Record<string, HTMLElement> = {};
   let listErrorText = '';
   const save = () => {
-    if (!root.hidden && !restoringScroll) states[kind].scroll = scrollRoot.scrollTop;
+    if (!root?.hidden && !restoringScroll) states[kind].scroll = scrollRoot.scrollTop;
     try {
       const { hits: _hits, fetched: _fetched, generation: _gen, messages: _messages, ...saved } = states[kind];
       win.sessionStorage.setItem(storageKey, JSON.stringify({ ...JSON.parse(win.sessionStorage.getItem(storageKey) ?? '{}'), [kind]: saved }));
     } catch { /* Optional browser state. */ }
   };
-  scrollRoot.addEventListener('scroll', save, { signal, passive: true }); lifecycle.add(save);
-  for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) root.addEventListener(event, () => { restoringScroll = false; }, { signal, passive: true });
   function message(owner: Category, area: string, text: string, bad = false) {
     states[owner].messages[area] = { text, bad };
     if (owner === kind && messageNodes[area]) { messageNodes[area].textContent = text; messageNodes[area].className = 'msgline' + (bad ? ' bad' : ''); }
@@ -637,22 +637,29 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     }
     return request;
   }
-  function showLocal(item: ExtensionView) {
+  function packageDrawer(title: string, opener?: HTMLElement): HTMLElement {
     const box = ui.h('div', 'extension-detail');
-    detailDrawer?.dispose(); detailDrawer = ui.drawer(item.metadata?.displayName ?? item.label ?? item.name, box);
-    // 内建 World 也以 cortico-world-<id> 发布在 npm 上,讨论帖与标签跟那个包
-    const hit = states[kind].hits.find(hit => hit.name === item.name || (item.builtin && !!item.worldId && hit.name === 'cortico-world-' + item.worldId));
+    box.append(ui.placeholder(S.loadingDetail));
+    detailDrawer?.handle.dispose();
+    detailDrawer = { box, handle: drawer(dialogEnvironment(ui), title, box, opener) };
+    return box;
+  }
+  function showLocal(item: ExtensionView, box = packageDrawer(item.metadata?.displayName ?? item.label ?? item.name), catalogReady?: Promise<void>) {
     const local: PackageDetailView = { name: item.name, version: item.installedVersion ?? item.version ?? '—', versionCount: 0, history: [], warnings: [], frameworkApi: item.api ?? 0, dependencies: [], maintainers: [], links: {}, installed: true, ...item.metadata, description: item.description ?? item.metadata?.description, author: item.author };
-    renderDetail(box, local, kind, hit, item);
-    if (!item.builtin && !/^(link:|file:)/.test(item.spec) && item.state !== 'removed') {
-      void fetchDetail(item.name, undefined, true).then(data => {
-        if (!signal.aborted && box.isConnected) renderDetail(box, data, kind, hit, item);
-      }).catch(error => {
-        if (!signal.aborted && box.isConnected) {
-          detailLoadError(box, errorText(error));
-        }
-      });
-    }
+    const paint = (data: PackageDetailView) => {
+      // 内建 World 也以 cortico-world-<id> 发布在 npm 上,讨论帖与标签跟那个包
+      const hit = states[kind].hits.find(hit => hit.name === item.name || (item.builtin && !!item.worldId && hit.name === 'cortico-world-' + item.worldId));
+      renderDetail(box, data, kind, hit, item);
+    };
+    paint(local);
+    const request = !item.builtin && !/^(link:|file:)/.test(item.spec) && item.state !== 'removed'
+      ? fetchDetail(item.name, undefined, true).then(data => ({ data, error: undefined }), error => ({ data: local, error: errorText(error) }))
+      : undefined;
+    if (request || catalogReady) void Promise.all([request ?? { data: local, error: undefined }, catalogReady]).then(([{ data, error }]) => {
+      if (!box.isConnected) return;
+      if (catalogReady || !error) paint(data);
+      if (error !== undefined) detailLoadError(box, error);
+    });
   }
   /** 累计、近 30 天、近 7 天;npm 下载统计没答上来的项显示「—」。 */
   function downloadsText(hit: SearchHitView) {
@@ -662,7 +669,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   function packageAvatar(src?: string) {
     const avatar = ui.h('span', 'extension-avatar');
     const fallback = ui.h('span', 'extension-avatar-default');
-    fallback.append(brandMark(root.ownerDocument));
+    fallback.append(brandMark(doc));
     avatar.append(fallback);
     if (src) {
       const image = ui.h('img', 'extension-avatar-image'); image.alt = ''; image.src = src; fallback.hidden = true;
@@ -708,8 +715,8 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     pendingProblems.delete(key);
     if (problemAnchorVisible(anchor())) problems.show(anchor, text); else pendingProblems.set(key, { anchor, text });
   }
-  const marketControl = (name: string) => marketGrid.querySelector(`.extension-market-card[data-name="${CSS.escape(name)}"] .extension-get`);
-  const restartControl = () => restartRoot.querySelector('.extension-restart');
+  const marketControl = (name: string) => marketGrid?.querySelector(`.extension-market-card[data-name="${CSS.escape(name)}"] .extension-get`);
+  const restartControl = () => restartRoot?.querySelector('.extension-restart');
   /** Failed reads of the installed list and of the search, above the cards, each with its retry; the cards stay. */
   function paintListProblems() {
     const node = messageNodes.list, failed = states[kind].messages.market;
@@ -1198,9 +1205,24 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     const hit = states[kind].hits.find(hit => hit.name === name);
     if (hit) openDetail(hit, kind);
   }
+  async function worldDetails(id: string, label: string, anchor: HTMLButtonElement): Promise<void> {
+    if (detailDrawer?.box.isConnected) return;
+    const box = packageDrawer(label, anchor);
+    const loaded = await load();
+    if (!box.isConnected) return;
+    const item = loaded ? extensionForWorld(id, installed) : undefined;
+    if (!item) {
+      const note = ui.msgline(loaded ? S.notInstalled : listErrorText, true);
+      note.setAttribute('role', 'status');
+      box.replaceChildren(note);
+      return;
+    }
+    showLocal(item, box, states[kind].fetched && !states[kind].messages.market?.bad ? undefined : search(kind));
+    if (!item.builtin && item.state !== 'removed') void checkUpdates();
+  }
   function renderRestart() {
     const pending = installed.some(item => (item.kind === kind || !item.kind) && (item.state === 'pending-restart' || item.state === 'removed'));
-    const button = restartRoot.querySelector<HTMLButtonElement>('.extension-restart');
+    const button = restartRoot?.querySelector<HTMLButtonElement>('.extension-restart');
     if (button) { button.hidden = !pending; button.disabled = busy.size > 0 || restartRoot.classList.contains('is-restarting'); }
   }
   /** The market card's control; an installed package's leads to its row. */
@@ -1315,6 +1337,11 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
    * Returns whether the list moved to a combination's place (see places), which a caller keeping its scroll leaves.
    */
   function renderMarket(toTop = false): boolean {
+    for (const [control, paint] of detailControls) if (control.isConnected) paint(); else detailControls.delete(control);
+    if (!root) {
+      showProblems();
+      return false;
+    }
     const reflow = measureCards();
     const state = states[kind];
     paintCategories?.();
@@ -1404,7 +1431,6 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     }
     for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) foldTags(row);
     renderInView();
-    for (const [control, paint] of detailControls) if (control.isConnected) paint(); else detailControls.delete(control);
     // A failed search keeps the cards already listed, installed providers among them; its failure shows above them.
     const searchFailed = !!state.messages.market?.bad;
     if (!result.matched && !searchFailed) marketGrid.append(emptyMarket(state));
@@ -1647,7 +1673,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
           erase.disabled = true;
           try {
             await remove(local.name, () => erase);
-            if (!installed.some(item => item.name === local.name && item.state !== 'removed')) detailDrawer?.dispose();
+            if (!installed.some(item => item.name === local.name && item.state !== 'removed') && detailDrawer?.box === box) detailDrawer.handle.dispose();
           } finally { erase.disabled = !!removalBlockReason(installed.find(item => item.name === local.name)) || busy.has(local.name); }
         } });
         const reason = removalBlockReason(local);
@@ -1674,7 +1700,10 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
         const a = ui.h('a', 'btn secondary sm extension-detail-link'); a.href = changelogUrl; a.target = '_blank'; a.rel = 'noopener noreferrer';
         a.append(icon(doc, 'text'), ui.h('span', '', S.changelogLink)); attachHint(a, S.changelogLink, changelogUrl); links.append(a);
       }
-      const feedback = ui.msgline(); feedback.classList.add('extension-operation-feedback'); feedback.setAttribute('role', 'status');
+      const feedback = box.querySelector<HTMLElement>('.extension-operation-feedback') ?? ui.msgline();
+      feedback.classList.add('extension-operation-feedback'); feedback.setAttribute('role', 'status');
+      const comments = box.querySelector<HTMLElement>('.extension-detail-side');
+      const activeComment = comments?.contains(doc.activeElement) ? doc.activeElement as HTMLElement : null;
       const columns = ui.h('div', 'extension-detail-columns');
       const main = ui.h('div', 'extension-detail-main'); columns.append(main);
       box.replaceChildren(header, ...(links.hasChildNodes() ? [links] : []), feedback, columns);
@@ -1756,7 +1785,12 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
         releases.append(data.history.length ? history : ui.h('p', 'muted extension-history-empty', S.noHistory)); below.append(releases);
       }
       columns.classList.toggle('is-split', indexed); box.closest('.modalcard')?.classList.toggle('extension-detail-card', indexed);
-      if (indexed) { const side = ui.h('aside', 'extension-detail-side'); side.append(commentsSection(listed?.name ?? data.name, listed?.rating)); columns.append(side); }
+      if (indexed) {
+        const side = comments ?? ui.h('aside', 'extension-detail-side');
+        if (!comments) side.append(commentsSection(listed?.name ?? data.name, listed?.rating));
+        columns.append(side);
+        activeComment?.focus({ preventScroll: true });
+      }
   }
   function detailLoadError(box: HTMLElement, text: string, unavailable = false) {
     const info = box.querySelector('.extension-detail-information')!;
@@ -1801,8 +1835,7 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
   function openDetail(hit: SearchHitView, owner: Category, toComments = false) {
     const item = installed.find(item => item.name === hit.name && item.state !== 'removed');
     if (kind === 'provider' && item && !toComments) { showLocal(item); return; }
-    const box = ui.h('div', 'extension-detail'); box.append(ui.placeholder(S.loadingDetail));
-    detailDrawer?.dispose(); detailDrawer = ui.drawer(item?.metadata?.displayName ?? item?.label ?? hit.name, box);
+    const box = packageDrawer(item?.metadata?.displayName ?? item?.label ?? hit.name);
     void fetchDetail(hit.name, hit.version || undefined, true).then(data => {
       if (!signal.aborted && box.isConnected) { renderDetail(box, data, owner, hit); if (toComments) box.querySelector('.extension-comments')?.scrollIntoView({ block: 'start' }); }
     }).catch(error => {
@@ -2001,16 +2034,31 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     if (!renderMarket()) scrollRoot.scrollTop = keptScroll;
     reflow?.play(marketGrid);
   }
-  // 只看宽度变化
-  let panelWidth = panel.clientWidth;
-  if (typeof win.ResizeObserver === 'function') { const observer = new win.ResizeObserver(() => {
-    if (!panel.clientWidth || panel.clientWidth === panelWidth) return;
-    panelWidth = panel.clientWidth;
-    for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) if (!row.classList.contains('is-open')) foldTags(row);
-  }); observer.observe(panel); lifecycle.add(() => observer.disconnect()); }
-  render();
-  void load(); void checkUpdates(); void search(kind); void loadRegistry();
-  try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { showRestarting(true); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
+  if (root) {
+    panel = ui.h('div', 'extension-category world-catalog');
+    scrollRoot = ui.h('div', 'world-catalog-scroll');
+    restartRoot = workspace?.restartRoot ?? ui.h('div', 'extension-catalog-restart');
+    root.append(panel);
+    root.addEventListener('wheel', event => {
+      const target = event.target as Element;
+      if (target.closest('.world-catalog-scroll, .world-catalog-filters, select, textarea')) return;
+      const own = scrollerOf(target); if (own && root.contains(own) && own !== root) return;
+      wheelInto(scrollRoot, event);
+    }, { passive: false, signal });
+    narrowFilters?.addEventListener('change', () => syncFilterLayout?.(), { signal });
+    scrollRoot.addEventListener('scroll', save, { signal, passive: true }); lifecycle.add(save);
+    for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) root.addEventListener(event, () => { restoringScroll = false; }, { signal, passive: true });
+    // 只看宽度变化
+    let panelWidth = panel.clientWidth;
+    if (typeof win.ResizeObserver === 'function') { const observer = new win.ResizeObserver(() => {
+      if (!panel.clientWidth || panel.clientWidth === panelWidth) return;
+      panelWidth = panel.clientWidth;
+      for (const row of marketGrid.querySelectorAll<HTMLElement>('.extension-card .extension-tag-row')) if (!row.classList.contains('is-open')) foldTags(row);
+    }); observer.observe(panel); lifecycle.add(() => observer.disconnect()); }
+    render();
+    void load(); void checkUpdates(); void search(kind); void loadRegistry();
+    try { const marker = win.sessionStorage.getItem(storageKey + ':restart'); if (marker) { showRestarting(true); watchRestart(JSON.parse(marker)); } } catch { /* Invalid recovery marker. */ }
+  }
   const activate = (until?: Promise<unknown>) => {
     const own = revealEnd = until;
     const over = () => { if (revealEnd === own) revealEnd = undefined; };
@@ -2019,5 +2067,5 @@ export function mountExtensionContent(ctx: FeatureContext, kind: Category, works
     // Whether a provider is in use depends on the connections under Settings, which may have changed.
     if (kind === 'provider') void load();
   };
-  return { details, remove, activate, restart, refresh: load };
+  return { details, remove, activate, restart, refresh: load, worldDetails };
 }

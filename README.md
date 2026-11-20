@@ -213,6 +213,8 @@ A newly installed extension shows up under **Applies on restart**; click **Resta
 - click a World's name or avatar to see its details and open its configuration;
 - hide a World from the sidebar, keep it running but hide its tools and messages from Coo, or stop, restart or delete it.
 
+On a World's settings page, click the circled **i** beside its title to open the extension details.
+
 A running World can't be deleted; stop it first. A deleted World stays under **Applies on restart**, marked in red, until you restart the process.
 
 <p align="center"><img src="image/README/worlds-en.png" alt="World extensions: installed Worlds, status and grouping controls" width="960"></p>
