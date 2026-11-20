@@ -75,6 +75,7 @@ function xaiPrices(): PriceDefinition[] {
 /**
  * Gemini API paid tier. Output includes thinking. gemini-3.8-flash is listed at a lower price through
  * 2026-12-31 UTC; a request started after that pays the price the page lists from 2027-01-01.
+ * gemini-4-hydrogen was read on aistudio.google.com/docs/pricing 2026-11-19 (implicit caching only).
  */
 const GEMINI_SOURCE = 'https://ai.google.dev/gemini-api/docs/pricing (2026-10-08)';
 const GEMINI_FLASH_RAISE = '2027-01-01T00:00:00.000Z';
@@ -83,6 +84,7 @@ const GEMINI_PRO_LONG_FROM = 200_001;
 function geminiPrices(startedAt: string): PriceDefinition[] {
   const flash = startedAt < GEMINI_FLASH_RAISE ? { cachedInput: 0.075, uncachedInput: 0.75, output: 3.75 } : { cachedInput: 0.15, uncachedInput: 1.50, output: 7.50 };
   return [
+    banded(['gemini-4-hydrogen'], GEMINI_SOURCE, { cachedInput: 0.075, uncachedInput: 1.50, output: 7.50 }),
     banded(['gemini-3.8-flash'], GEMINI_SOURCE, flash),
     banded(['gemini-3.5-flash-lite'], GEMINI_SOURCE, { cachedInput: 0.03, uncachedInput: 0.30, output: 2.50 }),
     banded(['gemini-3.1-pro-preview'], GEMINI_SOURCE, { cachedInput: 0.20, uncachedInput: 2, output: 12 }, GEMINI_PRO_LONG_FROM, { cachedInput: 0.40, uncachedInput: 4, output: 18 }),

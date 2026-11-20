@@ -24,10 +24,10 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
 | `openrouter` | OpenRouter | `https://openrouter.ai/api/v1` | responses | `deepseek/deepseek-v4.1-flash` |
 | `openai` | OpenAI | `https://api.openai.com/v1` | responses | `gpt-6-luna` |
 | `anthropic` | Anthropic | `https://api.anthropic.com` | anthropic | `claude-haiku-5-5` |
-| `gemini` | Gemini | `https://generativelanguage.googleapis.com/v1beta` | gemini | `gemini-3.5-flash-lite` |
+| `gemini` | Gemini | `https://generativelanguage.googleapis.com/v1beta` | gemini | `gemini-4-hydrogen` |
 | `xai` | xAI | `https://api.x.ai/v1` | responses | `grok-4.3` |
 
-表在 `src/vendors.ts`,数据取自各家文档(国内平台 2026-09-24,其余 2026-10-08,默认模型和智谱、OpenRouter 的思考档位 2026-10-09 复核)。默认模型取每家快、便宜、能看图的那档;
+表在 `src/vendors.ts`,数据取自各家文档(国内平台 2026-09-24,其余 2026-10-08,默认模型和智谱、OpenRouter 的思考档位 2026-10-09 复核，Gemini 的 `gemini-4-hydrogen` 2026-11-19)。默认模型取每家快、便宜、能看图的那档(Gemini 取 `gemini-4-hydrogen`,能听音频);
 `Vendor.models` 是另外几个推荐的模型名,任何那一家接受的模型名都能填。**拿真实 Key 跑过的只有 DeepSeek、Anthropic 和阶跃 Step Plan**。
 
 - **哪一家、哪个平台**:按 `baseUrl` 认(`locate` / `vendorOf`),端点里不另存字段。有国内、国际两个平台的服务账号和 Key 不通用,
