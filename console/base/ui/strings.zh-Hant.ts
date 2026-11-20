@@ -23,6 +23,7 @@ export const S: Partial<typeof en> = {
   cancel: '取消',
   proceedAnyway: '仍要繼續',
   leave: '離開',
+  unsavedTitle: '有未儲存的修改',
   confirm: '確認',
   gotIt: '知道了',
   close: '✕ 關閉 (Esc)',

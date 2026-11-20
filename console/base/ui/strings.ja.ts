@@ -23,6 +23,7 @@ export const S: Partial<typeof en> = {
   cancel: 'キャンセル',
   proceedAnyway: 'このまま続行',
   leave: '移動する',
+  unsavedTitle: '保存していない変更があります',
   confirm: '確認',
   gotIt: '了解',
   close: '✕ 閉じる (Esc)',

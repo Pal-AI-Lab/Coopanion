@@ -99,7 +99,7 @@ export function boot(doc: Document = document): Disposable {
   const onError = (err: unknown): void => { console.error('[console]', err); };
   const life = new Lifecycle(onError);
   const memo = createMemo('cortico.panel.');
-  const router = new Router({ win: window, confirmLeave: (message) => confirm({ doc, host: doc.body, signal: life.signal }, { title: message, danger: true, ok: UI.leave }), onError });
+  const router = new Router({ win: window, confirmLeave: (message) => confirm({ doc, host: doc.body, signal: life.signal }, { title: UI.unsavedTitle, body: message, danger: true, ok: UI.leave }), onError });
   const loader = new ConsolePageLoader({
     importModule: (url: string) => import(/* @vite-ignore */ url),
     styleHost: doc.head,

@@ -13,7 +13,7 @@ export interface Route {
   raw: string;
 }
 
-/** 返回一句话 = 拦下并让用户确认；返回 null = 放行。 */
+/** 返回一句话 = 拦下并让用户确认（说明哪里没保存、离开的后果）；返回 null = 放行。 */
 export type LeaveGuard = () => string | null;
 
 export interface RouterDeps {
