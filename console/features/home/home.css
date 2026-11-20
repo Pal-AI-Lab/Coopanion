@@ -145,9 +145,11 @@
   position: absolute; left: 0; top: 0; overflow: hidden;
   transform: scale(var(--pv-scale, 1)); transform-origin: 0 0; font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans", sans-serif; color: var(--pv-ink);
 }
-.bubble-preview-play { position: absolute; top: 6px; left: 6px; display: inline-flex; align-items: center; gap: 6px; background: var(--sheet); }
+/* 播放示例和计时在框的上方,框里只有气泡 */
+.bubble-preview-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.bubble-preview-play { display: inline-flex; align-items: center; gap: 6px; }
 .bubble-preview-play svg { width: 14px; height: 14px; }
-.bubble-preview-clock { position: absolute; top: 8px; right: 10px; font: 11px/1 var(--mono); color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.bubble-preview-clock { font: 11px/1 var(--mono); color: var(--ink-dim); font-variant-numeric: tabular-nums; }
 .bubble-preview-clock[hidden] { display: none; }
 /* 气泡的位置由 bubble-preview.ts 按桌宠的摆法算(pet-app.js place、placeLines) */
 .pv-bubble { position: absolute; box-sizing: border-box; width: max-content; min-width: calc(46px * var(--bubble-size, 1)); max-width: min(calc(300px * var(--bubble-size, 1)), calc(100% - 2 * var(--pv-edge)));

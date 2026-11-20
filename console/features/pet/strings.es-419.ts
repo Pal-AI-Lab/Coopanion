@@ -114,7 +114,7 @@ export const S: Partial<typeof en> = {
   previewLabel: 'Ejemplo de burbujas',
   previewPlay: 'Reproducir ejemplo',
   previewSaid: '¿Lloverá mañana?',
-  previewReply: ['Vi el pronóstico: chubascos en la tarde.', '¡Lleva paraguas!'],
+  previewReply: ['Lloverá por la tarde.', '¡Lleva paraguas!'],
   statsLabel: 'Estadísticas de uso',
   dblclickLabel: 'Doble clic',
   statusBubbleLabel: 'Burbuja de estado',

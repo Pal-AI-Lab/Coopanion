@@ -114,7 +114,7 @@ export const S: Partial<typeof en> = {
   previewLabel: 'Blasen-Beispiel',
   previewPlay: 'Beispiel abspielen',
   previewSaid: 'Regnet es morgen?',
-  previewReply: ['Laut Wetter: nachmittags Schauer.', 'Nimm einen Schirm mit!'],
+  previewReply: ['Am Nachmittag regnet es.', 'Nimm einen Schirm mit!'],
   statsLabel: 'Nutzungsstatistik',
   dblclickLabel: 'Doppelklick',
   statusBubbleLabel: 'Statusblase',

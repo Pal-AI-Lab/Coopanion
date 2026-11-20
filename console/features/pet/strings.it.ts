@@ -114,7 +114,7 @@ export const S: Partial<typeof en> = {
   previewLabel: 'Esempio di fumetti',
   previewPlay: 'Riproduci esempio',
   previewSaid: 'Domani piove?',
-  previewReply: ['Secondo il meteo, rovesci nel pomeriggio.', 'Prendi l’ombrello!'],
+  previewReply: ['Pioverà nel pomeriggio.', 'Prendi l’ombrello!'],
   statsLabel: "Statistiche d'uso",
   dblclickLabel: 'Doppio clic',
   statusBubbleLabel: 'Fumetto di stato',

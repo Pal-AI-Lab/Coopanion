@@ -114,7 +114,7 @@ export const S: Partial<typeof en> = {
   previewLabel: 'Exemple de bulles',
   previewPlay: 'Lire l’exemple',
   previewSaid: 'Il pleut demain ?',
-  previewReply: ['Selon la météo, averses l’après-midi.', 'Prends un parapluie !'],
+  previewReply: ['Il pleuvra l’après-midi.', 'Prends un parapluie !'],
   statsLabel: "Statistiques d'utilisation",
   dblclickLabel: 'Double-clic',
   statusBubbleLabel: "Bulle d'état",
