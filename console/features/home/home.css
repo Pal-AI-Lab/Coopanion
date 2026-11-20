@@ -134,9 +134,9 @@
 .home-petframe, .companion-dressframe { transition: opacity .2s ease; }
 .home-petframe.companion-frame-pending, .companion-dressframe.companion-frame-pending { opacity: 0; transition: none; }
 
-/* 「气泡」最后一行的示例:限宽,不随页面拉满;442px 是 440px 的舞台(bubble-preview.ts STAGE_PX)加边框 */
+/* 「气泡」最后一行的示例:限宽,不随页面拉满;最宽是舞台(bubble-preview.ts STAGE_PX,写在 --pv-stage)加边框 */
 .companion-row:has(.bubble-preview) { align-items: start; }
-.bubble-preview { width: min(100%, 442px); }
+.bubble-preview { width: min(100%, calc(var(--pv-stage, 440px) + 2px)); }
 .bubble-preview-frame { position: relative; width: 100%; overflow: hidden; border: 1px solid var(--border); border-radius: 12px;
   background: radial-gradient(circle, color-mix(in srgb, var(--foreground) 9%, transparent) 1px, transparent 1.5px) 0 0 / 14px 14px, var(--sheet-2); }
 .bubble-preview-stage {
