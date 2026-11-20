@@ -10,7 +10,7 @@
  * holds are read when the sample plays.
  */
 
-import { balancedWidth, ICONS, tailLine } from 'cortico-world-desktop-pet/web/ui.js';
+import { balancedWidth, clamp, ICONS, tailLine } from 'cortico-world-desktop-pet/web/ui.js';
 import { HEAD_TOP, mini, normalizeSkin, skinVars } from 'cortico-world-desktop-pet/web/coo/coo.js';
 import { prefersStill } from '../../base/motion.ts';
 import { icon } from '../../base/ui/icons.ts';
@@ -63,7 +63,6 @@ const COO_W = 76, COO_H = 100, COO_BOTTOM = 12, COO_VIEWBOX = [14, -40, 228, 300
 const BUBBLE_ANCHOR_X = 146;
 const READ_FILE = 'weather.md';
 
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 /** Where the tail's tip sits along a bubble `bw` wide whose left edge is `x` left of Coo (pet-app.js tailAt). */
 const tailAt = (bw: number, x: number) => bw / 2 + (clamp(x, 22, bw - 22) - bw / 2) * clamp((bw - TAIL_CENTER) / (TAIL_FOLLOW - TAIL_CENTER), 0, 1);
 
