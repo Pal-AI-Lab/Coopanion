@@ -37,7 +37,11 @@ const FADE_SEC = .4, REPLIED_FADE_SEC = .5;
 /** The sample's own pacing: when your line is sent, how long Coo thinks and reads, the rest before the sample settles. */
 const SENT_AT = .3, THINK_SEC = 1.2, READ_SEC = 1.4, QUIET_SEC = .9, REST_SEC = .8;
 /** The pet's placing, in pixels at bubble size 1 (pet-app.js): Coo's bubble above the head and moved toward where Coo faces, your line above it or above the head. */
-const SAY_UP = 18, FACING_SHIFT = 26, LINES_UP = 46, LINES_GAP = 8, EDGE = 10;
+const SAY_UP = 18, FACING_SHIFT = 26, LINES_UP = 46, LINES_GAP = 8;
+/** How far bubbles keep from the sample's sides: a wide line stops short of them instead of filling the frame (`--pv-edge` in home.css). */
+const EDGE = 40;
+/** At rest a bubble clicked away fades and comes back after this many seconds. */
+const BACK_SEC = 1.2;
 /** Bubbles up to TAIL_CENTER wide point their tail from their middle, wider ones toward Coo by TAIL_FOLLOW (pet-app.js tailAt). */
 const TAIL_CENTER = 70, TAIL_FOLLOW = 130;
 /** The width the sample is laid out at before it is scaled to the panel (as wide as the panel at most, .bubble-preview in home.css). */
@@ -77,6 +81,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   const frame = h('div', 'bubble-preview-frame');
   const stage = h('div', 'bubble-preview-stage');
   stage.style.width = `${STAGE_PX}px`;
+  stage.style.setProperty('--pv-edge', `${EDGE}px`);
   stage.setAttribute('aria-hidden', 'true');
   let stageH = STAGE_MIN_H, measured = false;
   const clock = h('span', 'bubble-preview-clock');
@@ -200,7 +205,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     stage.style.setProperty('--bubble-font', String(s.font));
     fit();
   };
-  /** Whether your line shows at rest: it follows the 输入气泡 switch, and stays closed once clicked away until the next play. */
+  /** Whether your line shows at rest: it follows the 输入气泡 switch. */
   let saidAtRest = true;
   /** At rest: your line if it shows, and Coo's first line written out. */
   const rest = () => {
@@ -230,17 +235,27 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   const pointer = { over: false, was: false };
   say.addEventListener('pointerenter', () => { pointer.over = true; }, { signal });
   say.addEventListener('pointerleave', () => { pointer.over = false; if (run) run.holding = false; }, { signal });
+  /** At rest a bubble clicked away comes back, so the picture is whole again; playing, it stays closed as on the pet. */
+  const comeBack = (bubble: HTMLElement) => {
+    const mine = generation;
+    doc.defaultView!.setTimeout(() => {
+      if (signal.aborted || run || mine !== generation || (bubble === said && !saidAtRest)) return;
+      show(bubble, true, true);
+      lay(stageH, 0);
+    }, BACK_SEC * 1000);
+  };
   // a click closes Coo's reply whole, or your line, as on the pet
   say.addEventListener('click', () => {
     if (say.hidden || fading(say)) return;
     fade(say);
-    if (run && run.endedAt === undefined) run.endedAt = run.t;
+    if (!run) comeBack(say);
+    else if (run.endedAt === undefined) run.endedAt = run.t;
   }, { signal });
   said.addEventListener('click', () => {
     if (said.hidden || fading(said)) return;
     fade(said);
-    if (run) run.saidGone ??= run.t;
-    else saidAtRest = false;
+    if (!run) comeBack(said);
+    else run.saidGone ??= run.t;
   }, { signal });
 
   function step(r: Run, dt: number): boolean {
@@ -326,7 +341,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     el,
     refresh() {
       sizes(); pose(face);
-      // the 输入气泡 switch shows or hides your line at rest; a line clicked away stays away until the next play
+      // the 输入气泡 switch shows or hides your line at rest
       if (!run && read().said !== saidAtRest) { saidAtRest = read().said; show(said, saidAtRest); lay(stageH, 0); }
     },
     setSkin(raw) { skin = normalizeSkin(raw) as { head?: string }; pose(face); lay(stageH, 0); },

@@ -150,7 +150,7 @@
 .bubble-preview-clock { position: absolute; top: 8px; right: 10px; font: 11px/1 var(--mono); color: var(--ink-dim); font-variant-numeric: tabular-nums; }
 .bubble-preview-clock[hidden] { display: none; }
 /* 气泡的位置由 bubble-preview.ts 按桌宠的摆法算(pet-app.js place、placeLines) */
-.pv-bubble { position: absolute; box-sizing: border-box; width: max-content; min-width: calc(46px * var(--bubble-size, 1)); max-width: min(calc(300px * var(--bubble-size, 1)), calc(100% - 20px));
+.pv-bubble { position: absolute; box-sizing: border-box; width: max-content; min-width: calc(46px * var(--bubble-size, 1)); max-width: min(calc(300px * var(--bubble-size, 1)), calc(100% - 2 * var(--pv-edge)));
   padding: calc(10px * var(--bubble-size, 1)) calc(14px * var(--bubble-size, 1)); border-radius: calc(18px * var(--bubble-size, 1));
   background: var(--pv-surface); border: 2.5px solid var(--pv-ink); box-shadow: 0 8px 22px var(--pv-shadow);
   font-size: calc(14.5px * var(--bubble-font, 1)); line-height: 1.55; transition: opacity .4s ease, border-color .15s; transform-origin: var(--tail, 50%) calc(100% + 10px * var(--bubble-size, 1)); }
@@ -160,16 +160,17 @@
 @keyframes pv-bubble-in { from { transform: scale(.5); opacity: 0; } }
 .pv-say::before, .pv-say::after, .pv-status::before, .pv-status::after { content: ""; position: absolute; left: calc(var(--tail, 50%) - 13.5px); bottom: -11px; width: 22px; height: 11.5px; scale: var(--bubble-size, none); transform-origin: 11px 0; }
 .pv-say::before, .pv-status::before { background: var(--pv-ink); clip-path: path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z'); }
-.pv-say::after, .pv-status::after { background: var(--pv-surface); clip-path: path('M3.04 0 L10.53 7.49 Q11 7.96 11.47 7.49 L18.96 0 Z'); }
+/* as pet.css: the surface triangle is the outline one moved up by the line's width (2.5px × √2), so the line keeps its width at any bubble size */
+.pv-say::after, .pv-status::after { background: var(--pv-surface); clip-path: path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z'); translate: 0 -3.54px; }
 /* 和桌宠一样:点一下关掉(Coo 的话整句跳过);指着时描边换成眼睛的颜色;状态气泡不接收指针 */
 .pv-say, .pv-heard { cursor: pointer; }
 .pv-say:hover, .pv-heard:hover { border-color: var(--pv-eye); }
 .pv-say:hover::before { background: var(--pv-eye); }
 .pv-status { pointer-events: none; }
-.pv-heard { background: var(--pv-said); border-color: transparent; box-shadow: 0 4px 14px var(--pv-shadow); max-width: min(calc(260px * var(--bubble-size, 1)), calc(100% - 20px)); }
+.pv-heard { background: var(--pv-said); border-color: transparent; box-shadow: 0 4px 14px var(--pv-shadow); max-width: min(calc(260px * var(--bubble-size, 1)), calc(100% - 2 * var(--pv-edge))); }
 .pv-text { margin: 0; min-height: 1.55em; white-space: pre-wrap; overflow-wrap: break-word; }
 .pv-caret { display: inline-block; width: 2px; height: 1.05em; margin-left: 2px; vertical-align: -2px; background: var(--pv-eye); }
-.pv-status { display: flex; align-items: center; gap: 6px; max-width: min(calc(220px * var(--bubble-size, 1)), calc(100% - 20px));
+.pv-status { display: flex; align-items: center; gap: 6px; max-width: min(calc(220px * var(--bubble-size, 1)), calc(100% - 2 * var(--pv-edge)));
   padding: calc(6px * var(--bubble-size, 1)) calc(10px * var(--bubble-size, 1)); font-size: calc(12.5px * var(--bubble-font, 1)); line-height: 1.4; }
 .pv-status-icon { display: flex; flex: none; color: color-mix(in srgb, var(--pv-eye) 78%, var(--pv-ink)); }
 .pv-status-icon svg { width: calc(14px * var(--bubble-font, 1)); height: calc(14px * var(--bubble-font, 1)); overflow: visible; }

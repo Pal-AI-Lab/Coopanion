@@ -72,14 +72,18 @@ it('pointing at Coo\'s written line holds it, and leaving lets it go on', () => 
   expect(say.textContent).not.toBe(first);
 });
 
-it('a click closes your line at once, whether the sample plays or rests', () => {
-  const { play, said, up } = mount();
-  expect(up(said)).toBe(true);
-  said.click();
-  expect(up(said)).toBe(false);
+it('at rest a bubble clicked away comes back a moment later; playing, it stays closed', () => {
+  vi.useFakeTimers({ toFake: ['setTimeout'] });
+  const { play, said, say, up } = mount();
+  said.click(); say.click();
+  expect([up(said), up(say)]).toEqual([false, false]);
+  vi.advanceTimersByTime(1500);
+  expect([up(said), up(say)]).toEqual([true, true]);
   play();
   advance(.5);
-  expect(up(said)).toBe(true);
   said.click();
+  vi.advanceTimersByTime(1500);
+  advance(.5);
   expect(up(said)).toBe(false);
+  vi.useRealTimers();
 });
