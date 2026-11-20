@@ -16,9 +16,9 @@ export default {
   'bubble.imageUnreadable': 'Dieses Bild konnte nicht gelesen werden',
   'bubble.imageTooLarge': 'Dieses Bild überschreitet nach dem Skalieren immer noch {mb} MB',
   'bubble.imagesUnseen': 'Das aktuelle Modell kann keine Bilder sehen; {bot} erfährt nur, wie viele du geschickt hast.',
-  /** A typed text past its cap; the typing box's text past its cap while the Chat page takes it. */
-  'bubble.tooLong': '{over} Zeichen zu viel; auf {max} kürzen, um zu senden',
-  'bubble.tooLongForBox': 'Das Feld fasst {max} Zeichen; {over} zu viel. Auf der Chat-Seite weiterschreiben erlaubt bis zu {chat}',
+  /** A typed text past its cap (the count beside it shows the cap); the typing box's while the Chat page takes it. */
+  'bubble.tooLong': '{over} zu viel; kürzen, um zu senden',
+  'bubble.tooLongForBox': '{over} zu viel; weiter auf der Chat-Seite',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': 'Höre zu…',

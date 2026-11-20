@@ -809,14 +809,14 @@ describe('typed text past its cap', () => {
     fill(p, box, '一二三四五六七八九十一二');
     expect(form.classList.contains('over')).toBe(true);
     expect(count.textContent).toBe('12 / 10');
-    expect(limit.textContent).toBe(t('bubble.tooLongForBox', { over: 2, max: 10, chat: 20 }));
+    expect(limit.textContent).toBe(t('bubble.tooLongForBox', { over: 2 }));
     expect(expand.disabled).toBe(false);
     submit(form);
     expect(sent(p).filter((m) => m.t === 'text')).toEqual([]);
     expect(box.value).toBe('一二三四五六七八九十一二');
 
     fill(p, box, 'x'.repeat(21));
-    expect(limit.textContent).toBe(t('bubble.tooLong', { over: 11, max: 10 }));
+    expect(limit.textContent).toBe(t('bubble.tooLong', { over: 11 }));
     expect(expand.disabled).toBe(true);
 
     fill(p, box, '  短句  ');

@@ -764,7 +764,7 @@ function capField(form, field, count, max, painted) {
     const n = field.value.trim().length, over = Math.max(0, n - max);
     count.hidden = !over;
     count.textContent = `${n} / ${max}`;
-    count.title = over ? t('bubble.tooLong', { over, max }) : '';
+    count.title = over ? t('bubble.tooLong', { over }) : '';
     form.classList.toggle('over', over > 0);
     painted?.(over, n);
     return over;
@@ -1232,7 +1232,7 @@ function openInput() {
   const capped = capField(form, input, form.querySelector('.b-count'), boxMax, (over, n) => {
     const movable = !!expandButton && n <= chatMax;
     limit.hidden = !over;
-    limit.textContent = !over ? '' : movable ? t('bubble.tooLongForBox', { over, max: boxMax, chat: chatMax }) : t('bubble.tooLong', { over, max: boxMax });
+    limit.textContent = !over ? '' : t(movable ? 'bubble.tooLongForBox' : 'bubble.tooLong', { over });
     expandButton?.classList.toggle('nudge', over > 0 && movable);
     if (expandButton) expandButton.disabled = n > chatMax;
   });
