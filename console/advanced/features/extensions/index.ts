@@ -475,6 +475,8 @@ export function mountWorldExtensionDetails(ctx: ExtensionContext) {
   return createExtensionContent(ctx, 'world').worldDetails;
 }
 
+/** A folded comment's height, about eleven lines, and how much longer than that a comment must be to fold. */
+const COMMENT_CLAMP_PX = 240, COMMENT_SLACK_PX = 64;
 function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionContext, kind: Category, root?: HTMLElement, workspace?: ExtensionWorkspace) {
   const { signal } = lifecycle;
   const win = doc.defaultView!;
@@ -1123,12 +1125,46 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
     button.addEventListener('click', () => insertTextBlock(input), { signal });
     return button;
   }
+  /** Each folded comment's body, measured again whenever its box changes (attached, the column resized, an image loaded). */
+  const commentFits = new WeakMap<Element, () => void>();
+  let commentSizes: ResizeObserver | undefined;
+  /**
+   * A comment taller than COMMENT_CLAMP_PX by more than COMMENT_SLACK_PX shows its first COMMENT_CLAMP_PX, fading out, with a
+   * text button that opens it whole and folds it again; a fold that leaves the comment's top above its scrolled view scrolls back to it.
+   */
+  function foldable(el: HTMLElement, body: HTMLElement) {
+    const toggle = ui.h('button', 'extension-comment-toggle', S.commentExpand) as HTMLButtonElement; toggle.type = 'button'; toggle.hidden = true;
+    toggle.setAttribute('aria-expanded', 'false');
+    let open = false;
+    const paint = () => {
+      const long = body.scrollHeight > COMMENT_CLAMP_PX + COMMENT_SLACK_PX;
+      const folded = long && !open;
+      body.classList.toggle('is-folded', folded); body.style.maxHeight = folded ? `${COMMENT_CLAMP_PX}px` : '';
+      toggle.hidden = !long; toggle.textContent = open ? S.commentCollapse : S.commentExpand; toggle.setAttribute('aria-expanded', String(open));
+    };
+    toggle.addEventListener('click', () => {
+      open = !open; paint();
+      if (open) return;
+      let view = el.parentElement;
+      while (view && !/auto|scroll/.test(win.getComputedStyle(view).overflowY)) view = view.parentElement;
+      if (view && el.getBoundingClientRect().top < view.getBoundingClientRect().top) el.scrollIntoView({ block: 'start' });
+    }, { signal });
+    commentFits.set(body, paint);
+    if (!commentSizes && typeof win.ResizeObserver === 'function') {
+      const observer = new win.ResizeObserver(entries => { for (const entry of entries) commentFits.get(entry.target)?.(); });
+      commentSizes = observer; lifecycle.add(() => observer.disconnect());
+    }
+    commentSizes?.observe(body);
+    el.append(toggle);
+  }
   function commentItem(comment: CommentView, reply?: (to: CommentView) => void) {
     const el = ui.h('article', 'extension-comment');
     const head = ui.h('div', 'extension-comment-head');
     head.append(githubAvatar(comment.author, comment.avatar), ui.h('b', '', comment.author), ui.h('time', 'muted', comment.createdAt.slice(0, 10)));
     if (reply) { const button = ui.h('button', 'extension-comment-reply') as HTMLButtonElement; button.type = 'button'; button.append(icon(doc, 'reply')); button.setAttribute('aria-label', S.reply); attachHint(button, S.reply); button.addEventListener('click', () => reply(comment), { signal }); head.append(button); }
-    el.append(head, commentBody(comment.body));
+    const body = commentBody(comment.body);
+    el.append(head, body);
+    foldable(el, body);
     return el;
   }
   /** 详情里的评论区:新的在前,一次一页;发表要登录 GitHub。 */
@@ -1704,6 +1740,8 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
       feedback.classList.add('extension-operation-feedback'); feedback.setAttribute('role', 'status');
       const comments = box.querySelector<HTMLElement>('.extension-detail-side');
       const activeComment = comments?.contains(doc.activeElement) ? doc.activeElement as HTMLElement : null;
+      // Side by side, each column scrolls on its own; a repaint keeps where both were.
+      const scrolled = [box.querySelector('.extension-detail-main')?.scrollTop ?? 0, comments?.scrollTop ?? 0];
       const columns = ui.h('div', 'extension-detail-columns');
       const main = ui.h('div', 'extension-detail-main'); columns.append(main);
       box.replaceChildren(header, ...(links.hasChildNodes() ? [links] : []), feedback, columns);
@@ -1790,6 +1828,7 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
         if (!comments) side.append(commentsSection(listed?.name ?? data.name, listed?.rating));
         columns.append(side);
         activeComment?.focus({ preventScroll: true });
+        main.scrollTop = scrolled[0]!; side.scrollTop = scrolled[1]!;
       }
   }
   function detailLoadError(box: HTMLElement, text: string, unavailable = false) {
