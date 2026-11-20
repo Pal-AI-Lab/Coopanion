@@ -37,6 +37,9 @@ try {
     Set-Content -LiteralPath "$install\notes.txt" -Value 'user file'
     # Node's Windows spawn quotes the /D argument when the path contains spaces.
     Assert-Exit (Install -QuoteDirectory) $true
+    if (Test-Path -LiteralPath "$install\.coopanion-update-cleanup") {
+        throw 'The successful installation left its retired transaction.'
+    }
     Assert-Preserved
     $exeHash = (Get-FileHash -LiteralPath $exe).Hash
     $loader = Join-Path $install 'resources\app\node_modules\tsx\dist\loader.mjs'
@@ -106,6 +109,10 @@ try {
         $check = Start-Process -FilePath $exe -ArgumentList ('"{0}" "{1}\resources\app" {2}' -f $script, $install, $Arch) -Wait -PassThru -RedirectStandardOutput "$root\native.out" -RedirectStandardError "$root\native.err"
         Get-Content "$root\native.out", "$root\native.err"
         if ($check.ExitCode -ne 0) { throw "Native dependencies failed to load on $Arch" }
+        $boot = (Resolve-Path tests/boot-installed-core.cjs).Path
+        $check = Start-Process -FilePath $exe -ArgumentList ('"{0}" "{1}\resources\app" "{2}\boot"' -f $boot, $install, $root) -Wait -PassThru -RedirectStandardOutput "$root\boot.out" -RedirectStandardError "$root\boot.err"
+        Get-Content "$root\boot.out", "$root\boot.err"
+        if ($check.ExitCode -ne 0) { throw "The installed Core failed on $Arch" }
     } finally {
         Remove-Item Env:ELECTRON_RUN_AS_NODE
     }

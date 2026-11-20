@@ -171,7 +171,7 @@ Function ${PREFIX}CleanRetired
   System::Call 'kernel32::GetFileAttributesW(w "$cleanupDir") i .r0'
   ${IfThen} $0 == -1 ${|} Return ${|}
   IntOp $0 $0 & 0x410 ; DIRECTORY | REPARSE_POINT
-  ${If} $0 != 0x10
+  ${If} $0 <> 0x10
     SetErrors
     Return
   ${EndIf}
@@ -295,7 +295,7 @@ Function InstallPayload
   System::Call 'kernel32::GetFileAttributesW(w "$updateDir") i .r0'
   ${If} $0 != -1
     IntOp $0 $0 & 0x410
-    ${IfThen} $0 != 0x10 ${|} Goto failed ${|}
+    ${IfThen} $0 <> 0x10 ${|} Goto failed ${|}
     ${If} ${FileExists} "$updateDir\owned"
       StrCpy $failure "recover interrupted installation"
       !insertmacro waitForApp
