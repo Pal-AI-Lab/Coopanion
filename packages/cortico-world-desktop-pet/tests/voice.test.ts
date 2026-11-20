@@ -315,10 +315,14 @@ describe('voice input', () => {
       expect(host.events).toHaveLength(1);
       expect(host.events[0]?.meta).toMatchObject({ text: '录音已投递' });
       if (result === 'delayed text') {
-        const sent = await page.next((m) => m.t === 'listen' && m.phase === 'heard');
-        expect(typeof sent.recordingId).toBe('string');
-        expect(await page.next((m) => m.t === 'listen' && m.phase === 'recording-text')).toMatchObject({ text: result, recordingId: sent.recordingId });
-        expect(page.messages.filter((m) => m.t === 'listen' && m.phase === 'heard')).toHaveLength(1);
+        // FakePage.next consumes its matching message. Inspect the unconsumed log instead
+        // so the count includes the original completion as well as the later update.
+        await expect.poll(() => page.messages.some((m) => m.t === 'listen' && m.phase === 'recording-text')).toBe(true);
+        const delivered = page.messages.filter((m) => m.t === 'listen' && m.phase === 'heard');
+        const updates = page.messages.filter((m) => m.t === 'listen' && m.phase === 'recording-text');
+        expect(delivered).toHaveLength(1);
+        expect(typeof delivered[0]!.recordingId).toBe('string');
+        expect(updates).toMatchObject([{ text: result, recordingId: delivered[0]!.recordingId }]);
       }
     } finally { release(); }
   });
@@ -398,7 +402,7 @@ describe('voice input', () => {
       expect(asr.decodes).toHaveLength(1);
       release();
       await expect.poll(() => (world.voiceState().recent as unknown[]).length).toBe(2);
-      await page.next((m) => m.t === 'listen' && m.phase === 'recording-text' && m.text === 'second result');
+      await expect.poll(() => page.messages.some((m) => m.t === 'listen' && m.phase === 'recording-text' && m.text === 'second result')).toBe(true);
       const delivered = page.messages.filter((m) => m.t === 'listen' && m.phase === 'heard');
       const updates = page.messages.filter((m) => m.t === 'listen' && m.phase === 'recording-text');
       expect(delivered).toHaveLength(2);
