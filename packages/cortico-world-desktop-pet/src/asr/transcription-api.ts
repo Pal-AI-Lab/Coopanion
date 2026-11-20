@@ -39,7 +39,8 @@ export interface TranscriptionApiOptions {
   text?: () => PetText;
 }
 
-const SAMPLE_RATE = 16_000;
+/** Samples a second of the PCM the pet page sends, and of the WAV made from it. */
+export const SAMPLE_RATE = 16_000;
 /** The longest part of an error body shown when it is not `{ error: { message } }`. */
 const BODY_MAX = 300;
 

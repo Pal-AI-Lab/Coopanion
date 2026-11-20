@@ -6,7 +6,6 @@ import type { SegmentConfig } from './asr/segmenter.ts';
 import { DEFAULT_HOTKEY, DEFAULT_TYPE_KEY } from './asr/hotkey.ts';
 import { capFor, petText } from './i18n/index.ts';
 import { CUA_DEFAULTS, cuaConfigGroup, type CuaConfig } from './cua/config.ts';
-import { BUBBLE_HOLD_AUTO_SEC, BUBBLE_HOLD_MAX_SEC } from '../web/bubble-timing.js';
 
 export const DESKTOP_PET_ID = 'desktop-pet';
 
@@ -187,9 +186,9 @@ export interface DesktopPetConfigSection extends WorldSection {
     bubbleSize: number;
     /** The text in the bubbles and the icons on its line, 1 = as drawn by pet.css; the bubbles keep their widths. */
     fontSize: number;
-    /** Multiplier for typing speed and the inverse of automatic reading time. */
+    /** How fast the bot's bubbles type and how long they stay, as a multiplier: typing runs at 20 × this characters a second and every automatic hold is divided by it. */
     bubbleSpeed: number;
-    /** Seconds a speech bubble stays after typing. 0 uses the automatic reading time. */
+    /** Seconds each part of a line stays once typed out, 1–BUBBLE_HOLD_MAX; 0 holds it by its length and `bubbleSpeed`. */
     sayBubbleHoldSec: number;
     /** How far the light halo reaches out from the body, in pixels (its outer blur); 0 turns it off. */
     glow: number;
@@ -232,9 +231,9 @@ export interface DesktopPetConfigSection extends WorldSection {
   typeKey: { enabled: boolean; hotkey: string };
   /** Show the current activity above the pet, including file names. */
   statusBubble: boolean;
-  /** Show what the person typed, said or sent from the chat page above the pet. */
+  /** Keep what the person typed, said or sent from the chat page above the pet, for `saidBubbleHoldSec`. */
   saidBubbles: boolean;
-  /** Seconds from sending or finishing recognition. 0 keeps the bubble up according to the reply. */
+  /** Seconds an input bubble stays from when it was sent or recognized, 1–BUBBLE_HOLD_MAX; 0 keeps it until the bot's reply closes. */
   saidBubbleHoldSec: number;
   /** How far the bot may change its own looks and habits (src/self.ts); read through `selfAdjustMode`. */
   selfAdjust: SelfAdjust;
@@ -281,6 +280,15 @@ export interface DesktopPetConfigSection extends WorldSection {
       /** Hold mode: the microphone opens when the talk key goes down and closes after it goes up; off keeps it open while voice input is on. */
       openOnPress: boolean;
     };
+    /** A speech batch's recording, for an endpoint that takes `audio/wav` (`modelFacts.accepts`); with any other endpoint the batch goes as text. */
+    recording: {
+      /** Attach the batch's recording to the speech event. */
+      enabled: boolean;
+      /** With the recording attached, the recognized text goes too; off, the recording goes alone. */
+      transcript: boolean;
+      /** A batch with a longer recording goes as text alone. */
+      maxMinutes: number;
+    };
   };
 }
 
@@ -294,8 +302,16 @@ export function scaleOf(v: unknown): number | null {
 export const BUBBLE_SIZE_MIN = .8, BUBBLE_SIZE_MAX = 1.6;
 /** The range of `window.bubbleSpeed`. */
 export const BUBBLE_SPEED_MIN = .5, BUBBLE_SPEED_MAX = 2;
+/** The longest fixed hold of `window.sayBubbleHoldSec` and `saidBubbleHoldSec`: about twice the automatic hold of a 200-character line at BUBBLE_SPEED_MIN, (1.6 + 200 × .07) / .5 ≈ 31 s. */
+export const BUBBLE_HOLD_MAX = 60;
 /** The halo's reach in pixels: 0 is off; past GLOW_MAX it reads as a gray cloud rather than an outline. */
 export const GLOW_MAX = 16, GLOW_DEFAULT = 7;
+/**
+ * The range and default of `asr.recording.maxMinutes`. A minute of the 16 kHz mono 16-bit recording is 1.92 MB of
+ * WAV, 2.56 MB as Base64, so the maximum 7 minutes is 17.9 MB. Of the endpoints that take audio, Doubao's Ark
+ * docs allow one Base64 audio of up to 25 MB (9.7 minutes) and the Gemini API docs a request of up to 100 MB.
+ */
+export const RECORDING_MINUTES_MIN = 1, RECORDING_MINUTES_MAX = 7, RECORDING_MINUTES_DEFAULT = 5;
 /** The range of `asr.segment.thresholdDb`, in dBFS. */
 export const THRESHOLD_DB_MIN = -80, THRESHOLD_DB_MAX = 0;
 
@@ -303,7 +319,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   enabled: false,
   port: 7797,
   user: '',
-  window: { enabled: true, electronFile: '', scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, sayBubbleHoldSec: BUBBLE_HOLD_AUTO_SEC, glow: GLOW_DEFAULT, frameRate: 60, lockFrameRate: false, hideWhenFullscreen: false, passWhenFullscreen: false, overTaskbar: true, hideFromCapture: false, exportOverlay: false },
+  window: { enabled: true, electronFile: '', scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, sayBubbleHoldSec: 0, glow: GLOW_DEFAULT, frameRate: 60, lockFrameRate: false, hideWhenFullscreen: false, passWhenFullscreen: false, overTaskbar: true, hideFromCapture: false, exportOverlay: false },
   roam: 'calm',
   sound: true,
   sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, alert: true, snoreSeconds: 0, panByPosition: true, volume: 100 },
@@ -317,7 +333,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   typeKey: { enabled: false, hotkey: DEFAULT_TYPE_KEY },
   statusBubble: true,
   saidBubbles: true,
-  saidBubbleHoldSec: BUBBLE_HOLD_AUTO_SEC,
+  saidBubbleHoldSec: 0,
   selfAdjust: 'default',
   selfAdjustCustom: { ...SELF_DEFAULT },
   skin: {
@@ -338,6 +354,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
     api: { baseUrl: '', model: '' },
     segment: { thresholdDb: -42, minSpeechMs: 180, dispatchSilenceMs: 250, silenceMs: 600, maxUtteranceMs: 15_000, preRollMs: 320, minUtteranceMs: 350 },
     mic: { mode: 'hold', hotkey: DEFAULT_HOTKEY, deviceId: '', openOnPress: false },
+    recording: { enabled: true, transcript: true, maxMinutes: RECORDING_MINUTES_DEFAULT },
   },
 };
 
@@ -362,14 +379,14 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
         [`${K}.doubleClickChat`]: { type: 'boolean', title: c.doubleClickChat.title, description: c.doubleClickChat.description, 'x-hot': true },
         [`${K}.statusBubble`]: { type: 'boolean', title: c.statusBubble.title, description: c.statusBubble.description, 'x-hot': true },
         [`${K}.saidBubbles`]: { type: 'boolean', title: c.saidBubbles.title, description: c.saidBubbles.description, 'x-hot': true },
-        [`${K}.saidBubbleHoldSec`]: { type: 'integer', title: c.saidBubbleHoldSec.title, description: c.saidBubbleHoldSec.description, minimum: BUBBLE_HOLD_AUTO_SEC, maximum: BUBBLE_HOLD_MAX_SEC, 'x-hot': true },
+        [`${K}.saidBubbleHoldSec`]: { type: 'integer', title: c.saidBubbleHoldSec.title, description: c.saidBubbleHoldSec.description, minimum: 0, maximum: BUBBLE_HOLD_MAX, 'x-hot': true },
         [`${K}.selfAdjust`]: { type: 'string', title: c.selfAdjust.title, enum: [...SELF_ADJUST], description: c.selfAdjust.description, 'x-hot': true },
         [`${K}.window.enabled`]: { type: 'boolean', title: c.windowEnabled.title, 'x-hot': false },
         [`${K}.window.scale`]: { type: 'number', title: c.scale.title, minimum: SCALE_MIN, maximum: SCALE_MAX, multipleOf: .05, 'x-hot': true },
         [`${K}.window.bubbleSize`]: { type: 'number', title: c.bubbleSize.title, description: c.bubbleSize.description, minimum: BUBBLE_SIZE_MIN, maximum: BUBBLE_SIZE_MAX, multipleOf: .05, 'x-hot': true },
         [`${K}.window.fontSize`]: { type: 'number', title: c.fontSize.title, description: c.fontSize.description, minimum: BUBBLE_SIZE_MIN, maximum: BUBBLE_SIZE_MAX, multipleOf: .05, 'x-hot': true },
         [`${K}.window.bubbleSpeed`]: { type: 'number', title: c.bubbleSpeed.title, description: c.bubbleSpeed.description, minimum: BUBBLE_SPEED_MIN, maximum: BUBBLE_SPEED_MAX, multipleOf: .05, 'x-hot': true },
-        [`${K}.window.sayBubbleHoldSec`]: { type: 'integer', title: c.sayBubbleHoldSec.title, description: c.sayBubbleHoldSec.description, minimum: BUBBLE_HOLD_AUTO_SEC, maximum: BUBBLE_HOLD_MAX_SEC, 'x-hot': true },
+        [`${K}.window.sayBubbleHoldSec`]: { type: 'integer', title: c.sayBubbleHoldSec.title, description: c.sayBubbleHoldSec.description, minimum: 0, maximum: BUBBLE_HOLD_MAX, 'x-hot': true },
         [`${K}.window.glow`]: { type: 'number', title: c.glow.title, description: c.glow.description, minimum: 0, maximum: GLOW_MAX, multipleOf: 1, 'x-hot': true },
         [`${K}.window.frameRate`]: { type: 'integer', title: c.frameRate.title, minimum: 0, description: c.frameRate.description, 'x-hot': true },
         [`${K}.window.lockFrameRate`]: { type: 'boolean', title: c.lockFrameRate.title, description: c.lockFrameRate.description, 'x-hot': true },
@@ -427,6 +444,9 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
         [`${K}.asr.segment.thresholdDb`]: { type: 'number', title: c.thresholdDb.title, minimum: THRESHOLD_DB_MIN, maximum: THRESHOLD_DB_MAX, 'x-suffix': 'dBFS', 'x-hot': true },
         [`${K}.asr.segment.silenceMs`]: { type: 'integer', title: c.silenceMs.title, minimum: 200, maximum: 5000, 'x-suffix': 'ms', 'x-hot': true },
         [`${K}.asr.segment.maxUtteranceMs`]: { type: 'integer', title: c.maxUtteranceMs.title, minimum: 2000, maximum: 60000, 'x-suffix': 'ms', 'x-hot': true },
+        [`${K}.asr.recording.enabled`]: { type: 'boolean', title: c.recording.title, description: c.recording.description, 'x-hot': true },
+        [`${K}.asr.recording.transcript`]: { type: 'boolean', title: c.recordingTranscript.title, description: c.recordingTranscript.description, 'x-hot': true },
+        [`${K}.asr.recording.maxMinutes`]: { type: 'integer', title: c.recordingMaxMinutes.title, description: c.recordingMaxMinutes.description, minimum: RECORDING_MINUTES_MIN, maximum: RECORDING_MINUTES_MAX, 'x-suffix': c.recordingMaxMinutes.suffix, 'x-hot': true },
       },
     },
   };

@@ -7,14 +7,14 @@ import { fileURLToPath } from 'node:url';
 import { dryMountWorld, fakeWorldContext } from 'cortico/extensions/dry-mount.ts';
 import { renderTemplate } from 'cortico/core/template.ts';
 import { DESKTOP_PET, desktopPetDefinition } from '../src/definition.ts';
-import { DESKTOP_PET_DEFAULTS, SELF_DEFAULT, type DesktopPetConfigSection } from '../src/config.ts';
+import { BUBBLE_HOLD_MAX, DESKTOP_PET_DEFAULTS, SELF_DEFAULT, type DesktopPetConfigSection } from '../src/config.ts';
 import { DesktopPetWorld, type DesktopPetWorldOptions, type PetBotControls } from '../src/world.ts';
 import { chatItem } from '../src/chat.ts';
 import { FakeHost } from './helpers/fake-host.ts';
 import { FakePage } from './helpers/page.ts';
+import { ScriptedModel, startBot } from './helpers/harness.ts';
 import { HOST_ENV } from '../src/window-host.ts';
 import { petText } from '../src/i18n/index.ts';
-import { BUBBLE_HOLD_MAX_SEC } from '../web/bubble-timing.js';
 
 const ctx = { role: 'main', log: new FakeHost().log };
 
@@ -201,18 +201,15 @@ describe('with a pet page', () => {
     expect(seconds(third, /前面还有约 (\d+) 秒/) || 0).toBeLessThanOrEqual(seconds(second, /这段约 (\d+) 秒/));
   });
 
-  it('pet_say counts a fixed speech hold into the receipt and into the queue ahead of the next line', async () => {
-    const { world } = await mounted((c) => { c.window.sayBubbleHoldSec = BUBBLE_HOLD_MAX_SEC; });
+  it('pet_say counts a fixed speech hold into its own seconds and into the queue the next line waits behind', async () => {
+    const { world } = await mounted((c) => { c.window.sayBubbleHoldSec = BUBBLE_HOLD_MAX; });
     const page = await FakePage.open(origin(world));
     cleanup.push(() => page.close());
     const say = async (script: string) => (await tool(world, 'pet_say').handler({ script }, ctx) as { text: string }).text;
     const seconds = (text: string, pattern: RegExp) => Number(text.match(pattern)?.[1]);
-    const first = await say('你好。');
-    expect(seconds(first, /这段约 (\d+) 秒/)).toBeGreaterThanOrEqual(BUBBLE_HOLD_MAX_SEC);
-    const second = await say('你好。');
-    // both are rounded to whole seconds, and the first line has run for the moment between the two calls
-    expect(seconds(second, /前面还有约 (\d+) 秒/)).toBeGreaterThanOrEqual(seconds(first, /这段约 (\d+) 秒/) - 1);
-    expect(await page.next((m) => m.t === 'say')).toMatchObject({ holdSec: BUBBLE_HOLD_MAX_SEC });
+    expect(seconds(await say('你好。'), /这段约 (\d+) 秒/)).toBeGreaterThanOrEqual(BUBBLE_HOLD_MAX);
+    // whole seconds, and the first line has run for the moment between the two calls
+    expect(seconds(await say('你好。'), /前面还有约 (\d+) 秒/)).toBeGreaterThanOrEqual(BUBBLE_HOLD_MAX - 1);
   });
 
   it('pet_ask delivers the chosen option as an answer event that wakes', async () => {
@@ -647,62 +644,6 @@ describe('with a pet page', () => {
     } finally {
       vi.useRealTimers();
     }
-  });
-
-  it('completes an informational dialog only when the page finishes it', async () => {
-    const { world, host } = await mounted();
-    const page = await FakePage.open(origin(world));
-    cleanup.push(() => page.close());
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    try {
-      const dialog = world.dialog({ text: '说明' });
-      const { id } = await page.next((m) => m.t === 'dialog');
-      let result: unknown;
-      void dialog.answer.then((answer) => { result = answer; });
-      await vi.advanceTimersByTimeAsync(BUBBLE_HOLD_MAX_SEC * 1000);
-      expect(result).toBeUndefined();
-
-      page.send({ t: 'dialog-shown', id });
-      page.send({ t: 'text', text: '继续' });
-      await vi.waitFor(() => expect(host.events).toHaveLength(1));
-      await vi.runOnlyPendingTimersAsync();
-      expect(result).toBeUndefined();
-
-      page.send({ t: 'dialog', id, done: true });
-      expect(await dialog.answer).toEqual({ done: true });
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('takes an informational dialog off the queue when it never appears', async () => {
-    const { world } = await mounted();
-    const page = await FakePage.open(origin(world));
-    cleanup.push(() => page.close());
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    try {
-      const dialog = world.dialog({ text: '说明' });
-      const { id } = await page.next((m) => m.t === 'dialog');
-      await vi.runOnlyPendingTimersAsync();
-      expect(await dialog.answer).toEqual({ unavailable: true });
-      await page.next((m) => m.t === 'dialog-close' && m.id === id);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('settles an informational dialog as unavailable when its page is replaced', async () => {
-    const { world, host } = await mounted();
-    const page = await FakePage.open(origin(world));
-    cleanup.push(() => page.close());
-    const dialog = world.dialog({ text: '说明' });
-    const { id } = await page.next((m) => m.t === 'dialog');
-    page.send({ t: 'dialog-shown', id });
-    page.send({ t: 'text', text: '继续' });
-    await expect.poll(() => host.events.length).toBe(1);
-    const replacement = await FakePage.open(origin(world));
-    cleanup.push(() => replacement.close());
-    expect(await dialog.answer).toEqual({ unavailable: true });
   });
 
   it('pet_set: 「以后都可以」 applies the change and stops asking about it, as the bot\'s own change', async () => {
@@ -1147,5 +1088,37 @@ describe('size on screen', () => {
     expect(await (await post('/api/looks', { looks })).json()).toEqual([
       { id: 'a', name: 'A', skin: coo, scale: 3 }, { id: 'b', name: 'B', skin: whale }, { id: 'c', name: 'C', skin: coo },
     ]);
+  });
+});
+
+describe('holidays', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('tells the bot of New Year once that day; that turn lights the fireworks once', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2027, 0, 1, 12));
+    const fireworks = { name: 'pet_act', args: { actions: ['fireworks_2027'] } };
+    const model = new ScriptedModel((turn) => (turn.n === 0 ? { calls: [fireworks, fireworks] } : { calls: [{ name: 'end_turn' }] }));
+    const bot = await startBot({
+      worlds: [DESKTOP_PET as never], model,
+      sections: { 'desktop-pet': { port: 0, window: { ...DESKTOP_PET_DEFAULTS.window, enabled: false }, asr: { ...DESKTOP_PET_DEFAULTS.asr, enabled: false } } },
+    });
+    cleanup.push(() => bot.stop());
+    const world = bot.assembly.mounted.find((w) => w.id === 'desktop-pet') as unknown as DesktopPetWorld;
+    const page = await windowPage(world);
+    cleanup.push(() => page.close());
+    const seen = (n: number) => JSON.stringify(model.turns[n]?.records ?? []);
+
+    await expect.poll(() => model.turns.length, { timeout: 20_000 }).toBeGreaterThanOrEqual(2);
+    expect(seen(0)).toContain('fireworks_2027');
+    expect(seen(1)).toContain('[pet_act 没执行]');
+
+    // shown again the same day: the stored event keeps it from being sent twice
+    page.send({ t: 'visibility', hidden: true });
+    page.send({ t: 'visibility', hidden: false });
+    page.send({ t: 'text', text: 'later' });
+    await expect.poll(() => model.turns.some((t) => JSON.stringify(t.records).includes('later')), { timeout: 20_000 }).toBe(true);
+    expect(bot.core.store.range({ source: 'desktop-pet' }).filter((e) => e.type === 'desktop-pet.holiday')).toHaveLength(1);
+    expect(page.messages.filter((m) => m.t === 'act').map((m) => m.actions)).toEqual([['fireworks_2027']]);
   });
 });

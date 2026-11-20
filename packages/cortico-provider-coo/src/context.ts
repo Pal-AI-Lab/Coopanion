@@ -1,11 +1,8 @@
 import type { ContextRecord } from 'cortico/protocol/open-responses/context.ts';
 import { RESERVED_FRAME_NAMES } from 'cortico/core/loop.ts';
 
-/** Attachment types sent as model input; items before the newest batch lose them. */
-const MEDIA = /^(image|audio|video)\//;
-
 /**
- * The context with image, audio and video attachments removed from every item before the newest
+ * The context with attachments of every type removed from every item before the newest
  * delivered batch (a user message, or the frame call Core writes for external events). Kept, each
  * past attachment would be re-sent on every request until handoff. Items after the model's last
  * output keep their attachments even when a batch is delivered after them: a tool result written
@@ -24,8 +21,7 @@ export function sinceLastDelivery(context: readonly ContextRecord[]): readonly C
   }
   const from = Math.min(delivery, output + 1);
   return context.map((entry, index) => {
-    const blobs = entry.context.blobs;
-    if (index >= from || !blobs?.some((b) => MEDIA.test(b.mime))) return entry;
-    return { ...entry, context: { ...entry.context, blobs: blobs.filter((b) => !MEDIA.test(b.mime)) } };
+    if (index >= from || !entry.context.blobs?.length) return entry;
+    return { ...entry, context: { ...entry.context, blobs: [] } };
   });
 }

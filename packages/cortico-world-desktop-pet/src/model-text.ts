@@ -42,6 +42,9 @@ type NotAsked = 'unavailable' | 'timeout' | 'no';
  */
 export type NoPortrait = 'tab' | 'hidden' | 'no-body' | 'capture' | 'timeout' | 'gone';
 
+/** The `pet_act` word for the fireworks behind the bot, taken only in the turn the New Year event reaches it. */
+export const FIREWORKS_WORD = 'fireworks_2027';
+
 const zh = {
   /** Locale of the weekday in an event's time stamp. */
   dateLocale: 'zh-CN',
@@ -49,6 +52,10 @@ const zh = {
   heard: (user: string, text: string) => `[voice] ${user}:${text}`,
   talkKeyUnreadable: (user: string, problem: string) => `[talk-key] 说话键读不到,${user}按说话键说的话收不到:${problem}`,
   image: (user: string, i: number, total: number) => `[${user}发来的图片 ${i}/${total}]`,
+  recording: (user: string, seconds: number) => `[${user}说这段话的录音,${seconds} 秒;上面的文字是从它识别出来的]`,
+  /** A speech batch sent as its recording alone (`asr.recording.transcript` off). */
+  heardRecorded: (user: string) => `[voice] ${user}说了一段话,内容在下面的录音里`,
+  recordingAlone: (user: string, seconds: number) => `[${user}说这段话的录音,${seconds} 秒]`,
 
   answerClosed: (user: string, question: string) => `[answer] ${user}关掉了提问「${question}」,没有作答。`,
   answerPicked: (user: string, question: string, n: number, option: string) => `[answer] ${user}回答「${question}」:选了第 ${n} 项「${option}」`,
@@ -72,6 +79,12 @@ const zh = {
   /** The body as the prompt and the figure events describe it: name, looks, picked options. */
   body: (name: string, about: string, picks: string[]) => `${name},${about}${picks.length ? `(${picks.join(',')})` : ''}`,
   pick: (axis: string, option: string) => `${axis}:${option}`,
+
+  /** The `[holiday]` events, by the holidays of `HOLIDAYS` in world.ts. */
+  holiday: {
+    christmas: '[holiday] 今天是圣诞节。',
+    newYear2027: `[holiday] 今天是 2027 年元旦。想庆祝的话,可以用你们熟悉的方式说声新年快乐,也可以继续眼前的事。这一轮可以让身后升起写着「2027」的烟花,动作词是 ${FIREWORKS_WORD},只能放一次。`,
+  },
 
   /** Follows the across share in `at` for a body that stands off the floor: how far down it is (0% the top). */
   downAt: (y: string) => `,纵向 ${y}`,
@@ -194,6 +207,9 @@ const en: typeof zh = {
   heard: (user, text) => `[voice] ${user}: ${text}`,
   talkKeyUnreadable: (user, problem) => `[talk-key] The talk key cannot be read, so what ${user} says with it is not heard: ${problem}`,
   image: (user, i, total) => `[image ${i}/${total} from ${user}]`,
+  recording: (user, seconds) => `[recording of what ${user} said, ${seconds} s; the text above was recognized from it]`,
+  heardRecorded: (user) => `[voice] ${user} said something; it is in the recording below`,
+  recordingAlone: (user, seconds) => `[recording of what ${user} said, ${seconds} s]`,
 
   answerClosed: (user, question) => `[answer] ${user} closed the question "${question}" without answering.`,
   answerPicked: (user, question, n, option) => `[answer] ${user} answered "${question}": picked option ${n}, "${option}"`,
@@ -215,6 +231,11 @@ const en: typeof zh = {
   lookNow: (body) => `You now look like this: ${body}.`,
   body: (name, about, picks) => `${name}, ${about}${picks.length ? ` (${picks.join(', ')})` : ''}`,
   pick: (axis, option) => `${axis}: ${option}`,
+
+  holiday: {
+    christmas: '[holiday] Today is Christmas Day.',
+    newYear2027: `[holiday] Today is New Year's Day 2027. If you feel like celebrating together, say happy New Year in the way you two know, or carry on with what you were doing. During this turn you can have fireworks rise behind you that spell out 2027, with the action word ${FIREWORKS_WORD}; they play once.`,
+  },
 
   downAt: (y) => ` (${y} down)`,
   walkArrived: (at) => `Arrived at ${at} across the screen.`,

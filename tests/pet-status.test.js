@@ -1,12 +1,10 @@
 import { readFileSync } from 'node:fs';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { clamp, f, ICONS, layBeside, linked } from '../packages/cortico-world-desktop-pet/web/ui.js';
 import { COO_CSS, mini, normalizeSkin, skinCss } from '../packages/cortico-world-desktop-pet/web/coo/coo.js';
 import { t } from '../packages/cortico-world-desktop-pet/web/i18n.js';
 import { SIZE, scaleSlider, sizeEcho } from '../packages/cortico-world-desktop-pet/web/scale-slider.js';
-import { BUBBLE_HOLD_AUTO_SEC, BUBBLE_HOLD_MIN_SEC, BUBBLE_HOLD_MAX_SEC, BUBBLE_TYPING_CPS, SAY_ACTION_LEAD_SEC, SAY_ACTION_ONLY_HOLD_SEC, sayHoldSeconds } from '../packages/cortico-world-desktop-pet/web/bubble-timing.js';
-import { createSpeech } from '../packages/cortico-world-desktop-pet/web/speech.js';
 import { sameLook as realSameLook } from '../packages/cortico-world-desktop-pet/web/looks.js';
 import { restyle, springSize, swapIn, swapOut } from '../packages/cortico-world-desktop-pet/web/swap-motion.js';
 import { tipOf, tipWithoutNote } from '../packages/cortico-world-desktop-pet/web/hints.js';
@@ -15,16 +13,14 @@ const WEB = new URL('../packages/cortico-world-desktop-pet/web/', import.meta.ur
 const source = readFileSync(new URL('pet-app.js', WEB), 'utf8').replace(/^import .*;$/gm, '');
 const html = readFileSync(new URL('pet.html', WEB), 'utf8');
 const pages = [];
-afterEach(() => { for (const p of pages.splice(0)) p.close(); vi.unstubAllGlobals(); });
+afterEach(() => { for (const p of pages.splice(0)) p.close(); });
 
 /** Run the actual page with a quiet socket and body; the test advances the page's frame clock. */
-function page({ host = false, hash = '', speech = {}, createVoice, sfx = {}, fetchLooks = async () => [], sameLook = (a, b) => a === b } = {}) {
+function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = async () => [], sameLook = (a, b) => a === b } = {}) {
   const dom = new JSDOM(html, { url: `http://127.0.0.1/pet${hash}`, runScripts: 'outside-only' });
   const win = dom.window;
-  Object.assign(win, { BUBBLE_HOLD_AUTO_SEC, BUBBLE_TYPING_CPS, SAY_ACTION_LEAD_SEC, SAY_ACTION_ONLY_HOLD_SEC, sayHoldSeconds });
   pages.push(win);
-  let showWindow;
-  if (host) win.petHost = { onShown: (fn) => { showWindow = fn; } };
+  if (host) win.petHost = {};
   const sockets = [];
   const bodyChanges = [];
   const body = {
@@ -44,8 +40,8 @@ function page({ host = false, hash = '', speech = {}, createVoice, sfx = {}, fet
   win.deps = {
     applyTheme: (theme) => { win.document.documentElement.dataset.theme = theme; }, clamp, f, ICONS, layBeside, linked: (text, n) => linked(text, n, win.document),
     COO_CSS, mini, normalizeSkin, skinCss,
-    createSfx: () => ({ unlock() {}, pop() {}, alert() {}, babble() {}, blub() {}, configure() {}, set() {}, setPan() {}, setShown() {}, listenStart() {}, listenEnd() {}, select() {}, tick() {}, ...sfx }),
-    createSpeech: createVoice ?? (() => ({ configure() {}, begin() {}, reveal() { return false; }, stop() {}, active: false, ...speech })),
+    createSfx: () => ({ unlock() {}, pop() {}, alert() {}, babble() {}, blub() {}, configure() {}, set() {}, setPan() {}, listenStart() {}, listenEnd() {}, select() {}, tick() {}, ...sfx }),
+    createSpeech: () => ({ configure() {}, begin() {}, reveal() { return false; }, stop() {}, active: false, ...speech }),
     textSteps: () => 1,
     loadBody: async () => body, body,
     t, language: () => 'zh', useLanguage: async () => {},
@@ -60,7 +56,7 @@ function page({ host = false, hash = '', speech = {}, createVoice, sfx = {}, fet
     mountHints() {}, tipOf, tipWithoutNote,
   };
   win.eval(`const { applyTheme, clamp, f, ICONS, layBeside, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints, tipOf, tipWithoutNote } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepTalkRead(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
-  return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win, showWindow };
+  return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
 describe('pet page connection', () => {
@@ -112,64 +108,6 @@ describe('the talk key and the voice reading a bubble', () => {
     expect(heard.revealed).toBe(revealed);
     expect(heard.babbled).toBe(0);
     expect(typed(p)).toBeGreaterThan(shown);
-  });
-
-  it('lets the voice continue after a fixed hold and stops it at the talk key', () => {
-    const { heard, ...voice } = reading();
-    const p = page(voice);
-    p.onOrder({ t: 'say', id: 'a', holdSec: 1, beats: [{ text: LINE }] });
-    p.step(.01); p.step(1.1);
-    expect(heard.revealed).toBe(LINE.length);
-    p.step(1.1);
-    expect(p.bubble.hidden).toBe(true);
-    expect(heard.stopped).toBe(0);
-    p.onOrder({ t: 'talk-key', down: true });
-    expect(heard.stopped).toBe(1);
-  });
-
-  it.each(['lines', 'segments'])('reads every syllable across fixed holds between consecutive %s', async (kind) => {
-    const first = '甲'.repeat(36), second = '乙'.repeat(8);
-    const bank = { hz: 400, units: { first: [0, .08], second: [.2, .08] } };
-    vi.stubGlobal('location', { href: 'http://127.0.0.1/pet' });
-    vi.stubGlobal('fetch', async (url) => url.pathname.endsWith('.json')
-      ? Response.json(bank)
-      : new Response(new ArrayBuffer(1)));
-    let now = 0;
-    const audio = {
-      get currentTime() { return now; },
-      decodeAudioData: async () => ({}),
-      createGain: () => ({ gain: {}, connect() {} }),
-      createBufferSource: () => ({
-        playbackRate: { setValueCurveAtTime() {} }, connect() {}, stop() {},
-        start: (_, offset) => played.push(offset),
-      }),
-    };
-    const played = [];
-    const speech = createSpeech({ output: () => ({ ctx: audio, master: {} }) }, {
-      unitsOf: async (text) => [...text].map((_, at) => ({
-        at, key: text === first ? 'first' : 'second', pos: at, of: text.length, weak: text === second, end: '',
-      })),
-    });
-    const p = page({ createVoice: () => speech });
-    try {
-      p.onOrder({ t: 'prefs', bubbleSpeed: 2, speech: { enabled: true, unitsPerSecond: 6 } });
-      await expect.poll(() => speech.active).toBe(true);
-      const say = (...texts) => p.onOrder({ t: 'say', holdSec: BUBBLE_HOLD_MIN_SEC, beats: texts.map((text) => ({ text })) });
-      if (kind === 'lines') {
-        say(first);
-        say(second);
-      } else {
-        say(first, second);
-      }
-      for (let i = 0; i < 60; i++) {
-        now += .05; p.step(.05);
-        await Promise.resolve();
-      }
-      expect(played).toContain(bank.units.first[0]);
-      expect(played.filter((offset) => offset === bank.units.second[0])).toHaveLength(second.length);
-    } finally {
-      speech.stop();
-    }
   });
 
   it('keeps a line silent that starts while the key is down, and reads the next one after it lets go', () => {
@@ -243,87 +181,26 @@ describe('hovering a timed bubble', () => {
   });
 });
 
-it('starts the fixed hold after each segment of speech finishes typing', () => {
-  const p = page();
-  p.onOrder({ t: 'prefs', bubbleSpeed: .5 });
-  p.onOrder({ t: 'say', id: 's', holdSec: 3, beats: [{ text: 'First segment' }, { text: 'Next' }] });
-  p.step(.01); p.step(.5);
-  expect(p.bubble.textContent).toBe('First');
-  p.step(2);
-  expect(p.bubble.textContent).toBe('First segment');
-  p.step(2.9);
-  expect(p.bubble.textContent).toBe('First segment');
-  p.step(.2); p.step(.5);
-  expect(p.bubble.textContent).toBe('Next');
-  p.step(2.9);
-  expect(p.bubble.hidden).toBe(false);
-  p.step(.2);
-  expect(p.bubble.hidden).toBe(true);
-});
-
-it.each([
-  { t: 'ask', id: 'q', question: 'Continue?', options: ['Yes'] },
-  { t: 'dialog', id: 'd', text: 'An explanation' },
-])('gives a queued $t the bubble after the line has had its automatic reading time', async (order) => {
-  const p = page();
-  await expect.poll(() => p.sockets.length).toBe(1);
-  const messages = p.sockets[0].sent;
-  const text = 'The first line';
-  p.onOrder({ t: 'say', holdSec: BUBBLE_HOLD_MAX_SEC, beats: [{ text }] });
-  p.step(.05); p.step(1);
-  expect(p.bubble.textContent).toBe(text);
-  p.onOrder(order);
-  p.step(1);
-  expect(p.bubble.textContent).toBe(text);
-  expect(messages.find((m) => m.t === 'dialog-shown')).toBeUndefined();
-  p.step(sayHoldSeconds(text.length, true, 1));
-  p.step(.05); p.step(1);
-  expect(p.bubble.querySelector('.b-text').textContent).toBe(order.question ?? order.text);
-  if (order.t === 'dialog') expect(messages).toContainEqual({ t: 'dialog-shown', id: order.id });
-});
-
-it('returns to the same informational card after closing the typing box', async () => {
-  const p = page();
-  await expect.poll(() => p.sockets.length).toBe(1);
-  const sent = p.sockets[0].sent;
-  const card = { t: 'dialog', id: 'card', text: 'Read this' };
-  p.onOrder(card);
-  p.step(.05); p.step(1);
-  expect(p.bubble.textContent).toBe(card.text);
-
-  p.onOrder({ t: 'type' });
-  expect(p.bubble.querySelector('textarea')).not.toBeNull();
-  p.step(5);
-  expect(sent.find((m) => m.t === 'dialog')).toBeUndefined();
-  p.bubble.querySelector('.b-close').click();
-
-  p.step(.05); p.step(1);
-  expect(p.bubble.textContent).toBe(card.text);
-  p.step(.05); p.step(5);
-  expect(sent).toContainEqual({ t: 'dialog', id: card.id, done: true });
-});
-
-it('only starts and counts the reading time of an informational card while the pet is visible', async () => {
-  const p = page({ host: true });
-  await expect.poll(() => p.sockets.length).toBe(1);
-  const sent = p.sockets[0].sent;
-  const card = { t: 'dialog', id: 'card', text: 'Read this' };
-  p.showWindow(false);
-  p.onOrder(card);
-  p.step(.05); p.step(5);
-  expect(sent.find((m) => m.t === 'dialog-shown')).toBeUndefined();
-
-  p.showWindow(true);
-  p.step(.05); p.step(1); p.step(.05);
-  expect(p.bubble.textContent).toBe(card.text);
-  expect(sent).toContainEqual({ t: 'dialog-shown', id: card.id });
-  p.showWindow(false);
-  p.step(5);
-  expect(sent.find((m) => m.t === 'dialog')).toBeUndefined();
-
-  p.showWindow(true);
-  p.step(5);
-  expect(sent).toContainEqual({ t: 'dialog', id: card.id, done: true });
+describe('a fixed speech hold', () => {
+  it('holds each typed-out part of a line for its seconds, and only for the automatic hold with a question waiting behind', () => {
+    const p = page();
+    const holdSec = 3;
+    p.onOrder({ t: 'prefs', sayBubbleHoldSec: holdSec });
+    p.onOrder({ t: 'say', id: 's', beats: [{ text: 'First' }, { text: 'Next' }] });
+    // the part types out within the second step, where its hold starts
+    p.step(.01); p.step(1);
+    p.step(holdSec - .1);
+    expect(p.bubble.textContent).toBe('First');
+    p.step(.2); p.step(1);
+    expect(p.bubble.textContent).toBe('Next');
+    p.onOrder({ t: 'ask', id: 'q', question: 'Go on?', options: ['Yes'] });
+    // the automatic hold of a line's last part at bubble speed 1, as stepDialog sets it
+    const auto = 1.6 + 'Next'.length * .07;
+    p.step(auto - .1);
+    expect(p.bubble.textContent).toBe('Next');
+    p.step(.2); p.step(.01);
+    expect(p.bubble.classList.contains('ask')).toBe(true);
+  });
 });
 
 const read = { kind: 'read', text: '在看', detail: '日记.md' };
@@ -491,6 +368,18 @@ describe("the person's lines above Coo", () => {
     expect(p.doc.querySelector('#trail')).toBeNull();
   });
 
+  it('with a fixed hold a line fades that many seconds after it settled, even while Coo still works on it', () => {
+    const p = page();
+    const holdSec = 3;
+    p.onOrder({ t: 'prefs', saidBubbleHoldSec: holdSec });
+    show(p, think);
+    said(p, '在吗', 1);
+    p.step(holdSec - .1);
+    expect(up(p)).toHaveLength(1);
+    p.step(.2);
+    expect(up(p)).toHaveLength(0);
+  });
+
   it('with the switch off nothing typed or sent stays, and a heard line fades once it is settled', () => {
     const p = page();
     said(p, '留着', 1); p.step(.01);
@@ -501,44 +390,6 @@ describe("the person's lines above Coo", () => {
     p.onOrder({ t: 'listen', phase: 'start' });
     expect(up(p)).toHaveLength(1);
     p.onOrder({ t: 'listen', phase: 'heard', text: '今天天气怎么样' });
-    expect(up(p)).toHaveLength(0);
-  });
-
-  it.each(['type', 'voice', 'chat'])('uses the fixed hold for settled %s input while Coo is busy', (source) => {
-    const p = page();
-    const holdSec = 2;
-    p.onOrder({ t: 'prefs', saidBubbleHoldSec: holdSec });
-    show(p, think);
-    if (source === 'type') {
-      p.openInput();
-      p.bubble.querySelector('textarea').value = 'A message';
-      p.bubble.querySelector('form').dispatchEvent(new p.win.Event('submit', { cancelable: true }));
-    } else if (source === 'voice') {
-      p.onOrder({ t: 'listen', phase: 'start' });
-      p.step(holdSec + 1);
-      expect(up(p)).toHaveLength(1);
-      p.onOrder({ t: 'listen', phase: 'heard', text: 'A message' });
-    } else {
-      said(p, 'A message', 1);
-    }
-    p.step(holdSec - .1);
-    expect(up(p)).toHaveLength(1);
-    p.onOrder({ t: 'prefs', saidBubbleHoldSec: holdSec + 10 });
-    p.step(.2);
-    expect(up(p)).toHaveLength(0);
-  });
-
-  it('a fixed input bubble stays up after an early reply closes', () => {
-    const p = page();
-    const holdSec = 8;
-    p.onOrder({ t: 'prefs', saidBubbleHoldSec: holdSec });
-    said(p, 'A message', 1);
-    p.onOrder({ t: 'say', id: 's', holdSec: 1, beats: [{ text: 'OK' }] });
-    p.step(.01); p.step(.2); p.step(1.1);
-    expect(p.bubble.hidden).toBe(true);
-    p.step(p.REPLIED_FADE + .1);
-    expect(up(p)).toHaveLength(1);
-    p.step(holdSec);
     expect(up(p)).toHaveLength(0);
   });
 });
@@ -741,9 +592,10 @@ describe("closing Coo's line with a click", () => {
   const beat = (text) => ({ text, actions: [], anchors: [] });
   const click = (p, el = p.bubble) => el.dispatchEvent(new p.win.MouseEvent('click', { bubbles: true }));
 
-  it('ends the whole line: the voice stops, the later beats never show, and the next line follows', () => {
+  it('ends the whole line: the voice stops, the later beats never show, and the next line follows', async () => {
     let stopped = 0;
     const p = page({ speech: { stop: () => { stopped++; } } });
+    await expect.poll(() => p.sockets.length).toBe(1);
     p.onOrder({ t: 'say', id: 'a', beats: [beat('第一段'), beat('第二段')] });
     p.onOrder({ t: 'say', id: 'b', beats: [beat('下一句')] });
     p.step(.01); p.step(.5);
@@ -755,6 +607,8 @@ describe("closing Coo's line with a click", () => {
     // a second click while it fades changes nothing
     click(p);
     expect(stopped).toBe(before + 1);
+    // the World hears of it once, so its queue counts from now
+    expect(p.sockets.flatMap((s) => s.sent).filter((m) => m.t === 'skipped')).toEqual([{ t: 'skipped', id: 'a' }]);
     p.step(p.LINE_FADE); p.step(.01); p.step(1);
     expect(p.bubble.textContent).toBe('下一句');
     expect(p.bubble.classList.contains('fading')).toBe(false);
