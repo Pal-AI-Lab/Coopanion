@@ -103,7 +103,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   /** Draws Coo with `next` face in the current dress, in the window's light or dark colors; the same drawing is not redone. */
   const pose = (next: string) => {
     face = next;
-    const dark = doc.defaultView?.getComputedStyle(doc.documentElement).colorScheme.includes('dark') ?? false;
+    const dark = doc.documentElement.dataset.colorMode === 'dark';
     const key = `${next}|${dark}|${JSON.stringify(skin)}`;
     if (key === drawn) return;
     drawn = key;
@@ -368,6 +368,12 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     const observer = new view.ResizeObserver(fit);
     observer.observe(frame);
     signal.addEventListener('abort', () => observer.disconnect(), { once: true });
+  }
+  // Coo is drawn in the window's light or dark colors: a theme switched at rest draws it again, as the 开始 and 装扮 pages follow it
+  if (view?.MutationObserver) {
+    const themeWatch = new view.MutationObserver(() => pose(face));
+    themeWatch.observe(doc.documentElement, { attributes: true, attributeFilter: ['data-color-mode', 'data-theme-scheme'] });
+    signal.addEventListener('abort', () => themeWatch.disconnect(), { once: true });
   }
   rest();
   return {
