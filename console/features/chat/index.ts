@@ -17,7 +17,6 @@ import { baseLanguage, LANGUAGE } from '../../base/language.ts';
 import type { Page, PageContext } from '../../base/page.ts';
 import { panelStreamRoute } from '../../base/protocol.ts';
 import { openStream } from '../../base/stream.ts';
-import { shouldStick } from '../../base/ui/index.ts';
 import { promptInput } from '../../base/ui/prompt-input.tsx';
 import { actionProblem } from '../../base/ui/problem.ts';
 import { browserSocketEnv } from '../../base/websocket.ts';
@@ -137,20 +136,10 @@ async function mount(ctx: PageContext): Promise<void> {
       return true;
     },
   });
-  // ---- back to the bottom: in the dock above the input, so it covers no message; appears while the
-  // thread is more than 60 px from its end.
-  const STICK_PX = 60;
-  const jump = ui.button(S.jumpBottom, {
-    size: 'sm',
-    onClick: () => { scroll.scrollTop = scroll.scrollHeight; toggleJump(); },
-  });
-  jump.className = 'btn sm chat-jump hidden';
-  const jumpWrap = ui.h('div', 'chat-jump-wrap');
-  jumpWrap.append(jump);
-  dock.append(jumpWrap, queueBox, composer.el);
+  const jump = ui.button(S.jumpBottom, { size: 'sm', onClick: () => toBottom() });
+  jump.classList.add('chat-jump', 'hidden');
+  dock.append(jump, queueBox, composer.el);
   view.append(top, scroll, dock);
-  const toggleJump = (): void => { jump.classList.toggle('hidden', shouldStick(scroll.scrollTop, scroll.scrollHeight, scroll.clientHeight, STICK_PX)); };
-  scroll.addEventListener('scroll', toggleJump, { signal: ctx.signal });
 
   // ---- phase line
   const syncPhase = (): void => {
@@ -195,6 +184,7 @@ async function mount(ctx: PageContext): Promise<void> {
 
   const nearBottom = (): boolean => scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 80;
   const toBottom = (): void => { scroll.scrollTop = scroll.scrollHeight; };
+  scroll.addEventListener('scroll', () => jump.classList.toggle('hidden', nearBottom()), { signal: ctx.signal });
 
   // whether the last render kept the thread at the bottom; a thumbnail that loads after it grows the thread
   let stuck = false;
