@@ -158,7 +158,9 @@ body.desk .floor{display:none}
   scale:var(--bubble-size, none); transform-origin:11px 0;
 }
 .bubble::before{background:var(--skin-ink); clip-path:path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z')}
-.bubble::after{background:var(--surface); clip-path:path('M3.04 0 L10.53 7.49 Q11 7.96 11.47 7.49 L18.96 0 Z')}
+/* the surface triangle is the outline one moved up by the line's width across its 45° sides (2.5px × √2), unscaled,
+   so the tail's line stays as wide as the border at any --bubble-size */
+.bubble::after{background:var(--surface); clip-path:path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z'); translate:0 -3.54px}
 .bubble.heard{background:var(--said-bg); color:var(--said-ink); border-color:transparent; box-shadow:0 4px 14px var(--shadow); max-width:min(calc(260px * var(--bubble-size, 1)), calc(100vw - 20px))}
 .bubble.heard::before, .bubble.heard::after{display:none}
 /* what the person said, above Coo (pet-app.js lines): a settled one closes on a click, lit in the eye color on hover as the
