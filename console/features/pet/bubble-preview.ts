@@ -37,8 +37,10 @@ const FADE_SEC = .4, REPLIED_FADE_SEC = .5;
 const SENT_AT = .3, THINK_SEC = 1.2, READ_SEC = 1.4, QUIET_SEC = .9, REST_SEC = .8;
 /** The width the sample is laid out at before it is scaled to the panel: a little wider than Coo's widest bubble at 100%. */
 const STAGE_PX = 340;
-/** The stage's height: room for the bubbles at the largest size and text size, so the frame keeps its height. */
-const STAGE_H = 380;
+/** The stage's least height; it grows, once, to hold the tallest bubbles this language can show (see `measure`). */
+const STAGE_MIN_H = 380;
+/** The bubble size slider's steps, and the largest text size (BUBBLE_SIZE_MIN, BUBBLE_SIZE_MAX in the World's config.ts; 5% steps). */
+const SIZE_STEPS = Array.from({ length: 17 }, (_, i) => .8 + i * .05), FONT_MAX = 1.6;
 /** Coo's drawing space with room above for the tallest head piece (HEAD_TOP in coo.js). */
 const COO_VIEWBOX = '14 -40 228 300';
 const READ_FILE = 'weather.md';
@@ -62,7 +64,8 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   const frame = h('div', 'bubble-preview-frame');
   const stage = h('div', 'bubble-preview-stage');
   stage.setAttribute('aria-hidden', 'true');
-  stage.style.width = `${STAGE_PX}px`; stage.style.height = `${STAGE_H}px`;
+  stage.style.width = `${STAGE_PX}px`;
+  let stageH = STAGE_MIN_H, measured = false;
   const clock = h('span', 'bubble-preview-clock');
   const said = h('div', 'pv-bubble pv-heard');
   const saidText = h('p', 'pv-text', S.previewSaid);
@@ -99,11 +102,43 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   };
   const fade = (bubble: HTMLElement) => { if (!bubble.hidden) bubble.classList.add('is-fading'); };
 
+  /**
+   * The stage's height: the tallest the bubbles get at the largest text size and any bubble size (a narrower
+   * bubble wraps into more lines, a wider one has more padding), your line over each of Coo's lines or the status,
+   * in this language.
+   * Measured once, so the frame keeps its height while the sliders move and no bubble is cut off at its top.
+   */
+  const measure = () => {
+    const texts = [saidText.textContent, sayText.textContent];
+    const shown = [said.hidden, say.hidden, status.hidden];
+    const vars = ['--bubble-size', '--bubble-font'].map((name) => stage.style.getPropertyValue(name));
+    stage.style.height = '';
+    stage.style.setProperty('--bubble-font', String(FONT_MAX));
+    said.hidden = false;
+    statusText.textContent = READ_FILE;
+    let tallest = 0;
+    for (const size of SIZE_STEPS) {
+      stage.style.setProperty('--bubble-size', String(size));
+      for (const line of [...S.previewReply, null]) {
+        say.hidden = line === null; status.hidden = line !== null;
+        if (line !== null) sayText.textContent = line;
+        tallest = Math.max(tallest, stage.offsetHeight);
+      }
+    }
+    [saidText.textContent, sayText.textContent] = texts;
+    [said.hidden, say.hidden, status.hidden] = shown;
+    ['--bubble-size', '--bubble-font'].forEach((name, i) => stage.style.setProperty(name, vars[i]!));
+    stageH = Math.max(STAGE_MIN_H, Math.ceil(tallest));
+    stage.style.height = `${stageH}px`;
+  };
   /** The stage keeps its layout size and scales to the panel, so the bubbles keep their proportions to each other. */
   const fit = () => {
+    // laid out only once the page shows it: before that the panel has no width and the text no lines
+    if (!frame.clientWidth) return;
+    if (!measured) { measured = true; measure(); }
     const scale = Math.min(1, frame.clientWidth / STAGE_PX);
     stage.style.setProperty('--pv-scale', String(scale));
-    frame.style.height = `${Math.ceil(STAGE_H * scale)}px`;
+    frame.style.height = `${Math.ceil(stageH * scale)}px`;
   };
   const sizes = () => {
     const s = read();
