@@ -1107,9 +1107,49 @@ function openInput() {
   const expand = prefs.bot?.buttons?.chat
     ? `<button class="b-expand" type="button" aria-label="${esc(t('bubble.expand'))}" title="${esc(t('bubble.expand'))}">${ICONS.expand}</button>`
     : '';
-  openBubble('ask', `<button class="b-close" type="button" aria-label="${esc(t('bubble.close'))}">×</button><div class="b-imgs" hidden></div><form class="b-own"><textarea rows="1" maxlength="500" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}"></textarea>${expand}<button type="submit">${esc(t('bubble.send'))}</button></form><span class="b-hint b-note" hidden></span>`);
+  openBubble('ask', `<div class="b-side"><button class="b-close" type="button" aria-label="${esc(t('bubble.close'))}">×</button><div class="b-track" hidden><i class="b-thumb"></i></div></div><div class="b-imgs" hidden></div><form class="b-own"><textarea rows="1" maxlength="500" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}"></textarea>${expand}<button type="submit">${esc(t('bubble.send'))}</button></form><span class="b-hint b-note" hidden></span>`);
+  bubble.classList.add('typing');
   const form = bubble.querySelector('form'), input = form.querySelector('textarea');
   const tray = bubble.querySelector('.b-imgs'), note = bubble.querySelector('.b-note');
+  // the scrollbar outside the box (pet.css .b-track): its track runs from under the close button to the text's bottom
+  const track = bubble.querySelector('.b-track'), thumb = track.querySelector('.b-thumb');
+  const drawBar = () => {
+    const over = input.scrollHeight - input.clientHeight;
+    track.hidden = over <= 1;
+    if (track.hidden) return;
+    const h = Math.max(24, input.getBoundingClientRect().bottom - track.getBoundingClientRect().top);
+    const th = Math.max(16, h * input.clientHeight / input.scrollHeight);
+    track.style.height = `${h}px`;
+    thumb.style.height = `${th}px`;
+    thumb.style.top = `${(h - th) * input.scrollTop / over}px`;
+  };
+  it.drawBar = drawBar;
+  input.addEventListener('scroll', drawBar);
+  // dragged, the thumb moves the text with it; a press on the track pages toward it. The window keeps the mouse
+  // while the thumb is held (barHeld), though the pointer leaves the bubble.
+  track.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    if (e.target !== thumb) {
+      const r = thumb.getBoundingClientRect();
+      input.scrollTop += (e.clientY < r.top ? -1 : 1) * input.clientHeight * .9;
+      return;
+    }
+    const y0 = e.clientY, top0 = input.scrollTop;
+    const h = track.clientHeight - thumb.offsetHeight, over = input.scrollHeight - input.clientHeight;
+    barHeld = true; track.classList.add('held');
+    track.setPointerCapture(e.pointerId);
+    const move = (m) => { input.scrollTop = top0 + (m.clientY - y0) * (h > 0 ? over / h : 0); };
+    const end = () => {
+      barHeld = false; track.classList.remove('held');
+      track.removeEventListener('pointermove', move);
+      track.removeEventListener('pointerup', end);
+      track.removeEventListener('pointercancel', end);
+    };
+    track.addEventListener('pointermove', move);
+    track.addEventListener('pointerup', end);
+    track.addEventListener('pointercancel', end);
+  });
   // the hint keeps to one row in every language, so the box does not shrink by a row at the first key: the field is
   // as wide as the hint, and the bubble goes past its usual widest when the hint needs it (sizes that change while
   // the box is open fit it again, applyPrefs)
@@ -1128,6 +1168,7 @@ function openInput() {
     const over = form.scrollWidth - form.clientWidth;
     if (over > 0) bubble.style.maxWidth = `min(${bubble.offsetWidth + over}px, calc(100vw - 20px))`;
     form.classList.toggle('tall', tall);
+    drawBar();
   };
   it.fitHint();
   const say = (text) => { note.textContent = text || ''; note.hidden = !text; };
@@ -1146,6 +1187,7 @@ function openInput() {
   input.addEventListener('input', () => {
     if (!input.value) form.classList.remove('tall');
     else if (input.scrollHeight > parseFloat(getComputedStyle(input).lineHeight) * 1.5 + 8) form.classList.add('tall');
+    drawBar();
   });
   // Enter sends, Shift+Enter starts a new line; Enter that confirms an input method's text does neither
   input.addEventListener('keydown', (e) => {
@@ -2246,7 +2288,7 @@ document.addEventListener('pointermove', (e) => {
     diag.type = e.pointerType;
     if (!first) logPointer('type', 'move');
   }
-  setInteractive(rendering() && (pressing || sizer.active || hit || ui), 'move');
+  setInteractive(rendering() && (pressing || barHeld || sizer.active || hit || ui), 'move');
   followDrag(p);
 });
 /**
@@ -2275,10 +2317,12 @@ host?.onCursor?.((p) => {
   const el = document.elementFromPoint(p.x, p.y);
   const hit = !!body?.hit(p), ui = !!el?.closest?.(UI_SELECTOR);
   diag.poll = { at: performance.now(), x: p.x, y: p.y, hit, ui };
-  setInteractive(rendering() && (pressing || sizer.active || hit || ui), 'poll');
+  setInteractive(rendering() && (pressing || barHeld || sizer.active || hit || ui), 'poll');
 });
 /** A press that began on the body and has not been let go of: the window keeps the mouse meanwhile. */
 let pressing = false;
+/** The typing box's scrollbar thumb is held (openInput): the window keeps the mouse meanwhile. */
+let barHeld = false;
 stage.addEventListener('pointerdown', (e) => {
   if (e.button !== 0) return;
   closeMenu();
@@ -2391,7 +2435,10 @@ function tailAt(bw, x) {
 /** Coo's bubble above its head, moved over to the side it faces. */
 function place(el, a, extraUp) {
   const bw = el.offsetWidth, bh = el.offsetHeight;
-  const left = clamp(a.x - bw / 2 + (at()?.facing ?? 1) * 26, 10, Math.max(10, innerWidth - bw - 10));
+  // the typing box's close button and scrollbar hang off its right side (.b-side): they stay on the screen too
+  const side = el.querySelector(':scope > .b-side');
+  const right = side ? side.offsetWidth + 11 : 0;
+  const left = clamp(a.x - bw / 2 + (at()?.facing ?? 1) * 26, 10, Math.max(10, innerWidth - bw - 10 - right));
   const top = Math.max(8, a.y - bh - extraUp);
   el.style.left = f(left) + 'px';
   el.style.top = f(top) + 'px';
