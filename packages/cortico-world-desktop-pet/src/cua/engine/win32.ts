@@ -76,7 +76,7 @@ const MessageBoxTimeoutW = user32.func('int __stdcall MessageBoxTimeoutW(HWND hw
 
 const SRCCOPY = 0x00CC0020, CAPTUREBLT = 0x40000000;
 const INPUT_MOUSE = 0, INPUT_KEYBOARD = 1;
-const MOUSEEVENTF = { LEFTDOWN: 0x2, LEFTUP: 0x4, RIGHTDOWN: 0x8, RIGHTUP: 0x10, MIDDLEDOWN: 0x20, MIDDLEUP: 0x40, WHEEL: 0x800, HWHEEL: 0x1000 };
+const MOUSEEVENTF = { MOVE: 0x1, LEFTDOWN: 0x2, LEFTUP: 0x4, RIGHTDOWN: 0x8, RIGHTUP: 0x10, MIDDLEDOWN: 0x20, MIDDLEUP: 0x40, WHEEL: 0x800, HWHEEL: 0x1000 };
 const MONITORINFOF_PRIMARY = 1;
 const KEYEVENTF = { EXTENDEDKEY: 0x1, KEYUP: 0x2, UNICODE: 0x4 };
 const GWL_EXSTYLE = -20, WS_EX_TOOLWINDOW = 0x80;
@@ -152,9 +152,12 @@ const mouse = (dwFlags: number, dx = 0, dy = 0, mouseData = 0) => ({ type: INPUT
 /**
  * Moves the pointer to a point of the virtual screen. SetCursorPos takes it exactly, where SendInput's
  * absolute moves are scaled to 0–65535 across the virtual screen and land off by a pixel at the edges between displays.
+ * SetCursorPos sends no mouse input, so a relative move of no distance follows it: a program that tracks a drag
+ * from mouse input gets a move at each point, with the buttons as they are held.
  */
 export function moveTo(x: number, y: number): void {
   if (!SetCursorPos(Math.round(x), Math.round(y))) throw new EngineFailure('winSetCursorPos', [Math.round(x), Math.round(y)]);
+  send([mouse(MOUSEEVENTF.MOVE)]);
 }
 
 export type Button = 'left' | 'right' | 'middle';
