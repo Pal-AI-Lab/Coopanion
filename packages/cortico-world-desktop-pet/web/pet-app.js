@@ -594,12 +594,34 @@ function releaseKeys(it) {
   host.releaseFocus();
 }
 
+/**
+ * The column that hangs off the right side of a bubble with a close button (pet.css .b-side): a small round × drawn as
+ * the hover buttons are, and for the typing box, under it, the text's scrollbar. Every bubble with a × has it.
+ */
+function sideColumn(label, titled = false, scrollbar = false) {
+  const l = esc(label);
+  return `<div class="b-side"><button class="b-close" type="button" aria-label="${l}"${titled ? ` title="${l}"` : ''}>×</button>${scrollbar ? '<div class="b-track" hidden><i class="b-thumb"></i></div>' : ''}</div>`;
+}
+/** Pixels a bubble's side column (sideColumn) takes past its right edge, with the margin kept from the screen's side. */
+function sideRoom(el) {
+  const side = el.querySelector(':scope > .b-side');
+  return side ? side.offsetWidth + 11 : 0;
+}
+/** The bubble's rect together with its side column's, which hangs outside it. */
+function bubbleRect() {
+  const r = bubble.getBoundingClientRect(), side = bubble.querySelector(':scope > .b-side');
+  if (!side) return r;
+  const s = side.getBoundingClientRect();
+  const left = Math.min(r.left, s.left), top = Math.min(r.top, s.top), right = Math.max(r.right, s.right), bottom = Math.max(r.bottom, s.bottom);
+  return { left, top, right, bottom, x: left, y: top, width: right - left, height: bottom - top };
+}
+
 function startItem(it) {
   item = it;
   if (it.kind === 'say' || it.kind === 'ask') answerLines(it);
   if (it.kind === 'dialog') { openDialog(it); return; }
   if (it.kind === 'ask') {
-    openBubble('ask', `<button class="b-close" type="button" aria-label="${esc(t('bubble.close'))}">×</button><p class="b-text"></p><div class="b-opts" hidden></div>`);
+    openBubble('ask', `${sideColumn(t('bubble.close'))}<p class="b-text"></p><div class="b-opts" hidden></div>`);
     bubble.querySelector('.b-close').addEventListener('click', () => dismissAsk());
     it.text = it.question; it.shown = 0; it.acc = 0; it.optsShown = false;
     if (!it.confirm) sfx.pop();
@@ -627,7 +649,7 @@ function heldByCursor(it) {
     it.cursorHolding = false;
     return false;
   }
-  const r = bubble.getBoundingClientRect();
+  const r = bubbleRect();
   it.cursorHolding = inRect(p, r) && (it.cursorHolding || (!!previous && !inRect(previous, r)));
   return it.cursorHolding;
 }
@@ -800,7 +822,7 @@ function openDialog(it) {
   const d = it.d;
   const dots = Array.isArray(d.step) ? Array.from({ length: d.step[1] }, (_, i) => `<i class="${i + 1 < d.step[0] ? 'past' : i + 1 === d.step[0] ? 'on' : ''}"></i>`).join('') : '';
   const back = typeof d.back === 'string' && d.back ? `<button class="d-back" type="button">${esc(d.back)}</button>` : '';
-  openBubble('talk', `${dots || d.closable || back ? `<div class="d-top">${back}<span class="d-dots">${dots}</span>${d.closable ? `<button class="b-close" type="button" aria-label="${esc(t('bubble.skip'))}" title="${esc(t('bubble.skip'))}">×</button>` : ''}</div>` : ''}<p class="b-text"></p><div class="d-body" hidden></div>`);
+  openBubble('talk', `${d.closable ? sideColumn(t('bubble.skip'), true) : ''}${dots || back ? `<div class="d-top">${back}<span class="d-dots">${dots}</span></div>` : ''}<p class="b-text"></p><div class="d-body" hidden></div>`);
   bubble.querySelector('.b-close')?.addEventListener('click', () => settleDialog(it, { closed: true }));
   bubble.querySelector('.d-back')?.addEventListener('click', () => settleDialog(it, { back: true }));
   for (const a of d.actions || []) acts.push(a);
@@ -1107,8 +1129,7 @@ function openInput() {
   const expand = prefs.bot?.buttons?.chat
     ? `<button class="b-expand" type="button" aria-label="${esc(t('bubble.expand'))}" title="${esc(t('bubble.expand'))}">${ICONS.expand}</button>`
     : '';
-  openBubble('ask', `<div class="b-side"><button class="b-close" type="button" aria-label="${esc(t('bubble.close'))}">×</button><div class="b-track" hidden><i class="b-thumb"></i></div></div><div class="b-imgs" hidden></div><form class="b-own"><textarea rows="1" maxlength="500" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}"></textarea>${expand}<button type="submit">${esc(t('bubble.send'))}</button></form><span class="b-hint b-note" hidden></span>`);
-  bubble.classList.add('typing');
+  openBubble('ask', `${sideColumn(t('bubble.close'), false, true)}<div class="b-imgs" hidden></div><form class="b-own"><textarea rows="1" maxlength="500" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}"></textarea>${expand}<button type="submit">${esc(t('bubble.send'))}</button></form><span class="b-hint b-note" hidden></span>`);
   const form = bubble.querySelector('form'), input = form.querySelector('textarea');
   const tray = bubble.querySelector('.b-imgs'), note = bubble.querySelector('.b-note');
   // the scrollbar outside the box (pet.css .b-track): its track runs from under the close button to the text's bottom
@@ -2258,7 +2279,8 @@ function inputRects() {
     }
   }
   for (const el of document.querySelectorAll(UI_SELECTOR)) {
-    const r = el.getBoundingClientRect(), m = el === tools ? TOOLS_MARGIN : 0;
+    // a bubble's close button hangs outside it (sideColumn)
+    const r = el === bubble ? bubbleRect() : el.getBoundingClientRect(), m = el === tools ? TOOLS_MARGIN : 0;
     add(r.left - m, r.top - m, r.right + m, r.bottom + m);
   }
   return out;
@@ -2435,10 +2457,8 @@ function tailAt(bw, x) {
 /** Coo's bubble above its head, moved over to the side it faces. */
 function place(el, a, extraUp) {
   const bw = el.offsetWidth, bh = el.offsetHeight;
-  // the typing box's close button and scrollbar hang off its right side (.b-side): they stay on the screen too
-  const side = el.querySelector(':scope > .b-side');
-  const right = side ? side.offsetWidth + 11 : 0;
-  const left = clamp(a.x - bw / 2 + (at()?.facing ?? 1) * 26, 10, Math.max(10, innerWidth - bw - 10 - right));
+  // a close button hangs off the bubble's right side (sideColumn): it stays on the screen too
+  const left = clamp(a.x - bw / 2 + (at()?.facing ?? 1) * 26, 10, Math.max(10, innerWidth - bw - 10 - sideRoom(el)));
   const top = Math.max(8, a.y - bh - extraUp);
   el.style.left = f(left) + 'px';
   el.style.top = f(top) + 'px';
@@ -2452,7 +2472,7 @@ function placeTalk(it, a) {
   const mode = at()?.mode;
   if (mode === 'drag' || (FLYING.has(mode) && !talk.motion)) it.carried = true;
   if (it.carried) { it.pinX = a.x; it.pinY = a.y; if (!FLYING.has(mode)) it.carried = false; }
-  const left = clamp(it.pinX - bw / 2, 10, Math.max(10, innerWidth - bw - 10));
+  const left = clamp(it.pinX - bw / 2, 10, Math.max(10, innerWidth - bw - 10 - sideRoom(bubble)));
   const top = Math.max(8, it.pinY - bh - 18 * prefs.bubbleSize);
   bubble.style.left = f(left) + 'px';
   bubble.style.top = f(top) + 'px';
@@ -2586,7 +2606,7 @@ async function probeBackdrop() {
   const near = inflate({ x: b.x, y: b.y, width: b.w, height: b.h }, Math.max(4 + 34 * S, 4 + 2 * prefs.glow)), far = inflate(near, 8 + 40 * S);
   const x = Math.max(0, far.x), y = Math.max(0, far.y);
   const rect = { x, y, width: Math.min(innerWidth, far.x + far.width) - x, height: Math.min(innerHeight, far.y + far.height) - y };
-  const covers = [bubble, ...(menu.hidden ? [] : menu.children), tools, wheel, ...lines.map((l) => l.el)].filter((el) => !el.hidden).map((el) => shadowed(rectOf(el)));
+  const covers = [bubble, ...(menu.hidden ? [] : menu.children), tools, wheel, ...lines.map((l) => l.el)].filter((el) => !el.hidden).map((el) => shadowed(el === bubble ? bubbleRect() : rectOf(el)));
   const px = await host.sampleBackdrop(rect, [near, ...covers]);
   // this platform cannot read the screen cheaply: the halo just stays
   if (px === null) { backdrop.on = true; backdrop.fixed = true; return; }
