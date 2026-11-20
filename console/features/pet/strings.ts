@@ -287,10 +287,3 @@ export const en: typeof zh = {
 export const S = pick({
   zh, en, 'zh-Hant': zhHant, ja, ko, fr, de, 'es-419': es419, 'pt-BR': ptBR, it, ru,
 });
-
-/** The 气泡 sample's lines and its button in every language: the sample's frame is as high in all of them (bubble-preview.ts `place`). */
-export const SAMPLES = [zh, en, zhHant, ja, ko, fr, de, es419, ptBR, it, ru].map((t) => ({
-  said: t.previewSaid ?? zh.previewSaid,
-  reply: t.previewReply ?? zh.previewReply,
-  play: t.previewPlay ?? zh.previewPlay,
-}));

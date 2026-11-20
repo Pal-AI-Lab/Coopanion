@@ -2,7 +2,7 @@
  * The 气泡 section's sample: Coo's bubbles without the figure, drawn, placed and handled as the pet page does
  * (pet.css `.bubble`, `.heard`, `.status`; pet-app.js `place`, `tailAt`, `placeLines`, `stepDialog`, `stepLines`)
  * in the settings window's colors, Coo's tail pointing down to where its head would be. 播放示例 and the clock sit
- * above the frame; the bubbles keep to its top, and it is as high as the sizes need, the same in every language.
+ * above the frame; the frame has one height for every size and language, the bubbles centred in it.
  * At rest it shows a line of yours and Coo's reply; 「播放示例」 plays one exchange: your line, what Coo is doing,
  * then the reply typed and held line by line, each bubble leaving when its hold runs out. As on the pet, a click
  * closes a bubble (Coo's whole reply, or your line) and the pointer on Coo's line holds it once it is written.
@@ -14,7 +14,7 @@
 import { balancedWidth, clamp, ICONS, tailLine } from 'cortico-world-desktop-pet/web/ui.js';
 import { prefersStill } from '../../base/motion.ts';
 import { icon } from '../../base/ui/icons.ts';
-import { S, SAMPLES } from './strings.ts';
+import { S } from './strings.ts';
 
 export interface BubbleSettings {
   size: number;
@@ -52,8 +52,12 @@ const TAIL_CENTER = 70, TAIL_FOLLOW = 130;
  * the frame. The sample lines are short enough to take two lines at most at any sizes, in every language.
  */
 const STAGE_PX = 300 * 1.6 + 2 * EDGE;
-/** Room the bubbles keep from the stage's top and bottom. */
-const TOP_ROOM = 12, BOTTOM_ROOM = 12;
+/**
+ * The stage's height, one for every size and language: the tallest picture the sample shows, at any bubble and text
+ * size in any of the 11 languages, centred, with 12px above and below it (236 for en at bubble size 1.05 and text
+ * size 1.6). The sample lines take two lines at most, so this does not grow.
+ */
+const STAGE_H = 236;
 /** Where Coo's head would be across the stage: Coo's bubble sits above it centred on the stage, so its tail leans as on the pet. */
 const HEAD_X = STAGE_PX / 2 - FACING_SHIFT;
 /** How far a tail's tip reaches below its bubble at bubble size `size` (pet.css: 11.5px drawn from 0.5px inside the 2.5px border). */
@@ -80,8 +84,9 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   el.style.setProperty('--pv-stage', `${STAGE_PX}px`);
   stage.style.setProperty('--pv-edge', `${EDGE}px`);
   stage.setAttribute('aria-hidden', 'true');
-  /** The stage's height and how far down Coo's head would be, for the current sizes (`place`). */
-  let stageH = 0, headY = 0;
+  stage.style.height = `${STAGE_H}px`;
+  /** How far down Coo's head would be, for the current sizes (`centre`). */
+  let headY = 0;
   /** Whether your line shows at rest: it follows the 输入气泡 switch. */
   let saidAtRest = true;
   const clock = h('span', 'bubble-preview-clock');
@@ -176,71 +181,31 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     return boxes;
   };
 
-  /** How far down the head goes and how high the stage is for one language, by the sizes and the 输入气泡 switch. */
-  const placed = new Map<string, { down: number; height: number }>();
-  const placeKey = () => `${sizeNow()}|${stage.style.getPropertyValue('--bubble-font')}|${read().said}`;
   /**
-   * One language's place for the current sizes: how far down the head goes for the bubbles to keep TOP_ROOM from the
-   * top, and the stage height that leaves BOTTOM_ROOM under them, in every picture the sample shows: your line over
-   * each of Coo's lines or the status, or alone (with 输入气泡 off, Coo's alone; with it on, those lie within the
-   * pictures with your line). The bubbles are left as they were.
+   * Bubbles the sample measures with, never shown: measuring with the bubbles on show would hide and show them
+   * again, and each showing replays their entrance.
    */
-  const measureSample = (sample: (typeof SAMPLES)[number]) => {
-    const texts = [[...saidText.childNodes], [...sayText.childNodes], [...statusText.childNodes]];
-    const shown = [said.hidden, say.hidden, status.hidden];
-    const widths = [said.style.maxWidth, say.style.maxWidth];
-    const keepHead = headY, keepAt = saidAt, withSaid = read().said;
-    statusText.textContent = READ_FILE;
-    headY = 0;
-    saidText.textContent = sample.said;
-    said.hidden = false; fitSaid();
-    let down = 0, low = 0;
-    // a line of Coo's, the status (null), or none (undefined: your line alone, before Coo answers)
-    for (const line of [...sample.reply, null, ...withSaid ? [undefined] : []]) {
-      say.hidden = typeof line !== 'string'; status.hidden = line !== null;
-      said.hidden = !withSaid;
-      if (typeof line === 'string') { fitSay(line); sayText.textContent = line; }
-      saidAt = null;
-      for (const b of lay(0)) { down = Math.max(down, TOP_ROOM - b.top); low = Math.max(low, b.bottom); }
-    }
-    [saidText, sayText, statusText].forEach((text, i) => text.replaceChildren(...texts[i]!));
-    [said.hidden, say.hidden, status.hidden] = shown;
-    [said.style.maxWidth, say.style.maxWidth] = widths;
-    headY = keepHead; saidAt = keepAt;
-    return { down: Math.round(down), height: Math.ceil(down + low + BOTTOM_ROOM) };
+  const probe = (cls: string) => {
+    const bubble = h('div', `pv-bubble ${cls}`), text = h('p', 'pv-text');
+    bubble.append(text);
+    bubble.style.visibility = 'hidden';
+    bubble.setAttribute('aria-hidden', 'true');
+    stage.append(bubble);
+    return { bubble, text };
   };
-  const own = Math.max(0, SAMPLES.findIndex((t) => t.said === S.previewSaid && t.play === S.previewPlay));
-  const sampleAt = (i: number, key: string) => {
-    let got = placed.get(`${key}|${i}`);
-    if (!got) { got = measureSample(SAMPLES[i]!); placed.set(`${key}|${i}`, got); }
-    return got;
-  };
+  const saidProbe = probe('pv-heard'), sayProbe = probe('pv-say');
   /**
-   * The head and the stage's height for the current sizes: the head as high as this language's pictures allow, the
-   * height the tallest any of the 11 languages needs, so the frame is as high in all of them. It grows and shrinks with
-   * the sliders, the bubbles staying at its top. This language is measured at once and the others a slice at a time
-   * after it (`fillIn`), so a slider drags without waiting on them; the frame takes their height when they are in.
+   * Puts the head where the resting picture (your line, if 输入气泡 is on, over Coo's first line, to its tail's tip)
+   * comes out centred on the stage, so a size change grows the picture about the middle. Its height does not depend
+   * on how narrow the bubbles are fitted: that keeps their number of lines.
    */
-  let filling = 0;
-  const place = (all = false) => {
-    const key = placeKey();
-    headY = sampleAt(own, key).down;
-    if (all) SAMPLES.forEach((_, i) => sampleAt(i, key));
-    const known = SAMPLES.map((_, i) => placed.get(`${key}|${i}`)?.height ?? 0);
-    stageH = Math.max(...known);
-    stage.style.height = `${stageH}px`;
-    if (known.includes(0) && !filling) filling = doc.defaultView!.setTimeout(fillIn, 60);
-  };
-  /** Measures the next language still missing for the current sizes, then lets the frame take its height. */
-  const fillIn = () => {
-    filling = 0;
-    if (signal.aborted || !frame.clientWidth) return;
-    const key = placeKey();
-    const next = SAMPLES.findIndex((_, i) => !placed.has(`${key}|${i}`));
-    if (next < 0) return;
-    sampleAt(next, key);
-    // the frame takes the new height; the next language waits for the next slice
-    fit();
+  const centre = () => {
+    const size = sizeNow();
+    saidProbe.text.textContent = S.previewSaid;
+    sayProbe.text.textContent = S.previewReply[0] ?? '';
+    sayProbe.text.append(h('span', 'pv-caret'));
+    const rest = (read().said ? saidProbe.bubble.offsetHeight + LINES_GAP * size : 0) + sayProbe.bubble.offsetHeight + tailBelow(size);
+    headY = STAGE_H / 2 + rest / 2 - tailBelow(size) + SAY_UP * size;
   };
   /** The stage keeps its layout size and scales to the panel, so the bubbles keep their proportions to each other. */
   let fitted = false;
@@ -248,12 +213,11 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     // laid out only once the page shows it: before that the panel has no width and the text no lines
     if (!frame.clientWidth) return;
     const scale = Math.min(1, frame.clientWidth / STAGE_PX);
-    // the first time it shows, every language at once, so the frame opens at its height
-    place(!fitted);
+    centre();
     // mounted hidden, the bubbles are fitted here, the first time they have lines
     if (!fitted) { fitted = true; refit(); }
     stage.style.setProperty('--pv-scale', String(scale));
-    frame.style.height = `${Math.ceil(stageH * scale)}px`;
+    frame.style.height = `${Math.ceil(STAGE_H * scale)}px`;
     lay(0);
   };
   const sizes = () => {
