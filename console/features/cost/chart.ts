@@ -422,12 +422,16 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
   svg.appendChild(mkSvgEl(doc, 'rect', {
     x: PAD_L, y: PAD_T, width: series.length * step, height: chartH, fill: 'transparent', class: 'bhit',
   }));
+  // The column under the pointer is marked by one band behind the chart, moved by transform: restyling the
+  // bars on each move, or moving a shape inside the SVG, repainted every bar and cost a frame or more at a
+  // few hundred stacked bars. The band is outside the SVG, on a layer of its own.
+  const band = ui.h('div', 'bband');
+  band.style.cssText = `top:${PAD_T}px;height:${chartH}px;width:${Math.max(1, step)}px`;
+  band.hidden = true;
   // Corners round only on bars wide enough to show them; a thinner bar skips its clip path. Bars thinner
   // than MERGE_BELOW_PX are drawn as one path per segment kind: a segment that thin cannot be pointed at,
   // so the pointer reads the column and the tooltip lists its parts.
   const rounded = bw >= 3, merged = bw < MERGE_BELOW_PX;
-  /** Each drawn bar's group by bucket; an empty bucket has none. */
-  const bars = new Map<number, SVGElement>();
   const paths = new Map<string, string[]>();
   series.forEach((p, i) => {
     const cx = PAD_L + i * step;                       // 列起点
@@ -456,9 +460,9 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
       return;
     }
     const totalH = chartH * (shownTotal / max);
+    // a bar's segments share a group, so the one under the pointer can dim the others (cost.css)
     const g = mkSvgEl(doc, 'g', { class: 'barg' });
     svg.appendChild(g);
-    bars.set(i, g);
     let stack = g;
     if (rounded) {
       const clipId = `${clipPrefix}-bar-${i}`;
@@ -500,15 +504,12 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
 
   const tipHtmlFor = (i: number, curId: string | null): string =>
     uTipHtml(d, series[i]!, order, colorOf, { metric, stacked, cur, unit, curId });
-  /** The column under the pointer lifts and the rest fade (cost.css). The strip under the bars takes the pointer, so the column is lit by class. */
-  let hot: SVGElement | undefined;
+  let hot: number | null = null;
   const heat = (i: number | null): void => {
-    const next = i === null ? undefined : bars.get(i);
-    if (next === hot) return;
-    hot?.classList.remove('is-hot');
-    next?.classList.add('is-hot');
-    svg.classList.toggle('has-hot', i !== null);
-    hot = next;
+    if (i === hot) return;
+    hot = i;
+    band.hidden = i === null;
+    if (i !== null) band.style.transform = `translateX(${PAD_L + i * step}px)`;
   };
   const leave = (): void => { heat(null); tip.hide(); };
   // 监听挂在这棵刚造出来的 svg 上：整棵树下次重画时被丢弃，监听随之消失。
@@ -538,5 +539,5 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
   svg.addEventListener('mousemove', point);
   svg.addEventListener('click', point);
   svg.addEventListener('mouseleave', leave);
-  box.appendChild(svg);
+  box.append(band, svg);
 }

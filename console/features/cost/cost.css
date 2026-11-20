@@ -89,12 +89,12 @@
 .legitem { display: inline-flex; align-items: center; gap: 6px; font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); }
 .legsw { width: 11px; height: 11px; border-radius: 3px; }
 .uchart svg { display: block; }
-/* 悬停柱子：这一列略微抬起并发光，其余列淡出；悬停堆叠中的一段时这一段最亮 */
-.uchart .barg { transition: opacity 220ms ease-out, transform 260ms cubic-bezier(.34, 1.56, .64, 1), filter 220ms ease-out; }
-.uchart svg.has-hot .barg:not(.is-hot) { opacity: .35; }
-.uchart .barg.is-hot { transform: translateY(-3px); filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--accent) 45%, transparent)); }
+/* 悬停柱子：这一列后面铺一条底色(chart.ts 只移动这一条);悬停堆叠中的一段时这一段变亮 */
+.uchart { position: relative; }
+.uchart > .bband { position: absolute; left: 0; background: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; will-change: transform; }
+.uchart > .bband[hidden] { display: none; }
+.uchart svg { position: relative; }
 .uchart .bpath { pointer-events: none; }
-.uchart .bseg { transition: opacity 180ms ease-out, filter 180ms ease-out; }
 .uchart .barg:has(.seghi) .bseg:not(.seghi) { opacity: .55; }
 .uchart .bseg.seghi { filter: brightness(1.12) saturate(1.1); }
 .uchart .axis { stroke: var(--line-2); stroke-width: 1; }
