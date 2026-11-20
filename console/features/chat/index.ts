@@ -136,7 +136,9 @@ async function mount(ctx: PageContext): Promise<void> {
       return true;
     },
   });
-  dock.append(queueBox, composer.el);
+  const jump = ui.button(S.jumpBottom, { size: 'sm', onClick: () => toBottom() });
+  jump.classList.add('chat-jump', 'hidden');
+  dock.append(jump, queueBox, composer.el);
   view.append(top, scroll, dock);
 
   // ---- phase line
@@ -182,6 +184,7 @@ async function mount(ctx: PageContext): Promise<void> {
 
   const nearBottom = (): boolean => scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 80;
   const toBottom = (): void => { scroll.scrollTop = scroll.scrollHeight; };
+  scroll.addEventListener('scroll', () => jump.classList.toggle('hidden', nearBottom()), { signal: ctx.signal });
 
   // whether the last render kept the thread at the bottom; a thumbnail that loads after it grows the thread
   let stuck = false;

@@ -14,6 +14,7 @@ const { mountExtensionContent, parseInstallInput, arrangeHits, restartOutcome, o
 const { mountWorlds } = await import('../console/advanced/features/worlds/index.ts');
 const { worldLibrary } = await import('../console/advanced/features/worlds/library.ts');
 const { mountProviders } = await import('../console/advanced/features/providers/index.ts');
+const { ConsolePageHost } = await import('../console/advanced/console-pages/host.ts');
 const { S: extensionStrings } = await import('../console/advanced/features/extensions/strings.ts');
 const { S: providerStrings } = await import('../console/advanced/features/providers/strings.ts');
 const { S: worldStrings } = await import('../console/advanced/features/worlds/strings.ts');
@@ -178,6 +179,51 @@ const switchTo = async (ctx, kind) => {
   await flush();
 };
 const filterMarket = (root, value) => { const input = root.querySelector('.world-catalog input[type=search]'); input.value = value; input.dispatchEvent(new Event('input')); };
+
+it('cancels a loading World details drawer and preserves settings when reopened', async () => {
+  stub({ detail: { name: 'alpha-mod', description: 'Fixture package details' } });
+  const fetch = globalThis.fetch;
+  const { promise: listReady, resolve: finishList } = Promise.withResolvers();
+  vi.stubGlobal('fetch', (url, init) => String(url) === '/api/extensions' ? listReady.then(() => fetch(url, init)) : fetch(url, init));
+  const { ctx, root, lifecycle } = mkCtx();
+  lives.push(lifecycle);
+  const host = new ConsolePageHost({
+    doc: document, root, overlayHost: document.body, router: ctx.router,
+    fetchManifest: async () => ({
+      protocolVersion: CONSOLE_PROTOCOL_VERSION,
+      framework: { capabilities: { extensions: true } },
+      providers: [{ id: 'world:alpha', kind: 'world', label: '甲扩展', availability: 'active', panels: [{ id: 'main', title: 'Main' }] }],
+    }),
+    loader: { resolvePanel: async () => ({ mount: ({ root }) => { root.append(document.createElement('input')); } }) },
+    memo: { get: (_, fallback) => fallback, set() {} },
+    onError: (error) => { throw error; },
+  });
+  lifecycle.add(() => host.unmount());
+  await host.load();
+  await host.show('world:alpha');
+  const input = root.querySelector('.panelslot input');
+  input.value = 'Unsubmitted settings';
+  const info = root.querySelector('.pagetitle-identity button');
+  const escape = () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+  info.click();
+  info.click();
+  expect(document.querySelectorAll('.extension-detail')).toHaveLength(1);
+  expect(document.activeElement.closest('[role=dialog]')).toBeTruthy();
+  escape(); finishList(); await flush();
+  expect(document.querySelector('.extension-detail')).toBeNull();
+  expect(document.activeElement).toBe(info);
+
+  info.click();
+  await vi.waitFor(() => expect(document.querySelector('.extension-intro')?.textContent).toBe('Fixture package details'));
+  const confirmation = ctx.ui.confirm({ title: 'Confirm update' });
+  escape();
+  expect(await confirmation).toBe(false);
+  expect(document.querySelector('.extension-detail')).toBeTruthy();
+  escape();
+  expect(document.querySelector('.extension-detail')).toBeNull();
+  expect(root.querySelector('.panelslot input').value).toBe('Unsubmitted settings');
+});
+
 describe('package authors', () => {
   const detailAuthor = () => [...document.querySelectorAll('.extension-detail .kvtable tr')]
     .find(row => row.children[0].textContent === '作者')?.children[1].textContent;

@@ -141,12 +141,15 @@ export function lightbox(env: OverlayEnv, src: string, alt = ''): Disposable {
 }
 
 /** 可关闭的抽屉；字符串正文显示为 pre.mono，节点正文直接挂入 modalbody。 */
-export function drawer(env: OverlayEnv, title: string, body: string | HTMLElement): Disposable {
+export function drawer(env: OverlayEnv, title: string, body: string | HTMLElement, opener?: HTMLElement): Disposable {
   if (env.signal.aborted) return noopDisposable;
   const doc = env.doc;
-  const modal = openModal(env, () => {});
+  const modal = openModal(env, () => { if (!env.signal.aborted) opener?.focus({ preventScroll: true }); });
+  modal.el.setAttribute('aria-label', title);
   const { head, body: bodyEl } = modalCard(env, modal, title);
-  head.append(button(doc, modal.signal, S.close, { size: 'sm', onClick: () => modal.close() }));
+  const close = button(doc, modal.signal, S.close, { size: 'sm', onClick: () => modal.close() });
+  head.append(close);
   bodyEl.appendChild(typeof body === 'string' ? h(doc, 'pre', 'mono', body) : body);
+  if (opener) close.focus({ preventScroll: true });
   return modal;
 }

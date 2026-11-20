@@ -47,7 +47,9 @@ export function openModal(env: OverlayEnv, onClose: () => void): Overlay {
   env.doc.addEventListener(
     'keydown',
     (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') layer.close();
+      if (ev.key !== 'Escape' || ev.defaultPrevented || [...env.host.querySelectorAll(':scope > .modal')].at(-1) !== el) return;
+      ev.preventDefault();
+      layer.close();
     },
     { signal: layer.signal },
   );

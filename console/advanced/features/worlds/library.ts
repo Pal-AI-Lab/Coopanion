@@ -18,13 +18,17 @@ export function updatePending(item: WorldLibraryItem): boolean {
   return item.extension?.state === 'pending-restart' && item.extension.loaded;
 }
 
+export function extensionForWorld(id: string, extensions: readonly ExtensionView[]): ExtensionView | undefined {
+  return extensions.find(item => (!item.kind || item.kind === 'world') && item.worldId === id && (item.loaded || item.builtin));
+}
+
 /** Pending downloads lead the list; every other item retains the server's assembly order. */
 export function worldLibrary(worlds: readonly WorldView[], extensions: readonly ExtensionView[], recent: readonly string[] = []): WorldLibraryItem[] {
   const available = extensions.filter(item => item.kind === 'world' || !item.kind);
   const used = new Set<string>();
   const items: WorldLibraryItem[] = [];
   for (const world of worlds) {
-    const extension = available.find(item => item.worldId === world.id && (item.loaded || item.builtin));
+    const extension = extensionForWorld(world.id, extensions);
     // Package removal takes precedence over an older World snapshot.
     if (extension?.state === 'removed') continue;
     if (extension) used.add(extension.name);
