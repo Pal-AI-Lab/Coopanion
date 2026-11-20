@@ -33,4 +33,5 @@ export const S: Partial<typeof en> = {
   addImage: 'Aggiungi immagine',
   addImageHint: 'Aggiungi immagine (puoi anche incollarla o trascinarla)',
   removeImage: (name: string) => `Rimuovi ${name}`,
+  tooLong: (over: number, max: number) => `${over} caratteri di troppo; accorcia a ${max} per inviare`,
 };

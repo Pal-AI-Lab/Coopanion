@@ -788,3 +788,59 @@ describe('a step that picks several cards', () => {
     expect(p.sockets.at(-1).sent.find((m) => m.t === 'dialog')).toMatchObject({ id: 'd', picked: [0, 2] });
   });
 });
+
+describe('typed text past its cap', () => {
+  const fill = (p, field, text) => { field.value = text; field.dispatchEvent(new p.win.Event('input')); };
+  const sent = (p) => p.sockets.flatMap((s) => s.sent);
+  const submit = (form) => form.requestSubmit();
+
+  it('the typing box keeps the text, sends nothing and points to the chat page while it takes the text', async () => {
+    const p = page();
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.onOrder({ t: 'prefs', bot: { name: 'Coo', buttons: { chat: true }, textMax: { box: 10, chat: 20 } } });
+    p.openInput();
+    const form = p.bubble.querySelector('form'), box = form.querySelector('textarea');
+    const count = form.querySelector('.b-count'), limit = p.bubble.querySelector('.b-limit'), expand = p.bubble.querySelector('.b-expand');
+
+    fill(p, box, '一二三四五六七八九十');
+    expect(count.hidden).toBe(true);
+    expect(limit.hidden).toBe(true);
+
+    fill(p, box, '一二三四五六七八九十一二');
+    expect(form.classList.contains('over')).toBe(true);
+    expect(count.textContent).toBe('12 / 10');
+    expect(limit.textContent).toBe(t('bubble.tooLongForBox', { over: 2 }));
+    expect(expand.disabled).toBe(false);
+    submit(form);
+    expect(sent(p).filter((m) => m.t === 'text')).toEqual([]);
+    expect(box.value).toBe('一二三四五六七八九十一二');
+
+    fill(p, box, 'x'.repeat(21));
+    expect(limit.textContent).toBe(t('bubble.tooLong', { over: 11 }));
+    expect(expand.disabled).toBe(true);
+
+    fill(p, box, '  短句  ');
+    expect(count.hidden).toBe(true);
+    submit(form);
+    expect(sent(p).filter((m) => m.t === 'text')).toEqual([{ t: 'text', text: '短句' }]);
+  });
+
+  it('a dialog field longer than its cap is not settled', async () => {
+    const p = page();
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.onOrder({ t: 'dialog', id: 'd', text: '填写 Key', input: { kind: 'text', submit: '好', maxLength: 5 } });
+    p.step(.01); p.step(3); p.step(.1);
+    const form = p.bubble.querySelector('.d-field'), field = form.querySelector('input');
+    const count = form.querySelector('.b-count');
+    fill(p, field, 'abcde');
+    expect(count.hidden).toBe(true);
+    fill(p, field, 'abcdefg');
+    expect(count.hidden).toBe(false);
+    expect(count.textContent).toBe('7 / 5');
+    submit(form);
+    expect(sent(p).filter((m) => m.t === 'dialog')).toEqual([]);
+    fill(p, field, 'abcde');
+    submit(form);
+    expect(sent(p).find((m) => m.t === 'dialog')).toMatchObject({ id: 'd', text: 'abcde' });
+  });
+});

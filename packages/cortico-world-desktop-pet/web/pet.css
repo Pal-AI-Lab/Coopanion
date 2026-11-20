@@ -178,7 +178,7 @@ body.desk .floor{display:none}
 .bubble.say:hover{border-color:var(--skin-eye)}
 .bubble.say:hover::before{background:var(--skin-eye)}
 .bubble.say.fading{opacity:0; pointer-events:none}
-.bubble.ask{min-width:min(calc(236px * var(--bubble-size, 1)), calc(100vw - 20px)); padding-right:calc(32px * var(--bubble-size, 1))}
+.bubble.ask{min-width:min(calc(236px * var(--bubble-size, 1)), calc(100vw - 20px))}
 .bubble.pop{animation:bubble-in .26s cubic-bezier(.3,1.5,.5,1)}
 @keyframes bubble-in{from{transform:scale(.5); opacity:0}}
 .b-text{margin:0; min-height:1.55em; white-space:pre-wrap; text-wrap:pretty; overflow-wrap:break-word}
@@ -192,9 +192,7 @@ body.desk .floor{display:none}
 .b-cancel{flex:none; font:inherit; font-size:calc(12px * var(--bubble-font, 1)); padding:2px 9px; border-radius:8px; border:1.5px solid var(--line); background:none; color:var(--muted); cursor:pointer}
 .b-cancel:hover{color:var(--text); border-color:var(--text)}
 .caret[hidden], .b-cancel[hidden]{display:none}
-.b-close{position:absolute; top:5px; right:6px; width:24px; height:24px; padding:0; border:0; border-radius:50%; background:none; color:var(--muted); font-size:18px; line-height:1; cursor:pointer}
-.b-close:hover{color:var(--text)}
-.b-opts{display:flex; flex-direction:column; gap:6px; margin:10px calc(-18px * var(--bubble-size, 1)) 2px 0}
+.b-opts{display:flex; flex-direction:column; gap:6px; margin:10px 0 2px}
 .b-opt, .b-own{animation:opt-in .24s cubic-bezier(.3,1.4,.5,1) both; transition:border-color .15s, opacity .2s}
 @keyframes opt-in{from{transform:translateY(6px) scale(.92); opacity:0}}
 .b-opt{
@@ -211,6 +209,32 @@ body.desk .floor{display:none}
 .b-own input, .b-own textarea{flex:1; min-width:0; border:0; background:transparent; font:inherit; font-size:calc(14px * var(--bubble-font, 1)); color:var(--text); outline:none; padding:4px 0}
 /* the typed line grows with its text up to six rows, then scrolls */
 .b-own textarea{resize:none; field-sizing:content; line-height:1.4; max-height:calc(6 * 1.4em + 8px); overflow-y:auto; overflow-wrap:anywhere}
+/* once the text takes a second row (pet-app.js `tall`) it gets the field's whole width and the buttons go under it */
+.b-own.tall{flex-wrap:wrap; justify-content:flex-end; row-gap:2px}
+/* its right edge as far from the field's border as its left (the field's padding is 3px on the right, 10px on the left) */
+.b-own.tall textarea{flex:0 0 100%; padding-right:7px}
+/* a bubble with a close button keeps it outside, on its right (pet-app.js sideColumn): a small round button as the
+   hover buttons are drawn, and for the typing box, under it, centred, a thumb on a faint track while the text
+   scrolls; the textarea's own scrollbar is not shown */
+.b-own textarea{scrollbar-width:none}
+/* text that runs on past the field's top or bottom fades out at that edge, over about a row */
+.b-own textarea.scrolls{
+  --above:0px; --below:0px;
+  mask-image:linear-gradient(to bottom, transparent, #000 var(--above), #000 calc(100% - var(--below)), transparent);
+}
+.b-own textarea.more-above{--above:1.4em}
+.b-own textarea.more-below{--below:1.4em}
+.b-side{position:absolute; left:calc(100% + 8.5px); top:-2.5px; display:flex; flex-direction:column; align-items:center; gap:6px; width:26px}
+.b-close{
+  display:grid; place-items:center; width:26px; height:26px; padding:0; border-radius:50%; cursor:pointer;
+  background:var(--surface); color:var(--text); border:2px solid var(--skin-ink); box-shadow:0 4px 12px var(--shadow);
+  transition:border-color .15s, color .15s, scale .15s ease;
+}
+.b-close:hover{color:var(--skin-eye); border-color:var(--skin-eye); scale:1.1}
+.b-close svg{display:block; width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:2px; stroke-linecap:round}
+.b-track{position:relative; width:6px; border-radius:3px; background:color-mix(in srgb, var(--line) 60%, transparent); cursor:pointer; touch-action:none}
+.b-thumb{position:absolute; left:0; width:6px; min-height:16px; border-radius:3px; background:var(--muted); opacity:.75; transition:opacity .15s}
+.b-track:hover .b-thumb, .b-track.held .b-thumb{opacity:1}
 .b-own button[type="submit"]{flex:none; font:inherit; font-size:calc(12.5px * var(--bubble-font, 1)); padding:4px 10px; border-radius:8px; border:0; background:var(--text); color:var(--surface); cursor:pointer}
 .b-expand{flex:none; display:grid; place-items:center; width:26px; height:26px; padding:0; border:0; border-radius:50%; background:none; color:var(--muted); cursor:pointer}
 .b-expand:hover{color:var(--text)}
@@ -219,7 +243,7 @@ body.desk .floor{display:none}
 .b-opt.dim, .b-own.dim{opacity:.35}
 /* pictures pasted into the typing box: one row of thumbnails above it; the box holds no more than fits */
 .b-imgs{display:flex; gap:6px; margin-bottom:8px}
-.b-imgs[hidden], .b-note[hidden]{display:none}
+.b-imgs[hidden], .b-note[hidden], .b-limit[hidden]{display:none}
 .b-img{position:relative; flex:none; width:calc(44px * var(--bubble-size, 1)); height:calc(44px * var(--bubble-size, 1)); border-radius:8px; overflow:hidden; border:1px solid var(--line); background:var(--bg)}
 .b-img img{display:block; width:100%; height:100%; object-fit:cover}
 .b-img button{position:absolute; top:2px; right:2px; width:18px; height:18px; padding:0; border:0; border-radius:50%; background:rgba(0,0,0,.55); color:#fff; font-size:13px; line-height:18px; cursor:pointer}
@@ -227,8 +251,7 @@ body.desk .floor{display:none}
 /* an app's conversation: one step per bubble, with the answer's controls under Coo's line */
 .d-mark{color:var(--skin-eye); font-weight:700}
 .bubble.talk{width:min(calc(318px * var(--bubble-size, 1)), calc(100vw - 20px)); max-width:none; padding:calc(11px * var(--bubble-size, 1)) calc(14px * var(--bubble-size, 1)) calc(12px * var(--bubble-size, 1))}
-.d-top{display:flex; align-items:center; min-height:14px; margin:-2px 22px 5px 0}
-.bubble.talk .b-close{top:4px; right:5px}
+.d-top{display:flex; align-items:center; min-height:14px; margin:-2px 0 5px}
 .d-back{margin:0 5px 0 -3px; padding:1px 3px; border:0; border-radius:4px; background:none; font:inherit; font-size:calc(12.5px * var(--bubble-font, 1)); line-height:1.1; color:var(--muted); cursor:pointer}
 .d-back:hover{color:var(--text); text-decoration:underline}
 .d-dots{display:flex; gap:4px}
@@ -334,7 +357,17 @@ body.desk .floor{display:none}
 .d-field .d-peek svg{width:16px; height:16px}
 .d-send{flex:none; padding:5px 12px; border-radius:9px; border:0; background:var(--skin-ink); color:var(--surface); font-size:calc(13px * var(--bubble-font, 1)); font-weight:600; cursor:pointer}
 .d-send:hover{background:var(--skin-eye)}
-.d-field.shake{animation:field-shake .32s}
+.d-field.shake, .b-own.shake{animation:field-shake .32s}
+/* a typed text past its cap (pet-app.js capField): the field's border turns red, the count shows beside the send
+   button and the text is not sent */
+.b-count{flex:none; align-self:center; font-size:calc(11.5px * var(--bubble-font, 1)); font-variant-numeric:tabular-nums; padding:0 2px; color:var(--anger)}
+.b-own.over, .b-own.over:focus-within, .d-field.over, .d-field.over:focus-within{border-style:solid; border-color:var(--anger)}
+/* in the typing box the count goes to the left of the row of buttons under the text */
+.b-own.tall .b-count{margin-right:auto; padding-left:0}
+.b-limit{margin-top:6px; color:var(--anger)}
+.b-expand.nudge{color:var(--skin-eye)}
+.b-own.over button[type="submit"], .d-field.over .d-send{opacity:.4; cursor:default}
+.b-expand:disabled{opacity:.35; cursor:default}
 @keyframes field-shake{20%,60%{transform:translateX(-4px)} 40%,80%{transform:translateX(4px)}}
 .d-links{display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:calc(12.5px * var(--bubble-font, 1))}
 .d-link{display:inline-flex; align-items:center; gap:3px; color:var(--skin-eye); text-decoration:none}
@@ -453,7 +486,7 @@ body.desk .floor{display:none}
 .tool.sent{animation:tool-sent .36s cubic-bezier(.3,1.5,.5,1)}
 @keyframes tool-sent{45%{transform:scale(1.2)}}
 @media (prefers-reduced-motion: reduce){.wall-glow, .wall-lens, .bubble.said, .w-item{transition:none}}
-@media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .d-pill.chosen, .caret, .menu :is(.m-grid, .m-rail) > *, .tools > *, .tool.holding::after, .tool.sent, .tool::before, .tool::after, .tool .ic, .tool .ic::before{animation:none}}
+@media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .b-own.shake, .d-pill.chosen, .caret, .menu :is(.m-grid, .m-rail) > *, .tools > *, .tool.holding::after, .tool.sent, .tool::before, .tool::after, .tool .ic, .tool .ic::before{animation:none}}
 @media (prefers-reduced-motion: reduce){.d-cards .d-card.on .d-cardic[class*="ic-persona_"], .d-cards .d-card.on .d-cardic .spout{animation:none}}
 /* pointed at: every round button grows a little and its icon moves once in a way that fits it (the dress button
    keeps its own colours and sparkles above); the run controls on the menu's left: the gear turns, the pause swells,
