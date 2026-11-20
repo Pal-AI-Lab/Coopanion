@@ -127,12 +127,11 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   const fitSay = (line: string) => {
     sayText.textContent = line;
     sayText.append(h('span', 'pv-caret'));
-    say.style.maxWidth = '';
     say.style.maxWidth = `${balancedWidth(say)}px`;
     sayText.replaceChildren();
   };
   /** Your line's bubble, as narrow as its text allows (pet-app.js drawLine). */
-  const fitSaid = () => { said.style.maxWidth = ''; said.style.maxWidth = `${balancedWidth(said)}px`; };
+  const fitSaid = () => { said.style.maxWidth = `${balancedWidth(said)}px`; };
   /** The bubbles at rest, fitted again: after the sizes change their widths do. */
   const fitAtRest = () => {
     if (run) return;

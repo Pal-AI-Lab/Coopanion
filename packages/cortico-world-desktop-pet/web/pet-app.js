@@ -1273,7 +1273,6 @@ function drawLine(line) {
   line.el.innerHTML = (line.text || !line.images ? `<p class="b-text">${mark}${esc(line.text)}</p>` : '') + images;
   // measured before `settled` clamps it to six rows
   line.el.classList.remove('settled');
-  line.el.style.maxWidth = '';
   line.el.style.maxWidth = balancedWidth(line.el) + 'px';
   line.el.classList.add('settled');
   line.el.title = t('bubble.close');
