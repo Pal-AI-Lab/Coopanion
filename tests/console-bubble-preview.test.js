@@ -25,7 +25,7 @@ function mount(settings = {}) {
   document.body.append(preview.el);
   const q = (cls) => preview.el.querySelector(cls);
   const up = (el) => !el.hidden && !el.classList.contains('is-fading');
-  return { play: () => q('.bubble-preview-play').click(), said: q('.pv-heard'), say: q('.pv-say'), up };
+  return { play: () => q('.bubble-preview-play').click(), said: q('.pv-heard'), say: q('.pv-say'), up, preview, frame: q('.bubble-preview-frame') };
 }
 const [first, last] = S.previewReply;
 
@@ -70,6 +70,21 @@ it('pointing at Coo\'s written line holds it, and leaving lets it go on', () => 
   say.dispatchEvent(new PointerEvent('pointerleave'));
   advance(5);
   expect(say.textContent).not.toBe(first);
+});
+
+it('a size changed while Coo\'s line types keeps what is typed of it', () => {
+  const { play, say, preview, frame } = mount();
+  // the sample fits its bubbles only once it is laid out
+  Object.defineProperty(frame, 'clientWidth', { get: () => 440 });
+  play();
+  for (let i = 0; i < 200 && say.hidden; i++) advance(.05);
+  advance(.3);
+  const typed = say.textContent;
+  expect(typed.length).toBeGreaterThan(0);
+  expect(typed).not.toBe(first);
+  preview.refresh();
+  expect(say.textContent).toBe(typed);
+  expect(say.querySelector('.pv-caret')).not.toBeNull();
 });
 
 it('at rest a bubble clicked away comes back a moment later; playing, it stays closed', () => {

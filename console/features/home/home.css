@@ -134,9 +134,9 @@
 .home-petframe, .companion-dressframe { transition: opacity .2s ease; }
 .home-petframe.companion-frame-pending, .companion-dressframe.companion-frame-pending { opacity: 0; transition: none; }
 
-/* 「气泡」最后一行的示例:限宽,不随页面拉满 */
+/* 「气泡」最后一行的示例:限宽,不随页面拉满;442px 是 440px 的舞台(bubble-preview.ts STAGE_PX)加边框 */
 .companion-row:has(.bubble-preview) { align-items: start; }
-.bubble-preview { width: min(100%, 442px); } /* the 440px stage (bubble-preview.ts STAGE_PX) inside the frame's 1px border */
+.bubble-preview { width: min(100%, 442px); }
 .bubble-preview-frame { position: relative; width: 100%; overflow: hidden; border: 1px solid var(--border); border-radius: 12px;
   background: radial-gradient(circle, color-mix(in srgb, var(--foreground) 9%, transparent) 1px, transparent 1.5px) 0 0 / 14px 14px, var(--sheet-2); }
 .bubble-preview-stage {
@@ -160,7 +160,7 @@
 @keyframes pv-bubble-in { from { transform: scale(.5); opacity: 0; } }
 .pv-say::before, .pv-say::after, .pv-status::before, .pv-status::after { content: ""; position: absolute; left: calc(var(--tail, 50%) - 13.5px); bottom: -11px; width: 22px; height: 11.5px; scale: var(--bubble-size, none); transform-origin: 11px 0; }
 .pv-say::before, .pv-status::before { background: var(--pv-ink); clip-path: path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z'); }
-/* as pet.css: the surface triangle is the outline one moved up by the line's width across its 45° sides (--tail-line × √2, the width the border is drawn at), so the line matches the border at any size */
+/* 同 pet.css:底色三角是描边三角沿 45° 斜边上移一条线宽(--tail-line × √2,即边框实际画出的宽度),任何大小下尾巴的线都和边框一样粗 */
 .pv-say::after, .pv-status::after { background: var(--pv-surface); clip-path: path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z'); translate: 0 calc(var(--tail-line, 2.5px) * -1.4142); }
 /* 和桌宠一样:点一下关掉(Coo 的话整句跳过);指着时描边换成眼睛的颜色;状态气泡不接收指针 */
 .pv-say, .pv-heard { cursor: pointer; }
@@ -168,7 +168,7 @@
 .pv-say:hover::before { background: var(--pv-eye); }
 .pv-status { pointer-events: none; }
 .pv-heard { background: var(--pv-said); border-color: transparent; box-shadow: 0 4px 14px var(--pv-shadow); max-width: min(calc(260px * var(--bubble-size, 1)), calc(100% - 2 * var(--pv-edge))); }
-.pv-text { margin: 0; min-height: 1.55em; white-space: pre-wrap; overflow-wrap: break-word; }
+.pv-text { margin: 0; min-height: 1.55em; white-space: pre-wrap; text-wrap: pretty; overflow-wrap: break-word; }
 .pv-caret { display: inline-block; width: 2px; height: 1.05em; margin-left: 2px; vertical-align: -2px; background: var(--pv-eye); }
 .pv-status { display: flex; align-items: center; gap: 6px; max-width: min(calc(220px * var(--bubble-size, 1)), calc(100% - 2 * var(--pv-edge)));
   padding: calc(6px * var(--bubble-size, 1)) calc(10px * var(--bubble-size, 1)); font-size: calc(12.5px * var(--bubble-font, 1)); line-height: 1.4; }

@@ -132,11 +132,13 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   };
   /** Your line's bubble, as narrow as its text allows (pet-app.js drawLine). */
   const fitSaid = () => { said.style.maxWidth = `${balancedWidth(said)}px`; };
-  /** The bubbles at rest, fitted again: after the sizes change their widths do. */
-  const fitAtRest = () => {
-    if (run) return;
+  /** The bubbles up, fitted again: after the sizes change their widths do (pet-app.js refitBubbles). Coo's is fitted to its whole line, what is typed of it kept. */
+  const refit = () => {
     if (!said.hidden) fitSaid();
-    if (!say.hidden) { const text = sayText.textContent ?? ''; fitSay(text); sayText.textContent = text; }
+    if (say.hidden) return;
+    const typed = [...sayText.childNodes];
+    fitSay(run ? S.previewReply[run.beat] ?? '' : sayText.textContent ?? '');
+    sayText.replaceChildren(...typed);
   };
   /** The tails' line follows the width the border is drawn at, which changes with the display's scale. */
   const watchTailLine = () => {
@@ -192,7 +194,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
    * status, in this language. Measured once, so the frame keeps its height while the sliders move.
    */
   const measure = () => {
-    const texts = [saidText.textContent, sayText.textContent];
+    const texts = [[...saidText.childNodes], [...sayText.childNodes], [...statusText.childNodes]];
     const shown = [said.hidden, say.hidden, status.hidden];
     const vars = ['--bubble-size', '--bubble-font'].map((name) => stage.style.getPropertyValue(name));
     const tall = 4000;
@@ -210,7 +212,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
         room = Math.max(room, tall - lay(tall, 0));
       }
     }
-    [saidText.textContent, sayText.textContent] = texts;
+    [saidText, sayText, statusText].forEach((text, i) => text.replaceChildren(...texts[i]!));
     [said.hidden, say.hidden, status.hidden] = shown;
     [said.style.maxWidth, say.style.maxWidth] = widths;
     ['--bubble-size', '--bubble-font'].forEach((name, i) => stage.style.setProperty(name, vars[i]!));
@@ -221,7 +223,8 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   const fit = () => {
     // laid out only once the page shows it: before that the panel has no width and the text no lines
     if (!frame.clientWidth) return;
-    if (!measured) { measured = true; measure(); }
+    // mounted hidden, the bubbles are fitted here, the first time they have lines
+    if (!measured) { measured = true; measure(); refit(); }
     const scale = Math.min(1, frame.clientWidth / STAGE_PX);
     stage.style.setProperty('--pv-scale', String(scale));
     frame.style.height = `${Math.ceil(stageH * scale)}px`;
@@ -231,7 +234,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     const s = read();
     stage.style.setProperty('--bubble-size', String(s.size));
     stage.style.setProperty('--bubble-font', String(s.font));
-    if (frame.clientWidth) fitAtRest();
+    if (frame.clientWidth) refit();
     fit();
   };
   /** Whether your line shows at rest: it follows the 输入气泡 switch. */
@@ -270,7 +273,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     doc.defaultView!.setTimeout(() => {
       if (signal.aborted || run || mine !== generation || (bubble === said && !saidAtRest)) return;
       show(bubble, true, true);
-      fitAtRest();
+      refit();
       lay(stageH, 0);
     }, BACK_SEC * 1000);
   };
@@ -370,9 +373,9 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   return {
     el,
     refresh() {
+      // the 输入气泡 switch shows or hides your line at rest; shown, it is fitted with the sizes
+      if (!run && read().said !== saidAtRest) { saidAtRest = read().said; show(said, saidAtRest); }
       sizes(); pose(face);
-      // the 输入气泡 switch shows or hides your line at rest
-      if (!run && read().said !== saidAtRest) { saidAtRest = read().said; show(said, saidAtRest); lay(stageH, 0); }
     },
     setSkin(raw) { skin = normalizeSkin(raw) as { head?: string }; pose(face); lay(stageH, 0); },
   };
