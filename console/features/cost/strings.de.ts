@@ -10,6 +10,7 @@ export const S: Partial<typeof en> = {
   bucketDay: 'Tag',
   bucketWeek: 'Woche',
   bucketMonth: 'Monat',
+  bucketTooFine: (max: number) => `Dieser Zeitraum ergibt bei dieser Auflösung mehr als ${max} Balken. Wählen Sie eine gröbere Auflösung oder einen kürzeren Zeitraum.`,
   presetToday: 'Heute',
   preset3: 'Letzte 3 Tage',
   preset7: 'Letzte 7 Tage',
