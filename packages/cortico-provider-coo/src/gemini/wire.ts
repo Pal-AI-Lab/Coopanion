@@ -192,14 +192,17 @@ const legacy = (model: string): boolean => /^gemini-2\./.test(model);
 /** Flash-Lite models take `minimal`, which the other Gemini 3 models reject. */
 const MINIMAL = /flash-lite/;
 
-/** Gemini 3 levels. Gemini 3 cannot turn thinking off: `thinking: false` sends the lowest level the model takes. */
+/** Models whose top level is `xhigh`; the others top out at `high`. */
+const XHIGH = /^gemini-4-(hydrogen|neon)/;
+
+/** Gemini 3 and 4 levels. They cannot turn thinking off: `thinking: false` sends the lowest level the model takes. */
 export function thinkingConfig(spec: ModelSpec): Record<string, unknown> {
   if (legacy(spec.model)) {
     const budget = !spec.thinking ? 0 : spec.reasoningEffort === 'high' || spec.reasoningEffort === 'max' ? 24576
       : spec.reasoningEffort === 'medium' ? 8192 : spec.reasoningEffort === 'low' ? 1024 : -1;
     return { includeThoughts: budget !== 0, thinkingBudget: budget };
   }
-  const level = !spec.thinking ? (MINIMAL.test(spec.model) ? 'minimal' : 'low') : spec.reasoningEffort === 'max' || spec.reasoningEffort === 'xhigh' ? 'high' : spec.reasoningEffort ?? 'low';
+  const level = !spec.thinking ? (MINIMAL.test(spec.model) ? 'minimal' : 'low') : spec.reasoningEffort === 'max' || spec.reasoningEffort === 'xhigh' ? (XHIGH.test(spec.model) ? 'xhigh' : 'high') : spec.reasoningEffort ?? 'low';
   return { includeThoughts: true, thinkingLevel: level };
 }
 

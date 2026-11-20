@@ -120,7 +120,7 @@ App Store 在前台时，Coo 会退到其他窗口后面，免得挡住购买时
 | OpenRouter | [openrouter.ai](https://openrouter.ai/settings/keys) | `deepseek/deepseek-v4.1-flash` |
 | OpenAI | [platform.openai.com](https://platform.openai.com/settings/organization/api-keys) | `gpt-6-luna` |
 | Anthropic | [platform.claude.com](https://platform.claude.com/settings/keys) | `claude-haiku-5-5` |
-| Gemini（Google AI Studio） | [aistudio.google.com](https://aistudio.google.com/apikey) | `gemini-3.5-flash-lite` |
+| Gemini（Google AI Studio） | [aistudio.google.com](https://aistudio.google.com/apikey) | `gemini-4-hydrogen` |
 | xAI | [console.x.ai](https://console.x.ai/team/default/api-keys) | `grok-4.3` |
 
 表里是应用[供应商表](packages/cortico-provider-coo/src/vendors.ts)中的默认模型。想用别的模型，在「开始」页的「模型」框里改；要让 Coo 操作电脑，模型得支持图片输入。通义千问、Kimi、智谱 GLM、MiniMax 分国内和国际两个平台，账号和 Key 不通用。新建连接时，界面语言是简体中文就默认用国内平台，其他语言默认用国际平台，可以在「开始」页切换。豆包、百度千帆、阶跃星辰和阶跃 Step Plan 只能用中国大陆账号。我们拿真实 Key 测过的只有 DeepSeek、Anthropic 和阶跃 Step Plan，其他几家连不上请开 issue。
