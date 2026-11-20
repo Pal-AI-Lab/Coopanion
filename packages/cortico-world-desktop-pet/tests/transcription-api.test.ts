@@ -149,6 +149,35 @@ describe('engine api', () => {
     expect(seen.map((r) => r.auth)).toEqual([undefined, 'Bearer another-key']);
   });
 
+  it('delivers new audio while a stopped text generation still has pending and queued requests', async () => {
+    let pending: ServerResponse | undefined;
+    const { url, seen } = await service((res) => { pending = res; });
+    const { cfg, world, host, page, panel, engine } = await setup(url);
+    host.modelFacts.accepts = (mime) => mime === 'audio/wav';
+    await expect.poll(() => engine().phase).toBe('running');
+    try {
+      for (const fr of sentence()) page.audio(fr);
+      await expect.poll(() => seen.length).toBe(1);
+      for (const fr of sentence()) page.audio(fr);
+      await expect.poll(() => (world.voiceState().counts as { utterances: number }).utterances).toBe(2);
+      cfg.asr.recording.transcript = false;
+      await panel('stop');
+      expect(engine().phase).toBe('stopped');
+      for (const fr of sentence()) page.audio(fr);
+      await expect.poll(() => host.events.length).toBe(1);
+      expect(host.events[0]?.blobs?.[0]?.mime).toBe('audio/wav');
+      expect(host.events[0]?.meta).toMatchObject({ text: t.voice.recorded });
+      expect(seen).toHaveLength(1);
+      expect(world.voiceState().recent).toEqual([]);
+      pending!.writeHead(200, { 'content-type': 'application/json' });
+      pending!.end(JSON.stringify({ text: 'obsolete text' }));
+      await expect.poll(() => (world as unknown as { transcribing: boolean }).transcribing).toBe(false);
+      expect(host.events).toHaveLength(1);
+      expect(seen).toHaveLength(1);
+      expect(world.voiceState().recent).toEqual([]);
+    } finally { pending?.end(); }
+  });
+
   it('gives up on a service that does not answer within asr.timeoutMs', async () => {
     const { url } = await service(() => {});
     const { page, engine } = await setup(url, (cfg) => { cfg.asr.timeoutMs = 300; });

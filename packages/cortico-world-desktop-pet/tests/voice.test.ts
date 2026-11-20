@@ -315,7 +315,10 @@ describe('voice input', () => {
       expect(host.events).toHaveLength(1);
       expect(host.events[0]?.meta).toMatchObject({ text: '录音已投递' });
       if (result === 'delayed text') {
-        expect((await page.next((m) => m.t === 'listen' && m.phase === 'heard' && m.text === result)).text).toBe(result);
+        const sent = await page.next((m) => m.t === 'listen' && m.phase === 'heard');
+        expect(typeof sent.recordingId).toBe('string');
+        expect(await page.next((m) => m.t === 'listen' && m.phase === 'recording-text')).toMatchObject({ text: result, recordingId: sent.recordingId });
+        expect(page.messages.filter((m) => m.t === 'listen' && m.phase === 'heard')).toHaveLength(1);
       }
     } finally { release(); }
   });
@@ -395,8 +398,15 @@ describe('voice input', () => {
       expect(asr.decodes).toHaveLength(1);
       release();
       await expect.poll(() => (world.voiceState().recent as unknown[]).length).toBe(2);
-      await page.next((m) => m.t === 'listen' && m.phase === 'heard' && m.text === 'second result');
-      expect(page.messages.some((m) => m.t === 'listen' && m.phase === 'heard' && m.text === 'first result')).toBe(false);
+      await page.next((m) => m.t === 'listen' && m.phase === 'recording-text' && m.text === 'second result');
+      const delivered = page.messages.filter((m) => m.t === 'listen' && m.phase === 'heard');
+      const updates = page.messages.filter((m) => m.t === 'listen' && m.phase === 'recording-text');
+      expect(delivered).toHaveLength(2);
+      expect(delivered[0]!.recordingId).not.toBe(delivered[1]!.recordingId);
+      expect(updates).toMatchObject([
+        { text: 'first result', recordingId: delivered[0]!.recordingId },
+        { text: 'second result', recordingId: delivered[1]!.recordingId },
+      ]);
       expect(host.events).toHaveLength(2);
     } finally { release(); }
   });
@@ -463,6 +473,25 @@ describe('voice input', () => {
     for (const frame of [...tone(900, .3), ...tone(900, 0)]) page.audio(frame);
     await expect.poll(() => host.events.length).toBe(2);
     expect(host.events[1]?.blobs?.[0]?.mime).toBe('audio/wav');
+  });
+
+  it.each(['always', 'toggle'] as const)('audio-only %s respects a low configured VAD threshold', async (mode) => {
+    const { key, watch } = scriptedKey();
+    const { cfg, world, host, page } = await setup('unused', mode, watch, 'zh', false, undefined, false);
+    host.modelFacts.accepts = (mime) => mime === 'audio/wav';
+    cfg.asr.recording.transcript = false;
+    await world.webUi().invoke!('voice', 'setThreshold', [-60]);
+    await page.next((m) => m.t === 'prefs' && m.mic === true);
+    if (mode === 'toggle') {
+      key.press(true); key.press(false);
+      await page.next((m) => m.t === 'talk-key' && m.down === true);
+    }
+    const quiet = tone(900, .002);
+    expect(rmsDb(quiet[0]!)).toBeGreaterThan(-60);
+    expect(quiet.every((frame) => frame.every((sample) => Math.abs(sample) <= 104))).toBe(true);
+    for (const fr of [...quiet, ...tone(900, 0)]) page.audio(fr);
+    await expect.poll(() => host.events.length).toBe(1);
+    expect(host.events[0]?.blobs?.[0]?.mime).toBe('audio/wav');
   });
 
   it('a threshold set from the meter applies to the next frame: speech below it is not heard', async () => {

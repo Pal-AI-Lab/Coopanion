@@ -19,6 +19,7 @@
  * input uses by default. The console's text follows the console request's language.
  */
 import type { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
@@ -369,6 +370,7 @@ function draftImages(raw: unknown): DraftImage[] {
 }
 
 interface AudioSpeechBatch {
+  id: string;
   parts: Int16Array[] | null;
   text: string[];
   reports: { text: string; ms: number; error?: string; dropped?: boolean }[];
@@ -422,7 +424,7 @@ export class DesktopPetWorld implements World {
   private heardPcm: Int16Array[] | null = [];
   private readonly queue: SpeechJob[] = [];
   private transcribing = false;
-  private textTranscribing = false;
+  private activeSpeechJob: SpeechJob | null = null;
   private audioBatch: AudioSpeechBatch | null = null;
   private audioDisplay: AudioSpeechBatch | null = null;
   private captureEnabled = false;
@@ -1870,17 +1872,23 @@ export class DesktopPetWorld implements World {
     this.schedulePack();
   }
 
+  private validSpeechJob(job: SpeechJob): boolean {
+    return job.cancels === this.cancels && job.generation === this.voiceGeneration && this.recognitionWanted();
+  }
+
   private textWork(): boolean {
-    return this.textTranscribing || this.queue.some((job) => !job.audio);
+    const current = this.activeSpeechJob;
+    return (!!current && !current.audio && this.validSpeechJob(current))
+      || this.queue.some((job) => !job.audio && this.validSpeechJob(job));
   }
 
   private enqueue(u: Utterance): void {
     this.counts.utterances++;
     if (this.audioBatch || (this.audioOnly() && !this.textWork() && !this.packer.pending)) {
       // Hold mode does not apply the speech onset threshold. Do not send a silent recording.
-      if (!u.pcm.some((sample) => Math.abs(sample) > 104)) return;
+      if (this.cfg.asr.mic.mode === 'hold' && !u.pcm.some((sample) => Math.abs(sample) > 104)) return;
       const batch: AudioSpeechBatch = this.audioBatch ??= {
-        parts: [], text: [], reports: [], pending: 0, closed: false, sent: false, cancels: this.cancels,
+        id: randomUUID(), parts: [], text: [], reports: [], pending: 0, closed: false, sent: false, cancels: this.cancels,
         trigger: this.cfg.asr.mic.mode === 'always' ? 'flush' : 'interrupt',
       };
       if (batch.parts) {
@@ -1929,9 +1937,10 @@ export class DesktopPetWorld implements World {
     this.transcribing = true;
     try {
       while (this.queue.length) {
-        const { utterance: u, audio, generation, cancels } = this.queue.shift()!;
-        this.textTranscribing = !audio;
-        const valid = () => cancels === this.cancels && generation === this.voiceGeneration && this.recognitionWanted();
+        const job = this.queue.shift()!;
+        const { utterance: u, audio } = job;
+        this.activeSpeechJob = job;
+        const valid = () => this.validSpeechJob(job);
         try {
           if (!valid()) continue;
           const recognizer = this.recognizer();
@@ -1965,7 +1974,7 @@ export class DesktopPetWorld implements World {
           this.pendingText(text);
           this.showHeard();
         } finally {
-          this.textTranscribing = false;
+          this.activeSpeechJob = null;
           if (audio) {
             audio.pending--;
             this.finishAudioTranscript(audio);
@@ -2059,7 +2068,7 @@ export class DesktopPetWorld implements World {
       batch.sent = true;
       this.counts.delivered++;
       const label = this.ui.voice.recorded;
-      this.server.sendPet({ t: 'listen', phase: 'heard', text: label });
+      this.server.sendPet({ t: 'listen', phase: 'heard', text: label, recordingId: batch.id });
       void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heardRecorded(this.userName), batch.trigger, { meta: { text: label }, blobs });
     } else if (batch.pending) {
       this.listenOpen = true;
@@ -2078,7 +2087,7 @@ export class DesktopPetWorld implements World {
     }
     const text = joinSpeech(batch.text);
     if (batch.sent) {
-      if (text && this.audioDisplay === batch) this.server.sendPet({ t: 'listen', phase: 'heard', text });
+      if (text) this.server.sendPet({ t: 'listen', phase: 'recording-text', recordingId: batch.id, text });
       return;
     }
     // A recording over the limit or rejected by the endpoint can only fall back to recognized text.
