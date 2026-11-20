@@ -1,7 +1,8 @@
 /**
  * Linux (X11) access, the same surface as `win32.ts`: screen capture with XGetImage on the root
  * window (where the X server has no picture of the screen, as a rootless XWayland under GNOME or
- * WSLg, a screenshot tool: grim, spectacle, scrot or ImageMagick's import), mouse and keyboard through the XTest extension, the window list and the active window
+ * WSLg, a screenshot tool: grim, spectacle, scrot or ImageMagick's import), mouse and keyboard through the XTest extension
+ * (in a Wayland session the pointer is moved with XWarpPointer), the window list and the active window
  * from the window manager's EWMH properties, the idle time from the MIT-SCREEN-SAVER extension,
  * `xdotool` for typing text and raising a window, and `zenity` for the yes/no dialog.
  *
@@ -56,6 +57,7 @@ const XGetWindowProperty = x11.func('int XGetWindowProperty(void *dpy, unsigned 
 const XFree = x11.func('int XFree(void *data)');
 const XGetGeometry = x11.func('int XGetGeometry(void *dpy, unsigned long d, _Out_ unsigned long *root, _Out_ int *x, _Out_ int *y, _Out_ unsigned int *w, _Out_ unsigned int *h, _Out_ unsigned int *border, _Out_ unsigned int *depth)');
 const XTranslateCoordinates = x11.func('int XTranslateCoordinates(void *dpy, unsigned long src, unsigned long dst, int x, int y, _Out_ int *dx, _Out_ int *dy, _Out_ unsigned long *child)');
+const XWarpPointer = x11.func('int XWarpPointer(void *dpy, unsigned long src, unsigned long dst, int srcX, int srcY, unsigned int srcW, unsigned int srcH, int dstX, int dstY)');
 const XErrorHandler = koffi.proto('int XErrorHandler(void *dpy, void *event)');
 const XSetErrorHandler = x11.func('void *XSetErrorHandler(XErrorHandler *handler)');
 const XTestFakeMotionEvent = xtst.func('int XTestFakeMotionEvent(void *dpy, int screen, int x, int y, unsigned long delay)');
@@ -76,6 +78,7 @@ XSetErrorHandler(koffi.register(() => 0, koffi.pointer(XErrorHandler)));
 const root = XDefaultRootWindow(dpy);
 const screen = XDefaultScreen(dpy);
 const hasIdle = !!XScreenSaverQueryExtension && !!XScreenSaverQueryExtension(dpy, [0], [0]);
+const wayland = process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
 const t0 = Date.now();
 
 export interface Rect { x: number; y: number; width: number; height: number }
@@ -174,9 +177,13 @@ export function lastInputTick(): number | null {
 
 export type Button = 'left' | 'right' | 'middle';
 
-/** Absolute move in pixels of the screen. */
+/**
+ * Absolute move in pixels of the screen. Under XWayland an XTest motion can land scaled by a fractional desktop
+ * scale and does not move the pointer over a native Wayland window; a warp lands on the pixel asked for in both cases.
+ */
 export function moveTo(x: number, y: number): void {
-  XTestFakeMotionEvent(dpy, -1, Math.round(x), Math.round(y), 0);
+  if (wayland) XWarpPointer(dpy, 0, root, 0, 0, 0, 0, Math.round(x), Math.round(y));
+  else XTestFakeMotionEvent(dpy, -1, Math.round(x), Math.round(y), 0);
   XFlush(dpy);
 }
 
