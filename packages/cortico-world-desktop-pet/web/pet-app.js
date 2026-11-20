@@ -114,8 +114,11 @@ const holdRoam = (seconds) => body?.set({ hold: seconds });
 host?.onFloor?.((px) => { below = px; body?.set({ bounds: bounds() }); });
 // the window reads the windows on its display only while the body on screen asks for them (`watchWindows`)
 host?.onWindows?.((desk) => body?.setWindows(desk));
+let fittedWidth = innerWidth;
 addEventListener('resize', () => {
   body?.set({ bounds: bounds() });
+  // a bubble is capped 20px inside the window's width
+  if (innerWidth !== fittedWidth) { fittedWidth = innerWidth; refitBubbles(); }
   // the World reads walk targets and drop spots against the stage the pet is on now
   send({ t: 'hello', screen: { w: innerWidth, h: innerHeight } });
 });
@@ -382,8 +385,10 @@ function applyPrefs(p) {
     if (!scaleSeen) { scaleSeen = true; prefs.scale = p.scale; drawnScale.jump(p.scale); body?.set({ bounds: bounds() }); refreshSize(); }
     else sizeHeard.heard(p.scale, sizer.active || !!sizerState.timer);
   }
+  const sized = [prefs.bubbleSize, prefs.fontSize];
   if (typeof p.bubbleSize === 'number') { prefs.bubbleSize = p.bubbleSize; sizeVar('--bubble-size', p.bubbleSize); }
   if (typeof p.fontSize === 'number') { prefs.fontSize = p.fontSize; sizeVar('--bubble-font', p.fontSize); }
+  if (sized[0] !== prefs.bubbleSize || sized[1] !== prefs.fontSize) refitBubbles();
   if (typeof p.bubbleSpeed === 'number') prefs.bubbleSpeed = p.bubbleSpeed;
   if (typeof p.sayBubbleHoldSec === 'number') prefs.sayBubbleHoldSec = p.sayBubbleHoldSec;
   if (typeof p.rememberPosition === 'boolean') { prefs.rememberPosition = p.rememberPosition; reportPosition(); }
@@ -1271,11 +1276,27 @@ function drawLine(line) {
   const mark = MARKS[line.src] ? `<span class="said-mark" aria-hidden="true">${MARKS[line.src]}</span>` : '';
   const images = line.images ? `<span class="b-hint">${line.text ? '' : mark}${esc(t('said.images', { count: line.images }))}</span>` : '';
   line.el.innerHTML = (line.text || !line.images ? `<p class="b-text">${mark}${esc(line.text)}</p>` : '') + images;
-  // measured before `settled` clamps it to six rows
-  line.el.classList.remove('settled');
-  line.el.style.maxWidth = balancedWidth(line.el) + 'px';
-  line.el.classList.add('settled');
+  fitSaid(line.el);
   line.el.title = t('bubble.close');
+}
+/** A settled line's bubble, as narrow as its text allows (ui.js balancedWidth), measured before `settled` clamps it to six rows. */
+function fitSaid(el) {
+  el.classList.remove('settled');
+  el.style.maxWidth = balancedWidth(el) + 'px';
+  el.classList.add('settled');
+}
+/**
+ * The bubbles up fitted again to the sizes and the window they are drawn at now: their widths were measured at the
+ * sizes they opened at, and kept, a line would wrap into one more row (or stay wider than it needs) once they change.
+ */
+function refitBubbles() {
+  for (const line of lines) if (!line.live) fitSaid(line.el);
+  const b = item?.kind === 'say' ? item.beats[item.i] : null;
+  if (b?.text && !bubble.hidden && bubble.classList.contains('say')) {
+    const p = bubble.querySelector('.b-text'), typed = [...p.childNodes];
+    fitLine(b.text);
+    p.replaceChildren(...typed);
+  }
 }
 function settleLine(line, text) {
   line.live = false; line.text = text; line.settledAt = T;

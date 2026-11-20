@@ -218,6 +218,20 @@ describe('a fixed speech hold', () => {
   });
 });
 
+describe('bubbles fitted again', () => {
+  it('a size changed while a line types keeps what is typed of it, and the line types on', () => {
+    const p = page();
+    p.onOrder({ t: 'say', id: 's', beats: [{ text: 'A line long enough to be typed for a while' }] });
+    p.step(.01); p.step(.5);
+    const typed = p.bubble.querySelector('.b-text').textContent;
+    expect(typed.length).toBeGreaterThan(0);
+    p.onOrder({ t: 'prefs', bubbleSize: 1.2, fontSize: 1.3 });
+    expect(p.bubble.querySelector('.b-text').textContent).toBe(typed);
+    p.step(3);
+    expect(p.bubble.querySelector('.b-text').textContent).toBe('A line long enough to be typed for a while');
+  });
+});
+
 const read = { kind: 'read', text: '在看', detail: '日记.md' };
 const think = { kind: 'think', text: '' };
 const show = (p, status) => p.onOrder({ t: 'status', status });
