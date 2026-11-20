@@ -6,6 +6,7 @@
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import { consoleFormat } from '../../base/ui/format.ts';
 import { esc } from '../../base/ui/dom.ts';
+import { prefersStill } from '../../base/motion.ts';
 import { clampNumber, hexToHsl, hslCss } from '../../base/theme/palette.ts';
 import { U_PALETTE, U_TYPES } from './labels.ts';
 import { S } from './strings.ts';
@@ -337,8 +338,18 @@ const PAD_T = 12;
 const CHART_H = 240;
 /** 每个横轴刻度标签至少占的宽度，按 stride 抽稀。 */
 const XLABEL_W = 72;
-/** Below this bar width in pixels a segment cannot be pointed at; the column answers for it. */
-const MERGE_BELOW_PX = 2;
+/** Bars at least this many pixels wide lift when hovered and their segments can be pointed at; thinner ones show neither. */
+const SPOTLIGHT_MIN_PX = 2;
+
+/** The first background color behind `el`, for painting over what is drawn on it. */
+function groundColor(el: HTMLElement): string {
+  const view = el.ownerDocument.defaultView;
+  for (let at: HTMLElement | null = el; at && view; at = at.parentElement) {
+    const color = view.getComputedStyle(at).backgroundColor;
+    if (color && color !== 'transparent' && !/(,\s*0\)|\/\s*0\))$/.test(color)) return color;
+  }
+  return 'var(--sheet)';
+}
 
 /** A bar segment as path data: `rt` rounds its top corners, `rb` its bottom ones. */
 function barPath(x: number, y: number, w: number, h: number, rt: number, rb: number): string {
@@ -425,22 +436,30 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
   const sep = stacked && order.length > 1;
   const stride = Math.max(1, Math.ceil(series.length / Math.max(1, Math.floor((W - PAD_L - PAD_R) / XLABEL_W))));
   // One transparent strip under the bars takes the pointer for the whole plot; the column and the segment
-  // under it are worked out from where the pointer is. The bars are one path per segment kind and take no
-  // pointer: shapes the pointer is tested against, each with its own clip path, cost a frame or more per
-  // move at a few hundred stacked bars.
+  // under it are worked out from where the pointer is, and the bars take no pointer.
   svg.appendChild(mkSvgEl(doc, 'rect', {
     x: PAD_L, y: PAD_T, width: series.length * step, height: chartH, fill: 'transparent', class: 'bhit',
   }));
-  // The column under the pointer is marked by a band behind the chart, outside the SVG and moved by
-  // transform, so moving it repaints no bar.
+  // Bars at least SPOTLIGHT_MIN_PX wide are drawn one group per bar and hovered with the spotlight below;
+  // thinner ones, too thin for any motion to show, are one path per segment kind with a band behind the
+  // hovered column, outside the SVG and moved by transform, so moving it repaints no bar.
+  const spotlit = bw >= SPOTLIGHT_MIN_PX;
   const band = ui.h('div', 'bband');
   band.style.cssText = `top:${PAD_T}px;height:${chartH}px;width:${Math.max(1, step)}px`;
   band.hidden = true;
   // Corners round on bars wide enough to show them, at the top of the top segment and the bottom of the lowest.
   const radius = bw >= 3 ? Math.min(4, bw / 2) : 0;
   const paths = new Map<string, string[]>();
+  const bars = mkSvgEl(doc, 'g', { class: 'bars' });
+  /** Each spotlit column's group; an empty column has none. */
+  const barEls: Array<SVGElement | undefined> = [];
   /** Each column's segments, bottom up, in chart units: what the pointer finds. */
   const stacks: Array<Array<{ cid: string; top: number; bottom: number }>> = [];
+  const segAttrs = (cid: string, d: string, cls: string): Record<string, string | number> => {
+    const at: Record<string, string | number> = { d, fill: colorOf[cid] ?? '', class: cls };
+    if (sep) { at.stroke = 'var(--sheet)'; at['stroke-opacity'] = 0.55; at['stroke-width'] = 0.5; }
+    return at;
+  };
   series.forEach((p, i) => {
     const cx = PAD_L + i * step;                       // 列起点
     const bx = cx + (step - bw) / 2;                   // 柱体居中
@@ -455,27 +474,74 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
       if (v > 0) segs.push({ cid: compId(comp), h: Math.max(0.6, chartH * (v / max)) });
     }
     const column: typeof stacks[number] = [];
+    const bar = spotlit && segs.length ? mkSvgEl(doc, 'g', { class: 'barg' }) : undefined;
     let base = H - PAD_B;
     segs.forEach(({ cid, h }, k) => {
       const top = base - h;
       const r = Math.min(radius, h / 2);
-      const rt = k === segs.length - 1 ? r : 0, rb = k === 0 ? r : 0;
-      let parts = paths.get(cid);
-      if (!parts) paths.set(cid, parts = []);
-      parts.push(barPath(bx, top, bw, h, rt, rb));
+      const d = barPath(bx, top, bw, h, k === segs.length - 1 ? r : 0, k === 0 ? r : 0);
+      if (bar) {
+        const seg = mkSvgEl(doc, 'path', segAttrs(cid, d, 'bseg'));
+        seg.dataset.cid = cid;
+        bar.appendChild(seg);
+      } else {
+        let parts = paths.get(cid);
+        if (!parts) paths.set(cid, parts = []);
+        parts.push(d);
+      }
       column.push({ cid, top, bottom: base });
       base = top;
     });
+    if (bar) { bars.appendChild(bar); barEls[i] = bar; }
     stacks[i] = column;
   });
-  for (const [cid, parts] of paths) {
-    const at: Record<string, string | number> = { d: parts.join(''), fill: colorOf[cid] ?? '', class: 'bpath' };
-    if (sep) { at.stroke = 'var(--sheet)'; at['stroke-opacity'] = 0.55; at['stroke-width'] = 0.5; }
-    svg.appendChild(mkSvgEl(doc, 'path', at));
-  }
-  /** The segment under the pointer, brightened by a box laid over it, outside the SVG as the band is. */
-  const lit = ui.h('div', 'bseghi');
-  lit.hidden = true;
+  for (const [cid, parts] of paths) bars.appendChild(mkSvgEl(doc, 'path', segAttrs(cid, parts.join(''), 'bpath')));
+  svg.appendChild(bars);
+
+  // The spotlight: the other bars fade as one group (a single transition), and the hovered bar is a copy on
+  // a layer of its own that lifts and glows, its pointed segment lit. Only the copy animates as the pointer
+  // moves, so a column change repaints one bar, not the chart; fading every bar on its own and clipping
+  // each one cost a frame or more per move at a few hundred stacked bars.
+  const spot = mkSvgEl(doc, 'svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: 'bspot' });
+  // without the animation API (or with reduced motion) the copy lifts and drops at once
+  const still = prefersStill(doc.defaultView) || typeof spot.animate !== 'function';
+  const glow = `drop-shadow(0 2px 8px color-mix(in srgb, ${doc.defaultView?.getComputedStyle(box).getPropertyValue('--accent').trim() || 'currentColor'} 45%, transparent))`;
+  const rest = (dim: boolean): Keyframe => ({ opacity: dim ? .35 : 1, transform: 'translateY(0)', filter: 'drop-shadow(0 2px 8px transparent)' });
+  const lifted: Keyframe = { opacity: 1, transform: 'translateY(-3px)', filter: glow };
+  // Under the copy a patch in the chart's background hides the faded bar, so the lift leaves a gap; hiding
+  // the bar itself would repaint the whole chart on every column change.
+  const ground = groundColor(box);
+  let copy: { i: number; el: SVGElement; lift: SVGElement } | undefined;
+  const raise = (i: number | null): void => {
+    if (i === (copy?.i ?? null)) return;
+    svg.classList.toggle('has-hot', i !== null);
+    if (copy) {
+      const { el, lift } = copy;
+      const done = (): void => el.remove();
+      if (still) done();
+      else lift.animate([lifted, rest(i !== null)], { duration: 220, easing: 'ease-out', fill: 'forwards' }).finished.then(done, done);
+    }
+    copy = undefined;
+    const bar = i === null ? undefined : barEls[i];
+    const column = i === null ? undefined : stacks[i];
+    if (i === null || !bar || !column?.length) return;
+    const el = mkSvgEl(doc, 'g', {});
+    el.appendChild(mkSvgEl(doc, 'rect', {
+      x: PAD_L + i * step + (step - bw) / 2 - .5, y: column.at(-1)!.top - .5, width: bw + 1, height: column[0]!.bottom - column.at(-1)!.top + 1, fill: ground,
+    }));
+    const lift = bar.cloneNode(true) as SVGElement;
+    el.appendChild(lift);
+    spot.appendChild(el);
+    copy = { i, el, lift };
+    if (still) { lift.style.transform = 'translateY(-3px)'; lift.style.filter = glow; }
+    else lift.animate([rest(true), lifted], { duration: 260, easing: 'cubic-bezier(.34, 1.56, .64, 1)', fill: 'forwards' });
+  };
+  /** The pointed segment of the lifted copy is lit and the copy's others dim (cost.css). */
+  const light = (cid: string | undefined): void => {
+    if (!copy) return;
+    copy.lift.classList.toggle('has-seg', !!cid);
+    for (const seg of copy.lift.querySelectorAll<SVGElement>('.bseg')) seg.classList.toggle('seghi', seg.dataset.cid === cid);
+  };
 
   const tipHtmlFor = (i: number, curId: string | null): string =>
     uTipHtml(d, series[i]!, order, colorOf, { metric, stacked, cur, unit, curId });
@@ -483,20 +549,11 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
   const heat = (i: number | null): void => {
     if (i === hot) return;
     hot = i;
+    if (spotlit) { raise(i); return; }
     band.hidden = i === null;
     if (i !== null) band.style.transform = `translateX(${PAD_L + i * step}px)`;
   };
-  let litId = '';
-  const light = (i: number, seg: { cid: string; top: number; bottom: number } | undefined): void => {
-    const id = seg ? `${i}|${seg.cid}` : '';
-    if (id === litId) return;
-    litId = id;
-    lit.hidden = !seg;
-    if (!seg) return;
-    lit.style.width = `${bw}px`; lit.style.height = `${seg.bottom - seg.top}px`;
-    lit.style.transform = `translate(${PAD_L + i * step + (step - bw) / 2}px, ${seg.top}px)`;
-  };
-  const leave = (): void => { heat(null); light(0, undefined); tip.hide(); };
+  const leave = (): void => { heat(null); tip.hide(); };
   // 监听挂在这棵刚造出来的 svg 上：整棵树下次重画时被丢弃，监听随之消失。
   // 点按与悬停同一处理:触屏没有悬停,点一下柱子即显示明细,点空白处收起。
   const point = (ev: Event): void => {
@@ -506,15 +563,15 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
     const i = Math.floor((e.clientX - area.left - PAD_L) / step);
     if (!(i >= 0 && i < series.length)) { leave(); return; }
     const y = e.clientY - area.top;
-    // segments thinner than a pixel cannot be pointed at: the column answers for them
-    const seg = stacked && bw >= MERGE_BELOW_PX ? stacks[i]!.find((s) => y >= s.top && y <= s.bottom) : undefined;
+    // thin bars' segments cannot be pointed at: the column answers for them
+    const seg = stacked && spotlit ? stacks[i]!.find((s) => y >= s.top && y <= s.bottom) : undefined;
     heat(i);
-    light(i, seg);
+    light(seg?.cid);
     tip.show(tipHtmlFor(i, seg?.cid ?? null), `${i}|${seg?.cid ?? ''}`);
     tip.move(e);
   };
   svg.addEventListener('mousemove', point);
   svg.addEventListener('click', point);
   svg.addEventListener('mouseleave', leave);
-  box.append(band, svg, lit);
+  box.append(band, svg, spot);
 }
