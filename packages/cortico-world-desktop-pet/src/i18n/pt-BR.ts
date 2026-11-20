@@ -12,6 +12,8 @@ const ptBR: Translation<PetText> = {
   busy: 'Trabalhando',
 
   voice: {
+    recorded: "Gravação enviada",
+    recordingUnavailable: "Não foi possível enviar a gravação e não há transcrição disponível",
     starting: 'O reconhecimento de voz está iniciando',
     notRunning: 'O reconhecimento de voz não está em execução',
     modelMissing: (mb: number) => `O modelo de voz ainda não foi baixado (cerca de ${mb} MB): baixe-o na página Entrada de voz`,

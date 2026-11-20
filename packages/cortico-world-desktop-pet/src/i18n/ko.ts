@@ -12,6 +12,8 @@ const ko: Translation<PetText> = {
   busy: '작업 중',
 
   voice: {
+    recorded: "녹음 전송 완료",
+    recordingUnavailable: "녹음을 전송할 수 없으며 전사 결과가 없습니다",
     starting: '음성 인식을 시작하는 중',
     notRunning: '음성 인식이 실행되고 있지 않습니다',
     modelMissing: (mb: number) => `음성 모델을 아직 다운로드하지 않았습니다(약 ${mb} MB). 음성 입력 페이지에서 다운로드하세요`,

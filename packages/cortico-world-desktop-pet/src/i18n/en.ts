@@ -23,6 +23,8 @@ const en: PetText = {
 
   /** Voice input: the microphone button's state in the menu, and the notes in the introduction and on the settings page. */
   voice: {
+    recorded: "Recording sent",
+    recordingUnavailable: "Recording could not be sent and no transcript is available",
     starting: 'Speech recognition is starting',
     notRunning: 'Speech recognition is not running',
     modelMissing: (mb: number) => `The speech model is not downloaded yet (about ${mb} MB): download it on the Voice input page`,

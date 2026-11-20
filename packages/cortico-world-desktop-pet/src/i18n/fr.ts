@@ -12,6 +12,8 @@ const fr: Translation<PetText> = {
   busy: 'Travaille',
 
   voice: {
+    recorded: "Enregistrement envoyé",
+    recordingUnavailable: "Enregistrement non envoyé et transcription indisponible",
     starting: 'La reconnaissance vocale démarre',
     notRunning: "La reconnaissance vocale n'est pas lancée",
     modelMissing: (mb: number) => `Le modèle vocal n'est pas encore téléchargé (environ ${mb} Mo) : téléchargez-le sur la page Saisie vocale`,

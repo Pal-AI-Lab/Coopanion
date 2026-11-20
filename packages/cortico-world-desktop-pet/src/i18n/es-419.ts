@@ -12,6 +12,8 @@ const es419: Translation<PetText> = {
   busy: 'Trabajando',
 
   voice: {
+    recorded: "Grabación enviada",
+    recordingUnavailable: "No se pudo enviar la grabación y no hay transcripción disponible",
     starting: 'El reconocimiento de voz se está iniciando',
     notRunning: 'El reconocimiento de voz no está en ejecución',
     modelMissing: (mb: number) => `El modelo de voz aún no está descargado (unos ${mb} MB): descárgalo en la página Entrada de voz`,

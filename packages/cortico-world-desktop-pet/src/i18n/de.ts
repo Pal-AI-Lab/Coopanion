@@ -12,6 +12,8 @@ const de: Translation<PetText> = {
   busy: 'Arbeitet',
 
   voice: {
+    recorded: "Aufnahme gesendet",
+    recordingUnavailable: "Aufnahme konnte nicht gesendet werden; kein Transkript verfügbar",
     starting: 'Spracherkennung startet',
     notRunning: 'Spracherkennung läuft nicht',
     modelMissing: (mb: number) => `Das Sprachmodell ist noch nicht heruntergeladen (etwa ${mb} MB): Lade es auf der Seite Spracheingabe herunter`,

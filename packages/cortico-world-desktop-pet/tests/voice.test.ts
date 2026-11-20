@@ -23,7 +23,7 @@ import { FakePage } from './helpers/page.ts';
 import { fakeSapi } from './helpers/fake-sapi.ts';
 
 /** A recognizer that answers `reply(samples)`; `decodes` lists how many samples each decode got. */
-interface FakeFunAsr { sherpa: SherpaModule; decodes: number[]; audio: Float32Array[]; configs: Array<Record<string, unknown>>; reply: (samples: number) => string; beforeLoad?: () => Promise<void> }
+interface FakeFunAsr { sherpa: SherpaModule; decodes: number[]; audio: Float32Array[]; configs: Array<Record<string, unknown>>; reply: (samples: number) => string; beforeLoad?: () => Promise<void>; beforeDecode?: () => Promise<void> }
 
 function fakeFunAsr(text: string | ((samples: number) => string)): FakeFunAsr {
   const fake = { decodes: [] as number[], audio: [] as Float32Array[], configs: [] as Array<Record<string, unknown>>, reply: typeof text === 'string' ? () => text : text } as FakeFunAsr;
@@ -49,6 +49,7 @@ function fakeFunAsr(text: string | ((samples: number) => string)): FakeFunAsr {
             const { samples: n, audio } = stream as { samples: number; audio: Float32Array };
             fake.decodes.push(n);
             fake.audio.push(audio);
+            await fake.beforeDecode?.();
             return { text: fake.reply(n) };
           },
         };
@@ -149,7 +150,7 @@ function sampledKeys() {
   return { watch, sample, get pollMs() { return pollMs; } };
 }
 
-async function setup(text: string | ((samples: number) => string), mode: MicMode = 'always', watch?: ReturnType<typeof scriptedKey>['watch'], language: Language = 'zh', openOnPress = false, loadGate?: Promise<void>) {
+async function setup(text: string | ((samples: number) => string), mode: MicMode = 'always', watch?: ReturnType<typeof scriptedKey>['watch'], language: Language = 'zh', openOnPress = false, loadGate?: Promise<void>, serviceEnabled = true) {
   const asr = fakeFunAsr(text);
   if (loadGate) asr.beforeLoad = () => loadGate;
   const cfg = structuredClone(DESKTOP_PET_DEFAULTS);
@@ -157,6 +158,7 @@ async function setup(text: string | ((samples: number) => string), mode: MicMode
   cfg.window.enabled = false;
   cfg.asr.mic.mode = mode;
   cfg.asr.mic.openOnPress = openOnPress;
+  cfg.asr.serviceEnabled = serviceEnabled;
   const dir = mkdtempSync(join(tmpdir(), 'pet-voice-'));
   placeModel(join(dir, 'm'));
   const world = new DesktopPetWorld({
@@ -166,7 +168,7 @@ async function setup(text: string | ((samples: number) => string), mode: MicMode
   const host = new FakeHost();
   await world.start(host);
   cleanup.push(() => world.stop());
-  await expect.poll(() => (world.voiceState().server as { phase: string }).phase).toBe(loadGate ? 'starting' : 'running');
+  await expect.poll(() => (world.voiceState().server as { phase: string }).phase).toBe(!serviceEnabled ? 'stopped' : loadGate ? 'starting' : 'running');
   const page = await FakePage.open(world.petUrl.replace(/\/pet$/, ''));
   cleanup.push(() => page.close());
   return { asr, world, host, page, cfg };
@@ -256,6 +258,44 @@ describe('voice input', () => {
     // at least the 900 ms spoken, 16-bit at 16 kHz after the 44-byte header
     expect(bytes.length - 44).toBeGreaterThanOrEqual(900 * 32);
     expect(blob.fallbackText).toMatch(transcript ? /^\[伙伴说这段话的录音,[\d.]+ 秒;/ : /^\[伙伴说这段话的录音,[\d.]+ 秒\]$/);
+  });
+
+  it('keeps recognition stopped across a new World with the persisted setting, and still sends audio', async () => {
+    const first = await setup('hello');
+    await first.world.webUi().invoke!('voice', 'stop', []);
+    expect(first.cfg.asr.serviceEnabled).toBe(false);
+    const { cfg, world, asr, host, page } = await setup('hello', 'always', undefined, 'zh', false, undefined, first.cfg.asr.serviceEnabled);
+    cfg.asr.recording.transcript = false;
+    host.modelFacts.accepts = (mime) => mime === 'audio/wav';
+    await page.next((m) => m.t === 'prefs' && m.mic === true);
+    for (const fr of [...tone(900, .3), ...tone(900, 0)]) page.audio(fr);
+    await expect.poll(() => host.events.length).toBe(1);
+    expect(host.events[0]?.blobs?.[0]?.mime).toBe('audio/wav');
+    expect(asr.configs).toHaveLength(0);
+    expect(asr.decodes).toHaveLength(0);
+    expect(world.voiceState()).toMatchObject({ serviceEnabled: false });
+  });
+
+  it.each(['delayed text', '', '谢谢观看'])('sends audio before ASR completes and does not send a second event (%s)', async (result) => {
+    const { cfg, world, host, page, asr } = await setup(result);
+    cfg.asr.recording.transcript = false;
+    host.modelFacts.accepts = (mime) => mime === 'audio/wav';
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    asr.beforeDecode = () => gate;
+    try {
+      for (const fr of [...tone(900, .3), ...tone(900, 0)]) page.audio(fr);
+      await expect.poll(() => host.events.length).toBe(1);
+      expect(host.events[0]?.blobs?.[0]?.mime).toBe('audio/wav');
+      expect((world.voiceState().recent as unknown[])).toHaveLength(0);
+      release();
+      await expect.poll(() => (world.voiceState().recent as unknown[]).length).toBe(1);
+      expect(host.events).toHaveLength(1);
+      expect(host.events[0]?.meta).toMatchObject({ text: '录音已投递' });
+      if (result === 'delayed text') {
+        expect((await page.next((m) => m.t === 'listen' && m.phase === 'heard' && m.text === result)).text).toBe(result);
+      }
+    } finally { release(); }
   });
 
   it('sends a batch whose recording runs past asr.recording.maxMinutes as text alone, and the next one with its recording', async () => {

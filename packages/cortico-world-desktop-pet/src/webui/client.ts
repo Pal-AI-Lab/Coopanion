@@ -25,6 +25,7 @@ interface PetState {
 }
 interface VoiceState {
   enabled: boolean;
+  serviceEnabled: boolean;
   /** The engine in force, and the setting it came from */
   engine: Engine;
   engineSetting: Engine;
@@ -305,13 +306,14 @@ const voicePanel: WebUiPanel = {
       if (document.activeElement !== engineSel) engineSel.value = next.engine;
       eng.set(ENGINE_NAMES[next.engine] ?? (next.engine === 'api' ? t.apiName : t.system), 'on', { funasr: t.funasrHint, whisper: t.whisperHint, system: t.systemHint, api: t.apiHint }[next.engine]);
       const sv = next.server;
-      if (!sv) srv.set('—', 'off');
+      if (!next.serviceEnabled) srv.set(t.stopped, 'off');
+      else if (!sv) srv.set('—', 'off');
       else if (sv.phase === 'running') srv.set(t.ready, 'on', sv.url);
       else if (sv.phase === 'starting') srv.set(t.starting, 'busy', sv.url);
       else if (sv.phase === 'error') srv.set(t.error, 'bad', sv.detail ?? '');
       else srv.set(t.stopped, 'off', sv.url);
       btnStart.disabled = !next.enabled || sv?.phase === 'running' || sv?.phase === 'starting';
-      btnStop.disabled = sv?.phase !== 'running';
+      btnStop.disabled = !next.enabled || !next.serviceEnabled;
 
       const m = next.model;
       if (m.phase === 'working') rt.set(t.downloading(progress(m)), 'busy', m.detail ?? '');

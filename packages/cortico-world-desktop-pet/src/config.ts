@@ -258,6 +258,8 @@ export interface DesktopPetConfigSection extends WorldSection {
   };
   asr: {
     enabled: boolean;
+    /** Whether the recognition service starts while voice input is enabled. */
+    serviceEnabled: boolean;
     /** Empty: by the app language (`asrEngineFor`). Earlier versions wrote `auto` here, which reads as empty. */
     engine: AsrEngine | '';
     /** An ISO 639-1 code or `auto`; empty follows the app language. FunASR and Whisper read a code they do not take as `auto`. */
@@ -346,6 +348,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   touch: { enabled: true, wakeOn: 'poke', wakeKinds: ['poke'] },
   asr: {
     enabled: true,
+    serviceEnabled: true,
     engine: '',
     language: '',
     threads: 0,

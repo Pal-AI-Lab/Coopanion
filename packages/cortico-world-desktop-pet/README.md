@@ -192,7 +192,7 @@ Coo、精灵图和 Live2D 式分件模型都画在页面的沙箱 frame 里,截�
 桌宠窗口里的页面用麦克风收音,16 kHz 单声道 PCM 经 WebSocket 送到 World,按能量门限切句
 (`src/asr/segmenter.ts`),交给识别引擎,挡掉已知幻觉后作为 `desktop-pet.speech` 投递;应用语言是简体中文且 `asr.simplified` 开着时先把繁体转成简体。
 `asr.recording.enabled`(默认开)开着且当前端点收 `audio/wav`(`modelFacts.accepts`)时,一批里几句话的原声拼成一个 16 kHz 单声道 WAV,作为附件随事件投递,由 Core 存进部署数据目录;
-`asr.recording.transcript`(默认开)关掉时事件正文不带识别出的文字,只附录音。一批里有一句识别时录音不随发(开关关着或端点不收音频),或录音超过 `asr.recording.maxMinutes`(1–7,默认 5),整批只发文字;
+`asr.recording.transcript`(默认开)关掉时录音不等待识别结果，事件正文不附转写；识别结果只显示在界面。`asr.serviceEnabled`(默认开)保存识别服务的启停状态，与语音输入总开关独立。录音超过 `asr.recording.maxMinutes`(1–7,默认 5) 或端点不收音频时，识别服务可用则退回文字投递;
 上限的推导见 `src/config.ts` 的 `RECORDING_MINUTES_MAX`。
 采集启用回声消除和降噪,关闭自动增益控制(AGC):Windows 上 Chromium 的 AGC 会调整系统麦克风音量。
 说话时桌宠歪头倾听,虚线气泡里边说边显示听到的字,还没定下来的部分是灰色的;用 Whisper 和转写接口时一句说完才出字。识别完成后这个气泡留在 Coo 旁边(见「桌宠窗口」)。
@@ -524,7 +524,7 @@ Linux 缺少 MIT-SCREEN-SAVER 扩展或系统输入查询失败时,最后输入�
 
 ### 打断
 
-用说话键(`asr.mic.mode` 为 `hold` 或 `toggle`)说的话在转写完成、合并为消息并投递时以 `interrupt` 停止当前轮:取消正在生成的回复,给执行中的可打断工具发送取消信号,跳过同轮尚未开始的工具。收音或转写尚未完成时不发送这个信号,已经发生的操作不回滚。
+用说话键(`asr.mic.mode` 为 `hold` 或 `toggle`)说的话在消息投递时以 `interrupt` 停止当前轮:取消正在生成的回复,给执行中的可打断工具发送取消信号,跳过同轮尚未开始的工具。收音或转写尚未完成时不发送这个信号,已经发生的操作不回滚。
 一直收音(`always`)时听到的话照旧以 `flush` 投递,不打断当前轮:电视或旁人的声音也会收进来。
 
 十三个工具都声明为 `interruptible`。Core 投递 `interrupt` 事件时,执行中的调用停在下一个不留半截输入的地方,

@@ -20,6 +20,8 @@ export default {
 
   /** 语音输入:菜单里麦克风按钮的状态、引导和设置页的说明 */
   voice: {
+    recorded: "录音已投递",
+    recordingUnavailable: "录音无法投递，且没有可用的转写",
     starting: '识别服务启动中',
     notRunning: '识别服务没有运行',
     modelMissing: (mb: number) => `识别模型尚未下载（约 ${mb} MB），请在「语音输入」页下载`,

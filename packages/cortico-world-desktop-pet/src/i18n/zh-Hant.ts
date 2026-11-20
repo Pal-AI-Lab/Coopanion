@@ -12,6 +12,8 @@ const zhHant: Translation<PetText> = {
   busy: '在忙',
 
   voice: {
+    recorded: "錄音已投遞",
+    recordingUnavailable: "錄音無法投遞，且沒有可用的轉寫",
     starting: '辨識服務啟動中',
     notRunning: '辨識服務沒有執行',
     modelMissing: (mb: number) => `辨識模型尚未下載（約 ${mb} MB），請在「語音輸入」頁下載`,

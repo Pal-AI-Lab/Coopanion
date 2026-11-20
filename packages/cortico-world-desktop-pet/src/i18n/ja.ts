@@ -12,6 +12,8 @@ const ja: Translation<PetText> = {
   busy: '作業中',
 
   voice: {
+    recorded: "録音を送信しました",
+    recordingUnavailable: "録音を送信できず、文字起こしもありません",
     starting: '音声認識を起動しています',
     notRunning: '音声認識が動作していません',
     modelMissing: (mb: number) => `音声モデルがまだダウンロードされていません（約 ${mb} MB）：「音声入力」ページでダウンロードしてください`,
