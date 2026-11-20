@@ -94,9 +94,9 @@
   }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   /* Every scrollbar in the window: a 4px thumb shown only while the pointer is over its own scrolling area
-     (and so over the areas around it), darker while pointed at or dragged. */
+     (data-scroll-hover, base/ui/scrollbars.ts), darker while pointed at or dragged. */
   ::-webkit-scrollbar-thumb { background-color: transparent; border-radius: 6px; border: 3px solid transparent; background-clip: padding-box; }
-  :hover::-webkit-scrollbar-thumb { background-color: var(--line-2); }
+  [data-scroll-hover]::-webkit-scrollbar-thumb { background-color: var(--line-2); }
   ::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active { background-color: var(--line-strong); }
   ::-webkit-scrollbar-track { background: transparent; }
   .hidden { display: none !important; }
