@@ -18,7 +18,7 @@ import { intro as pageIntro } from '../intro.ts';
 import { ACTIVITY_CONTEXT_DAYS, renderActivity } from './activity.ts';
 import { bucketLabel, renderChart } from './chart.ts';
 import { U_TYPES, themeColorResolver } from './labels.ts';
-import { usageQuery } from './range.ts';
+import { bucketFits, MAX_BUCKETS, rangeDays, usageQuery } from './range.ts';
 import { createUsageState } from './state.ts';
 import { S } from './strings.ts';
 import { createUsageTip } from './tooltip.ts';
@@ -206,6 +206,23 @@ export function mountUsage(ctx: PageContext): void {
     onSelect: (v) => { state.bucket = v as UsageBucketOption; void load(); },
   });
   bucketSeg.el.classList.add('uswitch');
+  /**
+   * Greys the granularities that would draw more than MAX_BUCKETS bars over the range. A pick that no longer
+   * fits moves to the finest one that does. An open custom range is measured by the range last returned.
+   */
+  function fitBuckets(): void {
+    let span = rangeDays(state.days, { from: state.from, to: state.to });
+    if (Number.isNaN(span) && state.data?.from && state.data.to) span = rangeDays(0, { from: state.data.from, to: state.data.to });
+    BUCKETS.forEach(({ value }, i) => {
+      const button = bucketSeg.el.children[i] as HTMLButtonElement;
+      const fits = bucketFits(value, span);
+      button.disabled = !fits;
+      button.title = fits ? '' : S.bucketTooFine(MAX_BUCKETS);
+    });
+    if (bucketFits(state.bucket, span)) return;
+    state.bucket = BUCKETS.find(({ value }) => value !== 'auto' && bucketFits(value, span))?.value ?? 'auto';
+    bucketSeg.setValue(state.bucket);
+  }
   // 拆分维度可多选：同一组按钮，按下的高亮。
   const splitWrap = ui.h('div', 'segwrap sm umulti');
   const splitBtns = SPLITS.map(({ dim, label }) => {
@@ -490,6 +507,7 @@ export function mountUsage(ctx: PageContext): void {
   /** 主数据按所选粒度分桶；dailyTokenDays 提供活跃度图的每日用量。 */
   async function load(): Promise<void> {
     const mine = ++generation;
+    fitBuckets();
     const extra = `&basis=${basis}&currency=${encodeURIComponent(currency)}&dailyTokenDays=${ACTIVITY_CONTEXT_DAYS}`;
     try {
       const d = await get<UsageAggregate>(
@@ -498,6 +516,10 @@ export function mountUsage(ctx: PageContext): void {
       );
       if (ctx.signal.aborted || mine !== generation) return;
       state.data = d;
+      // an open custom range is measured only now; a pick too fine for it is fetched again at a granularity that fits
+      const picked = state.bucket;
+      fitBuckets();
+      if (state.bucket !== picked) { void load(); return; }
       loadedAt = ui.fmt.clock(new Date().toISOString());
       results.classList.remove('u-stale');
       stale.replaceChildren();

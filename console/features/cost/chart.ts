@@ -337,6 +337,8 @@ const PAD_T = 12;
 const CHART_H = 240;
 /** 每个横轴刻度标签至少占的宽度，按 stride 抽稀。 */
 const XLABEL_W = 72;
+/** Bars thinner than this many pixels are merged into one path per segment kind. */
+const MERGE_BELOW_PX = 2;
 
 /** 成本、token 与调用次数的堆叠柱图；SVG 统一处理 hover 与离开事件。 */
 export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptions): void {
@@ -415,30 +417,63 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
 
   const sep = stacked && order.length > 1;
   const stride = Math.max(1, Math.ceil(series.length / Math.max(1, Math.floor((W - PAD_L - PAD_R) / XLABEL_W))));
+  // One transparent strip under the bars takes the pointer for the whole plot; the column under it is
+  // its bucket, so neighbouring columns meet without a gap and an empty bucket costs no element.
+  svg.appendChild(mkSvgEl(doc, 'rect', {
+    x: PAD_L, y: PAD_T, width: series.length * step, height: chartH, fill: 'transparent', class: 'bhit',
+  }));
+  // Corners round only on bars wide enough to show them; a thinner bar skips its clip path. Bars thinner
+  // than MERGE_BELOW_PX are drawn as one path per segment kind: a segment that thin cannot be pointed at,
+  // so the pointer reads the column and the tooltip lists its parts.
+  const rounded = bw >= 3, merged = bw < MERGE_BELOW_PX;
+  /** Each drawn bar's group by bucket; an empty bucket has none. */
+  const bars = new Map<number, SVGElement>();
+  const paths = new Map<string, string[]>();
   series.forEach((p, i) => {
     const cx = PAD_L + i * step;                       // 列起点
     const bx = cx + (step - bw) / 2;                   // 柱体居中
-    const g = mkSvgEl(doc, 'g', { class: 'barg' });
-    // 全宽透明感应块：整列都归这个桶，相邻列平铺无缝隙，移动不断档
-    g.appendChild(mkSvgEl(doc, 'rect', {
-      x: cx, y: PAD_T, width: step, height: chartH,
-      fill: 'transparent', class: 'bhit', 'data-i': i,
-    }));
+    if (i % stride === 0) {
+      svg.appendChild(mkSvgEl(doc, 'text', {
+        x: bx + bw / 2, y: H - PAD_B + 16, 'text-anchor': 'middle', class: 'glabel',
+      }, bucketLabel(p.bucket, unit)));
+    }
     const shownTotal = stacked
       ? order.reduce((sum, comp) => sum + compVal(p, comp, metric), 0)
       : uMetricVal(p, metric);
+    if (!(shownTotal > 0)) return;
+    if (merged) {
+      let acc = 0;
+      for (const comp of order) {
+        const v = compVal(p, comp, metric);
+        if (v <= 0) continue;
+        const segH = Math.max(0.6, chartH * (v / max));
+        const cid = compId(comp);
+        let d = paths.get(cid);
+        if (!d) paths.set(cid, d = []);
+        d.push(`M${bx.toFixed(2)} ${(H - PAD_B - acc - segH).toFixed(2)}h${bw.toFixed(2)}v${segH.toFixed(2)}h${(-bw).toFixed(2)}z`);
+        acc += segH;
+      }
+      return;
+    }
     const totalH = chartH * (shownTotal / max);
-    const clipId = `${clipPrefix}-bar-${i}`;
-    const clip = mkSvgEl(doc, 'clipPath', { id: clipId });
-    clip.appendChild(mkSvgEl(doc, 'rect', {
-      x: bx,
-      y: H - PAD_B - totalH,
-      width: bw,
-      height: Math.max(0.6, totalH),
-      rx: Math.min(4, bw / 2, Math.max(0.3, totalH / 2)),
-    }));
-    defs.appendChild(clip);
-    const stack = mkSvgEl(doc, 'g', { 'clip-path': `url(#${clipId})` });
+    const g = mkSvgEl(doc, 'g', { class: 'barg' });
+    svg.appendChild(g);
+    bars.set(i, g);
+    let stack = g;
+    if (rounded) {
+      const clipId = `${clipPrefix}-bar-${i}`;
+      const clip = mkSvgEl(doc, 'clipPath', { id: clipId });
+      clip.appendChild(mkSvgEl(doc, 'rect', {
+        x: bx,
+        y: H - PAD_B - totalH,
+        width: bw,
+        height: Math.max(0.6, totalH),
+        rx: Math.min(4, bw / 2, Math.max(0.3, totalH / 2)),
+      }));
+      defs.appendChild(clip);
+      stack = mkSvgEl(doc, 'g', { 'clip-path': `url(#${clipId})` });
+      g.appendChild(stack);
+    }
     let acc = 0;
     for (const comp of order) {
       const v = compVal(p, comp, metric);
@@ -459,17 +494,23 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
       stack.appendChild(mkSvgEl(doc, 'rect', at));
       acc += segH;
     }
-    g.appendChild(stack);
-    svg.appendChild(g);
-    if (i % stride === 0) {
-      svg.appendChild(mkSvgEl(doc, 'text', {
-        x: bx + bw / 2, y: H - PAD_B + 16, 'text-anchor': 'middle', class: 'glabel',
-      }, bucketLabel(p.bucket, unit)));
-    }
   });
+
+  for (const [cid, d] of paths) svg.appendChild(mkSvgEl(doc, 'path', { d: d.join(''), fill: colorOf[cid] ?? '', class: 'bpath' }));
 
   const tipHtmlFor = (i: number, curId: string | null): string =>
     uTipHtml(d, series[i]!, order, colorOf, { metric, stacked, cur, unit, curId });
+  /** The column under the pointer lifts and the rest fade (cost.css). The strip under the bars takes the pointer, so the column is lit by class. */
+  let hot: SVGElement | undefined;
+  const heat = (i: number | null): void => {
+    const next = i === null ? undefined : bars.get(i);
+    if (next === hot) return;
+    hot?.classList.remove('is-hot');
+    next?.classList.add('is-hot');
+    svg.classList.toggle('has-hot', i !== null);
+    hot = next;
+  };
+  const leave = (): void => { heat(null); tip.hide(); };
   // 监听挂在这棵刚造出来的 svg 上：整棵树下次重画时被丢弃，监听随之消失。
   // 点按与悬停同一处理:触屏没有悬停,点一下柱子即显示明细,点空白处收起。
   const point = (ev: Event): void => {
@@ -478,20 +519,24 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
     if (stacked && cl?.contains('bseg')) {
       const i = Number(t!.getAttribute('data-i'));
       const cid = t!.getAttribute('data-cid') || '';
+      heat(i);
       tip.setHi(t!);
       tip.show(tipHtmlFor(i, cid), `${i}|${cid}`);
       tip.move(ev as MouseEvent);
     } else if (cl && (cl.contains('bhit') || cl.contains('bseg'))) {
-      const i = Number(t!.getAttribute('data-i'));
+      const i = cl.contains('bseg') ? Number(t!.getAttribute('data-i'))
+        : Math.floor(((ev as MouseEvent).clientX - svg.getBoundingClientRect().left - PAD_L) / step);
+      if (!(i >= 0 && i < series.length)) { leave(); return; }
+      heat(i);
       tip.clearHi();
       tip.show(tipHtmlFor(i, null), `${i}|`);
       tip.move(ev as MouseEvent);
     } else {
-      tip.hide();
+      leave();
     }
   };
   svg.addEventListener('mousemove', point);
   svg.addEventListener('click', point);
-  svg.addEventListener('mouseleave', () => tip.hide());
+  svg.addEventListener('mouseleave', leave);
   box.appendChild(svg);
 }

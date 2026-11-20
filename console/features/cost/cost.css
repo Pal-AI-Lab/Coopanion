@@ -91,8 +91,9 @@
 .uchart svg { display: block; }
 /* 悬停柱子：这一列略微抬起并发光，其余列淡出；悬停堆叠中的一段时这一段最亮 */
 .uchart .barg { transition: opacity 220ms ease-out, transform 260ms cubic-bezier(.34, 1.56, .64, 1), filter 220ms ease-out; }
-.uchart svg:has(.barg:hover) .barg:not(:hover) { opacity: .35; }
-.uchart .barg:hover { transform: translateY(-3px); filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--accent) 45%, transparent)); }
+.uchart svg.has-hot .barg:not(.is-hot) { opacity: .35; }
+.uchart .barg.is-hot { transform: translateY(-3px); filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--accent) 45%, transparent)); }
+.uchart .bpath { pointer-events: none; }
 .uchart .bseg { transition: opacity 180ms ease-out, filter 180ms ease-out; }
 .uchart .barg:has(.seghi) .bseg:not(.seghi) { opacity: .55; }
 .uchart .bseg.seghi { filter: brightness(1.12) saturate(1.1); }

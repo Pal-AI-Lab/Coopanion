@@ -38,7 +38,8 @@ it('gives small costs distinct cent-based axis labels without changing the displ
   const labels = [...box.querySelectorAll('.vlabel')].map(el => el.textContent);
   expect(new Set(labels).size).toBe(labels.length);
   expect(labels.every(label => /^\d+\.\d{2}$/.test(label))).toBe(true);
-  box.querySelector('.bhit').dispatchEvent(new MouseEvent('click', {bubbles: true}));
+  // the strip under the bars finds the bucket by where the pointer is: the one column starts after the axis labels
+  box.querySelector('.bhit').dispatchEvent(new MouseEvent('click', {bubbles: true, clientX: 100}));
   expect(detail).toContain(consoleFormat.money(0.003));
   life.abort();
 });
