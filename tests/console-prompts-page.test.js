@@ -206,8 +206,6 @@ it('keeps the accepted route unchanged when leaving for World configuration is c
 it.each(['normal', 'advanced'])('opens World configuration in %s mode only after the app accepts leaving the prompt editor', async (mode) => {
   const { boot } = await import('../console/index.ts');
   localStorage.setItem('companion.mode', mode);
-  let allowLeave = false;
-  vi.stubGlobal('confirm', () => allowLeave);
   mounted.push(boot());
   await vi.waitFor(() => expect(document.querySelector('.prompt-settings-link')).not.toBeNull());
   const worldNav = document.querySelector('#rail a[href="#/world"]');
@@ -217,11 +215,15 @@ it.each(['normal', 'advanced'])('opens World configuration in %s mode only after
   expect(document.querySelector('#rail a[href*="world%3Afixture"]').hidden).toBe(false);
   const view = EditorView.findFromDOM(document.querySelector('.cm-editor'));
   view.dispatch({ changes: { from: 0, insert: 'Unsaved ' } });
+  // the window asks in its own dialog: Cancel keeps the editor, Leave goes
   document.querySelector('.prompt-settings-link').click();
+  await vi.waitFor(() => expect(document.querySelector('.confirm-card')).not.toBeNull());
+  document.querySelector('.confirm-card .btn').click();
   await vi.waitFor(() => expect(location.hash).toBe('#/prompts'));
   expect(view.state.doc.toString()).toContain('Unsaved ');
-  allowLeave = true;
   document.querySelector('.prompt-settings-link').click();
+  await vi.waitFor(() => expect(document.querySelector('.confirm-card')).not.toBeNull());
+  document.querySelector('.confirm-card .btn.danger').click();
   await vi.waitFor(() => expect(document.querySelector('.pagetitle')?.textContent).toBe('Fixture World'));
   expect(location.hash).not.toContain('mode=');
   expect(document.querySelector('.cm-editor')).toBeNull();

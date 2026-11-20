@@ -22,6 +22,7 @@ export const S: Partial<typeof en> = {
   },
   cancel: 'Annulla',
   proceedAnyway: 'Procedi comunque',
+  leave: 'Esci',
   confirm: 'Conferma',
   gotIt: 'Ho capito',
   close: '✕ Chiudi (Esc)',
