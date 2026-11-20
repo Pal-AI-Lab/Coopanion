@@ -35,10 +35,13 @@ const PAUSE = /[,.!?;:…，。！？；：、]/;
 const FADE_SEC = .4, REPLIED_FADE_SEC = .5;
 /** The sample's own pacing: when your line is sent, how long Coo thinks and reads, the rest before the sample settles. */
 const SENT_AT = .3, THINK_SEC = 1.2, READ_SEC = 1.4, QUIET_SEC = .9, REST_SEC = .8;
-/** The width the sample is laid out at before it is scaled to the panel: a little wider than Coo's widest bubble at 100%. */
-const STAGE_PX = 340;
-/** The stage's least height; it grows, once, to hold the tallest bubbles this language can show (see `measure`). */
-const STAGE_MIN_H = 380;
+/** The width the sample is laid out at before it is scaled to the panel (as wide as the panel at most, .bubble-preview in home.css). */
+const STAGE_PX = 440;
+/**
+ * The stage's height: the sample lines are kept short enough in every language for their tallest bubbles to fit,
+ * so the frame is this high in all of them; it grows, once, only if a language's lines do not fit (see `measure`).
+ */
+const STAGE_MIN_H = 400;
 /** The bubble size slider's steps, and the largest text size (BUBBLE_SIZE_MIN, BUBBLE_SIZE_MAX in the World's config.ts; 5% steps). */
 const SIZE_STEPS = Array.from({ length: 17 }, (_, i) => .8 + i * .05), FONT_MAX = 1.6;
 /** Coo's drawing space with room above for the tallest head piece (HEAD_TOP in coo.js). */
