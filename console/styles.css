@@ -1765,7 +1765,7 @@ button.extension-tag { cursor: pointer; }
   .extension-detail-columns.is-split { flex: 1; min-height: 0; align-items: stretch; padding-top: 0; }
   .extension-detail-columns.is-split > :is(.extension-detail-main, .extension-detail-side) {
     position: static; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable;
-    margin-right: -10px; padding: 8px 0 24px;
+    padding: 8px 0 24px;
   }
   /* the description's bar runs along the divider, across the 40px gap; the comments' along the dialog's right edge,
      past the body's and the detail's padding (10px + 8px) */
