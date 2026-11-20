@@ -1241,6 +1241,13 @@
 
   .prompt-input-host { width: min(100%, var(--conversation-width)); margin: 18px auto 0; }
   .prompt-input-host textarea:focus-visible { outline: none; }
+  /* prompt-input.tsx markScroll: text past the field's top or bottom fades out there over about a row */
+  .prompt-input-host textarea[data-more] {
+    --above: 0px; --below: 0px;
+    mask-image: linear-gradient(to bottom, transparent, #000 var(--above), #000 calc(100% - var(--below)), transparent);
+  }
+  .prompt-input-host textarea[data-more~="above"] { --above: 1.5rem; }
+  .prompt-input-host textarea[data-more~="below"] { --below: 1.5rem; }
   .liveview > .prompt-input-host {
     position: absolute; bottom: 0; left: 0; right: 0; z-index: 12;
     width: auto; margin: 0; padding: 10px calc(var(--page-gutter) + 10px) 18px;

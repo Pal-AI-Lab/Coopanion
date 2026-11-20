@@ -33,4 +33,5 @@ export const S: Partial<typeof en> = {
   addImage: 'Добавить изображение',
   addImageHint: 'Добавить изображение (можно также вставить или перетащить)',
   removeImage: (name: string) => `Удалить ${name}`,
+  tooLong: (over: number, max: number) => `Лишних символов: ${over}; сократите до ${max}, чтобы отправить`,
 };
