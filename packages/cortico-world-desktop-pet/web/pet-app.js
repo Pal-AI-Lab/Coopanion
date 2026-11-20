@@ -554,6 +554,7 @@ function openBubble(kind, html) {
   bubble.classList.add('pop');
 }
 function closeBubble() {
+  bubbleHovered = false;
   releaseKeys(item);
   // a step taken off the bubble unanswered puts back the skin a card tried on
   if (item?.kind === 'dialog') { talk.motion = null; takeOff(false); }
@@ -647,16 +648,17 @@ bubble.addEventListener('click', (e) => {
 
 /** Whether the pointer rests on the bubble: only then may a question's 1-9 keys take the keyboard. */
 let bubbleHovered = false;
-bubble.addEventListener('pointerenter', () => {
-  bubbleHovered = true;
-  if (item && item.kind === 'ask' && item.optsShown && !item.answered) grabKeys(item);
-});
-bubble.addEventListener('pointerleave', () => {
+function leaveBubble() {
   bubbleHovered = false;
   // only a question the pointer itself pulled the keyboard for, and only while nobody is typing in
   // it: an open typing box, or the question's own answer field, keeps the keyboard where it is
   if (item && item.kind === 'ask' && item.grabbedByHover && !bubble.contains(document.activeElement)) releaseKeys(item);
+}
+bubble.addEventListener('pointerenter', () => {
+  bubbleHovered = true;
+  if (item && item.kind === 'ask' && item.optsShown && !item.answered) grabKeys(item);
 });
+bubble.addEventListener('pointerleave', leaveBubble);
 
 function stepDialog(dt) {
   if (!item && queue.length && at() && !at().busy) startItem(queue.shift());
@@ -2254,6 +2256,7 @@ host?.onCursor?.((p) => {
     if (!pressing && !sizer.active) setInteractive(false, 'poll');
     if (polled && !pressing) body?.pointer('leave', {});
     polled = null;
+    if (bubbleHovered) leaveBubble();
     return;
   }
   if (!interactive && !pressing && (p.x !== polled?.x || p.y !== polled?.y)) {
@@ -2266,6 +2269,7 @@ host?.onCursor?.((p) => {
   const hit = !!body?.hit(p), ui = !!el?.closest?.(UI_SELECTOR);
   diag.poll = { at: performance.now(), x: p.x, y: p.y, hit, ui };
   setInteractive(rendering() && (pressing || sizer.active || hit || ui), 'poll');
+  if (bubbleHovered && !inputShape && !el?.closest?.('.bubble')) leaveBubble();
 });
 /** A press that began on the body and has not been let go of: the window keeps the mouse meanwhile. */
 let pressing = false;
@@ -2331,7 +2335,7 @@ stage.addEventListener('pointerup', async (e) => {
   }
 });
 stage.addEventListener('pointercancel', up);
-document.addEventListener('pointerleave', () => { cursor.at = null; body?.pointer('leave', {}); });
+document.addEventListener('pointerleave', () => { cursor.at = null; body?.pointer('leave', {}); if (bubbleHovered) leaveBubble(); });
 stage.addEventListener('dblclick', (e) => { if (prefs.doubleClickChat && body?.hit({ x: e.clientX, y: e.clientY })) openInput(); });
 document.addEventListener('contextmenu', (e) => {
   e.preventDefault();
