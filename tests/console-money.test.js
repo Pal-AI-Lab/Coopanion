@@ -32,7 +32,7 @@ it('gives small costs distinct cent-based axis labels without changing the displ
   const ui = createConsoleUi({doc: document, overlayHost: document.body, signal: life.signal, memo: {get: (_, f) => f, set() {}}});
   const box = document.createElement('div');
   let detail = '';
-  const tip = {clearHi() {}, setHi() {}, move() {}, hide() {}, show(html) {detail = html;}};
+  const tip = {move() {}, hide() {}, show(html) {detail = html;}};
   renderChart({doc: document, ui, box, legend: document.createElement('div'), tip, color: () => '#008855'},
     {currency: 'USD', series: [{bucket: '2026-10-25', cost: 0.003, calls: 1}]}, {metric: 'cost', dims: {}});
   const labels = [...box.querySelectorAll('.vlabel')].map(el => el.textContent);

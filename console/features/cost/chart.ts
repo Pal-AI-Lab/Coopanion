@@ -337,14 +337,24 @@ const PAD_T = 12;
 const CHART_H = 240;
 /** 每个横轴刻度标签至少占的宽度，按 stride 抽稀。 */
 const XLABEL_W = 72;
-/** Bars thinner than this many pixels are merged into one path per segment kind. */
+/** Below this bar width in pixels a segment cannot be pointed at; the column answers for it. */
 const MERGE_BELOW_PX = 2;
+
+/** A bar segment as path data: `rt` rounds its top corners, `rb` its bottom ones. */
+function barPath(x: number, y: number, w: number, h: number, rt: number, rb: number): string {
+  const n = (v: number) => +v.toFixed(2);
+  const b = y + h;
+  return `M${n(x)} ${n(y + rt)}`
+    + (rt ? `a${n(rt)} ${n(rt)} 0 0 1 ${n(rt)} ${n(-rt)}h${n(w - 2 * rt)}a${n(rt)} ${n(rt)} 0 0 1 ${n(rt)} ${n(rt)}` : `h${n(w)}`)
+    + `V${n(b - rb)}`
+    + (rb ? `a${n(rb)} ${n(rb)} 0 0 1 ${n(-rb)} ${n(rb)}h${n(-(w - 2 * rb))}a${n(rb)} ${n(rb)} 0 0 1 ${n(-rb)} ${n(-rb)}` : `h${n(-w)}`)
+    + 'z';
+}
 
 /** 成本、token 与调用次数的堆叠柱图；SVG 统一处理 hover 与离开事件。 */
 export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptions): void {
   const { doc, ui, box, legend, tip, color } = deps;
   box.replaceChildren();
-  tip.clearHi();
   legend.replaceChildren();
 
   const series = d.series || [];
@@ -402,9 +412,6 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
   if (metric === 'cost') max = Math.max(max, 0.04);
 
   const svg = mkSvgEl(doc, 'svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H });
-  const defs = mkSvgEl(doc, 'defs', {});
-  svg.appendChild(defs);
-  const clipPrefix = (box.id || 'usage-chart').replace(/[^a-zA-Z0-9_-]/g, '-');
   for (let i = 0; i <= 4; i++) {
     const y = PAD_T + chartH * (1 - i / 4);
     svg.appendChild(mkSvgEl(doc, 'line', {
@@ -417,22 +424,23 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
 
   const sep = stacked && order.length > 1;
   const stride = Math.max(1, Math.ceil(series.length / Math.max(1, Math.floor((W - PAD_L - PAD_R) / XLABEL_W))));
-  // One transparent strip under the bars takes the pointer for the whole plot; the column under it is
-  // its bucket, so neighbouring columns meet without a gap and an empty bucket costs no element.
+  // One transparent strip under the bars takes the pointer for the whole plot; the column and the segment
+  // under it are worked out from where the pointer is. The bars are one path per segment kind and take no
+  // pointer: shapes the pointer is tested against, each with its own clip path, cost a frame or more per
+  // move at a few hundred stacked bars.
   svg.appendChild(mkSvgEl(doc, 'rect', {
     x: PAD_L, y: PAD_T, width: series.length * step, height: chartH, fill: 'transparent', class: 'bhit',
   }));
-  // The column under the pointer is marked by one band behind the chart, moved by transform: restyling the
-  // bars on each move, or moving a shape inside the SVG, repainted every bar and cost a frame or more at a
-  // few hundred stacked bars. The band is outside the SVG, on a layer of its own.
+  // The column under the pointer is marked by a band behind the chart, outside the SVG and moved by
+  // transform, so moving it repaints no bar.
   const band = ui.h('div', 'bband');
   band.style.cssText = `top:${PAD_T}px;height:${chartH}px;width:${Math.max(1, step)}px`;
   band.hidden = true;
-  // Corners round only on bars wide enough to show them; a thinner bar skips its clip path. Bars thinner
-  // than MERGE_BELOW_PX are drawn as one path per segment kind: a segment that thin cannot be pointed at,
-  // so the pointer reads the column and the tooltip lists its parts.
-  const rounded = bw >= 3, merged = bw < MERGE_BELOW_PX;
+  // Corners round on bars wide enough to show them, at the top of the top segment and the bottom of the lowest.
+  const radius = bw >= 3 ? Math.min(4, bw / 2) : 0;
   const paths = new Map<string, string[]>();
+  /** Each column's segments, bottom up, in chart units: what the pointer finds. */
+  const stacks: Array<Array<{ cid: string; top: number; bottom: number }>> = [];
   series.forEach((p, i) => {
     const cx = PAD_L + i * step;                       // 列起点
     const bx = cx + (step - bw) / 2;                   // 柱体居中
@@ -441,66 +449,33 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
         x: bx + bw / 2, y: H - PAD_B + 16, 'text-anchor': 'middle', class: 'glabel',
       }, bucketLabel(p.bucket, unit)));
     }
-    const shownTotal = stacked
-      ? order.reduce((sum, comp) => sum + compVal(p, comp, metric), 0)
-      : uMetricVal(p, metric);
-    if (!(shownTotal > 0)) return;
-    if (merged) {
-      let acc = 0;
-      for (const comp of order) {
-        const v = compVal(p, comp, metric);
-        if (v <= 0) continue;
-        const segH = Math.max(0.6, chartH * (v / max));
-        const cid = compId(comp);
-        let d = paths.get(cid);
-        if (!d) paths.set(cid, d = []);
-        d.push(`M${bx.toFixed(2)} ${(H - PAD_B - acc - segH).toFixed(2)}h${bw.toFixed(2)}v${segH.toFixed(2)}h${(-bw).toFixed(2)}z`);
-        acc += segH;
-      }
-      return;
-    }
-    const totalH = chartH * (shownTotal / max);
-    // a bar's segments share a group, so the one under the pointer can dim the others (cost.css)
-    const g = mkSvgEl(doc, 'g', { class: 'barg' });
-    svg.appendChild(g);
-    let stack = g;
-    if (rounded) {
-      const clipId = `${clipPrefix}-bar-${i}`;
-      const clip = mkSvgEl(doc, 'clipPath', { id: clipId });
-      clip.appendChild(mkSvgEl(doc, 'rect', {
-        x: bx,
-        y: H - PAD_B - totalH,
-        width: bw,
-        height: Math.max(0.6, totalH),
-        rx: Math.min(4, bw / 2, Math.max(0.3, totalH / 2)),
-      }));
-      defs.appendChild(clip);
-      stack = mkSvgEl(doc, 'g', { 'clip-path': `url(#${clipId})` });
-      g.appendChild(stack);
-    }
-    let acc = 0;
+    const segs: Array<{ cid: string; h: number }> = [];
     for (const comp of order) {
       const v = compVal(p, comp, metric);
-      if (v <= 0) continue;
-      const cid = compId(comp);
-      const segH = chartH * (v / max);
-      const y = H - PAD_B - acc - segH;
-      const at: Record<string, string | number> = {
-        x: bx, y, width: bw, height: Math.max(0.6, segH),
-        fill: colorOf[cid] ?? '', class: 'bseg', 'data-i': i,
-      };
-      if (stacked) at['data-cid'] = cid;
-      if (sep) {
-        at.stroke = 'var(--sheet)';
-        at['stroke-opacity'] = 0.55;
-        at['stroke-width'] = 0.5;
-      }
-      stack.appendChild(mkSvgEl(doc, 'rect', at));
-      acc += segH;
+      if (v > 0) segs.push({ cid: compId(comp), h: Math.max(0.6, chartH * (v / max)) });
     }
+    const column: typeof stacks[number] = [];
+    let base = H - PAD_B;
+    segs.forEach(({ cid, h }, k) => {
+      const top = base - h;
+      const r = Math.min(radius, h / 2);
+      const rt = k === segs.length - 1 ? r : 0, rb = k === 0 ? r : 0;
+      let parts = paths.get(cid);
+      if (!parts) paths.set(cid, parts = []);
+      parts.push(barPath(bx, top, bw, h, rt, rb));
+      column.push({ cid, top, bottom: base });
+      base = top;
+    });
+    stacks[i] = column;
   });
-
-  for (const [cid, d] of paths) svg.appendChild(mkSvgEl(doc, 'path', { d: d.join(''), fill: colorOf[cid] ?? '', class: 'bpath' }));
+  for (const [cid, parts] of paths) {
+    const at: Record<string, string | number> = { d: parts.join(''), fill: colorOf[cid] ?? '', class: 'bpath' };
+    if (sep) { at.stroke = 'var(--sheet)'; at['stroke-opacity'] = 0.55; at['stroke-width'] = 0.5; }
+    svg.appendChild(mkSvgEl(doc, 'path', at));
+  }
+  /** The segment under the pointer, brightened by a box laid over it, outside the SVG as the band is. */
+  const lit = ui.h('div', 'bseghi');
+  lit.hidden = true;
 
   const tipHtmlFor = (i: number, curId: string | null): string =>
     uTipHtml(d, series[i]!, order, colorOf, { metric, stacked, cur, unit, curId });
@@ -511,33 +486,35 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
     band.hidden = i === null;
     if (i !== null) band.style.transform = `translateX(${PAD_L + i * step}px)`;
   };
-  const leave = (): void => { heat(null); tip.hide(); };
+  let litId = '';
+  const light = (i: number, seg: { cid: string; top: number; bottom: number } | undefined): void => {
+    const id = seg ? `${i}|${seg.cid}` : '';
+    if (id === litId) return;
+    litId = id;
+    lit.hidden = !seg;
+    if (!seg) return;
+    lit.style.width = `${bw}px`; lit.style.height = `${seg.bottom - seg.top}px`;
+    lit.style.transform = `translate(${PAD_L + i * step + (step - bw) / 2}px, ${seg.top}px)`;
+  };
+  const leave = (): void => { heat(null); light(0, undefined); tip.hide(); };
   // 监听挂在这棵刚造出来的 svg 上：整棵树下次重画时被丢弃，监听随之消失。
   // 点按与悬停同一处理:触屏没有悬停,点一下柱子即显示明细,点空白处收起。
   const point = (ev: Event): void => {
-    const t = ev.target as Element | null;
-    const cl = t?.classList;
-    if (stacked && cl?.contains('bseg')) {
-      const i = Number(t!.getAttribute('data-i'));
-      const cid = t!.getAttribute('data-cid') || '';
-      heat(i);
-      tip.setHi(t!);
-      tip.show(tipHtmlFor(i, cid), `${i}|${cid}`);
-      tip.move(ev as MouseEvent);
-    } else if (cl && (cl.contains('bhit') || cl.contains('bseg'))) {
-      const i = cl.contains('bseg') ? Number(t!.getAttribute('data-i'))
-        : Math.floor(((ev as MouseEvent).clientX - svg.getBoundingClientRect().left - PAD_L) / step);
-      if (!(i >= 0 && i < series.length)) { leave(); return; }
-      heat(i);
-      tip.clearHi();
-      tip.show(tipHtmlFor(i, null), `${i}|`);
-      tip.move(ev as MouseEvent);
-    } else {
-      leave();
-    }
+    const e = ev as MouseEvent;
+    if (!(e.target as Element | null)?.classList.contains('bhit')) { leave(); return; }
+    const area = svg.getBoundingClientRect();
+    const i = Math.floor((e.clientX - area.left - PAD_L) / step);
+    if (!(i >= 0 && i < series.length)) { leave(); return; }
+    const y = e.clientY - area.top;
+    // segments thinner than a pixel cannot be pointed at: the column answers for them
+    const seg = stacked && bw >= MERGE_BELOW_PX ? stacks[i]!.find((s) => y >= s.top && y <= s.bottom) : undefined;
+    heat(i);
+    light(i, seg);
+    tip.show(tipHtmlFor(i, seg?.cid ?? null), `${i}|${seg?.cid ?? ''}`);
+    tip.move(e);
   };
   svg.addEventListener('mousemove', point);
   svg.addEventListener('click', point);
   svg.addEventListener('mouseleave', leave);
-  box.append(band, svg);
+  box.append(band, svg, lit);
 }

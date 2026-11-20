@@ -1,6 +1,5 @@
 /**
- * 随鼠标移动的 tooltip 与当前色块高亮。tooltip 位于本页 root，使用 fixed 定位并随卸载移除。
- * 移出色块、重画图表与卸载统一通过 setHi/clearHi 更新高亮，避免残留描边。
+ * 随鼠标移动的 tooltip。位于本页 root，使用 fixed 定位并随卸载移除。
  */
 
 import type { Disposable } from 'cortico/web/shared/client-panel.ts';
@@ -21,10 +20,8 @@ export interface UsageTip extends Disposable {
   show(html: string, key: string): void;
   /** 跟着鼠标走，碰到视口边缘翻到另一侧。 */
   move(ev: { clientX: number; clientY: number }): void;
-  /** 收起，并顺手清掉高亮。 */
+  /** 收起。 */
   hide(): void;
-  setHi(rect: Element): void;
-  clearHi(): void;
 }
 
 /** host 通常为 feature 的 root。HTML 来自 uTipHtml，所有外部文本必须经过 escaping。 */
@@ -32,16 +29,8 @@ export function createUsageTip(doc: Document, host: HTMLElement): UsageTip {
   const el = doc.createElement('div');
   el.className = 'u-tip viewport-overlay hidden';
   host.appendChild(el);
-  let hi: Element | null = null;
   let curKey: string | undefined;
   let disposed = false;
-
-  const clearHi = (): void => {
-    if (hi) {
-      hi.classList.remove('seghi');
-      hi = null;
-    }
-  };
 
   return {
     el,
@@ -68,19 +57,10 @@ export function createUsageTip(doc: Document, host: HTMLElement): UsageTip {
     },
     hide() {
       hideTip(el);
-      clearHi();
     },
-    setHi(rect) {
-      if (hi === rect) return;
-      clearHi();
-      rect.classList.add('seghi');
-      hi = rect;
-    },
-    clearHi,
     dispose() {
       if (disposed) return;
       disposed = true;
-      clearHi();
       el.remove();
     },
   };

@@ -88,15 +88,14 @@
 .chart-legend:not(:empty) + .uchart { margin-top: 8px; }
 .legitem { display: inline-flex; align-items: center; gap: 6px; font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); }
 .legsw { width: 11px; height: 11px; border-radius: 3px; }
-.uchart svg { display: block; }
-/* 悬停柱子：这一列后面铺一条底色(chart.ts 只移动这一条);悬停堆叠中的一段时这一段变亮 */
+.uchart svg { display: block; position: relative; }
+/* 悬停柱子：这一列后面铺一条底色，指着的那一段盖一层亮色；两者都在 SVG 外，移动时不重画柱子(chart.ts) */
 .uchart { position: relative; }
 .uchart > .bband { position: absolute; left: 0; background: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; will-change: transform; }
 .uchart > .bband[hidden] { display: none; }
-.uchart svg { position: relative; }
 .uchart .bpath { pointer-events: none; }
-.uchart .barg:has(.seghi) .bseg:not(.seghi) { opacity: .55; }
-.uchart .bseg.seghi { filter: brightness(1.12) saturate(1.1); }
+.uchart > .bseghi { position: absolute; left: 0; top: 0; box-sizing: border-box; background: rgb(255 255 255 / .22); outline: 1px solid var(--sheet); pointer-events: none; will-change: transform; }
+.uchart > .bseghi[hidden] { display: none; }
 .uchart .axis { stroke: var(--line-2); stroke-width: 1; }
 .uchart .glabel, .uchart .vlabel { fill: var(--ink-soft); font: var(--text-detail) var(--mono); }
 .unote { margin: 6px 0 0; }
