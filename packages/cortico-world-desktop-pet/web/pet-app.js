@@ -10,7 +10,7 @@
  * Colors follow the World's `theme` through `data-theme` on the root element, and text the app
  * language (i18n.js): the one stamped on the page, then the one the World's prefs carry.
  */
-import { applyTheme, clamp, f, ICONS, layBeside, linked, tailLine } from './ui.js';
+import { applyTheme, balancedWidth, clamp, f, ICONS, layBeside, tailLine, linked } from './ui.js';
 import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
@@ -546,12 +546,25 @@ function openBubble(kind, html) {
   item.cursorAt = cursor.at;
   item.cursorHolding = false;
   bubble.className = 'bubble ' + kind;
+  bubble.style.maxWidth = '';
   bubble.removeAttribute('aria-label');
   delete bubble.dataset.kind; delete bubble.dataset.icon;
   bubble.innerHTML = html;
   bubble.hidden = false;
   void bubble.offsetWidth;
   bubble.classList.add('pop');
+}
+/**
+ * Coo's bubble for a line of `text`, as narrow as the whole line allows (ui.js balancedWidth): the line types into it,
+ * the bubble growing as it goes and wrapping where the whole line wraps; the caret is measured in, so it does not
+ * push a word down while typing.
+ */
+function fitLine(text) {
+  const p = bubble.querySelector('.b-text');
+  p.textContent = text;
+  p.append(Object.assign(document.createElement('span'), { className: 'caret' }));
+  bubble.style.maxWidth = balancedWidth(bubble) + 'px';
+  p.replaceChildren();
 }
 function closeBubble() {
   releaseKeys(item);
@@ -661,7 +674,7 @@ function stepDialog(dt) {
       let lead = 0;
       for (const a of b.actions || []) { acts.push(a); lead = .45; }
       it.shown = 0; it.acc = 0; it.fired = 0; it.startAt = T + lead;
-      if (b.text) { openBubble('say', '<p class="b-text"></p>'); sfx.pop(); } else { bubble.hidden = true; }
+      if (b.text) { openBubble('say', '<p class="b-text"></p>'); fitLine(b.text); sfx.pop(); } else { bubble.hidden = true; }
       return;
     }
     const b = it.beats[it.i];
@@ -1258,6 +1271,10 @@ function drawLine(line) {
   const mark = MARKS[line.src] ? `<span class="said-mark" aria-hidden="true">${MARKS[line.src]}</span>` : '';
   const images = line.images ? `<span class="b-hint">${line.text ? '' : mark}${esc(t('said.images', { count: line.images }))}</span>` : '';
   line.el.innerHTML = (line.text || !line.images ? `<p class="b-text">${mark}${esc(line.text)}</p>` : '') + images;
+  // measured before `settled` clamps it to six rows
+  line.el.classList.remove('settled');
+  line.el.style.maxWidth = '';
+  line.el.style.maxWidth = balancedWidth(line.el) + 'px';
   line.el.classList.add('settled');
   line.el.title = t('bubble.close');
 }
@@ -1330,6 +1347,7 @@ function drawStatus(next, pop) {
   const icon = next.kind;
   if (!bubble.classList.contains('status') || bubble.dataset.icon !== icon) {
     bubble.className = 'bubble status';
+    bubble.style.maxWidth = '';
     bubble.dataset.icon = icon;
     bubble.innerHTML = `<span class="status-icon">${ICONS[`status_${icon}`] || ICONS.status_work}</span><span class="status-text"></span>`;
   }

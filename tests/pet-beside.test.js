@@ -29,3 +29,29 @@ it("draws a tail's line as wide as the border is drawn: whole device pixels of t
   expect(tailLine(1.25) * 1.25).toBe(Math.floor(BUBBLE_BORDER * 1.25));
   expect(tailLine(.25)).toBe(4);
 });
+
+describe('balancedWidth', () => {
+  /** An element `text` wide on one line that wraps at its width (at most `max`), each line LINE high; jsdom lays nothing out. */
+  const LINE = 20;
+  function wrapping(text, max) {
+    const el = doc.createElement('div');
+    const width = () => Math.min(max, el.style.width ? parseFloat(el.style.width) : Infinity, text);
+    Object.defineProperty(el, 'offsetWidth', { get: width });
+    Object.defineProperty(el, 'offsetHeight', { get: () => Math.ceil(text / width()) * LINE });
+    return el;
+  }
+  it('narrows a wrapped line to the least width that keeps its number of lines, and leaves its width as it was', async () => {
+    const { balancedWidth } = await import('../packages/cortico-world-desktop-pet/web/ui.js');
+    const el = wrapping(100, 60);
+    el.style.width = '7px';
+    // 100 at 60 a line is two lines; two lines of 50 hold it (the search stops within a pixel, on the side that holds)
+    const w = balancedWidth(el);
+    expect(w).toBeGreaterThanOrEqual(50);
+    expect(w).toBeLessThanOrEqual(51);
+    expect(el.style.width).toBe('7px');
+  });
+  it('keeps a line that does not wrap as wide as its text', async () => {
+    const { balancedWidth } = await import('../packages/cortico-world-desktop-pet/web/ui.js');
+    expect(balancedWidth(wrapping(40, 60))).toBe(40);
+  });
+});
