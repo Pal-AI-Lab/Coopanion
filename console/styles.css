@@ -1780,6 +1780,10 @@ button.extension-tag { cursor: pointer; }
 .extension-comment-body > :last-child { margin-bottom: 0; }
 .extension-comment-body p, .extension-comment-body ul, .extension-comment-body ol, .extension-comment-body pre { margin: 0 0 6px; }
 .extension-comment-body ul, .extension-comment-body ol { padding-left: 20px; }
+.extension-comment-body.is-folded { overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent); }
+.extension-comment-toggle { display: block; margin: 4px 0 0 30px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: 12.5px; cursor: pointer; }
+.extension-comment-toggle:hover { text-decoration: underline; }
+.extension-comment-toggle[hidden] { display: none; }
 .extension-comment-empty { margin: 4px 0 0; font-size: 12.5px; }
 .extension-comment-more { margin-top: 4px; }
 .extension-comment-actions .extension-insert-code { margin-left: auto; padding: 4px 7px; }
