@@ -21,3 +21,11 @@ describe('buttons laid beside the body', () => {
     expect(el.style.direction).toBe('');
   });
 });
+
+it("draws a tail's line as wide as the border is drawn: whole device pixels of the 2.5px border, at least one", async () => {
+  const { BUBBLE_BORDER, tailLine } = await import('../packages/cortico-world-desktop-pet/web/ui.js');
+  expect(tailLine(1)).toBe(Math.floor(BUBBLE_BORDER));
+  expect(tailLine(2)).toBe(BUBBLE_BORDER);
+  expect(tailLine(1.25) * 1.25).toBe(Math.floor(BUBBLE_BORDER * 1.25));
+  expect(tailLine(.25)).toBe(4);
+});
