@@ -4,6 +4,15 @@ import { t } from './i18n.js';
 export const f = n => Math.round(n * 10) / 10;
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
+/** A bubble's border in pixels (pet.css `.bubble`). */
+export const BUBBLE_BORDER = 2.5;
+/**
+ * The width a bubble tail's slanted line is drawn at on a display of `dpr` device pixels per pixel (`--tail-line`,
+ * pet.css): the width the border is drawn at there, which Chromium rounds down to whole device pixels (2px of the 2.5
+ * at 100%), so the tail carries as much ink along its length as the border does.
+ */
+export const tailLine = (dpr) => Math.max(1, Math.floor(BUBBLE_BORDER * dpr)) / dpr;
+
 /**
  * Lays a grid of buttons (`grid-auto-flow: column`) `reach` out from a body standing at `x`, on the right unless that
  * runs off a page `pageWidth` wide. On the left its columns run right to left, so the first column is next to the body

@@ -10,7 +10,7 @@
  * Colors follow the World's `theme` through `data-theme` on the root element, and text the app
  * language (i18n.js): the one stamped on the page, then the one the World's prefs carry.
  */
-import { applyTheme, clamp, f, ICONS, layBeside, linked } from './ui.js';
+import { applyTheme, clamp, f, ICONS, layBeside, linked, tailLine } from './ui.js';
 import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
@@ -1766,6 +1766,12 @@ const POP_OUT_MS = 160;
 const POP_IN_MS = 600;
 // absent where the page runs without a window (the tests)
 const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
+/** The tails' line follows the width the border is drawn at, which changes with the display's scale (ui.js tailLine). */
+function watchTailLine() {
+  document.documentElement.style.setProperty('--tail-line', tailLine(devicePixelRatio || 1) + 'px');
+  globalThis.matchMedia?.(`(resolution: ${devicePixelRatio || 1}dppx)`).addEventListener('change', watchTailLine, { once: true });
+}
+watchTailLine();
 const leaving = (el) => el.classList.contains('leaving');
 /** Numbers an element's buttons (`--i`), so they pop out one after another. */
 function stagger(el) { [...el.children].forEach((b, i) => b.style.setProperty('--i', String(i))); }
