@@ -752,6 +752,29 @@ function marked(text, n, words) {
   return open ? out + '</b>' : out;
 }
 
+/** The own answer's cap: the bubble's, though the World takes more. */
+const OWN_MAX = 200;
+/**
+ * A text field with a cap of `max` characters (of the trimmed text, as the World counts them). Past the cap the text
+ * stays in the field, the form gets `over`, `count` shows and the caller does not send. `painted(over, n)` follows
+ * each repaint. Returns the repaint, which gives how many characters are over.
+ */
+function capField(form, field, count, max, painted) {
+  const paint = () => {
+    const n = field.value.trim().length, over = Math.max(0, n - max);
+    count.hidden = !over;
+    count.textContent = `${n} / ${max}`;
+    count.title = over ? t('bubble.tooLong', { over, max }) : '';
+    form.classList.toggle('over', over > 0);
+    painted?.(over, n);
+    return over;
+  };
+  field.addEventListener('input', paint);
+  paint();
+  return paint;
+}
+function shake(form) { form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake'); }
+
 function showOptions(it) {
   const box = bubble.querySelector('.b-opts');
   it.options.forEach((label, i) => {
@@ -767,12 +790,14 @@ function showOptions(it) {
   if (it.own) {
     const form = document.createElement('form');
     form.className = 'b-own';
-    form.innerHTML = `<input type="text" maxlength="200" autocomplete="off" placeholder="${esc(t('bubble.ownPlaceholder'))}" aria-label="${esc(t('bubble.ownLabel'))}"><button type="submit">${esc(t('bubble.send'))}</button>`;
+    form.innerHTML = `<input type="text" autocomplete="off" placeholder="${esc(t('bubble.ownPlaceholder'))}" aria-label="${esc(t('bubble.ownLabel'))}"><span class="b-count" hidden></span><button type="submit">${esc(t('bubble.send'))}</button>`;
     form.style.animationDelay = (it.options.length * .07) + 's';
+    const capped = capField(form, form.querySelector('input'), form.querySelector('.b-count'), OWN_MAX);
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const input = form.querySelector('input'), v = input.value.trim();
       if (!v) { input.focus(); return; }
+      if (capped()) { shake(form); input.focus(); return; }
       answer(form, { text: v });
     });
     box.appendChild(form);
@@ -955,10 +980,11 @@ function showDialogInput(it) {
     paint();
   } else if (input.kind === 'text') {
     const form = Object.assign(document.createElement('form'), { className: 'd-field' });
-    form.innerHTML = `<input type="${input.secret ? 'password' : 'text'}" autocomplete="off" spellcheck="false" maxlength="${Number(input.maxLength) || 200}">${input.secret ? `<button class="d-peek" type="button" aria-label="${esc(t('bubble.peek'))}" title="${esc(t('bubble.peek'))}">${ICONS.eye}</button>` : ''}<button class="d-send" type="submit"></button>`;
+    form.innerHTML = `<input type="${input.secret ? 'password' : 'text'}" autocomplete="off" spellcheck="false">${input.secret ? `<button class="d-peek" type="button" aria-label="${esc(t('bubble.peek'))}" title="${esc(t('bubble.peek'))}">${ICONS.eye}</button>` : ''}<span class="b-count" hidden></span><button class="d-send" type="submit"></button>`;
     const field = form.querySelector('input');
     field.placeholder = input.placeholder || '';
     field.value = input.value || '';
+    const capped = capField(form, field, form.querySelector('.b-count'), Number(input.maxLength) || 200);
     if (Array.isArray(input.suggestions) && input.suggestions.length && !input.secret) {
       const list = document.createElement('datalist');
       list.id = `d-list-${it.id}`;
@@ -977,7 +1003,7 @@ function showDialogInput(it) {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const v = field.value.trim();
-      if (!v) { form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake'); field.focus(); return; }
+      if (!v || capped()) { shake(form); field.focus(); return; }
       settleDialog(it, { text: v });
     });
     body.appendChild(form);
@@ -1130,7 +1156,7 @@ function openInput() {
   const expand = prefs.bot?.buttons?.chat
     ? `<button class="b-expand" type="button" aria-label="${esc(t('bubble.expand'))}" title="${esc(t('bubble.expand'))}">${ICONS.expand}</button>`
     : '';
-  openBubble('ask', `${sideColumn(t('bubble.close'), false, true)}<div class="b-imgs" hidden></div><form class="b-own"><textarea rows="1" maxlength="500" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}"></textarea>${expand}<button type="submit">${esc(t('bubble.send'))}</button></form><span class="b-hint b-note" hidden></span>`);
+  openBubble('ask', `${sideColumn(t('bubble.close'), false, true)}<div class="b-imgs" hidden></div><form class="b-own"><textarea rows="1" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}"></textarea><span class="b-count" hidden></span>${expand}<button type="submit">${esc(t('bubble.send'))}</button></form><span class="b-hint b-limit" role="status" hidden></span><span class="b-hint b-note" hidden></span>`);
   const form = bubble.querySelector('form'), input = form.querySelector('textarea');
   const tray = bubble.querySelector('.b-imgs'), note = bubble.querySelector('.b-note');
   // the scrollbar outside the box (pet.css .b-track): its track runs from under the close button to the text's bottom
@@ -1200,6 +1226,16 @@ function openInput() {
     drawBar();
   };
   it.fitHint();
+  // past the box's cap the text stays and is not sent; the chat page takes up to its own, longer cap
+  const boxMax = prefs.bot?.textMax?.box ?? 500, chatMax = prefs.bot?.textMax?.chat ?? 4000;
+  const limit = bubble.querySelector('.b-limit'), expandButton = bubble.querySelector('.b-expand');
+  const capped = capField(form, input, form.querySelector('.b-count'), boxMax, (over, n) => {
+    const movable = !!expandButton && n <= chatMax;
+    limit.hidden = !over;
+    limit.textContent = !over ? '' : movable ? t('bubble.tooLongForBox', { over, max: boxMax, chat: chatMax }) : t('bubble.tooLong', { over, max: boxMax });
+    expandButton?.classList.toggle('nudge', over > 0 && movable);
+    if (expandButton) expandButton.disabled = n > chatMax;
+  });
   const say = (text) => { note.textContent = text || ''; note.hidden = !text; };
   const draw = () => {
     tray.hidden = !it.images.length;
@@ -1254,6 +1290,7 @@ function openInput() {
     e.preventDefault();
     const v = input.value.trim();
     if (it.pending || (!v && !it.images.length)) return;
+    if (capped()) { shake(form); return; }
     send({ t: 'text', text: v, ...(it.images.length ? { images: it.images.map(({ mime, base64, name }) => ({ mime, base64, name })) } : {}) });
     sfx.select(); body?.cue('cheer');
     closeBubble();

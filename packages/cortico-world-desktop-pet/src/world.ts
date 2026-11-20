@@ -103,6 +103,9 @@ const CONFIRM_UNSHOWN_MS = 180_000;
 const CHAT_PAGE_EVENTS = 300;
 /** A message from the chat page: text cut to this, up to IMAGES_MAX images of at most IMAGE_MAX_BYTES each, as the console World takes them. */
 const CHAT_TEXT_MAX = 4000;
+/** Text cut to these: the pet's typing box, and a written answer to `pet_ask` from either page. The pages are told each cap and hold back longer text. */
+const BOX_TEXT_MAX = 500;
+const ANSWER_TEXT_MAX = 500;
 const IMAGES_MAX = 8;
 const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
@@ -882,6 +885,7 @@ export class DesktopPetWorld implements World {
           activity: this.activity.steps.length ? { steps: this.activity.steps, startedAt: this.activity.startedAt } : null,
           paused: this.opts.controls?.isPaused?.() ?? false, user: this.userName, bot: this.botName(),
           imagesSeen: host?.modelFacts.accepts('image/jpeg') ?? false,
+          textMax: CHAT_TEXT_MAX, answerMax: ANSWER_TEXT_MAX,
         });
         if (this.draft !== null) { this.chat.send(socket, { t: 'draft', ...this.draft }); this.draft = null; }
         return;
@@ -1018,6 +1022,7 @@ export class DesktopPetWorld implements World {
       buttons: { pause, settings: !!c?.openSettings, dress: !!c?.openDress, worlds: !!c?.openWorlds, quit: !!c?.quit, chat: !!c?.openChat },
       // the typing box warns, as the chat page does, that the model gets only the count of pasted images
       imagesSeen: this.host?.modelFacts.accepts('image/jpeg') ?? false,
+      textMax: { box: BOX_TEXT_MAX, chat: CHAT_TEXT_MAX },
       paused: pause && c?.isPaused ? c.isPaused() : null,
       quitLabel,
       quitPrompt: quitLabel ? this.ui.menu.quitPrompt(quitLabel) : '',
@@ -1230,7 +1235,7 @@ export class DesktopPetWorld implements World {
       }
       case 'visibility': this.petHidden = msg.hidden === true; this.tellDesktop(); return;
       case 'text': {
-        const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 500) : '';
+        const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, BOX_TEXT_MAX) : '';
         const images = parseChatImages(msg.images, this.userName, petText(this.appLanguage).chat, this.t);
         if (!images.ok) { this.log?.warn(`打字框发来的图片没有收下:${images.reason}`); return; }
         if (!text && images.blobs.length === 0) return;
@@ -1432,7 +1437,7 @@ export class DesktopPetWorld implements World {
       return;
     }
     const index = typeof msg.index === 'number' && ask.options[msg.index] !== undefined ? msg.index : null;
-    const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 500) : '';
+    const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, ANSWER_TEXT_MAX) : '';
     if (index === null && !text) return;
     this.setAsk(null);
     if (from === 'chat') this.server.sendPet({ t: 'ask-close', id: ask.id });

@@ -19,6 +19,9 @@ export default {
   'bubble.imageUnreadable': '无法读取这张图片',
   'bubble.imageTooLarge': '这张图片缩小后仍超过 {mb}MB',
   'bubble.imagesUnseen': '现在的模型看不到图片，{bot} 只会知道你发了几张图。',
+  /** A typed text past its cap; the typing box's text past its cap while the Chat page takes it. */
+  'bubble.tooLong': '超出 {over} 字，删减到 {max} 字以内才能发送',
+  'bubble.tooLongForBox': '打字框最多 {max} 字，已超出 {over} 字。在对话页继续编辑可以写到 {chat} 字',
 
   // 你说的话:语音识别中的样子;对话页发来的消息附的图片数
   'heard.more': '正在倾听…',

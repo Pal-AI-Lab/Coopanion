@@ -16,6 +16,9 @@ export default {
   'bubble.imageUnreadable': '이 이미지를 읽을 수 없습니다',
   'bubble.imageTooLarge': '이 이미지는 크기를 줄인 뒤에도 {mb}MB를 넘습니다',
   'bubble.imagesUnseen': '현재 모델은 이미지를 볼 수 없어 {bot}에게는 보낸 이미지 수만 전달됩니다.',
+  /** A typed text past its cap; the typing box's text past its cap while the Chat page takes it. */
+  'bubble.tooLong': '{over}자 초과했습니다. {max}자 이내로 줄이면 보낼 수 있습니다',
+  'bubble.tooLongForBox': '입력창은 최대 {max}자이며 {over}자 초과했습니다. 대화 페이지에서 이어 쓰면 {chat}자까지 쓸 수 있습니다',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': '듣는 중…',

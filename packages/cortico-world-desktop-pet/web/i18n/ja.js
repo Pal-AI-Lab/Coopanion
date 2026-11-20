@@ -16,6 +16,9 @@ export default {
   'bubble.imageUnreadable': 'この画像を読み込めません',
   'bubble.imageTooLarge': 'この画像は縮小後も {mb}MB を超えています',
   'bubble.imagesUnseen': '現在のモデルは画像を見られません。{bot} には送った枚数だけが伝わります。',
+  /** A typed text past its cap; the typing box's text past its cap while the Chat page takes it. */
+  'bubble.tooLong': '{over} 文字超過しています。{max} 文字以内にすると送信できます',
+  'bubble.tooLongForBox': '入力欄は {max} 文字までで、{over} 文字超過しています。チャットページで続ければ {chat} 文字まで書けます',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': '聞き取り中…',
