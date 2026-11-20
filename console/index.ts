@@ -22,6 +22,8 @@ import { wsUrlOf } from './base/websocket.ts';
 import { applyStoredTheme, disposeThemeStudio } from './base/theme/studio.ts';
 import { fetchTheme } from './base/theme/storage.ts';
 import { createConsoleUi } from './base/ui/index.ts';
+import { S as UI } from './base/ui/strings.ts';
+import { confirm } from './base/ui/overlay.ts';
 import { mountHoverHints } from './base/ui/hover-hint.ts';
 import { mountDropdowns } from './base/ui/dropdown.ts';
 import type { ConsoleIconName } from './base/ui/icons.ts';
@@ -97,7 +99,7 @@ export function boot(doc: Document = document): Disposable {
   const onError = (err: unknown): void => { console.error('[console]', err); };
   const life = new Lifecycle(onError);
   const memo = createMemo('cortico.panel.');
-  const router = new Router({ win: window, confirmLeave: async (message) => window.confirm(message), onError });
+  const router = new Router({ win: window, confirmLeave: (message) => confirm({ doc, host: doc.body, signal: life.signal }, { title: UI.unsavedTitle, body: message, danger: true, ok: UI.leave }), onError });
   const loader = new ConsolePageLoader({
     importModule: (url: string) => import(/* @vite-ignore */ url),
     styleHost: doc.head,
