@@ -82,6 +82,8 @@ describe('geminiRequest', () => {
   it('sends the thinking floor for thinking off, and a budget on 2.5 models', () => {
     expect(thinkingConfig({ model: 'gemini-x', thinking: false })).toEqual({ includeThoughts: true, thinkingLevel: 'low' });
     expect(thinkingConfig({ model: 'gemini-x-flash-lite', thinking: false })).toEqual({ includeThoughts: true, thinkingLevel: 'minimal' });
+    expect(thinkingConfig({ model: 'gemini-4-hydrogen', thinking: true, reasoningEffort: 'max' })).toEqual({ includeThoughts: true, thinkingLevel: 'xhigh' });
+    expect(thinkingConfig({ model: 'gemini-4-carbon', thinking: true, reasoningEffort: 'max' })).toEqual({ includeThoughts: true, thinkingLevel: 'high' });
     expect(thinkingConfig({ model: 'gemini-2.5-flash', thinking: false })).toEqual({ includeThoughts: false, thinkingBudget: 0 });
     expect(thinkingConfig({ model: 'gemini-2.5-flash', thinking: true })).toEqual({ includeThoughts: true, thinkingBudget: -1 });
   });

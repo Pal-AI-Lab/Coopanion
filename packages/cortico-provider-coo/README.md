@@ -27,7 +27,7 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
 | `gemini` | Gemini | `https://generativelanguage.googleapis.com/v1beta` | gemini | `gemini-4-hydrogen` |
 | `xai` | xAI | `https://api.x.ai/v1` | responses | `grok-4.3` |
 
-表在 `src/vendors.ts`,数据取自各家文档(国内平台 2026-09-24,其余 2026-10-08,默认模型和智谱、OpenRouter 的思考档位 2026-10-09 复核，Gemini 的 `gemini-4-hydrogen` 2026-11-19)。默认模型取每家快、便宜、能看图的那档(Gemini 取 `gemini-4-hydrogen`,能听音频);
+表在 `src/vendors.ts`,数据取自各家文档(国内平台 2026-09-24,其余 2026-10-08,默认模型和智谱、OpenRouter 的思考档位 2026-10-09 复核，Gemini 4 四个型号 2026-11-19)。默认模型取每家快、便宜、能看图的那档(Gemini 取 `gemini-4-hydrogen`,能听音频);
 `Vendor.models` 是另外几个推荐的模型名,任何那一家接受的模型名都能填。**拿真实 Key 跑过的只有 DeepSeek、Anthropic 和阶跃 Step Plan**。
 
 - **哪一家、哪个平台**:按 `baseUrl` 认(`locate` / `vendorOf`),端点里不另存字段。有国内、国际两个平台的服务账号和 Key 不通用,
@@ -58,7 +58,8 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
   排在这一项的图片前面(方舟「创建 Response」两处都收 `input_audio`)。豆包和 Gemini 一样只看「多模态」开关，不按型号列;方舟的音频理解型号是
   doubao-seed-2-1-lite、2-0-lite、2-0-mini,换成不收音频的型号时关掉「语音输入」页的「投递录音」。和别的附件一样只发最近一批，被拒后去掉重发。
 - **价目**:`src/pricing.ts` 内置 DeepSeek(错峰价,两个高峰时段按两倍计)、OpenAI、Anthropic、Gemini(付费档)、xAI;别家没有内置价目。
-  长提示的第二档价格按 `inputBands` 计;`gemini-3.8-flash` 的现价到 2026-12-31,之后开始的请求按页面列的新价。
+  长提示的第二档价格按 `inputBands` 计;`gemini-3.8-flash` 的现价到 2026-12-31,`gemini-4-carbon`、`gemini-4-argon` 的现价到 2026-11-30,之后开始的请求按页面列的新价。
+  Gemini 4 的 `gemini-4-hydrogen`、`gemini-4-neon` 最高思考档发 `xhigh`,其余 Gemini 型号最高发 `high`。
 - **标志**:`src/icons.ts`,取自 [@lobehub/icons-static-svg](https://github.com/lobehub/lobe-icons)(MIT)。标志归各自的公司所有,只用来标明是哪一家。
 - **语言**:控制台里的说明、思考档位与协议设置项在 `src/strings.ts`(`zh`、`en`)与 `src/strings.<语言>.ts`(只写译好的顶层键);
   `names` / `keyHint` 按语言给(`localized`);两处都是繁体中文回落简体,其余回落英文;`vendorsFor(language)` 给推荐顺序,
