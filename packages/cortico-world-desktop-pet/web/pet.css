@@ -140,7 +140,7 @@ body.desk .floor{display:none}
    --bubble-size scales the frame (widths, padding, corners, tail) and --bubble-font the text and the icons on its lines, both
    factors set by pet-app.js from the bubbleSize and fontSize settings and unset at 1; the border keeps its line. */
 .bubble{
-  position:fixed; left:0; top:0; z-index:3; width:max-content; min-width:calc(46px * var(--bubble-size, 1)); max-width:min(calc(300px * var(--bubble-size, 1)), calc(100vw - 20px));
+  position:fixed; left:0; top:0; z-index:3; width:max-content; min-width:calc(58px * var(--bubble-size, 1)); max-width:min(calc(300px * var(--bubble-size, 1)), calc(100vw - 20px));
   padding:calc(10px * var(--bubble-size, 1)) calc(14px * var(--bubble-size, 1)); border-radius:calc(18px * var(--bubble-size, 1)); background:var(--surface); color:var(--text);
   border:2.5px solid var(--skin-ink); box-shadow:0 8px 22px var(--shadow);
   font-size:calc(14.5px * var(--bubble-font, 1)); line-height:1.55;

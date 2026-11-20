@@ -10,7 +10,7 @@
  * Colors follow the World's `theme` through `data-theme` on the root element, and text the app
  * language (i18n.js): the one stamped on the page, then the one the World's prefs carry.
  */
-import { applyTheme, balancedWidth, clamp, f, ICONS, layBeside, tailLine, linked } from './ui.js';
+import { applyTheme, balancedWidth, clamp, f, ICONS, layBeside, tailAt, tailLine, linked } from './ui.js';
 import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
@@ -2393,17 +2393,6 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ---------- layout ---------- */
-/**
- * Bubbles up to TAIL_CENTER wide (empty, or a word or two) point their tail from their middle; wider ones
- * move it over to Coo by TAIL_FOLLOW wide. Between the two it slides, so a bubble growing as the line
- * types out carries its tail along with it.
- */
-const TAIL_CENTER = 70, TAIL_FOLLOW = 130;
-/** Where the tail's tip sits along a bubble `bw` wide whose left edge is `x` left of Coo. */
-function tailAt(bw, x) {
-  const k = clamp((bw - TAIL_CENTER) / (TAIL_FOLLOW - TAIL_CENTER), 0, 1);
-  return bw / 2 + (clamp(x, 22, bw - 22) - bw / 2) * k;
-}
 /** Coo's bubble above its head, moved over to the side it faces. */
 function place(el, a, extraUp) {
   const bw = el.offsetWidth, bh = el.offsetHeight;
@@ -2411,7 +2400,7 @@ function place(el, a, extraUp) {
   const top = Math.max(8, a.y - bh - extraUp);
   el.style.left = f(left) + 'px';
   el.style.top = f(top) + 'px';
-  el.style.setProperty('--tail', f(tailAt(bw, a.x - left)) + 'px');
+  el.style.setProperty('--tail', f(tailAt(bw, a.x - left, prefs.bubbleSize)) + 'px');
   return { left, top, bw, bh };
 }
 function placeTalk(it, a) {
@@ -2425,7 +2414,7 @@ function placeTalk(it, a) {
   const top = Math.max(8, it.pinY - bh - 18 * prefs.bubbleSize);
   bubble.style.left = f(left) + 'px';
   bubble.style.top = f(top) + 'px';
-  bubble.style.setProperty('--tail', f(tailAt(bw, a.x - left)) + 'px');
+  bubble.style.setProperty('--tail', f(tailAt(bw, a.x - left, prefs.bubbleSize)) + 'px');
   return { left, top, bw, bh };
 }
 
