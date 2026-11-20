@@ -160,8 +160,8 @@
 @keyframes pv-bubble-in { from { transform: scale(.5); opacity: 0; } }
 .pv-say::before, .pv-say::after, .pv-status::before, .pv-status::after { content: ""; position: absolute; left: calc(var(--tail, 50%) - 13.5px); bottom: -11px; width: 22px; height: 11.5px; scale: var(--bubble-size, none); transform-origin: 11px 0; }
 .pv-say::before, .pv-status::before { background: var(--pv-ink); clip-path: path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z'); }
-/* as pet.css: the surface triangle is the outline one moved up by the line's width (2.5px × √2), so the line keeps its width at any bubble size */
-.pv-say::after, .pv-status::after { background: var(--pv-surface); clip-path: path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z'); translate: 0 -3.54px; }
+/* as pet.css: the surface triangle is the outline one moved up by the line's width across its 45° sides (--tail-line × √2, the width the border is drawn at), so the line matches the border at any size */
+.pv-say::after, .pv-status::after { background: var(--pv-surface); clip-path: path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z'); translate: 0 calc(var(--tail-line, 2.5px) * -1.4142); }
 /* 和桌宠一样:点一下关掉(Coo 的话整句跳过);指着时描边换成眼睛的颜色;状态气泡不接收指针 */
 .pv-say, .pv-heard { cursor: pointer; }
 .pv-say:hover, .pv-heard:hover { border-color: var(--pv-eye); }

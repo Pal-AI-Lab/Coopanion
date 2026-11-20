@@ -5,10 +5,12 @@
  * At rest it shows a line of yours and Coo's reply; 「播放示例」 plays one exchange: your line, what Coo is doing,
  * then the reply typed and held line by line, each bubble leaving when its hold runs out. As on the pet, a click
  * closes a bubble (Coo's whole reply, or your line) and the pointer on Coo's line holds it once it is written.
- * Size and text size follow the sliders at once; speed and holds are read when the sample plays.
+ * A wrapped line takes the narrowest bubble that holds it in as many lines, and a tail's line is as wide as the border
+ * is drawn, as on the pet (ui.js balancedWidth, tailLine). Size and text size follow the sliders at once; speed and
+ * holds are read when the sample plays.
  */
 
-import { ICONS } from 'cortico-world-desktop-pet/web/ui.js';
+import { balancedWidth, ICONS, tailLine } from 'cortico-world-desktop-pet/web/ui.js';
 import { HEAD_TOP, mini, normalizeSkin, skinVars } from 'cortico-world-desktop-pet/web/coo/coo.js';
 import { prefersStill } from '../../base/motion.ts';
 import { icon } from '../../base/ui/icons.ts';
@@ -121,6 +123,30 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   };
   const fading = (bubble: HTMLElement) => bubble.classList.contains('is-fading');
   const fade = (bubble: HTMLElement) => { if (!bubble.hidden) bubble.classList.add('is-fading'); };
+  /** Coo's bubble for `line`, as narrow as the whole line allows, measured with the caret (pet-app.js fitLine); the text is left empty. */
+  const fitSay = (line: string) => {
+    sayText.textContent = line;
+    sayText.append(h('span', 'pv-caret'));
+    say.style.maxWidth = '';
+    say.style.maxWidth = `${balancedWidth(say)}px`;
+    sayText.replaceChildren();
+  };
+  /** Your line's bubble, as narrow as its text allows (pet-app.js drawLine). */
+  const fitSaid = () => { said.style.maxWidth = ''; said.style.maxWidth = `${balancedWidth(said)}px`; };
+  /** The bubbles at rest, fitted again: after the sizes change their widths do. */
+  const fitAtRest = () => {
+    if (run) return;
+    if (!said.hidden) fitSaid();
+    if (!say.hidden) { const text = sayText.textContent ?? ''; fitSay(text); sayText.textContent = text; }
+  };
+  /** The tails' line follows the width the border is drawn at, which changes with the display's scale. */
+  const watchTailLine = () => {
+    const view = doc.defaultView;
+    if (!view || signal.aborted) return;
+    stage.style.setProperty('--tail-line', `${tailLine(view.devicePixelRatio || 1)}px`);
+    view.matchMedia?.(`(resolution: ${view.devicePixelRatio || 1}dppx)`).addEventListener('change', watchTailLine, { once: true, signal });
+  };
+  watchTailLine();
 
   /** Your line's place relative to Coo's head, eased toward where it belongs as the pet eases it (pet-app.js placeLines). */
   let saidAt: { x: number; y: number } | null = null;
@@ -174,17 +200,20 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     stage.style.setProperty('--bubble-font', String(FONT_MAX));
     said.hidden = false;
     statusText.textContent = READ_FILE;
+    const widths = [said.style.maxWidth, say.style.maxWidth];
     let room = 0;
     for (const size of SIZE_STEPS) {
       stage.style.setProperty('--bubble-size', String(size));
+      fitSaid();
       for (const line of [...S.previewReply, null]) {
         say.hidden = line === null; status.hidden = line !== null;
-        if (line !== null) sayText.textContent = line;
+        if (line !== null) { fitSay(line); sayText.textContent = line; }
         room = Math.max(room, tall - lay(tall, 0));
       }
     }
     [saidText.textContent, sayText.textContent] = texts;
     [said.hidden, say.hidden, status.hidden] = shown;
+    [said.style.maxWidth, say.style.maxWidth] = widths;
     ['--bubble-size', '--bubble-font'].forEach((name, i) => stage.style.setProperty(name, vars[i]!));
     stageH = Math.max(STAGE_MIN_H, Math.ceil(room + PLAY_ROOM));
     stage.style.height = `${stageH}px`;
@@ -203,6 +232,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     const s = read();
     stage.style.setProperty('--bubble-size', String(s.size));
     stage.style.setProperty('--bubble-font', String(s.font));
+    if (frame.clientWidth) fitAtRest();
     fit();
   };
   /** Whether your line shows at rest: it follows the 输入气泡 switch. */
@@ -241,6 +271,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     doc.defaultView!.setTimeout(() => {
       if (signal.aborted || run || mine !== generation || (bubble === said && !saidAtRest)) return;
       show(bubble, true, true);
+      fitAtRest();
       lay(stageH, 0);
     }, BACK_SEC * 1000);
   };
@@ -263,7 +294,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     r.t += dt;
     const t = r.t;
     clock.textContent = `${t.toFixed(1)} s`;
-    if (s.said && r.saidAt === undefined && t >= SENT_AT) { r.saidAt = t; show(said, true, true); }
+    if (s.said && r.saidAt === undefined && t >= SENT_AT) { r.saidAt = t; show(said, true, true); fitSaid(); }
     pose(t >= SENT_AT && t < r.speakAt ? 'thinking' : 'neutral');
     if (s.status && t >= SENT_AT && t < r.speakAt && r.endedAt === undefined) {
       const reading = t >= SENT_AT + THINK_SEC;
@@ -278,7 +309,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
     // Coo's reply: each line typed at the bubble speed, then held; the pointer on it holds it once it is written
     if (t >= r.speakAt && r.endedAt === undefined) {
       const lines = S.previewReply, line = lines[r.beat]!, chars = [...line];
-      if (say.hidden) { sayText.textContent = ''; show(say, true, true); }
+      if (say.hidden) { show(say, true, true); fitSay(line); }
       if (!r.written) {
         r.typed += dt * TYPING_CPS * s.speed;
         let n = 0, used = 0;
@@ -295,7 +326,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
         if (pointer.over && (r.holding || !pointer.was)) r.holding = true;
         if (r.holding) r.holdUntil += dt;
         if (t >= r.holdUntil) {
-          if (r.beat < lines.length - 1) { r.beat++; r.typed = 0; r.written = false; }
+          if (r.beat < lines.length - 1) { r.beat++; r.typed = 0; r.written = false; fitSay(lines[r.beat]!); }
           else { r.endedAt = t; fade(say); }
         }
       }
