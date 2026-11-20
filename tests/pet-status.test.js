@@ -166,6 +166,21 @@ describe('hovering a timed bubble', () => {
     expect(p.bubble.hidden).toBe(true);
   });
 
+  it.each(['say', 'dialog'])('lets a %s bubble close when the cursor report drops out under a stationary pointer', (kind) => {
+    const p = page();
+    p.bubble.getBoundingClientRect = () => ({ left: 10, right: 100, top: 10, bottom: 40 });
+    p.cursor.at = null;
+    show(p, kind);
+    advance(p, 2);
+    p.cursor.at = { x: 30, y: 20 };
+    advance(p, 4);
+    p.cursor.at = null;
+    advance(p, 1);
+    p.cursor.at = { x: 30, y: 20 };
+    advance(p, 80);
+    expect(p.bubble.hidden).toBe(true);
+  });
+
   it.each(['say', 'dialog'])('holds a %s bubble after the pointer enters until it leaves', (kind) => {
     const p = page();
     p.bubble.getBoundingClientRect = () => ({ left: 10, right: 100, top: 10, bottom: 40 });

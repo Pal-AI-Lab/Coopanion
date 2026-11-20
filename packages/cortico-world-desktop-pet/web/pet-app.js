@@ -611,17 +611,22 @@ function startItem(it) {
   }
 }
 
-/** Compare both cursor positions with the same rectangle so the bubble's animation cannot start a hover. */
+/**
+ * Compare both cursor positions with the same rectangle so the bubble's animation cannot start a hover. A hover
+ * starts only from a known position outside the bubble: a frame without one (the window turning click-through
+ * reports a pointerleave) keeps the last known position and the hold as they were.
+ */
 function heldByCursor(it) {
   const p = cursor.at;
+  if (!p) return false;
   const previous = it.cursorAt;
   it.cursorAt = p;
-  if (!p || bubble.hidden || clicksPass()) {
+  if (bubble.hidden || clicksPass()) {
     it.cursorHolding = false;
     return false;
   }
   const r = bubble.getBoundingClientRect();
-  it.cursorHolding = inRect(p, r) && (it.cursorHolding || !previous || !inRect(previous, r));
+  it.cursorHolding = inRect(p, r) && (it.cursorHolding || (!!previous && !inRect(previous, r)));
   return it.cursorHolding;
 }
 
