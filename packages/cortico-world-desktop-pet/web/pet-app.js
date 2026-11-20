@@ -1138,6 +1138,10 @@ function openInput() {
   const drawBar = () => {
     const over = input.scrollHeight - input.clientHeight;
     track.hidden = over <= 1;
+    // text cut off at an edge fades out there (pet.css `.b-own textarea.scrolls`)
+    input.classList.toggle('scrolls', !track.hidden);
+    input.classList.toggle('more-above', !track.hidden && input.scrollTop > 1);
+    input.classList.toggle('more-below', !track.hidden && input.scrollTop < over - 1);
     if (track.hidden) return;
     // the rects are scaled while the bubble pops in (pet.css bubble-in): the gap between them is turned back into pixels
     const scale = bubble.getBoundingClientRect().width / bubble.offsetWidth || 1;
