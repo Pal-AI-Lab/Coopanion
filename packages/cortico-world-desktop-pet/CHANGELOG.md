@@ -1,5 +1,6 @@
 ## Unreleased
 
+- The 「语音输入」 panel shows the explanations of the engine, how to talk, opening on press, the recording, the transcript and the recording limit whole, in the page's text font; status details (paths, the window, the runtime) keep to two lines.
 - Config `window.fade` (0–95, in steps of 5, 0 by default): how transparent the body and its bubbles are, in percent; the hover buttons, the menu and the sliders stay opaque, and the body is opaque while the typing box, a question, a dialog or a confirmation is open and while it is held. On Windows, `window.fadeWhenFullscreen` (off by default) takes `window.fullscreenFade` (40 by default) in its place while a fullscreen window covers the pet's display. The change fades over 0.2 s.
 - Hover buttons `fade` and `cua`. `fade` shows a transparency slider over the head, in the size slider's place and as it opens and pins; it sets the transparency in force. `cua` shows whether computer use is on: a click switches it off (`prefs` `cua: false`), or, while off, opens the settings window's switch through `controls.openCuaSettings`. The page's `prefs` carry `fade`, `fadeWhenFullscreen`, `fullscreenFade` and `cua: { on, canOpen }`; the pet page's slider element is `#headSlider` (was `#sizer`).
 
