@@ -599,12 +599,23 @@ describe('with a pet page', () => {
   it('shows a line pushed over HTTP in the bubble, records nothing and tells the bot nothing', async () => {
     const { world, host } = await mounted();
     const post = (body: unknown) => fetch(`${origin(world)}/api/bubble`, { method: 'POST', body: JSON.stringify(body) });
-    expect((await post({ from: 'dsh', text: '还没有页面' })).status).toBe(409);
+    const noPage = await post({ from: 'dsh', text: '还没有页面' });
+    expect(noPage.status).toBe(409);
+    expect(await noPage.json()).toEqual({ ok: false, reason: 'no-page' });
     const page = await FakePage.open(origin(world));
     cleanup.push(() => page.close());
     const res = await post({ from: 'dsh', text: '  外面推来的一句话  ', actions: ['happy'] });
     expect(res.status).toBe(200);
-    expect(await page.next((m) => m.t === 'dialog')).toMatchObject({ from: 'dsh', text: '外面推来的一句话', actions: ['happy'], closable: true });
+    const shown = await page.next((m) => m.t === 'dialog');
+    expect(shown).toMatchObject({ from: 'dsh', text: '外面推来的一句话', actions: ['happy'], closable: true });
+    // the bubble is showing that line, so the next one is refused instead of queued behind it
+    const busy = await post({ from: 'dsh', text: '第二句' });
+    expect(busy.status).toBe(409);
+    expect(await busy.json()).toEqual({ ok: false, reason: 'busy' });
+    expect(page.messages.filter((m) => m.t === 'dialog')).toHaveLength(0);
+    // once the page has read the line out, the bubble takes another
+    page.send({ t: 'dialog', id: shown.id, done: true });
+    expect((await post({ from: 'dsh', text: '第三句' })).status).toBe(200);
     expect((await post({ from: 'dsh', text: '  ' })).status).toBe(400);
     // the bubble looks like the pet's own words, so a line that does not say whose it is is refused
     expect((await post({ text: '没有来源' })).status).toBe(400);

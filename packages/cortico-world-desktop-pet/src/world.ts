@@ -1387,10 +1387,14 @@ export class DesktopPetWorld implements World {
   /**
    * Shows one line pushed from outside the World (`POST /api/bubble`). The line is the caller's:
    * `from` names who it belongs to, nothing reaches the bot, no event is pushed, and the chat page
-   * keeps no record of it. Returns false when no page is connected to show it.
+   * keeps no record of it.
+   *
+   * A busy bubble is refused rather than queued: `busy` says this line did not get in, and nothing
+   * of it is kept to show later.
    */
-  showLine(line: BubbleLine): boolean {
-    if (!this.server.petConnected) return false;
+  showLine(line: BubbleLine): 'shown' | 'no-page' | 'busy' {
+    if (!this.server.petConnected) return 'no-page';
+    if (this.bubbleBusy()) return 'busy';
     this.dialog({
       from: line.from,
       text: line.text,
@@ -1398,7 +1402,12 @@ export class DesktopPetWorld implements World {
       closable: line.closable ?? true,
     });
     this.log?.info(`推来的气泡(来自 ${line.from}):${cutChars(line.text, 20)}`);
-    return true;
+    return 'shown';
+  }
+
+  /** Whether the bubble shows something the person is meant to read or answer. */
+  private bubbleBusy(): boolean {
+    return this.dialogs.size > 0 || this.ask !== null || (this.sayEnds.at(-1)?.at ?? 0) > Date.now();
   }
 
   /** Dresses the body in `patch` over the skin as it is, and saves it, as a pick on the dressing page does. */
