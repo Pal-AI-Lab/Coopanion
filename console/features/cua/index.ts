@@ -5,8 +5,9 @@
  * person and screenshot sizes stay on the desktop-pet World's page in the advanced mode.
  *
  * Before computer use is first turned on here, a dialog says what it risks; once confirmed, this
- * settings window does not ask again. Opened at `#/pet?cua=enable` (Coo's way to the switch, while it
- * is off), the section shows the dialog at once, confirmed before or not.
+ * settings window does not ask again. Opened at `#/pet?cua=enable` (Coo's and the pet's computer use
+ * button's way to the switch, while it is off), on this page already or not, the section shows the
+ * dialog at once, confirmed before or not.
  */
 
 import { actionProblem } from '../../base/ui/problem.ts';
@@ -155,13 +156,19 @@ export function cuaSection(ctx: PageContext, row: Row): { el: HTMLElement; sync(
     sync(values);
     if (!LEVELS.some((l) => l === saved[KEYS.permission])) { level.setValue(DEFAULT_LEVEL); showLevel(DEFAULT_LEVEL); }
     const view = doc.defaultView;
-    const route = view ? parseHash(view.location.hash) : null;
-    if (view && route?.query.cua === ENABLE) {
+    if (!view) return;
+    /** At `?cua=enable`: the dialog, unless computer use is on. */
+    const takeEnable = () => {
+      const route = parseHash(view.location.hash);
+      if (route.query.cua !== ENABLE) return;
       // a reload of this page does not ask again
       view.history.replaceState(null, '', buildHash(route.segments));
       sheet.el.scrollIntoView({ block: 'start' });
-      if (values[KEYS.enabled] !== true) void turnOn();
-    }
+      if (saved[KEYS.enabled] !== true) void turnOn();
+    };
+    takeEnable();
+    // the settings window already on this page keeps it mounted when it is sent to `?cua=enable`
+    view.addEventListener('hashchange', takeEnable, { signal });
   });
   return { el: sheet.el, sync };
 }

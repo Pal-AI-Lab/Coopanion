@@ -148,3 +148,14 @@ it('keeps a pending confirmation and a focused grant edit intact during polling'
   await vi.advanceTimersByTimeAsync(3000);
   await vi.waitFor(() => expect(grant.value).toBe('30'));
 });
+
+it('asks to turn computer use on when the page already shown is sent to ?cua=enable', async () => {
+  values[key('enabled')] = false;
+  // jsdom lays nothing out
+  Element.prototype.scrollIntoView = () => {};
+  await mount();
+  expect(document.body.textContent).not.toContain(S.riskOk);
+  location.hash = '#/pet?cua=enable';
+  await vi.waitFor(() => expect(document.body.textContent).toContain(S.riskOk));
+  expect(location.hash).toBe('#/pet');
+});
