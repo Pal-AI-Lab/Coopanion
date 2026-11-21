@@ -547,7 +547,7 @@ function openBubble(kind, html) {
   item.cursorHolding = false;
   bubble.className = 'bubble ' + kind;
   bubble.removeAttribute('aria-label');
-  delete bubble.dataset.kind; delete bubble.dataset.icon;
+  delete bubble.dataset.kind; delete bubble.dataset.icon; delete bubble.dataset.from;
   bubble.innerHTML = html;
   bubble.hidden = false;
   void bubble.offsetWidth;
@@ -794,6 +794,8 @@ function openDialog(it) {
   const dots = Array.isArray(d.step) ? Array.from({ length: d.step[1] }, (_, i) => `<i class="${i + 1 < d.step[0] ? 'past' : i + 1 === d.step[0] ? 'on' : ''}"></i>`).join('') : '';
   const back = typeof d.back === 'string' && d.back ? `<button class="d-back" type="button">${esc(d.back)}</button>` : '';
   openBubble('talk', `${dots || d.closable || back ? `<div class="d-top">${back}<span class="d-dots">${dots}</span>${d.closable ? `<button class="b-close" type="button" aria-label="${esc(t('bubble.skip'))}" title="${esc(t('bubble.skip'))}">×</button>` : ''}</div>` : ''}<p class="b-text"></p><div class="d-body" hidden></div>`);
+  // a line pushed from outside is not the pet's own: the bubble keeps whose it is
+  if (typeof d.from === 'string' && d.from) bubble.dataset.from = d.from;
   bubble.querySelector('.b-close')?.addEventListener('click', () => settleDialog(it, { closed: true }));
   bubble.querySelector('.d-back')?.addEventListener('click', () => settleDialog(it, { back: true }));
   for (const a of d.actions || []) acts.push(a);

@@ -599,13 +599,15 @@ describe('with a pet page', () => {
   it('shows a line pushed over HTTP in the bubble, records nothing and tells the bot nothing', async () => {
     const { world, host } = await mounted();
     const post = (body: unknown) => fetch(`${origin(world)}/api/bubble`, { method: 'POST', body: JSON.stringify(body) });
-    expect((await post({ text: '还没有页面' })).status).toBe(409);
+    expect((await post({ from: 'dsh', text: '还没有页面' })).status).toBe(409);
     const page = await FakePage.open(origin(world));
     cleanup.push(() => page.close());
-    const res = await post({ text: '  外面推来的一句话  ', actions: ['happy'] });
+    const res = await post({ from: 'dsh', text: '  外面推来的一句话  ', actions: ['happy'] });
     expect(res.status).toBe(200);
-    expect(await page.next((m) => m.t === 'dialog')).toMatchObject({ text: '外面推来的一句话', actions: ['happy'], closable: true });
-    expect((await post({ text: '  ' })).status).toBe(400);
+    expect(await page.next((m) => m.t === 'dialog')).toMatchObject({ from: 'dsh', text: '外面推来的一句话', actions: ['happy'], closable: true });
+    expect((await post({ from: 'dsh', text: '  ' })).status).toBe(400);
+    // the bubble looks like the pet's own words, so a line that does not say whose it is is refused
+    expect((await post({ text: '没有来源' })).status).toBe(400);
     expect(host.events).toHaveLength(0);
     expect(host.stored).toHaveLength(0);
   });

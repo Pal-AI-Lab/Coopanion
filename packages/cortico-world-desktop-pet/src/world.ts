@@ -160,6 +160,8 @@ export interface PetBotControls {
  */
 export interface PetDialog {
   text: string;
+  /** Whose line this is, when it is not the app's own (`POST /api/bubble`); carried to the page and left on the bubble. */
+  from?: string;
   /** Words in `text` drawn in the theme color, such as a name said for the first time. */
   marks?: string[];
   /** Expressions and motions (vocabulary words) played as the line starts. */
@@ -1384,16 +1386,18 @@ export class DesktopPetWorld implements World {
 
   /**
    * Shows one line pushed from outside the World (`POST /api/bubble`). The line is the caller's:
-   * nothing reaches the bot, no event is pushed, and the chat page keeps no record of it.
-   * Returns false when no page is connected to show it.
+   * `from` names who it belongs to, nothing reaches the bot, no event is pushed, and the chat page
+   * keeps no record of it. Returns false when no page is connected to show it.
    */
   showLine(line: BubbleLine): boolean {
     if (!this.server.petConnected) return false;
     this.dialog({
+      from: line.from,
       text: line.text,
       ...(line.actions?.length ? { actions: line.actions } : {}),
       closable: line.closable ?? true,
     });
+    this.log?.info(`推来的气泡(来自 ${line.from}):${cutChars(line.text, 20)}`);
     return true;
   }
 
