@@ -25,35 +25,105 @@ Var ownsPreviousFiles
   ${If} $0 == 603 ; the executable name is absent
     StrCpy $0 0
   ${Else}
-    ; The executable path is data in the child environment.
+    StrCpy $1 0
+    StrCpy $2 15000
+    ${IfNot} ${isUpdated}
+    ${AndIf} ${FileExists} "$INSTDIR\resources\app\app\installer-events.cjs"
+      StrCpy $1 1
+      ; Includes Core's extension transactions and shutdown deadline.
+      StrCpy $2 115000
+    ${EndIf}
     System::Call 'kernel32::SetEnvironmentVariableW(w "COOPANION_INSTALL_EXE", w "$INSTDIR\${APP_EXECUTABLE_FILENAME}")'
-    nsExec::Exec /TIMEOUT=15000 `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -Command "try { foreach ($$try in 1..6) { if (!(Get-CimInstance Win32_Process -Filter 'Name=''Coopanion.exe''' -ErrorAction Stop | Where-Object ExecutablePath -EQ $$env:COOPANION_INSTALL_EXE)) { exit 0 }; Start-Sleep -Milliseconds 500 } } catch { exit 2 }; exit 1"`
+    System::Call 'kernel32::SetEnvironmentVariableW(w "COOPANION_INSTALL_CLOSE", w r1)'
+    System::Call 'kernel32::SetEnvironmentVariableW(w "COOPANION_INSTALL_WAIT_MS", w r2)'
+    nsExec::Exec /TIMEOUT=125000 `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -Command \
+      "try { $$watch = [Diagnostics.Stopwatch]::StartNew(); $$close = $$env:COOPANION_INSTALL_CLOSE -eq '1'; \
+      do { \
+        $$apps = Get-CimInstance Win32_Process -Filter 'Name=''${APP_EXECUTABLE_FILENAME}''' -ErrorAction Stop; \
+        $$running = $$apps | Where-Object ExecutablePath -EQ $$env:COOPANION_INSTALL_EXE; \
+        if (!$$running) { if ($$apps | Where-Object { !$$_.ExecutablePath }) { exit 2 }; exit 0 }; \
+        if ($$close) { Start-Process -FilePath $$env:COOPANION_INSTALL_EXE -ArgumentList '--quit-for-installer' -ErrorAction Stop; $$close = $$false }; \
+        Start-Sleep -Milliseconds 500 \
+      } while ($$watch.ElapsedMilliseconds -lt [int]$$env:COOPANION_INSTALL_WAIT_MS) } catch { exit 2 }; exit 1"`
     Pop $0
   ${EndIf}
 !macroend
 
+Function IdentifyInstallation
+  StrCpy $ownsPreviousFiles 0
+  ReadRegStr $0 HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation
+  ${If} $0 == $INSTDIR
+  ${OrIf} ${FileExists} "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
+  ${OrIf} ${FileExists} "$INSTDIR\${UNINSTALL_FILENAME}"
+  ${OrIf} ${FileExists} "$INSTDIR\resources\app\core\companion.ts"
+    StrCpy $ownsPreviousFiles 1
+  ${ElseIf} ${FileExists} "$INSTDIR\data\home\companion\deployment.json"
+    ; A copied deployment can sit beside another application's executable.
+    ClearErrors
+    FindFirst $0 $1 "$INSTDIR\*.exe"
+    ${If} ${Errors}
+      StrCpy $ownsPreviousFiles 1
+    ${Else}
+      FindClose $0
+    ${EndIf}
+  ${EndIf}
+  ClearErrors
+FunctionEnd
+
 !macro writeFailure PREFIX
 Function ${PREFIX}WriteFailure
+retry_log:
   ClearErrors
-  CreateDirectory "$INSTDIR\data\logs"
+  ${StdUtils.GetParentPath} $0 "$installLog"
+  CreateDirectory "$0"
   FileOpen $0 "$installLog" a
-  ${If} ${Errors}
-    ClearErrors
-    SetShellVarContext current
-    CreateDirectory "$LOCALAPPDATA\Coopanion"
-    StrCpy $installLog "$LOCALAPPDATA\Coopanion\installer.log"
-    FileOpen $0 "$installLog" a
-  ${EndIf}
   ${IfNot} ${Errors}
     ${GetTime} "" "L" $1 $2 $3 $4 $5 $6 $7
     FileWrite $0 "$3-$2-$1 $5:$6:$7 version=${VERSION} exit=2 stage=$failure file=$failedFile result=$result$\r$\n"
     FileClose $0
+  ${EndIf}
+  ${If} ${Errors}
+  ${AndIf} $installLog != "$LOCALAPPDATA\Coopanion\installer.log"
+    StrCpy $installLog "$LOCALAPPDATA\Coopanion\installer.log"
+    Goto retry_log
   ${EndIf}
 FunctionEnd
 !macroend
 
 !insertmacro writeFailure ""
 !insertmacro writeFailure "un."
+
+Function RememberUpdateFailure
+  ${If} ${Silent}
+  ${AndIf} ${isUpdated}
+  ${AndIfNot} ${isForceRun}
+    ${StdUtils.GetParentPath} $1 "$installLog"
+    ClearErrors
+    FileOpen $0 "$1\last-update-error.tmp" w
+    ${IfNot} ${Errors}
+      FileWriteUTF16LE /BOM $0 "$INSTDIR$\r$\n${VERSION}$\r$\n"
+      FileClose $0
+      ${IfNot} ${Errors}
+        System::Call 'kernel32::MoveFileExW(w "$1\last-update-error.tmp", w "$1\last-update-error.txt", i 9)'
+      ${EndIf}
+      Delete "$1\last-update-error.tmp"
+    ${EndIf}
+  ${EndIf}
+FunctionEnd
+
+Function ClearUpdateFailure
+  Delete "$INSTDIR\data\logs\last-update-error.txt"
+  ClearErrors
+  FileOpen $0 "$LOCALAPPDATA\Coopanion\last-update-error.txt" r
+  ${IfNot} ${Errors}
+    FileReadUTF16LE $0 $1
+    FileClose $0
+    ${TrimNewLines} $1 $1
+    ${If} $1 == $INSTDIR
+      Delete "$LOCALAPPDATA\Coopanion\last-update-error.txt"
+    ${EndIf}
+  ${EndIf}
+FunctionEnd
 
 ; MOVEFILE_WRITE_THROUGH without a cross-volume copy fallback.
 !macro moveChecked SOURCE DESTINATION
@@ -260,21 +330,29 @@ Function VerifyPayload
     ${IfThen} $1 == "END" ${|} ${ExitDo} ${|}
     StrCpy $2 $1 64
     StrCpy $failedFile $1 "" 65
-    ${StdUtils.HashFile} $3 "SHA2-256" "$moveTo\$failedFile"
-    ${If} $3 != $2
-    ${OrIf} $failedFile == ""
-      FileClose $0
-      SetErrors
-      Return
+    ${IfThen} $failedFile == "" ${|} Goto bad_payload ${|}
+    ${If} $moveTo == "$updateDir\new"
+      ${StdUtils.HashFile} $3 "SHA2-256" "$moveTo\$failedFile"
+      ${IfThen} $3 != $2 ${|} Goto bad_payload ${|}
+    ${ElseIfNot} ${FileExists} "$moveTo\$failedFile"
+      Goto bad_payload
     ${EndIf}
   ${Loop}
   FileClose $0
   StrCpy $failedFile ""
+  Return
+
+bad_payload:
+  FileClose $0
+  SetErrors
 FunctionEnd
 
 !macro checkSpace
   SectionGetSize 0 $0
   System::Int64Op $0 * 1024
+  Pop $1
+  ; Budget for allocation overhead, the uninstaller and the journal.
+  System::Int64Op $1 + 33554432
   Pop $1
   System::Call 'kernel32::GetDiskFreeSpaceExW(w "$updateDir", *l .r2, p 0, p 0) i .r0'
   System::Int64Op $2 < $1
@@ -360,12 +438,7 @@ wait_for_app:
   ${EndIf}
   SetOutPath $TEMP
   StrCpy $failure "back up previous files"
-  StrCpy $ownsPreviousFiles 0
-  ReadRegStr $0 HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation
-  ${If} $0 == $INSTDIR
-  ${OrIf} ${FileExists} "$appExe"
-    StrCpy $ownsPreviousFiles 1
-  ${EndIf}
+  Call IdentifyInstallation
   StrCpy $moveFrom "$INSTDIR"
   StrCpy $moveTo "$updateDir\old"
   Call MoveProgramFiles
@@ -378,6 +451,10 @@ wait_for_app:
   StrCpy $moveTo "$INSTDIR"
   Call MoveProgramFiles
   IfErrors rollback
+  ${IfNot} ${FileExists} "$INSTDIR\${UNINSTALL_FILENAME}"
+    StrCpy $failedFile "${UNINSTALL_FILENAME}"
+    Goto rollback
+  ${EndIf}
   Call VerifyPayload
   IfErrors rollback
   StrCpy $failure "commit"
@@ -389,6 +466,7 @@ wait_for_app:
   Call RetireTransaction
   IfErrors incomplete
 
+  Call ClearUpdateFailure
   ; Keep the base installer used for differential downloads.
   ${StdUtils.GetParentPath} $0 "$LOCALAPPDATA\${APP_INSTALLER_STORE_FILE}"
   CreateDirectory "$0"
@@ -407,8 +485,10 @@ rollback:
 incomplete:
   StrCpy $result "recovery pending"
   Call WriteFailure
+  Call RememberUpdateFailure
+  !insertmacro releaseInstallerLock
   ${If} ${isForceRun}
-    MessageBox MB_OK|MB_ICONSTOP "$(installRecoveryNeeded)"
+    MessageBox MB_OK|MB_ICONSTOP|MB_SETFOREGROUND|MB_TOPMOST "$(installRecoveryNeeded)"
   ${Else}
     MessageBox MB_OK|MB_ICONSTOP "$(installRecoveryNeeded)" /SD IDOK
   ${EndIf}
@@ -417,13 +497,16 @@ incomplete:
 
 failed:
   Call WriteFailure
+  Call RememberUpdateFailure
   ${If} ${isForceRun}
-    ${If} ${FileExists} "$appExe"
-    ${AndIf} ${FileExists} "$INSTDIR\resources\app\core\boot.ts"
-    ${AndIf} ${FileExists} "$INSTDIR\resources\app\node_modules\tsx\dist\loader.mjs"
-      Call StartInstalledApp
-    ${EndIf}
-    MessageBox MB_OK|MB_ICONSTOP "$(installFailed)"
+  ${AndIf} ${FileExists} "$appExe"
+  ${AndIf} ${FileExists} "$INSTDIR\resources\app\core\boot.ts"
+  ${AndIf} ${FileExists} "$INSTDIR\resources\app\node_modules\tsx\dist\loader.mjs"
+    Call StartInstalledApp
+  ${EndIf}
+  !insertmacro releaseInstallerLock
+  ${If} ${isForceRun}
+    MessageBox MB_OK|MB_ICONSTOP|MB_SETFOREGROUND|MB_TOPMOST "$(installFailed)"
   ${Else}
     MessageBox MB_OK|MB_ICONSTOP "$(installFailed)" /SD IDOK
   ${EndIf}

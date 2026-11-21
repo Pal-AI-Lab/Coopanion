@@ -28,6 +28,11 @@ module.exports = ({ appOutDir, electronPlatformName, targets }) => {
   ]) {
     if (!manifest.has(required)) throw new Error(`Missing installer payload entry: ${required}`);
   }
-  const lines = [...manifest].map(([path, hash]) => `${hash} ${path}`);
+  const lines = [...manifest].map(([path, hash]) => {
+    const line = `${hash} ${path}`;
+    // FileReadUTF16LE needs room for CRLF and a terminator in the NSIS string buffer.
+    if (line.length + 2 >= 1024) throw new Error(`NSIS manifest line exceeds the string limit: ${path}`);
+    return line;
+  });
   writeFileSync(join(appOutDir, 'coopanion-payload.sha256'), '\uFEFF' + [...lines, 'END', ''].join('\r\n'), 'utf16le');
 };
