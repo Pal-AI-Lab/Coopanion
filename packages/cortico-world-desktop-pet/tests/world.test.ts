@@ -763,7 +763,7 @@ describe('with a pet page', () => {
     cleanup.push(() => page.close());
     expect(page.init.cua).toMatchObject({ on: false, confirmed: true });
     page.send({ t: 'prefs', cua: true });
-    expect((await page.next((m) => m.t === 'prefs')).cua).toMatchObject({ on: true });
+    expect((await page.next((m) => m.t === 'prefs' && (m.cua as { on?: boolean })?.on === true)).cua).toMatchObject({ on: true });
     expect(persisted).toEqual([{ cua: { enabled: true } }]);
     expect(cfg.cua.enabled).toBe(true);
   });
@@ -794,7 +794,8 @@ describe('with a pet page', () => {
     page.send({ t: 'control', action: 'cua' });
     page.send({ t: 'prefs', cua: true });
     page.send({ t: 'prefs', cua: false });
-    expect((await page.next((m) => m.t === 'prefs')).cua).toEqual({ on: false, confirmed: false, canOpen: true });
+    // a system without a display read as unsupported when the World started: its next sync may push the stub's `on` first
+    expect((await page.next((m) => m.t === 'prefs' && (m.cua as { on?: boolean })?.on === false)).cua).toEqual({ on: false, confirmed: false, canOpen: true });
     expect(persisted).toEqual([{ cua: { enabled: false } }]);
     expect(cfg.cua.enabled).toBe(false);
     page.send({ t: 'control', action: 'cua' });
