@@ -885,6 +885,8 @@
   svg[viewBox="0 0 24 24"][stroke="currentColor"] { stroke-width: 1.6px; }
   svg[viewBox="0 0 24 24"][stroke="currentColor"] * { vector-effect: non-scaling-stroke; }
   input[type="checkbox"] { accent-color: color-mix(in srgb, var(--accent) 78%, #000); }
+  input[type="search"]::-webkit-search-cancel-button { cursor: pointer; opacity: .7; transition: opacity .15s ease; }
+  input[type="search"]::-webkit-search-cancel-button:hover { opacity: 1; }
   .visually-hidden {
     position: absolute !important;
     width: 1px !important;
