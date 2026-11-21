@@ -596,6 +596,42 @@ describe('with a pet page', () => {
     expect(host.events).toHaveLength(0);
   });
 
+  it('shows a line pushed over HTTP in the bubble, records nothing and tells the bot nothing', async () => {
+    const { world, host } = await mounted();
+    const post = (body: unknown) => fetch(`${origin(world)}/api/bubble`, { method: 'POST', body: JSON.stringify(body) });
+    const noPage = await post({ from: 'dsh', text: '还没有页面' });
+    expect(noPage.status).toBe(409);
+    expect(await noPage.json()).toEqual({ ok: false, reason: 'no-page', kind: 'unavailable' });
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    // a hidden window shows nothing: the caller hears why rather than a success it cannot see
+    page.send({ t: 'visibility', hidden: true });
+    await expect.poll(async () => (await post({ from: 'dsh', text: '藏起来了' })).json()).toEqual({ ok: false, reason: 'hidden', kind: 'unavailable' });
+    page.send({ t: 'visibility', hidden: true, fullscreen: true });
+    await expect.poll(async () => (await post({ from: 'dsh', text: '全屏中' })).json()).toEqual({ ok: false, reason: 'fullscreen-skipped', kind: 'deliberate' });
+    page.send({ t: 'visibility', hidden: false });
+    await expect.poll(async () => (await post({ from: 'dsh', text: '  外面推来的一句话  ', actions: ['happy'] })).status).toBe(200);
+    const shown = await page.next((m) => m.t === 'dialog');
+    expect(shown).toMatchObject({ from: 'dsh', text: '外面推来的一句话', actions: ['happy'], closable: true });
+    // the bubble is showing that line, so the next one is refused instead of queued behind it
+    const busy = await post({ from: 'dsh', text: '第二句' });
+    expect(busy.status).toBe(409);
+    expect(await busy.json()).toEqual({ ok: false, reason: 'busy', kind: 'unavailable' });
+    expect(page.messages.filter((m) => m.t === 'dialog')).toHaveLength(0);
+    // once the page has read the line out, the bubble takes another
+    page.send({ t: 'dialog', id: shown.id, done: true });
+    expect((await post({ from: 'dsh', text: '第三句' })).status).toBe(200);
+    expect((await post({ from: 'dsh', text: '  ' })).status).toBe(400);
+    // the bubble looks like the pet's own words, so a line that does not say whose it is is refused
+    expect((await post({ text: '没有来源' })).status).toBe(400);
+    // broken bytes are already broken: showing them would pass bad data off as a real line
+    const broken = await post({ from: 'dsh', text: '坏\uFFFD掉的一句' });
+    expect(broken.status).toBe(400);
+    expect(await broken.json()).toEqual({ error: 'bad encoding' });
+    expect(host.events).toHaveLength(0);
+    expect(host.stored).toHaveLength(0);
+  });
+
   it('onDesktopChange: told once each time the pet window comes onto the desktop or leaves it', async () => {
     const told: boolean[] = [];
     const { world } = await mounted(undefined, { onDesktopChange: (on) => { told.push(on); } });

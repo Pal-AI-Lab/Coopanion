@@ -37,7 +37,7 @@ import {
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
 import { SpeechText, speechTextSteps } from './speech/index.ts';
-import { PetServer, type PageMessage } from './server.ts';
+import { PetServer, bubbleRefusalKind, type BubbleLine, type BubbleResult, type PageMessage } from './server.ts';
 import { StatusTracker, type DescribeTool } from './status.ts';
 import { WindowHost, resolveHostCommand } from './window-host.ts';
 import { describeHostReason } from './host-reason.ts';
@@ -160,6 +160,8 @@ export interface PetBotControls {
  */
 export interface PetDialog {
   text: string;
+  /** Whose line this is, when it is not the app's own (`POST /api/bubble`); carried to the page and left on the bubble. */
+  from?: string;
   /** Words in `text` drawn in the theme color, such as a name said for the first time. */
   marks?: string[];
   /** Expressions and motions (vocabulary words) played as the line starts. */
@@ -407,6 +409,8 @@ export class DesktopPetWorld implements World {
   private screen: { w: number; h: number } | null = null;
   /** The pet window said it is hidden (its menu's or the tray's 「隐藏」); reset when a page connects. */
   private petHidden = false;
+  /** The window is hidden by the fullscreen rule rather than by a hand. */
+  private hiddenByFullscreen = false;
   /** `onDesktop` as last told to `onDesktopChange`, null before the first time. */
   private desktopTold: boolean | null = null;
   /** When each line sent by `pet_say` is estimated to be over, in sending order; the last one is when the bubble is free. */
@@ -503,7 +507,7 @@ export class DesktopPetWorld implements World {
       snapshot: () => this.snapshot(),
       onPetMessage: (msg) => this.onPage(msg),
       onAudio: (frame) => this.onAudio(frame),
-      onPetConnect: () => { this.petHidden = false; this.bodyMissing = null; this.log?.info('桌宠页面已连接'); this.tellDesktop(); },
+      onPetConnect: () => { this.petHidden = false; this.hiddenByFullscreen = false; this.bodyMissing = null; this.log?.info('桌宠页面已连接'); this.tellDesktop(); },
       onPetDisconnect: () => this.onPageGone(),
       onSkin: (skin, scale) => this.saveSkin(skin, scale),
       onPrefs: (prefs) => this.savePrefs(prefs),
@@ -516,6 +520,7 @@ export class DesktopPetWorld implements World {
       text: () => this.ui,
       overlay: () => this.cfg.window.exportOverlay,
       speech: (text) => this.speechText.units(text, this.appLanguage),
+      onBubble: (line) => this.showLine(line),
     });
   }
 
@@ -1228,7 +1233,7 @@ export class DesktopPetWorld implements World {
           : PAGE_NO_PORTRAIT.includes(String(msg.failed)) ? msg.failed as NoPortrait : 'capture');
         return;
       }
-      case 'visibility': this.petHidden = msg.hidden === true; this.tellDesktop(); return;
+      case 'visibility': this.petHidden = msg.hidden === true; this.hiddenByFullscreen = this.petHidden && msg.fullscreen === true; this.tellDesktop(); return;
       case 'text': {
         const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 500) : '';
         const images = parseChatImages(msg.images, this.userName, petText(this.appLanguage).chat, this.t);
@@ -1379,6 +1384,44 @@ export class DesktopPetWorld implements World {
         s?.({ done: true });
       },
     };
+  }
+
+  /**
+   * Shows one line pushed from outside the World (`POST /api/bubble`). The line is the caller's:
+   * `from` names who it belongs to, nothing reaches the bot, no event is pushed, and the chat page
+   * keeps no record of it.
+   *
+   * A busy bubble is refused rather than queued: `busy` says this line did not get in, and nothing
+   * of it is kept to show later.
+   */
+  showLine(line: BubbleLine): BubbleResult {
+    const result = this.bubbleFor(line);
+    if (result === 'shown') {
+      this.log?.info(`推来的气泡(来自 ${line.from}):${cutChars(line.text, 20)}`);
+    } else if (bubbleRefusalKind(result) === 'deliberate') {
+      this.log?.info(`推来的气泡有意跳过(来自 ${line.from}):${result}`);
+    } else {
+      this.log?.warn(`推来的气泡没能显示(来自 ${line.from}):${result}`);
+    }
+    return result;
+  }
+
+  private bubbleFor(line: BubbleLine): BubbleResult {
+    if (!this.server.petConnected) return 'no-page';
+    if (this.petHidden) return this.hiddenByFullscreen ? 'fullscreen-skipped' : 'hidden';
+    if (this.bubbleBusy()) return 'busy';
+    this.dialog({
+      from: line.from,
+      text: line.text,
+      ...(line.actions?.length ? { actions: line.actions } : {}),
+      closable: line.closable ?? true,
+    });
+    return 'shown';
+  }
+
+  /** Whether the bubble shows something the person is meant to read or answer. */
+  private bubbleBusy(): boolean {
+    return this.dialogs.size > 0 || this.ask !== null || (this.sayEnds.at(-1)?.at ?? 0) > Date.now();
   }
 
   /** Dresses the body in `patch` over the skin as it is, and saves it, as a pick on the dressing page does. */
