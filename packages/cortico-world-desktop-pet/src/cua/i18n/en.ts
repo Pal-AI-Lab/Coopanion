@@ -45,6 +45,7 @@ const en: CuaText = {
   config: {
     group: 'Computer use',
     enabled: { title: 'Turn on computer use' },
+    risksConfirmed: { title: "Risks confirmed", description: "The risks were confirmed when computer use was turned on or added as a hover button; while this is on, the hover button turns computer use on directly." },
     control: { title: 'Allow the mouse and keyboard', description: 'When off, only screenshots and the window list.' },
     permission: { title: 'When to ask you', description: 'ask-each-turn: before looking at the screen or acting, every turn; ask-before-acting: looking is free, asks before using the mouse and keyboard every turn; ask-once: looking is free, asks once before using the mouse and keyboard, and a yes holds for "A yes lasts"; never-ask: never asks. Unless "Turn off asking before terminals and the Run box" is on, whatever the setting, typing or pressing keys in a terminal window and pressing win+r are asked about once on their own, and a yes holds for "A yes lasts".' },
     grantMinutes: { title: 'A yes lasts', suffix: 'min', description: 'For ask-once and for the separate question about terminal windows.' },

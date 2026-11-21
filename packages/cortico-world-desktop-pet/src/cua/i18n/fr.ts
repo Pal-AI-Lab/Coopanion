@@ -35,6 +35,7 @@ const fr: Translation<CuaText> = {
   config: {
     group: "Contrôle de l'ordinateur",
     enabled: { title: "Activer le contrôle de l'ordinateur" },
+    risksConfirmed: { title: "Risques confirmés", description: "Les risques ont été confirmés en activant le contrôle de l'ordinateur ou en l'ajoutant aux boutons au survol ; activé, le bouton au survol active directement le contrôle de l'ordinateur." },
     control: { title: 'Autoriser la souris et le clavier', description: "Désactivé : seulement les captures d'écran et la liste des fenêtres." },
     permission: { title: 'Quand vous demander', description: "ask-each-turn : demande avant de regarder l'écran ou d'agir, à chaque tour ; ask-before-acting : regarder est libre, demande avant d'utiliser la souris et le clavier à chaque tour ; ask-once : regarder est libre, demande une fois avant d'utiliser la souris et le clavier, et un oui vaut pendant « Un oui vaut » ; never-ask : ne demande jamais. Sauf si « Désactiver la question avant le terminal et Exécuter » est activé, quel que soit le réglage, une saisie ou une touche dans un terminal et win+r sont demandées une fois à part, et un oui vaut pendant « Un oui vaut »." },
     grantMinutes: { title: 'Un oui vaut', suffix: 'min', description: 'Pour ask-once et pour la question à part sur les terminaux.' },

@@ -756,6 +756,18 @@ describe('with a pet page', () => {
     await expect.poll(() => calls).toEqual(['settings']);
   });
 
+  it('once the risks were confirmed, the computer use button turns it on from the page too', async () => {
+    const { world, cfg, persisted } = await mounted((c) => { c.cua.risksConfirmed = true; });
+    (world as unknown as { cua: { unsupported: () => string | null } }).cua.unsupported = () => null;
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    expect(page.init.cua).toMatchObject({ on: false, confirmed: true });
+    page.send({ t: 'prefs', cua: true });
+    expect((await page.next((m) => m.t === 'prefs')).cua).toMatchObject({ on: true });
+    expect(persisted).toEqual([{ cua: { enabled: true } }]);
+    expect(cfg.cua.enabled).toBe(true);
+  });
+
   it('the transparency a page sets is kept in steps of FADE_STEP, as usual and during full screen, and reaches the page', async () => {
     const { world, persisted, host } = await mounted((c) => { c.window.fade = 20; });
     const page = await FakePage.open(origin(world));
@@ -777,12 +789,12 @@ describe('with a pet page', () => {
     (world as unknown as { cua: { unsupported: () => string | null } }).cua.unsupported = () => null;
     const page = await FakePage.open(origin(world));
     cleanup.push(() => page.close());
-    expect(page.init.cua).toEqual({ on: true, canOpen: true });
+    expect(page.init.cua).toEqual({ on: true, confirmed: false, canOpen: true });
     // on: the settings window's switch is not opened, and a page cannot turn it on
     page.send({ t: 'control', action: 'cua' });
     page.send({ t: 'prefs', cua: true });
     page.send({ t: 'prefs', cua: false });
-    expect((await page.next((m) => m.t === 'prefs')).cua).toEqual({ on: false, canOpen: true });
+    expect((await page.next((m) => m.t === 'prefs')).cua).toEqual({ on: false, confirmed: false, canOpen: true });
     expect(persisted).toEqual([{ cua: { enabled: false } }]);
     expect(cfg.cua.enabled).toBe(false);
     page.send({ t: 'control', action: 'cua' });

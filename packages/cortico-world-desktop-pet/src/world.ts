@@ -976,8 +976,7 @@ export class DesktopPetWorld implements World {
       startX: this.cfg.rememberPosition ? this.cfg.petX : null,
       startY: this.cfg.rememberPosition ? this.cfg.petY : null,
       hoverButtons: hoverButtonList(this.cfg.hoverButtons),
-      // the computer use button: it switches computer use off, and on through the settings window's switch
-      cua: { on: this.cuaOn, canOpen: this.cua.unsupported() === null && !!this.opts.controls?.openCuaSettings },
+      cua: this.cuaButton(),
       doubleClickChat: this.cfg.doubleClickChat,
       scale: this.cfg.window.scale,
       bubbleSize: this.cfg.window.bubbleSize,
@@ -1006,6 +1005,12 @@ export class DesktopPetWorld implements World {
       saidBubbleHoldSec: this.cfg.saidBubbleHoldSec,
       bot: this.botInfo(),
     };
+  }
+
+  /** The computer use button: it switches computer use off, and on once the risks were confirmed, else through the settings window's switch. */
+  private cuaButton(): { on: boolean; confirmed: boolean; canOpen: boolean } {
+    const runs = this.cua.unsupported() === null;
+    return { on: this.cuaOn, confirmed: runs && this.cfg.cua.risksConfirmed === true, canOpen: runs && !!this.opts.controls?.openCuaSettings };
   }
 
   private botName(): string {
@@ -1167,6 +1172,8 @@ export class DesktopPetWorld implements World {
       patch.window = { ...(scale !== null ? { scale } : {}), ...(fade !== null ? { fade } : {}), ...(fullscreenFade !== null ? { fullscreenFade } : {}) };
     }
     if (prefs.cua === false) patch.cua = { enabled: false };
+    // a page turns it on only after the person confirmed the risks in the settings window
+    else if (prefs.cua === true && this.cfg.cua.risksConfirmed && this.cua.unsupported() === null) patch.cua = { enabled: true };
     if (typeof prefs.mic === 'boolean') patch.asr = { enabled: prefs.mic };
     if (Array.isArray(prefs.hoverButtons)) {
       const ids = prefs.hoverButtons.filter((id): id is string => typeof id === 'string' && (PET_ACTIONS as readonly string[]).includes(id));

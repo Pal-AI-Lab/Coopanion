@@ -681,6 +681,18 @@ describe('the computer use button', () => {
     expect(sent(p)).toEqual([{ t: 'prefs', cua: false }, { t: 'control', action: 'cua' }]);
   });
 
+  it('switches computer use on as well once the risks were confirmed', async () => {
+    const p = page({ host: true });
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.onOrder({ t: 'prefs', hoverButtons: ['cua'], cua: { on: false, confirmed: true, canOpen: true } });
+    const button = p.doc.querySelector('#tools [data-action="cua"]');
+    expect(button.getAttribute('aria-label')).toBe(t('action.cuaOff'));
+    button.click();
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    button.click();
+    expect(sent(p)).toEqual([{ t: 'prefs', cua: true }, { t: 'prefs', cua: false }]);
+  });
+
   it('in the menu, its tile shows computer use off once a click switched it off', () => {
     const p = page({ host: true });
     p.onOrder({ t: 'prefs', hoverButtons: ['cua'], cua: { on: true, canOpen: true } });

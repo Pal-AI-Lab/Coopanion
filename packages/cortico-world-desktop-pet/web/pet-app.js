@@ -61,8 +61,8 @@ const prefs = {
   lockFrameRate: false,
   /** How transparent the body and its bubbles are, in percent, as usual and during full screen (stepFade). */
   fade: 0, fullscreenFade: 0,
-  /** Computer use is on, and whether the app can show its switch to turn it on. */
-  cua: { on: false, canOpen: false },
+  /** Computer use is on; the person confirmed its risks, so the button turns it on too; the app can show its switch. */
+  cua: { on: false, confirmed: false, canOpen: false },
   /** Every click passes through the pet (the tray's "click through"): no hover buttons, and a bubble under the cursor does not wait. */
   clickThrough: false,
 };
@@ -397,7 +397,7 @@ function applyPrefs(p) {
   }
   for (const key of ['fade', 'fullscreenFade']) if (typeof p[key] === 'number') fadeHeard[key].heard(p[key], fadeKey() === key && (SLIDERS.fade.bar.active || !!sliderState.timers.fade));
   if (typeof p.fadeWhenFullscreen === 'boolean') host?.fadeWhenFullscreen?.(p.fadeWhenFullscreen);
-  if (p.cua && typeof p.cua === 'object') prefs.cua = { on: p.cua.on === true, canOpen: p.cua.canOpen === true };
+  if (p.cua && typeof p.cua === 'object') prefs.cua = { on: p.cua.on === true, confirmed: p.cua.confirmed === true, canOpen: p.cua.canOpen === true };
   if (typeof p.bubbleSize === 'number') { prefs.bubbleSize = p.bubbleSize; sizeVar('--bubble-size', p.bubbleSize); }
   if (typeof p.fontSize === 'number') { prefs.fontSize = p.fontSize; sizeVar('--bubble-font', p.fontSize); }
   if (typeof p.bubbleSpeed === 'number') prefs.bubbleSpeed = p.bubbleSpeed;
@@ -1494,18 +1494,20 @@ const ACTIONS = {
       else window.open('/dress', '_blank');
     },
   },
-  // on, a click switches computer use off; off, it opens the settings window's switch, which first shows the risks
+  // a switch once the person confirmed the risks (on the 「习惯」 page, turning it on or adding this button); before that,
+  // off, a click opens the settings window's switch, which shows the risks first
   cua: {
-    available: () => prefs.cua.on || prefs.cua.canOpen,
-    get keep() { return prefs.cua.on; },
+    available: () => prefs.cua.on || prefs.cua.confirmed || prefs.cua.canOpen,
+    get keep() { return prefs.cua.on || prefs.cua.confirmed; },
     icon: () => (prefs.cua.on ? ICONS.computer : ICONS.computerOff),
     on: () => prefs.cua.on,
-    state: () => t(prefs.cua.on ? 'action.cuaOn' : 'action.cuaOff'),
+    state: () => t(prefs.cua.on ? 'action.cuaOn' : prefs.cua.confirmed ? 'action.cuaOff' : 'action.cuaOffAsk'),
     run: () => {
-      if (!prefs.cua.on) { send({ t: 'control', action: 'cua' }); return; }
+      if (!prefs.cua.on && !prefs.cua.confirmed) { send({ t: 'control', action: 'cua' }); return; }
       // shown at once; the World's next prefs confirm it
-      prefs.cua = { ...prefs.cua, on: false };
-      send({ t: 'prefs', cua: false });
+      const on = !prefs.cua.on;
+      prefs.cua = { ...prefs.cua, on };
+      send({ t: 'prefs', cua: on });
     },
   },
   worlds: {
