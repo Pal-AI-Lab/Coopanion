@@ -2,6 +2,7 @@
 // Core exits, the dialog that takes back the data an update left behind, the dialogs that ask which data to use
 // when none is beside the program, and the error box when the data directory cannot be written. Keys as in zh.cjs.
 module.exports = {
+  installUpdateFailed: (version) => `The update to Coopanion ${version} did not finish.`,
   /** The line the settings window shows until the Core is up. */
   starting: 'Starting…',
 

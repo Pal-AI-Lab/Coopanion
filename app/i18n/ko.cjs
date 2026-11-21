@@ -1,5 +1,6 @@
 // 한국어: text of the main process. Keys as in en.cjs; a key left out reads en.cjs.
 module.exports = {
+  installUpdateFailed: (version) => `Coopanion ${version} 업데이트를 완료하지 못했습니다.`,
   starting: '시작하는 중…',
 
   trayOpenSettings: '설정 열기',

@@ -15,6 +15,7 @@ directories:
   buildResources: ../../installer
 # the Core child runs TypeScript sources through tsx and spawns esbuild, koffi, sherpa-onnx and pnpm: keep files unpacked
 asar: false
+afterSign: scripts/windows-installer-manifest.cjs
 npmRebuild: false
 nodeGypRebuild: false
 files:
@@ -40,6 +41,7 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
   include: nsis.nsh
+  script: setup.nsi
   createDesktopShortcut: true
   createStartMenuShortcut: false
   shortcutName: Coopanion
