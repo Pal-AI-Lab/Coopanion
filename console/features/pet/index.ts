@@ -425,9 +425,12 @@ async function mount(ctx: PageContext): Promise<void> {
     b.setAttribute('aria-label', b.title);
     b.innerHTML = ICONS[iconName] ?? '';
     b.append(ui.h('span', 'companion-hoverlbl', S.actions[id] ?? id));
-    b.addEventListener('click', () => {
+    b.addEventListener('click', async () => {
       const on = picked.includes(id);
       if (!on && picked.length >= MAX_HOVER) return;
+      // the computer use button turns it on at once: added only once its risks are confirmed (features/cua); the picks
+      // read again after the dialog, which the page's polling may have changed meanwhile
+      if (id === 'cua' && !on && (!await cua.confirmHoverButton() || picked.includes(id) || picked.length >= MAX_HOVER)) return;
       // kept in the menu's order, whatever order they were picked in
       picked = ACTIONS.map(([a]) => a).filter((a) => (a === id ? !on : picked.includes(a)));
       renderHover();
