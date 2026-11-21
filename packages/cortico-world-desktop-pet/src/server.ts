@@ -73,6 +73,17 @@ export type PageMessage = Record<string, unknown> & { t: string };
 /** What `POST /api/bubble` did: shown, or refused with the reason it was not. */
 export type BubbleResult = 'shown' | 'no-page' | 'busy' | 'hidden' | 'fullscreen-skipped';
 
+/**
+ * Why a line was not shown: `deliberate` is a refusal by choice (the fullscreen rule keeps the pet
+ * out of the way), `unavailable` is one it could not help. Counted apart: a choice made on
+ * purpose is not a failure, and mixing them in one figure hides both.
+ */
+export type BubbleRefusalKind = 'deliberate' | 'unavailable';
+
+export function bubbleRefusalKind(result: Exclude<BubbleResult, 'shown'>): BubbleRefusalKind {
+  return result === 'fullscreen-skipped' ? 'deliberate' : 'unavailable';
+}
+
 /** A line an app outside the pet's own loop pushes into the bubble; see `POST /api/bubble`. */
 export interface BubbleLine {
   /** Who the line belongs to. Required: the bubble looks like the pet's own words, so a line without a source cannot be told apart later. */
@@ -384,7 +395,9 @@ export class PetServer {
         ? msg!.actions.filter((a): a is string => typeof a === 'string').slice(0, BUBBLE_ACTIONS_MAX)
         : [];
       const shown = this.opts.onBubble({ from, text, ...(actions.length ? { actions } : {}), closable: msg!.closable !== false });
-      return shown === 'shown' ? json(res, 200, { ok: true }) : json(res, 409, { ok: false, reason: shown });
+      return shown === 'shown'
+        ? json(res, 200, { ok: true })
+        : json(res, 409, { ok: false, reason: shown, kind: bubbleRefusalKind(shown) });
     }
     if (req.method === 'POST' && path === '/api/speech') {
       const msg = parse(await readBody(req) ?? '');

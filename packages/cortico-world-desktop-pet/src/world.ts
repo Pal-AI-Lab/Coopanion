@@ -37,7 +37,7 @@ import {
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
 import { SpeechText, speechTextSteps } from './speech/index.ts';
-import { PetServer, type BubbleLine, type BubbleResult, type PageMessage } from './server.ts';
+import { PetServer, bubbleRefusalKind, type BubbleLine, type BubbleResult, type PageMessage } from './server.ts';
 import { StatusTracker, type DescribeTool } from './status.ts';
 import { WindowHost, resolveHostCommand } from './window-host.ts';
 import { describeHostReason } from './host-reason.ts';
@@ -1395,6 +1395,18 @@ export class DesktopPetWorld implements World {
    * of it is kept to show later.
    */
   showLine(line: BubbleLine): BubbleResult {
+    const result = this.bubbleFor(line);
+    if (result === 'shown') {
+      this.log?.info(`推来的气泡(来自 ${line.from}):${cutChars(line.text, 20)}`);
+    } else if (bubbleRefusalKind(result) === 'deliberate') {
+      this.log?.info(`推来的气泡有意跳过(来自 ${line.from}):${result}`);
+    } else {
+      this.log?.warn(`推来的气泡没能显示(来自 ${line.from}):${result}`);
+    }
+    return result;
+  }
+
+  private bubbleFor(line: BubbleLine): BubbleResult {
     if (!this.server.petConnected) return 'no-page';
     if (this.petHidden) return this.hiddenByFullscreen ? 'fullscreen-skipped' : 'hidden';
     if (this.bubbleBusy()) return 'busy';
@@ -1404,7 +1416,6 @@ export class DesktopPetWorld implements World {
       ...(line.actions?.length ? { actions: line.actions } : {}),
       closable: line.closable ?? true,
     });
-    this.log?.info(`推来的气泡(来自 ${line.from}):${cutChars(line.text, 20)}`);
     return 'shown';
   }
 

@@ -601,14 +601,14 @@ describe('with a pet page', () => {
     const post = (body: unknown) => fetch(`${origin(world)}/api/bubble`, { method: 'POST', body: JSON.stringify(body) });
     const noPage = await post({ from: 'dsh', text: '还没有页面' });
     expect(noPage.status).toBe(409);
-    expect(await noPage.json()).toEqual({ ok: false, reason: 'no-page' });
+    expect(await noPage.json()).toEqual({ ok: false, reason: 'no-page', kind: 'unavailable' });
     const page = await FakePage.open(origin(world));
     cleanup.push(() => page.close());
     // a hidden window shows nothing: the caller hears why rather than a success it cannot see
     page.send({ t: 'visibility', hidden: true });
-    await expect.poll(async () => (await post({ from: 'dsh', text: '藏起来了' })).json()).toEqual({ ok: false, reason: 'hidden' });
+    await expect.poll(async () => (await post({ from: 'dsh', text: '藏起来了' })).json()).toEqual({ ok: false, reason: 'hidden', kind: 'unavailable' });
     page.send({ t: 'visibility', hidden: true, fullscreen: true });
-    await expect.poll(async () => (await post({ from: 'dsh', text: '全屏中' })).json()).toEqual({ ok: false, reason: 'fullscreen-skipped' });
+    await expect.poll(async () => (await post({ from: 'dsh', text: '全屏中' })).json()).toEqual({ ok: false, reason: 'fullscreen-skipped', kind: 'deliberate' });
     page.send({ t: 'visibility', hidden: false });
     await expect.poll(async () => (await post({ from: 'dsh', text: '  外面推来的一句话  ', actions: ['happy'] })).status).toBe(200);
     const shown = await page.next((m) => m.t === 'dialog');
@@ -616,7 +616,7 @@ describe('with a pet page', () => {
     // the bubble is showing that line, so the next one is refused instead of queued behind it
     const busy = await post({ from: 'dsh', text: '第二句' });
     expect(busy.status).toBe(409);
-    expect(await busy.json()).toEqual({ ok: false, reason: 'busy' });
+    expect(await busy.json()).toEqual({ ok: false, reason: 'busy', kind: 'unavailable' });
     expect(page.messages.filter((m) => m.t === 'dialog')).toHaveLength(0);
     // once the page has read the line out, the bubble takes another
     page.send({ t: 'dialog', id: shown.id, done: true });
