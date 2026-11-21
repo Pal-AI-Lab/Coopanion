@@ -37,7 +37,7 @@ import {
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
 import { SpeechText, speechTextSteps } from './speech/index.ts';
-import { PetServer, type PageMessage } from './server.ts';
+import { PetServer, type BubbleLine, type PageMessage } from './server.ts';
 import { StatusTracker, type DescribeTool } from './status.ts';
 import { WindowHost, resolveHostCommand } from './window-host.ts';
 import { describeHostReason } from './host-reason.ts';
@@ -516,6 +516,7 @@ export class DesktopPetWorld implements World {
       text: () => this.ui,
       overlay: () => this.cfg.window.exportOverlay,
       speech: (text) => this.speechText.units(text, this.appLanguage),
+      onBubble: (line) => this.showLine(line),
     });
   }
 
@@ -1379,6 +1380,21 @@ export class DesktopPetWorld implements World {
         s?.({ done: true });
       },
     };
+  }
+
+  /**
+   * Shows one line pushed from outside the World (`POST /api/bubble`). The line is the caller's:
+   * nothing reaches the bot, no event is pushed, and the chat page keeps no record of it.
+   * Returns false when no page is connected to show it.
+   */
+  showLine(line: BubbleLine): boolean {
+    if (!this.server.petConnected) return false;
+    this.dialog({
+      text: line.text,
+      ...(line.actions?.length ? { actions: line.actions } : {}),
+      closable: line.closable ?? true,
+    });
+    return true;
   }
 
   /** Dresses the body in `patch` over the skin as it is, and saves it, as a pick on the dressing page does. */

@@ -63,8 +63,20 @@ const PACK_CSP = "sandbox allow-scripts; default-src 'none'";
 const PAGE_CSP = "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:* ws://localhost:*; img-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; frame-ancestors 'self' http://127.0.0.1:* http://localhost:*";
 /** What a watching pet page may still send: input that is the person's whichever page it came from. */
 const WATCHER_MESSAGES = new Set(['text', 'prefs', 'control']);
+/** The longest line `POST /api/bubble` puts in the bubble, and how many actions it may carry. */
+const BUBBLE_TEXT_MAX = 1000;
+const BUBBLE_ACTIONS_MAX = 6;
 
 export type PageMessage = Record<string, unknown> & { t: string };
+
+/** A line an app outside the pet's own loop pushes into the bubble; see `POST /api/bubble`. */
+export interface BubbleLine {
+  text: string;
+  /** Words of the current figure's vocabulary, played before the line. */
+  actions?: string[];
+  /** Whether the person may close it before it is read out; true when absent. */
+  closable?: boolean;
+}
 
 export interface PetServerOptions {
   port: () => number;
@@ -96,6 +108,8 @@ export interface PetServerOptions {
   overlay?(): boolean;
   /** The syllables `text` is spoken as; `POST /api/speech` answers 404 without it. */
   speech?(text: string): SpeechUnit[];
+  /** Shows a pushed line in the bubble; false when no page can show it. `POST /api/bubble` answers 409 without it. */
+  onBubble?(line: BubbleLine): boolean;
 }
 
 export class PetServer {
@@ -351,6 +365,17 @@ export class PetServer {
       return this.sendFile(res, full, PACK_CSP, req.headers.origin === 'null');
     }
     if (req.method === 'GET' && path === '/api/state') return json(res, 200, this.opts.snapshot());
+    if (req.method === 'POST' && path === '/api/bubble') {
+      if (!this.opts.onBubble) { res.writeHead(404).end(); return; }
+      const msg = parse(await readBody(req) ?? '');
+      const text = typeof msg?.text === 'string' ? msg.text.trim().slice(0, BUBBLE_TEXT_MAX) : '';
+      if (!text) return json(res, 400, { error: 'bad json' });
+      const actions = Array.isArray(msg!.actions)
+        ? msg!.actions.filter((a): a is string => typeof a === 'string').slice(0, BUBBLE_ACTIONS_MAX)
+        : [];
+      const shown = this.opts.onBubble({ text, ...(actions.length ? { actions } : {}), closable: msg!.closable !== false });
+      return shown ? json(res, 200, { ok: true }) : json(res, 409, { ok: false, reason: 'no-page' });
+    }
     if (req.method === 'POST' && path === '/api/speech') {
       const msg = parse(await readBody(req) ?? '');
       if (!this.opts.speech) { res.writeHead(404).end(); return; }
