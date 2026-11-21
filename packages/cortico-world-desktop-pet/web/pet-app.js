@@ -144,9 +144,12 @@ function connect() {
 }
 /** The pet window says whether it is shown: hidden from its menu or the tray, it stays connected. */
 let windowShown = true;
-function reportVisibility() { if (host) send({ t: 'visibility', hidden: !windowShown }); }
+/** Whether it is hidden by the fullscreen rule rather than by a hand, so the World can say why a line was not shown. */
+let hiddenByFullscreen = false;
+function reportVisibility() { if (host) send({ t: 'visibility', hidden: !windowShown, ...(hiddenByFullscreen ? { fullscreen: true } : {}) }); }
 // the page itself always reads as visible (its window does not throttle it): the window process says when it is hidden
 host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVisibility(); if (!shown) pinSizer(false); });
+host?.onFullscreenHidden?.((on) => { hiddenByFullscreen = on; reportVisibility(); });
 /** Clicks pass through because a fullscreen window covers the pet's display and the setting says so; the window process decides. */
 let fullscreenThrough = false;
 host?.onFullscreenThrough?.((on) => { fullscreenThrough = on; });

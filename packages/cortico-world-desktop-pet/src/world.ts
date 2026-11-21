@@ -37,7 +37,7 @@ import {
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
 import { SpeechText, speechTextSteps } from './speech/index.ts';
-import { PetServer, type BubbleLine, type PageMessage } from './server.ts';
+import { PetServer, type BubbleLine, type BubbleResult, type PageMessage } from './server.ts';
 import { StatusTracker, type DescribeTool } from './status.ts';
 import { WindowHost, resolveHostCommand } from './window-host.ts';
 import { describeHostReason } from './host-reason.ts';
@@ -409,6 +409,8 @@ export class DesktopPetWorld implements World {
   private screen: { w: number; h: number } | null = null;
   /** The pet window said it is hidden (its menu's or the tray's 「隐藏」); reset when a page connects. */
   private petHidden = false;
+  /** The window is hidden by the fullscreen rule rather than by a hand. */
+  private hiddenByFullscreen = false;
   /** `onDesktop` as last told to `onDesktopChange`, null before the first time. */
   private desktopTold: boolean | null = null;
   /** When each line sent by `pet_say` is estimated to be over, in sending order; the last one is when the bubble is free. */
@@ -505,7 +507,7 @@ export class DesktopPetWorld implements World {
       snapshot: () => this.snapshot(),
       onPetMessage: (msg) => this.onPage(msg),
       onAudio: (frame) => this.onAudio(frame),
-      onPetConnect: () => { this.petHidden = false; this.bodyMissing = null; this.log?.info('桌宠页面已连接'); this.tellDesktop(); },
+      onPetConnect: () => { this.petHidden = false; this.hiddenByFullscreen = false; this.bodyMissing = null; this.log?.info('桌宠页面已连接'); this.tellDesktop(); },
       onPetDisconnect: () => this.onPageGone(),
       onSkin: (skin, scale) => this.saveSkin(skin, scale),
       onPrefs: (prefs) => this.savePrefs(prefs),
@@ -1231,7 +1233,7 @@ export class DesktopPetWorld implements World {
           : PAGE_NO_PORTRAIT.includes(String(msg.failed)) ? msg.failed as NoPortrait : 'capture');
         return;
       }
-      case 'visibility': this.petHidden = msg.hidden === true; this.tellDesktop(); return;
+      case 'visibility': this.petHidden = msg.hidden === true; this.hiddenByFullscreen = this.petHidden && msg.fullscreen === true; this.tellDesktop(); return;
       case 'text': {
         const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 500) : '';
         const images = parseChatImages(msg.images, this.userName, petText(this.appLanguage).chat, this.t);
@@ -1392,8 +1394,9 @@ export class DesktopPetWorld implements World {
    * A busy bubble is refused rather than queued: `busy` says this line did not get in, and nothing
    * of it is kept to show later.
    */
-  showLine(line: BubbleLine): 'shown' | 'no-page' | 'busy' {
+  showLine(line: BubbleLine): BubbleResult {
     if (!this.server.petConnected) return 'no-page';
+    if (this.petHidden) return this.hiddenByFullscreen ? 'fullscreen-skipped' : 'hidden';
     if (this.bubbleBusy()) return 'busy';
     this.dialog({
       from: line.from,

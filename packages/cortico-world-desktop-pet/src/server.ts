@@ -70,8 +70,8 @@ const BUBBLE_ACTIONS_MAX = 6;
 
 export type PageMessage = Record<string, unknown> & { t: string };
 
-/** What `POST /api/bubble` did: shown, or refused for `no-page` / `busy` (the bubble is showing something else). */
-export type BubbleResult = 'shown' | 'no-page' | 'busy';
+/** What `POST /api/bubble` did: shown, or refused with the reason it was not. */
+export type BubbleResult = 'shown' | 'no-page' | 'busy' | 'hidden' | 'fullscreen-skipped';
 
 /** A line an app outside the pet's own loop pushes into the bubble; see `POST /api/bubble`. */
 export interface BubbleLine {
@@ -378,6 +378,8 @@ export class PetServer {
       if (!from) return json(res, 400, { error: 'missing from' });
       const text = typeof msg?.text === 'string' ? msg.text.trim().slice(0, BUBBLE_TEXT_MAX) : '';
       if (!text) return json(res, 400, { error: 'bad json' });
+      // U+FFFD means the bytes were already broken on the way in: showing it would pass bad data off as a real line
+      if (from.includes('\uFFFD') || text.includes('\uFFFD')) return json(res, 400, { error: 'bad encoding' });
       const actions = Array.isArray(msg!.actions)
         ? msg!.actions.filter((a): a is string => typeof a === 'string').slice(0, BUBBLE_ACTIONS_MAX)
         : [];

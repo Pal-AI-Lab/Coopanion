@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('petHost', {
   hide: () => ipcRenderer.send('pet:hide'),
   /** Whether the window is shown, each time it is shown or hidden (by the menu, the tray or a fullscreen window). */
   onShown: (cb) => ipcRenderer.on('pet:shown', (_e, shown) => cb(!!shown)),
+  /** Whether the window is hidden by the fullscreen rule rather than by a hand, each time that changes. */
+  onFullscreenHidden: (cb) => ipcRenderer.on('pet:fullscreenHidden', (_e, on) => cb(!!on)),
   /** Whether the window hides itself while a fullscreen window covers its display. */
   hideWhenFullscreen: (on) => ipcRenderer.send('pet:hideWhenFullscreen', !!on),
   /** Whether every click passes through the window while a fullscreen window covers its display. */

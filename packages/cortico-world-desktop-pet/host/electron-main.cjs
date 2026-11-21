@@ -400,7 +400,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
    * A hand showed or hid the window, so the fullscreen rule no longer owns it: a manual show while
    * the rule still believed it had hidden the window would keep the rule from hiding it again.
    */
-  const releaseAutoHidden = () => { autoHidden = false; };
+  const releaseAutoHidden = () => { autoHidden = false; win?.webContents.send('pet:fullscreenHidden', false); };
 
   const create = () => {
     const d = display(), wa = coverArea(d, overTaskbar);
@@ -472,8 +472,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       if (!win) return;
       const own = hwndOf(win), cur = foreground.current();
       const covered = (hideWhenFullscreen || passWhenFullscreen) && !!fullscreen?.(cur, own);
-      if (covered && hideWhenFullscreen && !autoHidden && win.isVisible()) { autoHidden = true; win.hide(); }
-      else if (!(covered && hideWhenFullscreen) && autoHidden) { autoHidden = false; win.showInactive(); }
+      if (covered && hideWhenFullscreen && !autoHidden && win.isVisible()) { autoHidden = true; win.hide(); win.webContents.send('pet:fullscreenHidden', true); }
+      else if (!(covered && hideWhenFullscreen) && autoHidden) { autoHidden = false; win.showInactive(); win.webContents.send('pet:fullscreenHidden', false); }
       const through = covered && passWhenFullscreen;
       if (through !== fullscreenThrough) { fullscreenThrough = through; lockMouse(); win.webContents.send('pet:fullscreenThrough', through); }
       if (!win.isVisible()) { lastForeground = null; return; }

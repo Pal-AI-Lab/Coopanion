@@ -604,8 +604,13 @@ describe('with a pet page', () => {
     expect(await noPage.json()).toEqual({ ok: false, reason: 'no-page' });
     const page = await FakePage.open(origin(world));
     cleanup.push(() => page.close());
-    const res = await post({ from: 'dsh', text: '  外面推来的一句话  ', actions: ['happy'] });
-    expect(res.status).toBe(200);
+    // a hidden window shows nothing: the caller hears why rather than a success it cannot see
+    page.send({ t: 'visibility', hidden: true });
+    await expect.poll(async () => (await post({ from: 'dsh', text: '藏起来了' })).json()).toEqual({ ok: false, reason: 'hidden' });
+    page.send({ t: 'visibility', hidden: true, fullscreen: true });
+    await expect.poll(async () => (await post({ from: 'dsh', text: '全屏中' })).json()).toEqual({ ok: false, reason: 'fullscreen-skipped' });
+    page.send({ t: 'visibility', hidden: false });
+    await expect.poll(async () => (await post({ from: 'dsh', text: '  外面推来的一句话  ', actions: ['happy'] })).status).toBe(200);
     const shown = await page.next((m) => m.t === 'dialog');
     expect(shown).toMatchObject({ from: 'dsh', text: '外面推来的一句话', actions: ['happy'], closable: true });
     // the bubble is showing that line, so the next one is refused instead of queued behind it
@@ -619,6 +624,10 @@ describe('with a pet page', () => {
     expect((await post({ from: 'dsh', text: '  ' })).status).toBe(400);
     // the bubble looks like the pet's own words, so a line that does not say whose it is is refused
     expect((await post({ text: '没有来源' })).status).toBe(400);
+    // broken bytes are already broken: showing them would pass bad data off as a real line
+    const broken = await post({ from: 'dsh', text: '坏\uFFFD掉的一句' });
+    expect(broken.status).toBe(400);
+    expect(await broken.json()).toEqual({ error: 'bad encoding' });
     expect(host.events).toHaveLength(0);
     expect(host.stored).toHaveLength(0);
   });
