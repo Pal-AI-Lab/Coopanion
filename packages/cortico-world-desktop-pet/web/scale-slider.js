@@ -19,10 +19,10 @@ const FINE = .05, COARSE = .1;
 export const SIZE = { min: .5, soft: 2, max: 10 };
 
 /**
- * A page that sends sizes to the World and hears the World's back: `sent(v)` when it sends one; `heard(v, busy)` for each
- * size the World pushes, `busy` while the page's own slider is held or a send is pending. A size heard while busy, or within
- * `ms` of a send and unlike it, is older than that send and is held; the size held when the window ends without an echo
- * is taken then (`take(v)`), so a size set elsewhere meanwhile is not lost.
+ * A page that sends a value to the World (a size, a transparency) and hears the World's back: `sent(v)` when it sends one;
+ * `heard(v, busy)` for each value the World pushes, `busy` while the page's own slider is held or a send is pending. A value
+ * heard while busy, or within `ms` of a send and unlike it, is older than that send and is held; the value held when the
+ * window ends without an echo is taken then (`take(v)`), so a value set elsewhere meanwhile is not lost.
  */
 export function sizeEcho(take, ms = 1000) {
   let sent = NaN, at = -Infinity, held = null, timer = 0;

@@ -345,6 +345,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   let displayId = null;
   /** The settings, and whether the first is what hid the window. */
   let hideWhenFullscreen = false, autoHidden = false, passWhenFullscreen = false;
+  /** The setting that fades the pet during full screen, and whether it holds now, as last told to the page. */
+  let fadeWhenFullscreen = false, fullscreenFaded = false;
   /** The setting: the window reaches down over a taskbar at the bottom (see coverArea). */
   let overTaskbar = true;
   /** Every click passes through while the tray says so or the second setting meets a fullscreen window. */
@@ -444,6 +446,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     win.webContents.on('did-finish-load', () => {
       win.webContents.setZoomLevel(0); overlay.pageLoaded(); watchWindows(false); win.webContents.send('pet:floor', coverArea(display(), overTaskbar).below);
       win.webContents.send('pet:fullscreenThrough', fullscreenThrough);
+      win.webContents.send('pet:fullscreenFade', fullscreenFaded);
       if (shape) win.webContents.send('pet:inputShape', true);
     });
     // The page learns where the cursor is even when the click-through window misses its moves, and
@@ -466,16 +469,18 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     // the foreground (a borderless full screen game) goes over the pet. The pet asserts topmost again each
     // time another window takes the foreground, and on the first tick it is shown. While the foreground
     // window fills the pet's monitor: hidden with the first setting on, shown again once that ends; with the
-    // second, every click passes through and the page is told so.
+    // second, every click passes through and the page is told so; with the third, the page is told it is covered.
     let lastForeground = null;
     const foregroundTimer = foreground && setInterval(() => {
       if (!win) return;
       const own = hwndOf(win), cur = foreground.current();
-      const covered = (hideWhenFullscreen || passWhenFullscreen) && !!fullscreen?.(cur, own);
+      const covered = (hideWhenFullscreen || passWhenFullscreen || fadeWhenFullscreen) && !!fullscreen?.(cur, own);
       if (covered && hideWhenFullscreen && !autoHidden && win.isVisible()) { autoHidden = true; win.hide(); }
       else if (!(covered && hideWhenFullscreen) && autoHidden) { autoHidden = false; win.showInactive(); }
       const through = covered && passWhenFullscreen;
       if (through !== fullscreenThrough) { fullscreenThrough = through; lockMouse(); win.webContents.send('pet:fullscreenThrough', through); }
+      const faded = covered && fadeWhenFullscreen;
+      if (faded !== fullscreenFaded) { fullscreenFaded = faded; win.webContents.send('pet:fullscreenFade', faded); }
       if (!win.isVisible()) { lastForeground = null; return; }
       if (cur === lastForeground) return;
       lastForeground = cur;
@@ -526,6 +531,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   onPet('pet:overlayFrame', (_e, rect, at) => overlay.frame(rect, at));
   onPet('pet:hideWhenFullscreen', (_e, on) => { hideWhenFullscreen = !!on; });
   onPet('pet:passWhenFullscreen', (_e, on) => { passWhenFullscreen = !!on; });
+  onPet('pet:fadeWhenFullscreen', (_e, on) => { fadeWhenFullscreen = !!on; });
   onPet('pet:overTaskbar', (_e, on) => { if (overTaskbar !== !!on) { overTaskbar = !!on; place(); } });
   // Windows: WDA_EXCLUDEFROMCAPTURE, which leaves the window out of what other programs capture of the screen
   onPet('pet:hideFromCapture', (_e, on) => win.setContentProtection(!!on));

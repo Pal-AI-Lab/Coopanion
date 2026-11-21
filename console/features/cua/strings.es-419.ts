@@ -27,4 +27,7 @@ export const S: Partial<typeof en> = {
   risks: ['Las capturas de pantalla (que pueden mostrar contenido privado, como tus chats) se envían al servicio de modelos que usas', 'Coo puede hacer clic en el lugar equivocado, escribir mal o terminar en la ventana equivocada. Asegúrate siempre de poder ver y detener a Coo en cualquier momento.', 'No le encargues a Coo pagos, contraseñas ni nada que implique información sensible, acciones en el mundo real o que no se pueda deshacer.'],
   riskNote: 'Coo se detiene solo cuando usas el mouse o el teclado. Puedes desactivar esta función en cualquier momento.',
   riskOk: 'Activar',
+  hoverRiskTitle: "¿Agregar el uso de la computadora a los botones al pasar el cursor?",
+  hoverRiskLead: "Una vez agregado, un clic en este botón junto a Coo activa o desactiva el uso de la computadora al instante, sin volver a preguntar. Mientras está activado, Coo mira tu pantalla y usa tu mouse y tu teclado.",
+  hoverRiskOk: "Agregar botón",
 };

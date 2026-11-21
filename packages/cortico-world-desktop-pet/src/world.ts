@@ -32,7 +32,7 @@ import type { DeepPartial } from 'cortico/world.ts';
 import {
   DESKTOP_PET_ID, MAX_HOVER_BUTTONS, MAX_LOOK_NAME, MAX_SAVED_LOOKS, PET_ACTIONS, RECORDING_MINUTES_MAX, RECORDING_MINUTES_MIN, SELF_KEYS, THRESHOLD_DB_MAX,
   THRESHOLD_DB_MIN, TOUCH_KINDS, USER_MAX, asrEngineFor,
-  desktopPetConfigGroups, directSettings, hoverButtonList, scaleOf, selfAdjustMode, speechFor, touchWakes,
+  desktopPetConfigGroups, directSettings, fadeOf, hoverButtonList, scaleOf, selfAdjustMode, speechFor, touchWakes,
   type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type SavedLook, type RoamMode, type SelfKey,
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
@@ -976,6 +976,7 @@ export class DesktopPetWorld implements World {
       startX: this.cfg.rememberPosition ? this.cfg.petX : null,
       startY: this.cfg.rememberPosition ? this.cfg.petY : null,
       hoverButtons: hoverButtonList(this.cfg.hoverButtons),
+      cua: this.cuaButton(),
       doubleClickChat: this.cfg.doubleClickChat,
       scale: this.cfg.window.scale,
       bubbleSize: this.cfg.window.bubbleSize,
@@ -985,6 +986,9 @@ export class DesktopPetWorld implements World {
       glow: this.cfg.window.glow,
       frameRate: this.cfg.window.frameRate,
       lockFrameRate: this.cfg.window.lockFrameRate,
+      fade: this.cfg.window.fade,
+      fadeWhenFullscreen: this.cfg.window.fadeWhenFullscreen,
+      fullscreenFade: this.cfg.window.fullscreenFade,
       hideWhenFullscreen: this.cfg.window.hideWhenFullscreen,
       passWhenFullscreen: this.cfg.window.passWhenFullscreen,
       overTaskbar: this.cfg.window.overTaskbar,
@@ -1001,6 +1005,12 @@ export class DesktopPetWorld implements World {
       saidBubbleHoldSec: this.cfg.saidBubbleHoldSec,
       bot: this.botInfo(),
     };
+  }
+
+  /** The computer use button: it switches computer use off, and on once the risks were confirmed, else through the settings window's switch. */
+  private cuaButton(): { on: boolean; confirmed: boolean; canOpen: boolean } {
+    const runs = this.cua.unsupported() === null;
+    return { on: this.cuaOn, confirmed: runs && this.cfg.cua.risksConfirmed === true, canOpen: runs && !!this.opts.controls?.openCuaSettings };
   }
 
   private botName(): string {
@@ -1157,8 +1167,13 @@ export class DesktopPetWorld implements World {
     // the menu's sound or roam button during a quiet: the person's choice, kept, and the quiet is over
     if (this.quiet && (patch.roam !== undefined || patch.sound !== undefined)) this.endQuiet();
     if (prefs.theme === 'dark' || prefs.theme === 'light') patch.theme = prefs.theme as PetTheme;
-    const scale = scaleOf(prefs.scale);
-    if (scale !== null) patch.window = { scale };
+    const scale = scaleOf(prefs.scale), fade = fadeOf(prefs.fade), fullscreenFade = fadeOf(prefs.fullscreenFade);
+    if (scale !== null || fade !== null || fullscreenFade !== null) {
+      patch.window = { ...(scale !== null ? { scale } : {}), ...(fade !== null ? { fade } : {}), ...(fullscreenFade !== null ? { fullscreenFade } : {}) };
+    }
+    if (prefs.cua === false) patch.cua = { enabled: false };
+    // a page turns it on only after the person confirmed the risks in the settings window
+    else if (prefs.cua === true && this.cfg.cua.risksConfirmed && this.cua.unsupported() === null) patch.cua = { enabled: true };
     if (typeof prefs.mic === 'boolean') patch.asr = { enabled: prefs.mic };
     if (Array.isArray(prefs.hoverButtons)) {
       const ids = prefs.hoverButtons.filter((id): id is string => typeof id === 'string' && (PET_ACTIONS as readonly string[]).includes(id));
@@ -1318,6 +1333,7 @@ export class DesktopPetWorld implements World {
     else if (action === 'settings') c.openSettings?.();
     else if (action === 'dress') c.openDress?.();
     else if (action === 'worlds') c.openWorlds?.();
+    else if (action === 'cua' && this.cuaCanOpen) c.openCuaSettings?.();
     else if (action === 'quit') c.quit?.();
     this.syncPrefs();
   }

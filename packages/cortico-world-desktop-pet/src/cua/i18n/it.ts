@@ -35,6 +35,7 @@ const it: Translation<CuaText> = {
   config: {
     group: 'Controllo del computer',
     enabled: { title: 'Attiva il controllo del computer' },
+    risksConfirmed: { title: "Rischi confermati", description: "I rischi sono stati confermati attivando il controllo del computer o aggiungendolo ai pulsanti al passaggio; se attivo, quel pulsante attiva direttamente il controllo del computer." },
     control: { title: 'Consenti mouse e tastiera', description: "Se disattivato, solo screenshot ed elenco delle finestre." },
     permission: { title: 'Quando chiederti', description: 'ask-each-turn: chiede ogni turno prima di guardare lo schermo o agire; ask-before-acting: guardare è libero, chiede ogni turno prima di usare mouse e tastiera; ask-once: guardare è libero, chiede una volta prima di usare mouse e tastiera, e un sì dura quanto indicato in «Un sì vale»; never-ask: non chiede mai. Se «Disattiva la domanda prima del terminale e di Esegui» è spento, con qualsiasi impostazione, prima di scrivere o premere tasti in un terminale e prima di win+r chiede una volta a parte, e un sì dura quanto indicato in «Un sì vale».' },
     grantMinutes: { title: 'Un sì vale', suffix: 'min', description: 'Per ask-once e per la domanda a parte sui terminali.' },
