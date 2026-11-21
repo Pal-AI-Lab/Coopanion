@@ -6,6 +6,7 @@ const plural = (n, one, few, many) => {
 };
 
 module.exports = {
+  installUpdateFailed: (version) => `Не удалось обновить Coopanion до версии ${version}.`,
   starting: 'Запуск…',
 
   trayOpenSettings: 'Открыть настройки',
