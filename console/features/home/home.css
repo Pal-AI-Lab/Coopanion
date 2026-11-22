@@ -16,7 +16,7 @@
 .home-keyrow input { width: 100%; }
 .home-keyrow > .btn { flex: none; height: 40px; }
 @media (max-width: 640px) { .home-picker { grid-template-columns: 1fr; } .home-pickerlabel { padding-top: 0; } .home-keyrow { flex-wrap: wrap; } }
-.home-vendor { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px 6px 8px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--ink-soft); font: inherit; font-size: 13px; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+.home-vendor { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px 6px 8px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--ink-soft); font: inherit; font-size: 13px; cursor: pointer; transition: border-color var(--motion-fast), background var(--motion-fast), color var(--motion-fast); }
 .home-vendor[hidden] { display: none; }
 .home-vendor:hover { border-color: var(--ink-dim); color: var(--foreground); }
 .home-vendor.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--foreground); }
@@ -41,11 +41,11 @@
 .companion-control > .check, .companion-switchbox > .check { gap: 10px; font-size: 14px; }
 .companion-control > .check > input, .companion-switchbox > .check > input {
   appearance: none; flex: none; position: relative; width: 34px; height: 20px; margin: 0; border-radius: 10px;
-  background: var(--line-2); cursor: pointer; transition: background .15s;
+  background: var(--line-2); cursor: pointer; transition: background var(--motion-fast);
 }
 .companion-control > .check > input::after, .companion-switchbox > .check > input::after {
   content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff;
-  box-shadow: 0 1px 2px rgb(0 0 0 / .3); transition: transform .15s;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .3); transition: transform var(--motion-fast);
 }
 .companion-control > .check > input:checked, .companion-switchbox > .check > input:checked { background: var(--accent); }
 .companion-control > .check > input:checked::after, .companion-switchbox > .check > input:checked::after { transform: translateX(14px); }
@@ -86,7 +86,7 @@
 /* 悬停按钮:每个动作一个圆形开关,选中的点亮 */
 .companion-hoverpick { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 2px; }
 .companion-hoverbtn { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 64px; max-width: 96px; padding: 0; border: 0; background: none; color: var(--ink-soft); font: inherit; cursor: pointer; }
-.companion-hoverbtn svg { box-sizing: content-box; width: 20px; height: 20px; padding: 10px; border-radius: 50%; border: 1.5px dashed var(--line-2); transition: background .15s, border-color .15s, color .15s; }
+.companion-hoverbtn svg { box-sizing: content-box; width: 20px; height: 20px; padding: 10px; border-radius: 50%; border: 1.5px dashed var(--line-2); transition: background var(--motion-fast), border-color var(--motion-fast), color var(--motion-fast); }
 .companion-hoverbtn:hover:not(:disabled) svg { border-color: var(--ink-dim); color: var(--foreground); }
 .companion-hoverbtn.on svg { border-style: solid; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
 .companion-hoverbtn.on .companion-hoverlbl { color: var(--foreground); }
@@ -131,5 +131,5 @@
 .companion-row:has(> .companion-control > div:first-child > .check:first-child) { align-items: start; }
 
 /* 桌宠页面画好之前不露出来,画好后淡入(frame-reveal.ts),打开「开始」「装扮」时不再黑白闪一下 */
-.home-petframe, .companion-dressframe { transition: opacity .2s ease; }
+.home-petframe, .companion-dressframe { transition: opacity var(--motion-base) ease; }
 .home-petframe.companion-frame-pending, .companion-dressframe.companion-frame-pending { opacity: 0; transition: none; }
