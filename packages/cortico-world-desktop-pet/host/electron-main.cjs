@@ -106,6 +106,7 @@ const foreground = (() => {
     const GetWindowThreadProcessId = user32.func('uint32_t __stdcall GetWindowThreadProcessId(intptr_t hwnd, void *pid)');
     const AttachThreadInput = user32.func('int __stdcall AttachThreadInput(uint32_t from, uint32_t to, int attach)');
     const OpenProcess = kernel32.func('intptr_t __stdcall OpenProcess(uint32_t access, int inherit, uint32_t pid)');
+    const GetPackageFamilyName = kernel32.func('int32_t __stdcall GetPackageFamilyName(intptr_t process, void *size, void *name)');
     const QueryFullProcessImageNameW = kernel32.func('int __stdcall QueryFullProcessImageNameW(intptr_t process, uint32_t flags, void *name, void *size)');
     const CloseHandle = kernel32.func('int __stdcall CloseHandle(intptr_t handle)');
     const IsWindowVisible = user32.func('int __stdcall IsWindowVisible(intptr_t hwnd)');
@@ -125,7 +126,14 @@ const foreground = (() => {
           size.writeUInt32LE(name.length / 2);
           if (!QueryFullProcessImageNameW(processHandle, 0, name, size)) return null;
           const exe = basename(name.toString('utf16le', 0, size.readUInt32LE() * 2)).toLowerCase();
-          return exe === 'codex.exe' ? 'codex' : exe === 'claude.exe' ? 'claude' : null;
+          if (exe === 'codex.exe') return 'codex';
+          if (exe === 'claude.exe') return 'claude';
+          if (exe !== 'chatgpt.exe') return null;
+          // Store Codex can share ChatGPT's executable name. The package family survives updates.
+          size.writeUInt32LE(name.length / 2);
+          if (GetPackageFamilyName(processHandle, size, name) !== 0) return null;
+          const family = name.toString('utf16le', 0, (size.readUInt32LE() - 1) * 2);
+          return family.toLowerCase() === 'openai.codex_2p2nqsd0c76g0' ? 'codex' : null;
         } finally { CloseHandle(processHandle); }
       },
       /** Gives `hwnd` the keyboard; true when Windows let it. */
