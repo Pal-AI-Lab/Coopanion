@@ -375,6 +375,53 @@ describe('voice input', () => {
     } finally { release(); }
   });
 
+  it('flushes packed legacy text before collecting audio-only speech after ASR stops', async () => {
+    const { cfg, world, host, page, asr } = await setup('earlier text');
+    host.modelFacts.accepts = (mime) => mime === 'audio/wav';
+    // A forced segment has completed recognition, but the long, ongoing utterance keeps its packer open.
+    for (const fr of tone(cfg.asr.segment.maxUtteranceMs, .3)) page.audio(fr);
+    await page.next((m) => m.t === 'listen' && m.phase === 'partial' && m.text === 'earlier text');
+    expect(host.events).toHaveLength(0);
+
+    cfg.asr.recording.transcript = false;
+    await world.webUi().invoke!('voice', 'stop', []);
+    for (const fr of [...tone(900, .2), ...tone(900, 0)]) page.audio(fr);
+    await expect.poll(() => host.events.length).toBe(2);
+    // The old packed speech is sent first, then the new audio-only capture; neither is discarded.
+    expect(host.events[0]?.blobs?.[0]?.mime).toBe('audio/wav');
+    expect(host.events[1]?.blobs?.[0]?.mime).toBe('audio/wav');
+    const first = host.blob(host.events[0]!.blobs![0]!.handle)!.bytes;
+    const second = host.blob(host.events[1]!.blobs![0]!.handle)!.bytes;
+    expect(first.length).toBeGreaterThan(second.length);
+    expect(second.length - 44).toBeGreaterThanOrEqual(900 * 32);
+    expect(asr.decodes).toHaveLength(1);
+  });
+
+  it('sends an over-limit text fallback before a later WAV, even while ASR is pending', async () => {
+    const { cfg, host, page, asr, world } = await setup('first fallback');
+    cfg.asr.recording.transcript = false;
+    cfg.asr.recording.maxMinutes = RECORDING_MINUTES_MIN;
+    host.modelFacts.accepts = (mime) => mime === 'audio/wav';
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    asr.beforeDecode = () => gate;
+    try {
+      for (const fr of [...tone(RECORDING_MINUTES_MIN * 60_000 + 1000, .3), ...tone(900, 0)]) page.audio(fr);
+      await page.next((m) => m.t === 'listen' && m.phase === 'transcribing');
+      expect(host.events).toHaveLength(0);
+
+      // Batch 2 has a valid WAV. It must not overtake batch 1's undelivered text fallback.
+      for (const fr of [...tone(900, .3), ...tone(900, 0)]) page.audio(fr);
+      await expect.poll(() => (world.voiceState().counts as { utterances: number }).utterances).toBeGreaterThan(1);
+      expect(host.events).toHaveLength(0);
+      release();
+      await expect.poll(() => host.events.length).toBe(2);
+      expect(host.events[0]?.text).toContain('first fallback');
+      expect(host.events[0]?.blobs).toBeUndefined();
+      expect(host.events[1]?.blobs?.[0]?.mime).toBe('audio/wav');
+    } finally { release(); }
+  });
+
   it('distinguishes a stopped service from a recording delivery error', async () => {
     const { page, cfg, host } = await setup('unused', 'always', undefined, 'zh', false, undefined, false);
     expect(page.init.voice).toMatchObject({ enabled: true, ready: false, detail: '识别服务已停止，当前无法语音输入' });

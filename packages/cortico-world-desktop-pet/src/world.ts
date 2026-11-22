@@ -379,6 +379,10 @@ interface AudioSpeechBatch {
   sent: boolean;
   cancels: number;
   trigger: TriggerMode;
+  /** Encoded at the capture boundary; earlier text fallbacks may briefly hold delivery. */
+  blobs: BlobInput[];
+  reported: boolean;
+  transcriptShown: boolean;
 }
 
 interface SpeechJob {
@@ -427,6 +431,8 @@ export class DesktopPetWorld implements World {
   private activeSpeechJob: SpeechJob | null = null;
   private audioBatch: AudioSpeechBatch | null = null;
   private audioDisplay: AudioSpeechBatch | null = null;
+  /** Closed recordings in capture order. Only an earlier text fallback can hold a later WAV. */
+  private readonly audioDeliveries: AudioSpeechBatch[] = [];
   private captureEnabled = false;
   private packTimer: NodeJS.Timeout | null = null;
   private audioSettleTimer: NodeJS.Timeout | null = null;
@@ -1842,6 +1848,7 @@ export class DesktopPetWorld implements World {
     this.interim = '';
     this.audioBatch = null;
     this.audioDisplay = null;
+    this.audioDeliveries.length = 0;
     this.queue.length = 0;
     this.cancels++;
     this.packer.take();
@@ -1882,14 +1889,23 @@ export class DesktopPetWorld implements World {
       || this.queue.some((job) => !job.audio && this.validSpeechJob(job));
   }
 
+  /** Finish already recognized legacy text before a new recording-only batch starts. */
+  private settleTextForAudio(): void {
+    if (!this.audioOnly() || this.textWork() || !this.packer.pending) return;
+    this.committing = true;
+    this.schedulePack();
+  }
+
   private enqueue(u: Utterance): void {
     this.counts.utterances++;
+    this.settleTextForAudio();
     if (this.audioBatch || (this.audioOnly() && !this.textWork() && !this.packer.pending)) {
       // Hold mode does not apply the speech onset threshold. Do not send a silent recording.
       if (this.cfg.asr.mic.mode === 'hold' && !u.pcm.some((sample) => Math.abs(sample) > 104)) return;
       const batch: AudioSpeechBatch = this.audioBatch ??= {
         id: randomUUID(), parts: [], text: [], reports: [], pending: 0, closed: false, sent: false, cancels: this.cancels,
         trigger: this.cfg.asr.mic.mode === 'always' ? 'flush' : 'interrupt',
+        blobs: [], reported: false, transcriptShown: false,
       };
       if (batch.parts) {
         const parts = [...batch.parts, u.pcm];
@@ -2006,6 +2022,7 @@ export class DesktopPetWorld implements World {
       this.sentence = null;
       this.interim = '';
       // The independent audio path recognizes finished segments without streaming into the input bubble.
+      this.settleTextForAudio();
       if (!this.recognitionWanted() || this.audioBatch || (this.audioOnly() && !this.textWork() && !this.packer.pending)) return;
       const recognizer = this.recognizer();
       if (!recognizer) return;
@@ -2057,52 +2074,75 @@ export class DesktopPetWorld implements World {
     return [{ bytes: wavFile(pcm), mime: 'audio/wav', name: 'speech.wav', fallbackText }];
   }
 
-  /** Audio dispatch follows the capture boundary; ASR can finish after that event. */
+  /** Close at the capture boundary. Only an earlier unresolved text fallback delays sending a WAV. */
   private closeAudioBatch(batch: AudioSpeechBatch): void {
     this.clearAudioSettleTimer();
     batch.closed = true;
     this.audioDisplay = batch;
-    const blobs = this.recordingBlobs(batch.parts, false);
+    batch.blobs = this.recordingBlobs(batch.parts, false);
     batch.parts = null;
-    if (blobs.length) {
-      batch.sent = true;
-      this.counts.delivered++;
-      const label = this.ui.voice.recorded;
-      this.server.sendPet({ t: 'listen', phase: 'heard', text: label, recordingId: batch.id });
-      void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heardRecorded(this.userName), batch.trigger, { meta: { text: label }, blobs });
-    } else if (batch.pending) {
+    this.audioDeliveries.push(batch);
+    this.finishAudioTranscript(batch);
+    this.deliverAudioBatches();
+    if (!batch.sent && this.audioDisplay === batch) {
       this.listenOpen = true;
       this.server.sendPet({ t: 'listen', phase: 'transcribing' });
     }
-    this.finishAudioTranscript(batch);
+  }
+
+  /** Deliver recording-only batches in capture order, including any text fallback on overflow. */
+  private deliverAudioBatches(): void {
+    while (this.audioDeliveries.length) {
+      const batch = this.audioDeliveries[0]!;
+      // WAV is ready immediately; a missing/over-limit WAV must first await ASR text.
+      if (!batch.blobs.length && batch.pending > 0 && this.recognitionWanted()) break;
+      this.audioDeliveries.shift();
+      batch.sent = true;
+      if (batch.blobs.length) {
+        this.counts.delivered++;
+        const label = this.ui.voice.recorded;
+        if (this.audioDisplay === batch) {
+          this.listenOpen = false;
+          this.server.sendPet({ t: 'listen', phase: 'heard', text: label, recordingId: batch.id });
+        }
+        void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heardRecorded(this.userName), batch.trigger, { meta: { text: label }, blobs: batch.blobs });
+        this.showAudioTranscript(batch);
+        continue;
+      }
+      const text = joinSpeech(batch.text);
+      if (this.audioDisplay === batch) this.listenOpen = false;
+      if (text) {
+        this.counts.delivered++;
+        if (this.audioDisplay === batch) this.server.sendPet({ t: 'listen', phase: 'heard', text });
+        void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.userName, text), batch.trigger, { meta: { text } });
+      } else {
+        const error = this.ui.voice.recordingUnavailable;
+        this.remember({ text: this.ui.voice.failedLine(error), at: Date.now(), ms: 0, dropped: true });
+        this.voiceFrame({ type: 'dropped', text: error, ms: 0 });
+        if (this.audioDisplay === batch) this.server.sendPet({ t: 'listen', phase: 'heard', text: error });
+      }
+    }
+  }
+
+  /** Late transcripts update the existing recording bubble, never dispatch a second speech event. */
+  private showAudioTranscript(batch: AudioSpeechBatch): void {
+    if (!batch.reported || !batch.sent || !batch.blobs.length || batch.transcriptShown) return;
+    batch.transcriptShown = true;
+    const text = joinSpeech(batch.text);
+    if (text) this.server.sendPet({ t: 'listen', phase: 'recording-text', recordingId: batch.id, text });
   }
 
   private finishAudioTranscript(batch: AudioSpeechBatch): void {
-    if (!batch.closed || batch.pending || batch.cancels !== this.cancels || !this.cfg.asr.enabled) return;
+    if (!batch.closed || batch.pending || batch.cancels !== this.cancels || !this.cfg.asr.enabled || batch.reported) return;
+    batch.reported = true;
     for (const result of batch.reports.splice(0)) {
       if (result.dropped) this.counts.dropped++;
       const text = result.error ? this.ui.voice.failedLine(result.error) : result.text;
       this.remember({ text, at: Date.now(), ms: result.ms, ...(result.dropped ? { dropped: true } : {}) });
       this.voiceFrame({ type: result.dropped ? 'dropped' : 'text', text: result.error ?? result.text, ms: result.ms });
     }
-    const text = joinSpeech(batch.text);
-    if (batch.sent) {
-      if (text) this.server.sendPet({ t: 'listen', phase: 'recording-text', recordingId: batch.id, text });
-      return;
-    }
-    // A recording over the limit or rejected by the endpoint can only fall back to recognized text.
-    batch.sent = true;
-    if (this.audioDisplay === batch) this.listenOpen = false;
-    if (text) {
-      this.counts.delivered++;
-      if (this.audioDisplay === batch) this.server.sendPet({ t: 'listen', phase: 'heard', text });
-      void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.userName, text), batch.trigger, { meta: { text } });
-    } else {
-      const error = this.ui.voice.recordingUnavailable;
-      this.remember({ text: this.ui.voice.failedLine(error), at: Date.now(), ms: 0, dropped: true });
-      this.voiceFrame({ type: 'dropped', text: error, ms: 0 });
-      if (this.audioDisplay === batch) this.server.sendPet({ t: 'listen', phase: 'heard', text: error });
-    }
+    this.deliverAudioBatches();
+    this.showAudioTranscript(batch);
   }
 
   private clearAudioSettleTimer(): void {
