@@ -30,6 +30,8 @@ export function createUsageTip(doc: Document, host: HTMLElement): UsageTip {
   el.className = 'u-tip viewport-overlay hidden';
   host.appendChild(el);
   let curKey: string | undefined;
+  /** The tip's size, measured once per body: reading it on every move laid out the page on every move. */
+  let size: { width: number; height: number } | undefined;
   let disposed = false;
 
   return {
@@ -39,13 +41,14 @@ export function createUsageTip(doc: Document, host: HTMLElement): UsageTip {
       if (curKey !== key) {
         el.innerHTML = html;
         curKey = key;
+        size = undefined;
       }
       showTip(el);
     },
     move(ev) {
       if (disposed) return;
       const view = doc.defaultView;
-      const r = el.getBoundingClientRect();
+      const r = (size ??= el.getBoundingClientRect());
       let x = ev.clientX + TIP_PAD;
       let y = ev.clientY + TIP_PAD;
       const vw = view?.innerWidth ?? 0;

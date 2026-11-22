@@ -342,7 +342,7 @@ const XLABEL_W = 72;
 const SPOTLIGHT_MIN_PX = 2;
 
 /** The first background color behind `el`, for painting over what is drawn on it. */
-function groundColor(el: HTMLElement): string {
+export function groundColor(el: HTMLElement): string {
   const view = el.ownerDocument.defaultView;
   for (let at: HTMLElement | null = el; at && view; at = at.parentElement) {
     const color = view.getComputedStyle(at).backgroundColor;
