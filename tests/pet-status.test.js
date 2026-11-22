@@ -450,7 +450,7 @@ describe('look wheel over the dress button', () => {
     await frames(p, 1);
     p.doc.querySelector('#tools [data-action="size"]').click();
     answer([{ id: 'a', name: 'a', skin: {} }]);
-    const sizer = p.doc.querySelector('#headSlider');
+    const sizer = p.doc.querySelector('.head-slider[data-kind="size"]');
     const open = (el) => !el.hidden && !el.classList.contains('leaving');
     for (let i = 0; i < 5; i++) {
       await frames(p, 1);
@@ -464,7 +464,7 @@ describe('look wheel over the dress button', () => {
     p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
     dressButton(p);
     p.doc.querySelector('#tools [data-action="size"]').click();
-    const bar = p.doc.querySelector('#headSlider .pet-scale');
+    const bar = p.doc.querySelector('.head-slider[data-kind="size"] .pet-scale');
     bar.setPointerCapture = () => {};
     bar.dispatchEvent(new p.win.MouseEvent('pointerdown', { clientX: 10, button: 0, buttons: 1, bubbles: true }));
     over(p);
@@ -476,7 +476,7 @@ describe('look wheel over the dress button', () => {
     await frames(p);
     expect(reads).toBe(1);
     expect(wheel(p).hidden).toBe(false);
-    expect(p.doc.querySelector('#headSlider').classList.contains('leaving')).toBe(true);
+    expect(p.doc.querySelector('.head-slider[data-kind="size"]').classList.contains('leaving')).toBe(true);
   });
 
   it('reads again when the pointer left while a bubble was showing', async () => {
@@ -539,7 +539,7 @@ describe('the size the body is drawn at', () => {
 });
 
 describe('the size slider pinned by a click on its button', () => {
-  const sizerEl = (p) => p.doc.querySelector('#headSlider');
+  const sizerEl = (p) => p.doc.querySelector('.head-slider[data-kind="size"]');
   const shown = (p) => !sizerEl(p).hidden && !sizerEl(p).classList.contains('leaving');
 
   it('stays open with the pointer away until a press elsewhere, and a second click closes it', () => {
@@ -570,7 +570,7 @@ describe('the size slider opened by hovering its button', () => {
     const tools = p.doc.querySelector('#tools'), button = tools.querySelector('[data-action="size"]');
     // jsdom lays nothing out: the size button is at the page's top left
     Object.defineProperty(button, 'offsetParent', { value: p.doc.body });
-    const sizerEl = p.doc.querySelector('#headSlider');
+    const sizerEl = p.doc.querySelector('.head-slider[data-kind="size"]');
     const shown = () => !sizerEl.hidden && !sizerEl.classList.contains('leaving');
     /** The pointer at `at` for two seconds, longer than the slider waits once the pointer is off the controls. */
     const rest = (at) => { p.cursor.at = at; for (let i = 0; i < 4; i++) { p.step(.5); p.stepSlider(); } };
@@ -632,14 +632,14 @@ describe('the transparency', () => {
     await expect.poll(() => p.sockets.length).toBe(1);
     p.onOrder({ t: 'prefs', hoverButtons: ['fade'], fade: 30, fullscreenFade: 60 });
     p.doc.querySelector('#tools [data-action="fade"]').click();
-    const bar = p.doc.querySelector('#headSlider .pet-scale');
+    const bar = p.doc.querySelector('.head-slider[data-kind="fade"] .pet-scale');
     expect(bar.getAttribute('aria-valuemax')).toBe('95');
     key(p, bar, 'ArrowRight');
     p.fullscreen(true);
     key(p, bar, 'ArrowLeft');
     expect(sent(p)).toEqual([{ t: 'prefs', fade: 35 }, { t: 'prefs', fullscreenFade: 55 }]);
     // the knob shows the one on screen
-    expect(p.doc.querySelector('#headSlider .hs-value').textContent).toBe('55%');
+    expect(p.doc.querySelector('.head-slider[data-kind="fade"] .hs-value').textContent).toBe('55%');
   });
 
   it('takes the place of the size slider when the pointer goes to its button, and gives it back', () => {
@@ -651,16 +651,24 @@ describe('the transparency', () => {
       Object.defineProperty(b, 'offsetParent', { value: p.doc.body });
       b.getBoundingClientRect = () => ({ left, right: left + 40, top: 0, bottom: 40 });
     }
-    const bar = () => p.doc.querySelector('#headSlider .pet-scale').getAttribute('aria-valuemax');
+    const el = (kind) => p.doc.querySelector(`.head-slider[data-kind="${kind}"]`);
+    /** Whether each slider is entering, leaving, shown or hidden. */
+    const states = () => ['size', 'fade'].map((k) => {
+      const c = el(k).classList;
+      return el(k).hidden ? 'hidden' : c.contains('leaving') ? 'leaving' : c.contains('entering') ? 'entering' : 'shown';
+    });
     size.click();
-    expect(bar()).toBe('10');
+    expect(states()).toEqual(['entering', 'hidden']);
+    expect(el('fade').querySelector('.pet-scale').getAttribute('aria-valuemax')).toBe('95');
+    // one leaves with its animation as the other enters with its own, as the look wheel and a slider do
     p.cursor.at = { x: 120, y: 20 };
     p.stepSlider();
-    expect(bar()).toBe('95');
+    expect(states()).toEqual(['leaving', 'entering']);
     expect(size.classList.contains('on')).toBe(false);
+    // back before it has folded away, the size slider stays where it was
     p.cursor.at = { x: 20, y: 20 };
     p.stepSlider();
-    expect(bar()).toBe('10');
+    expect(states()).toEqual(['shown', 'leaving']);
   });
 });
 

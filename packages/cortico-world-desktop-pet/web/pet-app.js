@@ -32,7 +32,7 @@ document.body.classList.add(host ? 'desk' : 'tab');
 
 const stage = $('#stage');
 const bubble = $('#bubble'), menu = $('#menu');
-const tools = $('#tools'), wheel = $('#wheel'), sliderEl = $('#headSlider');
+const tools = $('#tools'), wheel = $('#wheel');
 // Coo's drawing classes for the look wheel's pictures; the bubbles and buttons take their colours from Coo's palette
 // another pack's body sets the theme color instead (accentStyle, after skinStyle so it wins)
 const cooStyle = document.createElement('style'), skinStyle = document.createElement('style'), accentStyle = document.createElement('style');
@@ -1834,6 +1834,17 @@ function hideNow(el, anim) {
   el.classList.remove('entering', 'leaving');
   el.hidden = true;
 }
+/**
+ * What opens over the head, one at a time: the look wheel and each slider, every one its own element with its own
+ * animations. `close` plays its leaving animation.
+ */
+const HEAD = [];
+/** Adds `el` to the place over the head. */
+const atHead = (el, close) => { HEAD.push({ el, close }); };
+/** `el` takes the place over the head: every other one there leaves with its animation as `el` enters with its own. */
+function claimHead(el) { for (const o of HEAD) if (o.el !== el && !o.el.hidden && !leaving(o.el)) o.close(); }
+/** Something other than `el` is in the place over the head, not leaving it. */
+const headTaken = (el) => HEAD.some((o) => o.el !== el && !o.el.hidden && !leaving(o.el));
 function stepTools() {
   // shown while the cursor is on the pet or on the buttons, and a moment after it leaves; decided
   // from where the cursor is now, not from the last move event, which may be stale
@@ -1899,12 +1910,12 @@ async function openWheel() {
   // a slider being dragged keeps its place over the head: the row opens once it is let go
   if (sliding()) return;
   pinSlider(null);
-  closeSlider();
+  claimHead(wheel);
   wheelState.opening = true;
   const items = await wheelItems().catch(() => []);
   wheelState.opening = false;
-  // a slider opened while the favourites were read: one of the two at a time
-  if (!sliderEl.hidden && !leaving(sliderEl)) return;
+  // something else took the place over the head while the favourites were read: one at a time
+  if (headTaken(wheel)) return;
   if (!items.length) { wheelState.empty = true; return; }
   wheelState.items = items;
   wheelState.at = Math.max(0, items.findIndex((i) => i.on));
@@ -1940,6 +1951,8 @@ function closeWheel() {
   foldWheel();
   popOut(wheel, wheelAnim, WHEEL_OUT_MS);
 }
+
+atHead(wheel, closeWheel);
 
 /** Every look gathered small and faint in the middle of the row: where it fans out from and folds back into. */
 function foldWheel() {
@@ -2049,19 +2062,18 @@ const FADE = { min: 0, soft: 95, max: 95, step: 5 };
  * wheel or a bubble takes the place.
  */
 let pinned = null;
-/** The slider in the place over the head: one at a time. */
-let sliderKind = 'size';
-const sliderText = document.createElement('span');
-sliderText.className = 'hs-value';
 /** Until when the slider waits on; per kind, the send due while it moves; the wheel's travel toward a step. */
 const sliderState = { until: 0, timers: { size: 0, fade: 0 }, acc: 0 };
-const sliderAnim = { enter: 0, leave: 0 };
 const bar = (o) => scaleSlider(document, {
   ...o, label: '',
   widths: { collapsed: { width: 160, main: .86 }, expanded: { width: 240, main: .45 } },
   room: () => innerWidth - 120,
 });
-/** Each slider: its bar, the value it shows, that value on the knob, and the bar's name. */
+/**
+ * Each slider: its bar, the value it shows, that value on the knob, and the bar's name. Each gets its own element in
+ * the place over the head (`.head-slider[data-kind]`), so one taking over from another, or from the look wheel, plays
+ * the leaving and entering animations; a slider added here gets a hover button of the same id.
+ */
 const SLIDERS = {
   size: {
     bar: bar({ ...SIZE, onInput: (v) => setSize(v), onChange: () => sendSlider('size') }),
@@ -2076,21 +2088,26 @@ const SLIDERS = {
     label: () => t(fullscreenFaded ? 'action.fadeFullscreenLabel' : 'action.fadeLabel'),
   },
 };
+for (const [kind, s] of Object.entries(SLIDERS)) {
+  s.el = Object.assign(document.createElement('div'), { className: 'head-slider', hidden: true });
+  s.el.dataset.kind = kind;
+  s.anim = { enter: 0, leave: 0 };
+  s.valueEl = Object.assign(document.createElement('span'), { className: 'hs-value' });
+  s.el.append(s.bar.el);
+  s.bar.el.querySelector('.ps-thumb').append(s.valueEl);
+  document.body.insertBefore(s.el, wheel.nextSibling);
+  atHead(s.el, () => closeSlider(kind));
+}
+/** The hover buttons that open a slider. */
+const SLIDER_BUTTONS = Object.keys(SLIDERS).map((k) => `[data-action="${k}"]`).join(', ');
 /** A slider is being dragged. */
-const sliding = () => SLIDERS.size.bar.active || SLIDERS.fade.bar.active;
+const sliding = () => Object.values(SLIDERS).some((s) => s.bar.active);
+/** The slider in the place over the head and not leaving it, or null. */
+const shownSlider = () => Object.keys(SLIDERS).find((k) => !SLIDERS[k].el.hidden && !leaving(SLIDERS[k].el)) ?? null;
 /** Values the World pushes, held while their slider is in use or newer values from it are on their way (scale-slider.js sizeEcho). */
 const sizeHeard = sizeEcho((v) => { if (v === prefs.scale) return; prefs.scale = v; if (!switching()) toSize(v); refreshSlider(); });
 const fadeHeard = Object.fromEntries(['fade', 'fullscreenFade'].map((key) => [key, sizeEcho((v) => { prefs[key] = v; refreshSlider(); })]));
 
-/** Puts the bar of `kind` in the place over the head, the value on its knob. */
-function mountSlider(kind) {
-  sliderKind = kind;
-  const b = SLIDERS[kind].bar;
-  if (b.el.parentNode === sliderEl) return;
-  sliderEl.replaceChildren(b.el);
-  b.el.querySelector('.ps-thumb').append(sliderText);
-}
-mountSlider('size');
 function pinSlider(kind) {
   if (pinned === kind) return;
   pinned = kind;
@@ -2120,64 +2137,70 @@ function sendSlider(kind) {
   send({ t: 'prefs', [key]: prefs[key] });
 }
 function refreshSlider() {
-  const s = SLIDERS[sliderKind];
-  sliderText.textContent = s.text(s.value());
-  s.bar.el.setAttribute('aria-label', s.label());
-  for (const k of Object.keys(SLIDERS)) if (!SLIDERS[k].bar.active) SLIDERS[k].bar.set(SLIDERS[k].value());
-  for (const b of document.querySelectorAll('[data-action="size"], [data-action="fade"]')) drawAction(b, b.dataset.action);
+  for (const s of Object.values(SLIDERS)) {
+    s.valueEl.textContent = s.text(s.value());
+    s.bar.el.setAttribute('aria-label', s.label());
+    if (!s.bar.active) s.bar.set(s.value());
+  }
+  for (const b of document.querySelectorAll(SLIDER_BUTTONS)) drawAction(b, b.dataset.action);
 }
 
-/** Opens the slider of `kind`, or puts it in the place of the other one showing. */
+/** Opens the slider of `kind`; whatever else is over the head leaves as it enters (claimHead). */
 function openSlider(kind) {
-  const other = kind !== sliderKind;
-  mountSlider(kind);
+  const s = SLIDERS[kind];
+  claimHead(s.el);
   refreshSlider();
   // back over a button of its kind while the slider folds away: it stays
-  if (leaving(sliderEl) && !other) { clearTimeout(sliderAnim.leave); sliderEl.classList.remove('leaving'); return; }
-  if (sliderEl.hidden || leaving(sliderEl)) {
-    hideNow(sliderEl, sliderAnim);
-    closeWheel();
-    popIn(sliderEl, sliderAnim);
-  }
-  SLIDERS[kind].bar.relayout();
+  if (leaving(s.el)) { clearTimeout(s.anim.leave); s.el.classList.remove('leaving'); }
+  else if (s.el.hidden) popIn(s.el, s.anim);
+  s.bar.relayout();
   const l = at();
-  if (l) placeSlider(l);
+  if (l) placeSlider(kind, l);
 }
-function closeSlider() {
-  if (sliderEl.hidden || leaving(sliderEl) || sliding()) return;
-  popOut(sliderEl, sliderAnim, SLIDER_OUT_MS);
+/** Closes the slider of `kind`, or every slider, unless it is being dragged. */
+function closeSlider(kind) {
+  for (const k of kind ? [kind] : Object.keys(SLIDERS)) {
+    const s = SLIDERS[k];
+    if (s.el.hidden || leaving(s.el) || s.bar.active) continue;
+    popOut(s.el, s.anim, SLIDER_OUT_MS);
+  }
 }
 /** Centred over the body, just above its head, where the look wheel opens; it follows the head as other controls do (`follow`). */
-function placeSlider(l) {
-  const b = l.box, w = sliderEl.offsetWidth, h = sliderEl.offsetHeight;
-  sliderEl.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
+function placeSlider(kind, l) {
+  const el = SLIDERS[kind].el, b = l.box, w = el.offsetWidth, h = el.offsetHeight;
+  el.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
   // the slider's box holds the value's bubble over the knob: its bottom sits just over the head
-  sliderEl.style.top = f(clamp(b.y - h - 10, 8, innerHeight - h - 8)) + 'px';
+  el.style.top = f(clamp(b.y - h - 10, 8, innerHeight - h - 8)) + 'px';
 }
-function overSlider(p) { return !sliderEl.hidden && !leaving(sliderEl) && inRect(p, sliderEl.getBoundingClientRect(), 6); }
+/** The pointer is on the slider of `kind`, or on the one shown. */
+function overSlider(p, kind = shownSlider()) {
+  const el = kind && SLIDERS[kind].el;
+  return !!el && !el.hidden && !leaving(el) && inRect(p, el.getBoundingClientRect(), 6);
+}
 function stepSlider() {
   const p = cursor.at;
-  const over = !p ? null : overAction(p, 'size') ? 'size' : overAction(p, 'fade') ? 'fade' : null;
+  const over = (p && Object.keys(SLIDERS).find((k) => overAction(p, k))) ?? null;
   // a bubble over the pet (the typing box, a reply, a question) takes the slider's place until it closes; with every
   // click passing through the window it could not be used
   if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { pinSlider(null); closeSlider(); return; }
-  if (sliding() || pinned || amongControls(p, sliderEl)) sliderState.until = T + SLIDER_LINGER;
-  const shown = !sliderEl.hidden && !leaving(sliderEl);
-  // over the other kind's button, its slider takes the place, unless the one there is held
-  if (over && (!shown || (over !== sliderKind && !sliding()))) {
+  const shown = shownSlider();
+  if (sliding() || pinned || (shown && amongControls(p, SLIDERS[shown].el))) sliderState.until = T + SLIDER_LINGER;
+  // over another kind's button, its slider takes the place, unless the one there is held
+  if (over && over !== shown && !sliding()) {
     if (pinned && pinned !== over) pinSlider(null);
     openSlider(over);
   }
-  if (!sliderEl.hidden && T > sliderState.until) closeSlider();
+  if (T > sliderState.until) closeSlider();
 }
-// the mouse wheel steps the slider over it or over a button of its kind: up is larger
+// the mouse wheel steps the slider over it or over a button of its kind, while it shows: up is larger
 document.addEventListener('wheel', (e) => {
-  const on = e.target.closest?.('.head-slider, [data-action="size"], [data-action="fade"]');
-  if (!on || (on.dataset.action && on.dataset.action !== sliderKind)) return;
+  const on = e.target.closest?.(`.head-slider, ${SLIDER_BUTTONS}`);
+  const kind = on && (on.dataset.kind ?? on.dataset.action);
+  if (!kind || kind !== shownSlider()) return;
   e.preventDefault();
   sliderState.acc += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
   if (Math.abs(sliderState.acc) < WHEEL_NOTCH) return;
-  SLIDERS[sliderKind].bar.nudge(-Math.sign(sliderState.acc));
+  SLIDERS[kind].bar.nudge(-Math.sign(sliderState.acc));
   sliderState.acc = 0;
   sliderState.until = T + SLIDER_LINGER;
   sfx.tick();
@@ -2193,7 +2216,7 @@ let opacityShown = 1;
  * keeps the value it sets in view. A tab draws the body opaque.
  */
 function stepFade() {
-  const showing = sliderKind === 'fade' && !sliderEl.hidden && !leaving(sliderEl);
+  const showing = shownSlider() === 'fade';
   const engaged = (!!item && item.kind !== 'say') || !!at()?.pressing;
   const o = !host || (engaged && !showing) ? 1 : 1 - prefs[fadeKey()] / 100;
   if (o === opacityShown) return;
@@ -2431,7 +2454,7 @@ document.addEventListener('contextmenu', (e) => {
 });
 document.addEventListener('pointerdown', (e) => {
   if (!e.target.closest('.menu, .wheel')) closeMenu();
-  if (!e.target.closest('.head-slider, [data-action="size"], [data-action="fade"]')) pinSlider(null);
+  if (!e.target.closest(`.head-slider, ${SLIDER_BUTTONS}`)) pinSlider(null);
 }, { capture: true });
 // clicks off the figure pass through the window to what is underneath; the window losing focus is how they show here
 window.addEventListener('blur', () => { closeMenu(); pinSlider(null); });
@@ -2539,7 +2562,9 @@ function layout(dt = 0) {
   if (!tools.hidden) follow([tools], !!p && overTools(p), () => placeTools(l));
   if (!menu.hidden) follow(menuParts(), !!p && overMenu(p), () => placeMenu(l));
   if (!wheel.hidden) follow([wheel], !!p && overWheel(p), () => placeWheel(l));
-  if (!sliderEl.hidden) follow([sliderEl], sliding() || (!!p && overSlider(p)), () => placeSlider(l));
+  for (const [kind, s] of Object.entries(SLIDERS)) {
+    if (!s.el.hidden) follow([s.el], s.bar.active || (!!p && overSlider(p, kind)), () => placeSlider(kind, l));
+  }
   const a = l.bubble;
   let sayBox = null;
   // choice cards and a World's confirmation keep their bubble where it was; its tail follows Coo along the bottom edge
