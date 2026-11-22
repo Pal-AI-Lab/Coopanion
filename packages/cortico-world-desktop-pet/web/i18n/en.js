@@ -152,6 +152,8 @@ export default {
   'dress.custom': "Custom figure and outfit",
   'looks.prev': "Previous",
   'looks.next': "Next",
+  'looks.apps': "Looks by app",
+  'looks.daily': "Everyday look",
   'looks.title': "Favourite looks",
   'looks.save': "Add to favourites",
   'looks.update': "Save changes to {name}",

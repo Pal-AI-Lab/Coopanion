@@ -145,6 +145,8 @@ export default {
   'dress.custom': "Figur und Outfit anpassen",
   'looks.prev': "Zurück",
   'looks.next': "Weiter",
+  'looks.apps': "Aussehen je App",
+  'looks.daily': "Gewohntes Aussehen",
   'looks.title': "Lieblingslooks",
   'looks.save': "Zu Favoriten hinzufügen",
   'looks.update': "Änderungen an {name} speichern",

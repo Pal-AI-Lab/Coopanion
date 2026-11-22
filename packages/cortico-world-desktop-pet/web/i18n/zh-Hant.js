@@ -145,6 +145,8 @@ export default {
   'dress.custom': "自訂形象與裝扮",
   'looks.prev': "上一組",
   'looks.next': "下一組",
+  'looks.apps': "應用程式專屬裝扮",
+  'looks.daily': "日常裝扮",
   'looks.title': "已收藏的形象",
   'looks.save': "收藏形象",
   'looks.update': "儲存對「{name}」的修改",

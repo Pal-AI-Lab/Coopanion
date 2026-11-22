@@ -45,6 +45,10 @@ body.dress-page{
 .look-tile{position:relative; display:flex}
 /* section headings as the settings window draws them on a page: a line above each but the first (console/styles.css .sheet h3) */
 .section-head{grid-column:1 / -1; margin:10px 0 0; padding-top:22px; border-top:1px solid var(--line); font-size:15px; font-weight:600; line-height:1.4; letter-spacing:-.01em; color:var(--text)}
+#appLooks{grid-column:1 / -1}
+.app-look-fields{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px}
+.app-look-fields label{display:grid;gap:5px;min-width:0;flex:1 1 140px;color:var(--muted);font-size:13px}
+.app-look-fields select{max-width:100%;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px}
 .section-head.first{margin-top:4px; padding-top:0; border-top:0}
 /* favourites: one row; arrows move it a page at a time when it holds more than fit */
 .looks-gallery{display:flex; align-items:center; gap:6px; min-width:0}

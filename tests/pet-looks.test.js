@@ -16,15 +16,15 @@ afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await c
 
 /** The dressing page's saved-looks code against a real pet server; `failReads` makes that many reads of the list fail. */
 async function page(stored) {
-  let kept = stored;
+  let kept = stored, prefs = null;
   const server = new PetServer({
     port: () => 0, webDir: fileURLToPath(new URL('web/', PKG)), snapshot: () => ({}),
-    onPetMessage() {}, onAudio() {}, onPetConnect() {}, onPetDisconnect() {}, onSkin() {}, onPrefs() {},
+    onPetMessage() {}, onAudio() {}, onPetConnect() {}, onPetDisconnect() {}, onSkin() {}, onPrefs(value) { prefs = value; },
     looks: () => kept, onLooks: (next) => { kept = next; },
   });
   cleanup.push(() => server.stop());
   await server.start();
-  const dom = new JSDOM('<div id="saved"></div><div id="optLooks"></div><button id="saveLook"></button><button id="updateLook"></button>', { url: `${server.origin}/dress`, runScripts: 'outside-only' });
+  const dom = new JSDOM(readFileSync(new URL('web/dress.html', PKG), 'utf8'), { url: `${server.origin}/dress`, runScripts: 'outside-only' });
   const win = dom.window;
   cleanup.push(() => win.close());
   const state = { failReads: 0 };
@@ -37,6 +37,7 @@ async function page(stored) {
   cleanup.push(() => { globalThis.fetch = real; });
   win.ResizeObserver = class { observe() {} };
   win.requestAnimationFrame = () => 0;
+  win.fetch = pageFetch;
   win.deps = { fetchLooks, lookAvailable, lookPicture, sameLook, writeLooks, normalizeSkin, t, ICONS: { addLook: '', saveLook: '', pencil: '', trash: '' }, dragRow() {} };
   win.eval(`
     const { fetchLooks, lookAvailable, lookPicture, sameLook, writeLooks, normalizeSkin, t, ICONS, dragRow } = window.deps;
@@ -48,11 +49,11 @@ async function page(stored) {
     let scale = 1;
     const sizer = { set() {} }, showScale = () => {}, scaleHeard = { sent() {} };
     ${section}
-    window.page = { loadLooks };
+    window.page = { loadLooks, bind: (next) => { appLooks = next; renderLooks(); } };
   `);
   const doc = win.document;
   return {
-    state, stored: () => kept, doc,
+    state, stored: () => kept, doc, win, prefs: () => prefs,
     load: () => win.page.loadLooks(),
     /** Clicks save and resolves once the page shows the outcome: the button's saved mark, or a notice. */
     save: async () => {
@@ -98,6 +99,21 @@ describe('saved looks on the dressing page', () => {
     expect(p.tiles()).toBe(2);
     await p.save();
     expect(p.stored()).toHaveLength(3);
+  });
+
+  it('assigns a favourite without putting it on and offers the everyday look again', async () => {
+    const stored = [look('first', 'mint'), look('second', 'fox')];
+    const p = await page(stored);
+    Object.defineProperty(p.win.navigator, 'userAgent', { value: 'Windows' });
+    await p.load();
+    p.win.page.bind({ codex: '', claude: 'second' });
+    const field = p.doc.querySelector('select[data-app=codex]');
+    expect([...field.options].map((o) => o.value)).toEqual(['', 'first', 'second']);
+    expect(p.doc.querySelector('select[data-app=claude]').value).toBe('second');
+    field.value = 'first';
+    field.dispatchEvent(new p.win.Event('change', { bubbles: true }));
+    await expect.poll(p.prefs).toEqual({ app: 'codex', look: 'first' });
+    expect(p.stored()).toBe(stored);
   });
 
   it('says there are none when the list reads as empty', async () => {

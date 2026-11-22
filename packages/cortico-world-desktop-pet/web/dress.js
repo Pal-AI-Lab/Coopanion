@@ -384,7 +384,39 @@ updateLookBtn.addEventListener('click', async () => {
   sfx.sparkle(); body?.cue('cheer');
 });
 
+let appLooks = null;
+const appFields = $('#appLooks');
+function renderAppLooks() {
+  appFields.hidden = !appLooks || !looks.length || !navigator.userAgent.includes('Windows');
+  if (appFields.hidden) return;
+  for (const select of appFields.querySelectorAll('select')) {
+    select.replaceChildren(new Option(t('looks.daily'), ''));
+    for (const look of looks) {
+      const option = new Option(look.name, look.id);
+      option.disabled = packs.length > 0 && !lookAvailable(look.skin, packs);
+      select.add(option);
+    }
+    select.value = appLooks[select.dataset.app] || '';
+  }
+}
+appFields.addEventListener('change', async (event) => {
+  const select = event.target;
+  if (!(select instanceof HTMLSelectElement)) return;
+  const app = select.dataset.app;
+  select.disabled = true;
+  try {
+    const response = await fetch('/api/prefs', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ app, look: select.value }) });
+    if (!response.ok) throw new Error();
+    $('#saved').textContent = '';
+  } catch {
+    $('#saved').textContent = t('dress.notSaved');
+    renderAppLooks();
+  } finally { select.disabled = false; }
+});
+
 function renderLooks() {
+  renderAppLooks();
   const box = $('#optLooks');
   const active = looks.find((l) => l.id === activeLook);
   const changed = !!active && !isWorn(active);
@@ -749,6 +781,7 @@ function connect() {
   const ws = new WebSocket(`ws://${location.host}/socket?role=dress`);
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
+    if (m.appLooks) { appLooks = m.appLooks; renderAppLooks(); }
     if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; showTheme(); modeBtn.show(theme); body?.set({ theme }); renderLooks(); }
     if (m.t === 'init') { loadPacks(); void loadLooks(); announcePainted(); }
     if ((m.t === 'init' || m.t === 'prefs') && typeof m.scale === 'number') scaleHeard.heard(m.scale, sizer.active || !!scaleTimer);

@@ -22,7 +22,7 @@
  * tables (web/i18n); the windows' titles are the pages' own.
  */
 const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen, session, shell, systemPreferences } = require('electron');
-const { join } = require('node:path');
+const { basename, join } = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { createCursorSource } = require('./cursor.cjs');
 const { createInputShape } = require('./input-shape.cjs');
@@ -105,10 +105,29 @@ const foreground = (() => {
     const BringWindowToTop = user32.func('int __stdcall BringWindowToTop(intptr_t hwnd)');
     const GetWindowThreadProcessId = user32.func('uint32_t __stdcall GetWindowThreadProcessId(intptr_t hwnd, void *pid)');
     const AttachThreadInput = user32.func('int __stdcall AttachThreadInput(uint32_t from, uint32_t to, int attach)');
+    const OpenProcess = kernel32.func('intptr_t __stdcall OpenProcess(uint32_t access, int inherit, uint32_t pid)');
+    const QueryFullProcessImageNameW = kernel32.func('int __stdcall QueryFullProcessImageNameW(intptr_t process, uint32_t flags, void *name, void *size)');
+    const CloseHandle = kernel32.func('int __stdcall CloseHandle(intptr_t handle)');
+    const IsWindowVisible = user32.func('int __stdcall IsWindowVisible(intptr_t hwnd)');
+    const IsIconic = user32.func('int __stdcall IsIconic(intptr_t hwnd)');
     const GetCurrentThreadId = kernel32.func('uint32_t __stdcall GetCurrentThreadId()');
     return {
       /** The window with the keyboard now, 0n for none. */
       current: () => BigInt(GetForegroundWindow()),
+      visible: (hwnd) => !!hwnd && !!IsWindowVisible(hwnd) && !IsIconic(hwnd),
+      app(hwnd) {
+        const pid = Buffer.alloc(4);
+        if (!hwnd || !GetWindowThreadProcessId(hwnd, pid)) return null;
+        const processHandle = OpenProcess(0x1000, 0, pid.readUInt32LE());
+        if (!processHandle) return null;
+        try {
+          const name = Buffer.alloc(65536), size = Buffer.alloc(4);
+          size.writeUInt32LE(name.length / 2);
+          if (!QueryFullProcessImageNameW(processHandle, 0, name, size)) return null;
+          const exe = basename(name.toString('utf16le', 0, size.readUInt32LE() * 2)).toLowerCase();
+          return exe === 'codex.exe' ? 'codex' : exe === 'claude.exe' ? 'claude' : null;
+        } finally { CloseHandle(processHandle); }
+      },
       /** Gives `hwnd` the keyboard; true when Windows let it. */
       give(hwnd) {
         const cur = GetForegroundWindow();
@@ -353,6 +372,18 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   // the other windows, read only while the page asks (its body's pack needs them) and sent when they change:
   // their tops, and the whole windows with their ids, order and foreground flag
   const windows = createWindowSource({ screen });
+  let followApps = false, sampledWindow, reportedApp;
+  const reportApp = (cur, own) => {
+    if (!followApps) return;
+    if (cur === own) {
+      if (foreground.visible(sampledWindow)) return;
+      cur = 0n;
+    }
+    if (cur === sampledWindow) return;
+    sampledWindow = cur;
+    const app = foreground.app(cur);
+    if (app !== reportedApp) { reportedApp = app; win.webContents.send('pet:foregroundApp', app); }
+  };
   let windowTimer = null, sentWindows = '';
   const readWindows = () => {
     if (!win || !win.isVisible()) return;
@@ -471,6 +502,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     const foregroundTimer = foreground && setInterval(() => {
       if (!win) return;
       const own = hwndOf(win), cur = foreground.current();
+      reportApp(cur, own);
       const covered = (hideWhenFullscreen || passWhenFullscreen) && !!fullscreen?.(cur, own);
       if (covered && hideWhenFullscreen && !autoHidden && win.isVisible()) { autoHidden = true; win.hide(); }
       else if (!(covered && hideWhenFullscreen) && autoHidden) { autoHidden = false; win.showInactive(); }
@@ -530,6 +562,11 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   // Windows: WDA_EXCLUDEFROMCAPTURE, which leaves the window out of what other programs capture of the screen
   onPet('pet:hideFromCapture', (_e, on) => win.setContentProtection(!!on));
   onPet('pet:clickThrough', (_e, on) => { trayThrough = !!on; lockMouse(); });
+  onPet('pet:followApps', (_e, on) => {
+    followApps = !!on;
+    sampledWindow = reportedApp = undefined;
+    if (foreground && win) reportApp(foreground.current(), hwndOf(win));
+  });
   onPet('pet:watchWindows', (_e, on) => watchWindows(!!on));
   onPet('pet:openDress', () => openDress());
   let language = 'zh';

@@ -242,6 +242,8 @@ export interface DesktopPetConfigSection extends WorldSection {
   skin: PetSkin;
   /** Saved looks, in the order the person saved them. */
   looks: SavedLook[];
+  /** Favourite look IDs used while the corresponding Windows app has focus. Empty IDs use the daily look. */
+  appLooks: { codex: string; claude: string };
   /**
    * `window.scale` each figure (a pack id) last had while it was on screen, written when another figure replaces it.
    * A figure put on takes its own back, unless the size changed along with it.
@@ -341,6 +343,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
     colors: { head: { main: 'body', acc: 'eye' }, side: { main: 'eye', acc: 'eye' }, glasses: { main: 'body', acc: 'eye' }, neck: { main: 'eye', acc: 'eye' } },
   },
   looks: [],
+  appLooks: { codex: '', claude: '' },
   figureScales: {},
   cua: CUA_DEFAULTS,
   touch: { enabled: true, wakeOn: 'poke', wakeKinds: ['poke'] },

@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('petHost', {
   onFullscreenThrough: (cb) => ipcRenderer.on('pet:fullscreenThrough', (_e, on) => cb(!!on)),
   /** Whether every click passes through the window (the tray's "click through"); the window process enforces it. */
   clickThrough: (on) => ipcRenderer.send('pet:clickThrough', !!on),
+  followApps: (on) => ipcRenderer.send('pet:followApps', !!on),
+  onForegroundApp: (cb) => ipcRenderer.on('pet:foregroundApp', (_e, app) => cb(app)),
   openDress: () => ipcRenderer.send('pet:openDress'),
   /** The app language the page shows, for the window process's own words (the tray menu). */
   setLanguage: (code) => ipcRenderer.send('pet:language', String(code)),

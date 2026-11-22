@@ -145,6 +145,8 @@ export default {
   'dress.custom': "모습과 옷차림 꾸미기",
   'looks.prev': "이전",
   'looks.next': "다음",
+  'looks.apps': "앱별 꾸미기",
+  'looks.daily': "평소 모습",
   'looks.title': "즐겨찾는 모습",
   'looks.save': "즐겨찾기에 추가",
   'looks.update': "{name}의 변경 사항 저장",

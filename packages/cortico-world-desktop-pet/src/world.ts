@@ -565,9 +565,17 @@ export class DesktopPetWorld implements World {
     return [...problems, ...packs.flatMap((p) => { const reason = this.runFailures.get(p.id); return reason === undefined ? [] : [{ dir: p.dir, reason, loaded: false }]; })];
   }
 
+  private focusAppearanceChanged = false;
+  private foregroundApp: keyof DesktopPetConfigSection['appLooks'] | null = null;
+
+  private foregroundLook(): SavedLook | undefined {
+    const id = this.foregroundApp && this.cfg.appLooks?.[this.foregroundApp];
+    return id ? this.cfg.looks.find((look) => look.id === id) : undefined;
+  }
+
   /** The pack of the figure the skin asks for (Coo for one that is not installed); null only when even Coo's would not load. */
   private currentPack(): FigurePack | null {
-    const figure = this.cfg.skin.figure ?? COO;
+    const figure = (this.foregroundLook()?.skin ?? this.cfg.skin).figure ?? COO;
     return packFor(this.packs(), figure === this.figureFailed ? COO : figure);
   }
   /** The words the body on screen does: its pack's vocabulary, less the words its body said it does not know. */
@@ -634,7 +642,7 @@ export class DesktopPetWorld implements World {
     if (!pack) return '';
     const { language, t } = this;
     const m = pack.manifest;
-    const scheme = lookOf(pack, this.cfg.skin);
+    const scheme = lookOf(pack, this.foregroundLook()?.skin ?? this.cfg.skin);
     const picks = scheme.split('-');
     const preset = m.presets.find((p) => p.id === scheme);
     const chosen = m.axes.map((a, i) => {
@@ -679,20 +687,23 @@ export class DesktopPetWorld implements World {
     const problem = `形象包 ${id} 的词表里有身体不认得的词,没给 bot 用:${unknown.join('、')}`;
     if (unknown.length && !this.packProblems.has(problem)) { this.packProblems.add(problem); this.log?.warn(problem); }
     this.runFailures.delete(id);
-    if (id === this.cfg.skin.figure) this.figureFailed = null;
+    if (id === (this.foregroundLook()?.skin ?? this.cfg.skin).figure) this.figureFailed = null;
     this.bodyMissing = null;
     const shown = id === COO ? COO : `${id}:${typeof msg.scheme === 'string' ? msg.scheme : ''}`;
     this.figureShown = shown;
     let look: string | null = null;
     // what the chat page says of a switch the person made: another figure, or another dress of the same one
     let change: ChatFigure | null = null;
-    if (before !== null && before !== shown) {
+    const fromFocus = this.focusAppearanceChanged;
+    this.focusAppearanceChanged = false;
+    if (!fromFocus && before !== null && before !== shown) {
       if (shown === this.botLook) this.botLook = null;
       else {
         look = this.t.figureNow(this.bodyText(pack));
         change = { kind: before.split(':')[0] === id ? 'dress' : 'figure', name: { ...pack?.manifest.name, id } };
       }
     }
+    if (fromFocus) return;
     const note = this.vocabNote();
     const text = look && note ? `${look}\n${note}` : look ?? (note ? this.t.figureNote(note) : null);
     if (text) void this.push('desktop-pet.figure', 'desktop-pet.figure', text, 'debounce', change ? { meta: { figure: change } } : {});
@@ -964,7 +975,10 @@ export class DesktopPetWorld implements World {
   /* ---------- page protocol ---------- */
 
   private snapshot(): Record<string, unknown> {
+    const look = this.foregroundLook();
     return {
+      appLooks: this.cfg.appLooks,
+      foregroundLook: look ? { id: look.id, skin: look.skin, scale: look.scale ?? this.cfg.figureScales[look.skin.figure ?? COO] ?? this.cfg.window.scale } : null,
       skin: this.cfg.skin,
       roam: this.quiet?.roam ?? this.cfg.roam,
       sound: this.quiet?.sound ?? this.cfg.sound,
@@ -1147,12 +1161,22 @@ export class DesktopPetWorld implements World {
       looks.push({ id, name: name.trim().slice(0, MAX_LOOK_NAME) || id, skin: skin as PetSkin, ...(size === null ? {} : { scale: size }) });
       if (looks.length === MAX_SAVED_LOOKS) break;
     }
-    this.opts.persist({ looks });
+    const appLooks = { ...this.cfg.appLooks };
+    for (const app of ['codex', 'claude'] as const) {
+      if (!seen.has(appLooks[app])) appLooks[app] = '';
+    }
+    this.opts.persist({ looks, appLooks });
+    this.syncPrefs();
   }
 
   private savePrefs(prefs: Record<string, unknown>): void {
     const patch: DeepPartial<DesktopPetConfigSection> = {};
     if (prefs.roam === 'free' || prefs.roam === 'calm' || prefs.roam === 'off') patch.roam = prefs.roam as RoamMode;
+    const app = prefs.app;
+    if ((app === 'codex' || app === 'claude') && typeof prefs.look === 'string' &&
+        (prefs.look === '' || this.cfg.looks.some((look) => look.id === prefs.look))) {
+      patch.appLooks = { [app]: prefs.look };
+    }
     if (typeof prefs.sound === 'boolean') patch.sound = prefs.sound;
     // the menu's sound or roam button during a quiet: the person's choice, kept, and the quiet is over
     if (this.quiet && (patch.roam !== undefined || patch.sound !== undefined)) this.endQuiet();
@@ -1197,6 +1221,14 @@ export class DesktopPetWorld implements World {
 
   private onPage(msg: PageMessage): void {
     switch (msg.t) {
+      case 'foreground-app':
+        if (this.server.petInWindow) {
+          const previous = this.foregroundLook()?.id;
+          this.foregroundApp = msg.app === 'codex' || msg.app === 'claude' ? msg.app : null;
+          this.focusAppearanceChanged ||= previous !== this.foregroundLook()?.id;
+          this.syncPrefs();
+        }
+        return;
       case 'figure': return this.onFigure(msg);
       case 'hello': {
         const s = msg.screen as { w?: unknown; h?: unknown } | undefined;
@@ -1257,7 +1289,13 @@ export class DesktopPetWorld implements World {
         }
         return;
       }
-      case 'prefs': return this.savePrefs(msg);
+      case 'prefs': {
+        const size = scaleOf(msg.scale);
+        if (this.server.petInWindow && size !== null && typeof msg.look === 'string' && Object.values(this.cfg.appLooks).includes(msg.look)) {
+          this.saveLooks(this.cfg.looks.map((l) => l.id === msg.look ? { ...l, scale: size } : l));
+        } else if (!msg.look) this.savePrefs(msg);
+        return;
+      }
       case 'position': {
         if (typeof msg.x !== 'number' || !Number.isFinite(msg.x)) return;
         this.standX = Math.min(1, Math.max(0, msg.x));
@@ -1410,6 +1448,8 @@ export class DesktopPetWorld implements World {
   }
 
   private onPageGone(): void {
+    this.foregroundApp = null;
+    this.focusAppearanceChanged = false;
     this.log?.info('桌宠页面断开');
     this.holdPreRoll.length = 0;
     this.tellDesktop();

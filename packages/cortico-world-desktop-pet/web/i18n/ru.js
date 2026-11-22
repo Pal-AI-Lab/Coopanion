@@ -145,6 +145,8 @@ export default {
   'dress.custom': "Свой образ и наряд",
   'looks.prev': "Назад",
   'looks.next': "Вперёд",
+  'looks.apps': "Облик для приложения",
+  'looks.daily': "Обычный облик",
   'looks.title': "Избранные образы",
   'looks.save': "Добавить в избранное",
   'looks.update': "Сохранить изменения в «{name}»",

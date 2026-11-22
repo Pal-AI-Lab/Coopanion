@@ -145,6 +145,8 @@ export default {
   'dress.custom': "姿と衣装のカスタマイズ",
   'looks.prev': "前へ",
   'looks.next': "次へ",
+  'looks.apps': "アプリ別の着せ替え",
+  'looks.daily': "普段の姿",
   'looks.title': "お気に入りの姿",
   'looks.save': "お気に入りに追加",
   'looks.update': "「{name}」への変更を保存",

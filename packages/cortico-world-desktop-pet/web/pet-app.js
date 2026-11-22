@@ -369,7 +369,17 @@ function takeOff(keep) {
   if (!keep) putOn(was);
 }
 
+let followingApps = false, foregroundLookId = null;
+host?.onForegroundApp?.((app) => send({ t: 'foreground-app', app }));
+
 function applyPrefs(p) {
+  if (host && p.appLooks) {
+    const follow = !!(p.appLooks.codex || p.appLooks.claude);
+    if (follow !== followingApps || p.t === 'init') host.followApps?.(follow);
+    followingApps = follow;
+    foregroundLookId = p.foregroundLook?.id ?? null;
+    if (p.foregroundLook) p = { ...p, skin: p.foregroundLook.skin, scale: p.foregroundLook.scale };
+  }
   // while a card is tried on, the config's skin waits until the step ends
   if (p.skin) { if (worn) worn = normalizeSkin(p.skin); else putOn(normalizeSkin(p.skin)); }
   if (p.roam) { prefs.roam = p.roam; body?.set({ roam: p.roam }); }
@@ -2022,7 +2032,7 @@ const sizer = scaleSlider(document, {
 // the percentage rides on the knob
 sizerEl.append(sizer.el);
 sizer.el.querySelector('.ps-thumb').append(sizerText);
-const sizerState = { until: 0, timer: 0, acc: 0 };
+const sizerState = { until: 0, timer: 0, acc: 0, pending: null };
 /** Sizes the World pushes, held while the slider is in use or newer sizes from it are on their way (scale-slider.js sizeEcho). */
 const sizeHeard = sizeEcho((v) => { if (v === prefs.scale) return; prefs.scale = v; if (!switching()) toSize(v); refreshSize(); });
 const sizerAnim = { enter: 0, leave: 0 };
@@ -2032,13 +2042,17 @@ function setSize(v) {
   prefs.scale = v;
   toSize(v);
   refreshSize();
+  sizerState.pending = { scale: v, look: foregroundLookId };
   sizerState.timer ||= setTimeout(sendSize, SIZE_SEND_MS);
 }
 function sendSize() {
   clearTimeout(sizerState.timer);
   sizerState.timer = 0;
-  sizeHeard.sent(prefs.scale);
-  send({ t: 'prefs', scale: prefs.scale });
+  const pending = sizerState.pending;
+  if (!pending) return;
+  sizerState.pending = null;
+  if (pending.look === foregroundLookId) sizeHeard.sent(pending.scale);
+  send({ t: 'prefs', ...pending });
 }
 function refreshSize() {
   sizerText.textContent = `${Math.round(prefs.scale * 100)}%`;

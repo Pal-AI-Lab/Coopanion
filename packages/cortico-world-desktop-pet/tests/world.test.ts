@@ -1082,6 +1082,31 @@ describe('size on screen', () => {
     expect(cfg.window.scale).toBe(1.25);
   });
 
+  it('follows the focused app at its saved size, then restores the current daily look', async () => {
+    const { cfg, world, post } = await sized();
+    const first = { id: 'first', name: 'First', skin: whale, scale: 2 };
+    const second = { id: 'second', name: 'Second', skin: coo, scale: .8 };
+    await post('/api/looks', { looks: [first, second] });
+    await post('/api/prefs', { app: 'codex', look: first.id });
+    await post('/api/prefs', { app: 'claude', look: second.id });
+    const page = await windowPage(world);
+    cleanup.push(() => page.close());
+    const shown = (id: string) => page.next((m) => (m.foregroundLook as { id?: string } | null)?.id === id);
+    page.send({ t: 'foreground-app', app: 'codex' });
+    expect((await shown(first.id)).foregroundLook).toMatchObject({ skin: whale, scale: 2 });
+    page.send({ t: 'foreground-app', app: 'claude' });
+    expect((await shown(second.id)).foregroundLook).toMatchObject({ skin: coo, scale: .8 });
+    page.send({ t: 'prefs', look: second.id, scale: 1.5 });
+    await expect.poll(() => cfg.looks[1]?.scale).toBe(1.5);
+    expect(cfg.looks[0]?.scale).toBe(2);
+    await post('/api/skin', { skin: whale, scale: 1.2 });
+    page.send({ t: 'foreground-app', app: null });
+    const restored = await page.next((m) => m.t === 'prefs' && m.foregroundLook === null && m.scale === 1.2);
+    expect(restored.skin).toMatchObject(whale);
+    await post('/api/looks', { looks: [second] });
+    expect(cfg.appLooks).toEqual({ codex: '', claude: second.id });
+  });
+
   it('a saved look keeps its size when it has one in range', async () => {
     const { post } = await sized();
     const looks = [{ id: 'a', name: 'A', skin: coo, scale: 3 }, { id: 'b', name: 'B', skin: whale, scale: 99 }, { id: 'c', name: 'C', skin: coo }];

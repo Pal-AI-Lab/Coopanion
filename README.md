@@ -150,6 +150,8 @@ Rest the pointer on Coo and the buttons you picked pop up beside it: up to 6 of 
 
 ### Appearance and sound
 
+On Windows, assign a favourite look to Codex or Claude on the dressing page. The pet wears it at its saved size while that desktop app has focus and returns to its everyday look in other apps.
+
 Change the figure, colors and accessories on the **Dress up** page, including the accessories' main and accent colors; changes apply right away. Figure packs can be imported from a zip or a folder, or dragged onto the page, and imported packs are uninstalled there too. Import, replacement and uninstall confirmations, progress and errors use the settings window’s shared dialogs. **Size**, under the figures, sets how large Coo is on the desktop; each figure keeps its own size and gets it back when you switch to it again. The previews on **Dress up** and **Start** keep one size.
 
 The star at the top right of the preview adds the look Coo wears to **Favourite looks**, listed in one row at the top of the page: click one to put it on, drag it to reorder, or rename and delete it. A favourite keeps the size it was saved at and puts it back on with the look; its picture is drawn at that size, with the percentage in its corner. After you pick a favourite and change it, its size included, a save button next to the star writes the change back to it.
