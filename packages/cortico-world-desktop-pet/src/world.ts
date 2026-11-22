@@ -2177,8 +2177,9 @@ export class DesktopPetWorld implements World {
       return;
     }
     const upstream = this.textWork();
-    // An over-limit audio batch may be waiting for its text fallback. Keep its bubble cancellable.
-    if (!upstream && !this.packer.pending && !this.segmenter.active && this.audioDisplay?.closed && !this.audioDisplay.sent && this.audioDisplay.pending) return;
+    // A closed recording may be queued behind an older text fallback, even if its own ASR has finished.
+    // Keep the pending bubble open until that recording really has been delivered.
+    if (!upstream && !this.packer.pending && !this.segmenter.active && this.audioDisplay?.closed && !this.audioDisplay.sent) return;
     // a commit does not wait for the closing pause, nor for speech begun after it
     const hold = upstream || (!this.committing && (this.segmenter.active || this.segmenter.settleRemainingMs > 0));
     const text = this.committing && !upstream ? this.packer.take() : this.packer.due(hold);

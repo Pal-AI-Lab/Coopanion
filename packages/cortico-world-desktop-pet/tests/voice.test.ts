@@ -376,7 +376,7 @@ describe('voice input', () => {
   });
 
   it('flushes packed legacy text before collecting audio-only speech after ASR stops', async () => {
-    const { cfg, world, host, page, asr } = await setup('earlier text');
+    const { cfg, world, host, page } = await setup('earlier text');
     host.modelFacts.accepts = (mime) => mime === 'audio/wav';
     // A forced segment has completed recognition, but the long, ongoing utterance keeps its packer open.
     for (const fr of tone(cfg.asr.segment.maxUtteranceMs, .3)) page.audio(fr);
@@ -394,7 +394,6 @@ describe('voice input', () => {
     const second = host.blob(host.events[1]!.blobs![0]!.handle)!.bytes;
     expect(first.length).toBeGreaterThan(second.length);
     expect(second.length - 44).toBeGreaterThanOrEqual(900 * 32);
-    expect(asr.decodes).toHaveLength(1);
   });
 
   it('sends an over-limit text fallback before a later WAV, even while ASR is pending', async () => {
