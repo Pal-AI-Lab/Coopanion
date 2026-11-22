@@ -641,34 +641,66 @@ describe('the transparency', () => {
     // the knob shows the one on screen
     expect(p.doc.querySelector('.head-slider[data-kind="fade"] .hs-value').textContent).toBe('55%');
   });
+});
 
-  it('takes the place of the size slider when the pointer goes to its button, and gives it back', () => {
-    const p = desk();
+describe('the sliders over the head, frame by frame', () => {
+  /** A pet window with the size and transparency buttons side by side (jsdom lays nothing out). */
+  const desk = () => {
+    const p = page({ host: true });
     p.onOrder({ t: 'prefs', hoverButtons: ['size', 'fade'] });
-    const size = p.doc.querySelector('#tools [data-action="size"]'), fade = p.doc.querySelector('#tools [data-action="fade"]');
-    // jsdom lays nothing out: the buttons are put side by side
-    for (const [b, left] of [[size, 0], [fade, 100]]) {
+    for (const [id, left] of [['size', 0], ['fade', 100]]) {
+      const b = p.doc.querySelector(`#tools [data-action="${id}"]`);
       Object.defineProperty(b, 'offsetParent', { value: p.doc.body });
       b.getBoundingClientRect = () => ({ left, right: left + 40, top: 0, bottom: 40 });
     }
-    const el = (kind) => p.doc.querySelector(`.head-slider[data-kind="${kind}"]`);
-    /** Whether each slider is entering, leaving, shown or hidden. */
-    const states = () => ['size', 'fade'].map((k) => {
-      const c = el(k).classList;
-      return el(k).hidden ? 'hidden' : c.contains('leaving') ? 'leaving' : c.contains('entering') ? 'entering' : 'shown';
-    });
+    return p;
+  };
+  const state = (p, kind) => {
+    const el = p.doc.querySelector(`.head-slider[data-kind="${kind}"]`), c = el.classList;
+    return el.hidden ? 'hidden' : c.contains('leaving') ? 'leaving' : c.contains('entering') ? 'entering' : 'shown';
+  };
+  /** The states of both sliders over `n` frames with the pointer at `at`. */
+  const rest = (p, at, n = 8) => {
+    p.cursor.at = at;
+    const seen = [];
+    for (let i = 0; i < n; i++) { p.step(1 / 60); p.stepSlider(); seen.push(`${state(p, 'size')}/${state(p, 'fade')}`); }
+    return [...new Set(seen)];
+  };
+
+  it('opens once and holds still while the pointer rests on its button', () => {
+    const p = desk();
+    expect(rest(p, { x: 20, y: 20 })).toEqual(['entering/hidden']);
+  });
+
+  it('moving to the other button, the one there leaves with its animation as the other enters with its own', async () => {
+    const p = desk();
+    rest(p, { x: 20, y: 20 });
+    expect(rest(p, { x: 120, y: 20 }, 1)).toEqual(['leaving/entering']);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(rest(p, { x: 120, y: 20 })).toEqual(['hidden/entering']);
+    expect(rest(p, { x: 20, y: 20 }, 1)).toEqual(['entering/leaving']);
+  });
+
+  it('a slider pinned by a click gives the place up to the other kind hovered, unpinned, and each bar keeps its own range', () => {
+    const p = desk();
+    const size = p.doc.querySelector('#tools [data-action="size"]');
     size.click();
-    expect(states()).toEqual(['entering', 'hidden']);
-    expect(el('fade').querySelector('.pet-scale').getAttribute('aria-valuemax')).toBe('95');
-    // one leaves with its animation as the other enters with its own, as the look wheel and a slider do
-    p.cursor.at = { x: 120, y: 20 };
-    p.stepSlider();
-    expect(states()).toEqual(['leaving', 'entering']);
+    expect(size.classList.contains('on')).toBe(true);
+    expect(rest(p, { x: 120, y: 20 }, 1)).toEqual(['leaving/entering']);
     expect(size.classList.contains('on')).toBe(false);
-    // back before it has folded away, the size slider stays where it was
-    p.cursor.at = { x: 20, y: 20 };
-    p.stepSlider();
-    expect(states()).toEqual(['shown', 'leaving']);
+    const max = (kind) => p.doc.querySelector(`.head-slider[data-kind="${kind}"] .pet-scale`).getAttribute('aria-valuemax');
+    expect([max('size'), max('fade')]).toEqual(['10', '95']);
+  });
+
+  it('unpinned by a click with the pointer still on its button, it stays until the pointer goes', () => {
+    const p = desk();
+    const size = p.doc.querySelector('#tools [data-action="size"]');
+    rest(p, { x: 20, y: 20 });
+    size.click();
+    size.click();
+    expect(size.classList.contains('on')).toBe(false);
+    expect(rest(p, { x: 20, y: 20 })).toEqual(['entering/hidden']);
+    expect(rest(p, { x: 900, y: 900 }, 30).at(-1)).toBe('leaving/hidden');
   });
 });
 

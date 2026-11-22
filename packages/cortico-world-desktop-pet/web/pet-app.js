@@ -1839,8 +1839,6 @@ function hideNow(el, anim) {
  * animations. `close` plays its leaving animation.
  */
 const HEAD = [];
-/** Adds `el` to the place over the head. */
-const atHead = (el, close) => { HEAD.push({ el, close }); };
 /** `el` takes the place over the head: every other one there leaves with its animation as `el` enters with its own. */
 function claimHead(el) { for (const o of HEAD) if (o.el !== el && !o.el.hidden && !leaving(o.el)) o.close(); }
 /** Something other than `el` is in the place over the head, not leaving it. */
@@ -1952,7 +1950,7 @@ function closeWheel() {
   popOut(wheel, wheelAnim, WHEEL_OUT_MS);
 }
 
-atHead(wheel, closeWheel);
+HEAD.push({ el: wheel, close: closeWheel });
 
 /** Every look gathered small and faint in the middle of the row: where it fans out from and folds back into. */
 function foldWheel() {
@@ -2012,7 +2010,7 @@ function overAction(p, id) {
   return false;
 }
 /**
- * Whether a control a hover opened over the head (`el`, the look wheel or a slider) waits on: the pointer is still
+ * Whether a control a hover opened over the head (`el`, the look wheel or a slider, or none yet) waits on: the pointer is still
  * among the pet's controls, that is on the hover buttons, on the menu, or in the column the body's box and `el` span
  * together, `el` itself included. Its short linger counts only once the pointer has left them all, so going from one
  * button to another, or across a large body to the control over its head, does not close it.
@@ -2021,7 +2019,7 @@ function amongControls(p, el) {
   if (!p) return false;
   if (overTools(p) || overMenu(p)) return true;
   const l = at();
-  if (!l || el.hidden || leaving(el)) return false;
+  if (!l || !el || el.hidden || leaving(el)) return false;
   const r = el.getBoundingClientRect(), b = l.box;
   return inRect(p, { left: Math.min(r.left, b.x), right: Math.max(r.right, b.x + b.w), top: Math.min(r.top, b.y), bottom: Math.max(r.bottom, b.y + b.h) }, 6);
 }
@@ -2096,7 +2094,7 @@ for (const [kind, s] of Object.entries(SLIDERS)) {
   s.el.append(s.bar.el);
   s.bar.el.querySelector('.ps-thumb').append(s.valueEl);
   document.body.insertBefore(s.el, wheel.nextSibling);
-  atHead(s.el, () => closeSlider(kind));
+  HEAD.push({ el: s.el, close: () => closeSlider(kind) });
 }
 /** The hover buttons that open a slider. */
 const SLIDER_BUTTONS = Object.keys(SLIDERS).map((k) => `[data-action="${k}"]`).join(', ');
@@ -2110,9 +2108,11 @@ const fadeHeard = Object.fromEntries(['fade', 'fullscreenFade'].map((key) => [ke
 
 function pinSlider(kind) {
   if (pinned === kind) return;
+  const was = pinned;
   pinned = kind;
   if (kind) openSlider(kind);
-  else closeSlider();
+  // unpinned with the pointer on its button, it stays as a hover holds it rather than leaving and coming straight back
+  else if (!(cursor.at && overAction(cursor.at, was))) closeSlider();
   refreshButtons();
 }
 /** Draws the body at `v` now and sends it within SLIDER_SEND_MS. */
@@ -2150,9 +2150,8 @@ function openSlider(kind) {
   const s = SLIDERS[kind];
   claimHead(s.el);
   refreshSlider();
-  // back over a button of its kind while the slider folds away: it stays
-  if (leaving(s.el)) { clearTimeout(s.anim.leave); s.el.classList.remove('leaving'); }
-  else if (s.el.hidden) popIn(s.el, s.anim);
+  // hidden, or back over its button while it folds away: it enters again rather than jumping back
+  if (s.el.hidden || leaving(s.el)) popIn(s.el, s.anim);
   s.bar.relayout();
   const l = at();
   if (l) placeSlider(kind, l);
@@ -2183,13 +2182,14 @@ function stepSlider() {
   // a bubble over the pet (the typing box, a reply, a question) takes the slider's place until it closes; with every
   // click passing through the window it could not be used
   if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { pinSlider(null); closeSlider(); return; }
-  const shown = shownSlider();
-  if (sliding() || pinned || (shown && amongControls(p, SLIDERS[shown].el))) sliderState.until = T + SLIDER_LINGER;
   // over another kind's button, its slider takes the place, unless the one there is held
-  if (over && over !== shown && !sliding()) {
+  if (over && over !== shownSlider() && !sliding()) {
     if (pinned && pinned !== over) pinSlider(null);
     openSlider(over);
   }
+  // decided after opening: the slider just opened waits on as the pointer rests on its button
+  const shown = shownSlider();
+  if (sliding() || pinned || amongControls(p, shown && SLIDERS[shown].el)) sliderState.until = T + SLIDER_LINGER;
   if (T > sliderState.until) closeSlider();
 }
 // the mouse wheel steps the slider over it or over a button of its kind, while it shows: up is larger
