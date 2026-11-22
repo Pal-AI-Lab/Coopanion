@@ -90,9 +90,12 @@ describe('first-run seed', () => {
     expect(readFileSync(join(home, DEPLOYMENT, 'workspace', 'CONSTITUTION.md'), 'utf8')).toBe(readFileSync(personaFile('coo', 'ja'), 'utf8'));
   });
 
-  it('moves endpoints of the old deepseek module to coo and leaves other modules alone', () => {
+  it('moves endpoints of the old deepseek module to coo in a config from before computer use had a permission, once', () => {
     const home = mkdtempSync(join(tmpdir(), 'cc-seed-'));
     seed(home, 'zh');
+    const cfg = join(home, DEPLOYMENT, 'config.json');
+    const { worlds: _, ...before } = read(cfg);
+    writeFileSync(cfg, JSON.stringify(before));
     const endpoint = join(home, 'providers', endpointName(firstVendor('zh'), defaultRegion('zh')), 'config.json');
     const old = { ...read(endpoint), kind: 'deepseek', spec: { model: 'model-a' } };
     writeFileSync(endpoint, JSON.stringify(old));
@@ -102,6 +105,22 @@ describe('first-run seed', () => {
     seed(home, 'zh');
     expect(read(endpoint)).toEqual({ ...old, kind: 'coo' });
     expect(read(other)).toEqual({ kind: 'openai-compatible', baseUrl: 'http://x' });
+    // an endpoint of the cortico-provider-deepseek extension made afterwards keeps its module
+    const extension = { ...old, baseUrl: 'http://y' };
+    writeFileSync(other, JSON.stringify(extension));
+    seed(home, 'zh');
+    expect(read(other)).toEqual(extension);
+  });
+
+  it('leaves deepseek endpoints of a new install as they are across restarts', () => {
+    const home = mkdtempSync(join(tmpdir(), 'cc-seed-'));
+    seed(home, 'zh');
+    const endpoint = join(home, 'providers', 'mine', 'config.json');
+    mkdirSync(join(home, 'providers', 'mine'));
+    writeFileSync(endpoint, JSON.stringify({ kind: 'deepseek', baseUrl: 'http://x' }));
+    seed(home, 'zh');
+    seed(home, 'zh');
+    expect(read(endpoint)).toEqual({ kind: 'deepseek', baseUrl: 'http://x' });
   });
 
   it('leaves files the operator already has', () => {

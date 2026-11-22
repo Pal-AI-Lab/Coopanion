@@ -14,7 +14,11 @@ export const CONSOLE_PORT = 17788;
 export const DISPLAY_NAME = 'Coo';
 /** The provider module of the app's endpoints (cortico-provider-coo). */
 const MODULE = 'coo';
-/** The module the endpoints of versions up to 0.1.2 name; it became `coo`. */
+/**
+ * The module the endpoints of versions up to 0.1.2 name; it became `coo`. The extension
+ * cortico-provider-deepseek has the same module name, so they move only in a config without a computer-use
+ * `permission` (`hasCuaPermission`).
+ */
 const OLD_MODULE = 'deepseek';
 /** When computer use asks first (`worlds.desktop-pet.cua.permission`): new installs get it written out, so a config without it is from before and keeps the default it had. */
 const CUA_ASK = 'ask-once';
@@ -36,9 +40,9 @@ export const personaFile = (id: PersonaId, language: Language) => join(SEED_DIR,
  * endpoint without a key: the first model service listed for that language, on its platform for that
  * language (vendors.ts). Existing files are left as the operator made them, except a self-description
  * still exactly as a version seeded it, which becomes the same persona in the config's `language`
- * (`followLanguage`), endpoints of the old `deepseek` module, which now belong
- * to `coo`, a config of computer use as its own World (`worlds.cua`), whose section, whether it was on
- * included, moves to `worlds.desktop-pet.cua`, a config without a computer-use `permission`, which
+ * (`followLanguage`), the endpoints of the old `deepseek` module in a config without a computer-use
+ * `permission`, which now belong to `coo`, a config of computer use as its own World (`worlds.cua`),
+ * whose section, whether it was on included, moves to `worlds.desktop-pet.cua`, a config without a computer-use `permission`, which
  * keeps the `ask-each-turn` it had before new installs got `ask-once`, and the keys Cortico 0.2.0 renamed
  * (`moveTerminalToConsole`).
  */
@@ -69,8 +73,8 @@ export function seed(home: string, language: Language): void {
   // the console shows it as the bot's avatar
   if (!existsSync(join(deploy, 'avatar.png'))) copyFileSync(join(SEED_DIR, 'avatar.png'), join(deploy, 'avatar.png'));
   followLanguage(workspace, configured);
-  moveEndpointsToCoo(join(home, 'providers'));
   if (upgrading) {
+    if (!hasCuaPermission(config)) moveEndpointsToCoo(join(home, 'providers'));
     moveCuaIntoPet(config);
     keepCuaAsking(config);
     moveTerminalToConsole(deploy, config);
@@ -123,6 +127,17 @@ function keepCuaAsking(file: string): void {
   if (cua?.permission !== undefined) return;
   config.worlds = { ...config.worlds, 'desktop-pet': { ...pet, cua: { ...cua, permission: OLD_CUA_ASK } } };
   writeFileSync(file, JSON.stringify(config, null, 2) + '\n');
+}
+
+/**
+ * Whether the deployment config has a computer-use `permission`, at `worlds.cua` or `worlds.desktop-pet.cua`.
+ * The key exists from 0.1.6 on and `keepCuaAsking` writes it at every start from 0.1.20 on; the old
+ * endpoints moved to `coo` from 0.1.3 on, so a config that has it has moved them.
+ */
+function hasCuaPermission(file: string): boolean {
+  const worlds = (JSON.parse(readTextFile(file)) as WorldSections).worlds;
+  const pet = worlds?.['desktop-pet']?.cua as Section | undefined;
+  return worlds?.cua?.permission !== undefined || pet?.permission !== undefined;
 }
 
 function moveEndpointsToCoo(providers: string): void {
