@@ -770,6 +770,19 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
     mark.addEventListener('click', event => event.stopPropagation(), { signal });
     return mark;
   }
+  /** Each sidebar row's `helpName` controls, by row, for the redraw and the resize below. */
+  const hints = new WeakMap<Element, { show: () => void; reset: () => void; width: number }>();
+  /** Where the pointer last was over the sidebar's tags, while it is there. */
+  let tagPointer: { x: number; y: number } | undefined;
+  /** A hovered name whose width changes (the window or the sidebar resized) is measured again. */
+  const hintedResize = doc.defaultView?.ResizeObserver ? new doc.defaultView.ResizeObserver(entries => {
+    for (const { target } of entries) {
+      if (!target.isConnected) { hintedResize!.unobserve(target); continue; }
+      const row = target.parentElement, hint = row && hints.get(row);
+      if (hint && Math.abs(target.getBoundingClientRect().width - hint.width) > 0.5) { hint.reset(); hint.show(); }
+    }
+  }) : undefined;
+  signal.addEventListener('abort', () => hintedResize?.disconnect());
   /**
    * A sidebar row's name, its question mark after the last word. The name wraps at its full width with the mark
    * hidden; hovered or focused, the mark comes in after the last word, and when that line has no room for it the last
@@ -810,13 +823,14 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
         split(at -= step); room = right - word.getBoundingClientRect().left;
       }
       row.classList.add('is-hinting');
+      control.width = name.getBoundingClientRect().width; hintedResize?.observe(name);
       const tailWidth = tail.getBoundingClientRect().width;
       if (tailWidth > room) { word.classList.add('is-cut'); word.style.maxWidth = `${Math.max(0, Math.floor(room - (tailWidth - word.getBoundingClientRect().width)) - 1)}px`; }
     };
-    const hide = () => {
-      if (row.matches(':hover, :focus-visible')) return;
-      row.classList.remove('is-hinting'); word.classList.remove('is-cut'); word.style.removeProperty('max-width'); split(cut);
-    };
+    const reset = () => { row.classList.remove('is-hinting'); word.classList.remove('is-cut'); word.style.removeProperty('max-width'); split(cut); };
+    const hide = () => { if (!row.matches(':hover, :focus-visible')) { hintedResize?.unobserve(name); reset(); } };
+    const control = { show, reset, width: 0 };
+    hints.set(row, control);
     row.addEventListener('pointerenter', show, { signal }); row.addEventListener('pointerleave', hide, { signal });
     row.addEventListener('focus', () => { if (row.matches(':focus-visible')) show(); }, { signal }); row.addEventListener('blur', hide, { signal });
     return name;
@@ -1541,6 +1555,9 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
     }));
     warningControl?.classList.toggle('is-open', warningsHidden()); warningControl?.setAttribute('aria-pressed', String(warningsHidden()));
     tagBar.hidden = !tagBar.childElementCount;
+    // A row redrawn under the pointer (the one just clicked) gets no pointerenter until the pointer moves.
+    const under = tagPointer && doc.elementFromPoint(tagPointer.x, tagPointer.y)?.closest('.extension-tag');
+    if (under && tagBar.contains(under)) hints.get(under)?.show();
   }
   /**
    * Above the cards: the first line names what is selected, the second what is excluded and how many packages
@@ -1988,6 +2005,8 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
     const registryPanel = ui.h('div', 'extension-registry'); registryPanel.id = 'extension-registry'; registryPanel.hidden = !registryOpen;
     registryPanel.append(registryBar, messageNodes.registry);
     tagBar = ui.h('div', 'extension-tagbar'); tagBar.hidden = true;
+    for (const type of ['pointermove', 'pointerdown'] as const) tagBar.addEventListener(type, event => { tagPointer = { x: event.clientX, y: event.clientY }; }, { signal });
+    tagBar.addEventListener('pointerleave', () => { tagPointer = undefined; }, { signal });
     activeBar = ui.h('div', 'extension-active-filters'); activeBar.hidden = true;
     marketGrid = ui.h('div', 'extension-grid'); marketPager = ui.rowbar();
     const manual = ui.sheet({ title: S.manual }); messageNodes.manual = ui.msgline(); messageNodes.manual.setAttribute('role', 'status');
