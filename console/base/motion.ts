@@ -77,6 +77,8 @@ export function measureReflow(container: HTMLElement, selector: string, key: (el
   return {
     play(target = container) {
       if (!before.size || !win || !target.animate) return;
+      // below full motion nothing slides: what stays jumps to its place, and what comes and goes only fades
+      const slide = motionLevel(win) === 'high';
       const inView = (rect: DOMRect) => rect.bottom > 0 && rect.top < win.innerHeight;
       const now = new Map<string, { el: HTMLElement; rect: DOMRect }>();
       for (const el of target.querySelectorAll<HTMLElement>(selector)) {
@@ -98,10 +100,10 @@ export function measureReflow(container: HTMLElement, selector: string, key: (el
         const dx = was.rect.left - rect.left, dy = was.rect.top - rect.top;
         if ((Math.abs(dx) > .5 || Math.abs(dy) > .5) && (inView(rect) || inView(was.rect))) moves.push([el, dx, dy]);
       }
-      const exit = gone.length ? EXIT_MS : 0, enter = exit + (moves.length ? REFLOW_MS * .8 : 0);
+      const exit = gone.length ? EXIT_MS : 0, enter = exit + (slide && moves.length ? REFLOW_MS * .8 : 0);
       const timing = (delay: number) => ({ id: 'reflow', duration: REFLOW_MS, easing: REFLOW_EASING, delay, fill: 'backwards' as const });
-      for (const [el, dx, dy] of moves) el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], timing(exit));
-      for (const el of arrivals) el.animate([{ opacity: 0, transform: `translateX(${-ASIDE}px)` }, { opacity: 1, transform: 'none' }], timing(enter));
+      if (slide) for (const [el, dx, dy] of moves) el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], timing(exit));
+      for (const el of arrivals) el.animate([{ opacity: 0, transform: slide ? `translateX(${-ASIDE}px)` : 'none' }, { opacity: 1, transform: 'none' }], timing(enter));
       // What went leaves as a copy where it stood: in its own parent while that is still shown, so
       // the styles it had there still apply.
       for (const was of gone) {
@@ -118,7 +120,7 @@ export function measureReflow(container: HTMLElement, selector: string, key: (el
           width: `${was.rect.width}px`, height: `${was.rect.height}px`,
         });
         host.append(ghost);
-        const out = ghost.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: `translateX(${ASIDE}px)` }], { duration: EXIT_MS, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
+        const out = ghost.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: slide ? `translateX(${ASIDE}px)` : 'none' }], { duration: EXIT_MS, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
         void out.finished.then(() => ghost.remove(), () => ghost.remove());
       }
     },

@@ -23,7 +23,7 @@ import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightW
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
 import { runFrames } from './frame-loop.js';
-import { motionLevel, watchMotion } from './motion-level.js';
+import { motionLevel, setMotionChoice, watchMotion } from './motion-level.js';
 import { mountHints, tipOf, tipWithoutNote } from './hints.js';
 
 const $ = (s) => document.querySelector(s);
@@ -397,6 +397,7 @@ function applyPrefs(p) {
   if (typeof p.saidBubbles === 'boolean') { prefs.saidBubbles = p.saidBubbles; if (!p.saidBubbles) for (const line of lines) if (!line.live) fadeLine(line); }
   if (typeof p.saidBubbleHoldSec === 'number') prefs.saidBubbleHoldSec = p.saidBubbleHoldSec;
   if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
+  if (typeof p.motion === 'string' && globalThis.window?.document) setMotionChoice(globalThis.window, p.motion);
   if (typeof p.frameRate === 'number' && p.frameRate >= 0) prefs.frameRate = p.frameRate;
   // the window process does the hiding and the passing through; the page only passes the settings on
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
@@ -878,7 +879,7 @@ function showDialogInput(it) {
         const to = cards.offsetHeight;
         if (to !== from && !lowMotion()) {
           cards.classList.add('unfolding');
-          cards.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: 320, easing: 'cubic-bezier(.3,1.1,.5,1)' })
+          cards.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: 320, easing: motionLevel(window) === 'high' ? 'cubic-bezier(.3,1.1,.5,1)' : 'cubic-bezier(.2,.7,.3,1)' })
             .finished.finally(() => cards.classList.remove('unfolding'));
         }
       });
@@ -2452,7 +2453,8 @@ function placeLines(a, box, dt) {
   const W = innerWidth, size = prefs.bubbleSize, gap = LINES_GAP * size;
   const cx = box ? box.left + box.bw / 2 : a.x;
   let bottom = box ? box.top - gap : a.y - LINES_UP * size;
-  const k = dt > 0 ? Math.min(1, dt * 12) : 1;
+  // at low motion the stack takes its places at once
+  const k = dt > 0 && !lowMotion() ? Math.min(1, dt * 12) : 1;
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i], el = line.el;
     el.classList.toggle('older', i !== lines.length - 1);

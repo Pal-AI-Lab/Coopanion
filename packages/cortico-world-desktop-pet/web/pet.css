@@ -460,7 +460,7 @@ body.desk .floor{display:none}
 @keyframes hold-ring{from{transform:scale(.72); opacity:0} to{transform:scale(1); opacity:1}}
 .tool.sent{animation:bump .36s var(--motion-pop); --bump:1.2}
 :where(:root[data-motion="low"]) {.wall-glow, .wall-lens, .bubble.said, .w-item{transition:none}}
-:where(:root[data-motion="low"]) {.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .d-pill.chosen, .caret, .menu :is(.m-grid, .m-rail) > *, .tools > *, .tool.holding::after, .tool.sent, .tool::before, .tool::after, .tool .ic, .tool .ic::before{animation:none}}
+:where(:root[data-motion="low"]) {.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-card.on .d-cardic, .d-field.shake, .d-pill.chosen, .caret, .menu :is(.m-grid, .m-rail) > *, .tools > *, .tool.sent, .tool::before, .tool::after, .tool .ic, .tool .ic::before{animation:none}}
 :where(:root[data-motion="low"]) {.d-cards .d-card.on .d-cardic[class*="ic-persona_"], .d-cards .d-card.on .d-cardic .spout{animation:none}}
 /* pointed at: every round button grows a little and its icon moves once in a way that fits it (the dress button
    keeps its own colours and sparkles above); the run controls on the menu's left: the gear turns, the pause swells,
@@ -558,3 +558,24 @@ body.desk .floor{display:none}
 :where(:root[data-motion="low"]) {.sizer{animation:none}}
 
 .fireworks{position:absolute; pointer-events:none}
+
+/* ---------- motion levels: motion-level.js writes data-motion on the root (the settings window's 动态效果, `window.motion`) ---------- */
+/* medium and low: nothing overshoots, and the decoration goes: the dialog's card hops and Persona icons' gestures, the chosen
+   pill's bump, the hover buttons' icon tricks and the dress button's show, the bump after a send; the look wheel settles without overshoot */
+:root:not([data-motion="high"]) { --motion-pop: var(--motion-return); --motion-pop-soft: var(--motion-return); }
+:where(:root:not([data-motion="high"])) {
+  .d-pill.chosen, .d-card.on .d-cardimg, .d-card.on .d-cardic, .d-card.on .d-cardic[class*="ic-persona_"], .d-card.on .d-cardic .spout,
+  .tool[data-action="dress"]:hover, .tool[data-action="dress"]:hover .ic, .tool[data-action="dress"]:hover::before, .tool[data-action="dress"]:hover::after, .tool[data-action="dress"]:hover .ic::before,
+  .tool.sent, .tool:hover .ic svg, .m-rail .tool:hover svg, .m-rail .tool.run:hover svg, .m-rail .tool.power:hover svg { animation: none; }
+  .w-item { transition-timing-function: var(--motion-return); }
+}
+/* low: everything outside the figure lands at once (the figure runs in its own frame); bubbles only fade in; what says
+   something is under way keeps going: the thinking dots, the waiting hourglass, a dialog's progress bar, a held button's ring */
+:where(:root[data-motion="low"]) {
+  &, *:not(.figure-layer *), *:not(.figure-layer *)::before, *:not(.figure-layer *)::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+  .bubble.pop, .bubble.status.pop { animation: hint-in var(--motion-fast) ease-out !important; }
+  .status[data-kind="think"] circle { animation-name: status-think !important; animation-duration: 1.3s !important; animation-timing-function: ease-in-out !important; animation-iteration-count: infinite !important; }
+  .status[data-kind="wait"] svg { animation-name: status-wait !important; animation-duration: 2.8s !important; animation-timing-function: ease-in-out !important; animation-iteration-count: infinite !important; }
+  .d-bar.wait i { animation-duration: 1.2s !important; animation-iteration-count: infinite !important; }
+  .tool.holding::after { animation-duration: var(--hold, .5s) !important; }
+}

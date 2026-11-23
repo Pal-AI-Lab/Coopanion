@@ -313,8 +313,12 @@ export function mountWorlds(ctx: FeatureContext): void {
     const entry = node.parentElement!, face = node.querySelector<HTMLElement>('.world-avatar')!;
     const height = entry.getBoundingClientRect().height;
     entry.animate?.([{ height: '0px', minHeight: '0px', marginBottom: '0px', opacity: 0 }, { height: `${height}px`, minHeight: `${height}px`, opacity: 1 }], { duration: 180, easing: 'cubic-bezier(.32,.72,0,1)' });
-    const pop = () => face.animate?.([{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1.12)', opacity: 1, offset: .6 }, { transform: 'scale(1)' }], { duration: 270, easing: 'cubic-bezier(.32,.72,0,1)' });
-    if (!from || current !== 'market' || !face.animate) { pop(); return; }
+    // the flight and the pop past full size are full motion only; below it the avatar grows in where it lands
+    const full = motionLevel(win) === 'high';
+    const pop = () => face.animate?.(full
+      ? [{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1.12)', opacity: 1, offset: .6 }, { transform: 'scale(1)' }]
+      : [{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 270, easing: 'cubic-bezier(.32,.72,0,1)' });
+    if (!from || current !== 'market' || !face.animate || !full) { pop(); return; }
     const to = face.getBoundingClientRect();
     const ghost = face.cloneNode(true) as HTMLElement; ghost.classList.add('world-avatar-ghost');
     Object.assign(ghost.style, { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px` });

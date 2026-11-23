@@ -164,3 +164,6 @@ html.is-list-dragging, html.is-list-dragging *{cursor:none !important; user-sele
 @media (max-width:640px){ .dress #lbSize{padding-top:6px} }
 .size-row{display:flex; align-items:center; gap:14px; min-width:0}
 .size-value{min-width:44px; font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums}
+
+/* motion levels (pet.css): the bump after a save is full motion only */
+:where(:root:not([data-motion="high"])) { .save-look.done { animation: none; } }

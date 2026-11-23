@@ -97,7 +97,8 @@ export function restyle(body, stage) {
  */
 export function springSize(start) {
   let x = start, v = 0, to = start;
-  const K = 260, C = 2 * Math.sqrt(K) * .78;
+  // a little under critical damping, so it overshoots a touch; below full motion it lands without overshooting
+  const K = 260, C = () => 2 * Math.sqrt(K) * (motionLevel(globalThis.window) === 'high' ? .78 : 1);
   return {
     get value() { return x; },
     get target() { return to; },
@@ -109,7 +110,7 @@ export function springSize(start) {
     step(dt) {
       if (x === to && v === 0) return false;
       const h = Math.min(dt, 1 / 30);
-      v += (K * (to - x) - C * v) * h;
+      v += (K * (to - x) - C() * v) * h;
       x += v * h;
       if (Math.abs(to - x) < .0015 && Math.abs(v) < .02) { x = to; v = 0; }
       return true;

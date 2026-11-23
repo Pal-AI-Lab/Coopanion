@@ -59,3 +59,14 @@ declare module 'cortico-world-desktop-pet/web/motion-level.js' {
   /** Writes `data-motion` on `win`'s root now and whenever the level changes. */
   export function watchMotion(win: Window): void;
 }
+
+declare module 'cortico-world-desktop-pet/web/motion-frames.js' {
+  /** One frame of easing `current` toward `target` (`rate` per second, `dt` in seconds); the target at low motion. */
+  export function approach(current: number, target: number, rate: number, dt: number, win?: Window | null): number;
+  /** The share of the gap one frame of `approach` closes; 1 at low motion. */
+  export function approachShare(rate: number, dt: number, win?: Window | null): number;
+  /** From `from` to `to` over `ms`; at `to` at once at low motion, without overshoot at medium. */
+  export function tween(from: number, to: number, ms: number, opts?: { ease?: (k: number) => number; overshoots?: boolean; start?: number; win?: Window | null }): { at(now: number): number; done(now: number): boolean };
+  /** Characters of `length` shown after `elapsed` seconds at `perSecond`; all of them at low motion. */
+  export function typeOut(length: number, perSecond: number, elapsed: number, win?: Window | null): number;
+}

@@ -2214,7 +2214,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
   .world-blade-actions{grid-column:1/-1;grid-row:3;justify-content:start}
   .world-blade-actions>button{grid-column:auto}
 }
-:where(:root[data-motion="low"]) {.extension-get-ring,.extension-get-ring .arc{animation:none}.world-library-entry,.world-library-list,.world-library-heading,.world-library-label,.world-pending-group,.world-avatar{transition:none}.world-library-item:is(:hover,:focus-visible,:active) .world-avatar{transform:none}}
+:where(:root[data-motion="low"]) {.world-library-entry,.world-library-list,.world-library-heading,.world-library-label,.world-pending-group,.world-avatar{transition:none}.world-library-item:is(:hover,:focus-visible,:active) .world-avatar{transform:none}}
 /* My World's filter row folds away in the market view. */
 /* Its fields fill it edge to edge; the clip leaves room for their focus ring. */
 .world-library-tools{flex:none;display:flex;align-items:center;gap:8px;width:var(--world-entry-width);height:auto;margin:0 0 12px;overflow:clip;overflow-clip-margin:4px;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity var(--motion-fast)}
@@ -2304,3 +2304,27 @@ input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{disp
 .extension-lightbox-nav.is-prev{left:24px}
 .extension-lightbox-nav.is-next{right:24px}
 :where(:root[data-motion="low"]) {.extension-gallery-shot,.extension-gallery-nav,.extension-lightbox-button{transition:none}}
+
+/* ---------- motion levels: motion-level.js (desktop-pet web/) writes data-motion on the root, from the 「习惯」 page's 动态效果 ---------- */
+/* medium and low: nothing overshoots, and the decoration goes (a mode button's press and turn) */
+:root:not([data-motion="high"]) { --motion-pop: var(--motion-out); }
+:where(:root:not([data-motion="high"])) {
+  #rail .companion-mode.companion-pressed, #rail .companion-mode.companion-pressed .navicon { animation: none; }
+}
+/* low: the rule at the top of the file stops everything; what says something is under way keeps going, without moving where it can */
+@keyframes breathe { 50% { opacity: .35; } }
+@keyframes toast-fade { 0%, 100% { opacity: 0; } 6%, 92% { opacity: 1; } }
+:where(:root[data-motion="low"]) {
+  .rail-shutdown.is-working svg { animation-duration: 1s !important; animation-iteration-count: infinite !important; }
+  .world-restart-footer.is-restarting::after, .world-catalog-toggle.is-spinning .icon { animation-duration: 800ms !important; animation-iteration-count: infinite !important; }
+  .extension-get-ring { animation-duration: 900ms !important; animation-iteration-count: infinite !important; }
+  .extension-get-ring .arc { animation-duration: 1.4s !important; animation-iteration-count: infinite !important; }
+  .chatview .spinner, .chat-ctx[data-state="busy"] i { animation-duration: .8s !important; animation-iteration-count: infinite !important; }
+  .chat-phase[data-state="busy"] .dot { animation-duration: 1.2s !important; animation-iteration-count: infinite !important; }
+  .pulse { animation-name: breathe !important; animation-duration: 1.15s !important; animation-iteration-count: infinite !important; }
+  .pet-bubble.thinking i { animation-name: breathe !important; animation-duration: 1.2s !important; animation-iteration-count: infinite !important; }
+  .progressfill { transition-duration: var(--motion-base) !important; }
+  /* the caret stays lit; the toast fades in and out over its whole stay instead of vanishing at once */
+  .typing::after { animation: none !important; }
+  .toast { animation-name: toast-fade !important; animation-duration: var(--toast-duration, 2000ms) !important; }
+}
