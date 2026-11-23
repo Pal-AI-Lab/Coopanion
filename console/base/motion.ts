@@ -1,9 +1,7 @@
 /** Motion helpers shared by the settings window's pages. */
+import { motionLevel } from 'cortico-world-desktop-pet/web/motion-level.js';
 
-/** Whether the system asks for reduced motion. */
-export function prefersStill(win: Window | null | undefined): boolean {
-  return !!win?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-}
+export { motionLevel };
 
 export interface FoldOptions {
   /** Which size opens and closes: the height (default) or the width. */
@@ -23,14 +21,14 @@ export interface FoldOptions {
  * it. The size and every padding and margin on the axis go to zero, so the closed frame takes the
  * space `hidden` takes and the open frame the space the element ends at: nothing jumps when the
  * animation hands over to the stylesheet. Borders keep their width (the browser draws any width under
- * a pixel as a whole one), and the far margin gives their width back instead. With reduced motion it
+ * a pixel as a whole one), and the far margin gives their width back instead. With low motion it
  * only toggles `hidden`.
  */
 export function fold(el: HTMLElement, open: boolean, opts: FoldOptions = {}): void {
   const { axis = 'y', duration = 170, easing = 'cubic-bezier(.32,.72,0,1)', shift = 0, hide = true, clip = true } = opts;
   const win = el.ownerDocument.defaultView;
   for (const running of el.getAnimations?.() ?? []) running.cancel();
-  if (prefersStill(win) || !el.animate) { if (hide) el.hidden = !open; return; }
+  if (motionLevel(win) === 'low' || !el.animate) { if (hide) el.hidden = !open; return; }
   el.hidden = false;
   const style = win!.getComputedStyle(el);
   const [size, min, sides] = axis === 'y' ? ['height', 'min-height', ['top', 'bottom']] as const : ['width', 'min-width', ['left', 'right']] as const;
@@ -65,13 +63,13 @@ const REFLOW_MS = 200, EXIT_MS = 130, ASIDE = 24, REFLOW_EASING = 'cubic-bezier(
  * slides in from the other side as they arrive (it takes its final place at once, which the rest
  * are crossing until then). Only items in the window are animated, and an item that does not move
  * does not animate. An item is "there" while it has a box; hidden or filtered-out items count as
- * gone. With reduced motion `play` does nothing.
+ * gone. With low motion `play` does nothing.
  */
 export function measureReflow(container: HTMLElement, selector: string, key: (el: HTMLElement) => string | undefined): Reflow {
   const win = container.ownerDocument.defaultView;
   const before = new Map<string, { el: HTMLElement; parent: HTMLElement | null; rect: DOMRect; display: string }>();
   // Rects include a running slide, so an interrupted reflow continues from where the items are.
-  if (!prefersStill(win)) for (const el of container.querySelectorAll<HTMLElement>(selector)) {
+  if (motionLevel(win) !== 'low') for (const el of container.querySelectorAll<HTMLElement>(selector)) {
     const id = key(el), rect = el.getBoundingClientRect();
     if (id && rect.height) before.set(id, { el, parent: el.parentElement, rect, display: win!.getComputedStyle(el).display });
   }

@@ -293,7 +293,7 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
 #rail .companion-mode.companion-pressed .navicon { animation: companion-turn 320ms var(--motion-enter); }
 #rail .companion-mode:active { transform: scale(.97); }
 /* with less motion asked for, the rail folds at once (its width, the logo, the words, the link under the version) and modes change without fading */
-@media (prefers-reduced-motion: reduce) {
+:where(:root[data-motion="low"]) {
   #rail .companion-enter, #rail .companion-leave, #rail .companion-mode.companion-pressed, #rail .companion-mode.companion-pressed .navicon { animation: none; }
   body.companion-sidebar { --rail-motion: 0s linear; }
   #rail .lbl, #rail .rail-name, #rail .rail-rename, #rail .companion-runstate, #rail .stacklabel { transition: none; }

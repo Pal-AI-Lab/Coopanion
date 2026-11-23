@@ -48,3 +48,14 @@ declare module 'cortico-world-desktop-pet/web/sound.js' {
   /** Each kind of the pet's sounds and the sounds in it; `worlds.desktop-pet.sounds.<kind>` mutes a kind. */
   export const SOUND_KINDS: Record<string, readonly string[]>;
 }
+
+declare module 'cortico-world-desktop-pet/web/motion-level.js' {
+  export type MotionLevel = 'low' | 'medium' | 'high';
+  export type MotionChoice = 'system' | MotionLevel;
+  /** The level for `win`: its choice, or the system's when the choice is 'system'. */
+  export function motionLevel(win: Window | null | undefined): MotionLevel;
+  /** Sets `win`'s choice (anything but a level counts as 'system') and applies it. */
+  export function setMotionChoice(win: Window, choice: MotionChoice | string): void;
+  /** Writes `data-motion` on `win`'s root now and whenever the level changes. */
+  export function watchMotion(win: Window): void;
+}

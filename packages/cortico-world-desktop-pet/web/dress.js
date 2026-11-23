@@ -38,6 +38,8 @@ import { announcePainted, dressFloor, glowColor, lightWall, modeButton, setGlow 
 import { bindAppearance, hostDressDialogs } from './appearance.js';
 import { localDressDialogs } from './dist/dress-dialog.js';
 import { mountHints } from './hints.js';
+import { watchMotion } from './motion-level.js';
+watchMotion(window);
 bindAppearance(document, window);
 /** The settings window's dialog when the page is embedded in it; null when the page draws its own. */
 const dialogStop = new AbortController();

@@ -13,12 +13,13 @@
  * layout) before it is shown, so that work does not fall on the fade's frames. SWAP_MS is how long a switch takes in all,
  * for a page that draws fewer frames at rest to draw every one meanwhile.
  */
+import { motionLevel } from './motion-level.js';
 /** How long the new body draws hidden before the switch shows it, and the whole switch, in milliseconds. */
 const WARM_MS = 90, SWAP_RUN_MS = 340;
 /** The whole switch, with a frame's margin for the last frames to land. */
 export const SWAP_MS = WARM_MS + SWAP_RUN_MS + 40;
 
-const still = (win) => !!win?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const still = (win) => motionLevel(win) === 'low';
 
 /** The point `p` (stage pixels) as a transform origin inside `el`, whose box may be a cut-down window of the stage. */
 function originIn(el, p, stage) {

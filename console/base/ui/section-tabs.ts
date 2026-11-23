@@ -4,6 +4,7 @@
  * scrolling by hand moves the line to the section being read. Put `el` in the page's heading (`pageIntro`), which is
  * held at the top, so the tabs stay at hand. A jump also moves the focus to the section (focusable by script only).
  */
+import { motionLevel } from '../motion.ts';
 import { pageTabs, type PageTabs } from './page-tabs.ts';
 
 export interface SectionTabItem {
@@ -29,7 +30,7 @@ export function sectionTabs(doc: Document, signal: AbortSignal, scroller: HTMLEl
       if (!item) return;
       held = value;
       tabs.setValue(value);
-      const still = !!win.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const still = motionLevel(win) === 'low';
       const behavior = still ? 'auto' : 'smooth';
       // the first section: back to the page's very top, as it was opened
       if (item === items[0]) scroller.scrollTo({ top: 0, behavior });

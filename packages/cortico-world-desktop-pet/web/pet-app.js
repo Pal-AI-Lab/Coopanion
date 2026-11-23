@@ -23,6 +23,7 @@ import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightW
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
 import { runFrames } from './frame-loop.js';
+import { motionLevel, watchMotion } from './motion-level.js';
 import { mountHints, tipOf, tipWithoutNote } from './hints.js';
 
 const $ = (s) => document.querySelector(s);
@@ -319,9 +320,9 @@ async function applyFigure(s) {
   // a size that waited for a figure that did not come
   if (!switching() && drawnScale.target !== prefs.scale) toSize(prefs.scale);
 }
-/** Draws the body at `v`: on the spring, or at once when the system asks for reduced motion. */
+/** Draws the body at `v`: on the spring, or at once when motion is low. */
 function toSize(v) {
-  if (!reducedMotion?.matches) { drawnScale.set(v); return; }
+  if (!lowMotion()) { drawnScale.set(v); return; }
   drawnScale.jump(v);
   body?.set({ bounds: bounds() });
 }
@@ -875,7 +876,7 @@ function showDialogInput(it) {
         add(input.options.length, all.length, 0);
         pick(input.options.length, false);
         const to = cards.offsetHeight;
-        if (to !== from && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        if (to !== from && !lowMotion()) {
           cards.classList.add('unfolding');
           cards.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: 320, easing: 'cubic-bezier(.3,1.1,.5,1)' })
             .finished.finally(() => cards.classList.remove('unfolding'));
@@ -1764,8 +1765,9 @@ function showTools(on) {
 const POP_OUT_MS = 160;
 /** Longer than the last of the staggered `m-in`s, after which `entering` comes off. */
 const POP_IN_MS = 600;
-// absent where the page runs without a window (the tests)
-const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
+// the page runs without a window in the tests, where motion counts as full
+const lowMotion = () => motionLevel(globalThis.window) === 'low';
+if (globalThis.window?.document) watchMotion(globalThis.window);
 const leaving = (el) => el.classList.contains('leaving');
 /** Numbers an element's buttons (`--i`), so they pop out one after another. */
 function stagger(el) { [...el.children].forEach((b, i) => b.style.setProperty('--i', String(i))); }
@@ -1780,7 +1782,7 @@ function popIn(el, anim) {
 function popOut(el, anim, ms) {
   clearTimeout(anim.enter);
   el.classList.remove('entering');
-  if (reducedMotion?.matches) { el.hidden = true; return; }
+  if (lowMotion()) { el.hidden = true; return; }
   el.classList.add('leaving');
   anim.leave = setTimeout(() => { el.hidden = true; el.classList.remove('leaving'); }, ms);
 }
@@ -2399,7 +2401,7 @@ function follow(els, pointed, place) {
   const was = heldGroups.get(els[0]) ?? false;
   heldGroups.set(els[0], pointed);
   if (pointed) return;
-  if (was && !reducedMotion?.matches) {
+  if (was && !lowMotion()) {
     for (const el of els) {
       el.classList.add('returning');
       clearTimeout(returning.get(el));

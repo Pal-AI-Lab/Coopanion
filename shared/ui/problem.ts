@@ -105,7 +105,9 @@ export function wheelInto(target: HTMLElement, event: WheelEvent): void {
   const win = target.ownerDocument.defaultView;
   const max = target.scrollHeight - target.clientHeight;
   const pixels = wheelDelta(event);
-  if (!win || win.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { target.scrollBy({ top: pixels }); return; }
+  // the settings window writes its motion level on the root (desktop-pet web/motion-level.js); other pages follow the system
+  const level = win?.document.documentElement.dataset.motion;
+  if (!win || (level ? level === 'low' : win.matchMedia?.('(prefers-reduced-motion: reduce)').matches)) { target.scrollBy({ top: pixels }); return; }
   let glide = glides.get(target);
   if (!glide) { glide = { to: 0, at: 0, frame: 0, wrote: 0 }; glides.set(target, glide); }
   const g = glide;

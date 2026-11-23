@@ -8,6 +8,7 @@
  * Each page styles it by its root class: `.pet-scale` (pet.css, dress.css) or the settings window's `.companion-scale`
  * (home.css); the parts are `.ps-main`, `.ps-tail`, `.ps-fill`, `.ps-divider` and `.ps-thumb` on both.
  */
+import { motionLevel } from './motion-level.js';
 
 /** The bar's width and its main stretch's share: at rest, and while the value is past the divider. */
 const WIDTHS = { collapsed: { width: 280, main: .88 }, expanded: { width: 440, main: .45 } };
@@ -42,7 +43,7 @@ export function sizeEcho(take, ms = 1000) {
 }
 
 const ease = (k) => (k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2);
-const still = (doc) => !!doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const still = (doc) => motionLevel(doc.defaultView) === 'low';
 
 /**
  * `o`: { min, soft, max, label, room() (pixels the bar may take), onInput(value) while it moves, onChange(value) once a

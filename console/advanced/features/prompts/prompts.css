@@ -192,7 +192,7 @@ details.sheet.fold.fold-plain.prefix-preview > .foldbody { margin-top:16px; }
 .prompt-reference-remove { flex:none; align-self:center; border:0; padding:0 4px 0 1px; color:var(--section-color); background:none; font:13px/1 var(--sans); cursor:pointer; }
 .reference-arrive { animation:reference-arrive var(--motion-base) ease-out; }
 @keyframes reference-arrive { from { transform:translateX(10px); background:color-mix(in srgb,var(--section-color) 32%,var(--sheet)); } to { transform:translateX(0); } }
-@media (prefers-reduced-motion:reduce) {
+:where(:root[data-motion="low"]) {
   .reference-arrive { animation:none; }
   .prefix-flag,.prefix-fold-status { transition:none; }
   .prefix-flag:active { transform:translateY(-50%); }

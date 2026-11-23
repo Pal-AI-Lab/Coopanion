@@ -23,7 +23,7 @@ import { sidebarBrand } from './brand.ts';
 import { L } from '../strings.ts';
 import { createAvatarControl } from './avatar.ts';
 import { S } from './strings.ts';
-import { fold, prefersStill, steadiest } from '../base/motion.ts';
+import { fold, motionLevel, steadiest } from '../base/motion.ts';
 
 const COLLAPSED_KEY = 'companion.sidebar.collapsed';
 const DEFAULT_NAME = 'bot';
@@ -154,7 +154,7 @@ export function createRail(deps: RailDeps): Rail {
     clearTimeout(departing); departing = undefined;
     const next = new Set(groups.flatMap((g) => [...g.items, ...(g.modules ?? [])]).flatMap((it) => it.pageId ? [it.pageId] : []));
     const leaving = entries.filter((entry) => entry.pageId && !next.has(entry.pageId) && !entry.item.hidden && entry.item.isConnected);
-    const still = prefersStill(doc.defaultView);
+    const still = motionLevel(doc.defaultView) === 'low';
     if (!leaving.length || still) { drawNav(groups); return; }
     for (const { item } of leaving) { item.classList.add('companion-depart'); move(item, false, DEPART_MS); }
     departing = setTimeout(() => { departing = undefined; drawNav(groups); }, DEPART_MS);
@@ -163,7 +163,7 @@ export function createRail(deps: RailDeps): Rail {
   const REORDER_MS = 240;
   const drawNav = (groups: readonly NavGroup[]): void => {
     const before = listedPages;
-    const still = prefersStill(doc.defaultView);
+    const still = motionLevel(doc.defaultView) === 'low';
     const was = new Map<string, number>();
     if (!still) for (const { item, pageId } of entries) {
       const rect = item.getBoundingClientRect();
@@ -269,7 +269,7 @@ export function createRail(deps: RailDeps): Rail {
       const to = Math.max(0, Math.min(from, nav.scrollHeight - nav.clientHeight));
       for (const x of leaving) x.style.display = '';
       nav.scrollTop = from;
-      if (to < from && !prefersStill(win)) {
+      if (to < from && motionLevel(win) !== 'low') {
         const start = performance.now();
         const step = (now: number): void => {
           const k = Math.min(1, (now - start) / FADE_MS);
@@ -474,7 +474,7 @@ export function createRail(deps: RailDeps): Rail {
    * would move it for the length of its fade.
    */
   const flip = (change: () => void): void => {
-    const motion = typeof foot.animate === 'function' && !prefersStill(win);
+    const motion = typeof foot.animate === 'function' && motionLevel(win) !== 'low';
     const moving = motion
       ? Array.from(foot.querySelectorAll<HTMLElement>('.rail-who, .rail-action, .companion-runstate')).filter((x) => !x.hidden)
       : [];

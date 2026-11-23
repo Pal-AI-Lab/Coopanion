@@ -560,7 +560,7 @@
   .u-tip.leaving { animation: hover-hint-out 120ms ease-in forwards; pointer-events: none; }
   @keyframes hover-hint-in { from { opacity: 0; } }
   @keyframes hover-hint-out { to { opacity: 0; } }
-  @media (prefers-reduced-motion: reduce) { .u-tip, .u-tip.leaving { animation: none; } }
+  :where(:root[data-motion="low"]) { .u-tip, .u-tip.leaving { animation: none; } }
   .u-tip .tt-h { font: 600 12.5px var(--mono); color: var(--accent); margin-bottom: 3px; }
   .u-tip .tt-tot { font: 12px var(--mono); color: var(--ink-soft); margin-bottom: 4px; }
   .u-tip .tt-row { display: grid; grid-template-columns: 9px minmax(0, 1fr) auto; align-items: start; gap: 6px; margin: 2px 0; }
@@ -673,8 +673,8 @@
     .theme-color-grid { grid-template-columns: repeat(auto-fill, minmax(144px, 1fr)); }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+  :where(:root[data-motion="low"]) {
+    &, *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
   }
 
 
@@ -1384,7 +1384,7 @@
 .connection-card{min-width:0;border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--sheet);cursor:pointer;transition:background var(--motion-fast),border-color var(--motion-fast),box-shadow var(--motion-base),transform var(--motion-base) var(--motion-out)}
 /* Hovered, a card lifts a little. */
 .connection-card:hover:not(.is-dragging,.connection-drag-copy){border-color:var(--line-strong);box-shadow:0 8px 20px -14px var(--shadow-strong);transform:translateY(-1px)}
-@media (prefers-reduced-motion: reduce){.connection-card:hover{transform:none}}
+:where(:root[data-motion="low"]) {.connection-card:hover{transform:none}}
 .connection-card.is-active{border-color:var(--accent);box-shadow:0 0 8px color-mix(in srgb,var(--accent) 12%,transparent)}
 .connection-card.is-selected{background:color-mix(in srgb,var(--ink) 4%,var(--sheet));outline:2px solid var(--ink-dim);outline-offset:1px}
 /* A dragged card leaves an empty place where it would land, and its copy follows the pointer. */
@@ -1434,7 +1434,7 @@
 .connection-step .connection-switch:checked{background:var(--accent);border-color:var(--accent)}
 .connection-step .connection-switch:checked::before{transform:translateX(18px)}
 .connection-step .connection-switch:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-@media(prefers-reduced-motion:reduce){.connection-step .connection-switch,.connection-step .connection-switch::before{transition:none}}
+:where(:root[data-motion="low"]) {.connection-step .connection-switch,.connection-step .connection-switch::before{transition:none}}
 .connection-step td.mono{white-space:normal;overflow-wrap:anywhere}
 .connection-step table.data .btn{white-space:nowrap}
 .connection-step>.sheet>h3::before,.connection-step>.sheet>.connection-step-heading>h3::before,.connection-step>details.sheet>summary .connection-step-heading>h3::before{content:counter(step);display:inline-grid;place-items:center;width:20px;height:20px;margin-right:9px;border-radius:50%;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);font:600 11px/1 var(--mono);vertical-align:2px}
@@ -1531,7 +1531,7 @@
 .pagetabs[data-line="ready"]::after { transition: transform var(--motion-slow) var(--motion-slide), width var(--motion-slow) var(--motion-slide); }
 .pagetabs[data-line="appear"]::after { animation: tab-line-appear var(--motion-fast) ease-out; }
 @keyframes tab-line-appear { from { opacity: 0; clip-path: inset(0 50%); } to { opacity: 1; clip-path: inset(0); } }
-@media (prefers-reduced-motion: reduce) { .pagetabs[data-line]::after { transition: none; animation: none; } }
+:where(:root[data-motion="low"]) { .pagetabs[data-line]::after { transition: none; animation: none; } }
 /* a page's section names: under 760 px of content width the longest row (Russian, about 750 px at the full gap) no
    longer fits, so the gap narrows, with the rail open or folded; a row still too long wraps, as every page's tabs do */
 @container console-content (max-width: 760px) { .pagetabs.sectiontabs { column-gap: 18px; } }
@@ -1663,7 +1663,7 @@ mark.extension-hit { color: inherit; background: color-mix(in srgb, var(--accent
 .extension-tag-row { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .extension-tag-row.is-folded { overflow: hidden; transition: max-height var(--motion-base) ease; }
 .extension-tag-more { cursor: pointer; color: var(--ink-dim); }
-@media (prefers-reduced-motion: reduce) { .extension-tag-row.is-folded { transition: none; } }
+:where(:root[data-motion="low"]) { .extension-tag-row.is-folded { transition: none; } }
 .extension-tag { display: inline-flex; align-items: center; gap: 5px; font: 11.5px/1 var(--sans); color: var(--ink-soft); background: var(--sheet-2); border: 1px solid var(--line); border-radius: 20px; padding: 5px 10px; white-space: nowrap; cursor: default; }
 button.extension-tag, button.extension-stat { cursor: pointer; }
 button.extension-tag { cursor: pointer; }
@@ -2214,7 +2214,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
   .world-blade-actions{grid-column:1/-1;grid-row:3;justify-content:start}
   .world-blade-actions>button{grid-column:auto}
 }
-@media(prefers-reduced-motion:reduce){.extension-get-ring,.extension-get-ring .arc{animation:none}.world-library-entry,.world-library-list,.world-library-heading,.world-library-label,.world-pending-group,.world-avatar{transition:none}.world-library-item:is(:hover,:focus-visible,:active) .world-avatar{transform:none}}
+:where(:root[data-motion="low"]) {.extension-get-ring,.extension-get-ring .arc{animation:none}.world-library-entry,.world-library-list,.world-library-heading,.world-library-label,.world-pending-group,.world-avatar{transition:none}.world-library-item:is(:hover,:focus-visible,:active) .world-avatar{transform:none}}
 /* My World's filter row folds away in the market view. */
 /* Its fields fill it edge to edge; the clip leaves room for their focus ring. */
 .world-library-tools{flex:none;display:flex;align-items:center;gap:8px;width:var(--world-entry-width);height:auto;margin:0 0 12px;overflow:clip;overflow-clip-margin:4px;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity var(--motion-fast)}
@@ -2274,7 +2274,7 @@ input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{disp
 .combo-option[aria-selected=true]{font-weight:600}
 .combo-option[aria-selected=true]::after{content:"";flex:none;width:9px;height:5px;margin-left:auto;border:solid var(--ink-dim);border-width:0 0 1.5px 1.5px;transform:translateY(-2px) rotate(-45deg)}
 .combo-option[aria-disabled=true]{color:var(--ink-dim);cursor:default}
-@media (prefers-reduced-motion: reduce){.combo-list{transition:none}}
+:where(:root[data-motion="low"]) {.combo-list{transition:none}}
 
 /* The extension info page's pictures (extensions/gallery.ts): a row that pages sideways, and a lightbox. */
 .extension-gallery-section{display:contents}
@@ -2303,4 +2303,4 @@ input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{disp
 .extension-lightbox-nav{top:calc(50% + var(--titlebar-height, 0px) / 2);margin-top:-20px}
 .extension-lightbox-nav.is-prev{left:24px}
 .extension-lightbox-nav.is-next{right:24px}
-@media (prefers-reduced-motion: reduce){.extension-gallery-shot,.extension-gallery-nav,.extension-lightbox-button{transition:none}}
+:where(:root[data-motion="low"]) {.extension-gallery-shot,.extension-gallery-nav,.extension-lightbox-button{transition:none}}

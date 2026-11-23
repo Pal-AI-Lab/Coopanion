@@ -18,7 +18,7 @@ import { worldLibrary, needsRestart, updatePending, type WorldLibraryItem } from
 import { addGroup, arrangeLayout, groupToken, moveGroup, moveItem, readLayout, removeGroup, writeLayout, type WorldGroup, type WorldLayout } from './groups.ts';
 import { S } from './strings.ts';
 import { S as UI } from '../../../base/ui/strings.ts';
-import { measureReflow, prefersStill } from '../../../base/motion.ts';
+import { measureReflow, motionLevel } from '../../../base/motion.ts';
 import { dragList, moveGap, settledBox } from '../../../base/drag.ts';
 import { foldText, searchTerms } from '../extensions/search.ts';
 
@@ -166,7 +166,7 @@ export function mountWorlds(ctx: FeatureContext): void {
     dockTip.style.top = `${Math.max(8, Math.min(target.top + target.height / 2 - tip.height / 2, doc.documentElement.clientHeight - tip.height - 8))}px`;
   }
   doc.addEventListener('scroll', hideTip, { capture: true, passive: true, signal });
-  const reduceMotion = () => prefersStill(win);
+  const reduceMotion = () => motionLevel(win) === 'low';
   let transition: Animation | undefined;
   let viewGeneration = 0;
   lifecycle.add(() => transition?.cancel());

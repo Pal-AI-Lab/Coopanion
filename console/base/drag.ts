@@ -7,7 +7,7 @@
  * the page is left in the middle of just ends, so the pointer shows again. The list decides where things
  * land and what a drop means.
  */
-import { prefersStill } from './motion.ts';
+import { motionLevel } from './motion.ts';
 
 export interface DragListOptions {
   /** The element a press on `target` lifts, or null when this press does not drag (a control, a filtered view). */
@@ -122,7 +122,7 @@ export function moveGap(gap: HTMLElement, parent: HTMLElement, next: Element | n
   const from = new Map(others.map(el => [el, el.getBoundingClientRect().top]));
   for (const el of others) for (const running of el.getAnimations?.() ?? []) if (running.id === 'drag-shift') running.cancel();
   parent.insertBefore(gap, next);
-  if (prefersStill(gap.ownerDocument.defaultView)) return;
+  if (motionLevel(gap.ownerDocument.defaultView) === 'low') return;
   for (const [el, top] of from) {
     const delta = top - el.getBoundingClientRect().top;
     if (Math.abs(delta) > .5) el.animate?.([{ transform: `translateY(${delta}px)` }, { transform: 'none' }], { id: 'drag-shift', duration: 180, easing: 'cubic-bezier(.32,.72,0,1)' });
