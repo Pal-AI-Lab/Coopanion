@@ -265,7 +265,7 @@ async function mount(ctx: PageContext): Promise<void> {
     { size: 'sm', onSelect: (v) => chooseMotion(v as MotionChoice, motionLevels.el) });
   const motionSystem = ui.checkbox(S.motionSystem, { onChange: (on) => chooseMotion(on ? 'system' : motionLevel(view), motionSystem.el) });
   view.matchMedia?.('(prefers-reduced-motion: reduce)').addEventListener?.('change', () => showMotion(), { signal });
-  const motionBox = ui.h('div', 'companion-switchbox');
+  const motionBox = ui.h('div', 'companion-switchbox companion-motion');
   motionBox.append(motionLevels.el, motionSystem.el);
   const hideFullscreen = ui.checkbox(S.hideFullscreen, { onChange: (on) => void save(KEYS.hideFullscreen, on, GROUP, hideFullscreen.el) });
   const passFullscreen = ui.checkbox(S.passFullscreen, { onChange: (on) => void save(KEYS.passFullscreen, on, GROUP, passFullscreen.el) });

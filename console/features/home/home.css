@@ -133,3 +133,7 @@
 /* 桌宠页面画好之前不露出来,画好后淡入(frame-reveal.ts),打开「开始」「装扮」时不再黑白闪一下 */
 .home-petframe, .companion-dressframe { transition: opacity var(--motion-base) ease; }
 .home-petframe.companion-frame-pending, .companion-dressframe.companion-frame-pending { opacity: 0; transition: none; }
+
+/* 「动态效果」那一行:分段控件和「跟随系统」开关并排,彼此垂直居中;整行仍按文字基线和左栏名称对齐(分段控件有文字基线) */
+.companion-switchbox.companion-motion { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; }
+.companion-row:has(> .companion-control > .companion-switchbox.companion-motion:first-child) { align-items: baseline; }
