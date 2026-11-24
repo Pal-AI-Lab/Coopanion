@@ -228,6 +228,8 @@ If you quit the app while an extension is being installed or uninstalled, it wai
 
 The Windows installer build and the AppImage download new versions in the background, and Coo asks whether to restart and update when one is ready. Choose **Later** and it installs when you quit. To stop automatic updates, turn off **Habits → General → Automatic updates**: Coopanion then stops checking and downloading, and an update that was already downloaded is not installed.
 
+On Windows, the installer verifies the new files before replacing the current version. If installation is interrupted, run the full installer again in the same folder to recover. Installation errors are recorded in `data\logs\installer.log`. If an update fails during quit after you choose **Later**, Coopanion shows the failed version and the log location the next time it starts.
+
 The Mac version, the deb and the Windows portable version do not update themselves. When a new version is out, a download link appears in the settings window's title bar; download it and install it yourself.
 
 ## Cost and privacy
