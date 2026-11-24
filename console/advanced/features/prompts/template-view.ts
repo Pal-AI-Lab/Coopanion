@@ -1,7 +1,9 @@
 /**
  * A World's templates on its own page, each in the 系统提示词 editor without block headers, its
- * variables beside it. Saving writes the deployment's copy, as on 系统提示词; 「恢复默认版本」 removes
- * that copy. A page with more than one template titles each.
+ * variables beside it. Each has the 系统提示词 page's toolbar without folding: undo, revert, save, and where
+ * Core offers them clearing the conversation (`storage`) and applying the saved prompt to it
+ * (`sessionControl`). Saving writes the deployment's copy; 「恢复默认版本」 removes that copy. A page with
+ * more than one template titles each.
  */
 
 import { S as COMMON } from '../../../base/ui/strings.ts';
@@ -12,6 +14,7 @@ import type { Lifecycle } from '../../../base/lifecycle.ts';
 import { icon, type ConsoleIconName } from '../../../base/ui/icons.ts';
 import { createPrefixEditor, references, VARIABLE_DRAG_TYPE } from './editor.ts';
 import { S } from './strings.ts';
+import { S as sessionText } from '../../../features/strings.ts';
 import { fitVariableChips, variablePopup } from './variables.ts';
 import type { PromptDoc, PromptVar, PromptsView } from './view.ts';
 
@@ -25,6 +28,8 @@ export interface TemplateViewDeps {
   keys: readonly string[];
   /** Opens this page's 配置; absent when the page has none. */
   openConfig?: () => void;
+  /** Core's capabilities: `storage` offers clearing the conversation, `sessionControl` applying the prompt to it. */
+  capabilities?: Readonly<Record<string, boolean | undefined>>;
 }
 
 function isAbort(err: unknown): boolean {
@@ -88,6 +93,9 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
     let revision = source.revision;
     let text = source.content;
     let saving = false;
+    let changingSession = false;
+    /** Saved since the conversation last took the prompt. */
+    let pendingApply = false;
     const loadedText = (): string => source.origin === 'deployment'
       ? S.loadedFromDeployment
       : source.origin === 'package'
@@ -99,17 +107,32 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
 
     const undoStep = ui.button(S.undo, { size: 'sm', onClick: () => editor.undo() });
     undoStep.title = 'Ctrl / ⌘ + Z';
+    const revert = ui.button(S.undoAll, { size: 'sm', onClick: () => { closePopup(); editor.restore(new Map([[source.key, source.content]])); } });
+    revert.title = S.undoAllHint;
     const reset = ui.button(S.resetToWorld, { size: 'sm', onClick: () => void restoreDefault() });
-    const save = ui.button(S.saveToFile, { size: 'sm', variant: 'primary', onClick: () => void persist() });
+    const save = ui.button(S.saveToFile, { size: 'sm', onClick: () => void persist() });
     save.title = 'Ctrl / ⌘ + S';
-    actions.append(undoStep, reset, save);
+    actions.append(undoStep, revert, reset, save);
+    if (deps.capabilities?.storage) {
+      const restart = ui.button(sessionText.button, { size: 'sm', variant: 'danger', onClick: () => void runSession(restart, true) });
+      restart.title = sessionText.body;
+      actions.append(restart);
+    }
+    if (deps.capabilities?.sessionControl) {
+      const apply = ui.button(S.reloadSession, { size: 'sm', variant: 'primary', onClick: () => void runSession(apply, false) });
+      apply.title = S.applyHint;
+      actions.append(apply);
+    }
 
     function controls(): void {
-      undoStep.disabled = saving || !editor.canUndo();
-      save.disabled = saving || !changed();
+      for (const button of actions.querySelectorAll('button')) button.disabled = changingSession;
+      undoStep.disabled = changingSession || saving || !editor.canUndo();
+      save.disabled = revert.disabled = changingSession || saving || !changed();
       reset.hidden = source.origin !== 'deployment';
       if (changed()) dirty.add(source.title); else dirty.delete(source.title);
     }
+    /** What the status line says while nothing is under way. */
+    const idleText = (): string => changed() ? S.unsaved : pendingApply ? S.pendingApply : loadedText();
     function say(line: string): void {
       status.className = 'msgline prompt-status';
       status.textContent = line;
@@ -190,18 +213,20 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
       onChange(changes) {
         for (const change of changes) if (change.sourceKey === source.key) text = change.text;
         controls();
-        say(changed() ? S.unsaved : loadedText());
+        say(idleText());
         updateVariables();
         queueMicrotask(() => { if (!signal.aborted) editor.setSaveState(saving ? 'saving' : changed() ? 'dirty' : 'idle'); });
       },
-      onSave: () => void persist(),
+      onSave: () => { if (!changingSession) void persist(); },
       onHistory: controls,
       onGeometry: schedule,
       onFold() { /* one template, never folded */ },
     });
-    /** The text is at least as tall as the variable column beside it. */
+    /** The variable column sticks as far below the stuck toolbar as it starts below it, so the two scroll as one; the text is at least as tall as the column. */
     function position(): void {
-      wrap.style.setProperty('--prompt-sticky-top', `${toolbar.offsetHeight + 12}px`);
+      // read from sizes and margins: a stuck toolbar's offsetTop is where it is stuck
+      const gap = parseFloat(getComputedStyle(toolbar).marginBottom) + parseFloat(getComputedStyle(stage).marginTop);
+      wrap.style.setProperty('--prompt-sticky-top', `${toolbar.offsetHeight + gap}px`);
       if (side.hidden) return;
       fitVariableChips(list, chips);
       const [g] = editor.blockGeometry();
@@ -216,8 +241,10 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
     observer.observe(stage);
     observer.observe(vars);
 
-    async function persist(): Promise<void> {
-      if (saving || !changed()) return;
+    /** Whether the template ends up saved. */
+    async function persist(): Promise<boolean> {
+      if (saving) return false;
+      if (!changed()) return true;
       saving = true;
       controls();
       say(S.saving);
@@ -233,18 +260,43 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
         source.content = content;
         revision = out?.revision;
         source.origin = 'deployment';
-        say(S.savedResult(out?.result ?? S.saved));
+        pendingApply = true;
+        say(deps.capabilities?.sessionControl ? idleText() : S.savedResult(out?.result ?? S.saved));
+        return !changed();
       } catch (err) {
-        if (isAbort(err)) return;
+        if (isAbort(err)) return false;
         deps.onError(err);
-        say(changed() ? S.unsaved : loadedText());
+        say(idleText());
         problem(save, S.saveFailed(String((err as Error)?.message ?? err)));
+        return false;
       } finally {
         saving = false;
         if (!signal.aborted) {
           controls();
           editor.setSaveState(changed() ? 'dirty' : 'saved');
         }
+      }
+    }
+
+    /** Saves, then has the conversation take the saved prompt; `restart` clears the conversation first. */
+    async function runSession(button: HTMLButtonElement, restart: boolean): Promise<void> {
+      changingSession = true;
+      controls();
+      try {
+        if (restart && !await ui.confirm({ title: sessionText.title, body: sessionText.body, danger: true })) return;
+        if (signal.aborted || !await persist()) return;
+        say(restart ? sessionText.clearing : S.reloading);
+        await post(restart ? '/api/storage/clear?owner=core&key=session' : '/api/session/reload-prefix', undefined, { signal });
+        if (signal.aborted) return;
+        pendingApply = false;
+        say(restart ? sessionText.cleared : S.prefixReloaded);
+      } catch (err) {
+        if (isAbort(err) || signal.aborted) return;
+        say(idleText());
+        problem(button, String((err as Error)?.message ?? err));
+      } finally {
+        changingSession = false;
+        if (!signal.aborted) controls();
       }
     }
 
@@ -263,7 +315,7 @@ export function createTemplateView(deps: TemplateViewDeps): PromptsView {
       } catch (err) {
         if (isAbort(err)) return;
         deps.onError(err);
-        say(changed() ? S.unsaved : loadedText());
+        say(idleText());
         problem(reset, S.resetFailed(String((err as Error)?.message ?? err)));
       }
     }
