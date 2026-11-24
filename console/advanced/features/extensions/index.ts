@@ -2127,6 +2127,12 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
       warnings.append(icon(doc, 'warning')); warnings.setAttribute('aria-label', S.hideWarnings); attachHint(warnings, S.hideWarnings);
       warnings.addEventListener('click', toggleWarnings, { signal });
       filters.insertBefore(warnings, refresh);
+      // The search field is one group; the sort, the page size and the icon buttons another. A narrow toolbar
+      // moves the second group to its own line whole, and a narrower one moves the icon buttons together to a third.
+      const [searchField, sortPicker, sizeField, ...buttons] = [...filters.children] as HTMLElement[];
+      const queryGroup = ui.h('div', 'world-catalog-query'), actionGroup = ui.h('div', 'world-catalog-actions'), buttonGroup = ui.h('div', 'world-catalog-buttons');
+      queryGroup.append(searchField!); buttonGroup.append(...buttons); actionGroup.append(sortPicker!, sizeField!, buttonGroup);
+      filters.replaceChildren(queryGroup, actionGroup);
       const installation = ui.segmented([{ value: 'all', label: S.catalogCategories.all }, { value: 'installed', label: S.alreadyInstalled }, { value: 'available', label: S.notInstalled }], {
         value: state.installation, onSelect: value => { state.installation = value as CategoryState['installation']; state.page = 0; renderMarket(); save(); },
       });
