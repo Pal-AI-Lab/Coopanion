@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { figurePacks } from 'cortico-world-desktop-pet';
-import { COO_SCHEME, figureSchemes, followPetLook } from '../core/console-theme.ts';
+import { COO_SCHEME, figureSchemes, followPetLook, refreshFigureSchemes } from '../core/console-theme.ts';
 
 const packs = figurePacks([]).packs;
 const WHALE_SCHEMES = figureSchemes(packs);
@@ -36,5 +36,22 @@ describe('console colours follow the pet', () => {
     followPetLook(dir, { figure: 'whale', scheme: 'kimi' }, packs);
     expect(theme(dir).selectedId).toBe('navigator');
     expect(theme(dir).custom.map((s) => s.id)).toEqual(['mine', ...WHALE_SCHEMES.map((s) => s.id)]);
+  });
+
+  it('keeps a whale scheme picked while the pet wears another look across a start', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cc-theme-'));
+    const picked = WHALE_SCHEMES[1].id;
+    writeFileSync(join(dir, 'theme.json'), JSON.stringify({ selectedId: picked, mode: 'system', custom: [] }));
+    refreshFigureSchemes(dir, { figure: 'coo' }, packs);
+    expect(theme(dir).selectedId).toBe(picked);
+    expect(theme(dir).custom.map((s) => s.id)).toEqual(WHALE_SCHEMES.map((s) => s.id));
+    refreshFigureSchemes(dir, { figure: 'whale', scheme: 'claude' }, packs);
+    expect(theme(dir).selectedId).toBe(picked);
+  });
+
+  it('starts a deployment without a record on the pet\'s scheme', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cc-theme-'));
+    refreshFigureSchemes(dir, { figure: 'whale', scheme: 'claude' }, packs);
+    expect(theme(dir).selectedId).toBe('coo-whale-claude');
   });
 });
