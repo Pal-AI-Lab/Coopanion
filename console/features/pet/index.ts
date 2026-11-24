@@ -123,7 +123,7 @@ interface KeyState { enabled: boolean; hotkey: string; keyLabel: string; problem
 
 /** The pet's actions in the menu's order (the World's PET_ACTIONS), with the icon each shows. */
 const ACTIONS: ReadonlyArray<[id: string, icon: string]> = [
-  ['chat', 'chat'], ['voice', 'mic'], ['roam', 'roam_calm'], ['theme', 'moon'], ['sound', 'sound'], ['hide', 'eyeOff'], ['size', 'resize'], ['fade', 'fade'], ['dress', 'shirt'], ['cua', 'computer'], ['worlds', 'boxes'],
+  ['chat', 'chat'], ['voice', 'mic'], ['roam', 'roam_calm'], ['theme', 'moon'], ['sound', 'sound'], ['hide', 'eyeOff'], ['through', 'through'], ['size', 'resize'], ['fade', 'fade'], ['dress', 'shirt'], ['cua', 'computer'], ['worlds', 'boxes'],
 ];
 /** Kinds of sound, each a switch under `worlds.desktop-pet.sounds.<kind>`: the kinds the pet page mutes by. */
 const SOUND_KINDS = Object.keys(PAGE_SOUND_KINDS);
