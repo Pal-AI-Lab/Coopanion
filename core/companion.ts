@@ -36,6 +36,7 @@
  * route, `{ type: 'companion:browse', url }` to open the ChatGPT sign-in page in the system browser,
  * `{ type: 'companion:hide' }` to put it away (the introduction runs again on the desktop),
  * `{ type: 'companion:pet-shown', shown }` when the pet window comes onto the desktop or leaves it,
+ * `{ type: 'companion:click-through', on }` when click-through is turned on or off, the pet's own button included,
  * and `{ type: 'companion:quit' }` to quit the whole app; it asks for a clean stop with
  * `{ type: 'companion:shutdown' }`. A start that cannot go on says why before it exits:
  * `{ type: 'companion:locked', pid, file }` when another process holds the data directory, and
@@ -475,6 +476,7 @@ export async function main(): Promise<void> {
     language,
     onCreate: (world) => { pet = world; },
     onDesktopChange: (shown) => process.send?.({ type: 'companion:pet-shown', shown }),
+    onClickThroughChange: (on) => process.send?.({ type: 'companion:click-through', on }),
     onCuaAnswer: (answer) => {
       telemetry?.count('cuaAsked');
       if (answer === 'yes') telemetry?.count('cuaGranted');
