@@ -61,7 +61,7 @@ export default {
   'action.worlds': 'Mes Worlds',
   'action.hide': "Me cacher pour l'instant (l'icône de la zone de notification me fait revenir)",
   'action.throughOn': 'Clics à travers : activé · cliquez pour désactiver',
-  'action.throughOff': "Clics à travers : désactivé · cliquez pour activer (désactivez-le depuis le menu de la zone de notification, ou maintenez la touche d'interaction et cliquez ici)",
+  'action.throughOff': 'Clics à travers : désactivé · cliquez pour activer (désactivez-le depuis le menu de la zone de notification, ou maintenez la touche de pause des clics à travers et cliquez ici)',
   'menu.cancel': 'Annuler',
   'menu.resume': 'Reprendre',
   'menu.pause': 'Pause',

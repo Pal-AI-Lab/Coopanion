@@ -54,12 +54,13 @@ const de: Translation<PetText> = {
     linuxNoX11: 'Die Tipptaste kann sich nicht mit dem X11-Display verbinden',
     unsupported: 'Die Tipptaste funktioniert nur unter Windows, macOS und Linux',
   },
-  interactKey: {
-    macNoKey: 'Eine Mac-Tastatur hat diese Taste nicht; wähle eine andere Interaktionstaste',
-    linuxNoKey: 'Linux kann diese Taste nicht lesen (Maus-Seitentasten funktionieren nicht); wähle eine andere Interaktionstaste',
-    linuxNoDisplay: 'Die Interaktionstaste braucht unter Linux X11 (oder XWayland): DISPLAY ist nicht gesetzt',
-    linuxNoX11: 'Die Interaktionstaste kann sich nicht mit dem X11-Display verbinden',
-    unsupported: 'Die Interaktionstaste funktioniert nur unter Windows, macOS und Linux',
+  throughPauseKey: {
+    macNoKey: 'Eine Mac-Tastatur hat diese Taste nicht; wähle eine andere Pausetaste fürs Durchlassen',
+    linuxNoKey: 'Linux kann diese Taste nicht lesen (Maus-Seitentasten funktionieren nicht); wähle eine andere Pausetaste fürs Durchlassen',
+    linuxNoDisplay: 'Die Pausetaste fürs Durchlassen braucht unter Linux X11 (oder XWayland): DISPLAY ist nicht gesetzt',
+    linuxNoX11: 'Die Pausetaste fürs Durchlassen kann sich nicht mit dem X11-Display verbinden',
+    unsupported: 'Die Pausetaste fürs Durchlassen funktioniert nur unter Windows, macOS und Linux',
+    sharesTalk: 'Wird wie die Sprechtaste gedrückt: Halten startet auch das Zuhören; ändere eine der beiden',
   },
 
   system: {

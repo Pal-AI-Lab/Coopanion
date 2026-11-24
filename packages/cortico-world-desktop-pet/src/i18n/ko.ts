@@ -54,12 +54,13 @@ const ko: Translation<PetText> = {
     linuxNoX11: '입력 키가 X11 디스플레이에 연결할 수 없습니다',
     unsupported: '입력 키는 Windows, macOS, Linux에서만 작동합니다',
   },
-  interactKey: {
-    macNoKey: 'Mac 키보드에는 이 키가 없습니다. 다른 상호작용 키를 선택하세요',
-    linuxNoKey: 'Linux에서는 이 키를 읽을 수 없습니다(마우스 측면 버튼은 작동하지 않음). 다른 상호작용 키를 선택하세요',
-    linuxNoDisplay: '상호작용 키를 Linux에서 쓰려면 X11(또는 XWayland)이 필요합니다. DISPLAY가 설정되어 있지 않습니다',
-    linuxNoX11: '상호작용 키가 X11 디스플레이에 연결할 수 없습니다',
-    unsupported: '상호작용 키는 Windows, macOS, Linux에서만 작동합니다',
+  throughPauseKey: {
+    macNoKey: 'Mac 키보드에는 이 키가 없습니다. 다른 클릭 통과 일시 중지 키를 선택하세요',
+    linuxNoKey: 'Linux에서는 이 키를 읽을 수 없습니다(마우스 측면 버튼은 작동하지 않음). 다른 클릭 통과 일시 중지 키를 선택하세요',
+    linuxNoDisplay: '클릭 통과 일시 중지 키를 Linux에서 쓰려면 X11(또는 XWayland)이 필요합니다. DISPLAY가 설정되어 있지 않습니다',
+    linuxNoX11: '클릭 통과 일시 중지 키가 X11 디스플레이에 연결할 수 없습니다',
+    unsupported: '클릭 통과 일시 중지 키는 Windows, macOS, Linux에서만 작동합니다',
+    sharesTalk: '말하기 키와 누르는 방식이 같습니다. 누르고 있으면 듣기도 시작됩니다. 둘 중 하나를 바꾸세요',
   },
 
   system: {

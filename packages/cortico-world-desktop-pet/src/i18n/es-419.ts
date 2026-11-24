@@ -54,12 +54,13 @@ const es419: Translation<PetText> = {
     linuxNoX11: 'La tecla para escribir no puede conectarse a la pantalla X11',
     unsupported: 'La tecla para escribir solo funciona en Windows, macOS y Linux',
   },
-  interactKey: {
-    macNoKey: 'Un teclado Mac no tiene esa tecla; elige otra tecla de interacción',
-    linuxNoKey: 'Linux no puede leer esta tecla (los botones laterales del mouse no funcionan); elige otra tecla de interacción',
-    linuxNoDisplay: 'La tecla de interacción necesita X11 (o XWayland) en Linux: DISPLAY no está definido',
-    linuxNoX11: 'La tecla de interacción no puede conectarse a la pantalla X11',
-    unsupported: 'La tecla de interacción solo funciona en Windows, macOS y Linux',
+  throughPauseKey: {
+    macNoKey: 'Un teclado Mac no tiene esa tecla; elige otra tecla para pausar los clics a través',
+    linuxNoKey: 'Linux no puede leer esta tecla (los botones laterales del mouse no funcionan); elige otra tecla para pausar los clics a través',
+    linuxNoDisplay: 'La tecla para pausar los clics a través necesita X11 (o XWayland) en Linux: DISPLAY no está definido',
+    linuxNoX11: 'La tecla para pausar los clics a través no puede conectarse a la pantalla X11',
+    unsupported: 'La tecla para pausar los clics a través solo funciona en Windows, macOS y Linux',
+    sharesTalk: 'Se presiona igual que la tecla para hablar: mantenerla también empieza a escuchar; cambia una de las dos',
   },
 
   system: {

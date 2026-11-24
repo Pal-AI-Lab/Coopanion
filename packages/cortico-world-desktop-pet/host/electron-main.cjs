@@ -353,7 +353,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   let overTaskbar = true;
   /**
    * Every click passes through while the tray says so or the second setting meets a fullscreen window,
-   * except while the page lends them to the pet (the interact key held, the typing box open).
+   * except while the page lends them to the pet (the click-through pause key held, the typing box open).
    */
   let trayThrough = false, fullscreenThrough = false, clicksLent = false;
   const lockMouse = () => mouse.lock((trayThrough || fullscreenThrough) && !clicksLent);

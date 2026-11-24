@@ -61,7 +61,7 @@ export default {
   'action.worlds': 'Meus Worlds',
   'action.hide': 'Me esconda por enquanto (o ícone da bandeja me traz de volta)',
   'action.throughOn': 'Cliques atravessam: ligado · clique para desligar',
-  'action.throughOff': 'Cliques atravessam: desligado · clique para ligar (desligue pelo menu da bandeja, ou segure a tecla de interação e clique aqui)',
+  'action.throughOff': 'Cliques atravessam: desligado · clique para ligar (desligue pelo menu da bandeja, ou segure a tecla para pausar a travessia dos cliques e clique aqui)',
   'menu.cancel': 'Cancelar',
   'menu.resume': 'Retomar',
   'menu.pause': 'Pausar',

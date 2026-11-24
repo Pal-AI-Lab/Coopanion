@@ -54,12 +54,13 @@ const it: Translation<PetText> = {
     linuxNoX11: 'Il tasto per scrivere non riesce a collegarsi al display X11',
     unsupported: 'Il tasto per scrivere funziona solo su Windows, macOS e Linux',
   },
-  interactKey: {
-    macNoKey: 'Una tastiera Mac non ha questo tasto; scegli un altro tasto di interazione',
-    linuxNoKey: 'Linux non può leggere questo tasto (i tasti laterali del mouse non funzionano); scegli un altro tasto di interazione',
-    linuxNoDisplay: 'Su Linux il tasto di interazione richiede X11 (o XWayland): DISPLAY non è impostato',
-    linuxNoX11: 'Il tasto di interazione non riesce a collegarsi al display X11',
-    unsupported: 'Il tasto di interazione funziona solo su Windows, macOS e Linux',
+  throughPauseKey: {
+    macNoKey: 'Una tastiera Mac non ha questo tasto; scegli un altro tasto di pausa dei clic attraverso',
+    linuxNoKey: 'Linux non può leggere questo tasto (i tasti laterali del mouse non funzionano); scegli un altro tasto di pausa dei clic attraverso',
+    linuxNoDisplay: 'Su Linux il tasto di pausa dei clic attraverso richiede X11 (o XWayland): DISPLAY non è impostato',
+    linuxNoX11: 'Il tasto di pausa dei clic attraverso non riesce a collegarsi al display X11',
+    unsupported: 'Il tasto di pausa dei clic attraverso funziona solo su Windows, macOS e Linux',
+    sharesTalk: "Si preme come il tasto per parlare: tenerlo premuto avvia anche l'ascolto; cambiane uno dei due",
   },
 
   system: {

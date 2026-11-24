@@ -68,13 +68,14 @@ export default {
     linuxNoX11: '打字键连不上 X11 显示',
     unsupported: '打字键只在 Windows、macOS 和 Linux 上可用',
   },
-  /** 互动键读不了的原因;另两种与说话键共用 `hotkey` 里的 */
-  interactKey: {
-    macNoKey: 'Mac 上没有这个按键，请更换互动键',
-    linuxNoKey: 'Linux 上无法读取该按键（不支持鼠标侧键），请更换互动键',
-    linuxNoDisplay: '互动键在 Linux 上需要 X11（或 XWayland）：没有找到 DISPLAY',
-    linuxNoX11: '互动键连不上 X11 显示',
-    unsupported: '互动键只在 Windows、macOS 和 Linux 上可用',
+  /** 暂停穿透键读不了的原因;另两种与说话键共用 `hotkey` 里的 */
+  throughPauseKey: {
+    macNoKey: 'Mac 上没有这个按键，请更换暂停穿透键',
+    linuxNoKey: 'Linux 上无法读取该按键（不支持鼠标侧键），请更换暂停穿透键',
+    linuxNoDisplay: '暂停穿透键在 Linux 上需要 X11（或 XWayland）：没有找到 DISPLAY',
+    linuxNoX11: '暂停穿透键连不上 X11 显示',
+    unsupported: '暂停穿透键只在 Windows、macOS 和 Linux 上可用',
+    sharesTalk: '和说话键的按法相同：按住时也会开始收音，请更换其中一个',
   },
 
   /** Windows 自带的语音识别 */

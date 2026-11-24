@@ -71,12 +71,13 @@ const en: PetText = {
     linuxNoX11: 'The typing key cannot connect to the X11 display',
     unsupported: 'The typing key works on Windows, macOS and Linux only',
   },
-  interactKey: {
-    macNoKey: 'A Mac keyboard has no such key; pick another interact key',
-    linuxNoKey: 'Linux cannot read this key (mouse side buttons do not work); pick another interact key',
-    linuxNoDisplay: 'The interact key needs X11 (or XWayland) on Linux: DISPLAY is not set',
-    linuxNoX11: 'The interact key cannot connect to the X11 display',
-    unsupported: 'The interact key works on Windows, macOS and Linux only',
+  throughPauseKey: {
+    macNoKey: 'A Mac keyboard has no such key; pick another click-through pause key',
+    linuxNoKey: 'Linux cannot read this key (mouse side buttons do not work); pick another click-through pause key',
+    linuxNoDisplay: 'The click-through pause key needs X11 (or XWayland) on Linux: DISPLAY is not set',
+    linuxNoX11: 'The click-through pause key cannot connect to the X11 display',
+    unsupported: 'The click-through pause key works on Windows, macOS and Linux only',
+    sharesTalk: 'Pressed the same way as the talk key: holding it also starts listening; change one of them',
   },
 
   /** Windows' own speech recognizer. */

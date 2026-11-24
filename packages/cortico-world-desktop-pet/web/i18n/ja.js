@@ -61,7 +61,7 @@ export default {
   'action.worlds': '自分の World',
   'action.hide': 'しばらく隠れる（トレイアイコンで呼び戻せます）',
   'action.throughOn': 'クリックを下に通す：オン · クリックでオフ',
-  'action.throughOff': 'クリックを下に通す：オフ · クリックでオン（オフにするにはトレイメニューを使うか、操作キーを押しながらここをクリック）',
+  'action.throughOff': 'クリックを下に通す：オフ · クリックでオン（オフにするにはトレイメニューを使うか、透過の一時停止キーを押しながらここをクリック）',
   'menu.cancel': 'キャンセル',
   'menu.resume': '再開',
   'menu.pause': '一時停止',

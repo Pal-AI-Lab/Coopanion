@@ -54,12 +54,13 @@ const zhHant: Translation<PetText> = {
     linuxNoX11: '打字鍵連不上 X11 顯示',
     unsupported: '打字鍵只能在 Windows、macOS 和 Linux 上使用',
   },
-  interactKey: {
-    macNoKey: 'Mac 上沒有這個按鍵，請更換互動鍵',
-    linuxNoKey: 'Linux 上無法讀取該按鍵（不支援滑鼠側鍵），請更換互動鍵',
-    linuxNoDisplay: '互動鍵在 Linux 上需要 X11（或 XWayland）：沒有設定 DISPLAY',
-    linuxNoX11: '互動鍵連不上 X11 顯示',
-    unsupported: '互動鍵只能在 Windows、macOS 和 Linux 上使用',
+  throughPauseKey: {
+    macNoKey: 'Mac 上沒有這個按鍵，請更換暫停穿透鍵',
+    linuxNoKey: 'Linux 上無法讀取該按鍵（不支援滑鼠側鍵），請更換暫停穿透鍵',
+    linuxNoDisplay: '暫停穿透鍵在 Linux 上需要 X11（或 XWayland）：沒有設定 DISPLAY',
+    linuxNoX11: '暫停穿透鍵連不上 X11 顯示',
+    unsupported: '暫停穿透鍵只能在 Windows、macOS 和 Linux 上使用',
+    sharesTalk: '和說話鍵的按法相同：按住時也會開始收音，請更換其中一個',
   },
 
   system: {

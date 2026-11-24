@@ -61,7 +61,7 @@ export default {
   'action.worlds': 'Meine Worlds',
   'action.hide': 'Versteck mich erst mal (das Symbol im Infobereich holt mich zurück)',
   'action.throughOn': 'Klicks durchlassen: an · klicken zum Ausschalten',
-  'action.throughOff': 'Klicks durchlassen: aus · klicken zum Einschalten (ausschalten im Menü des Infobereichs oder mit gehaltener Interaktionstaste hier)',
+  'action.throughOff': 'Klicks durchlassen: aus · klicken zum Einschalten (ausschalten im Menü des Infobereichs oder mit gehaltener Pausetaste fürs Durchlassen hier)',
   'menu.cancel': 'Abbrechen',
   'menu.resume': 'Fortsetzen',
   'menu.pause': 'Pausieren',

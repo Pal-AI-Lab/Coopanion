@@ -56,7 +56,7 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     // hover hints (hints.js) are not what these tests look at
     mountHints() {}, tipOf, tipWithoutNote,
   };
-  win.eval(`const { applyTheme, balancedWidth, clamp, f, ICONS, layBeside, tailAt, tailLine, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints, tipOf, tipWithoutNote } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSlider, stepFade, cursor, step: (dt) => { T += dt; stepDialog(dt); stepTalkRead(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
+  win.eval(`const { applyTheme, balancedWidth, clamp, f, ICONS, layBeside, tailAt, tailLine, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints, tipOf, tipWithoutNote } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeMenu, closeBubble, stepLend, clicksPass, stepWheel, stepSlider, stepFade, cursor, step: (dt) => { T += dt; stepDialog(dt); stepTalkRead(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
@@ -934,6 +934,49 @@ describe('a countdown in the activity bubble', () => {
     pass(1.5);
     p.closeBubble(); pass(0);
     expect(p.bubble.textContent).toBe(`在等待 · ${t('status.seconds', { seconds: 2 })}`);
+  });
+});
+
+describe('click-through paused', () => {
+  const setup = async () => {
+    const lent = [];
+    const p = page({ host: { lendClicks: (on) => lent.push(on), clickThrough() {} } });
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.sockets[0].onopen();
+    p.onOrder({ t: 'prefs', clickThrough: true, hoverButtons: ['chat', 'through'] });
+    return { p, lent };
+  };
+
+  it('the right-click menu opened while the key was held keeps clicks on the pet until it closes', async () => {
+    const { p, lent } = await setup();
+    expect(p.clicksPass()).toBe(true);
+    p.onOrder({ t: 'throughPause', on: true });
+    expect(lent).toEqual([true]);
+    p.openMenu();
+    p.onOrder({ t: 'throughPause', on: false });
+    p.stepLend();
+    expect([lent, p.clicksPass()]).toEqual([[true], false]);
+    p.closeMenu();
+    p.stepLend();
+    expect([lent, p.clicksPass()]).toEqual([[true, false], true]);
+  });
+
+  it('a lost connection lets go of a held key, whose release would never arrive', async () => {
+    const { p, lent } = await setup();
+    p.onOrder({ t: 'throughPause', on: true });
+    p.sockets[0].onclose({ code: 1006 });
+    p.stepLend();
+    expect(lent).toEqual([true, false]);
+  });
+
+  it('the click-through button in the menu turns it off and on through the World', async () => {
+    const { p } = await setup();
+    p.onOrder({ t: 'throughPause', on: true });
+    p.openMenu();
+    p.doc.querySelector('.menu .m-tile[data-action="through"]').click();
+    p.onOrder({ t: 'prefs', clickThrough: false });
+    p.doc.querySelector('.menu .m-tile[data-action="through"]').click();
+    expect(p.sockets[0].sent.filter((m) => 'clickThrough' in m)).toEqual([{ t: 'prefs', clickThrough: false }, { t: 'prefs', clickThrough: true }]);
   });
 });
 

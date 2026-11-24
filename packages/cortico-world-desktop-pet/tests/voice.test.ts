@@ -16,7 +16,7 @@ import type { MicMode } from '../src/config.ts';
 import type { Language } from 'cortico/core/language.ts';
 import type { SherpaModule } from '../src/asr/sherpa.ts';
 import type { ModelSpec } from '../src/runtime/store.ts';
-import { parseHotkey, tapTracker, TAP_MAX_MS, type Hotkey, type watchHotkey } from '../src/asr/hotkey.ts';
+import { parseHotkey, splitTaps, tapTracker, TAP_MAX_MS, type Hotkey, type watchHotkey } from '../src/asr/hotkey.ts';
 import { rmsDb } from '../src/asr/segmenter.ts';
 import { chatHistory } from '../src/chat.ts';
 import { FakeHost } from './helpers/fake-host.ts';
@@ -765,27 +765,62 @@ describe('voice input', () => {
     if (openOnPress) expect(asr.audio.at(-1)).toEqual(floatAudio([...tone(600, .3), openFrame]));
   });
 
-  it('an interact key shared with the typing key: tap then hold lends clicks until release, a double tap only types', async () => {
+  it('a click-through pause key shared with the typing key: tap then hold lends clicks until release, a double tap only types', async () => {
     const { watch, sample } = sampledKeys();
     const { world, page } = await setup('', 'always', watch);
     await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
-    await world.webUi().invoke!('pet', 'setInteractKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
+    await world.webUi().invoke!('pet', 'setThroughPauseKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
 
     sample('RightCtrl', true, 0);
     sample('RightCtrl', false, 50);
     sample('RightCtrl', true, 100);
     sample('RightCtrl', false, 150);
     await page.next((m) => m.t === 'type');
-    expect(page.messages.some((m) => m.t === 'interact')).toBe(false);
+    expect(page.messages.some((m) => m.t === 'throughPause')).toBe(false);
 
     sample('RightCtrl', true, 1000);
     sample('RightCtrl', false, 1050);
     sample('RightCtrl', true, 1100);
     sample('RightCtrl', true, 1101 + TAP_MAX_MS);
-    expect((await page.next((m) => m.t === 'interact')).on).toBe(true);
+    expect((await page.next((m) => m.t === 'throughPause')).on).toBe(true);
     sample('RightCtrl', false, 2000);
-    expect((await page.next((m) => m.t === 'interact' && m.on === false)).on).toBe(false);
+    expect((await page.next((m) => m.t === 'throughPause' && m.on === false)).on).toBe(false);
     expect(page.messages.some((m) => m.t === 'type')).toBe(false);
+  });
+
+  it('the default talk key and the default click-through pause key: tap then hold only listens, a plain hold only pauses click-through', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world, page } = await setup('', 'hold', watch);
+    await world.webUi().invoke!('pet', 'setThroughPauseKey', [{ enabled: true }]);
+    const talk = splitTaps(DESKTOP_PET_DEFAULTS.asr.mic.hotkey), pause = splitTaps(DESKTOP_PET_DEFAULTS.throughPauseKey.hotkey);
+    expect([talk.combo, talk.taps, pause.taps]).toEqual([pause.combo, 2, 1]);
+    const key = pause.combo;
+
+    sample(key, true, 0);
+    sample(key, false, 50);
+    sample(key, true, 100);
+    sample(key, true, 101 + TAP_MAX_MS);
+    expect(world.voiceState().input).toMatchObject({ open: true });
+    sample(key, false, 1000);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+    expect(page.messages.some((m) => m.t === 'throughPause')).toBe(false);
+
+    sample(key, true, 3000);
+    sample(key, true, 3001 + TAP_MAX_MS);
+    expect((await page.next((m) => m.t === 'throughPause')).on).toBe(true);
+    expect(world.voiceState().input).toMatchObject({ open: false });
+    sample(key, false, 4000);
+    expect((await page.next((m) => m.t === 'throughPause')).on).toBe(false);
+  });
+
+  it('a click-through pause key pressed as the talk key says so in its row', async () => {
+    const { watch } = sampledKeys();
+    const { world } = await setup('', 'hold', watch);
+    await world.webUi().invoke!('voice', 'setMic', [{ hotkey: 'F8' }]);
+    type Row = { throughPauseKey: { problem: string | null } };
+    const set = async (hotkey: string) => (await world.webUi().invoke!('pet', 'setThroughPauseKey', [{ enabled: true, hotkey }]) as Row).throughPauseKey.problem;
+    expect(await set('F8')).toBe(petText('zh').throughPauseKey.sharesTalk);
+    expect(await set('F8*2')).toBeNull();
   });
 
   it('stopping a key watcher during a pending hold prevents it from opening voice later', async () => {

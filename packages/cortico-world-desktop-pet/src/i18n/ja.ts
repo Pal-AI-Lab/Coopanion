@@ -54,12 +54,13 @@ const ja: Translation<PetText> = {
     linuxNoX11: 'タイピングキーが X11 ディスプレイに接続できません',
     unsupported: 'タイピングキーは Windows、macOS、Linux でのみ使えます',
   },
-  interactKey: {
-    macNoKey: 'Mac のキーボードにはこのキーがありません。別の操作キーを選んでください',
-    linuxNoKey: 'Linux ではこのキーを読み取れません（マウスのサイドボタンは使えません）。別の操作キーを選んでください',
-    linuxNoDisplay: 'Linux で操作キーを使うには X11（または XWayland）が必要です：DISPLAY が設定されていません',
-    linuxNoX11: '操作キーが X11 ディスプレイに接続できません',
-    unsupported: '操作キーは Windows、macOS、Linux でのみ使えます',
+  throughPauseKey: {
+    macNoKey: 'Mac のキーボードにはこのキーがありません。別の透過の一時停止キーを選んでください',
+    linuxNoKey: 'Linux ではこのキーを読み取れません（マウスのサイドボタンは使えません）。別の透過の一時停止キーを選んでください',
+    linuxNoDisplay: 'Linux で透過の一時停止キーを使うには X11（または XWayland）が必要です：DISPLAY が設定されていません',
+    linuxNoX11: '透過の一時停止キーが X11 ディスプレイに接続できません',
+    unsupported: '透過の一時停止キーは Windows、macOS、Linux でのみ使えます',
+    sharesTalk: '話すキーと同じ押し方です：押している間は聞き取りも始まります。どちらかを変更してください',
   },
 
   system: {

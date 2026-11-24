@@ -141,6 +141,8 @@ function connect() {
     ws = null;
     stopMic();
     talkKeyDown = false;
+    // a key let go of while the World was away never reports its release
+    pauseHeld = false;
     // the World gave up on these steps when the page went; it asks again once the page is back
     dropDialogs();
     setStatus(null);
@@ -157,10 +159,17 @@ host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVis
 /** Clicks pass through because a fullscreen window covers the pet's display and the setting says so; the window process decides. */
 let fullscreenThrough = false;
 host?.onFullscreenThrough?.((on) => { fullscreenThrough = on; });
-/** The interact key is held; the World says when it activates and is let go. */
-let interactHeld = false;
-/** Clicks reach the pet despite click-through: the interact key held, or the typing box, a question or a confirmation open. */
-const clicksLent = () => interactHeld || (!!item && item.kind !== 'say');
+/** The click-through pause key is held; the World says when it activates and is let go. */
+let pauseHeld = false;
+/**
+ * Clicks reach the pet despite click-through while the click-through pause key is held, and while something begun
+ * with the mouse or waiting on the person is under way: the typing box, a question or a confirmation, the right-click
+ * menu, the look wheel or a pinned slider open, the body held, a slider or the typing box's scrollbar dragged. Each
+ * of those ends on its own, a click elsewhere or the window losing focus included.
+ */
+const openNow = (el) => !el.hidden && !leaving(el);
+const clicksLent = () => pauseHeld || (!!item && item.kind !== 'say') || openNow(menu) || openNow(wheel) || pinned !== null
+  || pressing || barHeld || sliding();
 /** Every click passes through the pet right now, by the tray or the fullscreen setting, unless they are lent. */
 const clicksPass = () => (prefs.clickThrough || fullscreenThrough) && !clicksLent();
 /** Tells the window process each time clicksLent changes; it lifts its click-through lock meanwhile. */
@@ -467,7 +476,7 @@ function onOrder(m) {
     // the settings window's 「在桌面上隐藏」: the same as the menu's 「隐藏」
     case 'hide': host?.hide?.(); break;
     case 'type': openTyping(); break;
-    case 'interact': interactHeld = m.on === true; break;
+    case 'throughPause': pauseHeld = m.on === true; stepLend(); break;
     case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); holdRoam(20); break;
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
     case 'confirm': dropAsks(); rushLines(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
@@ -1663,7 +1672,7 @@ const ACTIONS = {
     run: () => host.hide(),
   },
   // the tray's click-through as a switch: one click turns it on; while it is on, clicks reach this button only
-  // with the interact key held. The World tells the tray.
+  // with the click-through pause key held. The World tells the tray.
   through: {
     available: () => !!host?.clickThrough,
     keep: true,

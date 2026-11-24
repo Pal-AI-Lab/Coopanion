@@ -61,7 +61,7 @@ export default {
   'action.worlds': 'I miei World',
   'action.hide': "Nascondimi per ora (l'icona nell'area di notifica mi riporta qui)",
   'action.throughOn': 'Clic attraverso: attivo · clicca per disattivare',
-  'action.throughOff': "Clic attraverso: disattivato · clicca per attivare (disattivalo dal menu nell'area di notifica, o tieni premuto il tasto di interazione e clicca qui)",
+  'action.throughOff': "Clic attraverso: disattivato · clicca per attivare (disattivalo dal menu nell'area di notifica, o tieni premuto il tasto di pausa dei clic attraverso e clicca qui)",
   'menu.cancel': 'Annulla',
   'menu.resume': 'Riprendi',
   'menu.pause': 'Pausa',
