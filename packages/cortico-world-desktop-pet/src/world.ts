@@ -264,6 +264,8 @@ export interface DesktopPetWorldOptions {
   onBotChange?: () => void;
   /** Called when the pet window comes onto the desktop or leaves it: shown or hidden, opened or closed. */
   onDesktopChange?: (onDesktop: boolean) => void;
+  /** Called when click-through is turned on or off, by the pet panel's `setClickThrough` or the pet's own button. */
+  onClickThroughChange?: (on: boolean) => void;
   /** What the status bubble shows for a tool call. */
   describeTool?: DescribeTool;
   /** The language of what the bot reads from this World (`model-text.ts`), read at each use; Chinese when absent. */
@@ -1228,6 +1230,14 @@ export class DesktopPetWorld implements World {
     this.opts.persist({ looks });
   }
 
+  /** Click-through lasts for the run and is not saved; the page enforces it and `onClickThroughChange` hears each change. */
+  private setClickThrough(on: boolean): void {
+    const changed = on !== this.clickThrough;
+    this.clickThrough = on;
+    this.server.sendPet({ t: 'prefs', clickThrough: on });
+    if (changed) this.opts.onClickThroughChange?.(on);
+  }
+
   private savePrefs(prefs: Record<string, unknown>): void {
     const patch: DeepPartial<DesktopPetConfigSection> = {};
     if (prefs.roam === 'free' || prefs.roam === 'calm' || prefs.roam === 'off') patch.roam = prefs.roam as RoamMode;
@@ -1257,6 +1267,7 @@ export class DesktopPetWorld implements World {
       patch.asr = { ...patch.asr, mic: m };
     }
     if (Object.keys(patch).length) this.opts.persist(patch);
+    if (typeof prefs.clickThrough === 'boolean') this.setClickThrough(prefs.clickThrough);
     if (typeof prefs.mic === 'boolean' && prefs.mic && this.recognitionWanted()) void this.startVoiceBackend();
     this.syncPrefs();
   }
@@ -2603,7 +2614,7 @@ export class DesktopPetWorld implements World {
         // hides the window as the pet's menu does; it stays connected and comes back with openWindow
         case 'hideWindow': this.server.sendPet({ t: 'hide' }); return this.petState();
         // the tray's "click through": kept for this run only, and sent again to a window that reconnects
-        case 'setClickThrough': this.clickThrough = args[0] === true; this.server.sendPet({ t: 'prefs', clickThrough: this.clickThrough }); return this.petState();
+        case 'setClickThrough': this.setClickThrough(args[0] === true); return this.petState();
         case 'installElectron': void this.store.electron.install(); return this.petState();
         // the Habits page's custom picks (/api/config writes no list or map): `custom` and its picks in one write, as the person's change
         case 'setWakeKinds': {

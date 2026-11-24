@@ -60,6 +60,8 @@ export default {
   'action.dress': '裝扮',
   'action.worlds': '我的 World',
   'action.hide': '先把我藏起來（系統匣裡可以叫我回來）',
+  'action.throughOn': '滑鼠穿透：已開啟 · 點一下關閉',
+  'action.throughOff': '滑鼠穿透：已關閉 · 點一下開啟（之後從系統匣選單關閉，或按住互動鍵點這裡）',
   'menu.cancel': '取消',
   'menu.resume': '繼續',
   'menu.pause': '暫停',

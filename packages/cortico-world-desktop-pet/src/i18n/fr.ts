@@ -188,7 +188,7 @@ const fr: Translation<PetText> = {
     theme: { dark: "passer à l'aspect nuit", light: "passer à l'aspect jour" },
     hover: (list: string) => `mettre comme boutons au survol : ${list}`,
     hoverNone: 'retirer tous les boutons au survol',
-    actions: { chat: 'Écrire', voice: 'Saisie vocale', roam: 'Déplacements', theme: 'Mode nuit', sound: 'Sons', size: 'Taille', fade: "Transparence", dress: 'Habiller', cua: "Contrôle de l'ordinateur", hide: 'Masquer le compagnon', worlds: 'Mes Worlds' },
+    actions: { chat: 'Écrire', voice: 'Saisie vocale', roam: 'Déplacements', theme: 'Mode nuit', sound: 'Sons', size: 'Taille', fade: "Transparence", dress: 'Habiller', cua: "Contrôle de l'ordinateur", hide: 'Masquer le compagnon', through: 'Clics à travers', worlds: 'Mes Worlds' },
     user: (to: string) => `vous appeler « ${to} »`,
   },
 

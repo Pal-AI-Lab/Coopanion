@@ -13,7 +13,7 @@ export const DESKTOP_PET_ID = 'desktop-pet';
 export const USER_MAX = 20;
 
 /** The actions that can show as buttons beside the pet on hover, in their order; the right-click menu shows the same ones. */
-export const PET_ACTIONS = ['chat', 'voice', 'roam', 'theme', 'sound', 'hide', 'size', 'fade', 'dress', 'cua', 'worlds'] as const;
+export const PET_ACTIONS = ['chat', 'voice', 'roam', 'theme', 'sound', 'hide', 'through', 'size', 'fade', 'dress', 'cua', 'worlds'] as const;
 export type PetAction = typeof PET_ACTIONS[number];
 /** Most hover buttons. */
 export const MAX_HOVER_BUTTONS = 6;

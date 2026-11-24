@@ -60,6 +60,8 @@ export default {
   'action.dress': 'Vestuario',
   'action.worlds': 'Mis Worlds',
   'action.hide': 'Escóndeme por ahora (el ícono de la bandeja me trae de vuelta)',
+  'action.throughOn': 'Clics a través: activado · clic para desactivar',
+  'action.throughOff': 'Clics a través: desactivado · clic para activar (desactívalo desde el menú de la bandeja, o mantén la tecla de interacción y haz clic aquí)',
   'menu.cancel': 'Cancelar',
   'menu.resume': 'Reanudar',
   'menu.pause': 'Pausar',

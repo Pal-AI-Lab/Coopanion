@@ -188,7 +188,7 @@ const ja: Translation<PetText> = {
     theme: { dark: '夜の見た目にする', light: '昼の見た目にする' },
     hover: (list: string) => `ホバーボタンを${list}にする`,
     hoverNone: 'ホバーボタンをすべて外す',
-    actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', size: 'サイズ', fade: "透明度", dress: '着せ替え', cua: "コンピューター操作", hide: 'ペットを隠す', worlds: '自分の World' },
+    actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', size: 'サイズ', fade: "透明度", dress: '着せ替え', cua: "コンピューター操作", hide: 'ペットを隠す', through: 'クリックを下に通す', worlds: '自分の World' },
     user: (to: string) => `あなたを「${to}」と呼ぶ`,
   },
 

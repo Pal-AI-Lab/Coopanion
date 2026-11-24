@@ -188,7 +188,7 @@ const de: Translation<PetText> = {
     theme: { dark: 'zum Nacht-Look wechseln', light: 'zum Tag-Look wechseln' },
     hover: (list: string) => `die Hover-Schaltflächen auf ${list} ändern`,
     hoverNone: 'alle Hover-Schaltflächen entfernen',
-    actions: { chat: 'Tippen', voice: 'Spracheingabe', roam: 'Herumlaufen', theme: 'Nachtmodus', sound: 'Töne', size: 'Größe', fade: "Transparenz", dress: 'Outfit', cua: "Computersteuerung", hide: 'Haustier ausblenden', worlds: 'Meine Worlds' },
+    actions: { chat: 'Tippen', voice: 'Spracheingabe', roam: 'Herumlaufen', theme: 'Nachtmodus', sound: 'Töne', size: 'Größe', fade: "Transparenz", dress: 'Outfit', cua: "Computersteuerung", hide: 'Haustier ausblenden', through: 'Klicks durchlassen', worlds: 'Meine Worlds' },
     user: (to: string) => `dich „${to}“ nennen`,
   },
 

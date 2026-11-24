@@ -188,7 +188,7 @@ const ptBR: Translation<PetText> = {
     theme: { dark: 'mudar para a aparência de noite', light: 'mudar para a aparência de dia' },
     hover: (list: string) => `trocar os botões ao passar o mouse para ${list}`,
     hoverNone: 'tirar todos os botões ao passar o mouse',
-    actions: { chat: 'Digitar', voice: 'Entrada de voz', roam: 'Passeios', theme: 'Modo noturno', sound: 'Sons', size: 'Tamanho', fade: "Transparência", dress: 'Guarda-roupa', cua: "Uso do computador", hide: 'Ocultar o pet', worlds: 'Meus Worlds' },
+    actions: { chat: 'Digitar', voice: 'Entrada de voz', roam: 'Passeios', theme: 'Modo noturno', sound: 'Sons', size: 'Tamanho', fade: "Transparência", dress: 'Guarda-roupa', cua: "Uso do computador", hide: 'Ocultar o pet', through: 'Cliques atravessam', worlds: 'Meus Worlds' },
     user: (to: string) => `chamar você de “${to}”`,
   },
 

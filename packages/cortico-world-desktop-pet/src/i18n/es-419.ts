@@ -188,7 +188,7 @@ const es419: Translation<PetText> = {
     theme: { dark: 'cambiar al aspecto de noche', light: 'cambiar al aspecto de día' },
     hover: (list: string) => `cambiar los botones al pasar el cursor a ${list}`,
     hoverNone: 'quitar todos los botones al pasar el cursor',
-    actions: { chat: 'Escribir', voice: 'Entrada de voz', roam: 'Paseos', theme: 'Modo nocturno', sound: 'Sonidos', size: 'Tamaño', fade: "Transparencia", dress: 'Vestuario', cua: "Uso de la computadora", hide: 'Ocultar mascota', worlds: 'Mis Worlds' },
+    actions: { chat: 'Escribir', voice: 'Entrada de voz', roam: 'Paseos', theme: 'Modo nocturno', sound: 'Sonidos', size: 'Tamaño', fade: "Transparencia", dress: 'Vestuario', cua: "Uso de la computadora", hide: 'Ocultar mascota', through: 'Clics a través', worlds: 'Mis Worlds' },
     user: (to: string) => `llamarte «${to}»`,
   },
 

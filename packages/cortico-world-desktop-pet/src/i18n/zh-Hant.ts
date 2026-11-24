@@ -188,7 +188,7 @@ const zhHant: Translation<PetText> = {
     theme: { dark: '換成夜間模式', light: '換成白天模式' },
     hover: (list: string) => `把懸停按鈕換成${list}`,
     hoverNone: '拿掉所有懸停按鈕',
-    actions: { chat: '打字', voice: '語音輸入', roam: '走動', theme: '夜間模式', sound: '音效', size: '大小', fade: "透明度", dress: '裝扮', cua: "電腦操作", hide: '隱藏桌寵', worlds: '我的 World' },
+    actions: { chat: '打字', voice: '語音輸入', roam: '走動', theme: '夜間模式', sound: '音效', size: '大小', fade: "透明度", dress: '裝扮', cua: "電腦操作", hide: '隱藏桌寵', through: '滑鼠穿透', worlds: '我的 World' },
     user: (to: string) => `改叫你「${to}」`,
   },
 

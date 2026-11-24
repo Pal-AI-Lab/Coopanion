@@ -1662,6 +1662,17 @@ const ACTIONS = {
     tip: () => tipWithoutNote(t('action.hide')),
     run: () => host.hide(),
   },
+  // the tray's click-through as a switch: one click turns it on; while it is on, clicks reach this button only
+  // with the interact key held. The World tells the tray.
+  through: {
+    available: () => !!host?.clickThrough,
+    keep: true,
+    icon: () => ICONS.through,
+    on: () => prefs.clickThrough,
+    state: () => t(prefs.clickThrough ? 'action.throughOn' : 'action.throughOff'),
+    tip: () => tipWithoutNote(t(prefs.clickThrough ? 'action.throughOn' : 'action.throughOff')),
+    run: () => send({ t: 'prefs', clickThrough: !prefs.clickThrough }),
+  },
   size: {
     // hovering it shows the size slider for a moment (stepSlider); a click, or a tap where nothing hovers, pins it (pinSlider);
     // only on the desktop: a tab draws the body at one size

@@ -188,7 +188,7 @@ const ko: Translation<PetText> = {
     theme: { dark: '야간 모습으로 바꾸기', light: '주간 모습으로 바꾸기' },
     hover: (list: string) => `호버 버튼을 ${list}(으)로 바꾸기`,
     hoverNone: '호버 버튼을 모두 없애기',
-    actions: { chat: '입력', voice: '음성 입력', roam: '걷기', theme: '야간 모드', sound: '효과음', size: '크기', fade: "투명도", dress: '꾸미기', cua: "컴퓨터 사용", hide: '펫 숨기기', worlds: '내 World' },
+    actions: { chat: '입력', voice: '음성 입력', roam: '걷기', theme: '야간 모드', sound: '효과음', size: '크기', fade: "투명도", dress: '꾸미기', cua: "컴퓨터 사용", hide: '펫 숨기기', through: '클릭 통과', worlds: '내 World' },
     user: (to: string) => `'${to}'(이)라고 부르기`,
   },
 

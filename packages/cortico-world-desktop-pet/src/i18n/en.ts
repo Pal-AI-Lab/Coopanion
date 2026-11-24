@@ -213,7 +213,7 @@ const en: PetText = {
     theme: { dark: 'switch to the night look', light: 'switch to the day look' } as Record<'dark' | 'light', string>,
     hover: (list: string) => `change the hover buttons to ${list}`,
     hoverNone: 'remove all the hover buttons',
-    actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', size: 'Size', fade: "Transparency", dress: 'Dress up', cua: "Computer use", hide: 'Hide pet', worlds: 'My Worlds' } as Record<string, string>,
+    actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', size: 'Size', fade: "Transparency", dress: 'Dress up', cua: "Computer use", hide: 'Hide pet', through: 'Click-through', worlds: 'My Worlds' } as Record<string, string>,
     user: (to: string) => `call you "${to}"`,
   },
 

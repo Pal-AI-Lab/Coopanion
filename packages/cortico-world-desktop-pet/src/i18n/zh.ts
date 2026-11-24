@@ -211,7 +211,7 @@ export default {
     theme: { dark: '换成夜间模式', light: '换成白天模式' } as Record<'dark' | 'light', string>,
     hover: (list: string) => `把悬停按钮换成${list}`,
     hoverNone: '去掉所有悬停按钮',
-    actions: { chat: '打字', voice: '语音输入', roam: '走动', theme: '夜间模式', sound: '音效', size: '大小', fade: "透明度", dress: '装扮', cua: "电脑操作", hide: '隐藏桌宠', worlds: '我的 World' } as Record<string, string>,
+    actions: { chat: '打字', voice: '语音输入', roam: '走动', theme: '夜间模式', sound: '音效', size: '大小', fade: "透明度", dress: '装扮', cua: "电脑操作", hide: '隐藏桌宠', through: '鼠标穿透', worlds: '我的 World' } as Record<string, string>,
     user: (to: string) => `改叫你「${to}」`,
   },
 
