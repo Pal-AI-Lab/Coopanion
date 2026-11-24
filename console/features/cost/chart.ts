@@ -500,8 +500,7 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
 
   // The spotlight: the other bars fade as one group (a single transition), and the hovered bar is a copy on
   // a layer of its own that lifts and glows, its pointed segment lit. Only the copy animates as the pointer
-  // moves, so a column change repaints one bar, not the chart; fading every bar on its own and clipping
-  // each one cost a frame or more per move at a few hundred stacked bars.
+  // moves, so a column change repaints one bar, not the chart.
   const spot = mkSvgEl(doc, 'svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: 'bspot' });
   // without the animation API (or with reduced motion) the copy lifts and drops at once
   const still = prefersStill(doc.defaultView) || typeof spot.animate !== 'function';

@@ -131,8 +131,7 @@ export function renderActivity(deps: ActivityDeps, daily: readonly UsageDailyTok
   legend.append(ui.h('span', null, S.more));
 
   // The spotlight, as on the usage chart: the grid fades as one layer (cost.css), and the pointed cell is a
-  // copy on a layer of its own that grows and glows. Only the copy animates as the pointer moves; fading and
-  // growing the cells themselves repainted the whole grid on every move.
+  // copy on a layer of its own that grows and glows, so a move of the pointer repaints the copy alone.
   const still = prefersStill(box.ownerDocument.defaultView) || typeof wrap.animate !== 'function';
   const up: Keyframe = { opacity: 1, transform: 'scale(1.7)' };
   const down: Keyframe = { opacity: 0, transform: 'scale(1)' };
@@ -160,8 +159,8 @@ export function renderActivity(deps: ActivityDeps, daily: readonly UsageDailyTok
     else el.animate([down, up], { duration: 260, easing: 'cubic-bezier(.34, 1.56, .64, 1)', fill: 'forwards' });
   };
 
-  // The pointed cell comes from the pointer's position, the gaps going to the nearest cell: by the element
-  // under the pointer, every gap crossed dropped the lift and faded the tip out and in again.
+  // The pointed cell comes from the pointer's position, a gap going to the nearer cell, so crossing a gap
+  // keeps the lift and the tip.
   const point = (ev: MouseEvent): void => {
     const area = grid.getBoundingClientRect();
     const c = along(ev.clientX - area.left, area.width, cols);
