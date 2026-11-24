@@ -1224,8 +1224,9 @@ function showHeard() {
  * Each line stays above Coo as a bubble of the heard kind (grey, no tail), the newest at the bottom. A line is
  * answered by the first speech or question Coo starts after it settled; until that reply's last line is written out
  * (and, for a line not answered yet, while Coo works or has speech queued) the line and those before it stay, and
- * they fade REPLIED_FADE seconds after that, before the reply's bubble closes, or after it closes if that comes first. A line Coo does not answer fades UNANSWERED_FADE seconds after it was
- * said. With a fixed saidBubbleHoldSec a line fades that many seconds after it settled instead, whatever Coo does.
+ * they fade REPLIED_FADE seconds after that, before the reply's bubble closes, or after it closes if that comes first.
+ * A line Coo does not answer fades UNANSWERED_FADE seconds after it was said.
+ * With a fixed saidBubbleHoldSec a line fades that many seconds after it settled instead, whatever Coo does.
  * The stack holds at most MAX_LINES bubbles and MAX_ROWS rows of text: past either the oldest fades, answered
  * or not, and the newest always stays. A click fades a settled line at once; one still being heard has its cancel button.
  */
