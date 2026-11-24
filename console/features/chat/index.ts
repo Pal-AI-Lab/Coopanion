@@ -19,6 +19,7 @@ import { panelStreamRoute } from '../../base/protocol.ts';
 import { openStream } from '../../base/stream.ts';
 import { promptInput } from '../../base/ui/prompt-input.tsx';
 import { actionProblem } from '../../base/ui/problem.ts';
+import { S as UI } from '../../base/ui/strings.ts';
 import { browserSocketEnv } from '../../base/websocket.ts';
 import { intro } from '../intro.ts';
 import { requestMode } from '../mode.ts';
@@ -76,6 +77,8 @@ async function mount(ctx: PageContext): Promise<void> {
   let more = false;
   let before: number | null = null;
   let imagesSeen = true;
+  /** The longest written answer to a question the World takes (`answerMax` in `init`). */
+  let answerMax: number | null = null;
   /** The question the pet still waits on an answer to, as the World says; null when none. */
   let openAsk: string | null = null;
   let gauge: ContextGauge | null = null;
@@ -228,7 +231,6 @@ async function mount(ctx: PageContext): Promise<void> {
       const form = ui.h('form', 'b-own');
       const input = doc.createElement('input');
       input.type = 'text';
-      input.maxLength = 500;
       input.placeholder = S.ownAnswer;
       if (answer?.text) { input.value = answer.text; form.classList.add('chosen'); }
       else if (answer) form.classList.add('dim');
@@ -241,11 +243,24 @@ async function mount(ctx: PageContext): Promise<void> {
       const submit = ui.h('button', null, S.send);
       submit.type = 'submit';
       submit.disabled = !open;
-      form.append(input, submit);
+      // past the World's cap the answer stays in the field, is not sent, and its count shows
+      const count = ui.h('span', 'b-count');
+      const over = (): number => (answerMax !== null ? Math.max(0, input.value.trim().length - answerMax) : 0);
+      const paint = (): void => {
+        const by = over();
+        count.hidden = by === 0;
+        count.textContent = `${input.value.trim().length} / ${answerMax}`;
+        count.title = by ? UI.tooLong(by, answerMax!) : '';
+        form.classList.toggle('over', by > 0);
+        submit.disabled = !open || by > 0;
+      };
+      if (open && !answer) input.addEventListener('input', paint, { signal: ctx.signal });
+      paint();
+      form.append(input, count, submit);
       form.addEventListener('submit', (e) => {
         e.preventDefault();
         const v = input.value.trim();
-        if (v) stream.send(JSON.stringify({ t: 'answer', askId: it.askId, text: v }));
+        if (v && !over()) stream.send(JSON.stringify({ t: 'answer', askId: it.askId, text: v }));
       }, { signal: ctx.signal });
       opts.append(form);
     }
@@ -389,6 +404,8 @@ async function mount(ctx: PageContext): Promise<void> {
             before = typeof f.before === 'number' ? f.before : null;
             imagesSeen = f.imagesSeen !== false;
             composer.setImageWarning(imagesSeen ? null : S.imagesUnseen(bot));
+            composer.setMaxLength(typeof f.textMax === 'number' ? f.textMax : null);
+            answerMax = typeof f.answerMax === 'number' ? f.answerMax : null;
             openAsk = typeof f.askId === 'string' ? f.askId : null;
             takeRefs(f.refs as Refs | undefined);
             const waiting = new Set(Array.isArray(f.pending) ? f.pending as number[] : []);

@@ -4,6 +4,8 @@
  *
  * 图片在进托盘时就归一化成 base64,提交时与文本一并交出。拖入、粘贴、选择三条入口共用
  * addFiles:超出张数整批拒,单张失败只报那一张。
+ *
+ * 设了字数上限时,文本(去掉首尾空白后)超出上限后留在框里,发送钮停用,发送钮旁显示字数,提示行写明超出多少。
  */
 import * as React from 'react';
 import { flushSync } from 'react-dom';
@@ -52,15 +54,30 @@ function writeDraft(key: string, value: string | null): void {
 export interface ConsolePromptInput extends WebUiPromptInput {
   setFeedback(text: string | null): void;
   setImageWarning(text: string | null): void;
+  /** Most characters (UTF-16 code units of the trimmed text) a message may carry; null means no limit. */
+  setMaxLength(max: number | null): void;
 }
 
 interface ComposerHandle {
   setFeedback(text: string | null): void;
   setImageWarning(text: string | null): void;
+  setMaxLength(max: number | null): void;
   focus(): void;
   setDisabled(disabled: boolean): void;
   setPlaceholder(text: string | null): void;
   restore(text: string, images: readonly WebUiImageAttachment[]): void;
+}
+
+/**
+ * 文字超出框的上缘或下缘时,那一边约一行淡出(styles.css `.prompt-input-host textarea[data-more]`),
+ * 与桌宠打字框的样子一致。
+ */
+function markScroll(el: HTMLTextAreaElement | null): void {
+  if (!el) return;
+  const over = el.scrollHeight - el.clientHeight;
+  const more = over > 1 ? [el.scrollTop > 1 ? 'above' : '', el.scrollTop < over - 1 ? 'below' : ''].filter(Boolean).join(' ') : '';
+  if (more) el.dataset.more = more;
+  else delete el.dataset.more;
 }
 
 /** 托盘里的一张:归一化结果 + 同一份字节的 data URL 缩略图。 */
@@ -167,6 +184,7 @@ const PromptComposer = React.forwardRef<ComposerHandle, { opts: PromptInputOptio
     const [dragging, setDragging] = React.useState(false);
     /** 盖住 `opts.placeholder` 的那一句;`null` 就是不盖。 */
     const [placeholder, setPlaceholder] = React.useState<string | null>(null);
+    const [maxLength, setMaxLength] = React.useState<number | null>(null);
     const textarea = React.useRef<HTMLTextAreaElement>(null);
     const tools = React.useRef<HTMLSpanElement>(null);
     const leading = React.useRef<HTMLSpanElement>(null);
@@ -205,6 +223,7 @@ const PromptComposer = React.forwardRef<ComposerHandle, { opts: PromptInputOptio
       setPlaceholder,
       setFeedback,
       setImageWarning,
+      setMaxLength,
       restore: (text, images) => {
         if (text) setValue((now) => (now ? `${text}
 
@@ -243,9 +262,21 @@ ${now}` : text));
       }
     };
 
+    // a value set from outside (restore, sending) moves the text without a scroll event; a narrower window
+    // wraps it onto more rows at the same height
+    React.useLayoutEffect(() => markScroll(textarea.current), [value]);
+    React.useEffect(() => {
+      const mark = (): void => markScroll(textarea.current);
+      window.addEventListener('resize', mark);
+      return () => window.removeEventListener('resize', mark);
+    }, []);
+
     const remove = (id: number): void => setAttached((now) => now.filter((a) => a.id !== id));
 
-    const canSubmit = !disabled && pending === 0 && (value.trim() !== '' || attached.length > 0);
+    const length = value.trim().length;
+    const over = maxLength !== null && length > maxLength ? length - maxLength : 0;
+    const canSubmit = !disabled && pending === 0 && over === 0 && (value.trim() !== '' || attached.length > 0);
+    const alert = note || feedback || (over > 0 ? S.tooLong(over, maxLength!) : null) || (attached.length > 0 && imageWarning);
 
     const submit = (): void => {
       if (!canSubmit) return;
@@ -297,6 +328,8 @@ ${now}` : text));
             disabled={disabled}
             placeholder={placeholder ?? opts.placeholder ?? S.typeMessage}
             className={TEXTAREA_CLASS}
+            onScroll={(event) => markScroll(event.currentTarget)}
+            onHeightChange={() => markScroll(textarea.current)}
             onChange={(event) => { setValue(event.currentTarget.value); setNote(null); setFeedback(null); }}
             onKeyDown={(event) => {
               // Enter 发送;Shift+Enter 换行;输入法组合中的 Enter 是选字,不是发送
@@ -316,15 +349,18 @@ ${now}` : text));
         <div className="flex min-h-9 items-center justify-between gap-2 px-1">
           <span className="flex min-w-0 items-center gap-1">
             <span ref={leading} className="flex items-center" />
-            <span className={(note || feedback || (attached.length > 0 && imageWarning))
+            <span className={alert
               ? 'max-h-24 overflow-y-auto whitespace-normal break-words px-1 text-xs text-muted-foreground'
               : 'truncate px-1 text-xs text-muted-foreground'}>
-              {(note || feedback || (attached.length > 0 && imageWarning)) ? <span role="status" className="text-danger">{note || feedback || imageWarning}</span>
+              {alert ? <span role="status" className="text-danger">{alert}</span>
                 : pending > 0 ? S.processingImages(pending)
                 : opts.hint}
             </span>
           </span>
           <div className="flex items-center gap-1">
+            {over > 0 && (
+              <span data-count className="px-1.5 text-xs tabular-nums text-danger">{length} / {maxLength}</span>
+            )}
             {imagesOpts && (
               <>
                 <input
@@ -388,6 +424,7 @@ export function promptInput(
     el,
     setFeedback: (text) => handle.current?.setFeedback(text),
     setImageWarning: (text) => handle.current?.setImageWarning(text),
+    setMaxLength: (max) => handle.current?.setMaxLength(max),
     focus: () => handle.current?.focus(),
     setDisabled: (disabled) => handle.current?.setDisabled(disabled),
     setPlaceholder: (text) => handle.current?.setPlaceholder(text),

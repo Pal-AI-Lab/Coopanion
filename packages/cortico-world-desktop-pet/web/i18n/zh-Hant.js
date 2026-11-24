@@ -16,6 +16,9 @@ export default {
   'bubble.imageUnreadable': '無法讀取這張圖片',
   'bubble.imageTooLarge': '這張圖片縮小後仍超過 {mb}MB',
   'bubble.imagesUnseen': '目前的模型看不到圖片，{bot} 只會知道你傳了幾張圖。',
+  /** A typed text past its cap (the count beside it shows the cap); the typing box's while the Chat page takes it. */
+  'bubble.tooLong': '超出 {over} 字，刪減後才能傳送',
+  'bubble.tooLongForBox': '超出 {over} 字，可在對話頁繼續編輯',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': '正在傾聽…',

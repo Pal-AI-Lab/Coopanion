@@ -22,6 +22,8 @@ export const S: Partial<typeof en> = {
   },
   cancel: 'キャンセル',
   proceedAnyway: 'このまま続行',
+  leave: '移動する',
+  unsavedTitle: '保存していない変更があります',
   confirm: '確認',
   gotIt: '了解',
   close: '✕ 閉じる (Esc)',
@@ -33,4 +35,5 @@ export const S: Partial<typeof en> = {
   addImage: '画像を追加',
   addImageHint: '画像を追加（貼り付けやドロップでも追加できます）',
   removeImage: (name: string) => `${name} を削除`,
+  tooLong: (over: number, max: number) => `${over} 文字超過しています。${max} 文字以内にすると送信できます`,
 };

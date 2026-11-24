@@ -16,6 +16,9 @@ export default {
   'bubble.imageUnreadable': 'Не удалось прочитать это изображение',
   'bubble.imageTooLarge': 'Это изображение после уменьшения всё ещё больше {mb} МБ',
   'bubble.imagesUnseen': 'Текущая модель не видит изображения; {bot} узнает только, сколько вы их отправили.',
+  /** A typed text past its cap (the count beside it shows the cap); the typing box's while the Chat page takes it. */
+  'bubble.tooLong': 'Лишних: {over}; сократите, чтобы отправить',
+  'bubble.tooLongForBox': 'Лишних: {over}; продолжите в «Чате»',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': 'Слушаю…',

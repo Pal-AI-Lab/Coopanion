@@ -71,6 +71,8 @@ export interface Vendor {
   effort?: EffortMap;
   /** Replaces `effort` and `Site.effort` for these models. */
   modelEffort?: Readonly<Record<string, EffortMap>>;
+  /** The level a new endpoint starts on; unset starts on high. */
+  defaultEffort?: Effort;
   /** The service streams reasoning in Responses events the standard parser rejects; see `LenientReasoningAssembly`. */
   lenientReasoning?: true;
   /** Responses fallback: read the full resource before exposing tools when streamed item completion is unreliable. */
@@ -247,6 +249,7 @@ export const VENDORS: readonly Vendor[] = [
     // the four Gemini 4 models read 2026-11-19: all stable, input text, image, video, audio and PDF
     id: 'gemini', names: brand('Gemini'), keyHint: PASTE_KEY, secret: 'GEMINI_API_KEY',
     sites: { global: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta', protocol: 'gemini', keyUrl: 'https://aistudio.google.com/apikey' } },
+    defaultEffort: 'low',
     model: 'gemini-4-hydrogen', models: ['gemini-4-argon', 'gemini-4-carbon', 'gemini-4-neon', 'gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-pro-preview'],
     vision: ['gemini-4-hydrogen', 'gemini-4-argon', 'gemini-4-carbon', 'gemini-4-neon', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.1-pro-preview'],
     contextWindows: {
@@ -359,7 +362,7 @@ export function vendorEntry(v: Vendor, model = v.model, region: Region = 'cn') {
     kind: 'coo',
     baseUrl: siteOf(v, region).baseUrl,
     secret: v.secret,
-    spec: { model, thinking: true, reasoningEffort: 'high', maxTokens: 8192 },
+    spec: { model, thinking: true, reasoningEffort: v.defaultEffort ?? 'high', maxTokens: 8192 },
     multimodal: (v.vision ?? []).includes(model),
     pricing: [],
     options: {},
