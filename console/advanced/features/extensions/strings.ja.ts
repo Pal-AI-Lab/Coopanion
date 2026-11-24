@@ -164,6 +164,8 @@ export const S: Partial<typeof en> = {
   commentsLoadFailed: (msg: string) => `コメントを読み込めませんでした：${msg}`,
   noComments: 'まだコメントはありません。',
   loadMore: 'さらに読み込む',
+  commentExpand: 'もっと見る',
+  commentCollapse: '折りたたむ',
   githubLogin: 'GitHub でサインイン',
   githubLogout: 'サインアウト',
   githubLoginTitle: 'GitHub でサインイン',

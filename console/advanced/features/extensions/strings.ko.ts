@@ -164,6 +164,8 @@ export const S: Partial<typeof en> = {
   commentsLoadFailed: (msg: string) => `댓글을 불러오지 못했습니다: ${msg}`,
   noComments: '아직 댓글이 없습니다.',
   loadMore: '더 불러오기',
+  commentExpand: '더 보기',
+  commentCollapse: '접기',
   githubLogin: 'GitHub로 로그인',
   githubLogout: '로그아웃',
   githubLoginTitle: 'GitHub로 로그인',
