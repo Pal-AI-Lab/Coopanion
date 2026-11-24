@@ -23,7 +23,7 @@ import { sidebarBrand } from './brand.ts';
 import { L } from '../strings.ts';
 import { createAvatarControl } from './avatar.ts';
 import { S } from './strings.ts';
-import { fold, motionLevel, steadiest } from '../base/motion.ts';
+import { fold, motionLevel, slideFrom, steadiest } from '../base/motion.ts';
 import { tween } from 'cortico-world-desktop-pet/web/motion-frames.js';
 
 const COLLAPSED_KEY = 'companion.sidebar.collapsed';
@@ -216,13 +216,15 @@ export function createRail(deps: RailDeps): Rail {
     });
     if (!now.some(({ dy }) => Math.abs(dy) > .5)) return;
     const kept = new Set(steadiest(now.map(({ rank }) => rank)));
-    for (const { item, dy, rank } of now) {
-      if (Math.abs(dy) <= .5) continue;
-      const mover = !kept.has(rank);
-      if (mover) item.classList.add('companion-reorder');
-      const motion = item.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: REORDER_MS, easing: 'cubic-bezier(.32, .72, 0, 1)' });
-      if (mover) void motion.finished.finally(() => item.classList.remove('companion-reorder')).catch(() => {});
-    }
+    const moved = now.filter(({ dy }) => Math.abs(dy) > .5);
+    const motions = slideFrom(moved.map(({ item, dy }) => [item, 0, dy] as const), { duration: REORDER_MS, easing: 'cubic-bezier(.32, .72, 0, 1)', axis: 'y' });
+    moved.forEach(({ item, rank }, i) => {
+      const motion = motions[i];
+      if (!motion || kept.has(rank)) return;
+      // the entries that changed places pass over the rest
+      item.classList.add('companion-reorder');
+      void motion.finished.finally(() => item.classList.remove('companion-reorder')).catch(() => {});
+    });
   };
 
   const applyRoute = (): void => {
@@ -515,7 +517,7 @@ export function createRail(deps: RailDeps): Rail {
         x.animate([{ transform: `translate(${from[0]}px, ${from[1]}px)` }, { transform: `translate(${to[0]}px, ${to[1]}px)` }], options);
         return;
       }
-      if (dx || dy) x.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], options);
+      slideFrom([[x, dx, dy]], options);
     });
   };
 

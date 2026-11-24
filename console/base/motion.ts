@@ -49,6 +49,33 @@ export function fold(el: HTMLElement, open: boolean, opts: FoldOptions = {}): vo
   void motion.finished.then(() => { restore(); if (!open && hide) el.hidden = true; }, restore);
 }
 
+export interface SlideOptions extends KeyframeAnimationOptions {
+  /**
+   * Below full motion: keep sliding (`slide`, for moves the pointer made, as a drop or a reorder), land at once
+   * (`jump`), or land at once and fade in there (`fade`). At low motion nothing animates.
+   */
+  medium?: 'slide' | 'jump' | 'fade';
+  /** Moves along one axis only: written as `translateX`/`translateY` instead of `translate`. */
+  axis?: 'x' | 'y';
+}
+
+/**
+ * Slides each element from where it was (`dx`, `dy` pixels from where it is now) to its place, and returns the
+ * animations, one per element in the order given (none for an element that did not move or that does not animate).
+ * The callers measure: before a change, the rects; after it, the offsets.
+ */
+export function slideFrom(moves: readonly (readonly [HTMLElement, number, number])[], opts: SlideOptions = {}): (Animation | undefined)[] {
+  const { medium = 'slide', axis, ...timing } = opts;
+  const level = moves.length ? motionLevel(moves[0][0].ownerDocument.defaultView) : 'high';
+  return moves.map(([el, dx, dy]) => {
+    if (level === 'low' || (!dx && !dy) || !el.animate) return undefined;
+    if (level === 'medium' && medium === 'jump') return undefined;
+    if (level === 'medium' && medium === 'fade') return el.animate([{ opacity: 0 }, { opacity: 1 }], timing);
+    const from = axis === 'x' ? `translateX(${dx}px)` : axis === 'y' ? `translateY(${dy}px)` : `translate(${dx}px, ${dy}px)`;
+    return el.animate([{ transform: from }, { transform: 'none' }], timing);
+  });
+}
+
 export interface Reflow {
   /** Animates from the measured layout to the current one, in `container` or the one measured. */
   play(container?: HTMLElement): void;
@@ -102,7 +129,7 @@ export function measureReflow(container: HTMLElement, selector: string, key: (el
       }
       const exit = gone.length ? EXIT_MS : 0, enter = exit + (slide && moves.length ? REFLOW_MS * .8 : 0);
       const timing = (delay: number) => ({ id: 'reflow', duration: REFLOW_MS, easing: REFLOW_EASING, delay, fill: 'backwards' as const });
-      if (slide) for (const [el, dx, dy] of moves) el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], timing(exit));
+      slideFrom(moves, { ...timing(exit), medium: 'jump' });
       for (const el of arrivals) el.animate([{ opacity: 0, transform: slide ? `translateX(${-ASIDE}px)` : 'none' }, { opacity: 1, transform: 'none' }], timing(enter));
       // What went leaves as a copy where it stood: in its own parent while that is still shown, so
       // the styles it had there still apply.
