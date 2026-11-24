@@ -164,6 +164,8 @@ export const S: Partial<typeof en> = {
   commentsLoadFailed: (msg: string) => `評論讀取失敗：${msg}`,
   noComments: '還沒有評論。',
   loadMore: '載入更多',
+  commentExpand: '展開',
+  commentCollapse: '收合',
   githubLogin: '登入 GitHub',
   githubLogout: '登出',
   githubLoginTitle: '登入 GitHub',

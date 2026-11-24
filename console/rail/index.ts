@@ -191,9 +191,10 @@ export function createRail(deps: RailDeps): Rail {
         for (const it of g.modules) addItem(list, it, itemSignal);
       }
     }
+    // marked before anything reads styles: an entry first styled without `active` would fade its highlight in
+    applyRoute();
     // the lamps' and the folded icons' entrance (companion.css) plays on folding and unfolding only, not when a redraw rebuilds them
     for (const { item } of entries) for (const x of item.querySelectorAll('.navlamps, .companion-module-icon')) for (const motion of x.getAnimations()) motion.finish();
-    applyRoute();
     filterNav(false);
     // emptying the list scrolled it to the top; the same list stays where it was
     nav.scrollTop = scroll;

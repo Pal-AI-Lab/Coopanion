@@ -16,7 +16,6 @@ import { isContextOverflow } from 'cortico/providers/transport/errors.ts';
 import { AttachmentFallback } from 'cortico/providers/transport/attachment-fallback.ts';
 import { providersRoot } from 'cortico/paths.ts';
 import { SIGN_IN_PANEL } from '../connect.ts';
-import { sinceLastDelivery } from '../context.ts';
 import { cooText } from '../strings.ts';
 import { CHATGPT, CHATGPT_MODULE, effortOf, siteOf } from '../vendors.ts';
 import { CHATGPT_SERVICE, accountAt, signedIn, type ChatGPTAccount, type ChatGPTService, type SignInStatus } from './auth.ts';
@@ -100,7 +99,7 @@ export function chatgptModule(service: ChatGPTService = CHATGPT_SERVICE, stateRo
           media,
           keepThinking: host.keepThinking,
           reasoningReplay: 'encrypted',
-        }, { effort: (model) => effortOf(CHATGPT, site, model) }, account, host.log), { media, contextOverflow: isContextOverflow, attached: sinceLastDelivery, log: host.log }),
+        }, { effort: (model) => effortOf(CHATGPT, site, model) }, account, host.log), { media, contextOverflow: isContextOverflow, log: host.log }),
         handlesRefusedAttachments: true,
       };
     },

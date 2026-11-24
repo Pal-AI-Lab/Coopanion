@@ -517,6 +517,7 @@ export class ConsolePageHost {
         addLeaveGuard: (fn) => this.deps.router.addLeaveGuard(fn),
         onError: this.deps.onError,
         keys,
+        capabilities: this.snapshot?.framework?.capabilities ?? {},
         ...(configured ? { openConfig: () => this.deps.router.navigate(this.routeOf(pageId, PROVIDER_CONFIG_ROUTE)) } : {}),
       });
       slot.appendChild(view.el);
