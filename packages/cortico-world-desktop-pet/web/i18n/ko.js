@@ -16,6 +16,9 @@ export default {
   'bubble.imageUnreadable': '이 이미지를 읽을 수 없습니다',
   'bubble.imageTooLarge': '이 이미지는 크기를 줄인 뒤에도 {mb}MB를 넘습니다',
   'bubble.imagesUnseen': '현재 모델은 이미지를 볼 수 없어 {bot}에게는 보낸 이미지 수만 전달됩니다.',
+  /** A typed text past its cap (the count beside it shows the cap); the typing box's while the Chat page takes it. */
+  'bubble.tooLong': '{over}자 초과. 줄이면 보낼 수 있습니다',
+  'bubble.tooLongForBox': '{over}자 초과. 대화 페이지에서 계속 쓰세요',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': '듣는 중…',
@@ -47,6 +50,13 @@ export default {
   'action.soundOff': '효과음: 꺼짐 · 클릭하여 켜기',
   'action.size': '크기: {pct}%',
   'action.sizeLabel': '펫 크기',
+  'action.fade': "투명도: {pct}%",
+  'action.fadeFullscreen': "전체 화면일 때 투명도: {pct}%",
+  'action.fadeLabel': "펫 투명도",
+  'action.fadeFullscreenLabel': "전체 화면일 때 펫 투명도",
+  'action.cuaOn': "컴퓨터 사용: 켜짐 · 클릭하여 끄기",
+  'action.cuaOffAsk': "컴퓨터 사용: 꺼짐 · 클릭하여 설정 창에서 켜기",
+  'action.cuaOff': "컴퓨터 사용: 꺼짐 · 클릭하여 켜기",
   'action.dress': '꾸미기',
   'action.worlds': '내 World',
   'action.hide': '저를 잠시 숨기기(트레이 아이콘으로 다시 불러낼 수 있습니다)',

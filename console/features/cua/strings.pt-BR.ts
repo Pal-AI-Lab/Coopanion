@@ -27,4 +27,7 @@ export const S: Partial<typeof en> = {
   risks: ['As capturas de tela (que podem mostrar conteúdo privado, como conversas) são enviadas ao serviço de modelo que você usa', 'O Coo pode clicar no lugar errado, digitar errado ou acabar na janela errada. Garanta sempre que você consegue acompanhar e interromper o Coo a qualquer momento.', 'Não entregue ao Coo pagamentos, senhas nem nada que envolva informações sensíveis, ações no mundo real ou que não possa ser desfeito.'],
   riskNote: 'O Coo para sozinho quando você usa o mouse ou o teclado. Você pode desativar esta função a qualquer momento.',
   riskOk: 'Ativar',
+  hoverRiskTitle: "Adicionar o uso do computador aos botões ao passar o mouse?",
+  hoverRiskLead: "Depois de adicionado, um clique neste botão ao lado do Coo liga ou desliga o uso do computador na hora, sem perguntar de novo. Enquanto está ligado, o Coo vê sua tela e usa seu mouse e teclado.",
+  hoverRiskOk: "Adicionar botão",
 };

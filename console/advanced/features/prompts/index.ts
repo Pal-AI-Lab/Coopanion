@@ -240,8 +240,12 @@ export async function mountPrompts(ctx: FeatureContext): Promise<void> {
       button.focus({ preventScroll: true });
     }
   }
-  /** Set once the person has already accepted losing unsaved edits for the navigation under way. */
-  ctx.lifecycle.own(ctx.router.addLeaveGuard(() => (dirty.size || savePromise) ? S.leaveUnsaved : null));
+  ctx.lifecycle.own(ctx.router.addLeaveGuard(() => {
+    if (!dirty.size) return null;
+    // the sections by the names their labels show
+    const names = [...dirty.keys()].map((key) => { const section = sections.find((s) => s.doc?.key === key); return section ? description(section.segment, section.doc).title : docs.get(key)?.title ?? key; });
+    return S.leaveUnsavedNamed(names.join(S.listSep));
+  }));
   root.addEventListener('keydown', (event) => {
     if (!(event.ctrlKey || event.metaKey) || event.defaultPrevented) return;
     const key = event.key.toLowerCase();

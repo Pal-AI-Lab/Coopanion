@@ -16,6 +16,9 @@ export default {
   'bubble.imageUnreadable': 'No se pudo leer esta imagen',
   'bubble.imageTooLarge': 'Esta imagen sigue superando {mb}MB tras redimensionar',
   'bubble.imagesUnseen': 'El modelo actual no puede ver imágenes; {bot} solo sabe cuántas enviaste.',
+  /** A typed text past its cap (the count beside it shows the cap); the typing box's while the Chat page takes it. */
+  'bubble.tooLong': 'Sobran {over}; acórtalo para enviar',
+  'bubble.tooLongForBox': 'Sobran {over}; sigue en la página Chat',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': 'Escuchando…',
@@ -47,6 +50,13 @@ export default {
   'action.soundOff': 'Sonidos: desactivados · clic para activar',
   'action.size': 'Tamaño: {pct} %',
   'action.sizeLabel': 'Tamaño de la mascota',
+  'action.fade': "Transparencia: {pct} %",
+  'action.fadeFullscreen': "Transparencia en pantalla completa: {pct} %",
+  'action.fadeLabel': "Transparencia de la mascota",
+  'action.fadeFullscreenLabel': "Transparencia de la mascota en pantalla completa",
+  'action.cuaOn': "Uso de la computadora: activado · clic para desactivar",
+  'action.cuaOffAsk': "Uso de la computadora: desactivado · clic para activarlo en la ventana de configuración",
+  'action.cuaOff': "Uso de la computadora: desactivado · clic para activar",
   'action.dress': 'Vestuario',
   'action.worlds': 'Mis Worlds',
   'action.hide': 'Escóndeme por ahora (el ícono de la bandeja me trae de vuelta)',

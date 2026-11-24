@@ -18,7 +18,7 @@ import { createRequire } from 'node:module';
 import { existsSync } from 'node:fs';
 import type { Logger } from 'cortico/core/types.ts';
 import type { TranscribeResult } from './result.ts';
-import { rmsDb } from './segmenter.ts';
+import { SILENT_BELOW_DB, peakDb } from './segmenter.ts';
 import type { SystemSentence } from './system-recognizer.ts';
 import { petText, type PetText } from '../i18n/index.ts';
 
@@ -97,15 +97,8 @@ export const WHISPER: SherpaModelKind = {
   language: (language) => (WHISPER_CODES.has(language) ? language : ''),
   config: (paths, language) => ({ whisper: { encoder: paths.encoder, decoder: paths.decoder, language, task: 'transcribe' } }),
   partialEveryMs: 0,
-  silentBelowDb: -50,
+  silentBelowDb: SILENT_BELOW_DB,
 };
-
-/** The loudest 20 ms frame of an utterance, in dBFS. */
-function peakDb(pcm: Int16Array): number {
-  let peak = -100;
-  for (let at = 0; at < pcm.length; at += 320) peak = Math.max(peak, rmsDb(pcm.subarray(at, at + 320)));
-  return peak;
-}
 
 export interface SherpaAsrOptions {
   kind: SherpaModelKind;

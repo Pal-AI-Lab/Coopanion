@@ -78,6 +78,16 @@ export function rmsDb(frame: Int16Array): number {
   return rms <= 1e-5 ? -100 : Math.max(-100, 20 * Math.log10(rms));
 }
 
+/** An utterance whose loudest 20 ms frame (`peakDb`) stays below this level, in dBFS, holds no speech. */
+export const SILENT_BELOW_DB = -50;
+
+/** The loudest 20 ms frame of 16 kHz PCM, in dBFS. */
+export function peakDb(pcm: Int16Array): number {
+  let peak = -100;
+  for (let at = 0; at < pcm.length; at += 320) peak = Math.max(peak, rmsDb(pcm.subarray(at, at + 320)));
+  return peak;
+}
+
 function concat(frames: Int16Array[]): Int16Array {
   let total = 0;
   for (const f of frames) total += f.length;

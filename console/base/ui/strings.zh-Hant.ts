@@ -22,6 +22,8 @@ export const S: Partial<typeof en> = {
   },
   cancel: '取消',
   proceedAnyway: '仍要繼續',
+  leave: '離開',
+  unsavedTitle: '有未儲存的修改',
   confirm: '確認',
   gotIt: '知道了',
   close: '✕ 關閉 (Esc)',
@@ -33,4 +35,5 @@ export const S: Partial<typeof en> = {
   addImage: '新增圖片',
   addImageHint: '新增圖片（也可貼上或拖入）',
   removeImage: (name: string) => `移除 ${name}`,
+  tooLong: (over: number, max: number) => `超出 ${over} 字，刪減到 ${max} 字以內才能傳送`,
 };

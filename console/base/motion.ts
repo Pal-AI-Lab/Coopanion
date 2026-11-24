@@ -3,6 +3,16 @@ import { motionLevel } from 'cortico-world-desktop-pet/web/motion-level.js';
 
 export { motionLevel };
 
+/**
+ * An easing the stylesheet defines on the root (`--motion-pop`, `--motion-out`, styles.css), for script animations that
+ * should ease as the CSS ones do: below full motion `--motion-pop` is a steady curve there, so a script reading it
+ * stops overshooting with the rest. `fallback` where the stylesheet has none (the tests).
+ */
+export function cssEasing(win: Window | null | undefined, name: string, fallback: string): string {
+  const value = win?.getComputedStyle?.(win.document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
 export interface FoldOptions {
   /** Which size opens and closes: the height (default) or the width. */
   axis?: 'x' | 'y';

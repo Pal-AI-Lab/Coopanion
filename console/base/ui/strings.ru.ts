@@ -22,6 +22,8 @@ export const S: Partial<typeof en> = {
   },
   cancel: 'Отмена',
   proceedAnyway: 'Всё равно продолжить',
+  leave: 'Уйти',
+  unsavedTitle: 'Несохранённые изменения',
   confirm: 'Подтвердить',
   gotIt: 'Понятно',
   close: '✕ Закрыть (Esc)',
@@ -33,4 +35,5 @@ export const S: Partial<typeof en> = {
   addImage: 'Добавить изображение',
   addImageHint: 'Добавить изображение (можно также вставить или перетащить)',
   removeImage: (name: string) => `Удалить ${name}`,
+  tooLong: (over: number, max: number) => `Лишних символов: ${over}; сократите до ${max}, чтобы отправить`,
 };

@@ -24,8 +24,11 @@ import { watchMotion } from 'cortico-world-desktop-pet/web/motion-level.js';
 import { applyCachedMotion, loadMotionChoice } from './base/motion-choice.ts';
 import { fetchTheme } from './base/theme/storage.ts';
 import { createConsoleUi } from './base/ui/index.ts';
+import { S as UI } from './base/ui/strings.ts';
+import { confirm } from './base/ui/overlay.ts';
 import { mountHoverHints } from './base/ui/hover-hint.ts';
 import { mountDropdowns } from './base/ui/dropdown.ts';
+import { mountScrollbarHover } from './base/ui/scrollbars.ts';
 import type { ConsoleIconName } from './base/ui/icons.ts';
 import { subscribeLamps } from './base/ui/lamp.ts';
 import { ConsolePageHost, PROVIDER_ROUTE } from './advanced/console-pages/host.ts';
@@ -101,7 +104,7 @@ export function boot(doc: Document = document): Disposable {
   const onError = (err: unknown): void => { console.error('[console]', err); };
   const life = new Lifecycle(onError);
   const memo = createMemo('cortico.panel.');
-  const router = new Router({ win: window, confirmLeave: async (message) => window.confirm(message), onError });
+  const router = new Router({ win: window, confirmLeave: (message) => confirm({ doc, host: doc.body, signal: life.signal }, { title: UI.unsavedTitle, body: message, danger: true, ok: UI.leave }), onError });
   const loader = new ConsolePageLoader({
     importModule: (url: string) => import(/* @vite-ignore */ url),
     styleHost: doc.head,
@@ -123,6 +126,7 @@ export function boot(doc: Document = document): Disposable {
   const ui = createConsoleUi({ memo, overlayHost: doc.body, signal: life.signal, doc });
   mountHoverHints(doc, life.signal);
   mountDropdowns(doc, life.signal);
+  mountScrollbarHover(doc, life.signal);
   const rail = createRail({
     doc, ui, router, mode, memo, signal: life.signal, content: root, onError,
     onModeToggle: () => setMode(mode === 'advanced' ? 'normal' : 'advanced'),

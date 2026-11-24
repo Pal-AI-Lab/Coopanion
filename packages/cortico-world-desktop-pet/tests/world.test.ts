@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { dryMountWorld, fakeWorldContext } from 'cortico/extensions/dry-mount.ts';
 import { renderTemplate } from 'cortico/core/template.ts';
 import { DESKTOP_PET, desktopPetDefinition } from '../src/definition.ts';
-import { BUBBLE_HOLD_MAX, DESKTOP_PET_DEFAULTS, SELF_DEFAULT, type DesktopPetConfigSection } from '../src/config.ts';
+import { BUBBLE_HOLD_MAX, DESKTOP_PET_DEFAULTS, FADE_MAX, SELF_DEFAULT, type DesktopPetConfigSection } from '../src/config.ts';
 import { DesktopPetWorld, type DesktopPetWorldOptions, type PetBotControls } from '../src/world.ts';
 import { chatItem } from '../src/chat.ts';
 import { FakeHost } from './helpers/fake-host.ts';
@@ -754,6 +754,52 @@ describe('with a pet page', () => {
     win.send({ t: 'control', action: 'quit' });
     win.send({ t: 'control', action: 'settings' });
     await expect.poll(() => calls).toEqual(['settings']);
+  });
+
+  it('once the risks were confirmed, the computer use button turns it on from the page too', async () => {
+    const { world, cfg, persisted } = await mounted((c) => { c.cua.risksConfirmed = true; });
+    (world as unknown as { cua: { unsupported: () => string | null } }).cua.unsupported = () => null;
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    expect(page.init.cua).toMatchObject({ on: false, confirmed: true });
+    page.send({ t: 'prefs', cua: true });
+    expect((await page.next((m) => m.t === 'prefs' && (m.cua as { on?: boolean })?.on === true)).cua).toMatchObject({ on: true });
+    expect(persisted).toEqual([{ cua: { enabled: true } }]);
+    expect(cfg.cua.enabled).toBe(true);
+  });
+
+  it('the transparency a page sets is kept in steps of FADE_STEP, as usual and during full screen, and reaches the page', async () => {
+    const { world, persisted, host } = await mounted((c) => { c.window.fade = 20; });
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    expect(page.init).toMatchObject({ fade: 20, fadeWhenFullscreen: false, fullscreenFade: DESKTOP_PET_DEFAULTS.window.fullscreenFade });
+    page.send({ t: 'prefs', fade: 47 });
+    page.send({ t: 'prefs', fullscreenFade: FADE_MAX });
+    // fully transparent would leave nothing to point at
+    page.send({ t: 'prefs', fade: 100 });
+    page.send({ t: 'text', text: 'ping' });
+    await expect.poll(() => host.events.length).toBe(1);
+    expect(persisted).toEqual([{ window: { fade: 45 } }, { window: { fullscreenFade: FADE_MAX } }]);
+  });
+
+  it('the computer use button switches it off from the page, and on only through the settings window\'s switch', async () => {
+    const calls: string[] = [];
+    const { world, cfg, persisted } = await mounted((c) => { c.cua.enabled = true; }, { controls: { openCuaSettings: () => calls.push('cua') } });
+    // a system that runs computer use, whatever the test runs on
+    (world as unknown as { cua: { unsupported: () => string | null } }).cua.unsupported = () => null;
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    expect(page.init.cua).toEqual({ on: true, confirmed: false, canOpen: true });
+    // on: the settings window's switch is not opened, and a page cannot turn it on
+    page.send({ t: 'control', action: 'cua' });
+    page.send({ t: 'prefs', cua: true });
+    page.send({ t: 'prefs', cua: false });
+    // a system without a display read as unsupported when the World started: its next sync may push the stub's `on` first
+    expect((await page.next((m) => m.t === 'prefs' && (m.cua as { on?: boolean })?.on === false)).cua).toEqual({ on: false, confirmed: false, canOpen: true });
+    expect(persisted).toEqual([{ cua: { enabled: false } }]);
+    expect(cfg.cua.enabled).toBe(false);
+    page.send({ t: 'control', action: 'cua' });
+    await expect.poll(() => calls).toEqual(['cua']);
   });
 
   it('rejects requests whose Host is not a loopback name', async () => {

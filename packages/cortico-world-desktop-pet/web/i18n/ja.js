@@ -16,6 +16,9 @@ export default {
   'bubble.imageUnreadable': 'この画像を読み込めません',
   'bubble.imageTooLarge': 'この画像は縮小後も {mb}MB を超えています',
   'bubble.imagesUnseen': '現在のモデルは画像を見られません。{bot} には送った枚数だけが伝わります。',
+  /** A typed text past its cap (the count beside it shows the cap); the typing box's while the Chat page takes it. */
+  'bubble.tooLong': '{over} 文字超過。減らすと送信できます',
+  'bubble.tooLongForBox': '{over} 文字超過。チャットページで続けられます',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': '聞き取り中…',
@@ -47,6 +50,13 @@ export default {
   'action.soundOff': 'サウンド：オフ · クリックでオン',
   'action.size': 'サイズ：{pct}%',
   'action.sizeLabel': 'ペットのサイズ',
+  'action.fade': "透明度：{pct}%",
+  'action.fadeFullscreen': "全画面表示中の透明度：{pct}%",
+  'action.fadeLabel': "ペットの透明度",
+  'action.fadeFullscreenLabel': "全画面表示中のペットの透明度",
+  'action.cuaOn': "コンピューター操作：オン · クリックでオフ",
+  'action.cuaOffAsk': "コンピューター操作：オフ · クリックで設定ウィンドウからオン",
+  'action.cuaOff': "コンピューター操作：オフ · クリックでオン",
   'action.dress': '着せ替え',
   'action.worlds': '自分の World',
   'action.hide': 'しばらく隠れる（トレイアイコンで呼び戻せます）',

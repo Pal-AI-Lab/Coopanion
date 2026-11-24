@@ -35,6 +35,7 @@ const de: Translation<CuaText> = {
   config: {
     group: 'Computersteuerung',
     enabled: { title: 'Computersteuerung einschalten' },
+    risksConfirmed: { title: "Risiken bestätigt", description: "Die Risiken wurden beim Einschalten der Computersteuerung oder beim Hinzufügen als Hover-Schaltfläche bestätigt; wenn an, schaltet die Hover-Schaltfläche die Computersteuerung direkt ein." },
     control: { title: 'Maus und Tastatur erlauben', description: 'Wenn aus, nur Screenshots und die Fensterliste.' },
     permission: { title: 'Wann du gefragt wirst', description: 'ask-each-turn: fragt jede Runde, bevor Coo auf den Bildschirm schaut oder handelt; ask-before-acting: Schauen ist frei, fragt jede Runde, bevor Coo Maus und Tastatur benutzt; ask-once: Schauen ist frei, fragt einmal, bevor Coo Maus und Tastatur benutzt, und ein Ja gilt so lange wie bei „Ein Ja gilt“ eingestellt; never-ask: fragt nie. Solange „Rückfrage vor Terminal und Ausführen abschalten“ aus ist, wird unabhängig von der Einstellung vor Eingaben oder Tasten in einem Terminalfenster und vor win+r einmal gesondert gefragt; ein Ja gilt so lange wie bei „Ein Ja gilt“ eingestellt.' },
     grantMinutes: { title: 'Ein Ja gilt', suffix: 'Min.', description: 'Für ask-once und für die gesonderte Frage zu Terminalfenstern.' },
