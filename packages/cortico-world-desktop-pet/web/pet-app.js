@@ -605,7 +605,7 @@ function sideColumn(label, titled = false, scrollbar = false) {
   const l = esc(label);
   return `<div class="b-side"><button class="b-close" type="button" aria-label="${l}"${titled ? ` title="${l}"` : ''}>${CROSS}</button>${scrollbar ? '<div class="b-track" aria-hidden="true" hidden><i class="b-thumb"></i></div>' : ''}</div>`;
 }
-/** Pixels a bubble's side column (sideColumn) takes past its right edge, with the margin kept from the screen's side. */
+/** Pixels a bubble's side column (sideColumn) takes past its right edge: its width and the 2.5px border plus 8.5px gap before it (pet.css .b-side). */
 function sideRoom(el) {
   const side = el.querySelector(':scope > .b-side');
   return side ? side.offsetWidth + 11 : 0;
@@ -1216,6 +1216,7 @@ function openInput() {
   // as soon as it fits beside the buttons would swing the layout to and fro at the edge
   input.addEventListener('input', () => {
     if (!input.value) form.classList.remove('tall');
+    // more than a row and a half, with the textarea's 4px padding above and below: a second row has begun
     else if (input.scrollHeight > parseFloat(getComputedStyle(input).lineHeight) * 1.5 + 8) form.classList.add('tall');
     drawBar();
   });
