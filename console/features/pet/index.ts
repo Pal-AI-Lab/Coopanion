@@ -110,8 +110,6 @@ const SELF_DEFAULT: readonly string[] = ['figure', 'scheme', 'roam', 'snoreSecon
 
 /** What the pet panel's state says of the two rows and of the typing key. */
 interface HabitState {
-  /** What Coo wears; the bubble sample draws it. */
-  skin?: unknown;
   wake?: { wakeOn: string; wakeKinds: string[] };
   selfAdjust?: { mode: string; custom: Record<string, boolean> };
   typeKey?: TypeKeyState;
