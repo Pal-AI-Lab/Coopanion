@@ -130,7 +130,7 @@ export const S: Partial<typeof en> = {
   glowPx: (n: number) => `${n} px`,
   glowHint: 'Wie weit der helle Schein um das Haustier reicht, wenn Coos Farben dem Hintergrund ähneln; ganz links schaltet ihn aus.',
   fade: "Transparenz",
-  fadeHint: "Coo und seine Blasen verblassen gemeinsam und werden deckend, solange das Eingabefeld, eine Frage oder eine Bestätigung offen ist und solange Coo getragen wird. Ein verblasster Coo nimmt weiter Klicks an; um sie durchzulassen, wähle im Tray-Menü „Klicks durch Coo durchlassen“.",
+  fadeHint: "Coo und die Blasen verblassen gemeinsam und werden deckend, solange das Eingabefeld, eine Frage oder eine Bestätigung offen ist und solange Coo getragen wird. Ein verblasster Coo nimmt weiter Klicks an; um sie durchzulassen, wähle im Tray-Menü „Klicks durch Coo durchlassen“.",
   ringLabel: 'Kontextring',
   ring: 'Auf der Chat-Seite anzeigen',
   ringHint: 'Ein Ring im Eingabefeld der Chat-Seite zeigt, wie weit es noch ist, bis das frühere Gespräch aufgeräumt wird.',

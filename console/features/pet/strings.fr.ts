@@ -130,7 +130,7 @@ export const S: Partial<typeof en> = {
   glowPx: (n: number) => `${n} px`,
   glowHint: "Portée du halo clair autour du compagnon quand les couleurs de Coo se confondent avec l'arrière-plan ; tout à gauche le désactive.",
   fade: "Transparence",
-  fadeHint: "Coo et ses bulles s'estompent ensemble, et redeviennent opaques tant que la zone de saisie, une question ou une confirmation est ouverte, et tant que Coo est porté. Estompé, Coo reçoit toujours les clics ; pour les laisser passer, choisissez « Laisser passer les clics à travers Coo » dans le menu de la barre d'état.",
+  fadeHint: "Coo et les bulles s'estompent ensemble, et redeviennent opaques tant que la zone de saisie, une question ou une confirmation est ouverte, et tant que Coo est porté. Estompé, Coo reçoit toujours les clics ; pour les laisser passer, choisissez « Laisser passer les clics à travers Coo » dans le menu de la barre d'état.",
   ringLabel: 'Anneau de contexte',
   ring: 'Afficher sur la page Discussion',
   ringHint: 'Un anneau dans la zone de saisie de la page Discussion indique combien il reste avant la mise en ordre de la conversation précédente.',

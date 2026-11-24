@@ -130,7 +130,7 @@ export const S: Partial<typeof en> = {
   glowPx: (n: number) => `${n} px`,
   glowHint: "Quanto si estende il bagliore chiaro attorno all'animaletto quando i colori di Coo somigliano allo sfondo; tutto a sinistra lo spegne.",
   fade: "Trasparenza",
-  fadeHint: "Coo e i suoi fumetti sfumano insieme, e tornano opachi mentre sono aperti il riquadro di testo, una domanda o una conferma, e mentre trasporti Coo. Sfumato, Coo riceve comunque i clic; per lasciarli passare, scegli «Lascia passare i clic attraverso Coo» nel menu dell'area di notifica.",
+  fadeHint: "Coo e i fumetti sfumano insieme, e tornano opachi mentre sono aperti il riquadro di testo, una domanda o una conferma, e mentre trasporti Coo. Sfumato, Coo riceve comunque i clic; per lasciarli passare, scegli «Lascia passare i clic attraverso Coo» nel menu dell'area di notifica.",
   ringLabel: 'Anello del contesto',
   ring: 'Mostra nella pagina Chat',
   ringHint: 'Un anello nella casella di testo della pagina Chat mostra quanto manca al riordino della conversazione precedente.',

@@ -276,7 +276,7 @@ export const en: typeof zh = {
   glowPx: (n: number) => `${n} px`,
   glowHint: "How far the light glow around the pet reaches when Coo's colors match the background; all the way left turns it off.",
   fade: "Transparency",
-  fadeHint: "Coo and its bubbles fade together, and turn opaque while the typing box, a question or a confirmation is open, and while Coo is carried. A faded Coo still takes clicks; to let them through, choose \"Let clicks pass through Coo\" in the tray menu.",
+  fadeHint: "Coo and the bubbles fade together, and turn opaque while the typing box, a question or a confirmation is open, and while Coo is carried. A faded Coo still takes clicks; to let them through, choose \"Let clicks pass through Coo\" in the tray menu.",
   ringLabel: 'Context ring',
   ring: 'Show on the Chat page',
   ringHint: "A ring in the Chat page's input box shows how far the conversation is from being tidied up.",
