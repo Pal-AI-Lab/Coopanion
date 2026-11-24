@@ -11,7 +11,8 @@ import type { WebUi, Disposable } from 'cortico/web/shared/client-panel.ts';
 import type { Lifecycle } from '../../../base/lifecycle.ts';
 import { shouldStick } from '../../../base/ui/index.ts';
 import { estTok } from './context.ts';
-import { typeOut } from 'cortico-world-desktop-pet/web/motion-frames.js';
+import { cssMs, typeOut } from 'cortico-world-desktop-pet/web/motion-frames.js';
+import { fold } from '../../../base/motion.ts';
 import { S } from './strings.ts';
 import type { ContextRecord, Item } from 'cortico/protocol/open-responses/context.ts';
 
@@ -195,12 +196,16 @@ export function createTimeline(deps: TimelineDeps): TimelineView {
   };
 
 
+  /** 折叠框:关着时 hidden;开合用 fold() 按自身高度展开收起,只变高度不淡入淡出,时长随 --motion-base。 */
   const clps = (body: HTMLElement, open: boolean): HTMLElement => {
     const w = ui.h('div', open ? 'clps open' : 'clps');
-    const b = ui.h('div');
-    b.appendChild(body);
-    w.appendChild(b);
+    w.appendChild(body);
+    w.hidden = !open;
     return w;
+  };
+  const setOpen = (box: HTMLElement, open: boolean): void => {
+    toggleClass(box, 'open', open);
+    fold(box, open, { duration: cssMs(box, '--motion-base', 200), easing: 'ease', fade: false });
   };
 
   const bindToggle = (head: HTMLElement, box: HTMLElement, chev?: HTMLElement | null): void => {
@@ -208,7 +213,7 @@ export function createTimeline(deps: TimelineDeps): TimelineView {
       'click',
       () => {
         const open = !box.className.split(' ').includes('open');
-        toggleClass(box, 'open', open);
+        setOpen(box, open);
         if (chev) toggleClass(chev, 'up', open);
       },
       { signal },
@@ -229,7 +234,7 @@ export function createTimeline(deps: TimelineDeps): TimelineView {
       'click',
       () => {
         const open = !wrap.className.split(' ').includes('open');
-        toggleClass(wrap, 'open', open);
+        setOpen(wrap, open);
         head.textContent = S.foldHead(open, content.length);
       },
       { signal },
@@ -524,7 +529,7 @@ export function createTimeline(deps: TimelineDeps): TimelineView {
     rawToggle.addEventListener('click', () => {
       const open = !rawBox.className.split(' ').includes('open');
       if (open) rawPre.textContent = JSON.stringify(next.entries.map((e) => e.item), null, 2);
-      toggleClass(rawBox, 'open', open);
+      setOpen(rawBox, open);
     }, { signal });
     inner.appendChild(grp);
     turn = next;

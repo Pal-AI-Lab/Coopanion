@@ -61,6 +61,8 @@ declare module 'cortico-world-desktop-pet/web/motion-level.js' {
 }
 
 declare module 'cortico-world-desktop-pet/web/motion-frames.js' {
+  /** Grows `el` from its old size (`w`/`h` px) to its current one; nothing at low motion or without a change. */
+  export function growFrom(el: HTMLElement, was: { w?: number; h?: number }, opts?: { duration?: number; easing?: string; overshoots?: boolean }): Animation | undefined;
   /** A duration `el` gets from the stylesheet as a custom property (`160ms`, `.16s`), in ms; `fallback` without one. */
   export function cssMs(el: Element | null | undefined, name: string, fallback: number): number;
   /** How far a change started at `start` and running `ms` is at `now`, 0–1, linear; 1 at low motion. */

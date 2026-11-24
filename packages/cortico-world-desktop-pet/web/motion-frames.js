@@ -60,6 +60,23 @@ export function tween(from, to, ms, { ease = steady, overshoots = false, start =
 }
 
 /**
+ * Grows or shrinks `el` from the size it had (`was`: `w` and/or `h`, in pixels as offsetWidth/offsetHeight give
+ * them) to the one it has now, after the caller changed its content. Returns the animation, or nothing when the
+ * size did not change or at low motion (it is at its size already). `overshoots` marks an easing that goes past
+ * the end, which below full motion becomes a steady one.
+ */
+export function growFrom(el, was, { duration, easing = 'ease', overshoots = false } = {}) {
+  const win = el.ownerDocument.defaultView, level = motionLevel(win);
+  if (level === 'low' || !el.animate) return undefined;
+  const now = { w: el.offsetWidth, h: el.offsetHeight };
+  const from = {}, to = {};
+  if (was.w !== undefined && was.w !== now.w) { from.width = was.w + 'px'; to.width = now.w + 'px'; }
+  if (was.h !== undefined && was.h !== now.h) { from.height = was.h + 'px'; to.height = now.h + 'px'; }
+  if (!Object.keys(from).length) return undefined;
+  return el.animate([from, to], { duration, easing: overshoots && level !== 'high' ? 'cubic-bezier(.2,.7,.3,1)' : easing });
+}
+
+/**
  * How many of `length` characters are shown after `elapsed` seconds at `perSecond` characters a second; all of
  * them at low motion.
  */

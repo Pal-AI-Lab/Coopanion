@@ -23,7 +23,7 @@ import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightW
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
 import { runFrames } from './frame-loop.js';
-import { cssMs } from './motion-frames.js';
+import { cssMs, growFrom } from './motion-frames.js';
 import { motionLevel, setMotionChoice, watchMotion } from './motion-level.js';
 import { mountHints, tipOf, tipWithoutNote } from './hints.js';
 
@@ -877,11 +877,10 @@ function showDialogInput(it) {
         more.remove();
         add(input.options.length, all.length, 0);
         pick(input.options.length, false);
-        const to = cards.offsetHeight;
-        if (to !== from && !lowMotion()) {
+        const grow = growFrom(cards, { h: from }, { duration: 320, easing: 'cubic-bezier(.3,1.1,.5,1)', overshoots: true });
+        if (grow) {
           cards.classList.add('unfolding');
-          cards.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: 320, easing: motionLevel(window) === 'high' ? 'cubic-bezier(.3,1.1,.5,1)' : 'cubic-bezier(.2,.7,.3,1)' })
-            .finished.finally(() => cards.classList.remove('unfolding'));
+          void grow.finished.finally(() => cards.classList.remove('unfolding'));
         }
       });
     }
@@ -1612,20 +1611,7 @@ function renderMenuRail(confirmQuit = false) {
   const was = last && !menu.hidden && rail.classList.contains('confirm') !== confirmQuit
     ? { w: last.offsetWidth, h: last.offsetHeight } : null;
   fillMenuRail(rail, bot, confirmQuit);
-  if (was && rail.lastElementChild) resizeFrom(rail.lastElementChild, was);
-}
-
-/** Grows or shrinks an element from its old size to the one its new content takes. */
-function resizeFrom(el, was) {
-  el.style.transition = 'none';
-  el.style.width = '';
-  el.style.height = '';
-  const w = el.offsetWidth, h = el.offsetHeight;
-  el.style.width = was.w + 'px'; el.style.height = was.h + 'px';
-  void el.offsetWidth;
-  el.style.transition = '';
-  el.style.width = w + 'px'; el.style.height = h + 'px';
-  el.addEventListener('transitionend', () => { el.style.width = el.style.height = ''; }, { once: true });
+  if (was && rail.lastElementChild) growFrom(rail.lastElementChild, was, { duration: cssMs(document.documentElement, '--motion-base', 200), easing: 'ease' });
 }
 
 function fillMenuRail(rail, bot, confirmQuit) {

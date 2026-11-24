@@ -14,6 +14,8 @@ export interface FoldOptions {
   hide?: boolean;
   /** Clip the content to the changing size (default). Off when the caller's own style clips it. */
   clip?: boolean;
+  /** Fade the content with the size (default). Off for a box that only opens and closes. */
+  fade?: boolean;
 }
 
 /**
@@ -25,15 +27,15 @@ export interface FoldOptions {
  * only toggles `hidden`.
  */
 export function fold(el: HTMLElement, open: boolean, opts: FoldOptions = {}): void {
-  const { axis = 'y', duration = 170, easing = 'cubic-bezier(.32,.72,0,1)', shift = 0, hide = true, clip = true } = opts;
+  const { axis = 'y', duration = 170, easing = 'cubic-bezier(.32,.72,0,1)', shift = 0, hide = true, clip = true, fade = true } = opts;
   const win = el.ownerDocument.defaultView;
   for (const running of el.getAnimations?.() ?? []) running.cancel();
   if (motionLevel(win) === 'low' || !el.animate) { if (hide) el.hidden = !open; return; }
   el.hidden = false;
   const style = win!.getComputedStyle(el);
   const [size, min, sides] = axis === 'y' ? ['height', 'min-height', ['top', 'bottom']] as const : ['width', 'min-width', ['left', 'right']] as const;
-  const full: Keyframe = { opacity: 1, transform: 'none' };
-  const none: Keyframe = { opacity: 0, transform: shift ? `translateX(${shift}px)` : 'none' };
+  const full: Keyframe = fade ? { opacity: 1, transform: 'none' } : { transform: 'none' };
+  const none: Keyframe = { ...(fade ? { opacity: 0 } : {}), transform: shift ? `translateX(${shift}px)` : 'none' };
   for (const property of [size, min, ...sides.flatMap(side => [`padding-${side}`, `margin-${side}`])]) {
     const key = property.replace(/-./g, part => part[1].toUpperCase());
     // A min size of auto cannot be interpolated and would flip halfway; from zero it grows with the size.

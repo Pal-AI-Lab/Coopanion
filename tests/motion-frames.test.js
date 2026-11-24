@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { setMotionChoice } from '../packages/cortico-world-desktop-pet/web/motion-level.js';
-import { approach, approachShare, cssMs, tween, typeOut } from '../packages/cortico-world-desktop-pet/web/motion-frames.js';
+import { approach, approachShare, cssMs, growFrom, tween, typeOut } from '../packages/cortico-world-desktop-pet/web/motion-frames.js';
 
 const at = (level) => { const win = new JSDOM('<!doctype html><html></html>').window; setMotionChoice(win, level); return win; };
 
@@ -42,5 +42,19 @@ describe('frame motion', () => {
     expect(cssMs(el(''), '--x', 99)).toBe(99);
     expect(cssMs(el('var(--y)'), '--x', 99)).toBe(99);
     expect(cssMs(null, '--x', 7)).toBe(7);
+  });
+
+  it('grows from the old size to the new one, steady below full motion and not at all at low', () => {
+    const grown = (level, was, opts) => {
+      const win = at(level), el = win.document.createElement('div'), calls = [];
+      Object.defineProperties(el, { offsetWidth: { value: 120 }, offsetHeight: { value: 38 } });
+      el.animate = (frames, o) => { calls.push([frames, o]); return {}; };
+      return [growFrom(el, was, opts), calls];
+    };
+    expect(grown('high', { w: 38, h: 38 }, { duration: 200 })[1]).toEqual([[[{ width: '38px' }, { width: '120px' }], { duration: 200, easing: 'ease' }]]);
+    expect(grown('medium', { h: 10 }, { duration: 320, easing: 'cubic-bezier(.3,1.1,.5,1)', overshoots: true })[1][0][1].easing).toBe('cubic-bezier(.2,.7,.3,1)');
+    expect(grown('high', { h: 10 }, { duration: 320, easing: 'cubic-bezier(.3,1.1,.5,1)', overshoots: true })[1][0][1].easing).toBe('cubic-bezier(.3,1.1,.5,1)');
+    expect(grown('low', { w: 38 }, { duration: 200 })).toEqual([undefined, []]);
+    expect(grown('high', { w: 120, h: 38 }, { duration: 200 })).toEqual([undefined, []]);
   });
 });
