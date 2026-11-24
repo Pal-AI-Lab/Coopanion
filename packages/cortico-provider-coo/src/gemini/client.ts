@@ -1,8 +1,7 @@
 /**
  * Gemini API client on the framework transport, API key only:
  * `POST <baseUrl>/models/<model>:generateContent`, or `:streamGenerateContent?alt=sse` when
- * streaming, with the key in `x-goog-api-key`. Attachments are limited to the newest delivered batch
- * (`sinceLastDelivery`).
+ * streaming, with the key in `x-goog-api-key`.
  */
 import type { Logger } from 'cortico/core/types.ts';
 import { nullLogger } from 'cortico/core/util.ts';
@@ -12,7 +11,6 @@ import { OpenAIHttpClient } from 'cortico/providers/transport/chat.ts';
 import { LLMError } from 'cortico/providers/transport/errors.ts';
 import type { CompatMediaOptions } from 'cortico/providers/transport/history.ts';
 import type { ResponseAssembly } from 'cortico/providers/transport/response-assembly.ts';
-import { sinceLastDelivery } from '../context.ts';
 import { GeminiResponseAssembly, geminiRequest, parseGeminiResponse } from './wire.ts';
 
 export interface GeminiProviderOptions {
@@ -43,8 +41,7 @@ export class GeminiProvider extends OpenAIHttpClient {
   }
 
   protected override buildResponseBody(request: Request, options: GenerateOptions): Record<string, unknown> {
-    const limited = options.context ? { ...options, context: sinceLastDelivery(options.context) } : options;
-    return geminiRequest(request, limited, { media: this.opts.media, keepThinking: this.opts.keepThinking });
+    return geminiRequest(request, options, { media: this.opts.media, keepThinking: this.opts.keepThinking });
   }
 
   /** The body is built whole in `buildResponseBody`. */

@@ -110,6 +110,7 @@ const EDGE_INSET = 8;
  * `opts.onEvent(kind, detail)` reports what happened to the body: arrived, interrupted, touch, mode, done.
  * `opts.sfx.play(name, kind, ...args)` asks for a sound (web/sound.js names them); an `sfx` without `play`
  * is called by name instead (`sfx.jump()`), for pages that record the calls.
+ * `opts.startX` and `opts.startFacing` (1 right, -1 left) are where the pet first stands and which way it faces.
  * `opts.enter: 'drop'` starts the pet above the top edge, falling to the floor.
  * `opts.ground: 'free'` lets the body stand anywhere on the stage above the floor, as seen from above: it walks
  * to any point (`walkTo` with a y), is set down where it is let go of, a throw tosses it across the stage, and
@@ -128,7 +129,9 @@ const EDGE_INSET = 8;
  * `figure.gestures`, if present, names the short gestures (nod, shake) the figure draws itself: the body then
  * leaves them out, and the frame's `gesture` ({ kind, k: 0..1 }, or null) says which one is playing and how far.
  * `figure.anchors`, `figure.extent` ([x0, y0, x1, y1]) and `figure.hits` ([[x, y, r]]) are in logo units; each
- * is read every frame, so a getter may follow the skin. `figure.setSkin(skin)` hears each skin change.
+ * is read every frame, so a getter may follow the skin. `extent` is the body facing right, mirrored about x=128
+ * when it faces left; each side comes as near the screen edge as `extent` reaches on it.
+ * `figure.setSkin(skin)` hears each skin change.
  */
 export function createPet(els, opts) {
   const { petG, shadowEl, fxG } = els;
@@ -142,8 +145,9 @@ export function createPet(els, opts) {
   let skin = opts.skin || null;
   let hold = 0; // until T: an order from outside is in progress, free roaming waits
   const freeGround = opts.ground === 'free';
+  const startFacing = opts.startFacing === -1 ? -1 : 1;
   const pet = {
-    x: 260, fy: 0, gy: 0, gvy: 0, targetY: 0, vx: 0, vy: 0, facing: 1, faceVis: 1, mode: 'idle', modeT: 0, dur: 0, target: 0,
+    x: 260, fy: 0, gy: 0, gvy: 0, targetY: 0, vx: 0, vy: 0, facing: startFacing, faceVis: startFacing, mode: 'idle', modeT: 0, dur: 0, target: 0,
     speed: 0, stride: 0, lift: 0, bob: 0, phase: 0, lastHalf: 0, lean: 0, tilt: 0, tiltV: 0,
     sq: 0, sqv: 0, sitK: 0, stretch: 0, low: 0, gap: [50, 50], look: [0, 0], drowse: 0,
     feet: STAND.map(l => [l[2], l[3]]), blinkT: 1.5, blinkAge: 9, expr: null, exprUntil: 0,
@@ -167,10 +171,25 @@ export function createPet(els, opts) {
       || e[0] > e[2] || e[1] > e[3]) return null;
     return e;
   };
-  /** How far the body reaches from the line it turns about (x=128), in logo units. */
-  const halfWidth = (e = figureExtent()) => e ? Math.max(128 - e[0], e[2] - 128) : DEFAULT_HALF_WIDTH;
-  /** Where the body's middle may stand; a body wider than the stage stands in its middle. */
-  const minX = () => Math.min(W / 2, halfWidth() * S + EDGE_INSET), maxX = () => Math.max(W / 2, W - halfWidth() * S - EDGE_INSET);
+  /**
+   * How far the body reaches left and right of the line it turns about (x=128) when facing `face`, in logo units:
+   * the turn mirrors `extent` about that line, so the two sides trade places as `faceVis` goes from 1 to -1.
+   */
+  const sideReach = (e = figureExtent(), face = pet.faceVis) => {
+    if (!e) return [DEFAULT_HALF_WIDTH, DEFAULT_HALF_WIDTH];
+    const a = (e[0] - 128) * face, b = (e[2] - 128) * face;
+    return [-Math.min(a, b), Math.max(a, b)];
+  };
+  /** The wider of the body's two sides, in logo units. */
+  const halfWidth = (e = figureExtent()) => Math.max(...sideReach(e, 1));
+  /** Where the body's middle may stand facing `face` (as it faces now when left out); a body wider than the stage stands in its middle. */
+  const minX = (face) => Math.min(W / 2, sideReach(undefined, face)[0] * S + EDGE_INSET);
+  const maxX = (face) => Math.max(W / 2, W - sideReach(undefined, face)[1] * S - EDGE_INSET);
+  /** Where a walk toward stage x may end, for the way the body faces on that walk (see the walk step). */
+  const walkEnd = (x) => {
+    const face = !freeGround || Math.abs(x - pet.x) > 2 ? Math.sign(x - pet.x) || pet.facing : pet.facing;
+    return clamp(x, minX(face), maxX(face));
+  };
   /** The highest ground line a free body stands on: its head stays on the stage. */
   const minY = () => Math.min(floorY, 250 * S + 8);
   /** Where the feet rest: the floor, or a free body's own ground line. */
@@ -188,7 +207,7 @@ export function createPet(els, opts) {
       if (opts.enter === 'drop') { pet.fy = -8; pet.vy = 0; pet.vx = 0; pet.airKind = 'drop'; setMode('air'); }
     }
     pet.x = clamp(pet.x, minX(), maxX());
-    pet.target = clamp(pet.target, minX(), maxX());
+    pet.target = walkEnd(pet.target);
     pet.gy = freeGround ? clamp(pet.gy, minY(), floorY) : floorY;
     pet.targetY = freeGround ? clamp(pet.targetY, minY(), floorY) : floorY;
     if (pet.mode !== 'air' && pet.mode !== 'drag') pet.fy = pet.gy;
@@ -231,10 +250,10 @@ export function createPet(els, opts) {
   const busy = () => pet.mode === 'drag' || pet.mode === 'air' || pet.mode === 'crouch';
   function pickTarget(minDist) {
     for (let i = 0; i < 12; i++) {
-      const x = rnd(minX(), maxX());
+      const x = walkEnd(rnd(minX(-1), maxX(1)));
       if (Math.abs(x - pet.x) > minDist) return x;
     }
-    return pet.x - minX() > maxX() - pet.x ? minX() : maxX();
+    return pet.x - minX(-1) > maxX(1) - pet.x ? minX(-1) : maxX(1);
   }
   /** A ground line to walk to: anywhere for a free body, else where it stands. */
   const pickY = () => (freeGround ? rnd(minY(), floorY) : pet.gy);
@@ -247,7 +266,7 @@ export function createPet(els, opts) {
     switch (a) {
       case 'stand': setMode(seated ? 'wake' : 'idle', seated ? { startle: false } : {}); pet.nextAt = T + 3; break;
       case 'walk': setMode('walk', { target: pickTarget(160), targetY: pickY() }); break;
-      case 'run': setMode('run', { target: pet.x < W / 2 ? maxX() - rnd(0, 30) : minX() + rnd(0, 30), targetY: pickY() }); break;
+      case 'run': setMode('run', { target: pet.x < W / 2 ? maxX(1) - rnd(0, 30) : minX(-1) + rnd(0, 30), targetY: pickY() }); break;
       case 'jump': setMode('crouch', { jumpV: 720, jumpVx: pet.facing * 40 }); break;
       case 'hop': setMode('crouch', { jumpV: 480, jumpVx: 0 }); break;
       case 'look': setMode('look'); break;
@@ -329,7 +348,7 @@ export function createPet(els, opts) {
   function walkTo(x, run, walkId, y) {
     if (busy()) return false;
     if (pet.mode === 'sleep' || pet.mode === 'sit') setMode('wake', { startle: true });
-    const target = clamp(x, minX(), maxX());
+    const target = walkEnd(x);
     const targetY = freeGround && typeof y === 'number' && Number.isFinite(y) ? clamp(y, minY(), floorY) : pet.gy;
     pet.expr = null;
     if (Math.hypot(target - pet.x, targetY - pet.gy) < 2) { onEvent('arrived', { walkId, ...at() }); return true; }
@@ -389,8 +408,8 @@ export function createPet(els, opts) {
     T += dt; pet.modeT += dt;
     A = anchors();
     const m = pet.mode, mt = pet.modeT;
-    // an extent that follows the skin can widen the body where it stands; carried and flying bodies keep to the edges on their own
-    if (m !== 'drag' && m !== 'air') { pet.x = clamp(pet.x, minX(), maxX()); pet.target = clamp(pet.target, minX(), maxX()); }
+    // an extent that follows the skin, or a lopsided body turning round, can widen the body where it stands; carried and flying bodies keep to the edges on their own
+    if (m !== 'drag' && m !== 'air') { pet.x = clamp(pet.x, minX(), maxX()); pet.target = walkEnd(pet.target); }
     let sqT = 0, strideT = 0, liftT = 0, leanT = 0, sitT = 0, bobT = 0, rate = 0, lookT = [0, 0], tiltT = 0;
     let tk = 160, tc = 12, drowseT = 0;
     const still = !!opts.still?.();
@@ -707,8 +726,8 @@ export function createPet(els, opts) {
     const rot = custom?.groupTilt ? custom.groupTilt(pet.mode, pet.tilt, lean) : pet.tilt + lean;
     pet.xf = { AX, AY, ax, ay, kx, ky, rot };
     const extent = figureExtent();
-    if (!drag && extent && halfWidth(extent) < DEFAULT_HALF_WIDTH) {
-      // A narrow figure can travel closer to the edge. Fit its transformed outline in the stage.
+    if (!drag && extent && Math.min(...sideReach(extent)) < DEFAULT_HALF_WIDTH) {
+      // A figure narrow on either side can travel closer to that edge. Fit its transformed outline in the stage.
       const box = stageBox(extent);
       const inset = Math.min(EDGE_INSET, (W - box.w) / 2);
       AX += clamp(0, inset - box.x, W - inset - box.x - box.w);
@@ -916,7 +935,10 @@ export function createPet(els, opts) {
       return !!press || MOVING_MODES.has(pet.mode) || !!pet.pulse || Math.abs(pet.faceVis - pet.facing) > .05;
     },
     get time() { return T; },
+    /** The stage, and where the body's middle may stand as it faces now (`minX`, `maxX`) and as high as it may stand (`minY`). */
     get bounds() { return { W, H, floorY, S, minX: minX(), maxX: maxX(), minY: minY() }; },
+    /** Where a walk to the left ends at the farthest (`minX`), and one to the right (`maxX`). */
+    get walkBounds() { return { minX: minX(-1), maxX: maxX(1) }; },
     /** A free body stands anywhere on the stage (`opts.ground`). */
     freeGround,
     setSkin(s) { skin = s; custom?.setSkin?.(s); },
@@ -968,7 +990,8 @@ const SVGNS = 'http://www.w3.org/2000/svg';
  * 'drop' to fall in from above, and the skin to wear). `opts` are createPet's, with `figure` required; `opts.css` is
  * more style for the frame's document (a figure's own classes) and `opts.skinCss(skin)` the style that follows the skin.
  * `opts.moves` answers the pack's own targets (its manifest's `moves`): `{ id: (params, bounds) => ({ x, y? }) | null }`
- * gives the stage point to walk to for those params (bounds as `bounds()` gives them, with `minX` `maxX` `minY`);
+ * gives the stage point to walk to for those params (bounds as `bounds()` gives them, with `minX` and `maxX` where a
+ * walk to the left and to the right ends at the farthest, and `minY`);
  * null, or a target it does not name, answers the move `busy`.
  *
  * The body takes these calls from the page: step(dt, draw), layout(), do(word), walk(x, run, id), stopWalk(id), pointer(type, p),
@@ -993,14 +1016,13 @@ export function createBody(host, opts) {
   let dialogOpen = false, still = false;
   const ctl = createPet({ petG, shadowEl, fxG }, {
     ...opts,
-    skin: start.skin ?? null, startX: start.x, startY: start.y, enter: start.enter,
+    skin: start.skin ?? null, startX: start.x, startFacing: start.facing, startY: start.y, enter: start.enter,
     bounds: host.bounds,
     onEvent: host.emit,
     sfx: { play: host.sound },
     dialogOpen: () => dialogOpen,
     still: () => still,
   });
-  if (start.facing === 1 || start.facing === -1) ctl.pet.facing = ctl.pet.faceVis = start.facing;
   return {
     step(dt, draw = true) { ctl.step(dt); ctl.render(draw); },
     layout: ctl.layout,
@@ -1011,7 +1033,7 @@ export function createBody(host, opts) {
     stopWalk: (id) => ctl.stopWalk(id),
     move(args, id) {
       const to = opts.moves?.[args?.to];
-      const p = typeof to === 'function' ? to(args.params ?? {}, { ...host.bounds(), ...ctl.bounds }) : null;
+      const p = typeof to === 'function' ? to(args.params ?? {}, { ...host.bounds(), ...ctl.bounds, ...ctl.walkBounds }) : null;
       return !!p && ctl.walkTo(p.x, !!args.run, id, p.y);
     },
     pointer(type, p) {
@@ -1025,10 +1047,10 @@ export function createBody(host, opts) {
     /** Puts a body that is standing at stage x, turned to `facing` (1 right, -1 left); a free body also on ground line `y`. */
     place(x, facing, y) {
       if (ctl.pet.mode === 'drag' || ctl.pet.mode === 'air') return;
+      if (facing === 1 || facing === -1) ctl.pet.facing = ctl.pet.faceVis = facing;
       const { minX, maxX, minY, floorY } = ctl.bounds;
       ctl.pet.x = ctl.pet.target = clamp(x, minX, maxX);
       if (ctl.freeGround && typeof y === 'number' && Number.isFinite(y)) ctl.pet.gy = ctl.pet.targetY = ctl.pet.fy = clamp(y, minY, floorY);
-      if (facing === 1 || facing === -1) ctl.pet.facing = ctl.pet.faceVis = facing;
     },
     set(s) {
       if (s.roam) ctl.setRoam(s.roam);

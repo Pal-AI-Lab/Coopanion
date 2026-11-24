@@ -1247,6 +1247,42 @@ describe('World library and catalog', () => {
     expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(2);
     expect(category('all').getAttribute('aria-pressed')).toBe('true');
   });
+  it('puts a sidebar tag\'s question mark after the name\'s last word and restores the name when the row is left', async () => {
+    const index = { tags: { experimental: { label: 'Experimental feature', style: 'notice', hint: 'Still changing' } } };
+    const { root } = await openWorlds({ hits: { hits: [{ ...HITS.hits[0], tags: ['experimental'] }], index } });
+    const row = root.querySelector('.world-catalog-filters .extension-tagbar .extension-tag.is-exclusion');
+    const name = row.querySelector('.extension-tag-name');
+    expect(name.textContent).toBe('Experimental feature');
+    expect(name.querySelector('.extension-tag-tail .extension-tag-word').textContent).toBe('feature');
+    expect(name.querySelector('.extension-tag-word + .extension-tag-help')).not.toBeNull();
+    expect(row.getAttribute('aria-description')).toBe('Still changing');
+    // jsdom has no layout: every box is empty, so nothing is cut and only the structure is checked.
+    const hadRect = 'getBoundingClientRect' in Range.prototype;
+    if (!hadRect) Range.prototype.getBoundingClientRect = () => new DOMRect();
+    try { row.dispatchEvent(new PointerEvent('pointerenter')); } finally { if (!hadRect) delete Range.prototype.getBoundingClientRect; }
+    expect(row.classList.contains('is-hinting')).toBe(true);
+    expect(name.textContent).toBe('Experimental feature');
+    row.dispatchEvent(new PointerEvent('pointerleave'));
+    expect(row.classList.contains('is-hinting')).toBe(false);
+    expect(name.querySelector('.extension-tag-word').textContent).toBe('feature');
+    expect(root.querySelector('.extension-market-card .extension-tag-help')).toBeNull();
+    // Clicking redraws the sidebar under the pointer: the new row shows its mark without waiting for a pointerenter.
+    const rowAt = () => root.querySelector('.world-catalog-filters .extension-tagbar .extension-tag.is-exclusion');
+    const originalPoint = document.elementFromPoint;
+    document.elementFromPoint = () => rowAt().querySelector('.extension-tag-word');
+    if (!hadRect) Range.prototype.getBoundingClientRect = () => new DOMRect();
+    try {
+      row.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 5, clientY: 5 }));
+      row.click(); await flush();
+      expect(rowAt()).not.toBe(row);
+      expect(rowAt().classList.contains('is-excluded')).toBe(true);
+      expect(rowAt().classList.contains('is-hinting')).toBe(true);
+      rowAt().click(); await flush();
+    } finally {
+      if (originalPoint) document.elementFromPoint = originalPoint; else delete document.elementFromPoint;
+      if (!hadRect) delete Range.prototype.getBoundingClientRect;
+    }
+  });
   it.each(['world', 'provider'])('keeps %s market nodes, focus and scrolling when the install source changes', async kind => {
     const { root, ctx } = await openWorlds();
     if (kind === 'provider') await switchTo(ctx, kind);
