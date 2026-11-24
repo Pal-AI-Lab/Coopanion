@@ -1,8 +1,9 @@
 /**
  * A World's templates on its own page, each in the 系统提示词 editor without block headers, its
- * variables beside it. Each has the 系统提示词 page's toolbar (undo, revert, save, and applying the saved
- * prompt to the conversation where Core can) without folding. Saving writes the deployment's copy;
- * 「恢复默认版本」 removes that copy. A page with more than one template titles each.
+ * variables beside it. Each has the 系统提示词 page's toolbar without folding: undo, revert, save, and where
+ * Core offers them clearing the conversation (`storage`) and applying the saved prompt to it
+ * (`sessionControl`). Saving writes the deployment's copy; 「恢复默认版本」 removes that copy. A page with
+ * more than one template titles each.
  */
 
 import { S as COMMON } from '../../../base/ui/strings.ts';
