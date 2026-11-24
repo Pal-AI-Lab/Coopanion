@@ -130,6 +130,11 @@ export const ICONS = {
   soundOff: icon('<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>'),
   // a frame open at its top right corner, a smaller corner inside it and an arrow out to the open corner: the size on screen
   resize: icon('<path d="M11 3.5H5.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2V13"/><path d="M13.5 15H9v-4.5"/><path d="M20.5 3.5 10 14M15 3.5h5.5V9"/>'),
+  // a circle half filled: the transparency slider
+  fade: icon('<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 0 0 17z" fill="currentColor"/>'),
+  // a screen with a pointer on it: computer use, and struck through while it is off
+  computer: icon('<rect x="3" y="4" width="18" height="12.5" rx="2"/><path d="M8.5 20.5h7M12 16.5v4"/><path d="m10 7.5 1.6 5.2 1.1-2 2.1-1.1z"/>'),
+  computerOff: icon('<rect x="3" y="4" width="18" height="12.5" rx="2"/><path d="M8.5 20.5h7M12 16.5v4"/><path d="m10 7.5 1.6 5.2 1.1-2 2.1-1.1z"/><path d="M4 3l16 16"/>'),
   // a T-shirt: the dressing page
   shirt: icon('<path d="M8.5 3.5 4 6l-1.5 4.5L6 12v8.5h12V12l3.5-1.5L20 6l-4.5-2.5a3.5 3.5 0 0 1-7 0z"/>'),
   eye: icon('<path d="M3 12s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="3"/>'),

@@ -84,15 +84,20 @@
 .companion-checks .check { gap: 8px; font-size: 14px; }
 .companion-dressframe { display: block; width: 100%; height: 900px; border: 0; background: transparent; }
 /* 悬停按钮:每个动作一个圆形开关,选中的点亮 */
-.companion-hoverpick { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 2px; }
-.companion-hoverbtn { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 64px; max-width: 96px; padding: 0; border: 0; background: none; color: var(--ink-soft); font: inherit; cursor: pointer; }
+/* every button one column wide whatever its name, so they stand evenly apart in every language; a name takes up to two
+   balanced lines under its icon (the button's tooltip has it whole), and the room for two keeps the icons in a row level */
+.companion-hoverpick { display: grid; grid-template-columns: repeat(auto-fill, 84px); gap: 12px 8px; padding-top: 2px; }
+.companion-hoverbtn { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 84px; padding: 0; border: 0; background: none; color: var(--ink-soft); font: inherit; cursor: pointer; }
 .companion-hoverbtn svg { box-sizing: content-box; width: 20px; height: 20px; padding: 10px; border-radius: 50%; border: 1.5px dashed var(--line-2); transition: background .15s, border-color .15s, color .15s; }
 .companion-hoverbtn:hover:not(:disabled) svg { border-color: var(--ink-dim); color: var(--foreground); }
 .companion-hoverbtn.on svg { border-style: solid; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
 .companion-hoverbtn.on .companion-hoverlbl { color: var(--foreground); }
 .companion-hoverbtn:disabled { opacity: .4; cursor: default; }
 /* 按钮随标签加宽到 96px;日文、韩文只在空格处折行,不把一个词拆成两行 */
-.companion-hoverlbl { font-size: 12px; line-height: 1.3; word-break: keep-all; }
+.companion-hoverlbl {
+  min-height: 2.6em; font-size: 12px; line-height: 1.3; text-align: center; text-wrap: balance; word-break: keep-all; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
 /* 统计开关后面的说明链接,与开关文字隔开 */
 .companion-switchbox:has(> .companion-statsdoc) { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
 .companion-statsdoc { margin: 0; line-height: 1.6; }

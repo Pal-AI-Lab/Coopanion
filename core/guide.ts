@@ -53,7 +53,7 @@ const ROAM_KEY = 'worlds.desktop-pet.roam';
 const WAKE_KEY = 'worlds.desktop-pet.touch.wakeOn';
 const HOVER_KEY = 'worlds.desktop-pet.hoverButtons';
 /** Each action's card icon on the hover-button page, the icon its button wears (web/ui.js `ICONS`). */
-const ACTION_ICONS: Record<PetAction, string> = { chat: 'chat', voice: 'mic', roam: 'roam_calm', theme: 'moon', sound: 'sound', hide: 'eyeOff', size: 'resize', dress: 'shirt', worlds: 'boxes' };
+const ACTION_ICONS: Record<PetAction, string> = { chat: 'chat', voice: 'mic', roam: 'roam_calm', theme: 'moon', sound: 'sound', hide: 'eyeOff', size: 'resize', fade: 'fade', dress: 'shirt', cua: 'computer', worlds: 'boxes' };
 /**
  * The default name up to 0.1.19: the name box starts empty for it, with the app language's default name (the
  * desktop-pet World's) as its placeholder.

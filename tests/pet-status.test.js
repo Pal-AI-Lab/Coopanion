@@ -20,7 +20,8 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
   const dom = new JSDOM(html, { url: `http://127.0.0.1/pet${hash}`, runScripts: 'outside-only' });
   const win = dom.window;
   pages.push(win);
-  if (host) win.petHost = {};
+  // `host`: true for a pet window that lends nothing, or the window's own petHost
+  if (host) win.petHost = host === true ? {} : host;
   const sockets = [];
   const bodyChanges = [];
   const body = {
@@ -55,7 +56,7 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     // hover hints (hints.js) are not what these tests look at
     mountHints() {}, tipOf, tipWithoutNote,
   };
-  win.eval(`const { applyTheme, balancedWidth, clamp, f, ICONS, layBeside, tailAt, tailLine, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints, tipOf, tipWithoutNote } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepTalkRead(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
+  win.eval(`const { applyTheme, balancedWidth, clamp, f, ICONS, layBeside, tailAt, tailLine, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints, tipOf, tipWithoutNote } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSlider, stepFade, cursor, step: (dt) => { T += dt; stepDialog(dt); stepTalkRead(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
@@ -472,7 +473,7 @@ describe('look wheel over the dress button', () => {
     await frames(p, 1);
     p.doc.querySelector('#tools [data-action="size"]').click();
     answer([{ id: 'a', name: 'a', skin: {} }]);
-    const sizer = p.doc.querySelector('#sizer');
+    const sizer = p.doc.querySelector('.head-slider[data-kind="size"]');
     const open = (el) => !el.hidden && !el.classList.contains('leaving');
     for (let i = 0; i < 5; i++) {
       await frames(p, 1);
@@ -486,7 +487,7 @@ describe('look wheel over the dress button', () => {
     p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
     dressButton(p);
     p.doc.querySelector('#tools [data-action="size"]').click();
-    const bar = p.doc.querySelector('#sizer .pet-scale');
+    const bar = p.doc.querySelector('.head-slider[data-kind="size"] .pet-scale');
     bar.setPointerCapture = () => {};
     bar.dispatchEvent(new p.win.MouseEvent('pointerdown', { clientX: 10, button: 0, buttons: 1, bubbles: true }));
     over(p);
@@ -498,7 +499,7 @@ describe('look wheel over the dress button', () => {
     await frames(p);
     expect(reads).toBe(1);
     expect(wheel(p).hidden).toBe(false);
-    expect(p.doc.querySelector('#sizer').classList.contains('leaving')).toBe(true);
+    expect(p.doc.querySelector('.head-slider[data-kind="size"]').classList.contains('leaving')).toBe(true);
   });
 
   it('reads again when the pointer left while a bubble was showing', async () => {
@@ -561,7 +562,7 @@ describe('the size the body is drawn at', () => {
 });
 
 describe('the size slider pinned by a click on its button', () => {
-  const sizerEl = (p) => p.doc.querySelector('#sizer');
+  const sizerEl = (p) => p.doc.querySelector('.head-slider[data-kind="size"]');
   const shown = (p) => !sizerEl(p).hidden && !sizerEl(p).classList.contains('leaving');
 
   it('stays open with the pointer away until a press elsewhere, and a second click closes it', () => {
@@ -572,7 +573,7 @@ describe('the size slider pinned by a click on its button', () => {
     expect(shown(p)).toBe(true);
     expect(button.classList.contains('on')).toBe(true);
     p.cursor.at = null;
-    for (let i = 0; i < 6; i++) { p.step(.5); p.stepSizer(); }
+    for (let i = 0; i < 6; i++) { p.step(.5); p.stepSlider(); }
     expect(shown(p)).toBe(true);
     p.doc.body.dispatchEvent(new p.win.MouseEvent('pointerdown', { bubbles: true }));
     expect(shown(p)).toBe(false);
@@ -592,12 +593,12 @@ describe('the size slider opened by hovering its button', () => {
     const tools = p.doc.querySelector('#tools'), button = tools.querySelector('[data-action="size"]');
     // jsdom lays nothing out: the size button is at the page's top left
     Object.defineProperty(button, 'offsetParent', { value: p.doc.body });
-    const sizerEl = p.doc.querySelector('#sizer');
+    const sizerEl = p.doc.querySelector('.head-slider[data-kind="size"]');
     const shown = () => !sizerEl.hidden && !sizerEl.classList.contains('leaving');
     /** The pointer at `at` for two seconds, longer than the slider waits once the pointer is off the controls. */
-    const rest = (at) => { p.cursor.at = at; for (let i = 0; i < 4; i++) { p.step(.5); p.stepSizer(); } };
+    const rest = (at) => { p.cursor.at = at; for (let i = 0; i < 4; i++) { p.step(.5); p.stepSlider(); } };
     p.cursor.at = { x: 0, y: 0 };
-    p.stepSizer();
+    p.stepSlider();
     expect(shown()).toBe(true);
     // on the body (its box is 400–500 × 300–400), on the way up to the slider
     rest({ x: 450, y: 350 });
@@ -609,8 +610,159 @@ describe('the size slider opened by hovering its button', () => {
     expect(shown()).toBe(true);
     p.cursor.at = { x: 900, y: 900 };
     p.step(.5);
-    p.stepSizer();
+    p.stepSlider();
     expect(shown()).toBe(false);
+  });
+});
+
+describe('the transparency', () => {
+  const opacity = (p) => p.doc.documentElement.style.getPropertyValue('--pet-opacity');
+  /** A pet window that says when the transparency during full screen holds, through `fullscreen(on)`. */
+  const desk = () => {
+    let told = () => {};
+    const p = page({ host: { onFullscreenFade: (cb) => { told = cb; }, fadeWhenFullscreen() {} } });
+    return { ...p, fullscreen: (on) => told(on) };
+  };
+  const sent = (p) => p.sockets.flatMap((s) => s.sent).filter((m) => m.t === 'prefs' || m.t === 'control');
+  const key = (p, el, k) => el.dispatchEvent(new p.win.KeyboardEvent('keydown', { key: k, bubbles: true }));
+
+  it('fades the body and its bubbles to the setting on screen, the full screen one while it holds, and is opaque while the typing box is open', () => {
+    const p = desk();
+    p.onOrder({ t: 'prefs', fade: 30, fullscreenFade: 60 });
+    p.stepFade();
+    expect(Number(opacity(p))).toBeCloseTo(.7);
+    p.fullscreen(true);
+    p.stepFade();
+    expect(Number(opacity(p))).toBeCloseTo(.4);
+    p.openInput();
+    p.stepFade();
+    expect(Number(opacity(p))).toBe(1);
+    p.closeBubble();
+    p.fullscreen(false);
+    p.stepFade();
+    expect(Number(opacity(p))).toBeCloseTo(.7);
+  });
+
+  it('leaves a browser tab opaque', () => {
+    const p = page();
+    p.onOrder({ t: 'prefs', fade: 30 });
+    p.stepFade();
+    expect(opacity(p)).toBe('');
+  });
+
+  it('its slider sets the setting on screen, the usual one or the one during full screen, and sends it', async () => {
+    const p = desk();
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.onOrder({ t: 'prefs', hoverButtons: ['fade'], fade: 30, fullscreenFade: 60 });
+    p.doc.querySelector('#tools [data-action="fade"]').click();
+    const bar = p.doc.querySelector('.head-slider[data-kind="fade"] .pet-scale');
+    expect(bar.getAttribute('aria-valuemax')).toBe('95');
+    key(p, bar, 'ArrowRight');
+    p.fullscreen(true);
+    key(p, bar, 'ArrowLeft');
+    expect(sent(p)).toEqual([{ t: 'prefs', fade: 35 }, { t: 'prefs', fullscreenFade: 55 }]);
+    // the knob shows the one on screen
+    expect(p.doc.querySelector('.head-slider[data-kind="fade"] .hs-value').textContent).toBe('55%');
+  });
+});
+
+describe('the sliders over the head, frame by frame', () => {
+  /** A pet window with the size and transparency buttons side by side (jsdom lays nothing out). */
+  const desk = () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size', 'fade'] });
+    for (const [id, left] of [['size', 0], ['fade', 100]]) {
+      const b = p.doc.querySelector(`#tools [data-action="${id}"]`);
+      Object.defineProperty(b, 'offsetParent', { value: p.doc.body });
+      b.getBoundingClientRect = () => ({ left, right: left + 40, top: 0, bottom: 40 });
+    }
+    return p;
+  };
+  const state = (p, kind) => {
+    const el = p.doc.querySelector(`.head-slider[data-kind="${kind}"]`), c = el.classList;
+    return el.hidden ? 'hidden' : c.contains('leaving') ? 'leaving' : c.contains('entering') ? 'entering' : 'shown';
+  };
+  /** The states of both sliders over `n` frames with the pointer at `at`. */
+  const rest = (p, at, n = 8) => {
+    p.cursor.at = at;
+    const seen = [];
+    for (let i = 0; i < n; i++) { p.step(1 / 60); p.stepSlider(); seen.push(`${state(p, 'size')}/${state(p, 'fade')}`); }
+    return [...new Set(seen)];
+  };
+
+  it('opens once and holds still while the pointer rests on its button', () => {
+    const p = desk();
+    expect(rest(p, { x: 20, y: 20 })).toEqual(['entering/hidden']);
+  });
+
+  it('moving to the other button, the one there leaves with its animation as the other enters with its own', async () => {
+    const p = desk();
+    rest(p, { x: 20, y: 20 });
+    expect(rest(p, { x: 120, y: 20 }, 1)).toEqual(['leaving/entering']);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(rest(p, { x: 120, y: 20 })).toEqual(['hidden/entering']);
+    expect(rest(p, { x: 20, y: 20 }, 1)).toEqual(['entering/leaving']);
+  });
+
+  it('a slider pinned by a click gives the place up to the other kind hovered, unpinned, and each bar keeps its own range', () => {
+    const p = desk();
+    const size = p.doc.querySelector('#tools [data-action="size"]');
+    size.click();
+    expect(size.classList.contains('on')).toBe(true);
+    expect(rest(p, { x: 120, y: 20 }, 1)).toEqual(['leaving/entering']);
+    expect(size.classList.contains('on')).toBe(false);
+    const max = (kind) => p.doc.querySelector(`.head-slider[data-kind="${kind}"] .pet-scale`).getAttribute('aria-valuemax');
+    expect([max('size'), max('fade')]).toEqual(['10', '95']);
+  });
+
+  it('unpinned by a click with the pointer still on its button, it stays until the pointer goes', () => {
+    const p = desk();
+    const size = p.doc.querySelector('#tools [data-action="size"]');
+    rest(p, { x: 20, y: 20 });
+    size.click();
+    size.click();
+    expect(size.classList.contains('on')).toBe(false);
+    expect(rest(p, { x: 20, y: 20 })).toEqual(['entering/hidden']);
+    expect(rest(p, { x: 900, y: 900 }, 30).at(-1)).toBe('leaving/hidden');
+  });
+});
+
+describe('the computer use button', () => {
+  const sent = (p) => p.sockets.flatMap((s) => s.sent).filter((m) => m.t === 'prefs' || m.t === 'control');
+
+  it('shows whether computer use is on; on, a click switches it off, and off, a click asks for the settings window\'s switch', async () => {
+    const p = page({ host: true });
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.onOrder({ t: 'prefs', hoverButtons: ['cua'], cua: { on: false, canOpen: false } });
+    expect(p.doc.querySelector('#tools [data-action="cua"]')).toBeNull();
+    p.onOrder({ t: 'prefs', cua: { on: true, canOpen: true } });
+    const button = p.doc.querySelector('#tools [data-action="cua"]');
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    button.click();
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    button.click();
+    expect(sent(p)).toEqual([{ t: 'prefs', cua: false }, { t: 'control', action: 'cua' }]);
+  });
+
+  it('switches computer use on as well once the risks were confirmed', async () => {
+    const p = page({ host: true });
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.onOrder({ t: 'prefs', hoverButtons: ['cua'], cua: { on: false, confirmed: true, canOpen: true } });
+    const button = p.doc.querySelector('#tools [data-action="cua"]');
+    expect(button.getAttribute('aria-label')).toBe(t('action.cuaOff'));
+    button.click();
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    button.click();
+    expect(sent(p)).toEqual([{ t: 'prefs', cua: true }, { t: 'prefs', cua: false }]);
+  });
+
+  it('in the menu, its tile shows computer use off once a click switched it off', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['cua'], cua: { on: true, canOpen: true } });
+    p.openMenu();
+    const tile = p.doc.querySelector('.menu [data-action="cua"]');
+    tile.click();
+    expect(tile.getAttribute('aria-pressed')).toBe('false');
   });
 });
 

@@ -1398,7 +1398,8 @@
 /* Specific enough to win over the card's own position:relative further down. */
 .connection-cards>.connection-card.connection-drag-copy{position:absolute;left:3px;z-index:20;margin:0;pointer-events:none;transform:none;box-shadow:0 0 0 1px var(--line),0 14px 30px -14px var(--shadow-strong);transition:none}
 .connection-name,.connection-status,.connection-secondary{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.connection-name{font:700 17px/1.25 var(--sans)}
+/* 2px more room above and below inside its clip, for accents and descenders in every script's font, without moving it */
+.connection-name{font:700 17px/1.25 var(--sans);padding-block:2px;margin-block:-2px}
 .connection-facts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;min-width:0}
 .connection-facts .kv{max-width:100%}.connection-facts .kv-v{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-block:3px;margin-block:-3px}
 .kv-kind{--kv-line:color-mix(in srgb,var(--ink-blue) 60%,transparent)}.kv-model{--kv-line:color-mix(in srgb,var(--accent-2) 75%,transparent)}

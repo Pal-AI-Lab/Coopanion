@@ -80,7 +80,9 @@ body.tab .stage-mode{position:fixed}
 .stage-mode svg{width:17px; height:17px; display:block}
 body.desk{background:transparent}
 body.desk .floor{display:none}
-.stage{position:fixed; inset:0; touch-action:none}
+/* --pet-opacity: the transparency on screen (pet-app.js stepFade), on the body and every bubble, never on the controls */
+.stage{position:fixed; inset:0; touch-action:none; opacity:var(--pet-opacity, 1); transition:opacity .2s ease}
+@media (prefers-reduced-motion: reduce){.stage{transition:none}}
 /* the body's sandboxed frame: transparent (a colour scheme unlike the frame's would give it a backdrop) and never under the pointer */
 .figure-layer{position:absolute; inset:0; pointer-events:none}
 /* the frame's window onto the stage: body-host cuts it down to the body's surroundings while the halo is on */
@@ -145,6 +147,7 @@ body.desk .floor{display:none}
   border:2.5px solid var(--skin-ink); box-shadow:0 8px 22px var(--shadow);
   font-size:calc(14.5px * var(--bubble-font, 1)); line-height:1.55;
   transform-origin:var(--tail, 50%) calc(100% + calc(10px * var(--bubble-size, 1)));
+  opacity:var(--pet-opacity, 1); transition:opacity .2s ease;
 }
 /* tail: an outline triangle whose base lies inside the border, so its sides join the border, and a
    surface triangle one line width inside it that opens the border between the sides. Neither is
@@ -167,8 +170,8 @@ body.desk .floor{display:none}
    hover buttons are; older ones step back; a fading one lets the pointer through. Its text shows six rows at most. */
 .bubble.said{transition:opacity .4s ease, border-color .15s}
 .bubble.said.settled{cursor:pointer}
-.bubble.said.settled:hover{border-color:var(--skin-eye); opacity:1}
-.bubble.said.older{opacity:.62}
+.bubble.said.settled:hover{border-color:var(--skin-eye); opacity:var(--pet-opacity, 1)}
+.bubble.said.older{opacity:calc(.62 * var(--pet-opacity, 1))}
 .bubble.said.fading{opacity:0; pointer-events:none}
 .bubble.said.settled .b-text{display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:6; line-clamp:6; overflow:hidden}
 /* the way a line came, before its text: the voice button's microphone, the chat page's arrows */
@@ -543,48 +546,50 @@ body.desk .floor{display:none}
 .pet-scale.stepping > .ps-thumb{transition:left .12s ease-out, scale .15s ease}
 .pet-scale.stepping > .ps-fill{transition:width .12s ease-out}
 @media (prefers-reduced-motion: reduce){.pet-scale.stepping > .ps-thumb, .pet-scale.stepping > .ps-fill{transition:none}}
-/* the size slider over the body (pet-app.js stepSizer): no backdrop, as the look wheel. The bar is drawn as the hover
-   buttons are (the surface, the body's 2px outline, their shadow), the fill and the knob in the body's accent; the
-   percentage is a small button-like label over the knob */
-.sizer{position:fixed; z-index:6; display:flex; align-items:center; padding:32px 8px 10px}
-.sizer[hidden]{display:none}
-.sizer .pet-scale{height:28px}
-.sizer .pet-scale > .ps-main, .sizer .pet-scale > .ps-tail{
+/* the size and transparency sliders over the body (pet-app.js stepSlider): no backdrop, as the look wheel. The bar is
+   drawn as the hover buttons are (the surface, the body's 2px outline, their shadow), the fill and the knob in the body's
+   accent; the percentage is a small button-like label over the knob */
+.head-slider{position:fixed; z-index:6; display:flex; align-items:center; padding:32px 8px 10px}
+.head-slider[hidden]{display:none}
+.head-slider .pet-scale{height:28px}
+.head-slider .pet-scale > .ps-main, .head-slider .pet-scale > .ps-tail{
   top:6px; height:16px; box-sizing:border-box; background-color:var(--surface); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
 }
-.sizer .pet-scale > .ps-main{border-radius:8px 0 0 8px; border-right:0}
+.head-slider .pet-scale > .ps-main{border-radius:8px 0 0 8px; border-right:0}
+/* the transparency slider has no stretch past a divider */
+.head-slider .pet-scale > .ps-main:has(~ .ps-tail[hidden]){border-radius:8px; border-right:2px solid var(--skin-ink)}
 /* past the divider: the same bar with a dashed middle, as the settings window's slider marks it */
-.sizer .pet-scale > .ps-tail{
+.head-slider .pet-scale > .ps-tail{
   border-radius:0 8px 8px 0; border-left:0;
   background-image:repeating-linear-gradient(90deg, color-mix(in srgb, var(--skin-ink) 45%, transparent) 0 4px, transparent 4px 8px);
   background-size:100% 4px; background-position:0 50%; background-repeat:no-repeat;
 }
-.sizer .pet-scale > .ps-fill{left:4px; top:11px; height:6px; border-radius:3px; background:var(--skin-eye)}
-.sizer .pet-scale > .ps-divider{top:3px; height:22px; width:3px; margin-left:-1.5px; border-radius:2px; background:var(--skin-ink)}
-.sizer .pet-scale.past > .ps-divider{background:var(--skin-eye)}
-.sizer .pet-scale > .ps-thumb{
+.head-slider .pet-scale > .ps-fill{left:4px; top:11px; height:6px; border-radius:3px; background:var(--skin-eye)}
+.head-slider .pet-scale > .ps-divider{top:3px; height:22px; width:3px; margin-left:-1.5px; border-radius:2px; background:var(--skin-ink)}
+.head-slider .pet-scale.past > .ps-divider{background:var(--skin-eye)}
+.head-slider .pet-scale > .ps-thumb{
   top:3px; width:22px; height:22px; margin-left:-11px; box-sizing:border-box;
   background:var(--skin-eye); border:3px solid var(--surface); box-shadow:0 0 0 2px var(--skin-ink), 0 6px 16px var(--shadow);
   transition:scale .15s ease;
 }
-.sizer .pet-scale:hover > .ps-thumb{scale:1.1}
+.head-slider .pet-scale:hover > .ps-thumb{scale:1.1}
 /* held: dragged, or stepped by the wheel a moment ago */
-.sizer .pet-scale:is(:active, .stepping) > .ps-thumb{scale:1.2}
-.sizer .sz-value{
+.head-slider .pet-scale:is(:active, .stepping) > .ps-thumb{scale:1.2}
+.head-slider .hs-value{
   position:absolute; left:50%; bottom:calc(100% + 8px); translate:-50% 0; min-width:44px; padding:2px 8px; box-sizing:border-box;
   border-radius:999px; text-align:center; white-space:nowrap; pointer-events:none;
   font-size:12px; font-weight:600; line-height:16px; font-variant-numeric:tabular-nums;
   background:var(--surface); color:var(--text); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
 }
-.sizer.entering{animation:sz-in .24s cubic-bezier(.3,1.4,.5,1) backwards}
+.head-slider.entering{animation:hs-in .24s cubic-bezier(.3,1.4,.5,1) backwards}
 /* a group of controls let go of glides back beside the body (pet-app.js follow, RETURN_MS) */
-:is(.tools, .wheel, .sizer, .m-grid, .m-rail).returning{transition:left .26s cubic-bezier(.2,.7,.3,1), top .26s cubic-bezier(.2,.7,.3,1), right .26s cubic-bezier(.2,.7,.3,1)}
-/* the size button while it holds the slider open (pet-app.js pinSizer) */
-.tool[data-action="size"].on{color:var(--skin-eye); border-color:var(--skin-eye)}
-/* SIZER_OUT_MS in pet-app.js */
-.sizer.leaving{animation:sz-out .14s ease-in forwards; pointer-events:none}
-@keyframes sz-in{from{transform:translateY(8px) scale(.6); opacity:0}}
-@keyframes sz-out{to{transform:translateY(8px) scale(.6); opacity:0}}
-@media (prefers-reduced-motion: reduce){.sizer{animation:none}}
+:is(.tools, .wheel, .head-slider, .m-grid, .m-rail).returning{transition:left .26s cubic-bezier(.2,.7,.3,1), top .26s cubic-bezier(.2,.7,.3,1), right .26s cubic-bezier(.2,.7,.3,1)}
+/* a size or transparency button while it holds its slider open (pet-app.js pinSlider) */
+.tool:is([data-action="size"], [data-action="fade"]).on{color:var(--skin-eye); border-color:var(--skin-eye)}
+/* SLIDER_OUT_MS in pet-app.js */
+.head-slider.leaving{animation:hs-out .14s ease-in forwards; pointer-events:none}
+@keyframes hs-in{from{transform:translateY(8px) scale(.6); opacity:0}}
+@keyframes hs-out{to{transform:translateY(8px) scale(.6); opacity:0}}
+@media (prefers-reduced-motion: reduce){.head-slider{animation:none}}
 
 .fireworks{position:absolute; pointer-events:none}

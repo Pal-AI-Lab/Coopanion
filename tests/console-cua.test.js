@@ -6,6 +6,7 @@ import { transferableAbortController } from 'node:util';
 import { petPage } from '../console/features/pet/index.ts';
 import { CUA_GROUP } from '../console/features/cua/index.ts';
 import { S } from '../console/features/cua/strings.ts';
+import { S as PET } from '../console/features/pet/strings.ts';
 import { createConsoleUi } from '../console/base/ui/index.ts';
 import { Lifecycle } from '../console/base/lifecycle.ts';
 
@@ -147,4 +148,49 @@ it('keeps a pending confirmation and a focused grant edit intact during polling'
   grant.blur();
   await vi.advanceTimersByTimeAsync(3000);
   await vi.waitFor(() => expect(grant.value).toBe('30'));
+});
+
+it('asks to turn computer use on when the page already shown is sent to ?cua=enable', async () => {
+  values[key('enabled')] = false;
+  // jsdom lays nothing out
+  Element.prototype.scrollIntoView = () => {};
+  await mount();
+  expect(document.body.textContent).not.toContain(S.riskOk);
+  location.hash = '#/pet?cua=enable';
+  await vi.waitFor(() => expect(document.body.textContent).toContain(S.riskOk));
+  expect(location.hash).toBe('#/pet');
+});
+
+it('asks before the computer use hover button is added, keeps a yes, and does not ask again', async () => {
+  values[key('enabled')] = false;
+  await mount();
+  const HOVER = 'worlds.desktop-pet.hoverButtons';
+  const button = [...document.querySelectorAll('.companion-hoverbtn')].find((b) => b.title === PET.actions.cua);
+  const answer = (ok) => [...document.querySelectorAll('.confirm-card button')].find((b) => (b.textContent === S.hoverRiskOk) === ok).click();
+  button.click();
+  await vi.waitFor(() => expect(document.querySelector('.confirm-card')?.textContent).toContain(S.hoverRiskTitle));
+  answer(false);
+  await vi.waitFor(() => expect(document.querySelector('.confirm-card')).toBeNull());
+  expect(values[HOVER]).toBeUndefined();
+  expect(button.classList.contains('on')).toBe(false);
+  button.click();
+  await vi.waitFor(() => expect(document.querySelector('.confirm-card')).not.toBeNull());
+  answer(true);
+  await vi.waitFor(() => expect(values[HOVER]).toContain('cua'));
+  expect(values[key('risksConfirmed')]).toBe(true);
+  // taken off and put back: no dialog
+  button.click();
+  await vi.waitFor(() => expect(values[HOVER]).not.toContain('cua'));
+  button.click();
+  await vi.waitFor(() => expect(values[HOVER]).toContain('cua'));
+  expect(document.querySelector('.confirm-card')).toBeNull();
+});
+
+it('turns computer use on without the dialog once the risks were confirmed', async () => {
+  values[key('enabled')] = false;
+  values[key('risksConfirmed')] = true;
+  const { enabled } = await mount();
+  enabled.click();
+  await vi.waitFor(() => expect(values[key('enabled')]).toBe(true));
+  expect(document.querySelector('.confirm-card')).toBeNull();
 });

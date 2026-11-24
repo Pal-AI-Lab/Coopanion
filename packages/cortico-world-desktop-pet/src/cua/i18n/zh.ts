@@ -43,6 +43,7 @@ export default {
   config: {
     group: '电脑操作',
     enabled: { title: '启用电脑操作' },
+    risksConfirmed: { title: "已确认风险说明", description: "打开电脑操作或把它加进悬停按钮时已确认过风险说明；开着时，悬停按钮可以直接打开电脑操作。" },
     control: { title: '允许操作鼠标和键盘', description: '关闭后只能截图和列出窗口。' },
     permission: { title: '询问时机', description: 'ask-each-turn：每轮查看屏幕或操作前都询问；ask-before-acting：查看屏幕不询问，每轮操作鼠标键盘前询问；ask-once：查看屏幕不询问，操作前询问一次，同意后在「同意有效期」内不再询问；never-ask：从不询问。没有打开「关闭使用终端和运行前的询问」时，无论选哪一档，在命令行窗口里输入或按键、按 win+r 之前，都会单独询问一次，同意后在「同意有效期」内不再询问。' },
     grantMinutes: { title: '同意有效期', suffix: '分钟', description: '对 ask-once 和命令行窗口的单独询问有效。' },

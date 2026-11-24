@@ -32,7 +32,7 @@ document.body.classList.add(host ? 'desk' : 'tab');
 
 const stage = $('#stage');
 const bubble = $('#bubble'), menu = $('#menu');
-const tools = $('#tools'), wheel = $('#wheel'), sizerEl = $('#sizer');
+const tools = $('#tools'), wheel = $('#wheel');
 // Coo's drawing classes for the look wheel's pictures; the bubbles and buttons take their colours from Coo's palette
 // another pack's body sets the theme color instead (accentStyle, after skinStyle so it wins)
 const cooStyle = document.createElement('style'), skinStyle = document.createElement('style'), accentStyle = document.createElement('style');
@@ -59,6 +59,10 @@ const prefs = {
   /** Frames a second while the body moves; 0 follows the display. */
   frameRate: 60,
   lockFrameRate: false,
+  /** How transparent the body and its bubbles are, in percent, as usual and during full screen (stepFade). */
+  fade: 0, fullscreenFade: 0,
+  /** Computer use is on; the person confirmed its risks, so the button turns it on too; the app can show its switch. */
+  cua: { on: false, confirmed: false, canOpen: false },
   /** Every click passes through the pet (the tray's "click through"): no hover buttons, and a bubble under the cursor does not wait. */
   clickThrough: false,
 };
@@ -149,12 +153,15 @@ function connect() {
 let windowShown = true;
 function reportVisibility() { if (host) send({ t: 'visibility', hidden: !windowShown }); }
 // the page itself always reads as visible (its window does not throttle it): the window process says when it is hidden
-host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVisibility(); if (!shown) pinSizer(false); });
+host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVisibility(); if (!shown) pinSlider(null); });
 /** Clicks pass through because a fullscreen window covers the pet's display and the setting says so; the window process decides. */
 let fullscreenThrough = false;
 host?.onFullscreenThrough?.((on) => { fullscreenThrough = on; });
 /** Every click passes through the pet right now, by the tray or the fullscreen setting. */
 const clicksPass = () => prefs.clickThrough || fullscreenThrough;
+/** The transparency during full screen holds: its setting is on and a fullscreen window covers the display; the window process decides. */
+let fullscreenFaded = false;
+host?.onFullscreenFade?.((on) => { fullscreenFaded = on; refreshSlider(); });
 
 /* ---------- OBS overlay: while the window streams, each frame drawn is reported with the part it sends, the pet and its bubbles ---------- */
 let overlayOn = false;
@@ -184,8 +191,8 @@ function overlayRect() {
 host?.onOverlay?.((on) => { overlayOn = on; });
 
 /* ---------- portrait: a picture of the body alone, which the World asks for when the bot looks at itself ---------- */
-/** What the page draws over the stage: the bubbles, the menu's two sides, the hover buttons, the look wheel, the size slider and the hover hint. */
-const OVER_STAGE = '.bubble, .menu > *, .tools, .wheel, .sizer, .hint';
+/** What the page draws over the stage: the bubbles, the menu's two sides, the hover buttons, the look wheel, the slider over the head and the hover hint. */
+const OVER_STAGE = '.bubble, .menu > *, .tools, .wheel, .head-slider, .hint';
 /**
  * The longest the picture waits for the page's next frame, and then for the display, in milliseconds each: a dozen
  * display refreshes at 60 a second. A page that gets no refresh (its window wholly covered) goes on after it.
@@ -214,6 +221,9 @@ async function takePortrait(id) {
   if (!rect) return fail('no-body');
   const over = [...document.querySelectorAll(OVER_STAGE)].filter((el) => !el.closest('[hidden]') && overlaps(shadowed(partRect(el)), rect));
   for (const el of over) el.style.visibility = 'hidden';
+  // the picture is of the body as it is drawn, whatever its transparency on screen
+  stage.style.transition = 'none';
+  stage.style.opacity = '1';
   try {
     // by the second refresh the display has what the body drew for that frame, without what was over it
     await soon((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
@@ -223,6 +233,9 @@ async function takePortrait(id) {
     fail('capture');
   } finally {
     for (const el of over) el.style.visibility = '';
+    stage.style.opacity = '';
+    void stage.offsetWidth;
+    stage.style.transition = '';
   }
 }
 /** One picture at a time: a second order waits until the first has put back what it left out. */
@@ -382,9 +395,12 @@ function applyPrefs(p) {
   if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); modeBtn?.show(p.theme); body?.set({ theme: p.theme }); }
   if (typeof p.glow === 'number') prefs.glow = p.glow;
   if (typeof p.scale === 'number') {
-    if (!scaleSeen) { scaleSeen = true; prefs.scale = p.scale; drawnScale.jump(p.scale); body?.set({ bounds: bounds() }); refreshSize(); }
-    else sizeHeard.heard(p.scale, sizer.active || !!sizerState.timer);
+    if (!scaleSeen) { scaleSeen = true; prefs.scale = p.scale; drawnScale.jump(p.scale); body?.set({ bounds: bounds() }); refreshSlider(); }
+    else sizeHeard.heard(p.scale, SLIDERS.size.bar.active || !!sliderState.timers.size);
   }
+  for (const key of ['fade', 'fullscreenFade']) if (typeof p[key] === 'number') fadeHeard[key].heard(p[key], fadeKey() === key && (SLIDERS.fade.bar.active || !!sliderState.timers.fade));
+  if (typeof p.fadeWhenFullscreen === 'boolean') host?.fadeWhenFullscreen?.(p.fadeWhenFullscreen);
+  if (p.cua && typeof p.cua === 'object') prefs.cua = { on: p.cua.on === true, confirmed: p.cua.confirmed === true, canOpen: p.cua.canOpen === true };
   const sized = [prefs.bubbleSize, prefs.fontSize];
   if (typeof p.bubbleSize === 'number') { prefs.bubbleSize = p.bubbleSize; sizeVar('--bubble-size', p.bubbleSize); }
   if (typeof p.fontSize === 'number') { prefs.fontSize = p.fontSize; sizeVar('--bubble-font', p.fontSize); }
@@ -1624,15 +1640,25 @@ const ACTIONS = {
     run: () => host.hide(),
   },
   size: {
-    // hovering it shows the size slider for a moment (stepSizer); a click, or a tap where nothing hovers, pins it (pinSizer);
+    // hovering it shows the size slider for a moment (stepSlider); a click, or a tap where nothing hovers, pins it (pinSlider);
     // only on the desktop: a tab draws the body at one size
     available: () => !!host,
     keep: true,
     icon: () => ICONS.resize,
     // lit while pinned; no switch state otherwise, so it is not drawn as a switch turned off
-    on: () => sizerPinned || undefined,
+    on: () => pinned === 'size' || undefined,
     state: () => t('action.size', { pct: Math.round(prefs.scale * 100) }),
-    run: () => pinSizer(!sizerPinned),
+    run: () => pinSlider(pinned === 'size' ? null : 'size'),
+  },
+  // the transparency slider, opened and pinned as the size slider is; it sets the transparency on screen (fadeKey);
+  // only on the desktop, where the body fades
+  fade: {
+    available: () => !!host,
+    keep: true,
+    icon: () => ICONS.fade,
+    on: () => pinned === 'fade' || undefined,
+    state: () => t(fullscreenFaded ? 'action.fadeFullscreen' : 'action.fade', { pct: prefs[fadeKey()] }),
+    run: () => pinSlider(pinned === 'fade' ? null : 'fade'),
   },
   dress: {
     icon: () => ICONS.shirt,
@@ -1642,6 +1668,22 @@ const ACTIONS = {
       if (prefs.bot?.buttons?.dress) send({ t: 'control', action: 'dress' });
       else if (host?.openDress) host.openDress();
       else window.open('/dress', '_blank');
+    },
+  },
+  // a switch once the person confirmed the risks (on the 「习惯」 page, turning it on or adding this button); before that,
+  // off, a click opens the settings window's switch, which shows the risks first
+  cua: {
+    available: () => prefs.cua.on || prefs.cua.confirmed || prefs.cua.canOpen,
+    get keep() { return prefs.cua.on || prefs.cua.confirmed; },
+    icon: () => (prefs.cua.on ? ICONS.computer : ICONS.computerOff),
+    on: () => prefs.cua.on,
+    state: () => t(prefs.cua.on ? 'action.cuaOn' : prefs.cua.confirmed ? 'action.cuaOff' : 'action.cuaOffAsk'),
+    run: () => {
+      if (!prefs.cua.on && !prefs.cua.confirmed) { send({ t: 'control', action: 'cua' }); return; }
+      // shown at once; the World's next prefs confirm it
+      const on = !prefs.cua.on;
+      prefs.cua = { ...prefs.cua, on };
+      send({ t: 'prefs', cua: on });
     },
   },
   worlds: {
@@ -1700,7 +1742,7 @@ function openMenu() {
   const ids = menuActions();
   // nothing to show: no hover buttons picked, and no run controls lent
   if (!ids.length && !prefs.bot?.controls) return;
-  pinSizer(false);
+  pinSlider(null);
   // the hover buttons showing become the menu's: each slides from where it stood to its tile, and only the rest pop out
   const was = new Map();
   if (!tools.hidden && !leaving(tools)) for (const b of tools.children) was.set(b.dataset.action, laidAt(b));
@@ -1720,9 +1762,11 @@ function openMenu() {
     drawAction(b, id);
     b.addEventListener('click', () => {
       sfx.tick();
-      if (!a.keep) closeMenu();
+      // as the button was clicked: running it may change whether it keeps the menu open (computer use)
+      const keep = a.keep;
+      if (!keep) closeMenu();
       a.run();
-      if (a.keep) drawAction(b, id);
+      if (keep) drawAction(b, id);
     });
     grid.appendChild(b);
   }
@@ -1972,12 +2016,21 @@ function hideNow(el, anim) {
   el.classList.remove('entering', 'leaving');
   el.hidden = true;
 }
+/**
+ * What opens over the head, one at a time: the look wheel and each slider, every one its own element with its own
+ * animations. `close` plays its leaving animation.
+ */
+const HEAD = [];
+/** `el` takes the place over the head: every other one there leaves with its animation as `el` enters with its own. */
+function claimHead(el) { for (const o of HEAD) if (o.el !== el && !o.el.hidden && !leaving(o.el)) o.close(); }
+/** Something other than `el` is in the place over the head, not leaving it. */
+const headTaken = (el) => HEAD.some((o) => o.el !== el && !o.el.hidden && !leaving(o.el));
 function stepTools() {
   // shown while the cursor is on the pet or on the buttons, and a moment after it leaves; decided
   // from where the cursor is now, not from the last move event, which may be stale
   const p = cursor.at;
   const l = at();
-  const near = sizer.active || (!!p && (body?.hit(p) || overTools(p) || overWheel(p) || overSizer(p)));
+  const near = sliding() || (!!p && (body?.hit(p) || overTools(p) || overWheel(p) || overSlider(p)));
   if (!near) toolsMuted = false;
   if (near && !toolsMuted) toolsUntil = T + TOOLS_LINGER;
   const confirming = item?.kind === 'ask' && item.confirm && !item.answered;
@@ -2035,14 +2088,14 @@ async function openWheel() {
   if (leaving(wheel)) { clearTimeout(wheelAnim.leave); wheel.classList.remove('leaving'); drawWheel(); return; }
   if (!wheel.hidden || wheelState.opening) return;
   // a slider being dragged keeps its place over the head: the row opens once it is let go
-  if (sizer.active) return;
-  pinSizer(false);
-  closeSizer();
+  if (sliding()) return;
+  pinSlider(null);
+  claimHead(wheel);
   wheelState.opening = true;
   const items = await wheelItems().catch(() => []);
   wheelState.opening = false;
-  // the size slider opened while the favourites were read: one of the two at a time
-  if (!sizerEl.hidden && !leaving(sizerEl)) return;
+  // something else took the place over the head while the favourites were read: one at a time
+  if (headTaken(wheel)) return;
   if (!items.length) { wheelState.empty = true; return; }
   wheelState.items = items;
   wheelState.at = Math.max(0, items.findIndex((i) => i.on));
@@ -2078,6 +2131,8 @@ function closeWheel() {
   foldWheel();
   popOut(wheel, wheelAnim, WHEEL_OUT_MS);
 }
+
+HEAD.push({ el: wheel, close: closeWheel });
 
 /** Every look gathered small and faint in the middle of the row: where it fans out from and folds back into. */
 function foldWheel() {
@@ -2137,7 +2192,7 @@ function overAction(p, id) {
   return false;
 }
 /**
- * Whether a control a hover opened over the head (`el`, the look wheel or the size slider) waits on: the pointer is still
+ * Whether a control a hover opened over the head (`el`, the look wheel or a slider, or none yet) waits on: the pointer is still
  * among the pet's controls, that is on the hover buttons, on the menu, or in the column the body's box and `el` span
  * together, `el` itself included. Its short linger counts only once the pointer has left them all, so going from one
  * button to another, or across a large body to the control over its head, does not close it.
@@ -2146,7 +2201,7 @@ function amongControls(p, el) {
   if (!p) return false;
   if (overTools(p) || overMenu(p)) return true;
   const l = at();
-  if (!l || el.hidden || leaving(el)) return false;
+  if (!l || !el || el.hidden || leaving(el)) return false;
   const r = el.getBoundingClientRect(), b = l.box;
   return inRect(p, { left: Math.min(r.left, b.x), right: Math.max(r.right, b.x + b.w), top: Math.min(r.top, b.y), bottom: Math.max(r.bottom, b.y + b.h) }, 6);
 }
@@ -2172,106 +2227,184 @@ document.addEventListener('wheel', (e) => {
   wheelState.until = T + WHEEL_LINGER;
 }, { passive: false });
 
-/* ---------- size slider: hovering a size button shows a slider over the body; the body takes each size at once ---------- */
-/** Seconds the slider stays after the pointer leaves it and every size button. */
-const SIZER_LINGER = .35;
+/* ---------- sliders over the head: hovering a size or transparency button shows its slider over the body, which follows it at once ---------- */
+/** Seconds the slider stays after the pointer leaves it and every button of its kind. */
+const SLIDER_LINGER = .35;
+/** Milliseconds the slider takes to fold away (`.head-slider.leaving` in pet.css). */
+const SLIDER_OUT_MS = 140;
+/** Milliseconds between the values sent to the World while the slider moves. */
+const SLIDER_SEND_MS = 120;
+/** The transparency range in percent (src/config.ts FADE_MAX, FADE_STEP). */
+const FADE = { min: 0, soft: 95, max: 95, step: 5 };
 /**
- * Whether a click on a size button pinned the slider. It stays until that button is clicked again, the pointer goes down
- * anywhere else, the window loses focus (a click in another program), Escape, or the menu, the look wheel or a bubble
- * takes the place.
+ * The slider a click on its button pinned, `size` or `fade`, or null. It stays until that button is clicked again, the
+ * pointer goes down anywhere else, the window loses focus (a click in another program), Escape, or the menu, the look
+ * wheel or a bubble takes the place.
  */
-let sizerPinned = false;
-function pinSizer(on) {
-  if (sizerPinned === on) return;
-  sizerPinned = on;
-  if (on && (sizerEl.hidden || leaving(sizerEl))) openSizer();
-  if (!on) closeSizer();
-  refreshButtons();
-}
-/** Milliseconds the slider takes to fold away (`.sizer.leaving` in pet.css). */
-const SIZER_OUT_MS = 140;
-/** Milliseconds between the sizes sent to the World while the slider moves. */
-const SIZE_SEND_MS = 120;
-const sizerText = document.createElement('span');
-sizerText.className = 'sz-value';
-const sizer = scaleSlider(document, {
-  ...SIZE, label: '',
+let pinned = null;
+/** Until when the slider waits on; per kind, the send due while it moves; the wheel's travel toward a step. */
+const sliderState = { until: 0, timers: { size: 0, fade: 0 }, acc: 0 };
+const bar = (o) => scaleSlider(document, {
+  ...o, label: '',
   widths: { collapsed: { width: 160, main: .86 }, expanded: { width: 240, main: .45 } },
   room: () => innerWidth - 120,
-  onInput: (v) => setSize(v),
-  onChange: () => sendSize(),
 });
-// the percentage rides on the knob
-sizerEl.append(sizer.el);
-sizer.el.querySelector('.ps-thumb').append(sizerText);
-const sizerState = { until: 0, timer: 0, acc: 0 };
-/** Sizes the World pushes, held while the slider is in use or newer sizes from it are on their way (scale-slider.js sizeEcho). */
-const sizeHeard = sizeEcho((v) => { if (v === prefs.scale) return; prefs.scale = v; if (!switching()) toSize(v); refreshSize(); });
-const sizerAnim = { enter: 0, leave: 0 };
+/**
+ * Each slider: its bar, the value it shows, that value on the knob, and the bar's name. Each gets its own element in
+ * the place over the head (`.head-slider[data-kind]`), so one taking over from another, or from the look wheel, plays
+ * the leaving and entering animations; a slider added here gets a hover button of the same id.
+ */
+const SLIDERS = {
+  size: {
+    bar: bar({ ...SIZE, onInput: (v) => setSize(v), onChange: () => sendSlider('size') }),
+    value: () => prefs.scale,
+    text: (v) => `${Math.round(v * 100)}%`,
+    label: () => t('action.sizeLabel'),
+  },
+  fade: {
+    bar: bar({ ...FADE, format: (v) => `${v}%`, onInput: (v) => setFade(v), onChange: () => sendSlider('fade') }),
+    value: () => prefs[fadeKey()],
+    text: (v) => `${v}%`,
+    label: () => t(fullscreenFaded ? 'action.fadeFullscreenLabel' : 'action.fadeLabel'),
+  },
+};
+for (const [kind, s] of Object.entries(SLIDERS)) {
+  s.el = Object.assign(document.createElement('div'), { className: 'head-slider', hidden: true });
+  s.el.dataset.kind = kind;
+  s.anim = { enter: 0, leave: 0 };
+  s.valueEl = Object.assign(document.createElement('span'), { className: 'hs-value' });
+  s.el.append(s.bar.el);
+  s.bar.el.querySelector('.ps-thumb').append(s.valueEl);
+  document.body.insertBefore(s.el, wheel.nextSibling);
+  HEAD.push({ el: s.el, close: () => closeSlider(kind) });
+}
+/** The hover buttons that open a slider. */
+const SLIDER_BUTTONS = Object.keys(SLIDERS).map((k) => `[data-action="${k}"]`).join(', ');
+/** A slider is being dragged. */
+const sliding = () => Object.values(SLIDERS).some((s) => s.bar.active);
+/** The slider in the place over the head and not leaving it, or null. */
+const shownSlider = () => Object.keys(SLIDERS).find((k) => !SLIDERS[k].el.hidden && !leaving(SLIDERS[k].el)) ?? null;
+/** Values the World pushes, held while their slider is in use or newer values from it are on their way (scale-slider.js sizeEcho). */
+const sizeHeard = sizeEcho((v) => { if (v === prefs.scale) return; prefs.scale = v; if (!switching()) toSize(v); refreshSlider(); });
+const fadeHeard = Object.fromEntries(['fade', 'fullscreenFade'].map((key) => [key, sizeEcho((v) => { prefs[key] = v; refreshSlider(); })]));
 
-/** Draws the body at `v` now and sends it within SIZE_SEND_MS. */
+function pinSlider(kind) {
+  if (pinned === kind) return;
+  const was = pinned;
+  pinned = kind;
+  if (kind) openSlider(kind);
+  // unpinned with the pointer on its button, it stays as a hover holds it rather than leaving and coming straight back
+  else if (!(cursor.at && overAction(cursor.at, was))) closeSlider();
+  refreshButtons();
+}
+/** Draws the body at `v` now and sends it within SLIDER_SEND_MS. */
 function setSize(v) {
   prefs.scale = v;
   toSize(v);
-  refreshSize();
-  sizerState.timer ||= setTimeout(sendSize, SIZE_SEND_MS);
+  refreshSlider();
+  sliderState.timers.size ||= setTimeout(() => sendSlider('size'), SLIDER_SEND_MS);
 }
-function sendSize() {
-  clearTimeout(sizerState.timer);
-  sizerState.timer = 0;
-  sizeHeard.sent(prefs.scale);
-  send({ t: 'prefs', scale: prefs.scale });
+/** Shows the transparency on screen at `v` from the next frame (stepFade) and sends it within SLIDER_SEND_MS. */
+function setFade(v) {
+  prefs[fadeKey()] = v;
+  refreshSlider();
+  sliderState.timers.fade ||= setTimeout(() => sendSlider('fade'), SLIDER_SEND_MS);
 }
-function refreshSize() {
-  sizerText.textContent = `${Math.round(prefs.scale * 100)}%`;
-  sizer.el.setAttribute('aria-label', t('action.sizeLabel'));
-  if (!sizer.active) sizer.set(prefs.scale);
-  for (const b of document.querySelectorAll('[data-action="size"]')) drawAction(b, 'size');
+function sendSlider(kind) {
+  clearTimeout(sliderState.timers[kind]);
+  sliderState.timers[kind] = 0;
+  if (kind === 'size') { sizeHeard.sent(prefs.scale); send({ t: 'prefs', scale: prefs.scale }); return; }
+  const key = fadeKey();
+  fadeHeard[key].sent(prefs[key]);
+  send({ t: 'prefs', [key]: prefs[key] });
+}
+function refreshSlider() {
+  for (const s of Object.values(SLIDERS)) {
+    s.valueEl.textContent = s.text(s.value());
+    s.bar.el.setAttribute('aria-label', s.label());
+    if (!s.bar.active) s.bar.set(s.value());
+  }
+  for (const b of document.querySelectorAll(SLIDER_BUTTONS)) drawAction(b, b.dataset.action);
 }
 
-function openSizer() {
-  // back over a size button while the slider folds away: it stays
-  if (leaving(sizerEl)) { clearTimeout(sizerAnim.leave); sizerEl.classList.remove('leaving'); return; }
-  closeWheel();
-  refreshSize();
-  popIn(sizerEl, sizerAnim);
-  sizer.relayout();
+/** Opens the slider of `kind`; whatever else is over the head leaves as it enters (claimHead). */
+function openSlider(kind) {
+  const s = SLIDERS[kind];
+  claimHead(s.el);
+  refreshSlider();
+  // hidden, or back over its button while it folds away: it enters again rather than jumping back
+  if (s.el.hidden || leaving(s.el)) popIn(s.el, s.anim);
+  s.bar.relayout();
   const l = at();
-  if (l) placeSizer(l);
+  if (l) placeSlider(kind, l);
 }
-function closeSizer() {
-  if (sizerEl.hidden || leaving(sizerEl) || sizer.active) return;
-  popOut(sizerEl, sizerAnim, SIZER_OUT_MS);
+/** Closes the slider of `kind`, or every slider, unless it is being dragged. */
+function closeSlider(kind) {
+  for (const k of kind ? [kind] : Object.keys(SLIDERS)) {
+    const s = SLIDERS[k];
+    if (s.el.hidden || leaving(s.el) || s.bar.active) continue;
+    popOut(s.el, s.anim, SLIDER_OUT_MS);
+  }
 }
 /** Centred over the body, just above its head, where the look wheel opens; it follows the head as other controls do (`follow`). */
-function placeSizer(l) {
-  const b = l.box, w = sizerEl.offsetWidth, h = sizerEl.offsetHeight;
-  sizerEl.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
-  // the slider's box holds the percentage's bubble over the knob: its bottom sits just over the head
-  sizerEl.style.top = f(clamp(b.y - h - 10, 8, innerHeight - h - 8)) + 'px';
+function placeSlider(kind, l) {
+  const el = SLIDERS[kind].el, b = l.box, w = el.offsetWidth, h = el.offsetHeight;
+  el.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
+  // the slider's box holds the value's bubble over the knob: its bottom sits just over the head
+  el.style.top = f(clamp(b.y - h - 10, 8, innerHeight - h - 8)) + 'px';
 }
-function overSizer(p) { return !sizerEl.hidden && !leaving(sizerEl) && inRect(p, sizerEl.getBoundingClientRect(), 6); }
-function stepSizer() {
+/** The pointer is on the slider of `kind`, or on the one shown. */
+function overSlider(p, kind = shownSlider()) {
+  const el = kind && SLIDERS[kind].el;
+  return !!el && !el.hidden && !leaving(el) && inRect(p, el.getBoundingClientRect(), 6);
+}
+function stepSlider() {
   const p = cursor.at;
-  const button = !!p && overAction(p, 'size');
+  const over = (p && Object.keys(SLIDERS).find((k) => overAction(p, k))) ?? null;
   // a bubble over the pet (the typing box, a reply, a question) takes the slider's place until it closes; with every
   // click passing through the window it could not be used
-  if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { pinSizer(false); closeSizer(); return; }
-  if (sizer.active || sizerPinned || amongControls(p, sizerEl)) sizerState.until = T + SIZER_LINGER;
-  if (button && sizerEl.hidden && !clicksPass()) openSizer();
-  if (!sizerEl.hidden && T > sizerState.until) closeSizer();
+  if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { pinSlider(null); closeSlider(); return; }
+  // over another kind's button, its slider takes the place, unless the one there is held
+  if (over && over !== shownSlider() && !sliding()) {
+    if (pinned && pinned !== over) pinSlider(null);
+    openSlider(over);
+  }
+  // decided after opening: the slider just opened waits on as the pointer rests on its button
+  const shown = shownSlider();
+  if (sliding() || pinned || amongControls(p, shown && SLIDERS[shown].el)) sliderState.until = T + SLIDER_LINGER;
+  if (T > sliderState.until) closeSlider();
 }
-// the mouse wheel steps the size over the slider or over a size button: up is larger
+// the mouse wheel steps the slider over it or over a button of its kind, while it shows: up is larger
 document.addEventListener('wheel', (e) => {
-  if (!e.target.closest?.('.sizer, [data-action="size"]')) return;
+  const on = e.target.closest?.(`.head-slider, ${SLIDER_BUTTONS}`);
+  const kind = on && (on.dataset.kind ?? on.dataset.action);
+  if (!kind || kind !== shownSlider()) return;
   e.preventDefault();
-  sizerState.acc += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
-  if (Math.abs(sizerState.acc) < WHEEL_NOTCH) return;
-  sizer.nudge(-Math.sign(sizerState.acc));
-  sizerState.acc = 0;
-  sizerState.until = T + SIZER_LINGER;
+  sliderState.acc += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+  if (Math.abs(sliderState.acc) < WHEEL_NOTCH) return;
+  SLIDERS[kind].bar.nudge(-Math.sign(sliderState.acc));
+  sliderState.acc = 0;
+  sliderState.until = T + SLIDER_LINGER;
   sfx.tick();
 }, { passive: false });
+
+/* ---------- transparency: the body and its bubbles, never the controls ---------- */
+/** The transparency setting on screen now. */
+const fadeKey = () => (fullscreenFaded ? 'fullscreenFade' : 'fade');
+let opacityShown = 1;
+/**
+ * The body and its bubbles at the transparency on screen (pet.css --pet-opacity), opaque while the person deals with
+ * Coo: the typing box, a question, a dialog or a confirmation open, or the body held. The transparency slider showing
+ * keeps the value it sets in view. A tab draws the body opaque.
+ */
+function stepFade() {
+  const showing = shownSlider() === 'fade';
+  const engaged = (!!item && item.kind !== 'say') || !!at()?.pressing;
+  const o = !host || (engaged && !showing) ? 1 : 1 - prefs[fadeKey()] / 100;
+  if (o === opacityShown) return;
+  opacityShown = o;
+  document.documentElement.style.setProperty('--pet-opacity', String(o));
+}
 
 /* ---------- pointer ---------- */
 let pointerSeen = false;
@@ -2341,7 +2474,7 @@ function writePointer(now) {
 }
 
 // the menu itself covers the whole page without taking clicks; its two columns are what can be pointed at
-const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]):not(.leaving) > *, .tools:not([hidden]):not(.leaving), .wheel:not([hidden]):not(.leaving), .sizer:not([hidden]):not(.leaving)';
+const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]):not(.leaving) > *, .tools:not([hidden]):not(.leaving), .wheel:not([hidden]):not(.leaving), .head-slider:not([hidden]):not(.leaving)';
 const overUi = (e) => e.target.closest && e.target.closest(UI_SELECTOR);
 
 /**
@@ -2401,7 +2534,7 @@ document.addEventListener('pointermove', (e) => {
     diag.type = e.pointerType;
     if (!first) logPointer('type', 'move');
   }
-  setInteractive(rendering() && (pressing || barHeld || sizer.active || hit || ui), 'move');
+  setInteractive(rendering() && (pressing || barHeld || sliding() || hit || ui), 'move');
   followDrag(p);
 });
 /**
@@ -2416,7 +2549,7 @@ host?.onCursor?.((p) => {
   if (!inputShape || !p) cursor.at = p;
   if (!p) {
     diag.poll = { at: performance.now(), off: true };
-    if (!pressing && !sizer.active) setInteractive(false, 'poll');
+    if (!pressing && !sliding()) setInteractive(false, 'poll');
     if (polled && !pressing) body?.pointer('leave', {});
     polled = null;
     return;
@@ -2430,7 +2563,7 @@ host?.onCursor?.((p) => {
   const el = document.elementFromPoint(p.x, p.y);
   const hit = !!body?.hit(p), ui = !!el?.closest?.(UI_SELECTOR);
   diag.poll = { at: performance.now(), x: p.x, y: p.y, hit, ui };
-  setInteractive(rendering() && (pressing || barHeld || sizer.active || hit || ui), 'poll');
+  setInteractive(rendering() && (pressing || barHeld || sliding() || hit || ui), 'poll');
 });
 /** A press that began on the body and has not been let go of: the window keeps the mouse meanwhile. */
 let pressing = false;
@@ -2506,10 +2639,10 @@ document.addEventListener('contextmenu', (e) => {
 });
 document.addEventListener('pointerdown', (e) => {
   if (!e.target.closest('.menu, .wheel')) closeMenu();
-  if (!e.target.closest('.sizer, [data-action="size"]')) pinSizer(false);
+  if (!e.target.closest(`.head-slider, ${SLIDER_BUTTONS}`)) pinSlider(null);
 }, { capture: true });
 // clicks off the figure pass through the window to what is underneath; the window losing focus is how they show here
-window.addEventListener('blur', () => { closeMenu(); pinSizer(false); });
+window.addEventListener('blur', () => { closeMenu(); pinSlider(null); });
 document.addEventListener('focusin', (e) => {
   if (e.target.matches?.('input, textarea')) host?.focus?.();
 });
@@ -2518,7 +2651,7 @@ document.addEventListener('keydown', (e) => {
   if (e.isComposing || e.keyCode === 229) return;
   if (e.key === 'Escape') {
     closeMenu();
-    pinSizer(false);
+    pinSlider(null);
     if (item && item.kind === 'ask') dismissAsk();
     else if (item && item.kind === 'input') closeBubble();
     return;
@@ -2604,7 +2737,9 @@ function layout(dt = 0) {
   if (!tools.hidden) follow([tools], !!p && overTools(p), () => placeTools(l));
   if (!menu.hidden) follow(menuParts(), !!p && overMenu(p), () => placeMenu(l));
   if (!wheel.hidden) follow([wheel], !!p && overWheel(p), () => placeWheel(l));
-  if (!sizerEl.hidden) follow([sizerEl], sizer.active || (!!p && overSizer(p)), () => placeSizer(l));
+  for (const [kind, s] of Object.entries(SLIDERS)) {
+    if (!s.el.hidden) follow([s.el], s.bar.active || (!!p && overSlider(p, kind)), () => placeSlider(kind, l));
+  }
   const a = l.bubble;
   let sayBox = null;
   // choice cards and a World's confirmation keep their bubble where it was; its tail follows Coo along the bottom edge
@@ -2771,7 +2906,8 @@ function frame(steps, now, last) {
       stepBackdrop(dt);
       stepTools();
       stepWheel();
-      stepSizer();
+      stepSlider();
+      stepFade();
       layout(dt);
       stepInputShape();
       // the frame's own time, so the layer shows frames as far apart as they were drawn

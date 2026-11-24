@@ -602,7 +602,7 @@ export function mountWorlds(ctx: FeatureContext): void {
         node.dataset.key = item.key; railNodes.set(item.key, node);
       }
       node.querySelector('.world-library-label')!.textContent = item.label.replace(/^cortico-world-/, '');
-      node.setAttribute('aria-label', item.label); node.setAttribute('aria-current', item.key === selected ? 'true' : 'false');
+      node.setAttribute('aria-label', item.label); node.title = item.label; node.setAttribute('aria-current', item.key === selected ? 'true' : 'false');
       const row = worldRow(item); row.inert = current === 'market';
       let entry = node.parentElement;
       if (!entry) { entry = ui.h('div', 'world-library-entry'); entry.append(node, row); }

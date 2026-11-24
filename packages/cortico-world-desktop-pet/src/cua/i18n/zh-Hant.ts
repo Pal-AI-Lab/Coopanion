@@ -35,6 +35,7 @@ const zhHant: Translation<CuaText> = {
   config: {
     group: '電腦操作',
     enabled: { title: '啟用電腦操作' },
+    risksConfirmed: { title: "已確認風險說明", description: "開啟電腦操作或把它加進懸停按鈕時已確認過風險說明；開啟時，懸停按鈕可以直接開啟電腦操作。" },
     control: { title: '允許操作滑鼠和鍵盤', description: '關閉後只能截圖和列出視窗。' },
     permission: { title: '詢問時機', description: 'ask-each-turn：每輪查看螢幕或操作前都詢問；ask-before-acting：查看螢幕不詢問，每輪操作滑鼠鍵盤前詢問；ask-once：查看螢幕不詢問，操作前詢問一次，同意後在「同意有效期」內不再詢問；never-ask：從不詢問。沒有開啟「關閉使用終端和執行前的詢問」時，無論選哪一檔，在命令列視窗裡輸入或按鍵、按 win+r 之前，都會單獨詢問一次，同意後在「同意有效期」內不再詢問。' },
     grantMinutes: { title: '同意有效期', suffix: '分鐘', description: '對 ask-once 和命令列視窗的單獨詢問有效。' },

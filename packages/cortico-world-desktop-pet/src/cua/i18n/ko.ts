@@ -35,6 +35,7 @@ const ko: Translation<CuaText> = {
   config: {
     group: '컴퓨터 사용',
     enabled: { title: '컴퓨터 사용 켜기' },
+    risksConfirmed: { title: "위험 안내 확인함", description: "컴퓨터 사용을 켜거나 호버 버튼에 추가할 때 위험 안내를 확인했습니다. 켜져 있으면 호버 버튼으로 컴퓨터 사용을 바로 켤 수 있습니다." },
     control: { title: '마우스와 키보드 허용', description: '끄면 스크린샷과 창 목록만 쓸 수 있습니다.' },
     permission: { title: '먼저 물어볼 때', description: 'ask-each-turn: 매 턴 화면을 보거나 조작하기 전에 묻습니다. ask-before-acting: 화면 보기는 묻지 않고, 매 턴 마우스와 키보드를 쓰기 전에 묻습니다. ask-once: 화면 보기는 묻지 않고, 마우스와 키보드를 쓰기 전에 한 번 묻습니다. 허용하면 "허용 유지 시간" 동안 유지됩니다. never-ask: 묻지 않습니다. "터미널과 실행 창 사용 전 질문 끄기"가 꺼져 있으면 어떤 설정이든 터미널 창에서 입력하거나 키를 누르기 전, win+r을 누르기 전에는 따로 한 번 묻고, 허용하면 "허용 유지 시간" 동안 유지됩니다.' },
     grantMinutes: { title: '허용 유지 시간', suffix: '분', description: 'ask-once와 터미널 창에 대한 별도 질문에 적용됩니다.' },

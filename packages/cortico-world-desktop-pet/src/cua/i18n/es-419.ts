@@ -35,6 +35,7 @@ const es419: Translation<CuaText> = {
   config: {
     group: 'Uso de la computadora',
     enabled: { title: 'Activar el uso de la computadora' },
+    risksConfirmed: { title: "Riesgos confirmados", description: "Los riesgos se confirmaron al activar el uso de la computadora o al agregarlo como botón al pasar el cursor; si está activado, ese botón activa el uso de la computadora directamente." },
     control: { title: 'Permitir el mouse y el teclado', description: 'Si está desactivado, solo capturas de pantalla y la lista de ventanas.' },
     permission: { title: 'Cuándo preguntarte', description: 'ask-each-turn: antes de mirar la pantalla o actuar, en cada turno; ask-before-acting: mirar es libre, pregunta antes de usar el mouse y el teclado en cada turno; ask-once: mirar es libre, pregunta una vez antes de usar el mouse y el teclado, y un sí vale durante “Un sí dura”; never-ask: nunca pregunta. Si “Desactivar la pregunta antes de la terminal y Ejecutar” está apagado, con cualquier opción, antes de escribir o presionar teclas en una terminal y antes de win+r pregunta una vez aparte, y un sí vale durante “Un sí dura”.' },
     grantMinutes: { title: 'Un sí dura', suffix: 'min', description: 'Para ask-once y para la pregunta aparte sobre las terminales.' },
