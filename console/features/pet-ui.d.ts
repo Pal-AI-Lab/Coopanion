@@ -3,7 +3,9 @@
  * icons of the pet's menu, for the 「习惯」 page's hover-button picker, the links in Coo's words on
  * the chat page, and how bubbles are sized and their tails placed, for the 「习惯」 page's bubble sample;
  * from `web/sound.js` the kinds of the pet's sounds, for the 「习惯」 page's sound switches; from
- * `web/scale-slider.js` the slider of the 「习惯」 page's sizes, 外发光 and 音量. The modules
+ * `web/scale-slider.js` the slider of the 「习惯」 page's sizes, 外发光 and 音量; and the motion the
+ * window shares with the pet (docs/DEVELOPMENT.md「动画与动态效果」): the level (`web/motion-level.js`), frame
+ * motion (`web/motion-frames.js`), showing and hiding (`web/show-hide.js`) and dragging (`web/drag.js`). The modules
  * are plain browser JavaScript; esbuild bundles them into the console from the workspace package.
  */
 declare module 'cortico-world-desktop-pet/web/ui.js' {
