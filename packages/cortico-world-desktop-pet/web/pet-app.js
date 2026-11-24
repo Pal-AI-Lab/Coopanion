@@ -24,6 +24,7 @@ import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
 import { runFrames } from './frame-loop.js';
 import { cssMs, growFrom } from './motion-frames.js';
+import { showHide } from './show-hide.js';
 import { motionLevel, setMotionChoice, watchMotion } from './motion-level.js';
 import { mountHints, tipOf, tipWithoutNote } from './hints.js';
 
@@ -1530,7 +1531,7 @@ function openMenu() {
   // the hover buttons showing become the menu's: each slides from where it stood to its tile, and only the rest pop out
   const was = new Map();
   if (!tools.hidden && !leaving(tools)) for (const b of tools.children) was.set(b.dataset.action, laidAt(b));
-  hideNow(tools, toolsAnim);
+  toolsShow.hideNow();
   endHold();
   menu.innerHTML = '';
   const rail = Object.assign(document.createElement('div'), { className: 'm-rail' });
@@ -1557,7 +1558,7 @@ function openMenu() {
   renderMenuRail();
   stagger(grid);
   // the buttons grow out of the body one after another; a rail redrawn later (settings, the quit question) does not replay it
-  popIn(menu, menuAnim);
+  menuShow.show();
   // focused, so a click anywhere else blurs the window and folds the menu
   host?.focus?.();
   const l = at();
@@ -1641,10 +1642,9 @@ function fillMenuRail(rail, bot, confirmQuit) {
   rail.appendChild(ask);
   stagger(rail);
 }
-const menuAnim = { enter: 0, leave: 0 };
 function closeMenu() {
   if (menu.hidden || leaving(menu)) return;
-  popOut(menu, menuAnim, POP_OUT_MS());
+  menuShow.hide(POP_OUT_MS());
   // the hover buttons stay away until the pointer has left the body and them, and comes back
   toolsMuted = true;
   toolsUntil = 0;
@@ -1732,20 +1732,19 @@ function overTools(p) {
   return p.x >= r.left - m && p.x <= r.right + m && p.y >= r.top - m && p.y <= r.bottom + m;
 }
 /** Pops the hover buttons out of the body one after another, as the menu does, and folds them back into it before they go. */
-const toolsAnim = { enter: 0, leave: 0 };
 function showTools(on) {
   if (on) {
     // back over them while they fold: they stay, without popping out again
-    if (leaving(tools)) { clearTimeout(toolsAnim.leave); tools.classList.remove('leaving'); }
+    toolsShow.stay();
     if (!tools.hidden) return;
-    popIn(tools, toolsAnim);
+    toolsShow.show();
     const l = at();
     if (l) placeTools(l);
     return;
   }
   if (tools.hidden || leaving(tools)) return;
   endHold();
-  popOut(tools, toolsAnim, POP_OUT_MS());
+  toolsShow.hide(POP_OUT_MS());
 }
 
 /* ---------- popping in and out: the menu, the hover buttons and the look wheel ---------- */
@@ -1760,27 +1759,9 @@ if (globalThis.window?.document) watchMotion(globalThis.window);
 const leaving = (el) => el.classList.contains('leaving');
 /** Numbers an element's buttons (`--i`), so they pop out one after another. */
 function stagger(el) { [...el.children].forEach((b, i) => b.style.setProperty('--i', String(i))); }
-/** Shows `el` with its `entering` animation; `anim` holds its timers. */
-function popIn(el, anim) {
-  hideNow(el, anim);
-  el.hidden = false;
-  el.classList.add('entering');
-  anim.enter = setTimeout(() => el.classList.remove('entering'), POP_IN_MS);
-}
-/** Plays `el`'s `leaving` animation, taking no clicks meanwhile, then hides it; at once when motion is reduced. */
-function popOut(el, anim, ms) {
-  clearTimeout(anim.enter);
-  el.classList.remove('entering');
-  if (lowMotion()) { el.hidden = true; return; }
-  el.classList.add('leaving');
-  anim.leave = setTimeout(() => { el.hidden = true; el.classList.remove('leaving'); }, ms);
-}
-/** Hides `el` at once, cancelling an animation under way. */
-function hideNow(el, anim) {
-  clearTimeout(anim.enter); clearTimeout(anim.leave);
-  el.classList.remove('entering', 'leaving');
-  el.hidden = true;
-}
+/** Each pops in with its `entering` animation and out with `leaving`, taking no clicks meanwhile (show-hide.js). */
+const menuShow = showHide(menu, { enterMs: () => POP_IN_MS });
+const toolsShow = showHide(tools, { enterMs: () => POP_IN_MS });
 function stepTools() {
   // shown while the cursor is on the pet or on the buttons, and a moment after it leaves; decided
   // from where the cursor is now, not from the last move event, which may be stale
@@ -1809,7 +1790,7 @@ const WHEEL_APPLY_MS = 300;
 const WHEEL_NOTCH = 40;
 /** `empty`: the last read found no looks to show; set until the pointer has left the dress buttons, so a hover reads them once. */
 const wheelState = { items: [], at: 0, until: 0, timer: 0, acc: 0, opening: false, empty: false };
-const wheelAnim = { enter: 0, leave: 0 };
+const wheelShow = showHide(wheel);
 
 /**
  * The look worn, with its size, when the row last opened on one that is not a favourite. It leads the row until a look
@@ -1841,7 +1822,7 @@ const wearing = (look) => sameLook(look.skin, skin) && (typeof look.scale !== 'n
 
 async function openWheel() {
   // back over a dress button while the row folds away: it fans out again
-  if (leaving(wheel)) { clearTimeout(wheelAnim.leave); wheel.classList.remove('leaving'); drawWheel(); return; }
+  if (leaving(wheel)) { wheelShow.stay(); drawWheel(); return; }
   if (!wheel.hidden || wheelState.opening) return;
   // a slider being dragged keeps its place over the head: the row opens once it is let go
   if (sizer.active) return;
@@ -1885,7 +1866,7 @@ function closeWheel() {
   if (wheel.hidden || leaving(wheel)) return;
   // the looks fold back into the middle, then the row goes
   foldWheel();
-  popOut(wheel, wheelAnim, WHEEL_OUT_MS());
+  wheelShow.hide(WHEEL_OUT_MS());
 }
 
 /** Every look gathered small and faint in the middle of the row: where it fans out from and folds back into. */
@@ -2016,7 +1997,7 @@ sizer.el.querySelector('.ps-thumb').append(sizerText);
 const sizerState = { until: 0, timer: 0, acc: 0 };
 /** Sizes the World pushes, held while the slider is in use or newer sizes from it are on their way (scale-slider.js sizeEcho). */
 const sizeHeard = sizeEcho((v) => { if (v === prefs.scale) return; prefs.scale = v; if (!switching()) toSize(v); refreshSize(); });
-const sizerAnim = { enter: 0, leave: 0 };
+const sizerShow = showHide(sizerEl, { enterMs: () => POP_IN_MS });
 
 /** Draws the body at `v` now and sends it within SIZE_SEND_MS. */
 function setSize(v) {
@@ -2040,17 +2021,17 @@ function refreshSize() {
 
 function openSizer() {
   // back over a size button while the slider folds away: it stays
-  if (leaving(sizerEl)) { clearTimeout(sizerAnim.leave); sizerEl.classList.remove('leaving'); return; }
+  if (leaving(sizerEl)) { sizerShow.stay(); return; }
   closeWheel();
   refreshSize();
-  popIn(sizerEl, sizerAnim);
+  sizerShow.show();
   sizer.relayout();
   const l = at();
   if (l) placeSizer(l);
 }
 function closeSizer() {
   if (sizerEl.hidden || leaving(sizerEl) || sizer.active) return;
-  popOut(sizerEl, sizerAnim, SIZER_OUT_MS());
+  sizerShow.hide(SIZER_OUT_MS());
 }
 /** Centred over the body, just above its head, where the look wheel opens; it follows the head as other controls do (`follow`). */
 function placeSizer(l) {

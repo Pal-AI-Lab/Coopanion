@@ -7,6 +7,7 @@
  * It fades in and out as the settings window's hover hints do (`.hint`, pet.css; `.u-tip`, console/styles.css).
  */
 import { cssMs } from './motion-frames.js';
+import { showHide } from './show-hide.js';
 
 export const DELAY_MS = 450;
 /** How long a hint stays up while the pointer rests on its element, with `autoClose`. */
@@ -39,21 +40,20 @@ export function mountHints(doc, { autoClose = false } = {}) {
   box.hidden = true;
   box.setAttribute('aria-hidden', 'true');
   doc.body.append(box);
-  let current = null, timer = 0, leave = 0;
-  const hideNow = () => { win.clearTimeout(leave); box.classList.remove('leaving'); box.hidden = true; };
+  let current = null, timer = 0;
+  const shown = showHide(box);
+  const hideNow = () => shown.hideNow();
   /** Fades the hint out; `current` is kept, so a hint closed on its own does not come back while the pointer stays. */
   const fade = () => {
-    if (box.hidden || box.classList.contains('leaving')) return;
-    box.classList.add('leaving');
-    leave = win.setTimeout(hideNow, cssMs(doc.documentElement, '--hint-out', LEAVE_MS));
+    if (shown.hidden || shown.leaving) return;
+    shown.hide(cssMs(doc.documentElement, '--hint-out', LEAVE_MS));
   };
   const hide = (soft) => { win.clearTimeout(timer); current = null; if (soft) fade(); else hideNow(); };
   const show = (el, text) => {
     // an element hidden or fading out since the pointer reached it has no place to show a hint beside
     if (!el.isConnected || el.closest('[hidden], .leaving')) return;
-    hideNow();
     box.textContent = text;
-    box.hidden = false;
+    shown.show();
     // `current` stays the element, so moving within it does not bring the hint back
     if (autoClose) timer = win.setTimeout(fade, SHOW_MS);
     const r = el.getBoundingClientRect();

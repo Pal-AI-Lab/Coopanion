@@ -76,3 +76,21 @@ declare module 'cortico-world-desktop-pet/web/motion-frames.js' {
   /** Characters of `length` shown after `elapsed` seconds at `perSecond`; all of them at low motion. */
   export function typeOut(length: number, perSecond: number, elapsed: number, win?: Window | null): number;
 }
+
+declare module 'cortico-world-desktop-pet/web/show-hide.js' {
+  export interface ShowHide {
+    readonly hidden: boolean;
+    readonly leaving: boolean;
+    /** Shows it from the start of its entrance. */
+    show(): void;
+    /** Shows it without an entrance; one leaving is called back. */
+    reveal(): void;
+    /** Plays its exit for `ms`, then hides it; at once at low motion or when `now`. */
+    hide(ms: number, now?: boolean): void;
+    hideNow(): void;
+    /** Calls back an exit under way. */
+    stay(): void;
+  }
+  /** Entrance (`entering`, `enterMs`) and exit (`leaving`) for `el`; hidden by `hiddenClass` or the `hidden` attribute. */
+  export function showHide(el: HTMLElement, opts?: { enterMs?: () => number; hiddenClass?: string | null }): ShowHide;
+}
