@@ -10,7 +10,7 @@
  * Colors follow the World's `theme` through `data-theme` on the root element, and text the app
  * language (i18n.js): the one stamped on the page, then the one the World's prefs carry.
  */
-import { applyTheme, balancedWidth, clamp, f, ICONS, layBeside, tailAt, tailLine, linked } from './ui.js';
+import { applyTheme, balancedWidth, clamp, f, ICONS, layBeside, linked, tailAt, tailLine } from './ui.js';
 import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
@@ -689,6 +689,8 @@ function stepDialog(dt) {
     if (it.shown >= b.text.length && !it.beatDone) {
       it.beatDone = true;
       const last = it.i === it.beats.length - 1;
+      // the lines this answers fade a moment after its last line is written out (stepLines)
+      if (last) it.writtenAt ??= T;
       const auto = (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03) / prefs.bubbleSpeed;
       it.holdUntil = T + (it.rush ? RUSH_HOLD : prefs.sayBubbleHoldSec || auto);
       it.extraHold = Math.max(0, prefs.sayBubbleHoldSec - auto);
@@ -1238,14 +1240,15 @@ function showHeard() {
 /*
  * ---------- what the person said: typed in the box, heard, or sent from the chat page ----------
  * Each line stays above Coo as a bubble of the heard kind (grey, no tail), the newest at the bottom. A line is
- * answered by the first speech or question Coo starts after it settled; until that reply's bubble has closed (and,
- * for a line not answered yet, while Coo works or has speech queued) the line and those before it stay, and they
- * fade REPLIED_FADE seconds after it closes. A line Coo does not answer fades UNANSWERED_FADE seconds after it was
- * said. With a fixed saidBubbleHoldSec a line fades that many seconds after it settled instead, whatever Coo does.
+ * answered by the first speech or question Coo starts after it settled; until that reply's last line is written out
+ * (and, for a line not answered yet, while Coo works or has speech queued) the line and those before it stay, and
+ * they fade REPLIED_FADE seconds after that, before the reply's bubble closes, or after it closes if that comes first.
+ * A line Coo does not answer fades UNANSWERED_FADE seconds after it was said.
+ * With a fixed saidBubbleHoldSec a line fades that many seconds after it settled instead, whatever Coo does.
  * The stack holds at most MAX_LINES bubbles and MAX_ROWS rows of text: past either the oldest fades, answered
  * or not, and the newest always stays. A click fades a settled line at once; one still being heard has its cancel button.
  */
-const REPLIED_FADE = 1, UNANSWERED_FADE = 8;
+const REPLIED_FADE = .5, UNANSWERED_FADE = 8;
 const MAX_LINES = 3, MAX_ROWS = 6;
 /** Seconds a line takes to fade out (pet.css `.bubble.said`). */
 const LINE_FADE = .4;
@@ -1335,8 +1338,9 @@ function stepLines() {
   lines.forEach((line, i) => {
     if (line.live) return;
     const r = line.reply;
-    if (r ? r.endedAt === undefined : busy) held = i;
-    else if (r && T >= r.endedAt + REPLIED_FADE) answered = i;
+    const done = r && Math.min(r.writtenAt ?? Infinity, r.endedAt ?? Infinity);
+    if (r ? done === Infinity : busy) held = i;
+    else if (r && T >= done + REPLIED_FADE) answered = i;
   });
   const hold = prefs.saidBubbleHoldSec;
   lines.forEach((line, i) => {

@@ -164,6 +164,8 @@ export const S: Partial<typeof en> = {
   commentsLoadFailed: (msg: string) => `Impossibile caricare i commenti: ${msg}`,
   noComments: 'Ancora nessun commento.',
   loadMore: 'Carica altri',
+  commentExpand: 'Mostra di più',
+  commentCollapse: 'Mostra meno',
   githubLogin: 'Accedi con GitHub',
   githubLogout: 'Esci',
   githubLoginTitle: 'Accedi con GitHub',

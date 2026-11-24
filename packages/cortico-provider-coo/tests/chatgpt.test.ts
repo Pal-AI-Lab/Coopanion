@@ -335,24 +335,19 @@ describe('requests billed to a ChatGPT plan', () => {
     expect(input.find((item) => item.type === 'function_call_output')).toMatchObject({ call_id: 'call_1' });
   });
 
-  it('through the registry, a refused request is sent again only without an image it carried: one request for an image older than the newest batch, two for a new one', async () => {
+  it('through the registry, a request refused for an image it carried is sent again without it', async () => {
     const image = Buffer.from('an image the service cannot decode');
     const picture: BlobRef = { handle: 'log:0123456789abcdef0123.png', mime: 'image/png', name: 'big.png', fallbackText: 'Image' };
     const withPicture = message('user', 'look', { blobs: [picture] });
     const carried: boolean[] = [];
-    let refuseAll = true;
     const { root, module, entry: e } = await signedInEndpoint((_req, res, body) => {
       const carries = JSON.stringify(body).includes(image.toString('base64'));
       carried.push(carries);
-      if (carries || refuseAll) return res.writeHead(400, { 'content-type': 'application/json' }).end('{"detail":"invalid parameter"}');
+      if (carries) return res.writeHead(400, { 'content-type': 'application/json' }).end('{"detail":"invalid parameter"}');
       stream(res, COMPLETED);
     });
     const registry = new ProviderRegistry(() => ({ chatgpt: e }), { stateRoot: root, readBlob: () => image, keepThinking: () => true, log: nullLogger() }, [module]);
     const ask = (context: Array<typeof withPicture>) => registry.bind('chatgpt').respond({ model: 'm' } as unknown as Request, { context });
-    await expect(ask([withPicture, message('assistant', 'seen'), message('user', 'and now')])).rejects.toMatchObject({ status: 400 });
-    expect(carried).toEqual([false]);
-    carried.length = 0;
-    refuseAll = false;
     await ask([withPicture]);
     expect(carried).toEqual([true, false]);
   });

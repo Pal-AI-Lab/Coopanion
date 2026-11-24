@@ -89,12 +89,13 @@ describe('a request the model service refuses, sent through the registry', () =>
     expect(bodies[1]).toContain(attachmentLeftOut(document.handle));
   });
 
-  it('is not sent again when its only images are older than the newest delivered batch, which no client attaches: one request', async () => {
-    const { url, bodies } = await service(() => true);
+  it('goes out once more without an image from an earlier batch, which every protocol still attaches', async () => {
+    const { url, bodies } = await service(carriesImage);
     for (const protocol of PROTOCOLS) {
       bodies.length = 0;
-      await expect(ask(url, protocol, [withPicture, message('assistant', '看到了'), message('user', '再看一眼')]), protocol).rejects.toMatchObject({ status: 400 });
-      expect(bodies.map(carriesImage), protocol).toEqual([false]);
+      const out = await ask(url, protocol, [withPicture, message('assistant', '看到了'), message('user', '再看一眼')]);
+      expect(out.attempts.map((a) => a.status), protocol).toEqual([400, 200]);
+      expect(bodies.map(carriesImage), protocol).toEqual([true, false]);
     }
   });
 });

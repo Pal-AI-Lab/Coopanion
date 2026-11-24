@@ -14,32 +14,6 @@ export const BUBBLE_BORDER = 2.5;
 export const tailLine = (dpr) => Math.max(1, Math.floor(BUBBLE_BORDER * dpr)) / dpr;
 
 /**
- * The narrowest width `el` can take without its text wrapping into more lines than at its widest: a wrapped line no
- * longer leaves its bubble as wide as the widest it may be with blank space after the shorter lines, and the lines come
- * out about as long as each other (the search react-wrap-balancer runs). `el` is laid out with its whole text and
- * nothing clamping its height, and measured at its widest under its style sheet; its own width and max-width are left
- * as they were. Returns the width to cap it at in pixels, border and padding in.
- */
-export function balancedWidth(el) {
-  const keep = [el.style.width, el.style.maxWidth];
-  el.style.width = el.style.maxWidth = '';
-  const widest = el.offsetWidth, height = el.offsetHeight;
-  let lo = 0, hi = widest;
-  for (let i = 0; i < 9 && hi - lo > 1; i++) {
-    const mid = (lo + hi) / 2;
-    el.style.width = mid + 'px';
-    if (el.offsetHeight > height) lo = mid; else hi = mid;
-  }
-  // offsetWidth rounds the widest down (172 of 172.4), and a width at the edge wraps the text: the width is checked as
-  // the caller will use it, a max-width, and grows a pixel at a time, past the rounded widest if need be, until it holds.
-  el.style.width = '';
-  let w = Math.ceil(hi);
-  for (el.style.maxWidth = w + 'px'; el.offsetHeight > height && w <= widest + 2; el.style.maxWidth = w + 'px') w++;
-  [el.style.width, el.style.maxWidth] = keep;
-  return w;
-}
-
-/**
  * Bubbles up to TAIL_CENTER wide (empty, or a word or two) point their tail from their middle; wider ones move it over
  * to Coo by TAIL_FOLLOW wide. Between the two it slides, so a bubble growing as the line types out carries its tail
  * along with it.
@@ -56,6 +30,33 @@ export const TAIL_EDGE = 29;
 export function tailAt(bw, x, size = 1) {
   const k = clamp((bw - TAIL_CENTER) / (TAIL_FOLLOW - TAIL_CENTER), 0, 1), edge = Math.min(TAIL_EDGE * size, bw / 2);
   return bw / 2 + (clamp(x, edge, bw - edge) - bw / 2) * k;
+}
+
+/**
+ * The narrowest width `el` can take without its text wrapping into more lines than at its widest: a wrapped line no
+ * longer leaves its bubble as wide as the widest it may be with blank space after the shorter lines, and the lines come
+ * out about as long as each other (the search react-wrap-balancer runs). `el` is laid out with its whole text and
+ * nothing clamping its height, and measured at its widest under its style sheet; its own width and max-width are left
+ * as they were. Returns the width to cap it at in pixels, border and padding in.
+ */
+export function balancedWidth(el) {
+  const keep = [el.style.width, el.style.maxWidth];
+  el.style.width = el.style.maxWidth = '';
+  const widest = el.offsetWidth, height = el.offsetHeight;
+  let lo = 0, hi = widest;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) / 2;
+    el.style.width = mid + 'px';
+    if (el.offsetHeight > height) lo = mid; else hi = mid;
+  }
+  // offsetWidth rounds the widest down by under a pixel (172 of 172.4), and a width at the edge wraps the text: the
+  // width is checked as the caller will use it, a max-width, and grows a pixel at a time until it holds, at most to
+  // the widest plus that pixel.
+  el.style.width = '';
+  let w = Math.ceil(hi);
+  for (el.style.maxWidth = w + 'px'; el.offsetHeight > height && w <= widest; el.style.maxWidth = w + 'px') w++;
+  [el.style.width, el.style.maxWidth] = keep;
+  return w;
 }
 
 /**
