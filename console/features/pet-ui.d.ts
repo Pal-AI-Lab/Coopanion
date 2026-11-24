@@ -94,3 +94,26 @@ declare module 'cortico-world-desktop-pet/web/show-hide.js' {
   /** Entrance (`entering`, `enterMs`) and exit (`leaving`) for `el`; hidden by `hiddenClass` or the `hidden` attribute. */
   export function showHide(el: HTMLElement, opts?: { enterMs?: () => number; hiddenClass?: string | null }): ShowHide;
 }
+
+declare module 'cortico-world-desktop-pet/web/drag.js' {
+  export interface DragItemsOptions {
+    axis?: 'x' | 'y';
+    pick(target: HTMLElement): HTMLElement | null;
+    lifted?(el: HTMLElement): void;
+    locate(at: number): void;
+    drop(el: HTMLElement, copyAt: number): void;
+    cancel(): void;
+    scroller: HTMLElement | (() => HTMLElement);
+    copyClass: string;
+    /** A positioned box the copy is laid in; without one the copy is fixed in the window, inside the scroller. */
+    layer?: HTMLElement;
+  }
+  /** Reordering by dragging, down (`y`) or across (`x`). */
+  export function dragItems(root: HTMLElement, opts: DragItemsOptions, signal?: AbortSignal): void;
+  /** An element's box without the slide it may be in the middle of. */
+  export function settledBox(el: HTMLElement): { top: number; bottom: number; height: number; left: number; right: number; width: number };
+  /** Slides `el` from `delta` px along the axis to its place; nothing at low motion. */
+  export function slideIn(el: HTMLElement, delta: number, axis?: 'x' | 'y', id?: string): void;
+  /** Moves the dragged element's empty place to `next` in `parent`; the `moving` elements slide aside. */
+  export function moveGap(gap: HTMLElement, parent: HTMLElement, next: Element | null, moving: readonly HTMLElement[], axis?: 'x' | 'y'): void;
+}
