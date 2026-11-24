@@ -27,8 +27,8 @@
  * picks (a list, a map) `/api/config` cannot write; they are saved through the pet panel's
  * `setWakeKinds` and `setSelfAdjustCustom`, which set the mode to `custom` in the same write.
  *
- * 「打字键」 (`typeKey`) and 「互动键」 (`interactKey`) are read from the same state and saved through the pet
- * panel's `setTypeKey` and `setInteractKey`; their keys are set as the talk key's on the 语音输入 page
+ * 「打字键」 (`typeKey`) and 「暂停穿透键」 (`throughPauseKey`) are read from the same state and saved through the pet
+ * panel's `setTypeKey` and `setThroughPauseKey`; their keys are set as the talk key's on the 语音输入 page
  * (key-capture.ts), and how they are pressed is picked beside them. The state names the keys in the app language and says why they cannot be read.
  */
 
@@ -111,12 +111,12 @@ const SELF_MODES = ['off', 'default', 'any', 'custom'] as const;
 const SELF_KEYS = ['figure', 'scheme', 'roam', 'snoreSeconds', 'sound', 'scale', 'bubbleSize', 'fontSize', 'theme', 'hoverButtons', 'user'] as const;
 const SELF_DEFAULT: readonly string[] = ['figure', 'scheme', 'roam', 'snoreSeconds'];
 
-/** What the pet panel's state says of the two rows and of the typing and interact keys. */
+/** What the pet panel's state says of the two rows and of the typing and click-through pause keys. */
 interface HabitState {
   wake?: { wakeOn: string; wakeKinds: string[] };
   selfAdjust?: { mode: string; custom: Record<string, boolean> };
   typeKey?: KeyState;
-  interactKey?: KeyState;
+  throughPauseKey?: KeyState;
 }
 type Habits = Required<Pick<HabitState, 'wake' | 'selfAdjust'>>;
 interface KeyState { enabled: boolean; hotkey: string; keyLabel: string; problem: string | null }
@@ -370,7 +370,7 @@ async function mount(ctx: PageContext): Promise<void> {
     });
   }
   /**
-   * A hotkey row (打字键, 互动键): the switch, and while it is on the keys, a button to set others and how they are
+   * A hotkey row (打字键, 暂停穿透键): the switch, and while it is on the keys, a button to set others and how they are
    * pressed. `method` is the pet panel's setter; `render` takes the state the panel gives back.
    */
   function keyRow(method: string, text: { on: string; hint: string; capture: string; presses: Record<number, string> }) {
@@ -422,7 +422,7 @@ async function mount(ctx: PageContext): Promise<void> {
     return { box, hint, render };
   }
   const typeKey = keyRow('setTypeKey', { on: S.typeKey, hint: S.typeKeyHint, capture: S.typeKeyCapture, presses: S.typeKeyPresses });
-  const interactKey = keyRow('setInteractKey', { on: S.interactKey, hint: S.interactKeyHint, capture: S.interactKeyCapture, presses: S.interactKeyPresses });
+  const throughPauseKey = keyRow('setThroughPauseKey', { on: S.throughPauseKey, hint: S.throughPauseKeyHint, capture: S.throughPauseKeyCapture, presses: S.throughPauseKeyPresses });
   const stats = ui.checkbox(S.stats, { onChange: (on) => void save(STATS_KEY, on, STATS_GROUP, stats.el) });
   const statsDoc = ui.h('a', 'home-link companion-statsdoc', S.statsDoc);
   statsDoc.href = STATS_DOC;
@@ -506,7 +506,7 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
     row(S.dblclickLabel, dblclick.el),
     row(S.typeKeyLabel, typeKey.box, typeKey.hint),
-    row(S.interactKeyLabel, interactKey.box, interactKey.hint),
+    row(S.throughPauseKeyLabel, throughPauseKey.box, throughPauseKey.hint),
   );
   // 气泡: how Coo's bubbles and yours look and how long they stay, with a sample at the end
   const bubbles = ui.sheet({ title: S.groupBubbles });
@@ -698,7 +698,7 @@ async function mount(ctx: PageContext): Promise<void> {
   };
   function takeHabits(state: HabitState | null | undefined): void {
     if (state?.typeKey) typeKey.render(state.typeKey);
-    if (state?.interactKey) interactKey.render(state.interactKey);
+    if (state?.throughPauseKey) throughPauseKey.render(state.throughPauseKey);
     if (!state?.wake || !state.selfAdjust) return;
     habit = { wake: state.wake, selfAdjust: state.selfAdjust };
     renderHabits();
