@@ -102,5 +102,4 @@ ChatGPT 套餐。表里的 `CHATGPT`(`vendors.ts`)给界面列出它,模型、�
 }
 ```
 
-0.1.x 叫 `cortico-provider-deepseek`(`kind: "deepseek"`);Coopanion 启动时把旧端点的 `kind` 改成 `coo`。
 在 Coopanion 里它随应用注册;单独使用时按 Cortico 的扩展方式安装(`cortico.kind = provider`,`api = 5`)。
