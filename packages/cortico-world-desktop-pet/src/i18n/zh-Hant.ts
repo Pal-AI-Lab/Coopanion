@@ -54,6 +54,13 @@ const zhHant: Translation<PetText> = {
     linuxNoX11: '打字鍵連不上 X11 顯示',
     unsupported: '打字鍵只能在 Windows、macOS 和 Linux 上使用',
   },
+  interactKey: {
+    macNoKey: 'Mac 上沒有這個按鍵，請更換互動鍵',
+    linuxNoKey: 'Linux 上無法讀取該按鍵（不支援滑鼠側鍵），請更換互動鍵',
+    linuxNoDisplay: '互動鍵在 Linux 上需要 X11（或 XWayland）：沒有設定 DISPLAY',
+    linuxNoX11: '互動鍵連不上 X11 顯示',
+    unsupported: '互動鍵只能在 Windows、macOS 和 Linux 上使用',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Windows 語音辨識（${culture}）` : 'Windows 語音辨識'),

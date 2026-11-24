@@ -157,8 +157,20 @@ host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVis
 /** Clicks pass through because a fullscreen window covers the pet's display and the setting says so; the window process decides. */
 let fullscreenThrough = false;
 host?.onFullscreenThrough?.((on) => { fullscreenThrough = on; });
-/** Every click passes through the pet right now, by the tray or the fullscreen setting. */
-const clicksPass = () => prefs.clickThrough || fullscreenThrough;
+/** The interact key is held; the World says when it activates and is let go. */
+let interactHeld = false;
+/** Clicks reach the pet despite click-through: the interact key held, or the typing box, a question or a confirmation open. */
+const clicksLent = () => interactHeld || (!!item && item.kind !== 'say');
+/** Every click passes through the pet right now, by the tray or the fullscreen setting, unless they are lent. */
+const clicksPass = () => (prefs.clickThrough || fullscreenThrough) && !clicksLent();
+/** Tells the window process each time clicksLent changes; it lifts its click-through lock meanwhile. */
+let lentTold = false;
+function stepLend() {
+  const on = clicksLent();
+  if (on === lentTold) return;
+  lentTold = on;
+  host?.lendClicks?.(on);
+}
 /** The transparency during full screen holds: its setting is on and a fullscreen window covers the display; the window process decides. */
 let fullscreenFaded = false;
 host?.onFullscreenFade?.((on) => { fullscreenFaded = on; refreshSlider(); });
@@ -455,6 +467,7 @@ function onOrder(m) {
     // the settings window's 「在桌面上隐藏」: the same as the menu's 「隐藏」
     case 'hide': host?.hide?.(); break;
     case 'type': openTyping(); break;
+    case 'interact': interactHeld = m.on === true; break;
     case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); holdRoam(20); break;
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
     case 'confirm': dropAsks(); rushLines(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
@@ -2918,6 +2931,7 @@ function frame(steps, now, last) {
       stepWheel();
       stepSlider();
       stepFade();
+      stepLend();
       layout(dt);
       stepInputShape();
       // the frame's own time, so the layer shows frames as far apart as they were drawn

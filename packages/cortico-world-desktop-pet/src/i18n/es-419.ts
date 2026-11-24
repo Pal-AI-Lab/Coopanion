@@ -54,6 +54,13 @@ const es419: Translation<PetText> = {
     linuxNoX11: 'La tecla para escribir no puede conectarse a la pantalla X11',
     unsupported: 'La tecla para escribir solo funciona en Windows, macOS y Linux',
   },
+  interactKey: {
+    macNoKey: 'Un teclado Mac no tiene esa tecla; elige otra tecla de interacción',
+    linuxNoKey: 'Linux no puede leer esta tecla (los botones laterales del mouse no funcionan); elige otra tecla de interacción',
+    linuxNoDisplay: 'La tecla de interacción necesita X11 (o XWayland) en Linux: DISPLAY no está definido',
+    linuxNoX11: 'La tecla de interacción no puede conectarse a la pantalla X11',
+    unsupported: 'La tecla de interacción solo funciona en Windows, macOS y Linux',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Reconocimiento de voz de Windows (${culture})` : 'Reconocimiento de voz de Windows'),

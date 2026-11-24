@@ -54,6 +54,13 @@ const ja: Translation<PetText> = {
     linuxNoX11: 'タイピングキーが X11 ディスプレイに接続できません',
     unsupported: 'タイピングキーは Windows、macOS、Linux でのみ使えます',
   },
+  interactKey: {
+    macNoKey: 'Mac のキーボードにはこのキーがありません。別の操作キーを選んでください',
+    linuxNoKey: 'Linux ではこのキーを読み取れません（マウスのサイドボタンは使えません）。別の操作キーを選んでください',
+    linuxNoDisplay: 'Linux で操作キーを使うには X11（または XWayland）が必要です：DISPLAY が設定されていません',
+    linuxNoX11: '操作キーが X11 ディスプレイに接続できません',
+    unsupported: '操作キーは Windows、macOS、Linux でのみ使えます',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Windows 音声認識（${culture}）` : 'Windows 音声認識'),

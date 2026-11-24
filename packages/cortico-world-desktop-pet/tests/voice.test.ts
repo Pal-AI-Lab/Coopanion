@@ -765,6 +765,29 @@ describe('voice input', () => {
     if (openOnPress) expect(asr.audio.at(-1)).toEqual(floatAudio([...tone(600, .3), openFrame]));
   });
 
+  it('an interact key shared with the typing key: tap then hold lends clicks until release, a double tap only types', async () => {
+    const { watch, sample } = sampledKeys();
+    const { world, page } = await setup('', 'always', watch);
+    await world.webUi().invoke!('pet', 'setTypeKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
+    await world.webUi().invoke!('pet', 'setInteractKey', [{ enabled: true, hotkey: 'RightCtrl*2' }]);
+
+    sample('RightCtrl', true, 0);
+    sample('RightCtrl', false, 50);
+    sample('RightCtrl', true, 100);
+    sample('RightCtrl', false, 150);
+    await page.next((m) => m.t === 'type');
+    expect(page.messages.some((m) => m.t === 'interact')).toBe(false);
+
+    sample('RightCtrl', true, 1000);
+    sample('RightCtrl', false, 1050);
+    sample('RightCtrl', true, 1100);
+    sample('RightCtrl', true, 1101 + TAP_MAX_MS);
+    expect((await page.next((m) => m.t === 'interact')).on).toBe(true);
+    sample('RightCtrl', false, 2000);
+    expect((await page.next((m) => m.t === 'interact' && m.on === false)).on).toBe(false);
+    expect(page.messages.some((m) => m.t === 'type')).toBe(false);
+  });
+
   it('stopping a key watcher during a pending hold prevents it from opening voice later', async () => {
     const { watch, sample } = sampledKeys();
     const { world, page } = await setup('', 'hold', watch, 'zh', true);

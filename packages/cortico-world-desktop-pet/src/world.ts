@@ -492,6 +492,11 @@ export class DesktopPetWorld implements World {
   private typeWatcher: KeyWatcher | null = null;
   private typeKeyProblem: string | null = null;
   private typeKeyKey = '';
+  /** The interact key's watcher while `interactKey.enabled`, why it cannot be read, and whether it is held now. */
+  private interactWatcher: KeyWatcher | null = null;
+  private interactKeyProblem: string | null = null;
+  private interactKeyKey = '';
+  private interacting = false;
   private level = -100;
   private readonly chat = new ChatSockets();
   private readonly activity = new ActivityGroup();
@@ -779,6 +784,7 @@ export class DesktopPetWorld implements World {
     if (this.recognitionWanted()) void this.startVoiceBackend();
     await this.syncHotkey();
     await this.syncTypeKey();
+    await this.syncInteractKey();
     this.prefsKey = this.prefsSignature();
     this.prefsTimer = setInterval(() => this.syncPrefs(), PREFS_SYNC_MS);
     this.holidayTimer = setInterval(() => { if (this.desktopTold) this.tellHoliday(); }, HOLIDAY_CHECK_MS);
@@ -808,6 +814,10 @@ export class DesktopPetWorld implements World {
     this.typeWatcher?.stop();
     this.typeWatcher = null;
     this.typeKeyKey = '';
+    this.interactWatcher?.stop();
+    this.interactWatcher = null;
+    this.interactKeyKey = '';
+    this.interacting = false;
     if (this.micReleaseTimer) clearTimeout(this.micReleaseTimer);
     this.micReleaseTimer = null;
     for (const c of this.confirms.values()) { clearTimeout(c.timer); c.resolve('unavailable'); }
@@ -1112,6 +1122,7 @@ export class DesktopPetWorld implements World {
     this.cuaSeen = this.cfg.cua.enabled;
     void this.syncHotkey();
     void this.syncTypeKey();
+    void this.syncInteractKey();
     // the person changed what a quiet holds back: theirs wins
     if (this.quiet && (this.cfg.sound !== this.quiet.base.sound || this.cfg.roam !== this.quiet.base.roam)) this.endQuiet();
     this.server.syncOverlay();
@@ -1772,6 +1783,37 @@ export class DesktopPetWorld implements World {
       this.typeKeyProblem = watcher;
       this.log?.warn(`打字键不可用:${watcher}`);
     } else this.typeWatcher = watcher;
+  }
+
+  /**
+   * Starts, restarts or stops the interact key's watcher. It activates on a hold during which no other key or mouse
+   * button went down, so a modifier held for a shortcut does not count; the page then lets clicks reach the pet until release.
+   */
+  private async syncInteractKey(): Promise<void> {
+    const { enabled, hotkey } = this.cfg.interactKey;
+    const key = enabled && this.host ? hotkey : '';
+    if (key === this.interactKeyKey) return;
+    this.interactKeyKey = key;
+    this.interactWatcher?.stop();
+    this.interactWatcher = null;
+    this.interactKeyProblem = null;
+    this.setInteracting(false);
+    if (!key) return;
+    const parsed = parseHotkey(hotkey);
+    const watch = this.opts.watchHotkey ?? watchHotkey;
+    const text = { ...this.ui.hotkey, ...this.ui.interactKey };
+    const watcher = parsed ? await watch(parsed, (down) => this.setInteracting(down), HOTKEY_POLL_MS, undefined, text, 'holdAlone') : this.ui.voice.badKey(hotkey);
+    if (key !== this.interactKeyKey) { if (typeof watcher !== 'string') watcher.stop(); return; }
+    if (typeof watcher === 'string') {
+      this.interactKeyProblem = watcher;
+      this.log?.warn(`互动键不可用:${watcher}`);
+    } else this.interactWatcher = watcher;
+  }
+
+  private setInteracting(on: boolean): void {
+    if (on === this.interacting) return;
+    this.interacting = on;
+    this.server.sendPet({ t: 'interact', on });
   }
 
   /** One line telling the person how to be heard. */
@@ -2588,6 +2630,16 @@ export class DesktopPetWorld implements World {
           await this.syncHotkey();
           return this.petState();
         }
+        // the interact key, set as the typing key is
+        case 'setInteractKey': {
+          const raw = args[0] && typeof args[0] === 'object' ? args[0] as Record<string, unknown> : {};
+          const interactKey: { enabled?: boolean; hotkey?: string } = {};
+          if (typeof raw.enabled === 'boolean') interactKey.enabled = raw.enabled;
+          if (typeof raw.hotkey === 'string' && parseHotkey(raw.hotkey)) interactKey.hotkey = raw.hotkey;
+          this.opts.persist({ interactKey });
+          await this.syncInteractKey();
+          return this.petState();
+        }
         case 'guide': {
           if (!this.opts.controls?.guide) throw new Error(this.ui.console.noGuide);
           this.opts.controls.guide();
@@ -2685,6 +2737,8 @@ export class DesktopPetWorld implements World {
       selfAdjust: { mode: selfAdjustMode(this.cfg.selfAdjust), custom: this.selfCustom() },
       /** The Habits page's typing key: the setting, the keys named in the app language, and why it cannot be read. */
       typeKey: { ...this.cfg.typeKey, keyLabel: comboLabel(this.cfg.typeKey.hotkey, process.platform, this.ui), problem: this.typeKeyProblem },
+      /** The Habits page's interact key, as `typeKey`. */
+      interactKey: { ...this.cfg.interactKey, keyLabel: comboLabel(this.cfg.interactKey.hotkey, process.platform, this.ui), problem: this.interactKeyProblem },
     };
   }
 

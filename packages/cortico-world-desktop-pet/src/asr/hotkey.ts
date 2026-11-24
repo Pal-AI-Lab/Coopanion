@@ -1,5 +1,5 @@
 /**
- * The talk key and the typing key: hotkeys held or pressed anywhere on the desktop, read by polling through koffi:
+ * The talk key, the typing key and the interact key: hotkeys held or pressed anywhere on the desktop, read by polling through koffi:
  * GetAsyncKeyState on Windows, CGEventSourceFlagsState / CGEventSourceKeyState / CGEventSourceButtonState on macOS,
  * XQueryKeymap on Linux (X11 or XWayland). macOS
  * reads the keyboard only for an app the person allowed under Privacy & Security → Input
@@ -34,6 +34,8 @@ const NAMED: Record<string, number> = {
 export const DEFAULT_HOTKEY = 'LeftAlt*2';
 /** The typing key a new setup gets once it is switched on: a double tap of left Ctrl (left Control on a Mac). */
 export const DEFAULT_TYPE_KEY = 'LeftCtrl*2';
+/** The interact key a new setup gets once it is switched on: a tap of left Ctrl, then hold it; the typing key's double tap stays apart. */
+export const DEFAULT_INTERACT_KEY = 'LeftCtrl*2';
 
 export interface Hotkey {
   /** Virtual-key codes, all down together. */
@@ -267,8 +269,8 @@ export const TAP_MAX_MS = 300;
 /** Longest pause between a tap's release and the next press; Windows' double-click time (500 ms, press to press) minus a tap. */
 export const TAP_GAP_MS = 400;
 
-/** The final press activates immediately, after a hold, or on a quick release. */
-export type HotkeyTrigger = 'press' | 'hold' | 'tap';
+/** The final press activates immediately, after a hold, after a hold with no other key or mouse button down before it activates, or on a quick release. */
+export type HotkeyTrigger = 'press' | 'hold' | 'holdAlone' | 'tap';
 
 /**
  * Samples the raw key state on every poll, including while held, with `others` true while another
@@ -282,7 +284,8 @@ export function tapTracker(taps: number, onChange: (down: boolean) => void, onTa
   return (down: boolean, now: number, others = false): void => {
     if (down === wasDown) {
       if (down) mixed ||= others;
-      if (down && trigger === 'hold' && !active && count === taps - 1 && now - pressAt > TAP_MAX_MS) {
+      const holds = trigger === 'hold' || (trigger === 'holdAlone' && !mixed);
+      if (down && holds && !active && count === taps - 1 && now - pressAt > TAP_MAX_MS) {
         count = 0; active = true; onChange(true);
       }
       return;

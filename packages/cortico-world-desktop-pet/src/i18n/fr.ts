@@ -54,6 +54,13 @@ const fr: Translation<PetText> = {
     linuxNoX11: "La touche de saisie ne peut pas se connecter à l'affichage X11",
     unsupported: 'La touche de saisie ne fonctionne que sous Windows, macOS et Linux',
   },
+  interactKey: {
+    macNoKey: "Un clavier Mac n'a pas cette touche ; choisissez une autre touche d'interaction",
+    linuxNoKey: "Linux ne peut pas lire cette touche (les boutons latéraux de la souris ne fonctionnent pas) ; choisissez une autre touche d'interaction",
+    linuxNoDisplay: "La touche d'interaction nécessite X11 (ou XWayland) sous Linux : DISPLAY n'est pas défini",
+    linuxNoX11: "La touche d'interaction ne peut pas se connecter à l'affichage X11",
+    unsupported: "La touche d'interaction ne fonctionne que sous Windows, macOS et Linux",
+  },
 
   system: {
     name: (culture: string) => (culture ? `Reconnaissance vocale Windows (${culture})` : 'Reconnaissance vocale Windows'),

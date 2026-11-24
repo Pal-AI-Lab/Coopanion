@@ -60,6 +60,13 @@ const ru: Translation<PetText> = {
     linuxNoX11: 'Клавиша ввода не может подключиться к дисплею X11',
     unsupported: 'Клавиша ввода работает только в Windows, macOS и Linux',
   },
+  interactKey: {
+    macNoKey: 'На клавиатуре Mac нет такой клавиши; выберите другую клавишу взаимодействия',
+    linuxNoKey: 'В Linux эту клавишу прочитать нельзя (боковые кнопки мыши не работают); выберите другую клавишу взаимодействия',
+    linuxNoDisplay: 'Клавише взаимодействия в Linux нужен X11 (или XWayland): переменная DISPLAY не задана',
+    linuxNoX11: 'Клавиша взаимодействия не может подключиться к дисплею X11',
+    unsupported: 'Клавиша взаимодействия работает только в Windows, macOS и Linux',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Распознавание речи Windows (${culture})` : 'Распознавание речи Windows'),
