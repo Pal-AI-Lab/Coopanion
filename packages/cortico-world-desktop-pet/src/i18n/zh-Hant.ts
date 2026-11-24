@@ -12,9 +12,9 @@ const zhHant: Translation<PetText> = {
   busy: '在忙',
 
   voice: {
-    serviceStopped: "識別服務已停止，目前無法語音輸入",
-    recorded: "錄音已投遞",
-    recordingUnavailable: "錄音無法投遞，且沒有可用的轉寫",
+    serviceStopped: '識別服務已停止，目前無法語音輸入',
+    recorded: '錄音已投遞',
+    recordingUnavailable: '錄音無法投遞，且沒有可用的轉寫',
     starting: '辨識服務啟動中',
     notRunning: '辨識服務沒有執行',
     modelMissing: (mb: number) => `辨識模型尚未下載（約 ${mb} MB），請在「語音輸入」頁下載`,
@@ -270,7 +270,7 @@ const zhHant: Translation<PetText> = {
     speechSpeed: { title: '說話聲語速', description: (a: number, b: number, c: number) => `每秒最多念幾個音節：low、mid、high 依次為 ${a}、${b}、${c}；custom 用自訂語速。比文字慢時，聲音在文字打完後才念完。` },
     speechRate: { title: '自訂語速', suffix: '音節/秒' },
     asrEnabled: { title: '語音輸入總開關' },
-    asrServiceEnabled: { title: "開啟識別服務", description: "語音輸入開啟時啟動識別服務；關閉後，支援音訊的模型仍可接收僅錄音輸入。" },
+    asrServiceEnabled: { title: '開啟識別服務', description: '語音輸入開啟時啟動識別服務；關閉後，支援音訊的模型仍可接收僅錄音輸入。' },
     asrEngine: { title: '辨識引擎', description: 'funasr 使用 FunASR 的 SenseVoiceSmall，支援中文、英文、日文、韓文和粵語，第一次要下載約 240 MB 的模型；whisper 使用 OpenAI 的 Whisper small，支援法語、德語、西班牙語、葡萄牙語、義大利語、俄語等近百種語言，第一次要下載約 360 MB 的模型，一句說完才出字；這兩個都在本機辨識。system 使用 Windows 內建的語音辨識，不用下載，準確度低一些（只在 Windows 上有）。api 把每句錄音傳送到 OpenAI 相容的轉寫介面辨識，一句說完才出字；位址和模型在下面填寫，API Key 在「語音輸入」頁填寫。留空時依應用程式語言選擇：中文、英文、日文、韓文用 funasr，其餘用 whisper。' },
     asrLanguage: { title: '語言', description: 'ISO 639-1 語言代碼，或 auto 讓模型自己判斷；留空時跟隨應用程式語言。FunASR 認得 zh、en、ja、ko、yue，Whisper 認得 fr、de、es、pt、it、ru 等近百種，不認得的代碼當作 auto。轉寫介面只在代碼是兩個字母時帶上語言。' },
     asrApiUrl: { title: '轉寫介面位址', description: '引擎為 api 時，每句錄音傳送到這個位址後面的 /audio/transcriptions，例如 https://api.example.com/v1。遠端位址只能用 https，本機和區域網路的位址可以用 http。' },

@@ -5,8 +5,9 @@
  *
  * The person's input is the events delivered to the bot. The pet's side is recorded as
  * `desktop-pet.self` events that are stored and never delivered: `say`, `ask`, `activity` (the tool
- * steps between two lines), `delivered` (where messages that waited reached the bot) and `withdrawn`
- * (a message taken back before delivery, left out of the history). A touch is stored as its kind and
+ * steps between two lines), `delivered` (where messages that waited reached the bot), `withdrawn`
+ * (a message taken back before delivery, left out of the history) and `transcript` (the text recognized
+ * for a recording delivered before it, shown in the recording's place). A touch is stored as its kind and
  * counts, a figure the person switched to (`desktop-pet.figure`) as the kind of switch and the figure's names;
  * the page tells both in its own language.
  */
@@ -104,17 +105,18 @@ export function chatItem(e: EventEnvelope): ChatItem | null {
   }
 }
 
-/** Messages recorded as withdrawn, and where messages that waited were delivered (message cursor → record cursor). */
-export interface ChatRefs { withdrawn: number[]; delivered: Array<[number, number]> }
+/** Messages recorded as withdrawn, where messages that waited were delivered (message cursor → record cursor), and transcripts of recordings (message cursor → text). */
+export interface ChatRefs { withdrawn: number[]; delivered: Array<[number, number]>; transcripts: Array<[number, string]> }
 
 /** The `withdrawn` and `delivered` records among `events`. */
 export function chatRefs(events: readonly EventEnvelope[]): ChatRefs {
-  const refs: ChatRefs = { withdrawn: [], delivered: [] };
+  const refs: ChatRefs = { withdrawn: [], delivered: [], transcripts: [] };
   for (const e of events) {
     const m = (e.meta ?? {}) as Meta;
     if (e.type !== SELF_TYPE) continue;
     if (m.kind === 'withdrawn' && typeof m.cursor === 'number') refs.withdrawn.push(m.cursor);
     if (m.kind === 'delivered' && Array.isArray(m.cursors)) for (const c of m.cursors) if (typeof c === 'number') refs.delivered.push([c, e.cursor]);
+    if (m.kind === 'transcript' && typeof m.cursor === 'number' && typeof m.text === 'string') refs.transcripts.push([m.cursor, m.text]);
   }
   return refs;
 }
@@ -122,19 +124,22 @@ export function chatRefs(events: readonly EventEnvelope[]): ChatRefs {
 /**
  * The chat items among `events`, in the order the bot met them: a message that waited stands where
  * its `delivered` record is, with `at` set to that record's cursor. Messages later recorded as
- * withdrawn are left out.
+ * withdrawn are left out; a recording later transcribed shows its transcript.
  */
 export function chatHistory(events: readonly EventEnvelope[]): ChatItem[] {
   const refs = chatRefs(events);
   const withdrawn = new Set(refs.withdrawn);
   const deliveredAt = new Map(refs.delivered);
+  const transcripts = new Map(refs.transcripts);
   const waiting = new Map<number, ChatItem[]>();
   const out: ChatItem[] = [];
   for (const e of events) {
     out.push(...waiting.get(e.cursor) ?? []);
     if (withdrawn.has(e.cursor)) continue;
-    const item = chatItem(e);
-    if (!item) continue;
+    const found = chatItem(e);
+    if (!found) continue;
+    const transcript = transcripts.get(e.cursor);
+    const item = found.kind === 'user' && transcript !== undefined ? { ...found, text: transcript } : found;
     const at = deliveredAt.get(e.cursor);
     if (at === undefined || item.kind !== 'user') { out.push(item); continue; }
     waiting.set(at, [...waiting.get(at) ?? [], { ...item, at }]);

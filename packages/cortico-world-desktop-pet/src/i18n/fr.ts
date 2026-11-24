@@ -12,9 +12,9 @@ const fr: Translation<PetText> = {
   busy: 'Travaille',
 
   voice: {
-    serviceStopped: "Service de reconnaissance arrêté : saisie vocale indisponible",
-    recorded: "Enregistrement envoyé",
-    recordingUnavailable: "Enregistrement non envoyé et transcription indisponible",
+    serviceStopped: 'Service de reconnaissance arrêté : saisie vocale indisponible',
+    recorded: 'Enregistrement envoyé',
+    recordingUnavailable: 'Enregistrement non envoyé et transcription indisponible',
     starting: 'La reconnaissance vocale démarre',
     notRunning: "La reconnaissance vocale n'est pas lancée",
     modelMissing: (mb: number) => `Le modèle vocal n'est pas encore téléchargé (environ ${mb} Mo) : téléchargez-le sur la page Saisie vocale`,
@@ -270,7 +270,7 @@ const fr: Translation<PetText> = {
     speechSpeed: { title: 'Débit de la voix', description: (a: number, b: number, c: number) => `Syllabes par seconde au plus : low, mid et high valent ${a}, ${b} et ${c} ; custom utilise le débit personnalisé. Plus lente que le texte, la voix finit après lui.` },
     speechRate: { title: 'Débit personnalisé', suffix: 'syllabes/s' },
     asrEnabled: { title: 'Saisie vocale' },
-    asrServiceEnabled: { title: "Service de reconnaissance", description: "Démarrer la reconnaissance quand la saisie vocale est activée ; les modèles compatibles audio peuvent toujours recevoir uniquement les enregistrements si le service est désactivé." },
+    asrServiceEnabled: { title: 'Service de reconnaissance', description: 'Démarrer la reconnaissance quand la saisie vocale est activée ; les modèles compatibles audio peuvent toujours recevoir uniquement les enregistrements si le service est désactivé.' },
     asrEngine: { title: 'Moteur de reconnaissance', description: "funasr exécute SenseVoiceSmall de FunASR, pour le chinois, l'anglais, le japonais, le coréen et le cantonais, après un téléchargement unique d'environ 240 Mo ; whisper exécute Whisper small d'OpenAI, pour le français, l'allemand, l'espagnol, le portugais, l'italien, le russe et environ 90 autres langues, après un téléchargement unique d'environ 360 Mo, et affiche le texte une fois la phrase terminée ; les deux reconnaissent sur cet ordinateur. system utilise la reconnaissance vocale de Windows, sans téléchargement et moins précise (Windows uniquement). api envoie l'enregistrement de chaque phrase à un service de transcription compatible OpenAI et affiche le texte une fois la phrase terminée ; son adresse et son modèle se règlent ci-dessous, son API Key sur la page Saisie vocale. Vide : choix selon la langue de l'application, funasr pour le chinois, l'anglais, le japonais et le coréen, whisper pour les autres." },
     asrLanguage: { title: 'Langue', description: "Un code ISO 639-1, ou auto pour laisser le modèle décider ; vide suit la langue de l'application. FunASR accepte zh, en, ja, ko et yue, Whisper une centaine de codes comme fr, de, es, pt, it et ru ; un code que le modèle n'accepte pas vaut auto. Le service de transcription ne reçoit le code que s'il a deux lettres." },
     asrApiUrl: { title: 'Adresse du service de transcription', description: "Avec le moteur api, chaque phrase est envoyée à /audio/transcriptions sous cette adresse, par exemple https://api.example.com/v1. Une adresse distante doit utiliser https ; les adresses de cet ordinateur ou du réseau local peuvent utiliser http." },

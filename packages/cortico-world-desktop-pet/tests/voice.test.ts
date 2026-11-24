@@ -18,6 +18,7 @@ import type { SherpaModule } from '../src/asr/sherpa.ts';
 import type { ModelSpec } from '../src/runtime/store.ts';
 import { parseHotkey, tapTracker, TAP_MAX_MS, type Hotkey, type watchHotkey } from '../src/asr/hotkey.ts';
 import { rmsDb } from '../src/asr/segmenter.ts';
+import { chatHistory } from '../src/chat.ts';
 import { FakeHost } from './helpers/fake-host.ts';
 import { FakePage } from './helpers/page.ts';
 import { fakeSapi } from './helpers/fake-sapi.ts';
@@ -185,7 +186,7 @@ describe('voice input', () => {
     expect(asr.configs).toHaveLength(2);
   });
 
-  it('shares one in-flight start between the panel and preference synchronization', async () => {
+  it('starting from the panel while another start is loading the model loads it once, and the start and stop are saved', async () => {
     const { cfg, world, asr } = await setup('hello', 'always', undefined, 'zh', false, undefined, false);
     let loaded!: () => void;
     const gate = new Promise<void>((resolve) => { loaded = resolve; });
@@ -193,7 +194,6 @@ describe('voice input', () => {
     try {
       const first = world.webUi().invoke!('voice', 'start', []);
       const joined = world.startVoiceBackend();
-      expect(joined).toBe(world.startVoiceBackend());
       await expect.poll(() => asr.configs.length).toBe(1);
       expect(cfg.asr.serviceEnabled).toBe(true);
       const second = world.webUi().invoke!('voice', 'start', []);
@@ -323,6 +323,8 @@ describe('voice input', () => {
         expect(delivered).toHaveLength(1);
         expect(typeof delivered[0]!.recordingId).toBe('string');
         expect(updates).toMatchObject([{ text: result, recordingId: delivered[0]!.recordingId }]);
+        // the chat page shows the transcript in the recording's place
+        await expect.poll(() => chatHistory(host.store.range({ source: world.id }))).toMatchObject([{ kind: 'user', via: 'voice', text: result }]);
       }
     } finally { release(); }
   });
@@ -538,8 +540,29 @@ describe('voice input', () => {
     }
     const quiet = tone(900, .002);
     expect(rmsDb(quiet[0]!)).toBeGreaterThan(-60);
-    expect(quiet.every((frame) => frame.every((sample) => Math.abs(sample) <= 104))).toBe(true);
     for (const fr of [...quiet, ...tone(900, 0)]) page.audio(fr);
+    await expect.poll(() => host.events.length).toBe(1);
+    expect(host.events[0]?.blobs?.[0]?.mime).toBe('audio/wav');
+  });
+
+  it('hold, recording only: a held key with silence sends nothing, quiet speech goes as a recording', async () => {
+    const { key, watch } = scriptedKey();
+    const { cfg, host, page } = await setup('', 'hold', watch);
+    cfg.asr.recording.transcript = false;
+    host.modelFacts.accepts = (mime) => mime === 'audio/wav';
+    const hold = async (frames: Int16Array[]) => {
+      key.tap();
+      await page.next((m) => m.t === 'listen' && m.phase === 'ready');
+      key.press(true);
+      await page.next((m) => m.t === 'listen' && m.phase === 'start');
+      for (const fr of frames) page.audio(fr);
+      await new Promise((r) => setTimeout(r, 100));
+      key.press(false);
+    };
+    await hold(tone(600, .001));
+    await new Promise((r) => setTimeout(r, 300));
+    expect(host.events).toHaveLength(0);
+    await hold(tone(600, .01));
     await expect.poll(() => host.events.length).toBe(1);
     expect(host.events[0]?.blobs?.[0]?.mime).toBe('audio/wav');
   });
