@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { clamp, f, ICONS, layBeside, linked } from '../packages/cortico-world-desktop-pet/web/ui.js';
+import { balancedWidth, clamp, f, ICONS, layBeside, linked, tailAt, tailLine } from '../packages/cortico-world-desktop-pet/web/ui.js';
 import { COO_CSS, mini, normalizeSkin, skinCss } from '../packages/cortico-world-desktop-pet/web/coo/coo.js';
 import { t } from '../packages/cortico-world-desktop-pet/web/i18n.js';
 import { SIZE, scaleSlider, sizeEcho } from '../packages/cortico-world-desktop-pet/web/scale-slider.js';
@@ -38,7 +38,7 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     send(data) { this.sent.push(JSON.parse(data)); }
   };
   win.deps = {
-    applyTheme: (theme) => { win.document.documentElement.dataset.theme = theme; }, clamp, f, ICONS, layBeside, linked: (text, n) => linked(text, n, win.document),
+    applyTheme: (theme) => { win.document.documentElement.dataset.theme = theme; }, balancedWidth, clamp, f, ICONS, layBeside, tailAt, tailLine, linked: (text, n) => linked(text, n, win.document),
     COO_CSS, mini, normalizeSkin, skinCss,
     createSfx: () => ({ unlock() {}, pop() {}, alert() {}, babble() {}, blub() {}, configure() {}, set() {}, setPan() {}, listenStart() {}, listenEnd() {}, select() {}, tick() {}, ...sfx }),
     createSpeech: () => ({ configure() {}, begin() {}, reveal() { return false; }, stop() {}, active: false, ...speech }),
@@ -55,7 +55,7 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     // hover hints (hints.js) are not what these tests look at
     mountHints() {}, tipOf, tipWithoutNote,
   };
-  win.eval(`const { applyTheme, clamp, f, ICONS, layBeside, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints, tipOf, tipWithoutNote } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepTalkRead(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
+  win.eval(`const { applyTheme, balancedWidth, clamp, f, ICONS, layBeside, tailAt, tailLine, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints, tipOf, tipWithoutNote } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSizer, cursor, step: (dt) => { T += dt; stepDialog(dt); stepTalkRead(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
@@ -227,6 +227,20 @@ describe('a fixed speech hold', () => {
   });
 });
 
+describe('bubbles fitted again', () => {
+  it('a size changed while a line types keeps what is typed of it, and the line types on', () => {
+    const p = page();
+    p.onOrder({ t: 'say', id: 's', beats: [{ text: 'A line long enough to be typed for a while' }] });
+    p.step(.01); p.step(.5);
+    const typed = p.bubble.querySelector('.b-text').textContent;
+    expect(typed.length).toBeGreaterThan(0);
+    p.onOrder({ t: 'prefs', bubbleSize: 1.2, fontSize: 1.3 });
+    expect(p.bubble.querySelector('.b-text').textContent).toBe(typed);
+    p.step(3);
+    expect(p.bubble.querySelector('.b-text').textContent).toBe('A line long enough to be typed for a while');
+  });
+});
+
 const read = { kind: 'read', text: '在看', detail: '日记.md' };
 const think = { kind: 'think', text: '' };
 const show = (p, status) => p.onOrder({ t: 'status', status });
@@ -339,7 +353,7 @@ describe("the person's lines above Coo", () => {
   const up = (p) => p.lines().filter((l) => l.fadeAt === null);
   const said = (p, text, cursor) => p.onOrder({ t: 'said', via: 'chat', text, images: 0, cursor });
 
-  it("a line stays while Coo works on it and while its reply is up, and fades REPLIED_FADE seconds after the reply closes", () => {
+  it("a line stays while Coo works on it and while its reply is typed, and fades REPLIED_FADE seconds after the reply is written out, before the reply closes", () => {
     const p = page();
     p.onOrder({ t: 'listen', phase: 'start' });
     p.onOrder({ t: 'listen', phase: 'heard', text: '今天天气怎么样' });
@@ -351,12 +365,12 @@ describe("the person's lines above Coo", () => {
     show(p, null);
     p.step(.01);
     expect(p.bubble.classList.contains('say')).toBe(true);
-    for (let i = 0; i < 200 && !p.bubble.hidden; i++) { p.step(.05); expect(up(p)).toHaveLength(1); }
-    expect(p.bubble.hidden).toBe(true);
+    for (let i = 0; i < 200 && p.bubble.querySelector('.b-text')?.textContent !== '晴天'; i++) { p.step(.05); expect(up(p)).toHaveLength(1); }
     p.step(p.REPLIED_FADE - .1);
     expect(up(p)).toHaveLength(1);
     p.step(.2);
     expect(up(p)).toHaveLength(0);
+    expect(p.bubble.hidden).toBe(false);
   });
 
   it('holds MAX_LINES lines at most: past it the oldest fades even while Coo works on it, and the newest stays', () => {

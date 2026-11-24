@@ -47,16 +47,15 @@ Coo Pet Provider:[Cortico](https://github.com/Pal-AI-Lab/Cortico) 的一个 prov
   DeepSeek 不补会回 400;OpenRouter 不补。端点因此回 400 时，桌宠的失败气泡请使用者反馈给开发者。
 - **图片与附件**:端点勾了「多模态」才发。新建端点和选模型时，按那一家列明能看图的模型(`Vendor.vision`)自动勾上或去掉「多模态」。
   Gemini 协议的端点还发音频、视频、PDF 和纯文本(`src/gemini/wire.ts` 的 `geminiInlineMime`),豆包还发音频(见下面「音频」),其余服务只发图片。
-  只发最近一批送达的事件(user 消息或事件帧)及其后的附件,更早的不分类型，只留 Core 给每份附件写的 `[blob …]` 那行文字。
-  每次送达新的一批,请求里从上一批的第一份附件起前缀缓存失效。Chat 的工具结果不带图片,图片挪到紧跟其后的一条 user 消息里;
+  上下文里的每份附件每次请求都发，直到交接。Chat 的工具结果不带图片,图片挪到紧跟其后的一条 user 消息里;
   千问、智谱国内、阶跃星辰、千帆的 Responses 文档写明 `function_call_output.output` 只收字符串(`toolOutputText`),也这样挪。
   带附件的请求被回 413,或被回 400 且不是上下文超限时，去掉这些附件再发一次(Cortico 的 `AttachmentFallback`,四种协议和 ChatGPT 套餐的 client 都套着它，
-  实例声明 `handlesRefusedAttachments`;带的附件只算最近一批起实际附上、端点收的那些);这次被接受，就记下这些附件，之后经这个端点的请求都不带，
+  实例声明 `handlesRefusedAttachments`;带的附件只算实际附上、端点收的那些);这次被接受，就记下这些附件，之后经这个端点的请求都不带，
   每份的 `[blob …]` 行后补一行 Cortico 的 `attachmentLeftOut`;去掉附件后仍被回 413 的按上下文超限交接。
   记录只在内存里，重启后第一次带上这些附件的请求还会被拒一次。
 - **音频**:端点勾了「多模态」时，标了 `audioInput` 的 Responses 服务(豆包)把 wav、mp3、aac、m4a 作为 `input_audio` 发出(`audio_url` 里是 data URL)。录音和 Gemini 一样留在带它的那一项里:user 消息放进 `content`,工具结果放进 `output`,
   排在这一项的图片前面(方舟「创建 Response」两处都收 `input_audio`)。豆包和 Gemini 一样只看「多模态」开关，不按型号列;方舟的音频理解型号是
-  doubao-seed-2-1-lite、2-0-lite、2-0-mini,换成不收音频的型号时关掉「语音输入」页的「投递录音」。和别的附件一样只发最近一批，被拒后去掉重发。
+  doubao-seed-2-1-lite、2-0-lite、2-0-mini,换成不收音频的型号时关掉「语音输入」页的「投递录音」。和别的附件一样，被拒后去掉重发。
 - **价目**:`src/pricing.ts` 内置 DeepSeek(错峰价,两个高峰时段按两倍计)、OpenAI、Anthropic、Gemini(付费档)、xAI;别家没有内置价目。
   长提示的第二档价格按 `inputBands` 计;`gemini-3.8-flash` 的现价到 2026-12-31,`gemini-4-carbon`、`gemini-4-argon` 的现价到 2026-11-30,之后开始的请求按页面列的新价。
   Gemini 4 的 `gemini-4-hydrogen`、`gemini-4-neon` 最高思考档发 `xhigh`,其余 Gemini 型号最高发 `high`。
@@ -103,5 +102,4 @@ ChatGPT 套餐。表里的 `CHATGPT`(`vendors.ts`)给界面列出它,模型、�
 }
 ```
 
-0.1.x 叫 `cortico-provider-deepseek`(`kind: "deepseek"`);Coopanion 启动时把旧端点的 `kind` 改成 `coo`。
 在 Coopanion 里它随应用注册;单独使用时按 Cortico 的扩展方式安装(`cortico.kind = provider`,`api = 5`)。
