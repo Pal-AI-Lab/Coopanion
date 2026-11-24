@@ -19,6 +19,7 @@
  * input uses by default. The console's text follows the console request's language.
  */
 import type { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
@@ -45,7 +46,7 @@ import { RuntimeStore, type ModelSpec } from './runtime/store.ts';
 import { SENSEVOICE, SherpaAsr, WHISPER, type SherpaModelKind, type SherpaModule, type SherpaState } from './asr/sherpa.ts';
 import { SystemRecognizer, systemRecognizerSupported, type SystemRecognizerState, type SystemSentence } from './asr/system-recognizer.ts';
 import { SAMPLE_RATE, TranscriptionApi, wavFile, type TranscriptionState } from './asr/transcription-api.ts';
-import { Packer, Segmenter, rmsDb, type SegmentConfig, type SegmentSink, type Utterance } from './asr/segmenter.ts';
+import { Packer, SILENT_BELOW_DB, Segmenter, peakDb, rmsDb, type SegmentConfig, type SegmentSink, type Utterance } from './asr/segmenter.ts';
 import { comboLabel, hotkeyBadge, hotkeyLabel, parseHotkey, splitTaps, TAP_MAX_MS, watchHotkey, type HotkeyTrigger, type KeyWatcher } from './asr/hotkey.ts';
 import { joinSpeech, looksHallucinated } from './asr/result.ts';
 import { toSimplified } from './asr/simplify.ts';
@@ -371,6 +372,31 @@ function draftImages(raw: unknown): DraftImage[] {
   });
 }
 
+interface AudioSpeechBatch {
+  id: string;
+  parts: Int16Array[] | null;
+  text: string[];
+  reports: { text: string; ms: number; error?: string; dropped?: boolean }[];
+  pending: number;
+  closed: boolean;
+  sent: boolean;
+  cancels: number;
+  trigger: TriggerMode;
+  /** Encoded at the capture boundary; earlier text fallbacks may briefly hold delivery. */
+  blobs: BlobInput[];
+  reported: boolean;
+  transcriptShown: boolean;
+  /** The delivered recording's event, which the chat page shows the transcript on once it arrives. */
+  event: Promise<EventEnvelope | null> | null;
+}
+
+interface SpeechJob {
+  utterance: Utterance;
+  audio?: AudioSpeechBatch;
+  generation: number;
+  cancels: number;
+}
+
 export class DesktopPetWorld implements World {
   readonly id = DESKTOP_PET_ID;
   private host: WorldHost | null = null;
@@ -403,9 +429,16 @@ export class DesktopPetWorld implements World {
    * not go along (`recordingGoes`), or the batch's recording ran past `asr.recording.maxMinutes`.
    */
   private heardPcm: Int16Array[] | null = [];
-  private readonly queue: Utterance[] = [];
+  private readonly queue: SpeechJob[] = [];
   private transcribing = false;
+  private activeSpeechJob: SpeechJob | null = null;
+  private audioBatch: AudioSpeechBatch | null = null;
+  private audioDisplay: AudioSpeechBatch | null = null;
+  /** Closed recordings in capture order. Only an earlier text fallback can hold a later WAV. */
+  private readonly audioDeliveries: AudioSpeechBatch[] = [];
+  private captureEnabled = false;
   private packTimer: NodeJS.Timeout | null = null;
+  private audioSettleTimer: NodeJS.Timeout | null = null;
   private wasSpeaking = false;
   private screen: { w: number; h: number } | null = null;
   /** The pet window said it is hidden (its menu's or the tray's 「隐藏」); reset when a page connects. */
@@ -742,7 +775,8 @@ export class DesktopPetWorld implements World {
       log: host.log,
     });
     this.cuaSeen = this.cfg.cua.enabled;
-    if (this.cfg.asr.enabled) void this.startVoiceBackend();
+    this.captureEnabled = this.cfg.asr.enabled;
+    if (this.recognitionWanted()) void this.startVoiceBackend();
     await this.syncHotkey();
     await this.syncTypeKey();
     this.prefsKey = this.prefsSignature();
@@ -751,6 +785,7 @@ export class DesktopPetWorld implements World {
   }
 
   async stop(): Promise<void> {
+    this.discardSpeech();
     this.voiceGeneration++;
     this.runningEngine = null;
     this.status.clear();
@@ -871,8 +906,9 @@ export class DesktopPetWorld implements World {
    * - `answer { askId, index | text }`: the open `pet_ask` answered on the page
    *
    * `init` and `ask` frames carry the id of the question that can still be answered (`askId`, null
-   * when none). `init` and `older` carry `refs`: the `withdrawn` and `delivered` records in that
+   * when none). `init` and `older` carry `refs`: the `withdrawn`, `delivered` and `transcript` records in that
    * stretch of history about messages before it, which the page applies to the pages it loads later.
+   * A recording's transcript recognized after its delivery goes to every page as `transcript { cursor, text }`.
    */
   private async onChat(msg: Record<string, unknown>, socket: WorldStreamSocket, language: Language): Promise<void> {
     const host = this.host;
@@ -942,7 +978,7 @@ export class DesktopPetWorld implements World {
     const refs = chatRefs(events);
     return {
       items: chatHistory(events),
-      refs: { withdrawn: refs.withdrawn.filter((c) => c < first), delivered: refs.delivered.filter(([c]) => c < first) },
+      refs: { withdrawn: refs.withdrawn.filter((c) => c < first), delivered: refs.delivered.filter(([c]) => c < first), transcripts: refs.transcripts.filter(([c]) => c < first) },
       more, before: more ? first : null,
     };
   }
@@ -1052,16 +1088,25 @@ export class DesktopPetWorld implements World {
     this.followFigure();
     this.segmenter.configure(this.segmentConfig());
     if (!this.holdPreRollEnabled()) this.holdPreRoll.length = 0;
-    const turnedOn = this.cfg.asr.enabled && !this.voiceEnabled;
-    this.voiceEnabled = this.cfg.asr.enabled;
-    if (!this.cfg.asr.enabled && this.runningEngine) void this.stopVoiceBackend();
-    else if (turnedOn || (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== this.engine())) void this.startVoiceBackend();
+    if (this.captureEnabled && !this.cfg.asr.enabled) this.discardSpeech();
+    this.captureEnabled = this.cfg.asr.enabled;
+    if (this.cfg.asr.enabled && this.audioBatch && !this.micWanted()) {
+      const tail = this.segmenter.flush();
+      if (tail) this.enqueue(tail);
+      this.committing = true;
+      this.schedulePack();
+    }
+    const wanted = this.recognitionWanted();
+    const turnedOn = wanted && !this.voiceEnabled;
+    this.voiceEnabled = wanted;
+    if (!wanted && this.runningEngine) void this.stopVoiceBackend();
+    else if (turnedOn || (wanted && this.runningEngine && this.runningEngine !== this.engine())) void this.startVoiceBackend();
     // the system recognizer serves one language; a new one needs a new helper
-    else if (this.cfg.asr.enabled && this.runningEngine === 'system' && this.system?.languageChanged) void this.startVoiceBackend();
+    else if (wanted && this.runningEngine === 'system' && this.system?.languageChanged) void this.startVoiceBackend();
     // the transcription service starts again for a new address or model, a failed one included; `setApi` starts it for a new API Key
-    else if (this.cfg.asr.enabled && this.runningEngine === 'api' && this.api?.configChanged) void this.startVoiceBackend();
+    else if (wanted && this.runningEngine === 'api' && this.api?.configChanged) void this.startVoiceBackend();
     // FunASR and Whisper load the model for one language and thread count
-    else if (this.cfg.asr.enabled && this.runningEngine && this.runningEngine !== 'system' && this.runningEngine !== 'api' && this.sherpa(this.runningEngine)?.configChanged) void this.startVoiceBackend();
+    else if (wanted && this.runningEngine && this.runningEngine !== 'system' && this.runningEngine !== 'api' && this.sherpa(this.runningEngine)?.configChanged) void this.startVoiceBackend();
     // computer use switched off ends the engine process; the next call after it is switched on starts another
     if (this.cuaSeen && !this.cfg.cua.enabled) void this.cua.switchedOff();
     this.cuaSeen = this.cfg.cua.enabled;
@@ -1080,9 +1125,16 @@ export class DesktopPetWorld implements World {
     this.server.broadcast({ t: 'prefs', ...this.snapshot() });
   }
 
+  private recognitionWanted(): boolean {
+    return this.cfg.asr.enabled && this.cfg.asr.serviceEnabled !== false;
+  }
+
+  private audioOnly(): boolean {
+    return this.recordingGoes() && !this.cfg.asr.recording.transcript;
+  }
+
   private micWanted(): boolean {
-    const phase = this.backendState()?.phase;
-    return this.cfg.asr.enabled && (phase === 'running');
+    return this.cfg.asr.enabled && (this.audioOnly() || (this.recognitionWanted() && this.backendState()?.phase === 'running'));
   }
 
   /** Hold mode with `asr.mic.openOnPress`: the microphone is open only around a held talk key. */
@@ -1111,11 +1163,11 @@ export class DesktopPetWorld implements World {
   /** What the pet's microphone button shows: switched on, able to hear, and why not. */
   private voiceBrief(): Record<string, unknown> {
     const b = this.backendState();
-    const ready = b?.phase === 'running';
+    const ready = this.micWanted();
     return {
       enabled: this.cfg.asr.enabled,
       ready,
-      detail: ready ? null : b?.phase === 'starting' ? this.ui.voice.starting : b?.detail ?? this.ui.voice.notRunning,
+      detail: ready ? null : this.cfg.asr.serviceEnabled === false ? this.ui.voice.serviceStopped : b?.phase === 'starting' ? this.ui.voice.starting : b?.detail ?? this.ui.voice.notRunning,
       hint: this.talkHint(),
       mode: this.cfg.asr.mic.mode,
       key: hotkeyBadge(this.cfg.asr.mic.hotkey),
@@ -1194,7 +1246,7 @@ export class DesktopPetWorld implements World {
       patch.asr = { ...patch.asr, mic: m };
     }
     if (Object.keys(patch).length) this.opts.persist(patch);
-    if (typeof prefs.mic === 'boolean' && prefs.mic) void this.startVoiceBackend();
+    if (typeof prefs.mic === 'boolean' && prefs.mic && this.recognitionWanted()) void this.startVoiceBackend();
     this.syncPrefs();
   }
 
@@ -1600,17 +1652,17 @@ export class DesktopPetWorld implements World {
     return this.recognizer()?.state() ?? null;
   }
 
-  /** Starts the engine in force and stops the one that ran before. */
+  /** Starts the engine in force and stops the one that ran before. Each recognizer shares one start between concurrent calls. */
   async startVoiceBackend(): Promise<BackendState | null> {
     const generation = this.voiceGeneration;
     await this.voiceStopping;
-    if (generation !== this.voiceGeneration || !this.cfg.asr.enabled) return this.backendState();
+    if (generation !== this.voiceGeneration || !this.recognitionWanted()) return this.backendState();
     const engine = this.engine();
     const recognizer = this.recognizer(engine);
     if (!recognizer) return null;
     if (this.runningEngine !== engine) {
       if (this.runningEngine) await this.recognizer(this.runningEngine)?.stop();
-      if (generation !== this.voiceGeneration || !this.cfg.asr.enabled || engine !== this.engine()) return this.backendState();
+      if (generation !== this.voiceGeneration || !this.recognitionWanted() || engine !== this.engine()) return this.backendState();
       this.runningEngine = engine;
     }
     await recognizer.start();
@@ -1754,6 +1806,7 @@ export class DesktopPetWorld implements World {
     this.server.sendPet({ t: 'talk-key', down: on && this.cfg.asr.enabled && this.micWanted() });
     if (!this.cfg.asr.enabled || !this.micWanted()) return;
     if (on) {
+      this.audioDisplay = null;
       this.listenOpen = true;
       // With openOnPress, the first microphone frame starts the listening bubble.
       if (this.micOnPress()) this.setMicHeld(true);
@@ -1784,7 +1837,19 @@ export class DesktopPetWorld implements World {
       this.releaseMicSoon();
       this.server.sendPet({ t: 'talk-key', down: false });
     }
+    this.discardSpeech();
+    this.log?.info('倾听气泡里点了取消,这次收音已丢弃');
+  }
+
+  private discardSpeech(): void {
+    this.clearAudioSettleTimer();
     this.segmenter.flush();
+    if (this.packTimer) clearTimeout(this.packTimer);
+    this.packTimer = null;
+    this.interim = '';
+    this.audioBatch = null;
+    this.audioDisplay = null;
+    this.audioDeliveries.length = 0;
     this.queue.length = 0;
     this.cancels++;
     this.packer.take();
@@ -1796,7 +1861,6 @@ export class DesktopPetWorld implements World {
       this.listenOpen = false;
       this.server.sendPet({ t: 'listen', phase: 'none' });
     }
-    this.log?.info('倾听气泡里点了取消,这次收音已丢弃');
   }
 
   /**
@@ -1816,9 +1880,47 @@ export class DesktopPetWorld implements World {
     this.schedulePack();
   }
 
+  private validSpeechJob(job: SpeechJob): boolean {
+    return job.cancels === this.cancels && job.generation === this.voiceGeneration && this.recognitionWanted();
+  }
+
+  private textWork(): boolean {
+    const current = this.activeSpeechJob;
+    return (!!current && !current.audio && this.validSpeechJob(current))
+      || this.queue.some((job) => !job.audio && this.validSpeechJob(job));
+  }
+
+  /** Finish already recognized legacy text before a new recording-only batch starts. */
+  private settleTextForAudio(): void {
+    if (!this.audioOnly() || this.textWork() || !this.packer.pending) return;
+    this.committing = true;
+    this.schedulePack();
+  }
+
   private enqueue(u: Utterance): void {
     this.counts.utterances++;
-    this.queue.push(u);
+    this.settleTextForAudio();
+    if (this.audioBatch || (this.audioOnly() && !this.textWork() && !this.packer.pending)) {
+      // hold mode keeps every held stretch (`segmentConfig`), a silent one included; that one is not sent as a recording
+      if (this.cfg.asr.mic.mode === 'hold' && peakDb(u.pcm) < SILENT_BELOW_DB) return;
+      const batch: AudioSpeechBatch = this.audioBatch ??= {
+        id: randomUUID(), parts: [], text: [], reports: [], pending: 0, closed: false, sent: false, cancels: this.cancels,
+        trigger: this.cfg.asr.mic.mode === 'always' ? 'flush' : 'interrupt',
+        blobs: [], reported: false, transcriptShown: false, event: null,
+      };
+      if (batch.parts) {
+        const parts = [...batch.parts, u.pcm];
+        batch.parts = samplesIn(parts) <= this.cfg.asr.recording.maxMinutes * 60 * SAMPLE_RATE ? parts : null;
+      }
+      if (this.recognitionWanted() && this.backendState()?.phase === 'running') {
+        batch.pending++;
+        this.queue.push({ utterance: u, audio: batch, generation: this.voiceGeneration, cancels: this.cancels });
+        void this.drain();
+      }
+      return;
+    }
+    if (!this.recognitionWanted()) return;
+    this.queue.push({ utterance: u, generation: this.voiceGeneration, cancels: this.cancels });
     this.server.sendPet({ t: 'listen', phase: 'transcribing' });
     void this.drain();
   }
@@ -1826,6 +1928,7 @@ export class DesktopPetWorld implements World {
   private onAudio(frame: Int16Array): void {
     if (!this.cfg.asr.enabled || !this.micWanted()) { this.holdPreRoll.length = 0; return; }
     const open = this.gateOpen();
+    if (open) this.clearAudioSettleTimer();
     if (open) for (const u of this.segmenter.push(frame)) this.enqueue(u);
     else if (this.holdPreRollEnabled()) {
       this.holdPreRoll.push({ frame, atMs: performance.now() });
@@ -1833,7 +1936,10 @@ export class DesktopPetWorld implements World {
     } else this.holdPreRoll.length = 0;
     this.level = open ? this.segmenter.level : rmsDb(frame);
     const speaking = open && this.segmenter.active;
-    if (speaking && !this.wasSpeaking) this.server.sendPet({ t: 'listen', phase: 'start' });
+    if (speaking && !this.wasSpeaking) {
+      this.audioDisplay = null;
+      this.server.sendPet({ t: 'listen', phase: 'start' });
+    }
     this.wasSpeaking = speaking;
     const now = Date.now();
     if (now - this.lastLevelAt >= 100) {
@@ -1848,34 +1954,50 @@ export class DesktopPetWorld implements World {
     this.transcribing = true;
     try {
       while (this.queue.length) {
-        const u = this.queue.shift()!;
-        const cancels = this.cancels;
-        const recognizer = this.recognizer();
-        const res = u.result
-          ? await u.result
-          : recognizer
-            ? await recognizer.transcribe(u.pcm)
-            : { text: '', ms: 0, error: this.ui.voice.notRunning };
-        if (cancels !== this.cancels) continue;
-        let text = res.text;
-        if (this.simplifies) text = toSimplified(text);
-        if (res.error || looksHallucinated(text)) {
-          this.counts.dropped++;
-          this.remember({ text: res.error ? this.ui.voice.failedLine(res.error) : text, at: Date.now(), ms: res.ms, dropped: true });
-          this.voiceFrame({ type: 'dropped', text: res.error ?? text, ms: res.ms });
-          // the page was showing this sentence as it was heard: take it back
-          if (u.result) this.showHeard();
-          continue;
+        const job = this.queue.shift()!;
+        const { utterance: u, audio } = job;
+        this.activeSpeechJob = job;
+        const valid = () => this.validSpeechJob(job);
+        try {
+          if (!valid()) continue;
+          const recognizer = this.recognizer();
+          const res = u.result
+            ? await u.result
+            : recognizer
+              ? await recognizer.transcribe(u.pcm)
+              : { text: '', ms: 0, error: this.ui.voice.notRunning };
+          if (!valid()) continue;
+          let text = res.text;
+          if (this.simplifies) text = toSimplified(text);
+          const dropped = !!res.error || looksHallucinated(text);
+          if (audio) {
+            audio.reports.push({ text, ms: res.ms, ...(res.error ? { error: res.error } : {}), dropped });
+            if (!dropped) audio.text.push(text);
+            continue;
+          }
+          if (dropped) {
+            this.counts.dropped++;
+            this.remember({ text: res.error ? this.ui.voice.failedLine(res.error) : text, at: Date.now(), ms: res.ms, dropped: true });
+            this.voiceFrame({ type: 'dropped', text: res.error ?? text, ms: res.ms });
+            if (u.result) this.showHeard();
+            continue;
+          }
+          this.remember({ text, at: Date.now(), ms: res.ms });
+          this.voiceFrame({ type: 'text', text, ms: res.ms });
+          if (this.packer.add(text) && this.heardPcm !== null) {
+            const parts = this.recordingGoes() ? [...this.heardPcm, u.pcm] : null;
+            this.heardPcm = parts && samplesIn(parts) <= this.cfg.asr.recording.maxMinutes * 60 * SAMPLE_RATE ? parts : null;
+          }
+          this.pendingText(text);
+          this.showHeard();
+        } finally {
+          this.activeSpeechJob = null;
+          if (audio) {
+            audio.pending--;
+            this.finishAudioTranscript(audio);
+          }
+          this.schedulePack();
         }
-        if (this.packer.add(text) && this.heardPcm !== null) {
-          const parts = this.recordingGoes() ? [...this.heardPcm, u.pcm] : null;
-          // past the limit the batch goes as text, and its PCM is let go of at once
-          this.heardPcm = parts && samplesIn(parts) <= this.cfg.asr.recording.maxMinutes * 60 * SAMPLE_RATE ? parts : null;
-        }
-        this.remember({ text, at: Date.now(), ms: res.ms });
-        this.voiceFrame({ type: 'text', text, ms: res.ms });
-        this.pendingText(text);
-        this.showHeard();
       }
     } finally {
       this.transcribing = false;
@@ -1900,6 +2022,9 @@ export class DesktopPetWorld implements World {
     begin: (frames) => {
       this.sentence = null;
       this.interim = '';
+      // The independent audio path recognizes finished segments without streaming into the input bubble.
+      this.settleTextForAudio();
+      if (!this.recognitionWanted() || this.audioBatch || (this.audioOnly() && !this.textWork() && !this.packer.pending)) return;
       const recognizer = this.recognizer();
       if (!recognizer) return;
       const s: SystemSentence | null = recognizer.sentence((text) => {
@@ -1910,7 +2035,7 @@ export class DesktopPetWorld implements World {
       this.sentence = s;
       if (s) for (const f of frames) s.write(f);
     },
-    frame: (f) => this.sentence?.write(f),
+    frame: (f) => { if (this.recognitionWanted()) this.sentence?.write(f); },
     end: (kept) => {
       const s = this.sentence;
       this.sentence = null;
@@ -1936,6 +2061,10 @@ export class DesktopPetWorld implements World {
   private recording(transcript: boolean): BlobInput[] {
     const parts = this.heardPcm;
     this.heardPcm = [];
+    return this.recordingBlobs(parts, transcript);
+  }
+
+  private recordingBlobs(parts: Int16Array[] | null, transcript: boolean): BlobInput[] {
     if (!parts?.length || !this.recordingGoes()) return [];
     const pcm = new Int16Array(samplesIn(parts));
     let at = 0;
@@ -1945,9 +2074,118 @@ export class DesktopPetWorld implements World {
     return [{ bytes: wavFile(pcm), mime: 'audio/wav', name: 'speech.wav', fallbackText }];
   }
 
-  /** Delivers the packed text once nothing upstream is still open. */
+  /** Close at the capture boundary. Only an earlier unresolved text fallback delays sending a WAV. */
+  private closeAudioBatch(batch: AudioSpeechBatch): void {
+    this.clearAudioSettleTimer();
+    batch.closed = true;
+    this.audioDisplay = batch;
+    batch.blobs = this.recordingBlobs(batch.parts, false);
+    batch.parts = null;
+    this.audioDeliveries.push(batch);
+    this.finishAudioTranscript(batch);
+    this.deliverAudioBatches();
+    if (!batch.sent && this.audioDisplay === batch) {
+      this.listenOpen = true;
+      this.server.sendPet({ t: 'listen', phase: 'transcribing' });
+    }
+  }
+
+  /** Deliver recording-only batches in capture order, including any text fallback on overflow. */
+  private deliverAudioBatches(): void {
+    while (this.audioDeliveries.length) {
+      const batch = this.audioDeliveries[0]!;
+      // WAV is ready immediately; a missing/over-limit WAV must first await ASR text.
+      if (!batch.blobs.length && batch.pending > 0 && this.recognitionWanted()) break;
+      this.audioDeliveries.shift();
+      batch.sent = true;
+      if (batch.blobs.length) {
+        this.counts.delivered++;
+        const label = this.ui.voice.recorded;
+        if (this.audioDisplay === batch) {
+          this.listenOpen = false;
+          this.server.sendPet({ t: 'listen', phase: 'heard', text: label, recordingId: batch.id });
+        }
+        batch.event = this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heardRecorded(this.userName), batch.trigger, { meta: { text: label }, blobs: batch.blobs });
+        this.showAudioTranscript(batch);
+        continue;
+      }
+      const text = joinSpeech(batch.text);
+      if (this.audioDisplay === batch) this.listenOpen = false;
+      if (text) {
+        this.counts.delivered++;
+        if (this.audioDisplay === batch) this.server.sendPet({ t: 'listen', phase: 'heard', text });
+        void this.push('desktop-pet.speech', 'desktop-pet.voice', this.t.heard(this.userName, text), batch.trigger, { meta: { text } });
+      } else {
+        const error = this.ui.voice.recordingUnavailable;
+        this.remember({ text: this.ui.voice.failedLine(error), at: Date.now(), ms: 0, dropped: true });
+        this.voiceFrame({ type: 'dropped', text: error, ms: 0 });
+        if (this.audioDisplay === batch) this.server.sendPet({ t: 'listen', phase: 'heard', text: error });
+      }
+    }
+  }
+
+  /** A transcript that arrives after its recording was delivered replaces the recording's line in the bubble and on the chat page; it is never delivered. */
+  private showAudioTranscript(batch: AudioSpeechBatch): void {
+    if (!batch.reported || !batch.sent || !batch.blobs.length || batch.transcriptShown) return;
+    batch.transcriptShown = true;
+    const text = joinSpeech(batch.text);
+    if (!text) return;
+    this.server.sendPet({ t: 'listen', phase: 'recording-text', recordingId: batch.id, text });
+    void batch.event?.then(async (e) => {
+      if (!e) return;
+      await this.record({ kind: 'transcript', cursor: e.cursor, text }, `转写了 #${e.cursor}:${text}`);
+      this.chat.broadcast({ t: 'transcript', cursor: e.cursor, text });
+    });
+  }
+
+  private finishAudioTranscript(batch: AudioSpeechBatch): void {
+    if (!batch.closed || batch.pending || batch.cancels !== this.cancels || !this.cfg.asr.enabled || batch.reported) return;
+    batch.reported = true;
+    for (const result of batch.reports.splice(0)) {
+      if (result.dropped) this.counts.dropped++;
+      const text = result.error ? this.ui.voice.failedLine(result.error) : result.text;
+      this.remember({ text, at: Date.now(), ms: result.ms, ...(result.dropped ? { dropped: true } : {}) });
+      this.voiceFrame({ type: result.dropped ? 'dropped' : 'text', text: result.error ?? result.text, ms: result.ms });
+    }
+    this.deliverAudioBatches();
+    this.showAudioTranscript(batch);
+  }
+
+  private clearAudioSettleTimer(): void {
+    if (this.audioSettleTimer) clearTimeout(this.audioSettleTimer);
+    this.audioSettleTimer = null;
+  }
+
+  /** Delivers at the capture boundary, waiting for ASR only for a text batch. */
   private schedulePack(): void {
-    const upstream = this.transcribing || this.queue.length > 0;
+    if (this.audioBatch) {
+      const remaining = this.segmenter.settleRemainingMs;
+      const hold = !this.committing && (this.segmenter.active || remaining > 0);
+      // The segmenter's silence clock advances only with frames. Each new frame resets this
+      // deadline; if frames stop during the closing pause, finish the inactive segment once.
+      if (hold && !this.segmenter.active && remaining > 0 && !this.audioSettleTimer) {
+        const batch = this.audioBatch;
+        this.audioSettleTimer = setTimeout(() => {
+          this.audioSettleTimer = null;
+          if (this.audioBatch !== batch || this.segmenter.active) return;
+          this.segmenter.flush();
+          this.schedulePack();
+        }, remaining);
+      }
+      if (!hold) {
+        const batch = this.audioBatch;
+        this.audioBatch = null;
+        this.committing = false;
+        this.listenOpen = false;
+        this.partial = '';
+        this.closeAudioBatch(batch);
+      }
+      return;
+    }
+    const upstream = this.textWork();
+    // A closed recording may be queued behind an older text fallback, even if its own ASR has finished.
+    // Keep the pending bubble open until that recording really has been delivered.
+    if (!upstream && !this.packer.pending && !this.segmenter.active && this.audioDisplay?.closed && !this.audioDisplay.sent) return;
     // a commit does not wait for the closing pause, nor for speech begun after it
     const hold = upstream || (!this.committing && (this.segmenter.active || this.segmenter.settleRemainingMs > 0));
     const text = this.committing && !upstream ? this.packer.take() : this.packer.due(hold);
@@ -1975,7 +2213,7 @@ export class DesktopPetWorld implements World {
       void this.push('desktop-pet.speech', 'desktop-pet.voice', heard, trigger, { meta: { text }, ...(blobs.length ? { blobs } : {}) });
       return;
     }
-    if (this.segmenter.active || this.transcribing || this.queue.length > 0) this.listenOpen = true;
+    if (this.segmenter.active || upstream) this.listenOpen = true;
     else if (!hold && !this.packer.pending && this.listenOpen && !this.talking) {
       // the episode ended with nothing worth delivering; an open talk key keeps it going
       this.listenOpen = false;
@@ -2284,7 +2522,7 @@ export class DesktopPetWorld implements World {
       },
       {
         label: c.voice,
-        state: !this.cfg.asr.enabled ? 'offline' : v?.phase === 'running' ? 'online' : v?.phase === 'starting' ? 'loading' : v?.phase === 'error' ? 'error' : 'offline',
+        state: !this.cfg.asr.enabled ? 'offline' : this.micWanted() ? 'online' : v?.phase === 'starting' ? 'loading' : v?.phase === 'error' ? 'error' : 'offline',
         hint: v?.detail ?? v?.phase ?? c.notStarted,
       },
       ...(this.cfg.cua.enabled ? [this.cua.lamp(language)] : []),
@@ -2361,12 +2599,18 @@ export class DesktopPetWorld implements World {
       switch (method) {
         case 'state': return this.voiceState();
         case 'install': void this.installVoice(); return this.voiceState();
-        case 'start': await this.startVoiceBackend(); return this.voiceState();
-        case 'stop': await this.stopVoiceBackend(); return this.voiceState();
+        case 'start':
+          this.opts.persist({ asr: { serviceEnabled: true } });
+          await this.startVoiceBackend();
+          return this.voiceState();
+        case 'stop':
+          this.opts.persist({ asr: { serviceEnabled: false } });
+          await this.stopVoiceBackend();
+          return this.voiceState();
         case 'setEngine': {
           const engine = args[0];
           if (engine === 'funasr' || engine === 'whisper' || engine === 'system' || engine === 'api') this.opts.persist({ asr: { engine } });
-          if (this.cfg.asr.enabled) await this.startVoiceBackend();
+          if (this.recognitionWanted()) await this.startVoiceBackend();
           return this.voiceState();
         }
         // the transcription service: address and model go to the config, the API Key to the deployment's secrets
@@ -2377,7 +2621,7 @@ export class DesktopPetWorld implements World {
           if (typeof raw.model === 'string') api.model = raw.model.trim();
           if (Object.keys(api).length) this.opts.persist({ asr: { api } });
           if (typeof raw.key === 'string' && raw.key.trim()) this.opts.storeAsrApiKey?.(raw.key.trim());
-          if (this.cfg.asr.enabled && this.engine() === 'api') await this.startVoiceBackend();
+          if (this.recognitionWanted() && this.engine() === 'api') await this.startVoiceBackend();
           return this.voiceState();
         }
         case 'setEnabled': this.savePrefs({ mic: args[0] === true }); return this.voiceState();
@@ -2414,7 +2658,7 @@ export class DesktopPetWorld implements World {
     if (slot.state().phase !== 'ready') { this.syncPrefs(); return; }
     // downloading the model is choosing it
     if (this.engine() !== engine) this.opts.persist({ asr: { engine } });
-    if (this.cfg.asr.enabled) await this.startVoiceBackend();
+    if (this.recognitionWanted()) await this.startVoiceBackend();
     else this.syncPrefs();
   }
 
@@ -2454,6 +2698,7 @@ export class DesktopPetWorld implements World {
     const model = this.store[modelEngine];
     return {
       enabled: this.cfg.asr.enabled,
+      serviceEnabled: this.cfg.asr.serviceEnabled !== false,
       engine: this.engine(),
       engineSetting: this.cfg.asr.engine,
       systemSupported: systemRecognizerSupported(),

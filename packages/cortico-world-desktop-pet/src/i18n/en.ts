@@ -23,6 +23,9 @@ const en: PetText = {
 
   /** Voice input: the microphone button's state in the menu, and the notes in the introduction and on the settings page. */
   voice: {
+    serviceStopped: 'Recognition service stopped; voice input is unavailable',
+    recorded: 'Recording sent',
+    recordingUnavailable: 'Recording could not be sent and no transcript is available',
     starting: 'Speech recognition is starting',
     notRunning: 'Speech recognition is not running',
     modelMissing: (mb: number) => `The speech model is not downloaded yet (about ${mb} MB): download it on the Voice input page`,
@@ -300,6 +303,7 @@ const en: PetText = {
     speechSpeed: { title: 'Speech speed', description: (a: number, b: number, c: number) => `Most syllables a second: low, mid and high are ${a}, ${b} and ${c}; custom uses the custom speed. Slower than the text, the voice ends after the text has finished.` },
     speechRate: { title: 'Custom speed', suffix: 'syllables/s' },
     asrEnabled: { title: 'Voice input' },
+    asrServiceEnabled: { title: 'Recognition service', description: 'Start recognition while voice input is on; audio-capable models can still receive recordings alone when off.' },
     asrEngine: { title: 'Recognition engine', description: "funasr runs FunASR's SenseVoiceSmall, for Chinese, English, Japanese, Korean and Cantonese, after a one-time download of about 240 MB; whisper runs OpenAI's Whisper small, for French, German, Spanish, Portuguese, Italian, Russian and about 90 more languages, after a one-time download of about 360 MB, and shows the text once a sentence ends; both recognize on this computer. system uses Windows' own speech recognition, with nothing to download and lower accuracy (Windows only). api sends the recording of each sentence to an OpenAI-compatible transcription service and shows the text once the sentence ends; its address and model are set below, its API Key on the Voice input page. Empty picks by the app language: funasr for Chinese, English, Japanese and Korean, whisper for the rest." },
     asrLanguage: { title: 'Language', description: 'An ISO 639-1 code, or auto to let the model tell; empty follows the app language. FunASR takes zh, en, ja, ko and yue, Whisper about a hundred codes such as fr, de, es, pt, it and ru; a code the model does not take reads as auto. The transcription service is sent the code only when it has two letters.' },
     asrApiUrl: { title: 'Transcription service address', description: 'With engine api, each sentence is sent to /audio/transcriptions under this address, such as https://api.example.com/v1. A remote address must use https; addresses on this computer or the local network may use http.' },

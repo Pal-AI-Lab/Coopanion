@@ -75,11 +75,20 @@ describe('transcribed speech through Core', () => {
       sections: { 'desktop-pet': {
         port: 0,
         window: { ...DESKTOP_PET_DEFAULTS.window, enabled: false },
-        asr: { ...DESKTOP_PET_DEFAULTS.asr, enabled: false, mic: { ...DESKTOP_PET_DEFAULTS.asr.mic, mode: 'hold' } },
+        // Recognition must be enabled even when the finished utterance is injected at the segmenter boundary.
+        // The API engine validates its settings on start; the injected result means it makes no network request.
+        asr: {
+          ...DESKTOP_PET_DEFAULTS.asr,
+          enabled: true,
+          engine: 'api',
+          api: { baseUrl: 'https://transcription.test/v1', model: 'test-model' },
+          mic: { ...DESKTOP_PET_DEFAULTS.asr.mic, mode: 'hold' },
+        },
         typeKey: { ...DESKTOP_PET_DEFAULTS.typeKey, enabled: false },
         cua: { ...DESKTOP_PET_DEFAULTS.cua, enabled: true, permission: 'ask-each-turn' },
       } },
     });
+    await expect.poll(() => world.voiceState().server).toMatchObject({ phase: 'running' });
     page = await FakePage.open(world.petUrl.replace(/\/pet$/, ''));
     page.send({ t: 'text', text: '等待一下' });
     await expect.poll(() => running).toContain('pet_cua_wait');

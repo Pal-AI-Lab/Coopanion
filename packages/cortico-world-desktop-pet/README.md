@@ -196,7 +196,7 @@ Coo、精灵图和 Live2D 式分件模型都画在页面的沙箱 frame 里,截�
 桌宠窗口里的页面用麦克风收音,16 kHz 单声道 PCM 经 WebSocket 送到 World,按能量门限切句
 (`src/asr/segmenter.ts`),交给识别引擎,挡掉已知幻觉后作为 `desktop-pet.speech` 投递;应用语言是简体中文且 `asr.simplified` 开着时先把繁体转成简体。
 `asr.recording.enabled`(默认开)开着且当前端点收 `audio/wav`(`modelFacts.accepts`)时,一批里几句话的原声拼成一个 16 kHz 单声道 WAV,作为附件随事件投递,由 Core 存进部署数据目录;
-`asr.recording.transcript`(默认开)关掉时事件正文不带识别出的文字,只附录音。一批里有一句识别时录音不随发(开关关着或端点不收音频),或录音超过 `asr.recording.maxMinutes`(1–7,默认 5),整批只发文字;
+`asr.recording.transcript`(默认开)关掉时录音不等识别结果就投递，事件正文不附转写；识别结果随后显示在桌宠气泡和对话页上，不再投递。`asr.serviceEnabled`(默认开)保存识别服务的启停状态，与语音输入总开关独立。录音超过 `asr.recording.maxMinutes`(1–7,默认 5) 或端点不收音频时，识别服务可用则退回文字投递;
 上限的推导见 `src/config.ts` 的 `RECORDING_MINUTES_MAX`。
 采集启用回声消除和降噪,关闭自动增益控制(AGC):Windows 上 Chromium 的 AGC 会调整系统麦克风音量。
 说话时桌宠歪头倾听,虚线气泡里边说边显示听到的字,还没定下来的部分是灰色的;用 Whisper 和转写接口时一句说完才出字。识别完成后这个气泡留在 Coo 旁边(见「桌宠窗口」)。
@@ -528,7 +528,7 @@ Linux 缺少 MIT-SCREEN-SAVER 扩展或系统输入查询失败时,最后输入�
 
 ### 打断
 
-用说话键(`asr.mic.mode` 为 `hold` 或 `toggle`)说的话在转写完成、合并为消息并投递时以 `interrupt` 停止当前轮:取消正在生成的回复,给执行中的可打断工具发送取消信号,跳过同轮尚未开始的工具。收音或转写尚未完成时不发送这个信号,已经发生的操作不回滚。
+用说话键(`asr.mic.mode` 为 `hold` 或 `toggle`)说的话在消息投递时以 `interrupt` 停止当前轮:取消正在生成的回复,给执行中的可打断工具发送取消信号,跳过同轮尚未开始的工具。收音或转写尚未完成时不发送这个信号,已经发生的操作不回滚。
 一直收音(`always`)时听到的话照旧以 `flush` 投递,不打断当前轮:电视或旁人的声音也会收进来。
 
 十三个工具都声明为 `interruptible`。Core 投递 `interrupt` 事件时,执行中的调用停在下一个不留半截输入的地方,
@@ -604,6 +604,7 @@ macOS 的辅助功能查询每次最多等待 200ms,超时后仍报告前台程�
 
 - 页面发 `send` 的文字和图片作为 `desktop-pet.message` 投递;送达前在页面上排队,`now` 让它以 interrupt 立即送达,`withdraw` 撤回(需要宿主提供 `promotePending` / `withdrawPending`);World 的 `onEventsSettled` 告诉页面何时送达。
 - `pet_say` 的每一拍、`pet_ask` 的问题、两句话之间调用过的工具名记为 `desktop-pet.self` 事件,只落库不投递;`hello` 时 World 从事件库还原历史,排过队的消息放在送达的位置。`pet_say` 的图片按句柄读出字节后重新附在这条事件上,存成 `log:` 附件。页面经控制台的 `/api/blob` 取消息里的图片。
+- 关了 `asr.recording.transcript` 先投递的录音，识别出文字后记一条 `transcript` 记录(录音事件的游标和文字),向页面推 `transcript { cursor, text }`,页面把那条录音换成文字显示。
 - 页面发出的消息交给 bot 后,World 给桌宠页发 `said`(`via: 'chat'`、文字、图片数、事件游标),桌宠把它留在 Coo 旁边;撤回时发 `said-withdrawn`,桌宠关掉那条。
 - `pet_ask` 在页面上也能回答,回答后桌宠上的气泡关掉。页面还收到 Core 的运行阶段(`phase`)与暂停状态。
 - `controls.openChat` 借出后,打字气泡多一个展开钮,带着草稿打开对话页;环境提示词的 `{{pet.chat}}` 也只在这时说明对话页。

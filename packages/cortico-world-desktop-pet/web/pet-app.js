@@ -1356,8 +1356,18 @@ function onListen(m) {
     listen.text = m.text || '';
     listen.interim = m.interim || '';
     showHeard();
+  } else if (m.phase === 'recording-text') {
+    // An optional transcript belongs to a recording already delivered. Never reopen a
+    // dismissed bubble, touch the current listening episode, or replay its completion.
+    if (typeof m.recordingId !== 'string') return;
+    const line = lines.find((l) => l.recordingId === m.recordingId && !l.live && l.fadeAt === null);
+    if (line && typeof m.text === 'string' && m.text) {
+      line.text = m.text;
+      drawLine(line);
+    }
   } else if (m.phase === 'heard') {
     const line = listen.line ?? addLine('voice', '', true);
+    if (typeof m.recordingId === 'string') line.recordingId = m.recordingId;
     endListen();
     settleLine(line, m.text || '');
     if (!prefs.saidBubbles) fadeLine(line);
