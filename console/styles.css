@@ -674,7 +674,8 @@
   }
 
   :where(:root[data-motion="low"]) {
-    &, *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+    /* delays too: a fade that waits (the Worlds page's blades and labels) would otherwise leave the old content up for its delay */
+    &, *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; transition-duration: .001ms !important; transition-delay: 0s !important; scroll-behavior: auto !important; }
   }
 
 
@@ -2323,6 +2324,8 @@ input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{disp
   .chat-phase[data-state="busy"] .dot { animation-duration: 1.2s !important; animation-iteration-count: infinite !important; }
   .pulse { animation-name: breathe !important; animation-duration: 1.15s !important; animation-iteration-count: infinite !important; }
   .pet-bubble.thinking i { animation-name: breathe !important; animation-duration: 1.2s !important; animation-iteration-count: infinite !important; }
+  .pet-bubble.thinking i:nth-child(2) { animation-delay: .15s !important; }
+  .pet-bubble.thinking i:nth-child(3) { animation-delay: .3s !important; }
   .progressfill { transition-duration: var(--motion-base) !important; }
   /* the caret stays lit; the toast fades in and out over its whole stay instead of vanishing at once */
   .typing::after { animation: none !important; }
