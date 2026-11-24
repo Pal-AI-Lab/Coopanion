@@ -3,6 +3,7 @@
  * hidden (`.u-tip.leaving`); shown again while fading out, it stays. With low motion it goes at once.
  */
 import { motionLevel } from '../motion.ts';
+import { cssMs } from 'cortico-world-desktop-pet/web/motion-frames.js';
 
 export const LEAVE_MS = 120;
 
@@ -25,5 +26,5 @@ export function hideTip(el: HTMLElement, now = false): void {
   const still = motionLevel(win) === 'low';
   if (now || still || !win || el.classList.contains('hidden')) { el.classList.remove('leaving'); el.classList.add('hidden'); return; }
   el.classList.add('leaving');
-  leaving.set(el, win.setTimeout(() => { leaving.delete(el); el.classList.remove('leaving'); el.classList.add('hidden'); }, LEAVE_MS));
+  leaving.set(el, win.setTimeout(() => { leaving.delete(el); el.classList.remove('leaving'); el.classList.add('hidden'); }, cssMs(el, '--tip-out', LEAVE_MS)));
 }

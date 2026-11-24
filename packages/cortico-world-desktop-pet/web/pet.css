@@ -3,6 +3,8 @@
   --motion-fast:150ms; --motion-base:200ms; --motion-slow:280ms;
   /* animation curves: a pop that overshoots, a softer one, and controls sliding back beside the body */
   --motion-pop:cubic-bezier(.3,1.5,.5,1); --motion-pop-soft:cubic-bezier(.3,1.4,.5,1); --motion-return:cubic-bezier(.2,.7,.3,1);
+  /* the leaving animations pet-app.js and hints.js wait for before they hide the element */
+  --pop-out:160ms; --wheel-out:140ms; --sizer-out:140ms; --return-time:260ms; --hint-out:120ms;
   --bg:#F3F2F6; --surface:#FFFFFF; --text:#1B1626; --muted:#6A6577; --line:#E2DFE8;
   --accent:#00A870;
   --skin-ink:#1B1626; --skin-eye:#00A870;
@@ -364,7 +366,7 @@ body.desk .floor{display:none}
 /* the menu's buttons and the hover buttons: opening, each pops out of the body's side (`--dx`) one after another (`--i`);
    closing, all fold back into it at once (POP_OUT_MS in pet-app.js), taking no clicks meanwhile */
 .menu.entering :is(.m-grid, .m-rail) > *, .tools.entering > *{animation:m-in var(--motion-slow) var(--motion-pop) backwards; animation-delay:calc(var(--i, 0) * 22ms)}
-.menu.leaving :is(.m-grid, .m-rail) > *, .tools.leaving > *{animation:m-out .16s ease-in forwards}
+.menu.leaving :is(.m-grid, .m-rail) > *, .tools.leaving > *{animation:m-out var(--pop-out) ease-in forwards}
 .menu.leaving, .menu.leaving > *, .tools.leaving, .tools.leaving > *, .wheel.leaving{pointer-events:none}
 /* a hover button that was showing slides into its tile instead of popping out again */
 .menu.entering .m-grid > .from-tool{animation:m-move var(--motion-slow) cubic-bezier(.2,.8,.3,1) backwards; animation-delay:0s}
@@ -420,7 +422,7 @@ body.desk .floor{display:none}
 /* look wheel: the looks in a row over the body; the farther from the middle, the smaller and fainter */
 .wheel{position:fixed; z-index:6; height:62px}
 /* folding into the middle (WHEEL_OUT_MS in pet-app.js) */
-.wheel.leaving .w-item{transition-timing-function:ease-in; transition-duration:.13s}
+.wheel.leaving .w-item{transition-timing-function:ease-in; transition-duration:var(--wheel-out)}
 .wheel[hidden]{display:none}
 .w-item{
   position:absolute; left:50%; top:50%; width:50px; height:50px; padding:0; border-radius:50%; overflow:hidden; cursor:pointer;
@@ -495,7 +497,7 @@ body.desk .floor{display:none}
   background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:5px 9px; box-shadow:0 6px 18px -8px var(--shadow, rgba(0,0,0,.3));
   font-size:12px; line-height:1.45; color:var(--text); overflow-wrap:anywhere; animation:hint-in 120ms ease-out}
 .hint[hidden]{display:none}
-.hint.leaving{animation:hint-out 120ms ease-in forwards}
+.hint.leaving{animation:hint-out var(--hint-out) ease-in forwards}
 @keyframes hint-in{from{opacity:0}}
 @keyframes hint-out{to{opacity:0}}
 :where(:root[data-motion="low"]) {.hint, .hint.leaving{animation:none}}
@@ -549,11 +551,11 @@ body.desk .floor{display:none}
 }
 .sizer.entering{animation:rise-in var(--motion-base) var(--motion-pop-soft) backwards; --rise:8px; --rise-scale:.6}
 /* a group of controls let go of glides back beside the body (pet-app.js follow, RETURN_MS) */
-:is(.tools, .wheel, .sizer, .m-grid, .m-rail).returning{transition:left .26s var(--motion-return), top .26s var(--motion-return), right .26s var(--motion-return)}
+:is(.tools, .wheel, .sizer, .m-grid, .m-rail).returning{transition:left var(--return-time) var(--motion-return), top var(--return-time) var(--motion-return), right var(--return-time) var(--motion-return)}
 /* the size button while it holds the slider open (pet-app.js pinSizer) */
 .tool[data-action="size"].on{color:var(--skin-eye); border-color:var(--skin-eye)}
 /* SIZER_OUT_MS in pet-app.js */
-.sizer.leaving{animation:sz-out .14s ease-in forwards; pointer-events:none}
+.sizer.leaving{animation:sz-out var(--sizer-out) ease-in forwards; pointer-events:none}
 @keyframes sz-out{to{transform:translateY(8px) scale(.6); opacity:0}}
 :where(:root[data-motion="low"]) {.sizer{animation:none}}
 

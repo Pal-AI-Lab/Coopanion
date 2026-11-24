@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { setMotionChoice } from '../packages/cortico-world-desktop-pet/web/motion-level.js';
-import { approach, approachShare, tween, typeOut } from '../packages/cortico-world-desktop-pet/web/motion-frames.js';
+import { approach, approachShare, cssMs, tween, typeOut } from '../packages/cortico-world-desktop-pet/web/motion-frames.js';
 
 const at = (level) => { const win = new JSDOM('<!doctype html><html></html>').window; setMotionChoice(win, level); return win; };
 
@@ -33,5 +33,14 @@ describe('frame motion', () => {
     const win = at('high');
     expect(typeOut(100, 20, .5, win)).toBe(10);
     expect(typeOut(100, 20, 9, win)).toBe(100);
+  });
+
+  it('reads a duration from the stylesheet in ms or s, and falls back without one', () => {
+    const el = (value) => ({ ownerDocument: { defaultView: { getComputedStyle: () => ({ getPropertyValue: () => value }) } } });
+    expect(cssMs(el('160ms'), '--x', 1)).toBe(160);
+    expect(cssMs(el(' .12s'), '--x', 1)).toBe(120);
+    expect(cssMs(el(''), '--x', 99)).toBe(99);
+    expect(cssMs(el('var(--y)'), '--x', 99)).toBe(99);
+    expect(cssMs(null, '--x', 7)).toBe(7);
   });
 });

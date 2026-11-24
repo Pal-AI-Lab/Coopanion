@@ -19,11 +19,12 @@ import { addGroup, arrangeLayout, groupToken, moveGroup, moveItem, readLayout, r
 import { S } from './strings.ts';
 import { S as UI } from '../../../base/ui/strings.ts';
 import { measureReflow, motionLevel } from '../../../base/motion.ts';
+import { cssMs } from 'cortico-world-desktop-pet/web/motion-frames.js';
 import { dragList, moveGap, settledBox } from '../../../base/drag.ts';
 import { foldText, searchTerms } from '../extensions/search.ts';
 
 const worldPageId = (id: string) => pageIdFor('world', id);
-/** The view switch's duration and curve, as `--world-duration` and `--world-easing` in styles.css. */
+/** The view switch's duration where styles.css does not say (it reads `--world-duration`), and its curve, as `--world-easing`. */
 const VIEW_MS = 290;
 const viewEasing = cubicBezier(.32, .72, 0, 1);
 /** A CSS cubic-bezier timing function, solved for x by Newton's method with a bisection fallback. */
@@ -196,7 +197,7 @@ export function mountWorlds(ctx: FeatureContext): void {
         const own = anchor.getAnimations?.().find(animation => (animation as CSSTransition).transitionProperty === 'height');
         if (own) seen = true;
         // Waiting for the transition to start holds still; once it has run and gone, the glide ends.
-        const waited = now - start, clock = Math.min(1, Math.max(0, waited - 80) / VIEW_MS);
+        const waited = now - start, clock = Math.min(1, Math.max(0, waited - 80) / cssMs(workspace, '--world-duration', VIEW_MS));
         const progress = own ? own.effect?.getComputedTiming().progress ?? 0 : seen ? 1 : viewEasing(clock);
         const done = !own && (seen || clock >= 1);
         railList.scrollTop = glideFrom + (to - glideFrom) * (done ? 1 : progress);

@@ -6,10 +6,12 @@
  * element; elsewhere it stays while the pointer does. A title set again later replaces the hint the next time.
  * It fades in and out as the settings window's hover hints do (`.hint`, pet.css; `.u-tip`, console/styles.css).
  */
+import { cssMs } from './motion-frames.js';
+
 export const DELAY_MS = 450;
 /** How long a hint stays up while the pointer rests on its element, with `autoClose`. */
 export const SHOW_MS = 1000;
-/** How long a hint takes to fade out (`.hint.leaving`, pet.css). */
+/** How long a hint takes to fade out where the stylesheet does not say (pet.css `--hint-out`). */
 export const LEAVE_MS = 120;
 const EDGE = 8;
 
@@ -43,7 +45,7 @@ export function mountHints(doc, { autoClose = false } = {}) {
   const fade = () => {
     if (box.hidden || box.classList.contains('leaving')) return;
     box.classList.add('leaving');
-    leave = win.setTimeout(hideNow, LEAVE_MS);
+    leave = win.setTimeout(hideNow, cssMs(doc.documentElement, '--hint-out', LEAVE_MS));
   };
   const hide = (soft) => { win.clearTimeout(timer); current = null; if (soft) fade(); else hideNow(); };
   const show = (el, text) => {

@@ -23,6 +23,7 @@ import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightW
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
 import { runFrames } from './frame-loop.js';
+import { cssMs } from './motion-frames.js';
 import { motionLevel, setMotionChoice, watchMotion } from './motion-level.js';
 import { mountHints, tipOf, tipWithoutNote } from './hints.js';
 
@@ -1657,7 +1658,7 @@ function fillMenuRail(rail, bot, confirmQuit) {
 const menuAnim = { enter: 0, leave: 0 };
 function closeMenu() {
   if (menu.hidden || leaving(menu)) return;
-  popOut(menu, menuAnim, POP_OUT_MS);
+  popOut(menu, menuAnim, POP_OUT_MS());
   // the hover buttons stay away until the pointer has left the body and them, and comes back
   toolsMuted = true;
   toolsUntil = 0;
@@ -1758,12 +1759,13 @@ function showTools(on) {
   }
   if (tools.hidden || leaving(tools)) return;
   endHold();
-  popOut(tools, toolsAnim, POP_OUT_MS);
+  popOut(tools, toolsAnim, POP_OUT_MS());
 }
 
 /* ---------- popping in and out: the menu, the hover buttons and the look wheel ---------- */
 /** Milliseconds the menu's buttons and the hover buttons take to fold back into the body (`m-out` in pet.css). */
-const POP_OUT_MS = 160;
+/** The leaving animations' lengths (pet.css `--pop-out`, `--wheel-out`, `--sizer-out`, `--return-time`). */
+const POP_OUT_MS = () => cssMs(document.documentElement, '--pop-out', 160);
 /** Longer than the last of the staggered `m-in`s, after which `entering` comes off. */
 const POP_IN_MS = 600;
 // the page runs without a window in the tests, where motion counts as full
@@ -1810,7 +1812,7 @@ function stepTools() {
 /** Seconds the wheel stays after the pointer leaves it and every dress button. */
 const WHEEL_LINGER = .25;
 /** Milliseconds the looks take to fold back into the middle (`.wheel.leaving` in pet.css). */
-const WHEEL_OUT_MS = 140;
+const WHEEL_OUT_MS = () => cssMs(document.documentElement, '--wheel-out', 140);
 /** Pixels between two looks in the row, and how many show on each side of the middle one. */
 const WHEEL_STEP = 54, WHEEL_SIDE = 3;
 /** Opacity of a look by its distance from the middle. */
@@ -1897,7 +1899,7 @@ function closeWheel() {
   if (wheel.hidden || leaving(wheel)) return;
   // the looks fold back into the middle, then the row goes
   foldWheel();
-  popOut(wheel, wheelAnim, WHEEL_OUT_MS);
+  popOut(wheel, wheelAnim, WHEEL_OUT_MS());
 }
 
 /** Every look gathered small and faint in the middle of the row: where it fans out from and folds back into. */
@@ -2010,7 +2012,7 @@ function pinSizer(on) {
   refreshButtons();
 }
 /** Milliseconds the slider takes to fold away (`.sizer.leaving` in pet.css). */
-const SIZER_OUT_MS = 140;
+const SIZER_OUT_MS = () => cssMs(document.documentElement, '--sizer-out', 140);
 /** Milliseconds between the sizes sent to the World while the slider moves. */
 const SIZE_SEND_MS = 120;
 const sizerText = document.createElement('span');
@@ -2062,7 +2064,7 @@ function openSizer() {
 }
 function closeSizer() {
   if (sizerEl.hidden || leaving(sizerEl) || sizer.active) return;
-  popOut(sizerEl, sizerAnim, SIZER_OUT_MS);
+  popOut(sizerEl, sizerAnim, SIZER_OUT_MS());
 }
 /** Centred over the body, just above its head, where the look wheel opens; it follows the head as other controls do (`follow`). */
 function placeSizer(l) {
@@ -2389,7 +2391,7 @@ function placeTalk(it, a) {
 }
 
 /** Milliseconds a group of controls let go of glides back to its place (`.returning` in pet.css), and a margin. */
-const RETURN_MS = 260;
+const RETURN_MS = () => cssMs(document.documentElement, '--return-time', 260);
 /** Whether each group of controls was held last frame, and the timers that end its glide back. */
 const heldGroups = new WeakMap(), returning = new WeakMap();
 /**
@@ -2406,7 +2408,7 @@ function follow(els, pointed, place) {
     for (const el of els) {
       el.classList.add('returning');
       clearTimeout(returning.get(el));
-      returning.set(el, setTimeout(() => el.classList.remove('returning'), RETURN_MS + 60));
+      returning.set(el, setTimeout(() => el.classList.remove('returning'), RETURN_MS() + 60));
     }
   }
   place();

@@ -56,9 +56,11 @@
 .uactivity .ucell[data-level="4"] { background: var(--accent); }
 .ugrid .ucell.is-out { visibility: hidden; }
 .ugrid .ucell.is-dim { opacity: .4; filter: grayscale(1); }
+/* 热力图格子着色/褪色的时长；activity.ts 等它扫完再清掉延迟 */
+.ugrid { --sweep-fade: 240ms; }
 .ugrid .ucell[data-day] {
   position: relative;
-  transition: transform 260ms var(--motion-pop), opacity 240ms ease-out, filter 240ms ease-out, box-shadow 200ms ease-out;
+  transition: transform 260ms var(--motion-pop), opacity var(--sweep-fade) ease-out, filter var(--sweep-fade) ease-out, box-shadow 200ms ease-out;
 }
 .ugrid:hover .ucell[data-day] { opacity: .4; }
 .ugrid:hover .ucell.is-dim { opacity: .15; }

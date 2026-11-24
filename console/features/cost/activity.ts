@@ -7,6 +7,7 @@
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import { LANGUAGE } from '../../base/language.ts';
 import { S } from './strings.ts';
+import { cssMs } from 'cortico-world-desktop-pet/web/motion-frames.js';
 import type { UsageTip } from './tooltip.ts';
 import type { UsageDailyTokens } from './types.ts';
 
@@ -21,7 +22,7 @@ const MONTH_GAP = 3;
 /** 换范围时着色/褪色依次扫过各列，每列的延迟与整段扫过的上限（ms）。 */
 const SWEEP_STEP_MS = 18;
 const SWEEP_MAX_MS = 600;
-/** 单个格子着色/褪色的时长，与 cost.css 中 .ucell 的 opacity / filter 过渡一致。 */
+/** 单个格子着色/褪色的时长：读 cost.css 的 `--sweep-fade`（.ucell 的 opacity / filter 过渡），读不到时用这个。 */
 const SWEEP_FADE_MS = 240;
 
 export interface ActivityDeps {
@@ -152,5 +153,5 @@ export function renderActivity(deps: ActivityDeps, daily: readonly UsageDailyTok
   // 延迟只给这一次切换；扫完后清掉，悬停的过渡照常立即开始。
   box.ownerDocument.defaultView?.setTimeout(() => {
     for (const { cell } of shifts) cell.style.transitionDelay = '';
-  }, longest + SWEEP_FADE_MS);
+  }, longest + cssMs(grid, '--sweep-fade', SWEEP_FADE_MS));
 }

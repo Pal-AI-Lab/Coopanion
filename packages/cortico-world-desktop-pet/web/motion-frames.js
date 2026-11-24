@@ -30,6 +30,17 @@ export function progress(start, ms, now, win = globalThis.window) {
   return Math.min(1, Math.max(0, (now - start) / ms));
 }
 
+/**
+ * A duration the stylesheet gives `el` (or inherits to it) as a custom property, `--name: 160ms` or `.16s`, in
+ * milliseconds; `fallback` where it has none (no stylesheet, as in the tests). Scripts that wait for a CSS animation
+ * read its length here, so it is written once.
+ */
+export function cssMs(el, name, fallback) {
+  const view = el?.ownerDocument?.defaultView;
+  const m = /^\s*(\d*\.?\d+)(ms|s)\s*$/.exec(view?.getComputedStyle?.(el).getPropertyValue(name) ?? '');
+  return m ? Math.round(parseFloat(m[1]) * (m[2] === 's' ? 1000 : 1)) : fallback;
+}
+
 /** A curve without overshoot, for medium motion: ease-out cubic. */
 const steady = (k) => 1 - (1 - k) ** 3;
 
