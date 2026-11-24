@@ -8,7 +8,7 @@
  * Each page styles it by its root class: `.pet-scale` (pet.css, dress.css) or the settings window's `.companion-scale`
  * (home.css); the parts are `.ps-main`, `.ps-tail`, `.ps-fill`, `.ps-divider` and `.ps-thumb` on both.
  */
-import { motionLevel } from './motion-level.js';
+import { progress } from './motion-frames.js';
 
 /** The bar's width and its main stretch's share: at rest, and while the value is past the divider. */
 const WIDTHS = { collapsed: { width: 280, main: .88 }, expanded: { width: 440, main: .45 } };
@@ -43,7 +43,6 @@ export function sizeEcho(take, ms = 1000) {
 }
 
 const ease = (k) => (k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2);
-const still = (doc) => motionLevel(doc.defaultView) === 'low';
 
 /**
  * `o`: { min, soft, max, label, room() (pixels the bar may take), onInput(value) while it moves, onChange(value) once a
@@ -99,14 +98,14 @@ export function scaleSlider(doc, o) {
   /** The bar now: `mainW` and `tailW` map values to pixels, `drawn` is the tail's drawn width. */
   function layout(now = performance.now()) {
     if (held) {
-      const t = still(doc) ? 1 : Math.min(1, (now - held.grownAt) / ANIMATE_MS);
+      const t = progress(held.grownAt, ANIMATE_MS, now, doc.defaultView);
       return { mainW: held.mainW, tailW: held.tail, drawn: held.grownFrom + (held.tail - held.grownFrom) * ease(t) };
     }
-    const kk = from + (target - from) * (still(doc) ? 1 : Math.min(1, (now - startedAt) / ANIMATE_MS));
+    const kk = from + (target - from) * progress(startedAt, ANIMATE_MS, now, doc.defaultView);
     k = kk;
     const r = rest(kk);
     if (!left) return { ...r, drawn: r.tailW };
-    const b = 1 - ease(still(doc) ? 1 : Math.min(1, (now - left.at) / ANIMATE_MS));
+    const b = 1 - ease(progress(left.at, ANIMATE_MS, now, doc.defaultView));
     const mainW = r.mainW + (left.mainW - r.mainW) * b, tailW = r.tailW + (left.tailW - r.tailW) * b;
     return { mainW, tailW, drawn: tailW };
   }
@@ -133,9 +132,9 @@ export function scaleSlider(doc, o) {
 
   /** Whether any of the bar's changes is still under way at `now`. */
   function moving(now) {
-    if (still(doc)) return false;
-    if (held) return now - held.grownAt < ANIMATE_MS;
-    return now - startedAt < ANIMATE_MS || (!!left && now - left.at < ANIMATE_MS);
+    const win = doc.defaultView;
+    if (held) return progress(held.grownAt, ANIMATE_MS, now, win) < 1;
+    return progress(startedAt, ANIMATE_MS, now, win) < 1 || (!!left && progress(left.at, ANIMATE_MS, now, win) < 1);
   }
   function tick(now) {
     draw(layout(now));

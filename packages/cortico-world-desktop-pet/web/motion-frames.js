@@ -21,6 +21,15 @@ export function approachShare(rate, dt, win = globalThis.window) {
   return dt > 0 ? 1 - Math.exp(-rate * dt) : 0;
 }
 
+/**
+ * How far a change that started at `start` and runs `ms` milliseconds is at `now`, 0 to 1, linear; 1 at low motion.
+ * For callers that combine several timed changes and apply their curves themselves.
+ */
+export function progress(start, ms, now, win = globalThis.window) {
+  if (motionLevel(win) === 'low' || ms <= 0) return 1;
+  return Math.min(1, Math.max(0, (now - start) / ms));
+}
+
 /** A curve without overshoot, for medium motion: ease-out cubic. */
 const steady = (k) => 1 - (1 - k) ** 3;
 
@@ -32,7 +41,7 @@ const steady = (k) => 1 - (1 - k) ** 3;
 export function tween(from, to, ms, { ease = steady, overshoots = false, start = performance.now(), win = globalThis.window } = {}) {
   const level = motionLevel(win);
   const curve = level === 'medium' && overshoots ? steady : ease;
-  const share = (now) => (level === 'low' || ms <= 0 ? 1 : Math.min(1, Math.max(0, (now - start) / ms)));
+  const share = (now) => (level === 'low' ? 1 : progress(start, ms, now, win));
   return {
     at: (now) => { const k = share(now); return k >= 1 ? to : from + (to - from) * curve(k); },
     done: (now) => share(now) >= 1,

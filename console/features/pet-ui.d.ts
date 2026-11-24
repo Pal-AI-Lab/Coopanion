@@ -61,6 +61,8 @@ declare module 'cortico-world-desktop-pet/web/motion-level.js' {
 }
 
 declare module 'cortico-world-desktop-pet/web/motion-frames.js' {
+  /** How far a change started at `start` and running `ms` is at `now`, 0–1, linear; 1 at low motion. */
+  export function progress(start: number, ms: number, now: number, win?: Window | null): number;
   /** One frame of easing `current` toward `target` (`rate` per second, `dt` in seconds); the target at low motion. */
   export function approach(current: number, target: number, rate: number, dt: number, win?: Window | null): number;
   /** The share of the gap one frame of `approach` closes; 1 at low motion. */

@@ -24,6 +24,7 @@ import { L } from '../strings.ts';
 import { createAvatarControl } from './avatar.ts';
 import { S } from './strings.ts';
 import { fold, motionLevel, steadiest } from '../base/motion.ts';
+import { tween } from 'cortico-world-desktop-pet/web/motion-frames.js';
 
 const COLLAPSED_KEY = 'companion.sidebar.collapsed';
 const DEFAULT_NAME = 'bot';
@@ -269,14 +270,14 @@ export function createRail(deps: RailDeps): Rail {
       const to = Math.max(0, Math.min(from, nav.scrollHeight - nav.clientHeight));
       for (const x of leaving) x.style.display = '';
       nav.scrollTop = from;
-      if (to < from && motionLevel(win) !== 'low') {
-        const start = performance.now();
+      // eased over the entries' fade; at low motion `tween` is at its end at once
+      if (to < from) {
+        const glide = tween(from, to, FADE_MS, { win });
         const step = (now: number): void => {
-          const k = Math.min(1, (now - start) / FADE_MS);
-          nav.scrollTop = from + (to - from) * (1 - (1 - k) ** 3);
-          if (k < 1) requestAnimationFrame(step);
+          nav.scrollTop = glide.at(now);
+          if (!glide.done(now)) requestAnimationFrame(step);
         };
-        requestAnimationFrame(step);
+        if (glide.done(performance.now())) nav.scrollTop = to; else requestAnimationFrame(step);
       } else nav.scrollTop = to;
     }
   };
