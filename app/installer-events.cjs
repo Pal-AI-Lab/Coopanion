@@ -1,26 +1,21 @@
-// Windows Setup records quiet update failures beside installer.log.
-const { statSync, unlinkSync } = require('node:fs');
+// A quiet update that failed leaves `data\logs\last-update-error.txt` (installer/update.nsh): the
+// program directory it was for and the version it was installing.
+const { unlinkSync } = require('node:fs');
 const { join } = require('node:path');
 const { samePath } = require('./data-dir.cjs');
 const { readTextFile } = require('./read-text.cjs');
 
-function takeInstallerFailure(programDir, localAppData) {
-  const directories = [join(programDir, 'data', 'logs')];
-  if (localAppData) directories.push(join(localAppData, 'Coopanion'));
-  let latest = null;
-  for (const directory of directories) {
-    const marker = join(directory, 'last-update-error.txt');
-    try {
-      const [owner, version] = readTextFile(marker).split(/\r?\n/);
-      if (!owner || !version || !samePath(programDir, owner)) continue;
-      const { mtimeMs } = statSync(marker);
-      unlinkSync(marker);
-      if (!latest || mtimeMs > latest.mtimeMs) {
-        latest = { mtimeMs, failure: { version, logFile: join(directory, 'installer.log') } };
-      }
-    } catch { /* absent or still open */ }
+/** The failed update recorded for this program directory, removing the record; null when there is none. */
+function takeInstallerFailure(programDir) {
+  const logs = join(programDir, 'data', 'logs');
+  const marker = join(logs, 'last-update-error.txt');
+  try {
+    const [owner, version] = readTextFile(marker).split(/\r?\n/);
+    unlinkSync(marker);
+    return owner && version && samePath(programDir, owner) ? { version, logFile: join(logs, 'installer.log') } : null;
+  } catch {
+    return null;
   }
-  return latest?.failure ?? null;
 }
 
 module.exports = { takeInstallerFailure };

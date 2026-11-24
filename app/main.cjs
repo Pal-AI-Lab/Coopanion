@@ -781,7 +781,7 @@ app.whenReady().then(() => {
   language = configuredLanguage(join(userData, 'home')) ?? system;
   if (askStranded && askRestoreStranded()) return;
   if (WINDOWS_INSTALL) {
-    const failure = takeInstallerFailure(PROGRAM_DIR, process.env.LOCALAPPDATA);
+    const failure = takeInstallerFailure(PROGRAM_DIR);
     if (failure) void dialog.showMessageBox({
       type: 'warning', title: 'Coopanion', message: T().installUpdateFailed(failure.version), detail: failure.logFile,
     });
