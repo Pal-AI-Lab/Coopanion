@@ -45,9 +45,9 @@
 .ufoot { margin: 12px 0 0; color: var(--ink-dim); font-size: 11.5px; }
 
 /* Token 活跃度 */
-.uactivity { --cell: 12px; --gap: 3px; display: grid; gap: 6px; }
+.uactivity { --cell: 12px; --gap: 3px; position: relative; display: grid; gap: 6px; }
 .ugrid, .umonths { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); column-gap: var(--gap); }
-.ugrid { grid-template-rows: repeat(7, auto); grid-auto-flow: column; row-gap: var(--gap); }
+.ugrid { grid-template-rows: repeat(7, auto); grid-auto-flow: column; row-gap: var(--gap); transition: opacity 240ms ease-out; will-change: opacity; }
 .uactivity .ucell { display: block; width: var(--cell); aspect-ratio: 1; border-radius: 3px; background: color-mix(in srgb, var(--ink) 11%, transparent); }
 .ugrid .ucell { width: 100%; border-radius: min(3px, 25%); }
 .uactivity .ucell[data-level="1"] { background: color-mix(in srgb, var(--accent) 28%, transparent); }
@@ -56,18 +56,16 @@
 .uactivity .ucell[data-level="4"] { background: var(--accent); }
 .ugrid .ucell.is-out { visibility: hidden; }
 .ugrid .ucell.is-dim { opacity: .4; filter: grayscale(1); }
-.ugrid .ucell[data-day] {
-  position: relative;
-  transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1), opacity 240ms ease-out, filter 240ms ease-out, box-shadow 200ms ease-out;
-}
-.ugrid:hover .ucell[data-day] { opacity: .4; }
-.ugrid:hover .ucell.is-dim { opacity: .15; }
-.ugrid .ucell[data-day]:hover {
-  z-index: 1;
-  opacity: 1;
-  transform: scale(1.7);
+/* 换范围时格子依次着色/褪色（activity.ts 的扫过） */
+.ugrid .ucell[data-day] { transition: opacity 240ms ease-out, filter 240ms ease-out; }
+/* 悬停：整张格子图作为一层淡出（一个过渡），指着的格子是叠在上面的副本 .ulift，放大发光（activity.ts） */
+.ugrid:hover { opacity: .4; }
+.uactivity > .ulift {
+  position: absolute; z-index: 1; border-radius: min(3px, 25%); pointer-events: none; opacity: 0; will-change: transform, opacity;
   box-shadow: 0 0 0 2px var(--background), 0 0 14px color-mix(in srgb, var(--accent) 70%, transparent);
 }
+.uactivity > .ulift > .ucell { width: 100%; height: 100%; border-radius: inherit; }
+.uactivity > .ulift.is-dim > .ucell { filter: grayscale(1); }
 .ugrid.is-entering .ucell { animation: ucell-in 420ms cubic-bezier(.34, 1.56, .64, 1) both; animation-delay: calc(var(--i) * 16ms); }
 @keyframes ucell-in { from { opacity: 0; transform: scale(.2); } }
 .umonths { font: 11px/1.4 var(--sans); color: var(--ink-soft); white-space: nowrap; }
@@ -88,14 +86,19 @@
 .chart-legend:not(:empty) + .uchart { margin-top: 8px; }
 .legitem { display: inline-flex; align-items: center; gap: 6px; font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); }
 .legsw { width: 11px; height: 11px; border-radius: 3px; }
-.uchart svg { display: block; }
-/* 悬停柱子：这一列略微抬起并发光，其余列淡出；悬停堆叠中的一段时这一段最亮 */
-.uchart .barg { transition: opacity 220ms ease-out, transform 260ms cubic-bezier(.34, 1.56, .64, 1), filter 220ms ease-out; }
-.uchart svg:has(.barg:hover) .barg:not(:hover) { opacity: .35; }
-.uchart .barg:hover { transform: translateY(-3px); filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--accent) 45%, transparent)); }
-.uchart .bseg { transition: opacity 180ms ease-out, filter 180ms ease-out; }
-.uchart .barg:has(.seghi) .bseg:not(.seghi) { opacity: .55; }
-.uchart .bseg.seghi { filter: brightness(1.12) saturate(1.1); }
+/* 悬停柱子:其余柱子整组淡出，指着的这一列是叠在上层的一份副本，抬起并发光，指着的那一段最亮(chart.ts);
+   柱子太细时不做动画，这一列后面铺一条底色。底色与副本都不在柱子的 SVG 里，移动时不重画柱子 */
+.uchart { position: relative; }
+.uchart svg { display: block; position: relative; }
+.uchart .bars { pointer-events: none; transition: opacity 220ms ease-out; }
+.uchart svg.has-hot > .bars { opacity: .35; }
+.uchart > .bspot { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; will-change: transform; }
+.uchart > .bspot .bseg { transition: opacity 180ms ease-out, filter 180ms ease-out; }
+.uchart > .bspot .has-seg .bseg:not(.seghi) { opacity: .55; }
+.uchart > .bspot .bseg.seghi { filter: brightness(1.12) saturate(1.1); }
+.uchart > .bband { position: absolute; left: 0; background: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; will-change: transform; }
+.uchart > .bband[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .uchart .bars, .uchart > .bspot .bseg { transition: none; } }
 .uchart .axis { stroke: var(--line-2); stroke-width: 1; }
 .uchart .glabel, .uchart .vlabel { fill: var(--ink-soft); font: var(--text-detail) var(--mono); }
 .unote { margin: 6px 0 0; }

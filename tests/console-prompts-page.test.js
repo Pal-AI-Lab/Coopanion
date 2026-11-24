@@ -40,7 +40,7 @@ beforeEach(() => {
     if (path === '/api/capabilities') return json({ capabilities: { worlds: true, prompts: true, config: true, storage: true, sessionControl: true } });
     if (path === '/api/config') return json({ groups: [{ group: { id: 'worlds.fixture', owner: 'world:fixture', schema: { title: 'Fixture configuration', properties: { 'worlds.fixture.name': { type: 'string', title: 'Fixture name' } } } }, values: { 'worlds.fixture.name': 'Friend' } }] });
     if (path === '/api/webui/lamps') return json({ lamps: {} });
-    if (path === '/api/webui/manifest') return json({ protocolVersion: CONSOLE_PROTOCOL_VERSION, framework: { capabilities: { config: configAvailable } }, providers: [
+    if (path === '/api/webui/manifest') return json({ protocolVersion: CONSOLE_PROTOCOL_VERSION, framework: { capabilities: { config: configAvailable, storage: true, sessionControl: true } }, providers: [
       { id: 'world:fixture', kind: 'world', label: 'Fixture World', availability: 'active', configGroups: ['worlds.fixture'], prompts: [{ key: worldKey }] },
     ] });
     if (path === '/api/prompts/prefix') return json({ segments: prefix() });
@@ -206,8 +206,6 @@ it('keeps the accepted route unchanged when leaving for World configuration is c
 it.each(['normal', 'advanced'])('opens World configuration in %s mode only after the app accepts leaving the prompt editor', async (mode) => {
   const { boot } = await import('../console/index.ts');
   localStorage.setItem('companion.mode', mode);
-  let allowLeave = false;
-  vi.stubGlobal('confirm', () => allowLeave);
   mounted.push(boot());
   await vi.waitFor(() => expect(document.querySelector('.prompt-settings-link')).not.toBeNull());
   const worldNav = document.querySelector('#rail a[href="#/world"]');
@@ -217,11 +215,15 @@ it.each(['normal', 'advanced'])('opens World configuration in %s mode only after
   expect(document.querySelector('#rail a[href*="world%3Afixture"]').hidden).toBe(false);
   const view = EditorView.findFromDOM(document.querySelector('.cm-editor'));
   view.dispatch({ changes: { from: 0, insert: 'Unsaved ' } });
+  // the window asks in its own dialog: Cancel keeps the editor, Leave goes
   document.querySelector('.prompt-settings-link').click();
+  await vi.waitFor(() => expect(document.querySelector('.confirm-card')).not.toBeNull());
+  document.querySelector('.confirm-card .btn').click();
   await vi.waitFor(() => expect(location.hash).toBe('#/prompts'));
   expect(view.state.doc.toString()).toContain('Unsaved ');
-  allowLeave = true;
   document.querySelector('.prompt-settings-link').click();
+  await vi.waitFor(() => expect(document.querySelector('.confirm-card')).not.toBeNull());
+  document.querySelector('.confirm-card .btn.danger').click();
   await vi.waitFor(() => expect(document.querySelector('.pagetitle')?.textContent).toBe('Fixture World'));
   expect(location.hash).not.toContain('mode=');
   expect(document.querySelector('.cm-editor')).toBeNull();
@@ -373,4 +375,24 @@ it('preserves the mounted editor when refreshing after apply fails and reports i
   expect(EditorView.findFromDOM(root.querySelector('.cm-editor'))).toBe(view);
   expect(view.state.doc.toString()).toBe(text);
   expect(root.querySelector('.prompt-status').textContent).not.toBe(S.reloading);
+});
+
+it('gives a World template page the toolbar of the prompts page: revert, then apply saves and has the conversation take the prompt', async () => {
+  const { boot } = await import('../console/index.ts');
+  history.replaceState(null, '', '/#/provider/world%3Afixture/~prompts');
+  mounted.push(boot());
+  await vi.waitFor(() => expect(document.querySelector('.template-edit .cm-editor')).not.toBeNull());
+  const button = (label) => [...document.querySelectorAll('.template-edit .prompt-actions button')].find((el) => el.textContent === label);
+  const view = EditorView.findFromDOM(document.querySelector('.template-edit .cm-editor'));
+  const edit = (text) => view.dispatch({ changes: { from: 0, insert: text }, userEvent: 'input.type' });
+  expect(button(S.undoAll).disabled).toBe(true);
+  edit('Dropped ');
+  button(S.undoAll).click();
+  expect(view.state.doc.toString()).toBe('Environment');
+  edit('Kept ');
+  button(S.reloadSession).click();
+  await vi.waitFor(() => expect(sessionWrites).toEqual(['/api/session/reload-prefix']));
+  expect(writes.map((w) => w.content)).toEqual(['Kept Environment']);
+  expect(session.some((segment) => segment.text === 'Kept Environment')).toBe(true);
+  await vi.waitFor(() => expect(document.querySelector('.template-edit .prompt-status').textContent).toBe(S.prefixReloaded));
 });

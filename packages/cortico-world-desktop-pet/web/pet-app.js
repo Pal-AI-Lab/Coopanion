@@ -10,7 +10,7 @@
  * Colors follow the World's `theme` through `data-theme` on the root element, and text the app
  * language (i18n.js): the one stamped on the page, then the one the World's prefs carry.
  */
-import { applyTheme, clamp, f, ICONS, layBeside, linked } from './ui.js';
+import { applyTheme, balancedWidth, clamp, f, ICONS, layBeside, linked, tailAt, tailLine } from './ui.js';
 import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
@@ -114,8 +114,11 @@ const holdRoam = (seconds) => body?.set({ hold: seconds });
 host?.onFloor?.((px) => { below = px; body?.set({ bounds: bounds() }); });
 // the window reads the windows on its display only while the body on screen asks for them (`watchWindows`)
 host?.onWindows?.((desk) => body?.setWindows(desk));
+let fittedWidth = innerWidth;
 addEventListener('resize', () => {
   body?.set({ bounds: bounds() });
+  // a bubble is capped 20px inside the window's width
+  if (innerWidth !== fittedWidth) { fittedWidth = innerWidth; refitBubbles(); }
   // the World reads walk targets and drop spots against the stage the pet is on now
   send({ t: 'hello', screen: { w: innerWidth, h: innerHeight } });
 });
@@ -382,9 +385,11 @@ function applyPrefs(p) {
     if (!scaleSeen) { scaleSeen = true; prefs.scale = p.scale; drawnScale.jump(p.scale); body?.set({ bounds: bounds() }); refreshSize(); }
     else sizeHeard.heard(p.scale, sizer.active || !!sizerState.timer);
   }
+  const sized = [prefs.bubbleSize, prefs.fontSize];
   if (typeof p.bubbleSize === 'number') { prefs.bubbleSize = p.bubbleSize; sizeVar('--bubble-size', p.bubbleSize); }
   if (typeof p.fontSize === 'number') { prefs.fontSize = p.fontSize; sizeVar('--bubble-font', p.fontSize); }
   if (item?.kind === 'input') item.fitHint?.();
+  if (sized[0] !== prefs.bubbleSize || sized[1] !== prefs.fontSize) refitBubbles();
   if (typeof p.bubbleSpeed === 'number') prefs.bubbleSpeed = p.bubbleSpeed;
   if (typeof p.sayBubbleHoldSec === 'number') prefs.sayBubbleHoldSec = p.sayBubbleHoldSec;
   if (typeof p.rememberPosition === 'boolean') { prefs.rememberPosition = p.rememberPosition; reportPosition(); }
@@ -555,6 +560,18 @@ function openBubble(kind, html) {
   void bubble.offsetWidth;
   bubble.classList.add('pop');
 }
+/**
+ * Coo's bubble for a line of `text`, as narrow as the whole line allows (ui.js balancedWidth): the line types into it,
+ * the bubble growing as it goes and wrapping where the whole line wraps; the caret is measured in, so it does not
+ * push a word down while typing.
+ */
+function fitLine(text) {
+  const p = bubble.querySelector('.b-text');
+  p.textContent = text;
+  p.append(Object.assign(document.createElement('span'), { className: 'caret' }));
+  bubble.style.maxWidth = balancedWidth(bubble) + 'px';
+  p.replaceChildren();
+}
 function closeBubble() {
   releaseKeys(item);
   barHeld = false;
@@ -686,7 +703,7 @@ function stepDialog(dt) {
       let lead = 0;
       for (const a of b.actions || []) { acts.push(a); lead = .45; }
       it.shown = 0; it.acc = 0; it.fired = 0; it.startAt = T + lead;
-      if (b.text) { openBubble('say', '<p class="b-text"></p>'); sfx.pop(); } else { bubble.hidden = true; }
+      if (b.text) { openBubble('say', '<p class="b-text"></p>'); fitLine(b.text); sfx.pop(); } else { bubble.hidden = true; }
       return;
     }
     const b = it.beats[it.i];
@@ -696,6 +713,8 @@ function stepDialog(dt) {
     if (it.shown >= b.text.length && !it.beatDone) {
       it.beatDone = true;
       const last = it.i === it.beats.length - 1;
+      // the lines this answers fade a moment after its last line is written out (stepLines)
+      if (last) it.writtenAt ??= T;
       const auto = (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03) / prefs.bubbleSpeed;
       it.holdUntil = T + (it.rush ? RUSH_HOLD : prefs.sayBubbleHoldSec || auto);
       it.extraHold = Math.max(0, prefs.sayBubbleHoldSec - auto);
@@ -840,13 +859,10 @@ function stepTalk(it, dt) {
   showDialogInput(it);
 }
 
-/** A step with nothing to answer ends once its line has been read. */
-function stepTalkRead(dt) {
+/** A step with nothing to answer ends once its line has been read; the pointer over it does not hold it, so the guide keeps its pace. */
+function stepTalkRead() {
   const it = item;
-  if (it?.kind !== 'dialog' || it.d.input) return;
-  const held = heldByCursor(it);
-  if (!it.readUntil) return;
-  if (held) it.readUntil += dt;
+  if (it?.kind !== 'dialog' || it.d.input || !it.readUntil) return;
   if (T > it.readUntil) settleDialog(it, { done: true });
 }
 
@@ -1321,14 +1337,15 @@ function showHeard() {
 /*
  * ---------- what the person said: typed in the box, heard, or sent from the chat page ----------
  * Each line stays above Coo as a bubble of the heard kind (grey, no tail), the newest at the bottom. A line is
- * answered by the first speech or question Coo starts after it settled; until that reply's bubble has closed (and,
- * for a line not answered yet, while Coo works or has speech queued) the line and those before it stay, and they
- * fade REPLIED_FADE seconds after it closes. A line Coo does not answer fades UNANSWERED_FADE seconds after it was
- * said. With a fixed saidBubbleHoldSec a line fades that many seconds after it settled instead, whatever Coo does.
+ * answered by the first speech or question Coo starts after it settled; until that reply's last line is written out
+ * (and, for a line not answered yet, while Coo works or has speech queued) the line and those before it stay, and
+ * they fade REPLIED_FADE seconds after that, before the reply's bubble closes, or after it closes if that comes first.
+ * A line Coo does not answer fades UNANSWERED_FADE seconds after it was said.
+ * With a fixed saidBubbleHoldSec a line fades that many seconds after it settled instead, whatever Coo does.
  * The stack holds at most MAX_LINES bubbles and MAX_ROWS rows of text: past either the oldest fades, answered
  * or not, and the newest always stays. A click fades a settled line at once; one still being heard has its cancel button.
  */
-const REPLIED_FADE = 1, UNANSWERED_FADE = 8;
+const REPLIED_FADE = .5, UNANSWERED_FADE = 8;
 const MAX_LINES = 3, MAX_ROWS = 6;
 /** Seconds a line takes to fade out (pet.css `.bubble.said`). */
 const LINE_FADE = .4;
@@ -1359,8 +1376,27 @@ function drawLine(line) {
   const mark = MARKS[line.src] ? `<span class="said-mark" aria-hidden="true">${MARKS[line.src]}</span>` : '';
   const images = line.images ? `<span class="b-hint">${line.text ? '' : mark}${esc(t('said.images', { count: line.images }))}</span>` : '';
   line.el.innerHTML = (line.text || !line.images ? `<p class="b-text">${mark}${esc(line.text)}</p>` : '') + images;
-  line.el.classList.add('settled');
+  fitSaid(line.el);
   line.el.title = t('bubble.close');
+}
+/** A settled line's bubble, as narrow as its text allows (ui.js balancedWidth), measured before `settled` clamps it to six rows. */
+function fitSaid(el) {
+  el.classList.remove('settled');
+  el.style.maxWidth = balancedWidth(el) + 'px';
+  el.classList.add('settled');
+}
+/**
+ * The bubbles up fitted again to the sizes and the window they are drawn at now: their widths were measured at the
+ * sizes they opened at, and kept, a line would wrap into one more row (or stay wider than it needs) once they change.
+ */
+function refitBubbles() {
+  for (const line of lines) if (!line.live) fitSaid(line.el);
+  const b = item?.kind === 'say' ? item.beats[item.i] : null;
+  if (b?.text && !bubble.hidden && bubble.classList.contains('say')) {
+    const p = bubble.querySelector('.b-text'), typed = [...p.childNodes];
+    fitLine(b.text);
+    p.replaceChildren(...typed);
+  }
 }
 function settleLine(line, text) {
   line.live = false; line.text = text; line.settledAt = T;
@@ -1399,8 +1435,9 @@ function stepLines() {
   lines.forEach((line, i) => {
     if (line.live) return;
     const r = line.reply;
-    if (r ? r.endedAt === undefined : busy) held = i;
-    else if (r && T >= r.endedAt + REPLIED_FADE) answered = i;
+    const done = r && Math.min(r.writtenAt ?? Infinity, r.endedAt ?? Infinity);
+    if (r ? done === Infinity : busy) held = i;
+    else if (r && T >= done + REPLIED_FADE) answered = i;
   });
   const hold = prefs.saidBubbleHoldSec;
   lines.forEach((line, i) => {
@@ -1431,6 +1468,7 @@ function drawStatus(next, pop) {
   const icon = next.kind;
   if (!bubble.classList.contains('status') || bubble.dataset.icon !== icon) {
     bubble.className = 'bubble status';
+    bubble.style.maxWidth = '';
     bubble.dataset.icon = icon;
     bubble.innerHTML = `<span class="status-icon">${ICONS[`status_${icon}`] || ICONS.status_work}</span><span class="status-text"></span>`;
   }
@@ -1867,6 +1905,12 @@ const POP_OUT_MS = 160;
 const POP_IN_MS = 600;
 // absent where the page runs without a window (the tests)
 const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
+/** The tails' line follows the width the border is drawn at, which changes with the display's scale (ui.js tailLine). */
+function watchTailLine() {
+  document.documentElement.style.setProperty('--tail-line', tailLine(devicePixelRatio || 1) + 'px');
+  globalThis.matchMedia?.(`(resolution: ${devicePixelRatio || 1}dppx)`).addEventListener('change', watchTailLine, { once: true });
+}
+watchTailLine();
 const leaving = (el) => el.classList.contains('leaving');
 /** Numbers an element's buttons (`--i`), so they pop out one after another. */
 function stagger(el) { [...el.children].forEach((b, i) => b.style.setProperty('--i', String(i))); }
@@ -2453,17 +2497,6 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ---------- layout ---------- */
-/**
- * Bubbles up to TAIL_CENTER wide (empty, or a word or two) point their tail from their middle; wider ones
- * move it over to Coo by TAIL_FOLLOW wide. Between the two it slides, so a bubble growing as the line
- * types out carries its tail along with it.
- */
-const TAIL_CENTER = 70, TAIL_FOLLOW = 130;
-/** Where the tail's tip sits along a bubble `bw` wide whose left edge is `x` left of Coo. */
-function tailAt(bw, x) {
-  const k = clamp((bw - TAIL_CENTER) / (TAIL_FOLLOW - TAIL_CENTER), 0, 1);
-  return bw / 2 + (clamp(x, 22, bw - 22) - bw / 2) * k;
-}
 /** Coo's bubble above its head, moved over to the side it faces. */
 function place(el, a, extraUp) {
   const bw = el.offsetWidth, bh = el.offsetHeight;
@@ -2472,7 +2505,7 @@ function place(el, a, extraUp) {
   const top = Math.max(8, a.y - bh - extraUp);
   el.style.left = f(left) + 'px';
   el.style.top = f(top) + 'px';
-  el.style.setProperty('--tail', f(tailAt(bw, a.x - left)) + 'px');
+  el.style.setProperty('--tail', f(tailAt(bw, a.x - left, prefs.bubbleSize)) + 'px');
   return { left, top, bw, bh };
 }
 function placeTalk(it, a) {
@@ -2486,7 +2519,7 @@ function placeTalk(it, a) {
   const top = Math.max(8, it.pinY - bh - 18 * prefs.bubbleSize);
   bubble.style.left = f(left) + 'px';
   bubble.style.top = f(top) + 'px';
-  bubble.style.setProperty('--tail', f(tailAt(bw, a.x - left)) + 'px');
+  bubble.style.setProperty('--tail', f(tailAt(bw, a.x - left, prefs.bubbleSize)) + 'px');
   return { left, top, bw, bh };
 }
 

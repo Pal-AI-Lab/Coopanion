@@ -129,7 +129,7 @@ describe('Coo Pet Provider', () => {
     }
   });
 
-  it('sends images only from the newest delivered batch on; earlier ones keep their text line', async () => {
+  it('sends the screenshots of earlier batches with each request, as it does the newest', async () => {
     const bodies: Array<Record<string, unknown>> = [];
     const reply = { id: 'r', object: 'response', model: 'm', status: 'completed', created_at: 1, output: [], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } };
     vi.stubGlobal('fetch', async (_url: string, init: { body: string }) => {
@@ -154,37 +154,8 @@ describe('Coo Pet Provider', () => {
     }
     const outputs = (bodies[0].input as Array<{ type: string; call_id?: string; output?: unknown }>)
       .filter((i) => i.type === 'function_call_output' && (i.call_id === 'c1' || i.call_id === 'c2'));
-    expect(outputs[0].output).toBe(blobLine(shot('blob:a.jpg')));
+    expect(outputs[0].output).toContainEqual(expect.objectContaining({ type: 'input_image' }));
     expect(outputs[1].output).toContainEqual(expect.objectContaining({ type: 'input_image' }));
-  });
-
-  it('sends a tool result image the model has not answered yet when a batch is delivered after it, and drops it once answered', async () => {
-    const bodies: Array<Record<string, unknown>> = [];
-    const reply = { id: 'r', object: 'response', model: 'm', status: 'completed', created_at: 1, output: [], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } };
-    vi.stubGlobal('fetch', async (_url: string, init: { body: string }) => {
-      bodies.push(JSON.parse(init.body) as Record<string, unknown>);
-      return new Response(JSON.stringify(reply), { status: 200, headers: { 'content-type': 'application/json' } });
-    });
-    const instance = COO.create('deepseek', entry(), { ...host(), readBlob: () => Buffer.from('jpeg') } as never);
-    const [frame] = RESERVED_FRAME_NAMES;
-    const shot = { handle: 'blob:a.jpg', mime: 'image/jpeg', name: 'screen.jpg', fallbackText: '屏幕截图' };
-    const delivered = [
-      message('user', '截图看看'),
-      functionCall('c1', 'look', '{}'), functionResult('c1', blobLine(shot), { blobs: [shot] }),
-      message('user', '[system] 1 new event.'),
-      functionCall('f1', frame!, '{}'), functionResult('f1', '[打字] 看到了吗'),
-    ];
-    const answered = [...delivered, functionCall('c2', 'wait', '{}'), functionResult('c2', 'ok')];
-    const shotOutput = async (context: typeof delivered) => {
-      await instance.client.respond({ model: 'deepseek-flash', input: context.map((r) => r.item) } as unknown as Request, { context });
-      return (bodies.at(-1)!.input as Array<{ type: string; call_id?: string; output?: unknown }>).find((i) => i.type === 'function_call_output' && i.call_id === 'c1')!.output;
-    };
-    try {
-      expect(await shotOutput(delivered)).toContainEqual(expect.objectContaining({ type: 'input_image' }));
-      expect(await shotOutput(answered)).toBe(blobLine(shot));
-    } finally {
-      vi.unstubAllGlobals();
-    }
   });
 
   it('gives DeepSeek over Chat placeholder reasoning on tool calls after the newest user message while thinking is on', async () => {
@@ -462,7 +433,7 @@ describe('audio on a Gemini endpoint', () => {
     expect(COO.accepts!(entry(), spec('deepseek-flash'), 'audio/wav')).toBe(false);
   });
 
-  it('puts the newest heard audio in the request body as inline data; earlier audio keeps only its text line', async () => {
+  it('puts heard audio in the request body as inline data, earlier recordings included', async () => {
     const bodies: Array<{ contents: Array<{ role: string; parts: Array<Record<string, any>> }> }> = [];
     const urls: string[] = [];
     vi.stubGlobal('fetch', async (url: string, init: { body: string }) => {
@@ -485,33 +456,10 @@ describe('audio on a Gemini endpoint', () => {
     }
     expect(urls[0]).toContain('/models/gemini-x-flash:generateContent');
     const parts = bodies[0].contents.flatMap((c) => c.parts);
-    expect(parts.filter((p) => p.inlineData)).toEqual([{ inlineData: { mimeType: 'audio/wav', data: wav['log:new.wav'].toString('base64') } }]);
+    expect(parts.filter((p) => p.inlineData)).toEqual(['log:old.wav', 'log:new.wav'].map((handle) => ({ inlineData: { mimeType: 'audio/wav', data: wav[handle].toString('base64') } })));
     expect(parts.some((p) => typeof p.text === 'string' && p.text.includes('traffic'))).toBe(true);
   });
 
-  it('sends an earlier PDF as its text line only, as it does an earlier image: the newest batch carries just its screenshot', async () => {
-    const bodies: Array<{ contents: Array<{ parts: Array<Record<string, any>> }> }> = [];
-    vi.stubGlobal('fetch', async (_url: string, init: { body: string }) => {
-      bodies.push(JSON.parse(init.body));
-      return new Response(JSON.stringify({ candidates: [{ content: { role: 'model', parts: [{ text: 'ok' }] }, finishReason: 'STOP' }],
-        usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1, totalTokenCount: 2 } }), { status: 200, headers: { 'content-type': 'application/json' } });
-    });
-    const files: Record<string, Buffer> = { 'log:old.pdf': Buffer.from('%PDF-old'), 'log:new.png': Buffer.from('PNG-new') };
-    const instance = COO.create('gemini', gemini(), { ...host(), readBlob: (handle: string) => files[handle] ?? null } as never);
-    const sent = (handle: string, mime: string, text: string) => {
-      const ref = { handle, mime, fallbackText: text };
-      return { ...message('user', blobLine(ref)), context: { blobs: [ref] } };
-    };
-    const context = [sent('log:old.pdf', 'application/pdf', 'report'), message('assistant', 'read it'), sent('log:new.png', 'image/png', 'screen')];
-    try {
-      await instance.client.respond({ model: 'gemini-x-flash', input: context.map((r) => r.item) } as unknown as Request, { context });
-    } finally {
-      vi.unstubAllGlobals();
-    }
-    const parts = bodies[0].contents.flatMap((c) => c.parts);
-    expect(parts.filter((p) => p.inlineData)).toEqual([{ inlineData: { mimeType: 'image/png', data: files['log:new.png'].toString('base64') } }]);
-    expect(parts.some((p) => typeof p.text === 'string' && p.text.includes('report'))).toBe(true);
-  });
 });
 
 describe('audio on a Doubao endpoint', () => {
@@ -527,7 +475,7 @@ describe('audio on a Doubao endpoint', () => {
     expect(COO.accepts!(entry(), spec, 'audio/wav')).toBe(false);
   });
 
-  it('sends the newest audio as input_audio in the item that carries it, in a tool result before its images', async () => {
+  it('sends audio as input_audio in the item that carries it, in a tool result before its images', async () => {
     const bodies: Array<{ input: Array<Record<string, any>> }> = [];
     const reply = { id: 'r', object: 'response', model: 'm', status: 'completed', created_at: 1, output: [], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } };
     vi.stubGlobal('fetch', async (_url: string, init: { body: string }) => {
@@ -549,7 +497,7 @@ describe('audio on a Doubao endpoint', () => {
       vi.unstubAllGlobals();
     }
     const audioParts = (input: Array<Record<string, any>>) => input.flatMap((i) => (Array.isArray(i.content) ? i.content : []).filter((p: any) => p.type === 'input_audio'));
-    expect(audioParts(bodies[0].input)).toEqual([audio('log:new.wav', 'audio/wav')]);
+    expect(audioParts(bodies[0].input)).toEqual([audio('log:old.wav', 'audio/wav'), audio('log:new.wav', 'audio/wav')]);
     const input = bodies[1].input;
     const at = input.findIndex((i) => i.type === 'function_call_output' && i.call_id === 'c1');
     // the tool result keeps its audio and its image, audio first; nothing follows it
