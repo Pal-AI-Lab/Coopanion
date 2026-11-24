@@ -25,12 +25,14 @@ Var ownsPreviousFiles
   ${If} $0 == 603 ; the executable name is absent
     StrCpy $0 0
   ${Else}
+    ; An update runs after the app began to quit: it exits within the updater's 10 s, plus 5 s to spare.
     StrCpy $1 0
     StrCpy $2 15000
     ${IfNot} ${isUpdated}
     ${AndIf} ${FileExists} "$INSTDIR\resources\app\app\installer-events.cjs"
+      ; An app that takes --quit-for-installer is asked to quit: core-host.cjs stop() allows 65 s for
+      ; extension work, 35 s to shut down and 5 s for a forced exit, plus 10 s to spare.
       StrCpy $1 1
-      ; Includes Core's extension transactions and shutdown deadline.
       StrCpy $2 115000
     ${EndIf}
     System::Call 'kernel32::SetEnvironmentVariableW(w "COOPANION_INSTALL_EXE", w "$INSTDIR\${APP_EXECUTABLE_FILENAME}")'
@@ -41,7 +43,7 @@ Var ownsPreviousFiles
       do { \
         $$apps = Get-CimInstance Win32_Process -Filter 'Name=''${APP_EXECUTABLE_FILENAME}''' -ErrorAction Stop; \
         $$running = $$apps | Where-Object ExecutablePath -EQ $$env:COOPANION_INSTALL_EXE; \
-        if (!$$running) { if ($$apps | Where-Object { !$$_.ExecutablePath }) { exit 2 }; exit 0 }; \
+        if (!$$running) { exit 0 }; \
         if ($$close) { Start-Process -FilePath $$env:COOPANION_INSTALL_EXE -ArgumentList '--quit-for-installer' -ErrorAction Stop; $$close = $$false }; \
         Start-Sleep -Milliseconds 500 \
       } while ($$watch.ElapsedMilliseconds -lt [int]$$env:COOPANION_INSTALL_WAIT_MS) } catch { exit 2 }; exit 1"`
@@ -56,23 +58,13 @@ Function IdentifyInstallation
   ${OrIf} ${FileExists} "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
   ${OrIf} ${FileExists} "$INSTDIR\${UNINSTALL_FILENAME}"
   ${OrIf} ${FileExists} "$INSTDIR\resources\app\core\companion.ts"
+  ${OrIf} ${FileExists} "$INSTDIR\data\home\companion\deployment.json"
     StrCpy $ownsPreviousFiles 1
-  ${ElseIf} ${FileExists} "$INSTDIR\data\home\companion\deployment.json"
-    ; A copied deployment can sit beside another application's executable.
-    ClearErrors
-    FindFirst $0 $1 "$INSTDIR\*.exe"
-    ${If} ${Errors}
-      StrCpy $ownsPreviousFiles 1
-    ${Else}
-      FindClose $0
-    ${EndIf}
   ${EndIf}
-  ClearErrors
 FunctionEnd
 
 !macro writeFailure PREFIX
 Function ${PREFIX}WriteFailure
-retry_log:
   ClearErrors
   ${StdUtils.GetParentPath} $0 "$installLog"
   CreateDirectory "$0"
@@ -81,11 +73,6 @@ retry_log:
     ${GetTime} "" "L" $1 $2 $3 $4 $5 $6 $7
     FileWrite $0 "$3-$2-$1 $5:$6:$7 version=${VERSION} exit=2 stage=$failure file=$failedFile result=$result$\r$\n"
     FileClose $0
-  ${EndIf}
-  ${If} ${Errors}
-  ${AndIf} $installLog != "$LOCALAPPDATA\Coopanion\installer.log"
-    StrCpy $installLog "$LOCALAPPDATA\Coopanion\installer.log"
-    Goto retry_log
   ${EndIf}
 FunctionEnd
 !macroend
@@ -113,16 +100,6 @@ FunctionEnd
 
 Function ClearUpdateFailure
   Delete "$INSTDIR\data\logs\last-update-error.txt"
-  ClearErrors
-  FileOpen $0 "$LOCALAPPDATA\Coopanion\last-update-error.txt" r
-  ${IfNot} ${Errors}
-    FileReadUTF16LE $0 $1
-    FileClose $0
-    ${TrimNewLines} $1 $1
-    ${If} $1 == $INSTDIR
-      Delete "$LOCALAPPDATA\Coopanion\last-update-error.txt"
-    ${EndIf}
-  ${EndIf}
 FunctionEnd
 
 ; MOVEFILE_WRITE_THROUGH without a cross-volume copy fallback.
@@ -139,12 +116,6 @@ FunctionEnd
     StrCpy $failedFile "${NAME}"
     ${If} $moveTo == "$updateDir\old"
     ${AndIf} $ownsPreviousFiles == 0
-      SetErrors
-      Return
-    ${EndIf}
-    System::Call 'kernel32::GetFileAttributesW(w "$moveFrom\${NAME}") i .r0'
-    IntOp $0 $0 & 0x400
-    ${If} $0 != 0
       SetErrors
       Return
     ${EndIf}
@@ -171,22 +142,14 @@ Function MoveProgramFiles
   StrCpy $failedFile ""
 FunctionEnd
 
-; Write the marker to a temporary file and flush it before publishing its name.
 !macro saveRecord NAME VALUE
   ClearErrors
-  FileOpen $0 "$updateDir\writing" w
+  FileOpen $0 "$updateDir\${NAME}" w
   ${If} ${Errors}
     Return
   ${EndIf}
   FileWrite $0 "${VALUE}"
-  System::Call 'kernel32::FlushFileBuffers(p r0) i .r1'
   FileClose $0
-  ${If} ${Errors}
-  ${OrIf} $1 == 0
-    SetErrors
-    Return
-  ${EndIf}
-  !insertmacro moveChecked "$updateDir\writing" "$updateDir\${NAME}"
 !macroend
 
 Function MarkApply
@@ -238,11 +201,7 @@ FunctionEnd
 !macro cleanRetired PREFIX
 Function ${PREFIX}CleanRetired
   ClearErrors
-  System::Call 'kernel32::GetFileAttributesW(w "$cleanupDir") i .r0'
-  ${IfThen} $0 == -1 ${|} Return ${|}
-  IntOp $0 $0 & 0x410 ; DIRECTORY | REPARSE_POINT
-  ${If} $0 <> 0x10
-    SetErrors
+  ${IfNot} ${FileExists} "$cleanupDir\*.*"
     Return
   ${EndIf}
   ${If} ${FileExists} "$cleanupDir\owned"
@@ -258,7 +217,6 @@ Function ${PREFIX}CleanRetired
     Delete "$cleanupDir\commit"
     Delete "$cleanupDir\version"
     Delete "$cleanupDir\desktop"
-    Delete "$cleanupDir\writing"
     ${If} ${Errors}
       Return
     ${EndIf}
@@ -331,12 +289,8 @@ Function VerifyPayload
     StrCpy $2 $1 64
     StrCpy $failedFile $1 "" 65
     ${IfThen} $failedFile == "" ${|} Goto bad_payload ${|}
-    ${If} $moveTo == "$updateDir\new"
-      ${StdUtils.HashFile} $3 "SHA2-256" "$moveTo\$failedFile"
-      ${IfThen} $3 != $2 ${|} Goto bad_payload ${|}
-    ${ElseIfNot} ${FileExists} "$moveTo\$failedFile"
-      Goto bad_payload
-    ${EndIf}
+    ${StdUtils.HashFile} $3 "SHA2-256" "$updateDir\new\$failedFile"
+    ${IfThen} $3 != $2 ${|} Goto bad_payload ${|}
   ${Loop}
   FileClose $0
   StrCpy $failedFile ""
@@ -347,45 +301,23 @@ bad_payload:
   SetErrors
 FunctionEnd
 
-!macro checkSpace
-  SectionGetSize 0 $0
-  System::Int64Op $0 * 1024
-  Pop $1
-  ; Budget for allocation overhead, the uninstaller and the journal.
-  System::Int64Op $1 + 33554432
-  Pop $1
-  System::Call 'kernel32::GetDiskFreeSpaceExW(w "$updateDir", *l .r2, p 0, p 0) i .r0'
-  System::Int64Op $2 < $1
-  Pop $2
-  ${If} $0 == 0
-  ${OrIf} $2 != 0
-    StrCpy $failure "disk space"
-    Goto rollback
-  ${EndIf}
-!macroend
-
 Function InstallPayload
   !insertmacro setInstallPaths
   StrCpy $result "previous files untouched"
   StrCpy $failure "staging"
   Call CleanRetired
   IfErrors failed
-  System::Call 'kernel32::GetFileAttributesW(w "$updateDir") i .r0'
-  ${If} $0 != -1
-    IntOp $0 $0 & 0x410
-    ${IfThen} $0 <> 0x10 ${|} Goto failed ${|}
-    ${If} ${FileExists} "$updateDir\owned"
-      StrCpy $failure "recover interrupted installation"
-      !insertmacro waitForApp
-      ${IfThen} $0 != 0 ${|} Goto incomplete ${|}
-      Call RecoverInstallation
-      IfErrors incomplete
-    ${Else}
-      ; An unmarked directory can only be reused if empty.
-      ClearErrors
-      RMDir "$updateDir"
-      IfErrors failed
-    ${EndIf}
+  ${If} ${FileExists} "$updateDir\owned"
+    StrCpy $failure "recover interrupted installation"
+    !insertmacro waitForApp
+    ${IfThen} $0 != 0 ${|} Goto incomplete ${|}
+    Call RecoverInstallation
+    IfErrors incomplete
+  ${ElseIf} ${FileExists} "$updateDir"
+    ; not ours: reused only when it is an empty directory
+    ClearErrors
+    RMDir "$updateDir"
+    IfErrors failed
   ${EndIf}
 
   StrCpy $failure "staging"
@@ -399,7 +331,6 @@ Function InstallPayload
   IfErrors rollback
   CreateDirectory "$updateDir\old"
   IfErrors rollback
-  !insertmacro checkSpace
   SetOutPath "$updateDir"
   SetOverwrite try
   !ifdef COMPRESS
@@ -414,13 +345,11 @@ Function InstallPayload
     SetCompress "${COMPRESS}"
   !endif
   IfErrors rollback
-  !insertmacro checkSpace
   SetOutPath "$updateDir\new"
   Nsis7z::Extract "$updateDir\payload.7z"
   Delete "$updateDir\payload.7z"
 
   StrCpy $failure "verify extracted files"
-  StrCpy $moveTo "$updateDir\new"
   Call VerifyPayload
   IfErrors rollback
   ClearErrors
@@ -450,12 +379,6 @@ wait_for_app:
   StrCpy $moveFrom "$updateDir\new"
   StrCpy $moveTo "$INSTDIR"
   Call MoveProgramFiles
-  IfErrors rollback
-  ${IfNot} ${FileExists} "$INSTDIR\${UNINSTALL_FILENAME}"
-    StrCpy $failedFile "${UNINSTALL_FILENAME}"
-    Goto rollback
-  ${EndIf}
-  Call VerifyPayload
   IfErrors rollback
   StrCpy $failure "commit"
   Call MarkCommit
@@ -500,8 +423,6 @@ failed:
   Call RememberUpdateFailure
   ${If} ${isForceRun}
   ${AndIf} ${FileExists} "$appExe"
-  ${AndIf} ${FileExists} "$INSTDIR\resources\app\core\boot.ts"
-  ${AndIf} ${FileExists} "$INSTDIR\resources\app\node_modules\tsx\dist\loader.mjs"
     Call StartInstalledApp
   ${EndIf}
   !insertmacro releaseInstallerLock
