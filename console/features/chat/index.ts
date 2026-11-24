@@ -35,7 +35,7 @@ const CONTEXT_POLL_MS = 5000;
 interface WireImage { ref: string; mime: string; name?: string }
 interface SayBeat { text: string; mood?: Record<string, string> }
 export interface Touch { kind: string; count: number; woke: boolean; crashed: boolean }
-interface Refs { withdrawn?: number[]; delivered?: Array<[number, number]> }
+interface Refs { withdrawn?: number[]; delivered?: Array<[number, number]>; transcripts?: Array<[number, string]> }
 type ChatItem =
   | { kind: 'user'; cursor: number; ts: string; via: 'chat' | 'bubble' | 'voice'; text: string; images?: WireImage[]; at?: number }
   | { kind: 'answer'; cursor: number; ts: string; askId: string; index?: number; text?: string; dismissed?: true }
@@ -86,12 +86,14 @@ async function mount(ctx: PageContext): Promise<void> {
   const pending = new Map<number, UserItem>();
   /** Messages that never reached the bot. */
   const discarded = new Set<number>();
-  /** Withdrawn messages and where waiting messages were delivered, from the history loaded so far; applied to earlier pages. */
+  /** Withdrawn messages, where waiting messages were delivered and transcripts of recordings, from the history loaded so far; applied to earlier pages. */
   const withdrawnRefs = new Set<number>();
   const deliveredRefs = new Map<number, number>();
+  const transcriptRefs = new Map<number, string>();
   const takeRefs = (refs: Refs | undefined): void => {
     for (const c of refs?.withdrawn ?? []) withdrawnRefs.add(c);
     for (const [c, at] of refs?.delivered ?? []) deliveredRefs.set(c, at);
+    for (const [c, text] of refs?.transcripts ?? []) transcriptRefs.set(c, text);
   };
   /** What this page sent, by the id it gave, then by cursor: a withdrawn message comes back as typed. */
   const sentById = new Map<number, { text: string; images: readonly WebUiImageAttachment[] }>();
@@ -403,7 +405,8 @@ async function mount(ctx: PageContext): Promise<void> {
             for (const it of (f.items as ChatItem[]) ?? []) {
               if (withdrawnRefs.has(it.cursor)) continue;
               const at = deliveredRefs.get(it.cursor);
-              addItem(it.kind === 'user' && at !== undefined ? { ...it, at } : it);
+              const text = transcriptRefs.get(it.cursor);
+              addItem(it.kind === 'user' ? { ...it, ...(at !== undefined ? { at } : {}), ...(text !== undefined ? { text } : {}) } : it);
             }
             takeRefs(f.refs as Refs | undefined);
             sortItems();
@@ -437,6 +440,11 @@ async function mount(ctx: PageContext): Promise<void> {
             }
             sortItems();
             refresh();
+            return;
+          }
+          case 'transcript': {
+            const it = items.get(f.cursor as number);
+            if (it?.kind === 'user' && typeof f.text === 'string') { it.text = f.text; refresh(); }
             return;
           }
           case 'withdrawn': {
