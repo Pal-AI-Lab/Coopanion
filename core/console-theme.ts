@@ -101,16 +101,21 @@ function schemeForSkin(skin: { figure?: string; scheme?: string } | undefined, p
 
 /**
  * Writes `<deployDir>/theme.json` with the packs' schemes as they are now; with `follow`, or without a
- * saved record, the selection also moves per the rule at the top. Writes only when something changed.
+ * saved record, the selection also moves per the rule at the top. A selected scheme whose pack did not
+ * load (a Workshop item still downloading, a pack removed) keeps its saved colours until another is
+ * picked. Writes only when something changed.
  */
 function sync(deployDir: string, skin: { figure?: string; scheme?: string } | undefined, packs: readonly FigurePack[], language: Language, follow: boolean): void {
   const saved = readDeploymentTheme(deployDir).state;
   const state = saved ?? { ...defaultStoredTheme(), selectedId: COO_SCHEME };
-  const follows = (follow || !saved) && (state.selectedId === COO_SCHEME || isFigureScheme(state.selectedId));
+  const follows = !saved || (follow && (state.selectedId === COO_SCHEME || isFigureScheme(state.selectedId)));
+  const selectedId = follows ? schemeForSkin(skin, packs) : state.selectedId;
+  const fresh = figureSchemes(packs, language);
+  const orphan = fresh.some((s) => s.id === selectedId) ? [] : state.custom.filter((s) => s.id === selectedId && isFigureScheme(s.id));
   const next = normalizeStoredTheme({
     ...state,
-    selectedId: follows ? schemeForSkin(skin, packs) : state.selectedId,
-    custom: [...state.custom.filter((s) => !isFigureScheme(s.id)), ...figureSchemes(packs, language)],
+    selectedId,
+    custom: [...state.custom.filter((s) => !isFigureScheme(s.id)), ...fresh, ...orphan],
   });
   if (JSON.stringify(next) !== JSON.stringify(state)) writeDeploymentTheme(deployDir, next);
 }
