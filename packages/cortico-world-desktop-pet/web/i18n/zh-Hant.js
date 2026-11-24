@@ -16,6 +16,9 @@ export default {
   'bubble.imageUnreadable': '無法讀取這張圖片',
   'bubble.imageTooLarge': '這張圖片縮小後仍超過 {mb}MB',
   'bubble.imagesUnseen': '目前的模型看不到圖片，{bot} 只會知道你傳了幾張圖。',
+  /** A typed text past its cap (the count beside it shows the cap); the typing box's while the Chat page takes it. */
+  'bubble.tooLong': '超出 {over} 字，刪減後才能傳送',
+  'bubble.tooLongForBox': '超出 {over} 字，可在對話頁繼續編輯',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': '正在傾聽…',
@@ -47,6 +50,13 @@ export default {
   'action.soundOff': '音效：已關閉 · 點一下開啟',
   'action.size': '大小：{pct}%',
   'action.sizeLabel': '桌寵大小',
+  'action.fade': "透明度：{pct}%",
+  'action.fadeFullscreen': "全螢幕時透明度：{pct}%",
+  'action.fadeLabel': "桌寵透明度",
+  'action.fadeFullscreenLabel': "全螢幕時的桌寵透明度",
+  'action.cuaOn': "電腦操作：已開啟 · 點一下關閉",
+  'action.cuaOffAsk': "電腦操作：已關閉 · 點一下在設定視窗開啟",
+  'action.cuaOff': "電腦操作：已關閉 · 點一下開啟",
   'action.dress': '裝扮',
   'action.worlds': '我的 World',
   'action.hide': '先把我藏起來（系統匣裡可以叫我回來）',

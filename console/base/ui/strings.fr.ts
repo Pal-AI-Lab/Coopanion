@@ -22,6 +22,8 @@ export const S: Partial<typeof en> = {
   },
   cancel: 'Annuler',
   proceedAnyway: 'Continuer quand même',
+  leave: 'Quitter',
+  unsavedTitle: 'Modifications non enregistrées',
   confirm: 'Confirmer',
   gotIt: 'Compris',
   close: '✕ Fermer (Échap)',
@@ -33,4 +35,5 @@ export const S: Partial<typeof en> = {
   addImage: 'Ajouter une image',
   addImageHint: 'Ajouter une image (coller ou glisser-déposer fonctionne aussi)',
   removeImage: (name: string) => `Retirer ${name}`,
+  tooLong: (over: number, max: number) => `${over} caractères de trop ; raccourcissez à ${max} pour envoyer`,
 };

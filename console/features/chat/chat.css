@@ -55,6 +55,9 @@
 .pet-bubble .b-own input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--ink); outline: none; padding: 4px 0; }
 .pet-bubble .b-own button { flex: none; font: inherit; font-size: 12.5px; padding: 4px 10px; border-radius: 8px; border: 0; background: var(--ink); color: var(--sheet); cursor: pointer; }
 .pet-bubble .b-own button:disabled { cursor: default; }
+.pet-bubble .b-own .b-count { flex: none; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--danger); }
+.pet-bubble .b-own.over, .pet-bubble .b-own.over:focus-within { border-color: var(--danger); }
+.pet-bubble .b-own.over button { opacity: .4; }
 .pet-bubble .b-opt.dim, .pet-bubble .b-own.dim { opacity: .35; }
 
 /* 两句话之间做过的事:一行小字,宽度随内容,展开是缩进的步骤列表 */

@@ -4,6 +4,61 @@ import { t } from './i18n.js';
 export const f = n => Math.round(n * 10) / 10;
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
+/** A bubble's border in pixels (pet.css `.bubble`). */
+export const BUBBLE_BORDER = 2.5;
+/**
+ * The width a bubble tail's slanted line is drawn at on a display of `dpr` device pixels per pixel (`--tail-line`,
+ * pet.css): the width the border is drawn at there, which Chromium rounds down to whole device pixels (2px of the 2.5
+ * at 100%), so the tail carries as much ink along its length as the border does.
+ */
+export const tailLine = (dpr) => Math.max(1, Math.floor(BUBBLE_BORDER * dpr)) / dpr;
+
+/**
+ * Bubbles up to TAIL_CENTER wide (empty, or a word or two) point their tail from their middle; wider ones move it over
+ * to Coo by TAIL_FOLLOW wide. Between the two it slides, so a bubble growing as the line types out carries its tail
+ * along with it.
+ */
+export const TAIL_CENTER = 70, TAIL_FOLLOW = 130;
+/**
+ * How far from a bubble's side its tail's tip keeps, at bubble size 1: the tail's base reaches 10.25px either side of
+ * the tip (pet.css `.bubble::before`) and the corner rounds over 18px (`.bubble` border-radius), both grown with
+ * `--bubble-size`, so the base stays on the border's straight run. The narrowest bubble (`.bubble` min-width, 58px)
+ * leaves room for it on both sides.
+ */
+export const TAIL_EDGE = 29;
+/** Where the tail's tip sits along a bubble `bw` wide whose left edge is `x` left of Coo, at bubble size `size`. */
+export function tailAt(bw, x, size = 1) {
+  const k = clamp((bw - TAIL_CENTER) / (TAIL_FOLLOW - TAIL_CENTER), 0, 1), edge = Math.min(TAIL_EDGE * size, bw / 2);
+  return bw / 2 + (clamp(x, edge, bw - edge) - bw / 2) * k;
+}
+
+/**
+ * The narrowest width `el` can take without its text wrapping into more lines than at its widest: a wrapped line no
+ * longer leaves its bubble as wide as the widest it may be with blank space after the shorter lines, and the lines come
+ * out about as long as each other (the search react-wrap-balancer runs). `el` is laid out with its whole text and
+ * nothing clamping its height, and measured at its widest under its style sheet; its own width and max-width are left
+ * as they were. Returns the width to cap it at in pixels, border and padding in.
+ */
+export function balancedWidth(el) {
+  const keep = [el.style.width, el.style.maxWidth];
+  el.style.width = el.style.maxWidth = '';
+  const widest = el.offsetWidth, height = el.offsetHeight;
+  let lo = 0, hi = widest;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) / 2;
+    el.style.width = mid + 'px';
+    if (el.offsetHeight > height) lo = mid; else hi = mid;
+  }
+  // offsetWidth rounds the widest down by under a pixel (172 of 172.4), and a width at the edge wraps the text: the
+  // width is checked as the caller will use it, a max-width, and grows a pixel at a time until it holds, at most to
+  // the widest plus that pixel.
+  el.style.width = '';
+  let w = Math.ceil(hi);
+  for (el.style.maxWidth = w + 'px'; el.offsetHeight > height && w <= widest; el.style.maxWidth = w + 'px') w++;
+  [el.style.width, el.style.maxWidth] = keep;
+  return w;
+}
+
 /**
  * Lays a grid of buttons (`grid-auto-flow: column`) `reach` out from a body standing at `x`, on the right unless that
  * runs off a page `pageWidth` wide. On the left its columns run right to left, so the first column is next to the body
@@ -75,6 +130,11 @@ export const ICONS = {
   soundOff: icon('<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>'),
   // a frame open at its top right corner, a smaller corner inside it and an arrow out to the open corner: the size on screen
   resize: icon('<path d="M11 3.5H5.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2V13"/><path d="M13.5 15H9v-4.5"/><path d="M20.5 3.5 10 14M15 3.5h5.5V9"/>'),
+  // a circle half filled: the transparency slider
+  fade: icon('<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 0 0 17z" fill="currentColor"/>'),
+  // a screen with a pointer on it: computer use, and struck through while it is off
+  computer: icon('<rect x="3" y="4" width="18" height="12.5" rx="2"/><path d="M8.5 20.5h7M12 16.5v4"/><path d="m10 7.5 1.6 5.2 1.1-2 2.1-1.1z"/>'),
+  computerOff: icon('<rect x="3" y="4" width="18" height="12.5" rx="2"/><path d="M8.5 20.5h7M12 16.5v4"/><path d="m10 7.5 1.6 5.2 1.1-2 2.1-1.1z"/><path d="M4 3l16 16"/>'),
   // a T-shirt: the dressing page
   shirt: icon('<path d="M8.5 3.5 4 6l-1.5 4.5L6 12v8.5h12V12l3.5-1.5L20 6l-4.5-2.5a3.5 3.5 0 0 1-7 0z"/>'),
   eye: icon('<path d="M3 12s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="3"/>'),

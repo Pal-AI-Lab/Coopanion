@@ -27,4 +27,7 @@ export const S: Partial<typeof en> = {
   risks: ['Bildschirmfotos (sie können Privates zeigen, etwa Chatverläufe) gehen an den Modelldienst, den du nutzt', 'Coo kann danebenklicken, sich vertippen oder im falschen Fenster landen. Sorge immer dafür, dass du Coo jederzeit beobachten und unterbrechen kannst.', 'Überlass Coo keine Zahlungen, Passwörter oder anderes, das sensible Daten, Handlungen in der echten Welt oder Unwiderrufliches betrifft.'],
   riskNote: 'Coo hält automatisch an, sobald du Maus oder Tastatur benutzt. Du kannst die Funktion jederzeit ausschalten.',
   riskOk: 'Einschalten',
+  hoverRiskTitle: "Computersteuerung zu den Hover-Schaltflächen hinzufügen?",
+  hoverRiskLead: "Danach schaltet ein Klick auf diese Schaltfläche neben Coo die Computersteuerung sofort ein oder aus, ohne erneute Rückfrage. Solange sie an ist, sieht Coo deinen Bildschirm und bedient Maus und Tastatur.",
+  hoverRiskOk: "Hinzufügen",
 };

@@ -27,6 +27,7 @@
 .pet-voicebody.off{opacity:.5}
 .pet-voicebody .mountrow .mname{width:min-content; min-width:6.2em}
 .pet-voicebody .mountrow .mdetail{min-width:8em}
+.pet-voicebody .mountrow .mdetail.pet-note{-webkit-line-clamp:none; font-family:var(--sans, system-ui)}
 .pet-voicebody .mountrow .macts{flex:0 1 auto; min-width:0; flex-wrap:wrap; justify-content:flex-end}
 /* the recording limit: up to two digits and the spinner, then its unit */
 .pet-voicebody .mountrow .macts input.pet-minutes{width:5em}

@@ -93,8 +93,11 @@
     -webkit-font-smoothing: antialiased;
   }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 6px; border: 3px solid transparent; background-clip: padding-box; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--line-strong); background-clip: padding-box; }
+  /* Every scrollbar in the window: a 4px thumb shown only while the pointer is over its own scrolling area
+     (data-scroll-hover, base/ui/scrollbars.ts), darker while pointed at or dragged. */
+  ::-webkit-scrollbar-thumb { background-color: transparent; border-radius: 6px; border: 3px solid transparent; background-clip: padding-box; }
+  [data-scroll-hover]::-webkit-scrollbar-thumb { background-color: var(--line-2); }
+  ::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active { background-color: var(--line-strong); }
   ::-webkit-scrollbar-track { background: transparent; }
   .hidden { display: none !important; }
   a { color: var(--ink-blue); text-decoration: none; }
@@ -885,6 +888,8 @@
   svg[viewBox="0 0 24 24"][stroke="currentColor"] { stroke-width: 1.6px; }
   svg[viewBox="0 0 24 24"][stroke="currentColor"] * { vector-effect: non-scaling-stroke; }
   input[type="checkbox"] { accent-color: color-mix(in srgb, var(--accent) 78%, #000); }
+  input[type="search"]::-webkit-search-cancel-button { cursor: pointer; opacity: .7; transition: opacity .15s ease; }
+  input[type="search"]::-webkit-search-cancel-button:hover { opacity: 1; }
   .visually-hidden {
     position: absolute !important;
     width: 1px !important;
@@ -1241,6 +1246,13 @@
 
   .prompt-input-host { width: min(100%, var(--conversation-width)); margin: 18px auto 0; }
   .prompt-input-host textarea:focus-visible { outline: none; }
+  /* prompt-input.tsx markScroll: text past the field's top or bottom fades out there over about a row */
+  .prompt-input-host textarea[data-more] {
+    --above: 0px; --below: 0px;
+    mask-image: linear-gradient(to bottom, transparent, #000 var(--above), #000 calc(100% - var(--below)), transparent);
+  }
+  .prompt-input-host textarea[data-more~="above"] { --above: 1.5rem; }
+  .prompt-input-host textarea[data-more~="below"] { --below: 1.5rem; }
   .liveview > .prompt-input-host {
     position: absolute; bottom: 0; left: 0; right: 0; z-index: 12;
     width: auto; margin: 0; padding: 10px calc(var(--page-gutter) + 10px) 18px;
@@ -1386,7 +1398,8 @@
 /* Specific enough to win over the card's own position:relative further down. */
 .connection-cards>.connection-card.connection-drag-copy{position:absolute;left:3px;z-index:20;margin:0;pointer-events:none;transform:none;box-shadow:0 0 0 1px var(--line),0 14px 30px -14px var(--shadow-strong);transition:none}
 .connection-name,.connection-status,.connection-secondary{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.connection-name{font:700 17px/1.25 var(--sans)}
+/* 2px more room above and below inside its clip, for accents and descenders in every script's font, without moving it */
+.connection-name{font:700 17px/1.25 var(--sans);padding-block:2px;margin-block:-2px}
 .connection-facts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;min-width:0}
 .connection-facts .kv{max-width:100%}.connection-facts .kv-v{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-block:3px;margin-block:-3px}
 .kv-kind{--kv-line:color-mix(in srgb,var(--ink-blue) 60%,transparent)}.kv-model{--kv-line:color-mix(in srgb,var(--accent-2) 75%,transparent)}
@@ -1659,7 +1672,6 @@ mark.extension-hit { color: inherit; background: color-mix(in srgb, var(--accent
 @media (prefers-reduced-motion: reduce) { .extension-tag-row.is-folded { transition: none; } }
 .extension-tag { display: inline-flex; align-items: center; gap: 5px; font: 11.5px/1 var(--sans); color: var(--ink-soft); background: var(--sheet-2); border: 1px solid var(--line); border-radius: 20px; padding: 5px 10px; white-space: nowrap; cursor: default; }
 button.extension-tag, button.extension-stat { cursor: pointer; }
-button.extension-tag { cursor: pointer; }
 .extension-tag:hover { border-color: var(--accent); color: var(--ink); }
 .extension-tag:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .extension-tag.is-warning { color: var(--extension-alert); border-color: color-mix(in srgb, var(--extension-alert) 50%, transparent); background: color-mix(in srgb, var(--extension-alert) 8%, var(--background)); }
@@ -1754,6 +1766,21 @@ button.extension-tag { cursor: pointer; }
 .extension-detail-main > p { line-height: 1.7; margin: 0 0 4px; }
 .extension-detail-main, .extension-detail-side { min-width: 0; }
 .extension-detail-side { position: sticky; top: 0; }
+/* Side by side the header stays and the two columns scroll on their own. Each keeps its scrollbar's room
+   (scrollbar-gutter), so a column does not narrow when it starts to scroll. */
+@media (min-width: 901px) {
+  .modalbody:has(> .extension-detail > .extension-detail-columns.is-split) { display: flex; flex-direction: column; overflow: hidden; }
+  .modalbody > .extension-detail:has(> .extension-detail-columns.is-split) { display: flex; flex-direction: column; flex: 1; min-height: 0; padding-bottom: 0; }
+  .extension-detail-columns.is-split { flex: 1; min-height: 0; align-items: stretch; padding-top: 0; }
+  .extension-detail-columns.is-split > :is(.extension-detail-main, .extension-detail-side) {
+    position: static; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable;
+    padding: 8px 0 24px;
+  }
+  /* the description's bar runs along the divider, across the 40px gap; the comments' along the dialog's right edge,
+     past the body's and the detail's padding (10px + 8px) */
+  .extension-detail-columns.is-split > .extension-detail-main { margin-right: -40px; padding-right: 30px; }
+  .extension-detail-columns.is-split > .extension-detail-side { margin-right: -28px; padding-right: 18px; }
+}
 @media (max-width: 900px) { .extension-detail-columns.is-split { grid-template-columns: minmax(0, 1fr); gap: 0; } .extension-detail-side { position: static; } .extension-detail-header { flex-wrap: wrap; } .extension-detail-cta { width: 100%; } .extension-detail-cta-below { position: static; } .extension-detail-header:has(.extension-detail-cta-below:not(:empty)) { padding-bottom: 12px; } }
 .extension-comments > h4 { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 18px 0 12px; }
 .extension-detail-columns.is-split .extension-comments { border-left: 1px solid var(--line); padding-left: 32px; }
@@ -1780,6 +1807,10 @@ button.extension-tag { cursor: pointer; }
 .extension-comment-body > :last-child { margin-bottom: 0; }
 .extension-comment-body p, .extension-comment-body ul, .extension-comment-body ol, .extension-comment-body pre { margin: 0 0 6px; }
 .extension-comment-body ul, .extension-comment-body ol { padding-left: 20px; }
+.extension-comment-body.is-folded { overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent); }
+.extension-comment-toggle { display: block; margin: 4px 0 0 30px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: 12.5px; cursor: pointer; }
+.extension-comment-toggle:hover { text-decoration: underline; }
+.extension-comment-toggle[hidden] { display: none; }
 .extension-comment-empty { margin: 4px 0 0; font-size: 12.5px; }
 .extension-comment-more { margin-top: 4px; }
 .extension-comment-actions .extension-insert-code { margin-left: auto; padding: 4px 7px; }
@@ -2075,7 +2106,10 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-catalog-filters .extension-tag-row{display:flex;flex-direction:column;align-items:stretch;gap:2px;max-height:none;overflow:visible;margin-top:8px}
 /* Sidebar filters, one scheme: text in the tag's colour (plain tags grey), no fill or border;
    hover adds a neutral fill; selected adds a tint of the tag's colour (plain tags green) and bold. */
-.world-catalog-filters .extension-tag{--tag-ink:var(--ink-soft);--tag-colour:var(--accent);display:flex;justify-content:flex-start;max-width:100%;min-height:28px;padding:4px 10px;border:0;border-radius:8px;font-size:11.5px;font-weight:400;color:var(--tag-ink);background:transparent}
+.world-catalog-filters .extension-tag{--tag-ink:var(--ink-soft);--tag-colour:var(--accent);display:flex;justify-content:flex-start;max-width:100%;min-height:28px;padding:4px 10px;border:0;border-radius:8px;font-size:11.5px;line-height:1.3;font-weight:400;text-align:left;white-space:normal;color:var(--tag-ink);background:transparent}
+/* A long name (other languages) wraps like the category rows above; a word breaks only when it is wider than the row. */
+.world-catalog-filters .extension-tag-name{flex:1 1 auto;min-width:0;overflow-wrap:break-word}
+.world-catalog-filters .extension-tag>.icon{flex:none}
 .world-catalog-filters .extension-tag.is-warning{--tag-ink:var(--extension-alert);--tag-colour:var(--extension-alert)}
 .world-catalog-filters .extension-tag.is-official{--tag-ink:var(--extension-mark);--tag-colour:var(--extension-mark)}
 .world-catalog-filters .extension-tag.is-notice{--tag-ink:var(--extension-caution);--tag-colour:var(--extension-caution)}
@@ -2084,26 +2118,36 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-catalog-filters button.extension-tag:hover{color:var(--tag-ink);background:var(--hover);border-color:transparent}
 .world-catalog-filters .extension-tag.is-active,.world-catalog-filters button.extension-tag.is-active:hover{color:var(--tag-colour);background:color-mix(in srgb,var(--tag-colour) 13%,transparent);border-color:transparent;font-weight:600}
 .world-catalog-filters button.extension-tag.is-active:hover{background:color-mix(in srgb,var(--tag-colour) 19%,transparent)}
-.world-catalog-filters .extension-tag-count{margin-left:auto;font-weight:400;color:var(--ink-dim)}
+.world-catalog-filters .extension-tag-count{flex:none;margin-left:auto;font-weight:400;color:var(--ink-dim)}
 /* 新品 in the sidebar is a plain row like 认证 and 官方: its card badge's tint must not carry over. */
 .world-catalog-filters .extension-tag.is-badge.is-new:not(.is-active){background:transparent}
 .world-catalog-filters .extension-tag.is-badge.is-new:not(.is-active):hover{background:var(--hover)}
-/* 注意事项 keep their count where every other row has it. Hovering one moves the count aside for a grey eye at the
-   row's end; an excluded row keeps the count aside and shows the crossed-out eye, its name struck through. */
-.world-catalog-filters .extension-tag.is-exclusion{position:relative;transition:padding-right 110ms var(--world-easing,ease)}
-.world-catalog-filters .extension-tag.is-exclusion:is(:hover,:focus-visible,.is-excluded){padding-right:34px}
+/* 注意事项 keep their count where every other row has it. Hovering one shows a grey eye in the count's place (the
+   row keeps its width, so a wrapped name does not re-wrap under the pointer); an excluded row moves the count aside
+   for the crossed-out eye, its name struck through. */
+.world-catalog-filters .extension-tag.is-exclusion{position:relative}
+.world-catalog-filters .extension-tag.is-excluded{padding-right:34px}
+.world-catalog-filters .extension-tag.is-exclusion .extension-tag-count{transition:opacity 110ms}
+.world-catalog-filters .extension-tag.is-exclusion:not(.is-excluded):is(:hover,:focus-visible) .extension-tag-count{opacity:0}
 .world-catalog-filters .extension-tag.is-excluded,.world-catalog-filters button.extension-tag.is-excluded:hover{color:var(--ink-dim)}
-.world-catalog-filters .extension-tag.is-excluded>span:first-child{text-decoration:line-through}
+/* A cut last word is an inline block, which the name's line-through does not reach, so it gets its own. */
+.world-catalog-filters .extension-tag.is-excluded :is(.extension-tag-name,.extension-tag-word){text-decoration:line-through}
 .world-catalog-filters .extension-tag-eye{position:absolute;top:50%;right:10px;width:14px;height:14px;color:var(--ink-dim);opacity:0;transform:translateY(-50%);transition:opacity 110ms}
 .world-catalog-filters .extension-tag.is-exclusion:is(:hover,:focus-visible,.is-excluded) .extension-tag-eye{opacity:1}
 /* Sidebar rows: the question mark beside the name shows while the row is hovered and opens the explanation itself. */
-.world-catalog-filters .extension-tag-help{display:inline-grid;place-items:center;flex:none;width:16px;height:16px;margin-left:-1px;border-radius:50%;color:var(--ink-dim);opacity:0;cursor:help;transition:opacity 110ms,color 110ms}
+.world-catalog-filters .extension-tag-help{display:none;place-items:center;width:16px;height:12px;margin-left:2px;vertical-align:-2px;border-radius:50%;color:var(--ink-dim);cursor:help;transition:color 110ms}
 .world-catalog-filters .extension-tag .extension-tag-help .icon{width:12px;height:12px}
-.world-catalog-filters .extension-tag:is(:hover,:focus-visible) .extension-tag-help{opacity:1}
 .world-catalog-filters .extension-tag-help:hover{color:var(--ink)}
-@media (hover:none){.world-catalog-filters .extension-tag-help{opacity:1}}
+/* The name wraps at its full width with the mark hidden (at rest even a last word wider than the row may break).
+   Hovered, the mark goes in after the last word and stays on its line, and when that line has no room for it the last word alone ends in an ellipsis (`is-cut`,
+   sized by `helpName`), so no other word moves. */
+.world-catalog-filters .extension-tag.is-hinting .extension-tag-tail{white-space:nowrap}
+.world-catalog-filters .extension-tag.is-hinting .extension-tag-help{display:inline-grid}
+.world-catalog-filters .extension-tag.is-hinting .extension-tag-word.is-cut{display:inline-block;overflow:hidden;text-overflow:ellipsis;vertical-align:top}
+/* Without hover the mark is always there, wrapped with the last word like any text. */
+@media (hover:none){.world-catalog-filters .extension-tag-help{display:inline-grid}.world-catalog-filters .extension-tag-tail{white-space:nowrap}}
 /* On a card a 注意事项 previews its hiding while hovered: the name strikes through, the chip keeps its width. */
-.extension-market-card .extension-tag.is-exclusion:is(:hover,:focus-visible)>span:first-child{text-decoration:line-through}
+.extension-market-card .extension-tag.is-exclusion:is(:hover,:focus-visible)>.extension-tag-name{text-decoration:line-through}
 /* A selected tag leads its card's tags and is filled, as cards showed it before. */
 .extension-market-card .extension-tag.is-active,.extension-market-card button.extension-tag.is-active:hover{color:var(--on-accent);background:var(--accent);border-color:var(--accent);font-weight:600}
 .extension-market-card .extension-tag.is-official.is-active,.extension-market-card button.extension-tag.is-official.is-active:hover{color:var(--paper);background:var(--extension-mark);border-color:var(--extension-mark)}

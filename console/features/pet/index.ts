@@ -1,6 +1,7 @@
 /**
  * 「习惯」: the everyday settings of the desktop pet, in sections: 通用 (language, what Coo calls you, Coo's
- * name, start at login (the app's login item, through the window's preload), automatic updates and anonymous usage statistics in the `companion` group), 行为与互动, 显示,
+ * name, start at login (the app's login item, through the window's preload), automatic updates and anonymous usage statistics in the `companion` group), 行为与互动,
+ * 气泡 (the bubbles' size, text size, speed and holds, the status and input bubbles, and a sample under them: bubble-preview.ts), 显示,
  * 音效, 电脑操作 (features/cua) and 其他 (the OBS overlay, the Chat page's context ring). Tabs under the title jump to each section
  * (base/ui/section-tabs.ts), the page staying one page. Every row names its
  * setting in the label column, except one that only refines the row above it. In each row the setting
@@ -44,6 +45,7 @@ import { S as CUA } from '../cua/strings.ts';
 import { announceName } from '../bot-name.ts';
 import { scaleSlider } from 'cortico-world-desktop-pet/web/scale-slider.js';
 import { S } from './strings.ts';
+import { bubblePreview } from './bubble-preview.ts';
 
 const GROUP = 'world:desktop-pet';
 const SOUND_GROUP = 'world:desktop-pet:sound';
@@ -76,6 +78,9 @@ const KEYS = {
   frameRate: `${K}.window.frameRate`,
   hideFullscreen: `${K}.window.hideWhenFullscreen`,
   passFullscreen: `${K}.window.passWhenFullscreen`,
+  fade: `${K}.window.fade`,
+  fadeFullscreen: `${K}.window.fadeWhenFullscreen`,
+  fullscreenFade: `${K}.window.fullscreenFade`,
   overTaskbar: `${K}.window.overTaskbar`,
   hideFromCapture: `${K}.window.hideFromCapture`,
   overlay: `${K}.window.exportOverlay`,
@@ -117,7 +122,7 @@ interface TypeKeyState { enabled: boolean; hotkey: string; keyLabel: string; pro
 
 /** The pet's actions in the menu's order (the World's PET_ACTIONS), with the icon each shows. */
 const ACTIONS: ReadonlyArray<[id: string, icon: string]> = [
-  ['chat', 'chat'], ['voice', 'mic'], ['roam', 'roam_calm'], ['theme', 'moon'], ['sound', 'sound'], ['hide', 'eyeOff'], ['size', 'resize'], ['dress', 'shirt'], ['worlds', 'boxes'],
+  ['chat', 'chat'], ['voice', 'mic'], ['roam', 'roam_calm'], ['theme', 'moon'], ['sound', 'sound'], ['hide', 'eyeOff'], ['size', 'resize'], ['fade', 'fade'], ['dress', 'shirt'], ['cua', 'computer'], ['worlds', 'boxes'],
 ];
 /** Kinds of sound, each a switch under `worlds.desktop-pet.sounds.<kind>`: the kinds the pet page mutes by. */
 const SOUND_KINDS = Object.keys(PAGE_SOUND_KINDS);
@@ -141,6 +146,8 @@ const BUBBLE_SPEED_MIN = .5, BUBBLE_SPEED_MAX = 2;
 /** The longest fixed bubble hold in seconds, as BUBBLE_HOLD_MAX in the World's config.ts; 固定 first shows HOLD_START, about the automatic hold of a 50-character line at bubble speed 1 (1.6 + 50 × .07). */
 const BUBBLE_HOLD_MAX = 60, HOLD_START = 5;
 const FRAME_RATES = [60, 120, 144, 0];
+/** The transparency range in percent and its step, as FADE_MAX and FADE_STEP in the World's config.ts. */
+const FADE_MAX = 95, FADE_STEP = 5;
 
 /** While the size slider moves, at most one save per this many milliseconds. */
 const SCALE_SEND_MS = 80;
@@ -195,22 +202,29 @@ async function mount(ctx: PageContext): Promise<void> {
   glowBox.append(glow.el, glowText);
   new ResizeObserver(() => glow.relayout()).observe(glowBox);
   const showGlow = () => { glowText.textContent = glowLabel(glow.value); };
-  // 气泡尺寸, 字体尺寸 and 气泡速度: the same slider in steps of 5%, saved once a drag or a key press ends
-  const percentSlider = (label: string, key: string, min: number, max: number) => {
+  /**
+   * 气泡尺寸, 字体尺寸 and 气泡速度 (factors in steps of .05), and 透明度 as usual and during full screen (whole percent, 0
+   * opaque to FADE_MAX in steps of FADE_STEP): the same slider, the value shown as a percentage, saved once a drag or a
+   * key press ends.
+   */
+  const percentSlider = (label: string, key: string, min: number, max: number, whole = false) => {
     const text = ui.h('span', 'companion-rangeval');
     const box = ui.h('div', 'companion-rangebox');
-    const show = () => { text.textContent = `${Math.round(slider.value * 100)}%`; };
+    const pct = (v: number) => `${whole ? v : Math.round(v * 100)}%`;
+    const show = () => { text.textContent = pct(slider.value); };
     const slider = scaleSlider(root.ownerDocument, {
       className: 'companion-scale',
-      min, soft: max, max, step: .05, label,
+      min, soft: max, max, step: whole ? FADE_STEP : .05, label, format: pct,
       room: () => box.clientWidth - text.offsetWidth - 12,
-      onInput: () => show(),
-      onChange: () => { show(); void save(key, slider.value, GROUP, slider.el); },
+      onInput: () => { show(); preview.refresh(); },
+      onChange: () => { show(); preview.refresh(); void save(key, slider.value, GROUP, slider.el); },
     });
     box.append(slider.el, text);
     new ResizeObserver(() => slider.relayout()).observe(box);
     return { box, slider, show };
   };
+  const fade = percentSlider(S.fade, KEYS.fade, 0, FADE_MAX, true);
+  const fullscreenFade = percentSlider(S.fade, KEYS.fullscreenFade, 0, FADE_MAX, true);
   const bubbleSize = percentSlider(S.bubbleSize, KEYS.bubbleSize, BUBBLE_SIZE_MIN, BUBBLE_SIZE_MAX);
   const fontSize = percentSlider(S.fontSize, KEYS.fontSize, BUBBLE_SIZE_MIN, BUBBLE_SIZE_MAX);
   const bubbleSpeed = percentSlider(S.bubbleSpeed, KEYS.bubbleSpeed, BUBBLE_SPEED_MIN, BUBBLE_SPEED_MAX);
@@ -246,7 +260,9 @@ async function mount(ctx: PageContext): Promise<void> {
       if (v && document.activeElement !== num) num.value = num.dataset.saved = String(v);
     };
     const setEnabled = (on: boolean) => { mode.disabled = num.disabled = !on; };
-    return { box, sync, setEnabled };
+    /** The hold shown: 0 for 自动, else the seconds last saved. */
+    const value = () => (mode.value === 'auto' ? 0 : Number(num.dataset.saved ?? num.value) || 0);
+    return { box, sync, setEnabled, value };
   };
   const sayHold = holdPicker(S.sayBubbleHold, KEYS.sayBubbleHoldSec);
   const saidHold = holdPicker(S.saidBubbleHold, KEYS.saidBubbleHoldSec);
@@ -255,14 +271,21 @@ async function mount(ctx: PageContext): Promise<void> {
   const lockFps = ui.checkbox(S.lockFps, { onChange: (on) => void save(KEYS.lockFps, on, GROUP, lockFps.el) });
   const hideFullscreen = ui.checkbox(S.hideFullscreen, { onChange: (on) => void save(KEYS.hideFullscreen, on, GROUP, hideFullscreen.el) });
   const passFullscreen = ui.checkbox(S.passFullscreen, { onChange: (on) => void save(KEYS.passFullscreen, on, GROUP, passFullscreen.el) });
-  const fullscreenBox = ui.h('div', 'companion-checks');
-  fullscreenBox.append(hideFullscreen.el, passFullscreen.el);
+  const fadeFullscreen = ui.checkbox(S.fadeFullscreen, {
+    onChange: (on) => { fullscreenFade.box.hidden = !on; void save(KEYS.fadeFullscreen, on, GROUP, fadeFullscreen.el); },
+  });
+  const fullscreenChecks = ui.h('div', 'companion-checks');
+  fullscreenChecks.append(hideFullscreen.el, passFullscreen.el, fadeFullscreen.el);
+  // the transparency during full screen, under the switches while 变淡 is on
+  const fullscreenBox = ui.h('div', 'companion-switchbox');
+  fullscreenFade.box.hidden = true;
+  fullscreenBox.append(fullscreenChecks, fullscreenFade.box);
   const hideFromCapture = ui.checkbox(S.hideFromCapture, { onChange: (on) => void save(KEYS.hideFromCapture, on, GROUP, hideFromCapture.el) });
   const overTaskbar = ui.checkbox(S.overTaskbar, { onChange: (on) => void save(KEYS.overTaskbar, on, GROUP, overTaskbar.el) });
   const remember = ui.checkbox(S.remember, { onChange: (on) => void save(KEYS.remember, on, GROUP, remember.el) });
   const dblclick = ui.checkbox(S.dblclick, { onChange: (on) => void save(KEYS.dblclick, on, GROUP, dblclick.el) });
   const statusBubble = ui.checkbox(S.statusBubble, { onChange: (on) => void save(KEYS.statusBubble, on, GROUP, statusBubble.el) });
-  const saidBubbles = ui.checkbox(S.saidBubble, { onChange: (on) => { saidHold.setEnabled(on); void save(KEYS.saidBubbles, on, GROUP, saidBubbles.el); } });
+  const saidBubbles = ui.checkbox(S.saidBubble, { onChange: (on) => { saidHold.setEnabled(on); preview.refresh(); void save(KEYS.saidBubbles, on, GROUP, saidBubbles.el); } });
   // the two rows below follow the pet panel's state; 「自定义…」 is picked by saving its popup
   let habit: Habits = { wake: { wakeOn: 'poke', wakeKinds: ['poke'] }, selfAdjust: { mode: 'default', custom: {} } };
   const wakeHint = ui.h('p', 'home-note');
@@ -406,9 +429,12 @@ async function mount(ctx: PageContext): Promise<void> {
     b.setAttribute('aria-label', b.title);
     b.innerHTML = ICONS[iconName] ?? '';
     b.append(ui.h('span', 'companion-hoverlbl', S.actions[id] ?? id));
-    b.addEventListener('click', () => {
+    b.addEventListener('click', async () => {
       const on = picked.includes(id);
       if (!on && picked.length >= MAX_HOVER) return;
+      // the computer use button turns it on at once: added only once its risks are confirmed (features/cua); the picks
+      // read again after the dialog, which the page's polling may have changed meanwhile
+      if (id === 'cua' && !on && (!await cua.confirmHoverButton() || picked.includes(id) || picked.length >= MAX_HOVER)) return;
       // kept in the menu's order, whatever order they were picked in
       picked = ACTIONS.map(([a]) => a).filter((a) => (a === id ? !on : picked.includes(a)));
       renderHover();
@@ -437,7 +463,7 @@ async function mount(ctx: PageContext): Promise<void> {
     return r;
   };
   // the World declares these settings on Windows only; elsewhere their values never arrive and the row stays hidden
-  const hideFullscreenRow = row(S.hideFullscreenLabel, fullscreenBox, [S.hideFullscreenHint, S.passFullscreenHint]);
+  const hideFullscreenRow = row(S.hideFullscreenLabel, fullscreenBox, [S.hideFullscreenHint, S.passFullscreenHint, S.fadeFullscreenHint]);
   hideFullscreenRow.hidden = true;
   const overTaskbarRow = row(S.overTaskbarLabel, overTaskbar.el, S.overTaskbarHint);
   overTaskbarRow.hidden = true;
@@ -469,18 +495,29 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
     row(S.dblclickLabel, dblclick.el),
     row(S.typeKeyLabel, typeBox, typeHint),
-    row(S.statusBubbleLabel, statusBubble.el, S.statusBubbleHint),
-    row(S.saidBubbleLabel, saidBubbles.el),
-    row(S.saidBubbleHold, saidHold.box, S.saidBubbleHint),
   );
-  const display = ui.sheet({ title: S.groupDisplay });
-  display.body.append(
-    row(S.scale, scaleBox),
+  // 气泡: how Coo's bubbles and yours look and how long they stay, with a sample at the end
+  const bubbles = ui.sheet({ title: S.groupBubbles });
+  const preview = bubblePreview(root.ownerDocument, signal, () => ({
+    size: bubbleSize.slider.value, font: fontSize.slider.value, speed: bubbleSpeed.slider.value,
+    sayHoldSec: sayHold.value(), saidHoldSec: saidHold.value(),
+    status: statusBubble.checked, said: saidBubbles.checked,
+  }));
+  bubbles.body.append(
     row(S.bubbleSize, bubbleSize.box, S.bubbleSizeHint),
     row(S.fontSize, fontSize.box, S.fontSizeHint),
     row(S.bubbleSpeed, bubbleSpeed.box, S.bubbleSpeedHint),
     row(S.sayBubbleHold, sayHold.box, S.sayBubbleHoldHint),
+    row(S.statusBubbleLabel, statusBubble.el, S.statusBubbleHint),
+    row(S.saidBubbleLabel, saidBubbles.el),
+    row(S.saidBubbleHold, saidHold.box, S.saidBubbleHint),
+    row(S.previewLabel, preview.el),
+  );
+  const display = ui.sheet({ title: S.groupDisplay });
+  display.body.append(
+    row(S.scale, scaleBox),
     row(S.glow, glowBox, S.glowHint),
+    row(S.fade, fade.box, S.fadeHint),
     row(S.frameRate, frameRate.el, S.frameRateHint),
     row('', lockFps.el, S.lockFpsHint),
     hideFullscreenRow,
@@ -489,7 +526,7 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.rememberLabel, remember.el, S.rememberHint),
   );
   const heading = intro(ui, S.nav);
-  root.append(heading, habits.el, behavior.el, display.el);
+  root.append(heading, habits.el, behavior.el, bubbles.el, display.el);
 
   /* ---------- sounds ---------- */
   const sounds = ui.sheet({ title: S.soundTitle });
@@ -616,6 +653,7 @@ async function mount(ctx: PageContext): Promise<void> {
   heading.append(sectionTabs(root.ownerDocument, signal, root, [
     { value: 'general', label: S.groupGeneral, el: habits.el },
     { value: 'behavior', label: S.groupBehavior, el: behavior.el },
+    { value: 'bubbles', label: S.groupBubbles, el: bubbles.el },
     { value: 'display', label: S.groupDisplay, el: display.el },
     { value: 'sounds', label: S.soundTitle, el: sounds.el },
     { value: 'speech', label: S.speechTitle, el: speechSheet.el },
@@ -721,6 +759,9 @@ async function mount(ctx: PageContext): Promise<void> {
     if (typeof values[KEYS.roam] === 'string') roam.setValue(values[KEYS.roam] as string);
     if (typeof values[KEYS.scale] === 'number' && !scale.active && active !== scale.el) { scale.set(values[KEYS.scale] as number); scaleSent = scale.value; showScale(); }
     if (!glow.active && active !== glow.el) { glow.set(typeof values[KEYS.glow] === 'number' ? values[KEYS.glow] as number : GLOW_DEFAULT); showGlow(); }
+    for (const [s, key] of [[fade, KEYS.fade], [fullscreenFade, KEYS.fullscreenFade]] as const) {
+      if (typeof values[key] === 'number' && !s.slider.active && active !== s.slider.el) { s.slider.set(values[key] as number); s.show(); }
+    }
     for (const [s, key] of [[bubbleSize, KEYS.bubbleSize], [fontSize, KEYS.fontSize], [bubbleSpeed, KEYS.bubbleSpeed]] as const) {
       if (!s.slider.active && active !== s.slider.el) { s.slider.set(typeof values[key] === 'number' ? values[key] as number : 1); s.show(); }
     }
@@ -744,6 +785,7 @@ async function mount(ctx: PageContext): Promise<void> {
     if (typeof values[KEYS.lockFps] === 'boolean') lockFps.setChecked(values[KEYS.lockFps] as boolean);
     if (typeof values[KEYS.hideFullscreen] === 'boolean') { hideFullscreen.setChecked(values[KEYS.hideFullscreen] as boolean); hideFullscreenRow.hidden = false; }
     if (typeof values[KEYS.passFullscreen] === 'boolean') passFullscreen.setChecked(values[KEYS.passFullscreen] as boolean);
+    if (typeof values[KEYS.fadeFullscreen] === 'boolean') { fadeFullscreen.setChecked(values[KEYS.fadeFullscreen] as boolean); fullscreenFade.box.hidden = !values[KEYS.fadeFullscreen]; }
     if (typeof values[KEYS.overTaskbar] === 'boolean') { overTaskbar.setChecked(values[KEYS.overTaskbar] as boolean); overTaskbarRow.hidden = false; }
     if (typeof values[KEYS.hideFromCapture] === 'boolean') { hideFromCapture.setChecked(values[KEYS.hideFromCapture] as boolean); hideFromCaptureRow.hidden = false; }
     if (typeof values[KEYS.remember] === 'boolean') remember.setChecked(values[KEYS.remember] as boolean);
@@ -759,6 +801,7 @@ async function mount(ctx: PageContext): Promise<void> {
     if (!root.ownerDocument.querySelector('.companion-popup')) takeHabits(state);
     overlayUrl.value = state?.overlayUrl ?? '';
     overlayUrlBox.hidden = !overlay.checked || !overlayUrl.value;
+    preview.refresh();
     if (typeof values[KEYS.hover] === 'string') {
       picked = (values[KEYS.hover] as string).split(',').map((x) => x.trim()).filter((x) => ACTIONS.some(([a]) => a === x));
       renderHover();

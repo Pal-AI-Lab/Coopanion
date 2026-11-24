@@ -16,6 +16,9 @@ export default {
   'bubble.imageUnreadable': 'Impossible de lire cette image',
   'bubble.imageTooLarge': 'Cette image dépasse encore {mb} Mo après redimensionnement',
   'bubble.imagesUnseen': 'Le modèle actuel ne voit pas les images ; {bot} apprend seulement combien vous en avez envoyé.',
+  /** A typed text past its cap (the count beside it shows the cap); the typing box's while the Chat page takes it. */
+  'bubble.tooLong': '{over} de trop ; raccourcissez pour envoyer',
+  'bubble.tooLongForBox': '{over} de trop ; continuez dans Discussion',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': "J'écoute…",
@@ -47,6 +50,13 @@ export default {
   'action.soundOff': 'Sons : désactivés · cliquez pour activer',
   'action.size': 'Taille : {pct} %',
   'action.sizeLabel': 'Taille du compagnon',
+  'action.fade': "Transparence : {pct} %",
+  'action.fadeFullscreen': "Transparence en plein écran : {pct} %",
+  'action.fadeLabel': "Transparence du compagnon",
+  'action.fadeFullscreenLabel': "Transparence du compagnon en plein écran",
+  'action.cuaOn': "Contrôle de l'ordinateur : activé · cliquez pour désactiver",
+  'action.cuaOffAsk': "Contrôle de l'ordinateur : désactivé · cliquez pour l'activer dans la fenêtre des réglages",
+  'action.cuaOff': "Contrôle de l'ordinateur : désactivé · cliquez pour l'activer",
   'action.dress': 'Habiller',
   'action.worlds': 'Mes Worlds',
   'action.hide': "Me cacher pour l'instant (l'icône de la zone de notification me fait revenir)",

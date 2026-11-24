@@ -33,7 +33,7 @@ import type { DeepPartial } from 'cortico/world.ts';
 import {
   DESKTOP_PET_ID, MAX_HOVER_BUTTONS, MAX_LOOK_NAME, MAX_SAVED_LOOKS, PET_ACTIONS, RECORDING_MINUTES_MAX, RECORDING_MINUTES_MIN, SELF_KEYS, THRESHOLD_DB_MAX,
   THRESHOLD_DB_MIN, TOUCH_KINDS, USER_MAX, asrEngineFor,
-  desktopPetConfigGroups, directSettings, hoverButtonList, scaleOf, selfAdjustMode, speechFor, touchWakes,
+  desktopPetConfigGroups, directSettings, fadeOf, hoverButtonList, scaleOf, selfAdjustMode, speechFor, touchWakes,
   type AsrEngine, type DesktopPetConfigSection, type MicMode, type PetSkin, type PetTheme, type SavedLook, type RoamMode, type SelfKey,
 } from './config.ts';
 import { capFor, cutChars, petText, type PetText } from './i18n/index.ts';
@@ -104,6 +104,9 @@ const CONFIRM_UNSHOWN_MS = 180_000;
 const CHAT_PAGE_EVENTS = 300;
 /** A message from the chat page: text cut to this, up to IMAGES_MAX images of at most IMAGE_MAX_BYTES each, as the console World takes them. */
 const CHAT_TEXT_MAX = 4000;
+/** Text cut to these: the pet's typing box, and a written answer to `pet_ask` from either page. The pages are told each cap and hold back longer text. */
+const BOX_TEXT_MAX = 500;
+const ANSWER_TEXT_MAX = 500;
 const IMAGES_MAX = 8;
 const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
@@ -918,6 +921,7 @@ export class DesktopPetWorld implements World {
           activity: this.activity.steps.length ? { steps: this.activity.steps, startedAt: this.activity.startedAt } : null,
           paused: this.opts.controls?.isPaused?.() ?? false, user: this.userName, bot: this.botName(),
           imagesSeen: host?.modelFacts.accepts('image/jpeg') ?? false,
+          textMax: CHAT_TEXT_MAX, answerMax: ANSWER_TEXT_MAX,
         });
         if (this.draft !== null) { this.chat.send(socket, { t: 'draft', ...this.draft }); this.draft = null; }
         return;
@@ -1012,6 +1016,7 @@ export class DesktopPetWorld implements World {
       startX: this.cfg.rememberPosition ? this.cfg.petX : null,
       startY: this.cfg.rememberPosition ? this.cfg.petY : null,
       hoverButtons: hoverButtonList(this.cfg.hoverButtons),
+      cua: this.cuaButton(),
       doubleClickChat: this.cfg.doubleClickChat,
       scale: this.cfg.window.scale,
       bubbleSize: this.cfg.window.bubbleSize,
@@ -1021,6 +1026,9 @@ export class DesktopPetWorld implements World {
       glow: this.cfg.window.glow,
       frameRate: this.cfg.window.frameRate,
       lockFrameRate: this.cfg.window.lockFrameRate,
+      fade: this.cfg.window.fade,
+      fadeWhenFullscreen: this.cfg.window.fadeWhenFullscreen,
+      fullscreenFade: this.cfg.window.fullscreenFade,
       hideWhenFullscreen: this.cfg.window.hideWhenFullscreen,
       passWhenFullscreen: this.cfg.window.passWhenFullscreen,
       overTaskbar: this.cfg.window.overTaskbar,
@@ -1039,6 +1047,12 @@ export class DesktopPetWorld implements World {
     };
   }
 
+  /** The computer use button: it switches computer use off, and on once the risks were confirmed, else through the settings window's switch. */
+  private cuaButton(): { on: boolean; confirmed: boolean; canOpen: boolean } {
+    const runs = this.cua.unsupported() === null;
+    return { on: this.cuaOn, confirmed: runs && this.cfg.cua.risksConfirmed === true, canOpen: runs && !!this.opts.controls?.openCuaSettings };
+  }
+
   private botName(): string {
     return this.opts.botName?.() ?? '';
   }
@@ -1054,6 +1068,7 @@ export class DesktopPetWorld implements World {
       buttons: { pause, settings: !!c?.openSettings, dress: !!c?.openDress, worlds: !!c?.openWorlds, quit: !!c?.quit, chat: !!c?.openChat },
       // the typing box warns, as the chat page does, that the model gets only the count of pasted images
       imagesSeen: this.host?.modelFacts.accepts('image/jpeg') ?? false,
+      textMax: { box: BOX_TEXT_MAX, chat: CHAT_TEXT_MAX },
       paused: pause && c?.isPaused ? c.isPaused() : null,
       quitLabel,
       quitPrompt: quitLabel ? this.ui.menu.quitPrompt(quitLabel) : '',
@@ -1209,8 +1224,13 @@ export class DesktopPetWorld implements World {
     // the menu's sound or roam button during a quiet: the person's choice, kept, and the quiet is over
     if (this.quiet && (patch.roam !== undefined || patch.sound !== undefined)) this.endQuiet();
     if (prefs.theme === 'dark' || prefs.theme === 'light') patch.theme = prefs.theme as PetTheme;
-    const scale = scaleOf(prefs.scale);
-    if (scale !== null) patch.window = { scale };
+    const scale = scaleOf(prefs.scale), fade = fadeOf(prefs.fade), fullscreenFade = fadeOf(prefs.fullscreenFade);
+    if (scale !== null || fade !== null || fullscreenFade !== null) {
+      patch.window = { ...(scale !== null ? { scale } : {}), ...(fade !== null ? { fade } : {}), ...(fullscreenFade !== null ? { fullscreenFade } : {}) };
+    }
+    if (prefs.cua === false) patch.cua = { enabled: false };
+    // a page turns it on only after the person confirmed the risks in the settings window
+    else if (prefs.cua === true && this.cfg.cua.risksConfirmed && this.cua.unsupported() === null) patch.cua = { enabled: true };
     if (typeof prefs.mic === 'boolean') patch.asr = { enabled: prefs.mic };
     if (Array.isArray(prefs.hoverButtons)) {
       const ids = prefs.hoverButtons.filter((id): id is string => typeof id === 'string' && (PET_ACTIONS as readonly string[]).includes(id));
@@ -1282,7 +1302,7 @@ export class DesktopPetWorld implements World {
       }
       case 'visibility': this.petHidden = msg.hidden === true; this.tellDesktop(); return;
       case 'text': {
-        const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 500) : '';
+        const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, BOX_TEXT_MAX) : '';
         const images = parseChatImages(msg.images, this.userName, petText(this.appLanguage).chat, this.t);
         if (!images.ok) { this.log?.warn(`打字框发来的图片没有收下:${images.reason}`); return; }
         if (!text && images.blobs.length === 0) return;
@@ -1370,6 +1390,7 @@ export class DesktopPetWorld implements World {
     else if (action === 'settings') c.openSettings?.();
     else if (action === 'dress') c.openDress?.();
     else if (action === 'worlds') c.openWorlds?.();
+    else if (action === 'cua' && this.cuaCanOpen) c.openCuaSettings?.();
     else if (action === 'quit') c.quit?.();
     this.syncPrefs();
   }
@@ -1484,7 +1505,7 @@ export class DesktopPetWorld implements World {
       return;
     }
     const index = typeof msg.index === 'number' && ask.options[msg.index] !== undefined ? msg.index : null;
-    const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, 500) : '';
+    const text = typeof msg.text === 'string' ? msg.text.trim().slice(0, ANSWER_TEXT_MAX) : '';
     if (index === null && !text) return;
     this.setAsk(null);
     if (from === 'chat') this.server.sendPet({ t: 'ask-close', id: ask.id });

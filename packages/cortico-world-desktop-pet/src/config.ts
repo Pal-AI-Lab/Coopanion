@@ -13,7 +13,7 @@ export const DESKTOP_PET_ID = 'desktop-pet';
 export const USER_MAX = 20;
 
 /** The actions that can show as buttons beside the pet on hover, in their order; the right-click menu shows the same ones. */
-export const PET_ACTIONS = ['chat', 'voice', 'roam', 'theme', 'sound', 'hide', 'size', 'dress', 'worlds'] as const;
+export const PET_ACTIONS = ['chat', 'voice', 'roam', 'theme', 'sound', 'hide', 'size', 'fade', 'dress', 'cua', 'worlds'] as const;
 export type PetAction = typeof PET_ACTIONS[number];
 /** Most hover buttons. */
 export const MAX_HOVER_BUTTONS = 6;
@@ -196,6 +196,11 @@ export interface DesktopPetConfigSection extends WorldSection {
     /** Frames a second while the body moves (and at rest with `lockFrameRate`); 0 follows the display. */
     frameRate: number;
     lockFrameRate: boolean;
+    /** How transparent the body and its bubbles are, in percent: 0 is opaque, FADE_MAX the most, in steps of FADE_STEP. */
+    fade: number;
+    /** While a fullscreen window covers the pet's display, `fullscreenFade` takes the place of `fade`. */
+    fadeWhenFullscreen: boolean;
+    fullscreenFade: number;
     /** Hide the pet window while a fullscreen window covers the display it is on. */
     hideWhenFullscreen: boolean;
     /** Let every click pass through the pet window while a fullscreen window covers the display it is on. */
@@ -300,6 +305,12 @@ export const SCALE_MIN = .5, SCALE_MAX = 10;
 export function scaleOf(v: unknown): number | null {
   return typeof v === 'number' && v >= SCALE_MIN && v <= SCALE_MAX ? Math.round(v * 20) / 20 : null;
 }
+/** `window.fade` and `window.fullscreenFade` in percent: fully transparent would leave nothing to point at. */
+export const FADE_MAX = 95, FADE_STEP = 5;
+/** A fade as it is kept: a multiple of FADE_STEP in 0..FADE_MAX; null for anything but a number in range. */
+export function fadeOf(v: unknown): number | null {
+  return typeof v === 'number' && v >= 0 && v <= FADE_MAX ? Math.round(v / FADE_STEP) * FADE_STEP : null;
+}
 /** The range of `window.bubbleSize` and `window.fontSize`. */
 export const BUBBLE_SIZE_MIN = .8, BUBBLE_SIZE_MAX = 1.6;
 /** The range of `window.bubbleSpeed`. */
@@ -321,7 +332,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   enabled: false,
   port: 7797,
   user: '',
-  window: { enabled: true, electronFile: '', scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, sayBubbleHoldSec: 0, glow: GLOW_DEFAULT, frameRate: 60, lockFrameRate: false, hideWhenFullscreen: false, passWhenFullscreen: false, overTaskbar: true, hideFromCapture: false, exportOverlay: false },
+  window: { enabled: true, electronFile: '', scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, sayBubbleHoldSec: 0, glow: GLOW_DEFAULT, frameRate: 60, lockFrameRate: false, fade: 0, fadeWhenFullscreen: false, fullscreenFade: 40, hideWhenFullscreen: false, passWhenFullscreen: false, overTaskbar: true, hideFromCapture: false, exportOverlay: false },
   roam: 'calm',
   sound: true,
   sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, alert: true, snoreSeconds: 0, panByPosition: true, volume: 100 },
@@ -393,10 +404,13 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
         [`${K}.window.glow`]: { type: 'number', title: c.glow.title, description: c.glow.description, minimum: 0, maximum: GLOW_MAX, multipleOf: 1, 'x-hot': true },
         [`${K}.window.frameRate`]: { type: 'integer', title: c.frameRate.title, minimum: 0, description: c.frameRate.description, 'x-hot': true },
         [`${K}.window.lockFrameRate`]: { type: 'boolean', title: c.lockFrameRate.title, description: c.lockFrameRate.description, 'x-hot': true },
+        [`${K}.window.fade`]: { type: 'integer', title: c.fade.title, description: c.fade.description, minimum: 0, maximum: FADE_MAX, multipleOf: FADE_STEP, 'x-suffix': '%', 'x-hot': true },
         // only the window process on Windows can tell another program is full screen (host/electron-main.cjs `fullscreen`), reaches over the taskbar (`coverArea`) and is left out of captures; unregistered, the 「习惯」 page hides them too
         ...(process.platform === 'win32' ? {
           [`${K}.window.hideWhenFullscreen`]: { type: 'boolean', title: c.hideWhenFullscreen.title, description: c.hideWhenFullscreen.description, 'x-hot': true },
           [`${K}.window.passWhenFullscreen`]: { type: 'boolean', title: c.passWhenFullscreen.title, description: c.passWhenFullscreen.description, 'x-hot': true },
+          [`${K}.window.fadeWhenFullscreen`]: { type: 'boolean', title: c.fadeWhenFullscreen.title, description: c.fadeWhenFullscreen.description, 'x-hot': true },
+          [`${K}.window.fullscreenFade`]: { type: 'integer', title: c.fullscreenFade.title, minimum: 0, maximum: FADE_MAX, multipleOf: FADE_STEP, 'x-suffix': '%', 'x-hot': true },
           [`${K}.window.overTaskbar`]: { type: 'boolean', title: c.overTaskbar.title, description: c.overTaskbar.description, 'x-hot': true },
           [`${K}.window.hideFromCapture`]: { type: 'boolean', title: c.hideFromCapture.title, description: c.hideFromCapture.description, 'x-hot': true },
         } : {}),

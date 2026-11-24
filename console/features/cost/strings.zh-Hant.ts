@@ -10,6 +10,7 @@ export const S: Partial<typeof en> = {
   bucketDay: '天',
   bucketWeek: '週',
   bucketMonth: '月',
+  bucketTooFine: (max: number) => `這個時間範圍按此粒度超過 ${max} 個長條，請選擇更粗的粒度或縮短範圍`,
   presetToday: '今天',
   preset3: '近 3 天',
   preset7: '近 7 天',

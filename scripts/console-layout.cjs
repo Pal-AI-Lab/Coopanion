@@ -18,10 +18,10 @@
  * A finding is a kind on an element path. It is reported for a language when zh has no finding
  * of the same kind on the same path, except glyph findings, which are reported in every language.
  *   overflow        content wider than its box, painted past its edge
- *   ellipsis        cut with an ellipsis
+ *   ellipsis        cut with an ellipsis (not reported when the control it is in has it whole in its title, nor a clamp)
  *   clip-x, clip-y  cut by an overflow-hidden box of its own
  *   clamp           cut by a line clamp
- *   wrap            a button, tab, label or chip on more than one line
+ *   wrap            a button, tab, label or chip on more lines than its line-clamp allows (one without it)
  *   glyph-text      the first line's ink crosses the edge of the nearest box that hides overflow
  *   glyph-probe     the same with accented capitals and descenders (PROBE) in the element's font
  *
@@ -161,14 +161,19 @@ async function auditPage() {
       if (!/\p{L}/u.test(text) || el.closest(SKIP) || !shown(el)) continue;
       const s = getComputedStyle(el);
       const at = { id: pathOf(el), text: text.slice(0, 60) };
+      // cut short by design: the control it is in has it whole in its tooltip
+      const whole = !!el.closest('[title]')?.title.includes(text);
       if (el.scrollWidth > el.clientWidth + 1) {
-        if (s.overflowX !== 'visible') out.push({ kind: s.textOverflow === 'ellipsis' ? 'ellipsis' : 'clip-x', ...at });
-        else if (s.display !== 'inline') out.push({ kind: 'overflow', ...at, by: el.scrollWidth - el.clientWidth });
+        if (s.overflowX === 'visible') { if (s.display !== 'inline') out.push({ kind: 'overflow', ...at, by: el.scrollWidth - el.clientWidth }); }
+        else if (s.textOverflow !== 'ellipsis') out.push({ kind: 'clip-x', ...at });
+        else if (!whole) out.push({ kind: 'ellipsis', ...at });
       }
-      if (el.scrollHeight > el.clientHeight + 2 && (s.overflowY === 'hidden' || s.overflowY === 'clip')) {
+      if (el.scrollHeight > el.clientHeight + 2 && (s.overflowY === 'hidden' || s.overflowY === 'clip') && !(whole && s.webkitLineClamp !== 'none')) {
         out.push({ kind: s.webkitLineClamp && s.webkitLineClamp !== 'none' ? 'clamp' : 'clip-y', ...at });
       }
-      if (el.closest(CONTROL) && lineCount(el) > 1) out.push({ kind: 'wrap', ...at });
+      // a label that declares a line budget (line-clamp) wraps by design up to it; past it, it is cut and reported as clamp
+      const budget = Number(s.webkitLineClamp) || 1;
+      if (el.closest(CONTROL) && lineCount(el) > budget) out.push({ kind: 'wrap', ...at });
       if (s.whiteSpace.startsWith('nowrap') || s.overflowY === 'hidden' || s.overflowY === 'clip') {
         const cut = glyphCut(el, s);
         if (cut) out.push({ ...cut, ...at });
