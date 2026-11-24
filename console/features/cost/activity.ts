@@ -6,6 +6,8 @@
 
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import { LANGUAGE } from '../../base/language.ts';
+import { prefersStill } from '../../base/motion.ts';
+import { groundColor } from './chart.ts';
 import { S } from './strings.ts';
 import type { UsageTip } from './tooltip.ts';
 import type { UsageDailyTokens } from './types.ts';
@@ -42,6 +44,11 @@ const dayKey = (t: number): string => new Date(t).toISOString().slice(0, 10);
 /** 0 = 没有用量；1–4 按当天 token 占最大值的比例分档。 */
 function level(value: number, max: number): number {
   return value > 0 ? Math.min(4, Math.ceil((value / max) * 4)) : 0;
+}
+
+/** Which of `count` cells along a line `size` px long holds `at`, a gap going half to each side. */
+function along(at: number, size: number, count: number): number {
+  return Math.min(count - 1, Math.max(0, Math.floor(((at + GAP / 2) * count) / (size + GAP))));
 }
 
 /**
@@ -112,6 +119,8 @@ export function renderActivity(deps: ActivityDeps, daily: readonly UsageDailyTok
     months.appendChild(label);
   }
 
+  const wrap = ui.h('div', 'uactivity');
+  wrap.style.setProperty('--cols', String(cols));
   const legend = ui.h('div', 'ulegend');
   legend.append(ui.h('span', null, S.less));
   for (let i = 0; i <= 4; i++) {
@@ -121,18 +130,51 @@ export function renderActivity(deps: ActivityDeps, daily: readonly UsageDailyTok
   }
   legend.append(ui.h('span', null, S.more));
 
+  // The spotlight, as on the usage chart: the grid fades as one layer (cost.css), and the pointed cell is a
+  // copy on a layer of its own that grows and glows, so a move of the pointer repaints the copy alone.
+  const still = prefersStill(box.ownerDocument.defaultView) || typeof wrap.animate !== 'function';
+  const up: Keyframe = { opacity: 1, transform: 'scale(1.7)' };
+  const down: Keyframe = { opacity: 0, transform: 'scale(1)' };
+  let ground: string | undefined;
+  let lit: { cell: HTMLElement; el: HTMLElement } | undefined;
+  const raise = (cell: HTMLElement | null): void => {
+    if (cell === (lit?.cell ?? null)) return;
+    if (lit) {
+      const { el } = lit;
+      const done = (): void => el.remove();
+      if (still) done();
+      else el.animate([up, down], { duration: 200, easing: 'ease-out', fill: 'forwards' }).finished.then(done, done);
+    }
+    lit = undefined;
+    if (!cell) return;
+    const el = ui.h('div', cell.classList.contains('is-dim') ? 'ulift is-dim' : 'ulift');
+    const copy = ui.h('span', 'ucell');
+    copy.dataset.level = cell.dataset.level;
+    el.appendChild(copy);
+    // the copy sits on the background, so the faded cell under it does not show through its tint
+    el.style.cssText = `left:${cell.offsetLeft}px;top:${cell.offsetTop}px;width:${cell.offsetWidth}px;height:${cell.offsetHeight}px;background:${ground ??= groundColor(box)}`;
+    wrap.appendChild(el);
+    lit = { cell, el };
+    if (still) Object.assign(el.style, up);
+    else el.animate([down, up], { duration: 260, easing: 'cubic-bezier(.34, 1.56, .64, 1)', fill: 'forwards' });
+  };
+
+  // The pointed cell comes from the pointer's position, a gap going to the nearer cell, so crossing a gap
+  // keeps the lift and the tip.
   const point = (ev: MouseEvent): void => {
-    const cell = (ev.target as Element | null)?.closest<HTMLElement>('.ucell[data-day]');
+    const area = grid.getBoundingClientRect();
+    const c = along(ev.clientX - area.left, area.width, cols);
+    const r = along(ev.clientY - area.top, area.height, 7);
+    const at = grid.children[c * 7 + r] as HTMLElement | undefined;
+    const cell = at?.dataset.day ? at : null;
+    raise(cell);
     if (!cell) { tip.hide(); return; }
     const value = Number(cell.dataset.value).toLocaleString();
     tip.show(`<div class="tt-h">${cell.dataset.day}</div><div class="tt-tot">${value} token</div>`, cell.dataset.day!);
     tip.move(ev);
   };
   grid.addEventListener('mousemove', point);
-  grid.addEventListener('mouseleave', () => tip.hide());
-
-  const wrap = ui.h('div', 'uactivity');
-  wrap.style.setProperty('--cols', String(cols));
+  grid.addEventListener('mouseleave', () => { raise(null); tip.hide(); });
   wrap.append(grid, months, legend);
   box.appendChild(wrap);
   if (!shifts.length) return;

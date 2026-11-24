@@ -10,6 +10,7 @@ export const S: Partial<typeof en> = {
   bucketDay: 'День',
   bucketWeek: 'Неделя',
   bucketMonth: 'Месяц',
+  bucketTooFine: (max: number) => `При таком шаге в этом периоде больше ${max} столбцов. Выберите шаг крупнее или период короче.`,
   presetToday: 'Сегодня',
   preset3: 'Последние 3 дня',
   preset7: 'Последние 7 дней',
