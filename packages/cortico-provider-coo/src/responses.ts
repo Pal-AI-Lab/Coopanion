@@ -5,7 +5,6 @@ import type { Request } from 'cortico/protocol/open-responses/index.ts';
 import type { ContextRecord } from 'cortico/protocol/open-responses/context.ts';
 import type { CompatMediaOptions } from 'cortico/providers/transport/history.ts';
 import { imagesAfterResults, type Message, type ResultFormat } from './chat.ts';
-import { sinceLastDelivery } from './context.ts';
 import { LenientReasoningAssembly } from './stream.ts';
 import type { EffortMap } from './vendors.ts';
 
@@ -64,8 +63,7 @@ const RESPONSES_RESULTS: ResultFormat = {
 
 /**
  * The Responses client with the thinking level rewritten to the value the service takes for the model
- * (`effort`), images and audio limited to the newest batch (`sinceLastDelivery`) and, with `audio`, audio
- * attachments sent as `input_audio` (`withAudio`); a `lenientReasoning`
+ * (`effort`) and, with `audio`, audio attachments sent as `input_audio` (`withAudio`); a `lenientReasoning`
  * service's stream goes through `LenientReasoningAssembly`, and a `toolOutputText` service's tool
  * results send their images in a user message after them, as on Chat.
  */
@@ -80,8 +78,7 @@ export class VendorResponses extends ResponsesProvider {
   }
 
   protected override buildResponseBody(request: Request, options: GenerateOptions): Record<string, unknown> {
-    const recent = options.context && sinceLastDelivery(options.context);
-    const context = recent && this.quirks.audio ? withAudio(recent, this.quirks.audio) : recent;
+    const context = options.context && this.quirks.audio ? withAudio(options.context, this.quirks.audio) : options.context;
     const body = super.buildResponseBody(request, context ? { ...options, context } : options);
     if (this.quirks.toolOutputText) body.input = imagesAfterResults(body.input as Message[], RESPONSES_RESULTS);
     const reasoning = body.reasoning as { effort?: string } | undefined;
