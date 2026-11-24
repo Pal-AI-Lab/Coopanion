@@ -1,7 +1,7 @@
 ## Unreleased
 
 - The managed Electron runtime that hosts the pet window outside an app has a Windows arm64 build (`win32-arm64`).
-- Linux computer use in a Wayland session moves the pointer with `XWarpPointer` instead of an XTest motion: under a fractional desktop scale the XTest motion landed off by the scale, and it did not move the pointer over native Wayland windows. Buttons, the wheel and keys still go through XTest; a pure X11 session is unchanged.
+- Linux computer use in a Wayland session moves the pointer with `XWarpPointer` followed by a zero-distance XTest motion, instead of an XTest motion to the point: under a fractional desktop scale the XTest motion landed off by the scale, and it did not move the pointer over native Wayland windows. Buttons, the wheel and keys still go through XTest; a pure X11 session is unchanged.
 - Config `window.hideFromCapture` (Windows, off by default): on, the pet window is left out of screenshots and screen recordings (`setContentProtection`), those of `pet_cua_screenshot` included.
 - Config `window.overTaskbar` (Windows, on by default): off, the pet window ends at the work area's bottom and no longer reaches down over the taskbar.
 - A pack the pet page could not run is logged at WARN with its id and the reason, and listed in `GET /api/figures/status` `problems` until the page shows it. The `desktop-pet.figure` event of the failure carries the reason in `meta.figure.reason`, which the chat page shows.

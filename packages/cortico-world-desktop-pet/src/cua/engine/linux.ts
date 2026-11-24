@@ -61,6 +61,7 @@ const XWarpPointer = x11.func('int XWarpPointer(void *dpy, unsigned long src, un
 const XErrorHandler = koffi.proto('int XErrorHandler(void *dpy, void *event)');
 const XSetErrorHandler = x11.func('void *XSetErrorHandler(XErrorHandler *handler)');
 const XTestFakeMotionEvent = xtst.func('int XTestFakeMotionEvent(void *dpy, int screen, int x, int y, unsigned long delay)');
+const XTestFakeRelativeMotionEvent = xtst.func('int XTestFakeRelativeMotionEvent(void *dpy, int dx, int dy, unsigned long delay)');
 const XTestFakeButtonEvent = xtst.func('int XTestFakeButtonEvent(void *dpy, unsigned int button, int press, unsigned long delay)');
 const XTestFakeKeyEvent = xtst.func('int XTestFakeKeyEvent(void *dpy, unsigned int keycode, int press, unsigned long delay)');
 const XRRGetMonitors = xrandr?.func('void *XRRGetMonitors(void *dpy, unsigned long window, int getActive, _Out_ int *count)') ?? null;
@@ -180,10 +181,14 @@ export type Button = 'left' | 'right' | 'middle';
 /**
  * Absolute move in pixels of the screen. Under XWayland an XTest motion can land scaled by a fractional desktop
  * scale and does not move the pointer over a native Wayland window; a warp lands on the pixel asked for in both cases.
+ * A zero-distance XTest motion follows the warp, so that the compositor also gets pointer motion at the warped
+ * position before a click.
  */
 export function moveTo(x: number, y: number): void {
-  if (wayland) XWarpPointer(dpy, 0, root, 0, 0, 0, 0, Math.round(x), Math.round(y));
-  else XTestFakeMotionEvent(dpy, -1, Math.round(x), Math.round(y), 0);
+  if (wayland) {
+    XWarpPointer(dpy, 0, root, 0, 0, 0, 0, Math.round(x), Math.round(y));
+    XTestFakeRelativeMotionEvent(dpy, 0, 0, 0);
+  } else XTestFakeMotionEvent(dpy, -1, Math.round(x), Math.round(y), 0);
   XFlush(dpy);
 }
 
