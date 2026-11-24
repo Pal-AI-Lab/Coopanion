@@ -7,7 +7,7 @@
  * - a new size: the drawn size follows the asked one on a spring (`springSize`) instead of jumping.
  *
  * The body's frame window (body-host.js `el`) is animated with the Web Animations API: its inline style belongs to the
- * halo (body-host.js setHalo), which rewrites it every frame. With reduced motion nothing moves: the change is immediate.
+ * halo (body-host.js setHalo), which rewrites it every frame. At low motion (motion-level.js) nothing moves: the change is immediate.
  *
  * A figure switch starts WARM_MS late: the new body, hidden meanwhile, draws its first frames (its textures, its first
  * layout) before it is shown, so that work does not fall on the fade's frames. SWAP_MS is how long a switch takes in all,

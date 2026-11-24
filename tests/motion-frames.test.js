@@ -1,22 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { setMotionChoice } from '../packages/cortico-world-desktop-pet/web/motion-level.js';
-import { approach, approachShare, cssMs, growFrom, tween, typeOut } from '../packages/cortico-world-desktop-pet/web/motion-frames.js';
+import { approachShare, cssMs, growFrom, tween, typeOut } from '../packages/cortico-world-desktop-pet/web/motion-frames.js';
 
 const at = (level) => { const win = new JSDOM('<!doctype html><html></html>').window; setMotionChoice(win, level); return win; };
 
 describe('frame motion', () => {
   it('eases by the time that passed, not by frames: two half frames close as much as one whole', () => {
     const win = at('high');
-    const once = approach(0, 100, 12, 1 / 30, win);
-    const twice = approach(approach(0, 100, 12, 1 / 60, win), 100, 12, 1 / 60, win);
-    expect(twice).toBeCloseTo(once, 9);
+    const step = (x, dt) => x + (100 - x) * approachShare(12, dt, win);
+    expect(step(step(0, 1 / 60), 1 / 60)).toBeCloseTo(step(0, 1 / 30), 9);
     expect(approachShare(12, 1 / 60, win)).toBeCloseTo(1 - Math.exp(-.2), 9);
   });
 
   it('lands at once at low motion', () => {
     const win = at('low');
-    expect(approach(0, 100, 12, 1 / 60, win)).toBe(100);
     expect(approachShare(12, 1 / 60, win)).toBe(1);
     expect(tween(0, 10, 300, { start: 0, win }).at(0)).toBe(10);
     expect(typeOut(50, 20, 0, win)).toBe(50);

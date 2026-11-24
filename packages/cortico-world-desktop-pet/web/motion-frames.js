@@ -7,15 +7,9 @@
 import { motionLevel } from './motion-level.js';
 
 /**
- * One frame of easing `current` toward `target`, which may keep moving: the gap shrinks by `1 - e^(-rate·dt)`
- * (`rate` per second, `dt` in seconds). At low motion it is the target.
+ * The share of the gap to a target (which may keep moving) one frame of `dt` seconds closes, `1 - e^(-rate·dt)`, so
+ * the easing runs at the same speed on any display; 1 at low motion.
  */
-export function approach(current, target, rate, dt, win = globalThis.window) {
-  if (motionLevel(win) === 'low' || !(dt > 0)) return motionLevel(win) === 'low' ? target : current;
-  return target + (current - target) * Math.exp(-rate * dt);
-}
-
-/** The share of the gap one frame of `approach` closes, for callers that ease several values alike. */
 export function approachShare(rate, dt, win = globalThis.window) {
   if (motionLevel(win) === 'low') return 1;
   return dt > 0 ? 1 - Math.exp(-rate * dt) : 0;

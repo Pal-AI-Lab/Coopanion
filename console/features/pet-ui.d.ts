@@ -67,9 +67,7 @@ declare module 'cortico-world-desktop-pet/web/motion-frames.js' {
   export function cssMs(el: Element | null | undefined, name: string, fallback: number): number;
   /** How far a change started at `start` and running `ms` is at `now`, 0–1, linear; 1 at low motion. */
   export function progress(start: number, ms: number, now: number, win?: Window | null): number;
-  /** One frame of easing `current` toward `target` (`rate` per second, `dt` in seconds); the target at low motion. */
-  export function approach(current: number, target: number, rate: number, dt: number, win?: Window | null): number;
-  /** The share of the gap one frame of `approach` closes; 1 at low motion. */
+  /** The share of the gap to a target one frame of `dt` seconds closes, by `rate` per second; 1 at low motion. */
   export function approachShare(rate: number, dt: number, win?: Window | null): number;
   /** From `from` to `to` over `ms`; at `to` at once at low motion, without overshoot at medium. */
   export function tween(from: number, to: number, ms: number, opts?: { ease?: (k: number) => number; overshoots?: boolean; start?: number; win?: Window | null }): { at(now: number): number; done(now: number): boolean };
