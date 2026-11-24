@@ -16,16 +16,17 @@ export function balancedWidth(el) {
   el.style.width = el.style.maxWidth = '';
   const widest = el.offsetWidth, height = el.offsetHeight;
   let lo = 0, hi = widest;
-  for (let i = 0; i < 9 && hi - lo > 1; i++) {
+  while (hi - lo > 1) {
     const mid = (lo + hi) / 2;
     el.style.width = mid + 'px';
     if (el.offsetHeight > height) lo = mid; else hi = mid;
   }
-  // offsetWidth rounds the widest down (172 of 172.4), and a width at the edge wraps the text: the width is checked as
-  // the caller will use it, a max-width, and grows a pixel at a time, past the rounded widest if need be, until it holds.
+  // offsetWidth rounds the widest down by under a pixel (172 of 172.4), and a width at the edge wraps the text: the
+  // width is checked as the caller will use it, a max-width, and grows a pixel at a time until it holds, at most to
+  // the widest plus that pixel.
   el.style.width = '';
   let w = Math.ceil(hi);
-  for (el.style.maxWidth = w + 'px'; el.offsetHeight > height && w <= widest + 2; el.style.maxWidth = w + 'px') w++;
+  for (el.style.maxWidth = w + 'px'; el.offsetHeight > height && w <= widest; el.style.maxWidth = w + 'px') w++;
   [el.style.width, el.style.maxWidth] = keep;
   return w;
 }
