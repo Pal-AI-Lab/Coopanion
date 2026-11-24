@@ -2369,6 +2369,10 @@ input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{disp
   .pet-bubble.thinking i { animation-name: breathe !important; animation-duration: 1.2s !important; animation-iteration-count: infinite !important; }
   .pet-bubble.thinking i:nth-child(2) { animation-delay: .15s !important; }
   .pet-bubble.thinking i:nth-child(3) { animation-delay: .3s !important; }
+  /* the 「习惯」 page's bubble sample thinks as the pet does (pet.css keeps its dots at low motion too) */
+  .pv-status[data-kind="think"] circle { animation-duration: 1.3s !important; animation-iteration-count: infinite !important; }
+  .pv-status[data-kind="think"] circle:nth-child(2) { animation-delay: .16s !important; }
+  .pv-status[data-kind="think"] circle:nth-child(3) { animation-delay: .32s !important; }
   .progressfill { transition-duration: var(--motion-base) !important; }
   /* the caret stays lit; the toast fades in and out over its whole stay instead of vanishing at once */
   .typing::after { animation: none !important; }
