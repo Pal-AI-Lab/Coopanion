@@ -24,6 +24,7 @@ import { fetchTheme } from './base/theme/storage.ts';
 import { createConsoleUi } from './base/ui/index.ts';
 import { mountHoverHints } from './base/ui/hover-hint.ts';
 import { mountDropdowns } from './base/ui/dropdown.ts';
+import { mountScrollbarHover } from './base/ui/scrollbars.ts';
 import type { ConsoleIconName } from './base/ui/icons.ts';
 import { subscribeLamps } from './base/ui/lamp.ts';
 import { ConsolePageHost, PROVIDER_ROUTE } from './advanced/console-pages/host.ts';
@@ -119,6 +120,7 @@ export function boot(doc: Document = document): Disposable {
   const ui = createConsoleUi({ memo, overlayHost: doc.body, signal: life.signal, doc });
   mountHoverHints(doc, life.signal);
   mountDropdowns(doc, life.signal);
+  mountScrollbarHover(doc, life.signal);
   const rail = createRail({
     doc, ui, router, mode, memo, signal: life.signal, content: root, onError,
     onModeToggle: () => setMode(mode === 'advanced' ? 'normal' : 'advanced'),

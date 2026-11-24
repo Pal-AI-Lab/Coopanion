@@ -6,8 +6,6 @@
 import type { PersonaId } from './seed.ts';
 
 export const EARLIER_PERSONAS: Readonly<Record<string, PersonaId>> = {
-  // what 0.1.0 (after the rename) and 0.1.1 seeded
-  'cfcb7527cbf3518ab9f077ee711c86661a70613b9e5caeb992b30a603490e5cf': 'coo',
   // 0.2.0 to 0.2.4
   '4dfe941dd882df0ffd0446c21af87747b8001cfe64811c2970b2c03fed10fb64': 'coo',
   'cc5b43f0f3261aff6d6c3c345ee6b76f109e4d46eb72e35d4abb756acc53ec83': 'coo',
