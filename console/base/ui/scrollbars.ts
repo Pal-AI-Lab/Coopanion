@@ -1,9 +1,8 @@
 /**
  * Which scrolling areas the pointer is over: every element under it that scrolls with a scrollbar (a
  * column, and a code block in it) carries `data-scroll-hover`, and styles.css shows those scrollbars'
- * thumbs. Chromium does not repaint a custom scrollbar when its element's :hover changes, so a thumb
- * styled by :hover appeared late or not at all; an attribute change restyles the element and its
- * scrollbar with it.
+ * thumbs. Chromium does not repaint a custom scrollbar when its element's :hover changes; an attribute
+ * change restyles the element and its scrollbar with it.
  */
 
 const MARK = 'data-scroll-hover';
@@ -17,8 +16,7 @@ function scrolls(el: Element, view: Window): boolean {
 }
 
 export function mountScrollbarHover(doc: Document, signal: AbortSignal): void {
-  const view = doc.defaultView;
-  if (!view) return;
+  const view = doc.defaultView!;
   let marked: Element[] = [];
   const mark = (next: Element[]) => {
     for (const el of marked) if (!next.includes(el)) el.removeAttribute(MARK);
