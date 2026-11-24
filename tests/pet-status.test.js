@@ -147,17 +147,15 @@ describe('the talk key and the voice reading a bubble', () => {
 });
 
 describe('hovering a timed bubble', () => {
-  const show = (p, kind) => p.onOrder(kind === 'say'
-    ? { t: 'say', id: 's', beats: [{ text: 'Read this' }] }
-    : { t: 'dialog', id: 'd', text: 'Read this' });
+  const show = (p) => p.onOrder({ t: 'say', id: 's', beats: [{ text: 'Read this' }] });
   const advance = (p, frames) => { for (let i = 0; i < frames; i++) p.step(.05); };
 
-  it.each(['say', 'dialog'])('lets a %s bubble close when it grows under a stationary pointer', (kind) => {
+  it('lets a line close when it grows under a stationary pointer', () => {
     const p = page();
     let left = 60;
     p.bubble.getBoundingClientRect = () => ({ left, right: 100, top: 10, bottom: 40 });
     p.cursor.at = { x: 30, y: 20 };
-    show(p, kind);
+    show(p);
     advance(p, 4);
     expect(p.bubble.hidden).toBe(false);
     left = 10;
@@ -166,11 +164,11 @@ describe('hovering a timed bubble', () => {
     expect(p.bubble.hidden).toBe(true);
   });
 
-  it.each(['say', 'dialog'])('lets a %s bubble close when the cursor report drops out under a stationary pointer', (kind) => {
+  it('lets a line close when the cursor report drops out under a stationary pointer', () => {
     const p = page();
     p.bubble.getBoundingClientRect = () => ({ left: 10, right: 100, top: 10, bottom: 40 });
     p.cursor.at = null;
-    show(p, kind);
+    show(p);
     advance(p, 2);
     p.cursor.at = { x: 30, y: 20 };
     advance(p, 4);
@@ -181,16 +179,27 @@ describe('hovering a timed bubble', () => {
     expect(p.bubble.hidden).toBe(true);
   });
 
-  it.each(['say', 'dialog'])('holds a %s bubble after the pointer enters until it leaves', (kind) => {
+  it('holds a line after the pointer enters until it leaves', () => {
     const p = page();
     p.bubble.getBoundingClientRect = () => ({ left: 10, right: 100, top: 10, bottom: 40 });
     p.cursor.at = { x: 5, y: 20 };
-    show(p, kind);
+    show(p);
     advance(p, 4);
     p.cursor.at = { x: 30, y: 20 };
     advance(p, 80);
     expect(p.bubble.hidden).toBe(false);
     p.cursor.at = { x: 110, y: 20 };
+    advance(p, 80);
+    expect(p.bubble.hidden).toBe(true);
+  });
+
+  it('lets a guide step with nothing to answer end on time with the pointer inside it', () => {
+    const p = page();
+    p.bubble.getBoundingClientRect = () => ({ left: 10, right: 100, top: 10, bottom: 40 });
+    p.cursor.at = { x: 5, y: 20 };
+    p.onOrder({ t: 'dialog', id: 'd', text: 'Read this' });
+    advance(p, 4);
+    p.cursor.at = { x: 30, y: 20 };
     advance(p, 80);
     expect(p.bubble.hidden).toBe(true);
   });

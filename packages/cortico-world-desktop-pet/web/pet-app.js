@@ -835,13 +835,10 @@ function stepTalk(it, dt) {
   showDialogInput(it);
 }
 
-/** A step with nothing to answer ends once its line has been read. */
-function stepTalkRead(dt) {
+/** A step with nothing to answer ends once its line has been read; the pointer over it does not hold it, so the guide keeps its pace. */
+function stepTalkRead() {
   const it = item;
-  if (it?.kind !== 'dialog' || it.d.input) return;
-  const held = heldByCursor(it);
-  if (!it.readUntil) return;
-  if (held) it.readUntil += dt;
+  if (it?.kind !== 'dialog' || it.d.input || !it.readUntil) return;
   if (T > it.readUntil) settleDialog(it, { done: true });
 }
 
