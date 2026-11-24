@@ -53,12 +53,12 @@ const ROAM_KEY = 'worlds.desktop-pet.roam';
 const WAKE_KEY = 'worlds.desktop-pet.touch.wakeOn';
 const HOVER_KEY = 'worlds.desktop-pet.hoverButtons';
 /** Each action's card icon on the hover-button page, the icon its button wears (web/ui.js `ICONS`). */
-const ACTION_ICONS: Record<PetAction, string> = { chat: 'chat', voice: 'mic', roam: 'roam_calm', theme: 'moon', sound: 'sound', hide: 'eyeOff', size: 'resize', dress: 'shirt', worlds: 'boxes' };
+const ACTION_ICONS: Record<PetAction, string> = { chat: 'chat', voice: 'mic', roam: 'roam_calm', theme: 'moon', sound: 'sound', hide: 'eyeOff', size: 'resize', fade: 'fade', dress: 'shirt', cua: 'computer', worlds: 'boxes' };
 /**
- * The default names of earlier versions (「主人」 up to 0.1.1, 「伙伴」 up to 0.1.19): the name box starts empty
- * for them, with the app language's default name (the desktop-pet World's) as its placeholder.
+ * The default name up to 0.1.19: the name box starts empty for it, with the app language's default name (the
+ * desktop-pet World's) as its placeholder.
  */
-const OLD_DEFAULT_USERS = ['伙伴', '主人'];
+const OLD_DEFAULT_USER = '伙伴';
 /** How Coo moves while each liveliness card is picked. */
 const MOTIONS = { off: 'still', calm: 'walk', free: 'run' } as const;
 /**
@@ -425,7 +425,7 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
         const defaultName = petText(language).defaultUser;
         const a = await step(1, 'name', {
           text: S.askName, actions: ['thinking'], back,
-          input: { kind: 'text', submit: S.nameSend, placeholder: defaultName, value: saved && !OLD_DEFAULT_USERS.includes(saved) ? saved : '', maxLength: capFor(USER_MAX, language) },
+          input: { kind: 'text', submit: S.nameSend, placeholder: defaultName, value: saved && saved !== OLD_DEFAULT_USER ? saved : '', maxLength: capFor(USER_MAX, language) },
         });
         if ('back' in a) return 'back';
         const named = 'text' in a ? a.text : saved || defaultName;
@@ -616,7 +616,7 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
 
 export const guideDone = (file: string) => existsSync(file);
 
-export function markDone(file: string): void {
+function markDone(file: string): void {
   try { writeFileSync(file, JSON.stringify({ doneAt: new Date().toISOString() }) + '\n'); } catch { /* read-only data dir: it shows again next start */ }
 }
 

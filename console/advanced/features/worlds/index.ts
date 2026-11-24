@@ -485,7 +485,12 @@ export function mountWorlds(ctx: FeatureContext): void {
   let dropAt: { group: string | null; before: string | null; head?: HTMLElement } | undefined;
   let gap: HTMLElement | undefined;
   const tokenOf = (el: Element | null): string | null => !el ? null : el.classList.contains('world-group') ? groupToken((el as HTMLElement).dataset.group!) : (el as HTMLElement).dataset.key ?? null;
-  const nextToken = (el: Element) => tokenOf(el.nextElementSibling);
+  /** The row or group after `el`, past the dragged element's own empty place and any ghost or placeholder. */
+  const nextToken = (el: Element) => {
+    let next = el.nextElementSibling;
+    while (next && (next.classList.contains('is-dragging') || next.classList.contains('motion-ghost') || next.classList.contains('placeholder'))) next = next.nextElementSibling;
+    return tokenOf(next);
+  };
   const elementOf = (token: string): HTMLElement | undefined => token.startsWith('group:') ? groupNodes.get(token.slice('group:'.length))?.el : railNodes.get(token)?.parentElement ?? undefined;
   function clearDrop() {
     dropAt = undefined;
@@ -494,6 +499,9 @@ export function mountWorlds(ctx: FeatureContext): void {
   /** Where a drop at `y` would land; the empty place moves there. */
   function locateDrop(y: number) {
     if (!dragging) return;
+    // Over its own empty place the target stays where the last one put it: read again from the rows beside
+    // the place, it would flip between a row and a group while the pointer stays still.
+    if (gap?.offsetParent && dropAt) { const r = settledBox(gap); if (y >= r.top && y <= r.bottom) return; }
     clearDrop();
     const shown = (el: Element): el is HTMLElement => (el as HTMLElement).offsetParent !== null && !el.classList.contains('is-dragging');
     if (dragging.kind === 'item') {
@@ -503,8 +511,24 @@ export function mountWorlds(ctx: FeatureContext): void {
       if (!head && first && y < settledBox(first).top) { dropAt = { group: null, before: tokenOf(first) }; placeGap(); return; }
       if (head) { const group = layout?.groups[head.dataset.group!]; dropAt = { group: head.dataset.group!, before: group?.items.find(key => key !== (dragging as { key: string }).key) ?? null, head }; head.classList.add('is-drop-target'); placeGap(); return; }
       const rows = [...readyList.querySelectorAll<HTMLElement>('.world-library-entry:not(.motion-ghost)')].filter(el => shown(el) && !el.closest('.world-group.is-collapsed'));
-      const over = rows.find(el => { const r = settledBox(el); return y >= r.top && y <= r.bottom; }) ?? rows.find(el => settledBox(el).top > y);
-      if (!over) { dropAt = { group: null, before: null }; placeGap(); return; }
+      let over = rows.find(el => { const r = settledBox(el); return y >= r.top && y <= r.bottom; });
+      if (!over) {
+        // In an open group's own padding (under its header, under its last row) the row joins that group,
+        // before the next row of it or at its end.
+        const inside = [...groupNodes.values()].find(node => !node.el.classList.contains('is-collapsed') && shown(node.el) && (r => y >= r.top && y <= r.bottom)(settledBox(node.el)));
+        if (inside) {
+          const next = rows.find(el => inside.list.contains(el) && settledBox(el).top > y);
+          dropAt = { group: inside.el.dataset.group!, before: next?.dataset.key ?? null, head: inside.head };
+          inside.head.classList.add('is-drop-target'); placeGap(); return;
+        }
+        // Between boxes the row lands before whatever comes next, a group's header included, so the margin
+        // above a group puts it before that group.
+        const heads = [...groupNodes.values()].map(node => node.head).filter(shown);
+        const next = [...rows, ...heads].map(el => ({ el, top: settledBox(el).top })).filter(c => c.top > y).sort((a, b) => a.top - b.top)[0]?.el;
+        if (!next) { dropAt = { group: null, before: null }; placeGap(); return; }
+        if (next.classList.contains('world-group-head')) { dropAt = { group: null, before: groupToken(next.dataset.group!) }; placeGap(); return; }
+        over = next;
+      }
       const r = settledBox(over), after = y > r.top + r.height / 2 && y <= r.bottom;
       const groupEl = over.parentElement!.classList.contains('world-group-list') ? over.parentElement!.parentElement as HTMLElement : null;
       dropAt = { group: groupEl?.dataset.group ?? null, before: after ? nextToken(over) : over.dataset.key! };
@@ -538,6 +562,9 @@ export function mountWorlds(ctx: FeatureContext): void {
     lifted(el) {
       gap = el; hideTip();
       dragging = el.classList.contains('world-group') ? { kind: 'group', id: el.dataset.group! } : { kind: 'item', key: el.dataset.key! };
+      // Until the pointer leaves its place, the element would land where it was.
+      const list = el.parentElement!;
+      dropAt = { group: list.classList.contains('world-group-list') ? (list.parentElement as HTMLElement).dataset.group! : null, before: nextToken(el) };
     },
     locate: locateDrop,
     drop(el, copyTop) {
@@ -575,7 +602,7 @@ export function mountWorlds(ctx: FeatureContext): void {
         node.dataset.key = item.key; railNodes.set(item.key, node);
       }
       node.querySelector('.world-library-label')!.textContent = item.label.replace(/^cortico-world-/, '');
-      node.setAttribute('aria-label', item.label); node.setAttribute('aria-current', item.key === selected ? 'true' : 'false');
+      node.setAttribute('aria-label', item.label); node.title = item.label; node.setAttribute('aria-current', item.key === selected ? 'true' : 'false');
       const row = worldRow(item); row.inert = current === 'market';
       let entry = node.parentElement;
       if (!entry) { entry = ui.h('div', 'world-library-entry'); entry.append(node, row); }

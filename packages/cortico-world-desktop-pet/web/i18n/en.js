@@ -21,6 +21,9 @@ export default {
   'bubble.imageUnreadable': 'This image could not be read',
   'bubble.imageTooLarge': 'This image still exceeds {mb}MB after resizing',
   'bubble.imagesUnseen': 'The current model cannot see images; {bot} only learns how many you sent.',
+  /** A typed text past its cap (the count beside it shows the cap); the typing box's while the Chat page takes it. */
+  'bubble.tooLong': '{over} over the limit; shorten to send',
+  'bubble.tooLongForBox': '{over} over; continue on the Chat page',
 
   // what the person said: a sentence being heard; how many images a chat-page message carries
   'heard.more': 'Listening…',
@@ -52,6 +55,13 @@ export default {
   'action.soundOff': 'Sounds: off · click to turn on',
   'action.size': 'Size: {pct}%',
   'action.sizeLabel': 'Pet size',
+  'action.fade': "Transparency: {pct}%",
+  'action.fadeFullscreen': "Transparency during full screen: {pct}%",
+  'action.fadeLabel': "Pet transparency",
+  'action.fadeFullscreenLabel': "Pet transparency during full screen",
+  'action.cuaOn': "Computer use: on · click to turn off",
+  'action.cuaOffAsk': "Computer use: off · click to turn on in the settings window",
+  'action.cuaOff': "Computer use: off · click to turn on",
   'action.dress': 'Dress up',
   'action.worlds': 'My Worlds',
   'action.hide': 'Hide the pet (show Coo again from the tray icon)',

@@ -12,6 +12,9 @@ const es419: Translation<PetText> = {
   busy: 'Trabajando',
 
   voice: {
+    serviceStopped: 'Servicio de reconocimiento detenido; entrada de voz no disponible',
+    recorded: 'Grabación enviada',
+    recordingUnavailable: 'No se pudo enviar la grabación y no hay transcripción disponible',
     starting: 'El reconocimiento de voz se está iniciando',
     notRunning: 'El reconocimiento de voz no está en ejecución',
     modelMissing: (mb: number) => `El modelo de voz aún no está descargado (unos ${mb} MB): descárgalo en la página Entrada de voz`,
@@ -178,7 +181,7 @@ const es419: Translation<PetText> = {
     theme: { dark: 'cambiar al aspecto de noche', light: 'cambiar al aspecto de día' },
     hover: (list: string) => `cambiar los botones al pasar el cursor a ${list}`,
     hoverNone: 'quitar todos los botones al pasar el cursor',
-    actions: { chat: 'Escribir', voice: 'Entrada de voz', roam: 'Paseos', theme: 'Modo nocturno', sound: 'Sonidos', size: 'Tamaño', dress: 'Vestuario', hide: 'Ocultar mascota', worlds: 'Mis Worlds' },
+    actions: { chat: 'Escribir', voice: 'Entrada de voz', roam: 'Paseos', theme: 'Modo nocturno', sound: 'Sonidos', size: 'Tamaño', fade: "Transparencia", dress: 'Vestuario', cua: "Uso de la computadora", hide: 'Ocultar mascota', worlds: 'Mis Worlds' },
     user: (to: string) => `llamarte «${to}»`,
   },
 
@@ -239,8 +242,11 @@ const es419: Translation<PetText> = {
     glow: { title: 'Brillo exterior', description: 'Cuántos píxeles se extiende el brillo claro alrededor de la mascota cuando los colores de Coo se parecen al fondo; 0 lo apaga.' },
     frameRate: { title: 'Velocidad de fotogramas', description: 'Fotogramas por segundo mientras la mascota camina, cuelga del puntero o salta; 0 sigue a la pantalla. Por encima de la frecuencia de actualización de la pantalla, se usa la de la pantalla. La página Hábitos ofrece 60, 120, 144 y Sin límite.' },
     lockFrameRate: { title: 'Fijar velocidad de fotogramas', description: 'También dibuja la mascota a esa velocidad en reposo. Si está desactivado, baja a 30 fotogramas por segundo mientras está de pie, se sienta o duerme.' },
+    fade: { title: "Transparencia", description: "Qué tan transparentes son la mascota y sus burbujas: 0 es opaco, hasta 95 %, en pasos de 5 %. La mascota vuelve a ser opaca mientras el cuadro de texto, una pregunta o una confirmación están abiertos, y mientras la llevas." },
     hideWhenFullscreen: { title: 'Ocultar en pantalla completa', description: 'Si está activado, la mascota se oculta mientras la ventana del frente ocupa toda la pantalla donde está (un juego, un video en pantalla completa, un navegador en pantalla completa) y vuelve cuando termina la pantalla completa; una ventana maximizada no cuenta. Si está desactivado, siempre queda encima.' },
     passWhenFullscreen: { title: "Dejar pasar los clics en pantalla completa", description: "Si está activado, mientras la ventana del frente ocupa toda la pantalla de Coo, Coo sigue visible y cada clic pasa a través de él a la ventana de abajo, hasta que termina la pantalla completa; una ventana maximizada no cuenta. Si «Ocultar en pantalla completa» también está activado, Coo se oculta." },
+    fadeWhenFullscreen: { title: "Atenuar en pantalla completa", description: "Si está activado, mientras la ventana del frente ocupa toda la pantalla de Coo, la transparencia en pantalla completa reemplaza a la habitual, hasta que termina la pantalla completa; una ventana maximizada no cuenta." },
+    fullscreenFade: { title: "Transparencia en pantalla completa" },
     overTaskbar: { title: "Mostrar sobre la barra de tareas", description: "Activado, la ventana de la mascota baja por encima de la barra de tareas en la parte inferior de la pantalla, y lo que una figura dibuja debajo del suelo (las piernas que cuelgan al sentarse) se muestra sobre la barra de tareas; desactivado, la ventana termina en el borde superior de la barra de tareas." },
     hideFromCapture: { title: "No aparecer en capturas ni grabaciones", description: "Mientras está activado, Coo no aparece en capturas de pantalla, grabaciones de pantalla, transmisiones en vivo ni en las capturas que toma Coo. Mientras está activado, es posible que la captura de escritorio de Repetición instantánea de NVIDIA no se pueda activar." },
     exportOverlay: { title: 'Overlay de OBS', description: 'Sirve la imagen de la ventana de la mascota con fondo transparente en /overlay para una fuente «Navegador» de OBS; si está desactivado, no se sirve nada.' },
@@ -267,6 +273,7 @@ const es419: Translation<PetText> = {
     speechSpeed: { title: 'Velocidad de la voz', description: (a: number, b: number, c: number) => `Sílabas por segundo como máximo: low, mid y high son ${a}, ${b} y ${c}; custom usa la velocidad personalizada. Si es más lenta que el texto, la voz termina después de él.` },
     speechRate: { title: 'Velocidad personalizada', suffix: 'sílabas/s' },
     asrEnabled: { title: 'Entrada de voz' },
+    asrServiceEnabled: { title: 'Servicio de reconocimiento', description: 'Iniciar el reconocimiento cuando la entrada de voz esté activada; al desactivarlo, los modelos compatibles con audio aún pueden recibir solo grabaciones.' },
     asrEngine: { title: 'Motor de reconocimiento', description: 'funasr ejecuta SenseVoiceSmall de FunASR, para chino, inglés, japonés, coreano y cantonés, tras una descarga única de unos 240 MB; whisper ejecuta Whisper small de OpenAI, para francés, alemán, español, portugués, italiano, ruso y unos 90 idiomas más, tras una descarga única de unos 360 MB, y muestra el texto al terminar cada frase; ambos reconocen en esta computadora. system usa el reconocimiento de voz propio de Windows, sin descargas y con menor precisión (solo en Windows). api envía la grabación de cada frase a un servicio de transcripción compatible con OpenAI y muestra el texto al terminar la frase; su dirección y su modelo se configuran abajo, y su API Key en la página Entrada de voz. Si está vacío, se elige según el idioma de la app: funasr para chino, inglés, japonés y coreano, y whisper para el resto.' },
     asrLanguage: { title: 'Idioma', description: 'Un código ISO 639-1, o auto para que el modelo lo detecte; si está vacío, sigue el idioma de la app. FunASR acepta zh, en, ja, ko y yue, y Whisper unos cien códigos como fr, de, es, pt, it y ru; un código que el modelo no acepta se toma como auto. El servicio de transcripción recibe el código solo cuando tiene dos letras.' },
     asrApiUrl: { title: 'Dirección del servicio de transcripción', description: 'Con el motor api, cada frase se envía a /audio/transcriptions bajo esta dirección, por ejemplo https://api.example.com/v1. Una dirección remota debe usar https; las direcciones de esta computadora o de la red local pueden usar http.' },

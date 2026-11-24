@@ -12,6 +12,7 @@ export const S: Partial<typeof en> = {
   bucketDay: 'Día',
   bucketWeek: 'Semana',
   bucketMonth: 'Mes',
+  bucketTooFine: (max: number) => `Este rango supera las ${max} barras con esta granularidad. Elige una más amplia o un rango más corto.`,
   presetToday: 'Hoy',
   preset3: 'Últimos 3 días',
   preset7: 'Últimos 7 días',

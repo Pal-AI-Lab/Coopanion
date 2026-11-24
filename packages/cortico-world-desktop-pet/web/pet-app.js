@@ -10,7 +10,7 @@
  * Colors follow the World's `theme` through `data-theme` on the root element, and text the app
  * language (i18n.js): the one stamped on the page, then the one the World's prefs carry.
  */
-import { applyTheme, clamp, f, ICONS, layBeside, linked } from './ui.js';
+import { applyTheme, balancedWidth, clamp, f, ICONS, layBeside, linked, tailAt, tailLine } from './ui.js';
 import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
@@ -32,7 +32,7 @@ document.body.classList.add(host ? 'desk' : 'tab');
 
 const stage = $('#stage');
 const bubble = $('#bubble'), menu = $('#menu');
-const tools = $('#tools'), wheel = $('#wheel'), sizerEl = $('#sizer');
+const tools = $('#tools'), wheel = $('#wheel');
 // Coo's drawing classes for the look wheel's pictures; the bubbles and buttons take their colours from Coo's palette
 // another pack's body sets the theme color instead (accentStyle, after skinStyle so it wins)
 const cooStyle = document.createElement('style'), skinStyle = document.createElement('style'), accentStyle = document.createElement('style');
@@ -59,6 +59,10 @@ const prefs = {
   /** Frames a second while the body moves; 0 follows the display. */
   frameRate: 60,
   lockFrameRate: false,
+  /** How transparent the body and its bubbles are, in percent, as usual and during full screen (stepFade). */
+  fade: 0, fullscreenFade: 0,
+  /** Computer use is on; the person confirmed its risks, so the button turns it on too; the app can show its switch. */
+  cua: { on: false, confirmed: false, canOpen: false },
   /** Every click passes through the pet (the tray's "click through"): no hover buttons, and a bubble under the cursor does not wait. */
   clickThrough: false,
 };
@@ -114,8 +118,11 @@ const holdRoam = (seconds) => body?.set({ hold: seconds });
 host?.onFloor?.((px) => { below = px; body?.set({ bounds: bounds() }); });
 // the window reads the windows on its display only while the body on screen asks for them (`watchWindows`)
 host?.onWindows?.((desk) => body?.setWindows(desk));
+let fittedWidth = innerWidth;
 addEventListener('resize', () => {
   body?.set({ bounds: bounds() });
+  // a bubble is capped 20px inside the window's width
+  if (innerWidth !== fittedWidth) { fittedWidth = innerWidth; refitBubbles(); }
   // the World reads walk targets and drop spots against the stage the pet is on now
   send({ t: 'hello', screen: { w: innerWidth, h: innerHeight } });
 });
@@ -146,12 +153,15 @@ function connect() {
 let windowShown = true;
 function reportVisibility() { if (host) send({ t: 'visibility', hidden: !windowShown }); }
 // the page itself always reads as visible (its window does not throttle it): the window process says when it is hidden
-host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVisibility(); if (!shown) pinSizer(false); });
+host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVisibility(); if (!shown) pinSlider(null); });
 /** Clicks pass through because a fullscreen window covers the pet's display and the setting says so; the window process decides. */
 let fullscreenThrough = false;
 host?.onFullscreenThrough?.((on) => { fullscreenThrough = on; });
 /** Every click passes through the pet right now, by the tray or the fullscreen setting. */
 const clicksPass = () => prefs.clickThrough || fullscreenThrough;
+/** The transparency during full screen holds: its setting is on and a fullscreen window covers the display; the window process decides. */
+let fullscreenFaded = false;
+host?.onFullscreenFade?.((on) => { fullscreenFaded = on; refreshSlider(); });
 
 /* ---------- OBS overlay: while the window streams, each frame drawn is reported with the part it sends, the pet and its bubbles ---------- */
 let overlayOn = false;
@@ -175,14 +185,14 @@ function overlayRect() {
   const room = bodyRoom();
   if (!room) return null;
   const parts = [room];
-  for (const el of [bubble, ...lines.map((l) => l.el)]) if (!el.hidden) parts.push(rectOf(el));
+  for (const el of [bubble, ...lines.map((l) => l.el)]) if (!el.hidden) parts.push(partRect(el));
   return onPage(parts);
 }
 host?.onOverlay?.((on) => { overlayOn = on; });
 
 /* ---------- portrait: a picture of the body alone, which the World asks for when the bot looks at itself ---------- */
-/** What the page draws over the stage: the bubbles, the menu's two sides, the hover buttons, the look wheel, the size slider and the hover hint. */
-const OVER_STAGE = '.bubble, .menu > *, .tools, .wheel, .sizer, .hint';
+/** What the page draws over the stage: the bubbles, the menu's two sides, the hover buttons, the look wheel, the slider over the head and the hover hint. */
+const OVER_STAGE = '.bubble, .menu > *, .tools, .wheel, .head-slider, .hint';
 /**
  * The longest the picture waits for the page's next frame, and then for the display, in milliseconds each: a dozen
  * display refreshes at 60 a second. A page that gets no refresh (its window wholly covered) goes on after it.
@@ -209,8 +219,11 @@ async function takePortrait(id) {
   await soon((done) => afterFrame.push(done));
   const room = bodyRoom(), rect = room && onPage([room]);
   if (!rect) return fail('no-body');
-  const over = [...document.querySelectorAll(OVER_STAGE)].filter((el) => !el.closest('[hidden]') && overlaps(shadowed(rectOf(el)), rect));
+  const over = [...document.querySelectorAll(OVER_STAGE)].filter((el) => !el.closest('[hidden]') && overlaps(shadowed(partRect(el)), rect));
   for (const el of over) el.style.visibility = 'hidden';
+  // the picture is of the body as it is drawn, whatever its transparency on screen
+  stage.style.transition = 'none';
+  stage.style.opacity = '1';
   try {
     // by the second refresh the display has what the body drew for that frame, without what was over it
     await soon((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
@@ -220,6 +233,9 @@ async function takePortrait(id) {
     fail('capture');
   } finally {
     for (const el of over) el.style.visibility = '';
+    stage.style.opacity = '';
+    void stage.offsetWidth;
+    stage.style.transition = '';
   }
 }
 /** One picture at a time: a second order waits until the first has put back what it left out. */
@@ -379,11 +395,17 @@ function applyPrefs(p) {
   if (p.theme === 'dark' || p.theme === 'light') { prefs.theme = p.theme; applyTheme(p.theme); modeBtn?.show(p.theme); body?.set({ theme: p.theme }); }
   if (typeof p.glow === 'number') prefs.glow = p.glow;
   if (typeof p.scale === 'number') {
-    if (!scaleSeen) { scaleSeen = true; prefs.scale = p.scale; drawnScale.jump(p.scale); body?.set({ bounds: bounds() }); refreshSize(); }
-    else sizeHeard.heard(p.scale, sizer.active || !!sizerState.timer);
+    if (!scaleSeen) { scaleSeen = true; prefs.scale = p.scale; drawnScale.jump(p.scale); body?.set({ bounds: bounds() }); refreshSlider(); }
+    else sizeHeard.heard(p.scale, SLIDERS.size.bar.active || !!sliderState.timers.size);
   }
+  for (const key of ['fade', 'fullscreenFade']) if (typeof p[key] === 'number') fadeHeard[key].heard(p[key], fadeKey() === key && (SLIDERS.fade.bar.active || !!sliderState.timers.fade));
+  if (typeof p.fadeWhenFullscreen === 'boolean') host?.fadeWhenFullscreen?.(p.fadeWhenFullscreen);
+  if (p.cua && typeof p.cua === 'object') prefs.cua = { on: p.cua.on === true, confirmed: p.cua.confirmed === true, canOpen: p.cua.canOpen === true };
+  const sized = [prefs.bubbleSize, prefs.fontSize];
   if (typeof p.bubbleSize === 'number') { prefs.bubbleSize = p.bubbleSize; sizeVar('--bubble-size', p.bubbleSize); }
   if (typeof p.fontSize === 'number') { prefs.fontSize = p.fontSize; sizeVar('--bubble-font', p.fontSize); }
+  if (item?.kind === 'input') item.fitHint?.();
+  if (sized[0] !== prefs.bubbleSize || sized[1] !== prefs.fontSize) refitBubbles();
   if (typeof p.bubbleSpeed === 'number') prefs.bubbleSpeed = p.bubbleSpeed;
   if (typeof p.sayBubbleHoldSec === 'number') prefs.sayBubbleHoldSec = p.sayBubbleHoldSec;
   if (typeof p.rememberPosition === 'boolean') { prefs.rememberPosition = p.rememberPosition; reportPosition(); }
@@ -546,6 +568,7 @@ function openBubble(kind, html) {
   item.cursorAt = cursor.at;
   item.cursorHolding = false;
   bubble.className = 'bubble ' + kind;
+  bubble.style.maxWidth = '';
   bubble.removeAttribute('aria-label');
   delete bubble.dataset.kind; delete bubble.dataset.icon;
   bubble.innerHTML = html;
@@ -553,8 +576,21 @@ function openBubble(kind, html) {
   void bubble.offsetWidth;
   bubble.classList.add('pop');
 }
+/**
+ * Coo's bubble for a line of `text`, as narrow as the whole line allows (ui.js balancedWidth): the line types into it,
+ * the bubble growing as it goes and wrapping where the whole line wraps; the caret is measured in, so it does not
+ * push a word down while typing.
+ */
+function fitLine(text) {
+  const p = bubble.querySelector('.b-text');
+  p.textContent = text;
+  p.append(Object.assign(document.createElement('span'), { className: 'caret' }));
+  bubble.style.maxWidth = balancedWidth(bubble) + 'px';
+  p.replaceChildren();
+}
 function closeBubble() {
   releaseKeys(item);
+  barHeld = false;
   // a step taken off the bubble unanswered puts back the skin a card tried on
   if (item?.kind === 'dialog') { talk.motion = null; takeOff(false); }
   bubble.hidden = true; bubble.innerHTML = '';
@@ -592,12 +628,34 @@ function releaseKeys(it) {
   host.releaseFocus();
 }
 
+/**
+ * The column that hangs off the right side of a bubble with a close button (pet.css .b-side): a small round × drawn as
+ * the hover buttons are, and for the typing box, under it, the text's scrollbar. Every bubble with a × has it. The ×
+ * is drawn, not typed: a font's × sits off its line's middle, and so off the button's.
+ */
+const CROSS = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6"/></svg>';
+function sideColumn(label, titled = false, scrollbar = false) {
+  const l = esc(label);
+  return `<div class="b-side"><button class="b-close" type="button" aria-label="${l}"${titled ? ` title="${l}"` : ''}>${CROSS}</button>${scrollbar ? '<div class="b-track" aria-hidden="true" hidden><i class="b-thumb"></i></div>' : ''}</div>`;
+}
+/** Pixels a bubble's side column (sideColumn) takes past its right edge: its width and the 2.5px border plus 8.5px gap before it (pet.css .b-side). */
+function sideRoom(el) {
+  const side = el.querySelector(':scope > .b-side');
+  return side ? side.offsetWidth + 11 : 0;
+}
+/** The bubble's rect together with its side column's, which hangs outside it, as a plain object. */
+function bubbleRect() {
+  const r = bubble.getBoundingClientRect(), s = bubble.querySelector(':scope > .b-side')?.getBoundingClientRect() ?? r;
+  const left = Math.min(r.left, s.left), top = Math.min(r.top, s.top), right = Math.max(r.right, s.right), bottom = Math.max(r.bottom, s.bottom);
+  return { left, top, right, bottom, x: left, y: top, width: right - left, height: bottom - top };
+}
+
 function startItem(it) {
   item = it;
   if (it.kind === 'say' || it.kind === 'ask') answerLines(it);
   if (it.kind === 'dialog') { openDialog(it); return; }
   if (it.kind === 'ask') {
-    openBubble('ask', `<button class="b-close" type="button" aria-label="${esc(t('bubble.close'))}">×</button><p class="b-text"></p><div class="b-opts" hidden></div>`);
+    openBubble('ask', `${sideColumn(t('bubble.close'))}<p class="b-text"></p><div class="b-opts" hidden></div>`);
     bubble.querySelector('.b-close').addEventListener('click', () => dismissAsk());
     it.text = it.question; it.shown = 0; it.acc = 0; it.optsShown = false;
     if (!it.confirm) sfx.pop();
@@ -625,7 +683,7 @@ function heldByCursor(it) {
     it.cursorHolding = false;
     return false;
   }
-  const r = bubble.getBoundingClientRect();
+  const r = bubbleRect();
   it.cursorHolding = inRect(p, r) && (it.cursorHolding || (!!previous && !inRect(previous, r)));
   return it.cursorHolding;
 }
@@ -661,7 +719,7 @@ function stepDialog(dt) {
       let lead = 0;
       for (const a of b.actions || []) { acts.push(a); lead = .45; }
       it.shown = 0; it.acc = 0; it.fired = 0; it.startAt = T + lead;
-      if (b.text) { openBubble('say', '<p class="b-text"></p>'); sfx.pop(); } else { bubble.hidden = true; }
+      if (b.text) { openBubble('say', '<p class="b-text"></p>'); fitLine(b.text); sfx.pop(); } else { bubble.hidden = true; }
       return;
     }
     const b = it.beats[it.i];
@@ -671,6 +729,8 @@ function stepDialog(dt) {
     if (it.shown >= b.text.length && !it.beatDone) {
       it.beatDone = true;
       const last = it.i === it.beats.length - 1;
+      // the lines this answers fade a moment after its last line is written out (stepLines)
+      if (last) it.writtenAt ??= T;
       const auto = (last ? 1.6 + b.text.length * .07 : .9 + b.text.length * .03) / prefs.bubbleSpeed;
       it.holdUntil = T + (it.rush ? RUSH_HOLD : prefs.sayBubbleHoldSec || auto);
       it.extraHold = Math.max(0, prefs.sayBubbleHoldSec - auto);
@@ -727,6 +787,29 @@ function marked(text, n, words) {
   return open ? out + '</b>' : out;
 }
 
+/** The own answer's cap: the bubble's, though the World takes more. */
+const OWN_MAX = 200;
+/**
+ * A text field with a cap of `max` characters (of the trimmed text, as the World counts them). Past the cap the text
+ * stays in the field, the form gets `over`, `count` shows and the caller does not send. `painted(over, n)` follows
+ * each repaint. Returns the repaint, which gives how many characters are over.
+ */
+function capField(form, field, count, max, painted) {
+  const paint = () => {
+    const n = field.value.trim().length, over = Math.max(0, n - max);
+    count.hidden = !over;
+    count.textContent = `${n} / ${max}`;
+    count.title = over ? t('bubble.tooLong', { over }) : '';
+    form.classList.toggle('over', over > 0);
+    painted?.(over, n);
+    return over;
+  };
+  field.addEventListener('input', paint);
+  paint();
+  return paint;
+}
+function shake(form) { form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake'); }
+
 function showOptions(it) {
   const box = bubble.querySelector('.b-opts');
   it.options.forEach((label, i) => {
@@ -742,12 +825,14 @@ function showOptions(it) {
   if (it.own) {
     const form = document.createElement('form');
     form.className = 'b-own';
-    form.innerHTML = `<input type="text" maxlength="200" autocomplete="off" placeholder="${esc(t('bubble.ownPlaceholder'))}" aria-label="${esc(t('bubble.ownLabel'))}"><button type="submit">${esc(t('bubble.send'))}</button>`;
+    form.innerHTML = `<input type="text" autocomplete="off" placeholder="${esc(t('bubble.ownPlaceholder'))}" aria-label="${esc(t('bubble.ownLabel'))}"><span class="b-count" hidden></span><button type="submit">${esc(t('bubble.send'))}</button>`;
     form.style.animationDelay = (it.options.length * .07) + 's';
+    const capped = capField(form, form.querySelector('input'), form.querySelector('.b-count'), OWN_MAX);
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const input = form.querySelector('input'), v = input.value.trim();
       if (!v) { input.focus(); return; }
+      if (capped()) { shake(form); input.focus(); return; }
       answer(form, { text: v });
     });
     box.appendChild(form);
@@ -798,7 +883,7 @@ function openDialog(it) {
   const d = it.d;
   const dots = Array.isArray(d.step) ? Array.from({ length: d.step[1] }, (_, i) => `<i class="${i + 1 < d.step[0] ? 'past' : i + 1 === d.step[0] ? 'on' : ''}"></i>`).join('') : '';
   const back = typeof d.back === 'string' && d.back ? `<button class="d-back" type="button">${esc(d.back)}</button>` : '';
-  openBubble('talk', `${dots || d.closable || back ? `<div class="d-top">${back}<span class="d-dots">${dots}</span>${d.closable ? `<button class="b-close" type="button" aria-label="${esc(t('bubble.skip'))}" title="${esc(t('bubble.skip'))}">×</button>` : ''}</div>` : ''}<p class="b-text"></p><div class="d-body" hidden></div>`);
+  openBubble('talk', `${d.closable ? sideColumn(t('bubble.skip'), true) : ''}${dots || back ? `<div class="d-top">${back}<span class="d-dots">${dots}</span></div>` : ''}<p class="b-text"></p><div class="d-body" hidden></div>`);
   bubble.querySelector('.b-close')?.addEventListener('click', () => settleDialog(it, { closed: true }));
   bubble.querySelector('.d-back')?.addEventListener('click', () => settleDialog(it, { back: true }));
   for (const a of d.actions || []) acts.push(a);
@@ -815,13 +900,10 @@ function stepTalk(it, dt) {
   showDialogInput(it);
 }
 
-/** A step with nothing to answer ends once its line has been read. */
-function stepTalkRead(dt) {
+/** A step with nothing to answer ends once its line has been read; the pointer over it does not hold it, so the guide keeps its pace. */
+function stepTalkRead() {
   const it = item;
-  if (it?.kind !== 'dialog' || it.d.input) return;
-  const held = heldByCursor(it);
-  if (!it.readUntil) return;
-  if (held) it.readUntil += dt;
+  if (it?.kind !== 'dialog' || it.d.input || !it.readUntil) return;
   if (T > it.readUntil) settleDialog(it, { done: true });
 }
 
@@ -930,10 +1012,11 @@ function showDialogInput(it) {
     paint();
   } else if (input.kind === 'text') {
     const form = Object.assign(document.createElement('form'), { className: 'd-field' });
-    form.innerHTML = `<input type="${input.secret ? 'password' : 'text'}" autocomplete="off" spellcheck="false" maxlength="${Number(input.maxLength) || 200}">${input.secret ? `<button class="d-peek" type="button" aria-label="${esc(t('bubble.peek'))}" title="${esc(t('bubble.peek'))}">${ICONS.eye}</button>` : ''}<button class="d-send" type="submit"></button>`;
+    form.innerHTML = `<input type="${input.secret ? 'password' : 'text'}" autocomplete="off" spellcheck="false">${input.secret ? `<button class="d-peek" type="button" aria-label="${esc(t('bubble.peek'))}" title="${esc(t('bubble.peek'))}">${ICONS.eye}</button>` : ''}<span class="b-count" hidden></span><button class="d-send" type="submit"></button>`;
     const field = form.querySelector('input');
     field.placeholder = input.placeholder || '';
     field.value = input.value || '';
+    const capped = capField(form, field, form.querySelector('.b-count'), Number(input.maxLength) || 200);
     if (Array.isArray(input.suggestions) && input.suggestions.length && !input.secret) {
       const list = document.createElement('datalist');
       list.id = `d-list-${it.id}`;
@@ -952,7 +1035,7 @@ function showDialogInput(it) {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const v = field.value.trim();
-      if (!v) { form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake'); field.focus(); return; }
+      if (!v || capped()) { shake(form); field.focus(); return; }
       settleDialog(it, { text: v });
     });
     body.appendChild(form);
@@ -1105,9 +1188,86 @@ function openInput() {
   const expand = prefs.bot?.buttons?.chat
     ? `<button class="b-expand" type="button" aria-label="${esc(t('bubble.expand'))}" title="${esc(t('bubble.expand'))}">${ICONS.expand}</button>`
     : '';
-  openBubble('ask', `<button class="b-close" type="button" aria-label="${esc(t('bubble.close'))}">×</button><div class="b-imgs" hidden></div><form class="b-own"><textarea rows="1" maxlength="500" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}"></textarea>${expand}<button type="submit">${esc(t('bubble.send'))}</button></form><span class="b-hint b-note" hidden></span>`);
+  openBubble('ask', `${sideColumn(t('bubble.close'), false, true)}<div class="b-imgs" hidden></div><form class="b-own"><textarea rows="1" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}"></textarea><span class="b-count" hidden></span>${expand}<button type="submit">${esc(t('bubble.send'))}</button></form><span class="b-hint b-limit" role="status" hidden></span><span class="b-hint b-note" hidden></span>`);
   const form = bubble.querySelector('form'), input = form.querySelector('textarea');
   const tray = bubble.querySelector('.b-imgs'), note = bubble.querySelector('.b-note');
+  // the scrollbar outside the box (pet.css .b-track): its track runs from under the close button to the text's bottom
+  const track = bubble.querySelector('.b-track'), thumb = track.querySelector('.b-thumb');
+  const drawBar = () => {
+    const over = input.scrollHeight - input.clientHeight;
+    track.hidden = over <= 1;
+    // text cut off at an edge fades out there (pet.css `.b-own textarea.scrolls`)
+    input.classList.toggle('scrolls', !track.hidden);
+    input.classList.toggle('more-above', !track.hidden && input.scrollTop > 1);
+    input.classList.toggle('more-below', !track.hidden && input.scrollTop < over - 1);
+    if (track.hidden) return;
+    // the rects are scaled while the bubble pops in (pet.css bubble-in): the gap between them is turned back into pixels
+    const scale = bubble.getBoundingClientRect().width / bubble.offsetWidth || 1;
+    const h = Math.max(24, (input.getBoundingClientRect().bottom - track.getBoundingClientRect().top) / scale);
+    const th = Math.max(16, h * input.clientHeight / input.scrollHeight);
+    track.style.height = `${h}px`;
+    thumb.style.height = `${th}px`;
+    thumb.style.top = `${(h - th) * input.scrollTop / over}px`;
+  };
+  input.addEventListener('scroll', drawBar);
+  bubble.addEventListener('animationend', drawBar, { once: true });
+  // the wheel over the scrollbar scrolls the text, as over the system's own
+  track.addEventListener('wheel', (e) => { e.preventDefault(); input.scrollTop += e.deltaY; }, { passive: false });
+  // dragged, the thumb moves the text with it; a press on the track pages toward it. The window keeps the mouse
+  // while the thumb is held (barHeld), though the pointer leaves the bubble.
+  track.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    if (e.target !== thumb) {
+      const r = thumb.getBoundingClientRect();
+      input.scrollTop += (e.clientY < r.top ? -1 : 1) * input.clientHeight * .9;
+      return;
+    }
+    const y0 = e.clientY, top0 = input.scrollTop;
+    const h = track.clientHeight - thumb.offsetHeight, over = input.scrollHeight - input.clientHeight;
+    barHeld = true; track.classList.add('held');
+    track.setPointerCapture(e.pointerId);
+    const move = (m) => { input.scrollTop = top0 + (m.clientY - y0) * (h > 0 ? over / h : 0); };
+    // let go, or the capture lost (the bubble closed under the pointer: closeBubble lets the mouse go as well)
+    const end = () => {
+      barHeld = false; track.classList.remove('held');
+      track.removeEventListener('pointermove', move);
+      track.removeEventListener('lostpointercapture', end);
+    };
+    track.addEventListener('pointermove', move);
+    track.addEventListener('lostpointercapture', end);
+  });
+  // the hint keeps to one row in every language, so the box does not shrink by a row at the first key: the field is
+  // as wide as the hint, and the bubble goes past its usual widest when the hint needs it (sizes that change while
+  // the box is open fit it again, applyPrefs)
+  it.fitHint = () => {
+    // measured on one row, as the empty box shows it: past it the row wraps and has no overflow to read
+    const tall = form.classList.contains('tall');
+    form.classList.remove('tall');
+    const probe = document.createElement('span');
+    probe.style.cssText = `position:absolute; visibility:hidden; white-space:pre; font:${getComputedStyle(input).font}`;
+    probe.textContent = input.placeholder;
+    document.body.append(probe);
+    input.style.minWidth = `${Math.ceil(probe.getBoundingClientRect().width) + 1}px`;
+    probe.remove();
+    bubble.style.removeProperty('max-width');
+    // the row's own overflow: what sticks out of it into the bubble's padding does not widen the bubble's scroll width
+    const over = form.scrollWidth - form.clientWidth;
+    if (over > 0) bubble.style.maxWidth = `min(${bubble.offsetWidth + over}px, calc(100vw - 20px - ${sideRoom(bubble)}px))`;
+    form.classList.toggle('tall', tall);
+    drawBar();
+  };
+  it.fitHint();
+  // past the box's cap the text stays and is not sent; the chat page takes up to its own, longer cap
+  const boxMax = prefs.bot?.textMax?.box ?? 500, chatMax = prefs.bot?.textMax?.chat ?? 4000;
+  const limit = bubble.querySelector('.b-limit'), expandButton = bubble.querySelector('.b-expand');
+  const capped = capField(form, input, form.querySelector('.b-count'), boxMax, (over, n) => {
+    const movable = !!expandButton && n <= chatMax;
+    limit.hidden = !over;
+    limit.textContent = !over ? '' : t(movable ? 'bubble.tooLongForBox' : 'bubble.tooLong', { over });
+    expandButton?.classList.toggle('nudge', over > 0 && movable);
+    if (expandButton) expandButton.disabled = n > chatMax;
+  });
   const say = (text) => { note.textContent = text || ''; note.hidden = !text; };
   const draw = () => {
     tray.hidden = !it.images.length;
@@ -1118,7 +1278,16 @@ function openInput() {
       cell.querySelector('button').addEventListener('click', () => { it.images.splice(it.images.indexOf(img), 1); say(''); draw(); input.focus(); });
       return cell;
     }));
+    drawBar();
   };
+  // text past one row takes the field's whole width (pet.css `.b-own.tall`), until it is cleared: going back to one row
+  // as soon as it fits beside the buttons would swing the layout to and fro at the edge
+  input.addEventListener('input', () => {
+    if (!input.value) form.classList.remove('tall');
+    // more than a row and a half, with the textarea's 4px padding above and below: a second row has begun
+    else if (input.scrollHeight > parseFloat(getComputedStyle(input).lineHeight) * 1.5 + 8) form.classList.add('tall');
+    drawBar();
+  });
   // Enter sends, Shift+Enter starts a new line; Enter that confirms an input method's text does neither
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
@@ -1154,6 +1323,7 @@ function openInput() {
     e.preventDefault();
     const v = input.value.trim();
     if (it.pending || (!v && !it.images.length)) return;
+    if (capped()) { shake(form); return; }
     send({ t: 'text', text: v, ...(it.images.length ? { images: it.images.map(({ mime, base64, name }) => ({ mime, base64, name })) } : {}) });
     sfx.select(); body?.cue('cheer');
     closeBubble();
@@ -1186,8 +1356,18 @@ function onListen(m) {
     listen.text = m.text || '';
     listen.interim = m.interim || '';
     showHeard();
+  } else if (m.phase === 'recording-text') {
+    // An optional transcript belongs to a recording already delivered. Never reopen a
+    // dismissed bubble, touch the current listening episode, or replay its completion.
+    if (typeof m.recordingId !== 'string') return;
+    const line = lines.find((l) => l.recordingId === m.recordingId && !l.live && l.fadeAt === null);
+    if (line && typeof m.text === 'string' && m.text) {
+      line.text = m.text;
+      drawLine(line);
+    }
   } else if (m.phase === 'heard') {
     const line = listen.line ?? addLine('voice', '', true);
+    if (typeof m.recordingId === 'string') line.recordingId = m.recordingId;
     endListen();
     settleLine(line, m.text || '');
     if (!prefs.saidBubbles) fadeLine(line);
@@ -1220,14 +1400,15 @@ function showHeard() {
 /*
  * ---------- what the person said: typed in the box, heard, or sent from the chat page ----------
  * Each line stays above Coo as a bubble of the heard kind (grey, no tail), the newest at the bottom. A line is
- * answered by the first speech or question Coo starts after it settled; until that reply's bubble has closed (and,
- * for a line not answered yet, while Coo works or has speech queued) the line and those before it stay, and they
- * fade REPLIED_FADE seconds after it closes. A line Coo does not answer fades UNANSWERED_FADE seconds after it was
- * said. With a fixed saidBubbleHoldSec a line fades that many seconds after it settled instead, whatever Coo does.
+ * answered by the first speech or question Coo starts after it settled; until that reply's last line is written out
+ * (and, for a line not answered yet, while Coo works or has speech queued) the line and those before it stay, and
+ * they fade REPLIED_FADE seconds after that, before the reply's bubble closes, or after it closes if that comes first.
+ * A line Coo does not answer fades UNANSWERED_FADE seconds after it was said.
+ * With a fixed saidBubbleHoldSec a line fades that many seconds after it settled instead, whatever Coo does.
  * The stack holds at most MAX_LINES bubbles and MAX_ROWS rows of text: past either the oldest fades, answered
  * or not, and the newest always stays. A click fades a settled line at once; one still being heard has its cancel button.
  */
-const REPLIED_FADE = 1, UNANSWERED_FADE = 8;
+const REPLIED_FADE = .5, UNANSWERED_FADE = 8;
 const MAX_LINES = 3, MAX_ROWS = 6;
 /** Seconds a line takes to fade out (pet.css `.bubble.said`). */
 const LINE_FADE = .4;
@@ -1258,8 +1439,27 @@ function drawLine(line) {
   const mark = MARKS[line.src] ? `<span class="said-mark" aria-hidden="true">${MARKS[line.src]}</span>` : '';
   const images = line.images ? `<span class="b-hint">${line.text ? '' : mark}${esc(t('said.images', { count: line.images }))}</span>` : '';
   line.el.innerHTML = (line.text || !line.images ? `<p class="b-text">${mark}${esc(line.text)}</p>` : '') + images;
-  line.el.classList.add('settled');
+  fitSaid(line.el);
   line.el.title = t('bubble.close');
+}
+/** A settled line's bubble, as narrow as its text allows (ui.js balancedWidth), measured before `settled` clamps it to six rows. */
+function fitSaid(el) {
+  el.classList.remove('settled');
+  el.style.maxWidth = balancedWidth(el) + 'px';
+  el.classList.add('settled');
+}
+/**
+ * The bubbles up fitted again to the sizes and the window they are drawn at now: their widths were measured at the
+ * sizes they opened at, and kept, a line would wrap into one more row (or stay wider than it needs) once they change.
+ */
+function refitBubbles() {
+  for (const line of lines) if (!line.live) fitSaid(line.el);
+  const b = item?.kind === 'say' ? item.beats[item.i] : null;
+  if (b?.text && !bubble.hidden && bubble.classList.contains('say')) {
+    const p = bubble.querySelector('.b-text'), typed = [...p.childNodes];
+    fitLine(b.text);
+    p.replaceChildren(...typed);
+  }
 }
 function settleLine(line, text) {
   line.live = false; line.text = text; line.settledAt = T;
@@ -1298,8 +1498,9 @@ function stepLines() {
   lines.forEach((line, i) => {
     if (line.live) return;
     const r = line.reply;
-    if (r ? r.endedAt === undefined : busy) held = i;
-    else if (r && T >= r.endedAt + REPLIED_FADE) answered = i;
+    const done = r && Math.min(r.writtenAt ?? Infinity, r.endedAt ?? Infinity);
+    if (r ? done === Infinity : busy) held = i;
+    else if (r && T >= done + REPLIED_FADE) answered = i;
   });
   const hold = prefs.saidBubbleHoldSec;
   lines.forEach((line, i) => {
@@ -1330,6 +1531,7 @@ function drawStatus(next, pop) {
   const icon = next.kind;
   if (!bubble.classList.contains('status') || bubble.dataset.icon !== icon) {
     bubble.className = 'bubble status';
+    bubble.style.maxWidth = '';
     bubble.dataset.icon = icon;
     bubble.innerHTML = `<span class="status-icon">${ICONS[`status_${icon}`] || ICONS.status_work}</span><span class="status-text"></span>`;
   }
@@ -1448,15 +1650,25 @@ const ACTIONS = {
     run: () => host.hide(),
   },
   size: {
-    // hovering it shows the size slider for a moment (stepSizer); a click, or a tap where nothing hovers, pins it (pinSizer);
+    // hovering it shows the size slider for a moment (stepSlider); a click, or a tap where nothing hovers, pins it (pinSlider);
     // only on the desktop: a tab draws the body at one size
     available: () => !!host,
     keep: true,
     icon: () => ICONS.resize,
     // lit while pinned; no switch state otherwise, so it is not drawn as a switch turned off
-    on: () => sizerPinned || undefined,
+    on: () => pinned === 'size' || undefined,
     state: () => t('action.size', { pct: Math.round(prefs.scale * 100) }),
-    run: () => pinSizer(!sizerPinned),
+    run: () => pinSlider(pinned === 'size' ? null : 'size'),
+  },
+  // the transparency slider, opened and pinned as the size slider is; it sets the transparency on screen (fadeKey);
+  // only on the desktop, where the body fades
+  fade: {
+    available: () => !!host,
+    keep: true,
+    icon: () => ICONS.fade,
+    on: () => pinned === 'fade' || undefined,
+    state: () => t(fullscreenFaded ? 'action.fadeFullscreen' : 'action.fade', { pct: prefs[fadeKey()] }),
+    run: () => pinSlider(pinned === 'fade' ? null : 'fade'),
   },
   dress: {
     icon: () => ICONS.shirt,
@@ -1466,6 +1678,22 @@ const ACTIONS = {
       if (prefs.bot?.buttons?.dress) send({ t: 'control', action: 'dress' });
       else if (host?.openDress) host.openDress();
       else window.open('/dress', '_blank');
+    },
+  },
+  // a switch once the person confirmed the risks (on the 「习惯」 page, turning it on or adding this button); before that,
+  // off, a click opens the settings window's switch, which shows the risks first
+  cua: {
+    available: () => prefs.cua.on || prefs.cua.confirmed || prefs.cua.canOpen,
+    get keep() { return prefs.cua.on || prefs.cua.confirmed; },
+    icon: () => (prefs.cua.on ? ICONS.computer : ICONS.computerOff),
+    on: () => prefs.cua.on,
+    state: () => t(prefs.cua.on ? 'action.cuaOn' : prefs.cua.confirmed ? 'action.cuaOff' : 'action.cuaOffAsk'),
+    run: () => {
+      if (!prefs.cua.on && !prefs.cua.confirmed) { send({ t: 'control', action: 'cua' }); return; }
+      // shown at once; the World's next prefs confirm it
+      const on = !prefs.cua.on;
+      prefs.cua = { ...prefs.cua, on };
+      send({ t: 'prefs', cua: on });
     },
   },
   worlds: {
@@ -1524,7 +1752,7 @@ function openMenu() {
   const ids = menuActions();
   // nothing to show: no hover buttons picked, and no run controls lent
   if (!ids.length && !prefs.bot?.controls) return;
-  pinSizer(false);
+  pinSlider(null);
   // the hover buttons showing become the menu's: each slides from where it stood to its tile, and only the rest pop out
   const was = new Map();
   if (!tools.hidden && !leaving(tools)) for (const b of tools.children) was.set(b.dataset.action, laidAt(b));
@@ -1544,9 +1772,11 @@ function openMenu() {
     drawAction(b, id);
     b.addEventListener('click', () => {
       sfx.tick();
-      if (!a.keep) closeMenu();
+      // as the button was clicked: running it may change whether it keeps the menu open (computer use)
+      const keep = a.keep;
+      if (!keep) closeMenu();
       a.run();
-      if (a.keep) drawAction(b, id);
+      if (keep) drawAction(b, id);
     });
     grid.appendChild(b);
   }
@@ -1766,6 +1996,12 @@ const POP_OUT_MS = 160;
 const POP_IN_MS = 600;
 // absent where the page runs without a window (the tests)
 const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
+/** The tails' line follows the width the border is drawn at, which changes with the display's scale (ui.js tailLine). */
+function watchTailLine() {
+  document.documentElement.style.setProperty('--tail-line', tailLine(devicePixelRatio || 1) + 'px');
+  globalThis.matchMedia?.(`(resolution: ${devicePixelRatio || 1}dppx)`).addEventListener('change', watchTailLine, { once: true });
+}
+watchTailLine();
 const leaving = (el) => el.classList.contains('leaving');
 /** Numbers an element's buttons (`--i`), so they pop out one after another. */
 function stagger(el) { [...el.children].forEach((b, i) => b.style.setProperty('--i', String(i))); }
@@ -1790,12 +2026,21 @@ function hideNow(el, anim) {
   el.classList.remove('entering', 'leaving');
   el.hidden = true;
 }
+/**
+ * What opens over the head, one at a time: the look wheel and each slider, every one its own element with its own
+ * animations. `close` plays its leaving animation.
+ */
+const HEAD = [];
+/** `el` takes the place over the head: every other one there leaves with its animation as `el` enters with its own. */
+function claimHead(el) { for (const o of HEAD) if (o.el !== el && !o.el.hidden && !leaving(o.el)) o.close(); }
+/** Something other than `el` is in the place over the head, not leaving it. */
+const headTaken = (el) => HEAD.some((o) => o.el !== el && !o.el.hidden && !leaving(o.el));
 function stepTools() {
   // shown while the cursor is on the pet or on the buttons, and a moment after it leaves; decided
   // from where the cursor is now, not from the last move event, which may be stale
   const p = cursor.at;
   const l = at();
-  const near = sizer.active || (!!p && (body?.hit(p) || overTools(p) || overWheel(p) || overSizer(p)));
+  const near = sliding() || (!!p && (body?.hit(p) || overTools(p) || overWheel(p) || overSlider(p)));
   if (!near) toolsMuted = false;
   if (near && !toolsMuted) toolsUntil = T + TOOLS_LINGER;
   const confirming = item?.kind === 'ask' && item.confirm && !item.answered;
@@ -1853,14 +2098,14 @@ async function openWheel() {
   if (leaving(wheel)) { clearTimeout(wheelAnim.leave); wheel.classList.remove('leaving'); drawWheel(); return; }
   if (!wheel.hidden || wheelState.opening) return;
   // a slider being dragged keeps its place over the head: the row opens once it is let go
-  if (sizer.active) return;
-  pinSizer(false);
-  closeSizer();
+  if (sliding()) return;
+  pinSlider(null);
+  claimHead(wheel);
   wheelState.opening = true;
   const items = await wheelItems().catch(() => []);
   wheelState.opening = false;
-  // the size slider opened while the favourites were read: one of the two at a time
-  if (!sizerEl.hidden && !leaving(sizerEl)) return;
+  // something else took the place over the head while the favourites were read: one at a time
+  if (headTaken(wheel)) return;
   if (!items.length) { wheelState.empty = true; return; }
   wheelState.items = items;
   wheelState.at = Math.max(0, items.findIndex((i) => i.on));
@@ -1896,6 +2141,8 @@ function closeWheel() {
   foldWheel();
   popOut(wheel, wheelAnim, WHEEL_OUT_MS);
 }
+
+HEAD.push({ el: wheel, close: closeWheel });
 
 /** Every look gathered small and faint in the middle of the row: where it fans out from and folds back into. */
 function foldWheel() {
@@ -1955,7 +2202,7 @@ function overAction(p, id) {
   return false;
 }
 /**
- * Whether a control a hover opened over the head (`el`, the look wheel or the size slider) waits on: the pointer is still
+ * Whether a control a hover opened over the head (`el`, the look wheel or a slider, or none yet) waits on: the pointer is still
  * among the pet's controls, that is on the hover buttons, on the menu, or in the column the body's box and `el` span
  * together, `el` itself included. Its short linger counts only once the pointer has left them all, so going from one
  * button to another, or across a large body to the control over its head, does not close it.
@@ -1964,7 +2211,7 @@ function amongControls(p, el) {
   if (!p) return false;
   if (overTools(p) || overMenu(p)) return true;
   const l = at();
-  if (!l || el.hidden || leaving(el)) return false;
+  if (!l || !el || el.hidden || leaving(el)) return false;
   const r = el.getBoundingClientRect(), b = l.box;
   return inRect(p, { left: Math.min(r.left, b.x), right: Math.max(r.right, b.x + b.w), top: Math.min(r.top, b.y), bottom: Math.max(r.bottom, b.y + b.h) }, 6);
 }
@@ -1990,106 +2237,184 @@ document.addEventListener('wheel', (e) => {
   wheelState.until = T + WHEEL_LINGER;
 }, { passive: false });
 
-/* ---------- size slider: hovering a size button shows a slider over the body; the body takes each size at once ---------- */
-/** Seconds the slider stays after the pointer leaves it and every size button. */
-const SIZER_LINGER = .35;
+/* ---------- sliders over the head: hovering a size or transparency button shows its slider over the body, which follows it at once ---------- */
+/** Seconds the slider stays after the pointer leaves it and every button of its kind. */
+const SLIDER_LINGER = .35;
+/** Milliseconds the slider takes to fold away (`.head-slider.leaving` in pet.css). */
+const SLIDER_OUT_MS = 140;
+/** Milliseconds between the values sent to the World while the slider moves. */
+const SLIDER_SEND_MS = 120;
+/** The transparency range in percent (src/config.ts FADE_MAX, FADE_STEP). */
+const FADE = { min: 0, soft: 95, max: 95, step: 5 };
 /**
- * Whether a click on a size button pinned the slider. It stays until that button is clicked again, the pointer goes down
- * anywhere else, the window loses focus (a click in another program), Escape, or the menu, the look wheel or a bubble
- * takes the place.
+ * The slider a click on its button pinned, `size` or `fade`, or null. It stays until that button is clicked again, the
+ * pointer goes down anywhere else, the window loses focus (a click in another program), Escape, or the menu, the look
+ * wheel or a bubble takes the place.
  */
-let sizerPinned = false;
-function pinSizer(on) {
-  if (sizerPinned === on) return;
-  sizerPinned = on;
-  if (on && (sizerEl.hidden || leaving(sizerEl))) openSizer();
-  if (!on) closeSizer();
-  refreshButtons();
-}
-/** Milliseconds the slider takes to fold away (`.sizer.leaving` in pet.css). */
-const SIZER_OUT_MS = 140;
-/** Milliseconds between the sizes sent to the World while the slider moves. */
-const SIZE_SEND_MS = 120;
-const sizerText = document.createElement('span');
-sizerText.className = 'sz-value';
-const sizer = scaleSlider(document, {
-  ...SIZE, label: '',
+let pinned = null;
+/** Until when the slider waits on; per kind, the send due while it moves; the wheel's travel toward a step. */
+const sliderState = { until: 0, timers: { size: 0, fade: 0 }, acc: 0 };
+const bar = (o) => scaleSlider(document, {
+  ...o, label: '',
   widths: { collapsed: { width: 160, main: .86 }, expanded: { width: 240, main: .45 } },
   room: () => innerWidth - 120,
-  onInput: (v) => setSize(v),
-  onChange: () => sendSize(),
 });
-// the percentage rides on the knob
-sizerEl.append(sizer.el);
-sizer.el.querySelector('.ps-thumb').append(sizerText);
-const sizerState = { until: 0, timer: 0, acc: 0 };
-/** Sizes the World pushes, held while the slider is in use or newer sizes from it are on their way (scale-slider.js sizeEcho). */
-const sizeHeard = sizeEcho((v) => { if (v === prefs.scale) return; prefs.scale = v; if (!switching()) toSize(v); refreshSize(); });
-const sizerAnim = { enter: 0, leave: 0 };
+/**
+ * Each slider: its bar, the value it shows, that value on the knob, and the bar's name. Each gets its own element in
+ * the place over the head (`.head-slider[data-kind]`), so one taking over from another, or from the look wheel, plays
+ * the leaving and entering animations; a slider added here gets a hover button of the same id.
+ */
+const SLIDERS = {
+  size: {
+    bar: bar({ ...SIZE, onInput: (v) => setSize(v), onChange: () => sendSlider('size') }),
+    value: () => prefs.scale,
+    text: (v) => `${Math.round(v * 100)}%`,
+    label: () => t('action.sizeLabel'),
+  },
+  fade: {
+    bar: bar({ ...FADE, format: (v) => `${v}%`, onInput: (v) => setFade(v), onChange: () => sendSlider('fade') }),
+    value: () => prefs[fadeKey()],
+    text: (v) => `${v}%`,
+    label: () => t(fullscreenFaded ? 'action.fadeFullscreenLabel' : 'action.fadeLabel'),
+  },
+};
+for (const [kind, s] of Object.entries(SLIDERS)) {
+  s.el = Object.assign(document.createElement('div'), { className: 'head-slider', hidden: true });
+  s.el.dataset.kind = kind;
+  s.anim = { enter: 0, leave: 0 };
+  s.valueEl = Object.assign(document.createElement('span'), { className: 'hs-value' });
+  s.el.append(s.bar.el);
+  s.bar.el.querySelector('.ps-thumb').append(s.valueEl);
+  document.body.insertBefore(s.el, wheel.nextSibling);
+  HEAD.push({ el: s.el, close: () => closeSlider(kind) });
+}
+/** The hover buttons that open a slider. */
+const SLIDER_BUTTONS = Object.keys(SLIDERS).map((k) => `[data-action="${k}"]`).join(', ');
+/** A slider is being dragged. */
+const sliding = () => Object.values(SLIDERS).some((s) => s.bar.active);
+/** The slider in the place over the head and not leaving it, or null. */
+const shownSlider = () => Object.keys(SLIDERS).find((k) => !SLIDERS[k].el.hidden && !leaving(SLIDERS[k].el)) ?? null;
+/** Values the World pushes, held while their slider is in use or newer values from it are on their way (scale-slider.js sizeEcho). */
+const sizeHeard = sizeEcho((v) => { if (v === prefs.scale) return; prefs.scale = v; if (!switching()) toSize(v); refreshSlider(); });
+const fadeHeard = Object.fromEntries(['fade', 'fullscreenFade'].map((key) => [key, sizeEcho((v) => { prefs[key] = v; refreshSlider(); })]));
 
-/** Draws the body at `v` now and sends it within SIZE_SEND_MS. */
+function pinSlider(kind) {
+  if (pinned === kind) return;
+  const was = pinned;
+  pinned = kind;
+  if (kind) openSlider(kind);
+  // unpinned with the pointer on its button, it stays as a hover holds it rather than leaving and coming straight back
+  else if (!(cursor.at && overAction(cursor.at, was))) closeSlider();
+  refreshButtons();
+}
+/** Draws the body at `v` now and sends it within SLIDER_SEND_MS. */
 function setSize(v) {
   prefs.scale = v;
   toSize(v);
-  refreshSize();
-  sizerState.timer ||= setTimeout(sendSize, SIZE_SEND_MS);
+  refreshSlider();
+  sliderState.timers.size ||= setTimeout(() => sendSlider('size'), SLIDER_SEND_MS);
 }
-function sendSize() {
-  clearTimeout(sizerState.timer);
-  sizerState.timer = 0;
-  sizeHeard.sent(prefs.scale);
-  send({ t: 'prefs', scale: prefs.scale });
+/** Shows the transparency on screen at `v` from the next frame (stepFade) and sends it within SLIDER_SEND_MS. */
+function setFade(v) {
+  prefs[fadeKey()] = v;
+  refreshSlider();
+  sliderState.timers.fade ||= setTimeout(() => sendSlider('fade'), SLIDER_SEND_MS);
 }
-function refreshSize() {
-  sizerText.textContent = `${Math.round(prefs.scale * 100)}%`;
-  sizer.el.setAttribute('aria-label', t('action.sizeLabel'));
-  if (!sizer.active) sizer.set(prefs.scale);
-  for (const b of document.querySelectorAll('[data-action="size"]')) drawAction(b, 'size');
+function sendSlider(kind) {
+  clearTimeout(sliderState.timers[kind]);
+  sliderState.timers[kind] = 0;
+  if (kind === 'size') { sizeHeard.sent(prefs.scale); send({ t: 'prefs', scale: prefs.scale }); return; }
+  const key = fadeKey();
+  fadeHeard[key].sent(prefs[key]);
+  send({ t: 'prefs', [key]: prefs[key] });
+}
+function refreshSlider() {
+  for (const s of Object.values(SLIDERS)) {
+    s.valueEl.textContent = s.text(s.value());
+    s.bar.el.setAttribute('aria-label', s.label());
+    if (!s.bar.active) s.bar.set(s.value());
+  }
+  for (const b of document.querySelectorAll(SLIDER_BUTTONS)) drawAction(b, b.dataset.action);
 }
 
-function openSizer() {
-  // back over a size button while the slider folds away: it stays
-  if (leaving(sizerEl)) { clearTimeout(sizerAnim.leave); sizerEl.classList.remove('leaving'); return; }
-  closeWheel();
-  refreshSize();
-  popIn(sizerEl, sizerAnim);
-  sizer.relayout();
+/** Opens the slider of `kind`; whatever else is over the head leaves as it enters (claimHead). */
+function openSlider(kind) {
+  const s = SLIDERS[kind];
+  claimHead(s.el);
+  refreshSlider();
+  // hidden, or back over its button while it folds away: it enters again rather than jumping back
+  if (s.el.hidden || leaving(s.el)) popIn(s.el, s.anim);
+  s.bar.relayout();
   const l = at();
-  if (l) placeSizer(l);
+  if (l) placeSlider(kind, l);
 }
-function closeSizer() {
-  if (sizerEl.hidden || leaving(sizerEl) || sizer.active) return;
-  popOut(sizerEl, sizerAnim, SIZER_OUT_MS);
+/** Closes the slider of `kind`, or every slider, unless it is being dragged. */
+function closeSlider(kind) {
+  for (const k of kind ? [kind] : Object.keys(SLIDERS)) {
+    const s = SLIDERS[k];
+    if (s.el.hidden || leaving(s.el) || s.bar.active) continue;
+    popOut(s.el, s.anim, SLIDER_OUT_MS);
+  }
 }
 /** Centred over the body, just above its head, where the look wheel opens; it follows the head as other controls do (`follow`). */
-function placeSizer(l) {
-  const b = l.box, w = sizerEl.offsetWidth, h = sizerEl.offsetHeight;
-  sizerEl.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
-  // the slider's box holds the percentage's bubble over the knob: its bottom sits just over the head
-  sizerEl.style.top = f(clamp(b.y - h - 10, 8, innerHeight - h - 8)) + 'px';
+function placeSlider(kind, l) {
+  const el = SLIDERS[kind].el, b = l.box, w = el.offsetWidth, h = el.offsetHeight;
+  el.style.left = f(clamp(b.x + b.w / 2 - w / 2, 8, innerWidth - w - 8)) + 'px';
+  // the slider's box holds the value's bubble over the knob: its bottom sits just over the head
+  el.style.top = f(clamp(b.y - h - 10, 8, innerHeight - h - 8)) + 'px';
 }
-function overSizer(p) { return !sizerEl.hidden && !leaving(sizerEl) && inRect(p, sizerEl.getBoundingClientRect(), 6); }
-function stepSizer() {
+/** The pointer is on the slider of `kind`, or on the one shown. */
+function overSlider(p, kind = shownSlider()) {
+  const el = kind && SLIDERS[kind].el;
+  return !!el && !el.hidden && !leaving(el) && inRect(p, el.getBoundingClientRect(), 6);
+}
+function stepSlider() {
   const p = cursor.at;
-  const button = !!p && overAction(p, 'size');
+  const over = (p && Object.keys(SLIDERS).find((k) => overAction(p, k))) ?? null;
   // a bubble over the pet (the typing box, a reply, a question) takes the slider's place until it closes; with every
   // click passing through the window it could not be used
-  if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { pinSizer(false); closeSizer(); return; }
-  if (sizer.active || sizerPinned || amongControls(p, sizerEl)) sizerState.until = T + SIZER_LINGER;
-  if (button && sizerEl.hidden && !clicksPass()) openSizer();
-  if (!sizerEl.hidden && T > sizerState.until) closeSizer();
+  if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { pinSlider(null); closeSlider(); return; }
+  // over another kind's button, its slider takes the place, unless the one there is held
+  if (over && over !== shownSlider() && !sliding()) {
+    if (pinned && pinned !== over) pinSlider(null);
+    openSlider(over);
+  }
+  // decided after opening: the slider just opened waits on as the pointer rests on its button
+  const shown = shownSlider();
+  if (sliding() || pinned || amongControls(p, shown && SLIDERS[shown].el)) sliderState.until = T + SLIDER_LINGER;
+  if (T > sliderState.until) closeSlider();
 }
-// the mouse wheel steps the size over the slider or over a size button: up is larger
+// the mouse wheel steps the slider over it or over a button of its kind, while it shows: up is larger
 document.addEventListener('wheel', (e) => {
-  if (!e.target.closest?.('.sizer, [data-action="size"]')) return;
+  const on = e.target.closest?.(`.head-slider, ${SLIDER_BUTTONS}`);
+  const kind = on && (on.dataset.kind ?? on.dataset.action);
+  if (!kind || kind !== shownSlider()) return;
   e.preventDefault();
-  sizerState.acc += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
-  if (Math.abs(sizerState.acc) < WHEEL_NOTCH) return;
-  sizer.nudge(-Math.sign(sizerState.acc));
-  sizerState.acc = 0;
-  sizerState.until = T + SIZER_LINGER;
+  sliderState.acc += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+  if (Math.abs(sliderState.acc) < WHEEL_NOTCH) return;
+  SLIDERS[kind].bar.nudge(-Math.sign(sliderState.acc));
+  sliderState.acc = 0;
+  sliderState.until = T + SLIDER_LINGER;
   sfx.tick();
 }, { passive: false });
+
+/* ---------- transparency: the body and its bubbles, never the controls ---------- */
+/** The transparency setting on screen now. */
+const fadeKey = () => (fullscreenFaded ? 'fullscreenFade' : 'fade');
+let opacityShown = 1;
+/**
+ * The body and its bubbles at the transparency on screen (pet.css --pet-opacity), opaque while the person deals with
+ * Coo: the typing box, a question, a dialog or a confirmation open, or the body held. The transparency slider showing
+ * keeps the value it sets in view. A tab draws the body opaque.
+ */
+function stepFade() {
+  const showing = shownSlider() === 'fade';
+  const engaged = (!!item && item.kind !== 'say') || !!at()?.pressing;
+  const o = !host || (engaged && !showing) ? 1 : 1 - prefs[fadeKey()] / 100;
+  if (o === opacityShown) return;
+  opacityShown = o;
+  document.documentElement.style.setProperty('--pet-opacity', String(o));
+}
 
 /* ---------- pointer ---------- */
 let pointerSeen = false;
@@ -2159,7 +2484,7 @@ function writePointer(now) {
 }
 
 // the menu itself covers the whole page without taking clicks; its two columns are what can be pointed at
-const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]):not(.leaving) > *, .tools:not([hidden]):not(.leaving), .wheel:not([hidden]):not(.leaving), .sizer:not([hidden]):not(.leaving)';
+const UI_SELECTOR = '.bubble:not(.status):not(.fading):not([hidden]), .menu:not([hidden]):not(.leaving) > *, .tools:not([hidden]):not(.leaving), .wheel:not([hidden]):not(.leaving), .head-slider:not([hidden]):not(.leaving)';
 const overUi = (e) => e.target.closest && e.target.closest(UI_SELECTOR);
 
 /**
@@ -2188,7 +2513,8 @@ function inputRects() {
     }
   }
   for (const el of document.querySelectorAll(UI_SELECTOR)) {
-    const r = el.getBoundingClientRect(), m = el === tools ? TOOLS_MARGIN : 0;
+    // a bubble's close button hangs outside it (sideColumn)
+    const r = el === bubble ? bubbleRect() : el.getBoundingClientRect(), m = el === tools ? TOOLS_MARGIN : 0;
     add(r.left - m, r.top - m, r.right + m, r.bottom + m);
   }
   return out;
@@ -2218,7 +2544,7 @@ document.addEventListener('pointermove', (e) => {
     diag.type = e.pointerType;
     if (!first) logPointer('type', 'move');
   }
-  setInteractive(rendering() && (pressing || sizer.active || hit || ui), 'move');
+  setInteractive(rendering() && (pressing || barHeld || sliding() || hit || ui), 'move');
   followDrag(p);
 });
 /**
@@ -2233,7 +2559,7 @@ host?.onCursor?.((p) => {
   if (!inputShape || !p) cursor.at = p;
   if (!p) {
     diag.poll = { at: performance.now(), off: true };
-    if (!pressing && !sizer.active) setInteractive(false, 'poll');
+    if (!pressing && !sliding()) setInteractive(false, 'poll');
     if (polled && !pressing) body?.pointer('leave', {});
     polled = null;
     return;
@@ -2247,10 +2573,12 @@ host?.onCursor?.((p) => {
   const el = document.elementFromPoint(p.x, p.y);
   const hit = !!body?.hit(p), ui = !!el?.closest?.(UI_SELECTOR);
   diag.poll = { at: performance.now(), x: p.x, y: p.y, hit, ui };
-  setInteractive(rendering() && (pressing || sizer.active || hit || ui), 'poll');
+  setInteractive(rendering() && (pressing || barHeld || sliding() || hit || ui), 'poll');
 });
 /** A press that began on the body and has not been let go of: the window keeps the mouse meanwhile. */
 let pressing = false;
+/** The typing box's scrollbar thumb is held (openInput): the window keeps the mouse meanwhile. */
+let barHeld = false;
 stage.addEventListener('pointerdown', (e) => {
   if (e.button !== 0) return;
   closeMenu();
@@ -2321,10 +2649,10 @@ document.addEventListener('contextmenu', (e) => {
 });
 document.addEventListener('pointerdown', (e) => {
   if (!e.target.closest('.menu, .wheel')) closeMenu();
-  if (!e.target.closest('.sizer, [data-action="size"]')) pinSizer(false);
+  if (!e.target.closest(`.head-slider, ${SLIDER_BUTTONS}`)) pinSlider(null);
 }, { capture: true });
 // clicks off the figure pass through the window to what is underneath; the window losing focus is how they show here
-window.addEventListener('blur', () => { closeMenu(); pinSizer(false); });
+window.addEventListener('blur', () => { closeMenu(); pinSlider(null); });
 document.addEventListener('focusin', (e) => {
   if (e.target.matches?.('input, textarea')) host?.focus?.();
 });
@@ -2333,7 +2661,7 @@ document.addEventListener('keydown', (e) => {
   if (e.isComposing || e.keyCode === 229) return;
   if (e.key === 'Escape') {
     closeMenu();
-    pinSizer(false);
+    pinSlider(null);
     if (item && item.kind === 'ask') dismissAsk();
     else if (item && item.kind === 'input') closeBubble();
     return;
@@ -2349,25 +2677,15 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ---------- layout ---------- */
-/**
- * Bubbles up to TAIL_CENTER wide (empty, or a word or two) point their tail from their middle; wider ones
- * move it over to Coo by TAIL_FOLLOW wide. Between the two it slides, so a bubble growing as the line
- * types out carries its tail along with it.
- */
-const TAIL_CENTER = 70, TAIL_FOLLOW = 130;
-/** Where the tail's tip sits along a bubble `bw` wide whose left edge is `x` left of Coo. */
-function tailAt(bw, x) {
-  const k = clamp((bw - TAIL_CENTER) / (TAIL_FOLLOW - TAIL_CENTER), 0, 1);
-  return bw / 2 + (clamp(x, 22, bw - 22) - bw / 2) * k;
-}
 /** Coo's bubble above its head, moved over to the side it faces. */
 function place(el, a, extraUp) {
   const bw = el.offsetWidth, bh = el.offsetHeight;
-  const left = clamp(a.x - bw / 2 + (at()?.facing ?? 1) * 26, 10, Math.max(10, innerWidth - bw - 10));
+  // a close button hangs off the bubble's right side (sideColumn): it stays on the screen too
+  const left = clamp(a.x - bw / 2 + (at()?.facing ?? 1) * 26, 10, Math.max(10, innerWidth - bw - 10 - sideRoom(el)));
   const top = Math.max(8, a.y - bh - extraUp);
   el.style.left = f(left) + 'px';
   el.style.top = f(top) + 'px';
-  el.style.setProperty('--tail', f(tailAt(bw, a.x - left)) + 'px');
+  el.style.setProperty('--tail', f(tailAt(bw, a.x - left, prefs.bubbleSize)) + 'px');
   return { left, top, bw, bh };
 }
 function placeTalk(it, a) {
@@ -2377,11 +2695,11 @@ function placeTalk(it, a) {
   const mode = at()?.mode;
   if (mode === 'drag' || (FLYING.has(mode) && !talk.motion)) it.carried = true;
   if (it.carried) { it.pinX = a.x; it.pinY = a.y; if (!FLYING.has(mode)) it.carried = false; }
-  const left = clamp(it.pinX - bw / 2, 10, Math.max(10, innerWidth - bw - 10));
+  const left = clamp(it.pinX - bw / 2, 10, Math.max(10, innerWidth - bw - 10 - sideRoom(bubble)));
   const top = Math.max(8, it.pinY - bh - 18 * prefs.bubbleSize);
   bubble.style.left = f(left) + 'px';
   bubble.style.top = f(top) + 'px';
-  bubble.style.setProperty('--tail', f(tailAt(bw, a.x - left)) + 'px');
+  bubble.style.setProperty('--tail', f(tailAt(bw, a.x - left, prefs.bubbleSize)) + 'px');
   return { left, top, bw, bh };
 }
 
@@ -2429,7 +2747,9 @@ function layout(dt = 0) {
   if (!tools.hidden) follow([tools], !!p && overTools(p), () => placeTools(l));
   if (!menu.hidden) follow(menuParts(), !!p && overMenu(p), () => placeMenu(l));
   if (!wheel.hidden) follow([wheel], !!p && overWheel(p), () => placeWheel(l));
-  if (!sizerEl.hidden) follow([sizerEl], sizer.active || (!!p && overSizer(p)), () => placeSizer(l));
+  for (const [kind, s] of Object.entries(SLIDERS)) {
+    if (!s.el.hidden) follow([s.el], s.bar.active || (!!p && overSlider(p, kind)), () => placeSlider(kind, l));
+  }
   const a = l.bubble;
   let sayBox = null;
   // choice cards and a World's confirmation keep their bubble where it was; its tail follows Coo along the bottom edge
@@ -2497,6 +2817,8 @@ function inkRgb() {
 }
 const inflate = (r, d) => ({ x: r.x - d, y: r.y - d, width: r.width + 2 * d, height: r.height + 2 * d });
 const rectOf = (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; };
+/** An element's rect, Coo's bubble's with its close button outside it (bubbleRect). */
+const partRect = (el) => (el === bubble ? bubbleRect() : rectOf(el));
 /** A bubble's rect with its shadow (0 8px 22px) and its tail below it, none of which is the screen behind. */
 const shadowed = (r) => ({ x: r.x - 14, y: r.y - 14, width: r.width + 28, height: r.height + 14 + 36 });
 /** Modes in which the body flies or is carried: a screen copy taken now would be of where it was a moment ago. */
@@ -2511,7 +2833,7 @@ async function probeBackdrop() {
   const near = inflate({ x: b.x, y: b.y, width: b.w, height: b.h }, Math.max(4 + 34 * S, 4 + 2 * prefs.glow)), far = inflate(near, 8 + 40 * S);
   const x = Math.max(0, far.x), y = Math.max(0, far.y);
   const rect = { x, y, width: Math.min(innerWidth, far.x + far.width) - x, height: Math.min(innerHeight, far.y + far.height) - y };
-  const covers = [bubble, ...(menu.hidden ? [] : menu.children), tools, wheel, ...lines.map((l) => l.el)].filter((el) => !el.hidden).map((el) => shadowed(rectOf(el)));
+  const covers = [bubble, ...(menu.hidden ? [] : menu.children), tools, wheel, ...lines.map((l) => l.el)].filter((el) => !el.hidden).map((el) => shadowed(partRect(el)));
   const px = await host.sampleBackdrop(rect, [near, ...covers]);
   // this platform cannot read the screen cheaply: the halo just stays
   if (px === null) { backdrop.on = true; backdrop.fixed = true; return; }
@@ -2594,7 +2916,8 @@ function frame(steps, now, last) {
       stepBackdrop(dt);
       stepTools();
       stepWheel();
-      stepSizer();
+      stepSlider();
+      stepFade();
       layout(dt);
       stepInputShape();
       // the frame's own time, so the layer shows frames as far apart as they were drawn

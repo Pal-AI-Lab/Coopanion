@@ -35,6 +35,7 @@ const ptBR: Translation<CuaText> = {
   config: {
     group: 'Uso do computador',
     enabled: { title: 'Ativar o uso do computador' },
+    risksConfirmed: { title: "Riscos confirmados", description: "Os riscos foram confirmados ao ligar o uso do computador ou ao adicioná-lo como botão ao passar o mouse; ligado, esse botão liga o uso do computador diretamente." },
     control: { title: 'Permitir o mouse e o teclado', description: 'Desligado, só capturas de tela e a lista de janelas.' },
     permission: { title: 'Quando perguntar a você', description: 'ask-each-turn: antes de olhar a tela ou agir, a cada turno; ask-before-acting: olhar é livre, pergunta antes de usar o mouse e o teclado a cada turno; ask-once: olhar é livre, pergunta uma vez antes de usar o mouse e o teclado, e um sim vale por “Um sim dura”; never-ask: nunca pergunta. Com “Desativar a pergunta antes do terminal e do Executar” desligado, em qualquer opção, antes de digitar ou pressionar teclas em um terminal e antes de win+r, pergunta uma vez à parte, e um sim vale por “Um sim dura”.' },
     grantMinutes: { title: 'Um sim dura', suffix: 'min', description: 'Para ask-once e para a pergunta à parte sobre terminais.' },

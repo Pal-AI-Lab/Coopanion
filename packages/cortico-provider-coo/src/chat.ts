@@ -3,19 +3,15 @@
  * endpoint is missing or takes no images, and for other URLs set to `chat`. The thinking level goes out as
  * `reasoning_effort`, rewritten where the platform takes other values; past reasoning goes back as
  * `reasoning_content` while thinking is on, reasoning before the newest user message only while
- * `keepThinking` holds (`roundReasoning`). Images are
- * limited to the newest delivered batch (`sinceLastDelivery`), and images in tool results move to a
+ * `keepThinking` holds (`roundReasoning`). Images in tool results move to a
  * user message right after the results, since Chat takes images in user messages only.
  */
 import type { NativeChatMessage } from 'cortico/providers/transport/native-types.ts';
 import type { Logger, ModelSpec, ToolSchema } from 'cortico/core/types.ts';
-import type { GenerateOptions } from 'cortico/core/generation.ts';
-import type { Request } from 'cortico/protocol/open-responses/index.ts';
 import { nullLogger } from 'cortico/core/util.ts';
 import { OpenAIHttpClient } from 'cortico/providers/transport/chat.ts';
 import { dropPastThinking, mapTools, renderMessagesWithMedia, type CompatMediaOptions } from 'cortico/providers/transport/history.ts';
 import { SYNTHETIC_REASONING_TEXT } from 'cortico/providers/transport/responses-input.ts';
-import { sinceLastDelivery } from './context.ts';
 import type { Effort, EffortMap } from './vendors.ts';
 
 export interface VendorChatOptions {
@@ -98,10 +94,6 @@ function roundReasoning(messages: readonly NativeChatMessage[], opts: { keepThin
 export class VendorChat extends OpenAIHttpClient {
   constructor(private readonly opts: VendorChatOptions) {
     super(opts.baseUrl, opts.log ?? nullLogger());
-  }
-
-  protected override buildResponseBody(request: Request, options: GenerateOptions): Record<string, unknown> {
-    return super.buildResponseBody(request, options.context ? { ...options, context: sinceLastDelivery(options.context) } : options);
   }
 
   protected buildBody(spec: ModelSpec, messages: NativeChatMessage[], tools?: ToolSchema[]): Record<string, unknown> {

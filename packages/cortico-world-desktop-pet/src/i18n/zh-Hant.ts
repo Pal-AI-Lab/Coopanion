@@ -12,6 +12,9 @@ const zhHant: Translation<PetText> = {
   busy: '在忙',
 
   voice: {
+    serviceStopped: '識別服務已停止，目前無法語音輸入',
+    recorded: '錄音已投遞',
+    recordingUnavailable: '錄音無法投遞，且沒有可用的轉寫',
     starting: '辨識服務啟動中',
     notRunning: '辨識服務沒有執行',
     modelMissing: (mb: number) => `辨識模型尚未下載（約 ${mb} MB），請在「語音輸入」頁下載`,
@@ -178,7 +181,7 @@ const zhHant: Translation<PetText> = {
     theme: { dark: '換成夜間模式', light: '換成白天模式' },
     hover: (list: string) => `把懸停按鈕換成${list}`,
     hoverNone: '拿掉所有懸停按鈕',
-    actions: { chat: '打字', voice: '語音輸入', roam: '走動', theme: '夜間模式', sound: '音效', size: '大小', dress: '裝扮', hide: '隱藏桌寵', worlds: '我的 World' },
+    actions: { chat: '打字', voice: '語音輸入', roam: '走動', theme: '夜間模式', sound: '音效', size: '大小', fade: "透明度", dress: '裝扮', cua: "電腦操作", hide: '隱藏桌寵', worlds: '我的 World' },
     user: (to: string) => `改叫你「${to}」`,
   },
 
@@ -239,8 +242,11 @@ const zhHant: Translation<PetText> = {
     glow: { title: '外發光', description: '桌寵和身後的顏色相近時，身體周圍出現的淺色外發光向外延伸多少像素；0 為關閉。' },
     frameRate: { title: '幀率', description: '走動、被拎著、跳起時每秒畫幾幀；0 跟隨螢幕更新率。超過螢幕更新率時以螢幕的為準。「習慣」頁可選 60、120、144 和不限。' },
     lockFrameRate: { title: '幀率鎖定', description: '靜止時也依「幀率」繪製桌寵。關閉時站著、坐著、睡著會降到每秒 30 幀。' },
+    fade: { title: "透明度", description: "桌寵和氣泡的透明程度：0 為不透明，最高 95%，每 5% 一檔。打字框、提問或確認卡片開啟時，以及拎著桌寵時恢復不透明。" },
     hideWhenFullscreen: { title: '全螢幕時自動隱藏', description: '開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕（遊戲、全螢幕影片、瀏覽器全螢幕）就把 Coo 藏起來，離開全螢幕後再放回來；最大化的視窗不算。關閉時一律浮在最上層。' },
     passWhenFullscreen: { title: "全螢幕時滑鼠穿透", description: "開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕期間 Coo 照常顯示，點擊全部穿過 Coo 落到下方的視窗，離開全螢幕後恢復；最大化的視窗不算。與全螢幕時自動隱藏同時開啟時 Coo 會隱藏。" },
+    fadeWhenFullscreen: { title: "全螢幕時變淡", description: "開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕期間改用「全螢幕時透明度」，離開全螢幕後恢復；最大化的視窗不算。" },
+    fullscreenFade: { title: "全螢幕時透明度" },
     overTaskbar: { title: "顯示在工作列上", description: "開啟時桌寵視窗向下蓋住螢幕底部的工作列，形象繪製在地面以下的部分（坐下時垂下的腿）顯示在工作列上；關閉時視窗到工作列上緣為止。" },
     hideFromCapture: { title: "不出現在截圖和錄影裡", description: "開啟時 Coo 不出現在截圖、螢幕錄影、直播和 Coo 自己的截圖裡。開啟時 NVIDIA 即時重播的桌面擷取可能無法開啟。" },
     exportOverlay: { title: 'OBS 畫面', description: '在 /overlay 提供桌寵視窗的透明畫面，供 OBS「瀏覽器」來源使用；關閉時不提供。' },
@@ -267,6 +273,7 @@ const zhHant: Translation<PetText> = {
     speechSpeed: { title: '說話聲語速', description: (a: number, b: number, c: number) => `每秒最多念幾個音節：low、mid、high 依次為 ${a}、${b}、${c}；custom 用自訂語速。比文字慢時，聲音在文字打完後才念完。` },
     speechRate: { title: '自訂語速', suffix: '音節/秒' },
     asrEnabled: { title: '語音輸入總開關' },
+    asrServiceEnabled: { title: '開啟識別服務', description: '語音輸入開啟時啟動識別服務；關閉後，支援音訊的模型仍可接收僅錄音輸入。' },
     asrEngine: { title: '辨識引擎', description: 'funasr 使用 FunASR 的 SenseVoiceSmall，支援中文、英文、日文、韓文和粵語，第一次要下載約 240 MB 的模型；whisper 使用 OpenAI 的 Whisper small，支援法語、德語、西班牙語、葡萄牙語、義大利語、俄語等近百種語言，第一次要下載約 360 MB 的模型，一句說完才出字；這兩個都在本機辨識。system 使用 Windows 內建的語音辨識，不用下載，準確度低一些（只在 Windows 上有）。api 把每句錄音傳送到 OpenAI 相容的轉寫介面辨識，一句說完才出字；位址和模型在下面填寫，API Key 在「語音輸入」頁填寫。留空時依應用程式語言選擇：中文、英文、日文、韓文用 funasr，其餘用 whisper。' },
     asrLanguage: { title: '語言', description: 'ISO 639-1 語言代碼，或 auto 讓模型自己判斷；留空時跟隨應用程式語言。FunASR 認得 zh、en、ja、ko、yue，Whisper 認得 fr、de、es、pt、it、ru 等近百種，不認得的代碼當作 auto。轉寫介面只在代碼是兩個字母時帶上語言。' },
     asrApiUrl: { title: '轉寫介面位址', description: '引擎為 api 時，每句錄音傳送到這個位址後面的 /audio/transcriptions，例如 https://api.example.com/v1。遠端位址只能用 https，本機和區域網路的位址可以用 http。' },

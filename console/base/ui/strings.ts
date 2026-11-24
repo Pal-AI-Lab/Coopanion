@@ -31,6 +31,8 @@ const zh = {
   },
   cancel: '取消',
   proceedAnyway: '仍要继续',
+  leave: '离开',
+  unsavedTitle: '有未保存的修改',
   confirm: '确认',
   gotIt: '知道了',
   close: '✕ 关闭 (Esc)',
@@ -42,6 +44,7 @@ const zh = {
   addImage: '添加图片',
   addImageHint: '添加图片（也可粘贴或拖入）',
   removeImage: (name: string) => `移除 ${name}`,
+  tooLong: (over: number, max: number) => `超出 ${over} 字，删减到 ${max} 字以内才能发送`,
 };
 
 export const en: typeof zh = {
@@ -66,6 +69,8 @@ export const en: typeof zh = {
   },
   cancel: 'Cancel',
   proceedAnyway: 'Proceed anyway',
+  leave: 'Leave',
+  unsavedTitle: 'Unsaved changes',
   confirm: 'Confirm',
   gotIt: 'Got it',
   close: '✕ Close (Esc)',
@@ -77,6 +82,7 @@ export const en: typeof zh = {
   addImage: 'Add image',
   addImageHint: 'Add image (paste or drop also works)',
   removeImage: (name: string) => `Remove ${name}`,
+  tooLong: (over: number, max: number) => `${over} characters over the limit; shorten to ${max} to send`,
 };
 
 export const S = pick({

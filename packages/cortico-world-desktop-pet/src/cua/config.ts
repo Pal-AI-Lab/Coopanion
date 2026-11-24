@@ -16,6 +16,8 @@ export type PermissionLevel = (typeof PERMISSION_LEVELS)[number];
 export interface CuaConfig {
   /** Off: no computer-use tools and no computer-use part in the environment prompt. */
   enabled: boolean;
+  /** The person confirmed the risks in the settings window; the pet's computer use button then turns it on as well as off. */
+  risksConfirmed: boolean;
   /** false: screenshots and the window list only; every input tool fails with that reason. */
   control: boolean;
   /** See PERMISSION_LEVELS. */
@@ -44,6 +46,7 @@ export interface CuaConfig {
 
 export const CUA_DEFAULTS: CuaConfig = {
   enabled: false,
+  risksConfirmed: false,
   control: true,
   permission: 'ask-once',
   grantMinutes: 30,
@@ -67,6 +70,7 @@ export function cuaConfigGroup(language: Language = 'zh'): ConfigGroup {
       title: c.group,
       properties: {
         [`${K}.enabled`]: { type: 'boolean', title: c.enabled.title, 'x-hot': true },
+        [`${K}.risksConfirmed`]: { type: 'boolean', title: c.risksConfirmed.title, description: c.risksConfirmed.description, 'x-hot': true, 'x-warning': true },
         [`${K}.control`]: { type: 'boolean', title: c.control.title, description: c.control.description, 'x-hot': true },
         [`${K}.permission`]: { type: 'string', title: c.permission.title, enum: [...PERMISSION_LEVELS], 'x-hot': true, description: c.permission.description },
         [`${K}.grantMinutes`]: { type: 'integer', title: c.grantMinutes.title, minimum: 1, maximum: 1440, 'x-suffix': c.grantMinutes.suffix, description: c.grantMinutes.description, 'x-hot': true },

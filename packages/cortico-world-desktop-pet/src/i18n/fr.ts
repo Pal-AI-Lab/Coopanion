@@ -12,6 +12,9 @@ const fr: Translation<PetText> = {
   busy: 'Travaille',
 
   voice: {
+    serviceStopped: 'Service de reconnaissance arrêté : saisie vocale indisponible',
+    recorded: 'Enregistrement envoyé',
+    recordingUnavailable: 'Enregistrement non envoyé et transcription indisponible',
     starting: 'La reconnaissance vocale démarre',
     notRunning: "La reconnaissance vocale n'est pas lancée",
     modelMissing: (mb: number) => `Le modèle vocal n'est pas encore téléchargé (environ ${mb} Mo) : téléchargez-le sur la page Saisie vocale`,
@@ -178,7 +181,7 @@ const fr: Translation<PetText> = {
     theme: { dark: "passer à l'aspect nuit", light: "passer à l'aspect jour" },
     hover: (list: string) => `mettre comme boutons au survol : ${list}`,
     hoverNone: 'retirer tous les boutons au survol',
-    actions: { chat: 'Écrire', voice: 'Saisie vocale', roam: 'Déplacements', theme: 'Mode nuit', sound: 'Sons', size: 'Taille', dress: 'Habiller', hide: 'Masquer le compagnon', worlds: 'Mes Worlds' },
+    actions: { chat: 'Écrire', voice: 'Saisie vocale', roam: 'Déplacements', theme: 'Mode nuit', sound: 'Sons', size: 'Taille', fade: "Transparence", dress: 'Habiller', cua: "Contrôle de l'ordinateur", hide: 'Masquer le compagnon', worlds: 'Mes Worlds' },
     user: (to: string) => `vous appeler « ${to} »`,
   },
 
@@ -239,8 +242,11 @@ const fr: Translation<PetText> = {
     glow: { title: 'Halo', description: "Portée en pixels du halo clair autour du compagnon quand les couleurs de Coo se confondent avec l'arrière-plan ; 0 le désactive." },
     frameRate: { title: "Fréquence d'images", description: "Images par seconde quand le compagnon marche, saute ou se fait porter ; 0 suit l'écran. Au-delà de la fréquence de rafraîchissement de l'écran, celle de l'écran s'applique. La page Habitudes propose 60, 120, 144 et Illimitée." },
     lockFrameRate: { title: 'Verrouiller la fréquence', description: "Dessine aussi le compagnon à cette fréquence au repos. Désactivé, elle descend à 30 images par seconde quand le compagnon se tient debout, s'assoit ou dort." },
+    fade: { title: "Transparence", description: "À quel point le compagnon et ses bulles sont transparents : 0 est opaque, jusqu'à 95 %, par pas de 5 %. Le compagnon redevient opaque tant que la zone de saisie, une question ou une confirmation est ouverte, et tant qu'il est porté." },
     hideWhenFullscreen: { title: 'Masquer en plein écran', description: 'Activé, le compagnon se cache quand la fenêtre au premier plan remplit l\'écran de Coo (un jeu, une vidéo en plein écran, un navigateur en plein écran) et revient à la fin du plein écran ; une fenêtre agrandie ne compte pas. Désactivé, le compagnon reste toujours au premier plan.' },
     passWhenFullscreen: { title: "Laisser passer les clics en plein écran", description: "Activé, tant que la fenêtre au premier plan remplit l'écran de Coo, Coo reste visible et chaque clic passe à travers lui vers la fenêtre en dessous, jusqu'à la fin du plein écran ; une fenêtre agrandie ne compte pas. Si « Masquer en plein écran » est aussi activé, Coo se cache." },
+    fadeWhenFullscreen: { title: "Estomper en plein écran", description: "Activé, tant que la fenêtre au premier plan remplit l'écran de Coo, la transparence en plein écran remplace la transparence habituelle, jusqu'à la fin du plein écran ; une fenêtre agrandie ne compte pas." },
+    fullscreenFade: { title: "Transparence en plein écran" },
     overTaskbar: { title: "Afficher par-dessus la barre des tâches", description: "Activé, la fenêtre du compagnon descend par-dessus la barre des tâches en bas de l'écran, et ce qu'une figure dessine sous le sol (les jambes qui pendent en position assise) s'affiche par-dessus ; désactivé, la fenêtre s'arrête au bord supérieur de la barre des tâches." },
     hideFromCapture: { title: "Ne pas apparaître dans les captures et les enregistrements", description: "Activé, Coo n’apparaît pas dans les captures d’écran, les enregistrements d’écran, les diffusions en direct ni les captures d’écran prises par Coo. Activé, la capture du bureau d’Instant Replay de NVIDIA peut refuser de s’activer." },
     exportOverlay: { title: 'Overlay OBS', description: "Sert l'image de la fenêtre du compagnon sur fond transparent à /overlay pour une source « Navigateur » d'OBS ; désactivé, rien n'est servi." },
@@ -267,6 +273,7 @@ const fr: Translation<PetText> = {
     speechSpeed: { title: 'Débit de la voix', description: (a: number, b: number, c: number) => `Syllabes par seconde au plus : low, mid et high valent ${a}, ${b} et ${c} ; custom utilise le débit personnalisé. Plus lente que le texte, la voix finit après lui.` },
     speechRate: { title: 'Débit personnalisé', suffix: 'syllabes/s' },
     asrEnabled: { title: 'Saisie vocale' },
+    asrServiceEnabled: { title: 'Service de reconnaissance', description: 'Démarrer la reconnaissance quand la saisie vocale est activée ; les modèles compatibles audio peuvent toujours recevoir uniquement les enregistrements si le service est désactivé.' },
     asrEngine: { title: 'Moteur de reconnaissance', description: "funasr exécute SenseVoiceSmall de FunASR, pour le chinois, l'anglais, le japonais, le coréen et le cantonais, après un téléchargement unique d'environ 240 Mo ; whisper exécute Whisper small d'OpenAI, pour le français, l'allemand, l'espagnol, le portugais, l'italien, le russe et environ 90 autres langues, après un téléchargement unique d'environ 360 Mo, et affiche le texte une fois la phrase terminée ; les deux reconnaissent sur cet ordinateur. system utilise la reconnaissance vocale de Windows, sans téléchargement et moins précise (Windows uniquement). api envoie l'enregistrement de chaque phrase à un service de transcription compatible OpenAI et affiche le texte une fois la phrase terminée ; son adresse et son modèle se règlent ci-dessous, son API Key sur la page Saisie vocale. Vide : choix selon la langue de l'application, funasr pour le chinois, l'anglais, le japonais et le coréen, whisper pour les autres." },
     asrLanguage: { title: 'Langue', description: "Un code ISO 639-1, ou auto pour laisser le modèle décider ; vide suit la langue de l'application. FunASR accepte zh, en, ja, ko et yue, Whisper une centaine de codes comme fr, de, es, pt, it et ru ; un code que le modèle n'accepte pas vaut auto. Le service de transcription ne reçoit le code que s'il a deux lettres." },
     asrApiUrl: { title: 'Adresse du service de transcription', description: "Avec le moteur api, chaque phrase est envoyée à /audio/transcriptions sous cette adresse, par exemple https://api.example.com/v1. Une adresse distante doit utiliser https ; les adresses de cet ordinateur ou du réseau local peuvent utiliser http." },

@@ -3,8 +3,7 @@
  * keeps the framework's attempt contract: up to three retries with backoff (`Retry-After` when the
  * API sends one) on connection errors, 408, 409, 429, 5xx and 529, never after an irreversible
  * delta, and one `ProviderAttempt` with meters and charges for every request sent. The SDK's own
- * retries are off so each attempt is recorded. Images are limited to the newest delivered batch
- * (`sinceLastDelivery`).
+ * retries are off so each attempt is recorded.
  */
 import Anthropic from '@anthropic-ai/sdk';
 import type { Logger } from 'cortico/core/types.ts';
@@ -15,7 +14,6 @@ import type { Request, Response, StreamEvent } from 'cortico/protocol/open-respo
 import { ResponseProtocolError } from 'cortico/protocol/open-responses/stream.ts';
 import { LLMError, abortError, parseRetryAfter, retryDelay, reqIdSuffix } from 'cortico/providers/transport/errors.ts';
 import type { CompatMediaOptions } from 'cortico/providers/transport/history.ts';
-import { sinceLastDelivery } from '../context.ts';
 import { ClaudeResponseAssembly, claudeRequest, parseClaudeMessage } from './wire.ts';
 
 const DEFAULT_BASE_URL = 'https://api.anthropic.com';
@@ -66,8 +64,7 @@ export class ClaudeProvider extends BaseProvider {
 
   async respond(request: Request, options: GenerateOptions = {}): Promise<Generation> {
     const origin = options.origin ?? { instance: 'coo', module: 'coo', model: request.model ?? '', compatibilityDomain: this.opts.baseUrl ?? DEFAULT_BASE_URL };
-    const limited = options.context ? { ...options, context: sinceLastDelivery(options.context) } : options;
-    const { params, betas } = claudeRequest(request, limited, { media: this.opts.media, keepThinking: this.opts.keepThinking });
+    const { params, betas } = claudeRequest(request, options, { media: this.opts.media, keepThinking: this.opts.keepThinking });
     const streaming = Boolean(options.onEvent);
     const generationId = crypto.randomUUID();
     const attempts: ProviderAttempt[] = [];

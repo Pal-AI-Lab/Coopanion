@@ -23,6 +23,9 @@ const en: PetText = {
 
   /** Voice input: the microphone button's state in the menu, and the notes in the introduction and on the settings page. */
   voice: {
+    serviceStopped: 'Recognition service stopped; voice input is unavailable',
+    recorded: 'Recording sent',
+    recordingUnavailable: 'Recording could not be sent and no transcript is available',
     starting: 'Speech recognition is starting',
     notRunning: 'Speech recognition is not running',
     modelMissing: (mb: number) => `The speech model is not downloaded yet (about ${mb} MB): download it on the Voice input page`,
@@ -203,7 +206,7 @@ const en: PetText = {
     theme: { dark: 'switch to the night look', light: 'switch to the day look' } as Record<'dark' | 'light', string>,
     hover: (list: string) => `change the hover buttons to ${list}`,
     hoverNone: 'remove all the hover buttons',
-    actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', size: 'Size', dress: 'Dress up', hide: 'Hide pet', worlds: 'My Worlds' } as Record<string, string>,
+    actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', size: 'Size', fade: "Transparency", dress: 'Dress up', cua: "Computer use", hide: 'Hide pet', worlds: 'My Worlds' } as Record<string, string>,
     user: (to: string) => `call you "${to}"`,
   },
 
@@ -269,8 +272,11 @@ const en: PetText = {
     glow: { title: 'Outer glow', description: "How many pixels the light glow around the pet reaches when Coo's colors match the background; 0 turns it off." },
     frameRate: { title: 'Frame rate', description: 'Frames a second while the pet walks, is carried or jumps; 0 follows the display. Above the display\'s refresh rate the display\'s rate applies. The Habits page offers 60, 120, 144 and Unlimited.' },
     lockFrameRate: { title: 'Lock frame rate', description: 'Draws the pet at the frame rate at rest too. When off, it drops to 30 frames a second while standing, sitting or asleep.' },
+    fade: { title: "Transparency", description: "How see-through the pet and its bubbles are: 0 is opaque, up to 95%, in steps of 5%. The pet turns opaque while the typing box, a question or a confirmation is open, and while it is carried." },
     hideWhenFullscreen: { title: 'Hide during full screen', description: 'When on, the pet hides while the window in front fills the screen Coo is on (a game, a full-screen video, a browser in full screen) and comes back when full screen ends; a maximized window does not count. When off, Coo always stays on top.' },
     passWhenFullscreen: { title: "Let clicks pass through during full screen", description: "When on, while the window in front fills the screen Coo is on, Coo stays visible and every click passes through it to the window below, until full screen ends; a maximized window does not count. With hide during full screen also on, Coo hides." },
+    fadeWhenFullscreen: { title: "Fade during full screen", description: "When on, while the window in front fills the screen Coo is on, the transparency during full screen replaces the usual one, until full screen ends; a maximized window does not count." },
+    fullscreenFade: { title: "Transparency during full screen" },
     overTaskbar: { title: "Show over the taskbar", description: "When on, the pet window reaches down over a taskbar at the bottom of the screen, and what a figure draws below the floor (legs hanging down while sitting) shows over the taskbar; when off, the window ends at the top edge of the taskbar." },
     hideFromCapture: { title: "Keep out of screenshots and recordings", description: "While on, Coo does not appear in screenshots, screen recordings, live streams, or the screenshots Coo takes. While on, desktop capture in NVIDIA Instant Replay may fail to turn on." },
     exportOverlay: { title: 'OBS overlay', description: "Serves the pet window's picture on a transparent background at /overlay for an OBS Browser source; off, nothing is served." },
@@ -297,6 +303,7 @@ const en: PetText = {
     speechSpeed: { title: 'Speech speed', description: (a: number, b: number, c: number) => `Most syllables a second: low, mid and high are ${a}, ${b} and ${c}; custom uses the custom speed. Slower than the text, the voice ends after the text has finished.` },
     speechRate: { title: 'Custom speed', suffix: 'syllables/s' },
     asrEnabled: { title: 'Voice input' },
+    asrServiceEnabled: { title: 'Recognition service', description: 'Start recognition while voice input is on; audio-capable models can still receive recordings alone when off.' },
     asrEngine: { title: 'Recognition engine', description: "funasr runs FunASR's SenseVoiceSmall, for Chinese, English, Japanese, Korean and Cantonese, after a one-time download of about 240 MB; whisper runs OpenAI's Whisper small, for French, German, Spanish, Portuguese, Italian, Russian and about 90 more languages, after a one-time download of about 360 MB, and shows the text once a sentence ends; both recognize on this computer. system uses Windows' own speech recognition, with nothing to download and lower accuracy (Windows only). api sends the recording of each sentence to an OpenAI-compatible transcription service and shows the text once the sentence ends; its address and model are set below, its API Key on the Voice input page. Empty picks by the app language: funasr for Chinese, English, Japanese and Korean, whisper for the rest." },
     asrLanguage: { title: 'Language', description: 'An ISO 639-1 code, or auto to let the model tell; empty follows the app language. FunASR takes zh, en, ja, ko and yue, Whisper about a hundred codes such as fr, de, es, pt, it and ru; a code the model does not take reads as auto. The transcription service is sent the code only when it has two letters.' },
     asrApiUrl: { title: 'Transcription service address', description: 'With engine api, each sentence is sent to /audio/transcriptions under this address, such as https://api.example.com/v1. A remote address must use https; addresses on this computer or the local network may use http.' },

@@ -12,6 +12,9 @@ const ptBR: Translation<PetText> = {
   busy: 'Trabalhando',
 
   voice: {
+    serviceStopped: 'Serviço de reconhecimento parado; entrada de voz indisponível',
+    recorded: 'Gravação enviada',
+    recordingUnavailable: 'Não foi possível enviar a gravação e não há transcrição disponível',
     starting: 'O reconhecimento de voz está iniciando',
     notRunning: 'O reconhecimento de voz não está em execução',
     modelMissing: (mb: number) => `O modelo de voz ainda não foi baixado (cerca de ${mb} MB): baixe-o na página Entrada de voz`,
@@ -178,7 +181,7 @@ const ptBR: Translation<PetText> = {
     theme: { dark: 'mudar para a aparência de noite', light: 'mudar para a aparência de dia' },
     hover: (list: string) => `trocar os botões ao passar o mouse para ${list}`,
     hoverNone: 'tirar todos os botões ao passar o mouse',
-    actions: { chat: 'Digitar', voice: 'Entrada de voz', roam: 'Passeios', theme: 'Modo noturno', sound: 'Sons', size: 'Tamanho', dress: 'Guarda-roupa', hide: 'Ocultar o pet', worlds: 'Meus Worlds' },
+    actions: { chat: 'Digitar', voice: 'Entrada de voz', roam: 'Passeios', theme: 'Modo noturno', sound: 'Sons', size: 'Tamanho', fade: "Transparência", dress: 'Guarda-roupa', cua: "Uso do computador", hide: 'Ocultar o pet', worlds: 'Meus Worlds' },
     user: (to: string) => `chamar você de “${to}”`,
   },
 
@@ -239,8 +242,11 @@ const ptBR: Translation<PetText> = {
     glow: { title: 'Brilho externo', description: 'Quantos pixels o brilho claro em volta do pet alcança quando as cores do Coo se parecem com o fundo; 0 desliga.' },
     frameRate: { title: 'Taxa de quadros', description: 'Quadros por segundo enquanto o pet anda ou pula, ou enquanto você carrega o pet; 0 segue a tela. Acima da taxa de atualização da tela, vale a da tela. A página Hábitos oferece 60, 120, 144 e Sem limite.' },
     lockFrameRate: { title: 'Travar taxa de quadros', description: 'Desenha o pet nessa taxa também em repouso. Desligado, cai para 30 quadros por segundo quando está em pé, na posição sentada ou dormindo.' },
+    fade: { title: "Transparência", description: "O quanto o pet e seus balões ficam transparentes: 0 é opaco, até 95%, de 5% em 5%. O pet volta a ficar opaco enquanto a caixa de texto, uma pergunta ou uma confirmação está aberta, e enquanto você o carrega." },
     hideWhenFullscreen: { title: 'Ocultar em tela cheia', description: 'Ligado, o pet se esconde enquanto a janela em primeiro plano ocupa toda a tela onde o pet está (um jogo, um vídeo em tela cheia, um navegador em tela cheia) e volta quando a tela cheia termina; uma janela maximizada não conta. Desligado, fica sempre por cima.' },
     passWhenFullscreen: { title: "Deixar os cliques atravessarem em tela cheia", description: "Ligado, enquanto a janela em primeiro plano ocupa toda a tela do Coo, o Coo continua visível e cada clique o atravessa até a janela de baixo, até a tela cheia terminar; uma janela maximizada não conta. Com \"Ocultar em tela cheia\" também ligado, o Coo se esconde." },
+    fadeWhenFullscreen: { title: "Esmaecer em tela cheia", description: "Ligado, enquanto a janela em primeiro plano ocupa toda a tela do Coo, a transparência em tela cheia substitui a de sempre, até a tela cheia terminar; uma janela maximizada não conta." },
+    fullscreenFade: { title: "Transparência em tela cheia" },
     overTaskbar: { title: "Mostrar sobre a barra de tarefas", description: "Ligado, a janela do pet desce por cima da barra de tarefas na parte inferior da tela, e o que uma figura desenha abaixo do chão (as pernas penduradas ao sentar) aparece sobre a barra de tarefas; desligado, a janela termina na borda superior da barra de tarefas." },
     hideFromCapture: { title: "Não aparecer em capturas e gravações", description: "Enquanto ligado, o Coo não aparece em capturas de tela, gravações de tela, transmissões ao vivo nem nas capturas feitas pelo Coo. Enquanto ligado, a captura da área de trabalho do Replay Instantâneo da NVIDIA pode não ligar." },
     exportOverlay: { title: 'Overlay do OBS', description: 'Serve a imagem da janela do pet com fundo transparente em /overlay para uma fonte “Navegador” do OBS; desligado, nada é servido.' },
@@ -267,6 +273,7 @@ const ptBR: Translation<PetText> = {
     speechSpeed: { title: 'Velocidade da voz', description: (a: number, b: number, c: number) => `Sílabas por segundo no máximo: low, mid e high são ${a}, ${b} e ${c}; custom usa a velocidade personalizada. Mais lenta que o texto, a voz termina depois dele.` },
     speechRate: { title: 'Velocidade personalizada', suffix: 'sílabas/s' },
     asrEnabled: { title: 'Entrada de voz' },
+    asrServiceEnabled: { title: 'Serviço de reconhecimento', description: 'Iniciar o reconhecimento com a entrada de voz ativada; ao desativá-lo, modelos que aceitam áudio ainda podem receber apenas gravações.' },
     asrEngine: { title: 'Motor de reconhecimento', description: 'funasr roda o SenseVoiceSmall do FunASR, para chinês, inglês, japonês, coreano e cantonês, depois de um download único de cerca de 240 MB; whisper roda o Whisper small da OpenAI, para francês, alemão, espanhol, português, italiano, russo e cerca de 90 outros idiomas, depois de um download único de cerca de 360 MB, e mostra o texto quando a frase termina; os dois reconhecem neste computador. system usa o reconhecimento de fala do próprio Windows, sem download e com menos precisão (só no Windows). api envia a gravação de cada frase a um serviço de transcrição compatível com a OpenAI e mostra o texto quando a frase termina; o endereço e o modelo ficam abaixo, e a API Key na página Entrada de voz. Vazio escolhe pelo idioma do app: funasr para chinês, inglês, japonês e coreano, whisper para os demais.' },
     asrLanguage: { title: 'Idioma', description: 'Um código ISO 639-1, ou auto para o modelo identificar; vazio segue o idioma do app. O FunASR aceita zh, en, ja, ko e yue, e o Whisper cerca de cem códigos, como fr, de, es, pt, it e ru; um código que o modelo não aceita vale como auto. O serviço de transcrição só recebe o código quando ele tem duas letras.' },
     asrApiUrl: { title: 'Endereço do serviço de transcrição', description: 'Com o motor api, cada frase vai para /audio/transcriptions sob este endereço, por exemplo https://api.example.com/v1. Um endereço remoto precisa usar https; endereços deste computador ou da rede local podem usar http.' },

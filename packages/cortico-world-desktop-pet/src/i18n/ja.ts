@@ -12,6 +12,9 @@ const ja: Translation<PetText> = {
   busy: '作業中',
 
   voice: {
+    serviceStopped: '音声認識サービスが停止中のため、音声入力は利用できません',
+    recorded: '録音を送信しました',
+    recordingUnavailable: '録音を送信できず、文字起こしもありません',
     starting: '音声認識を起動しています',
     notRunning: '音声認識が動作していません',
     modelMissing: (mb: number) => `音声モデルがまだダウンロードされていません（約 ${mb} MB）：「音声入力」ページでダウンロードしてください`,
@@ -178,7 +181,7 @@ const ja: Translation<PetText> = {
     theme: { dark: '夜の見た目にする', light: '昼の見た目にする' },
     hover: (list: string) => `ホバーボタンを${list}にする`,
     hoverNone: 'ホバーボタンをすべて外す',
-    actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', size: 'サイズ', dress: '着せ替え', hide: 'ペットを隠す', worlds: '自分の World' },
+    actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', size: 'サイズ', fade: "透明度", dress: '着せ替え', cua: "コンピューター操作", hide: 'ペットを隠す', worlds: '自分の World' },
     user: (to: string) => `あなたを「${to}」と呼ぶ`,
   },
 
@@ -239,8 +242,11 @@ const ja: Translation<PetText> = {
     glow: { title: '外側の光', description: 'ペットの色が背景と近いときに体のまわりに出る淡い光が何ピクセル広がるか。0 でオフ。' },
     frameRate: { title: 'フレームレート', description: 'ペットが歩く、運ばれる、ジャンプするときの 1 秒あたりのフレーム数。0 はディスプレイに合わせます。ディスプレイのリフレッシュレートを超える分はディスプレイのレートになります。「ふるまい」ページでは 60、120、144、無制限を選べます。' },
     lockFrameRate: { title: 'フレームレート固定', description: '静止中もフレームレートでペットを描画します。オフのときは、立っている、座っている、眠っているあいだは 1 秒 30 フレームに下がります。' },
+    fade: { title: "透明度", description: "ペットと吹き出しの透け具合です。0 は不透明で、最大 95%、5% 刻みです。入力欄、質問、確認が開いているあいだと、ペットを持ち上げているあいだは不透明に戻ります。" },
     hideWhenFullscreen: { title: '全画面表示中は隠れる', description: 'オンのときは、手前のウィンドウがペットのいる画面いっぱいに表示されているあいだ（ゲーム、全画面の動画、全画面表示のブラウザー）ペットが隠れ、全画面表示が終わると戻ってきます。最大化したウィンドウは対象外です。オフのときは常に最前面に表示されます。' },
     passWhenFullscreen: { title: "全画面表示中はクリックを Coo に通さない", description: "オンのときは、手前のウィンドウが Coo のいる画面いっぱいに表示されているあいだ、Coo は表示されたままで、クリックはすべて Coo を通り抜けて下のウィンドウに届きます。全画面表示が終わると元に戻ります。最大化したウィンドウは対象外です。全画面表示中は隠れるもオンなら Coo は隠れます。" },
+    fadeWhenFullscreen: { title: "全画面表示中は薄くする", description: "オンのときは、手前のウィンドウが Coo のいる画面いっぱいに表示されているあいだ「全画面表示中の透明度」に替わり、全画面表示が終わると元に戻ります。最大化したウィンドウは対象外です。" },
+    fullscreenFade: { title: "全画面表示中の透明度" },
     overTaskbar: { title: "タスクバーの上に表示", description: "オンのとき、ペットのウィンドウは画面下端のタスクバーの上まで広がり、フィギュアが地面より下に描く部分（座ったときに垂れる足）がタスクバーの上に表示されます。オフのとき、ウィンドウはタスクバーの上端までです。" },
     hideFromCapture: { title: "スクリーンショットと録画に映さない", description: "オンのあいだ、Coo はスクリーンショット、画面録画、配信、Coo が撮るスクリーンショットに映りません。オンのあいだ、NVIDIA インスタントリプレイのデスクトップキャプチャを有効にできないことがあります。" },
     exportOverlay: { title: 'OBS オーバーレイ', description: 'ペットのウィンドウの画面を透明な背景で /overlay に出し、OBS の「ブラウザ」ソースで使えるようにします。オフのときは出しません。' },
@@ -267,6 +273,7 @@ const ja: Translation<PetText> = {
     speechSpeed: { title: 'おしゃべり声の速さ', description: (a: number, b: number, c: number) => `1 秒に読む音節の上限：low、mid、high はそれぞれ ${a}、${b}、${c}。custom はカスタムの速さを使います。文字より遅いと、文字が出終わってから読み終えます。` },
     speechRate: { title: 'カスタムの速さ', suffix: '音節/秒' },
     asrEnabled: { title: '音声入力' },
+    asrServiceEnabled: { title: '音声認識サービス', description: '音声入力がオンのときに認識を開始します。オフでも音声対応モデルには録音のみ送信できます。' },
     asrEngine: { title: '認識エンジン', description: 'funasr は FunASR の SenseVoiceSmall を動かし、中国語、英語、日本語、韓国語、広東語に対応します（初回のみ約 240 MB のダウンロードが必要）。whisper は OpenAI の Whisper small を動かし、フランス語、ドイツ語、スペイン語、ポルトガル語、イタリア語、ロシア語のほか約 90 の言語に対応し（初回のみ約 360 MB のダウンロードが必要）、文を言い終えてから文字が出ます。どちらもこのコンピューター上で認識します。system は Windows 内蔵の音声認識を使い、ダウンロード不要ですが精度は低めです（Windows のみ）。api は文ごとの録音を OpenAI 互換の文字起こし API に送って認識し、文を言い終えてから文字が出ます。アドレスとモデルは下で、API Key は「音声入力」ページで入力します。空欄ならアプリの言語で選びます：中国語、英語、日本語、韓国語は funasr、それ以外は whisper。' },
     asrLanguage: { title: '言語', description: 'ISO 639-1 の言語コード、またはモデルに判定させる auto。空欄ならアプリの言語に従います。FunASR は zh、en、ja、ko、yue、Whisper は fr、de、es、pt、it、ru など約 100 のコードを受け付け、受け付けないコードは auto として扱います。文字起こし API には 2 文字のコードのときだけ言語を付けます。' },
     asrApiUrl: { title: '文字起こし API のアドレス', description: 'エンジンが api のとき、文ごとの録音をこのアドレスの後ろの /audio/transcriptions に送ります（例：https://api.example.com/v1）。リモートのアドレスは https のみ、このコンピューターやローカルネットワークのアドレスは http でもかまいません。' },

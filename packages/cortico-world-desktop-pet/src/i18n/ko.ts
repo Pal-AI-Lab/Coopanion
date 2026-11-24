@@ -12,6 +12,9 @@ const ko: Translation<PetText> = {
   busy: '작업 중',
 
   voice: {
+    serviceStopped: '음성 인식 서비스가 중지되어 음성 입력을 사용할 수 없습니다',
+    recorded: '녹음 전송 완료',
+    recordingUnavailable: '녹음을 전송할 수 없으며 전사 결과가 없습니다',
     starting: '음성 인식을 시작하는 중',
     notRunning: '음성 인식이 실행되고 있지 않습니다',
     modelMissing: (mb: number) => `음성 모델을 아직 다운로드하지 않았습니다(약 ${mb} MB). 음성 입력 페이지에서 다운로드하세요`,
@@ -178,7 +181,7 @@ const ko: Translation<PetText> = {
     theme: { dark: '야간 모습으로 바꾸기', light: '주간 모습으로 바꾸기' },
     hover: (list: string) => `호버 버튼을 ${list}(으)로 바꾸기`,
     hoverNone: '호버 버튼을 모두 없애기',
-    actions: { chat: '입력', voice: '음성 입력', roam: '걷기', theme: '야간 모드', sound: '효과음', size: '크기', dress: '꾸미기', hide: '펫 숨기기', worlds: '내 World' },
+    actions: { chat: '입력', voice: '음성 입력', roam: '걷기', theme: '야간 모드', sound: '효과음', size: '크기', fade: "투명도", dress: '꾸미기', cua: "컴퓨터 사용", hide: '펫 숨기기', worlds: '내 World' },
     user: (to: string) => `'${to}'(이)라고 부르기`,
   },
 
@@ -239,8 +242,11 @@ const ko: Translation<PetText> = {
     glow: { title: '외곽 빛', description: '펫과 뒤 배경의 색이 비슷할 때 몸 주위에 생기는 옅은 빛이 몇 픽셀 퍼지는지. 0이면 꺼짐.' },
     frameRate: { title: '프레임 레이트', description: '펫이 걷거나, 들려 있거나, 점프할 때 초당 그리는 프레임 수입니다. 0이면 디스플레이를 따릅니다. 디스플레이 주사율보다 높으면 디스플레이 주사율이 적용됩니다. 습관 페이지에서는 60, 120, 144, 무제한 중에서 고를 수 있습니다.' },
     lockFrameRate: { title: '프레임 레이트 고정', description: '가만히 있을 때도 프레임 레이트대로 펫을 그립니다. 끄면 서 있거나, 앉아 있거나, 잠든 동안 초당 30프레임으로 낮춥니다.' },
+    fade: { title: "투명도", description: "펫과 말풍선이 비치는 정도입니다. 0은 불투명하고 최대 95%까지 5% 단위로 정합니다. 입력창, 질문, 확인 창이 열려 있을 때와 펫을 들고 있을 때는 불투명해집니다." },
     hideWhenFullscreen: { title: '전체 화면일 때 숨기기', description: '켜면 앞에 있는 창이 펫이 있는 화면을 가득 채우는 동안(게임, 전체 화면 동영상, 전체 화면 브라우저) 펫을 숨기고, 전체 화면이 끝나면 다시 보여 줍니다. 최대화된 창은 해당하지 않습니다. 끄면 항상 맨 위에 떠 있습니다.' },
     passWhenFullscreen: { title: "전체 화면일 때 클릭이 Coo를 통과", description: "켜면 앞에 있는 창이 Coo가 있는 화면을 가득 채우는 동안 Coo는 그대로 보이고 모든 클릭은 Coo를 지나 아래 창으로 전달되며, 전체 화면이 끝나면 원래대로 돌아옵니다. 최대화된 창은 해당하지 않습니다. 전체 화면일 때 숨기기도 켜져 있으면 Coo는 숨습니다." },
+    fadeWhenFullscreen: { title: "전체 화면일 때 흐리게", description: "켜면 앞에 있는 창이 Coo가 있는 화면을 가득 채우는 동안 「전체 화면일 때 투명도」로 바뀌고, 전체 화면이 끝나면 원래대로 돌아옵니다. 최대화된 창은 해당하지 않습니다." },
+    fullscreenFade: { title: "전체 화면일 때 투명도" },
     overTaskbar: { title: "작업 표시줄 위에 표시", description: "켜면 펫 창이 화면 아래쪽 작업 표시줄 위까지 내려가, 피규어가 바닥 아래에 그리는 부분(앉았을 때 늘어뜨린 다리)이 작업 표시줄 위에 표시됩니다. 끄면 창이 작업 표시줄 위쪽 가장자리에서 끝납니다." },
     hideFromCapture: { title: "스크린샷과 녹화에 나오지 않기", description: "켜져 있는 동안 Coo는 스크린샷, 화면 녹화, 방송, Coo가 찍는 스크린샷에 나오지 않습니다. 켜져 있는 동안 NVIDIA 인스턴트 리플레이의 데스크톱 캡처가 켜지지 않을 수 있습니다." },
     exportOverlay: { title: 'OBS 오버레이', description: '펫 창의 화면을 투명 배경으로 /overlay에 제공해 OBS의 「브라우저」 소스에서 쓸 수 있게 합니다. 끄면 제공하지 않습니다.' },
@@ -267,6 +273,7 @@ const ko: Translation<PetText> = {
     speechSpeed: { title: '말소리 속도', description: (a: number, b: number, c: number) => `1초에 읽는 음절 수의 상한: low, mid, high는 각각 ${a}, ${b}, ${c}이며 custom은 사용자 지정 속도를 씁니다. 글자보다 느리면 글자가 다 나온 뒤에 다 읽습니다.` },
     speechRate: { title: '사용자 지정 속도', suffix: '음절/초' },
     asrEnabled: { title: '음성 입력' },
+    asrServiceEnabled: { title: '음성 인식 서비스', description: '음성 입력이 켜져 있을 때 인식을 시작합니다. 꺼도 오디오 지원 모델에는 녹음만 보낼 수 있습니다.' },
     asrEngine: { title: '인식 엔진', description: 'funasr는 FunASR의 SenseVoiceSmall을 실행해 중국어, 영어, 일본어, 한국어, 광둥어를 인식하며, 처음 한 번 약 240 MB를 다운로드합니다. whisper는 OpenAI의 Whisper small을 실행해 프랑스어, 독일어, 스페인어, 포르투갈어, 이탈리아어, 러시아어 외 약 90개 언어를 인식하며, 처음 한 번 약 360 MB를 다운로드하고 한 문장을 마쳐야 글자가 나옵니다. 둘 다 이 컴퓨터에서 인식합니다. system은 Windows 자체 음성 인식을 쓰며 다운로드가 필요 없지만 정확도가 낮습니다(Windows 전용). api는 문장마다 녹음을 OpenAI 호환 전사 API로 보내 인식하며, 한 문장을 마쳐야 글자가 나옵니다. 주소와 모델은 아래에, API Key는 「음성 입력」 페이지에 입력합니다. 비워 두면 앱 언어에 따라 고릅니다. 중국어, 영어, 일본어, 한국어는 funasr를, 나머지는 whisper를 씁니다.' },
     asrLanguage: { title: '언어', description: 'ISO 639-1 언어 코드 또는 모델이 판단하게 하는 auto. 비워 두면 앱 언어를 따릅니다. FunASR는 zh, en, ja, ko, yue를, Whisper는 fr, de, es, pt, it, ru 등 약 100개 코드를 받으며, 모델이 받지 않는 코드는 auto로 처리합니다. 전사 API에는 코드가 두 글자일 때만 언어를 보냅니다.' },
     asrApiUrl: { title: '전사 API 주소', description: '엔진이 api일 때 문장마다 녹음을 이 주소 뒤의 /audio/transcriptions로 보냅니다(예: https://api.example.com/v1). 원격 주소는 https만 쓸 수 있고, 이 컴퓨터나 로컬 네트워크의 주소는 http를 써도 됩니다.' },

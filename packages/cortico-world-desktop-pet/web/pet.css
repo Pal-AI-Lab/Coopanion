@@ -80,7 +80,9 @@ body.tab .stage-mode{position:fixed}
 .stage-mode svg{width:17px; height:17px; display:block}
 body.desk{background:transparent}
 body.desk .floor{display:none}
-.stage{position:fixed; inset:0; touch-action:none}
+/* --pet-opacity: the transparency on screen (pet-app.js stepFade), on the body and every bubble, never on the controls */
+.stage{position:fixed; inset:0; touch-action:none; opacity:var(--pet-opacity, 1); transition:opacity .2s ease}
+@media (prefers-reduced-motion: reduce){.stage{transition:none}}
 /* the body's sandboxed frame: transparent (a colour scheme unlike the frame's would give it a backdrop) and never under the pointer */
 .figure-layer{position:absolute; inset:0; pointer-events:none}
 /* the frame's window onto the stage: body-host cuts it down to the body's surroundings while the halo is on */
@@ -140,11 +142,12 @@ body.desk .floor{display:none}
    --bubble-size scales the frame (widths, padding, corners, tail) and --bubble-font the text and the icons on its lines, both
    factors set by pet-app.js from the bubbleSize and fontSize settings and unset at 1; the border keeps its line. */
 .bubble{
-  position:fixed; left:0; top:0; z-index:3; width:max-content; min-width:calc(46px * var(--bubble-size, 1)); max-width:min(calc(300px * var(--bubble-size, 1)), calc(100vw - 20px));
+  position:fixed; left:0; top:0; z-index:3; width:max-content; min-width:calc(58px * var(--bubble-size, 1)); max-width:min(calc(300px * var(--bubble-size, 1)), calc(100vw - 20px));
   padding:calc(10px * var(--bubble-size, 1)) calc(14px * var(--bubble-size, 1)); border-radius:calc(18px * var(--bubble-size, 1)); background:var(--surface); color:var(--text);
   border:2.5px solid var(--skin-ink); box-shadow:0 8px 22px var(--shadow);
   font-size:calc(14.5px * var(--bubble-font, 1)); line-height:1.55;
   transform-origin:var(--tail, 50%) calc(100% + calc(10px * var(--bubble-size, 1)));
+  opacity:var(--pet-opacity, 1); transition:opacity .2s ease;
 }
 /* tail: an outline triangle whose base lies inside the border, so its sides join the border, and a
    surface triangle one line width inside it that opens the border between the sides. Neither is
@@ -158,15 +161,17 @@ body.desk .floor{display:none}
   scale:var(--bubble-size, none); transform-origin:11px 0;
 }
 .bubble::before{background:var(--skin-ink); clip-path:path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z')}
-.bubble::after{background:var(--surface); clip-path:path('M3.04 0 L10.53 7.49 Q11 7.96 11.47 7.49 L18.96 0 Z')}
+/* the surface triangle is the outline one moved up by the line's width across its 45° sides (--tail-line × √2, set by
+   pet-app.js to the width the border is drawn at), unscaled, so the tail's line matches the border at any --bubble-size */
+.bubble::after{background:var(--surface); clip-path:path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z'); translate:0 calc(var(--tail-line, 2.5px) * -1.4142)}
 .bubble.heard{background:var(--said-bg); color:var(--said-ink); border-color:transparent; box-shadow:0 4px 14px var(--shadow); max-width:min(calc(260px * var(--bubble-size, 1)), calc(100vw - 20px))}
 .bubble.heard::before, .bubble.heard::after{display:none}
 /* what the person said, above Coo (pet-app.js lines): a settled one closes on a click, lit in the eye color on hover as the
    hover buttons are; older ones step back; a fading one lets the pointer through. Its text shows six rows at most. */
 .bubble.said{transition:opacity .4s ease, border-color .15s}
 .bubble.said.settled{cursor:pointer}
-.bubble.said.settled:hover{border-color:var(--skin-eye); opacity:1}
-.bubble.said.older{opacity:.62}
+.bubble.said.settled:hover{border-color:var(--skin-eye); opacity:var(--pet-opacity, 1)}
+.bubble.said.older{opacity:calc(.62 * var(--pet-opacity, 1))}
 .bubble.said.fading{opacity:0; pointer-events:none}
 .bubble.said.settled .b-text{display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:6; line-clamp:6; overflow:hidden}
 /* the way a line came, before its text: the voice button's microphone, the chat page's arrows */
@@ -178,7 +183,7 @@ body.desk .floor{display:none}
 .bubble.say:hover{border-color:var(--skin-eye)}
 .bubble.say:hover::before{background:var(--skin-eye)}
 .bubble.say.fading{opacity:0; pointer-events:none}
-.bubble.ask{min-width:min(calc(236px * var(--bubble-size, 1)), calc(100vw - 20px)); padding-right:calc(32px * var(--bubble-size, 1))}
+.bubble.ask{min-width:min(calc(236px * var(--bubble-size, 1)), calc(100vw - 20px))}
 .bubble.pop{animation:bubble-in .26s cubic-bezier(.3,1.5,.5,1)}
 @keyframes bubble-in{from{transform:scale(.5); opacity:0}}
 .b-text{margin:0; min-height:1.55em; white-space:pre-wrap; text-wrap:pretty; overflow-wrap:break-word}
@@ -192,9 +197,7 @@ body.desk .floor{display:none}
 .b-cancel{flex:none; font:inherit; font-size:calc(12px * var(--bubble-font, 1)); padding:2px 9px; border-radius:8px; border:1.5px solid var(--line); background:none; color:var(--muted); cursor:pointer}
 .b-cancel:hover{color:var(--text); border-color:var(--text)}
 .caret[hidden], .b-cancel[hidden]{display:none}
-.b-close{position:absolute; top:5px; right:6px; width:24px; height:24px; padding:0; border:0; border-radius:50%; background:none; color:var(--muted); font-size:18px; line-height:1; cursor:pointer}
-.b-close:hover{color:var(--text)}
-.b-opts{display:flex; flex-direction:column; gap:6px; margin:10px calc(-18px * var(--bubble-size, 1)) 2px 0}
+.b-opts{display:flex; flex-direction:column; gap:6px; margin:10px 0 2px}
 .b-opt, .b-own{animation:opt-in .24s cubic-bezier(.3,1.4,.5,1) both; transition:border-color .15s, opacity .2s}
 @keyframes opt-in{from{transform:translateY(6px) scale(.92); opacity:0}}
 .b-opt{
@@ -211,6 +214,32 @@ body.desk .floor{display:none}
 .b-own input, .b-own textarea{flex:1; min-width:0; border:0; background:transparent; font:inherit; font-size:calc(14px * var(--bubble-font, 1)); color:var(--text); outline:none; padding:4px 0}
 /* the typed line grows with its text up to six rows, then scrolls */
 .b-own textarea{resize:none; field-sizing:content; line-height:1.4; max-height:calc(6 * 1.4em + 8px); overflow-y:auto; overflow-wrap:anywhere}
+/* once the text takes a second row (pet-app.js `tall`) it gets the field's whole width and the buttons go under it */
+.b-own.tall{flex-wrap:wrap; justify-content:flex-end; row-gap:2px}
+/* its right edge as far from the field's border as its left (the field's padding is 3px on the right, 10px on the left) */
+.b-own.tall textarea{flex:0 0 100%; padding-right:7px}
+/* a bubble with a close button keeps it outside, on its right (pet-app.js sideColumn): a small round button as the
+   hover buttons are drawn, and for the typing box, under it, centred, a thumb on a faint track while the text
+   scrolls; the textarea's own scrollbar is not shown */
+.b-own textarea{scrollbar-width:none}
+/* text that runs on past the field's top or bottom fades out at that edge, over about a row */
+.b-own textarea.scrolls{
+  --above:0px; --below:0px;
+  mask-image:linear-gradient(to bottom, transparent, #000 var(--above), #000 calc(100% - var(--below)), transparent);
+}
+.b-own textarea.more-above{--above:1.4em}
+.b-own textarea.more-below{--below:1.4em}
+.b-side{position:absolute; left:calc(100% + 8.5px); top:-2.5px; display:flex; flex-direction:column; align-items:center; gap:6px; width:26px}
+.b-close{
+  display:grid; place-items:center; width:26px; height:26px; padding:0; border-radius:50%; cursor:pointer;
+  background:var(--surface); color:var(--text); border:2px solid var(--skin-ink); box-shadow:0 4px 12px var(--shadow);
+  transition:border-color .15s, color .15s, scale .15s ease;
+}
+.b-close:hover{color:var(--skin-eye); border-color:var(--skin-eye); scale:1.1}
+.b-close svg{display:block; width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:2px; stroke-linecap:round}
+.b-track{position:relative; width:6px; border-radius:3px; background:color-mix(in srgb, var(--line) 60%, transparent); cursor:pointer; touch-action:none}
+.b-thumb{position:absolute; left:0; width:6px; min-height:16px; border-radius:3px; background:var(--muted); opacity:.75; transition:opacity .15s}
+.b-track:hover .b-thumb, .b-track.held .b-thumb{opacity:1}
 .b-own button[type="submit"]{flex:none; font:inherit; font-size:calc(12.5px * var(--bubble-font, 1)); padding:4px 10px; border-radius:8px; border:0; background:var(--text); color:var(--surface); cursor:pointer}
 .b-expand{flex:none; display:grid; place-items:center; width:26px; height:26px; padding:0; border:0; border-radius:50%; background:none; color:var(--muted); cursor:pointer}
 .b-expand:hover{color:var(--text)}
@@ -219,7 +248,7 @@ body.desk .floor{display:none}
 .b-opt.dim, .b-own.dim{opacity:.35}
 /* pictures pasted into the typing box: one row of thumbnails above it; the box holds no more than fits */
 .b-imgs{display:flex; gap:6px; margin-bottom:8px}
-.b-imgs[hidden], .b-note[hidden]{display:none}
+.b-imgs[hidden], .b-note[hidden], .b-limit[hidden]{display:none}
 .b-img{position:relative; flex:none; width:calc(44px * var(--bubble-size, 1)); height:calc(44px * var(--bubble-size, 1)); border-radius:8px; overflow:hidden; border:1px solid var(--line); background:var(--bg)}
 .b-img img{display:block; width:100%; height:100%; object-fit:cover}
 .b-img button{position:absolute; top:2px; right:2px; width:18px; height:18px; padding:0; border:0; border-radius:50%; background:rgba(0,0,0,.55); color:#fff; font-size:13px; line-height:18px; cursor:pointer}
@@ -227,8 +256,7 @@ body.desk .floor{display:none}
 /* an app's conversation: one step per bubble, with the answer's controls under Coo's line */
 .d-mark{color:var(--skin-eye); font-weight:700}
 .bubble.talk{width:min(calc(318px * var(--bubble-size, 1)), calc(100vw - 20px)); max-width:none; padding:calc(11px * var(--bubble-size, 1)) calc(14px * var(--bubble-size, 1)) calc(12px * var(--bubble-size, 1))}
-.d-top{display:flex; align-items:center; min-height:14px; margin:-2px 22px 5px 0}
-.bubble.talk .b-close{top:4px; right:5px}
+.d-top{display:flex; align-items:center; min-height:14px; margin:-2px 0 5px}
 .d-back{margin:0 5px 0 -3px; padding:1px 3px; border:0; border-radius:4px; background:none; font:inherit; font-size:calc(12.5px * var(--bubble-font, 1)); line-height:1.1; color:var(--muted); cursor:pointer}
 .d-back:hover{color:var(--text); text-decoration:underline}
 .d-dots{display:flex; gap:4px}
@@ -334,7 +362,17 @@ body.desk .floor{display:none}
 .d-field .d-peek svg{width:16px; height:16px}
 .d-send{flex:none; padding:5px 12px; border-radius:9px; border:0; background:var(--skin-ink); color:var(--surface); font-size:calc(13px * var(--bubble-font, 1)); font-weight:600; cursor:pointer}
 .d-send:hover{background:var(--skin-eye)}
-.d-field.shake{animation:field-shake .32s}
+.d-field.shake, .b-own.shake{animation:field-shake .32s}
+/* a typed text past its cap (pet-app.js capField): the field's border turns red, the count shows beside the send
+   button and the text is not sent */
+.b-count{flex:none; align-self:center; font-size:calc(11.5px * var(--bubble-font, 1)); font-variant-numeric:tabular-nums; padding:0 2px; color:var(--anger)}
+.b-own.over, .b-own.over:focus-within, .d-field.over, .d-field.over:focus-within{border-style:solid; border-color:var(--anger)}
+/* in the typing box the count goes to the left of the row of buttons under the text */
+.b-own.tall .b-count{margin-right:auto; padding-left:0}
+.b-limit{margin-top:6px; color:var(--anger)}
+.b-expand.nudge{color:var(--skin-eye)}
+.b-own.over button[type="submit"], .d-field.over .d-send{opacity:.4; cursor:default}
+.b-expand:disabled{opacity:.35; cursor:default}
 @keyframes field-shake{20%,60%{transform:translateX(-4px)} 40%,80%{transform:translateX(4px)}}
 .d-links{display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:calc(12.5px * var(--bubble-font, 1))}
 .d-link{display:inline-flex; align-items:center; gap:3px; color:var(--skin-eye); text-decoration:none}
@@ -453,7 +491,7 @@ body.desk .floor{display:none}
 .tool.sent{animation:tool-sent .36s cubic-bezier(.3,1.5,.5,1)}
 @keyframes tool-sent{45%{transform:scale(1.2)}}
 @media (prefers-reduced-motion: reduce){.wall-glow, .wall-lens, .bubble.said, .w-item{transition:none}}
-@media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .d-pill.chosen, .caret, .menu :is(.m-grid, .m-rail) > *, .tools > *, .tool.holding::after, .tool.sent, .tool::before, .tool::after, .tool .ic, .tool .ic::before{animation:none}}
+@media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .b-own.shake, .d-pill.chosen, .caret, .menu :is(.m-grid, .m-rail) > *, .tools > *, .tool.holding::after, .tool.sent, .tool::before, .tool::after, .tool .ic, .tool .ic::before{animation:none}}
 @media (prefers-reduced-motion: reduce){.d-cards .d-card.on .d-cardic[class*="ic-persona_"], .d-cards .d-card.on .d-cardic .spout{animation:none}}
 /* pointed at: every round button grows a little and its icon moves once in a way that fits it (the dress button
    keeps its own colours and sparkles above); the run controls on the menu's left: the gear turns, the pause swells,
@@ -508,48 +546,50 @@ body.desk .floor{display:none}
 .pet-scale.stepping > .ps-thumb{transition:left .12s ease-out, scale .15s ease}
 .pet-scale.stepping > .ps-fill{transition:width .12s ease-out}
 @media (prefers-reduced-motion: reduce){.pet-scale.stepping > .ps-thumb, .pet-scale.stepping > .ps-fill{transition:none}}
-/* the size slider over the body (pet-app.js stepSizer): no backdrop, as the look wheel. The bar is drawn as the hover
-   buttons are (the surface, the body's 2px outline, their shadow), the fill and the knob in the body's accent; the
-   percentage is a small button-like label over the knob */
-.sizer{position:fixed; z-index:6; display:flex; align-items:center; padding:32px 8px 10px}
-.sizer[hidden]{display:none}
-.sizer .pet-scale{height:28px}
-.sizer .pet-scale > .ps-main, .sizer .pet-scale > .ps-tail{
+/* the size and transparency sliders over the body (pet-app.js stepSlider): no backdrop, as the look wheel. The bar is
+   drawn as the hover buttons are (the surface, the body's 2px outline, their shadow), the fill and the knob in the body's
+   accent; the percentage is a small button-like label over the knob */
+.head-slider{position:fixed; z-index:6; display:flex; align-items:center; padding:32px 8px 10px}
+.head-slider[hidden]{display:none}
+.head-slider .pet-scale{height:28px}
+.head-slider .pet-scale > .ps-main, .head-slider .pet-scale > .ps-tail{
   top:6px; height:16px; box-sizing:border-box; background-color:var(--surface); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
 }
-.sizer .pet-scale > .ps-main{border-radius:8px 0 0 8px; border-right:0}
+.head-slider .pet-scale > .ps-main{border-radius:8px 0 0 8px; border-right:0}
+/* the transparency slider has no stretch past a divider */
+.head-slider .pet-scale > .ps-main:has(~ .ps-tail[hidden]){border-radius:8px; border-right:2px solid var(--skin-ink)}
 /* past the divider: the same bar with a dashed middle, as the settings window's slider marks it */
-.sizer .pet-scale > .ps-tail{
+.head-slider .pet-scale > .ps-tail{
   border-radius:0 8px 8px 0; border-left:0;
   background-image:repeating-linear-gradient(90deg, color-mix(in srgb, var(--skin-ink) 45%, transparent) 0 4px, transparent 4px 8px);
   background-size:100% 4px; background-position:0 50%; background-repeat:no-repeat;
 }
-.sizer .pet-scale > .ps-fill{left:4px; top:11px; height:6px; border-radius:3px; background:var(--skin-eye)}
-.sizer .pet-scale > .ps-divider{top:3px; height:22px; width:3px; margin-left:-1.5px; border-radius:2px; background:var(--skin-ink)}
-.sizer .pet-scale.past > .ps-divider{background:var(--skin-eye)}
-.sizer .pet-scale > .ps-thumb{
+.head-slider .pet-scale > .ps-fill{left:4px; top:11px; height:6px; border-radius:3px; background:var(--skin-eye)}
+.head-slider .pet-scale > .ps-divider{top:3px; height:22px; width:3px; margin-left:-1.5px; border-radius:2px; background:var(--skin-ink)}
+.head-slider .pet-scale.past > .ps-divider{background:var(--skin-eye)}
+.head-slider .pet-scale > .ps-thumb{
   top:3px; width:22px; height:22px; margin-left:-11px; box-sizing:border-box;
   background:var(--skin-eye); border:3px solid var(--surface); box-shadow:0 0 0 2px var(--skin-ink), 0 6px 16px var(--shadow);
   transition:scale .15s ease;
 }
-.sizer .pet-scale:hover > .ps-thumb{scale:1.1}
+.head-slider .pet-scale:hover > .ps-thumb{scale:1.1}
 /* held: dragged, or stepped by the wheel a moment ago */
-.sizer .pet-scale:is(:active, .stepping) > .ps-thumb{scale:1.2}
-.sizer .sz-value{
+.head-slider .pet-scale:is(:active, .stepping) > .ps-thumb{scale:1.2}
+.head-slider .hs-value{
   position:absolute; left:50%; bottom:calc(100% + 8px); translate:-50% 0; min-width:44px; padding:2px 8px; box-sizing:border-box;
   border-radius:999px; text-align:center; white-space:nowrap; pointer-events:none;
   font-size:12px; font-weight:600; line-height:16px; font-variant-numeric:tabular-nums;
   background:var(--surface); color:var(--text); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
 }
-.sizer.entering{animation:sz-in .24s cubic-bezier(.3,1.4,.5,1) backwards}
+.head-slider.entering{animation:hs-in .24s cubic-bezier(.3,1.4,.5,1) backwards}
 /* a group of controls let go of glides back beside the body (pet-app.js follow, RETURN_MS) */
-:is(.tools, .wheel, .sizer, .m-grid, .m-rail).returning{transition:left .26s cubic-bezier(.2,.7,.3,1), top .26s cubic-bezier(.2,.7,.3,1), right .26s cubic-bezier(.2,.7,.3,1)}
-/* the size button while it holds the slider open (pet-app.js pinSizer) */
-.tool[data-action="size"].on{color:var(--skin-eye); border-color:var(--skin-eye)}
-/* SIZER_OUT_MS in pet-app.js */
-.sizer.leaving{animation:sz-out .14s ease-in forwards; pointer-events:none}
-@keyframes sz-in{from{transform:translateY(8px) scale(.6); opacity:0}}
-@keyframes sz-out{to{transform:translateY(8px) scale(.6); opacity:0}}
-@media (prefers-reduced-motion: reduce){.sizer{animation:none}}
+:is(.tools, .wheel, .head-slider, .m-grid, .m-rail).returning{transition:left .26s cubic-bezier(.2,.7,.3,1), top .26s cubic-bezier(.2,.7,.3,1), right .26s cubic-bezier(.2,.7,.3,1)}
+/* a size or transparency button while it holds its slider open (pet-app.js pinSlider) */
+.tool:is([data-action="size"], [data-action="fade"]).on{color:var(--skin-eye); border-color:var(--skin-eye)}
+/* SLIDER_OUT_MS in pet-app.js */
+.head-slider.leaving{animation:hs-out .14s ease-in forwards; pointer-events:none}
+@keyframes hs-in{from{transform:translateY(8px) scale(.6); opacity:0}}
+@keyframes hs-out{to{transform:translateY(8px) scale(.6); opacity:0}}
+@media (prefers-reduced-motion: reduce){.head-slider{animation:none}}
 
 .fireworks{position:absolute; pointer-events:none}

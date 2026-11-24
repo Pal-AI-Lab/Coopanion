@@ -19,6 +19,9 @@ export default {
   'bubble.imageUnreadable': '无法读取这张图片',
   'bubble.imageTooLarge': '这张图片缩小后仍超过 {mb}MB',
   'bubble.imagesUnseen': '现在的模型看不到图片，{bot} 只会知道你发了几张图。',
+  /** A typed text past its cap (the count beside it shows the cap); the typing box's while the Chat page takes it. */
+  'bubble.tooLong': '超出 {over} 字，删减后才能发送',
+  'bubble.tooLongForBox': '超出 {over} 字，可在对话页继续编辑',
 
   // 你说的话:语音识别中的样子;对话页发来的消息附的图片数
   'heard.more': '正在倾听…',
@@ -50,6 +53,13 @@ export default {
   'action.soundOff': '音效：已关闭 · 点击开启',
   'action.size': '大小：{pct}%',
   'action.sizeLabel': '桌宠大小',
+  'action.fade': "透明度：{pct}%",
+  'action.fadeFullscreen': "全屏时透明度：{pct}%",
+  'action.fadeLabel': "桌宠透明度",
+  'action.fadeFullscreenLabel': "全屏时的桌宠透明度",
+  'action.cuaOn': "电脑操作：已开启 · 点击关闭",
+  'action.cuaOffAsk': "电脑操作：已关闭 · 点击在设置窗口开启",
+  'action.cuaOff': "电脑操作：已关闭 · 点击开启",
   'action.dress': '装扮',
   'action.worlds': '我的 World',
   'action.hide': '隐藏桌宠（可从托盘图标重新显示）',

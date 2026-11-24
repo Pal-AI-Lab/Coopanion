@@ -20,6 +20,9 @@ export default {
 
   /** 语音输入:菜单里麦克风按钮的状态、引导和设置页的说明 */
   voice: {
+    serviceStopped: '识别服务已停止，当前无法语音输入',
+    recorded: '录音已投递',
+    recordingUnavailable: '录音无法投递，且没有可用的转写',
     starting: '识别服务启动中',
     notRunning: '识别服务没有运行',
     modelMissing: (mb: number) => `识别模型尚未下载（约 ${mb} MB），请在「语音输入」页下载`,
@@ -200,7 +203,7 @@ export default {
     theme: { dark: '换成夜间模式', light: '换成白天模式' } as Record<'dark' | 'light', string>,
     hover: (list: string) => `把悬停按钮换成${list}`,
     hoverNone: '去掉所有悬停按钮',
-    actions: { chat: '打字', voice: '语音输入', roam: '走动', theme: '夜间模式', sound: '音效', size: '大小', dress: '装扮', hide: '隐藏桌宠', worlds: '我的 World' } as Record<string, string>,
+    actions: { chat: '打字', voice: '语音输入', roam: '走动', theme: '夜间模式', sound: '音效', size: '大小', fade: "透明度", dress: '装扮', cua: "电脑操作", hide: '隐藏桌宠', worlds: '我的 World' } as Record<string, string>,
     user: (to: string) => `改叫你「${to}」`,
   },
 
@@ -266,8 +269,11 @@ export default {
     glow: { title: '外发光', description: '桌宠和身后的颜色相近时，身体周围出现的浅色外发光向外延伸多少像素；0 为关闭。' },
     frameRate: { title: '帧率', description: '走动、被拎着、跳起时每秒画多少帧；0 跟随显示器刷新率。超过显示器刷新率时按显示器的。「习惯」页可选 60、120、144 和不限。' },
     lockFrameRate: { title: '帧率锁定', description: '静止时也按「帧率」画桌宠。关着时站着、坐着、睡着降到每秒 30 帧。' },
+    fade: { title: "透明度", description: "桌宠和气泡有多透明：0 为不透明，最高 95%，5% 一档。打字框、提问或确认卡片打开时，以及拎着桌宠时恢复不透明。" },
     hideWhenFullscreen: { title: '全屏时自动隐藏', description: '开着时，前台窗口全屏铺满桌宠所在的那块屏（游戏、全屏视频、浏览器全屏）就把 Coo 藏起来，退出全屏放回来；最大化的窗口不算。关着时一直浮在上面。' },
     passWhenFullscreen: { title: "全屏时鼠标穿透", description: "开着时，前台窗口全屏铺满桌宠所在的那块屏期间 Coo 照常显示，点击全部穿过 Coo 落到下面的窗口，退出全屏后恢复；最大化的窗口不算。和全屏时自动隐藏同时开着时 Coo 会隐藏。" },
+    fadeWhenFullscreen: { title: "全屏时变淡", description: "开着时，前台窗口全屏铺满桌宠所在的那块屏期间改用「全屏时透明度」，退出全屏后恢复；最大化的窗口不算。" },
+    fullscreenFade: { title: "全屏时透明度" },
     overTaskbar: { title: "显示在任务栏上", description: "开着时桌宠窗口向下盖住屏幕底部的任务栏，形象绘制在地面以下的部分（坐下时垂下的腿）显示在任务栏上；关着时窗口到任务栏上沿为止。" },
     hideFromCapture: { title: "不出现在截图和录屏里", description: "开着时 Coo 不出现在截图、录屏、直播和 Coo 自己的截屏里。开着时 NVIDIA 即时重放的桌面捕获可能无法开启。" },
     exportOverlay: { title: 'OBS 画面', description: '在 /overlay 提供桌宠窗口的透明画面，供 OBS「浏览器」来源使用；关闭时不提供。' },
@@ -294,6 +300,7 @@ export default {
     speechSpeed: { title: '说话声语速', description: (a: number, b: number, c: number) => `每秒最多念几个音节：low、mid、high 依次为 ${a}、${b}、${c}；custom 用自定义语速。比文字慢时，声音在文字打完后才念完。` },
     speechRate: { title: '自定义语速', suffix: '音节/秒' },
     asrEnabled: { title: '语音输入总开关' },
+    asrServiceEnabled: { title: '开启识别服务', description: '语音输入开启时启动识别服务；关闭后，支持音频的模型仍可接收仅录音输入。' },
     asrEngine: { title: '识别引擎', description: 'funasr 用 FunASR 的 SenseVoiceSmall，支持中文、英文、日文、韩文和粤语，首次要下载约 240 MB 的模型；whisper 用 OpenAI 的 Whisper small，支持法语、德语、西班牙语、葡萄牙语、意大利语、俄语等近百种语言，首次要下载约 360 MB 的模型，一句说完才出字；这两个都在本机识别。system 用 Windows 自带的语音识别，不用下载，准确度低一些（只在 Windows 上有）。api 把每句录音发送给 OpenAI 兼容的转写接口识别，一句说完才出字；地址和模型在下面填写，API Key 在「语音输入」页填写。留空时按应用语言选：中文、英文、日文、韩文用 funasr，其余用 whisper。' },
     asrLanguage: { title: '语言', description: 'ISO 639-1 语言代码，或 auto 让模型自己判断；留空时跟随应用语言。FunASR 认 zh、en、ja、ko、yue，Whisper 认 fr、de、es、pt、it、ru 等近百种，不认的代码按 auto。转写接口只在代码是两个字母时带上语言。' },
     asrApiUrl: { title: '转写接口地址', description: '引擎为 api 时，每句录音发送到这个地址后面的 /audio/transcriptions，例如 https://api.example.com/v1。远程地址只能用 https，本机和局域网的地址可以用 http。' },

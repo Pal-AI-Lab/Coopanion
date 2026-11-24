@@ -19,6 +19,7 @@ import { panelStreamRoute } from '../../base/protocol.ts';
 import { openStream } from '../../base/stream.ts';
 import { promptInput } from '../../base/ui/prompt-input.tsx';
 import { actionProblem } from '../../base/ui/problem.ts';
+import { S as UI } from '../../base/ui/strings.ts';
 import { browserSocketEnv } from '../../base/websocket.ts';
 import { intro } from '../intro.ts';
 import { requestMode } from '../mode.ts';
@@ -35,7 +36,7 @@ const CONTEXT_POLL_MS = 5000;
 interface WireImage { ref: string; mime: string; name?: string }
 interface SayBeat { text: string; mood?: Record<string, string> }
 export interface Touch { kind: string; count: number; woke: boolean; crashed: boolean }
-interface Refs { withdrawn?: number[]; delivered?: Array<[number, number]> }
+interface Refs { withdrawn?: number[]; delivered?: Array<[number, number]>; transcripts?: Array<[number, string]> }
 type ChatItem =
   | { kind: 'user'; cursor: number; ts: string; via: 'chat' | 'bubble' | 'voice'; text: string; images?: WireImage[]; at?: number }
   | { kind: 'answer'; cursor: number; ts: string; askId: string; index?: number; text?: string; dismissed?: true }
@@ -76,6 +77,8 @@ async function mount(ctx: PageContext): Promise<void> {
   let more = false;
   let before: number | null = null;
   let imagesSeen = true;
+  /** The longest written answer to a question the World takes (`answerMax` in `init`). */
+  let answerMax: number | null = null;
   /** The question the pet still waits on an answer to, as the World says; null when none. */
   let openAsk: string | null = null;
   let gauge: ContextGauge | null = null;
@@ -86,12 +89,14 @@ async function mount(ctx: PageContext): Promise<void> {
   const pending = new Map<number, UserItem>();
   /** Messages that never reached the bot. */
   const discarded = new Set<number>();
-  /** Withdrawn messages and where waiting messages were delivered, from the history loaded so far; applied to earlier pages. */
+  /** Withdrawn messages, where waiting messages were delivered and transcripts of recordings, from the history loaded so far; applied to earlier pages. */
   const withdrawnRefs = new Set<number>();
   const deliveredRefs = new Map<number, number>();
+  const transcriptRefs = new Map<number, string>();
   const takeRefs = (refs: Refs | undefined): void => {
     for (const c of refs?.withdrawn ?? []) withdrawnRefs.add(c);
     for (const [c, at] of refs?.delivered ?? []) deliveredRefs.set(c, at);
+    for (const [c, text] of refs?.transcripts ?? []) transcriptRefs.set(c, text);
   };
   /** What this page sent, by the id it gave, then by cursor: a withdrawn message comes back as typed. */
   const sentById = new Map<number, { text: string; images: readonly WebUiImageAttachment[] }>();
@@ -228,7 +233,6 @@ async function mount(ctx: PageContext): Promise<void> {
       const form = ui.h('form', 'b-own');
       const input = doc.createElement('input');
       input.type = 'text';
-      input.maxLength = 500;
       input.placeholder = S.ownAnswer;
       if (answer?.text) { input.value = answer.text; form.classList.add('chosen'); }
       else if (answer) form.classList.add('dim');
@@ -241,11 +245,24 @@ async function mount(ctx: PageContext): Promise<void> {
       const submit = ui.h('button', null, S.send);
       submit.type = 'submit';
       submit.disabled = !open;
-      form.append(input, submit);
+      // past the World's cap the answer stays in the field, is not sent, and its count shows
+      const count = ui.h('span', 'b-count');
+      const over = (): number => (answerMax !== null ? Math.max(0, input.value.trim().length - answerMax) : 0);
+      const paint = (): void => {
+        const by = over();
+        count.hidden = by === 0;
+        count.textContent = `${input.value.trim().length} / ${answerMax}`;
+        count.title = by ? UI.tooLong(by, answerMax!) : '';
+        form.classList.toggle('over', by > 0);
+        submit.disabled = !open || by > 0;
+      };
+      if (open && !answer) input.addEventListener('input', paint, { signal: ctx.signal });
+      paint();
+      form.append(input, count, submit);
       form.addEventListener('submit', (e) => {
         e.preventDefault();
         const v = input.value.trim();
-        if (v) stream.send(JSON.stringify({ t: 'answer', askId: it.askId, text: v }));
+        if (v && !over()) stream.send(JSON.stringify({ t: 'answer', askId: it.askId, text: v }));
       }, { signal: ctx.signal });
       opts.append(form);
     }
@@ -389,6 +406,8 @@ async function mount(ctx: PageContext): Promise<void> {
             before = typeof f.before === 'number' ? f.before : null;
             imagesSeen = f.imagesSeen !== false;
             composer.setImageWarning(imagesSeen ? null : S.imagesUnseen(bot));
+            composer.setMaxLength(typeof f.textMax === 'number' ? f.textMax : null);
+            answerMax = typeof f.answerMax === 'number' ? f.answerMax : null;
             openAsk = typeof f.askId === 'string' ? f.askId : null;
             takeRefs(f.refs as Refs | undefined);
             const waiting = new Set(Array.isArray(f.pending) ? f.pending as number[] : []);
@@ -403,7 +422,8 @@ async function mount(ctx: PageContext): Promise<void> {
             for (const it of (f.items as ChatItem[]) ?? []) {
               if (withdrawnRefs.has(it.cursor)) continue;
               const at = deliveredRefs.get(it.cursor);
-              addItem(it.kind === 'user' && at !== undefined ? { ...it, at } : it);
+              const text = transcriptRefs.get(it.cursor);
+              addItem(it.kind === 'user' ? { ...it, ...(at !== undefined ? { at } : {}), ...(text !== undefined ? { text } : {}) } : it);
             }
             takeRefs(f.refs as Refs | undefined);
             sortItems();
@@ -437,6 +457,11 @@ async function mount(ctx: PageContext): Promise<void> {
             }
             sortItems();
             refresh();
+            return;
+          }
+          case 'transcript': {
+            const it = items.get(f.cursor as number);
+            if (it?.kind === 'user' && typeof f.text === 'string') { it.text = f.text; refresh(); }
             return;
           }
           case 'withdrawn': {

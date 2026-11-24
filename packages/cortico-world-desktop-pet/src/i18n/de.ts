@@ -12,6 +12,9 @@ const de: Translation<PetText> = {
   busy: 'Arbeitet',
 
   voice: {
+    serviceStopped: 'Spracherkennungsdienst gestoppt; Spracheingabe nicht verfügbar',
+    recorded: 'Aufnahme gesendet',
+    recordingUnavailable: 'Aufnahme konnte nicht gesendet werden; kein Transkript verfügbar',
     starting: 'Spracherkennung startet',
     notRunning: 'Spracherkennung läuft nicht',
     modelMissing: (mb: number) => `Das Sprachmodell ist noch nicht heruntergeladen (etwa ${mb} MB): Lade es auf der Seite Spracheingabe herunter`,
@@ -178,7 +181,7 @@ const de: Translation<PetText> = {
     theme: { dark: 'zum Nacht-Look wechseln', light: 'zum Tag-Look wechseln' },
     hover: (list: string) => `die Hover-Schaltflächen auf ${list} ändern`,
     hoverNone: 'alle Hover-Schaltflächen entfernen',
-    actions: { chat: 'Tippen', voice: 'Spracheingabe', roam: 'Herumlaufen', theme: 'Nachtmodus', sound: 'Töne', size: 'Größe', dress: 'Outfit', hide: 'Haustier ausblenden', worlds: 'Meine Worlds' },
+    actions: { chat: 'Tippen', voice: 'Spracheingabe', roam: 'Herumlaufen', theme: 'Nachtmodus', sound: 'Töne', size: 'Größe', fade: "Transparenz", dress: 'Outfit', cua: "Computersteuerung", hide: 'Haustier ausblenden', worlds: 'Meine Worlds' },
     user: (to: string) => `dich „${to}“ nennen`,
   },
 
@@ -239,8 +242,11 @@ const de: Translation<PetText> = {
     glow: { title: 'Leuchtrand', description: 'Wie viele Pixel der helle Schein um das Haustier reicht, wenn Coos Farben dem Hintergrund ähneln; 0 schaltet ihn aus.' },
     frameRate: { title: 'Bildrate', description: 'Bilder pro Sekunde, während das Haustier läuft, getragen wird oder springt; 0 folgt dem Bildschirm. Über der Bildwiederholrate des Bildschirms gilt die des Bildschirms. Die Seite Gewohnheiten bietet 60, 120, 144 und Unbegrenzt.' },
     lockFrameRate: { title: 'Bildrate fixieren', description: 'Zeichnet das Haustier auch im Ruhezustand mit der Bildrate. Wenn aus, sinkt sie im Stehen, Sitzen oder Schlafen auf 30 Bilder pro Sekunde.' },
+    fade: { title: "Transparenz", description: "Wie durchsichtig das Haustier und seine Blasen sind: 0 ist deckend, höchstens 95 %, in Schritten von 5 %. Solange das Eingabefeld, eine Frage oder eine Bestätigung offen ist und solange das Haustier getragen wird, ist es deckend." },
     hideWhenFullscreen: { title: 'Bei Vollbild ausblenden', description: 'Wenn an, versteckt sich das Haustier, solange das Fenster im Vordergrund Coos Bildschirm füllt (ein Spiel, ein Vollbildvideo, ein Browser im Vollbild), und kommt zurück, wenn das Vollbild endet; ein maximiertes Fenster zählt nicht. Wenn aus, bleibt Coo immer im Vordergrund.' },
     passWhenFullscreen: { title: "Bei Vollbild Klicks durch Coo durchlassen", description: "Wenn an, bleibt Coo sichtbar, solange das Fenster im Vordergrund Coos Bildschirm füllt, und jeder Klick geht durch Coo an das Fenster darunter, bis das Vollbild endet; ein maximiertes Fenster zählt nicht. Ist „Bei Vollbild ausblenden“ auch an, versteckt sich Coo." },
+    fadeWhenFullscreen: { title: "Bei Vollbild verblassen", description: "Wenn an, gilt die Transparenz bei Vollbild statt der üblichen, solange das Fenster im Vordergrund Coos Bildschirm füllt, bis das Vollbild endet; ein maximiertes Fenster zählt nicht." },
+    fullscreenFade: { title: "Transparenz bei Vollbild" },
     overTaskbar: { title: "Über der Taskleiste anzeigen", description: "Ein: Das Haustierfenster reicht nach unten über die Taskleiste am unteren Bildschirmrand, und was eine Figur unterhalb des Bodens zeichnet (im Sitzen herabhängende Beine), erscheint über der Taskleiste; aus: Das Fenster endet an der Oberkante der Taskleiste." },
     hideFromCapture: { title: "Nicht in Screenshots und Aufnahmen zeigen", description: "Ein: Coo erscheint nicht in Screenshots, Bildschirmaufnahmen, Livestreams und den Screenshots, die Coo aufnimmt. Ein: Die Desktopaufnahme von NVIDIA Instant Replay lässt sich möglicherweise nicht einschalten." },
     exportOverlay: { title: 'OBS-Overlay', description: 'Stellt das Bild des Haustierfensters mit transparentem Hintergrund unter /overlay für eine OBS-„Browser“-Quelle bereit; aus, wird nichts bereitgestellt.' },
@@ -267,6 +273,7 @@ const de: Translation<PetText> = {
     speechSpeed: { title: 'Sprechtempo', description: (a: number, b: number, c: number) => `Höchstens so viele Silben pro Sekunde: low, mid und high sind ${a}, ${b} und ${c}; custom nimmt das eigene Tempo. Langsamer als der Text, endet die Stimme nach ihm.` },
     speechRate: { title: 'Eigenes Tempo', suffix: 'Silben/s' },
     asrEnabled: { title: 'Spracheingabe' },
+    asrServiceEnabled: { title: 'Spracherkennungsdienst', description: 'Die Erkennung bei aktiver Spracheingabe starten; bei deaktiviertem Dienst können audiofähige Modelle weiterhin nur Aufnahmen empfangen.' },
     asrEngine: { title: 'Erkennungs-Engine', description: 'funasr führt SenseVoiceSmall von FunASR aus, für Chinesisch, Englisch, Japanisch, Koreanisch und Kantonesisch, nach einem einmaligen Download von etwa 240 MB; whisper führt Whisper small von OpenAI aus, für Französisch, Deutsch, Spanisch, Portugiesisch, Italienisch, Russisch und etwa 90 weitere Sprachen, nach einem einmaligen Download von etwa 360 MB, und zeigt den Text, sobald ein Satz endet; beide erkennen auf diesem Computer. system nutzt die Spracherkennung von Windows, ohne Download und weniger genau (nur Windows). api schickt die Aufnahme jedes Satzes an einen OpenAI-kompatiblen Transkriptionsdienst und zeigt den Text, sobald der Satz endet; Adresse und Modell werden unten eingetragen, der API Key auf der Seite Spracheingabe. Leer wählt nach der App-Sprache: funasr für Chinesisch, Englisch, Japanisch und Koreanisch, whisper für die übrigen.' },
     asrLanguage: { title: 'Sprache', description: 'Ein ISO-639-1-Code oder auto, damit das Modell selbst entscheidet; leer folgt der App-Sprache. FunASR nimmt zh, en, ja, ko und yue, Whisper etwa hundert Codes wie fr, de, es, pt, it und ru; ein Code, den das Modell nicht nimmt, gilt als auto. Der Transkriptionsdienst bekommt den Code nur, wenn er zwei Buchstaben hat.' },
     asrApiUrl: { title: 'Adresse des Transkriptionsdiensts', description: 'Mit der Engine api geht jeder Satz an /audio/transcriptions unter dieser Adresse, etwa https://api.example.com/v1. Eine entfernte Adresse muss https verwenden; Adressen auf diesem Computer oder im lokalen Netz dürfen http verwenden.' },
