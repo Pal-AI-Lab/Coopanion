@@ -22,6 +22,8 @@ export const S: Partial<typeof en> = {
   },
   cancel: 'Cancelar',
   proceedAnyway: 'Continuar mesmo assim',
+  leave: 'Sair',
+  unsavedTitle: 'Alterações não salvas',
   confirm: 'Confirmar',
   gotIt: 'Entendi',
   close: '✕ Fechar (Esc)',

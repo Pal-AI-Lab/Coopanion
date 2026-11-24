@@ -10,6 +10,7 @@ export const S: Partial<typeof en> = {
   bucketDay: '일',
   bucketWeek: '주',
   bucketMonth: '월',
+  bucketTooFine: (max: number) => `이 기간을 이 단위로 나누면 막대가 ${max}개를 넘습니다. 더 큰 단위를 선택하거나 기간을 줄이세요`,
   presetToday: '오늘',
   preset3: '최근 3일',
   preset7: '최근 7일',

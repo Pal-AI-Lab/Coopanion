@@ -10,6 +10,7 @@ export const S: Partial<typeof en> = {
   bucketDay: '日',
   bucketWeek: '週',
   bucketMonth: '月',
+  bucketTooFine: (max: number) => `この期間をこの粒度で表示すると ${max} 本を超えます。粗い粒度を選ぶか、期間を短くしてください`,
   presetToday: '今日',
   preset3: '過去 3 日',
   preset7: '過去 7 日',
