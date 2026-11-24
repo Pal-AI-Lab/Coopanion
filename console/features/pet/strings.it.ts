@@ -38,7 +38,7 @@ export const S: Partial<typeof en> = {
   motionMedium: 'Medie',
   motionHigh: 'Tutte',
   motionSystem: 'Come il sistema',
-  motionHint: "Quanto si muove l'interfaccia, in questa finestra e sull'animaletto. Medie toglie i rimbalzi e le animazioni decorative; Poche lascia solo i cambi di colore e gli indicatori di caricamento. Il movimento di Coo si imposta in Movimento.",
+  motionHint: "Quanto si muove l'interfaccia, in questa finestra e sull'animaletto. Medie toglie i rimbalzi e le animazioni decorative; Poche lascia solo i cambi di colore e gli indicatori di caricamento.",
   hideFullscreen: 'Nascondi automaticamente',
   hideFullscreenHint: "Si nasconde a schermo intero e ricompare all'uscita. Una finestra ingrandita non conta.",
   passFullscreen: "Lascia passare i clic attraverso Coo",

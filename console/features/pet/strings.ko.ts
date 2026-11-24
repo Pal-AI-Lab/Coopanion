@@ -38,7 +38,7 @@ export const S: Partial<typeof en> = {
   motionMedium: '보통',
   motionHigh: '많이',
   motionSystem: '시스템 설정 따르기',
-  motionHint: '이 창과 펫 화면이 얼마나 움직이는지 정합니다. 보통은 튀는 효과와 장식용 움직임을 빼고, 적게는 색 변화와 로딩 표시만 남깁니다. Coo의 움직임은 「걷기」에서 설정합니다.',
+  motionHint: '이 창과 펫 화면이 얼마나 움직이는지 정합니다. 보통은 튀는 효과와 장식용 움직임을 빼고, 적게는 색 변화와 로딩 표시만 남깁니다.',
   hideFullscreen: '자동으로 숨기기',
   hideFullscreenHint: '전체 화면일 때 숨었다가 전체 화면이 끝나면 다시 나타납니다. 최대화된 창은 해당하지 않습니다.',
   passFullscreen: "클릭이 Coo를 통과",

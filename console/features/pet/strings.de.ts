@@ -38,7 +38,7 @@ export const S: Partial<typeof en> = {
   motionMedium: 'Mittel',
   motionHigh: 'Viel',
   motionSystem: 'Wie im System',
-  motionHint: 'Wie viel sich die Oberfläche bewegt, in diesem Fenster und beim Haustier. Mittel lässt Federn und Zierbewegungen weg; Wenig behält nur Farbwechsel und Ladeanzeigen. Wie Coo selbst sich bewegt, steht unter Herumlaufen.',
+  motionHint: 'Wie viel sich die Oberfläche bewegt, in diesem Fenster und beim Haustier. Mittel lässt Federn und Zierbewegungen weg; Wenig behält nur Farbwechsel und Ladeanzeigen.',
   hideFullscreen: 'Automatisch ausblenden',
   hideFullscreenHint: 'Blendet sich bei Vollbild aus und kommt danach zurück. Ein maximiertes Fenster zählt nicht.',
   passFullscreen: "Klicks durch Coo durchlassen",

@@ -38,7 +38,7 @@ export const S: Partial<typeof en> = {
   motionMedium: '標準',
   motionHigh: 'すべて',
   motionSystem: 'システムに合わせる',
-  motionHint: 'このウィンドウとペットの画面がどれだけ動くか。標準では弾む動きと飾りの動きを省き、少なめでは色の変化と読み込み表示だけを残します。Coo 自身の動きは「歩き回り」で設定します。',
+  motionHint: 'このウィンドウとペットの画面がどれだけ動くか。標準では弾む動きと飾りの動きを省き、少なめでは色の変化と読み込み表示だけを残します。',
   hideFullscreen: '自動で隠す',
   hideFullscreenHint: '全画面表示のあいだは隠れ、終わると再表示します。最大化したウィンドウは対象外です。',
   passFullscreen: "クリックを Coo に通さない",

@@ -38,7 +38,7 @@ export const S: Partial<typeof en> = {
   motionMedium: 'Médio',
   motionHigh: 'Completo',
   motionSystem: 'Seguir o sistema',
-  motionHint: 'Quanto a interface se mexe, nesta janela e no pet. Médio tira os quiques e o movimento decorativo; Pouco deixa só as mudanças de cor e os indicadores de carregamento. O movimento do Coo é ajustado em Passeios.',
+  motionHint: 'Quanto a interface se mexe, nesta janela e no pet. Médio tira os quiques e o movimento decorativo; Pouco deixa só as mudanças de cor e os indicadores de carregamento.',
   hideFullscreen: 'Ocultar automaticamente',
   hideFullscreenHint: 'Some enquanto algo está em tela cheia e volta depois. Uma janela maximizada não conta.',
   passFullscreen: "Deixar os cliques atravessarem o Coo",

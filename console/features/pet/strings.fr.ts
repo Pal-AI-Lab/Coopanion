@@ -38,7 +38,7 @@ export const S: Partial<typeof en> = {
   motionMedium: 'Moyennes',
   motionHigh: 'Complètes',
   motionSystem: 'Comme le système',
-  motionHint: "Quantité d'animation de l'interface, dans cette fenêtre et sur le compagnon. Moyennes retire les rebonds et les animations décoratives ; Faibles ne garde que les changements de couleur et les indicateurs de chargement. Les mouvements de Coo se règlent dans Déplacements.",
+  motionHint: "Quantité d'animation de l'interface, dans cette fenêtre et sur le compagnon. Moyennes retire les rebonds et les animations décoratives ; Faibles ne garde que les changements de couleur et les indicateurs de chargement.",
   hideFullscreen: 'Masquer automatiquement',
   hideFullscreenHint: 'Se masque pendant le plein écran et réapparaît ensuite. Une fenêtre agrandie ne compte pas.',
   passFullscreen: "Laisser passer les clics à travers Coo",
