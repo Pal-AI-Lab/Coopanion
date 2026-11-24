@@ -2588,10 +2588,10 @@ stage.addEventListener('pointerdown', (e) => {
 });
 const up = (e) => { pressing = false; body?.pointer('up', { x: e?.clientX ?? lastPointer.x, y: e?.clientY ?? lastPointer.y, t: e?.timeStamp ?? performance.now() }); stage.style.cursor = ''; };
 /**
- * Most milliseconds a drop on another display waits for the page to take the window's new size
+ * Most milliseconds a move onto another display waits for the page to take the window's new size
  * (within a pixel: fractional scales round it). The size normally arrives a frame or two after
  * the move; the cap ends the wait when the window settled at some other size, and the pet then
- * drops inside whatever size the page has.
+ * stays inside whatever size the page has.
  */
 const RESIZE_WAIT_MS = 1000;
 /** Waits until the page has the window size `to` gives, or RESIZE_WAIT_MS has passed, then lays the stage out again. */
@@ -2603,6 +2603,29 @@ async function settleSize(to) {
   body?.set({ bounds: bounds() });
 }
 const outside = (p) => p.x < 0 || p.y < 0 || p.x >= innerWidth || p.y >= innerHeight;
+/**
+ * Moves the window onto the display under the cursor and returns what `followCursor` gives, or null when the
+ * cursor is over the window's own display. The page draws blank from before the move until it has the new size:
+ * a frame drawn in the old display's coordinates after the move shows at the new place. `moved(to)` runs as
+ * soon as the window has moved, `settled(to)` once the page has the new size; the page shows again after it.
+ */
+async function moveToCursorDisplay(moved, settled) {
+  if (!(await host.cursorElsewhere().catch(() => false))) return null;
+  // opacity keeps the held stage under the pointer: with visibility hidden it misses the moves and the release
+  document.body.style.opacity = '0';
+  try {
+    // the blank frame is on screen before the window moves
+    for (let i = 0; i < 2; i++) await new Promise((r) => requestAnimationFrame(r));
+    const to = await host.followCursor().catch(() => null);
+    if (!to) return null;
+    moved?.(to);
+    await settleSize(to);
+    settled?.(to);
+    return to;
+  } finally {
+    document.body.style.opacity = '';
+  }
+}
 /** A move of the window onto the display under the cursor, while one is under way. */
 let following = null;
 /** True from asking for that move until the drag has shifted into the new coordinates. */
@@ -2614,31 +2637,16 @@ let shifting = false;
 function followDrag(p) {
   if (following || at()?.mode !== 'drag' || !host?.followCursor || !outside(p)) return;
   shifting = true;
-  following = (async () => {
-    const to = await host.followCursor().catch(() => null);
-    shifting = false;
-    if (!to) return;
-    body?.shift(to.dx, to.dy);
-    await settleSize(to);
-  })().finally(() => { following = null; shifting = false; });
+  following = moveToCursorDisplay((to) => { shifting = false; body?.shift(to.dx, to.dy); })
+    .finally(() => { following = null; shifting = false; });
 }
 stage.addEventListener('pointerup', async (e) => {
   // the window was moving under the cursor: the release point is in the coordinates it left behind
   if (following) { await following; up(); return; }
   if (!outside({ x: e.clientX, y: e.clientY }) || at()?.mode !== 'drag' || !host?.followCursor) { up(e); return; }
   // let go of past the window's edge in one move: over another display the window follows and the pet drops there
-  const to = await host.followCursor().catch(() => null);
-  if (!to) { up(e); return; }
-  pressing = false;
-  stage.style.cursor = '';
-  // until the drop the body and bubbles still stand in the old display's coordinates
-  document.body.style.visibility = 'hidden';
-  try {
-    await settleSize(to);
-    body?.drop({ x: to.x, y: to.y });
-  } finally {
-    document.body.style.visibility = '';
-  }
+  const to = await moveToCursorDisplay(() => { pressing = false; stage.style.cursor = ''; }, (to) => body?.drop({ x: to.x, y: to.y }));
+  if (!to) up(e);
 });
 stage.addEventListener('pointercancel', up);
 document.addEventListener('pointerleave', () => { cursor.at = null; body?.pointer('leave', {}); });
