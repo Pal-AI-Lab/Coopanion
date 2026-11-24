@@ -154,7 +154,8 @@ button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .btn.danger{background:var(--anger); border-color:var(--anger); color:#fff}
 /* dragging a favourite (drag-row.js), as the settings window drags its lists: an empty place where it would land,
    a lifted copy following the pointer, the pointer itself hidden */
-.look-tile.is-dragging{border:1px dashed var(--line); border-radius:10px}
+/* the empty place keeps the tile's size: an outline, not a border, so the strip (and the line under it) does not grow */
+.look-tile.is-dragging{outline:1px dashed var(--line); outline-offset:-1px; border-radius:10px}
 .look-tile.is-dragging > *{visibility:hidden}
 html.is-list-dragging, html.is-list-dragging *{cursor:none !important; user-select:none}
 .look-drag-copy{position:fixed; z-index:20; margin:0; pointer-events:none; border-radius:10px; box-shadow:0 0 0 1px var(--line), 0 14px 30px -14px rgba(0,0,0,.45)}
