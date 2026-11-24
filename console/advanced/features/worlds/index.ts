@@ -499,8 +499,8 @@ export function mountWorlds(ctx: FeatureContext): void {
   /** Where a drop at `y` would land; the empty place moves there. */
   function locateDrop(y: number) {
     if (!dragging) return;
-    // Over its own empty place the target stays: the place sits where the last target put it, and reading
-    // what is beside it again moved it back and forth while the pointer stayed between a row and a group.
+    // Over its own empty place the target stays where the last one put it: read again from the rows beside
+    // the place, it would flip between a row and a group while the pointer stays still.
     if (gap?.offsetParent && dropAt) { const r = settledBox(gap); if (y >= r.top && y <= r.bottom) return; }
     clearDrop();
     const shown = (el: Element): el is HTMLElement => (el as HTMLElement).offsetParent !== null && !el.classList.contains('is-dragging');
@@ -521,8 +521,8 @@ export function mountWorlds(ctx: FeatureContext): void {
           dropAt = { group: inside.el.dataset.group!, before: next?.dataset.key ?? null, head: inside.head };
           inside.head.classList.add('is-drop-target'); placeGap(); return;
         }
-        // Between boxes the row lands before whatever comes next, a group's header included: skipping
-        // headers put it after the whole group when the pointer was in the margin above one.
+        // Between boxes the row lands before whatever comes next, a group's header included, so the margin
+        // above a group puts it before that group.
         const heads = [...groupNodes.values()].map(node => node.head).filter(shown);
         const next = [...rows, ...heads].map(el => ({ el, top: settledBox(el).top })).filter(c => c.top > y).sort((a, b) => a.top - b.top)[0]?.el;
         if (!next) { dropAt = { group: null, before: null }; placeGap(); return; }
