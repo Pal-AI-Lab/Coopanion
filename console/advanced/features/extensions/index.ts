@@ -790,7 +790,8 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
    * in Chinese and Japanese, which break between characters.
    */
   function helpName(row: HTMLElement, label: string, hint: string) {
-    const ELLIPSIS_AND_MARK = 30; // px: an ellipsis, the mark (16px) and the space before it, with a little to spare
+    // px: the mark (16) and its 2px margin (styles.css `.extension-tag-help`), and an ellipsis of at most one em of the 11.5px sidebar font
+    const ELLIPSIS_AND_MARK = 16 + 2 + 11.5;
     const end = label.trimEnd(), lastChar = Array.from(end).pop() ?? '';
     const byCharacter = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(lastChar);
     const cut = byCharacter ? end.length - lastChar.length : Math.max(0, end.search(/\S+$/));
