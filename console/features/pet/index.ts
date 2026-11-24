@@ -541,7 +541,7 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.rememberLabel, remember.el, S.rememberHint),
   );
   const heading = intro(ui, S.nav);
-  root.append(heading, habits.el, behavior.el, bubbles.el, display.el);
+  root.append(heading, habits.el, behavior.el, display.el);
 
   /* ---------- sounds ---------- */
   const sounds = ui.sheet({ title: S.soundTitle });
@@ -647,7 +647,7 @@ async function mount(ctx: PageContext): Promise<void> {
     speedRow,
   );
   const cua = cuaSection(ctx, row);
-  root.append(sounds.el, speechSheet.el, cua.el);
+  root.append(sounds.el, bubbles.el, speechSheet.el, cua.el);
 
   /* ---------- other: the OBS overlay, the context ring ---------- */
   const other = ui.sheet({ title: S.groupOther });
@@ -668,9 +668,9 @@ async function mount(ctx: PageContext): Promise<void> {
   heading.append(sectionTabs(root.ownerDocument, signal, root, [
     { value: 'general', label: S.groupGeneral, el: habits.el },
     { value: 'behavior', label: S.groupBehavior, el: behavior.el },
-    { value: 'bubbles', label: S.groupBubbles, el: bubbles.el },
     { value: 'display', label: S.groupDisplay, el: display.el },
     { value: 'sounds', label: S.soundTitle, el: sounds.el },
+    { value: 'bubbles', label: S.groupBubbles, el: bubbles.el },
     { value: 'speech', label: S.speechTitle, el: speechSheet.el },
     { value: 'cua', label: CUA.title, el: cua.el },
     { value: 'other', label: S.groupOther, el: other.el },
