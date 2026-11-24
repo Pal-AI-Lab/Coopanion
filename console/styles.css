@@ -1391,7 +1391,8 @@
 .extension-catalog-restart:not(:has(.extension-restart:not([hidden]))){display:none}
 .connection-hub{display:grid;flex:1;min-height:0;grid-template-columns:minmax(210px,280px) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:24px}
 .connection-index{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;padding:0 4px}
-.connection-cards{position:relative;overflow-anchor:none;display:grid;align-content:start;grid-auto-rows:max-content;flex:1;min-height:0;gap:12px;padding:3px 3px 32px;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
+/* The padding holds a selected card's outline (3px outside it), lifted 1px more on hover. */
+.connection-cards{position:relative;overflow-anchor:none;display:grid;align-content:start;grid-auto-rows:max-content;flex:1;min-height:0;gap:12px;padding:4px 3px 32px;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
 /* White cards with a quiet border, as the World list's rows. */
 .connection-card{min-width:0;border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--sheet);cursor:pointer;transition:background var(--motion-fast),border-color var(--motion-fast),box-shadow var(--motion-base),transform var(--motion-base) var(--motion-out)}
 /* Hovered, a card lifts a little. */
