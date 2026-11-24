@@ -65,7 +65,7 @@ import { desktopPetDefinition, figurePacks, type DesktopPetWorld, type PetDialog
 import COO, { CHATGPT, CHATGPT_PROVIDER, signedIn, usageLimited, vendorOf } from 'cortico-provider-coo';
 import { appWebUiAsset, bundledWebUiAssets } from './bundled-panels.ts';
 import { followPetLook } from './console-theme.ts';
-import { askForKey, guideDone, markDone, runGuide, type GuideDeps } from './guide.ts';
+import { askForKey, guideDone, runGuide, type GuideDeps } from './guide.ts';
 import { NOTICE_ID, noticeDefinition, type NoticeWorld } from './notice.ts';
 import { coreText } from './i18n/index.ts';
 import { petToolDescriber } from './pet-status.ts';
@@ -368,8 +368,8 @@ function snapshotOf(config: CoreConfig, workspace: string, git: () => boolean): 
     hoverButtons: at('worlds.desktop-pet.hoverButtons'),
     doubleClickChat: at('worlds.desktop-pet.doubleClickChat'),
     rememberPosition: at('worlds.desktop-pet.rememberPosition'),
-    // empty is the app language's default; the others were the defaults of earlier versions
-    userNamed: !['', '伙伴', '主人'].includes(String(at('worlds.desktop-pet.user') ?? '')),
+    // empty is the app language's default; 伙伴 was the default up to 0.1.19
+    userNamed: !['', '伙伴'].includes(String(at('worlds.desktop-pet.user') ?? '')),
     cuaEnabled: at('worlds.desktop-pet.cua.enabled'),
     cuaLevel: at('worlds.desktop-pet.cua.permission'),
     persona: personaOf(workspace) ?? 'custom',
@@ -390,14 +390,12 @@ function reportedExtensions(extensions: ExtensionSet): Array<{ name: string; ver
 }
 
 /**
- * The introduction on a first start, then the key asks while no key is set. An install that already
- * has a key (one from before the introduction existed) counts as introduced. When no pet page shows
+ * The introduction on a first start, then the key asks while no key is set. When no pet page shows
  * up on a first start, the settings window opens at the home page instead, since nothing else would
  * tell the person why Coo stays silent.
  */
 async function introduce(deps: GuideDeps, run: (deps: GuideDeps) => Promise<void>, keySet: () => boolean, talked: (() => boolean) | null): Promise<void> {
   const first = !guideDone(deps.doneFile);
-  if (first && keySet()) { markDone(deps.doneFile); return; }
   if (first) {
     const deadline = Date.now() + PET_WAIT_MS;
     while (!deps.pet()?.petState().connected && Date.now() < deadline) await sleep(1000);
