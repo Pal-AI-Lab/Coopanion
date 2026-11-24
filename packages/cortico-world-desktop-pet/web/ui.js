@@ -4,6 +4,34 @@ import { t } from './i18n.js';
 export const f = n => Math.round(n * 10) / 10;
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
+/** A bubble's border in pixels (pet.css `.bubble`). */
+export const BUBBLE_BORDER = 2.5;
+/**
+ * The width a bubble tail's slanted line is drawn at on a display of `dpr` device pixels per pixel (`--tail-line`,
+ * pet.css): the width the border is drawn at there, which Chromium rounds down to whole device pixels (2px of the 2.5
+ * at 100%), so the tail carries as much ink along its length as the border does.
+ */
+export const tailLine = (dpr) => Math.max(1, Math.floor(BUBBLE_BORDER * dpr)) / dpr;
+
+/**
+ * Bubbles up to TAIL_CENTER wide (empty, or a word or two) point their tail from their middle; wider ones move it over
+ * to Coo by TAIL_FOLLOW wide. Between the two it slides, so a bubble growing as the line types out carries its tail
+ * along with it.
+ */
+export const TAIL_CENTER = 70, TAIL_FOLLOW = 130;
+/**
+ * How far from a bubble's side its tail's tip keeps, at bubble size 1: the tail's base reaches 10.25px either side of
+ * the tip (pet.css `.bubble::before`) and the corner rounds over 18px (`.bubble` border-radius), both grown with
+ * `--bubble-size`, so the base stays on the border's straight run. The narrowest bubble (`.bubble` min-width, 58px)
+ * leaves room for it on both sides.
+ */
+export const TAIL_EDGE = 29;
+/** Where the tail's tip sits along a bubble `bw` wide whose left edge is `x` left of Coo, at bubble size `size`. */
+export function tailAt(bw, x, size = 1) {
+  const k = clamp((bw - TAIL_CENTER) / (TAIL_FOLLOW - TAIL_CENTER), 0, 1), edge = Math.min(TAIL_EDGE * size, bw / 2);
+  return bw / 2 + (clamp(x, edge, bw - edge) - bw / 2) * k;
+}
+
 /**
  * Lays a grid of buttons (`grid-auto-flow: column`) `reach` out from a body standing at `x`, on the right unless that
  * runs off a page `pageWidth` wide. On the left its columns run right to left, so the first column is next to the body

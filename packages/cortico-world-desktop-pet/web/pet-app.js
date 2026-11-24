@@ -10,7 +10,7 @@
  * Colors follow the World's `theme` through `data-theme` on the root element, and text the app
  * language (i18n.js): the one stamped on the page, then the one the World's prefs carry.
  */
-import { applyTheme, clamp, f, ICONS, layBeside, linked } from './ui.js';
+import { applyTheme, clamp, f, ICONS, layBeside, linked, tailAt, tailLine } from './ui.js';
 import { language, t, useLanguage } from './i18n.js';
 import { createSfx } from './sound.js';
 import { createSpeech, textSteps } from './speech.js';
@@ -1766,6 +1766,12 @@ const POP_OUT_MS = 160;
 const POP_IN_MS = 600;
 // absent where the page runs without a window (the tests)
 const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
+/** The tails' line follows the width the border is drawn at, which changes with the display's scale (ui.js tailLine). */
+function watchTailLine() {
+  document.documentElement.style.setProperty('--tail-line', tailLine(devicePixelRatio || 1) + 'px');
+  globalThis.matchMedia?.(`(resolution: ${devicePixelRatio || 1}dppx)`).addEventListener('change', watchTailLine, { once: true });
+}
+watchTailLine();
 const leaving = (el) => el.classList.contains('leaving');
 /** Numbers an element's buttons (`--i`), so they pop out one after another. */
 function stagger(el) { [...el.children].forEach((b, i) => b.style.setProperty('--i', String(i))); }
@@ -2349,17 +2355,6 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ---------- layout ---------- */
-/**
- * Bubbles up to TAIL_CENTER wide (empty, or a word or two) point their tail from their middle; wider ones
- * move it over to Coo by TAIL_FOLLOW wide. Between the two it slides, so a bubble growing as the line
- * types out carries its tail along with it.
- */
-const TAIL_CENTER = 70, TAIL_FOLLOW = 130;
-/** Where the tail's tip sits along a bubble `bw` wide whose left edge is `x` left of Coo. */
-function tailAt(bw, x) {
-  const k = clamp((bw - TAIL_CENTER) / (TAIL_FOLLOW - TAIL_CENTER), 0, 1);
-  return bw / 2 + (clamp(x, 22, bw - 22) - bw / 2) * k;
-}
 /** Coo's bubble above its head, moved over to the side it faces. */
 function place(el, a, extraUp) {
   const bw = el.offsetWidth, bh = el.offsetHeight;
@@ -2367,7 +2362,7 @@ function place(el, a, extraUp) {
   const top = Math.max(8, a.y - bh - extraUp);
   el.style.left = f(left) + 'px';
   el.style.top = f(top) + 'px';
-  el.style.setProperty('--tail', f(tailAt(bw, a.x - left)) + 'px');
+  el.style.setProperty('--tail', f(tailAt(bw, a.x - left, prefs.bubbleSize)) + 'px');
   return { left, top, bw, bh };
 }
 function placeTalk(it, a) {
@@ -2381,7 +2376,7 @@ function placeTalk(it, a) {
   const top = Math.max(8, it.pinY - bh - 18 * prefs.bubbleSize);
   bubble.style.left = f(left) + 'px';
   bubble.style.top = f(top) + 'px';
-  bubble.style.setProperty('--tail', f(tailAt(bw, a.x - left)) + 'px');
+  bubble.style.setProperty('--tail', f(tailAt(bw, a.x - left, prefs.bubbleSize)) + 'px');
   return { left, top, bw, bh };
 }
 
