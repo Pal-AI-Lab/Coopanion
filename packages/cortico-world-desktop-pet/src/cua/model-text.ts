@@ -42,6 +42,7 @@ const zh = {
     winGetDIBits: (lines, height) => `GetDIBits 只取到 ${lines}/${height} 行`,
     winSendInput: (sent, total) => `SendInput 只送出 ${sent}/${total} 个事件(可能被更高权限的窗口挡住)`,
     winSetCursorPos: (x, y) => `SetCursorPos(${x}, ${y}) 失败(可能被更高权限的窗口挡住)`,
+    winTextDelivery: () => '文字输入中断，部分文字可能已写入。请先检查输入框里的内容',
     layoutChanged: () => '显示器变了(接上、拔掉、挪动或改了缩放),这次没有操作;先重新截图,再按新截图的坐标操作',
     noDisplay: (n, total) => `没有显示器 ${n},现在有 ${total} 块`,
   } as Record<EngineErrorCode, (...args: Array<string | number | undefined>) => string>,
@@ -95,7 +96,7 @@ const zh = {
     return `已在 (${x}, ${y}) 滚动${parts.join('、')}。`;
   },
   typeEmpty: 'text 是空的。',
-  typedPart: (typed: number, total: number, by: 'cancel' | 'user') => `只输入了 ${typed}/${total} 个字符:${by === 'cancel' ? '收到打断' : '用户开始操作'},停了下来。`,
+  typedPart: (typed: number, total: number, by: 'cancel' | 'user') => `已发送 ${typed}/${total} 个字符:${by === 'cancel' ? '收到打断' : '用户开始操作'},输入已停止。继续前请核对输入框末尾。`,
   typed: (total: number) => `已输入 ${total} 个字符。`,
   keyBad: (why: string) => `${why}。`,
   keyUnknown: (name: string) => `不认识的键「${name}」`,
@@ -159,6 +160,7 @@ const en: typeof zh = {
     winGetDIBits: (lines, height) => `GetDIBits returned only ${lines}/${height} lines`,
     winSendInput: (sent, total) => `SendInput sent only ${sent}/${total} events (a window with higher privileges may be in the way)`,
     winSetCursorPos: (x, y) => `SetCursorPos(${x}, ${y}) failed (a window with higher privileges may be in the way)`,
+    winTextDelivery: () => 'Text input was interrupted. Check the field for text already entered.',
     layoutChanged: () => 'The displays changed (one was connected, disconnected, moved or rescaled), so nothing was done; take a new screenshot and use its coordinates',
     noDisplay: (n, total) => `There is no display ${n}; there are ${total}`,
   },
@@ -210,7 +212,7 @@ const en: typeof zh = {
     return `Scrolled ${parts.join(' and ')} at (${x}, ${y}).`;
   },
   typeEmpty: 'text is empty.',
-  typedPart: (typed, total, by) => `Typed only ${typed}/${total} characters: stopped because ${by === 'cancel' ? 'of an interrupt' : 'the person started using the computer'}.`,
+  typedPart: (typed, total, by) => `Sent ${typed}/${total} characters before ${by === 'cancel' ? 'the interrupt' : 'the person took over'}. Check the end of the field before continuing.`,
   typed: (total) => `Typed ${total} character${total === 1 ? '' : 's'}.`,
   keyBad: (why) => `${why}.`,
   keyUnknown: (name) => `unknown key "${name}"`,
