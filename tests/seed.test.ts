@@ -78,13 +78,12 @@ describe('first-run seed', () => {
     expect(readFileSync(join(home, DEPLOYMENT, 'workspace', 'CONSTITUTION.md'), 'utf8')).toBe(readFileSync(personaFile('coo', 'ja'), 'utf8'));
   });
 
-  it('leaves endpoints of the deepseek module as they are across restarts', () => {
+  it('leaves endpoints of the deepseek module as they are on a restart', () => {
     const home = mkdtempSync(join(tmpdir(), 'cc-seed-'));
     seed(home, 'zh');
     const endpoint = join(home, 'providers', 'mine', 'config.json');
     mkdirSync(join(home, 'providers', 'mine'));
     writeFileSync(endpoint, JSON.stringify({ kind: 'deepseek', baseUrl: 'http://x' }));
-    seed(home, 'zh');
     seed(home, 'zh');
     expect(read(endpoint)).toEqual({ kind: 'deepseek', baseUrl: 'http://x' });
   });

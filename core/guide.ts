@@ -616,7 +616,7 @@ export async function runGuide(deps: GuideDeps): Promise<void> {
 
 export const guideDone = (file: string) => existsSync(file);
 
-export function markDone(file: string): void {
+function markDone(file: string): void {
   try { writeFileSync(file, JSON.stringify({ doneAt: new Date().toISOString() }) + '\n'); } catch { /* read-only data dir: it shows again next start */ }
 }
 
