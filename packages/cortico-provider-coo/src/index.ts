@@ -11,9 +11,8 @@
  * Messages and Gemini APIs get the levels in their own form. Images are sent only when the endpoint
  * is marked multimodal, and on the Gemini API so are audio, video and documents, on Responses services marked `audioInput` audio,
  * which stays in the message or tool result that carries it; tool results may carry images too, which move to a user message after the
- * results on Chat and for `toolOutputText` services on Responses. Attachments go out only from the newest delivered batch of events on
- * (`sinceLastDelivery`); a request the service rejects for its attachments is sent again without them
- * (Cortico's `AttachmentFallback`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
+ * results on Chat and for `toolOutputText` services on Responses. Every attachment in the context goes out with each request;
+ * a request the service rejects for its attachments is sent again without them (Cortico's `AttachmentFallback`). Prices are built in for DeepSeek, OpenAI, Anthropic, Gemini and xAI.
  * Streamed reasoning from services marked `lenientReasoning` is rewritten into standard events
  * (`LenientReasoningAssembly`). `nonStreamingResponses` services use a non-streaming fallback so
  * tools execute only after the complete response has been read and validated.
@@ -26,7 +25,6 @@ import { isContextOverflow } from 'cortico/providers/transport/errors.ts';
 import { AttachmentFallback } from 'cortico/providers/transport/attachment-fallback.ts';
 import { ModelCatalog } from 'cortico/providers/openai-responses-compat/native.ts';
 import { ClaudeProvider } from './anthropic/client.ts';
-import { sinceLastDelivery } from './context.ts';
 import { VendorChat } from './chat.ts';
 import { GeminiProvider, listGeminiModels } from './gemini/client.ts';
 import { geminiInlineMime } from './gemini/wire.ts';
@@ -139,7 +137,7 @@ export const COO = {
     /** `client` behind the attachment fallback, declared so that `ProviderRegistry.bind` adds no second one. */
     const withFallback = (client: BaseProvider) => ({
       client: new AttachmentFallback(client, {
-        media, contextOverflow, attached: sinceLastDelivery, accepts: (mime) => takes(current(), mime), log: host.log,
+        media, contextOverflow, accepts: (mime) => takes(current(), mime), log: host.log,
       }),
       handlesRefusedAttachments: true,
     });

@@ -297,14 +297,47 @@ describe('how near the screen edges the body goes', () => {
   /** Where the body stops when sent to stage x: a walk ends a pixel or two short of its target, hence the 5-pixel checks. */
   const walkFar = (pet, x) => { pet.walkTo(x); run(pet, 20); return pet.pet.x; };
 
-  it('a figure narrower than the square walks up to its own extent from either edge, and the hover buttons sit by it', () => {
-    const pet = barePet();
-    // 40 units each side of the middle line on the right, 30 on the left: it turns, so the wider side counts both ways
-    pet.setFigure({ draw() {}, extent: [98, 0, 168, 256] });
-    pet.resize();
-    expect(walkFar(pet, W + 500)).toBeCloseTo(W - 40 * S - 8, -1);
-    expect(walkFar(pet, -500)).toBeCloseTo(40 * S + 8, -1);
+  // facing right it reaches 30 units ahead of the middle line and 40 behind
+  const lopsided = () => ({ draw() {}, extent: [88, 0, 158, 256] });
+
+  it('a figure narrower than the square walks up to its own extent from either edge, and the hover buttons sit by its wider side', () => {
+    const pet = barePet(undefined, { figure: lopsided() });
+    expect(walkFar(pet, W + 500)).toBeCloseTo(W - 30 * S - 8, -1);
+    expect(walkFar(pet, -500)).toBeCloseTo(30 * S + 8, -1);
     expect(pet.layout().side.reach).toBeCloseTo(40 * S);
+  });
+
+  it('a lopsided figure that turns round at an edge moves in by the difference of its two sides', () => {
+    const pet = barePet(undefined, { figure: lopsided() });
+    walkFar(pet, W + 500);
+    expect(pet.pet.facing).toBe(1);
+    pet.act('turn');
+    run(pet, 2);
+    expect(pet.pet.facing).toBe(-1);
+    expect(pet.pet.x).toBeCloseTo(W - 40 * S - 8, 0);
+    const { box } = pet.layout();
+    expect(box.x + box.w).toBeLessThanOrEqual(W - 8 + .01);
+  });
+
+  it('a lopsided figure put back at an edge facing away from it stands as near as its facing allows', () => {
+    const pet = barePet(undefined, { figure: lopsided(), startX: 0, startFacing: -1 });
+    expect(pet.pet.x).toBeCloseTo(30 * S + 8);
+    expect(pet.pet.facing).toBe(-1);
+  });
+
+  it('a free body walking up the stage at an edge, too little sideways to turn round, arrives', () => {
+    const events = [];
+    const pet = barePet((kind, d) => events.push([kind, d.walkId]), {
+      figure: lopsided(), ground: 'free', bounds: () => ({ W, H: 800, floorY: 780, S }),
+    });
+    walkFar(pet, W + 500);
+    pet.act('turn');
+    run(pet, 2);
+    const { x, gy } = pet.pet;
+    expect(pet.walkTo(x + 1.8, false, 7, gy - 200)).toBe(true);
+    run(pet, 10);
+    expect(events).toContainEqual(['arrived', 7]);
+    expect(pet.pet.facing).toBe(-1);
   });
 
   it('a figure that widens where it stands is moved back onto the screen, and one wider than the stage stands in its middle', () => {

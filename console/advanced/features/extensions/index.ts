@@ -475,6 +475,8 @@ export function mountWorldExtensionDetails(ctx: ExtensionContext) {
   return createExtensionContent(ctx, 'world').worldDetails;
 }
 
+/** A folded comment's height, about eleven lines, and how much longer than that a comment must be to fold. */
+const COMMENT_CLAMP_PX = 240, COMMENT_SLACK_PX = 64;
 function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionContext, kind: Category, root?: HTMLElement, workspace?: ExtensionWorkspace) {
   const { signal } = lifecycle;
   const win = doc.defaultView!;
@@ -760,7 +762,7 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
     el.addEventListener('pointerleave', hideSoon, { signal }); el.addEventListener('blur', hideHint, { signal });
   }
   /**
-   * A sidebar row keeps its explanation behind a question mark beside the name, shown while the row is hovered;
+   * A sidebar row keeps its explanation behind a question mark after its name (see `helpName`), shown while the row is hovered;
    * hovering the mark opens it, and a click on the mark does not press the row.
    */
   function helpMark(row: HTMLElement, title: string, text: string) {
@@ -770,12 +772,78 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
     mark.addEventListener('click', event => event.stopPropagation(), { signal });
     return mark;
   }
+  /** Each sidebar row's `helpName` controls, by row, for the redraw and the resize below. */
+  const hints = new WeakMap<Element, { show: () => void; reset: () => void; width: number }>();
+  /** Where the pointer last was over the sidebar's tags, while it is there. */
+  let tagPointer: { x: number; y: number } | undefined;
+  /** A hovered name whose width changes (the window or the sidebar resized) is measured again. */
+  const hintedResize = doc.defaultView?.ResizeObserver ? new doc.defaultView.ResizeObserver(entries => {
+    for (const { target } of entries) {
+      if (!target.isConnected) { hintedResize!.unobserve(target); continue; }
+      const row = target.parentElement, hint = row && hints.get(row);
+      if (hint && Math.abs(target.getBoundingClientRect().width - hint.width) > 0.5) { hint.reset(); hint.show(); }
+    }
+  }) : undefined;
+  signal.addEventListener('abort', () => hintedResize?.disconnect());
+  /**
+   * A sidebar row's name, its question mark after the last word. The name wraps at its full width with the mark
+   * hidden; hovered or focused, the mark comes in after the last word, and when that line has no room for it the last
+   * word alone is cut short with an ellipsis (`is-cut`), so no other word moves. The last word is the last character
+   * in Chinese and Japanese, which break between characters.
+   */
+  function helpName(row: HTMLElement, label: string, hint: string) {
+    // px: the mark (16) and its 2px margin (styles.css `.extension-tag-help`), and an ellipsis of at most one em of the 11.5px sidebar font
+    const ELLIPSIS_AND_MARK = 16 + 2 + 11.5;
+    const end = label.trimEnd(), lastChar = Array.from(end).pop() ?? '';
+    const byCharacter = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(lastChar);
+    const cut = byCharacter ? end.length - lastChar.length : Math.max(0, end.search(/\S+$/));
+    const name = ui.h('span', 'extension-tag-name'), tail = ui.h('span', 'extension-tag-tail'), word = ui.h('span', 'extension-tag-word');
+    const head = doc.createTextNode('');
+    const split = (at: number) => { head.data = end.slice(0, at); word.textContent = end.slice(at); };
+    split(cut);
+    tail.append(word, helpMark(row, label, hint));
+    name.append(head, tail);
+    const show = () => {
+      if (row.classList.contains('is-hinting')) return;
+      // Measured with the mark still hidden. A last word wider than the row is broken over lines at rest: only its
+      // piece on the last line is cut, so the pieces above stay where they are.
+      const range = doc.createRange(), last = end.slice(cut);
+      const topAt = (node: Text, i: number) => { range.setStart(node, i); range.setEnd(node, i + 1); return range.getBoundingClientRect().top; };
+      const text = word.firstChild;
+      if (!(text instanceof doc.defaultView!.Text) || !last) return;
+      let at = cut;
+      const lastTop = topAt(text, last.length - 1);
+      for (let i = 0; i < last.length; i++) if (Math.abs(topAt(text, i) - lastTop) <= 2) { at = cut + i; break; }
+      split(at);
+      // The room from the last word's start to the name's right edge.
+      const right = name.getBoundingClientRect().right;
+      let room = right - word.getBoundingClientRect().left;
+      // One character is too little to cut in Chinese and Japanese: take more from the same line until the ellipsis
+      // and the mark fit, never one from the line above.
+      for (; byCharacter && room < ELLIPSIS_AND_MARK && at > 0;) {
+        const step = /[\uDC00-\uDFFF]/.test(end[at - 1]) ? 2 : 1;
+        if (Math.abs(topAt(head, at - step) - word.getBoundingClientRect().top) > 2) break;
+        split(at -= step); room = right - word.getBoundingClientRect().left;
+      }
+      row.classList.add('is-hinting');
+      control.width = name.getBoundingClientRect().width; hintedResize?.observe(name);
+      const tailWidth = tail.getBoundingClientRect().width;
+      if (tailWidth > room) { word.classList.add('is-cut'); word.style.maxWidth = `${Math.max(0, Math.floor(room - (tailWidth - word.getBoundingClientRect().width)) - 1)}px`; }
+    };
+    const reset = () => { row.classList.remove('is-hinting'); word.classList.remove('is-cut'); word.style.removeProperty('max-width'); split(cut); };
+    const hide = () => { if (!row.matches(':hover, :focus-visible')) { hintedResize?.unobserve(name); reset(); } };
+    const control = { show, reset, width: 0 };
+    hints.set(row, control);
+    row.addEventListener('pointerenter', show, { signal }); row.addEventListener('pointerleave', hide, { signal });
+    row.addEventListener('focus', () => { if (row.matches(':focus-visible')) show(); }, { signal }); row.addEventListener('blur', hide, { signal });
+    return name;
+  }
   /** 标签:悬停显示说明,侧栏里(`helpMark`)改由名字旁的问号显示。给了 `onToggle` 就是筛选按钮,点它不打开卡片。 */
   function tagChip(id: string, opts?: { active?: boolean; count?: number; onToggle?: () => void; helpMark?: boolean }) {
     const tag = marketIndex.tags[id];
     const el = ui.h(opts?.onToggle ? 'button' : 'span', 'extension-tag' + (tag.style ? ' is-' + tag.style : '') + (opts?.active ? ' is-active' : ''));
-    el.append(ui.h('span', '', tag.label));
-    if (!opts?.helpMark) attachHint(el, tag.label, tag.hint); else if (tag.hint) el.append(helpMark(el, tag.label, tag.hint));
+    if (opts?.helpMark && tag.hint) el.append(helpName(el, tag.label, tag.hint)); else el.append(ui.h('span', 'extension-tag-name', tag.label));
+    if (!opts?.helpMark) attachHint(el, tag.label, tag.hint);
     if (opts?.count !== undefined) el.append(ui.h('span', 'extension-tag-count', String(opts.count)));
     const toggle = opts?.onToggle;
     if (toggle) {
@@ -1123,12 +1191,46 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
     button.addEventListener('click', () => insertTextBlock(input), { signal });
     return button;
   }
+  /** Each folded comment's body, measured again whenever its box changes (attached, the column resized, an image loaded). */
+  const commentFits = new WeakMap<Element, () => void>();
+  let commentSizes: ResizeObserver | undefined;
+  /**
+   * A comment taller than COMMENT_CLAMP_PX by more than COMMENT_SLACK_PX shows its first COMMENT_CLAMP_PX, fading out, with a
+   * text button that opens it whole and folds it again; a fold that leaves the comment's top above its scrolled view scrolls back to it.
+   */
+  function foldable(el: HTMLElement, body: HTMLElement) {
+    const toggle = ui.h('button', 'extension-comment-toggle', S.commentExpand) as HTMLButtonElement; toggle.type = 'button'; toggle.hidden = true;
+    toggle.setAttribute('aria-expanded', 'false');
+    let open = false;
+    const paint = () => {
+      const long = body.scrollHeight > COMMENT_CLAMP_PX + COMMENT_SLACK_PX;
+      const folded = long && !open;
+      body.classList.toggle('is-folded', folded); body.style.maxHeight = folded ? `${COMMENT_CLAMP_PX}px` : '';
+      toggle.hidden = !long; toggle.textContent = open ? S.commentCollapse : S.commentExpand; toggle.setAttribute('aria-expanded', String(open));
+    };
+    toggle.addEventListener('click', () => {
+      open = !open; paint();
+      if (open) return;
+      let view = el.parentElement;
+      while (view && !/auto|scroll/.test(win.getComputedStyle(view).overflowY)) view = view.parentElement;
+      if (view && el.getBoundingClientRect().top < view.getBoundingClientRect().top) el.scrollIntoView({ block: 'start' });
+    }, { signal });
+    commentFits.set(body, paint);
+    if (!commentSizes && typeof win.ResizeObserver === 'function') {
+      const observer = new win.ResizeObserver(entries => { for (const entry of entries) commentFits.get(entry.target)?.(); });
+      commentSizes = observer; lifecycle.add(() => observer.disconnect());
+    }
+    commentSizes?.observe(body);
+    el.append(toggle);
+  }
   function commentItem(comment: CommentView, reply?: (to: CommentView) => void) {
     const el = ui.h('article', 'extension-comment');
     const head = ui.h('div', 'extension-comment-head');
     head.append(githubAvatar(comment.author, comment.avatar), ui.h('b', '', comment.author), ui.h('time', 'muted', comment.createdAt.slice(0, 10)));
     if (reply) { const button = ui.h('button', 'extension-comment-reply') as HTMLButtonElement; button.type = 'button'; button.append(icon(doc, 'reply')); button.setAttribute('aria-label', S.reply); attachHint(button, S.reply); button.addEventListener('click', () => reply(comment), { signal }); head.append(button); }
-    el.append(head, commentBody(comment.body));
+    const body = commentBody(comment.body);
+    el.append(head, body);
+    foldable(el, body);
     return el;
   }
   /** 详情里的评论区:新的在前,一次一页;发表要登录 GitHub。 */
@@ -1457,7 +1559,7 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
     const style = (id: string) => marketIndex.tags[id].style;
     const badgeRow = (on: boolean, mark: Parameters<typeof icon>[1], label: string, hint: string, count: number, onClick: () => void, cls = '') => {
       const toggle = ui.h('button', 'extension-tag is-badge extension-badge-toggle' + cls + (on ? ' is-active' : '')) as HTMLButtonElement; toggle.type = 'button';
-      toggle.append(icon(doc, mark), ui.h('span', '', label), helpMark(toggle, label, hint), ui.h('span', 'extension-tag-count', String(count)));
+      toggle.append(icon(doc, mark), helpName(toggle, label, hint), ui.h('span', 'extension-tag-count', String(count)));
       toggle.setAttribute('aria-pressed', String(on));
       toggle.addEventListener('click', () => { onClick(); state.page = 0; renderMarket(); save(); }, { signal });
       return toggle;
@@ -1490,6 +1592,9 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
     }));
     warningControl?.classList.toggle('is-open', warningsHidden()); warningControl?.setAttribute('aria-pressed', String(warningsHidden()));
     tagBar.hidden = !tagBar.childElementCount;
+    // A row redrawn under the pointer (the one just clicked) gets no pointerenter until the pointer moves.
+    const under = tagPointer && doc.elementFromPoint(tagPointer.x, tagPointer.y)?.closest('.extension-tag');
+    if (under && tagBar.contains(under)) hints.get(under)?.show();
   }
   /**
    * Above the cards: the first line names what is selected, the second what is excluded and how many packages
@@ -1704,6 +1809,8 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
       feedback.classList.add('extension-operation-feedback'); feedback.setAttribute('role', 'status');
       const comments = box.querySelector<HTMLElement>('.extension-detail-side');
       const activeComment = comments?.contains(doc.activeElement) ? doc.activeElement as HTMLElement : null;
+      // Side by side, each column scrolls on its own; a repaint keeps where both were.
+      const scrolled = [box.querySelector('.extension-detail-main')?.scrollTop ?? 0, comments?.scrollTop ?? 0];
       const columns = ui.h('div', 'extension-detail-columns');
       const main = ui.h('div', 'extension-detail-main'); columns.append(main);
       box.replaceChildren(header, ...(links.hasChildNodes() ? [links] : []), feedback, columns);
@@ -1790,6 +1897,7 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
         if (!comments) side.append(commentsSection(listed?.name ?? data.name, listed?.rating));
         columns.append(side);
         activeComment?.focus({ preventScroll: true });
+        main.scrollTop = scrolled[0]!; side.scrollTop = scrolled[1]!;
       }
   }
   function detailLoadError(box: HTMLElement, text: string, unavailable = false) {
@@ -1937,6 +2045,8 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
     const registryPanel = ui.h('div', 'extension-registry'); registryPanel.id = 'extension-registry'; registryPanel.hidden = !registryOpen;
     registryPanel.append(registryBar, messageNodes.registry);
     tagBar = ui.h('div', 'extension-tagbar'); tagBar.hidden = true;
+    for (const type of ['pointermove', 'pointerdown'] as const) tagBar.addEventListener(type, event => { tagPointer = { x: event.clientX, y: event.clientY }; }, { signal });
+    tagBar.addEventListener('pointerleave', () => { tagPointer = undefined; }, { signal });
     activeBar = ui.h('div', 'extension-active-filters'); activeBar.hidden = true;
     marketGrid = ui.h('div', 'extension-grid'); marketPager = ui.rowbar();
     const manual = ui.sheet({ title: S.manual }); messageNodes.manual = ui.msgline(); messageNodes.manual.setAttribute('role', 'status');
