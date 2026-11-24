@@ -33,6 +33,33 @@ export function tailAt(bw, x, size = 1) {
 }
 
 /**
+ * The narrowest width `el` can take without its text wrapping into more lines than at its widest: a wrapped line no
+ * longer leaves its bubble as wide as the widest it may be with blank space after the shorter lines, and the lines come
+ * out about as long as each other (the search react-wrap-balancer runs). `el` is laid out with its whole text and
+ * nothing clamping its height, and measured at its widest under its style sheet; its own width and max-width are left
+ * as they were. Returns the width to cap it at in pixels, border and padding in.
+ */
+export function balancedWidth(el) {
+  const keep = [el.style.width, el.style.maxWidth];
+  el.style.width = el.style.maxWidth = '';
+  const widest = el.offsetWidth, height = el.offsetHeight;
+  let lo = 0, hi = widest;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) / 2;
+    el.style.width = mid + 'px';
+    if (el.offsetHeight > height) lo = mid; else hi = mid;
+  }
+  // offsetWidth rounds the widest down by under a pixel (172 of 172.4), and a width at the edge wraps the text: the
+  // width is checked as the caller will use it, a max-width, and grows a pixel at a time until it holds, at most to
+  // the widest plus that pixel.
+  el.style.width = '';
+  let w = Math.ceil(hi);
+  for (el.style.maxWidth = w + 'px'; el.offsetHeight > height && w <= widest; el.style.maxWidth = w + 'px') w++;
+  [el.style.width, el.style.maxWidth] = keep;
+  return w;
+}
+
+/**
  * Lays a grid of buttons (`grid-auto-flow: column`) `reach` out from a body standing at `x`, on the right unless that
  * runs off a page `pageWidth` wide. On the left its columns run right to left, so the first column is next to the body
  * on either side and a button keeps its place relative to the body whichever side the grid takes. `--dx` points the

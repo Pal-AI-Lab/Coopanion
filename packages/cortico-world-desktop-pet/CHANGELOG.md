@@ -1,5 +1,6 @@
 ## Unreleased
 
+- A line of Coo's or of the person's that wraps takes the narrowest bubble that holds it in as many lines (`balancedWidth` in `web/ui.js`): its lines come out about as long as each other and the bubble no longer stays at its widest with blank space after them. Bubbles up are fitted again when `bubbleSize`, `fontSize` or the window's width changes, so a line does not wrap into one more row.
 - A bubble's tail keeps its base on the bubble's straight bottom edge at any `bubbleSize`: its tip stays 29px times the size from the bubble's sides (`tailAt` and `TAIL_EDGE` in `web/ui.js`), and the narrowest bubble is 58px times the size wide (it was 46px). By a bubble's side, and on a bubble of a word or two, the tail used to reach into the rounded corners and break the outline there, more so at larger sizes.
 - A bubble's tail draws its line as wide as the bubble's border is drawn, at any `bubbleSize` and display scale; enlarged, the line grew thicker with the tail, and it stayed 2.5px where the border is drawn 2px.
 - Config `window.sayBubbleHoldSec` and `saidBubbleHoldSec` (integer seconds, 0–60, 0 by default): 1–60 holds each part of a line that long once typed out, or an input bubble that long from when it was sent or recognized; 0 keeps the automatic holds. `pet_say` receipts count a fixed speech hold, for the line and for those queued ahead of it.
