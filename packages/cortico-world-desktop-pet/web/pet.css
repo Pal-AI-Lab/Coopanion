@@ -245,7 +245,7 @@ body.desk .floor{display:none}
 .b-opt.dim, .b-own.dim{opacity:.35}
 /* pictures pasted into the typing box: one row of thumbnails above it; the box holds no more than fits */
 .b-imgs{display:flex; gap:6px; margin-bottom:8px}
-.b-imgs[hidden], .b-note[hidden]{display:none}
+.b-imgs[hidden], .b-note[hidden], .b-limit[hidden]{display:none}
 .b-img{position:relative; flex:none; width:calc(44px * var(--bubble-size, 1)); height:calc(44px * var(--bubble-size, 1)); border-radius:8px; overflow:hidden; border:1px solid var(--line); background:var(--bg)}
 .b-img img{display:block; width:100%; height:100%; object-fit:cover}
 .b-img button{position:absolute; top:2px; right:2px; width:18px; height:18px; padding:0; border:0; border-radius:50%; background:rgba(0,0,0,.55); color:#fff; font-size:13px; line-height:18px; cursor:pointer}
@@ -359,7 +359,17 @@ body.desk .floor{display:none}
 .d-field .d-peek svg{width:16px; height:16px}
 .d-send{flex:none; padding:5px 12px; border-radius:9px; border:0; background:var(--skin-ink); color:var(--surface); font-size:calc(13px * var(--bubble-font, 1)); font-weight:600; cursor:pointer}
 .d-send:hover{background:var(--skin-eye)}
-.d-field.shake{animation:field-shake .32s}
+.d-field.shake, .b-own.shake{animation:field-shake .32s}
+/* a typed text past its cap (pet-app.js capField): the field's border turns red, the count shows beside the send
+   button and the text is not sent */
+.b-count{flex:none; align-self:center; font-size:calc(11.5px * var(--bubble-font, 1)); font-variant-numeric:tabular-nums; padding:0 2px; color:var(--anger)}
+.b-own.over, .b-own.over:focus-within, .d-field.over, .d-field.over:focus-within{border-style:solid; border-color:var(--anger)}
+/* in the typing box the count goes to the left of the row of buttons under the text */
+.b-own.tall .b-count{margin-right:auto; padding-left:0}
+.b-limit{margin-top:6px; color:var(--anger)}
+.b-expand.nudge{color:var(--skin-eye)}
+.b-own.over button[type="submit"], .d-field.over .d-send{opacity:.4; cursor:default}
+.b-expand:disabled{opacity:.35; cursor:default}
 @keyframes field-shake{20%,60%{transform:translateX(-4px)} 40%,80%{transform:translateX(4px)}}
 .d-links{display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:calc(12.5px * var(--bubble-font, 1))}
 .d-link{display:inline-flex; align-items:center; gap:3px; color:var(--skin-eye); text-decoration:none}
@@ -478,7 +488,7 @@ body.desk .floor{display:none}
 .tool.sent{animation:tool-sent .36s cubic-bezier(.3,1.5,.5,1)}
 @keyframes tool-sent{45%{transform:scale(1.2)}}
 @media (prefers-reduced-motion: reduce){.wall-glow, .wall-lens, .bubble.said, .w-item{transition:none}}
-@media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .d-pill.chosen, .caret, .menu :is(.m-grid, .m-rail) > *, .tools > *, .tool.holding::after, .tool.sent, .tool::before, .tool::after, .tool .ic, .tool .ic::before{animation:none}}
+@media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .b-own.shake, .d-pill.chosen, .caret, .menu :is(.m-grid, .m-rail) > *, .tools > *, .tool.holding::after, .tool.sent, .tool::before, .tool::after, .tool .ic, .tool .ic::before{animation:none}}
 @media (prefers-reduced-motion: reduce){.d-cards .d-card.on .d-cardic[class*="ic-persona_"], .d-cards .d-card.on .d-cardic .spout{animation:none}}
 /* pointed at: every round button grows a little and its icon moves once in a way that fits it (the dress button
    keeps its own colours and sparkles above); the run controls on the menu's left: the gear turns, the pause swells,

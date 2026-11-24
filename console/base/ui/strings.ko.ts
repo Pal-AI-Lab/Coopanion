@@ -35,4 +35,5 @@ export const S: Partial<typeof en> = {
   addImage: '이미지 추가',
   addImageHint: '이미지 추가(붙여넣기나 끌어다 놓기도 가능)',
   removeImage: (name: string) => `${name} 제거`,
+  tooLong: (over: number, max: number) => `${over}자 초과했습니다. ${max}자 이내로 줄이면 보낼 수 있습니다`,
 };
