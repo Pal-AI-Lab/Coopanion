@@ -1,4 +1,4 @@
-// 主进程的文字:托盘菜单、设置窗口的启动页、Core 退出的通知,找回更新前数据的对话框,程序旁边没有数据时询问用哪份数据的对话框,数据目录写不进去时的错误框,以及沙箱让窗口空白时的提示。
+// 主进程的文字:托盘菜单、设置窗口的启动页、Core 退出的通知,找回更新前数据的对话框,程序旁边没有数据时询问用哪份数据的对话框,以及数据目录写不进去时的错误框。
 module.exports = {
   installUpdateFailed: (version) => `Coopanion 未能更新到 ${version}。`,
   /** 设置窗口在 Core 起来之前显示的一行字 */
@@ -49,10 +49,4 @@ module.exports = {
   dataQuit: '退出',
   dataChooseTitle: '选择 Coopanion 的数据文件夹',
   dataChooseInvalid: (dir) => `这个文件夹里没有 Coopanion 的数据：\n${dir}\n\n请选择安装目录，或安装目录下的 data 文件夹。`,
-
-  /** 窗口空白：Windows 上沙箱让窗口的渲染进程在启动时退出（cortico-world-desktop-pet/host/renderer-gone.cjs） */
-  sandboxFailedMessage: 'Coopanion 的窗口无法显示',
-  sandboxFailedDetail: (url) => `这台电脑上，Chromium 沙箱让窗口的渲染进程在启动时就退出了，所以窗口是空白的。\n\n退出 Coopanion，在启动它的快捷方式「目标」末尾加上 --no-sandbox，再从这个快捷方式启动。这会关闭渲染进程的沙箱，形象包的代码少一层隔离，请只使用来源可信的形象包。\n\n说明和修复进展：${url}`,
-  sandboxFailedOpen: '查看说明',
-  sandboxFailedClose: '关闭',
 };

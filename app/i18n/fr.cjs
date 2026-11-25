@@ -39,9 +39,4 @@ module.exports = {
   dataQuit: 'Quitter',
   dataChooseTitle: 'Choisir le dossier de données de Coopanion',
   dataChooseInvalid: (dir) => `Ce dossier ne contient pas de données Coopanion :\n${dir}\n\nChoisissez le dossier d'installation, ou le dossier data qu'il contient.`,
-
-  sandboxFailedMessage: "La fenêtre de Coopanion ne peut pas s'afficher",
-  sandboxFailedDetail: (url) => `Sur cet ordinateur, le bac à sable de Chromium arrête le processus de rendu de la fenêtre dès son démarrage : la fenêtre reste vide.\n\nQuittez Coopanion, ajoutez --no-sandbox à la fin du champ « Cible » du raccourci qui le lance, puis lancez-le depuis ce raccourci. Le bac à sable du rendu est alors désactivé et le code des packs de personnage perd une couche d'isolation : n'utilisez que des packs de sources fiables.\n\nDétails et avancement du correctif : ${url}`,
-  sandboxFailedOpen: 'Voir les détails',
-  sandboxFailedClose: 'Fermer',
 };

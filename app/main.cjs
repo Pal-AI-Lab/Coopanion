@@ -218,33 +218,13 @@ app.setPath('crashDumps', join(DATA, 'Crashpad'));
 process.env.TEMP = process.env.TMP = process.env.TMPDIR = join(DATA, 'tmp');
 mkdirSync(process.env.TEMP, { recursive: true });
 
-/** The --no-sandbox advice for the Windows sandbox failure, and its progress. */
-const SANDBOX_ISSUE = 'https://github.com/Pal-AI-Lab/Coopanion/issues/833';
-let sandboxHinted = false;
-/**
- * Says once per process that a window stays blank because the sandbox did not start its renderer
- * (cortico-world-desktop-pet/host/renderer-gone.cjs), and how to start the app without the sandbox.
- */
-function hintNoSandbox(t) {
-  if (sandboxHinted) return;
-  sandboxHinted = true;
-  void dialog.showMessageBox({
-    type: 'warning', title: 'Coopanion', message: t.sandboxFailedMessage, detail: t.sandboxFailedDetail(SANDBOX_ISSUE),
-    buttons: [t.sandboxFailedOpen, t.sandboxFailedClose], defaultId: 0, cancelId: 1, noLink: true,
-  }).then(({ response }) => { if (response === 0) void shell.openExternal(SANDBOX_ISSUE); });
-}
-
 /* ---------- pet window mode ---------- */
 if (PET_HOST) {
   const arg = (name) => { const hit = process.argv.find((a) => a.startsWith(`--${name}=`)); return hit ? hit.slice(name.length + 3) : ''; };
   app.setPath('userData', join(app.getPath('userData'), 'pet-window'));
   if (MAC) app.dock?.hide();
   const { runPetHost } = require(require.resolve('cortico-world-desktop-pet/host/electron-main.cjs'));
-  const onSandboxFailure = () => {
-    const { configuredLanguage, systemLanguage, textOf } = require('./i18n/index.cjs');
-    hintNoSandbox(textOf(configuredLanguage(join(DATA, 'home')) ?? systemLanguage(app)));
-  };
-  runPetHost({ url: arg('pet-url'), parentPid: Number(arg('parent-pid')) || 0, tray: false, onSandboxFailure });
+  runPetHost({ url: arg('pet-url'), parentPid: Number(arg('parent-pid')) || 0, tray: false });
   return;
 }
 
@@ -535,7 +515,7 @@ function openSettings(path = '') {
   settings.once('ready-to-show', () => bringForward(settings));
   settings.on('page-title-updated', (e) => e.preventDefault());
   keepOnConsole(settings.webContents);
-  watchRenderer(settings.webContents, { name: '设置窗口', log: (line) => core.warn(line), sandboxed: !app.commandLine.hasSwitch('no-sandbox'), onSandboxFailure: () => hintNoSandbox(T()) });
+  watchRenderer(settings.webContents, { name: '设置窗口', log: (line) => core.warn(line) });
   const win = settings;
   let closing = false;
   win.on('close', () => {

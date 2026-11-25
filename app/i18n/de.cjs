@@ -39,9 +39,4 @@ module.exports = {
   dataQuit: 'Beenden',
   dataChooseTitle: 'Coopanion-Datenordner auswählen',
   dataChooseInvalid: (dir) => `Dieser Ordner enthält keine Coopanion-Daten:\n${dir}\n\nWähle den Installationsordner oder den Ordner data darin.`,
-
-  sandboxFailedMessage: 'Das Fenster von Coopanion kann nicht angezeigt werden',
-  sandboxFailedDetail: (url) => `Auf diesem Computer beendet die Chromium-Sandbox den Renderer-Prozess des Fensters schon beim Start, daher bleibt das Fenster leer.\n\nBeende Coopanion, füge am Ende des Felds „Ziel“ der Verknüpfung, mit der du es startest, --no-sandbox hinzu und starte es über diese Verknüpfung. Damit ist die Renderer-Sandbox aus und der Code von Figurenpaketen verliert eine Isolationsschicht: Verwende nur Figurenpakete aus vertrauenswürdigen Quellen.\n\nDetails und Stand der Behebung: ${url}`,
-  sandboxFailedOpen: 'Details anzeigen',
-  sandboxFailedClose: 'Schließen',
 };

@@ -39,9 +39,4 @@ module.exports = {
   dataQuit: '結束',
   dataChooseTitle: '選擇存放 Coopanion 資料的資料夾',
   dataChooseInvalid: (dir) => `這個資料夾裡沒有 Coopanion 的資料：\n${dir}\n\n請選擇安裝目錄，或安裝目錄下的 data 資料夾。`,
-
-  sandboxFailedMessage: 'Coopanion 的視窗無法顯示',
-  sandboxFailedDetail: (url) => `在這台電腦上，Chromium 沙箱讓視窗的轉譯程序在啟動時就結束了，所以視窗是空白的。\n\n結束 Coopanion，在啟動它的捷徑「目標」末尾加上 --no-sandbox，再從這個捷徑啟動。這會關閉轉譯程序的沙箱，形象包的程式碼少一層隔離，請只使用來源可信的形象包。\n\n說明與修正進度：${url}`,
-  sandboxFailedOpen: '查看說明',
-  sandboxFailedClose: '關閉',
 };

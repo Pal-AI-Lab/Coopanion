@@ -39,9 +39,4 @@ module.exports = {
   dataQuit: '終了',
   dataChooseTitle: 'Coopanion のデータフォルダーを選択',
   dataChooseInvalid: (dir) => `このフォルダーには Coopanion のデータがありません：\n${dir}\n\nインストールフォルダー、またはその中の data フォルダーを選んでください。`,
-
-  sandboxFailedMessage: 'Coopanion のウィンドウを表示できません',
-  sandboxFailedDetail: (url) => `このコンピューターでは、Chromium のサンドボックスがウィンドウのレンダラープロセスを起動時に終了させるため、ウィンドウが空白のままになります。\n\nCoopanion を終了し、起動に使うショートカットの「リンク先」の末尾に --no-sandbox を追加して、そのショートカットから起動してください。レンダラーのサンドボックスが無効になり、フィギュアパックのコードを隔離する仕組みが 1 つ減るため、信頼できる提供元のフィギュアパックだけを使ってください。\n\n詳細と修正の進捗：${url}`,
-  sandboxFailedOpen: '詳細を見る',
-  sandboxFailedClose: '閉じる',
 };
