@@ -92,8 +92,11 @@ function toolSchemaCard(ui: WebUi, schema: ToolSchemaDoc): CardEntry {
   const card = ui.h('details', 'tool-schema-card');
   const summary = ui.h('summary', 'tool-schema-summary');
   const rows = schemaParameterRows(schema.parameters);
+  // a name too long for its column ends in an ellipsis (styles.css); the pointer on it shows it whole
+  const title = ui.h('span', 'tool-schema-title', schema.name);
+  title.title = schema.name;
   summary.append(
-    ui.h('span', 'tool-schema-title', schema.name),
+    title,
     ui.h('span', 'tool-schema-short', schema.description || S.noDescription),
     ui.pill(S.paramCount(rows.length)),
   );
