@@ -64,7 +64,7 @@ export default {
   'action.worlds': '我的 World',
   'action.hide': '隐藏桌宠（可从托盘图标重新显示）',
   'action.throughOn': '鼠标穿透：已开启 · 点击关闭',
-  'action.throughOff': '鼠标穿透：已关闭 · 点击开启（之后从托盘菜单关闭，或按住暂停穿透键点这里）',
+  'action.throughOff': '鼠标穿透：已关闭 · 点击开启（之后从托盘菜单关闭，或按住暂停穿透键再点击这里）',
   'menu.cancel': '取消',
   'menu.resume': '继续',
   'menu.pause': '暂停',

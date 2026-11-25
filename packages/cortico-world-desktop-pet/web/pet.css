@@ -39,7 +39,8 @@
 }
 /* the controls and bubbles drawn over the desktop, a little see-through and lit from above: the controls' face lets the
    desktop show through while their rings and icons stay solid; a bubble fades as a whole (--bubble-alpha), so its tail,
-   which covers the border where it joins, stays seamless. --sheen is the light from above, --lift their two-layer shadow. */
+   which covers the border where it joins, stays seamless. --sheen is the light from above, --lift their two-layer shadow.
+   --halo, the ring a pointed button gets, is a colour change: it stays at medium motion and comes at once at low. */
 :root{
   --glass:color-mix(in srgb, var(--surface) 90%, transparent);
   --sheen:linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom));
