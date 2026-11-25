@@ -140,7 +140,7 @@ export const S: Partial<typeof en> = {
   glowPx: (n: number) => `${n} px`,
   glowHint: '桌寵和身後顏色相近時，身體周圍的淺色外發光延伸多遠；滑到最左為關閉。',
   fade: "透明度",
-  fadeHint: "Coo 和氣泡一起變淡；打字框、提問或確認卡片開啟時，以及拎著 Coo 時恢復不透明。變淡後 Coo 仍會接收點擊，不想擋住點擊請在系統匣選單選擇「啟用滑鼠穿透」。",
+  fadeHint: "變淡後 Coo 仍會接收點擊，不想擋住點擊請在系統匣選單選擇「啟用滑鼠穿透」。",
   ringLabel: '上下文圓環',
   ring: '在對話頁顯示',
   ringHint: '對話頁輸入框顯示一個圓環，表示離整理之前的對話還有多遠。',

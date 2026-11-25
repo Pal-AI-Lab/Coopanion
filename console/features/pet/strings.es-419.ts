@@ -140,7 +140,7 @@ export const S: Partial<typeof en> = {
   glowPx: (n: number) => `${n} px`,
   glowHint: 'Hasta dónde llega el brillo claro alrededor de la mascota cuando los colores de Coo se parecen al fondo; todo a la izquierda lo apaga.',
   fade: "Transparencia",
-  fadeHint: "Coo y las burbujas se atenúan juntos, y vuelven a ser opacos mientras el cuadro de texto, una pregunta o una confirmación están abiertos, y mientras llevas a Coo. Atenuado, Coo sigue recibiendo clics; para dejarlos pasar, elige «Dejar pasar los clics a través de Coo» en el menú de la bandeja.",
+  fadeHint: "Atenuado, Coo sigue recibiendo clics; para dejarlos pasar, elige «Dejar pasar los clics a través de Coo» en el menú de la bandeja.",
   ringLabel: 'Anillo de contexto',
   ring: 'Mostrar en la página Chat',
   ringHint: 'Un anillo en el cuadro de texto de la página Chat muestra cuánto falta para ordenar la conversación anterior.',
