@@ -5,10 +5,11 @@
  * custom schemes so 「配色方案」 on the 开始 page lists them too. The large surfaces stay neutral grey for every scheme; the brand colour goes to the
  * accent, the timeline's text colours and the charts.
  *
- * The window follows the pet while its scheme is `mint` or one of these. A scheme the person picked
- * under 「配色方案」, another built-in one or one of their own, stays until they pick one of
- * these again. The schemes are named in the app language when written; an app language change
- * writes them again.
+ * When the dressing page saves a look and the window's scheme is `mint` or one of these, the window
+ * takes that look's scheme. Any other scheme picked under 「配色方案」 stays until one of these is
+ * picked again. A start or an app language change keeps the saved selection; a deployment without
+ * a record starts on the pet's scheme. The schemes are named in the app language when written; an
+ * app language change writes them again.
  */
 import { readDeploymentTheme, writeDeploymentTheme } from 'cortico/web/theme-store.ts';
 import { defaultStoredTheme, normalizeStoredTheme, type ThemePalette, type ThemeScheme } from 'cortico/web/shared/theme.ts';
@@ -99,16 +100,32 @@ function schemeForSkin(skin: { figure?: string; scheme?: string } | undefined, p
 }
 
 /**
- * Brings `<deployDir>/theme.json` in line with the pet's look: the packs' schemes as they are now,
- * and the selection per the rule at the top. Writes only when something changed.
+ * Writes `<deployDir>/theme.json` with the packs' schemes as they are now; with `follow`, or without a
+ * saved record, the selection also moves per the rule at the top. A selected scheme whose pack did not
+ * load (a Workshop item still downloading, a pack removed) keeps its saved colours until another is
+ * picked. Writes only when something changed.
  */
-export function followPetLook(deployDir: string, skin: { figure?: string; scheme?: string } | undefined, packs: readonly FigurePack[], language: Language = 'zh'): void {
-  const state = readDeploymentTheme(deployDir).state ?? { ...defaultStoredTheme(), selectedId: COO_SCHEME };
-  const follows = state.selectedId === COO_SCHEME || isFigureScheme(state.selectedId);
+function sync(deployDir: string, skin: { figure?: string; scheme?: string } | undefined, packs: readonly FigurePack[], language: Language, follow: boolean): void {
+  const saved = readDeploymentTheme(deployDir).state;
+  const state = saved ?? { ...defaultStoredTheme(), selectedId: COO_SCHEME };
+  const follows = !saved || (follow && (state.selectedId === COO_SCHEME || isFigureScheme(state.selectedId)));
+  const selectedId = follows ? schemeForSkin(skin, packs) : state.selectedId;
+  const fresh = figureSchemes(packs, language);
+  const orphan = fresh.some((s) => s.id === selectedId) ? [] : state.custom.filter((s) => s.id === selectedId && isFigureScheme(s.id));
   const next = normalizeStoredTheme({
     ...state,
-    selectedId: follows ? schemeForSkin(skin, packs) : state.selectedId,
-    custom: [...state.custom.filter((s) => !isFigureScheme(s.id)), ...figureSchemes(packs, language)],
+    selectedId,
+    custom: [...state.custom.filter((s) => !isFigureScheme(s.id)), ...fresh, ...orphan],
   });
   if (JSON.stringify(next) !== JSON.stringify(state)) writeDeploymentTheme(deployDir, next);
+}
+
+/** At start and on an app language change: the packs' schemes, named in `language`; a saved selection stays. */
+export function refreshFigureSchemes(deployDir: string, skin: { figure?: string; scheme?: string } | undefined, packs: readonly FigurePack[], language: Language = 'zh'): void {
+  sync(deployDir, skin, packs, language, false);
+}
+
+/** When the dressing page saves a look: the packs' schemes, and the selection follows the look per the rule at the top. */
+export function followPetLook(deployDir: string, skin: { figure?: string; scheme?: string } | undefined, packs: readonly FigurePack[], language: Language = 'zh'): void {
+  sync(deployDir, skin, packs, language, true);
 }

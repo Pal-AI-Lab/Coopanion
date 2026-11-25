@@ -171,6 +171,18 @@ export function mountWorlds(ctx: FeatureContext): void {
   let transition: Animation | undefined;
   let viewGeneration = 0;
   lifecycle.add(() => transition?.cancel());
+  // While the window is being resized (`data-resizing`, until 150ms after the last size change) the rows
+  // take each size at once: a row still easing to its old width is cut off by the new layout.
+  if (typeof win.ResizeObserver === 'function') {
+    let resizeTimer = 0, measured = false;
+    const resizing = new win.ResizeObserver(() => {
+      if (!measured) { measured = true; return; }
+      workspace.dataset.resizing = ''; win.clearTimeout(resizeTimer);
+      resizeTimer = win.setTimeout(() => { delete workspace.dataset.resizing; }, 150);
+    });
+    resizing.observe(workspace);
+    lifecycle.add(() => { resizing.disconnect(); win.clearTimeout(resizeTimer); });
+  }
   const show = () => {
     if (signal.aborted || router.route.segments[0] !== 'world') return;
     const next = canBrowse && router.route.query.view === 'market' ? 'market' : 'mine';
