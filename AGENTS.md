@@ -62,6 +62,10 @@ is unavoidable.
    release notes exist in Chinese and English.
 5. **Third-party material is never committed**: character art, reference images, audio, model
    weights. A precedent is not a permission.
+6. **Interface motion goes through the motion levels.** A new animation in the settings window or
+   on the pet's pages takes its duration and easing from the motion variables, says what it does at
+   medium and low, and lets a script ask `motionLevel()` instead of the system: docs/DEVELOPMENT.md
+   「动画与动态效果」.
 
 ## 4. Writing
 

@@ -4,7 +4,7 @@
  * 图片来自市场条目的 screenshots,以及简介里的 Markdown 图片(只认 https)。
  */
 import { icon, type ConsoleIconName } from '../../../base/ui/icons.ts';
-import { prefersStill } from '../../../base/motion.ts';
+import { motionLevel } from '../../../base/motion.ts';
 import { S } from './strings.ts';
 
 export interface GalleryImage { src: string; alt: string }
@@ -59,7 +59,7 @@ export function gallery(doc: Document, images: readonly GalleryImage[], signal: 
     shot.addEventListener('click', () => { const live = shown(); openLightbox(doc, live, live.indexOf(image), signal); }, { signal });
     track.append(shot);
   });
-  const page = (direction: -1 | 1) => () => track.scrollBy({ left: direction * track.clientWidth * 0.8, behavior: prefersStill(win) ? 'auto' : 'smooth' });
+  const page = (direction: -1 | 1) => () => track.scrollBy({ left: direction * track.clientWidth * 0.8, behavior: motionLevel(win) === 'low' ? 'auto' : 'smooth' });
   const prev = roundButton(doc, 'extension-gallery-nav is-prev', 'chevron-left', S.galleryPrev, page(-1), signal);
   const next = roundButton(doc, 'extension-gallery-nav is-next', 'chevron-right', S.galleryNext, page(1), signal);
   // The buttons show only while there is more to one side.

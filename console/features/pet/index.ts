@@ -45,6 +45,9 @@ import { S as CUA } from '../cua/strings.ts';
 import { announceName } from '../bot-name.ts';
 import { scaleSlider } from 'cortico-world-desktop-pet/web/scale-slider.js';
 import { S } from './strings.ts';
+import { motionLevel } from '../../base/motion.ts';
+import { MOTION_GROUP, MOTION_KEY, useMotionChoice } from '../../base/motion-choice.ts';
+import type { MotionChoice } from 'cortico-world-desktop-pet/web/motion-level.js';
 import { bubblePreview } from './bubble-preview.ts';
 
 const GROUP = 'world:desktop-pet';
@@ -269,6 +272,17 @@ async function mount(ctx: PageContext): Promise<void> {
   const frameRate = ui.segmented(FRAME_RATES.map((n) => ({ value: String(n), label: n ? String(n) : S.frameUnlimited })),
     { size: 'sm', onSelect: (v) => void save(KEYS.frameRate, Number(v), GROUP, frameRate.el) });
   const lockFps = ui.checkbox(S.lockFps, { onChange: (on) => void save(KEYS.lockFps, on, GROUP, lockFps.el) });
+  // 动态效果: the three levels, and whether they follow the system; following it, the levels show the system's
+  const view = root.ownerDocument.defaultView!;
+  let motionChoice: MotionChoice = 'system';
+  const showMotion = () => { motionLevels.setValue(motionLevel(view)); motionSystem.setChecked(motionChoice === 'system'); };
+  const chooseMotion = (choice: MotionChoice, anchor: HTMLElement) => { motionChoice = useMotionChoice(view, choice); showMotion(); void save(MOTION_KEY, motionChoice, MOTION_GROUP, anchor); };
+  const motionLevels = ui.segmented([{ value: 'low', label: S.motionLow }, { value: 'medium', label: S.motionMedium }, { value: 'high', label: S.motionHigh }],
+    { size: 'sm', onSelect: (v) => chooseMotion(v as MotionChoice, motionLevels.el) });
+  const motionSystem = ui.checkbox(S.motionSystem, { onChange: (on) => chooseMotion(on ? 'system' : motionLevel(view), motionSystem.el) });
+  view.matchMedia?.('(prefers-reduced-motion: reduce)').addEventListener?.('change', () => showMotion(), { signal });
+  const motionBox = ui.h('div', 'companion-switchbox companion-motion');
+  motionBox.append(motionLevels.el, motionSystem.el);
   const hideFullscreen = ui.checkbox(S.hideFullscreen, { onChange: (on) => void save(KEYS.hideFullscreen, on, GROUP, hideFullscreen.el) });
   const passFullscreen = ui.checkbox(S.passFullscreen, { onChange: (on) => void save(KEYS.passFullscreen, on, GROUP, passFullscreen.el) });
   const fadeFullscreen = ui.checkbox(S.fadeFullscreen, {
@@ -520,13 +534,14 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.fade, fade.box, S.fadeHint),
     row(S.frameRate, frameRate.el, S.frameRateHint),
     row('', lockFps.el, S.lockFpsHint),
+    row(S.motion, motionBox, S.motionHint),
     hideFullscreenRow,
     overTaskbarRow,
     hideFromCaptureRow,
     row(S.rememberLabel, remember.el, S.rememberHint),
   );
   const heading = intro(ui, S.nav);
-  root.append(heading, habits.el, behavior.el, bubbles.el, display.el);
+  root.append(heading, habits.el, behavior.el, display.el);
 
   /* ---------- sounds ---------- */
   const sounds = ui.sheet({ title: S.soundTitle });
@@ -632,7 +647,7 @@ async function mount(ctx: PageContext): Promise<void> {
     speedRow,
   );
   const cua = cuaSection(ctx, row);
-  root.append(sounds.el, speechSheet.el, cua.el);
+  root.append(sounds.el, bubbles.el, speechSheet.el, cua.el);
 
   /* ---------- other: the OBS overlay, the context ring ---------- */
   const other = ui.sheet({ title: S.groupOther });
@@ -653,9 +668,9 @@ async function mount(ctx: PageContext): Promise<void> {
   heading.append(sectionTabs(root.ownerDocument, signal, root, [
     { value: 'general', label: S.groupGeneral, el: habits.el },
     { value: 'behavior', label: S.groupBehavior, el: behavior.el },
-    { value: 'bubbles', label: S.groupBubbles, el: bubbles.el },
     { value: 'display', label: S.groupDisplay, el: display.el },
     { value: 'sounds', label: S.soundTitle, el: sounds.el },
+    { value: 'bubbles', label: S.groupBubbles, el: bubbles.el },
     { value: 'speech', label: S.speechTitle, el: speechSheet.el },
     { value: 'cua', label: CUA.title, el: cua.el },
     { value: 'other', label: S.groupOther, el: other.el },
@@ -783,6 +798,8 @@ async function mount(ctx: PageContext): Promise<void> {
       snore.dataset.saved = snore.value;
     }
     if (typeof values[KEYS.lockFps] === 'boolean') lockFps.setChecked(values[KEYS.lockFps] as boolean);
+    motionChoice = useMotionChoice(view, values[MOTION_KEY]);
+    showMotion();
     if (typeof values[KEYS.hideFullscreen] === 'boolean') { hideFullscreen.setChecked(values[KEYS.hideFullscreen] as boolean); hideFullscreenRow.hidden = false; }
     if (typeof values[KEYS.passFullscreen] === 'boolean') passFullscreen.setChecked(values[KEYS.passFullscreen] as boolean);
     if (typeof values[KEYS.fadeFullscreen] === 'boolean') { fadeFullscreen.setChecked(values[KEYS.fadeFullscreen] as boolean); fullscreenFade.box.hidden = !values[KEYS.fadeFullscreen]; }

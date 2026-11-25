@@ -61,7 +61,7 @@ describe('measureReflow', () => {
     expect(steadiest([3, 1, 2, 0, 4])).toEqual([1, 2, 4]);
     expect(steadiest([])).toEqual([]);
   });
-  it('does nothing for a first render or with reduced motion', () => {
+  it('does nothing for a first render or at low motion', () => {
     stubLayout();
     const list = document.createElement('div'); document.body.append(list);
     measureReflow(list, '.item', el => el.dataset.key).play();

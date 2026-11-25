@@ -15,6 +15,7 @@ import { LANGUAGE } from '../../../base/language.ts';
 import type { Lifecycle } from '../../../base/lifecycle.ts';
 import { icon } from '../../../base/ui/icons.ts';
 import { S } from './strings.ts';
+import { MOTION_GROUP, MOTION_KEY, useMotionChoice } from '../../../base/motion-choice.ts';
 
 /** 连续输入的请求去抖间隔。 */
 const SAVE_DEBOUNCE_MS = 400;
@@ -537,6 +538,10 @@ export function createConfigView(deps: ConfigViewDeps): ConfigView {
       // 期间又发出的保存成功后会再取一次。
       if (n !== refreshSeq || saving > 0 || signal.aborted) return;
       const latest = new Map((d.groups ?? []).map((entry) => [entry.group.id, entry.values ?? {}]));
+      // 这个窗口自己的动态效果档位也随配置走(「习惯」页之外,只有这里会改它)
+      const motion = latest.get(MOTION_GROUP);
+      const view = anchor.ownerDocument.defaultView;
+      if (motion && view && MOTION_KEY in motion) useMotionChoice(view, motion[MOTION_KEY]);
       for (const r of readers) {
         const values = latest.get(r.groupId);
         if (!values || !(r.path in values)) continue;

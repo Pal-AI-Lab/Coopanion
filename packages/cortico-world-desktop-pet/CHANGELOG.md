@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Windows: after the scale of the pet window's display changes while the app runs, the window covers the work area again; it used to come out sized by the ratio of the old and new scales.
 - Config `asr.serviceEnabled` (on by default): off, the recognition service does not start while voice input is on; the voice panel's `start` and `stop` methods write it, and `state` carries it. With `asr.recording.transcript` off and the endpoint taking `audio/wav`, a batch goes as its recording once captured, without waiting for recognition; a transcript recognized afterwards is stored as a `desktop-pet.self` `transcript` record and sent to chat pages as `transcript { cursor, text }`, never delivered.
 - Config `cua.risksConfirmed` (off by default): the person confirmed computer use's risks in the settings window. While it is on, the pet's `cua` hover button turns computer use on as well as off (`prefs` `cua: true`, which the World refuses otherwise); the page's `prefs.cua` carries `confirmed`.
 - The 「语音输入」 panel shows the explanations of the engine, how to talk, opening on press, the recording, the transcript and the recording limit whole, in the page's text font; status details (paths, the window, the runtime) keep to two lines.

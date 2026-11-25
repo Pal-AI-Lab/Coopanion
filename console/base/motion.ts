@@ -1,8 +1,16 @@
 /** Motion helpers shared by the settings window's pages. */
+import { motionLevel } from 'cortico-world-desktop-pet/web/motion-level.js';
 
-/** Whether the system asks for reduced motion. */
-export function prefersStill(win: Window | null | undefined): boolean {
-  return !!win?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+export { motionLevel };
+
+/**
+ * An easing the stylesheet defines on the root (`--motion-pop`, `--motion-out`, styles.css), for script animations that
+ * should ease as the CSS ones do: below full motion `--motion-pop` is a steady curve there, so a script reading it
+ * stops overshooting with the rest. `fallback` where the stylesheet has none (the tests).
+ */
+export function cssEasing(win: Window | null | undefined, name: string, fallback: string): string {
+  const value = win?.getComputedStyle?.(win.document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
 }
 
 export interface FoldOptions {
@@ -16,6 +24,8 @@ export interface FoldOptions {
   hide?: boolean;
   /** Clip the content to the changing size (default). Off when the caller's own style clips it. */
   clip?: boolean;
+  /** Fade the content with the size (default). Off for a box that only opens and closes. */
+  fade?: boolean;
 }
 
 /**
@@ -23,19 +33,19 @@ export interface FoldOptions {
  * it. The size and every padding and margin on the axis go to zero, so the closed frame takes the
  * space `hidden` takes and the open frame the space the element ends at: nothing jumps when the
  * animation hands over to the stylesheet. Borders keep their width (the browser draws any width under
- * a pixel as a whole one), and the far margin gives their width back instead. With reduced motion it
+ * a pixel as a whole one), and the far margin gives their width back instead. With low motion it
  * only toggles `hidden`.
  */
 export function fold(el: HTMLElement, open: boolean, opts: FoldOptions = {}): void {
-  const { axis = 'y', duration = 170, easing = 'cubic-bezier(.32,.72,0,1)', shift = 0, hide = true, clip = true } = opts;
+  const { axis = 'y', duration = 170, easing = 'cubic-bezier(.32,.72,0,1)', shift = 0, hide = true, clip = true, fade = true } = opts;
   const win = el.ownerDocument.defaultView;
   for (const running of el.getAnimations?.() ?? []) running.cancel();
-  if (prefersStill(win) || !el.animate) { if (hide) el.hidden = !open; return; }
+  if (motionLevel(win) === 'low' || !el.animate) { if (hide) el.hidden = !open; return; }
   el.hidden = false;
   const style = win!.getComputedStyle(el);
   const [size, min, sides] = axis === 'y' ? ['height', 'min-height', ['top', 'bottom']] as const : ['width', 'min-width', ['left', 'right']] as const;
-  const full: Keyframe = { opacity: 1, transform: 'none' };
-  const none: Keyframe = { opacity: 0, transform: shift ? `translateX(${shift}px)` : 'none' };
+  const full: Keyframe = fade ? { opacity: 1, transform: 'none' } : { transform: 'none' };
+  const none: Keyframe = { ...(fade ? { opacity: 0 } : {}), transform: shift ? `translateX(${shift}px)` : 'none' };
   for (const property of [size, min, ...sides.flatMap(side => [`padding-${side}`, `margin-${side}`])]) {
     const key = property.replace(/-./g, part => part[1].toUpperCase());
     // A min size of auto cannot be interpolated and would flip halfway; from zero it grows with the size.
@@ -49,6 +59,33 @@ export function fold(el: HTMLElement, open: boolean, opts: FoldOptions = {}): vo
   const motion = el.animate(open ? [none, full] : [full, none], { duration, easing, fill: !open && !hide ? 'forwards' : 'none' });
   const restore = () => { if (clip) el.style.overflow = overflow; };
   void motion.finished.then(() => { restore(); if (!open && hide) el.hidden = true; }, restore);
+}
+
+export interface SlideOptions extends KeyframeAnimationOptions {
+  /**
+   * Below full motion: keep sliding (`slide`, for moves the pointer made, as a drop or a reorder), land at once
+   * (`jump`), or land at once and fade in there (`fade`). At low motion nothing animates.
+   */
+  medium?: 'slide' | 'jump' | 'fade';
+  /** Moves along one axis only: written as `translateX`/`translateY` instead of `translate`. */
+  axis?: 'x' | 'y';
+}
+
+/**
+ * Slides each element from where it was (`dx`, `dy` pixels from where it is now) to its place, and returns the
+ * animations, one per element in the order given (none for an element that did not move or that does not animate).
+ * The callers measure: before a change, the rects; after it, the offsets.
+ */
+export function slideFrom(moves: readonly (readonly [HTMLElement, number, number])[], opts: SlideOptions = {}): (Animation | undefined)[] {
+  const { medium = 'slide', axis, ...timing } = opts;
+  const level = moves.length ? motionLevel(moves[0][0].ownerDocument.defaultView) : 'high';
+  return moves.map(([el, dx, dy]) => {
+    if (level === 'low' || (!dx && !dy) || !el.animate) return undefined;
+    if (level === 'medium' && medium === 'jump') return undefined;
+    if (level === 'medium' && medium === 'fade') return el.animate([{ opacity: 0 }, { opacity: 1 }], timing);
+    const from = axis === 'x' ? `translateX(${dx}px)` : axis === 'y' ? `translateY(${dy}px)` : `translate(${dx}px, ${dy}px)`;
+    return el.animate([{ transform: from }, { transform: 'none' }], timing);
+  });
 }
 
 export interface Reflow {
@@ -65,13 +102,13 @@ const REFLOW_MS = 200, EXIT_MS = 130, ASIDE = 24, REFLOW_EASING = 'cubic-bezier(
  * slides in from the other side as they arrive (it takes its final place at once, which the rest
  * are crossing until then). Only items in the window are animated, and an item that does not move
  * does not animate. An item is "there" while it has a box; hidden or filtered-out items count as
- * gone. With reduced motion `play` does nothing.
+ * gone. With low motion `play` does nothing.
  */
 export function measureReflow(container: HTMLElement, selector: string, key: (el: HTMLElement) => string | undefined): Reflow {
   const win = container.ownerDocument.defaultView;
   const before = new Map<string, { el: HTMLElement; parent: HTMLElement | null; rect: DOMRect; display: string }>();
   // Rects include a running slide, so an interrupted reflow continues from where the items are.
-  if (!prefersStill(win)) for (const el of container.querySelectorAll<HTMLElement>(selector)) {
+  if (motionLevel(win) !== 'low') for (const el of container.querySelectorAll<HTMLElement>(selector)) {
     const id = key(el), rect = el.getBoundingClientRect();
     if (id && rect.height) before.set(id, { el, parent: el.parentElement, rect, display: win!.getComputedStyle(el).display });
   }
@@ -79,6 +116,8 @@ export function measureReflow(container: HTMLElement, selector: string, key: (el
   return {
     play(target = container) {
       if (!before.size || !win || !target.animate) return;
+      // below full motion nothing slides: what stays jumps to its place, and what comes and goes only fades
+      const slide = motionLevel(win) === 'high';
       const inView = (rect: DOMRect) => rect.bottom > 0 && rect.top < win.innerHeight;
       const now = new Map<string, { el: HTMLElement; rect: DOMRect }>();
       for (const el of target.querySelectorAll<HTMLElement>(selector)) {
@@ -100,10 +139,10 @@ export function measureReflow(container: HTMLElement, selector: string, key: (el
         const dx = was.rect.left - rect.left, dy = was.rect.top - rect.top;
         if ((Math.abs(dx) > .5 || Math.abs(dy) > .5) && (inView(rect) || inView(was.rect))) moves.push([el, dx, dy]);
       }
-      const exit = gone.length ? EXIT_MS : 0, enter = exit + (moves.length ? REFLOW_MS * .8 : 0);
+      const exit = gone.length ? EXIT_MS : 0, enter = exit + (slide && moves.length ? REFLOW_MS * .8 : 0);
       const timing = (delay: number) => ({ id: 'reflow', duration: REFLOW_MS, easing: REFLOW_EASING, delay, fill: 'backwards' as const });
-      for (const [el, dx, dy] of moves) el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], timing(exit));
-      for (const el of arrivals) el.animate([{ opacity: 0, transform: `translateX(${-ASIDE}px)` }, { opacity: 1, transform: 'none' }], timing(enter));
+      slideFrom(moves, { ...timing(exit), medium: 'jump' });
+      for (const el of arrivals) el.animate([{ opacity: 0, transform: slide ? `translateX(${-ASIDE}px)` : 'none' }, { opacity: 1, transform: 'none' }], timing(enter));
       // What went leaves as a copy where it stood: in its own parent while that is still shown, so
       // the styles it had there still apply.
       for (const was of gone) {
@@ -120,7 +159,7 @@ export function measureReflow(container: HTMLElement, selector: string, key: (el
           width: `${was.rect.width}px`, height: `${was.rect.height}px`,
         });
         host.append(ghost);
-        const out = ghost.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: `translateX(${ASIDE}px)` }], { duration: EXIT_MS, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
+        const out = ghost.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: slide ? `translateX(${ASIDE}px)` : 'none' }], { duration: EXIT_MS, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
         void out.finished.then(() => ghost.remove(), () => ghost.remove());
       }
     },

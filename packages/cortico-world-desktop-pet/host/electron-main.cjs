@@ -56,6 +56,8 @@ const WINDOWS_EVERY_MS = 700;
 const FOREGROUND_EVERY_MS = 200;
 /** Most pixels one backdrop sample returns. */
 const BACKDROP_SAMPLES = 1500;
+/** The Windows message a window gets when the scale of its display changes. */
+const WM_DPICHANGED = 0x02e0;
 /**
  * Whether the desktop is GNOME, by XDG_CURRENT_DESKTOP, XDG_SESSION_DESKTOP or DESKTOP_SESSION. There the pet
  * window is a dock window: mutter's window_would_be_covered() refuses focus to every new window that an
@@ -378,16 +380,17 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   /** The display the window belongs on: the one it was moved to, or the primary display once that one is gone. */
   const display = () => screen.getAllDisplays().find((d) => d.id === displayId) ?? screen.getPrimaryDisplay();
 
-  /** Moves the window over display `d`; returns the area it now covers. */
-  const cover = (d) => {
+  /** Moves the window over display `d`; returns the area it now covers. `reset`: see rescaled below. */
+  const cover = (d, reset = false) => {
     const from = screen.getDisplayMatching(win.getBounds());
     displayId = d.id;
     const area = coverArea(d, overTaskbar), { below, ...rect } = area;
     // Windows: setBounds converts the rect with the scale of the display the window is on. Onto a
     // display with another scale the window comes out sized for the old one, can reach back over it
     // and stay counted on it, so setting the rect again changes nothing. A 1x1 window at the new
-    // origin lies wholly on the new display, and the rect set after it holds.
-    if (process.platform === 'win32' && from.id !== d.id && from.scaleFactor !== d.scaleFactor) {
+    // origin lies wholly on the new display, and the rect set after it holds. The same goes for a new
+    // scale on the window's own display.
+    if (process.platform === 'win32' && (reset || (from.id !== d.id && from.scaleFactor !== d.scaleFactor))) {
       win.setBounds({ x: rect.x, y: rect.y, width: 1, height: 1 });
     }
     win.setBounds(rect);
@@ -397,6 +400,21 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   };
 
   const place = () => { if (win) cover(display()); };
+
+  /**
+   * Windows: when the scale of the window's display changes, the window resizes itself to the rect
+   * WM_DPICHANGED suggests (its size times the ratio of the two scales), and setBounds changes nothing
+   * until display-metrics-changed has also come for the new scale. Whichever of the two comes last
+   * places the window again. `metricsScale`: the scale display-metrics-changed last saw.
+   */
+  let metricsScale = null, dpiChanged = false;
+  const rescaled = (from) => {
+    if (from === 'dpi') dpiChanged = true;
+    else metricsScale = display().scaleFactor;
+    if (!dpiChanged || metricsScale !== display().scaleFactor) { if (from === 'metrics') place(); return; }
+    dpiChanged = false;
+    setTimeout(() => { if (win) cover(display(), true); }, 0);
+  };
 
   /**
    * A hand showed or hid the window, so the fullscreen rule no longer owns it: a manual show while
@@ -431,6 +449,10 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     win.setIgnoreMouseEvents(true, { forward: FORWARD_MOVES });
     guard(win.webContents);
     win.once('ready-to-show', () => win.showInactive());
+    if (process.platform === 'win32') {
+      metricsScale = display().scaleFactor;
+      win.hookWindowMessage(WM_DPICHANGED, () => rescaled('dpi'));
+    }
     // The page cannot tell for itself that it is hidden (background throttling is off, so it always reads as
     // visible and keeps getting frames): the window tells it, so it stops drawing, and for the settings window's
     // 「在桌面上 / 已隐藏」.
@@ -580,7 +602,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     // requestingOrigin ends with '/'; a check that fails leaves the page one input with no id or label
     session.defaultSession.setPermissionCheckHandler((wc, permission, requestingOrigin) => permission === 'media' && ours(requestingOrigin));
     create();
-    screen.on('display-metrics-changed', place);
+    screen.on('display-metrics-changed', () => (process.platform === 'win32' ? rescaled('metrics') : place()));
     screen.on('display-added', place);
     screen.on('display-removed', place);
     if (!withTray) return;
