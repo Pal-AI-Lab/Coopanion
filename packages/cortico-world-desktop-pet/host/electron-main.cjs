@@ -579,16 +579,21 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   handlePet('pet:portrait', async (_e, rect) => {
     try { return win && win.isVisible() ? await capturePortrait(win, rect, nativeImage) : null; } catch { return null; }
   });
+  /** The display under the cursor, when it is not the one the window covers. */
+  const otherDisplay = () => {
+    const pt = cursor.read(), d = screen.getDisplayNearestPoint(pt);
+    return d.id === display().id ? null : { pt, d };
+  };
+  handlePet('pet:cursorElsewhere', () => !!win && !!otherDisplay());
   /**
    * A drag carried or let go of outside the window: when the cursor is over another display, the
    * window moves there and the page gets the cursor's spot in its new coordinates, its new size, and
    * how far a point on screen moved in page coordinates (`dx`, `dy`); null leaves it where it is.
    */
   handlePet('pet:followCursor', () => {
-    if (!win) return null;
-    const pt = cursor.read(), d = screen.getDisplayNearestPoint(pt);
-    const fromDisplay = display();
-    if (d.id === fromDisplay.id) return null;
+    const other = win && otherDisplay();
+    if (!other) return null;
+    const { pt, d } = other, fromDisplay = display();
     const from = coverArea(fromDisplay, overTaskbar), wa = cover(d);
     return { x: pt.x - wa.x, y: pt.y - wa.y, w: wa.width, h: wa.height, dx: from.x - wa.x, dy: from.y - wa.y };
   });
