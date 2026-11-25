@@ -1,5 +1,6 @@
 // 主进程的文字:托盘菜单、设置窗口的启动页、Core 退出的通知,找回更新前数据的对话框,程序旁边没有数据时询问用哪份数据的对话框,以及数据目录写不进去时的错误框。
 module.exports = {
+  installUpdateFailed: (version) => `Coopanion 未能更新到 ${version}。`,
   /** 设置窗口在 Core 起来之前显示的一行字 */
   starting: '正在启动…',
 

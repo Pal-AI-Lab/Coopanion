@@ -193,7 +193,6 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
       if (from === undefined) {
         x.card.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
       } else if (Math.abs(from - to) > 0.5) {
-        // 中档不滑:在新位置淡入(审计表「中→淡入」)
         slideFrom([[x.card, from - to, 0]], { duration: 260, easing: 'cubic-bezier(.3, .7, .2, 1)', medium: 'fade', axis: 'x' });
       }
     }
