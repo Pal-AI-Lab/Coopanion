@@ -1679,7 +1679,7 @@ const ACTIONS = {
     icon: () => ICONS.through,
     on: () => prefs.clickThrough,
     state: () => t(prefs.clickThrough ? 'action.throughOn' : 'action.throughOff'),
-    tip: () => tipWithoutNote(t(prefs.clickThrough ? 'action.throughOn' : 'action.throughOff')),
+    tip: () => tipWithoutNote(ACTIONS.through.state()),
     run: () => send({ t: 'prefs', clickThrough: !prefs.clickThrough }),
   },
   size: {
