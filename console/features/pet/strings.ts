@@ -47,7 +47,7 @@ const zh = {
   motionMedium: '中',
   motionHigh: '高',
   motionSystem: '跟随系统',
-  motionHint: '界面动画的多少，设置窗口和桌宠一起变。中档去掉回弹和装饰性的动画；低档只留颜色变化和加载指示。',
+  motionHint: '界面动画的多少，设置窗口和桌宠一起改变。中档去掉回弹和装饰性的动画；低档只保留颜色变化和加载指示。',
   hideFullscreen: '自动隐藏',
   hideFullscreenHint: '全屏时隐藏，退出全屏后恢复显示。最大化窗口不算全屏。',
   passFullscreen: "鼠标穿透",

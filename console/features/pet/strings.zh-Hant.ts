@@ -38,7 +38,7 @@ export const S: Partial<typeof en> = {
   motionMedium: '中',
   motionHigh: '高',
   motionSystem: '跟隨系統',
-  motionHint: '介面動畫的多寡，設定視窗和桌寵一起變。中檔去掉回彈和裝飾性的動畫；低檔只留顏色變化和載入指示。',
+  motionHint: '介面動畫的多寡，設定視窗和桌寵一起改變。中檔去掉回彈和裝飾性的動畫；低檔只保留顏色變化和載入指示。',
   hideFullscreen: '自動隱藏',
   hideFullscreenHint: '全螢幕時隱藏，離開全螢幕後恢復顯示。最大化視窗不算全螢幕。',
   passFullscreen: "滑鼠穿透",
