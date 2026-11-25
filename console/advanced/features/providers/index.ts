@@ -14,7 +14,7 @@ import { mountDetail, type DetailController } from './detail.ts';
 import { signOutBeforeDelete } from '../../../features/chatgpt/index.ts';
 import { CHATGPT_MODULE } from 'cortico-provider-coo/src/vendors.ts';
 import { dragList, moveGap, settledBox } from '../../../base/drag.ts';
-import { measureReflow, prefersStill } from '../../../base/motion.ts';
+import { measureReflow, slideFrom } from '../../../base/motion.ts';
 
 /** How often the card list re-reads other deployments' usage. */
 const USAGE_REFRESH_MS = 5000;
@@ -289,7 +289,7 @@ async function mountConnections(ctx: FeatureContext): Promise<void> {
       writeOrder(movable().map(card => card.dataset.provider!));
       // The card slides into its place from where its copy was.
       const delta = copyTop - el.getBoundingClientRect().top;
-      if (delta && !prefersStill(doc.defaultView)) el.animate?.([{ transform: `translateY(${delta}px)` }, { transform: 'none' }], { duration: 180, easing: 'cubic-bezier(.32,.72,0,1)' });
+      slideFrom([[el, 0, delta]], { duration: 180, easing: 'cubic-bezier(.32,.72,0,1)', axis: 'y' });
     },
     cancel() {
       const gap = dragged; dragged = null;

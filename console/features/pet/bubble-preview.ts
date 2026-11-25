@@ -12,7 +12,7 @@
  */
 
 import { balancedWidth, clamp, ICONS, tailAt, tailLine } from 'cortico-world-desktop-pet/web/ui.js';
-import { prefersStill } from '../../base/motion.ts';
+import { motionLevel } from '../../base/motion.ts';
 import { icon } from '../../base/ui/icons.ts';
 import { S } from './strings.ts';
 
@@ -110,7 +110,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
   const show = (bubble: HTMLElement, on: boolean, pop = false) => {
     bubble.classList.remove('is-fading');
     bubble.hidden = !on;
-    if (on && pop && !prefersStill(doc.defaultView)) { bubble.classList.remove('pop'); void bubble.offsetWidth; bubble.classList.add('pop'); }
+    if (on && pop && motionLevel(doc.defaultView) !== 'low') { bubble.classList.remove('pop'); void bubble.offsetWidth; bubble.classList.add('pop'); }
   };
   const fading = (bubble: HTMLElement) => bubble.classList.contains('is-fading');
   const fade = (bubble: HTMLElement) => { if (!bubble.hidden) bubble.classList.add('is-fading'); };
@@ -168,7 +168,7 @@ export function bubblePreview(doc: Document, signal: AbortSignal, read: () => Bu
       const target = { x: clamp(cx - bw / 2, EDGE, Math.max(EDGE, STAGE_PX - bw - EDGE)) - a.x, y: bottom - bh - a.y };
       // a fading line stays where it was
       if (!saidAt || dt <= 0) saidAt = target;
-      else if (!fading(said)) { const e = Math.min(1, dt * 12); saidAt = { x: saidAt.x + (target.x - saidAt.x) * e, y: saidAt.y + (target.y - saidAt.y) * e }; }
+      else if (!fading(said)) { const e = motionLevel(doc.defaultView) === 'low' ? 1 : Math.min(1, dt * 12); saidAt = { x: saidAt.x + (target.x - saidAt.x) * e, y: saidAt.y + (target.y - saidAt.y) * e }; }
       said.style.left = `${a.x + saidAt.x}px`; said.style.top = `${a.y + saidAt.y}px`;
     }
   };

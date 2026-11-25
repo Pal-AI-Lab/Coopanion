@@ -86,7 +86,7 @@
     transform: translateY(-50%);
     font-size: 10.5px;
     line-height: 1.35;
-    transition: transform 160ms ease-out, filter 160ms ease-out;
+    transition: transform var(--motion-fast) ease-out, filter var(--motion-fast) ease-out;
   }
   .prefix-flag::after {
     content: '';
@@ -179,7 +179,7 @@ details.sheet.fold.fold-plain.prefix-preview > .foldbody { margin-top:16px; }
 @media (max-width:700px) {
   .prefix-flags { flex-basis:132px !important; }
 }
-.prefix-fold-status { flex:none; width:20px; margin-left:12px; padding:0; border:0; background:none; cursor:pointer; text-align:center; font:16px/18px var(--mono); transition:transform 160ms ease-out; }
+.prefix-fold-status { flex:none; width:20px; margin-left:12px; padding:0; border:0; background:none; cursor:pointer; text-align:center; font:16px/18px var(--mono); transition:transform var(--motion-fast) ease-out; }
 .prefix-fold-status:hover { transform:scale(1.15); }
 .prefix-fold-status:active { transform:scale(.9); }
 .prefix-fold-status:focus-visible { outline:1px solid currentColor; outline-offset:2px; }
@@ -190,9 +190,9 @@ details.sheet.fold.fold-plain.prefix-preview > .foldbody { margin-top:16px; }
 .prompt-reference.is-preview { color:var(--ink); }
 .prompt-reference.is-preview .prompt-reference-label { white-space:pre-wrap; font:inherit; }
 .prompt-reference-remove { flex:none; align-self:center; border:0; padding:0 4px 0 1px; color:var(--section-color); background:none; font:13px/1 var(--sans); cursor:pointer; }
-.reference-arrive { animation:reference-arrive 220ms ease-out; }
+.reference-arrive { animation:reference-arrive var(--motion-base) ease-out; }
 @keyframes reference-arrive { from { transform:translateX(10px); background:color-mix(in srgb,var(--section-color) 32%,var(--sheet)); } to { transform:translateX(0); } }
-@media (prefers-reduced-motion:reduce) {
+:where(:root[data-motion="low"]) {
   .reference-arrive { animation:none; }
   .prefix-flag,.prefix-fold-status { transition:none; }
   .prefix-flag:active { transform:translateY(-50%); }

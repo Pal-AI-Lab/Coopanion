@@ -7,18 +7,19 @@
  * - a new size: the drawn size follows the asked one on a spring (`springSize`) instead of jumping.
  *
  * The body's frame window (body-host.js `el`) is animated with the Web Animations API: its inline style belongs to the
- * halo (body-host.js setHalo), which rewrites it every frame. With reduced motion nothing moves: the change is immediate.
+ * halo (body-host.js setHalo), which rewrites it every frame. At low motion (motion-level.js) nothing moves: the change is immediate.
  *
  * A figure switch starts WARM_MS late: the new body, hidden meanwhile, draws its first frames (its textures, its first
  * layout) before it is shown, so that work does not fall on the fade's frames. SWAP_MS is how long a switch takes in all,
  * for a page that draws fewer frames at rest to draw every one meanwhile.
  */
+import { motionLevel } from './motion-level.js';
 /** How long the new body draws hidden before the switch shows it, and the whole switch, in milliseconds. */
 const WARM_MS = 90, SWAP_RUN_MS = 340;
 /** The whole switch, with a frame's margin for the last frames to land. */
 export const SWAP_MS = WARM_MS + SWAP_RUN_MS + 40;
 
-const still = (win) => !!win?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const still = (win) => motionLevel(win) === 'low';
 
 /** The point `p` (stage pixels) as a transform origin inside `el`, whose box may be a cut-down window of the stage. */
 function originIn(el, p, stage) {
@@ -96,7 +97,8 @@ export function restyle(body, stage) {
  */
 export function springSize(start) {
   let x = start, v = 0, to = start;
-  const K = 260, C = 2 * Math.sqrt(K) * .78;
+  // a little under critical damping, so it overshoots a touch; below full motion it lands without overshooting
+  const K = 260, C = () => 2 * Math.sqrt(K) * (motionLevel(globalThis.window) === 'high' ? .78 : 1);
   return {
     get value() { return x; },
     get target() { return to; },
@@ -108,7 +110,7 @@ export function springSize(start) {
     step(dt) {
       if (x === to && v === 0) return false;
       const h = Math.min(dt, 1 / 30);
-      v += (K * (to - x) - C * v) * h;
+      v += (K * (to - x) - C() * v) * h;
       x += v * h;
       if (Math.abs(to - x) < .0015 && Math.abs(v) < .02) { x = to; v = 0; }
       return true;

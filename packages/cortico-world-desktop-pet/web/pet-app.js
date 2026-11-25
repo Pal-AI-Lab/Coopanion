@@ -23,6 +23,9 @@ import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightW
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
 import { runFrames } from './frame-loop.js';
+import { cssMs, growFrom } from './motion-frames.js';
+import { showHide } from './show-hide.js';
+import { motionLevel, setMotionChoice, watchMotion } from './motion-level.js';
 import { mountHints, tipOf, tipWithoutNote } from './hints.js';
 
 const $ = (s) => document.querySelector(s);
@@ -335,9 +338,9 @@ async function applyFigure(s) {
   // a size that waited for a figure that did not come
   if (!switching() && drawnScale.target !== prefs.scale) toSize(prefs.scale);
 }
-/** Draws the body at `v`: on the spring, or at once when the system asks for reduced motion. */
+/** Draws the body at `v`: on the spring, or at once when motion is low. */
 function toSize(v) {
-  if (!reducedMotion?.matches) { drawnScale.set(v); return; }
+  if (!lowMotion()) { drawnScale.set(v); return; }
   drawnScale.jump(v);
   body?.set({ bounds: bounds() });
 }
@@ -418,6 +421,7 @@ function applyPrefs(p) {
   if (typeof p.saidBubbles === 'boolean') { prefs.saidBubbles = p.saidBubbles; if (!p.saidBubbles) for (const line of lines) if (!line.live) fadeLine(line); }
   if (typeof p.saidBubbleHoldSec === 'number') prefs.saidBubbleHoldSec = p.saidBubbleHoldSec;
   if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
+  if (typeof p.motion === 'string' && globalThis.window?.document) setMotionChoice(globalThis.window, p.motion);
   if (typeof p.frameRate === 'number' && p.frameRate >= 0) prefs.frameRate = p.frameRate;
   // the window process does the hiding and the passing through; the page only passes the settings on
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
@@ -956,11 +960,10 @@ function showDialogInput(it) {
         more.remove();
         add(input.options.length, all.length, 0);
         pick(input.options.length, false);
-        const to = cards.offsetHeight;
-        if (to !== from && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const grow = growFrom(cards, { h: from }, { duration: 320, easing: 'cubic-bezier(.3,1.1,.5,1)', overshoots: true });
+        if (grow) {
           cards.classList.add('unfolding');
-          cards.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: 320, easing: 'cubic-bezier(.3,1.1,.5,1)' })
-            .finished.finally(() => cards.classList.remove('unfolding'));
+          void grow.finished.finally(() => cards.classList.remove('unfolding'));
         }
       });
     }
@@ -1756,7 +1759,7 @@ function openMenu() {
   // the hover buttons showing become the menu's: each slides from where it stood to its tile, and only the rest pop out
   const was = new Map();
   if (!tools.hidden && !leaving(tools)) for (const b of tools.children) was.set(b.dataset.action, laidAt(b));
-  hideNow(tools, toolsAnim);
+  toolsShow.hideNow();
   endHold();
   menu.innerHTML = '';
   const rail = Object.assign(document.createElement('div'), { className: 'm-rail' });
@@ -1785,7 +1788,7 @@ function openMenu() {
   renderMenuRail();
   stagger(grid);
   // the buttons grow out of the body one after another; a rail redrawn later (settings, the quit question) does not replay it
-  popIn(menu, menuAnim);
+  menuShow.show();
   // focused, so a click anywhere else blurs the window and folds the menu
   host?.focus?.();
   const l = at();
@@ -1839,20 +1842,7 @@ function renderMenuRail(confirmQuit = false) {
   const was = last && !menu.hidden && rail.classList.contains('confirm') !== confirmQuit
     ? { w: last.offsetWidth, h: last.offsetHeight } : null;
   fillMenuRail(rail, bot, confirmQuit);
-  if (was && rail.lastElementChild) resizeFrom(rail.lastElementChild, was);
-}
-
-/** Grows or shrinks an element from its old size to the one its new content takes. */
-function resizeFrom(el, was) {
-  el.style.transition = 'none';
-  el.style.width = '';
-  el.style.height = '';
-  const w = el.offsetWidth, h = el.offsetHeight;
-  el.style.width = was.w + 'px'; el.style.height = was.h + 'px';
-  void el.offsetWidth;
-  el.style.transition = '';
-  el.style.width = w + 'px'; el.style.height = h + 'px';
-  el.addEventListener('transitionend', () => { el.style.width = el.style.height = ''; }, { once: true });
+  if (was && rail.lastElementChild) growFrom(rail.lastElementChild, was, { duration: cssMs(document.documentElement, '--motion-base', 200), easing: 'ease' });
 }
 
 function fillMenuRail(rail, bot, confirmQuit) {
@@ -1882,10 +1872,9 @@ function fillMenuRail(rail, bot, confirmQuit) {
   rail.appendChild(ask);
   stagger(rail);
 }
-const menuAnim = { enter: 0, leave: 0 };
 function closeMenu() {
   if (menu.hidden || leaving(menu)) return;
-  popOut(menu, menuAnim, POP_OUT_MS);
+  menuShow.hide(POP_OUT_MS());
   // the hover buttons stay away until the pointer has left the body and them, and comes back
   toolsMuted = true;
   toolsUntil = 0;
@@ -1973,29 +1962,29 @@ function overTools(p) {
   return p.x >= r.left - m && p.x <= r.right + m && p.y >= r.top - m && p.y <= r.bottom + m;
 }
 /** Pops the hover buttons out of the body one after another, as the menu does, and folds them back into it before they go. */
-const toolsAnim = { enter: 0, leave: 0 };
 function showTools(on) {
   if (on) {
     // back over them while they fold: they stay, without popping out again
-    if (leaving(tools)) { clearTimeout(toolsAnim.leave); tools.classList.remove('leaving'); }
+    toolsShow.stay();
     if (!tools.hidden) return;
-    popIn(tools, toolsAnim);
+    toolsShow.show();
     const l = at();
     if (l) placeTools(l);
     return;
   }
   if (tools.hidden || leaving(tools)) return;
   endHold();
-  popOut(tools, toolsAnim, POP_OUT_MS);
+  toolsShow.hide(POP_OUT_MS());
 }
 
 /* ---------- popping in and out: the menu, the hover buttons and the look wheel ---------- */
-/** Milliseconds the menu's buttons and the hover buttons take to fold back into the body (`m-out` in pet.css). */
-const POP_OUT_MS = 160;
+/** Milliseconds the menu's buttons and the hover buttons take to fold back into the body (pet.css `--pop-out`; the other leaving animations read `--wheel-out`, `--slider-out` and `--return-time`). */
+const POP_OUT_MS = () => cssMs(document.documentElement, '--pop-out', 160);
 /** Longer than the last of the staggered `m-in`s, after which `entering` comes off. */
 const POP_IN_MS = 600;
-// absent where the page runs without a window (the tests)
-const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
+// the page runs without a window in the tests, where motion counts as full
+const lowMotion = () => motionLevel(globalThis.window) === 'low';
+if (globalThis.window?.document) watchMotion(globalThis.window);
 /** The tails' line follows the width the border is drawn at, which changes with the display's scale (ui.js tailLine). */
 function watchTailLine() {
   document.documentElement.style.setProperty('--tail-line', tailLine(devicePixelRatio || 1) + 'px');
@@ -2005,27 +1994,9 @@ watchTailLine();
 const leaving = (el) => el.classList.contains('leaving');
 /** Numbers an element's buttons (`--i`), so they pop out one after another. */
 function stagger(el) { [...el.children].forEach((b, i) => b.style.setProperty('--i', String(i))); }
-/** Shows `el` with its `entering` animation; `anim` holds its timers. */
-function popIn(el, anim) {
-  hideNow(el, anim);
-  el.hidden = false;
-  el.classList.add('entering');
-  anim.enter = setTimeout(() => el.classList.remove('entering'), POP_IN_MS);
-}
-/** Plays `el`'s `leaving` animation, taking no clicks meanwhile, then hides it; at once when motion is reduced. */
-function popOut(el, anim, ms) {
-  clearTimeout(anim.enter);
-  el.classList.remove('entering');
-  if (reducedMotion?.matches) { el.hidden = true; return; }
-  el.classList.add('leaving');
-  anim.leave = setTimeout(() => { el.hidden = true; el.classList.remove('leaving'); }, ms);
-}
-/** Hides `el` at once, cancelling an animation under way. */
-function hideNow(el, anim) {
-  clearTimeout(anim.enter); clearTimeout(anim.leave);
-  el.classList.remove('entering', 'leaving');
-  el.hidden = true;
-}
+/** Each pops in with its `entering` animation and out with `leaving`, taking no clicks meanwhile (show-hide.js). */
+const menuShow = showHide(menu, { enterMs: () => POP_IN_MS });
+const toolsShow = showHide(tools, { enterMs: () => POP_IN_MS });
 /**
  * What opens over the head, one at a time: the look wheel and each slider, every one its own element with its own
  * animations. `close` plays its leaving animation.
@@ -2052,7 +2023,7 @@ function stepTools() {
 /** Seconds the wheel stays after the pointer leaves it and every dress button. */
 const WHEEL_LINGER = .25;
 /** Milliseconds the looks take to fold back into the middle (`.wheel.leaving` in pet.css). */
-const WHEEL_OUT_MS = 140;
+const WHEEL_OUT_MS = () => cssMs(document.documentElement, '--wheel-out', 140);
 /** Pixels between two looks in the row, and how many show on each side of the middle one. */
 const WHEEL_STEP = 54, WHEEL_SIDE = 3;
 /** Opacity of a look by its distance from the middle. */
@@ -2063,7 +2034,7 @@ const WHEEL_APPLY_MS = 300;
 const WHEEL_NOTCH = 40;
 /** `empty`: the last read found no looks to show; set until the pointer has left the dress buttons, so a hover reads them once. */
 const wheelState = { items: [], at: 0, until: 0, timer: 0, acc: 0, opening: false, empty: false };
-const wheelAnim = { enter: 0, leave: 0 };
+const wheelShow = showHide(wheel);
 
 /**
  * The look worn, with its size, when the row last opened on one that is not a favourite. It leads the row until a look
@@ -2095,7 +2066,7 @@ const wearing = (look) => sameLook(look.skin, skin) && (typeof look.scale !== 'n
 
 async function openWheel() {
   // back over a dress button while the row folds away: it fans out again
-  if (leaving(wheel)) { clearTimeout(wheelAnim.leave); wheel.classList.remove('leaving'); drawWheel(); return; }
+  if (leaving(wheel)) { wheelShow.stay(); drawWheel(); return; }
   if (!wheel.hidden || wheelState.opening) return;
   // a slider being dragged keeps its place over the head: the row opens once it is let go
   if (sliding()) return;
@@ -2139,7 +2110,7 @@ function closeWheel() {
   if (wheel.hidden || leaving(wheel)) return;
   // the looks fold back into the middle, then the row goes
   foldWheel();
-  popOut(wheel, wheelAnim, WHEEL_OUT_MS);
+  wheelShow.hide(WHEEL_OUT_MS());
 }
 
 HEAD.push({ el: wheel, close: closeWheel });
@@ -2241,7 +2212,7 @@ document.addEventListener('wheel', (e) => {
 /** Seconds the slider stays after the pointer leaves it and every button of its kind. */
 const SLIDER_LINGER = .35;
 /** Milliseconds the slider takes to fold away (`.head-slider.leaving` in pet.css). */
-const SLIDER_OUT_MS = 140;
+const SLIDER_OUT_MS = () => cssMs(document.documentElement, '--slider-out', 140);
 /** Milliseconds between the values sent to the World while the slider moves. */
 const SLIDER_SEND_MS = 120;
 /** The transparency range in percent (src/config.ts FADE_MAX, FADE_STEP). */
@@ -2281,7 +2252,7 @@ const SLIDERS = {
 for (const [kind, s] of Object.entries(SLIDERS)) {
   s.el = Object.assign(document.createElement('div'), { className: 'head-slider', hidden: true });
   s.el.dataset.kind = kind;
-  s.anim = { enter: 0, leave: 0 };
+  s.show = showHide(s.el, { enterMs: () => POP_IN_MS });
   s.valueEl = Object.assign(document.createElement('span'), { className: 'hs-value' });
   s.el.append(s.bar.el);
   s.bar.el.querySelector('.ps-thumb').append(s.valueEl);
@@ -2343,7 +2314,7 @@ function openSlider(kind) {
   claimHead(s.el);
   refreshSlider();
   // hidden, or back over its button while it folds away: it enters again rather than jumping back
-  if (s.el.hidden || leaving(s.el)) popIn(s.el, s.anim);
+  if (s.el.hidden || leaving(s.el)) s.show.show();
   s.bar.relayout();
   const l = at();
   if (l) placeSlider(kind, l);
@@ -2353,7 +2324,7 @@ function closeSlider(kind) {
   for (const k of kind ? [kind] : Object.keys(SLIDERS)) {
     const s = SLIDERS[k];
     if (s.el.hidden || leaving(s.el) || s.bar.active) continue;
-    popOut(s.el, s.anim, SLIDER_OUT_MS);
+    s.show.hide(SLIDER_OUT_MS());
   }
 }
 /** Centred over the body, just above its head, where the look wheel opens; it follows the head as other controls do (`follow`). */
@@ -2712,7 +2683,7 @@ function placeTalk(it, a) {
 }
 
 /** Milliseconds a group of controls let go of glides back to its place (`.returning` in pet.css), and a margin. */
-const RETURN_MS = 260;
+const RETURN_MS = () => cssMs(document.documentElement, '--return-time', 260);
 /** Whether each group of controls was held last frame, and the timers that end its glide back. */
 const heldGroups = new WeakMap(), returning = new WeakMap();
 /**
@@ -2725,11 +2696,11 @@ function follow(els, pointed, place) {
   const was = heldGroups.get(els[0]) ?? false;
   heldGroups.set(els[0], pointed);
   if (pointed) return;
-  if (was && !reducedMotion?.matches) {
+  if (was && !lowMotion()) {
     for (const el of els) {
       el.classList.add('returning');
       clearTimeout(returning.get(el));
-      returning.set(el, setTimeout(() => el.classList.remove('returning'), RETURN_MS + 60));
+      returning.set(el, setTimeout(() => el.classList.remove('returning'), RETURN_MS() + 60));
     }
   }
   place();
@@ -2778,7 +2749,8 @@ function placeLines(a, box, dt) {
   const W = innerWidth, size = prefs.bubbleSize, gap = LINES_GAP * size;
   const cx = box ? box.left + box.bw / 2 : a.x;
   let bottom = box ? box.top - gap : a.y - LINES_UP * size;
-  const k = dt > 0 ? Math.min(1, dt * 12) : 1;
+  // at low motion the stack takes its places at once
+  const k = dt > 0 && !lowMotion() ? Math.min(1, dt * 12) : 1;
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i], el = line.el;
     el.classList.toggle('older', i !== lines.length - 1);

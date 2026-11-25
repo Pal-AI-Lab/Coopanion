@@ -20,6 +20,8 @@ import { Router, type Route } from './base/router.ts';
 import type { SocketLike } from './base/stream.ts';
 import { wsUrlOf } from './base/websocket.ts';
 import { applyStoredTheme, disposeThemeStudio } from './base/theme/studio.ts';
+import { watchMotion } from 'cortico-world-desktop-pet/web/motion-level.js';
+import { applyCachedMotion, loadMotionChoice } from './base/motion-choice.ts';
 import { fetchTheme } from './base/theme/storage.ts';
 import { createConsoleUi } from './base/ui/index.ts';
 import { S as UI } from './base/ui/strings.ts';
@@ -86,6 +88,8 @@ export function boot(doc: Document = document): Disposable {
   try {
     applyStoredTheme(doc);
   } catch { /* a bad cached record must not keep the window from starting */ }
+  const view = doc.defaultView;
+  if (view) { applyCachedMotion(view); watchMotion(view); void loadMotionChoice(view); }
   doc.getElementById('boot-note')?.remove();
   doc.body.classList.add('companion-sidebar');
 

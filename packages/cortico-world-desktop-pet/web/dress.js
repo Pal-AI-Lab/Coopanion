@@ -38,6 +38,8 @@ import { announcePainted, dressFloor, glowColor, lightWall, modeButton, setGlow 
 import { bindAppearance, hostDressDialogs } from './appearance.js';
 import { localDressDialogs } from './dist/dress-dialog.js';
 import { mountHints } from './hints.js';
+import { setMotionChoice, watchMotion } from './motion-level.js';
+watchMotion(window);
 bindAppearance(document, window);
 /** The settings window's dialog when the page is embedded in it; null when the page draws its own. */
 const dialogStop = new AbortController();
@@ -751,6 +753,7 @@ function connect() {
     const m = JSON.parse(e.data);
     if ((m.t === 'init' || m.t === 'prefs') && (m.theme === 'dark' || m.theme === 'light') && m.theme !== theme) { theme = m.theme; showTheme(); modeBtn.show(theme); body?.set({ theme }); renderLooks(); }
     if (m.t === 'init') { loadPacks(); void loadLooks(); announcePainted(); }
+    if ((m.t === 'init' || m.t === 'prefs') && typeof m.motion === 'string') setMotionChoice(window, m.motion);
     if ((m.t === 'init' || m.t === 'prefs') && typeof m.scale === 'number') scaleHeard.heard(m.scale, sizer.active || !!scaleTimer);
     if ((m.t === 'init' || m.t === 'prefs') && m.skin && JSON.stringify(normalizeSkin(m.skin)) !== JSON.stringify(skin)) {
       const worn = looks.find((l) => sameLook(l.skin, m.skin) && (l.scale ?? scale) === scale);
