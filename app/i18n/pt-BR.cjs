@@ -39,4 +39,9 @@ module.exports = {
   dataQuit: 'Sair',
   dataChooseTitle: 'Escolha a pasta de dados do Coopanion',
   dataChooseInvalid: (dir) => `Esta pasta não tem dados do Coopanion:\n${dir}\n\nEscolha a pasta de instalação ou a pasta data dentro dela.`,
+
+  sandboxFailedMessage: 'Não é possível mostrar a janela do Coopanion',
+  sandboxFailedDetail: (url) => `Neste computador, o sandbox do Chromium encerra o processo de renderização da janela logo ao iniciar, por isso a janela fica em branco.\n\nSaia do Coopanion, adicione --no-sandbox ao final do campo "Destino" do atalho que você usa para abri-lo e abra pelo atalho. Isso desativa o sandbox da renderização e o código dos pacotes de figura perde uma camada de isolamento: use só pacotes de fontes confiáveis.\n\nDetalhes e andamento da correção: ${url}`,
+  sandboxFailedOpen: 'Ver detalhes',
+  sandboxFailedClose: 'Fechar',
 };

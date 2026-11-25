@@ -1,6 +1,6 @@
 // Text of the main process: the tray menu, the settings window's starting page, the notices when the
 // Core exits, the dialog that takes back the data an update left behind, the dialogs that ask which data to use
-// when none is beside the program, and the error box when the data directory cannot be written. Keys as in zh.cjs.
+// when none is beside the program, the error box when the data directory cannot be written, and the notice when the sandbox leaves a window blank. Keys as in zh.cjs.
 module.exports = {
   installUpdateFailed: (version) => `The update to Coopanion ${version} did not finish.`,
   /** The line the settings window shows until the Core is up. */
@@ -51,4 +51,10 @@ module.exports = {
   dataQuit: 'Quit',
   dataChooseTitle: 'Choose the Coopanion data folder',
   dataChooseInvalid: (dir) => `This folder has no Coopanion data:\n${dir}\n\nChoose the install folder, or the data folder inside it.`,
+
+  /** A window stays blank: on Windows the sandbox ended its renderer while it started (cortico-world-desktop-pet/host/renderer-gone.cjs). */
+  sandboxFailedMessage: "Coopanion's window cannot be shown",
+  sandboxFailedDetail: (url) => `On this computer the Chromium sandbox ends the window's renderer process as it starts, so the window stays blank.\n\nQuit Coopanion, add --no-sandbox to the end of the Target of the shortcut you start it from, and start it from that shortcut. This turns off the renderer sandbox, which takes one layer of isolation away from figure pack code: use only figure packs from sources you trust.\n\nDetails and progress on a fix: ${url}`,
+  sandboxFailedOpen: 'View details',
+  sandboxFailedClose: 'Close',
 };

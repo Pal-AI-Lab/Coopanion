@@ -39,4 +39,9 @@ module.exports = {
   dataQuit: '종료',
   dataChooseTitle: 'Coopanion 데이터 폴더 선택',
   dataChooseInvalid: (dir) => `이 폴더에는 Coopanion 데이터가 없습니다:\n${dir}\n\n설치 폴더나 그 안의 data 폴더를 선택하세요.`,
+
+  sandboxFailedMessage: 'Coopanion 창을 표시할 수 없습니다',
+  sandboxFailedDetail: (url) => `이 컴퓨터에서는 Chromium 샌드박스가 창의 렌더러 프로세스를 시작할 때 종료시켜 창이 비어 있습니다.\n\nCoopanion을 종료하고, 실행에 쓰는 바로 가기의 '대상' 끝에 --no-sandbox를 추가한 뒤 그 바로 가기로 시작하세요. 렌더러 샌드박스가 꺼져 피규어 팩 코드의 격리가 한 단계 줄어드므로, 신뢰할 수 있는 출처의 피규어 팩만 사용하세요.\n\n자세한 내용과 수정 진행 상황: ${url}`,
+  sandboxFailedOpen: '자세히 보기',
+  sandboxFailedClose: '닫기',
 };
