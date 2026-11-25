@@ -93,7 +93,7 @@ body.tab .stage-mode{position:fixed}
 .stage-mode svg{width:17px; height:17px; display:block}
 body.desk{background:transparent}
 body.desk .floor{display:none}
-/* --pet-opacity: the transparency on screen (pet-app.js stepFade), on the body and every bubble, never on the controls */
+/* --pet-opacity: the transparency on screen (pet-app.js stepFade), on the body only, never on a bubble or a control */
 .stage{position:fixed; inset:0; touch-action:none; opacity:var(--pet-opacity, 1); transition:opacity .2s ease}
 @media (prefers-reduced-motion: reduce){.stage{transition:none}}
 /* the body's sandboxed frame: transparent (a colour scheme unlike the frame's would give it a backdrop) and never under the pointer */
@@ -161,7 +161,7 @@ body.desk .floor{display:none}
   border:2.5px solid var(--skin-ink); box-shadow:0 1px 3px var(--shadow), 0 8px 22px var(--shadow);
   font-size:calc(14.5px * var(--bubble-font, 1)); line-height:1.55;
   transform-origin:var(--tail, 50%) calc(100% + calc(10px * var(--bubble-size, 1)));
-  opacity:calc(var(--pet-opacity, 1) * var(--bubble-alpha)); transition:opacity .2s ease;
+  opacity:var(--bubble-alpha); transition:opacity .2s ease;
 }
 /* tail: an outline triangle whose base lies inside the border, so its sides join the border, and a
    surface triangle one line width inside it that opens the border between the sides. Neither is
@@ -184,8 +184,8 @@ body.desk .floor{display:none}
    hover buttons are; older ones step back; a fading one lets the pointer through. Its text shows six rows at most. */
 .bubble.said{transition:opacity .4s ease, border-color .15s}
 .bubble.said.settled{cursor:pointer}
-.bubble.said.settled:hover{border-color:var(--skin-eye); opacity:calc(var(--pet-opacity, 1) * var(--bubble-alpha))}
-.bubble.said.older{opacity:calc(.62 * var(--pet-opacity, 1) * var(--bubble-alpha))}
+.bubble.said.settled:hover{border-color:var(--skin-eye); opacity:var(--bubble-alpha)}
+.bubble.said.older{opacity:calc(.62 * var(--bubble-alpha))}
 .bubble.said.fading{opacity:0; pointer-events:none}
 .bubble.said.settled .b-text{display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:6; line-clamp:6; overflow:hidden}
 /* the way a line came, before its text: the voice button's microphone, the chat page's arrows */

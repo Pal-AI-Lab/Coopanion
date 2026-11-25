@@ -2465,14 +2465,11 @@ document.addEventListener('wheel', (e) => {
 const fadeKey = () => (fullscreenFaded ? 'fullscreenFade' : 'fade');
 let opacityShown = 1;
 /**
- * The body and its bubbles at the transparency on screen (pet.css --pet-opacity), opaque while the person deals with
- * Coo: the typing box, a question, a dialog or a confirmation open, or the body held. The transparency slider showing
- * keeps the value it sets in view. A tab draws the body opaque.
+ * The body at the transparency on screen (pet.css --pet-opacity), whatever it does: talking, asking, held or with the
+ * typing box open. The bubbles and the controls never take it. A tab draws the body opaque.
  */
 function stepFade() {
-  const showing = shownSlider() === 'fade';
-  const engaged = (!!item && item.kind !== 'say') || !!at()?.pressing;
-  const o = !host || (engaged && !showing) ? 1 : 1 - prefs[fadeKey()] / 100;
+  const o = !host ? 1 : 1 - prefs[fadeKey()] / 100;
   if (o === opacityShown) return;
   opacityShown = o;
   document.documentElement.style.setProperty('--pet-opacity', String(o));

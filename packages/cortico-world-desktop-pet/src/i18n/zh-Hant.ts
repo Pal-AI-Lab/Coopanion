@@ -250,7 +250,7 @@ const zhHant: Translation<PetText> = {
     glow: { title: '外發光', description: '桌寵和身後的顏色相近時，身體周圍出現的淺色外發光向外延伸多少像素；0 為關閉。' },
     frameRate: { title: '幀率', description: '走動、被拎著、跳起時每秒畫幾幀；0 跟隨螢幕更新率。超過螢幕更新率時以螢幕的為準。「習慣」頁可選 60、120、144 和不限。' },
     lockFrameRate: { title: '幀率鎖定', description: '靜止時也依「幀率」繪製桌寵。關閉時站著、坐著、睡著會降到每秒 30 幀。' },
-    fade: { title: "透明度", description: "桌寵和氣泡的透明程度：0 為不透明，最高 95%，每 5% 一檔。打字框、提問或確認卡片開啟時，以及拎著桌寵時恢復不透明。" },
+    fade: { title: "透明度", description: "桌寵的透明程度：0 為不透明，最高 95%，每 5% 一檔。" },
     hideWhenFullscreen: { title: '全螢幕時自動隱藏', description: '開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕（遊戲、全螢幕影片、瀏覽器全螢幕）就把 Coo 藏起來，離開全螢幕後再放回來；最大化的視窗不算。關閉時一律浮在最上層。' },
     passWhenFullscreen: { title: "全螢幕時滑鼠穿透", description: "開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕期間 Coo 照常顯示，點擊全部穿過 Coo 落到下方的視窗，離開全螢幕後恢復；最大化的視窗不算。與全螢幕時自動隱藏同時開啟時 Coo 會隱藏。" },
     fadeWhenFullscreen: { title: "全螢幕時變淡", description: "開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕期間改用「全螢幕時透明度」，離開全螢幕後恢復；最大化的視窗不算。" },

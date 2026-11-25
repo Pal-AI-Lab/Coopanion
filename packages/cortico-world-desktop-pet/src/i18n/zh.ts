@@ -278,7 +278,7 @@ export default {
     glow: { title: '外发光', description: '桌宠和身后的颜色相近时，身体周围出现的浅色外发光向外延伸多少像素；0 为关闭。' },
     frameRate: { title: '帧率', description: '走动、被拎着、跳起时每秒画多少帧；0 跟随显示器刷新率。超过显示器刷新率时按显示器的。「习惯」页可选 60、120、144 和不限。' },
     lockFrameRate: { title: '帧率锁定', description: '静止时也按「帧率」画桌宠。关着时站着、坐着、睡着降到每秒 30 帧。' },
-    fade: { title: "透明度", description: "桌宠和气泡有多透明：0 为不透明，最高 95%，5% 一档。打字框、提问或确认卡片打开时，以及拎着桌宠时恢复不透明。" },
+    fade: { title: "透明度", description: "桌宠有多透明：0 为不透明，最高 95%，5% 一档。" },
     hideWhenFullscreen: { title: '全屏时自动隐藏', description: '开着时，前台窗口全屏铺满桌宠所在的那块屏（游戏、全屏视频、浏览器全屏）就把 Coo 藏起来，退出全屏放回来；最大化的窗口不算。关着时一直浮在上面。' },
     passWhenFullscreen: { title: "全屏时鼠标穿透", description: "开着时，前台窗口全屏铺满桌宠所在的那块屏期间 Coo 照常显示，点击全部穿过 Coo 落到下面的窗口，退出全屏后恢复；最大化的窗口不算。和全屏时自动隐藏同时开着时 Coo 会隐藏。" },
     fadeWhenFullscreen: { title: "全屏时变淡", description: "开着时，前台窗口全屏铺满桌宠所在的那块屏期间改用「全屏时透明度」，退出全屏后恢复；最大化的窗口不算。" },

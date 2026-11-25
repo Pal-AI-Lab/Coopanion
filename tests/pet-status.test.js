@@ -706,7 +706,7 @@ describe('the transparency', () => {
   const sent = (p) => p.sockets.flatMap((s) => s.sent).filter((m) => m.t === 'prefs' || m.t === 'control');
   const key = (p, el, k) => el.dispatchEvent(new p.win.KeyboardEvent('keydown', { key: k, bubbles: true }));
 
-  it('fades the body and its bubbles to the setting on screen, the full screen one while it holds, and is opaque while the typing box is open', () => {
+  it('fades the body to the setting on screen, the full screen one while it holds, and keeps it while the typing box is open', () => {
     const p = desk();
     p.onOrder({ t: 'prefs', fade: 30, fullscreenFade: 60 });
     p.stepFade();
@@ -716,7 +716,7 @@ describe('the transparency', () => {
     expect(Number(opacity(p))).toBeCloseTo(.4);
     p.openInput();
     p.stepFade();
-    expect(Number(opacity(p))).toBe(1);
+    expect(Number(opacity(p))).toBeCloseTo(.4);
     p.closeBubble();
     p.fullscreen(false);
     p.stepFade();
