@@ -306,6 +306,8 @@ const core = new CoreHost({
 });
 
 let settings = null;
+/** True while a same-port Core restart reload should leave unsaved edits intact. */
+let preserveUnsavedReload = false;
 /** The route the settings window showed when it was last closed, where it opens next unless asked for another. */
 let settingsRoute = '';
 /** The hash route a settings window shows; the loading page, shown until the Core is up, has none. */
@@ -520,18 +522,26 @@ function openSettings(path = '') {
     try { saveSettingsSize(join(userData, 'settings-size.json'), win.getNormalBounds()); }
     catch (err) { console.warn('[settings] could not save window size', err); }
     closing = true;
+    preserveUnsavedReload = false;
     const route = shownRoute(win);
     if (route) settingsRoute = route;
   });
+  win.webContents.on('did-start-navigation', (_e, _url, _inPlace, isMainFrame) => {
+    if (isMainFrame) preserveUnsavedReload = false;
+  });
   // A page with unsaved edits (a leave guard, console/base/router.ts) refuses to unload: closing the window
-  // then hides it with the edits kept. A load the app starts itself, and a quit, go ahead.
+  // then hides it with the edits kept. A same-port Core restart reload also preserves unsaved edits;
+  // other app-initiated loads, and a quit, go ahead.
   win.webContents.on('will-prevent-unload', (e) => {
-    if (quitting || !closing) { e.preventDefault(); return; }
+    if (quitting) { e.preventDefault(); return; }
+    if (preserveUnsavedReload && !closing) { preserveUnsavedReload = false; return; }
+    if (!closing) { e.preventDefault(); return; }
     closing = false;
     win.hide();
     if (MAC) app.dock?.hide();
   });
   win.on('closed', () => {
+    preserveUnsavedReload = false;
     settings = null;
     if (MAC && !quitting) app.dock?.hide();
   });
@@ -671,8 +681,12 @@ core.on('ready', ({ language: next }) => {
   // Same-port restart: loadURL on the same document with a hash is a same-document navigation in Chromium.
   if (settings) {
     const nextUrl = settingsUrl(shownRoute(settings));
-    if (nextUrl && settings.webContents.getURL().split('#')[0] === nextUrl.split('#')[0]) settings.webContents.reloadIgnoringCache();
-    else if (nextUrl) settings.loadURL(nextUrl);
+    if (nextUrl && settings.webContents.getURL().split('#')[0] === nextUrl.split('#')[0]) {
+      preserveUnsavedReload = true;
+      settings.webContents.reloadIgnoringCache();
+    } else if (nextUrl) {
+      settings.loadURL(nextUrl);
+    }
   }
   if (updateStep) core.send({ type: 'companion:update', step: updateStep });
 });
