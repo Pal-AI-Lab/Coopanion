@@ -668,8 +668,12 @@ function buildTray() {
 core.on('ready', ({ language: next }) => {
   followLanguage(next);
   if (clickThrough) void setClickThrough(true);
-  // A restarted Core brings the window back to the page it showed (the World page it was restarted from).
-  if (settings) settings.loadURL(settingsUrl(shownRoute(settings)));
+  // Same-port restart: loadURL on the same document with a hash is a same-document navigation in Chromium.
+  if (settings) {
+    const nextUrl = settingsUrl(shownRoute(settings));
+    if (nextUrl && settings.webContents.getURL().split('#')[0] === nextUrl.split('#')[0]) settings.webContents.reloadIgnoringCache();
+    else if (nextUrl) settings.loadURL(nextUrl);
+  }
   if (updateStep) core.send({ type: 'companion:update', step: updateStep });
 });
 core.on('language', followLanguage);
