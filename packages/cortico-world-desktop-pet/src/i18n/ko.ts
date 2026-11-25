@@ -250,7 +250,7 @@ const ko: Translation<PetText> = {
     overTaskbar: { title: "작업 표시줄 위에 표시", description: "켜면 펫 창이 화면 아래쪽 작업 표시줄 위까지 내려가, 피규어가 바닥 아래에 그리는 부분(앉았을 때 늘어뜨린 다리)이 작업 표시줄 위에 표시됩니다. 끄면 창이 작업 표시줄 위쪽 가장자리에서 끝납니다." },
     hideFromCapture: { title: "스크린샷과 녹화에 나오지 않기", description: "켜져 있는 동안 Coo는 스크린샷, 화면 녹화, 방송, Coo가 찍는 스크린샷에 나오지 않습니다. 켜져 있는 동안 NVIDIA 인스턴트 리플레이의 데스크톱 캡처가 켜지지 않을 수 있습니다." },
     exportOverlay: { title: 'OBS 오버레이', description: '펫 창의 화면을 투명 배경으로 /overlay에 제공해 OBS의 「브라우저」 소스에서 쓸 수 있게 합니다. 끄면 제공하지 않습니다.' },
-    electronFile: { title: 'Electron 실행 파일', description: '비워 두면 CORTICO_DESKTOP_PET_HOST를 쓰고, 없으면 패널에서 설치한 런타임을 씁니다.' },
+    electronFile: { title: 'Electron 실행 파일', description: 'CORTICO_DESKTOP_PET_HOST가 설정되지 않았을 때 씁니다. 비워 두면 패널에서 설치한 런타임을 씁니다. Coopanion은 이를 설정하고 펫 창을 직접 띄우므로 Coopanion에서는 이 항목이 적용되지 않습니다.' },
     port: { title: '페이지 포트', description: '사용 중이면 다음 빈 포트로 올라갑니다.' },
     touchEnabled: { title: '터치를 이벤트로 전달', description: '찌르기, 쓰다듬기, 들어 올려 던지기.' },
     touchWakeOn: { title: '반응 모드', description: 'poke: 찌를 때만 바로 반응하고, 나머지 터치는 다음 반응 때 함께 전달됩니다. all: 모든 터치에 바로 반응합니다. none: 모든 터치가 다음 반응 때 함께 전달됩니다. custom: 「습관」 페이지에서 체크한 터치에 바로 반응합니다. 한 번 반응한 뒤 그 차례가 끝날 때까지의 터치는 다음 반응 때 함께 전달됩니다.' },

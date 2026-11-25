@@ -280,7 +280,7 @@ const en: PetText = {
     overTaskbar: { title: "Show over the taskbar", description: "When on, the pet window reaches down over a taskbar at the bottom of the screen, and what a figure draws below the floor (legs hanging down while sitting) shows over the taskbar; when off, the window ends at the top edge of the taskbar." },
     hideFromCapture: { title: "Keep out of screenshots and recordings", description: "While on, Coo does not appear in screenshots, screen recordings, live streams, or the screenshots Coo takes. While on, desktop capture in NVIDIA Instant Replay may fail to turn on." },
     exportOverlay: { title: 'OBS overlay', description: "Serves the pet window's picture on a transparent background at /overlay for an OBS Browser source; off, nothing is served." },
-    electronFile: { title: 'Electron executable', description: 'Empty uses CORTICO_DESKTOP_PET_HOST, then the runtime installed from the panel.' },
+    electronFile: { title: 'Electron executable', description: 'Used when CORTICO_DESKTOP_PET_HOST is not set; empty uses the runtime installed from the panel. Coopanion sets it and starts the pet window itself, so this has no effect in Coopanion.' },
     port: { title: 'Page port', description: 'Moves up to the next free port when taken.' },
     touchEnabled: { title: 'Touches become events', description: 'Pokes, petting, and being picked up and thrown.' },
     touchWakeOn: { title: 'Response mode', description: 'poke: only a poke gets a response right away; other touches wait for the next response. all: every touch gets one. none: every touch waits for the next response. custom: the touches ticked on the Habits page get one. After a touch gets a response, the touches until that turn ends wait for the next one.' },
