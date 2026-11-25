@@ -29,7 +29,8 @@
  *
  * 「打字键」 (`typeKey`) and 「暂停穿透键」 (`throughPauseKey`) are read from the same state and saved through the pet
  * panel's `setTypeKey` and `setThroughPauseKey`; their keys are set as the talk key's on the 语音输入 page
- * (key-capture.ts), and how they are pressed is picked beside them. The state names the keys in the app language and says why they cannot be read.
+ * (key-capture.ts), and how they are pressed is picked beside them. The state names the keys in the app
+ * language and says why they cannot be read.
  */
 
 import { actionProblem } from '../../base/ui/problem.ts';
