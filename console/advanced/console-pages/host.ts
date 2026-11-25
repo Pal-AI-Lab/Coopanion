@@ -4,8 +4,8 @@
 
 import { actionProblem, listProblem } from '../../base/ui/problem.ts';
 import { CONSOLE_PROTOCOL_VERSION } from '../../base/protocol.ts';
-import type { WebUiManifest, WebUiPageManifest, WebUiStorageRef, WebUiPanelManifest } from 'cortico/web/shared/webui-protocol.ts';
-import type { WebUiMemo, WebUiPanelContext, Disposable } from 'cortico/web/shared/client-panel.ts';
+import type { WebUiAssetEntry, WebUiManifest, WebUiPageManifest, WebUiStorageRef, WebUiPanelManifest } from 'cortico/web/shared/webui-protocol.ts';
+import type { WebUiMemo, WebUiPanel, WebUiPanelContext, Disposable } from 'cortico/web/shared/client-panel.ts';
 import { get, post } from '../../base/api.ts';
 import { Lifecycle } from '../../base/lifecycle.ts';
 import type { Router } from '../../base/router.ts';
@@ -22,7 +22,7 @@ import { S as TOOLS } from './tools/strings.ts';
 import { createToolsView } from './tools/view.ts';
 import { resolveConsoleLinkHref } from '../../base/theme/handoff.ts';
 import { createPanelContext, namespacedMemo } from './context.ts';
-import { ConsolePageLoader } from './loader.ts';
+import { ConsolePageLoader, PanelBundleError } from './loader.ts';
 import { S } from './strings.ts';
 import { S as WORLD } from '../features/worlds/strings.ts';
 import { mountWorldExtensionDetails } from '../features/extensions/index.ts';
@@ -138,13 +138,32 @@ export class ConsolePageHost {
     try {
       if (!panel) throw new Error(S.noSuchPanel(page?.label ?? pageId, panelId));
       if (panel.builtin !== undefined) throw new Error(S.noBuiltinPanel(panel.builtin));
-      const impl = await this.deps.loader.resolvePanel(pageId, panel.id, page?.client);
+      const impl = await this.resolvePanel(pageId, panel.id, page?.client, () => lifecycle.disposed);
       if (!lifecycle.disposed) {
         const result = await impl.mount(adapt(this.panelContext(pageId, panel.id, root, lifecycle, this.generation, scope)));
         if (result) lifecycle.own(result);
       }
     } catch (error) { root.textContent = String(error); }
     return lifecycle;
+  }
+
+  /** Resolves a panel from the manifest; on bundle failure refreshes the manifest once and retries when the asset URL changed. */
+  private async resolvePanel(
+    pageId: string,
+    panelId: string,
+    asset: WebUiAssetEntry | undefined,
+    isStale: () => boolean,
+  ): Promise<WebUiPanel> {
+    try {
+      return await this.deps.loader.resolvePanel(pageId, panelId, asset);
+    } catch (err) {
+      if (!(err instanceof PanelBundleError) || isStale()) throw err;
+      await this.refresh();
+      if (isStale()) throw err;
+      const fresh = this.find(pageId)?.client;
+      if (!fresh || fresh.js === asset?.js) throw err;
+      return await this.deps.loader.resolvePanel(pageId, panelId, fresh);
+    }
   }
 
   /** 重取 manifest 并刷新导航与当前页头，**不重挂面板**。 */
@@ -288,7 +307,7 @@ export class ConsolePageHost {
 
     try {
       if (panel.builtin !== undefined) throw new Error(S.noBuiltinPanel(panel.builtin));
-      const impl = await this.deps.loader.resolvePanel(pageId, panel.id, page.client);
+      const impl = await this.resolvePanel(pageId, panel.id, page.client, () => gen !== this.generation);
       if (gen !== this.generation) return; // 等 import 的工夫用户已经走了
 
       const out = await impl.mount(
@@ -360,7 +379,12 @@ export class ConsolePageHost {
       host.appendChild(box);
       try {
         if (decl.builtin !== undefined) throw new Error(S.noBuiltinPanel(decl.builtin));
-        const impl = await this.deps.loader.resolvePanel(pageId, decl.id, page?.client);
+        const impl = await this.resolvePanel(
+          pageId,
+          decl.id,
+          this.find(pageId)?.client,
+          () => gen !== this.generation || lifecycle.disposed,
+        );
         if (gen !== this.generation || lifecycle.disposed) break;
         const out = await impl.mount(
           this.panelContext(pageId, decl.id, box, lifecycle, gen, scope),
@@ -370,6 +394,7 @@ export class ConsolePageHost {
           else lifecycle.own(out);
         }
       } catch (err) {
+        if (gen !== this.generation || lifecycle.disposed) break;
         this.deps.onError(err);
         box.replaceChildren();
         this.renderErrorInto(

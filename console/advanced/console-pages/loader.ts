@@ -39,8 +39,8 @@ export class PanelBundleError extends Error {
 
 export class ConsolePageLoader {
   private readonly deps: LoaderDeps;
-  private readonly loaded = new Map<string, WebUiClientBundle>();
-  private readonly inFlight = new Map<string, Promise<WebUiClientBundle>>();
+  private readonly loaded = new Map<string, { url: string; bundle: WebUiClientBundle }>();
+  private readonly inFlight = new Map<string, { url: string; task: Promise<WebUiClientBundle> }>();
   private readonly styled = new Set<string>();
 
   constructor(deps: LoaderDeps) {
@@ -53,21 +53,25 @@ export class ConsolePageLoader {
   }
 
   async load(pageId: string, asset: WebUiAssetEntry | undefined): Promise<WebUiClientBundle> {
+    const url = asset?.js;
     const cached = this.loaded.get(pageId);
-    if (cached) return cached;
+    if (cached && cached.url === url) return cached.bundle;
 
     const pending = this.inFlight.get(pageId);
-    if (pending) return pending;
+    if (pending && pending.url === url) return pending.task;
 
     const task = this.loadOnce(pageId, asset);
-    this.inFlight.set(pageId, task);
+    const entry = { url: url ?? '', task };
+    this.inFlight.set(pageId, entry);
     try {
       const bundle = await task;
-      this.loaded.set(pageId, bundle);
+      if (this.inFlight.get(pageId) === entry) {
+        this.loaded.set(pageId, { url: asset!.js, bundle });
+      }
       return bundle;
     } finally {
       // 成功与否都要摘掉:失败不缓存,下次可以重来。
-      this.inFlight.delete(pageId);
+      if (this.inFlight.get(pageId) === entry) this.inFlight.delete(pageId);
     }
   }
 
@@ -85,7 +89,9 @@ export class ConsolePageLoader {
     try {
       mod = await this.deps.importModule(asset.js);
     } catch (err) {
-      throw new PanelBundleError(pageId, S.bundleLoadFailed(pageId, String(err)), err);
+      const message = S.bundleLoadFailed(pageId, String(err));
+      this.deps.log?.(message, { pageId, js: asset.js, ...(asset.css ? { css: asset.css } : {}) });
+      throw new PanelBundleError(pageId, message, err);
     }
 
     const candidate = (mod as { default?: unknown } | null)?.default;
@@ -97,14 +103,14 @@ export class ConsolePageLoader {
     return candidate;
   }
 
-  /** 每页样式只注入一次，面板卸载时保留。 */
+  /** 每个样式 URL 只注入一次，面板卸载时保留。 */
   private injectStyle(pageId: string, asset: WebUiAssetEntry): void {
-    if (!asset.css || this.styled.has(pageId)) return;
+    if (!asset.css || this.styled.has(asset.css)) return;
     if (!isSafeAssetUrl(asset.css)) {
       this.deps.log?.(`「${pageId}」的样式地址不合法，已跳过`, { href: String(asset.css) });
       return;
     }
-    this.styled.add(pageId);
+    this.styled.add(asset.css);
     const link = this.deps.createLink();
     link.rel = 'stylesheet';
     link.href = asset.css;
