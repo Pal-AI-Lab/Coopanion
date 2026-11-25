@@ -20,7 +20,7 @@ import type { ContextRecord, Item } from 'cortico/protocol/open-responses/contex
 const STICK_PX = 60;
 /** 超过这个长度的正文折起来,折叠行只印字数。 */
 const FOLD_CHARS = 500;
-/** 打字机每秒推进的字数（原先每帧 8 字，按 60 帧换算；现在按经过的时间算，不随刷新率变快）。 */
+/** 打字机每秒推进的字数;按经过的时间推进，不随刷新率变快。 */
 const TYPE_CHARS_PER_SECOND = 480;
 /** 事件投递帧的工具名(与 core/loop.ts 的 EXTERNAL_EVENT_FRAME 同名;那边不对浏览器包导出)。 */
 const EXTERNAL_EVENT_FRAME = 'external_event_frame';

@@ -27,7 +27,7 @@ Write-Host 'Installing...'
 $process = Start-Process -FilePath $target -Wait -PassThru
 if ($process.ExitCode -ne 0) {
     # the download stays: retrying it (also with /S, see the README) beats downloading 140 MB again
-    throw "The installer exited with code $($process.ExitCode); nothing was installed. The installer was kept at $target."
+    throw "The installer exited with code $($process.ExitCode). The installer was kept at $target."
 }
 Remove-Item $target -ErrorAction SilentlyContinue
 Write-Host 'Coopanion is installed; its icon is on the desktop. On first start, Coo asks which model service to use and for its API key.'

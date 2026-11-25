@@ -762,7 +762,7 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
     el.addEventListener('pointerleave', hideSoon, { signal }); el.addEventListener('blur', hideHint, { signal });
   }
   /**
-   * A sidebar row keeps its explanation behind a question mark after its name (see `helpName`), shown while the row is hovered;
+   * A sidebar row keeps its explanation behind a question mark after its name (see `sidebarName`), shown while the row is hovered;
    * hovering the mark opens it, and a click on the mark does not press the row.
    */
   function helpMark(row: HTMLElement, title: string, text: string) {
@@ -772,7 +772,7 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
     mark.addEventListener('click', event => event.stopPropagation(), { signal });
     return mark;
   }
-  /** Each sidebar row's `helpName` controls, by row, for the redraw and the resize below. */
+  /** Each sidebar row's `sidebarName` controls, by row, for the redraw and the resize below. */
   const hints = new WeakMap<Element, { show: () => void; reset: () => void; width: number }>();
   /** Where the pointer last was over the sidebar's tags, while it is there. */
   let tagPointer: { x: number; y: number } | undefined;
@@ -786,51 +786,52 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
   }) : undefined;
   signal.addEventListener('abort', () => hintedResize?.disconnect());
   /**
-   * A sidebar row's name, its question mark after the last word. The name wraps at its full width with the mark
-   * hidden; hovered or focused, the mark comes in after the last word, and when that line has no room for it the last
-   * word alone is cut short with an ellipsis (`is-cut`), so no other word moves. The last word is the last character
-   * in Chinese and Japanese, which break between characters.
+   * A sidebar row's name. It wraps between words and never inside one: each word is an `extension-tag-word`, and a
+   * word wider than the row ends in an ellipsis, so a one-word name stays on one line. Chinese and Japanese, which
+   * have no spaces, wrap between characters.
+   *
+   * With a hint, a question mark follows the last word while the row is hovered or focused. When that line has no room
+   * for it the last word alone is cut shorter, so no other word moves. The last word of Chinese or Japanese is its
+   * last character, with more taken from the same line when one is too little to cut.
    */
-  function helpName(row: HTMLElement, label: string, hint: string) {
+  function sidebarName(row: HTMLElement, label: string, hint?: string) {
     // px: the mark (16) and its 2px margin (styles.css `.extension-tag-help`), and an ellipsis of at most one em of the 11.5px sidebar font
     const ELLIPSIS_AND_MARK = 16 + 2 + 11.5;
-    const end = label.trimEnd(), lastChar = Array.from(end).pop() ?? '';
-    const byCharacter = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(lastChar);
-    const cut = byCharacter ? end.length - lastChar.length : Math.max(0, end.search(/\S+$/));
-    const name = ui.h('span', 'extension-tag-name'), tail = ui.h('span', 'extension-tag-tail'), word = ui.h('span', 'extension-tag-word');
-    const head = doc.createTextNode('');
-    const split = (at: number) => { head.data = end.slice(0, at); word.textContent = end.slice(at); };
+    const byCharacter = (text: string) => /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(text);
+    const tokens = label.trim().split(/(\s+)/), last = tokens.pop() ?? '';
+    const name = ui.h('span', 'extension-tag-name'), word = ui.h('span', 'extension-tag-word'), head = doc.createTextNode('');
+    for (const token of tokens) name.append(/\s/.test(token) || byCharacter(token) ? token : ui.h('span', 'extension-tag-word', token));
+    const characters = byCharacter(last), cut = characters ? last.length - (Array.from(last).pop()?.length ?? 0) : 0;
+    const split = (at: number) => { head.data = last.slice(0, at); word.textContent = last.slice(at); };
     split(cut);
+    if (!hint) {
+      name.append(head, word);
+      // Without a hint the full name pops up only when a word of it is cut.
+      attachHint(row, () => [...name.querySelectorAll<HTMLElement>('.extension-tag-word')].some(w => w.scrollWidth > w.clientWidth) ? label : '');
+      return name;
+    }
+    const tail = ui.h('span', 'extension-tag-tail');
     tail.append(word, helpMark(row, label, hint));
     name.append(head, tail);
     const show = () => {
       if (row.classList.contains('is-hinting')) return;
-      // Measured with the mark still hidden. A last word wider than the row is broken over lines at rest: only its
-      // piece on the last line is cut, so the pieces above stay where they are.
-      const range = doc.createRange(), last = end.slice(cut);
-      const topAt = (node: Text, i: number) => { range.setStart(node, i); range.setEnd(node, i + 1); return range.getBoundingClientRect().top; };
-      const text = word.firstChild;
-      if (!(text instanceof doc.defaultView!.Text) || !last) return;
-      let at = cut;
-      const lastTop = topAt(text, last.length - 1);
-      for (let i = 0; i < last.length; i++) if (Math.abs(topAt(text, i) - lastTop) <= 2) { at = cut + i; break; }
-      split(at);
-      // The room from the last word's start to the name's right edge.
+      // Measured with the mark still hidden: the room from the last word's start to the name's right edge.
+      const range = doc.createRange();
+      const topAt = (i: number) => { range.setStart(head, i); range.setEnd(head, i + 1); return range.getBoundingClientRect().top; };
       const right = name.getBoundingClientRect().right;
-      let room = right - word.getBoundingClientRect().left;
-      // One character is too little to cut in Chinese and Japanese: take more from the same line until the ellipsis
-      // and the mark fit, never one from the line above.
-      for (; byCharacter && room < ELLIPSIS_AND_MARK && at > 0;) {
-        const step = /[\uDC00-\uDFFF]/.test(end[at - 1]) ? 2 : 1;
-        if (Math.abs(topAt(head, at - step) - word.getBoundingClientRect().top) > 2) break;
+      let at = cut, room = right - word.getBoundingClientRect().left;
+      // Never a character from the line above.
+      for (; characters && room < ELLIPSIS_AND_MARK && at > 0;) {
+        const step = /[\uDC00-\uDFFF]/.test(last[at - 1]) ? 2 : 1;
+        if (Math.abs(topAt(at - step) - word.getBoundingClientRect().top) > 2) break;
         split(at -= step); room = right - word.getBoundingClientRect().left;
       }
       row.classList.add('is-hinting');
       control.width = name.getBoundingClientRect().width; hintedResize?.observe(name);
       const tailWidth = tail.getBoundingClientRect().width;
-      if (tailWidth > room) { word.classList.add('is-cut'); word.style.maxWidth = `${Math.max(0, Math.floor(room - (tailWidth - word.getBoundingClientRect().width)) - 1)}px`; }
+      if (tailWidth > room) word.style.maxWidth = `${Math.max(0, Math.floor(room - (tailWidth - word.getBoundingClientRect().width)) - 1)}px`;
     };
-    const reset = () => { row.classList.remove('is-hinting'); word.classList.remove('is-cut'); word.style.removeProperty('max-width'); split(cut); };
+    const reset = () => { row.classList.remove('is-hinting'); word.style.removeProperty('max-width'); split(cut); };
     const hide = () => { if (!row.matches(':hover, :focus-visible')) { hintedResize?.unobserve(name); reset(); } };
     const control = { show, reset, width: 0 };
     hints.set(row, control);
@@ -842,7 +843,7 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
   function tagChip(id: string, opts?: { active?: boolean; count?: number; onToggle?: () => void; helpMark?: boolean }) {
     const tag = marketIndex.tags[id];
     const el = ui.h(opts?.onToggle ? 'button' : 'span', 'extension-tag' + (tag.style ? ' is-' + tag.style : '') + (opts?.active ? ' is-active' : ''));
-    if (opts?.helpMark && tag.hint) el.append(helpName(el, tag.label, tag.hint)); else el.append(ui.h('span', 'extension-tag-name', tag.label));
+    el.append(opts?.helpMark ? sidebarName(el, tag.label, tag.hint) : ui.h('span', 'extension-tag-name', tag.label));
     if (!opts?.helpMark) attachHint(el, tag.label, tag.hint);
     if (opts?.count !== undefined) el.append(ui.h('span', 'extension-tag-count', String(opts.count)));
     const toggle = opts?.onToggle;
@@ -1559,7 +1560,7 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
     const style = (id: string) => marketIndex.tags[id].style;
     const badgeRow = (on: boolean, mark: Parameters<typeof icon>[1], label: string, hint: string, count: number, onClick: () => void, cls = '') => {
       const toggle = ui.h('button', 'extension-tag is-badge extension-badge-toggle' + cls + (on ? ' is-active' : '')) as HTMLButtonElement; toggle.type = 'button';
-      toggle.append(icon(doc, mark), helpName(toggle, label, hint), ui.h('span', 'extension-tag-count', String(count)));
+      toggle.append(icon(doc, mark), sidebarName(toggle, label, hint), ui.h('span', 'extension-tag-count', String(count)));
       toggle.setAttribute('aria-pressed', String(on));
       toggle.addEventListener('click', () => { onClick(); state.page = 0; renderMarket(); save(); }, { signal });
       return toggle;

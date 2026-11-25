@@ -1978,8 +1978,7 @@ function showTools(on) {
 }
 
 /* ---------- popping in and out: the menu, the hover buttons and the look wheel ---------- */
-/** Milliseconds the menu's buttons and the hover buttons take to fold back into the body (`m-out` in pet.css). */
-/** The leaving animations' lengths (pet.css `--pop-out`, `--wheel-out`, `--sizer-out`, `--return-time`). */
+/** Milliseconds the menu's buttons and the hover buttons take to fold back into the body (pet.css `--pop-out`; the other leaving animations read `--wheel-out`, `--slider-out` and `--return-time`). */
 const POP_OUT_MS = () => cssMs(document.documentElement, '--pop-out', 160);
 /** Longer than the last of the staggered `m-in`s, after which `entering` comes off. */
 const POP_IN_MS = 600;

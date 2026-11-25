@@ -45,7 +45,7 @@ export function lightWall(wall, area = wall) {
     grid.style.transform = `translate3d(${LENS - x}px, ${LENS - y}px, 0)`;
   };
   const step = (now) => {
-    const k = approachShare(EASE_RATE, Math.min(.1, (now - last) / 1000));
+    const k = approachShare(EASE_RATE, (now - last) / 1000);
     last = now;
     x += (tx - x) * k; y += (ty - y) * k;
     if (Math.abs(tx - x) + Math.abs(ty - y) < .3) { x = tx; y = ty; frame = 0; } else frame = requestAnimationFrame(step);
