@@ -10,7 +10,7 @@ import type { FeatureContext } from '../feature.ts';
 import { S } from './strings.ts';
 import { CATALOG_CATEGORY_IDS, inCatalogCategory, isFunctionTag, type CatalogCategory } from './catalog.ts';
 import { problemPopover, problemAnchorVisible, listProblem, scrollerOf, wheelInto } from '../../../base/ui/problem.ts';
-import { fold, measureReflow, prefersStill } from '../../../base/motion.ts';
+import { fold, measureReflow, motionLevel } from '../../../base/motion.ts';
 import { matchRanges, matchRank, prepareFields, searchTerms, type MatchRank, type PreparedFields } from './search.ts';
 import { hideTip, showTip } from '../../../base/ui/tip.ts';
 import { extensionForWorld } from '../worlds/library.ts';
@@ -562,7 +562,7 @@ function createExtensionContent({ doc, ui, lifecycle, capabilities }: ExtensionC
   let emptyFace: number | undefined;
   async function replayCards(work: Promise<unknown>) {
     const run = ++replays, grid = marketGrid;
-    if (prefersStill(win)) { await work; return; }
+    if (motionLevel(win) === 'low') { await work; return; }
     grid.classList.add('is-reloading');
     await Promise.all([work.catch(() => {}), new Promise(resolve => win.setTimeout(resolve, 110))]);
     if (signal.aborted || run !== replays) return;

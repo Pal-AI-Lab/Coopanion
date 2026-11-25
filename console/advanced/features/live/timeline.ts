@@ -11,6 +11,8 @@ import type { WebUi, Disposable } from 'cortico/web/shared/client-panel.ts';
 import type { Lifecycle } from '../../../base/lifecycle.ts';
 import { shouldStick } from '../../../base/ui/index.ts';
 import { estTok } from './context.ts';
+import { cssMs, typeOut } from 'cortico-world-desktop-pet/web/motion-frames.js';
+import { fold } from '../../../base/motion.ts';
 import { S } from './strings.ts';
 import type { ContextRecord, Item } from 'cortico/protocol/open-responses/context.ts';
 
@@ -18,8 +20,8 @@ import type { ContextRecord, Item } from 'cortico/protocol/open-responses/contex
 const STICK_PX = 60;
 /** 超过这个长度的正文折起来,折叠行只印字数。 */
 const FOLD_CHARS = 500;
-/** 打字机每帧推进的字数。 */
-const TYPE_CHARS_PER_FRAME = 8;
+/** 打字机每秒推进的字数;按经过的时间推进，不随刷新率变快。 */
+const TYPE_CHARS_PER_SECOND = 480;
 /** 事件投递帧的工具名(与 core/loop.ts 的 EXTERNAL_EVENT_FRAME 同名;那边不对浏览器包导出)。 */
 const EXTERNAL_EVENT_FRAME = 'external_event_frame';
 /** bot 头像。不带缓存破坏参数:一条时间线上几十个组共用同一份缓存。 */
@@ -165,7 +167,8 @@ export function createTimeline(deps: TimelineDeps): TimelineView {
   /** 打字机点击后立即完成；帧句柄由 lifecycle 管理。 */
   const typewriter = (target: HTMLElement, text: string): void => {
     toggleClass(target, 'typing', true);
-    let i = 0;
+    const started = performance.now();
+    const view = target.ownerDocument.defaultView;
     let handle: Disposable | null = null;
     const finish = (): void => {
       target.textContent = text;
@@ -178,7 +181,8 @@ export function createTimeline(deps: TimelineDeps): TimelineView {
       stick();
     };
     handle = lifecycle.frame(() => {
-      i += TYPE_CHARS_PER_FRAME;
+      // 低档 typeOut 直接给出全文
+      const i = typeOut(text.length, TYPE_CHARS_PER_SECOND, (performance.now() - started) / 1000, view);
       if (i >= text.length) {
         finish();
         return false;
@@ -192,12 +196,16 @@ export function createTimeline(deps: TimelineDeps): TimelineView {
   };
 
 
+  /** 折叠框:关着时 hidden;开合用 fold() 按自身高度展开收起,只变高度不淡入淡出,时长随 --motion-base。 */
   const clps = (body: HTMLElement, open: boolean): HTMLElement => {
     const w = ui.h('div', open ? 'clps open' : 'clps');
-    const b = ui.h('div');
-    b.appendChild(body);
-    w.appendChild(b);
+    w.appendChild(body);
+    w.hidden = !open;
     return w;
+  };
+  const setOpen = (box: HTMLElement, open: boolean): void => {
+    toggleClass(box, 'open', open);
+    fold(box, open, { duration: cssMs(box, '--motion-base', 200), easing: 'ease', fade: false });
   };
 
   const bindToggle = (head: HTMLElement, box: HTMLElement, chev?: HTMLElement | null): void => {
@@ -205,7 +213,7 @@ export function createTimeline(deps: TimelineDeps): TimelineView {
       'click',
       () => {
         const open = !box.className.split(' ').includes('open');
-        toggleClass(box, 'open', open);
+        setOpen(box, open);
         if (chev) toggleClass(chev, 'up', open);
       },
       { signal },
@@ -226,7 +234,7 @@ export function createTimeline(deps: TimelineDeps): TimelineView {
       'click',
       () => {
         const open = !wrap.className.split(' ').includes('open');
-        toggleClass(wrap, 'open', open);
+        setOpen(wrap, open);
         head.textContent = S.foldHead(open, content.length);
       },
       { signal },
@@ -521,7 +529,7 @@ export function createTimeline(deps: TimelineDeps): TimelineView {
     rawToggle.addEventListener('click', () => {
       const open = !rawBox.className.split(' ').includes('open');
       if (open) rawPre.textContent = JSON.stringify(next.entries.map((e) => e.item), null, 2);
-      toggleClass(rawBox, 'open', open);
+      setOpen(rawBox, open);
     }, { signal });
     inner.appendChild(grp);
     turn = next;

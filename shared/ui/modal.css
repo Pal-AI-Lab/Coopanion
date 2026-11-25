@@ -8,4 +8,6 @@
 @keyframes modalFade{from{opacity:0}}
 @keyframes modalPaperIn{from{opacity:0;transform:translateY(6px)}}
 @media(max-width:720px){.modalcard{width:96vw;max-height:92dvh}}
-@media(prefers-reduced-motion:reduce){.modal,.modalcard{animation:none}}
+/* the settings window and the pet pages write their motion level on the root (desktop-pet web/motion-level.js); other pages follow the system */
+:where(:root[data-motion="low"]) :is(.modal,.modalcard){animation:none}
+@media(prefers-reduced-motion:reduce){:where(:root:not([data-motion])) :is(.modal,.modalcard){animation:none}}

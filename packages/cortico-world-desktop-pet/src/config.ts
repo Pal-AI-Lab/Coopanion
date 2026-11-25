@@ -101,6 +101,9 @@ export function speechFor(s: SpeechSettings): { enabled: boolean; pitchHz: numbe
 export type RoamMode = 'free' | 'calm' | 'off';
 /** Which side of each palette the pet pages draw: dark = light figure for dark surroundings. */
 export type PetTheme = 'dark' | 'light';
+/** `window.motion`: how much the interface moves (web/motion-level.js). */
+export const MOTION_CHOICES = ['system', 'low', 'medium', 'high'] as const;
+export type MotionChoice = typeof MOTION_CHOICES[number];
 /**
  * Which touches wake the bot: poke = clicks only, petting and carrying wait for the next wake; all; none = every touch
  * waits; custom = the kinds in `touch.wakeKinds`.
@@ -196,6 +199,8 @@ export interface DesktopPetConfigSection extends WorldSection {
     /** Frames a second while the body moves (and at rest with `lockFrameRate`); 0 follows the display. */
     frameRate: number;
     lockFrameRate: boolean;
+    /** How much the interface moves, in the settings window and the pet's pages (web/motion-level.js); 'system' follows the system's reduced-motion setting. */
+    motion: MotionChoice;
     /** How transparent the body and its bubbles are, in percent: 0 is opaque, FADE_MAX the most, in steps of FADE_STEP. */
     fade: number;
     /** While a fullscreen window covers the pet's display, `fullscreenFade` takes the place of `fade`. */
@@ -332,7 +337,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   enabled: false,
   port: 7797,
   user: '',
-  window: { enabled: true, electronFile: '', scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, sayBubbleHoldSec: 0, glow: GLOW_DEFAULT, frameRate: 60, lockFrameRate: false, fade: 0, fadeWhenFullscreen: false, fullscreenFade: 40, hideWhenFullscreen: false, passWhenFullscreen: false, overTaskbar: true, hideFromCapture: false, exportOverlay: false },
+  window: { enabled: true, electronFile: '', scale: 1, bubbleSize: 1, fontSize: 1, bubbleSpeed: 1, sayBubbleHoldSec: 0, glow: GLOW_DEFAULT, frameRate: 60, lockFrameRate: false, motion: 'system', fade: 0, fadeWhenFullscreen: false, fullscreenFade: 40, hideWhenFullscreen: false, passWhenFullscreen: false, overTaskbar: true, hideFromCapture: false, exportOverlay: false },
   roam: 'calm',
   sound: true,
   sounds: { move: true, touch: true, face: true, snore: true, talk: true, ui: true, alert: true, snoreSeconds: 0, panByPosition: true, volume: 100 },
@@ -404,6 +409,7 @@ export function desktopPetConfigGroups(language: Language = 'zh'): ConfigGroup[]
         [`${K}.window.glow`]: { type: 'number', title: c.glow.title, description: c.glow.description, minimum: 0, maximum: GLOW_MAX, multipleOf: 1, 'x-hot': true },
         [`${K}.window.frameRate`]: { type: 'integer', title: c.frameRate.title, minimum: 0, description: c.frameRate.description, 'x-hot': true },
         [`${K}.window.lockFrameRate`]: { type: 'boolean', title: c.lockFrameRate.title, description: c.lockFrameRate.description, 'x-hot': true },
+        [`${K}.window.motion`]: { type: 'string', title: c.motion.title, enum: [...MOTION_CHOICES], description: c.motion.description, 'x-hot': true },
         [`${K}.window.fade`]: { type: 'integer', title: c.fade.title, description: c.fade.description, minimum: 0, maximum: FADE_MAX, multipleOf: FADE_STEP, 'x-suffix': '%', 'x-hot': true },
         // only the window process on Windows can tell another program is full screen (host/electron-main.cjs `fullscreen`), reaches over the taskbar (`coverArea`) and is left out of captures; unregistered, the 「习惯」 page hides them too
         ...(process.platform === 'win32' ? {

@@ -1026,6 +1026,7 @@ export class DesktopPetWorld implements World {
       glow: this.cfg.window.glow,
       frameRate: this.cfg.window.frameRate,
       lockFrameRate: this.cfg.window.lockFrameRate,
+      motion: this.cfg.window.motion,
       fade: this.cfg.window.fade,
       fadeWhenFullscreen: this.cfg.window.fadeWhenFullscreen,
       fullscreenFade: this.cfg.window.fullscreenFade,
