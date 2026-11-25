@@ -354,7 +354,7 @@ export async function mountDetail(options: Options): Promise<DetailController> {
           return reply.result;
         },
         refresh: async () => {},
-      }), lifecycle.signal);
+      }));
       if (gen !== rendering || lifecycle.disposed) { handle.dispose(); return; }
       panelHandles.push(handle);
     }

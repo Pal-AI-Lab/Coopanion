@@ -17,7 +17,6 @@ export interface StyleLink {
   rel: string;
   href: string;
   dataset: { [key: string]: string | undefined };
-  remove?(): void;
 }
 
 export interface LoaderDeps {
@@ -40,9 +39,9 @@ export class PanelBundleError extends Error {
 
 export class ConsolePageLoader {
   private readonly deps: LoaderDeps;
-  private readonly loaded = new Map<string, { url: string; bundle: WebUiClientBundle }>();
-  private readonly inFlight = new Map<string, { url: string; task: Promise<WebUiClientBundle> }>();
-  private readonly styleLinks = new Map<string, { href: string; link: StyleLink }>();
+  private readonly loaded = new Map<string, WebUiClientBundle>();
+  private readonly inFlight = new Map<string, Promise<WebUiClientBundle>>();
+  private readonly styled = new Set<string>();
 
   constructor(deps: LoaderDeps) {
     this.deps = deps;
@@ -54,29 +53,21 @@ export class ConsolePageLoader {
   }
 
   async load(pageId: string, asset: WebUiAssetEntry | undefined): Promise<WebUiClientBundle> {
-    const url = asset?.js;
     const cached = this.loaded.get(pageId);
-    if (cached && cached.url === url) {
-      if (asset) this.injectStyle(pageId, asset);
-      return cached.bundle;
-    }
+    if (cached) return cached;
 
     const pending = this.inFlight.get(pageId);
-    if (pending && pending.url === url) return pending.task;
+    if (pending) return pending;
 
     const task = this.loadOnce(pageId, asset);
-    const entry = { url: url ?? '', task };
-    this.inFlight.set(pageId, entry);
+    this.inFlight.set(pageId, task);
     try {
       const bundle = await task;
-      if (this.inFlight.get(pageId) === entry) {
-        this.loaded.set(pageId, { url: asset!.js, bundle });
-        this.injectStyle(pageId, asset!);
-      }
+      this.loaded.set(pageId, bundle);
       return bundle;
     } finally {
       // 成功与否都要摘掉:失败不缓存,下次可以重来。
-      if (this.inFlight.get(pageId) === entry) this.inFlight.delete(pageId);
+      this.inFlight.delete(pageId);
     }
   }
 
@@ -94,40 +85,31 @@ export class ConsolePageLoader {
     try {
       mod = await this.deps.importModule(asset.js);
     } catch (err) {
-      const message = S.bundleLoadFailed(pageId, String(err));
-      this.deps.log?.(message, { pageId, js: asset.js, ...(asset.css ? { css: asset.css } : {}) });
-      throw new PanelBundleError(pageId, message, err);
+      throw new PanelBundleError(pageId, S.bundleLoadFailed(pageId, String(err)), err);
     }
 
     const candidate = (mod as { default?: unknown } | null)?.default;
     if (!isConsoleClientBundle(candidate)) {
       throw new PanelBundleError(pageId, S.badDefaultExport(pageId));
     }
+    // 样式在 js 装成之后再注入:装不上的页不该在页面里留下一个 404 的 link。
+    this.injectStyle(pageId, asset);
     return candidate;
   }
 
-  /** 每页保持一份与当前清单一致的样式表；样式 URL 变更时替换旧节点。 */
+  /** 每页样式只注入一次，面板卸载时保留。 */
   private injectStyle(pageId: string, asset: WebUiAssetEntry): void {
-    const prev = this.styleLinks.get(pageId);
-    if (!asset.css) {
-      if (prev) {
-        prev.link.remove?.();
-        this.styleLinks.delete(pageId);
-      }
-      return;
-    }
-    if (prev?.href === asset.css) return;
+    if (!asset.css || this.styled.has(pageId)) return;
     if (!isSafeAssetUrl(asset.css)) {
       this.deps.log?.(`「${pageId}」的样式地址不合法，已跳过`, { href: String(asset.css) });
       return;
     }
-    prev?.link.remove?.();
+    this.styled.add(pageId);
     const link = this.deps.createLink();
     link.rel = 'stylesheet';
     link.href = asset.css;
     link.dataset.provider = pageId;
     this.deps.styleHost.appendChild(link);
-    this.styleLinks.set(pageId, { href: asset.css, link });
   }
 
   /** 获取声明的面板实现；缺失时错误列出扩展提供的面板键。 */

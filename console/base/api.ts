@@ -12,7 +12,6 @@ import { S } from './strings.ts';
 export interface RequestOptions {
   signal?: AbortSignal;
   keepalive?: boolean;
-  cache?: RequestCache;
 }
 
 /** How much of a reply an error message quotes. */
@@ -37,7 +36,6 @@ async function send(path: string, init: RequestInit, opts?: RequestOptions): Pro
       headers: { ...languageHeaders(), ...(init.headers as Record<string, string> | undefined) },
       ...(opts?.signal ? { signal: opts.signal } : {}),
       ...(opts?.keepalive ? { keepalive: true } : {}),
-      ...(opts?.cache ? { cache: opts.cache } : {}),
     });
     // the login expired: the page reloads and the console answers with its login page
     if (res.status === 401 && res.headers.get(AUTH_HEADER) !== null) location.reload();
@@ -134,7 +132,7 @@ export async function pickPath(options: PathPickerOptions, opts?: RequestOptions
   return (await post<{ path: string | null }>('/api/path-picker', options, opts)).path;
 }
 
-/** Every page's declaration (`GET /api/webui/manifest`), always bypassing the HTTP cache. */
+/** Every page's declaration (`GET /api/webui/manifest`). */
 export function fetchManifest(opts?: RequestOptions): Promise<WebUiManifest> {
-  return get<WebUiManifest>('/api/webui/manifest', { ...opts, cache: 'no-store' });
+  return get<WebUiManifest>('/api/webui/manifest', opts);
 }
