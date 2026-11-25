@@ -367,7 +367,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true, onSandboxFailur
   const windows = createWindowSource({ screen });
   let windowTimer = null, sentWindows = '';
   const readWindows = () => {
-    if (!win || !win.isVisible()) return;
+    if (!win || !win.isVisible() || win.webContents.isCrashed()) return;
     const rects = windows.list(hwndOf(win));
     const b = win.getBounds();
     // the page's floor: 2 DIP above the bottom of the work area (web/pet-app.js floorGap)
@@ -488,7 +488,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true, onSandboxFailur
       const visible = win.isVisible();
       // the input shape does not survive the window being mapped: apply the verdict again
       if (visible !== lastVisible) { lastVisible = visible; mouse.forget(); }
-      if (!visible) { mouse.tick(); return; }
+      // a page whose renderer ended has no frame to send to until it loads again
+      if (!visible || win.webContents.isCrashed()) { mouse.tick(); return; }
       const pt = cursor.read(), b = win.getBounds();
       const inside = pt.x >= b.x && pt.x < b.x + b.width && pt.y >= b.y && pt.y < b.y + b.height;
       const at = inside ? { x: pt.x - b.x, y: pt.y - b.y } : null;
