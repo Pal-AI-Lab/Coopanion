@@ -1247,12 +1247,28 @@ describe('World library and catalog', () => {
     expect(root.querySelectorAll('.world-catalog .extension-market-card')).toHaveLength(2);
     expect(category('all').getAttribute('aria-pressed')).toBe('true');
   });
-  it('puts a sidebar tag\'s question mark after the name\'s last word and restores the name when the row is left', async () => {
+  it('shows a sidebar tag without a hint in full on hover only while a word of it is cut', async () => {
+    const index = { tags: { lengthy: { label: 'Lengthy caution', style: 'notice' } } };
+    const { root } = await openWorlds({ hits: { hits: [{ ...HITS.hits[0], tags: ['lengthy'] }], index } });
+    const row = root.querySelector('.world-catalog-filters .extension-tagbar .extension-tag.is-exclusion');
+    const shown = () => [...root.ownerDocument.querySelectorAll('.extension-hint')].some(tip => tip.textContent === 'Lengthy caution');
+    expect(row.querySelector('.extension-tag-help')).toBeNull();
+    row.dispatchEvent(new PointerEvent('pointerenter'));
+    expect(shown()).toBe(false);
+    row.dispatchEvent(new PointerEvent('pointerleave'));
+    // The test window has no layout: the first word is made wider than its box.
+    const word = row.querySelector('.extension-tag-word');
+    Object.defineProperties(word, { scrollWidth: { value: 120 }, clientWidth: { value: 80 } });
+    row.dispatchEvent(new PointerEvent('pointerenter'));
+    expect(shown()).toBe(true);
+  });
+  it('keeps each word of a sidebar tag whole, puts the question mark after the last one and restores the name when the row is left', async () => {
     const index = { tags: { experimental: { label: 'Experimental feature', style: 'notice', hint: 'Still changing' } } };
     const { root } = await openWorlds({ hits: { hits: [{ ...HITS.hits[0], tags: ['experimental'] }], index } });
     const row = root.querySelector('.world-catalog-filters .extension-tagbar .extension-tag.is-exclusion');
     const name = row.querySelector('.extension-tag-name');
     expect(name.textContent).toBe('Experimental feature');
+    expect([...name.querySelectorAll('.extension-tag-word')].map(word => word.textContent)).toEqual(['Experimental', 'feature']);
     expect(name.querySelector('.extension-tag-tail .extension-tag-word').textContent).toBe('feature');
     expect(name.querySelector('.extension-tag-word + .extension-tag-help')).not.toBeNull();
     expect(row.getAttribute('aria-description')).toBe('Still changing');
@@ -1264,7 +1280,7 @@ describe('World library and catalog', () => {
     expect(name.textContent).toBe('Experimental feature');
     row.dispatchEvent(new PointerEvent('pointerleave'));
     expect(row.classList.contains('is-hinting')).toBe(false);
-    expect(name.querySelector('.extension-tag-word').textContent).toBe('feature');
+    expect(name.querySelector('.extension-tag-tail .extension-tag-word').textContent).toBe('feature');
     expect(root.querySelector('.extension-market-card .extension-tag-help')).toBeNull();
     // Clicking redraws the sidebar under the pointer: the new row shows its mark without waiting for a pointerenter.
     const rowAt = () => root.querySelector('.world-catalog-filters .extension-tagbar .extension-tag.is-exclusion');
