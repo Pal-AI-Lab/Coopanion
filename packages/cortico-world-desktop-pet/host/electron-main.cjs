@@ -20,6 +20,9 @@
  *
  * The tray's words follow the app language the page reports (`petHost.setLanguage`), from the pages'
  * tables (web/i18n); the windows' titles are the pages' own.
+ *
+ * Each end of a window's renderer is logged (renderer-gone.cjs); `onSandboxFailure` is called when one looks
+ * like the sandbox failing to start the renderer.
  */
 const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen, session, shell, systemPreferences } = require('electron');
 const { join } = require('node:path');
@@ -31,6 +34,10 @@ const { createOverlaySource } = require('./overlay.cjs');
 const { capturePortrait } = require('./portrait.cjs');
 const { createWindowSource, ledgesFrom, windowsFrom } = require('./windows.cjs');
 const { createAppStoreRule } = require('./app-store.cjs');
+const { watchRenderer } = require('./renderer-gone.cjs');
+
+/** A line the World logs as a warning (src/window-host.ts); other lines of this process are logged at debug. */
+const warn = (line) => console.log(`[warn] ${line}`);
 
 /** The pages' text table of `code`, falling back as web/i18n.js does. */
 async function pageText(code) {
@@ -311,9 +318,10 @@ function trayIcon() {
   return img;
 }
 
-function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
+function runPetHost({ url, parentPid = 0, tray: withTray = true, onSandboxFailure }) {
   if (!url) throw new Error('pet host needs --pet-url');
   const origin = new URL(url).origin;
+  const sandboxed = !app.commandLine.hasSwitch('no-sandbox');
   /** Whether `target` is a page of the World's own server, by its parsed origin. */
   const ours = (target) => { try { return new URL(target).origin === origin; } catch { return false; } };
   /**
@@ -512,6 +520,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     // page console lines reach the World's log through stdout
     win.webContents.on('console-message', (e) => { if (e.level !== 'debug') console.log(`[page:${e.level}] ${e.message}`); });
     win.webContents.on('did-fail-load', (_e, code, desc, failedUrl) => console.log(`[page:error] 加载失败 ${code} ${desc} ${failedUrl}`));
+    watchRenderer(win.webContents, { name: '桌宠窗口', log: warn, sandboxed, onSandboxFailure });
     win.loadURL(url);
   };
 
@@ -519,6 +528,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     if (dress) { dress.show(); dress.focus(); return; }
     dress = new BrowserWindow({ width: 980, height: 720, title: 'Cortico', autoHideMenuBar: true, webPreferences: { contextIsolation: true, sandbox: true } });
     guard(dress.webContents);
+    watchRenderer(dress.webContents, { name: '装扮窗口', log: warn, sandboxed, onSandboxFailure });
     dress.on('closed', () => { dress = null; });
     dress.loadURL(target);
   };
