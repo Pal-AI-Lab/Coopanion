@@ -192,7 +192,8 @@ export function boot(doc: Document = document): Disposable {
     const mountPanel = async (pageId: string, panelId: string, box: HTMLElement): Promise<Disposable> => {
       const embedded = consolePageHost({ root: doc.createElement('div'), route: () => [entry.route] });
       await embedded.load();
-      return embedded.mountConnection(pageId, panelId, box, {}, (context) => context);
+      if (lifecycle.signal.aborted) return new Lifecycle(onError);
+      return embedded.mountConnection(pageId, panelId, box, {}, (context) => context, lifecycle.signal);
     };
     const run = () => (entry.feature ? entry.feature.mount(ctx) : entry.page!.mount({ ...ctx, mountPanel }));
     void (async () => {

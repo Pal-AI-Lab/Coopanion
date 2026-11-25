@@ -260,3 +260,215 @@ it('stops after one manifest refresh when the failing bundle URL is unchanged', 
   expect(root.querySelector('.panelslot')?.textContent).toContain('404');
   host.unmount();
 });
+
+it('ignores a slower older manifest response after switching to a page with a newer manifest', async () => {
+  const root = document.createElement('div');
+  document.body.append(root);
+  let resolveSlowManifest;
+  let notifySlowStarted;
+  const slowStarted = new Promise((resolve) => { notifySlowStarted = resolve; });
+  let manifestCalls = 0;
+  const loader = new ConsolePageLoader({
+    importModule: async (url) => {
+      if (url.includes('/a/1.0.0/')) throw new TypeError(`404 ${url}`);
+      return {
+        default: {
+          panels: {
+            main: { mount: (ctx) => { ctx.root.replaceChildren(ctx.ui.h('div', 'page-b', 'Page B mounted')); } },
+          },
+        },
+      };
+    },
+    styleHost,
+    createLink,
+  });
+  const host = new ConsolePageHost({
+    doc: document, root, overlayHost: document.body,
+    loader,
+    router: { navigate() {}, addLeaveGuard: () => ({ dispose() {} }) },
+    fetchManifest: () => {
+      manifestCalls++;
+      if (manifestCalls === 1) {
+        return Promise.resolve({
+          protocolVersion: CONSOLE_PROTOCOL_VERSION,
+          framework: { capabilities: {} },
+          providers: [
+            { id: 'world:a', kind: 'world', label: 'World A Old', availability: 'active', panels: [{ id: 'main', title: 'A' }], client: { js: '/assets/extensions/a/1.0.0/client.js' } },
+            { id: 'world:b', kind: 'world', label: 'World B Old', availability: 'active', panels: [{ id: 'main', title: 'B' }], client: { js: '/assets/extensions/b/1.0.0/client.js' } },
+          ],
+        });
+      }
+      if (manifestCalls === 2) {
+        notifySlowStarted();
+        return new Promise((resolve) => {
+          resolveSlowManifest = () => resolve({
+            protocolVersion: CONSOLE_PROTOCOL_VERSION,
+            framework: { capabilities: {} },
+            providers: [
+              { id: 'world:a', kind: 'world', label: 'World A Stale', availability: 'active', panels: [{ id: 'main', title: 'A' }], client: { js: '/assets/extensions/a/1.0.1/client.js' } },
+              { id: 'world:b', kind: 'world', label: 'World B Stale', availability: 'active', panels: [{ id: 'main', title: 'B' }], client: { js: '/assets/extensions/b/1.0.0/client.js' } },
+            ],
+          });
+        });
+      }
+      return Promise.resolve({
+        protocolVersion: CONSOLE_PROTOCOL_VERSION,
+        framework: { capabilities: {} },
+        providers: [
+          { id: 'world:a', kind: 'world', label: 'World A New', availability: 'active', panels: [{ id: 'main', title: 'A' }], client: { js: '/assets/extensions/a/1.0.2/client.js' } },
+          { id: 'world:b', kind: 'world', label: 'World B New', availability: 'active', panels: [{ id: 'main', title: 'B' }], client: { js: '/assets/extensions/b/1.0.2/client.js' } },
+        ],
+      });
+    },
+    memo: { get: (_, fallback) => fallback, set() {} },
+    createSocket: () => { throw new Error('no stream in this test'); },
+    wsUrl: (path) => path,
+    onError: (err) => { throw err; },
+  });
+
+  await host.load();
+  const showingA = host.show('world:a', 'main');
+  await slowStarted;
+  await host.refresh();
+  await host.show('world:b', 'main');
+  resolveSlowManifest();
+  await showingA;
+
+  expect(host.find('world:b')?.label).toBe('World B New');
+  expect(root.querySelector('.providerchrome')?.textContent).toContain('World B New');
+  expect(root.querySelector('.page-b')).not.toBeNull();
+  host.unmount();
+});
+
+it('re-picks the default panel from the refreshed manifest when the updated extension renamed it', async () => {
+  const root = document.createElement('div');
+  document.body.append(root);
+  const staleUrl = '/assets/extensions/fixture/1.0.0/client.js';
+  const freshUrl = '/assets/extensions/fixture/1.0.1/client.js';
+  let manifestCalls = 0;
+  const loader = new ConsolePageLoader({
+    importModule: async (url) => {
+      if (url === staleUrl) throw new TypeError(`404 ${url}`);
+      return {
+        default: {
+          panels: {
+            fresh: { mount: (ctx) => { ctx.root.replaceChildren(ctx.ui.h('div', 'renamed-default', 'Fresh default')); } },
+          },
+        },
+      };
+    },
+    styleHost,
+    createLink,
+  });
+  const host = new ConsolePageHost({
+    doc: document, root, overlayHost: document.body,
+    loader,
+    router: { navigate() {}, addLeaveGuard: () => ({ dispose() {} }) },
+    fetchManifest: async () => {
+      manifestCalls++;
+      return {
+        protocolVersion: CONSOLE_PROTOCOL_VERSION,
+        framework: { capabilities: {} },
+        providers: [{
+          id: 'world:fixture', kind: 'world', label: 'Fixture World', availability: 'active',
+          panels: [{ id: manifestCalls === 1 ? 'legacy' : 'fresh', title: manifestCalls === 1 ? 'Legacy' : 'Fresh' }],
+          client: { js: manifestCalls === 1 ? staleUrl : freshUrl },
+        }],
+      };
+    },
+    memo: { get: (_, fallback) => fallback, set() {} },
+    createSocket: () => { throw new Error('no stream in this test'); },
+    wsUrl: (path) => path,
+    onError: (err) => { throw err; },
+  });
+
+  await host.load();
+  await host.show('world:fixture');
+  expect(manifestCalls).toBe(2);
+  expect(root.querySelector('.renamed-default')?.textContent).toBe('Fresh default');
+  host.unmount();
+});
+
+it('replaces the stylesheet when only css changes and ignores stale css from a slower older script', async () => {
+  const activeLinks = [];
+  const makeLink = () => {
+    const node = {
+      rel: '', href: '', dataset: {},
+      remove() {
+        const idx = activeLinks.indexOf(node);
+        if (idx >= 0) activeLinks.splice(idx, 1);
+      },
+    };
+    return node;
+  };
+  let resolveOld;
+  const bundleFor = (tag) => ({ default: { panels: { main: { tag, mount() {} } } } });
+  const loader = new ConsolePageLoader({
+    importModule: (url) => {
+      if (url.includes('/1.0.0/')) return new Promise((resolve) => { resolveOld = () => resolve(bundleFor('old')); });
+      return Promise.resolve(bundleFor('new'));
+    },
+    styleHost: { appendChild: (node) => { activeLinks.push(node); } },
+    createLink: makeLink,
+  });
+
+  const oldAsset = { js: '/assets/extensions/fixture/1.0.0/client.js', css: '/assets/extensions/fixture/1.0.0/client.css' };
+  const newAsset = { js: '/assets/extensions/fixture/1.0.1/client.js', css: '/assets/extensions/fixture/1.0.1/client.css' };
+  const cssOnlyAsset = { js: '/assets/extensions/fixture/1.0.1/client.js', css: '/assets/extensions/fixture/1.0.1/client-v2.css' };
+
+  const slowOld = loader.load('world:fixture', oldAsset);
+  await loader.load('world:fixture', newAsset);
+  resolveOld();
+  await slowOld;
+  expect(activeLinks.map((l) => l.href)).toEqual([newAsset.css]);
+
+  await loader.load('world:fixture', cssOnlyAsset);
+  expect(activeLinks.map((l) => l.href)).toEqual([cssOnlyAsset.css]);
+});
+
+it('cancels mountConnection retry and mount when the parent AbortSignal aborts', async () => {
+  const box = document.createElement('div');
+  const controller = new AbortController();
+  let rejectImport;
+  let manifestCalls = 0;
+  let mounted = false;
+  const loader = new ConsolePageLoader({
+    importModule: () => new Promise((_resolve, reject) => { rejectImport = reject; }),
+    styleHost,
+    createLink,
+  });
+  const host = new ConsolePageHost({
+    doc: document, root: document.createElement('div'), overlayHost: document.body,
+    loader,
+    router: { navigate() {}, addLeaveGuard: () => ({ dispose() {} }) },
+    fetchManifest: async () => {
+      manifestCalls++;
+      return {
+        protocolVersion: CONSOLE_PROTOCOL_VERSION,
+        framework: { capabilities: {} },
+        providers: [{
+          id: 'world:fixture', kind: 'world', label: 'Fixture World', availability: 'active',
+          panels: [{ id: 'voice', title: 'Voice' }],
+          client: { js: `/assets/extensions/fixture/1.0.${manifestCalls}/client.js` },
+        }],
+      };
+    },
+    memo: { get: (_, fallback) => fallback, set() {} },
+    createSocket: () => { throw new Error('no stream in this test'); },
+    wsUrl: (path) => path,
+    onError: (err) => { throw err; },
+  });
+
+  await host.load();
+  const mounting = host.mountConnection('world:fixture', 'voice', box, {}, (ctx) => ({
+    ...ctx,
+    invoke: async () => { mounted = true; return null; },
+  }), controller.signal);
+  controller.abort();
+  rejectImport(new TypeError('404 stale'));
+  const handle = await mounting;
+  handle.dispose();
+  expect(manifestCalls).toBe(1);
+  expect(mounted).toBe(false);
+  expect(box.textContent).toBe('');
+});

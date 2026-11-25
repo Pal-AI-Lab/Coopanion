@@ -96,6 +96,8 @@ export class ConsolePageHost {
    * 免得把一个已经不该存在的面板贴进 DOM。
    */
   private generation = 0;
+  /** 单调递增的 manifest 请求序号，避免晚到的旧响应覆盖较新的快照与页头。 */
+  private loadSeq = 0;
   private chromeLife: Lifecycle | null = null;
   private readonly navListeners = new Set<() => void>();
 
@@ -107,16 +109,23 @@ export class ConsolePageHost {
     return this.snapshot?.providers ?? [];
   }
 
-  /** 取一次 manifest。失败时保留上一份（一次网络抖动不该让导航整个消失）。 */
+  /** 取一次 manifest。失败时保留上一份（一次网络抖动不该让导航整个消失）；被更新请求超越时忽略。 */
   async load(): Promise<void> {
+    await this.loadLatest();
+  }
+
+  private async loadLatest(): Promise<boolean> {
+    const seq = ++this.loadSeq;
     try {
       const next = await this.deps.fetchManifest();
+      if (seq !== this.loadSeq) return false;
       // 拒绝不支持的协议版本。
       if (next && next.protocolVersion !== CONSOLE_PROTOCOL_VERSION) {
         throw new Error(S.protocolMismatch(String(next.protocolVersion), String(CONSOLE_PROTOCOL_VERSION)));
       }
       this.snapshot = next;
     } catch (err) {
+      if (seq !== this.loadSeq) return false;
       this.deps.onError(err);
       if (!this.snapshot) {
         this.snapshot = {
@@ -127,23 +136,31 @@ export class ConsolePageHost {
       }
     }
     this.emitNav();
+    return true;
   }
 
   /** Mount one of a page's panels inside the connection editor; `adapt` stages the panel's configuration edits. */
   async mountConnection(pageId: string, panelId: string, root: HTMLElement, scope: Readonly<Record<string, string>>,
-    adapt: (context: WebUiPanelContext) => WebUiPanelContext): Promise<Disposable> {
+    adapt: (context: WebUiPanelContext) => WebUiPanelContext, signal?: AbortSignal): Promise<Disposable> {
     const lifecycle = new Lifecycle(this.deps.onError);
+    const isStale = (): boolean => lifecycle.disposed || Boolean(signal?.aborted);
+    if (isStale()) return lifecycle;
     const page = this.find(pageId);
     const panel = asArray(page?.panels).find(candidate => candidate.id === panelId);
     try {
       if (!panel) throw new Error(S.noSuchPanel(page?.label ?? pageId, panelId));
       if (panel.builtin !== undefined) throw new Error(S.noBuiltinPanel(panel.builtin));
-      const impl = await this.resolvePanel(pageId, panel.id, page?.client, () => lifecycle.disposed);
-      if (!lifecycle.disposed) {
+      const impl = await this.resolvePanel(pageId, panel.id, page?.client, isStale);
+      if (!isStale()) {
         const result = await impl.mount(adapt(this.panelContext(pageId, panel.id, root, lifecycle, this.generation, scope)));
-        if (result) lifecycle.own(result);
+        if (result) {
+          if (isStale()) result.dispose?.();
+          else lifecycle.own(result);
+        }
       }
-    } catch (error) { root.textContent = String(error); }
+    } catch (error) {
+      if (!isStale()) root.textContent = String(error);
+    }
     return lifecycle;
   }
 
@@ -168,7 +185,7 @@ export class ConsolePageHost {
 
   /** 重取 manifest 并刷新导航与当前页头，**不重挂面板**。 */
   async refresh(): Promise<void> {
-    await this.load();
+    if (!(await this.loadLatest())) return;
     const cur = this.mounted;
     if (cur) this.renderChrome(cur.pageId, cur.panelId);
   }
@@ -247,7 +264,7 @@ export class ConsolePageHost {
     }
   }
 
-  private async showInner(pageId: string, panelId?: string): Promise<void> {
+  private async showInner(pageId: string, panelId?: string, retried = false): Promise<void> {
     if (this.tabs?.pageId === pageId) this.unmountPanel();
     else this.unmount();
     const gen = this.generation;
@@ -307,7 +324,24 @@ export class ConsolePageHost {
 
     try {
       if (panel.builtin !== undefined) throw new Error(S.noBuiltinPanel(panel.builtin));
-      const impl = await this.resolvePanel(pageId, panel.id, page.client, () => gen !== this.generation);
+      let impl: WebUiPanel;
+      if (retried) {
+        impl = await this.deps.loader.resolvePanel(pageId, panel.id, page.client);
+      } else if (panelId === undefined) {
+        try {
+          impl = await this.deps.loader.resolvePanel(pageId, panel.id, page.client);
+        } catch (err) {
+          if (!(err instanceof PanelBundleError) || gen !== this.generation) throw err;
+          await this.loadLatest();
+          if (gen !== this.generation) return;
+          const fresh = this.find(pageId)?.client;
+          if (!fresh || fresh.js === page.client?.js) throw err;
+          await this.showInner(pageId, undefined, true);
+          return;
+        }
+      } else {
+        impl = await this.resolvePanel(pageId, panel.id, page.client, () => gen !== this.generation);
+      }
       if (gen !== this.generation) return; // 等 import 的工夫用户已经走了
 
       const out = await impl.mount(

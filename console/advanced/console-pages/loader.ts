@@ -17,6 +17,7 @@ export interface StyleLink {
   rel: string;
   href: string;
   dataset: { [key: string]: string | undefined };
+  remove?(): void;
 }
 
 export interface LoaderDeps {
@@ -41,7 +42,7 @@ export class ConsolePageLoader {
   private readonly deps: LoaderDeps;
   private readonly loaded = new Map<string, { url: string; bundle: WebUiClientBundle }>();
   private readonly inFlight = new Map<string, { url: string; task: Promise<WebUiClientBundle> }>();
-  private readonly styled = new Set<string>();
+  private readonly styleLinks = new Map<string, { href: string; link: StyleLink }>();
 
   constructor(deps: LoaderDeps) {
     this.deps = deps;
@@ -55,7 +56,10 @@ export class ConsolePageLoader {
   async load(pageId: string, asset: WebUiAssetEntry | undefined): Promise<WebUiClientBundle> {
     const url = asset?.js;
     const cached = this.loaded.get(pageId);
-    if (cached && cached.url === url) return cached.bundle;
+    if (cached && cached.url === url) {
+      if (asset) this.injectStyle(pageId, asset);
+      return cached.bundle;
+    }
 
     const pending = this.inFlight.get(pageId);
     if (pending && pending.url === url) return pending.task;
@@ -67,6 +71,7 @@ export class ConsolePageLoader {
       const bundle = await task;
       if (this.inFlight.get(pageId) === entry) {
         this.loaded.set(pageId, { url: asset!.js, bundle });
+        this.injectStyle(pageId, asset!);
       }
       return bundle;
     } finally {
@@ -98,24 +103,31 @@ export class ConsolePageLoader {
     if (!isConsoleClientBundle(candidate)) {
       throw new PanelBundleError(pageId, S.badDefaultExport(pageId));
     }
-    // 样式在 js 装成之后再注入:装不上的页不该在页面里留下一个 404 的 link。
-    this.injectStyle(pageId, asset);
     return candidate;
   }
 
-  /** 每个样式 URL 只注入一次，面板卸载时保留。 */
+  /** 每页保持一份与当前清单一致的样式表；样式 URL 变更时替换旧节点。 */
   private injectStyle(pageId: string, asset: WebUiAssetEntry): void {
-    if (!asset.css || this.styled.has(asset.css)) return;
+    const prev = this.styleLinks.get(pageId);
+    if (!asset.css) {
+      if (prev) {
+        prev.link.remove?.();
+        this.styleLinks.delete(pageId);
+      }
+      return;
+    }
+    if (prev?.href === asset.css) return;
     if (!isSafeAssetUrl(asset.css)) {
       this.deps.log?.(`「${pageId}」的样式地址不合法，已跳过`, { href: String(asset.css) });
       return;
     }
-    this.styled.add(asset.css);
+    prev?.link.remove?.();
     const link = this.deps.createLink();
     link.rel = 'stylesheet';
     link.href = asset.css;
     link.dataset.provider = pageId;
     this.deps.styleHost.appendChild(link);
+    this.styleLinks.set(pageId, { href: asset.css, link });
   }
 
   /** 获取声明的面板实现；缺失时错误列出扩展提供的面板键。 */
