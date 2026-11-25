@@ -728,7 +728,8 @@ const headShown = () => headTaken(null);
 /**
  * The look wheel or a slider over the head is in use: dragged, or the pointer still among the pet's controls. What Coo
  * says, asks or shows waits meanwhile (stepDialog) and comes once the person is done, nothing dropped. One left
- * showing with the pointer gone (a pinned slider) gives way to it as before, so a question is not held past its time.
+ * showing with the pointer gone (a pinned slider) gives way to it as before. A confirmation waits for nothing: with
+ * one queued, the lines before it and then it take the place at once, so it is never held past its time.
  */
 function headInUse() {
   const el = HEAD.find((o) => !o.el.hidden && !leaving(o.el))?.el;
@@ -736,7 +737,7 @@ function headInUse() {
 }
 
 function stepDialog(dt) {
-  if (!item && queue.length && at() && !at().busy && !headInUse()) startItem(queue.shift());
+  if (!item && queue.length && at() && !at().busy && (!headInUse() || queue.some((q) => q.confirm))) startItem(queue.shift());
   const it = item;
   if (!it) return;
   if (it.kind === 'say') {

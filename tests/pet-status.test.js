@@ -636,6 +636,17 @@ describe('the size slider pinned by a click on its button', () => {
     expect([shown(p), fader.hidden, fade.classList.contains('on')]).toEqual([false, false, true]);
   });
 
+  it('gives the place up at once to a confirmation, the pointer still on the pet', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
+    p.doc.querySelector('#tools [data-action="size"]').click();
+    p.cursor.at = { x: 450, y: 350 };
+    p.onOrder({ t: 'confirm', id: 'c', question: 'Go on?', options: ['Yes', 'No'] });
+    p.step(.1);
+    p.stepSlider();
+    expect([p.bubble.hidden, p.bubble.classList.contains('ask'), shown(p)]).toEqual([false, true, false]);
+  });
+
   it('keeps the thinking bubble away while it shows, and brings it back once it goes if Coo still thinks', () => {
     const p = page({ host: true });
     p.onOrder({ t: 'prefs', hoverButtons: ['size'], statusBubble: true });
