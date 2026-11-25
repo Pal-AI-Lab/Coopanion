@@ -92,7 +92,7 @@ export const S: Partial<typeof en> = {
   typeKeyPresses: { 2: '按兩下', 1: '按一下', 3: '按三下' } as Record<number, string>,
   throughPauseKeyLabel: '暫停穿透鍵',
   throughPauseKey: '按住時暫停滑鼠穿透',
-  throughPauseKeyHint: '開著滑鼠穿透時，按住這個鍵期間可以點到 Coo，放開後恢復穿透。',
+  throughPauseKeyHint: '開著滑鼠穿透時，按住這個鍵期間可以點擊 Coo，放開後恢復穿透。',
   throughPauseKeyCapture: '按下新的暫停穿透鍵，可以是組合鍵或滑鼠側鍵…（Esc 取消）',
   throughPauseKeyPresses: { 1: '按住', 2: '按一下再按住', 3: '按兩下再按住' } as Record<number, string>,
   statusBubble: '顯示 Coo 在忙什麼',
