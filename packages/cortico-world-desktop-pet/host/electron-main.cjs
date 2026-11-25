@@ -355,9 +355,12 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   let fadeWhenFullscreen = false, fullscreenFaded = false;
   /** The setting: the window reaches down over a taskbar at the bottom (see coverArea). */
   let overTaskbar = true;
-  /** Every click passes through while the tray says so or the second setting meets a fullscreen window. */
-  let trayThrough = false, fullscreenThrough = false;
-  const lockMouse = () => mouse.lock(trayThrough || fullscreenThrough);
+  /**
+   * Every click passes through while the tray says so or the second setting meets a fullscreen window,
+   * except while the page lends them to the pet (the click-through pause key held, the typing box open).
+   */
+  let trayThrough = false, fullscreenThrough = false, clicksLent = false;
+  const lockMouse = () => mouse.lock((trayThrough || fullscreenThrough) && !clicksLent);
   // the other windows, read only while the page asks (its body's pack needs them) and sent when they change:
   // their tops, and the whole windows with their ids, order and foreground flag
   const windows = createWindowSource({ screen });
@@ -471,6 +474,8 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     // a page loaded afresh asks for the windows again once its body is on
     win.webContents.on('did-finish-load', () => {
       win.webContents.setZoomLevel(0); overlay.pageLoaded(); watchWindows(false); win.webContents.send('pet:floor', coverArea(display(), overTaskbar).below);
+      // a page loaded afresh lends no clicks until it says so
+      if (clicksLent) { clicksLent = false; lockMouse(); }
       win.webContents.send('pet:fullscreenThrough', fullscreenThrough);
       win.webContents.send('pet:fullscreenFade', fullscreenFaded);
       if (shape) win.webContents.send('pet:inputShape', true);
@@ -565,6 +570,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   // Windows: WDA_EXCLUDEFROMCAPTURE, which leaves the window out of what other programs capture of the screen
   onPet('pet:hideFromCapture', (_e, on) => win.setContentProtection(!!on));
   onPet('pet:clickThrough', (_e, on) => { trayThrough = !!on; lockMouse(); });
+  onPet('pet:lendClicks', (_e, on) => { clicksLent = !!on; lockMouse(); });
   onPet('pet:watchWindows', (_e, on) => watchWindows(!!on));
   onPet('pet:openDress', () => openDress());
   let language = 'zh';
@@ -580,16 +586,21 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   handlePet('pet:portrait', async (_e, rect) => {
     try { return win && win.isVisible() ? await capturePortrait(win, rect, nativeImage) : null; } catch { return null; }
   });
+  /** The display under the cursor, when it is not the one the window covers. */
+  const otherDisplay = () => {
+    const pt = cursor.read(), d = screen.getDisplayNearestPoint(pt);
+    return d.id === display().id ? null : { pt, d };
+  };
+  handlePet('pet:cursorElsewhere', () => !!win && !!otherDisplay());
   /**
    * A drag carried or let go of outside the window: when the cursor is over another display, the
    * window moves there and the page gets the cursor's spot in its new coordinates, its new size, and
    * how far a point on screen moved in page coordinates (`dx`, `dy`); null leaves it where it is.
    */
   handlePet('pet:followCursor', () => {
-    if (!win) return null;
-    const pt = cursor.read(), d = screen.getDisplayNearestPoint(pt);
-    const fromDisplay = display();
-    if (d.id === fromDisplay.id) return null;
+    const other = win && otherDisplay();
+    if (!other) return null;
+    const { pt, d } = other, fromDisplay = display();
     const from = coverArea(fromDisplay, overTaskbar), wa = cover(d);
     return { x: pt.x - wa.x, y: pt.y - wa.y, w: wa.width, h: wa.height, dx: from.x - wa.x, dy: from.y - wa.y };
   });

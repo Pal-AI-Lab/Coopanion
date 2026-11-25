@@ -54,6 +54,14 @@ const ko: Translation<PetText> = {
     linuxNoX11: '입력 키가 X11 디스플레이에 연결할 수 없습니다',
     unsupported: '입력 키는 Windows, macOS, Linux에서만 작동합니다',
   },
+  throughPauseKey: {
+    macNoKey: 'Mac 키보드에는 이 키가 없습니다. 다른 클릭 통과 일시 중지 키를 선택하세요',
+    linuxNoKey: 'Linux에서는 이 키를 읽을 수 없습니다(마우스 측면 버튼은 작동하지 않음). 다른 클릭 통과 일시 중지 키를 선택하세요',
+    linuxNoDisplay: '클릭 통과 일시 중지 키를 Linux에서 쓰려면 X11(또는 XWayland)이 필요합니다. DISPLAY가 설정되어 있지 않습니다',
+    linuxNoX11: '클릭 통과 일시 중지 키가 X11 디스플레이에 연결할 수 없습니다',
+    unsupported: '클릭 통과 일시 중지 키는 Windows, macOS, Linux에서만 작동합니다',
+    sharesTalk: '말하기 키와 누르는 방식이 같습니다. 누르고 있으면 듣기도 시작됩니다. 둘 중 하나를 바꾸세요',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Windows 음성 인식(${culture})` : 'Windows 음성 인식'),
@@ -181,7 +189,7 @@ const ko: Translation<PetText> = {
     theme: { dark: '야간 모습으로 바꾸기', light: '주간 모습으로 바꾸기' },
     hover: (list: string) => `호버 버튼을 ${list}(으)로 바꾸기`,
     hoverNone: '호버 버튼을 모두 없애기',
-    actions: { chat: '입력', voice: '음성 입력', roam: '걷기', theme: '야간 모드', sound: '효과음', size: '크기', fade: "투명도", dress: '꾸미기', cua: "컴퓨터 사용", hide: '펫 숨기기', worlds: '내 World' },
+    actions: { chat: '입력', voice: '음성 입력', roam: '걷기', theme: '야간 모드', sound: '효과음', size: '크기', fade: "투명도", dress: '꾸미기', cua: "컴퓨터 사용", hide: '펫 숨기기', through: '클릭 통과', worlds: '내 World' },
     user: (to: string) => `'${to}'(이)라고 부르기`,
   },
 
@@ -242,7 +250,8 @@ const ko: Translation<PetText> = {
     glow: { title: '외곽 빛', description: '펫과 뒤 배경의 색이 비슷할 때 몸 주위에 생기는 옅은 빛이 몇 픽셀 퍼지는지. 0이면 꺼짐.' },
     frameRate: { title: '프레임 레이트', description: '펫이 걷거나, 들려 있거나, 점프할 때 초당 그리는 프레임 수입니다. 0이면 디스플레이를 따릅니다. 디스플레이 주사율보다 높으면 디스플레이 주사율이 적용됩니다. 습관 페이지에서는 60, 120, 144, 무제한 중에서 고를 수 있습니다.' },
     lockFrameRate: { title: '프레임 레이트 고정', description: '가만히 있을 때도 프레임 레이트대로 펫을 그립니다. 끄면 서 있거나, 앉아 있거나, 잠든 동안 초당 30프레임으로 낮춥니다.' },
-    fade: { title: "투명도", description: "펫과 말풍선이 비치는 정도입니다. 0은 불투명하고 최대 95%까지 5% 단위로 정합니다. 입력창, 질문, 확인 창이 열려 있을 때와 펫을 들고 있을 때는 불투명해집니다." },
+    motion: { title: "움직임 효과", description: "설정 창과 펫 창이 얼마나 움직이는지 정합니다. system은 시스템의 동작 줄이기 설정을 따르고(줄이기를 요청하면 low, 아니면 high), low는 색 변화와 로딩 표시만 남기며, medium은 튀는 효과와 장식용 움직임을 빼고, high는 모두 남깁니다. Coo의 움직임은 바뀌지 않습니다(roam 참고)." },
+    fade: { title: "투명도", description: "펫이 비치는 정도입니다. 0은 불투명하고 최대 95%까지 5% 단위로 정합니다." },
     hideWhenFullscreen: { title: '전체 화면일 때 숨기기', description: '켜면 앞에 있는 창이 펫이 있는 화면을 가득 채우는 동안(게임, 전체 화면 동영상, 전체 화면 브라우저) 펫을 숨기고, 전체 화면이 끝나면 다시 보여 줍니다. 최대화된 창은 해당하지 않습니다. 끄면 항상 맨 위에 떠 있습니다.' },
     passWhenFullscreen: { title: "전체 화면일 때 클릭이 Coo를 통과", description: "켜면 앞에 있는 창이 Coo가 있는 화면을 가득 채우는 동안 Coo는 그대로 보이고 모든 클릭은 Coo를 지나 아래 창으로 전달되며, 전체 화면이 끝나면 원래대로 돌아옵니다. 최대화된 창은 해당하지 않습니다. 전체 화면일 때 숨기기도 켜져 있으면 Coo는 숨습니다." },
     fadeWhenFullscreen: { title: "전체 화면일 때 흐리게", description: "켜면 앞에 있는 창이 Coo가 있는 화면을 가득 채우는 동안 「전체 화면일 때 투명도」로 바뀌고, 전체 화면이 끝나면 원래대로 돌아옵니다. 최대화된 창은 해당하지 않습니다." },

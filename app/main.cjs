@@ -589,7 +589,8 @@ function noteAutostart() {
 
 /**
  * The tray's "click through": every click passes through the pet, which still shows, walks and talks
- * (for a game under it). It lasts for this run of the app and is sent again to a restarted Core.
+ * (for a game under it). The pet's own button sets it too, and the Core says so on `click-through`.
+ * It lasts for this run of the app and is sent again to a restarted Core.
  */
 let clickThrough = false;
 function setClickThrough(on) {
@@ -615,6 +616,7 @@ async function togglePet() {
 // the Core says when the pet window comes onto the desktop or leaves it, from wherever (its menu, the settings
 // window, the tray): the show/hide entry follows, which matters on Linux, where the menu is set beforehand
 core.on('pet-shown', (shown) => { petOnDesktop = shown; refreshTray(); });
+core.on('click-through', (on) => { if (on !== clickThrough) { clickThrough = on; refreshTray(); } });
 
 function trayItems() {
   const t = T(), running = core.state === 'running';

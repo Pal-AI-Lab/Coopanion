@@ -18,12 +18,13 @@ import { worldLibrary, needsRestart, updatePending, type WorldLibraryItem } from
 import { addGroup, arrangeLayout, groupToken, moveGroup, moveItem, readLayout, removeGroup, writeLayout, type WorldGroup, type WorldLayout } from './groups.ts';
 import { S } from './strings.ts';
 import { S as UI } from '../../../base/ui/strings.ts';
-import { measureReflow, prefersStill } from '../../../base/motion.ts';
+import { measureReflow, motionLevel } from '../../../base/motion.ts';
+import { cssMs } from 'cortico-world-desktop-pet/web/motion-frames.js';
 import { dragList, moveGap, settledBox } from '../../../base/drag.ts';
 import { foldText, searchTerms } from '../extensions/search.ts';
 
 const worldPageId = (id: string) => pageIdFor('world', id);
-/** The view switch's duration and curve, as `--world-duration` and `--world-easing` in styles.css. */
+/** The view switch's duration where styles.css does not say (it reads `--world-duration`), and its curve, as `--world-easing`. */
 const VIEW_MS = 290;
 const viewEasing = cubicBezier(.32, .72, 0, 1);
 /** A CSS cubic-bezier timing function, solved for x by Newton's method with a bisection fallback. */
@@ -166,10 +167,22 @@ export function mountWorlds(ctx: FeatureContext): void {
     dockTip.style.top = `${Math.max(8, Math.min(target.top + target.height / 2 - tip.height / 2, doc.documentElement.clientHeight - tip.height - 8))}px`;
   }
   doc.addEventListener('scroll', hideTip, { capture: true, passive: true, signal });
-  const reduceMotion = () => prefersStill(win);
+  const reduceMotion = () => motionLevel(win) === 'low';
   let transition: Animation | undefined;
   let viewGeneration = 0;
   lifecycle.add(() => transition?.cancel());
+  // While the window is being resized (`data-resizing`, until 150ms after the last size change) the rows
+  // take each size at once: a row still easing to its old width is cut off by the new layout.
+  if (typeof win.ResizeObserver === 'function') {
+    let resizeTimer = 0, measured = false;
+    const resizing = new win.ResizeObserver(() => {
+      if (!measured) { measured = true; return; }
+      workspace.dataset.resizing = ''; win.clearTimeout(resizeTimer);
+      resizeTimer = win.setTimeout(() => { delete workspace.dataset.resizing; }, 150);
+    });
+    resizing.observe(workspace);
+    lifecycle.add(() => { resizing.disconnect(); win.clearTimeout(resizeTimer); });
+  }
   const show = () => {
     if (signal.aborted || router.route.segments[0] !== 'world') return;
     const next = canBrowse && router.route.query.view === 'market' ? 'market' : 'mine';
@@ -196,7 +209,7 @@ export function mountWorlds(ctx: FeatureContext): void {
         const own = anchor.getAnimations?.().find(animation => (animation as CSSTransition).transitionProperty === 'height');
         if (own) seen = true;
         // Waiting for the transition to start holds still; once it has run and gone, the glide ends.
-        const waited = now - start, clock = Math.min(1, Math.max(0, waited - 80) / VIEW_MS);
+        const waited = now - start, clock = Math.min(1, Math.max(0, waited - 80) / cssMs(workspace, '--world-duration', VIEW_MS));
         const progress = own ? own.effect?.getComputedTiming().progress ?? 0 : seen ? 1 : viewEasing(clock);
         const done = !own && (seen || clock >= 1);
         railList.scrollTop = glideFrom + (to - glideFrom) * (done ? 1 : progress);
@@ -313,8 +326,12 @@ export function mountWorlds(ctx: FeatureContext): void {
     const entry = node.parentElement!, face = node.querySelector<HTMLElement>('.world-avatar')!;
     const height = entry.getBoundingClientRect().height;
     entry.animate?.([{ height: '0px', minHeight: '0px', marginBottom: '0px', opacity: 0 }, { height: `${height}px`, minHeight: `${height}px`, opacity: 1 }], { duration: 180, easing: 'cubic-bezier(.32,.72,0,1)' });
-    const pop = () => face.animate?.([{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1.12)', opacity: 1, offset: .6 }, { transform: 'scale(1)' }], { duration: 270, easing: 'cubic-bezier(.32,.72,0,1)' });
-    if (!from || current !== 'market' || !face.animate) { pop(); return; }
+    // the flight and the pop past full size are full motion only; below it the avatar grows in where it lands
+    const full = motionLevel(win) === 'high';
+    const pop = () => face.animate?.(full
+      ? [{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1.12)', opacity: 1, offset: .6 }, { transform: 'scale(1)' }]
+      : [{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 270, easing: 'cubic-bezier(.32,.72,0,1)' });
+    if (!from || current !== 'market' || !face.animate || !full) { pop(); return; }
     const to = face.getBoundingClientRect();
     const ghost = face.cloneNode(true) as HTMLElement; ghost.classList.add('world-avatar-ghost');
     Object.assign(ghost.style, { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px` });

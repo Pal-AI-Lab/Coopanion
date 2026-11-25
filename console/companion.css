@@ -6,7 +6,7 @@
 
 /* ---------- compact navigation ---------- */
 body.companion-sidebar {
-  --titlebar-height: 36px; --rail-width: 248px; --rail-motion: 260ms cubic-bezier(.22, 1, .36, 1);
+  --titlebar-height: 36px; --rail-width: 248px; --rail-motion: 260ms var(--motion-enter);
   display: flex; height: 100dvh; padding-top: var(--titlebar-height); overflow: hidden;
 }
 .companion-titlebar {
@@ -94,13 +94,13 @@ body.companion-sidebar:has(> .modal, > .extension-lightbox[open]) .companion-tit
 #rail .navgroup-primary + :is(.navgroup-primary, .navgroup-world-tree) { margin-top: 4px; }
 #rail .stacklabel {
   display: block; height: 16px; margin: 6px 12px 8px; line-height: 16px; white-space: nowrap; overflow: hidden; background: transparent;
-  transition: height var(--rail-motion), margin var(--rail-motion), color 120ms ease, background-color var(--rail-motion);
+  transition: height var(--rail-motion), margin var(--rail-motion), color var(--motion-fast) ease, background-color var(--rail-motion);
 }
 #rail .navitem, #rail .companion-mode {
   /* 14px in: the icons' middle is the collapsed rail's, x=36, where the logo, the avatar and the foot's buttons sit too */
   position: relative; min-height: 40px; padding: 9px 13px 9px 14px; gap: 12px; border: 0; border-radius: 10px;
   background: transparent; color: var(--muted-foreground); text-decoration: none;
-  transition: background-color 140ms ease, color 140ms ease;
+  transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease;
 }
 #rail .navitem .navicon, #rail .companion-mode .navicon { width: 20px; height: 20px; }
 #rail .navitem .lbl, #rail .companion-mode .lbl { white-space: nowrap; }
@@ -154,18 +154,17 @@ body.companion-sidebar:has(> .modal, > .extension-lightbox[open]) .companion-tit
 #rail.is-collapsed .stacklabel { height: 1px; margin: 8px 10px; background-color: var(--border); color: transparent; }
 #rail.is-collapsed .navmodule-list { margin: 0; padding: 0; gap: 4px; }
 #rail.is-collapsed .navmodule-list::before, #rail.is-collapsed .navmodule-list .navitem::before { display: none; }
-#rail.is-collapsed .companion-module-icon { display: block; position: static; opacity: 1; scale: 1; animation: rail-in-folded 160ms ease 140ms backwards; }
+#rail.is-collapsed .companion-module-icon { display: block; position: static; opacity: 1; scale: 1; animation: rail-icon-in 160ms ease 140ms backwards; }
 #rail.is-collapsed .navmodule-list .navitem { padding-left: 14px; }
 /* folded, the lamps sit in one row centred under the icon, clear of it: seven, the most a World has, are 40px wide
    at 4px each and 2px apart, inside the 47px item. Folding or unfolding, they come back in at their new place once
    the rail has mostly moved, as the names do: the two animations' names differ, so each switch plays one afresh. */
 #rail.is-collapsed .navlamps {
   position: absolute; left: 50%; bottom: 4px; padding: 0; gap: 2px; transform: translateX(-50%);
-  flex-wrap: nowrap; max-width: none; animation: rail-in-folded 160ms ease 140ms backwards;
+  flex-wrap: nowrap; max-width: none; animation: rail-icon-in 160ms ease 140ms backwards;
 }
-#rail:not(.is-collapsed) .navitem > .navlamps { animation: rail-in-open 160ms ease 120ms backwards; }
-@keyframes rail-in-folded { from { opacity: 0; scale: .6; } }
-@keyframes rail-in-open { from { opacity: 0; scale: .6; } }
+#rail:not(.is-collapsed) .navitem > .navlamps { animation: rail-icon-in 160ms ease 120ms backwards; }
+@keyframes rail-icon-in { from { opacity: 0; scale: .6; } }
 #rail.is-collapsed .navdot { width: 4px; height: 4px; }
 #rail.is-collapsed .railfoot { flex-direction: column; flex-wrap: nowrap; justify-content: flex-end; align-items: flex-start; }
 /* folded, the line over the avatar spans the column */
@@ -175,7 +174,7 @@ body.companion-sidebar:has(> .modal, > .extension-lightbox[open]) .companion-tit
 /* in the normal mode the folded rail has no mode button: it folds away with the rail */
 .companion-normal #rail .companion-mode {
   height: 40px;
-  transition: background-color 140ms ease, color 140ms ease, height var(--rail-motion), margin var(--rail-motion), padding var(--rail-motion), opacity 160ms ease;
+  transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease, height var(--rail-motion), margin var(--rail-motion), padding var(--rail-motion), opacity var(--motion-fast) ease;
 }
 .companion-normal #rail.is-collapsed .companion-mode { height: 0; min-height: 0; margin-block: 0; padding-block: 0; opacity: 0; visibility: hidden; }
 
@@ -264,7 +263,7 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
 /* ---------- changing modes: entries fade in and out, the button gives a little ---------- */
 @keyframes companion-enter { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
 @keyframes companion-leave { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(-6px); } }
-#rail .companion-enter { animation: companion-enter 200ms cubic-bezier(.22, 1, .36, 1) both; }
+#rail .companion-enter { animation: companion-enter 200ms var(--motion-enter) both; }
 /* A page joining or leaving the sidebar (rail/index.ts `fold`): its label is clipped to the row as it
    opens or closes, while the tree connector to its left stays drawn. */
 #rail :is(.companion-arrive, .companion-depart) { overflow: clip; overflow-clip-margin: 14px; }
@@ -273,11 +272,11 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
 #rail .companion-leave { animation: companion-leave 200ms ease both; pointer-events: none; }
 @keyframes companion-press { 0% { transform: scale(1); } 40% { transform: scale(.95); } 100% { transform: scale(1); } }
 @keyframes companion-turn { from { transform: rotate(-90deg); opacity: .3; } to { transform: none; opacity: 1; } }
-#rail .companion-mode.companion-pressed { animation: companion-press 260ms ease; }
-#rail .companion-mode.companion-pressed .navicon { animation: companion-turn 320ms cubic-bezier(.22, 1, .36, 1); }
+#rail .companion-mode.companion-pressed { animation: companion-press var(--motion-slow) ease; }
+#rail .companion-mode.companion-pressed .navicon { animation: companion-turn 320ms var(--motion-enter); }
 #rail .companion-mode:active { transform: scale(.97); }
 /* with less motion asked for, the rail folds at once (its width, the logo, the words, the link under the version) and modes change without fading */
-@media (prefers-reduced-motion: reduce) {
+:where(:root[data-motion="low"]) {
   #rail .companion-enter, #rail .companion-leave, #rail .companion-mode.companion-pressed, #rail .companion-mode.companion-pressed .navicon { animation: none; }
   body.companion-sidebar { --rail-motion: 0s linear; }
   #rail .lbl, #rail .rail-name, #rail .rail-rename, #rail .companion-runstate, #rail .stacklabel { transition: none; }
@@ -295,7 +294,7 @@ input, textarea, [contenteditable]:not([contenteditable="false"]), [contentedita
 input:where([type="checkbox"], [type="radio"]):where(:not(.pet-switch, .companion-control > .check > input, .companion-switchbox > .check > input)) {
   appearance: none; -webkit-appearance: none; flex: none; box-sizing: border-box; width: 16px; height: 16px;
   border: 1.5px solid var(--line-strong); border-radius: 4px; background: var(--background) center / 12px 12px no-repeat;
-  vertical-align: middle; cursor: pointer; transition: background-color .15s, border-color .15s;
+  vertical-align: middle; cursor: pointer; transition: background-color var(--motion-fast), border-color var(--motion-fast);
   &:where([type="radio"]) { border-radius: 50%; }
   &:checked { border-color: var(--accent); background-color: var(--accent); }
   &:where([type="checkbox"]):checked {

@@ -71,6 +71,14 @@ const en: PetText = {
     linuxNoX11: 'The typing key cannot connect to the X11 display',
     unsupported: 'The typing key works on Windows, macOS and Linux only',
   },
+  throughPauseKey: {
+    macNoKey: 'A Mac keyboard has no such key; pick another click-through pause key',
+    linuxNoKey: 'Linux cannot read this key (mouse side buttons do not work); pick another click-through pause key',
+    linuxNoDisplay: 'The click-through pause key needs X11 (or XWayland) on Linux: DISPLAY is not set',
+    linuxNoX11: 'The click-through pause key cannot connect to the X11 display',
+    unsupported: 'The click-through pause key works on Windows, macOS and Linux only',
+    sharesTalk: 'Pressed the same way as the talk key: holding it also starts listening; change one of them',
+  },
 
   /** Windows' own speech recognizer. */
   system: {
@@ -206,7 +214,7 @@ const en: PetText = {
     theme: { dark: 'switch to the night look', light: 'switch to the day look' } as Record<'dark' | 'light', string>,
     hover: (list: string) => `change the hover buttons to ${list}`,
     hoverNone: 'remove all the hover buttons',
-    actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', size: 'Size', fade: "Transparency", dress: 'Dress up', cua: "Computer use", hide: 'Hide pet', worlds: 'My Worlds' } as Record<string, string>,
+    actions: { chat: 'Type', voice: 'Voice input', roam: 'Walking', theme: 'Night mode', sound: 'Sounds', size: 'Size', fade: "Transparency", dress: 'Dress up', cua: "Computer use", hide: 'Hide pet', through: 'Click-through', worlds: 'My Worlds' } as Record<string, string>,
     user: (to: string) => `call you "${to}"`,
   },
 
@@ -272,7 +280,8 @@ const en: PetText = {
     glow: { title: 'Outer glow', description: "How many pixels the light glow around the pet reaches when Coo's colors match the background; 0 turns it off." },
     frameRate: { title: 'Frame rate', description: 'Frames a second while the pet walks, is carried or jumps; 0 follows the display. Above the display\'s refresh rate the display\'s rate applies. The Habits page offers 60, 120, 144 and Unlimited.' },
     lockFrameRate: { title: 'Lock frame rate', description: 'Draws the pet at the frame rate at rest too. When off, it drops to 30 frames a second while standing, sitting or asleep.' },
-    fade: { title: "Transparency", description: "How see-through the pet and its bubbles are: 0 is opaque, up to 95%, in steps of 5%. The pet turns opaque while the typing box, a question or a confirmation is open, and while it is carried." },
+    motion: { title: "Motion", description: "How much the interface moves, in the settings window and the pet window: system follows the system's reduced-motion setting (low when it asks for less, high otherwise), low keeps only colour changes and loading indicators, medium drops bounces and decorative motion, high keeps everything. Coo's own movement is not affected; see roam." },
+    fade: { title: "Transparency", description: "How see-through the pet is: 0 is opaque, up to 95%, in steps of 5%." },
     hideWhenFullscreen: { title: 'Hide during full screen', description: 'When on, the pet hides while the window in front fills the screen Coo is on (a game, a full-screen video, a browser in full screen) and comes back when full screen ends; a maximized window does not count. When off, Coo always stays on top.' },
     passWhenFullscreen: { title: "Let clicks pass through during full screen", description: "When on, while the window in front fills the screen Coo is on, Coo stays visible and every click passes through it to the window below, until full screen ends; a maximized window does not count. With hide during full screen also on, Coo hides." },
     fadeWhenFullscreen: { title: "Fade during full screen", description: "When on, while the window in front fills the screen Coo is on, the transparency during full screen replaces the usual one, until full screen ends; a maximized window does not count." },

@@ -19,6 +19,17 @@
 }
 
 :root {
+    /* 动画时长：颜色和悬停、出现和展开、滑块和大的布局变化 */
+    --motion-fast: 150ms;
+    --motion-base: 200ms;
+    --motion-slow: 280ms;
+    /* 动画曲线：平稳减速、滑块跟手、侧栏展开、回弹 */
+    --motion-out: cubic-bezier(.32, .72, 0, 1);
+    --motion-slide: cubic-bezier(.3, .7, .2, 1);
+    --motion-enter: cubic-bezier(.22, 1, .36, 1);
+    --motion-pop: cubic-bezier(.34, 1.56, .64, 1);
+    /* how long a hint box fades out (tip.ts waits for it) */
+    --tip-out: 120ms;
     /* 无脚本时的回退值；运行时由统一方案注册表写入。 */
     --paper:   #f4f5f4;
     --paper-2: #ecedec;
@@ -124,9 +135,8 @@
     padding: 9px 12px 9px 14px; margin: 3px 0; cursor: pointer;
     border: 1px solid transparent; border-radius: 8px 9px 8px 9px;
     color: var(--ink-soft); font-size: 14.5px; user-select: none;
-    transition: background .12s, color .12s, border-color .12s;
   }
-  .navitem .tag { position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--line-2); transition: background .12s, top .12s, bottom .12s; }
+  .navitem .tag { position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--line-2); transition: background var(--motion-fast), top var(--motion-fast), bottom var(--motion-fast); }
 
   .navitem .lbl {
     font-size: 16px; letter-spacing: .3px;
@@ -157,7 +167,7 @@
   }
   .rail-name-text { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   /* 铅笔平时不占视线,悬停/聚焦才露出来——名字可点这件事只在那时才需要说。 */
-  .rail-name-edit { display: grid; place-items: center; flex: none; opacity: 0; transition: opacity .15s ease; }
+  .rail-name-edit { display: grid; place-items: center; flex: none; opacity: 0; transition: opacity var(--motion-fast) ease; }
   .rail-name-edit .icon { width: 13px; height: 13px; }
   .rail-name:hover { background: var(--sheet-2); }
   .rail-name:hover .rail-name-edit, .rail-name:focus-visible .rail-name-edit { opacity: .75; }
@@ -220,7 +230,6 @@
   .btn {
     background: var(--sheet-2); color: var(--ink-soft); border: 1px solid var(--line-2);
     border-radius: 8px; padding: 6px 14px; font-size: 13px; cursor: pointer;
-    transition: color .12s, border-color .12s, background .12s;
   }
   .btn:hover { color: var(--ink); border-color: var(--line-strong); background: var(--sheet); }
   .btn:disabled { opacity: .45; cursor: default; }
@@ -266,7 +275,7 @@
     display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
     font: 11.5px/1 var(--sans); color: var(--ink-soft); background: var(--sheet-2);
     border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; white-space: nowrap;
-    transition: border-color .12s, color .12s; text-align: left;
+    transition: border-color var(--motion-fast), color var(--motion-fast); text-align: left;
   }
   .sesscard:hover { border-color: var(--accent-2); color: var(--ink); }
   .sesscard.sel { border-color: var(--accent); }
@@ -282,7 +291,7 @@
     position: relative; width: 32px; height: 32px; padding: 0; border: none;
     background: var(--ctx-ring, conic-gradient(var(--line-2) 0 100%));
     cursor: pointer; display: grid; place-items: center; border-radius: 50%;
-    transition: transform .12s, box-shadow .12s;
+    transition: transform var(--motion-fast), box-shadow var(--motion-fast);
   }
   .ctxdonut:hover { transform: scale(1.04); }
   .ctxdonut::before { position: absolute; inset: 4px; content: ''; border-radius: 50%; background: var(--surface); }
@@ -295,10 +304,12 @@
     width: min(336px, calc(100vw - 28px));
     background: var(--sheet); border: 1px solid var(--line-2); border-radius: 11px 12px 11px 10px;
     box-shadow: 0 14px 40px -12px var(--shadow-strong); padding: 14px 15px 13px;
-    font-family: var(--sans); animation: ctxpop .13s ease;
+    font-family: var(--sans); animation: rise-in var(--motion-fast) ease; --rise: 5px;
     max-height: calc(100vh - 108px); overflow-y: auto;
   }
-  @keyframes ctxpop { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  /* 升起到位：--rise 是起点在下方多远（负数是上方） */
+  @property --rise { syntax: '<length>'; inherits: false; initial-value: 6px; }
+  @keyframes rise-in { from { opacity: 0; transform: translateY(var(--rise)); } to { opacity: 1; transform: none; } }
   .ctxpanel .cx-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
   .ctxpanel .cx-title { font: 600 13.5px/1 var(--sans); color: var(--ink); letter-spacing: .3px; }
   .ctxpanel .cx-total { font: 12px/1 var(--mono); color: var(--ink-soft); }
@@ -328,14 +339,10 @@
   .forkbanner b { color: var(--ink); }
   .forkbanner .meta2 { color: var(--ink-dim); }
 
-  .anim-in { animation: fadein .18s ease-out; }
-  @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-  .slide-in { animation: slidein .26s ease-out; }
+  .anim-in { animation: rise-in var(--motion-base) ease-out; }
+  .slide-in { animation: slidein var(--motion-slow) ease-out; }
   @keyframes slidein { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
-  .clps { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .22s ease; }
-  .clps.open { grid-template-rows: 1fr; }
-  .clps > div { overflow: hidden; min-height: 0; }
-  .chev { display: inline-block; transition: transform .2s; color: var(--ink-dim); font-size: 10px; }
+  .chev { display: inline-block; transition: transform var(--motion-base); color: var(--ink-dim); font-size: 10px; }
   .chev.up { transform: rotate(180deg); }
 
   .tcard { background: var(--sheet); border: 1px solid var(--line); border-radius: 12px 13px 11px 12px; padding: 11px 15px; }
@@ -463,7 +470,7 @@
   .tool-schema-card {
     border: 1px solid var(--line); background: var(--sheet-2); border-radius: 5px 12px 7px 4px;
     overflow: clip; box-shadow: 2px 3px 0 -1px var(--paper-2);
-    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    transition: transform var(--motion-base) ease, border-color var(--motion-base) ease, box-shadow var(--motion-base) ease;
   }
   .tool-schema-card[open] { background: var(--sheet); border-color: var(--line-strong); box-shadow: 3px 4px 0 -1px var(--paper-2), 0 12px 24px var(--shadow-soft); }
   .tool-schema-summary {
@@ -473,14 +480,13 @@
   .tool-schema-summary::-webkit-details-marker { display: none; }
   .tool-schema-summary::before { content: '＋'; grid-column: 1; grid-row: 1; width: 18px; color: var(--ink-dim); font: 14px var(--mono); }
   .tool-schema-card[open] > .tool-schema-summary::before { content: '−'; }
-  .tool-schema-title { grid-column: 1; grid-row: 1; padding-left: 24px; color: var(--ink); font: 600 13px var(--mono); }
+  .tool-schema-title { grid-column: 1; grid-row: 1; min-width: 0; padding-left: 24px; color: var(--ink); font: 600 13px/1.5 var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tool-schema-short {
     grid-column: 2; color: var(--ink-soft); font-size: 12px; line-height: 1.45;
     overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   }
   .tool-schema-summary .pill { grid-column: 3; white-space: nowrap; }
-  .tool-schema-body { border-top: 1px solid var(--line); padding: 14px; animation: schemaPaperIn .18s ease-out; }
-  @keyframes schemaPaperIn { from { opacity: 0; transform: translateY(-5px); } }
+  .tool-schema-body { border-top: 1px solid var(--line); padding: 14px; animation: rise-in var(--motion-base) ease-out; --rise: -5px; }
   .schema-root-description { margin-top: 10px; padding: 8px 10px; color: var(--ink-soft); background: var(--sheet-2); font-size: 12px; }
   .schema-param-wrap { margin-top: 12px; overflow-x: auto; border: 1px solid var(--line); border-radius: 4px 9px 6px 3px; }
   .schema-param-table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 11.5px; }
@@ -553,10 +559,10 @@
   .u-tip { position: fixed; z-index: 130; pointer-events: none; box-sizing: border-box; width: max-content; max-width: min(268px, calc(100vw - 16px)); background: var(--sheet); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 9px 11px; box-shadow: 0 18px 48px -28px var(--shadow-strong); font: 12px var(--sans); color: var(--ink); overflow-wrap: anywhere; animation: hover-hint-in 120ms ease-out; }
   .u-tip.hidden { display: none; }
   .u-tip.hover-hint { max-width: min(280px, calc(100vw - 16px)); padding: 5px 9px; border-radius: 8px; font: 12px/1.45 var(--sans); box-shadow: 0 6px 18px -8px var(--shadow-strong); }
-  .u-tip.leaving { animation: hover-hint-out 120ms ease-in forwards; pointer-events: none; }
+  .u-tip.leaving { animation: hover-hint-out var(--tip-out) ease-in forwards; pointer-events: none; }
   @keyframes hover-hint-in { from { opacity: 0; } }
   @keyframes hover-hint-out { to { opacity: 0; } }
-  @media (prefers-reduced-motion: reduce) { .u-tip, .u-tip.leaving { animation: none; } }
+  :where(:root[data-motion="low"]) { .u-tip, .u-tip.leaving { animation: none; } }
   .u-tip .tt-h { font: 600 12.5px var(--mono); color: var(--accent); margin-bottom: 3px; }
   .u-tip .tt-tot { font: 12px var(--mono); color: var(--ink-soft); margin-bottom: 4px; }
   .u-tip .tt-row { display: grid; grid-template-columns: 9px minmax(0, 1fr) auto; align-items: start; gap: 6px; margin: 2px 0; }
@@ -583,13 +589,13 @@
   body { background: var(--background); }
   #rail { background: var(--paper-2); border-right: 0; box-shadow: none; }
   .brand { padding-top: 22px; border-bottom: 0; }
-  .navitem { min-height: 40px; transition: background-color .15s ease, color .15s ease; }
+  .navitem { min-height: 40px; transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease; }
   .navitem:hover { text-decoration: none; }
   .navitem.active { box-shadow: none; }
 
   .btn {
     min-height: 36px;
-    transition: background-color .15s ease, color .15s ease, border-color .15s ease, opacity .15s ease;
+    transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease, border-color var(--motion-fast) ease, opacity var(--motion-fast) ease;
   }
   .btn.primary, .seg.active { background: var(--accent); border-color: var(--accent); color: #fff; }
   input.field, select.field, textarea.field { min-height: 40px; }
@@ -598,7 +604,7 @@
   }
 
 
-  .treerow { min-height: 34px; align-items: center; border-radius: 3px 8px 4px 2px; transition: background .14s, transform .14s; }
+  .treerow { min-height: 34px; align-items: center; border-radius: 3px 8px 4px 2px; transition: background var(--motion-fast), transform var(--motion-fast); }
   .treerow:hover { transform: translateX(2px); }
   .treerow.sel { background: var(--accent); color: #fff; }
   .treerow.sel .fsize { color: color-mix(in srgb, #fff 72%, transparent); }
@@ -610,7 +616,7 @@
   .theme-scheme {
     min-width: 0; padding: 11px 12px; text-align: left; cursor: pointer; color: var(--ink);
     background: var(--sheet-2); border: 1px solid var(--line); border-radius: 5px 12px 7px 4px;
-    transition: transform .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
+    transition: transform var(--motion-fast) ease, border-color var(--motion-fast) ease, background var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
   }
   .theme-scheme:hover { transform: translateY(-2px); border-color: var(--line-strong); box-shadow: 2px 3px 0 var(--line); }
   .theme-scheme.active { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent-2); background: var(--sheet); }
@@ -655,7 +661,7 @@
     height: 116px; display: flex; align-items: flex-end; gap: 8px; padding: 14px 12px 10px;
     background: var(--sheet-2); border: 1px solid var(--line); border-radius: 4px 10px 6px 3px;
   }
-  .theme-chart-preview span { flex: 1; min-width: 12px; border-radius: 3px 3px 1px 1px; transition: height .2s ease, background .2s ease; }
+  .theme-chart-preview span { flex: 1; min-width: 12px; border-radius: 3px 3px 1px 1px; transition: height var(--motion-base) ease, background var(--motion-base) ease; }
 
   @media (max-width: 720px) {
     body { display: block; overflow: auto; }
@@ -669,8 +675,9 @@
     .theme-color-grid { grid-template-columns: repeat(auto-fill, minmax(144px, 1fr)); }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+  :where(:root[data-motion="low"]) {
+    /* delays too: a fade that waits (the Worlds page's blades and labels) would otherwise leave the old content up for its delay */
+    &, *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; transition-duration: .001ms !important; transition-delay: 0s !important; scroll-behavior: auto !important; }
   }
 
 
@@ -696,7 +703,7 @@
   .progresslabel { font-size: 11.5px; color: var(--ink-dim); letter-spacing: .04em; }
   .progressnum { margin-left: auto; font: 11.5px/1 var(--mono); color: var(--ink-soft); }
   .progresstrack { height: 6px; border-radius: 20px; background: var(--sheet-3); border: 1px solid var(--line); overflow: hidden; }
-  .progressfill { height: 100%; background: var(--accent); transition: width .18s ease; }
+  .progressfill { height: 100%; background: var(--accent); transition: width var(--motion-base) ease; }
   .progress.warnc .progressfill { background: var(--warn); }
   .progress.dreamc .progressfill { background: var(--violet); }
 
@@ -850,7 +857,7 @@
     background: color-mix(in srgb, var(--foreground) 52%, transparent);
     color: var(--surface);
     opacity: 0;
-    transition: opacity .15s ease;
+    transition: opacity var(--motion-fast) ease;
   }
   .rail-avatar-edit .icon { width: 15px; height: 15px; }
   .rail-avatar:hover .rail-avatar-edit { opacity: 1; }
@@ -868,7 +875,7 @@
     background: transparent;
     color: var(--muted-foreground);
     cursor: pointer;
-    transition: background-color .15s ease, color .15s ease;
+    transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease;
   }
   .rail-action:hover { background: var(--hover); color: var(--foreground); }
 
@@ -888,7 +895,7 @@
   svg[viewBox="0 0 24 24"][stroke="currentColor"] { stroke-width: 1.6px; }
   svg[viewBox="0 0 24 24"][stroke="currentColor"] * { vector-effect: non-scaling-stroke; }
   input[type="checkbox"] { accent-color: color-mix(in srgb, var(--accent) 78%, #000); }
-  input[type="search"]::-webkit-search-cancel-button { cursor: pointer; opacity: .7; transition: opacity .15s ease; }
+  input[type="search"]::-webkit-search-cancel-button { cursor: pointer; opacity: .7; transition: opacity var(--motion-fast) ease; }
   input[type="search"]::-webkit-search-cancel-button:hover { opacity: 1; }
   .visually-hidden {
     position: absolute !important;
@@ -1094,7 +1101,7 @@
     background: transparent;
     color: var(--muted-foreground);
     cursor: pointer;
-    transition: background-color .15s ease, color .15s ease;
+    transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease;
   }
   .iobtn:hover:not(:disabled) { background: var(--hover); color: var(--foreground); }
   .iobtn:disabled { opacity: .35; cursor: default; }
@@ -1179,8 +1186,8 @@
     width: var(--seg-w); height: var(--seg-h); transform: translate(var(--seg-x), var(--seg-y));
     border-radius: calc(var(--radius-md) - 2px); background: var(--seg-thumb, var(--surface));
   }
-  .segwrap[data-thumb="ready"]::before { transition: transform 280ms cubic-bezier(.3, .7, .2, 1), width 280ms cubic-bezier(.3, .7, .2, 1), height 280ms cubic-bezier(.3, .7, .2, 1); }
-  .segwrap[data-thumb] > .seg { transition: color 200ms ease-out; }
+  .segwrap[data-thumb="ready"]::before { transition: transform var(--motion-slow) var(--motion-slide), width var(--motion-slow) var(--motion-slide), height var(--motion-slow) var(--motion-slide); }
+  .segwrap[data-thumb] > .seg { transition: color var(--motion-base) ease-out; }
   .segwrap[data-thumb] > .seg.active { background: transparent; }
   .seg:disabled { opacity: .45; cursor: default; }
   .segwrap[data-thumb]:has(> .seg.active:disabled)::before { opacity: .45; }
@@ -1370,7 +1377,7 @@
   .ob-state.bad { color: var(--danger); }
   .ob-acts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
   .onboarding .monolog { max-width: 100%; }
-  .ob-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; transition: background .15s ease, filter .15s ease; }
+  .ob-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; transition: background var(--motion-fast) ease, filter var(--motion-fast) ease; }
   .ob-btn:hover:not(:disabled) { background: var(--hover); }
   .ob-btn .icon { width: 14px; height: 14px; }
   .ob-btn:disabled { opacity: .55; cursor: not-allowed; }
@@ -1384,12 +1391,13 @@
 .extension-catalog-restart:not(:has(.extension-restart:not([hidden]))){display:none}
 .connection-hub{display:grid;flex:1;min-height:0;grid-template-columns:minmax(210px,280px) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:24px}
 .connection-index{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;padding:0 4px}
-.connection-cards{position:relative;overflow-anchor:none;display:grid;align-content:start;grid-auto-rows:max-content;flex:1;min-height:0;gap:12px;padding:3px 3px 32px;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
+/* The padding holds a selected card's outline (3px outside it), lifted 1px more on hover. */
+.connection-cards{position:relative;overflow-anchor:none;display:grid;align-content:start;grid-auto-rows:max-content;flex:1;min-height:0;gap:12px;padding:4px 3px 32px;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
 /* White cards with a quiet border, as the World list's rows. */
-.connection-card{min-width:0;border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--sheet);cursor:pointer;transition:background .15s,border-color .15s,box-shadow .18s,transform .18s cubic-bezier(.32,.72,0,1)}
+.connection-card{min-width:0;border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--sheet);cursor:pointer;transition:background var(--motion-fast),border-color var(--motion-fast),box-shadow var(--motion-base),transform var(--motion-base) var(--motion-out)}
 /* Hovered, a card lifts a little. */
 .connection-card:hover:not(.is-dragging,.connection-drag-copy){border-color:var(--line-strong);box-shadow:0 8px 20px -14px var(--shadow-strong);transform:translateY(-1px)}
-@media (prefers-reduced-motion: reduce){.connection-card:hover{transform:none}}
+:where(:root[data-motion="low"]) {.connection-card:hover{transform:none}}
 .connection-card.is-active{border-color:var(--accent);box-shadow:0 0 8px color-mix(in srgb,var(--accent) 12%,transparent)}
 .connection-card.is-selected{background:color-mix(in srgb,var(--ink) 4%,var(--sheet));outline:2px solid var(--ink-dim);outline-offset:1px}
 /* A dragged card leaves an empty place where it would land, and its copy follows the pointer. */
@@ -1435,12 +1443,12 @@
 .connection-step .connection-model-error{padding-top:10px;margin-top:8px;border-top:1px solid var(--border);color:var(--danger)}
 .connection-step .connection-toggle{display:flex;align-items:center;gap:12px}
 .connection-step .connection-toggle .fieldlabel{margin:0}
-.connection-step .connection-switch{appearance:none;position:relative;flex:none;width:40px;height:22px;margin:0;border:1px solid var(--border-strong);border-radius:999px;background:var(--surface-hover);cursor:pointer;transition:background .18s,border-color .18s}
-.connection-step .connection-switch::before{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--surface);box-shadow:0 1px 3px color-mix(in srgb,var(--ink) 22%,transparent);transition:transform .18s}
+.connection-step .connection-switch{appearance:none;position:relative;flex:none;width:40px;height:22px;margin:0;border:1px solid var(--border-strong);border-radius:999px;background:var(--surface-hover);cursor:pointer;transition:background var(--motion-base),border-color var(--motion-base)}
+.connection-step .connection-switch::before{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--surface);box-shadow:0 1px 3px color-mix(in srgb,var(--ink) 22%,transparent);transition:transform var(--motion-base)}
 .connection-step .connection-switch:checked{background:var(--accent);border-color:var(--accent)}
 .connection-step .connection-switch:checked::before{transform:translateX(18px)}
 .connection-step .connection-switch:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-@media(prefers-reduced-motion:reduce){.connection-step .connection-switch,.connection-step .connection-switch::before{transition:none}}
+:where(:root[data-motion="low"]) {.connection-step .connection-switch,.connection-step .connection-switch::before{transition:none}}
 .connection-step td.mono{white-space:normal;overflow-wrap:anywhere}
 .connection-step table.data .btn{white-space:nowrap}
 .connection-step>.sheet>h3::before,.connection-step>.sheet>.connection-step-heading>h3::before,.connection-step>details.sheet>summary .connection-step-heading>h3::before{content:counter(step);display:inline-grid;place-items:center;width:20px;height:20px;margin-right:9px;border-radius:50%;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);font:600 11px/1 var(--mono);vertical-align:2px}
@@ -1528,16 +1536,16 @@
 .prompt-card .actionbar { margin-top: 10px; padding-top: 0; border-top: 0; }
 /* 页内栏目条(base/ui/page-tabs.ts)。每项按当前项的字号与字重预留宽度,切换时其余项不移位。 */
 .pagetabs { position: relative; display: flex; flex-wrap: wrap; align-items: center; column-gap: 28px; border-block: 1px solid var(--border); }
-.pagetab { display: inline-flex; flex-direction: column; align-items: center; padding: 11px 0 20px; border: 0; background: none; color: var(--ink-soft); font: 400 14px/22px var(--sans); cursor: pointer; transition: color 200ms ease-out; }
+.pagetab { display: inline-flex; flex-direction: column; align-items: center; padding: 11px 0 20px; border: 0; background: none; color: var(--ink-soft); font: 400 14px/22px var(--sans); cursor: pointer; transition: color var(--motion-base) ease-out; }
 .pagetab::after { content: attr(data-label); height: 0; overflow: hidden; visibility: hidden; font-size: 15.5px; font-weight: 600; }
 .pagetab:hover { color: var(--ink); }
 .pagetab.active { color: var(--ink); font-size: 15.5px; font-weight: 600; }
 .pagetab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .pagetabs[data-line]::after { content: ''; position: absolute; left: 4px; top: var(--tab-y); width: calc(var(--tab-w) - 8px); height: 3px; border-radius: 2px; transform: translateX(var(--tab-x)); background: color-mix(in srgb, var(--accent) 78%, var(--ink)); }
-.pagetabs[data-line="ready"]::after { transition: transform 280ms cubic-bezier(.3, .7, .2, 1), width 280ms cubic-bezier(.3, .7, .2, 1); }
-.pagetabs[data-line="appear"]::after { animation: tab-line-appear 160ms ease-out; }
+.pagetabs[data-line="ready"]::after { transition: transform var(--motion-slow) var(--motion-slide), width var(--motion-slow) var(--motion-slide); }
+.pagetabs[data-line="appear"]::after { animation: tab-line-appear var(--motion-fast) ease-out; }
 @keyframes tab-line-appear { from { opacity: 0; clip-path: inset(0 50%); } to { opacity: 1; clip-path: inset(0); } }
-@media (prefers-reduced-motion: reduce) { .pagetabs[data-line]::after { transition: none; animation: none; } }
+:where(:root[data-motion="low"]) { .pagetabs[data-line]::after { transition: none; animation: none; } }
 /* a page's section names: under 760 px of content width the longest row (Russian, about 750 px at the full gap) no
    longer fits, so the gap narrows, with the rail open or folded; a row still too long wraps, as every page's tabs do */
 @container console-content (max-width: 760px) { .pagetabs.sectiontabs { column-gap: 18px; } }
@@ -1576,7 +1584,7 @@
 .connection-create-hint { margin:7px 2px 0; font:var(--text-detail)/1.5 var(--sans); color:var(--muted-foreground); }
 .connection-create > .btn { width:100%; }
 .connection-card { position:relative; padding-right:64px; }
-.connection-erase { position:absolute; bottom:13px; right:13px; display:flex; align-items:center; gap:0; height:28px; padding:0 4px; border:1px solid transparent; border-radius:8px; background:none; color:var(--ink-dim); cursor:pointer; transition:color .14s ease, background .14s ease, border-color .14s ease, gap .18s ease; }
+.connection-erase { position:absolute; bottom:13px; right:13px; display:flex; align-items:center; gap:0; height:28px; padding:0 4px; border:1px solid transparent; border-radius:8px; background:none; color:var(--ink-dim); cursor:pointer; transition:color var(--motion-fast) ease, background var(--motion-fast) ease, border-color var(--motion-fast) ease, gap var(--motion-base) ease; }
 .connection-erase .icon { width:18px; height:18px; flex:none; }
 .connection-erase:hover { color:var(--danger,#b43c38); background:var(--hover); }
 .connection-connect { position:absolute; top:12px; right:12px; width:32px; text-align:center; }
@@ -1594,7 +1602,7 @@
 /* 扩展页分区 */
 /* Rows keep their own height, however few cards a page has. */
 .extension-grid { display:grid; grid-template-columns:minmax(0,1fr); align-content:start; gap:10px; margin:0; border:0; }
-.extension-card { position:relative; min-width:0; display:flex; flex-direction:column; gap:8px; border:1px solid var(--border); border-radius:12px; padding:16px 76px; background:var(--sheet); transition:border-color .11s ease; }
+.extension-card { position:relative; min-width:0; display:flex; flex-direction:column; gap:8px; border:1px solid var(--border); border-radius:12px; padding:16px 76px; background:var(--sheet); transition:border-color var(--motion-fast) ease; }
 .extension-card-heading { display:flex; align-items:center; gap:12px; min-width:0; flex-wrap:nowrap; }
 .extension-card-title { font: inherit; font-size: 16px; font-weight: 600; color: var(--foreground); text-align: left; background: none; border: none; padding: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; min-width: 0; max-width: 100%; }
 .extension-card-title:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
@@ -1651,7 +1659,7 @@ mark.extension-hit { color: inherit; background: color-mix(in srgb, var(--accent
 .extension-history code { overflow-wrap: anywhere; }
 /* 历史版本的更新说明 */
 .extension-history-version { display: inline-flex; align-items: center; gap: 6px; justify-self: start; min-width: 0; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
-.extension-history-version::after { content: ''; width: 5px; height: 5px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-1px) rotate(-45deg); transition: transform .15s; }
+.extension-history-version::after { content: ''; width: 5px; height: 5px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-1px) rotate(-45deg); transition: transform var(--motion-fast); }
 .extension-history-version[aria-expanded="true"]::after { transform: translateY(-2px) rotate(45deg); }
 .extension-history-version:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .extension-history-notes { grid-column: 1 / -1; margin: -2px 0 0; font-size: 12.5px; line-height: 1.65; color: var(--ink-soft); overflow-wrap: anywhere; }
@@ -1667,9 +1675,9 @@ mark.extension-hit { color: inherit; background: color-mix(in srgb, var(--accent
 :root { --extension-alert: #b3423a; --extension-caution: #8f6200; --extension-mark: #2a5bb8; --extension-badge: #00a870; --extension-new: #7a52cc; }
 :root[data-color-mode="dark"] { --extension-alert: #ef8b81; --extension-caution: #e5b84e; --extension-mark: #8ab4f8; --extension-badge: #2fd59b; --extension-new: #b69cf7; }
 .extension-tag-row { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
-.extension-tag-row.is-folded { overflow: hidden; transition: max-height .22s ease; }
+.extension-tag-row.is-folded { overflow: hidden; transition: max-height var(--motion-base) ease; }
 .extension-tag-more { cursor: pointer; color: var(--ink-dim); }
-@media (prefers-reduced-motion: reduce) { .extension-tag-row.is-folded { transition: none; } }
+:where(:root[data-motion="low"]) { .extension-tag-row.is-folded { transition: none; } }
 .extension-tag { display: inline-flex; align-items: center; gap: 5px; font: 11.5px/1 var(--sans); color: var(--ink-soft); background: var(--sheet-2); border: 1px solid var(--line); border-radius: 20px; padding: 5px 10px; white-space: nowrap; cursor: default; }
 button.extension-tag, button.extension-stat { cursor: pointer; }
 .extension-tag:hover { border-color: var(--accent); color: var(--ink); }
@@ -1932,7 +1940,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .pagetitle-link:focus-visible, .pagetabs-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 
 /* A World page opened from the World list leads back to it. */
-.pagetitle-back{flex:none;display:grid;place-items:center;width:32px;height:32px;margin:0 6px 0 -6px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--ink-soft);cursor:pointer;align-self:center;transition:background-color 110ms,color 110ms,transform 110ms}
+.pagetitle-back{flex:none;display:grid;place-items:center;width:32px;height:32px;margin:0 6px 0 -6px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--ink-soft);cursor:pointer;align-self:center;transition:background-color var(--motion-fast),color var(--motion-fast),transform var(--motion-fast)}
 .pagetitle-back:hover{background:var(--hover);color:var(--ink);transform:translateX(-2px)}
 .pagetitle-back:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pagetitle-back .icon{width:20px;height:20px}
@@ -1961,26 +1969,26 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 /* The rail keeps one avatar node per World; the market view collapses each row into a dock tile.
    --world-inset is the distance from the slot edge to the page content box, resolved once on the workspace. */
 @property --world-inset{syntax:'<length>';inherits:true;initial-value:0px}
-.featureslot-world>.world-workspace{--world-rail-width:72px;--world-gap:20px;--world-inset:max(calc(var(--page-gutter) + 10px),calc((100cqw - var(--content-width)) / 2));--world-entry-width:100cqw;--world-duration:290ms;--world-easing:cubic-bezier(.32,.72,0,1);interpolate-size:allow-keywords;position:relative;container-type:inline-size;display:block;flex:1;min-height:0;max-width:none;padding:0 var(--world-inset)}
+.featureslot-world>.world-workspace{--world-rail-width:72px;--world-gap:20px;--world-inset:max(calc(var(--page-gutter) + 10px),calc((100cqw - var(--content-width)) / 2));--world-entry-width:100cqw;--world-duration:290ms;--world-easing:var(--motion-out);interpolate-size:allow-keywords;position:relative;container-type:inline-size;display:block;flex:1;min-height:0;max-width:none;padding:0 var(--world-inset)}
 .world-library{display:flex;flex-direction:column;min-height:0;height:100%;width:100%}
 /* 4px of room on the left (given back by the margin) so a focused field there shows its whole ring. */
 .world-library-list{overflow-anchor:none;flex:1;min-height:0;width:calc(100% + var(--world-inset) + 4px);margin-left:-4px;padding-left:4px;margin-right:calc(-1 * var(--world-inset));padding-right:calc(var(--world-inset) - 10px);overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding-bottom:24px;transition:width var(--world-duration) var(--world-easing),padding var(--world-duration) var(--world-easing)}
 /* In the market view the rail's scrollbar runs along the divider. */
 .world-workspace[data-view=market] .world-library-list{width:calc(var(--world-rail-width) + var(--world-gap) + 4px);padding-right:0}
-.world-library-heading{height:auto;margin:2px 0 12px;font:600 15px/1.4 var(--sans);letter-spacing:-.01em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 140ms}
+.world-library-heading{height:auto;margin:2px 0 12px;font:600 15px/1.4 var(--sans);letter-spacing:-.01em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity var(--motion-fast)}
 .world-workspace[data-view=market] .world-library-heading{height:0;margin:0;opacity:0}
 .world-pending-list,.world-ready-list{display:flow-root}
 .world-pending-group{width:var(--world-entry-width);padding-bottom:16px;margin-bottom:20px;border-bottom:1px solid var(--line);transition:width var(--world-duration) var(--world-easing),padding var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing)}
 .world-workspace[data-view=market] .world-pending-group{width:var(--world-rail-width);padding-bottom:10px;margin-bottom:12px}
 .world-pending-group[hidden],.world-ready-group[hidden]{display:none}
 .world-library-entry{position:relative;display:grid;grid-template-columns:var(--world-rail-width) calc(var(--world-entry-width) - var(--world-rail-width) - 2px);grid-template-rows:minmax(0,1fr);width:var(--world-entry-width);height:auto;min-height:64px;margin-bottom:8px;border:1px solid var(--border);border-radius:12px;background:var(--sheet);overflow:clip;overflow-clip-margin:6px;transition:width var(--world-duration) var(--world-easing),height var(--world-duration) var(--world-easing),min-height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),background-color 80ms,border-color 80ms}
-.world-workspace[data-view=market] .world-library-entry{width:var(--world-rail-width);height:74px;min-height:74px;margin-bottom:0;background:transparent;border-color:transparent;transition-property:width,height,min-height,margin,background-color,border-color;transition-duration:var(--world-duration),var(--world-duration),var(--world-duration),var(--world-duration),110ms,110ms;transition-delay:0s,0s,0s,0s,180ms,180ms}
+.world-workspace[data-view=market] .world-library-entry{width:var(--world-rail-width);height:74px;min-height:74px;margin-bottom:0;background:transparent;border-color:transparent;transition-property:width,height,min-height,margin,background-color,border-color;transition-duration:var(--world-duration),var(--world-duration),var(--world-duration),var(--world-duration),var(--motion-fast),var(--motion-fast);transition-delay:0s,0s,0s,0s,180ms,180ms}
 /* The avatar keeps to the top of its row, so a tall row moves it no further than the row itself moves. */
 /* The avatar centres on its row, however tall, in both views. The row's one grid track follows the
    row's height rather than its content's, so a row shrinking into the dock carries the avatar along
    without a jump; a 64px row or a dock tile puts it where the old top padding did. */
 .world-library-item{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-width:0;padding:0 4px;border:0;border-radius:12px;background:transparent;color:var(--ink-soft);cursor:pointer;-webkit-tap-highlight-color:transparent}
-.world-library-label{display:block;max-width:100%;max-height:0;margin-top:0;opacity:0;font:500 11px/14px var(--sans);color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:max-height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 140ms}
+.world-library-label{display:block;max-width:100%;max-height:0;margin-top:0;opacity:0;font:500 11px/14px var(--sans);color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:max-height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity var(--motion-fast)}
 .world-workspace[data-view=market] .world-library-label{max-height:14px;margin-top:8px;opacity:1;transition-delay:0s,0s,200ms}
 /* App icons: one rounded tile with a hairline edge, a soft drop shadow and a faint top light. */
 .world-avatar,.world-catalog .extension-avatar{--icon-edge:color-mix(in srgb,var(--ink) 13%,transparent);position:relative;border-radius:28%;background:var(--sheet);box-shadow:0 0 0 .5px var(--icon-edge),0 1px 2px color-mix(in srgb,var(--ink) 8%,transparent),0 6px 14px -7px color-mix(in srgb,var(--ink) 30%,transparent)}
@@ -1988,7 +1996,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 /* In dark mode the top light is a hint only, so the tiles stay flat against the dark surface. */
 :root[data-color-mode="dark"] :is(.world-avatar,.world-catalog .extension-avatar)::after{background:linear-gradient(180deg,rgb(255 255 255/.05),rgb(255 255 255/0) 40%);box-shadow:inset 0 .5px 0 rgb(255 255 255/.08)}
 :root[data-color-mode="dark"] :is(.world-avatar,.world-catalog .extension-avatar){box-shadow:0 0 0 .5px var(--icon-edge),0 2px 6px -3px rgb(0 0 0/.5)}
-.world-avatar{display:grid;place-items:center;flex:none;width:42px;height:42px;color:var(--ink-soft);transition:transform 150ms var(--world-easing),outline-color 140ms}
+.world-avatar{display:grid;place-items:center;flex:none;width:42px;height:42px;color:var(--ink-soft);transition:transform var(--motion-fast) var(--world-easing),outline-color var(--motion-fast)}
 .world-avatar img{position:absolute;inset:0;width:100%;height:100%;border-radius:inherit;object-fit:cover}
 /* Without its own icon a package shows the Cortico mark on the plain tile, framed like every other icon. */
 .world-catalog .extension-avatar-default{background:none}
@@ -2018,10 +2026,10 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-library-item:focus-visible{outline:none}
 .world-library-item:focus-visible .world-avatar{outline:2px solid var(--accent);outline-offset:3px}
 .world-blade:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:0 11px 11px 0}
-.world-restart-row{display:flex;align-items:center;gap:12px;width:var(--world-entry-width);height:auto;margin-top:8px;transition:width var(--world-duration) var(--world-easing),height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 140ms}
+.world-restart-row{display:flex;align-items:center;gap:12px;width:var(--world-entry-width);height:auto;margin-top:8px;transition:width var(--world-duration) var(--world-easing),height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity var(--motion-fast)}
 .world-workspace[data-view=market] .world-restart-row{width:var(--world-rail-width);height:0;margin-top:0;opacity:0;overflow:clip;pointer-events:none}
 .world-restart-row:has(.extension-restart[hidden]){display:none}
-.world-restart-note{font-size:12px;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity 140ms}
+.world-restart-note{font-size:12px;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity var(--motion-fast)}
 .world-workspace[data-view=market] .world-restart-note{opacity:0}
 .world-restart-footer{flex:none;position:relative;min-width:var(--world-rail-width);padding:0}
 .world-restart-row:has(.is-restarting) .world-restart-note{visibility:hidden}
@@ -2029,7 +2037,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-restart-status{min-width:0;padding-left:22px;font-size:12px;color:var(--ink-dim)}
 .world-restart-status:empty{display:none}
 .world-restart-row:has(.world-restart-status:not(:empty)) .world-restart-note{display:none}
-.world-restart-footer.is-restarting::after{content:"";position:absolute;left:calc(100% + 12px);top:50%;width:14px;height:14px;margin-top:-7px;border-radius:50%;border:2px solid color-mix(in srgb,var(--accent) 18%,transparent);border-top-color:var(--accent);animation:extension-ring-spin 800ms linear infinite;transition:opacity 200ms}
+.world-restart-footer.is-restarting::after{content:"";position:absolute;left:calc(100% + 12px);top:50%;width:14px;height:14px;margin-top:-7px;border-radius:50%;border:2px solid color-mix(in srgb,var(--accent) 18%,transparent);border-top-color:var(--accent);animation:spin 800ms linear infinite;transition:opacity var(--motion-base)}
 .world-workspace[data-view=market] .world-restart-footer.is-restarting::after{opacity:0}
 .world-restart-footer .extension-restart{width:100%;min-height:28px;padding:4px 10px;border-radius:8px;border-color:transparent;background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent);font-size:11.5px;font-weight:550;white-space:nowrap;justify-content:center}
 .world-restart-footer .extension-restart:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 16%,transparent)}
@@ -2043,7 +2051,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-workspace[data-view=market] .world-blade{opacity:0;transition-delay:80ms}
 /* Fixed column widths keep state, lamps and actions aligned from row to row. */
 /* Name, state, lamps and controls share the row's middle, so two lamps sit level with the name and id lines. */
-.world-blade{position:relative;display:grid;grid-template-columns:minmax(0,14rem) max(4.5rem,var(--world-state-width,0px)) minmax(0,1fr) auto;align-items:center;gap:6px 16px;min-width:0;min-height:62px;padding:11px 14px 9px 0;transition:opacity 110ms}
+.world-blade{position:relative;display:grid;grid-template-columns:minmax(0,14rem) max(4.5rem,var(--world-state-width,0px)) minmax(0,1fr) auto;align-items:center;gap:6px 16px;min-width:0;min-height:62px;padding:11px 14px 9px 0;transition:opacity var(--motion-fast)}
 .world-blade-identity,.world-blade-signals{min-width:0}
 .world-blade-identity h3{display:flex;align-items:center;gap:2px;min-width:0;font:600 14px/1.4 var(--sans);margin:0;white-space:nowrap}
 .world-blade-identity h3>.world-name{min-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -2068,7 +2076,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-blade-actions .iobtn[aria-disabled=true]{opacity:.35;cursor:not-allowed}
 .world-blade-actions .iobtn[aria-disabled=true]:hover{background:transparent;color:inherit}
 /* Power is a round switch: green while the World runs, red while it is off. */
-.world-blade-actions .iobtn-power{justify-self:end;width:28px;height:28px;margin:1px;border-radius:50%;color:var(--danger);background:color-mix(in srgb,var(--danger) 8%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--danger) 55%,transparent);transition:background-color 110ms,color 110ms,box-shadow 110ms,transform 80ms}
+.world-blade-actions .iobtn-power{justify-self:end;width:28px;height:28px;margin:1px;border-radius:50%;color:var(--danger);background:color-mix(in srgb,var(--danger) 8%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--danger) 55%,transparent);transition:background-color var(--motion-fast),color var(--motion-fast),box-shadow var(--motion-fast),transform 80ms}
 .world-blade-actions .iobtn-power[aria-disabled=true]{opacity:.4}
 .world-blade-actions .iobtn-power:hover:not(:disabled){color:var(--danger);background:color-mix(in srgb,var(--danger) 15%,transparent)}
 .world-blade-actions .iobtn-power.is-on{color:#fff;background:var(--accent);box-shadow:0 1px 4px color-mix(in srgb,var(--accent) 45%,transparent)}
@@ -2078,8 +2086,12 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-catalog{display:flex;flex-direction:column;flex:1;height:100%;min-height:0;min-width:0}
 .world-catalog>.extension-toolbar{flex:none;gap:8px;margin:0;padding:0 var(--world-inset) 16px 0}
 .world-catalog>.extension-toolbar input[type=search]{flex:1 1 220px;min-width:120px}
-.world-catalog>.extension-toolbar>.extension-size{flex:none;gap:6px;color:var(--ink-dim);font-size:12px}
-.world-catalog>.extension-toolbar>.extension-size select{min-width:0;width:60px;padding-right:22px}
+.world-catalog>.extension-toolbar>:is(.world-catalog-query,.world-catalog-actions),.world-catalog-buttons{display:flex;align-items:center;gap:8px;min-width:0}
+.world-catalog>.extension-toolbar>.world-catalog-query{flex:1 1 220px}
+.world-catalog>.extension-toolbar>.world-catalog-actions{flex:0 1 auto;flex-wrap:wrap}
+.world-catalog-buttons{flex:none}
+.world-catalog>.extension-toolbar>.world-catalog-actions>.extension-size{flex:none;gap:6px;color:var(--ink-dim);font-size:12px}
+.world-catalog>.extension-toolbar>.world-catalog-actions>.extension-size select{min-width:0;width:60px;padding-right:22px}
 .world-catalog>.extension-toolbar .btn,.world-catalog>.extension-toolbar select{font-size:12px;min-height:32px}
 .world-catalog>.msgline{flex:none;margin:0 var(--world-inset) 8px 0;white-space:pre-line}
 .world-catalog>.msgline:not(.bad){color:var(--ink-dim)}
@@ -2107,8 +2119,9 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 /* Sidebar filters, one scheme: text in the tag's colour (plain tags grey), no fill or border;
    hover adds a neutral fill; selected adds a tint of the tag's colour (plain tags green) and bold. */
 .world-catalog-filters .extension-tag{--tag-ink:var(--ink-soft);--tag-colour:var(--accent);display:flex;justify-content:flex-start;max-width:100%;min-height:28px;padding:4px 10px;border:0;border-radius:8px;font-size:11.5px;line-height:1.3;font-weight:400;text-align:left;white-space:normal;color:var(--tag-ink);background:transparent}
-/* A long name (other languages) wraps like the category rows above; a word breaks only when it is wider than the row. */
-.world-catalog-filters .extension-tag-name{flex:1 1 auto;min-width:0;overflow-wrap:break-word}
+/* A name wraps between words (`sidebarName`); a word never breaks, and one wider than the row ends in an ellipsis. */
+.world-catalog-filters .extension-tag-name{flex:1 1 auto;min-width:0}
+.world-catalog-filters .extension-tag-word{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:top}
 .world-catalog-filters .extension-tag>.icon{flex:none}
 .world-catalog-filters .extension-tag.is-warning{--tag-ink:var(--extension-alert);--tag-colour:var(--extension-alert)}
 .world-catalog-filters .extension-tag.is-official{--tag-ink:var(--extension-mark);--tag-colour:var(--extension-mark)}
@@ -2118,34 +2131,33 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-catalog-filters button.extension-tag:hover{color:var(--tag-ink);background:var(--hover);border-color:transparent}
 .world-catalog-filters .extension-tag.is-active,.world-catalog-filters button.extension-tag.is-active:hover{color:var(--tag-colour);background:color-mix(in srgb,var(--tag-colour) 13%,transparent);border-color:transparent;font-weight:600}
 .world-catalog-filters button.extension-tag.is-active:hover{background:color-mix(in srgb,var(--tag-colour) 19%,transparent)}
-.world-catalog-filters .extension-tag-count{flex:none;margin-left:auto;font-weight:400;color:var(--ink-dim)}
+/* Sidebar counts, the categories' included, hold three digits whatever they show, and a 注意事项's eye takes the
+   count's place, so no name re-wraps when a count changes or the eye shows. */
+.world-catalog-filters .extension-tag-count{flex:none;box-sizing:content-box;min-width:3ch;text-align:right;font-weight:400;color:var(--ink-dim)}
 /* 新品 in the sidebar is a plain row like 认证 and 官方: its card badge's tint must not carry over. */
 .world-catalog-filters .extension-tag.is-badge.is-new:not(.is-active){background:transparent}
 .world-catalog-filters .extension-tag.is-badge.is-new:not(.is-active):hover{background:var(--hover)}
-/* 注意事项 keep their count where every other row has it. Hovering one shows a grey eye in the count's place (the
-   row keeps its width, so a wrapped name does not re-wrap under the pointer); an excluded row moves the count aside
-   for the crossed-out eye, its name struck through. */
+/* 注意事项 keep their count where every other row has it. Hovering one shows a grey eye in the count's place; an
+   excluded row shows the crossed-out eye there and no count, its name struck through. */
 .world-catalog-filters .extension-tag.is-exclusion{position:relative}
-.world-catalog-filters .extension-tag.is-excluded{padding-right:34px}
-.world-catalog-filters .extension-tag.is-exclusion .extension-tag-count{transition:opacity 110ms}
+.world-catalog-filters .extension-tag.is-excluded .extension-tag-count{visibility:hidden}
+.world-catalog-filters .extension-tag.is-exclusion .extension-tag-count{transition:opacity var(--motion-fast)}
 .world-catalog-filters .extension-tag.is-exclusion:not(.is-excluded):is(:hover,:focus-visible) .extension-tag-count{opacity:0}
 .world-catalog-filters .extension-tag.is-excluded,.world-catalog-filters button.extension-tag.is-excluded:hover{color:var(--ink-dim)}
-/* A cut last word is an inline block, which the name's line-through does not reach, so it gets its own. */
+/* Words are inline blocks, which the name's line-through does not reach, so they get their own. */
 .world-catalog-filters .extension-tag.is-excluded :is(.extension-tag-name,.extension-tag-word){text-decoration:line-through}
-.world-catalog-filters .extension-tag-eye{position:absolute;top:50%;right:10px;width:14px;height:14px;color:var(--ink-dim);opacity:0;transform:translateY(-50%);transition:opacity 110ms}
+.world-catalog-filters .extension-tag-eye{position:absolute;top:50%;right:10px;width:14px;height:14px;color:var(--ink-dim);opacity:0;transform:translateY(-50%);transition:opacity var(--motion-fast)}
 .world-catalog-filters .extension-tag.is-exclusion:is(:hover,:focus-visible,.is-excluded) .extension-tag-eye{opacity:1}
 /* Sidebar rows: the question mark beside the name shows while the row is hovered and opens the explanation itself. */
-.world-catalog-filters .extension-tag-help{display:none;place-items:center;width:16px;height:12px;margin-left:2px;vertical-align:-2px;border-radius:50%;color:var(--ink-dim);cursor:help;transition:color 110ms}
+.world-catalog-filters .extension-tag-help{display:none;place-items:center;width:16px;height:12px;margin-left:2px;vertical-align:-2px;border-radius:50%;color:var(--ink-dim);cursor:help;transition:color var(--motion-fast)}
 .world-catalog-filters .extension-tag .extension-tag-help .icon{width:12px;height:12px}
 .world-catalog-filters .extension-tag-help:hover{color:var(--ink)}
-/* The name wraps at its full width with the mark hidden (at rest even a last word wider than the row may break).
-   Hovered, the mark goes in after the last word and stays on its line, and when that line has no room for it the last word alone ends in an ellipsis (`is-cut`,
-   sized by `helpName`), so no other word moves. */
+/* The name wraps with the mark hidden. Hovered, the mark goes in after the last word and stays on its line; when that
+   line has no room for it `sidebarName` narrows the last word, so no other word moves. */
 .world-catalog-filters .extension-tag.is-hinting .extension-tag-tail{white-space:nowrap}
 .world-catalog-filters .extension-tag.is-hinting .extension-tag-help{display:inline-grid}
-.world-catalog-filters .extension-tag.is-hinting .extension-tag-word.is-cut{display:inline-block;overflow:hidden;text-overflow:ellipsis;vertical-align:top}
-/* Without hover the mark is always there, wrapped with the last word like any text. */
-@media (hover:none){.world-catalog-filters .extension-tag-help{display:inline-grid}.world-catalog-filters .extension-tag-tail{white-space:nowrap}}
+/* Without hover the mark is always there, kept on the last word's line, which narrows to make room. */
+@media (hover:none){.world-catalog-filters .extension-tag-help{display:inline-grid}.world-catalog-filters .extension-tag-tail{display:inline-flex;max-width:100%;vertical-align:top}.world-catalog-filters .extension-tag-tail>.extension-tag-word{min-width:0}}
 /* On a card a 注意事项 previews its hiding while hovered: the name strikes through, the chip keeps its width. */
 .extension-market-card .extension-tag.is-exclusion:is(:hover,:focus-visible)>.extension-tag-name{text-decoration:line-through}
 /* A selected tag leads its card's tags and is filled, as cards showed it before. */
@@ -2167,7 +2179,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .extension-active-row{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:6px 8px}
 .extension-active-label{min-width:3.5em;font-size:12px;line-height:24px;color:var(--ink-dim)}
 .extension-active-items{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-.extension-active-item{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 6px 0 10px;border:1px solid var(--border);border-radius:999px;background:var(--sheet);color:var(--ink-soft);font:inherit;font-size:12px;cursor:pointer;transition:border-color 110ms,color 110ms}
+.extension-active-item{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 6px 0 10px;border:1px solid var(--border);border-radius:999px;background:var(--sheet);color:var(--ink-soft);font:inherit;font-size:12px;cursor:pointer;transition:border-color var(--motion-fast),color var(--motion-fast)}
 .extension-active-item .icon{width:12px;height:12px;opacity:.55}
 .extension-active-item:hover{border-color:var(--line-strong);color:var(--ink)}
 .extension-active-item:hover .icon{opacity:1}
@@ -2183,7 +2195,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-catalog .extension-card-metarow{height:auto;min-height:18px;max-width:100%;flex-wrap:wrap}
 .world-catalog .extension-market-card .extension-tag-row{margin:0}
 /* Install control: download, progress ring, or update. */
-.extension-get{position:absolute;right:20px;top:50%;display:grid;place-items:center;width:36px;height:36px;margin-top:-18px;padding:0;border:0;border-radius:50%;background:color-mix(in srgb,var(--accent) 11%,transparent);color:var(--accent);cursor:pointer;transition:background-color 110ms,transform 110ms}
+.extension-get{position:absolute;right:20px;top:50%;display:grid;place-items:center;width:36px;height:36px;margin-top:-18px;padding:0;border:0;border-radius:50%;background:color-mix(in srgb,var(--accent) 11%,transparent);color:var(--accent);cursor:pointer;transition:background-color var(--motion-fast),transform var(--motion-fast)}
 .extension-get .icon{width:18px;height:18px;stroke-width:2.1}
 .extension-get:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 18%,transparent)}
 .extension-get:active:not(:disabled){transform:scale(.92)}
@@ -2194,11 +2206,11 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .extension-get.is-installed:hover{background:var(--hover);color:var(--accent)}
 .extension-get.is-update:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .extension-get.is-working,.extension-get.is-working:disabled{background:transparent;color:var(--accent)}
-.extension-get-ring{width:36px;height:36px;animation:extension-ring-spin 900ms linear infinite}
+.extension-get-ring{width:36px;height:36px;animation:spin 900ms linear infinite}
 .extension-get-ring circle{fill:none;stroke-width:2.5}
 .extension-get-ring .track{stroke:color-mix(in srgb,var(--accent) 16%,transparent)}
 .extension-get-ring .arc{stroke:var(--accent);stroke-linecap:round;stroke-dasharray:82;stroke-dashoffset:58;transform-origin:center;animation:extension-ring-arc 1.4s ease-in-out infinite}
-@keyframes extension-ring-spin{to{transform:rotate(360deg)}}
+@keyframes spin{to{transform:rotate(360deg)}}
 @keyframes extension-ring-arc{50%{stroke-dashoffset:28}}
 /* Failed reads stacked above the cards or the World list, apart from each other and from what follows. */
 .extension-list-feedback,.world-list-feedback{display:grid;gap:10px}
@@ -2211,8 +2223,8 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-catalog-toggle:disabled{opacity:.45;cursor:default;background:var(--sheet);color:var(--ink-soft)}
 .world-catalog-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .world-catalog-toggle:is(.is-open,[aria-expanded=true]){color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--sheet))}
-.world-catalog-toggle.is-spinning .icon{animation:extension-ring-spin 800ms linear infinite}
-.extension-grid.is-reloading>.extension-market-card{opacity:0;pointer-events:none;transition:opacity 110ms}
+.world-catalog-toggle.is-spinning .icon{animation:spin 800ms linear infinite}
+.extension-grid.is-reloading>.extension-market-card{opacity:0;pointer-events:none;transition:opacity var(--motion-fast)}
 .world-catalog-toggle .icon{width:16px;height:16px}
 .world-catalog>.extension-advanced,.world-catalog>.extension-registry{flex:none;max-height:220px;overflow:auto;margin-right:var(--world-inset);display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:-8px;margin-bottom:16px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--sheet)}
 .world-catalog>.extension-advanced .extension-advanced-field{gap:6px;color:var(--ink-soft)}
@@ -2229,7 +2241,9 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 .world-manual-source>.extension-install-help{margin:0;font-size:11.5px;color:var(--ink-dim)}
 @container console-content (max-width:850px){
   .world-blade{grid-template-columns:minmax(0,1fr) max(4.5rem,var(--world-state-width,0px)) auto;padding:10px 12px 10px 0}
-  .world-blade-signals{grid-column:1/3;grid-row:2}
+  /* The state stays centred on the row, left of the buttons; the signals go under the name. */
+  .world-blade-signals{grid-column:1;grid-row:2}
+  .world-state{grid-column:2;grid-row:1/3;align-self:center}
   .world-blade-actions{grid-column:3;grid-row:1/3}
   .world-catalog-filters{width:146px}
   .world-catalog .extension-market-card{padding:16px 64px 16px 64px}
@@ -2244,17 +2258,19 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
   .world-catalog-categories{flex-direction:row;flex-wrap:wrap;gap:4px;margin-bottom:8px;padding-bottom:8px}
   .world-catalog-filters .extension-tag-row{flex-direction:row;flex-wrap:wrap}
 }
-@media(max-width:480px){
+@container console-content (max-width:480px){
   .world-blade{grid-template-columns:minmax(0,1fr) auto}
   .world-state{grid-column:2;grid-row:1}
   .world-blade-signals{grid-column:1/-1;grid-row:2}
   .world-blade-actions{grid-column:1/-1;grid-row:3;justify-content:start}
   .world-blade-actions>button{grid-column:auto}
 }
-@media(prefers-reduced-motion:reduce){.extension-get-ring,.extension-get-ring .arc{animation:none}.world-library-entry,.world-library-list,.world-library-heading,.world-library-label,.world-pending-group,.world-avatar{transition:none}.world-library-item:is(:hover,:focus-visible,:active) .world-avatar{transform:none}}
+/* While the window is resized the rows take each size at once. */
+.world-workspace[data-resizing] :is(.world-library-list,.world-library-entry,.world-pending-group,.world-restart-row,.world-library-tools,.world-group-head,.world-group-list){transition:none}
+:where(:root[data-motion="low"]) {.world-library-entry,.world-library-list,.world-library-heading,.world-library-label,.world-pending-group,.world-avatar{transition:none}.world-library-item:is(:hover,:focus-visible,:active) .world-avatar{transform:none}}
 /* My World's filter row folds away in the market view. */
 /* Its fields fill it edge to edge; the clip leaves room for their focus ring. */
-.world-library-tools{flex:none;display:flex;align-items:center;gap:8px;width:var(--world-entry-width);height:auto;margin:0 0 12px;overflow:clip;overflow-clip-margin:4px;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 140ms}
+.world-library-tools{flex:none;display:flex;align-items:center;gap:8px;width:var(--world-entry-width);height:auto;margin:0 0 12px;overflow:clip;overflow-clip-margin:4px;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity var(--motion-fast)}
 .world-library-tools input[type=search]{flex:0 1 240px;min-width:120px}
 .world-library-tools select{width:auto}
 .world-library-tools>.btn{margin-left:auto;min-height:32px;font-size:12px}
@@ -2263,21 +2279,21 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 /* Groups: a header row, then its rows. The market view's rail drops the headers and shows every avatar. */
 .world-ready-group{position:relative}
 .world-workspace[data-view=market] .world-library .world-list-feedback{display:none}
-.world-group-head{display:flex;align-items:center;gap:2px;width:var(--world-entry-width);height:36px;margin:4px 0 6px;padding:0 4px 0 0;border-radius:8px;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity 140ms,background-color 110ms}
+.world-group-head{display:flex;align-items:center;gap:2px;width:var(--world-entry-width);height:36px;margin:4px 0 6px;padding:0 4px 0 0;border-radius:8px;transition:height var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),opacity var(--motion-fast),background-color var(--motion-fast)}
 .world-group-head.is-movable{cursor:grab}
 .world-group-head.is-drop-target{background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .world-group-toggle{display:flex;align-items:center;gap:8px;min-width:0;height:100%;padding:0 8px 0 6px;border:0;border-radius:8px;background:transparent;font:600 13px/1 var(--sans);color:var(--ink-soft);cursor:pointer}
 .world-group-toggle:hover{color:var(--ink)}
 .world-group-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.world-group-chevron{flex:none;width:6px;height:6px;margin:0 3px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translate(-1px,-1px);transition:transform 110ms}
+.world-group-chevron{flex:none;width:6px;height:6px;margin:0 3px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translate(-1px,-1px);transition:transform var(--motion-fast)}
 .world-group.is-collapsed .world-group-chevron{transform:rotate(-45deg)}
 .world-group-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-block:3px;margin-block:-3px}
 .world-group-count{flex:none;min-width:18px;padding:2px 6px;border-radius:9px;background:var(--hover);font:500 11px/1.2 var(--sans);color:var(--ink-dim);text-align:center}
-.world-group-action{opacity:0;transition:opacity 110ms}
+.world-group-action{opacity:0;transition:opacity var(--motion-fast)}
 .world-group-head:is(:hover,:focus-within) .world-group-action{opacity:1}
 .world-group-head input.world-group-rename{width:240px}
 /* flow-root keeps the last row's margin inside the list, so the animated height ends where height:auto lands. */
-.world-group-list{display:flow-root;height:auto;overflow:clip;overflow-clip-margin:8px;transition:height var(--world-duration) var(--world-easing),opacity 170ms}
+.world-group-list{display:flow-root;height:auto;overflow:clip;overflow-clip-margin:8px;transition:height var(--world-duration) var(--world-easing),opacity var(--motion-base)}
 .world-workspace[data-view=mine] .world-group.is-collapsed .world-group-list{height:0;opacity:0}
 .world-workspace[data-view=market] .world-group-head{height:0;margin:0;opacity:0;overflow:clip;pointer-events:none}
 /* The dragged element's place, wherever it would land: an empty outline the size of the element. */
@@ -2287,7 +2303,7 @@ button.extension-stat:hover { background: color-mix(in srgb, var(--accent) 12%, 
 html.is-list-dragging,html.is-list-dragging *{cursor:none!important;user-select:none}
 .world-drag-copy{position:absolute;left:0;z-index:20;margin:0;border-radius:10px;background:var(--sheet);box-shadow:0 0 0 1px var(--line),0 14px 30px -14px var(--shadow-strong);pointer-events:none;transition:none;opacity:1}
 /* Ungrouped rows after a group start below a divider, so an expanded group's end stays visible. */
-.world-group{transition:padding var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),border-color 140ms;border-bottom:1px solid transparent}
+.world-group{transition:padding var(--world-duration) var(--world-easing),margin var(--world-duration) var(--world-easing),border-color var(--motion-fast);border-bottom:1px solid transparent}
 .world-workspace[data-view=mine] .world-group:has(+ .world-library-entry:not(.motion-ghost)){width:var(--world-entry-width);padding-bottom:6px;margin-bottom:14px;border-bottom-color:var(--line)}
 /* Cards past the first screen skip rendering until scrolled to, so showing the market lays out only
    the cards in view. Cards are marked is-in-view to render at once: right after a re-render, and while
@@ -2300,7 +2316,7 @@ html.is-list-dragging,html.is-list-dragging *{cursor:none!important;user-select:
 /* Dropdowns (base/ui/dropdown.ts): every select, and every text field with suggestions, opens its list in one white rounded box, the row under the pointer highlighted and the chosen
    one bold. It fades in as it opens and is gone at once when it closes. */
 input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{display:none!important}
-.combo-list{position:fixed;z-index:130;box-sizing:border-box;margin:0;padding:4px 0 4px 4px;max-width:min(480px,calc(100vw - 16px));max-height:min(320px,60vh);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;background:var(--sheet);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 30px -14px var(--shadow-strong);color:var(--ink);font:13px/1.35 var(--sans);transition:opacity 120ms ease-out}
+.combo-list{position:fixed;z-index:130;box-sizing:border-box;margin:0;padding:4px 0 4px 4px;max-width:min(480px,calc(100vw - 16px));max-height:min(320px,60vh);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;background:var(--sheet);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 30px -14px var(--shadow-strong);color:var(--ink);font:13px/1.35 var(--sans);transition:opacity var(--motion-fast) ease-out}
 .combo-list[hidden]{display:none}
 @starting-style{.combo-list{opacity:0}}
 /* Its scrollbar is the pages' own (the global ::-webkit-scrollbar rules), kept in the gutter the right padding
@@ -2311,18 +2327,18 @@ input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{disp
 .combo-option[aria-selected=true]{font-weight:600}
 .combo-option[aria-selected=true]::after{content:"";flex:none;width:9px;height:5px;margin-left:auto;border:solid var(--ink-dim);border-width:0 0 1.5px 1.5px;transform:translateY(-2px) rotate(-45deg)}
 .combo-option[aria-disabled=true]{color:var(--ink-dim);cursor:default}
-@media (prefers-reduced-motion: reduce){.combo-list{transition:none}}
+:where(:root[data-motion="low"]) {.combo-list{transition:none}}
 
 /* The extension info page's pictures (extensions/gallery.ts): a row that pages sideways, and a lightbox. */
 .extension-gallery-section{display:contents}
 .extension-gallery{position:relative;margin:4px 0 6px}
 .extension-gallery-track{container-type:inline-size;display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}
 .extension-gallery-track::-webkit-scrollbar{display:none}
-.extension-gallery-shot{flex:none;scroll-snap-align:start;padding:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--sheet-2);cursor:zoom-in;transition:border-color .15s,box-shadow .15s}
+.extension-gallery-shot{flex:none;scroll-snap-align:start;padding:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--sheet-2);cursor:zoom-in;transition:border-color var(--motion-fast),box-shadow var(--motion-fast)}
 .extension-gallery-shot:hover{border-color:var(--line-strong);box-shadow:0 8px 20px -14px var(--shadow-strong)}
 /* A picture is never wider than the row it sits in (the info column can be narrow). */
 .extension-gallery-shot img{display:block;height:180px;width:auto;min-width:120px;max-width:min(520px,100cqw);object-fit:cover}
-.extension-gallery-nav{position:absolute;top:50%;display:grid;place-items:center;width:32px;height:32px;margin-top:-16px;padding:0;border:1px solid var(--border);border-radius:50%;background:var(--sheet);color:var(--ink);box-shadow:0 4px 14px -6px var(--shadow-strong);cursor:pointer;transition:opacity .15s}
+.extension-gallery-nav{position:absolute;top:50%;display:grid;place-items:center;width:32px;height:32px;margin-top:-16px;padding:0;border:1px solid var(--border);border-radius:50%;background:var(--sheet);color:var(--ink);box-shadow:0 4px 14px -6px var(--shadow-strong);cursor:pointer;transition:opacity var(--motion-fast)}
 .extension-gallery-nav:disabled{opacity:0;pointer-events:none}
 .extension-gallery-nav.is-prev{left:8px}
 .extension-gallery-nav.is-next{right:8px}
@@ -2333,11 +2349,41 @@ input.field:is([list],[data-combo-list])::-webkit-calendar-picker-indicator{disp
 .extension-lightbox-figure{display:grid;justify-items:center;gap:12px;margin:0;padding:56px 84px 24px}
 .extension-lightbox-figure img{display:block;max-width:calc(100vw - 168px);max-height:calc(100dvh - var(--titlebar-height, 0px) - 120px);border-radius:10px;background:var(--sheet);box-shadow:0 20px 60px -20px rgb(0 0 0 / .6)}
 .extension-lightbox-count{min-height:16px;font:12px var(--mono);opacity:.75}
-.extension-lightbox-button{position:fixed;display:grid;place-items:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:rgb(255 255 255 / .14);color:#fff;cursor:pointer;transition:background .15s}
+.extension-lightbox-button{position:fixed;display:grid;place-items:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:rgb(255 255 255 / .14);color:#fff;cursor:pointer;transition:background var(--motion-fast)}
 .extension-lightbox-button:hover{background:rgb(255 255 255 / .26)}
 .extension-lightbox-button .icon{width:20px;height:20px}
 .extension-lightbox-close{top:calc(var(--titlebar-height, 0px) + 16px);right:20px}
 .extension-lightbox-nav{top:calc(50% + var(--titlebar-height, 0px) / 2);margin-top:-20px}
 .extension-lightbox-nav.is-prev{left:24px}
 .extension-lightbox-nav.is-next{right:24px}
-@media (prefers-reduced-motion: reduce){.extension-gallery-shot,.extension-gallery-nav,.extension-lightbox-button{transition:none}}
+:where(:root[data-motion="low"]) {.extension-gallery-shot,.extension-gallery-nav,.extension-lightbox-button{transition:none}}
+
+/* ---------- motion levels: motion-level.js (desktop-pet web/) writes data-motion on the root, from the 「习惯」 page's 动态效果 ---------- */
+/* medium and low: nothing overshoots, and the decoration goes (a mode button's press and turn) */
+:root:not([data-motion="high"]) { --motion-pop: var(--motion-out); }
+:where(:root:not([data-motion="high"])) {
+  #rail .companion-mode.companion-pressed, #rail .companion-mode.companion-pressed .navicon { animation: none; }
+}
+/* low: the rule at the top of the file stops everything; what says something is under way keeps going, without moving where it can */
+@keyframes breathe { 50% { opacity: .35; } }
+@keyframes toast-fade { 0%, 100% { opacity: 0; } 6%, 92% { opacity: 1; } }
+:where(:root[data-motion="low"]) {
+  .rail-shutdown.is-working svg { animation-duration: 1s !important; animation-iteration-count: infinite !important; }
+  .world-restart-footer.is-restarting::after, .world-catalog-toggle.is-spinning .icon { animation-duration: 800ms !important; animation-iteration-count: infinite !important; }
+  .extension-get-ring { animation-duration: 900ms !important; animation-iteration-count: infinite !important; }
+  .extension-get-ring .arc { animation-duration: 1.4s !important; animation-iteration-count: infinite !important; }
+  .chatview .spinner, .chat-ctx[data-state="busy"] i { animation-duration: .8s !important; animation-iteration-count: infinite !important; }
+  .chat-phase[data-state="busy"] .dot { animation-duration: 1.2s !important; animation-iteration-count: infinite !important; }
+  .pulse { animation-name: breathe !important; animation-duration: 1.15s !important; animation-iteration-count: infinite !important; }
+  .pet-bubble.thinking i { animation-name: breathe !important; animation-duration: 1.2s !important; animation-iteration-count: infinite !important; }
+  .pet-bubble.thinking i:nth-child(2) { animation-delay: .15s !important; }
+  .pet-bubble.thinking i:nth-child(3) { animation-delay: .3s !important; }
+  /* the 「习惯」 page's bubble sample thinks as the pet does (pet.css keeps its dots at low motion too) */
+  .pv-status[data-kind="think"] circle { animation-duration: 1.3s !important; animation-iteration-count: infinite !important; }
+  .pv-status[data-kind="think"] circle:nth-child(2) { animation-delay: .16s !important; }
+  .pv-status[data-kind="think"] circle:nth-child(3) { animation-delay: .32s !important; }
+  .progressfill { transition-duration: var(--motion-base) !important; }
+  /* the caret stays lit; the toast fades in and out over its whole stay instead of vanishing at once */
+  .typing::after { animation: none !important; }
+  .toast { animation-name: toast-fade !important; animation-duration: var(--toast-duration, 2000ms) !important; }
+}

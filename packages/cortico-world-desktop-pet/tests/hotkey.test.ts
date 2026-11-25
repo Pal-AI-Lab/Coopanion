@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_HOTKEY, TAP_GAP_MS, TAP_MAX_MS, hotkeyBadge, hotkeyLabel, macModifierDown, macReadable, parseHotkey, tapTracker } from '../src/asr/hotkey.ts';
+import { DEFAULT_HOTKEY, TAP_GAP_MS, TAP_MAX_MS, hotkeyBadge, hotkeyLabel, macModifierDown, macReadable, parseHotkey, tapTracker, type HotkeyTrigger } from '../src/asr/hotkey.ts';
 
 describe('parseHotkey', () => {
   it('reads modifiers, letters, digits, function keys and mouse side buttons', () => {
@@ -45,7 +45,7 @@ describe('hotkeyLabel', () => {
 
 describe('tapTracker', () => {
   /** Feeds raw [down, ms, another key down] steps and returns what the hotkey did. */
-  function run(taps: number, steps: Array<[boolean, number, boolean?]>, trigger: 'press' | 'hold' | 'tap' = 'press') {
+  function run(taps: number, steps: Array<[boolean, number, boolean?]>, trigger: HotkeyTrigger = 'press') {
     const out: string[] = [];
     const step = tapTracker(taps, (down) => out.push(down ? 'down' : 'up'), (n) => out.push(`tap${n}`), trigger);
     for (const [down, at, others] of steps) step(down, at, others);
@@ -95,6 +95,22 @@ describe('tapTracker', () => {
     expect(run(1, steps, 'hold')).toEqual([]);
     steps.push([true, 2 * TAP_MAX_MS + 101], [false, 2 * TAP_MAX_MS + 150]);
     expect(run(1, steps, 'hold')).toEqual(['down', 'up']);
+  });
+
+  it('holdAlone: a modifier held for a shortcut never activates', () => {
+    // Ctrl held long for Ctrl+C: C goes down before the hold would count
+    expect(run(1, [[true, 0], [true, 100, true], [true, TAP_MAX_MS + 1, true], [true, 2 * TAP_MAX_MS], [false, 3 * TAP_MAX_MS]], 'holdAlone')).toEqual([]);
+    expect(run(1, [[true, 0], [true, 100, true], [true, TAP_MAX_MS + 1, true]], 'hold')).toEqual(['down']);
+  });
+
+  it('holdAlone: a hold right after a quick tap of the same key belongs to that tap and never activates', () => {
+    expect(run(1, [[true, 0], [false, 50], [true, 100], [true, 101 + TAP_MAX_MS], [false, 900]], 'holdAlone')).toEqual([]);
+    expect(run(1, [[true, 0], [false, 50], [true, 51 + TAP_GAP_MS], [true, 52 + TAP_GAP_MS + TAP_MAX_MS], [false, 2000]], 'holdAlone')).toEqual(['down', 'up']);
+  });
+
+  it('holdAlone: once active, a click on the pet keeps it until the key is let go', () => {
+    expect(run(2, [[true, 0], [false, 50], [true, 100], [true, 101 + TAP_MAX_MS], [true, 500, true], [true, 600], [false, 700]], 'holdAlone'))
+      .toEqual(['tap1', 'down', 'up']);
   });
 
   it('tap: opens typing only after the final quick release', () => {

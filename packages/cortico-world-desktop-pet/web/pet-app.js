@@ -23,6 +23,9 @@ import { accentColors, announcePainted, bubbleCss, dressFloor, glowColor, lightW
 import { bindAppearance } from './appearance.js';
 import { createMic } from './mic.js';
 import { runFrames } from './frame-loop.js';
+import { cssMs, growFrom } from './motion-frames.js';
+import { showHide } from './show-hide.js';
+import { motionLevel, setMotionChoice, watchMotion } from './motion-level.js';
 import { mountHints, tipOf, tipWithoutNote } from './hints.js';
 
 const $ = (s) => document.querySelector(s);
@@ -141,6 +144,8 @@ function connect() {
     ws = null;
     stopMic();
     talkKeyDown = false;
+    // a key let go of while the World was away never reports its release
+    pauseHeld = false;
     // the World gave up on these steps when the page went; it asks again once the page is back
     dropDialogs();
     setStatus(null);
@@ -157,8 +162,27 @@ host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVis
 /** Clicks pass through because a fullscreen window covers the pet's display and the setting says so; the window process decides. */
 let fullscreenThrough = false;
 host?.onFullscreenThrough?.((on) => { fullscreenThrough = on; });
-/** Every click passes through the pet right now, by the tray or the fullscreen setting. */
-const clicksPass = () => prefs.clickThrough || fullscreenThrough;
+/** The click-through pause key is held; the World says when it activates and is let go. */
+let pauseHeld = false;
+/**
+ * Clicks reach the pet despite click-through while the click-through pause key is held, and while something begun
+ * with the mouse or waiting on the person is under way: the typing box, a question or a confirmation, the right-click
+ * menu, the look wheel or a pinned slider open, the body held, a slider or the typing box's scrollbar dragged. Each
+ * of those ends on its own, a click elsewhere or the window losing focus included.
+ */
+const openNow = (el) => !el.hidden && !leaving(el);
+const clicksLent = () => pauseHeld || (!!item && item.kind !== 'say') || openNow(menu) || openNow(wheel) || pinned !== null
+  || pressing || barHeld || sliding();
+/** Every click passes through the pet right now, by the tray or the fullscreen setting, unless they are lent. */
+const clicksPass = () => (prefs.clickThrough || fullscreenThrough) && !clicksLent();
+/** Tells the window process each time clicksLent changes; it lifts its click-through lock meanwhile. */
+let lentTold = false;
+function stepLend() {
+  const on = clicksLent();
+  if (on === lentTold) return;
+  lentTold = on;
+  host?.lendClicks?.(on);
+}
 /** The transparency during full screen holds: its setting is on and a fullscreen window covers the display; the window process decides. */
 let fullscreenFaded = false;
 host?.onFullscreenFade?.((on) => { fullscreenFaded = on; refreshSlider(); });
@@ -335,9 +359,9 @@ async function applyFigure(s) {
   // a size that waited for a figure that did not come
   if (!switching() && drawnScale.target !== prefs.scale) toSize(prefs.scale);
 }
-/** Draws the body at `v`: on the spring, or at once when the system asks for reduced motion. */
+/** Draws the body at `v`: on the spring, or at once when motion is low. */
 function toSize(v) {
-  if (!reducedMotion?.matches) { drawnScale.set(v); return; }
+  if (!lowMotion()) { drawnScale.set(v); return; }
   drawnScale.jump(v);
   body?.set({ bounds: bounds() });
 }
@@ -418,6 +442,7 @@ function applyPrefs(p) {
   if (typeof p.saidBubbles === 'boolean') { prefs.saidBubbles = p.saidBubbles; if (!p.saidBubbles) for (const line of lines) if (!line.live) fadeLine(line); }
   if (typeof p.saidBubbleHoldSec === 'number') prefs.saidBubbleHoldSec = p.saidBubbleHoldSec;
   if (typeof p.lockFrameRate === 'boolean') prefs.lockFrameRate = p.lockFrameRate;
+  if (typeof p.motion === 'string' && globalThis.window?.document) setMotionChoice(globalThis.window, p.motion);
   if (typeof p.frameRate === 'number' && p.frameRate >= 0) prefs.frameRate = p.frameRate;
   // the window process does the hiding and the passing through; the page only passes the settings on
   if (typeof p.hideWhenFullscreen === 'boolean') host?.hideWhenFullscreen?.(p.hideWhenFullscreen);
@@ -455,6 +480,7 @@ function onOrder(m) {
     // the settings window's 「在桌面上隐藏」: the same as the menu's 「隐藏」
     case 'hide': host?.hide?.(); break;
     case 'type': openTyping(); break;
+    case 'throughPause': pauseHeld = m.on === true; stepLend(); break;
     case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); holdRoam(20); break;
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
     case 'confirm': dropAsks(); rushLines(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
@@ -698,8 +724,24 @@ bubble.addEventListener('click', (e) => {
   bubble.classList.add('fading');
 });
 
+/**
+ * The place over the head is held by the look wheel or a slider, not folding away: the activity bubble, drawn in the
+ * same place, waits for it to go (stepStatus) and shows then if the activity is still going on.
+ */
+const headShown = () => headTaken(null);
+/**
+ * The look wheel or a slider over the head is in use: dragged, or the pointer still among the pet's controls. What Coo
+ * says, asks or shows waits meanwhile (stepDialog) and comes once the person is done, nothing dropped. One left
+ * showing with the pointer gone (a pinned slider) gives way to it as before. A confirmation waits for nothing: with
+ * one queued, the lines before it and then it take the place at once, so it is never held past its time.
+ */
+function headInUse() {
+  const el = HEAD.find((o) => !o.el.hidden && !leaving(o.el))?.el;
+  return !!el && (sliding() || amongControls(cursor.at, el));
+}
+
 function stepDialog(dt) {
-  if (!item && queue.length && at() && !at().busy) startItem(queue.shift());
+  if (!item && queue.length && at() && !at().busy && (!headInUse() || queue.some((q) => q.confirm))) startItem(queue.shift());
   const it = item;
   if (!it) return;
   if (it.kind === 'say') {
@@ -956,11 +998,10 @@ function showDialogInput(it) {
         more.remove();
         add(input.options.length, all.length, 0);
         pick(input.options.length, false);
-        const to = cards.offsetHeight;
-        if (to !== from && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const grow = growFrom(cards, { h: from }, { duration: 320, easing: 'cubic-bezier(.3,1.1,.5,1)', overshoots: true });
+        if (grow) {
           cards.classList.add('unfolding');
-          cards.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: 320, easing: 'cubic-bezier(.3,1.1,.5,1)' })
-            .finished.finally(() => cards.classList.remove('unfolding'));
+          void grow.finished.finally(() => cards.classList.remove('unfolding'));
         }
       });
     }
@@ -1558,8 +1599,8 @@ function statusParts(s) {
 }
 const statusLabel = (s) => Object.values(statusParts(s)).join('');
 function stepStatus() {
-  // Never replace dialogue with activity, including while a queued line waits for the body.
-  if (!prefs.statusBubble || listen.phase || item || queue.length) {
+  // Never replace dialogue with activity, including while a queued line waits for the body or for the place over the head.
+  if (!prefs.statusBubble || listen.phase || item || queue.length || headShown()) {
     if (bubble.classList.contains('status')) bubble.hidden = true;
     status.shown = null; status.fadeAt = null;
     return;
@@ -1649,6 +1690,17 @@ const ACTIONS = {
     tip: () => tipWithoutNote(t('action.hide')),
     run: () => host.hide(),
   },
+  // the tray's click-through as a switch: one click turns it on; while it is on, clicks reach this button only
+  // with the click-through pause key held. The World tells the tray.
+  through: {
+    available: () => !!host?.clickThrough,
+    keep: true,
+    icon: () => ICONS.through,
+    on: () => prefs.clickThrough,
+    state: () => t(prefs.clickThrough ? 'action.throughOn' : 'action.throughOff'),
+    tip: () => tipWithoutNote(ACTIONS.through.state()),
+    run: () => send({ t: 'prefs', clickThrough: !prefs.clickThrough }),
+  },
   size: {
     // hovering it shows the size slider for a moment (stepSlider); a click, or a tap where nothing hovers, pins it (pinSlider);
     // only on the desktop: a tab draws the body at one size
@@ -1706,11 +1758,18 @@ const ACTIONS = {
 };
 const available = (id) => ACTIONS[id] && (ACTIONS[id].available?.() ?? true);
 
-/** One action as a button, as a hover button and in the menu alike: its icon, the badge, whether a switch is on, and whether it waits for something not ready. */
+/** The markup each button's icon was last drawn with (drawAction). */
+const drawnIcons = new WeakMap();
+/**
+ * One action as a button, as a hover button and in the menu alike: its icon, the badge, whether a switch is on, and whether
+ * it waits for something not ready. The icon is replaced only when it changes: a press whose icon was swapped before the
+ * release gets no click, and the size and transparency buttons are redrawn as their slider opens, which may be mid-press.
+ */
 function drawAction(b, id) {
   const a = ACTIONS[id], on = a.on?.();
   const badge = a.badge?.() ?? '';
-  b.querySelector('.ic').innerHTML = a.icon() + (badge ? `<b class="badge">${badge}</b>` : '');
+  const ic = b.querySelector('.ic'), html = a.icon() + (badge ? `<b class="badge">${badge}</b>` : '');
+  if (drawnIcons.get(ic) !== html) { ic.innerHTML = html; drawnIcons.set(ic, html); }
   b.classList.toggle('on', on === true);
   b.classList.toggle('off', on === false);
   b.classList.toggle('waiting', !!a.waiting?.());
@@ -1756,7 +1815,7 @@ function openMenu() {
   // the hover buttons showing become the menu's: each slides from where it stood to its tile, and only the rest pop out
   const was = new Map();
   if (!tools.hidden && !leaving(tools)) for (const b of tools.children) was.set(b.dataset.action, laidAt(b));
-  hideNow(tools, toolsAnim);
+  toolsShow.hideNow();
   endHold();
   menu.innerHTML = '';
   const rail = Object.assign(document.createElement('div'), { className: 'm-rail' });
@@ -1770,7 +1829,8 @@ function openMenu() {
     b.dataset.action = id;
     b.innerHTML = '<span class="ic"></span>';
     drawAction(b, id);
-    b.addEventListener('click', () => {
+    b.addEventListener('click', (e) => {
+      if (repeatClick(e)) return;
       sfx.tick();
       // as the button was clicked: running it may change whether it keeps the menu open (computer use)
       const keep = a.keep;
@@ -1785,7 +1845,7 @@ function openMenu() {
   renderMenuRail();
   stagger(grid);
   // the buttons grow out of the body one after another; a rail redrawn later (settings, the quit question) does not replay it
-  popIn(menu, menuAnim);
+  menuShow.show();
   // focused, so a click anywhere else blurs the window and folds the menu
   host?.focus?.();
   const l = at();
@@ -1839,20 +1899,7 @@ function renderMenuRail(confirmQuit = false) {
   const was = last && !menu.hidden && rail.classList.contains('confirm') !== confirmQuit
     ? { w: last.offsetWidth, h: last.offsetHeight } : null;
   fillMenuRail(rail, bot, confirmQuit);
-  if (was && rail.lastElementChild) resizeFrom(rail.lastElementChild, was);
-}
-
-/** Grows or shrinks an element from its old size to the one its new content takes. */
-function resizeFrom(el, was) {
-  el.style.transition = 'none';
-  el.style.width = '';
-  el.style.height = '';
-  const w = el.offsetWidth, h = el.offsetHeight;
-  el.style.width = was.w + 'px'; el.style.height = was.h + 'px';
-  void el.offsetWidth;
-  el.style.transition = '';
-  el.style.width = w + 'px'; el.style.height = h + 'px';
-  el.addEventListener('transitionend', () => { el.style.width = el.style.height = ''; }, { once: true });
+  if (was && rail.lastElementChild) growFrom(rail.lastElementChild, was, { duration: cssMs(document.documentElement, '--motion-base', 200), easing: 'ease' });
 }
 
 function fillMenuRail(rail, bot, confirmQuit) {
@@ -1882,14 +1929,19 @@ function fillMenuRail(rail, bot, confirmQuit) {
   rail.appendChild(ask);
   stagger(rail);
 }
-const menuAnim = { enter: 0, leave: 0 };
 function closeMenu() {
   if (menu.hidden || leaving(menu)) return;
-  popOut(menu, menuAnim, POP_OUT_MS);
+  menuShow.hide(POP_OUT_MS());
   // the hover buttons stay away until the pointer has left the body and them, and comes back
   toolsMuted = true;
   toolsUntil = 0;
 }
+
+/**
+ * The second click of a double click on an action button, which does nothing: a quick second press would undo the
+ * first at once (unpinning the slider just pinned, switching a sound back), as a hand that clicks twice by habit does.
+ */
+const repeatClick = (e) => e.detail > 1;
 
 /** Redraws whatever shows an action: the open menu's tiles and the hover buttons. */
 function refreshButtons() {
@@ -1920,7 +1972,7 @@ function renderTools() {
       b.type = 'button'; b.className = 'tool'; b.dataset.action = id;
       b.innerHTML = '<span class="ic"></span>';
       if (id === 'voice') wireVoiceTool(b);
-      else b.addEventListener('click', () => { sfx.tick(); if (!ACTIONS[id].keep) toolsUntil = 0; ACTIONS[id].run(); refreshButtons(); });
+      else b.addEventListener('click', (e) => { if (repeatClick(e)) return; sfx.tick(); if (!ACTIONS[id].keep) toolsUntil = 0; ACTIONS[id].run(); refreshButtons(); });
       tools.appendChild(b);
     }
     stagger(tools);
@@ -1973,29 +2025,29 @@ function overTools(p) {
   return p.x >= r.left - m && p.x <= r.right + m && p.y >= r.top - m && p.y <= r.bottom + m;
 }
 /** Pops the hover buttons out of the body one after another, as the menu does, and folds them back into it before they go. */
-const toolsAnim = { enter: 0, leave: 0 };
 function showTools(on) {
   if (on) {
     // back over them while they fold: they stay, without popping out again
-    if (leaving(tools)) { clearTimeout(toolsAnim.leave); tools.classList.remove('leaving'); }
+    toolsShow.stay();
     if (!tools.hidden) return;
-    popIn(tools, toolsAnim);
+    toolsShow.show();
     const l = at();
     if (l) placeTools(l);
     return;
   }
   if (tools.hidden || leaving(tools)) return;
   endHold();
-  popOut(tools, toolsAnim, POP_OUT_MS);
+  toolsShow.hide(POP_OUT_MS());
 }
 
 /* ---------- popping in and out: the menu, the hover buttons and the look wheel ---------- */
-/** Milliseconds the menu's buttons and the hover buttons take to fold back into the body (`m-out` in pet.css). */
-const POP_OUT_MS = 160;
+/** Milliseconds the menu's buttons and the hover buttons take to fold back into the body (pet.css `--pop-out`; the other leaving animations read `--wheel-out`, `--slider-out` and `--return-time`). */
+const POP_OUT_MS = () => cssMs(document.documentElement, '--pop-out', 160);
 /** Longer than the last of the staggered `m-in`s, after which `entering` comes off. */
 const POP_IN_MS = 600;
-// absent where the page runs without a window (the tests)
-const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
+// the page runs without a window in the tests, where motion counts as full
+const lowMotion = () => motionLevel(globalThis.window) === 'low';
+if (globalThis.window?.document) watchMotion(globalThis.window);
 /** The tails' line follows the width the border is drawn at, which changes with the display's scale (ui.js tailLine). */
 function watchTailLine() {
   document.documentElement.style.setProperty('--tail-line', tailLine(devicePixelRatio || 1) + 'px');
@@ -2005,27 +2057,9 @@ watchTailLine();
 const leaving = (el) => el.classList.contains('leaving');
 /** Numbers an element's buttons (`--i`), so they pop out one after another. */
 function stagger(el) { [...el.children].forEach((b, i) => b.style.setProperty('--i', String(i))); }
-/** Shows `el` with its `entering` animation; `anim` holds its timers. */
-function popIn(el, anim) {
-  hideNow(el, anim);
-  el.hidden = false;
-  el.classList.add('entering');
-  anim.enter = setTimeout(() => el.classList.remove('entering'), POP_IN_MS);
-}
-/** Plays `el`'s `leaving` animation, taking no clicks meanwhile, then hides it; at once when motion is reduced. */
-function popOut(el, anim, ms) {
-  clearTimeout(anim.enter);
-  el.classList.remove('entering');
-  if (reducedMotion?.matches) { el.hidden = true; return; }
-  el.classList.add('leaving');
-  anim.leave = setTimeout(() => { el.hidden = true; el.classList.remove('leaving'); }, ms);
-}
-/** Hides `el` at once, cancelling an animation under way. */
-function hideNow(el, anim) {
-  clearTimeout(anim.enter); clearTimeout(anim.leave);
-  el.classList.remove('entering', 'leaving');
-  el.hidden = true;
-}
+/** Each pops in with its `entering` animation and out with `leaving`, taking no clicks meanwhile (show-hide.js). */
+const menuShow = showHide(menu, { enterMs: () => POP_IN_MS });
+const toolsShow = showHide(tools, { enterMs: () => POP_IN_MS });
 /**
  * What opens over the head, one at a time: the look wheel and each slider, every one its own element with its own
  * animations. `close` plays its leaving animation.
@@ -2052,7 +2086,7 @@ function stepTools() {
 /** Seconds the wheel stays after the pointer leaves it and every dress button. */
 const WHEEL_LINGER = .25;
 /** Milliseconds the looks take to fold back into the middle (`.wheel.leaving` in pet.css). */
-const WHEEL_OUT_MS = 140;
+const WHEEL_OUT_MS = () => cssMs(document.documentElement, '--wheel-out', 140);
 /** Pixels between two looks in the row, and how many show on each side of the middle one. */
 const WHEEL_STEP = 54, WHEEL_SIDE = 3;
 /** Opacity of a look by its distance from the middle. */
@@ -2063,7 +2097,7 @@ const WHEEL_APPLY_MS = 300;
 const WHEEL_NOTCH = 40;
 /** `empty`: the last read found no looks to show; set until the pointer has left the dress buttons, so a hover reads them once. */
 const wheelState = { items: [], at: 0, until: 0, timer: 0, acc: 0, opening: false, empty: false };
-const wheelAnim = { enter: 0, leave: 0 };
+const wheelShow = showHide(wheel);
 
 /**
  * The look worn, with its size, when the row last opened on one that is not a favourite. It leads the row until a look
@@ -2095,7 +2129,7 @@ const wearing = (look) => sameLook(look.skin, skin) && (typeof look.scale !== 'n
 
 async function openWheel() {
   // back over a dress button while the row folds away: it fans out again
-  if (leaving(wheel)) { clearTimeout(wheelAnim.leave); wheel.classList.remove('leaving'); drawWheel(); return; }
+  if (leaving(wheel)) { wheelShow.stay(); drawWheel(); return; }
   if (!wheel.hidden || wheelState.opening) return;
   // a slider being dragged keeps its place over the head: the row opens once it is let go
   if (sliding()) return;
@@ -2139,7 +2173,7 @@ function closeWheel() {
   if (wheel.hidden || leaving(wheel)) return;
   // the looks fold back into the middle, then the row goes
   foldWheel();
-  popOut(wheel, wheelAnim, WHEEL_OUT_MS);
+  wheelShow.hide(WHEEL_OUT_MS());
 }
 
 HEAD.push({ el: wheel, close: closeWheel });
@@ -2223,7 +2257,8 @@ function stepWheel() {
   // a bubble over the pet (the typing box, a reply, a question) takes the wheel's place until it closes
   if (!bubble.hidden && !bubble.classList.contains('status')) { if (!wheel.hidden) closeWheel(); return; }
   if (amongControls(p, wheel)) wheelState.until = T + WHEEL_LINGER;
-  if (dress && wheel.hidden && !wheelState.empty && !clicksPass()) void openWheel();
+  // a pinned slider keeps the place over the head while the pointer crosses the dress button
+  if (dress && wheel.hidden && !wheelState.empty && !clicksPass() && !pinned) void openWheel();
   if (!wheel.hidden && T > wheelState.until) closeWheel();
 }
 // the mouse wheel turns the row while it shows, over the row or over a dress button
@@ -2241,15 +2276,16 @@ document.addEventListener('wheel', (e) => {
 /** Seconds the slider stays after the pointer leaves it and every button of its kind. */
 const SLIDER_LINGER = .35;
 /** Milliseconds the slider takes to fold away (`.head-slider.leaving` in pet.css). */
-const SLIDER_OUT_MS = 140;
+const SLIDER_OUT_MS = () => cssMs(document.documentElement, '--slider-out', 140);
 /** Milliseconds between the values sent to the World while the slider moves. */
 const SLIDER_SEND_MS = 120;
 /** The transparency range in percent (src/config.ts FADE_MAX, FADE_STEP). */
 const FADE = { min: 0, soft: 95, max: 95, step: 5 };
 /**
  * The slider a click on its button pinned, `size` or `fade`, or null. It stays until that button is clicked again, the
- * pointer goes down anywhere else, the window loses focus (a click in another program), Escape, or the menu, the look
- * wheel or a bubble takes the place.
+ * other slider's button is clicked, the pointer goes down anywhere else, the window loses focus (a click in another
+ * program), Escape, or the menu or a bubble the person opened takes the place. Hovering the other slider's button or a
+ * dress button meanwhile opens nothing.
  */
 let pinned = null;
 /** Until when the slider waits on; per kind, the send due while it moves; the wheel's travel toward a step. */
@@ -2281,7 +2317,7 @@ const SLIDERS = {
 for (const [kind, s] of Object.entries(SLIDERS)) {
   s.el = Object.assign(document.createElement('div'), { className: 'head-slider', hidden: true });
   s.el.dataset.kind = kind;
-  s.anim = { enter: 0, leave: 0 };
+  s.show = showHide(s.el, { enterMs: () => POP_IN_MS });
   s.valueEl = Object.assign(document.createElement('span'), { className: 'hs-value' });
   s.el.append(s.bar.el);
   s.bar.el.querySelector('.ps-thumb').append(s.valueEl);
@@ -2343,7 +2379,7 @@ function openSlider(kind) {
   claimHead(s.el);
   refreshSlider();
   // hidden, or back over its button while it folds away: it enters again rather than jumping back
-  if (s.el.hidden || leaving(s.el)) popIn(s.el, s.anim);
+  if (s.el.hidden || leaving(s.el)) s.show.show();
   s.bar.relayout();
   const l = at();
   if (l) placeSlider(kind, l);
@@ -2353,7 +2389,7 @@ function closeSlider(kind) {
   for (const k of kind ? [kind] : Object.keys(SLIDERS)) {
     const s = SLIDERS[k];
     if (s.el.hidden || leaving(s.el) || s.bar.active) continue;
-    popOut(s.el, s.anim, SLIDER_OUT_MS);
+    s.show.hide(SLIDER_OUT_MS());
   }
 }
 /** Centred over the body, just above its head, where the look wheel opens; it follows the head as other controls do (`follow`). */
@@ -2374,11 +2410,9 @@ function stepSlider() {
   // a bubble over the pet (the typing box, a reply, a question) takes the slider's place until it closes; with every
   // click passing through the window it could not be used
   if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { pinSlider(null); closeSlider(); return; }
-  // over another kind's button, its slider takes the place, unless the one there is held
-  if (over && over !== shownSlider() && !sliding()) {
-    if (pinned && pinned !== over) pinSlider(null);
-    openSlider(over);
-  }
+  // over another kind's button, its slider takes the place, unless the one there is held or pinned: a pinned slider
+  // stays while the pointer crosses the other buttons, and gives way only to a click on another
+  if (over && over !== shownSlider() && !sliding() && !pinned) openSlider(over);
   // decided after opening: the slider just opened waits on as the pointer rests on its button
   const shown = shownSlider();
   if (sliding() || pinned || amongControls(p, shown && SLIDERS[shown].el)) sliderState.until = T + SLIDER_LINGER;
@@ -2403,14 +2437,11 @@ document.addEventListener('wheel', (e) => {
 const fadeKey = () => (fullscreenFaded ? 'fullscreenFade' : 'fade');
 let opacityShown = 1;
 /**
- * The body and its bubbles at the transparency on screen (pet.css --pet-opacity), opaque while the person deals with
- * Coo: the typing box, a question, a dialog or a confirmation open, or the body held. The transparency slider showing
- * keeps the value it sets in view. A tab draws the body opaque.
+ * The body at the transparency on screen (pet.css --pet-opacity), whatever it does: talking, asking, held or with the
+ * typing box open. The bubbles and the controls never take it. A tab draws the body opaque.
  */
 function stepFade() {
-  const showing = shownSlider() === 'fade';
-  const engaged = (!!item && item.kind !== 'say') || !!at()?.pressing;
-  const o = !host || (engaged && !showing) ? 1 : 1 - prefs[fadeKey()] / 100;
+  const o = !host ? 1 : 1 - prefs[fadeKey()] / 100;
   if (o === opacityShown) return;
   opacityShown = o;
   document.documentElement.style.setProperty('--pet-opacity', String(o));
@@ -2588,10 +2619,10 @@ stage.addEventListener('pointerdown', (e) => {
 });
 const up = (e) => { pressing = false; body?.pointer('up', { x: e?.clientX ?? lastPointer.x, y: e?.clientY ?? lastPointer.y, t: e?.timeStamp ?? performance.now() }); stage.style.cursor = ''; };
 /**
- * Most milliseconds a drop on another display waits for the page to take the window's new size
+ * Most milliseconds a move onto another display waits for the page to take the window's new size
  * (within a pixel: fractional scales round it). The size normally arrives a frame or two after
  * the move; the cap ends the wait when the window settled at some other size, and the pet then
- * drops inside whatever size the page has.
+ * stays inside whatever size the page has.
  */
 const RESIZE_WAIT_MS = 1000;
 /** Waits until the page has the window size `to` gives, or RESIZE_WAIT_MS has passed, then lays the stage out again. */
@@ -2603,6 +2634,29 @@ async function settleSize(to) {
   body?.set({ bounds: bounds() });
 }
 const outside = (p) => p.x < 0 || p.y < 0 || p.x >= innerWidth || p.y >= innerHeight;
+/**
+ * Moves the window onto the display under the cursor and returns what `followCursor` gives, or null when the
+ * cursor is over the window's own display. The page draws blank from before the move until it has the new size:
+ * a frame drawn in the old display's coordinates after the move shows at the new place. `moved(to)` runs as
+ * soon as the window has moved, `settled(to)` once the page has the new size; the page shows again after it.
+ */
+async function moveToCursorDisplay(moved, settled) {
+  if (!(await host.cursorElsewhere().catch(() => false))) return null;
+  // opacity keeps the held stage under the pointer: with visibility hidden it misses the moves and the release
+  document.body.style.opacity = '0';
+  try {
+    // the blank frame is on screen before the window moves
+    for (let i = 0; i < 2; i++) await new Promise((r) => requestAnimationFrame(r));
+    const to = await host.followCursor().catch(() => null);
+    if (!to) return null;
+    moved?.(to);
+    await settleSize(to);
+    settled?.(to);
+    return to;
+  } finally {
+    document.body.style.opacity = '';
+  }
+}
 /** A move of the window onto the display under the cursor, while one is under way. */
 let following = null;
 /** True from asking for that move until the drag has shifted into the new coordinates. */
@@ -2614,31 +2668,16 @@ let shifting = false;
 function followDrag(p) {
   if (following || at()?.mode !== 'drag' || !host?.followCursor || !outside(p)) return;
   shifting = true;
-  following = (async () => {
-    const to = await host.followCursor().catch(() => null);
-    shifting = false;
-    if (!to) return;
-    body?.shift(to.dx, to.dy);
-    await settleSize(to);
-  })().finally(() => { following = null; shifting = false; });
+  following = moveToCursorDisplay((to) => { shifting = false; body?.shift(to.dx, to.dy); })
+    .finally(() => { following = null; shifting = false; });
 }
 stage.addEventListener('pointerup', async (e) => {
   // the window was moving under the cursor: the release point is in the coordinates it left behind
   if (following) { await following; up(); return; }
   if (!outside({ x: e.clientX, y: e.clientY }) || at()?.mode !== 'drag' || !host?.followCursor) { up(e); return; }
   // let go of past the window's edge in one move: over another display the window follows and the pet drops there
-  const to = await host.followCursor().catch(() => null);
-  if (!to) { up(e); return; }
-  pressing = false;
-  stage.style.cursor = '';
-  // until the drop the body and bubbles still stand in the old display's coordinates
-  document.body.style.visibility = 'hidden';
-  try {
-    await settleSize(to);
-    body?.drop({ x: to.x, y: to.y });
-  } finally {
-    document.body.style.visibility = '';
-  }
+  const to = await moveToCursorDisplay(() => { pressing = false; stage.style.cursor = ''; }, (to) => body?.drop({ x: to.x, y: to.y }));
+  if (!to) up(e);
 });
 stage.addEventListener('pointercancel', up);
 document.addEventListener('pointerleave', () => { cursor.at = null; body?.pointer('leave', {}); });
@@ -2704,7 +2743,7 @@ function placeTalk(it, a) {
 }
 
 /** Milliseconds a group of controls let go of glides back to its place (`.returning` in pet.css), and a margin. */
-const RETURN_MS = 260;
+const RETURN_MS = () => cssMs(document.documentElement, '--return-time', 260);
 /** Whether each group of controls was held last frame, and the timers that end its glide back. */
 const heldGroups = new WeakMap(), returning = new WeakMap();
 /**
@@ -2717,11 +2756,11 @@ function follow(els, pointed, place) {
   const was = heldGroups.get(els[0]) ?? false;
   heldGroups.set(els[0], pointed);
   if (pointed) return;
-  if (was && !reducedMotion?.matches) {
+  if (was && !lowMotion()) {
     for (const el of els) {
       el.classList.add('returning');
       clearTimeout(returning.get(el));
-      returning.set(el, setTimeout(() => el.classList.remove('returning'), RETURN_MS + 60));
+      returning.set(el, setTimeout(() => el.classList.remove('returning'), RETURN_MS() + 60));
     }
   }
   place();
@@ -2770,7 +2809,8 @@ function placeLines(a, box, dt) {
   const W = innerWidth, size = prefs.bubbleSize, gap = LINES_GAP * size;
   const cx = box ? box.left + box.bw / 2 : a.x;
   let bottom = box ? box.top - gap : a.y - LINES_UP * size;
-  const k = dt > 0 ? Math.min(1, dt * 12) : 1;
+  // at low motion the stack takes its places at once
+  const k = dt > 0 && !lowMotion() ? Math.min(1, dt * 12) : 1;
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i], el = line.el;
     el.classList.toggle('older', i !== lines.length - 1);
@@ -2918,6 +2958,7 @@ function frame(steps, now, last) {
       stepWheel();
       stepSlider();
       stepFade();
+      stepLend();
       layout(dt);
       stepInputShape();
       // the frame's own time, so the layer shows frames as far apart as they were drawn

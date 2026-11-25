@@ -611,6 +611,22 @@ describe('with a pet page', () => {
     await expect.poll(() => told).toEqual([true, false, true, false]);
   });
 
+  it("onClickThroughChange: the pet's own button and the tray both turn click-through on and off, each change told once", async () => {
+    const told: boolean[] = [];
+    const { world } = await mounted(undefined, { onClickThroughChange: (on) => { told.push(on); } });
+    const page = await FakePage.open(origin(world));
+    cleanup.push(() => page.close());
+    page.send({ t: 'prefs', clickThrough: true });
+    await page.next((m) => m.t === 'prefs' && m.clickThrough === true);
+    await expect.poll(() => told).toEqual([true]);
+    expect((await world.webUi().invoke!('pet', 'state', []) as { clickThrough: boolean }).clickThrough).toBe(true);
+    // the tray sends the state it already shows: nothing new to tell
+    await world.webUi().invoke!('pet', 'setClickThrough', [true]);
+    await world.webUi().invoke!('pet', 'setClickThrough', [false]);
+    await page.next((m) => m.t === 'prefs' && m.clickThrough === false);
+    expect(told).toEqual([true, false]);
+  });
+
   it('confirm waits a minute from when the page shows it, and three minutes in all while it is not shown', async () => {
     const { world } = await mounted();
     const page = await FakePage.open(origin(world));

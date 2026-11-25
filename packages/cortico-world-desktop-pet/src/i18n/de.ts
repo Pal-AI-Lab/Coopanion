@@ -54,6 +54,14 @@ const de: Translation<PetText> = {
     linuxNoX11: 'Die Tipptaste kann sich nicht mit dem X11-Display verbinden',
     unsupported: 'Die Tipptaste funktioniert nur unter Windows, macOS und Linux',
   },
+  throughPauseKey: {
+    macNoKey: 'Eine Mac-Tastatur hat diese Taste nicht; wähle eine andere Pausetaste fürs Durchlassen',
+    linuxNoKey: 'Linux kann diese Taste nicht lesen (Maus-Seitentasten funktionieren nicht); wähle eine andere Pausetaste fürs Durchlassen',
+    linuxNoDisplay: 'Die Pausetaste fürs Durchlassen braucht unter Linux X11 (oder XWayland): DISPLAY ist nicht gesetzt',
+    linuxNoX11: 'Die Pausetaste fürs Durchlassen kann sich nicht mit dem X11-Display verbinden',
+    unsupported: 'Die Pausetaste fürs Durchlassen funktioniert nur unter Windows, macOS und Linux',
+    sharesTalk: 'Wird wie die Sprechtaste gedrückt: Halten startet auch das Zuhören; ändere eine der beiden',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Windows-Spracherkennung (${culture})` : 'Windows-Spracherkennung'),
@@ -181,7 +189,7 @@ const de: Translation<PetText> = {
     theme: { dark: 'zum Nacht-Look wechseln', light: 'zum Tag-Look wechseln' },
     hover: (list: string) => `die Hover-Schaltflächen auf ${list} ändern`,
     hoverNone: 'alle Hover-Schaltflächen entfernen',
-    actions: { chat: 'Tippen', voice: 'Spracheingabe', roam: 'Herumlaufen', theme: 'Nachtmodus', sound: 'Töne', size: 'Größe', fade: "Transparenz", dress: 'Outfit', cua: "Computersteuerung", hide: 'Haustier ausblenden', worlds: 'Meine Worlds' },
+    actions: { chat: 'Tippen', voice: 'Spracheingabe', roam: 'Herumlaufen', theme: 'Nachtmodus', sound: 'Töne', size: 'Größe', fade: "Transparenz", dress: 'Outfit', cua: "Computersteuerung", hide: 'Haustier ausblenden', through: 'Klicks durchlassen', worlds: 'Meine Worlds' },
     user: (to: string) => `dich „${to}“ nennen`,
   },
 
@@ -242,7 +250,8 @@ const de: Translation<PetText> = {
     glow: { title: 'Leuchtrand', description: 'Wie viele Pixel der helle Schein um das Haustier reicht, wenn Coos Farben dem Hintergrund ähneln; 0 schaltet ihn aus.' },
     frameRate: { title: 'Bildrate', description: 'Bilder pro Sekunde, während das Haustier läuft, getragen wird oder springt; 0 folgt dem Bildschirm. Über der Bildwiederholrate des Bildschirms gilt die des Bildschirms. Die Seite Gewohnheiten bietet 60, 120, 144 und Unbegrenzt.' },
     lockFrameRate: { title: 'Bildrate fixieren', description: 'Zeichnet das Haustier auch im Ruhezustand mit der Bildrate. Wenn aus, sinkt sie im Stehen, Sitzen oder Schlafen auf 30 Bilder pro Sekunde.' },
-    fade: { title: "Transparenz", description: "Wie durchsichtig das Haustier und seine Blasen sind: 0 ist deckend, höchstens 95 %, in Schritten von 5 %. Solange das Eingabefeld, eine Frage oder eine Bestätigung offen ist und solange das Haustier getragen wird, ist es deckend." },
+    motion: { title: "Bewegung", description: "Wie viel sich die Oberfläche bewegt, im Einstellungsfenster und im Haustierfenster: system folgt der Systemeinstellung für reduzierte Bewegung (low, wenn sie weniger verlangt, sonst high), low behält nur Farbwechsel und Ladeanzeigen, medium lässt Federn und Zierbewegungen weg, high behält alles. Coos eigene Bewegung bleibt davon unberührt; siehe roam." },
+    fade: { title: "Transparenz", description: "Wie durchsichtig das Haustier ist: 0 ist deckend, höchstens 95 %, in Schritten von 5 %." },
     hideWhenFullscreen: { title: 'Bei Vollbild ausblenden', description: 'Wenn an, versteckt sich das Haustier, solange das Fenster im Vordergrund Coos Bildschirm füllt (ein Spiel, ein Vollbildvideo, ein Browser im Vollbild), und kommt zurück, wenn das Vollbild endet; ein maximiertes Fenster zählt nicht. Wenn aus, bleibt Coo immer im Vordergrund.' },
     passWhenFullscreen: { title: "Bei Vollbild Klicks durch Coo durchlassen", description: "Wenn an, bleibt Coo sichtbar, solange das Fenster im Vordergrund Coos Bildschirm füllt, und jeder Klick geht durch Coo an das Fenster darunter, bis das Vollbild endet; ein maximiertes Fenster zählt nicht. Ist „Bei Vollbild ausblenden“ auch an, versteckt sich Coo." },
     fadeWhenFullscreen: { title: "Bei Vollbild verblassen", description: "Wenn an, gilt die Transparenz bei Vollbild statt der üblichen, solange das Fenster im Vordergrund Coos Bildschirm füllt, bis das Vollbild endet; ein maximiertes Fenster zählt nicht." },

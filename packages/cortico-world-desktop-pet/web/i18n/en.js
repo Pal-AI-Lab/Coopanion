@@ -65,6 +65,8 @@ export default {
   'action.dress': 'Dress up',
   'action.worlds': 'My Worlds',
   'action.hide': 'Hide the pet (show Coo again from the tray icon)',
+  'action.throughOn': 'Click-through: on · click to turn off',
+  'action.throughOff': 'Click-through: off · click to turn on (turn it off from the tray menu, or hold the click-through pause key and click here)',
   'menu.cancel': 'Cancel',
   'menu.resume': 'Resume',
   'menu.pause': 'Pause',
